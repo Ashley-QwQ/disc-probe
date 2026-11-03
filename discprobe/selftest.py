@@ -124,6 +124,25 @@ def _ladder(c: Checker):
                         f"chi2/dof {res['chi2_per_dof']:.2f})")
 
 
+def _ladder_abort(c: Checker):
+    print("ladder stops on a wrong whole-turn count")
+    from .geo import Ladder
+
+    class OffByOneTurn(Ladder):
+        def _add(self, m, predicted_deg):
+            if len(self.targets) == 5:      # sixth rung: pretend the prediction picked the wrong turn
+                predicted_deg += 360.0
+            super()._add(m, predicted_deg)
+
+    sim = SimDrive(mode="cav", seed=7, reread_delay_ms=35.0)
+    lad = OffByOneTurn(sim, speed_kbs=None, reps=16, max_targets=10, log=lambda *_: None)
+    try:
+        lad.run()
+        c.check(False, "a one-turn error was not detected")
+    except RuntimeError as e:
+        c.check("whole-turn" in str(e), f"stopped after {len(lad.targets)} rungs: {str(e)[:60]}...")
+
+
 def _disexport(c: Checker):
     print("DiscImageStudio preset export")
     from .disexport import fit_preset
@@ -150,6 +169,7 @@ def run() -> bool:
         print("ladder check skipped (needs numpy)")
     else:
         _ladder(c)
+        _ladder_abort(c)
         _disexport(c)
     try:
         from . import scan_selftest

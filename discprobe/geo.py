@@ -37,6 +37,8 @@ from .calscan import _dtheta, _report
 from .timing import TimingProbe
 
 SAFE_DEG = 25.0
+TURN_ABORT_DEG = 90.0       # any rung this far from the refit means a likely whole-turn error
+CHI2_ABORT = 25.0           # healthy runs: 0.3-2 simulated, 0.27-0.64 on real discs
 MIN_SIGMA_DEG = 0.2         # floor on a target's phase uncertainty (systematics)
 # Reference period must match the settled one this closely. Each block's phases use
 # that block's own period fit, so this only rejects blocks where the speed jumped. The
@@ -264,6 +266,13 @@ class Ladder:
             self.log(f"  rung {len(self.targets):2d}: LBA {lba:>8} predicted +/- {sig[lba]:6.2f} deg, "
                      f"whole turns {round((t['unwrapped_deg']) / 360):>7}, residual {t['residual_deg']:+7.3f} deg, "
                      f"chi2/dof {self.chi2_dof:.2f}")
+            # A wrong whole-turn count is partly absorbed by u and v, so the new rung itself can
+            # look fine; it shows as an exploding chi2 and large residuals elsewhere. Stop rather
+            # than fit through it (simulated: chi2/dof jumps from ~1 to ~360 at the bad rung).
+            worst = max(abs(x["residual_deg"]) for x in self.targets)
+            if self.chi2_dof > CHI2_ABORT or worst > TURN_ABORT_DEG:
+                raise RuntimeError(f"after the rung at LBA {lba}: chi2/dof {self.chi2_dof:.1f}, worst residual "
+                                   f"{worst:.1f} deg; a whole-turn count is probably wrong, so the fit was stopped")
         return self.result()
 
     def result(self) -> dict:
