@@ -91,6 +91,23 @@ class Ladder:
         g = np.array([du - du0, dv - dv0, 1.0])
         return math.degrees(math.sqrt(max(float(g @ self.cov @ g), 0.0)))
 
+    def _span_variance_after(self, lba: int) -> float:
+        """Variance of the accumulated angle across the readable range if lba were measured
+        next with the typical per-rung uncertainty (rank-one covariance update)."""
+        lo = self._n_end(min(a for a, _ in self.ranges))
+        hi = self._n_end(max(b for _, b in self.ranges) - 16)
+        du_lo, dv_lo = _dtheta(lo, self.u, self.v)
+        du_hi, dv_hi = _dtheta(hi, self.u, self.v)
+        g = np.array([du_hi - du_lo, dv_hi - dv_lo, 0.0])
+        n = self._n_end(lba)
+        du, dv = _dtheta(n, self.u, self.v)
+        du0, dv0 = _dtheta(self.n_ref, self.u, self.v)
+        h = np.array([du - du0, dv - dv0, 1.0])
+        s2 = math.radians(float(np.median([t["sigma_deg"] for t in self.targets]))) ** 2
+        ch = self.cov @ h
+        cov = self.cov - np.outer(ch, ch) / (s2 + h @ ch)
+        return float(g @ cov @ g)
+
     def _allowed(self, lba: int) -> int | None:
         """Nearest block-aligned LBA inside the readable ranges."""
         best = None
@@ -250,7 +267,16 @@ class Ladder:
                 break
             sig = {c: self._sigma_pred_deg(self._n_end(c)) for c in cands}
             safe = [c for c in cands if sig[c] < SAFE_DEG]
-            if safe:
+            if safe and len(safe) == len(cands):
+                # Reach is no longer the limit. Most rungs go where they shrink the uncertainty
+                # of the angle across the whole range the most (that favours the ends); every
+                # third fills the widest gap, so the middle is checked too (the first real run
+                # left 34.6-42.6 and 44-49 mm empty).
+                if len(self.targets) % 3 == 0:
+                    lba = max(safe, key=lambda c: min(abs(c - t) for t in tried | {self.ref}))
+                else:
+                    lba = min(safe, key=self._span_variance_after)
+            elif safe:
                 lba = max(safe, key=lambda c: abs(self._n_end(c) - self.n_ref))
             else:
                 lba = min(cands, key=lambda c: sig[c])
