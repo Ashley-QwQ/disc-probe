@@ -18,4 +18,6 @@
 | `figures/ladder_residuals.png` | 两次梯子测量每一级的残差 |
 | `figures/preset_comparison.png` | DiscImageStudio 社区预设 `ritek-dvd-r-e-series`（独立的拍照标定）与我们结果的角度差：不加修正 0.294°，加修正 0.083° 峰峰值 |
 | `figures/grid1_scan_*` | grid1 扫描的高通处理图，以及字母 F 的局部放大 |
+| `figures/grid_design.png` | 网格测试图的设计（从数据面看） |
+| `figures/grid2_scan_highpass.jpg` | grid2（加修正、另一张新盘）扫描的高通处理图 |
 | `figures/rings_scan_unrolled.png` | 纹理环盘扫描按（半径，角度）展开 |
