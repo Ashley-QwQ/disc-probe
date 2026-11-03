@@ -2,6 +2,12 @@
 
 用来回答一个问题：光驱自己能不能测出盘面的螺旋几何（扇区 N 的转角 θ(N)），从而替代拍照标定。光驱部分只依赖 Python 3.10+ 标准库，通过 Windows SPTI 直接发 MMC 命令。另有三套配合平板扫描仪的工具（见文末），需要 numpy 和 Pillow：一套是"辐条盘"，给光驱计时法提供真值；一套是"纹理环测试盘"，用来找灰阶；还有一套"多假设标定盘"，用两张盘直接测出几何参数。
 
+安装依赖（计时测量的 `geo`、刻图、扫描分析需要 numpy 和 Pillow；导出 DiscImageStudio 预设的 `disexport` 另需 SciPy）：
+
+```bash
+python -m pip install numpy pillow scipy
+```
+
 ## 安全
 
 - 只发送读类命令。`discprobe/scsi.py` 里有一份白名单，白名单之外的操作码在到达设备前就被拒绝，任何写入、封盘、格式化命令都发不出去。self-test 会验证 WRITE、CLOSE TRACK、FORMAT UNIT 确实被拒。

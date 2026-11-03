@@ -12,6 +12,7 @@
 | `gridscan/grid2_*` | 加角度修正、另一张新盘，4 张扫描 |
 | `angle_correction.json` | 由 grid1 拟合出的修正曲线 φ(r)（四次多项式） |
 | `dis_preset_ritekf1.json` | 把计时结果加角度修正，拟合成 DiscImageStudio 的 DVD 预设（三次轨距），附转换残差：在 25.8–54.4 mm 内，与实测角度映射的最大差 0.011°、RMS 0.0036°。用精确弧长公式独立复核，最大差 0.011° |
+| `check_export.py` | 不依赖 `disexport`，用精确弧长独立复核导出预设，也把社区预设与我们的结果对照（`python evidence/check_export.py`） |
 | `ringscan/` | 纹理环盘扫描后各纹理的亮度等级（`--refs A5,B9`） |
 | `figures/bending_before_after.png` | grid1 与 grid2 的 φ(r)：0.31° → 0.14° 峰峰值 |
 | `figures/ladder_residuals.png` | 两次梯子测量每一级的残差 |
