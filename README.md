@@ -376,6 +376,15 @@ python -m discprobe geo --drive H:
 - [`docs/KNOWLEDGE.md`](docs/KNOWLEDGE.md)：方法原理、硬件实测、踩过的坑、结论。
 - [`evidence/`](evidence/README.md)：原始测量数据和图，可复现。
 
+## 前人工作
+
+用读取计时测扇区角度，并不是这里首创：
+- 光盘防拷里的 DPM（Data Position Measurement），SecuROM 4 及以后的版本都在用；
+- redump 论坛 2025 年讨论过用 FUA 反复重读同一扇区来测一整圈的时间；
+- 飞利浦专利 US7538787B2《在光盘上写入标签的方法》（优先权 2002 年，2017 年失效）已经描述了同样的思路用于在数据区刻可见标签：记录 ECC 块读完的时间戳、用重复读取求转动周期、跳跃距离逐轮加倍。
+
+本仓库的贡献在于：在普通消费级光驱上可复现的开源实现，处理了实机的各种问题，用协方差驱动的逐级测量加不确定度估计，做了实盘网格验证和跨盘修正，并能导出 DiscImageStudio 预设。
+
 ## 许可
 
 Copyright (C) 2026 Ashley-QwQ
