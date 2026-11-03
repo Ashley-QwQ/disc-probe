@@ -130,3 +130,39 @@ def analyse(path: str, design: np.ndarray, out_dir: str, dpi: float = 600.0, r_m
         f"trend {summary['trend_over_25_55_mm_deg']} deg over 25-55 mm, noise/ring {summary['noise_per_ring_deg']} deg")
     summary["_radii"], summary["_rel"], summary["_good"] = radii, rel, good
     return summary
+
+
+def fit_correction(phi_csvs: list[str], out_path: str, degree: int = 4, r_lo: float = 25.5,
+                   r_hi: float = 55.5, geometry: str | None = None) -> dict:
+    """Fit phi(r) over several grid scans into an angle-correction file for `image --correction`.
+
+    Each scan's curve is zeroed by its own median (its overall rotation is arbitrary),
+    rings more than 1 degree off are dropped as mis-peaks, the polynomial in
+    x = (r - 40) / 15 is fitted, and points beyond 4 robust sigma are rejected once.
+    """
+    rs, ps = [], []
+    for path in phi_csvs:
+        with open(path, encoding="utf-8") as fh:
+            rows = [r for r in csv.DictReader(fh) if r["good"] == "1"]
+        r = np.array([float(x["radius_mm"]) for x in rows])
+        p = np.array([float(x["phi_rel_deg"]) for x in rows])
+        p = p - np.median(p)
+        keep = np.abs(p) < 1.0
+        rs.append(r[keep])
+        ps.append(p[keep])
+    r, p = np.concatenate(rs), np.concatenate(ps)
+    x = (r - 40.0) / 15.0
+    coef = np.polyfit(x, p, degree)
+    res = p - np.polyval(coef, x)
+    keep = np.abs(res) < 4 * np.median(np.abs(res)) * 1.4826
+    coef = np.polyfit(x[keep], p[keep], degree)
+    res = p[keep] - np.polyval(coef, x[keep])
+    out = {"kind": "angle-correction",
+           "meaning": "a byte placed at model angle theta appears at theta + phi(r) (degrees, counter-clockwise "
+                      "in data-side view); draw with the design sampled at theta + phi(r)",
+           "radius_valid_mm": [r_lo, r_hi], "poly_in_x": [float(c) for c in coef], "x": "(r_mm - 40) / 15",
+           "source": [os.path.basename(pth) for pth in phi_csvs], "geometry": geometry,
+           "points_used": int(keep.sum()), "residual_rms_deg": float(np.sqrt(np.mean(res ** 2)))}
+    with open(out_path, "w", encoding="utf-8") as fh:
+        json.dump(out, fh, indent=2)
+    return out

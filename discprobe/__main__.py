@@ -279,6 +279,13 @@ def cmd_gridscan(args):
         print(f"  phi.csv and summary.json: {os.path.abspath(out)}")
 
 
+def cmd_correction(args):
+    from .gridscan import fit_correction
+    c = fit_correction(args.phi, args.output, degree=args.degree, geometry=args.geo)
+    print(f"{c['points_used']} rings from {len(args.phi)} scans, fit residual rms {c['residual_rms_deg']:.4f} deg")
+    print(f"Angle correction: {os.path.abspath(args.output)}  (use with image --correction)")
+
+
 def cmd_random(args):
     from .randomdisc import write_iso
     print(f"Writing {os.path.abspath(args.output)}: {args.sectors} sectors of seeded random data")
@@ -434,6 +441,13 @@ def main(argv=None):
     sp.add_argument("--auto-mirror", action="store_true", help="let the (weak) mirror test decide orientation")
     sp.add_argument("--out", default="results")
     sp.set_defaults(func=cmd_gridscan)
+
+    sp = sub.add_parser("correction", help="fit an angle-correction curve from gridscan phi.csv files")
+    sp.add_argument("phi", nargs="+", help="phi.csv files written by gridscan")
+    sp.add_argument("--output", default="angle_correction.json")
+    sp.add_argument("--degree", type=int, default=4)
+    sp.add_argument("--geo", help="summary.json of the geo run the grid disc was burned with (recorded only)")
+    sp.set_defaults(func=cmd_correction)
 
     sp = sub.add_parser("random", help="write a random-data ISO for full-disc timing calibration")
     sp.add_argument("--output", default="iso/random.iso")
