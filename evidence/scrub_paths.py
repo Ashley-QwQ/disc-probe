@@ -32,7 +32,7 @@ for p in glob.glob(os.path.join(here, "**", "*.json"), recursive=True):
         changed += 1
 leftover = []
 for p in glob.glob(os.path.join(here, "**", "*.*"), recursive=True):
-    if "blind" in p.lower() or p.endswith(".py"):
+    if "blind" in p.lower() or p.endswith((".py", ".png", ".jpg")):
         continue
     with open(p, encoding="utf-8", errors="ignore") as f:
         if re.search(r"Administrator|ADMINI~1|[A-Za-z]:[\\/]", f.read()):

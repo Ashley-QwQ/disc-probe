@@ -286,6 +286,17 @@ def cmd_correction(args):
     print(f"Angle correction: {os.path.abspath(args.output)}  (use with image --correction)")
 
 
+def cmd_disexport(args):
+    from .disexport import export
+    out = export(args.geo, args.sectors, args.correction, args.output, args.r_min, args.r_max, args.id, args.name)
+    f = out["fit"]
+    print(f"inner {f['innerRadiusMm']:.9f} mm, outer {f['outerRadiusMm']:.9f} mm, pitch shape "
+          f"{f['pitchLinear']:.3e} {f['pitchQuadratic']:.3e} {f['pitchCubic']:.3e}")
+    print(f"angle difference to the measured map over {f['fit_range_mm'][0]}-{f['fit_range_mm'][1]} mm: "
+          f"max {f['max_angle_diff_deg']:.4f} deg, rms {f['rms_angle_diff_deg']:.4f} deg")
+    print(f"DiscImageStudio preset object in {os.path.abspath(args.output)} (key 'preset')")
+
+
 def cmd_random(args):
     from .randomdisc import write_iso
     print(f"Writing {os.path.abspath(args.output)}: {args.sectors} sectors of seeded random data")
@@ -448,6 +459,17 @@ def main(argv=None):
     sp.add_argument("--degree", type=int, default=4)
     sp.add_argument("--geo", help="summary.json of the geo run the grid disc was burned with (recorded only)")
     sp.set_defaults(func=cmd_correction)
+
+    sp = sub.add_parser("disexport", help="fit the measured angle map as a DiscImageStudio DVD preset (cubic pitch)")
+    sp.add_argument("--geo", required=True, help="summary.json of a geo run")
+    sp.add_argument("--correction", help="angle-correction file from the correction command")
+    sp.add_argument("--sectors", type=int, default=2298496, help="totalSectors of the preset (disc capacity)")
+    sp.add_argument("--r-min", type=float, default=25.8, help="fit range: use the measured span")
+    sp.add_argument("--r-max", type=float, default=54.4)
+    sp.add_argument("--id", default="discprobe-dvd-r")
+    sp.add_argument("--name", default="DVD-R (drive-timing calibration)")
+    sp.add_argument("--output", default="dis_preset.json")
+    sp.set_defaults(func=cmd_disexport)
 
     sp = sub.add_parser("random", help="write a random-data ISO for full-disc timing calibration")
     sp.add_argument("--output", default="iso/random.iso")

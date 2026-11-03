@@ -124,6 +124,16 @@ def _ladder(c: Checker):
                         f"chi2/dof {res['chi2_per_dof']:.2f})")
 
 
+def _disexport(c: Checker):
+    print("DiscImageStudio preset export")
+    from .disexport import fit_preset
+    u, v = 24.06 / 133.3e-6, 0.7453e-3 / 133.3e-6
+    f = fit_preset(u, v, 133.3, 2298496, 25.8, 54.4)
+    c.check(f["max_angle_diff_deg"] < 0.005 and max(abs(f["pitchLinear"]), abs(f["pitchQuadratic"]), abs(f["pitchCubic"])) < 1e-7
+            and abs(f["innerRadiusMm"] - 24.06) < 1e-5,
+            f"constant-pitch map exports with ~zero cubic terms, max angle difference {f['max_angle_diff_deg']:.4f} deg")
+
+
 def run() -> bool:
     c = Checker()
     _parsers(c)
@@ -140,6 +150,7 @@ def run() -> bool:
         print("ladder check skipped (needs numpy)")
     else:
         _ladder(c)
+        _disexport(c)
     try:
         from . import scan_selftest
     except ImportError as e:
