@@ -67,7 +67,7 @@ class Plot:
             self.d.line(pts, fill=colour, width=width)
 
     def legend(self, text, colour):
-        x = W - PAD_R - 420
+        x = W - PAD_R - 480
         self.d.rectangle([x, self.legend_y - 6, x + 24, self.legend_y + 6], fill=colour)
         self.d.text((x + 34, self.legend_y), text, fill="black", font=font(17), anchor="lm")
         self.legend_y += 26
@@ -103,18 +103,24 @@ def binned(curves, lo=25, hi=56, step=2.0):
 def fig_bending():
     g1 = [read_phi(os.path.join(HERE, "gridscan", f"grid1_scan{i}.phi.csv")) for i in range(1, 7)]
     g2 = [read_phi(os.path.join(HERE, "gridscan", f"grid2_scan{i}.phi.csv")) for i in range(1, 5)]
+    g3 = [read_phi(os.path.join(HERE, "gridscan", f"grid3_scan{i}.phi.csv")) for i in range(1, 9)]
     pl = Plot("Grid test discs: picture rotation vs radius (flat = undistorted)",
               "radius (mm)", "rotation (deg)", (25, 56), (-0.3, 0.3))
     for r, p in g1:
         pl.points(r, p - np.median(p), (170, 200, 235), 2)
     for r, p in g2:
         pl.points(r, p - np.median(p), (245, 185, 185), 2)
+    for r, p in g3:
+        pl.points(r, p - np.median(p), (180, 225, 180), 2)
     m1, b1 = binned(g1)
     m2, b2 = binned(g2)
+    m3, b3 = binned(g3)
     pl.line(m1, b1, COLOURS[0])
     pl.line(m2, b2, COLOURS[1])
-    pl.legend(f"grid 1, timing only: {np.nanmax(b1) - np.nanmin(b1):.2f} deg p-p (6 scans)", COLOURS[0])
-    pl.legend(f"grid 2, + angle correction: {np.nanmax(b2) - np.nanmin(b2):.2f} deg p-p (4 scans)", COLOURS[1])
+    pl.line(m3, b3, COLOURS[2])
+    pl.legend(f"grid 1, first timing run: {np.nanmax(b1) - np.nanmin(b1):.2f} deg p-p (6 scans)", COLOURS[0])
+    pl.legend(f"grid 2, + scan correction: {np.nanmax(b2) - np.nanmin(b2):.2f} deg p-p (4 scans)", COLOURS[1])
+    pl.legend(f"grid 3, re-measured timing only: {np.nanmax(b3) - np.nanmin(b3):.2f} deg p-p (8 scans)", COLOURS[2])
     pl.save("bending_before_after.png")
 
 
