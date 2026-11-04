@@ -1,20 +1,20 @@
 <#
-Burn a 2048-byte-sector ISO with a chosen write speed through Windows IMAPI2 (the API
-behind isoburn.exe, which cannot pick a speed). Nothing to install.
+Burn an ISO image with Windows' own IMAPI2 at a chosen write speed (isoburn.exe cannot set one).
 
-  powershell -File tools\burn_imapi.ps1 -Iso D:\disc-probe\iso\rings.iso -SpeedX 4
-  powershell -File tools\burn_imapi.ps1 -ListSpeeds
+Without -Burn it only reports the recorder, the media, its blank state and the supported write
+speeds, and writes nothing. With -Burn it writes the image as one closed session at the
+requested speed (the drive may round it to a supported one).
 
--SpeedX is in DVD units (1x = 1,385,000 bytes/s) for DVD media and CD units
-(1x = 176,400 bytes/s of audio, 75 sectors/s) for CD media. The disc is closed after
-writing. The drive may still choose its own strategy; the script reports the average
-speed it actually achieved.
+  powershell -ExecutionPolicy Bypass -File tools\burn_imapi.ps1 -Drive H: -Iso iso\x.iso
+  powershell -ExecutionPolicy Bypass -File tools\burn_imapi.ps1 -Drive H: -Iso iso\x.iso -Speed 8 -Burn
+
+-Speed is in multiples of the medium's 1x (CD 75 sectors/s, DVD 675 sectors/s).
 #>
 param(
-    [string]$Iso,
     [string]$Drive = "H:",
-    [double]$SpeedX = 4,
-    [switch]$ListSpeeds
+    [string]$Iso,
+    [double]$Speed = 0,
+    [switch]$Burn
 )
 $ErrorActionPreference = "Stop"
 
@@ -22,13 +22,12 @@ Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
-public static class DiscprobeStream {
+public static class IsoStream {
     [DllImport("shlwapi.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
-    static extern void SHCreateStreamOnFileEx(string pszFile, uint grfMode, uint dwAttributes,
-        bool fCreate, IStream pstmTemplate, out IStream ppstm);
-    public static IStream OpenRead(string path) {
+    static extern void SHCreateStreamOnFileEx(string file, uint mode, uint attrs, bool create, IntPtr template, out IStream stream);
+    public static IStream Open(string path) {
         IStream s;
-        SHCreateStreamOnFileEx(path, 0x00000000 | 0x00000020, 0, false, null, out s);  // STGM_READ | STGM_SHARE_DENY_WRITE
+        SHCreateStreamOnFileEx(path, 0x20 /* STGM_READ | STGM_SHARE_DENY_WRITE */, 0, false, IntPtr.Zero, out s);
         return s;
     }
 }
@@ -39,40 +38,45 @@ $recorder = $null
 foreach ($id in $master) {
     $r = New-Object -ComObject IMAPI2.MsftDiscRecorder2
     $r.InitializeDiscRecorder($id)
-    if ($r.VolumePathNames -contains "$Drive\") { $recorder = $r; break }
+    if ($r.VolumePathNames -contains ($Drive.TrimEnd('\') + '\')) { $recorder = $r }
 }
-if (-not $recorder) { throw "no recorder at $Drive" }
-"Recorder: $($recorder.VendorId.Trim()) $($recorder.ProductId.Trim()) $($recorder.ProductRevision.Trim())"
+if (-not $recorder) { throw "no IMAPI2 recorder at $Drive" }
+"Recorder: $($recorder.VendorId.Trim()) $($recorder.ProductId.Trim()) rev $($recorder.ProductRevision) at $Drive"
 
 $fmt = New-Object -ComObject IMAPI2.MsftDiscFormat2Data
+if (-not $fmt.IsRecorderSupported($recorder)) { throw "recorder not supported for data writing" }
 $fmt.Recorder = $recorder
 $fmt.ClientName = "discprobe"
-if (-not $fmt.IsCurrentMediaSupported($recorder)) { throw "the current disc cannot be written by IMAPI2" }
-$isCd = $fmt.CurrentPhysicalMediaType -in 2, 3, 4   # CDROM, CDR, CDRW
-$oneX = if ($isCd) { 75.0 } else { 1385000.0 / 2048.0 }  # sectors per second at 1x
-"Media type $($fmt.CurrentPhysicalMediaType), blank: $($fmt.MediaHeuristicallyBlank), free sectors: $($fmt.FreeSectorsOnMedia)"
-"Supported write speeds:"
-foreach ($d in $fmt.SupportedWriteSpeedDescriptors) {
-    "  {0,6:N1}x  ({1} sectors/s){2}" -f ($d.WriteSpeed / $oneX), $d.WriteSpeed, ($(if ($d.RotationTypeIsPureCAV) { "  pure CAV" } else { "" }))
+if (-not $fmt.IsCurrentMediaSupported($recorder)) { throw "no writable medium in $Drive" }
+
+# IMAPI_MEDIA_PHYSICAL_TYPE: 2 CD-R, 3 CD-RW, 6 DVD+R, 8 DVD-R, ...
+$type = $fmt.CurrentPhysicalMediaType
+$isCd = $type -in 1, 2, 3
+$unit = if ($isCd) { 75 } else { 675 }
+"Media type $type ($(if ($isCd) {'CD'} else {'DVD'})), blank: $($fmt.MediaHeuristicallyBlank), " +
+    "free sectors: $($fmt.FreeSectorsOnMedia), total: $($fmt.TotalSectorsOnMedia)"
+$speeds = @($fmt.SupportedWriteSpeedDescriptors | ForEach-Object {
+    "{0:0.#}x ({1} sectors/s, {2})" -f ($_.WriteSpeed / $unit), $_.WriteSpeed, $(if ($_.RotationTypeIsPureCAV) {'CAV'} else {'CLV/ZCLV'})
+})
+"Supported write speeds: " + ($speeds -join "; ")
+
+if (-not $Iso) { return }
+$path = (Resolve-Path $Iso).Path
+$sectors = (Get-Item $path).Length / 2048
+"Image: $path, $sectors sectors"
+if ($sectors -gt $fmt.FreeSectorsOnMedia) { throw "image is larger than the free space on the medium" }
+if (-not $Burn) { "Dry run: nothing written (add -Burn to write)."; return }
+if (-not $fmt.MediaHeuristicallyBlank) { throw "medium is not blank; refusing to write" }
+
+if ($Speed -gt 0) {
+    $fmt.SetWriteSpeed([int]($Speed * $unit), $false)
 }
-if ($ListSpeeds) { return }
-
-if (-not $Iso -or -not (Test-Path $Iso)) { throw "give -Iso with an existing image" }
-if (-not $fmt.MediaHeuristicallyBlank) { throw "the disc is not blank" }
-$bytes = (Get-Item $Iso).Length
-if ($bytes % 2048 -ne 0) { throw "image size is not a multiple of 2048 bytes" }
-if ($bytes / 2048 -gt $fmt.FreeSectorsOnMedia) { throw "image is larger than the free space on the disc" }
-
-$sps = [int][math]::Round($SpeedX * $oneX)
-$fmt.SetWriteSpeed($sps, $false)
+"Requested write speed: $(if ($Speed -gt 0) {"${Speed}x"} else {'drive default'}); " +
+    "drive reports {0:0.#}x" -f ($fmt.CurrentWriteSpeed / $unit)
 $fmt.ForceMediaToBeClosed = $true
-"Requested {0}x ({1} sectors/s); drive reports current write speed {2} sectors/s ({3:N1}x)" -f `
-    $SpeedX, $sps, $fmt.CurrentWriteSpeed, ($fmt.CurrentWriteSpeed / $oneX)
-
-$stream = [DiscprobeStream]::OpenRead((Resolve-Path $Iso).Path)
+$stream = [IsoStream]::Open($path)
 $t0 = Get-Date
-"Writing $Iso ($([math]::Round($bytes / 1e9, 2)) GB) started $t0"
+"Writing ... (started $($t0.ToString('HH:mm:ss')))"
 $fmt.Write($stream)
-$sec = ((Get-Date) - $t0).TotalSeconds
-"Finished in {0:N0} s: average {1:N2}x including lead-in/out and closing" -f $sec, (($bytes / 2048) / $sec / $oneX)
-[System.Runtime.InteropServices.Marshal]::ReleaseComObject($stream) | Out-Null
+"Done in {0:0.0} min" -f ((Get-Date) - $t0).TotalMinutes
+$recorder.EjectMedia()
