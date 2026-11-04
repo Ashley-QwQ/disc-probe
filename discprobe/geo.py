@@ -52,8 +52,9 @@ MIN_SPACING_SECTORS = 4000  # about a third of a millimetre of radius
 class Ladder:
     def __init__(self, dev, ranges=None, r0_mm=None, pitch_um=None, bit_nm=None, reps=None,
                  max_targets=None, sigma_u=None, sigma_v=None, speed_kbs="default", ref_lba=None,
-                 host_delay_ms=25.0, log=print, seed=1, media="dvd"):
+                 host_delay_ms=25.0, log=print, seed=1, media="dvd", chi2_abort=CHI2_ABORT):
         self.media = media
+        self.chi2_abort = chi2_abort
         is_cd = media == "cd"
         from . import cd
         r0_mm = r0_mm if r0_mm is not None else (cd.R0_MM if is_cd else 24.0)
@@ -334,7 +335,7 @@ class Ladder:
             # look fine; it shows as an exploding chi2 and large residuals elsewhere. Stop rather
             # than fit through it (simulated: chi2/dof jumps from ~1 to ~360 at the bad rung).
             worst = max(abs(x["residual_deg"]) for x in self.targets)
-            if self.chi2_dof > CHI2_ABORT or worst > TURN_ABORT_DEG:
+            if self.chi2_dof > self.chi2_abort or worst > TURN_ABORT_DEG:
                 raise RuntimeError(f"after the rung at LBA {lba}: chi2/dof {self.chi2_dof:.1f}, worst residual "
                                    f"{worst:.1f} deg; a whole-turn count is probably wrong, so the fit was stopped")
         return self.result()

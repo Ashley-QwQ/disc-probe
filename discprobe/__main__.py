@@ -225,7 +225,8 @@ def cmd_geo(args):
     dev = _open(args)
     ladder = Ladder(dev, ranges=ranges, r0_mm=args.r0_mm, pitch_um=args.pitch_um, bit_nm=args.bit_nm,
                     reps=args.reps, max_targets=args.max_targets, ref_lba=args.ref_lba,
-                    speed_kbs=None if args.sim else args.speed, host_delay_ms=args.host_delay_ms, media=args.media)
+                    speed_kbs=None if args.sim else args.speed, host_delay_ms=args.host_delay_ms, media=args.media,
+                    chi2_abort=args.chi2_abort)
     out = _outdir(args, "geo", dev)
     try:
         res = ladder.run()
@@ -517,6 +518,10 @@ def main(argv=None):
     sp.add_argument("--r0-mm", type=float, default=24.0, help="prior geometry (loose)")
     sp.add_argument("--pitch-um", type=float, default=0.74)
     sp.add_argument("--bit-nm", type=float, default=133.3)
+    sp.add_argument("--chi2-abort", type=float, default=25.0,
+                    help="stop when chi2/dof of the constant-pitch fit exceeds this; raise it for media "
+                         "whose pitch varies (CD: a smooth S of a few degrees), the 90-degree residual "
+                         "check still catches whole-turn errors")
     sp.set_defaults(func=cmd_geo)
 
     sp = sub.add_parser("image", help="write a picture ISO placed with a measured geometry (grid test by default)")

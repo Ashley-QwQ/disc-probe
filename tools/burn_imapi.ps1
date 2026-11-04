@@ -9,12 +9,18 @@ requested speed (the drive may round it to a supported one).
   powershell -ExecutionPolicy Bypass -File tools\burn_imapi.ps1 -Drive H: -Iso iso\x.iso -Speed 8 -Burn
 
 -Speed is in multiples of the medium's 1x (CD 75 sectors/s, DVD 675 sectors/s).
+-Reload closes the tray again after the eject (tray-loading drives such as the GH70N), so the
+burned disc can be read straight away.
+
+Closing a CD needs some room beyond FreeSectorsOnMedia: on a 359,847-sector CD-R a 359,800-sector
+image was refused at the start of Write ("stream too large"), 359,600 sectors went through.
 #>
 param(
     [string]$Drive = "H:",
     [string]$Iso,
     [double]$Speed = 0,
-    [switch]$Burn
+    [switch]$Burn,
+    [switch]$Reload
 )
 $ErrorActionPreference = "Stop"
 
@@ -80,3 +86,8 @@ $t0 = Get-Date
 $fmt.Write($stream)
 "Done in {0:0.0} min" -f ((Get-Date) - $t0).TotalMinutes
 $recorder.EjectMedia()
+if ($Reload) {
+    Start-Sleep -Seconds 2
+    $recorder.CloseTray()
+    "Tray closed again."
+}
