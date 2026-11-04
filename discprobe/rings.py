@@ -87,6 +87,9 @@ class RingLayout:
         with open(path, encoding="utf-8") as f:
             d = json.load(f)
         d["textures"] = tuple(d["textures"])
+        if d.get("kind") == "cd-texture-rings":
+            from .cdrings import RingLayout as CdRingLayout
+            return CdRingLayout(**d)
         return cls(**d)
 
 

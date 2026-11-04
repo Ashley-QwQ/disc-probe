@@ -222,6 +222,8 @@ def run() -> bool:
         _disexport(c)
         _efmplus(c)
         _tiles(c)
+        from . import cd_selftest
+        cd_selftest.run(c)
     try:
         from . import scan_selftest
     except ImportError as e:

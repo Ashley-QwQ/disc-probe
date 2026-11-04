@@ -69,7 +69,8 @@ class TimingProbe:
     def __init__(self, dev, log=print, read_method: str = "auto", reps: int = 40,
                  period_reads: int = 60, targets=DEFAULT_TARGETS, ref_fraction: float = 0.05,
                  speed_kbs: int | None = None, pure_cav: bool = False, evict_sectors: int = 1024,
-                 sectors: int = 1, host_delay_ms: float = 25.0, seed: int = 1):
+                 sectors: int = 1, host_delay_ms: float = 25.0, seed: int = 1, media="dvd"):
+        self.media = media
         self.dev = dev
         self.host_delay_s = host_delay_ms / 1e3
         self._rng = random.Random(seed)
@@ -172,6 +173,8 @@ class TimingProbe:
         toc = self._cmd(mmc.read_toc(0), 2048)
         tracks = mmc.parse_toc(toc.data)["tracks"] if toc.ok else []
         audio = bool(tracks) and not tracks[0]["data"]
+        if self.media == "cd" and (self.family != "cd" or audio or self.read_method == "readcd"):
+            raise NoReadableDisc("--media cd requires a CD-ROM Mode 1 data track and READ(12)/READ(10), not READ CD")
         if self.last_lba is None and tracks and tracks[-1]["track"] == 0xAA:
             self.last_lba = tracks[-1]["start_lba"] - 1
         if not self.last_lba or self.last_lba < 1000:
@@ -242,7 +245,7 @@ class TimingProbe:
             times = [r.t_end_ns for r in reads if self._usable(r)]
             fit = analysis.estimate_period(times)
             zone = {"fraction": frac, "lba": lba, "usable": len(times), "durations": duration_stats(reads),
-                    "nominal_radius_mm": round(NOMINAL[self._nominal_key()].radius(lba), 3)}
+                    "nominal_radius_mm": round(self._nominal_spiral().radius(lba), 3)}
             if fit:
                 zone.update(fit.summary())
             zones.append(zone)
@@ -255,6 +258,13 @@ class TimingProbe:
 
     def _nominal_key(self) -> str:
         return self.family if self.family in NOMINAL else "dvd"
+
+    def _nominal_spiral(self):
+        if self.media == "cd":
+            from . import cd
+            from .geometry import Spiral
+            return Spiral(cd.R0_MM, cd.PITCH_UM * 1e-3, cd.SECTOR_BITS * cd.BIT_NM * 1e-6)
+        return NOMINAL[self._nominal_key()]
 
     def _classify(self, zones) -> dict:
         valid = [z for z in zones if z.get("period_ms") and z.get("coherence", 0) > 0.5]
@@ -279,7 +289,7 @@ class TimingProbe:
         for z in getattr(self, "zones", []):
             if z.get("period_ms") and z["fraction"] == min(ZONES, key=lambda f: abs(f - self.ref_fraction)):
                 prior = z["period_ms"] / 1e3
-        spiral = NOMINAL[self._nominal_key()]
+        spiral = self._nominal_spiral()
         results = []
         span = -(-max(self.sectors, 1) // self.block) * self.block  # whole blocks the drive reads
         for frac in self.targets:
@@ -296,6 +306,11 @@ class TimingProbe:
             entry = {"target_fraction": frac, "ref_lba": ref, "target_lba": x, "read_end_lba": x + span,
                      "nominal_turns_between": round(spiral.turns(ref + span, x + span), 2),
                      "target_durations": duration_stats(x_reads)}
+            if self.media == "cd":
+                from .cd import read_end_bits, SECTOR_BITS
+                nr, nx = read_end_bits(ref, self.sectors), read_end_bits(x, self.sectors)
+                entry.update(read_end_bits=int(nx), read_tail_frames=108,
+                             nominal_turns_between=round(spiral.turns(nr / SECTOR_BITS, nx / SECTOR_BITS), 2))
             fit = analysis.estimate_period(ref_times, prior_s=prior) if len(ref_times) >= 5 else None
             if fit and x_times:
                 entry["ref"] = fit.summary()

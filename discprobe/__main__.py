@@ -24,7 +24,7 @@ def _open(args):
         from .sim import SimDrive
         mode, _, variant = args.sim.partition("-")
         return SimDrive(mode=mode, fua_honoured=variant == "", flush_honoured=variant == "flush",
-                        seed=args.seed)
+                        seed=args.seed, media=getattr(args, "media", "dvd"))
     if not args.drive:
         sys.exit("give --drive E: (see `python -m discprobe list`) or --sim cav|clv|cav-nofua")
     from .spti import SptiDevice
@@ -73,7 +73,7 @@ def cmd_timing(args):
     probe = timing.TimingProbe(
         dev, read_method=args.read, reps=args.reps, period_reads=args.period_reads,
         targets=targets, ref_fraction=args.ref, speed_kbs=args.speed, pure_cav=args.cav,
-        evict_sectors=args.evict_sectors, sectors=args.sectors, host_delay_ms=args.host_delay_ms)
+        evict_sectors=args.evict_sectors, sectors=args.sectors, host_delay_ms=args.host_delay_ms, media=args.media)
     try:
         summary = probe.run()
     except timing.NoReadableDisc as e:
@@ -89,7 +89,8 @@ def cmd_timing(args):
                 w.writerows(rows)
         summary = probe.summary
         summary["device"] = getattr(dev, "name", None)
-        summary["args"] = {k: v for k, v in vars(args).items() if k != "func"}
+        summary["args"] = {k: v for k, v in vars(args).items()
+                           if k != "func" and (k != "media" or v != "dvd")}
         _write_json(os.path.join(out, "summary.json"), summary)
         print(f"\nRaw events and summary: {os.path.abspath(out)}")
 
@@ -118,6 +119,8 @@ def cmd_scan(args):
 
 def cmd_rings(args):
     from .rings import RingLayout, describe, verify_iso, write_iso
+    if args.media == "cd":
+        from .cdrings import RingLayout, verify_iso, write_iso
     layout = RingLayout(textures=tuple(t.strip().upper() for t in args.textures.split(",")),
                         groups=args.groups, ring_width_mm=args.ring_width_mm, start_mm=args.start_mm,
                         r0_mm=args.r0_mm, pitch_um=args.pitch_um, bit_nm=args.bit_nm,
@@ -145,12 +148,13 @@ def cmd_ringscan(args):
     from .rings import RingLayout
     from .ringscan import analyse
     layout = RingLayout.load(args.layout)
+    refs = args.refs or ("0D,AA" if layout.kind == "cd-texture-rings" else "A5,92")
     centre = tuple(float(v) for v in args.centre.split(",")) if args.centre else None
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     out = os.path.join(args.out, f"ringscan-{stamp}")
     try:
         analyse(args.images, layout, out, dpi=args.dpi, centre=centre,
-                refs=tuple(t.strip().upper() for t in args.refs.split(',')))
+                refs=tuple(t.strip().upper() for t in refs.split(',')))
     except RuntimeError as e:
         sys.exit(str(e))
     print(f"\nrings.csv, textures.csv, summary.json and unrolled views: {os.path.abspath(out)}")
@@ -221,7 +225,7 @@ def cmd_geo(args):
     dev = _open(args)
     ladder = Ladder(dev, ranges=ranges, r0_mm=args.r0_mm, pitch_um=args.pitch_um, bit_nm=args.bit_nm,
                     reps=args.reps, max_targets=args.max_targets, ref_lba=args.ref_lba,
-                    speed_kbs=None if args.sim else args.speed, host_delay_ms=args.host_delay_ms)
+                    speed_kbs=None if args.sim else args.speed, host_delay_ms=args.host_delay_ms, media=args.media)
     out = _outdir(args, "geo", dev)
     try:
         res = ladder.run()
@@ -240,14 +244,21 @@ def cmd_geo(args):
               f"pitch {res['pitch_um_at_bit']:.6f} um")
         print(f"Angle uncertainty across the measured span {res['measured_span_mm'][0]}-"
               f"{res['measured_span_mm'][1]} mm: {res['angle_sigma_measured_span_deg']:.3f} deg (1 sigma); "
-              f"across 24-58 mm: {res.get('angle_sigma_deg', float('nan')):.2f} deg")
+              f"across {'25' if args.media == 'cd' else '24'}-58 mm: {res.get('angle_sigma_deg', float('nan')):.2f} deg")
     print(f"targets.csv, summary.json, events.csv: {os.path.abspath(out)}")
+    if args.media == "cd" and res is None:
+        sys.exit(1)
 
 
 def cmd_image(args):
     from . import imagedisc
+    writer = imagedisc
+    if args.media == "cd":
+        from . import cdimage as writer
     with open(args.geo, encoding="utf-8") as f:
         fit = json.load(f)["fit"]
+    if args.media == "cd" and fit.get("media") != "cd":
+        sys.exit("CD image needs a CD geometry fit (media=cd); DVD fits must not be reused")
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
     if args.design_npy:
         import numpy as np
@@ -263,18 +274,24 @@ def cmd_image(args):
         design = imagedisc.picture_design(args.picture, args.diameter_mm)
         kind = f"picture {os.path.basename(args.picture)}"
     else:
-        design = imagedisc.grid_design(r_max=args.r_max, line=args.line_mm)
+        design = imagedisc.grid_design(r_min=26.0 if args.media == "cd" else 24.5,
+                                      r_max=args.r_max, line=args.line_mm)
         kind = f"grid, {args.line_mm} mm lines"
-    total = min(imagedisc.sectors_to_radius(u, v, bit, args.r_max + 0.6), 2295104)
+    total = writer.sectors_to_radius(u, v, bit, args.r_max + 0.6)
+    if args.media == "dvd":
+        total = min(total, 2295104)
+    else:
+        from .cd import check_capacity
+        check_capacity(total)
     tex = f"textures {' '.join(args.textures)}" if args.textures else f"dark {args.dark}, light {args.light}"
     print(f"{kind}, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
           f"({total * 2048 / 1e9:.2f} GB), {tex}")
     corr = imagedisc.load_correction(args.correction) if args.correction else None
-    spec = imagedisc.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
+    spec = writer.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
                                meta={"geometry_from": os.path.abspath(args.geo), "design": kind,
                                      "correction": os.path.abspath(args.correction) if args.correction else None},
                                correction=corr, textures=args.textures)
-    problems = imagedisc.verify_iso(args.output, design, u, v, bit, total, args.dark, args.light, correction=corr,
+    problems = writer.verify_iso(args.output, design, u, v, bit, total, args.dark, args.light, correction=corr,
                                     textures=args.textures)
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     prev = os.path.splitext(args.output)[0] + ".preview.png"
@@ -284,15 +301,19 @@ def cmd_image(args):
         from . import tiledisc
         tiledisc.preview(design, args.textures, prev)
     print(f"Spec: {os.path.abspath(spec)}\nPreview (data-side view): {os.path.abspath(prev)}")
+    if args.media == "cd" and problems:
+        sys.exit(1)
 
 
 def cmd_gridscan(args):
     from . import gridscan, imagedisc
-    design = imagedisc.grid_design(r_max=args.r_max, line=args.line_mm)
+    design = imagedisc.grid_design(r_min=26.0 if args.media == "cd" else 24.5,
+                                  r_max=args.r_max, line=args.line_mm)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     for path in args.images:
         out = os.path.join(args.out, f"gridscan-{os.path.splitext(os.path.basename(path))[0]}-{stamp}")
-        gridscan.analyse(path, design, out, dpi=args.dpi, force_mirrored=None if args.auto_mirror else False)
+        kw = {"r_min": 26.5} if args.media == "cd" else {}
+        gridscan.analyse(path, design, out, dpi=args.dpi, force_mirrored=None if args.auto_mirror else False, **kw)
         print(f"  phi.csv and summary.json: {os.path.abspath(out)}")
 
 
@@ -316,27 +337,42 @@ def cmd_disexport(args):
 
 def cmd_tiles(args):
     from . import imagedisc, tiledisc
+    writer = imagedisc
+    if args.media == "cd":
+        from . import cdimage as writer
     with open(args.geo, encoding="utf-8") as f:
         fit = json.load(f)["fit"]
+    if args.media == "cd" and fit.get("media") != "cd":
+        sys.exit("CD tiles need a CD geometry fit (media=cd)")
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
     geo = {"ring_edges_mm": tuple(args.ring_edges), "tile_mm": args.tile_mm, "cols": args.cols,
            "scale_mm": tuple(args.scale) if args.scale else None}
     labels, textures, layout = tiledisc.design(args.palette, **geo)
+    if args.media == "cd":
+        textures = [{"A5": "0D", "92": "AA"}.get(t, t) for t in textures]
+        layout.update(media="cd", id_dark="0D", id_light="AA")
     outer = max(args.ring_edges[-1], args.scale[1] if args.scale else 0)
-    total = min(imagedisc.sectors_to_radius(u, v, bit, outer + 0.6), 2295104)
+    total = writer.sectors_to_radius(u, v, bit, outer + 0.6)
+    if args.media == "dvd":
+        total = min(total, 2295104)
+    else:
+        from .cd import check_capacity
+        check_capacity(total)
     print(f"{sum(layout['sectors_per_ring'])} tiles, palette {' '.join(args.palette)}; geometry u {u:.3f}, "
           f"v {v:.7f} from {args.geo}; {total} sectors ({total * 2048 / 1e9:.2f} GB)")
     corr = imagedisc.load_correction(args.correction) if args.correction else None
     meta = {"geometry_from": os.path.abspath(args.geo), "design": "tile palette target",
             "correction": os.path.abspath(args.correction) if args.correction else None}
-    spec = imagedisc.write_iso(args.output, labels, u, v, bit, total, meta=meta, correction=corr, textures=textures)
-    problems = imagedisc.verify_iso(args.output, labels, u, v, bit, total, correction=corr, textures=textures)
+    spec = writer.write_iso(args.output, labels, u, v, bit, total, meta=meta, correction=corr, textures=textures)
+    problems = writer.verify_iso(args.output, labels, u, v, bit, total, correction=corr, textures=textures)
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     base = os.path.splitext(args.output)[0]
     tiledisc.save_layout({**layout, "textures": textures}, base + ".tiles.json")
     tiledisc.preview(labels, textures, base + ".preview.png")
     print(f"Spec: {os.path.abspath(spec)}\nLayout: {os.path.abspath(base + '.tiles.json')}\n"
           f"Preview (data-side view, false colours): {os.path.abspath(base + '.preview.png')}")
+    if args.media == "cd" and problems:
+        sys.exit(1)
 
 
 def cmd_tilescan(args):
@@ -351,7 +387,7 @@ def cmd_tilescan(args):
 def cmd_random(args):
     from .randomdisc import write_iso
     print(f"Writing {os.path.abspath(args.output)}: {args.sectors} sectors of seeded random data")
-    write_iso(args.output, args.sectors, args.seed)
+    write_iso(args.output, args.sectors, args.seed, media=args.media)
     print("Burn it with any image burner, then run `geo` on it.")
 
 
@@ -435,7 +471,7 @@ def main(argv=None):
     sp.add_argument("images", nargs="+", help="one or more scans (PNG/TIFF, no auto adjustments); "
                                               "rotate the disc between scans for repeats")
     sp.add_argument("--layout", required=True, help="the .rings.json written next to the ISO")
-    sp.add_argument("--refs", default="A5,92", help="dark,bright reference textures defining levels 0 and 1; "
+    sp.add_argument("--refs", help="dark,bright references (DVD A5,92; CD 0D,AA) defining levels 0 and 1; "
                                                     "use the darkest and brightest textures the scan shows")
     sp.add_argument("--dpi", type=float, help="scan resolution if the file does not record it")
     sp.add_argument("--centre", help="approximate disc centre X,Y in pixels if detection fails")
@@ -553,7 +589,32 @@ def main(argv=None):
     sp = sub.add_parser("selftest", help="parser checks and end-to-end runs on the simulated drive and a synthetic scan")
     sp.set_defaults(func=cmd_selftest)
 
+    # Add media only to commands with an implemented CD path. Existing DVD
+    # defaults are retained verbatim; explicit CD options override CD defaults.
+    cd_defaults = {
+        "rings": dict(output="iso/cd-rings.iso", textures="0D,AA,10,63,RND", filler="AA",
+                      r0_mm=25.0, pitch_um=1.6, start_mm=26.0, ring_width_mm=2.0),
+        "random": dict(output="iso/cd-random.iso", sectors=359849),
+        "geo": dict(r0_mm=25.0, pitch_um=1.6, speed=2822, reps=32, max_targets=36),
+        "timing": dict(speed=2822),
+        "image": dict(output="iso/cd-grid.iso", dark="0D", light="AA", line_mm=0.6),
+        "tiles": dict(output="iso/cd-tiles.iso", palette=["0D", "AA", "10", "63", "RND", "0DAA", "00FF", "1063", "0D10AA"]),
+        "gridscan": dict(line_mm=0.6),
+    }
+    for name in cd_defaults:
+        sub.choices[name].add_argument("--media", choices=("dvd", "cd"), default="dvd")
     args = p.parse_args(argv)
+    raw_args = list(sys.argv[1:] if argv is None else argv)
+    if getattr(args, "media", "dvd") == "cd":
+        from .cd import BIT_NM
+        name = raw_args[0]
+        defaults = cd_defaults[name].copy()
+        if name in ("rings", "geo"):
+            defaults["bit_nm"] = BIT_NM
+        supplied = {a.split("=")[0] for a in raw_args if a.startswith("--")}
+        for key, value in defaults.items():
+            if "--" + key.replace("_", "-") not in supplied:
+                setattr(args, key, value)
     args.func(args)
 
 

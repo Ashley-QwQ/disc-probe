@@ -50,9 +50,24 @@ MIN_SPACING_SECTORS = 4000  # about a third of a millimetre of radius
 
 
 class Ladder:
-    def __init__(self, dev, ranges=None, r0_mm=24.0, pitch_um=0.74, bit_nm=133.3, reps=24,
-                 max_targets=22, sigma_u=0.01, sigma_v=0.03, speed_kbs=5540, ref_lba=None,
-                 host_delay_ms=25.0, log=print, seed=1):
+    def __init__(self, dev, ranges=None, r0_mm=None, pitch_um=None, bit_nm=None, reps=None,
+                 max_targets=None, sigma_u=None, sigma_v=None, speed_kbs="default", ref_lba=None,
+                 host_delay_ms=25.0, log=print, seed=1, media="dvd"):
+        self.media = media
+        is_cd = media == "cd"
+        from . import cd
+        r0_mm = r0_mm if r0_mm is not None else (cd.R0_MM if is_cd else 24.0)
+        pitch_um = pitch_um if pitch_um is not None else (cd.PITCH_UM if is_cd else 0.74)
+        bit_nm = bit_nm if bit_nm is not None else (cd.BIT_NM if is_cd else 133.3)
+        reps = reps if reps is not None else (32 if is_cd else 24)
+        max_targets = max_targets if max_targets is not None else (36 if is_cd else 22)
+        sigma_u = sigma_u if sigma_u is not None else (0.08 if is_cd else 0.01)
+        sigma_v = sigma_v if sigma_v is not None else (0.15 if is_cd else 0.03)
+        if speed_kbs == "default":
+            speed_kbs = 2822 if is_cd else 5540
+        self.block = 1 if is_cd else 16
+        self.spacing = 64 if is_cd else MIN_SPACING_SECTORS
+        self.first_turns = (0.5, 1.5) if is_cd else FIRST_TURNS
         self.dev = dev
         self.ranges_arg = ranges
         self.prior = CalLayout(r0_mm=r0_mm, pitch_um=pitch_um, bit_nm=bit_nm)
@@ -63,7 +78,7 @@ class Ladder:
         self.ref_arg = ref_lba
         self.log = log
         self.tp = TimingProbe(dev, log=lambda *_: None, reps=reps, speed_kbs=speed_kbs,
-                              host_delay_ms=host_delay_ms, seed=seed)
+                              host_delay_ms=host_delay_ms, seed=seed, media=media)
         self.targets: list[dict] = []
         self.u, self.v, self.c = self.u0, self.v0, 0.0
         self.cov = None
@@ -72,12 +87,18 @@ class Ladder:
 
     def _n_end(self, lba: int) -> float:
         """Channel bit at the end of the ECC block holding lba (where the read completes)."""
+        if self.media == "cd":
+            from .cd import read_end_bits
+            return float(read_end_bits(lba))
         return float((lba // 16 + 1) * 16 * SECTOR_BITS)
 
     def _lba_at_turns(self, turns: float) -> int:
         th = theta(self.n_ref, self.u, self.v) + 2 * math.pi * turns
         s = self.u + self.v * th / (2 * math.pi)
         n = math.pi * (s * s - self.u * self.u) / self.v
+        if self.media == "cd":
+            from .cd import SECTOR_BITS as CD_BITS, FRAME_BITS, READ_TAIL_FRAMES
+            return int((n - READ_TAIL_FRAMES * FRAME_BITS) // CD_BITS) - 1
         return int(n // SECTOR_BITS) // 16 * 16
 
     def _predict(self, n):
@@ -95,7 +116,7 @@ class Ladder:
         """Variance of the accumulated angle across the readable range if lba were measured
         next with the typical per-rung uncertainty (rank-one covariance update)."""
         lo = self._n_end(min(a for a, _ in self.ranges))
-        hi = self._n_end(max(b for _, b in self.ranges) - 16)
+        hi = self._n_end(max(b for _, b in self.ranges) - self.block)
         du_lo, dv_lo = _dtheta(lo, self.u, self.v)
         du_hi, dv_hi = _dtheta(hi, self.u, self.v)
         g = np.array([du_hi - du_lo, dv_hi - dv_lo, 0.0])
@@ -112,8 +133,8 @@ class Ladder:
         """Nearest block-aligned LBA inside the readable ranges."""
         best = None
         for a, b in self.ranges:
-            x = min(max(lba, a), b - 16)
-            x -= x % 16
+            x = min(max(lba, a), b - self.block)
+            x -= x % self.block
             if best is None or abs(x - lba) < abs(best - lba):
                 best = x
         return best
@@ -206,13 +227,13 @@ class Ladder:
     def _candidates(self) -> list[int]:
         lo = min(a for a, _ in self.ranges)
         hi = max(b for _, b in self.ranges)
-        grid = np.linspace(lo, hi - 16, 40).astype(int)
+        grid = np.linspace(lo, hi - self.block, 40).astype(int)
         turns = [s * 2 ** k for k in range(0, 18) for s in (1, -1)]
         near = [self._lba_at_turns(t) for t in turns]
         out = set()
         for lba in list(grid) + near:
             x = self._allowed(int(lba))
-            if x is not None and abs(x - self.ref) >= 16:
+            if x is not None and abs(x - self.ref) >= self.block:
                 out.add(x)
         return sorted(out)
 
@@ -233,7 +254,9 @@ class Ladder:
             self.ranges = [(max(0, a), min(b, last + 1)) for a, b in self.ranges_arg]
         else:
             self.ranges = [(int(last * 0.03), int(last * 0.85))]
-        self.ranges = [(a - a % 16, b - b % 16) for a, b in self.ranges if b - a > 64]
+        self.ranges = [(a - a % self.block, b - b % self.block) for a, b in self.ranges if b - a > 64]
+        if self.media == "cd" and not self.ranges:
+            raise RuntimeError("no readable CD ranges longer than 64 sectors")
         if self.ref_arg is not None:
             self.ref = self._allowed(self.ref_arg)
         else:
@@ -244,7 +267,7 @@ class Ladder:
         self.settle()
 
         # First rungs: a turn or two away, where the nominal model is good to a few degrees.
-        for i, turns in enumerate(FIRST_TURNS):
+        for i, turns in enumerate(self.first_turns):
             lba = self._allowed(self._lba_at_turns(turns))
             m = self._measure_retry(lba)
             if m is None:
@@ -262,7 +285,7 @@ class Ladder:
         while len(self.targets) < self.max_targets:
             # Skip candidates next to one already measured: a second point there adds little.
             cands = [c for c in self._candidates()
-                     if c not in tried and min(abs(c - t) for t in tried) >= MIN_SPACING_SECTORS]
+                     if c not in tried and min(abs(c - t) for t in tried) >= self.spacing]
             if not cands:
                 break
             sig = {c: self._sigma_pred_deg(self._n_end(c)) for c in cands}
@@ -279,6 +302,8 @@ class Ladder:
             elif safe:
                 lba = max(safe, key=lambda c: abs(self._n_end(c) - self.n_ref))
             else:
+                if self.media == "cd":
+                    raise RuntimeError("no CD rung is within the safe 25-degree prediction limit")
                 lba = min(cands, key=lambda c: sig[c])
             tried.add(lba)
             pred = math.degrees(self._predict(self._n_end(lba)))
@@ -303,6 +328,28 @@ class Ladder:
 
     def result(self) -> dict:
         rep = _report(self.u, self.v, self.cov, (self.u, self.v), self.prior, None)
+        if self.media == "cd":
+            from . import cd
+            b = self.prior.bit_nm * 1e-6
+            rep["media"] = "cd"
+            rep["sector_bits"] = cd.SECTOR_BITS
+            rep["read_tail_frames"] = cd.READ_TAIL_FRAMES
+            rep["read_completion_model_measured"] = False
+            lo_n = max(0.0, math.pi * ((25.0 / b) ** 2 - self.u ** 2) / self.v)
+            hi_n = math.pi * ((58.0 / b) ** 2 - self.u ** 2) / self.v
+            du0, dv0 = _dtheta(lo_n, self.u, self.v)
+            du1, dv1 = _dtheta(hi_n, self.u, self.v)
+            g = np.array([du1 - du0, dv1 - dv0])
+            rep["angle_span_mm"] = [25.0, 58.0]
+            rep["angle_sigma_deg"] = math.degrees(math.sqrt(float(g @ self.cov[:2, :2] @ g)))
+            nn = np.linspace(lo_n, hi_n, 400)
+            rep["nominal_error_deg"] = float(np.ptp(np.degrees(
+                theta(nn, self.u, self.v) - theta(nn, self.u0, self.v0))))
+            rep["dis_equivalent"] = {
+                "bit_nm": self.prior.bit_nm, "inner_radius_mm": self.u * b,
+                "outer_radius_mm_for_total_sectors": {
+                    str(cd.CAPACITY): b * math.sqrt(self.u ** 2 + self.v * cd.CAPACITY * cd.SECTOR_BITS / math.pi)},
+                "note": "CD forward CIRC reference origin, hardware origin unmeasured; not a DVD preset"}
         n_meas = [t["n"] for t in self.targets] + [self.n_ref]
         lo, hi = min(n_meas), max(n_meas)
         du_lo, dv_lo = _dtheta(lo, self.u, self.v)

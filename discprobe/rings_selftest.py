@@ -56,16 +56,18 @@ def _iso(c):
             f"default layout: {len(full.rings)} rings, {full.total_sectors} sectors")
 
 
-def _actual_radius_of_lba(lay, n):
+def _actual_radius_of_lba(lay, n, r0_true=R0_TRUE):
     c_nom = (lay.radius_at(1e6) ** 2 - lay.r0_mm ** 2) / 1e6
-    return math.sqrt(R0_TRUE ** 2 + c_nom * C_RATIO_TRUE * n)
+    return math.sqrt(r0_true ** 2 + c_nom * C_RATIO_TRUE * n)
 
 
-def synth_scan(lay: RingLayout, seed=3, canvas_mm=(140.0, 135.0), centre_mm=(70.4, 68.2), y_scale=1.002):
+def synth_scan(lay: RingLayout, seed=3, canvas_mm=(140.0, 135.0), centre_mm=(70.4, 68.2), y_scale=1.002,
+               truth=None, r0_true=R0_TRUE, refs=("A5", "92")):
+    truth = TRUTH if truth is None else truth
     rng = np.random.default_rng(seed)
-    edges = np.array([_actual_radius_of_lba(lay, r["lba_start"]) for r in lay.rings]
-                     + [_actual_radius_of_lba(lay, lay.rings[-1]["lba_end"])])
-    ring_level = np.array([TRUTH[r["texture"]] + (0 if r["texture"] in ("A5", "92") else rng.normal(0, 0.01))
+    edges = np.array([_actual_radius_of_lba(lay, r["lba_start"], r0_true) for r in lay.rings]
+                     + [_actual_radius_of_lba(lay, lay.rings[-1]["lba_end"], r0_true)])
+    ring_level = np.array([truth[r["texture"]] + (0 if r["texture"] in refs else rng.normal(0, 0.01))
                            for r in lay.rings])
     px = DPI / 25.4
     w, h = int(canvas_mm[0] * px), int(canvas_mm[1] * px * y_scale)
