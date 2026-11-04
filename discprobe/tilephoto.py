@@ -199,9 +199,17 @@ class Scorer:
         return float(np.mean(np.abs(local)) / np.mean(norm))
 
 
-def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False, mirrors=(False, True)):
+def image_angle(H):
+    """Direction (deg, image x right / y up) in which the design's +x axis appears at the disc centre."""
+    (x0, x1), (y0, y1) = project(H, np.array([0.0, 10.0]), np.array([0.0, 0.0]))
+    return math.degrees(math.atan2(-(y1 - y0), x1 - x0)) % 360
+
+
+def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False, mirrors=(False, True), angle_prior=None):
     """mirrors: which mirrorings to try. A photo of the data side is never mirrored relative to the
-    data-side design; pass (False,) when the design is close to mirror-symmetric."""
+    data-side design; pass (False,) when the design is close to mirror-symmetric.
+    angle_prior: (deg, tolerance) for image_angle, e.g. from another photo of the same series in which
+    the disc did not move; only rotations within the tolerance are considered."""
     grey = rgb_small.mean(-1)
     pts = rim_points(grey, hub)
     e, n_in = ransac_ellipse(pts)
@@ -216,7 +224,10 @@ def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False, mirrors=(Fa
     best = (-1, None)
     for mirror in mirrors:
         for deg in range(0, 360, 2):
-            s = sc(perspective_h(e, hub, math.radians(deg), mirror))
+            Hc = perspective_h(e, hub, math.radians(deg), mirror)
+            if angle_prior and abs((image_angle(Hc) - angle_prior[0] + 180) % 360 - 180) > angle_prior[1]:
+                continue
+            s = sc(Hc)
             if s > best[0]:
                 best = (s, (deg, mirror))
     deg, mirror = best[1]
@@ -234,18 +245,21 @@ def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False, mirrors=(Fa
         res = minimize(cost, q, method="Nelder-Mead", options={"maxiter": 3000, "xatol": 1e-3, "fatol": 1e-6})
         q = res.x
         log(f"refine (sigma {sigma}): score {-res.fun:.3f}")
-    return np.append(q * scale, 1.0).reshape(3, 3), {"rim_points": len(pts), "rim_inliers": n_in,
-                                                     "sweep_deg": deg, "mirrored": mirror}
+    H = np.append(q * scale, 1.0).reshape(3, 3)
+    return H, {"rim_points": len(pts), "rim_inliers": n_in, "sweep_deg": deg, "mirrored": mirror,
+               "image_angle_deg": round(image_angle(H), 2), "angle_prior": angle_prior}
 
 
-def analyse(path: str, layout_path: str, out_dir: str, hub=None, log=print, mirrors=(False, True)) -> dict:
+def analyse(path: str, layout_path: str, out_dir: str, hub=None, log=print, mirrors=(False, True),
+            angle_prior=None) -> dict:
     with open(layout_path, encoding="utf-8") as f:
         lay = json.load(f)
     labels, textures, _ = T.design(lay["palette"], **T.geometry(lay))
     rgb = load_photo(path)
     small, fs = _reduce(rgb, FIT_WIDTH)
     hub_s = (hub[0] * fs, hub[1] * fs) if hub else (small.shape[1] / 2, small.shape[0] / 2)
-    H_small, info = fit(small, labels, textures, hub_s, log, auto_hub=hub is None, mirrors=mirrors)
+    H_small, info = fit(small, labels, textures, hub_s, log, auto_hub=hub is None, mirrors=mirrors,
+                        angle_prior=angle_prior)
     H = np.diag([1 / fs, 1 / fs, 1.0]) @ H_small            # full-resolution pixels
 
     def to_xy(r, a):
