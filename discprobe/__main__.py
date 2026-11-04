@@ -73,7 +73,8 @@ def cmd_timing(args):
     probe = timing.TimingProbe(
         dev, read_method=args.read, reps=args.reps, period_reads=args.period_reads,
         targets=targets, ref_fraction=args.ref, speed_kbs=args.speed, pure_cav=args.cav,
-        evict_sectors=args.evict_sectors, sectors=args.sectors, host_delay_ms=args.host_delay_ms, media=args.media)
+        evict_sectors=args.evict_sectors, sectors=args.sectors, host_delay_ms=args.host_delay_ms, media=args.media,
+        stop_if_not_cav=not args.force, time_limit_s=args.max_minutes * 60 if args.max_minutes else None)
     try:
         summary = probe.run()
     except timing.NoReadableDisc as e:
@@ -436,6 +437,8 @@ def main(argv=None):
                          "span the same number of revolutions; should exceed one revolution")
     sp.add_argument("--evict-sectors", type=int, default=1024,
                     help="sectors read elsewhere before each measurement when the cache cannot be bypassed")
+    sp.add_argument("--force", action="store_true", help="run the phase test even if the drive did not look CAV")
+    sp.add_argument("--max-minutes", type=float, default=15.0, help="give up after this long (0 = no limit)")
     sp.set_defaults(func=cmd_timing)
 
     sp = sub.add_parser("spokes", help="generate the radial-spoke calibration pattern")

@@ -124,6 +124,41 @@ def _ladder(c: Checker):
                         f"chi2/dof {res['chi2_per_dof']:.2f})")
 
 
+def _unreadable(c: Checker):
+    print("timing stops early on unreadable discs and non-CAV drives")
+    from .scsi import ScsiResult, Sense
+    from .timing import NoReadableDisc, TimingProbe
+
+    class Bad:
+        """Every read fails like a picture disc on a GP65NB60: 3/11/00 after 7.5 s."""
+        def __init__(self, fail_first_only=False):
+            self.sim, self.reads, self.only_first = SimDrive(mode="cav", seed=7), 0, fail_first_only
+
+        def execute(self, cdb, data_len=0, direction=1, timeout_s=30):
+            if cdb[0] in (0x28, 0xA8):
+                self.reads += 1
+                if not self.only_first or self.reads == 1:
+                    return ScsiResult(2, b"", Sense(3, 0x11, 0), 0, int(7.5e9))
+            return self.sim.execute(cdb, data_len, direction, timeout_s)
+
+        def __getattr__(self, name):
+            return getattr(self.sim, name)
+
+    bad = Bad()
+    try:
+        TimingProbe(bad, log=lambda *_: None).run()
+        c.check(False, "an unreadable disc was not detected")
+    except NoReadableDisc as e:
+        c.check("random-data" in str(e) and bad.reads <= 12, f"unreadable disc stopped after {bad.reads} reads")
+    one = Bad(fail_first_only=True)
+    probe = TimingProbe(one, log=lambda *_: None, reps=4, period_reads=20, targets=(0.5,))
+    probe.setup()
+    c.check(probe.method == "read12", "one medium error does not switch the read command to READ(10)")
+    clv = TimingProbe(SimDrive(mode="clv", seed=7), log=lambda *_: None, reps=4, targets=(0.5,), stop_if_not_cav=True)
+    s = clv.run()
+    c.check("phase" not in s and s["period"]["rotation"]["mode"] == "CLV", "a CLV drive stops before the phase test")
+
+
 def _ladder_abort(c: Checker):
     print("ladder stops on a wrong whole-turn count")
     from .geo import Ladder
@@ -226,6 +261,7 @@ def run() -> bool:
     _sim_run(c, "cav", False, "flush", "CAV", flush=True)
     _sim_run(c, "cav", False, "evict", "CAV")
     _sim_run(c, "clv", True, "fua", "CLV")
+    _unreadable(c)
     try:
         import numpy  # noqa: F401
     except ImportError:

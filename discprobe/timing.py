@@ -49,6 +49,14 @@ class Event:
     sense: str
 
 
+# Medium errors in a row before giving up. A failing read can take the drive several seconds
+# of retries (7.5 s each on a GP65NB60), so running every experiment anyway takes over an hour.
+MAX_MEDIUM_ERRORS = 8
+UNREADABLE_DISC = ("reads keep failing with medium errors ({sense}): the drive cannot read this disc reliably. "
+                   "Picture, calibration and texture discs often behave like this. Timing needs plain data: "
+                   "burn a random-data disc from the same batch (python -m discprobe random) and measure that.")
+
+
 class NoReadableDisc(RuntimeError):
     pass
 
@@ -69,8 +77,13 @@ class TimingProbe:
     def __init__(self, dev, log=print, read_method: str = "auto", reps: int = 40,
                  period_reads: int = 60, targets=DEFAULT_TARGETS, ref_fraction: float = 0.05,
                  speed_kbs: int | None = None, pure_cav: bool = False, evict_sectors: int = 1024,
-                 sectors: int = 1, host_delay_ms: float = 25.0, seed: int = 1, media="dvd"):
+                 sectors: int = 1, host_delay_ms: float = 25.0, seed: int = 1, media="dvd",
+                 stop_if_not_cav: bool = False, time_limit_s: float | None = None):
         self.media = media
+        self.stop_if_not_cav = stop_if_not_cav
+        self._deadline = time.monotonic() + time_limit_s if time_limit_s else None
+        self._time_limit_s = time_limit_s
+        self._medium_errors = 0
         self.dev = dev
         self.host_delay_s = host_delay_ms / 1e3
         self._rng = random.Random(seed)
@@ -103,7 +116,20 @@ class TimingProbe:
             cdb, size = mmc.read12(lba, count, fua), 2048 * count
         res = self._cmd(cdb, size)
         self._record(label, lba, self.method, fua, res)
+        self._watch(res)
         return res
+
+    def _watch(self, res):
+        """Stop early when reads keep failing or the run overstays its time limit."""
+        if res.ok:
+            self._medium_errors = 0
+        elif res.sense is not None and res.sense.key == 3:
+            self._medium_errors += 1
+            if self._medium_errors >= MAX_MEDIUM_ERRORS:
+                raise NoReadableDisc(UNREADABLE_DISC.format(sense=res.sense))
+        if self._deadline is not None and time.monotonic() > self._deadline:
+            raise NoReadableDisc(f"stopped after the {self._time_limit_s / 60:.0f} minute time limit "
+                                 "(--max-minutes); reads are far slower than expected")
 
     def _record(self, label, lba, command, fua, res):
         self.events.append(Event(self._experiment, label, lba, command, fua, res.t_start_ns,
@@ -183,10 +209,17 @@ class TimingProbe:
         self.method = self.read_method
         if self.method == "auto":
             self.method = "readcd" if audio else "read12"
-        if self.method == "read12" and not self._read(self._align(0.5), label="probe").ok:
-            self.method = "read10"
-        if not self._read(self._align(0.5), label="probe").ok:
-            raise NoReadableDisc(f"{self.method} fails on this disc")
+        if self.method == "read12":
+            res = self._read(self._align(0.5), label="probe")
+            # Only a refused command means "try READ(10)"; a medium error says nothing about the opcode.
+            if not res.ok and res.sense is not None and res.sense.key == 5:
+                self.method = "read10"
+        probes = [self._read(self._align(f), label="probe") for f in (0.5, 0.25, 0.75)]
+        if not any(r.ok for r in probes):
+            sense = next((r.sense for r in probes if r.sense is not None), None)
+            if sense is not None and sense.key == 3:
+                raise NoReadableDisc(UNREADABLE_DISC.format(sense=sense))
+            raise NoReadableDisc(f"{self.method} fails on this disc ({sense})")
 
         if self.speed_kbs is not None or self.pure_cav:
             res = self._cmd(mmc.set_cd_speed(self.speed_kbs or 0xFFFF, 0xFFFF, self.pure_cav), 0)
@@ -200,8 +233,10 @@ class TimingProbe:
                  f"reading with {self.method}")
 
         self._experiment = "warmup"
-        for f in (0.0, 0.25, 0.5, 0.75, 1.0, 0.05):
-            self._read(self._align(f), label="warmup")
+        warm = [self._read(self._align(f), label="warmup") for f in (0.0, 0.25, 0.5, 0.75, 1.0, 0.05)]
+        bad = [r for r in warm if not r.ok and r.sense is not None and r.sense.key == 3]
+        if len(bad) >= 3:
+            raise NoReadableDisc(UNREADABLE_DISC.format(sense=bad[0].sense))
 
     def cache_test(self, reads: int = 40):
         self._experiment = "cache"
@@ -338,7 +373,12 @@ class TimingProbe:
             self.setup()
             self.cache_test()
             self.period_test()
-            self.phase_test()
+            mode = self.summary["period"]["rotation"]["mode"]
+            if self.stop_if_not_cav and mode != "CAV":
+                self.log(f"Rotation is {mode}, not CAV, so the phase test would not give disc angles; skipping it. "
+                         "Try another --speed, or pass --force to run it anyway.")
+            else:
+                self.phase_test()
         finally:
             if gc_was:
                 gc.enable()

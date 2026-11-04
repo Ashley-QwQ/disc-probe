@@ -23,7 +23,7 @@ python -m pip install numpy pillow scipy
    ```
 
 3. 关掉其他会访问光驱的软件，比如刻录软件和自动播放。
-4. 计时测试需要一张**已经刻录过**的盘，因为空白区读不出东西。盘上内容随意，但最好把整张写满：测量位置是按"已刻录容量的比例"选取的，写满才能覆盖整个半径。用 DVD-R 最好；CD-R 写成数据盘比音轨好，因为 READ CD 没有 FUA 位。
+4. 计时测试需要一张**已经刻录过、内容是普通数据**的盘，最好用 `python -m discprobe random` 生成的随机数据盘。空白区读不出东西；**刻了图案、标定图或纯纹理的盘也不行**，光驱读这种盘经常报介质错误（3/11/00），每次要重试好几秒。把整张写满：测量位置是按"已刻录容量的比例"选取的，写满才能覆盖整个半径。用 DVD-R 最好；CD-R 写成数据盘比音轨好，因为 READ CD 没有 FUA 位。
 
 ## 用法
 
@@ -89,6 +89,8 @@ INQUIRY、GET CONFIGURATION（当前 profile 和功能列表）、READ DISC INFO
 - `period.rotation.mode`：必须是 `CAV`，相位法才有意义。如果是 CLV，先用 `--speed` 换一个速度档再测。`--cav` 设置的是 SET CD SPEED 的 Rotational Control 位，但 MMC 把这一位定义为写入时的转速控制，所以它对读取有没有作用，只能看周期测试的结果。
 - 每区的 `jitter_deg`：单次测量的角度噪声，直接决定精度。估算方法：平均 n 次后误差约为 `jitter_deg / sqrt(n)`。
 - `phase.targets[].phase.sem_deg`：每个目标相位的不确定度。模拟中真实误差的离散比它大约多 10–20%，可以当作略偏乐观的估计。这些相位是对 360° 取模的，要拿去解缠和拟合 r0/b、p/b，还需要下一步的分析（另写）。
+- `timing` 遇到连续读取错误会提前停止并说明原因；周期测试判定不是 CAV 时跳过相位测试（`--force` 可强制继续）；总时长默认不超过 15 分钟（`--max-minutes`）。
+- `info` 里 Page 2A 的 "rotation CLV" 说的是**写入**时的转速控制，不代表读取方式，要看 `timing` 的周期测试。
 - 每次计时读之前的随机等待（`--host-delay-ms`，默认 25 ms）应当**长于一圈**。转速低于 2400 rpm 时一圈就超过 25 ms，要调大，比如 30–40 ms。
 
 ## 光驱兼容表
@@ -100,6 +102,7 @@ INQUIRY、GET CONFIGURATION（当前 profile 和功能列表）、READ DISC INFO
 | HL-DT-ST GH70N（NYA2） | SATA / Windows | Ritek F1 DVD-R | `fua` | CAV，4x 约 2830 rpm | 0.43–0.55° | 阶梯和刻图都已验证（首刻约 0.1°）；外圈约 53 mm 处会换转速档 | 本仓库 |
 | HL-DT-ST GH70N（NYA2） | SATA / Windows | CMC CD-R | `fua` | CAV，3226 rpm | 0.5–0.76° | CD 阶梯可用；盘的轨距不规则，沿轨道原点未验证 | 本仓库 |
 | MATSHITA BD-MLT UJ260AF（1.01） | USB 3.0 / macOS（[discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)） | RITEK RiDATA 可打印 DVD-R（MID `RITEKF1`） | `fua` | CAV，2364 rpm | 0.65–0.87° | `geo` 和 `disexport` 跑通，参数见 [#87](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/87)，已有人用它刻图成功；和本仓库 GH70N 的 Ritek F1 结果在 25–58 mm 相差 0.13° rms（30 mm 以外在 ±0.2° 内）。FUA 重读固定两圈；SET CD SPEED 请求 4x 不换档；建议 `--sectors 16` | NaiveTomcat，#107 |
+| HL-DT-ST GP65NB60（PF00） | USB / Windows | 铼德 ExcellentX DVD+RW（`RITEK/004/48`），可能是刚刻的标定盘 | 未能判定 | 未能判定 | 未能判定 | 几乎所有读取都报 3/11/00，无法测量。多半是盘的内容造成的，不能算光驱不兼容；用随机数据盘重测才知道 | FanJZSS，#107 |
 
 macOS 版由 NaiveTomcat 移植：[NaiveTomcat/discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)（GPL-3.0-or-later），发布包里带签名、公证过的通用 helper，不需要编译。
 
