@@ -154,6 +154,25 @@ def _unreadable(c: Checker):
     probe = TimingProbe(one, log=lambda *_: None, reps=4, period_reads=20, targets=(0.5,))
     probe.setup()
     c.check(probe.method == "read12", "one medium error does not switch the read command to READ(10)")
+
+    class SlowLink:
+        """A cache hit costs 8 ms over this link, as on an SDRW-08D2S-U."""
+        def __init__(self):
+            self.sim = SimDrive(mode="cav", seed=7, reread_delay_ms=35.0)
+
+        def execute(self, cdb, data_len=0, direction=1, timeout_s=30):
+            res = self.sim.execute(cdb, data_len, direction, timeout_s)
+            if cdb[0] in (0x28, 0xA8) and res.t_end_ns - res.t_start_ns < 3_000_000:
+                res.t_end_ns = res.t_start_ns + 8_000_000
+            return res
+
+        def __getattr__(self, name):
+            return getattr(self.sim, name)
+
+    slow = TimingProbe(SlowLink(), log=lambda *_: None)
+    slow.setup()
+    slow.cache_test()
+    c.check(slow.strategy == "fua", f"slow cache hits are still recognised as cached (strategy {slow.strategy})")
     clv = TimingProbe(SimDrive(mode="clv", seed=7), log=lambda *_: None, reps=4, targets=(0.5,), stop_if_not_cav=True)
     s = clv.run()
     c.check("phase" not in s and s["period"]["rotation"]["mode"] == "CLV", "a CLV drive stops before the phase test")

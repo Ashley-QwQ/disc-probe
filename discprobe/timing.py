@@ -30,6 +30,7 @@ from .scsi import DATA_IN, DATA_NONE
 # at 10000 rpm); the GH70N answers cache hits in about 1.1 ms over SATA, so 1 ms was
 # too tight.
 CACHE_HIT_US = 3000.0
+CACHE_RATIO = 3.0
 EVICT_REGION_SECTORS = 32768
 ZONES = (0.05, 0.5, 0.95)
 DEFAULT_TARGETS = (0.15, 0.35, 0.55, 0.75, 0.95)
@@ -250,6 +251,10 @@ class TimingProbe:
             fua = [self._read(lba, n, fua=True, label="fua") for _ in range(reads)]
             out["fua"] = duration_stats(fua)
             fua_media = out["fua"]["p50_us"] >= CACHE_HIT_US and all(r.ok for r in fua)
+            # A cache hit over a slow link is not under CACHE_HIT_US (8 ms on an SDRW-08D2S-U over
+            # USB, against 39 ms with FUA). Far slower with FUA also means plain reads are cached.
+            if fua_media and out["fua"]["p50_us"] >= CACHE_RATIO * out["plain"]["p50_us"]:
+                plain_cached = True
         if plain_cached and not fua_media:
             flushed = []
             for _ in range(reads):

@@ -103,6 +103,8 @@ INQUIRY、GET CONFIGURATION（当前 profile 和功能列表）、READ DISC INFO
 | HL-DT-ST GH70N（NYA2） | SATA / Windows | CMC CD-R | `fua` | CAV，3226 rpm | 0.5–0.76° | CD 阶梯可用；盘的轨距不规则，沿轨道原点未验证 | 本仓库 |
 | MATSHITA BD-MLT UJ260AF（1.01） | USB 3.0 / macOS（[discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)） | RITEK RiDATA 可打印 DVD-R（MID `RITEKF1`） | `fua` | CAV，2364 rpm | 0.65–0.87° | `geo` 和 `disexport` 跑通，参数见 [#87](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/87)，已有人用它刻图成功；和本仓库 GH70N 的 Ritek F1 结果在 25–58 mm 相差 0.13° rms（30 mm 以外在 ±0.2° 内）。FUA 重读固定两圈；SET CD SPEED 请求 4x 不换档；建议 `--sectors 16` | NaiveTomcat，#107 |
 | HL-DT-ST GP65NB60（PF00） | USB / Windows | 铼德 ExcellentX DVD+RW（`RITEK/004/48`），可能是刚刻的标定盘 | 未能判定 | 未能判定 | 未能判定 | 几乎所有读取都报 3/11/00，无法测量。多半是盘的内容造成的，不能算光驱不兼容；用随机数据盘重测才知道 | FanJZSS，#107 |
+| ASUS BW-16D1H-U（E116） | USB / Windows | RITEK ARITA DVD-R，随机数据 | `fua` | CAV，9204 rpm（请求 2770、5540 都不降速） | 10–14°（约 200 µs） | 每点平均后 2–3°；阶梯还没试 | bczhc，#107 |
+| ASUS SDRW-08D2S-U | USB / Windows | Verbatim CD-R | 工具误判为 `plain`（缓存命中 8 ms，FUA 39 ms） | 未能判定 | 未能判定 | 缓存判断的 bug 已修，待重测 | moodyos，#107 |
 
 macOS 版由 NaiveTomcat 移植：[NaiveTomcat/discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)（GPL-3.0-or-later），发布包里带签名、公证过的通用 helper，不需要编译。
 
