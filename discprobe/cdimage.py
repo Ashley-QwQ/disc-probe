@@ -99,7 +99,7 @@ def write_iso(path, design, u, v, bit_nm, total_sectors, dark="0D", light="AA", 
                 log(f"  {100 * done / total_sectors:5.1f} %")
                 next_report += 0.2
     iso9660.add(path, total_sectors, "DISCPROBE_CD_IMAGE")
-    spec = {"kind": "cd-picture", "media": "cd", "u": u, "v": v, "bit_nm": bit_nm,
+    spec = {"kind": "cd-picture", "media": "cd", "user_offset": cd.USER_OFFSET, "u": u, "v": v, "bit_nm": bit_nm,
             "total_sectors": total_sectors, "textures": texs, "cell_mm": I.CELL_MM,
             "sampling": "physical 12-data-symbol half-frame", "origin": "ECMA-130 fig C.4, sector byte 0 at F1 slot 1",
             "physical_origin_measured": False, **(meta or {})}
@@ -124,7 +124,7 @@ def inverse_positions(lba0, count):
                        65, 68, 73, 76, 81, 84, 89, 92, 97, 100, 105, 108])
     frames = np.arange(lba0 * 98, (lba0 + count) * 98 + 108)[:, None]
     raw = ((frames - delays) * 24 + 2 * words + np.tile([0, 1], 12)) ^ 1
-    lbas, byte = raw // 2352, raw % 2352 - 16
+    lbas, byte = raw // 2352, raw % 2352 - cd.USER_OFFSET
     ok = (lbas >= lba0) & (lbas < lba0 + count) & (byte >= 0) & (byte < 2048)
     return lbas[ok], byte[ok], np.broadcast_to(frames, raw.shape)[ok], np.broadcast_to(slots, raw.shape)[ok]
 

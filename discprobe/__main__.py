@@ -603,7 +603,7 @@ def main(argv=None):
     cd_defaults = {
         "rings": dict(output="iso/cd-rings.iso", textures="0D,AA,10,63,RND", filler="AA",
                       r0_mm=25.0, pitch_um=1.6, start_mm=26.0, ring_width_mm=2.0),
-        "random": dict(output="iso/cd-random.iso", sectors=359849),
+        "random": dict(output="iso/cd-random.iso", sectors=359600),  # IMAPI needs room to close the disc
         "geo": dict(r0_mm=25.0, pitch_um=1.6, speed=2822, reps=32, max_targets=36),
         "timing": dict(speed=2822),
         "image": dict(output="iso/cd-grid.iso", dark="0D", light="AA", line_mm=0.6),
@@ -612,10 +612,17 @@ def main(argv=None):
     }
     for name in cd_defaults:
         sub.choices[name].add_argument("--media", choices=("dvd", "cd"), default="dvd")
+    for name in ("rings", "image", "tiles"):
+        sub.choices[name].add_argument(
+            "--cd-sector", choices=("mode2form1", "mode1"), default="mode2form1",
+            help="CD only: sector layout the burner writes; IMAPI2 data burns are Mode 2 Form 1 "
+                 "(user data from byte 24), so textures are pre-scrambled for that unless you burn Mode 1")
     args = p.parse_args(argv)
     raw_args = list(sys.argv[1:] if argv is None else argv)
     if getattr(args, "media", "dvd") == "cd":
-        from .cd import BIT_NM
+        from .cd import BIT_NM, set_sector_layout
+        if hasattr(args, "cd_sector"):
+            set_sector_layout(args.cd_sector)
         name = raw_args[0]
         defaults = cd_defaults[name].copy()
         if name in ("rings", "geo"):

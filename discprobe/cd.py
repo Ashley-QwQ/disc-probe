@@ -50,7 +50,14 @@ def scramble_sequence(count=2340):
 
 
 SCRAMBLE = np.concatenate([np.zeros(12, np.uint8), scramble_sequence()])
-MASK = SCRAMBLE[16:2064]
+
+# Where the 2048 user bytes sit in the 2352-byte sector. IMAPI2 data burns (tools/burn_imapi.ps1)
+# write CD data as Mode 2 Form 1 (XA): 8 subheader bytes after the header, user data from byte
+# 24. Pre-scrambling for the wrong layout turns every texture into noise (seen on the first
+# CD rings disc), so check the mode byte of a burned sector with READ CD.
+SECTOR_LAYOUTS = {"mode1": 16, "mode2form1": 24}
+USER_OFFSET = 16
+MASK = SCRAMBLE[USER_OFFSET:USER_OFFSET + SECTOR_BYTES]
 
 
 def lfsr_period():
@@ -109,13 +116,13 @@ def user_to_physical(lba, byte):
     byte = np.asarray(byte, np.int64)
     if np.any((byte < 0) | (byte >= SECTOR_BYTES)):
         raise ValueError("user byte must be in 0..2047")
-    return raw_to_physical(np.asarray(lba, np.int64) * RAW_BYTES + 16 + byte)
+    return raw_to_physical(np.asarray(lba, np.int64) * RAW_BYTES + USER_OFFSET + byte)
 
 
 def physical_to_user(frame, slot):
     """(lba, user offset, controllable); headers/ECC/parity/lead-in are false."""
     raw = physical_to_raw(frame, slot)
-    lba, byte = raw // RAW_BYTES, raw % RAW_BYTES - 16
+    lba, byte = raw // RAW_BYTES, raw % RAW_BYTES - USER_OFFSET
     ok = (raw >= 0) & (byte >= 0) & (byte < SECTOR_BYTES)
     return lba, byte, ok
 
@@ -131,6 +138,14 @@ def user_positions(lbas):
 
 
 BYTE_BITS = user_positions(np.array([0]))[0].astype(np.float64)
+
+
+def set_sector_layout(name: str) -> None:
+    """Switch the user-data position ("mode1" or "mode2form1") for everything in this module."""
+    global USER_OFFSET, MASK, BYTE_BITS
+    USER_OFFSET = SECTOR_LAYOUTS[name]
+    MASK = SCRAMBLE[USER_OFFSET:USER_OFFSET + SECTOR_BYTES]
+    BYTE_BITS = user_positions(np.array([0]))[0].astype(np.float64)
 
 
 def read_end_bits(lba, count=1):

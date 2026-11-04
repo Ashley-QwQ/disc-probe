@@ -48,6 +48,19 @@ def _mapping(c):
     c.check(bool(ok.all() and np.array_equal(lba, back_lba) and np.array_equal(byte, back_byte)
                  and np.array_equal(q, recovered) and np.all(n % 588 == 51 + 17 * slot)),
             "8000 random bytes round-trip value, sector, offset and channel position")
+    cd.set_sector_layout("mode2form1")
+    try:
+        rec = cd.payload_for(np.full(2048, 0x0D, np.uint8)) ^ cd.SCRAMBLE[24:24 + 2048]
+        f24, s24 = cd.user_to_physical(3, 0)
+        il2, ib2, _, _ = cdimage.inverse_positions(97, 2)
+        f2, s2 = cd.user_to_physical(il2, ib2)
+        _, b2, ok2 = cd.physical_to_user(f2, s2)
+    finally:
+        cd.set_sector_layout("mode1")
+    f16, s16 = cd.user_to_physical(3, 8)
+    c.check(bool(np.all(rec == 0x0D) and (f24, s24) == (f16, s16) and len(il2) == 2 * 2048
+                 and ok2.all() and np.array_equal(b2, ib2)),
+            "Mode 2 Form 1 layout: textures pre-scrambled at byte 24, user byte 0 sits where Mode 1 byte 8 does")
     il, ib, ff, ss = cdimage.inverse_positions(97, 5)
     f, s = cd.user_to_physical(il, ib)
     c.check(len(il) == 5 * 2048 and np.array_equal(f, ff) and np.array_equal(s, ss),
