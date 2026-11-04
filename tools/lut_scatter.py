@@ -4,10 +4,11 @@ One row per texture: x = |delta| = 2|c.t|, y = brightness (sum of RGB relative t
 median swatch), dot colour = measured colour. The 92 row carries the predicted first-order
 band of a 16T grating (P = 2.133 um): lambda = |delta| * P for 400-700 nm.
 
-Usage: python tools/lut_scatter.py results/flash_lut_tiles/swatch_colours_vs_delta.csv
+Usage: python tools/lut_scatter.py CSV [OUT.png]   (OUT defaults to lut_scatter.png next to CSV)
 """
 
 import csv
+import os
 import sys
 
 import numpy as np
@@ -34,7 +35,8 @@ def wavelength_rgb(nm):
     return (r, g, b)
 
 
-def main(path, out="results/flash_lut_tiles/lut_scatter.png"):
+def main(path, out=None):
+    out = out or os.path.join(os.path.dirname(path), "lut_scatter.png")
     rows = [r for r in csv.DictReader(open(path, encoding="utf-8")) if r["verified"] == "1"]
     names = [k for k in rows[0] if k not in ("photo", "ring", "sector", "verified", "delta", "view_tilt_deg")]
     d = np.abs(np.array([float(r["delta"]) for r in rows]))
@@ -60,4 +62,4 @@ def main(path, out="results/flash_lut_tiles/lut_scatter.png"):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(*sys.argv[1:])

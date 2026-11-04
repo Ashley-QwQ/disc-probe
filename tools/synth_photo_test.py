@@ -74,14 +74,16 @@ def main(layout_path="iso/lut2.tiles.json"):
     labels, textures, _ = T.design(lay["palette"], **T.geometry(lay))
     cases = [("head-on, contrast 0.30", (0, 0, 220), 0.30), ("head-on, contrast 0.10", (0, 0, 220), 0.10),
              ("head-on, contrast 0.04", (0, 0, 220), 0.04), ("offset 60 mm, contrast 0.10", (60, 20, 180), 0.10),
-             ("offset 60 mm, contrast 0.04", (60, 20, 180), 0.04)]
+             ("offset 60 mm, contrast 0.04", (60, 20, 180), 0.04),
+             ("offset 100 mm, contrast 0.10", (90, -40, 150), 0.10)]
     tmp = tempfile.mkdtemp()
     for name, C, k in cases:
         Hm = camera_h(C, roll_deg=17.0)
         img = render(labels, textures, Hm, k)
         path = os.path.join(tmp, "synth.png")
         Image.fromarray((img * 255).astype(np.uint8)).save(path)
-        s = tilephoto.analyse(path, layout_path, os.path.join(tmp, "out"), mirrors=(False,), log=lambda *_: None)
+        s = tilephoto.analyse(path, layout_path, os.path.join(tmp, "out"), mirrors=(False,), log=lambda *_: None,
+                              focal_px=F)
         err = reproj_error(np.array(s["homography_disc_mm_to_px"]), Hm)
         print(f"{name:30s} IDs {s['ids_ok']:2d}/{s['tiles']}  max reprojection error {err:6.1f} px", flush=True)
 

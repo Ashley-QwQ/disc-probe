@@ -56,7 +56,7 @@ def main():
             if r["verified"] == "1"]
     cams = {}
     for name in sorted({r["photo"] for r in rows}):
-        s = json.load(open(os.path.join(ROOT, "results", "flash_lut_tiles", name, "summary.json"), encoding="utf-8"))
+        s = json.load(open(os.path.join(ROOT, "results", "flash_lut_tiles_v2", name, "summary.json"), encoding="utf-8"))
         path = os.path.join(DL, name + ".jpeg")
         w, h = ImageOps.exif_transpose(Image.open(path)).size
         cams[name] = flash_lut.pose(np.array(s["homography_disc_mm_to_px"]), flash_lut.focal_px(path, w, h), w / 2, h / 2)

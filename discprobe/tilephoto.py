@@ -45,14 +45,28 @@ def _reduce(rgb, width):
 
 
 def fit_ellipse(pts):
-    """Direct least-squares ellipse (Fitzgibbon); returns centre, semi-axes (a >= b), angle of a."""
-    x, y = pts[:, 0], pts[:, 1]
-    D = np.column_stack([x * x, x * y, y * y, x, y, np.ones_like(x)])
-    S = D.T @ D
-    C = np.zeros((6, 6)); C[0, 2] = C[2, 0] = 2; C[1, 1] = -1
-    w, v = np.linalg.eig(np.linalg.solve(S, C))
-    p = np.real(v[:, np.argmax(np.real(w) > 0) if np.any(np.real(w) > 0) else 0])
-    a, b, c, d, e, f = p
+    """Direct least-squares ellipse (Fitzgibbon); returns centre, semi-axes (a >= b), angle of a.
+    Coordinates are centred and scaled first: raw pixel values make the scatter matrix
+    numerically singular for clean, nearly circular rims."""
+    mx, my = pts[:, 0].mean(), pts[:, 1].mean()
+    s = max(float(np.std(pts)), 1e-9)
+    x, y = (pts[:, 0] - mx) / s, (pts[:, 1] - my) / s
+    # Halir & Flusser's stable form: only the 3x3 block of the linear terms is inverted, so
+    # exact (noise-free) points, for which the full scatter matrix is singular, still work.
+    D1 = np.column_stack([x * x, x * y, y * y])
+    D2 = np.column_stack([x, y, np.ones_like(x)])
+    S1, S2, S3 = D1.T @ D1, D1.T @ D2, D2.T @ D2
+    T_ = -np.linalg.solve(S3, S2.T)
+    M = S1 + S2 @ T_
+    M = np.array([M[2] / 2, -M[1], M[0] / 2])
+    w, v = np.linalg.eig(M)
+    v = np.real(v)
+    cond = 4 * v[0] * v[2] - v[1] ** 2
+    if not np.any(cond > 0):
+        raise ValueError("no elliptic solution")
+    a1 = v[:, np.argmax(cond > 0)]
+    a, b, c = a1
+    d, e, f = T_ @ a1
     den = b * b - 4 * a * c
     x0, y0 = (2 * c * d - b * e) / den, (2 * a * e - b * d) / den
     num = 2 * (a * e * e + c * d * d - b * d * e + den * f)
@@ -62,7 +76,10 @@ def fit_ellipse(pts):
     ang = 0.5 * math.atan2(-b, c - a)
     if ax1 < ax2:
         ax1, ax2, ang = ax2, ax1, ang + math.pi / 2
-    return x0, y0, abs(ax1), abs(ax2), ang
+    vals = (x0, y0, ax1, ax2)
+    if not all(math.isfinite(v) for v in vals):
+        raise ValueError("degenerate conic")
+    return x0 * s + mx, y0 * s + my, abs(ax1) * s, abs(ax2) * s, ang
 
 
 def rim_points(grey, hub):
@@ -102,8 +119,13 @@ def ransac_ellipse(pts, iters=400, tol=4.0, seed=0):
         n = int((d < tol).sum())
         if n > best_in:
             best, best_in = e, n
+    if best is None:
+        raise RuntimeError("no ellipse found on the rim points")
     inl = pts[_ellipse_dist(pts, best) < tol]
-    return fit_ellipse(inl), len(inl)
+    try:
+        return fit_ellipse(inl), len(inl)
+    except (np.linalg.LinAlgError, ValueError, ZeroDivisionError):
+        return best, len(inl)
 
 
 def _ellipse_dist(pts, e):
@@ -163,6 +185,36 @@ def perspective_h(rim, hub, psi, mirror):
     return Hpi @ affine_h(e2, psi, mirror)
 
 
+def centre_candidates(rim, focal, cx, cy, radius=DISC_R):
+    """Images of the disc centre for the two 3D poses of a circle of the given radius whose projection
+    (pinhole, focal length in pixels, principal point cx, cy) is the rim ellipse. Under perspective
+    the centre does not project to the ellipse centre; for oblique views the difference breaks the
+    vanishing-line construction."""
+    from scipy.optimize import least_squares
+    x0, y0, a, b, ang = rim
+    t = np.linspace(0, 2 * math.pi, 48, endpoint=False)
+
+    def proj_circle(q):
+        X, Y, Z, th, ph = q
+        n = np.array([math.sin(th) * math.cos(ph), math.sin(th) * math.sin(ph), math.cos(th)])
+        u = np.cross(n, [0.0, 0.0, 1.0]) if abs(n[2]) < 0.999 else np.array([1.0, 0.0, 0.0])
+        u /= np.linalg.norm(u)
+        v = np.cross(n, u)
+        P = np.array([X, Y, Z])[:, None] + radius * (np.cos(t) * u[:, None] + np.sin(t) * v[:, None])
+        return np.column_stack([focal * P[0] / P[2] + cx, focal * P[1] / P[2] + cy])
+
+    out = []
+    z0 = focal * radius / a
+    tilt = math.acos(min(1.0, b / a))
+    for sign in (1, -1):
+        ph0 = ang + math.pi / 2 if sign > 0 else ang - math.pi / 2       # tilt about the major axis
+        q0 = [(x0 - cx) * z0 / focal, (y0 - cy) * z0 / focal, z0, tilt, ph0]
+        res = least_squares(lambda q: _ellipse_dist(proj_circle(q), rim), q0, x_scale=[10, 10, 10, 0.1, 0.5])
+        X, Y, Z = res.x[:3]
+        out.append((focal * X / Z + cx, focal * Y / Z + cy))
+    return out
+
+
 def project(H, x, y):
     w = H[2, 0] * x + H[2, 1] * y + H[2, 2]
     return (H[0, 0] * x + H[0, 1] * y + H[0, 2]) / w, (H[1, 0] * x + H[1, 1] * y + H[1, 2]) / w
@@ -205,11 +257,14 @@ def image_angle(H):
     return math.degrees(math.atan2(-(y1 - y0), x1 - x0)) % 360
 
 
-def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False, mirrors=(False, True), angle_prior=None):
+def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False, mirrors=(False, True), angle_prior=None,
+        focal=None):
     """mirrors: which mirrorings to try. A photo of the data side is never mirrored relative to the
     data-side design; pass (False,) when the design is close to mirror-symmetric.
     angle_prior: (deg, tolerance) for image_angle, e.g. from another photo of the same series in which
-    the disc did not move; only rotations within the tolerance are considered."""
+    the disc did not move; only rotations within the tolerance are considered.
+    focal: focal length in pixels of rgb_small. With it, both 3D poses of the rim circle give a
+    candidate image of the disc centre (see centre_candidates); without it the ellipse centre is used."""
     grey = rgb_small.mean(-1)
     pts = rim_points(grey, hub)
     e, n_in = ransac_ellipse(pts)
@@ -221,17 +276,21 @@ def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False, mirrors=(Fa
         hub = (e[0], e[1])
     log(f"rim: {len(pts)} points, {n_in} on the ellipse; centre ({e[0]:.0f}, {e[1]:.0f}), axes {e[2]:.0f} x {e[3]:.0f} px")
     sc = Scorer(grey, labels, textures)
+    hubs = [hub]
+    if focal:
+        hubs = centre_candidates(e, focal, grey.shape[1] / 2, grey.shape[0] / 2)
     best = (-1, None)
-    for mirror in mirrors:
-        for deg in range(0, 360, 2):
-            Hc = perspective_h(e, hub, math.radians(deg), mirror)
-            if angle_prior and abs((image_angle(Hc) - angle_prior[0] + 180) % 360 - 180) > angle_prior[1]:
-                continue
-            s = sc(Hc)
-            if s > best[0]:
-                best = (s, (deg, mirror))
-    deg, mirror = best[1]
-    log(f"rotation sweep: {deg} deg, mirrored {mirror}, score {best[0]:.3f}")
+    for hc in hubs:
+        for mirror in mirrors:
+            for deg in range(0, 360, 2):
+                Hc = perspective_h(e, hc, math.radians(deg), mirror)
+                if angle_prior and abs((image_angle(Hc) - angle_prior[0] + 180) % 360 - 180) > angle_prior[1]:
+                    continue
+                s = sc(Hc)
+                if s > best[0]:
+                    best = (s, (deg, mirror, hc))
+    deg, mirror, hub = best[1]
+    log(f"rotation sweep: {deg} deg, mirrored {mirror}, centre ({hub[0]:.0f}, {hub[1]:.0f}), score {best[0]:.3f}")
     H0 = perspective_h(e, hub, math.radians(deg), mirror)
     # Refine: 8 homography entries scaled to comparable steps, maximise the score.
     scale = np.array([1e-2, 1e-2, 5.0, 1e-2, 1e-2, 5.0, 2e-5, 2e-5])
@@ -250,16 +309,29 @@ def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False, mirrors=(Fa
                "image_angle_deg": round(image_angle(H), 2), "angle_prior": angle_prior}
 
 
+def exif_focal_px(path, width, height):
+    """Focal length in pixels from the EXIF 35 mm equivalent (36 mm on the long side), or None."""
+    from PIL import Image
+    try:
+        with Image.open(path) as im:
+            f35 = im.getexif().get_ifd(0x8769).get(0xA405)
+    except Exception:
+        return None
+    return f35 / 36.0 * max(width, height) if f35 else None
+
+
 def analyse(path: str, layout_path: str, out_dir: str, hub=None, log=print, mirrors=(False, True),
-            angle_prior=None) -> dict:
+            angle_prior=None, focal_px=None) -> dict:
     with open(layout_path, encoding="utf-8") as f:
         lay = json.load(f)
     labels, textures, _ = T.design(lay["palette"], **T.geometry(lay))
     rgb = load_photo(path)
     small, fs = _reduce(rgb, FIT_WIDTH)
     hub_s = (hub[0] * fs, hub[1] * fs) if hub else (small.shape[1] / 2, small.shape[0] / 2)
+    f_full = focal_px or exif_focal_px(path, rgb.shape[1], rgb.shape[0])
     H_small, info = fit(small, labels, textures, hub_s, log, auto_hub=hub is None, mirrors=mirrors,
-                        angle_prior=angle_prior)
+                        angle_prior=angle_prior, focal=f_full * fs if f_full else None)
+    info["focal_px"] = f_full
     H = np.diag([1 / fs, 1 / fs, 1.0]) @ H_small            # full-resolution pixels
 
     def to_xy(r, a):
