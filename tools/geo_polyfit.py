@@ -10,6 +10,10 @@ two (DiscImageStudio issue #78, CD-R). This refits the measured rungs with
 and compares constant, quadratic and cubic models.
 
     python tools/geo_polyfit.py results/geo-H-...   [--plot out.png]
+
+--write-correction saves the chosen polynomial as an angle-correction file for `image
+--correction`, so a picture drawn with the constant-pitch u, v lands where this fit says:
+a byte placed at the model angle -Theta_const(n) really sits at -Theta_poly(n).
 """
 import argparse
 import csv
@@ -76,10 +80,34 @@ def fit(n, y, s, u0, v0, order, rc, rs):
                 resid_deg=np.degrees(th + c - y), r_bits=rad)
 
 
+def write_correction(path, f, summ, run, order, rc, rs, n):
+    bit_nm = summ["bit_nm_assumed"]
+    grid = np.linspace(n.min(), n.max(), 400)
+    th_const, r_bits = model(grid, summ["u"], summ["v"], [], rc, rs)
+    th_poly, _ = model(grid, f["u"], f["v"], f["b"], rc, rs)
+    phi = np.degrees(th_const - th_poly)  # picture angles run as -Theta(n)
+    phi -= phi.mean()
+    r = r_bits * bit_nm * 1e-6
+    coef = np.polyfit((r - 40.0) / 15.0, phi, 6)  # highest power first, as load_correction expects
+    err = phi - np.polyval(coef, (r - 40.0) / 15.0)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump({"kind": "angle-correction",
+                   "meaning": "a byte placed at model angle theta appears at theta + phi(r) (degrees, "
+                              "counter-clockwise in data-side view); draw with the design sampled at theta + phi(r)",
+                   "radius_valid_mm": [float(r.min()), float(r.max())], "poly_in_x": coef.tolist(),
+                   "x": "(r_mm - 40) / 15", "source": f"tools/geo_polyfit.py {run}", "pitch_model": order,
+                   "peak_to_peak_deg": float(phi.max() - phi.min())}, fh, indent=2)
+    print(f"wrote {path}: phi peak to peak {phi.max() - phi.min():.3f} deg, polynomial error "
+          f"{np.abs(err).max():.4f} deg")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("run", help="geo results folder (targets.csv, summary.json)")
     ap.add_argument("--plot", help="write a residual plot here")
+    ap.add_argument("--write-correction", help="write an angle-correction file for `image --correction`")
+    ap.add_argument("--order", choices=("quadratic", "cubic"), default="quadratic",
+                    help="which fit --write-correction uses")
     a = ap.parse_args()
     n, y, s, summ = load(a.run)
     bit_nm = summ["bit_nm_assumed"]
@@ -98,6 +126,8 @@ def main():
     print("\nconstant-pitch residual vs radius:")
     for i in order:
         print(f"  {mm(c['r_bits'][i]):7.3f} mm  {c['resid_deg'][i]:+7.3f} deg  (+/- {np.degrees(s[i]):.3f})")
+    if a.write_correction:
+        write_correction(a.write_correction, fits[a.order], summ, a.run, a.order, rc, rs, n)
     if a.plot:
         import matplotlib
         matplotlib.use("Agg")

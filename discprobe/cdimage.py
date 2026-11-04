@@ -152,7 +152,8 @@ def verify_iso(path, design, u, v, bit_nm, total_sectors, dark="0D", light="AA",
     for _ in range(2340 * 8):
         bits.append(reg & 1)
         reg = (reg >> 1) ^ (0x4000 if (reg ^ (reg >> 1)) & 1 else 0)
-    mask = np.packbits(np.array(bits, np.uint8), bitorder="little")[4:2052]
+    first = cd.USER_OFFSET - 12  # the scrambler starts at sector byte 12
+    mask = np.packbits(np.array(bits, np.uint8), bitorder="little")[first:first + 2048]
     with open(path, "rb") as fh:
         for start, count in ranges:
             fh.seek(start * 2048)
