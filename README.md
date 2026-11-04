@@ -392,6 +392,38 @@ python -m discprobe geo --drive H:
 
 **观看建议：**彩虹"披萨片"是出厂导槽的衍射。在一块小而亮的光源的镜面方向附近看（光源紧挨着眼睛或相机），图像整盘可见。详见 [`docs/KNOWLEDGE.md`](docs/KNOWLEDGE.md) §10–§10f。
 
+## CD-R：Mode 1 纹理、计时与刻图
+
+`rings`、`random`、`timing`、`geo`、`image`、`tiles` 和 `gridscan` 支持 `--media cd`，默认仍为 DVD。CD 单扇区为 57624 通道位；实现和未实测的时序假设见 [CD 物理模型](docs/CD_PHYSICAL_MODEL.md)。本次只做软件验证，没有刻录。
+
+第一张建议使用无需角度标定的纹理环盘：
+
+```powershell
+python -m discprobe rings --media cd --output iso/cd-rings.iso
+python -m discprobe ringscan scan1.png scan2.png --layout iso/cd-rings.rings.json --refs 0D,AA
+```
+
+默认 15 环，26–56 mm，纹理 `0D,AA,10,63,RND`；CD 布局会自动选择 `0D,AA` 作为扫描参考，也可用 `--refs` 改成实测最暗和最亮的两种。名字来自参考软件的推荐，实际亮度顺序必须看实盘。ISO LBA 16–20 留在内侧背景。CD 镜像超过 **359,849 扇区**会报错，不自动裁短，也不覆盖同名 CD 镜像或侧车文件。
+
+随机盘用于计时；以下命令要等相应盘片实际刻录后使用：
+
+```powershell
+python -m discprobe random --media cd --output iso/cd-random.iso
+python -m discprobe timing --media cd --drive H: --speed 2822
+python -m discprobe geo --media cd --drive H: --speed 2822 --reps 32 --max-targets 36
+python -m discprobe image --media cd --geo <CD计时summary.json> --line-mm 0.6 --output iso/cd-grid.iso
+python -m discprobe gridscan --media cd scan1.png scan2.png scan3.png scan4.png
+python -m discprobe tiles --media cd --geo <CD计时summary.json> --output iso/cd-tiles.iso
+```
+
+CD 默认固定读速约 16x，必须先从 `timing` 三个区的周期确认 CAV 和 FUA。空白盘没有可供计时读取的数据。`geo` 默认 36 级、每级 32 对，起步为 0.5 和 1.5 圈。CD 计时结果带 `media=cd`，禁止把 DVD 的拟合直接用于 CD 刻图。
+
+`image --media cd` 同样接受布尔/标签 `--design-npy`、`--textures`、`--picture`、`--correction`。绘图单元改为物理帧中连续的 12 数据符号；重复纹理按“物理帧号 ×32 + F2 槽”定相位，再通过 CIRC 映射回填用户数据。暗/亮默认 `0D`/`AA`，不意味着已验证其视觉顺序。设计应在内侧留出背景，文件系统扇区与图案相交时会拒绝生成。
+
+CD `tiles` 的编号参考改用 `0D`/`AA`，`tilescan` 和 `tilephoto` 复用原来的编号和几何处理；分析输出中的历史字段名 `levels_a5_0_92_1` 对 CD 表示编号的 `0D=0 / AA=1`。重复序列如 `0DAA`、`00FF` 是待测候选，不保证光驱产生整轨固定周期。CD 导槽衍射更靠近镜面方向，拍摄宜使用视角小于 10° 的小光源，先锁定观察几何。
+
+运行 `python -m discprobe selftest` 可验证扰码、CIRC 正逆映射、独立反向重建、破坏检出、模拟梯子、合成扫描及参考 EFM 的 3T–11T / DSV 一致性。软件验收数据在 [`evidence/cd-support/`](evidence/cd-support/selftest-final.txt) 和 [`evidence/cd-support-20261104/`](evidence/cd-support-20261104/validation.json)。网格/色板验收镜像使用标称几何，不能当作实测标定成品。
+
 ## 实测证据与知识汇总
 
 - [`docs/KNOWLEDGE.md`](docs/KNOWLEDGE.md)：方法原理、硬件实测、踩过的坑、结论。

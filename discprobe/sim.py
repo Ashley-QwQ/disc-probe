@@ -22,9 +22,19 @@ TWO_PI = 2.0 * math.pi
 class SimDrive:
     def __init__(self, mode: str = "cav", fua_honoured: bool = True, flush_honoured: bool = False, seed: int = 1,
                  jitter_us: float = 60.0, outlier_rate: float = 0.01,
-                 rev_period_ms: float = 6.6, clv_speed_x: float = 8.0,
-                 capacity: int = 2295104, cache_blocks: int = 6, reread_delay_ms: float = 0.0):
+                 rev_period_ms: float | None = None, clv_speed_x: float | None = None,
+                 capacity: int | None = None, cache_blocks: int = 6, reread_delay_ms: float = 0.0,
+                 media="dvd", cd_u=None, cd_v=None):
+        self.media = media
+        if rev_period_ms is None:
+            rev_period_ms = 20.0 if media == "cd" else 6.6
+        if clv_speed_x is None:
+            clv_speed_x = 16.0 if media == "cd" else 8.0
+        if capacity is None:
+            capacity = 359849 if media == "cd" else 2295104
         self.name = f"SIM-{mode}{'' if fua_honoured else '-nofua'}{'-flush' if flush_honoured else ''}"
+        if media == "cd":
+            self.name += "-cd"
         self.mode = mode
         self.fua_honoured = fua_honoured
         self.flush_honoured = flush_honoured
@@ -35,7 +45,14 @@ class SimDrive:
         self.block = 16
         # Off-nominal: 0.735 um pitch, 133.6 nm channel bit, start radius 23.93 mm.
         self.spiral = Spiral(23.93, 0.735e-3, DVD_SECTOR_MM * 133.6 / 133.3)
-        self.clv_speed_mm_s = clv_speed_x * ONE_X_MM_S["dvd"]
+        if media == "cd":
+            from . import cd
+            b = cd.BIT_NM * 1e-6
+            self.block = 1
+            self.spiral = Spiral((cd_u if cd_u is not None else cd.R0_MM / b * 1.01) * b,
+                                 (cd_v if cd_v is not None else cd.PITCH_UM * 1e-3 / b * 0.99) * b,
+                                 cd.SECTOR_BITS * b)
+        self.clv_speed_mm_s = clv_speed_x * ONE_X_MM_S[media]
         self.cache_blocks = cache_blocks
         # Fixed firmware overhead before a media read can start; several revolutions on
         # the GH70N, so back-to-back re-reads all span the same whole number of turns.
@@ -78,6 +95,8 @@ class SimDrive:
 
     def block_end_angle(self, lba: int, count: int = 1) -> float:
         last_block_end = ((lba + count - 1) // self.block + 1) * self.block
+        if self.media == "cd":
+            last_block_end += 108 / 98  # independent of the ladder's read-end helper
         return self.spiral.angle(last_block_end) % TWO_PI
 
     def true_phase_deg(self, ref_lba: int, target_lba: int) -> float:
@@ -126,7 +145,7 @@ class SimDrive:
                 d[32:36] = b"0.01"
                 data = bytes(d)
             elif op == 0x46:
-                data = bytes([0, 0, 0, 4, 0, 0, 0x00, 0x11])
+                data = bytes([0, 0, 0, 4, 0, 0, 0x00, 0x08 if self.media == "cd" else 0x11])
             elif op == 0x25:
                 data = (self.capacity - 1).to_bytes(4, "big") + (2048).to_bytes(4, "big")
             elif op == 0x43 and (cdb[2] & 0x0F) == 0:
@@ -162,6 +181,8 @@ class SimDrive:
         # unwrapped spindle phase equals theta modulo 2*pi.
         theta_start = self.spiral.angle(start)
         theta_end = self.spiral.angle(end)
+        if self.media == "cd":
+            theta_end = self.spiral.angle(end + 108 / 98)
         phase_now = self._phase(t_arrive)
         wait = (theta_start - phase_now) % TWO_PI
         t_start_pass = self._time_to_reach(t_arrive, phase_now + wait)
