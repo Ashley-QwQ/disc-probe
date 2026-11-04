@@ -276,6 +276,10 @@ class TimingProbe:
         self.log("Cache: " + ", ".join(f"{k} p50 {v['p50_us']} us" for k, v in out.items()
                                        if isinstance(v, dict)) + f" -> strategy {self.strategy}")
 
+    def cover_one_turn(self, period_s: float):
+        """The random pause before a timed read has to span a revolution to spread the phases."""
+        self.host_delay_s = max(self.host_delay_s, 1.25 * period_s)
+
     def settle_spindle(self, rounds: int = 15, reads: int = 16):
         """Wait for a steady speed: a stopped or slowed drive spins up for a while after the first
         reads, and the first run then looks mixed or noisy while a second run looks fine."""
@@ -289,6 +293,7 @@ class TimingProbe:
             if period and prev and abs(period / prev - 1) < 2e-3:
                 self.log(f"Spindle steady: T = {period * 1e3:.3f} ms ({60 / period:.1f} rpm)")
                 self.summary["settle"] = {"steady": True, "period_ms": period * 1e3}
+                self.cover_one_turn(period)
                 return
             prev = period
         self.log("Spindle did not reach a steady speed; expect noisy results")
@@ -313,6 +318,24 @@ class TimingProbe:
         self.zones = zones
         self.summary["period"] = {"zones": zones, "rotation": self._classify(zones)}
         self.log(f"Rotation: {self.summary['period']['rotation']['mode']}")
+        self._check_period(zones)
+
+    def _check_period(self, zones):
+        """Catch a period that is not the spindle. A re-read from the disc takes whole turns on every
+        drive so far. Reads served from cache follow the host instead: with a coarse sleep their
+        completion times lock to the Windows timer tick (15.625 ms) and its harmonics."""
+        periods = [z["period_ms"] for z in zones if "period_ms" in z]
+        fua = self.summary.get("cache", {}).get("fua", {}).get("p50_us")
+        if not periods or not fua:
+            return
+        T = statistics.median(periods)
+        turns = fua / 1e3 / T
+        self.summary["period"]["fua_read_turns"] = round(turns, 3)
+        if abs(turns - round(turns)) > 0.1:
+            self.log(f"Warning: a FUA read takes {turns:.2f} turns of this period, not a whole number, "
+                     "so this period may not be the spindle")
+        if self.strategy in ("plain", "evict") and any(abs(15.625 / k - T) < 0.15 for k in (1, 2, 3)):
+            self.log("Warning: this period looks like the Windows timer tick (15.625 ms), not the spindle")
 
     def _nominal_key(self) -> str:
         return self.family if self.family in NOMINAL else "dvd"

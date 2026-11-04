@@ -102,9 +102,9 @@ INQUIRY、GET CONFIGURATION（当前 profile 和功能列表）、READ DISC INFO
 | HL-DT-ST GH70N（NYA2） | SATA / Windows | Ritek F1 DVD-R | `fua` | CAV，4x 约 2830 rpm | 0.43–0.55° | 阶梯和刻图都已验证（首刻约 0.1°）；外圈约 53 mm 处会换转速档 | 本仓库 |
 | HL-DT-ST GH70N（NYA2） | SATA / Windows | CMC CD-R | `fua` | CAV，3226 rpm | 0.5–0.76° | CD 阶梯可用；盘的轨距不规则，沿轨道原点未验证 | 本仓库 |
 | MATSHITA BD-MLT UJ260AF（1.01） | USB 3.0 / macOS（[discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)） | RITEK RiDATA 可打印 DVD-R（MID `RITEKF1`） | `fua` | CAV，2364 rpm | 0.65–0.87° | `geo` 和 `disexport` 跑通，参数见 [#87](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/87)，已有人用它刻图成功；和本仓库 GH70N 的 Ritek F1 结果在 25–58 mm 相差 0.13° rms（30 mm 以外在 ±0.2° 内）。FUA 重读固定两圈；SET CD SPEED 请求 4x 不换档；建议 `--sectors 16` | NaiveTomcat，#107 |
-| HL-DT-ST GP65NB60（PF00） | USB / Windows | 铼德 ExcellentX DVD+RW（`RITEK/004/48`），随机数据 | 工具误判为 `plain`（4–7 ms / 47–84 ms） | CAV，约 3830 rpm | 待用修好的版本重测 | 刻标定图案的盘几乎全部读取报错（3/11/00），换随机数据盘后正常，确认是盘的内容；8x 档不稳 | FanJZSS，#107 |
-| ASUS BW-16D1H-U（E116） | USB / Windows、Linux | RITEK ARITA DVD-R，随机数据 | `fua` | CAV，9204 rpm（请求 2770、5540 都不降速） | 10–14°（约 200 µs） | 每点平均后 2–3°；两个系统上抖动一样大；`geo` 的门槛已放宽，待重试 | bczhc，#107 |
-| PLDS DVD-RW DS8A8SH | SATA 转 USB / Windows | RITEK ARITA DVD-R，随机数据 | `fua` | CAV，2388 rpm | 0.52–0.88°（36–61 µs） | 约 15 年前的笔记本光驱，每点 ±0.1°；第一次运行要等转速稳定 | bczhc，#107 |
+| HL-DT-ST GP65NB60（PF00） | USB / Windows | 铼德 ExcellentX DVD+RW（`RITEK/004/48`），随机数据 | 工具误判为 `plain`（4–7 ms / 47–84 ms） | 待重测（当时测到的 15.6 ms 是 Windows 定时器，不是主轴；按 FUA 读 83.7 ms 推算一圈可能约 42 ms） | 待重测 | 刻标定图案的盘几乎全部读取报错（3/11/00），换随机数据盘后正常，确认是盘的内容 | FanJZSS，#107 |
+| ASUS BW-16D1H-U（E116） | USB / Windows、Linux | RITEK ARITA DVD-R，随机数据 | `fua` | CAV，9204 rpm（请求 2770、5540 都不降速） | 10–14°（约 200 µs） | 每点平均后 2–3°；两个系统上抖动一样大；对照 #53 几何，50 mm 以外相位跳约 +11°（约 0.2 ms），和 GH70N 高速读 CD 的现象类似；`geo` 门槛已放宽，待重试 | bczhc，#107 |
+| PLDS DVD-RW DS8A8SH | SATA 转 USB / Windows | RITEK ARITA DVD-R，随机数据 | `fua` | CAV，2388 rpm | 0.52–0.88°（36–61 µs） | 约 15 年前的笔记本光驱。`geo` 跑通（22 点，rms 0.21°），和本仓库 GH70N 的结果相差 0.04° rms，和 bczhc 的拍照标定（#53）在 5 个点上差 0.02–0.23° | bczhc，#107 |
 | ASUS SDRW-08U9M-U | USB / Windows | RITEK ARITA DVD-R，随机数据 | 工具误判为 `plain`（4.9 ms / 76 ms） | 未能判定 | 未能判定 | 缓存判断的 bug 已修，待重测 | bczhc，#107 |
 | ASUS SDRW-08D2S-U | USB / Windows | Verbatim CD-R | 工具误判为 `plain`（缓存命中 8 ms，FUA 39 ms） | 未能判定 | 未能判定 | 缓存判断的 bug 已修，待重测 | moodyos，#107 |
 

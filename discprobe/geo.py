@@ -160,6 +160,7 @@ class Ladder:
             fit = analysis.estimate_period(times) if len(times) >= 8 else None
             if fit and fit.coherence > SETTLE_COHERENCE and prev and abs(fit.period_s / prev - 1) < PERIOD_TOL:
                 self.T = fit.period_s
+                tp.cover_one_turn(fit.period_s)
                 self.log(f"Spindle settled: T = {fit.period_s * 1e3:.4f} ms ({60 / fit.period_s:.1f} rpm), "
                          f"jitter {fit.residual_std_s * 1e6:.1f} us")
                 return self.T
