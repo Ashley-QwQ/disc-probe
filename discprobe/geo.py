@@ -261,14 +261,27 @@ class Ladder:
             self.ref = self._allowed(self.ref_arg)
         else:
             mid = (min(a for a, _ in self.ranges) + max(b for _, b in self.ranges)) // 2
+            if not any(a <= mid < b for a, b in self.ranges):
+                # The middle falls in a gap (e.g. between texture rings): take the centre of the
+                # nearest range, not its edge, so the first rungs have room on both sides.
+                a, b = min(self.ranges, key=lambda r: min(abs(mid - r[0]), abs(mid - r[1])))
+                mid = (a + b) // 2
             self.ref = self._allowed(mid)
         self.n_ref = self._n_end(self.ref)
         self.log(f"Reference LBA {self.ref}; readable ranges {self.ranges}")
         self.settle()
 
         # First rungs: a turn or two away, where the nominal model is good to a few degrees.
+        used = {self.ref}
         for i, turns in enumerate(self.first_turns):
             lba = self._allowed(self._lba_at_turns(turns))
+            if min(abs(lba - t) for t in used) < self.block:
+                # Clamped onto the reference (or a rung) at a range edge: go the other way.
+                turns = -turns
+                lba = self._allowed(self._lba_at_turns(turns))
+            if min(abs(lba - t) for t in used) < self.block:
+                raise RuntimeError(f"no room for a rung {abs(turns)} turns from the reference")
+            used.add(lba)
             m = self._measure_retry(lba)
             if m is None:
                 raise RuntimeError(f"could not measure LBA {lba} near the reference")
