@@ -73,6 +73,67 @@ def _plane(values, rows, cols):
     return lambda r, c: np.array([1.0, r, c]) @ coef
 
 
+def read_tiles(lay: dict, rgb: np.ndarray, to_xy) -> tuple[list[dict], int]:
+    """Sample every tile through to_xy(r_mm, angle_rad) -> image (x, y); return rows and IDs read."""
+    palette = lay["palette"]
+    cx0, cy0 = to_xy(np.array([0.0]), np.array([0.0]))
+
+    def cell_mean(r_lo, r_hi, a_lo, a_hi):
+        rr = r_lo + (r_hi - r_lo) * np.linspace(0.15, 0.85, 7)
+        aa = a_lo + (a_hi - a_lo) * np.linspace(0.15, 0.85, 7)
+        R, A = np.meshgrid(rr, aa)
+        x, y = to_xy(R.ravel(), A.ravel())
+        vals = np.stack([scan._sample(rgb[..., k], x, y) for k in range(3)], -1)
+        return np.nanmean(vals, axis=0)
+
+    rows, n_ok = [], 0
+    for k, nsec in enumerate(lay["sectors_per_ring"]):
+        r_in, r_out = T.RING_EDGES_MM[k] + T.GAP_MM / 2, T.RING_EDGES_MM[k + 1] - T.GAP_MM / 2
+        dr = (r_out - r_in) / T.ROWS
+        r_mid = (r_in + r_out) / 2
+        for j in range(nsec):
+            span = 2 * math.pi / nsec - T.GAP_MM / r_mid
+            a0 = j * 2 * math.pi / nsec + T.GAP_MM / 2 / r_mid
+            da = span / T.COLS
+            cells = np.array([[cell_mean(r_in + row * dr, r_in + (row + 1) * dr, a0 + col * da, a0 + (col + 1) * da)
+                               for col in range(T.COLS)] for row in range(T.ROWS)])        # rows x cols x rgb
+            grey = cells.mean(-1)
+            want = T.tile_cells(k, j, len(palette))
+            a5, n92 = cells[want == -1].mean(0), cells[want == -2].mean(0)
+            contrast = float(n92.mean() - a5.mean())
+            ra, ca = np.nonzero(want == -1)
+            rb, cb = np.nonzero(want == -2)
+            ref_a5 = _plane(cells[want == -1], ra, ca)      # lamp shading across the tile
+            ref_92 = _plane(cells[want == -2], rb, cb)
+            a5_dark = grey[0, 0] + grey[1, 0] < grey[4, 3] + grey[5, 3]     # finder slot 0 (A5/A5) vs slot 11 (92/92)
+            bits = []
+            for s in range(1, 11):
+                col, pair = divmod(s, 3)
+                bits.append(int((grey[2 * pair, col] < grey[2 * pair + 1, col]) == a5_dark))
+            ok = T.decode_slots(bits) == (k, j)
+            n_ok += ok
+            tx, ty = to_xy(np.array([r_mid]), np.array([a0 + span / 2]))
+            th_img = math.atan2(-(ty[0] - cy0[0]), tx[0] - cx0[0])
+            row = {"ring": k, "sector": j, "radius_mm": round(r_mid, 2),
+                   "design_angle_deg": round(math.degrees(a0 + span / 2), 2),
+                   "image_angle_deg": round(math.degrees(th_img) % 360, 2),
+                   "id_ok": int(ok), "a5_darker": int(a5_dark), "contrast": round(contrast, 4)}
+            for i, name in enumerate(palette):
+                col, pair = divmod(i, 3)
+                sw = cells[2 * pair:2 * pair + 2, T.ID_COLS + col].mean(0)
+                at = (2 * pair + 0.5, T.ID_COLS + col)
+                lo_ref, hi_ref = ref_a5(*at), ref_92(*at)
+                den = hi_ref - lo_ref
+                lev = (sw - lo_ref) / np.where(np.abs(den) > 1e-6, den, np.nan)
+                gden = float(hi_ref.mean() - lo_ref.mean())
+                row[f"{name}_level"] = round(float((sw.mean() - lo_ref.mean()) / gden), 3) if abs(gden) > 1e-6 else ""
+                row[f"{name}_rgb"] = " ".join(f"{v:.3f}" for v in sw)
+                row[f"{name}_level_rgb"] = " ".join(f"{v:.2f}" for v in lev)
+            rows.append(row)
+
+    return rows, n_ok
+
+
 def analyse(path: str, layout_path: str, out_dir: str, dpi: float = 600.0, log=print) -> dict:
     if "blind" in os.path.basename(path).lower():
         raise ValueError("refusing to read a file whose name contains 'blind'")
@@ -104,57 +165,11 @@ def analyse(path: str, layout_path: str, out_dir: str, dpi: float = 600.0, log=p
         th = (rot - th_design) if mirrored else (th_design + rot)
         return cx + r * sx * np.cos(th), cy - r * sy * np.sin(th), th
 
-    def cell_mean(r_lo, r_hi, a_lo, a_hi):
-        rr = r_lo + (r_hi - r_lo) * np.linspace(0.15, 0.85, 7)
-        aa = a_lo + (a_hi - a_lo) * np.linspace(0.15, 0.85, 7)
-        R, A = np.meshgrid(rr, aa)
-        x, y, _ = to_px(R.ravel(), A.ravel())
-        vals = np.stack([scan._sample(rgb[..., k], x, y) for k in range(3)], -1)
-        return np.nanmean(vals, axis=0)
+    def to_xy(r, a):
+        x, y, _ = to_px(r, a)
+        return x, y
 
-    rows, n_ok = [], 0
-    for k, nsec in enumerate(lay["sectors_per_ring"]):
-        r_in, r_out = T.RING_EDGES_MM[k] + T.GAP_MM / 2, T.RING_EDGES_MM[k + 1] - T.GAP_MM / 2
-        dr = (r_out - r_in) / T.ROWS
-        r_mid = (r_in + r_out) / 2
-        for j in range(nsec):
-            span = 2 * math.pi / nsec - T.GAP_MM / r_mid
-            a0 = j * 2 * math.pi / nsec + T.GAP_MM / 2 / r_mid
-            da = span / T.COLS
-            cells = np.array([[cell_mean(r_in + row * dr, r_in + (row + 1) * dr, a0 + col * da, a0 + (col + 1) * da)
-                               for col in range(T.COLS)] for row in range(T.ROWS)])        # rows x cols x rgb
-            grey = cells.mean(-1)
-            want = T.tile_cells(k, j, len(palette))
-            a5, n92 = cells[want == -1].mean(0), cells[want == -2].mean(0)
-            contrast = float(n92.mean() - a5.mean())
-            ra, ca = np.nonzero(want == -1)
-            rb, cb = np.nonzero(want == -2)
-            ref_a5 = _plane(cells[want == -1], ra, ca)      # lamp shading across the tile
-            ref_92 = _plane(cells[want == -2], rb, cb)
-            a5_dark = grey[0, 0] + grey[1, 0] < grey[4, 3] + grey[5, 3]     # finder slot 0 (A5/A5) vs slot 11 (92/92)
-            bits = []
-            for s in range(1, 11):
-                col, pair = divmod(s, 3)
-                bits.append(int((grey[2 * pair, col] < grey[2 * pair + 1, col]) == a5_dark))
-            ok = T.decode_slots(bits) == (k, j)
-            n_ok += ok
-            _, _, th_scan = to_px(r_mid, a0 + span / 2)
-            row = {"ring": k, "sector": j, "radius_mm": round(r_mid, 2),
-                   "design_angle_deg": round(math.degrees(a0 + span / 2), 2),
-                   "scan_angle_deg": round(math.degrees(th_scan) % 360, 2),
-                   "id_ok": int(ok), "a5_darker": int(a5_dark), "contrast": round(contrast, 4)}
-            for i, name in enumerate(palette):
-                col, pair = divmod(i, 3)
-                sw = cells[2 * pair:2 * pair + 2, T.ID_COLS + col].mean(0)
-                at = (2 * pair + 0.5, T.ID_COLS + col)
-                lo_ref, hi_ref = ref_a5(*at), ref_92(*at)
-                den = hi_ref - lo_ref
-                lev = (sw - lo_ref) / np.where(np.abs(den) > 1e-6, den, np.nan)
-                gden = float(hi_ref.mean() - lo_ref.mean())
-                row[f"{name}_level"] = round(float((sw.mean() - lo_ref.mean()) / gden), 3) if abs(gden) > 1e-6 else ""
-                row[f"{name}_rgb"] = " ".join(f"{v:.3f}" for v in sw)
-                row[f"{name}_level_rgb"] = " ".join(f"{v:.2f}" for v in lev)
-            rows.append(row)
+    rows, n_ok = read_tiles(lay, rgb, to_xy)
 
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "tiles.csv"), "w", newline="", encoding="utf-8") as fh:
