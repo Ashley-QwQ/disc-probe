@@ -254,6 +254,10 @@ def cmd_image(args):
         design = np.load(args.design_npy)
         if design.shape != (imagedisc.SIZE, imagedisc.SIZE):
             sys.exit(f"design must be {imagedisc.SIZE} x {imagedisc.SIZE} cells of {imagedisc.CELL_MM} mm")
+        if args.textures:
+            design = design.astype(np.uint8)
+        elif design.dtype != bool:
+            sys.exit("a label design (not boolean) needs --textures, one per label")
         kind = f"design {os.path.basename(args.design_npy)}"
     elif args.picture:
         design = imagedisc.picture_design(args.picture, args.diameter_mm)
@@ -262,17 +266,23 @@ def cmd_image(args):
         design = imagedisc.grid_design(r_max=args.r_max, line=args.line_mm)
         kind = f"grid, {args.line_mm} mm lines"
     total = min(imagedisc.sectors_to_radius(u, v, bit, args.r_max + 0.6), 2295104)
+    tex = f"textures {' '.join(args.textures)}" if args.textures else f"dark {args.dark}, light {args.light}"
     print(f"{kind}, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
-          f"({total * 2048 / 1e9:.2f} GB), dark {args.dark}, light {args.light}")
+          f"({total * 2048 / 1e9:.2f} GB), {tex}")
     corr = imagedisc.load_correction(args.correction) if args.correction else None
     spec = imagedisc.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
                                meta={"geometry_from": os.path.abspath(args.geo), "design": kind,
                                      "correction": os.path.abspath(args.correction) if args.correction else None},
-                               correction=corr)
-    problems = imagedisc.verify_iso(args.output, design, u, v, bit, total, args.dark, args.light, correction=corr)
+                               correction=corr, textures=args.textures)
+    problems = imagedisc.verify_iso(args.output, design, u, v, bit, total, args.dark, args.light, correction=corr,
+                                    textures=args.textures)
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     prev = os.path.splitext(args.output)[0] + ".preview.png"
-    imagedisc.preview(design, prev)
+    if design.dtype == bool:
+        imagedisc.preview(design, prev)
+    else:
+        from . import tiledisc
+        tiledisc.preview(design, args.textures, prev)
     print(f"Spec: {os.path.abspath(spec)}\nPreview (data-side view): {os.path.abspath(prev)}")
 
 
@@ -480,6 +490,8 @@ def main(argv=None):
     sp.add_argument("--correction", help="angle-correction file (phi(r) measured on a burned grid)")
     sp.add_argument("--dark", default="A5")
     sp.add_argument("--light", default="B9", help="light texture (B9 scanned brightest on Ritek F1)")
+    sp.add_argument("--textures", nargs="+", help="for a label design (uint8): one texture per label, "
+                    "e.g. A5 92 8B00 RND MIX:92,4F")
     sp.set_defaults(func=cmd_image)
 
     sp = sub.add_parser("tiles", help="write a self-locating texture palette target (IDs + swatches in every tile)")
