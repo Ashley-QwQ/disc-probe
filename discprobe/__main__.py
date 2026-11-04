@@ -326,6 +326,15 @@ def cmd_tiles(args):
           f"Preview (data-side view, false colours): {os.path.abspath(base + '.preview.png')}")
 
 
+def cmd_tilescan(args):
+    from . import tilescan
+    for i, path in enumerate(args.scans):
+        out = os.path.join(args.output_dir, f"{i + 1}_{os.path.splitext(os.path.basename(path))[0]}")
+        s = tilescan.analyse(path, args.layout, out, dpi=args.dpi)
+        for name, v in s["levels_a5_0_92_1"].items():
+            print(f"    {name:24s} {v}")
+
+
 def cmd_random(args):
     from .randomdisc import write_iso
     print(f"Writing {os.path.abspath(args.output)}: {args.sectors} sectors of seeded random data")
@@ -480,6 +489,13 @@ def main(argv=None):
                     help="up to 9 textures: a byte (A5), a repeated sequence (8B00), RND, or MIX:92,4F")
     sp.add_argument("--correction", help="angle-correction file")
     sp.set_defaults(func=cmd_tiles)
+
+    sp = sub.add_parser("tilescan", help="read IDs and swatch levels from flatbed scans of the tile palette target")
+    sp.add_argument("scans", nargs="+", help="scan images (PNG/TIFF/JPEG)")
+    sp.add_argument("--layout", default="iso/tiles.tiles.json", help="layout file written by the tiles command")
+    sp.add_argument("--dpi", type=float, default=600.0)
+    sp.add_argument("--output-dir", default="results/tilescan")
+    sp.set_defaults(func=cmd_tilescan)
 
     sp = sub.add_parser("gridscan", help="measure line straightness on scans of the burned grid test")
     sp.add_argument("images", nargs="+")
