@@ -262,6 +262,14 @@ def cmd_image(args):
     if args.media == "cd" and fit.get("media") != "cd":
         sys.exit("CD image needs a CD geometry fit (media=cd); DVD fits must not be reused")
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
+    if args.along_track_frames:
+        # Timing cannot see an along-track offset d (read completion vs written position): theta(n - d)
+        # is the same spiral with u^2 - v d / pi. Measure d on a burned grid disc.
+        import math
+        from .cd import FRAME_BITS
+        if args.media != "cd":
+            sys.exit("--along-track-frames is for CD")
+        u = math.sqrt(u * u - v * args.along_track_frames * FRAME_BITS / math.pi)
     if args.design_npy:
         import numpy as np
         design = np.load(args.design_npy)
@@ -291,6 +299,7 @@ def cmd_image(args):
     corr = imagedisc.load_correction(args.correction) if args.correction else None
     spec = writer.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
                                meta={"geometry_from": os.path.abspath(args.geo), "design": kind,
+                                     "along_track_frames": args.along_track_frames,
                                      "correction": os.path.abspath(args.correction) if args.correction else None},
                                correction=corr, textures=args.textures)
     problems = writer.verify_iso(args.output, design, u, v, bit, total, args.dark, args.light, correction=corr,
@@ -536,6 +545,8 @@ def main(argv=None):
     sp.add_argument("--r-max", type=float, default=56.0, help="outer radius of the drawing")
     sp.add_argument("--line-mm", type=float, default=0.3, help="grid line width")
     sp.add_argument("--correction", help="angle-correction file (phi(r) measured on a burned grid)")
+    sp.add_argument("--along-track-frames", type=float, default=0.0,
+                    help="CD: frames the read completion lies beyond the timing model, measured on a burned grid")
     sp.add_argument("--dark", default="A5")
     sp.add_argument("--light", default="B9", help="light texture (B9 scanned brightest on Ritek F1)")
     sp.add_argument("--textures", nargs="+", help="for a label design (uint8): one texture per label, "

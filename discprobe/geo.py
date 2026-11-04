@@ -46,6 +46,11 @@ MIN_SIGMA_DEG = 0.2         # floor on a target's phase uncertainty (systematics
 PERIOD_TOL = 2e-3
 FIRST_TURNS = (1.5, 4.0)    # first rungs, in turns from the reference
 SETTLE_READS = 16
+# Period-fit coherence is about exp(-sigma^2 / 2) for a phase scatter sigma, so these allow about
+# 18 and 22 deg per read. A BW-16D1H-U (12-14 deg, coherence 0.97) never passed 0.99.
+SETTLE_COHERENCE = 0.95
+MEASURE_COHERENCE = 0.93
+MAX_PHASE_STD_DEG = 30.0
 MIN_SPACING_SECTORS = 4000  # about a third of a millimetre of radius
 
 
@@ -153,12 +158,12 @@ class Ladder:
             times = [r.t_end_ns for r in (tp._measure(self.ref, "settle") for _ in range(SETTLE_READS))
                      if tp._usable(r)]
             fit = analysis.estimate_period(times) if len(times) >= 8 else None
-            if fit and fit.coherence > 0.99 and prev and abs(fit.period_s / prev - 1) < PERIOD_TOL:
+            if fit and fit.coherence > SETTLE_COHERENCE and prev and abs(fit.period_s / prev - 1) < PERIOD_TOL:
                 self.T = fit.period_s
                 self.log(f"Spindle settled: T = {fit.period_s * 1e3:.4f} ms ({60 / fit.period_s:.1f} rpm), "
                          f"jitter {fit.residual_std_s * 1e6:.1f} us")
                 return self.T
-            prev = fit.period_s if fit and fit.coherence > 0.99 else None
+            prev = fit.period_s if fit and fit.coherence > SETTLE_COHERENCE else None
         raise RuntimeError("the spindle speed never settled; is the read speed fixed (--speed)?")
 
     def measure(self, lba: int) -> dict | None:
@@ -172,10 +177,10 @@ class Ladder:
             if tp._usable(x):
                 x_t.append(x.t_end_ns)
         fit = self._ref_period(ref_t) if len(ref_t) >= 8 else None
-        if not fit or fit.coherence < 0.98 or abs(fit.period_s / self.T - 1) > PERIOD_TOL or len(x_t) < 8:
+        if not fit or fit.coherence < MEASURE_COHERENCE or abs(fit.period_s / self.T - 1) > PERIOD_TOL or len(x_t) < 8:
             return None
         ph = analysis.robust_circular_mean(analysis.phase_offsets(fit, x_t))
-        if ph["mean_deg"] is None or ph["std_deg"] > 20:
+        if ph["mean_deg"] is None or ph["std_deg"] > MAX_PHASE_STD_DEG:
             return None
         self.T = fit.period_s  # follow slow drift of the regulated speed
         return {"lba": lba, "n": self._n_end(lba), "phase_deg": ph["mean_deg"],

@@ -276,6 +276,24 @@ class TimingProbe:
         self.log("Cache: " + ", ".join(f"{k} p50 {v['p50_us']} us" for k, v in out.items()
                                        if isinstance(v, dict)) + f" -> strategy {self.strategy}")
 
+    def settle_spindle(self, rounds: int = 15, reads: int = 16):
+        """Wait for a steady speed: a stopped or slowed drive spins up for a while after the first
+        reads, and the first run then looks mixed or noisy while a second run looks fine."""
+        self._experiment = "settle"
+        lba, prev = self._align(0.5), None
+        for _ in range(rounds):
+            res = [self._measure(lba, "settle") for _ in range(reads)]
+            times = [r.t_end_ns for r in res if self._usable(r)]
+            fit = analysis.estimate_period(times) if len(times) >= 8 else None
+            period = fit.period_s if fit and fit.coherence > 0.9 else None
+            if period and prev and abs(period / prev - 1) < 2e-3:
+                self.log(f"Spindle steady: T = {period * 1e3:.3f} ms ({60 / period:.1f} rpm)")
+                self.summary["settle"] = {"steady": True, "period_ms": period * 1e3}
+                return
+            prev = period
+        self.log("Spindle did not reach a steady speed; expect noisy results")
+        self.summary["settle"] = {"steady": False}
+
     def period_test(self):
         self._experiment = "period"
         zones = []
@@ -377,6 +395,7 @@ class TimingProbe:
         try:
             self.setup()
             self.cache_test()
+            self.settle_spindle()
             self.period_test()
             mode = self.summary["period"]["rotation"]["mode"]
             if self.stop_if_not_cav and mode != "CAV":
