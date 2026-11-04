@@ -11,6 +11,7 @@ are blurred.
 | `qingming_full.jpg`, `qingming_title.jpg`, `qingming_inner_ring.jpg` | 清明上河图 (Along the River During the Qingming Festival) on two conformal rings, A5 ink on 92 silk |
 | `dense_motifs.jpg` | Dense tiling of small motifs with an outer resolution band |
 | `palette_target.jpg` | Self-locating texture palette target (`python -m discprobe tiles`) |
+| `rosettes_a.jpg`, `rosettes_b.jpg`, `rosettes_c.jpg`, `rosettes_closeup.jpg` | Four-colour rosettes (`tools/compose_rosettes.py`): petals in `A5`, `92`, `66` and 64T `ED00`, centres in 48T, background an aperiodic 8T mix. Phone flash, three viewpoints; the petal colours come from along-track diffraction and change with the angle |
 
 The painting is in the public domain; the scan it was made from and the design files are not
 published here.
