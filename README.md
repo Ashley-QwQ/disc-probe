@@ -99,7 +99,9 @@ INQUIRY、GET CONFIGURATION（当前 profile 和功能列表）、READ DISC INFO
 |---|---|---|---|---|---|---|---|
 | HL-DT-ST GH70N（NYA2） | SATA / Windows | Ritek F1 DVD-R | `fua` | CAV，4x 约 2830 rpm | 0.43–0.55° | 阶梯和刻图都已验证（首刻约 0.1°）；外圈约 53 mm 处会换转速档 | 本仓库 |
 | HL-DT-ST GH70N（NYA2） | SATA / Windows | CMC CD-R | `fua` | CAV，3226 rpm | 0.5–0.76° | CD 阶梯可用；盘的轨距不规则，沿轨道原点未验证 | 本仓库 |
-| MATSHITA BD-MLT UJ260AF（1.01） | USB 3.0 / macOS（移植版） | 未注明 | `fua` | CAV，2364 rpm | 0.65–0.87° | FUA 重读固定两圈；SET CD SPEED 请求 4x 不换档；报告的速度约为实际的两倍；建议 `--sectors 16` | NaiveTomcat，#107 |
+| MATSHITA BD-MLT UJ260AF（1.01） | USB 3.0 / macOS（[discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)） | RITEK RiDATA 可打印 DVD-R（MID `RITEKF1`） | `fua` | CAV，2364 rpm | 0.65–0.87° | `geo` 和 `disexport` 跑通，参数见 [#87](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/87)，已有人用它刻图成功；和本仓库 GH70N 的 Ritek F1 结果在 25–58 mm 相差 0.13° rms（30 mm 以外在 ±0.2° 内）。FUA 重读固定两圈；SET CD SPEED 请求 4x 不换档；建议 `--sectors 16` | NaiveTomcat，#107 |
+
+macOS 版由 NaiveTomcat 移植：[NaiveTomcat/discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)（GPL-3.0-or-later），发布包里带签名、公证过的通用 helper，不需要编译。
 
 ## 背景资料与首轮实验建议
 
