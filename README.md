@@ -89,6 +89,17 @@ INQUIRY、GET CONFIGURATION（当前 profile 和功能列表）、READ DISC INFO
 - `period.rotation.mode`：必须是 `CAV`，相位法才有意义。如果是 CLV，先用 `--speed` 换一个速度档再测。`--cav` 设置的是 SET CD SPEED 的 Rotational Control 位，但 MMC 把这一位定义为写入时的转速控制，所以它对读取有没有作用，只能看周期测试的结果。
 - 每区的 `jitter_deg`：单次测量的角度噪声，直接决定精度。估算方法：平均 n 次后误差约为 `jitter_deg / sqrt(n)`。
 - `phase.targets[].phase.sem_deg`：每个目标相位的不确定度。模拟中真实误差的离散比它大约多 10–20%，可以当作略偏乐观的估计。这些相位是对 360° 取模的，要拿去解缠和拟合 r0/b、p/b，还需要下一步的分析（另写）。
+- 每次计时读之前的随机等待（`--host-delay-ms`，默认 25 ms）应当**长于一圈**。转速低于 2400 rpm 时一圈就超过 25 ms，要调大，比如 30–40 ms。
+
+## 光驱兼容表
+
+`timing` 的实测结果。欢迎在 [DiscImageStudio discussion #107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) 补充。
+
+| 光驱 | 接口 / 系统 | 盘 | 缓存 | 转速模式 | 单次抖动 | 备注 | 来源 |
+|---|---|---|---|---|---|---|---|
+| HL-DT-ST GH70N（NYA2） | SATA / Windows | Ritek F1 DVD-R | `fua` | CAV，4x 约 2830 rpm | 0.43–0.55° | 阶梯和刻图都已验证（首刻约 0.1°）；外圈约 53 mm 处会换转速档 | 本仓库 |
+| HL-DT-ST GH70N（NYA2） | SATA / Windows | CMC CD-R | `fua` | CAV，3226 rpm | 0.5–0.76° | CD 阶梯可用；盘的轨距不规则，沿轨道原点未验证 | 本仓库 |
+| MATSHITA BD-MLT UJ260AF（1.01） | USB 3.0 / macOS（移植版） | 未注明 | `fua` | CAV，2364 rpm | 0.65–0.87° | FUA 重读固定两圈；SET CD SPEED 请求 4x 不换档；报告的速度约为实际的两倍；建议 `--sectors 16` | NaiveTomcat，#107 |
 
 ## 背景资料与首轮实验建议
 
