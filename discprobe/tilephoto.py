@@ -199,7 +199,9 @@ class Scorer:
         return float(np.mean(np.abs(local)) / np.mean(norm))
 
 
-def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False):
+def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False, mirrors=(False, True)):
+    """mirrors: which mirrorings to try. A photo of the data side is never mirrored relative to the
+    data-side design; pass (False,) when the design is close to mirror-symmetric."""
     grey = rgb_small.mean(-1)
     pts = rim_points(grey, hub)
     e, n_in = ransac_ellipse(pts)
@@ -212,7 +214,7 @@ def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False):
     log(f"rim: {len(pts)} points, {n_in} on the ellipse; centre ({e[0]:.0f}, {e[1]:.0f}), axes {e[2]:.0f} x {e[3]:.0f} px")
     sc = Scorer(grey, labels, textures)
     best = (-1, None)
-    for mirror in (False, True):
+    for mirror in mirrors:
         for deg in range(0, 360, 2):
             s = sc(perspective_h(e, hub, math.radians(deg), mirror))
             if s > best[0]:
@@ -236,14 +238,14 @@ def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False):
                                                      "sweep_deg": deg, "mirrored": mirror}
 
 
-def analyse(path: str, layout_path: str, out_dir: str, hub=None, log=print) -> dict:
+def analyse(path: str, layout_path: str, out_dir: str, hub=None, log=print, mirrors=(False, True)) -> dict:
     with open(layout_path, encoding="utf-8") as f:
         lay = json.load(f)
-    labels, textures, _ = T.design(lay["palette"])
+    labels, textures, _ = T.design(lay["palette"], **T.geometry(lay))
     rgb = load_photo(path)
     small, fs = _reduce(rgb, FIT_WIDTH)
     hub_s = (hub[0] * fs, hub[1] * fs) if hub else (small.shape[1] / 2, small.shape[0] / 2)
-    H_small, info = fit(small, labels, textures, hub_s, log, auto_hub=hub is None)
+    H_small, info = fit(small, labels, textures, hub_s, log, auto_hub=hub is None, mirrors=mirrors)
     H = np.diag([1 / fs, 1 / fs, 1.0]) @ H_small            # full-resolution pixels
 
     def to_xy(r, a):
@@ -270,11 +272,12 @@ def _overlay(rgb, H, lay, path, rows):
     d = ImageDraw.Draw(im)
     ok = {(int(r["ring"]), int(r["sector"])): r["id_ok"] for r in rows}
     for k, nsec in enumerate(lay["sectors_per_ring"]):
-        r_in, r_out = T.RING_EDGES_MM[k] + T.GAP_MM / 2, T.RING_EDGES_MM[k + 1] - T.GAP_MM / 2
+        g = T.geometry(lay)
+        r_in, r_out = g["ring_edges_mm"][k] + g["gap_mm"] / 2, g["ring_edges_mm"][k + 1] - g["gap_mm"] / 2
         for j in range(nsec):
             r_mid = (r_in + r_out) / 2
-            a0 = j * 2 * math.pi / nsec + T.GAP_MM / 2 / r_mid
-            a1 = (j + 1) * 2 * math.pi / nsec - T.GAP_MM / 2 / r_mid
+            a0 = j * 2 * math.pi / nsec + g["gap_mm"] / 2 / r_mid
+            a1 = (j + 1) * 2 * math.pi / nsec - g["gap_mm"] / 2 / r_mid
             ts = np.linspace(a0, a1, 12)
             poly = [project(H, r * math.cos(t), r * math.sin(t)) for r, tt in ((r_in, ts), (r_out, ts[::-1])) for t in tt]
             d.line(poly + [poly[0]], fill=(0, 255, 0) if ok[(k, j)] else (255, 60, 60), width=4)

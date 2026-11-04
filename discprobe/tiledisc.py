@@ -35,10 +35,21 @@ TILE_MM = 8.0
 GAP_MM = 0.5
 ROWS, COLS, ID_COLS = 6, 7, 4
 BACKGROUND = "RND"
+DEFAULT_GEOMETRY = {"ring_edges_mm": RING_EDGES_MM, "tile_mm": TILE_MM, "gap_mm": GAP_MM, "rows": ROWS,
+                    "cols": COLS, "id_cols": ID_COLS, "scale_mm": None}
 
 
-def sectors_per_ring() -> list[int]:
-    return [round(2 * math.pi * (a + b) / 2 / TILE_MM) for a, b in zip(RING_EDGES_MM, RING_EDGES_MM[1:])]
+def geometry(lay: dict | None = None) -> dict:
+    """Tile geometry from a layout record (older records lack some keys: defaults fill them)."""
+    g = dict(DEFAULT_GEOMETRY)
+    g.update({k: lay[k] for k in DEFAULT_GEOMETRY if lay and k in lay})
+    return g
+
+
+def sectors_per_ring(g: dict | None = None) -> list[int]:
+    g = geometry(g)
+    e = g["ring_edges_mm"]
+    return [round(2 * math.pi * (a + b) / 2 / g["tile_mm"]) for a, b in zip(e, e[1:])]
 
 
 def id_bits(ring: int, sector: int) -> list[int]:
@@ -46,28 +57,33 @@ def id_bits(ring: int, sector: int) -> list[int]:
     return b + [sum(b) & 1, (b[0] ^ b[2] ^ b[4] ^ b[6])]
 
 
-def tile_cells(ring: int, sector: int, n_palette: int) -> np.ndarray:
-    """ROWS x COLS cell contents: -1 = A5, -2 = 92, k >= 0 = palette swatch k."""
-    cells = np.zeros((ROWS, COLS), np.int64)
+def tile_cells(ring: int, sector: int, n_palette: int, g: dict | None = None) -> np.ndarray:
+    """rows x cols cell contents: -1 = A5, -2 = 92, k >= 0 = palette swatch k (two radial cells each)."""
+    g = geometry(g)
+    rows, cols, idc = g["rows"], g["cols"], g["id_cols"]
+    cells = np.zeros((rows, cols), np.int64)
     slots = [(1, 1)] + [(1, 0) if b else (0, 1) for b in id_bits(ring, sector)] + [(0, 0)]
     for s, (inner_a5, outer_a5) in enumerate(slots):
         col, pair = divmod(s, 3)
         cells[2 * pair, col] = -1 if inner_a5 else -2
         cells[2 * pair + 1, col] = -1 if outer_a5 else -2
-    for k in range(min(n_palette, 3 * (COLS - ID_COLS))):
-        col, pair = divmod(k, 3)
-        cells[2 * pair:2 * pair + 2, ID_COLS + col] = k
+    per_col = rows // 2
+    for k in range(min(n_palette, per_col * (cols - idc))):
+        col, pair = divmod(k, per_col)
+        cells[2 * pair:2 * pair + 2, idc + col] = k
     return cells
 
 
-def design(palette: list[str]) -> tuple[np.ndarray, list[str], dict]:
+def design(palette: list[str], **geometry_overrides) -> tuple[np.ndarray, list[str], dict]:
     """Label map (SIZE x SIZE uint8), texture list for the labels, and the layout record."""
+    g = geometry(geometry_overrides)
+    edges, rows, cols, gap = g["ring_edges_mm"], g["rows"], g["cols"], g["gap_mm"]
     textures = [BACKGROUND, "A5", "92"] + [t for t in palette if t not in ("A5", "92", BACKGROUND)]
     index = {t: i for i, t in enumerate(textures)}
     pal_label = np.array([index[t] for t in palette])
-    nsec = sectors_per_ring()
+    nsec = sectors_per_ring(g)
     tables = [np.stack([np.where(c == -1, 1, np.where(c == -2, 2, pal_label[np.clip(c, 0, None)]))
-                        for c in (tile_cells(k, j, len(palette)) for j in range(n))])
+                        for c in (tile_cells(k, j, len(palette), g) for j in range(n))])
               for k, n in enumerate(nsec)]
     labels = np.zeros((SIZE, SIZE), np.uint8)
     c = (np.arange(SIZE) + 0.5) * CELL_MM - HALF_MM
@@ -78,23 +94,66 @@ def design(palette: list[str]) -> tuple[np.ndarray, list[str], dict]:
         th = np.arctan2(y, x) % (2 * math.pi)
         out = np.zeros(r.shape, np.uint8)
         for k, n in enumerate(nsec):
-            r_in, r_out = RING_EDGES_MM[k] + GAP_MM / 2, RING_EDGES_MM[k + 1] - GAP_MM / 2
+            r_in, r_out = edges[k] + gap / 2, edges[k + 1] - gap / 2
             dth = 2 * math.pi / n
             j = np.floor(th / dth).astype(np.int64) % n
-            a = th - j * dth - GAP_MM / 2 / np.maximum(r, 1e-6)
-            span = dth - GAP_MM / np.maximum(r, 1e-6)
+            a = th - j * dth - gap / 2 / np.maximum(r, 1e-6)
+            span = dth - gap / np.maximum(r, 1e-6)
             m = (r >= r_in) & (r < r_out) & (a >= 0) & (a < span)
-            row = np.clip(((r - r_in) / (r_out - r_in) * ROWS).astype(np.int64), 0, ROWS - 1)
-            col = np.clip((a / np.where(m, span, 1) * COLS).astype(np.int64), 0, COLS - 1)
+            row = np.clip(((r - r_in) / (r_out - r_in) * rows).astype(np.int64), 0, rows - 1)
+            col = np.clip((a / np.where(m, span, 1) * cols).astype(np.int64), 0, cols - 1)
             out[m] = tables[k][j[m], row[m], col[m]]
+        if g["scale_mm"]:
+            _scale_ticks(out, r, th, g["scale_mm"])
         labels[y0:y0 + 500] = out
-    layout = {"kind": "tile-palette-target", "ring_edges_mm": list(RING_EDGES_MM), "sectors_per_ring": nsec,
-              "gap_mm": GAP_MM, "rows": ROWS, "cols": COLS, "id_cols": ID_COLS, "palette": palette,
+    if g["scale_mm"]:
+        _scale_numbers(labels, g["scale_mm"])
+    layout = {"kind": "tile-palette-target", **{k: (list(v) if isinstance(v, tuple) else v) for k, v in g.items()},
+              "sectors_per_ring": nsec, "palette": palette,
               "background": BACKGROUND, "angle": "counter-clockwise from +x in the data-side view, y up",
               "id_bits": "ring(2) sector(6) parity(all) parity(0,2,4,6); 1 = A5 inner / 92 outer",
               "slots": "slot = 3 * column + pair; slot 0 = A5/A5, slot 11 = 92/92, slots 1-10 = ID bits",
-              "swatch": "index = 3 * (column - id_cols) + pair"}
+              "swatch": "index = (rows / 2) * (column - id_cols) + pair"}
     return labels, textures, layout
+
+
+def _scale_ticks(out, r, th, band):
+    """Angle scale: an A5 band with 92 ticks every 10 degrees (long ones every 30)."""
+    inb = (r >= band[0]) & (r <= band[1])
+    out[inb] = 1
+    deg = np.degrees(th) % 360
+    d10 = np.abs((deg + 5) % 10 - 5)
+    long_tick = np.abs((deg + 15) % 30 - 15) < 0.5
+    reach = band[0] + np.where(long_tick, 1.0, 0.45) * (band[1] - band[0])
+    out[inb & (np.radians(d10) * r < 0.09) & (r <= reach)] = 2
+
+
+def _scale_numbers(labels, band, font=r"C:\Windows\Fonts\msyhbd.ttc"):
+    """Numbers every 30 degrees beside the long ticks, and an outward arrow at 0 degrees, in 92."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    def stamp(mask, cx, cy, up_deg):
+        im = Image.fromarray((mask * 255).astype(np.uint8)).rotate(up_deg - 90.0, resample=Image.BILINEAR,
+                                                                    expand=True)
+        m = np.asarray(im) > 127
+        h, w = m.shape
+        x0, y0 = round((cx + HALF_MM) / CELL_MM - w / 2), round((HALF_MM - cy) / CELL_MM - h / 2)
+        labels[y0:y0 + h, x0:x0 + w][m] = 2
+
+    size = round(1.3 / CELL_MM)
+    f = ImageFont.truetype(font, size)
+    r_txt = band[0] + 0.55 * (band[1] - band[0]) + 0.35
+    for a in range(0, 360, 30):
+        im = Image.new("L", (size * 3, round(size * 1.3)), 0)
+        ImageDraw.Draw(im).text((0, 0), str(a), font=f, fill=255)
+        m = np.asarray(im) > 127
+        m = m[:, m.any(0)]
+        off = math.radians(a) + 1.6 / r_txt
+        stamp(m, r_txt * math.cos(off), r_txt * math.sin(off), math.degrees(off))
+    n = round(1.6 / CELL_MM)
+    yy, xx = np.mgrid[0:n, 0:n]
+    a = math.radians(-2.2)
+    stamp(np.abs(xx - n / 2) < (yy + 1) / 2, (band[0] + 1.0) * math.cos(a), (band[0] + 1.0) * math.sin(a), -2.2)
 
 
 def decode_slots(pairs: list[int]) -> tuple[int, int] | None:

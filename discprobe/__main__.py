@@ -319,8 +319,11 @@ def cmd_tiles(args):
     with open(args.geo, encoding="utf-8") as f:
         fit = json.load(f)["fit"]
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
-    labels, textures, layout = tiledisc.design(args.palette)
-    total = min(imagedisc.sectors_to_radius(u, v, bit, tiledisc.RING_EDGES_MM[-1] + 0.6), 2295104)
+    geo = {"ring_edges_mm": tuple(args.ring_edges), "tile_mm": args.tile_mm, "cols": args.cols,
+           "scale_mm": tuple(args.scale) if args.scale else None}
+    labels, textures, layout = tiledisc.design(args.palette, **geo)
+    outer = max(args.ring_edges[-1], args.scale[1] if args.scale else 0)
+    total = min(imagedisc.sectors_to_radius(u, v, bit, outer + 0.6), 2295104)
     print(f"{sum(layout['sectors_per_ring'])} tiles, palette {' '.join(args.palette)}; geometry u {u:.3f}, "
           f"v {v:.7f} from {args.geo}; {total} sectors ({total * 2048 / 1e9:.2f} GB)")
     corr = imagedisc.load_correction(args.correction) if args.correction else None
@@ -500,6 +503,11 @@ def main(argv=None):
     sp.add_argument("--palette", nargs="+", default=list(DEFAULT_PALETTE),
                     help="up to 9 textures: a byte (A5), a repeated sequence (8B00), RND, or MIX:92,4F")
     sp.add_argument("--correction", help="angle-correction file")
+    sp.add_argument("--ring-edges", type=float, nargs="+", default=[25.0, 33.0, 41.0, 49.0, 57.0],
+                    help="radii (mm) separating the tile rings")
+    sp.add_argument("--tile-mm", type=float, default=8.0, help="tile size along the arc")
+    sp.add_argument("--cols", type=int, default=7, help="cell columns per tile (4 hold the ID, the rest swatches)")
+    sp.add_argument("--scale", type=float, nargs=2, metavar=("R0", "R1"), help="add an angle scale band (mm)")
     sp.set_defaults(func=cmd_tiles)
 
     sp = sub.add_parser("tilescan", help="read IDs and swatch levels from flatbed scans of the tile palette target")

@@ -76,6 +76,8 @@ def _plane(values, rows, cols):
 def read_tiles(lay: dict, rgb: np.ndarray, to_xy) -> tuple[list[dict], int]:
     """Sample every tile through to_xy(r_mm, angle_rad) -> image (x, y); return rows and IDs read."""
     palette = lay["palette"]
+    g = T.geometry(lay)
+    edges, gap, rows_n, cols_n, idc = g["ring_edges_mm"], g["gap_mm"], g["rows"], g["cols"], g["id_cols"]
     cx0, cy0 = to_xy(np.array([0.0]), np.array([0.0]))
 
     def cell_mean(r_lo, r_hi, a_lo, a_hi):
@@ -88,17 +90,17 @@ def read_tiles(lay: dict, rgb: np.ndarray, to_xy) -> tuple[list[dict], int]:
 
     rows, n_ok = [], 0
     for k, nsec in enumerate(lay["sectors_per_ring"]):
-        r_in, r_out = T.RING_EDGES_MM[k] + T.GAP_MM / 2, T.RING_EDGES_MM[k + 1] - T.GAP_MM / 2
-        dr = (r_out - r_in) / T.ROWS
+        r_in, r_out = edges[k] + gap / 2, edges[k + 1] - gap / 2
+        dr = (r_out - r_in) / rows_n
         r_mid = (r_in + r_out) / 2
         for j in range(nsec):
-            span = 2 * math.pi / nsec - T.GAP_MM / r_mid
-            a0 = j * 2 * math.pi / nsec + T.GAP_MM / 2 / r_mid
-            da = span / T.COLS
+            span = 2 * math.pi / nsec - gap / r_mid
+            a0 = j * 2 * math.pi / nsec + gap / 2 / r_mid
+            da = span / cols_n
             cells = np.array([[cell_mean(r_in + row * dr, r_in + (row + 1) * dr, a0 + col * da, a0 + (col + 1) * da)
-                               for col in range(T.COLS)] for row in range(T.ROWS)])        # rows x cols x rgb
+                               for col in range(cols_n)] for row in range(rows_n)])        # rows x cols x rgb
             grey = cells.mean(-1)
-            want = T.tile_cells(k, j, len(palette))
+            want = T.tile_cells(k, j, len(palette), g)
             a5, n92 = cells[want == -1].mean(0), cells[want == -2].mean(0)
             contrast = float(n92.mean() - a5.mean())
             ra, ca = np.nonzero(want == -1)
@@ -119,9 +121,9 @@ def read_tiles(lay: dict, rgb: np.ndarray, to_xy) -> tuple[list[dict], int]:
                    "image_angle_deg": round(math.degrees(th_img) % 360, 2),
                    "id_ok": int(ok), "a5_darker": int(a5_dark), "contrast": round(contrast, 4)}
             for i, name in enumerate(palette):
-                col, pair = divmod(i, 3)
-                sw = cells[2 * pair:2 * pair + 2, T.ID_COLS + col].mean(0)
-                at = (2 * pair + 0.5, T.ID_COLS + col)
+                col, pair = divmod(i, rows_n // 2)
+                sw = cells[2 * pair:2 * pair + 2, idc + col].mean(0)
+                at = (2 * pair + 0.5, idc + col)
                 lo_ref, hi_ref = ref_a5(*at), ref_92(*at)
                 den = hi_ref - lo_ref
                 lev = (sw - lo_ref) / np.where(np.abs(den) > 1e-6, den, np.nan)
@@ -140,7 +142,7 @@ def analyse(path: str, layout_path: str, out_dir: str, dpi: float = 600.0, log=p
     with open(layout_path, encoding="utf-8") as f:
         lay = json.load(f)
     palette = lay["palette"]
-    labels, textures, _ = T.design(palette)
+    labels, textures, _ = T.design(palette, **T.geometry(lay))
     img, meta = scan.load_gray(path)
     px = (dpi or (meta[0] if meta else 600.0)) / 25.4
     outer, _ = scan.locate_disc(img, px)
@@ -148,7 +150,7 @@ def analyse(path: str, layout_path: str, out_dir: str, dpi: float = 600.0, log=p
     rgb, destriped = destripe(_rgb(path), cy, outer["ry"])
     img = rgb.mean(-1)
 
-    radii = np.arange(T.RING_EDGES_MM[0] + 0.6, T.RING_EDGES_MM[-1] - 0.6, 0.1)
+    radii = np.arange(lay["ring_edges_mm"][0] + 0.6, lay["ring_edges_mm"][-1] - 0.6, 0.1)
     f, _ = scan.polar_rings(img, cx, cy, sx, sy, radii, n_theta=N_THETA, sub=1)
     S = _band(f)
     best = None
