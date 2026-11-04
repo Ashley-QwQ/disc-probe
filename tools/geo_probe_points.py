@@ -37,12 +37,15 @@ def main():
     ap.add_argument("--geo", required=True, help="summary.json of the geo run to compare against")
     ap.add_argument("--speed", type=int, help="read speed kB/s (default: the ladder's default for the media)")
     ap.add_argument("--lbas", nargs="+", required=True, help="LBAs, or start:stop:step ranges")
+    ap.add_argument("--host-delay-ms", type=float, default=25.0,
+                    help="random pause before each timed read; should exceed one revolution")
     a = ap.parse_args()
     f = json.load(open(a.geo))["fit"]
     speed = a.speed or (2822 if a.media == "cd" else 5540)
     raise_priority()
     with SptiDevice(a.drive) as dev:
-        L = Ladder(dev, media=a.media, ref_lba=f["reference_lba"], speed_kbs=speed, log=print)
+        L = Ladder(dev, media=a.media, ref_lba=f["reference_lba"], speed_kbs=speed, log=print,
+                   host_delay_ms=a.host_delay_ms)
         L.u, L.v, L.c = f["u"], f["v"], math.radians(f["c_deg"])
         tp = L.tp
         tp.setup()

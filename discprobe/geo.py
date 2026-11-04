@@ -376,7 +376,7 @@ class Ladder:
         rep["c_deg"] = math.degrees(self.c)
         rep["chi2_per_dof"] = self.chi2_dof
         rep["residual_rms_deg"] = float(np.sqrt(np.mean([t["residual_deg"] ** 2 for t in self.targets])))
-        rep["period_ms"] = self.T * 1e3
+        rep["period_ms"] = self.T * 1e3 if self.T else None  # None if a run stopped while resettling
         rep["reference_lba"] = self.ref
         return rep
 
