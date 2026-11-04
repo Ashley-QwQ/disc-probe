@@ -42,8 +42,9 @@ def focal_px(path, width, height):
     return f35 / 36.0 * max(width, height)          # 35 mm frame is 36 mm on its long side
 
 
-def pose(H, f, cx, cy):
-    """Camera centre in disc millimetres (z > 0 on the viewed side) from H (disc mm -> px)."""
+def pose(H, f, cx, cy, with_rotation=False):
+    """Camera centre in disc millimetres (z > 0 on the viewed side) from H (disc mm -> px);
+    with_rotation also returns R (disc -> camera axes: x right, y down, z forward)."""
     K = np.array([[f, 0, cx], [0, f, cy], [0, 0, 1.0]])
     B = np.linalg.solve(K, H)
     lam = 2.0 / (np.linalg.norm(B[:, 0]) + np.linalg.norm(B[:, 1]))
@@ -52,8 +53,9 @@ def pose(H, f, cx, cy):
     r1, r2, t = lam * B[:, 0], lam * B[:, 1], lam * B[:, 2]
     R = np.column_stack([r1, r2, np.cross(r1, r2)])
     C = -R.T @ t
-    C[2] = abs(C[2])
-    return C
+    if C[2] < 0:                                   # mirror solution: flip to the viewed side
+        C[2], R = -C[2], R @ np.diag([1.0, 1.0, -1.0])
+    return (C, R) if with_rotation else C
 
 
 def photo_samples(path):

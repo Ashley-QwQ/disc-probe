@@ -120,9 +120,12 @@ def read_tiles(lay: dict, rgb: np.ndarray, to_xy) -> tuple[list[dict], int]:
                    "design_angle_deg": round(math.degrees(a0 + span / 2), 2),
                    "image_angle_deg": round(math.degrees(th_img) % 360, 2),
                    "id_ok": int(ok), "a5_darker": int(a5_dark), "contrast": round(contrast, 4)}
+            slots = T.swatch_slots(k, j, len(palette), g)
             for i, name in enumerate(palette):
-                col, pair = divmod(i, rows_n // 2)
+                col, pair = divmod(int(slots[i]), rows_n // 2)
                 sw = cells[2 * pair:2 * pair + 2, idc + col].mean(0)
+                row[f"{name}_r_mm"] = round(r_in + (2 * pair + 1) * dr, 3)                 # swatch centre
+                row[f"{name}_a_deg"] = round(math.degrees(a0 + (idc + col + 0.5) * da), 3)
                 at = (2 * pair + 0.5, idc + col)
                 lo_ref, hi_ref = ref_a5(*at), ref_92(*at)
                 den = hi_ref - lo_ref

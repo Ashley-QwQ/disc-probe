@@ -346,7 +346,8 @@ def cmd_tiles(args):
         sys.exit("CD tiles need a CD geometry fit (media=cd)")
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
     geo = {"ring_edges_mm": tuple(args.ring_edges), "tile_mm": args.tile_mm, "cols": args.cols,
-           "scale_mm": tuple(args.scale) if args.scale else None}
+           "scale_mm": tuple(args.scale) if args.scale else None, "gap_mm": args.gap_mm,
+           "shuffle_seed": args.shuffle}
     labels, textures, layout = tiledisc.design(args.palette, **geo)
     if args.media == "cd":
         textures = [{"A5": "0D", "92": "AA"}.get(t, t) for t in textures]
@@ -544,6 +545,9 @@ def main(argv=None):
     sp.add_argument("--tile-mm", type=float, default=8.0, help="tile size along the arc")
     sp.add_argument("--cols", type=int, default=7, help="cell columns per tile (4 hold the ID, the rest swatches)")
     sp.add_argument("--scale", type=float, nargs=2, metavar=("R0", "R1"), help="add an angle scale band (mm)")
+    sp.add_argument("--gap-mm", type=float, default=0.5, help="background gap between tiles")
+    sp.add_argument("--shuffle", type=int, metavar="SEED",
+                    help="give every tile its own random swatch order (decouples texture from position)")
     sp.set_defaults(func=cmd_tiles)
 
     sp = sub.add_parser("tilescan", help="read IDs and swatch levels from flatbed scans of the tile palette target")

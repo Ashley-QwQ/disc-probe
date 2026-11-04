@@ -195,6 +195,20 @@ def _tiles(c: Checker):
             wrong += T.decode_slots(bits) != (k, j) or swatches != palette
             n += 1
     c.check(wrong == 0, f"all {n} tile IDs and palettes read back from the rasterised design")
+    g = T.geometry({"shuffle_seed": 3})
+    count = np.zeros((9, 9), np.int64)
+    ok = True
+    for k, nsec in enumerate(T.sectors_per_ring(g)):
+        for j in range(nsec):
+            slots = T.swatch_slots(k, j, 9, g)
+            cells = T.tile_cells(k, j, 9, g)
+            for i, s in enumerate(slots):
+                col, pair = divmod(int(s), 3)
+                ok &= bool((cells[2 * pair:2 * pair + 2, T.ID_COLS + col] == i).all())
+            count[np.arange(9), slots] += 1
+    blocks = sum(T.sectors_per_ring(g)) // 9
+    c.check(ok and (count >= blocks).all(), f"shuffled swatches: each texture once per tile, every slot at least "
+                                            f"{blocks}x per texture (Latin squares)")
     q = imagedisc.texture_bytes("2AE304", np.array([5]))[0]
     c.check(bytes(q[160:163]).hex() in ("2ae304", "e3042a", "042ae3") and len(set(q[:160:3].tolist())) == 1,
             "repeated sequences keep their phase along a data-frame row")

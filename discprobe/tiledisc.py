@@ -15,6 +15,9 @@ counter-clockwise in the data-side view):
         slot 1-10   ID bits, differential: 1 = A5 inner / 92 outer, 0 = 92 inner / A5 outer
         slot 11     92 / 92   finder
     Columns 4-6, 9 pairs: one swatch per palette texture, index = 3 * (column - 4) + pair.
+    With a shuffle seed, swatches follow randomised Latin squares instead (swatch_slots):
+    over every 9 consecutive tiles each texture sits once in each slot, so texture and
+    position within the tile are not confounded.
 
 ID bits (MSB first): ring (2 bits), sector (6 bits), parity of all 8, parity of bits 0, 2, 4, 6.
 Each bit is read by comparing the two cells of its pair, so it survives the light/dark
@@ -36,7 +39,7 @@ GAP_MM = 0.5
 ROWS, COLS, ID_COLS = 6, 7, 4
 BACKGROUND = "RND"
 DEFAULT_GEOMETRY = {"ring_edges_mm": RING_EDGES_MM, "tile_mm": TILE_MM, "gap_mm": GAP_MM, "rows": ROWS,
-                    "cols": COLS, "id_cols": ID_COLS, "scale_mm": None}
+                    "cols": COLS, "id_cols": ID_COLS, "scale_mm": None, "shuffle_seed": None}
 
 
 def geometry(lay: dict | None = None) -> dict:
@@ -57,6 +60,22 @@ def id_bits(ring: int, sector: int) -> list[int]:
     return b + [sum(b) & 1, (b[0] ^ b[2] ^ b[4] ^ b[6])]
 
 
+def swatch_slots(ring: int, sector: int, n_palette: int, g: dict | None = None) -> np.ndarray:
+    """Swatch slot (= (rows / 2) * (column - id_cols) + pair) of each palette texture in one tile."""
+    g = geometry(g)
+    n_slots = g["rows"] // 2 * (g["cols"] - g["id_cols"])
+    n = min(n_palette, n_slots)
+    if g["shuffle_seed"] is None:
+        return np.arange(n)
+    # Latin squares: in every block of n_slots consecutive tiles each texture visits each slot
+    # once; rows, symbols and slots are permuted afresh per block so neighbours change too.
+    t = sum(sectors_per_ring(g)[:ring]) + sector
+    block, row = divmod(t, n_slots)
+    rng = np.random.default_rng([int(g["shuffle_seed"]), block])
+    pr, pc, ps = rng.permutation(n_slots), rng.permutation(n_slots), rng.permutation(n_slots)
+    return ps[(pr[row] + pc[:n]) % n_slots]
+
+
 def tile_cells(ring: int, sector: int, n_palette: int, g: dict | None = None) -> np.ndarray:
     """rows x cols cell contents: -1 = A5, -2 = 92, k >= 0 = palette swatch k (two radial cells each)."""
     g = geometry(g)
@@ -68,8 +87,8 @@ def tile_cells(ring: int, sector: int, n_palette: int, g: dict | None = None) ->
         cells[2 * pair, col] = -1 if inner_a5 else -2
         cells[2 * pair + 1, col] = -1 if outer_a5 else -2
     per_col = rows // 2
-    for k in range(min(n_palette, per_col * (cols - idc))):
-        col, pair = divmod(k, per_col)
+    for k, slot in enumerate(swatch_slots(ring, sector, n_palette, g)):
+        col, pair = divmod(int(slot), per_col)
         cells[2 * pair:2 * pair + 2, idc + col] = k
     return cells
 
@@ -113,7 +132,9 @@ def design(palette: list[str], **geometry_overrides) -> tuple[np.ndarray, list[s
               "background": BACKGROUND, "angle": "counter-clockwise from +x in the data-side view, y up",
               "id_bits": "ring(2) sector(6) parity(all) parity(0,2,4,6); 1 = A5 inner / 92 outer",
               "slots": "slot = 3 * column + pair; slot 0 = A5/A5, slot 11 = 92/92, slots 1-10 = ID bits",
-              "swatch": "index = (rows / 2) * (column - id_cols) + pair"}
+              "swatch": ("index = (rows / 2) * (column - id_cols) + pair" if g["shuffle_seed"] is None else
+                         "slot = (rows / 2) * (column - id_cols) + pair; texture per slot from swatch_slots() "
+                         "(randomised Latin square per block of tiles, numpy default_rng([shuffle_seed, block]))")}
     return labels, textures, layout
 
 
