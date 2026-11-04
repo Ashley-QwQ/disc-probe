@@ -27,7 +27,8 @@
 | 4.1 | 观察几何 | 零级亮场或暗场下整张盘都可见；"披萨片"是导槽的一级衍射（≥ 31°） | KNOWLEDGE §10（E0）；照片（未入库） | 定性；**缺定量反差测量** |
 | 4.2 | 分辨率 | 肉眼可见约 0.1–0.15 mm；600 dpi 扫描可分辨 0.12 mm | KNOWLEDGE §10（密铺盘） | 有；**缺显微或微距的定量数据** |
 | 5 | 结构色 | 沿轨周期即光栅；纹理搜索；同视角多色（花盘）；无周期纹理降低饱和度 | §10d；`evidence/tilephoto`、`evidence/coverage/period_search_v2*` | 部分 |
-| 5.1 | 颜色对照表 | 闪光灯几何下 δ = 2 c·t；LUT 靶盘 v2 | `tools/flash_lut_tiles.py`、`iso/lut2.iso` | **待测** |
+| 5.1 | 颜色对照表 | 闪光灯几何下 δ = 2 c·t；LUT 靶盘 v2；重复字节 = 单线光栅（`66`、`92` 符合，`B9` 不符合） | `tools/flash_lut_tiles.py`、`iso/lut2.iso`、`evidence/flash_lut/grating_check.*` | 部分（269 个观测，\|δ\| ≤ 0.62；还缺 0.6–0.8） |
+| 5.2 | 斜拍解码 | 斜拍时椭圆中心 ≠ 圆心的像；用焦距反解圆的姿态，得到两个候选 | `discprobe/tilephoto.py`、`evidence/tilephoto/synth_photo_test.txt` | 完成（合成 6/6 情况 75/75） |
 | 5.2 | 指定颜色的反向设计 | 给定观察几何，逐点选纹理，实刻验证 | — | **待做** |
 | 6 | 成像流程 | 共形双环映射、文字补偿、降噪兼抗混叠、反锐化、抖动、阴刻/阳刻 | §10e；`docs/showcase/` | 有（作品） |
 | 7 | 测量工具 | 自定位色板（差分编码）、扫描去条纹、照片单应（极线即消失线）、相机姿态 | `discprobe/tilescan.py`、`tilephoto.py`；§10f | 有 |
