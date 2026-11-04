@@ -172,6 +172,36 @@ def _efmplus(c: Checker):
     c.check(worst <= 200, f"DSV stays bounded on random data (max |DSV| {worst} at frame ends)")
 
 
+def _tiles(c: Checker):
+    print("tile palette target")
+    import math
+    import numpy as np
+    from . import imagedisc, tiledisc as T
+    palette = ["A5", "92", "B9", "66", "MIX:A5,62,B1,61,65,A7", "MIX:92,87,83,8D,60", "8B", "2AE304", "ED00"]
+    labels, textures, lay = T.design(palette)
+    wrong, n = 0, 0
+    for k, nsec in enumerate(lay["sectors_per_ring"]):
+        r_in, r_out = T.RING_EDGES_MM[k] + T.GAP_MM / 2, T.RING_EDGES_MM[k + 1] - T.GAP_MM / 2
+        for j in range(nsec):
+            def cell(row, col):
+                r = r_in + (row + 0.5) / T.ROWS * (r_out - r_in)
+                span = 2 * math.pi / nsec - T.GAP_MM / r
+                a = j * 2 * math.pi / nsec + T.GAP_MM / 2 / r + (col + 0.5) / T.COLS * span
+                ix = int((r * math.cos(a) + imagedisc.HALF_MM) / imagedisc.CELL_MM)
+                iy = int((imagedisc.HALF_MM - r * math.sin(a)) / imagedisc.CELL_MM)
+                return textures[labels[iy, ix]]
+            bits = [int(cell(2 * (s % 3), s // 3) == "A5" and cell(2 * (s % 3) + 1, s // 3) == "92") for s in range(1, 11)]
+            swatches = [cell(2 * (i % 3), T.ID_COLS + i // 3) for i in range(9)]
+            wrong += T.decode_slots(bits) != (k, j) or swatches != palette
+            n += 1
+    c.check(wrong == 0, f"all {n} tile IDs and palettes read back from the rasterised design")
+    q = imagedisc.texture_bytes("2AE304", np.array([5]))[0]
+    c.check(bytes(q[160:163]).hex() in ("2ae304", "e3042a", "042ae3") and len(set(q[:160:3].tolist())) == 1,
+            "repeated sequences keep their phase along a data-frame row")
+    mix = imagedisc.texture_bytes("MIX:92,87", np.array([5, 6]))
+    c.check(set(np.unique(mix).tolist()) == {0x92, 0x87}, "random mixes draw only from their byte list")
+
+
 def run() -> bool:
     c = Checker()
     _parsers(c)
@@ -191,6 +221,7 @@ def run() -> bool:
         _ladder_abort(c)
         _disexport(c)
         _efmplus(c)
+        _tiles(c)
     try:
         from . import scan_selftest
     except ImportError as e:

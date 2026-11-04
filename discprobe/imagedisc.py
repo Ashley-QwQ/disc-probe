@@ -83,8 +83,37 @@ def sectors_to_radius(u: float, v: float, bit_nm: float, r_mm: float) -> int:
 
 CHUNK = 2048
 
+# Column of each user byte in its data-frame row (12 header bytes, 172 bytes per row);
+# repeating sequences are phased by column so the period runs on along the recorded row.
+_COL = (12 + np.arange(dvd.SECTOR_BYTES)) % 172
 
-def _dark_groups(design, u, v, bit_mm, lba0, count, correction=None):
+
+def _hash(lbas: np.ndarray, salt: int) -> np.ndarray:
+    """Deterministic pseudo-random uint64 per (sector, byte) (splitmix64 finaliser)."""
+    with np.errstate(over="ignore"):
+        x = (lbas[:, None].astype(np.uint64) * np.uint64(2048) + np.arange(dvd.SECTOR_BYTES, dtype=np.uint64)[None, :]
+             + np.uint64(salt) * np.uint64(0x9E3779B97F4A7C15))
+        x = (x ^ (x >> np.uint64(30))) * np.uint64(0xBF58476D1CE4E5B9)
+        x = (x ^ (x >> np.uint64(27))) * np.uint64(0x94D049BB133111EB)
+    return x ^ (x >> np.uint64(31))
+
+
+def texture_bytes(spec: str, lbas: np.ndarray) -> np.ndarray:
+    """Recorded-domain bytes Q (sectors x 2048) of one texture:
+    "A5" one byte; "8B00" a byte sequence repeated along each row; "RND" random bytes;
+    "MIX:92,4F" a random choice from the listed bytes."""
+    n = len(lbas)
+    if spec == "RND":
+        return (_hash(lbas, 1) & np.uint64(0xFF)).astype(np.uint8)
+    if spec.startswith("MIX:"):
+        pool = np.array([int(b, 16) for b in spec[4:].split(",")], np.uint8)
+        return pool[(_hash(lbas, 2) % np.uint64(len(pool))).astype(np.int64)]
+    seq = np.frombuffer(bytes.fromhex(spec), np.uint8)
+    return np.broadcast_to(seq[_COL % len(seq)], (n, dvd.SECTOR_BYTES)).copy()
+
+
+def _sample(design, u, v, bit_mm, lba0, count, correction=None):
+    """Design value at every 16-byte group of the given sectors (False / 0 outside)."""
     lbas = np.arange(lba0, lba0 + count)
     n = lbas[:, None].astype(np.float64) * SECTOR_BITS + GROUP_BITS[None, :]
     s = np.sqrt(u * u + v * n / math.pi)
@@ -96,20 +125,36 @@ def _dark_groups(design, u, v, bit_mm, lba0, count, correction=None):
     ix = np.floor((r * np.cos(th) + HALF_MM) / CELL_MM).astype(np.int64)
     iy = np.floor((HALF_MM - r * np.sin(th)) / CELL_MM).astype(np.int64)
     ok = (ix >= 0) & (ix < SIZE) & (iy >= 0) & (iy < SIZE)
-    return np.where(ok, design[np.clip(iy, 0, SIZE - 1), np.clip(ix, 0, SIZE - 1)], False)
+    return np.where(ok, design[np.clip(iy, 0, SIZE - 1), np.clip(ix, 0, SIZE - 1)], 0).astype(design.dtype)
+
+
+def _textures(design: np.ndarray, dark: str, light: str, textures):
+    """A boolean design picks light/dark; a label design (uint8) indexes `textures`."""
+    if design.dtype == bool:
+        return [light, dark]
+    if not textures or int(design.max()) >= len(textures):
+        raise ValueError("a label design needs one texture per label")
+    return list(textures)
+
+
+def _sector_q(design, texs, u, v, bit_mm, lba0, count, correction):
+    lbas = np.arange(lba0, lba0 + count)
+    labels = np.repeat(_sample(design, u, v, bit_mm, lba0, count, correction).astype(np.int64), GROUP_BYTES, axis=1)
+    stack = np.stack([texture_bytes(t, lbas) for t in texs])
+    return np.take_along_axis(stack, labels[None], 0)[0]
 
 
 def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, total_sectors: int,
-              dark: str = "A5", light: str = "B9", log=print, meta: dict | None = None, correction=None) -> str:
-    qd, ql = np.uint8(int(dark, 16)), np.uint8(int(light, 16))
+              dark: str = "A5", light: str = "B9", log=print, meta: dict | None = None, correction=None,
+              textures=None) -> str:
+    texs = _textures(design, dark, light, textures)
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     bit_mm = bit_nm * 1e-6
     done, next_report = 0, 0.0
     with open(path, "wb") as f:
         while done < total_sectors:
             n = min(CHUNK, total_sectors - done)
-            g = _dark_groups(design, u, v, bit_mm, done, n, correction)
-            q = np.where(np.repeat(g, GROUP_BYTES, axis=1), qd, ql)
+            q = _sector_q(design, texs, u, v, bit_mm, done, n, correction)
             presets = ((np.arange(done, done + n) + dvd.DATA_START_PSN) >> 4) & 0xF
             f.write((q ^ dvd.MASKS[presets]).tobytes())
             done += n
@@ -118,7 +163,9 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
                 next_report += 0.2
     iso9660.add(path, total_sectors, "DISCPROBE_IMAGE")
     spec = {"kind": "dvd-picture", "u": u, "v": v, "bit_nm": bit_nm, "total_sectors": total_sectors,
-            "dark": dark, "light": light, "cell_mm": CELL_MM, **(meta or {})}
+            "textures": texs, "cell_mm": CELL_MM, **(meta or {})}
+    if design.dtype == bool:
+        spec.update(dark=dark, light=light)
     spec_path = os.path.splitext(path)[0] + ".image.json"
     with open(spec_path, "w", encoding="utf-8") as fh:
         json.dump(spec, fh, indent=2)
@@ -126,20 +173,20 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
 
 
 def verify_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, total_sectors: int,
-               dark: str = "A5", light: str = "B9", samples: int = 300, seed: int = 3, correction=None) -> list[str]:
-    """Descramble random sectors and compare every group with an independent recomputation."""
+               dark: str = "A5", light: str = "B9", samples: int = 300, seed: int = 3, correction=None,
+               textures=None) -> list[str]:
+    """Descramble random sectors and compare every byte with a recomputation from the design."""
     problems = []
     if os.path.getsize(path) != total_sectors * dvd.SECTOR_BYTES:
         return ["size mismatch"]
+    texs = _textures(design, dark, light, textures)
     rng = np.random.default_rng(seed)
-    qd, ql = int(dark, 16), int(light, 16)
     with open(path, "rb") as f:
         for lba in rng.integers(32, total_sectors, samples):
             f.seek(int(lba) * dvd.SECTOR_BYTES)
             rec = dvd.recorded(np.frombuffer(f.read(dvd.SECTOR_BYTES), dtype=np.uint8), int(lba))
-            want = _dark_groups(design, u, v, bit_nm * 1e-6, int(lba), 1, correction)[0]
-            got = rec.reshape(-1, GROUP_BYTES)
-            if not np.all(np.where(want[:, None], got == qd, got == ql)):
+            want = _sector_q(design, texs, u, v, bit_nm * 1e-6, int(lba), 1, correction)[0]
+            if not np.array_equal(rec, want):
                 problems.append(f"LBA {lba} differs from the design")
     return problems
 

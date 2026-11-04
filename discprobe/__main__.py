@@ -11,6 +11,13 @@ import sys
 
 from . import info, timing
 
+# Tile target palette: the A5/92 pair, B9 and 66, aperiodic mixes of the 3.2T (A5-like)
+# and 8T (92-like) classes, then along-track periods 32T, 48T and 64T (16T is 92). The
+# period sequences were found with discprobe/efmplus.py and hold their period from any
+# start state (evidence/coverage/periods.txt).
+DEFAULT_PALETTE = ("A5", "92", "B9", "66", "MIX:A5,62,B1,61,65,A7", "MIX:92,87,83,8D,60",
+                   "8B", "2AE304", "ED00")
+
 
 def _open(args):
     if args.sim:
@@ -297,6 +304,28 @@ def cmd_disexport(args):
     print(f"DiscImageStudio preset object in {os.path.abspath(args.output)} (key 'preset')")
 
 
+def cmd_tiles(args):
+    from . import imagedisc, tiledisc
+    with open(args.geo, encoding="utf-8") as f:
+        fit = json.load(f)["fit"]
+    u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
+    labels, textures, layout = tiledisc.design(args.palette)
+    total = min(imagedisc.sectors_to_radius(u, v, bit, tiledisc.RING_EDGES_MM[-1] + 0.6), 2295104)
+    print(f"{sum(layout['sectors_per_ring'])} tiles, palette {' '.join(args.palette)}; geometry u {u:.3f}, "
+          f"v {v:.7f} from {args.geo}; {total} sectors ({total * 2048 / 1e9:.2f} GB)")
+    corr = imagedisc.load_correction(args.correction) if args.correction else None
+    meta = {"geometry_from": os.path.abspath(args.geo), "design": "tile palette target",
+            "correction": os.path.abspath(args.correction) if args.correction else None}
+    spec = imagedisc.write_iso(args.output, labels, u, v, bit, total, meta=meta, correction=corr, textures=textures)
+    problems = imagedisc.verify_iso(args.output, labels, u, v, bit, total, correction=corr, textures=textures)
+    print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
+    base = os.path.splitext(args.output)[0]
+    tiledisc.save_layout({**layout, "textures": textures}, base + ".tiles.json")
+    tiledisc.preview(labels, textures, base + ".preview.png")
+    print(f"Spec: {os.path.abspath(spec)}\nLayout: {os.path.abspath(base + '.tiles.json')}\n"
+          f"Preview (data-side view, false colours): {os.path.abspath(base + '.preview.png')}")
+
+
 def cmd_random(args):
     from .randomdisc import write_iso
     print(f"Writing {os.path.abspath(args.output)}: {args.sectors} sectors of seeded random data")
@@ -443,6 +472,14 @@ def main(argv=None):
     sp.add_argument("--dark", default="A5")
     sp.add_argument("--light", default="B9", help="light texture (B9 scanned brightest on Ritek F1)")
     sp.set_defaults(func=cmd_image)
+
+    sp = sub.add_parser("tiles", help="write a self-locating texture palette target (IDs + swatches in every tile)")
+    sp.add_argument("--geo", required=True, help="summary.json of a geo run")
+    sp.add_argument("--output", default="iso/tiles.iso")
+    sp.add_argument("--palette", nargs="+", default=list(DEFAULT_PALETTE),
+                    help="up to 9 textures: a byte (A5), a repeated sequence (8B00), RND, or MIX:92,4F")
+    sp.add_argument("--correction", help="angle-correction file")
+    sp.set_defaults(func=cmd_tiles)
 
     sp = sub.add_parser("gridscan", help="measure line straightness on scans of the burned grid test")
     sp.add_argument("images", nargs="+")
