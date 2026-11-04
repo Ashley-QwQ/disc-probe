@@ -610,6 +610,8 @@ powershell -File tools/check_cd_mounts.ps1
 isoburn.exe /Q H: "D:\disc-probe\iso\cd-support-20261104-rings.iso"
 ```
 
+**实刻（2026-11-04）**：第一次用 isoburn 默认速度（40x）刻失败，0x8007045D，System 日志里 storahci 129 连续三次重置 SATA 端口。换一张同批空盘（ATIP 97:26:66），用 `tools/burn_imapi.ps1 -Speed 8 -Burn` 以 8x 刻，9.4 分钟完成，无存储错误。盘已封闭（profile CD-ROM，最后 LBA 308297），CDFS 卷标 DISCPROBE_CD_RINGS。用 SPTI READ(10) 随机读回 305 块 × 16 扇区（4880 扇区，含首尾），与 ISO 逐字节一致。结论：这批便宜 CD-R 要低速刻。
+
 然后肉眼观察，600 dpi 彩色扫描至少三张、每次转盘，再用对应 `.rings.json` 跑 `ringscan`。拍照时光源宜小于 10°，避免 CD 导槽一级衍射混入镜面亮场。
 
 环盘确认纹理后，再经逐张授权刻随机盘，实测 CAV/FUA、跑 CD 梯子，用实测几何重新生成网格和色板。当前交付的网格/色板用了 `measured=false` 的标称几何，只作软件验收，不应直接拿来评价实盘几何。还没有验证 CD 实盘对比度、颜色、网格直线度、物理帧原点和 108 帧读完成假设。字节交换方向有标准依据和软件测试，但仍没有烧盘端到端观测。
