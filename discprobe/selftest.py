@@ -153,6 +153,25 @@ def _disexport(c: Checker):
             f"constant-pitch map exports with ~zero cubic terms, max angle difference {f['max_angle_diff_deg']:.4f} deg")
 
 
+def _efmplus(c: Checker):
+    print("EFMPlus modulation with DSV control")
+    import numpy as np
+    from . import efmplus as E
+    trans = [bin(E.main(q, 1)[0]).count("1") for q in (0xA5, 0x92)]
+    c.check(trans == [5, 2], f"A5 / 92 code words have {trans[0]} / {trans[1]} transitions")
+    rng = np.random.default_rng(3)
+    b, bad, worst, runs = E.Boundary(), 0, 0, []
+    for i in range(120):
+        lv, nb = E.encode_frame(rng.integers(0, 256, 91).astype(np.uint8), E.ROW_SYNC[i % 13][i % 2], b)
+        bad += nb.dsv - b.dsv != 2 * int(lv.sum()) - lv.size
+        runs.append(np.diff(np.flatnonzero(np.diff(lv.astype(int)) != 0)))
+        worst, b = max(worst, abs(nb.dsv)), nb
+    r = np.concatenate(runs)
+    c.check(bad == 0 and r.min() >= 3 and r.max() <= 14,
+            f"levels and DSV agree, run lengths {r.min()}T-{r.max()}T")
+    c.check(worst <= 200, f"DSV stays bounded on random data (max |DSV| {worst} at frame ends)")
+
+
 def run() -> bool:
     c = Checker()
     _parsers(c)
@@ -171,6 +190,7 @@ def run() -> bool:
         _ladder(c)
         _ladder_abort(c)
         _disexport(c)
+        _efmplus(c)
     try:
         from . import scan_selftest
     except ImportError as e:
