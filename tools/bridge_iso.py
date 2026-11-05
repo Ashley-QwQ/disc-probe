@@ -13,8 +13,10 @@ never reaches. Runs of one byte are left alone. The image must start at LBA 0.
 
 This does not fix everything. A block with no 92 runs can still be high because of its PO rows (all
 A5 reaches 325), and --check shows those. On a real drive so far (bczhc, #90): one block read after
-this change, and an earlier version that skipped mixed sectors moved a whole disc's first read
-error from about 390 MiB to about 2.14 GiB. Whether a whole disc now reads is not known.
+this change, an earlier version that skipped mixed sectors moved a whole disc's first read error
+from about 390 MiB to about 2.14 GiB, and the current rule read a whole disc with no errors. That is
+one drive and one disc. On another disc the picture showed no clear change near the centre of a
+scanner's dark region and a possible small loss toward its edges (evidence/dense-bridged).
 """
 import argparse
 import hashlib
@@ -28,6 +30,7 @@ import dsv_block as D  # noqa: E402
 from discprobe import dvd  # noqa: E402
 
 BLOCK = dvd.BLOCK_SECTORS * dvd.SECTOR_BYTES
+GUARDS = (0x75, 0x9B)
 
 
 def bridge_sector(rec, guard, window=64, min_pattern=0.9, min_run=2):
@@ -47,6 +50,9 @@ def bridge_sector(rec, guard, window=64, min_pattern=0.9, min_run=2):
     fits = starts + 1 >= window
     behind[fits] = (pattern[starts[fits] + 1] - pattern[starts[fits] + 1 - window]) / window
     keep = ((ends - starts) >= min_run) & (np.maximum(ahead, behind) >= min_pattern)
+    # A run right after a guard is already safe. Without this, a second pass would move every guard along.
+    guarded = np.isin(rec, GUARDS)
+    keep &= (starts == 0) | ~guarded[np.maximum(starts - 1, 0)]
     out = rec.copy()
     out[starts[keep]] = guard
     return out, int(keep.sum())
