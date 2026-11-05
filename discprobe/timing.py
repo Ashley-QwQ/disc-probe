@@ -339,7 +339,8 @@ class TimingProbe:
                 f"= {zone['jitter_deg']} deg, coherence {zone['coherence']}" if fit else "no period found"))
         self.zones = zones
         self.summary["period"] = {"zones": zones, "rotation": self._classify(zones)}
-        self.log(f"Rotation: {self.summary['period']['rotation']['mode']}")
+        rotation = self.summary["period"]["rotation"]
+        self.log(f"Rotation: {rotation['mode']}" + (f" ({rotation['reason']})" if "reason" in rotation else ""))
         self._check_period(zones)
 
     def _check_period(self, zones):
@@ -373,6 +374,10 @@ class TimingProbe:
 
     def _classify(self, zones) -> dict:
         valid = [z for z in zones if z.get("period_ms") and z.get("coherence", 0) > 0.5]
+        noisy = [z["fraction"] for z in zones if z.get("period_ms") and z.get("coherence", 0) <= 0.5]
+        if noisy:  # a speed still changing shows up like this, and the two other zones alone can look CAV
+            return {"mode": "unknown", "reason": f"zones {noisy} have no clear period; the speed may be changing, "
+                                                 "try a fixed --speed"}
         if len(valid) < 2:
             return {"mode": "unknown", "reason": "fewer than two zones with a clear period"}
         inner, outer = valid[0], valid[-1]

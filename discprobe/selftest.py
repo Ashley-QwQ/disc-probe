@@ -176,6 +176,11 @@ def _unreadable(c: Checker):
     clv = TimingProbe(SimDrive(mode="clv", seed=7), log=lambda *_: None, reps=4, targets=(0.5,), stop_if_not_cav=True)
     s = clv.run()
     c.check("phase" not in s and s["period"]["rotation"]["mode"] == "CLV", "a CLV drive stops before the phase test")
+    zone = lambda frac, period, coh, r: {"fraction": frac, "period_ms": period, "coherence": coh, "nominal_radius_mm": r}
+    clear = [zone(0.05, 25.0, 0.99, 26.0), zone(0.5, 25.0, 0.99, 42.0), zone(0.95, 25.0, 0.99, 57.0)]
+    drifting = [zone(0.05, 25.0, 0.3, 26.0), zone(0.5, 25.0, 0.99, 42.0), zone(0.95, 25.0, 0.99, 57.0)]
+    c.check(clv._classify(clear)["mode"] == "CAV" and clv._classify(drifting)["mode"] == "unknown",
+            "a zone with no clear period gives unknown, not CAV from the other two")
 
 
 def _ladder_abort(c: Checker):
