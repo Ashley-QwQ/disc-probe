@@ -247,6 +247,9 @@ def cmd_geo(args):
         print(f"Angle uncertainty across the measured span {res['measured_span_mm'][0]}-"
               f"{res['measured_span_mm'][1]} mm: {res['angle_sigma_measured_span_deg']:.3f} deg (1 sigma); "
               f"across {'25' if args.media == 'cd' else '24'}-58 mm: {res.get('angle_sigma_deg', float('nan')):.2f} deg")
+    if res and res["chi2_per_dof"] > 2:
+        print(f"The constant-pitch fit leaves more than noise. See whether a varying pitch fits better: "
+              f"python tools/geo_polyfit.py {out}")
     if ladder.targets and ladder.cov is not None:
         print(f"targets.csv, summary.json, events.csv: {os.path.abspath(out)}")
     else:
