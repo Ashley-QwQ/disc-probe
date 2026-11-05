@@ -247,7 +247,10 @@ def cmd_geo(args):
         print(f"Angle uncertainty across the measured span {res['measured_span_mm'][0]}-"
               f"{res['measured_span_mm'][1]} mm: {res['angle_sigma_measured_span_deg']:.3f} deg (1 sigma); "
               f"across {'25' if args.media == 'cd' else '24'}-58 mm: {res.get('angle_sigma_deg', float('nan')):.2f} deg")
-    print(f"targets.csv, summary.json, events.csv: {os.path.abspath(out)}")
+    if ladder.targets and ladder.cov is not None:
+        print(f"targets.csv, summary.json, events.csv: {os.path.abspath(out)}")
+    else:
+        print("no results written: it stopped before the first fit. Run `timing` to see how noisy this drive is.")
     if args.media == "cd" and res is None:
         sys.exit(1)
 

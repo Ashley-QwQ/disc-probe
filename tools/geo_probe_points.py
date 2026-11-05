@@ -39,19 +39,23 @@ def main():
     ap.add_argument("--lbas", nargs="+", required=True, help="LBAs, or start:stop:step ranges")
     ap.add_argument("--host-delay-ms", type=float, default=25.0,
                     help="random pause before each timed read; should exceed one revolution")
+    ap.add_argument("--reps", type=int, help="reference/target read pairs per point (default: the ladder's)")
+    ap.add_argument("--ref-lba", type=int, help="reference sector (default: the fit's); a near one cuts seek noise, "
+                                                "and only shifts every residual by a constant")
     a = ap.parse_args()
     f = json.load(open(a.geo))["fit"]
-    speed = a.speed or (2822 if a.media == "cd" else 5540)
+    speed = a.speed or (1411 if a.media == "cd" else 5540)
     raise_priority()
     with SptiDevice(a.drive) as dev:
-        L = Ladder(dev, media=a.media, ref_lba=f["reference_lba"], speed_kbs=speed, log=print,
-                   host_delay_ms=a.host_delay_ms)
+        ref = a.ref_lba if a.ref_lba is not None else f["reference_lba"]
+        L = Ladder(dev, media=a.media, ref_lba=ref, speed_kbs=speed, log=print,
+                   host_delay_ms=a.host_delay_ms, reps=a.reps)
         L.u, L.v, L.c = f["u"], f["v"], math.radians(f["c_deg"])
         tp = L.tp
         tp.setup()
         tp.cache_test()
         L.ranges = [(0, tp.last_lba + 1)]
-        L.ref = f["reference_lba"]
+        L.ref = ref
         L.n_ref = L._n_end(L.ref)
         t0 = time.time()
         while time.time() - t0 < 10:  # spin up before settling
