@@ -89,13 +89,19 @@ python -m discprobe timing --drive H:
 python -m discprobe geo --drive H:
 ```
 
-**4. 生成图片 ISO，刻到同一批的空盘上。**把路径换成上一步输出的 `summary.json`。生成后程序会抽查扇区，和设计逐字节核对。
+有些盘的轨距会缓慢变化，这时 `geo` 会提示残差偏大。比如 RITEKF1 恒定轨距就够，`CMC MAG. AM3` 和一种 RITEK DVD+RW 则要二次修正（残差从 0.38°、0.61° 降到约 0.08°）。看到提示就重新拟合一下，不用再测盘，它会打印各模型的残差。如果二次明显更好，就写出修正文件：
+
+```bash
+python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json --order quadratic
+```
+
+**4. 生成图片 ISO，刻到同一批的空盘上。**把路径换成上一步输出的 `summary.json`，有修正文件的话再加 `--correction correction.json`。生成后程序会抽查扇区，和设计逐字节核对。
 
 ```bash
 python -m discprobe image --geo results/geo-H-.../summary.json --picture my_picture.png --output iso/picture.iso
 ```
 
-想继续用 DiscImageStudio 的话，可以导出预设。`--sectors` 填你这张盘的扇区数，半径范围填 `geo` 实际测到的范围：
+想继续用 DiscImageStudio 的话，可以导出预设。`--sectors` 填你这张盘的扇区数，半径范围填 `geo` 实际测到的范围，有修正文件的话同样加 `--correction correction.json`。程序会打印和测量结果的转换误差，先看一眼再刻：
 
 ```bash
 python -m discprobe disexport --geo results/geo-H-.../summary.json --sectors 2298496 --r-min 25.8 --r-max 54.5 --output dis_preset.json

@@ -89,13 +89,19 @@ python -m discprobe timing --drive H:
 python -m discprobe geo --drive H:
 ```
 
-**4. Build a picture ISO and burn it to a blank disc from the same batch.** Replace the path with the `summary.json` from step 3. The tool then samples sectors and compares them byte by byte with the design.
+The pitch on some discs drifts slowly, and `geo` tells you when the residual is high. RITEKF1 is fine with a constant pitch, while `CMC MAG. AM3` and one RITEK DVD+RW needed a quadratic correction (residuals fell from 0.38° and 0.61° to about 0.08°). If you see that message, refit the results. You don't need to measure again, and it prints the residual for each model. If quadratic is clearly better, write a correction file:
+
+```bash
+python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json --order quadratic
+```
+
+**4. Build a picture ISO and burn it to a blank disc from the same batch.** Replace the path with the `summary.json` from step 3, and add `--correction correction.json` if you have a correction file. The tool then samples sectors and compares them byte by byte with the design.
 
 ```bash
 python -m discprobe image --geo results/geo-H-.../summary.json --picture my_picture.png --output iso/picture.iso
 ```
 
-To keep working in DiscImageStudio, export a preset. Set `--sectors` to your disc's sector count and the radius range to what `geo` measured:
+To keep working in DiscImageStudio, export a preset. Set `--sectors` to your disc's sector count and the radius range to what `geo` measured, and add `--correction correction.json` if you have one. It prints the conversion error against the measurement, so check that before burning:
 
 ```bash
 python -m discprobe disexport --geo results/geo-H-.../summary.json --sectors 2298496 --r-min 25.8 --r-max 54.5 --output dis_preset.json
