@@ -25,7 +25,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from discprobe import mmc  # noqa: E402
 from discprobe.geo import Ladder  # noqa: E402
-from discprobe.spti import SptiDevice, raise_priority  # noqa: E402
+from discprobe.device import Device, raise_priority  # noqa: E402
 from discprobe.timing import TimingProbe  # noqa: E402
 
 ANY_TYPE = 0  # READ CD expected sector type; IMAPI writes CD data as Mode 2 Form 1, so "Mode 1" (2) is refused
@@ -77,7 +77,7 @@ def main():
     b = fit["bit_nm_assumed"] * 1e-6
     raise_priority()
     rows = []
-    with SptiDevice(a.drive) as dev:
+    with Device(a.drive) as dev:
         A = ladder(dev, fit, a.speed, readcd=False)
         B = ladder(dev, fit, a.speed, readcd=True)
         t0 = time.time()

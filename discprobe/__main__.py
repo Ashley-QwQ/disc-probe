@@ -147,7 +147,10 @@ def _open(args):
                         block=32 if media == "bd" and sectors == 32 else None)
     _choose_drive(args)
     if not args.drive:
-        sys.exit("give --drive E: (see `python -m discprobe list`) or --sim cav|clv|cav-nofua")
+        sys.exit("give --drive <device> (see `python -m discprobe list`) or --sim cav|clv|cav-nofua")
+    if sys.platform.startswith("linux"):
+        from .device import Device
+        return Device(args.drive)
     _need_windows()
     transport = getattr(args, "transport", "auto")
     if transport != "imapi":
@@ -405,8 +408,8 @@ def _write_json(path: str, obj) -> None:
 
 
 def cmd_list(args):
-    _need_windows()
-    drives = guide.optical_drives()
+    from .device import list_optical_drives
+    drives = list_optical_drives()
     print("\n".join(drives) if drives else "no optical drives found")
     _next(guide.after_list(drives))
 
@@ -427,8 +430,7 @@ def cmd_info(args):
 
 def cmd_timing(args):
     if not args.sim:
-        _need_windows()
-        from .spti import raise_priority
+        from .device import raise_priority
         if not raise_priority():
             print("note: could not raise process priority")
     dev = _open(args)
@@ -625,8 +627,7 @@ def cmd_geo(args):
         ranges = [(r["lba_start"] + m, r["lba_end"] - m) for r in lay.rings
                   if r["texture"].upper() == args.texture.upper()]
     if not args.sim:
-        _need_windows()
-        from .spti import raise_priority
+        from .device import raise_priority
         raise_priority()
     dev = _open(args)
     _check_disc(dev, args)
