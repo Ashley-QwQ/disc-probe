@@ -403,6 +403,30 @@ def cmd_tiles(args):
         sys.exit(1)
 
 
+def cmd_beacons(args):
+    from . import beacondisc, imagedisc
+    with open(args.geo, encoding="utf-8") as f:
+        fit = json.load(f)["fit"]
+    u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
+    labels, textures, layout = beacondisc.design()
+    total = min(imagedisc.sectors_to_radius(u, v, bit, beacondisc.MARK_BAND_MM[1] + 0.6), 2295104)
+    print(f"{sum(layout['sectors_per_ring'])} tiles, palette {' '.join(layout['palette'])}; geometry u {u:.3f}, "
+          f"v {v:.7f} from {args.geo}; {total} sectors ({total * 2048 / 1e9:.2f} GB)")
+    corr = imagedisc.load_correction(args.correction) if args.correction else None
+    meta = {"geometry_from": os.path.abspath(args.geo), "design": "beacon target",
+            "correction": os.path.abspath(args.correction) if args.correction else None}
+    spec = imagedisc.write_iso(args.output, labels, u, v, bit, total, meta=meta, correction=corr, textures=textures)
+    problems = imagedisc.verify_iso(args.output, labels, u, v, bit, total, correction=corr, textures=textures)
+    print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
+    base = os.path.splitext(args.output)[0]
+    beacondisc.save_layout({**layout, "textures": textures}, base + ".tiles.json")
+    beacondisc.preview(labels, textures, base + ".preview.png")
+    print(f"Spec: {os.path.abspath(spec)}\nLayout: {os.path.abspath(base + '.tiles.json')}\n"
+          f"Preview (data-side view, false colours): {os.path.abspath(base + '.preview.png')}")
+    if problems:
+        sys.exit(1)
+
+
 def cmd_tilescan(args):
     from . import tilescan
     for i, path in enumerate(args.scans):
@@ -587,6 +611,12 @@ def main(argv=None):
     sp.add_argument("--shuffle", type=int, metavar="SEED",
                     help="give every tile its own random swatch order (decouples texture from position)")
     sp.set_defaults(func=cmd_tiles)
+
+    sp = sub.add_parser("beacons", help="write the beacon target (tiles readable from one photo, no whole-disc fit)")
+    sp.add_argument("--geo", required=True, help="summary.json of a geo run")
+    sp.add_argument("--output", default="iso/beacons.iso")
+    sp.add_argument("--correction", help="angle-correction file")
+    sp.set_defaults(func=cmd_beacons)
 
     sp = sub.add_parser("tilescan", help="read IDs and swatch levels from flatbed scans of the tile palette target")
     sp.add_argument("scans", nargs="+", help="scan images (PNG/TIFF/JPEG)")
