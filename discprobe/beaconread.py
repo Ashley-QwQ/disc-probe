@@ -164,3 +164,77 @@ def read_tiles(rgb: np.ndarray, px_per_mm: float, max_candidates: int = 150) -> 
                     if old is None or (strong, score) > (old["strong"], old["score"]):
                         found[tid] = rec
     return sorted(found.values(), key=lambda r: r["id"])
+
+
+def fit_homography(src: np.ndarray, dst: np.ndarray) -> np.ndarray:
+    """Least-squares homography (DLT) from disc mm to image pixels."""
+    a = []
+    for (x, y), (u, v) in zip(src, dst):
+        a.append([x, y, 1, 0, 0, 0, -u * x, -u * y, -u])
+        a.append([0, 0, 0, x, y, 1, -v * x, -v * y, -v])
+    return np.linalg.svd(np.array(a, float))[2][-1].reshape(3, 3)
+
+
+def project(H: np.ndarray, x, y) -> np.ndarray:
+    q = H @ np.stack([np.asarray(x, float), np.asarray(y, float), np.ones_like(np.asarray(x, float))])
+    return (q[:2] / q[2]).T
+
+
+def _xy(r, a):
+    return r * math.cos(a), r * math.sin(a)
+
+
+def read_guided(lg: np.ndarray, H: np.ndarray) -> list[dict]:
+    """Read every tile where a whole-disc map says it is. A tile counts only if the code read there is
+    that tile's own, which is an independent check: with 16 bits at most 1 may differ, with 8 none."""
+    out = []
+    for tid in range(sum(bd.sectors_per_ring())):
+        ring, sector = bd.ring_sector(tid)
+        f, fc = _local_mm(ring), bd.finder_centres(ring, sector)
+        px = {k: project(H, *_xy(*fc[k])) for k in "ABC"}
+        A = _affine(np.array([f["A"], f["B"], f["C"]]), np.array([px["A"], px["B"], px["C"]]))
+        soft, contrast = _read(lg, ring, A)
+        w = bd.codeword(tid) * 2 - 1
+        known, errors = int((soft != 0).sum()), int(((soft * w) < 0).sum())
+        best = _best_id(soft)
+        ok = (known == 16 and errors <= MAX_ERRORS) or (known >= 8 and errors == 0)
+        out.append({"id": tid, "ring": ring, "sector": sector, "read": bool(ok and best[0] == tid), "errors": errors,
+                    "bits_read": known, "contrast": {str(k): round(v, 3) for k, v in contrast.items()},
+                    "finders_px": {k: px[k].round(1).tolist() for k in "ABC"}})
+    return out
+
+
+def read_disc(rgb: np.ndarray, px_per_mm: float, passes: int = 3) -> dict:
+    """Strong tiles fix a whole-disc map, the map reads the other tiles, and each pass refits on what was
+    read, snapping predicted bullseyes to detected ones within 1 mm."""
+    first = [t for t in read_tiles(rgb, px_per_mm) if t["strong"]]
+    if len(first) < 2:
+        return {"seed_tiles": len(first), "H": None, "tiles": []}
+    edges, lg = edge_map(rgb)
+    peaks = np.array([p[:2] for p in find_bullseyes(edges, px_per_mm)]).reshape(-1, 2)
+    src, dst = [], []
+    for t in first:
+        fc = bd.finder_centres(t["ring"], t["sector"])
+        for k in "ABC":
+            src.append(_xy(*fc[k]))
+            dst.append(t["finders_px"][k])
+    H = fit_homography(np.array(src), np.array(dst))
+    tiles = []
+    for _ in range(passes):
+        tiles = read_guided(lg, H)
+        src, dst = [], []
+        for t in tiles:
+            if not t["read"]:
+                continue
+            fc = bd.finder_centres(t["ring"], t["sector"])
+            for k in "ABC":
+                d = np.linalg.norm(peaks - np.array(t["finders_px"][k]), axis=1)
+                if d.size and d.min() < px_per_mm:
+                    src.append(_xy(*fc[k]))
+                    dst.append(peaks[int(d.argmin())])
+        if len(src) >= 6:
+            H = fit_homography(np.array(src), np.array(dst))
+    pred = project(H, *np.array(src).T)
+    return {"seed_tiles": len(first), "H": H.tolist(), "tiles": tiles, "fit_points": len(src),
+            "fit_rms_mm": float(np.sqrt(np.mean(np.sum((pred - np.array(dst)) ** 2, axis=1))) / px_per_mm)}
+
