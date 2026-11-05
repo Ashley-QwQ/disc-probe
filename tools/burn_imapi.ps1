@@ -3,7 +3,7 @@ Burn an ISO image with Windows' own IMAPI2 at a chosen write speed (isoburn.exe 
 
 Without -Burn it only reports the recorder, the media, its blank state and the supported write
 speeds, and writes nothing. With -Burn it writes the image as one closed session at the
-requested speed (the drive may round it to a supported one).
+nearest speed the drive lists.
 
   powershell -ExecutionPolicy Bypass -File tools\burn_imapi.ps1 -Drive H: -Iso iso\x.iso
   powershell -ExecutionPolicy Bypass -File tools\burn_imapi.ps1 -Drive H: -Iso iso\x.iso -Speed 8 -Burn
@@ -75,7 +75,11 @@ if (-not $Burn) { "Dry run: nothing written (add -Burn to write)."; return }
 if (-not $fmt.MediaHeuristicallyBlank) { throw "medium is not blank; refusing to write" }
 
 if ($Speed -gt 0) {
-    $fmt.SetWriteSpeed([int]($Speed * $unit), $false)
+    # Ask for the nearest speed the drive lists: its 8x can be 5410 sectors/s on DVD, and asking
+    # for 5400 falls to the 4x below.
+    $want = $Speed * $unit
+    $nearest = $fmt.SupportedWriteSpeedDescriptors | Sort-Object { [math]::Abs($_.WriteSpeed - $want) } | Select-Object -First 1
+    $fmt.SetWriteSpeed($(if ($nearest) { $nearest.WriteSpeed } else { [int]$want }), $false)
 }
 "Requested write speed: $(if ($Speed -gt 0) {"${Speed}x"} else {'drive default'}); " +
     "drive reports {0:0.#}x" -f ($fmt.CurrentWriteSpeed / $unit)

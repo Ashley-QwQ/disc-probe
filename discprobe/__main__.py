@@ -618,8 +618,8 @@ def main(argv=None):
         "rings": dict(output="iso/cd-rings.iso", textures="0D,AA,10,63,RND", filler="AA",
                       r0_mm=25.0, pitch_um=1.6, start_mm=26.0, ring_width_mm=2.0),
         "random": dict(output="iso/cd-random.iso", sectors=359600),  # IMAPI needs room to close the disc
-        "geo": dict(r0_mm=25.0, pitch_um=1.6, speed=2822, reps=32, max_targets=36),
-        "timing": dict(speed=2822),
+        "geo": dict(r0_mm=25.0, pitch_um=1.6, speed=1411, reps=32, max_targets=36),
+        "timing": dict(speed=1411),
         "image": dict(output="iso/cd-grid.iso", dark="0D", light="AA", line_mm=0.6),
         "tiles": dict(output="iso/cd-tiles.iso", palette=["0D", "AA", "10", "63", "RND", "0DAA", "00FF", "1063", "0D10AA"]),
         "gridscan": dict(line_mm=0.6),

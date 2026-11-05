@@ -70,7 +70,7 @@ class Ladder:
         sigma_u = sigma_u if sigma_u is not None else (0.08 if is_cd else 0.01)
         sigma_v = sigma_v if sigma_v is not None else (0.15 if is_cd else 0.03)
         if speed_kbs == "default":
-            speed_kbs = 2822 if is_cd else 5540
+            speed_kbs = 1411 if is_cd else 5540
         self.block = 1 if is_cd else 16
         self.spacing = 64 if is_cd else MIN_SPACING_SECTORS
         self.first_turns = (0.5, 1.5) if is_cd else FIRST_TURNS
