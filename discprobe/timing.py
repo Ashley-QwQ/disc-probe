@@ -292,7 +292,8 @@ class TimingProbe:
             period = fit.period_s if fit and fit.coherence > 0.9 else None
             if period and prev and abs(period / prev - 1) < 2e-3:
                 self.log(f"Spindle steady: T = {period * 1e3:.3f} ms ({60 / period:.1f} rpm)")
-                self.summary["settle"] = {"steady": True, "period_ms": period * 1e3}
+                self.summary["settle"] = {"steady": True, "period_ms": period * 1e3,
+                                          "read": duration_stats(res)}
                 self.cover_one_turn(period)
                 return
             prev = period
@@ -325,7 +326,9 @@ class TimingProbe:
         drive so far. Reads served from cache follow the host instead: with a coarse sleep their
         completion times lock to the Windows timer tick (15.625 ms) and its harmonics."""
         periods = [z["period_ms"] for z in zones if "period_ms" in z]
-        fua = self.summary.get("cache", {}).get("fua", {}).get("p50_us")
+        # The cache test runs before the spindle settles, so its FUA time can span two speeds.
+        settle = self.summary.get("settle", {})
+        fua = settle["read"]["p50_us"] if self.strategy == "fua" and "read" in settle else None
         if not periods or not fua:
             return
         T = statistics.median(periods)

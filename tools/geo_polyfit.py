@@ -14,6 +14,10 @@ and compares constant, quadratic and cubic models.
 --write-correction saves the chosen polynomial as an angle-correction file for `image
 --correction`, so a picture drawn with the constant-pitch u, v lands where this fit says:
 a byte placed at the model angle -Theta_const(n) really sits at -Theta_poly(n).
+
+A pitch polynomial of order 3 cannot follow a wave of period ~15 mm in radius (seen on CMC CD-R).
+--phi-degree N instead fits phi(r) directly with a polynomial of degree N. The table of
+leave-one-out errors printed with it shows which degree the rungs themselves support.
 """
 import argparse
 import csv
@@ -101,6 +105,37 @@ def write_correction(path, f, summ, run, order, rc, rs, n):
           f"{np.abs(err).max():.4f} deg")
 
 
+def phi_table(r_mm, phi):
+    """Leave-one-out error of a degree-d polynomial phi(x), for choosing d from the rungs alone."""
+    x = (r_mm - RC_MM) / RS_MM
+    print("\nphi(r) polynomial, fit and leave-one-out rms (deg):")
+    for d in range(2, min(13, len(x) - 2)):
+        H = np.vander(x, d + 1)
+        hat = H @ np.linalg.pinv(H)
+        e = phi - hat @ phi
+        print(f"  degree {d:2d}  fit {np.sqrt(np.mean(e ** 2)):.3f}  leave-one-out "
+              f"{np.sqrt(np.mean((e / (1 - np.diag(hat))) ** 2)):.3f}")
+
+
+def write_phi_correction(path, r_mm, phi, degree, run):
+    """Angle correction fitted straight to the rungs, relative to the u, v in summary.json."""
+    x = (r_mm - RC_MM) / RS_MM
+    coef = np.polyfit(x, phi, degree)
+    lo, hi = float(r_mm.min()), float(r_mm.max())
+    curve = np.polyval(coef, (np.linspace(lo, hi, 400) - RC_MM) / RS_MM)
+    coef[-1] -= curve.mean()
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump({"kind": "angle-correction",
+                   "meaning": "a byte placed at model angle theta appears at theta + phi(r) (degrees, "
+                              "counter-clockwise in data-side view); draw with the design sampled at theta + phi(r)",
+                   "radius_valid_mm": [lo, hi], "poly_in_x": coef.tolist(),
+                   "x": "(r_mm - 40) / 15", "source": f"tools/geo_polyfit.py {run}",
+                   "pitch_model": f"phi polynomial, degree {degree}",
+                   "peak_to_peak_deg": float(curve.max() - curve.min())}, fh, indent=2)
+    print(f"wrote {path}: phi peak to peak {curve.max() - curve.min():.3f} deg, "
+          f"fit rms {np.sqrt(np.mean((phi - np.polyval(np.polyfit(x, phi, degree), x)) ** 2)):.3f} deg")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("run", help="geo results folder (targets.csv, summary.json)")
@@ -108,6 +143,8 @@ def main():
     ap.add_argument("--write-correction", help="write an angle-correction file for `image --correction`")
     ap.add_argument("--order", choices=("quadratic", "cubic"), default="quadratic",
                     help="which fit --write-correction uses")
+    ap.add_argument("--phi-degree", type=int,
+                    help="--write-correction fits phi(r) directly with this polynomial degree")
     a = ap.parse_args()
     n, y, s, summ = load(a.run)
     bit_nm = summ["bit_nm_assumed"]
@@ -126,7 +163,13 @@ def main():
     print("\nconstant-pitch residual vs radius:")
     for i in order:
         print(f"  {mm(c['r_bits'][i]):7.3f} mm  {c['resid_deg'][i]:+7.3f} deg  (+/- {np.degrees(s[i]):.3f})")
-    if a.write_correction:
+    th, rad = model(n, summ["u"], summ["v"], [], rc, rs)
+    phi = np.degrees(th - y)
+    phi -= phi.mean()
+    phi_table(mm(rad), phi)
+    if a.write_correction and a.phi_degree:
+        write_phi_correction(a.write_correction, mm(rad), phi, a.phi_degree, a.run)
+    elif a.write_correction:
         write_correction(a.write_correction, fits[a.order], summ, a.run, a.order, rc, rs, n)
     if a.plot:
         import matplotlib
