@@ -437,10 +437,10 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 
 它的 CD 标定盘输出是 `.wav` 或 `.raw`，成品图可能走 Mode 1 数据盘。两条刻录路径的沿轨道位置是否相同，我们没有验证过；如果成品的线又扭了，先查这一点。
 
-**不想手动描点：刻网格盘。**用自己估的常数生成网格盘，刻好后看径向线的扭转，再修正常数。网格的方格线间距 5 mm，会造成每 5 mm 一个假峰，所以只能用径向线判断（`evidence/cd-geo-20261104/grid2-scan/grid_spokes.py`）。常数可以从扭转量反推：拟合 `c + a/r`，一帧的轨道长度约 0.163 mm，`|a|`（弧度·mm）除以 0.163 就是当前用的常数和真实值之差（帧）。#130 就是按 206 帧刻了一张，从扭转量得出差 199 帧。平板扫描不一定看得清（#130 的扫描仪只有约 3/255 的差别），可以改用灯光下拍照。
+**不想手动描点：刻网格盘。**用自己估的常数生成网格盘，没有估值就填 0，刻好后看径向线的扭转，再修正常数。网格的方格线间距 5 mm，会造成每 5 mm 一个假峰，所以只能用径向线判断（`evidence/cd-geo-20261104/grid2-scan/grid_spokes.py`）。常数可以从扭转量反推：拟合 `c + a/r`，一帧的轨道长度约 0.163 mm，`|a|`（弧度·mm）除以 0.163 就是当前用的常数和真实值之差（帧）。#130 就是按 206 帧刻了一张，从扭转量得出差 199 帧。平板扫描不一定看得清（#130 的扫描仪只有约 3/255 的差别），可以改用灯光下拍照。
 
 ```powershell
-python -m discprobe image --media cd --geo <summary.json> --correction correction.json --along-track-frames 206 --output iso/cd-grid.iso
+python -m discprobe image --media cd --geo <summary.json> --correction correction.json --along-track-frames <帧数> --output iso/cd-grid.iso
 ```
 
 定好常数后，这个数也可以传给 `disexport --along-track-frames`，直接导出预设。不传时输出会提醒径向线可能是扭的。CD 预设的导出还没有实刻验证。
