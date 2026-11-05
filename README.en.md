@@ -126,8 +126,8 @@ This lists drives someone has tested so far, and a drive that isn't listed may s
 | PLDS DVD-RW DS8A8SH | SATA-to-USB / Windows, Linux ([bczhc/disc-probe](https://github.com/bczhc/disc-probe)) | RITEK ARITA DVD-R, random data | `fua` | CAV, 2388 rpm | Windows 0.52 to 0.88° (36 to 61 µs), Linux 1.37 to 1.62° (96 to 113 µs) | Laptop drive about 15 years old. `geo` works on Windows (22 points, rms 0.21°), about 0.05° rms from our GH70N and 0.02 to 0.23° from bczhc's photo calibration (#53) at 5 points. `geo` also works on Linux, 0.33° rms from the GH70N (about −0.85° at 27 mm) | bczhc, #107 |
 | ASUS SDRW-08U9M-U | USB / Windows | RITEK ARITA DVD-R, random data | `fua` | CAV, 2355 rpm | 0.79 to 1.08° (56 to 76 µs) | Its 5 phases differ from the same disc on the DS8A8SH by −0.23, +0.25, −0.67, −0.05 and −0.04°. `geo` not yet run | bczhc, #107 |
 | HP BD-RE BU20N (LG OEM, 0403) | USB / Windows, with WindowsNoEditor's own probe | Lenovo Thinkplus CD-R 80 min | reads far away first, READ CD single sector | CAV, 1241 rpm (`0x0583`), 2482 rpm (`0x0B06`) | about 0.45° at 1241 rpm (about 60 µs), about 1.3 to 3.0° at 2482 rpm | Measured with a different tool using the same method. Found a seam of about +0.2 mm along the track near sector 65,600 | WindowsNoEditor, #107 |
-| Sony Optiarc AD-7201S (1H9K) | Windows | Memorex CD-R (ATIP 97:15:17), random data | `fua` | CAV, 2168 rpm (`--speed 2822`) | 0.61 to 0.68° (47 to 53 µs) | `geo` finished 36 steps, rms 0.51° with constant pitch and 0.35° with quadratic. A few points are far off, cause unknown. Along-track constant not yet measured. The reporter says DVD-R works too, data not attached | pugod124, [disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2) |
-| HL-DT-ST SP80NB80 (RC00) | USB / Windows | DVD-R (MID `CMC MAG. AM3` as read on the HP) | `fua` (about 200 ms, 8 turns) | CAV, 2355 rpm | about 236 to 1714 µs (3 to 24°) | Too noisy so far, and `geo` stops at its second step. A lower speed is still to be tried | Sliicy, [disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
+| Sony Optiarc AD-7201S (1H9K) | Windows | Memorex CD-R (ATIP 97:15:17), random data | `fua` | CAV, 2168 rpm (`--speed 2822`) | 0.61 to 0.68° (47 to 53 µs) | `geo` finished 36 steps, rms 0.51° with constant pitch and 0.35° with quadratic. A few points are far off, cause unknown. Along-track constant not yet measured. After `geo`, fine calibration in DIS gave clean images, after about 15 failed discs before. On DVD-R (`CMC MAG. AM3`) it runs at about 7514 rpm even when asked for 4x, with 1.7 to 2.1° jitter and a worse inner zone, and rms 0.51° at constant pitch, 0.41° at quadratic | pugod124, [disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2) |
+| HL-DT-ST SP80NB80 (RC00) | USB / Windows | DVD-R (MID `CMC MAG. AM3` as read on the HP) | `fua` (about 200 ms, 8 turns) | CAV, 2355 rpm | about 236 to 1714 µs (3 to 24°) | Too noisy, and `geo` stops at its second step. `--speed 3324` doesn't slow it down and the noise is worse (723 to 3368 µs), so it isn't suitable | Sliicy, [disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
 | HP HLDS GUD0N (SD03) | internal / Windows | DVD-R (MID `CMC MAG. AM3`) | `flush` (older tool version) | CAV, 3591 to 4402 rpm | about 108 to 165 µs | Older `geo` stopped at LBA 68848, probably a whole-turn miscount. Re-test with the latest version pending | Sliicy, [disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
 | PLDS DVD±RW DU-8A5LH | Windows, with WindowsNoEditor's own probe | POSO CD-R 80 min (ATIP 97:27:18) | reads far away first, READ CD | CAV, 2032 rpm (`0x06E4`); not constant at `0x0583` | median per-step σ 0.47° | Ladder residual rms 0.73°. Against the BU20N on the same disc, the geometry matches apart from an along-track constant of about 25 frames | WindowsNoEditor, #107 |
 | ASUS SDRW-08D2S-U | USB / Windows | Verbatim CD-R | misjudged as `plain` by the tool (cache hit 8 ms, FUA 39 ms) | unknown | unknown | The cache bug is fixed, re-test pending | moodyos, #107 |
@@ -135,6 +135,8 @@ This lists drives someone has tested so far, and a drive that isn't listed may s
 bczhc ported the tool to Linux: [bczhc/disc-probe](https://github.com/bczhc/disc-probe) (see its `README-linux.md`). NaiveTomcat ported it to macOS: [NaiveTomcat/discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos) (GPL-3.0-or-later). The release includes a signed, notarized universal helper, so you don't need to compile anything.
 
 ## Limitations
+
+Discs with the same MID can still differ: two `CMC MAG. AM3` discs differ by about 0.7% in track pitch. Someone else's preset may not fit, so measure your own batch.
 
 Drives vary a lot. A drive that isn't CAV, or has a lot of jitter (200 µs, for example), may give a geometry you can't use, so run `timing` first.
 
@@ -161,6 +163,7 @@ The manual, notes and CD model are in Chinese for now.
 | [CD physical model](docs/CD_PHYSICAL_MODEL.md) | CD implementation and timing assumptions |
 | [Showcase](docs/showcase/README.md) | Which disc each photo shows and how it was burned (in English) |
 | [`evidence/`](evidence/README.md) | Raw measurements and figures, reproducible |
+| [dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing) | WindowsNoEditor's C# probe, fitting scripts and raw data (in their fork) |
 
 ## Prior work and thanks
 

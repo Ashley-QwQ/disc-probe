@@ -292,8 +292,10 @@ class TimingProbe:
             period = fit.period_s if fit and fit.coherence > 0.9 else None
             if period and prev and abs(period / prev - 1) < 2e-3:
                 self.log(f"Spindle steady: T = {period * 1e3:.3f} ms ({60 / period:.1f} rpm)")
-                self.summary["settle"] = {"steady": True, "period_ms": period * 1e3,
-                                          "read": duration_stats(res)}
+                self.summary["settle"] = {"steady": True, "period_ms": period * 1e3}
+                if self.strategy == "fua":  # without the random pause, which would hide the whole turns
+                    self.summary["settle"]["read"] = duration_stats(
+                        [self._read(lba, self.sectors, fua=True, label="settled") for _ in range(8)])
                 self.cover_one_turn(period)
                 return
             prev = period
