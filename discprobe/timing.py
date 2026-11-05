@@ -102,6 +102,9 @@ class TimingProbe:
         self.summary: dict = {}
         self._experiment = ""
         self._evict_cursor = 0
+        # Reads faster than this are taken as cache hits when the cache is defeated indirectly.
+        # Raised by the cache test when a slow link makes cache hits slower (see cache_test).
+        self.cache_hit_us = CACHE_HIT_US
 
     # ------------------------------------------------------------ plumbing
 
@@ -183,7 +186,7 @@ class TimingProbe:
         # a cache hit is dropped.
         if not res.ok:
             return False
-        return self.strategy not in ("evict", "flush") or res.duration_us >= CACHE_HIT_US
+        return self.strategy not in ("evict", "flush") or res.duration_us >= self.cache_hit_us
 
     # ------------------------------------------------------------ steps
 
@@ -255,13 +258,29 @@ class TimingProbe:
             # USB, against 39 ms with FUA). Far slower with FUA also means plain reads are cached.
             if fua_media and out["fua"]["p50_us"] >= CACHE_RATIO * out["plain"]["p50_us"]:
                 plain_cached = True
+        elif not plain_cached:
+            # READ CD has no FUA bit, so compare with reads that follow an eviction instead. Over
+            # USB an HP BU20N returned cached CD-DA sectors in about 10 ms, above CACHE_HIT_US,
+            # while reads from the disc took several times longer.
+            evicted = []
+            for _ in range(max(8, reads // 4)):
+                self._evict()
+                evicted.append(self._read(lba, n, label="after-evict"))
+            out["after_evict"] = duration_stats(evicted)
+            slow = out["after_evict"]["p50_us"] >= CACHE_RATIO * out["plain"]["p50_us"]
+            if slow and all(r.ok for r in evicted):
+                plain_cached = True
+                # Halfway (geometrically) between the cache hits and the reads from the disc.
+                self.cache_hit_us = max(CACHE_HIT_US, math.sqrt(out["plain"]["p50_us"] *
+                                                                 out["after_evict"]["p50_us"]))
+                out["cache_hit_us"] = round(self.cache_hit_us, 1)
         if plain_cached and not fua_media:
             flushed = []
             for _ in range(reads):
                 self._flush(lba)
                 flushed.append(self._read(lba, n, label="after-flush"))
             out["after_flush"] = duration_stats(flushed)
-            flush_media = out["after_flush"]["p50_us"] >= CACHE_HIT_US and all(r.ok for r in flushed)
+            flush_media = out["after_flush"]["p50_us"] >= self.cache_hit_us and all(r.ok for r in flushed)
         if not plain_cached:
             self.strategy = "plain"
         elif fua_media:
