@@ -205,6 +205,36 @@ def _disexport(c: Checker):
     c.check(f["max_angle_diff_deg"] < 0.005 and max(abs(f["pitchLinear"]), abs(f["pitchQuadratic"]), abs(f["pitchCubic"])) < 1e-7
             and abs(f["innerRadiusMm"] - 24.06) < 1e-5,
             f"constant-pitch map exports with ~zero cubic terms, max angle difference {f['max_angle_diff_deg']:.4f} deg")
+    import json
+    import os
+    import tempfile
+    from . import cd
+    from .disexport import export
+    r0, p, sectors = 25.14, 1.4969e-3, 359602
+    u, v = r0 / (cd.BIT_NM * 1e-6), p / (cd.BIT_NM * 1e-6)
+    with tempfile.TemporaryDirectory() as d:
+        geo, out = os.path.join(d, "summary.json"), os.path.join(d, "preset.json")
+        with open(geo, "w", encoding="utf-8") as fh:
+            json.dump({"fit": {"u": u, "v": v, "bit_nm_assumed": cd.BIT_NM, "media": "cd"}}, fh)
+        e = export(geo, sectors, None, out, 26.7, 54.4, "t", "t")
+        q = e["preset"]
+        # DiscImageStudio's constant-pitch CD formula: p = pi (ro^2 - ri^2) / (1200 mm/s * sectors / 75)
+        dis_p = math.pi * (q["outerRadiusMm"] ** 2 - q["innerRadiusMm"] ** 2) / (q["linearVelocityMmPerSecond"] * sectors / 75)
+        c.check(abs(dis_p - p) < 1e-9 and q["sectors"] == sectors and "totalSectors" not in q
+                and e["fit"]["max_angle_diff_deg"] < 0.005,
+                f"CD fit exports as a CD preset, outer {q['outerRadiusMm']:.3f} mm, pitch {dis_p * 1e3:.5f} um by the DIS formula")
+        shifted = export(geo, sectors, None, out, 26.7, 54.4, "t", "t", along_track_frames=206)["preset"]
+        frames = (u * u - (shifted["innerRadiusMm"] / (cd.BIT_NM * 1e-6)) ** 2) * math.pi / v / cd.FRAME_BITS
+        c.check(abs(frames - 206) < 1, f"along-track constant reaches the CD preset ({frames:.1f} of 206 frames)")
+        os.remove(out)
+        with open(geo, "w", encoding="utf-8") as fh:
+            json.dump({"fit": {"u": u, "v": v, "bit_nm_assumed": 133.3}}, fh)   # sector length does not match the fit
+        try:
+            export(geo, sectors, None, out, 26.7, 54.4, "t", "t")
+            refused = False
+        except ValueError:
+            refused = not os.path.exists(out)
+        c.check(refused, "a preset that misses the measured map is refused and not written")
 
 
 def _efmplus(c: Checker):

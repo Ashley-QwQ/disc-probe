@@ -425,6 +425,12 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 python -m discprobe image --media cd --geo <summary.json> --correction correction.json --along-track-frames 206 --output iso/cd-grid.iso
 ```
 
+**导出到 DiscImageStudio。**`disexport` 看 `summary.json` 里的 `media`，CD 的结果会导出 CD 预设（`sectors`、内外半径、三个轨距系数，速度固定 1200 mm/s）。CD 必须填 `--sectors`；拟合范围默认用 `geo` 测到的范围。预设和测量结果相差超过 5° 时不写文件。沿轨道常数用 `--along-track-frames` 传入；不传时径向线可能是扭的。上面的 206 帧是 IMAPI 刻录路径的值，DiscImageStudio 自己的刻录路径还没测过，这个导出也还没有实刻验证。
+
+```powershell
+python -m discprobe disexport --geo <summary.json> --correction correction.json --sectors 359600 --output dis_preset_cd.json
+```
+
 `image --media cd` 同样接受布尔/标签 `--design-npy`、`--textures`、`--picture`。绘图单元改为物理帧中连续的 12 数据符号；重复纹理按"物理帧号 ×32 + F2 槽"定相位，再通过 CIRC 映射回填用户数据。暗/亮默认 `0D`/`AA`，设计应在内侧留出背景，文件系统扇区与图案相交时会拒绝生成。CD 计时结果带 `media=cd`，禁止把 DVD 的拟合直接用于 CD 刻图。
 
 CD `tiles` 的编号参考改用 `0D`/`AA`，`tilescan` 和 `tilephoto` 复用原来的编号和几何处理；分析输出中的历史字段名 `levels_a5_0_92_1` 对 CD 表示编号的 `0D=0 / AA=1`。重复序列如 `0DAA`、`00FF` 是待测候选，不保证光驱产生整轨固定周期。CD 导槽衍射更靠近镜面方向，拍摄宜使用视角小于 10° 的小光源，先锁定观察几何。
