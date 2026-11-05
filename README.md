@@ -71,13 +71,21 @@ python -m pip install numpy pillow scipy
 python -m discprobe selftest
 ```
 
+不确定下一步跑什么，就运行 `guide`。它读 `results` 文件夹，列出哪些步骤做过了，并打印下一条命令，不碰光驱：
+
+```bash
+python -m discprobe guide
+```
+
+在终端里，每条命令跑完也会打印下一步可以直接复制的命令。详见[手册的"手动使用"](docs/MANUAL.md#手动使用)。
+
 **1. 刻一张随机数据盘。**测量盘必须是普通数据，刻了图案的盘读不出来。用 Windows 自带的光盘映像刻录机刻 `iso/random.iso`。
 
 ```bash
 python -m discprobe random --output iso/random.iso
 ```
 
-**2. 看这台光驱能不能用。**约 1 到 3 分钟。结果要是 `CAV`，抖动越小越好。
+**2. 看这台光驱能不能用。**约 1 到 3 分钟。结果要是 `CAV`，抖动越小越好。只有一台光驱时，在终端里可以不写 `--drive`。
 
 ```bash
 python -m discprobe timing --drive H:
@@ -95,16 +103,16 @@ python -m discprobe geo --drive H:
 python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json --order quadratic
 ```
 
-**4. 生成图片 ISO，刻到同一批的空盘上。**把路径换成上一步输出的 `summary.json`，有修正文件的话再加 `--correction correction.json`。生成后程序会抽查扇区，和设计逐字节核对。
+**4. 生成图片 ISO，刻到同一批的空盘上。**`--geo latest` 用最近一次完整的真实测量，会打印选中的是哪一次；也可以填结果文件夹或 `summary.json` 的路径。有修正文件的话再加 `--correction correction.json`。生成后程序会抽查扇区，和设计逐字节核对。
 
 ```bash
-python -m discprobe image --geo results/geo-H-.../summary.json --picture my_picture.png --output iso/picture.iso
+python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
 ```
 
-想继续用 DiscImageStudio 的话，可以导出预设。`--sectors` 填你这张盘的扇区数，半径范围填 `geo` 实际测到的范围，有修正文件的话同样加 `--correction correction.json`。程序会打印和测量结果的转换误差，先看一眼再刻。目前预设要手动填进 DiscImageStudio：新建工程，填内外半径、扇区数和一二三次项：
+想继续用 DiscImageStudio 的话，可以导出预设。`--sectors` 填你这张盘的扇区数（`info` 会打印，要和 DiscImageStudio 里用的一致），半径范围填 `geo` 实际测到的范围，有修正文件的话同样加 `--correction correction.json`。`geo` 跑完打印的命令已经填好这些值。程序会打印和测量结果的转换误差，先看一眼再刻。目前预设要手动填进 DiscImageStudio：新建工程，填内外半径、扇区数和一二三次项：
 
 ```bash
-python -m discprobe disexport --geo results/geo-H-.../summary.json --sectors 2298496 --r-min 25.8 --r-max 54.5 --output dis_preset.json
+python -m discprobe disexport --geo latest --sectors 2298496 --r-min 25.8 --r-max 54.5 --output dis_preset.json
 ```
 
 看盘时，彩虹"披萨片"是出厂导槽的衍射。在一块小而亮的光源的镜面方向附近看（光源紧挨着眼睛或相机），图像整盘可见。

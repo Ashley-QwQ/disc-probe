@@ -111,7 +111,7 @@ class SptiDevice:
         if handle == INVALID_HANDLE_VALUE or handle is None:
             err = ctypes.get_last_error()
             hint = " (run the terminal as Administrator, or use --transport imapi)" if err == 5 else ""
-            raise OSError(err, f"cannot open {self.name}: {ctypes.FormatError(err)}{hint}")
+            raise OSError(err, f"cannot open {letter}: {ctypes.FormatError(err)}{hint}")
         self._handle = handle
         # Page-aligned, so it satisfies any adapter AlignmentMask.
         self._buf = _VirtualAlloc(None, BUFFER_BYTES, MEM_COMMIT_RESERVE, PAGE_READWRITE)

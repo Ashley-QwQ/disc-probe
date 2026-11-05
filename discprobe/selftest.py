@@ -339,5 +339,7 @@ def run() -> bool:
         from . import cal_selftest, rings_selftest
         rings_selftest.run(c)
         cal_selftest.run(c)
+    from . import ui_selftest
+    ui_selftest.run(c)
     print(f"\n{'all checks passed' if c.failures == 0 else f'{c.failures} check(s) failed'}")
     return c.failures == 0

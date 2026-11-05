@@ -61,6 +61,49 @@ python -m discprobe selftest
 
 所有结果写到 `results\` 下按时间命名的文件夹：`info.json`，或者 `summary.json` 加 `events.csv`。`events.csv` 记录每一条命令的起止时间戳，以后可以离线重新分析。
 
+## 手动使用
+
+下面的提示、进度和动画只在标准输出是终端时出现。管道、重定向和脚本调用得到的输出和以前一样，结果文件的格式也没变。在终端里想关掉它们，设 `DISCPROBE_PLAIN=1`。
+
+**下一步跑什么。**`guide` 读 `results` 文件夹，列出做过的步骤，打印下一条命令，不碰光驱。不带参数运行 `python -m discprobe` 也是它。`guide --media cd` 看 CD 的步骤；不写时跟随最近一次测量的盘型。
+
+```bash
+python -m discprobe guide
+```
+
+`info`、`timing`、`geo`、`random`、`disexport` 跑完也会打印下一步。`timing` 还会给判定：不是 CAV 就换速度，抖动大于约 2° 建议降速，大于约 5° 说明这台光驱很可能不适合（这两个门槛来自实践报告表，不是严格界限）。`geo` 中途停下时，会按停下的原因给建议。
+
+**盘符。**`list` 列出光驱。在终端里可以不写 `--drive`：只有一台就直接用，有多台就问你。盘符写错时，报错里会列出现有的光驱。
+
+**结果路径。**`image`、`tiles`、`beacons`、`disexport` 的 `--geo` 除了 `summary.json`，还接受结果文件夹和 `latest`。`latest` 选最近一次完整的真实测量，会跳过模拟驱动器的结果和中途停下的结果（少于 8 级，或 χ²/dof 超过 25），并打印选中的是哪一次。`results` 列出做过的测量，最新的在前：
+
+```bash
+python -m discprobe results geo
+```
+
+脚本里要路径的话，用 `results geo --latest`，它只打印一行文件夹路径。
+
+**`--sectors` 有两个意思。**`timing --sectors` 是每次读几个扇区，`16` 读一个完整的 DVD ECC 块。`disexport --sectors` 是盘的容量，要和 DiscImageStudio 里用的一致，否则外半径会变。`info` 会在终端打印建议值，并说明来源：空白盘优先用剩余空间，CD 用 ATIP 的导出区起点，已刻录的盘用最后一个 LBA 加一（只有整张刻满时才等于空白盘的容量）。DiscImageStudio 的"从光盘读取"也能核对。
+
+**`--speed` 怎么选。**可以写 kB/s，也可以写倍速，如 `4x`（`--media cd` 时按 CD 的 1x 换算）。低速通常噪声更小，但不是每台光驱都会换档，要看 `timing` 打印的转速。
+
+| | 常用值 |
+|---|---|
+| DVD（1x = 1385 kB/s） | `2.4x` = 3324，`4x` = 5540（`geo` 默认），`8x` = 11080 |
+| CD（1x = 176.4 kB/s） | `8x` = 1411（`--media cd` 默认），`16x` = 2822，`24x` = 4234 |
+
+**`--ranges` 怎么选。**默认的已刻录区 3%–85% 适合大多数盘，一般不用改。它接受 LBA 范围 `a-b,c-d`。`geo` 总在同一个 LBA 附近停下，或者外圈有换速跳变时，把那段排除；想覆盖更大的半径，可以加宽，前提是光驱读得干净（GP65NB60 上加宽后外圈误差消失）。最后一个 LBA 看 `info`。
+
+**CD 和 DVD。**步骤相同，每条命令加 `--media cd`，它同时把默认值换成 CD 的。终端里如果盘是 CD、命令却是 DVD 设置，会先问要不要加；托盘是空的也会直接说。`disexport` 按 `--geo` 的结果决定预设类型，它的 `--media` 只用来核对。
+
+**进度。**`timing` 和 `geo` 显示进度条、当前阶段和预计剩余时间；写 ISO 时在百分比后显示剩余时间。按 Ctrl+C 会保留已测的部分并说明位置，退出码 130。
+
+为了不干扰测量，进度行没有用后台线程。ctypes 在 ioctl 期间释放 GIL，读取返回时如果别的线程正占着 GIL，完成时间戳最多会晚一个 5 ms 的切换间隔，而被测的抖动只有几十微秒。所以进度行在主线程里，趁每次计时读之前的随机等待来画，花掉的时间从等待里扣。这段等待本来就是随机的。在模拟驱动器上，相同种子下加不加这层包装，`summary` 和事件逐条相同；真实光驱上还没有对比过，介意的话用管道或 `DISCPROBE_PLAIN=1` 跑。
+
+**外观。**`guide` 开头有一张 ASCII 光盘图，彩虹楔转半圈后停下。所有字符都是 7 位 ASCII，不受代码页影响。按终端能力逐级退回：真彩色、16 色、纯文本静态画面。`NO_COLOR` 或 `CI` 时不播动画，`NO_COLOR` 也关掉颜色；标准输出不是终端或 `TERM=dumb` 时什么都不画。终端太窄时只显示标题或一行文字。
+
+**常见报错。**缺 numpy、scipy、Pillow 时会打印安装命令。`--geo` 的文件不存在，或者不是 `geo` 的结果，`--ranges` 格式不对，`--drive` 打不开，都改成了一行说明，退出码仍是 1；参数错误的退出码仍是 2。
+
 ## `info` 读了什么
 
 INQUIRY、GET CONFIGURATION（当前 profile 和功能列表）、READ DISC INFORMATION、READ TRACK INFORMATION、READ CAPACITY、TOC、ATIP（CD-R 的导入起始时间可以识别染料厂商，最大导出时间就是容量）、DVD 物理格式信息（标称位长和轨距档位、PSN 范围）、DVD-R 预刻信息（0Eh，含 MID）、DVD+R ADIP（11h，含 MID）、GET PERFORMANCE（读写速度随 LBA 的曲线；纯 CAV 下首尾速度比就是外/内半径比）、MODE SENSE 2A（缓存大小、转速控制方式、写速列表）。

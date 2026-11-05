@@ -71,13 +71,21 @@ python -m pip install numpy pillow scipy
 python -m discprobe selftest
 ```
 
+If you're not sure what to run next, run `guide`. It reads the `results` folder, shows which steps are done and prints the next command. It doesn't touch the drive:
+
+```bash
+python -m discprobe guide
+```
+
+At a terminal, each command also ends by printing the next one, ready to copy. See [Using it by hand](#using-it-by-hand).
+
 **1. Burn a random-data disc.** The measuring disc must hold plain data, since discs with burned patterns often can't be read. Burn `iso/random.iso` with Windows Disc Image Burner.
 
 ```bash
 python -m discprobe random --output iso/random.iso
 ```
 
-**2. Check the drive.** This takes 1 to 3 minutes. You want to see `CAV` and as little jitter as possible.
+**2. Check the drive.** This takes 1 to 3 minutes. You want to see `CAV` and as little jitter as possible. With only one drive, you can leave out `--drive` at a terminal.
 
 ```bash
 python -m discprobe timing --drive H:
@@ -95,16 +103,16 @@ The pitch on some discs drifts slowly, and `geo` tells you when the residual is 
 python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json --order quadratic
 ```
 
-**4. Build a picture ISO and burn it to a blank disc from the same batch.** Replace the path with the `summary.json` from step 3, and add `--correction correction.json` if you have a correction file. The tool then samples sectors and compares them byte by byte with the design.
+**4. Build a picture ISO and burn it to a blank disc from the same batch.** `--geo latest` uses your newest complete real measurement and prints which one it chose; a result folder or a `summary.json` path works too. Add `--correction correction.json` if you have a correction file. The tool then samples sectors and compares them byte by byte with the design.
 
 ```bash
-python -m discprobe image --geo results/geo-H-.../summary.json --picture my_picture.png --output iso/picture.iso
+python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
 ```
 
-To keep working in DiscImageStudio, export a preset. Set `--sectors` to your disc's sector count and the radius range to what `geo` measured, and add `--correction correction.json` if you have one. It prints the conversion error against the measurement, so check that before burning. For now you enter the preset in DiscImageStudio by hand: create a project and fill in the inner and outer radius, sector count and the three pitch terms:
+To keep working in DiscImageStudio, export a preset. Set `--sectors` to your disc's sector count (`info` prints it, and it has to match the count in DiscImageStudio) and the radius range to what `geo` measured, and add `--correction correction.json` if you have one. The command `geo` prints at the end has these filled in. It prints the conversion error against the measurement, so check that before burning. For now you enter the preset in DiscImageStudio by hand: create a project and fill in the inner and outer radius, sector count and the three pitch terms:
 
 ```bash
-python -m discprobe disexport --geo results/geo-H-.../summary.json --sectors 2298496 --r-min 25.8 --r-max 54.5 --output dis_preset.json
+python -m discprobe disexport --geo latest --sectors 2298496 --r-min 25.8 --r-max 54.5 --output dis_preset.json
 ```
 
 The rainbow "pizza slices" you see on a disc are diffraction from the factory groove. The whole image shows up near the mirror direction of a small, bright light, with the light right next to your eye or camera.
@@ -138,6 +146,23 @@ This lists drives someone has tested so far, and a drive that isn't listed may s
 | PLDS DVD-RW DU8A6SH | macOS ([discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)) | UGREEN DVD+R (MID `MCC 004`, ring `PR25014-P16`), random data | `fua` | CAV, 1796 rpm (`--speed 4155`; 2x and 3x are the same step, `geo` stops at 4x) | about 0.68 to 0.83° | `geo` finishes 22 steps, rms 1.45°; a noisy band at 51.4 to 52.8 mm, not fully repeatable, and 0.21° without it, with u and v almost unchanged. About 0.15° rms from zhajial's DIS photo calibration of the same disc (DiscImageStudio #132). An exported ISO burned by the system at 3x came out right; DIS streaming burn at 2x went wrong, cause not investigated | ShiroiTree, #107 |
 
 bczhc ported the tool to Linux: [bczhc/disc-probe](https://github.com/bczhc/disc-probe) (see its `README-linux.md`). NaiveTomcat ported it to macOS: [NaiveTomcat/discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos) (GPL-3.0-or-later). The release includes a signed, notarized universal helper, so you don't need to compile anything.
+
+## Using it by hand
+
+The hints, progress and animation below only appear when stdout is a terminal. Pipes, redirects and scripts get the same output as before, and result files keep their format. To turn them off in a terminal, set `DISCPROBE_PLAIN=1`.
+
+- **What to run next.** `guide` shows which steps are done and prints the next command, without touching the drive. Running `python -m discprobe` with no arguments does the same. `info`, `timing`, `geo`, `random` and `disexport` also end with the next command. `timing` adds a verdict: try another speed if it isn't CAV, a lower one above about 2° of jitter, and above about 5° the drive is probably not suitable. These limits come from the reports table and aren't exact. A `geo` that stops gets advice based on why it stopped.
+- **Drive letter.** `list` shows the drives. At a terminal you can leave out `--drive`: with one drive it's used, with several you're asked.
+- **Result paths.** `--geo` also takes a result folder or `latest`, which skips simulated runs and runs that stopped early (under 8 rungs, or chi²/dof above 25). `results geo` lists past runs, and `results geo --latest` prints one folder for scripts.
+- **`--sectors` means two things.** In `timing` it's sectors per read; `16` reads a whole DVD ECC block. In `disexport` it's the disc's capacity, which has to match DiscImageStudio. `info` prints a value and where it came from.
+- **`--speed`** takes kB/s or a multiple like `4x`, counted from the 1x of `--media`. DVD: `2.4x` = 3324, `4x` = 5540 (the `geo` default), `8x` = 11080. CD: `8x` = 1411 (the default), `16x` = 2822, `24x` = 4234. Lower is usually quieter, but not every drive changes speed, so check the rpm that `timing` prints.
+- **`--ranges`** takes LBA ranges `a-b,c-d`. The default, 3–85 % of the recorded area, suits most discs. Leave out an area where `geo` keeps stopping or where the speed jumps. Widen it for more radius if the drive reads that far cleanly; on a GP65NB60 that removed the outer error. `info` shows the last LBA.
+- **CD and DVD.** The steps are the same, with `--media cd` on each command. At a terminal, a CD with DVD settings gets a question first, and an empty tray is reported straight away. `disexport` follows the `--geo` result, so its `--media` is only a check.
+- **Progress.** `timing` and `geo` show a bar, the current stage and the time left. ISO writers add the time left to their percentages. Ctrl+C keeps what was measured and says where it is.
+
+The progress line has no background thread, because one could delay the completion timestamps. It's drawn on the main thread during the random pause before each timed read, and the drawing time comes off that pause. On the simulated drive, the same seed gives identical summaries and events with or without it. It hasn't been compared on a real drive yet, so use a pipe or `DISCPROBE_PLAIN=1` if you want to rule it out.
+
+Only 7-bit ASCII is drawn, so no code page can break it. The opening screen of `guide` falls back from true colour to 16 colours to a still plain-text picture. `NO_COLOR` turns off colour and animation, and `CI` turns off animation. Details are in the [manual](docs/MANUAL.md#手动使用) (in Chinese).
 
 ## Another way to use it: timing plus fine calibration
 

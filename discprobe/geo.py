@@ -262,8 +262,8 @@ class Ladder:
         else:
             self.ranges = [(int(last * 0.03), int(last * 0.85))]
         self.ranges = [(a - a % self.block, b - b % self.block) for a, b in self.ranges if b - a > 64]
-        if self.media == "cd" and not self.ranges:
-            raise RuntimeError("no readable CD ranges longer than 64 sectors")
+        if not self.ranges:
+            raise RuntimeError(f"no readable {self.media.upper()} ranges longer than 64 sectors")
         if self.ref_arg is not None:
             self.ref = self._allowed(self.ref_arg)
         else:
