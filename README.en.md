@@ -53,7 +53,7 @@ The petals use several periodic textures. The colours come from diffraction alon
 
 You need Windows, Python 3.10 or later, a drive that can burn, and a few blank discs from the same batch. For Linux and macOS, see the ports listed under the [table of reports](#drives-with-hands-on-reports). The steps below are for DVD. The CD steps are in the [manual](docs/MANUAL.md#cd-r纹理计时与刻图), which is in Chinese for now.
 
-Open a terminal as **administrator**, install the dependencies, and check your setup on the simulated drive:
+Open a terminal as **administrator**, install the dependencies, and check your setup on the simulated drive. If you cannot run as administrator, add `--transport imapi` to the drive commands: it sends the same CDBs through Windows' own IMAPI2 recorder interface (`IDiscRecorder2Ex`), which a standard user may call. The default, `auto`, switches to it when SPTI is refused.
 
 ```bash
 git clone https://github.com/Ashley-QwQ/disc-probe

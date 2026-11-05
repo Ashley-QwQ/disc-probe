@@ -27,8 +27,18 @@ def _open(args):
                         seed=args.seed, media=getattr(args, "media", "dvd"))
     if not args.drive:
         sys.exit("give --drive E: (see `python -m discprobe list`) or --sim cav|clv|cav-nofua")
-    from .spti import SptiDevice
-    return SptiDevice(args.drive)
+    transport = getattr(args, "transport", "auto")
+    if transport != "imapi":
+        from .spti import SptiDevice
+        try:
+            return SptiDevice(args.drive)
+        except OSError as e:
+            # SPTI often needs an elevated process; IMAPI2 reaches the same drive without it.
+            if transport == "spti" or e.errno != 5:
+                raise
+            print("note: SPTI was refused (not elevated); using the IMAPI2 transport instead")
+    from .imapi import ImapiDevice
+    return ImapiDevice(args.drive)
 
 
 def _outdir(args, kind: str, dev) -> str:
@@ -426,6 +436,9 @@ def main(argv=None):
         sp.add_argument("--sim", choices=["cav", "clv", "cav-nofua", "cav-flush"],
                         help="use the simulated drive (nofua: FUA ignored; flush: FUA ignored but a "
                              "zero-length FUA read drops the cache)")
+        sp.add_argument("--transport", choices=["auto", "spti", "imapi"], default="auto",
+                        help="Windows command path: spti may need an elevated terminal; imapi (IMAPI2 "
+                             "IDiscRecorder2Ex) works as a standard user; auto tries spti, then imapi")
         sp.add_argument("--seed", type=int, default=1, help="simulation seed")
         sp.add_argument("--out", default="results", help="output directory (default: results)")
 
