@@ -130,9 +130,14 @@ This lists drives someone has tested so far, and a drive that isn't listed may s
 | HL-DT-ST SP80NB80 (RC00) | USB / Windows | DVD-R (MID `CMC MAG. AM3` as read on the HP) | `fua` (about 200 ms, 8 turns) | CAV, 2355 rpm | about 236 to 1714 µs (3 to 24°) | Too noisy, and `geo` stops at its second step. `--speed 3324` doesn't slow it down and the noise is worse (723 to 3368 µs), so it isn't suitable | Sliicy, [disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
 | HP HLDS GUD0N (SD03) | internal / Windows | DVD-R (MID `CMC MAG. AM3`) | `flush` (older tool version) | CAV, 3591 to 4402 rpm | about 108 to 165 µs | Older `geo` stopped at LBA 68848, probably a whole-turn miscount. Re-test with the latest version pending | Sliicy, [disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
 | PLDS DVD±RW DU-8A5LH | Windows, with WindowsNoEditor's own probe | POSO CD-R 80 min (ATIP 97:27:18) | reads far away first, READ CD | CAV, 2032 rpm (`0x06E4`); not constant at `0x0583` | median per-step σ 0.47° | Ladder residual rms 0.73°. Against the BU20N on the same disc, the geometry matches apart from an along-track constant of about 25 frames | WindowsNoEditor, #107 |
+| ASUS DRW-24D5MT (1.00) | Windows | DVD+R (MID `MCC/004/0`), random data | `fua` | CAV: 2353 rpm with `--speed 5540`, 4747 rpm by default and with `--speed 11080` | 0.49 to 0.55° at 2353 rpm (35 to 39 µs), 0.78 to 0.98° at 4747 rpm | Phases agree within 0.4° across the two speeds. `geo` finished 22 steps, rms 0.29° at constant pitch and chi2/dof 2.35 | Disappear9, #107 |
 | ASUS SDRW-08D2S-U | USB / Windows | Verbatim CD-R | misjudged as `plain` by the tool (cache hit 8 ms, FUA 39 ms) | unknown | unknown | The cache bug is fixed, re-test pending | moodyos, #107 |
 
 bczhc ported the tool to Linux: [bczhc/disc-probe](https://github.com/bczhc/disc-probe) (see its `README-linux.md`). NaiveTomcat ported it to macOS: [NaiveTomcat/discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos) (GPL-3.0-or-later). The release includes a signed, notarized universal helper, so you don't need to compile anything.
+
+## Another way to use it: timing plus fine calibration
+
+If the timing result isn't perfect, you can use it just to get close, then finish with the image method in DiscImageStudio. pugod124 had failed on about 15 CDs and got clean images this way. See [disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6650565706).
 
 ## Limitations
 
