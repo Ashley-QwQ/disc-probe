@@ -11,6 +11,10 @@ large DC offset, not the point at which a given drive stops reading it.
 
 The input is one 32768-byte ECC block, plain or gzip. Positions are ECC block numbers (LBA / 16).
 With no block, only the repeated-byte table is printed.
+
+max bias is the largest |2 f_land - 1| over any 1488-bit sliding window. ends>100 counts sync frames
+that end with |DSV| above 100, so a frame that only passes 100 inside is not counted. Each block is
+encoded from state 1, DSV 0; a real recording carries the state of the block before it.
 """
 import argparse
 import collections
@@ -140,7 +144,7 @@ def main():
         raw = np.frombuffer(raw, np.uint8)
         if raw.size != 32768:
             sys.exit(f"expected one 32768-byte ECC block, got {raw.size} bytes")
-        print(f"{'block':>6} {'LBA':>7} {'seed':>4} {'max|DSV|':>9} {'mean level':>10} {'frames>100':>10}  most common bytes on disc")
+        print(f"{'block':>6} {'LBA':>7} {'seed':>4} {'max|DSV|':>9} {'max bias':>10} {'ends>100':>10}  most common bytes on disc")
         for pos in args.positions:
             peak, ends, dc, top = report(raw, pos * 16)
             print(f"{pos:6d} {pos * 16:7d} {dvd.preset_index(pos * 16):4d} {peak:9d} {dc:10.3f} {int(np.sum(np.abs(ends) > 100)):10d}  " +
@@ -152,10 +156,10 @@ def main():
         print()
     rng = np.random.default_rng(3)
     peak, _, dc, _ = report(rng.integers(0, 256, 32768).astype(np.uint8), 64000)
-    print(f"{'random':>8}: max|DSV| {peak:4d}, mean level {dc:.3f}")
+    print(f"{'random':>8}: max|DSV| {peak:4d}, max bias {dc:.3f}")
     for q in (0x00, 0x66, 0xB9, 0xF9, 0x92, 0xA5, 0xFF, 0xED, 0x8E):
         peak, _, dc, _ = report(repeated(q), 64000)
-        print(f"{'all ' + format(q, '02X'):>8}: max|DSV| {peak:4d}, mean level {dc:.3f}")
+        print(f"{'all ' + format(q, '02X'):>8}: max|DSV| {peak:4d}, max bias {dc:.3f}")
     bare = encode(np.full((208, 182), 0x92, np.uint8))[0]
     rows = np.full((208, 182), 0x92, np.uint8)
     rows[np.arange(16) * 13, :12] = rng.integers(0, 256, (16, 12))

@@ -246,7 +246,9 @@ def _efmplus(c: Checker):
     print("EFMPlus modulation with DSV control")
     import numpy as np
     from . import efmplus as E
-    trans = [bin(E.main(q, 1)[0]).count("1") for q in (0xA5, 0x92)]
+    sync = [w for group in E.SYNC for kind in group for w in kind]
+    c.check(len(set(sync)) == 32, f"all 32 sync codes are distinct ({len(set(sync))})")
+    trans =[bin(E.main(q, 1)[0]).count("1") for q in (0xA5, 0x92)]
     c.check(trans == [5, 2], f"A5 / 92 code words have {trans[0]} / {trans[1]} transitions")
     rng = np.random.default_rng(3)
     b, bad, worst, runs = E.Boundary(), 0, 0, []
