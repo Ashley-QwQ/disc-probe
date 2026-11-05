@@ -391,7 +391,7 @@ python -m discprobe geo --drive H:
 
 ## CD-R：纹理、计时与刻图
 
-`rings`、`random`、`timing`、`geo`、`image`、`tiles` 和 `gridscan` 支持 `--media cd`，默认仍为 DVD。CD 单扇区为 57624 通道位；实现和时序假设见 [CD 物理模型](CD_PHYSICAL_MODEL.md)。下面的流程在 HL-DT-ST GH70N 和 CMC CD-R 上实测过，换光驱或换盘要重新验证。
+`rings`、`random`、`timing`、`geo`、`image`、`tiles` 和 `gridscan` 支持 `--media cd`，默认仍为 DVD。CD 单扇区为 57624 通道位；实现和时序假设见 [CD 物理模型](CD_PHYSICAL_MODEL.md)。测量和网格盘这部分在 HL-DT-ST GH70N 和 CMC CD-R 上实测过，换光驱或换盘要重新验证。
 
 第一张建议使用无需角度标定的纹理环盘：
 
@@ -419,17 +419,31 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 
 `geo_polyfit.py` 会打印各阶多项式的留一法误差，用它选阶数。这批 CMC 盘的轨距有波浪，恒定轨距 rms 0.233°，二次 0.163°，七次 0.080°。
 
-**沿轨道常数。**计时测不出"数据沿轨道的绝对位置"，这个常数要靠刻一张网格盘、看径向线来定。GH70N 加 IMAPI 刻录、READ(12) 读取这条路径上约为 206 帧，换光驱多半要重新测。网格的方格线间距 5 mm，会造成每 5 mm 一个假峰，所以只能用径向线判断（`evidence/cd-geo-20261104/grid2-scan/grid_spokes.py`）。
+**沿轨道常数。**计时测不出"数据沿轨道的绝对位置"，所以 CD 测完几何还差这一个常数。它会让径向线按 `c + a/r` 的形状扭转。这个值在不同路径上差别很大：GH70N 加 IMAPI（Mode 2 Form 1）约 206 帧；TSSTcorp SN-208FB 加 cdrdao（Mode 1，[DiscImageStudio #130](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/130)）约 7 帧，这个值来自一张照片的拟合，还没用第二张网格盘验证。所以不要直接套用别人的数。定这个常数有下面两条路。
+
+**推荐：交给 DiscImageStudio 的精细标定。**用 `geo` 代替它的粗标定和边界标定，少刻盘，也少描点。沿轨道常数的效果只相当于内半径变化约 0.3 µm（206 帧），精细标定本来就在拟合半径，按推算能把它一起吸收，不需要刻网格盘。这条路来自 kasumikira（[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19415813)）和 pugod124（[disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6650565706)）的 CD-R 实测，我们自己还没有走过。
+
+1. 导出预设。`--sectors` 要和 DiscImageStudio 里用的扇区数一致，可以先用它的**从光盘读取**核对空白盘；扇区数不同，外半径也会不同。
+
+   ```powershell
+   python -m discprobe disexport --geo <summary.json> --correction correction.json --sectors 359847 --output dis_preset_cd.json
+   ```
+
+   `disexport` 看 `summary.json` 里的 `media`，CD 的结果导出 CD 预设（`sectors`、内外半径、三个轨距系数，速度固定 1200 mm/s）。CD 必须填 `--sectors`，拟合范围默认用 `geo` 测到的范围。预设和测量结果相差超过 5° 时不写文件。
+
+2. 把预设放进 DiscImageStudio，二选一：在标定页手动填内外半径、扇区数和三个系数；或者把输出里 `preset` 这个对象加进 `%LOCALAPPDATA%\DiscImageStudio\disc-presets.json` 的 `cdPresets` 数组，再重启程序（格式见它的[预设文档](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/DISC_PRESETS.md)，这个写法我们还没有试过）。
+3. 在辅助标定页直接选**精细标定**，新建标靶，刻盘，拍照矫正，沿一条十字线细臂描点，再反推并应用。拟合三次轨距至少要 12 个不同半径的点，覆盖环带宽度的 60%。步骤见它的[辅助标定说明](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/CALIBRATION.md)。
+4. 应用后保存为预设，用这组参数刻图。
+
+它的 CD 标定盘输出是 `.wav` 或 `.raw`，成品图可能走 Mode 1 数据盘。两条刻录路径的沿轨道位置是否相同，我们没有验证过；如果成品的线又扭了，先查这一点。
+
+**不想手动描点：刻网格盘。**用自己估的常数生成网格盘，刻好后看径向线的扭转，再修正常数。网格的方格线间距 5 mm，会造成每 5 mm 一个假峰，所以只能用径向线判断（`evidence/cd-geo-20261104/grid2-scan/grid_spokes.py`）。常数可以从扭转量反推：拟合 `c + a/r`，一帧的轨道长度约 0.163 mm，`|a|`（弧度·mm）除以 0.163 就是当前用的常数和真实值之差（帧）。#130 就是按 206 帧刻了一张，从扭转量得出差 199 帧。平板扫描不一定看得清（#130 的扫描仪只有约 3/255 的差别），可以改用灯光下拍照。
 
 ```powershell
 python -m discprobe image --media cd --geo <summary.json> --correction correction.json --along-track-frames 206 --output iso/cd-grid.iso
 ```
 
-**导出到 DiscImageStudio。**`disexport` 看 `summary.json` 里的 `media`，CD 的结果会导出 CD 预设（`sectors`、内外半径、三个轨距系数，速度固定 1200 mm/s）。CD 必须填 `--sectors`；拟合范围默认用 `geo` 测到的范围。预设和测量结果相差超过 5° 时不写文件。沿轨道常数用 `--along-track-frames` 传入；不传时径向线可能是扭的。上面的 206 帧是 IMAPI 刻录路径的值，DiscImageStudio 自己的刻录路径还没测过，这个导出也还没有实刻验证。
-
-```powershell
-python -m discprobe disexport --geo <summary.json> --correction correction.json --sectors 359600 --output dis_preset_cd.json
-```
+定好常数后，这个数也可以传给 `disexport --along-track-frames`，直接导出预设。不传时输出会提醒径向线可能是扭的。CD 预设的导出还没有实刻验证。
 
 `image --media cd` 同样接受布尔/标签 `--design-npy`、`--textures`、`--picture`。绘图单元改为物理帧中连续的 12 数据符号；重复纹理按"物理帧号 ×32 + F2 槽"定相位，再通过 CIRC 映射回填用户数据。暗/亮默认 `0D`/`AA`，设计应在内侧留出背景，文件系统扇区与图案相交时会拒绝生成。CD 计时结果带 `media=cd`，禁止把 DVD 的拟合直接用于 CD 刻图。
 
