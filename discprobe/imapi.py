@@ -262,37 +262,25 @@ def _create(clsid: str) -> _Dispatch:
     return _Dispatch(ptr.value)
 
 
-def _recorders() -> list[tuple[str, list[str], _Dispatch]]:
-    """(unique id, volume paths, initialised recorder) for every IMAPI2 recorder."""
+def _recorders() -> tuple[list[tuple[str, list[str], _Dispatch]], list[str]]:
+    """(unique id, volume paths, initialised recorder) for every IMAPI2 recorder that could be initialised,
+    and the errors of those that could not."""
     master = _create(CLSID_MSFT_DISC_MASTER2)
     try:
         ids = [master.get_str("Item", i) for i in range(master.get_int("Count"))]
     finally:
         master.release()
-    out = []
+    out, errors = [], []
     for uid in ids:
         rec = _create(CLSID_MSFT_DISC_RECORDER2)
         try:
             v = rec.call("InitializeDiscRecorder", uid)
             _oleaut32.VariantClear(ctypes.byref(v))
             out.append((uid, rec.get_str_array("VolumePathNames"), rec))
-        except OSError:
+        except OSError as e:
+            errors.append(e.strerror or str(e))
             rec.release()
-    return out
-
-
-def list_optical_drives() -> list[str]:
-    """Drive letters of the IMAPI2 recorders (needs no administrator rights)."""
-    owned = _com_init()
-    try:
-        letters = []
-        for _, paths, rec in _recorders():
-            letters += sorted({p[0].upper() + ":" for p in paths if p and p[0].upper() in string.ascii_uppercase})
-            rec.release()
-        return letters
-    finally:
-        if owned:
-            _ole32.CoUninitialize()
+    return out, errors
 
 
 class ImapiDevice:
@@ -306,13 +294,19 @@ class ImapiDevice:
         self._locked = self._mcn_off = False
         try:
             found = None
-            for _, paths, rec in _recorders():
+            recorders, errors = _recorders()
+            for _, paths, rec in recorders:
                 if found is None and any(p.upper().startswith(f"{letter}:") for p in paths):
                     found = rec
                 else:
                     rec.release()
             if found is None:
-                raise OSError(2, f"no IMAPI2 recorder at {self.name}")
+                why = f"no IMAPI2 recorder at {self.name}"
+                if errors:
+                    # A recorder that cannot be initialised has no known drive letter; it may be this one.
+                    why += (f" ({len(errors)} recorder{'s' if len(errors) > 1 else ''} could not be initialised;"
+                            f" last error: {errors[-1]})")
+                raise OSError(2, why)
             self._rec = found
             self.model = " ".join(found.get_str(n).strip() for n in ("VendorId", "ProductId", "ProductRevision"))
             v = found.call("AcquireExclusiveAccess", False, CLIENT_NAME)
