@@ -53,7 +53,7 @@ disc-probe 让光驱来量。盘匀速转动时，一个扇区读完的时刻，
 
 需要 Windows、Python 3.10 以上、一台能刻录的光驱和同一批的几张空盘。Linux 和 macOS 见[实践报告表](#有实践报告的光驱)下方的移植版本。下面以 DVD 为例，CD 的步骤见[使用手册](docs/MANUAL.md#cd-r纹理计时与刻图)。
 
-用**管理员**身份打开终端，安装依赖，并用模拟驱动器确认环境正常：
+用**管理员**身份打开终端，安装依赖，并用模拟驱动器确认环境正常。不方便用管理员身份时，在读盘的命令后加 `--transport imapi`：它经 Windows 自带的 IMAPI2 刻录接口（`IDiscRecorder2Ex`）发同样的命令，普通用户即可；默认的 `auto` 在 SPTI 被拒时会自动改用它。
 
 ```bash
 git clone https://github.com/Ashley-QwQ/disc-probe

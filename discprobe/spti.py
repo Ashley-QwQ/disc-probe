@@ -110,7 +110,7 @@ class SptiDevice:
                               FILE_SHARE_READ | FILE_SHARE_WRITE, None, OPEN_EXISTING, 0, None)
         if handle == INVALID_HANDLE_VALUE or handle is None:
             err = ctypes.get_last_error()
-            hint = " (run the terminal as Administrator)" if err == 5 else ""
+            hint = " (run the terminal as Administrator, or use --transport imapi)" if err == 5 else ""
             raise OSError(err, f"cannot open {self.name}: {ctypes.FormatError(err)}{hint}")
         self._handle = handle
         # Page-aligned, so it satisfies any adapter AlignmentMask.
