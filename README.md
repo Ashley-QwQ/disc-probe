@@ -136,7 +136,7 @@ python -m discprobe disexport --geo latest --sectors 2298496 --r-min 25.8 --r-ma
 | 联想 PLDS DVD-RW DS8A8SH（KL31） | USB 3.0 / Windows | 羽毛/旭宇达 DVD+R，随机数据 | `fua` | CAV，2389 rpm（`--speed 5540`） | 默认转速 1.18–2.53°（56–120 µs） | `geo` 22 级跑通，恒定轨距 rms 0.178°，chi2/dof 0.82，不需要高阶修正。预设转换误差最大 0.001°。之前拍照分析卡住，用这个预设刻图成功（用户反馈，无量化图像误差） | anyezhixie，[DiscImageStudio #107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19426856) |
 | ASUS SDRW-08U9M-U | USB / Windows | RITEK ARITA DVD-R，随机数据 | `fua` | CAV，2355 rpm | 0.79–1.08°（56–76 µs） | 和同一张盘在 DS8A8SH 上的 5 个相位差 −0.23、+0.25、−0.67、−0.05、−0.04°；`geo` 待测 | bczhc，#107 |
 | HP BD-RE BU20N（LG OEM，0403） | USB / Windows，用 WindowsNoEditor 自己的探测程序 | 联想 Thinkplus CD-R 80 min | 每次先读远处，READ CD 单扇区 | CAV，1241 rpm（`0x0583`）、2482 rpm（`0x0B06`） | 1241 rpm 约 0.45°（约 60 µs），2482 rpm 约 1.3–3.0° | 不是用本工具测的，方法相同；在扇区约 65,600 处测到沿轨道约 +0.2 mm 的接缝 | WindowsNoEditor，#107 |
-| Sony Optiarc AD-7201S（1H9K） | Windows | Memorex CD-R（ATIP 97:15:17），随机数据 | `fua` | CAV，2168 rpm（`--speed 2822`） | 0.61–0.68°（47–53 µs） | `geo` 36 级跑通，恒定轨距 rms 0.51°，二次 0.35°，有几个点偏离较大，原因未查。沿轨道常数还没测。`geo` 后再用 DIS 图像法精修，成功出图（之前试约 15 张未成）。读 DVD-R（`CMC MAG. AM3`）时约 7514 rpm，请求 4x 不降速，抖动 1.7–2.1°，内圈更差，恒定轨距 rms 0.51°，二次 0.41° | pugod124，[disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2) |
+| Sony Optiarc AD-7201S（1H9K） | Windows | Memorex CD-R（ATIP 97:15:17），随机数据 | `fua` | CAV，2168 rpm（`--speed 2822`） | 0.61–0.68°（47–53 µs） | `geo` 36 级跑通，恒定轨距 rms 0.51°，二次 0.35°，有几个点偏离较大，原因未查。沿轨道常数还没测。`geo` 后再用 DIS 图像法精修，成功出图（之前试约 15 张未成）。读 DVD-R（`CMC MAG. AM3`）时约 7514 rpm，请求 4x 或 2x 都不降速（2x 时 7514 rpm），抖动 1.7–2.1°，内圈更差，恒定轨距 rms 0.51°，二次 0.41° | pugod124，[disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2) |
 | HL-DT-ST SP80NB80（RC00） | USB / Windows | DVD-R（同一张盘在 HP 上读到 MID `CMC MAG. AM3`） | `fua`（约 200 ms，8 圈） | CAV，2355 rpm | 约 236–1714 µs（3–24°） | 噪声太大，`geo` 在第二级停下。`--speed 3324` 也不降速，噪声更大（723–3368 µs），不适合 | Sliicy，[disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
 | HP HLDS GUD0N（SD03） | 内置 / Windows | DVD-R（MID `CMC MAG. AM3`） | `flush`（旧版工具） | CAV，3591–4402 rpm | 约 108–165 µs | 旧版 `geo` 在 LBA 68848 停下，疑似整圈数错；最新版待重测 | Sliicy，[disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
 | HL-DT-ST GP57EB40 | Windows | DVD（MID 待补），随机数据 | `fua` | CAV，2355 rpm | 0.11–0.16°（7.5–11 µs） | 抖动是目前报告里最低的。`geo` 22 级跑通，恒定轨距 rms 0.78°，二次 0.53°，有三个点噪声偏大。u、v 和 li-yifei 的 `CMC MAG. AM3` 几乎相同，MID 待确认。还没有用它刻图 | MasterMT9，[disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
@@ -151,6 +151,10 @@ Linux 版由 bczhc 移植：[bczhc/disc-probe](https://github.com/bczhc/disc-pro
 ## 另一种用法：计时加图像法精修
 
 计时结果不够完美时，也可以只用它把参数带到足够接近，再用 DiscImageStudio 的图像法精修。pugod124 之前试了约 15 张 CD 都刻不好，这样做之后成功出图，详见 [disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6650565706)。
+
+<img src="docs/showcase/pugod124_cd.jpg" width="60%" alt="pugod124 的 CD-R：先用 geo，再用 DiscImageStudio 精修后刻出的图案">
+
+*pugod124 用这种方法刻的 Memorex CD-R，已裁到盘面。*
 
 ## 局限
 
