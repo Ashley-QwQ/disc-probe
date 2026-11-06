@@ -124,6 +124,62 @@ def _ladder(c: Checker):
                         f"chi2/dof {res['chi2_per_dof']:.2f})")
 
 
+def _ladder_cd_audio(c: Checker):
+    print("ladder on a simulated CD-DA track (DiscImageStudio picture burn, drive read offset -603 bytes)")
+    from . import cd
+    from .geo import Ladder
+    from .timing import NoReadableDisc, TimingProbe
+    b = cd.BIT_NM * 1e-6
+    ri, pitch, x = 24.911653, 1.4926e-3, -603.0   # a banana CD-R, read on a PLDS DU-8A5LH
+    u, v = ri / b, pitch / b
+
+    def sim(**kw):
+        return SimDrive(mode="cav", seed=7, reread_delay_ms=35.0, media="cd", cd_audio=True, cd_u=u, cd_v=v,
+                        cd_read_offset_bytes=x, **kw)
+
+    def run(offset, **kw):
+        lad = Ladder(sim(**kw), media="cd", speed_kbs=None, reps=16, max_targets=24, host_delay_ms=35.0,
+                     read_offset_bytes=offset, log=lambda *_: None)
+        return lad, lad.run()
+
+    lad, res = run(x)
+    sectors = res["sectors"]
+    dis = res["dis_equivalent"]
+    ro = b * math.sqrt(u * u + v * sectors * cd.SECTOR_BITS / math.pi)
+    d_ri, d_ro = (dis["inner_radius_mm"] - ri) * 1e6, (dis["outer_radius_mm"] - ro) * 1e6
+    c.check(res["track"] == "audio" and lad.tp.strategy == "far" and abs(d_ri) < 50 and abs(d_ro) < 50,
+            f"{len(lad.targets)} rungs with far reads: ri {d_ri:+.0f} nm, ro {d_ro:+.0f} nm from the truth "
+            f"(chi2/dof {res['chi2_per_dof']:.2f})")
+    # Timing cannot see the offset: left at 0, the same reads fit a spiral shifted along the track by
+    # 603 bytes, i.e. u^2 + v d / pi with d = 603 * 24.5 channel bits (theta(n + d)).
+    _, res0 = run(0.0)
+    want = (math.sqrt(u * u - v * x * cd.SECTOR_BITS / cd.RAW_BYTES / math.pi) - u) * b * 1e6
+    got = (res0["dis_equivalent"]["inner_radius_mm"] - ri) * 1e6
+    c.check(abs(got - want) < 50, f"read offset left at 0 moves ri by {got:+.0f} nm (expected {want:+.0f} nm)")
+    lad6, res6 = run(x, cache_blocks=6)
+    d6 = (res6["dis_equivalent"]["inner_radius_mm"] - ri) * 1e6
+    c.check(lad6.tp.strategy == "far" and lad6.tp.far_count == 2 and abs(d6) < 50,
+            f"a cache that keeps the target past one far read: {lad6.tp.far_count} far reads, ri {d6:+.0f} nm")
+    big = TimingProbe(sim(cache_blocks=40), log=lambda *_: None, media="cd", cd_audio=True, reps=8)
+    big.setup()
+    big.cache_test()
+    c.check(big.strategy == "evict", f"a cache that even four far reads leave in place falls back to {big.strategy}")
+    try:
+        TimingProbe(sim(), log=lambda *_: None, media="cd").setup()
+        refused = False
+    except NoReadableDisc:
+        refused = True
+    c.check(refused, "timing --media cd still refuses an audio track (only geo reads one)")
+    data = Ladder(SimDrive(mode="cav", seed=7, media="cd"), media="cd", speed_kbs=None, read_offset_bytes=-603,
+                  log=lambda *_: None)
+    try:
+        data.run()
+        refused = False
+    except RuntimeError as e:
+        refused = "--read-offset-bytes" in str(e)
+    c.check(refused, "--read-offset-bytes is refused on a data CD")
+
+
 def _unreadable(c: Checker):
     print("timing stops early on unreadable discs and non-CAV drives")
     from .scsi import ScsiResult, Sense
@@ -328,6 +384,7 @@ def run() -> bool:
     else:
         _ladder(c)
         _ladder_abort(c)
+        _ladder_cd_audio(c)
         _disexport(c)
         _efmplus(c)
         _tiles(c)

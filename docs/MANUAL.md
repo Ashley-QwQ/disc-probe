@@ -531,6 +531,17 @@ python -m discprobe image --media cd --geo <summary.json> --correction correctio
 
 定好常数后，这个数也可以传给 `disexport --along-track-frames`，直接导出预设。不传时输出会提醒径向线可能是扭的。CD 预设已经有人实刻过：moodyos 不做精细标定，轮廓和原图一致；FanJZSS 用 `--along-track-frames -100` 导出，和 DIS 精细标定只差约 2 帧。两者都是用户反馈，详情见 [README 的表](../README.md#有实践报告的光驱)。
 
+**另一条路：直接测 DiscImageStudio 刻的音轨盘。**DiscImageStudio 刻图是一条音轨（CD-DA）。`geo --media cd` 在这种盘上改用 READ CD，每次计时读之前先读远处的一个扇区挤掉缓存（不够时自动加到 2、4 个，再不行才退回上面那种 1024 扇区的挤缓存）。原点用 DiscImageStudio 自己的：第 k 扇区在刻进去的音轨字节流里结束于第 2352(k+1) 字节。所以测出来的就是这种盘该填的内外半径，`summary.json` 里的 `dis_equivalent` 按盘上的扇区数直接给出，上面的 108 帧和 206 帧都用不到。
+
+剩下的只有一个常数：这台光驱的 READ CD 在扇区末尾之前多少字节完成，用 `--read-offset-bytes` 给出，记进 `summary.json`。HP BU20N 是 0（用实刻的直线核对过）；PLDS DU-8A5LH 约 −603 字节（由同一张盘和 BU20N 的结果对出来）。换一台光驱读，先用一张实刻的直线核对一次。
+
+```powershell
+python -m discprobe geo --drive E: --media cd
+python -m discprobe geo --drive E: --media cd --read-offset-bytes -603
+```
+
+测的是盘本身的几何，和刻它时填的参数无关，所以用名义参数刻一张探测盘就够了。在 BU20N 上测一张 banana CD-R，结果和另一套独立的程序（[dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing)）只差 +5 nm / −4 nm，按那套程序的结果刻的直线是直的。
+
 `image --media cd` 同样接受布尔/标签 `--design-npy`、`--textures`、`--picture`。绘图单元改为物理帧中连续的 12 数据符号；重复纹理按"物理帧号 ×32 + F2 槽"定相位，再通过 CIRC 映射回填用户数据。暗/亮默认 `0D`/`AA`，设计应在内侧留出背景，文件系统扇区与图案相交时会拒绝生成。CD 计时结果带 `media=cd`，禁止把 DVD 的拟合直接用于 CD 刻图。
 
 CD `tiles` 的编号参考改用 `0D`/`AA`，`tilescan` 和 `tilephoto` 复用原来的编号和几何处理；分析输出中的历史字段名 `levels_a5_0_92_1` 对 CD 表示编号的 `0D=0 / AA=1`。重复序列如 `0DAA`、`00FF` 是待测候选，不保证光驱产生整轨固定周期。CD 导槽衍射更靠近镜面方向，拍摄宜使用视角小于 10° 的小光源，先锁定观察几何。
