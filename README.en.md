@@ -17,6 +17,11 @@ To burn a picture on the data side, you need to know the angle at which sector N
 
 disc-probe has the drive measure this instead. On a disc spinning at constant speed, a sector finishes reading at the moment it passes under the head. Read two sectors in turn, convert the difference in completion time to an angle, and you know how far apart they are on the disc. Each reading only gives the angle modulo 360°, so the tool works outward in steps, using the earlier steps to predict the number of whole turns. About 20 steps cover the disc.
 
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/showcase/how_it_works_en_dark.svg">
+<img src="docs/showcase/how_it_works_en_light.svg" width="100%" alt="Sketch: read two sectors in turn, turn the time gap into an angle, then work outward in steps">
+</picture>
+
 The measurement only sends read commands. Its result can go straight into a burnable ISO or be exported as a [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio) preset.
 
 ## Results
@@ -39,9 +44,27 @@ A macro photo of the dense tiling disc, also burned once. The impossible triangl
 
 ### Colour (experimental)
 
-<img src="docs/showcase/rosettes_closeup.jpg" width="75%" alt="Petals showing several colours under a flash">
+Write the same data over and over and that patch of disc acts as a grating, splitting white light. The repeat length decides which colour goes in a given direction, and the colour changes with the angle. This is still an experiment, followed in [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108).
 
-The petals use several periodic textures. The colours come from diffraction along the track and change with the viewing angle. This work is ongoing, in [Discussion #108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108).
+<img src="docs/showcase/roses_source.jpg" width="42%" alt="The rose picture made with GPT Image"> <img src="docs/showcase/roses_7185.jpg" width="42%" alt="Photo of the burned rose DVD-R, with some petals showing purple">
+
+On the left is the original, made with GPT Image. On the right is a photo of the burned DVD-R, with the background masked. This disc was designed for purple, and from the right angle some petals come close to the original purple, only darker. It only looks right from one angle, the petals change colour when the phone moves, and you can't choose just any colour: purple is the only target so far. Details are in [#168](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/168). The same disc also holds 1.38 GB of data and read back with no errors, see [#170](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/170). These are early results from one disc, and the tool for the rose disc isn't published yet.
+
+<img src="docs/showcase/rosettes_closeup.jpg" width="75%" alt="Petals of one flower showing several colours under a flash">
+
+The one you can burn yourself is this flower disc, with 3 to 4 colours on one flower. We've only burned it on RITEKF1 DVD-R. Measure your disc as in [Quick start](#quick-start), then build the design. This step doesn't touch the drive:
+
+```bash
+python tools/compose_rosettes.py
+```
+
+It prints the next command, which builds the ISO:
+
+```bash
+python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --textures "MIX:92,87,83,8D,60" A5 92 66 ED00 2AE304 --r-max 57.6 --output iso/rosettes.iso
+```
+
+The preview's colours only tell the textures apart, so it won't match the disc. To photograph it, turn off the room lights, use only the phone flash and hold the phone a little to one side. [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108) has the steps.
 
 ### Other drives and discs
 
@@ -51,9 +74,11 @@ The petals use several periodic textures. The colours come from diffraction alon
 
 ## Quick start
 
+> If you exported a preset with `--correction` before 2026-11-06, the correction may not be in it. Update and export again; you don't need to measure again.
+
 You need Windows, Python 3.10 or later, a drive that can burn, and a few blank discs from the same batch. For Linux and macOS, see the ports listed under the [table of reports](#drives-with-hands-on-reports). The steps below are for DVD. The CD steps are in the [manual](docs/MANUAL.md#cd-r纹理计时与刻图), which is in Chinese for now.
 
-Open a terminal as **administrator**, install the dependencies, and check your setup on the simulated drive. If you cannot run as administrator, add `--transport imapi` to the drive commands: it sends the same CDBs through Windows' own IMAPI2 recorder interface (`IDiscRecorder2Ex`), which a standard user may call. The default, `auto`, switches to it when SPTI is refused.
+Open a terminal as administrator, install the dependencies, and check your setup on the simulated drive. If you cannot run as administrator, add `--transport imapi` to the drive commands: it sends the same CDBs through Windows' own IMAPI2 recorder interface (`IDiscRecorder2Ex`), which a standard user may call. The default, `auto`, switches to it when SPTI is refused.
 
 ```bash
 git clone https://github.com/Ashley-QwQ/disc-probe
@@ -77,33 +102,45 @@ If you're not sure what to run next, run `guide`. It reads the `results` folder,
 python -m discprobe guide
 ```
 
-At a terminal, each command also ends by printing the next one, ready to copy. See [Using it by hand](#using-it-by-hand).
+At a terminal, each command also ends by printing the next one, ready to copy. See [Using it by hand](#using-it-by-hand) for the rest.
 
-**1. Burn a random-data disc.** The measuring disc must hold plain data, since discs with burned patterns often can't be read. Burn `iso/random.iso` with Windows Disc Image Burner.
+<img src="docs/showcase/cli_demo_en.gif" width="100%" alt="Terminal recording: the opening disc, next-step hints, the measuring progress line and snake">
+
+*Recorded on the simulated drive, so this isn't a real measurement. A script presses the snake keys; the game only opens when you press `g` while measuring.*
+
+### Step 1: burn a random-data disc
+
+The measuring disc must hold plain data, since discs with burned patterns often can't be read. Burn `iso/random.iso` with Windows Disc Image Burner.
 
 ```bash
 python -m discprobe random --output iso/random.iso
 ```
 
-**2. Check the drive.** This takes 1 to 3 minutes. You want to see `CAV` and as little jitter as possible. With only one drive, you can leave out `--drive` at a terminal.
+### Step 2: check the drive
+
+This takes 1 to 3 minutes. You want to see `CAV` and as little jitter as possible. With only one drive, you can leave out `--drive` at a terminal.
 
 ```bash
 python -m discprobe timing --drive H:
 ```
 
-**3. Measure the geometry.**
+### Step 3: measure the geometry
 
 ```bash
 python -m discprobe geo --drive H:
 ```
 
-Presets exported with `--correction` before 2026-11-06 may not include the correction. Update and export again; you don't need to measure again. The pitch on some discs drifts slowly. RITEKF1 is fine with a constant pitch, while `CMC MAG. AM3` and one RITEK DVD+RW needed a quadratic correction (residuals fell from 0.38° and 0.61° to about 0.08°). When the residual is high, `geo` compares the two models at the end, with no new measurement. If quadratic is clearly better, it asks you to write a correction file and puts `--correction` in the next commands, ready to copy. Otherwise it says this is probably read noise and you can carry on. The command for the correction file looks like this:
+The pitch on some discs drifts slowly. RITEKF1 is fine with a constant pitch, while `CMC MAG. AM3` and one RITEK DVD+RW needed a quadratic correction (residuals fell from 0.38° and 0.61° to about 0.08°).
+
+When the residual is high, `geo` compares the two models at the end, with no new measurement. If quadratic is clearly better, it asks you to write a correction file and puts `--correction` in the next commands, ready to copy. Otherwise it says this is probably read noise and you can carry on. The command for the correction file looks like this:
 
 ```bash
 python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json --order quadratic
 ```
 
-**4. Build a picture ISO and burn it to a blank disc from the same batch.** `--geo latest` uses your newest complete real measurement and prints which one it chose; a result folder or a `summary.json` path works too. Add `--correction correction.json` if you have a correction file. The tool then samples sectors and compares them byte by byte with the design.
+### Step 4: build a picture ISO and burn it to a blank disc from the same batch
+
+`--geo latest` uses your newest complete real measurement and prints which one it chose; a result folder or a `summary.json` path works too. Add `--correction correction.json` if you have a correction file. The tool then samples sectors and compares them byte by byte with the design.
 
 ```bash
 python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
@@ -115,7 +152,19 @@ To keep working in DiscImageStudio, export a preset. Set `--sectors` to your dis
 python -m discprobe disexport --geo latest --sectors 2298496 --r-min 25.8 --r-max 54.5 --output dis_preset.json
 ```
 
-The rainbow "pizza slices" you see on a disc are diffraction from the factory groove. The whole image shows up near the mirror direction of a small, bright light, with the light right next to your eye or camera.
+### Step 5: look at the disc and photograph it
+
+The data side works like a mirror, so a photo mostly shows what it reflects. Room lights and bright walls can cover the picture, and a burned image may not show at first glance. The rainbow "pizza slices" are diffraction from the factory groove and aren't part of what you burned. The whole image shows up with a small, bright light right next to your eye or camera.
+
+<img src="docs/showcase/lighting_setup.png" width="80%" alt="Two lighting setups seen from above: a light to one side gives rainbow bands, a small light beside a far camera shows the picture">
+
+1. Turn off the room lights and keep one small light. A phone torch works, or a small white square on a black monitor.
+2. Put the light beside the phone, both away from the disc. About 1 m is best, or as far as you can.
+3. Tilt the disc slightly so it reflects something dark, not the light. Turn it slowly while watching the screen, and the picture appears when the disc goes dark.
+4. After focusing, pull the phone's exposure down a little.
+5. Keep what's behind the disc and the phone dark, and keep your hands away from the disc.
+
+We've tried this on DVD. A flatbed scanner also works, since a scan isn't affected by reflections in the room.
 
 <a name="drive-compatibility"></a>
 
@@ -123,53 +172,105 @@ The rainbow "pizza slices" you see on a disc are diffraction from the factory gr
 
 This lists drives someone has tested so far, and a drive that isn't listed may still work. Run `timing` to find out. Most of the data comes from `timing`. You can add yours in [DiscImageStudio discussion #107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107).
 
+### Pictures burned
+
+Most of these are user reports judged from the finished disc, usually with no measured image error.
+
+| Drive | Disc | Result | Source |
+|---|---|---|---|
+| HL-DT-ST GH70N (NYA2) | Ritek F1 DVD-R | Measuring and burning both verified, about 0.1° on the first burn | this repo |
+| HL-DT-ST GH70N (NYA2) | CMC CD-R | Use `--speed 1411`. Along-track constant checked on two grid discs | this repo |
+| MATSHITA BD-MLT UJ260AF (macOS) | RITEKF1 DVD-R | `geo` and `disexport` work, and someone has burned a picture with them | NaiveTomcat, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| MATSHITA BD-MLT UJ272 | RITEKF1 DVD-R | Preset went straight into DIS. Cross lines straight and perpendicular by eye, and a finished picture burned | domerawind, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19421274) |
+| HL-DT-ST GP90NB70 | `CMC MAG. AM3` DVD-R | Clear picture from the constant-pitch preset, even at the maximum 8x (photo to come) | li-yifei, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19410771) |
+| HL-DT-ST GP57EB40 | `CMC MAG. AM3` DVD-R | Burned through DIS with the preset, same outline as the design. The lowest jitter reported so far | MasterMT9, [disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
+| PIONEER DVR-S21 (PA01) | DVD-R (`MCC 03RG20`, authenticity unknown) | Use `--speed 22160`. The same picture burned once from an `image` ISO and once with DIS (16x CAV), neither with visible error; the DIS one may be slightly scaled. DIS fine calibration had shown no lines before | Lakida0, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19434982) |
+| Lenovo PLDS DS8A8SH (KL31) | Off-brand DVD+R (羽毛/旭宇达) | Photo analysis had been stuck; a picture burned with the preset worked | anyezhixie, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19426856) |
+| PLDS DU8A6SH (macOS) | UGREEN DVD+R (`MCC 004`) | Exported ISO burned by the system at 3x came out right. DIS streaming burn at 2x went wrong, cause not investigated | ShiroiTree, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| ASUS SDRW-08D2S-U | Verbatim CD-R | Use `--speed 4234`. Preset with no fine calibration, burned at the lowest speed, same outline as the original | moodyos, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19424471) |
+| ASUS SDRW-08D2S-U (B911, Linux) | Verbatim DVD+R | `geo` plus a grid-scan correction, exported as a preset, and pictures burned with it | NO-ob, [disc-probe #6](https://github.com/Ashley-QwQ/disc-probe/issues/6) |
+| Sony Optiarc AD-7201S | Memorex CD-R | Clean images only after `geo` plus fine calibration in DIS (about 15 failed discs before) | pugod124, [disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2) |
+
+### Measures, with burning partly shown or not yet reported
+
+| Drive | Disc | Result | Source |
+|---|---|---|---|
+| HL-DT-ST GP65NB60 | Ritek DVD+RW (`RITEK/004/48`) | `--speed 3324` recommended, needs a quadratic correction. Calibration pattern's radial lines only slightly off by eye; no finished picture reported yet | FanJZSS, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| Slimtype DS8A9SH | CD-R (ATIP 97:15:17) | High jitter (2.9 to 3.4°). `geo` finishes, and it calibrated with two discs (user report) | kasumikira, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19415813) |
+| PLDS DS8A8SH | RITEK ARITA DVD-R | `geo` works on Windows and Linux. About 0.05° rms from the GH70N on Windows | bczhc, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| ASUS DRW-24D5MT | DVD+R (`MCC/004/0`) | `geo` finishes, rms 0.29° at constant pitch | Disappear9, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| ASUS SDRW-08U9M-U | RITEK ARITA DVD-R | Only `timing` so far; `geo` not yet run | bczhc, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| HP BD-RE BU20N | Lenovo Thinkplus CD-R | Measured with WindowsNoEditor's own probe using the same method, not this tool | WindowsNoEditor, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| PLDS DU-8A5LH | POSO CD-R | Also with that probe. Fine for whole-disc calibration, not for local detail | WindowsNoEditor, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+
+### Not recommended for now
+
+This is the result for the reported disc and speed, and other conditions may differ.
+
+| Drive | Disc | Result | Source |
+|---|---|---|---|
+| ASUS BW-16D1H-U | RITEK ARITA DVD-R; BD-R | `geo` finishes, but don't burn with its result: about 9.5° peak to peak over 27 to 54 mm | bczhc, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| HL-DT-ST SP80NB80 | DVD-R (`CMC MAG. AM3`) | Too noisy. `geo` stops at its second step, and asking for a lower speed doesn't slow it | Sliicy, [disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
+| HP HLDS GUD0N | DVD-R (`CMC MAG. AM3`) | `geo` finishes, but rms 3.7° and single steps off by up to about 8°, so the result is not reliable | Sliicy, [disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
+
+<details>
+<summary>Full data: interface, cache, rotation, jitter and details</summary>
+
 | Drive | Interface / OS | Disc | Cache | Rotation | Per-read jitter | Notes | Source |
 |---|---|---|---|---|---|---|---|
 | HL-DT-ST GH70N (NYA2) | SATA / Windows | Ritek F1 DVD-R | `fua` | CAV, about 2830 rpm at 4x | 0.43 to 0.55° | Ladder and burning both verified (about 0.1° on the first burn). Changes speed at about 53 mm | this repo |
 | HL-DT-ST GH70N (NYA2) | SATA / Windows | CMC CD-R | `fua` | CAV. Use `--speed 1411` (about 2080 rpm). `--speed 2822` (3226 rpm) completes about 0.2 ms late past 49.8 mm and can't be used | 0.5 to 0.76° | CD ladder works. On this path (IMAPI burn, READ(12)) the along-track constant is about 206 frames, checked on two grid discs (+0.6 frames left on the second). This batch has a pitch wave of about 0.45° peak to peak | this repo |
-| MATSHITA BD-MLT UJ260AF (1.01) | USB 3.0 / macOS ([discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)) | RITEK RiDATA printable DVD-R (MID `RITEKF1`) | `fua` | CAV, 2364 rpm | 0.65 to 0.87° | `geo` and `disexport` work, parameters in [#87](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/87), and someone has burned a picture with them. 0.13° rms from our GH70N Ritek F1 result over 25 to 58 mm (within ±0.2° past 30 mm). FUA re-reads always take two turns. SET CD SPEED to 4x doesn't change speed. `--sectors 16` recommended | NaiveTomcat, #107 |
+| MATSHITA BD-MLT UJ260AF (1.01) | USB 3.0 / macOS ([discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)) | RITEK RiDATA printable DVD-R (MID `RITEKF1`) | `fua` | CAV, 2364 rpm | 0.65 to 0.87° | `geo` and `disexport` work, parameters in [#87](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/87), and someone has burned a picture with them. 0.13° rms from our GH70N Ritek F1 result over 25 to 58 mm (within ±0.2° past 30 mm). FUA re-reads always take two turns. SET CD SPEED to 4x doesn't change speed. `--sectors 16` recommended | NaiveTomcat, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | MATSHITA BD-MLT UJ272 (1.02) | USB 2.0 adapter / Windows | RiDATA silver DVD-R (`RITEKF1`, PW104), random data | `fua` | CAV, 2364 rpm (`--speed 5540`) | 0.61 to 0.80° | `geo` finishes, rms 0.28° at constant pitch, about 0.15° rms from the GH70N here. The preset went straight into DIS with no further calibration; cross lines came out straight and perpendicular (by eye, no measured error), and a finished picture was burned too. Photo calibration had never worked before | domerawind, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19421274) |
-| HL-DT-ST GP65NB60 (PF00) | USB / Windows | Ritek ExcellentX DVD+RW (`RITEK/004/48`), random data | `fua` | CAV: 2355 rpm with no `--speed`, 1432 rpm with `--speed 3324`, 3596 rpm with `--speed 11080` | 0.23 to 0.29° at 1432 rpm (26 to 34 µs), 0.53 to 0.65° at 2355 rpm, 1.07 to 1.12° at 3596 rpm | Very low jitter in degrees, so `--speed 3324` is recommended. Phases at 1432 and 2355 rpm agree within 0.17°. At 3596 rpm they differ by up to +0.97° near 52 mm. A disc with a burned calibration pattern couldn't be read, so use random data. `geo` finished 22 steps (`--speed 3324`) with rms 0.61° and chi2/dof 10.8 at constant pitch, and 0.078° and 0.20 at quadratic pitch, so the pitch on this disc drifts slowly and needs a correction. A calibration pattern burned at 2.4x with the corrected preset shows radial lines only slightly off by eye, after a dozen manual attempts before just to see them | FanJZSS, #107 |
-| HL-DT-ST GP90NB70 (1.00, IO-DATA external) | USB / Windows | VHR12JP53SV4 DVD-R (MID `CMC MAG. AM3`), random data | `fua` | CAV, 2355 rpm (`--speed 5540`) | 0.25 to 0.28° (18 to 20 µs) | Very low jitter. `geo` (22 steps) and `disexport` work. Constant pitch gives rms 0.38° and quadratic pitch 0.087°, so the pitch on this disc drifts slowly. The user's [follow-up](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19410771) reports a clear picture from the constant-pitch preset, even at the drive's maximum 8x write speed (photo to come, no quantitative image-error measurement yet). FUA re-reads take three turns | li-yifei, #107 |
-| ASUS BW-16D1H-U (E116) | USB / Windows, Linux | RITEK ARITA DVD-R, random data; BD-R | `fua` | DVD: CAV, 9204 rpm (requests for 2770 and 5540 don't slow it). BD-R: about 9705 rpm at inner and middle zones, about 1655 rpm at the outer zone, unstable on the first run, judged mixed | about 200 µs at every speed (DVD 10 to 14°, BD-R 2 to 15°) | `geo` finishes, but **don't burn with its result**. Against the geometry of the same batch as #53, it is off by about 9.5° peak to peak over 27 to 54 mm (+7.7° at 54 mm), which fits a completion-time jump of about 0.2 ms past 50 mm | bczhc, #107 |
-| PLDS DVD-RW DS8A8SH | SATA-to-USB / Windows, Linux ([bczhc/disc-probe](https://github.com/bczhc/disc-probe)) | RITEK ARITA DVD-R, random data | `fua` | CAV, 2388 rpm | Windows 0.52 to 0.88° (36 to 61 µs), Linux 1.37 to 1.62° (96 to 113 µs) | Laptop drive about 15 years old. `geo` works on Windows (22 points, rms 0.21°), about 0.05° rms from our GH70N and 0.02 to 0.23° from bczhc's photo calibration (#53) at 5 points. `geo` also works on Linux, 0.33° rms from the GH70N (about −0.85° at 27 mm) | bczhc, #107 |
-| Lenovo PLDS DVD-RW DS8A8SH (KL31) | USB 3.0 / Windows | Off-brand DVD+R (羽毛/旭宇达), random data | `fua` | CAV, 2389 rpm (`--speed 5540`) | 1.18 to 2.53° (56 to 120 µs) at the default speed | `geo` finished all 22 steps, with a constant-pitch rms of 0.178° and chi2/dof 0.82, so no higher-order correction is needed. Max preset conversion error 0.001°. Photo analysis had been stuck, and a picture burned with this preset worked (user report, no measured image error) | anyezhixie, [DiscImageStudio #107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19426856) |
-| ASUS SDRW-08U9M-U | USB / Windows | RITEK ARITA DVD-R, random data | `fua` | CAV, 2355 rpm | 0.79 to 1.08° (56 to 76 µs) | Its 5 phases differ from the same disc on the DS8A8SH by −0.23, +0.25, −0.67, −0.05 and −0.04°. `geo` not yet run | bczhc, #107 |
-| HP BD-RE BU20N (LG OEM, 0403) | USB / Windows, with WindowsNoEditor's own probe | Lenovo Thinkplus CD-R 80 min | reads far away first, READ CD single sector | CAV, 1241 rpm (`0x0583`), 2482 rpm (`0x0B06`) | about 0.45° at 1241 rpm (about 60 µs), about 1.3 to 3.0° at 2482 rpm | Measured with a different tool using the same method. Found a seam of about +0.2 mm along the track near sector 65,600 | WindowsNoEditor, #107 |
+| HL-DT-ST GP65NB60 (PF00) | USB / Windows | Ritek ExcellentX DVD+RW (`RITEK/004/48`), random data | `fua` | CAV: 2355 rpm with no `--speed`, 1432 rpm with `--speed 3324`, 3596 rpm with `--speed 11080` | 0.23 to 0.29° at 1432 rpm (26 to 34 µs), 0.53 to 0.65° at 2355 rpm, 1.07 to 1.12° at 3596 rpm | Very low jitter in degrees, so `--speed 3324` is recommended. Phases at 1432 and 2355 rpm agree within 0.17°. At 3596 rpm they differ by up to +0.97° near 52 mm. A disc with a burned calibration pattern couldn't be read, so use random data. `geo` finished 22 steps (`--speed 3324`) with rms 0.61° and chi2/dof 10.8 at constant pitch, and 0.078° and 0.20 at quadratic pitch, so the pitch on this disc drifts slowly and needs a correction. A calibration pattern burned at 2.4x with the corrected preset shows radial lines only slightly off by eye, after a dozen manual attempts before just to see them | FanJZSS, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| HL-DT-ST GP90NB70 (1.00, IO-DATA external) | USB / Windows | VHR12JP53SV4 DVD-R (MID `CMC MAG. AM3`), random data | `fua` | CAV, 2355 rpm (`--speed 5540`) | 0.25 to 0.28° (18 to 20 µs) | Very low jitter. `geo` (22 steps) and `disexport` work. Constant pitch gives rms 0.38° and quadratic pitch 0.087°, so the pitch on this disc drifts slowly. The user's [follow-up](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19410771) reports a clear picture from the constant-pitch preset, even at the drive's maximum 8x write speed (photo to come, no quantitative image-error measurement yet). FUA re-reads take three turns | li-yifei, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| ASUS BW-16D1H-U (E116) | USB / Windows, Linux | RITEK ARITA DVD-R, random data; BD-R | `fua` | DVD: CAV, 9204 rpm (requests for 2770 and 5540 don't slow it). BD-R: about 9705 rpm at inner and middle zones, about 1655 rpm at the outer zone, unstable on the first run, judged mixed | about 200 µs at every speed (DVD 10 to 14°, BD-R 2 to 15°) | `geo` finishes, but **don't burn with its result**. Against the geometry of the same batch as [#53](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/53), it is off by about 9.5° peak to peak over 27 to 54 mm (+7.7° at 54 mm), which fits a completion-time jump of about 0.2 ms past 50 mm | bczhc, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| PLDS DVD-RW DS8A8SH | SATA-to-USB / Windows, Linux ([bczhc/disc-probe](https://github.com/bczhc/disc-probe)) | RITEK ARITA DVD-R, random data | `fua` | CAV, 2388 rpm | Windows 0.52 to 0.88° (36 to 61 µs), Linux 1.37 to 1.62° (96 to 113 µs) | Laptop drive about 15 years old. `geo` works on Windows (22 points, rms 0.21°), about 0.05° rms from our GH70N and 0.02 to 0.23° from bczhc's photo calibration ([#53](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/53)) at 5 points. `geo` also works on Linux, 0.33° rms from the GH70N (about −0.85° at 27 mm) | bczhc, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| Lenovo PLDS DVD-RW DS8A8SH (KL31) | USB 3.0 / Windows | Off-brand DVD+R (羽毛/旭宇达), random data | `fua` | CAV, 2389 rpm (`--speed 5540`) | 1.18 to 2.53° (56 to 120 µs) at the default speed | `geo` finished all 22 steps, with a constant-pitch rms of 0.178° and chi2/dof 0.82, so no higher-order correction is needed. Max preset conversion error 0.001°. Photo analysis had been stuck, and a picture burned with this preset worked (user report, no measured image error) | anyezhixie, [DiscImageStudio [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107)](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19426856) |
+| ASUS SDRW-08U9M-U | USB / Windows | RITEK ARITA DVD-R, random data | `fua` | CAV, 2355 rpm | 0.79 to 1.08° (56 to 76 µs) | Its 5 phases differ from the same disc on the DS8A8SH by −0.23, +0.25, −0.67, −0.05 and −0.04°. `geo` not yet run | bczhc, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| HP BD-RE BU20N (LG OEM, 0403) | USB / Windows, with WindowsNoEditor's own probe | Lenovo Thinkplus CD-R 80 min | reads far away first, READ CD single sector | CAV, 1241 rpm (`0x0583`), 2482 rpm (`0x0B06`) | about 0.45° at 1241 rpm (about 60 µs), about 1.3 to 3.0° at 2482 rpm | Measured with a different tool using the same method. Found a seam of about +0.2 mm along the track near sector 65,600 | WindowsNoEditor, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | Sony Optiarc AD-7201S (1H9K) | Windows | Memorex CD-R (ATIP 97:15:17), random data | `fua` | CAV, 2168 rpm (`--speed 2822`) | 0.61 to 0.68° (47 to 53 µs) | `geo` finished 36 steps, rms 0.51° with constant pitch and 0.35° with quadratic. A few points are far off, cause unknown. Along-track constant not yet measured. After `geo`, fine calibration in DIS gave clean images, after about 15 failed discs before. On DVD-R (`CMC MAG. AM3`) it runs at about 7514 rpm even when asked for 4x or 2x, with 1.7 to 2.1° jitter and a worse inner zone, and rms 0.51° at constant pitch, 0.41° at quadratic | pugod124, [disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2) |
 | Slimtype DVD A DS8A9SH (EA16) | Windows | CD-R (ATIP 97:15:17) | `fua` | CAV, about 2033 rpm | 2.9 to 3.4° (238 to 275 µs) | `geo` finished 36 steps, chi2/dof 2.75, with some later points 1 to 2° off. Either constant pitch isn't enough or it's the jitter; not separated. Calibrated with two discs (user report, no measured image error) | kasumikira, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19415813) |
 | HL-DT-ST SP80NB80 (RC00) | USB / Windows | DVD-R (MID `CMC MAG. AM3` as read on the HP) | `fua` (about 200 ms, 8 turns) | CAV, 2355 rpm | about 236 to 1714 µs (3 to 24°) | Too noisy, and `geo` stops at its second step. `--speed 3324` doesn't slow it down and the noise is worse (723 to 3368 µs), so it isn't suitable | Sliicy, [disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
 | HP HLDS GUD0N (SD03) | internal / Windows | DVD-R (MID `CMC MAG. AM3`) | `flush` | Unstable at the default speed (mixed, CLV); CAV, 2401 rpm with `--speed 3324` | 3.0 to 3.3° (206 to 228 µs) at 2401 rpm | The latest `geo` finished all 22 steps, but with rms 3.7°, chi2/dof 9.4 and single steps off by up to about 8°, so the result is not reliable | Sliicy, [disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
 | HL-DT-ST GP57EB40 | Windows | DVD-R (MID `CMC MAG. AM3`), random data | `fua` | CAV, 2355 rpm | 0.11 to 0.16° (7.5 to 11 µs) | The lowest jitter reported so far. `geo` finished all 22 steps, with a constant-pitch rms of 0.78° and quadratic 0.53°; three steps are noisier than the rest. u and v almost match li-yifei's result on the same disc type from a GP90NB70 (179792.143 against 179792.142, 5.5374125 against 5.5374129). Preset conversion error is at most 0.366°, rms 0.086°. A picture burned through DIS with the preset came out clean, with the same outline as the design ([photo](https://github.com/Ashley-QwQ/disc-probe/issues/1#issuecomment-6672481372), user report, no measured image error) | MasterMT9, [disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
-| PLDS DVD±RW DU-8A5LH | Windows, with WindowsNoEditor's own probe | POSO CD-R 80 min (ATIP 97:27:18) | reads far away first, READ CD | CAV, 2032 rpm (`0x06E4`); not constant at `0x0583` | median per-step σ 0.47° | Ladder residual rms 0.73°. Against the BU20N on the same disc, the geometry matches apart from an along-track constant of about 25 frames When this drive reads, some sectors complete a fixed 0.5° or so early or late. The same disc doesn't show it on the HP, so it comes from this drive's reading, not the disc: fine for whole-disc calibration, not for local detail. | WindowsNoEditor, #107 |
-| ASUS DRW-24D5MT (1.00) | Windows | DVD+R (MID `MCC/004/0`), random data | `fua` | CAV: 2353 rpm with `--speed 5540`, 4747 rpm by default and with `--speed 11080` | 0.49 to 0.55° at 2353 rpm (35 to 39 µs), 0.78 to 0.98° at 4747 rpm | Phases agree within 0.4° across the two speeds. `geo` finished 22 steps, rms 0.29° at constant pitch and chi2/dof 2.35 | Disappear9, #107 |
-| ASUS SDRW-08D2S-U | USB / Windows | Verbatim CD-R | `fua` (2 turns, 57.4 ms) | CLV at about 4x with `--speed 1411`; CAV, 2090 rpm with `--speed 4234` | 0.19 to 0.28° (15 to 23 µs) at 2090 rpm | `geo` finished all 36 steps (`--media cd --speed 4234`), with a constant-pitch rms of 0.485°. The `disexport` preset was imported into DIS through `disc-presets.json` and used with no fine calibration. A picture burned on the same drive at its lowest speed came out with the same outline as the original ([photo](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19424471), user report, no measured image error). The disc is thin and nearly transparent, so it shows best lit away from the mirror reflection | moodyos, #107 |
+| PLDS DVD±RW DU-8A5LH | Windows, with WindowsNoEditor's own probe | POSO CD-R 80 min (ATIP 97:27:18) | reads far away first, READ CD | CAV, 2032 rpm (`0x06E4`); not constant at `0x0583` | median per-step σ 0.47° | Ladder residual rms 0.73°. Against the BU20N on the same disc, the geometry matches apart from an along-track constant of about 25 frames. When this drive reads, some sectors complete a fixed 0.5° or so early or late. The same disc doesn't show it on the HP, so it comes from this drive's reading, not the disc: fine for whole-disc calibration, not for local detail. | WindowsNoEditor, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| ASUS DRW-24D5MT (1.00) | Windows | DVD+R (MID `MCC/004/0`), random data | `fua` | CAV: 2353 rpm with `--speed 5540`, 4747 rpm by default and with `--speed 11080` | 0.49 to 0.55° at 2353 rpm (35 to 39 µs), 0.78 to 0.98° at 4747 rpm | Phases agree within 0.4° across the two speeds. `geo` finished 22 steps, rms 0.29° at constant pitch and chi2/dof 2.35 | Disappear9, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| ASUS SDRW-08D2S-U | USB / Windows | Verbatim CD-R | `fua` (2 turns, 57.4 ms) | CLV at about 4x with `--speed 1411`; CAV, 2090 rpm with `--speed 4234` | 0.19 to 0.28° (15 to 23 µs) at 2090 rpm | `geo` finished all 36 steps (`--media cd --speed 4234`), with a constant-pitch rms of 0.485°. The `disexport` preset was imported into DIS through `disc-presets.json` and used with no fine calibration. A picture burned on the same drive at its lowest speed came out with the same outline as the original ([photo](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19424471), user report, no measured image error). The disc is thin and nearly transparent, so it shows best lit away from the mirror reflection | moodyos, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | ASUS SDRW-08D2S-U (B911) | USB / Linux (bczhc's port) | Verbatim DVD+R (hub code `ZE0460-DVR-T47D`) | not reported | not reported | not reported | `geo` plus a grid-scan correction, exported as a preset with a max conversion error of 0.118°, and pictures burned with it (user report, no measured image error); another Verbatim preset did not work on this disc. Preset and photos in [DiscImageStudio #140](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/140) | NO-ob, [disc-probe #6](https://github.com/Ashley-QwQ/disc-probe/issues/6) |
-| PLDS DVD-RW DU8A6SH | macOS ([discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)) | UGREEN DVD+R (MID `MCC 004`, ring `PR25014-P16`), random data | `fua` | CAV, 1796 rpm (`--speed 4155`; 2x and 3x are the same step, `geo` stops at 4x) | about 0.68 to 0.83° | `geo` finishes 22 steps, rms 1.45°; a noisy band at 51.4 to 52.8 mm, not fully repeatable, and 0.21° without it, with u and v almost unchanged. About 0.15° rms from zhajial's DIS photo calibration of the same disc (DiscImageStudio #132). An exported ISO burned by the system at 3x came out right; DIS streaming burn at 2x went wrong, cause not investigated | ShiroiTree, #107 |
+| PLDS DVD-RW DU8A6SH | macOS ([discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)) | UGREEN DVD+R (MID `MCC 004`, ring `PR25014-P16`), random data | `fua` | CAV, 1796 rpm (`--speed 4155`; 2x and 3x are the same step, `geo` stops at 4x) | about 0.68 to 0.83° | `geo` finishes 22 steps, rms 1.45°; a noisy band at 51.4 to 52.8 mm, not fully repeatable, and 0.21° without it, with u and v almost unchanged. About 0.15° rms from zhajial's DIS photo calibration of the same disc ([DiscImageStudio #132](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/132)). An exported ISO burned by the system at 3x came out right; DIS streaming burn at 2x went wrong, cause not investigated | ShiroiTree, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| PIONEER DVD-RW DVR-S21 (PA01) | Windows, interface not reported | DVD-R labelled Verbatim, outer packaging SOKCK, which the user thinks may be counterfeit; authenticity unknown (MID `MCC 03RG20`, ring `111102-S1`), random data | `fua` | CAV, about 4747 rpm (`--speed 22160`, 16x) | 0.54 to 0.70° (19 to 25 µs) | `geo` finished all 22 steps, constant-pitch rms 0.188°, chi2/dof 0.97. The same picture burned once from an `image` ISO and once with DIS (16x CAV), neither with visible error; the DIS one may be slightly scaled (user report, no measured image error). Before this, three rounds each of DIS coarse and edge calibration, and fine calibration showed no lines | Lakida0, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19434982) |
+
+</details>
 
 bczhc ported the tool to Linux: [bczhc/disc-probe](https://github.com/bczhc/disc-probe) (see its `README-linux.md`). NaiveTomcat ported it to macOS: [NaiveTomcat/discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos) (GPL-3.0-or-later). The release includes a signed, notarized universal helper, so you don't need to compile anything.
 
 ## Using it by hand
 
-The hints, progress and animation below only appear when stdout is a terminal. Pipes, redirects and scripts get the same output as before, and result files keep their format. To turn them off in a terminal, set `DISCPROBE_PLAIN=1`.
+<details>
+<summary>Next-step hints, drive letters, result paths, common options, Tab completion, language and snake</summary>
 
-- **What to run next.** `guide` shows which steps are done and prints the next command, without touching the drive. Running `python -m discprobe` with no arguments does the same. `info`, `timing`, `geo`, `random` and `disexport` also end with the next command. `timing` adds a verdict: try another speed if it isn't CAV, a lower one above about 2° of jitter, and above about 5° the drive is probably not suitable. These limits come from the reports table and aren't exact. A `geo` that stops gets advice based on why it stopped. One that finishes with more than noise left (chi²/dof above 2) compares a constant and a quadratic pitch after closing the drive: if quadratic at least halves chi²/dof, it asks for a correction file and the next commands use it; otherwise it says this is probably read noise and you can carry on.
-- **Drive letter.** `list` shows the drives. At a terminal you can leave out `--drive`: with one drive it's used, with several you're asked.
-- **Result paths.** `--geo` also takes a result folder or `latest`, which skips simulated runs and runs that stopped early (under 8 rungs, or chi²/dof above 25). `results geo` lists past runs, and `results geo --latest` prints one folder for scripts.
-- **`--sectors` means two things.** In `timing` it's sectors per read; `16` reads a whole DVD ECC block. In `disexport` it's the disc's capacity, which has to match DiscImageStudio. `info` prints a value and where it came from.
-- **`--speed`** takes kB/s or a multiple like `4x`, counted from the 1x of `--media`. DVD: `2.4x` = 3324, `4x` = 5540 (the `geo` default), `8x` = 11080. CD: `8x` = 1411 (the default), `16x` = 2822, `24x` = 4234. Lower is usually quieter, but not every drive changes speed, so check the rpm that `timing` prints.
-- **`--ranges`** takes LBA ranges `a-b,c-d`. The default, 3–85 % of the recorded area, suits most discs. Leave out an area where `geo` keeps stopping or where the speed jumps. Widen it for more radius if the drive reads that far cleanly; on a GP65NB60 that removed the outer error. `info` shows the last LBA.
-- **CD and DVD.** The steps are the same, with `--media cd` on each command. At a terminal, a CD with DVD settings gets a question first, and an empty tray is reported straight away. `disexport` follows the `--geo` result, so its `--media` is only a check.
-- **Tab completion.** `python -m discprobe completion install` sets it up for PowerShell, bash or zsh: it writes a script to your home folder and adds one line to your shell's startup file, and `completion uninstall` takes both out. The current window doesn't have it until you open a new one or run the line it prints. In PowerShell, Tab on a `discprobe` line opens a list with what each option takes; elsewhere Tab is unchanged. Pressing Tab never starts Python, because the commands and options are written into the script, so install again after an update. Other `python` commands still complete paths, but in bash and zsh it replaces any completion those shells had for `python`.
-- **Language.** At a terminal it follows the system, so a Chinese system gets Chinese help, hints and measuring output. Choose with `--lang zh` or `--lang en` anywhere on the command, or `DISCPROBE_LANG=zh`. Pipes, redirects and `DISCPROBE_PLAIN=1` stay English and ignore `DISCPROBE_LANG`; only `--lang` on the command itself changes them. Result files are never translated.
-- **Progress.** `timing` and `geo` show a bar, the current stage, the time spent and the time left. A narrow window drops parts instead of wrapping. ISO writers use the same line, following the file's real size. Ctrl+C keeps what was measured and says where it is.
-- **Snake.** While measuring, press `g` to open a game of snake under the progress line: arrows or WASD steer, `r` plays again, `q` closes it. Measuring output keeps printing above it. It doesn't exist until you press `g`, and never appears in pipes, with `DISCPROBE_PLAIN=1` or with `--no-animation`.
+The hints, progress and animation below only appear when stdout is a terminal. Pipes, redirects and scripts get essentially the same output as before, and result files keep their format. To turn them off in a terminal, set `DISCPROBE_PLAIN=1`.
+
+- What to run next: `guide` shows which steps are done and prints the next command, without touching the drive. Running `python -m discprobe` with no arguments does the same. `info`, `timing`, `geo`, `random`, `image` and `disexport` also end with the next command. `timing` adds a verdict: try another speed if it isn't CAV, a lower one above about 2° of jitter, and above about 5° the drive is probably not suitable. These limits come from the reports table and aren't exact. A `geo` that stops gets advice based on why it stopped. One that finishes with more than noise left (chi²/dof above 2) compares a constant and a quadratic pitch after closing the drive: if quadratic at least halves chi²/dof, it asks for a correction file and the next commands use it; otherwise it says this is probably read noise and you can carry on.
+- Drive letter: `list` shows the drives. At a terminal you can leave out `--drive`: with one drive it's used, with several you're asked.
+- Result paths: `--geo` also takes a result folder or `latest`, which skips simulated runs and runs that stopped early (under 8 rungs, or chi²/dof above 25). `results geo` lists past runs, and `results geo --latest` prints one folder for scripts.
+- `--sectors` means two things: In `timing` it's sectors per read; `16` reads a whole DVD ECC block. In `disexport` it's the disc's capacity, which has to match DiscImageStudio. `info` prints a value and where it came from.
+- `--speed` takes kB/s or a multiple like `4x`, counted from the 1x of `--media`. DVD: `2.4x` = 3324, `4x` = 5540 (the `geo` default), `8x` = 11080. CD: `8x` = 1411 (the default), `16x` = 2822, `24x` = 4234. Lower is usually quieter, but not every drive changes speed, so check the rpm that `timing` prints.
+- `--ranges` takes LBA ranges `a-b,c-d`. The default, 3–85 % of the recorded area, suits most discs. Leave out an area where `geo` keeps stopping or where the speed jumps. Widen it for more radius if the drive reads that far cleanly; on a GP65NB60 that removed the outer error. `info` shows the last LBA.
+- CD and DVD: The steps are the same, with `--media cd` on each command. At a terminal, a CD with DVD settings gets a question first, and an empty tray is reported straight away. `disexport` follows the `--geo` result, so its `--media` is only a check.
+- Tab completion: `python -m discprobe completion install` sets it up for PowerShell, bash or zsh: it writes a script to your home folder and adds one line to your shell's startup file, and `completion uninstall` takes both out. The current window doesn't have it until you open a new one or run the line it prints. In PowerShell, Tab on a `discprobe` line opens a list with what each option takes; elsewhere Tab is unchanged. Pressing Tab never starts Python, because the commands and options are written into the script, so install again after an update. Other `python` commands still complete paths, but in bash and zsh it replaces any completion those shells had for `python`.
+- Language: At a terminal it follows the system, so a Chinese system gets Chinese help, hints and measuring output. Choose with `--lang zh` or `--lang en` anywhere on the command, or `DISCPROBE_LANG=zh`. Pipes, redirects and `DISCPROBE_PLAIN=1` stay English and ignore `DISCPROBE_LANG`; only `--lang` on the command itself changes them. Result files are never translated.
+- Progress: `timing` and `geo` show a bar, the current stage, the time spent and the time left. A narrow window drops parts instead of wrapping. ISO writers use the same line, following the file's real size. Ctrl+C keeps what was measured and says where it is.
+- Snake: While measuring, press `g` to open a game of snake under the progress line: arrows or WASD steer, `r` plays again, `q` closes it. Measuring output keeps printing above it. It doesn't exist until you press `g`, and never appears in pipes, with `DISCPROBE_PLAIN=1` or with `--no-animation`.
 
 The progress line has no background thread, because one could delay the completion timestamps. It's drawn on the main thread during the random pause before each timed read, and the drawing time comes off that pause. On the simulated drive, the same seed gives identical summaries and events with or without it. The game works the same way: keys, moves and drawing all happen in that pause, only changed cells are drawn, and it has its own random generator. On the simulated drive, playing also leaves summaries and events identical. The animation still draws at most 8 frames a second, like the earlier progress line, though a colour frame writes more bytes. `timing` was compared with that earlier line on a real drive: the difference with and without it (0.01–0.20°) matched the difference between repeats (0.02–0.23°). The new animation, the game and `geo` haven't been compared yet, so add `--no-animation` or use a pipe if you want to rule them out, and don't play during a measurement that matters.
 
 `timing` and `geo` raise the process to high priority while measuring. Before 2026-11-06 this always failed on 64-bit Python, so earlier real measurements on 64-bit Python ran at normal priority, including the comparison above. Reports made with this tool on Windows probably did too; ports and other probes may differ. The effect of high priority on jitter hasn't been compared yet.
 
 The opening screen of `guide` is a disc of coloured spaces with slashes and a few symbols on top. It falls back from true colour to 16 colours to plain text, and a small window gets the title alone. The turning disc on the progress line is decoration, not the real speed. Everything is 7-bit ASCII by default, so no code page or font can break it; `DISCPROBE_UNICODE=1` asks for finer glyphs. `NO_COLOR` turns off colour only; `--no-animation`, `DISCPROBE_NO_ANIMATION=1` and `CI` turn off animation. Details are in the [manual](docs/MANUAL.md#手动使用) (in Chinese).
+
+</details>
 
 ## Another way to use it: timing plus fine calibration
 
@@ -220,7 +321,7 @@ Measuring sector angles from read timing didn't start here:
 
 This repository adds an open source implementation that can be reproduced on ordinary consumer drives and handles the problems real drives have. It uses covariance-driven stepwise measurement with uncertainty estimates, checks results on burned grid discs, carries corrections across discs, and exports DiscImageStudio presets.
 
-The data-side encoding follows [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio), and `discprobe/efmplus.py` is ported from it. Thanks to NaiveTomcat and bczhc for the ports, and to bczhc, NaiveTomcat, FanJZSS and moodyos for measurements.
+The data-side encoding follows [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio), and `discprobe/efmplus.py` is ported from it. Thanks to NaiveTomcat and bczhc for the ports, and to anyezhixie, bczhc, Disappear9, domerawind, FanJZSS, kasumikira, Lakida0, li-yifei, MasterMT9, moodyos, NaiveTomcat, NO-ob, pugod124, ShiroiTree, Sliicy, WindowsNoEditor and zhajial for their reports.
 
 ## License
 
