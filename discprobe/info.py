@@ -70,8 +70,12 @@ def summarize(r: dict) -> list[str]:
     inq = parsed("inquiry")
     if inq:
         lines.append(f"Drive: {inq['vendor']} {inq['product']} rev {inq['revision']}")
+    # Without a disc the profile reads as unknown and nearly every command fails; say why once.
+    reason = mmc.not_ready(r.get("test_unit_ready", {}).get("sense"))
+    if reason:
+        lines.append(reason)
     cfg = parsed("configuration")
-    if cfg:
+    if cfg and not reason:
         lines.append(f"Current profile: {cfg.get('current_profile_name')} "
                      f"(0x{cfg.get('current_profile') or 0:04X})")
     di = parsed("disc_information")
@@ -112,7 +116,7 @@ def summarize(r: dict) -> list[str]:
         lines.append(f"Page 2A: buffer {page['buffer_kB']} kB, rotation {page['rotation_control_selected']}, "
                      f"write speeds {[(w['kBps'], w['rotation']) for w in page['write_speeds']]}")
     failed = [k for k, v in r.items() if v.get("status") not in (0, None) or "error" in v]
-    if failed:
+    if failed and not reason:
         lines.append("Not available on this drive/disc: " + ", ".join(
             f"{k} ({r[k].get('sense') or r[k].get('error')})" for k in failed))
     return lines

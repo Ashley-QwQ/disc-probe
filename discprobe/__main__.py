@@ -9,7 +9,7 @@ import json
 import os
 import sys
 
-from . import guide, i18n, info, timing, ui
+from . import guide, i18n, info, mmc, timing, ui
 
 # Tile target palette: the A5/92 pair, B9 and 66, aperiodic mixes of the 3.2T (A5-like)
 # and 8T (92-like) classes, then along-track periods 32T, 48T and 64T (16T is 92). The
@@ -111,11 +111,11 @@ def _check_disc(dev, args) -> None:
     """At a terminal, catch an empty tray or the wrong media settings before minutes of measuring."""
     if not ui.term().interactive:
         return
-    from . import mmc
     from .scsi import DATA_IN, DATA_NONE
     ready = dev.execute(mmc.test_unit_ready(), 0, DATA_NONE)
-    if ready.sense is not None and ready.sense.key == 2 and ready.sense.asc == 0x3A:
-        sys.exit(f"no disc in {getattr(dev, 'name', 'the drive')}: load a burned disc of plain data and run this again")
+    reason = mmc.not_ready(ready.sense)
+    if reason:
+        sys.exit(reason)
     cfg = dev.execute(mmc.get_configuration(), 4096, DATA_IN)
     family = mmc.media_family(mmc.parse_configuration(cfg.data).get("current_profile") if cfg.ok else None)
     if family == "cd" and args.media == "dvd":
@@ -420,7 +420,7 @@ def cmd_geo(args):
               f"python tools/geo_polyfit.py {out}")
     if ladder.targets and ladder.cov is not None:
         print(f"targets.csv, summary.json, events.csv: {os.path.abspath(out)}")
-    else:
+    elif stopped not in (mmc.NO_DISC, mmc.LOADING):
         print("no results written: it stopped before the first fit. Run `timing` to see how noisy this drive is.")
     if progress and res:
         ui.say(f"Finished in {ui.clock(ui.time.monotonic() - progress.started)}", "dim")
@@ -521,11 +521,11 @@ def cmd_disexport(args):
     is_cd = fit.get("media") == "cd"
     if args.media and args.media != ("cd" if is_cd else "dvd"):
         sys.exit(f"--media {args.media} does not match {args.geo}, which measured a {'CD' if is_cd else 'DVD'}")
-    if is_cd and args.sectors is None:
-        _fail("A CD preset needs --sectors: the capacity of your disc", [guide.sectors_hint(args.geo)])
+    if not args.sectors:
+        _fail("A preset needs --sectors: the capacity of your disc (`info` prints it)", [guide.sectors_hint(args.geo)])
     span = fit["measured_span_mm"] if is_cd else (25.8, 54.4)
     try:
-        out = export(args.geo, args.sectors or 2298496, args.correction, args.output,
+        out = export(args.geo, args.sectors, args.correction, args.output,
                      args.r_min or span[0], args.r_max or span[1],
                      args.id or ("discprobe-cd" if is_cd else "discprobe-dvd-r"),
                      args.name or ("CD (drive-timing calibration)" if is_cd else "DVD-R (drive-timing calibration)"),
@@ -727,7 +727,7 @@ The usual path, on DVD (CD: add --media cd to each command; steps in docs/MANUAL
   python -m discprobe timing --drive E:                 can this drive measure?
   python -m discprobe geo --drive E:                    measure the geometry
   python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
-  python -m discprobe disexport --geo latest --sectors 2298496 --output dis_preset.json
+  python -m discprobe disexport --geo latest --sectors <sectors> --output dis_preset.json
 
 At a terminal, --drive can be left out when there is one drive, and each command ends by printing the next one.
 `python -m discprobe <command> -h` shows a command's options."""
@@ -773,8 +773,8 @@ examples:
 --geo takes a summary.json, a geo result folder, or `latest` (the newest complete real measurement).""",
     "disexport": """\
 examples:
-  python -m discprobe disexport --geo latest --sectors 2298496 --r-min 25.8 --r-max 54.4 --output dis_preset.json
-  python -m discprobe disexport --geo latest --sectors 359847 --correction correction.json --output dis_preset_cd.json
+  python -m discprobe disexport --geo latest --sectors <sectors> --r-min 25.8 --r-max 54.4 --output dis_preset.json
+  python -m discprobe disexport --geo latest --sectors <sectors> --correction correction.json --output dis_preset_cd.json
 
 --sectors is the capacity of your disc and must match the count DiscImageStudio uses. `info` prints it;
 DiscImageStudio's read-from-disc shows it too. Not the same as timing --sectors.
@@ -1004,7 +1004,7 @@ def _build_parser():
     sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, or latest; "
                                                     "a CD fit gives a CD preset")
     sp.add_argument("--correction", help="angle-correction file from the correction command")
-    sp.add_argument("--sectors", type=int, help="sector count of the preset (disc capacity, `info` prints it); DVD default 2298496, CD required")
+    sp.add_argument("--sectors", type=int, help="sector count of the preset (disc capacity, `info` prints it); required")
     sp.add_argument("--r-min", type=float, help="fit range: use the measured span (DVD default 25.8, CD the span geo measured)")
     sp.add_argument("--r-max", type=float, help="DVD default 54.4, CD the span geo measured")
     sp.add_argument("--along-track-frames", type=float, default=0,

@@ -71,7 +71,7 @@ python -m discprobe selftest
 python -m discprobe guide
 ```
 
-`info`、`timing`、`geo`、`random`、`disexport` 跑完也会打印下一步。`timing` 还会给判定：不是 CAV 就换速度，抖动大于约 2° 建议降速，大于约 5° 说明这台光驱很可能不适合（这两个门槛来自实践报告表，不是严格界限）。`geo` 中途停下时，会按停下的原因给建议。`geo` 跑完如果偏差比噪声大（χ²/dof 超过 2），会自动比较恒定轨距和二次轨距：二次模型把 χ²/dof 至少降一半，就让你先写修正文件，后面的命令也带上它；否则说明多半是读取噪声，可以继续。这个比较在关闭光驱之后做，不影响测量。
+`info`、`timing`、`geo`、`random`、`disexport` 跑完也会打印下一步。`timing` 还会给判定：不是 CAV 就换速度，抖动大于约 2° 建议降速，大于约 5° 说明这台光驱很可能不适合（这两个门槛来自实践报告表，不是严格界限）。`geo` 中途停下时，会按停下的原因给建议。`geo` 跑完也会给一句结论。χ²/dof 不超过 2 时算可以用，并把角度不确定度换算成 50 mm 半径处的距离。超过 2 说明偏差比噪声大，它会自动比较恒定轨距和二次轨距：二次模型把 χ²/dof 至少降一半，就让你先写修正文件，后面的命令也带上它；否则说明多半是读取噪声，可以继续。这个比较在关闭光驱之后做，不影响测量。和本节其他提示一样，判定和下一步只在终端里显示，管道和脚本里只有数字。
 
 **盘符。**`list` 列出光驱。在终端里可以不写 `--drive`：只有一台就直接用，有多台就问你。盘符写错时，报错里会列出现有的光驱。
 
@@ -83,7 +83,7 @@ python -m discprobe results geo
 
 脚本里要路径的话，用 `results geo --latest`，它只打印一行文件夹路径。
 
-**`--sectors` 有两个意思。**`timing --sectors` 是每次读几个扇区，`16` 读一个完整的 DVD ECC 块。`disexport --sectors` 是盘的容量，要和 DiscImageStudio 里用的一致，否则外半径会变。`info` 会在终端打印建议值，并说明来源：空白盘优先用剩余空间，CD 用 ATIP 的导出区起点，已刻录的盘用最后一个 LBA 加一（只有整张刻满时才等于空白盘的容量）。DiscImageStudio 的"从光盘读取"也能核对。
+**`--sectors` 有两个意思。**`timing --sectors` 是每次读几个扇区，`16` 读一个完整的 DVD ECC 块。`disexport --sectors` 是盘的容量，必须填，要和 DiscImageStudio 里用的一致，否则外半径会变，填多了还可能封盘失败。以前 DVD 不填时默认 2298496，比一些盘的实际容量大（[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19440415) 里的盘是 2295104），所以改成了不填就报错并给建议值。`info` 会在终端打印建议值，并说明来源：空白盘优先用剩余空间，CD 用 ATIP 的导出区起点，已刻录的盘用最后一个 LBA 加一（只有整张刻满时才等于空白盘的容量）。DiscImageStudio 的"从光盘读取"也能核对。
 
 **`--speed` 怎么选。**可以写 kB/s，也可以写倍速，如 `4x`（`--media cd` 时按 CD 的 1x 换算）。低速通常噪声更小，但不是每台光驱都会换档，要看 `timing` 打印的转速。
 
@@ -94,7 +94,7 @@ python -m discprobe results geo
 
 **`--ranges` 怎么选。**默认的已刻录区 3%–85% 适合大多数盘，一般不用改。它接受 LBA 范围 `a-b,c-d`。`geo` 总在同一个 LBA 附近停下，或者外圈有换速跳变时，把那段排除；想覆盖更大的半径，可以加宽，前提是光驱读得干净（GP65NB60 上加宽后外圈误差消失）。最后一个 LBA 看 `info`。
 
-**CD 和 DVD。**步骤相同，每条命令加 `--media cd`，它同时把默认值换成 CD 的。终端里如果盘是 CD、命令却是 DVD 设置，会先问要不要加；托盘是空的也会直接说。`disexport` 按 `--geo` 的结果决定预设类型，它的 `--media` 只用来核对。
+**CD 和 DVD。**步骤相同，每条命令加 `--media cd`，它同时把默认值换成 CD 的。终端里如果盘是 CD、命令却是 DVD 设置，会先问要不要加。托盘开着或光驱里没有盘时，`timing`、`geo`、`info` 都会直接说，管道里也一样。`disexport` 按 `--geo` 的结果决定预设类型，它的 `--media` 只用来核对。
 
 **Tab 补全。**运行一次下面这条命令，之后 `--sp` 按 Tab 就补成 `--speed`，`--media` 后按 Tab 列出 `dvd`、`cd`，`--geo` 后可以选 `latest`。
 
@@ -420,7 +420,7 @@ DVD 刻录时，光驱会先把每个扇区的 2048 字节用户数据和一个�
 
 1. **稳住转速。** 反复读参考扇区，直到测出的周期不再变化。
 2. **第一级。** 先测离参考 1.5 圈和 4 圈的位置。标称模型在这么近的距离只差几度，因此能定出 c。
-3. **逐级外推。** 每测一级就拟合一次 u、v、c（对 u、v 加宽松先验），然后挑"预测误差小于 25°"的候选里离参考最远的一个作为下一级。整圈数由预测值决定，测完再拟合。每一级都让转速更准，可达距离成倍增加，大约 20 级就能覆盖整个可读半径。
+3. **逐级外推。** 每测一级就拟合一次 u、v、c（对 u、v 加宽松先验），然后挑"预测误差小于 25°"的候选里离参考最远的一个作为下一级。整圈数由预测值决定，测完再拟合。每一级都让转速更准，可达距离成倍增加，DVD 默认测 22 级、CD 默认测 36 级，就能覆盖整个可读半径。
 4. **检查转速。** 每一级都会重新测参考扇区的周期。如果转速在测量中途变了，就先等转速稳定再重测。
 
 ### 用法
@@ -475,7 +475,9 @@ python -m discprobe geo --drive H:
 
 `rings`、`random`、`timing`、`geo`、`image`、`tiles` 和 `gridscan` 支持 `--media cd`，默认仍为 DVD。CD 单扇区为 57624 通道位；实现和时序假设见 [CD 物理模型](CD_PHYSICAL_MODEL.md)。测量和网格盘这部分在 HL-DT-ST GH70N 和 CMC CD-R 上实测过，换光驱或换盘要重新验证。
 
-第一张建议使用无需角度标定的纹理环盘：
+第一次做 CD，先照 [README 的 CD 路线](../README.md#cd-路线)走，至少要 3 张同批的空盘（测量、标定、刻图）。这一节是各步骤的细节和其他做法。
+
+想先看不同数据刻出来的明暗，可以刻一张无需角度标定的纹理环盘：
 
 ```powershell
 python -m discprobe rings --media cd --output iso/cd-rings.iso
@@ -487,13 +489,15 @@ python -m discprobe ringscan scan1.png scan2.png --layout iso/cd-rings.rings.jso
 **刻录。**Windows 的 IMAPI2 把 CD 数据写成 Mode 2 Form 1，用户数据从扇区第 24 字节开始，所以 `--cd-sector` 默认是 `mode2form1`；按 Mode 1 的偏移预扰码，纹理会变成噪声。IMAPI 收尾需要留一点空间：359,847 扇区的盘上 359,800 扇区的镜像被拒绝，359,600 可以。GH70N 上用 8x 刻录，40x 时出现过 SATA 复位。
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools/burn_imapi.ps1 -Drive H: -Iso iso/cd-random.iso -Speed 8 -Burn
+python -m discprobe random --media cd --output iso/cd-random.iso
+powershell -ExecutionPolicy Bypass -File tools/burn_imapi.ps1 -Drive H: -Iso iso/cd-random.iso -Speed 8 -Burn -Reload
 ```
+
+刻录时光驱不报进度，脚本每 30 秒打印一行已用时间和按写入速度估的剩余时间。刻完托盘会弹出，`-Reload` 会把它推回去，超薄光驱要自己推。托盘开着时跑 `timing` 只会报没有盘。
 
 **测量。**先刻随机数据盘，再计时。要用低转速：GH70N 在 `--speed 2822`（3226 rpm）下，49.8 mm 以外的完成时刻会晚约 0.2 ms，`--speed 1411`（约 2080 rpm）下没有这个现象。
 
 ```powershell
-python -m discprobe random --media cd --output iso/cd-random.iso
 python -m discprobe timing --media cd --drive H: --speed 1411
 python -m discprobe geo --media cd --drive H: --speed 1411 --host-delay-ms 35 --ranges 2000-356000
 python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json --phi-degree 7
@@ -508,10 +512,10 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 1. 导出预设。`--sectors` 要和 DiscImageStudio 里用的扇区数一致，可以先用它的**从光盘读取**核对空白盘；扇区数不同，外半径也会不同。
 
    ```powershell
-   python -m discprobe disexport --geo <summary.json> --correction correction.json --sectors 359847 --output dis_preset_cd.json
+   python -m discprobe disexport --geo <summary.json> --correction correction.json --sectors <扇区数> --output dis_preset_cd.json
    ```
 
-   `disexport` 看 `summary.json` 里的 `media`，CD 的结果导出 CD 预设（`sectors`、内外半径、三个轨距系数，速度固定 1200 mm/s）。CD 必须填 `--sectors`，拟合范围默认用 `geo` 测到的范围。预设和测量结果相差超过 5° 时不写文件。
+   `disexport` 看 `summary.json` 里的 `media`，CD 的结果导出 CD 预设（`sectors`、内外半径、三个轨距系数，速度固定 1200 mm/s）。`--sectors` 必填，拟合范围默认用 `geo` 测到的范围。预设和测量结果相差超过 5° 时不写文件。
 
 2. 把预设放进 DiscImageStudio，二选一：在标定页手动填内外半径、扇区数和三个系数；或者把输出里 `preset` 这个对象加进 `%LOCALAPPDATA%\DiscImageStudio\disc-presets.json` 的 `cdPresets` 数组，再重启程序（格式见它的[预设文档](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/DISC_PRESETS.md)。moodyos 用这个办法导入成功了，我们自己没有试过）。
 3. 在辅助标定页直接选**精细标定**，新建标靶，刻盘，拍照矫正，沿一条十字线细臂描点，再反推并应用。拟合三次轨距至少要 12 个不同半径的点，覆盖环带宽度的 60%。步骤见它的[辅助标定说明](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/CALIBRATION.md)。
@@ -525,7 +529,7 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 python -m discprobe image --media cd --geo <summary.json> --correction correction.json --along-track-frames <帧数> --output iso/cd-grid.iso
 ```
 
-定好常数后，这个数也可以传给 `disexport --along-track-frames`，直接导出预设。不传时输出会提醒径向线可能是扭的。CD 预设的导出还没有实刻验证。
+定好常数后，这个数也可以传给 `disexport --along-track-frames`，直接导出预设。不传时输出会提醒径向线可能是扭的。CD 预设已经有人实刻过：moodyos 不做精细标定，轮廓和原图一致；FanJZSS 用 `--along-track-frames -100` 导出，和 DIS 精细标定只差约 2 帧。两者都是用户反馈，详情见 [README 的表](../README.md#有实践报告的光驱)。
 
 `image --media cd` 同样接受布尔/标签 `--design-npy`、`--textures`、`--picture`。绘图单元改为物理帧中连续的 12 数据符号；重复纹理按"物理帧号 ×32 + F2 槽"定相位，再通过 CIRC 映射回填用户数据。暗/亮默认 `0D`/`AA`，设计应在内侧留出背景，文件系统扇区与图案相交时会拒绝生成。CD 计时结果带 `media=cd`，禁止把 DVD 的拟合直接用于 CD 刻图。
 

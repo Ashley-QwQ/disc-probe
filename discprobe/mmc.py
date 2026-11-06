@@ -107,6 +107,18 @@ DVD_TRACK_DENSITY = {0: "0.74 um/track", 1: "0.80 um/track", 2: "0.615 um/track"
 
 DISC_STATUS = {0: "empty", 1: "incomplete", 2: "complete", 3: "other"}
 
+NO_DISC = ("No disc in the drive, or the tray is open (burning ejects the disc when it finishes). "
+           "Load the disc, wait a few seconds and run this again")
+LOADING = "The drive is not ready yet, it may still be loading the disc. Wait a few seconds and run this again"
+
+
+def not_ready(sense) -> str | None:
+    """What the person should know when TEST UNIT READY says no disc (2/3A) or still loading (2/04)."""
+    text = str(sense or "")
+    if text.startswith("2/3A/"):
+        return NO_DISC
+    return LOADING if text.startswith("2/04/") else None
+
 
 def media_family(profile: int | None) -> str:
     if profile is None:

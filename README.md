@@ -15,7 +15,7 @@
 
 往数据面刻图，要知道第 N 个扇区落在盘上的哪个角度。每批盘的轨距和位长都有极小的差别，绕几万圈累积下来，图就会扭成漩涡。常见的办法是刻一张标定图，拍照描点，再反复修正。
 
-disc-probe 让光驱来量。盘匀速转动时，一个扇区读完的时刻，就是它转到读取头下的时刻。所以轮流读两个扇区，把完成时间的差换算成角度，就知道它们在盘上隔了多远。一次只能测出 360° 以内的余数，所以从近到远逐级测，每一级都用前面的结果预测整圈数，大约 20 级就能覆盖全盘。
+disc-probe 让光驱来量。盘匀速转动时，一个扇区读完的时刻，就是它转到读取头下的时刻。所以轮流读两个扇区，把完成时间的差换算成角度，就知道它们在盘上隔了多远。一次只能测出 360° 以内的余数，所以从近到远逐级测，每一级都用前面的结果预测整圈数，DVD 测 22 级、CD 测 36 级就能覆盖全盘。
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/showcase/how_it_works_zh_dark.svg">
@@ -76,7 +76,7 @@ python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --te
 
 > 如果你在 2026-11-06 之前用 `--correction` 导出过预设，修正可能没有生效。更新后重新导出就行，不用重新测盘。
 
-需要 Windows、Python 3.10 以上、一台能刻录的光驱和同一批的几张空盘。Linux 和 macOS 见[实践报告表](#有实践报告的光驱)下方的移植版本。下面以 DVD 为例，CD 的步骤见[使用手册](docs/MANUAL.md#cd-r纹理计时与刻图)。
+要准备同一批的空盘：DVD 至少 2 张（测量、刻图），CD 至少 3 张（测量、标定、刻图）。测量盘刻好后不能再刻图，但可以留着，同一批的盘以后不用再刻一张。另外需要 Windows、Python 3.10 以上和一台能刻录的光驱。Linux 和 macOS 见[实践报告表](#有实践报告的光驱)下方的移植版本。下面以 DVD 为例，CD 见后面的 [CD 路线](#cd-路线)。
 
 用管理员身份打开终端，安装依赖，并用模拟驱动器确认环境正常。不方便用管理员身份时，在读盘的命令后加 `--transport imapi`：它经 Windows 自带的 IMAPI2 刻录接口（`IDiscRecorder2Ex`）发同样的命令，普通用户即可；默认的 `auto` 在 SPTI 被拒时会自动改用它。
 
@@ -102,7 +102,7 @@ python -m discprobe selftest
 python -m discprobe guide
 ```
 
-在终端里，每条命令跑完也会打印下一步可以直接复制的命令。系统是中文时，帮助、提示和测量输出都显示中文，也可以用 `--lang zh` 或 `--lang en` 指定；脚本和管道仍是英文。其他用法见[手动使用](#手动使用)。
+在终端里，`timing` 和 `geo` 跑完会给一句结论，每条命令跑完也会打印下一步可以直接复制的命令。系统是中文时，帮助、提示和测量输出都显示中文，也可以用 `--lang zh` 或 `--lang en` 指定；脚本和管道仍是英文，也没有这些结论和提示。其他用法见[手动使用](#手动使用)。
 
 <img src="docs/showcase/cli_demo_zh.gif" width="100%" alt="终端动图：开屏光盘、下一步提示、测量进度行和贪吃蛇">
 
@@ -118,13 +118,15 @@ python -m discprobe random --output iso/random.iso
 
 ### 第 2 步：看这台光驱能不能用
 
-约 1 到 3 分钟。结果要是 `CAV`，抖动越小越好。只有一台光驱时，在终端里可以不写 `--drive`。
+约 1 到 3 分钟。刻完托盘可能会弹出，先推回去，等几秒再跑。结果要是 `CAV`，抖动越小越好。只有一台光驱时，在终端里可以不写 `--drive`。
 
 ```bash
 python -m discprobe timing --drive H:
 ```
 
 ### 第 3 步：测几何
+
+约 5 分钟。DVD 测 22 级，终端的进度行会显示走到第几级。
 
 ```bash
 python -m discprobe geo --drive H:
@@ -146,10 +148,10 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
 ```
 
-想继续用 DiscImageStudio 的话，可以导出预设。`--sectors` 填你这张盘的扇区数（`info` 会打印，要和 DiscImageStudio 里用的一致），半径范围填 `geo` 实际测到的范围，有修正文件的话同样加 `--correction correction.json`。`geo` 跑完打印的命令已经填好这些值。程序会打印和测量结果的转换误差，先看一眼再刻。目前预设要手动填进 DiscImageStudio：新建工程，填内外半径、扇区数和一二三次项：
+想继续用 DiscImageStudio 的话，可以导出预设。`--sectors` 填你这张盘的扇区数（`info` 会打印，要和 DiscImageStudio 里用的一致；填多了可能封盘失败），半径范围填 `geo` 实际测到的范围，有修正文件的话同样加 `--correction correction.json`。`geo` 跑完打印的命令已经填好这些值。程序会打印和测量结果的转换误差，先看一眼再刻。目前预设要手动填进 DiscImageStudio：新建工程，填内外半径、扇区数和一二三次项：
 
 ```bash
-python -m discprobe disexport --geo latest --sectors 2298496 --r-min 25.8 --r-max 54.5 --output dis_preset.json
+python -m discprobe disexport --geo latest --sectors 你的扇区数 --r-min 25.8 --r-max 54.5 --output dis_preset.json
 ```
 
 ### 第 5 步：看盘和拍照
@@ -165,6 +167,34 @@ python -m discprobe disexport --geo latest --sectors 2298496 --r-min 25.8 --r-ma
 5. 盘后面和手机后面尽量是暗的，手也别离盘太近。
 
 这是我们在 DVD 上试过的方法。手边有平板扫描仪的话扫一张也行，扫描不受屋里反光的影响。
+
+### CD 路线
+
+CD 还有一个计时测不到的常数，所以要多刻一张标定盘。下面是推荐的做法：测完导出预设，交给 [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio) 精细标定。网格盘、纹理环等其他做法见[使用手册](docs/MANUAL.md#cd-r纹理计时与刻图)。
+
+1. 刻测量盘，用第 1 张空盘。在 GH70N 上 8x 约 11 分钟。`-Reload` 会在刻完后把托盘推回去，超薄光驱要自己推。
+
+   ```bash
+   python -m discprobe random --media cd --output iso/cd-random.iso
+   ```
+
+   ```bash
+   powershell -ExecutionPolicy Bypass -File tools/burn_imapi.ps1 -Drive H: -Iso iso/cd-random.iso -Speed 8 -Burn -Reload
+   ```
+
+2. 测量，`timing` 约 1 到 3 分钟，`geo` 约 5 分钟，共 36 级。`timing` 说不是 CAV 时，按它的提示换速度，`geo` 也用同一个速度。
+
+   ```bash
+   python -m discprobe timing --media cd --drive H: --speed 1411
+   ```
+
+   ```bash
+   python -m discprobe geo --media cd --drive H: --speed 1411 --host-delay-ms 35 --ranges 2000-356000
+   ```
+
+3. 导出预设。`geo` 跑完打印的 `disexport` 命令已经填好数值，直接复制。`--sectors` 要和 DiscImageStudio 里用的一致，可以放一张空盘跑 `info`，或用它的“从光盘读取”核对。
+4. 精细标定，用第 2 张空盘。在 DiscImageStudio 里填入预设，到辅助标定页选精细标定，新建标靶，刻盘，拍照矫正，描点，反推并应用，再保存为预设。步骤见它的[辅助标定说明](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/CALIBRATION.md)。
+5. 用这组参数在 DiscImageStudio 里刻图，用第 3 张空盘。
 
 <a name="光驱兼容表"></a>
 
@@ -184,7 +214,9 @@ python -m discprobe disexport --geo latest --sectors 2298496 --r-min 25.8 --r-ma
 | MATSHITA BD-MLT UJ272 | RITEKF1 DVD-R | 预设直接填进 DIS，十字线又直又垂直（目测），也刻出了成品图 | domerawind，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19421274) |
 | HL-DT-ST GP90NB70 | `CMC MAG. AM3` DVD-R | 恒定轨距预设刻图，最高 8x 下也清晰成像（照片待补） | li-yifei，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19410771) |
 | HL-DT-ST GP57EB40 | `CMC MAG. AM3` DVD-R | 预设经 DIS 刻图，轮廓和设计一致；抖动是目前报告里最低的 | MasterMT9，[disc-probe #1](https://github.com/Ashley-QwQ/disc-probe/issues/1) |
-| PIONEER DVR-S21（PA01） | DVD-R（`MCC 03RG20`，真伪不明） | 用 `--speed 22160`。同一张图用 `image` 的 ISO 和 DIS（16x CAV）各刻一张，都没有可见偏差，DIS 那张可能略有缩放。之前 DIS 精细标定没有出线 | Lakida0，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19434982) |
+| PIONEER DVR-S21（PA01） | DVD-R（`MCC 03RG20`，真伪不明） | 用 `--speed 22160`。同一张图用 `image` 的 ISO 和 DIS（16x CAV，直接填 disc-probe 的预设）各刻一张，都没有可见偏差，DIS 那张可能略有缩放。之前 DIS 精细标定没有出线 | Lakida0，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19434982) |
+| HL-DT-ST SP80NB80（RC00） | DVD-R，Verbatim AZO（`MCC 03RG20`） | 用 `--speed 3324`（约 1432 rpm）。`geo` 跑通，再用 DIS 精细标定，一共刻了 5 张盘后图案对上了（用户反馈，无量化图像误差）。这台光驱读 `CMC MAG. AM3` 时不适合，见下 | Sliicy，[DIS #171](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/171) |
+| HL-DT-ST GHB0N（JE01） | Banana DVD-R（`MCC 03RG20`） | 用 `--speed 5540`。`geo` 跑通，手调后的参数刻出的圆环和径向线规整（用户反馈，无量化图像误差）。和先锋 DVR-S21 测的同内圈编码的盘相差约 0.05° rms | dhao2001，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19438546) |
 | 联想 PLDS DS8A8SH（KL31） | 羽毛/旭宇达 DVD+R | 之前拍照分析卡住，用预设刻图成功 | anyezhixie，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19426856) |
 | PLDS DU8A6SH（macOS） | 绿联 DVD+R（`MCC 004`） | 导出 ISO 用系统刻录（3x）出图正确；DIS 流式刻录选 2x 时出错，原因未查 | ShiroiTree，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | ASUS SDRW-08D2S-U | Verbatim CD-R | 用 `--speed 4234`；预设不做精细标定，最低速刻图，轮廓和原图一致 | moodyos，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19424471) |
@@ -202,6 +234,7 @@ python -m discprobe disexport --geo latest --sectors 2298496 --r-min 25.8 --r-ma
 | ASUS SDRW-08U9M-U | RITEK ARITA DVD-R | 只测了 `timing`，`geo` 待测 | bczhc，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | HP BD-RE BU20N | 联想 Thinkplus CD-R | 用 WindowsNoEditor 自己的探测程序测的，不是本工具，方法相同 | WindowsNoEditor，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | PLDS DU-8A5LH | 海存 POSO CD-R | 同样用他们的探测程序。整盘校准没问题，测局部细节不适合 | WindowsNoEditor，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| TSSTcorp SN-208FB（CH00） | DVD-R（`RITEKF1`） | 测量很好，和本仓库 GH70N 相差约 0.05° rms。普通数据盘能刻（最高 8x），但刻图案屡次失败（`0xC0AA0301`，从约 0.3 MB 到约 284 MiB），三种盘都试过。刻图建议换一台光驱 | Lakida0，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19435910) |
 
 ### 目前不建议用
 
@@ -221,13 +254,13 @@ python -m discprobe disexport --geo latest --sectors 2298496 --r-min 25.8 --r-ma
 | HL-DT-ST GH70N（NYA2） | SATA / Windows | Ritek F1 DVD-R | `fua` | CAV，4x 约 2830 rpm | 0.43–0.55° | 阶梯和刻图都已验证（首刻约 0.1°）；外圈约 53 mm 处会换转速档 | 本仓库 |
 | HL-DT-ST GH70N（NYA2） | SATA / Windows | CMC CD-R | `fua` | CAV，用 `--speed 1411`（约 2080 rpm）；`--speed 2822`（3226 rpm）下 49.8 mm 以外完成时刻晚约 0.2 ms，不能用 | 0.5–0.76° | CD 阶梯可用；这条路径（IMAPI 刻录 + READ(12)）的沿轨道常数约 206 帧，已用两张网格盘验证（第二张残余 +0.6 帧）；这批盘的轨距有约 0.45° 峰峰的波浪 | 本仓库 |
 | MATSHITA BD-MLT UJ260AF（1.01） | USB 3.0 / macOS（[discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)） | RITEK RiDATA 可打印 DVD-R（MID `RITEKF1`） | `fua` | CAV，2364 rpm | 0.65–0.87° | `geo` 和 `disexport` 跑通，参数见 [#87](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/87)，已有人用它刻图成功；和本仓库 GH70N 的 Ritek F1 结果在 25–58 mm 相差 0.13° rms（30 mm 以外在 ±0.2° 内）。FUA 重读固定两圈；SET CD SPEED 请求 4x 不换档；建议 `--sectors 16` | NaiveTomcat，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
-| MATSHITA BD-MLT UJ272（1.02） | USB 2.0 转接 / Windows | RiDATA DVD-R 银面（`RITEKF1`，PW104），随机数据 | `fua` | CAV，2364 rpm（`--speed 5540`） | 0.61–0.80° | `geo` 跑通，恒定轨距 rms 0.28°，和本仓库 GH70N 相差约 0.15° rms。预设直接填进 DIS，没有额外校准，十字线又直又垂直（用户目测，无量化误差），也刻出了成品图。此前照片标定一直不成功 | domerawind，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19421274) |
-| HL-DT-ST GP65NB60（PF00） | USB / Windows | 铼德 ExcellentX DVD+RW（`RITEK/004/48`），随机数据 | `fua` | CAV：不加 `--speed` 2355 rpm，`--speed 3324` 1432 rpm，`--speed 11080` 3596 rpm | 1432 rpm 下 0.23–0.29°（26–34 µs），2355 rpm 下 0.53–0.65°，3596 rpm 下 1.07–1.12° | 按角度算抖动很低，建议用 `--speed 3324`。1432 和 2355 rpm 的相位只差 0.17° 以内，3596 rpm 在 52 mm 附近差到 +0.97°。刻标定图案的盘读不出，要用随机数据盘。`geo` 22 级跑通（`--speed 3324`），恒定轨距 rms 0.61°、χ²/dof 10.8，二次轨距降到 0.078°、0.20，说明这张盘轨距有缓慢变化，要带修正。用带修正的预设以 2.4x 刻标定图，径向线只有一点点歪（用户目测）；之前手动刻十几次才看到径向线 | FanJZSS，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| MATSHITA BD-MLT UJ272（1.02） | USB 2.0 转接 / Windows | RiDATA DVD-R 银面（`RITEKF1`，PW104），随机数据 | `fua` | CAV，2364 rpm（`--speed 5540`） | 0.61–0.80° | `geo` 跑通，恒定轨距 rms 0.28°，和本仓库 GH70N 相差约 0.15° rms。预设直接填进 DIS，没有额外校准，十字线又直又垂直（用户目测，无量化误差），也刻出了成品图。此前照片标定一直不成功 换用 Lakida0 的校准数据（扇区数 2295104）后[封盘正常](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19440415)，设了 4x 但实际全程 2x，网格和文字清楚（用户反馈）。 | domerawind，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19421274) |
+| HL-DT-ST GP65NB60（PF00） | USB / Windows | 铼德 ExcellentX DVD+RW（`RITEK/004/48`），随机数据 | `fua` | CAV：不加 `--speed` 2355 rpm，`--speed 3324` 1432 rpm，`--speed 11080` 3596 rpm | 1432 rpm 下 0.23–0.29°（26–34 µs），2355 rpm 下 0.53–0.65°，3596 rpm 下 1.07–1.12° | 按角度算抖动很低，建议用 `--speed 3324`。1432 和 2355 rpm 的相位只差 0.17° 以内，3596 rpm 在 52 mm 附近差到 +0.97°。刻标定图案的盘读不出，要用随机数据盘。`geo` 22 级跑通（`--speed 3324`），恒定轨距 rms 0.61°、χ²/dof 10.8，二次轨距降到 0.078°、0.20，说明这张盘轨距有缓慢变化，要带修正。用带修正的预设以 2.4x 刻标定图，径向线只有一点点歪（用户目测）；之前手动刻十几次才看到径向线 配 CD-RW（AnyBurn 10x）：`disexport --along-track-frames -100` 和 DIS 精细标定只差约 2 帧，径向线看起来是直的（用户反馈）；两种刻法都在约 33–34 mm 有约 0.2 mm 的错位（从照片粗量）。 | FanJZSS，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | HL-DT-ST GP90NB70（1.00，IO-DATA 外置） | USB / Windows | VHR12JP53SV4 DVD-R（MID `CMC MAG. AM3`），随机数据 | `fua` | CAV，2355 rpm（`--speed 5540`） | 0.25–0.28°（18–20 µs） | 抖动很低。`geo` 22 级和 `disexport` 跑通。恒定轨距 rms 0.38°，二次轨距降到 0.087°，说明这种盘轨距有缓慢变化。用户[后续反馈](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19410771)已用恒定轨距预设刻图，机器最高 8x 写速下也能清晰成像（照片待补，尚无量化图像误差）。FUA 重读三圈 | li-yifei，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
-| ASUS BW-16D1H-U（E116） | USB / Windows、Linux | RITEK ARITA DVD-R，随机数据；BD-R | `fua` | DVD：CAV，9204 rpm（请求 2770、5540 都不降速）。BD-R：内、中圈约 9705 rpm，外圈约 1655 rpm，第一次运行不稳，判为 mixed | 约 200 µs，不随转速变（DVD 10–14°，BD-R 2–15°） | `geo` 能跑完，但**结果不建议用来刻图**：和 [#53](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/53) 同一批盘的几何比，27–54 mm 有约 9.5° 峰峰的偏差（外圈 54 mm 处 +7.7°），和 50 mm 以外约 0.2 ms 的完成时刻跳变吻合 | bczhc，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| ASUS BW-16D1H-U（E116） | USB / Windows、Linux | RITEK ARITA DVD-R，随机数据；BD-R | `fua` | DVD：CAV，9204 rpm（请求 2770、5540 都不降速）。BD-R：内、中圈约 9705 rpm，外圈约 1655 rpm，第一次运行不稳，判为 mixed | 约 200 µs，不随转速变（DVD 10–14°，BD-R 2–15°） | `geo` 能跑完，但**结果不建议用来刻图**：和 [#53](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/53) 同一批盘的几何比，27–54 mm 有约 9.5° 峰峰的偏差（外圈 54 mm 处 +7.7°），和 50 mm 以外约 0.2 ms 的完成时刻跳变吻合 bczhc 的[排查报告](https://gist.github.com/bczhc/0323c1762b0d47a46b59159a83353703)：`SET CD SPEED` 接受但转速不变，`SET STREAMING` 被拒（5/24/00）。DVD-RW 固定约 4840 rpm，抖动 4.8–7.0°。拆机帖说它是 Pioneer BDR-209（SCSI 读不出，非实测）。建议测量换别的光驱，刻录仍可用它。 | bczhc，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | PLDS DVD-RW DS8A8SH | SATA 转 USB / Windows、Linux（[bczhc/disc-probe](https://github.com/bczhc/disc-probe)） | RITEK ARITA DVD-R，随机数据 | `fua` | CAV，2388 rpm | Windows 0.52–0.88°（36–61 µs），Linux 1.37–1.62°（96–113 µs） | 约 15 年前的笔记本光驱。Windows 上 `geo` 跑通（22 点，rms 0.21°），和本仓库 GH70N 的结果相差约 0.05° rms，和 bczhc 的拍照标定（[#53](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/53)）在 5 个点上差 0.02–0.23°。Linux 上 `geo` 也跑通，和 GH70N 差 0.33° rms（27 mm 处约 −0.85°） | bczhc，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | 联想 PLDS DVD-RW DS8A8SH（KL31） | USB 3.0 / Windows | 羽毛/旭宇达 DVD+R，随机数据 | `fua` | CAV，2389 rpm（`--speed 5540`） | 默认转速 1.18–2.53°（56–120 µs） | `geo` 22 级跑通，恒定轨距 rms 0.178°，chi2/dof 0.82，不需要高阶修正。预设转换误差最大 0.001°。之前拍照分析卡住，用这个预设刻图成功（用户反馈，无量化图像误差） | anyezhixie，[DiscImageStudio [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107)](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19426856) |
-| ASUS SDRW-08U9M-U | USB / Windows | RITEK ARITA DVD-R，随机数据 | `fua` | CAV，2355 rpm | 0.79–1.08°（56–76 µs） | 和同一张盘在 DS8A8SH 上的 5 个相位差 −0.23、+0.25、−0.67、−0.05、−0.04°；`geo` 待测 | bczhc，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
+| ASUS SDRW-08U9M-U | USB / Windows | RITEK ARITA DVD-R，随机数据 | `fua` | CAV，2355 rpm | 0.79–1.08°（56–76 µs） | 和同一张盘在 DS8A8SH 上的 5 个相位差 −0.23、+0.25、−0.67、−0.05、−0.04°；`geo` 待测 DVD-RW 上 `--speed 2770` 约 1432 rpm，抖动 0.69°，能响应降速（bczhc 的报告）。 | bczhc，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | HP BD-RE BU20N（LG OEM，0403） | USB / Windows，用 WindowsNoEditor 自己的探测程序 | 联想 Thinkplus CD-R 80 min | 每次先读远处，READ CD 单扇区 | CAV，1241 rpm（`0x0583`）、2482 rpm（`0x0B06`） | 1241 rpm 约 0.45°（约 60 µs），2482 rpm 约 1.3–3.0° | 不是用本工具测的，方法相同；在扇区约 65,600 处测到沿轨道约 +0.2 mm 的接缝 | WindowsNoEditor，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | Sony Optiarc AD-7201S（1H9K） | Windows | Memorex CD-R（ATIP 97:15:17），随机数据 | `fua` | CAV，2168 rpm（`--speed 2822`） | 0.61–0.68°（47–53 µs） | `geo` 36 级跑通，恒定轨距 rms 0.51°，二次 0.35°，有几个点偏离较大，原因未查。沿轨道常数还没测。`geo` 后再用 DIS 图像法精修，成功出图（之前试约 15 张未成）。读 DVD-R（`CMC MAG. AM3`）时约 7514 rpm，请求 4x 或 2x 都不降速（2x 时 7514 rpm），抖动 1.7–2.1°，内圈更差，恒定轨距 rms 0.51°，二次 0.41° | pugod124，[disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2) |
 | Slimtype DVD A DS8A9SH（EA16） | Windows | CD-R（ATIP 97:15:17） | `fua` | CAV，约 2033 rpm | 2.9–3.4°（238–275 µs） | `geo` 36 级跑通，chi2/dof 2.75，后面有些点偏 1–2°，恒定轨距不够或抖动造成，未分开。两张盘就校准成功（用户反馈，无量化图像误差） | kasumikira，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19415813) |
@@ -239,7 +272,10 @@ python -m discprobe disexport --geo latest --sectors 2298496 --r-min 25.8 --r-ma
 | ASUS SDRW-08D2S-U | USB / Windows | Verbatim CD-R | `fua`（2 圈，57.4 ms） | `--speed 1411` 是 CLV 约 4x；`--speed 4234` 是 CAV，2090 rpm | 0.19–0.28°（15–23 µs），2090 rpm 下 | `geo` 36 级跑通（`--media cd --speed 4234`），恒定轨距 rms 0.485°。`disexport` 的预设经 `disc-presets.json` 导入 DIS，不做精细标定，同一台光驱以最低速刻图成功，图案轮廓和原图一致（[照片](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19424471)，用户反馈，无量化图像误差）。这张盘很薄、接近透明，要避开镜面反射的打光才看得清 | moodyos，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | ASUS SDRW-08D2S-U（B911） | USB / Linux（bczhc 的移植版） | Verbatim DVD+R（内圈编码 `ZE0460-DVR-T47D`） | 未报告 | 未报告 | 未报告 | `geo` 加网格扫描修正后导出预设，转换误差最大 0.118°，用它刻图成功（用户反馈，无量化图像误差）；另一份 Verbatim 预设对这张盘无效。预设和照片见 [DiscImageStudio #140](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/140) | NO-ob，[disc-probe #6](https://github.com/Ashley-QwQ/disc-probe/issues/6) |
 | PLDS DVD-RW DU8A6SH | macOS（[discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)） | 绿联 DVD+R（MID `MCC 004`，内圈 `PR25014-P16`），随机数据 | `fua` | CAV，1796 rpm（`--speed 4155`；2x 和 3x 是同一档，4x 下 `geo` 中止） | 约 0.68–0.83° | `geo` 22 级跑通，rms 1.45°；51.4–52.8 mm 有一段噪声带，不完全复现，去掉后 0.21°，u、v 几乎不变。和 zhajial 对同款盘的 DIS 照片标定（[DiscImageStudio #132](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/132)）相差约 0.15° rms。导出 ISO 用系统刻录（3x）出图正确，DIS 流式刻录选 2x 时出错，原因未查 | ShiroiTree，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
-| PIONEER DVD-RW DVR-S21（PA01） | Windows，接口未报告 | DVD-R，标识 Verbatim、外包装 SOKCK，用户认为可能是假冒盘，真伪不明（MID `MCC 03RG20`，内圈 `111102-S1`），随机数据 | `fua` | CAV，约 4747 rpm（`--speed 22160`，16x） | 0.54–0.70°（19–25 µs） | `geo` 22 级跑通，恒定轨距 rms 0.188°，chi2/dof 0.97。同一张图用 `image` 生成的 ISO 和 DIS（16x CAV）各刻一张，都没有可见偏差，DIS 那张可能略有缩放（用户反馈，无量化图像误差）。此前 DIS 粗标和边界各三次，精细标定没有出线 | Lakida0，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19434982) |
+| PIONEER DVD-RW DVR-S21（PA01） | Windows，接口未报告 | DVD-R，标识 Verbatim、外包装 SOKCK，用户认为可能是假冒盘，真伪不明（MID `MCC 03RG20`，内圈 `111102-S1`），随机数据 | `fua` | CAV，约 4747 rpm（`--speed 22160`，16x） | 0.54–0.70°（19–25 µs） | `geo` 22 级跑通，恒定轨距 rms 0.188°，chi2/dof 0.97。同一张图用 `image` 生成的 ISO 和 DIS（16x CAV，直接填 disc-probe 的预设）各刻一张，都没有可见偏差，DIS 那张可能略有缩放（用户反馈，无量化图像误差）。此前 DIS 粗标和边界各三次，精细标定没有出线 RiDATA（和 UJ272 那行同一盒）直接用 domerawind 的预设，16x 刻标线，又竖又直（用户反馈）。DIS 1.4.1、1.4.2 在 UJ272 和这台上封盘都报失败，但图像完整，当时预设里的扇区数是 2298496，而这张盘是 2295104。UJ272 换成正确的数后封盘正常，这台还没有重刻的结果。 `--speed 5540` 能降到约 2354 rpm。 | Lakida0，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19434982) |
+| HL-DT-ST SP80NB80（RC00） | Windows | Verbatim DVD-R AZO 95101 2201-203（MID `MCC 03RG20`），随机数据 | `fua` | 约 1432 rpm（`--speed 3324`） | 未报告 | `geo` 跑通，恒定轨距 rms 0.43°，chi2/dof 4.79，二次轨距 0.33°、2.95。再用 DIS 精细标定，一共刻了 5 张盘后图案对上了（用户反馈，无量化图像误差）。读 `CMC MAG. AM3` 时同一台光驱噪声太大，见上一条记录 | Sliicy，[DIS #171](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/171) |
+| HL-DT-ST GHB0N（JE01） | SATA / Linux（bczhc 的移植版） | Banana 蓝色 DVD-R GSD-B-401（MID `MCC 03RG20`，内圈 `111102-S1`），随机数据 | `fua` | CAV，2361 rpm（`--speed 5540`） | 0.54–0.56°（38–39 µs） | `geo` 跑通，恒定轨距 rms 0.176°，chi2/dof 0.90。和 Lakida0 用先锋 DVR-S21 测的同 MID、同内圈编码的盘相差约 0.05° rms（峰峰 0.17°）。用户看到细微曲折后手调参数，刻出的径向线更直（目测）；手调结果和 `geo` 相差约 0.08° rms，小于测量不确定度 | dhao2001，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19438546) |
+| TSSTcorp CDDVDW SN-208FB（CH00） | Windows，接口未报告 | 铼德 e 时代 DVD-R（MID `RITEKF1`，PW104），用另一台光驱写的随机数据 | `fua` | CAV，约 2351 rpm（`--speed 5540`） | 0.48–0.58° | `geo` 22 级跑通，rms 0.097°，chi2/dof 0.27；请求 8x 时 0.129°、0.49，两次相差约 0.03° rms。和本仓库 GH70N 的 Ritek F1 相差约 0.05° rms（峰峰 0.17°）。同一种盘刻普通数据多次成功，最高 8x（用户反馈），但刻图案失败：RITEKF1 用 DIS 流式和 ISO 刻了四张，约 0.3 MB 处失败；RiDATA 4x 约 284 MiB、另一种 DVD 4x 约 270 MB 处失败（`0xC0AA0301`）。其中 RiDATA 和那种 DVD 在先锋上能刻 | Lakida0，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19435910) |
 
 </details>
 

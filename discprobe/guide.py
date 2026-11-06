@@ -10,11 +10,12 @@ import datetime
 import difflib
 import importlib.util
 import json
+import math
 import os
 import re
 import sys
 
-from . import i18n
+from . import i18n, mmc
 
 RESULT_DIR = re.compile(r"^(?P<kind>[a-z]+)-(?:(?P<tag>.+)-)?(?P<stamp>\d{8}-\d{6})$")
 PROG = "python -m discprobe"
@@ -215,10 +216,14 @@ def sectors_from_info(report: dict) -> tuple[int, str] | None:
 
 def _sectors_for(summary: dict, out: str) -> tuple[str, str]:
     """A --sectors value for the preset command, and what the reader should check about it."""
+    media = "cd" if (summary.get("fit") or {}).get("media") == "cd" else "dvd"
     for r in scan(out):
         if r.kind == "info" and not r.simulated:
-            found = sectors_from_info(_load(os.path.join(r.path, "info.json")) or {})
-            if found:
+            report = _load(os.path.join(r.path, "info.json")) or {}
+            found = sectors_from_info(report)
+            profile = _parsed(report, "configuration").get("current_profile")
+            # The newest `info` may be of the other kind of disc: its count would be far off.
+            if found and mmc.media_family(profile) in (media, "unknown"):
                 return str(found[0]), f"--sectors is from your last `info`: {found[1]}"
     last = (summary.get("setup") or {}).get("last_lba")
     if last:
@@ -227,8 +232,10 @@ def _sectors_for(summary: dict, out: str) -> tuple[str, str]:
 
 
 def sectors_hint(geo_path: str) -> str:
-    """What to do when a CD preset has no --sectors."""
+    """What to do when a preset command has no --sectors."""
     sectors, why = _sectors_for(_load(geo_path) or {}, "results")
+    if sectors == "<sectors>":
+        return "Run `info` on a blank disc to get the count, or use read-from-disc in DiscImageStudio. The two have to match."
     return (f"Try --sectors {sectors} ({why}). It must match the count DiscImageStudio uses: "
             "check with its read-from-disc, or run `info` on a blank disc.")
 
@@ -244,6 +251,8 @@ def after_list(drives: list[str]) -> list[str]:
 
 
 def after_info(args, report: dict) -> list[str]:
+    if mmc.not_ready((report.get("test_unit_ready") or {}).get("sense")):
+        return []
     lines = []
     found = sectors_from_info(report)
     if found:
@@ -331,11 +340,21 @@ def after_geo(args, res: dict, out: str) -> list[str]:
     correction = ""
     lines = []
     if getattr(args, "sim", None):
-        lines.append("This was the simulated drive: the commands below show the flow, do not burn from them.")
+        lines.append("This was the simulated drive: the verdict and commands below show the flow, do not burn from them.")
+    compared = compare_pitch(out) if res["chi2_per_dof"] > 2 else None
+    if res["chi2_per_dof"] <= 2:
+        sigma = res["angle_sigma_measured_span_deg"]
+        lines.append(f"Verdict: good. Only noise is left after the fit, and {sigma:.2f} deg is about "
+                     f"{math.radians(sigma) * 50:.2f} mm at 50 mm radius.")
+    elif compared is None:
+        lines.append("Verdict: not settled. More than noise is left, and the comparison below could not run here.")
+    elif compared[1] <= PITCH_CLEARLY_BETTER * compared[0]:
+        lines.append("Verdict: good once corrected.")
+    else:
+        lines.append("Verdict: usable, but noisy.")
     if span[1] - span[0] < NARROW_SPAN_MM:
         lines.append(f"This run only covers {span[0]}-{span[1]} mm, so angles outside that are extrapolated.")
     if res["chi2_per_dof"] > 2:
-        compared = compare_pitch(out)
         if compared is None:
             lines += ["The fit left more than noise. Compare pitch models first, no new measurement needed; if quadratic is",
                       "clearly better, write a correction and add --correction correction.json to the commands below:",
@@ -350,20 +369,24 @@ def after_geo(args, res: dict, out: str) -> list[str]:
             lines += [f"A varying track pitch does not fit better (fit error ratio {compared[0]:.1f} -> {compared[1]:.1f}), so the "
                       "extra scatter is probably read noise. You can carry on. For a cleaner run, try a lower speed:",
                       f"  {PROG} geo {_carry(args)} --speed {_other_speed(args)}"]
-        lines.append("")
-    lines += ["Next, make a picture ISO (replace my_picture.png with your image):",
-              f"  {PROG} image{flag} --geo {geo}{correction} --picture my_picture.png --output iso/picture.iso"]
-    if media == "cd":
-        lines.append("  CD has one more constant that timing cannot see: read the CD-R part of docs/MANUAL.md first.")
-    lines += ["Or export a DiscImageStudio preset:",
-              f"  {PROG} disexport --geo {geo}{correction} --sectors {sectors} --r-min {span[0]} --r-max {span[1]} "
+    lines.append("")
+    preset = [f"  {PROG} disexport --geo {geo}{correction} --sectors {sectors} --r-min {span[0]} --r-max {span[1]} "
               "--output dis_preset.json",
               "  --sectors must match the count in DiscImageStudio.",
               f"  {why}"]
-    return lines
+    picture = f"  {PROG} image{flag} --geo {geo}{correction} --picture my_picture.png --output iso/picture.iso"
+    if media == "cd":
+        return lines + ["Next, export a DiscImageStudio preset. CD has one more constant that timing cannot see, and fine",
+                        "calibration there settles it on one more blank disc (the CD route in README.md):", *preset,
+                        "Or make a picture ISO now (replace my_picture.png); radial lines may come out twisted without that constant:",
+                        picture]
+    return lines + ["Next, make a picture ISO (replace my_picture.png with your image):", picture,
+                    "Or export a DiscImageStudio preset:", *preset]
 
 
 def after_geo_stop(args, reason: str) -> list[str]:
+    if reason in (mmc.NO_DISC, mmc.LOADING):
+        return []
     carry, other = _carry(args), _other_speed(args)
     if "never settled" in reason or "near the reference" in reason:
         return ["The drive would not hold one speed. Check it with timing, then try geo at a lower speed:",
@@ -452,8 +475,9 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
         commands = [("Measure the disc's spiral (about 5 minutes):", f"{PROG} geo {drive}{flag}")]
     else:
         sectors = _sectors_for(geo.summary, out)[0]
-        commands = [("Make a picture ISO (replace my_picture.png with your image):",
-                     f"{PROG} image{flag} --geo latest --picture my_picture.png --output iso/picture.iso"),
+        first = ("CD still needs one more constant, so the preset below is the usual way on (the CD route in README.md). A picture ISO:"
+                 if media == "cd" else "Make a picture ISO (replace my_picture.png with your image):")
+        commands = [(first, f"{PROG} image{flag} --geo latest --picture my_picture.png --output iso/picture.iso"),
                     ("Or export a preset for DiscImageStudio:",
                      f"{PROG} disexport --media {media} --geo latest --sectors {sectors} --output dis_preset.json")]
 

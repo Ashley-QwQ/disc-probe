@@ -144,7 +144,17 @@ TEXT = {
     "Next, measure the geometry:": "下一步，测量盘面螺旋几何：",
     "Make a plain data disc: {c}": "做一张普通数据盘：{c}",
     "Burn it (Windows: right-click the .iso, Burn disc image) and run timing on it.": "刻录它（Windows：右键 .iso，选“刻录光盘映像”），然后对这张盘运行 timing。",
-    "This was the simulated drive: the commands below show the flow, do not burn from them.": "这是模拟光驱的结果：下面的命令只用来演示流程，不要拿它刻盘。",
+    "This was the simulated drive: the verdict and commands below show the flow, do not burn from them.": "这是模拟光驱的结果：下面的结论和命令只用来演示流程，不要拿它刻盘。",
+    "Verdict: good. Only noise is left after the fit, and {a} deg is about {b} mm at 50 mm radius.":
+        "结论：可以用。拟合后只剩噪声，{a}° 在 50 mm 半径处约 {b} mm。",
+    "Verdict: not settled. More than noise is left, and the comparison below could not run here.":
+        "结论：还不能确定。剩下的误差比噪声大，下面的比较这里跑不了，要你手动跑。",
+    "Verdict: good once corrected.": "结论：加上修正就可以用。",
+    "Verdict: usable, but noisy.": "结论：能用，但噪声偏大。",
+    "Next, export a DiscImageStudio preset. CD has one more constant that timing cannot see, and fine": "下一步，导出 DiscImageStudio 预设。CD 还有一个计时测不到的常数，",
+    "calibration there settles it on one more blank disc (the CD route in README.md):": "在 DiscImageStudio 里做精细标定就能定下来，要再用一张空盘（见 README.md 的 CD 路线）：",
+    "Or make a picture ISO now (replace my_picture.png); radial lines may come out twisted without that constant:": "或者现在就做图片镜像（把 my_picture.png 换成你的图片）；没有这个常数，径向线可能是扭的：",
+    "CD still needs one more constant, so the preset below is the usual way on (the CD route in README.md). A picture ISO:": "CD 还差一个常数，通常走下面的预设（见 README.md 的 CD 路线）。图片镜像：",
     "This run only covers {a}-{b} mm, so angles outside that are extrapolated.": "这次只测到 {a}-{b} mm，范围外的角度是外推的。",
     "The fit left more than noise. Compare pitch models first, no new measurement needed; if quadratic is": "拟合后剩下的误差比噪声大。先比较轨距模型，不用重新测量；如果二次模型明显更好，",
     "clearly better, write a correction and add --correction correction.json to the commands below:": "就写一个修正文件，并在下面的命令里加上 --correction correction.json：",
@@ -156,7 +166,6 @@ TEXT = {
         "偏差比噪声略大，但改用可变轨距也没有更好（拟合误差比 {a} -> {b}），多半是读取噪声，可以继续。想测得更干净，可以降速再测一次：",
     "Next, make a picture ISO (replace my_picture.png with your image):": "下一步，把图片做成可刻录的镜像（把 my_picture.png 换成你的图片）：",
     "--sectors must match the count in DiscImageStudio.": "--sectors 要和 DiscImageStudio 里的数一致。",
-    "CD has one more constant that timing cannot see: read the CD-R part of docs/MANUAL.md first.": "CD 还有一个计时测不到的常数：先看 docs/MANUAL.md 的 CD-R 部分。",
     "Or export a DiscImageStudio preset:": "或者导出 DiscImageStudio 预设：",
     "({a}; it must match the count in DiscImageStudio.)": "（{a}；它要和 DiscImageStudio 里的数一致。）",
     "--sectors is from your last `info`: {a}": "--sectors 来自你上次的 `info`：{a}",
@@ -236,7 +245,9 @@ TEXT = {
     "expected a drive letter such as E:, got {d}": "需要盘符，比如 E:，收到的是 {d}",
     "{e} (see `python -m discprobe list`)": "{e}（盘符见 `python -m discprobe list`）",
     "{e}. Optical drives here: {d}": "{e}。这台电脑的光驱：{d}",
-    "no disc in {d}: load a burned disc of plain data and run this again": "{d} 里没有盘：放入一张刻好的普通数据盘，再运行一次",
+    "No disc in the drive, or the tray is open (burning ejects the disc when it finishes). Load the disc, wait a few seconds and run this again":
+        "光驱里没有盘，或者托盘开着（刻完盘托盘会弹出）。把盘放好，等几秒再运行一次",
+    "The drive is not ready yet, it may still be loading the disc. Wait a few seconds and run this again": "光驱还没准备好，可能正在读入盘。等几秒再运行一次",
     "This is a CD, but the command has DVD settings. Add --media cd?": "这是 CD，但命令用的是 DVD 设置。要加上 --media cd 吗？",
     "Note: geo supports DVD and CD; on this BD only timing is known to work.": "提示：geo 支持 DVD 和 CD；这张 BD 目前只确认 timing 能用。",
     "no such geo result: {p}": "找不到这个 geo 结果：{p}",
@@ -252,7 +263,8 @@ TEXT = {
     "design must be {a} x {b} cells of {c} mm": "图案必须是 {a} x {b} 格，每格 {c} mm",
     "a label design (not boolean) needs --textures, one per label": "标签图案（非布尔）需要 --textures，每个标签一种纹理",
     "--media {m} does not match {g}, which measured a {t}": "--media {m} 和 {g} 不符，那次测的是 {t}",
-    "A CD preset needs --sectors: the capacity of your disc": "CD 预设需要 --sectors，也就是你这张盘的容量",
+    "A preset needs --sectors: the capacity of your disc (`info` prints it)": "预设需要 --sectors，也就是你这张盘的容量（`info` 会打印）",
+    "Run `info` on a blank disc to get the count, or use read-from-disc in DiscImageStudio. The two have to match.": "对空白盘运行 `info` 可以查到这个数，也可以用 DiscImageStudio 的“从光盘读取”。两边要一致。",
     "CD tiles need a CD geometry fit (media=cd)": "CD 色块盘需要 CD 的几何拟合 (media=cd)",
     "{a} has no geometry fit": "{a} 里没有几何拟合",
     "Stopped by Ctrl+C.{k}": "已按 Ctrl+C 停止。{k}",
@@ -467,7 +479,7 @@ TEXT = {
     "summary.json of the geo run the grid disc was burned with (recorded only)": "刻网格盘时所用 geo 结果的 summary.json（只作记录）",
     "summary.json of a geo run, its folder, or latest; a CD fit gives a CD preset": "geo 结果的 summary.json、它所在的文件夹，或 latest；CD 的结果会生成 CD 预设",
     "angle-correction file from the correction command": "correction 命令生成的角度修正文件",
-    "sector count of the preset (disc capacity, `info` prints it); DVD default 2298496, CD required": "预设的扇区数（盘的容量，`info` 会打印）；DVD 默认 2298496，CD 必须提供",
+    "sector count of the preset (disc capacity, `info` prints it); required": "预设的扇区数（盘的容量，`info` 会打印）；必填",
     "fit range: use the measured span (DVD default 25.8, CD the span geo measured)": "拟合范围：用实测范围（DVD 默认 25.8，CD 用 geo 测到的范围）",
     "DVD default 54.4, CD the span geo measured": "DVD 默认 54.4，CD 用 geo 测到的范围",
     "CD only: along-track constant in frames, as in image --along-track-frames": "仅 CD：沿轨常数（帧），含义同 image --along-track-frames",
@@ -502,7 +514,7 @@ zsh：
   python -m discprobe timing --drive E:                 这台光驱能不能测量？
   python -m discprobe geo --drive E:                    测量盘面螺旋几何
   python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
-  python -m discprobe disexport --geo latest --sectors 2298496 --output dis_preset.json
+  python -m discprobe disexport --geo latest --sectors <sectors> --output dis_preset.json
 
 在终端里，只有一台光驱时可以不写 --drive，每条命令结束时都会打印下一条。
 `python -m discprobe <command> -h` 查看某条命令的选项。""",
@@ -546,8 +558,8 @@ zsh：
 --geo 可以写 summary.json、geo 结果文件夹，或 latest（最新一次完整的真实测量）。""",
     "disexport": """\
 例子：
-  python -m discprobe disexport --geo latest --sectors 2298496 --r-min 25.8 --r-max 54.4 --output dis_preset.json
-  python -m discprobe disexport --geo latest --sectors 359847 --correction correction.json --output dis_preset_cd.json
+  python -m discprobe disexport --geo latest --sectors <sectors> --r-min 25.8 --r-max 54.4 --output dis_preset.json
+  python -m discprobe disexport --geo latest --sectors <sectors> --correction correction.json --output dis_preset_cd.json
 
 --sectors 是盘的容量，要和 DiscImageStudio 用的数一致。`info` 会打印它，
 DiscImageStudio 的“从光盘读取”也能看到。和 timing --sectors 不是一回事。

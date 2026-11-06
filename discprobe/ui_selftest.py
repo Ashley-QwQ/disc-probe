@@ -614,6 +614,32 @@ def _advice(c) -> None:
         guide.compare_pitch = real_compare
     c.check(guide.compare_pitch("no such folder") is None, "a comparison that cannot run is not an error")
     c.check("0.33 deg" in guide.geo_summary(fit, 22) and "22 points" in guide.geo_summary(fit, 22), "geo opens with a plain summary")
+    clean = {**fit, "chi2_per_dof": 1.62, "angle_sigma_measured_span_deg": 0.152}
+    verdict = guide.after_geo(geo_args, clean, os.path.join("results", "geo-H-20260101-100000"))
+    c.check(verdict[0].startswith("Verdict: good") and "0.15 deg" in verdict[0] and "0.13 mm" in verdict[0], "a clean geo gets a verdict in plain terms")
+    i18n.use("zh")
+    try:
+        c.check(i18n.tr(verdict[0]).startswith("结论"), "the verdict has Chinese")
+    finally:
+        i18n.use("en")
+    real_compare = guide.compare_pitch
+    try:
+        for ratio, word in (((20.0, 1.5), "good once corrected"), ((5.2, 5.6), "usable, but noisy"), (None, "not settled")):
+            guide.compare_pitch = lambda out, ratio=ratio: ratio
+            c.check(word in guide.after_geo(geo_args, fit, os.path.join("results", "geo-H-20260101-100000"))[0], f"a noisy geo: {word}")
+    finally:
+        guide.compare_pitch = real_compare
+    cd_next = guide.after_geo(cd_args, clean, os.path.join("results", "geo-H-20260101-100000"))
+    c.check(any("disexport" in x for x in cd_next[:6]) and "README.md" in "".join(cd_next) and
+            next(i for i, x in enumerate(cd_next) if "disexport" in x) < next(i for i, x in enumerate(cd_next) if " image" in x),
+            "a CD geo offers the preset before a picture ISO")
+    with tempfile.TemporaryDirectory() as d:
+        for name, profile, last in (("info-H-20260101-100000", 0x11, 2295103), ("info-H-20260102-100000", 0x09, 359847)):
+            os.makedirs(os.path.join(d, name))
+            with open(os.path.join(d, name, "info.json"), "w", encoding="utf-8") as f:
+                json.dump({"configuration": {"parsed": {"current_profile": profile}}, "capacity": {"parsed": {"last_lba": last}}}, f)
+        c.check(guide._sectors_for({"fit": {}}, d)[0] == "2295104" and guide._sectors_for({"fit": {"media": "cd"}}, d)[0] == "359848",
+                "the --sectors suggestion comes from an `info` of the same kind of disc")
     stop = "\n".join(guide.after_geo_stop(args, "the spindle speed never settled; is the read speed fixed (--speed)?"))
     c.check("timing" in stop and "--speed" in stop, "a geo that never settled gets a next step")
     hint = guide.parser_hint("argument <command>: invalid choice: 'timming' (choose from a)", ["timming"], ["timing", "geo"])
@@ -707,6 +733,12 @@ def _command_line(c) -> None:
             c.check(code == 1 and "does not match" in text, "disexport --media checks the fit")
             code, text = code_and_stderr("disexport", "--geo", geo_cd, "--output", os.path.join(d, "p.json"))
             c.check(code == 1 and "needs --sectors" in text, "a CD preset without --sectors is refused")
+            geo_dvd = os.path.join(d, "dvd.json")
+            with open(geo_dvd, "w", encoding="utf-8") as f:
+                json.dump({"fit": {"u": 120000.0, "v": 3.0, "bit_nm_assumed": 133.3}}, f)
+            code, text = code_and_stderr("disexport", "--geo", geo_dvd, "--output", os.path.join(d, "p.json"))
+            c.check(code == 1 and "needs --sectors" in text and not os.path.exists(os.path.join(d, "p.json")),
+                    "a DVD preset without --sectors is refused too, with no file written")
             not_geo = os.path.join(d, "t.json")
             with open(not_geo, "w", encoding="utf-8") as f:
                 json.dump({"cache": {}}, f)
@@ -740,6 +772,70 @@ def _command_line(c) -> None:
         cli._open = real_open
         cli._Parser.last_out = None
         ui._term = real_term
+
+
+def _no_disc(c) -> None:
+    from argparse import Namespace
+    from . import __main__ as cli, info, mmc
+    from .scsi import ScsiResult, Sense
+
+    class Empty:
+        """A drive that answers everything with the same Not Ready sense."""
+        name = "SIM"
+
+        def __init__(self, asc):
+            self.sense = Sense(2, asc, 2 if asc == 0x3A else 1)
+
+        def execute(self, cdb, data_len=0, direction=1, timeout_s=30):
+            return ScsiResult(2, b"", self.sense, 0, 1000)
+
+    c.check(mmc.not_ready(Sense(2, 0x3A, 2)) == mmc.NO_DISC and mmc.not_ready("2/3A/01") == mmc.NO_DISC, "sense 3A means no disc")
+    c.check(mmc.not_ready(Sense(2, 0x04, 1)) == mmc.LOADING, "sense 04 means still loading")
+    c.check(mmc.not_ready(None) is None and mmc.not_ready(Sense(2, 0x30, 0)) is None and mmc.not_ready(Sense(3, 0x3A, 0)) is None,
+            "other answers are not taken for an empty tray")
+    report = info.collect(Empty(0x3A))
+    shown = info.summarize(report)
+    c.check(mmc.NO_DISC in shown and not any("unknown" in x or "3A" in x for x in shown), "info says there is no disc, once")
+    args = Namespace(drive="H:", sim=None, media="cd", speed=1411, transport="auto", out="results")
+    c.check(guide.after_info(args, report) == [], "info does not send an empty drive off to burn a disc")
+    c.check(guide.after_geo_stop(args, mmc.NO_DISC) == [] and guide.after_timing_stop(args, mmc.NO_DISC) == [], "no other advice on top of it")
+    i18n.use("zh")
+    try:
+        c.check(i18n.tr(mmc.NO_DISC) != mmc.NO_DISC and i18n.tr(mmc.LOADING) != mmc.LOADING, "both messages have Chinese")
+    finally:
+        i18n.use("en")
+
+    def run(*argv):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
+            try:
+                cli.main(list(argv))
+                code = 0
+            except SystemExit as e:
+                err.write(e.code if isinstance(e.code, str) else "")
+                code = e.code if isinstance(e.code, int) else 1
+        return code, out.getvalue() + err.getvalue()
+    real_term, real_open = ui._term, cli._open
+    ui._term = ui.Term(io.StringIO(), env={})   # what a script sees: the tester's pipe got the misleading text
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            cli._open = lambda args: Empty(0x3A)
+            code, text = run("timing", "--sim", "cav", "--out", d)
+            c.check(code == 1 and mmc.NO_DISC in text and "burn a test disc" not in text, "timing on an open tray says so")
+            if importlib.util.find_spec("numpy") is None or importlib.util.find_spec("scipy") is None:
+                print("CD and geo open-tray checks skipped (need numpy and scipy)")
+            else:
+                code, text = run("timing", "--sim", "cav", "--media", "cd", "--out", d)
+                c.check(code == 1 and mmc.NO_DISC in text and "Mode 1" not in text, "timing --media cd on an open tray says so")
+                for media in ("cd", "dvd"):
+                    code, text = run("geo", "--sim", "cav", "--media", media, "--out", d)
+                    c.check(mmc.NO_DISC in text and "how noisy" not in text, f"geo --media {media} on an open tray says so")
+            cli._open = lambda args: Empty(0x04)
+            code, text = run("timing", "--sim", "cav", "--out", d)
+            c.check(code == 1 and mmc.LOADING in text, "timing while the disc is loading says to wait")
+    finally:
+        ui._term, cli._open = real_term, real_open
+        cli._Parser.last_out = None
 
 
 def _greetings(c) -> None:
@@ -856,7 +952,7 @@ def _preflight(c) -> None:
             cli._check_disc(Drive(tray_empty=True), args)
             c.check(False, "an empty tray is reported")
         except SystemExit as e:
-            c.check("no disc" in str(e.code), "an empty tray is reported")
+            c.check(str(e.code) == cli.mmc.NO_DISC, "an empty tray is reported")
         cli.sys.platform = "win32"
         guide.optical_drives = lambda: ["H:"]
         with contextlib.redirect_stdout(io.StringIO()):
@@ -956,6 +1052,7 @@ def run(c) -> None:
     _command_line(c)
     _missing_package(c)
     _plain_errors(c)
+    _no_disc(c)
     _priority(c)
     _greetings(c)
     _chinese(c)

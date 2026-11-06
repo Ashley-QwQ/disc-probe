@@ -10,7 +10,11 @@ nearest speed the drive lists.
 
 -Speed is in multiples of the medium's 1x (CD 75 sectors/s, DVD 675 sectors/s).
 -Reload closes the tray again after the eject (tray-loading drives such as the GH70N), so the
-burned disc can be read straight away.
+burned disc can be read straight away. Without it, push the tray back in before measuring.
+
+While writing it prints a line every 30 s with an estimate from the write speed. That estimate
+is time only: IMAPI2's progress events would have to run inside the burn, and a burn can't be
+retried on the same disc, so this stays out of the way of the write.
 
 Closing a CD needs some room beyond FreeSectorsOnMedia: on a 359,847-sector CD-R a 359,800-sector
 image was refused at the start of Write ("stream too large"), 359,600 sectors went through.
@@ -38,6 +42,27 @@ public static class IsoStream {
     }
 }
 "@
+
+function Start-WriteHeartbeat([double]$EstimateSeconds, [int]$EverySeconds = 30) {
+    # Write() blocks this thread, so another runspace does the talking. It touches no IMAPI2 object.
+    $beat = [powershell]::Create()
+    [void]$beat.AddScript({
+        param($estimate, $every)
+        $clock = { param($s) $t = [int][math]::Floor($s); "{0}:{1:00}" -f [math]::Floor($t / 60), ($t % 60) }
+        $t0 = Get-Date
+        while ($true) {
+            Start-Sleep -Seconds $every
+            $done = ((Get-Date) - $t0).TotalSeconds
+            $left = $estimate - $done
+            $state = if ($estimate -le 0) { "no estimate" }
+                     elseif ($left -gt 0) { "about $(& $clock $left) left" }
+                     else { "past the estimate, closing the disc can take a while" }
+            [Console]::WriteLine("  still writing: $(& $clock $done) so far, $state")
+        }
+    }).AddArgument($EstimateSeconds).AddArgument($EverySeconds)
+    [void]$beat.BeginInvoke()
+    $beat
+}
 
 $master = New-Object -ComObject IMAPI2.MsftDiscMaster2
 $recorder = $null
@@ -87,11 +112,17 @@ $fmt.ForceMediaToBeClosed = $true
 $stream = [IsoStream]::Open($path)
 $t0 = Get-Date
 "Writing ... (started $($t0.ToString('HH:mm:ss')))"
-$fmt.Write($stream)
+$estimate = if ($fmt.CurrentWriteSpeed -gt 0) { $sectors / $fmt.CurrentWriteSpeed } else { 0 }
+if ($estimate -gt 0) { "The drive does not report progress here. Estimate from the write speed: about {0:0} min." -f ($estimate / 60) }
+$beat = Start-WriteHeartbeat $estimate
+try { $fmt.Write($stream) } finally { $beat.Stop(); $beat.Dispose() }
 "Done in {0:0.0} min" -f ((Get-Date) - $t0).TotalMinutes
 $recorder.EjectMedia()
+$closed = $false
 if ($Reload) {
     Start-Sleep -Seconds 2
-    $recorder.CloseTray()
-    "Tray closed again."
+    # Slot and slim drives can't pull the tray in. The burn is already done, so this must not fail the script.
+    try { $recorder.CloseTray(); $closed = $true } catch { }
 }
+if ($closed) { "Tray closed again. Give the drive a few seconds to read the disc." }
+else { "The drive ejected the disc. Push the tray back in and wait a few seconds before measuring it." }

@@ -192,7 +192,10 @@ class TimingProbe:
 
     def setup(self):
         self._experiment = "setup"
-        self._cmd(mmc.test_unit_ready(), 0)
+        ready = self._cmd(mmc.test_unit_ready(), 0)
+        reason = mmc.not_ready(ready.sense)
+        if reason:      # the checks below would blame the disc, or the --media setting
+            raise NoReadableDisc(reason)
         cfg = self._cmd(mmc.get_configuration(), 4096)
         profile = mmc.parse_configuration(cfg.data).get("current_profile") if cfg.ok else None
         self.family = mmc.media_family(profile)
