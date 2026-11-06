@@ -304,10 +304,10 @@ def add_to_startup(path: str, line: str) -> bool:
     """Add the loading line once. False if it was already there."""
     data, encoding, errors = _read(path)
     text = data.decode(encoding, errors)
-    if MARKER in text:
+    if line in text:
         return False
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    added = ("" if not text or text.endswith("\n") else "\n") + f"{MARKER}\n{line}\n"
+    added = ("" if not text or text.endswith("\n") else "\n") + ("" if MARKER in text else f"{MARKER}\n") + f"{line}\n"
     with open(path, "ab") as f:
         f.write(added.encode(encoding, errors))
     return True

@@ -83,7 +83,7 @@ python -m discprobe results geo
 
 脚本里要路径的话，用 `results geo --latest`，它只打印一行文件夹路径。
 
-**`--sectors` 有两个意思。**`timing --sectors` 是每次读几个扇区，`16` 读一个完整的 DVD ECC 块。`disexport --sectors` 是盘的容量，必须填，要和 DiscImageStudio 里用的一致，否则外半径会变，填多了还可能封盘失败。以前 DVD 不填时默认 2298496，比一些盘的实际容量大（[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19440415) 里的盘是 2295104），所以改成了不填就报错并给建议值。`info` 会在终端打印建议值，并说明来源：空白盘优先用剩余空间，CD 用 ATIP 的导出区起点，已刻录的盘用最后一个 LBA 加一（只有整张刻满时才等于空白盘的容量）。DiscImageStudio 的"从光盘读取"也能核对。
+**`--sectors` 有三个意思。**`timing` 里是每次读几个扇区，`16` 读一个完整的 DVD ECC 块。`random` 里是刻多少，要放得下。`disexport` 里是盘的容量，必须填，DiscImageStudio 里也要填同一个数，否则外半径会变，填多了还可能封盘失败。以前 DVD 不填时默认 2298496，比一些盘的实际容量大（[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19440415) 里的盘是 2295104），所以改成了不填就报错并给建议值。`info` 会在终端打印建议值，并说明来源：空白盘优先用剩余空间，CD 用 ATIP 的导出区起点，已刻录的盘用最后一个 LBA 加一（只有整张刻满时才等于空白盘的容量）。以空白盘上 `info` 的数为准。DiscImageStudio 的"从光盘读取"读到的数不同时，也以 `info` 为准：domerawind [报告](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19442161)它比实际能写的多（RITEKF1 2298496 对 2295104，mini DVD-R 714546 对 713936），照它填就封盘失败。这是一位用户、两种盘的报告，多出来的原因未知。
 
 **`--speed` 怎么选。**可以写 kB/s，也可以写倍速，如 `4x`（`--media cd` 时按 CD 的 1x 换算）。低速通常噪声更小，但不是每台光驱都会换档，要看 `timing` 打印的转速。
 
@@ -91,6 +91,7 @@ python -m discprobe results geo
 |---|---|
 | DVD（1x = 1385 kB/s） | `2.4x` = 3324，`4x` = 5540（`geo` 默认），`8x` = 11080 |
 | CD（1x = 176.4 kB/s） | `8x` = 1411（`--media cd` 默认），`16x` = 2822，`24x` = 4234 |
+| 蓝光（1x = 4495 kB/s） | `8x` = 35960，`12x` = 53940。倍速按盘的实际类型换算；目前报告过的蓝光光驱都是恒定线速度，换速度不一定成 CAV，`geo` 也不支持蓝光 |
 
 **`--ranges` 怎么选。**默认的已刻录区 3%–85% 适合大多数盘，一般不用改。它接受 LBA 范围 `a-b,c-d`。`geo` 总在同一个 LBA 附近停下，或者外圈有换速跳变时，把那段排除；想覆盖更大的半径，可以加宽，前提是光驱读得干净（GP65NB60 上加宽后外圈误差消失）。最后一个 LBA 看 `info`。
 
@@ -493,7 +494,7 @@ python -m discprobe random --media cd --output iso/cd-random.iso
 powershell -ExecutionPolicy Bypass -File tools/burn_imapi.ps1 -Drive H: -Iso iso/cd-random.iso -Speed 8 -Burn -Reload
 ```
 
-刻录时光驱不报进度，脚本每 30 秒打印一行已用时间和按写入速度估的剩余时间。刻完托盘会弹出，`-Reload` 会把它推回去，超薄光驱要自己推。托盘开着时跑 `timing` 只会报没有盘。
+刻录时光驱不报进度，脚本每 30 秒打印一行已用时间和按写入速度估的剩余时间。刻完托盘会弹出，`-Reload` 只是再把它收回来，不会提前打开托盘；超薄光驱要自己推回去。托盘开着时跑 `timing` 只会报没有盘。
 
 **测量。**先刻随机数据盘，再计时。要用低转速：GH70N 在 `--speed 2822`（3226 rpm）下，49.8 mm 以外的完成时刻会晚约 0.2 ms，`--speed 1411`（约 2080 rpm）下没有这个现象。
 
@@ -509,7 +510,7 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 
 **推荐：交给 DiscImageStudio 的精细标定。**用 `geo` 代替它的粗标定和边界标定，少刻盘，也少描点。沿轨道常数的效果只相当于内半径变化约 0.3 µm（206 帧），精细标定本来就在拟合半径，按推算能把它一起吸收，不需要刻网格盘。这条路来自 kasumikira（[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19415813)）和 pugod124（[disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6650565706)）的 CD-R 实测，我们自己还没有走过。
 
-1. 导出预设。`--sectors` 要和 DiscImageStudio 里用的扇区数一致，可以先用它的**从光盘读取**核对空白盘；扇区数不同，外半径也会不同。
+1. 导出预设。`--sectors` 用空白盘上 `info` 给的数，DiscImageStudio 里也填这个数；扇区数不同，外半径也会不同。它的**从光盘读取**读到的数不同时，以 `info` 为准（见上面“`--sectors` 有三个意思”）。
 
    ```powershell
    python -m discprobe disexport --geo <summary.json> --correction correction.json --sectors <扇区数> --output dis_preset_cd.json
@@ -531,7 +532,7 @@ python -m discprobe image --media cd --geo <summary.json> --correction correctio
 
 定好常数后，这个数也可以传给 `disexport --along-track-frames`，直接导出预设。不传时输出会提醒径向线可能是扭的。CD 预设已经有人实刻过：moodyos 不做精细标定，轮廓和原图一致；FanJZSS 用 `--along-track-frames -100` 导出，和 DIS 精细标定只差约 2 帧。两者都是用户反馈，详情见 [README 的表](../README.md#有实践报告的光驱)。
 
-`image --media cd` 同样接受布尔/标签 `--design-npy`、`--textures`、`--picture`。绘图单元改为物理帧中连续的 12 数据符号；重复纹理按"物理帧号 ×32 + F2 槽"定相位，再通过 CIRC 映射回填用户数据。暗/亮默认 `0D`/`AA`，设计应在内侧留出背景，文件系统扇区与图案相交时会拒绝生成。CD 计时结果带 `media=cd`，禁止把 DVD 的拟合直接用于 CD 刻图。
+`image --media cd` 同样接受布尔/标签 `--design-npy`、`--textures`、`--picture`。用 `--picture` 时，半径 26 mm 以内自动留空，那里放着文件系统。绘图单元改为物理帧中连续的 12 数据符号；重复纹理按"物理帧号 ×32 + F2 槽"定相位，再通过 CIRC 映射回填用户数据。暗/亮默认 `0D`/`AA`，设计应在内侧留出背景，文件系统扇区与图案相交时会拒绝生成。CD 计时结果带 `media=cd`，禁止把 DVD 的拟合直接用于 CD 刻图。
 
 CD `tiles` 的编号参考改用 `0D`/`AA`，`tilescan` 和 `tilephoto` 复用原来的编号和几何处理；分析输出中的历史字段名 `levels_a5_0_92_1` 对 CD 表示编号的 `0D=0 / AA=1`。重复序列如 `0DAA`、`00FF` 是待测候选，不保证光驱产生整轨固定周期。CD 导槽衍射更靠近镜面方向，拍摄宜使用视角小于 10° 的小光源，先锁定观察几何。
 

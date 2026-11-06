@@ -35,7 +35,13 @@ PITCH_CLEARLY_BETTER = 0.5
 # is where the CD run at 3226 rpm sat (0.77) that the drive table says can't be used.
 GOOD_SIGMA_DEG = 0.25
 BAD_SIGMA_DEG = 0.6
-ALTERNATIVE_SPEEDS = {"dvd": ("3324", "5540", "11080"), "cd": ("1411", "2822", "4234")}
+ALTERNATIVE_SPEEDS = {"dvd": ("3324", "5540", "11080"), "cd": ("1411", "2822", "4234"), "bd": ("8990", "17980", "35960")}
+RANDOM_SECTORS = {"dvd": 2295104, "cd": 359600}
+# Spare room a random disc needs. CD: on a 359,847-sector disc 359,800 was refused and 359,600 went through.
+# DVD: the usual 2,295,104 has burned many times on 2,295,104-sector discs, so it only has to fit. A smaller
+# image for a smaller disc still leaves room: a 713,936-sector miniDVD refused its full count by 4 KB.
+BURN_ROOM_SECTORS = {"dvd": 0, "cd": 200}
+BURN_FILL = 0.98
 INSTALL = "python -m pip install numpy pillow scipy"
 PORTS = ("This repository drives real hardware on Windows only. Ports: Linux github.com/bczhc/disc-probe, "
          "macOS github.com/NaiveTomcat/discprobe-macos. Anything with --sim works here.")
@@ -200,8 +206,8 @@ def _carry(args) -> str:
     return " ".join(parts)
 
 
-def _other_speed(args) -> str:
-    media = getattr(args, "media", "dvd")
+def _other_speed(args, family: str | None = None) -> str:
+    media = "bd" if family == "bd" else getattr(args, "media", "dvd")
     current = str(getattr(args, "speed", ""))
     return next(s for s in ALTERNATIVE_SPEEDS[media] if s != current)
 
@@ -213,7 +219,7 @@ def sectors_from_info(report: dict) -> tuple[int, str] | None:
         return track["track_start"] + track["free_blocks"], "free space of this blank disc"
     atip = _parsed(report, "atip")
     if atip.get("last_leadout_start_lba"):
-        return atip["last_leadout_start_lba"], "lead-out in the ATIP"
+        return atip["last_leadout_start_lba"], "lead-out in the ATIP; `info` on a blank disc gives a closer count"
     cap = _parsed(report, "capacity")
     if cap.get("last_lba"):
         return cap["last_lba"] + 1, "last LBA + 1, the blank size only if this disc was burned full"
@@ -233,17 +239,31 @@ def _sectors_for(summary: dict, out: str) -> tuple[str, str]:
                 return str(found[0]), f"--sectors is from your last `info`: {found[1]}"
     last = (summary.get("setup") or {}).get("last_lba")
     if last:
-        return str(last + 1), "--sectors is the recorded size of the measured disc"
+        return str(last + 1), "--sectors is how much was burned on the measured disc. A blank can hold more: `info` on a blank gives its count."
     return "<sectors>", "run `info` on a blank disc to find --sectors"
+
+
+def _random_for_blank(report: dict) -> list[str]:
+    """What to say and the command for a random-data disc that fits this blank."""
+    family = mmc.media_family(_parsed(report, "configuration").get("current_profile"))
+    media = "cd" if family == "cd" else "dvd"
+    flag, iso = (" --media cd", "iso/cd-random.iso") if media == "cd" else ("", "iso/random.iso")
+    found = sectors_from_info(report)
+    if found and _parsed(report, "track_1").get("blank") and found[0] - RANDOM_SECTORS[media] < BURN_ROOM_SECTORS[media]:
+        sectors = int(found[0] * BURN_FILL) // 16 * 16
+        return ["Nothing is recorded on this disc, so timing cannot use it. The usual random disc would not fit, so make a smaller one:",
+                f"  {PROG} random{flag} --sectors {sectors} --output {iso}"]
+    return ["Nothing is recorded on this disc, so timing cannot use it. Burn a random-data disc first:",
+            f"  {PROG} random{flag} --output {iso}"]
 
 
 def sectors_hint(geo_path: str) -> str:
     """What to do when a preset command has no --sectors."""
     sectors, why = _sectors_for(_load(geo_path) or {}, "results")
     if sectors == "<sectors>":
-        return "Run `info` on a blank disc to get the count, or use read-from-disc in DiscImageStudio. The two have to match."
-    return (f"Try --sectors {sectors} ({why}). It must match the count DiscImageStudio uses: "
-            "check with its read-from-disc, or run `info` on a blank disc.")
+        return "Run `info` on a blank disc to get the count, and enter the same number in DiscImageStudio."
+    return (f"Try --sectors {sectors} ({why}). Enter the same number in DiscImageStudio. "
+            "`info` on a blank disc is the count to go by: one user found read-from-disc there too high.")
 
 
 def after_list(drives: list[str]) -> list[str]:
@@ -263,11 +283,10 @@ def after_info(args, report: dict) -> list[str]:
     found = sectors_from_info(report)
     if found:
         lines += [f"Sector count for disexport --sectors: {found[0]} ({found[1]}).",
-                  "It has to match the count DiscImageStudio uses for this disc.", ""]
+                  "Enter the same number in DiscImageStudio. A blank disc's `info` is the count to go by: one user found read-from-disc there too high.", ""]
     cap = _parsed(report, "capacity").get("last_lba")
     if _parsed(report, "track_1").get("blank") or not cap or cap < 1000:
-        return lines + ["Nothing is recorded on this disc, so timing cannot use it. Burn a random-data disc first:",
-                        f"  {PROG} random --output iso/random.iso"]
+        return lines + _random_for_blank(report)
     return lines + ["Next, check the drive (1 to 3 minutes):", f"  {PROG} timing {_carry(args)}"]
 
 
@@ -276,11 +295,14 @@ def after_timing(args, summary: dict) -> list[str]:
     rotation = ((summary.get("period") or {}).get("rotation") or {}).get("mode")
     if not rotation:
         return []
-    carry, other = _carry(args), _other_speed(args)
+    family = (summary.get("setup") or {}).get("family")
+    blu_ray = family == "bd"
+    carry, other = _carry(args), _other_speed(args, family)
     simulated = ["This was the simulated drive, so the verdict below says nothing about your own drive.", ""] if getattr(args, "sim", None) else []
     if rotation != "CAV":
         return simulated + [f"Verdict: rotation is {rotation}, not CAV, so sector angles cannot be read at this speed.",
-                "Next, try another speed. Some drives never leave one, and the rotation test will show that:",
+                "The Blu-ray drives reported so far kept a constant linear speed whatever was asked, so another speed may not change this. To try one:"
+                if blu_ray else "Next, try another speed. Some drives never leave one, and the rotation test will show that:",
                 f"  {PROG} timing {carry} --speed {other}"]
     jitter = _jitter(summary)
     worst = max(jitter) if jitter else None
@@ -295,8 +317,10 @@ def after_timing(args, summary: dict) -> list[str]:
                      else f"Verdict: CAV, but {span} jitter is too high: drives reported at this level stopped early "
                           "or gave a wrong geometry. Try another speed or another drive:")
         lines.append(f"  {PROG} timing {carry} --speed {other}")
-        if media == "dvd" and getattr(args, "sectors", 1) == 1:
+        if media == "dvd" and not blu_ray and getattr(args, "sectors", 1) == 1:
             lines.append(f"  Or read whole ECC blocks, which was cleaner on one drive: {PROG} timing {carry} --sectors 16")
+    if blu_ray:
+        return lines + ["", "geo supports DVD and CD, so timing is as far as this disc goes for now."]
     usual = 1411 if media == "cd" else None
     speed = f" --speed {args.speed}" if getattr(args, "speed", None) not in (None, usual) else ""
     return lines + ["", "Next, measure the geometry:", f"  {PROG} geo {carry}{speed}"]
@@ -400,7 +424,7 @@ def after_geo(args, res: dict, out: str) -> list[str]:
     lines.append("")
     preset = [f"  {PROG} disexport --geo {geo}{correction} --sectors {sectors} --r-min {span[0]} --r-max {span[1]} "
               "--output dis_preset.json",
-              "  --sectors must match the count in DiscImageStudio.",
+              "  Enter the same --sectors in DiscImageStudio.",
               f"  {why}"]
     picture = f"  {PROG} image{flag} --geo {geo}{correction} --picture my_picture.png --output iso/picture.iso"
     if media == "cd":
@@ -436,8 +460,9 @@ def after_geo_stop(args, reason: str) -> list[str]:
 
 def after_random(args) -> list[str]:
     flag = " --media cd" if getattr(args, "media", "dvd") == "cd" else ""
-    return ["Burn it onto a blank disc (Windows: right-click the .iso, Burn disc image), filling the disc, and keep",
-            "some blanks of the same batch for pictures. Then check the drive with it (1 to 3 minutes):",
+    return ["Burn it onto a blank disc (Windows: right-click the .iso, Burn disc image), and keep some blanks of the same",
+            "batch for pictures. If the burner says it does not fit, make a smaller one with --sectors.",
+            "Then check the drive with it (1 to 3 minutes):",
             f"  {PROG} timing {drive_flag()}{flag}"]
 
 
@@ -458,9 +483,12 @@ def after_selftest() -> list[str]:
     return [f"Next, see where you are: {PROG} guide"]
 
 
-def after_disexport() -> list[str]:
-    return ["Next, check the angle difference above, then enter the preset in DiscImageStudio",
-            "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.md."]
+def after_disexport(cd_constant_open: bool = False) -> list[str]:
+    lines = ["Next, check the angle difference above (well under 0.1 deg is fine), then enter the preset in DiscImageStudio",
+             "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.md."]
+    if cd_constant_open:
+        lines.append("On the CD route you can skip --along-track-frames: fine calibration in DiscImageStudio settles that constant.")
+    return lines
 
 
 def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -> list[str]:
@@ -506,7 +534,7 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
         first = ("CD still needs one more constant, so the preset below is the usual way on (the CD route in README.md). A picture ISO:"
                  if media == "cd" else "Make a picture ISO (replace my_picture.png with your image):")
         commands = [(first, f"{PROG} image{flag} --geo latest --picture my_picture.png --output iso/picture.iso"),
-                    ("Or export a preset for DiscImageStudio:",
+                    ("Or export a preset for DiscImageStudio (enter the same --sectors there; `info` on a blank disc gives the count):",
                      f"{PROG} disexport --media {media} --geo latest --sectors {sectors} --output dis_preset.json")]
 
     other = "cd" if media == "dvd" else "dvd"

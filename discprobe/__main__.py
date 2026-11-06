@@ -126,6 +126,18 @@ def _check_disc(dev, args) -> None:
         ui.say("Note: geo supports DVD and CD; on this BD only timing is known to work.", "yellow")
 
 
+def _blu_ray_speed(dev, args) -> None:
+    """--media has no BD, so a multiple was worked out for DVD. Only the disc can tell."""
+    multiple = getattr(args.speed, "multiple", None)
+    if multiple is None or args.sim:
+        return
+    from .scsi import DATA_IN
+    cfg = dev.execute(mmc.get_configuration(), 4096, DATA_IN)
+    if cfg.ok and mmc.media_family(mmc.parse_configuration(cfg.data).get("current_profile")) == "bd":
+        args.speed = round(multiple * mmc.BD_1X_KBPS)
+        print(f"This is a Blu-ray disc, so {multiple:g}x is {args.speed} kB/s")
+
+
 def _measuring(dev, args):
     """What the probe reads through: at a terminal, a wrapper that also draws the progress line."""
     if not ui.term().interactive:
@@ -199,6 +211,7 @@ def cmd_timing(args):
             print("note: could not raise process priority")
     dev = _open(args)
     _check_disc(dev, args)
+    _blu_ray_speed(dev, args)
     targets = [float(x) for x in args.targets.split(",")] if args.targets else timing.DEFAULT_TARGETS
     reader = _measuring(dev, args)
     probe = timing.TimingProbe(
@@ -379,6 +392,7 @@ def cmd_geo(args):
         raise_priority()
     dev = _open(args)
     _check_disc(dev, args)
+    _blu_ray_speed(dev, args)
     reader = _measuring(dev, args)
     ladder = Ladder(reader, ranges=ranges, r0_mm=args.r0_mm, pitch_um=args.pitch_um, bit_nm=args.bit_nm,
                     reps=args.reps, max_targets=args.max_targets, ref_lba=args.ref_lba,
@@ -458,6 +472,11 @@ def cmd_image(args):
         kind = f"design {os.path.basename(args.design_npy)}"
     elif args.picture:
         design = imagedisc.picture_design(args.picture, args.diameter_mm)
+        if args.media == "cd":      # the file system sits here, and write_iso refuses a drawing on top of it
+            kept = imagedisc.clear_inside(design, 26.0)
+            if (kept != design).any():
+                ui.say("The middle of a CD holds its file system, so the picture is left out inside 26 mm radius.", "dim")
+            design = kept
         kind = f"picture {os.path.basename(args.picture)}"
     else:
         design = imagedisc.grid_design(r_min=26.0 if args.media == "cd" else 24.5,
@@ -473,12 +492,15 @@ def cmd_image(args):
     print(f"{kind}, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
           f"({total * 2048 / 1e9:.2f} GB), {tex}")
     corr = imagedisc.load_correction(args.correction) if args.correction else None
-    with ui.writing(args.output, total) as log:
-        spec = writer.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
-                                meta={"geometry_from": os.path.abspath(args.geo), "design": kind,
-                                      "along_track_frames": args.along_track_frames,
-                                      "correction": os.path.abspath(args.correction) if args.correction else None},
-                                correction=corr, textures=args.textures, log=log)
+    try:
+        with ui.writing(args.output, total) as log:
+            spec = writer.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
+                                    meta={"geometry_from": os.path.abspath(args.geo), "design": kind,
+                                          "along_track_frames": args.along_track_frames,
+                                          "correction": os.path.abspath(args.correction) if args.correction else None},
+                                    correction=corr, textures=args.textures, log=log)
+    except ValueError as e:
+        sys.exit(str(e))
     with ui.busy("Checking what was written..."):
         problems = writer.verify_iso(args.output, design, u, v, bit, total, args.dark, args.light, correction=corr,
                                      textures=args.textures)
@@ -541,7 +563,7 @@ def cmd_disexport(args):
     if is_cd and not args.along_track_frames:
         print("Timing cannot see the CD along-track constant and none was given, so radial lines may come out "
               "twisted. Measure it on a burned disc, then use --along-track-frames.")
-    _next(guide.after_disexport())
+    _next(guide.after_disexport(is_cd and not args.along_track_frames))
 
 
 def cmd_tiles(args):
@@ -700,6 +722,11 @@ class _SpeedX(float):
     """--speed given as a multiple of 1x; its kB/s depend on --media."""
 
 
+class _SpeedKbs(int):
+    """A multiple already worked out for --media, remembered in case the disc turns out to be a Blu-ray."""
+    multiple = None
+
+
 def _speed(text: str):
     try:
         return _SpeedX(text[:-1]) if text[-1:].lower() == "x" else int(text)
@@ -740,7 +767,7 @@ examples:
   python -m discprobe timing --drive E: --media cd      CD (default speed 1411 kB/s = 8x)
 
 choosing --speed: lower usually means less noise, but not every drive changes speed; the
-"Rotation" and "Zone" lines show what it did. It takes kB/s or a multiple (1x: DVD 1385, CD 176.4).
+"Rotation" and "Zone" lines show what it did. It takes kB/s or a multiple (1x: DVD 1385, CD 176.4, BD 4495).
   DVD  2.4x 3324   4x 5540   8x 11080
   CD   8x 1411    16x 2822   24x 4234
 
@@ -776,8 +803,8 @@ examples:
   python -m discprobe disexport --geo latest --sectors <sectors> --r-min 25.8 --r-max 54.4 --output dis_preset.json
   python -m discprobe disexport --geo latest --sectors <sectors> --correction correction.json --output dis_preset_cd.json
 
---sectors is the capacity of your disc and must match the count DiscImageStudio uses. `info` prints it;
-DiscImageStudio's read-from-disc shows it too. Not the same as timing --sectors.
+--sectors is the capacity of your disc: take it from `info` on a blank disc, and enter the same number in
+DiscImageStudio. One user found its read-from-disc too high. Not the same as timing --sectors.
 --geo takes a summary.json, a geo result folder, or `latest`. A CD fit gives a CD preset; --media is only a check.""",
     "results": """\
 examples:
@@ -1004,7 +1031,7 @@ def _build_parser():
     sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, or latest; "
                                                     "a CD fit gives a CD preset")
     sp.add_argument("--correction", help="angle-correction file from the correction command")
-    sp.add_argument("--sectors", type=int, help="sector count of the preset (disc capacity, `info` prints it); required")
+    sp.add_argument("--sectors", type=int, help="the disc's capacity, not how much was burned (`info` on a blank disc prints it); required")
     sp.add_argument("--r-min", type=float, help="fit range: use the measured span (DVD default 25.8, CD the span geo measured)")
     sp.add_argument("--r-max", type=float, help="DVD default 54.4, CD the span geo measured")
     sp.add_argument("--along-track-frames", type=float, default=0,
@@ -1016,7 +1043,7 @@ def _build_parser():
 
     sp = sub.add_parser("random", help="write a random-data ISO for full-disc timing calibration")
     sp.add_argument("--output", default="iso/random.iso")
-    sp.add_argument("--sectors", type=int, default=2295104)
+    sp.add_argument("--sectors", type=int, default=2295104, help="how much to burn, not the disc size; it has to fit on the blank")
     sp.add_argument("--seed", type=int, default=1)
     sp.set_defaults(func=cmd_random)
 
@@ -1085,7 +1112,9 @@ def _main(argv=None):
                 setattr(args, key, value)
     if isinstance(getattr(args, "speed", None), _SpeedX):
         one_x = 176.4 if getattr(args, "media", "dvd") == "cd" else 1385
-        args.speed = round(args.speed * one_x)
+        multiple = float(args.speed)
+        args.speed = _SpeedKbs(round(multiple * one_x))
+        args.speed.multiple = multiple
         ui.say(f"--speed is {args.speed} kB/s", "dim")
     elif getattr(args, "speed", None) and args.speed < 100:
         ui.say(f"Note: --speed is in kB/s, so {args.speed} is very slow. For a multiple, write {args.speed}x.", "yellow")

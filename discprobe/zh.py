@@ -126,11 +126,19 @@ TEXT = {
     "Next, see what the drive and disc report:": "下一步，看看光驱和盘的信息：",
     "With several drives, use the letter of the one holding your disc.": "有多台光驱时，用放了盘的那台的盘符。",
     "Sector count for disexport --sectors: {a} ({b}).": "disexport --sectors 要填的扇区数：{a}（{b}）。",
-    "It has to match the count DiscImageStudio uses for this disc.": "它要和 DiscImageStudio 里这张盘用的扇区数一致。",
+    "Enter the same number in DiscImageStudio. A blank disc's `info` is the count to go by: one user found read-from-disc there too high.":
+        "DiscImageStudio 里也填这个数。以空白盘上 `info` 的数为准：有用户发现它的“从光盘读取”给的数偏大。",
     "free space of this blank disc": "这张空白盘的剩余空间",
-    "lead-out in the ATIP": "ATIP 里的导出区起点",
+    "lead-out in the ATIP; `info` on a blank disc gives a closer count": "ATIP 里的导出区起点；对空白盘运行 `info` 给的数更准",
     "last LBA + 1, the blank size only if this disc was burned full": "最后扇区号 + 1，只有整张刻满时才等于空白盘容量",
     "Nothing is recorded on this disc, so timing cannot use it. Burn a random-data disc first:": "这张盘上没有数据，timing 用不了。先刻一张随机数据盘：",
+    "Nothing is recorded on this disc, so timing cannot use it. The usual random disc would not fit, so make a smaller one:": "这张盘上没有数据，timing 用不了。默认大小的随机数据盘放不下，做一张小一点的：",
+    "The Blu-ray drives reported so far kept a constant linear speed whatever was asked, so another speed may not change this. To try one:": "目前报告过的蓝光光驱，请求什么速度都保持恒定线速度，所以换速度可能没用。想试的话：",
+    "geo supports DVD and CD, so timing is as far as this disc goes for now.": "geo 只支持 DVD 和 CD，这张盘目前只能测到 timing。",
+    "This is a Blu-ray disc, so {a}x is {b} kB/s": "这是蓝光盘，{a}x 是 {b} kB/s",
+    "The middle of a CD holds its file system, so the picture is left out inside 26 mm radius.": "CD 中间放着文件系统，所以半径 26 mm 以内不画图。",
+    "ISO 9660 sectors overlap the drawing; leave an inner background margin": "图案压到了文件系统的扇区上；请把半径 26 mm 以内留空",
+    "On the CD route you can skip --along-track-frames: fine calibration in DiscImageStudio settles that constant.": "走 CD 路线可以不管 --along-track-frames：DiscImageStudio 的精细标定会定下这个常数。",
     "Next, check the drive (1 to 3 minutes):": "下一步，检查这台光驱能不能测量（1 到 3 分钟）：",
     "Verdict: rotation is {m}, not CAV, so sector angles cannot be read at this speed.": "结论：转速方式是 {m}，不是恒定转速，这个速度下读不出扇区在盘面上的角度。",
     "Next, try another speed. Some drives never leave one, and the rotation test will show that:": "下一步，换个速度试试。有些光驱只有一个速度，转速测试会显示出来：",
@@ -171,11 +179,10 @@ TEXT = {
     "A varying track pitch does not fit better (fit error ratio {a} -> {b}), so the extra scatter is probably read noise. You can carry on. For a cleaner run, try a lower speed:":
         "偏差比噪声略大，但改用可变轨距也没有更好（拟合误差比 {a} -> {b}），多半是读取噪声，可以继续。想测得更干净，可以降速再测一次：",
     "Next, make a picture ISO (replace my_picture.png with your image):": "下一步，把图片做成可刻录的镜像（把 my_picture.png 换成你的图片）：",
-    "--sectors must match the count in DiscImageStudio.": "--sectors 要和 DiscImageStudio 里的数一致。",
+    "Enter the same --sectors in DiscImageStudio.": "DiscImageStudio 里也填同一个 --sectors。",
     "Or export a DiscImageStudio preset:": "或者导出 DiscImageStudio 预设：",
-    "({a}; it must match the count in DiscImageStudio.)": "（{a}；它要和 DiscImageStudio 里的数一致。）",
     "--sectors is from your last `info`: {a}": "--sectors 来自你上次的 `info`：{a}",
-    "--sectors is the recorded size of the measured disc": "--sectors 是所测这张盘的已刻录大小",
+    "--sectors is how much was burned on the measured disc. A blank can hold more: `info` on a blank gives its count.": "--sectors 是所测这张盘刻了多少。空白盘可能放得更多，对空白盘运行 `info` 可以看到它的扇区数。",
     "run `info` on a blank disc to {verb} --sectors": "对空白盘运行 `info` 可以查到 --sectors",
     "The drive would not hold one speed. Check it with timing, then try geo at a lower speed:": "光驱保持不住一个速度。先用 timing 检查，再用低一点的速度跑 geo：",
     "USB slim drives are often too noisy here; an internal drive may simply work.": "USB 超薄光驱在这里常常噪声太大，换内置光驱可能直接就行。",
@@ -185,13 +192,14 @@ TEXT = {
     "--ranges has to overlap the recorded area. See the last LBA with:": "--ranges 要和已刻录区域有重叠。查看最后扇区号：",
     "geo needs a burned disc of plain data. Make one, burn it and run geo again:": "geo 需要一张刻好的普通数据盘。做一张、刻好，再运行 geo：",
     "See how noisy this drive is: {c}": "看看这台光驱噪声有多大：{c}",
-    "Burn it onto a blank disc (Windows: right-click the .iso, Burn disc image), filling the disc, and keep": "把它刻到空白盘上并写满（Windows：右键 .iso，选“刻录光盘映像”），",
-    "some blanks of the same batch for pictures. Then check the drive with it (1 to 3 minutes):": "再留几张同一批的空白盘用来刻图。然后用这张盘检查光驱（1 到 3 分钟）：",
-    "Next, check the angle difference above, then enter the preset in DiscImageStudio": "下一步，看一下上面的角度差，然后把预设填进 DiscImageStudio",
+    "Burn it onto a blank disc (Windows: right-click the .iso, Burn disc image), and keep some blanks of the same": "把它刻到空白盘上（Windows：右键 .iso，选“刻录光盘映像”），再留几张同一批的空白盘用来刻图。",
+    "batch for pictures. If the burner says it does not fit, make a smaller one with --sectors.": "如果刻录软件说放不下，用 --sectors 做一张小一点的。",
+    "Then check the drive with it (1 to 3 minutes):": "然后用这张盘检查光驱（1 到 3 分钟）：",
+    "Next, check the angle difference above (well under 0.1 deg is fine), then enter the preset in DiscImageStudio": "下一步，看一下上面的角度差（远小于 0.1° 就行），然后把预设填进 DiscImageStudio",
     "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.md.": "（内外半径、扇区数、三个轨距项）。步骤见 docs/MANUAL.md。",
     "Next, see where you are: {c}": "下一步，看看进行到哪了：{c}",
-    "Try --sectors {a} ({b}). It must match the count DiscImageStudio uses: check with its read-from-disc, or run `info` on a blank disc.":
-        "试试 --sectors {a}（{b}）。它要和 DiscImageStudio 用的数一致：可用它的“从光盘读取”核对，或对空白盘运行 `info`。",
+    "Try --sectors {a} ({b}). Enter the same number in DiscImageStudio. `info` on a blank disc is the count to go by: one user found read-from-disc there too high.":
+        "试试 --sectors {a}（{b}）。DiscImageStudio 里也填这个数。以空白盘上 `info` 的数为准：有用户发现它的“从光盘读取”给的数偏大。",
     "This repository drives real hardware on Windows only. Ports: Linux github.com/bczhc/disc-probe, macOS github.com/NaiveTomcat/discprobe-macos. Anything with --sim works here.":
         "这个仓库只在 Windows 上操作真实光驱。其他系统的移植版：Linux github.com/bczhc/disc-probe，macOS github.com/NaiveTomcat/discprobe-macos。带 --sim 的命令这里都能跑。",
 
@@ -209,7 +217,7 @@ TEXT = {
     "This speed did not work; try another (1 to 3 minutes):": "这个速度不行，换一个再试（1 到 3 分钟）：",
     "Measure the disc's spiral (about 5 minutes):": "测量盘面螺旋几何（约 5 分钟）：",
     "Make a picture ISO (replace my_picture.png with your image):": "把图片做成可刻录的镜像（把 my_picture.png 换成你的图片）：",
-    "Or export a preset for DiscImageStudio:": "或者导出 DiscImageStudio 预设：",
+    "Or export a preset for DiscImageStudio (enter the same --sectors there; `info` on a blank disc gives the count):": "或者导出 DiscImageStudio 预设（那边也填同一个 --sectors，这个数看空白盘上的 `info`）：",
     "Install the Python packages disc-probe uses:": "安装 disc-probe 用到的 Python 依赖：",
     "Try the flow on the simulated drive:": "用模拟光驱走一遍流程：",
     "Where you are, for {m} ({o}: {c}):": "{m} 的进度（要看 {o}：{c}）：",
@@ -270,7 +278,7 @@ TEXT = {
     "a label design (not boolean) needs --textures, one per label": "标签图案（非布尔）需要 --textures，每个标签一种纹理",
     "--media {m} does not match {g}, which measured a {t}": "--media {m} 和 {g} 不符，那次测的是 {t}",
     "A preset needs --sectors: the capacity of your disc (`info` prints it)": "预设需要 --sectors，也就是你这张盘的容量（`info` 会打印）",
-    "Run `info` on a blank disc to get the count, or use read-from-disc in DiscImageStudio. The two have to match.": "对空白盘运行 `info` 可以查到这个数，也可以用 DiscImageStudio 的“从光盘读取”。两边要一致。",
+    "Run `info` on a blank disc to get the count, and enter the same number in DiscImageStudio.": "对空白盘运行 `info` 可以查到这个数，DiscImageStudio 里也填这个数。",
     "CD tiles need a CD geometry fit (media=cd)": "CD 色块盘需要 CD 的几何拟合 (media=cd)",
     "{a} has no geometry fit": "{a} 里没有几何拟合",
     "Stopped by Ctrl+C.{k}": "已按 Ctrl+C 停止。{k}",
@@ -485,7 +493,8 @@ TEXT = {
     "summary.json of the geo run the grid disc was burned with (recorded only)": "刻网格盘时所用 geo 结果的 summary.json（只作记录）",
     "summary.json of a geo run, its folder, or latest; a CD fit gives a CD preset": "geo 结果的 summary.json、它所在的文件夹，或 latest；CD 的结果会生成 CD 预设",
     "angle-correction file from the correction command": "correction 命令生成的角度修正文件",
-    "sector count of the preset (disc capacity, `info` prints it); required": "预设的扇区数（盘的容量，`info` 会打印）；必填",
+    "the disc's capacity, not how much was burned (`info` on a blank disc prints it); required": "盘的容量，不是刻了多少（对空白盘运行 `info` 会打印）；必填",
+    "how much to burn, not the disc size; it has to fit on the blank": "要刻多少，不是盘的容量；要放得下这张空盘",
     "fit range: use the measured span (DVD default 25.8, CD the span geo measured)": "拟合范围：用实测范围（DVD 默认 25.8，CD 用 geo 测到的范围）",
     "DVD default 54.4, CD the span geo measured": "DVD 默认 54.4，CD 用 geo 测到的范围",
     "CD only: along-track constant in frames, as in image --along-track-frames": "仅 CD：沿轨常数（帧），含义同 image --along-track-frames",
@@ -532,7 +541,7 @@ zsh：
   python -m discprobe timing --drive E: --media cd      CD（默认速度 1411 kB/s = 8x）
 
 --speed 怎么选：低速通常噪声更小，但不是每台光驱都会换速度；
-看“转速方式”和“位置”那几行就知道它实际怎么转。可以写 kB/s 或倍速（1x：DVD 1385，CD 176.4）。
+看“转速方式”和“位置”那几行就知道它实际怎么转。可以写 kB/s 或倍速（1x：DVD 1385，CD 176.4，BD 4495）。
   DVD  2.4x 3324   4x 5540   8x 11080
   CD   8x 1411    16x 2822   24x 4234
 
@@ -567,8 +576,8 @@ zsh：
   python -m discprobe disexport --geo latest --sectors <sectors> --r-min 25.8 --r-max 54.4 --output dis_preset.json
   python -m discprobe disexport --geo latest --sectors <sectors> --correction correction.json --output dis_preset_cd.json
 
---sectors 是盘的容量，要和 DiscImageStudio 用的数一致。`info` 会打印它，
-DiscImageStudio 的“从光盘读取”也能看到。和 timing --sectors 不是一回事。
+--sectors 是盘的容量：看空白盘上的 `info`，DiscImageStudio 里也填这个数。
+有用户发现它的“从光盘读取”给的数偏大。和 timing --sectors 不是一回事。
 --geo 可以写 summary.json、geo 结果文件夹，或 latest。CD 的结果会生成 CD 预设；--media 只用来核对。""",
     "results": """\
 例子：

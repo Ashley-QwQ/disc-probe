@@ -66,6 +66,14 @@ def picture_design(path: str, diameter_mm: float = 116.0, threshold: float = 0.5
     return out
 
 
+def clear_inside(design: np.ndarray, r_mm: float) -> np.ndarray:
+    """The design with everything inside this radius turned to background."""
+    x, y = _grid_coords()
+    out = design.copy()
+    out[np.hypot(x, y) < r_mm] = False
+    return out
+
+
 def load_correction(path: str):
     """phi(r) in degrees from an angle-correction file (polynomial, held constant outside its range)."""
     with open(path, encoding="utf-8") as f:

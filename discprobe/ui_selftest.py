@@ -419,6 +419,11 @@ def _install(c) -> None:
         completion.add_to_startup(startup, "line")
         with open(startup, "rb") as f:
             c.check(f.read().decode("utf-16") == f"# mine\n{completion.MARKER}\nline\n", "a UTF-16 startup file stays UTF-16")
+        with open(startup, "w", encoding="utf-8") as f:
+            f.write(f"{completion.MARKER}\n")
+        c.check(completion.add_to_startup(startup, "line"), "a marker with its line gone is not called installed")
+        with open(startup, encoding="utf-8") as f:
+            c.check(f.read() == f"{completion.MARKER}\nline\n", "the line comes back without a second marker")
         with open(startup, "wb") as f:
             f.write(b"# \xd6\xd0\xce\xc4 keep\n")
         completion.add_to_startup(startup, completion.load_line("powershell"))
@@ -577,6 +582,7 @@ def _results(c) -> None:
     c.check(guide.sectors_from_info(report)[0] == 2298496, "--sectors from a blank DVD's free space")
     del report["track_1"]
     c.check(guide.sectors_from_info(report)[0] == 359849, "--sectors from a CD's ATIP")
+    c.check("closer count" in guide.sectors_from_info(report)[1], "the ATIP count says a blank disc gives a closer one")
     del report["atip"]
     c.check(guide.sectors_from_info(report)[0] == 101, "--sectors from the last LBA")
     c.check(guide.sectors_from_info({}) is None, "--sectors unknown says nothing")
@@ -584,6 +590,8 @@ def _results(c) -> None:
 
 def _advice(c) -> None:
     from argparse import Namespace
+    from . import __main__ as cli
+    parsers = cli._build_parser()[1].choices
     args = Namespace(drive="H:", sim=None, media="dvd", speed=None, sectors=1, transport="auto", out="results")
     def timed(mode, jitter):
         return {"period": {"rotation": {"mode": mode}, "zones": [{"jitter_deg": j} for j in jitter]}}
@@ -656,6 +664,37 @@ def _advice(c) -> None:
             guide.compare_pitch = real_compare
     finally:
         i18n.use("en")
+    measured = {"setup": {"last_lba": 359751}, "fit": {"media": "cd"}}
+    c.check("how much was burned" in guide._sectors_for(measured, "no such folder")[1], "--sectors from the measured disc says it may be less than a blank holds")
+    def blank(profile, count):
+        return {"configuration": {"parsed": {"current_profile": profile}}, "track_1": {"parsed": {"blank": True, "track_start": 0, "free_blocks": count}}}
+    c.check("--sectors 699648" in guide._random_for_blank(blank(0x11, 713936))[1], "a miniDVD gets a random disc that fits, with room to close")
+    usual_size = guide._random_for_blank(blank(0x11, 2295104))
+    c.check("--sectors" not in usual_size[1] and "would not fit" not in usual_size[0], "a 2295104-sector DVD keeps the usual size, which has burned many times")
+    c.check("--sectors" not in guide._random_for_blank(blank(0x11, 2298496))[1], "a 2298496-sector DVD keeps the usual size")
+    full_cd = guide._random_for_blank(blank(0x09, 359847))[1]
+    c.check("--sectors" not in full_cd and "--media cd" in full_cd, "a blank CD is told --media cd")
+    i18n.use("zh")
+    try:
+        said = [guide.sectors_hint("no such file"), "Enter the same number in DiscImageStudio. A blank disc's `info` is the count to go by: one user found read-from-disc there too high."]
+        c.check(all(i18n.tr(x) != x for x in said) and "`info`" in said[0], "the --sectors advice goes by `info` on a blank disc, in both languages")
+    finally:
+        i18n.use("en")
+    helps = [a.help for name in ("timing", "random", "disexport") for a in parsers[name]._actions if "--sectors" in a.option_strings]
+    c.check(len(helps) == 3 and all("not " in x for x in helps), "each --sectors help says what it is not")
+    c.check("--media cd --sectors 326336" in guide._random_for_blank(blank(0x09, 333000))[1], "a 74-minute CD gets a random disc that fits")
+    c.check("--media cd" in "".join(guide.after_info(Namespace(**vars(args)), blank(0x09, 359847))), "info on a blank CD offers the CD command")
+    bd = {"setup": {"family": "bd"}, **timed("mixed", [0.4])}
+    bd_lines = guide.after_timing(args, bd)
+    c.check("constant linear speed" in bd_lines[1] and "8990" in bd_lines[2] and "3324" not in "".join(bd_lines), "on Blu-ray a non-CAV result does not promise another speed helps, and offers a BD speed")
+    bd_good = guide.after_timing(args, {"setup": {"family": "bd"}, **timed("CAV", [9.0])})
+    c.check(any("8990" in x for x in bd_good) and not any("--sectors 16" in x or " geo " in x for x in bd_good), "a noisy Blu-ray stays with BD speeds and is not sent on to geo")
+    i18n.use("zh")
+    try:
+        c.check(all(i18n.tr(x) != x for x in (bd_lines[1], bd_good[-1], *guide.after_random(Namespace(**vars(args)))[:3], *guide.after_disexport(True))), "the new advice has Chinese")
+    finally:
+        i18n.use("en")
+    c.check(len(guide.after_disexport(True)) == 3 and len(guide.after_disexport()) == 2, "a CD preset without the constant says the route settles it")
     cd_next = guide.after_geo(cd_args, clean, os.path.join("results", "geo-H-20260101-100000"))
     c.check(any("disexport" in x for x in cd_next[:6]) and "README.md" in "".join(cd_next) and
             next(i for i, x in enumerate(cd_next) if "disexport" in x) < next(i for i, x in enumerate(cd_next) if " image" in x),
@@ -799,6 +838,34 @@ def _command_line(c) -> None:
         cli._open = real_open
         cli._Parser.last_out = None
         ui._term = real_term
+
+
+def _blu_ray(c) -> None:
+    from argparse import Namespace
+    from . import __main__ as cli
+    from .scsi import ScsiResult
+
+    class Disc:
+        def __init__(self, profile):
+            self.profile, self.commands = profile, 0
+
+        def execute(self, cdb, data_len=0, direction=1, timeout_s=30):
+            self.commands += 1
+            return ScsiResult(0, bytes([0, 0, 0, 4, 0, 0, 0, self.profile]), None, 0, 1000)
+
+    def run(profile, speed, sim=None):
+        args = Namespace(speed=speed, sim=sim)
+        disc = Disc(profile)
+        with contextlib.redirect_stdout(io.StringIO()):
+            cli._blu_ray_speed(disc, args)
+        return args.speed, disc.commands
+    eight = cli._SpeedKbs(11080)
+    eight.multiple = 8.0
+    c.check(run(0x41, eight)[0] == 35960, "8x on a Blu-ray disc is 35960 kB/s")
+    c.check(run(0x11, eight)[0] == 11080, "8x on a DVD stays 11080 kB/s")
+    c.check(run(0x41, 5540) == (5540, 0), "a speed in kB/s is left alone and asks the drive nothing")
+    c.check(run(0x41, eight, sim="cav") == (eight, 0), "the simulated drive is not asked")
+    c.check(json.loads(json.dumps({"speed": eight}))["speed"] == 11080, "the speed still saves as a plain number")
 
 
 def _no_disc(c) -> None:
@@ -1080,6 +1147,7 @@ def run(c) -> None:
     _missing_package(c)
     _plain_errors(c)
     _no_disc(c)
+    _blu_ray(c)
     _priority(c)
     _greetings(c)
     _chinese(c)

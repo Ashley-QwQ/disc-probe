@@ -107,6 +107,8 @@ DVD_TRACK_DENSITY = {0: "0.74 um/track", 1: "0.80 um/track", 2: "0.615 um/track"
 
 DISC_STATUS = {0: "empty", 1: "incomplete", 2: "complete", 3: "other"}
 
+BD_1X_KBPS = 4495
+
 NO_DISC = ("No disc in the drive, or the tray is open (burning ejects the disc when it finishes). "
            "Load the disc, wait a few seconds and run this again")
 LOADING = "The drive is not ready yet, it may still be loading the disc. Wait a few seconds and run this again"
