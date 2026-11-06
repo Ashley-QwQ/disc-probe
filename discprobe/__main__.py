@@ -371,6 +371,8 @@ def cmd_calscan(args):
 
 def cmd_geo(args):
     from .geo import Ladder, write_outputs
+    if args.sectors not in (1, 16) or (args.media == "cd" and args.sectors != 1):
+        sys.exit(f"--sectors {args.sectors}: geo reads 1 sector, or on a DVD 16 for one whole ECC block")
     ranges = None
     if args.ranges:
         try:
@@ -397,7 +399,7 @@ def cmd_geo(args):
     ladder = Ladder(reader, ranges=ranges, r0_mm=args.r0_mm, pitch_um=args.pitch_um, bit_nm=args.bit_nm,
                     reps=args.reps, max_targets=args.max_targets, ref_lba=args.ref_lba,
                     speed_kbs=None if args.sim else args.speed, host_delay_ms=args.host_delay_ms, media=args.media,
-                    chi2_abort=args.chi2_abort)
+                    chi2_abort=args.chi2_abort, sectors=args.sectors)
     progress, log = None, print
     if reader is not dev:
         progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys())
@@ -954,6 +956,8 @@ def _build_parser():
     sp.add_argument("--margin-sectors", type=int, default=3000, help="kept away from ring edges")
     sp.add_argument("--ref-lba", type=int)
     sp.add_argument("--reps", type=int, default=24, help="reference/target read pairs per rung")
+    sp.add_argument("--sectors", type=int, default=1,
+                    help="sectors per measurement read, not the disc size: 1, or on a DVD 16 for one whole ECC block")
     sp.add_argument("--max-targets", type=int, default=22)
     sp.add_argument("--host-delay-ms", type=float, default=25.0)
     sp.add_argument("--r0-mm", type=float, default=24.0, help="prior geometry (loose)")

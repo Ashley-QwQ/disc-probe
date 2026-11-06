@@ -122,6 +122,12 @@ def _ladder(c: Checker):
     c.check(span < 1.5, f"{len(lad.targets)} rungs, angle error over 0-85 % of the disc {span:.3f} deg "
                         f"(reported 1 sigma {res['angle_sigma_measured_span_deg']:.3f}, "
                         f"chi2/dof {res['chi2_per_dof']:.2f})")
+    sim = SimDrive(mode="cav", seed=7, reread_delay_ms=35.0)
+    whole = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None, sectors=16)
+    whole.run()
+    e = np.degrees(theta(n, whole.u, whole.v) - theta(n, lad.u, lad.v))
+    span = float(e.max() - e.min())
+    c.check(span < 1.5, f"reading whole ECC blocks gives the same geometry: {span:.3f} deg apart over 0-85 % of the disc")
 
 
 def _unreadable(c: Checker):

@@ -199,6 +199,8 @@ def _carry(args) -> str:
     parts = [drive_flag(args)]
     if getattr(args, "media", "dvd") == "cd":
         parts.append("--media cd")
+    if getattr(args, "sectors", 1) == 16:
+        parts.append("--sectors 16")
     if getattr(args, "transport", "auto") != "auto":
         parts.append(f"--transport {args.transport}")
     if getattr(args, "out", "results") != "results":

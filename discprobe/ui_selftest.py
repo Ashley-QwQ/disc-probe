@@ -680,8 +680,10 @@ def _advice(c) -> None:
         c.check(all(i18n.tr(x) != x for x in said) and "`info`" in said[0], "the --sectors advice goes by `info` on a blank disc, in both languages")
     finally:
         i18n.use("en")
-    helps = [a.help for name in ("timing", "random", "disexport") for a in parsers[name]._actions if "--sectors" in a.option_strings]
-    c.check(len(helps) == 3 and all("not " in x for x in helps), "each --sectors help says what it is not")
+    helps = [a.help for name in ("timing", "geo", "random", "disexport") for a in parsers[name]._actions if "--sectors" in a.option_strings]
+    c.check(len(helps) == 4 and all("not " in x for x in helps), "each --sectors help says what it is not")
+    whole = Namespace(**{**vars(args), "sectors": 16})
+    c.check(any("geo" in x and "--sectors 16" in x for x in guide.after_timing(whole, timed("CAV", [0.5]))), "timing with --sectors 16 carries it to the geo command")
     c.check("--media cd --sectors 326336" in guide._random_for_blank(blank(0x09, 333000))[1], "a 74-minute CD gets a random disc that fits")
     c.check("--media cd" in "".join(guide.after_info(Namespace(**vars(args)), blank(0x09, 359847))), "info on a blank CD offers the CD command")
     bd = {"setup": {"family": "bd"}, **timed("mixed", [0.4])}

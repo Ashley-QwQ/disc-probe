@@ -57,7 +57,7 @@ MIN_SPACING_SECTORS = 4000  # about a third of a millimetre of radius
 class Ladder:
     def __init__(self, dev, ranges=None, r0_mm=None, pitch_um=None, bit_nm=None, reps=None,
                  max_targets=None, sigma_u=None, sigma_v=None, speed_kbs="default", ref_lba=None,
-                 host_delay_ms=25.0, log=print, seed=1, media="dvd", chi2_abort=CHI2_ABORT):
+                 host_delay_ms=25.0, log=print, seed=1, media="dvd", chi2_abort=CHI2_ABORT, sectors=1):
         self.media = media
         self.chi2_abort = chi2_abort
         is_cd = media == "cd"
@@ -84,7 +84,7 @@ class Ladder:
         self.ref_arg = ref_lba
         self.log = log
         self.tp = TimingProbe(dev, log=lambda *_: None, reps=reps, speed_kbs=speed_kbs,
-                              host_delay_ms=host_delay_ms, seed=seed, media=media)
+                              host_delay_ms=host_delay_ms, seed=seed, media=media, sectors=sectors)
         self.targets: list[dict] = []
         self.u, self.v, self.c = self.u0, self.v0, 0.0
         self.cov = None

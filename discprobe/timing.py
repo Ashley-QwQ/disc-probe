@@ -234,7 +234,7 @@ class TimingProbe:
                                             "status": res.status, "sense": str(res.sense or "")}
         self.summary["setup"] = {"profile": f"0x{profile:04X}" if profile is not None else None,
                                  "profile_name": mmc.PROFILES.get(profile), "family": self.family,
-                                 "block_sectors": self.block, "last_lba": self.last_lba,
+                                 "block_sectors": self.block, "sectors_per_read": self.sectors, "last_lba": self.last_lba,
                                  "first_track_audio": audio, "read_method": self.method}
         self.log(f"Disc: {self.summary['setup']['profile_name']}, last LBA {self.last_lba}, "
                  f"reading with {self.method}")

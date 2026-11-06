@@ -434,6 +434,7 @@ TEXT = {
     "reference sector as a disc fraction": "基准扇区的位置，用占已刻录容量的比例表示",
     "read speed in kB/s or as a multiple: 4x, or DVD 8x = 11080, 16x = 22160 (omit to leave as is, sends SET CD SPEED otherwise)": "读取速度，写 kB/s 或倍速：4x，或 DVD 8x = 11080、16x = 22160（不写就不改速度；写了会发送 SET CD SPEED）",
     "set the Rotational Control bit of SET CD SPEED; MMC defines it for writing, so whether reads change is only known from the period test": "设置 SET CD SPEED 的转速控制位；标准里它是给写入用的，读取会不会变，只能看转速测试",
+    "sectors per measurement read, not the disc size: 1, or on a DVD 16 for one whole ECC block": "每次测量读几个扇区，不是盘的大小：1，或在 DVD 上用 16 读一个完整的 ECC 块",
     "sectors per measurement read, not the disc size; 16 reads one whole aligned DVD ECC block": "每次测量读几个扇区，不是盘的大小；16 表示读一个完整对齐的 DVD ECC 块",
     "random pause (0..N ms) before each timed read, so repeated reads do not all span the same number of revolutions; should exceed one revolution": "每次计时读之前随机等待 0 到 N 毫秒，避免重复读取都跨过相同圈数；应当长于转一圈的时间",
     "sectors read elsewhere before each measurement when the cache cannot be bypassed": "绕不过缓存时，每次测量前先读别处多少个扇区把缓存挤掉",
