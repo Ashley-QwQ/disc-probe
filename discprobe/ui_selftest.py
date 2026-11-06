@@ -153,6 +153,91 @@ def _layout(c) -> None:
     c.check(frame_bytes < 420, f"a true-colour frame stays small ({frame_bytes} bytes)")
 
 
+def _modern_terminal(c) -> None:
+    env = {"TERM": "xterm", "WT_SESSION": "x"}
+    wt = ui.Term(Utf8Tty(), env=env, platform="linux")
+    c.check(wt.blocks and wt.sync and wt.taskbar and not wt.unicode, "Windows Terminal draws blocks itself, and takes taskbar progress and synchronized frames")
+    c.check(not ui.Term(FakeTty(), env=env, platform="linux").blocks, "no blocks without UTF-8")
+    other = ui.Term(Utf8Tty(), env={"TERM": "xterm"}, platform="linux")
+    c.check(not (other.blocks or other.sync or other.taskbar), "a terminal that does not say who it is gets none of this")
+    conemu = ui.Term(Utf8Tty(), env={"TERM": "xterm", "ConEmuANSI": "ON"}, platform="linux")
+    c.check(conemu.taskbar and not conemu.blocks, "ConEmu takes taskbar progress only")
+    c.check(ui.oklch(1, 0, 0) == (255, 255, 255) and ui.oklch(0, 0, 0) == (0, 0, 0), "OKLCH: white and black are themselves")
+
+    level = [0.25]
+    s = Utf8Tty()
+    p = ui.Progress(lambda: (level[0], "same", None), ui.Term(s, env=env, platform="linux"))
+    p.tick(force=True)
+    c.check("\x1b]9;4;1;25\x07" in s.getvalue(), "the taskbar shows the percentage")
+    p.tick(force=True)
+    c.check(s.getvalue().count("\x1b]9;4;") == 1, "and hears it only when it changes")
+    p.taskbar_at -= ui.TASKBAR_REFRESH_S
+    p.tick(force=True)
+    c.check(s.getvalue().count("\x1b]9;4;") == 2, "or now and then, for terminals that forget")
+    level[0] = None
+    p.tick(force=True)
+    c.check("\x1b]9;4;3;0\x07" in s.getvalue(), "work of unknown length is indeterminate")
+    p.close()
+    c.check("\x1b]9;4;0;0\x07" in s.getvalue(), "closing clears the taskbar")
+    s = Utf8Tty()
+    p = ui.Progress(lambda: (0.25, "same", None), ui.Term(s, env={"TERM": "xterm"}, platform="linux"))
+    p.tick(force=True)
+    p.close()
+    c.check("\x1b]" not in s.getvalue(), "other terminals are sent no taskbar sequence")
+
+    p = ui.Progress(lambda: (0.25, "rotation test, zone 2/3", 40.0), ui.Term(Utf8Tty(), env=env, platform="linux"), pulse=[100.0, 900.0, 500.0])
+    for fraction, shown in ((0.0, "─" * 20), (0.025, "╸" + "─" * 19), (0.05, "━" + "─" * 19), (0.5, "━" * 10 + "─" * 10), (0.999, "━" * 19 + "╸"), (1.0, "━" * 20)):
+        c.check(p._bar(fraction, 0.0)[0] == shown, f"the bar at {fraction} moves in half cells")
+        c.check(ANSI.sub("", p._bar(fraction, 0.0)[1]) == shown, f"and paint only adds colour at {fraction}")
+    c.check(ui.SPARK[0] in p._spark()[0][0] and ui.SPARK[-1] in p._spark()[0][0] and len(p._spark()[0][0]) == ui.SPARK_CELLS, "read times fill a fixed width, lowest to highest")
+    for columns in (200, 120, 100, 80, 60, 40, 24, 12):
+        line, width = p._render(columns)
+        c.check(i18n.display_width(ANSI.sub("", line)) == width <= max(10, columns - 1), f"with read times, {columns} columns: the line fits ({width})")
+    c.check(ui.SPARK[-1] in ANSI.sub("", p._render(120)[0]) and ui.SPARK[-1] not in ANSI.sub("", p._render(80)[0]), "read times are the first thing a narrow line loses")
+    frame_bytes = len(p._render(120)[0].encode())
+    c.check(frame_bytes < 420, f"a full frame with bar and read times stays small ({frame_bytes} bytes)")
+    p.close()
+
+    class Timed:
+        ok = True
+        duration_us = 123.0
+
+    class Device:
+        def execute(self):
+            return Timed()
+
+        def idle(self, seconds):
+            pass
+    reader = ui.ProgressDevice(Device())
+    reader.idle(0)
+    c.check(not reader.read_times, "no read yet, nothing to show")
+    reader.execute()
+    c.check(not reader.read_times, "a read is noted in the pause after it, not while it is timed")
+    reader.idle(0)
+    c.check(list(reader.read_times) == [123.0], "the pause notes it")
+
+    colour = ui.Term(FakeTty(), env={"TERM": "xterm"}, platform="linux")
+    plain = ui.Term(FakeTty(), env={"TERM": "xterm", "NO_COLOR": "1"}, platform="linux")
+    line = "  python -m discprobe geo --drive H: --speed 8x"
+    c.check(ANSI.sub("", ui.command(line, colour)) == line and "\x1b[1;36m geo\x1b[0m" in ui.command(line, colour), "a command to copy: the subcommand stands out, the text is untouched")
+    c.check(ui.command(line, plain) == line, "no colour: as written")
+    c.check(ui.command("  python -m pip install numpy", colour) == "\x1b[36m  python -m pip install numpy\x1b[0m", "another command: all one colour")
+    lines = [f"Where you are, for DVD (CD: {guide.PROG} guide --media cd):", "", "  [x] Python packages        numpy", "  [ ] Geometry (geo)         not run yet", "Next:", "  Make it:", line, "All commands: x"]
+    for text in lines:
+        c.check(ANSI.sub("", ui.guide_line(text, colour)) == text and ui.guide_line(text, plain) == text, f"guide only adds colour: {text.strip()[:24]}")
+    c.check("\x1b[32m[x]" in ui.guide_line(lines[2], colour) and "\x1b[2m[ ]" in ui.guide_line(lines[3], colour), "done is green, the rest steps back")
+    i18n.use("zh")
+    try:
+        c.check(i18n.tr("Next:") in ANSI.sub("", ui.guide_line("Next:", colour)) and i18n.tr("Next:") != "Next:", "guide is translated before it is painted")
+    finally:
+        i18n.use("en")
+    text = "usage: python -m discprobe x\n\nStart here:\n  guide       show\n\noptions:\n  -h, --help  show\n  --drive D   the drive\n  python -m discprobe random --output a\n"
+    c.check(ANSI.sub("", ui.help_text(text, colour)) == text, "help only adds colour")
+    c.check(ui.help_text(text, plain) == text, "no colour: help as argparse wrote it")
+    c.check("\x1b[36m-h, --help\x1b[0m" in ui.help_text(text, colour) and "\x1b[36mguide\x1b[0m" in ui.help_text(text, colour) and "\x1b[1mStart here:\x1b[0m" in ui.help_text(text, colour),
+            "headings and names stand out")
+
+
 def _fill_disc(c) -> None:
     import random
 
@@ -1258,12 +1343,56 @@ def _banner(c) -> None:
     banner.show(pipe)
     c.check(pipe.stream.getvalue() == "", "a pipe gets no banner")
 
+    fine = ui.Term(Utf8Tty(), env={"TERM": "xterm", "WT_SESSION": "x"}, platform="linux")
+    rows = banner.disc_rows(1.0, fine)
+    c.check(len(rows) == banner.DISC_H and all(len(ansi.sub("", r)) == banner.DISC_W for r in rows), "half blocks: the disc keeps its size")
+    c.check("▀" in rows[6] and "48;2;" in rows[6] and ansi.sub("", rows[0]).startswith(" "), "half blocks: two colours a cell, and round")
+    c.check(banner._pixels(0.0)[banner.DISC_H * banner.DISC_W + banner.DISC_W // 2] is None, "half blocks: the hole shows through")
+    c.check(banner.disc_rows(1.0, fine, 1.0) != rows, "steps done dye the track")
+    c.check(banner.disc_cells(1.0, 0.401) == banner.disc_cells(1.0, 0.4), "and a small difference in steps is not a new disc")
+    seen = {}
+    first = banner._next_frame(1.0, fine, 120, seen, None, 0.0)
+    again = banner._next_frame(1.0, fine, 120, seen, None, 0.0)
+    moved = banner._next_frame(1.1, fine, 120, seen, None, 0.0)
+    c.check(not again.replace("\n", "") and 0 < len(moved) < len(first) * 0.8, f"only changed cells go out ({len(first)}, then {len(moved)} bytes)")
+    grid = [[" "] * 120 for _ in range(banner.DISC_H)]
+    position = re.compile(r"\x1b\[(\d+)G([^\x1b]*)|\x1b\[[0-9;]*m([^\x1b]*)")
+    painted = banner._next_frame(1.1, fine, 120, {}, None, 0.0).split("\n")
+    whole = [ansi.sub("", r).rstrip() for r in banner.frame(1.1, fine, 120)]
+    for y, row in enumerate(painted):
+        column = 0
+        for match in position.finditer(row):
+            column = int(match[1]) - 1 if match[1] else column
+            for ch in match[2] or match[3] or "":
+                grid[y][column] = ch
+                column += 1
+    c.check(["".join(g).rstrip() for g in grid] == whole, "sent from nothing, the changes add up to the whole frame")
+    os.environ.update(COLUMNS="100", LINES="30")
+    try:
+        clock = [0.0]
+
+        def wait(seconds):
+            clock[0] += seconds
+        banner.show(fine, pause=wait, now=lambda: clock[0], burned=0.4)
+    finally:
+        for key, value in saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+    text = fine.stream.getvalue()
+    c.check(text.count(ui.SYNC_START) == text.count(ui.SYNC_END) > 1 and text.endswith("\x1b[?25h\n\n"), "each frame is sent whole, and the cursor comes back")
+    still = ui.Term(Utf8Tty(), env={"TERM": "xterm", "WT_SESSION": "x", "DISCPROBE_NO_ANIMATION": "1"}, platform="linux")
+    banner.show(still, pause=wait, now=lambda: clock[0])
+    c.check("▀" in still.stream.getvalue() and ui.SYNC_START not in still.stream.getvalue(), "no motion: one still frame of the same disc")
+
 
 def run(c) -> None:
     print("terminal layer: capabilities, progress line, games, advice, opening screen, Chinese")
     _preflight(c)
     _banner(c)
     _term_matrix(c)
+    _modern_terminal(c)
     _progress_line(c)
     _layout(c)
     _snake(c)

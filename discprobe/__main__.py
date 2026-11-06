@@ -52,7 +52,7 @@ def _next(lines) -> None:
     if lines:
         ui.say()
     for line in lines:
-        ui.say(line, "cyan" if line.lstrip().startswith("python ") else None)
+        ui.say(ui.command(i18n.tr(line)) if line.lstrip().startswith("python ") else line)
 
 
 def _need_windows() -> None:
@@ -221,7 +221,7 @@ def cmd_timing(args):
         stop_if_not_cav=not args.force, time_limit_s=args.max_minutes * 60 if args.max_minutes else None)
     progress = None
     if reader is not dev:
-        progress = reader.progress = ui.Progress(ui.timing_status(probe, reader), keys=ui.open_keys())
+        progress = reader.progress = ui.Progress(ui.timing_status(probe, reader), keys=ui.open_keys(), pulse=reader.read_times)
         probe.log = progress.log
     stopped = None
     try:
@@ -402,7 +402,7 @@ def cmd_geo(args):
                     chi2_abort=args.chi2_abort, sectors=args.sectors)
     progress, log = None, print
     if reader is not dev:
-        progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys())
+        progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys(), pulse=reader.read_times)
         log = ladder.log = progress.log
     out = _outdir(args, "geo", dev)
     stopped = None
@@ -671,16 +671,18 @@ def cmd_selftest(args):
 def cmd_guide(args):
     from . import greetings
     from .banner import show
-    show()
-    if ui.term().interactive:
-        ui.say(greetings.pick(first_time=not any(not r.simulated for r in guide.scan())))
-        ui.say()
     media = getattr(args, "guide_media", None)
     if media is None:   # carry on with what was measured last
         newest = next((r for r in guide.scan() if not r.simulated and r.kind in ("timing", "geo")), None)
         media = newest.media if newest else "dvd"
-    for line in guide.guide_lines(media, notes=ui.term().interactive):
-        print(ui.term().style(line, "cyan") if line.lstrip().startswith("python ") else line)
+    lines = guide.guide_lines(media, notes=ui.term().interactive)
+    steps = [line for line in lines if line.startswith(("  [x]", "  [ ]"))]
+    show(burned=sum(line.startswith("  [x]") for line in steps) / max(len(steps), 1))
+    if ui.term().interactive:
+        ui.say(greetings.pick(first_time=not any(not r.simulated for r in guide.scan())))
+        ui.say()
+    for line in lines:
+        print(ui.guide_line(line))
     from . import completion
     if not completion.installed():
         ui.say(f"Tab completion: {guide.PROG} completion install", "dim")
@@ -709,6 +711,9 @@ class _Parser(argparse.ArgumentParser):
     argv: list[str] = []
     commands: dict = {}
     last_out: str | None = None     # where a stopped run left its files
+
+    def format_help(self):
+        return ui.help_text(super().format_help())
 
     def error(self, message):
         hint = None

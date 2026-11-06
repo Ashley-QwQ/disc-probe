@@ -3,16 +3,19 @@
 All of it is off unless stdout is a real terminal, so pipes, redirects and agents get the
 plain output they always had (DISCPROBE_PLAIN=1 turns it off in a terminal too). 7-bit ASCII is
 the default, because a UTF-8 encoding says nothing about the font; DISCPROBE_UNICODE=1 asks for
-finer glyphs. Colour needs ANSI, and the progress line needs nothing but a carriage return.
-Animation is a function of the clock, never of how often something was drawn, because reads
-come at an uneven pace; each animated thing has a still form for --no-animation.
+finer glyphs. Terminals that draw box and block characters themselves get those without asking.
+Colour needs ANSI, and the progress line needs nothing but a carriage return. Animation is a
+function of the clock, never of how often something was drawn, because reads come at an uneven
+pace; each animated thing has a still form for --no-animation.
 """
 
 from __future__ import annotations
 
 import atexit
-import colorsys
+import collections
 import contextlib
+import functools
+import math
 import os
 import re
 import shutil
@@ -25,9 +28,17 @@ from .i18n import display_width, tr
 
 SPINNER_ASCII = ("(|)", "(/)", "(-)", "(\\)")
 SPINNER_UNICODE = ("◐", "◓", "◑", "◒")     # a disc turning
+SPINNER_BLOCKS = ("▘", "▝", "▗", "▖")      # the same turn, in the range these terminals draw themselves
 SPINNER_FRAME_S = 0.12
 BAR_ASCII = ("=", ">", ".")
 BAR_UNICODE = ("━", "╸", "─")
+SPARK = "▁▂▃▄▅▆▇█"
+SPARK_CELLS = 12
+GLINT_EVERY_S = 4.0
+GLINT_SWEEP_S = 1.2
+GLINT_REACH = 2.0
+TASKBAR_REFRESH_S = 5.0     # Ghostty drops a progress state it has not heard about for 15 s
+SYNC_START, SYNC_END = "\x1b[?2026h", "\x1b[?2026l"
 STYLES = {"bold": "1", "dim": "2", "red": "31", "green": "32", "yellow": "33", "cyan": "36", "flash": "1;36"}
 PERCENT_FLASH_S = 0.4
 BAR_WIDTH = 20
@@ -104,6 +115,11 @@ class Term:
         self.green = "92" if background.isdigit() and int(background) not in (7, 15) else "32"
         utf8 = (getattr(self.stream, "encoding", None) or "").lower().replace("-", "") == "utf8"
         self.unicode = self.ansi and utf8 and bool(env.get("DISCPROBE_UNICODE"))
+        # These terminals say who they are and draw U+2500-259F themselves, whatever the font has.
+        modern = bool(env.get("WT_SESSION")) or env.get("TERM_PROGRAM") in ("ghostty", "WezTerm") or env.get("TERM") == "xterm-kitty"
+        self.blocks = self.unicode or (self.ansi and utf8 and modern)
+        self.sync = self.ansi and modern
+        self.taskbar = self.ansi and (modern or env.get("ConEmuANSI") == "ON")
 
     def style(self, text: str, name: str) -> str:
         return f"\x1b[{STYLES[name]}m{text}\x1b[0m" if self.color else text
@@ -147,18 +163,40 @@ def ask(question: str, default: bool = True) -> bool:
     return answer.startswith("y") if answer else default
 
 
-def _rainbow(position: float, saturation: float = 0.8) -> str:
-    r, g, b = (int(255 * v) for v in colorsys.hsv_to_rgb(position % 1.0, saturation, 0.85))
+def oklch(light: float, chroma: float, hue: float) -> tuple[int, int, int]:
+    """OKLCH to sRGB bytes, `hue` in turns. Equal `light` looks equally bright, unlike HSV, whose blue is dim and yellow glares."""
+    a, b = chroma * math.cos(math.tau * hue), chroma * math.sin(math.tau * hue)
+    long = (light + 0.3963377774 * a + 0.2158037573 * b) ** 3
+    mid = (light - 0.1055613458 * a - 0.0638541728 * b) ** 3
+    short = (light - 0.0894841775 * a - 1.2914855480 * b) ** 3
+    linear = (4.0767416621 * long - 3.3077115913 * mid + 0.2309699292 * short,
+              -1.2684380046 * long + 2.6097574011 * mid - 0.3413193965 * short,
+              -0.0041960863 * long - 0.7034186147 * mid + 1.7076147010 * short)
+    return tuple(round(255 * min(1.0, 12.92 * v if v < 0.0031308 else 1.055 * v ** (1 / 2.4) - 0.055)) if v > 0 else 0 for v in linear)
+
+
+@functools.lru_cache(maxsize=None)
+def _tone(hue: int, level: int, lift: int) -> str:
+    """Steps of hue, of colourfulness and of lift towards white, so a frame only looks colours up."""
+    r, g, b = oklch(0.68 + 0.1 * lift, (0.05 + 0.025 * level) * (1 - 0.3 * lift), 0.08 + hue / 48)
     return f"38;2;{r};{g};{b}"
 
 
+def _rainbow(position: float, saturation: float = 0.8, lift: float = 0.0) -> str:
+    return _tone(round(position % 1.0 * 48) % 48, round(saturation * 4), round(lift * 2))
+
+
 def _paint_runs(cells: list[tuple[str, str]]) -> str:
-    """(code, text) cells to one string, one escape per run of equal codes."""
+    """(code, text) cells to one string, one escape per run of equal codes.
+
+    A true colour replaces one of the same shape outright, so no reset goes between them.
+    """
     out, run_code, run = [], "", []
     for code, text in cells + [("", "")]:
         if code != run_code:
             joined = "".join(run)
-            out.append(f"\x1b[{run_code}m{joined}\x1b[0m" if run_code else joined)
+            replaced = code.startswith("38;2;") and code.count(";") == run_code.count(";")
+            out.append(f"\x1b[{run_code}m{joined}{'' if replaced else chr(27) + '[0m'}" if run_code else joined)
             run_code, run = code, []
         run.append(text)
     out.append("".join(run))
@@ -189,16 +227,70 @@ def sweep(text: str, now: float, t: Term, base: str | None = None) -> str:
     return _paint_runs(cells)
 
 
+def command(line: str, t: Term | None = None) -> str:
+    """A line to copy: the part that differs stands out. Only colour is added, so it pastes as written."""
+    t = t or term()
+    if not t.color:
+        return line
+    match = re.fullmatch(r"(\s*python -m discprobe)( \S+)?(.*)", line)
+    if not match:
+        return t.style(line, "cyan")
+    head, name, rest = match.groups()
+    return t.style(head, "dim") + (f"\x1b[1;36m{name}\x1b[0m" if name else "") + re.sub(r"--[\w-]+", lambda m: t.style(m[0], "cyan"), rest)
+
+
+def guide_line(line: str, t: Term | None = None) -> str:
+    """A line of `guide`: what is done is green, what only explains itself steps back. Translated here, as paint hides it from `i18n`."""
+    t = t or term()
+    if line.lstrip().startswith("python "):
+        return command(line, t)
+    line = tr(line)
+    if not t.color or not line:
+        return line
+    step = re.fullmatch(r"(  )\[(x| )\]( .+? {2,})(.*)", line)
+    if step:
+        indent, tick, name, detail = step.groups()
+        box = f"\x1b[{t.green}m[x]\x1b[0m" if tick == "x" else t.style("[ ]", "dim")
+        return indent + box + name + t.style(detail, "dim")
+    if line.startswith(" "):
+        return line
+    return t.style(line, "bold" if line.endswith((":", "：")) else "dim")
+
+
+def help_text(text: str, t: Term | None = None) -> str:
+    """`--help` at a terminal: headings and the names to type stand out, and the columns stay as argparse set them."""
+    t = t or term()
+    if not t.color:
+        return text
+    lines = []
+    for line in text.split("\n"):
+        line = tr(line)
+        if line.lstrip().startswith("python -m discprobe"):
+            line = command(line, t)
+        elif line.startswith("usage: "):
+            line = t.style("usage:", "bold") + line[6:]
+        elif line and not line.startswith(" ") and line.endswith((":", "：")):
+            line = t.style(line, "bold")
+        else:
+            line = re.sub(r"^( {2})(-[^ ]*(?: [^ ]+)*?|[a-z]\w*)(?= {2,}|$)", lambda m: m[1] + t.style(m[2], "cyan"), line)
+        lines.append(line)
+    return "\n".join(lines)
+
+
 class Progress:
     """One line that overwrites itself; `status` returns (fraction or None, label, seconds left or None).
 
     A narrow terminal loses whole parts, least useful first, and never gets a wrapped line.
-    With `keys` given, a game can be opened under it.
+    With `keys` given, a game can be opened under it; with `pulse`, recent read times show beside it.
     """
 
-    def __init__(self, status, t: Term | None = None, keys=None):
+    def __init__(self, status, t: Term | None = None, keys=None, pulse=None):
         self.t = t or term()
         self.status = status
+        self.pulse = pulse
+        self.taskbar_shown = None
+        self.taskbar_at = 0.0
+        self.fraction = None
         self.started = time.monotonic()
         self.last_draw = 0.0
         self.width_shown = 0
@@ -221,23 +313,55 @@ class Progress:
             atexit.register(self.close)
 
     def _spinner(self, now: float) -> str:
-        frames = SPINNER_UNICODE if self.t.unicode else SPINNER_ASCII
+        frames = SPINNER_UNICODE if self.t.unicode else SPINNER_BLOCKS if self.t.blocks else SPINNER_ASCII
         return frames[int((now - self.started) / SPINNER_FRAME_S) % len(frames)]
 
+    def _glint(self, cell: int, filled: int, now: float) -> float:
+        """A band of light down the finished part of the bar now and then; the idea is Codex's shimmer."""
+        if not self.t.animate:
+            return 0.0
+        position = min((now % GLINT_EVERY_S) / GLINT_SWEEP_S, 1.0) * (filled + 2 * GLINT_REACH) - GLINT_REACH
+        distance = min(abs(cell - position) / GLINT_REACH, 1.0)
+        return 0.5 * (1 + math.cos(math.pi * distance))
+
     def _bar(self, fraction: float, now: float) -> tuple[str, str]:
-        """The bar as plain text and as painted text."""
-        fill, head, rest = BAR_UNICODE if self.t.unicode else BAR_ASCII
-        filled = int(fraction * BAR_WIDTH)
-        tip = head if filled < BAR_WIDTH else ""
+        """The bar as plain text and as painted text. Line glyphs need no brackets and move in half cells."""
+        blocks = self.t.blocks
+        fill, head, rest = BAR_UNICODE if blocks else BAR_ASCII
+        halves = int(fraction * BAR_WIDTH * 2)
+        filled = halves // 2
+        tip = head if filled < BAR_WIDTH and (halves % 2 or not blocks) else ""
         tail = rest * (BAR_WIDTH - filled - len(tip))
-        plain = f"[{fill * filled}{tip}{tail}]"
+        left, right = ("", "") if blocks else ("[", "]")
+        plain = f"{left}{fill * filled}{tip}{tail}{right}"
         if not self.t.color:
             return plain, plain
         if self.t.truecolor:
-            done = _paint_runs([(_rainbow((i // BAR_COLOUR_CELLS) * BAR_COLOUR_CELLS / BAR_WIDTH * 0.75), fill) for i in range(filled)])
+            hue = lambda i: (i // BAR_COLOUR_CELLS) * BAR_COLOUR_CELLS / BAR_WIDTH * 0.75
+            done = _paint_runs([(_rainbow(hue(i), lift=self._glint(i, filled, now)), fill) for i in range(filled)])
+            tip_painted = f"\x1b[{_rainbow(hue(filled), lift=1.0)}m{tip}\x1b[0m" if tip else ""
         else:
             done = self.t.style(fill * filled, "cyan")
-        return plain, "[" + done + (self.t.style(tip, "cyan") if tip else "") + (self.t.style(tail, "dim") if tail else "") + "]"
+            tip_painted = self.t.style(tip, "cyan") if tip else ""
+        return plain, left + done + tip_painted + (self.t.style(tail, "dim") if tail else "") + right
+
+    def _spark(self) -> list[tuple[str, str]]:
+        """The last read times, tallest for the slowest of them, so a noisy drive shows as it happens."""
+        if not self.pulse or not self.t.blocks:
+            return []
+        low, span = min(self.pulse), max(max(self.pulse) - min(self.pulse), 1.0)
+        text = "".join(SPARK[int((v - low) / span * 7.99)] for v in self.pulse).rjust(SPARK_CELLS)
+        return [(text, self.t.style(text, "dim"))]
+
+    def _taskbar(self, now: float) -> str:
+        """The tab and the taskbar button fill too, so a long run can be left in the background."""
+        if not self.t.taskbar:
+            return ""
+        state = "3;0" if self.fraction is None else f"1;{int(self.fraction * 100 + 1e-9)}"
+        if state == self.taskbar_shown and now - self.taskbar_at < TASKBAR_REFRESH_S:
+            return ""
+        self.taskbar_shown, self.taskbar_at = state, now
+        return f"\x1b]9;4;{state}\x07"
 
     def _percent(self, fraction: float, now: float) -> tuple[str, str]:
         """The percentage as plain and painted text: a digit that just changed flashes, and 100% stays green.
@@ -263,8 +387,10 @@ class Progress:
         room = max(10, columns - 1)
         now = time.monotonic()
         fraction, label, left = self.status()
+        self.fraction = None if fraction is None else max(0.0, min(1.0, fraction))
         label = tr(label)
-        spin = [(self._spinner(now), self.t.style(self._spinner(now), "cyan"))] if self.t.animate else []
+        glyph = self._spinner(now)
+        spin = [(glyph, f"\x1b[{_rainbow(now * 0.1)}m{glyph}\x1b[0m" if self.t.truecolor else self.t.style(glyph, "cyan"))] if self.t.animate else []
         meter = []
         if fraction is not None:
             fraction = max(0.0, min(1.0, fraction))
@@ -283,7 +409,9 @@ class Progress:
         if self.keys and not self.playing:
             text = tr("g: game")
             game_part = [(text, self.t.style(text, "dim"))]
-        for parts in (spin + meter + title + spent + due + stop_part + game_part,
+        spark = self._spark()
+        for parts in (spin + meter + title + spark + spent + due + stop_part + game_part,
+                      spin + meter + title + spent + due + stop_part + game_part,
                       spin + meter + title + spent + due + game_part,
                       spin + meter + title + spent + due,
                       spin + meter + title + due,
@@ -304,11 +432,15 @@ class Progress:
             return
         self.last_draw = now
         line, width = self._render()
+        taskbar = self._taskbar(now)
         if line == self.line_shown:
+            if taskbar:
+                self.t.stream.write(taskbar)
+                self.t.stream.flush()
             return
         self.line_shown = line
         if self.t.ansi:     # with wrapping off a miscounted glyph is clipped, not pushed to a new row
-            self.t.stream.write(f"\r\x1b[?7l{line}\x1b[K\x1b[?7h")
+            self.t.stream.write(f"{taskbar}\r\x1b[?7l{line}\x1b[K\x1b[?7h")
         else:
             self.t.stream.write("\r" + line + " " * max(0, self.width_shown - width))
         self.t.stream.flush()
@@ -340,6 +472,8 @@ class Progress:
         self.playing = False
         if self.keys:
             self.keys.close()
+        if self.taskbar_shown:
+            self.t.stream.write("\x1b]9;4;0;0\x07")
         if self.t.ansi:
             self.t.stream.write("\x1b[?25h")
         for game in self.games.values():
@@ -457,12 +591,14 @@ class ProgressDevice:
         self._dev = dev
         self.progress: Progress | None = None
         self.pauses = 0     # one per timed read
+        self.last = None
+        self.read_times = collections.deque(maxlen=SPARK_CELLS)     # read only inside the pause, like everything drawn
 
     def __getattr__(self, name):
         return getattr(self._dev, name)
 
     def execute(self, *args, **kwargs):
-        res = self._dev.execute(*args, **kwargs)
+        res = self.last = self._dev.execute(*args, **kwargs)
         if self.progress:
             self.progress.tick(interval=OUTSIDE_PAUSE_INTERVAL_S)
         return res
@@ -470,6 +606,8 @@ class ProgressDevice:
     def idle(self, seconds: float) -> None:
         start = time.perf_counter()
         self.pauses += 1
+        if self.last is not None and self.last.ok:      # what ran before a pause is the timed read
+            self.read_times.append(self.last.duration_us)
         if self.progress:
             self.progress.play()
             self.progress.tick()
