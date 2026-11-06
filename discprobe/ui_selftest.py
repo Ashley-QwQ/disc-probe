@@ -629,6 +629,33 @@ def _advice(c) -> None:
             c.check(word in guide.after_geo(geo_args, fit, os.path.join("results", "geo-H-20260101-100000"))[0], f"a noisy geo: {word}")
     finally:
         guide.compare_pitch = real_compare
+    geo_out = os.path.join("results", "geo-H-20260101-100000")
+    def verdict_on(sigma, chi2=1.0):
+        return guide.after_geo(geo_args, {**fit, "chi2_per_dof": chi2, "angle_sigma_measured_span_deg": sigma}, geo_out)
+    c.check(verdict_on(0.25)[0].startswith("Verdict: good"), "the limit itself is still good")
+    noisy_run = verdict_on(0.4)
+    c.check("usable, but noisy" in noisy_run[0] and "good" not in noisy_run[0] and "0.35 mm" in noisy_run[0]
+            and any("--speed 3324" in x for x in noisy_run), "wide error bars with a clean fit are not called good, and geo says what to try")
+    bad_run = verdict_on(3.0)
+    c.check("too noisy" in bad_run[0] and "2.62 mm" in bad_run[0] and "another drive" in bad_run[1], "very wide error bars are called out")
+    real_compare = guide.compare_pitch
+    i18n.use("zh")
+    try:
+        c.check(all(i18n.tr(x) != x for x in (noisy_run[0], noisy_run[1], bad_run[0])), "the noisy verdicts have Chinese")
+        try:
+            guide.compare_pitch = lambda out: (30.0, 10.0)
+            helps = verdict_on(2.0, 30.0)
+            c.check("a correction helps" in helps[0] and "good" not in helps[0] and "1.15 deg" in helps[0] and i18n.tr(helps[0]) != helps[0]
+                    and any("--write-correction" in x for x in helps) and any("--speed 3324" in x for x in helps),
+                    "a correction that leaves wide error bars is not called good")
+            guide.compare_pitch = lambda out: (5.0, 5.2)
+            lost = verdict_on(2.0, 5.0)
+            c.check("too noisy" in lost[0] and not any("You can carry on" in x for x in lost) and any(i18n.tr(x) != x and "does not fit better" in x for x in lost),
+                    "read noise this large does not say carry on")
+        finally:
+            guide.compare_pitch = real_compare
+    finally:
+        i18n.use("en")
     cd_next = guide.after_geo(cd_args, clean, os.path.join("results", "geo-H-20260101-100000"))
     c.check(any("disexport" in x for x in cd_next[:6]) and "README.md" in "".join(cd_next) and
             next(i for i, x in enumerate(cd_next) if "disexport" in x) < next(i for i, x in enumerate(cd_next) if " image" in x),

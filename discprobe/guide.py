@@ -29,6 +29,12 @@ BAD_JITTER_DEG = 5.0
 NARROW_SPAN_MM = 20.0
 # When a varying pitch counts as worth a correction: it at least halves chi2/dof.
 PITCH_CLEARLY_BETTER = 0.5
+# Angle uncertainty (1 sigma, measured span) a geo verdict may call good. chi2/dof can't tell: a noisy drive
+# has wide error bars and still fits. Clean full-span runs here gave 0.10-0.15 deg, and timing's 2 deg of
+# jitter works out to about 0.21 (CD, 36 rungs) to 0.28 (DVD, 22 rungs). Past 0.6, about 5 deg of jitter,
+# is where the CD run at 3226 rpm sat (0.77) that the drive table says can't be used.
+GOOD_SIGMA_DEG = 0.25
+BAD_SIGMA_DEG = 0.6
 ALTERNATIVE_SPEEDS = {"dvd": ("3324", "5540", "11080"), "cd": ("1411", "2822", "4234")}
 INSTALL = "python -m pip install numpy pillow scipy"
 PORTS = ("This repository drives real hardware on Windows only. Ports: Linux github.com/bczhc/disc-probe, "
@@ -328,6 +334,15 @@ def geo_summary(res: dict, rungs: int) -> str:
             f"{res['angle_sigma_measured_span_deg']:.2f} deg, points {res['residual_rms_deg']:.2f} deg from the fit on average.")
 
 
+def _angle(sigma: float) -> str:
+    return f"{sigma:.2f} deg is about {math.radians(sigma) * 50:.2f} mm at 50 mm radius"
+
+
+def _noisy(sigma: float) -> str:
+    return (f"too noisy to rely on: {_angle(sigma)}." if sigma > BAD_SIGMA_DEG
+            else f"usable, but noisy: {_angle(sigma)}.")
+
+
 def after_geo(args, res: dict, out: str) -> list[str]:
     media = getattr(args, "media", "dvd")
     summary = _load(os.path.join(out, "summary.json")) or {}
@@ -342,14 +357,23 @@ def after_geo(args, res: dict, out: str) -> list[str]:
     if getattr(args, "sim", None):
         lines.append("This was the simulated drive: the verdict and commands below show the flow, do not burn from them.")
     compared = compare_pitch(out) if res["chi2_per_dof"] > 2 else None
+    sigma = res["angle_sigma_measured_span_deg"]
+    retry = [f"  {PROG} geo {_carry(args)} --speed {_other_speed(args)}"]
+    too_noisy = sigma > BAD_SIGMA_DEG
     if res["chi2_per_dof"] <= 2:
-        sigma = res["angle_sigma_measured_span_deg"]
-        lines.append(f"Verdict: good. Only noise is left after the fit, and {sigma:.2f} deg is about "
-                     f"{math.radians(sigma) * 50:.2f} mm at 50 mm radius.")
+        if sigma <= GOOD_SIGMA_DEG:
+            lines.append(f"Verdict: good. Only noise is left after the fit, and {_angle(sigma)}.")
+        else:
+            lines += [f"Verdict: {_noisy(sigma)}", "For a cleaner run, try a lower speed or another drive:", *retry]
     elif compared is None:
         lines.append("Verdict: not settled. More than noise is left, and the comparison below could not run here.")
     elif compared[1] <= PITCH_CLEARLY_BETTER * compared[0]:
-        lines.append("Verdict: good once corrected.")
+        # The fit widened sigma by sqrt(chi2/dof), so what a correction leaves is that ratio undone.
+        corrected = sigma * math.sqrt(max(1.0, compared[1]) / max(1.0, compared[0]))
+        lines.append("Verdict: good once corrected." if corrected <= GOOD_SIGMA_DEG
+                     else f"Verdict: a correction helps, but it stays noisy: {_angle(corrected)}.")
+    elif too_noisy:
+        lines.append(f"Verdict: {_noisy(sigma)}")
     else:
         lines.append("Verdict: usable, but noisy.")
     if span[1] - span[0] < NARROW_SPAN_MM:
@@ -365,10 +389,14 @@ def after_geo(args, res: dict, out: str) -> list[str]:
             lines += [f"A varying track pitch fits clearly better (fit error ratio {compared[0]:.1f} -> {compared[1]:.1f}). "
                       "Write a correction first; the commands below use it:",
                       f"  python tools/geo_polyfit.py {short(out)} --write-correction correction.json --order quadratic"]
+            if corrected > GOOD_SIGMA_DEG:
+                lines += ["For a cleaner run, try a lower speed or another drive:", *retry]
+        elif too_noisy:
+            lines += [f"A varying track pitch does not fit better (fit error ratio {compared[0]:.1f} -> {compared[1]:.1f}), so the "
+                      "extra scatter is probably read noise. Try a lower speed or another drive:", *retry]
         else:
             lines += [f"A varying track pitch does not fit better (fit error ratio {compared[0]:.1f} -> {compared[1]:.1f}), so the "
-                      "extra scatter is probably read noise. You can carry on. For a cleaner run, try a lower speed:",
-                      f"  {PROG} geo {_carry(args)} --speed {_other_speed(args)}"]
+                      "extra scatter is probably read noise. You can carry on. For a cleaner run, try a lower speed:", *retry]
     lines.append("")
     preset = [f"  {PROG} disexport --geo {geo}{correction} --sectors {sectors} --r-min {span[0]} --r-max {span[1]} "
               "--output dis_preset.json",

@@ -149,6 +149,12 @@ TEXT = {
         "结论：可以用。拟合后只剩噪声，{a}° 在 50 mm 半径处约 {b} mm。",
     "Verdict: not settled. More than noise is left, and the comparison below could not run here.":
         "结论：还不能确定。剩下的误差比噪声大，下面的比较这里跑不了，要你手动跑。",
+    "Verdict: usable, but noisy: {a} deg is about {b} mm at 50 mm radius.": "结论：能用，但噪声偏大：{a}° 在 50 mm 半径处约 {b} mm。",
+    "Verdict: too noisy to rely on: {a} deg is about {b} mm at 50 mm radius.": "结论：噪声太大，不能依赖这次结果：{a}° 在 50 mm 半径处约 {b} mm。",
+    "Verdict: a correction helps, but it stays noisy: {a} deg is about {b} mm at 50 mm radius.": "结论：修正有帮助，但修正后噪声仍然偏大：{a}° 在 50 mm 半径处约 {b} mm。",
+    "For a cleaner run, try a lower speed or another drive:": "想测得更干净，可以降速，或者换一台光驱：",
+    "A varying track pitch does not fit better (fit error ratio {a} -> {b}), so the extra scatter is probably read noise. Try a lower speed or another drive:":
+        "改用可变轨距也没有更好（拟合误差比 {a} -> {b}），多半是读取噪声。降速，或者换一台光驱：",
     "Verdict: good once corrected.": "结论：加上修正就可以用。",
     "Verdict: usable, but noisy.": "结论：能用，但噪声偏大。",
     "Next, export a DiscImageStudio preset. CD has one more constant that timing cannot see, and fine": "下一步，导出 DiscImageStudio 预设。CD 还有一个计时测不到的常数，",
