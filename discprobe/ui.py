@@ -116,7 +116,7 @@ class Term:
         utf8 = (getattr(self.stream, "encoding", None) or "").lower().replace("-", "") == "utf8"
         self.unicode = self.ansi and utf8 and bool(env.get("DISCPROBE_UNICODE"))
         # These terminals say who they are and draw U+2500-259F themselves, whatever the font has.
-        modern = bool(env.get("WT_SESSION")) or env.get("TERM_PROGRAM") in ("ghostty", "WezTerm") or env.get("TERM") == "xterm-kitty"
+        modern = bool(env.get("WT_SESSION")) or env.get("TERM_PROGRAM") in ("ghostty", "WezTerm", "claude-desktop") or env.get("TERM") == "xterm-kitty"
         self.blocks = self.unicode or (self.ansi and utf8 and modern)
         self.sync = self.ansi and modern
         self.taskbar = self.ansi and (modern or env.get("ConEmuANSI") == "ON")

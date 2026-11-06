@@ -157,6 +157,7 @@ def _modern_terminal(c) -> None:
     env = {"TERM": "xterm", "WT_SESSION": "x"}
     wt = ui.Term(Utf8Tty(), env=env, platform="linux")
     c.check(wt.blocks and wt.sync and wt.taskbar and not wt.unicode, "Windows Terminal draws blocks itself, and takes taskbar progress and synchronized frames")
+    c.check(ui.Term(Utf8Tty(), env={"TERM": "xterm-256color", "TERM_PROGRAM": "claude-desktop"}, platform="linux").blocks, "so does the desktop app's terminal panel")
     c.check(not ui.Term(FakeTty(), env=env, platform="linux").blocks, "no blocks without UTF-8")
     other = ui.Term(Utf8Tty(), env={"TERM": "xterm"}, platform="linux")
     c.check(not (other.blocks or other.sync or other.taskbar), "a terminal that does not say who it is gets none of this")
