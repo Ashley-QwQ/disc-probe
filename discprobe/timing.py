@@ -32,6 +32,8 @@ from .scsi import DATA_IN, DATA_NONE
 CACHE_HIT_US = 3000.0
 CACHE_RATIO = 3.0
 EVICT_REGION_SECTORS = 32768
+FAR_STEP_SECTORS = 5000
+FAR_COUNTS = (1, 2, 4)      # far reads tried before each timed read on a CD-DA track
 ZONES = (0.05, 0.5, 0.95)
 DEFAULT_TARGETS = (0.15, 0.35, 0.55, 0.75, 0.95)
 
@@ -79,8 +81,12 @@ class TimingProbe:
                  period_reads: int = 60, targets=DEFAULT_TARGETS, ref_fraction: float = 0.05,
                  speed_kbs: int | None = None, pure_cav: bool = False, evict_sectors: int = 1024,
                  sectors: int = 1, host_delay_ms: float = 25.0, seed: int = 1, media="dvd",
-                 stop_if_not_cav: bool = False, time_limit_s: float | None = None):
+                 stop_if_not_cav: bool = False, time_limit_s: float | None = None, cd_audio: bool = False):
         self.media = media
+        # With media "cd", also accept a CD-DA track (a DiscImageStudio picture burn) and read it
+        # with READ CD. Only geo uses this; it times audio sectors against their own origin.
+        self.cd_audio = cd_audio
+        self.audio = False
         self.stop_if_not_cav = stop_if_not_cav
         self._deadline = time.monotonic() + time_limit_s if time_limit_s else None
         self._time_limit_s = time_limit_s
@@ -102,6 +108,7 @@ class TimingProbe:
         self.summary: dict = {}
         self._experiment = ""
         self._evict_cursor = 0
+        self.far_count = 1
         # Reads faster than this are taken as cache hits when the cache is defeated indirectly.
         # Raised by the cache test when a slow link makes cache hits slower (see cache_test).
         self.cache_hit_us = CACHE_HIT_US
@@ -151,6 +158,16 @@ class TimingProbe:
         lba -= lba % self.block
         return max(0, min(lba, self.last_lba - self.block + 1))
 
+    def _far_lba(self, lba: int, i: int = 0) -> int:
+        """The i-th far sector: a third of the disc away on the side with room, then 5000 sectors
+        further apart for each next one, so each lands in a different cache segment."""
+        third = self.last_lba // 3 + FAR_STEP_SECTORS * i
+        return lba + third if lba < self.last_lba // 2 else lba - third
+
+    def _far_reads(self, lba: int, k: int):
+        for i in range(k):
+            self._read(self._far_lba(lba, i), 1, label="far")
+
     def _evict(self):
         chunk = 32 if self.method != "readcd" else 27
         start = self._align(0.6)
@@ -173,6 +190,13 @@ class TimingProbe:
             time.sleep(d)
 
     def _measure(self, lba: int, label: str):
+        if self.strategy == "far":
+            # A sector (or a few) a third of the disc away moves the head and the read-ahead off
+            # the target, so the timed read comes from the disc (READ CD has no FUA). The random
+            # pause comes after it, as before every timed read.
+            self._far_reads(lba, self.far_count)
+            self._pause()
+            return self._read(lba, self.sectors, label=label)
         self._pause()
         if self.strategy == "evict":
             self._evict()
@@ -186,7 +210,7 @@ class TimingProbe:
         # a cache hit is dropped.
         if not res.ok:
             return False
-        return self.strategy not in ("evict", "flush") or res.duration_us >= self.cache_hit_us
+        return self.strategy not in ("evict", "flush", "far") or res.duration_us >= self.cache_hit_us
 
     # ------------------------------------------------------------ steps
 
@@ -206,7 +230,11 @@ class TimingProbe:
         toc = self._cmd(mmc.read_toc(0), 2048)
         tracks = mmc.parse_toc(toc.data)["tracks"] if toc.ok else []
         audio = bool(tracks) and not tracks[0]["data"]
-        if self.media == "cd" and (self.family != "cd" or audio or self.read_method == "readcd"):
+        self.audio = audio
+        if self.media == "cd" and self.cd_audio and self.family == "cd" and audio:
+            if self.read_method not in ("auto", "readcd"):
+                raise NoReadableDisc("an audio track can only be read with READ CD")
+        elif self.media == "cd" and (self.family != "cd" or audio or self.read_method == "readcd"):
             raise NoReadableDisc("--media cd requires a CD-ROM Mode 1 data track and READ(12)/READ(10), not READ CD")
         if self.last_lba is None and tracks and tracks[-1]["track"] == 0xAA:
             self.last_lba = tracks[-1]["start_lba"] - 1
@@ -261,6 +289,8 @@ class TimingProbe:
             # USB, against 39 ms with FUA). Far slower with FUA also means plain reads are cached.
             if fua_media and out["fua"]["p50_us"] >= CACHE_RATIO * out["plain"]["p50_us"]:
                 plain_cached = True
+        elif self.media == "cd" and self.audio:
+            return self._cache_test_audio(lba, n, reads, out)
         elif not plain_cached:
             # READ CD has no FUA bit, so compare with reads that follow an eviction instead. Over
             # USB an HP BU20N returned cached CD-DA sectors in about 10 ms, above CACHE_HIT_US,
@@ -294,6 +324,57 @@ class TimingProbe:
             self.strategy = "evict"
         out.update(plain_served_from_cache=plain_cached, fua_reads_media=fua_media,
                    flush_then_read_media=flush_media, strategy=self.strategy)
+        self.summary["cache"] = out
+        self.log("Cache: " + ", ".join(f"{k} p50 {v['p50_us']} us" for k, v in out.items()
+                                       if isinstance(v, dict)) + f" -> strategy {self.strategy}")
+
+    def _cache_test_audio(self, lba: int, n: int, reads: int, out: dict):
+        """Cache test on a CD-DA track (geo on a DiscImageStudio picture burn).
+
+        READ CD has no FUA bit and READ(12) is illegal on audio, so the cache is defeated by reading
+        elsewhere first. One sector a third of the disc away is enough when the drive keeps a single
+        read-ahead segment (HP BU20N, PLDS DU-8A5LH): strategy "far", one extra read per timed read.
+        A target only a fraction of a turn from the previous read can sit in that read-ahead, so it is
+        used even when plain re-reads look uncached. A drive that keeps several segments needs a few
+        far reads (FAR_COUNTS); the eviction above is the last resort, since its slow blocks make
+        the ladder's period fit alias."""
+        plain = out["plain"]["p50_us"]
+        cached = plain < CACHE_HIT_US
+        far_from_disc = False
+        for k in FAR_COUNTS:
+            after_far = []
+            for _ in range(max(8, reads // 4)):
+                self._far_reads(lba, k)
+                after_far.append(self._read(lba, n, label="after-far"))
+            key = "after_far" if k == 1 else f"after_far_{k}"
+            out[key] = duration_stats(after_far)
+            far = out[key]["p50_us"]
+            # Cached: fast re-reads, or re-reads several times faster than reads after far reads
+            # (over USB a BU20N answered CD-DA cache hits in about 10 ms).
+            cached = cached or far >= CACHE_RATIO * plain
+            far_from_disc = far >= CACHE_HIT_US and far >= CACHE_RATIO * plain and all(r.ok for r in after_far)
+            if not cached or far_from_disc:
+                break
+        if not cached or far_from_disc:
+            self.strategy, self.far_count = "far", k
+            out["far_reads"] = k
+            if cached:
+                # Halfway (geometrically) between the cache hits and the reads from the disc.
+                self.cache_hit_us = max(CACHE_HIT_US, math.sqrt(plain * far))
+        else:
+            evicted = []
+            for _ in range(max(8, reads // 4)):
+                self._evict()
+                evicted.append(self._read(lba, n, label="after-evict"))
+            out["after_evict"] = duration_stats(evicted)
+            ev = out["after_evict"]["p50_us"]
+            self.strategy = "evict"
+            if ev >= CACHE_HIT_US and ev >= CACHE_RATIO * plain:
+                self.cache_hit_us = max(CACHE_HIT_US, math.sqrt(plain * ev))
+            else:
+                self.log("warning: neither a far read nor an eviction got this sector re-read from the disc")
+        out["cache_hit_us"] = round(self.cache_hit_us, 1)
+        out.update(plain_served_from_cache=cached, far_read_reads_media=far_from_disc, strategy=self.strategy)
         self.summary["cache"] = out
         self.log("Cache: " + ", ".join(f"{k} p50 {v['p50_us']} us" for k, v in out.items()
                                        if isinstance(v, dict)) + f" -> strategy {self.strategy}")

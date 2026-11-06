@@ -23,9 +23,13 @@ class SimDrive:
     def __init__(self, mode: str = "cav", fua_honoured: bool = True, flush_honoured: bool = False, seed: int = 1,
                  jitter_us: float = 60.0, outlier_rate: float = 0.01,
                  rev_period_ms: float | None = None, clv_speed_x: float | None = None,
-                 capacity: int | None = None, cache_blocks: int = 6, reread_delay_ms: float = 0.0,
-                 media="dvd", cd_u=None, cd_v=None):
+                 capacity: int | None = None, cache_blocks: int | None = None, reread_delay_ms: float = 0.0,
+                 media="dvd", cd_u=None, cd_v=None, cd_audio: bool = False, cd_read_offset_bytes: float = 0.0):
         self.media = media
+        # A CD-DA track (a DiscImageStudio picture burn): READ CD only, and reads complete at the
+        # end of the sector in the audio stream, cd_read_offset_bytes earlier (the drive's offset).
+        self.cd_audio = media == "cd" and cd_audio
+        self.cd_read_offset_bytes = cd_read_offset_bytes
         if rev_period_ms is None:
             rev_period_ms = 20.0 if media == "cd" else 6.6
         if clv_speed_x is None:
@@ -34,7 +38,7 @@ class SimDrive:
             capacity = 359849 if media == "cd" else 2295104
         self.name = f"SIM-{mode}{'' if fua_honoured else '-nofua'}{'-flush' if flush_honoured else ''}"
         if media == "cd":
-            self.name += "-cd"
+            self.name += "-cda" if self.cd_audio else "-cd"
         self.mode = mode
         self.fua_honoured = fua_honoured
         self.flush_honoured = flush_honoured
@@ -53,7 +57,9 @@ class SimDrive:
                                  (cd_v if cd_v is not None else cd.PITCH_UM * 1e-3 / b * 0.99) * b,
                                  cd.SECTOR_BITS * b)
         self.clv_speed_mm_s = clv_speed_x * ONE_X_MM_S[media]
-        self.cache_blocks = cache_blocks
+        # One read plus two blocks of read-ahead (a single segment, like the HP BU20N, which a far
+        # read clears) on a CD-DA track; six blocks otherwise.
+        self.cache_blocks = cache_blocks if cache_blocks is not None else (3 if self.cd_audio else 6)
         # Fixed firmware overhead before a media read can start; several revolutions on
         # the GH70N, so back-to-back re-reads all span the same whole number of turns.
         self.reread_delay_s = reread_delay_ms / 1e3
@@ -93,11 +99,17 @@ class SimDrive:
 
     # ------------------------------------------------------------ geometry truth
 
+    def _end_sectors(self, end: float) -> float:
+        """Where the read of the block ending at `end` (in sectors) completes on the spiral."""
+        if self.cd_audio:
+            return end - self.cd_read_offset_bytes / 2352
+        if self.media == "cd":
+            return end + 108 / 98  # independent of the ladder's read-end helper
+        return end
+
     def block_end_angle(self, lba: int, count: int = 1) -> float:
         last_block_end = ((lba + count - 1) // self.block + 1) * self.block
-        if self.media == "cd":
-            last_block_end += 108 / 98  # independent of the ladder's read-end helper
-        return self.spiral.angle(last_block_end) % TWO_PI
+        return self.spiral.angle(self._end_sectors(last_block_end)) % TWO_PI
 
     def true_phase_deg(self, ref_lba: int, target_lba: int) -> float:
         return math.degrees((self.block_end_angle(target_lba) - self.block_end_angle(ref_lba)) % TWO_PI)
@@ -115,7 +127,12 @@ class SimDrive:
         status, data, sense = 0, b"", None
         if op in (0x28, 0xA8, 0xBE):
             lba = int.from_bytes(cdb[2:6], "big")
-            if op == 0x28:
+            if self.cd_audio and op == 0xBE:
+                count = int.from_bytes(cdb[6:9], "big")
+            elif self.cd_audio:
+                status, sense = 2, Sense(5, 0x64, 0)  # READ(10)/(12) on an audio track
+                count = 0
+            elif op == 0x28:
                 count = int.from_bytes(cdb[7:9], "big")
             elif op == 0xA8:
                 count = int.from_bytes(cdb[6:10], "big")
@@ -133,7 +150,7 @@ class SimDrive:
                 status, sense = 2, Sense(5, 0x21, 0)
             if status == 0:
                 t_end = self._read(t_issue, lba, count, fua)
-                data = bytes(min(data_len, 2048 * count))
+                data = bytes(min(data_len, (2352 if op == 0xBE else 2048) * count))
             else:
                 t_end = t_issue + 200e-6
         else:
@@ -149,8 +166,9 @@ class SimDrive:
             elif op == 0x25:
                 data = (self.capacity - 1).to_bytes(4, "big") + (2048).to_bytes(4, "big")
             elif op == 0x43 and (cdb[2] & 0x0F) == 0:
-                data = bytes([0, 18, 1, 1, 0, 0x14, 1, 0, 0, 0, 0, 0,
-                              0, 0x14, 0xAA, 0, *self.capacity.to_bytes(4, "big")])
+                adr_ctl = 0x10 if self.cd_audio else 0x14  # control bit 2 set: data track
+                data = bytes([0, 18, 1, 1, 0, adr_ctl, 1, 0, 0, 0, 0, 0,
+                              0, adr_ctl, 0xAA, 0, *self.capacity.to_bytes(4, "big")])
             elif op in (0x00, 0xBB):
                 pass
             else:
@@ -180,9 +198,7 @@ class SimDrive:
         # The head sits at a fixed lab angle; disc angle theta is under it when the
         # unwrapped spindle phase equals theta modulo 2*pi.
         theta_start = self.spiral.angle(start)
-        theta_end = self.spiral.angle(end)
-        if self.media == "cd":
-            theta_end = self.spiral.angle(end + 108 / 98)
+        theta_end = self.spiral.angle(self._end_sectors(end))
         phase_now = self._phase(t_arrive)
         wait = (theta_start - phase_now) % TWO_PI
         t_start_pass = self._time_to_reach(t_arrive, phase_now + wait)

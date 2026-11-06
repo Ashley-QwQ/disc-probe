@@ -85,8 +85,9 @@ def _open(args):
     if args.sim:
         from .sim import SimDrive
         mode, _, variant = args.sim.partition("-")
-        return SimDrive(mode=mode, fua_honoured=variant == "", flush_honoured=variant == "flush",
-                        seed=args.seed, media=getattr(args, "media", "dvd"))
+        return SimDrive(mode=mode, fua_honoured=variant in ("", "audio"), flush_honoured=variant == "flush",
+                        seed=args.seed, media=getattr(args, "media", "dvd"), cd_audio=variant == "audio",
+                        cd_read_offset_bytes=getattr(args, "read_offset_bytes", 0.0))
     _choose_drive(args)
     if not args.drive:
         sys.exit("give --drive E: (see `python -m discprobe list`) or --sim cav|clv|cav-nofua")
@@ -383,7 +384,7 @@ def cmd_geo(args):
     ladder = Ladder(reader, ranges=ranges, r0_mm=args.r0_mm, pitch_um=args.pitch_um, bit_nm=args.bit_nm,
                     reps=args.reps, max_targets=args.max_targets, ref_lba=args.ref_lba,
                     speed_kbs=None if args.sim else args.speed, host_delay_ms=args.host_delay_ms, media=args.media,
-                    chi2_abort=args.chi2_abort)
+                    chi2_abort=args.chi2_abort, read_offset_bytes=args.read_offset_bytes)
     progress, log = None, print
     if reader is not dev:
         progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys())
@@ -751,7 +752,12 @@ examples:
   python -m discprobe geo --drive E: --speed 3324       a slower speed that timing showed to be cleaner
   python -m discprobe geo --drive E: --media cd         CD, fixed at 1411 kB/s
 
-choosing --ranges: the default (3-85 % of the recorded area) suits most discs. Leave out an area that
+CD picture burned by DiscImageStudio (one audio track): the same command measures that disc itself, with
+READ CD and DiscImageStudio's own origin, so the result is the ri/ro to use for this disc type. Give the
+reading drive's offset if it is not 0 (HP BU20N 0, PLDS DU-8A5LH -603; check it once with a straight line):
+  python -m discprobe geo --drive E: --media cd --read-offset-bytes -603
+
+choosing --ranges: the default (3-85 % of the recorded area; 1.25-99 % on a CD audio track) suits most discs. Leave out an area that
 keeps failing or sits past a speed change: the run prints the LBA it stopped at, and `info` shows
 the last LBA. Widening it covers more radius, if the drive reads that far cleanly.
   python -m discprobe geo --drive E: --ranges 70000-1900000""",
@@ -814,9 +820,10 @@ def _build_parser():
     def common(sp):
         sp.add_argument("--drive", help="drive letter, e.g. E:; `list` shows them. At a terminal it can be left out "
                                         "when there is one drive")
-        sp.add_argument("--sim", choices=["cav", "clv", "cav-nofua", "cav-flush"],
+        sp.add_argument("--sim", choices=["cav", "clv", "cav-nofua", "cav-flush", "cav-audio"],
                         help="use the simulated drive (nofua: FUA ignored; flush: FUA ignored but a "
-                             "zero-length FUA read drops the cache)")
+                             "zero-length FUA read drops the cache; audio: with --media cd, a CD-DA track "
+                             "as DiscImageStudio burns pictures)")
         sp.add_argument("--transport", choices=["auto", "spti", "imapi"], default="auto",
                         help="Windows command path: spti may need an elevated terminal; imapi (IMAPI2 "
                              "IDiscRecorder2Ex) works as a standard user; auto tries spti, then imapi")
@@ -917,7 +924,7 @@ def _build_parser():
     sp.add_argument("--out", default="results")
     sp.set_defaults(func=cmd_calscan)
 
-    sp = sub.add_parser("geo", help="measure the spiral geometry of a burned DVD from read timing (ladder)")
+    sp = sub.add_parser("geo", help="measure the spiral geometry of a burned DVD or CD from read timing (ladder)")
     common(sp)
     sp.add_argument("--speed", type=_speed, default=5540,
                     help="read speed to fix, in kB/s or as a multiple like 4x (default 4x = 5540; CD 8x = 1411)")
@@ -936,6 +943,9 @@ def _build_parser():
                     help="stop when chi2/dof of the constant-pitch fit exceeds this; raise it for media "
                          "whose pitch varies (CD: a smooth S of a few degrees), the 90-degree residual "
                          "check still catches whole-turn errors")
+    sp.add_argument("--read-offset-bytes", type=float, default=0.0,
+                    help="CD audio track only: where this drive's READ CD completes, in bytes before the end of "
+                         "the sector in the burned audio stream (HP BU20N 0, PLDS DU-8A5LH -603)")
     sp.set_defaults(func=cmd_geo)
 
     sp = sub.add_parser("image", help="write a picture ISO placed with a measured geometry (grid test by default)")
