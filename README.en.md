@@ -97,7 +97,7 @@ python -m discprobe timing --drive H:
 python -m discprobe geo --drive H:
 ```
 
-The pitch on some discs drifts slowly, and `geo` tells you when the residual is high. RITEKF1 is fine with a constant pitch, while `CMC MAG. AM3` and one RITEK DVD+RW needed a quadratic correction (residuals fell from 0.38° and 0.61° to about 0.08°). If you see that message, refit the results. You don't need to measure again, and it prints the residual for each model. If quadratic is clearly better, write a correction file:
+Presets exported with `--correction` before 2026-11-06 may not include the correction. Update and export again; you don't need to measure again. The pitch on some discs drifts slowly, and `geo` tells you when the residual is high. RITEKF1 is fine with a constant pitch, while `CMC MAG. AM3` and one RITEK DVD+RW needed a quadratic correction (residuals fell from 0.38° and 0.61° to about 0.08°). If you see that message, refit the results. You don't need to measure again, and it prints the residual for each model. If quadratic is clearly better, write a correction file:
 
 ```bash
 python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json --order quadratic

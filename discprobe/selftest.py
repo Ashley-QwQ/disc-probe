@@ -210,6 +210,9 @@ def _disexport(c: Checker):
     c.check(f["max_angle_diff_deg"] < 0.005 and max(abs(f["pitchLinear"]), abs(f["pitchQuadratic"]), abs(f["pitchCubic"])) < 1e-7
             and abs(f["innerRadiusMm"] - 24.06) < 1e-5,
             f"constant-pitch map exports with ~zero cubic terms, max angle difference {f['max_angle_diff_deg']:.4f} deg")
+    f = fit_preset(u, v, 133.3, 2298496, 25.8, 54.4, lambda r: 0.7 * (((r - 40.0) / 14.0) ** 2 - 0.5) * 2)
+    c.check(f["max_angle_diff_deg"] < 0.05 and max(abs(f["pitchLinear"]), abs(f["pitchQuadratic"]), abs(f["pitchCubic"])) > 1e-6,
+            f"an angle correction reaches the exported pitch terms, max angle difference {f['max_angle_diff_deg']:.4f} deg")
     import json
     import os
     import tempfile

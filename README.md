@@ -97,7 +97,7 @@ python -m discprobe timing --drive H:
 python -m discprobe geo --drive H:
 ```
 
-有些盘的轨距会缓慢变化，这时 `geo` 会提示残差偏大。比如 RITEKF1 恒定轨距就够，`CMC MAG. AM3` 和一种 RITEK DVD+RW 则要二次修正（残差从 0.38°、0.61° 降到约 0.08°）。看到提示就重新拟合一下，不用再测盘，它会打印各模型的残差。如果二次明显更好，就写出修正文件：
+2026-11-06 之前带 `--correction` 导出的预设，修正可能没有生效，请更新后重新导出，不用重新测盘。有些盘的轨距会缓慢变化，这时 `geo` 会提示残差偏大。比如 RITEKF1 恒定轨距就够，`CMC MAG. AM3` 和一种 RITEK DVD+RW 则要二次修正（残差从 0.38°、0.61° 降到约 0.08°）。看到提示就重新拟合一下，不用再测盘，它会打印各模型的残差。如果二次明显更好，就写出修正文件：
 
 ```bash
 python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json --order quadratic

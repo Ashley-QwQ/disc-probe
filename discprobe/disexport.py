@@ -75,7 +75,12 @@ def fit_preset(u, v, bit_nm, total_sectors, r_lo, r_hi, correction=None, sector_
         d = np.interp(n_eval, n, th) - want
         return np.degrees(d - d.mean())
 
-    sol = least_squares(resid, np.zeros(5), x_scale=1.0, xtol=1e-14, ftol=1e-14, gtol=1e-14, max_nfev=400)
+    def jac(z):
+        # A step of 1 is 1 um of radius or 1e-4 of pitch. The default step (1e-8) is lost in the noise of
+        # interpolating on the radius grid, and the solver then stops at the start with no warning.
+        return np.stack([(resid(z + e) - resid(z - e)) / 2 for e in np.eye(5)], axis=1)
+
+    sol = least_squares(resid, np.zeros(5), jac=jac, x_scale=1.0, xtol=1e-14, ftol=1e-14, gtol=1e-14, max_nfev=400)
     ri, ro, c1, c2, c3 = np.array([ri0, ro0, 0, 0, 0]) + sol.x * scale
     d = resid(sol.x)
     _, _, p0 = dis_angle_map(ri, ro, c1, c2, c3, total_sectors, bit_nm, sector_bits)
