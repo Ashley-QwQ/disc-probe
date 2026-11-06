@@ -77,7 +77,7 @@ python -m discprobe selftest
 python -m discprobe guide
 ```
 
-在终端里，每条命令跑完也会打印下一步可以直接复制的命令。系统是中文时，帮助、提示和测量输出都显示中文，也可以用 `--lang zh` 或 `--lang en` 指定；脚本和管道仍是英文。测量时按 `g` 可以玩贪吃蛇打发时间。详见[手册的"手动使用"](docs/MANUAL.md#手动使用)。
+在终端里，每条命令跑完也会打印下一步可以直接复制的命令。系统是中文时，帮助、提示和测量输出都显示中文，也可以用 `--lang zh` 或 `--lang en` 指定；脚本和管道仍是英文。测量时按 `g` 可以玩贪吃蛇打发时间。`python -m discprobe completion` 可以设置 Tab 补全。详见[手册的"手动使用"](docs/MANUAL.md#手动使用)。
 
 **1. 刻一张随机数据盘。**测量盘必须是普通数据，刻了图案的盘读不出来。用 Windows 自带的光盘映像刻录机刻 `iso/random.iso`。
 

@@ -388,16 +388,20 @@ def cmd_geo(args):
         dev.close() if hasattr(dev, "close") else None
         if ladder.targets and ladder.cov is not None:
             write_outputs(ladder, out)
+    at_terminal = ui.term().interactive
+    detail = (lambda text: ui.say(text, "dim")) if at_terminal else print    # at a terminal the plain summary comes first
     if res:
         print()
-        print(f"u = r0/b = {res['u']:.3f}, v = p/b = {res['v']:.7f}  (chi2/dof {res['chi2_per_dof']:.2f}, "
-              f"residual rms {res['residual_rms_deg']:.3f} deg)")
-        print(f"With bit length {res['bit_nm_assumed']} nm: r0 {res['r0_mm_at_bit']:.5f} mm, "
-              f"pitch {res['pitch_um_at_bit']:.6f} um")
-        print(f"Angle uncertainty across the measured span {res['measured_span_mm'][0]}-"
-              f"{res['measured_span_mm'][1]} mm: {res['angle_sigma_measured_span_deg']:.3f} deg (1 sigma); "
-              f"across {'25' if args.media == 'cd' else '24'}-58 mm: {res.get('angle_sigma_deg', float('nan')):.2f} deg")
-    if res and res["chi2_per_dof"] > 2:
+        if at_terminal:
+            ui.say(guide.geo_summary(res, len(ladder.targets)))
+        detail(f"u = r0/b = {res['u']:.3f}, v = p/b = {res['v']:.7f}  (chi2/dof {res['chi2_per_dof']:.2f}, "
+               f"residual rms {res['residual_rms_deg']:.3f} deg)")
+        detail(f"With bit length {res['bit_nm_assumed']} nm: r0 {res['r0_mm_at_bit']:.5f} mm, "
+               f"pitch {res['pitch_um_at_bit']:.6f} um")
+        detail(f"Angle uncertainty across the measured span {res['measured_span_mm'][0]}-"
+               f"{res['measured_span_mm'][1]} mm: {res['angle_sigma_measured_span_deg']:.3f} deg (1 sigma); "
+               f"across {'25' if args.media == 'cd' else '24'}-58 mm: {res.get('angle_sigma_deg', float('nan')):.2f} deg")
+    if res and res["chi2_per_dof"] > 2 and not at_terminal:     # at a terminal the advice below settles this
         print(f"The constant-pitch fit leaves more than noise. See whether a varying pitch fits better: "
               f"python tools/geo_polyfit.py {out}")
     if ladder.targets and ladder.cov is not None:
@@ -681,9 +685,11 @@ COMMAND_GROUPS = (
     ("Use elsewhere", ("disexport",)),
 )
 LANG_NOTE = ("Language: --lang zh or --lang en, or DISCPROBE_LANG; at a terminal it follows the system. "
-             "Scripts and pipes stay English unless --lang is given. --no-animation keeps the screen still.")
+             "Scripts and pipes stay English unless --lang is given. --no-animation keeps the screen still.\n"
+             "Tab completion: python -m discprobe completion")
 LANG_NOTE_ZH = ("语言：--lang zh 或 --lang en，也可以设置环境变量 DISCPROBE_LANG；在终端里默认跟随系统语言。"
-                "脚本和管道始终是英文，除非写了 --lang。--no-animation 可以关掉动画。")
+                "脚本和管道始终是英文，除非写了 --lang。--no-animation 可以关掉动画。\n"
+                "Tab 补全：python -m discprobe completion")
 WORKFLOW = """\
 The usual path, on DVD (CD: add --media cd to each command; steps in docs/MANUAL.md):
   python -m discprobe random --output iso/random.iso    then burn it to a disc
@@ -1041,9 +1047,10 @@ def _main(argv=None):
         defaults = cd_defaults.get(name, {}).copy()
         if name in ("rings", "geo"):
             defaults["bit_nm"] = BIT_NM
-        supplied = {a.split("=")[0] for a in raw_args if a.startswith("--")}
+        # argparse accepted these, so a shortened option such as --sp is a prefix of exactly one flag.
+        supplied = {a.split("=")[0] for a in raw_args if a.startswith("--") and len(a) > 2}
         for key, value in defaults.items():
-            if "--" + key.replace("_", "-") not in supplied:
+            if not any(("--" + key.replace("_", "-")).startswith(given) for given in supplied):
                 setattr(args, key, value)
     if isinstance(getattr(args, "speed", None), _SpeedX):
         one_x = 176.4 if getattr(args, "media", "dvd") == "cd" else 1385
@@ -1064,6 +1071,9 @@ def main(argv=None):
         rest = [a for a in rest if a != "--no-animation"]
         ui.term().animate = False
     try:
+        if rest[:1] == ["completion"]:      # not a parser command, so piped help and errors stay as they were
+            from . import completion
+            return completion.main(rest[1:], _build_parser, ui.term().stream)
         _main(rest)
     except _Rerun as again:
         main(list(sys.argv[1:] if argv is None else argv) + again.extra)

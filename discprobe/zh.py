@@ -147,7 +147,14 @@ TEXT = {
     "This run only covers {a}-{b} mm, so angles outside that are extrapolated.": "这次只测到 {a}-{b} mm，范围外的角度是外推的。",
     "The fit left more than noise. Compare pitch models first, no new measurement needed; if quadratic is": "拟合后剩下的误差比噪声大。先比较轨距模型，不用重新测量；如果二次模型明显更好，",
     "clearly better, write a correction and add --correction correction.json to the commands below:": "就写一个修正文件，并在下面的命令里加上 --correction correction.json：",
-    "Next, make a picture ISO from your own image:": "下一步，用你自己的图片做一个可刻录的镜像：",
+    "Measured {n} points across {a}-{b} mm: angles known to about {s} deg, points {r} deg from the fit on average.":
+        "测量完成：{n} 个测量点，覆盖 {a}-{b} mm。角度不确定度约 {s}°，测量点平均偏离拟合曲线 {r}°。",
+    "A varying track pitch fits clearly better (fit error ratio {a} -> {b}). Write a correction first; the commands below use it:":
+        "轨距有变化：改用可变轨距后拟合明显更好（拟合误差比 {a} -> {b}）。先生成修正文件，下面的命令会用到它：",
+    "A varying track pitch does not fit better (fit error ratio {a} -> {b}), so the extra scatter is probably read noise. You can carry on. For a cleaner run, try a lower speed:":
+        "偏差比噪声略大，但改用可变轨距也没有更好（拟合误差比 {a} -> {b}），多半是读取噪声，可以继续。想测得更干净，可以降速再测一次：",
+    "Next, make a picture ISO (replace my_picture.png with your image):": "下一步，把图片做成可刻录的镜像（把 my_picture.png 换成你的图片）：",
+    "--sectors must match the count in DiscImageStudio.": "--sectors 要和 DiscImageStudio 里的数一致。",
     "CD has one more constant that timing cannot see: read the CD-R part of docs/MANUAL.md first.": "CD 还有一个计时测不到的常数：先看 docs/MANUAL.md 的 CD-R 部分。",
     "Or export a DiscImageStudio preset:": "或者导出 DiscImageStudio 预设：",
     "({a}; it must match the count in DiscImageStudio.)": "（{a}；它要和 DiscImageStudio 里的数一致。）",
@@ -258,6 +265,16 @@ TEXT = {
     "options": "选项",
     "positional arguments": "位置参数",
     "show this help message and exit": "显示这份帮助并退出",
+
+    # Tab completion descriptions
+    "integer": "整数",
+    "number": "数字",
+    "path": "路径",
+    "text": "文字",
+    "kB/s or 4x": "kB/s 或倍速，如 4x",
+    "print a script that adds Tab completion to your shell": "生成脚本，让 shell 能按 Tab 补全",
+    "language of the text": "显示语言",
+    "keep the screen still": "关掉动画",
 
     # Writing files
     "Writing {p}: {n} sectors of seeded random data": "正在写 {p}：{n} 个扇区的随机数据",
@@ -430,6 +447,20 @@ TEXT = {
 }
 
 BLOCKS = {
+    "completion": """\
+给 disc-probe 加上 Tab 补全。先生成一次脚本，再让 shell 加载它：
+
+PowerShell：
+  python -m discprobe completion powershell > $HOME\\discprobe-completion.ps1
+  加到 $PROFILE：. $HOME\\discprobe-completion.ps1
+bash：
+  python -m discprobe completion bash > ~/.discprobe-completion.bash
+  加到 ~/.bashrc：source ~/.discprobe-completion.bash
+zsh：
+  python -m discprobe completion zsh > ~/.discprobe-completion.zsh
+  加到 ~/.zshrc：source ~/.discprobe-completion.zsh
+
+第一行加上 --lang zh，说明文字就是中文。更新 disc-probe 后再生成一次。""",
     "workflow": """\
 通常的流程，以 DVD 为例（CD 在每条命令后加 --media cd，步骤见 docs/MANUAL.md）：
   python -m discprobe random --output iso/random.iso    然后把它刻到盘上

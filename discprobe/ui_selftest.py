@@ -128,6 +128,27 @@ def _layout(c) -> None:
     p.tick(force=True)
     c.check(len(s.getvalue()) == size, "an unchanged frame is not written again")
     p.close()
+    level = [0.25]
+    for term_used, flashes, name in ((sixteen, True, "colour"), (plain, False, "NO_COLOR"), (still, False, "no motion")):
+        level[0] = 0.25
+        p = ui.Progress(lambda: (level[0], "rung 3/22", None), term_used)
+        c.check("\x1b[" not in p._percent(0.25, 1000.0)[1], f"{name}: the first percentage does not flash")
+        level[0] = 0.26
+        c.check((" 2\x1b[1;36m6\x1b[0m%" in p._render(100)[0]) == flashes, f"{name}: {'only the digit that changed flashes' if flashes else 'a new digit stays plain'}")
+        p.percent_changed -= ui.PERCENT_FLASH_S
+        c.check(" 26%" in p._render(100)[0], f"{name}: it goes back to the terminal's colour")
+        level[0] = 0.30
+        c.check(("\x1b[1;36m30\x1b[0m%" in p._render(100)[0]) == flashes, f"{name}: two digits that change both flash")
+        level[0] = 0.996
+        c.check(" 99%" in ANSI.sub("", p._render(100)[0]), f"{name}: 99.6% does not read as done")
+        level[0] = 1.0
+        full = p._render(100)[0]
+        c.check(("\x1b[32m100%\x1b[0m" in full) == (term_used is not plain), f"{name}: 100% is green where there is colour")
+        p.percent_changed -= ui.PERCENT_FLASH_S
+        c.check(("\x1b[32m100%" in p._render(100)[0]) == (term_used is not plain), f"{name}: and stays green")
+        p.close()
+    for env, wanted in (({}, "32"), ({"COLORFGBG": "15;0"}, "92"), ({"COLORFGBG": "0;15"}, "32"), ({"COLORFGBG": "0;default;7"}, "32"), ({"COLORFGBG": "bad"}, "32")):
+        c.check(ui.Term(FakeTty(), env={"TERM": "xterm", **env}, platform="linux").green == wanted, f"green for {env}: {wanted}")
     frame_bytes = len(ui.Progress(status, tty)._render(100)[0].encode())
     c.check(frame_bytes < 420, f"a true-colour frame stays small ({frame_bytes} bytes)")
 
@@ -151,9 +172,10 @@ def _snake(c) -> None:
     c.check(g.heading == (-1, 0), "two quick turns are both kept")
     for _ in range(20):
         g.step()
-    c.check(g.over and g.best == 1, "a wall ends the game and keeps the best score")
+    best = g.score      # it may have eaten again on the way to the wall
+    c.check(g.over and best >= 1 and g.best == best, "a wall ends the game and keeps the best score")
     g.reset()
-    c.check(not g.over and g.score == 0 and g.best == 1, "a new game starts clean")
+    c.check(not g.over and g.score == 0 and g.best == best, "a new game starts clean")
     g = snake.Snake(10, 6)
     g.body = [(5, 2), (4, 2), (4, 3), (5, 3), (6, 3), (6, 2)]
     g.heading = (0, 1)
@@ -322,6 +344,67 @@ def _chinese(c) -> None:
         c.check("Start here" in text and "--lang" not in text, "DISCPROBE_PLAIN=1 stays English")
 
 
+def _completion(c) -> None:
+    import shutil
+    from . import __main__ as cli, completion
+    rows = completion.table(cli._build_parser)
+    p, sub, _ = cli._build_parser()
+    c.check(set(sub.choices) <= {e[0] for e in rows[""]} and "completion" in {e[0] for e in rows[""]}, "completion knows every command")
+    missing = [f for name, parser in sub.choices.items() for a in parser._actions for f in a.option_strings
+               if f not in {e[0] for e in rows[name]}]
+    c.check(not missing, f"completion knows every option {missing[:3]}")
+    speed = next(e for e in rows["timing"] if e[0] == "--speed")
+    media = next(e for e in rows["timing"] if e[0] == "--media")
+    cav = next(e for e in rows["timing"] if e[0] == "--cav")
+    c.check(speed[1] == "v" and speed[3] == "kB/s or 4x" and media[2] == ("dvd", "cd") and cav[1] == "f", "options say what their value is")
+    scripts = {shell: completion.script(shell, cli._build_parser) for shell in completion.SHELLS}
+    c.check(all("--along-track-frames" in text for text in scripts.values()), "every script holds the options")
+    c.check("discprobe.__main__" not in "".join(scripts.values()) and not any(
+        re.search(r"(?m)^[^#'\n]*\bpython -m discprobe\b", text) for text in scripts.values()), "a script never starts Python")
+    i18n.use("zh")
+    try:
+        chinese = completion.script("powershell", cli._build_parser)
+    finally:
+        i18n.use("en")
+    c.check(chinese.isascii() and "\\u8bfb" in chinese, "the PowerShell script is ASCII whatever the language")
+    code, text = _run_cli("completion", "nope")
+    c.check(code == 2 and "powershell" in text, "an unknown shell shows the usage")
+    code, text = _run_cli("completion", "bash", "--lang", "zh")
+    c.check(code == 0 and "_discprobe_complete" in text and "\r" not in text, "bash script: LF line ends, --lang accepted")
+
+    with tempfile.TemporaryDirectory() as d:
+        if sys.platform == "win32" and shutil.which("powershell"):
+            path = os.path.join(d, "c.ps1")
+            with open(path, "w", encoding="ascii") as f:
+                f.write(scripts["powershell"])
+            checks = (("python -m discprobe timing --sp", "--speed"), ("python -m discprobe ti", "timing tiles tilescan"),
+                      ("python -m discprobe timing --media ", "dvd cd"), ("python -m discprobe --lang zh geo --ref", "--ref-lba"),
+                      ("python C:\\Windows\\win.in", "C:\\Windows\\win.ini"))
+            probe = ". '" + path + "'\n" + "".join(
+                f"(TabExpansion2 -inputScript '{line}' -cursorColumn {len(line)}).CompletionMatches.CompletionText -join ' '\n" for line, _ in checks)
+            done = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", probe], capture_output=True, text=True)
+            got = done.stdout.splitlines()
+            c.check(len(got) == len(checks) and all(g == want for g, (_, want) in zip(got, checks)), f"PowerShell: Tab completes as intended {got}")
+        elif sys.platform != "win32" and shutil.which("bash"):
+            path = os.path.join(d, "c.bash")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(scripts["bash"])
+            checks = (("python -m discprobe timing --sp", "--speed"), ("python -m discprobe ti", "timing tiles tilescan"),
+                      ("python -m discprobe timing --media ''", "dvd cd"), ("python -m discprobe --lang zh geo --ref", "--ref-lba"),
+                      ("python script.py ''", ""))
+            probe = "source " + path + "\n" + "".join(
+                f"COMP_WORDS=({line}); COMP_CWORD=$((${{#COMP_WORDS[@]}} - 1)); _discprobe_complete; echo \"${{COMPREPLY[*]}}\"\n" for line, _ in checks)
+            done = subprocess.run(["bash", "--norc", "-c", probe], capture_output=True, text=True)
+            got = done.stdout.split("\n")[:len(checks)]
+            c.check(all(g == want for g, (_, want) in zip(got, checks)) and len(got) == len(checks), f"bash: Tab completes as intended {got}")
+
+
+def _run_cli(*argv):
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    done = subprocess.run([sys.executable, "-m", "discprobe", *argv], capture_output=True, cwd=root)
+    return done.returncode, done.stdout.decode("utf-8", "replace") + done.stderr.decode("utf-8", "replace")
+
+
 def _reader_changes_nothing(c) -> None:
     def run(wrap, keys=None):
         sim = SimDrive(mode="cav", seed=7)
@@ -438,6 +521,24 @@ def _advice(c) -> None:
     cd_args = Namespace(**{**vars(args), "media": "cd", "speed": 1411})
     c.check("--media cd" in guide.after_timing(cd_args, timed("CAV", [0.4]))[-1], "next commands keep --media cd")
     c.check("--speed 1411" not in guide.after_timing(cd_args, timed("CAV", [0.4]))[-1], "next commands leave out the default speed")
+    fit = {"chi2_per_dof": 5.2, "measured_span_mm": [25.8, 54.4], "residual_rms_deg": 0.9, "angle_sigma_measured_span_deg": 0.33}
+    geo_args = Namespace(**{**vars(args), "speed": 5540})
+    real_compare = guide.compare_pitch
+    try:
+        guide.compare_pitch = lambda out: (5.2, 5.6)
+        noisy_fit = "\n".join(guide.after_geo(geo_args, fit, os.path.join("results", "geo-H-20260101-100000")))
+        c.check("does not fit better" in noisy_fit and "--speed 3324" in noisy_fit and "--correction" not in noisy_fit,
+                "no gain from a varying pitch: geo says carry on, no correction")
+        guide.compare_pitch = lambda out: (20.0, 1.5)
+        pitch_fit = guide.after_geo(geo_args, fit, os.path.join("results", "geo-H-20260101-100000"))
+        c.check(any("--write-correction" in x for x in pitch_fit) and all("--correction correction.json" in x for x in pitch_fit if f"{guide.PROG} image" in x or f"{guide.PROG} disexport" in x),
+                "a clear gain: geo writes the correction into the next commands")
+        guide.compare_pitch = lambda out: None
+        c.check(any("geo_polyfit" in x for x in guide.after_geo(geo_args, fit, "x")), "no comparison possible: geo says how to run it")
+    finally:
+        guide.compare_pitch = real_compare
+    c.check(guide.compare_pitch("no such folder") is None, "a comparison that cannot run is not an error")
+    c.check("0.33 deg" in guide.geo_summary(fit, 22) and "22 points" in guide.geo_summary(fit, 22), "geo opens with a plain summary")
     stop = "\n".join(guide.after_geo_stop(args, "the spindle speed never settled; is the read speed fixed (--speed)?"))
     c.check("timing" in stop and "--speed" in stop, "a geo that never settled gets a next step")
     hint = guide.parser_hint("argument <command>: invalid choice: 'timming' (choose from a)", ["timming"], ["timing", "geo"])
@@ -448,6 +549,7 @@ def _advice(c) -> None:
 
 
 def _command_line(c) -> None:
+    import shutil
     from . import __main__ as cli
 
     def code_and_stderr(*argv):
@@ -476,6 +578,11 @@ def _command_line(c) -> None:
             code, _ = code_and_stderr("timing", "--sim", "cav", "--media", "cd", "--speed", "8x", "--reps", "4", "--period-reads", "20", "--out", out)
             speeds = sorted(r.summary["args"]["speed"] for r in guide.scan(out))
             c.check(code == 0 and speeds == [1411, 5540], "--speed 8x is 1411 kB/s on CD")
+            for given, wanted, name in ((["--sp", "4x"], 706, "--sp 4x"), (["--speed=8x"], 1411, "--speed=8x"), ([], 1411, "no --speed")):
+                shortened = os.path.join(d, "short")
+                shutil.rmtree(shortened, ignore_errors=True)
+                code, _ = code_and_stderr("timing", "--sim", "cav", "--media", "cd", *given, "--reps", "4", "--period-reads", "20", "--out", shortened)
+                c.check(code == 0 and guide.scan(shortened)[0].summary["args"]["speed"] == wanted, f"with --media cd: {name} gives {wanted} kB/s")
             code, text = code_and_stderr("geo", "--sim", "cav", "--ranges", "5-1")
             c.check(code == 1 and "start-end" in text, "a backwards --ranges says how to write it")
             code, text = code_and_stderr("image", "--geo", os.path.join(d, "missing.json"))
@@ -673,3 +780,4 @@ def run(c) -> None:
     _command_line(c)
     _missing_package(c)
     _chinese(c)
+    _completion(c)

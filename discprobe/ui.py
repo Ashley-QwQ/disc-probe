@@ -26,7 +26,8 @@ SPINNER_UNICODE = ("◐", "◓", "◑", "◒")     # a disc turning
 SPINNER_FRAME_S = 0.12
 BAR_ASCII = ("=", ">", ".")
 BAR_UNICODE = ("━", "╸", "─")
-STYLES = {"bold": "1", "dim": "2", "red": "31", "green": "32", "yellow": "33", "cyan": "36"}
+STYLES = {"bold": "1", "dim": "2", "red": "31", "green": "32", "yellow": "33", "cyan": "36", "flash": "1;36"}
+PERCENT_FLASH_S = 0.4
 BAR_WIDTH = 20
 ANIMATED_FPS = 8.0
 PLAIN_FPS = 1.0
@@ -91,6 +92,10 @@ class Term:
         self.color = self.ansi and not env.get("NO_COLOR")
         self.animate = self.ansi and not env.get("CI") and not env.get("DISCPROBE_NO_ANIMATION")
         self.truecolor = self.color and (env.get("COLORTERM", "") in ("truecolor", "24bit") or bool(env.get("WT_SESSION")))
+        # Few terminals say what is behind the text. Told it is dark, use bright green; otherwise
+        # the theme's own green, which its author made readable on that theme.
+        background = env.get("COLORFGBG", "").rpartition(";")[2]
+        self.green = "92" if background.isdigit() and int(background) not in (7, 15) else "32"
         utf8 = (getattr(self.stream, "encoding", None) or "").lower().replace("-", "") == "utf8"
         self.unicode = self.ansi and utf8 and bool(env.get("DISCPROBE_UNICODE"))
 
@@ -192,6 +197,9 @@ class Progress:
         self.last_draw = 0.0
         self.width_shown = 0
         self.line_shown = None
+        self.percent_shown = None
+        self.percent_lit = set()
+        self.percent_changed = 0.0
         self.interval = 1 / (ANIMATED_FPS if self.t.animate else PLAIN_FPS)
         self.closed = False
         self.keys = keys
@@ -223,6 +231,25 @@ class Progress:
             done = self.t.style(fill * filled, "cyan")
         return plain, "[" + done + (self.t.style(tip, "cyan") if tip else "") + (self.t.style(tail, "dim") if tail else "") + "]"
 
+    def _percent(self, fraction: float, now: float) -> tuple[str, str]:
+        """The percentage as plain and painted text: a digit that just changed flashes, and 100% stays green.
+
+        Rounded down, so it only reads 100% when the work is done.
+        """
+        text = f"{int(fraction * 100 + 1e-9):3d}%"
+        if text != self.percent_shown:
+            old = self.percent_shown or text    # the first value is news to nobody
+            self.percent_lit = {i for i, (a, b) in enumerate(zip(old, text)) if a != b}
+            self.percent_changed = now
+            self.percent_shown = text
+        if not self.t.color:
+            return text, text
+        if text == "100%":
+            return text, f"\x1b[{self.t.green}m{text}\x1b[0m"
+        if self.t.animate and now - self.percent_changed < PERCENT_FLASH_S:
+            return text, _paint_runs([(STYLES["flash"] if i in self.percent_lit else "", ch) for i, ch in enumerate(text)])
+        return text, text
+
     def _render(self, columns: int | None = None) -> tuple[str, int]:
         columns = columns if columns is not None else shutil.get_terminal_size((80, 24)).columns
         room = max(10, columns - 1)
@@ -233,7 +260,7 @@ class Progress:
         meter = []
         if fraction is not None:
             fraction = max(0.0, min(1.0, fraction))
-            meter = [self._bar(fraction, now), (f"{fraction * 100:3.0f}%",) * 2]
+            meter = [self._bar(fraction, now), self._percent(fraction, now)]
         percent = meter[1:]
         title = [(label, sweep(label, now, self.t))]
         elapsed = clock(now - self.started)

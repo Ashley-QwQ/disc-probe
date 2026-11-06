@@ -26,6 +26,8 @@ MAX_LATEST_CHI2 = 25.0
 GOOD_JITTER_DEG = 2.0
 BAD_JITTER_DEG = 5.0
 NARROW_SPAN_MM = 20.0
+# When a varying pitch counts as worth a correction: it at least halves chi2/dof.
+PITCH_CLEARLY_BETTER = 0.5
 ALTERNATIVE_SPEEDS = {"dvd": ("3324", "5540", "11080"), "cd": ("1411", "2822", "4234")}
 INSTALL = "python -m pip install numpy pillow scipy"
 PORTS = ("This repository drives real hardware on Windows only. Ports: Linux github.com/bczhc/disc-probe, "
@@ -292,30 +294,71 @@ def after_timing_stop(args, reason: str) -> list[str]:
     return []
 
 
+def compare_pitch(out: str) -> tuple[float, float] | None:
+    """chi2/dof of the constant-pitch and quadratic-pitch fits of a finished run, by tools/geo_polyfit.py."""
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools", "geo_polyfit.py")
+    try:
+        spec = importlib.util.spec_from_file_location("geo_polyfit", path)
+        tool = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(tool)
+        n, y, s, fit = tool.load(out)
+        scale = fit["bit_nm_assumed"] * 1e-6
+        ratios = []
+        for order in (0, 2):
+            f = tool.fit(n, y, s, fit["u"], fit["v"], order, tool.RC_MM / scale, tool.RS_MM / scale)
+            ratios.append(f["chi2"] / f["dof"])
+        return ratios[0], ratios[1]
+    except Exception:       # only advice depends on this; the measurement is already saved
+        return None
+
+
+def geo_summary(res: dict, rungs: int) -> str:
+    span = res["measured_span_mm"]
+    return (f"Measured {rungs} points across {span[0]}-{span[1]} mm: angles known to about "
+            f"{res['angle_sigma_measured_span_deg']:.2f} deg, points {res['residual_rms_deg']:.2f} deg from the fit on average.")
+
+
 def after_geo(args, res: dict, out: str) -> list[str]:
     media = getattr(args, "media", "dvd")
-    geo = short(os.path.join(out, "summary.json"))
+    summary = _load(os.path.join(out, "summary.json")) or {}
+    m = RESULT_DIR.match(os.path.basename(out))
+    real_and_whole = m and not getattr(args, "sim", None) and Result(out, m["kind"], m["tag"], m["stamp"]).geo_complete()
+    geo = "latest" if real_and_whole else short(out)
     flag = " --media cd" if media == "cd" else ""
-    sectors, why = _sectors_for(_load(os.path.join(out, "summary.json")) or {}, getattr(args, "out", "results"))
+    sectors, why = _sectors_for(summary, getattr(args, "out", "results"))
     span = res.get("measured_span_mm") or [25.8, 54.4]
+    correction = ""
     lines = []
     if getattr(args, "sim", None):
         lines.append("This was the simulated drive: the commands below show the flow, do not burn from them.")
     if span[1] - span[0] < NARROW_SPAN_MM:
         lines.append(f"This run only covers {span[0]}-{span[1]} mm, so angles outside that are extrapolated.")
     if res["chi2_per_dof"] > 2:
-        lines += ["The fit left more than noise. Compare pitch models first, no new measurement needed; if quadratic is",
-                  "clearly better, write a correction and add --correction correction.json to the commands below:",
-                  f"  python tools/geo_polyfit.py {short(out)}",
-                  f"  python tools/geo_polyfit.py {short(out)} --write-correction correction.json --order quadratic", ""]
-    lines += ["Next, make a picture ISO from your own image:",
-              f"  {PROG} image{flag} --geo {geo} --picture my_picture.png --output iso/picture.iso"]
+        compared = compare_pitch(out)
+        if compared is None:
+            lines += ["The fit left more than noise. Compare pitch models first, no new measurement needed; if quadratic is",
+                      "clearly better, write a correction and add --correction correction.json to the commands below:",
+                      f"  python tools/geo_polyfit.py {short(out)}",
+                      f"  python tools/geo_polyfit.py {short(out)} --write-correction correction.json --order quadratic"]
+        elif compared[1] <= PITCH_CLEARLY_BETTER * compared[0]:
+            correction = " --correction correction.json"
+            lines += [f"A varying track pitch fits clearly better (fit error ratio {compared[0]:.1f} -> {compared[1]:.1f}). "
+                      "Write a correction first; the commands below use it:",
+                      f"  python tools/geo_polyfit.py {short(out)} --write-correction correction.json --order quadratic"]
+        else:
+            lines += [f"A varying track pitch does not fit better (fit error ratio {compared[0]:.1f} -> {compared[1]:.1f}), so the "
+                      "extra scatter is probably read noise. You can carry on. For a cleaner run, try a lower speed:",
+                      f"  {PROG} geo {_carry(args)} --speed {_other_speed(args)}"]
+        lines.append("")
+    lines += ["Next, make a picture ISO (replace my_picture.png with your image):",
+              f"  {PROG} image{flag} --geo {geo}{correction} --picture my_picture.png --output iso/picture.iso"]
     if media == "cd":
         lines.append("  CD has one more constant that timing cannot see: read the CD-R part of docs/MANUAL.md first.")
     lines += ["Or export a DiscImageStudio preset:",
-              f"  {PROG} disexport --geo {geo} --sectors {sectors} --r-min {span[0]} --r-max {span[1]} "
+              f"  {PROG} disexport --geo {geo}{correction} --sectors {sectors} --r-min {span[0]} --r-max {span[1]} "
               "--output dis_preset.json",
-              f"  ({why}; it must match the count in DiscImageStudio.)"]
+              "  --sectors must match the count in DiscImageStudio.",
+              f"  {why}"]
     return lines
 
 

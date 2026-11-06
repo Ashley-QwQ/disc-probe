@@ -71,7 +71,7 @@ python -m discprobe selftest
 python -m discprobe guide
 ```
 
-`info`、`timing`、`geo`、`random`、`disexport` 跑完也会打印下一步。`timing` 还会给判定：不是 CAV 就换速度，抖动大于约 2° 建议降速，大于约 5° 说明这台光驱很可能不适合（这两个门槛来自实践报告表，不是严格界限）。`geo` 中途停下时，会按停下的原因给建议。
+`info`、`timing`、`geo`、`random`、`disexport` 跑完也会打印下一步。`timing` 还会给判定：不是 CAV 就换速度，抖动大于约 2° 建议降速，大于约 5° 说明这台光驱很可能不适合（这两个门槛来自实践报告表，不是严格界限）。`geo` 中途停下时，会按停下的原因给建议。`geo` 跑完如果偏差比噪声大（χ²/dof 超过 2），会自动比较恒定轨距和二次轨距：二次模型把 χ²/dof 至少降一半，就让你先写修正文件，后面的命令也带上它；否则说明多半是读取噪声，可以继续。这个比较在关闭光驱之后做，不影响测量。
 
 **盘符。**`list` 列出光驱。在终端里可以不写 `--drive`：只有一台就直接用，有多台就问你。盘符写错时，报错里会列出现有的光驱。
 
@@ -96,13 +96,23 @@ python -m discprobe results geo
 
 **CD 和 DVD。**步骤相同，每条命令加 `--media cd`，它同时把默认值换成 CD 的。终端里如果盘是 CD、命令却是 DVD 设置，会先问要不要加；托盘是空的也会直接说。`disexport` 按 `--geo` 的结果决定预设类型，它的 `--media` 只用来核对。
 
+**Tab 补全。**生成一次脚本，让 shell 加载，之后 `--sp` 按 Tab 就补成 `--speed`，`--media` 后按 Tab 列出 `dvd`、`cd`，`--geo` 后可以选 `latest`。
+
+```bash
+python -m discprobe completion
+```
+
+这条命令会打印 PowerShell、bash、zsh 各自的两步做法。说明文字默认是英文，生成时加 `--lang zh` 就是中文。PowerShell 上按 Ctrl+Space 可以看到每个选项的参数类型和说明；bash 和 zsh 只补全文字，不显示说明。如果 PowerShell 不让加载脚本，那是系统的执行策略（ExecutionPolicy）在拦，要不要放开由你决定。
+
+按 Tab 时不会启动 Python：所有命令和选项都已写进脚本，shell 只在当前命令的选项里比对前缀。所以 disc-probe 更新后要重新生成一次。它按 `python -m discprobe` 这几个词识别，其他 `python` 命令照常补全文件路径；不过 bash 和 zsh 原本针对 `python` 的专用补全会被替换。
+
 **语言。**在终端里默认跟随系统语言：系统是中文就显示中文，帮助、提示、测量输出都一样。繁体系统目前也显示简体。想手动指定，用 `--lang zh` 或 `--lang en`，放在命令任何位置都行；也可以设环境变量 `DISCPROBE_LANG=zh`。管道、重定向和 `DISCPROBE_PLAIN=1` 始终是英文，脚本不受影响，`DISCPROBE_LANG` 对它们也不起作用；只有在命令里明确写 `--lang zh` 才会变成中文（输出为 UTF-8）。`summary.json` 等结果文件和 `selftest` 的输出不翻译。
 
 ```bash
 python -m discprobe --lang zh guide
 ```
 
-**进度。**`timing` 和 `geo` 显示进度条、当前阶段、已用时间和预计剩余时间；写 ISO 时在百分比后显示剩余时间。窗口窄时依次省掉按键提示、已用时间、进度条，不会折行。按 Ctrl+C 会保留已测的部分并说明位置，退出码 130。
+**进度。**`timing` 和 `geo` 显示进度条、当前阶段、已用时间和预计剩余时间；写 ISO 时在百分比后显示剩余时间。窗口窄时依次省掉按键提示、已用时间、进度条，不会折行。百分比向下取整，只有做完才显示 100%；刚变化的那一位数字会闪一下，100% 时变绿。终端通过 `COLORFGBG` 说明背景是深色时用亮绿，其他情况用终端主题自己的绿色。按 Ctrl+C 会保留已测的部分并说明位置，退出码 130。
 
 **贪吃蛇。**测量时按 `g`，进度行下方会打开一局贪吃蛇，方向键或 WASD 转向，`r` 再来一局，`q` 关闭。测量输出照常打印在它上方，不会被盖住。不按 `g` 就没有这个东西。它需要动画和键盘，所以管道、`DISCPROBE_PLAIN=1`、`--no-animation` 下都不会出现；`NO_COLOR` 时用字符画。
 
