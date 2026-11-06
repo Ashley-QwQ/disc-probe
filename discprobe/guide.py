@@ -271,9 +271,9 @@ def after_timing(args, summary: dict) -> list[str]:
     elif worst <= GOOD_JITTER_DEG:
         lines.append(f"Verdict: CAV with {span} jitter. This drive looks usable.")
     else:
-        lines.append(f"Verdict: CAV, but {span} jitter is noisy. A lower speed may help:" if worst <= BAD_JITTER_DEG
+        lines.append(f"Verdict: CAV, but {span} jitter is noisy. Another speed may help:" if worst <= BAD_JITTER_DEG
                      else f"Verdict: CAV, but {span} jitter is too high: drives reported at this level stopped early "
-                          "or gave a wrong geometry. Try a lower speed or another drive:")
+                          "or gave a wrong geometry. Try another speed or another drive:")
         lines.append(f"  {PROG} timing {carry} --speed {other}")
         if media == "dvd" and getattr(args, "sectors", 1) == 1:
             lines.append(f"  Or read whole ECC blocks, which was cleaner on one drive: {PROG} timing {carry} --sectors 16")
