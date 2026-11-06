@@ -15,7 +15,7 @@ are blurred.
 | `rosettes_a.jpg`, `rosettes_b.jpg`, `rosettes_c.jpg`, `rosettes_closeup.jpg` | Four-colour rosettes (`tools/compose_rosettes.py`): petals in `A5`, `92`, `66` and 64T `ED00`, centres in 48T, background an aperiodic 8T mix. Phone flash, three viewpoints; the petal colours come from along-track diffraction and change with the angle |
 | `pugod124_cd.jpg` | Memorex CD-R by pugod124 ([disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2)), `geo` then fine calibration in DiscImageStudio; used with permission |
 | `lut_target_design.png`, `lut_target.jpg` | Colour-table target (`iso/lut2.iso`): 75 self-locating tiles, each with an ID and 18 texture swatches. The design render uses one false colour per texture; the photo is the burned disc under a small light, background masked |
-| `roses_source.jpg`, `roses_7161.jpg`, `roses_7185.jpg` | Rose picture with data on one RITEKF1 DVD-R. `roses_source.jpg` is the original, made with GPT Image. The two photos were taken from viewpoints found by hand under an iPad torch, with the background masked. The colour varies with the viewpoint, and the data (1.38 GB) read back without an error on a GH70N |
+| `roses_source.jpg`, `roses_7161.jpg`, `roses_7185.jpg`, `roses_design.png`, `roses_layout.png` | Rose picture with data on one RITEKF1 DVD-R. `roses_source.jpg` is the original, made with GPT Image. The two photos were taken from viewpoints found by hand under an iPad torch, with the background masked. The colour varies with the viewpoint, and the data (1.38 GB) read back without an error on a GH70N. `roses_design.png` is the design and `roses_layout.png` shows where the data is |
 
 The painting is in the public domain; the scan it was made from and the design files are not
 published here.
