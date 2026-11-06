@@ -34,6 +34,7 @@ TEXT = {
     "Snake: best score {n}": "贪吃蛇最高 {n} 分",
     "The window is too small for snake": "窗口太小，放不下贪吃蛇",
     "Finished in {t}": "用时 {t}",
+    "writing the image": "正在写镜像",
     "read timing -> disc geometry -> pictures on discs": "读取计时 -> 盘面螺旋几何 -> 把图片刻到盘上",
 
     # Measuring
@@ -180,6 +181,22 @@ TEXT = {
         "这个仓库只在 Windows 上操作真实光驱。其他系统的移植版：Linux github.com/bczhc/disc-probe，macOS github.com/NaiveTomcat/discprobe-macos。带 --sim 的命令这里都能跑。",
 
     # guide
+    "Burn {p} to a disc and load it, then check this drive (1 to 3 minutes):": "把 {p} 刻到盘上并放入光驱，然后检查这台光驱（1 到 3 分钟）：",
+    "Next, check the preview: {p}": "下一步，先看预览图：{p}",
+    "If it looks right, burn {p} to a blank disc from the batch you measured": "没问题的话，把 {p} 刻到测量用的同一批空盘上",
+    "(Windows: right-click the .iso, Burn disc image).": "（Windows：右键 .iso，选“刻录光盘映像”）。",
+    "This geometry came from the simulated drive, so it only shows the flow: do not burn this ISO.": "这个几何来自模拟光驱，只用来演示流程：不要刻这个镜像。",
+    "This was the simulated drive, so the verdict below says nothing about your own drive.": "这是模拟光驱的结果，下面的结论和你自己的光驱无关。",
+    "Those were only the checks that run without {p}. Install what is missing and run it again:": "刚才只跑了不需要 {p} 的检查。装上缺的依赖，再运行一次：",
+    "no such file: {p}": "找不到文件：{p}",
+    "Make the random-data disc: write this file, then burn it:": "做随机数据盘：先写出这个文件，再把它刻到盘上：",
+    "Check that this drive can measure (1 to 3 minutes):": "检查这台光驱能不能测量（1 到 3 分钟）：",
+    "This speed did not work; try another (1 to 3 minutes):": "这个速度不行，换一个再试（1 到 3 分钟）：",
+    "Measure the disc's spiral (about 5 minutes):": "测量盘面螺旋几何（约 5 分钟）：",
+    "Make a picture ISO (replace my_picture.png with your image):": "把图片做成可刻录的镜像（把 my_picture.png 换成你的图片）：",
+    "Or export a preset for DiscImageStudio:": "或者导出 DiscImageStudio 预设：",
+    "Install the Python packages disc-probe uses:": "安装 disc-probe 用到的 Python 依赖：",
+    "Try the flow on the simulated drive:": "用模拟光驱走一遍流程：",
     "Where you are, for {m} ({o}: {c}):": "{m} 的进度（要看 {o}：{c}）：",
     "Next:": "下一步：",
     "All commands: {a}    One command: {b}    Details: docs/MANUAL.md": "全部命令：{a}    单个命令：{b}    详细说明：docs/MANUAL.md",
@@ -266,7 +283,20 @@ TEXT = {
     "positional arguments": "位置参数",
     "show this help message and exit": "显示这份帮助并退出",
 
-    # Tab completion descriptions
+    # Tab completion
+    "Tab completion: {c}": "Tab 补全：{c}",
+    "Wrote {p}": "已写入 {p}",
+    "Added to {p}": "已加入 {p}",
+    "Already in {p}": "{p} 里已经有了",
+    "Removed from {p}": "已从 {p} 移除",
+    "Deleted {p}": "已删除 {p}",
+    "Tab completion was not installed.": "还没有安装 Tab 补全。",
+    "This window does not have it yet. Open a new window, or run this line here first:": "当前窗口还不能用。新开一个窗口，或者先在这里运行这一行：",
+    "Then try it: type python -m discprobe timing --s and press Tab.": "然后试试：输入 python -m discprobe timing --s 再按 Tab。",
+    "This PowerShell's execution policy is {a}, so it would not load the script, and {b} was left alone.":
+        "这个 PowerShell 的执行策略是 {a}，不会加载脚本，所以没有改动 {b}。",
+    "The policy is yours to decide. To allow your own scripts: {c}": "要不要放开由你决定。允许运行自己的脚本：{c}",
+    "Then run this command again.": "然后再运行一次这条命令。",
     "integer": "整数",
     "number": "数字",
     "path": "路径",
@@ -448,7 +478,14 @@ TEXT = {
 
 BLOCKS = {
     "completion": """\
-给 disc-probe 加上 Tab 补全。先生成一次脚本，再让 shell 加载它：
+给 disc-probe 加上 Tab 补全。一条命令就能装好：
+  python -m discprobe completion install
+
+它会在主目录写一个脚本，并在 shell 的启动文件里加一行。
+`completion uninstall` 会把两者都删掉；更新 disc-probe 后再 install 一次就会刷新脚本。
+加 --lang zh 或 --lang en 可以指定说明文字的语言。
+
+也可以手动：先生成一次脚本，再让 shell 加载它：
 
 PowerShell：
   python -m discprobe completion powershell > $HOME\\discprobe-completion.ps1
@@ -458,9 +495,7 @@ bash：
   加到 ~/.bashrc：source ~/.discprobe-completion.bash
 zsh：
   python -m discprobe completion zsh > ~/.discprobe-completion.zsh
-  加到 ~/.zshrc：source ~/.discprobe-completion.zsh
-
-第一行加上 --lang zh，说明文字就是中文。更新 disc-probe 后再生成一次。""",
+  加到 ~/.zshrc：source ~/.discprobe-completion.zsh""",
     "workflow": """\
 通常的流程，以 DVD 为例（CD 在每条命令后加 --media cd，步骤见 docs/MANUAL.md）：
   python -m discprobe random --output iso/random.iso    然后把它刻到盘上

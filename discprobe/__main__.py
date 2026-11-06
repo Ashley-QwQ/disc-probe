@@ -35,6 +35,18 @@ def _fail(message, hints=()):
     sys.exit(message)
 
 
+def _reason(e: OSError) -> str:
+    """The system's message, for a sentence of ours; it brings its own full stop. Scripts see it as it always was."""
+    return e.strerror.rstrip(" .\u3002") if ui.term().interactive else e.strerror
+
+
+def _os_error(e: OSError) -> str:
+    """At a terminal a missing file is said plainly; scripts keep the form they always saw."""
+    if isinstance(e, FileNotFoundError) and e.filename and ui.term().interactive:
+        return f"no such file: {e.filename}"
+    return f"error: {e}"
+
+
 def _next(lines) -> None:
     """Advice after a command; the lines to copy stand out."""
     if lines:
@@ -89,7 +101,7 @@ def _open(args):
         except OSError as e:
             # SPTI often needs an elevated process; IMAPI2 reaches the same drive without it.
             if transport == "spti" or e.errno != 5:
-                sys.exit(f"{e.strerror}. Optical drives here: {' '.join(guide.optical_drives()) or 'none'}")
+                sys.exit(f"{_reason(e)}. Optical drives here: {' '.join(guide.optical_drives()) or 'none'}")
             print("note: SPTI was refused (not elevated); using the IMAPI2 transport instead")
     from .imapi import ImapiDevice
     return ImapiDevice(args.drive)
@@ -263,11 +275,12 @@ def cmd_rings(args):
         return
     try:
         print(f"\nWriting {os.path.abspath(args.output)}")
-        spec_path = write_iso(args.output, layout, log=ui.percent_log())
+        with ui.writing(args.output, layout.total_sectors) as log:
+            spec_path = write_iso(args.output, layout, log=log)
     except ValueError as e:
         sys.exit(str(e))
-    ui.say("Checking what was written...", "dim")
-    problems = verify_iso(args.output, layout)
+    with ui.busy("Checking what was written..."):
+        problems = verify_iso(args.output, layout)
     print("Verified: sampled sectors in every ring record the intended byte" if not problems
           else "VERIFY FAILED:\n  " + "\n  ".join(problems[:10]))
     print(f"Layout: {os.path.abspath(spec_path)}  (needed by ringscan)")
@@ -314,11 +327,12 @@ def cmd_calib(args):
         return
     print(f"\nWriting {os.path.abspath(args.output)} (about a minute)")
     try:
-        spec_path = write_iso(args.output, layout, log=ui.percent_log())
+        with ui.writing(args.output, layout.total_sectors) as log:
+            spec_path = write_iso(args.output, layout, log=log)
     except ValueError as e:
         sys.exit(str(e))
-    ui.say("Checking what was written...", "dim")
-    problems = verify_iso(args.output, layout)
+    with ui.busy("Checking what was written..."):
+        problems = verify_iso(args.output, layout)
     print("Verified: guards are pure, bands follow their patterns" if not problems
           else "VERIFY FAILED:\n  " + "\n  ".join(problems[:10]))
     print(f"Layout: {os.path.abspath(spec_path)}  (needed by calscan)")
@@ -459,14 +473,15 @@ def cmd_image(args):
     print(f"{kind}, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
           f"({total * 2048 / 1e9:.2f} GB), {tex}")
     corr = imagedisc.load_correction(args.correction) if args.correction else None
-    spec = writer.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
-                               meta={"geometry_from": os.path.abspath(args.geo), "design": kind,
-                                     "along_track_frames": args.along_track_frames,
-                                     "correction": os.path.abspath(args.correction) if args.correction else None},
-                               correction=corr, textures=args.textures, log=ui.percent_log())
-    ui.say("Checking what was written...", "dim")
-    problems = writer.verify_iso(args.output, design, u, v, bit, total, args.dark, args.light, correction=corr,
-                                    textures=args.textures)
+    with ui.writing(args.output, total) as log:
+        spec = writer.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
+                                meta={"geometry_from": os.path.abspath(args.geo), "design": kind,
+                                      "along_track_frames": args.along_track_frames,
+                                      "correction": os.path.abspath(args.correction) if args.correction else None},
+                                correction=corr, textures=args.textures, log=log)
+    with ui.busy("Checking what was written..."):
+        problems = writer.verify_iso(args.output, design, u, v, bit, total, args.dark, args.light, correction=corr,
+                                     textures=args.textures)
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     prev = os.path.splitext(args.output)[0] + ".preview.png"
     if design.dtype == bool:
@@ -477,6 +492,8 @@ def cmd_image(args):
     print(f"Spec: {os.path.abspath(spec)}\nPreview (data-side view): {os.path.abspath(prev)}")
     if args.media == "cd" and problems:
         sys.exit(1)
+    if not problems:
+        _next(guide.after_image(args.output, prev, args.geo))
 
 
 def cmd_gridscan(args):
@@ -555,10 +572,10 @@ def cmd_tiles(args):
     corr = imagedisc.load_correction(args.correction) if args.correction else None
     meta = {"geometry_from": os.path.abspath(args.geo), "design": "tile palette target",
             "correction": os.path.abspath(args.correction) if args.correction else None}
-    spec = writer.write_iso(args.output, labels, u, v, bit, total, meta=meta, correction=corr, textures=textures,
-                            log=ui.percent_log())
-    ui.say("Checking what was written...", "dim")
-    problems = writer.verify_iso(args.output, labels, u, v, bit, total, correction=corr, textures=textures)
+    with ui.writing(args.output, total) as log:
+        spec = writer.write_iso(args.output, labels, u, v, bit, total, meta=meta, correction=corr, textures=textures, log=log)
+    with ui.busy("Checking what was written..."):
+        problems = writer.verify_iso(args.output, labels, u, v, bit, total, correction=corr, textures=textures)
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     base = os.path.splitext(args.output)[0]
     tiledisc.save_layout({**layout, "textures": textures}, base + ".tiles.json")
@@ -567,6 +584,8 @@ def cmd_tiles(args):
           f"Preview (data-side view, false colours): {os.path.abspath(base + '.preview.png')}")
     if args.media == "cd" and problems:
         sys.exit(1)
+    if not problems:
+        _next(guide.after_image(args.output, base + ".preview.png", args.geo))
 
 
 def cmd_beacons(args):
@@ -580,10 +599,10 @@ def cmd_beacons(args):
     corr = imagedisc.load_correction(args.correction) if args.correction else None
     meta = {"geometry_from": os.path.abspath(args.geo), "design": "beacon target",
             "correction": os.path.abspath(args.correction) if args.correction else None}
-    spec = imagedisc.write_iso(args.output, labels, u, v, bit, total, meta=meta, correction=corr, textures=textures,
-                               log=ui.percent_log())
-    ui.say("Checking what was written...", "dim")
-    problems = imagedisc.verify_iso(args.output, labels, u, v, bit, total, correction=corr, textures=textures)
+    with ui.writing(args.output, total) as log:
+        spec = imagedisc.write_iso(args.output, labels, u, v, bit, total, meta=meta, correction=corr, textures=textures, log=log)
+    with ui.busy("Checking what was written..."):
+        problems = imagedisc.verify_iso(args.output, labels, u, v, bit, total, correction=corr, textures=textures)
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     base = os.path.splitext(args.output)[0]
     beacondisc.save_layout({**layout, "textures": textures}, base + ".tiles.json")
@@ -592,6 +611,7 @@ def cmd_beacons(args):
           f"Preview (data-side view, false colours): {os.path.abspath(base + '.preview.png')}")
     if problems:
         sys.exit(1)
+    _next(guide.after_image(args.output, base + ".preview.png", args.geo))
 
 
 def cmd_tilescan(args):
@@ -606,29 +626,40 @@ def cmd_tilescan(args):
 def cmd_random(args):
     from .randomdisc import write_iso
     print(f"Writing {os.path.abspath(args.output)}: {args.sectors} sectors of seeded random data")
-    write_iso(args.output, args.sectors, args.seed, media=args.media, log=ui.percent_log())
-    print("Burn it with any image burner, then run `geo` on it.")
+    with ui.writing(args.output, args.sectors) as log:
+        write_iso(args.output, args.sectors, args.seed, media=args.media, log=log)
+    if not ui.term().interactive:   # at a terminal the advice below says this, with the right next step
+        print("Burn it with any image burner, then run `geo` on it.")
     _next(guide.after_random(args))
 
 
 def cmd_selftest(args):
     from .selftest import run
+    language = i18n.active()
     i18n.pin("en")      # the checks read the English text; Chinese has its own checks
     passed = run()
+    i18n.unpin(language)
     if passed:
-        _next([f"Next, see where you are: {guide.PROG} guide"])
+        _next(guide.after_selftest())
     sys.exit(0 if passed else 1)
 
 
 def cmd_guide(args):
+    from . import greetings
     from .banner import show
     show()
+    if ui.term().interactive:
+        ui.say(greetings.pick(first_time=not any(not r.simulated for r in guide.scan())))
+        ui.say()
     media = getattr(args, "guide_media", None)
     if media is None:   # carry on with what was measured last
         newest = next((r for r in guide.scan() if not r.simulated and r.kind in ("timing", "geo")), None)
         media = newest.media if newest else "dvd"
-    for line in guide.guide_lines(media):
+    for line in guide.guide_lines(media, notes=ui.term().interactive):
         print(ui.term().style(line, "cyan") if line.lstrip().startswith("python ") else line)
+    from . import completion
+    if not completion.installed():
+        ui.say(f"Tab completion: {guide.PROG} completion install", "dim")
 
 
 def cmd_results(args):
@@ -686,10 +717,10 @@ COMMAND_GROUPS = (
 )
 LANG_NOTE = ("Language: --lang zh or --lang en, or DISCPROBE_LANG; at a terminal it follows the system. "
              "Scripts and pipes stay English unless --lang is given. --no-animation keeps the screen still.\n"
-             "Tab completion: python -m discprobe completion")
+             "Tab completion: python -m discprobe completion install")
 LANG_NOTE_ZH = ("语言：--lang zh 或 --lang en，也可以设置环境变量 DISCPROBE_LANG；在终端里默认跟随系统语言。"
                 "脚本和管道始终是英文，除非写了 --lang。--no-animation 可以关掉动画。\n"
-                "Tab 补全：python -m discprobe completion")
+                "Tab 补全：python -m discprobe completion install")
 WORKFLOW = """\
 The usual path, on DVD (CD: add --media cd to each command; steps in docs/MANUAL.md):
   python -m discprobe random --output iso/random.iso    then burn it to a disc
@@ -1088,7 +1119,7 @@ def main(argv=None):
         sys.exit(f"this command needs {'Pillow' if package == 'PIL' else package}. "
                  f"Install what disc-probe uses with: {guide.INSTALL}")
     except OSError as e:
-        sys.exit(f"error: {e}")
+        sys.exit(_os_error(e))
 
 
 if __name__ == "__main__":

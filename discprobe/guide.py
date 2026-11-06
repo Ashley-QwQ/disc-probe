@@ -262,14 +262,15 @@ def after_timing(args, summary: dict) -> list[str]:
     if not rotation:
         return []
     carry, other = _carry(args), _other_speed(args)
+    simulated = ["This was the simulated drive, so the verdict below says nothing about your own drive.", ""] if getattr(args, "sim", None) else []
     if rotation != "CAV":
-        return [f"Verdict: rotation is {rotation}, not CAV, so sector angles cannot be read at this speed.",
+        return simulated + [f"Verdict: rotation is {rotation}, not CAV, so sector angles cannot be read at this speed.",
                 "Next, try another speed. Some drives never leave one, and the rotation test will show that:",
                 f"  {PROG} timing {carry} --speed {other}"]
     jitter = _jitter(summary)
     worst = max(jitter) if jitter else None
     span = f"{min(jitter):.2f}-{worst:.2f} deg" if jitter else ""
-    lines = []
+    lines = list(simulated)
     if worst is None:
         lines.append("Verdict: rotation is CAV, but no jitter was measured.")
     elif worst <= GOOD_JITTER_DEG:
@@ -389,13 +390,30 @@ def after_random(args) -> list[str]:
             f"  {PROG} timing {drive_flag()}{flag}"]
 
 
+def after_image(output: str, preview: str, geometry: str) -> list[str]:
+    """What to do with a finished picture ISO. One made from a simulated run must not reach a disc."""
+    lines = [f"Next, check the preview: {short(preview)}"]
+    if "geo-SIM-" in geometry:
+        return lines + ["This geometry came from the simulated drive, so it only shows the flow: do not burn this ISO."]
+    return lines + [f"If it looks right, burn {short(output)} to a blank disc from the batch you measured",
+                    "(Windows: right-click the .iso, Burn disc image)."]
+
+
+def after_selftest() -> list[str]:
+    missing = missing_packages()
+    if missing:
+        return [f"Those were only the checks that run without {', '.join(missing)}. Install what is missing and run it again:",
+                f"  {INSTALL}"]
+    return [f"Next, see where you are: {PROG} guide"]
+
+
 def after_disexport() -> list[str]:
     return ["Next, check the angle difference above, then enter the preset in DiscImageStudio",
             "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.md."]
 
 
-def guide_lines(media: str = "dvd", out: str = "results") -> list[str]:
-    """The workflow with what is already done ticked off, and the next command."""
+def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -> list[str]:
+    """The workflow with what is already done ticked off, and the next command; `notes` says what each does."""
     flag = " --media cd" if media == "cd" else ""
     random_iso = "iso/cd-random.iso" if media == "cd" else "iso/random.iso"
     results = [r for r in scan(out) if not r.simulated and r.media == media]
@@ -408,36 +426,43 @@ def guide_lines(media: str = "dvd", out: str = "results") -> list[str]:
     geo = next((r for r in results if r.geo_complete()), None)
     has_iso = os.path.exists(random_iso)
 
+    # A written file is not yet a disc. Scripts keep the tick they always saw.
+    disc_done = timing is not None or (has_iso and not notes)
     rows = [(not missing, "Python packages", ", ".join(missing) + " missing" if missing else "numpy, pillow, scipy"),
             (bool(drives), "Optical drive", " ".join(drives) if drives else
              ("none found" if sys.platform == "win32" else "real drives need Windows or a port")),
-            (has_iso or timing is not None, "Random-data disc",
+            (disc_done, "Random-data disc",
              f"{random_iso} written; burn it" if has_iso and timing is None else
              "measured" if timing else "not made yet"),
             (timing_good, "Drive check (timing)", timing.describe() if timing else "not run yet"),
             (geo is not None, "Geometry (geo)", geo.describe() if geo else "not run yet")]
 
     if missing:
-        commands = [INSTALL]
+        commands = [("Install the Python packages disc-probe uses:", INSTALL)]
     elif sys.platform != "win32":
-        commands = [f"{PROG} timing --sim cav{flag}", PORTS]
+        commands = [("Try the flow on the simulated drive:", f"{PROG} timing --sim cav{flag}"), (None, PORTS)]
     elif not has_iso and timing is None:
-        commands = [f"{PROG} random{flag} --output {random_iso}"]
+        commands = [("Make the random-data disc: write this file, then burn it:", f"{PROG} random{flag} --output {random_iso}")]
     elif timing is None:
-        commands = [f"{PROG} timing {drive}{flag}"]
+        commands = [(f"Burn {random_iso} to a disc and load it, then check this drive (1 to 3 minutes):", f"{PROG} timing {drive}{flag}")]
     elif not timing_good:
-        commands = [f"{PROG} timing {drive}{flag} --speed {ALTERNATIVE_SPEEDS[media][0]}"]
+        commands = [("This speed did not work; try another (1 to 3 minutes):",
+                     f"{PROG} timing {drive}{flag} --speed {ALTERNATIVE_SPEEDS[media][0]}")]
     elif geo is None:
-        commands = [f"{PROG} geo {drive}{flag}"]
+        commands = [("Measure the disc's spiral (about 5 minutes):", f"{PROG} geo {drive}{flag}")]
     else:
         sectors = _sectors_for(geo.summary, out)[0]
-        commands = [f"{PROG} image{flag} --geo latest --picture my_picture.png --output iso/picture.iso",
-                    f"{PROG} disexport --media {media} --geo latest --sectors {sectors} --output dis_preset.json"]
+        commands = [("Make a picture ISO (replace my_picture.png with your image):",
+                     f"{PROG} image{flag} --geo latest --picture my_picture.png --output iso/picture.iso"),
+                    ("Or export a preset for DiscImageStudio:",
+                     f"{PROG} disexport --media {media} --geo latest --sectors {sectors} --output dis_preset.json")]
 
     other = "cd" if media == "dvd" else "dvd"
     lines = [f"Where you are, for {media.upper()} ({other.upper()}: {PROG} guide --media {other}):", ""]
     lines += [f"  [{'x' if done else ' '}] {i18n.pad(i18n.tr(name), 22)} {i18n.tr(detail)}" for done, name, detail in rows]
-    lines += ["", "Next:"] + [f"  {c}" for c in commands]
+    lines += ["", "Next:"]
+    for note, command in commands:
+        lines += ([f"  {note}"] if notes and note else []) + [f"  {command}"]
     lines += ["", f"All commands: {PROG} -h    One command: {PROG} <command> -h    Details: docs/MANUAL.md"]
     return lines
 

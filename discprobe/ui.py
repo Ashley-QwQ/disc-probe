@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import atexit
 import colorsys
+import contextlib
 import os
 import re
 import shutil
 import sys
+import threading
 import time
 
 from . import i18n, snake
@@ -530,17 +532,71 @@ def geo_status(ladder, dev: ProgressDevice):
     return status
 
 
-def percent_log():
-    """`log` for the ISO writers: their percentage lines, plus the time left at a terminal."""
-    if not term().interactive:
-        return print
-    start = time.monotonic()
+@contextlib.contextmanager
+def _animated(status):
+    """A progress line with its own drawing thread, for work where no timing is being measured."""
+    t = term()
+    progress = Progress(status, t)
+    lock = threading.Lock()
+    stop = threading.Event()
 
-    def log(message):
-        match = re.search(r"([\d.]+) %", message)
-        spent = time.monotonic() - start
-        if match and 0 < float(match.group(1)) < 100 and spent > 1:
-            share = float(match.group(1)) / 100
-            message += f"   about {clock(spent * (1 - share) / share)} left"
-        print(message, flush=True)
-    return log
+    def draw():
+        while not stop.wait(progress.interval):
+            with lock:
+                progress.tick()
+    thread = threading.Thread(target=draw, daemon=True)
+    thread.start()
+    with lock:
+        progress.tick(force=True)
+
+    def log(*parts):
+        with lock:
+            progress.log(*parts)
+    try:
+        yield log, progress
+    finally:
+        stop.set()
+        thread.join(1.0)
+        progress.close()
+
+
+@contextlib.contextmanager
+def writing(path: str, sectors: int):
+    """`log` for the ISO writers. At a terminal their percentage lines become a progress line.
+
+    The writers report only every 10 or 20 %, so between reports the bar follows the file's real
+    size. Only a report can say 100 %. Pipes get the writers' lines as they always did.
+    """
+    if not term().interactive:
+        yield print
+        return
+    total = max(sectors * 2048, 1)
+    reported = [0.0]
+    rate = _Rate()
+
+    def status():
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            size = 0
+        fraction = max(reported[0], min(size / total, 0.99))
+        return fraction, "writing the image", rate.left(fraction * 1000, 1000)
+    with _animated(status) as (show, progress):
+        def log(message):
+            match = re.search(r"([\d.]+) %", message)
+            if match:
+                reported[0] = float(match.group(1)) / 100
+            else:
+                show(message)
+        yield log
+    say(f"Finished in {clock(time.monotonic() - progress.started)}", "dim")
+
+
+@contextlib.contextmanager
+def busy(label: str):
+    """A turning disc and a label for work of unknown length. Pipes see nothing."""
+    if not term().interactive:
+        yield
+        return
+    with _animated(lambda: (None, label, None)):
+        yield

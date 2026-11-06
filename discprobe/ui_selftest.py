@@ -356,7 +356,8 @@ def _completion(c) -> None:
     speed = next(e for e in rows["timing"] if e[0] == "--speed")
     media = next(e for e in rows["timing"] if e[0] == "--media")
     cav = next(e for e in rows["timing"] if e[0] == "--cav")
-    c.check(speed[1] == "v" and speed[3] == "kB/s or 4x" and media[2] == ("dvd", "cd") and cav[1] == "f", "options say what their value is")
+    out_flag = next(e for e in rows["timing"] if e[0] == "--out")
+    c.check(speed[1] == "v" and speed[3] == "kB/s or 4x" and media[2] == ("dvd", "cd") and cav[1] == "f" and out_flag[1] == "p", "options say what their value is")
     scripts = {shell: completion.script(shell, cli._build_parser) for shell in completion.SHELLS}
     c.check(all("--along-track-frames" in text for text in scripts.values()), "every script holds the options")
     c.check("discprobe.__main__" not in "".join(scripts.values()) and not any(
@@ -379,7 +380,8 @@ def _completion(c) -> None:
                 f.write(scripts["powershell"])
             checks = (("python -m discprobe timing --sp", "--speed"), ("python -m discprobe ti", "timing tiles tilescan"),
                       ("python -m discprobe timing --media ", "dvd cd"), ("python -m discprobe --lang zh geo --ref", "--ref-lba"),
-                      ("python C:\\Windows\\win.in", "C:\\Windows\\win.ini"))
+                      ("python C:\\Windows\\win.in", "C:\\Windows\\win.ini"), ("python -m d", "discprobe"), ("python -m ", "discprobe"),
+                      ("python -m discprobe xyz", "xyz"), ("python -m discprobe timing --xyz", "--xyz"), ("python -m discprobe timing --reps 1", "1"))
             probe = ". '" + path + "'\n" + "".join(
                 f"(TabExpansion2 -inputScript '{line}' -cursorColumn {len(line)}).CompletionMatches.CompletionText -join ' '\n" for line, _ in checks)
             done = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", probe], capture_output=True, text=True)
@@ -391,12 +393,85 @@ def _completion(c) -> None:
                 f.write(scripts["bash"])
             checks = (("python -m discprobe timing --sp", "--speed"), ("python -m discprobe ti", "timing tiles tilescan"),
                       ("python -m discprobe timing --media ''", "dvd cd"), ("python -m discprobe --lang zh geo --ref", "--ref-lba"),
-                      ("python script.py ''", ""))
+                      ("python script.py ''", ""), ("python -m d", "discprobe"), ("python -", "-m"))
             probe = "source " + path + "\n" + "".join(
                 f"COMP_WORDS=({line}); COMP_CWORD=$((${{#COMP_WORDS[@]}} - 1)); _discprobe_complete; echo \"${{COMPREPLY[*]}}\"\n" for line, _ in checks)
             done = subprocess.run(["bash", "--norc", "-c", probe], capture_output=True, text=True)
             got = done.stdout.split("\n")[:len(checks)]
             c.check(all(g == want for g, (_, want) in zip(got, checks)) and len(got) == len(checks), f"bash: Tab completes as intended {got}")
+
+
+def _install(c) -> None:
+    from . import __main__ as cli, completion
+    with tempfile.TemporaryDirectory() as home:
+        startup = os.path.join(home, "sub", "profile.ps1")
+        lines = completion.install("powershell", cli._build_parser, home, [(startup, "RemoteSigned")])
+        script = completion.script_path("powershell", home)
+        with open(startup, encoding="utf-8") as f:
+            text = f.read()
+        c.check(os.path.exists(script) and completion.load_line("powershell") in text and completion.installed(home), "install writes the script and one startup line")
+        c.check(any("press Tab" in x for x in lines) and any("does not have it yet" in x for x in lines), "install says this window needs a step, and how to try it")
+        completion.install("powershell", cli._build_parser, home, [(startup, "RemoteSigned")])
+        with open(startup, encoding="utf-8") as f:
+            c.check(f.read() == text, "installing twice adds nothing")
+        with open(startup, "wb") as f:
+            f.write("# mine\n".encode("utf-16"))
+        completion.add_to_startup(startup, "line")
+        with open(startup, "rb") as f:
+            c.check(f.read().decode("utf-16") == f"# mine\n{completion.MARKER}\nline\n", "a UTF-16 startup file stays UTF-16")
+        with open(startup, "wb") as f:
+            f.write(b"# \xd6\xd0\xce\xc4 keep\n")
+        completion.add_to_startup(startup, completion.load_line("powershell"))
+        completion.uninstall("powershell", home, [(startup, "")])
+        with open(startup, "rb") as f:
+            c.check(f.read() == b"# \xd6\xd0\xce\xc4 keep\n", "uninstall restores other people's bytes exactly")
+        c.check(not os.path.exists(script) and not completion.installed(home), "uninstall deletes the script")
+        c.check(completion.uninstall("powershell", home, [(startup, "")]) == ["Tab completion was not installed."], "uninstalling twice is harmless")
+        untouched = os.path.join(home, "other.ps1")
+        lines = completion.install("powershell", cli._build_parser, home, [(untouched, "Restricted")])
+        c.check(not os.path.exists(untouched) and any("Set-ExecutionPolicy" in x for x in lines), "a blocking policy is reported, never changed")
+    for env, platform, wanted in (({}, "win32", "powershell"), ({"MSYSTEM": "MINGW64", "SHELL": "/usr/bin/bash"}, "win32", "bash"),
+                                  ({"SHELL": "/bin/zsh"}, "darwin", "zsh"), ({"SHELL": "/usr/bin/fish"}, "linux", None)):
+        c.check(completion.default_shell(env, platform) == wanted, f"default shell for {platform} {env}: {wanted}")
+
+
+def _writing(c) -> None:
+    real_term = ui._term
+    try:
+        ui._term = ui.Term(io.StringIO(), env={})
+        with ui.writing("x", 10) as log:
+            c.check(log is print, "a pipe gets the writers' lines as before")
+        with ui.busy("x"):
+            pass
+        c.check(ui._term.stream.getvalue() == "", "a pipe sees nothing of the busy line")
+        s = FakeTty()
+        ui._term = ui.Term(s, env={"TERM": "xterm"}, platform="linux")
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "x.iso")
+            with open(path, "wb") as f:
+                f.write(bytes(512 * 2048))
+            with contextlib.redirect_stdout(io.StringIO()) as printed, ui.writing(path, 1024) as log:
+                ui.time.sleep(0.3)
+                halfway = ANSI.sub("", s.getvalue())
+                c.check(" 50%" in halfway, "between reports the bar follows the file's size")
+                log("  20.0 %")
+                log("a note")
+                with open(path, "wb") as f:
+                    f.write(bytes(2048 * 1024))
+                ui.time.sleep(0.3)
+                c.check(" 99%" in ANSI.sub("", s.getvalue()) and "100%" not in ANSI.sub("", s.getvalue()), "only a report can say 100%")
+                log("  100.0 %")
+                ui.time.sleep(0.3)
+            text = ANSI.sub("", s.getvalue())
+            c.check("100%" in text and "a note\n" in text and "20.0 %" not in text and "Finished in" in printed.getvalue(), "percentage lines become the bar; other lines still print")
+            c.check("\x1b[?25h" in s.getvalue(), "the cursor comes back")
+        try:
+            with ui.writing("no such file", 10):
+                raise ValueError("stop")
+        except ValueError:
+            c.check(s.getvalue().count("\x1b[?25l") == s.getvalue().count("\x1b[?25h"), "an error mid-write still restores the cursor")
+    finally:
+        ui._term = real_term
 
 
 def _run_cli(*argv):
@@ -546,6 +621,44 @@ def _advice(c) -> None:
     hint = guide.parser_hint("the following arguments are required: --geo", ["image"], ["image"])
     c.check(hint == f"Use your last measurement: {guide.PROG} image --geo latest", "a missing --geo offers latest")
     c.check(all(line.isascii() for line in guide.guide_lines("dvd", "no such folder")), "guide text is ASCII")
+    finished = guide.after_image("iso/p.iso", "iso/p.preview.png", os.path.join("results", "geo-H-20260101-100000", "summary.json"))
+    c.check("preview" in finished[0] and any("burn" in x and "p.iso" in x for x in finished), "a finished picture says: check the preview, then burn")
+    fake = guide.after_image("iso/p.iso", "iso/p.preview.png", os.path.join("results", "geo-SIM-cav-20260101-100000", "summary.json"))
+    c.check(any("do not burn" in x for x in fake) and not any("If it looks right" in x for x in fake), "a picture from a simulated run must not be burned")
+    sim_args = Namespace(**{**vars(args), "sim": "cav", "drive": None})
+    c.check("simulated drive" in guide.after_timing(sim_args, timed("CAV", [0.4]))[0] and "simulated drive" in guide.after_timing(sim_args, timed("CLV", [0.4]))[0],
+            "a verdict on the simulated drive says so")
+    c.check(not any("simulated" in x for x in guide.after_timing(args, timed("CAV", [0.4]))), "a real drive's verdict does not")
+    real_missing = guide.missing_packages
+    try:
+        guide.missing_packages = lambda: ["numpy", "scipy"]
+        c.check("numpy, scipy" in guide.after_selftest()[0] and guide.INSTALL in guide.after_selftest()[1], "a self-test that skipped checks says so")
+        guide.missing_packages = lambda: []
+        c.check("guide" in guide.after_selftest()[0], "a complete self-test points to guide")
+    finally:
+        guide.missing_packages = real_missing
+    with tempfile.TemporaryDirectory() as d:
+        here = os.getcwd()
+        os.chdir(d)
+        try:
+            os.makedirs("iso")
+            with open(os.path.join("iso", "random.iso"), "wb"):
+                pass
+            piped, shown = guide.guide_lines("dvd"), guide.guide_lines("dvd", notes=True)
+            c.check(any(x.startswith("  [x] Random-data disc") for x in piped), "a script keeps the tick it always saw")
+            c.check(any(x.startswith("  [ ] Random-data disc") for x in shown), "at a terminal a written file is not yet a disc")
+        finally:
+            os.chdir(here)
+    plain, noted = guide.guide_lines("dvd", "no such folder"), guide.guide_lines("dvd", "no such folder", notes=True)
+    # The ticked row depends on the folder this runs in, and has its own check above.
+    plain, noted = [x for x in plain if "Random-data disc" not in x], [x for x in noted if "Random-data disc" not in x]
+    c.check(len(noted) == len(plain) + 1 and set(plain) < set(noted), "at a terminal the next command says what it does; a pipe gets the same lines as before")
+    i18n.use("zh")
+    try:
+        untranslated = [x for x in set(noted) - set(plain) if i18n.tr(x) == x]
+    finally:
+        i18n.use("en")
+    c.check(not untranslated, f"the note has Chinese {untranslated}")
 
 
 def _command_line(c) -> None:
@@ -626,6 +739,69 @@ def _command_line(c) -> None:
     finally:
         cli._open = real_open
         cli._Parser.last_out = None
+        ui._term = real_term
+
+
+def _greetings(c) -> None:
+    import datetime
+    from . import __main__ as cli, greetings
+    week = [entry for day in greetings.WEEK for entry in day]
+    every = list(greetings.FIRST_TIME) + week
+    c.check(len(greetings.WEEK) == 7 and all(len(day) == 5 for day in greetings.WEEK), "a line for every day and time of day")
+    c.check(len({en for en, _ in every}) == len(every) and len({zh for _, zh in every}) == len(every), "no line is used twice")
+    c.check(all(en.isascii() and re.search("[\u4e00-\u9fff]", zh) and i18n.display_width(zh) < 50 and len(en) < 60 for en, zh in every),
+            "every greeting has both languages and fits a narrow window")
+    claims = re.compile(r"steady|settled|ready to|\d+ ?rpm|\u7a33\u5b9a|\u5df2\u5c31\u7eea", re.I)
+    c.check(not any(claims.search(en + zh) for en, zh in every), "no greeting reads like a measurement")
+    monday = datetime.date(2026, 11, 2)     # a Monday
+
+    def at(day, hour):
+        return greetings.pick(now=datetime.datetime(monday.year, monday.month, monday.day + day, hour, 30))
+    for hour, slot in ((0, 0), (4, 0), (5, 1), (8, 1), (9, 2), (11, 2), (12, 3), (17, 3), (18, 4), (21, 4), (22, 0), (23, 0)):
+        c.check(at(0, hour) == greetings.WEEK[0][slot][0], f"{hour}:30 falls in the right part of the day")
+    c.check(at(4, 19) == greetings.WEEK[4][4][0] and at(6, 10) == greetings.WEEK[6][2][0], "each day has its own lines")
+    c.check(greetings.pick(True) in [en for en, _ in greetings.FIRST_TIME], "a first run is welcomed")
+    i18n.use("zh")
+    try:
+        c.check(at(0, 10) == greetings.WEEK[0][2][1] and greetings.pick(True) in [zh for _, zh in greetings.FIRST_TIME], "the greeting follows the language")
+    finally:
+        i18n.use("en")
+    real_term = ui._term
+    try:
+        ui._term = ui.Term(io.StringIO(), env={})
+        with contextlib.redirect_stdout(io.StringIO()) as printed:
+            cli.cmd_guide(type("Args", (), {"guide_media": "dvd"})())
+        c.check(not any(en in printed.getvalue() for en, _ in every), "a pipe gets no greeting")
+    finally:
+        ui._term = real_term
+
+
+def _priority(c) -> None:
+    """In a process of its own, so the rest of the self-test keeps its normal priority."""
+    if sys.platform != "win32":
+        return
+    code = ("import ctypes; from ctypes import wintypes; from discprobe import spti; ok = spti.raise_priority(); "
+            "k = spti._kernel32; k.GetPriorityClass.argtypes = [wintypes.HANDLE]; k.GetThreadPriority.argtypes = [wintypes.HANDLE]; "
+            "print(ok, k.GetPriorityClass(spti._GetCurrentProcess()), k.GetThreadPriority(spti._GetCurrentThread()))")
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=root)
+    c.check(done.stdout.split() == ["True", "128", "2"], f"measuring really runs at high priority {done.stdout.split()}")
+
+
+def _plain_errors(c) -> None:
+    from . import __main__ as cli
+    missing = FileNotFoundError(2, "No such file or directory", "nope.png")
+    stopped = OSError(5, "The system cannot locate the file specified.")
+    chinese = OSError(2, "\u7cfb\u7edf\u627e\u4e0d\u5230\u6307\u5b9a\u7684\u6587\u4ef6\u3002")
+    real_term = ui._term
+    try:
+        ui._term = ui.Term(io.StringIO(), env={})
+        c.check(cli._os_error(missing) == f"error: {missing}" and cli._reason(stopped) == stopped.strerror, "a script sees system errors as it always did")
+        ui._term = ui.Term(FakeTty(), env={"TERM": "xterm"}, platform="linux")
+        c.check(cli._os_error(missing) == "no such file: nope.png", "at a terminal a missing file is said plainly")
+        c.check(cli._os_error(stopped) == f"error: {stopped}", "other system errors keep their text")
+        c.check(cli._reason(stopped) == "The system cannot locate the file specified" and not cli._reason(chinese).endswith("\u3002"), "no doubled full stop")
+    finally:
         ui._term = real_term
 
 
@@ -779,5 +955,10 @@ def run(c) -> None:
     _advice(c)
     _command_line(c)
     _missing_package(c)
+    _plain_errors(c)
+    _priority(c)
+    _greetings(c)
     _chinese(c)
     _completion(c)
+    _install(c)
+    _writing(c)

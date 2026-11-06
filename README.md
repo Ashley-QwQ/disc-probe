@@ -77,7 +77,7 @@ python -m discprobe selftest
 python -m discprobe guide
 ```
 
-在终端里，每条命令跑完也会打印下一步可以直接复制的命令。系统是中文时，帮助、提示和测量输出都显示中文，也可以用 `--lang zh` 或 `--lang en` 指定；脚本和管道仍是英文。测量时按 `g` 可以玩贪吃蛇打发时间。`python -m discprobe completion` 可以设置 Tab 补全。详见[手册的"手动使用"](docs/MANUAL.md#手动使用)。
+在终端里，每条命令跑完也会打印下一步可以直接复制的命令。系统是中文时，帮助、提示和测量输出都显示中文，也可以用 `--lang zh` 或 `--lang en` 指定；脚本和管道仍是英文。测量时按 `g` 可以玩贪吃蛇打发时间。运行 `python -m discprobe completion install` 可以装上 Tab 补全。详见[手册的"手动使用"](docs/MANUAL.md#手动使用)。
 
 **1. 刻一张随机数据盘。**测量盘必须是普通数据，刻了图案的盘读不出来。用 Windows 自带的光盘映像刻录机刻 `iso/random.iso`。
 
@@ -97,7 +97,7 @@ python -m discprobe timing --drive H:
 python -m discprobe geo --drive H:
 ```
 
-2026-11-06 之前带 `--correction` 导出的预设，修正可能没有生效，请更新后重新导出，不用重新测盘。有些盘的轨距会缓慢变化，这时 `geo` 会提示残差偏大。比如 RITEKF1 恒定轨距就够，`CMC MAG. AM3` 和一种 RITEK DVD+RW 则要二次修正（残差从 0.38°、0.61° 降到约 0.08°）。看到提示就重新拟合一下，不用再测盘，它会打印各模型的残差。如果二次明显更好，就写出修正文件：
+2026-11-06 之前带 `--correction` 导出的预设，修正可能没有生效，请更新后重新导出，不用重新测盘。有些盘的轨距会缓慢变化。比如 RITEKF1 恒定轨距就够，`CMC MAG. AM3` 和一种 RITEK DVD+RW 则要二次修正（残差从 0.38°、0.61° 降到约 0.08°）。残差偏大时，`geo` 跑完会自动比较这两种模型，不用再测盘：二次模型明显更好，它就让你先写修正文件，并把 `--correction` 写进后面的命令，照着复制就行；否则会告诉你多半是读取噪声，可以继续。写修正文件的命令是这样的：
 
 ```bash
 python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json --order quadratic

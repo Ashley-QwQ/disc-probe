@@ -152,6 +152,12 @@ def pin(lang: str) -> None:
     _pinned = True
 
 
+def unpin(lang: str) -> None:
+    global _pinned
+    _pinned = False
+    use(lang)
+
+
 def setup(flag: str | None, t) -> None:
     if not _pinned:
         use(decide(flag, t.interactive, os.environ, can_encode(t.stream), system_is_chinese))

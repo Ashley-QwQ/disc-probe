@@ -84,6 +84,18 @@ _VirtualFree.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD]
 _GetDriveTypeW = _kernel32.GetDriveTypeW
 _GetDriveTypeW.argtypes = [wintypes.LPCWSTR]
 
+# Without these types the pseudo-handles reach the calls cut to 32 bits, and on 64-bit Python they fail.
+_GetCurrentProcess = _kernel32.GetCurrentProcess
+_GetCurrentProcess.restype = wintypes.HANDLE
+_GetCurrentThread = _kernel32.GetCurrentThread
+_GetCurrentThread.restype = wintypes.HANDLE
+_SetPriorityClass = _kernel32.SetPriorityClass
+_SetPriorityClass.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+_SetPriorityClass.restype = wintypes.BOOL
+_SetThreadPriority = _kernel32.SetThreadPriority
+_SetThreadPriority.argtypes = [wintypes.HANDLE, ctypes.c_int]
+_SetThreadPriority.restype = wintypes.BOOL
+
 
 def list_optical_drives() -> list[str]:
     mask = _kernel32.GetLogicalDrives()
@@ -95,8 +107,8 @@ def list_optical_drives() -> list[str]:
 
 
 def raise_priority() -> bool:
-    process_ok = _kernel32.SetPriorityClass(_kernel32.GetCurrentProcess(), HIGH_PRIORITY_CLASS)
-    thread_ok = _kernel32.SetThreadPriority(_kernel32.GetCurrentThread(), THREAD_PRIORITY_HIGHEST)
+    process_ok = _SetPriorityClass(_GetCurrentProcess(), HIGH_PRIORITY_CLASS)
+    thread_ok = _SetThreadPriority(_GetCurrentThread(), THREAD_PRIORITY_HIGHEST)
     return bool(process_ok and thread_ok)
 
 
