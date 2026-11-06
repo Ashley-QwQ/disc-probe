@@ -214,6 +214,12 @@ def _other_speed(args, family: str | None = None) -> str:
     return next(s for s in ALTERNATIVE_SPEEDS[media] if s != current)
 
 
+def _speed_word(args) -> str:
+    """How to name _other_speed. It is a higher one when this run is already at the lowest we list."""
+    current = getattr(args, "speed", None)
+    return "a lower speed" if current and int(_other_speed(args)) < current else "a different speed"
+
+
 def sectors_from_info(report: dict) -> tuple[int, str] | None:
     """The sector count `disexport --sectors` wants, from an `info` report, with where it came from."""
     track = _parsed(report, "track_1")
@@ -385,12 +391,13 @@ def after_geo(args, res: dict, out: str) -> list[str]:
     compared = compare_pitch(out) if res["chi2_per_dof"] > 2 else None
     sigma = res["angle_sigma_measured_span_deg"]
     retry = [f"  {PROG} geo {_carry(args)} --speed {_other_speed(args)}"]
+    word = _speed_word(args)
     too_noisy = sigma > BAD_SIGMA_DEG
     if res["chi2_per_dof"] <= 2:
         if sigma <= GOOD_SIGMA_DEG:
             lines.append(f"Verdict: good. Only noise is left after the fit, and {_angle(sigma)}.")
         else:
-            lines += [f"Verdict: {_noisy(sigma)}", "For a cleaner run, try a lower speed or another drive:", *retry]
+            lines += [f"Verdict: {_noisy(sigma)}", f"For a cleaner run, try {word} or another drive:", *retry]
     elif compared is None:
         lines.append("Verdict: not settled. More than noise is left, and the comparison below could not run here.")
     elif compared[1] <= PITCH_CLEARLY_BETTER * compared[0]:
@@ -416,13 +423,13 @@ def after_geo(args, res: dict, out: str) -> list[str]:
                       "Write a correction first; the commands below use it:",
                       f"  python tools/geo_polyfit.py {short(out)} --write-correction correction.json --order quadratic"]
             if corrected > GOOD_SIGMA_DEG:
-                lines += ["For a cleaner run, try a lower speed or another drive:", *retry]
+                lines += [f"For a cleaner run, try {word} or another drive:", *retry]
         elif too_noisy:
             lines += [f"A varying track pitch does not fit better (fit error ratio {compared[0]:.1f} -> {compared[1]:.1f}), so the "
-                      "extra scatter is probably read noise. Try a lower speed or another drive:", *retry]
+                      f"extra scatter is probably read noise. Try {word} or another drive:", *retry]
         else:
             lines += [f"A varying track pitch does not fit better (fit error ratio {compared[0]:.1f} -> {compared[1]:.1f}), so the "
-                      "extra scatter is probably read noise. You can carry on. For a cleaner run, try a lower speed:", *retry]
+                      f"extra scatter is probably read noise. You can carry on. For a cleaner run, try {word}:", *retry]
     lines.append("")
     preset = [f"  {PROG} disexport --geo {geo}{correction} --sectors {sectors} --r-min {span[0]} --r-max {span[1]} "
               "--output dis_preset.json",
@@ -441,13 +448,13 @@ def after_geo(args, res: dict, out: str) -> list[str]:
 def after_geo_stop(args, reason: str) -> list[str]:
     if reason in (mmc.NO_DISC, mmc.LOADING):
         return []
-    carry, other = _carry(args), _other_speed(args)
+    carry, other, word = _carry(args), _other_speed(args), _speed_word(args)
     if "never settled" in reason or "near the reference" in reason:
-        return ["The drive would not hold one speed. Check it with timing, then try geo at a lower speed:",
+        return [f"The drive would not hold one speed. Check it with timing, then try geo at {word}:",
                 f"  {PROG} timing {carry}", f"  {PROG} geo {carry} --speed {other}",
                 "USB slim drives are often too noisy here; an internal drive may simply work."]
     if "whole-turn" in reason or "safe" in reason:
-        return ["A whole-turn count went wrong, or the pitch varies more than the model allows. Try a lower speed:",
+        return [f"A whole-turn count went wrong, or the pitch varies more than the model allows. Try {word}:",
                 f"  {PROG} geo {carry} --speed {other} --reps 32",
                 "If it keeps stopping near one LBA, leave that area out with --ranges a-b (see `geo -h`).",
                 "A disc whose pitch varies can take a higher limit, for example --chi2-abort 100."]

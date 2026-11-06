@@ -160,9 +160,11 @@ TEXT = {
     "Verdict: usable, but noisy: {a} deg is about {b} mm at 50 mm radius.": "结论：能用，但噪声偏大：{a}° 在 50 mm 半径处约 {b} mm。",
     "Verdict: too noisy to rely on: {a} deg is about {b} mm at 50 mm radius.": "结论：噪声太大，不能依赖这次结果：{a}° 在 50 mm 半径处约 {b} mm。",
     "Verdict: a correction helps, but it stays noisy: {a} deg is about {b} mm at 50 mm radius.": "结论：修正有帮助，但修正后噪声仍然偏大：{a}° 在 50 mm 半径处约 {b} mm。",
-    "For a cleaner run, try a lower speed or another drive:": "想测得更干净，可以降速，或者换一台光驱：",
-    "A varying track pitch does not fit better (fit error ratio {a} -> {b}), so the extra scatter is probably read noise. Try a lower speed or another drive:":
-        "改用可变轨距也没有更好（拟合误差比 {a} -> {b}），多半是读取噪声。降速，或者换一台光驱：",
+    "a lower speed": "降速",
+    "a different speed": "换一个速度",
+    "For a cleaner run, try {s} or another drive:": "想测得更干净，可以{s}，或者换一台光驱：",
+    "A varying track pitch does not fit better (fit error ratio {a} -> {b}), so the extra scatter is probably read noise. Try {s} or another drive:":
+        "改用可变轨距也没有更好（拟合误差比 {a} -> {b}），多半是读取噪声。{s}，或者换一台光驱：",
     "Verdict: good once corrected.": "结论：加上修正就可以用。",
     "Verdict: usable, but noisy.": "结论：能用，但噪声偏大。",
     "Next, export a DiscImageStudio preset. CD has one more constant that timing cannot see, and fine": "下一步，导出 DiscImageStudio 预设。CD 还有一个计时测不到的常数，",
@@ -176,17 +178,17 @@ TEXT = {
         "测量完成：{n} 个测量点，覆盖 {a}-{b} mm。角度不确定度约 {s}°，测量点平均偏离拟合曲线 {r}°。",
     "A varying track pitch fits clearly better (fit error ratio {a} -> {b}). Write a correction first; the commands below use it:":
         "轨距有变化：改用可变轨距后拟合明显更好（拟合误差比 {a} -> {b}）。先生成修正文件，下面的命令会用到它：",
-    "A varying track pitch does not fit better (fit error ratio {a} -> {b}), so the extra scatter is probably read noise. You can carry on. For a cleaner run, try a lower speed:":
-        "偏差比噪声略大，但改用可变轨距也没有更好（拟合误差比 {a} -> {b}），多半是读取噪声，可以继续。想测得更干净，可以降速再测一次：",
+    "A varying track pitch does not fit better (fit error ratio {a} -> {b}), so the extra scatter is probably read noise. You can carry on. For a cleaner run, try {s}:":
+        "偏差比噪声略大，但改用可变轨距也没有更好（拟合误差比 {a} -> {b}），多半是读取噪声，可以继续。想测得更干净，可以{s}再测一次：",
     "Next, make a picture ISO (replace my_picture.png with your image):": "下一步，把图片做成可刻录的镜像（把 my_picture.png 换成你的图片）：",
     "Enter the same --sectors in DiscImageStudio.": "DiscImageStudio 里也填同一个 --sectors。",
     "Or export a DiscImageStudio preset:": "或者导出 DiscImageStudio 预设：",
     "--sectors is from your last `info`: {a}": "--sectors 来自你上次的 `info`：{a}",
     "--sectors is how much was burned on the measured disc. A blank can hold more: `info` on a blank gives its count.": "--sectors 是所测这张盘刻了多少。空白盘可能放得更多，对空白盘运行 `info` 可以看到它的扇区数。",
     "run `info` on a blank disc to {verb} --sectors": "对空白盘运行 `info` 可以查到 --sectors",
-    "The drive would not hold one speed. Check it with timing, then try geo at a lower speed:": "光驱保持不住一个速度。先用 timing 检查，再用低一点的速度跑 geo：",
+    "The drive would not hold one speed. Check it with timing, then try geo at {s}:": "光驱保持不住一个速度。先用 timing 检查，再{s}跑 geo：",
     "USB slim drives are often too noisy here; an internal drive may simply work.": "USB 超薄光驱在这里常常噪声太大，换内置光驱可能直接就行。",
-    "A whole-turn count went wrong, or the pitch varies more than the model allows. Try a lower speed:": "整圈数算错了，或者轨距的变化超出了模型范围。试试低一点的速度：",
+    "A whole-turn count went wrong, or the pitch varies more than the model allows. Try {s}:": "整圈数算错了，或者轨距的变化超出了模型范围。先{s}试试：",
     "If it keeps stopping near one LBA, leave that area out with --ranges a-b (see `geo -h`).": "如果总停在同一个扇区附近，用 --ranges a-b 避开那一段（见 `geo -h`）。",
     "A disc whose pitch varies can take a higher limit, for example --chi2-abort 100.": "轨距本来就有变化的盘，可以放宽上限，比如 --chi2-abort 100。",
     "--ranges has to overlap the recorded area. See the last LBA with:": "--ranges 要和已刻录区域有重叠。查看最后扇区号：",
