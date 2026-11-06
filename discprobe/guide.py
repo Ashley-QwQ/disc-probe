@@ -14,6 +14,8 @@ import os
 import re
 import sys
 
+from . import i18n
+
 RESULT_DIR = re.compile(r"^(?P<kind>[a-z]+)-(?:(?P<tag>.+)-)?(?P<stamp>\d{8}-\d{6})$")
 PROG = "python -m discprobe"
 # `latest` must not pick these: a run stopped by the whole-turn check still writes a summary.
@@ -152,7 +154,7 @@ def describe_chosen(path: str) -> str:
     m = RESULT_DIR.match(os.path.basename(folder))
     if not m:
         return short(path)
-    return f"{short(path)} ({Result(folder, m['kind'], m['tag'], m['stamp']).describe()})"
+    return f"{short(path)} ({i18n.tr(Result(folder, m['kind'], m['tag'], m['stamp']).describe())})"
 
 
 def missing_packages() -> list[str]:
@@ -391,7 +393,7 @@ def guide_lines(media: str = "dvd", out: str = "results") -> list[str]:
 
     other = "cd" if media == "dvd" else "dvd"
     lines = [f"Where you are, for {media.upper()} ({other.upper()}: {PROG} guide --media {other}):", ""]
-    lines += [f"  [{'x' if done else ' '}] {name:22s} {detail}" for done, name, detail in rows]
+    lines += [f"  [{'x' if done else ' '}] {i18n.pad(i18n.tr(name), 22)} {i18n.tr(detail)}" for done, name, detail in rows]
     lines += ["", "Next:"] + [f"  {c}" for c in commands]
     lines += ["", f"All commands: {PROG} -h    One command: {PROG} <command> -h    Details: docs/MANUAL.md"]
     return lines

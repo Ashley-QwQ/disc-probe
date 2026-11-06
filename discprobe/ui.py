@@ -1,27 +1,42 @@
 """Terminal help for people typing commands: hints, colours and a progress line.
 
 All of it is off unless stdout is a real terminal, so pipes, redirects and agents get the
-plain output they always had (DISCPROBE_PLAIN=1 turns it off in a terminal too). Only 7-bit
-ASCII is drawn, so no code page can break it; colour needs ANSI, and the progress line needs
-nothing but a carriage return.
+plain output they always had (DISCPROBE_PLAIN=1 turns it off in a terminal too). 7-bit ASCII is
+the default, because a UTF-8 encoding says nothing about the font; DISCPROBE_UNICODE=1 asks for
+finer glyphs. Colour needs ANSI, and the progress line needs nothing but a carriage return.
+Animation is a function of the clock, never of how often something was drawn, because reads
+come at an uneven pace; each animated thing has a still form for --no-animation.
 """
 
 from __future__ import annotations
 
 import atexit
+import colorsys
 import os
 import re
 import shutil
 import sys
 import time
 
-SPINNER = ("(|)", "(/)", "(-)", "(\\)")
+from . import i18n, snake
+from .i18n import display_width, tr
+
+SPINNER_ASCII = ("(|)", "(/)", "(-)", "(\\)")
+SPINNER_UNICODE = ("◐", "◓", "◑", "◒")     # a disc turning
+SPINNER_FRAME_S = 0.12
+BAR_ASCII = ("=", ">", ".")
+BAR_UNICODE = ("━", "╸", "─")
 STYLES = {"bold": "1", "dim": "2", "red": "31", "green": "32", "yellow": "33", "cyan": "36"}
-BAR_WIDTH = 24
+BAR_WIDTH = 20
 ANIMATED_FPS = 8.0
 PLAIN_FPS = 1.0
 # Drawing outside the random pause delays the next command, so keep it rare there.
 OUTSIDE_PAUSE_INTERVAL_S = 1.0
+SWEEP_S = 1.7
+SWEEP_REACH = 4.0
+BAR_COLOUR_CELLS = 4        # the bar's rainbow changes in steps, which keeps each frame small
+GAME_GLYPHS = {"field": "..", "snake": "##", "food": "<>"}
+GAME_CELLS = {"field": ("48;2;42;46;56", "100"), "snake": ("48;2;86;200;130", "42"), "food": ("48;2;236;96;96", "41")}
 
 
 def _windows_ansi(stream) -> bool:
@@ -37,7 +52,17 @@ def _windows_ansi(stream) -> bool:
         mode = wintypes.DWORD()
         if not k32.GetConsoleMode(handle, ctypes.byref(mode)):
             return False
-        return bool(k32.SetConsoleMode(handle, mode.value | 0x0004))
+        original = mode.value
+        if original & 0x0004:
+            return True
+        if not k32.SetConsoleMode(handle, original | 0x0004):
+            return False
+
+        def restore():      # the shell gets its console back as it was
+            stream.flush()
+            k32.SetConsoleMode(handle, original)
+        atexit.register(restore)
+        return True
     except (OSError, ValueError, AttributeError, ImportError):
         return False
 
@@ -64,8 +89,10 @@ class Term:
         else:
             self.ansi = bool(env.get("TERM"))
         self.color = self.ansi and not env.get("NO_COLOR")
-        self.animate = self.color and not env.get("CI")
+        self.animate = self.ansi and not env.get("CI") and not env.get("DISCPROBE_NO_ANIMATION")
         self.truecolor = self.color and (env.get("COLORTERM", "") in ("truecolor", "24bit") or bool(env.get("WT_SESSION")))
+        utf8 = (getattr(self.stream, "encoding", None) or "").lower().replace("-", "") == "utf8"
+        self.unicode = self.ansi and utf8 and bool(env.get("DISCPROBE_UNICODE"))
 
     def style(self, text: str, name: str) -> str:
         return f"\x1b[{STYLES[name]}m{text}\x1b[0m" if self.color else text
@@ -94,6 +121,7 @@ def say(text: str = "", style: str | None = None) -> None:
     """A line only people at a terminal see."""
     t = term()
     if t.interactive:
+        text = tr(text)
         print(t.style(text, style) if style else text, flush=True)
 
 
@@ -102,54 +130,136 @@ def ask(question: str, default: bool = True) -> bool:
     if not term().can_prompt():
         return default
     try:
-        answer = input(f"{question} [{'Y/n' if default else 'y/N'}] ").strip().lower()
+        answer = input(f"{tr(question)} [{'Y/n' if default else 'y/N'}] ").strip().lower()
     except EOFError:
         return default
     return answer.startswith("y") if answer else default
 
 
-class Progress:
-    """One line that overwrites itself; `status` returns (fraction or None, label, seconds left or None)."""
+def _rainbow(position: float, saturation: float = 0.8) -> str:
+    r, g, b = (int(255 * v) for v in colorsys.hsv_to_rgb(position % 1.0, saturation, 0.85))
+    return f"38;2;{r};{g};{b}"
 
-    def __init__(self, status, t: Term | None = None):
+
+def _paint_runs(cells: list[tuple[str, str]]) -> str:
+    """(code, text) cells to one string, one escape per run of equal codes."""
+    out, run_code, run = [], "", []
+    for code, text in cells + [("", "")]:
+        if code != run_code:
+            joined = "".join(run)
+            out.append(f"\x1b[{run_code}m{joined}\x1b[0m" if run_code else joined)
+            run_code, run = code, []
+        run.append(text)
+    out.append("".join(run))
+    return "".join(out)
+
+
+def sweep(text: str, now: float, t: Term, base: str | None = None) -> str:
+    """Text with a band of the disc's rainbow crossing it; the band is the only thing that moves.
+
+    Between sweeps the text keeps the terminal's own colour, so it stays readable on any theme.
+    """
+    if not (t.animate and t.color) or not text:
+        return t.style(text, base) if base else text
+    columns = display_width(text)
+    position = (now % SWEEP_S) / SWEEP_S * (columns + 2 * SWEEP_REACH) - SWEEP_REACH
+    rest = STYLES[base] if base else ""
+    cells, column = [], 0
+    for ch in text:
+        light = max(0.0, 1 - abs(column - position) / SWEEP_REACH)
+        if light <= 0:
+            code = rest
+        elif t.truecolor:
+            code = _rainbow((column // 2) * 2 / max(columns, 1) * 0.7 + now * 0.08, 0.45 + 0.45 * round(light * 2) / 2)
+        else:
+            code = "1;36" if light > 0.45 else rest
+        cells.append((code, ch))
+        column += display_width(ch)
+    return _paint_runs(cells)
+
+
+class Progress:
+    """One line that overwrites itself; `status` returns (fraction or None, label, seconds left or None).
+
+    A narrow terminal loses whole parts, least useful first, and never gets a wrapped line.
+    With `keys` given, a game of snake can be opened under it.
+    """
+
+    def __init__(self, status, t: Term | None = None, keys=None):
         self.t = t or term()
         self.status = status
         self.started = time.monotonic()
         self.last_draw = 0.0
         self.width_shown = 0
-        self.frame = 0
+        self.line_shown = None
         self.interval = 1 / (ANIMATED_FPS if self.t.animate else PLAIN_FPS)
         self.closed = False
+        self.keys = keys
+        self.game = None
+        self.playing = False
+        self.last_step = 0.0
+        self.game_size = None
         if self.t.ansi:
             self.t.stream.write("\x1b[?25l")
+        if self.t.ansi or keys:
             atexit.register(self.close)
 
-    def _segments(self) -> list[tuple[str, str | None]]:
+    def _spinner(self, now: float) -> str:
+        frames = SPINNER_UNICODE if self.t.unicode else SPINNER_ASCII
+        return frames[int((now - self.started) / SPINNER_FRAME_S) % len(frames)]
+
+    def _bar(self, fraction: float, now: float) -> tuple[str, str]:
+        """The bar as plain text and as painted text."""
+        fill, head, rest = BAR_UNICODE if self.t.unicode else BAR_ASCII
+        filled = int(fraction * BAR_WIDTH)
+        tip = head if filled < BAR_WIDTH else ""
+        tail = rest * (BAR_WIDTH - filled - len(tip))
+        plain = f"[{fill * filled}{tip}{tail}]"
+        if not self.t.color:
+            return plain, plain
+        if self.t.truecolor:
+            done = _paint_runs([(_rainbow((i // BAR_COLOUR_CELLS) * BAR_COLOUR_CELLS / BAR_WIDTH * 0.75), fill) for i in range(filled)])
+        else:
+            done = self.t.style(fill * filled, "cyan")
+        return plain, "[" + done + (self.t.style(tip, "cyan") if tip else "") + (self.t.style(tail, "dim") if tail else "") + "]"
+
+    def _render(self, columns: int | None = None) -> tuple[str, int]:
+        columns = columns if columns is not None else shutil.get_terminal_size((80, 24)).columns
+        room = max(10, columns - 1)
+        now = time.monotonic()
         fraction, label, left = self.status()
-        seg: list[tuple[str, str | None]] = []
-        if self.t.animate:
-            self.frame += 1
-            seg.append((SPINNER[self.frame % len(SPINNER)] + " ", "cyan"))
+        label = tr(label)
+        spin = [(self._spinner(now), self.t.style(self._spinner(now), "cyan"))] if self.t.animate else []
+        meter = []
         if fraction is not None:
             fraction = max(0.0, min(1.0, fraction))
-            filled = int(fraction * BAR_WIDTH)
-            head = ">" if filled < BAR_WIDTH else ""
-            seg += [("[", None), ("=" * filled + head, "cyan"), ("." * (BAR_WIDTH - filled - len(head)), "dim"),
-                    (f"] {fraction * 100:3.0f}%  ", None)]
-        seg.append((label, None))
-        seg.append((f"  elapsed {clock(time.monotonic() - self.started)}", "dim"))
+            meter = [self._bar(fraction, now), (f"{fraction * 100:3.0f}%",) * 2]
+        percent = meter[1:]
+        title = [(label, sweep(label, now, self.t))]
+        elapsed = clock(now - self.started)
+        spent = [(elapsed, self.t.style(elapsed, "dim"))]
+        due = []
         if left is not None:
-            seg.append((f"  about {clock(left)} left", None))
-        return seg
-
-    def _render(self) -> tuple[str, int]:
-        room = max(10, shutil.get_terminal_size((80, 24)).columns - 1)  # never wrap: \r only reaches one row
-        out, used = [], 0
-        for text, style in self._segments():
-            text = text[:room - used]
-            used += len(text)
-            out.append(self.t.style(text, style) if style and text else text)
-        return "".join(out), used
+            text = tr(f"about {clock(left)} left")
+            due = [(text, text)]
+        stop = tr("Ctrl+C to stop")
+        stop_part = [(stop, self.t.style(stop, "dim"))]
+        game_part = []
+        if self.keys and not self.playing:
+            text = tr("g: snake")
+            game_part = [(text, self.t.style(text, "dim"))]
+        for parts in (spin + meter + title + spent + due + stop_part + game_part,
+                      spin + meter + title + spent + due + game_part,
+                      spin + meter + title + spent + due,
+                      spin + meter + title + due,
+                      spin + percent + title + due,
+                      spin + percent + title,
+                      spin + title):
+            width = sum(display_width(p[0]) for p in parts) + 2 * (len(parts) - 1)
+            if width <= room:
+                return "  ".join(p[1] for p in parts), width
+        cut = i18n.fit(label, room)
+        return cut, display_width(cut)
 
     def tick(self, force: bool = False, interval: float | None = None) -> None:
         if self.closed:
@@ -159,19 +269,32 @@ class Progress:
             return
         self.last_draw = now
         line, width = self._render()
-        self.t.stream.write("\r" + line + " " * max(0, self.width_shown - width))
+        if line == self.line_shown:
+            return
+        self.line_shown = line
+        if self.t.ansi:     # with wrapping off a miscounted glyph is clipped, not pushed to a new row
+            self.t.stream.write(f"\r\x1b[?7l{line}\x1b[K\x1b[?7h")
+        else:
+            self.t.stream.write("\r" + line + " " * max(0, self.width_shown - width))
         self.t.stream.flush()
         self.width_shown = width
 
     def _wipe(self) -> None:
-        if self.width_shown:
+        self.line_shown = None
+        if self.playing:
+            self.t.stream.write("\r\x1b[J")
+        elif self.t.ansi:
+            self.t.stream.write("\r\x1b[K")
+        elif self.width_shown:
             self.t.stream.write("\r" + " " * self.width_shown + "\r")
-            self.width_shown = 0
+        self.width_shown = 0
 
     def log(self, *parts) -> None:
         """Print a line above the progress line."""
         self._wipe()
-        print(*parts, file=self.t.stream, flush=True)
+        print(tr(" ".join(str(p) for p in parts)), file=self.t.stream, flush=True)
+        if self.playing:
+            self._draw_game()
         self.tick(force=True)
 
     def close(self) -> None:
@@ -179,9 +302,102 @@ class Progress:
             return
         self.closed = True
         self._wipe()
+        self.playing = False
+        if self.keys:
+            self.keys.close()
         if self.t.ansi:
             self.t.stream.write("\x1b[?25h")
+        if self.game and self.game.best:
+            print(tr(f"Snake: best score {self.game.best}"), file=self.t.stream)
         self.t.stream.flush()
+
+    # The game below is reached only from `play`, inside the pause before a timed read.
+
+    def play(self) -> None:
+        if not self.keys or self.closed:
+            return
+        for key in self.keys.read():
+            self._press(snake.key_name(key))
+        if self.playing and shutil.get_terminal_size((80, 24)) != self.game_size:
+            self._wipe()        # a resize moves everything: draw it afresh, or close if it no longer fits
+            self.playing = False
+            self._open_game()
+        now = time.monotonic()
+        if self.playing and not self.game.over and now - self.last_step >= snake.STEP_S:
+            self.last_step = now
+            score = self.game.score
+            changed = self.game.step()
+            self._draw_cells(changed)
+            if self.game.score != score or self.game.over:
+                self._draw_hint()
+            self.t.stream.flush()
+
+    def _press(self, key: str) -> None:
+        if not self.playing:
+            if key in ("g", "G"):
+                self._open_game()
+            return
+        if key in ("q", "Q"):
+            self._wipe()
+            self.playing = False
+            self.tick(force=True)
+        elif key in ("r", "R") and self.game.over:
+            self.game.reset()
+            self._draw_game()
+        elif key in snake.DIRECTIONS:
+            self.game.turn(key)
+
+    def _open_game(self) -> None:
+        size = shutil.get_terminal_size((80, 24))
+        cols = min(snake.MAX_COLS, (size.columns - 4) // 2)
+        if cols < snake.MIN_COLS or size.lines < snake.ROWS + 4:
+            self.log("The window is too small for snake")
+            return
+        if self.game is None or self.game.cols != cols:
+            best = self.game.best if self.game else 0
+            self.game = snake.Snake(cols)
+            self.game.best = best
+        self.playing = True
+        self.game_size = size
+        self.last_step = time.monotonic()
+        self._draw_game()
+        self.tick(force=True)
+
+    def _cell(self, kind: str) -> str:
+        if not self.t.color:
+            return GAME_GLYPHS[kind]
+        rgb, ansi16 = GAME_CELLS[kind]
+        return f"\x1b[{rgb if self.t.truecolor else ansi16}m  \x1b[0m"
+
+    def _below(self, rows: int, text: str) -> str:
+        return f"\x1b[{rows}B{text}\x1b[{rows}A\r"
+
+    def _draw_hint(self) -> None:
+        g = self.game
+        text = tr(f"Snake {g.score}  best {g.best}  crashed: r plays again, q closes" if g.over
+                  else f"Snake {g.score}  best {g.best}  arrows or WASD steer, q closes")
+        self.t.stream.write(self._below(1, f"\r\x1b[K  {self.t.style(text, 'dim')}"))
+
+    def _draw_cells(self, changed) -> None:
+        for x, y, kind in changed:
+            self.t.stream.write(self._below(2 + y, f"\x1b[{3 + 2 * x}G{self._cell(kind)}"))
+
+    def _draw_game(self) -> None:
+        """Make room below the progress line (scrolling if at the bottom), then draw all of it."""
+        below = snake.ROWS + 1
+        self.t.stream.write("\n" * below + f"\x1b[{below}A\r")
+        self._draw_hint()
+        g = self.game
+        for y in range(g.rows):
+            row = "".join(self._cell(g.cell(x, y)) for x in range(g.cols))
+            self.t.stream.write(self._below(2 + y, f"\r  {row}\x1b[K"))
+        self.t.stream.flush()
+
+
+def open_keys(t: Term | None = None):
+    """Keys for the game, where it can be played: it needs motion and someone at the keyboard."""
+    t = t or term()
+    return snake.open_keys() if t.animate and t.can_prompt() else None
 
 
 class ProgressDevice:
@@ -212,6 +428,7 @@ class ProgressDevice:
         start = time.perf_counter()
         self.pauses += 1
         if self.progress:
+            self.progress.play()
             self.progress.tick()
         if hasattr(self._dev, "idle"):      # the simulator's clock is virtual
             self._dev.idle(seconds)

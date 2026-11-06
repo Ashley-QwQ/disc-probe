@@ -9,7 +9,7 @@ import json
 import os
 import sys
 
-from . import guide, info, timing, ui
+from . import guide, i18n, info, timing, ui
 
 # Tile target palette: the A5/92 pair, B9 and 66, aperiodic mixes of the 3.2T (A5-like)
 # and 8T (92-like) classes, then along-track periods 32T, 48T and 64T (16T is 92). The
@@ -62,7 +62,7 @@ def _choose_drive(args) -> None:
         print("Optical drives: " + "  ".join(drives))
         while args.drive not in drives:
             try:
-                answer = input(f"Which drive? [{drives[0]}] ").strip().upper()
+                answer = input(i18n.tr(f"Which drive? [{drives[0]}] ")).strip().upper()
             except EOFError:
                 sys.exit("no drive chosen")
             answer = answer or drives[0]
@@ -196,7 +196,7 @@ def cmd_timing(args):
         stop_if_not_cav=not args.force, time_limit_s=args.max_minutes * 60 if args.max_minutes else None)
     progress = None
     if reader is not dev:
-        progress = reader.progress = ui.Progress(ui.timing_status(probe, reader))
+        progress = reader.progress = ui.Progress(ui.timing_status(probe, reader), keys=ui.open_keys())
         probe.log = progress.log
     stopped = None
     try:
@@ -222,6 +222,8 @@ def cmd_timing(args):
         print(f"\nRaw events and summary: {os.path.abspath(out)}")
     if stopped:
         _fail(stopped, guide.after_timing_stop(args, stopped))
+    if progress:
+        ui.say(f"Finished in {ui.clock(ui.time.monotonic() - progress.started)}", "dim")
     _next(guide.after_timing(args, summary))
 
 
@@ -370,7 +372,7 @@ def cmd_geo(args):
                     chi2_abort=args.chi2_abort)
     progress, log = None, print
     if reader is not dev:
-        progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader))
+        progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys())
         log = ladder.log = progress.log
     out = _outdir(args, "geo", dev)
     stopped = None
@@ -402,6 +404,8 @@ def cmd_geo(args):
         print(f"targets.csv, summary.json, events.csv: {os.path.abspath(out)}")
     else:
         print("no results written: it stopped before the first fit. Run `timing` to see how noisy this drive is.")
+    if progress and res:
+        ui.say(f"Finished in {ui.clock(ui.time.monotonic() - progress.started)}", "dim")
     _next(guide.after_geo(args, res, out) if res else guide.after_geo_stop(args, stopped or ""))
     if args.media == "cd" and res is None:
         sys.exit(1)
@@ -605,6 +609,7 @@ def cmd_random(args):
 
 def cmd_selftest(args):
     from .selftest import run
+    i18n.pin("en")      # the checks read the English text; Chinese has its own checks
     passed = run()
     if passed:
         _next([f"Next, see where you are: {guide.PROG} guide"])
@@ -634,7 +639,7 @@ def cmd_results(args):
         print(f"no results in {args.out}")
         return
     for r in found[:args.count]:
-        print(f"{r.when:%m-%d %H:%M}  {r.kind:9s} {r.tag[:14]:14s} {r.describe()}")
+        print(f"{r.when:%m-%d %H:%M}  {r.kind:9s} {r.tag[:14]:14s} {i18n.tr(r.describe())}")
         print(f"  {r.path}")
     if len(found) > args.count:
         print(f"... and {len(found) - args.count} older (-n {len(found)} shows all)")
@@ -675,6 +680,10 @@ COMMAND_GROUPS = (
     ("Read scans of burned discs", ("gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("disexport",)),
 )
+LANG_NOTE = ("Language: --lang zh or --lang en, or DISCPROBE_LANG; at a terminal it follows the system. "
+             "Scripts and pipes stay English unless --lang is given. --no-animation keeps the screen still.")
+LANG_NOTE_ZH = ("语言：--lang zh 或 --lang en，也可以设置环境变量 DISCPROBE_LANG；在终端里默认跟随系统语言。"
+                "脚本和管道始终是英文，除非写了 --lang。--no-animation 可以关掉动画。")
 WORKFLOW = """\
 The usual path, on DVD (CD: add --media cd to each command; steps in docs/MANUAL.md):
   python -m discprobe random --output iso/random.iso    then burn it to a disc
@@ -743,7 +752,7 @@ Reads the results folder, shows which steps are done and prints the next command
 }
 
 
-def _main(argv=None):
+def _build_parser():
     p = _Parser(prog=guide.PROG, usage=f"{guide.PROG} <command> [options]", epilog=WORKFLOW,
                 description="Measure a burned disc's spiral from read timing, then put pictures on discs. "
                             "Drive commands only read.", formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1000,14 +1009,24 @@ def _main(argv=None):
             help="CD only: sector layout the burner writes; IMAPI2 data burns are Mode 2 Form 1 "
                  "(user data from byte 24), so textures are pre-scrambled for that unless you burn Mode 1")
     # Each command's help names what it does, and the top level lists the commands in workflow order.
-    helps = {a.dest: a.help for a in sub._choices_actions}
+    tr = i18n.tr
+    helps = {a.dest: tr(a.help) for a in sub._choices_actions}
     for name, parser in sub.choices.items():
         parser.description = helps[name]
-        parser.epilog = EXAMPLES.get(name)
+        parser.epilog = i18n.block(name, EXAMPLES.get(name))
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
-    p.description += "\n\n" + "\n\n".join(
-        f"{title}:\n" + "\n".join(f"  {name:11s} {helps[name]}" for name in names) for title, names in COMMAND_GROUPS)
+        i18n.localize_parser(parser)
+    p.description = tr(p.description) + "\n\n" + "\n\n".join(
+        f"{tr(title)}:\n" + "\n".join(f"  {name:11s} {helps[name]}" for name in names) for title, names in COMMAND_GROUPS)
+    p.epilog = i18n.block("workflow", p.epilog)
+    if ui.term().interactive:   # scripts read the help as it always was
+        p.epilog += "\n\n" + (LANG_NOTE_ZH if i18n.active() == "zh" else LANG_NOTE)
+    i18n.localize_parser(p)
+    return p, sub, cd_defaults
 
+
+def _main(argv=None):
+    p, sub, cd_defaults = _build_parser()
     raw_args = list(sys.argv[1:] if argv is None else argv)
     _Parser.argv, _Parser.commands = raw_args, sub.choices
     if not raw_args and ui.term().interactive:
@@ -1037,7 +1056,15 @@ def _main(argv=None):
 
 def main(argv=None):
     try:
-        _main(argv)
+        flag, rest = i18n.take_flag(list(sys.argv[1:] if argv is None else argv))
+    except ValueError as e:
+        sys.exit(str(e))
+    i18n.setup(flag, ui.term())
+    if "--no-animation" in rest:    # like --lang, it never reaches summary.json
+        rest = [a for a in rest if a != "--no-animation"]
+        ui.term().animate = False
+    try:
+        _main(rest)
     except _Rerun as again:
         main(list(sys.argv[1:] if argv is None else argv) + again.extra)
     except KeyboardInterrupt:

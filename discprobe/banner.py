@@ -1,9 +1,11 @@
-"""The opening screen of `guide`: a small disc catching the light, in plain ASCII.
+"""The opening screen of `guide`: a small disc catching the light.
 
-The same idea as a real disc's rainbow wedge: two bright lobes sweep round while the colour
-follows the radius. Each frame is built off screen and sent in one write, so nothing flickers.
-It falls back step by step: true colour, 16 colours, then one still frame with no escapes at all.
-Only `guide` shows it, never a measuring command.
+The disc is built from coloured spaces, with slashes and a few symbols on top: two rainbow wedges
+sweep round like the light on a real disc, a streak of / and \\ marks their centre, and small
+sparks flash where they pass. A frame is built off screen and sent in one write, and the frame
+shown follows the clock, so a slow terminal skips frames instead of running long. It falls back
+step by step: true colour, 16 colours, then plain ASCII, which still turns unless motion is off.
+A window too small for the disc gets the title alone. Only `guide` shows it, never a measuring command.
 """
 
 from __future__ import annotations
@@ -14,12 +16,11 @@ import shutil
 import sys
 import time
 
-from . import ui
+from . import i18n, ui
 
-DISC_W, DISC_H = 21, 9
-RAMP = ".:-=+*#%"
-HOLE, RIM = 0.17, 0.93
-FRAMES = 18
+DISC_W, DISC_H = 25, 11
+HOLE, HUB, RIM = 0.14, 0.27, 0.95
+SHOW_S = 1.0
 FRAME_S = 0.04
 STILL_ANGLE = 0.7
 TITLE = (r"     _ _                                _",
@@ -31,31 +32,52 @@ TITLE = (r"     _ _                                _",
 TAGLINE = "read timing -> disc geometry -> pictures on discs"
 TITLE_W = max(len(line) for line in TITLE)
 GAP = 2
-ANSI16 = ("31", "33", "32", "36", "34", "35")   # a rainbow in six steps
+ANSI16_BG = ("41", "43", "42", "46", "44", "45")   # a rainbow in six steps
+SPARKS = "*+."
+
+
+def _streak(theta: float) -> str:
+    """The glyph running outward along this direction; y grows downward on screen."""
+    step = int(((theta % math.pi) + math.pi / 8) / (math.pi / 4)) % 4
+    return ("-", "\\", "|", "/")[step]
 
 
 def _cell(x: float, y: float, angle: float):
-    """(glyph, hue, brightness) of one character cell, or None outside the disc."""
+    """(glyph, hue, light, part) of one character cell, or None outside the disc and in its hole."""
     radius = math.hypot(x, y)
     if radius > 1 or radius < HOLE:
         return None
+    if radius < HUB:
+        return " ", 0.0, 0.0, "hub"
     theta = math.atan2(y, x)
-    bright = abs(math.cos(theta - angle)) ** 8
+    light = abs(math.cos(theta - angle)) ** 10
+    hue = (radius * 1.4 + theta / math.tau) % 1.0
     if radius > RIM:
-        bright = max(bright, 0.3)
-    return RAMP[min(int(bright * len(RAMP)), len(RAMP) - 1)], (radius * 1.4 + theta / math.tau) % 1.0, bright
+        return " ", hue, max(light, 0.25), "rim"
+    glyph = " "
+    if light > 0.72:
+        glyph = _streak(theta)
+    elif light > 0.25 and (int(radius * 47) * 7 + int((theta + math.pi) * 13)) % 11 == 0:
+        glyph = SPARKS[int(radius * 17) % len(SPARKS)]
+    return glyph, hue, light, "body"
 
 
-def _paint(glyph: str, hue: float, bright: float, t: ui.Term) -> str:
+def _paint(glyph: str, hue: float, light: float, part: str, t: ui.Term) -> str:
     if not t.color:
-        return glyph
+        if part == "hub":
+            return "."
+        if part == "rim":
+            return "o"
+        return glyph if glyph != " " else ":"
     if t.truecolor:
-        level = 0.25 + 0.75 * bright
-        r, g, b = (int(255 * v) for v in colorsys.hsv_to_rgb(hue, 0.15 + 0.75 * bright, level))
-        return f"\x1b[38;2;{r};{g};{b}m{glyph}\x1b[0m"
-    if bright < 0.2:
-        return f"\x1b[2m{glyph}\x1b[0m"
-    return f"\x1b[{ANSI16[int(hue * len(ANSI16)) % len(ANSI16)]}m{glyph}\x1b[0m"
+        if part == "hub":
+            r, g, b = 70, 74, 84
+        else:
+            r, g, b = (int(255 * v) for v in colorsys.hsv_to_rgb(hue, 0.25 + 0.65 * light, 0.3 + 0.65 * light))
+        return f"\x1b[48;2;{r};{g};{b};97m{glyph}\x1b[0m"
+    if part == "hub" or light < 0.2:
+        return f"\x1b[100;97m{glyph}\x1b[0m"
+    return f"\x1b[{ANSI16_BG[int(hue * len(ANSI16_BG)) % len(ANSI16_BG)]};97m{glyph}\x1b[0m"
 
 
 def disc_rows(angle: float, t: ui.Term) -> list[str]:
@@ -70,39 +92,51 @@ def disc_rows(angle: float, t: ui.Term) -> list[str]:
     return rows
 
 
-def _title_rows(t: ui.Term, height: int) -> list[str]:
-    lines = [t.style(line.ljust(TITLE_W), "cyan") for line in TITLE] + [t.style(TAGLINE.ljust(TITLE_W), "dim")]
+def _title_rows(t: ui.Term, height: int, now: float | None) -> list[str]:
+    def paint(line):
+        return t.style(line, "cyan") if now is None else ui.sweep(line, now, t, "cyan")
+    lines = [paint(line.ljust(TITLE_W)) for line in TITLE] + [t.style(i18n.pad(i18n.tr(TAGLINE), TITLE_W), "dim")]
     top = max(0, (height - len(lines)) // 2)
     blank = " " * TITLE_W
     return ([blank] * top + lines + [blank] * height)[:height]
 
 
-def frame(angle: float, t: ui.Term, columns: int) -> list[str]:
+def frame(angle: float, t: ui.Term, columns: int, now: float | None = None) -> list[str]:
     """The screen for one angle, shaped to the terminal width."""
     if columns > DISC_W + GAP + TITLE_W:
-        return [d + " " * GAP + title for d, title in zip(disc_rows(angle, t), _title_rows(t, DISC_H))]
+        return [d + " " * GAP + title for d, title in zip(disc_rows(angle, t), _title_rows(t, DISC_H, now))]
+    tagline = i18n.tr(TAGLINE)
     if columns > TITLE_W:
-        return [t.style(line, "cyan") for line in TITLE] + [t.style(TAGLINE, "dim")]
-    return [t.style("disc-probe", "cyan"), t.style(TAGLINE[:max(columns - 1, 10)], "dim")]
+        return [t.style(line, "cyan") for line in TITLE] + [t.style(tagline, "dim")]
+    return [t.style("disc-probe", "cyan"), t.style(i18n.fit(tagline, max(columns - 1, 10)), "dim")]
 
 
-def show(t: ui.Term | None = None, pause=time.sleep) -> None:
+def show(t: ui.Term | None = None, pause=time.sleep, now=time.monotonic) -> None:
     """Draw the opening screen. Only at a terminal; only moves if the terminal can."""
     t = t or ui.term()
     if not t.interactive:
         return
-    columns = shutil.get_terminal_size((80, 24)).columns
+    size = shutil.get_terminal_size((80, 24))
     write = t.stream.write
-    wide = columns > DISC_W + GAP + TITLE_W
-    if t.animate and wide:
+    roomy = size.columns > DISC_W + GAP + TITLE_W and size.lines > DISC_H + 2
+    if not roomy and size.columns > DISC_W + GAP + TITLE_W:     # too low for the disc: the title alone
+        write("\n".join(frame(STILL_ANGLE, t, DISC_W + GAP + TITLE_W)) + "\n\n")
+        t.stream.flush()
+        return
+    if t.animate and roomy:
         write("\x1b[?25l")
         try:
             write("\n" * (DISC_H - 1))
-            for i in range(FRAMES):
-                eased = 1 - (1 - i / (FRAMES - 1)) ** 2     # sweeps fast, settles soft
+            start = now()
+            while True:
+                spent = now() - start
+                eased = 1 - (1 - min(spent / SHOW_S, 1.0)) ** 2     # sweeps fast, settles soft
                 angle = STILL_ANGLE + math.pi * (eased - 1)
-                write(f"\r\x1b[{DISC_H - 1}A" + "\n".join(frame(angle, t, columns)))
+                settled = spent >= SHOW_S
+                write(f"\r\x1b[{DISC_H - 1}A" + "\n".join(frame(angle, t, size.columns, None if settled else spent)))
                 t.stream.flush()
+                if settled:
+                    break
                 pause(FRAME_S)
         except KeyboardInterrupt:
             pass        # Ctrl+C only skips the show
@@ -110,7 +144,7 @@ def show(t: ui.Term | None = None, pause=time.sleep) -> None:
             write("\x1b[?25h\n\n")
             t.stream.flush()
         return
-    write("\n".join(frame(STILL_ANGLE, t, columns)) + "\n\n")
+    write("\n".join(frame(STILL_ANGLE, t, size.columns)) + "\n\n")
     t.stream.flush()
 
 
