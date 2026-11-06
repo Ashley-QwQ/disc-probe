@@ -234,6 +234,8 @@ def read_disc(rgb: np.ndarray, px_per_mm: float, passes: int = 3) -> dict:
                     dst.append(peaks[int(d.argmin())])
         if len(src) >= 6:
             H = fit_homography(np.array(src), np.array(dst))
+    if not src:  # strong tiles seeded the map, but no bullseye was found near any tile that was read
+        return {"seed_tiles": len(first), "H": H.tolist(), "tiles": tiles, "fit_points": 0}
     pred = project(H, *np.array(src).T)
     return {"seed_tiles": len(first), "H": H.tolist(), "tiles": tiles, "fit_points": len(src),
             "fit_rms_mm": float(np.sqrt(np.mean(np.sum((pred - np.array(dst)) ** 2, axis=1))) / px_per_mm)}
