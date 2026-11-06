@@ -463,6 +463,12 @@ def after_disexport() -> list[str]:
             "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.md."]
 
 
+def after_cdprobe(project: str) -> list[str]:
+    return [f"Next, open {short(project)} in DiscImageStudio and burn it, as it is, on a blank of the type to",
+            "calibrate (lowest speed). Then measure the burned disc on the drive that reads it:",
+            f"  {PROG} geo {drive_flag()} --media cd"]
+
+
 def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -> list[str]:
     """The workflow with what is already done ticked off, and the next command; `notes` says what each does."""
     flag = " --media cd" if media == "cd" else ""
