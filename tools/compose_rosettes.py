@@ -49,7 +49,10 @@ def _numbers(labels):
     """Numbers every 30 deg just inside the ticks, and a 0-deg arrow, all in 92 on the A5 band."""
     from PIL import Image, ImageDraw, ImageFont
     size = round(1.3 / CELL_MM)
-    font = ImageFont.truetype(FONT, size)
+    try:
+        font = ImageFont.truetype(FONT, size)
+    except OSError:                 # not on Windows; the numbers only label the scale, so any font will do
+        font = ImageFont.load_default(size)
     r_txt = SCALE_MM[0] + 0.55 * (SCALE_MM[1] - SCALE_MM[0]) + 0.35
     for a in range(0, 360, 30):
         text = str(a)
@@ -65,6 +68,11 @@ def _numbers(labels):
     tri = np.abs(xx - n / 2) < (yy + 1) / 2
     _stamp(labels, tri, (SCALE_MM[0] + 1.0) * math.cos(math.radians(-2.2)),
            (SCALE_MM[0] + 1.0) * math.sin(math.radians(-2.2)), -2.2, 2)
+
+
+def _quoted(text):
+    """Quote an argument with commas, which PowerShell would otherwise split."""
+    return f'"{text}"' if "," in text else text
 
 
 def main(out_dir="iso"):
@@ -112,8 +120,10 @@ def main(out_dir="iso"):
     Image.fromarray(colours[labels]).resize((1600, 1600), Image.BOX).save(os.path.join(out_dir, "rosettes_preview.png"))
     Image.fromarray(colours[labels[2300:3700, 4300:5900]]).save(os.path.join(out_dir, "rosettes_zoom.png"))
     print("labels:", " ".join(f"{i}={t}" for i, t in enumerate(TEXTURES)))
-    print("python -m discprobe image --geo evidence/geo/remeasure_ref262336_summary.json "
-          f"--design-npy {out_dir}/rosettes_design.npy --textures {' '.join(TEXTURES)} --r-max 57.6 "
+    print("The preview colours only tell the textures apart; the colours on the disc depend on the angle.")
+    print("Next, with your own geo result (latest, or the path to its summary.json):")
+    print("python -m discprobe image --geo latest "
+          f"--design-npy {out_dir}/rosettes_design.npy --textures {' '.join(_quoted(t) for t in TEXTURES)} --r-max 57.6 "
           f"--output {out_dir}/rosettes.iso")
 
 
