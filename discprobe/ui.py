@@ -23,7 +23,7 @@ import sys
 import threading
 import time
 
-from . import filldisc, i18n, snake
+from . import i18n, snake
 from .i18n import display_width, tr
 
 SPINNER_ASCII = ("(|)", "(/)", "(-)", "(\\)")
@@ -49,12 +49,12 @@ OUTSIDE_PAUSE_INTERVAL_S = 1.0
 SWEEP_S = 1.7
 SWEEP_REACH = 4.0
 BAR_COLOUR_CELLS = 4        # the bar's rainbow changes in steps, which keeps each frame small
-GAMES = (snake.Snake, filldisc.FillDisc)
-GAME_GLYPHS = {"field": "..", "snake": "##", "food": "<>",
-               "block0": "[]", "block1": "##", "block2": "()", "block3": "{}", "block4": "%%", "block5": "@@"}
-GAME_CELLS = {"field": ("48;2;42;46;56", "100"), "snake": ("48;2;86;200;130", "42"), "food": ("48;2;236;96;96", "41"),
-              "block0": ("48;2;236;96;96", "41"), "block1": ("48;2;86;200;130", "42"), "block2": ("48;2;250;190;70", "43"),
-              "block3": ("48;2;96;124;230", "44"), "block4": ("48;2;200;110;220", "45"), "block5": ("48;2;70;200;220", "46")}
+# The measured lines, at a terminal, with every value in its own column. Rounding drops trailing
+# zeros, so they come back at the precision it kept. Scripts never pass through here.
+_COLUMNS = ((re.compile(r"Zone (\S+) \(LBA (\d+)\): T = (\S+) ms \((\S+) rpm\), jitter (\S+) us = (\S+) deg, coherence (\S+)"),
+             "Zone {0:.2f} (LBA {1:7.0f}): T = {2:.5f} ms ({3:7.2f} rpm), jitter {4:6.2f} us = {5:6.3f} deg, coherence {6:.4f}"),
+            (re.compile(r"Target (\S+) \(LBA (\d+)\): phase (\S+) deg \+/- (\S+) \(single-shot std (\S+), n=(\d+)\), ref jitter (\S+) deg"),
+             "Target {0:.2f} (LBA {1:7.0f}): phase {2:7.3f} deg +/- {3:5.3f} (single-shot std {4:6.3f}, n={5:2.0f}), ref jitter {6:6.3f} deg"))
 
 
 def _windows_ansi(stream) -> bool:
@@ -227,6 +227,17 @@ def sweep(text: str, now: float, t: Term, base: str | None = None) -> str:
     return _paint_runs(cells)
 
 
+def aligned(line: str) -> str:
+    for pattern, form in _COLUMNS:
+        match = pattern.fullmatch(line)
+        if match:
+            try:
+                return form.format(*map(float, match.groups()))
+            except ValueError:      # a value that is not a number stays as it was
+                return line
+    return line
+
+
 def command(line: str, t: Term | None = None) -> str:
     """A line to copy: the part that differs stands out. Only colour is added, so it pastes as written."""
     t = t or term()
@@ -282,12 +293,16 @@ class Progress:
 
     A narrow terminal loses whole parts, least useful first, and never gets a wrapped line.
     With `keys` given, a game can be opened under it; with `pulse`, recent read times show beside it.
+    `wait_s` is how long this kind of run usually takes, for choosing a puzzle before an estimate exists.
     """
 
-    def __init__(self, status, t: Term | None = None, keys=None, pulse=None):
+    def __init__(self, status, t: Term | None = None, keys=None, pulse=None, wait_s: float | None = None):
         self.t = t or term()
         self.status = status
         self.pulse = pulse
+        self.wait_s = wait_s
+        self.left = None
+        self.puzzle = None
         self.taskbar_shown = None
         self.taskbar_at = 0.0
         self.fraction = None
@@ -388,6 +403,7 @@ class Progress:
         now = time.monotonic()
         fraction, label, left = self.status()
         self.fraction = None if fraction is None else max(0.0, min(1.0, fraction))
+        self.left = left
         label = tr(label)
         glyph = self._spinner(now)
         spin = [(glyph, f"\x1b[{_rainbow(now * 0.1)}m{glyph}\x1b[0m" if self.t.truecolor else self.t.style(glyph, "cyan"))] if self.t.animate else []
@@ -459,7 +475,7 @@ class Progress:
     def log(self, *parts) -> None:
         """Print a line above the progress line."""
         self._wipe()
-        print(tr(" ".join(str(p) for p in parts)), file=self.t.stream, flush=True)
+        print(tr(aligned(" ".join(str(p) for p in parts))), file=self.t.stream, flush=True)
         if self.playing:
             self._draw_game()
         self.tick(force=True)
@@ -479,6 +495,8 @@ class Progress:
         for game in self.games.values():
             if game.best:
                 print(tr(f"{game.name}: best score {game.best}"), file=self.t.stream)
+            if hasattr(game, "save"):       # the measuring is over, so a file may take its time
+                game.save()
         self.t.stream.flush()
 
     # The game below is reached only from `play`, inside the pause before a timed read.
@@ -514,39 +532,46 @@ class Progress:
             self.playing = False
             self.tick(force=True)
         elif key in ("n", "N"):
-            self.game_kind = (self.game_kind + 1) % len(GAMES)
+            self.game_kind += 1
             self._wipe()
             self.playing = False
             self._open_game()
         elif key in ("r", "R") and self.game.over:
             self.game.reset()
             self._draw_game()
-        elif key in snake.DIRECTIONS:
+        elif key in snake.DIRECTIONS or key in getattr(self.game, "keys", ()):
             self._advance(lambda: self.game.turn(key))
+
+    def _kinds(self) -> list:
+        """The games on offer. A puzzle is chosen once, by the wait left when it first comes up."""
+        from . import filldisc, sectors, sudoku
+        if self.puzzle is None:
+            left = self.left if self.left is not None else (self.wait_s - (time.monotonic() - self.started) if self.wait_s else None)
+            self.puzzle = sudoku.for_wait(left)
+        return [snake.Snake, filldisc.FillDisc, sectors.Sectors] + ([self.puzzle] if self.puzzle else [])
 
     def _open_game(self) -> None:
         size = shutil.get_terminal_size((80, 24))
-        kind = GAMES[self.game_kind]
-        cols = min(kind.max_cols, (size.columns - 4) // 2)
-        if cols < snake.MIN_COLS or size.lines < snake.ROWS + 4:
+        kinds = self._kinds()
+        for skipped in range(len(kinds)):       # a game too wide for the window is passed over, so the others stay in reach
+            kind = kinds[(self.game_kind + skipped) % len(kinds)]
+            cols = min(kind.max_cols, (size.columns - 4) // kind.cell_w)
+            if cols >= kind.min_cols and size.lines >= snake.ROWS + 4:
+                self.game_kind += skipped
+                break
+        else:
             self.log("The window is too small for the game")
             return
         kept = self.games.get(kind)
         if kept is None or kept.cols != cols:
             self.games[kind] = kind(cols)
-            self.games[kind].best = kept.best if kept else 0
+            self.games[kind].best = max(kept.best if kept else 0, self.games[kind].best)
         self.game = self.games[kind]
         self.playing = True
         self.game_size = size
         self.last_step = time.monotonic()
         self._draw_game()
         self.tick(force=True)
-
-    def _cell(self, kind: str) -> str:
-        if not self.t.color:
-            return GAME_GLYPHS[kind]
-        rgb, ansi16 = GAME_CELLS[kind]
-        return f"\x1b[{rgb if self.t.truecolor else ansi16}m  \x1b[0m"
 
     def _below(self, rows: int, text: str) -> str:
         return f"\x1b[{rows}B{text}\x1b[{rows}A\r"
@@ -555,19 +580,30 @@ class Progress:
         text = i18n.fit(tr(self.game.hint()), self.game_size.columns - 3)
         self.t.stream.write(self._below(1, f"\r\x1b[K  {self.t.style(text, 'dim')}"))
 
+    def _board_top(self) -> int:
+        """Rows from the progress line to the board, which sits in the middle of the space kept for it."""
+        return 2 + (snake.ROWS - self.game.rows * self.game.cell_h) // 2
+
     def _draw_cells(self, changed) -> None:
+        from . import gameart
+        g = self.game
+        top = self._board_top()
         for x, y, kind in changed:
-            self.t.stream.write(self._below(2 + y, f"\x1b[{3 + 2 * x}G{self._cell(kind)}"))
+            for r, row in enumerate(gameart.paint_kind(kind, x, y, g, self.t)):
+                self.t.stream.write(self._below(top + y * g.cell_h + r, f"\x1b[{3 + g.cell_w * x}G{row}"))
 
     def _draw_game(self) -> None:
         """Make room below the progress line (scrolling if at the bottom), then draw all of it."""
+        from . import gameart
         below = snake.ROWS + 1
         self.t.stream.write("\n" * below + f"\x1b[{below}A\r")
         self._draw_hint()
         g = self.game
+        top = self._board_top()
         for y in range(g.rows):
-            row = "".join(self._cell(g.cell(x, y)) for x in range(g.cols))
-            self.t.stream.write(self._below(2 + y, f"\r  {row}\x1b[K"))
+            cells = [gameart.paint(g, x, y, self.t) for x in range(g.cols)]
+            for r in range(g.cell_h):
+                self.t.stream.write(self._below(top + y * g.cell_h + r, f"\r  {''.join(c[r] for c in cells)}\x1b[K"))
         self.t.stream.flush()
 
 

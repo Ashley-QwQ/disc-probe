@@ -17,6 +17,7 @@ from . import guide, i18n, info, mmc, timing, ui
 # start state (evidence/coverage/periods.txt).
 DEFAULT_PALETTE = ("A5", "92", "B9", "66", "MIX:A5,62,B1,61,65,A7", "MIX:92,87,83,8D,60",
                    "8B", "2AE304", "ED00")
+TIMING_WAIT_S, GEO_WAIT_S = 90.0, 300.0     # usual lengths, until a run can estimate its own
 
 
 class _Rerun(Exception):
@@ -221,7 +222,7 @@ def cmd_timing(args):
         stop_if_not_cav=not args.force, time_limit_s=args.max_minutes * 60 if args.max_minutes else None)
     progress = None
     if reader is not dev:
-        progress = reader.progress = ui.Progress(ui.timing_status(probe, reader), keys=ui.open_keys(), pulse=reader.read_times)
+        progress = reader.progress = ui.Progress(ui.timing_status(probe, reader), keys=ui.open_keys(), pulse=reader.read_times, wait_s=TIMING_WAIT_S)
         probe.log = progress.log
     stopped = None
     try:
@@ -402,7 +403,7 @@ def cmd_geo(args):
                     chi2_abort=args.chi2_abort, sectors=args.sectors)
     progress, log = None, print
     if reader is not dev:
-        progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys(), pulse=reader.read_times)
+        progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys(), pulse=reader.read_times, wait_s=GEO_WAIT_S)
         log = ladder.log = progress.log
     out = _outdir(args, "geo", dev)
     stopped = None

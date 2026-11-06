@@ -21,9 +21,14 @@ CSI_ARROWS = {"A": "up", "B": "down", "D": "left", "C": "right"}
 WIN_ARROWS = {"H": "up", "P": "down", "K": "left", "M": "right"}
 
 
+HEAD_KINDS = {(0, -1): "head_up", (0, 1): "head_down", (-1, 0): "head_left", (1, 0): "head_right"}
+
+
 class Snake:
     name = "Snake"
     max_cols = MAX_COLS
+    min_cols = MIN_COLS
+    cell_w, cell_h = 2, 1
     step_s = STEP_S
 
     def __init__(self, cols: int = MAX_COLS, rows: int = ROWS, rng=None):
@@ -59,7 +64,7 @@ class Snake:
             self.queued.append(new)
 
     def step(self) -> list[tuple[int, int, str]]:
-        """Move once; returns the cells that changed as (x, y, "snake" | "food" | "field")."""
+        """Move once; returns the cells that changed as (x, y, kind), in the order to draw them."""
         if self.over:
             return []
         if self.queued:
@@ -70,8 +75,8 @@ class Snake:
         if not (0 <= x < self.cols and 0 <= y < self.rows) or (x, y) in body:
             self.over = True
             self.best = max(self.best, self.score)
-            return []
-        changed = [(x, y, "snake")]
+            return [(*self.body[0], "dead")]
+        changed = [(*self.body[0], "snake")]
         if eats:
             self.score += 1
             self.best = max(self.best, self.score)
@@ -80,12 +85,21 @@ class Snake:
             if self.food:
                 changed.append((*self.food, "food"))
         else:
-            changed.append((*self.body[-1], "field"))
+            changed.insert(0, (*self.body[-1], "field"))    # first: the head may move onto this very cell
             self.body = [(x, y)] + body
+            changed.append((*self.body[-1], "tail"))
+        changed.append((x, y, HEAD_KINDS[self.heading]))
         return changed
 
     def cell(self, x: int, y: int) -> str:
+        if (x, y) == self.body[0]:
+            return "dead" if self.over else HEAD_KINDS[self.heading]
+        if (x, y) == self.body[-1]:
+            return "tail"
         return "snake" if (x, y) in self.body else "food" if (x, y) == self.food else "field"
+
+    def tint(self, x: int, y: int) -> int:
+        return (x + y) % 2      # a checkerboard underfoot, and scales on the snake, without redrawing it
 
 
 def parse_posix(data: str) -> list[str]:

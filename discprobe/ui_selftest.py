@@ -12,7 +12,7 @@ import subprocess
 import sys
 import tempfile
 
-from . import filldisc, guide, i18n, snake, timing, ui
+from . import filldisc, gameart, guide, i18n, sectors, snake, sudoku, timing, ui
 from .sim import SimDrive
 
 
@@ -239,6 +239,34 @@ def _modern_terminal(c) -> None:
             "headings and names stand out")
 
 
+def _aligned(c) -> None:
+    zones = ["Zone 0.05 (LBA 114752): T = 6.59983 ms (9091.15 rpm), jitter 58.36 us = 3.183 deg, coherence 0.9723",
+             "Zone 0.5 (LBA 1147536): T = 6.5999 ms (9091.04 rpm), jitter 158.8 us = 13.21 deg, coherence 1.0"]
+    targets = ["Target 0.15 (LBA 344256): phase 263.021 deg +/- 0.609 (single-shot std 3.849, n=40), ref jitter 2.948 deg",
+               "Target 0.75 (LBA 1721312): phase 82.002 deg +/- 0.66 (single-shot std 14.1, n=9), ref jitter 3.01 deg"]
+    number = re.compile(r"\d+\.?\d*")
+    for lines in (zones, targets):
+        out = [ui.aligned(line) for line in lines]
+        c.check(len(out[0]) == len(out[1]), "aligned lines are the same length")
+        ends = [[m.end() for m in number.finditer(line)] for line in out]
+        c.check(ends[0] == ends[1], "every number ends in the same column")
+        for before, after in zip(lines, out):
+            c.check([float(v) for v in number.findall(before)] == [float(v) for v in number.findall(after)], "no value changes, only its padding")
+    for text in ("Zone 0.05 (LBA 1): no period found", "Rotation: CAV", "Target x (LBA 1): phase bad deg +/- 1 (single-shot std 1, n=1), ref jitter 1 deg"):
+        c.check(ui.aligned(text) == text, f"left alone: {text[:24]}")
+    s = FakeTty()
+    p = ui.Progress(lambda: (None, "x", None), ui.Term(s, env={"TERM": "xterm", "NO_COLOR": "1"}, platform="linux"))
+    p.log(zones[0])
+    p.close()
+    c.check(ui.aligned(zones[0]) + "\n" in s.getvalue(), "a terminal gets the aligned line")
+    i18n.use("zh")
+    try:
+        for line in (ui.aligned(zones[0]), ui.aligned(targets[0])):
+            c.check(i18n.tr(line) != line and not re.search(r"[A-Za-z]{4,}", i18n.tr(line).replace("jitter", "")), f"aligned lines still have Chinese: {i18n.tr(line)[:30]}")
+    finally:
+        i18n.use("en")
+
+
 def _fill_disc(c) -> None:
     import random
 
@@ -289,7 +317,7 @@ def _fill_disc(c) -> None:
         g.burned.clear()
         kinds.append(g.kind)
     c.check(all(a != b for a, b in zip(kinds, kinds[1:])) and set(kinds) == set(filldisc.BLOCK_KINDS), "every block gets a colour, never the same as the last one")
-    c.check(all(k in ui.GAME_CELLS and k in ui.GAME_GLYPHS for k in filldisc.BLOCK_KINDS), "every colour can be drawn, with and without colour")
+    c.check(all(k in gameart.ANSI16 and k in gameart.GLYPHS and k in gameart.BLOCKS for k in filldisc.BLOCK_KINDS), "every colour can be drawn, with and without colour")
     g = filldisc.FillDisc(14, 8, rng=random.Random(7))
     moves = random.Random(9)
     drawn = {(x, y): g.cell(x, y) for x in range(14) for y in range(8)}
@@ -335,12 +363,37 @@ def _snake(c) -> None:
     g.heading = (0, 1)
     g.step()
     c.check(g.over, "biting itself ends the game")
+    c.check(g.cell(*g.body[0]) == "dead", "and shows on the head")
+    g = snake.Snake(12, 8, rng=shared_random.Random(5))
+    moves = shared_random.Random(6)
+    drawn = {(x, y): g.cell(x, y) for x in range(12) for y in range(8)}
+    played = 0
+    while played < 3000:
+        if g.over:
+            g.reset()
+            drawn = {(x, y): g.cell(x, y) for x in range(12) for y in range(8)}
+        g.turn(moves.choice(("up", "down", "left", "right")))
+        drawn.update({(x, y): kind for x, y, kind in g.step()})
+        played += 1
+        if drawn != {(x, y): g.cell(x, y) for x in range(12) for y in range(8)}:
+            break
+    c.check(played == 3000, f"snake: drawing only the changed cells always gives the true board ({played} steps)")
+    g = snake.Snake(10, 6)
+    g.body = [(2, 2), (3, 2), (3, 3), (2, 3)]
+    g.heading = (0, 1)
+    g.food = (9, 5)
+    drawn = {(x, y): g.cell(x, y) for x in range(10) for y in range(6)}
+    drawn.update({(x, y): kind for x, y, kind in g.step()})
+    c.check(not g.over and drawn == {(x, y): g.cell(x, y) for x in range(10) for y in range(6)}, "a head moving onto the old tail's cell is still drawn")
     _fill_disc(c)
     c.check(shared_random.getstate() == before, "the games leave the shared random generator alone")
     c.check(snake.parse_posix("\x1b[Ag\x1bOB") == ["up", "g", "down"], "arrow keys from a POSIX terminal")
 
     saved = {k: os.environ.get(k) for k in ("COLUMNS", "LINES")}
     os.environ.update(COLUMNS="80", LINES="24")
+    real_path = sectors.state_path
+    keep = tempfile.TemporaryDirectory()
+    sectors.state_path = lambda: os.path.join(keep.name, "games.json")      # never the player's own board
     try:
         s = FakeTty()
         keys = Keys(["x"], ["g"], ["d"], [], ["q"], ["g"])
@@ -390,7 +443,7 @@ def _snake(c) -> None:
         p.close()
         os.environ.update(LINES="24")
         s = FakeTty()
-        keys = Keys(["g"], ["n"], ["up"], ["n"], ["n"])
+        keys = Keys(["g"], ["n"], ["up"], ["n"], ["n"], ["n"])
         p = ui.Progress(lambda: (0.5, "rung 3/22", None), ui.Term(s, env={"TERM": "xterm"}, platform="linux"), keys=keys)
         p.play()
         snake_game = p.game
@@ -404,7 +457,9 @@ def _snake(c) -> None:
         filled = p.game
         filled.best = 3
         p.play()
-        c.check(p.game is snake_game, "n changes back, and each game keeps its board")
+        c.check(isinstance(p.game, sectors.Sectors), "n goes on to the next game")
+        p.play()
+        c.check(p.game is snake_game, "n comes back round, and each game keeps its board")
         p.play()
         c.check(p.game is filled, "and again")
         p.close()
@@ -413,7 +468,7 @@ def _snake(c) -> None:
         p = ui.Progress(lambda: (0.5, "rung 3/22", None), ui.Term(s, env={"TERM": "xterm", "NO_COLOR": "1"}, platform="linux"), keys=Keys(["g"], ["n"]))
         p.play()
         p.play()
-        c.check(ui.GAME_GLYPHS[p.game.kind] in s.getvalue() and not re.search(r"\x1b\[[0-9;]*m", s.getvalue()), "NO_COLOR: Fill the Disc is drawn with glyphs")
+        c.check(gameart.GLYPHS[p.game.kind] in s.getvalue() and not re.search(r"\x1b\[[0-9;]*m", s.getvalue()), "NO_COLOR: Fill the Disc is drawn with glyphs")
         p.close()
         os.environ.update(COLUMNS="30")
         s = FakeTty()
@@ -421,12 +476,245 @@ def _snake(c) -> None:
         p.play()
         c.check(p.playing and "closes" not in s.getvalue() and "Snake 0" in s.getvalue(), "a narrow window cuts the hint and never wraps it")
         p.close()
+        _sectors(c, keep.name)
+        _sudoku(c)
+        _game_art(c)
     finally:
+        sectors.state_path = real_path
+        keep.cleanup()
         for key, value in saved.items():
             if value is None:
                 os.environ.pop(key, None)
             else:
                 os.environ[key] = value
+
+
+def _board(g) -> dict:
+    return {(x, y): g.cell(x, y) for x in range(g.cols) for y in range(g.rows)}
+
+
+def _sectors(c, folder: str) -> None:
+    import random
+    c.check(sectors.merged([1, 1, 2, 0]) == ([2, 2, 0, 0], 4), "equal neighbours merge, and the kB gained is counted")
+    c.check(sectors.merged([1, 1, 1, 1]) == ([2, 2, 0, 0], 8), "four make two")
+    c.check(sectors.merged([2, 1, 1, 0])[0] == [2, 2, 0, 0], "a tile merges only once in a move")
+    c.check(sectors.merged([1, 0, 0, 1])[0] == [2, 0, 0, 0], "gaps do not stop a merge")
+    c.check((sectors.label(1), sectors.label(5), sectors.label(10), sectors.label(11), sectors.label(17)) == ("2K", "32K", "1M", "2M", "128M"), "tiles are sizes on a disc")
+    c.check(max(len(sectors.label(t)) for t in range(1, sectors.MAX_TILE + 1)) <= 6, "every size fits its tile")
+    os.environ.update(COLUMNS="80")
+    path = os.path.join(folder, "sectors.json")
+    g = sectors.Sectors(rng=random.Random(2), path=path)
+    c.check(sum(t > 0 for row in g.board for t in row) == 2 and not g.over, "a new board starts with two tiles")
+    for name, expected in (("left", [(0, 0)]), ("right", [(3, 0)]), ("up", [(1, 0)]), ("down", [(1, 3)])):
+        g.board = [[0] * 4 for _ in range(4)]
+        g.board[1 if name in ("left", "right") else 0][1] = 1
+        g.board[1 if name in ("left", "right") else 1][2 if name in ("left", "right") else 1] = 1
+        g.rng = random.Random(3)
+        g.turn(name)
+        tile = [(x, y) for y in range(4) for x in range(4) if g.board[y][x] == 2]
+        at = {"left": (0, 1), "right": (3, 1), "up": (1, 0), "down": (1, 3)}[name]
+        c.check(tile == [at], f"sliding {name} merges towards that side")
+    g.board = [[1, 2, 1, 2], [2, 1, 2, 1], [1, 2, 1, 2], [2, 1, 2, 0]]
+    before = [row[:] for row in g.board]
+    c.check(g.turn("left") == [] and g.board == before, "a move that moves nothing adds no tile")
+    g.board = [[3, 4, 3, 4], [4, 3, 4, 3], [3, 4, 3, 4], [0, 4, 3, 4]]
+    g.over = False
+    g.turn("left")
+    c.check(g.over and g.turn("up") == [], "the move that fills the board with no merge left ends the game")
+    g.over = False
+    g.board = [[1, 2, 1, 2], [2, 1, 2, 1], [1, 2, 1, 2], [2, 1, 2, 1]]
+    c.check(g._stuck(), "a full board with no equal neighbours is stuck")
+    g = sectors.Sectors(rng=random.Random(4), path=path)
+    moves = random.Random(5)
+    drawn = _board(g)
+    played = 0
+    while not g.over and played < 4000:
+        drawn.update({(x, y): kind for x, y, kind in g.turn(moves.choice(("up", "down", "left", "right")))})
+        played += 1
+        if drawn != _board(g):
+            break
+    c.check(drawn == _board(g) and played > 20, f"drawing only the changed cells always gives the true board ({played} moves)")
+    c.check(g.best == g.score and g.score > 0, "the score counts what was merged")
+    g.save()
+    again = sectors.Sectors(path=path)
+    c.check(again.board == g.board and again.score == g.score and again.best == g.best and again.over == g.over, "the next wait carries on with the same board")
+    again.reset()
+    c.check(again.best == g.best and again.score == 0, "a new board keeps the best score")
+    fresh_path = os.path.join(folder, "untouched.json")
+    sectors.Sectors(path=fresh_path).save()
+    c.check(not os.path.exists(fresh_path), "a board nobody played leaves no file")
+    for broken in ("not json", '{"sectors": {"board": [[1]], "score": 0, "best": 0}}', '{"sectors": {"board": "x"}}', "[]", '{"other": 1}'):
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(broken)
+        loaded = sectors.Sectors(path=path)
+        c.check(sum(t > 0 for row in loaded.board for t in row) == 2 and loaded.score == 0, f"a broken file starts afresh: {broken[:18]}")
+    blocked = sectors.Sectors(path=os.path.join(path, "not", "a", "folder.json"))
+    blocked.changed = True
+    blocked.save()
+    c.check(True, "a file that cannot be written does not stop anything")
+    s = FakeTty()
+    keys = Keys(["g"], ["n"], ["n"], ["left"], ["up"])
+    p = ui.Progress(lambda: (0.5, "rung 3/22", None), ui.Term(s, env={"TERM": "xterm"}, platform="linux"), keys=keys)
+    for _ in range(5):
+        p.play()
+    c.check(isinstance(p.game, sectors.Sectors) and "Merge Sectors" in s.getvalue(), "n reaches it, and it plays under the progress line")
+    keep = p.game
+    keep.changed = True
+    p.close()
+    c.check(os.path.exists(keep.path), "closing the progress line saves the board")
+    os.environ.update(COLUMNS="30")
+    s = FakeTty()
+    p = ui.Progress(lambda: (0.5, "rung 3/22", None), ui.Term(s, env={"TERM": "xterm"}, platform="linux"), keys=Keys(["g"], ["n"], ["n"]))
+    p.play()
+    c.check(isinstance(p.game, snake.Snake), "a narrow window opens what fits")
+    p.play()
+    c.check(isinstance(p.game, filldisc.FillDisc) and p.playing, "n goes on to the next game")
+    p.play()
+    c.check(isinstance(p.game, snake.Snake) and p.playing and "too small" not in s.getvalue(), "and passes over one too wide for it")
+    p.close()
+    os.environ.update(COLUMNS="80")
+
+
+def _sudoku(c) -> None:
+    import random
+    import time
+    before = random.getstate()
+    for kind, size in ((sudoku.Sudoku4, 4), (sudoku.Sudoku6, 6)):
+        worst = 0.0
+        for seed in range(30):
+            start = time.perf_counter()
+            g = kind(rng=random.Random(seed))
+            worst = max(worst, time.perf_counter() - start)
+            whole = set(range(1, size + 1))
+            rows = all(set(row) == whole for row in g.solution)
+            cols = all({row[x] for row in g.solution} == whole for x in range(size))
+            boxes = all({g.solution[y + i][x + j] for i in range(g.box_h) for j in range(g.box_w)} == whole
+                        for y in range(0, size, g.box_h) for x in range(0, size, g.box_w))
+            if not (rows and cols and boxes):
+                c.check(False, f"{size}x{size}: the solved grid is valid (seed {seed})")
+            if sudoku.count_solutions(g.grid, g.box_h, g.box_w) != 1:
+                c.check(False, f"{size}x{size}: the puzzle has one solution (seed {seed})")
+            if not g.given or len(g.given) == size ** 2:
+                c.check(False, f"{size}x{size}: there is something left to fill (seed {seed})")
+        c.check(True, f"{size}x{size}: 30 puzzles, each valid with exactly one solution")
+        c.check(worst < 0.5, f"{size}x{size}: the slowest took {worst * 1000:.0f} ms to make")
+        print(f"  info  {size}x{size}: slowest puzzle {worst * 1000:.1f} ms, {len(g.given)} givens")
+    c.check(random.getstate() == before, "puzzles leave the shared random generator alone")
+    c.check(sudoku.Sudoku6().box_h * sudoku.Sudoku6().box_w == 6 and sudoku.Sudoku4().box_w == 2, "boxes split the board evenly")
+
+    g = sudoku.Sudoku4(rng=random.Random(1))
+    gx, gy = next(iter(g.given))
+    g.x, g.y = gx, gy
+    kept = g.grid[gy][gx]
+    g.turn("1" if kept != 1 else "2")
+    c.check(g.grid[gy][gx] == kept, "a given digit cannot be changed")
+    x, y = next((x, y) for y in range(4) for x in range(4) if (x, y) not in g.given)
+    g.x, g.y = x, y
+    wrong = next(d for d in range(1, 5) if d != g.solution[y][x] and (d in g.grid[y] or any(g.grid[r][x] == d for r in range(4))))
+    g.turn(str(wrong))
+    c.check(g.cell(x, y)[2] == "wrong", "a digit that clashes is marked")
+    g.turn("0")
+    c.check(g.grid[y][x] == 0 and g.cell(x, y)[1] == 0, "0 clears it")
+    g.turn(str(wrong))
+    g.turn(" ")
+    c.check(g.grid[y][x] == 0, "and so does space")
+    g.x, g.y = 3, 3
+    g.turn("right")
+    c.check(g.x == 0, "the cursor wraps round")
+    moves = random.Random(2)
+    drawn = _board(g)
+    for _ in range(600):
+        drawn.update({(x, y): kind for x, y, kind in g.turn(moves.choice(("up", "down", "left", "right", "1", "2", "3", "4", "0")))})
+        if g.over:
+            g.reset()
+            drawn = _board(g)
+        if drawn != _board(g):
+            break
+    c.check(drawn == _board(g), "drawing only the changed cells always gives the true board")
+    g = sudoku.Sudoku6(rng=random.Random(3))
+    for y in range(6):
+        for x in range(6):
+            if (x, y) not in g.given:
+                g.x, g.y = x, y
+                g.turn(str(g.solution[y][x]))
+    c.check(g.over and g.score == 1 and g.best == 1 and g.cell(0, 0)[2] == "solved", "filling it in correctly finishes the puzzle")
+    c.check(g.turn("up") == [], "a finished puzzle does not move")
+    old = [row[:] for row in g.grid]
+    g.reset()
+    c.check(not g.over and g.score == 1 and any(not v for row in g.grid for v in row) and g.grid != old, "another puzzle keeps the count")
+
+    c.check(sudoku.for_wait(None) is None and sudoku.for_wait(29) is None, "under 30 s there is no puzzle")
+    c.check(sudoku.for_wait(30) is sudoku.Sudoku4 and sudoku.for_wait(119) is sudoku.Sudoku4, "30 s to 2 minutes: 4x4")
+    c.check(sudoku.for_wait(120) is sudoku.Sudoku6 and sudoku.for_wait(480) is sudoku.Sudoku6, "2 minutes and up: 6x6")
+    tty = lambda: ui.Term(FakeTty(), env={"TERM": "xterm"}, platform="linux")
+    p = ui.Progress(lambda: (0.5, "x", None), tty(), wait_s=90.0)
+    c.check(p._kinds()[-1] is sudoku.Sudoku4, "the usual length chooses before there is an estimate")
+    p = ui.Progress(lambda: (0.5, "x", None), tty(), wait_s=300.0)
+    c.check(p._kinds()[-1] is sudoku.Sudoku6, "and a longer one gets the bigger board")
+    p = ui.Progress(lambda: (0.5, "x", 60.0), tty(), wait_s=300.0)
+    p._render(100)
+    c.check(p._kinds()[-1] is sudoku.Sudoku4, "the run's own estimate wins")
+    p.left = 300.0
+    c.check(p._kinds()[-1] is sudoku.Sudoku4, "and a puzzle chosen stays chosen")
+    p = ui.Progress(lambda: (0.5, "x", 5.0), tty())
+    p._render(100)
+    c.check(len(p._kinds()) == 3 and sudoku.Sudoku not in [k.__base__ for k in p._kinds()], "nearly done: no puzzle on offer")
+    s = FakeTty()
+    keys = Keys(["g"], ["n"], ["n"], ["n"], ["1"], ["right"], ["q"])
+    p = ui.Progress(lambda: (0.5, "x", 60.0), ui.Term(s, env={"TERM": "xterm"}, platform="linux"), keys=keys)
+    p._render(100)
+    for _ in range(4):
+        p.play()
+    g = p.game
+    c.check(isinstance(g, sudoku.Sudoku4) and "Sudoku 4x4" in s.getvalue(), "n reaches the puzzle")
+    start = g.x
+    if (g.x, g.y) not in g.given:
+        p.play()
+        c.check(g.grid[g.y][g.x] == 1, "a digit key fills the cell")
+    p.play()
+    c.check(g.x == (start + 1) % 4, "an arrow key moves the cursor")
+    p.play()
+    c.check(not p.playing, "q closes it")
+    p.close()
+    for lang in ("en", "zh"):
+        i18n.use(lang)
+        try:
+            for hint in (sudoku.Sudoku4().hint(), sectors.Sectors(path=os.devnull).hint()):
+                c.check((i18n.tr(hint) != hint) == (lang == "zh"), f"{lang}: {hint[:18]}")
+        finally:
+            i18n.use("en")
+
+
+def _game_art(c) -> None:
+    import random
+    tiers = {"fine": {"TERM": "xterm", "WT_SESSION": "x"}, "true colour": {"TERM": "xterm", "COLORTERM": "truecolor"},
+             "16 colours": {"TERM": "xterm"}, "NO_COLOR": {"TERM": "xterm", "NO_COLOR": "1"}}
+    boards = (snake.Snake(12, 8, rng=random.Random(1)), filldisc.FillDisc(12, 8, rng=random.Random(1)), sectors.Sectors(rng=random.Random(1), path=os.devnull),
+              sudoku.Sudoku4(rng=random.Random(1)), sudoku.Sudoku6(rng=random.Random(1)))
+    for name, env in tiers.items():
+        t = ui.Term(Utf8Tty(), env=env, platform="linux")
+        for g in boards:
+            rows = [gameart.paint(g, x, y, t) for y in range(g.rows) for x in range(g.cols)]
+            right = all(len(cell) == g.cell_h and all(i18n.display_width(ANSI.sub("", r)) == g.cell_w for r in cell) for cell in rows)
+            c.check(right, f"{name}: {g.name} cells are all {g.cell_w} by {g.cell_h}")
+            c.check(("\x1b" in "".join(r for cell in rows for r in cell)) == t.color, f"{name}: {g.name} uses escapes only with colour")
+    for kind in ("snake", "tail", "food", "dead", "field", "head_up", "head_down", "head_left", "head_right"):
+        c.check(kind in gameart.ANSI16 and kind in gameart.GLYPHS, f"{kind} can be drawn in every tier")
+    g = sectors.Sectors(rng=random.Random(1), path=os.devnull)
+    t = ui.Term(Utf8Tty(), env=tiers["fine"], platform="linux")
+    for tile in range(1, 21):
+        c.check(sectors.label(tile) in ANSI.sub("", gameart._tile(tile, "fine")[0]), f"tile {tile} shows its size")
+    colours = {gameart._tile_colour(tile) for tile in range(1, 13)}
+    c.check(len(colours) == 12, "the first twelve sizes each have their own colour")
+    s = Utf8Tty()
+    p = ui.Progress(lambda: (0.5, "x", None), ui.Term(s, env=tiers["fine"], platform="linux"), keys=Keys(["g"]))
+    p.play()
+    size = len(s.getvalue())
+    p.last_step = 0.0
+    p._advance(p.game.step)
+    step_bytes = len(s.getvalue()) - size
+    c.check(step_bytes < 400, f"a step of the snake writes little ({step_bytes} bytes)")
+    p.close()
 
 
 def _chinese(c) -> None:
@@ -1394,6 +1682,7 @@ def run(c) -> None:
     _banner(c)
     _term_matrix(c)
     _modern_terminal(c)
+    _aligned(c)
     _progress_line(c)
     _layout(c)
     _snake(c)
