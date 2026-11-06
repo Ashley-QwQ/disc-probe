@@ -29,6 +29,8 @@ TEXT = {
     "Ctrl+C to stop": "Ctrl+C 停止",
     "{p} %   about {t} left": "{p} %   还剩约 {t}",
     "g: game": "按 g 玩游戏",
+    "Careful: burning a DVD+R, DVD-R or CD-R cannot be undone; only RW discs can be erased. Check the image and the disc first.":
+        "注意：DVD+R、DVD-R、CD-R 刻录后不可撤销，只有 RW 盘能擦除。刻之前先确认镜像和盘都没错。",
     "Snake {s}  best {b}  arrows or WASD steer, n next, q closes": "贪吃蛇 {s} 分  最高 {b}  方向键或 WASD 转向，n 换游戏，q 关闭",
     "Snake {s}  best {b}  crashed: r plays again, n next, q closes": "贪吃蛇 {s} 分  最高 {b}  撞上了：r 再来一局，n 换游戏，q 关闭",
     "Snake: best score {n}": "贪吃蛇最高 {n} 分",

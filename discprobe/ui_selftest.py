@@ -239,6 +239,64 @@ def _modern_terminal(c) -> None:
             "headings and names stand out")
 
 
+def _burn_warning(c) -> None:
+    from argparse import Namespace
+    from . import __main__ as cli
+    plain_line = ui.BURN_WARNING
+
+    def shown(env, stream=None, pause=None):
+        s = stream or FakeTty()
+        waits = []
+        ui.burn_warning(ui.Term(s, env=env, platform="linux"), pause=pause or waits.append)
+        return s.getvalue(), waits
+    text, waits = shown({"TERM": "xterm"})
+    c.check(len(waits) == 2 * ui.WARNING_FLASHES and sum(waits) <= 2.0, f"it flashes briefly ({sum(waits)} s)")
+    c.check(1 / (2 * ui.WARNING_FLASH_S) <= 3, "no more than three flashes a second")
+    c.check(text.count("\x1b[1;97;41m") == ui.WARNING_FLASHES and text.count("\x1b[1;31m") > ui.WARNING_FLASHES, "white on red, then red, in turn")
+    c.check(text.endswith(f"\x1b[?25h\x1b[1;31m{plain_line}\x1b[0m\n"), "it ends as one red line, with the cursor back")
+    still, waits = shown({"TERM": "xterm", "DISCPROBE_NO_ANIMATION": "1"})
+    c.check(not waits and still == f"\x1b[1;31m{plain_line}\x1b[0m\n", "no motion: the red line alone, at once")
+    no_colour, _ = shown({"TERM": "xterm", "NO_COLOR": "1"})
+    c.check("\x1b[7m" in no_colour and not re.search(r"\x1b\[[0-9;]*3[0-9]|\x1b\[[0-9;]*4[0-9]", no_colour) and no_colour.endswith(plain_line + "\n"), "NO_COLOR: reverse video, then plain text")
+    pipe = io.StringIO()
+    ui.burn_warning(ui.Term(pipe, env={"TERM": "xterm"}, platform="linux"), pause=lambda s: c.check(False, "a pipe never waits"))
+    c.check(pipe.getvalue() == "", "a pipe sees nothing, and scripts keep their output")
+
+    def interrupted(seconds):
+        raise KeyboardInterrupt
+    text, _ = shown({"TERM": "xterm"}, pause=interrupted)
+    c.check(text.endswith(f"\x1b[?25h\x1b[1;31m{plain_line}\x1b[0m\n"), "Ctrl+C skips the flash, never the warning or the cursor")
+    saved = os.environ.get("COLUMNS")
+    os.environ["COLUMNS"] = "40"
+    try:
+        text, _ = shown({"TERM": "xterm"})
+        flash = re.search(r"\x1b\[1;97;41m(.*?)\x1b\[0m", text)[1]
+        c.check(i18n.display_width(flash) < 40 and plain_line in text, "a narrow window: the flash is cut to fit, and the full text follows")
+    finally:
+        if saved is None:
+            os.environ.pop("COLUMNS", None)
+        else:
+            os.environ["COLUMNS"] = saved
+    i18n.use("zh")
+    try:
+        c.check(i18n.tr(plain_line) != plain_line, "it has Chinese")
+        c.check(i18n.tr(plain_line) in shown({"TERM": "xterm"})[0], "and shows it")
+    finally:
+        i18n.use("en")
+    real = ui.burn_warning, cli._next
+    called = []
+    ui.burn_warning = lambda: called.append(True)
+    cli._next = lambda lines: None
+    try:
+        cli._image_ready(Namespace(output="a.iso", geo="results/geo-E-20260101-100000"), "a.png")
+        c.check(called == [True], "a real picture ISO gets the warning")
+        called.clear()
+        cli._image_ready(Namespace(output="a.iso", geo="results/geo-SIM-cav-20260101-100000"), "a.png")
+        c.check(called == [], "one from a simulated run is already told not to burn")
+    finally:
+        ui.burn_warning, cli._next = real
+
+
 def _aligned(c) -> None:
     zones = ["Zone 0.05 (LBA 114752): T = 6.59983 ms (9091.15 rpm), jitter 58.36 us = 3.183 deg, coherence 0.9723",
              "Zone 0.5 (LBA 1147536): T = 6.5999 ms (9091.04 rpm), jitter 158.8 us = 13.21 deg, coherence 1.0"]
@@ -1682,6 +1740,7 @@ def run(c) -> None:
     _banner(c)
     _term_matrix(c)
     _modern_terminal(c)
+    _burn_warning(c)
     _aligned(c)
     _progress_line(c)
     _layout(c)

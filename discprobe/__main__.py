@@ -56,6 +56,13 @@ def _next(lines) -> None:
         ui.say(ui.command(i18n.tr(line)) if line.lstrip().startswith("python ") else line)
 
 
+def _image_ready(args, preview: str) -> None:
+    """The advice for a finished picture ISO. One from a simulated run is told not to reach a disc at all."""
+    _next(guide.after_image(args.output, preview, args.geo))
+    if "geo-SIM-" not in args.geo:
+        ui.burn_warning()
+
+
 def _need_windows() -> None:
     if sys.platform != "win32":
         sys.exit(guide.PORTS)
@@ -302,6 +309,7 @@ def cmd_rings(args):
           "The file system is an empty ISO 9660 placeholder.")
     if problems:
         sys.exit(1)
+    ui.burn_warning()
 
 
 def cmd_ringscan(args):
@@ -354,6 +362,7 @@ def cmd_calib(args):
           "The file system is an empty ISO 9660 placeholder.")
     if problems:
         sys.exit(1)
+    ui.burn_warning()
 
 
 def cmd_calscan(args):
@@ -518,7 +527,7 @@ def cmd_image(args):
     if args.media == "cd" and problems:
         sys.exit(1)
     if not problems:
-        _next(guide.after_image(args.output, prev, args.geo))
+        _image_ready(args, prev)
 
 
 def cmd_gridscan(args):
@@ -610,7 +619,7 @@ def cmd_tiles(args):
     if args.media == "cd" and problems:
         sys.exit(1)
     if not problems:
-        _next(guide.after_image(args.output, base + ".preview.png", args.geo))
+        _image_ready(args, base + ".preview.png")
 
 
 def cmd_beacons(args):
@@ -636,7 +645,7 @@ def cmd_beacons(args):
           f"Preview (data-side view, false colours): {os.path.abspath(base + '.preview.png')}")
     if problems:
         sys.exit(1)
-    _next(guide.after_image(args.output, base + ".preview.png", args.geo))
+    _image_ready(args, base + ".preview.png")
 
 
 def cmd_tilescan(args):
@@ -656,6 +665,7 @@ def cmd_random(args):
     if not ui.term().interactive:   # at a terminal the advice below says this, with the right next step
         print("Burn it with any image burner, then run `geo` on it.")
     _next(guide.after_random(args))
+    ui.burn_warning()
 
 
 def cmd_selftest(args):

@@ -39,7 +39,10 @@ GLINT_SWEEP_S = 1.2
 GLINT_REACH = 2.0
 TASKBAR_REFRESH_S = 5.0     # Ghostty drops a progress state it has not heard about for 15 s
 SYNC_START, SYNC_END = "\x1b[?2026h", "\x1b[?2026l"
-STYLES = {"bold": "1", "dim": "2", "red": "31", "green": "32", "yellow": "33", "cyan": "36", "flash": "1;36"}
+BURN_WARNING = "Careful: burning a DVD+R, DVD-R or CD-R cannot be undone; only RW discs can be erased. Check the image and the disc first."
+WARNING_FLASHES = 3
+WARNING_FLASH_S = 0.25      # two flashes a second, well under what can trouble people sensitive to flashing
+STYLES = {"bold": "1", "dim": "2", "red": "31", "green": "32", "yellow": "33", "cyan": "36", "flash": "1;36", "warning": "1;31"}
 PERCENT_FLASH_S = 0.4
 BAR_WIDTH = 20
 ANIMATED_FPS = 8.0
@@ -180,6 +183,32 @@ def _tone(hue: int, level: int, lift: int) -> str:
     """Steps of hue, of colourfulness and of lift towards white, so a frame only looks colours up."""
     r, g, b = oklch(0.68 + 0.1 * lift, (0.05 + 0.025 * level) * (1 - 0.3 * lift), 0.08 + hue / 48)
     return f"38;2;{r};{g};{b}"
+
+
+def burn_warning(t: Term | None = None, pause=time.sleep) -> None:
+    """After an image is ready to burn: flash, then leave the warning standing. Only people at a terminal see it.
+
+    Drawn by the clock, as terminals differ on whether they blink. The flash is skipped by Ctrl+C or --no-animation.
+    """
+    t = t or term()
+    if not t.interactive:
+        return
+    text = tr(BURN_WARNING)
+    if t.animate:
+        lit, unlit = ("1;97;41", "1;31") if t.color else ("7", "1")
+        shown = i18n.fit(text, shutil.get_terminal_size((80, 24)).columns - 1)
+        t.stream.write("\x1b[?25l")
+        try:
+            for flash in range(WARNING_FLASHES * 2):
+                t.stream.write(f"\r\x1b[{unlit if flash % 2 else lit}m{shown}\x1b[0m\x1b[K")
+                t.stream.flush()
+                pause(WARNING_FLASH_S)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            t.stream.write("\r\x1b[K\x1b[?25h")
+            t.stream.flush()
+    print(t.style(text, "warning"), file=t.stream, flush=True)
 
 
 def _rainbow(position: float, saturation: float = 0.8, lift: float = 0.0) -> str:
