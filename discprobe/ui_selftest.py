@@ -12,7 +12,7 @@ import subprocess
 import sys
 import tempfile
 
-from . import guide, i18n, snake, timing, ui
+from . import filldisc, guide, i18n, snake, timing, ui
 from .sim import SimDrive
 
 
@@ -102,7 +102,7 @@ def _layout(c) -> None:
                     shown = ANSI.sub("", line)
                     c.check(i18n.display_width(shown) == width <= max(10, columns - 1), f"{lang}, {columns} columns: the line fits ({width})")
                 wide, narrow = ANSI.sub("", p._render(200)[0]), ANSI.sub("", p._render(40)[0])
-                c.check(i18n.tr("Ctrl+C to stop") in wide and i18n.tr("g: snake") in wide, f"{lang}: a wide line offers stop and snake")
+                c.check(i18n.tr("Ctrl+C to stop") in wide and i18n.tr("g: game") in wide, f"{lang}: a wide line offers stop and the games")
                 c.check("[" not in narrow and "25%" in narrow, f"{lang}: a narrow line drops the bar, keeps the percentage")
                 p.keys = None
                 p.close()
@@ -153,6 +153,74 @@ def _layout(c) -> None:
     c.check(frame_bytes < 420, f"a true-colour frame stays small ({frame_bytes} bytes)")
 
 
+def _fill_disc(c) -> None:
+    import random
+
+    def game(shape):
+        g = filldisc.FillDisc(12, 8, rng=random.Random(1))
+        g.shape = shape
+        g.x, g.y = g.cols - 1 - max(x for x, _ in shape), 2
+        return g
+    bar = filldisc.SHAPES[3]
+    g = game(bar)
+    x = g.x
+    g.step()
+    c.check(g.x == x - 1 and not g.burned, "a block moves left at each step")
+    g.turn("up")
+    g.turn("up")
+    g.turn("up")
+    c.check(g.y == 0, "up moves it, and the edge stops it")
+    g.turn("right")
+    c.check({(x, y) for x, y in g.shape} == {(i, 0) for i in range(4)}, "right spins it")
+    g = game(bar)
+    g.turn("right")
+    c.check(g._fits(g._cells()) and g.x + 3 == g.cols - 1, "a block spun at the edge is nudged back inside")
+    g = game(bar)
+    while not g.burned:
+        g.turn("left")
+    c.check({(0, y) for y in range(2, 6)} == set(g.burned) and g.x >= g.cols - 2, "at the left it lands, and the next block comes in on the right")
+    g = game(bar)
+    g.burned = dict.fromkeys([(0, 0), (0, 1), (0, 6), (0, 7), (1, 0)], "block1") | {(3, 0): "block2"}
+    while not g.score:
+        g.turn("left")
+    c.check(g.score == 1 and g.best == 1 and g.burned == {(0, 0): "block1", (2, 0): "block2"}, "a full column clears, scores, and what was right of it moves left, colours and all")
+    g = game(bar)
+    g.burned = dict.fromkeys([(g.cols - 2, y) for y in range(7)], "block0")
+    g.best = 4
+    g.step()
+    c.check(g.over and g.best == 4, "a stack that reaches the right edge ends the game")
+    best = g.best
+    c.check(g.step() == [] and g.turn("left") == [], "a finished game does not move")
+    c.check(sum(g.cell(x, y) != "field" for x in range(g.cols) for y in range(8)) == len(g.burned), "a finished game shows only what landed")
+    g.reset()
+    c.check(not g.over and g.score == 0 and g.best == best and not g.burned, "a new game starts clean and keeps the best score")
+    g = filldisc.FillDisc(14, 8, rng=random.Random(3))
+    kinds = [g.kind]
+    for _ in range(40):
+        kind = g.kind
+        while g.kind == kind:
+            g.turn("left")
+        g.burned.clear()
+        kinds.append(g.kind)
+    c.check(all(a != b for a, b in zip(kinds, kinds[1:])) and set(kinds) == set(filldisc.BLOCK_KINDS), "every block gets a colour, never the same as the last one")
+    c.check(all(k in ui.GAME_CELLS and k in ui.GAME_GLYPHS for k in filldisc.BLOCK_KINDS), "every colour can be drawn, with and without colour")
+    g = filldisc.FillDisc(14, 8, rng=random.Random(7))
+    moves = random.Random(9)
+    drawn = {(x, y): g.cell(x, y) for x in range(14) for y in range(8)}
+    played = 0
+    while not g.over and played < 4000:
+        changed = g.turn(moves.choice(("up", "down", "left", "right"))) if played % 3 else g.step()
+        drawn.update({(x, y): kind for x, y, kind in changed})
+        played += 1
+        if drawn != {(x, y): g.cell(x, y) for x in range(14) for y in range(8)}:
+            break
+    c.check(drawn == {(x, y): g.cell(x, y) for x in range(14) for y in range(8)} and played > 50, "drawing only the changed cells always gives the true board")
+    c.check(filldisc.FillDisc().step_s == filldisc.SLOWEST_STEP_S, "the first blocks are slow")
+    fast = filldisc.FillDisc()
+    fast.score = 1000
+    c.check(fast.step_s == filldisc.FASTEST_STEP_S, "it speeds up with the score, to a limit")
+
+
 def _snake(c) -> None:
     import random as shared_random
     before = shared_random.getstate()
@@ -181,7 +249,8 @@ def _snake(c) -> None:
     g.heading = (0, 1)
     g.step()
     c.check(g.over, "biting itself ends the game")
-    c.check(shared_random.getstate() == before, "the game leaves the shared random generator alone")
+    _fill_disc(c)
+    c.check(shared_random.getstate() == before, "the games leave the shared random generator alone")
     c.check(snake.parse_posix("\x1b[Ag\x1bOB") == ["up", "g", "down"], "arrow keys from a POSIX terminal")
 
     saved = {k: os.environ.get(k) for k in ("COLUMNS", "LINES")}
@@ -232,6 +301,39 @@ def _snake(c) -> None:
         p = ui.Progress(lambda: (0.5, "rung 3/22", None), ui.Term(s, env={"TERM": "xterm"}, platform="linux"), keys=Keys(["g"]))
         p.play()
         c.check(not p.playing and "too small" in s.getvalue(), "a low window says so instead of drawing over text")
+        p.close()
+        os.environ.update(LINES="24")
+        s = FakeTty()
+        keys = Keys(["g"], ["n"], ["up"], ["n"], ["n"])
+        p = ui.Progress(lambda: (0.5, "rung 3/22", None), ui.Term(s, env={"TERM": "xterm"}, platform="linux"), keys=keys)
+        p.play()
+        snake_game = p.game
+        snake_game.best = 7
+        p.play()
+        c.check(p.playing and isinstance(p.game, filldisc.FillDisc) and "Fill the Disc 0" in s.getvalue(), "n changes to the other game")
+        y = p.game.y
+        before = s.getvalue()
+        p.play()
+        c.check(p.game.y == y - 1 and len(s.getvalue()) > len(before), "a key moves the block at once, not at the next step")
+        filled = p.game
+        filled.best = 3
+        p.play()
+        c.check(p.game is snake_game, "n changes back, and each game keeps its board")
+        p.play()
+        c.check(p.game is filled, "and again")
+        p.close()
+        c.check("Snake: best score 7" in s.getvalue() and "Fill the Disc: best score 3" in s.getvalue(), "both best scores are printed at the end, for the log")
+        s = FakeTty()
+        p = ui.Progress(lambda: (0.5, "rung 3/22", None), ui.Term(s, env={"TERM": "xterm", "NO_COLOR": "1"}, platform="linux"), keys=Keys(["g"], ["n"]))
+        p.play()
+        p.play()
+        c.check(ui.GAME_GLYPHS[p.game.kind] in s.getvalue() and not re.search(r"\x1b\[[0-9;]*m", s.getvalue()), "NO_COLOR: Fill the Disc is drawn with glyphs")
+        p.close()
+        os.environ.update(COLUMNS="30")
+        s = FakeTty()
+        p = ui.Progress(lambda: (0.5, "rung 3/22", None), ui.Term(s, env={"TERM": "xterm"}, platform="linux"), keys=Keys(["g"]))
+        p.play()
+        c.check(p.playing and "closes" not in s.getvalue() and "Snake 0" in s.getvalue(), "a narrow window cuts the hint and never wraps it")
         p.close()
     finally:
         for key, value in saved.items():
@@ -498,19 +600,25 @@ def _reader_changes_nothing(c) -> None:
         if wrap:
             dev.progress.close()
         return s, probe.events_as_rows()
+    from argparse import Namespace
+    skipped = Namespace(_experiment="period", period_reads=10, reps=4, targets=[1, 2])
+    pauses = Namespace(pauses=100)
+    status = ui.timing_status(skipped, pauses)
+    skipped._experiment = "phase"
+    c.check(abs(status()[0] - 30 / 46) < 1e-9, "a rotation test the progress line never saw is counted as done, not a crash")
     plain, wrapped = run(False), run(True)
     c.check(plain == wrapped, "the progress wrapper leaves summary and events identical (same seed)")
     saved = {k: os.environ.get(k) for k in ("COLUMNS", "LINES")}
     os.environ.update(COLUMNS="80", LINES="24")
     try:
-        playing = run(True, Keys(["g"], ["w"], [], ["a"], [], ["s"], ["d"], ["r"]))
+        playing = run(True, Keys(["g"], ["w"], [], ["a"], [], ["s"], ["d"], ["r"], ["n"], ["w"], [], ["a"], ["d"], ["s"], ["r"]))
     finally:
         for key, value in saved.items():
             if value is None:
                 os.environ.pop(key, None)
             else:
                 os.environ[key] = value
-    c.check(plain == playing, "playing snake leaves summary and events identical (same seed)")
+    c.check(plain == playing, "playing both games leaves summary and events identical (same seed)")
 
     class NoIdle:
         """A real drive has no idle(): the wrapper must sleep the pause itself, minus drawing."""
@@ -1152,7 +1260,7 @@ def _banner(c) -> None:
 
 
 def run(c) -> None:
-    print("terminal layer: capabilities, progress line, snake, advice, opening screen, Chinese")
+    print("terminal layer: capabilities, progress line, games, advice, opening screen, Chinese")
     _preflight(c)
     _banner(c)
     _term_matrix(c)

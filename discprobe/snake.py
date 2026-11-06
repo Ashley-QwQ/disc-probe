@@ -22,6 +22,10 @@ WIN_ARROWS = {"H": "up", "P": "down", "K": "left", "M": "right"}
 
 
 class Snake:
+    name = "Snake"
+    max_cols = MAX_COLS
+    step_s = STEP_S
+
     def __init__(self, cols: int = MAX_COLS, rows: int = ROWS, rng=None):
         self.cols, self.rows = cols, rows
         self.rng = rng or random.Random()
@@ -37,6 +41,11 @@ class Snake:
         self.over = False
         self.food = None
         self._place_food()
+
+    def hint(self) -> str:
+        if self.over:
+            return f"Snake {self.score}  best {self.best}  crashed: r plays again, n next, q closes"
+        return f"Snake {self.score}  best {self.best}  arrows or WASD steer, n next, q closes"
 
     def _place_food(self) -> None:
         free = [(x, y) for x in range(self.cols) for y in range(self.rows) if (x, y) not in self.body]

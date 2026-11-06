@@ -20,7 +20,7 @@ import sys
 import threading
 import time
 
-from . import i18n, snake
+from . import filldisc, i18n, snake
 from .i18n import display_width, tr
 
 SPINNER_ASCII = ("(|)", "(/)", "(-)", "(\\)")
@@ -38,8 +38,12 @@ OUTSIDE_PAUSE_INTERVAL_S = 1.0
 SWEEP_S = 1.7
 SWEEP_REACH = 4.0
 BAR_COLOUR_CELLS = 4        # the bar's rainbow changes in steps, which keeps each frame small
-GAME_GLYPHS = {"field": "..", "snake": "##", "food": "<>"}
-GAME_CELLS = {"field": ("48;2;42;46;56", "100"), "snake": ("48;2;86;200;130", "42"), "food": ("48;2;236;96;96", "41")}
+GAMES = (snake.Snake, filldisc.FillDisc)
+GAME_GLYPHS = {"field": "..", "snake": "##", "food": "<>",
+               "block0": "[]", "block1": "##", "block2": "()", "block3": "{}", "block4": "%%", "block5": "@@"}
+GAME_CELLS = {"field": ("48;2;42;46;56", "100"), "snake": ("48;2;86;200;130", "42"), "food": ("48;2;236;96;96", "41"),
+              "block0": ("48;2;236;96;96", "41"), "block1": ("48;2;86;200;130", "42"), "block2": ("48;2;250;190;70", "43"),
+              "block3": ("48;2;96;124;230", "44"), "block4": ("48;2;200;110;220", "45"), "block5": ("48;2;70;200;220", "46")}
 
 
 def _windows_ansi(stream) -> bool:
@@ -189,7 +193,7 @@ class Progress:
     """One line that overwrites itself; `status` returns (fraction or None, label, seconds left or None).
 
     A narrow terminal loses whole parts, least useful first, and never gets a wrapped line.
-    With `keys` given, a game of snake can be opened under it.
+    With `keys` given, a game can be opened under it.
     """
 
     def __init__(self, status, t: Term | None = None, keys=None):
@@ -205,7 +209,9 @@ class Progress:
         self.interval = 1 / (ANIMATED_FPS if self.t.animate else PLAIN_FPS)
         self.closed = False
         self.keys = keys
-        self.game = None
+        self.game = None        # the one on show; `games` keeps each one's board and best score
+        self.games = {}
+        self.game_kind = 0
         self.playing = False
         self.last_step = 0.0
         self.game_size = None
@@ -275,7 +281,7 @@ class Progress:
         stop_part = [(stop, self.t.style(stop, "dim"))]
         game_part = []
         if self.keys and not self.playing:
-            text = tr("g: snake")
+            text = tr("g: game")
             game_part = [(text, self.t.style(text, "dim"))]
         for parts in (spin + meter + title + spent + due + stop_part + game_part,
                       spin + meter + title + spent + due + game_part,
@@ -336,8 +342,9 @@ class Progress:
             self.keys.close()
         if self.t.ansi:
             self.t.stream.write("\x1b[?25h")
-        if self.game and self.game.best:
-            print(tr(f"Snake: best score {self.game.best}"), file=self.t.stream)
+        for game in self.games.values():
+            if game.best:
+                print(tr(f"{game.name}: best score {game.best}"), file=self.t.stream)
         self.t.stream.flush()
 
     # The game below is reached only from `play`, inside the pause before a timed read.
@@ -352,14 +359,16 @@ class Progress:
             self.playing = False
             self._open_game()
         now = time.monotonic()
-        if self.playing and not self.game.over and now - self.last_step >= snake.STEP_S:
+        if self.playing and not self.game.over and now - self.last_step >= self.game.step_s:
             self.last_step = now
-            score = self.game.score
-            changed = self.game.step()
-            self._draw_cells(changed)
-            if self.game.score != score or self.game.over:
-                self._draw_hint()
-            self.t.stream.flush()
+            self._advance(self.game.step)
+
+    def _advance(self, move) -> None:
+        score = self.game.score
+        self._draw_cells(move() or [])
+        if self.game.score != score or self.game.over:
+            self._draw_hint()
+        self.t.stream.flush()
 
     def _press(self, key: str) -> None:
         if not self.playing:
@@ -370,22 +379,29 @@ class Progress:
             self._wipe()
             self.playing = False
             self.tick(force=True)
+        elif key in ("n", "N"):
+            self.game_kind = (self.game_kind + 1) % len(GAMES)
+            self._wipe()
+            self.playing = False
+            self._open_game()
         elif key in ("r", "R") and self.game.over:
             self.game.reset()
             self._draw_game()
         elif key in snake.DIRECTIONS:
-            self.game.turn(key)
+            self._advance(lambda: self.game.turn(key))
 
     def _open_game(self) -> None:
         size = shutil.get_terminal_size((80, 24))
-        cols = min(snake.MAX_COLS, (size.columns - 4) // 2)
+        kind = GAMES[self.game_kind]
+        cols = min(kind.max_cols, (size.columns - 4) // 2)
         if cols < snake.MIN_COLS or size.lines < snake.ROWS + 4:
-            self.log("The window is too small for snake")
+            self.log("The window is too small for the game")
             return
-        if self.game is None or self.game.cols != cols:
-            best = self.game.best if self.game else 0
-            self.game = snake.Snake(cols)
-            self.game.best = best
+        kept = self.games.get(kind)
+        if kept is None or kept.cols != cols:
+            self.games[kind] = kind(cols)
+            self.games[kind].best = kept.best if kept else 0
+        self.game = self.games[kind]
         self.playing = True
         self.game_size = size
         self.last_step = time.monotonic()
@@ -402,9 +418,7 @@ class Progress:
         return f"\x1b[{rows}B{text}\x1b[{rows}A\r"
 
     def _draw_hint(self) -> None:
-        g = self.game
-        text = tr(f"Snake {g.score}  best {g.best}  crashed: r plays again, q closes" if g.over
-                  else f"Snake {g.score}  best {g.best}  arrows or WASD steer, q closes")
+        text = i18n.fit(tr(self.game.hint()), self.game_size.columns - 3)
         self.t.stream.write(self._below(1, f"\r\x1b[K  {self.t.style(text, 'dim')}"))
 
     def _draw_cells(self, changed) -> None:
@@ -496,6 +510,8 @@ def timing_status(probe, dev: ProgressDevice):
     def status():
         stage = probe._experiment
         marks.setdefault(stage, dev.pauses)
+        if stage == "phase":    # no line may have been drawn during the rotation test
+            marks.setdefault("period", marks["phase"] - 3 * probe.period_reads)
         if stage not in ("period", "phase"):
             return None, names.get(stage, stage), None
         period_done = (marks["phase"] if "phase" in marks else dev.pauses) - marks["period"]
