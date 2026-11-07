@@ -91,6 +91,8 @@ python -m discprobe results geo
 
 脚本里要路径的话，用 `results geo --latest`，它只打印一行文件夹路径。
 
+**选一次历史结果。**`latest` 取最新一次可靠的结果，判定噪声太大的会被跳过。想自己选的话，运行 `python -m discprobe results --pick`，或者在命令里写 `--geo pick`。第一级按盘和光驱分组，进入后按精度或日期排序：`s` 换排序，`r` 反过来，回车选择，左键返回，`q` 退出。不在终端时它只打印列表。2026-11 之前的结果没有记录盘型，会按时间相近、容量相同的 `info` 记录匹配，并标上 `~`。
+
 **`--sectors` 有三个意思。**`timing`、`geo` 里是每次读几个扇区，`16` 读一个完整的 DVD ECC 块（`geo` 只接受 1 或 16，CD 上只能是 1）。`random` 里是刻多少，要放得下。`disexport` 里是盘的容量，必须填，DiscImageStudio 里也要填同一个数，否则外半径会变，填多了还可能封盘失败。以前 DVD 不填时默认 2298496，比一些盘的实际容量大（[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19440415) 里的盘是 2295104），所以改成了不填就报错并给建议值。`info` 会在终端打印建议值，并说明来源：空白盘优先用剩余空间，CD 用 ATIP 的导出区起点，已刻录的盘用最后一个 LBA 加一（只有整张刻满时才等于空白盘的容量）。以空白盘上 `info` 的数为准。DiscImageStudio 的"从光盘读取"读到的数不同时，也以 `info` 为准：domerawind [报告](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19442161)它比实际能写的多（RITEKF1 2298496 对 2297888，mini DVD-R 714546 对 713936），照它填就封盘失败。原因已经查明：DVD-R 上多出的 608 扇区是收尾要用的边界开销（TBO 592 加 BSGA 16），见 DIS 作者在 [#183](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/183#issuecomment-6691519009) 的说明，这个数不能推广到所有 DVD。按 2297888 重新拟合的预设[封盘正常](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/183#issuecomment-6690200194)（一张盘）。
 
 **`--speed` 怎么选。**可以写 kB/s，也可以写倍速，如 `4x`（`--media cd` 时按 CD 的 1x 换算）。低速通常噪声更小，但不是每台光驱都会换档，要看 `timing` 打印的转速。

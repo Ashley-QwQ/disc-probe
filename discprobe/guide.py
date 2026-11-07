@@ -35,6 +35,7 @@ PITCH_CLEARLY_BETTER = 0.5
 # is where the CD run at 3226 rpm sat (0.77) that the drive table says can't be used.
 GOOD_SIGMA_DEG = 0.25
 BAD_SIGMA_DEG = 0.6
+MATCH_INFO_S = 24 * 3600    # how far from a measurement an `info` run can be and still be taken for the same disc
 ALTERNATIVE_SPEEDS = {"dvd": ("3324", "5540", "11080"), "cd": ("1411", "2822", "4234"), "bd": ("8990", "17980", "35960")}
 RANDOM_SECTORS = {"dvd": 2295104, "cd": 359600}
 # Spare room a random disc needs. CD: on a 359,847-sector disc 359,800 was refused and 359,600 went through.
@@ -108,6 +109,25 @@ class Result:
         return (self.kind == "geo" and "u" in self.fit and self.rungs() >= MIN_RUNGS
                 and self.fit.get("chi2_per_dof", 0) <= MAX_LATEST_CHI2)
 
+    @property
+    def sigma(self) -> float | None:
+        """How well this run knows the angles across what it measured, in degrees. Smaller is better."""
+        return self.fit.get("angle_sigma_measured_span_deg")
+
+    def reliable(self) -> bool:
+        """Complete, and not judged too noisy to rely on."""
+        return self.geo_complete() and (self.sigma is None or self.sigma <= BAD_SIGMA_DEG)
+
+    def quality(self) -> str:
+        if not self.geo_complete():
+            return "stopped early"
+        if not self.reliable():
+            return "too noisy"
+        span = self.fit.get("measured_span_mm") or [0, NARROW_SPAN_MM]
+        if span[1] - span[0] < NARROW_SPAN_MM:
+            return "narrow span"
+        return "good" if self.sigma is not None and self.sigma <= GOOD_SIGMA_DEG and self.fit.get("chi2_per_dof", 0) <= 2 else "usable"
+
     def rotation(self) -> str | None:
         return ((self.summary.get("period") or {}).get("rotation") or {}).get("mode")
 
@@ -153,11 +173,44 @@ def scan(out: str = "results") -> list[Result]:
 
 
 def latest_geo(media: str | None = None, out: str = "results") -> Result | None:
-    """The newest complete measurement of a real disc."""
-    for r in scan(out):
-        if r.geo_complete() and not r.simulated and (media is None or r.media == media):
-            return r
-    return None
+    """The newest measurement of a real disc that can be relied on, or failing that the newest complete one."""
+    runs = [r for r in scan(out) if r.geo_complete() and not r.simulated and (media is None or r.media == media)]
+    return next((r for r in runs if r.reliable()), runs[0] if runs else None)
+
+
+def passed_over(chosen: Result, media: str | None = None, out: str = "results") -> int:
+    """Newer complete runs that `latest` left out for being too noisy."""
+    return sum(r.geo_complete() and not r.simulated and not r.reliable() and r.when > chosen.when and (media is None or r.media == media) for r in scan(out))
+
+
+def info_runs(out: str = "results") -> list[Result]:
+    return [r for r in scan(out) if r.kind == "info"]
+
+
+def _info_identity(run: Result) -> dict:
+    report = _load(os.path.join(run.path, "info.json")) or {}
+    inq = _parsed(report, "inquiry")
+    from .info import disc_id
+    return {"drive": f"{inq.get('vendor', '')} {inq.get('product', '')}".strip() or None,
+            "disc": disc_id(_parsed(report, "dvd_prerecorded_0e"), _parsed(report, "dvd_plus_adip_11"), _parsed(report, "atip")),
+            "last_lba": _parsed(report, "capacity").get("last_lba")}
+
+
+def identity_of(run: Result, infos: list[Result] | None = None) -> dict:
+    """{disc, drive, inferred}. Older runs recorded neither, so take them from the nearest `info` of the same disc on that drive letter."""
+    known = run.summary.get("identity") or {}
+    if known.get("disc") and known.get("drive"):
+        return {"disc": known["disc"], "drive": known["drive"], "inferred": False}
+    disc, drive = known.get("disc"), known.get("drive")
+    last_lba = (run.summary.get("setup") or {}).get("last_lba")
+    same_letter = [i for i in (info_runs() if infos is None else infos) if i.tag == run.tag]
+    for i in sorted(same_letter, key=lambda i: abs((i.when - run.when).total_seconds())):
+        who = _info_identity(i)
+        drive = drive or who["drive"]
+        if abs((i.when - run.when).total_seconds()) <= MATCH_INFO_S and last_lba is not None and who["last_lba"] == last_lba and who["disc"]:
+            disc = disc or who["disc"]
+            break
+    return {"disc": disc or "unknown disc", "drive": drive or (f"drive {run.tag}:" if run.tag else "unknown drive"), "inferred": True}
 
 
 def resolve_geo(value: str, media: str | None = None, out: str = "results") -> str:
@@ -387,7 +440,7 @@ def after_geo(args, res: dict, out: str) -> list[str]:
     media = getattr(args, "media", "dvd")
     summary = _load(os.path.join(out, "summary.json")) or {}
     m = RESULT_DIR.match(os.path.basename(out))
-    real_and_whole = m and not getattr(args, "sim", None) and Result(out, m["kind"], m["tag"], m["stamp"]).geo_complete()
+    real_and_whole = m and not getattr(args, "sim", None) and Result(out, m["kind"], m["tag"], m["stamp"]).reliable()
     geo = "latest" if real_and_whole else short(out)
     flag = " --media cd" if media == "cd" else ""
     sectors, why = _sectors_for(summary, getattr(args, "out", "results"))

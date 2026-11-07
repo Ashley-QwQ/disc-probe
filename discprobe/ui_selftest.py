@@ -2017,6 +2017,168 @@ def _banner(c) -> None:
     c.check("▀" in still.stream.getvalue() and ui.SYNC_START not in still.stream.getvalue(), "no motion: one still frame of the same disc")
 
 
+def _picker(c) -> None:
+    import contextlib
+    import datetime
+    import io
+    import json
+    import os
+    import tempfile
+    from . import guide, info, picker
+    from .sim import SimDrive
+    print("results: choosing a geo run")
+    with tempfile.TemporaryDirectory() as d:
+        def geo(name, sigma, rungs=22, who=None, chi2=1.0, last_lba=2295103):
+            folder = os.path.join(d, name)
+            os.makedirs(folder)
+            fit = {"u": 180000.0, "v": 5.5, "bit_nm_assumed": 133.3, "chi2_per_dof": chi2, "residual_rms_deg": 1.0, "measured_span_mm": [26.0, 54.0]}
+            if sigma is not None:
+                fit["angle_sigma_measured_span_deg"] = sigma
+            with open(os.path.join(folder, "summary.json"), "w", encoding="utf-8") as f:
+                json.dump({"fit": fit, "setup": {"last_lba": last_lba}, "identity": who}, f)
+            with open(os.path.join(folder, "targets.csv"), "w", encoding="utf-8") as f:
+                f.write("header\n" + "row\n" * rungs)
+            return folder
+        ritek = {"disc": "RITEKF1", "drive": "HL-DT-ST GH70N", "firmware": "NYA2"}
+        mcc = {"disc": "MCC 03RG20", "drive": "HL-DT-ST GH70N", "firmware": "NYA2"}
+        best = geo("geo-H-20260101-100000", 0.20, who=ritek)
+        fine = geo("geo-H-20260101-110000", 0.48, who=ritek, chi2=3.1)
+        noisy = geo("geo-H-20260101-120000", 0.70, who=ritek)
+        short = geo("geo-H-20260101-130000", 0.05, rungs=3, who=ritek)
+        other = geo("geo-H-20260101-090000", 0.30, who=mcc)
+        c.check(guide.latest_geo("dvd", d).path == fine, "--geo latest leaves out a newer run judged too noisy")
+        chosen = guide.latest_geo("dvd", d)
+        c.check(guide.passed_over(chosen, "dvd", d) == 1, "and counts what it left out, not the stopped one")
+        lone = os.path.join(d, "alone")
+        os.makedirs(lone)
+        only = os.path.join(lone, "geo-H-20260101-100000")
+        os.makedirs(only)
+        with open(os.path.join(only, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump({"fit": {"u": 1.0, "v": 1.0, "chi2_per_dof": 1.0, "angle_sigma_measured_span_deg": 0.9}}, f)
+        with open(os.path.join(only, "targets.csv"), "w", encoding="utf-8") as f:
+            f.write("header\n" + "row\n" * 22)
+        c.check(guide.latest_geo("dvd", lone).path == only, "with nothing better, latest still gives the noisy run")
+        c.check(guide.scan(d)[1].quality() == "too noisy" and guide.scan(d)[0].quality() == "stopped early", "a run says what it is")
+
+        found = picker.groups(picker.geo_runs(None, d), d)
+        c.check([g.disc for g in found] == ["RITEKF1", "MCC 03RG20"], "one group per disc, the most recently measured first")
+        c.check(found[0].best() == 0.20, "a group's best leaves out stopped runs")
+        runs = found[0].runs
+        by = lambda key, rev=False: [r.path for r in picker.sort_runs(runs, key, rev)]
+        c.check(by("precision") == [best, fine, noisy, short], "precision: best first, a stopped run last whatever its number")
+        c.check(by("precision", True) == [noisy, fine, best, short], "precision the other way, the stopped run still last")
+        c.check(by("date") == [noisy, fine, best, short], "date: newest first")
+        c.check(by("date", True) == [best, fine, noisy, short], "date the other way")
+
+        p = picker.Picker(found)
+        c.check(p.group is None and "RITEKF1" in p.lines(24)[2], "it opens on the list of discs")
+        for key in ("down", "up", "\r"):
+            p.handle(key)
+        c.check(p.group is found[0], "Enter goes into a disc")
+        c.check("most precise first" in p.lines(24)[1], "and says how it is sorted")
+        p.handle("s")
+        c.check(p.key == "date" and p.row == 0 and "newest first" in p.lines(24)[1], "s changes the sort")
+        p.handle("r")
+        c.check(p.reverse and "oldest first" in p.lines(24)[1], "r turns it round")
+        p.handle("s")
+        c.check(p.key == "precision" and not p.reverse, "and changing the sort starts from its usual order")
+        p.handle("left")
+        c.check(p.group is None and p.row == 0, "left goes back to the discs")
+        p.handle("\r")
+        p.handle("down")
+        p.handle("\r")
+        c.check(p.done and p.result.path == fine, "Enter chooses the run under the cursor")
+        q = picker.Picker(found)
+        q.handle("\x1b")
+        c.check(q.done and q.result is None, "Esc leaves with nothing chosen")
+        single = picker.Picker(found[1:])
+        c.check(single.group is found[1], "one disc goes straight to its runs")
+        single.handle("left")
+        c.check(single.done and single.result is None, "and going back from there leaves")
+        tall = picker.Picker(found)
+        tall.handle("\r")
+        lines = tall.lines(5)
+        c.check(len(lines) <= 5 and any(x.startswith("> ") for x in lines), "a short window still shows the cursor")
+
+        plain = "\n".join(picker.plain_lists(found))
+        c.check("RITEKF1" in plain and fine in plain and plain.index(best) < plain.index(fine), "without a terminal it prints the same lists")
+        try:
+            picker.choose(None, d, t=types_term())
+            c.check(False, "--geo pick in a pipe is refused")
+        except ValueError as e:
+            c.check("needs a terminal" in str(e), "--geo pick in a pipe is refused")
+
+        class Keys:
+            closed = False
+
+            def __init__(self, presses):
+                self.presses = list(presses)
+
+            def read(self):
+                return [self.presses.pop(0)] if self.presses else ["q"]
+
+            def close(self):
+                Keys.closed = True
+
+        class Screen:
+            ansi = True
+            stream = io.StringIO()
+
+            def can_prompt(self):
+                return True
+
+            def style(self, text, name):
+                return text
+
+        screen = Screen()
+        got = picker.choose(None, d, t=screen, keys=Keys(["\r", "down", "\r"]), pause=lambda s: None)
+        drawn = screen.stream.getvalue()
+        c.check(got.path == fine, "scripted keys reach the same run on a terminal")
+        c.check(Keys.closed and drawn.startswith("\x1b[?1049h") and drawn.endswith("\x1b[?25h\x1b[?1049l"), "it uses its own screen and restores the cursor")
+        c.check(picker.choose(None, d, t=screen, keys=Keys(["q"]), pause=lambda s: None) is None, "q leaves with nothing chosen")
+        wide = geo("geo-H-20260103-100000", 0.1, who=mcc)
+        with open(os.path.join(wide, "summary.json"), "r+", encoding="utf-8") as f:
+            data = json.load(f)
+            data["fit"]["measured_span_mm"] = [33.0, 45.0]
+            f.seek(0)
+            json.dump(data, f)
+            f.truncate()
+        c.check(guide.scan(d)[0].quality() == "narrow span", "a run over a small part of the disc says so, not good")
+
+        old = os.path.join(d, "old")
+        os.makedirs(old)
+        run = os.path.join(old, "geo-H-20260102-100000")
+        os.makedirs(run)
+        with open(os.path.join(run, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump({"fit": {"u": 1.0, "v": 1.0, "chi2_per_dof": 1.0}, "setup": {"last_lba": 100}}, f)
+        for name, last, mid in (("info-H-20260102-090000", 100, "RITEKF1"), ("info-H-20260102-095900", 999, "OTHER"), ("info-H-20260101-090000", 100, "TOOOLD")):
+            folder = os.path.join(old, name)
+            os.makedirs(folder)
+            with open(os.path.join(folder, "info.json"), "w", encoding="utf-8") as f:
+                json.dump({"inquiry": {"parsed": {"vendor": "HL-DT-ST", "product": "GH70N"}}, "capacity": {"parsed": {"last_lba": last}},
+                           "dvd_prerecorded_0e": {"parsed": {"manufacturer_id": mid + "\x00\x00"}}}, f)
+        who = guide.identity_of(guide.scan(old)[0], guide.info_runs(old))
+        c.check(who == {"disc": "RITEKF1", "drive": "HL-DT-ST GH70N", "inferred": True}, "an old run takes the disc from the nearest info with the same length")
+        none = guide.identity_of(guide.Result(run, "geo", "Z", "20260102-100000"), guide.info_runs(old))
+        c.check(none["disc"] == "unknown disc" and none["drive"] == "drive Z:", "and says so when nothing matches")
+
+    sim = SimDrive("cav")
+    got = info.identify(sim, "dvd")
+    c.check(set(got) == {"drive", "firmware", "disc"}, "identifying a disc reports drive, firmware and disc")
+    args = type("A", (), {"sim": "cav", "media": "dvd"})()
+    from .__main__ import _identity
+    c.check(_identity(args, sim) is None, "a simulated run records no drive or disc")
+    args.sim = None
+    c.check(set(_identity(args, sim)) == {"drive", "firmware", "disc"}, "a real one does, before the measuring starts")
+
+
+def types_term():
+    class NoPrompt:
+        def can_prompt(self):
+            return False
+    return NoPrompt()
+
+
 def run(c) -> None:
     print("terminal layer: capabilities, progress line, games, advice, opening screen, Chinese")
     _preflight(c)
@@ -2032,6 +2194,7 @@ def run(c) -> None:
     _reader_changes_nothing(c)
     _status_counts(c)
     _results(c)
+    _picker(c)
     _advice(c)
     _command_line(c)
     _missing_package(c)
