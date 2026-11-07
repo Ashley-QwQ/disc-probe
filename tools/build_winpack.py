@@ -79,7 +79,7 @@ def unpack_source(ref: str, root: str) -> None:
 def pack(root: str, out: str, commit: str) -> None:
     archive = shutil.make_archive(root, "zip", out, os.path.basename(root))
     digest = sha256(archive)
-    with open(archive + ".sha256", "w", encoding="ascii") as f:
+    with open(archive + ".sha256", "w", encoding="ascii", newline="\n") as f:
         f.write(f"{digest}  {os.path.basename(archive)}\n")
     print(f"{archive}: {os.path.getsize(archive) / 1e6:.1f} MB, commit {commit}, sha256 {digest[:20]}")
 
