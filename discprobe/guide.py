@@ -613,6 +613,7 @@ def after_geo(args, res: dict, out: str) -> list[str]:
                         "Or make a picture ISO now (replace my_picture.png); radial lines may come out twisted without that constant:",
                         where, picture]
     return lines + ["Next, make a picture ISO (replace my_picture.png with your image):", where, picture,
+                    f"To move or size the picture on the disc first: {PROG} edit my_picture.png",
                     "Or export a DiscImageStudio preset:", *preset]
 
 
@@ -673,6 +674,12 @@ def after_random(args) -> list[str]:
                 fits, PORTS, f"  {PROG} timing --sim cav{flag}"]
     return ["Burn it onto a blank disc (Windows: right-click the .iso, Burn disc image), and keep some blanks of the same batch for pictures.",
             *burner_hint(), fits, "Then check the drive with it (1 to 3 minutes):", f"  {PROG} timing {drive_flag()}{flag}"]
+
+
+def after_edit(path: str, media: str = "dvd") -> list[str]:
+    flag = " --media cd" if media == "cd" else ""
+    return ["Next, make the disc image from it (you can open the design again with edit first):",
+            f"  {PROG} image{flag} --geo latest --design {short(path)} --output iso/picture.iso"]
 
 
 def after_image(output: str, preview: str, geometry: str) -> list[str]:

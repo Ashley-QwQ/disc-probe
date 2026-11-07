@@ -153,6 +153,8 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 
 `--geo latest` 用最近一次完整的真实测量，会打印选中的是哪一次；也可以填结果文件夹或 `summary.json` 的路径。有修正文件的话再加 `--correction correction.json`。图片长边铺满 116 mm（可用 `--diameter-mm` 改）并保持比例，不足的地方留白。图片放在当前文件夹，或者写完整路径（有空格要加引号）。生成后程序会抽查扇区，和设计逐字节核对。
 
+想先调整图片的位置、大小和角度，可以运行 `python -m discprobe edit my_picture.png`，在终端里用方向键摆放，保存后把下面的 `--picture my_picture.png` 换成 `--design my_picture.design.json`。
+
 ```bash
 python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
 ```

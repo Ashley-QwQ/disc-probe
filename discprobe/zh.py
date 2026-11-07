@@ -603,6 +603,41 @@ TEXT = {
     "write a multi-hypothesis calibration ISO (bracketing disc, or refinement disc)": "写多假设标定镜像（粗定盘或精修盘）",
     "fit the disc geometry from a scan of a calibration disc": "从标定盘的扫描图拟合盘面几何",
     "measure the spiral geometry of a burned DVD or CD from read timing (ladder)": "用读取计时测出刻好的 DVD 或 CD 的螺旋几何",
+    "place a picture on the disc at the terminal, and save a design for image --design": "在终端里摆放图片，保存成设计文件，供 image --design 使用",
+    "a picture, or a design file saved earlier": "一张图片，或者之前保存的设计文件",
+    "the design file to save (default: the picture's name + .design.json, here)": "要保存的设计文件（默认：当前文件夹下，图片名加 .design.json）",
+    "which disc to show the drawable part of": "按哪种盘显示可绘制的范围",
+    "outer radius of the drawing, as in image": "图案的外半径，和 image 相同",
+    "a design file saved by edit, instead of --picture": "edit 保存的设计文件，用来代替 --picture",
+    "--design replaces --picture and --design-npy: give one of them": "--design 不能和 --picture、--design-npy 同时用，请只给一个",
+    "Nothing saved.": "没有保存。",
+    "Saved: {p}": "已保存：{p}",
+    "Next, make the disc image from it (you can open the design again with edit first):": "下一步，用它生成光盘镜像（也可以先用 edit 再打开修改）：",
+    "To move or size the picture on the disc first: {c}": "想先调整图片在盘上的位置和大小：{c}",
+    "Editing the top one of {n} pictures": "正在编辑 {n} 张图片中最上面的一张",
+    "Position  {x}, {y} mm": "位置      {x}, {y} mm",
+    "Size      {s} mm": "大小      {s} mm",
+    "Turned    {a} deg": "旋转      {a}°",
+    "Dark below {p}% brightness": "亮度低于 {p}% 的部分变暗",
+    "Colours   swapped": "明暗      已反转",
+    "Colours   as they are": "明暗      保持原样",
+    "Steps     fine": "步长      细",
+    "Steps     coarse": "步长      粗",
+    "Dark {p}% of the drawable part": "可绘制范围内 {p}% 是暗的",
+    "{p}% of the dark area is cut off": "暗的部分有 {p}% 被裁掉",
+    "Arrows move  + - size  [ ] turn": "方向键 移动  + - 大小  [ ] 旋转",
+    ", . grey line  a auto  i swap": ", . 明暗界线  a 自动  i 反转",
+    "c trim  Tab steps  u undo  0 reset": "c 裁切  Tab 步长  u 撤销  0 重置",
+    "Enter save  q leave": "回车 保存  q 退出",
+    "Trimmed   L {a} R {b} T {c} B {d}%": "已裁切    左 {a} 右 {b} 上 {c} 下 {d}%",
+    "Trimming the left edge (c: next)": "正在裁切左边（c：下一条边）",
+    "Trimming the right edge (c: next)": "正在裁切右边（c：下一条边）",
+    "Trimming the top edge (c: next)": "正在裁切上边（c：下一条边）",
+    "Trimming the bottom edge (c: next)": "正在裁切下边（c：下一条边）",
+    "Not saved. q again to leave, Enter to save.": "还没保存。再按 q 退出，按回车保存。",
+    "Make the window larger to see the disc.": "把窗口拉大一点才能看到光盘。",
+    "edit needs a terminal. Without one: image --picture my_picture.png --diameter-mm 116": "edit 要在终端里用。没有终端时可以用：image --picture my_picture.png --diameter-mm 116",
+    "{p} already holds another design. Choose a new name with --output, or open it with: edit {q}": "{p} 里已经是另一份设计。请用 --output 换个名字，或者这样打开它：edit {q}",
     "write a picture ISO placed with a measured geometry (grid test by default)": "按测出的几何写图片镜像（默认是网格测试图）",
     "write a self-locating texture palette target (IDs + swatches in every tile)": "写能自定位的纹理调色板盘（每个色块带编号和色样）",
     "write the beacon target (tiles readable from one photo, no whole-disc fit)": "写信标盘（一张照片就能读色块，不需要拟合整张盘）",
@@ -796,6 +831,13 @@ DiscImageStudio 刻的 CD 图（一条音轨）：同一条命令直接测这张
 有用户发现它的“从光盘读取”给的数偏大。和 timing --sectors 不是一回事。
 --install 会把预设直接加进 DiscImageStudio 的用户预设文件；重启 DiscImageStudio 后就能选。
 --geo 可以写 summary.json、geo 结果文件夹、latest，或 pick（手动选）。CD 的结果会生成 CD 预设；--media 只用来核对。""",
+    "edit": """\
+示例：
+  python -m discprobe edit my_picture.png                       摆放图片，然后保存成 my_picture.design.json
+  python -m discprobe edit my_picture.design.json               接着改保存过的设计
+  python -m discprobe image --geo latest --design my_picture.design.json --output iso/picture.iso
+
+它只保存一个小小的设计文件，不会碰光驱。""",
     "results": """\
 例子：
   python -m discprobe results                 按时间列出运行过的测量，最新的在前

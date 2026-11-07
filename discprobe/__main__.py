@@ -545,6 +545,20 @@ def _warn_other_run(args, fit) -> None:
         print(f"  python tools/geo_polyfit.py {os.path.dirname(args.geo) or '.'} --write-correction {args.correction} --order quadratic")
 
 
+def cmd_edit(args):
+    from . import editor, imagecheck
+    try:
+        project, output = editor.start(args.file, args.output)
+        saved = editor.run(project, output, imagecheck._inner_mm(args), args.r_max)
+    except ValueError as e:
+        sys.exit(str(e))
+    if not saved:
+        print("Nothing saved.")
+        return
+    print(f"Saved: {os.path.abspath(output)}")
+    _next(guide.after_edit(output, args.media))
+
+
 def cmd_image(args):
     from . import imagedisc
     writer = imagedisc
@@ -563,6 +577,8 @@ def cmd_image(args):
         if args.media != "cd":
             sys.exit("--along-track-frames is for CD")
         u = math.sqrt(u * u - v * args.along_track_frames * FRAME_BITS / math.pi)
+    if args.design and (args.design_npy or args.picture):
+        sys.exit("--design replaces --picture and --design-npy: give one of them")
     if args.design_npy:
         import numpy as np
         design = np.load(args.design_npy)
@@ -573,14 +589,21 @@ def cmd_image(args):
         elif design.dtype != bool:
             sys.exit("a label design (not boolean) needs --textures, one per label")
         kind = f"design {os.path.basename(args.design_npy)}"
-    elif args.picture:
-        design = imagedisc.picture_design(args.picture, args.diameter_mm)
+    elif args.picture or args.design:
+        if args.design:
+            from . import design as project_file
+            try:
+                design = project_file.render(project_file.load(args.design))
+            except ValueError as e:
+                sys.exit(str(e))
+        else:
+            design = imagedisc.picture_design(args.picture, args.diameter_mm)
         if args.media == "cd":      # the file system sits here, and write_iso refuses a drawing on top of it
             kept = imagedisc.clear_inside(design, 26.0)
             if (kept != design).any():
                 ui.say("The middle of a CD holds its file system, so the picture is left out inside 26 mm radius.", "dim")
             design = kept
-        kind = f"picture {os.path.basename(args.picture)}"
+        kind = f"design {os.path.basename(args.design)}" if args.design else f"picture {os.path.basename(args.picture)}"
     else:
         design = imagedisc.grid_design(r_min=26.0 if args.media == "cd" else 24.5,
                                       r_max=args.r_max, line=args.line_mm)
@@ -983,7 +1006,7 @@ def _speed(text: str):
 COMMAND_GROUPS = (
     ("Start here", ("guide", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "timing", "geo", "results")),
-    ("Make a disc image", ("random", "image", "tiles", "beacons", "rings", "calib", "spokes")),
+    ("Make a disc image", ("random", "edit", "image", "tiles", "beacons", "rings", "calib", "spokes")),
     ("Read scans of burned discs", ("gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("disexport",)),
 )
@@ -1041,6 +1064,13 @@ examples:
   python -m discprobe random --media cd --output iso/cd-random.iso
 
 Burn it onto a blank disc (Windows: right-click the .iso, Burn disc image), then run timing on it.""",
+    "edit": """\
+examples:
+  python -m discprobe edit my_picture.png                       place it, then save my_picture.design.json
+  python -m discprobe edit my_picture.design.json               carry on with a saved design
+  python -m discprobe image --geo latest --design my_picture.design.json --output iso/picture.iso
+
+It only saves a small design file, and never touches a drive.""",
     "image": """\
 examples:
   python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
@@ -1231,10 +1261,18 @@ def _build_parser():
                          "the sector in the burned audio stream (HP BU20N 0, PLDS DU-8A5LH -603)")
     sp.set_defaults(func=cmd_geo)
 
+    sp = sub.add_parser("edit", help="place a picture on the disc at the terminal, and save a design for image --design")
+    sp.add_argument("file", help="a picture, or a design file saved earlier")
+    sp.add_argument("--output", help="the design file to save (default: the picture's name + .design.json, here)")
+    sp.add_argument("--media", choices=("dvd", "cd"), default="dvd", help="which disc to show the drawable part of")
+    sp.add_argument("--r-max", type=float, default=56.0, help="outer radius of the drawing, as in image")
+    sp.set_defaults(func=cmd_edit)
+
     sp = sub.add_parser("image", help="write a picture ISO placed with a measured geometry (grid test by default)")
     sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose")
     sp.add_argument("--output", default="iso/grid.iso")
     sp.add_argument("--picture", help="greyscale picture to threshold instead of the grid test")
+    sp.add_argument("--design", help="a design file saved by edit, instead of --picture")
     sp.add_argument("--design-npy", help="prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view")
     sp.add_argument("--diameter-mm", type=float, default=116.0, help="the picture's longer side on the disc, in mm; it keeps its shape")
     sp.add_argument("--r-max", type=float, default=56.0, help="outer radius of the drawing")

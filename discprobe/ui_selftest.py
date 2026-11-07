@@ -2317,6 +2317,282 @@ def _banner(c) -> None:
     c.check("▀" in still.stream.getvalue() and ui.SYNC_START not in still.stream.getvalue(), "no motion: one still frame of the same disc")
 
 
+def _editor(c) -> None:
+    import contextlib
+    import io
+    import json
+    import os
+    import tempfile
+    from argparse import Namespace
+    import numpy as np
+    from PIL import Image
+    from . import design, editor, imagedisc
+    from . import __main__ as cli
+    print("edit: placing a picture on the disc")
+    here = os.getcwd()
+    with tempfile.TemporaryDirectory() as d:
+        os.chdir(d)
+        try:
+            y, x = np.mgrid[0:300, 0:400]
+            Image.fromarray(((x / 400 * 255 + (y > 150) * 40) % 256).astype(np.uint8)).save("pic.png")
+            path = os.path.abspath("pic.png")
+            plain = design.Project([design.Layer(path)])
+            c.check((design.render(plain) == imagedisc.picture_design(path)).all(), "untouched, it is the same design as image --picture")
+
+            size = 600
+            base = design.render(plain, size)
+            moved = design.render(design.Project([design.Layer(path, x_mm=10.0, y_mm=-5.0)]), size)
+            c.check((moved[100:500, 150:450] == base[125:525, 100:400]).all(), "moving 10 mm right and 5 mm up moves the design by that many cells")
+            half = design.render(design.Project([design.Layer(path, size_mm=58.0)]), size)
+            c.check(np.ptp(np.flatnonzero(half.any(axis=0))) < np.ptp(np.flatnonzero(base.any(axis=0))) * 0.6, "half the size is about half as wide")
+            turned = design.render(design.Project([design.Layer(path, rotation_deg=90.0)]), size)
+            c.check((turned[:, 300] != base[:, 300]).any() and abs(float(turned.mean()) - float(base.mean())) < 0.01, "turning keeps how much is dark")
+            flipped = design.render(design.Project([design.Layer(path, invert=True)]), size)
+            inside = np.zeros((size, size), bool)
+            inside[75:525, 10:590] = True
+            c.check((flipped[inside] != base[inside]).mean() > 0.9, "swapping colours swaps the picture")
+            c.check(not flipped[:60, :].any(), "and what the picture doesn't cover stays light")
+            far = design.render(design.Project([design.Layer(path, x_mm=119.0, y_mm=119.0)]), size)
+            gone = design.render(design.Project([design.Layer(path, x_mm=120.0, y_mm=120.0, size_mm=1.0)]), size)
+            c.check(far.shape == (size, size) and not gone.any(), "a picture off the edge is cut, not an error")
+
+            rgba = np.zeros((100, 100, 4), np.uint8)
+            rgba[..., 3] = 0
+            rgba[25:75, 25:75, 3] = 255
+            Image.fromarray(rgba, "RGBA").save("clear.png")
+            clear = design.render(design.Project([design.Layer(path), design.Layer(os.path.abspath("clear.png"))]), size)
+            c.check((clear[10:40, 50:550] == base[10:40, 50:550]).all() and clear[250:350, 250:350].all(), "a clear part shows the picture below, a black part covers it")
+
+            sideways = Image.fromarray(np.tile((np.arange(80) > 40).astype(np.uint8) * 200, (40, 1)))
+            exif = Image.Exif()
+            exif[0x0112] = 6
+            sideways.save("phone.png", exif=exif)
+            sideways.transpose(Image.ROTATE_270).save("turned.png")
+            same = design.render(design.Project([design.Layer(os.path.abspath("phone.png"))]), size)
+            c.check((same == design.render(design.Project([design.Layer(os.path.abspath("turned.png"))]), size)).all(), "a phone's sideways photo comes out the way up it was taken")
+            c.check(design.read_source(os.path.abspath("phone.png")).shape == (40, 80) and (imagedisc.picture_design("phone.png") == imagedisc.picture_design("turned.png")).all(), "in edit and in image --picture alike")
+            c.check((design.render(design.Project([design.Layer(os.path.abspath("phone.png"))]), size) == design.render(design.Project([design.Layer(os.path.abspath("phone.png"))]), size, {os.path.abspath("phone.png"): design.read_source(os.path.abspath("phone.png"), 1024)})).all(), "a preview agrees with the full picture about which way up")
+
+            cut = design.render(design.Project([design.Layer(path, trim_left=0.25, trim_top=0.1)]), size)
+            c.check(not cut[:, :153].any() and not cut[:124].any() and (cut[130:, 160:] == base[130:, 160:]).all() and base[200:, :153].any(), "trimming hides those sides and leaves the rest where it was")
+            c.check(not design.render(design.Project([design.Layer(path, trim_left=0.6, trim_right=0.6)]), size).any(), "trimming everything away leaves nothing")
+            under = design.render(design.Project([design.Layer(path), design.Layer(os.path.abspath("clear.png"), trim_top=0.5)]), size)
+            c.check((under[170:290, 250:350] == base[170:290, 250:350]).all() and under[310:440, 160:440].all(), "where a picture on top is trimmed, the one below shows")
+            twisted = design.render(design.Project([design.Layer(path, rotation_deg=90.0, trim_left=0.25)]), size)
+            c.check(twisted.sum() < design.render(design.Project([design.Layer(path, rotation_deg=90.0)]), size).sum(), "trimming works on a turned picture")
+
+            two = np.full((64, 64), 20, np.uint8)
+            two[:, 32:] = 180
+            Image.fromarray(two).save("two.png")
+            found = design.auto_threshold(design.read_source("two.png"), design.Layer("two.png"))
+            c.check(20 / 255 < found <= 181 / 255, f"the best line falls between a picture's two shades ({found})")
+            Image.fromarray(np.full((9, 9), 90, np.uint8)).save("flat.png")
+            c.check(design.auto_threshold(design.read_source("flat.png"), design.Layer("flat.png")) is None, "a picture of one shade has none")
+            right_only = design.auto_threshold(design.read_source("two.png"), design.Layer("two.png", trim_left=0.5))
+            c.check(right_only is None, "and it looks only at what isn't trimmed")
+
+            os.mkdir("sub")
+            saved = design.Project([design.Layer(path, x_mm=3.5, y_mm=-1.0, size_mm=80.0, rotation_deg=45.0, threshold=0.3, invert=True, trim_left=0.1, trim_bottom=0.2)])
+            design.save(saved, os.path.join("sub", "a.json"))
+            with open(os.path.join("sub", "a.json"), encoding="utf-8") as f:
+                raw = json.load(f)
+            c.check(raw["layers"][0]["path"] == "../pic.png" and not os.path.exists(os.path.join("sub", "a.json.tmp")), "a project keeps its picture as a relative path")
+            again = design.load(os.path.join("sub", "a.json"))
+            c.check(again == saved, "and reads back the same")
+
+            def refused(text, *args):
+                with open("bad.json", "w", encoding="utf-8") as f:
+                    f.write(text)
+                try:
+                    design.load("bad.json")
+                except ValueError as e:
+                    return all(x in str(e) for x in args)
+                return False
+            c.check(refused("no", "not JSON"), "a file that isn't JSON says so")
+            c.check(refused('{"version": 1, "layers": []}', "no layers"), "nor one with no layers")
+            c.check(refused('{"version": 9, "layers": [{"path": "p"}]}', "version 9"), "a newer version says so")
+            c.check(refused('{"version": 1, "layers": [{"path": "p", "x_mm": "a"}]}', "x_mm"), "a bad number names the field")
+            c.check(refused('{"version": 1, "layers": [{"path": "p", "x_mm": NaN}]}', "x_mm"), "NaN is not a number here")
+            c.check(refused('{"version": 1, "layers": [{"path": "p", "trim_left": "a"}]}', "trim_left"), "nor is a bad trim")
+            design.save(design.Project([design.Layer(os.path.abspath("nope.png"))]), "lost.json")
+            try:
+                design.render(design.load("lost.json"))
+                c.check(False, "a lost picture says which")
+            except ValueError as e:
+                c.check("nope.png" in str(e), "a lost picture says which")
+
+            class Keys:
+                def __init__(self, presses):
+                    self.presses, self.closed = list(presses), False
+
+                def read(self):
+                    return [self.presses.pop(0)] if self.presses else ["\x03"]
+
+                def close(self):
+                    self.closed = True
+
+            class Screen:
+                ansi, blocks, truecolor = True, False, False
+
+                def __init__(self):
+                    self.stream = io.StringIO()
+
+                def can_prompt(self):
+                    return True
+
+                def style(self, text, name):
+                    return text
+
+            def opened():
+                project = design.Project([design.Layer(path)])
+                return editor.Editor(project, {path: design.read_source(path, design.PREVIEW_SOURCE_PX)}, Screen(), 24.5, 56.0)
+            e = opened()
+            for key in ("right", "right", "up", "+", "]", ".", "i"):
+                e.handle(key)
+            lay = e.layer
+            c.check((lay.x_mm, lay.y_mm, lay.size_mm, lay.rotation_deg, lay.threshold, lay.invert) == (4.0, -2.0, 118.0, 5.0, 0.55, True) and e.dirty, "keys move, size, turn, set the threshold and swap colours")
+            e.handle("\t")
+            e.handle("left")
+            c.check(e.layer.x_mm == 3.8, "Tab gives finer steps")
+            for _ in range(7):
+                e.handle("u")
+            c.check(e.layer == design.Layer(path, x_mm=2.0) and e.dirty, "u goes back one change at a time")
+            e.handle("u")
+            c.check(e.layer == design.Layer(path) and not e.dirty, "and back to the start, nothing left to save")
+            e.handle("u")
+            c.check(e.layer == design.Layer(path), "with nothing left, u does nothing")
+            e.handle("right")
+            e.handle("0")
+            c.check(e.layer == design.Layer(path), "0 starts again")
+            e.handle("u")
+            c.check(e.layer.x_mm == 0.2, "and that can be undone too")
+            for _ in range(20):
+                e.handle(",")
+            c.check(e.layer.threshold >= 0.01, "the threshold stays in range")
+            e = opened()
+            e.handle("c")
+            c.check(e.edge == "left" and any("left edge" in x for x in e.lines(100, 40)), "c trims, and says which edge")
+            c.check(e.lines(80, 24)[0].count("\x1b") == 0 and len(ANSI.sub("", e.lines(80, 24)[0])) < 80 and sum(1 for x in e.panel(None) if i18n.display_width(x) > editor.PANEL_WIDTH) == 0, "nothing in the panel needs cutting short")
+            e.handle("right")
+            c.check(e.layer.trim_left == 0.02 and e.layer.x_mm == 0.0, "the arrows move that edge, not the picture")
+            e.handle("up")
+            c.check(e.layer.trim_left == 0.02, "an arrow across the edge does nothing")
+            e.handle("left")
+            e.handle("left")
+            c.check(e.layer.trim_left == 0.0, "and it can't go past the picture")
+            for edge in ("right", "top", "bottom"):
+                e.handle("c")
+                c.check(e.edge == edge, f"c goes on to the {edge} edge")
+            e.handle("c")
+            c.check(e.edge is None, "and back to moving the picture")
+            e.handle("right")
+            c.check(e.layer.x_mm == 2.0, "the arrows move it again")
+            e = opened()
+            e.handle("c")
+            for _ in range(60):
+                e.handle("right")
+            e.handle("c")
+            for _ in range(60):
+                e.handle("left")
+            c.check(round(e.layer.trim_left + e.layer.trim_right, 3) <= 0.98 and e.layer.trim_right < 0.1, "two edges can't cross")
+            shown = "\n".join(e.lines(100, 40))
+            c.check("Trimmed" in shown, "what is trimmed shows")
+            e.handle("0")
+            c.check(e.layer == design.Layer(path), "0 starts again from that too")
+            e = opened()
+            e.layer = e.project.layers[-1] = design.Layer(path, threshold=0.05)
+            e.handle("a")
+            c.check(e.layer.threshold != 0.05 and e.dirty, "a finds the best line")
+            e.handle("u")
+            c.check(e.layer.threshold == 0.05, "and that can be undone")
+            e.handle("q")
+            c.check(not e.done and e.warned and any("Not saved" in x for x in e.lines(100, 40)), "q with changes asks first")
+            e.handle("right")
+            c.check(not e.warned, "and any other key carries on")
+            e.handle("q")
+            e.handle("q")
+            c.check(e.done and not e.save, "q twice leaves without saving")
+            e = opened()
+            e.handle("q")
+            c.check(e.done, "with no changes q just leaves")
+
+            for columns, rows in ((80, 24), (120, 50), (200, 60), (60, 40), (40, 12), (20, 5)):
+                drawn = opened().lines(columns, rows)
+                visible = [ANSI.sub("", x) for x in drawn]
+                c.check(len(drawn) <= rows and all(i18n.display_width(x) < max(columns, 11) for x in visible), f"it fits a {columns} x {rows} window")
+            e = opened()
+            before = e.lines(80, 24)
+            e.handle("[")
+            c.check(e.lines(80, 24) != before, "a change shows on the disc")
+            kept = e._drawn
+            e.lines(80, 24)
+            c.check(e._drawn is kept, "and nothing is drawn again until something changes")
+            c.check(any("cut off" in x for x in _editor_after(e, "+", 60)), "growing past the edge says how much is cut off")
+
+            term = Screen()
+            keys = Keys(["right", "\r"])
+            project = design.Project([design.Layer(path)])
+            c.check(editor.run(project, "pic.design.json", 24.5, 56.0, term, keys, lambda s: None) and keys.closed, "Enter saves")
+            shown = term.stream.getvalue()
+            c.check(shown.startswith("\x1b[?1049h") and shown.endswith("\x1b[?25h\x1b[?1049l"), "it uses its own screen and restores the cursor")
+            found, out = editor.start("pic.png", None)
+            c.check(out == "pic.design.json" and found.layers[0].x_mm == 2.0, "opening the picture again carries on from its design")
+            found, out = editor.start("pic.design.json", None)
+            c.check(out == "pic.design.json" and found.layers[0].path == path, "so does opening the design")
+            Image.fromarray(np.zeros((9, 9), np.uint8)).save("other.png")
+            Image.fromarray(np.zeros((9, 9), np.uint8)).save(os.path.join("sub", "pic.png"))
+            try:
+                editor.start(os.path.join("sub", "pic.png"), None)
+                c.check(False, "another picture of the same name won't overwrite a design")
+            except ValueError as err:
+                c.check("--output" in str(err), "another picture of the same name won't overwrite a design")
+            c.check(editor.start("other.png", None)[1] == "other.design.json", "a new picture gets its own name")
+            try:
+                editor.start("nope.png", None)
+                c.check(False, "a missing picture says so")
+            except ValueError as err:
+                c.check("nope.png" in str(err), "a missing picture says so")
+            quit_keys = Keys(["right", "q", "q"])
+            os.remove("pic.design.json")
+            c.check(not editor.run(design.Project([design.Layer(path)]), "pic.design.json", 24.5, 56.0, Screen(), quit_keys, lambda s: None) and not os.path.exists("pic.design.json"), "leaving saves nothing")
+
+            class Pipe(Screen):
+                def can_prompt(self):
+                    return False
+            try:
+                editor.run(design.Project([design.Layer(path)]), "x.json", 24.5, 56.0, Pipe())
+                c.check(False, "in a pipe it says what to do instead")
+            except ValueError as err:
+                c.check("--picture" in str(err) and not os.path.exists("x.json"), "in a pipe it says what to do instead")
+
+            advice = guide.after_edit("pic.design.json", "cd")
+            c.check("--media cd" in advice[1] and "--design pic.design.json" in advice[1], "edit says how to make the image")
+            try:
+                cli.cmd_image(Namespace(geo="x", media="dvd", design="a.json", picture="b.png", design_npy=None, along_track_frames=0))
+            except SystemExit as err:
+                c.check("one of them" in str(err.code) or "no such" in str(err.code), "image refuses --design with --picture")
+            try:
+                i18n.use("zh")
+                e = opened()
+                e.handle("q")
+                e = opened()
+                e.handle("+")
+                e.handle("q")
+                panel = e.panel(e._preview(44)[0])
+                c.check(not any(x.isascii() and x.strip() and x != "pic.png" for x in panel), "the panel has Chinese")
+                c.check(all(i18n.tr(x) != x for x in advice[:1]), "and so does the advice")
+            finally:
+                i18n.use("en")
+        finally:
+            os.chdir(here)
+
+
+def _editor_after(e, key: str, times: int) -> list[str]:
+    for _ in range(times):
+        e.handle(key)
+    return e.lines(100, 40)
+
+
 def _picker(c) -> None:
     import contextlib
     import datetime
@@ -2495,6 +2771,7 @@ def run(c) -> None:
     _status_counts(c)
     _results(c)
     _picker(c)
+    _editor(c)
     _advice(c)
     _command_line(c)
     _missing_package(c)

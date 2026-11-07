@@ -153,6 +153,8 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 
 `--geo latest` uses your newest real measurement that can be relied on and prints which one it chose; `results --pick` lets you choose by disc and drive, then by precision or date; a result folder or a `summary.json` path works too. Add `--correction correction.json` if you have a correction file. The picture's longer side spans 116 mm (`--diameter-mm` changes it) and it keeps its shape, with the rest left blank. Put the picture in the current folder, or give its full path, in quotes if it has spaces. The tool then samples sectors and compares them byte by byte with the design.
 
+To place the picture first, run `python -m discprobe edit my_picture.png`: arrow keys move it at the terminal, and after saving you replace `--picture my_picture.png` below with `--design my_picture.design.json`.
+
 ```bash
 python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
 ```

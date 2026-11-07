@@ -34,11 +34,11 @@ def _inner_mm(args) -> float:
     return 26.0 if getattr(args, "media", "dvd") == "cd" else 24.5
 
 
-def thumbnail(design: np.ndarray, r_min: float, r_max: float, t: ui.Term) -> list[str]:
+def thumbnail(design: np.ndarray, r_min: float, r_max: float, t: ui.Term, pixels: int = THUMB_PIXELS) -> list[str]:
     """Rows of the disc as it will be drawn, from the data side like the preview. Grey cannot be drawn on."""
-    block = imagedisc.SIZE // THUMB_PIXELS
-    dark = design[:block * THUMB_PIXELS, :block * THUMB_PIXELS].reshape(THUMB_PIXELS, block, THUMB_PIXELS, block).mean(axis=(1, 3))
-    radius = _radius_mm(THUMB_PIXELS)
+    block = design.shape[0] // pixels
+    dark = design[:block * pixels, :block * pixels].reshape(pixels, block, pixels, block).mean(axis=(1, 3))
+    radius = _radius_mm(pixels)
     on_disc = (radius <= imagedisc.HALF_MM) & (radius >= HOLE_MM)
     drawable = (radius >= r_min) & (radius <= r_max)
     if t.blocks and t.truecolor:
@@ -50,9 +50,9 @@ def thumbnail(design: np.ndarray, r_min: float, r_max: float, t: ui.Term) -> lis
             share = dark[y, x]
             return tuple(round(a + (b - a) * share) for a, b in zip(PAPER, INK))
         rows = []
-        for y in range(0, THUMB_PIXELS, 2):
+        for y in range(0, pixels, 2):
             cells = []
-            for x in range(THUMB_PIXELS):
+            for x in range(pixels):
                 top, low = pixel(y, x), pixel(y + 1, x)
                 if top and low:
                     cells.append((f"38;2;{top[0]};{top[1]};{top[2]};48;2;{low[0]};{low[1]};{low[2]}", "▀"))
@@ -64,9 +64,9 @@ def thumbnail(design: np.ndarray, r_min: float, r_max: float, t: ui.Term) -> lis
             rows.append("  " + ui._paint_runs(cells))
         return rows
     rows = []
-    for y in range(0, THUMB_PIXELS, 2):
+    for y in range(0, pixels, 2):
         row = ""
-        for x in range(THUMB_PIXELS):
+        for x in range(pixels):
             if not on_disc[y, x]:
                 row += " "
             elif not drawable[y, x]:

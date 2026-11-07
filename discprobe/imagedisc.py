@@ -56,6 +56,12 @@ def grid_design(r_min=24.5, r_max=56.0, spacing=5.0, line=0.3) -> np.ndarray:
     return dark & (r >= r_min) & (r <= r_max)
 
 
+def upright(im):
+    """The picture the way up it was taken: a phone stores a sideways frame and a note saying which way to turn it."""
+    from PIL import ImageOps
+    return ImageOps.exif_transpose(im) if im.getexif().get(0x0112, 1) != 1 else im
+
+
 def picture_design(path: str, diameter_mm: float = 116.0, threshold: float = 0.5) -> np.ndarray:
     """A grey picture fitted to a circle of the given diameter, thresholded (dark = True).
 
@@ -66,7 +72,8 @@ def picture_design(path: str, diameter_mm: float = 116.0, threshold: float = 0.5
     limit = Image.MAX_IMAGE_PIXELS
     Image.MAX_IMAGE_PIXELS = None       # Pillow's size limit guards against files from strangers; this one was chosen by hand
     try:
-        with Image.open(path) as im:
+        with Image.open(path) as opened:
+            im = upright(opened)
             longer = max(im.size)
             size = tuple(max(1, round(n * side / longer)) for side in im.size)
             g = np.asarray(im.convert("L").resize(size), dtype=np.float32) / 255
