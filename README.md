@@ -157,10 +157,12 @@ python -m discprobe image --geo latest --picture my_picture.png --output iso/pic
 
 在终端里，它结束时会画一张盘面缩略图，并提醒几乎全黑或全白、内容落在可绘制区域之外或盘中间、分辨率过低这类情况。这些只是提醒，不会阻止生成，判断的门槛也还没用真盘校准。刻之前先看预览图。刻完运行 `guide`，它会讲怎么看盘，以及看到不同结果该怎么办。
 
-想继续用 DiscImageStudio 的话，可以导出预设。`--sectors` 填你这张盘的扇区数（对空白盘运行 `info` 会打印，DiscImageStudio 里也填这个数；填多了可能封盘失败），半径范围填 `geo` 实际测到的范围，有修正文件的话同样加 `--correction correction.json`。`geo` 跑完打印的命令已经填好这些值。程序会打印和测量结果的转换误差，先看一眼再刻。目前预设要手动填进 DiscImageStudio：新建工程，填内外半径、扇区数和一二三次项：
+想继续用 DiscImageStudio 的话，可以导出预设。`--sectors` 填你这张盘的扇区数（对空白盘运行 `info` 会打印，DiscImageStudio 里也填这个数；填多了可能封盘失败），半径范围填 `geo` 实际测到的范围，有修正文件的话同样加 `--correction correction.json`。`geo` 跑完打印的命令已经填好这些值。程序会打印和测量结果的转换误差，先看一眼再刻。加上 `--install` 会把预设直接加进 DiscImageStudio 的用户预设文件（`%LOCALAPPDATA%\DiscImageStudio\disc-presets.json`），重启 DiscImageStudio 后就能在预设列表里选到：写之前先备份成 `disc-presets.json.<日期>-<时间>.bak`，每次都是新名字，所以最早那份备份始终是安装任何预设之前的文件。文件里的注释和尾逗号能读，但写回时会去掉；模拟盘的结果、中途停下的结果和噪声太大的结果会被拒绝。它不写的字段会原样保留，但值已经不适用时（比如 `usableSectors` 大于这次的扇区数）会删掉并提示，否则 DiscImageStudio 会因为这一个字段整个文件都读不了。不加 `--install` 则只生成 JSON，需要手动填：新建工程，填内外半径、扇区数和一二三次项：
 
 ```bash
 python -m discprobe disexport --geo latest --sectors 你的扇区数 --r-min 25.8 --r-max 54.5 --output dis_preset.json
+# 或者直接写进 DiscImageStudio 的预设列表（重启后生效）：
+python -m discprobe disexport --geo latest --sectors 你的扇区数 --r-min 25.8 --r-max 54.5 --install
 ```
 
 ### 第 5 步：看盘和拍照
@@ -201,8 +203,8 @@ CD 还有一个计时测不到的常数，所以要多刻一张标定盘。下�
    python -m discprobe geo --media cd --drive H: --speed 1411 --host-delay-ms 35 --ranges 2000-356000
    ```
 
-3. 导出预设。`geo` 跑完打印的 `disexport` 命令已经填好数值，直接复制。其中 `--sectors` 可能只是测量盘刻了多少，所以放一张空盘跑 `info`，不一样就改成 `info` 的数，DiscImageStudio 里也填这个数。有用户[报告](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19442161)它的“从光盘读取”给的数偏大，照它填封盘失败，所以不要用那个数。
-4. 精细标定，用第 2 张空盘。在 DiscImageStudio 里填入预设，到辅助标定页选精细标定，新建标靶，刻盘，拍照矫正，描点，反推并应用，再保存为预设。步骤见它的[辅助标定说明](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/CALIBRATION.md)。
+3. 导出预设。`geo` 跑完打印的 `disexport` 命令已经填好数值，直接复制。其中 `--sectors` 可能只是测量盘刻了多少，所以放一张空盘跑 `info`，不一样就改成 `info` 的数，DiscImageStudio 里也填这个数。有用户[报告](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19442161)它的“从光盘读取”给的数偏大，照它填封盘失败，所以不要用那个数。加上 `--install` 可以直接写进它的用户预设文件（写前备份成 `disc-presets.json.<日期>-<时间>.bak`，不会覆盖上一份；模拟盘、中途停下和噪声太大的结果会被拒绝），重启后就能在预设列表里选到。
+4. 精细标定，用第 2 张空盘。在 DiscImageStudio 里选刚导入的预设（没加 `--install` 就手动填入），到辅助标定页选精细标定，新建标靶，刻盘，拍照矫正，描点，反推并应用，再保存为预设。步骤见它的[辅助标定说明](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/CALIBRATION.md)。
 5. 用这组参数在 DiscImageStudio 里刻图，用第 3 张空盘。
 
 <a name="光驱兼容表"></a>

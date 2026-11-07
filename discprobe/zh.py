@@ -271,6 +271,8 @@ TEXT = {
     "Then check the drive with it (1 to 3 minutes):": "然后用这张盘检查光驱（1 到 3 分钟）：",
     "Next, check the angle difference above (well under 0.1 deg is fine), then enter the preset in DiscImageStudio": "下一步，看一下上面的角度差（远小于 0.1° 就行），然后把预设填进 DiscImageStudio",
     "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.en.md.": "（内外半径、扇区数、三个轨距项）。步骤见 docs/MANUAL.md。",
+    "(inner and outer radius, sectors, the three pitch terms), or run with --install to write it there. Steps: docs/MANUAL.en.md.": "（内外半径、扇区数、三个轨距项），或者加上 --install 让程序直接写进去。步骤见 docs/MANUAL.md。",
+    "Restart DiscImageStudio to load the updated preset list.": "重启 DiscImageStudio 以载入更新后的预设列表。",
     "Next, see where you are: {c}": "下一步，看看进行到哪了：{c}",
     "Try --sectors {a} ({b}). Enter the same number in DiscImageStudio. `info` on a blank disc is the count to go by: one user found read-from-disc there too high.":
         "试试 --sectors {a}（{b}）。DiscImageStudio 里也填这个数。以空白盘上 `info` 的数为准：有用户发现它的“从光盘读取”给的数偏大。",
@@ -492,6 +494,45 @@ TEXT = {
     "It is right as far as --read-offset-bytes ({x}) is right for this drive: check it once with a burned straight line.":
         "预设准不准，取决于 --read-offset-bytes（{x}）对这台光驱是否正确，请用实刻的一条直线核对一次。",
     "image and tiles do not take this result: they write a data track, which counts from another origin.": "image 和 tiles 不接受这个结果：它们写的是数据轨，起算点不同。",
+    "Created {p}": "已新建 {p}",
+    "Added preset '{i}' to {p}": "已把预设 {i} 加入 {p}",
+    "Replaced preset '{i}' in {p}": "已替换 {p} 里的预设 {i}",
+    "Re-enabled preset '{i}' in {p}": "已重新启用 {p} 里的预设 {i}",
+    "Preset '{i}' is already in {p} with the same values": "{p} 里已经有取值相同的预设 {i}，没有改动",
+    "Previous file saved as {p}": "原文件已备份为 {p}",
+    "Upgraded {p} from preset schema {a} to {b}": "已把 {p} 的预设格式从第 {a} 版升到第 {b} 版",
+    "Added the lists preset schema {a} needs to {p}": "已给 {p} 补上第 {a} 版预设需要的列表",
+    "Kept its {x}, which this tool does not write.": "保留了它原有的 {x}，这个字段本程序不负责写。",
+    "Rewrote the file as plain JSON, so its {x} are not kept.": "文件被改写成了纯 JSON，它原有的 {x} 没有保留。",
+    "Not installing this geo result: {x}": "不安装这个 geo 结果：{x}",
+    "this is a simulated run (the result folder says SIM), so the preset would describe a drive that does not exist. Measure a real disc, then install that result.":
+        "这是模拟盘的结果（结果文件夹名里带 SIM），预设描述的会是一台不存在的光驱。请先测一张真实的盘，再安装那次的结果。",
+    "this is a simulated run (its summary says so), so the preset would describe a drive that does not exist. Measure a real disc, then install that result.":
+        "这是模拟盘的结果（summary 里写了），预设描述的会是一台不存在的光驱。请先测一张真实的盘，再安装那次的结果。",
+    "this run stopped before the end ({x}), so the ladder never reached the fit. Run geo again and install a run that finished.":
+        "这次在测量结束前就停了（{x}），阶梯还没走到拟合。请重跑 geo，安装跑完的那一次。",
+    "this run has no geometry fit in its summary.json, so there is nothing to install.":
+        "这次的 summary.json 里没有几何拟合结果，没有东西可装。",
+    "this run measured {a} points, fewer than the {b} `results` needs before it trusts a fit. A preset is not the place to try one, and another run is the way to get there.":
+        "这次只测了 {a} 个点，比 `results` 信任一个拟合所需的 {b} 个少。预设不是试它的地方，换个时间再跑一次才是办法。",
+    "this run's fit leaves chi2/dof {a}; `results` already treats it as unusable, and a preset is not the place to try it.":
+        "这次拟合后 chi2/dof 是 {a}；`results` 已经认为它不能用，预设也不是试它的地方。",
+    "Note: this summary has no {x}, so that quality check did not run: it was measured by an older version of geo. The preset is still written; judge the run with `results` before using it.":
+        "注意：这份 summary 里没有 {x}，那项质量检查没能进行：它是由旧版 geo 测出来的。预设仍会写入；用之前请先用 `results` 判断这次跑得怎么样。",
+    "chi2_per_dof or angle_sigma_measured_span_deg": "chi2_per_dof 和 angle_sigma_measured_span_deg",
+    "Dropped its {x}, which DiscImageStudio would refuse.":
+        "删掉了它原有的 {x}，否则 DiscImageStudio 会拒绝整个文件。",
+    "this run is too noisy to rely on: angles are known to only {a} deg over the measured span ({b}). Another speed usually helps; `results` lists what you have.":
+        "这次的噪声太大，不能依赖：在测量范围内角度只知道到 {a}°（{b}）。通常换个速度会好一些；`results` 会列出你现有的结果。",
+    "--output and the DiscImageStudio preset file are the same file ({p}). The export would overwrite your presets before they are read, so nothing was written. Use another --output name, or omit --output and let --install write only the preset file.":
+        "--output 和 DiscImageStudio 的预设文件是同一个文件（{p}）。导出会先把你的预设覆盖掉，之后才轮到安装，所以这次什么都没写。请换一个 --output 文件名，或者省掉 --output，让 --install 只写预设文件。",
+    "--dis-presets and --replace only work together with --install": "--dis-presets 和 --replace 只能和 --install 一起用",
+    "also add the preset to DiscImageStudio's user preset file (Windows; created when missing; restart DiscImageStudio afterwards)":
+        "同时把预设加进 DiscImageStudio 的用户预设文件（Windows；文件不存在时会新建；之后要重启 DiscImageStudio）",
+    "with --install: the disc-presets.json to write; default %%LOCALAPPDATA%%\\DiscImageStudio\\disc-presets.json":
+        "配合 --install：要写入的 disc-presets.json；默认 %%LOCALAPPDATA%%\\DiscImageStudio\\disc-presets.json",
+    "with --install: overwrite an existing preset with the same --id but different values":
+        "配合 --install：覆盖同一 --id 但取值不同的现有预设",
     "Timing cannot see the CD along-track constant and none was given, so radial lines may come out twisted. Measure it on a burned disc, then use --along-track-frames.":
         "计时测不到 CD 的沿轨常数，而你也没有提供，所以径向线可能会扭曲。请在刻好的盘上测出它，再用 --along-track-frames。",
     "the preset misses the measured map by {a} deg over {b}-{c} mm (outer radius came out {d} mm); check --sectors and the fit range. No preset written.":
@@ -713,10 +754,12 @@ DiscImageStudio 刻的 CD 图（一条音轨）：同一条命令直接测这张
     "disexport": """\
 例子：
   python -m discprobe disexport --geo latest --sectors <sectors> --r-min 25.8 --r-max 54.4 --output dis_preset.json
+  python -m discprobe disexport --geo latest --sectors <sectors> --install
   python -m discprobe disexport --geo latest --sectors <sectors> --correction correction.json --output dis_preset_cd.json
 
 --sectors 是盘的容量：看空白盘上的 `info`，DiscImageStudio 里也填这个数。
 有用户发现它的“从光盘读取”给的数偏大。和 timing --sectors 不是一回事。
+--install 会把预设直接加进 DiscImageStudio 的用户预设文件；重启 DiscImageStudio 后就能选。
 --geo 可以写 summary.json、geo 结果文件夹、latest，或 pick（手动选）。CD 的结果会生成 CD 预设；--media 只用来核对。""",
     "results": """\
 例子：

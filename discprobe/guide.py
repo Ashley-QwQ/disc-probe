@@ -188,6 +188,89 @@ def passed_over(chosen: Result, media: str | None = None, out: str = "results") 
     return sum(r.geo_complete() and not r.simulated and not r.reliable() and r.when > chosen.when and (media is None or r.media == media) for r in scan(out))
 
 
+def _simulated(summary: dict) -> bool:
+    """Whether a geo summary says it came from a simulated drive.
+
+    `geo --sim` does not record that in its summary yet; the result folder's SIM tag is the only
+    signal for now, and the summary field is read as soon as geo writes one. A renamed folder
+    therefore still gets through, which is why the two are checked apart.
+    """
+    for holder in (summary, summary.get("setup") or {}, summary.get("identity") or {}):
+        if isinstance(holder, dict) and holder.get("simulated"):
+            return True
+    return False
+
+
+def _quality_number(fit: dict, name: str) -> float | None:
+    """A quality figure from the fit, or None when this summary predates it."""
+    value = fit.get(name)
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
+def install_blocker(geo_summary: str) -> str | None:
+    """Why a geo result must not be installed as a DiscImageStudio preset, or None when it may.
+
+    A preset outlives the run it came from: it is used to cut discs, and nothing later says it
+    came from a simulated drive, a ladder that stopped, or a fit that `results` calls too
+    noisy. Everything else in the tool refuses those three, so the install does too. A CD-DA
+    result is allowed: it is what DiscImageStudio's audio path is for, and it passes the same
+    checks. A quality figure that is missing is not read as zero; `install_warning` says which
+    ones could not be checked.
+    """
+    path = os.path.abspath(geo_summary)
+    folder = os.path.dirname(path)
+    summary = _load(path)
+    if summary is not None and _simulated(summary):
+        return ("this is a simulated run (its summary says so), so the preset would describe a drive that "
+                "does not exist. Measure a real disc, then install that result.")
+    m = RESULT_DIR.match(os.path.basename(folder))
+    if m and (m["tag"] or "").startswith("SIM"):
+        return ("this is a simulated run (the result folder says SIM), so the preset would describe a drive "
+                "that does not exist. Measure a real disc, then install that result.")
+    if not summary:
+        return None            # not ours to judge: disexport reads the same file and reports what is wrong
+    stopped = summary.get("stopped")
+    if stopped:
+        return (f"this run stopped before the end ({i18n.tr(str(stopped))}), so the ladder never reached the "
+                f"fit. Run geo again and install a run that finished.")
+    fit = summary.get("fit") or {}
+    if "u" not in fit:
+        return "this run has no geometry fit in its summary.json, so there is nothing to install."
+    rungs = None
+    try:
+        with open(os.path.join(folder, "targets.csv"), encoding="utf-8") as f:
+            rungs = max(0, sum(1 for _ in f) - 1)
+    except OSError:
+        pass
+    if rungs is not None and rungs < MIN_RUNGS:
+        return (f"this run measured {rungs} points, fewer than the {MIN_RUNGS} `results` needs before it trusts a "
+                f"fit. A preset is not the place to try one, and another run is the way to get there.")
+    chi2 = _quality_number(fit, "chi2_per_dof")
+    if chi2 is not None and chi2 > MAX_LATEST_CHI2:
+        return (f"this run's fit leaves chi2/dof {chi2:.1f}; `results` already treats it as unusable, and a "
+                f"preset is not the place to try it.")
+    sigma = _quality_number(fit, "angle_sigma_measured_span_deg")
+    if sigma is not None and sigma > BAD_SIGMA_DEG:
+        return (f"this run is too noisy to rely on: angles are known to only {sigma:.2f} deg over the measured "
+                f"span ({_angle(sigma)}). Another speed usually helps; `results` lists what you have.")
+    return None
+
+
+def install_warning(geo_summary: str) -> str | None:
+    """What could not be checked before installing, or None when everything could.
+
+    Said out loud rather than left silent: a summary written before a figure existed would
+    otherwise look like a run that passed the check.
+    """
+    fit = ((_load(os.path.abspath(geo_summary)) or {}).get("fit") or {})
+    missing = [name for name in ("chi2_per_dof", "angle_sigma_measured_span_deg")
+               if _quality_number(fit, name) is None]
+    if not missing:
+        return None
+    return (f"this summary has no {' or '.join(missing)}, so that quality check did not run: it was measured by "
+            f"an older version of geo. The preset is still written; judge the run with `results` before using it.")
+
+
 def info_runs(out: str = "results") -> list[Result]:
     return [r for r in scan(out) if r.kind == "info"]
 
@@ -662,9 +745,13 @@ def after_selftest() -> list[str]:
     return [f"Next, see where you are: {PROG} guide"]
 
 
-def after_disexport(cd_constant_open: bool = False) -> list[str]:
-    lines = ["Next, check the angle difference above (well under 0.1 deg is fine), then enter the preset in DiscImageStudio",
-             "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.en.md."]
+def after_disexport(cd_constant_open: bool = False, installed: bool = False) -> list[str]:
+    if installed:
+        lines = []
+    else:
+        lines = ["Next, check the angle difference above (well under 0.1 deg is fine), then enter the preset in DiscImageStudio",
+                 "(inner and outer radius, sectors, the three pitch terms), or run with --install to write it there. "
+                 "Steps: docs/MANUAL.en.md."]
     if cd_constant_open:
         lines.append("On the CD route you can skip --along-track-frames: fine calibration in DiscImageStudio settles that constant.")
     return lines
