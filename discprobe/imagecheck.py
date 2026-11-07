@@ -77,7 +77,7 @@ def thumbnail(design: np.ndarray, r_min: float, r_max: float, t: ui.Term) -> lis
     return rows
 
 
-def _source_notes(path: str) -> list[str]:
+def _source_notes(path: str, diameter_mm: float = 116.0) -> list[str]:
     """What only the original file can tell. A file that can't be read again just adds nothing."""
     from PIL import Image
     notes = []
@@ -88,7 +88,7 @@ def _source_notes(path: str) -> list[str]:
     except OSError:
         return []
     if abs(width / height - 1) > 0.02:
-        notes.append(f"{width} x {height} is not square, so it gets stretched to fit. Crop it to a square first if that matters.")
+        notes.append(f"{width} x {height} is not square: it keeps its shape, its longer side fills {diameter_mm:g} mm, and the short sides stay light.")
     if max(width, height) < SMALLEST_SIDE_PX:
         notes.append(f"The picture is only {width} x {height} pixels, so its edges will look blocky once enlarged.")
     elif max(width, height) > LARGEST_SIDE_PX:
@@ -111,7 +111,7 @@ def notes(design: np.ndarray, picture: str | None, diameter_mm: float, r_min: fl
     elif share < SHARE_ALL_LIGHT:
         found.append("Almost all of it came out light, so little will show on the disc.")
     total = d.sum()
-    source = _source_notes(picture) if picture else []
+    source = _source_notes(picture, diameter_mm) if picture else []
     if total:
         outside, inside = (d & (radius > r_max)).sum() / total, (d & (radius < r_min)).sum() / total
         if outside >= SHARE_LOST:

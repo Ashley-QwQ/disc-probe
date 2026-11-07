@@ -454,6 +454,14 @@ def _first_steps(c) -> None:
             Image.new("L", (300, 100), 128).save(path)
             noted = imagecheck._source_notes(path)
             c.check(any("not square" in x for x in noted) and any("blocky" in x for x in noted) and any("mid grey" in x for x in noted), "the file itself: its shape, size and greys")
+            dark = os.path.join("iso", "dark_wide.png")
+            Image.new("L", (300, 100), 0).save(dark)
+            drawn = imagedisc.picture_design(dark, 90.0)
+            high = np.flatnonzero(drawn.any(axis=1))
+            wide_mm = np.flatnonzero(drawn.any(axis=0))
+            said = next(x for x in imagecheck._source_notes(dark, 90.0) if "not square" in x)
+            c.check(round((wide_mm[-1] - wide_mm[0] + 1) * imagedisc.CELL_MM) == 90 and round((high[-1] - high[0] + 1) * imagedisc.CELL_MM) == 30
+                    and "keeps its shape" in said and "90 mm" in said, "and what it says about the shape is what the design does")
             c.check(imagecheck._source_notes(os.path.join("iso", "nope.png")) == [], "a file that can't be read adds nothing")
             i18n.use("zh")
             try:

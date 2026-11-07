@@ -257,7 +257,7 @@ TEXT = {
     "About {p}% of its dark area falls outside the part of the disc that can be drawn on, so it is cut off.": "深色部分约有 {p}% 落在可绘制区域之外，会被裁掉。",
     "About {p}% of its dark area falls in the middle of the disc, where nothing can be drawn.": "深色部分约有 {p}% 落在盘的中间，那里刻不了。",
     "It only fills a small part of the disc. Check that is what you want.": "图案只占盘面的一小块，确认一下是不是你想要的。",
-    "{w} x {h} is not square, so it gets stretched to fit. Crop it to a square first if that matters.": "{w} x {h} 不是正方形，会被拉伸。介意的话先裁成正方形。",
+    "{w} x {h} is not square: it keeps its shape, its longer side fills {d} mm, and the short sides stay light.": "{w} x {h} 不是正方形：比例不变，长边占满 {d} mm，短边方向两侧留白。",
     "The picture is only {w} x {h} pixels, so its edges will look blocky once enlarged.": "这张图只有 {w} x {h} 像素，放大后边缘会有锯齿。",
     "The picture is {w} x {h} pixels, far more than a disc can show, so fine lines may vanish.": "这张图有 {w} x {h} 像素，远超盘面能显示的精度，细线可能会消失。",
     "Much of the picture is mid grey, and it comes out only black or white. More contrast first may keep the detail.": "这张图灰度很多，而刻出来只有黑白两色。先调高对比度可以多保留一些细节。",
