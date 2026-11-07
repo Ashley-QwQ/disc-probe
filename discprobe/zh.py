@@ -250,7 +250,36 @@ TEXT = {
     "no results in {o}": "{o} 里没有结果",
     "no complete {k} result in {o}": "{o} 里没有完整的 {k} 结果",
     "... and {n} older (-n {m} shows all)": "……还有 {n} 个更早的（-n {m} 显示全部）",
-    "Using the latest geo result: {p}": "使用最新的 geo 结果：{p}",
+    "Using the latest geo result: {p}": "使用最新的可靠 geo 结果：{p}",
+    "Using the geo result you chose: {p}": "使用你选的 geo 结果：{p}",
+    "It was judged too noisy to rely on, and there is nothing better. To see them all: python -m discprobe results --pick": "这次被判定噪声太大、不能依赖，也没有更好的结果。想看全部：python -m discprobe results --pick",
+    "Left out {n} newer run(s) judged too noisy. To see them all: python -m discprobe results --pick": "跳过了 {n} 次判定噪声太大的较新结果。想看全部：python -m discprobe results --pick",
+    "You chose: {p} ({d})": "你选的是：{p}（{d}）",
+    "Use it with:": "这样使用：",
+    "Nothing chosen.": "没有选择。",
+    "There are no geo results to choose from in {o}. Run geo first.": "{o} 里还没有可选的 geo 结果。先运行 geo。",
+    "--geo pick needs a terminal. Give a result's folder, or see them with: results --pick": "--geo pick 需要在终端里使用。请给出结果文件夹，或者用 results --pick 查看。",
+    "Choose a disc (arrows move, Enter opens, q quits)": "选择盘（方向键移动，回车进入，q 退出）",
+    "(s sort, r reverse, Enter chooses, left goes back, q quits)": "（s 换排序，r 反过来，回车选择，左键返回，q 退出）",
+    "~ matched from an info run near the same time, as older results didn't record the disc": "~ 旧结果没有记录盘型，这是按时间相近的 info 记录匹配的",
+    "Which number? Enter alone cancels: ": "选哪一个？输入序号，直接回车取消：",
+    "runs": "次",
+    "best": "最好",
+    "points": "个点",
+    "default": "默认",
+    "good": "好",
+    "usable": "能用",
+    "too noisy": "噪声太大",
+    "narrow span": "只测了一小段",
+    "stopped early": "中途停下",
+    "most precise first": "按精度：最好的在前",
+    "least precise first": "按精度：最差的在前",
+    "newest first": "按日期：最新的在前",
+    "oldest first": "按日期：最早的在前",
+    "print only the newest folder, skipping simulated runs, stopped geo runs and ones judged too noisy": "只显示最新的文件夹，跳过模拟的、中途停下的和判定噪声太大的 geo 结果",
+    "choose a geo result: by disc and drive, then by precision or date": "选择 geo 结果：先按盘和光驱，再按精度或日期",
+    "for --pick: what to sort by (default: precision)": "配合 --pick：按什么排序（默认：精度）",
+    "for --pick: the other way round": "配合 --pick：反过来排",
     "--geo latest: only simulated or stopped runs were found in {o}. Run geo first, or give a summary.json path.":
         "--geo latest：{o} 里只有模拟的或中途停下的结果。先运行 geo，或者给出 summary.json 的路径。",
     "--geo latest: there is no geo result yet in {o}. Run geo first, or give a summary.json path.":
@@ -482,7 +511,7 @@ TEXT = {
     "reference/target read pairs per rung": "每个测量点读多少对（基准 / 目标）",
     "prior geometry (loose)": "初始几何估计（宽松）",
     "stop when chi2/dof of the constant-pitch fit exceeds this; raise it for media whose pitch varies (CD: a smooth S of a few degrees), the 90-degree residual check still catches whole-turn errors": "恒定轨距拟合的误差比 (chi2/dof) 超过这个值就停止；轨距本来有变化的盘可以调大（CD 常有几度的平滑 S 形），90° 残差检查仍能发现数错整圈",
-    "summary.json of a geo run, its folder, or latest": "geo 结果的 summary.json、它所在的文件夹，或 latest（最新一次）",
+    "summary.json of a geo run, its folder, latest, or pick to choose": "geo 结果的 summary.json、它所在的文件夹、latest（最新一次可靠的结果），或 pick（手动选）",
     "greyscale picture to threshold instead of the grid test": "用这张灰度图代替网格测试图",
     "prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view": "准备好的布尔图案（True 为深色），6000 x 6000 格，每格 0.02 mm，从数据面看",
     "the picture's longer side on the disc, in mm; it keeps its shape": "图片长边在盘上的长度（mm），保持比例",
@@ -506,7 +535,7 @@ TEXT = {
     "let the (weak) mirror test decide orientation": "让（不太可靠的）镜像测试决定方向",
     "phi.csv files written by gridscan": "gridscan 生成的 phi.csv",
     "summary.json of the geo run the grid disc was burned with (recorded only)": "刻网格盘时所用 geo 结果的 summary.json（只作记录）",
-    "summary.json of a geo run, its folder, or latest; a CD fit gives a CD preset": "geo 结果的 summary.json、它所在的文件夹，或 latest；CD 的结果会生成 CD 预设",
+    "summary.json of a geo run, its folder, latest, or pick to choose; a CD fit gives a CD preset": "geo 结果的 summary.json、它所在的文件夹、latest，或 pick（手动选）；CD 的结果会生成 CD 预设",
     "angle-correction file from the correction command": "correction 命令生成的角度修正文件",
     "the disc's capacity, not how much was burned (`info` on a blank disc prints it); required": "盘的容量，不是刻了多少（对空白盘运行 `info` 会打印）；必填",
     "how much to burn, not the disc size; it has to fit on the blank": "要刻多少，不是盘的容量；要放得下这张空盘",
@@ -585,7 +614,7 @@ zsh：
   python -m discprobe image --geo results/geo-E-20261105-120000 --correction correction.json --picture my_picture.png
   python -m discprobe image --media cd --geo latest --along-track-frames 206 --output iso/cd-grid.iso
 
---geo 可以写 summary.json、geo 结果文件夹，或 latest（最新一次完整的真实测量）。""",
+--geo 可以写 summary.json、geo 结果文件夹、latest（最新一次可靠的真实测量），或 pick（手动选）。""",
     "disexport": """\
 例子：
   python -m discprobe disexport --geo latest --sectors <sectors> --r-min 25.8 --r-max 54.4 --output dis_preset.json
@@ -593,12 +622,13 @@ zsh：
 
 --sectors 是盘的容量：看空白盘上的 `info`，DiscImageStudio 里也填这个数。
 有用户发现它的“从光盘读取”给的数偏大。和 timing --sectors 不是一回事。
---geo 可以写 summary.json、geo 结果文件夹，或 latest。CD 的结果会生成 CD 预设；--media 只用来核对。""",
+--geo 可以写 summary.json、geo 结果文件夹、latest，或 pick（手动选）。CD 的结果会生成 CD 预设；--media 只用来核对。""",
     "results": """\
 例子：
   python -m discprobe results                 按时间列出运行过的测量，最新的在前
   python -m discprobe results geo             只看 geo
-  python -m discprobe results geo --latest    只打印最新的完整真实结果文件夹，方便写脚本""",
+  python -m discprobe results geo --latest    只打印最新一次可靠结果的文件夹，脚本里用
+  python -m discprobe results --pick          选择 geo 结果：先按盘和光驱，再按精度或日期""",
     "guide": """\
 读取结果文件夹，显示哪些步骤已完成，并打印下一条命令。不会操作光驱。""",
 }
