@@ -459,6 +459,22 @@ def _disinstall(c: Checker):
             c.check(json.load(f)["cdPresets"][0]["description"] == "test",
                     "the first backup still holds the file as it was before any install")
 
+        # A file the install leaves alone keeps its comments, so nothing was lost to report.
+        commented = os.path.join(d, "commented", "disc-presets.json")
+        os.makedirs(os.path.dirname(commented))
+        with open(commented, "w", encoding="utf-8") as f:
+            f.write('{\n  // same preset, with a comment\n  "schemaVersion": 4,\n  "cdPresets": [\n    '
+                    + json.dumps(preset) + ',\n  ],\n  "dvdPresets": [],\n  "bluRayPresets": [],\n'
+                    '  "disabledCdPresetIds": [],\n  "disabledDvdPresetIds": [],\n'
+                    '  "disabledBluRayPresetIds": []\n}\n')
+        with open(commented, "rb") as f:
+            before = f.read()
+        r = disinstall.install(preset, commented)
+        with open(commented, "rb") as f:
+            after = f.read()
+        c.check(r["action"] == "unchanged" and r["dropped"] == [] and after == before,
+                "a file that is not rewritten does not report lost comments")
+
         # A field DiscImageStudio's newer schema has and this tool does not write.
         with open(path, encoding="utf-8") as f:
             doc = json.load(f)
@@ -473,6 +489,27 @@ def _disinstall(c: Checker):
             doc = json.load(f)
         c.check(doc["cdPresets"][0]["usableSectors"] == 330000 and r["kept"] == ["usableSectors"],
                 "--replace keeps a field this tool does not write")
+
+        # A usable sector count the merged preset cannot hold: DiscImageStudio refuses the whole
+        # file over it, so it is dropped and said out loud rather than kept.
+        with open(path, encoding="utf-8") as f:
+            doc = json.load(f)
+        doc["cdPresets"][0]["usableSectors"] = 400000
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(doc, f)
+        r = disinstall.install({**preset, "description": "fifth"}, path, replace=True)
+        with open(path, encoding="utf-8") as f:
+            doc = json.load(f)
+        c.check(r["dropped_fields"] == ["usableSectors"] and "usableSectors" not in doc["cdPresets"][0]
+                and r["kept"] == [], "a usableSectors the new total cannot hold is dropped, not written")
+        drop = disinstall._drop_unusable_fields
+        c.check(drop({"sectors": 1008, "usableSectors": 1984}) == ["usableSectors"],
+                "1984 usable sectors against 1008 total is dropped")
+        c.check(drop({"totalSectors": 1000, "usableSectors": 1001}) == ["usableSectors"],
+                "a usableSectors above the total is dropped")
+        c.check(drop({"totalSectors": 1008, "usableSectors": 990}) == ["usableSectors"],
+                "a DVD usableSectors that is not a multiple of 16 is dropped")
+        c.check(drop({"sectors": 1008, "usableSectors": 1008}) == [], "a usableSectors that fits is kept")
 
         with open(path, "w", encoding="utf-8") as f:
             f.write('{\n  // schema 3\n  "schemaVersion": 3,\n  /* no Blu-ray list yet */\n  "cdPresets": [\n'
@@ -567,6 +604,21 @@ def _install_blocker(c: Checker):
         audio = {"fit": {**fit, "track": "audio"}, "stopped": None}
         c.check(guide.install_blocker(result(root, "G-6", audio)) is None,
                 "a CD-DA result is allowed: it is what the audio path of DiscImageStudio is for")
+        # The source is not in the summary yet, so a renamed folder is caught by the field once
+        # geo writes one; until then the folder name is the only signal.
+        sim = guide.install_blocker(result(root, "G-7", {**good, "simulated": True}))
+        c.check(sim is not None and "summary says so" in sim,
+                "a summary that records a simulated drive is refused even in a renamed folder")
+        plain = result(root, "G-8", good)
+        c.check(guide.install_warning(plain) is None, "a summary with both quality figures needs no warning")
+        thin = result(root, "G-9", {"fit": {k: v for k, v in fit.items()
+                                            if k not in ("chi2_per_dof", "angle_sigma_measured_span_deg")}})
+        warning = guide.install_warning(thin)
+        c.check(guide.install_blocker(thin) is None and warning is not None
+                and "no chi2_per_dof" in warning,
+                "a summary without quality figures installs, and says which check did not run")
+        c.check(guide.install_blocker(result(root, "G-10", {"fit": {**fit, "chi2_per_dof": None}})) is None,
+                "a chi2 of None is not read as zero, so the run is not refused for it")
 
 
 def _efmplus(c: Checker):

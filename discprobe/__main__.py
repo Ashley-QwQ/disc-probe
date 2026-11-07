@@ -638,6 +638,9 @@ def cmd_disexport(args):
         blocker = guide.install_blocker(args.geo)
         if blocker:
             _fail(f"Not installing this geo result: {blocker}")
+        warning = guide.install_warning(args.geo)
+        if warning:
+            print(f"Note: {warning}")
     span = fit["measured_span_mm"] if is_cd else (25.8, 54.4)
     try:
         out = export(args.geo, args.sectors, args.correction, args.output,
@@ -685,6 +688,8 @@ def cmd_disexport(args):
             print(f"Preset '{preset_id}' is already in {result['path']} with the same values")
         if result["kept"]:
             print(f"Kept its {', '.join(result['kept'])}, which this tool does not write.")
+        if result["dropped_fields"]:
+            print(f"Dropped its {', '.join(result['dropped_fields'])}, which DiscImageStudio would refuse.")
         if result["dropped"]:
             print(f"Rewrote the file as plain JSON, so its {' and '.join(result['dropped'])} are not kept.")
         if result["backup"]:

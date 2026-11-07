@@ -80,8 +80,10 @@ def install(preset: dict, path: str | None = None, replace: bool = False) -> dic
 
     Keys: action (added, replaced, enabled, unchanged), path, backup, created, count,
     upgraded, dropped (the tolerant syntax the rewrite did not keep), kept (fields of the
-    existing preset this tool does not write, and carried over). The file is not rewritten
-    when the preset is already there unchanged.
+    existing preset this tool does not write, and carried over), dropped_fields (fields of the
+    existing preset left out because DiscImageStudio would refuse their value). The file is not
+    rewritten when the preset is already there unchanged, and then nothing is reported as
+    dropped, because nothing was written.
     """
     family = _family(preset)
     _validate_preset(preset)
@@ -101,6 +103,7 @@ def install(preset: dict, path: str | None = None, replace: bool = False) -> dic
     disabled = document.get(disabled_key)
     was_disabled = isinstance(disabled, list) and preset["id"] in disabled
     kept: list[str] = []
+    dropped_fields: list[str] = []
 
     if index is None:
         items.append(preset)
@@ -112,13 +115,19 @@ def install(preset: dict, path: str | None = None, replace: bool = False) -> dic
                            f"pass --replace to overwrite it, or --id to add it under another id")
     else:
         kept = sorted(key for key in items[index] if key not in preset)
-        items[index] = {**items[index], **preset}
+        merged = {**items[index], **preset}
+        dropped_fields = _drop_unusable_fields(merged)
+        if dropped_fields:
+            kept = [key for key in kept if key not in dropped_fields]
+        items[index] = merged
         action = "replaced"
     if was_disabled:
         disabled.remove(preset["id"])
         if action == "unchanged":
             action = "enabled"
     changed = created or upgraded or action != "unchanged"
+    # Only a file that is actually rewritten can lose its comments and trailing commas.
+    dropped = dropped if changed else []
     backup = None
     if changed:
         if not created:
@@ -134,7 +143,34 @@ def install(preset: dict, path: str | None = None, replace: bool = False) -> dic
             raise InstallError(f"cannot write {path}: {e.strerror or e}") from None
     return {"action": action, "path": path, "backup": backup, "created": created,
             "count": len(items), "upgraded": upgraded, "from_schema": from_schema,
-            "dropped": dropped, "kept": kept}
+            "dropped": dropped, "kept": kept, "dropped_fields": dropped_fields}
+
+
+def _drop_unusable_fields(preset: dict) -> list[str]:
+    """Remove fields that would make the merged preset invalid for DiscImageStudio.
+
+    A preset merged from an older one can carry values the current app refuses. It validates the
+    whole file on load and falls back to the built-in presets when that fails, so one stale field
+    would hide every user preset. `usableSectors` must be positive, within the total, and a
+    multiple of 1 on CD and 16 elsewhere (DiscPresetJsonStore.ValidateUsableSectors); optional
+    text must not be blank when it is present. The fields are dropped rather than refused: they
+    are not ours, and a preset that would otherwise install is worth keeping.
+    """
+    dropped = []
+    if "usableSectors" in preset:
+        total = preset.get("sectors", preset.get("totalSectors"))
+        usable = preset["usableSectors"]
+        alignment = 1 if "sectors" in preset else 16
+        if (not isinstance(usable, int) or isinstance(usable, bool) or not isinstance(total, int)
+                or usable <= 0 or usable > total or usable % alignment):
+            del preset["usableSectors"]
+            dropped.append("usableSectors")
+    for name in ("displayNameResourceKey", "descriptionResourceKey", "contributor"):
+        value = preset.get(name)
+        if value is not None and (not isinstance(value, str) or not value.strip()):
+            del preset[name]
+            dropped.append(name)
+    return dropped
 
 
 def _same_values(existing: dict, preset: dict) -> bool:

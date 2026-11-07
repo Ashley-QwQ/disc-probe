@@ -507,12 +507,21 @@ TEXT = {
     "Not installing this geo result: {x}": "不安装这个 geo 结果：{x}",
     "this is a simulated run (the result folder says SIM), so the preset would describe a drive that does not exist. Measure a real disc, then install that result.":
         "这是模拟盘的结果（结果文件夹名里带 SIM），预设描述的会是一台不存在的光驱。请先测一张真实的盘，再安装那次的结果。",
+    "this is a simulated run (its summary says so), so the preset would describe a drive that does not exist. Measure a real disc, then install that result.":
+        "这是模拟盘的结果（summary 里写了），预设描述的会是一台不存在的光驱。请先测一张真实的盘，再安装那次的结果。",
     "this run stopped before the end ({x}), so the ladder never reached the fit. Run geo again and install a run that finished.":
         "这次在测量结束前就停了（{x}），阶梯还没走到拟合。请重跑 geo，安装跑完的那一次。",
     "this run has no geometry fit in its summary.json, so there is nothing to install.":
         "这次的 summary.json 里没有几何拟合结果，没有东西可装。",
-    "this run measured {a} points and its fit leaves chi2/dof {b}; `results` already treats it as unusable, and a preset is not the place to try it.":
-        "这次只测了 {a} 个点，拟合后 chi2/dof 是 {b}；`results` 已经认为它不能用，预设也不是试它的地方。",
+    "this run measured {a} points, fewer than the {b} `results` needs before it trusts a fit. A preset is not the place to try one, and another run is the way to get there.":
+        "这次只测了 {a} 个点，比 `results` 信任一个拟合所需的 {b} 个少。预设不是试它的地方，换个时间再跑一次才是办法。",
+    "this run's fit leaves chi2/dof {a}; `results` already treats it as unusable, and a preset is not the place to try it.":
+        "这次拟合后 chi2/dof 是 {a}；`results` 已经认为它不能用，预设也不是试它的地方。",
+    "Note: this summary has no {x}, so that quality check did not run: it was measured by an older version of geo. The preset is still written; judge the run with `results` before using it.":
+        "注意：这份 summary 里没有 {x}，那项质量检查没能进行：它是由旧版 geo 测出来的。预设仍会写入；用之前请先用 `results` 判断这次跑得怎么样。",
+    "chi2_per_dof or angle_sigma_measured_span_deg": "chi2_per_dof 和 angle_sigma_measured_span_deg",
+    "Dropped its {x}, which DiscImageStudio would refuse.":
+        "删掉了它原有的 {x}，否则 DiscImageStudio 会拒绝整个文件。",
     "this run is too noisy to rely on: angles are known to only {a} deg over the measured span ({b}). Another speed usually helps; `results` lists what you have.":
         "这次的噪声太大，不能依赖：在测量范围内角度只知道到 {a}°（{b}）。通常换个速度会好一些；`results` 会列出你现有的结果。",
     "--output and the DiscImageStudio preset file are the same file ({p}). The export would overwrite your presets before they are read, so nothing was written. Use another --output name, or omit --output and let --install write only the preset file.":

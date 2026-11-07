@@ -157,7 +157,7 @@ python -m discprobe image --geo latest --picture my_picture.png --output iso/pic
 
 在终端里，它结束时会画一张盘面缩略图，并提醒几乎全黑或全白、内容落在可绘制区域之外或盘中间、分辨率过低这类情况。这些只是提醒，不会阻止生成，判断的门槛也还没用真盘校准。刻之前先看预览图。刻完运行 `guide`，它会讲怎么看盘，以及看到不同结果该怎么办。
 
-想继续用 DiscImageStudio 的话，可以导出预设。`--sectors` 填你这张盘的扇区数（对空白盘运行 `info` 会打印，DiscImageStudio 里也填这个数；填多了可能封盘失败），半径范围填 `geo` 实际测到的范围，有修正文件的话同样加 `--correction correction.json`。`geo` 跑完打印的命令已经填好这些值。程序会打印和测量结果的转换误差，先看一眼再刻。加上 `--install` 会把预设直接加进 DiscImageStudio 的用户预设文件（`%LOCALAPPDATA%\DiscImageStudio\disc-presets.json`），重启 DiscImageStudio 后就能在预设列表里选到：写之前先备份成 `disc-presets.json.<日期>-<时间>.bak`，每次都是新名字，所以最早那份备份始终是安装任何预设之前的文件。文件里的注释和尾逗号能读，但写回时会去掉；模拟盘的结果、中途停下的结果和噪声太大的结果会被拒绝。不加 `--install` 则只生成 JSON，需要手动填：新建工程，填内外半径、扇区数和一二三次项：
+想继续用 DiscImageStudio 的话，可以导出预设。`--sectors` 填你这张盘的扇区数（对空白盘运行 `info` 会打印，DiscImageStudio 里也填这个数；填多了可能封盘失败），半径范围填 `geo` 实际测到的范围，有修正文件的话同样加 `--correction correction.json`。`geo` 跑完打印的命令已经填好这些值。程序会打印和测量结果的转换误差，先看一眼再刻。加上 `--install` 会把预设直接加进 DiscImageStudio 的用户预设文件（`%LOCALAPPDATA%\DiscImageStudio\disc-presets.json`），重启 DiscImageStudio 后就能在预设列表里选到：写之前先备份成 `disc-presets.json.<日期>-<时间>.bak`，每次都是新名字，所以最早那份备份始终是安装任何预设之前的文件。文件里的注释和尾逗号能读，但写回时会去掉；模拟盘的结果、中途停下的结果和噪声太大的结果会被拒绝。它不写的字段会原样保留，但值已经不适用时（比如 `usableSectors` 大于这次的扇区数）会删掉并提示，否则 DiscImageStudio 会因为这一个字段整个文件都读不了。不加 `--install` 则只生成 JSON，需要手动填：新建工程，填内外半径、扇区数和一二三次项：
 
 ```bash
 python -m discprobe disexport --geo latest --sectors 你的扇区数 --r-min 25.8 --r-max 54.5 --output dis_preset.json

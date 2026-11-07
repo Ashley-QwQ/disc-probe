@@ -1555,6 +1555,15 @@ def _advice(c) -> None:
     c.check(not untranslated, f"the note has Chinese {untranslated}")
 
 
+def _targets(folder: str, rows: int = 12) -> None:
+    """A targets.csv with enough rungs for install_blocker() to trust the run."""
+    with open(os.path.join(folder, "targets.csv"), "w", encoding="utf-8") as f:
+        f.write("lba,n_bits,phase_deg,sigma_deg,std_deg,used,predicted_deg,unwrapped_deg,model_deg,"
+                "residual_deg,period_ms\n")
+        for i in range(rows):
+            f.write(f"{5000 + 1000 * i},0,0.0,0.2,0.2,1,0.0,0.0,0.0,0.0,48.1\n")
+
+
 def _command_line(c) -> None:
     import shutil
     from . import __main__ as cli
@@ -1568,6 +1577,17 @@ def _command_line(c) -> None:
             except SystemExit as e:
                 text = err.getvalue() + (e.code if isinstance(e.code, str) else "")
                 return (e.code if isinstance(e.code, int) else 1), text
+
+    def code_and_output(*argv):
+        """stdout and stderr together, for what the tool says without exiting."""
+        both = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(both), contextlib.redirect_stdout(both):
+                cli.main(list(argv))
+            return 0, both.getvalue()
+        except SystemExit as e:
+            return (e.code if isinstance(e.code, int) else 1), both.getvalue() + (
+                e.code if isinstance(e.code, str) else "")
     real_term = ui._term
     ui._term = ui.Term(io.StringIO(), env={})   # what a script sees, also when the self-test runs at a terminal
     with tempfile.TemporaryDirectory() as d:
@@ -1612,17 +1632,25 @@ def _command_line(c) -> None:
                 json.dump({"cache": {}}, f)
             code, text = code_and_stderr("disexport", "--geo", not_geo)
             c.check(code == 1 and "not the summary.json" in text, "a summary without a fit is a plain error")
-            geo_ok = os.path.join(d, "cd_ok.json")
+            geo_dir = os.path.join(d, "geo-test-20260101-000000")
+            os.makedirs(geo_dir)
+            geo_ok = os.path.join(geo_dir, "summary.json")
             b = cd.BIT_NM * 1e-6
             with open(geo_ok, "w", encoding="utf-8") as f:
                 json.dump({"fit": {"u": 25.14 / b, "v": 1.4969e-3 / b, "bit_nm_assumed": cd.BIT_NM,
-                                   "media": "cd", "measured_span_mm": [26.7, 54.4]}}, f)
+                                   "media": "cd", "measured_span_mm": [26.7, 54.4],
+                                   "chi2_per_dof": 1.4, "angle_sigma_measured_span_deg": 0.2}}, f)
+            _targets(geo_dir)
             presets = os.path.join(d, "dis", "disc-presets.json")
-            code, _ = code_and_stderr("disexport", "--geo", geo_ok, "--sectors", "359602",
-                                      "--output", os.path.join(d, "p.json"), "--install", "--dis-presets", presets)
-            with open(presets, encoding="utf-8") as f:
-                doc = json.load(f)
-            c.check(code == 0 and doc["cdPresets"][0]["id"] == "discprobe-cd",
+            code, text = code_and_output("disexport", "--geo", geo_ok, "--sectors", "359602",
+                                         "--output", os.path.join(d, "p.json"), "--install", "--dis-presets", presets)
+            c.check(code == 0 and "Added preset" in text,
+                    "--install accepts a finished run and says which preset it added")
+            doc = {}
+            if code == 0:
+                with open(presets, encoding="utf-8") as f:
+                    doc = json.load(f)
+            c.check(doc.get("cdPresets") and doc["cdPresets"][0]["id"] == "discprobe-cd",
                     "--install adds the preset to a new DiscImageStudio file")
             code, text = code_and_stderr("disexport", "--geo", geo_ok, "--sectors", "359602", "--name", "other",
                                          "--output", os.path.join(d, "p.json"), "--install", "--dis-presets", presets)
@@ -1635,6 +1663,27 @@ def _command_line(c) -> None:
             c.check(code == 0 and doc["cdPresets"][0]["displayName"] == "other", "--replace installs the new values")
             code, text = code_and_stderr("disexport", "--geo", geo_ok, "--sectors", "359602", "--dis-presets", presets)
             c.check(code == 1 and "only work together" in text, "--dis-presets without --install is refused")
+            fit = {"u": 25.14 / b, "v": 1.4969e-3 / b, "bit_nm_assumed": cd.BIT_NM,
+                   "media": "cd", "measured_span_mm": [26.7, 54.4]}
+            sim_dir = os.path.join(d, "geo-SIM-cav-cda-20260101-000000")
+            os.makedirs(sim_dir)
+            with open(os.path.join(sim_dir, "summary.json"), "w", encoding="utf-8") as f:
+                json.dump({"fit": dict(fit, chi2_per_dof=1.4, angle_sigma_measured_span_deg=0.2)}, f)
+            _targets(sim_dir)
+            code, text = code_and_stderr("disexport", "--geo", os.path.join(sim_dir, "summary.json"),
+                                         "--sectors", "359602", "--output", os.path.join(d, "p2.json"),
+                                         "--install", "--dis-presets", os.path.join(d, "dis2", "disc-presets.json"))
+            c.check(code == 1 and "simulated" in text, "--install refuses a result whose folder says SIM")
+            old_dir = os.path.join(d, "geo-20250101-000000")
+            os.makedirs(old_dir)
+            with open(os.path.join(old_dir, "summary.json"), "w", encoding="utf-8") as f:
+                json.dump({"fit": fit}, f)
+            _targets(old_dir)
+            code, text = code_and_output("disexport", "--geo", os.path.join(old_dir, "summary.json"),
+                                         "--sectors", "359602", "--output", os.path.join(d, "p3.json"),
+                                         "--install", "--dis-presets", os.path.join(d, "dis3", "disc-presets.json"))
+            c.check(code == 0 and "no chi2_per_dof" in text,
+                    "a summary without quality figures installs, and says which check did not run")
 
     class Stopped:
         name = "SIM"
