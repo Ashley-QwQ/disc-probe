@@ -400,7 +400,7 @@ def write_outputs(ladder: Ladder, out_dir: str) -> None:
     res = ladder.result()
     with open(os.path.join(out_dir, "summary.json"), "w", encoding="utf-8") as f:
         json.dump({"fit": res, "cache": ladder.tp.summary.get("cache"),
-                   "setup": ladder.tp.summary.get("setup"),
+                   "setup": ladder.tp.summary.get("setup"), "identity": ladder.tp.summary.get("identity"),
                    "set_cd_speed": ladder.tp.summary.get("set_cd_speed")}, f, indent=2, default=float)
     events = ladder.tp.events_as_rows()
     if events:

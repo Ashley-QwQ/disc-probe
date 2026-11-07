@@ -62,6 +62,30 @@ def collect(dev) -> dict:
     return r
 
 
+def disc_id(mid: dict, adip: dict, atip: dict) -> str | None:
+    """A disc's manufacturer code, in the form `info` prints it."""
+    if mid.get("manufacturer_id"):
+        return mid["manufacturer_id"].replace("\x00", " ").strip()
+    if adip.get("manufacturer_id"):
+        return f"{adip['manufacturer_id']}/{adip['media_type_id']}/{adip['product_revision']}"
+    if atip.get("leadin_start_msf"):
+        return f"ATIP {atip['leadin_start_msf']}"
+    return None
+
+
+def identify(dev, family: str | None = None) -> dict:
+    """Which drive and disc a measurement used, so results can be told apart later. Reads only, before any timing."""
+    inq = _run(dev, "INQUIRY", mmc.inquiry(), 96, mmc.parse_inquiry).get("parsed") or {}
+    mid, adip, atip = {}, {}, {}
+    if family == "cd":
+        atip = _run(dev, "READ ATIP", mmc.read_toc(4, msf=True), 2048, mmc.parse_atip).get("parsed") or {}
+    elif family != "bd":
+        mid = _run(dev, "DVD-R pre-recorded info", mmc.read_disc_structure(0, 0x0E), 2052, mmc.parse_dvd_r_prerecorded).get("parsed") or {}
+        if not mid.get("manufacturer_id"):
+            adip = _run(dev, "DVD+R ADIP", mmc.read_disc_structure(0, 0x11), 2052, mmc.parse_dvd_plus_adip).get("parsed") or {}
+    return {"drive": f"{inq.get('vendor', '')} {inq.get('product', '')}".strip() or None, "firmware": inq.get("revision"), "disc": disc_id(mid, adip, atip)}
+
+
 def summarize(r: dict) -> list[str]:
     def parsed(key):
         return r.get(key, {}).get("parsed") or {}

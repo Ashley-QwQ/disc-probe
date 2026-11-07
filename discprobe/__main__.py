@@ -147,14 +147,37 @@ def _measuring(dev, args):
     return ui.ProgressDevice(dev)
 
 
+def _identity(args, dev) -> dict | None:
+    """Which drive and disc this is, for the results list. Before any timing; a simulated run has none."""
+    if getattr(args, "sim", None):
+        return None
+    try:
+        return info.identify(dev, getattr(args, "media", None))
+    except Exception:       # a label, never worth stopping a measurement
+        return None
+
+
 def _geo_fit(args, media=None) -> dict:
     """Load --geo, which may be a summary.json, a geo result folder or `latest`."""
     try:
-        path = guide.resolve_geo(args.geo, media)
+        if args.geo.lower() == "pick":
+            from . import picker
+            chosen = picker.choose(media)
+            if chosen is None:
+                sys.exit("Nothing chosen.")
+            path = os.path.join(chosen.path, "summary.json")
+            print(f"Using the geo result you chose: {guide.describe_chosen(path)}")
+        else:
+            path = guide.resolve_geo(args.geo, media)
     except ValueError as e:
         sys.exit(str(e))
     if args.geo.lower() == "latest":
         print(f"Using the latest geo result: {guide.describe_chosen(path)}")
+        chosen = guide.latest_geo(media)
+        if chosen is not None and not chosen.reliable():
+            print("It was judged too noisy to rely on, and there is nothing better. To see them all: python -m discprobe results --pick")
+        elif chosen is not None and guide.passed_over(chosen, media):
+            print(f"Left out {guide.passed_over(chosen, media)} newer run(s) judged too noisy. To see them all: python -m discprobe results --pick")
     args.geo = path
     try:
         with open(path, encoding="utf-8") as f:
@@ -219,6 +242,7 @@ def cmd_timing(args):
         targets=targets, ref_fraction=args.ref, speed_kbs=args.speed, pure_cav=args.cav,
         evict_sectors=args.evict_sectors, sectors=args.sectors, host_delay_ms=args.host_delay_ms, media=args.media,
         stop_if_not_cav=not args.force, time_limit_s=args.max_minutes * 60 if args.max_minutes else None)
+    probe.summary["identity"] = _identity(args, dev)
     progress = None
     if reader is not dev:
         progress = reader.progress = ui.Progress(ui.timing_status(probe, reader), keys=ui.open_keys())
@@ -400,6 +424,7 @@ def cmd_geo(args):
                     reps=args.reps, max_targets=args.max_targets, ref_lba=args.ref_lba,
                     speed_kbs=None if args.sim else args.speed, host_delay_ms=args.host_delay_ms, media=args.media,
                     chi2_abort=args.chi2_abort, sectors=args.sectors)
+    ladder.tp.summary["identity"] = _identity(args, dev)
     progress, log = None, print
     if reader is not dev:
         progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys())
@@ -686,10 +711,35 @@ def cmd_guide(args):
         ui.say(f"Tab completion: {guide.PROG} completion install", "dim")
 
 
+def _pick_results(args):
+    from . import picker
+    t = ui.term()
+    if not t.can_prompt():
+        found = picker.groups(picker.geo_runs(None, args.out), args.out)
+        for line in picker.plain_lists(found, args.sort, args.reverse) or [f"no geo results in {args.out}"]:
+            print(line)
+        return
+    try:
+        chosen = picker.choose(None, args.out, args.sort, args.reverse)
+    except ValueError as e:
+        sys.exit(str(e))
+    if chosen is None:
+        return
+    print(f"You chose: {guide.short(chosen.path)} ({i18n.tr(chosen.describe())})")
+    flag = " --media cd" if chosen.media == "cd" else ""
+    print("Use it with:")
+    print(ui.term().style(f"  {guide.PROG} image{flag} --geo {guide.short(chosen.path)} --picture my_picture.png --output iso/picture.iso", "cyan"))
+    print(ui.term().style(f"  {guide.PROG} disexport --geo {guide.short(chosen.path)} --sectors <sectors> --output dis_preset.json", "cyan"))
+
+
 def cmd_results(args):
+    if args.pick:
+        _pick_results(args)
+        return
     found = [r for r in guide.scan(args.out) if not args.kind or r.kind == args.kind]
     if args.latest:
-        real = [r for r in found if not r.simulated and (r.kind != "geo" or r.geo_complete())]
+        real = [r for r in found if not r.simulated and (r.kind != "geo" or r.reliable())]
+        real = real or [r for r in found if not r.simulated and r.kind == "geo" and r.geo_complete()]
         if not real:
             sys.exit(f"no complete {args.kind or ''} result in {args.out}".replace("  ", " "))
         print(real[0].path)
@@ -807,12 +857,13 @@ examples:
 
 --sectors is the capacity of your disc: take it from `info` on a blank disc, and enter the same number in
 DiscImageStudio. One user found its read-from-disc too high. Not the same as timing --sectors.
---geo takes a summary.json, a geo result folder, or `latest`. A CD fit gives a CD preset; --media is only a check.""",
+--geo takes a summary.json, a geo result folder, `latest`, or `pick` to choose. A CD fit gives a CD preset; --media is only a check.""",
     "results": """\
 examples:
   python -m discprobe results                 what has been run, newest first
   python -m discprobe results geo             only geo runs
-  python -m discprobe results geo --latest    just the newest real, complete folder, for use in scripts""",
+  python -m discprobe results geo --latest    just the newest folder that can be relied on, for use in scripts
+  python -m discprobe results --pick          choose a geo result: by disc and drive, then by precision or date""",
     "guide": """\
 Reads the results folder, shows which steps are done and prints the next command. It does not touch the drive.""",
 }
@@ -835,7 +886,10 @@ def _build_parser():
     sp = sub.add_parser("results", help="list past results, newest first")
     sp.add_argument("kind", nargs="?", help="only this kind, e.g. geo, timing, info")
     sp.add_argument("--latest", action="store_true",
-                    help="print only the newest folder, skipping simulated runs and stopped geo runs")
+                    help="print only the newest folder, skipping simulated runs, stopped geo runs and ones judged too noisy")
+    sp.add_argument("--pick", action="store_true", help="choose a geo result: by disc and drive, then by precision or date")
+    sp.add_argument("--sort", choices=("precision", "date"), default="precision", help="for --pick: what to sort by (default: precision)")
+    sp.add_argument("--reverse", action="store_true", help="for --pick: the other way round")
     sp.add_argument("-n", dest="count", type=int, default=15, help="how many to list (default 15)")
     sp.add_argument("--out", default="results", help="results directory (default: results)")
     sp.set_defaults(func=cmd_results)
@@ -970,7 +1024,7 @@ def _build_parser():
     sp.set_defaults(func=cmd_geo)
 
     sp = sub.add_parser("image", help="write a picture ISO placed with a measured geometry (grid test by default)")
-    sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, or latest")
+    sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose")
     sp.add_argument("--output", default="iso/grid.iso")
     sp.add_argument("--picture", help="greyscale picture to threshold instead of the grid test")
     sp.add_argument("--design-npy", help="prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view")
@@ -987,7 +1041,7 @@ def _build_parser():
     sp.set_defaults(func=cmd_image)
 
     sp = sub.add_parser("tiles", help="write a self-locating texture palette target (IDs + swatches in every tile)")
-    sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, or latest")
+    sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose")
     sp.add_argument("--output", default="iso/tiles.iso")
     sp.add_argument("--palette", nargs="+", default=list(DEFAULT_PALETTE),
                     help="up to 9 textures: a byte (A5), a repeated sequence (8B00), RND, or MIX:92,4F")
@@ -1003,7 +1057,7 @@ def _build_parser():
     sp.set_defaults(func=cmd_tiles)
 
     sp = sub.add_parser("beacons", help="write the beacon target (tiles readable from one photo, no whole-disc fit)")
-    sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, or latest")
+    sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose")
     sp.add_argument("--output", default="iso/beacons.iso")
     sp.add_argument("--correction", help="angle-correction file")
     sp.set_defaults(func=cmd_beacons)
@@ -1032,7 +1086,7 @@ def _build_parser():
     sp.set_defaults(func=cmd_correction)
 
     sp = sub.add_parser("disexport", help="fit the measured angle map as a DiscImageStudio DVD or CD preset (cubic pitch)")
-    sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, or latest; "
+    sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose; "
                                                     "a CD fit gives a CD preset")
     sp.add_argument("--correction", help="angle-correction file from the correction command")
     sp.add_argument("--sectors", type=int, help="the disc's capacity, not how much was burned (`info` on a blank disc prints it); required")

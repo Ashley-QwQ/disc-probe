@@ -294,7 +294,7 @@ Linux 版由 bczhc 移植：[bczhc/disc-probe](https://github.com/bczhc/disc-pro
 
 - 下一步跑什么：`guide` 列出做过的步骤并打印下一条命令，不碰光驱。不带参数运行 `python -m discprobe` 也是它。`info`、`timing`、`geo`、`random`、`image`、`disexport` 跑完也会打印下一步。`timing` 还会给判定：不是 CAV 就换速度，抖动大于约 2° 建议换个速度，大于约 5° 说明这台光驱很可能不适合（这两个门槛来自实践报告表，不是严格界限）。
 - 盘符：`list` 列出光驱。在终端里可以不写 `--drive`，只有一台就直接用，有多台就问你。
-- 结果路径：`--geo` 还接受结果文件夹和 `latest`。`latest` 会跳过模拟驱动器的结果和中途停下的结果（少于 8 级，或 χ²/dof 超过 25）。`results geo` 列出做过的测量，`results geo --latest` 只打印一行路径，方便写脚本。
+- 结果路径：`--geo` 还接受结果文件夹、`latest` 和 `pick`（手动选）。`results --pick` 按盘和光驱分组，再按精度或日期排序。`latest` 会跳过模拟驱动器的结果和中途停下的结果（少于 8 级，或 χ²/dof 超过 25）。`results geo` 列出做过的测量，`results geo --latest` 只打印一行路径，方便写脚本。
 - `--sectors` 有三个意思：`timing`、`geo` 里是每次读几个扇区，`16` 读一个完整的 DVD ECC 块；`random` 里是刻多少；`disexport` 里是盘的容量，DiscImageStudio 里也填同一个数。`info` 会打印建议值和来源，以空白盘上的为准。
 - `--speed` 可以写 kB/s，也可以写倍速，如 `4x`（按 `--media` 的 1x 换算）。DVD：`2.4x` = 3324，`4x` = 5540（`geo` 默认），`8x` = 11080。CD：`8x` = 1411（默认），`16x` = 2822，`24x` = 4234。低速通常噪声更小，但不是每台光驱都会换档，要看 `timing` 打印的转速。
 - `--ranges` 接受扇区范围 `a-b,c-d`，默认的已刻录区 3–85% 适合大多数盘。`geo` 总在同一处停下，或者外圈有换速跳变时，把那段排除。最后一个扇区看 `info`。
