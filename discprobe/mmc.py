@@ -109,10 +109,10 @@ DISC_STATUS = {0: "empty", 1: "incomplete", 2: "complete", 3: "other"}
 
 BD_1X_KBPS = 4495
 
-NO_DISC = ("No disc in the drive, or the tray is open (burning ejects the disc when it finishes). "
-           "Load the disc, wait a few seconds and run this again")
-TRAY_OPEN = ("The drive says its tray is open (burning ejects the disc when it finishes). "
-             "Load the disc, close the tray, wait a few seconds and run this again")
+NO_DISC = ("No disc in the drive, or the tray is open (some burners eject the disc when they finish). "
+           "Put it back in, wait a few seconds and run this again")
+TRAY_OPEN = ("The drive says its tray is open (some burners eject the disc when they finish). "
+             "Put the disc in, close the tray, wait a few seconds and run this again")
 NOT_RECOGNISED = ("The drive says its tray is closed, but it finds no disc. If one is in there, wait a few seconds and run this again. "
                   "If it keeps saying this, the drive can't read that disc: check it sits flat, label up, and is clean, or try another disc")
 LOADING = "The drive is not ready yet, it may still be loading the disc. Wait a few seconds and run this again"

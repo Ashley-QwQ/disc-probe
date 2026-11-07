@@ -4,13 +4,16 @@ The disc is built from coloured spaces, with slashes and a few symbols on top: t
 sweep round like the light on a real disc, a streak of / and \\ marks their centre, and small
 sparks flash where they pass. A frame is built off screen and sent in one write, and the frame
 shown follows the clock, so a slow terminal skips frames instead of running long. It falls back
-step by step: true colour, 16 colours, then plain ASCII, which still turns unless motion is off.
+step by step: half blocks in true colour where the terminal draws them itself, true colour, 16
+colours, then plain ASCII, which still turns unless motion is off. With half blocks each cell holds
+two square pixels, and the light works as it does on a disc: white along the mirror angle, then the
+first order's spectrum, violet to red, and the steps of `guide` done so far dye the track outward.
 A window too small for the disc gets the title alone. Only `guide` shows it, never a measuring command.
 """
 
 from __future__ import annotations
 
-import colorsys
+import functools
 import math
 import shutil
 import sys
@@ -18,8 +21,12 @@ import time
 
 from . import i18n, ui
 
-DISC_W, DISC_H = 25, 11
+DISC_W, DISC_H = 25, 12
 HOLE, HUB, RIM = 0.14, 0.27, 0.95
+CLEAR, MIRROR = 0.21, 0.30      # the see-through ring and the shiny one between the hole and the track
+WEDGE = 0.66                    # half the width of the band of light, in radians
+TWIST = 0.5                     # how far it bends between hub and rim
+CORE = 0.14                     # the white part, as a share of the band
 SHOW_S = 1.0
 FRAME_S = 0.04
 STILL_ANGLE = 0.7
@@ -73,14 +80,104 @@ def _paint(glyph: str, hue: float, light: float, part: str, t: ui.Term) -> str:
         if part == "hub":
             r, g, b = 70, 74, 84
         else:
-            r, g, b = (int(255 * v) for v in colorsys.hsv_to_rgb(hue, 0.25 + 0.65 * light, 0.3 + 0.65 * light))
+            r, g, b = ui.oklch(0.38 + 0.4 * light, 0.03 + 0.11 * light, hue)
         return f"\x1b[48;2;{r};{g};{b};97m{glyph}\x1b[0m"
     if part == "hub" or light < 0.2:
         return f"\x1b[100;97m{glyph}\x1b[0m"
     return f"\x1b[{ANSI16_BG[int(hue * len(ANSI16_BG)) % len(ANSI16_BG)]};97m{glyph}\x1b[0m"
 
 
-def disc_rows(angle: float, t: ui.Term) -> list[str]:
+def _fine(t: ui.Term) -> bool:
+    return t.blocks and t.truecolor
+
+
+@functools.lru_cache(maxsize=None)
+def _pixels(burned: float) -> tuple:
+    """(radius, angle, share of the pixel on the disc, colour without light) of each half cell, worked out once."""
+    pixels = []
+    height = DISC_H * 2
+    burned_to = MIRROR + (RIM - MIRROR) * burned
+    for py in range(height):
+        for px in range(DISC_W):
+            x, y = (px + 0.5 - DISC_W / 2) / (DISC_W / 2), (py + 0.5 - height / 2) / (height / 2)
+            corners = [math.hypot(x + dx / DISC_W, y + dy / height) for dx in (-0.5, 0.5) for dy in (-0.5, 0.5)]
+            cover = sum(HOLE <= r <= 1 for r in corners) / 4
+            radius = math.hypot(x, y)
+            if cover == 0:
+                pixels.append(None)
+                continue
+            if radius < CLEAR:
+                base = ui.oklch(0.33, 0.005, 0.7)
+            elif radius < MIRROR:
+                base = ui.oklch(0.68, 0.012, 0.7)
+            elif radius > RIM:
+                base = ui.oklch(0.52, 0.015, 0.7)
+            elif radius < burned_to:
+                base = ui.oklch(0.27, 0.06, 0.8)
+            else:
+                base = ui.oklch(0.42, 0.02, 0.78)
+            pixels.append((radius, math.atan2(y, x), cover, base))
+    return tuple(pixels)
+
+
+@functools.lru_cache(maxsize=None)
+def _spectrum() -> tuple:
+    return tuple(ui.oklch(0.74, 0.15, i / 64) for i in range(64))
+
+
+def _lit(pixel, angle: float) -> tuple[int, int, int] | None:
+    if pixel is None:
+        return None
+    radius, theta, cover, base = pixel
+    off = abs((theta - angle + TWIST * radius + math.pi / 2) % math.pi - math.pi / 2) / WEDGE
+    if off >= 1 or radius < CLEAR:
+        r, g, b = base
+    else:
+        glow = 1 - off ** 4     # holds to the red end, then falls away
+        tone = _spectrum()[int((0.83 - 0.75 * off + 0.1 * (radius - 0.6)) * 64) % 64]
+        white = max(0.0, 1 - off / CORE) ** 2
+        r, g, b = ((base[i] * (1 - glow) + tone[i] * glow) * (1 - white) + 255 * white for i in range(3))
+    return int(r * cover) & 248, int(g * cover) & 248, int(b * cover) & 248      # steps, so most cells repeat between frames
+
+
+def disc_cells(angle: float, burned: float = 0.0) -> list[list[tuple[str, str]]]:
+    """Rows of (code, glyph). A cell is two pixels, the upper in the glyph's colour and the lower behind it."""
+    pixels = _pixels(round(burned, 2))
+    rows = []
+    for row in range(DISC_H):
+        cells = []
+        for col in range(DISC_W):
+            top = _lit(pixels[2 * row * DISC_W + col], angle)
+            low = _lit(pixels[(2 * row + 1) * DISC_W + col], angle)
+            if top and low:
+                cells.append((f"38;2;{top[0]};{top[1]};{top[2]};48;2;{low[0]};{low[1]};{low[2]}", "▀"))
+            elif top or low:
+                r, g, b = top or low
+                cells.append((f"38;2;{r};{g};{b}", "▀" if top else "▄"))
+            else:
+                cells.append(("", " "))
+        rows.append(cells)
+    return rows
+
+
+def _changed(old: list[tuple[str, str]], new: list[tuple[str, str]], start: int = 1) -> str:
+    """Only the cells that differ, each stretch after a move to its column."""
+    out, i = [], 0
+    while i < len(new):
+        if new[i] == old[i]:
+            i += 1
+            continue
+        end = i
+        while end < len(new) and new[end] != old[end]:
+            end += 1
+        out.append(f"\x1b[{start + i}G{ui._paint_runs(new[i:end])}")
+        i = end
+    return "".join(out)
+
+
+def disc_rows(angle: float, t: ui.Term, burned: float = 0.0) -> list[str]:
+    if _fine(t):
+        return [ui._paint_runs(cells) for cells in disc_cells(angle, burned)]
     rows = []
     for row in range(DISC_H):
         y = (row - (DISC_H - 1) / 2) / (DISC_H / 2)
@@ -101,18 +198,33 @@ def _title_rows(t: ui.Term, height: int, now: float | None) -> list[str]:
     return ([blank] * top + lines + [blank] * height)[:height]
 
 
-def frame(angle: float, t: ui.Term, columns: int, now: float | None = None) -> list[str]:
+def frame(angle: float, t: ui.Term, columns: int, now: float | None = None, burned: float = 0.0) -> list[str]:
     """The screen for one angle, shaped to the terminal width."""
     if columns > DISC_W + GAP + TITLE_W:
-        return [d + " " * GAP + title for d, title in zip(disc_rows(angle, t), _title_rows(t, DISC_H, now))]
+        return [d + " " * GAP + title for d, title in zip(disc_rows(angle, t, burned), _title_rows(t, DISC_H, now))]
     tagline = i18n.tr(TAGLINE)
     if columns > TITLE_W:
         return [t.style(line, "cyan") for line in TITLE] + [t.style(tagline, "dim")]
     return [t.style("disc-probe", "cyan"), t.style(i18n.fit(tagline, max(columns - 1, 10)), "dim")]
 
 
-def show(t: ui.Term | None = None, pause=time.sleep, now=time.monotonic) -> None:
-    """Draw the opening screen. Only at a terminal; only moves if the terminal can."""
+def _next_frame(angle: float, t: ui.Term, columns: int, seen: dict, now: float | None, burned: float) -> str:
+    """What a frame has to send, from the top row down. Half blocks cost two colours a cell, so only changes go out."""
+    if not _fine(t):
+        return "\n".join(frame(angle, t, columns, now, burned))
+    rows = []
+    blank = [("", " ")] * DISC_W
+    for y, (cells, title) in enumerate(zip(disc_cells(angle, burned), _title_rows(t, DISC_H, now))):
+        out = _changed(seen.get(y, blank), cells)
+        if seen.get(("title", y)) != title:
+            out += f"\x1b[{DISC_W + GAP + 1}G{title}"
+        seen[y], seen["title", y] = cells, title
+        rows.append(out)
+    return "\n".join(rows)
+
+
+def show(t: ui.Term | None = None, pause=time.sleep, now=time.monotonic, burned: float = 0.0) -> None:
+    """Draw the opening screen. Only at a terminal; only moves if the terminal can. `burned` is how far along the steps are."""
     t = t or ui.term()
     if not t.interactive:
         return
@@ -128,12 +240,15 @@ def show(t: ui.Term | None = None, pause=time.sleep, now=time.monotonic) -> None
         try:
             write("\n" * (DISC_H - 1))
             start = now()
+            seen = {}
+            sync_start, sync_end = (ui.SYNC_START, ui.SYNC_END) if t.sync else ("", "")
             while True:
                 spent = now() - start
                 eased = 1 - (1 - min(spent / SHOW_S, 1.0)) ** 2     # sweeps fast, settles soft
                 angle = STILL_ANGLE + math.pi * (eased - 1)
                 settled = spent >= SHOW_S
-                write(f"\r\x1b[{DISC_H - 1}A" + "\n".join(frame(angle, t, size.columns, None if settled else spent)))
+                body = _next_frame(angle, t, size.columns, seen, None if settled else spent, burned)
+                write(f"{sync_start}\r\x1b[{DISC_H - 1}A{body}{sync_end}")
                 t.stream.flush()
                 if settled:
                     break
@@ -144,7 +259,7 @@ def show(t: ui.Term | None = None, pause=time.sleep, now=time.monotonic) -> None
             write("\x1b[?25h\n\n")
             t.stream.flush()
         return
-    write("\n".join(frame(STILL_ANGLE, t, size.columns)) + "\n\n")
+    write("\n".join(frame(STILL_ANGLE, t, size.columns, None, burned)) + "\n\n")
     t.stream.flush()
 
 

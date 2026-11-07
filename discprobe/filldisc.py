@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import random
 
-from .snake import DIRECTIONS, ROWS
+from .snake import DIRECTIONS, MIN_COLS, ROWS
 
 MAX_COLS = 18
 SLOWEST_STEP_S = 0.4
@@ -37,6 +37,9 @@ def _turned(shape) -> tuple:
 class FillDisc:
     name = "Fill the Disc"
     max_cols = MAX_COLS
+    min_cols = MIN_COLS
+    cell_w, cell_h = 2, 1
+    tracks = True
 
     def __init__(self, cols: int = MAX_COLS, rows: int = ROWS, rng=None):
         self.cols, self.rows = cols, rows
@@ -124,3 +127,6 @@ class FillDisc:
         if (x, y) in self.burned:
             return self.burned[(x, y)]
         return self.kind if not self.over and (x, y) in self._cells() else "field"
+
+    def tint(self, x: int, y: int) -> int:
+        return x % 2

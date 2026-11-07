@@ -96,7 +96,7 @@ python -m pip install numpy pillow scipy
 python -m discprobe selftest
 ```
 
-If you're not sure what to run next, run `guide`. It reads the `results` folder, shows which steps are done and prints the next command. It doesn't touch the drive:
+If you're not sure what to run next, run `guide`. It reads the `results` folder, shows which steps are done and where you are, and prints the next command. It doesn't touch the drive. The first time, it offers a walkthrough; `python -m discprobe tutorial` shows it again whenever you like:
 
 ```bash
 python -m discprobe guide
@@ -104,17 +104,19 @@ python -m discprobe guide
 
 At a terminal, `timing` and `geo` end with a one-line verdict, and each command also ends by printing the next one, ready to copy. Scripts and pipes don't get these. See [Using it by hand](#using-it-by-hand) for the rest.
 
-<img src="docs/showcase/cli_demo_en.gif" width="100%" alt="Terminal recording: the opening disc, next-step hints, the measuring progress line and snake">
+<img src="docs/showcase/cli_demo_en.gif" width="100%" alt="Terminal recording: the opening disc, next-step hints, the measuring progress line and the games for the wait">
 
-*Recorded on the simulated drive, so this isn't a real measurement. A script presses the snake keys; the game only opens when you press `g` while measuring.*
+*Recorded on the simulated drive, so this isn't a real measurement. A script presses the games' keys; press `g` while measuring to open one, `n` to change game.*
 
 ### Step 1: burn a random-data disc
 
-The measuring disc must hold plain data, since discs with burned patterns often can't be read. Burn `iso/random.iso` with Windows Disc Image Burner.
+The measuring disc must hold plain data, since discs with burned patterns often can't be read. Once the image is ready, right-click `iso/random.iso` in Explorer and choose Burn disc image (a double-click only mounts it), and check that the burner is your optical drive.
 
 ```bash
 python -m discprobe random --output iso/random.iso
 ```
+
+**A burn can't be undone.** DVD+R, DVD-R and CD-R can't be erased; only RW discs can. The tool doesn't do the burning and can't stop one on the wrong disc, so it flashes a red warning once the image is ready.
 
 ### Step 2: check the drive
 
@@ -142,11 +144,13 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 
 ### Step 4: build a picture ISO and burn it to a blank disc from the same batch
 
-`--geo latest` uses your newest real measurement that can be relied on and prints which one it chose; `results --pick` lets you choose by disc and drive, then by precision or date; a result folder or a `summary.json` path works too. Add `--correction correction.json` if you have a correction file. The picture's longer side spans 116 mm (`--diameter-mm` changes it) and it keeps its shape, with the rest left blank. The tool then samples sectors and compares them byte by byte with the design.
+`--geo latest` uses your newest real measurement that can be relied on and prints which one it chose; `results --pick` lets you choose by disc and drive, then by precision or date; a result folder or a `summary.json` path works too. Add `--correction correction.json` if you have a correction file. The picture's longer side spans 116 mm (`--diameter-mm` changes it) and it keeps its shape, with the rest left blank. Put the picture in the current folder, or give its full path, in quotes if it has spaces. The tool then samples sectors and compares them byte by byte with the design.
 
 ```bash
 python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
 ```
+
+At a terminal it ends by drawing the disc small and pointing out things like an almost black or white picture, content outside the drawable area or in the middle of the disc, or a low resolution. These are only notes and never stop the image, and their limits aren't yet calibrated on real discs. Check the preview before burning. After the burn, run `guide`: it explains how to look at the disc and what to do about what you see.
 
 To keep working in DiscImageStudio, export a preset. Set `--sectors` to your disc's sector count (`info` on a blank disc prints it, and DiscImageStudio takes the same number; too high a count can make the close fail) and the radius range to what `geo` measured, and add `--correction correction.json` if you have one. The command `geo` prints at the end has these filled in. It prints the conversion error against the measurement, so check that before burning. For now you enter the preset in DiscImageStudio by hand: create a project and fill in the inner and outer radius, sector count and the three pitch terms:
 
@@ -156,7 +160,7 @@ python -m discprobe disexport --geo latest --sectors YOUR_SECTOR_COUNT --r-min 2
 
 ### Step 5: look at the disc and photograph it
 
-The data side works like a mirror, so a photo mostly shows what it reflects. Room lights and bright walls can cover the picture, and a burned image may not show at first glance. The rainbow "pizza slices" are diffraction from the factory groove and aren't part of what you burned. The whole image shows up with a small, bright light right next to your eye or camera.
+The data side works like a mirror, so your eye or a photo mostly sees what it reflects. Straight on, that's only you, and room lights and bright walls can cover the picture, so a burned image may not show at first glance. The rainbow "pizza slices" are diffraction from the factory groove and aren't part of what you burned. The whole image shows up with a small, bright light right next to your eye or camera.
 
 <img src="docs/showcase/lighting_setup.png" width="80%" alt="Two lighting setups seen from above: a light to one side gives rainbow bands, a small light beside a far camera shows the picture">
 
@@ -288,11 +292,12 @@ bczhc ported the tool to Linux: [bczhc/disc-probe](https://github.com/bczhc/disc
 ## Using it by hand
 
 <details>
-<summary>Next-step hints, drive letters, result paths, common options, Tab completion, language and games</summary>
+<summary>Walkthrough, next-step hints, drive letters, result paths, common options, Tab completion, language, games and local files</summary>
 
 The hints, progress and animation below only appear when stdout is a terminal. Pipes, redirects and scripts get essentially the same output as before, and result files keep their format. To turn them off in a terminal, set `DISCPROBE_PLAIN=1`.
 
-- What to run next: `guide` shows which steps are done and prints the next command, without touching the drive. Running `python -m discprobe` with no arguments does the same. `info`, `timing`, `geo`, `random`, `image` and `disexport` also end with the next command. `timing` adds a verdict: try another speed if it isn't CAV or above about 2° of jitter, and above about 5° the drive is probably not suitable. These limits come from the reports table and aren't exact. A `geo` that stops gets advice based on why it stopped. One that finishes with more than noise left (chi²/dof above 2) compares a constant and a quadratic pitch after closing the drive: if quadratic at least halves chi²/dof, it asks for a correction file and the next commands use it; otherwise it says this is probably read noise and you can carry on.
+- Walkthrough: The first `guide` offers one: Enter or `y` shows it, `n` skips it, and it only asks once. Someone with real results already isn't asked. `python -m discprobe tutorial` shows it any time.
+- What to run next: `guide` shows which steps are done and prints the next command, without touching the drive. Running `python -m discprobe` with no arguments does the same. Once there's a picture ISO, it also explains how to look at the disc and what to do about what you see. `info`, `timing`, `geo`, `random`, `image` and `disexport` also end with the next command, and `timing`, `geo`, `random` and `image` list your progress before it. `timing` adds a verdict: try another speed if it isn't CAV or above about 2° of jitter, and above about 5° the drive is probably not suitable. These limits come from the reports table and aren't exact. A `geo` that stops gets advice based on why it stopped. One that finishes with more than noise left (chi²/dof above 2) compares a constant and a quadratic pitch after closing the drive: if quadratic at least halves chi²/dof, it asks for a correction file and the next commands use it; otherwise it says this is probably read noise and you can carry on.
 - Drive letter: `list` shows the drives. At a terminal you can leave out `--drive`: with one drive it's used, with several you're asked.
 - Result paths: `--geo` also takes a result folder, `pick` to choose, or `latest`, which skips simulated runs and runs that stopped early. Results now say when they stopped early; older ones can only be judged by under 8 rungs or chi²/dof above 25, so one that stopped after 8 rungs can't be told apart. `results geo` lists past runs, and `results geo --latest` prints one folder for scripts.
 - `--sectors` means three things: In `timing` and `geo` it's sectors per read; `16` reads a whole DVD ECC block. In `random` it's how much to burn. In `disexport` it's the disc's capacity, and DiscImageStudio takes the same number. `info` prints a value and where it came from; go by the one from a blank disc.
@@ -302,14 +307,16 @@ The hints, progress and animation below only appear when stdout is a terminal. P
 - When something goes wrong part way: If the tray opens or the disc is taken out or changed during a measurement, `timing` and `geo` stop at once, say why and exit with code 1. What was measured is kept and marked as stopped early, and `--geo latest` won't use it. If an ISO write is interrupted, the unfinished file is removed; where nothing could clean up, such as a closed window, `guide` still won't take it for finished.
 - Tab completion: `python -m discprobe completion install` sets it up for PowerShell, bash or zsh: it writes a script to your home folder and adds one line to your shell's startup file, and `completion uninstall` takes both out. The current window doesn't have it until you open a new one or run the line it prints. In PowerShell, Tab on a `discprobe` line opens a list with what each option takes; elsewhere Tab is unchanged. Pressing Tab never starts Python, because the commands and options are written into the script, so install again after an update. Other `python` commands still complete paths, but in bash and zsh it replaces any completion those shells had for `python`.
 - Language: At a terminal it follows the system, so a Chinese system gets Chinese help, hints and measuring output. Choose with `--lang zh` or `--lang en` anywhere on the command, or `DISCPROBE_LANG=zh`. Pipes, redirects and `DISCPROBE_PLAIN=1` stay English and ignore `DISCPROBE_LANG`; only `--lang` on the command itself changes them. Result files are never translated.
-- Progress: `timing` and `geo` show a bar, the current stage, the time spent and the time left. A narrow window drops parts instead of wrapping. ISO writers use the same line, following the file's real size. Ctrl+C keeps what was measured and says where it is.
-- Games: While measuring, press `g` to open a game of snake under the progress line: arrows or WASD steer, `r` plays again, `q` closes it. `n` changes to Fill the Disc: blocks fly in from the right and stack on the left, up and down move them, right spins, left drops, and a full column clears. Measuring output keeps printing above them. They don't exist until you press `g`, and never appears in pipes, with `DISCPROBE_PLAIN=1` or with `--no-animation`.
+- Progress: `timing` and `geo` show a bar, the current stage, the time spent and the time left. A narrow window drops parts instead of wrapping. ISO writers use the same line, following the file's real size. Ctrl+C keeps what was measured and says where it is. In Windows Terminal and other terminals that support it, the tab and the taskbar button show the progress too. In a wide window the `timing` and `geo` line also has a small graph of the last 12 read times.
+- Measured lines: At a terminal, the Zone and Target lines of `timing` are aligned in columns. Pipes and scripts get the same bytes as before.
+- Games: While measuring, press `g` to open one under the progress line, `n` for the next and `q` to close it. Snake: arrows or WASD steer, `r` plays again. Fill the Disc: blocks fly in from the right and stack on the left, up and down move them, right spins, left drops, and a full column clears. Merge Sectors: arrows slide, equal blocks merge and double (`2K`, `4K` and so on), and the board carries over to your next wait. Sudoku: arrows move, digits fill in, `0` or space clears. With 30 s to 2 minutes left when it first comes up it's 4×4, with more it's 6×6 (2×3 boxes), and under 30 s there's none. Measuring output keeps printing above them. They don't exist until you press `g`, and never appear in pipes, with `DISCPROBE_PLAIN=1` or with `--no-animation`.
+- Local files: Besides `results` and the images you make, the tool writes two small files in `%LOCALAPPDATA%\disc-probe\` (`~/.local/state/disc-probe/` elsewhere): `games.json` holds the Merge Sectors board, written only when the progress line closes, and `tutorial_offered` remembers that the walkthrough was offered. Tab completion's own files are described above. All of these are safe to delete.
 
-The progress line and the games have no background thread, because one could delay the completion timestamps. They're drawn on the main thread during the random pause before each timed read, and the drawing time comes off that pause. On the simulated drive, the same seed gives identical summaries and events with or without them. The game works the same way: keys, moves and drawing all happen in that pause, only changed cells are drawn, and it has its own random generator. On the simulated drive, playing also leaves summaries and events identical. The animation still draws at most 8 frames a second, like the earlier progress line, though a colour frame writes more bytes. `timing` was compared with that earlier line on a real drive: the difference with and without it (0.01–0.20°) matched the difference between repeats (0.02–0.23°). The new animation, the game and `geo` haven't been compared yet, so add `--no-animation` or use a pipe if you want to rule them out, and don't play during a measurement that matters.
+The progress line and the games have no background thread, because one could delay the completion timestamps. They're drawn on the main thread during the random pause before each timed read, and the drawing time comes off that pause. On the simulated drive, the same seed gives identical summaries and events with or without them. The games work the same way: keys, moves and drawing all happen in that pause, only changed cells are drawn, and each has its own random generator. On the simulated drive, playing all four also leaves summaries and events identical. The animation still draws at most 8 frames a second, like the earlier progress line, though a colour frame writes more bytes. `timing` was compared with that earlier line on a real drive: the difference with and without it (0.01–0.20°) matched the difference between repeats (0.02–0.23°). The new animation, the games and `geo` haven't been compared yet, so add `--no-animation` or use a pipe if you want to rule them out, and don't play during a measurement that matters.
 
 `timing` and `geo` raise the process to high priority while measuring. Before 2026-11-06 this always failed on 64-bit Python, so earlier real measurements on 64-bit Python ran at normal priority, including the comparison above. Reports made with this tool on Windows probably did too; ports and other probes may differ. The effect of high priority on jitter hasn't been compared yet.
 
-The opening screen of `guide` is a disc of coloured spaces with slashes and a few symbols on top. It falls back from true colour to 16 colours to plain text, and a small window gets the title alone. The turning disc on the progress line is decoration, not the real speed. Everything is 7-bit ASCII by default, so no code page or font can break it; `DISCPROBE_UNICODE=1` asks for finer glyphs. `NO_COLOR` turns off colour only; `--no-animation`, `DISCPROBE_NO_ANIMATION=1` and `CI` turn off animation. Details are in the [manual](docs/MANUAL.md#手动使用) (in Chinese).
+The opening screen of `guide` is a disc catching the light. Windows Terminal, Ghostty, WezTerm, kitty and the Claude desktop app's terminal draw block characters themselves, so there it's a disc of half-block pixels, dyed further out as the steps get done, with a line-style progress bar (UTF-8 needed). It falls back from that to true colour to 16 colours to plain text, and a small window gets the title alone. The turning disc on the progress line is decoration, not the real speed. Other terminals, such as Windows' old console window, get 7-bit ASCII by default, so no code page or font can break it; `DISCPROBE_UNICODE=1` asks for finer glyphs by hand. `NO_COLOR` turns off colour only; `--no-animation`, `DISCPROBE_NO_ANIMATION=1` and `CI` turn off animation. Details are in the [manual](docs/MANUAL.md#手动使用) (in Chinese).
 
 </details>
 

@@ -12,7 +12,7 @@ import subprocess
 import sys
 import tempfile
 
-from . import filldisc, guide, i18n, snake, timing, ui
+from . import filldisc, gameart, guide, i18n, sectors, snake, sudoku, timing, ui
 from .sim import SimDrive
 
 
@@ -63,6 +63,20 @@ def _term_matrix(c) -> None:
     c.check(not ui.Term(Utf8Tty(), env={"TERM": "xterm"}, platform="linux").unicode, "ASCII by default, even on UTF-8")
     c.check(ui.Term(Utf8Tty(), env={"TERM": "xterm", "DISCPROBE_UNICODE": "1"}, platform="linux").unicode, "DISCPROBE_UNICODE=1 asks for finer glyphs")
     c.check(not ui.Term(FakeTty(), env={"TERM": "xterm", "DISCPROBE_UNICODE": "1"}, platform="linux").unicode, "finer glyphs need UTF-8")
+
+
+def _largest_frame(progress, columns: int) -> int:
+    """A frame's size depends on where the bands of light are, so go through them all on a clock that steps."""
+    real, ticks = ui.time.monotonic, [1000.0]
+    ui.time.monotonic = lambda: ticks[0]
+    try:
+        largest = 0
+        for _ in range(480):        # a minute of frames at the usual rate
+            ticks[0] += 0.125
+            largest = max(largest, len(progress._render(columns)[0].encode()))
+        return largest
+    finally:
+        ui.time.monotonic = real
 
 
 def _progress_line(c) -> None:
@@ -149,8 +163,395 @@ def _layout(c) -> None:
         p.close()
     for env, wanted in (({}, "32"), ({"COLORFGBG": "15;0"}, "92"), ({"COLORFGBG": "0;15"}, "32"), ({"COLORFGBG": "0;default;7"}, "32"), ({"COLORFGBG": "bad"}, "32")):
         c.check(ui.Term(FakeTty(), env={"TERM": "xterm", **env}, platform="linux").green == wanted, f"green for {env}: {wanted}")
-    frame_bytes = len(ui.Progress(status, tty)._render(100)[0].encode())
-    c.check(frame_bytes < 420, f"a true-colour frame stays small ({frame_bytes} bytes)")
+    frame_bytes = _largest_frame(ui.Progress(status, tty), 100)
+    c.check(frame_bytes < 520, f"a true-colour frame stays small, whatever the light is doing ({frame_bytes} bytes)")
+
+
+def _modern_terminal(c) -> None:
+    env = {"TERM": "xterm", "WT_SESSION": "x"}
+    wt = ui.Term(Utf8Tty(), env=env, platform="linux")
+    c.check(wt.blocks and wt.sync and wt.taskbar and not wt.unicode, "Windows Terminal draws blocks itself, and takes taskbar progress and synchronized frames")
+    c.check(ui.Term(Utf8Tty(), env={"TERM": "xterm-256color", "TERM_PROGRAM": "claude-desktop"}, platform="linux").blocks, "so does the desktop app's terminal panel")
+    c.check(not ui.Term(FakeTty(), env=env, platform="linux").blocks, "no blocks without UTF-8")
+    other = ui.Term(Utf8Tty(), env={"TERM": "xterm"}, platform="linux")
+    c.check(not (other.blocks or other.sync or other.taskbar), "a terminal that does not say who it is gets none of this")
+    conemu = ui.Term(Utf8Tty(), env={"TERM": "xterm", "ConEmuANSI": "ON"}, platform="linux")
+    c.check(conemu.taskbar and not conemu.blocks, "ConEmu takes taskbar progress only")
+    c.check(ui.oklch(1, 0, 0) == (255, 255, 255) and ui.oklch(0, 0, 0) == (0, 0, 0), "OKLCH: white and black are themselves")
+
+    level = [0.25]
+    s = Utf8Tty()
+    p = ui.Progress(lambda: (level[0], "same", None), ui.Term(s, env=env, platform="linux"))
+    p.tick(force=True)
+    c.check("\x1b]9;4;1;25\x07" in s.getvalue(), "the taskbar shows the percentage")
+    p.tick(force=True)
+    c.check(s.getvalue().count("\x1b]9;4;") == 1, "and hears it only when it changes")
+    p.taskbar_at -= ui.TASKBAR_REFRESH_S
+    p.tick(force=True)
+    c.check(s.getvalue().count("\x1b]9;4;") == 2, "or now and then, for terminals that forget")
+    level[0] = None
+    p.tick(force=True)
+    c.check("\x1b]9;4;3;0\x07" in s.getvalue(), "work of unknown length is indeterminate")
+    p.close()
+    c.check("\x1b]9;4;0;0\x07" in s.getvalue(), "closing clears the taskbar")
+    s = Utf8Tty()
+    p = ui.Progress(lambda: (0.25, "same", None), ui.Term(s, env={"TERM": "xterm"}, platform="linux"))
+    p.tick(force=True)
+    p.close()
+    c.check("\x1b]" not in s.getvalue(), "other terminals are sent no taskbar sequence")
+
+    p = ui.Progress(lambda: (0.25, "rotation test, zone 2/3", 40.0), ui.Term(Utf8Tty(), env=env, platform="linux"), pulse=[100.0, 900.0, 500.0])
+    for fraction, shown in ((0.0, "─" * 20), (0.025, "╸" + "─" * 19), (0.05, "━" + "─" * 19), (0.5, "━" * 10 + "─" * 10), (0.999, "━" * 19 + "╸"), (1.0, "━" * 20)):
+        c.check(p._bar(fraction, 0.0)[0] == shown, f"the bar at {fraction} moves in half cells")
+        c.check(ANSI.sub("", p._bar(fraction, 0.0)[1]) == shown, f"and paint only adds colour at {fraction}")
+    c.check(ui.SPARK[0] in p._spark()[0][0] and ui.SPARK[-1] in p._spark()[0][0] and len(p._spark()[0][0]) == ui.SPARK_CELLS, "read times fill a fixed width, lowest to highest")
+    for columns in (200, 120, 100, 80, 60, 40, 24, 12):
+        line, width = p._render(columns)
+        c.check(i18n.display_width(ANSI.sub("", line)) == width <= max(10, columns - 1), f"with read times, {columns} columns: the line fits ({width})")
+    c.check(ui.SPARK[-1] in ANSI.sub("", p._render(120)[0]) and ui.SPARK[-1] not in ANSI.sub("", p._render(80)[0]), "read times are the first thing a narrow line loses")
+    frame_bytes = _largest_frame(p, 120)
+    c.check(frame_bytes < 620, f"a full frame with bar and read times stays small, whatever the light is doing ({frame_bytes} bytes)")
+    p.close()
+
+    class Timed:
+        ok = True
+        duration_us = 123.0
+
+    class Device:
+        def execute(self):
+            return Timed()
+
+        def idle(self, seconds):
+            pass
+    reader = ui.ProgressDevice(Device())
+    reader.idle(0)
+    c.check(not reader.read_times, "no read yet, nothing to show")
+    reader.execute()
+    c.check(not reader.read_times, "a read is noted in the pause after it, not while it is timed")
+    reader.idle(0)
+    c.check(list(reader.read_times) == [123.0], "the pause notes it")
+
+    colour = ui.Term(FakeTty(), env={"TERM": "xterm"}, platform="linux")
+    plain = ui.Term(FakeTty(), env={"TERM": "xterm", "NO_COLOR": "1"}, platform="linux")
+    line = "  python -m discprobe geo --drive H: --speed 8x"
+    c.check(ANSI.sub("", ui.command(line, colour)) == line and "\x1b[1;36m geo\x1b[0m" in ui.command(line, colour), "a command to copy: the subcommand stands out, the text is untouched")
+    c.check(ui.command(line, plain) == line, "no colour: as written")
+    c.check(ui.command("  python -m pip install numpy", colour) == "\x1b[36m  python -m pip install numpy\x1b[0m", "another command: all one colour")
+    lines = [f"Where you are, for DVD (CD: {guide.PROG} guide --media cd):", "", "  [x] Python packages        numpy", "  [ ] Geometry (geo)         not run yet", "Next:", "  Make it:", line, "All commands: x"]
+    for text in lines:
+        c.check(ANSI.sub("", ui.guide_line(text, colour)) == text and ui.guide_line(text, plain) == text, f"guide only adds colour: {text.strip()[:24]}")
+    c.check("\x1b[32m[x]" in ui.guide_line(lines[2], colour) and "\x1b[2m[ ]" in ui.guide_line(lines[3], colour), "done is green, the rest steps back")
+    i18n.use("zh")
+    try:
+        c.check(i18n.tr("Next:") in ANSI.sub("", ui.guide_line("Next:", colour)) and i18n.tr("Next:") != "Next:", "guide is translated before it is painted")
+    finally:
+        i18n.use("en")
+    text = "usage: python -m discprobe x\n\nStart here:\n  guide       show\n\noptions:\n  -h, --help  show\n  --drive D   the drive\n  python -m discprobe random --output a\n"
+    c.check(ANSI.sub("", ui.help_text(text, colour)) == text, "help only adds colour")
+    c.check(ui.help_text(text, plain) == text, "no colour: help as argparse wrote it")
+    c.check("\x1b[36m-h, --help\x1b[0m" in ui.help_text(text, colour) and "\x1b[36mguide\x1b[0m" in ui.help_text(text, colour) and "\x1b[1mStart here:\x1b[0m" in ui.help_text(text, colour),
+            "headings and names stand out")
+
+
+def _burn_warning(c) -> None:
+    from argparse import Namespace
+    from . import __main__ as cli
+    plain_line = ui.BURN_WARNING
+
+    def shown(env, stream=None, pause=None):
+        s = stream or FakeTty()
+        waits = []
+        ui.burn_warning(ui.Term(s, env=env, platform="linux"), pause=pause or waits.append)
+        return s.getvalue(), waits
+    text, waits = shown({"TERM": "xterm"})
+    c.check(len(waits) == 2 * ui.WARNING_FLASHES and 3.0 <= sum(waits) <= 5.0, f"it flashes long enough to notice, and no longer ({sum(waits)} s)")
+    c.check(1 / (2 * ui.WARNING_FLASH_S) <= 3, "no more than three flashes a second")
+    c.check(text.count("\x1b[1;97;41m") == ui.WARNING_FLASHES and text.count("\x1b[1;31m") > ui.WARNING_FLASHES, "white on red, then red, in turn")
+    c.check(text.endswith(f"\x1b[?25h\x1b[1;31m{plain_line}\x1b[0m\n"), "it ends as one red line, with the cursor back")
+    still, waits = shown({"TERM": "xterm", "DISCPROBE_NO_ANIMATION": "1"})
+    c.check(not waits and still == f"\x1b[1;31m{plain_line}\x1b[0m\n", "no motion: the red line alone, at once")
+    no_colour, _ = shown({"TERM": "xterm", "NO_COLOR": "1"})
+    c.check("\x1b[7m" in no_colour and not re.search(r"\x1b\[[0-9;]*3[0-9]|\x1b\[[0-9;]*4[0-9]", no_colour) and no_colour.endswith(plain_line + "\n"), "NO_COLOR: reverse video, then plain text")
+    pipe = io.StringIO()
+    ui.burn_warning(ui.Term(pipe, env={"TERM": "xterm"}, platform="linux"), pause=lambda s: c.check(False, "a pipe never waits"))
+    c.check(pipe.getvalue() == "", "a pipe sees nothing, and scripts keep their output")
+
+    def interrupted(seconds):
+        raise KeyboardInterrupt
+    text, _ = shown({"TERM": "xterm"}, pause=interrupted)
+    c.check(text.endswith(f"\x1b[?25h\x1b[1;31m{plain_line}\x1b[0m\n"), "Ctrl+C skips the flash, never the warning or the cursor")
+    saved = os.environ.get("COLUMNS")
+    os.environ["COLUMNS"] = "40"
+    try:
+        text, _ = shown({"TERM": "xterm"})
+        flash = re.search(r"\x1b\[1;97;41m(.*?)\x1b\[0m", text)[1]
+        c.check(i18n.display_width(flash) < 40 and plain_line in text, "a narrow window: the flash is cut to fit, and the full text follows")
+    finally:
+        if saved is None:
+            os.environ.pop("COLUMNS", None)
+        else:
+            os.environ["COLUMNS"] = saved
+    i18n.use("zh")
+    try:
+        c.check(i18n.tr(plain_line) != plain_line, "it has Chinese")
+        c.check(i18n.tr(plain_line) in shown({"TERM": "xterm"})[0], "and shows it")
+    finally:
+        i18n.use("en")
+    real = ui.burn_warning, cli._next
+    called = []
+    ui.burn_warning = lambda: called.append(True)
+    cli._next = lambda lines, args=None: None
+    try:
+        cli._image_ready(Namespace(output="a.iso", geo="results/geo-E-20260101-100000"), "a.png")
+        c.check(called == [True], "a real picture ISO gets the warning")
+        called.clear()
+        cli._image_ready(Namespace(output="a.iso", geo="results/geo-SIM-cav-20260101-100000"), "a.png")
+        c.check(called == [], "one from a simulated run is already told not to burn")
+    finally:
+        ui.burn_warning, cli._next = real
+
+
+def _first_steps(c) -> None:
+    """What a newcomer is told: where the image went, which burner, where they are, what comes after the burn."""
+    from argparse import Namespace
+    from . import __main__ as cli, imagecheck, imagedisc, iso9660
+    import numpy as np
+    real_term, real_platform, real_drives = ui._term, sys.platform, guide.optical_drives
+    env = {"TERM": "xterm", "WT_SESSION": "x"}
+    cwd = os.getcwd()
+    try:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+            os.chdir(d)
+            guide.optical_drives = lambda: ["H:"]
+            s = Utf8Tty()
+            ui._term = ui.Term(s, env=env, platform="linux")
+            with contextlib.redirect_stdout(s):
+                ui.iso_ready("iso/random.iso")
+            shown = ANSI.sub("", s.getvalue()).split("\n")
+            c.check(shown[0] == "ISO ready! It is here:" and shown[1] == os.path.abspath("iso/random.iso"), "the finished image's path gets a line of its own, to copy")
+            c.check("\x1b[32m" in s.getvalue(), "and the good news is green")
+            sys.platform = "win32"
+            lines = guide.after_random(Namespace(media="dvd"))
+            hint = [x for x in lines if isinstance(x, guide.Quiet)]
+            c.check(len(hint) == 1 and "H:" in hint[0] and lines.index(hint[0]) == 1, "the burner to pick follows the first line, with the drive's real letter")
+            c.check(any(isinstance(x, guide.Quiet) for x in guide.after_image("a.iso", "a.png", "results/geo-H-1")), "and picture ISOs get it too")
+            guide.optical_drives = lambda: ["H:", "I:"]
+            c.check("your optical drive" in guide.burner_hint()[0], "with several drives it does not guess")
+            guide.optical_drives = lambda: ["H:"]
+            sys.platform = "linux"
+            lines = guide.after_random(Namespace(media="dvd"))
+            c.check(not guide.burner_hint() and not any("right-click" in x or "--drive" in x for x in lines) and any("--sim" in x for x in lines), "elsewhere: no Windows steps, and no command that cannot run")
+            sys.platform = "win32"
+
+            lines = guide.guide_lines("dvd")
+            c.check(sum(x.startswith(("  [x]", "  [ ]")) for x in lines) == 5 and not any("you are here" in x for x in lines), "scripts keep the five steps they always saw")
+            lines = guide.guide_lines("dvd", notes=True)
+            steps = [x for x in lines if x.startswith(("  [x]", "  [ ]"))]
+            c.check(len(steps) == 7 and "Burn it on a blank" in steps[-1], "a person sees the steps to the end")
+            c.check(sum("you are here" in x for x in steps) == 1 and "you are here" in next(x for x in steps if x.startswith("  [ ]")), "the first step not done says so")
+            c.check(not any(x.startswith("How to look") for x in lines), "no talk of looking at a disc before one exists")
+            progress = guide.progress_lines("dvd")
+            c.check(isinstance(progress[1], guide.Step) and progress[-1] == "", "the same list can go before the next command")
+            sources = {}
+            import inspect
+            for name in ("cmd_timing", "cmd_geo", "cmd_random"):
+                sources[name] = inspect.getsource(getattr(cli, name))
+            c.check("after_timing(args, summary), args)" in sources["cmd_timing"] and "after_geo(args, res, out), args)" in sources["cmd_geo"]
+                    and "after_random(args), args)" in sources["cmd_random"], "timing, geo and random all pass on what the list needs")
+            s = Utf8Tty()
+            ui._term = ui.Term(s, env=env, platform="linux")
+            real = Namespace(media="dvd", out="results")
+            with contextlib.redirect_stdout(s):
+                cli._next(["Verdict: good.", "", "Next, measure the geometry:", "  python -m discprobe geo --drive H:"], real)
+            shown = ANSI.sub("", s.getvalue())
+            c.check(shown.index("Verdict") < shown.index("Your progress:") < shown.index("Next, measure"), "the list goes between the verdict and what comes next")
+            s = Utf8Tty()
+            ui._term = ui.Term(s, env=env, platform="linux")
+            with contextlib.redirect_stdout(s):
+                cli._next(["Next, measure the geometry:"], Namespace(media="dvd", out="results", sim="cav"))
+                cli._next([], real)
+            c.check("Your progress:" not in s.getvalue(), "a simulated run has no progress to show, and no advice means no list")
+            piped = io.StringIO()
+            ui._term = ui.Term(piped, env={"TERM": "xterm"}, platform="linux")
+            with contextlib.redirect_stdout(piped):
+                cli._next(["Next, measure the geometry:"], real)
+            c.check(piped.getvalue() == "", "a pipe sees none of it")
+            ui._term = ui.Term(Utf8Tty(), env=env, platform="linux")
+            os.makedirs("iso")
+            c.check(guide.picture_iso() is None, "no picture ISO yet")
+            for name in ("picture.iso", "picture.preview.png", "blind_x.iso", "blind_x.preview.png", "orphan.preview.png"):
+                open(os.path.join("iso", name), "w").close()
+            c.check(guide.picture_iso() == os.path.join("iso", "picture.iso"), "a picture ISO is found by its preview, and held-out names stay unread")
+            cut_short = os.path.join("iso", "picture.iso" + iso9660.UNFINISHED)
+            open(cut_short, "w").close()
+            c.check(guide.picture_iso() is None, "a rewrite cut short leaves the old preview, but is not taken for a finished ISO")
+            os.remove(cut_short)
+            typed = cli._os_error(FileNotFoundError(2, "x", "my_picture.png"))
+            c.check("only an example" in typed and os.getcwd() in typed, "the example name, copied as it is, is explained")
+            typed = cli._os_error(FileNotFoundError(2, "x", os.path.abspath("nope.png")))
+            c.check(typed == f"no such file: {os.path.abspath('nope.png')}", "a full path says only that it is missing")
+
+            mark = os.path.join(d, "state")
+            saved = {k: os.environ.get(k) for k in ("LOCALAPPDATA", "DISCPROBE_NO_TUTORIAL")}
+            os.environ["LOCALAPPDATA"] = mark
+            os.environ.pop("DISCPROBE_NO_TUTORIAL", None)
+            try:
+                c.check(not guide.tutorial_offered(), "the tutorial has not been offered yet")
+                guide.remember_tutorial_offered()
+                c.check(guide.tutorial_offered(), "and is offered only once")
+                os.remove(guide._tutorial_mark())
+                asked = []
+                answer = [True]
+                real_ask = ui.ask
+                ui.ask = lambda question, default=True: asked.append(question) or answer[0]
+                s = Utf8Tty()
+                ui._term = ui.Term(s, env={**env, "DISCPROBE_NO_ANIMATION": "1"}, platform="linux")
+                ui._term.can_prompt = lambda: True
+                real_results = guide.scan
+                try:
+                    with contextlib.redirect_stdout(s):
+                        cli.cmd_guide(Namespace())
+                    c.check(len(asked) == 1 and "1. Burn a random-data disc" in ANSI.sub("", s.getvalue()), "the first start asks, and yes walks through the steps")
+                    with contextlib.redirect_stdout(s):
+                        cli.cmd_guide(Namespace())
+                    c.check(len(asked) == 1, "the next start does not ask again")
+                    os.remove(guide._tutorial_mark())
+                    answer[0] = False
+                    s.seek(0)
+                    s.truncate()
+                    with contextlib.redirect_stdout(s):
+                        cli.cmd_guide(Namespace())
+                    c.check(len(asked) == 2 and "1. Burn a random-data disc" not in ANSI.sub("", s.getvalue()) and guide.tutorial_offered(), "no skips it, and is remembered too")
+                    os.remove(guide._tutorial_mark())
+                    guide.scan = lambda out="results": [Namespace(simulated=False, kind="geo", media="dvd")]
+                    asked.clear()
+                    ui._term.interactive = False
+                    with contextlib.redirect_stdout(s):
+                        try:
+                            cli.cmd_guide(Namespace())
+                        except AttributeError:
+                            pass        # guide_lines wants a whole Result; only the question matters here
+                    c.check(not asked, "someone who has measured already is not asked")
+                finally:
+                    ui.ask, guide.scan = real_ask, real_results
+                    ui._term = ui.Term(Utf8Tty(), env=env, platform="linux")
+                c.check(i18n.tr("First time here? Walk through the steps?") == "First time here? Walk through the steps?", "English stays English")
+            finally:
+                for key, value in saved.items():
+                    os.environ.pop(key, None) if value is None else os.environ.update({key: value})
+            lines = guide.tutorial_lines()
+            c.check(sum(x[:1].isdigit() for x in lines) == 5 and any("--drive H:" in x for x in lines), "the tutorial has five steps and the real drive")
+            i18n.use("zh")
+            try:
+                missing = [x.strip() for x in (*lines, *guide.AFTER_BURN) if x.strip() and not x.lstrip().startswith("python ") and i18n.tr(x) == x]
+                c.check(not missing, f"all of it has Chinese {missing[:2]}")
+                c.check(i18n.tr(guide.burner_hint()[0]) != guide.burner_hint()[0], "the burner hint too")
+                for text in ("Your progress:", "Picture ISO (image)", "Burn it on a blank", "from the batch you measured", "you are here", "ISO ready! It is here:",
+                             "First time here? Walk through the steps?", f"Put the picture in {cwd}, or give its full path (in quotes if it has spaces):",
+                             "my_picture.png is only an example: use the name of your own picture.", f"It looked in {cwd}. A full path works too, in quotes if it has spaces."):
+                    c.check(i18n.tr(text) != text, f"it has Chinese: {text[:24]}")
+            finally:
+                i18n.use("en")
+
+            sys.platform = real_platform
+            t = ui.Term(Utf8Tty(), env=env, platform="linux")
+            blank = np.zeros((imagedisc.SIZE, imagedisc.SIZE), bool)
+            rows = imagecheck.thumbnail(blank, 24.5, 56.0, t)
+            c.check(len(rows) == imagecheck.THUMB_PIXELS // 2 and all(i18n.display_width(ANSI.sub("", r)) == imagecheck.THUMB_PIXELS + 2 for r in rows), "the small disc has a fixed size")
+            still = imagecheck.thumbnail(blank, 24.5, 56.0, ui.Term(Utf8Tty(), env={"TERM": "xterm", "NO_COLOR": "1"}, platform="linux"))
+            c.check("\x1b" not in "".join(still) and "".join(still).isascii() and len(still) == len(rows), "without colour it is plain text")
+            half = blank.copy()
+            half[:, :imagedisc.SIZE // 2] = True
+            left = ANSI.sub("", imagecheck.thumbnail(half, 24.5, 56.0, ui.Term(Utf8Tty(), env={"TERM": "xterm", "NO_COLOR": "1"}, platform="linux"))[10])
+            c.check("@" in left[:20] and "@" not in left[24:], "it shows the design the way round the preview does")
+            say = imagecheck.notes
+            c.check(any("Almost all of it came out light" in x for x in say(blank, None, 116.0, 24.5, 56.0)), "a blank design is noticed")
+            c.check(any("came out dark" in x for x in say(~blank, None, 116.0, 24.5, 56.0)), "and a black one")
+            c.check(any("outside" in x for x in say(~blank, None, 116.0, 24.5, 56.0)), "with what falls off the edge")
+            spot = blank.copy()
+            spot[2950:3050, 2100:2200] = True
+            noted = say(spot, None, 116.0, 24.5, 56.0)
+            c.check(any("small part" in x for x in noted), "a very small picture is noticed")
+            ring = blank.copy()
+            y, x = np.ogrid[:imagedisc.SIZE, :imagedisc.SIZE]
+            radius = np.hypot(y - 3000, x - 3000) * imagedisc.CELL_MM
+            ring[(radius > 30) & (radius < 50) & ((x // 300 + y // 300) % 2 == 0)] = True
+            c.check(say(ring, None, 116.0, 24.5, 56.0) == [], "a sensible picture gets no notes at all")
+            c.check(len(say(~blank, None, 116.0, 24.5, 56.0)) <= imagecheck.MOST_NOTES, "and there are never many")
+            from PIL import Image
+            path = os.path.join("iso", "wide.png")
+            Image.new("L", (300, 100), 128).save(path)
+            noted = imagecheck._source_notes(path)
+            c.check(any("not square" in x for x in noted) and any("blocky" in x for x in noted) and any("mid grey" in x for x in noted), "the file itself: its shape, size and greys")
+            dark = os.path.join("iso", "dark_wide.png")
+            Image.new("L", (300, 100), 0).save(dark)
+            drawn = imagedisc.picture_design(dark, 90.0)
+            high = np.flatnonzero(drawn.any(axis=1))
+            wide_mm = np.flatnonzero(drawn.any(axis=0))
+            said = next(x for x in imagecheck._source_notes(dark, 90.0) if "not square" in x)
+            c.check(round((wide_mm[-1] - wide_mm[0] + 1) * imagedisc.CELL_MM) == 90 and round((high[-1] - high[0] + 1) * imagedisc.CELL_MM) == 30
+                    and "keeps its shape" in said and "90 mm" in said, "and what it says about the shape is what the design does")
+            c.check(imagecheck._source_notes(os.path.join("iso", "nope.png")) == [], "a file that can't be read adds nothing")
+            i18n.use("zh")
+            try:
+                for note in (*noted, "Almost all of it came out dark, so little will show on the disc.", "About 21% of its dark area falls outside the part of the disc that can be drawn on, so it is cut off."):
+                    c.check(i18n.tr(note) != note, f"notes have Chinese: {note[:24]}")
+            finally:
+                i18n.use("en")
+
+            saved = os.environ.get("COLUMNS")
+            os.environ["COLUMNS"] = "120"
+            try:
+                s = Utf8Tty()
+                p = ui.Progress(lambda: (0.5, "rung 3/22", 40.0), ui.Term(s, env=env, platform="linux"))
+                p.width_shown = 100
+                c.check(p._unwrap() == "", "a line that still fits is left alone")
+                os.environ["COLUMNS"] = "40"
+                p.width_shown = 100
+                c.check(p._unwrap() == "\r\x1b[2A\x1b[J" and p.width_shown == 0, "narrowed: the rows it folded onto are all cleared")
+                other = ui.Progress(lambda: (0.5, "x", None), ui.Term(Utf8Tty(), env={"TERM": "xterm"}, platform="linux"))
+                other.width_shown = 100
+                c.check(other._unwrap() == "", "a terminal that may not fold it keeps every line, at the cost of a leftover")
+                p.width_shown = 100
+                p.line_shown = None
+                p.tick(force=True)
+                c.check("\x1b[2A\x1b[J" in s.getvalue(), "drawing clears them")
+                p.close()
+                other.close()
+            finally:
+                os.environ.pop("COLUMNS", None) if saved is None else os.environ.update(COLUMNS=saved)
+            os.chdir(cwd)       # Windows won't remove a folder that is in use
+    finally:
+        os.chdir(cwd)
+        ui._term, sys.platform, guide.optical_drives = real_term, real_platform, real_drives
+
+
+def _aligned(c) -> None:
+    zones = ["Zone 0.05 (LBA 114752): T = 6.59983 ms (9091.15 rpm), jitter 58.36 us = 3.183 deg, coherence 0.9723",
+             "Zone 0.5 (LBA 1147536): T = 6.5999 ms (9091.04 rpm), jitter 158.8 us = 13.21 deg, coherence 1.0"]
+    targets = ["Target 0.15 (LBA 344256): phase 263.021 deg +/- 0.609 (single-shot std 3.849, n=40), ref jitter 2.948 deg",
+               "Target 0.75 (LBA 1721312): phase 82.002 deg +/- 0.66 (single-shot std 14.1, n=9), ref jitter 3.01 deg"]
+    number = re.compile(r"\d+\.?\d*")
+    for lines in (zones, targets):
+        out = [ui.aligned(line) for line in lines]
+        c.check(len(out[0]) == len(out[1]), "aligned lines are the same length")
+        ends = [[m.end() for m in number.finditer(line)] for line in out]
+        c.check(ends[0] == ends[1], "every number ends in the same column")
+        for before, after in zip(lines, out):
+            c.check([float(v) for v in number.findall(before)] == [float(v) for v in number.findall(after)], "no value changes, only its padding")
+    for text in ("Zone 0.05 (LBA 1): no period found", "Rotation: CAV", "Target x (LBA 1): phase bad deg +/- 1 (single-shot std 1, n=1), ref jitter 1 deg"):
+        c.check(ui.aligned(text) == text, f"left alone: {text[:24]}")
+    s = FakeTty()
+    p = ui.Progress(lambda: (None, "x", None), ui.Term(s, env={"TERM": "xterm", "NO_COLOR": "1"}, platform="linux"))
+    p.log(zones[0])
+    p.close()
+    c.check(ui.aligned(zones[0]) + "\n" in s.getvalue(), "a terminal gets the aligned line")
+    i18n.use("zh")
+    try:
+        for line in (ui.aligned(zones[0]), ui.aligned(targets[0])):
+            c.check(i18n.tr(line) != line and not re.search(r"[A-Za-z]{4,}", i18n.tr(line).replace("jitter", "")), f"aligned lines still have Chinese: {i18n.tr(line)[:30]}")
+    finally:
+        i18n.use("en")
 
 
 def _fill_disc(c) -> None:
@@ -203,7 +604,7 @@ def _fill_disc(c) -> None:
         g.burned.clear()
         kinds.append(g.kind)
     c.check(all(a != b for a, b in zip(kinds, kinds[1:])) and set(kinds) == set(filldisc.BLOCK_KINDS), "every block gets a colour, never the same as the last one")
-    c.check(all(k in ui.GAME_CELLS and k in ui.GAME_GLYPHS for k in filldisc.BLOCK_KINDS), "every colour can be drawn, with and without colour")
+    c.check(all(k in gameart.ANSI16 and k in gameart.GLYPHS and k in gameart.BLOCKS for k in filldisc.BLOCK_KINDS), "every colour can be drawn, with and without colour")
     g = filldisc.FillDisc(14, 8, rng=random.Random(7))
     moves = random.Random(9)
     drawn = {(x, y): g.cell(x, y) for x in range(14) for y in range(8)}
@@ -249,12 +650,37 @@ def _snake(c) -> None:
     g.heading = (0, 1)
     g.step()
     c.check(g.over, "biting itself ends the game")
+    c.check(g.cell(*g.body[0]) == "dead", "and shows on the head")
+    g = snake.Snake(12, 8, rng=shared_random.Random(5))
+    moves = shared_random.Random(6)
+    drawn = {(x, y): g.cell(x, y) for x in range(12) for y in range(8)}
+    played = 0
+    while played < 3000:
+        if g.over:
+            g.reset()
+            drawn = {(x, y): g.cell(x, y) for x in range(12) for y in range(8)}
+        g.turn(moves.choice(("up", "down", "left", "right")))
+        drawn.update({(x, y): kind for x, y, kind in g.step()})
+        played += 1
+        if drawn != {(x, y): g.cell(x, y) for x in range(12) for y in range(8)}:
+            break
+    c.check(played == 3000, f"snake: drawing only the changed cells always gives the true board ({played} steps)")
+    g = snake.Snake(10, 6)
+    g.body = [(2, 2), (3, 2), (3, 3), (2, 3)]
+    g.heading = (0, 1)
+    g.food = (9, 5)
+    drawn = {(x, y): g.cell(x, y) for x in range(10) for y in range(6)}
+    drawn.update({(x, y): kind for x, y, kind in g.step()})
+    c.check(not g.over and drawn == {(x, y): g.cell(x, y) for x in range(10) for y in range(6)}, "a head moving onto the old tail's cell is still drawn")
     _fill_disc(c)
     c.check(shared_random.getstate() == before, "the games leave the shared random generator alone")
     c.check(snake.parse_posix("\x1b[Ag\x1bOB") == ["up", "g", "down"], "arrow keys from a POSIX terminal")
 
     saved = {k: os.environ.get(k) for k in ("COLUMNS", "LINES")}
     os.environ.update(COLUMNS="80", LINES="24")
+    real_path = sectors.state_path
+    keep = tempfile.TemporaryDirectory()
+    sectors.state_path = lambda: os.path.join(keep.name, "games.json")      # never the player's own board
     try:
         s = FakeTty()
         keys = Keys(["x"], ["g"], ["d"], [], ["q"], ["g"])
@@ -304,7 +730,7 @@ def _snake(c) -> None:
         p.close()
         os.environ.update(LINES="24")
         s = FakeTty()
-        keys = Keys(["g"], ["n"], ["up"], ["n"], ["n"])
+        keys = Keys(["g"], ["n"], ["up"], ["n"], ["n"], ["n"])
         p = ui.Progress(lambda: (0.5, "rung 3/22", None), ui.Term(s, env={"TERM": "xterm"}, platform="linux"), keys=keys)
         p.play()
         snake_game = p.game
@@ -318,7 +744,9 @@ def _snake(c) -> None:
         filled = p.game
         filled.best = 3
         p.play()
-        c.check(p.game is snake_game, "n changes back, and each game keeps its board")
+        c.check(isinstance(p.game, sectors.Sectors), "n goes on to the next game")
+        p.play()
+        c.check(p.game is snake_game, "n comes back round, and each game keeps its board")
         p.play()
         c.check(p.game is filled, "and again")
         p.close()
@@ -327,7 +755,7 @@ def _snake(c) -> None:
         p = ui.Progress(lambda: (0.5, "rung 3/22", None), ui.Term(s, env={"TERM": "xterm", "NO_COLOR": "1"}, platform="linux"), keys=Keys(["g"], ["n"]))
         p.play()
         p.play()
-        c.check(ui.GAME_GLYPHS[p.game.kind] in s.getvalue() and not re.search(r"\x1b\[[0-9;]*m", s.getvalue()), "NO_COLOR: Fill the Disc is drawn with glyphs")
+        c.check(gameart.GLYPHS[p.game.kind] in s.getvalue() and not re.search(r"\x1b\[[0-9;]*m", s.getvalue()), "NO_COLOR: Fill the Disc is drawn with glyphs")
         p.close()
         os.environ.update(COLUMNS="30")
         s = FakeTty()
@@ -335,12 +763,245 @@ def _snake(c) -> None:
         p.play()
         c.check(p.playing and "closes" not in s.getvalue() and "Snake 0" in s.getvalue(), "a narrow window cuts the hint and never wraps it")
         p.close()
+        _sectors(c, keep.name)
+        _sudoku(c)
+        _game_art(c)
     finally:
+        sectors.state_path = real_path
+        keep.cleanup()
         for key, value in saved.items():
             if value is None:
                 os.environ.pop(key, None)
             else:
                 os.environ[key] = value
+
+
+def _board(g) -> dict:
+    return {(x, y): g.cell(x, y) for x in range(g.cols) for y in range(g.rows)}
+
+
+def _sectors(c, folder: str) -> None:
+    import random
+    c.check(sectors.merged([1, 1, 2, 0]) == ([2, 2, 0, 0], 4), "equal neighbours merge, and the kB gained is counted")
+    c.check(sectors.merged([1, 1, 1, 1]) == ([2, 2, 0, 0], 8), "four make two")
+    c.check(sectors.merged([2, 1, 1, 0])[0] == [2, 2, 0, 0], "a tile merges only once in a move")
+    c.check(sectors.merged([1, 0, 0, 1])[0] == [2, 0, 0, 0], "gaps do not stop a merge")
+    c.check((sectors.label(1), sectors.label(5), sectors.label(10), sectors.label(11), sectors.label(17)) == ("2K", "32K", "1M", "2M", "128M"), "tiles are sizes on a disc")
+    c.check(max(len(sectors.label(t)) for t in range(1, sectors.MAX_TILE + 1)) <= 6, "every size fits its tile")
+    os.environ.update(COLUMNS="80")
+    path = os.path.join(folder, "sectors.json")
+    g = sectors.Sectors(rng=random.Random(2), path=path)
+    c.check(sum(t > 0 for row in g.board for t in row) == 2 and not g.over, "a new board starts with two tiles")
+    for name, expected in (("left", [(0, 0)]), ("right", [(3, 0)]), ("up", [(1, 0)]), ("down", [(1, 3)])):
+        g.board = [[0] * 4 for _ in range(4)]
+        g.board[1 if name in ("left", "right") else 0][1] = 1
+        g.board[1 if name in ("left", "right") else 1][2 if name in ("left", "right") else 1] = 1
+        g.rng = random.Random(3)
+        g.turn(name)
+        tile = [(x, y) for y in range(4) for x in range(4) if g.board[y][x] == 2]
+        at = {"left": (0, 1), "right": (3, 1), "up": (1, 0), "down": (1, 3)}[name]
+        c.check(tile == [at], f"sliding {name} merges towards that side")
+    g.board = [[1, 2, 1, 2], [2, 1, 2, 1], [1, 2, 1, 2], [2, 1, 2, 0]]
+    before = [row[:] for row in g.board]
+    c.check(g.turn("left") == [] and g.board == before, "a move that moves nothing adds no tile")
+    g.board = [[3, 4, 3, 4], [4, 3, 4, 3], [3, 4, 3, 4], [0, 4, 3, 4]]
+    g.over = False
+    g.turn("left")
+    c.check(g.over and g.turn("up") == [], "the move that fills the board with no merge left ends the game")
+    g.over = False
+    g.board = [[1, 2, 1, 2], [2, 1, 2, 1], [1, 2, 1, 2], [2, 1, 2, 1]]
+    c.check(g._stuck(), "a full board with no equal neighbours is stuck")
+    g = sectors.Sectors(rng=random.Random(4), path=path)
+    moves = random.Random(5)
+    drawn = _board(g)
+    played = 0
+    while not g.over and played < 4000:
+        drawn.update({(x, y): kind for x, y, kind in g.turn(moves.choice(("up", "down", "left", "right")))})
+        played += 1
+        if drawn != _board(g):
+            break
+    c.check(drawn == _board(g) and played > 20, f"drawing only the changed cells always gives the true board ({played} moves)")
+    c.check(g.best == g.score and g.score > 0, "the score counts what was merged")
+    g.save()
+    again = sectors.Sectors(path=path)
+    c.check(again.board == g.board and again.score == g.score and again.best == g.best and again.over == g.over, "the next wait carries on with the same board")
+    again.reset()
+    c.check(again.best == g.best and again.score == 0, "a new board keeps the best score")
+    fresh_path = os.path.join(folder, "untouched.json")
+    sectors.Sectors(path=fresh_path).save()
+    c.check(not os.path.exists(fresh_path), "a board nobody played leaves no file")
+    for broken in ("not json", '{"sectors": {"board": [[1]], "score": 0, "best": 0}}', '{"sectors": {"board": "x"}}', "[]", '{"other": 1}'):
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(broken)
+        loaded = sectors.Sectors(path=path)
+        c.check(sum(t > 0 for row in loaded.board for t in row) == 2 and loaded.score == 0, f"a broken file starts afresh: {broken[:18]}")
+    blocked = sectors.Sectors(path=os.path.join(path, "not", "a", "folder.json"))
+    blocked.changed = True
+    blocked.save()
+    c.check(True, "a file that cannot be written does not stop anything")
+    s = FakeTty()
+    keys = Keys(["g"], ["n"], ["n"], ["left"], ["up"])
+    p = ui.Progress(lambda: (0.5, "rung 3/22", None), ui.Term(s, env={"TERM": "xterm"}, platform="linux"), keys=keys)
+    for _ in range(5):
+        p.play()
+    c.check(isinstance(p.game, sectors.Sectors) and "Merge Sectors" in s.getvalue(), "n reaches it, and it plays under the progress line")
+    keep = p.game
+    keep.changed = True
+    p.close()
+    c.check(os.path.exists(keep.path), "closing the progress line saves the board")
+    os.environ.update(COLUMNS="30")
+    s = FakeTty()
+    p = ui.Progress(lambda: (0.5, "rung 3/22", None), ui.Term(s, env={"TERM": "xterm"}, platform="linux"), keys=Keys(["g"], ["n"], ["n"]))
+    p.play()
+    c.check(isinstance(p.game, snake.Snake), "a narrow window opens what fits")
+    p.play()
+    c.check(isinstance(p.game, filldisc.FillDisc) and p.playing, "n goes on to the next game")
+    p.play()
+    c.check(isinstance(p.game, snake.Snake) and p.playing and "too small" not in s.getvalue(), "and passes over one too wide for it")
+    p.close()
+    os.environ.update(COLUMNS="80")
+
+
+def _sudoku(c) -> None:
+    import random
+    import time
+    before = random.getstate()
+    for kind, size in ((sudoku.Sudoku4, 4), (sudoku.Sudoku6, 6)):
+        worst = 0.0
+        for seed in range(30):
+            start = time.perf_counter()
+            g = kind(rng=random.Random(seed))
+            worst = max(worst, time.perf_counter() - start)
+            whole = set(range(1, size + 1))
+            rows = all(set(row) == whole for row in g.solution)
+            cols = all({row[x] for row in g.solution} == whole for x in range(size))
+            boxes = all({g.solution[y + i][x + j] for i in range(g.box_h) for j in range(g.box_w)} == whole
+                        for y in range(0, size, g.box_h) for x in range(0, size, g.box_w))
+            if not (rows and cols and boxes):
+                c.check(False, f"{size}x{size}: the solved grid is valid (seed {seed})")
+            if sudoku.count_solutions(g.grid, g.box_h, g.box_w) != 1:
+                c.check(False, f"{size}x{size}: the puzzle has one solution (seed {seed})")
+            if not g.given or len(g.given) == size ** 2:
+                c.check(False, f"{size}x{size}: there is something left to fill (seed {seed})")
+        c.check(True, f"{size}x{size}: 30 puzzles, each valid with exactly one solution")
+        c.check(worst < 0.5, f"{size}x{size}: the slowest took {worst * 1000:.0f} ms to make")
+        print(f"  info  {size}x{size}: slowest puzzle {worst * 1000:.1f} ms, {len(g.given)} givens")
+    c.check(random.getstate() == before, "puzzles leave the shared random generator alone")
+    c.check(sudoku.Sudoku6().box_h * sudoku.Sudoku6().box_w == 6 and sudoku.Sudoku4().box_w == 2, "boxes split the board evenly")
+
+    g = sudoku.Sudoku4(rng=random.Random(1))
+    gx, gy = next(iter(g.given))
+    g.x, g.y = gx, gy
+    kept = g.grid[gy][gx]
+    g.turn("1" if kept != 1 else "2")
+    c.check(g.grid[gy][gx] == kept, "a given digit cannot be changed")
+    x, y = next((x, y) for y in range(4) for x in range(4) if (x, y) not in g.given)
+    g.x, g.y = x, y
+    wrong = next(d for d in range(1, 5) if d != g.solution[y][x] and (d in g.grid[y] or any(g.grid[r][x] == d for r in range(4))))
+    g.turn(str(wrong))
+    c.check(g.cell(x, y)[2] == "wrong", "a digit that clashes is marked")
+    g.turn("0")
+    c.check(g.grid[y][x] == 0 and g.cell(x, y)[1] == 0, "0 clears it")
+    g.turn(str(wrong))
+    g.turn(" ")
+    c.check(g.grid[y][x] == 0, "and so does space")
+    g.x, g.y = 3, 3
+    g.turn("right")
+    c.check(g.x == 0, "the cursor wraps round")
+    moves = random.Random(2)
+    drawn = _board(g)
+    for _ in range(600):
+        drawn.update({(x, y): kind for x, y, kind in g.turn(moves.choice(("up", "down", "left", "right", "1", "2", "3", "4", "0")))})
+        if g.over:
+            g.reset()
+            drawn = _board(g)
+        if drawn != _board(g):
+            break
+    c.check(drawn == _board(g), "drawing only the changed cells always gives the true board")
+    g = sudoku.Sudoku6(rng=random.Random(3))
+    for y in range(6):
+        for x in range(6):
+            if (x, y) not in g.given:
+                g.x, g.y = x, y
+                g.turn(str(g.solution[y][x]))
+    c.check(g.over and g.score == 1 and g.best == 1 and g.cell(0, 0)[2] == "solved", "filling it in correctly finishes the puzzle")
+    c.check(g.turn("up") == [], "a finished puzzle does not move")
+    old = [row[:] for row in g.grid]
+    g.reset()
+    c.check(not g.over and g.score == 1 and any(not v for row in g.grid for v in row) and g.grid != old, "another puzzle keeps the count")
+
+    c.check(sudoku.for_wait(None) is None and sudoku.for_wait(29) is None, "under 30 s there is no puzzle")
+    c.check(sudoku.for_wait(30) is sudoku.Sudoku4 and sudoku.for_wait(119) is sudoku.Sudoku4, "30 s to 2 minutes: 4x4")
+    c.check(sudoku.for_wait(120) is sudoku.Sudoku6 and sudoku.for_wait(480) is sudoku.Sudoku6, "2 minutes and up: 6x6")
+    tty = lambda: ui.Term(FakeTty(), env={"TERM": "xterm"}, platform="linux")
+    p = ui.Progress(lambda: (0.5, "x", None), tty(), wait_s=90.0)
+    c.check(p._kinds()[-1] is sudoku.Sudoku4, "the usual length chooses before there is an estimate")
+    p = ui.Progress(lambda: (0.5, "x", None), tty(), wait_s=300.0)
+    c.check(p._kinds()[-1] is sudoku.Sudoku6, "and a longer one gets the bigger board")
+    p = ui.Progress(lambda: (0.5, "x", 60.0), tty(), wait_s=300.0)
+    p._render(100)
+    c.check(p._kinds()[-1] is sudoku.Sudoku4, "the run's own estimate wins")
+    p.left = 300.0
+    c.check(p._kinds()[-1] is sudoku.Sudoku4, "and a puzzle chosen stays chosen")
+    p = ui.Progress(lambda: (0.5, "x", 5.0), tty())
+    p._render(100)
+    c.check(len(p._kinds()) == 3 and sudoku.Sudoku not in [k.__base__ for k in p._kinds()], "nearly done: no puzzle on offer")
+    s = FakeTty()
+    keys = Keys(["g"], ["n"], ["n"], ["n"], ["1"], ["right"], ["q"])
+    p = ui.Progress(lambda: (0.5, "x", 60.0), ui.Term(s, env={"TERM": "xterm"}, platform="linux"), keys=keys)
+    p._render(100)
+    for _ in range(4):
+        p.play()
+    g = p.game
+    c.check(isinstance(g, sudoku.Sudoku4) and "Sudoku 4x4" in s.getvalue(), "n reaches the puzzle")
+    start = g.x
+    if (g.x, g.y) not in g.given:
+        p.play()
+        c.check(g.grid[g.y][g.x] == 1, "a digit key fills the cell")
+    p.play()
+    c.check(g.x == (start + 1) % 4, "an arrow key moves the cursor")
+    p.play()
+    c.check(not p.playing, "q closes it")
+    p.close()
+    for lang in ("en", "zh"):
+        i18n.use(lang)
+        try:
+            for hint in (sudoku.Sudoku4().hint(), sectors.Sectors(path=os.devnull).hint()):
+                c.check((i18n.tr(hint) != hint) == (lang == "zh"), f"{lang}: {hint[:18]}")
+        finally:
+            i18n.use("en")
+
+
+def _game_art(c) -> None:
+    import random
+    tiers = {"fine": {"TERM": "xterm", "WT_SESSION": "x"}, "true colour": {"TERM": "xterm", "COLORTERM": "truecolor"},
+             "16 colours": {"TERM": "xterm"}, "NO_COLOR": {"TERM": "xterm", "NO_COLOR": "1"}}
+    boards = (snake.Snake(12, 8, rng=random.Random(1)), filldisc.FillDisc(12, 8, rng=random.Random(1)), sectors.Sectors(rng=random.Random(1), path=os.devnull),
+              sudoku.Sudoku4(rng=random.Random(1)), sudoku.Sudoku6(rng=random.Random(1)))
+    for name, env in tiers.items():
+        t = ui.Term(Utf8Tty(), env=env, platform="linux")
+        for g in boards:
+            rows = [gameart.paint(g, x, y, t) for y in range(g.rows) for x in range(g.cols)]
+            right = all(len(cell) == g.cell_h and all(i18n.display_width(ANSI.sub("", r)) == g.cell_w for r in cell) for cell in rows)
+            c.check(right, f"{name}: {g.name} cells are all {g.cell_w} by {g.cell_h}")
+            c.check(("\x1b" in "".join(r for cell in rows for r in cell)) == t.color, f"{name}: {g.name} uses escapes only with colour")
+    for kind in ("snake", "tail", "food", "dead", "field", "head_up", "head_down", "head_left", "head_right"):
+        c.check(kind in gameart.ANSI16 and kind in gameart.GLYPHS, f"{kind} can be drawn in every tier")
+    g = sectors.Sectors(rng=random.Random(1), path=os.devnull)
+    t = ui.Term(Utf8Tty(), env=tiers["fine"], platform="linux")
+    for tile in range(1, 21):
+        c.check(sectors.label(tile) in ANSI.sub("", gameart._tile(tile, "fine")[0]), f"tile {tile} shows its size")
+    colours = {gameart._tile_colour(tile) for tile in range(1, 13)}
+    c.check(len(colours) == 12, "the first twelve sizes each have their own colour")
+    s = Utf8Tty()
+    p = ui.Progress(lambda: (0.5, "x", None), ui.Term(s, env=tiers["fine"], platform="linux"), keys=Keys(["g"]))
+    p.play()
+    size = len(s.getvalue())
+    p.last_step = 0.0
+    p._advance(p.game.step)
+    step_bytes = len(s.getvalue()) - size
+    c.check(step_bytes < 400, f"a step of the snake writes little ({step_bytes} bytes)")
+    p.close()
 
 
 def _chinese(c) -> None:
@@ -595,7 +1256,7 @@ def _reader_changes_nothing(c) -> None:
             dev = ui.ProgressDevice(sim)
         probe = timing.TimingProbe(dev, log=lambda *_: None, reps=8, period_reads=20)
         if wrap:
-            dev.progress = ui.Progress(ui.timing_status(probe, dev), ui.Term(FakeTty(), env={"TERM": "xterm"}, platform="linux"), keys=keys)
+            dev.progress = ui.Progress(ui.timing_status(probe, dev), ui.Term(FakeTty(), env={"TERM": "xterm"}, platform="linux"), keys=keys, pulse=dev.read_times, wait_s=90.0)
         s = probe.run()
         if wrap:
             dev.progress.close()
@@ -610,15 +1271,22 @@ def _reader_changes_nothing(c) -> None:
     c.check(plain == wrapped, "the progress wrapper leaves summary and events identical (same seed)")
     saved = {k: os.environ.get(k) for k in ("COLUMNS", "LINES")}
     os.environ.update(COLUMNS="80", LINES="24")
+    real_path = sectors.state_path
+    keep = tempfile.TemporaryDirectory()
+    sectors.state_path = lambda: os.path.join(keep.name, "games.json")
     try:
-        playing = run(True, Keys(["g"], ["w"], [], ["a"], [], ["s"], ["d"], ["r"], ["n"], ["w"], [], ["a"], ["d"], ["s"], ["r"]))
+        playing = run(True, Keys(["g"], ["w"], [], ["a"], [], ["s"], ["d"], ["r"], ["n"], ["w"], [], ["a"], ["d"], ["s"], ["r"],
+                                 ["n"], ["left"], [], ["up"], ["right"], ["down"], ["r"], ["n"], ["1"], ["right"], ["2"], ["0"], ["down"], ["3"], ["q"]))
+        c.check(os.path.exists(os.path.join(keep.name, "games.json")), "that run reached the game that saves")
     finally:
+        sectors.state_path = real_path
+        keep.cleanup()
         for key, value in saved.items():
             if value is None:
                 os.environ.pop(key, None)
             else:
                 os.environ[key] = value
-    c.check(plain == playing, "playing both games leaves summary and events identical (same seed)")
+    c.check(plain == playing, "playing all four games leaves summary and events identical (same seed)")
 
     class NoIdle:
         """A real drive has no idle(): the wrapper must sleep the pause itself, minus drawing."""
@@ -871,7 +1539,8 @@ def _advice(c) -> None:
             os.chdir(here)
     plain, noted = guide.guide_lines("dvd", "no such folder"), guide.guide_lines("dvd", "no such folder", notes=True)
     # The ticked row depends on the folder this runs in, and has its own check above.
-    plain, noted = [x for x in plain if "Random-data disc" not in x], [x for x in noted if "Random-data disc" not in x]
+    # So do the steps, which _first_steps checks: a person sees two more, and which one they are on.
+    plain, noted = ([x for x in lines if not x.startswith(("  [x]", "  [ ]"))] for lines in (plain, noted))
     c.check(len(noted) == len(plain) + 1 and set(plain) < set(noted), "at a terminal the next command says what it does; a pipe gets the same lines as before")
     i18n.use("zh")
     try:
@@ -1364,7 +2033,7 @@ def _plain_errors(c) -> None:
         ui._term = ui.Term(io.StringIO(), env={})
         c.check(cli._os_error(missing) == f"error: {missing}" and cli._reason(stopped) == stopped.strerror, "a script sees system errors as it always did")
         ui._term = ui.Term(FakeTty(), env={"TERM": "xterm"}, platform="linux")
-        c.check(cli._os_error(missing) == "no such file: nope.png", "at a terminal a missing file is said plainly")
+        c.check(cli._os_error(missing).startswith("no such file: nope.png\n"), "at a terminal a missing file is said plainly")
         c.check(cli._os_error(stopped) == f"error: {stopped}", "other system errors keep their text")
         c.check(cli._reason(stopped) == "The system cannot locate the file specified" and not cli._reason(chinese).endswith("\u3002"), "no doubled full stop")
     finally:
@@ -1505,6 +2174,49 @@ def _banner(c) -> None:
     pipe = ui.Term(io.StringIO(), env={"TERM": "xterm"}, platform="linux")
     banner.show(pipe)
     c.check(pipe.stream.getvalue() == "", "a pipe gets no banner")
+
+    fine = ui.Term(Utf8Tty(), env={"TERM": "xterm", "WT_SESSION": "x"}, platform="linux")
+    rows = banner.disc_rows(1.0, fine)
+    c.check(len(rows) == banner.DISC_H and all(len(ansi.sub("", r)) == banner.DISC_W for r in rows), "half blocks: the disc keeps its size")
+    c.check("▀" in rows[6] and "48;2;" in rows[6] and ansi.sub("", rows[0]).startswith(" "), "half blocks: two colours a cell, and round")
+    c.check(banner._pixels(0.0)[banner.DISC_H * banner.DISC_W + banner.DISC_W // 2] is None, "half blocks: the hole shows through")
+    c.check(banner.disc_rows(1.0, fine, 1.0) != rows, "steps done dye the track")
+    c.check(banner.disc_cells(1.0, 0.401) == banner.disc_cells(1.0, 0.4), "and a small difference in steps is not a new disc")
+    seen = {}
+    first = banner._next_frame(1.0, fine, 120, seen, None, 0.0)
+    again = banner._next_frame(1.0, fine, 120, seen, None, 0.0)
+    moved = banner._next_frame(1.1, fine, 120, seen, None, 0.0)
+    c.check(not again.replace("\n", "") and 0 < len(moved) < len(first) * 0.8, f"only changed cells go out ({len(first)}, then {len(moved)} bytes)")
+    grid = [[" "] * 120 for _ in range(banner.DISC_H)]
+    position = re.compile(r"\x1b\[(\d+)G([^\x1b]*)|\x1b\[[0-9;]*m([^\x1b]*)")
+    painted = banner._next_frame(1.1, fine, 120, {}, None, 0.0).split("\n")
+    whole = [ansi.sub("", r).rstrip() for r in banner.frame(1.1, fine, 120)]
+    for y, row in enumerate(painted):
+        column = 0
+        for match in position.finditer(row):
+            column = int(match[1]) - 1 if match[1] else column
+            for ch in match[2] or match[3] or "":
+                grid[y][column] = ch
+                column += 1
+    c.check(["".join(g).rstrip() for g in grid] == whole, "sent from nothing, the changes add up to the whole frame")
+    os.environ.update(COLUMNS="100", LINES="30")
+    try:
+        clock = [0.0]
+
+        def wait(seconds):
+            clock[0] += seconds
+        banner.show(fine, pause=wait, now=lambda: clock[0], burned=0.4)
+    finally:
+        for key, value in saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+    text = fine.stream.getvalue()
+    c.check(text.count(ui.SYNC_START) == text.count(ui.SYNC_END) > 1 and text.endswith("\x1b[?25h\n\n"), "each frame is sent whole, and the cursor comes back")
+    still = ui.Term(Utf8Tty(), env={"TERM": "xterm", "WT_SESSION": "x", "DISCPROBE_NO_ANIMATION": "1"}, platform="linux")
+    banner.show(still, pause=wait, now=lambda: clock[0])
+    c.check("▀" in still.stream.getvalue() and ui.SYNC_START not in still.stream.getvalue(), "no motion: one still frame of the same disc")
 
 
 def _picker(c) -> None:
@@ -1674,6 +2386,10 @@ def run(c) -> None:
     _preflight(c)
     _banner(c)
     _term_matrix(c)
+    _modern_terminal(c)
+    _burn_warning(c)
+    _first_steps(c)
+    _aligned(c)
     _progress_line(c)
     _layout(c)
     _snake(c)

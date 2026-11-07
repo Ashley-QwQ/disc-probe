@@ -17,6 +17,7 @@ from . import guide, i18n, info, mmc, timing, ui
 # start state (evidence/coverage/periods.txt).
 DEFAULT_PALETTE = ("A5", "92", "B9", "66", "MIX:A5,62,B1,61,65,A7", "MIX:92,87,83,8D,60",
                    "8B", "2AE304", "ED00")
+TIMING_WAIT_S, GEO_WAIT_S = 90.0, 300.0     # usual lengths, until a run can estimate its own
 
 
 class _Rerun(Exception):
@@ -43,16 +44,38 @@ def _reason(e: OSError) -> str:
 def _os_error(e: OSError) -> str:
     """At a terminal a missing file is said plainly; scripts keep the form they always saw."""
     if isinstance(e, FileNotFoundError) and e.filename and ui.term().interactive:
-        return f"no such file: {e.filename}"
+        name = str(e.filename)
+        where = "" if os.path.isabs(name) else f"\nIt looked in {os.getcwd()}. A full path works too, in quotes if it has spaces."
+        example = "\nmy_picture.png is only an example: use the name of your own picture." if os.path.basename(name) == "my_picture.png" else ""
+        return f"no such file: {name}{where}{example}"
     return f"error: {e}"
 
 
-def _next(lines) -> None:
-    """Advice after a command; the lines to copy stand out."""
+def _next(lines, args=None) -> None:
+    """Advice after a command; the lines to copy stand out. With `args`, the progress list goes before what comes next."""
+    if lines and args is not None and ui.term().interactive and not getattr(args, "sim", None) and "geo-SIM-" not in str(getattr(args, "geo", "")):
+        at = next((i for i, line in enumerate(lines) if line.startswith("Next")), 0)
+        lines = [*lines[:at], *guide.progress_lines(getattr(args, "media", "dvd"), getattr(args, "out", "results")), *lines[at:]]
     if lines:
         ui.say()
     for line in lines:
-        ui.say(line, "cyan" if line.lstrip().startswith("python ") else None)
+        if isinstance(line, guide.Quiet):
+            ui.say(line, "dim")
+        elif isinstance(line, guide.Step):
+            ui.say(ui.guide_line(line))
+        else:
+            ui.say(ui.command(i18n.tr(line)) if line.lstrip().startswith("python ") else line)
+
+
+def _image_ready(args, preview: str, design=None) -> None:
+    """The advice for a finished picture ISO. One from a simulated run is told not to reach a disc at all."""
+    if design is not None and ui.term().interactive and design.dtype == bool:
+        from . import imagecheck
+        imagecheck.show(design, args)
+    ui.iso_ready(args.output)       # after the disc, which is tall, or this scrolls away again
+    _next(guide.after_image(args.output, preview, args.geo), args)
+    if "geo-SIM-" not in args.geo:
+        ui.burn_warning()
 
 
 def _need_windows() -> None:
@@ -255,7 +278,7 @@ def cmd_timing(args):
     probe.summary["identity"] = _identity(args, dev)
     progress = None
     if reader is not dev:
-        progress = reader.progress = ui.Progress(ui.timing_status(probe, reader), keys=ui.open_keys())
+        progress = reader.progress = ui.Progress(ui.timing_status(probe, reader), keys=ui.open_keys(), pulse=reader.read_times, wait_s=TIMING_WAIT_S)
         probe.log = progress.log
     stopped = None
     finished = False
@@ -287,7 +310,7 @@ def cmd_timing(args):
         _fail(stopped, guide.after_timing_stop(args, stopped))
     if progress:
         ui.say(f"Finished in {ui.clock(ui.time.monotonic() - progress.started)}", "dim")
-    _next(guide.after_timing(args, summary))
+    _next(guide.after_timing(args, summary), args)
 
 
 def cmd_spokes(args):
@@ -339,6 +362,8 @@ def cmd_rings(args):
           "The file system is an empty ISO 9660 placeholder.")
     if problems:
         sys.exit(1)
+    ui.iso_ready(args.output)
+    ui.burn_warning()
 
 
 def cmd_ringscan(args):
@@ -391,6 +416,8 @@ def cmd_calib(args):
           "The file system is an empty ISO 9660 placeholder.")
     if problems:
         sys.exit(1)
+    ui.iso_ready(args.output)
+    ui.burn_warning()
 
 
 def cmd_calscan(args):
@@ -442,7 +469,7 @@ def cmd_geo(args):
     ladder.tp.summary["identity"] = _identity(args, dev)
     progress, log = None, print
     if reader is not dev:
-        progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys())
+        progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys(), pulse=reader.read_times, wait_s=GEO_WAIT_S)
         log = ladder.log = progress.log
     out = _outdir(args, "geo", dev)
     stopped = None
@@ -482,7 +509,10 @@ def cmd_geo(args):
         print("no results written: it stopped before the first fit. Run `timing` to see how noisy this drive is.")
     if progress and res:
         ui.say(f"Finished in {ui.clock(ui.time.monotonic() - progress.started)}", "dim")
-    _next(guide.after_geo(args, res, out) if res else guide.after_geo_stop(args, stopped or ""))
+    if res:
+        _next(guide.after_geo(args, res, out), args)
+    else:
+        _next(guide.after_geo_stop(args, stopped or ""))
     if res is None:     # scripts must not take a run that stopped for one that finished
         sys.exit(1)
 
@@ -560,7 +590,7 @@ def cmd_image(args):
     if args.media == "cd" and problems:
         sys.exit(1)
     if not problems:
-        _next(guide.after_image(args.output, prev, args.geo))
+        _image_ready(args, prev, design)
 
 
 def cmd_gridscan(args):
@@ -658,7 +688,7 @@ def cmd_tiles(args):
     if args.media == "cd" and problems:
         sys.exit(1)
     if not problems:
-        _next(guide.after_image(args.output, base + ".preview.png", args.geo))
+        _image_ready(args, base + ".preview.png")
 
 
 def cmd_beacons(args):
@@ -684,7 +714,7 @@ def cmd_beacons(args):
           f"Preview (data-side view, false colours): {os.path.abspath(base + '.preview.png')}")
     if problems:
         sys.exit(1)
-    _next(guide.after_image(args.output, base + ".preview.png", args.geo))
+    _image_ready(args, base + ".preview.png")
 
 
 def cmd_tilescan(args):
@@ -703,11 +733,14 @@ def cmd_random(args):
         write_iso(args.output, args.sectors, args.seed, media=args.media, log=log)
     if not ui.term().interactive:   # at a terminal the advice below says this, with the right next step
         print("Burn it with any image burner, then run `geo` on it.")
-    _next(guide.after_random(args))
+    ui.iso_ready(args.output)
+    _next(guide.after_random(args), args)
+    ui.burn_warning()
 
 
 def cmd_selftest(args):
     from .selftest import run
+    os.environ["DISCPROBE_NO_TUTORIAL"] = "1"       # the checks run `guide` too, and nobody is there to answer
     language = i18n.active()
     i18n.pin("en")      # the checks read the English text; Chinese has its own checks
     passed = run()
@@ -720,19 +753,35 @@ def cmd_selftest(args):
 def cmd_guide(args):
     from . import greetings
     from .banner import show
-    show()
-    if ui.term().interactive:
-        ui.say(greetings.pick(first_time=not any(not r.simulated for r in guide.scan())))
-        ui.say()
     media = getattr(args, "guide_media", None)
     if media is None:   # carry on with what was measured last
         newest = next((r for r in guide.scan() if not r.simulated and r.kind in ("timing", "geo")), None)
         media = newest.media if newest else "dvd"
-    for line in guide.guide_lines(media, notes=ui.term().interactive):
-        print(ui.term().style(line, "cyan") if line.lstrip().startswith("python ") else line)
+    lines = guide.guide_lines(media, notes=ui.term().interactive)
+    steps = [line for line in lines if line.startswith(("  [x]", "  [ ]"))]
+    # The last step is the person's own burn, which the program can't see, so a disc can be fully dyed without it.
+    show(burned=min(sum(line.startswith("  [x]") for line in steps) / max(len(steps) - 1, 1), 1.0))
+    first_time = not any(not r.simulated for r in guide.scan())
+    if ui.term().interactive:
+        ui.say(greetings.pick(first_time=first_time))
+        ui.say()
+    if first_time and ui.term().can_prompt() and not guide.tutorial_offered():
+        guide.remember_tutorial_offered()
+        if ui.ask("First time here? Walk through the steps?"):
+            cmd_tutorial(args)
+    for line in lines:
+        print(ui.guide_line(line))
     from . import completion
     if not completion.installed():
         ui.say(f"Tab completion: {guide.PROG} completion install", "dim")
+
+
+def cmd_tutorial(args):
+    for line in guide.tutorial_lines():
+        if line.lstrip().startswith("python "):
+            print(ui.command(line))
+        else:
+            print(ui.term().style(i18n.tr(line), "bold") if line[:1].isdigit() else i18n.tr(line))
 
 
 def _pick_results(args):
@@ -784,6 +833,9 @@ class _Parser(argparse.ArgumentParser):
     commands: dict = {}
     last_out: str | None = None     # where a stopped run left its files
 
+    def format_help(self):
+        return ui.help_text(super().format_help())
+
     def error(self, message):
         hint = None
         if ui.term().interactive:
@@ -812,7 +864,7 @@ def _speed(text: str):
 
 # (group title, commands); `main` fills in what each one does.
 COMMAND_GROUPS = (
-    ("Start here", ("guide", "selftest", "list")),
+    ("Start here", ("guide", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "timing", "geo", "results")),
     ("Make a disc image", ("random", "image", "tiles", "beacons", "rings", "calib", "spokes")),
     ("Read scans of burned discs", ("gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
@@ -911,6 +963,9 @@ def _build_parser():
     sp.add_argument("--media", dest="guide_media", choices=("dvd", "cd"),
                     help="which steps to show (default: what you measured last)")
     sp.set_defaults(func=cmd_guide)
+
+    sp = sub.add_parser("tutorial", help="walk through the whole path, from blank discs to a picture on a disc")
+    sp.set_defaults(func=cmd_tutorial)
 
     sp = sub.add_parser("results", help="list past results, newest first")
     sp.add_argument("kind", nargs="?", help="only this kind, e.g. geo, timing, info")
