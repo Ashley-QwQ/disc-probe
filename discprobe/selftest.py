@@ -191,6 +191,19 @@ def _pitch_fit(c: Checker):
             "quadratic span uncertainty includes fitted pitch parameters")
 
 
+
+def _zone_conflict(c: Checker):
+    print("rotation zone consistency")
+    probe = timing.TimingProbe(SimDrive(), log=lambda *_: None)
+    zones = [dict(fraction=f, period_ms=t, coherence=1.0, nominal_radius_mm=r)
+             for f, t, r in ((0.1, 20, 25), (0.5, 30, 40), (0.9, 20, 55))]
+    c.check(probe._classify(zones)["mode"] != "CAV", "middle zone period conflict is not CAV")
+    zones[1].pop("period_ms")
+    c.check(probe._classify(zones)["mode"] == "unknown", "missing middle zone is unknown")
+    zones[1]["period_ms"] = 20
+    zones[1]["coherence"] = 0.1
+    c.check(probe._classify(zones)["mode"] == "unknown", "incoherent middle zone is unknown")
+
 def _timer_tick(c: Checker):
     print("timer tick diagnosis")
     for strategy in ("plain", "evict"):
@@ -919,6 +932,7 @@ def _run() -> bool:
     _incomplete_folder(c)
     _harmonics(c)
     _timer_tick(c)
+    _zone_conflict(c)
     _sim_run(c, "cav", True, "fua", "CAV")
     _sim_run(c, "cav", True, "fua", "CAV", sectors=16)
     _sim_run(c, "cav", True, "fua", "CAV", reread_ms=35.0)

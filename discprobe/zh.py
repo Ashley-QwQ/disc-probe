@@ -61,6 +61,7 @@ TEXT = {
     "Zone {f} (LBA {l}): no period found": "位置 {f}（扇区号 {l}）：没找到转动周期",
     "Rotation: {m} ({r})": "转速方式：{m}（{r}）",
     "Rotation: {m}": "转速方式：{m}",
+    "Target {f}: reference has no clear period; try a fixed speed and measure again": "?? {f}????????????????????????",
     "zones {z} have no clear period; the speed may be changing, try a fixed --speed":
         "位置 {z} 没有清晰的周期，转速可能还在变化，试试用 --speed 固定速度",
     "fewer than two zones with a clear period": "周期清晰的位置不足两个",

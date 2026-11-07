@@ -475,7 +475,8 @@ class TimingProbe:
 
     def _classify(self, zones) -> dict:
         valid = [z for z in zones if z.get("period_ms") and z.get("coherence", 0) > 0.5]
-        noisy = [z["fraction"] for z in zones if z.get("period_ms") and z.get("coherence", 0) <= 0.5]
+        noisy = [z.get("fraction", i) for i, z in enumerate(zones)
+                 if not z.get("period_ms") or z.get("coherence", 0) <= 0.5]
         if noisy:  # a speed still changing shows up like this, and the two other zones alone can look CAV
             return {"mode": "unknown", "reason": f"zones {noisy} have no clear period; the speed may be changing, "
                                                  "try a fixed --speed"}
@@ -484,7 +485,7 @@ class TimingProbe:
         inner, outer = valid[0], valid[-1]
         ratio = outer["period_ms"] / inner["period_ms"]
         clv_ratio = outer["nominal_radius_mm"] / inner["nominal_radius_mm"]
-        if abs(ratio - 1) < 0.03:
+        if max(z["period_ms"] for z in valid) / min(z["period_ms"] for z in valid) < 1.03:
             mode = "CAV"
         elif abs(ratio - clv_ratio) / clv_ratio < 0.12:
             mode = "CLV"
@@ -523,7 +524,11 @@ class TimingProbe:
                 entry.update(read_end_bits=int(nx), read_tail_frames=108,
                              nominal_turns_between=round(spiral.turns(nr / SECTOR_BITS, nx / SECTOR_BITS), 2))
             fit = analysis.estimate_period(ref_times, prior_s=prior) if len(ref_times) >= 5 else None
-            if fit and x_times:
+            if fit and fit.coherence <= 0.5:
+                entry["ref"] = fit.summary()
+                entry["error"] = "reference has no clear period; try a fixed speed and measure again"
+                self.log(f"Target {frac:.2f}: reference has no clear period; try a fixed speed and measure again")
+            elif fit and x_times:
                 entry["ref"] = fit.summary()
                 entry["phase"] = analysis.robust_circular_mean(analysis.phase_offsets(fit, x_times))
                 self.log(f"Target {frac:.2f} (LBA {x}): phase {entry['phase']['mean_deg']} deg "
