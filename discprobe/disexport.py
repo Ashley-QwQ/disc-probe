@@ -88,9 +88,17 @@ def fit_preset(u, v, bit_nm, total_sectors, r_lo, r_hi, correction=None, sector_
         raise ValueError(f"no preset of {total_sectors} sectors fits {r_lo}-{r_hi} mm; check --sectors and the fit "
                          "range. No preset written.")
     p0 = m[2]
+    check_n = np.linspace(0, total_sectors * sector_bits, 20001)
+    check_r = b * np.sqrt(u * u + v * check_n / math.pi)
+    delta = np.degrees(np.interp(check_n, m[0], m[1]) - target_angle(check_n, u, v, bit_nm, correction))
+    inside = (check_r >= r_lo) & (check_r <= r_hi)
+    delta -= delta[inside].mean()
+    full_diff = float(np.max(np.abs(delta)))
+    outside_diff = float(np.max(np.abs(delta[~inside]))) if (~inside).any() else 0.0
     return {"innerRadiusMm": float(ri), "outerRadiusMm": float(ro), "pitchLinear": float(c1),
             "pitchQuadratic": float(c2), "pitchCubic": float(c3), "p0_um": float(p0 * 1e3),
-            "fit_range_mm": [r_lo, r_hi], "max_angle_diff_deg": float(np.max(np.abs(d))),
+            "fit_range_mm": [r_lo, r_hi], "full_angle_diff_deg": full_diff,
+            "outside_angle_diff_deg": outside_diff, "max_angle_diff_deg": float(np.max(np.abs(d))),
             "rms_angle_diff_deg": float(np.sqrt(np.mean(d * d))),
             "peak_to_peak_angle_diff_deg": float(d.max() - d.min())}
 
@@ -140,7 +148,8 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
         corrected = " + varying-pitch correction from timing" if correction_from_timing(correction_path) else " + grid-scan angle correction"
     desc = (f"Drive-timing calibration (discprobe){corrected}; "
             f"fitted over {r_lo}-{r_hi} mm, max angle difference to the measured map "
-            f"{fit['max_angle_diff_deg']:.3f} deg")
+            f"{fit['max_angle_diff_deg']:.3f} deg; full-capacity mapping difference "
+            f"{fit['full_angle_diff_deg']:.3f} deg")
     if audio:
         desc += f"; measured on the CD-DA track, read offset {geo.get('read_offset_bytes', 0.0):g} bytes"
     elif media == "cd":

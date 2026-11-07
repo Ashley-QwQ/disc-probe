@@ -683,6 +683,9 @@ def cmd_disexport(args):
           f"{f['pitchLinear']:.3e} {f['pitchQuadratic']:.3e} {f['pitchCubic']:.3e}")
     print(f"angle difference to the measured map over {f['fit_range_mm'][0]}-{f['fit_range_mm'][1]} mm: "
           f"max {f['max_angle_diff_deg']:.4f} deg, rms {f['rms_angle_diff_deg']:.4f} deg")
+    print(f"Full-capacity mapping difference: max {f['full_angle_diff_deg']:.4f} deg; outside fit range: max {f['outside_angle_diff_deg']:.4f} deg.")
+    if f["full_angle_diff_deg"] > 0.25:
+        print("Warning: the preset differs from the input mapping outside the fitted region; check the full-capacity difference before use.")
     if output:
         print(f"DiscImageStudio {'CD' if is_cd else 'DVD'} preset object in {os.path.abspath(output)} (key 'preset')")
     audio = fit.get("track") == "audio"
