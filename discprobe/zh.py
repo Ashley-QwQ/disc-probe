@@ -311,6 +311,8 @@ TEXT = {
         "{a} 个扇区，内径 {b} mm，外径 {c} mm（两个都是量出来或推出来的，不是标称值）",
     "constant pitch {a} um at {b} m/s, R^2 {c} over {d} zones; DiscImageStudio solves the pitch from the three numbers above":
         "恒定轨距 {a} µm，线速度 {b} m/s，R^2 {c}，{d} 个区域；轨距由 DiscImageStudio 从上面三个数自己解出来",
+    "constant pitch {a} um from {b} rungs of the angle ladder, chi^2/dof {c}; the drive holds this disc at a constant angular velocity, so the pitch comes from sector addresses rather than from the periods, and DiscImageStudio solves it from the three numbers above":
+        "恒定轨距 {a} µm，来自角度梯子的 {b} 级，chi^2/dof {c}；这张盘被光驱以恒定角速度读，所以轨距是从扇区地址而不是从周期量出来的，DiscImageStudio 会从上面三个数自己解出它",
     "A free period offset was also fitted ({a} us, 1 sigma {b} us), but the data cannot tell it from zero, so it was left out of the radius.":
         "还拟合了一个自由周期偏置（{a} µs，1 sigma {b} µs），但数据分不开它和零，所以没把它从内径里扣掉",
     "The disc holds {a} sectors, {b} fewer than a full layer, so sector 0 sits {c} mm further out than the 24.0 mm of an unspared disc: that is what was measured, not a rounding error.":

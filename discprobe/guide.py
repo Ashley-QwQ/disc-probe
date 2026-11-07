@@ -291,6 +291,21 @@ def install_blocker(geo_summary: str) -> str | None:
                     f"reading in zones holds one angular speed per zone, and a preset built on that would place the "
                     f"spiral wrongly.")
         return None
+    if fit.get("media") == "bd" and isinstance(fit.get("dis_equivalent"), dict):
+        # A Blu-ray the drive reads at a constant angular velocity: the angle ladder measured
+        # u = r0/b and v = p/b, so the figures to judge are the rung count and chi2/dof.
+        anchors = fit["dis_equivalent"]
+        if _quality_number(anchors, "inner_radius_mm") is None or _quality_number(anchors, "pitch_um_estimate") is None:
+            return "this run's summary has neither an inner radius nor a pitch to build a preset from."
+        rungs = _quality_number(fit, "rungs") or 0
+        if rungs < MIN_BD_ZONES:
+            return (f"this run fitted {rungs:g} rungs, fewer than the {MIN_BD_ZONES} the angle ladder needs "
+                    f"before `results` trusts it. A preset is not the place to try one.")
+        chi2 = _quality_number(fit, "chi2_per_dof")
+        if chi2 is not None and chi2 > MAX_LATEST_CHI2:
+            return (f"this run's angle fit leaves chi2/dof {chi2:.1f}; `results` already treats it as unusable, "
+                    f"and a preset is not the place to try it.")
+        return None
     if "u" not in fit:
         return "this run has no geometry fit in its summary.json, so there is nothing to install."
     if fit.get("completion_status", "target_reached") != "target_reached":
@@ -325,6 +340,9 @@ def install_warning(geo_summary: str) -> str | None:
     if fit.get("model") == "clv":
         # A constant-linear-speed run has no chi2/dof or angle sigma by construction: its figures are
         # the zone count and R^2, and `install_blocker` checks both, so nothing is unchecked here.
+        return None
+    if fit.get("media") == "bd" and isinstance(fit.get("dis_equivalent"), dict):
+        # The angle ladder on a Blu-ray: rung count and chi2/dof are both checked by install_blocker.
         return None
     missing = [name for name in ("chi2_per_dof", "angle_sigma_measured_span_deg")
                if _quality_number(fit, name) is None]

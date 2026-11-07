@@ -1251,9 +1251,15 @@ def _bd_export(c: Checker):
     try:
         bdexport.parameters({"model": None}, 12_088_320)
     except bdexport.BdPresetError:
-        c.check(True, "an angular u/v fit is not converted as a Blu-ray preset")
+        c.check(True, "a fit with no radius and no pitch is refused as a Blu-ray preset")
     else:
-        c.check(False, "an angular u/v fit is not converted as a Blu-ray preset")
+        c.check(False, "a fit with no radius and no pitch is refused as a Blu-ray preset")
+    angular = {"model": None, "media": "bd", "rungs": 9, "chi2_per_dof": 1.10,
+               "dis_equivalent": {"inner_radius_mm": 24.02, "pitch_um_estimate": 0.3185}}
+    params = bdexport.parameters(angular, 12_088_320)
+    c.check(abs(params["innerRadiusMm"] - 24.02) < 1e-9 and
+            abs(params["outerRadiusMm"] - bdexport.outer_radius_mm(24.02, 0.3185, 12_088_320)) < 1e-6,
+            "an angular u/v fit is converted from the radius and pitch it already carries")
     preset = bdexport.preset(fit, 12_088_320, "discprobe-bd-re", "BD-RE", "selftest")
     entry = bdexport.catalog_entry(preset)
     c.check(set(entry) == {"id", "displayName", "parameters", "invertMapping"},

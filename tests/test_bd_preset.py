@@ -77,13 +77,37 @@ def test_the_parameters_come_from_the_fit_and_nothing_is_fitted_again():
     assert "pitchLinear" not in params and "channelBitLengthNm" not in params
 
 
-def test_an_angular_fit_is_refused_rather_than_converted():
-    try:
-        bdexport.parameters({"model": None, "u": 1.0, "v": 1.0}, SECTORS)
-    except bdexport.BdPresetError as e:
-        assert "constant-linear-speed" in str(e)
-    else:
-        raise AssertionError("converted a u/v fit as if it were a linear-speed run")
+ANGULAR = {"media": "bd", "u": 89452.0, "v": 5.40, "rungs": 9, "chi2_per_dof": 1.10,
+           "dis_equivalent": {"inner_radius_mm": 24.02, "pitch_um_estimate": 0.3185}}
+
+
+def test_an_angular_fit_becomes_a_preset_from_its_own_estimates():
+    """A BD-ROM the drive holds at a constant angular velocity: u = r0/b and v = p/b are the answer."""
+    with tempfile.TemporaryDirectory() as work:
+        folder = os.path.join(work, "geo-G-20260101-000000")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump({"fit": ANGULAR}, f)
+        out = bdexport.export(os.path.join(folder, "summary.json"), SECTORS, None, "x", "X")
+        assert out["preset"]["innerRadiusMm"] == 24.02
+        assert out["preset"]["outerRadiusMm"] == bdexport.outer_radius_mm(24.02, 0.3185, SECTORS)
+        assert out["fit"]["zones_used"] == 9
+        assert out["fit"]["r2"] is None and out["fit"]["v_m_s"] is None
+
+
+def test_a_uv_fit_that_is_not_blu_ray_is_still_refused():
+    """The angular model is a Blu-ray thing: a DVD or CD result still goes through the u/v export."""
+    with tempfile.TemporaryDirectory() as work:
+        folder = os.path.join(work, "geo-G-20260101-000000")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump({"fit": {"media": "dvd", "u": 89452.0, "v": 5.40}}, f)
+        try:
+            bdexport.export(os.path.join(folder, "summary.json"), SECTORS, None, "x", "X")
+        except bdexport.BdPresetError as e:
+            assert "not a Blu-ray run" in str(e) or "neither" in str(e)
+        else:
+            raise AssertionError("converted a DVD u/v fit into a Blu-ray preset")
 
 
 def test_the_document_is_what_the_import_reader_reads():
@@ -170,6 +194,20 @@ def test_the_command_writes_an_importable_document():
         document = json.load(open(out, encoding="utf-8"))
         assert document["parameters"]["totalSectors"] == SECTORS
         assert "Traceback" not in proc.stdout + proc.stderr
+
+
+def test_the_command_writes_an_angular_result_too():
+    with tempfile.TemporaryDirectory() as work:
+        folder = os.path.join(work, "geo-G-20260101-000000")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump({"fit": ANGULAR}, f)
+        out = os.path.join(work, "dis_preset_bd.json")
+        proc = _run("disexport", "--geo", folder, "--sectors", str(SECTORS), "--output", out)
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        document = json.load(open(out, encoding="utf-8"))
+        assert abs(document["parameters"]["innerRadiusMm"] - 24.02) < 1e-9
+        assert "rungs" in proc.stdout and "Traceback" not in proc.stdout + proc.stderr
 
 
 def test_the_command_installs_into_the_blu_ray_catalog_not_the_cd_one():

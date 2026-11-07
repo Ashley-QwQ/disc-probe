@@ -892,10 +892,18 @@ def _disexport_bd(args):
     print(i18n.tr("{a} sectors, inner {b} mm, outer {c} mm (both measured/derived, not nominal)")
           .format(a=f"{preset['totalSectors']:,}", b=f"{preset['innerRadiusMm']:.4f}",
                   c=f"{preset['outerRadiusMm']:.4f}"))
-    print(i18n.tr("constant pitch {a} um at {b} m/s, R^2 {c} over {d} zones; DiscImageStudio solves the "
-                  "pitch from the three numbers above")
-          .format(a=f"{derived['pitch_um']:.4f}", b=f"{fit['v_m_s']:.3f}", c=f"{fit['r2']:.6f}",
-                  d=fit['zones_used']))
+    if fit.get("v_m_s") is not None and fit.get("r2") is not None:
+        print(i18n.tr("constant pitch {a} um at {b} m/s, R^2 {c} over {d} zones; DiscImageStudio solves the "
+                      "pitch from the three numbers above")
+              .format(a=f"{derived['pitch_um']:.4f}", b=f"{fit['v_m_s']:.3f}", c=f"{fit['r2']:.6f}",
+                      d=fit['zones_used']))
+    else:
+        chi2 = fit.get("chi2_per_dof")
+        print(i18n.tr("constant pitch {a} um from {b} rungs of the angle ladder, chi^2/dof {c}; the drive holds "
+                      "this disc at a constant angular velocity, so the pitch comes from sector addresses "
+                      "rather than from the periods, and DiscImageStudio solves it from the three numbers above")
+              .format(a=f"{derived['pitch_um']:.4f}", b=fit.get("zones_used", "?"),
+                      c="?" if chi2 is None else f"{chi2:.2f}"))
     if fit.get("offset_ms") is not None:
         if fit["offset_ms"]:
             moved = fit["v_m_s"] * abs(fit["offset_ms"]) / (2 * 3.141592653589793)
@@ -950,6 +958,11 @@ def cmd_disexport(args):
     if not args.sectors:
         _fail("A preset needs --sectors: the capacity of your disc (`info` prints it)", [guide.sectors_hint(args.geo)])
     if is_bd:
+        if fit.get("model") != "clv":
+            # The angle ladder measured a disc the drive holds at a constant angular velocity, so the
+            # default name should not claim it was a BD-RE read at a constant linear speed.
+            args.id = args.id or "discprobe-bd"
+            args.name = args.name or "Blu-ray (drive-timing calibration)"
         _disexport_bd(args)
         return
     # --install writes the preset file only after the export has written --output. When both name

@@ -421,9 +421,13 @@ class TimingProbe:
         self.log("Spindle did not reach a steady speed; expect noisy results")
         self.summary["settle"] = {"steady": False}
 
-    def period_test(self, zones=None):
+    def period_test(self, zones=None, announce_rotation=True):
         """One period per zone. `zones` overrides the three used to classify the spindle, which is
-        what a CLV fit wants: more zones, spread further, because it fits a line through them."""
+        what a CLV fit wants: more zones, spread further, because it fits a line through them.
+
+        `announce_rotation` is for callers that judge the rotation themselves: this method's own
+        verdict reads the first and last zone, and a caller that skips the ramp-up zone would be
+        told the wrong thing twice."""
         self._experiment = "period"
         zones_out, times_by_zone = [], []
         for frac in (ZONES if zones is None else zones):
@@ -444,7 +448,9 @@ class TimingProbe:
         self.zones = zones_out
         self.summary["period"] = {"zones": zones_out, "rotation": self._classify(zones_out)}
         rotation = self.summary["period"]["rotation"]
-        self.log(f"Rotation: {rotation['mode']}" + (f" ({rotation['reason']})" if "reason" in rotation else ""))
+        if announce_rotation:
+            self.log(f"Rotation: {rotation['mode']}"
+                     + (f" ({rotation['reason']})" if "reason" in rotation else ""))
         self._check_period(zones_out)
 
     def _resolve_multiples(self, zones, times_by_zone):

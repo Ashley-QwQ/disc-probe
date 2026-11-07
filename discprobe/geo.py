@@ -505,6 +505,7 @@ class Ladder:
             rep["media"] = "bd"
             rep["sector_bits"] = BD_SECTOR_BITS
             rep["block_sectors"] = BD_SECTOR_PER_UNIT
+            rep["rungs"] = len(self.targets)
             rep["dis_equivalent"] = {
                 "bit_nm": self.prior.bit_nm,
                 "inner_radius_mm": self.u * b,

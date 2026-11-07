@@ -93,9 +93,11 @@ def parameters(fit: dict, total_sectors: int, *, inner_mm: float | None = None,
     `inner_mm`, `outer_mm` and `pitch_um` override what the run measured; any of them that is
     left out is measured or derived, and one derived value is enough to close the set.
     """
-    if fit.get("model") != "clv":
-        raise BdPresetError("this geo fit is the angular u/v model, not a constant-linear-speed fit")
+    anchors = fit.get("dis_equivalent") if fit.get("media") == "bd" else None
+    anchors = anchors if isinstance(anchors, dict) else {}
     p = pitch_um if pitch_um is not None else fit.get("pitch_um")
+    if p is None:
+        p = anchors.get("pitch_um_estimate")     # the angle ladder measures v = p/b
     if p is None:
         v = fit.get("v_m_s")
         slope = fit.get("slope_ms2_per_lba")
@@ -104,6 +106,8 @@ def parameters(fit: dict, total_sectors: int, *, inner_mm: float | None = None,
                                 "pitch to write down (anchor one with --pitch-um or --linear-mm-s)")
         p = pitch_um_from_slope(slope, v, bit_nm)
     r0 = inner_mm if inner_mm is not None else fit.get("r0_mm")
+    if r0 is None:
+        r0 = anchors.get("inner_radius_mm")      # ... and u = r0/b
     if r0 is None:
         raise BdPresetError("this geo fit has no r0_mm")
     r_out = outer_mm if outer_mm is not None else outer_radius_mm(r0, p, total_sectors, bit_nm)
@@ -231,22 +235,41 @@ def export(geo_summary: str, total_sectors: int, out_path: str, preset_id: str, 
     with open(geo_summary, encoding="utf-8") as f:
         run = json.load(f)
     fit = run.get("fit", {})
-    if fit.get("model") != "clv":
-        raise BdPresetError("this geo result is not a constant-linear-speed run; a DVD or CD preset "
-                            "comes from `disexport` without --media bd")
+    angular = fit.get("model") != "clv"
+    if angular:
+        anchors = fit.get("dis_equivalent") if fit.get("media") == "bd" else None
+        if not isinstance(anchors, dict):
+            raise BdPresetError("this geo result is neither a Blu-ray run nor a constant-linear-speed one; a "
+                                "DVD or CD preset comes from `disexport` without --media bd")
+        # The angle ladder measures u = r0/b and v = p/b, so the two numbers a Blu-ray preset needs are
+        # already in the result and nothing is fitted again here.
+        fit = {**fit, "r0_mm": anchors.get("inner_radius_mm"),
+               "pitch_um": anchors.get("pitch_um_estimate"), "zones_used": fit.get("rungs"),
+               "r2": None, "v_m_s": None, "anchor": "the angle ladder (u = r0/b, v = p/b)"}
     params = parameters(fit, total_sectors, inner_mm=inner_mm, outer_mm=outer_mm, pitch_um=pitch_um,
                         bit_nm=bit_nm)
+    anchors = fit.get("dis_equivalent") if fit.get("media") == "bd" else None
+    anchors = anchors if isinstance(anchors, dict) else {}
     p = pitch_um if pitch_um is not None else fit.get("pitch_um")
     if p is None:
+        p = anchors.get("pitch_um_estimate")     # the angle ladder measures v = p/b
+    if p is None:
         p = pitch_um_from_slope(fit["slope_ms2_per_lba"], fit["v_m_s"], bit_nm)
-    desc = (f"Drive-timing calibration (discprobe, constant linear speed){'; pitch anchored' if fit.get('pitch_um_anchor') else ''}; "
-            f"{fit.get('zones_used', '?')} zones, R^2 {fit.get('r2', float('nan')):.6f}, "
-            f"r0 {params['innerRadiusMm']:.4f} mm, pitch {p:.4f} um")
+    if angular:
+        chi2 = fit.get("chi2_per_dof")
+        desc = (f"Drive-timing calibration (discprobe, angle ladder: u = r0/b, v = p/b); "
+                f"{fit.get('rungs', '?')} rungs, chi^2/dof {'?' if chi2 is None else f'{chi2:.2f}'}, "
+                f"r0 {params['innerRadiusMm']:.4f} mm, pitch {p:.4f} um")
+    else:
+        desc = (f"Drive-timing calibration (discprobe, constant linear speed){'; pitch anchored' if fit.get('pitch_um_anchor') else ''}; "
+                f"{fit.get('zones_used', '?')} zones, R^2 {fit.get('r2', float('nan')):.6f}, "
+                f"r0 {params['innerRadiusMm']:.4f} mm, pitch {p:.4f} um")
     obj = preset(fit, total_sectors, preset_id, name, desc, inner_mm=params["innerRadiusMm"],
                  outer_mm=params["outerRadiusMm"], pitch_um=p, bit_nm=bit_nm)
     out = {"preset": obj, "document": document(obj),
            "fit": {k: fit.get(k) for k in ("model", "anchor", "r0_mm", "pitch_um", "v_m_s", "r2",
-                                           "zones_used", "sigma_r0_mm", "offset_ms", "sigma_offset_ms")},
+                                           "zones_used", "sigma_r0_mm", "offset_ms", "sigma_offset_ms",
+                                           "chi2_per_dof", "rungs")},
            "derived": {"pitch_um": p, "sector_mm": sector_mm(bit_nm),
                        "track_length_mm": track_length_mm(total_sectors, bit_nm),
                        "outer_from_pitch_mm": outer_radius_mm(params["innerRadiusMm"], p, total_sectors, bit_nm)},
