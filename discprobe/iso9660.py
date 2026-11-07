@@ -13,6 +13,7 @@ import datetime
 import struct
 
 SECTORS = range(16, 21)
+UNFINISHED = ".writing"     # beside an image while it is written, so one cut short can be told from a whole one
 _PVD, _TERM, _LPATH, _MPATH, _ROOT = SECTORS
 
 

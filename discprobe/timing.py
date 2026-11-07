@@ -53,6 +53,9 @@ class Event:
 # Medium errors in a row before giving up. A failing read can take the drive several seconds
 # of retries (7.5 s each on a GP65NB60), so running every experiment anyway takes over an hour.
 MAX_MEDIUM_ERRORS = 8
+# "Becoming ready" in a row before giving up, seconds of it. Once or twice could pass by itself, but a disc going
+# back in takes many seconds, and whatever comes after may not be the disc that was being measured.
+MAX_LOADING_READS = 100
 UNREADABLE_DISC = ("reads keep failing with medium errors ({sense}): the drive cannot read this disc reliably. "
                    "Picture, calibration and texture discs often behave like this. Timing needs plain data: "
                    "burn a random-data disc from the same batch (python -m discprobe random) and measure that.")
@@ -85,6 +88,7 @@ class TimingProbe:
         self._deadline = time.monotonic() + time_limit_s if time_limit_s else None
         self._time_limit_s = time_limit_s
         self._medium_errors = 0
+        self._loading_reads = 0
         self.dev = dev
         self.host_delay_s = host_delay_ms / 1e3
         self._rng = random.Random(seed)
@@ -124,13 +128,24 @@ class TimingProbe:
         return res
 
     def _watch(self, res):
-        """Stop early when reads keep failing or the run overstays its time limit."""
+        """Stop early when the disc has gone, reads keep failing or the run overstays its time limit.
+
+        Without the first of these, every read left fails in a few ms and the run ends looking like a noisy drive.
+        """
         if res.ok:
-            self._medium_errors = 0
-        elif res.sense is not None and res.sense.key == 3:
-            self._medium_errors += 1
-            if self._medium_errors >= MAX_MEDIUM_ERRORS:
-                raise NoReadableDisc(UNREADABLE_DISC.format(sense=res.sense))
+            self._medium_errors = self._loading_reads = 0
+        else:
+            gone = mmc.disc_gone(res.sense)
+            if gone:
+                raise NoReadableDisc(gone)
+            if mmc.not_ready(res.sense):
+                self._loading_reads += 1
+                if self._loading_reads >= MAX_LOADING_READS:
+                    raise NoReadableDisc(mmc.LOADING)
+            elif res.sense is not None and res.sense.key == 3:
+                self._medium_errors += 1
+                if self._medium_errors >= MAX_MEDIUM_ERRORS:
+                    raise NoReadableDisc(UNREADABLE_DISC.format(sense=res.sense))
         if self._deadline is not None and time.monotonic() > self._deadline:
             raise NoReadableDisc(f"stopped after the {self._time_limit_s / 60:.0f} minute time limit "
                                  "(--max-minutes); reads are far slower than expected")

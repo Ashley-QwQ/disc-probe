@@ -271,8 +271,10 @@ def cmd_timing(args):
         progress = reader.progress = ui.Progress(ui.timing_status(probe, reader), keys=ui.open_keys(), pulse=reader.read_times, wait_s=TIMING_WAIT_S)
         probe.log = progress.log
     stopped = None
+    finished = False
     try:
         summary = probe.run()
+        finished = True
     except timing.NoReadableDisc as e:
         stopped = str(e)
     finally:
@@ -287,6 +289,8 @@ def cmd_timing(args):
                 w.writeheader()
                 w.writerows(rows)
         summary = probe.summary
+        if not finished:        # also for Ctrl+C or a drive that vanished, which pass through here
+            summary["stopped"] = stopped or "interrupted"
         summary["device"] = getattr(dev, "name", None)
         summary["args"] = {k: v for k, v in vars(args).items()
                            if k != "func" and (k != "media" or v != "dvd")}
@@ -458,18 +462,18 @@ def cmd_geo(args):
         log = ladder.log = progress.log
     out = _outdir(args, "geo", dev)
     stopped = None
+    res = None
     try:
         res = ladder.run()
     except RuntimeError as e:
         log(f"stopped: {e}")
         stopped = str(e)
-        res = None
     finally:
         if progress:
             progress.close()
         dev.close() if hasattr(dev, "close") else None
         if ladder.targets and ladder.cov is not None:
-            write_outputs(ladder, out)
+            write_outputs(ladder, out, None if res else stopped or "interrupted")   # also for Ctrl+C or a drive that vanished
     at_terminal = ui.term().interactive
     detail = (lambda text: ui.say(text, "dim")) if at_terminal else print    # at a terminal the plain summary comes first
     if res:
@@ -488,6 +492,8 @@ def cmd_geo(args):
               f"python tools/geo_polyfit.py {out}")
     if ladder.targets and ladder.cov is not None:
         print(f"targets.csv, summary.json, events.csv: {os.path.abspath(out)}")
+        if not res:
+            print("It stopped early, so `--geo latest` won't use these. Don't burn from them.")
     elif stopped not in mmc.NOT_READY:
         print("no results written: it stopped before the first fit. Run `timing` to see how noisy this drive is.")
     if progress and res:
@@ -496,7 +502,7 @@ def cmd_geo(args):
         _next(guide.after_geo(args, res, out), args)
     else:
         _next(guide.after_geo_stop(args, stopped or ""))
-    if args.media == "cd" and res is None:
+    if res is None:     # scripts must not take a run that stopped for one that finished
         sys.exit(1)
 
 

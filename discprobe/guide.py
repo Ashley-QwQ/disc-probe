@@ -15,11 +15,12 @@ import os
 import re
 import sys
 
-from . import i18n, mmc
+from . import i18n, iso9660, mmc
 
 RESULT_DIR = re.compile(r"^(?P<kind>[a-z]+)-(?:(?P<tag>.+)-)?(?P<stamp>\d{8}-\d{6})$")
 PROG = "python -m discprobe"
-# `latest` must not pick these: a run stopped by the whole-turn check still writes a summary.
+# `latest` must not pick these. Results now say when they stopped early; these catch older ones, as far as they can:
+# one stopped after 8 rungs says nothing, and looks complete.
 MIN_RUNGS = 8
 MAX_LATEST_CHI2 = 25.0
 # Reports so far: under about 2 deg drives measured well; 3-24 deg (SP80NB80) and 10-14 deg
@@ -105,8 +106,12 @@ class Result:
         except OSError:
             return 0
 
+    @property
+    def stopped(self) -> str | None:
+        return self.summary.get("stopped")
+
     def geo_complete(self) -> bool:
-        return (self.kind == "geo" and "u" in self.fit and self.rungs() >= MIN_RUNGS
+        return (self.kind == "geo" and "u" in self.fit and not self.stopped and self.rungs() >= MIN_RUNGS
                 and self.fit.get("chi2_per_dof", 0) <= MAX_LATEST_CHI2)
 
     @property
@@ -145,7 +150,7 @@ class Result:
             if not mode:
                 return "stopped before the rotation test"
             jitter = _jitter(self.summary)
-            return mode + (f", jitter {min(jitter):.2f}-{max(jitter):.2f} deg" if jitter else "")
+            return mode + (f", jitter {min(jitter):.2f}-{max(jitter):.2f} deg" if jitter else "") + ("  (stopped early)" if self.stopped else "")
         if self.kind == "info":
             inq = _parsed(_load(os.path.join(self.path, "info.json")) or {}, "inquiry")
             return f"{inq.get('vendor', '')} {inq.get('product', '')}".strip()
@@ -624,7 +629,7 @@ def picture_iso() -> str | None:
         return None
     found = [os.path.join("iso", name[:-len(".preview.png")] + ".iso") for name in names
              if name.endswith(".preview.png") and "blind" not in name.lower()]
-    found = [path for path in found if os.path.exists(path)]
+    found = [path for path in found if os.path.exists(path) and not os.path.exists(path + iso9660.UNFINISHED)]
     return max(found, key=os.path.getmtime) if found else None
 
 
@@ -653,10 +658,10 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
     drives = optical_drives()
     drive = f"--drive {drives[0]}" if drives else "--drive E:"
 
-    timing = next((r for r in results if r.kind == "timing" and r.rotation()), None)
+    timing = next((r for r in results if r.kind == "timing" and r.rotation() and not r.stopped), None)
     timing_good = timing is not None and timing.rotation() == "CAV"
     geo = next((r for r in results if r.geo_complete()), None)
-    has_iso = os.path.exists(random_iso)
+    has_iso = os.path.exists(random_iso) and not os.path.exists(random_iso + iso9660.UNFINISHED)
 
     # A written file is not yet a disc. Scripts keep the tick they always saw.
     disc_done = timing is not None or (has_iso and not notes)
