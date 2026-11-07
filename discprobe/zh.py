@@ -321,6 +321,8 @@ TEXT = {
         "这张盘只有 {a} 个扇区，比满层少 {b} 个，所以扇区 0 比不留备用区的盘的 24.0 mm 更靠外 {c} mm：这是量到的，不是舍入误差",
     "DiscImageStudio Blu-ray preset in {a} (import it with the Blu-ray preset library's Import button)":
         "DiscImageStudio 蓝光预设已写入 {a}（用蓝光预设库的 Import 按钮导入）",
+    "DiscImageStudio names an imported preset after the file it reads, so this one will be called after its file name: rename the file before importing to change it":
+        "DiscImageStudio 导入时用文件名作为预设名，所以这一条会以文件名命名：想改名就在导入前改文件名",
     "Restart DiscImageStudio to load the updated Blu-ray preset list.":
         "重启 DiscImageStudio 以载入更新后的蓝光预设列表",
     "Restart DiscImageStudio to load the updated preset list.": "重启 DiscImageStudio 以载入更新后的预设列表。",

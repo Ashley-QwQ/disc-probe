@@ -174,7 +174,8 @@ def test_a_catalog_of_another_schema_is_left_alone():
 
 
 def _run(*argv, cwd=ROOT):
-    return subprocess.run([sys.executable, "-m", "discprobe", *argv], cwd=cwd,
+    env = dict(os.environ, PYTHONPATH=ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""))
+    return subprocess.run([sys.executable, "-m", "discprobe", *argv], cwd=cwd, env=env,
                           capture_output=True, text=True, timeout=180)
 
 
@@ -249,6 +250,29 @@ def test_a_run_with_a_fitted_offset_says_the_radius_depends_on_it():
         text = proc.stdout + proc.stderr
         assert proc.returncode == 0, text
         assert "offset" in text.lower(), "it wrote a radius without saying the offset moved it"
+
+
+def test_the_default_file_is_named_after_the_preset():
+    """DiscImageStudio names an imported preset after the file, so the default file carries the name."""
+    with tempfile.TemporaryDirectory() as work:
+        folder = os.path.join(work, "geo-G-20260101-000000")
+        _summary(folder)
+        proc = _run("disexport", "--geo", folder, "--sectors", str(SECTORS), cwd=work)
+        text = proc.stdout + proc.stderr
+        assert proc.returncode == 0, text
+        wanted = bdexport.suggested_file_name("BD-RE (drive-timing calibration)")
+        assert os.path.exists(os.path.join(work, wanted)), os.listdir(work)
+        assert "after its file name" in text, text
+
+
+def test_a_preset_name_becomes_a_usable_file_name():
+    assert bdexport.suggested_file_name("BD-RE (drive-timing calibration)") == \
+        "BD-RE (drive-timing calibration).json"
+    awkward = bdexport.suggested_file_name('a/b:c*?"<>|')
+    assert not set(awkward) & set('<>:"/\\|?*'), awkward
+    assert awkward.startswith("a-b-c") and awkward.endswith(".json"), awkward
+    assert bdexport.suggested_file_name("   ") == "Blu-ray preset.json"
+    assert len(bdexport.suggested_file_name("x" * 200)) == 80 + len(".json")
 
 
 if __name__ == "__main__":

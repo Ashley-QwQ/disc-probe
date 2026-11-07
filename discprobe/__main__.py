@@ -894,10 +894,13 @@ def _disexport_bd(args):
         warning = guide.install_warning(args.geo)
         if warning:
             print(f"Note: {warning}")
-    output = args.output or (None if args.install else "dis_preset_bd.json")
+    preset_id = args.id or "discprobe-bd-re"
+    preset_name = args.name or "BD-RE (drive-timing calibration)"
+    # DiscImageStudio names an imported preset after the file it reads, so the default file name is
+    # the preset name rather than a fixed "dis_preset_bd.json".
+    output = args.output or (None if args.install else bdexport.suggested_file_name(preset_name))
     try:
-        out = bdexport.export(args.geo, args.sectors, output, args.id or "discprobe-bd-re",
-                              args.name or "BD-RE (drive-timing calibration)")
+        out = bdexport.export(args.geo, args.sectors, output, preset_id, preset_name)
     except ValueError as e:
         sys.exit(str(e))
     preset, fit, derived = out["preset"], out["fit"], out["derived"]
@@ -937,6 +940,10 @@ def _disexport_bd(args):
     if output:
         print(i18n.tr("DiscImageStudio Blu-ray preset in {a} (import it with the Blu-ray preset "
                       "library's Import button)").format(a=os.path.abspath(output)))
+        if not args.output:
+            print(i18n.tr("DiscImageStudio names an imported preset after the file it reads, so this "
+                          "one will be called after its file name: rename the file before importing "
+                          "to change it"))
     if args.install:
         try:
             result = bdexport.install(preset, target, args.replace)

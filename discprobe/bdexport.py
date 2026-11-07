@@ -143,6 +143,21 @@ def catalog_entry(preset_obj: dict) -> dict:
             "invertMapping": bool(preset_obj.get("invertMapping", False))}
 
 
+def suggested_file_name(display_name: str, suffix: str = ".json") -> str:
+    """The file name that becomes the preset name when DiscImageStudio imports it.
+
+    `BluRayPresetStore.Import` builds the entry from the parameters and takes the *file name* as
+    the preset's display name, so a document written to `dis_preset_bd.json` adds a preset called
+    "dis_preset_bd" however good the name inside the file is.
+    """
+    bad = set('<>:"/\\|?*')
+    cleaned = "".join("-" if (ch in bad or ord(ch) < 32) else ch for ch in str(display_name))
+    cleaned = " ".join(cleaned.split()).strip(" .")
+    if len(cleaned) > 80:
+        cleaned = cleaned[:80].rstrip(" .")
+    return (cleaned or "Blu-ray preset") + suffix
+
+
 def default_path() -> str:
     base = os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Local")
     return os.path.join(base, "DiscImageStudio", FILE_NAME)

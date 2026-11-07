@@ -166,6 +166,15 @@ the number of zones used is not the only record of what was thrown away.
   constant angular velocity; it measures `u = r0/b` and `v = p/b` and exports the same three-number
   preset.
 
+Two things about the hand-over, from `BluRayPresetStore.Import` in the DiscImageStudio source:
+
+- An imported *document* (the file `disexport` writes without `--install`) is turned into a catalog
+  entry whose display name is the **file name**; whatever name the document carries is not used.
+  The default file is therefore named after the preset (`BD-RE (drive-timing calibration).json`),
+  and the command says so when it writes one.
+- `--install` does not go through Import: it writes the catalog entry itself, so the ID and the
+  display name in the file are the ones DiscImageStudio shows.
+
 ## 10. Reproduction
 
 ```
