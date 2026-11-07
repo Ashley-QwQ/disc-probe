@@ -104,15 +104,25 @@ Nine or 25 zones per run, as noted; `a` in ms^2/LBA, `b` in ms^2.
 | run | zones kept | R^2 | a (ms^2/LBA) | b (ms^2) | b/a | r0 (mm) | sigma(r0) | v (m/s) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1.6x (`--speed 7193`) | 7/9 | 0.9999943 | 1.441296e-4 | 383.6087 | 2.66155e6 | 24.6427 | 41.6 um | 7.9054 |
+| 1.6x, 25 zones | 22/25 | 0.9999968 | 1.437774e-4 | 383.1293 | 2.66474e6 | 24.6575 | 14.5 um | 7.9151 |
 | 2.1x, 9 zones | 6/9 | 0.9999871 | 8.3666e-5 | 223.3088 | 2.66905e6 | 24.6774 | 74.0 um | 10.3759 |
 | 2.1x, 25 zones #1 | 23/25 | 0.9999973 | 8.344018e-5 | 222.4349 | 2.66580e6 | 24.6624 | 14.0 um | 10.3900 |
 | 2.1x, 25 zones #2 | 23/25 | 0.9999969 | 8.339346e-5 | 222.8052 | 2.67174e6 | 24.6898 | 15.1 um | 10.3929 |
 | 2.1x, 25 zones #3 | 23/25 | 0.9999974 | 8.343306e-5 | 222.4712 | 2.66646e6 | 24.6655 | 13.7 um | 10.3904 |
 | 2.1x, 25 zones #4 | 23/25 | 0.9999970 | 8.339505e-5 | 222.8281 | 2.67196e6 | 24.6909 | 15.0 um | 10.3928 |
 
-The four 25-zone runs give `r0 = 24.677 mm` (four runs: 24.6624 / 24.6898 / 24.6655 / 24.6909, spread 28.5 um, each fit's own tolerance 13.7-15.1 um), and the
-anchor-free `b/a` agrees between 1.6x and 2.1x to 0.15%, which is 20 um of radius -- the same
-quantity, arrived at with no anchor at all.
+The four 25-zone runs at 2.1x give `r0 = 24.677 mm` (24.6624 / 24.6898 / 24.6655 / 24.6909,
+spread 28.5 um, each fit's own tolerance 13.7-15.1 um). The 25-zone run at 1.6x gives 24.6575 +- 14.5 um,
+19.7 um lower; the anchor-free `b/a` differs by 0.13% between the two speeds (2.66474e6 against a mean
+2.66824e6 at 2.1x), which is the same 20 um of radius arrived at with no anchor at all. A constant
+period offset would show up as a speed-dependent radius: `eps*v/2pi` differs by 0.39 mm/ms between the
+two speeds, so 20 um bounds any constant epsilon at about 50 us.
+
+That 1.6x run also caught a case the coherence gate cannot see: one zone (fraction 0.84) reported
+85.71 ms where the trend says 42.9 ms -- exactly two turns -- with coherence 0.9993. The gate tests
+whether the period repeats, not whether it is the spindle's, so a harmonic lock passes it. The MAD
+clip in the fit dropped that zone and its neighbour, and the run now names the sectors it dropped, so
+the number of zones used is not the only record of what was thrown away.
 
 ## 7. Cross-checks
 

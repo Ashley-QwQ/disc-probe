@@ -71,6 +71,8 @@ def test_a_zone_that_misreads_is_dropped():
     fit = clv.fit_t2(bad, sector_mm=BD_SECTOR_MM, v_m_s=TRUTH["v_m_s"])
     assert 3 in fit.dropped
     assert abs(fit.r0_mm - TRUTH["r0_mm"]) < 0.002
+    # The message a reader acts on needs the sector, not the sample index.
+    assert fit.as_dict()["zones_dropped_lbas"] == [bad[3].lba]
 
 
 def test_a_disc_that_is_not_clv_is_refused():

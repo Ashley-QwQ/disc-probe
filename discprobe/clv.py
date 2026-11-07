@@ -95,6 +95,10 @@ class ClvFit:
             "v_m_s": round(self.v_m_s, 5),
             "slope_ms2_per_lba": self.slope_ms2_per_lba, "intercept_ms2": self.intercept_ms2,
             "r2": round(self.r2, 8), "zones_used": self.n, "zones_dropped": list(self.dropped),
+            # The indices are into the sample list; sector addresses are what a reader can find
+            # again in zones.csv, so both are written.
+            "zones_dropped_lbas": [self.samples[i].lba for i in self.dropped
+                                   if 0 <= i < len(self.samples)],
             "sigma_r0_mm": None if self.sigma_r0_mm is None else round(self.sigma_r0_mm, 6),
             "sigma_pitch_um": None if self.sigma_pitch_um is None else round(self.sigma_pitch_um, 6),
             "sigma_v_m_s": None if self.sigma_v_m_s is None else round(self.sigma_v_m_s, 5),

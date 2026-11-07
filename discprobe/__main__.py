@@ -325,6 +325,14 @@ def _geo_clv(args):
                       if sig is not None else
                       i18n.tr("period offset {a} us: the fit already took it out of r0")
                       .format(a=f"{res['offset_ms'] * 1000:+.1f}"))
+        dropped = res.get("zones_dropped_lbas") or []
+        if dropped:
+            shown = ", ".join(f"{int(x):,}" for x in dropped[:4])
+            more = "" if len(dropped) <= 4 else f" and {len(dropped) - 4} more"
+            print(i18n.tr("Left {a} zone(s) out of the fit: their period did not follow the line "
+                          "(sector {b}{c}). A zone can lock to a harmonic of the spindle instead of the "
+                          "spindle itself; zones.csv lists every zone, used or not")
+                  .format(a=len(dropped), b=shown, c=more))
         print(i18n.tr("zones.csv, summary.json: {a}").format(a=os.path.abspath(out)))
         last = derived.get("last_lba")
         if last is not None and not getattr(args, "sim", None):

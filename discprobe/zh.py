@@ -619,6 +619,8 @@ TEXT = {
     "so the fit left it out and r0 is the plain answer":
         "周期偏置：{a} µs（1 sigma {b} µs），数据分不开它和零，所以拟合把它留在了外面，r0 就是直接的答案",
     "zones.csv, summary.json: {a}": "zones.csv、summary.json 保存在：{a}",
+    "Left {a} zone(s) out of the fit: their period did not follow the line (sector {b}{c}). A zone can lock to a harmonic of the spindle instead of the spindle itself; zones.csv lists every zone, used or not":
+        "有 {a} 个区域没进拟合：它们的周期不在这条线上（扇区 {b}{c}）。某个区域可能锁定到主轴的谐波上而不是主轴本身；zones.csv 里列出全部区域，用到的和没用到的都在",
     "Pass --linear-mm-s to trade that anchor for a pitch: without it the pitch is nominal and only r0/v is measured.":
         "加 --linear-mm-s 可以把这个锚点换成轨距：不加时轨距用标称值，只测到 r0/v。",
     "this is a simulated run (its summary says so), so the preset would describe a drive that does not exist. Measure a real disc, then install that result.":
