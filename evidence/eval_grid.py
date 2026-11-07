@@ -2,9 +2,11 @@
 
   python evidence/eval_grid.py <phi.csv> [<phi.csv> ...]
 
-Aggregated curve exactly as in make_figures.py: per scan, rings with good peaks and
-2 mm radial bins (a bin needs >= 3 rings), median per
-scan, median across scans, constant rotation removed. Reported: peak-to-peak, RMS, and
+Aggregated curve as in make_figures.py: per scan, rings with good peaks,
+2 mm radial bins (a bin needs >= 3 rings), median per scan, median across scans, constant
+rotation removed. Unlike the figures, rings more than 1 deg from the scan median are kept:
+dropping them hid real bends (#17). A range with no data is INCOMPLETE, not a pass.
+ring_pp, the spread of single rings in one scan, is reported only; it is mostly ring noise. Reported: peak-to-peak, RMS, and
 the U component, i.e. the quadratic coefficient a of a fit a x^2 + b x + c with
 x = (r_bin - 40) / 14.3 (x spans about [-1, 1] over 25.8-54.4 mm), so |a| is the
 peak-to-peak size of the quadratic part across the range.
@@ -60,7 +62,7 @@ def evaluate(paths):
     a, b, c = np.polyfit(x, curve, 2)
     st = {"bins": len(mids), "pp": float(np.ptp(curve)), "rms": float(np.sqrt(np.mean(centred ** 2))),
           "u": float(abs(a)), "ring_pp": ring_pp, "coverage": coverage}
-    ok = st["rms"] <= LIMITS["rms"] and st["pp"] <= LIMITS["pp"] and st["u"] <= LIMITS["u"] and ring_pp <= LIMITS["pp"]
+    ok = st["rms"] <= LIMITS["rms"] and st["pp"] <= LIMITS["pp"] and st["u"] <= LIMITS["u"]
     st["status"] = "INCOMPLETE" if not complete else ("PASS" if ok else "FAIL")
     st["pass"] = st["status"] == "PASS"
     return st

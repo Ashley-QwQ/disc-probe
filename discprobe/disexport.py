@@ -146,8 +146,11 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
                          f"{r_lo}-{r_hi} mm (outer radius came out {fit['outerRadiusMm']:.3f} mm); "
                          f"check --sectors and the fit range. No preset written.")
     if fit["full_angle_diff_deg"] > MAX_EXPORT_DIFF_DEG:
-        raise ValueError(f"the preset differs from the input mapping by {fit['full_angle_diff_deg']:.1f} deg "
-                         "over the full capacity; use a different fit or correction. No preset written.")
+        # Outside the fitted range the preset's cubic pitch and the correction (held constant there) part ways.
+        way = ("export without --correction, or measure a wider range" if corr else "measure a wider range")
+        raise ValueError(f"outside {r_lo}-{r_hi} mm the preset would be {fit['full_angle_diff_deg']:.1f} deg away from "
+                         f"the measured mapping, and a DiscImageStudio preset can't follow it there; {way}. "
+                         "No preset written.")
     corrected = ""
     if corr:
         corrected = " + varying-pitch correction from timing" if correction_from_timing(correction_path) else " + grid-scan angle correction"

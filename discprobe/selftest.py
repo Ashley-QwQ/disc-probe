@@ -170,9 +170,21 @@ def _grid_acceptance(c: Checker):
     import importlib.util
     import os
     import tempfile
-    spec = importlib.util.spec_from_file_location("eval_grid", os.path.join("evidence", "eval_grid.py"))
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    script = os.path.join(root, "evidence", "eval_grid.py")
+    if not os.path.exists(script):
+        print("  (skipped: evidence/ is not part of this copy)")
+        return
+    spec = importlib.util.spec_from_file_location("eval_grid", script)
     ev = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(ev)
+    # The limits were set so that grid 1 fails and grid 2 passes; grid 3 is the registered result. Grid 2's
+    # scans have no usable rings at 27-29, 35-37, 45-47 and 49-51 mm, so it can no longer be judged at all.
+    for disc, expected in (("grid1", "FAIL"), ("grid2", "INCOMPLETE"), ("grid3", "PASS")):
+        scans = sorted(os.path.join(root, "evidence", "gridscan", f) for f in os.listdir(os.path.join(root, "evidence", "gridscan"))
+                       if f.startswith(disc + "_scan") and f.endswith(".phi.csv"))
+        if scans:
+            c.check(ev.evaluate(scans)["status"] == expected, f"{disc} scans: {expected}")
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, "rings.csv")
         for name in ("outer", "band", "missing", "flat"):
@@ -189,8 +201,14 @@ def _grid_acceptance(c: Checker):
 
 def _pitch_fit(c: Checker):
     print("pitch model numerical fit")
+    import importlib.util
+    import os
     import numpy as np
-    from tools.geo_polyfit import fit, model
+    spec = importlib.util.spec_from_file_location(
+        "geo_polyfit", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools", "geo_polyfit.py"))
+    polyfit = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(polyfit)
+    fit, model = polyfit.fit, polyfit.model
     u, v, rc, rs = 180000.0, 5.5, 300000.0, 112000.0
     n = np.linspace(2e8, 8e9, 29)
     y = model(n, u, v, [0.0, 0.0004], rc, rs)[0]
