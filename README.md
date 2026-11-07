@@ -294,11 +294,12 @@ Linux 版由 bczhc 移植：[bczhc/disc-probe](https://github.com/bczhc/disc-pro
 
 - 下一步跑什么：`guide` 列出做过的步骤并打印下一条命令，不碰光驱。不带参数运行 `python -m discprobe` 也是它。`info`、`timing`、`geo`、`random`、`image`、`disexport` 跑完也会打印下一步。`timing` 还会给判定：不是 CAV 就换速度，抖动大于约 2° 建议换个速度，大于约 5° 说明这台光驱很可能不适合（这两个门槛来自实践报告表，不是严格界限）。
 - 盘符：`list` 列出光驱。在终端里可以不写 `--drive`，只有一台就直接用，有多台就问你。
-- 结果路径：`--geo` 还接受结果文件夹和 `latest`。`latest` 会跳过模拟驱动器的结果和中途停下的结果（少于 8 级，或 χ²/dof 超过 25）。`results geo` 列出做过的测量，`results geo --latest` 只打印一行路径，方便写脚本。
+- 结果路径：`--geo` 还接受结果文件夹和 `latest`。`latest` 会跳过模拟驱动器的结果和中途停下的结果。现在的结果会标明自己提前停止了；之前版本留下的结果只能按少于 8 级或 χ²/dof 超过 25 判断，8 级以上中途停下的分辨不出来。`results geo` 列出做过的测量，`results geo --latest` 只打印一行路径，方便写脚本。
 - `--sectors` 有三个意思：`timing`、`geo` 里是每次读几个扇区，`16` 读一个完整的 DVD ECC 块；`random` 里是刻多少；`disexport` 里是盘的容量，DiscImageStudio 里也填同一个数。`info` 会打印建议值和来源，以空白盘上的为准。
 - `--speed` 可以写 kB/s，也可以写倍速，如 `4x`（按 `--media` 的 1x 换算）。DVD：`2.4x` = 3324，`4x` = 5540（`geo` 默认），`8x` = 11080。CD：`8x` = 1411（默认），`16x` = 2822，`24x` = 4234。低速通常噪声更小，但不是每台光驱都会换档，要看 `timing` 打印的转速。
 - `--ranges` 接受扇区范围 `a-b,c-d`，默认的已刻录区 3–85% 适合大多数盘。`geo` 总在同一处停下，或者外圈有换速跳变时，把那段排除。最后一个扇区看 `info`。
 - CD 和 DVD：步骤相同，每条命令加 `--media cd`。终端里如果盘是 CD、命令却是 DVD 设置，会先问要不要加；托盘是空的也会直接说。
+- 中途出事：测量时开仓、盘被取出或换过，`timing` 和 `geo` 会立刻停下并说明原因，退出码 1。已测的部分会保留并标明提前停止，`--geo latest` 不会用它。写镜像被中断时，没写完的文件会被删除；如果是关窗口这种来不及清理的情况，`guide` 也不会把它当成写好了。
 - Tab 补全：`python -m discprobe completion install` 支持 PowerShell、bash 和 zsh。它在主目录写一个脚本，并在 shell 的启动文件里加一行，`completion uninstall` 会把两者都删掉。当前窗口要新开或运行它打印的那一行才生效。在 PowerShell 上，`discprobe` 这一行按 Tab 会弹出列表，其他命令的 Tab 不变。按 Tab 不启动 Python，所以更新后要再装一次。
 - 语言：在终端里跟随系统语言。用 `--lang zh`、`--lang en` 或 `DISCPROBE_LANG=zh` 指定。管道、重定向和 `DISCPROBE_PLAIN=1` 始终是英文，只有命令里写了 `--lang` 才变。结果文件不翻译。
 - 进度：`timing`、`geo` 和写 ISO 时显示同样的状态行。窗口窄时依次省掉部分内容，不会折行。按 Ctrl+C 会保留已测的部分并说明位置。

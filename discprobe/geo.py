@@ -387,7 +387,8 @@ class Ladder:
         return rep
 
 
-def write_outputs(ladder: Ladder, out_dir: str) -> None:
+def write_outputs(ladder: Ladder, out_dir: str, stopped: str | None = None) -> None:
+    """`stopped` says why the run ended early. Such a fit can look fine, but only covers what was reached."""
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "targets.csv"), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
@@ -401,7 +402,8 @@ def write_outputs(ladder: Ladder, out_dir: str) -> None:
     with open(os.path.join(out_dir, "summary.json"), "w", encoding="utf-8") as f:
         json.dump({"fit": res, "cache": ladder.tp.summary.get("cache"),
                    "setup": ladder.tp.summary.get("setup"),
-                   "set_cd_speed": ladder.tp.summary.get("set_cd_speed")}, f, indent=2, default=float)
+                   "set_cd_speed": ladder.tp.summary.get("set_cd_speed"),
+                   **({"stopped": stopped} if stopped else {})}, f, indent=2, default=float)
     events = ladder.tp.events_as_rows()
     if events:
         with open(os.path.join(out_dir, "events.csv"), "w", newline="", encoding="utf-8") as f:

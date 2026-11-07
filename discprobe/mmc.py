@@ -116,7 +116,8 @@ TRAY_OPEN = ("The drive says its tray is open (burning ejects the disc when it f
 NOT_RECOGNISED = ("The drive says its tray is closed, but it finds no disc. If one is in there, wait a few seconds and run this again. "
                   "If it keeps saying this, the drive can't read that disc: check it sits flat, label up, and is clean, or try another disc")
 LOADING = "The drive is not ready yet, it may still be loading the disc. Wait a few seconds and run this again"
-NOT_READY = (NO_DISC, TRAY_OPEN, NOT_RECOGNISED, LOADING)
+DISC_CHANGED = "The drive says the disc was changed during the run, so these measurements can't be combined. Run this again"
+NOT_READY = (NO_DISC, TRAY_OPEN, NOT_RECOGNISED, LOADING, DISC_CHANGED)
 
 
 def not_ready(sense) -> str | None:
@@ -125,6 +126,14 @@ def not_ready(sense) -> str | None:
     if text.startswith("2/3A/"):
         return {"01": NOT_RECOGNISED, "02": TRAY_OPEN}.get(text[5:], NO_DISC)
     return LOADING if text.startswith("2/04/") else None
+
+
+def disc_gone(sense) -> str | None:
+    """Why a run can't go on after this answer to a read: the disc left or was changed. Seen on a GH70N: 2/3A/02."""
+    text = str(sense or "")
+    if text.startswith("2/3A/"):
+        return not_ready(sense)
+    return DISC_CHANGED if text.startswith("6/28/") else None
 
 
 def media_family(profile: int | None) -> str:

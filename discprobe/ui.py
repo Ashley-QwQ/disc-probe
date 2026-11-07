@@ -20,7 +20,7 @@ import sys
 import threading
 import time
 
-from . import filldisc, i18n, snake
+from . import filldisc, i18n, iso9660, snake
 from .i18n import display_width, tr
 
 SPINNER_ASCII = ("(|)", "(/)", "(-)", "(\\)")
@@ -576,6 +576,54 @@ def _animated(status):
         progress.close()
 
 
+def _file_stamp(path: str):
+    try:
+        status = os.stat(path)
+        return status.st_size, status.st_mtime_ns
+    except OSError:
+        return None
+
+
+def _remove(path: str) -> bool:
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+    except OSError:
+        return False
+    return True
+
+
+@contextlib.contextmanager
+def _whole_or_gone(path: str):
+    """An image cut short must not pass for a finished one, since it may get burned.
+
+    If the write fails or is stopped, what it left goes. A file it never touched stays: a check can fail before
+    the writer opens anything. A killed process or closed window cleans up nothing, so a marker beside the
+    image says it isn't whole, for `guide` and for the next write.
+    """
+    marker = path + iso9660.UNFINISHED
+    if os.path.exists(marker) and _remove(path):
+        _remove(marker)
+    before = _file_stamp(path)
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        with open(marker, "w", encoding="utf-8"):
+            pass
+    except OSError:
+        pass        # the writer will say what is wrong with this folder
+    try:
+        yield
+    except BaseException:
+        if _file_stamp(path) == before:
+            _remove(marker)
+        elif _remove(path):     # if it can't be removed, the marker stays and still says so
+            _remove(marker)
+            say("The unfinished image was removed.")
+        raise
+    _remove(marker)
+
+
 @contextlib.contextmanager
 def writing(path: str, sectors: int):
     """`log` for the ISO writers. At a terminal their percentage lines become a progress line.
@@ -583,9 +631,16 @@ def writing(path: str, sectors: int):
     The writers report only every 10 or 20 %, so between reports the bar follows the file's real
     size. Only a report can say 100 %. Pipes get the writers' lines as they always did.
     """
-    if not term().interactive:
-        yield print
-        return
+    with _whole_or_gone(path):
+        if not term().interactive:
+            yield print
+            return
+        with _writing_line(path, sectors) as log:
+            yield log
+
+
+@contextlib.contextmanager
+def _writing_line(path: str, sectors: int):
     total = max(sectors * 2048, 1)
     reported = [0.0]
     rate = _Rate()

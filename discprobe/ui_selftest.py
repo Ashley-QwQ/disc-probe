@@ -962,6 +962,7 @@ def _command_line(c) -> None:
             code, text = code_and_stderr("timing", "--sim", "cav", "--out", out)
             kept = os.path.exists(os.path.join(guide.scan(out)[0].path, "summary.json"))
             c.check(code == 130 and "Ctrl+C" in text and kept, "Ctrl+C says so and keeps the partial results")
+            c.check(guide.scan(out)[0].stopped == "interrupted", "and they say they are partial")
     finally:
         cli._open = real_open
         cli._Parser.last_out = None
@@ -1108,6 +1109,195 @@ def _no_disc(c) -> None:
     finally:
         ui._term, cli._open = real_term, real_open
         cli._Parser.last_out = None
+
+
+def _stopped_part_way(c) -> None:
+    """The tray opens or the disc changes during a run. On a real GH70N every read then answers 2/3A/02 in about 5 ms,
+    so without a stop the run used up all its reads in seconds and blamed the speed or the drive."""
+    from . import __main__ as cli, mmc
+    from .scsi import ScsiResult, Sense
+
+    class Goes:
+        """The simulated drive, until the disc goes after some commands; for only `lasting` commands if given."""
+        name = "SIM"
+
+        def __init__(self, sense, after, lasting=None, then=None):
+            self.sim = SimDrive(mode="cav", seed=7)
+            self.sense, self.after, self.lasting, self.then = sense, after, lasting, then
+            self.count = 0
+
+        def execute(self, cdb, data_len=0, direction=1, timeout_s=30):
+            self.count += 1
+            if self.count > self.after and (self.lasting is None or self.count <= self.after + self.lasting):
+                if self.then and self.count == self.after + self.lasting:
+                    raise self.then
+                return ScsiResult(2, b"", self.sense, 0, 1000)
+            return self.sim.execute(cdb, data_len, direction, timeout_s)
+
+        def __getattr__(self, name):
+            return getattr(self.sim, name)
+
+    def run(*argv):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
+            try:
+                cli.main(list(argv))
+                code = 0
+            except SystemExit as e:
+                err.write(e.code if isinstance(e.code, str) else "")
+                code = e.code if isinstance(e.code, int) else 1
+        return code, out.getvalue() + err.getvalue()
+
+    def failed_reads(result):
+        import csv
+        with open(os.path.join(result.path, "events.csv"), newline="", encoding="utf-8") as f:
+            return sum(row["status"] != "0" for row in csv.DictReader(f))
+
+    def real(result):
+        """The same result as if from a real drive, which `latest` would consider."""
+        path = result.path.replace("-SIM-cav-", "-H-")
+        os.rename(result.path, path)
+        return path
+
+    tray, gone_disc, changed, loading = Sense(2, 0x3A, 2), Sense(2, 0x3A, 1), Sense(6, 0x28, 0), Sense(2, 0x04, 1)
+    c.check(mmc.disc_gone(tray) == mmc.TRAY_OPEN and mmc.disc_gone(gone_disc) == mmc.NOT_RECOGNISED and mmc.disc_gone(changed) == mmc.DISC_CHANGED, "a read answering these means the disc has gone")
+    c.check(mmc.disc_gone(loading) is None and mmc.disc_gone(Sense(3, 0x11, 0)) is None and mmc.disc_gone(None) is None, "others do not, on their own")
+    real_term, real_open = ui._term, cli._open
+    ui._term = ui.Term(io.StringIO(), env={})
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            for name, after in (("before the rotation test ends", 150), ("during the phase test", 480)):
+                out = os.path.join(d, f"timing{after}")
+                cli._open = lambda args: Goes(tray, after)
+                code, text = run("timing", "--sim", "cav", "--out", out)
+                result = guide.scan(out)[0]
+                c.check(code == 1 and mmc.TRAY_OPEN in text and "another --speed" not in text, f"timing, tray opened {name}: stops and says why")
+                c.check(failed_reads(result) == 1 and result.stopped == mmc.TRAY_OPEN, f"after one failed read, and the result says so ({name})")
+                c.check("not enough usable reads" not in text and "Verdict" not in text, f"no verdict on what is left ({name})")
+            cli._open = lambda args: Goes(changed, 150)
+            out = os.path.join(d, "changed")
+            code, text = run("timing", "--sim", "cav", "--out", out)
+            c.check(code == 1 and mmc.DISC_CHANGED in text and guide.scan(out)[0].stopped == mmc.DISC_CHANGED, "a changed disc stops it too")
+            cli._open = lambda args: Goes(loading, 150, 5)
+            out = os.path.join(d, "blip")
+            code, text = run("timing", "--sim", "cav", "--out", out)
+            c.check(code == 0 and not guide.scan(out)[0].stopped and failed_reads(guide.scan(out)[0]) == 5, "a moment of not ready passes, as it always did")
+            cli._open = lambda args: Goes(loading, 150)
+            out = os.path.join(d, "loading")
+            code, text = run("timing", "--sim", "cav", "--out", out)
+            c.check(code == 1 and mmc.LOADING in text and failed_reads(guide.scan(out)[0]) == timing.MAX_LOADING_READS, "not ready that lasts stops it, after a while")
+            out = os.path.join(d, "whole")
+            cli._open = real_open
+            code, text = run("timing", "--sim", "cav", "--out", out)
+            c.check(code == 0 and guide.scan(out)[0].stopped is None, "a run that finishes says nothing about stopping")
+            stopped_folder = os.path.join(d, "timing480")
+            path = real(guide.scan(stopped_folder)[0])
+            rows = [x for x in guide.guide_lines("dvd", stopped_folder, notes=True) if "(timing)" in x]
+            c.check(rows and rows[0].startswith("  [ ]"), "guide does not tick a drive check that stopped part way")
+            result = next(r for r in guide.scan(stopped_folder) if r.path == path)
+            c.check("stopped early" in result.describe(), "and `results` says it stopped early")
+
+            if importlib.util.find_spec("numpy") is None or importlib.util.find_spec("scipy") is None:
+                print("geo part-way checks skipped (need numpy and scipy)")
+                return
+            out = os.path.join(d, "geo")
+            cli._open = lambda args: Goes(tray, 700)
+            code, text = run("geo", "--sim", "cav", "--out", out)
+            result = guide.scan(out)[0]
+            c.check(code == 1 and mmc.TRAY_OPEN in text and "never settled" not in text and "hold one speed" not in text, "geo, tray opened: stops, says why and exits 1")
+            c.check(result.stopped == mmc.TRAY_OPEN and result.rungs() >= guide.MIN_RUNGS and "u" in result.fit, "its rungs are kept, with enough to fit")
+            c.check(not result.geo_complete() and "won't use these" in text, "but it is not taken for complete, and it says so")
+            real(result)
+            c.check(guide.latest_geo("dvd", out) is None, "so --geo latest will not burn from it")
+            c.check(next(r for r in guide.scan(out)).describe().endswith("(stopped early)"), "and `results` says it stopped early")
+            rows = [x for x in guide.guide_lines("dvd", out, notes=True) if "(geo)" in x]
+            c.check(rows and rows[0].startswith("  [ ]"), "guide does not tick it either")
+            for name, thrown in (("Ctrl+C", KeyboardInterrupt()), ("a drive that vanishes", OSError(433, "gone"))):
+                out = os.path.join(d, f"geo-{type(thrown).__name__}")
+                cli._open = lambda args: Goes(tray, 700, 1, thrown)
+                code, text = run("geo", "--sim", "cav", "--out", out)
+                result = guide.scan(out)[0]
+                c.check(code != 0 and result.stopped == "interrupted" and not result.geo_complete(), f"{name} during geo is not complete either")
+            out = os.path.join(d, "geo-whole")
+            cli._open = real_open
+            code, text = run("geo", "--sim", "cav", "--out", out)
+            result = guide.scan(out)[0]
+            c.check(code == 0 and not result.stopped and result.geo_complete(), "a geo that finishes is complete")
+            real(result)
+            c.check(guide.latest_geo("dvd", out) is not None, "and --geo latest takes it")
+    finally:
+        ui._term, cli._open = real_term, real_open
+        cli._Parser.last_out = None
+
+
+def _image_cut_short(c) -> None:
+    from . import iso9660
+    real_term = ui._term
+    here = os.getcwd()
+    ui._term = ui.Term(io.StringIO(), env={})
+
+    class Stop(Exception):
+        pass
+    try:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+            os.chdir(d)
+            path = os.path.join("iso", "x.iso")
+            marker = path + iso9660.UNFINISHED
+            with ui.writing(path, 10) as log:
+                c.check(os.path.exists(marker), "while an image is written, a marker says so")
+                with open(path, "wb") as f:
+                    f.write(b"all of it")
+            c.check(os.path.exists(path) and not os.path.exists(marker), "a whole image stays, without the marker")
+            good = open(path, "rb").read()
+            try:
+                with ui.writing(path, 10):
+                    raise Stop
+            except Stop:
+                pass
+            c.check(open(path, "rb").read() == good and not os.path.exists(marker), "a check failing before the write leaves the old image alone")
+            for name, thrown in (("an error", Stop()), ("Ctrl+C", KeyboardInterrupt()), ("a full disk", OSError(28, "no space"))):
+                try:
+                    with ui.writing(path, 10):
+                        with open(path, "wb") as f:
+                            f.write(b"part")
+                        raise thrown
+                except (Stop, KeyboardInterrupt, OSError):
+                    pass
+                c.check(not os.path.exists(path) and not os.path.exists(marker), f"{name} part way removes what it left")
+                with open(path, "wb") as f:
+                    f.write(b"all of it")
+            try:
+                from . import randomdisc
+
+                def stop(message):
+                    raise KeyboardInterrupt
+                random_path = os.path.join("iso", "random.iso")
+                try:
+                    with ui.writing(random_path, 100000):
+                        randomdisc.write_iso(random_path, 100000, log=stop)
+                except KeyboardInterrupt:
+                    pass
+                c.check(not os.path.exists(random_path), "the real random image, stopped part way, is gone")
+                c.check(not any("written; burn it" in x for x in guide.guide_lines("dvd", notes=True)), "and guide does not say to burn it")
+                # A closed window: nothing got to clean up.
+                with open(random_path, "wb") as f:
+                    f.write(b"part")
+                open(random_path + iso9660.UNFINISHED, "w").close()
+                lines = guide.guide_lines("dvd", notes=True)
+                c.check(not any("written; burn it" in x for x in lines) and any("random --output" in x for x in lines), "a marker left by a killed run: guide says make it again")
+                with ui.writing(random_path, 10):
+                    c.check(not os.path.exists(random_path), "and the next write starts clean")
+                    with open(random_path, "wb") as f:
+                        f.write(b"all of it")
+                c.check(os.path.exists(random_path) and not os.path.exists(random_path + iso9660.UNFINISHED), "and ends whole")
+                lines = guide.guide_lines("dvd", notes=True)
+                c.check(any("written; burn it" in x for x in lines), "guide then says to burn it")
+            except ModuleNotFoundError:
+                print("random image checks skipped (need numpy)")
+            os.chdir(here)
+    finally:
+        os.chdir(here)
+        ui._term = real_term
 
 
 def _greetings(c) -> None:
@@ -1325,6 +1515,8 @@ def run(c) -> None:
     _missing_package(c)
     _plain_errors(c)
     _no_disc(c)
+    _stopped_part_way(c)
+    _image_cut_short(c)
     _picture(c)
     _blu_ray(c)
     _priority(c)
