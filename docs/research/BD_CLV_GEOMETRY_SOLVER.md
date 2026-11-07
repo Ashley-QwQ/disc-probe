@@ -167,6 +167,7 @@ the number of zones used is not the only record of what was thrown away.
 | run-to-run scatter | 28 um over four runs | larger than the fit tolerance, so the drive is not perfectly repeatable at this speed |
 | zone count | 40 um with 5-6 zones vs 14 um with 23 | more zones buy the tolerance; `--bd-zones 25` is the setting used here |
 | the pitch anchor | `dp/p` maps to `dr0/r0 = dp/(2p)` | 10% wrong pitch is 1.2 mm at the inner radius, which is why the outer-edge check in section 7 is worth doing |
+| weighting | none | weighting zones by their in-zone jitter or by coherence^4 makes agreement worse, not better: across the five 25-zone runs the spread of `r0` goes from 25 um with equal weights to 217 um weighted by 1/jitter^2. Jitter measures media noise inside a zone, not the error of that zone's mean period, so the fit keeps equal weights and a hard coherence gate. |
 | extrapolation | 6.2 mm from the innermost zone to LBA 0 | `r0_extrapolated_mm` says how far the answer is extrapolated; it comes from the curvature, not from a zone measured there |
 
 ## 9. Limits
