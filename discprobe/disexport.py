@@ -143,6 +143,9 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
         raise ValueError(f"the preset misses the measured map by {fit['max_angle_diff_deg']:.1f} deg over "
                          f"{r_lo}-{r_hi} mm (outer radius came out {fit['outerRadiusMm']:.3f} mm); "
                          f"check --sectors and the fit range. No preset written.")
+    if fit["full_angle_diff_deg"] > MAX_EXPORT_DIFF_DEG:
+        raise ValueError(f"the preset differs from the input mapping by {fit['full_angle_diff_deg']:.1f} deg "
+                         "over the full capacity; use a different fit or correction. No preset written.")
     corrected = ""
     if corr:
         corrected = " + varying-pitch correction from timing" if correction_from_timing(correction_path) else " + grid-scan angle correction"
