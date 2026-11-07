@@ -760,7 +760,7 @@ def cmd_guide(args):
     lines = guide.guide_lines(media, notes=ui.term().interactive)
     steps = [line for line in lines if line.startswith(("  [x]", "  [ ]"))]
     # The last step is the person's own burn, which the program can't see, so a disc can be fully dyed without it.
-    show(burned=min(sum(line.startswith("  [x]") for line in steps) / max(len(steps) - 1, 1), 1.0))
+    show(burned=min(sum(line.startswith("  [x]") for line in steps) / max(len(steps) - 1, 1), 1.0), media=media)
     first_time = not any(not r.simulated for r in guide.scan())
     if ui.term().interactive:
         ui.say(greetings.pick(first_time=first_time))

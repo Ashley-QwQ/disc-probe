@@ -2123,6 +2123,7 @@ def _banner(c) -> None:
                     f"{name}, {columns} columns: ASCII and fits")
             c.check(("\x1b" in "".join(rows)) == t.color, f"{name}, {columns} columns: escapes only with colour")
     colour = "".join(banner.frame(1.0, modes["true colour"], 120))
+    c.check(colour != "".join(banner.frame(1.0, modes["true colour"], 120, media="cd")), "a CD's disc has its own colours")
     c.check("\x1b[48;2;" in colour and any(g in ansi.sub("", colour) for g in "/\\"), "the disc is coloured spaces with slashes on top")
     c.check("\x1b[4" in "".join(banner.frame(1.0, modes["16 colours"], 120)), "16 colours: the disc uses background colours")
     i18n.use("zh")

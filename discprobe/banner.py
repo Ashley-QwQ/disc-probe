@@ -30,6 +30,9 @@ CORE = 0.14                     # the white part, as a share of the band
 SHOW_S = 1.0
 FRAME_S = 0.04
 STILL_ANGLE = 0.7
+# How far round the colour wheel each kind of disc's light is turned: a CD is cyan and blue, a DVD violet and pink.
+HUE_TURN = {"cd": 0.0, "dvd": 0.13}
+TRACK_HUE = {"cd": (0.8, 0.78), "dvd": (0.9, 0.88)}     # burned and unburned
 TITLE = (r"     _ _                                _",
          r"  __| (_)___  ___       _ __  _ __ ___ | |__   ___",
          r" / _` | / __|/ __|_____| '_ \| '__/ _ \| '_ \ / _ \ ",
@@ -49,7 +52,7 @@ def _streak(theta: float) -> str:
     return ("-", "\\", "|", "/")[step]
 
 
-def _cell(x: float, y: float, angle: float):
+def _cell(x: float, y: float, angle: float, media: str = "dvd"):
     """(glyph, hue, light, part) of one character cell, or None outside the disc and in its hole."""
     radius = math.hypot(x, y)
     if radius > 1 or radius < HOLE:
@@ -58,7 +61,7 @@ def _cell(x: float, y: float, angle: float):
         return " ", 0.0, 0.0, "hub"
     theta = math.atan2(y, x)
     light = abs(math.cos(theta - angle)) ** 10
-    hue = (radius * 1.4 + theta / math.tau) % 1.0
+    hue = (radius * 1.4 + theta / math.tau + HUE_TURN[media]) % 1.0
     if radius > RIM:
         return " ", hue, max(light, 0.25), "rim"
     glyph = " "
@@ -92,11 +95,12 @@ def _fine(t: ui.Term) -> bool:
 
 
 @functools.lru_cache(maxsize=None)
-def _pixels(burned: float) -> tuple:
+def _pixels(burned: float, media: str = "dvd") -> tuple:
     """(radius, angle, share of the pixel on the disc, colour without light) of each half cell, worked out once."""
     pixels = []
     height = DISC_H * 2
     burned_to = MIRROR + (RIM - MIRROR) * burned
+    burned_hue, plain_hue = TRACK_HUE[media]
     for py in range(height):
         for px in range(DISC_W):
             x, y = (px + 0.5 - DISC_W / 2) / (DISC_W / 2), (py + 0.5 - height / 2) / (height / 2)
@@ -113,9 +117,9 @@ def _pixels(burned: float) -> tuple:
             elif radius > RIM:
                 base = ui.oklch(0.52, 0.015, 0.7)
             elif radius < burned_to:
-                base = ui.oklch(0.27, 0.06, 0.8)
+                base = ui.oklch(0.27, 0.06, burned_hue)
             else:
-                base = ui.oklch(0.42, 0.02, 0.78)
+                base = ui.oklch(0.42, 0.02, plain_hue)
             pixels.append((radius, math.atan2(y, x), cover, base))
     return tuple(pixels)
 
@@ -125,7 +129,7 @@ def _spectrum() -> tuple:
     return tuple(ui.oklch(0.74, 0.15, i / 64) for i in range(64))
 
 
-def _lit(pixel, angle: float) -> tuple[int, int, int] | None:
+def _lit(pixel, angle: float, turn: float = 0.0) -> tuple[int, int, int] | None:
     if pixel is None:
         return None
     radius, theta, cover, base = pixel
@@ -134,21 +138,22 @@ def _lit(pixel, angle: float) -> tuple[int, int, int] | None:
         r, g, b = base
     else:
         glow = 1 - off ** 4     # holds to the red end, then falls away
-        tone = _spectrum()[int((0.83 - 0.75 * off + 0.1 * (radius - 0.6)) * 64) % 64]
+        tone = _spectrum()[int((0.83 + turn - 0.75 * off + 0.1 * (radius - 0.6)) * 64) % 64]
         white = max(0.0, 1 - off / CORE) ** 2
         r, g, b = ((base[i] * (1 - glow) + tone[i] * glow) * (1 - white) + 255 * white for i in range(3))
     return int(r * cover) & 248, int(g * cover) & 248, int(b * cover) & 248      # steps, so most cells repeat between frames
 
 
-def disc_cells(angle: float, burned: float = 0.0) -> list[list[tuple[str, str]]]:
+def disc_cells(angle: float, burned: float = 0.0, media: str = "dvd") -> list[list[tuple[str, str]]]:
     """Rows of (code, glyph). A cell is two pixels, the upper in the glyph's colour and the lower behind it."""
-    pixels = _pixels(round(burned, 2))
+    pixels = _pixels(round(burned, 2), media)
+    turn = HUE_TURN[media]
     rows = []
     for row in range(DISC_H):
         cells = []
         for col in range(DISC_W):
-            top = _lit(pixels[2 * row * DISC_W + col], angle)
-            low = _lit(pixels[(2 * row + 1) * DISC_W + col], angle)
+            top = _lit(pixels[2 * row * DISC_W + col], angle, turn)
+            low = _lit(pixels[(2 * row + 1) * DISC_W + col], angle, turn)
             if top and low:
                 cells.append((f"38;2;{top[0]};{top[1]};{top[2]};48;2;{low[0]};{low[1]};{low[2]}", "▀"))
             elif top or low:
@@ -175,15 +180,15 @@ def _changed(old: list[tuple[str, str]], new: list[tuple[str, str]], start: int 
     return "".join(out)
 
 
-def disc_rows(angle: float, t: ui.Term, burned: float = 0.0) -> list[str]:
+def disc_rows(angle: float, t: ui.Term, burned: float = 0.0, media: str = "dvd") -> list[str]:
     if _fine(t):
-        return [ui._paint_runs(cells) for cells in disc_cells(angle, burned)]
+        return [ui._paint_runs(cells) for cells in disc_cells(angle, burned, media)]
     rows = []
     for row in range(DISC_H):
         y = (row - (DISC_H - 1) / 2) / (DISC_H / 2)
         out = []
         for col in range(DISC_W):
-            cell = _cell((col - (DISC_W - 1) / 2) / (DISC_W / 2), y, angle)
+            cell = _cell((col - (DISC_W - 1) / 2) / (DISC_W / 2), y, angle, media)
             out.append(" " if cell is None else _paint(*cell, t))
         rows.append("".join(out))
     return rows
@@ -198,23 +203,23 @@ def _title_rows(t: ui.Term, height: int, now: float | None) -> list[str]:
     return ([blank] * top + lines + [blank] * height)[:height]
 
 
-def frame(angle: float, t: ui.Term, columns: int, now: float | None = None, burned: float = 0.0) -> list[str]:
+def frame(angle: float, t: ui.Term, columns: int, now: float | None = None, burned: float = 0.0, media: str = "dvd") -> list[str]:
     """The screen for one angle, shaped to the terminal width."""
     if columns > DISC_W + GAP + TITLE_W:
-        return [d + " " * GAP + title for d, title in zip(disc_rows(angle, t, burned), _title_rows(t, DISC_H, now))]
+        return [d + " " * GAP + title for d, title in zip(disc_rows(angle, t, burned, media), _title_rows(t, DISC_H, now))]
     tagline = i18n.tr(TAGLINE)
     if columns > TITLE_W:
         return [t.style(line, "cyan") for line in TITLE] + [t.style(tagline, "dim")]
     return [t.style("disc-probe", "cyan"), t.style(i18n.fit(tagline, max(columns - 1, 10)), "dim")]
 
 
-def _next_frame(angle: float, t: ui.Term, columns: int, seen: dict, now: float | None, burned: float) -> str:
+def _next_frame(angle: float, t: ui.Term, columns: int, seen: dict, now: float | None, burned: float, media: str = "dvd") -> str:
     """What a frame has to send, from the top row down. Half blocks cost two colours a cell, so only changes go out."""
     if not _fine(t):
-        return "\n".join(frame(angle, t, columns, now, burned))
+        return "\n".join(frame(angle, t, columns, now, burned, media))
     rows = []
     blank = [("", " ")] * DISC_W
-    for y, (cells, title) in enumerate(zip(disc_cells(angle, burned), _title_rows(t, DISC_H, now))):
+    for y, (cells, title) in enumerate(zip(disc_cells(angle, burned, media), _title_rows(t, DISC_H, now))):
         out = _changed(seen.get(y, blank), cells)
         if seen.get(("title", y)) != title:
             out += f"\x1b[{DISC_W + GAP + 1}G{title}"
@@ -223,7 +228,7 @@ def _next_frame(angle: float, t: ui.Term, columns: int, seen: dict, now: float |
     return "\n".join(rows)
 
 
-def show(t: ui.Term | None = None, pause=time.sleep, now=time.monotonic, burned: float = 0.0) -> None:
+def show(t: ui.Term | None = None, pause=time.sleep, now=time.monotonic, burned: float = 0.0, media: str = "dvd") -> None:
     """Draw the opening screen. Only at a terminal; only moves if the terminal can. `burned` is how far along the steps are."""
     t = t or ui.term()
     if not t.interactive:
@@ -247,7 +252,7 @@ def show(t: ui.Term | None = None, pause=time.sleep, now=time.monotonic, burned:
                 eased = 1 - (1 - min(spent / SHOW_S, 1.0)) ** 2     # sweeps fast, settles soft
                 angle = STILL_ANGLE + math.pi * (eased - 1)
                 settled = spent >= SHOW_S
-                body = _next_frame(angle, t, size.columns, seen, None if settled else spent, burned)
+                body = _next_frame(angle, t, size.columns, seen, None if settled else spent, burned, media)
                 write(f"{sync_start}\r\x1b[{DISC_H - 1}A{body}{sync_end}")
                 t.stream.flush()
                 if settled:
@@ -259,7 +264,7 @@ def show(t: ui.Term | None = None, pause=time.sleep, now=time.monotonic, burned:
             write("\x1b[?25h\n\n")
             t.stream.flush()
         return
-    write("\n".join(frame(STILL_ANGLE, t, size.columns, None, burned)) + "\n\n")
+    write("\n".join(frame(STILL_ANGLE, t, size.columns, None, burned, media)) + "\n\n")
     t.stream.flush()
 
 
