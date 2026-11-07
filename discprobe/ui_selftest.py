@@ -2177,6 +2177,11 @@ def _banner(c) -> None:
     c.check(pipe.stream.getvalue() == "", "a pipe gets no banner")
 
     fine = ui.Term(Utf8Tty(), env={"TERM": "xterm", "WT_SESSION": "x"}, platform="linux")
+    words = {media: banner.block_title(media) for media in ("cd", "dvd")}
+    c.check(words["cd"] != words["dvd"] and all(len(r) <= banner.TITLE_W for r in words["cd"]), "the word in blocks fits the title's room, in each disc's colours")
+    title = banner._title_rows(fine, banner.DISC_H, None, "cd")
+    c.check(any("█" in r for r in title) and all(i18n.display_width(ANSI.sub("", r)) == banner.TITLE_W for r in title), "with half blocks and true colour the title is in blocks, and keeps its width")
+    c.check(banner.block_title("cd", 0.5) != words["cd"] and len(banner.block_title("cd", 0.5)) == len(words["cd"]), "light runs along it while the disc turns")
     rows = banner.disc_rows(1.0, fine)
     c.check(len(rows) == banner.DISC_H and all(len(ansi.sub("", r)) == banner.DISC_W for r in rows), "half blocks: the disc keeps its size")
     c.check("▀" in rows[6] and "48;2;" in rows[6] and ansi.sub("", rows[0]).startswith(" "), "half blocks: two colours a cell, and round")

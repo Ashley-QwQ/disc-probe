@@ -39,6 +39,22 @@ TITLE = (r"     _ _                                _",
          r"| (_| | \__ \ (_|_____| |_) | | | (_) | |_) |  __/",
          r" \__,_|_|___/\___|    | .__/|_|  \___/|_.__/ \___|",
          r"                      |_|")
+# The title in blocks, where half blocks and true colour work: eight rows of pixels, two to a cell.
+BLOCK_LETTERS = (
+    ("....#", "....#", ".####", "#...#", "#...#", "#...#", ".####", "....."),
+    ("#", ".", "#", "#", "#", "#", "#", "."),
+    (".....", ".....", ".####", "#....", ".###.", "....#", "####.", "....."),
+    ("....", "....", ".###", "#...", "#...", "#...", ".###", "...."),
+    ("...", "...", "...", "...", "###", "...", "...", "..."),
+    (".....", ".....", "####.", "#...#", "#...#", "####.", "#....", "#...."),
+    (".....", ".....", "#.###", "##...", "#....", "#....", "#....", "....."),
+    (".....", ".....", ".###.", "#...#", "#...#", "#...#", ".###.", "....."),
+    ("#....", "#....", "####.", "#...#", "#...#", "#...#", "####.", "....."),
+    (".....", ".....", ".###.", "#...#", "#####", "#....", ".####", "....."),
+)
+BLOCK_ROWS = tuple(".".join(letter[y] for letter in BLOCK_LETTERS) for y in range(8))
+TITLE_HUES = {"cd": (0.56, 0.74), "dvd": (0.8, 1.02)}   # across the word, from the first letter to the last
+SWEEP_WIDTH = 8.0
 TAGLINE = "read timing -> disc geometry -> pictures on discs"
 TITLE_W = max(len(line) for line in TITLE)
 GAP = 2
@@ -194,10 +210,32 @@ def disc_rows(angle: float, t: ui.Term, burned: float = 0.0, media: str = "dvd")
     return rows
 
 
-def _title_rows(t: ui.Term, height: int, now: float | None) -> list[str]:
+def block_title(media: str = "dvd", now: float | None = None) -> list[list[tuple[str, str]]]:
+    """Rows of (code, glyph) for the word in blocks, coloured along it. While the disc turns, light runs along it too."""
+    first, last = TITLE_HUES[media]
+    width = len(BLOCK_ROWS[0])
+    rows = []
+    for y in range(0, len(BLOCK_ROWS), 2):
+        cells = []
+        for x in range(width):
+            top, low = BLOCK_ROWS[y][x] == "#", BLOCK_ROWS[y + 1][x] == "#"
+            glow = 0.0 if now is None else max(0.0, 1 - abs(x - width * now / SHOW_S * 1.2) / SWEEP_WIDTH)
+            r, g, b = ui.oklch(0.74 + 0.16 * glow, 0.15 - 0.1 * glow, first + (last - first) * x / (width - 1))
+            glyph = "█" if top and low else "▀" if top else "▄" if low else " "
+            cells.append((f"38;2;{r & 248};{g & 248};{b & 248}" if glyph != " " else "", glyph))
+        rows.append(cells)
+    return rows
+
+
+def _title_rows(t: ui.Term, height: int, now: float | None, media: str = "dvd") -> list[str]:
     def paint(line):
         return t.style(line, "cyan") if now is None else ui.sweep(line, now, t, "cyan")
-    lines = [paint(line.ljust(TITLE_W)) for line in TITLE] + [t.style(i18n.pad(i18n.tr(TAGLINE), TITLE_W), "dim")]
+    if _fine(t):
+        spare = " " * (TITLE_W - len(BLOCK_ROWS[0]))
+        word = [ui._paint_runs(cells) + spare for cells in block_title(media, now)]
+    else:
+        word = [paint(line.ljust(TITLE_W)) for line in TITLE]
+    lines = word + [t.style(i18n.pad(i18n.tr(TAGLINE), TITLE_W), "dim")]
     top = max(0, (height - len(lines)) // 2)
     blank = " " * TITLE_W
     return ([blank] * top + lines + [blank] * height)[:height]
@@ -206,7 +244,7 @@ def _title_rows(t: ui.Term, height: int, now: float | None) -> list[str]:
 def frame(angle: float, t: ui.Term, columns: int, now: float | None = None, burned: float = 0.0, media: str = "dvd") -> list[str]:
     """The screen for one angle, shaped to the terminal width."""
     if columns > DISC_W + GAP + TITLE_W:
-        return [d + " " * GAP + title for d, title in zip(disc_rows(angle, t, burned, media), _title_rows(t, DISC_H, now))]
+        return [d + " " * GAP + title for d, title in zip(disc_rows(angle, t, burned, media), _title_rows(t, DISC_H, now, media))]
     tagline = i18n.tr(TAGLINE)
     if columns > TITLE_W:
         return [t.style(line, "cyan") for line in TITLE] + [t.style(tagline, "dim")]
@@ -219,7 +257,7 @@ def _next_frame(angle: float, t: ui.Term, columns: int, seen: dict, now: float |
         return "\n".join(frame(angle, t, columns, now, burned, media))
     rows = []
     blank = [("", " ")] * DISC_W
-    for y, (cells, title) in enumerate(zip(disc_cells(angle, burned, media), _title_rows(t, DISC_H, now))):
+    for y, (cells, title) in enumerate(zip(disc_cells(angle, burned, media), _title_rows(t, DISC_H, now, media))):
         out = _changed(seen.get(y, blank), cells)
         if seen.get(("title", y)) != title:
             out += f"\x1b[{DISC_W + GAP + 1}G{title}"
