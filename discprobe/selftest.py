@@ -4,8 +4,9 @@ simulated drive, compared against the simulator's true geometry."""
 from __future__ import annotations
 
 import math
+import sys
 
-from . import analysis, mmc, timing
+from . import analysis, mmc, timing, ui
 from .scsi import check_allowed
 from .sim import SimDrive
 
@@ -20,6 +21,60 @@ class Checker:
         print(("  ok    " if cond else "  FAIL  ") + what)
         if not cond:
             self.failures += 1
+
+
+class Report:
+    """At a terminal: results in colour, each section set apart from the rows of ok. Scripts never pass through here."""
+
+    def __init__(self, stream, t):
+        self.stream, self.t = stream, t
+        self.line = ""
+        self.started = False
+
+    def __getattr__(self, name):
+        return getattr(self.stream, name)
+
+    def _styled(self, line: str) -> str:
+        for head, style in (("  ok    ", "green"), ("  FAIL  ", "red")):
+            if line.startswith(head):
+                return "  " + self.t.style(head.strip(), style) + head[2 + len(head.strip()):] + line[len(head):]
+        if line == "all checks passed":
+            return self.t.style(line, "green")
+        if line.endswith("check(s) failed"):
+            return self.t.style(line, "red")
+        if not line or line[0].isspace() or line[0] == "\x1b":
+            return line
+        first, self.started = not self.started, True
+        return ("" if first else "\n") + self.t.style(line, "bold")
+
+    def write(self, text: str) -> int:
+        self.line += text
+        *whole, self.line = self.line.split("\n")
+        for line in whole:
+            self.stream.write(self._styled(line) + "\n")
+        return len(text)
+
+    def flush(self) -> None:
+        if self.line:
+            self.stream.write(self.line)
+            self.line = ""
+        self.stream.flush()
+
+
+def _report(c: Checker):
+    print("results at a terminal")
+    import io
+
+    class Colour:
+        def style(self, text, name):
+            return f"<{name}>{text}</>"
+    out = io.StringIO()
+    r = Report(out, Colour())
+    r.write("parsers\n  ok    one\n  FAIL  two\nnext sec")
+    r.write("tion\n  worst 1 deg\n\nall checks passed\n3 check(s) failed\n")
+    want = ("<bold>parsers</>\n  <green>ok</>    one\n  <red>FAIL</>  two\n\n<bold>next section</>\n  worst 1 deg\n\n"
+            "<green>all checks passed</>\n<red>3 check(s) failed</>\n")
+    c.check(out.getvalue() == want, "ok is green, FAIL red, and a section stands apart")
 
 
 def _parsers(c: Checker):
@@ -474,8 +529,20 @@ def _tiles(c: Checker):
 
 
 def run() -> bool:
+    t, stream = ui.term(), sys.stdout
+    if t.color:
+        sys.stdout = Report(stream, t)
+    try:
+        return _run()
+    finally:
+        sys.stdout.flush()
+        sys.stdout = stream
+
+
+def _run() -> bool:
     c = Checker()
     _parsers(c)
+    _report(c)
     _harmonics(c)
     _sim_run(c, "cav", True, "fua", "CAV")
     _sim_run(c, "cav", True, "fua", "CAV", sectors=16)
