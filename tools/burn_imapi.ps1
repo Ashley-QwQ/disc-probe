@@ -9,6 +9,10 @@ nearest speed the drive lists.
   powershell -ExecutionPolicy Bypass -File tools\burn_imapi.ps1 -Drive H: -Iso iso\x.iso -Speed 8 -Burn
 
 -Speed is in multiples of the medium's 1x (CD 75 sectors/s, DVD 675 sectors/s).
+Windows' read-back check after the burn is turned off, as DiscImageStudio does. Picture data can be
+slow or hard to read back, and a failed check reports the whole burn as failed after the data is
+already on the disc. -Verify keeps Windows' default check.
+
 -Reload closes the tray again after the eject (tray-loading drives such as the GH70N), so the
 burned disc can be read straight away. Without it, push the tray back in before measuring.
 
@@ -27,6 +31,7 @@ param(
     [string]$Iso,
     [double]$Speed = 0,
     [switch]$Burn,
+    [switch]$Verify,
     [switch]$Reload
 )
 $ErrorActionPreference = "Stop"
@@ -42,6 +47,20 @@ public static class IsoStream {
         IStream s;
         SHCreateStreamOnFileEx(path, 0x20 /* STGM_READ | STGM_SHARE_DENY_WRITE */, 0, false, IntPtr.Zero, out s);
         return s;
+    }
+}
+// Windows SDK imapi2.idl. It is IUnknown, not the format's IDispatch, so PowerShell can't reach it directly.
+[ComImport, Guid("D2FFD834-958B-426D-8470-2A13879C6A91"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IBurnVerification {
+    void SetBurnVerificationLevel(int value);   // the setter comes first in the vtable
+    int GetBurnVerificationLevel();
+}
+public static class BurnCheck {
+    // 0 none, 1 quick, 2 full. Returns what the format reports afterwards.
+    public static int Set(object format, int level) {
+        IBurnVerification v = (IBurnVerification)format;
+        v.SetBurnVerificationLevel(level);
+        return v.GetBurnVerificationLevel();
     }
 }
 "@
@@ -127,6 +146,11 @@ if ($Speed -gt 0) {
 "Requested write speed: $(if ($Speed -gt 0) {"${Speed}x"} else {'drive default'}); " +
     "drive reports {0:0.#}x" -f ($fmt.CurrentWriteSpeed / $unit)
 $fmt.ForceMediaToBeClosed = $true
+if (-not $Verify) {
+    $level = [BurnCheck]::Set($fmt, 0)
+    if ($level -ne 0) { throw "Windows did not accept turning off its check after the burn (level $level); nothing was written" }
+    "Windows' check after the burn: off (-Verify turns it on)"
+}
 $stream = [IsoStream]::Open($path)
 $t0 = Get-Date
 "Writing ... (started $($t0.ToString('HH:mm:ss')))"
