@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="520" viewBox="0 0 960 520" role="img" aria-labelledby="period-title period-desc">
+  <title id="period-title">用相干度找周期，随机等待打破固定节奏造成的歧义</title>
+  <desc id="period-desc">合成示例，真实一圈假设为20毫秒，圆顶表示零相位。固定完成时间0、40、80、120毫秒，在20和40毫秒的候选周期下都完全相干。改为0、40、100、160、180毫秒后，20毫秒的相干度为1，40毫秒的相干度为0.2，因为三个箭头与两个反向箭头抵消。10毫秒等谐波周期仍可完全相干；随机等待不是基频识别的无条件保证。</desc>
+  <defs>
+    <marker id="period-blue-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb"/></marker>
+    <marker id="period-orange-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#ea580c"/></marker>
+  </defs>
+  <rect width="960" height="520" fill="#f8fafc"/>
+  <g font-family="'Noto Sans CJK SC','Microsoft YaHei','PingFang SC',sans-serif" fill="#162338">
+    <text x="28" y="39" font-size="25" font-weight="700">转一圈多长？让时间戳在圆上对齐</text>
+    <text x="28" y="68" font-size="17" fill="#526176">示意数据，圆顶为零相位；R(f) 是小箭头平均后的长度。</text>
+
+    <rect x="28" y="87" width="904" height="60" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="48" y="125" font-size="22" font-weight="600">R(f) = | Σ exp(2π i f tⱼ) | / N</text>
+    <text x="491" y="124" font-size="17" fill="#526176">同向 → R 接近 1；抵消 → R 变小</text>
+
+    <rect x="28" y="165" width="442" height="244" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="49" y="195" font-size="20" font-weight="600">固定节奏：漏看了“奇数圈”</text>
+    <text x="49" y="226" font-size="16" fill="#526176">完成时间 / ms：0，40，80，120</text>
+    <circle cx="140" cy="310" r="52" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+    <path d="M 140 310 V 260" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#period-blue-arrow)"/>
+    <circle cx="140" cy="310" r="3.5" fill="#526176"/>
+    <text x="153" y="282" font-size="16" fill="#2563eb">4 个</text>
+    <text x="140" y="386" font-size="17" font-weight="600" text-anchor="middle">T = 20 ms，R = 1</text>
+
+    <circle cx="347" cy="310" r="52" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+    <path d="M 347 310 V 260" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#period-blue-arrow)"/>
+    <circle cx="347" cy="310" r="3.5" fill="#526176"/>
+    <text x="360" y="282" font-size="16" fill="#2563eb">4 个</text>
+    <text x="347" y="386" font-size="17" font-weight="600" text-anchor="middle">T = 40 ms，R = 1</text>
+
+    <rect x="490" y="165" width="442" height="244" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="511" y="195" font-size="20" font-weight="600">随机等待：错过的圈数有了变化</text>
+    <text x="511" y="226" font-size="16" fill="#526176">完成时间 / ms：0，40，100，160，180</text>
+    <circle cx="602" cy="310" r="52" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+    <path d="M 602 310 V 260" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#period-blue-arrow)"/>
+    <circle cx="602" cy="310" r="3.5" fill="#526176"/>
+    <text x="615" y="282" font-size="16" fill="#2563eb">5 个</text>
+    <text x="602" y="386" font-size="17" font-weight="600" text-anchor="middle">T = 20 ms，R = 1</text>
+
+    <circle cx="809" cy="310" r="52" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+    <path d="M 809 310 V 260" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#period-blue-arrow)"/>
+    <path d="M 809 310 V 360" fill="none" stroke="#ea580c" stroke-width="3" marker-end="url(#period-orange-arrow)"/>
+    <circle cx="809" cy="310" r="3.5" fill="#526176"/>
+    <text x="823" y="282" font-size="16" fill="#2563eb">3 个</text>
+    <text x="823" y="348" font-size="16" fill="#ea580c">2 个</text>
+    <text x="809" y="386" font-size="17" font-weight="600" text-anchor="middle" fill="#ea580c">T = 40 ms，R = 0.2</text>
+
+    <text x="28" y="443" font-size="17" font-weight="600" fill="#0f766e">40 ms 被排除；10 ms 等更短周期仍可能对齐——谐波歧义仍需处理。</text>
+    <text x="28" y="473" font-size="16" fill="#526176">代码选择相干度接近最高峰的最低频率，再估计整圈数并拟合 T。</text>
+    <text x="28" y="500" font-size="16" fill="#526176">随机等待改善可辨识性，但不保证所有光驱、所有采样下都找对基频。</text>
+  </g>
+</svg>

@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="520" viewBox="0 0 960 520" role="img" aria-labelledby="clock-title clock-desc">
+  <title id="clock-title">把两次读取的完成时间差折回一圈</title>
+  <desc id="clock-desc">解释用的合成示例，不是实盘记录。假设转一圈需要20毫秒，两次读取完成时间相差47或67毫秒，去掉整圈后都剩7毫秒，对应126度。读取时长与完成时间差不同；只有真正读取盘面、转速恒定且读取终点之后的延迟相同或可建模时，这个余角才代表盘面几何。</desc>
+  <defs>
+    <marker id="clock-blue-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb"/></marker>
+    <marker id="clock-orange-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#ea580c"/></marker>
+  </defs>
+  <rect width="960" height="520" fill="#f8fafc"/>
+  <g font-family="'Noto Sans CJK SC','Microsoft YaHei','PingFang SC',sans-serif" fill="#162338">
+    <text x="28" y="39" font-size="25" font-weight="700">读得久，不等于转过的余角大</text>
+    <text x="28" y="68" font-size="17" fill="#526176">示意数据：一圈 20 ms；比较 A、B 的完成时间，不是单条命令耗时。</text>
+
+    <rect x="28" y="90" width="310" height="322" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="183" y="120" font-size="18" font-weight="600" text-anchor="middle">把完成时刻折回一圈</text>
+    <circle cx="183" cy="242" r="86" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+    <path d="M 183 242 L 183 156" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <path d="M 183 242 L 252.575 292.550" fill="none" stroke="#ea580c" stroke-width="2"/>
+    <path d="M 183 179 A 63 63 0 0 1 233.968 279.030" fill="none" stroke="#ea580c" stroke-width="3" marker-end="url(#clock-orange-arrow)"/>
+    <circle cx="183" cy="156" r="6" fill="#2563eb"/>
+    <circle cx="252.575" cy="292.550" r="6" fill="#ea580c"/>
+    <circle cx="183" cy="242" r="3.5" fill="#526176"/>
+    <text x="183" y="146" font-size="18" font-weight="700" fill="#2563eb" text-anchor="middle">A</text>
+    <text x="267" y="304" font-size="18" font-weight="700" fill="#ea580c">B</text>
+    <text x="213" y="230" font-size="21" font-weight="700" fill="#ea580c">126°</text>
+    <text x="183" y="360" font-size="21" font-weight="600" text-anchor="middle">7 / 20 圈 = 126°</text>
+    <text x="183" y="388" font-size="16" fill="#526176" text-anchor="middle">需满足稳定的读取终点与延迟</text>
+
+    <rect x="354" y="90" width="578" height="322" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="375" y="120" font-size="18" font-weight="600">同样的余数，可能隔着不同圈数</text>
+
+    <path d="M 390 151 H 672" stroke="#2563eb" stroke-width="1.5" fill="none" marker-start="url(#clock-blue-arrow)" marker-end="url(#clock-blue-arrow)"/>
+    <text x="531" y="143" font-size="17" text-anchor="middle" fill="#526176">完成时间差：47 ms</text>
+    <path d="M 390 180 H 852" fill="none" stroke="#cbd5e1" stroke-width="2"/>
+    <path d="M 390 174 V 187 M 510 174 V 187 M 630 174 V 187 M 750 174 V 187" stroke="#94a3b8" stroke-width="1.5"/>
+    <path d="M 390 180 H 630" stroke="#2563eb" stroke-width="4"/>
+    <path d="M 630 180 H 672" stroke="#ea580c" stroke-width="4"/>
+    <circle cx="390" cy="180" r="5" fill="#2563eb"/>
+    <circle cx="672" cy="180" r="5" fill="#ea580c"/>
+    <text x="390" y="171" font-size="16" font-weight="700" text-anchor="middle" fill="#2563eb">A</text>
+    <text x="672" y="171" font-size="16" font-weight="700" text-anchor="middle" fill="#ea580c">B</text>
+    <text x="390" y="211" font-size="16" text-anchor="middle">0</text>
+    <text x="510" y="211" font-size="16" text-anchor="middle">20</text>
+    <text x="630" y="211" font-size="16" text-anchor="middle">40</text>
+    <text x="672" y="211" font-size="16" text-anchor="middle" fill="#ea580c">47</text>
+    <text x="750" y="211" font-size="16" text-anchor="middle">60</text>
+    <text x="852" y="211" font-size="16" text-anchor="end" fill="#526176">ms</text>
+    <text x="375" y="243" font-size="20">47 = 2 × 20 + <tspan fill="#ea580c" font-weight="700">7 ms</tspan></text>
+
+    <path d="M 390 274 H 792" stroke="#2563eb" stroke-width="1.5" fill="none" marker-start="url(#clock-blue-arrow)" marker-end="url(#clock-blue-arrow)"/>
+    <text x="591" y="266" font-size="17" text-anchor="middle" fill="#526176">完成时间差：67 ms</text>
+    <path d="M 390 300 H 852" fill="none" stroke="#cbd5e1" stroke-width="2"/>
+    <path d="M 390 294 V 307 M 510 294 V 307 M 630 294 V 307 M 750 294 V 307" stroke="#94a3b8" stroke-width="1.5"/>
+    <path d="M 390 300 H 750" stroke="#2563eb" stroke-width="4"/>
+    <path d="M 750 300 H 792" stroke="#ea580c" stroke-width="4"/>
+    <circle cx="390" cy="300" r="5" fill="#2563eb"/>
+    <circle cx="792" cy="300" r="5" fill="#ea580c"/>
+    <text x="390" y="291" font-size="16" font-weight="700" text-anchor="middle" fill="#2563eb">A</text>
+    <text x="792" y="291" font-size="16" font-weight="700" text-anchor="middle" fill="#ea580c">B</text>
+    <text x="390" y="331" font-size="16" text-anchor="middle">0</text>
+    <text x="510" y="331" font-size="16" text-anchor="middle">20</text>
+    <text x="630" y="331" font-size="16" text-anchor="middle">40</text>
+    <text x="750" y="331" font-size="16" text-anchor="middle">60</text>
+    <text x="792" y="331" font-size="16" text-anchor="middle" fill="#ea580c">67</text>
+    <text x="852" y="331" font-size="16" text-anchor="end" fill="#526176">ms</text>
+    <text x="375" y="363" font-size="20">67 = 3 × 20 + <tspan fill="#ea580c" font-weight="700">7 ms</tspan></text>
+    <text x="375" y="391" font-size="18" font-weight="600" fill="#0f766e">扣掉整圈后，两次测得同一个余角。</text>
+
+    <rect x="28" y="430" width="904" height="70" rx="12" fill="#eff6ff"/>
+    <text x="47" y="457" font-size="17">假设：恒定角速度、确实读取盘面、两次读取的终点延迟相同或可建模。</text>
+    <text x="47" y="483" font-size="16" fill="#526176">若固件额外多延迟 1 ms，余角也会变；取模不会消除这种误差。</text>
+  </g>
+</svg>

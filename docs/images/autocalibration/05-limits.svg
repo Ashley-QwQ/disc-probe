@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="530" viewBox="0 0 960 530" role="img" aria-labelledby="limits-title limits-desc">
+  <title id="limits-title">相同的计时数据，不一定对应唯一的物理解释</title>
+  <desc id="limits-desc">三种模型盲区的示意图，不是实测数据。共同缩放内半径、轨距和位长，不改变相对角度；恒定轨距模型中，整体沿轨地址偏移可被内半径比例参数吸收；同一转速下，几何角度与地址相关返回延迟也可能互相补偿。独立物理信息可以增加约束。</desc>
+  <rect width="960" height="530" fill="#f8fafc"/>
+  <g font-family="'Noto Sans CJK SC','Microsoft YaHei','PingFang SC',sans-serif" fill="#162338">
+    <text x="28" y="39" font-size="25" font-weight="700">同样的计时，可能有不同的物理解释</text>
+    <text x="28" y="69" font-size="17" fill="#526176">示意图：这里不是噪声太大，而是同类观测缺少区分它们的信息。</text>
+
+    <rect x="28" y="94" width="286" height="324" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="48" y="128" font-size="20" font-weight="700" fill="#2563eb">① 绝对长度的尺度</text>
+    <circle cx="105" cy="205" r="34" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+    <circle cx="105" cy="205" r="8" fill="#ffffff" stroke="#2563eb"/>
+    <circle cx="233" cy="205" r="51" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+    <circle cx="233" cy="205" r="12" fill="#ffffff" stroke="#2563eb"/>
+    <text x="105" y="273" font-size="17" text-anchor="middle">原模型</text>
+    <text x="233" y="273" font-size="17" text-anchor="middle">同比放大</text>
+    <text x="171" y="308" font-size="19" text-anchor="middle">r₀、p、b 同乘 λ</text>
+    <text x="171" y="339" font-size="18" text-anchor="middle">u = r₀ / b，v = p / b 不变</text>
+    <rect x="45" y="359" width="252" height="39" rx="8" fill="#eff6ff"/>
+    <text x="171" y="385" font-size="17" font-weight="600" text-anchor="middle" fill="#2563eb">相对角度一样，绝对尺寸不同</text>
+
+    <rect x="336" y="94" width="288" height="324" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="356" y="128" font-size="20" font-weight="700" fill="#0f766e">② 沿轨原点的偏移</text>
+    <rect x="354" y="155" width="252" height="50" rx="8" fill="#f0fdfa"/>
+    <text x="480" y="186" font-size="18" text-anchor="middle">位置 n + δₙ，参数 u</text>
+    <text x="480" y="237" font-size="21" font-weight="700" text-anchor="middle" fill="#0f766e">同样的相对角度</text>
+    <rect x="354" y="253" width="252" height="50" rx="8" fill="#f0fdfa"/>
+    <text x="480" y="284" font-size="18" text-anchor="middle">位置 n，参数 u_δ</text>
+    <text x="480" y="339" font-size="20" text-anchor="middle">u_δ² = u² + vδₙ / π</text>
+    <rect x="354" y="359" width="252" height="39" rx="8" fill="#f0fdfa"/>
+    <text x="480" y="385" font-size="17" font-weight="600" text-anchor="middle" fill="#0f766e">恒定轨距模型内的恒等关系</text>
+
+    <rect x="646" y="94" width="286" height="324" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="666" y="128" font-size="20" font-weight="700" fill="#ea580c">③ 地址相关返回延迟</text>
+    <text x="789" y="179" font-size="19" font-weight="600" text-anchor="middle">观测：几何角度 + ω × 延迟</text>
+    <rect x="664" y="199" width="250" height="52" rx="8" fill="#fff7ed"/>
+    <text x="789" y="231" font-size="18" text-anchor="middle">几何增加 h(n)</text>
+    <rect x="664" y="268" width="250" height="52" rx="8" fill="#fff7ed"/>
+    <text x="789" y="300" font-size="18" text-anchor="middle">延迟减少 h(n) / ω</text>
+    <text x="789" y="345" font-size="17" text-anchor="middle" fill="#526176">同一转速下，两项可以抵消</text>
+    <rect x="664" y="359" width="250" height="39" rx="8" fill="#fff7ed"/>
+    <text x="789" y="385" font-size="17" font-weight="600" text-anchor="middle" fill="#ea580c">低残差也可能掩盖系统偏差</text>
+
+    <rect x="28" y="436" width="904" height="74" rx="12" fill="#eaf0f7"/>
+    <text x="47" y="464" font-size="18">补充独立信息：改变读速或驱动器，对新刻盘做物理验证。</text>
+    <text x="47" y="491" font-size="17" fill="#526176">这些复核各有假设。公式推导、程序检查与实盘验证，回答的是不同问题。</text>
+  </g>
+</svg>
