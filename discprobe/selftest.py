@@ -184,6 +184,72 @@ def _ladder_cd_audio(c: Checker):
     except RuntimeError as e:
         refused = "--read-offset-bytes" in str(e)
     c.check(refused, "--read-offset-bytes is refused on a data CD")
+    _audio_fit_uses(c, res, x)
+
+
+def _audio_fit_uses(c: Checker, res: dict, x: float):
+    import contextlib
+    import io
+    import json
+    import os
+    import tempfile
+    from argparse import Namespace
+    from . import guide, i18n
+    from .__main__ import _refuse_audio_fit, cmd_disexport, cmd_image, cmd_tiles
+    from .disexport import export
+    dis = res["dis_equivalent"]
+    with tempfile.TemporaryDirectory() as d:
+        geo, out = os.path.join(d, "summary.json"), os.path.join(d, "preset.json")
+        with open(geo, "w", encoding="utf-8") as fh:
+            json.dump({"fit": res}, fh)
+        span = res["measured_span_mm"]
+        e = export(geo, res["sectors"], None, out, span[0], span[1], "t", "t")
+        d_ri = (e["preset"]["innerRadiusMm"] - dis["inner_radius_mm"]) * 1e6
+        d_ro = (e["preset"]["outerRadiusMm"] - dis["outer_radius_mm"]) * 1e6
+        c.check(abs(d_ri) < 50 and abs(d_ro) < 50, f"the preset from an audio fit is dis_equivalent: ri {d_ri:+.0f} nm, ro {d_ro:+.0f} nm")
+        c.check("along-track" not in e["preset"]["description"] and e["source"]["read_offset_bytes"] == x, "and names the read offset, no along-track constant")
+        try:
+            export(geo, res["sectors"], None, out, span[0], span[1], "t", "t", along_track_frames=206)
+            refused = False
+        except ValueError as err:
+            refused = "--read-offset-bytes" in str(err)
+        c.check(refused, "disexport --along-track-frames is refused on an audio fit")
+        try:
+            export(geo, res["sectors"] // 2, None, out, span[0], span[1], "t", "t")
+            refused = False
+        except ValueError:
+            refused = True
+        c.check(refused, "--sectors far too small for the span is refused with a reason")
+        told = io.StringIO()
+        with contextlib.redirect_stdout(told):
+            cmd_disexport(Namespace(geo=geo, media="cd", sectors=res["sectors"], correction=None, output=out, r_min=None,
+                                    r_max=None, id=None, name=None, along_track_frames=0))
+        said = told.getvalue()
+        c.check("no along-track constant is needed" in said and "may come out" not in said and "--along-track-frames" not in said,
+                "disexport on an audio fit does not warn about the along-track constant")
+        for cmd, name in ((cmd_image, "image"), (cmd_tiles, "tiles")):
+            try:
+                cmd(Namespace(geo=geo, media="cd"))
+                refused = False
+            except SystemExit as err:
+                refused = "audio track" in str(err.code) or err.code == 1
+            c.check(refused, f"{name} --media cd refuses an audio fit")
+        data = {k: v for k, v in res.items() if k != "track"}
+        _refuse_audio_fit(data)     # returns: a data CD fit carries on
+        args = Namespace(media="cd", read_offset_bytes=x, speed=None, drive="E:", out=d)
+        run = os.path.join(d, "geo-E-20260101-100000")
+        lines = guide.after_geo(args, {**res, "chi2_per_dof": 1.0, "angle_sigma_measured_span_deg": 0.1}, run)
+        text = "\n".join(lines)
+        c.check("disexport" in text and "one more constant" not in text and " image --media cd --geo" not in text,
+                "geo on an audio track points at the preset, not at a picture ISO")
+        noisy = guide.after_geo(args, {**res, "chi2_per_dof": 1.0, "angle_sigma_measured_span_deg": 0.5}, run)
+        c.check(any("geo" in s and "--read-offset-bytes -603" in s for s in noisy), "a retry keeps the read offset")
+    try:
+        i18n.use("zh")
+        c.check(all(i18n.tr(s) != s for s in lines if "disexport" not in s and "Enter the same" not in s and "--sectors is" not in s and s.strip()),
+                "that advice has Chinese")
+    finally:
+        i18n.use("en")
 
 
 def _unreadable(c: Checker):

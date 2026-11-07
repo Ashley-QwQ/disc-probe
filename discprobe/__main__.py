@@ -192,6 +192,15 @@ def _geo_fit(args, media=None) -> dict:
         sys.exit(f"{path} is not the summary.json of a geo run (it has no geometry fit)")
 
 
+def _refuse_audio_fit(fit: dict) -> None:
+    """image and tiles write a data track. A fit of a CD-DA track counts from DiscImageStudio's origin, not that one's."""
+    if fit.get("track") == "audio":
+        _fail("This geo result measured an audio track burned by DiscImageStudio, which counts positions from a "
+              "different origin than the data track written here, so the design would land in the wrong place.",
+              ["For image or tiles, use a geo result from a burned data disc: python -m discprobe results --pick",
+               "This result is for a DiscImageStudio preset: python -m discprobe disexport"])
+
+
 def _outdir(args, kind: str, dev) -> str:
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tag = getattr(dev, "name", "drive").replace(":", "")
@@ -486,6 +495,7 @@ def cmd_image(args):
     fit = _geo_fit(args, args.media)
     if args.media == "cd" and fit.get("media") != "cd":
         sys.exit("CD image needs a CD geometry fit (media=cd); DVD fits must not be reused")
+    _refuse_audio_fit(fit)
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
     if args.along_track_frames:
         # Timing cannot see an along-track offset d (read completion vs written position): theta(n - d)
@@ -595,10 +605,15 @@ def cmd_disexport(args):
     print(f"angle difference to the measured map over {f['fit_range_mm'][0]}-{f['fit_range_mm'][1]} mm: "
           f"max {f['max_angle_diff_deg']:.4f} deg, rms {f['rms_angle_diff_deg']:.4f} deg")
     print(f"DiscImageStudio {'CD' if is_cd else 'DVD'} preset object in {os.path.abspath(args.output)} (key 'preset')")
-    if is_cd and not args.along_track_frames:
+    audio = fit.get("track") == "audio"
+    if audio:
+        print(f"Measured on the audio track, so no along-track constant is needed. The preset is right as far as "
+              f"--read-offset-bytes ({fit.get('read_offset_bytes', 0.0):g}) is right for this drive: check it once with a "
+              "burned straight line.")
+    elif is_cd and not args.along_track_frames:
         print("Timing cannot see the CD along-track constant and none was given, so radial lines may come out "
               "twisted. Measure it on a burned disc, then use --along-track-frames.")
-    _next(guide.after_disexport(is_cd and not args.along_track_frames))
+    _next(guide.after_disexport(is_cd and not audio and not args.along_track_frames))
 
 
 def cmd_tiles(args):
@@ -609,6 +624,7 @@ def cmd_tiles(args):
     fit = _geo_fit(args, args.media)
     if args.media == "cd" and fit.get("media") != "cd":
         sys.exit("CD tiles need a CD geometry fit (media=cd)")
+    _refuse_audio_fit(fit)
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
     geo = {"ring_edges_mm": tuple(args.ring_edges), "tile_mm": args.tile_mm, "cols": args.cols,
            "scale_mm": tuple(args.scale) if args.scale else None, "gap_mm": args.gap_mm,

@@ -266,6 +266,12 @@ def _carry(args) -> str:
     return " ".join(parts)
 
 
+def _carry_geo(args) -> str:
+    """_carry, plus what only geo takes."""
+    offset = getattr(args, "read_offset_bytes", 0.0)
+    return _carry(args) + (f" --read-offset-bytes {offset:g}" if offset else "")
+
+
 def _other_speed(args, family: str | None = None) -> str:
     media = "bd" if family == "bd" else getattr(args, "media", "dvd")
     current = str(getattr(args, "speed", ""))
@@ -448,7 +454,7 @@ def after_geo(args, res: dict, out: str) -> list[str]:
         lines.append("This was the simulated drive: the verdict and commands below show the flow, do not burn from them.")
     compared = compare_pitch(out) if res["chi2_per_dof"] > 2 else None
     sigma = res["angle_sigma_measured_span_deg"]
-    retry = [f"  {PROG} geo {_carry(args)} --speed {_other_speed(args)}"]
+    retry = [f"  {PROG} geo {_carry_geo(args)} --speed {_other_speed(args)}"]
     word = _speed_word(args)
     too_noisy = sigma > BAD_SIGMA_DEG
     if res["chi2_per_dof"] <= 2:
@@ -494,6 +500,12 @@ def after_geo(args, res: dict, out: str) -> list[str]:
               "  Enter the same --sectors in DiscImageStudio.",
               f"  {why}"]
     picture = f"  {PROG} image{flag} --geo {geo}{correction} --picture my_picture.png --output iso/picture.iso"
+    if res.get("track") == "audio":
+        return lines + ["Next, export a DiscImageStudio preset. This was measured on the audio track, so no other constant is needed:",
+                        *preset,
+                        f"It is right as far as --read-offset-bytes ({res.get('read_offset_bytes', 0.0):g}) is right for this drive: "
+                        "check it once with a burned straight line.",
+                        "image and tiles do not take this result: they write a data track, which counts from another origin."]
     if media == "cd":
         return lines + ["Next, export a DiscImageStudio preset. CD has one more constant that timing cannot see, and fine",
                         "calibration there settles it on one more blank disc (the CD route in README.md):", *preset,
@@ -507,13 +519,14 @@ def after_geo_stop(args, reason: str) -> list[str]:
     if reason in mmc.NOT_READY:
         return []
     carry, other, word = _carry(args), _other_speed(args), _speed_word(args)
+    again = _carry_geo(args)
     if "never settled" in reason or "near the reference" in reason:
         return [f"The drive would not hold one speed. Check it with timing, then try geo at {word}:",
-                f"  {PROG} timing {carry}", f"  {PROG} geo {carry} --speed {other}",
+                f"  {PROG} timing {carry}", f"  {PROG} geo {again} --speed {other}",
                 "USB slim drives are often too noisy here; an internal drive may simply work."]
     if "whole-turn" in reason or "safe" in reason:
         return [f"A whole-turn count went wrong, or the pitch varies more than the model allows. Try {word}:",
-                f"  {PROG} geo {carry} --speed {other} --reps 32",
+                f"  {PROG} geo {again} --speed {other} --reps 32",
                 "If it keeps stopping near one LBA, leave that area out with --ranges a-b (see `geo -h`).",
                 "A disc whose pitch varies can take a higher limit, for example --chi2-abort 100."]
     if "ranges" in reason:

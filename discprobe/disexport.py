@@ -83,7 +83,11 @@ def fit_preset(u, v, bit_nm, total_sectors, r_lo, r_hi, correction=None, sector_
     sol = least_squares(resid, np.zeros(5), jac=jac, x_scale=1.0, xtol=1e-14, ftol=1e-14, gtol=1e-14, max_nfev=400)
     ri, ro, c1, c2, c3 = np.array([ri0, ro0, 0, 0, 0]) + sol.x * scale
     d = resid(sol.x)
-    _, _, p0 = dis_angle_map(ri, ro, c1, c2, c3, total_sectors, bit_nm, sector_bits)
+    m = dis_angle_map(ri, ro, c1, c2, c3, total_sectors, bit_nm, sector_bits)
+    if m is None:
+        raise ValueError(f"no preset of {total_sectors} sectors fits {r_lo}-{r_hi} mm; check --sectors and the fit "
+                         "range. No preset written.")
+    p0 = m[2]
     return {"innerRadiusMm": float(ri), "outerRadiusMm": float(ro), "pitchLinear": float(c1),
             "pitchQuadratic": float(c2), "pitchCubic": float(c3), "p0_um": float(p0 * 1e3),
             "fit_range_mm": [r_lo, r_hi], "max_angle_diff_deg": float(np.max(np.abs(d))),
@@ -109,6 +113,10 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
         geo = json.load(f)["fit"]
     media = "cd" if geo.get("media") == "cd" else "dvd"
     u, v, bit = geo["u"], geo["v"], geo["bit_nm_assumed"]
+    audio = geo.get("track") == "audio"
+    if audio and along_track_frames:
+        raise ValueError("this geo result measured an audio track, which has no along-track constant; "
+                         "if lines come out rotated, check --read-offset-bytes and run geo again")
     if media == "cd":
         cd.check_capacity(total_sectors)
         if abs(bit - cd.BIT_NM) > 1e-6:
@@ -130,13 +138,18 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
     desc = (f"Drive-timing calibration (discprobe){' + grid-scan angle correction' if corr else ''}; "
             f"fitted over {r_lo}-{r_hi} mm, max angle difference to the measured map "
             f"{fit['max_angle_diff_deg']:.3f} deg")
-    if media == "cd":
+    if audio:
+        desc += f"; measured on the CD-DA track, read offset {geo.get('read_offset_bytes', 0.0):g} bytes"
+    elif media == "cd":
         desc += f"; along-track constant {along_track_frames:g} frames"
     out = {"preset": preset_json(fit, total_sectors, bit, preset_id, name, desc, media), "fit": fit,
            "source": {"geo": geo_summary.replace("\\", "/").split("/")[-1],
                       "correction": correction_path.replace("\\", "/").split("/")[-1] if correction_path else None}}
     if media == "cd":
         out["source"]["along_track_frames"] = along_track_frames
+    if audio:
+        out["source"]["track"] = "audio"
+        out["source"]["read_offset_bytes"] = geo.get("read_offset_bytes", 0.0)
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(out, f, indent=2, ensure_ascii=False)
     return out

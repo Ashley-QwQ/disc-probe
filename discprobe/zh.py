@@ -417,6 +417,19 @@ TEXT = {
     "inner {a} mm, outer {b} mm, pitch shape {c}": "内半径 {a} mm，外半径 {b} mm，轨距形状 {c}",
     "angle difference to the measured map over {a}-{b} mm: max {c} deg, rms {d} deg": "在 {a}-{b} mm 内与实测角度的差：最大 {c}°，rms {d}°",
     "DiscImageStudio {m} preset object in {p} (key 'preset')": "DiscImageStudio 的 {m} 预设已写入 {p}（键名 preset）",
+    "This geo result measured an audio track burned by DiscImageStudio, which counts positions from a different origin than the data track written here, so the design would land in the wrong place.":
+        "这个 geo 结果测的是 DiscImageStudio 刻的音轨，位置的起算点和这里写的数据轨不同，图案会落到错误的位置。",
+    "For image or tiles, use a geo result from a burned data disc: python -m discprobe results --pick": "image 和 tiles 要用刻好的数据盘测出的 geo 结果：python -m discprobe results --pick",
+    "This result is for a DiscImageStudio preset: python -m discprobe disexport": "这个结果用来导出 DiscImageStudio 预设：python -m discprobe disexport",
+    "no preset of {a} sectors fits {b}-{c} mm; check --sectors and the fit range. No preset written.": "{a} 个扇区的预设无法拟合 {b}-{c} mm；请检查 --sectors 和拟合范围。没有写出预设。",
+    "this geo result measured an audio track, which has no along-track constant; if lines come out rotated, check --read-offset-bytes and run geo again":
+        "这个 geo 结果测的是音轨，没有沿轨常数可填；如果线条转了角度，请检查 --read-offset-bytes，再重新跑 geo",
+    "Measured on the audio track, so no along-track constant is needed. The preset is right as far as --read-offset-bytes ({x}) is right for this drive: check it once with a burned straight line.":
+        "这是在音轨上测的，不需要沿轨常数。预设准不准，取决于 --read-offset-bytes（{x}）对这台光驱是否正确，请用实刻的一条直线核对一次。",
+    "Next, export a DiscImageStudio preset. This was measured on the audio track, so no other constant is needed:": "下一步，导出 DiscImageStudio 预设。这是在音轨上测的，不需要别的常数：",
+    "It is right as far as --read-offset-bytes ({x}) is right for this drive: check it once with a burned straight line.":
+        "预设准不准，取决于 --read-offset-bytes（{x}）对这台光驱是否正确，请用实刻的一条直线核对一次。",
+    "image and tiles do not take this result: they write a data track, which counts from another origin.": "image 和 tiles 不接受这个结果：它们写的是数据轨，起算点不同。",
     "Timing cannot see the CD along-track constant and none was given, so radial lines may come out twisted. Measure it on a burned disc, then use --along-track-frames.":
         "计时测不到 CD 的沿轨常数，而你也没有提供，所以径向线可能会扭曲。请在刻好的盘上测出它，再用 --along-track-frames。",
     "the preset misses the measured map by {a} deg over {b}-{c} mm (outer radius came out {d} mm); check --sectors and the fit range. No preset written.":

@@ -547,6 +547,8 @@ python -m discprobe geo --drive E: --media cd
 python -m discprobe geo --drive E: --media cd --read-offset-bytes -603
 ```
 
+这种结果用 `disexport` 导出预设，不需要也不接受 `--along-track-frames`。`image` 和 `tiles` 写的是数据轨，起算点不同，所以会拒绝这种结果，它们仍然要用数据盘测出的结果。
+
 测的是盘本身的几何，和刻它时填的参数无关，所以用名义参数刻一张探测盘就够了。在 BU20N 上测一张 banana CD-R，结果和另一套独立的程序（[dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing)）只差 +5 nm / −4 nm，按那套程序的结果刻的直线是直的。
 
 `image --media cd` 同样接受布尔/标签 `--design-npy`、`--textures`、`--picture`。用 `--picture` 时，半径 26 mm 以内自动留空，那里放着文件系统。绘图单元改为物理帧中连续的 12 数据符号；重复纹理按"物理帧号 ×32 + F2 槽"定相位，再通过 CIRC 映射回填用户数据。暗/亮默认 `0D`/`AA`，设计应在内侧留出背景，文件系统扇区与图案相交时会拒绝生成。CD 计时结果带 `media=cd`，禁止把 DVD 的拟合直接用于 CD 刻图。
