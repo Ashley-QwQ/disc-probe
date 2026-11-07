@@ -254,10 +254,13 @@ def _audio_fit_uses(c: Checker, res: dict, x: float):
 
 def _geo_rotation(c: Checker):
     print("geo checks the spindle before it starts")
-    from .geo import Ladder
+    from .geo import Ladder, looks_clv
     from . import __main__ as cli
     from . import guide
     from argparse import Namespace
+    c.check(looks_clv(2.122, 2.128) and not looks_clv(1.0, 2.115), "CLV's period follows the radius, a constant speed's doesn't")
+    c.check(not looks_clv(2.0, 2.115) and not looks_clv(1 / 3, 2.115), "a period read as whole turns isn't taken for CLV")
+    c.check(not looks_clv(2.0, 2.02), "and where the radii are about 2 to 1 it can't tell, so it carries on")
     clv = Ladder(SimDrive(mode="clv", seed=7), speed_kbs=5540, reps=8, max_targets=6, log=lambda *_: None)
     try:
         clv.run()

@@ -68,7 +68,13 @@ CD_AUDIO_RANGE = (0.0125, 0.99)
 ROTATION_READS = 24
 ROTATION_COHERENCE = 0.8    # one outlier takes a clear period to about 0.93 in 24 reads
 MIN_ROTATION_RATIO = 1.1    # a span narrower than this can't tell CLV from constant rotation
-CLV_RATIO_SLACK = 0.12      # as in timing's own check
+CLV_RATIO_SLACK = 0.03      # one report's CLV was 0.3 % off the nominal radii, and a period read as twice the turn must not pass
+
+
+def looks_clv(ratio: float, expected: float) -> bool:
+    """Outer over inner period against the radii. A span near a whole ratio can't be told from a period read as whole turns."""
+    near_whole = abs(expected - round(expected)) / expected < CLV_RATIO_SLACK
+    return not near_whole and abs(ratio - expected) / expected < CLV_RATIO_SLACK
 
 
 class Ladder:
@@ -200,7 +206,7 @@ class Ladder:
             periods.append(fit.period_s)
         ratio = periods[1] / periods[0]
         tp.summary["rotation_check"] = {"inner_lba": inner, "outer_lba": outer, "period_ms": [p * 1e3 for p in periods], "ratio": ratio, "expected_clv": expected}
-        if abs(ratio - expected) / expected < CLV_RATIO_SLACK:
+        if looks_clv(ratio, expected):
             raise RuntimeError(f"the drive is not turning at a constant speed here ({periods[0] * 1e3:.2f} ms a turn at "
                                f"{self._radius(inner):.0f} mm, {periods[1] * 1e3:.2f} ms at {self._radius(outer):.0f} mm), and geo needs it to")
 
@@ -483,6 +489,7 @@ def write_outputs(ladder: Ladder, out_dir: str, stopped: str | None = None) -> N
         json.dump({"fit": res, "cache": ladder.tp.summary.get("cache"),
                    "setup": ladder.tp.summary.get("setup"), "identity": ladder.tp.summary.get("identity"),
                    "set_cd_speed": ladder.tp.summary.get("set_cd_speed"),
+                   "rotation_check": ladder.tp.summary.get("rotation_check"),
                    **({"stopped": stopped} if stopped else {})}, f, indent=2, default=float)
     events = ladder.tp.events_as_rows()
     if events:
