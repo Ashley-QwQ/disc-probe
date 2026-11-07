@@ -183,6 +183,7 @@ TEXT = {
     "For a cleaner run, try {s} or another drive:": "想测得更干净，可以{s}，或者换一台光驱：",
     "A varying track pitch does not fit better (fit error ratio {a} -> {b}), so the extra scatter is probably read noise. Try {s} or another drive:":
         "改用可变轨距也没有更好（拟合误差比 {a} -> {b}），多半是读取噪声。{s}，或者换一台光驱：",
+    "Verdict: correction uncertainty is unknown. Refit the measured points before relying on it.": "??????????????????????????",
     "Verdict: good once corrected.": "结论：加上修正就可以用。",
     "Verdict: usable, but noisy.": "结论：能用，但噪声偏大。",
     "Next, export a DiscImageStudio preset. CD has one more constant that timing cannot see, and fine": "下一步，导出 DiscImageStudio 预设。CD 还有一个计时测不到的常数，",

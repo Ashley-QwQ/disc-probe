@@ -175,6 +175,8 @@ def _pitch_fit(c: Checker):
     predicted = model(n, f["u"], f["v"], f["b"], rc, rs)[0]
     delta = np.degrees(predicted - y)
     c.check(np.ptp(delta) < 0.01, f"quadratic pitch prediction error {np.ptp(delta):.6f} deg")
+    c.check(math.isfinite(f["span_sigma_deg"]) and f["span_sigma_deg"] > 0,
+            "quadratic span uncertainty includes fitted pitch parameters")
 
 def _ladder(c: Checker):
     print("ladder geometry measurement on the simulated drive (35 ms re-read overhead)")

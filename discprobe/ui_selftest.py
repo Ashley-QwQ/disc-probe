@@ -1394,7 +1394,7 @@ def _advice(c) -> None:
         noisy_fit = "\n".join(guide.after_geo(geo_args, fit, os.path.join("results", "geo-H-20260101-100000")))
         c.check("does not fit better" in noisy_fit and "--speed 3324" in noisy_fit and "--correction" not in noisy_fit,
                 "no gain from a varying pitch: geo says carry on, no correction")
-        guide.compare_pitch = lambda out: (20.0, 1.5)
+        guide.compare_pitch = lambda out, with_sigma=False: (20.0, 1.5, 0.2) if with_sigma else (20.0, 1.5)
         pitch_fit = guide.after_geo(geo_args, fit, os.path.join("results", "geo-H-20260101-100000"))
         c.check(any("--write-correction" in x for x in pitch_fit) and all("--correction correction.json" in x for x in pitch_fit if f"{guide.PROG} image" in x or f"{guide.PROG} disexport" in x),
                 "a clear gain: geo writes the correction into the next commands")
@@ -1415,7 +1415,7 @@ def _advice(c) -> None:
     real_compare = guide.compare_pitch
     try:
         for ratio, word in (((20.0, 1.5), "good once corrected"), ((5.2, 5.6), "usable, but noisy"), (None, "not settled")):
-            guide.compare_pitch = lambda out, ratio=ratio: ratio
+            guide.compare_pitch = lambda out, with_sigma=False, ratio=ratio: (*ratio, 0.2) if with_sigma and ratio else ratio
             c.check(word in guide.after_geo(geo_args, fit, os.path.join("results", "geo-H-20260101-100000"))[0], f"a noisy geo: {word}")
     finally:
         guide.compare_pitch = real_compare
@@ -1433,7 +1433,7 @@ def _advice(c) -> None:
     try:
         c.check(all(i18n.tr(x) != x for x in (noisy_run[0], noisy_run[1], bad_run[0])), "the noisy verdicts have Chinese")
         try:
-            guide.compare_pitch = lambda out: (30.0, 10.0)
+            guide.compare_pitch = lambda out, with_sigma=False: (30.0, 10.0, 1.15) if with_sigma else (30.0, 10.0)
             helps = verdict_on(2.0, 30.0)
             c.check("a correction helps" in helps[0] and "good" not in helps[0] and "1.15 deg" in helps[0] and i18n.tr(helps[0]) != helps[0]
                     and any("--write-correction" in x for x in helps) and any("--speed 3324" in x for x in helps),

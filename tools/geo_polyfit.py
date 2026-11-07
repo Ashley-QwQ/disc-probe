@@ -86,7 +86,22 @@ def fit(n, y, s, u0, v0, order, rc, rs):
     r = sol.fun
     dof = len(n) - len(z0)
     th, rad = model(n, u, v, bs, rc, rs)
-    return dict(u=u, v=v, b=list(bs), chi2=float(r @ r), dof=dof,
+    J = jac(sol.x)
+    scale = np.linalg.norm(J, axis=0)
+    A = J / scale
+    if np.linalg.matrix_rank(A) < len(z0):
+        raise ValueError("pitch fit parameters are not identifiable")
+    cov = np.linalg.inv(A.T @ A) / np.outer(scale, scale)
+    cov *= max(1.0, float(r @ r) / dof)
+    ends = np.array([np.min(n), np.max(n)])
+    def end_angle(z):
+        uu, vv, bb, cc = unpack(z)
+        return model(ends, uu, vv, bb, rc, rs)[0] + cc
+    end_jac = np.column_stack([(end_angle(sol.x + e) - end_angle(sol.x - e)) / 2
+                               for e in np.eye(len(z0))])
+    g = end_jac[1] - end_jac[0]
+    span_sigma = math.degrees(math.sqrt(max(0.0, float(g @ cov @ g))))
+    return dict(span_sigma_deg=span_sigma, u=u, v=v, b=list(bs), chi2=float(r @ r), dof=dof,
                 rms_deg=float(np.degrees(np.sqrt(np.mean((th + c - y) ** 2)))),
                 resid_deg=np.degrees(th + c - y), r_bits=rad)
 

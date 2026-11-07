@@ -500,7 +500,7 @@ def after_timing_stop(args, reason: str) -> list[str]:
     return []
 
 
-def compare_pitch(out: str) -> tuple[float, float] | None:
+def compare_pitch(out: str, with_sigma: bool = False) -> tuple | None:
     """chi2/dof of the constant-pitch and quadratic-pitch fits of a finished run, by tools/geo_polyfit.py."""
     path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools", "geo_polyfit.py")
     try:
@@ -513,7 +513,7 @@ def compare_pitch(out: str) -> tuple[float, float] | None:
         for order in (0, 2):
             f = tool.fit(n, y, s, fit["u"], fit["v"], order, tool.RC_MM / scale, tool.RS_MM / scale)
             ratios.append(f["chi2"] / f["dof"])
-        return ratios[0], ratios[1]
+        return (ratios[0], ratios[1], f["span_sigma_deg"]) if with_sigma else (ratios[0], ratios[1])
     except Exception:       # only advice depends on this; the measurement is already saved
         return None
 
@@ -559,10 +559,13 @@ def after_geo(args, res: dict, out: str) -> list[str]:
     elif compared is None:
         lines.append("Verdict: not settled. More than noise is left, and the comparison below could not run here.")
     elif compared[1] <= PITCH_CLEARLY_BETTER * compared[0]:
-        # The fit widened sigma by sqrt(chi2/dof), so what a correction leaves is that ratio undone.
-        corrected = sigma * math.sqrt(max(1.0, compared[1]) / max(1.0, compared[0]))
-        lines.append("Verdict: good once corrected." if corrected <= GOOD_SIGMA_DEG
-                     else f"Verdict: a correction helps, but it stays noisy: {_angle(corrected)}.")
+        detailed = compare_pitch(out, with_sigma=True)
+        corrected = detailed[2] if detailed is not None else None
+        if corrected is None:
+            lines.append("Verdict: correction uncertainty is unknown. Refit the measured points before relying on it.")
+        else:
+            lines.append("Verdict: good once corrected." if corrected <= GOOD_SIGMA_DEG
+                         else f"Verdict: a correction helps, but it stays noisy: {_angle(corrected)}.")
     elif too_noisy:
         lines.append(f"Verdict: {_noisy(sigma)}")
     else:
@@ -580,7 +583,7 @@ def after_geo(args, res: dict, out: str) -> list[str]:
             lines += [f"A varying track pitch fits clearly better (fit error ratio {compared[0]:.1f} -> {compared[1]:.1f}). "
                       "Write a correction first; the commands below use it:",
                       f"  python tools/geo_polyfit.py {short(out)} --write-correction correction.json --order quadratic"]
-            if corrected > GOOD_SIGMA_DEG:
+            if corrected is None or corrected > GOOD_SIGMA_DEG:
                 lines += [f"For a cleaner run, try {word} or another drive:", *retry]
         elif too_noisy:
             lines += [f"A varying track pitch does not fit better (fit error ratio {compared[0]:.1f} -> {compared[1]:.1f}), so the "
