@@ -399,6 +399,23 @@ def _install_details(c: Checker):
             os.chdir(here)
 
 
+def _incomplete_folder(c: Checker):
+    print("a folder with files missing")
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+    here = os.path.dirname(os.path.abspath(__file__))
+    with tempfile.TemporaryDirectory() as d:
+        folder = os.path.join(d, "discprobe")
+        os.mkdir(folder)
+        for name in ("__main__.py", "guide.py", "mmc.py"):     # as in a real half-deleted copy: no __init__.py, no i18n.py
+            shutil.copy(os.path.join(here, name), folder)
+        got = subprocess.run([sys.executable, "-m", "discprobe", "selftest"], cwd=d, capture_output=True, encoding="utf-8",
+                             env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONPATH": ""})
+    c.check(got.returncode == 1 and "incomplete" in got.stderr and "Traceback" not in got.stderr, "it says the files are incomplete, not a traceback")
+
+
 def _unreadable(c: Checker):
     print("timing stops early on unreadable discs and non-CAV drives")
     from .scsi import ScsiResult, Sense
@@ -812,6 +829,7 @@ def _run() -> bool:
     c = Checker()
     _parsers(c)
     _report(c)
+    _incomplete_folder(c)
     _harmonics(c)
     _sim_run(c, "cav", True, "fua", "CAV")
     _sim_run(c, "cav", True, "fua", "CAV", sectors=16)

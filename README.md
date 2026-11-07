@@ -101,6 +101,8 @@ python -m pip install numpy pillow scipy
 python -m discprobe selftest
 ```
 
+如果看到 `No module named discprobe`，多半是还没进入这个文件夹：先运行上面的 `cd disc-probe`，后面的命令都在这个文件夹里运行。
+
 不确定下一步跑什么，就运行 `guide`。它读 `results` 文件夹，列出哪些步骤做过了、现在到了哪一步，并打印下一条命令，不碰光驱。第一次运行时会问要不要看一遍新手教程，以后想看就运行 `python -m discprobe tutorial`：
 
 ```bash

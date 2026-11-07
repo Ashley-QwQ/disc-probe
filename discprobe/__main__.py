@@ -9,7 +9,14 @@ import json
 import os
 import sys
 
-from . import guide, i18n, info, mmc, timing, ui
+try:
+    from . import guide, i18n, info, mmc, timing, ui
+except ImportError as e:    # half a copy of this folder: i18n may be what is missing, so it says so in both languages
+    if (e.name or "").split(".")[0] != __package__:
+        raise
+    sys.exit(f"The disc-probe files in {os.path.dirname(os.path.abspath(__file__))} are incomplete. Download or clone it again, "
+             "then run this from inside the new folder.\n"
+             "这个文件夹里的 disc-probe 文件不完整。请重新下载或 clone，再到新的文件夹里运行。")
 
 # Tile target palette: the A5/92 pair, B9 and 66, aperiodic mixes of the 3.2T (A5-like)
 # and 8T (92-like) classes, then along-track periods 32T, 48T and 64T (16T is 92). The

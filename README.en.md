@@ -101,6 +101,8 @@ python -m pip install numpy pillow scipy
 python -m discprobe selftest
 ```
 
+If you see `No module named discprobe`, you are probably not in the folder yet: run `cd disc-probe` above first. All the commands here run from inside it.
+
 If you're not sure what to run next, run `guide`. It reads the `results` folder, shows which steps are done and where you are, and prints the next command. It doesn't touch the drive. The first time, it offers a walkthrough; `python -m discprobe tutorial` shows it again whenever you like:
 
 ```bash
