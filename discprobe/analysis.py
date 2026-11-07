@@ -98,7 +98,7 @@ def estimate_period(times_ns: list[int], t_min_s: float = 0.003, t_max_s: float 
         candidates.append((f_best, c_best))
         # Completion times that are multiples of T are also multiples of T/k, so the
         # periodogram peaks equally at harmonics. The fundamental is the lowest one.
-        for k in range(2, 13):
+        for k in range(2, int(f_best / f_lo) + 1):
             fk = f_best / k
             if fk < f_lo:
                 break

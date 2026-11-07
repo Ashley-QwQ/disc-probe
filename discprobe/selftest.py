@@ -162,6 +162,18 @@ def _harmonics(c: Checker):
     c.check(fit is not None and 30 < fit.residual_std_s * 1e6 < 80, f"jitter {fit.residual_std_s * 1e6:.1f} us")
 
 
+    rng = random.Random(3)
+    revs, n = [], 0
+    for _ in range(50):
+        n += rng.randint(3, 17)
+        revs.append(n)
+    for period in (0.080, 0.125):
+        fit = analysis.estimate_period([round(n * period * 1e9) for n in revs])
+        target = [round((n * period + period * (2 + 17 / 360)) * 1e9) for n in revs]
+        phase = analysis.robust_circular_mean(analysis.phase_offsets(fit, target))["mean_deg"]
+        c.check(abs(fit.period_s - period) < 1e-6 and _circ_diff(phase, 17) < 0.01,
+                f"long period {period * 1000:.0f} ms and 17 degree phase")
+
 
 def _pitch_fit(c: Checker):
     print("pitch model numerical fit")
