@@ -483,3 +483,18 @@ that the outermost sector then lands at 58.020 mm, against 58.0232 mm for DiscIm
 python -m discprobe geo --drive G: --media bd --bd-zones 9
 python -m discprobe disexport --geo results/geo-G-.../summary.json --sectors 12088320 --install
 ```
+
+### 13a. The angle-ladder result exports too
+
+A disc the drive holds at a constant angular velocity has no T^2 line to fit, but the ladder that
+does measure it (section 12a) already gives the two numbers a preset is made of: `u = r0/b` and
+`v = p/b`, which `geo` writes into `dis_equivalent` as `inner_radius_mm` and `pitch_um_estimate`.
+`disexport --sectors` therefore takes that result as well, and the third number -- the outer radius --
+comes from the same area identity as before. Nothing is fitted a second time: the preset is the
+ladder's own answer, rounded into DiscImageStudio's three-number form.
+
+On the simulated CAV drive (24.02 mm, 0.3185 um) the export writes inner 24.0200 mm and outer
+57.6379 mm for 12 088 320 sectors. Two differences from the CLV path are visible in the output: the
+preset is named `discprobe-bd` / "Blu-ray (drive-timing calibration)" rather than BD-RE, and the line
+that reports the pitch quotes the rung count and chi^2/dof instead of zones and R^2. The install gates
+follow the same rule -- rung count and chi^2/dof are what `install_blocker` checks for this model.
