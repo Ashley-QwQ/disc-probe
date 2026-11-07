@@ -1,0 +1,264 @@
+# BD is CLV: what the phase ladder can and cannot measure
+
+Status: research note, 2026-11-08. Nothing here is merged; the measurements come from one
+drive and one disc, and the community reports are quoted second-hand (see §9).
+
+`geo` measures a spiral by timing reads. It works on DVD and on CD because the spindle holds
+a constant rotation: the angle between two positions is then a function of how far along the
+spiral they are, and two numbers -- where the spiral starts and how fast it widens -- explain
+every measurement. On BD the same command stops after a few seconds with
+`the drive is running at a constant linear speed`. This note works out why, what the timing
+data can still say, and what it would take to turn that into a preset.
+
+## 1. What the ladder measures
+
+`discprobe.geo` reads a reference sector, then a ladder of sectors across the disc, and at
+each one measures the time of one rotation `T`. From `T` and the reference it builds a phase
+
+    phi(n) = theta(n; u, v) - theta(n_ref; u, v) + c
+
+where `n` is the position along the spiral in channel bits, `u = r0 / b` the start radius in
+bits, `v = pitch / b` the pitch in bits per bit, `b` the channel bit length, and
+
+    theta(n; u, v) = 2n / (sqrt(u^2 + v n / pi) + u)
+
+is the angle swept from the start of the spiral. Only `phi mod 360` is measured; the ladder is
+dense enough that the turns can be counted, and the curvature of `phi` against `n` gives
+`(u, v)`.
+
+The whole construction assumes the spindle holds the *angle* rate. Under CAV, `T` is the
+rotation period and everything above is one rotation's worth of angle. Under CLV the drive
+holds the *linear* rate instead: the time from `n_ref` to `n` is `(n - n_ref) b / v_lin`, and
+the fraction of a rotation it represents is that distance over the circumference
+
+    phi_CLV(n) = 2 pi (n - n_ref) b / r_ref
+
+which is **linear in n**. It has no curvature, so the fit has nothing to read `(u, v)` from,
+and the size of the phase is a distance rather than an angle: a factor `b` (74.5 nm) away from
+what `theta` would predict. No value of `(r0, pitch)` can absorb that factor.
+
+`geo` already notices: `discprobe/geo.py:70-77` has `looks_clv(ratio, expected)`, called from
+the rotation check in `geo.py:190-209`, and a BD run stops once the measured ratio between an
+inner and an outer zone matches the CLV prediction. That check is right, and this note does not
+ask for it to be relaxed. The question is what to do instead of stopping.
+
+## 2. The data
+
+`tests/data/bd_discussion_samples/local_uj272_bd_zones.csv` holds 39 zones from 13 `timing`
+runs on one MATSHITA BD-MLT UJ272 (firmware 1.02) with a BD-RE (last LBA 12 088 319), read
+with READ(12) in 32-sector blocks. Each row is one zone of one run: radius from the nominal
+geometry, period, rpm, and the linear speed that follows.
+
+```
+run                          req    zone   radius  period     rpm     v m/s    T/r
+timing-G-20261106-212541    26974    0.05  26.258   15.888  3776.4 10383.979  0.6051
+timing-G-20261106-212541    26974    0.50  41.363   25.106  2389.9 10351.814  0.6070
+timing-G-20261106-212541    26974    0.95  52.272   31.693  1893.2 10363.160  0.6063
+```
+
+(the CSV stores mm/s, as the summaries do; the tool divides by 1000.)
+
+Across the radius the linear speed does not move while the rpm follows `1/r` exactly: the
+ratio `v(inner)/v(outer)` is 0.987-1.007, against an `r(inner)/r(outer)` of 0.47-0.54.
+Over the 13 runs, 9 hold the linear speed to within 0.96 % of their own median. That is CLV.
+
+Two details matter for anyone writing a check like this:
+
+- **Three runs locked onto the second harmonic.** `timing-G-20261106-211921`, `-211950` and
+  `-203622` report an inner zone at exactly twice the outer rate (15 835 vs 7 898 m/s;
+  40 755 vs 10 317). The periods at those inner zones are half a rotation, so a reader that
+  compares only "is the rate constant" sees a 2x jump and may label the run `mixed`, which is
+  what the stored summaries do. Those zones are not a different spin law; they are a misread.
+- **One run was interrupted** (2026-11-07 20:28:36, `--speed 7193`, stopped by hand); its
+  zones are consistent with CLV as well but its line is not a clean fit.
+
+At 2.1x the drive settles on 10.35 m/s; at 1.6x (request 7193) on 7.86 m/s. `--cav` has no
+effect. That matches what the drive reports elsewhere: Page 2A says `rotation CAV` for the
+write speeds and `4033 CAV / 1411 CLV` for the CD ones, but for BD there is no rotation bit
+to set.
+
+## 3. Why the ladder cannot be rescued
+
+A ladder only sees `phi mod 360`, so consecutive rungs have to be closer than one rotation or
+the turns cannot be counted. Under CLV one rotation is `2 pi r_ref / b` bits -- at 24 mm that
+is 2.02e6 bits, or **67 sectors**. Thirty rungs thirty sectors apart therefore cover 870
+sectors: 870/67.3 = 12.9 turns, and at 0.32 um per turn that is **4.1 um of radius**.
+
+Over 4 um, the model's own curve bends away from a straight line by 0.0104 degrees
+(`tools/bd_clv_model_analysis.py degenerate`). Changing the pitch by 10 % changes that bend
+by 4e-5 degrees; changing `r0` by 5 % changes it by 5e-4 degrees. The timing noise on this
+drive is 0.3 degrees. The information is four orders of magnitude below the noise, and no
+amount of averaging helps: it is a systematic absence of curvature, not a random error.
+
+Relaxing the "denser than a turn" rule does not help either, because the turn count is exactly
+what is unknown -- the argument is circular. Under CAV a ladder may jump many turns because
+the model predicts how many; under CLV the model has been replaced by a straight line, which
+predicts nothing.
+
+So: **a BD phase ladder is not a weak measurement of the geometry, it is a measurement of the
+wrong quantity.** Stopping, as `geo` now does, is the correct behaviour for `--media bd` with
+the CAV model.
+
+## 4. What CLV data does contain
+
+Under CLV `T = 2 pi r / v_lin`, so `T^2 = (2 pi / v)^2 r^2`; with `r^2 = r0^2 + pitch *
+sector_mm * LBA / pi`,
+
+    T^2(LBA) = (2 pi r0 / v)^2 + (4 pi pitch sector_mm / v^2) LBA
+
+a straight line in LBA. Seven of the clean runs fit it with `R^2 >= 0.9999`:
+
+```
+run                       slope (ms^2/LBA)     R^2   v (p=0.32)  v measured    r0      pitch if r0=24
+timing-G-20261106-211843      8.427288e-05  0.99998      10.338      10.364   23.781 mm   0.3259 um
+timing-G-20261106-212541      8.398604e-05  0.99999      10.356      10.363   23.958 mm   0.3211 um
+timing-G-20261106-212835      8.404702e-05  0.99999      10.352      10.361   23.933 mm   0.3218 um
+timing-G-20261106-213105      8.399744e-05  1.00000      10.355      10.362   23.964 mm   0.3210 um
+timing-G-20261107-202836      8.407453e-05  1.00000      10.351      10.302   24.380 mm   0.3101 um
+timing-G-20261107-202908      8.441189e-05  0.99998      10.330      10.283   24.233 mm   0.3139 um
+timing-G-20261107-203351      8.430521e-05  1.00000      10.337      10.294   24.281 mm   0.3126 um
+```
+
+The slope gives `pitch / v^2` and the intercept `r0 / v`: two equations, three unknowns. Give
+the fit one anchor and it returns the other two.
+
+- **Anchor on the standard start radius**, `r0 = 24.0 mm`: the pitch comes out 0.310-0.322 um
+  and the linear speed 10.33-10.36 m/s, which is 2.1x. That is a real measurement of the pitch,
+  something the phase ladder cannot do on BD at all.
+- **Anchor on a linear speed measured from sustained throughput** (`bytes/s * bytes per user
+  sector / 2048 * b`): `r0` comes out at 23.9-24.4 mm and the pitch again near 0.32 um.
+
+Both anchors agree with the standard, which is a useful cross-check of the arithmetic and of
+the drive's reported radii. The measurement is not circular -- the slope and the intercept come
+from timing alone -- but it is only as good as the anchor: `pitch` scales as `r0^2` and as
+`v^-2`, so a 1 % error in `r0` is 2 % in the pitch, and a 1 % error in `v` is also 2 %.
+
+This is the same shape as the method the maintainers of `US6914862B2` and `WO2004102560A1`
+describe for drives that cannot hold CAV: measure periods at known positions, fit the line,
+read the pitch off the slope.
+
+## 5. Can the drive be made to hold CAV instead?
+
+Partly, and the interesting part is that `info` already answers the question.
+
+**The drive picks the rate but not the law.** On this BD-RE, `--speed 7193` reads at 1.6x and
+`--speed 8990`, `11162`, `17980` and `26974` all settle on 2.1x: the request selects between
+the two rates the drive offers, and `--cav` changes nothing at either. So the reports of "the
+speed setting has no effect" are half right -- the setting does pick a rate, and neither rate
+is CAV. `SET CD SPEED` (0xBB) is specified for CD and DVD media; for BD the drive is doing
+what it likes with it.
+
+**`GET PERFORMANCE` (0xA4, Type 00h) says which law is in force, in one command.**
+`discprobe/mmc.py:62` already implements it and `discprobe/info.py:55` already stores the
+answer as `perf_read_nominal`. From the dumps in `results/`:
+
+| disc | last LBA | start kB/s | end kB/s | end/start | law |
+| --- | --- | --- | --- | --- | --- |
+| DVD-R (4.7 GB) | 2 295 103 | 4585 | 11 080 | 2.4166 | CAV |
+| CD-R (audio) | 158 035 | 1899 | 3162 | 1.6651 | CAV |
+| BD-RE (25 GB) | 12 088 319 | 7193 | 7193 | 1.0000 | CLV |
+
+The DVD ratio is `58.0/24.0 = 2.4167` to four digits: the drive reports the end of the
+performance range at the end of the data area, so the ratio *is* the ratio of the two radii.
+The CD ratio 1.6651 puts the outer radius of that burn at 41.6 mm. The BD-RE ratio is exactly
+1.0 -- the two radii would give 2.42 if the drive held CAV.
+
+That means the pre-flight does not need new code: `info` already collects it, and `geo
+--media bd` could refuse before the first rung by comparing `perf_read_nominal` start and end,
+with the numbers in the message. For recordable media the law depends on the recorded speed
+and the drive's policy rather than the medium -- a BD-RE written at 2x is read at 2x CLV,
+while a BD-ROM is read CAV at 12x -- but the command reports whichever it is.
+
+What is *not* available is a way to force CAV: Pioneer's command reference for BDR-203 says
+"The drive can not specify the reading speed by any Packet command ... determined by the
+drive", `SET STREAMING` (0xB6) governs the write side, and its read fields are a request for a
+minimum rate rather than a rotation law.
+
+## 6. Do the disc structures hold the geometry?
+
+No. For BD there is no ATIP; the equivalents are:
+
+- **Disc Information** (`READ DISC STRUCTURE` 0xAD, format 00h): channel bit length, disc
+  type, recording speed, first and last addressable address. It locates the *data*, and says
+  the bit length is 74.5 nm, but not the radius.
+- **PIC**: the permanent information area carries the disc manufacturer's write strategy and
+  IDs, not geometry.
+- **BCA** (format 03h, 66 bytes): a serial number and a manufacturer code.
+
+The TOC-style map the drive returns for BD is compiled by the drive from DI, not measured. So
+`info` can report `last_lba` and the nominal length, but not a radius.
+
+One more thing this rules out, which is worth saying because CD has the same problem: any
+"absolute position along the track" has to come from a physical reference, and BD has none that
+is finer than a millimetre.
+
+## 7. What the standard fixes, and what is left to measure
+
+For BD the geometry is not really a free parameter:
+
+| quantity | value |
+| --- | --- |
+| track pitch | 0.32 um |
+| data area | 24.0 - 58.0 mm |
+| lead-in start | 22.0 mm |
+| BCA | 21.0 - 22.2 mm |
+| channel bit length | 74.50 nm |
+| 1x linear speed | 4.917 m/s |
+| channel bit rate | 66.000 Mb/s |
+| user data rate | 35.965 Mb/s |
+
+Against that, what a preset actually needs is: the start radius the disc really uses, the pitch
+(0.32 um, to confirm rather than to discover), and how much of the spiral is written. The
+first and third are what `T^2` and the throughput measurement above give; the second comes
+along with them.
+
+## 8. What this would look like in `disc-probe`
+
+Three separable pieces, smallest first:
+
+1. **Say which law the drive is using before the ladder starts.** No new command is needed:
+   `info` already stores `perf_read_nominal`, so `geo --media bd` can refuse before the first
+   rung when its start and end are equal, and put both numbers in `summary.json`
+   (`rotation_check.start_kBps` / `.end_kBps`). That replaces a few seconds of ladder with a
+   decision made from data already on disk. It also explains the second-harmonic zones, whose
+   inner rate is 2x the outer: the existing `looks_clv` already refuses to call that CLV
+   (`CLV_RATIO_SLACK`), but nothing says *why* the run looked like that.
+2. **A CLV preset, timing only.** The `T^2` fit needs periods at three or more zones and one
+   anchor. With `--r0 24.0` (the standard) it can write a BD preset with `pitch` measured,
+   `inner radius` from the standard, and the last LBA from `info`. That preset is as good as
+   the standard's start radius, which is presumably what a BD preset needs anyway -- BD has no
+   fine calibration step the way CD does.
+3. **A throughput anchor**, so the fit does not need `--r0` at all: read a long run of sectors
+   with timestamps, divide bytes by time, and set `v`. This is the only piece that needs a
+   new measurement path in `timing.py` rather than arithmetic on what it already records.
+
+Nothing here asks `geo` to change its model, and nothing here touches the CD or DVD paths.
+
+## 9. What is not known
+
+- The community reports are second-hand. The discussion at
+  `JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107` renders BD reports as a table, but the
+  comment bodies could not be fetched (the API truncates them, `?page=2` does not work, and the
+  archive has no copy). `tests/data/bd_discussion_samples/discussion107_bd_reports.json`
+  records both reports as quoted, with a `honesty_note` saying so.
+- The 9705 rpm figure in the second report (ASUS BW-16D1H-U, OEM Pioneer BDR-209) is given as
+  "the inner and middle zones" in one place and "inside" in another, and the repo's
+  `KNOWLEDGE.md` reads it as 58 mm at 12x. All three cannot be right. It is left unverified.
+- No source gives the ZCLV partition map for BD-R at 6x or 8x. If a drive does run ZCLV, the
+  `T^2` line breaks into segments and the slope changes between them; the fit would show it as
+  a poor `R^2`. None of the runs here show that, because this drive only has 1.6x and 2.1x
+  CLV for the media at hand.
+- The pitch spread here (0.310-0.322 um, 4 %) is dominated by the 3-zone fits; more zones per
+  run would tighten it. It is not yet clear whether the remaining spread is the anchor, the
+  disc, or the period measurement.
+
+## 10. Reproducing
+
+```
+python -m discprobe timing --drive G: --media bd --speed 8990 --period-reads --max-minutes 10
+python tools/bd_clv_model_analysis.py tests/data/bd_discussion_samples/local_uj272_bd_zones.csv
+```
+
+The first writes `results/timing-*/summary.json`; the CSV is assembled from those with
+`setup.family == "bd"`. `--media bd` sets 32-sector blocks and READ(12), which is what the
+stored runs used.

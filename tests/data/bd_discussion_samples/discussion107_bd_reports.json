@@ -1,0 +1,140 @@
+{
+ "source": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107",
+ "extracted_utc": "2026-11-07T17:29:00Z",
+ "honesty_note": "Comment BODIES of #107 (52 comments / 161 replies) could not be fetched: GitHub's server-rendered HTML was truncated by the fetch tool and ?page=2 returned page 1 again. Every BD number below therefore comes from one of: (1) the #107 body's maintained drive table (fetched), (2) README.md drive table rows that cite the specific comment permalink (read from the local clone of Ashley-QwQ/disc-probe), (3) docs/KNOWLEDGE.md narrative, (4) local results/*/summary.json timing runs. Values not directly quoted from a fetched page are marked confidence accordingly.",
+ "reports": [
+  {
+   "id": "BD-01",
+   "author": "domerawind",
+   "permalink": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19440933",
+   "permalink_note": "Permalink taken from README.md:269 (zh) / README.en.md:269 (en). The comment body itself was NOT retrievable (see honesty_note).",
+   "drive": {
+    "model": "MATSHITA BD-MLT UJ272",
+    "firmware": "1.02",
+    "iface": "USB 2.0 adapter",
+    "host_os": "Windows",
+    "confidence": "high (drive+fw from README table row header)"
+   },
+   "disc": {
+    "type_stated": "BD-R",
+    "mid": "RITEK (000)",
+    "quirks": "drive reports the disc as BD-ROM (profile 0x0040) although it is BD-R",
+    "capacity": "not stated in the retrieved text",
+    "confidence": "high for MID/profile quirk; capacity unverified"
+   },
+   "read_path": {
+    "command": "READ(12), method 'read12'",
+    "fua": true,
+    "block_sectors": 32,
+    "source": "local results/timing-G-*/summary.json setup.read_method='read12', setup.block_sectors=32, cache.strategy='fua'"
+   },
+   "requested_speed": {
+    "measured_values": [
+     "default (no --speed)",
+     "3324",
+     "8990",
+     "26974"
+    ],
+    "unit": "kB/s (MMC SET CD SPEED 0xBB request); BD 1x = 4495 kB/s",
+    "effect": "no request produced CAV; --cav flag had no effect",
+    "quote_en": "On BD-R (MID `RITEK (000)`, reported as BD-ROM) it reads at constant linear velocity, so `timing` finds no CAV: about 1.6x by default or at 3324, about 2.1x at 8990 and 26974, and `--cav` has no effect.",
+    "quote_zh": "读 BD-R（MID `RITEK (000)`，光驱报成 BD-ROM）是恒定线速度，`timing` 判不成 CAV：默认和 3324 约 1.6x，8990 和 26974 约 2.1x，`--cav` 没有作用。",
+    "quote_source": "README.md:269 / README.en.md:269, which cite permalink 19440933"
+   },
+   "rotation_mode_reported": "CLV (constant linear velocity); explicitly 'timing 判不成 CAV'",
+   "spindle": {
+    "values_stated_in_discussion_text": "none (no rpm value appears in any fetched text for this drive)",
+    "derived_from_local_runs": "see repo_internal_bd_runs: 2.1x CLV zones ~= 10.34 m/s linear; 1.6x runs ~= 7.90 m/s",
+    "confidence": "no rpm figure quotable from the discussion"
+   },
+   "transfer_rate": {
+    "stated": "about 1.6x BD with default and 3324; about 2.1x with 8990 and 26974",
+    "independent_check": "Local results reproduce both multiples: outer-zone linear speed 2*pi*r/T gives 7.90 m/s (1.61x of 4.917 m/s) at 3324/default and 10.36 m/s (2.11x) at 8990/11162/26974, over three different discs (BD-ROM-profile and BD-RE).",
+    "confidence": "high (quote + local numeric agreement)"
+   },
+   "geo_outcome": "none reported. `geo` was not attempted on BD by this author; only `timing`.",
+   "why_bd_fails_stated": "rotation is CLV, not CAV, so read-completion timing cannot be converted to angle. The tool's own verdict text: 'The Blu-ray drives reported so far kept a constant linear speed whatever was asked, so another speed may not change this.'",
+   "open_questions": [
+    "Whether 1.6x is a firmware cap triggered by the 3324 request or a separate speed step.",
+    "Whether the inner-zone 2x period anomaly (see repo runs 211921/211950) is a harmonic lock or a real ZCLV zone."
+   ],
+   "confidence_overall": "medium-high: numbers are second-hand (README quoting the comment) but independently reproduced by the repo's own summary.json files."
+  },
+  {
+   "id": "BD-02",
+   "author": "bczhc",
+   "permalink": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19441086",
+   "permalink_note": "Permalink from README.md:272 (BD-R CLV at --speed 5540). The comment body itself was NOT retrievable.",
+   "drive": {
+    "model": "ASUS BW-16D1H-U",
+    "firmware": "E116",
+    "iface": "USB 3.0 external; /dev/sr1 under Linux",
+    "oem_claim": "Pioneer BDR-209 per teardown posts (INQUIRY returns only ASUS/BW-16D1H-U/E116; VPD pages 0x80/0x83/0x86 all fail 5/24/00, 5/36/00)",
+    "confidence": "high for model/fw; OEM is third-party claim, not SCSI-readable"
+   },
+   "disc": {
+    "type_stated": "BD-R",
+    "brand": "not stated in retrieved text",
+    "capacity": "not stated",
+    "confidence": "unverified"
+   },
+   "read_path": {
+    "command": "not stated for the BD-R case in retrieved text; the DVD-RW work in the same gist used READ(12)/read12 with FUA",
+    "fua": "fua (drive-level cache strategy 'fua' per the #107 body table)",
+    "block_sectors": "not stated for BD"
+   },
+   "requested_speed": {
+    "values": [
+     "default",
+     "5540"
+    ],
+    "note": "5540 kB/s = 1.23x BD; SET CD SPEED accepted but the drive ignores it (verified extensively on DVD-RW in the same gist)",
+    "quote_en": "On BD-R, asking for 5540 gives constant linear velocity, about 2x.",
+    "quote_zh": "BD-R 请求 5540 时是恒定线速度，约 2x。",
+    "quote_source": "README.md:272 / README.en.md:272 citing permalink 19441086"
+   },
+   "rotation_mode_reported": "mixed on the first run; CLV when 5540 was requested",
+   "spindle": {
+    "quote_en_body_107": "BD-R: about 9705 rpm inside, 1655 rpm at the outer zone, unstable on the first run",
+    "quote_en_readme": "BD-R: about 9705 rpm at inner and middle zones, about 1655 rpm at the outer zone, unstable on the first run, judged mixed",
+    "quote_zh": "BD-R：内、中圈约 9705 rpm，外圈约 1655 rpm，第一次运行不稳，判为 mixed",
+    "wording_drift": "the #107 body says only 'inside' (内圈); README later says 'inner and middle zones' (内、中圈). The 'middle' qualifier is a README refinement, not body text.",
+    "zones": [
+     {
+      "zone": "inner + middle",
+      "rpm": 9705,
+      "radius_mm": "not stated for this reading"
+     },
+     {
+      "zone": "outer",
+      "rpm": 1655,
+      "radius_mm": "not stated"
+     }
+    ],
+    "conflict": "docs/KNOWLEDGE.md:233 reads the same 9705 rpm as 'equals 12x at 58 mm (9714 rpm)'; README/body say 9705 rpm belongs to the INNER and MIDDLE zones. If 9705 rpm is at r=26 mm, the linear speed is 26.4 m/s ~= 5.4x; if at 58 mm it is 58.9 m/s ~= 12x. Which radius the 9705 was observed at is UNRESOLVED.",
+    "confidence": "rpm values are quoted; their radius attribution is contradictory across two in-repo sources"
+   },
+   "transfer_rate": {
+    "stated": "about 2x with --speed 5540",
+    "consistency": "1655 rpm at r=56.8 mm gives 9.84 m/s ~= 2.0x of 4.917 m/s, matching the quoted 'about 2x'. 9705 rpm does not correspond to 2x at any radius inside the disc, so the 9705 must be either an inner ZCLV zone at much higher linear speed or a mis-attributed reading.",
+    "confidence": "medium (derived arithmetic, not stated)"
+   },
+   "geo_outcome": {
+    "statement": "`geo` runs to completion on this drive but the result must not be used for burning.",
+    "numbers_zh": "和 #53 同一批盘的几何比，27–54 mm 有约 9.5° 峰峰的偏差（外圈 54 mm 处 +7.7°），和 50 mm 以外约 0.2 ms 的完成时刻跳变吻合",
+    "numbers_en": "off by about 9.5 deg peak to peak over 27 to 54 mm (+7.7 deg at 54 mm), fitting a completion-time jump of about 0.2 ms past 50 mm",
+    "rms_from_KNOWLEDGE": "docs/KNOWLEDGE.md:233 records the fit against the reference geometry as rms 3.5 deg, with points 27 mm +6.6, 30 mm +2.0, 35 mm -1.7, 40 mm -1.8, 50 mm +3.9, 54 mm +7.7 deg (44.6 mm zero point)",
+    "disc": "the 9.5 deg figure is for DVD-R, not BD-R",
+    "confidence": "high that these are DVD numbers; no BD geo result exists anywhere"
+   },
+   "jitter": {
+    "quote_en": "about 200 us at every speed (DVD 10 to 14 deg, BD-R 2 to 15 deg)",
+    "quote_zh": "约 200 µs，不随转速变（DVD 10–14°，BD-R 2–15°）",
+    "note": "jitter is roughly constant in TIME (200 us), so the angular figure varies with rpm; KNOWLEDGE.md:233 concludes the noise is time-based (drive or USB bridge), not angle-based"
+   },
+   "why_bd_fails_stated": "The drive ignores SET CD SPEED (0xBB returns OK but rpm does not change for DVD-RW at 5540/2770/1385), rejects SET STREAMING (0xB6) with sense 5/24/00 'Invalid field in CDB' across many descriptor variants, and its Pioneer vendor Quiet-Mode/Speed-Limit commands are readable and writable yet change no rpm. Read speed is therefore fixed by firmware per disc type, and on BD-R the resulting mode is CLV/mixed rather than CAV.",
+   "supporting_doc": "https://gist.github.com/bczhc/0323c1762b0d47a46b59159a83353703 (fetched in full; DVD-RW-focused, explains the BD speed-control dead end)",
+   "confidence_overall": "medium: rpm and 'about 2x' are quoted second-hand with a permalink, but the zone attribution conflicts with KNOWLEDGE.md and the comment body was not readable."
+  }
+ ]
+}

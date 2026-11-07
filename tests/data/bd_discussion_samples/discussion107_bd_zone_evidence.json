@@ -1,0 +1,22 @@
+{
+ "source": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107",
+ "note": "zones, not curves: no source gives a full transfer-rate curve, only per-point readings",
+ "evidence": [
+  {
+   "what": "BW-16D1H-U BD-R zone rpm split",
+   "zones": "inner+middle ~9705 rpm, outer ~1655 rpm",
+   "implied_boundary": "between 'middle' and 'outer'; no radius or LBA stated",
+   "implied_zone_change_radius_other_evidence": "README.md:272 ties a ~0.2 ms read-completion jump 'past 50 mm' to this drive's geometry error; that is the only radius hint for a speed change.",
+   "confidence": "boundary radius unverified"
+  },
+  {
+   "what": "no explicit ZCLV/PCAV zone table for BD media exists in any retrieved source",
+   "result": "No source gives BD zone count, zone start radii or zone start LBAs. Confirmed absence, not a gap in my reading: README, MANUAL, KNOWLEDGE and #107's table contain no such table.",
+   "confidence": "high (absence)"
+  },
+  {
+   "what": "the only BD speed numbers with LBA attached are repo-internal (see repo_internal_bd_runs)",
+   "result": "Three sampling fractions (0.05 / 0.50 / 0.95 of last LBA) give rpm at three LBAs per run; enough to bracket, not to locate, a zone boundary."
+  }
+ ]
+}
