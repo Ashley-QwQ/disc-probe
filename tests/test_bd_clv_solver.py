@@ -227,6 +227,26 @@ def test_a_clean_line_reports_no_break_and_says_how_far_it_reached_in():
     assert 1.5 < fit.r0_extrapolated_mm < 3.0, fit.r0_extrapolated_mm
 
 
+def test_an_offset_the_data_cannot_see_is_left_out():
+    import random
+    rng = random.Random(5)
+    zones = [clv.Sample(lba=s.lba, period_ms=s.period_ms + rng.gauss(0.0, 0.02), coherence=1.0)
+             for s in _zones()]
+    fit = clv.fit_t2(zones, sector_mm=clv.NOMINAL["bd"].sector_mm, pitch_um=0.32, fit_offset=True)
+    assert fit.offset_fitted_ms is not None and fit.sigma_offset_ms is not None
+    assert abs(fit.offset_fitted_ms) < 3 * fit.sigma_offset_ms, (fit.offset_fitted_ms, fit.sigma_offset_ms)
+    assert fit.offset_ms == 0.0, fit.offset_ms
+    plain = clv.fit_t2(zones, sector_mm=clv.NOMINAL["bd"].sector_mm, pitch_um=0.32)
+    assert abs(fit.r0_mm - plain.r0_mm) < 0.002, (fit.r0_mm, plain.r0_mm)
+
+
+def test_an_offset_the_data_can_see_is_taken_out():
+    shifted = [clv.Sample(lba=s.lba, period_ms=s.period_ms + 1.0, coherence=1.0) for s in _zones()]
+    fit = clv.fit_t2(shifted, sector_mm=clv.NOMINAL["bd"].sector_mm, pitch_um=0.32, fit_offset=True)
+    assert abs(fit.offset_ms - 1.0) < 0.01, fit.offset_ms
+    assert abs(fit.r0_mm - 24.66) < 0.05, fit.r0_mm
+
+
 def test_cli_reports_the_rotation_before_measuring():
     with tempfile.TemporaryDirectory() as out:
         proc = subprocess.run([sys.executable, "-m", "discprobe", "timing", "--sim", "clv", "--media", "bd",

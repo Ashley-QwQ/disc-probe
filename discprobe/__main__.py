@@ -301,11 +301,18 @@ def _geo_clv(args):
                   .format(a=f"{extrapolated:.2f}", b=f"{res['r_first_mm']:.2f}"))
         if res.get("offset_ms") is not None:
             sig = res.get("sigma_offset_ms")
-            print(i18n.tr("period offset {a} us (1 sigma {b} us): the fit already took it out of r0")
-                  .format(a=f"{res['offset_ms'] * 1000:+.1f}",
-                          b="?" if sig is None else f"{sig * 1000:.1f}")
-                  if sig is not None else
-                  i18n.tr("period offset {a} us: the fit already took it out of r0").format(a=f"{res['offset_ms'] * 1000:+.1f}"))
+            fitted = res.get("offset_fitted_ms")
+            if fitted is not None and not res.get("offset_ms"):
+                print(i18n.tr("period offset: {a} us (1 sigma {b} us), which the data cannot tell from zero, "
+                              "so the fit left it out and r0 is the plain answer")
+                      .format(a=f"{fitted * 1000:+.1f}", b="?" if sig is None else f"{sig * 1000:.1f}"))
+            else:
+                print(i18n.tr("period offset {a} us (1 sigma {b} us): the fit already took it out of r0")
+                      .format(a=f"{res['offset_ms'] * 1000:+.1f}",
+                              b="?" if sig is None else f"{sig * 1000:.1f}")
+                      if sig is not None else
+                      i18n.tr("period offset {a} us: the fit already took it out of r0")
+                      .format(a=f"{res['offset_ms'] * 1000:+.1f}"))
         print(i18n.tr("zones.csv, summary.json: {a}").format(a=os.path.abspath(out)))
         if res.get("v_m_s_anchor") is None:          # pitch was the anchor, so pitch is still nominal
             print(i18n.tr("Pass --linear-mm-s to trade that anchor for a pitch: without it the pitch is nominal "
@@ -872,10 +879,16 @@ def _disexport_bd(args):
     print(f"constant pitch {derived['pitch_um']:.4f} um at {fit['v_m_s']:.3f} m/s, R^2 {fit['r2']:.6f} over "
           f"{fit['zones_used']} zones; DiscImageStudio solves the pitch from the three numbers above")
     if fit.get("offset_ms") is not None:
-        moved = fit["v_m_s"] * abs(fit["offset_ms"]) / (2 * 3.141592653589793)
-        print(f"This run fitted a free period offset of {fit['offset_ms'] * 1e3:+.0f} us, which moves the radius "
-              f"of sector 0 outwards by {moved:.3f} mm: the offset and the starting radius are nearly one "
-              "parameter, so the inner radius is only as good as that fit.")
+        if fit["offset_ms"]:
+            moved = fit["v_m_s"] * abs(fit["offset_ms"]) / (2 * 3.141592653589793)
+            print(f"This run fitted a free period offset of {fit['offset_ms'] * 1e3:+.0f} us, which moves the radius "
+                  f"of sector 0 outwards by {moved:.3f} mm: the offset and the starting radius are nearly one "
+                  "parameter, so the inner radius is only as good as that fit.")
+        elif fit.get("offset_fitted_ms") is not None:
+            sigma = fit.get("sigma_offset_ms")
+            print(f"A free period offset was also fitted ({fit['offset_fitted_ms'] * 1e3:+.0f} us"
+                  + (f", 1 sigma {sigma * 1e3:.0f} us" if sigma is not None else "")
+                  + "), but the data cannot tell it from zero, so it was left out of the radius.")
     if args.sectors < bdexport.BD_SECTORS_PER_LAYER and preset["innerRadiusMm"] > 24.2:
         short = bdexport.BD_SECTORS_PER_LAYER - args.sectors
         print(f"The disc holds {args.sectors} sectors, {short} fewer than a full layer, so sector 0 sits "

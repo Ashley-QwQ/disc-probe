@@ -397,6 +397,12 @@ The three early attempts (`bdreal`, `bdreal3`, `bdreal4`) had been read as CLV r
 step twice instead of rising -- rather than reporting a wrong radius with a small-looking sigma.
 The 24-zone run is the one worth quoting: 24.6735 +/- 0.012 mm at 2.11x.
 
+**An offset the data cannot see is now left out.** That same run fits a free period offset of
+-194 +/- 85 us, which is 2.3 sigma: not a detection, and yet subtracting it would have moved the
+radius of sector 0 outwards by 0.4 mm. The fit keeps the offset only when it is worth three
+sigma, reports the fitted value and its sigma either way, and says which it did; with the offset
+out the answer is 24.6646 mm, which is what the same zones give without asking for one.
+
 ## 13. Writing the preset DiscImageStudio actually wants
 
 A Blu-ray preset in DiscImageStudio is not the angular `u`/`v` pair a DVD or CD preset is. It is

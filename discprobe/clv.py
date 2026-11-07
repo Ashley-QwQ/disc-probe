@@ -80,6 +80,7 @@ class ClvFit:
     sigma_v_m_s: float | None = None
     offset_ms: float | None = None
     sigma_offset_ms: float | None = None
+    offset_fitted_ms: float | None = None
     r_first_mm: float | None = None
     r0_extrapolated_mm: float | None = None
     break_fit: dict | None = None
@@ -113,6 +114,7 @@ class ClvFit:
             out["v_m_s_anchor"] = self.v_m_s_anchor
         if self.offset_ms is not None:
             out["offset_ms"] = round(self.offset_ms, 6)
+            out["offset_fitted_ms"] = None if self.offset_fitted_ms is None else round(self.offset_fitted_ms, 6)
             out["sigma_offset_ms"] = None if self.sigma_offset_ms is None else round(self.sigma_offset_ms, 6)
         return out
 
@@ -276,14 +278,20 @@ def fit_t2(samples, *, sector_mm: float, pitch_um: float | None = None, v_m_s: f
     a, b = np.polyfit(x[keep], y[keep], 1)
     t = np.array([s.period_ms for s in pts], dtype=np.float64)
     a, b = _period_fit(x[keep], t[keep], a, b)[:2]
-    offset = sigma_offset = None
+    offset = sigma_offset = offset_fitted = None
     if fit_offset:
         if int(keep.sum()) < 5:
             raise ValueError(f"fitting the offset needs at least five zones; this run has "
                              f"{int(keep.sum())} (three parameters against that many points leaves nothing to check)")
-        offset, sigma_offset = _offset_fit(x[keep], t[keep], a, b)
+        offset_fitted, sigma_offset = _offset_fit(x[keep], t[keep], a, b)
+        offset = offset_fitted
+        if sigma_offset is None or abs(offset_fitted) < 3.0 * sigma_offset:
+            # An offset the data cannot tell from zero still moves r0 by eps*v/(2*pi), which on a
+            # Blu-ray is 0.4 mm for 0.25 ms: a thousand times the radius it is standing next to.
+            # Leave it out unless it is worth three sigma, and say which happened.
+            offset = 0.0
         y = (t - offset) ** 2
-        a, b = np.polyfit(x[keep], y[keep], 1)
+        a, b = _period_fit(x[keep], t[keep] - offset, a, b)[:2]
     pred = a * x[keep] + b
     ss_res = float(((y[keep] - pred) ** 2).sum())
     ss_tot = float(((y[keep] - y[keep].mean()) ** 2).sum())
@@ -336,7 +344,7 @@ def fit_t2(samples, *, sector_mm: float, pitch_um: float | None = None, v_m_s: f
                   r2=r2, n=int(keep.sum()), anchor=anchor,
                   pitch_um_anchor=pitch_um, v_m_s_anchor=v_m_s,
                   sigma_r0_mm=r0_sigma, sigma_pitch_um=pitch_sigma, sigma_v_m_s=v_sigma,
-                  offset_ms=offset, sigma_offset_ms=sigma_offset,
+                  offset_ms=offset, sigma_offset_ms=sigma_offset, offset_fitted_ms=offset_fitted,
                   r_first_mm=r_first, r0_extrapolated_mm=max(0.0, r_first - r0),
                   break_fit=break_fit,
                   dropped=tuple(int(i) for i in np.nonzero(~keep)[0]),
@@ -344,14 +352,15 @@ def fit_t2(samples, *, sector_mm: float, pitch_um: float | None = None, v_m_s: f
 
 
 def fit_from_summary(summary: dict, *, media: str = "bd", pitch_um: float | None = None,
-                     v_m_s: float | None = None) -> ClvFit:
+                     v_m_s: float | None = None, fit_offset: bool = False) -> ClvFit:
     """Re-fit a finished `timing` run: its summary.json already holds one period per zone."""
     zones = (summary.get("period") or {}).get("zones") or []
     samples = [Sample(lba=int(z["lba"]), period_ms=float(z["period_ms"]), coherence=float(z.get("coherence", 1.0)),
                       fraction=z.get("fraction")) for z in zones if z.get("period_ms")]
     if len(samples) < 2:
         raise ValueError("this run has no zones with a period (was it stopped before the period test?)")
-    return fit_t2(samples, sector_mm=NOMINAL[media].sector_mm, pitch_um=pitch_um, v_m_s=v_m_s)
+    return fit_t2(samples, sector_mm=NOMINAL[media].sector_mm, pitch_um=pitch_um, v_m_s=v_m_s,
+                  fit_offset=fit_offset)
 
 
 def classify_rotation(perf: dict, *, media: str = "bd", r_inner_mm: float = 24.0,
