@@ -43,6 +43,7 @@ BURN_WARNING = "Careful: burning a DVD+R, DVD-R or CD-R cannot be undone; only R
 WARNING_FLASHES = 4
 WARNING_FLASH_S = 0.5       # one flash a second, slow enough to read and well under what can trouble people sensitive to flashing
 STYLES = {"bold": "1", "dim": "2", "red": "31", "green": "32", "yellow": "33", "cyan": "36", "flash": "1;36", "warning": "1;31"}
+DVD_ACCENT_HUE = 0.9        # the middle of the DVD title's colours
 PERCENT_FLASH_S = 0.4
 BAR_WIDTH = 20
 ANIMATED_FPS = 8.0
@@ -95,6 +96,27 @@ def _isatty(stream) -> bool:
         return False
 
 
+_media = "cd"
+
+
+def use_media(media: str) -> str:
+    """Which disc the commands and highlights are coloured for: a CD cyan, a DVD violet. Says what it was before."""
+    global _media
+    before, _media = _media, media
+    return before
+
+
+def _code(name: str, t: "Term") -> str:
+    """A style's colour code. Plain magenta is too dark on some themes, so a DVD without true colour gets the bright one."""
+    if _media == "dvd" and name in ("cyan", "flash"):
+        bold = "1;" if name == "flash" else ""
+        if t.truecolor:
+            r, g, b = oklch(0.74, 0.15, DVD_ACCENT_HUE)
+            return f"{bold}38;2;{r};{g};{b}"
+        return f"{bold}95"
+    return STYLES[name]
+
+
 class Term:
     """What this output stream can do. `interactive` gates every extra line we print."""
 
@@ -125,7 +147,7 @@ class Term:
         self.taskbar = self.ansi and (modern or env.get("ConEmuANSI") == "ON")
 
     def style(self, text: str, name: str) -> str:
-        return f"\x1b[{STYLES[name]}m{text}\x1b[0m" if self.color else text
+        return f"\x1b[{_code(name, self)}m{text}\x1b[0m" if self.color else text
 
     def can_prompt(self) -> bool:
         return self.interactive and _isatty(sys.stdin)
@@ -247,7 +269,7 @@ def sweep(text: str, now: float, t: Term, base: str | None = None) -> str:
         return t.style(text, base) if base else text
     columns = display_width(text)
     position = (now % SWEEP_S) / SWEEP_S * (columns + 2 * SWEEP_REACH) - SWEEP_REACH
-    rest = STYLES[base] if base else ""
+    rest = _code(base, t) if base else ""
     cells, column = [], 0
     for ch in text:
         light = max(0.0, 1 - abs(column - position) / SWEEP_REACH)
@@ -256,7 +278,7 @@ def sweep(text: str, now: float, t: Term, base: str | None = None) -> str:
         elif t.truecolor:
             code = _rainbow((column // 2) * 2 / max(columns, 1) * 0.7 + now * 0.08, 0.45 + 0.45 * round(light * 2) / 2)
         else:
-            code = "1;36" if light > 0.45 else rest
+            code = _code("flash", t) if light > 0.45 else rest
         cells.append((code, ch))
         column += display_width(ch)
     return _paint_runs(cells)
@@ -282,7 +304,7 @@ def command(line: str, t: Term | None = None) -> str:
     if not match:
         return t.style(line, "cyan")
     head, name, rest = match.groups()
-    return t.style(head, "dim") + (f"\x1b[1;36m{name}\x1b[0m" if name else "") + re.sub(r"--[\w-]+", lambda m: t.style(m[0], "cyan"), rest)
+    return t.style(head, "dim") + (t.style(name, "flash") if name else "") + re.sub(r"--[\w-]+", lambda m: t.style(m[0], "cyan"), rest)
 
 
 def guide_line(line: str, t: Term | None = None) -> str:

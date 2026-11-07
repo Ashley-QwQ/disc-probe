@@ -751,12 +751,21 @@ def cmd_selftest(args):
 
 
 def cmd_guide(args):
+    before = ui.use_media("dvd")
+    try:
+        _guide(args)
+    finally:
+        ui.use_media(before)
+
+
+def _guide(args):
     from . import greetings
     from .banner import show
     media = getattr(args, "guide_media", None)
     if media is None:   # carry on with what was measured last
         newest = next((r for r in guide.scan() if not r.simulated and r.kind in ("timing", "geo")), None)
         media = newest.media if newest else "dvd"
+    ui.use_media(media)
     lines = guide.guide_lines(media, notes=ui.term().interactive)
     steps = [line for line in lines if line.startswith(("  [x]", "  [ ]"))]
     # The last step is the person's own burn, which the program can't see, so a disc can be fully dyed without it.
@@ -1276,6 +1285,9 @@ def main(argv=None):
     except ValueError as e:
         sys.exit(str(e))
     i18n.setup(flag, ui.term())
+    before = None
+    if rest[:1] != ["selftest"]:    # the checks read the colours they were written against
+        before = ui.use_media("cd" if "cd" in (rest[i + 1] for i, a in enumerate(rest[:-1]) if a == "--media") or "--media=cd" in rest else "dvd")
     if "--no-animation" in rest:    # like --lang, it never reaches summary.json
         rest = [a for a in rest if a != "--no-animation"]
         ui.term().animate = False
@@ -1298,6 +1310,9 @@ def main(argv=None):
                  f"Install what disc-probe uses with: {guide.INSTALL}")
     except OSError as e:
         sys.exit(_os_error(e))
+    finally:
+        if before:
+            ui.use_media(before)
 
 
 if __name__ == "__main__":

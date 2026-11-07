@@ -236,6 +236,12 @@ def _modern_terminal(c) -> None:
     line = "  python -m discprobe geo --drive H: --speed 8x"
     c.check(ANSI.sub("", ui.command(line, colour)) == line and "\x1b[1;36m geo\x1b[0m" in ui.command(line, colour), "a command to copy: the subcommand stands out, the text is untouched")
     c.check(ui.command(line, plain) == line, "no colour: as written")
+    before = ui.use_media("dvd")
+    c.check("\x1b[1;95m geo\x1b[0m" in ui.command(line, sixteen_for_accent := ui.Term(FakeTty(), env={"TERM": "xterm"}, platform="linux")) and "\x1b[36m" not in ui.command(line, sixteen_for_accent), "a DVD's commands are violet")
+    c.check("38;2" in ui.Term(FakeTty(), env={"TERM": "xterm", "COLORTERM": "truecolor"}, platform="linux").style("x", "cyan"), "in true colour, its own violet")
+    ui.use_media("cd")
+    c.check("\x1b[1;36m geo\x1b[0m" in ui.command(line, sixteen_for_accent), "a CD's stay cyan")
+    ui.use_media(before)
     c.check(ui.command("  python -m pip install numpy", colour) == "\x1b[36m  python -m pip install numpy\x1b[0m", "another command: all one colour")
     lines = [f"Where you are, for DVD (CD: {guide.PROG} guide --media cd):", "", "  [x] Python packages        numpy", "  [ ] Geometry (geo)         not run yet", "Next:", "  Make it:", line, "All commands: x"]
     for text in lines:
