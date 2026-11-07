@@ -139,8 +139,8 @@ the number of zones used is not the only record of what was thrown away.
 4. **Against the thirteen runs already in the tree** (three zones each, 39 zones): outer-zone speeds
    of 10.33-10.36 m/s against 10.39 m/s here, 0.3% apart, on the same drive at the same nominal speed.
 5. **All the runs together.** `tools/bd_pool.py` fits several runs of one disc for a single shared
-   `k = b/a = pL/(pi r0^2)`, letting each run keep its own intercept (its own speed). Eight runs from
-   this disc, 118 zones, give `r0 = 24.662 mm` with a formal 0.9 um -- but one at a time they range
+   `k = b/a = pL/(pi r0^2)`, letting each run keep its own intercept (its own speed). Nine runs from
+   this disc, 142 zones, give `r0 = 24.662 mm` with a formal 0.9 um -- but one at a time they range
    from 24.6475 to 24.7395 mm, a 92 um spread. That gap is the honest uncertainty: the pooled
    covariance assumes every zone is independent, while each run carries its own offset, and 92 um
    over 1.6x and 2.1x is what a per-run offset of a few tens of microseconds looks like. The pooled
