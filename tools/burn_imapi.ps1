@@ -16,6 +16,9 @@ While writing it prints a line every 30 s with an estimate from the write speed.
 is time only: IMAPI2's progress events would have to run inside the burn, and a burn can't be
 retried on the same disc, so this stays out of the way of the write.
 
+If Write fails, the script says whether that came before or after the time the data should have
+taken, and gives the error code. IMAPI2 often reports only E_FAIL, with no reason.
+
 Closing a CD needs some room beyond FreeSectorsOnMedia: on a 359,847-sector CD-R a 359,800-sector
 image was refused at the start of Write ("stream too large"), 359,600 sectors went through.
 #>
@@ -42,6 +45,21 @@ public static class IsoStream {
     }
 }
 "@
+
+function Write-BurnFailure($Failure, [double]$Seconds, [double]$EstimateSeconds, [string]$DriveName) {
+    # The picture may be on the disc already, so the bare COM error says too little and sounds too final.
+    $minutes = "{0:0.0} min" -f ($Seconds / 60)
+    if ($EstimateSeconds -gt 0 -and $Seconds -ge 0.95 * $EstimateSeconds) {
+        "The burn reported an error after $minutes, around or past the time the data should have taken."
+        "So the data has probably reached the disc and closing it failed. That is a likely reading, not something the drive reported."
+    } elseif ($EstimateSeconds -gt 0) {
+        "The burn failed partway, after $minutes of about {0:0.0} min: the disc holds only part of the image." -f ($EstimateSeconds / 60)
+    } else {
+        "The burn failed after $minutes."
+    }
+    "Error code 0x{0:X8}: {1}" -f $Failure.Exception.HResult, $Failure.Exception.Message
+    "To see what the disc holds: python -m discprobe info --drive $DriveName"
+}
 
 function Start-WriteHeartbeat([double]$EstimateSeconds, [int]$EverySeconds = 30) {
     # Write() blocks this thread, so another runspace does the talking. It touches no IMAPI2 object.
@@ -115,7 +133,12 @@ $t0 = Get-Date
 $estimate = if ($fmt.CurrentWriteSpeed -gt 0) { $sectors / $fmt.CurrentWriteSpeed } else { 0 }
 if ($estimate -gt 0) { "The drive does not report progress here. Estimate from the write speed: about {0:0} min." -f ($estimate / 60) }
 $beat = Start-WriteHeartbeat $estimate
-try { $fmt.Write($stream) } finally { $beat.Stop(); $beat.Dispose() }
+try {
+    try { $fmt.Write($stream) } finally { $beat.Stop(); $beat.Dispose() }
+} catch {
+    Write-BurnFailure $_ ((Get-Date) - $t0).TotalSeconds $estimate $Drive
+    exit 1
+}
 "Done in {0:0.0} min" -f ((Get-Date) - $t0).TotalMinutes
 $recorder.EjectMedia()
 $closed = $false
