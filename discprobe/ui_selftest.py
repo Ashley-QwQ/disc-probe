@@ -968,6 +968,50 @@ def _command_line(c) -> None:
         ui._term = real_term
 
 
+def _picture(c) -> None:
+    if importlib.util.find_spec("numpy") is None or importlib.util.find_spec("PIL") is None:
+        print("picture checks skipped (need numpy and pillow)")
+        return
+    import numpy as np
+    from PIL import Image
+    from . import imagedisc
+
+    def extent(design):
+        rows, cols = np.flatnonzero(design.any(axis=1)), np.flatnonzero(design.any(axis=0))
+        return int(rows[0]), int(rows[-1] - rows[0] + 1), int(cols[0]), int(cols[-1] - cols[0] + 1)
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "picture.png")
+        Image.fromarray((np.add.outer(np.arange(300), np.arange(300)) * 255 // 598).astype(np.uint8)).save(path)
+        with Image.open(path) as im:
+            before = np.asarray(im.convert("L").resize((5800, 5800)), dtype=np.float32) / 255 < 0.5
+        square = np.zeros((imagedisc.SIZE, imagedisc.SIZE), bool)
+        square[100:5900, 100:5900] = before
+        c.check(np.array_equal(imagedisc.picture_design(path), square), "a square picture comes out exactly as it did before")
+        Image.new("L", (300, 150), 0).save(path)
+        wide = imagedisc.picture_design(path)
+        c.check(extent(wide) == (1550, 2900, 100, 5800), "a wide dark picture keeps its shape, centred, with its long side on the diameter")
+        cleared = imagedisc.clear_inside(wide, 26.0)
+        c.check(extent(cleared) == extent(wide) and not cleared[3000, 3000], "and on CD it only loses the middle")
+        Image.new("L", (150, 300), 0).save(path)
+        c.check(extent(imagedisc.picture_design(path)) == (100, 5800, 1550, 2900), "a tall one too")
+        limit = Image.MAX_IMAGE_PIXELS
+        Image.MAX_IMAGE_PIXELS = 1000       # 300 x 150 is more than twice this, which is when Pillow refuses
+        try:
+            imagedisc.picture_design(path)
+            c.check(Image.MAX_IMAGE_PIXELS == 1000, "a picture above Pillow's size limit loads, and the limit stays for everything else")
+            try:
+                Image.open(path).close()
+                c.check(False, "other code still gets Pillow's refusal")
+            except Image.DecompressionBombError:
+                c.check(True, "other code still gets Pillow's refusal")
+            try:
+                imagedisc.picture_design(os.path.join(d, "missing.png"))
+            except OSError:
+                c.check(Image.MAX_IMAGE_PIXELS == 1000, "a picture that fails to load leaves the limit alone too")
+        finally:
+            Image.MAX_IMAGE_PIXELS = limit
+
+
 def _blu_ray(c) -> None:
     from argparse import Namespace
     from . import __main__ as cli
@@ -1005,25 +1049,28 @@ def _no_disc(c) -> None:
         """A drive that answers everything with the same Not Ready sense."""
         name = "SIM"
 
-        def __init__(self, asc):
-            self.sense = Sense(2, asc, 2 if asc == 0x3A else 1)
+        def __init__(self, asc, ascq=None):
+            self.sense = Sense(2, asc, ascq if ascq is not None else 2 if asc == 0x3A else 1)
 
         def execute(self, cdb, data_len=0, direction=1, timeout_s=30):
             return ScsiResult(2, b"", self.sense, 0, 1000)
 
-    c.check(mmc.not_ready(Sense(2, 0x3A, 2)) == mmc.NO_DISC and mmc.not_ready("2/3A/01") == mmc.NO_DISC, "sense 3A means no disc")
+    c.check(mmc.not_ready(Sense(2, 0x3A, 2)) == mmc.TRAY_OPEN and mmc.not_ready("2/3A/02") == mmc.TRAY_OPEN, "sense 3A/02 means the tray is open")
+    c.check(mmc.not_ready(Sense(2, 0x3A, 1)) == mmc.NOT_RECOGNISED and mmc.not_ready("2/3A/01") == mmc.NOT_RECOGNISED, "sense 3A/01 means the tray is closed and no disc was recognised")
+    c.check(mmc.not_ready(Sense(2, 0x3A, 0)) == mmc.NO_DISC and mmc.not_ready("2/3A/03") == mmc.NO_DISC, "other 3A answers say no disc, without guessing at the tray")
     c.check(mmc.not_ready(Sense(2, 0x04, 1)) == mmc.LOADING, "sense 04 means still loading")
     c.check(mmc.not_ready(None) is None and mmc.not_ready(Sense(2, 0x30, 0)) is None and mmc.not_ready(Sense(3, 0x3A, 0)) is None,
             "other answers are not taken for an empty tray")
     report = info.collect(Empty(0x3A))
     shown = info.summarize(report)
-    c.check(mmc.NO_DISC in shown and not any("unknown" in x or "3A" in x for x in shown), "info says there is no disc, once")
+    c.check(mmc.TRAY_OPEN in shown and not any("unknown" in x or "3A" in x for x in shown), "info says the tray is open, once")
+    c.check(mmc.NOT_RECOGNISED in info.summarize(info.collect(Empty(0x3A, 1))), "info says a closed tray has no disc it can read")
     args = Namespace(drive="H:", sim=None, media="cd", speed=1411, transport="auto", out="results")
     c.check(guide.after_info(args, report) == [], "info does not send an empty drive off to burn a disc")
-    c.check(guide.after_geo_stop(args, mmc.NO_DISC) == [] and guide.after_timing_stop(args, mmc.NO_DISC) == [], "no other advice on top of it")
+    c.check(all(guide.after_geo_stop(args, x) == [] and guide.after_timing_stop(args, x) == [] for x in mmc.NOT_READY), "no other advice on top of it")
     i18n.use("zh")
     try:
-        c.check(i18n.tr(mmc.NO_DISC) != mmc.NO_DISC and i18n.tr(mmc.LOADING) != mmc.LOADING, "both messages have Chinese")
+        c.check(all(i18n.tr(x) != x for x in mmc.NOT_READY), "all these messages have Chinese")
     finally:
         i18n.use("en")
 
@@ -1043,15 +1090,18 @@ def _no_disc(c) -> None:
         with tempfile.TemporaryDirectory() as d:
             cli._open = lambda args: Empty(0x3A)
             code, text = run("timing", "--sim", "cav", "--out", d)
-            c.check(code == 1 and mmc.NO_DISC in text and "burn a test disc" not in text, "timing on an open tray says so")
+            c.check(code == 1 and mmc.TRAY_OPEN in text and "burn a test disc" not in text, "timing on an open tray says so")
             if importlib.util.find_spec("numpy") is None or importlib.util.find_spec("scipy") is None:
                 print("CD and geo open-tray checks skipped (need numpy and scipy)")
             else:
                 code, text = run("timing", "--sim", "cav", "--media", "cd", "--out", d)
-                c.check(code == 1 and mmc.NO_DISC in text and "Mode 1" not in text, "timing --media cd on an open tray says so")
+                c.check(code == 1 and mmc.TRAY_OPEN in text and "Mode 1" not in text, "timing --media cd on an open tray says so")
                 for media in ("cd", "dvd"):
                     code, text = run("geo", "--sim", "cav", "--media", media, "--out", d)
-                    c.check(mmc.NO_DISC in text and "how noisy" not in text, f"geo --media {media} on an open tray says so")
+                    c.check(mmc.TRAY_OPEN in text and "how noisy" not in text, f"geo --media {media} on an open tray says so")
+            cli._open = lambda args: Empty(0x3A, 1)
+            code, text = run("timing", "--sim", "cav", "--out", d)
+            c.check(code == 1 and mmc.NOT_RECOGNISED in text and "burn a test disc" not in text, "timing on a disc the drive can't recognise says so")
             cli._open = lambda args: Empty(0x04)
             code, text = run("timing", "--sim", "cav", "--out", d)
             c.check(code == 1 and mmc.LOADING in text, "timing while the disc is loading says to wait")
@@ -1275,6 +1325,7 @@ def run(c) -> None:
     _missing_package(c)
     _plain_errors(c)
     _no_disc(c)
+    _picture(c)
     _blu_ray(c)
     _priority(c)
     _greetings(c)

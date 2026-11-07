@@ -436,7 +436,7 @@ def cmd_geo(args):
               f"python tools/geo_polyfit.py {out}")
     if ladder.targets and ladder.cov is not None:
         print(f"targets.csv, summary.json, events.csv: {os.path.abspath(out)}")
-    elif stopped not in (mmc.NO_DISC, mmc.LOADING):
+    elif stopped not in mmc.NOT_READY:
         print("no results written: it stopped before the first fit. Run `timing` to see how noisy this drive is.")
     if progress and res:
         ui.say(f"Finished in {ui.clock(ui.time.monotonic() - progress.started)}", "dim")
@@ -974,7 +974,7 @@ def _build_parser():
     sp.add_argument("--output", default="iso/grid.iso")
     sp.add_argument("--picture", help="greyscale picture to threshold instead of the grid test")
     sp.add_argument("--design-npy", help="prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view")
-    sp.add_argument("--diameter-mm", type=float, default=116.0, help="picture diameter on the disc")
+    sp.add_argument("--diameter-mm", type=float, default=116.0, help="the picture's longer side on the disc, in mm; it keeps its shape")
     sp.add_argument("--r-max", type=float, default=56.0, help="outer radius of the drawing")
     sp.add_argument("--line-mm", type=float, default=0.3, help="grid line width")
     sp.add_argument("--correction", help="angle-correction file (phi(r) measured on a burned grid)")

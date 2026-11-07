@@ -83,7 +83,7 @@ python -m discprobe results geo
 
 脚本里要路径的话，用 `results geo --latest`，它只打印一行文件夹路径。
 
-**`--sectors` 有三个意思。**`timing`、`geo` 里是每次读几个扇区，`16` 读一个完整的 DVD ECC 块（`geo` 只接受 1 或 16，CD 上只能是 1）。`random` 里是刻多少，要放得下。`disexport` 里是盘的容量，必须填，DiscImageStudio 里也要填同一个数，否则外半径会变，填多了还可能封盘失败。以前 DVD 不填时默认 2298496，比一些盘的实际容量大（[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19440415) 里的盘是 2295104），所以改成了不填就报错并给建议值。`info` 会在终端打印建议值，并说明来源：空白盘优先用剩余空间，CD 用 ATIP 的导出区起点，已刻录的盘用最后一个 LBA 加一（只有整张刻满时才等于空白盘的容量）。以空白盘上 `info` 的数为准。DiscImageStudio 的"从光盘读取"读到的数不同时，也以 `info` 为准：domerawind [报告](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19442161)它比实际能写的多（RITEKF1 2298496 对 2295104，mini DVD-R 714546 对 713936），照它填就封盘失败。这是一位用户、两种盘的报告，多出来的原因未知。
+**`--sectors` 有三个意思。**`timing`、`geo` 里是每次读几个扇区，`16` 读一个完整的 DVD ECC 块（`geo` 只接受 1 或 16，CD 上只能是 1）。`random` 里是刻多少，要放得下。`disexport` 里是盘的容量，必须填，DiscImageStudio 里也要填同一个数，否则外半径会变，填多了还可能封盘失败。以前 DVD 不填时默认 2298496，比一些盘的实际容量大（[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19440415) 里的盘是 2295104），所以改成了不填就报错并给建议值。`info` 会在终端打印建议值，并说明来源：空白盘优先用剩余空间，CD 用 ATIP 的导出区起点，已刻录的盘用最后一个 LBA 加一（只有整张刻满时才等于空白盘的容量）。以空白盘上 `info` 的数为准。DiscImageStudio 的"从光盘读取"读到的数不同时，也以 `info` 为准：domerawind [报告](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19442161)它比实际能写的多（RITEKF1 2298496 对 2297888，mini DVD-R 714546 对 713936），照它填就封盘失败。原因已经查明：DVD-R 上多出的 608 扇区是收尾要用的边界开销（TBO 592 加 BSGA 16），见 DIS 作者在 [#183](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/183#issuecomment-6691519009) 的说明，这个数不能推广到所有 DVD。按 2297888 重新拟合的预设[封盘正常](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/183#issuecomment-6690200194)（一张盘）。
 
 **`--speed` 怎么选。**可以写 kB/s，也可以写倍速，如 `4x`（`--media cd` 时按 CD 的 1x 换算）。低速通常噪声更小，但不是每台光驱都会换档，要看 `timing` 打印的转速。
 
@@ -95,7 +95,7 @@ python -m discprobe results geo
 
 **`--ranges` 怎么选。**默认的已刻录区 3%–85% 适合大多数盘，一般不用改。它接受 LBA 范围 `a-b,c-d`。`geo` 总在同一个 LBA 附近停下，或者外圈有换速跳变时，把那段排除；想覆盖更大的半径，可以加宽，前提是光驱读得干净（GP65NB60 上加宽后外圈误差消失）。最后一个 LBA 看 `info`。
 
-**CD 和 DVD。**步骤相同，每条命令加 `--media cd`，它同时把默认值换成 CD 的。终端里如果盘是 CD、命令却是 DVD 设置，会先问要不要加。托盘开着或光驱里没有盘时，`timing`、`geo`、`info` 都会直接说，管道里也一样。`disexport` 按 `--geo` 的结果决定预设类型，它的 `--media` 只用来核对。
+**CD 和 DVD。**步骤相同，每条命令加 `--media cd`，它同时把默认值换成 CD 的。终端里如果盘是 CD、命令却是 DVD 设置，会先问要不要加。托盘开着、光驱里没有盘或认不出盘时，`timing`、`geo`、`info` 都会直接说，管道里也一样。`disexport` 按 `--geo` 的结果决定预设类型，它的 `--media` 只用来核对。
 
 **Tab 补全。**运行一次下面这条命令，之后 `--sp` 按 Tab 就补成 `--speed`，`--media` 后按 Tab 列出 `dvd`、`cd`，`--geo` 后可以选 `latest`。
 
@@ -456,7 +456,7 @@ python -m discprobe geo --drive H:
 计时测得几何以后，可以直接按这套几何生成可刻录的 ISO（Windows 光盘映像刻录机就能刻），不需要拍照描点。作品照片见 [`showcase/`](showcase/README.md)。
 
 **刻图（`image`）：**
-- 默认生成网格测试图；`--picture` 用一张灰度图（阈值化）；`--design-npy` 用 6000 × 6000、每格 0.02 mm 的设计数组（数据面视角，y 朝上）。
+- 默认生成网格测试图；`--picture` 用一张灰度图（阈值化），长边对应 `--diameter-mm`（默认 116 mm）并保持比例，不足的地方留白；大图也能用，但比这个尺寸多出的细节会被缩掉；`--design-npy` 用 6000 × 6000、每格 0.02 mm 的设计数组（数据面视角，y 朝上）。
 - 布尔设计用 `--dark`、`--light` 两种纹理（建议 `A5` 和 `92`）。uint8 标签设计配合 `--textures`，按标签顺序给出每种纹理：单字节（`A5`）、按数据帧列定相位的重复序列（`8B00`）、随机数据（`RND`）或随机混合（`MIX:92,4F`）。
 - 例：
   ```bash
@@ -494,7 +494,7 @@ python -m discprobe random --media cd --output iso/cd-random.iso
 powershell -ExecutionPolicy Bypass -File tools/burn_imapi.ps1 -Drive H: -Iso iso/cd-random.iso -Speed 8 -Burn -Reload
 ```
 
-刻录时光驱不报进度，脚本每 30 秒打印一行已用时间和按写入速度估的剩余时间。刻完托盘会弹出，`-Reload` 只是再把它收回来，不会提前打开托盘；超薄光驱要自己推回去。托盘开着时跑 `timing` 只会报没有盘。
+刻录时光驱不报进度，脚本每 30 秒打印一行已用时间和按写入速度估的剩余时间。刻完托盘会弹出，`-Reload` 只是再把它收回来，不会提前打开托盘；超薄光驱要自己推回去。托盘开着时跑 `timing` 只会报托盘开着。
 
 **测量。**先刻随机数据盘，再计时。要用低转速：GH70N 在 `--speed 2822`（3226 rpm）下，49.8 mm 以外的完成时刻会晚约 0.2 ms，`--speed 1411`（约 2080 rpm）下没有这个现象。
 

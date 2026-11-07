@@ -111,14 +111,19 @@ BD_1X_KBPS = 4495
 
 NO_DISC = ("No disc in the drive, or the tray is open (burning ejects the disc when it finishes). "
            "Load the disc, wait a few seconds and run this again")
+TRAY_OPEN = ("The drive says its tray is open (burning ejects the disc when it finishes). "
+             "Load the disc, close the tray, wait a few seconds and run this again")
+NOT_RECOGNISED = ("The drive says its tray is closed, but it finds no disc. If one is in there, wait a few seconds and run this again. "
+                  "If it keeps saying this, the drive can't read that disc: check it sits flat, label up, and is clean, or try another disc")
 LOADING = "The drive is not ready yet, it may still be loading the disc. Wait a few seconds and run this again"
+NOT_READY = (NO_DISC, TRAY_OPEN, NOT_RECOGNISED, LOADING)
 
 
 def not_ready(sense) -> str | None:
     """What the person should know when TEST UNIT READY says no disc (2/3A) or still loading (2/04)."""
     text = str(sense or "")
     if text.startswith("2/3A/"):
-        return NO_DISC
+        return {"01": NOT_RECOGNISED, "02": TRAY_OPEN}.get(text[5:], NO_DISC)
     return LOADING if text.startswith("2/04/") else None
 
 

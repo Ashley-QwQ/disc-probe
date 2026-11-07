@@ -56,13 +56,24 @@ def grid_design(r_min=24.5, r_max=56.0, spacing=5.0, line=0.3) -> np.ndarray:
 
 
 def picture_design(path: str, diameter_mm: float = 116.0, threshold: float = 0.5) -> np.ndarray:
-    """A grey picture fitted to a circle of the given diameter, thresholded (dark = True)."""
+    """A grey picture fitted to a circle of the given diameter, thresholded (dark = True).
+
+    Its longer side spans the diameter and it keeps its shape; what it doesn't cover stays light.
+    """
     from PIL import Image
-    with Image.open(path) as im:
-        g = np.asarray(im.convert("L").resize((round(diameter_mm / CELL_MM),) * 2), dtype=np.float32) / 255
+    n = round(diameter_mm / CELL_MM)
+    limit = Image.MAX_IMAGE_PIXELS
+    Image.MAX_IMAGE_PIXELS = None       # Pillow's size limit guards against files from strangers; this one was chosen by hand
+    try:
+        with Image.open(path) as im:
+            longer = max(im.size)
+            size = tuple(max(1, round(n * side / longer)) for side in im.size)
+            g = np.asarray(im.convert("L").resize(size), dtype=np.float32) / 255
+    finally:
+        Image.MAX_IMAGE_PIXELS = limit
     out = np.zeros((SIZE, SIZE), bool)
-    o = (SIZE - g.shape[0]) // 2
-    out[o:o + g.shape[0], o:o + g.shape[1]] = g < threshold
+    y, x = (SIZE - g.shape[0]) // 2, (SIZE - g.shape[1]) // 2
+    out[y:y + g.shape[0], x:x + g.shape[1]] = g < threshold
     return out
 
 

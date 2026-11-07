@@ -266,6 +266,10 @@ TEXT = {
     "{e}. Optical drives here: {d}": "{e}。这台电脑的光驱：{d}",
     "No disc in the drive, or the tray is open (burning ejects the disc when it finishes). Load the disc, wait a few seconds and run this again":
         "光驱里没有盘，或者托盘开着（刻完盘托盘会弹出）。把盘放好，等几秒再运行一次",
+    "The drive says its tray is open (burning ejects the disc when it finishes). Load the disc, close the tray, wait a few seconds and run this again":
+        "光驱报告托盘开着（刻完盘托盘会弹出）。把盘放好，关上托盘，等几秒再运行一次",
+    "The drive says its tray is closed, but it finds no disc. If one is in there, wait a few seconds and run this again. If it keeps saying this, the drive can't read that disc: check it sits flat, label up, and is clean, or try another disc":
+        "光驱报告托盘已关，但认不出盘。如果放了盘，等几秒再运行一次。一直这样的话，就是光驱读不了这张盘：看看盘是否放平、标签面朝上、盘面是否干净，或者换一张盘",
     "The drive is not ready yet, it may still be loading the disc. Wait a few seconds and run this again": "光驱还没准备好，可能正在读入盘。等几秒再运行一次",
     "This is a CD, but the command has DVD settings. Add --media cd?": "这是 CD，但命令用的是 DVD 设置。要加上 --media cd 吗？",
     "Note: geo supports DVD and CD; on this BD only timing is known to work.": "提示：geo 支持 DVD 和 CD；这张 BD 目前只确认 timing 能用。",
@@ -476,7 +480,7 @@ TEXT = {
     "summary.json of a geo run, its folder, or latest": "geo 结果的 summary.json、它所在的文件夹，或 latest（最新一次）",
     "greyscale picture to threshold instead of the grid test": "用这张灰度图代替网格测试图",
     "prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view": "准备好的布尔图案（True 为深色），6000 x 6000 格，每格 0.02 mm，从数据面看",
-    "picture diameter on the disc": "图片在盘上的直径",
+    "the picture's longer side on the disc, in mm; it keeps its shape": "图片长边在盘上的长度（mm），保持比例",
     "outer radius of the drawing": "图案的外半径",
     "grid line width": "网格线宽",
     "angle-correction file (phi(r) measured on a burned grid)": "角度修正文件（在刻好的网格盘上测得）",
