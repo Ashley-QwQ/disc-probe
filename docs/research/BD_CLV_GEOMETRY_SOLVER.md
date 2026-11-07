@@ -156,6 +156,13 @@ the number of zones used is not the only record of what was thrown away.
 | the pitch anchor | `dp/p` maps to `dr0/r0 = dp/(2p)` | 10% wrong pitch is 1.2 mm at the inner radius, which is why the outer-edge check in section 7 is worth doing |
 | extrapolation | 6.2 mm from the innermost zone to LBA 0 | `r0_extrapolated_mm` says how far the answer is extrapolated; it comes from the curvature, not from a zone measured there |
 
+6. **DiscImageStudio's own inversion.** A Blu-ray preset carries inner radius, outer radius and a
+   sector count; DIS solves one constant pitch from them by bisecting the exact spiral arc length
+   (`BluRayTrackGeometry`, `Primitive`). Re-running that bisection on our three numbers
+   (24.6575 mm, 58.0180 mm, 12 088 320 sectors) returns `0.320000 um` -- the pitch we anchored on --
+   and the exact-arc-length correction to the area identity is 1e-6 relative, under a nanometre on
+   the pitch. The preset is self-consistent in the engine that will read it, not only in this fit.
+
 ## 9. Limits
 
 - Single layer only. A layer change is a jump in the LBA-to-radius map and no run here crosses one.
