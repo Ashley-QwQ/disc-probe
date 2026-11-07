@@ -3,7 +3,7 @@
   python evidence/eval_grid.py <phi.csv> [<phi.csv> ...]
 
 Aggregated curve exactly as in make_figures.py: per scan, rings with good peaks and
-within 1 deg of the scan median, 2 mm radial bins (a bin needs >= 3 rings), median per
+2 mm radial bins (a bin needs >= 3 rings), median per
 scan, median across scans, constant rotation removed. Reported: peak-to-peak, RMS, and
 the U component, i.e. the quadratic coefficient a of a fit a x^2 + b x + c with
 x = (r_bin - 40) / 14.3 (x spans about [-1, 1] over 25.8-54.4 mm), so |a| is the
@@ -28,8 +28,7 @@ def read_phi(path):
         rows = [r for r in csv.DictReader(f) if r["good"] == "1"]
     r = np.array([float(x["radius_mm"]) for x in rows])
     p = np.array([float(x["phi_rel_deg"]) for x in rows])
-    keep = np.abs(p - np.median(p)) < 1.0
-    return r[keep], p[keep]
+    return r, p
 
 
 def aggregate(curves, lo=25, hi=56, step=2.0):
@@ -44,17 +43,30 @@ def aggregate(curves, lo=25, hi=56, step=2.0):
 
 
 def evaluate(paths):
-    mids, curve = aggregate([read_phi(p) for p in paths])
+    curves = [read_phi(p) for p in paths]
+    mids, curve = aggregate(curves)
+    coverage = []
+    for a in np.arange(25, 55, 2.0):
+        counts = [int(((r >= a) & (r < a + 2)).sum()) for r, _ in curves]
+        coverage.append({"radius_mm": [float(a), float(a + 2)], "rings": counts,
+                         "scans": sum(n >= 3 for n in counts)})
+    complete = all(b["scans"] >= 1 for b in coverage)
+    ring_pp = max((float(np.ptp(p)) for _, p in curves if len(p)), default=float("inf"))
+    if len(mids) < 3:
+        return {"bins": len(mids), "pp": None, "rms": None, "u": None,
+                "ring_pp": ring_pp, "coverage": coverage, "status": "INCOMPLETE", "pass": False}
     centred = curve - curve.mean()
     x = (mids - 40.0) / 14.3
     a, b, c = np.polyfit(x, curve, 2)
     st = {"bins": len(mids), "pp": float(np.ptp(curve)), "rms": float(np.sqrt(np.mean(centred ** 2))),
-          "u": float(abs(a))}
-    st["pass"] = st["rms"] <= LIMITS["rms"] and st["pp"] <= LIMITS["pp"] and st["u"] <= LIMITS["u"]
+          "u": float(abs(a)), "ring_pp": ring_pp, "coverage": coverage}
+    ok = st["rms"] <= LIMITS["rms"] and st["pp"] <= LIMITS["pp"] and st["u"] <= LIMITS["u"] and ring_pp <= LIMITS["pp"]
+    st["status"] = "INCOMPLETE" if not complete else ("PASS" if ok else "FAIL")
+    st["pass"] = st["status"] == "PASS"
     return st
 
 
 if __name__ == "__main__":
     s = evaluate(sys.argv[1:])
     print(f"bins {s['bins']}, p-p {s['pp']:.3f} deg (<= {LIMITS['pp']}), rms {s['rms']:.3f} deg (<= {LIMITS['rms']}), "
-          f"U component {s['u']:.3f} deg (<= {LIMITS['u']}) -> {'PASS' if s['pass'] else 'FAIL'}")
+          f"U component {s['u']:.3f} deg (<= {LIMITS['u']}) -> {s['status']}")

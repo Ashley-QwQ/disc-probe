@@ -175,6 +175,30 @@ def _harmonics(c: Checker):
                 f"long period {period * 1000:.0f} ms and 17 degree phase")
 
 
+
+def _grid_acceptance(c: Checker):
+    print("grid acceptance coverage and deviations")
+    import csv
+    import importlib.util
+    import os
+    import tempfile
+    spec = importlib.util.spec_from_file_location("eval_grid", os.path.join("evidence", "eval_grid.py"))
+    ev = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ev)
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "rings.csv")
+        for name in ("outer", "band", "missing", "flat"):
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                w = csv.writer(f)
+                w.writerow(["radius_mm", "phi_rel_deg", "good"])
+                for i in range(300):
+                    r = 25.0 + (i + 0.5) / 10
+                    phi = 5.0 if name == "outer" and r >= 50 else 2.0 if name == "band" and 40 <= r < 41 else 0.0
+                    w.writerow([r, phi, int(name != "missing" or r < 31)])
+            result = ev.evaluate([path])
+            expected = {"outer": "FAIL", "band": "FAIL", "missing": "INCOMPLETE", "flat": "PASS"}[name]
+            c.check(result["status"] == expected, f"{name} grid: {result['status']}")
+
 def _pitch_fit(c: Checker):
     print("pitch model numerical fit")
     import numpy as np
@@ -946,6 +970,7 @@ def _run() -> bool:
         print("ladder check skipped (needs numpy)")
     else:
         _pitch_fit(c)
+        _grid_acceptance(c)
         _ladder(c)
         _ladder_abort(c)
         _ladder_cd_audio(c)
