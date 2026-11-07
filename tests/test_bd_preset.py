@@ -118,10 +118,28 @@ def test_the_document_is_what_the_import_reader_reads():
 
 
 def test_the_catalog_entry_has_no_field_the_catalog_does_not_store():
-    """`BluRayPresetStore.Entry` is (id, displayName, parameters, invertMapping); a description there
-    would be dropped on the next save and read as noise."""
+    """`disc-presets.json` keeps a flat Blu-ray record: the five geometry fields and a polarity.
+    A nested `parameters` object or a `layerCount` there would be dropped when DiscImageStudio
+    saves the file, and the entry has to be one DiscImageStudio will load as it stands."""
     entry = bdexport.catalog_entry(bdexport.preset(FIT, SECTORS, "discprobe-bd-re", "BD-RE", "test"))
-    assert set(entry) == {"id", "displayName", "parameters", "invertMapping"}
+    assert set(entry) == {"id", "displayName", "description", "totalSectors", "innerRadiusMm",
+                          "outerRadiusMm", "invertMapping", "usableSectors"}
+    assert "parameters" not in entry and "layerCount" not in entry
+
+
+def test_a_preset_leaves_one_recording_unit_for_the_lead_out():
+    """A project that fills every sector asks the burner to overburn by 2 KB, because the lead-out
+    has to go somewhere inside the disc. The margin is one recording unit and costs 0.02 mm."""
+    params = bdexport.parameters(FIT, SECTORS)
+    assert params["usableSectors"] == SECTORS - 1024
+    loose = bdexport.usable_sectors_for(SECTORS, 0)
+    assert loose == SECTORS, "0 should mean the whole disc"
+    try:
+        bdexport.usable_sectors_for(SECTORS, SECTORS - 16)
+    except bdexport.BdPresetError as e:
+        assert "multiple of 32" in str(e)
+    else:
+        raise AssertionError("wrote a usable count DiscImageStudio would reject as unaligned")
 
 
 def _preset(**overrides):
@@ -144,7 +162,7 @@ def test_install_is_idempotent_and_keeps_the_file_it_replaced():
         changed = bdexport.install(_preset(fit={"r0_mm": 24.65}), path, replace=True)
         assert changed["action"] == "replaced" and changed["backup"]
         assert open(changed["backup"], "rb").read() == before, "the backup is not the file it replaced"
-        assert json.load(open(path, encoding="utf-8"))["presets"][0]["parameters"]["innerRadiusMm"] == 24.65
+        assert json.load(open(path, encoding="utf-8"))["bluRayPresets"][0]["innerRadiusMm"] == 24.65
 
 
 def test_install_refuses_to_overwrite_a_different_preset_of_the_same_id():
@@ -163,14 +181,14 @@ def test_a_catalog_of_another_schema_is_left_alone():
     with tempfile.TemporaryDirectory() as work:
         path = os.path.join(work, bdexport.FILE_NAME)
         with open(path, "w", encoding="utf-8") as f:
-            f.write('{"schemaVersion": 2, "presets": []}')
+            f.write('{"schemaVersion": 2, "cdPresets": [], "bluRayPresets": []}')
         try:
             bdexport.install(_preset(), path)
         except bdexport.BdPresetError as e:
             assert "schemaVersion 2" in str(e)
         else:
             raise AssertionError("wrote into a catalog whose layout it does not know")
-        assert open(path, encoding="utf-8").read() == '{"schemaVersion": 2, "presets": []}'
+        assert open(path, encoding="utf-8").read() == '{"schemaVersion": 2, "cdPresets": [], "bluRayPresets": []}'
 
 
 def _run(*argv, cwd=ROOT):
@@ -221,9 +239,12 @@ def test_the_command_installs_into_the_blu_ray_catalog_not_the_cd_one():
         text = proc.stdout + proc.stderr
         assert proc.returncode == 0, text
         assert os.path.exists(catalog), text
-        assert not os.path.exists(os.path.join(work, "catalog", "disc-presets.json")), text
-        entry = json.load(open(catalog, encoding="utf-8"))["presets"][0]
-        assert set(entry) == {"id", "displayName", "parameters", "invertMapping"}
+        document = json.load(open(catalog, encoding="utf-8"))
+        assert document["schemaVersion"] == 4
+        assert document["cdPresets"] == [] and document["dvdPresets"] == []
+        entry = document["bluRayPresets"][0]
+        assert abs(entry["innerRadiusMm"] - 24.6427) < 1e-4
+        assert entry["usableSectors"] == SECTORS - 1024, "the preset still claims every sector"
         assert "Restart DiscImageStudio" in text
 
 

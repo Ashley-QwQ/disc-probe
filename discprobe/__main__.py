@@ -900,13 +900,19 @@ def _disexport_bd(args):
     # the preset name rather than a fixed "dis_preset_bd.json".
     output = args.output or (None if args.install else bdexport.suggested_file_name(preset_name))
     try:
-        out = bdexport.export(args.geo, args.sectors, output, preset_id, preset_name)
+        out = bdexport.export(args.geo, args.sectors, output, preset_id, preset_name,
+                              usable_sectors=args.usable_sectors)
     except ValueError as e:
         sys.exit(str(e))
     preset, fit, derived = out["preset"], out["fit"], out["derived"]
     print(i18n.tr("{a} sectors, inner {b} mm, outer {c} mm (both measured/derived, not nominal)")
           .format(a=f"{preset['totalSectors']:,}", b=f"{preset['innerRadiusMm']:.4f}",
                   c=f"{preset['outerRadiusMm']:.4f}"))
+    usable, total = preset["usableSectors"], preset["totalSectors"]
+    if usable < total:
+        print(i18n.tr("usable {a} sectors, {b} short of the disc: a burner writes a lead-out inside the "
+                      "disc, and a project that fills every sector leaves no room for it")
+              .format(a=f"{usable:,}", b=f"{total - usable:,}"))
     if fit.get("v_m_s") is not None and fit.get("r2") is not None:
         print(i18n.tr("constant pitch {a} um at {b} m/s, R^2 {c} over {d} zones; DiscImageStudio solves the "
                       "pitch from the three numbers above")
@@ -1701,6 +1707,9 @@ def _build_parser():
     sp.add_argument("--r-max", type=float, help="DVD default 54.4, CD the span geo measured")
     sp.add_argument("--along-track-frames", type=float, default=0,
                     help="CD only: along-track constant in frames, as in image --along-track-frames")
+    sp.add_argument("--usable-sectors", type=int,
+                    help="Blu-ray only: sectors a project may fill; default 2 MiB short of the disc so a burner "
+                         "still has room for its lead-out, 0 for the whole disc")
     sp.add_argument("--id")
     sp.add_argument("--name")
     sp.add_argument("--output", help="the preset file to write (default dis_preset.json; with --install, only if you name one)")

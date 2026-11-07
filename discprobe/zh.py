@@ -319,7 +319,10 @@ TEXT = {
         "还拟合了一个自由周期偏置（{a} µs，1 sigma {b} µs），但数据分不开它和零，所以没把它从内径里扣掉",
     "The disc holds {a} sectors, {b} fewer than a full layer, so sector 0 sits {c} mm further out than the 24.0 mm of an unspared disc: that is what was measured, not a rounding error.":
         "这张盘只有 {a} 个扇区，比满层少 {b} 个，所以扇区 0 比不留备用区的盘的 24.0 mm 更靠外 {c} mm：这是量到的，不是舍入误差",
-    "DiscImageStudio Blu-ray preset in {a} (import it with the Blu-ray preset library's Import button)":
+        "usable {a} sectors, {b} short of the disc: a burner writes a lead-out inside the "
+    "disc, and a project that fills every sector leaves no room for it":
+    "可用 {a} 扇区，比盘片少 {b} 个：刻录机的 lead-out 写在盘内，填满就没地方留给它了",
+"DiscImageStudio Blu-ray preset in {a} (import it with the Blu-ray preset library's Import button)":
         "DiscImageStudio 蓝光预设已写入 {a}（用蓝光预设库的 Import 按钮导入）",
     "DiscImageStudio names an imported preset after the file it reads, so this one will be called after its file name: rename the file before importing to change it":
         "DiscImageStudio 导入时用文件名作为预设名，所以这一条会以文件名命名：想改名就在导入前改文件名",
@@ -840,7 +843,10 @@ TEXT = {
     "overwrite existing files": "覆盖已有的文件",
     "fit range: use the measured span (DVD default 25.8, CD the span geo measured)": "拟合范围：用实测范围（DVD 默认 25.8，CD 用 geo 测到的范围）",
     "DVD default 54.4, CD the span geo measured": "DVD 默认 54.4，CD 用 geo 测到的范围",
-    "CD only: along-track constant in frames, as in image --along-track-frames": "仅 CD：沿轨常数（帧），含义同 image --along-track-frames",
+        "Blu-ray only: sectors a project may fill; default 2 MiB short of the disc so a burner "
+    "still has room for its lead-out, 0 for the whole disc":
+    "仅蓝光：工程可用的扇区数；默认比盘片少 2 MiB，给刻录机的 lead-out 留出位置，0 表示整盘",
+"CD only: along-track constant in frames, as in image --along-track-frames": "仅 CD：沿轨常数（帧），含义同 image --along-track-frames",
     "disc type; cd also switches the defaults to CD values, bd to Blu-ray (default: dvd)": "盘的类型；cd 同时会把默认值换成 CD 的值，bd 换成蓝光的（默认 dvd）",
     "Blu-ray only: the linear speed the drive reads at, in mm/s. With it the fit gives the pitch; without it the pitch is an anchor and only the ratio stays known": "只用于蓝光：光驱读取的线速度（mm/s）。给了它就测出轨距；不给则轨距当锚点，只保留比值",
     "Blu-ray only: how many zones to time, spread evenly from 5%% to 95%% of the disc (default 9). Two numbers come out of the line, so nine zones already pin them; more zones buy a better check that the line is straight, which is what tells a clean CLV disc from one that changes speed part way": "只用于蓝光：量几个区域，从盘的 5%% 到 95%% 均匀分布（默认 9）。一条直线只出两个数，九个区域就够；多出来的点买的是“线是不是直的”这个检验，靠它区分干净的 CLV 盘和中途换速的盘",

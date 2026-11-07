@@ -41,8 +41,16 @@ BD_CHANNEL_BIT_LENGTH_NM = 74.50
 BD_SECTORS_PER_LAYER = 12_219_392
 BD_NOMINAL_PITCH_UM = 0.320
 BD_MAX_RADIUS_MM = 60.0
-FILE_NAME = "blu-ray-presets.json"
-SCHEMA_VERSION = 1
+# A burner writes a lead-out after the last sector and counts it against the disc, so a preset that
+# claims every sector leaves an image the disc cannot take ("overburn 2 KB" with one burner, 1.12 MB
+# with another: ImgBurn reserves about a megabyte for a Blu-ray lead-out). Two mebibytes covers that
+# and costs 0.002 mm of radius, which is far below what this measurement can see.
+USABLE_MARGIN_SECTORS = 1024
+FILE_NAME = "disc-presets.json"
+SCHEMA_VERSION = 4
+BD_PRESET_LIST = "bluRayPresets"
+CATALOG_LISTS = ("cdPresets", "dvdPresets", BD_PRESET_LIST,
+                 "disabledCdPresetIds", "disabledDvdPresetIds", "disabledBluRayPresetIds")
 
 
 class BdPresetError(ValueError):
@@ -71,7 +79,26 @@ def pitch_um_from_slope(slope_ms2_per_lba: float, v_m_s: float,
     return slope_ms2_per_lba * v_m_s * v_m_s / (4 * math.pi * sector_mm(bit_nm)) * 1e3
 
 
-def check(total_sectors: int, inner_mm: float, outer_mm: float, layer_count: int = 1) -> None:
+def usable_sectors_for(total_sectors: int, usable_sectors: int | None = None) -> int:
+    """Sectors a project may fill, by default one recording unit short of the disc.
+
+    A preset that claims `totalSectors` usable builds an image the disc cannot take, because the
+    burner still has to write a lead-out inside it. Two mebibytes is enough for the burners seen
+    here and moves the outer radius by 0.002 mm, which no run of this tool could resolve.
+    """
+    usable = total_sectors - USABLE_MARGIN_SECTORS if usable_sectors is None else int(usable_sectors)
+    if usable <= 0:
+        usable = total_sectors
+    if usable > total_sectors:
+        raise BdPresetError(f"usable sector count {usable} is more than the disc holds ({total_sectors})")
+    if usable % BD_SECTORS_PER_RECORDING_UNIT:
+        raise BdPresetError(f"DiscImageStudio needs the usable sector count to be a multiple of "
+                            f"{BD_SECTORS_PER_RECORDING_UNIT}; {usable} is not")
+    return usable
+
+
+def check(total_sectors: int, inner_mm: float, outer_mm: float, layer_count: int = 1,
+          usable_sectors: int | None = None) -> None:
     """The conditions DiscImageStudio's `BluRayDiscParameters.Validate` applies to a preset file."""
     if layer_count != 1:
         raise BdPresetError("DiscImageStudio writes single-layer Blu-ray discs only, so a preset "
@@ -83,11 +110,17 @@ def check(total_sectors: int, inner_mm: float, outer_mm: float, layer_count: int
     if not (0 < inner_mm < outer_mm <= BD_MAX_RADIUS_MM):
         raise BdPresetError(f"DiscImageStudio needs 0 < inner < outer <= {BD_MAX_RADIUS_MM:g} mm; this "
                             f"measurement came out inner {inner_mm:.3f}, outer {outer_mm:.3f} mm")
+    if usable_sectors is not None:
+        if usable_sectors <= 0 or usable_sectors > total_sectors or usable_sectors % BD_SECTORS_PER_RECORDING_UNIT:
+            raise BdPresetError(f"DiscImageStudio needs 0 < usable <= {total_sectors} sectors and a "
+                                f"multiple of {BD_SECTORS_PER_RECORDING_UNIT}; {usable_sectors} is not "
+                                "useable")
 
 
 def parameters(fit: dict, total_sectors: int, *, inner_mm: float | None = None,
                outer_mm: float | None = None, pitch_um: float | None = None,
-               bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM) -> dict:
+               bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM,
+               usable_sectors: int | None = None) -> dict:
     """The `parameters` object of a Blu-ray preset, from a `model: "clv"` geo fit.
 
     `inner_mm`, `outer_mm` and `pitch_um` override what the run measured; any of them that is
@@ -111,17 +144,19 @@ def parameters(fit: dict, total_sectors: int, *, inner_mm: float | None = None,
     if r0 is None:
         raise BdPresetError("this geo fit has no r0_mm")
     r_out = outer_mm if outer_mm is not None else outer_radius_mm(r0, p, total_sectors, bit_nm)
-    check(total_sectors, r0, r_out)
+    usable = usable_sectors_for(total_sectors, usable_sectors)
+    check(total_sectors, r0, r_out, usable_sectors=usable)
     return {"totalSectors": int(total_sectors), "layerCount": 1, "innerRadiusMm": float(r0),
-            "outerRadiusMm": float(r_out), "startAngleDegrees": 0.0}
+            "outerRadiusMm": float(r_out), "startAngleDegrees": 0.0, "usableSectors": int(usable)}
 
 
 def preset(fit: dict, total_sectors: int, preset_id: str, name: str, description: str, *,
            inner_mm: float | None = None, outer_mm: float | None = None, pitch_um: float | None = None,
-           bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM, invert: bool = False) -> dict:
+           bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM, invert: bool = False,
+           usable_sectors: int | None = None) -> dict:
     """The `{id, displayName, parameters, invertMapping}` record the BD catalog stores."""
     params = parameters(fit, total_sectors, inner_mm=inner_mm, outer_mm=outer_mm, pitch_um=pitch_um,
-                        bit_nm=bit_nm)
+                        bit_nm=bit_nm, usable_sectors=usable_sectors)
     return {"id": preset_id, "displayName": name, "description": description, **params,
             "invertMapping": bool(invert)}
 
@@ -129,18 +164,31 @@ def preset(fit: dict, total_sectors: int, preset_id: str, name: str, description
 def document(preset_obj: dict) -> dict:
     """The shape `BluRayPresetStore.Import` accepts (`parameters` plus `luminanceMapping`)."""
     params = {k: preset_obj[k] for k in ("totalSectors", "layerCount", "innerRadiusMm", "outerRadiusMm",
-                                         "startAngleDegrees") if k in preset_obj}
+                                         "startAngleDegrees", "usableSectors") if k in preset_obj}
     return {"parameters": params, "luminanceMapping": {"invert": bool(preset_obj.get("invertMapping", False))},
             "source": {k: preset_obj[k] for k in ("id", "displayName", "description") if k in preset_obj},
             "measuredWith": "discprobe geo --media bd"}
 
 
 def catalog_entry(preset_obj: dict) -> dict:
-    """The record the `blu-ray-presets.json` catalog keeps (its `Entry` has no description field)."""
-    return {"id": preset_obj["id"], "displayName": preset_obj["displayName"],
-            "parameters": {k: preset_obj[k] for k in ("totalSectors", "layerCount", "innerRadiusMm",
-                                                      "outerRadiusMm", "startAngleDegrees")},
-            "invertMapping": bool(preset_obj.get("invertMapping", False))}
+    """The record `disc-presets.json` keeps under `bluRayPresets` (schema 4: flat fields).
+
+    DiscImageStudio's own user Blu-ray preset looks like this — `totalSectors`, the two radii and
+    the polarity, with no nested `parameters` object and no `layerCount` (one layer is the only
+    thing it supports). `BluRayPresetStore` in the source tree writes a different file with a
+    nested shape, but nothing in the app reads it, so this is the shape that reaches the UI.
+    """
+    entry = {"id": preset_obj["id"], "displayName": preset_obj["displayName"],
+             "totalSectors": int(preset_obj["totalSectors"]),
+             "innerRadiusMm": float(preset_obj["innerRadiusMm"]),
+             "outerRadiusMm": float(preset_obj["outerRadiusMm"]),
+             "invertMapping": bool(preset_obj.get("invertMapping", False))}
+    if preset_obj.get("usableSectors") is not None:
+        entry["usableSectors"] = int(preset_obj["usableSectors"])
+    description = str(preset_obj.get("description") or "").strip()
+    if description:       # DiscImageStudio rejects a description that is present but blank
+        entry["description"] = description
+    return entry
 
 
 def suggested_file_name(display_name: str, suffix: str = ".json") -> str:
@@ -164,28 +212,30 @@ def default_path() -> str:
 
 
 def read_catalog(path: str) -> dict:
-    """The catalog file, or an empty one when it does not exist yet."""
+    """The preset file, or an empty schema-4 one when it does not exist yet."""
     if not os.path.exists(path):
-        return {"schemaVersion": SCHEMA_VERSION, "presets": []}
+        return {"schemaVersion": SCHEMA_VERSION, **{name: [] for name in CATALOG_LISTS}}
     with open(path, encoding="utf-8") as f:
         text = f.read()
     if not text.strip():
-        return {"schemaVersion": SCHEMA_VERSION, "presets": []}
+        return {"schemaVersion": SCHEMA_VERSION, **{name: [] for name in CATALOG_LISTS}}
     try:
         document_in = json.loads(text)
     except json.JSONDecodeError as e:
         raise BdPresetError(f"{path} is not plain JSON ({e.msg} at line {e.lineno}); DiscImageStudio "
                             "accepts comments there, but this tool does not rewrite a file it cannot "
                             "read back unchanged, so the file was left alone") from None
-    if not isinstance(document_in, dict) or not isinstance(document_in.get("presets"), list):
-        raise BdPresetError(f"{path} has no presets list, so it is not a Blu-ray preset catalog "
-                            "(DiscImageStudio writes one as {\"schemaVersion\": 1, \"presets\": [...]})")
+    if not isinstance(document_in, dict) or not isinstance(document_in.get(BD_PRESET_LIST), list):
+        raise BdPresetError(f"{path} has no {BD_PRESET_LIST} list, so it is not the DiscImageStudio "
+                            f"preset file this tool knows (it writes a file with schemaVersion 4 and a "
+                            f"{BD_PRESET_LIST} array)")
     version = document_in.get("schemaVersion")
-    if version not in (None, SCHEMA_VERSION):
+    if version != SCHEMA_VERSION:
         raise BdPresetError(f"{path} says schemaVersion {version}; this tool writes schema "
-                            f"{SCHEMA_VERSION} and will not guess how another version lays its "
-                            "presets out")
-    document_in.setdefault("schemaVersion", SCHEMA_VERSION)
+                            f"{SCHEMA_VERSION}. Open DiscImageStudio once so it migrates the file, "
+                            "then run this again")
+    for name in CATALOG_LISTS:
+        document_in.setdefault(name, [])
     return document_in
 
 
@@ -194,15 +244,16 @@ def _same(left: dict, right: dict) -> bool:
 
 
 def install(preset_obj: dict, path: str | None = None, replace: bool = False) -> dict:
-    """Write one preset into the DiscImageStudio Blu-ray catalog, leaving everything else intact.
+    """Write one preset into the DiscImageStudio preset file, leaving everything else intact.
 
-    `DiscImageStudio` keeps Blu-ray presets in their own file (`blu-ray-presets.json`), apart from
-    the CD and DVD catalogs, so this never touches `disc-presets.json`.
+    That file (`disc-presets.json`) holds CD, DVD and Blu-ray presets in separate lists, and it is
+    the one the window reads, so the entry has to go into its `bluRayPresets` list rather than a
+    catalog of its own.
     """
     target = os.path.abspath(path or default_path())
     entry = catalog_entry(preset_obj)
     catalog = read_catalog(target)
-    items = catalog["presets"]
+    items = catalog[BD_PRESET_LIST]
     created = not os.path.exists(target)
     action, index = "added", None
     for i, existing in enumerate(items):
@@ -245,7 +296,7 @@ def install(preset_obj: dict, path: str | None = None, replace: bool = False) ->
 
 def export(geo_summary: str, total_sectors: int, out_path: str, preset_id: str, name: str, *,
            inner_mm: float | None = None, outer_mm: float | None = None, pitch_um: float | None = None,
-           bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM) -> dict:
+           bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM, usable_sectors: int | None = None) -> dict:
     """Build the preset for one CLV run and, when `out_path` is given, write the importable document."""
     with open(geo_summary, encoding="utf-8") as f:
         run = json.load(f)
@@ -280,12 +331,14 @@ def export(geo_summary: str, total_sectors: int, out_path: str, preset_id: str, 
                 f"{fit.get('zones_used', '?')} zones, R^2 {fit.get('r2', float('nan')):.6f}, "
                 f"r0 {params['innerRadiusMm']:.4f} mm, pitch {p:.4f} um")
     obj = preset(fit, total_sectors, preset_id, name, desc, inner_mm=params["innerRadiusMm"],
-                 outer_mm=params["outerRadiusMm"], pitch_um=p, bit_nm=bit_nm)
+                 outer_mm=params["outerRadiusMm"], pitch_um=p, bit_nm=bit_nm,
+                 usable_sectors=usable_sectors)
     out = {"preset": obj, "document": document(obj),
            "fit": {k: fit.get(k) for k in ("model", "anchor", "r0_mm", "pitch_um", "v_m_s", "r2",
                                            "zones_used", "sigma_r0_mm", "offset_ms", "sigma_offset_ms",
                                            "chi2_per_dof", "rungs")},
            "derived": {"pitch_um": p, "sector_mm": sector_mm(bit_nm),
+                       "usable_sectors": params["usableSectors"],
                        "track_length_mm": track_length_mm(total_sectors, bit_nm),
                        "outer_from_pitch_mm": outer_radius_mm(params["innerRadiusMm"], p, total_sectors, bit_nm)},
            "source": {"geo": os.path.basename(geo_summary.replace("\\", "/"))},

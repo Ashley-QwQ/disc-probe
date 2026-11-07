@@ -1237,6 +1237,8 @@ def _bd_export(c: Checker):
             "outer radius follows from inner, pitch and sectors")
     c.check("pitchLinear" not in params and "channelBitLengthNm" not in params,
             "no pitch coefficient: DiscImageStudio reads those as a shape, not as a pitch")
+    c.check(params["usableSectors"] == 12_088_320 - 1024,
+            "a preset leaves room for the lead-out, so a full project does not overburn")
     # 24.0 -> 58.0 over a full layer is the standard 0.320 um pitch, so the constants agree with each other.
     length = bdexport.track_length_mm(bdexport.BD_SECTORS_PER_LAYER)
     implied = (58.0 ** 2 - 24.0 ** 2) * 3.141592653589793 / length * 1e3
@@ -1262,11 +1264,12 @@ def _bd_export(c: Checker):
             "an angular u/v fit is converted from the radius and pitch it already carries")
     preset = bdexport.preset(fit, 12_088_320, "discprobe-bd-re", "BD-RE", "selftest")
     entry = bdexport.catalog_entry(preset)
-    c.check(set(entry) == {"id", "displayName", "parameters", "invertMapping"},
-            "the catalog entry has only the fields DiscImageStudio's record keeps")
+    c.check(set(entry) == {"id", "displayName", "description", "totalSectors", "innerRadiusMm",
+                           "outerRadiusMm", "invertMapping", "usableSectors"},
+            "the catalog entry is the flat record disc-presets.json keeps")
     document = bdexport.document(preset)
     c.check(set(document["parameters"]) == {"totalSectors", "layerCount", "innerRadiusMm",
-                                            "outerRadiusMm", "startAngleDegrees"} and
+                                            "outerRadiusMm", "startAngleDegrees", "usableSectors"} and
             document["luminanceMapping"] == {"invert": False},
             "the written document is the shape the preset library's Import reads")
     with tempfile.TemporaryDirectory() as work:
