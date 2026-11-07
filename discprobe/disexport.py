@@ -92,6 +92,8 @@ def fit_preset(u, v, bit_nm, total_sectors, r_lo, r_hi, correction=None, sector_
     check_r = b * np.sqrt(u * u + v * check_n / math.pi)
     delta = np.degrees(np.interp(check_n, m[0], m[1]) - target_angle(check_n, u, v, bit_nm, correction))
     inside = (check_r >= r_lo) & (check_r <= r_hi)
+    if not inside.any():
+        raise ValueError("fit range is outside the full capacity; check the range and sectors. No preset written.")
     delta -= delta[inside].mean()
     full_diff = float(np.max(np.abs(delta)))
     outside_diff = float(np.max(np.abs(delta[~inside]))) if (~inside).any() else 0.0
