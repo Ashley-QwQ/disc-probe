@@ -467,6 +467,8 @@ def cmd_geo(args):
                     chi2_abort=args.chi2_abort, sectors=args.sectors,
                     read_offset_bytes=args.read_offset_bytes)
     ladder.tp.summary["identity"] = _identity(args, dev)
+    if args.sim:
+        ladder.tp.summary["simulated"] = True
     progress, log = None, print
     if reader is not dev:
         progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys(), pulse=reader.read_times, wait_s=GEO_WAIT_S)
@@ -623,7 +625,8 @@ def cmd_disexport(args):
     if args.install:
         try:
             target = disinstall.target_path(args.dis_presets)
-            disinstall.refuse_same_file(args.output, target)
+            if args.output:
+                disinstall.refuse_same_file(args.output, target)
         except disinstall.InstallError as e:
             sys.exit(str(e))
     fit = _geo_fit(args, args.media)
@@ -643,7 +646,9 @@ def cmd_disexport(args):
             print(f"Note: {warning}")
     span = fit["measured_span_mm"] if is_cd else (25.8, 54.4)
     try:
-        out = export(args.geo, args.sectors, args.correction, args.output,
+        # --install on its own leaves no second file behind, and can't overwrite one in the current folder.
+        output = args.output or (None if args.install else "dis_preset.json")
+        out = export(args.geo, args.sectors, args.correction, output,
                      args.r_min or span[0], args.r_max or span[1],
                      args.id or ("discprobe-cd" if is_cd else "discprobe-dvd-r"),
                      args.name or ("CD (drive-timing calibration)" if is_cd else "DVD-R (drive-timing calibration)"),
@@ -655,7 +660,8 @@ def cmd_disexport(args):
           f"{f['pitchLinear']:.3e} {f['pitchQuadratic']:.3e} {f['pitchCubic']:.3e}")
     print(f"angle difference to the measured map over {f['fit_range_mm'][0]}-{f['fit_range_mm'][1]} mm: "
           f"max {f['max_angle_diff_deg']:.4f} deg, rms {f['rms_angle_diff_deg']:.4f} deg")
-    print(f"DiscImageStudio {'CD' if is_cd else 'DVD'} preset object in {os.path.abspath(args.output)} (key 'preset')")
+    if output:
+        print(f"DiscImageStudio {'CD' if is_cd else 'DVD'} preset object in {os.path.abspath(output)} (key 'preset')")
     audio = fit.get("track") == "audio"
     if audio:
         print(f"Measured on the audio track, so no along-track constant is needed. The preset is right as far as "
@@ -1251,7 +1257,7 @@ def _build_parser():
                     help="CD only: along-track constant in frames, as in image --along-track-frames")
     sp.add_argument("--id")
     sp.add_argument("--name")
-    sp.add_argument("--output", default="dis_preset.json")
+    sp.add_argument("--output", help="the preset file to write (default dis_preset.json; with --install, only if you name one)")
     sp.add_argument("--install", action="store_true",
                     help="also add the preset to DiscImageStudio's user preset file (Windows; created when missing; "
                          "restart DiscImageStudio afterwards)")

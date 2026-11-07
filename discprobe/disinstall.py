@@ -116,7 +116,7 @@ def install(preset: dict, path: str | None = None, replace: bool = False) -> dic
     else:
         kept = sorted(key for key in items[index] if key not in preset)
         merged = {**items[index], **preset}
-        dropped_fields = _drop_unusable_fields(merged)
+        dropped_fields = _drop_unusable_fields(merged, "sectors" in preset)
         if dropped_fields:
             kept = [key for key in kept if key not in dropped_fields]
         items[index] = merged
@@ -146,7 +146,7 @@ def install(preset: dict, path: str | None = None, replace: bool = False) -> dic
             "dropped": dropped, "kept": kept, "dropped_fields": dropped_fields}
 
 
-def _drop_unusable_fields(preset: dict) -> list[str]:
+def _drop_unusable_fields(preset: dict, cd: bool | None = None) -> list[str]:
     """Remove fields that would make the merged preset invalid for DiscImageStudio.
 
     A preset merged from an older one can carry values the current app refuses. It validates the
@@ -157,10 +157,16 @@ def _drop_unusable_fields(preset: dict) -> list[str]:
     are not ours, and a preset that would otherwise install is worth keeping.
     """
     dropped = []
+    # What we just exported says which kind this is. A leftover from the other kind must not decide it.
+    cd = "sectors" in preset if cd is None else cd
+    other = "totalSectors" if cd else "sectors"
+    if other in preset:
+        del preset[other]
+        dropped.append(other)
     if "usableSectors" in preset:
-        total = preset.get("sectors", preset.get("totalSectors"))
+        total = preset.get("sectors" if cd else "totalSectors")
         usable = preset["usableSectors"]
-        alignment = 1 if "sectors" in preset else 16
+        alignment = 1 if cd else 16
         if (not isinstance(usable, int) or isinstance(usable, bool) or not isinstance(total, int)
                 or usable <= 0 or usable > total or usable % alignment):
             del preset["usableSectors"]

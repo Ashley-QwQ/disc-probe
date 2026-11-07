@@ -343,6 +343,62 @@ def _geo_rotation(c: Checker):
     c.check(set_one.tp.summary["set_cd_speed"]["requested_kBps"] == 5540, "the default still sets 4x")
 
 
+def _install_details(c: Checker):
+    print("preset install: the details")
+    import contextlib
+    import io
+    import json
+    import os
+    import tempfile
+    from argparse import Namespace
+    from . import __main__ as cli
+    from . import cd, disinstall, guide
+    dvd = {"totalSectors": 1008, "sectors": 9999, "usableSectors": 1984}
+    c.check(disinstall._drop_unusable_fields(dvd, False) == ["sectors", "usableSectors"] and dvd == {"totalSectors": 1008}, "a leftover sectors on a DVD preset doesn't set its total")
+    fine = {"totalSectors": 1008, "sectors": 16, "usableSectors": 992}
+    c.check(disinstall._drop_unusable_fields(fine, False) == ["sectors"] and fine["usableSectors"] == 992, "and doesn't cost a usableSectors that fits")
+    c.check(guide._quality_number({"x": float("nan")}, "x") is None and guide._quality_number({"x": float("inf")}, "x") is None and guide._quality_number({"x": 0.5}, "x") == 0.5, "a quality figure of NaN or infinity counts as missing")
+    here = os.getcwd()
+    with tempfile.TemporaryDirectory() as d:
+        os.chdir(d)
+        try:
+            b = cd.BIT_NM * 1e-6
+            folder = "geo-test-20260101-000000"
+            os.mkdir(folder)
+            summary = os.path.join(folder, "summary.json")
+            with open(summary, "w", encoding="utf-8") as f:
+                json.dump({"fit": {"u": 25.14 / b, "v": 1.4969e-3 / b, "bit_nm_assumed": cd.BIT_NM, "media": "cd", "measured_span_mm": [26.7, 54.4],
+                                   "chi2_per_dof": 1.0, "angle_sigma_measured_span_deg": 0.1}}, f)
+            with open(os.path.join(folder, "targets.csv"), "w", encoding="utf-8") as f:
+                f.write("header\n" + "row\n" * 22)
+            with open("dis_preset.json", "w", encoding="utf-8") as f:
+                f.write("mine")
+
+            def export(**kw):
+                args = dict(geo=summary, sectors=359602, correction=None, output=None, r_min=None, r_max=None, id=None, name=None,
+                            along_track_frames=0, media=None, install=False, dis_presets=None, replace=False)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    cli.cmd_disexport(Namespace(**{**args, **kw}))
+            export(install=True, dis_presets="presets.json")
+            with open("dis_preset.json", encoding="utf-8") as f:
+                kept = f.read()
+            c.check(kept == "mine" and os.path.exists("presets.json"), "--install alone leaves a dis_preset.json in the folder as it was")
+            export()
+            with open("dis_preset.json", encoding="utf-8") as f:
+                c.check("preset" in json.load(f), "without --install the default file is written as before")
+            with contextlib.redirect_stdout(io.StringIO()):
+                cli.main(["geo", "--sim", "cav", "--seed", "5", "--max-targets", "8", "--out", "sim"])
+            run = os.path.join("sim", os.listdir("sim")[0])
+            with open(os.path.join(run, "summary.json"), encoding="utf-8") as f:
+                c.check(json.load(f).get("simulated") is True, "a simulated geo says so in its summary")
+            os.rename(run, "geo-E-20260101-000000")
+            c.check(guide.Result("geo-E-20260101-000000", "geo", "E", "20260101-000000").simulated, "so a renamed folder still counts as simulated")
+            blocker = guide.install_blocker(os.path.join("geo-E-20260101-000000", "summary.json"))
+            c.check(blocker is not None and "simulated" in blocker, "and can't be installed")
+        finally:
+            os.chdir(here)
+
+
 def _unreadable(c: Checker):
     print("timing stops early on unreadable discs and non-CAV drives")
     from .scsi import ScsiResult, Sense
@@ -774,6 +830,7 @@ def _run() -> bool:
         _ladder_cd_audio(c)
         _geo_rotation(c)
         _disexport(c)
+        _install_details(c)
         _disinstall(c)
         _install_blocker(c)
         _efmplus(c)

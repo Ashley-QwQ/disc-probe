@@ -150,6 +150,7 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
     if audio:
         out["source"]["track"] = "audio"
         out["source"]["read_offset_bytes"] = geo.get("read_offset_bytes", 0.0)
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(out, f, indent=2, ensure_ascii=False)
+    if out_path:
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(out, f, indent=2, ensure_ascii=False)
     return out

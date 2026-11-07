@@ -557,7 +557,7 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 
    `disexport` 看 `summary.json` 里的 `media`，CD 的结果导出 CD 预设（`sectors`、内外半径、三个轨距系数，速度固定 1200 mm/s）。`--sectors` 必填，拟合范围默认用 `geo` 测到的范围。预设和测量结果相差超过 5° 时不写文件。加 `--install` 会顺便把预设写进 DiscImageStudio 的用户预设文件（`%LOCALAPPDATA%\DiscImageStudio\disc-presets.json`）；文件在别处或不在 Windows 上时用 `--dis-presets 路径` 指定。写之前先备份成 `disc-presets.json.<日期>-<时间>.bak`，每次用新名字，不会把上一份覆盖掉。文件里的注释和尾逗号能读，但写回时会去掉（这个会提示）。模拟盘的结果、中途停下的结果和 `results` 判为噪声太大的结果会被拒绝；CD 音轨的结果照常安装，它本来就是给 DiscImageStudio 的音轨路径用的。`--output` 和 `--dis-presets` 指向同一个文件时会直接报错，什么也不写。这个程序不写的字段会原样保留，但它的值要是已经不适用了（比如 `usableSectors` 大于这次的扇区数），就会把它删掉并在输出里说明——DiscImageStudio 会因为这一个字段拒绝整个文件。`summary.json` 里没有噪声、chi2 这类质量数字时仍会写入，但会先提示那项检查没能做。不加 `--install` 则只生成 JSON。
 
-2. 重启 DiscImageStudio，在预设列表里选新预设。如果第 1 步没加 `--install`，二选一：在标定页手动填内外半径、扇区数和三个系数；或者把输出里 `preset` 这个对象加进 `%LOCALAPPDATA%\DiscImageStudio\disc-presets.json` 的 `cdPresets` 数组，再重启程序（格式见它的[预设文档](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/DISC_PRESETS.md)。moodyos 用这个办法导入成功了，我们自己没有试过）。
+2. 用了 `--install` 就重启 DiscImageStudio，在预设列表里选新预设；只有写了 `--output` 才会另外生成文件。如果第 1 步没加 `--install`，二选一：在标定页手动填内外半径、扇区数和三个系数；或者把输出里 `preset` 这个对象加进 `%LOCALAPPDATA%\DiscImageStudio\disc-presets.json` 的 `cdPresets` 数组，再重启程序（格式见它的[预设文档](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/DISC_PRESETS.md)。moodyos 用这个办法导入成功了，我们自己没有试过）。
 3. 在辅助标定页直接选**精细标定**，新建标靶，刻盘，拍照矫正，沿一条十字线细臂描点，再反推并应用。拟合三次轨距至少要 12 个不同半径的点，覆盖环带宽度的 60%。步骤见它的[辅助标定说明](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/CALIBRATION.md)。
 4. 应用后保存为预设，用这组参数刻图。
 

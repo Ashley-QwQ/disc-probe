@@ -1907,6 +1907,12 @@ def _stopped_part_way(c) -> None:
 
     def real(result):
         """The same result as if from a real drive, which `latest` would consider."""
+        path = os.path.join(result.path, "summary.json")
+        with open(path, encoding="utf-8") as f:
+            summary = json.load(f)
+        summary.pop("simulated", None)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(summary, f)
         path = result.path.replace("-SIM-cav-", "-H-")
         os.rename(result.path, path)
         return path

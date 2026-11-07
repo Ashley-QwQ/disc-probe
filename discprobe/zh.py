@@ -527,6 +527,7 @@ TEXT = {
     "--output and the DiscImageStudio preset file are the same file ({p}). The export would overwrite your presets before they are read, so nothing was written. Use another --output name, or omit --output and let --install write only the preset file.":
         "--output 和 DiscImageStudio 的预设文件是同一个文件（{p}）。导出会先把你的预设覆盖掉，之后才轮到安装，所以这次什么都没写。请换一个 --output 文件名，或者省掉 --output，让 --install 只写预设文件。",
     "--dis-presets and --replace only work together with --install": "--dis-presets 和 --replace 只能和 --install 一起用",
+    "the preset file to write (default dis_preset.json; with --install, only if you name one)": "要写的预设文件（默认 dis_preset.json；用 --install 时，只有写明才生成）",
     "also add the preset to DiscImageStudio's user preset file (Windows; created when missing; restart DiscImageStudio afterwards)":
         "同时把预设加进 DiscImageStudio 的用户预设文件（Windows；文件不存在时会新建；之后要重启 DiscImageStudio）",
     "with --install: the disc-presets.json to write; default %%LOCALAPPDATA%%\\DiscImageStudio\\disc-presets.json":

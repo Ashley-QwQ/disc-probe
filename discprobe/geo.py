@@ -490,6 +490,7 @@ def write_outputs(ladder: Ladder, out_dir: str, stopped: str | None = None) -> N
                    "setup": ladder.tp.summary.get("setup"), "identity": ladder.tp.summary.get("identity"),
                    "set_cd_speed": ladder.tp.summary.get("set_cd_speed"),
                    "rotation_check": ladder.tp.summary.get("rotation_check"),
+                   **({"simulated": True} if ladder.tp.summary.get("simulated") else {}),
                    **({"stopped": stopped} if stopped else {})}, f, indent=2, default=float)
     events = ladder.tp.events_as_rows()
     if events:

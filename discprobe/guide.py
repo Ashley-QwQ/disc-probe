@@ -86,8 +86,8 @@ class Result:
     def __init__(self, path: str, kind: str, tag: str | None, stamp: str):
         self.path, self.kind, self.tag = path, kind, tag or ""
         self.when = datetime.datetime.strptime(stamp, "%Y%m%d-%H%M%S")
-        self.simulated = self.tag.startswith("SIM")
         self.summary = _load(os.path.join(path, "summary.json")) or {}
+        self.simulated = self.tag.startswith("SIM") or self.summary.get("simulated") is True
 
     @property
     def fit(self) -> dict:
@@ -204,7 +204,9 @@ def _simulated(summary: dict) -> bool:
 def _quality_number(fit: dict, name: str) -> float | None:
     """A quality figure from the fit, or None when this summary predates it."""
     value = fit.get(name)
-    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
+        return None     # NaN compares false with every limit, so it would pass them all
+    return float(value)
 
 
 def install_blocker(geo_summary: str) -> str | None:
