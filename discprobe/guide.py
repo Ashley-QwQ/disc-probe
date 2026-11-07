@@ -403,7 +403,8 @@ def after_timing(args, summary: dict) -> list[str]:
         return lines + ["", "geo supports DVD and CD, so timing is as far as this disc goes for now."]
     usual = 1411 if media == "cd" else None
     speed = f" --speed {args.speed}" if getattr(args, "speed", None) not in (None, usual) else ""
-    return lines + ["", "Next, measure the geometry:", f"  {PROG} geo {carry}{speed}"]
+    note = ["  It sets 4x first. If that takes this drive out of constant rotation, it stops and says what to do."] if media == "dvd" and getattr(args, "speed", None) is None else []
+    return lines + ["", "Next, measure the geometry:", f"  {PROG} geo {carry}{speed}", *note]
 
 
 def after_timing_stop(args, reason: str) -> list[str]:
@@ -529,6 +530,13 @@ def after_geo_stop(args, reason: str) -> list[str]:
         return []
     carry, other, word = _carry(args), _other_speed(args), _speed_word(args)
     again = _carry_geo(args)
+    if "not turning at a constant speed" in reason:
+        if getattr(args, "speed", None) is None:
+            return ["This drive isn't holding a constant speed even when left alone, so geo can't measure on it with this disc.",
+                    "Another drive is the better bet."]
+        return ["Setting the speed can take a drive out of constant rotation, and many keep it until the disc is reloaded.",
+                "Eject the disc and put it back, check that timing says CAV, then run geo without setting a speed:",
+                f"  {PROG} timing {carry}", f"  {PROG} geo {again} --speed keep"]
     if "never settled" in reason or "near the reference" in reason:
         return [f"The drive would not hold one speed. Check it with timing, then try geo at {word}:",
                 f"  {PROG} timing {carry}", f"  {PROG} geo {again} --speed {other}",

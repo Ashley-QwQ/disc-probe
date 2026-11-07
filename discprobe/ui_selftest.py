@@ -1870,7 +1870,7 @@ def _stopped_part_way(c) -> None:
                 print("geo part-way checks skipped (need numpy and scipy)")
                 return
             out = os.path.join(d, "geo")
-            cli._open = lambda args: Goes(tray, 700)
+            cli._open = lambda args: Goes(tray, 900)
             code, text = run("geo", "--sim", "cav", "--out", out)
             result = guide.scan(out)[0]
             c.check(code == 1 and mmc.TRAY_OPEN in text and "never settled" not in text and "hold one speed" not in text, "geo, tray opened: stops, says why and exits 1")

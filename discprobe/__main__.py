@@ -856,6 +856,8 @@ class _SpeedKbs(int):
 
 
 def _speed(text: str):
+    if text.lower() == "keep":
+        return None     # send no speed command, so the drive stays as it is
     try:
         return _SpeedX(text[:-1]) if text[-1:].lower() == "x" else int(text)
     except ValueError:
@@ -1088,7 +1090,8 @@ def _build_parser():
     sp = sub.add_parser("geo", help="measure the spiral geometry of a burned DVD or CD from read timing (ladder)")
     common(sp)
     sp.add_argument("--speed", type=_speed, default=5540,
-                    help="read speed to fix, in kB/s or as a multiple like 4x (default 4x = 5540; CD 8x = 1411)")
+                    help="read speed to fix, in kB/s or as a multiple like 4x (default 4x = 5540; CD 8x = 1411), "
+                         "or keep to send no speed command and leave the drive as it is")
     sp.add_argument("--ranges", help="readable LBA ranges a-b,c-d (default 3-85 %% of the recorded area); see below")
     sp.add_argument("--rings-layout", help="texture-ring layout file: use only the rings of --texture")
     sp.add_argument("--texture", default="RND")

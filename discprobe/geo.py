@@ -65,6 +65,10 @@ MIN_SPACING_SECTORS = 4000  # about a third of a millimetre of radius
 # 25.6-57.7 mm on an 80-minute disc. A picture fills the whole disc, so the ladder can reach
 # the outer edge (the HP BU20N at 1241 rpm showed no outer-radius read artefacts there).
 CD_AUDIO_RANGE = (0.0125, 0.99)
+ROTATION_READS = 24
+ROTATION_COHERENCE = 0.8    # one outlier takes a clear period to about 0.93 in 24 reads
+MIN_ROTATION_RATIO = 1.1    # a span narrower than this can't tell CLV from constant rotation
+CLV_RATIO_SLACK = 0.12      # as in timing's own check
 
 
 class Ladder:
@@ -172,6 +176,33 @@ class Ladder:
     def _ref_period(self, times):
         return analysis.estimate_period(times, prior_s=self.T, prior_window=0.02) if self.T else \
             analysis.estimate_period(times)
+
+    def _radius(self, lba: int) -> float:
+        return self.prior.bit_nm * 1e-6 * math.sqrt(self.u0 * self.u0 + self.v0 * self._n_end(lba) / math.pi)
+
+    def check_rotation(self) -> None:
+        """Stop if the spindle slows towards the outside, as under CLV. A set speed can put a drive there, and phase
+        is no angle then: it still fits the few rungs near the reference, then gets nowhere. A period too unclear
+        to compare stops nothing here, and a whole number of turns apart isn't CLV, so only a clear match stops it."""
+        tp = self.tp
+        inner = self._allowed(min(a for a, _ in self.ranges))
+        outer = self._allowed(max(b for _, b in self.ranges) - self.block)
+        expected = self._radius(outer) / self._radius(inner)
+        if expected < MIN_ROTATION_RATIO:
+            return
+        periods = []
+        for lba in (inner, outer):
+            for _ in range(2):      # the first round may catch the spindle changing speed after the seek
+                times = [r.t_end_ns for r in (tp._measure(lba, "rotation") for _ in range(ROTATION_READS)) if tp._usable(r)]
+            fit = analysis.estimate_period(times) if len(times) >= 8 else None
+            if not fit or fit.coherence < ROTATION_COHERENCE:
+                return
+            periods.append(fit.period_s)
+        ratio = periods[1] / periods[0]
+        tp.summary["rotation_check"] = {"inner_lba": inner, "outer_lba": outer, "period_ms": [p * 1e3 for p in periods], "ratio": ratio, "expected_clv": expected}
+        if abs(ratio - expected) / expected < CLV_RATIO_SLACK:
+            raise RuntimeError(f"the drive is not turning at a constant speed here ({periods[0] * 1e3:.2f} ms a turn at "
+                               f"{self._radius(inner):.0f} mm, {periods[1] * 1e3:.2f} ms at {self._radius(outer):.0f} mm), and geo needs it to")
 
     def settle(self, max_rounds: int = 10) -> float:
         tp, prev = self.tp, None
@@ -307,6 +338,7 @@ class Ladder:
             self.ref = self._allowed(mid)
         self.n_ref = self._n_end(self.ref)
         self.log(f"Reference LBA {self.ref}; readable ranges {self.ranges}")
+        self.check_rotation()
         self.settle()
 
         # First rungs: a turn or two away, where the nominal model is good to a few degrees.

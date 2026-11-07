@@ -252,6 +252,38 @@ def _audio_fit_uses(c: Checker, res: dict, x: float):
         i18n.use("en")
 
 
+def _geo_rotation(c: Checker):
+    print("geo checks the spindle before it starts")
+    from .geo import Ladder
+    from . import __main__ as cli
+    from . import guide
+    from argparse import Namespace
+    clv = Ladder(SimDrive(mode="clv", seed=7), speed_kbs=5540, reps=8, max_targets=6, log=lambda *_: None)
+    try:
+        clv.run()
+        reason = ""
+    except RuntimeError as e:
+        reason = str(e)
+    c.check("not turning at a constant speed" in reason and not clv.targets, f"CLV stops before any rung: {reason[:70]}")
+    told = guide.after_geo_stop(Namespace(speed=5540, drive="E:", media="dvd"), reason)
+    c.check(any("--speed keep" in x for x in told) and any("put it back" in x for x in told), "and says to reload and keep the speed")
+    alone = guide.after_geo_stop(Namespace(speed=None, drive="E:", media="dvd"), reason)
+    c.check(not any("--speed keep" in x for x in alone) and any("Another drive" in x for x in alone), "if it was left alone already, it doesn't suggest that again")
+    narrow = Ladder(SimDrive(mode="clv", seed=7), speed_kbs=5540, reps=8, ranges=[(1000000, 1100000)], log=lambda *_: None)
+    narrow.tp.setup()
+    narrow.ranges = narrow.ranges_arg
+    narrow.check_rotation()
+    c.check("rotation_check" not in narrow.tp.summary, "a span too narrow to tell isn't judged")
+    cav = Ladder(SimDrive(mode="cav", seed=7), speed_kbs=None, reps=8, max_targets=6, log=lambda *_: None)
+    res = cav.run()
+    c.check(cav.tp.summary["rotation_check"]["ratio"] < 1.01 and res is not None, "constant rotation carries on")
+    c.check("set_cd_speed" not in cav.tp.summary, "--speed keep sends no speed command")
+    c.check(cli._speed("keep") is None and cli._speed("KEEP") is None and cli._speed("5540") == 5540, "keep is understood")
+    set_one = Ladder(SimDrive(mode="cav", seed=7), speed_kbs=5540, reps=8, max_targets=4, log=lambda *_: None)
+    set_one.run()
+    c.check(set_one.tp.summary["set_cd_speed"]["requested_kBps"] == 5540, "the default still sets 4x")
+
+
 def _unreadable(c: Checker):
     print("timing stops early on unreadable discs and non-CAV drives")
     from .scsi import ScsiResult, Sense
@@ -457,6 +489,7 @@ def run() -> bool:
         _ladder(c)
         _ladder_abort(c)
         _ladder_cd_audio(c)
+        _geo_rotation(c)
         _disexport(c)
         _efmplus(c)
         _tiles(c)
