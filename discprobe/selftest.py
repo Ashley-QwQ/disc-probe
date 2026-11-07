@@ -178,6 +178,18 @@ def _pitch_fit(c: Checker):
     c.check(math.isfinite(f["span_sigma_deg"]) and f["span_sigma_deg"] > 0,
             "quadratic span uncertainty includes fitted pitch parameters")
 
+
+def _timer_tick(c: Checker):
+    print("timer tick diagnosis")
+    for strategy in ("plain", "evict"):
+        for period in (15.625, 7.8125, 15.625 / 3, 10.0):
+            logs = []
+            probe = timing.TimingProbe(SimDrive(), log=logs.append)
+            probe.strategy = strategy
+            probe.summary = {"period": {}}
+            probe._check_period([{"period_ms": period}])
+            c.check(bool(logs) == (period != 10.0), f"{strategy} period {period:.4f} ms")
+
 def _ladder(c: Checker):
     print("ladder geometry measurement on the simulated drive (35 ms re-read overhead)")
     import numpy as np
@@ -894,6 +906,7 @@ def _run() -> bool:
     _report(c)
     _incomplete_folder(c)
     _harmonics(c)
+    _timer_tick(c)
     _sim_run(c, "cav", True, "fua", "CAV")
     _sim_run(c, "cav", True, "fua", "CAV", sectors=16)
     _sim_run(c, "cav", True, "fua", "CAV", reread_ms=35.0)

@@ -447,19 +447,21 @@ class TimingProbe:
         drive so far. Reads served from cache follow the host instead: with a coarse sleep their
         completion times lock to the Windows timer tick (15.625 ms) and its harmonics."""
         periods = [z["period_ms"] for z in zones if "period_ms" in z]
+        if not periods:
+            return
+        T = statistics.median(periods)
+        if self.strategy in ("plain", "evict") and any(abs(15.625 / k - T) < 0.15 for k in (1, 2, 3)):
+            self.log("Warning: this period looks like the Windows timer tick (15.625 ms), not the spindle")
         # The cache test runs before the spindle settles, so its FUA time can span two speeds.
         settle = self.summary.get("settle", {})
         fua = settle["read"]["p50_us"] if self.strategy == "fua" and "read" in settle else None
-        if not periods or not fua:
+        if not fua:
             return
-        T = statistics.median(periods)
         turns = fua / 1e3 / T
         self.summary["period"]["fua_read_turns"] = round(turns, 3)
         if abs(turns - round(turns)) > 0.1:
             self.log(f"Warning: a FUA read takes {turns:.2f} turns of this period, not a whole number, "
                      "so this period may not be the spindle")
-        if self.strategy in ("plain", "evict") and any(abs(15.625 / k - T) < 0.15 for k in (1, 2, 3)):
-            self.log("Warning: this period looks like the Windows timer tick (15.625 ms), not the spindle")
 
     def _nominal_key(self) -> str:
         return self.family if self.family in NOMINAL else "dvd"
