@@ -455,7 +455,7 @@ def after_geo(args, res: dict, out: str) -> list[str]:
 
 
 def after_geo_stop(args, reason: str) -> list[str]:
-    if reason in (mmc.NO_DISC, mmc.LOADING):
+    if reason in mmc.NOT_READY:
         return []
     carry, other, word = _carry(args), _other_speed(args), _speed_word(args)
     if "never settled" in reason or "near the reference" in reason:
