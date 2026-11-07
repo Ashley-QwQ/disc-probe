@@ -1298,6 +1298,23 @@ def _bd_export(c: Checker):
                     "a catalog of another schema is left untouched")
         else:
             c.check(False, "a catalog of another schema is left untouched")
+    from . import guide
+    # The angle ladder's own result: rungs and chi2/dof are the figures install_blocker reads.
+    angular = {"fit": {"media": "bd", "rungs": 9, "chi2_per_dof": 1.10,
+                       "dis_equivalent": {"inner_radius_mm": 24.02, "pitch_um_estimate": 0.3185}}}
+    with tempfile.TemporaryDirectory() as root:
+        folder = os.path.join(root, "geo-G-20260101-000000")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump(angular, f)
+        path = os.path.join(folder, "summary.json")
+        c.check(guide.install_blocker(path) is None,
+                "an angular Blu-ray result is installable: rungs and chi2/dof are its figures")
+        c.check(guide.install_warning(path) is None, "and nothing is left unchecked for it")
+        thin = {"fit": {**angular["fit"], "rungs": 3}}
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(thin, f)
+        c.check(guide.install_blocker(path) is not None, "an angular result with too few rungs is refused")
 
 
 def _efmplus(c: Checker):
