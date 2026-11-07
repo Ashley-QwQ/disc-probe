@@ -34,7 +34,9 @@ the other way, a 58.0232 mm outer edge with this sector count implies an inner r
    28.5 um, against a fit tolerance of 13.7-15.1 um per run. A fifth 25-zone run at 1.6x gives
    24.6575 +- 0.0145 mm, 19.7 um lower -- which also bounds any constant period offset at ~50 us.
 2. **Two speeds, no anchor.** At 1.6x the slope and intercept both grow by (2.1/1.6)^2, and `b/a`
-   -- the speed-free combination -- agrees with the 2.1x runs to 0.15%, i.e. 20 um of radius.
+   -- the speed-free combination -- agrees with the 2.1x runs to 0.15%, i.e. 20 um of radius. A
+   tenth run asked for 1x and the drive floored it at the same 7.91 m/s (24.6635 +- 50 um), so this
+   drive offers two speeds and the two-speed check cannot grow a third arm.
 3. **Capacity.** The measured inner radius matches what the sector count and the 0.320 um pitch
    imply for a 58.0232 mm edge (section above), without any parameter tuned to make it so.
 4. **Against the tree.** The thirteen BD runs already in this repo (39 zones, three per run) give
@@ -75,7 +77,7 @@ file of its own, separate from the CD and DVD `disc-presets.json`.
 | thing | state |
 | --- | --- |
 | model, estimator, tests | `selftest` 1038 ok; `tests/test_bd_clv_solver.py` 15/15; `tests/test_bd_preset.py` 17/17 |
-| real disc, real drive | five runs at 2.1x (two of them 9 zones), one at 1.6x, all read-only |
+| real disc, real drive | six runs at 2.1x (two of them 9 zones), two at 1.6x -- one of them a 1x request that the drive floored -- all read-only |
 | import into DiscImageStudio | **not tested** -- this machine has no DiscImageStudio 1.5.0; the record is written against `BluRayPresetStore.Import`/`Validate` in the DIS source |
 | dual-layer discs | refused before measuring (sector count above 12,219,392); the LBA-to-radius map jumps at the layer break |
 | DIS's own pitch inversion | re-ran the bisection from `BluRayTrackGeometry` on our three numbers: `0.320000 um` back, so the record is self-consistent in DIS's model |
