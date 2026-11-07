@@ -371,11 +371,14 @@ class Ladder:
         self.fit()
 
         tried = {t["lba"] for t in self.targets}
+        self.completion_status = "target_reached"
+        self.failed_candidates = []
         while len(self.targets) < self.max_targets:
             # Skip candidates next to one already measured: a second point there adds little.
             cands = [c for c in self._candidates()
                      if c not in tried and min(abs(c - t) for t in tried) >= self.spacing]
             if not cands:
+                self.completion_status = "candidates_exhausted"
                 break
             sig = {c: self._sigma_pred_deg(self._n_end(c)) for c in cands}
             safe = [c for c in cands if sig[c] < SAFE_DEG]
@@ -403,6 +406,7 @@ class Ladder:
             pred = math.degrees(self._predict(self._n_end(lba)))
             m = self._measure_retry(lba)
             if m is None:
+                self.failed_candidates.append(lba)
                 self.log(f"  LBA {lba}: skipped (no stable measurement)")
                 continue
             self._add(m, pred)
@@ -470,6 +474,9 @@ class Ladder:
         r_of = lambda n: b_mm * math.sqrt(self.u ** 2 + self.v * n / math.pi)
         rep["measured_span_mm"] = [round(r_of(lo), 3), round(r_of(hi), 3)]
         rep["angle_sigma_measured_span_deg"] = math.degrees(math.sqrt(float(g @ self.cov[:2, :2] @ g)))
+        if hasattr(self, "completion_status"):
+            rep["completion_status"] = self.completion_status
+            rep["failed_candidates"] = self.failed_candidates
         rep["c_deg"] = math.degrees(self.c)
         rep["chi2_per_dof"] = self.chi2_dof
         rep["residual_rms_deg"] = float(np.sqrt(np.mean([t["residual_deg"] ** 2 for t in self.targets])))

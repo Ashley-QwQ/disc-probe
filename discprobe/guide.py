@@ -111,7 +111,8 @@ class Result:
         return self.summary.get("stopped")
 
     def geo_complete(self) -> bool:
-        return (self.kind == "geo" and "u" in self.fit and not self.stopped and self.rungs() >= MIN_RUNGS
+        return (self.kind == "geo" and "u" in self.fit and not self.stopped
+                and self.fit.get("completion_status", "target_reached") == "target_reached" and self.rungs() >= MIN_RUNGS
                 and self.fit.get("chi2_per_dof", 0) <= MAX_LATEST_CHI2)
 
     @property
@@ -238,6 +239,8 @@ def install_blocker(geo_summary: str) -> str | None:
     fit = summary.get("fit") or {}
     if "u" not in fit:
         return "this run has no geometry fit in its summary.json, so there is nothing to install."
+    if fit.get("completion_status", "target_reached") != "target_reached":
+        return "this run exhausted its candidates before reaching the target; measure again before installing a preset."
     rungs = None
     try:
         with open(os.path.join(folder, "targets.csv"), encoding="utf-8") as f:

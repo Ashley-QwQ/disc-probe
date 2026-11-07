@@ -277,6 +277,10 @@ def _ladder_safe_unwrap(c: Checker):
                   for t in ladder.targets]
         c.check(max(ladder.pred_sigmas[2:]) < 25 and max(errors) < 180,
                 "bridged DVD rungs stay safe and on the correct whole-turn branch")
+    partial = PhaseOracle(seed=0, sigma=0.2, readable=[(850000, 1200000)])
+    fit = partial.run()
+    c.check(fit["completion_status"] == "candidates_exhausted" and bool(fit["failed_candidates"]),
+            "exhausted candidates are recorded as partial")
 
 
 def _ladder(c: Checker):
