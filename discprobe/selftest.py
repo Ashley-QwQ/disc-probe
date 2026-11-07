@@ -270,10 +270,14 @@ def _ladder_safe_unwrap(c: Checker):
     try:
         ladder.run()
     except RuntimeError as exc:
-        c.check("ambiguous" in str(exc) and len(ladder.targets) == 2,
-                "unsafe DVD rung stops before committing a whole turn")
+        c.check("ambiguous" in str(exc), "unsafe DVD rung stops before committing a whole turn")
     else:
-        c.check(False, "unsafe DVD rung must stop")
+        errors = [abs(t["unwrapped_deg"] - math.degrees(theta(t["n"], ladder.truth_u, ladder.truth_v)
+                  - theta(ladder.n_ref, ladder.truth_u, ladder.truth_v)) - math.degrees(ladder.c))
+                  for t in ladder.targets]
+        c.check(max(ladder.pred_sigmas[2:]) < 25 and max(errors) < 180,
+                "bridged DVD rungs stay safe and on the correct whole-turn branch")
+
 
 def _ladder(c: Checker):
     print("ladder geometry measurement on the simulated drive (35 ms re-read overhead)")

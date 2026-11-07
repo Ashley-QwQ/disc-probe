@@ -391,8 +391,14 @@ class Ladder:
             elif safe:
                 lba = max(safe, key=lambda c: abs(self._n_end(c) - self.n_ref))
             else:
-                raise RuntimeError("no rung is within the safe 25-degree prediction limit; "
-                                   "the whole-turn count is ambiguous; retry with lower noise")
+                bridge = [c for c in self._candidates()
+                          if c not in tried and min(abs(c - t) for t in tried) >= self.block]
+                sig.update({c: self._sigma_pred_deg(self._n_end(c)) for c in bridge})
+                bridge = [c for c in bridge if sig[c] < SAFE_DEG]
+                if not bridge:
+                    raise RuntimeError("no rung is within the safe 25-degree prediction limit; "
+                                       "the whole-turn count is ambiguous; retry with lower noise")
+                lba = max(bridge, key=lambda c: abs(self._n_end(c) - self.n_ref))
             tried.add(lba)
             pred = math.degrees(self._predict(self._n_end(lba)))
             m = self._measure_retry(lba)
