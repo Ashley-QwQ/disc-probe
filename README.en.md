@@ -78,6 +78,11 @@ The preview's colours only tell the textures apart, so it won't match the disc. 
 
 You need blank discs from the same batch: at least 2 for DVD (measuring, picture) and at least 3 for CD (measuring, calibration, picture). The measuring disc can't take a picture afterwards, but keep it: other discs of that batch don't need a new one. You also need Windows, Python 3.10 or later and a drive that can burn. For Linux and macOS, see the ports listed under the [table of reports](#drives-with-hands-on-reports). The steps below are for DVD. For CD, see the [CD route](#cd-route) further down.
 
+You can also skip git and download a package from [Releases](https://github.com/Ashley-QwQ/disc-probe/releases/latest):
+
+- `full-win64`: for Windows, with its own Python and dependencies. Unpack it and double-click `开始 Start.bat`, nothing to install. You can skip the install steps below.
+- `core`: disc-probe alone, for a machine that has Python. Unpack it, run `python -m pip install -r requirements.txt` in the folder, then the `selftest` below.
+
 Open a terminal as administrator, install the dependencies, and check your setup on the simulated drive. If you cannot run as administrator, add `--transport imapi` to the drive commands: it sends the same CDBs through Windows' own IMAPI2 recorder interface (`IDiscRecorder2Ex`), which a standard user may call. The default, `auto`, switches to it when SPTI is refused.
 
 ```bash

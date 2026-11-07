@@ -78,6 +78,11 @@ python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --te
 
 要准备同一批的空盘：DVD 至少 2 张（测量、刻图），CD 至少 3 张（测量、标定、刻图）。测量盘刻好后不能再刻图，但可以留着，同一批的盘以后不用再刻一张。另外需要 Windows、Python 3.10 以上和一台能刻录的光驱。Linux 和 macOS 见[实践报告表](#有实践报告的光驱)下方的移植版本。下面以 DVD 为例，CD 见后面的 [CD 路线](#cd-路线)。
 
+也可以不用 git，到 [Releases](https://github.com/Ashley-QwQ/disc-probe/releases/latest) 下载打包好的版本：
+
+- `full-win64`：Windows 用，自带 Python 和依赖。解压后双击 `开始 Start.bat`，不用另外安装。下面的安装步骤可以跳过。
+- `core`：只有 disc-probe，要你已经装好 Python。解压后在文件夹里运行 `python -m pip install -r requirements.txt`，再运行下面的 `selftest`。
+
 用管理员身份打开终端，安装依赖，并用模拟驱动器确认环境正常。不方便用管理员身份时，在读盘的命令后加 `--transport imapi`：它经 Windows 自带的 IMAPI2 刻录接口（`IDiscRecorder2Ex`）发同样的命令，普通用户即可；默认的 `auto` 在 SPTI 被拒时会自动改用它。
 
 ```bash

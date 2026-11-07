@@ -1,9 +1,10 @@
-"""Build the offline Windows package: disc-probe with its own Python, unpacked and double-clicked, nothing installed.
+"""Build the two release packages. The full one is disc-probe with its own Python for Windows, unpacked and double-clicked,
+nothing installed. The core one is only disc-probe, for a machine that has Python and installs the rest itself.
 
-    python tools/build_winpack.py --ref experiment/tui-lab --label lab --out D:/disc-probe-dist
+    python tools/build_winpack.py --ref v0.1.0 --label 0.1.0 --out D:/disc-probe-dist
 
-It downloads the official embeddable Python and the wheels once, into OUT/cache, and writes OUT/disc-probe-LABEL-win64.zip
-with its SHA-256 beside it. Run it with the same minor version of Python as PYTHON below, so the versions it pins exist.
+It downloads the official embeddable Python and the wheels once, into OUT/cache, and writes OUT/disc-probe-LABEL-full-win64.zip
+and OUT/disc-probe-LABEL-core.zip, each with its SHA-256 beside it. Run it with the same minor version of Python as PYTHON below, so the versions it pins exist.
 """
 
 from __future__ import annotations
@@ -69,6 +70,33 @@ def sha256(path: str) -> str:
     return h.hexdigest()
 
 
+def unpack_source(ref: str, root: str) -> None:
+    source = subprocess.run(["git", "-C", HERE, "archive", "--format=tar", ref, *SOURCE], check=True, capture_output=True).stdout
+    with tarfile.open(fileobj=io.BytesIO(source)) as t:
+        t.extractall(root, filter="data")
+
+
+def pack(root: str, out: str, commit: str) -> None:
+    archive = shutil.make_archive(root, "zip", out, os.path.basename(root))
+    digest = sha256(archive)
+    with open(archive + ".sha256", "w", encoding="ascii") as f:
+        f.write(f"{digest}  {os.path.basename(archive)}\n")
+    print(f"{archive}: {os.path.getsize(archive) / 1e6:.1f} MB, commit {commit}, sha256 {digest[:20]}")
+
+
+def build_core(a, commit: str) -> None:
+    root = os.path.join(a.out, f"disc-probe-{a.label}-core")
+    if os.path.isdir(root):
+        shutil.rmtree(root)
+    os.makedirs(root)
+    unpack_source(a.ref, root)
+    with open(os.path.join(root, "requirements.txt"), "w", encoding="ascii", newline="\n") as f:
+        f.write("\n".join(PACKAGES) + "\n")
+    with open(os.path.join(root, "package.json"), "w", encoding="utf-8") as f:
+        json.dump(dict(ref=a.ref, commit=commit), f, indent=1)
+    pack(root, a.out, commit)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--ref", default="main")
@@ -91,8 +119,8 @@ def main() -> None:
         subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--no-compile", "--only-binary=:all:", "--platform", "win_amd64",
                         "--python-version", PYTHON.rsplit(".", 1)[0], "--implementation", "cp", "--target", wheels, *pins], check=True)
     commit = subprocess.run(["git", "-C", HERE, "rev-parse", "--short", a.ref], check=True, capture_output=True, text=True).stdout.strip()
-    name = f"disc-probe-{a.label}-win64"
-    root = os.path.join(a.out, name)
+    build_core(a, commit)
+    root = os.path.join(a.out, f"disc-probe-{a.label}-full-win64")
     if os.path.isdir(root):
         shutil.rmtree(root)
     py = os.path.join(root, "python")
@@ -104,9 +132,7 @@ def main() -> None:
     with open(os.path.join(py, tag + "._pth"), "w", encoding="ascii") as f:
         f.write(f"{tag}.zip\n.\nLib\\site-packages\n..\nimport site\n")
     shutil.copytree(wheels, os.path.join(py, "Lib", "site-packages"), ignore=shutil.ignore_patterns(*LEAVE_OUT))
-    source = subprocess.run(["git", "-C", HERE, "archive", "--format=tar", a.ref, *SOURCE], check=True, capture_output=True).stdout
-    with tarfile.open(fileobj=io.BytesIO(source)) as t:
-        t.extractall(root, filter="data")
+    unpack_source(a.ref, root)
     with open(os.path.join(root, "开始 Start.bat"), "w", encoding="ascii", newline="\r\n") as f:
         f.write(START)
     with open(os.path.join(py, "shell.cmd"), "w", encoding="utf-8", newline="\r\n") as f:
@@ -115,11 +141,7 @@ def main() -> None:
         f.write(NOTICE.format(python=PYTHON, packages=", ".join(pins)))
     with open(os.path.join(root, "package.json"), "w", encoding="utf-8") as f:
         json.dump(dict(ref=a.ref, commit=commit, python=PYTHON, packages=pins, embed_sha256=sha256(embed)), f, indent=1)
-    archive = shutil.make_archive(root, "zip", a.out, name)
-    digest = sha256(archive)
-    with open(archive + ".sha256", "w", encoding="ascii") as f:
-        f.write(f"{digest}  {os.path.basename(archive)}\n")
-    print(f"{archive}: {os.path.getsize(archive) / 1e6:.0f} MB, commit {commit}, sha256 {digest[:20]}")
+    pack(root, a.out, commit)
 
 
 if __name__ == "__main__":
