@@ -162,6 +162,20 @@ def _harmonics(c: Checker):
     c.check(fit is not None and 30 < fit.residual_std_s * 1e6 < 80, f"jitter {fit.residual_std_s * 1e6:.1f} us")
 
 
+
+def _pitch_fit(c: Checker):
+    print("pitch model numerical fit")
+    import numpy as np
+    from tools.geo_polyfit import fit, model
+    u, v, rc, rs = 180000.0, 5.5, 300000.0, 112000.0
+    n = np.linspace(2e8, 8e9, 29)
+    y = model(n, u, v, [0.0, 0.0004], rc, rs)[0]
+    s = np.full(len(n), math.radians(0.3))
+    f = fit(n, y, s, u, v, 2, rc, rs)
+    predicted = model(n, f["u"], f["v"], f["b"], rc, rs)[0]
+    delta = np.degrees(predicted - y)
+    c.check(np.ptp(delta) < 0.01, f"quadratic pitch prediction error {np.ptp(delta):.6f} deg")
+
 def _ladder(c: Checker):
     print("ladder geometry measurement on the simulated drive (35 ms re-read overhead)")
     import numpy as np
@@ -890,6 +904,7 @@ def _run() -> bool:
     except ImportError:
         print("ladder check skipped (needs numpy)")
     else:
+        _pitch_fit(c)
         _ladder(c)
         _ladder_abort(c)
         _ladder_cd_audio(c)

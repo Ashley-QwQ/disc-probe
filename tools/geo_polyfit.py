@@ -74,7 +74,14 @@ def fit(n, y, s, u0, v0, order, rc, rs):
     th0, _ = model(n, u0, v0, [], rc, rs)
     z0 = np.zeros(3 + order)
     z0[-1] = np.mean(y - th0)
-    sol = least_squares(res, z0, x_scale=np.r_[1, 1, [1] * order, 1], method="lm")
+    def jac(z):
+        h = 1.0
+        return np.column_stack([(res(z + h * e) - res(z - h * e)) / (2 * h)
+                                for e in np.eye(len(z))])
+
+    sol = least_squares(res, z0, jac=jac, x_scale=np.ones(len(z0)), method="lm")
+    if not sol.success or not np.isfinite(sol.fun).all():
+        raise ValueError("pitch fit did not converge")
     u, v, bs, c = unpack(sol.x)
     r = sol.fun
     dof = len(n) - len(z0)
