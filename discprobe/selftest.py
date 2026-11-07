@@ -1110,7 +1110,7 @@ def _bd_clv(c: Checker):
 
     # Round trip on data built from a known disc: the fit has to give it back.
     truth_r0, truth_pitch, truth_v = 24.02, 0.3185, 39.336
-    sector_mm = 2.23945
+    sector_mm = clv.NOMINAL["bd"].sector_mm
     samples = []
     for lba in [497408, 1_500_000, 2_500_000, 3_500_000, 4_974_208, 6_000_000, 8_000_000, 10_000_000]:
         r = math.sqrt(truth_r0 ** 2 + truth_pitch * 1e-3 * sector_mm * lba / math.pi)

@@ -57,6 +57,11 @@ class BdPresetError(ValueError):
     """The measurement cannot be written as a preset DiscImageStudio will load."""
 
 
+def pitch_mm(pitch_um: float) -> float:
+    """Track pitch in millimetres from the micrometres the command line speaks in."""
+    return float(pitch_um) * 1e-3
+
+
 def sector_mm(bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM) -> float:
     """Track length of one sector: 30066.75 channel bits of the given length."""
     return BD_BITS_PER_RECORDING_UNIT / BD_SECTORS_PER_RECORDING_UNIT * bit_nm * 1e-6
@@ -77,6 +82,23 @@ def pitch_um_from_slope(slope_ms2_per_lba: float, v_m_s: float,
                         bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM) -> float:
     """p = a v^2 / (4 pi S) for the T^2 slope, with T in ms, v in mm/ms and S in mm."""
     return slope_ms2_per_lba * v_m_s * v_m_s / (4 * math.pi * sector_mm(bit_nm)) * 1e3
+
+
+def pullback_inner_mm(r0_mm: float, pitch_um: float, sectors: int,
+                       bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM) -> float:
+    """The radius of a sector this many sectors *inside* the measured LBA 0.
+
+    A formatted BD-RE starts its logical LBA 0 after an inner spare area (four thousand and
+    ninety-six clusters on a 25 GB disc, 131 072 sectors), so the measured r0 is that much
+    further out than the physical start of the data zone. Walking the same spiral backwards
+    over those sectors gives the start of the data zone, which is where an unspared BD-R
+    begins to write.
+    """
+    area = r0_mm * r0_mm - pitch_mm(pitch_um) * sector_mm(bit_nm) * int(sectors) / math.pi
+    if area <= 0:
+        raise BdPresetError(f"{sectors:,} sectors back from LBA 0 would leave no radius at all; "
+                            "the measured inner radius and the pitch cannot both be right")
+    return math.sqrt(area)
 
 
 def usable_sectors_for(total_sectors: int, usable_sectors: int | None = None) -> int:
@@ -120,7 +142,8 @@ def check(total_sectors: int, inner_mm: float, outer_mm: float, layer_count: int
 def parameters(fit: dict, total_sectors: int, *, inner_mm: float | None = None,
                outer_mm: float | None = None, pitch_um: float | None = None,
                bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM,
-               usable_sectors: int | None = None) -> dict:
+               usable_sectors: int | None = None,
+               measured_sectors: int | None = None, pullback_isa0: bool = False) -> dict:
     """The `parameters` object of a Blu-ray preset, from a `model: "clv"` geo fit.
 
     `inner_mm`, `outer_mm` and `pitch_um` override what the run measured; any of them that is
@@ -143,6 +166,8 @@ def parameters(fit: dict, total_sectors: int, *, inner_mm: float | None = None,
         r0 = anchors.get("inner_radius_mm")      # ... and u = r0/b
     if r0 is None:
         raise BdPresetError("this geo fit has no r0_mm")
+    if pullback_isa0 and measured_sectors and total_sectors > measured_sectors:
+        r0 = pullback_inner_mm(r0, p, total_sectors - measured_sectors, bit_nm)
     r_out = outer_mm if outer_mm is not None else outer_radius_mm(r0, p, total_sectors, bit_nm)
     usable = usable_sectors_for(total_sectors, usable_sectors)
     check(total_sectors, r0, r_out, usable_sectors=usable)
@@ -153,10 +178,12 @@ def parameters(fit: dict, total_sectors: int, *, inner_mm: float | None = None,
 def preset(fit: dict, total_sectors: int, preset_id: str, name: str, description: str, *,
            inner_mm: float | None = None, outer_mm: float | None = None, pitch_um: float | None = None,
            bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM, invert: bool = False,
-           usable_sectors: int | None = None) -> dict:
+           usable_sectors: int | None = None, measured_sectors: int | None = None,
+           pullback_isa0: bool = False) -> dict:
     """The `{id, displayName, parameters, invertMapping}` record the BD catalog stores."""
     params = parameters(fit, total_sectors, inner_mm=inner_mm, outer_mm=outer_mm, pitch_um=pitch_um,
-                        bit_nm=bit_nm, usable_sectors=usable_sectors)
+                        bit_nm=bit_nm, usable_sectors=usable_sectors,
+                        measured_sectors=measured_sectors, pullback_isa0=pullback_isa0)
     return {"id": preset_id, "displayName": name, "description": description, **params,
             "invertMapping": bool(invert)}
 
@@ -296,7 +323,8 @@ def install(preset_obj: dict, path: str | None = None, replace: bool = False) ->
 
 def export(geo_summary: str, total_sectors: int, out_path: str, preset_id: str, name: str, *,
            inner_mm: float | None = None, outer_mm: float | None = None, pitch_um: float | None = None,
-           bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM, usable_sectors: int | None = None) -> dict:
+           bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM, usable_sectors: int | None = None,
+           pullback_isa0: bool = False) -> dict:
     """Build the preset for one CLV run and, when `out_path` is given, write the importable document."""
     with open(geo_summary, encoding="utf-8") as f:
         run = json.load(f)
@@ -312,8 +340,10 @@ def export(geo_summary: str, total_sectors: int, out_path: str, preset_id: str, 
         fit = {**fit, "r0_mm": anchors.get("inner_radius_mm"),
                "pitch_um": anchors.get("pitch_um_estimate"), "zones_used": fit.get("rungs"),
                "r2": None, "v_m_s": None, "anchor": "the angle ladder (u = r0/b, v = p/b)"}
+    setup = run.get("setup") or {}
+    measured = None if setup.get("last_lba") is None else int(setup["last_lba"]) + 1
     params = parameters(fit, total_sectors, inner_mm=inner_mm, outer_mm=outer_mm, pitch_um=pitch_um,
-                        bit_nm=bit_nm)
+                        bit_nm=bit_nm, measured_sectors=measured, pullback_isa0=pullback_isa0)
     anchors = fit.get("dis_equivalent") if fit.get("media") == "bd" else None
     anchors = anchors if isinstance(anchors, dict) else {}
     p = pitch_um if pitch_um is not None else fit.get("pitch_um")
@@ -338,6 +368,10 @@ def export(geo_summary: str, total_sectors: int, out_path: str, preset_id: str, 
                                            "zones_used", "sigma_r0_mm", "offset_ms", "sigma_offset_ms",
                                            "chi2_per_dof", "rungs")},
            "derived": {"pitch_um": p, "sector_mm": sector_mm(bit_nm),
+                       "measured_sectors": measured,
+                       "pullback_sectors": (total_sectors - measured
+                                            if pullback_isa0 and measured and total_sectors > measured
+                                            else 0),
                        "usable_sectors": params["usableSectors"],
                        "track_length_mm": track_length_mm(total_sectors, bit_nm),
                        "outer_from_pitch_mm": outer_radius_mm(params["innerRadiusMm"], p, total_sectors, bit_nm)},

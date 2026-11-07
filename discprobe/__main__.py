@@ -901,7 +901,8 @@ def _disexport_bd(args):
     output = args.output or (None if args.install else bdexport.suggested_file_name(preset_name))
     try:
         out = bdexport.export(args.geo, args.sectors, output, preset_id, preset_name,
-                              usable_sectors=args.usable_sectors)
+                              usable_sectors=args.usable_sectors,
+                              pullback_isa0=args.pullback_isa0)
     except ValueError as e:
         sys.exit(str(e))
     preset, fit, derived = out["preset"], out["fit"], out["derived"]
@@ -925,6 +926,17 @@ def _disexport_bd(args):
                       "rather than from the periods, and DiscImageStudio solves it from the three numbers above")
               .format(a=f"{derived['pitch_um']:.4f}", b=fit.get("zones_used", "?"),
                       c="?" if chi2 is None else f"{chi2:.2f}"))
+    measured = derived.get("measured_sectors")
+    if derived.get("pullback_sectors"):
+        print(i18n.tr("pulled the inner radius back {a} sectors, over the spare area a formatted disc "
+                      "keeps there: sector 0 of an unspared BD-R starts at {b} mm, not {c} mm")
+              .format(a=f"{derived['pullback_sectors']:,}", b=f"{preset['innerRadiusMm']:.4f}",
+                      c=f"{fit['r0_mm']:.4f}"))
+    elif measured and total > measured:
+        print(i18n.tr("this disc holds {a} sectors and the preset says {b}: the difference is the inner "
+                      "spare area a formatted disc keeps, so sector 0 sits further out than on an "
+                      "unspared BD-R. Add --pullback-isa0 to move the inner radius back for one")
+              .format(a=f"{measured:,}", b=f"{total:,}"))
     if fit.get("offset_ms") is not None:
         if fit["offset_ms"]:
             moved = fit["v_m_s"] * abs(fit["offset_ms"]) / (2 * 3.141592653589793)
@@ -1710,6 +1722,10 @@ def _build_parser():
     sp.add_argument("--usable-sectors", type=int,
                     help="Blu-ray only: sectors a project may fill; default 2 MiB short of the disc so a burner "
                          "still has room for its lead-out, 0 for the whole disc")
+    sp.add_argument("--pullback-isa0", action="store_true",
+                    help="Blu-ray only: when --sectors is larger than the disc the run measured, put the "
+                         "difference in front of sector 0 instead of behind the last one, which is where an "
+                         "unspared BD-R starts")
     sp.add_argument("--id")
     sp.add_argument("--name")
     sp.add_argument("--output", help="the preset file to write (default dis_preset.json; with --install, only if you name one)")

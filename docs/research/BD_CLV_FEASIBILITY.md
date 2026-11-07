@@ -469,6 +469,12 @@ The offset run is the outlier and it is instructive: fitting a free per-period d
 by 0.41 mm, because an offset and a starting radius are nearly the same parameter over the measured
 span. The residuals say the offset is not real -- over 23 zones they run +0.017 to -0.002 ms with no
 slope in LBA (1.7e-10 ms/LBA), so `offset = -246 +- 104 us` is a 2.4 sigma wobble of a parameter that
+The disc holds 12 088 320 sectors instead of a full layer's 12 219 392: that difference is the
+4 096-cluster inner spare area a formatted BD-RE keeps, so sector 0 starts 0.66 mm further out while
+the last sector still reaches the physical edge. Pulling the spiral back over those 131 072 sectors
+gives 24.0516 mm, the data zone start the standard puts at 24.00 +- 0.05 mm -- which is also the inner
+radius a preset for an unspared BD-R has to carry (`--pullback-isa0`).
+
 should be zero -- and the two speeds agree to 21 um (24.640 vs 24.661 mm) where a real 0.5 ms delay
 would have separated them by 0.2 mm. So the radius is 24.66 mm, `--fit-offset` is a diagnostic
 rather than the default, and the command says out loud when an exported preset came from a run that

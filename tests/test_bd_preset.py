@@ -113,7 +113,7 @@ def test_a_uv_fit_that_is_not_blu_ray_is_still_refused():
 def test_the_document_is_what_the_import_reader_reads():
     document = bdexport.document(bdexport.preset(FIT, SECTORS, "discprobe-bd-re", "BD-RE", "test"))
     assert set(document["parameters"]) == {"totalSectors", "layerCount", "innerRadiusMm",
-                                          "outerRadiusMm", "startAngleDegrees"}
+                                          "outerRadiusMm", "startAngleDegrees", "usableSectors"}
     assert document["luminanceMapping"] == {"invert": False}
 
 

@@ -119,6 +119,14 @@ spread 28.5 um, each fit's own tolerance 13.7-15.1 um). The 25-zone run at 1.6x 
 period offset would show up as a speed-dependent radius: `eps*v/2pi` differs by 0.39 mm/ms between the
 two speeds, so 20 um bounds any constant epsilon at about 50 us.
 
+Why 24.66 and not 24.0: the disc holds 12 088 320 sectors, 131 072 fewer than a full layer, and a
+formatted BD-RE keeps exactly that much (4 096 clusters, 256 MiB) as its inner spare area ISA0 with
+no outer spare area. So its last sector still reaches the physical edge (58.0214 mm) while LBA 0
+starts 0.66 mm out. Walking the same spiral back over those 131 072 sectors,
+`sqrt(24.6655^2 - p*S*131072/pi) = 24.0516 mm`, lands on the start of the data zone the standard puts
+at 24.00 +- 0.05 mm -- an independent check of the whole chain, and the number a preset for an
+unspared BD-R needs (`disexport ... --pullback-isa0`).
+
 A request for 1x (`--speed 4495`) lands at 7.91 m/s as well: the drive floors at one speed for both
 requests, so two speeds is all this drive offers and the two-speed check below cannot grow a
 third arm. That run kept 7 of 9 zones and its innermost kept zone was at 36.97 mm, 12.31 mm

@@ -843,7 +843,23 @@ TEXT = {
     "overwrite existing files": "覆盖已有的文件",
     "fit range: use the measured span (DVD default 25.8, CD the span geo measured)": "拟合范围：用实测范围（DVD 默认 25.8，CD 用 geo 测到的范围）",
     "DVD default 54.4, CD the span geo measured": "DVD 默认 54.4，CD 用 geo 测到的范围",
-        "Blu-ray only: sectors a project may fill; default 2 MiB short of the disc so a burner "
+            "pulled the inner radius back {a} sectors, over the spare area a formatted disc "
+    "keeps there: sector 0 of an unspared BD-R starts at {b} mm, not {c} mm":
+    "内径往回推了 {a} 个扇区，越过格式化盘在内圈留的备用区：没有备用区的 BD-R 上扇区 0 在 {b} mm，而不是 {c} mm",
+
+    "this disc holds {a} sectors and the preset says {b}: the difference is the inner "
+    "spare area a formatted disc keeps, so sector 0 sits further out than on an "
+    "unspared BD-R. Add --pullback-isa0 to move the inner radius back for one":
+    "这张盘有 {a} 个扇区，预设写的是 {b}：差的就是格式化盘在内圈留的备用区，"
+    "所以扇区 0 比没有备用区的 BD-R 更靠外。要给那种盘出预设，加 --pullback-isa0 把内径往回推",
+
+    "Blu-ray only: when --sectors is larger than the disc the run measured, put the "
+    "difference in front of sector 0 instead of behind the last one, which is where an "
+    "unspared BD-R starts":
+    "仅蓝光：当 --sectors 大于实测盘片的扇区数时，把差额放在扇区 0 之前而不是最后一个扇区之后，"
+    "没有备用区的 BD-R 就从那里开始",
+
+"Blu-ray only: sectors a project may fill; default 2 MiB short of the disc so a burner "
     "still has room for its lead-out, 0 for the whole disc":
     "仅蓝光：工程可用的扇区数；默认比盘片少 2 MiB，给刻录机的 lead-out 留出位置，0 表示整盘",
 "CD only: along-track constant in frames, as in image --along-track-frames": "仅 CD：沿轨常数（帧），含义同 image --along-track-frames",

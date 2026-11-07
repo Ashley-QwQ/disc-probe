@@ -578,6 +578,7 @@ def write_outputs(run: "ClvLadder", out_dir: str, stopped: str | None = None) ->
             # rather than a measurement. A full 25 GB layer should land on 58.0 mm.
             outer = math.sqrt(r0_mm * r0_mm + pitch_um * 1e-3 * NOMINAL[run.media].sector_mm * int(last) / math.pi)
             payload["derived"] = {"outer_radius_mm": round(outer, 6), "last_lba": int(last),
+                                  "measured_sectors": int(last) + 1,
                                   "full_layer": run.media == "bd" and int(last) + 1 == BD_SECTORS_PER_LAYER}
             run.summary["derived"] = payload["derived"]
     if stopped:
