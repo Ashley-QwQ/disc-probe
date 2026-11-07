@@ -92,6 +92,13 @@ TEXT = {
     "after the rung at LBA {l}: chi2/dof {c}, worst residual {w} deg; a whole-turn count is probably wrong, so the fit was stopped":
         "测完扇区 {l} 这个测量点后：拟合误差比 {c}，最大残差 {w}°；很可能数错了整圈数，所以停止拟合",
     "stopped: {e}": "已停止：{e}",
+    "CD-DA track: READ CD, origin at the end of each sector in the burned audio stream, read offset {x} bytes":
+        "CD 音轨：用 READ CD 读，原点是刻进去的音轨字节流里每个扇区的末尾，读偏移 {x} 字节",
+    "--read-offset-bytes is for a CD-DA track (DiscImageStudio picture burn); this disc is a data disc":
+        "--read-offset-bytes 只用于 CD 音轨（DiscImageStudio 刻的图）；这张是数据盘",
+    "warning: neither a far read nor an eviction got this sector re-read from the disc":
+        "警告：先读远处的扇区、再把缓存挤掉，这个扇区都还是没有从盘上重新读取",
+    "an audio track can only be read with READ CD": "音轨只能用 READ CD 读",
     "u = r0/b = {u}, v = p/b = {v}  (chi2/dof {c}, residual rms {r} deg)": "u = r0/b = {u}，v = p/b = {v}（拟合误差比 {c}，残差 rms {r}°）",
     "With bit length {b} nm: r0 {r} mm, pitch {p} um": "按位长 {b} nm 算：起始半径 {r} mm，轨距 {p} µm",
     "Angle uncertainty across the measured span {a}-{b} mm: {c} deg (1 sigma); across {d}-58 mm: {e} deg":
@@ -449,7 +456,7 @@ TEXT = {
     "measure texture brightness on scans of the ring disc": "在纹理环盘的扫描图上测各纹理的亮度",
     "write a multi-hypothesis calibration ISO (bracketing disc, or refinement disc)": "写多假设标定镜像（粗定盘或精修盘）",
     "fit the disc geometry from a scan of a calibration disc": "从标定盘的扫描图拟合盘面几何",
-    "measure the spiral geometry of a burned DVD from read timing (ladder)": "用读取计时测出刻好的盘的螺旋几何",
+    "measure the spiral geometry of a burned DVD or CD from read timing (ladder)": "用读取计时测出刻好的 DVD 或 CD 的螺旋几何",
     "write a picture ISO placed with a measured geometry (grid test by default)": "按测出的几何写图片镜像（默认是网格测试图）",
     "write a self-locating texture palette target (IDs + swatches in every tile)": "写能自定位的纹理调色板盘（每个色块带编号和色样）",
     "write the beacon target (tiles readable from one photo, no whole-disc fit)": "写信标盘（一张照片就能读色块，不需要拟合整张盘）",
@@ -467,7 +474,7 @@ TEXT = {
     "how many to list (default 15)": "列出多少个（默认 15）",
     "results directory (default: results)": "结果目录（默认 results）",
     "drive letter, e.g. E:; `list` shows them. At a terminal it can be left out when there is one drive": "光驱盘符，比如 E:；用 `list` 查看。在终端里只有一台光驱时可以不写",
-    "use the simulated drive (nofua: FUA ignored; flush: FUA ignored but a zero-length FUA read drops the cache)": "使用模拟光驱，不需要真光驱（nofua：模拟忽略 FUA；flush：忽略 FUA，但零长度 FUA 读能清缓存）",
+    "use the simulated drive (nofua: FUA ignored; flush: FUA ignored but a zero-length FUA read drops the cache; audio: with --media cd, a CD-DA track as DiscImageStudio burns pictures)": "使用模拟光驱，不需要真光驱（nofua：模拟忽略 FUA；flush：忽略 FUA，但零长度 FUA 读能清缓存；audio：配合 --media cd，模拟 DiscImageStudio 刻图用的音轨盘）",
     "Windows command path: spti may need an elevated terminal; imapi (IMAPI2 IDiscRecorder2Ex) works as a standard user; auto tries spti, then imapi": "Windows 上发命令的通道：spti 可能要管理员权限；imapi 普通用户可用；auto 先试 spti，再试 imapi",
     "simulation seed": "模拟用的随机种子",
     "output directory (default: results)": "输出目录（默认 results）",
@@ -511,6 +518,7 @@ TEXT = {
     "reference/target read pairs per rung": "每个测量点读多少对（基准 / 目标）",
     "prior geometry (loose)": "初始几何估计（宽松）",
     "stop when chi2/dof of the constant-pitch fit exceeds this; raise it for media whose pitch varies (CD: a smooth S of a few degrees), the 90-degree residual check still catches whole-turn errors": "恒定轨距拟合的误差比 (chi2/dof) 超过这个值就停止；轨距本来有变化的盘可以调大（CD 常有几度的平滑 S 形），90° 残差检查仍能发现数错整圈",
+    "CD audio track only: where this drive's READ CD completes, in bytes before the end of the sector in the burned audio stream (HP BU20N 0, PLDS DU-8A5LH -603)": "仅用于 CD 音轨：这台光驱的 READ CD 在扇区末尾之前多少字节完成，以刻进去的音轨字节流计（HP BU20N 为 0，PLDS DU-8A5LH 为 -603）",
     "summary.json of a geo run, its folder, latest, or pick to choose": "geo 结果的 summary.json、它所在的文件夹、latest（最新一次可靠的结果），或 pick（手动选）",
     "greyscale picture to threshold instead of the grid test": "用这张灰度图代替网格测试图",
     "prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view": "准备好的布尔图案（True 为深色），6000 x 6000 格，每格 0.02 mm，从数据面看",
@@ -596,7 +604,12 @@ zsh：
   python -m discprobe geo --drive E: --speed 3324       timing 显示更干净的低速度
   python -m discprobe geo --drive E: --media cd         CD，固定 1411 kB/s
 
---ranges 怎么选：默认（已刻录区域的 3-85 %）适合大多数盘。总出错或在换速点之后的区域可以排除：
+DiscImageStudio 刻的 CD 图（一条音轨）：同一条命令直接测这张盘本身，用 READ CD 和 DiscImageStudio 自己的原点，
+所以结果就是这种盘该填的内外半径。读盘光驱的偏移不是 0 时要写上（HP BU20N 为 0，PLDS DU-8A5LH 为 -603；
+用一张实刻的直线核对一次）：
+  python -m discprobe geo --drive E: --media cd --read-offset-bytes -603
+
+--ranges 怎么选：默认（已刻录区域的 3-85 %；CD 音轨为 1.25-99 %）适合大多数盘。总出错或在换速点之后的区域可以排除：
 运行时会打印停下的扇区号（LBA），`info` 显示最后扇区号。范围加宽能覆盖更大半径，前提是光驱读得干净。
   python -m discprobe geo --drive E: --ranges 70000-1900000""",
     "info": """\

@@ -20,6 +20,15 @@ between distant sectors by thousands of turns, so targets are taken as a ladder:
 Each new rung shrinks the rate uncertainty, so the reach grows geometrically and some
 twenty targets span the readable radius. Every target block re-measures the reference
 period; a block taken while the spindle speed changed is retried after settling.
+
+CD audio (a DiscImageStudio picture burn, one CD-DA track): reads use READ CD, each after
+one far read that moves the head and the read-ahead away (READ CD has no FUA). The origin
+is DiscImageStudio's own: sector k ends at byte 2352 (k + 1) of the burned audio stream,
+24.5 channel bits per byte, so u and v are directly the ri and pitch DiscImageStudio uses.
+Where a drive's READ CD completes relative to that end is a property of the reading drive,
+given as read_offset_bytes x (completion at byte 2352 (k + 1) - x): 0 on an HP BU20N,
+-603 on a PLDS DU-8A5LH. Timing cannot see it; check it once per drive with a burned
+straight line. None of the Mode 2 data path's 108 + 206 frames apply here.
 """
 
 from __future__ import annotations
@@ -52,14 +61,21 @@ SETTLE_COHERENCE = 0.95
 MEASURE_COHERENCE = 0.93
 MAX_PHASE_STD_DEG = 30.0
 MIN_SPACING_SECTORS = 4000  # about a third of a millimetre of radius
+# Default readable range of a CD-DA picture burn, as fractions of the recorded area: about
+# 25.6-57.7 mm on an 80-minute disc. A picture fills the whole disc, so the ladder can reach
+# the outer edge (the HP BU20N at 1241 rpm showed no outer-radius read artefacts there).
+CD_AUDIO_RANGE = (0.0125, 0.99)
 
 
 class Ladder:
     def __init__(self, dev, ranges=None, r0_mm=None, pitch_um=None, bit_nm=None, reps=None,
                  max_targets=None, sigma_u=None, sigma_v=None, speed_kbs="default", ref_lba=None,
-                 host_delay_ms=25.0, log=print, seed=1, media="dvd", chi2_abort=CHI2_ABORT, sectors=1):
+                 host_delay_ms=25.0, log=print, seed=1, media="dvd", chi2_abort=CHI2_ABORT, sectors=1,
+                 read_offset_bytes: float = 0.0):
         self.media = media
         self.chi2_abort = chi2_abort
+        self.read_offset_bytes = float(read_offset_bytes)
+        self.audio = False  # set by run() when the CD turns out to be a CD-DA track
         is_cd = media == "cd"
         from . import cd
         r0_mm = r0_mm if r0_mm is not None else (cd.R0_MM if is_cd else 24.0)
@@ -84,7 +100,7 @@ class Ladder:
         self.ref_arg = ref_lba
         self.log = log
         self.tp = TimingProbe(dev, log=lambda *_: None, reps=reps, speed_kbs=speed_kbs,
-                              host_delay_ms=host_delay_ms, seed=seed, media=media, sectors=sectors)
+                              host_delay_ms=host_delay_ms, seed=seed, media=media, sectors=sectors, cd_audio=is_cd)
         self.targets: list[dict] = []
         self.u, self.v, self.c = self.u0, self.v0, 0.0
         self.cov = None
@@ -93,6 +109,9 @@ class Ladder:
 
     def _n_end(self, lba: int) -> float:
         """Channel bit at the end of the ECC block holding lba (where the read completes)."""
+        if self.audio:
+            from .cd import RAW_BYTES, SECTOR_BITS as CD_BITS
+            return float((lba + 1) * CD_BITS - self.read_offset_bytes * CD_BITS / RAW_BYTES)
         if self.media == "cd":
             from .cd import read_end_bits
             return float(read_end_bits(lba))
@@ -102,6 +121,9 @@ class Ladder:
         th = theta(self.n_ref, self.u, self.v) + 2 * math.pi * turns
         s = self.u + self.v * th / (2 * math.pi)
         n = math.pi * (s * s - self.u * self.u) / self.v
+        if self.audio:
+            from .cd import RAW_BYTES, SECTOR_BITS as CD_BITS
+            return int((n + self.read_offset_bytes * CD_BITS / RAW_BYTES) // CD_BITS) - 1
         if self.media == "cd":
             from .cd import SECTOR_BITS as CD_BITS, FRAME_BITS, READ_TAIL_FRAMES
             return int((n - READ_TAIL_FRAMES * FRAME_BITS) // CD_BITS) - 1
@@ -253,12 +275,21 @@ class Ladder:
     def run(self) -> dict:
         tp = self.tp
         tp.setup()
+        self.audio = self.media == "cd" and tp.audio
+        if self.audio:
+            self.log(f"CD-DA track: READ CD, origin at the end of each sector in the burned audio stream, "
+                     f"read offset {self.read_offset_bytes:g} bytes")
+        elif self.read_offset_bytes:
+            raise RuntimeError("--read-offset-bytes is for a CD-DA track (DiscImageStudio picture burn); "
+                               "this disc is a data disc")
         tp.cache_test()
-        if tp.strategy not in ("fua", "plain"):
+        if tp.strategy not in ("fua", "plain", "far"):
             self.log(f"warning: cache strategy {tp.strategy}; phases will be noisier")
         last = tp.last_lba
         if self.ranges_arg:
             self.ranges = [(max(0, a), min(b, last + 1)) for a, b in self.ranges_arg]
+        elif self.audio:
+            self.ranges = [(int(last * CD_AUDIO_RANGE[0]), int(last * CD_AUDIO_RANGE[1]))]
         else:
             self.ranges = [(int(last * 0.03), int(last * 0.85))]
         self.ranges = [(a - a % self.block, b - b % self.block) for a, b in self.ranges if b - a > 64]
@@ -353,8 +384,18 @@ class Ladder:
             b = self.prior.bit_nm * 1e-6
             rep["media"] = "cd"
             rep["sector_bits"] = cd.SECTOR_BITS
-            rep["read_tail_frames"] = cd.READ_TAIL_FRAMES
-            rep["read_completion_model_measured"] = False
+            if self.audio:
+                sectors = self.tp.last_lba + 1
+                rep["track"] = "audio"
+                rep["origin"] = ("DiscImageStudio audio stream: sector k ends at byte 2352 (k + 1), 24.5 channel "
+                                 "bits per byte; the read completes read_offset_bytes before that end")
+                rep["read_offset_bytes"] = self.read_offset_bytes
+                rep["read_offset_note"] = ("a property of the reading drive (HP BU20N 0, PLDS DU-8A5LH -603); "
+                                           "timing cannot see it, so check it once per drive with a burned straight line")
+                rep["sectors"] = sectors
+            else:
+                rep["read_tail_frames"] = cd.READ_TAIL_FRAMES
+                rep["read_completion_model_measured"] = False
             lo_n = max(0.0, math.pi * ((25.0 / b) ** 2 - self.u ** 2) / self.v)
             hi_n = math.pi * ((58.0 / b) ** 2 - self.u ** 2) / self.v
             du0, dv0 = _dtheta(lo_n, self.u, self.v)
@@ -365,11 +406,18 @@ class Ladder:
             nn = np.linspace(lo_n, hi_n, 400)
             rep["nominal_error_deg"] = float(np.ptp(np.degrees(
                 theta(nn, self.u, self.v) - theta(nn, self.u0, self.v0))))
-            rep["dis_equivalent"] = {
-                "bit_nm": self.prior.bit_nm, "inner_radius_mm": self.u * b,
-                "outer_radius_mm_for_total_sectors": {
-                    str(cd.CAPACITY): b * math.sqrt(self.u ** 2 + self.v * cd.CAPACITY * cd.SECTOR_BITS / math.pi)},
-                "note": "CD forward CIRC reference origin, hardware origin unmeasured; not a DVD preset"}
+            if self.audio:
+                rep["dis_equivalent"] = {
+                    "bit_nm": self.prior.bit_nm, "sectors": sectors, "inner_radius_mm": self.u * b,
+                    "outer_radius_mm": b * math.sqrt(self.u ** 2 + self.v * sectors * cd.SECTOR_BITS / math.pi),
+                    "note": "DiscImageStudio CD geometry (constant pitch) of this disc for this sector count, "
+                            "as burned and read; right as far as read_offset_bytes is right for this drive"}
+            else:
+                rep["dis_equivalent"] = {
+                    "bit_nm": self.prior.bit_nm, "inner_radius_mm": self.u * b,
+                    "outer_radius_mm_for_total_sectors": {
+                        str(cd.CAPACITY): b * math.sqrt(self.u ** 2 + self.v * cd.CAPACITY * cd.SECTOR_BITS / math.pi)},
+                    "note": "CD forward CIRC reference origin, hardware origin unmeasured; not a DVD preset"}
         n_meas = [t["n"] for t in self.targets] + [self.n_ref]
         lo, hi = min(n_meas), max(n_meas)
         du_lo, dv_lo = _dtheta(lo, self.u, self.v)
