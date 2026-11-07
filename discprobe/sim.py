@@ -187,7 +187,7 @@ class SimDrive:
             elif op == 0x46:
                 profile = {"cd": 0x08, "bd": 0x41}.get(self.media, 0x11)
                 data = bytes([0, 0, 0, 4, 0, 0, 0x00, profile])
-            elif op == 0xAC and (cdb[1] & 0x1F) == 0x00:
+            elif op == 0xAC and (cdb[1] & 0x0F) == 0x00:
                 # GET PERFORMANCE type 00h: the start and end read rate. Under CLV they are equal;
                 # under CAV their ratio is the radius ratio of the range.
                 def kbps(lba: int) -> int:

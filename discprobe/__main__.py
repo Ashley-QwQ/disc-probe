@@ -257,7 +257,7 @@ def _geo_clv(args):
     stopped, res = None, None
     try:
         res = ladder.run()
-    except RuntimeError as e:
+    except (RuntimeError, ValueError) as e:
         log(f"stopped: {e}")
         stopped = str(e)
     finally:

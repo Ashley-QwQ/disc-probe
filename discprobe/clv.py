@@ -42,6 +42,12 @@ DEFAULT_ZONES = (0.05, 0.15, 0.25, 0.35, 0.5, 0.65, 0.75, 0.85, 0.95)
 
 BD_1X_MM_S = ONE_X_MM_S["bd"]        # 66 Mb/s of channel bits at 74.50 nm
 
+# Below this the period is not the spindle's: a drive still spinning up, a read that spans a
+# non-integral number of turns, or a disc the reader cannot follow all show up here first. On
+# a real BD-RE the first zone after spin-up came back at coherence 0.54 and put the fit 7 mm
+# off; the other eight were 0.81 to 0.99 and fit to R^2 0.99999.
+COHERENCE_FLOOR = 0.90
+
 
 @dataclass(frozen=True)
 class Sample:
@@ -214,6 +220,35 @@ def classify_rotation(perf: dict, *, media: str = "bd", r_inner_mm: float = 24.0
     return out
 
 
+def classify_from_zones(zones: list[dict]) -> dict:
+    """Decide CAV or CLV from two measured zones, not from what the drive claims.
+
+    GET PERFORMANCE type 00h reports the nominal rate, and on at least one drive (MATSHITA
+    BD-MLT UJ272 reading a BD-RE) it says CAV while the disc actually turns at a constant
+    linear speed: the nominal figure is the drive's maximum, not the strategy it picked. So
+    the period itself has to decide. Under CLV the period grows with the radius; under CAV it
+    stays put, and the ratio between the two zones says which.
+    """
+    usable = [z for z in zones if z.get("period_ms") and z.get("nominal_radius_mm")]
+    if len(usable) < 2:
+        return {"mode": "unknown", "reason": "fewer than two zones gave a period"}
+    first, last = usable[0], usable[-1]
+    t_ratio = last["period_ms"] / first["period_ms"]
+    r_ratio = last["nominal_radius_mm"] / first["nominal_radius_mm"]
+    out = {"mode": "unknown", "period_ratio": round(t_ratio, 4), "radius_ratio": round(r_ratio, 4),
+           "zones": [round(first.get("fraction") or 0, 3), round(last.get("fraction") or 0, 3)]}
+    if abs(t_ratio / r_ratio - 1.0) < 0.10:
+        out["mode"] = "CLV"
+        out["reason"] = f"the period grew by {t_ratio:.3f} with the radius's {r_ratio:.3f}"
+    elif abs(t_ratio - 1.0) < 0.05:
+        out["mode"] = "CAV"
+        out["reason"] = f"the period barely moved ({t_ratio:.3f}) across a radius ratio of {r_ratio:.3f}"
+    else:
+        out["reason"] = (f"the period grew by {t_ratio:.3f}, between 1.000 (CAV) and {r_ratio:.3f} (CLV): "
+                         "the zones probably straddle a speed change")
+    return out
+
+
 class ClvLadder:
     """Measure a CLV disc: one period per zone, then the T^2 fit.
 
@@ -247,6 +282,23 @@ class ClvLadder:
         self.log(f"Rotation by performance: {rotation['mode']}" + (f" ({rotation['reason']})" if "reason" in rotation else ""))
         return rotation
 
+    def precheck_by_measuring(self) -> dict:
+        """Time two zones and let the periods decide, before spending the whole ladder on it."""
+        # Not the very first zone: a drive coming out of spin-up is still ramping and its period
+        # says nothing (on the UJ272 the 0.05 zone read 0.49 coherence). Halfway out and the
+        # outside edge are settled, and the radius ratio is wide enough to tell CAV from CLV.
+        zones = self.zones if len(self.zones) < 3 else (self.zones[len(self.zones) // 2], self.zones[-1])
+        self.tp.period_test(zones=zones)
+        shape = classify_from_zones(self.tp.summary.get("period", {}).get("zones") or [])
+        self.summary["rotation_measured"] = shape
+        self.log(f"Rotation by two zones: {shape['mode']}" + (f" ({shape['reason']})" if "reason" in shape else ""))
+        if shape["mode"] == "CAV":
+            raise RuntimeError(
+                "the disc turns at a constant angular velocity (" + shape["reason"] + "), so the completion "
+                "period carries no radius and there is no spiral to fit; disc-probe has no angular ladder for "
+                "BD sectors, so this disc cannot be measured with --media bd")
+        return shape
+
     def run(self) -> dict:
         self.tp.setup()
         self.summary["setup"] = self.tp.summary.get("setup")
@@ -258,13 +310,22 @@ class ClvLadder:
         self.summary["cache"] = self.tp.summary.get("cache")
         self.tp.settle_spindle()
         self.summary["settle"] = self.tp.summary.get("settle")
+        self.precheck_by_measuring()
         self.tp.period_test(zones=self.zones)
         self.summary["period"] = self.tp.summary.get("period")
         samples = [Sample(lba=int(z["lba"]), period_ms=float(z["period_ms"]),
                           coherence=float(z.get("coherence", 1.0)), fraction=z.get("fraction"))
                    for z in self.summary["period"]["zones"] if z.get("period_ms")]
+        unstable = [z.get("fraction") for z in self.summary["period"]["zones"]
+                    if z.get("period_ms") and float(z.get("coherence", 1.0)) < COHERENCE_FLOOR]
+        if unstable:
+            self.summary["zones_unstable"] = unstable
+            self.log(f"Left out {len(unstable)} zones whose period was not the spindle's "
+                     f"(coherence below {COHERENCE_FLOOR}): " + ", ".join(f"{u:.2f}" for u in unstable))
+        samples = [s for s in samples if s.coherence >= COHERENCE_FLOOR]
         if len(samples) < 2:
-            raise RuntimeError(f"only {len(samples)} of {len(self.zones)} zones gave a period; "
+            raise RuntimeError(f"only {len(samples)} of {len(self.zones)} zones gave a period that "
+                               f"belongs to the spindle (coherence {COHERENCE_FLOOR} or better); "
                                "the drive may be changing speed, or the disc may be too noisy to time")
         self.fit = fit_t2(samples, sector_mm=NOMINAL[self.media].sector_mm,
                           pitch_um=self.pitch_um, v_m_s=self.v_m_s)
@@ -286,7 +347,10 @@ def write_outputs(run: "ClvLadder", out_dir: str, stopped: str | None = None) ->
     payload = {"fit": run.summary.get("fit"), "setup": run.summary.get("setup"),
                "cache": run.summary.get("cache"), "settle": run.summary.get("settle"),
                "period": run.summary.get("period"), "rotation_check": run.summary.get("rotation_check"),
+               "rotation_measured": run.summary.get("rotation_measured"),
                "identity": run.summary.get("identity")}
+    if run.summary.get("zones_unstable"):
+        payload["zones_unstable"] = run.summary["zones_unstable"]
     if run.summary.get("simulated"):
         payload["simulated"] = True
     if run.fit is not None:

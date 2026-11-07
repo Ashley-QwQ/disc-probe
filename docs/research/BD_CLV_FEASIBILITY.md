@@ -308,3 +308,55 @@ against a truth of 24.02 mm and 0.3185 um.
 needs segmentation: fit each partition separately and require the slopes to differ. Nothing in
 the data here reaches that case, so the code does not pretend to handle it -- `classify_rotation`
 stops at `unknown` and the run is not fitted.
+
+## 12. Measured on a real BD-RE
+
+Everything above was offline or simulated. On 2026-11-08 a BD-RE went into the MATSHITA
+BD-MLT UJ272 (firmware 1.02; `last LBA 12 088 319`, `complete, sessions 1, erasable True`) and
+the solver was run against it. Three runs, ~4 minutes each, all read-only.
+
+**The drive claims one thing and does another.** `info` reports `GET PERFORMANCE` type 00h at
+11 447 -> 26 974 kB/s, a ratio of 2.356 against a radius ratio of 2.417: that reads as CAV, and
+a precheck that trusted it would refuse the disc. The periods say otherwise:
+
+| fraction | LBA | period ms | rpm | coherence | nominal r mm |
+|---|---|---|---|---|---|
+| 0.05 | 604,384 | 5.485 | 10939 | 0.480 | 26.72 |
+| 0.15 | 1,813,216 | 19.536 | 3071 | 0.815 | 31.46 |
+| 0.25 | 3,022,048 | 21.805 | 2752 | 0.877 | 35.57 |
+| 0.35 | 4,230,880 | 24.018 | 2498 | 0.910 | 39.26 |
+| 0.50 | 6,044,128 | 27.004 | 2222 | 0.932 | 44.22 |
+| 0.65 | 7,857,376 | 29.679 | 2022 | 0.957 | 48.67 |
+| 0.75 | 9,066,208 | 31.333 | 1915 | 0.976 | 51.42 |
+| 0.85 | 10,275,040 | 32.929 | 1822 | 0.983 | 54.04 |
+| 0.95 | 11,483,872 | 34.394 | 1744 | 0.991 | 56.53 |
+
+Between 0.35 and 0.95 the period tracks the radius to 0.5%: 24.018/39.26 = 0.6118 and
+34.394/56.53 = 0.6084 ms/mm, so 2*pi*r/T = 10.27 -> 10.33 m/s. That is CLV at 2.11x, and it
+matches the 13 stored runs (10.33-10.36 m/s) to 0.3%.
+
+Two things had to change to survive real hardware:
+
+1. **The type 00h ratio is not decisive.** After the speed request the same disc reports
+   8991 -> 8991 (flat), i.e. CLV; before it, 11 447 -> 26 974 (CAV). The nominal figure follows
+   the current speed setting, not the strategy, so the run now measures two zones (halfway out
+   and the edge) and lets the period ratio decide: 1.277 against a radius ratio of 1.279 says
+   CLV. A disc that really is CAV is still refused -- after two zones, before the other seven.
+2. **The first zones after spin-up are not the spindle.** 0.05 came back at coherence 0.480 and
+   10 939 rpm (the drive still coasting down from its 6x spin-up), and 0.15 at 0.815. Fitting
+   all nine points put r0 7 mm low (17.6 mm, R^2 0.966). Zones below coherence 0.90 are now
+   dropped and named in `summary.json` as `zones_unstable`:
+
+```
+r0 24.6774 mm, pitch 0.3200 um (anchor), linear speed 10.376 m/s
+(R^2 0.999987 over 6 zones; 1 sigma: r0 74 um, speed 0.009 m/s)
+```
+
+Three runs gave r0 = 24.716, 24.717 and 24.677 mm -- a 40 um spread against a formal sigma of
+72-74 um, and v = 10.379, 10.379, 10.376 m/s. The 24.68-24.72 mm sits slightly above the
+23.78-24.38 mm of the stored runs; both groups anchor the pitch at 0.32 um, so the difference is
+either the disc or the intercept's long extrapolation from LBA 4.2 M out to 0, not a fitting
+artifact that shows up within a run.
+
+`summary.json` now carries both answers, `rotation_check` (what the drive claims) and
+`rotation_measured` (what two zones said), so a disagreement is visible instead of silent.
