@@ -146,6 +146,13 @@ the number of zones used is not the only record of what was thrown away.
    over 1.6x and 2.1x is what a per-run offset of a few tens of microseconds looks like. The pooled
    number is a consistency check on the model, not a claim to 1 um.
 
+6. **DiscImageStudio's own inversion.** A Blu-ray preset carries inner radius, outer radius and a
+   sector count; DIS solves one constant pitch from them by bisecting the exact spiral arc length
+   (`BluRayTrackGeometry`, `Primitive`). Re-running that bisection on our three numbers
+   (24.6575 mm, 58.0180 mm, 12 088 320 sectors) returns `0.320000 um` -- the pitch we anchored on --
+   and the exact-arc-length correction to the area identity is 1e-6 relative, under a nanometre on
+   the pitch. The preset is self-consistent in the engine that will read it, not only in this fit.
+
 ## 8. Where the error is
 
 | source | size | how it shows up |
@@ -155,13 +162,6 @@ the number of zones used is not the only record of what was thrown away.
 | zone count | 40 um with 5-6 zones vs 14 um with 23 | more zones buy the tolerance; `--bd-zones 25` is the setting used here |
 | the pitch anchor | `dp/p` maps to `dr0/r0 = dp/(2p)` | 10% wrong pitch is 1.2 mm at the inner radius, which is why the outer-edge check in section 7 is worth doing |
 | extrapolation | 6.2 mm from the innermost zone to LBA 0 | `r0_extrapolated_mm` says how far the answer is extrapolated; it comes from the curvature, not from a zone measured there |
-
-6. **DiscImageStudio's own inversion.** A Blu-ray preset carries inner radius, outer radius and a
-   sector count; DIS solves one constant pitch from them by bisecting the exact spiral arc length
-   (`BluRayTrackGeometry`, `Primitive`). Re-running that bisection on our three numbers
-   (24.6575 mm, 58.0180 mm, 12 088 320 sectors) returns `0.320000 um` -- the pitch we anchored on --
-   and the exact-arc-length correction to the area identity is 1e-6 relative, under a nanometre on
-   the pitch. The preset is self-consistent in the engine that will read it, not only in this fit.
 
 ## 9. Limits
 
