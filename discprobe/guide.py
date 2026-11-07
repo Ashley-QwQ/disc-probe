@@ -36,6 +36,11 @@ PITCH_CLEARLY_BETTER = 0.5
 # is where the CD run at 3226 rpm sat (0.77) that the drive table says can't be used.
 GOOD_SIGMA_DEG = 0.25
 BAD_SIGMA_DEG = 0.6
+# A Blu-ray run is a straight T^2 line: five zones already leave three checks of its straightness, and a
+# disc read at a constant linear speed lands on R^2 0.9999 or better. Its own real run over 23 zones gave
+# R^2 0.999998; a run whose speed moved during the measurement falls well under 0.99.
+MIN_BD_ZONES = 5
+MIN_BD_R2 = 0.99
 MATCH_INFO_S = 24 * 3600    # how far from a measurement an `info` run can be and still be taken for the same disc
 ALTERNATIVE_SPEEDS = {"dvd": ("3324", "5540", "11080"), "cd": ("1411", "2822", "4234"), "bd": ("8990", "17980", "35960")}
 RANDOM_SECTORS = {"dvd": 2295104, "cd": 359600}
@@ -265,6 +270,21 @@ def install_blocker(geo_summary: str) -> str | None:
         return (f"this run stopped before the end ({i18n.tr(str(stopped))}), so the ladder never reached the "
                 f"fit. Run geo again and install a run that finished.")
     fit = summary.get("fit") or {}
+    if fit.get("model") == "clv":
+        # A Blu-ray run is judged by the T^2 line it fitted, not by an angle ladder: the figures are
+        # the zone count and R^2 (`clv.ClvFit`), and a run of that kind has no chi2/dof or angle sigma.
+        if _quality_number(fit, "r0_mm") is None:
+            return "this run has no geometry fit in its summary.json, so there is nothing to install."
+        zones = _quality_number(fit, "zones_used") or 0
+        if zones < MIN_BD_ZONES:
+            return (f"this run fitted {zones:g} zones, fewer than the {MIN_BD_ZONES} a straight T^2 line needs "
+                    f"before `results` trusts it (`geo --media bd --bd-zones` sets how many). A preset is not the "
+                    f"place to try one.")
+        r2 = _quality_number(fit, "r2")
+        if r2 is not None and r2 < MIN_BD_R2:
+            return (f"this run's T^2 line only reaches R^2 {r2:.5f}; a disc read at a constant linear speed gives "
+                    f"0.999 or better. The spindle speed probably moved during the run, so measure it again.")
+        return None
     if "u" not in fit:
         return "this run has no geometry fit in its summary.json, so there is nothing to install."
     if fit.get("completion_status", "target_reached") != "target_reached":
@@ -296,6 +316,10 @@ def install_warning(geo_summary: str) -> str | None:
     otherwise look like a run that passed the check.
     """
     fit = ((_load(os.path.abspath(geo_summary)) or {}).get("fit") or {})
+    if fit.get("model") == "clv":
+        # A constant-linear-speed run has no chi2/dof or angle sigma by construction: its figures are
+        # the zone count and R^2, and `install_blocker` checks both, so nothing is unchecked here.
+        return None
     missing = [name for name in ("chi2_per_dof", "angle_sigma_measured_span_deg")
                if _quality_number(fit, name) is None]
     if not missing:

@@ -74,6 +74,8 @@ class ClvFit:
     sigma_r0_mm: float | None = None
     sigma_pitch_um: float | None = None
     sigma_v_m_s: float | None = None
+    offset_ms: float | None = None
+    sigma_offset_ms: float | None = None
     dropped: tuple[int, ...] = ()
     samples: tuple[Sample, ...] = field(default=(), repr=False)
 
@@ -96,17 +98,65 @@ class ClvFit:
             out["pitch_um_anchor"] = self.pitch_um_anchor
         if self.v_m_s_anchor is not None:
             out["v_m_s_anchor"] = self.v_m_s_anchor
+        if self.offset_ms is not None:
+            out["offset_ms"] = round(self.offset_ms, 6)
+            out["sigma_offset_ms"] = None if self.sigma_offset_ms is None else round(self.sigma_offset_ms, 6)
         return out
 
 
+def _offset_fit(x, t, a0: float, b0: float, iterations: int = 40):
+    """Gauss-Newton for t = sqrt(a*x + b) + eps; returns (eps, sigma_eps).
+
+    The model is nearly linear in eps, so a handful of steps settle it. The interesting part is
+    sigma: on a short run the offset trades one-for-one against the intercept (a larger eps
+    lowers r0), and a large sigma is the fit saying "these zones cannot tell the two apart".
+    """
+    params = np.array([a0, b0, 0.0], dtype=np.float64)
+    for _ in range(iterations):
+        a, b, eps = params
+        s = np.sqrt(np.maximum(a * x + b, 1e-9))
+        j = np.column_stack([x / (2 * s), 1.0 / (2 * s), np.ones_like(x)])
+        step, *_ = np.linalg.lstsq(j, t - (s + eps), rcond=None)
+        scale = 1.0
+        for _ in range(30):
+            cand = params + scale * step
+            if cand[0] > 0 and cand[1] > 0:
+                break
+            scale *= 0.5
+        else:
+            break
+        converged = np.allclose(cand, params, rtol=0.0, atol=1e-13)
+        params = cand
+        if converged:
+            break
+    a, b, eps = params
+    s = np.sqrt(np.maximum(a * x + b, 1e-9))
+    j = np.column_stack([x / (2 * s), 1.0 / (2 * s), np.ones_like(x)])
+    dof = len(x) - 3
+    sigma = None
+    if dof > 0:
+        s2 = float(((t - (s + eps)) ** 2).sum()) / dof
+        try:
+            sigma = math.sqrt(abs(s2 * np.linalg.inv(j.T @ j)[2, 2]))
+        except np.linalg.LinAlgError:
+            sigma = None
+    return float(eps), sigma
+
+
 def fit_t2(samples, *, sector_mm: float, pitch_um: float | None = None, v_m_s: float | None = None,
-           drop_outliers: bool = True, clip: float = 4.0) -> ClvFit:
+           drop_outliers: bool = True, clip: float = 4.0, fit_offset: bool = False) -> ClvFit:
     """Fit T^2 = a*LBA + b, then anchor it.
 
     `pitch_um` and `v_m_s` are alternatives; give at most one. With a pitch, the fit returns
     the linear speed and the start radius. With a speed, it returns the pitch and the start
     radius. With neither it returns both pinned to whatever speed the reader assumed, and
     says so in `anchor`.
+
+    `fit_offset` asks a third question: does the period carry a constant epsilon on top of the
+    turn time? A run of a real BD-RE put r0 at 24.68 mm against a 24.0 mm standard, and a
+    constant offset and a disc that really starts further out look the same to two parameters.
+    Fitting (a, b, epsilon) together lets the data separate them, but it costs a degree of
+    freedom, so it wants five zones or more; with fewer the answer is noise dressed as a number.
     """
     pts = [s for s in samples if s.period_ms and s.lba >= 0]
     if len(pts) < 2:
@@ -125,6 +175,15 @@ def fit_t2(samples, *, sector_mm: float, pitch_um: float | None = None, v_m_s: f
             break
         keep = nxt
     a, b = np.polyfit(x[keep], y[keep], 1)
+    t = np.array([s.period_ms for s in pts], dtype=np.float64)
+    offset = sigma_offset = None
+    if fit_offset:
+        if int(keep.sum()) < 5:
+            raise ValueError(f"fitting the offset needs at least five zones; this run has "
+                             f"{int(keep.sum())} (three parameters against that many points leaves nothing to check)")
+        offset, sigma_offset = _offset_fit(x[keep], t[keep], a, b)
+        y = (t - offset) ** 2
+        a, b = np.polyfit(x[keep], y[keep], 1)
     pred = a * x[keep] + b
     ss_res = float(((y[keep] - pred) ** 2).sum())
     ss_tot = float(((y[keep] - y[keep].mean()) ** 2).sum())
@@ -174,6 +233,7 @@ def fit_t2(samples, *, sector_mm: float, pitch_um: float | None = None, v_m_s: f
                   r2=r2, n=int(keep.sum()), anchor=anchor,
                   pitch_um_anchor=pitch_um, v_m_s_anchor=v_m_s,
                   sigma_r0_mm=r0_sigma, sigma_pitch_um=pitch_sigma, sigma_v_m_s=v_sigma,
+                  offset_ms=offset, sigma_offset_ms=sigma_offset,
                   dropped=tuple(int(i) for i in np.nonzero(~keep)[0]),
                   samples=tuple(pts))
 
@@ -258,11 +318,12 @@ class ClvLadder:
 
     def __init__(self, dev, *, media="bd", zones=DEFAULT_ZONES, reps=None, period_reads=60,
                  speed_kbs=None, pitch_um=None, v_m_s=None, r0_mm=None, log=print,
-                 time_limit_s=None, host_delay_ms=35.0, seed=1):
+                 time_limit_s=None, host_delay_ms=35.0, seed=1, fit_offset=False):
         self.media = media
         self.zones = tuple(zones)
         self.pitch_um = pitch_um
         self.v_m_s = v_m_s
+        self.fit_offset = fit_offset
         self.log = log
         self.r0_mm = r0_mm
         self.tp = timing.TimingProbe(dev, reps=reps or 24, period_reads=period_reads, speed_kbs=speed_kbs,
@@ -328,7 +389,7 @@ class ClvLadder:
                                f"belongs to the spindle (coherence {COHERENCE_FLOOR} or better); "
                                "the drive may be changing speed, or the disc may be too noisy to time")
         self.fit = fit_t2(samples, sector_mm=NOMINAL[self.media].sector_mm,
-                          pitch_um=self.pitch_um, v_m_s=self.v_m_s)
+                          pitch_um=self.pitch_um, v_m_s=self.v_m_s, fit_offset=self.fit_offset)
         self.summary["fit"] = self.fit.as_dict()
         self.summary["fit"]["media"] = self.media
         return self.summary["fit"]

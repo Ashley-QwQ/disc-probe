@@ -170,6 +170,36 @@ def test_a_disc_the_drive_reads_at_constant_angular_velocity_is_refused():
         assert not written, "it wrote results for a disc it cannot fit: " + ", ".join(written)
 
 
+def test_disexport_writes_a_blu_ray_preset():
+    """A CLV run is exported as a Blu-ray preset: inner radius, outer radius and the sector count.
+
+    The preset carries no pitch, because DiscImageStudio solves one constant pitch from those three
+    numbers; a pitch in the file would be read as a relative shape coefficient instead.
+    """
+    with tempfile.TemporaryDirectory() as work:
+        folder = os.path.join(work, "geo-G-20260101-000000")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump({"fit": {"media": "bd", "model": "clv", "r0_mm": 24.6427, "pitch_um": 0.32,
+                               "v_m_s": 7.9054, "r2": 0.999994, "zones_used": 7,
+                               "anchor": "pitch 0.32 um"}}, f)
+        out = os.path.join(work, "bd_preset.json")
+        proc = subprocess.run([sys.executable, "-m", "discprobe", "disexport", "--geo", folder,
+                               "--sectors", "12088320", "--output", out],
+                              cwd=ROOT, capture_output=True, text=True, timeout=120)
+        text = proc.stdout + proc.stderr
+        assert proc.returncode == 0, text
+        assert "Traceback" not in text, text
+        with open(out, encoding="utf-8") as f:
+            document = json.load(f)
+        parameters = document["parameters"]
+        assert parameters["totalSectors"] == 12088320
+        assert parameters["innerRadiusMm"] == 24.6427
+        assert abs(parameters["outerRadiusMm"] - 58.0117) < 1e-3, parameters
+        assert "pitchLinear" not in parameters, parameters
+        assert document["luminanceMapping"]["invert"] is False
+
+
 def test_cli_reports_the_rotation_before_measuring():
     with tempfile.TemporaryDirectory() as out:
         proc = subprocess.run([sys.executable, "-m", "discprobe", "timing", "--sim", "clv", "--media", "bd",

@@ -222,7 +222,7 @@ def _geo_clv(args):
     a pressed BD-ROM. Under CLV a turn takes T = 2*pi*r/v, and r^2 grows linearly with the sector,
     so T^2 is a straight line in LBA and carries (r0, pitch) up to one anchor.
     """
-    from .clv import ClvLadder, write_outputs
+    from .clv import DEFAULT_ZONES, ClvLadder, write_outputs
     if args.sectors != 1:
         sys.exit("--sectors 1 only: a Blu-ray fit uses the time to turn once, which one sector gives")
     if not args.sim:
@@ -233,11 +233,17 @@ def _geo_clv(args):
     _check_disc(dev, args)
     _blu_ray_speed(dev, args)
     reader = _measuring(dev, args)
-    ladder = ClvLadder(reader, media=args.media, reps=args.reps,
+    zones = DEFAULT_ZONES
+    if args.bd_zones:
+        if args.bd_zones < 3:
+            sys.exit("--bd-zones needs at least 3: a straight line through two points has nothing left to check")
+        zones = tuple(0.05 + 0.90 * i / (args.bd_zones - 1) for i in range(args.bd_zones))
+    ladder = ClvLadder(reader, media=args.media, reps=args.reps, zones=zones,
                        speed_kbs=None if args.sim else args.speed,
                        pitch_um=None if args.linear_mm_s else args.pitch_um,
                        v_m_s=None if not args.linear_mm_s else args.linear_mm_s / 1000.0,
-                       r0_mm=args.r0_mm, host_delay_ms=args.host_delay_ms)
+                       r0_mm=args.r0_mm, host_delay_ms=args.host_delay_ms,
+                       fit_offset=args.fit_offset)
     ladder.tp.summary["identity"] = _identity(args, dev)
     if args.sim:
         ladder.tp.summary["simulated"] = True
@@ -275,6 +281,11 @@ def _geo_clv(args):
         if res.get("sigma_v_m_s") is not None:
             sigma.append(f"speed {res['sigma_v_m_s']:.3f} m/s")
         print("1 sigma: " + ", ".join(sigma))
+        if res.get("offset_ms") is not None:
+            sig = res.get("sigma_offset_ms")
+            print(f"period offset {res['offset_ms'] * 1000:+.1f} us"
+                  + (f" (1 sigma {sig * 1000:.1f} us)" if sig is not None else "")
+                  + ": the fit already took it out of r0")
         print(f"zones.csv, summary.json: {os.path.abspath(out)}")
         if res.get("v_m_s_anchor") is None:          # pitch was the anchor, so pitch is still nominal
             print("Pass --linear-mm-s to trade that anchor for a pitch: without it the pitch is nominal "
@@ -800,11 +811,94 @@ def cmd_correction(args):
     print(f"Angle correction: {os.path.abspath(args.output)}  (use with image --correction)")
 
 
+def _disexport_bd(args):
+    """Write the DiscImageStudio Blu-ray preset for a constant-linear-speed run.
+
+    A Blu-ray preset is three numbers -- inner radius, outer radius and a sector count -- and the
+    engine solves one constant pitch from them. The CLV fit already measured the radius of sector 0
+    and the pitch, so the third number follows from the area identity; nothing here is fitted.
+    """
+    from . import bdexport, disinstall
+    for option, given, why in (
+            ("--along-track-frames", args.along_track_frames, "the CD along-track constant"),
+            ("--correction", args.correction, "a CD or DVD angle map"),
+            ("--r-min/--r-max", args.r_min or args.r_max, "the fitted span of an angle map")):
+        if given:
+            sys.exit(f"{option} is for {why}; a Blu-ray preset covers the whole spiral from the sector "
+                     "count and needs none of it")
+    target = None
+    if args.install:
+        try:
+            target = os.path.abspath(args.dis_presets or bdexport.default_path())
+            if args.output:
+                disinstall.refuse_same_file(args.output, target)
+        except disinstall.InstallError as e:
+            sys.exit(str(e))
+        blocker = guide.install_blocker(args.geo)
+        if blocker:
+            _fail(f"Not installing this geo result: {blocker}")
+        warning = guide.install_warning(args.geo)
+        if warning:
+            print(f"Note: {warning}")
+    output = args.output or (None if args.install else "dis_preset_bd.json")
+    try:
+        out = bdexport.export(args.geo, args.sectors, output, args.id or "discprobe-bd-re",
+                              args.name or "BD-RE (drive-timing calibration)")
+    except ValueError as e:
+        sys.exit(str(e))
+    preset, fit, derived = out["preset"], out["fit"], out["derived"]
+    print(f"{preset['totalSectors']} sectors, inner {preset['innerRadiusMm']:.4f} mm, "
+          f"outer {preset['outerRadiusMm']:.4f} mm (both measured/derived, not nominal)")
+    print(f"constant pitch {derived['pitch_um']:.4f} um at {fit['v_m_s']:.3f} m/s, R^2 {fit['r2']:.6f} over "
+          f"{fit['zones_used']} zones; DiscImageStudio solves the pitch from the three numbers above")
+    if fit.get("offset_ms") is not None:
+        moved = fit["v_m_s"] * abs(fit["offset_ms"]) / (2 * 3.141592653589793)
+        print(f"This run fitted a free period offset of {fit['offset_ms'] * 1e3:+.0f} us, which moves the radius "
+              f"of sector 0 outwards by {moved:.3f} mm: the offset and the starting radius are nearly one "
+              "parameter, so the inner radius is only as good as that fit.")
+    if args.sectors < bdexport.BD_SECTORS_PER_LAYER and preset["innerRadiusMm"] > 24.2:
+        short = bdexport.BD_SECTORS_PER_LAYER - args.sectors
+        print(f"The disc holds {args.sectors} sectors, {short} fewer than a full layer, so sector 0 sits "
+              f"{preset['innerRadiusMm'] - 24.0:.2f} mm further out than the 24.0 mm of an unspared disc: "
+              "that is what was measured, not a rounding error.")
+    if output:
+        print(f"DiscImageStudio Blu-ray preset in {os.path.abspath(output)} "
+              "(import it with the Blu-ray preset library's Import button)")
+    if args.install:
+        try:
+            result = bdexport.install(preset, target, args.replace)
+        except (OSError, ValueError) as e:
+            sys.exit(str(e))
+        if result["created"]:
+            print(f"Created {result['path']}")
+        print({"added": f"Added preset '{preset['id']}' to {result['path']}",
+               "replaced": f"Replaced preset '{preset['id']}' in {result['path']}",
+               "unchanged": f"Preset '{preset['id']}' is already in {result['path']} with the same values"}
+              .get(result["action"], f"{result['action']} in {result['path']}"))
+        if result["backup"]:
+            print(f"Previous file saved as {result['backup']}")
+        if result["action"] != "unchanged":
+            print("Restart DiscImageStudio to load the updated Blu-ray preset list.")
+    _next(guide.after_disexport(False, args.install))
+
+
 def cmd_disexport(args):
     from . import disinstall
     from .disexport import export
     if (args.dis_presets or args.replace) and not args.install:
         sys.exit("--dis-presets and --replace only work together with --install")
+    fit = _geo_fit(args, args.media)
+    is_cd = fit.get("media") == "cd"
+    # A Blu-ray run is the CLV fit: r0, pitch and speed instead of the angle ladder's u and v.
+    is_bd = fit.get("model") == "clv" or fit.get("media") == "bd"
+    if args.media and args.media != ("bd" if is_bd else "cd" if is_cd else "dvd"):
+        sys.exit(f"--media {args.media} does not match {args.geo}, which measured a "
+                 f"{'Blu-ray' if is_bd else 'CD' if is_cd else 'DVD'}")
+    if not args.sectors:
+        _fail("A preset needs --sectors: the capacity of your disc (`info` prints it)", [guide.sectors_hint(args.geo)])
+    if is_bd:
+        _disexport_bd(args)
+        return
     # --install writes the preset file only after the export has written --output. When both name
     # one file the export has already destroyed the presets by then, so this is checked first.
     target = None
@@ -815,12 +909,6 @@ def cmd_disexport(args):
                 disinstall.refuse_same_file(args.output, target)
         except disinstall.InstallError as e:
             sys.exit(str(e))
-    fit = _geo_fit(args, args.media)
-    is_cd = fit.get("media") == "cd"
-    if args.media and args.media != ("cd" if is_cd else "dvd"):
-        sys.exit(f"--media {args.media} does not match {args.geo}, which measured a {'CD' if is_cd else 'DVD'}")
-    if not args.sectors:
-        _fail("A preset needs --sectors: the capacity of your disc (`info` prints it)", [guide.sectors_hint(args.geo)])
     # A preset is used to cut discs and outlives the run: refuse the three kinds of result the
     # rest of the tool already tells people not to trust.
     if target:
@@ -1414,6 +1502,15 @@ def _build_parser():
     sp.add_argument("--linear-mm-s", type=float,
                     help="Blu-ray only: the linear speed the drive reads at, in mm/s. With it the fit gives the "
                          "pitch; without it the pitch is an anchor and only the ratio stays known")
+    sp.add_argument("--bd-zones", type=int,
+                    help="Blu-ray only: how many zones to time, spread evenly from 5%% to 95%% of the disc "
+                         "(default 9). Two numbers come out of the line, so nine zones already pin them; "
+                         "more zones buy a better check that the line is straight, which is what tells a "
+                         "clean CLV disc from one that changes speed part way")
+    sp.add_argument("--fit-offset", action="store_true",
+                    help="Blu-ray only: fit a constant offset in the period as well, which is the only way to "
+                         "separate 'this disc really starts further out than 24.0 mm' from 'every period "
+                         "carries a fixed few hundred microseconds'. Needs five zones or more")
     sp.set_defaults(func=cmd_geo)
 
     sp = sub.add_parser("edit", help="place a picture on the disc at the terminal, and save a design for image --design")
@@ -1579,8 +1676,9 @@ def _build_parser():
         sub.choices[name].add_argument("--media", choices=choices, default="dvd",
                                        help="disc type; cd also switches the defaults to CD values, bd to Blu-ray "
                                             "(default: dvd)")
-    sub.choices["disexport"].add_argument("--media", choices=("dvd", "cd"),
-                                          help="check that --geo measured this disc type; the fit decides the preset")
+    sub.choices["disexport"].add_argument("--media", choices=("dvd", "cd", "bd"),
+                                          help="check that --geo measured this disc type; the fit decides the preset "
+                                               "(a CLV run gives a Blu-ray preset, in print or with --install)")
     for name in ("rings", "image", "tiles"):
         sub.choices[name].add_argument(
             "--cd-sector", choices=("mode2form1", "mode1"), default="mode2form1",
