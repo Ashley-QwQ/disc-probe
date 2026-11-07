@@ -999,6 +999,19 @@ def _tiles(c: Checker):
             "repeated sequences keep their phase along a data-frame row")
     mix = imagedisc.texture_bytes("MIX:92,87", np.array([5, 6]))
     c.check(set(np.unique(mix).tolist()) == {0x92, 0x87}, "random mixes draw only from their byte list")
+    import os
+    import tempfile
+    u, v, bit = 180518.45, 5.5912083, 133.3
+    with tempfile.TemporaryDirectory() as d:
+        whole, tail = os.path.join(d, "whole.iso"), os.path.join(d, "tail.iso")
+        design = imagedisc.grid_design()
+        imagedisc.write_iso(whole, design, u, v, bit, 2400, log=lambda *_: None)
+        imagedisc.write_iso(tail, design, u, v, bit, 2400, log=lambda *_: None, first_lba=1600)
+        with open(whole, "rb") as f:
+            f.seek(1600 * 2048)
+            same = f.read() == open(tail, "rb").read()
+        c.check(same and not imagedisc.verify_iso(tail, design, u, v, bit, 2400, samples=40, first_lba=1600),
+                "an image started at a later LBA is that part of the whole image, byte for byte")
 
 
 def run() -> bool:

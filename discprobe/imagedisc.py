@@ -188,11 +188,14 @@ def _sector_q(design, texs, u, v, bit_mm, lba0, count, correction):
 
 def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, total_sectors: int,
               dark: str = "A5", light: str = "B9", log=print, meta: dict | None = None, correction=None,
-              textures=None) -> str:
+              textures=None, first_lba: int = 0) -> str:
+    """With first_lba, the file holds only sectors first_lba.. for appending to a disc already written up to
+    there; it then has no file system of its own."""
     texs = _textures(design, dark, light, textures)
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     bit_mm = bit_nm * 1e-6
-    done, next_report = 0, 0.0
+    done, next_report = first_lba, 0.0
+    count = total_sectors - first_lba
     with open(path, "wb") as f:
         while done < total_sectors:
             n = min(CHUNK, total_sectors - done)
@@ -200,12 +203,13 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
             presets = ((np.arange(done, done + n) + dvd.DATA_START_PSN) >> 4) & 0xF
             f.write((q ^ dvd.MASKS[presets]).tobytes())
             done += n
-            if done / total_sectors >= next_report:
-                log(f"  {100 * done / total_sectors:5.1f} %")
+            if (done - first_lba) / count >= next_report:
+                log(f"  {100 * (done - first_lba) / count:5.1f} %")
                 next_report += 0.2
-    iso9660.add(path, total_sectors, "DISCPROBE_IMAGE")
+    if not first_lba:
+        iso9660.add(path, total_sectors, "DISCPROBE_IMAGE")
     spec = {"kind": "dvd-picture", "u": u, "v": v, "bit_nm": bit_nm, "total_sectors": total_sectors,
-            "textures": texs, "cell_mm": CELL_MM, **(meta or {})}
+            "first_lba": first_lba, "textures": texs, "cell_mm": CELL_MM, **(meta or {})}
     if design.dtype == bool:
         spec.update(dark=dark, light=light)
     spec_path = os.path.splitext(path)[0] + ".image.json"
@@ -216,16 +220,16 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
 
 def verify_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, total_sectors: int,
                dark: str = "A5", light: str = "B9", samples: int = 300, seed: int = 3, correction=None,
-               textures=None) -> list[str]:
+               textures=None, first_lba: int = 0) -> list[str]:
     """Descramble random sectors and compare every byte with a recomputation from the design."""
     problems = []
-    if os.path.getsize(path) != total_sectors * dvd.SECTOR_BYTES:
+    if os.path.getsize(path) != (total_sectors - first_lba) * dvd.SECTOR_BYTES:
         return ["size mismatch"]
     texs = _textures(design, dark, light, textures)
     rng = np.random.default_rng(seed)
     with open(path, "rb") as f:
-        for lba in rng.integers(32, total_sectors, samples):
-            f.seek(int(lba) * dvd.SECTOR_BYTES)
+        for lba in rng.integers(max(32, first_lba), total_sectors, samples):
+            f.seek((int(lba) - first_lba) * dvd.SECTOR_BYTES)
             rec = dvd.recorded(np.frombuffer(f.read(dvd.SECTOR_BYTES), dtype=np.uint8), int(lba))
             want = _sector_q(design, texs, u, v, bit_nm * 1e-6, int(lba), 1, correction)[0]
             if not np.array_equal(rec, want):

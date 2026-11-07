@@ -13,6 +13,10 @@ Windows' read-back check after the burn is turned off, as DiscImageStudio does. 
 slow or hard to read back, and a failed check reports the whole burn as failed after the data is
 already on the disc. -Verify keeps Windows' default check.
 
+-KeepOpen leaves the disc open after this session, so another can be added later. -Append adds a
+session to such a disc; it needs -ExpectStart with the LBA the image was made for (`image --start-lba`,
+from the next writable address `info` prints), and refuses if the drive would write anywhere else.
+
 -Reload closes the tray again after the eject (tray-loading drives such as the GH70N), so the
 burned disc can be read straight away. Without it, push the tray back in before measuring.
 
@@ -32,7 +36,10 @@ param(
     [double]$Speed = 0,
     [switch]$Burn,
     [switch]$Verify,
-    [switch]$Reload
+    [switch]$Reload,
+    [switch]$KeepOpen,
+    [switch]$Append,
+    [long]$ExpectStart = -1
 )
 $ErrorActionPreference = "Stop"
 
@@ -122,7 +129,7 @@ $type = $fmt.CurrentPhysicalMediaType
 $isCd = $type -in 1, 2, 3
 $unit = if ($isCd) { 75 } else { 675 }
 "Media type $type ($(if ($isCd) {'CD'} else {'DVD'})), blank: $($fmt.MediaHeuristicallyBlank), " +
-    "free sectors: $($fmt.FreeSectorsOnMedia), total: $($fmt.TotalSectorsOnMedia)"
+    "free sectors: $($fmt.FreeSectorsOnMedia), total: $($fmt.TotalSectorsOnMedia), next writable LBA: $($fmt.NextWritableAddress)"
 $speeds = @($fmt.SupportedWriteSpeedDescriptors | ForEach-Object {
     "{0:0.#}x ({1} sectors/s, {2})" -f ($_.WriteSpeed / $unit), $_.WriteSpeed, $(if ($_.RotationTypeIsPureCAV) {'CAV'} else {'CLV/ZCLV'})
 })
@@ -133,8 +140,15 @@ $path = (Resolve-Path $Iso).Path
 $sectors = (Get-Item $path).Length / 2048
 "Image: $path, $sectors sectors"
 if ($sectors -gt $fmt.FreeSectorsOnMedia) { throw "image is larger than the free space on the medium" }
+if ($Append) {
+    # The image's bytes depend on where they land, so the start has to be exactly the one it was made for.
+    if ($ExpectStart -lt 0) { throw "-Append needs -ExpectStart, the LBA the image was made for" }
+    if ($fmt.MediaHeuristicallyBlank) { throw "the medium is blank; there is nothing to append to" }
+    if ($fmt.NextWritableAddress -ne $ExpectStart) {
+        throw "the drive would write at LBA $($fmt.NextWritableAddress), not at $ExpectStart; make the image for that LBA"
+    }
+} elseif (-not $fmt.MediaHeuristicallyBlank) { throw "medium is not blank; refusing to write (-Append adds a session)" }
 if (-not $Burn) { "Dry run: nothing written (add -Burn to write)."; return }
-if (-not $fmt.MediaHeuristicallyBlank) { throw "medium is not blank; refusing to write" }
 
 if ($Speed -gt 0) {
     # Ask for the nearest speed the drive lists: its 8x can be 5410 sectors/s on DVD, and asking
@@ -145,7 +159,8 @@ if ($Speed -gt 0) {
 }
 "Requested write speed: $(if ($Speed -gt 0) {"${Speed}x"} else {'drive default'}); " +
     "drive reports {0:0.#}x" -f ($fmt.CurrentWriteSpeed / $unit)
-$fmt.ForceMediaToBeClosed = $true
+$fmt.ForceMediaToBeClosed = -not $KeepOpen
+if ($KeepOpen) { "The disc stays open for another session." }
 if (-not $Verify) {
     $level = [BurnCheck]::Set($fmt, 0)
     if ($level -ne 0) { throw "Windows did not accept turning off its check after the burn (level $level); nothing was written" }

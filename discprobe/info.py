@@ -37,6 +37,11 @@ def collect(dev) -> dict:
                                  mmc.parse_disc_information)
     r["track_1"] = _run(dev, "READ TRACK INFORMATION", mmc.read_track_information(1), 48,
                         mmc.parse_track_information)
+    # Where the next write would go: the last track of the last session is the open one.
+    last = (r["disc_information"].get("parsed") or {}).get("last_track_last_session")
+    if last and last > 1:
+        r["track_last"] = _run(dev, "READ TRACK INFORMATION", mmc.read_track_information(last), 48,
+                               mmc.parse_track_information)
     r["capacity"] = _run(dev, "READ CAPACITY", mmc.read_capacity(), 8, mmc.parse_capacity)
     r["toc"] = _run(dev, "READ TOC", mmc.read_toc(0), 2048, mmc.parse_toc)
     r["atip"] = _run(dev, "READ ATIP", mmc.read_toc(4, msf=True), 2048, mmc.parse_atip)
@@ -105,6 +110,9 @@ def summarize(r: dict) -> list[str]:
     di = parsed("disc_information")
     if di:
         lines.append(f"Disc status: {di['disc_status']}, sessions {di['sessions']}, erasable {di['erasable']}")
+    track = parsed("track_last") or parsed("track_1")
+    if di and di.get("disc_status") in ("empty", "incomplete") and track.get("nwa_valid"):
+        lines.append(f"Next writable address: LBA {track['next_writable']} ({track['free_blocks']} sectors free)")
     cap = parsed("capacity")
     if cap.get("last_lba") is not None:
         lines.append(f"Readable capacity: last LBA {cap['last_lba']} x {cap['block_length']} B")

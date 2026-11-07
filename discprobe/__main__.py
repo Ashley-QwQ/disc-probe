@@ -6,6 +6,7 @@ import argparse
 import csv
 import datetime
 import json
+import math
 import os
 import sys
 
@@ -554,7 +555,6 @@ def cmd_image(args):
     if args.along_track_frames:
         # Timing cannot see an along-track offset d (read completion vs written position): theta(n - d)
         # is the same spiral with u^2 - v d / pi. Measure d on a burned grid disc.
-        import math
         from .cd import FRAME_BITS
         if args.media != "cd":
             sys.exit("--along-track-frames is for CD")
@@ -587,22 +587,32 @@ def cmd_image(args):
     else:
         from .cd import check_capacity
         check_capacity(total)
+    first = args.start_lba
+    if first and args.media != "dvd":
+        sys.exit("--start-lba is for DVD for now")
+    if first and not 32 <= first < total:
+        sys.exit(f"--start-lba must lie between 32 and the image's end, LBA {total}")
+    if first:
+        r_first = bit * 1e-6 * math.sqrt(u * u + v * first * imagedisc.SECTOR_BITS / math.pi)
+        print(f"Appending from LBA {first} (about {r_first:.2f} mm): the file holds only that part, with no file system. "
+              "Whatever the design has inside that radius is left out.")
     tex = f"textures {' '.join(args.textures)}" if args.textures else f"dark {args.dark}, light {args.light}"
     print(f"{kind}, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
           f"({total * 2048 / 1e9:.2f} GB), {tex}")
     corr = imagedisc.load_correction(args.correction) if args.correction else None
     try:
-        with ui.writing(args.output, total) as log:
+        with ui.writing(args.output, total - first) as log:
             spec = writer.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
                                     meta={"geometry_from": os.path.abspath(args.geo), "design": kind,
                                           "along_track_frames": args.along_track_frames,
                                           "correction": os.path.abspath(args.correction) if args.correction else None},
-                                    correction=corr, textures=args.textures, log=log)
+                                    correction=corr, textures=args.textures, log=log,
+                                    **({"first_lba": first} if first else {}))
     except ValueError as e:
         sys.exit(str(e))
     with ui.busy("Checking what was written..."):
         problems = writer.verify_iso(args.output, design, u, v, bit, total, args.dark, args.light, correction=corr,
-                                     textures=args.textures)
+                                     textures=args.textures, **({"first_lba": first} if first else {}))
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     prev = os.path.splitext(args.output)[0] + ".preview.png"
     if design.dtype == bool:
@@ -1219,6 +1229,9 @@ def _build_parser():
     sp.add_argument("--design-npy", help="prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view")
     sp.add_argument("--diameter-mm", type=float, default=116.0, help="the picture's longer side on the disc, in mm; it keeps its shape")
     sp.add_argument("--r-max", type=float, default=56.0, help="outer radius of the drawing")
+    sp.add_argument("--start-lba", type=int, default=0,
+                    help="DVD: write only from this sector on, to append to a disc already written up to it "
+                         "(`info` shows the next writable address)")
     sp.add_argument("--line-mm", type=float, default=0.3, help="grid line width")
     sp.add_argument("--correction", help="angle-correction file (phi(r) measured on a burned grid)")
     sp.add_argument("--along-track-frames", type=float, default=0.0,
