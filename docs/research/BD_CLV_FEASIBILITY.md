@@ -403,6 +403,26 @@ radius of sector 0 outwards by 0.4 mm. The fit keeps the offset only when it is 
 sigma, reports the fitted value and its sigma either way, and says which it did; with the offset
 out the answer is 24.6646 mm, which is what the same zones give without asking for one.
 
+## 12a. A Blu-ray the drive reads at a constant angular velocity
+
+Not every Blu-ray turns at a constant linear speed. A pressed BD-ROM does not, and neither does a
+burned disc a drive decides to read that way. For that disc the linear-speed fit has nothing to
+hold: the period is the same everywhere, so it carries no radius.
+
+`geo --media bd` therefore probes two zones before it measures anything, and when the period does
+not grow with the radius it hands the disc to the angular ladder -- the same instrument a DVD uses,
+with Blu-ray constants: 32-sector recording units (a read completes at the end of one), 74.5 nm
+channel bits, 0.32 um nominal pitch, 24.0 mm inner radius. That ladder fits `u = r0/b` and
+`v = p/b` against sector addresses, so it measures `r0` and the pitch directly, with no speed to
+anchor and no `T^2` line to trust.
+
+On the simulated disc (24.02 mm, 0.3185 um, deliberately off the nominal pair) the route recovers
+24.02000 mm and 0.318500 um, with chi2/dof 1.10 and 0.61 deg residual rms over nine rungs.
+
+What it still cannot do: on a two-layer BD the layer break is a jump in the sector space, so the
+rungs must stay inside one layer; and `disexport` has no Blu-ray preset for this fit yet, because
+the preset wants a sector count and both radii, and `u` only gives the inner one directly.
+
 ## 13. Writing the preset DiscImageStudio actually wants
 
 A Blu-ray preset in DiscImageStudio is not the angular `u`/`v` pair a DVD or CD preset is. It is

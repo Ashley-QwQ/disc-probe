@@ -307,11 +307,26 @@ TEXT = {
     "Next, check the angle difference above (well under 0.1 deg is fine), then enter the preset in DiscImageStudio": "下一步，看一下上面的角度差（远小于 0.1° 就行），然后把预设填进 DiscImageStudio",
     "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.en.md.": "（内外半径、扇区数、三个轨距项）。步骤见 docs/MANUAL.md。",
     "(inner and outer radius, sectors, the three pitch terms), or run with --install to write it there. Steps: docs/MANUAL.en.md.": "（内外半径、扇区数、三个轨距项），或者加上 --install 让程序直接写进去。步骤见 docs/MANUAL.md。",
+    "{a} sectors, inner {b} mm, outer {c} mm (both measured/derived, not nominal)":
+        "{a} 个扇区，内径 {b} mm，外径 {c} mm（两个都是量出来或推出来的，不是标称值）",
+    "constant pitch {a} um at {b} m/s, R^2 {c} over {d} zones; DiscImageStudio solves the pitch from the three numbers above":
+        "恒定轨距 {a} µm，线速度 {b} m/s，R^2 {c}，{d} 个区域；轨距由 DiscImageStudio 从上面三个数自己解出来",
+    "A free period offset was also fitted ({a} us, 1 sigma {b} us), but the data cannot tell it from zero, so it was left out of the radius.":
+        "还拟合了一个自由周期偏置（{a} µs，1 sigma {b} µs），但数据分不开它和零，所以没把它从内径里扣掉",
+    "The disc holds {a} sectors, {b} fewer than a full layer, so sector 0 sits {c} mm further out than the 24.0 mm of an unspared disc: that is what was measured, not a rounding error.":
+        "这张盘只有 {a} 个扇区，比满层少 {b} 个，所以扇区 0 比不留备用区的盘的 24.0 mm 更靠外 {c} mm：这是量到的，不是舍入误差",
+    "DiscImageStudio Blu-ray preset in {a} (import it with the Blu-ray preset library's Import button)":
+        "DiscImageStudio 蓝光预设已写入 {a}（用蓝光预设库的 Import 按钮导入）",
+    "Restart DiscImageStudio to load the updated Blu-ray preset list.":
+        "重启 DiscImageStudio 以载入更新后的蓝光预设列表",
     "Restart DiscImageStudio to load the updated preset list.": "重启 DiscImageStudio 以载入更新后的预设列表。",
     "Next, open {p} in DiscImageStudio and burn it, as it is, on a blank of the type to":
         "下一步，用 DiscImageStudio 打开 {p}，不做任何修改，刻到要标定的那种空白盘上",
     "calibrate (lowest speed). Then measure the burned disc on the drive that reads it:":
         "（用最低速度）。然后在读盘用的光驱上测这张刻好的盘：",
+    "This disc turns at a constant angular velocity, so its period carries no radius. "
+    "Measuring the spiral from sector addresses instead.":
+        "这张盘是恒定角速度转的，周期里没有半径信息。改用扇区地址来量这条螺旋。",
     "Next, see where you are: {c}": "下一步，看看进行到哪了：{c}",
     "Try --sectors {a} ({b}). Enter the same number in DiscImageStudio. `info` on a blank disc is the count to go by: one user found read-from-disc there too high.":
         "试试 --sectors {a}（{b}）。DiscImageStudio 里也填这个数。以空白盘上 `info` 的数为准：有用户发现它的“从光盘读取”给的数偏大。",
@@ -596,6 +611,9 @@ TEXT = {
         "r0 落在最内测量区域（{b} mm）往里 {a} mm 处，所以它来自直线的曲率，而不是在那里量到的点；上面的容差是拟合的，不是模型的",
     "period offset {a} us (1 sigma {b} us): the fit already took it out of r0": "周期偏置 {a} µs（1 sigma {b} µs）：拟合已经把它从 r0 里扣掉了",
     "period offset {a} us: the fit already took it out of r0": "周期偏置 {a} µs：拟合已经把它从 r0 里扣掉了",
+    "period offset: {a} us (1 sigma {b} us), which the data cannot tell from zero, "
+    "so the fit left it out and r0 is the plain answer":
+        "周期偏置：{a} µs（1 sigma {b} µs），数据分不开它和零，所以拟合把它留在了外面，r0 就是直接的答案",
     "zones.csv, summary.json: {a}": "zones.csv、summary.json 保存在：{a}",
     "Pass --linear-mm-s to trade that anchor for a pitch: without it the pitch is nominal and only r0/v is measured.":
         "加 --linear-mm-s 可以把这个锚点换成轨距：不加时轨距用标称值，只测到 r0/v。",

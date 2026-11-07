@@ -394,6 +394,14 @@ def classify_rotation(perf: dict, *, media: str = "bd", r_inner_mm: float = 24.0
     return out
 
 
+class ConstantAngularVelocity(RuntimeError):
+    """The disc turns at a constant angular velocity, so the period carries no radius.
+
+    The angular ladder is the instrument for that disc: it measures phase against sector
+    addresses instead of a period against a radius. `geo --media bd` catches this and runs it.
+    """
+
+
 def classify_from_zones(zones: list[dict]) -> dict:
     """Decide CAV or CLV from two measured zones, not from what the drive claims.
 
@@ -463,12 +471,12 @@ class ClvLadder:
         # says nothing (on the UJ272 the 0.05 zone read 0.49 coherence). Halfway out and the
         # outside edge are settled, and the radius ratio is wide enough to tell CAV from CLV.
         zones = self.zones if len(self.zones) < 3 else (self.zones[len(self.zones) // 2], self.zones[-1])
-        self.tp.period_test(zones=zones)
+        self.tp.period_test(zones=zones, announce_rotation=False)
         shape = classify_from_zones(self.tp.summary.get("period", {}).get("zones") or [])
         self.summary["rotation_measured"] = shape
         self.log(f"Rotation by two zones: {shape['mode']}" + (f" ({shape['reason']})" if "reason" in shape else ""))
         if shape["mode"] == "CAV":
-            raise RuntimeError(
+            raise ConstantAngularVelocity(
                 "the disc turns at a constant angular velocity (" + shape["reason"] + "), so the completion "
                 "period carries no radius and there is no spiral to fit; disc-probe has no angular ladder for "
                 "BD sectors, so this disc cannot be measured with --media bd")
@@ -486,7 +494,7 @@ class ClvLadder:
         self.tp.settle_spindle()
         self.summary["settle"] = self.tp.summary.get("settle")
         self.precheck_by_measuring()
-        self.tp.period_test(zones=self.zones)
+        self.tp.period_test(zones=self.zones, announce_rotation=False)
         self.summary["period"] = self.tp.summary.get("period")
         samples = [Sample(lba=int(z["lba"]), period_ms=float(z["period_ms"]),
                           coherence=float(z.get("coherence", 1.0)), fraction=z.get("fraction"))
@@ -497,6 +505,15 @@ class ClvLadder:
             self.summary["zones_unstable"] = unstable
             self.log(f"Left out {len(unstable)} zones whose period was not the spindle's "
                      f"(coherence below {COHERENCE_FLOOR}): " + ", ".join(f"{u:.2f}" for u in unstable))
+        # The rotation, judged again on the zones the fit kept: the precheck saw two of them, and
+        # this sees the ones that held still, which is the better evidence of the two.
+        kept = [z for z in self.summary["period"]["zones"]
+                if z.get("period_ms") and float(z.get("coherence", 1.0)) >= COHERENCE_FLOOR]
+        shape = classify_from_zones(kept)
+        self.summary["rotation_measured"] = shape
+        self.log(f"Rotation over the zones kept: {shape['mode']}"
+                 + (f" ({shape['reason']})" if "reason" in shape else ""))
+
         samples = [s for s in samples if s.coherence >= COHERENCE_FLOOR]
         if len(samples) < 2:
             raise RuntimeError(f"only {len(samples)} of {len(self.zones)} zones gave a period that "

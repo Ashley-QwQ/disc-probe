@@ -26,7 +26,7 @@ class SimDrive:
                  rev_period_ms: float | None = None, clv_speed_x: float | None = None,
                  capacity: int | None = None, cache_blocks: int | None = None, reread_delay_ms: float = 0.0,
                  media="dvd", cd_u=None, cd_v=None, cd_audio: bool = False, cd_read_offset_bytes: float = 0.0,
-                 patterns=()):
+                 patterns=(), block: int | None = None):
         self.media = media
         # A DVD reads back as random data, except (lba_start, lba_end, byte) stretches written as one
         # scrambled-domain byte, like a texture ring or a picture.
@@ -64,7 +64,9 @@ class SimDrive:
         elif media == "bd":
             from .geometry import BD_SECTOR_MM
             # Off-nominal on purpose: 0.3185 um pitch, start radius 24.02 mm.
-            self.block = 1
+            # `block` is the read granularity: one sector for the linear-speed ladder, 32 for the
+            # angular one, which is the recording unit a CAV read completes on.
+            self.block = block if block is not None else 1
             self.spiral = Spiral(24.02, 0.3185e-3, BD_SECTOR_MM)
         self.clv_speed_mm_s = clv_speed_x * ONE_X_MM_S[media]
         # One read plus two blocks of read-ahead (a single segment, like the HP BU20N, which a far

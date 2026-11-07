@@ -149,26 +149,28 @@ def test_cli_geo_media_bd_on_the_simulated_drive():
         assert not os.path.exists(os.path.join(folder, "targets.csv"))
 
 
-def test_a_disc_the_drive_reads_at_constant_angular_velocity_is_refused():
-    """A BD-ROM (or a burned BD the drive reads at CAV) has no T^2 line to fit.
-
-    GET PERFORMANCE type 00h already says so, and the run must stop there: measuring nine zones
-    of a CAV disc would only produce a fit that cannot exist, after minutes of spinning.
-    """
+def test_a_cav_disc_is_handed_to_the_angular_ladder():
+    """A BD-ROM (or a burned BD the drive reads at CAV) has no T^2 line to fit: the period does
+    not know the radius. The CLI must notice, time only the two probe zones, and measure the
+    spiral from sector addresses instead -- which is the angular ladder, not a CLV fit."""
     with tempfile.TemporaryDirectory() as out:
         proc = subprocess.run([sys.executable, "-m", "discprobe", "geo", "--sim", "cav", "--media", "bd",
                                "--out", out],
-                              cwd=ROOT, capture_output=True, text=True, timeout=180)
+                              cwd=ROOT, capture_output=True, text=True, timeout=600)
         text = proc.stdout + proc.stderr
-        assert proc.returncode == 1, text
-        assert "constant angular velocity" in text, text
-        # It times two zones to decide, and must not spend the other seven on a fit that cannot exist.
-        assert text.count("Zone 0.") == 2, "it kept measuring after two zones disagreed: " + text
-        written = [os.path.join(out, d, name) for d in os.listdir(out)
-                   for name in ("summary.json", "zones.csv")
-                   if os.path.exists(os.path.join(out, d, name))]
-        assert not written, "it wrote results for a disc it cannot fit: " + ", ".join(written)
-
+        assert proc.returncode == 0, text[-3000:]
+        assert "constant angular velocity" in text, text[-3000:]
+        # The hand-off happens after the two-zone probe, so those are all the linear-speed run read.
+        assert text.count("Zone 0.") == 2, "the probe kept going after two zones: " + text[-2000:]
+        written = [os.path.join(root, name) for root, _, names in os.walk(out) for name in names
+                   if name == "summary.json"]
+        assert len(written) == 1, written
+        with open(written[0], encoding="utf-8") as f:
+            fit = json.load(f)["fit"]
+        assert fit["media"] == "bd", fit
+        # The simulated disc is 24.02 mm and 0.3185 um on purpose, not the nominal pair.
+        assert abs(fit["dis_equivalent"]["inner_radius_mm"] - 24.02) < 0.01, fit["dis_equivalent"]
+        assert abs(fit["dis_equivalent"]["pitch_um_estimate"] - 0.3185) < 0.001, fit["dis_equivalent"]
 
 def test_disexport_writes_a_blu_ray_preset():
     """A CLV run is exported as a Blu-ray preset: inner radius, outer radius and the sector count.
