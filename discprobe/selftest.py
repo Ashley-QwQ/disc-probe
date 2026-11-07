@@ -1101,6 +1101,84 @@ def _install_blocker(c: Checker):
                 "a chi2 of None is not read as zero, so the run is not refused for it")
 
 
+def _bd_clv(c: Checker):
+    print("Blu-ray CLV geometry: periods against LBA")
+    import json
+    import math
+    import os
+    from . import clv
+
+    # Round trip on data built from a known disc: the fit has to give it back.
+    truth_r0, truth_pitch, truth_v = 24.02, 0.3185, 39.336
+    sector_mm = 2.23945
+    samples = []
+    for lba in [497408, 1_500_000, 2_500_000, 3_500_000, 4_974_208, 6_000_000, 8_000_000, 10_000_000]:
+        r = math.sqrt(truth_r0 ** 2 + truth_pitch * 1e-3 * sector_mm * lba / math.pi)
+        samples.append(clv.Sample(lba=lba, period_ms=2000 * math.pi * r / (truth_v * 1000)))
+    by_speed = clv.fit_t2(samples, sector_mm=sector_mm, v_m_s=truth_v)
+    c.check(abs(by_speed.r0_mm - truth_r0) < 0.002 and abs(by_speed.pitch_um - truth_pitch) < 0.0005,
+            f"with the linear speed given, r0 {by_speed.r0_mm:.4f} mm and pitch {by_speed.pitch_um:.4f} um "
+            f"come back (truth {truth_r0} mm, {truth_pitch} um)")
+    by_pitch = clv.fit_t2(samples, sector_mm=sector_mm, pitch_um=truth_pitch)
+    c.check(abs(by_pitch.v_m_s - truth_v) < 0.01 and abs(by_pitch.r0_mm - truth_r0) < 0.002,
+            f"with the pitch given, the speed {by_pitch.v_m_s:.3f} m/s comes back (truth {truth_v})")
+    free, speed_d = clv.fit_t2(samples, sector_mm=sector_mm), by_speed.as_dict()
+    c.check(abs(free.as_dict()["pitch_over_v2_um_s2"] - speed_d["pitch_over_v2_um_s2"]) < 1e-9
+            and abs(free.as_dict()["r0_over_v_mm_s"] - speed_d["r0_over_v_mm_s"]) < 1e-6,
+            "with neither anchor the two ratios are still measured, and the fit says what stayed unknown")
+    outlier = list(samples)
+    outlier[3] = clv.Sample(lba=samples[3].lba, period_ms=samples[3].period_ms * 1.06)
+    caught = clv.fit_t2(outlier, sector_mm=sector_mm, v_m_s=truth_v)
+    c.check(3 in caught.dropped and abs(caught.r0_mm - truth_r0) < 0.002,
+            "one zone timed 6% long is dropped and the rest still fit")
+
+    # The drive's own answer, before any timing: GET PERFORMANCE type 00h.
+    cav = {"descriptors": [{"start_kBps": 14752, "end_kBps": 35960}]}
+    clv_perf = {"descriptors": [{"start_kBps": 7193, "end_kBps": 7193}]}
+    mid = {"descriptors": [{"start_kBps": 10000, "end_kBps": 18000}]}
+    c.check(clv.classify_rotation(clv_perf)["mode"] == "CLV", "a flat performance ratio reads as CLV")
+    c.check(clv.classify_rotation(cav)["mode"] == "CAV", "58/24 on a BD reads as CAV")
+    c.check(clv.classify_rotation(mid)["mode"] not in ("CAV", "CLV"), "a ratio in between is neither, and is not fitted")
+    c.check(clv.classify_rotation({})["mode"] == "unknown", "a drive that reports nothing is not guessed at")
+
+    # The 39 zones this drive left in the repository: a real regression set.
+    import statistics
+    path = os.path.join(os.path.dirname(__file__), "..", "tests", "data", "bd_discussion_samples",
+                        "local_uj272_bd_zones.csv")
+    if not os.path.exists(path):
+        c.check(False, "the recorded BD zone set is in the tree")
+        return
+    runs = {}
+    with open(path, encoding="utf-8") as f:
+        next(f)
+        for line in f:
+            run, profile, req, frac, lba, radius, period, rpm, v, coh, jitter, method, block, last, stopped = \
+                line.rstrip("\n").split(",")
+            if stopped or not period:
+                continue
+            runs.setdefault(run, []).append((float(v), clv.Sample(lba=int(lba), period_ms=float(period),
+                                                                  coherence=float(coh or 1))))
+    clean, harmonic = [], []
+    for run, items in runs.items():
+        speeds = [v for v, _ in items]
+        if max(speeds) > 1.3 * statistics.median(speeds):
+            harmonic.append(run)     # the inner zone turned at twice the outer rate: not a CLV fit
+            continue
+        try:
+            clean.append(clv.fit_t2([s for _, s in items], sector_mm=sector_mm, pitch_um=0.32))
+        except ValueError:
+            pass
+    ok = [f for f in clean if f.r2 >= 0.999 and 23.5 <= f.r0_mm <= 24.5]
+    if not ok:
+        c.check(False, "no recorded run fit as CLV")
+        return
+    c.check(len(ok) >= 5 and all(10.2 <= f.v_m_s <= 10.5 for f in ok),
+            f"{len(ok)} of {len(runs)} recorded runs fit as a straight line in T^2 with r0 "
+            f"{min(f.r0_mm for f in ok):.3f}-{max(f.r0_mm for f in ok):.3f} mm at 10.2-10.5 m/s")
+    c.check(len(harmonic) >= 3,
+            f"the {len(harmonic)} runs whose inner zone turned at twice the outer rate are left out")
+
+
 def _efmplus(c: Checker):
     print("EFMPlus modulation with DSV control")
     import numpy as np
@@ -1254,6 +1332,7 @@ def _run() -> bool:
         _correction_run(c)
         _disinstall(c)
         _install_blocker(c)
+        _bd_clv(c)
         _efmplus(c)
         _tiles(c)
         from . import cd_selftest

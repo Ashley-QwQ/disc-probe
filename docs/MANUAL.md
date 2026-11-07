@@ -515,7 +515,8 @@ python -m discprobe geo --drive H:
 
 ## CD-R：纹理、计时与刻图
 
-`rings`、`random`、`timing`、`geo`、`image`、`tiles` 和 `gridscan` 支持 `--media cd`，默认仍为 DVD。CD 单扇区为 57624 通道位；实现和时序假设见 [CD 物理模型](CD_PHYSICAL_MODEL.md)。测量和网格盘这部分在 HL-DT-ST GH70N 和 CMC CD-R 上实测过，换光驱或换盘要重新验证。
+`rings`、`random`、`timing`、`geo`、`image`、`tiles` 和 `gridscan` 支持 `--media cd`，默认仍为 DVD。
+**蓝光（`geo --media bd`）。**蓝光被驱动以恒定线速度读取，角度梯子量不到东西，`geo --media bd` 改量每个区域转一圈的时间，把 `T²` 对 LBA 拟合：`T² = (2πr0/v)² + (4π·p·L/v²)·LBA`，斜率和截距给两个数，再加一个锚点就得到 r0 与轨距。默认用标准轨距 0.32 µm 当锚点（此时测出线速度），也可以写 `--linear-mm-s` 反过来说“驱动跑在这个线速度”（此时测出轨距）；两者都不给时只写 `r0/v` 与 `p/v²`，并在 `anchor` 里说明。测量前 `GET PERFORMANCE` type 00h 先判旋转方式：比值 1.0000 是 CLV，接近 58/24 是 CAV（那走原来的角度梯子），中间值说明跨了 ZCLV 分区，不拟合。原理与实测见 [BD CLV 可行性](research/BD_CLV_FEASIBILITY.md)。CD 单扇区为 57624 通道位；实现和时序假设见 [CD 物理模型](CD_PHYSICAL_MODEL.md)。测量和网格盘这部分在 HL-DT-ST GH70N 和 CMC CD-R 上实测过，换光驱或换盘要重新验证。
 
 第一次做 CD，先照 [README 的 CD 路线](../README.md#cd-路线)走，至少要 3 张同批的空盘（测量、标定、刻图）。这一节是各步骤的细节和其他做法。
 

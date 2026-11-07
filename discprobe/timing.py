@@ -421,10 +421,12 @@ class TimingProbe:
         self.log("Spindle did not reach a steady speed; expect noisy results")
         self.summary["settle"] = {"steady": False}
 
-    def period_test(self):
+    def period_test(self, zones=None):
+        """One period per zone. `zones` overrides the three used to classify the spindle, which is
+        what a CLV fit wants: more zones, spread further, because it fits a line through them."""
         self._experiment = "period"
-        zones, times_by_zone = [], []
-        for frac in ZONES:
+        zones_out, times_by_zone = [], []
+        for frac in (ZONES if zones is None else zones):
             lba = self._align(frac)
             reads = [self._measure(lba, f"zone{frac}") for _ in range(self.period_reads)]
             times = [r.t_end_ns for r in reads if self._usable(r)]
@@ -433,17 +435,17 @@ class TimingProbe:
                     "nominal_radius_mm": round(self._nominal_spiral().radius(lba), 3)}
             if fit:
                 zone.update(fit.summary())
-            zones.append(zone)
+            zones_out.append(zone)
             times_by_zone.append(times)
             self.log(f"Zone {frac:.2f} (LBA {lba}): " + (
                 f"T = {zone['period_ms']} ms ({zone['rpm']} rpm), jitter {zone['jitter_us']} us "
                 f"= {zone['jitter_deg']} deg, coherence {zone['coherence']}" if fit else "no period found"))
-        self._resolve_multiples(zones, times_by_zone)
-        self.zones = zones
-        self.summary["period"] = {"zones": zones, "rotation": self._classify(zones)}
+        self._resolve_multiples(zones_out, times_by_zone)
+        self.zones = zones_out
+        self.summary["period"] = {"zones": zones_out, "rotation": self._classify(zones_out)}
         rotation = self.summary["period"]["rotation"]
         self.log(f"Rotation: {rotation['mode']}" + (f" ({rotation['reason']})" if "reason" in rotation else ""))
-        self._check_period(zones)
+        self._check_period(zones_out)
 
     def _resolve_multiples(self, zones, times_by_zone):
         """A zone whose period is a whole multiple of another zone's: the drive there completed reads only

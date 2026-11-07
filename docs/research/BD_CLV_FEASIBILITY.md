@@ -262,3 +262,49 @@ python tools/bd_clv_model_analysis.py tests/data/bd_discussion_samples/local_uj2
 The first writes `results/timing-*/summary.json`; the CSV is assembled from those with
 `setup.family == "bd"`. `--media bd` sets 32-sector blocks and READ(12), which is what the
 stored runs used.
+
+## 11. The solver, as implemented
+
+`discprobe/clv.py` carries the fit; `geo --media bd` is the command that runs it. Nothing here
+is a new drive command: the period is what `timing` already measures per zone, and
+`fit_from_summary` can re-fit any finished `timing` run without a drive at all.
+
+**Before measuring.** `ClvLadder.precheck()` sends `GET PERFORMANCE` type 00h and passes the
+descriptor to `classify_rotation`. A ratio of 1.0000 is CLV, a ratio near 58.0/24.0 = 2.4167 is
+CAV, and anything in between is reported as `unknown` and not fitted -- that is a range that
+spans a ZCLV speed change, and one straight line cannot describe it. This is the routing the
+command uses: a CAV answer means the angle ladder in `geo` applies (that is how this drive reads
+every DVD), a CLV answer means the period fit below, and `_geo_clv` is only reached through
+`--media bd` or that check.
+
+**The fit.** Nine zones at 5-95 % of the recorded area by default. `fit_t2` is a weighted
+least-squares line through `(LBA, T^2)` with iterative MAD rejection (at most three rounds,
+never below three points), then one anchor:
+
+| anchor | what it measures | what it assumes |
+|---|---|---|
+| `--pitch-um` (default 0.32) | r0 and the linear speed | the factory track pitch |
+| `--linear-mm-s` | r0 and the pitch | the drive's linear speed |
+| neither | only `r0/v` and `p/v^2` | both, pinned to 1x |
+
+The three cases are named in `summary.json` as `anchor`, and the ratios `r0_over_v_mm_s` and
+`pitch_over_v2_um_s2` are always written, so two runs can be compared without agreeing on an
+anchor first.
+
+**What it writes.** `zones.csv` (fraction, LBA, period, rpm, coherence, jitter, nominal radius)
+and `summary.json` with `fit`, `setup`, `cache`, `settle`, `period`, `rotation_check` and
+`identity`. The `fit` block is tagged `"model": "clv"` and carries `"media": "bd"`, which is how
+`results`, `guide` and the `disexport` blocker tell a period fit from an angle fit; the geometry
+keys differ on purpose, because `u` and `v` do not exist here.
+
+**What the regression set says.** `tests/test_bd_clv_solver.py` and the selftest both fit the 39
+stored zones. Seven of the eleven runs are a straight line in `T^2` (R^2 >= 0.999) with
+r0 = 23.778-24.377 mm and v = 10.33-10.36 m/s; the four runs whose inner zone turned at twice the
+outer rate are rejected by their own speed spread before the fit sees them. On the simulated
+drive (`geo --sim clv --media bd --linear-mm-s 39336`) the fit returns 24.0191 mm and 0.3185 um
+against a truth of 24.02 mm and 0.3185 um.
+
+**What is still missing.** A ZCLV disc (BD-R at 6x or 8x on a drive that changes speed mid-disc)
+needs segmentation: fit each partition separately and require the slopes to differ. Nothing in
+the data here reaches that case, so the code does not pretend to handle it -- `classify_rotation`
+stops at `unknown` and the run is not fitted.

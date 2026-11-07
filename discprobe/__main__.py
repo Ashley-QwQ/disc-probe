@@ -177,8 +177,10 @@ def _check_disc(dev, args) -> None:
         if ui.ask("This is a CD, but the command has DVD settings. Add --media cd?"):
             dev.close() if hasattr(dev, "close") else None
             raise _Rerun(["--media", "cd"])
-    if family == "bd" and args.func is cmd_geo:
-        ui.say("Note: geo supports DVD and CD; on this BD only timing is known to work.", "yellow")
+    if family == "bd" and getattr(args, "media", "dvd") != "bd" and args.func in (cmd_geo, cmd_timing):
+        if ui.ask("This is a Blu-ray disc, which the drive reads at a constant linear speed. Add --media bd?"):
+            dev.close() if hasattr(dev, "close") else None
+            raise _Rerun(["--media", "bd"])
 
 
 def _blu_ray_speed(dev, args) -> None:
@@ -210,6 +212,77 @@ def _identity(args, dev) -> dict | None:
         return info.identify(dev, getattr(args, "media", None))
     except Exception:       # a label, never worth stopping a measurement
         return None
+
+
+def _geo_clv(args):
+    """`geo --media bd`: the drive holds the linear speed, so fit spindle periods against LBA.
+
+    The angle ladder needs the *angular* rate held constant, which no BD drive offers: MMC has no
+    command that sets a read speed for Blu-ray, and the drive picks CLV for BD-R/BD-RE and CAV for
+    a pressed BD-ROM. Under CLV a turn takes T = 2*pi*r/v, and r^2 grows linearly with the sector,
+    so T^2 is a straight line in LBA and carries (r0, pitch) up to one anchor.
+    """
+    from .clv import ClvLadder, write_outputs
+    if args.sectors != 1:
+        sys.exit("--sectors 1 only: a Blu-ray fit uses the time to turn once, which one sector gives")
+    if not args.sim:
+        _need_windows()
+        from .spti import raise_priority
+        raise_priority()
+    dev = _open(args)
+    _check_disc(dev, args)
+    _blu_ray_speed(dev, args)
+    reader = _measuring(dev, args)
+    ladder = ClvLadder(reader, media=args.media, reps=args.reps,
+                       speed_kbs=None if args.sim else args.speed,
+                       pitch_um=None if args.linear_mm_s else args.pitch_um,
+                       v_m_s=None if not args.linear_mm_s else args.linear_mm_s / 1000.0,
+                       r0_mm=args.r0_mm, host_delay_ms=args.host_delay_ms)
+    ladder.tp.summary["identity"] = _identity(args, dev)
+    if args.sim:
+        ladder.tp.summary["simulated"] = True
+    progress, log = None, print
+    if reader is not dev:
+        def status():
+            period = (ladder.summary or {}).get("period") or {}
+            done = len(period.get("zones") or [])
+            if not period:
+                stage = "cache test" if "cache" not in ladder.summary else "waiting for a steady spindle"
+                return None, stage, None
+            return done / max(len(ladder.zones), 1), f"zone {done}/{len(ladder.zones)}", None
+        progress = reader.progress = ui.Progress(status, keys=ui.open_keys(), pulse=reader.read_times,
+                                                 wait_s=GEO_WAIT_S)
+        log = ladder.log = ladder.tp.log = progress.log
+    out = _outdir(args, "geo", dev)
+    stopped, res = None, None
+    try:
+        res = ladder.run()
+    except RuntimeError as e:
+        log(f"stopped: {e}")
+        stopped = str(e)
+    finally:
+        if progress:
+            progress.close()
+        dev.close() if hasattr(dev, "close") else None
+        if (ladder.summary or {}).get("period"):
+            write_outputs(ladder, out, None if res else stopped or "interrupted")
+    if res:
+        print()
+        print(f"r0 {res['r0_mm']:.4f} mm, pitch {res['pitch_um']:.4f} um, linear speed {res['v_m_s']:.3f} m/s"
+              f"  (R^2 {res['r2']:.6f} over {res['zones_used']} zones, anchor: {res['anchor']})")
+        sigma = [f"r0 {res['sigma_r0_mm'] * 1000:.1f} um" if res.get("sigma_r0_mm") is not None else "r0 (anchor)",
+                 f"pitch {res['sigma_pitch_um']:.4f} um" if res.get("sigma_pitch_um") is not None else "pitch (anchor)"]
+        if res.get("sigma_v_m_s") is not None:
+            sigma.append(f"speed {res['sigma_v_m_s']:.3f} m/s")
+        print("1 sigma: " + ", ".join(sigma))
+        print(f"zones.csv, summary.json: {os.path.abspath(out)}")
+        if res.get("v_m_s_anchor") is None:          # pitch was the anchor, so pitch is still nominal
+            print("Pass --linear-mm-s to trade that anchor for a pitch: without it the pitch is nominal "
+                  "and only r0/v is measured.")
+    else:
+        print("no results written: it stopped before the fit.")
+    if res is None:
+        sys.exit(1)
 
 
 def _geo_fit(args, media=None) -> dict:
@@ -466,6 +539,8 @@ def cmd_calscan(args):
 
 
 def cmd_geo(args):
+    if getattr(args, "media", "dvd") == "bd":
+        return _geo_clv(args)
     from .geo import Ladder, write_outputs
     if args.sectors not in (1, 16) or (args.media == "cd" and args.sectors != 1):
         sys.exit(f"--sectors {args.sectors}: geo reads 1 sector, or on a DVD 16 for one whole ECC block")
@@ -1336,6 +1411,9 @@ def _build_parser():
     sp.add_argument("--read-offset-bytes", type=float, default=0.0,
                     help="CD audio track only: where this drive's READ CD completes, in bytes before the end of "
                          "the sector in the burned audio stream (HP BU20N 0, PLDS DU-8A5LH -603)")
+    sp.add_argument("--linear-mm-s", type=float,
+                    help="Blu-ray only: the linear speed the drive reads at, in mm/s. With it the fit gives the "
+                         "pitch; without it the pitch is an anchor and only the ratio stays known")
     sp.set_defaults(func=cmd_geo)
 
     sp = sub.add_parser("edit", help="place a picture on the disc at the terminal, and save a design for image --design")
@@ -1489,9 +1567,18 @@ def _build_parser():
         "tiles": dict(output="iso/cd-tiles.iso", palette=["0D", "AA", "10", "63", "RND", "0DAA", "00FF", "1063", "0D10AA"]),
         "gridscan": dict(line_mm=0.6),
     }
+    # Blu-ray is read at a constant linear speed, so `geo` measures it by period against LBA
+    # instead of by angle. Only the commands with a CLV path take --media bd.
+    bd_defaults = {
+        "geo": dict(r0_mm=24.0, pitch_um=0.32, bit_nm=74.5, speed=8990, reps=24, max_targets=9,
+                    host_delay_ms=35.0),
+        "timing": dict(speed=8990, host_delay_ms=35.0),
+    }
     for name in cd_defaults:
-        sub.choices[name].add_argument("--media", choices=("dvd", "cd"), default="dvd",
-                                       help="disc type; cd also switches the defaults to CD values (default: dvd)")
+        choices = ("dvd", "cd", "bd") if name in bd_defaults else ("dvd", "cd")
+        sub.choices[name].add_argument("--media", choices=choices, default="dvd",
+                                       help="disc type; cd also switches the defaults to CD values, bd to Blu-ray "
+                                            "(default: dvd)")
     sub.choices["disexport"].add_argument("--media", choices=("dvd", "cd"),
                                           help="check that --geo measured this disc type; the fit decides the preset")
     for name in ("rings", "image", "tiles"):
@@ -1513,18 +1600,19 @@ def _build_parser():
     if ui.term().interactive:   # scripts read the help as it always was
         p.epilog += "\n\n" + (LANG_NOTE_ZH if i18n.active() == "zh" else LANG_NOTE)
     i18n.localize_parser(p)
-    return p, sub, cd_defaults
+    return p, sub, cd_defaults, bd_defaults
 
 
 def _main(argv=None):
-    p, sub, cd_defaults = _build_parser()
+    p, sub, cd_defaults, bd_defaults = _build_parser()
     raw_args = list(sys.argv[1:] if argv is None else argv)
     _Parser.argv, _Parser.commands = raw_args, sub.choices
     if not raw_args and ui.term().interactive:
         args = argparse.Namespace(func=cmd_guide)
         return args.func(args)
     args = p.parse_args(argv)
-    if getattr(args, "media", "dvd") == "cd":
+    media = getattr(args, "media", "dvd")
+    if media == "cd":
         from .cd import BIT_NM, set_sector_layout
         if hasattr(args, "cd_sector"):
             set_sector_layout(args.cd_sector)
@@ -1537,8 +1625,14 @@ def _main(argv=None):
         for key, value in defaults.items():
             if not any(("--" + key.replace("_", "-")).startswith(given) for given in supplied):
                 setattr(args, key, value)
+    elif media == "bd":
+        defaults = bd_defaults.get(raw_args[0], {}).copy()
+        supplied = {a.split("=")[0] for a in raw_args if a.startswith("--") and len(a) > 2}
+        for key, value in defaults.items():
+            if not any(("--" + key.replace("_", "-")).startswith(given) for given in supplied):
+                setattr(args, key, value)
     if isinstance(getattr(args, "speed", None), _SpeedX):
-        one_x = 176.4 if getattr(args, "media", "dvd") == "cd" else 1385
+        one_x = {"cd": 176.4, "bd": 4495}.get(media, 1385)
         multiple = float(args.speed)
         args.speed = _SpeedKbs(round(multiple * one_x))
         args.speed.multiple = multiple

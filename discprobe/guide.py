@@ -94,9 +94,15 @@ class Result:
         return self.summary.get("fit") or {}
 
     @property
+    def is_clv(self) -> bool:
+        """A Blu-ray result: periods against LBA, not angles."""
+        return self.kind == "geo" and self.fit.get("model") == "clv"
+
+    @property
     def media(self) -> str:
         if self.kind == "geo":
-            return "cd" if self.fit.get("media") == "cd" else "dvd"
+            media = self.fit.get("media")
+            return media if media in ("cd", "dvd", "bd") else "dvd"
         return "cd" if (self.summary.get("args") or {}).get("media") == "cd" else "dvd"
 
     def rungs(self) -> int:
@@ -110,9 +116,23 @@ class Result:
     def stopped(self) -> str | None:
         return self.summary.get("stopped")
 
+    def zones(self) -> int:
+        """Zones in a CLV result; the angle ladder has rungs instead."""
+        try:
+            with open(os.path.join(self.path, "zones.csv"), encoding="utf-8") as f:
+                return max(0, sum(1 for _ in f) - 1)
+        except OSError:
+            return 0
+
     def geo_complete(self) -> bool:
-        return (self.kind == "geo" and "u" in self.fit and not self.stopped
-                and self.fit.get("completion_status", "target_reached") == "target_reached" and self.rungs() >= MIN_RUNGS
+        if self.kind != "geo":
+            return False
+        reached = self.fit.get("completion_status", "target_reached") == "target_reached"
+        if self.is_clv:
+            r2 = self.fit.get("r2")
+            return ("r0_mm" in self.fit and not self.stopped and reached and self.zones() >= 5
+                    and isinstance(r2, (int, float)) and not isinstance(r2, bool) and r2 >= 0.99)
+        return ("u" in self.fit and not self.stopped and reached and self.rungs() >= MIN_RUNGS
                 and self.fit.get("chi2_per_dof", 0) <= MAX_LATEST_CHI2)
 
     @property
@@ -127,6 +147,8 @@ class Result:
     def quality(self) -> str:
         if not self.geo_complete():
             return "stopped early"
+        if self.is_clv:
+            return "good" if (self.fit.get("r2") or 0) >= 0.9999 else "usable"
         if not self.reliable():
             return "too noisy"
         span = self.fit.get("measured_span_mm") or [0, NARROW_SPAN_MM]
@@ -140,6 +162,12 @@ class Result:
     def describe(self) -> str:
         if self.kind == "geo":
             f = self.fit
+            if self.is_clv:
+                if "r0_mm" not in f:
+                    return "stopped before the period fit"
+                state = "" if self.geo_complete() else "  (stopped early)"
+                return (f"{self.zones()} zones, R^2 {f.get('r2', 0):.6f}, r0 {f.get('r0_mm', 0):.3f} mm, "
+                        f"pitch {f.get('pitch_um', 0):.4f} um{state}")
             if "u" not in f:
                 return "stopped before the first fit"
             state = "" if self.geo_complete() else "  (stopped early)"
