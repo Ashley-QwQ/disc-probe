@@ -326,6 +326,10 @@ def _geo_clv(args):
                       i18n.tr("period offset {a} us: the fit already took it out of r0")
                       .format(a=f"{res['offset_ms'] * 1000:+.1f}"))
         print(i18n.tr("zones.csv, summary.json: {a}").format(a=os.path.abspath(out)))
+        last = derived.get("last_lba")
+        if last is not None and not getattr(args, "sim", None):
+            print(i18n.tr("For a DiscImageStudio preset: {a} disexport --geo {b} --sectors {c} --install")
+                  .format(a=guide.PROG, b=out, c=f"{int(last) + 1}"))
         if res.get("v_m_s_anchor") is None:          # pitch was the anchor, so pitch is still nominal
             print(i18n.tr("Pass --linear-mm-s to trade that anchor for a pitch: without it the pitch is nominal "
                           "and only r0/v is measured."))
