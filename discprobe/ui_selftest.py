@@ -65,6 +65,20 @@ def _term_matrix(c) -> None:
     c.check(not ui.Term(FakeTty(), env={"TERM": "xterm", "DISCPROBE_UNICODE": "1"}, platform="linux").unicode, "finer glyphs need UTF-8")
 
 
+def _largest_frame(progress, columns: int) -> int:
+    """A frame's size depends on where the bands of light are, so go through them all on a clock that steps."""
+    real, ticks = ui.time.monotonic, [1000.0]
+    ui.time.monotonic = lambda: ticks[0]
+    try:
+        largest = 0
+        for _ in range(480):        # a minute of frames at the usual rate
+            ticks[0] += 0.125
+            largest = max(largest, len(progress._render(columns)[0].encode()))
+        return largest
+    finally:
+        ui.time.monotonic = real
+
+
 def _progress_line(c) -> None:
     status = lambda: (0.25, "rung 6/22", 40.0)
     for name, env, wants_escape, wants_spinner in (
@@ -149,8 +163,8 @@ def _layout(c) -> None:
         p.close()
     for env, wanted in (({}, "32"), ({"COLORFGBG": "15;0"}, "92"), ({"COLORFGBG": "0;15"}, "32"), ({"COLORFGBG": "0;default;7"}, "32"), ({"COLORFGBG": "bad"}, "32")):
         c.check(ui.Term(FakeTty(), env={"TERM": "xterm", **env}, platform="linux").green == wanted, f"green for {env}: {wanted}")
-    frame_bytes = len(ui.Progress(status, tty)._render(100)[0].encode())
-    c.check(frame_bytes < 420, f"a true-colour frame stays small ({frame_bytes} bytes)")
+    frame_bytes = _largest_frame(ui.Progress(status, tty), 100)
+    c.check(frame_bytes < 520, f"a true-colour frame stays small, whatever the light is doing ({frame_bytes} bytes)")
 
 
 def _modern_terminal(c) -> None:
@@ -195,8 +209,8 @@ def _modern_terminal(c) -> None:
         line, width = p._render(columns)
         c.check(i18n.display_width(ANSI.sub("", line)) == width <= max(10, columns - 1), f"with read times, {columns} columns: the line fits ({width})")
     c.check(ui.SPARK[-1] in ANSI.sub("", p._render(120)[0]) and ui.SPARK[-1] not in ANSI.sub("", p._render(80)[0]), "read times are the first thing a narrow line loses")
-    frame_bytes = len(p._render(120)[0].encode())
-    c.check(frame_bytes < 420, f"a full frame with bar and read times stays small ({frame_bytes} bytes)")
+    frame_bytes = _largest_frame(p, 120)
+    c.check(frame_bytes < 620, f"a full frame with bar and read times stays small, whatever the light is doing ({frame_bytes} bytes)")
     p.close()
 
     class Timed:
@@ -250,7 +264,7 @@ def _burn_warning(c) -> None:
         ui.burn_warning(ui.Term(s, env=env, platform="linux"), pause=pause or waits.append)
         return s.getvalue(), waits
     text, waits = shown({"TERM": "xterm"})
-    c.check(len(waits) == 2 * ui.WARNING_FLASHES and sum(waits) <= 2.0, f"it flashes briefly ({sum(waits)} s)")
+    c.check(len(waits) == 2 * ui.WARNING_FLASHES and 3.0 <= sum(waits) <= 5.0, f"it flashes long enough to notice, and no longer ({sum(waits)} s)")
     c.check(1 / (2 * ui.WARNING_FLASH_S) <= 3, "no more than three flashes a second")
     c.check(text.count("\x1b[1;97;41m") == ui.WARNING_FLASHES and text.count("\x1b[1;31m") > ui.WARNING_FLASHES, "white on red, then red, in turn")
     c.check(text.endswith(f"\x1b[?25h\x1b[1;31m{plain_line}\x1b[0m\n"), "it ends as one red line, with the cursor back")
@@ -286,7 +300,7 @@ def _burn_warning(c) -> None:
     real = ui.burn_warning, cli._next
     called = []
     ui.burn_warning = lambda: called.append(True)
-    cli._next = lambda lines: None
+    cli._next = lambda lines, args=None: None
     try:
         cli._image_ready(Namespace(output="a.iso", geo="results/geo-E-20260101-100000"), "a.png")
         c.check(called == [True], "a real picture ISO gets the warning")
@@ -295,6 +309,184 @@ def _burn_warning(c) -> None:
         c.check(called == [], "one from a simulated run is already told not to burn")
     finally:
         ui.burn_warning, cli._next = real
+
+
+def _first_steps(c) -> None:
+    """What a newcomer is told: where the image went, which burner, where they are, what comes after the burn."""
+    from argparse import Namespace
+    from . import __main__ as cli, imagecheck, imagedisc
+    import numpy as np
+    real_term, real_platform, real_drives = ui._term, sys.platform, guide.optical_drives
+    env = {"TERM": "xterm", "WT_SESSION": "x"}
+    cwd = os.getcwd()
+    try:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+            os.chdir(d)
+            guide.optical_drives = lambda: ["H:"]
+            s = Utf8Tty()
+            ui._term = ui.Term(s, env=env, platform="linux")
+            with contextlib.redirect_stdout(s):
+                ui.iso_ready("iso/random.iso")
+            shown = ANSI.sub("", s.getvalue()).split("\n")
+            c.check(shown[0] == "ISO ready! It is here:" and shown[1] == os.path.abspath("iso/random.iso"), "the finished image's path gets a line of its own, to copy")
+            c.check("\x1b[32m" in s.getvalue(), "and the good news is green")
+            sys.platform = "win32"
+            lines = guide.after_random(Namespace(media="dvd"))
+            hint = [x for x in lines if isinstance(x, guide.Quiet)]
+            c.check(len(hint) == 1 and "H:" in hint[0] and lines.index(hint[0]) == 1, "the burner to pick follows the first line, with the drive's real letter")
+            c.check(any(isinstance(x, guide.Quiet) for x in guide.after_image("a.iso", "a.png", "results/geo-H-1")), "and picture ISOs get it too")
+            guide.optical_drives = lambda: ["H:", "I:"]
+            c.check("your optical drive" in guide.burner_hint()[0], "with several drives it does not guess")
+            guide.optical_drives = lambda: ["H:"]
+            sys.platform = "linux"
+            lines = guide.after_random(Namespace(media="dvd"))
+            c.check(not guide.burner_hint() and not any("right-click" in x or "--drive" in x for x in lines) and any("--sim" in x for x in lines), "elsewhere: no Windows steps, and no command that cannot run")
+            sys.platform = "win32"
+
+            lines = guide.guide_lines("dvd")
+            c.check(sum(x.startswith(("  [x]", "  [ ]")) for x in lines) == 5 and not any("you are here" in x for x in lines), "scripts keep the five steps they always saw")
+            lines = guide.guide_lines("dvd", notes=True)
+            steps = [x for x in lines if x.startswith(("  [x]", "  [ ]"))]
+            c.check(len(steps) == 7 and "Burn it on a blank" in steps[-1], "a person sees the steps to the end")
+            c.check(sum("you are here" in x for x in steps) == 1 and "you are here" in next(x for x in steps if x.startswith("  [ ]")), "the first step not done says so")
+            c.check(not any(x.startswith("How to look") for x in lines), "no talk of looking at a disc before one exists")
+            progress = guide.progress_lines("dvd")
+            c.check(isinstance(progress[1], guide.Step) and progress[-1] == "", "the same list can go before the next command")
+            os.makedirs("iso")
+            c.check(guide.picture_iso() is None, "no picture ISO yet")
+            for name in ("picture.iso", "picture.preview.png", "blind_x.iso", "blind_x.preview.png", "orphan.preview.png"):
+                open(os.path.join("iso", name), "w").close()
+            c.check(guide.picture_iso() == os.path.join("iso", "picture.iso"), "a picture ISO is found by its preview, and held-out names stay unread")
+            typed = cli._os_error(FileNotFoundError(2, "x", "my_picture.png"))
+            c.check("only an example" in typed and os.getcwd() in typed, "the example name, copied as it is, is explained")
+            typed = cli._os_error(FileNotFoundError(2, "x", os.path.abspath("nope.png")))
+            c.check(typed == f"no such file: {os.path.abspath('nope.png')}", "a full path says only that it is missing")
+
+            mark = os.path.join(d, "state")
+            saved = {k: os.environ.get(k) for k in ("LOCALAPPDATA", "DISCPROBE_NO_TUTORIAL")}
+            os.environ["LOCALAPPDATA"] = mark
+            os.environ.pop("DISCPROBE_NO_TUTORIAL", None)
+            try:
+                c.check(not guide.tutorial_offered(), "the tutorial has not been offered yet")
+                guide.remember_tutorial_offered()
+                c.check(guide.tutorial_offered(), "and is offered only once")
+                os.remove(guide._tutorial_mark())
+                asked = []
+                answer = [True]
+                real_ask = ui.ask
+                ui.ask = lambda question, default=True: asked.append(question) or answer[0]
+                s = Utf8Tty()
+                ui._term = ui.Term(s, env={**env, "DISCPROBE_NO_ANIMATION": "1"}, platform="linux")
+                ui._term.can_prompt = lambda: True
+                real_results = guide.scan
+                try:
+                    with contextlib.redirect_stdout(s):
+                        cli.cmd_guide(Namespace())
+                    c.check(len(asked) == 1 and "1. Burn a random-data disc" in ANSI.sub("", s.getvalue()), "the first start asks, and yes walks through the steps")
+                    with contextlib.redirect_stdout(s):
+                        cli.cmd_guide(Namespace())
+                    c.check(len(asked) == 1, "the next start does not ask again")
+                    os.remove(guide._tutorial_mark())
+                    answer[0] = False
+                    s.seek(0)
+                    s.truncate()
+                    with contextlib.redirect_stdout(s):
+                        cli.cmd_guide(Namespace())
+                    c.check(len(asked) == 2 and "1. Burn a random-data disc" not in ANSI.sub("", s.getvalue()) and guide.tutorial_offered(), "no skips it, and is remembered too")
+                    os.remove(guide._tutorial_mark())
+                    guide.scan = lambda out="results": [Namespace(simulated=False, kind="geo", media="dvd")]
+                    asked.clear()
+                    ui._term.interactive = False
+                    with contextlib.redirect_stdout(s):
+                        try:
+                            cli.cmd_guide(Namespace())
+                        except AttributeError:
+                            pass        # guide_lines wants a whole Result; only the question matters here
+                    c.check(not asked, "someone who has measured already is not asked")
+                finally:
+                    ui.ask, guide.scan = real_ask, real_results
+                    ui._term = ui.Term(Utf8Tty(), env=env, platform="linux")
+                c.check(i18n.tr("First time here? Walk through the steps?") == "First time here? Walk through the steps?", "English stays English")
+            finally:
+                for key, value in saved.items():
+                    os.environ.pop(key, None) if value is None else os.environ.update({key: value})
+            lines = guide.tutorial_lines()
+            c.check(sum(x[:1].isdigit() for x in lines) == 5 and any("--drive H:" in x for x in lines), "the tutorial has five steps and the real drive")
+            i18n.use("zh")
+            try:
+                missing = [x.strip() for x in (*lines, *guide.AFTER_BURN) if x.strip() and not x.lstrip().startswith("python ") and i18n.tr(x) == x]
+                c.check(not missing, f"all of it has Chinese {missing[:2]}")
+                c.check(i18n.tr(guide.burner_hint()[0]) != guide.burner_hint()[0], "the burner hint too")
+                for text in ("Your progress:", "Picture ISO (image)", "Burn it on a blank", "from the batch you measured", "you are here", "ISO ready! It is here:",
+                             "First time here? Walk through the steps?", f"Put the picture in {cwd}, or give its full path (in quotes if it has spaces):",
+                             "my_picture.png is only an example: use the name of your own picture.", f"It looked in {cwd}. A full path works too, in quotes if it has spaces."):
+                    c.check(i18n.tr(text) != text, f"it has Chinese: {text[:24]}")
+            finally:
+                i18n.use("en")
+
+            sys.platform = real_platform
+            t = ui.Term(Utf8Tty(), env=env, platform="linux")
+            blank = np.zeros((imagedisc.SIZE, imagedisc.SIZE), bool)
+            rows = imagecheck.thumbnail(blank, 24.5, 56.0, t)
+            c.check(len(rows) == imagecheck.THUMB_PIXELS // 2 and all(i18n.display_width(ANSI.sub("", r)) == imagecheck.THUMB_PIXELS + 2 for r in rows), "the small disc has a fixed size")
+            still = imagecheck.thumbnail(blank, 24.5, 56.0, ui.Term(Utf8Tty(), env={"TERM": "xterm", "NO_COLOR": "1"}, platform="linux"))
+            c.check("\x1b" not in "".join(still) and "".join(still).isascii() and len(still) == len(rows), "without colour it is plain text")
+            half = blank.copy()
+            half[:, :imagedisc.SIZE // 2] = True
+            left = ANSI.sub("", imagecheck.thumbnail(half, 24.5, 56.0, ui.Term(Utf8Tty(), env={"TERM": "xterm", "NO_COLOR": "1"}, platform="linux"))[10])
+            c.check("@" in left[:20] and "@" not in left[24:], "it shows the design the way round the preview does")
+            say = imagecheck.notes
+            c.check(any("Almost all of it came out light" in x for x in say(blank, None, 116.0, 24.5, 56.0)), "a blank design is noticed")
+            c.check(any("came out dark" in x for x in say(~blank, None, 116.0, 24.5, 56.0)), "and a black one")
+            c.check(any("outside" in x for x in say(~blank, None, 116.0, 24.5, 56.0)), "with what falls off the edge")
+            spot = blank.copy()
+            spot[2950:3050, 2100:2200] = True
+            noted = say(spot, None, 116.0, 24.5, 56.0)
+            c.check(any("small part" in x for x in noted), "a very small picture is noticed")
+            ring = blank.copy()
+            y, x = np.ogrid[:imagedisc.SIZE, :imagedisc.SIZE]
+            radius = np.hypot(y - 3000, x - 3000) * imagedisc.CELL_MM
+            ring[(radius > 30) & (radius < 50) & ((x // 300 + y // 300) % 2 == 0)] = True
+            c.check(say(ring, None, 116.0, 24.5, 56.0) == [], "a sensible picture gets no notes at all")
+            c.check(len(say(~blank, None, 116.0, 24.5, 56.0)) <= imagecheck.MOST_NOTES, "and there are never many")
+            from PIL import Image
+            path = os.path.join("iso", "wide.png")
+            Image.new("L", (300, 100), 128).save(path)
+            noted = imagecheck._source_notes(path)
+            c.check(any("not square" in x for x in noted) and any("blocky" in x for x in noted) and any("mid grey" in x for x in noted), "the file itself: its shape, size and greys")
+            c.check(imagecheck._source_notes(os.path.join("iso", "nope.png")) == [], "a file that can't be read adds nothing")
+            i18n.use("zh")
+            try:
+                for note in (*noted, "Almost all of it came out dark, so little will show on the disc.", "About 21% of its dark area falls outside the part of the disc that can be drawn on, so it is cut off."):
+                    c.check(i18n.tr(note) != note, f"notes have Chinese: {note[:24]}")
+            finally:
+                i18n.use("en")
+
+            saved = os.environ.get("COLUMNS")
+            os.environ["COLUMNS"] = "120"
+            try:
+                s = Utf8Tty()
+                p = ui.Progress(lambda: (0.5, "rung 3/22", 40.0), ui.Term(s, env=env, platform="linux"))
+                p.width_shown = 100
+                c.check(p._unwrap() == "", "a line that still fits is left alone")
+                os.environ["COLUMNS"] = "40"
+                p.width_shown = 100
+                c.check(p._unwrap() == "\r\x1b[2A\x1b[J" and p.width_shown == 0, "narrowed: the rows it folded onto are all cleared")
+                other = ui.Progress(lambda: (0.5, "x", None), ui.Term(Utf8Tty(), env={"TERM": "xterm"}, platform="linux"))
+                other.width_shown = 100
+                c.check(other._unwrap() == "", "a terminal that may not fold it keeps every line, at the cost of a leftover")
+                p.width_shown = 100
+                p.line_shown = None
+                p.tick(force=True)
+                c.check("\x1b[2A\x1b[J" in s.getvalue(), "drawing clears them")
+                p.close()
+                other.close()
+            finally:
+                os.environ.pop("COLUMNS", None) if saved is None else os.environ.update(COLUMNS=saved)
+            os.chdir(cwd)       # Windows won't remove a folder that is in use
+    finally:
+        os.chdir(cwd)
+        ui._term, sys.platform, guide.optical_drives = real_term, real_platform, real_drives
 
 
 def _aligned(c) -> None:
@@ -1303,7 +1495,8 @@ def _advice(c) -> None:
             os.chdir(here)
     plain, noted = guide.guide_lines("dvd", "no such folder"), guide.guide_lines("dvd", "no such folder", notes=True)
     # The ticked row depends on the folder this runs in, and has its own check above.
-    plain, noted = [x for x in plain if "Random-data disc" not in x], [x for x in noted if "Random-data disc" not in x]
+    # So do the steps, which _first_steps checks: a person sees two more, and which one they are on.
+    plain, noted = ([x for x in lines if not x.startswith(("  [x]", "  [ ]"))] for lines in (plain, noted))
     c.check(len(noted) == len(plain) + 1 and set(plain) < set(noted), "at a terminal the next command says what it does; a pipe gets the same lines as before")
     i18n.use("zh")
     try:
@@ -1548,7 +1741,7 @@ def _plain_errors(c) -> None:
         ui._term = ui.Term(io.StringIO(), env={})
         c.check(cli._os_error(missing) == f"error: {missing}" and cli._reason(stopped) == stopped.strerror, "a script sees system errors as it always did")
         ui._term = ui.Term(FakeTty(), env={"TERM": "xterm"}, platform="linux")
-        c.check(cli._os_error(missing) == "no such file: nope.png", "at a terminal a missing file is said plainly")
+        c.check(cli._os_error(missing).startswith("no such file: nope.png\n"), "at a terminal a missing file is said plainly")
         c.check(cli._os_error(stopped) == f"error: {stopped}", "other system errors keep their text")
         c.check(cli._reason(stopped) == "The system cannot locate the file specified" and not cli._reason(chinese).endswith("\u3002"), "no doubled full stop")
     finally:
@@ -1741,6 +1934,7 @@ def run(c) -> None:
     _term_matrix(c)
     _modern_terminal(c)
     _burn_warning(c)
+    _first_steps(c)
     _aligned(c)
     _progress_line(c)
     _layout(c)

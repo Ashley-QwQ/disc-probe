@@ -47,6 +47,14 @@ PORTS = ("This repository drives real hardware on Windows only. Ports: Linux git
          "macOS github.com/NaiveTomcat/discprobe-macos. Anything with --sim works here.")
 
 
+class Quiet(str):
+    """A line of advice that stays in the background."""
+
+
+class Step(str):
+    """A line of the progress list, which has its own colours."""
+
+
 def quote(path: str) -> str:
     return f'"{path}"' if " " in path else path
 
@@ -436,12 +444,13 @@ def after_geo(args, res: dict, out: str) -> list[str]:
               "  Enter the same --sectors in DiscImageStudio.",
               f"  {why}"]
     picture = f"  {PROG} image{flag} --geo {geo}{correction} --picture my_picture.png --output iso/picture.iso"
+    where = f"Put the picture in {os.getcwd()}, or give its full path (in quotes if it has spaces):"
     if media == "cd":
         return lines + ["Next, export a DiscImageStudio preset. CD has one more constant that timing cannot see, and fine",
                         "calibration there settles it on one more blank disc (the CD route in README.md):", *preset,
                         "Or make a picture ISO now (replace my_picture.png); radial lines may come out twisted without that constant:",
-                        picture]
-    return lines + ["Next, make a picture ISO (replace my_picture.png with your image):", picture,
+                        where, picture]
+    return lines + ["Next, make a picture ISO (replace my_picture.png with your image):", where, picture,
                     "Or export a DiscImageStudio preset:", *preset]
 
 
@@ -467,12 +476,22 @@ def after_geo_stop(args, reason: str) -> list[str]:
     return [f"See how noisy this drive is: {PROG} timing {carry}"]
 
 
+def burner_hint() -> list[str]:
+    """Windows' burn window can open on another drive, and then it looks as if there were no burner."""
+    if sys.platform != "win32":
+        return []
+    drives = optical_drives()
+    return [Quiet(f"In the burn window, check the burner is {drives[0] if len(drives) == 1 else 'your optical drive'}: it can point at another drive.")]
+
+
 def after_random(args) -> list[str]:
     flag = " --media cd" if getattr(args, "media", "dvd") == "cd" else ""
-    return ["Burn it onto a blank disc (Windows: right-click the .iso, Burn disc image), and keep some blanks of the same",
-            "batch for pictures. If the burner says it does not fit, make a smaller one with --sectors.",
-            "Then check the drive with it (1 to 3 minutes):",
-            f"  {PROG} timing {drive_flag()}{flag}"]
+    fits = "If the burner says it does not fit, make a smaller one with --sectors."
+    if sys.platform != "win32":
+        return ["Burn it onto a blank disc with your system's burning tool, and keep some blanks of the same batch for pictures.",
+                fits, PORTS, f"  {PROG} timing --sim cav{flag}"]
+    return ["Burn it onto a blank disc (Windows: right-click the .iso, Burn disc image), and keep some blanks of the same batch for pictures.",
+            *burner_hint(), fits, "Then check the drive with it (1 to 3 minutes):", f"  {PROG} timing {drive_flag()}{flag}"]
 
 
 def after_image(output: str, preview: str, geometry: str) -> list[str]:
@@ -481,7 +500,79 @@ def after_image(output: str, preview: str, geometry: str) -> list[str]:
     if "geo-SIM-" in geometry:
         return lines + ["This geometry came from the simulated drive, so it only shows the flow: do not burn this ISO."]
     return lines + [f"If it looks right, burn {short(output)} to a blank disc from the batch you measured",
-                    "(Windows: right-click the .iso, Burn disc image)."]
+                    "(Windows: right-click the .iso, Burn disc image).", *burner_hint(),
+                    "Once it is burned, this says how to look at it and what to do next:", f"  {PROG} guide"]
+
+
+# Said by `guide` once a picture ISO exists: the program has long exited by the time the burn is done.
+AFTER_BURN = ("How to look at it, not straight on, which only shows your own reflection:",
+              "  Turn off the room lights and hold a small light, such as a phone torch, right beside your eyes.",
+              "  Hold the disc about a metre away and tilt it a little, so it reflects the dark and not the light or you.",
+              "  Turn it slowly: when the surface goes dark, the picture shows. The rainbow fan is the grooves, not your picture.",
+              "  The preview shows the data side, the side you are looking at.",
+              "What you may see:",
+              "  The picture, in the right place: done. More pictures from this batch start at `image`, with no new measurement.",
+              "  No picture: most likely the light, not the burn. Step 5 in README.md has more on this.",
+              "  Twisted or broken lines: check it was the same batch and the same burner. If so, the geometry may be off.",
+              "  Burn the grid test on another blank and see if its lines come out straight:",
+              f"  {PROG} image --geo latest --output iso/grid.iso",
+              "  The burn failed or stopped: a DVD+R, DVD-R or CD-R can't be used again, so take a new blank. Failing again? Try a lower burn speed.")
+
+
+def tutorial_lines() -> list[str]:
+    return ["What you need: a burner on Windows, and a few blank discs from one box. DVD-R has worked best.",
+            "",
+            "1. Burn a random-data disc. It is not your picture yet: it is how the program learns this kind of disc.",
+            f"  {PROG} random --output iso/random.iso",
+            "  This uses up the disc: a DVD+R, DVD-R or CD-R can't be erased.",
+            "2. Check the drive with that disc, 1 to 3 minutes. You want CAV and low jitter.",
+            f"  {PROG} timing {drive_flag()}",
+            "3. Measure the disc's spiral, about 5 minutes.",
+            f"  {PROG} geo {drive_flag()}",
+            "4. Turn your picture into an ISO, check the preview, and burn it on another blank from the same box.",
+            f"  {PROG} image --geo latest --picture my_picture.png --output iso/picture.iso",
+            "5. Look at the disc in the dark. It takes a knack, and `guide` explains it when you get there.",
+            "",
+            "While a measurement runs, press g for a game. They do not disturb it.",
+            f"Lost? {PROG} guide shows where you are and what comes next.",
+            f"To read this again: {PROG} tutorial",
+            ""]
+
+
+def _tutorial_mark() -> str:
+    base = os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), ".local", "state")
+    return os.path.join(base, "disc-probe", "tutorial_offered")
+
+
+def tutorial_offered() -> bool:
+    return bool(os.environ.get("DISCPROBE_NO_TUTORIAL")) or os.path.exists(_tutorial_mark())
+
+
+def remember_tutorial_offered() -> None:
+    """Asked once, whatever the answer. If this cannot be saved it is asked again, which does no harm."""
+    try:
+        os.makedirs(os.path.dirname(_tutorial_mark()), exist_ok=True)
+        with open(_tutorial_mark(), "w", encoding="utf-8"):
+            pass
+    except OSError:
+        pass
+
+
+def progress_lines(media: str = "dvd", out: str = "results") -> list[str]:
+    """The steps as `guide` shows them, to go before the next command."""
+    return [Step("Your progress:"), *(Step(line) for line in guide_lines(media, out, notes=True) if line.startswith(("  [x]", "  [ ]"))), ""]
+
+
+def picture_iso() -> str | None:
+    """The newest picture ISO under iso/, by the preview made beside it. Held-out files stay unread."""
+    try:
+        names = os.listdir("iso")
+    except OSError:
+        return None
+    found = [os.path.join("iso", name[:-len(".preview.png")] + ".iso") for name in names
+             if name.endswith(".preview.png") and "blind" not in name.lower()]
+    found = [path for path in found if os.path.exists(path)]
+    return max(found, key=os.path.getmtime) if found else None
 
 
 def after_selftest() -> list[str]:
@@ -524,6 +615,12 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
              "measured" if timing else "not made yet"),
             (timing_good, "Drive check (timing)", timing.describe() if timing else "not run yet"),
             (geo is not None, "Geometry (geo)", geo.describe() if geo else "not run yet")]
+    picture = picture_iso() if notes else None
+    if notes:       # scripts keep the steps they always saw. The burn is the person's own, so nothing here can tick it.
+        rows += [(picture is not None, "Picture ISO (image)", short(picture) if picture else "not made yet"),
+                 (False, "Burn it on a blank", "from the batch you measured")]
+        current = next((i for i, row in enumerate(rows) if not row[0]))
+        rows[current] = (rows[current][0], rows[current][1], f"{i18n.tr(rows[current][2])}  <- {i18n.tr('you are here')}")
 
     if missing:
         commands = [("Install the Python packages disc-probe uses:", INSTALL)]
@@ -541,8 +638,9 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
     else:
         sectors = _sectors_for(geo.summary, out)[0]
         first = ("CD still needs one more constant, so the preset below is the usual way on (the CD route in README.md). A picture ISO:"
-                 if media == "cd" else "Make a picture ISO (replace my_picture.png with your image):")
-        commands = [(first, f"{PROG} image{flag} --geo latest --picture my_picture.png --output iso/picture.iso"),
+                 if media == "cd" else "Another picture ISO:" if picture else "Make a picture ISO (replace my_picture.png with your image):")
+        commands = [(f"Burn {short(picture)} on a blank from the batch you measured. Burned it already? See below.", None)] if picture else []
+        commands += [(first, f"{PROG} image{flag} --geo latest --picture my_picture.png --output iso/picture.iso"),
                     ("Or export a preset for DiscImageStudio (enter the same --sectors there; `info` on a blank disc gives the count):",
                      f"{PROG} disexport --media {media} --geo latest --sectors {sectors} --output dis_preset.json")]
 
@@ -551,7 +649,9 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
     lines += [f"  [{'x' if done else ' '}] {i18n.pad(i18n.tr(name), 22)} {i18n.tr(detail)}" for done, name, detail in rows]
     lines += ["", "Next:"]
     for note, command in commands:
-        lines += ([f"  {note}"] if notes and note else []) + [f"  {command}"]
+        lines += ([f"  {note}"] if notes and note else []) + ([f"  {command}"] if command else [])
+    if picture and geo:
+        lines += ["", *AFTER_BURN]
     lines += ["", f"All commands: {PROG} -h    One command: {PROG} <command> -h    Details: docs/MANUAL.md"]
     return lines
 

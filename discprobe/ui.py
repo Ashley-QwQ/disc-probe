@@ -40,8 +40,8 @@ GLINT_REACH = 2.0
 TASKBAR_REFRESH_S = 5.0     # Ghostty drops a progress state it has not heard about for 15 s
 SYNC_START, SYNC_END = "\x1b[?2026h", "\x1b[?2026l"
 BURN_WARNING = "Careful: burning a DVD+R, DVD-R or CD-R cannot be undone; only RW discs can be erased. Check the image and the disc first."
-WARNING_FLASHES = 3
-WARNING_FLASH_S = 0.25      # two flashes a second, well under what can trouble people sensitive to flashing
+WARNING_FLASHES = 4
+WARNING_FLASH_S = 0.5       # one flash a second, slow enough to read and well under what can trouble people sensitive to flashing
 STYLES = {"bold": "1", "dim": "2", "red": "31", "green": "32", "yellow": "33", "cyan": "36", "flash": "1;36", "warning": "1;31"}
 PERCENT_FLASH_S = 0.4
 BAR_WIDTH = 20
@@ -183,6 +183,12 @@ def _tone(hue: int, level: int, lift: int) -> str:
     """Steps of hue, of colourfulness and of lift towards white, so a frame only looks colours up."""
     r, g, b = oklch(0.68 + 0.1 * lift, (0.05 + 0.025 * level) * (1 - 0.3 * lift), 0.08 + hue / 48)
     return f"38;2;{r};{g};{b}"
+
+
+def iso_ready(path: str) -> None:
+    """Where the image went, on a line of its own, since the line that first said so has scrolled away by now."""
+    say("ISO ready! It is here:", "green")
+    say(os.path.abspath(path))
 
 
 def burn_warning(t: Term | None = None, pause=time.sleep) -> None:
@@ -485,14 +491,29 @@ class Progress:
             return
         self.line_shown = line
         if self.t.ansi:     # with wrapping off a miscounted glyph is clipped, not pushed to a new row
-            self.t.stream.write(f"{taskbar}\r\x1b[?7l{line}\x1b[K\x1b[?7h")
+            self.t.stream.write(f"{taskbar}{self._unwrap()}\r\x1b[?7l{line}\x1b[K\x1b[?7h")
         else:
             self.t.stream.write("\r" + line + " " * max(0, self.width_shown - width))
         self.t.stream.flush()
         self.width_shown = width
 
+    def _unwrap(self) -> str:
+        """After the window narrows, the terminal folds the line already shown onto more rows, and only the
+        last would be cleared. Go up and clear them all. Only where the terminal is known to fold it: elsewhere
+        going up would erase a measured line, and a leftover is the lesser harm. Rounds down, for the same reason."""
+        if not self.t.sync or not self.width_shown:
+            return ""
+        columns = shutil.get_terminal_size((80, 24)).columns
+        if self.width_shown <= columns:
+            return ""
+        rows = (self.width_shown - 1) // columns
+        self.width_shown = 0
+        return f"\r\x1b[{rows}A\x1b[J"
+
     def _wipe(self) -> None:
         self.line_shown = None
+        if self.t.ansi:
+            self.t.stream.write(self._unwrap())
         if self.playing:
             self.t.stream.write("\r\x1b[J")
         elif self.t.ansi:

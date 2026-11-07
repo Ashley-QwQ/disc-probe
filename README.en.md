@@ -104,9 +104,9 @@ python -m discprobe guide
 
 At a terminal, `timing` and `geo` end with a one-line verdict, and each command also ends by printing the next one, ready to copy. Scripts and pipes don't get these. See [Using it by hand](#using-it-by-hand) for the rest.
 
-<img src="docs/showcase/cli_demo_en.gif" width="100%" alt="Terminal recording: the opening disc, next-step hints, the measuring progress line and snake">
+<img src="docs/showcase/cli_demo_en.gif" width="100%" alt="Terminal recording: the opening disc, next-step hints, the measuring progress line and the games for the wait">
 
-*Recorded on the simulated drive, so this isn't a real measurement. A script presses the snake keys; the game only opens when you press `g` while measuring.*
+*Recorded on the simulated drive, so this isn't a real measurement. A script presses the games' keys; press `g` while measuring to open one, `n` to change game.*
 
 ### Step 1: burn a random-data disc
 
