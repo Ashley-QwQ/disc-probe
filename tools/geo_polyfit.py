@@ -100,6 +100,7 @@ def write_correction(path, f, summ, run, order, rc, rs, n):
                               "counter-clockwise in data-side view); draw with the design sampled at theta + phi(r)",
                    "radius_valid_mm": [float(r.min()), float(r.max())], "poly_in_x": coef.tolist(),
                    "x": "(r_mm - 40) / 15", "source": f"tools/geo_polyfit.py {run}", "pitch_model": order,
+                   "geo_fit": {"u": summ["u"], "v": summ["v"]},
                    "peak_to_peak_deg": float(phi.max() - phi.min())}, fh, indent=2)
     print(f"wrote {path}: phi peak to peak {phi.max() - phi.min():.3f} deg, polynomial error "
           f"{np.abs(err).max():.4f} deg")
@@ -117,7 +118,7 @@ def phi_table(r_mm, phi):
               f"{np.sqrt(np.mean((e / (1 - np.diag(hat))) ** 2)):.3f}")
 
 
-def write_phi_correction(path, r_mm, phi, degree, run):
+def write_phi_correction(path, r_mm, phi, degree, run, summ):
     """Angle correction fitted straight to the rungs, relative to the u, v in summary.json."""
     x = (r_mm - RC_MM) / RS_MM
     coef = np.polyfit(x, phi, degree)
@@ -131,6 +132,7 @@ def write_phi_correction(path, r_mm, phi, degree, run):
                    "radius_valid_mm": [lo, hi], "poly_in_x": coef.tolist(),
                    "x": "(r_mm - 40) / 15", "source": f"tools/geo_polyfit.py {run}",
                    "pitch_model": f"phi polynomial, degree {degree}",
+                   "geo_fit": {"u": summ["u"], "v": summ["v"]},
                    "peak_to_peak_deg": float(curve.max() - curve.min())}, fh, indent=2)
     print(f"wrote {path}: phi peak to peak {curve.max() - curve.min():.3f} deg, "
           f"fit rms {np.sqrt(np.mean((phi - np.polyval(np.polyfit(x, phi, degree), x)) ** 2)):.3f} deg")
@@ -168,7 +170,7 @@ def main():
     phi -= phi.mean()
     phi_table(mm(rad), phi)
     if a.write_correction and a.phi_degree:
-        write_phi_correction(a.write_correction, mm(rad), phi, a.phi_degree, a.run)
+        write_phi_correction(a.write_correction, mm(rad), phi, a.phi_degree, a.run, summ)
     elif a.write_correction:
         write_correction(a.write_correction, fits[a.order], summ, a.run, a.order, rc, rs, n)
     if a.plot:

@@ -526,6 +526,20 @@ def cmd_geo(args):
         sys.exit(1)
 
 
+def _warn_other_run(args, fit) -> None:
+    """A correction left over from an earlier run still loads and still gives a tidy result, so nothing else would show it."""
+    from . import imagedisc
+    if not args.correction:
+        return
+    try:
+        run = imagedisc.correction_other_run(args.correction, fit["u"], fit["v"], args.geo)
+    except (OSError, ValueError, KeyError):     # the step that needs the file says what is wrong with it
+        return
+    if run:
+        print(f"Warning: {os.path.basename(args.correction)} was made from another geo run ({run}), so it does not fit this one. Make it again:")
+        print(f"  python tools/geo_polyfit.py {os.path.dirname(args.geo) or '.'} --write-correction {args.correction} --order quadratic")
+
+
 def cmd_image(args):
     from . import imagedisc
     writer = imagedisc
@@ -535,6 +549,7 @@ def cmd_image(args):
     if args.media == "cd" and fit.get("media") != "cd":
         sys.exit("CD image needs a CD geometry fit (media=cd); DVD fits must not be reused")
     _refuse_audio_fit(fit)
+    _warn_other_run(args, fit)
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
     if args.along_track_frames:
         # Timing cannot see an along-track offset d (read completion vs written position): theta(n - d)
@@ -651,6 +666,7 @@ def cmd_disexport(args):
         warning = guide.install_warning(args.geo)
         if warning:
             print(f"Note: {warning}")
+    _warn_other_run(args, fit)
     span = fit["measured_span_mm"] if is_cd else (25.8, 54.4)
     try:
         # --install on its own leaves no second file behind, and can't overwrite one in the current folder.
@@ -721,6 +737,7 @@ def cmd_tiles(args):
     if args.media == "cd" and fit.get("media") != "cd":
         sys.exit("CD tiles need a CD geometry fit (media=cd)")
     _refuse_audio_fit(fit)
+    _warn_other_run(args, fit)
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
     geo = {"ring_edges_mm": tuple(args.ring_edges), "tile_mm": args.tile_mm, "cols": args.cols,
            "scale_mm": tuple(args.scale) if args.scale else None, "gap_mm": args.gap_mm,
@@ -760,6 +777,7 @@ def cmd_tiles(args):
 def cmd_beacons(args):
     from . import beacondisc, imagedisc
     fit = _geo_fit(args)
+    _warn_other_run(args, fit)
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
     labels, textures, layout = beacondisc.design()
     total = min(imagedisc.sectors_to_radius(u, v, bit, beacondisc.MARK_BAND_MM[1] + 0.6), 2295104)

@@ -343,6 +343,53 @@ def _geo_rotation(c: Checker):
     c.check(set_one.tp.summary["set_cd_speed"]["requested_kBps"] == 5540, "the default still sets 4x")
 
 
+def _correction_run(c: Checker):
+    print("a correction from another geo run")
+    import contextlib
+    import importlib.util
+    import io
+    import json
+    import os
+    import numpy as np
+    import tempfile
+    from argparse import Namespace
+    from . import __main__ as cli
+    from . import imagedisc as I
+    tool = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools", "geo_polyfit.py")
+    spec = importlib.util.spec_from_file_location("geo_polyfit", tool)
+    polyfit = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(polyfit)
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "correction.json")
+        geo = os.path.join(d, "geo-E-20261107-133324", "summary.json")
+
+        def older(source):
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"source": source, "radius_valid_mm": [25, 54], "poly_in_x": [0.0]}, f)
+        with contextlib.redirect_stdout(io.StringIO()):
+            polyfit.write_phi_correction(path, np.linspace(26, 54, 8), np.zeros(8), 2, "results/geo-E-20261107-133324", {"u": 180000.0, "v": 5.5})
+        c.check(I.correction_other_run(path, 180000.0, 5.5, geo) is None, "the run it was made from passes")
+        c.check(I.correction_other_run(path, 180001.0, 5.5, geo) == "geo-E-20261107-133324", "any other run is named")
+        older("tools/geo_polyfit.py results\\geo-E-20261107-133324\\")
+        c.check(I.correction_other_run(path, 1.0, 1.0, geo) is None and I.correction_from_timing(path), "an older file is judged by its folder: the same one passes")
+        older("tools/geo_polyfit.py results/geo-E-20260101-000000")
+        c.check(I.correction_other_run(path, 1.0, 1.0, geo) == "geo-E-20260101-000000", "and another is named")
+        older("tools/geo_polyfit.py .")
+        c.check(I.correction_other_run(path, 1.0, 1.0, geo) is None, "a folder name that says nothing is no reason to warn")
+        older(["a_phi.csv"])
+        c.check(I.correction_other_run(path, 1.0, 1.0, geo) is None and not I.correction_from_timing(path), "a grid-scan correction isn't checked")
+        older("tools/geo_polyfit.py results/geo-E-20260101-000000")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            cli._warn_other_run(Namespace(correction=path, geo=geo), {"u": 1.0, "v": 1.0})
+        c.check("another geo run" in out.getvalue() and "--write-correction" in out.getvalue(), "the warning says how to make it again")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            cli._warn_other_run(Namespace(correction=os.path.join(d, "missing.json"), geo=geo), {"u": 1.0, "v": 1.0})
+            cli._warn_other_run(Namespace(correction=None, geo=geo), {"u": 1.0, "v": 1.0})
+        c.check(out.getvalue() == "", "no file or a missing one says nothing here")
+
+
 def _install_details(c: Checker):
     print("preset install: the details")
     import contextlib
@@ -849,6 +896,7 @@ def _run() -> bool:
         _geo_rotation(c)
         _disexport(c)
         _install_details(c)
+        _correction_run(c)
         _disinstall(c)
         _install_blocker(c)
         _efmplus(c)

@@ -128,14 +128,17 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
         raise ValueError("--along-track-frames is for CD")
     corr = None
     if correction_path:
-        from .imagedisc import load_correction
+        from .imagedisc import correction_from_timing, load_correction
         corr = load_correction(correction_path)
     fit = fit_preset(u, v, bit, total_sectors, r_lo, r_hi, corr, cd.SECTOR_BITS if media == "cd" else SECTOR_BITS)
     if fit["max_angle_diff_deg"] > MAX_EXPORT_DIFF_DEG:
         raise ValueError(f"the preset misses the measured map by {fit['max_angle_diff_deg']:.1f} deg over "
                          f"{r_lo}-{r_hi} mm (outer radius came out {fit['outerRadiusMm']:.3f} mm); "
                          f"check --sectors and the fit range. No preset written.")
-    desc = (f"Drive-timing calibration (discprobe){' + grid-scan angle correction' if corr else ''}; "
+    corrected = ""
+    if corr:
+        corrected = " + varying-pitch correction from timing" if correction_from_timing(correction_path) else " + grid-scan angle correction"
+    desc = (f"Drive-timing calibration (discprobe){corrected}; "
             f"fitted over {r_lo}-{r_hi} mm, max angle difference to the measured map "
             f"{fit['max_angle_diff_deg']:.3f} deg")
     if audio:

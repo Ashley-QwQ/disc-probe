@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 
 import numpy as np
 
@@ -92,6 +93,28 @@ def load_correction(path: str):
     lo, hi = c["radius_valid_mm"]
     coef = np.array(c["poly_in_x"])
     return lambda r: np.polyval(coef, (np.clip(r, lo, hi) - 40.0) / 15.0)
+
+
+def correction_from_timing(path: str) -> bool:
+    """True for a correction made from a geo run by tools/geo_polyfit.py, False for one from grid scans."""
+    with open(path, encoding="utf-8") as f:
+        return str(json.load(f).get("source")).startswith("tools/geo_polyfit.py ")
+
+
+def correction_other_run(path: str, u: float, v: float, geo_path: str) -> str | None:
+    """The geo run a timing correction was made from, if it isn't this one. Its phi(r) is relative to
+    that run's u and v, so with another run's it moves the picture by the wrong amount without any error."""
+    if not correction_from_timing(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        c = json.load(f)
+    run = re.split(r"[\\/]", c["source"].split(" ", 1)[1].rstrip("\\/"))[-1]
+    fit = c.get("geo_fit")
+    if fit:
+        same = math.isclose(fit["u"], u, rel_tol=1e-9) and math.isclose(fit["v"], v, rel_tol=1e-9)
+    else:       # written before geo_fit: the folder name is all there is, and "." says nothing
+        same = not run.startswith("geo-") or run == os.path.basename(os.path.dirname(os.path.abspath(geo_path)))
+    return None if same else run
 
 
 def sectors_to_radius(u: float, v: float, bit_nm: float, r_mm: float) -> int:
