@@ -352,6 +352,31 @@ def _first_steps(c) -> None:
             c.check(not any(x.startswith("How to look") for x in lines), "no talk of looking at a disc before one exists")
             progress = guide.progress_lines("dvd")
             c.check(isinstance(progress[1], guide.Step) and progress[-1] == "", "the same list can go before the next command")
+            sources = {}
+            import inspect
+            for name in ("cmd_timing", "cmd_geo", "cmd_random"):
+                sources[name] = inspect.getsource(getattr(cli, name))
+            c.check("after_timing(args, summary), args)" in sources["cmd_timing"] and "after_geo(args, res, out), args)" in sources["cmd_geo"]
+                    and "after_random(args), args)" in sources["cmd_random"], "timing, geo and random all pass on what the list needs")
+            s = Utf8Tty()
+            ui._term = ui.Term(s, env=env, platform="linux")
+            real = Namespace(media="dvd", out="results")
+            with contextlib.redirect_stdout(s):
+                cli._next(["Verdict: good.", "", "Next, measure the geometry:", "  python -m discprobe geo --drive H:"], real)
+            shown = ANSI.sub("", s.getvalue())
+            c.check(shown.index("Verdict") < shown.index("Your progress:") < shown.index("Next, measure"), "the list goes between the verdict and what comes next")
+            s = Utf8Tty()
+            ui._term = ui.Term(s, env=env, platform="linux")
+            with contextlib.redirect_stdout(s):
+                cli._next(["Next, measure the geometry:"], Namespace(media="dvd", out="results", sim="cav"))
+                cli._next([], real)
+            c.check("Your progress:" not in s.getvalue(), "a simulated run has no progress to show, and no advice means no list")
+            piped = io.StringIO()
+            ui._term = ui.Term(piped, env={"TERM": "xterm"}, platform="linux")
+            with contextlib.redirect_stdout(piped):
+                cli._next(["Next, measure the geometry:"], real)
+            c.check(piped.getvalue() == "", "a pipe sees none of it")
+            ui._term = ui.Term(Utf8Tty(), env=env, platform="linux")
             os.makedirs("iso")
             c.check(guide.picture_iso() is None, "no picture ISO yet")
             for name in ("picture.iso", "picture.preview.png", "blind_x.iso", "blind_x.preview.png", "orphan.preview.png"):
@@ -1227,7 +1252,7 @@ def _reader_changes_nothing(c) -> None:
             dev = ui.ProgressDevice(sim)
         probe = timing.TimingProbe(dev, log=lambda *_: None, reps=8, period_reads=20)
         if wrap:
-            dev.progress = ui.Progress(ui.timing_status(probe, dev), ui.Term(FakeTty(), env={"TERM": "xterm"}, platform="linux"), keys=keys)
+            dev.progress = ui.Progress(ui.timing_status(probe, dev), ui.Term(FakeTty(), env={"TERM": "xterm"}, platform="linux"), keys=keys, pulse=dev.read_times, wait_s=90.0)
         s = probe.run()
         if wrap:
             dev.progress.close()
@@ -1242,15 +1267,22 @@ def _reader_changes_nothing(c) -> None:
     c.check(plain == wrapped, "the progress wrapper leaves summary and events identical (same seed)")
     saved = {k: os.environ.get(k) for k in ("COLUMNS", "LINES")}
     os.environ.update(COLUMNS="80", LINES="24")
+    real_path = sectors.state_path
+    keep = tempfile.TemporaryDirectory()
+    sectors.state_path = lambda: os.path.join(keep.name, "games.json")
     try:
-        playing = run(True, Keys(["g"], ["w"], [], ["a"], [], ["s"], ["d"], ["r"], ["n"], ["w"], [], ["a"], ["d"], ["s"], ["r"]))
+        playing = run(True, Keys(["g"], ["w"], [], ["a"], [], ["s"], ["d"], ["r"], ["n"], ["w"], [], ["a"], ["d"], ["s"], ["r"],
+                                 ["n"], ["left"], [], ["up"], ["right"], ["down"], ["r"], ["n"], ["1"], ["right"], ["2"], ["0"], ["down"], ["3"], ["q"]))
+        c.check(os.path.exists(os.path.join(keep.name, "games.json")), "that run reached the game that saves")
     finally:
+        sectors.state_path = real_path
+        keep.cleanup()
         for key, value in saved.items():
             if value is None:
                 os.environ.pop(key, None)
             else:
                 os.environ[key] = value
-    c.check(plain == playing, "playing both games leaves summary and events identical (same seed)")
+    c.check(plain == playing, "playing all four games leaves summary and events identical (same seed)")
 
     class NoIdle:
         """A real drive has no idle(): the wrapper must sleep the pause itself, minus drawing."""

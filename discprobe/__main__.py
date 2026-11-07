@@ -53,7 +53,7 @@ def _os_error(e: OSError) -> str:
 
 def _next(lines, args=None) -> None:
     """Advice after a command; the lines to copy stand out. With `args`, the progress list goes before what comes next."""
-    if args is not None and ui.term().interactive and not getattr(args, "sim", None) and "geo-SIM-" not in str(getattr(args, "geo", "")):
+    if lines and args is not None and ui.term().interactive and not getattr(args, "sim", None) and "geo-SIM-" not in str(getattr(args, "geo", "")):
         at = next((i for i, line in enumerate(lines) if line.startswith("Next")), 0)
         lines = [*lines[:at], *guide.progress_lines(getattr(args, "media", "dvd"), getattr(args, "out", "results")), *lines[at:]]
     if lines:
@@ -272,7 +272,7 @@ def cmd_timing(args):
         _fail(stopped, guide.after_timing_stop(args, stopped))
     if progress:
         ui.say(f"Finished in {ui.clock(ui.time.monotonic() - progress.started)}", "dim")
-    _next(guide.after_timing(args, summary))
+    _next(guide.after_timing(args, summary), args)
 
 
 def cmd_spokes(args):
@@ -467,7 +467,10 @@ def cmd_geo(args):
         print("no results written: it stopped before the first fit. Run `timing` to see how noisy this drive is.")
     if progress and res:
         ui.say(f"Finished in {ui.clock(ui.time.monotonic() - progress.started)}", "dim")
-    _next(guide.after_geo(args, res, out) if res else guide.after_geo_stop(args, stopped or ""))
+    if res:
+        _next(guide.after_geo(args, res, out), args)
+    else:
+        _next(guide.after_geo_stop(args, stopped or ""))
     if args.media == "cd" and res is None:
         sys.exit(1)
 

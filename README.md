@@ -96,7 +96,7 @@ python -m pip install numpy pillow scipy
 python -m discprobe selftest
 ```
 
-不确定下一步跑什么，就运行 `guide`。它读 `results` 文件夹，列出哪些步骤做过了，并打印下一条命令，不碰光驱：
+不确定下一步跑什么，就运行 `guide`。它读 `results` 文件夹，列出哪些步骤做过了、现在到了哪一步，并打印下一条命令，不碰光驱。第一次运行时会问要不要看一遍新手教程，以后想看就运行 `python -m discprobe tutorial`：
 
 ```bash
 python -m discprobe guide
@@ -110,11 +110,13 @@ python -m discprobe guide
 
 ### 第 1 步：刻一张随机数据盘
 
-测量盘必须是普通数据，刻了图案的盘读不出来。用 Windows 自带的光盘映像刻录机刻 `iso/random.iso`。
+测量盘必须是普通数据，刻了图案的盘读不出来。生成镜像后，在资源管理器里右键 `iso/random.iso`，选“刻录光盘映像”（双击只会挂载，不会刻录），并确认刻录机选的是你的光驱。
 
 ```bash
 python -m discprobe random --output iso/random.iso
 ```
+
+**刻录不可撤销。** DVD+R、DVD-R、CD-R 刻了就不能擦除，只有 RW 盘能擦。程序不负责刻录，也拦不住刻错盘，所以生成镜像后会闪一行红字提醒。
 
 ### 第 2 步：看这台光驱能不能用
 
@@ -142,11 +144,13 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 
 ### 第 4 步：生成图片 ISO，刻到同一批的空盘上
 
-`--geo latest` 用最近一次完整的真实测量，会打印选中的是哪一次；也可以填结果文件夹或 `summary.json` 的路径。有修正文件的话再加 `--correction correction.json`。图片长边铺满 116 mm（可用 `--diameter-mm` 改）并保持比例，不足的地方留白。生成后程序会抽查扇区，和设计逐字节核对。
+`--geo latest` 用最近一次完整的真实测量，会打印选中的是哪一次；也可以填结果文件夹或 `summary.json` 的路径。有修正文件的话再加 `--correction correction.json`。图片长边铺满 116 mm（可用 `--diameter-mm` 改）并保持比例，不足的地方留白。图片放在当前文件夹，或者写完整路径（有空格要加引号）。生成后程序会抽查扇区，和设计逐字节核对。
 
 ```bash
 python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
 ```
+
+在终端里，它结束时会画一张盘面缩略图，并提醒几乎全黑或全白、内容落在可绘制区域之外或盘中间、分辨率过低这类情况。这些只是提醒，不会阻止生成，判断的门槛也还没用真盘校准。刻之前先看预览图。刻完运行 `guide`，它会讲怎么看盘，以及看到不同结果该怎么办。
 
 想继续用 DiscImageStudio 的话，可以导出预设。`--sectors` 填你这张盘的扇区数（对空白盘运行 `info` 会打印，DiscImageStudio 里也填这个数；填多了可能封盘失败），半径范围填 `geo` 实际测到的范围，有修正文件的话同样加 `--correction correction.json`。`geo` 跑完打印的命令已经填好这些值。程序会打印和测量结果的转换误差，先看一眼再刻。目前预设要手动填进 DiscImageStudio：新建工程，填内外半径、扇区数和一二三次项：
 
@@ -156,7 +160,7 @@ python -m discprobe disexport --geo latest --sectors 你的扇区数 --r-min 25.
 
 ### 第 5 步：看盘和拍照
 
-盘面像一面镜子，拍到的主要是它映出来的东西。屋里的灯和亮的墙会把图盖住，所以刻好的图不一定一眼看得到。彩虹"披萨片"是出厂导槽的衍射，不是刻上去的。小而亮的光源紧挨着眼睛或相机时，图像整盘可见。
+盘面像一面镜子，看到和拍到的主要是它映出来的东西。正对着看只会映出你自己，屋里的灯和亮的墙也会把图盖住，所以刻好的图不一定一眼看得到。彩虹"披萨片"是出厂导槽的衍射，不是刻上去的。小而亮的光源紧挨着眼睛或相机时，图像整盘可见。
 
 <img src="docs/showcase/lighting_setup_zh.png" width="80%" alt="两种打光对比：开着灯直接拍，盘面发白；关灯只用一盏小灯，盘稍微歪一点，图才显出来">
 
@@ -286,11 +290,12 @@ Linux 版由 bczhc 移植：[bczhc/disc-probe](https://github.com/bczhc/disc-pro
 ## 手动使用
 
 <details>
-<summary>下一步提示、盘符、结果路径、常用参数、Tab 补全、语言和小游戏</summary>
+<summary>新手教程、下一步提示、盘符、结果路径、常用参数、Tab 补全、语言、小游戏和本地文件</summary>
 
 这些提示、进度和动画只在标准输出是终端时出现。管道、重定向和脚本调用得到的输出基本和以前一样，结果文件的格式也没变。在终端里想关掉它们，设 `DISCPROBE_PLAIN=1`。
 
-- 下一步跑什么：`guide` 列出做过的步骤并打印下一条命令，不碰光驱。不带参数运行 `python -m discprobe` 也是它。`info`、`timing`、`geo`、`random`、`image`、`disexport` 跑完也会打印下一步。`timing` 还会给判定：不是 CAV 就换速度，抖动大于约 2° 建议换个速度，大于约 5° 说明这台光驱很可能不适合（这两个门槛来自实践报告表，不是严格界限）。
+- 新手教程：第一次运行 `guide` 时会问要不要看，回车或 `y` 看，`n` 跳过，只问一次；已经有真实测量结果的不会问。`python -m discprobe tutorial` 随时可以再看。
+- 下一步跑什么：`guide` 列出做过的步骤并打印下一条命令，不碰光驱。不带参数运行 `python -m discprobe` 也是它。有了图片镜像后，它还会讲怎么看盘和看到不同结果该怎么办。`info`、`timing`、`geo`、`random`、`image`、`disexport` 跑完也会打印下一步，`timing`、`geo`、`random`、`image` 还会在前面列出进度。`timing` 还会给判定：不是 CAV 就换速度，抖动大于约 2° 建议换个速度，大于约 5° 说明这台光驱很可能不适合（这两个门槛来自实践报告表，不是严格界限）。
 - 盘符：`list` 列出光驱。在终端里可以不写 `--drive`，只有一台就直接用，有多台就问你。
 - 结果路径：`--geo` 还接受结果文件夹和 `latest`。`latest` 会跳过模拟驱动器的结果和中途停下的结果（少于 8 级，或 χ²/dof 超过 25）。`results geo` 列出做过的测量，`results geo --latest` 只打印一行路径，方便写脚本。
 - `--sectors` 有三个意思：`timing`、`geo` 里是每次读几个扇区，`16` 读一个完整的 DVD ECC 块；`random` 里是刻多少；`disexport` 里是盘的容量，DiscImageStudio 里也填同一个数。`info` 会打印建议值和来源，以空白盘上的为准。
@@ -299,14 +304,16 @@ Linux 版由 bczhc 移植：[bczhc/disc-probe](https://github.com/bczhc/disc-pro
 - CD 和 DVD：步骤相同，每条命令加 `--media cd`。终端里如果盘是 CD、命令却是 DVD 设置，会先问要不要加；托盘是空的也会直接说。
 - Tab 补全：`python -m discprobe completion install` 支持 PowerShell、bash 和 zsh。它在主目录写一个脚本，并在 shell 的启动文件里加一行，`completion uninstall` 会把两者都删掉。当前窗口要新开或运行它打印的那一行才生效。在 PowerShell 上，`discprobe` 这一行按 Tab 会弹出列表，其他命令的 Tab 不变。按 Tab 不启动 Python，所以更新后要再装一次。
 - 语言：在终端里跟随系统语言。用 `--lang zh`、`--lang en` 或 `DISCPROBE_LANG=zh` 指定。管道、重定向和 `DISCPROBE_PLAIN=1` 始终是英文，只有命令里写了 `--lang` 才变。结果文件不翻译。
-- 进度：`timing`、`geo` 和写 ISO 时显示同样的状态行。窗口窄时依次省掉部分内容，不会折行。按 Ctrl+C 会保留已测的部分并说明位置。
-- 小游戏：测量时按 `g` 打开贪吃蛇，方向键或 WASD 转向，`r` 再来一局，`q` 关闭。按 `n` 换成“刻满”：方块从右边飞进来往左堆，上下移动，右键旋转，左键快落，排满一列就消掉。测量输出照常打印在它上方。不按 `g` 就没有这些，管道、`DISCPROBE_PLAIN=1` 和 `--no-animation` 下也不会出现。
+- 进度：`timing`、`geo` 和写 ISO 时显示同样的状态行。窗口窄时依次省掉部分内容，不会折行。按 Ctrl+C 会保留已测的部分并说明位置。在 Windows Terminal 等支持的终端里，标签页和任务栏按钮也会显示进度。宽窗口里 `timing`、`geo` 的进度行还有最近 12 次读取耗时的小图。
+- 数据行：在终端里，`timing` 的 Zone 和 Target 行按列对齐。管道和脚本拿到的还是原来的字节。
+- 小游戏：测量时按 `g` 打开，`n` 换下一款，`q` 关闭。贪吃蛇：方向键或 WASD 转向，`r` 再来一局。刻满：方块从右边飞进来往左堆，上下移动，右键旋转，左键快落，排满一列就消掉。合并扇区：方向键滑动，相同的块合并翻倍（`2K`、`4K`……），棋盘留到下次等待接着玩。数独：方向键移动，数字键填，`0` 或空格清除；打开时估计还剩 30 秒到 2 分钟是 4×4，2 分钟以上是 6×6（2×3 宫），不足 30 秒不提供。测量输出照常打印在它上方。不按 `g` 就没有这些，管道、`DISCPROBE_PLAIN=1` 和 `--no-animation` 下也不会出现。
+- 本地文件：除了 `results` 和生成的镜像，程序只在 `%LOCALAPPDATA%\disc-probe\`（其他系统是 `~/.local/state/disc-probe/`）写两个小文件：`games.json` 存合并扇区的棋盘，只在进度行关闭时写；`tutorial_offered` 记录问过教程。Tab 补全另外写的文件见上面。这些都可以直接删除。
 
-进度行和小游戏都没有后台线程，因为后台线程可能拖后完成时间戳。它们在主线程里，趁每次计时读之前的随机等待来画，花掉的时间从等待里扣。在模拟驱动器上，相同种子下加不加这些，`summary` 和事件逐条相同。动画每秒最多 8 帧，和之前的进度行一样，但带颜色时每帧写的字节更多。`timing` 比较过旧进度行：有无它的差别（0.01–0.20°）和重复测量的差别（0.02–0.23°）相同。新动画、贪吃蛇和 `geo` 还没在真实光驱上比较过，介意的话加 `--no-animation`，或者用管道跑，重要的测量也别玩贪吃蛇。
+进度行和小游戏都没有后台线程，因为后台线程可能拖后完成时间戳。它们在主线程里，趁每次计时读之前的随机等待来画，花掉的时间从等待里扣。在模拟驱动器上，相同种子下加不加这些、玩不玩四款游戏，`summary` 和事件逐条相同。动画每秒最多 8 帧，和之前的进度行一样，但带颜色时每帧写的字节更多。`timing` 比较过旧进度行：有无它的差别（0.01–0.20°）和重复测量的差别（0.02–0.23°）相同。新动画、小游戏和 `geo` 还没在真实光驱上比较过，介意的话加 `--no-animation`，或者用管道跑，重要的测量也别玩游戏。
 
 `timing` 和 `geo` 测量时会把进程调到高优先级。2026-11-06 之前这一步在 64 位 Python 上一直失败，所以之前用 64 位 Python 跑的真实测量都是普通优先级，上面的比较也是。实践报告表里用这个工具在 Windows 上测的数据多半也是，移植版和别的探针不一定。高优先级对抖动的影响还没有比较过。
 
-默认全用 7 位 ASCII，不受代码页和字体影响，`DISCPROBE_UNICODE=1` 可以换成更细的图形。`NO_COLOR` 只关颜色；`--no-animation`、`DISCPROBE_NO_ANIMATION=1` 和 `CI` 关动画。转动的小光盘只是装饰，不代表实际转速。详见[手册](docs/MANUAL.md#手动使用)。
+Windows Terminal、Ghostty、WezTerm、kitty 和 Claude 桌面应用的终端会自己绘制方块字符，所以在这些终端里自动用线条进度条和半块像素的开屏光盘（需要 UTF-8）。其他终端默认全用 7 位 ASCII，不受代码页和字体影响，比如 Windows 自带的旧控制台窗口；`DISCPROBE_UNICODE=1` 可以手动换成更细的图形。`NO_COLOR` 只关颜色；`--no-animation`、`DISCPROBE_NO_ANIMATION=1` 和 `CI` 关动画。转动的小光盘只是装饰，不代表实际转速。详见[手册](docs/MANUAL.md#手动使用)。
 
 </details>
 
