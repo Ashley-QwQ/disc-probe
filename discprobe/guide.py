@@ -284,6 +284,12 @@ def install_blocker(geo_summary: str) -> str | None:
         if r2 is not None and r2 < MIN_BD_R2:
             return (f"this run's T^2 line only reaches R^2 {r2:.5f}; a disc read at a constant linear speed gives "
                     f"0.999 or better. The spindle speed probably moved during the run, so measure it again.")
+        brk = fit.get("break_fit")
+        if isinstance(brk, dict) and brk.get("break_lba") is not None:
+            return (f"this run's periods step at sector {int(brk['break_lba']):,} instead of rising smoothly: two "
+                    f"lines describe it with {float(brk.get('improvement', 0.0)) * 100:.0f}% less residual. A drive "
+                    f"reading in zones holds one angular speed per zone, and a preset built on that would place the "
+                    f"spiral wrongly.")
         return None
     if "u" not in fit:
         return "this run has no geometry fit in its summary.json, so there is nothing to install."

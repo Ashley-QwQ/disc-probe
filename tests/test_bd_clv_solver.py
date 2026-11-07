@@ -200,6 +200,33 @@ def test_disexport_writes_a_blu_ray_preset():
         assert document["luminanceMapping"]["invert"] is False
 
 
+def _zones(staircase_after: float | None = None):
+    sector_mm = clv.NOMINAL["bd"].sector_mm
+    out = []
+    for fraction in (0.05, 0.15, 0.25, 0.35, 0.5, 0.65, 0.75, 0.85, 0.95):
+        lba = int(fraction * 12_000_000)
+        radius = math.sqrt(24.66 ** 2 + 0.32e-3 * sector_mm * lba / math.pi)
+        omega = 2 * math.pi * 10.34 / radius
+        if staircase_after is not None and fraction >= 0.5:
+            omega = 2 * math.pi * 10.34 / staircase_after
+        out.append(clv.Sample(lba=lba, period_ms=2 * math.pi / omega, coherence=1.0, fraction=fraction))
+    return out
+
+
+def test_a_disc_read_in_zones_is_caught_by_a_break():
+    fit = clv.fit_t2(_zones(47.0), sector_mm=clv.NOMINAL["bd"].sector_mm, pitch_um=0.32)
+    assert fit.break_fit is not None, "the staircase was fitted as one line"
+    assert abs(fit.break_fit["break_lba"] - 6_000_000) <= 1_200_000, fit.break_fit
+    assert fit.break_fit["improvement"] > 0.9, fit.break_fit
+
+
+def test_a_clean_line_reports_no_break_and_says_how_far_it_reached_in():
+    fit = clv.fit_t2(_zones(), sector_mm=clv.NOMINAL["bd"].sector_mm, pitch_um=0.32)
+    assert fit.break_fit is None, fit.break_fit
+    assert abs(fit.r0_mm - 24.66) < 0.05, fit.r0_mm
+    assert 1.5 < fit.r0_extrapolated_mm < 3.0, fit.r0_extrapolated_mm
+
+
 def test_cli_reports_the_rotation_before_measuring():
     with tempfile.TemporaryDirectory() as out:
         proc = subprocess.run([sys.executable, "-m", "discprobe", "timing", "--sim", "clv", "--media", "bd",

@@ -577,6 +577,28 @@ TEXT = {
     "Not installing this geo result: {x}": "不安装这个 geo 结果：{x}",
     "this is a simulated run (the result folder says SIM), so the preset would describe a drive that does not exist. Measure a real disc, then install that result.":
         "这是模拟盘的结果（结果文件夹名里带 SIM），预设描述的会是一台不存在的光驱。请先测一张真实的盘，再安装那次的结果。",
+    "linear speed {a} m/s": "线速度 {a} m/s",
+    "none: p and r0 are pinned to {a} m/s (1x), so only p/v^2 and r0/v are measured":
+        "无：p 与 r0 钉在 {a} m/s（1 倍速），所以只测到 p/v^2 与 r0/v",
+    "pitch {a} um": "轨距 {a} µm",
+    "r0 {a} mm, pitch {b} um, linear speed {c} m/s  (R^2 {d} over {e} zones, anchor: {f})":
+        "r0 {a} mm，轨距 {b} µm，线速度 {c} m/s（R^2 {d}，{e} 个区域，锚点：{f}）",
+    "1 sigma: {a}": "1 sigma：{a}",
+    "r0 {a} um": "r0 {a} µm",
+    "r0 (anchor)": "r0（锚点）",
+    "pitch (anchor)": "轨距（锚点）",
+    "speed {a} m/s": "速度 {a} m/s",
+    "the outermost sector lands at {a} mm{b}": "最外圈扇区落在 {a} mm{b}",
+    " (a full 25 GB layer: the standard puts its edge at 58.0 mm)": "（满层 25 GB：规范把它放在 58.0 mm）",
+    "the periods do not lie on one line: two lines with a break at sector {a} leave {b}% less residual. That is what a disc read in zones looks like, and the numbers above are the single line through it, not a spiral measurement":
+        "这些周期不在一条直线上：在扇区 {a} 处断开用两条线描述，残差少 {b}%。这正是分区读取的盘的样子，上面那些数字只是穿过它的一条线，不是螺旋测量结果",
+    "r0 sits {a} mm inside the innermost zone ({b} mm), so it comes from the line's curvature rather than from a point measured there; the tolerance above is the fit's, not the model's":
+        "r0 落在最内测量区域（{b} mm）往里 {a} mm 处，所以它来自直线的曲率，而不是在那里量到的点；上面的容差是拟合的，不是模型的",
+    "period offset {a} us (1 sigma {b} us): the fit already took it out of r0": "周期偏置 {a} µs（1 sigma {b} µs）：拟合已经把它从 r0 里扣掉了",
+    "period offset {a} us: the fit already took it out of r0": "周期偏置 {a} µs：拟合已经把它从 r0 里扣掉了",
+    "zones.csv, summary.json: {a}": "zones.csv、summary.json 保存在：{a}",
+    "Pass --linear-mm-s to trade that anchor for a pitch: without it the pitch is nominal and only r0/v is measured.":
+        "加 --linear-mm-s 可以把这个锚点换成轨距：不加时轨距用标称值，只测到 r0/v。",
     "this is a simulated run (its summary says so), so the preset would describe a drive that does not exist. Measure a real disc, then install that result.":
         "这是模拟盘的结果（summary 里写了），预设描述的会是一台不存在的光驱。请先测一张真实的盘，再安装那次的结果。",
     "this run stopped before the end ({x}), so the ladder never reached the fit. Run geo again and install a run that finished.":

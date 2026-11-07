@@ -274,22 +274,42 @@ def _geo_clv(args):
             write_outputs(ladder, out, None if res else stopped or "interrupted")
     if res:
         print()
-        print(f"r0 {res['r0_mm']:.4f} mm, pitch {res['pitch_um']:.4f} um, linear speed {res['v_m_s']:.3f} m/s"
-              f"  (R^2 {res['r2']:.6f} over {res['zones_used']} zones, anchor: {res['anchor']})")
-        sigma = [f"r0 {res['sigma_r0_mm'] * 1000:.1f} um" if res.get("sigma_r0_mm") is not None else "r0 (anchor)",
-                 f"pitch {res['sigma_pitch_um']:.4f} um" if res.get("sigma_pitch_um") is not None else "pitch (anchor)"]
+        print(i18n.tr("r0 {a} mm, pitch {b} um, linear speed {c} m/s  (R^2 {d} over {e} zones, anchor: {f})")
+              .format(a=f"{res['r0_mm']:.4f}", b=f"{res['pitch_um']:.4f}", c=f"{res['v_m_s']:.3f}",
+                      d=f"{res['r2']:.6f}", e=res["zones_used"], f=i18n.tr(res["anchor"])))
+        sigma = [i18n.tr("r0 {a} um").format(a=f"{res['sigma_r0_mm'] * 1000:.1f}")
+                 if res.get("sigma_r0_mm") is not None else i18n.tr("r0 (anchor)"),
+                 i18n.tr("pitch {a} um").format(a=f"{res['sigma_pitch_um']:.4f}")
+                 if res.get("sigma_pitch_um") is not None else i18n.tr("pitch (anchor)")]
         if res.get("sigma_v_m_s") is not None:
-            sigma.append(f"speed {res['sigma_v_m_s']:.3f} m/s")
-        print("1 sigma: " + ", ".join(sigma))
+            sigma.append(i18n.tr("speed {a} m/s").format(a=f"{res['sigma_v_m_s']:.3f}"))
+        print(i18n.tr("1 sigma: {a}").format(a=("，" if i18n.active() == "zh" else ", ").join(sigma)))
+        derived = (ladder.summary or {}).get("derived") or {}
+        if derived.get("outer_radius_mm"):
+            tail = i18n.tr(" (a full 25 GB layer: the standard puts its edge at 58.0 mm)") if derived.get("full_layer") else ""
+            print(i18n.tr("the outermost sector lands at {a} mm{b}").format(a=f"{derived['outer_radius_mm']:.3f}", b=tail))
+        brk = res.get("break_fit")
+        if brk:
+            print(i18n.tr("the periods do not lie on one line: two lines with a break at sector {a} leave {b}% less "
+                          "residual. That is what a disc read in zones looks like, and the numbers above are the "
+                          "single line through it, not a spiral measurement")
+                  .format(a=f"{brk['break_lba']:,}", b=f"{brk['improvement'] * 100:.0f}"))
+        extrapolated = res.get("r0_extrapolated_mm")
+        if extrapolated and extrapolated > 0.5:
+            print(i18n.tr("r0 sits {a} mm inside the innermost zone ({b} mm), so it comes from the line's curvature "
+                          "rather than from a point measured there; the tolerance above is the fit's, not the model's")
+                  .format(a=f"{extrapolated:.2f}", b=f"{res['r_first_mm']:.2f}"))
         if res.get("offset_ms") is not None:
             sig = res.get("sigma_offset_ms")
-            print(f"period offset {res['offset_ms'] * 1000:+.1f} us"
-                  + (f" (1 sigma {sig * 1000:.1f} us)" if sig is not None else "")
-                  + ": the fit already took it out of r0")
-        print(f"zones.csv, summary.json: {os.path.abspath(out)}")
+            print(i18n.tr("period offset {a} us (1 sigma {b} us): the fit already took it out of r0")
+                  .format(a=f"{res['offset_ms'] * 1000:+.1f}",
+                          b="?" if sig is None else f"{sig * 1000:.1f}")
+                  if sig is not None else
+                  i18n.tr("period offset {a} us: the fit already took it out of r0").format(a=f"{res['offset_ms'] * 1000:+.1f}"))
+        print(i18n.tr("zones.csv, summary.json: {a}").format(a=os.path.abspath(out)))
         if res.get("v_m_s_anchor") is None:          # pitch was the anchor, so pitch is still nominal
-            print("Pass --linear-mm-s to trade that anchor for a pitch: without it the pitch is nominal "
-                  "and only r0/v is measured.")
+            print(i18n.tr("Pass --linear-mm-s to trade that anchor for a pitch: without it the pitch is nominal "
+                          "and only r0/v is measured."))
     else:
         print("no results written: it stopped before the fit.")
     if res is None:

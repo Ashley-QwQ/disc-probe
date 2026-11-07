@@ -304,10 +304,31 @@ outer rate are rejected by their own speed spread before the fit sees them. On t
 drive (`geo --sim clv --media bd --linear-mm-s 39336`) the fit returns 24.0191 mm and 0.3185 um
 against a truth of 24.02 mm and 0.3185 um.
 
-**What is still missing.** A ZCLV disc (BD-R at 6x or 8x on a drive that changes speed mid-disc)
-needs segmentation: fit each partition separately and require the slopes to differ. Nothing in
-the data here reaches that case, so the code does not pretend to handle it -- `classify_rotation`
-stops at `unknown` and the run is not fitted.
+**What the line says about itself.** Three figures guard the answer, and the command prints all
+three when they matter:
+
+- `r_first_mm` and `r0_extrapolated_mm`: the radius of the innermost zone, and how far inside it
+  r0 sits. On the real disc that is 2.3 mm -- r0 is the fit's curvature, not a radius the head ever
+  visited, and the printed tolerance is the fit's, not the model's.
+- `derived.outer_radius_mm`: where the spiral would end at the disc's own last sector. It is a
+  second extrapolation, but in the other direction, and it checks the whole model at once: a full
+  25 GB layer has to land near 58.0 mm.
+- The tolerance itself: `sigma_r0_mm` comes from the fit in *period* space (the drive's error is on
+  the turn it timed, and squaring it over-weights the outer zones). A 200-trial simulation whose
+  truth was known scattered 42 um where the covariance claimed 38, so the 1 sigma figure is mildly
+  optimistic; the selftest compares the claim against the simulation and fails outside 0.6-1.5x.
+- `break_fit`: a one-break two-line fit through (LBA, T^2). A drive reading in zones holds one
+  angular speed per zone, so the periods step rather than rise, and one line through them leaves a
+  staircase. The detector only reports a break when the line's own residual is large enough to
+  explain (rms >= 0.005 ms) *and* two lines remove at least half of it *and* F >= 20; a clean line
+  fails the first test on floating-point dust alone, which is why that test exists. A break here
+  means the fit describes a staircase with a spiral, so `guide.install_blocker` refuses to turn one
+  into a preset.
+
+**What is still missing.** Full ZCLV segmentation -- a fit per zone, with each zone's own angular
+speed -- is not implemented, because no disc here does it. What is implemented is the refusal:
+the two-zone rotation test says `unknown` when the ratio is neither 1 nor the radius ratio, and the
+break detector catches a run whose periods step instead of rising.
 
 ## 12. Measured on a real BD-RE
 
@@ -360,6 +381,21 @@ artifact that shows up within a run.
 
 `summary.json` now carries both answers, `rotation_check` (what the drive claims) and
 `rotation_measured` (what two zones said), so a disagreement is visible instead of silent.
+
+**Refitted in period space.** The numbers above came from the first version, which fitted `T^2`.
+Fitting the period itself (the drive's error is on the turn it timed, and squaring it over-weights
+the long outer turns) moves the answer slightly and tightens it:
+
+| run | zones | r0 mm | v m/s | R^2 | 1 sigma r0 |
+|---|---|---|---|---|---|
+| 25 requested at 2.11x (`bdreal6`) | 24 | 24.6735 | 10.391 | 0.999998 | 12 um |
+| 9 at 1.6x (`bdreal5`) | 9 | 24.5807 | 7.900 | 0.999996 | 26 um |
+| 9 at 2.11x (`bdreal2`) | 9 | 24.4835 | 10.354 | 0.999971 | 87 um |
+
+The three early attempts (`bdreal`, `bdreal3`, `bdreal4`) had been read as CLV runs with r0 of
+7.0-12.8 mm; the break detector in the new fit names them for what they are -- a fit whose periods
+step twice instead of rising -- rather than reporting a wrong radius with a small-looking sigma.
+The 24-zone run is the one worth quoting: 24.6735 +/- 0.012 mm at 2.11x.
 
 ## 13. Writing the preset DiscImageStudio actually wants
 

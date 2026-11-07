@@ -1177,6 +1177,50 @@ def _bd_clv(c: Checker):
             f"{min(f.r0_mm for f in ok):.3f}-{max(f.r0_mm for f in ok):.3f} mm at 10.2-10.5 m/s")
     c.check(len(harmonic) >= 3,
             f"the {len(harmonic)} runs whose inner zone turned at twice the outer rate are left out")
+    # What the line says about itself: how far inside the first zone the answer sits, and whether one
+    # line describes the periods at all (a drive reading in zones holds one angular speed per zone,
+    # so its periods step instead of rising smoothly).
+    fit = ok[0]
+    c.check(fit.r_first_mm is not None and 0.5 < fit.r0_extrapolated_mm < 3.0,
+            f"the first zone sits {fit.r0_extrapolated_mm:.2f} mm outside r0, which the fit reports")
+    c.check(fit.break_fit is None, "a clean CLV run shows no break in its periods")
+    sector_mm = clv.NOMINAL["bd"].sector_mm
+
+    def periods(constant_omega_after: float | None = None):
+        out = []
+        for fraction in (0.05, 0.15, 0.25, 0.35, 0.5, 0.65, 0.75, 0.85, 0.95):
+            lba = int(fraction * 12_000_000)
+            radius = math.sqrt(24.66 ** 2 + 0.32e-3 * sector_mm * lba / math.pi)
+            # radius in mm over a speed in m/s is a period in ms, so omega is v/r in rad/ms and
+            # the turn is 2*pi/omega: the same numbers a real zone reports, not 2*pi times smaller.
+            omega = 10.34 / (radius if constant_omega_after is None or fraction < 0.5 else constant_omega_after)
+            out.append(clv.Sample(lba=lba, period_ms=2 * math.pi / omega, coherence=1.0))
+        return out
+
+    # The tolerance has to mean something: a nine-zone simulation whose truth is known should
+    # scatter by about what the fit says it will. Twenty minutes of noise on a 15 ms turn.
+    import random
+    rng = random.Random(11)
+    strayed, told = [], []
+    for _ in range(120):
+        noisy = [clv.Sample(lba=s.lba, period_ms=s.period_ms + rng.gauss(0.0, 0.02), coherence=1.0)
+                 for s in periods()]
+        try:
+            fit_n = clv.fit_t2(noisy, sector_mm=sector_mm, pitch_um=0.32)
+        except ValueError:
+            continue
+        strayed.append(fit_n.r0_mm - 24.66)
+        told.append(fit_n.sigma_r0_mm)
+    scatter = (sum(d * d for d in strayed) / len(strayed)) ** 0.5 * 1000
+    claimed = sum(told) / len(told) * 1000
+    c.check(0.6 <= claimed / scatter <= 1.5,
+            f"the tolerance tracks the scatter it is meant to describe: {claimed:.0f} um claimed "
+            f"against {scatter:.0f} um seen over {len(strayed)} simulations")
+
+    stepped = clv.fit_t2(periods(47.0), sector_mm=sector_mm, pitch_um=0.32)
+    c.check(stepped.break_fit is not None and abs(stepped.break_fit["break_lba"] - 6_000_000) <= 1_200_000
+            and stepped.break_fit["improvement"] > 0.9,
+            "a disc read in zones is caught: the periods break between two lines instead of one")
 
 
 def _bd_export(c: Checker):
