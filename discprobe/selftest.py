@@ -239,6 +239,54 @@ def _timer_tick(c: Checker):
             probe._check_period([{"period_ms": period}])
             c.check(bool(logs) == (period != 10.0), f"{strategy} period {period:.4f} ms")
 
+
+def _ladder_safe_unwrap(c: Checker):
+    print("ladder safe unwrapping")
+    import numpy as np
+    from types import SimpleNamespace
+    from .geo import Ladder
+    from .calib import theta
+    class PhaseOracle(Ladder):
+        # Only replace the instrument. Selection, unwrapping and fitting are production code.
+        def __init__(self, seed=3, sigma=1.0, readable=None):
+            super().__init__(None, max_targets=22, log=lambda *_: None)
+            self.tp = SimpleNamespace(
+                setup=lambda: None, cache_test=lambda: None, strategy="fua",
+                last_lba=2295103, summary={}, audio=False)
+            self.rng = np.random.default_rng(seed)
+            self.sigma = sigma
+            self.truth_u, self.truth_v = 23.93 / .0001336, .000735 / .0001336
+            self.readable, self.failed, self.pred_sigmas = readable, [], []
+    
+        def check_rotation(self):
+            pass
+    
+        def settle(self, *args, **kwargs):
+            self.T = .02
+            return self.T
+    
+        def _measure_retry(self, lba):
+            if self.readable and not any(a <= lba <= b for a, b in self.readable):
+                self.failed.append(lba)
+                return None
+            n = self._n_end(lba)
+            phase = math.degrees(theta(n, self.truth_u, self.truth_v)
+                                 - theta(self.n_ref, self.truth_u, self.truth_v))
+            self.pred_sigmas.append(self._sigma_pred_deg(n))
+            return dict(lba=lba, n=n,
+                        phase_deg=(phase + self.rng.normal(0, self.sigma)) % 360,
+                        sigma_deg=self.sigma, std_deg=self.sigma * math.sqrt(24),
+                        used=24, period_ms=20.0)
+    
+    ladder = PhaseOracle()
+    try:
+        ladder.run()
+    except RuntimeError as exc:
+        c.check("ambiguous" in str(exc) and len(ladder.targets) == 2,
+                "unsafe DVD rung stops before committing a whole turn")
+    else:
+        c.check(False, "unsafe DVD rung must stop")
+
 def _ladder(c: Checker):
     print("ladder geometry measurement on the simulated drive (35 ms re-read overhead)")
     import numpy as np
@@ -971,6 +1019,7 @@ def _run() -> bool:
     else:
         _pitch_fit(c)
         _grid_acceptance(c)
+        _ladder_safe_unwrap(c)
         _ladder(c)
         _ladder_abort(c)
         _ladder_cd_audio(c)

@@ -391,9 +391,8 @@ class Ladder:
             elif safe:
                 lba = max(safe, key=lambda c: abs(self._n_end(c) - self.n_ref))
             else:
-                if self.media == "cd":
-                    raise RuntimeError("no CD rung is within the safe 25-degree prediction limit")
-                lba = min(cands, key=lambda c: sig[c])
+                raise RuntimeError("no rung is within the safe 25-degree prediction limit; "
+                                   "the whole-turn count is ambiguous; retry with lower noise")
             tried.add(lba)
             pred = math.degrees(self._predict(self._n_end(lba)))
             m = self._measure_retry(lba)
