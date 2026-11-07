@@ -165,7 +165,9 @@ the number of zones used is not the only record of what was thrown away.
 
 ## 9. Limits
 
-- Single layer only. A layer change is a jump in the LBA-to-radius map and no run here crosses one.
+- Single layer only. A layer change is a jump in the LBA-to-radius map and no run here crosses
+  one, so a disc whose sector count exceeds one layer's 12,219,392 is refused before the ladder
+  starts rather than fitted as if the map were continuous.
 - Z-CLV discs are detected and refused (section 5), not fitted.
 - The pitch is an anchor by default. If a disc's pitch is in doubt, measure the speed separately and
   pass `--linear-mm-s`, then the pitch is the measurement and its tolerance follows `sigma_p`.

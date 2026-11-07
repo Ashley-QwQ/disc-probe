@@ -260,6 +260,18 @@ def test_cli_reports_the_rotation_before_measuring():
         assert "CLV" in proc.stdout
 
 
+def test_a_dual_layer_disc_is_refused_before_measuring():
+    """Two layers read backwards at the break; one line through both describes neither."""
+    clv.check_single_layer(12_219_391)                      # the last sector of one layer
+    for last in (12_219_392, 24_438_783):
+        try:
+            clv.check_single_layer(last)
+        except ValueError as e:
+            assert "dual-layer" in str(e), str(e)
+        else:
+            raise AssertionError(f"{last} sectors was accepted as one layer")
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

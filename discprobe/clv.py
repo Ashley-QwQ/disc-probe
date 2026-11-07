@@ -435,6 +435,21 @@ def classify_from_zones(zones: list[dict]) -> dict:
     return out
 
 
+def check_single_layer(last_lba: int) -> None:
+    """Refuse a disc that cannot be one spiral.
+
+    A dual-layer Blu-ray carries its second layer backwards, so the LBA-to-radius map jumps at the
+    layer break and one straight line through both layers describes neither. The sector count says
+    whether that could be in play, without measuring anything.
+    """
+    sectors = int(last_lba) + 1
+    if sectors > BD_SECTORS_PER_LAYER:
+        raise ValueError(
+            f"this disc holds {sectors:,} sectors, more than the {BD_SECTORS_PER_LAYER:,} of one layer: "
+            "a dual-layer disc's LBA-to-radius map jumps at the layer break, and this fit assumes one "
+            "continuous spiral")
+
+
 class ClvLadder:
     """Measure a CLV disc: one period per zone, then the T^2 fit.
 
@@ -489,6 +504,9 @@ class ClvLadder:
     def run(self) -> dict:
         self.tp.setup()
         self.summary["setup"] = self.tp.summary.get("setup")
+        setup = self.summary.get("setup") or {}
+        if setup.get("last_lba") is not None:
+            check_single_layer(int(setup["last_lba"]))
         self.summary["set_cd_speed"] = self.tp.summary.get("set_cd_speed")
         if self.rotation is None:
             self.precheck()
