@@ -12,7 +12,7 @@ import subprocess
 import sys
 import tempfile
 
-from . import filldisc, gameart, guide, i18n, sectors, snake, sudoku, timing, ui
+from . import cd, filldisc, gameart, guide, i18n, sectors, snake, sudoku, timing, ui
 from .sim import SimDrive
 
 
@@ -1469,10 +1469,15 @@ def _advice(c) -> None:
     c.check(any("8990" in x for x in bd_good) and not any("--sectors 16" in x or " geo " in x for x in bd_good), "a noisy Blu-ray stays with BD speeds and is not sent on to geo")
     i18n.use("zh")
     try:
-        c.check(all(i18n.tr(x) != x for x in (bd_lines[1], bd_good[-1], *guide.after_random(Namespace(**vars(args)))[:3], *guide.after_disexport(True))), "the new advice has Chinese")
+        c.check(all(i18n.tr(x) != x for x in (bd_lines[1], bd_good[-1], *guide.after_random(Namespace(**vars(args)))[:3],
+                                           *guide.after_disexport(True),
+                                           "Restart DiscImageStudio to load the updated preset list.")),
+                "the new advice has Chinese")
     finally:
         i18n.use("en")
     c.check(len(guide.after_disexport(True)) == 3 and len(guide.after_disexport()) == 2, "a CD preset without the constant says the route settles it")
+    c.check(not guide.after_disexport(False, True) and len(guide.after_disexport(True, True)) == 1,
+            "after an install the restart line is printed by the command and only the CD note remains")
     cd_next = guide.after_geo(cd_args, clean, os.path.join("results", "geo-H-20260101-100000"))
     c.check(any("disexport" in x for x in cd_next[:6]) and "README.md" in "".join(cd_next) and
             next(i for i, x in enumerate(cd_next) if "disexport" in x) < next(i for i, x in enumerate(cd_next) if " image" in x),
@@ -1607,6 +1612,29 @@ def _command_line(c) -> None:
                 json.dump({"cache": {}}, f)
             code, text = code_and_stderr("disexport", "--geo", not_geo)
             c.check(code == 1 and "not the summary.json" in text, "a summary without a fit is a plain error")
+            geo_ok = os.path.join(d, "cd_ok.json")
+            b = cd.BIT_NM * 1e-6
+            with open(geo_ok, "w", encoding="utf-8") as f:
+                json.dump({"fit": {"u": 25.14 / b, "v": 1.4969e-3 / b, "bit_nm_assumed": cd.BIT_NM,
+                                   "media": "cd", "measured_span_mm": [26.7, 54.4]}}, f)
+            presets = os.path.join(d, "dis", "disc-presets.json")
+            code, _ = code_and_stderr("disexport", "--geo", geo_ok, "--sectors", "359602",
+                                      "--output", os.path.join(d, "p.json"), "--install", "--dis-presets", presets)
+            with open(presets, encoding="utf-8") as f:
+                doc = json.load(f)
+            c.check(code == 0 and doc["cdPresets"][0]["id"] == "discprobe-cd",
+                    "--install adds the preset to a new DiscImageStudio file")
+            code, text = code_and_stderr("disexport", "--geo", geo_ok, "--sectors", "359602", "--name", "other",
+                                         "--output", os.path.join(d, "p.json"), "--install", "--dis-presets", presets)
+            c.check(code == 1 and "--replace" in text, "a conflicting --install says how to replace the preset")
+            code, _ = code_and_stderr("disexport", "--geo", geo_ok, "--sectors", "359602", "--name", "other",
+                                      "--output", os.path.join(d, "p.json"), "--install", "--replace",
+                                      "--dis-presets", presets)
+            with open(presets, encoding="utf-8") as f:
+                doc = json.load(f)
+            c.check(code == 0 and doc["cdPresets"][0]["displayName"] == "other", "--replace installs the new values")
+            code, text = code_and_stderr("disexport", "--geo", geo_ok, "--sectors", "359602", "--dis-presets", presets)
+            c.check(code == 1 and "only work together" in text, "--dis-presets without --install is refused")
 
     class Stopped:
         name = "SIM"

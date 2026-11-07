@@ -223,7 +223,8 @@ def _audio_fit_uses(c: Checker, res: dict, x: float):
         told = io.StringIO()
         with contextlib.redirect_stdout(told):
             cmd_disexport(Namespace(geo=geo, media="cd", sectors=res["sectors"], correction=None, output=out, r_min=None,
-                                    r_max=None, id=None, name=None, along_track_frames=0))
+                                    r_max=None, id=None, name=None, along_track_frames=0, install=False,
+                                    dis_presets=None, replace=False))
         said = told.getvalue()
         c.check("no along-track constant is needed" in said and "may come out" not in said and "--along-track-frames" not in said,
                 "disexport on an audio fit does not warn about the along-track constant")
@@ -408,6 +409,67 @@ def _disexport(c: Checker):
         c.check(refused, "a preset that misses the measured map is refused and not written")
 
 
+def _disinstall(c: Checker):
+    print("DiscImageStudio preset install")
+    import json
+    import os
+    import tempfile
+    from . import disinstall
+    preset = {"id": "t-cd", "displayName": "T", "description": "test", "sectors": 359602,
+              "innerRadiusMm": 25.14, "outerRadiusMm": 54.4, "linearVelocityMmPerSecond": 1200,
+              "pitchLinear": 1e-8, "pitchQuadratic": -2e-8, "pitchCubic": 1e-8}
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "presets", "disc-presets.json")
+        r = disinstall.install(preset, path)
+        with open(path, encoding="utf-8") as f:
+            doc = json.load(f)
+        c.check(r["action"] == "added" and doc["schemaVersion"] == 4 and doc["cdPresets"] == [preset]
+                and doc["bluRayPresets"] == [], "install creates the user preset file and adds the preset")
+        with open(path, "rb") as f:
+            before = f.read()
+        r = disinstall.install(preset, path)
+        with open(path, "rb") as f:
+            after = f.read()
+        c.check(r["action"] == "unchanged" and after == before and not os.path.exists(path + ".bak"),
+                "installing the same preset again changes nothing")
+        changed = {**preset, "description": "other"}
+        try:
+            disinstall.install(changed, path)
+            refused = False
+        except disinstall.InstallError:
+            refused = True
+        c.check(refused, "a same-id preset with different values is refused")
+        r = disinstall.install(changed, path, replace=True)
+        with open(path, encoding="utf-8") as f:
+            doc = json.load(f)
+        c.check(r["action"] == "replaced" and doc["cdPresets"][0]["description"] == "other",
+                "--replace overwrites the existing preset")
+        c.check(os.path.exists(path + ".bak"), "the file is backed up before it is rewritten")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write('{\n  // schema 3\n  "schemaVersion": 3,\n  /* no Blu-ray list yet */\n  "cdPresets": [\n'
+                    + json.dumps(preset) + ',\n  ],\n  "dvdPresets": [],\n'
+                    '  "disabledCdPresetIds": ["t-cd"]\n}\n')
+        r = disinstall.install(preset, path)
+        with open(path, encoding="utf-8") as f:
+            doc = json.load(f)
+        c.check(r["action"] == "enabled" and r["upgraded"] and doc["schemaVersion"] == 4
+                and doc["bluRayPresets"] == [] and doc["disabledCdPresetIds"] == [],
+                "comments are read, schema 3 is upgraded, and a disabled id is enabled")
+        dvd = {"id": "t-dvd", "displayName": "T", "description": "test", "totalSectors": 2295104,
+               "innerRadiusMm": 24.0, "outerRadiusMm": 58.0, "channelBitLengthNm": 133.3,
+               "pitchLinear": 0.0, "pitchQuadratic": 0.0, "pitchCubic": 0.0}
+        r = disinstall.install(dvd, os.path.join(d, "other", "disc-presets.json"))
+        with open(r["path"], encoding="utf-8") as f:
+            doc = json.load(f)
+        c.check(r["action"] == "added" and doc["dvdPresets"] == [dvd], "a DVD preset goes into dvdPresets")
+        try:
+            disinstall.install({**preset, "pitchLinear": -2.0}, path)
+            bad = False
+        except disinstall.InstallError:
+            bad = True
+        c.check(bad, "a pitch that goes negative is refused")
+
+
 def _efmplus(c: Checker):
     print("EFMPlus modulation with DSV control")
     import numpy as np
@@ -494,6 +556,7 @@ def run() -> bool:
         _ladder_cd_audio(c)
         _geo_rotation(c)
         _disexport(c)
+        _disinstall(c)
         _efmplus(c)
         _tiles(c)
         from . import cd_selftest

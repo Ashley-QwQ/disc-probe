@@ -662,9 +662,13 @@ def after_selftest() -> list[str]:
     return [f"Next, see where you are: {PROG} guide"]
 
 
-def after_disexport(cd_constant_open: bool = False) -> list[str]:
-    lines = ["Next, check the angle difference above (well under 0.1 deg is fine), then enter the preset in DiscImageStudio",
-             "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.en.md."]
+def after_disexport(cd_constant_open: bool = False, installed: bool = False) -> list[str]:
+    if installed:
+        lines = []
+    else:
+        lines = ["Next, check the angle difference above (well under 0.1 deg is fine), then enter the preset in DiscImageStudio",
+                 "(inner and outer radius, sectors, the three pitch terms), or run with --install to write it there. "
+                 "Steps: docs/MANUAL.en.md."]
     if cd_constant_open:
         lines.append("On the CD route you can skip --along-track-frames: fine calibration in DiscImageStudio settles that constant.")
     return lines

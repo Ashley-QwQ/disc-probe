@@ -552,12 +552,12 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 1. 导出预设。`--sectors` 用空白盘上 `info` 给的数，DiscImageStudio 里也填这个数；扇区数不同，外半径也会不同。它的**从光盘读取**读到的数不同时，以 `info` 为准（见上面“`--sectors` 有三个意思”）。
 
    ```powershell
-   python -m discprobe disexport --geo <summary.json> --correction correction.json --sectors <扇区数> --output dis_preset_cd.json
+   python -m discprobe disexport --geo <summary.json> --correction correction.json --sectors <扇区数> --output dis_preset_cd.json --install
    ```
 
-   `disexport` 看 `summary.json` 里的 `media`，CD 的结果导出 CD 预设（`sectors`、内外半径、三个轨距系数，速度固定 1200 mm/s）。`--sectors` 必填，拟合范围默认用 `geo` 测到的范围。预设和测量结果相差超过 5° 时不写文件。
+   `disexport` 看 `summary.json` 里的 `media`，CD 的结果导出 CD 预设（`sectors`、内外半径、三个轨距系数，速度固定 1200 mm/s）。`--sectors` 必填，拟合范围默认用 `geo` 测到的范围。预设和测量结果相差超过 5° 时不写文件。加 `--install` 会顺便把预设写进 DiscImageStudio 的用户预设文件（`%LOCALAPPDATA%\DiscImageStudio\disc-presets.json`，原文件备份为 `.bak`）；文件在别处或不在 Windows 上时用 `--dis-presets 路径` 指定。不加则只生成 JSON。
 
-2. 把预设放进 DiscImageStudio，二选一：在标定页手动填内外半径、扇区数和三个系数；或者把输出里 `preset` 这个对象加进 `%LOCALAPPDATA%\DiscImageStudio\disc-presets.json` 的 `cdPresets` 数组，再重启程序（格式见它的[预设文档](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/DISC_PRESETS.md)。moodyos 用这个办法导入成功了，我们自己没有试过）。
+2. 重启 DiscImageStudio，在预设列表里选新预设。如果第 1 步没加 `--install`，二选一：在标定页手动填内外半径、扇区数和三个系数；或者把输出里 `preset` 这个对象加进 `%LOCALAPPDATA%\DiscImageStudio\disc-presets.json` 的 `cdPresets` 数组，再重启程序（格式见它的[预设文档](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/DISC_PRESETS.md)。moodyos 用这个办法导入成功了，我们自己没有试过）。
 3. 在辅助标定页直接选**精细标定**，新建标靶，刻盘，拍照矫正，沿一条十字线细臂描点，再反推并应用。拟合三次轨距至少要 12 个不同半径的点，覆盖环带宽度的 60%。步骤见它的[辅助标定说明](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/CALIBRATION.md)。
 4. 应用后保存为预设，用这组参数刻图。
 

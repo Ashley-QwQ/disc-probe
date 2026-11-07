@@ -157,10 +157,12 @@ python -m discprobe image --geo latest --picture my_picture.png --output iso/pic
 
 At a terminal it ends by drawing the disc small and pointing out things like an almost black or white picture, content outside the drawable area or in the middle of the disc, or a low resolution. These are only notes and never stop the image, and their limits aren't yet calibrated on real discs. Check the preview before burning. After the burn, run `guide`: it explains how to look at the disc and what to do about what you see.
 
-To keep working in DiscImageStudio, export a preset. Set `--sectors` to your disc's sector count (`info` on a blank disc prints it, and DiscImageStudio takes the same number; too high a count can make the close fail) and the radius range to what `geo` measured, and add `--correction correction.json` if you have one. The command `geo` prints at the end has these filled in. It prints the conversion error against the measurement, so check that before burning. For now you enter the preset in DiscImageStudio by hand: create a project and fill in the inner and outer radius, sector count and the three pitch terms:
+To keep working in DiscImageStudio, export a preset. Set `--sectors` to your disc's sector count (`info` on a blank disc prints it, and DiscImageStudio takes the same number; too high a count can make the close fail) and the radius range to what `geo` measured, and add `--correction correction.json` if you have one. The command `geo` prints at the end has these filled in. It prints the conversion error against the measurement, so check that before burning. Add `--install` to write the preset straight into DiscImageStudio's user preset file (`%LOCALAPPDATA%\DiscImageStudio\disc-presets.json`; the existing file is saved as `.bak`) and pick it from the preset list after restarting DiscImageStudio. Without it you only get the JSON to enter by hand: create a project and fill in the inner and outer radius, sector count and the three pitch terms:
 
 ```bash
 python -m discprobe disexport --geo latest --sectors YOUR_SECTOR_COUNT --r-min 25.8 --r-max 54.5 --output dis_preset.json
+# or write it into DiscImageStudio's preset list (takes effect after a restart):
+python -m discprobe disexport --geo latest --sectors YOUR_SECTOR_COUNT --r-min 25.8 --r-max 54.5 --install
 ```
 
 ### Step 5: look at the disc and photograph it
@@ -201,8 +203,8 @@ CD has one more constant that timing can't see, so it takes one more disc for ca
    python -m discprobe geo --media cd --drive H: --speed 1411 --host-delay-ms 35 --ranges 2000-356000
    ```
 
-3. Export the preset. The `disexport` command `geo` prints at the end has the values filled in, so copy it. Its `--sectors` may only be how much the measuring disc holds, so run `info` on a blank disc and change it if `info` differs. Enter the same number in DiscImageStudio. One user [reported](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19442161) that its read-from-disc gave too high a count and closing the disc failed, so don't use that number.
-4. Run fine calibration on your second blank. In DiscImageStudio, enter the preset, choose fine calibration on the assisted calibration page, create a target, burn it, rectify a photo, trace points, solve and apply, then save it as a preset. Its [calibration guide](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/CALIBRATION.md) has the steps.
+3. Export the preset. The `disexport` command `geo` prints at the end has the values filled in, so copy it. Its `--sectors` may only be how much the measuring disc holds, so run `info` on a blank disc and change it if `info` differs. Enter the same number in DiscImageStudio. One user [reported](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19442161) that its read-from-disc gave too high a count and closing the disc failed, so don't use that number. Add `--install` to write it into DiscImageStudio's user preset file, then pick it from the preset list after a restart.
+4. Run fine calibration on your second blank. In DiscImageStudio, choose the preset you just imported (or enter it by hand), choose fine calibration on the assisted calibration page, create a target, burn it, rectify a photo, trace points, solve and apply, then save it as a preset. Its [calibration guide](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/CALIBRATION.md) has the steps.
 5. Burn your picture with those parameters in DiscImageStudio, on your third blank.
 
 <a name="drive-compatibility"></a>

@@ -271,6 +271,8 @@ TEXT = {
     "Then check the drive with it (1 to 3 minutes):": "然后用这张盘检查光驱（1 到 3 分钟）：",
     "Next, check the angle difference above (well under 0.1 deg is fine), then enter the preset in DiscImageStudio": "下一步，看一下上面的角度差（远小于 0.1° 就行），然后把预设填进 DiscImageStudio",
     "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.en.md.": "（内外半径、扇区数、三个轨距项）。步骤见 docs/MANUAL.md。",
+    "(inner and outer radius, sectors, the three pitch terms), or run with --install to write it there. Steps: docs/MANUAL.en.md.": "（内外半径、扇区数、三个轨距项），或者加上 --install 让程序直接写进去。步骤见 docs/MANUAL.md。",
+    "Restart DiscImageStudio to load the updated preset list.": "重启 DiscImageStudio 以载入更新后的预设列表。",
     "Next, see where you are: {c}": "下一步，看看进行到哪了：{c}",
     "Try --sectors {a} ({b}). Enter the same number in DiscImageStudio. `info` on a blank disc is the count to go by: one user found read-from-disc there too high.":
         "试试 --sectors {a}（{b}）。DiscImageStudio 里也填这个数。以空白盘上 `info` 的数为准：有用户发现它的“从光盘读取”给的数偏大。",
@@ -492,6 +494,19 @@ TEXT = {
     "It is right as far as --read-offset-bytes ({x}) is right for this drive: check it once with a burned straight line.":
         "预设准不准，取决于 --read-offset-bytes（{x}）对这台光驱是否正确，请用实刻的一条直线核对一次。",
     "image and tiles do not take this result: they write a data track, which counts from another origin.": "image 和 tiles 不接受这个结果：它们写的是数据轨，起算点不同。",
+    "Created {p}": "已新建 {p}",
+    "Added preset '{i}' to {p}": "已把预设 {i} 加入 {p}",
+    "Replaced preset '{i}' in {p}": "已替换 {p} 里的预设 {i}",
+    "Re-enabled preset '{i}' in {p}": "已重新启用 {p} 里的预设 {i}",
+    "Preset '{i}' is already in {p} with the same values": "{p} 里已经有取值相同的预设 {i}，没有改动",
+    "Previous file saved as {p}": "原文件已备份为 {p}",
+    "--dis-presets and --replace only work together with --install": "--dis-presets 和 --replace 只能和 --install 一起用",
+    "also add the preset to DiscImageStudio's user preset file (Windows; created when missing; restart DiscImageStudio afterwards)":
+        "同时把预设加进 DiscImageStudio 的用户预设文件（Windows；文件不存在时会新建；之后要重启 DiscImageStudio）",
+    "with --install: the disc-presets.json to write; default %%LOCALAPPDATA%%\\DiscImageStudio\\disc-presets.json":
+        "配合 --install：要写入的 disc-presets.json；默认 %%LOCALAPPDATA%%\\DiscImageStudio\\disc-presets.json",
+    "with --install: overwrite an existing preset with the same --id but different values":
+        "配合 --install：覆盖同一 --id 但取值不同的现有预设",
     "Timing cannot see the CD along-track constant and none was given, so radial lines may come out twisted. Measure it on a burned disc, then use --along-track-frames.":
         "计时测不到 CD 的沿轨常数，而你也没有提供，所以径向线可能会扭曲。请在刻好的盘上测出它，再用 --along-track-frames。",
     "the preset misses the measured map by {a} deg over {b}-{c} mm (outer radius came out {d} mm); check --sectors and the fit range. No preset written.":
@@ -713,10 +728,12 @@ DiscImageStudio 刻的 CD 图（一条音轨）：同一条命令直接测这张
     "disexport": """\
 例子：
   python -m discprobe disexport --geo latest --sectors <sectors> --r-min 25.8 --r-max 54.4 --output dis_preset.json
+  python -m discprobe disexport --geo latest --sectors <sectors> --install
   python -m discprobe disexport --geo latest --sectors <sectors> --correction correction.json --output dis_preset_cd.json
 
 --sectors 是盘的容量：看空白盘上的 `info`，DiscImageStudio 里也填这个数。
 有用户发现它的“从光盘读取”给的数偏大。和 timing --sectors 不是一回事。
+--install 会把预设直接加进 DiscImageStudio 的用户预设文件；重启 DiscImageStudio 后就能选。
 --geo 可以写 summary.json、geo 结果文件夹、latest，或 pick（手动选）。CD 的结果会生成 CD 预设；--media 只用来核对。""",
     "results": """\
 例子：

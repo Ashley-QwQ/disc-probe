@@ -614,6 +614,8 @@ def cmd_correction(args):
 
 def cmd_disexport(args):
     from .disexport import export
+    if (args.dis_presets or args.replace) and not args.install:
+        sys.exit("--dis-presets and --replace only work together with --install")
     fit = _geo_fit(args, args.media)
     is_cd = fit.get("media") == "cd"
     if args.media and args.media != ("cd" if is_cd else "dvd"):
@@ -643,7 +645,28 @@ def cmd_disexport(args):
     elif is_cd and not args.along_track_frames:
         print("Timing cannot see the CD along-track constant and none was given, so radial lines may come out "
               "twisted. Measure it on a burned disc, then use --along-track-frames.")
-    _next(guide.after_disexport(is_cd and not audio and not args.along_track_frames))
+    if args.install:
+        from . import disinstall
+        try:
+            result = disinstall.install(out["preset"], args.dis_presets, args.replace)
+        except (OSError, ValueError) as e:
+            sys.exit(str(e))
+        preset_id = out["preset"]["id"]
+        if result["created"]:
+            print(f"Created {result['path']}")
+        if result["action"] == "added":
+            print(f"Added preset '{preset_id}' to {result['path']}")
+        elif result["action"] == "replaced":
+            print(f"Replaced preset '{preset_id}' in {result['path']}")
+        elif result["action"] == "enabled":
+            print(f"Re-enabled preset '{preset_id}' in {result['path']}")
+        else:
+            print(f"Preset '{preset_id}' is already in {result['path']} with the same values")
+        if result["backup"]:
+            print(f"Previous file saved as {result['backup']}")
+        if result["created"] or result["upgraded"] or result["action"] != "unchanged":
+            print("Restart DiscImageStudio to load the updated preset list.")
+    _next(guide.after_disexport(is_cd and not audio and not args.along_track_frames, args.install))
 
 
 def cmd_tiles(args):
@@ -936,10 +959,12 @@ examples:
     "disexport": """\
 examples:
   python -m discprobe disexport --geo latest --sectors <sectors> --r-min 25.8 --r-max 54.4 --output dis_preset.json
+  python -m discprobe disexport --geo latest --sectors <sectors> --install
   python -m discprobe disexport --geo latest --sectors <sectors> --correction correction.json --output dis_preset_cd.json
 
 --sectors is the capacity of your disc: take it from `info` on a blank disc, and enter the same number in
 DiscImageStudio. One user found its read-from-disc too high. Not the same as timing --sectors.
+--install adds the preset to DiscImageStudio's user preset file; restart DiscImageStudio to see it.
 --geo takes a summary.json, a geo result folder, `latest`, or `pick` to choose. A CD fit gives a CD preset; --media is only a check.""",
     "results": """\
 examples:
@@ -1188,6 +1213,14 @@ def _build_parser():
     sp.add_argument("--id")
     sp.add_argument("--name")
     sp.add_argument("--output", default="dis_preset.json")
+    sp.add_argument("--install", action="store_true",
+                    help="also add the preset to DiscImageStudio's user preset file (Windows; created when missing; "
+                         "restart DiscImageStudio afterwards)")
+    sp.add_argument("--dis-presets", metavar="PATH",
+                    help="with --install: the disc-presets.json to write; default "
+                         "%%LOCALAPPDATA%%\\DiscImageStudio\\disc-presets.json")
+    sp.add_argument("--replace", action="store_true",
+                    help="with --install: overwrite an existing preset with the same --id but different values")
     sp.set_defaults(func=cmd_disexport)
 
     sp = sub.add_parser("random", help="write a random-data ISO for full-disc timing calibration")
