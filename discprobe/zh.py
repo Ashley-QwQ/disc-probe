@@ -793,8 +793,11 @@ TEXT = {
     "fit range: use the measured span (DVD default 25.8, CD the span geo measured)": "拟合范围：用实测范围（DVD 默认 25.8，CD 用 geo 测到的范围）",
     "DVD default 54.4, CD the span geo measured": "DVD 默认 54.4，CD 用 geo 测到的范围",
     "CD only: along-track constant in frames, as in image --along-track-frames": "仅 CD：沿轨常数（帧），含义同 image --along-track-frames",
-    "disc type; cd also switches the defaults to CD values (default: dvd)": "盘的类型；cd 同时会把默认值换成 CD 的值（默认 dvd）",
-    "check that --geo measured this disc type; the fit decides the preset": "检查 --geo 测的是不是这种盘；预设类型由拟合结果决定",
+    "disc type; cd also switches the defaults to CD values, bd to Blu-ray (default: dvd)": "盘的类型；cd 同时会把默认值换成 CD 的值，bd 换成蓝光的（默认 dvd）",
+    "Blu-ray only: the linear speed the drive reads at, in mm/s. With it the fit gives the pitch; without it the pitch is an anchor and only the ratio stays known": "只用于蓝光：光驱读取的线速度（mm/s）。给了它就测出轨距；不给则轨距当锚点，只保留比值",
+    "Blu-ray only: how many zones to time, spread evenly from 5%% to 95%% of the disc (default 9). Two numbers come out of the line, so nine zones already pin them; more zones buy a better check that the line is straight, which is what tells a clean CLV disc from one that changes speed part way": "只用于蓝光：量几个区域，从盘的 5%% 到 95%% 均匀分布（默认 9）。一条直线只出两个数，九个区域就够；多出来的点买的是“线是不是直的”这个检验，靠它区分干净的 CLV 盘和中途换速的盘",
+    "Blu-ray only: fit a constant offset in the period as well, which is the only way to separate 'this disc really starts further out than 24.0 mm' from 'every period carries a fixed few hundred microseconds'. Needs five zones or more": "只用于蓝光：同时拟合一个固定的周期偏移。这是分开“这张盘确实从比 24.0 mm 更外的地方开始”和“每圈都多几百微秒”的唯一办法。至少要五个区域",
+    "check that --geo measured this disc type; the fit decides the preset (a CLV run gives a Blu-ray preset, in print or with --install)": "检查 --geo 测的是不是这种盘；预设类型由拟合结果决定（CLV 结果给出蓝光预设，打印出来或用 --install 装进去）",
     "CD only: sector layout the burner writes; IMAPI2 data burns are Mode 2 Form 1 (user data from byte 24), so textures are pre-scrambled for that unless you burn Mode 1": "仅 CD：刻录工具写的扇区格式；IMAPI2 刻数据盘是 Mode 2 Form 1（用户数据从第 24 字节开始），除非你刻 Mode 1，否则纹理都按它预先加扰",
 }
 

@@ -1179,6 +1179,77 @@ def _bd_clv(c: Checker):
             f"the {len(harmonic)} runs whose inner zone turned at twice the outer rate are left out")
 
 
+def _bd_export(c: Checker):
+    print("Blu-ray preset: three numbers DiscImageStudio turns back into a spiral")
+    import json
+    import os
+    import tempfile
+    from . import bdexport
+
+    fit = {"model": "clv", "media": "bd", "r0_mm": 24.6427, "pitch_um": 0.32, "v_m_s": 7.9054,
+           "r2": 0.999994, "zones_used": 7, "anchor": "pitch 0.32 um", "pitch_um_anchor": 0.32}
+    params = bdexport.parameters(fit, 12_088_320)
+    c.check(abs(params["outerRadiusMm"] - 58.0117) < 1e-3,
+            "outer radius follows from inner, pitch and sectors")
+    c.check("pitchLinear" not in params and "channelBitLengthNm" not in params,
+            "no pitch coefficient: DiscImageStudio reads those as a shape, not as a pitch")
+    # 24.0 -> 58.0 over a full layer is the standard 0.320 um pitch, so the constants agree with each other.
+    length = bdexport.track_length_mm(bdexport.BD_SECTORS_PER_LAYER)
+    implied = (58.0 ** 2 - 24.0 ** 2) * 3.141592653589793 / length * 1e3
+    c.check(abs(implied - bdexport.BD_NOMINAL_PITCH_UM) < 2e-4,
+            f"the standard radii and pitch close their own identity ({implied:.5f} um)")
+    try:
+        bdexport.check(12_088_321, 24.6, 58.0)
+    except bdexport.BdPresetError:
+        c.check(True, "a sector count that is not a multiple of 32 is refused")
+    else:
+        c.check(False, "a sector count that is not a multiple of 32 is refused")
+    try:
+        bdexport.parameters({"model": None}, 12_088_320)
+    except bdexport.BdPresetError:
+        c.check(True, "an angular u/v fit is not converted as a Blu-ray preset")
+    else:
+        c.check(False, "an angular u/v fit is not converted as a Blu-ray preset")
+    preset = bdexport.preset(fit, 12_088_320, "discprobe-bd-re", "BD-RE", "selftest")
+    entry = bdexport.catalog_entry(preset)
+    c.check(set(entry) == {"id", "displayName", "parameters", "invertMapping"},
+            "the catalog entry has only the fields DiscImageStudio's record keeps")
+    document = bdexport.document(preset)
+    c.check(set(document["parameters"]) == {"totalSectors", "layerCount", "innerRadiusMm",
+                                            "outerRadiusMm", "startAngleDegrees"} and
+            document["luminanceMapping"] == {"invert": False},
+            "the written document is the shape the preset library's Import reads")
+    with tempfile.TemporaryDirectory() as work:
+        path = os.path.join(work, bdexport.FILE_NAME)
+        first = bdexport.install(preset, path)
+        before = open(path, "rb").read()
+        again = bdexport.install(preset, path)
+        c.check(first["action"] == "added" and first["created"] and again["action"] == "unchanged",
+                "installing the same preset twice changes nothing")
+        c.check(open(path, "rb").read() == before, "an unchanged install does not rewrite the file")
+        replaced = bdexport.install(bdexport.preset(dict(fit, r0_mm=24.65), 12_088_320,
+                                                    "discprobe-bd-re", "BD-RE", "selftest"), path, replace=True)
+        c.check(replaced["action"] == "replaced" and open(replaced["backup"], "rb").read() == before,
+                "a replacement keeps the file it replaced as a backup")
+        try:
+            bdexport.install(bdexport.preset(dict(fit, r0_mm=24.66), 12_088_320,
+                                             "discprobe-bd-re", "BD-RE", "selftest"), path)
+        except bdexport.BdPresetError:
+            c.check(True, "a different preset under the same id needs --replace")
+        else:
+            c.check(False, "a different preset under the same id needs --replace")
+        other = os.path.join(work, "other.json")
+        with open(other, "w", encoding="utf-8") as f:
+            f.write('{"schemaVersion": 2, "presets": []}')
+        try:
+            bdexport.install(preset, other)
+        except bdexport.BdPresetError:
+            c.check(open(other, encoding="utf-8").read() == '{"schemaVersion": 2, "presets": []}',
+                    "a catalog of another schema is left untouched")
+        else:
+            c.check(False, "a catalog of another schema is left untouched")
+
+
 def _efmplus(c: Checker):
     print("EFMPlus modulation with DSV control")
     import numpy as np
@@ -1333,6 +1404,7 @@ def _run() -> bool:
         _disinstall(c)
         _install_blocker(c)
         _bd_clv(c)
+        _bd_export(c)
         _efmplus(c)
         _tiles(c)
         from . import cd_selftest

@@ -360,3 +360,64 @@ artifact that shows up within a run.
 
 `summary.json` now carries both answers, `rotation_check` (what the drive claims) and
 `rotation_measured` (what two zones said), so a disagreement is visible instead of silent.
+
+## 13. Writing the preset DiscImageStudio actually wants
+
+A Blu-ray preset in DiscImageStudio is not the angular `u`/`v` pair a DVD or CD preset is. It is
+three numbers:
+
+```
+totalSectors, layerCount = 1, innerRadiusMm, outerRadiusMm, startAngleDegrees = 0
+```
+
+and, with no pitch coefficients, the engine solves one constant pitch from them
+(`BluRayTrackGeometry`: it bisects a growth rate so the spiral between the two radii carries
+`totalSectors / 32 * 962136` channel bits of 74.50 nm). That is exactly the family a BD-R or BD-RE
+lives in, and it is exactly what a `--media bd` run measures:
+
+- `r0_mm` is the radius of sector 0,
+- `pitch_um` is the track pitch (anchored on the standard, or measured against `--linear-mm-s`),
+- `totalSectors` comes from the disc's own last LBA (`info` prints it).
+
+The third radius is not fitted, it follows: `r_out = sqrt(r0^2 + p L N / pi)`, the same area
+identity the whole tool is built on. `discprobe/bdexport.py` does that conversion and nothing else.
+
+**The one trap: `pitchLinear` is not a pitch.** `BluRayDiscParameters` describes the pitch shape as
+`p(x) = p0 (1 + c1 x + c2 x^2 + c3 x^3)`, and `DvdTrackGeometry.ValidatePitchCoefficients` says so
+in its own words: "Pitch coefficients must be finite and 1 + c1*x + c2*x^2 + c3*x^3 must stay
+positive". Writing `pitchLinear = 0.32` for a 0.32 um pitch would be read as "a pitch 1.32 times p0
+at the outer edge", a 32% flare. A constant-pitch disc therefore leaves all three at 0 and lets the
+engine solve p; that is what `bdexport.parameters()` returns, and a test pins it.
+
+**The catalog is a different file.** Blu-ray presets live in
+`%LOCALAPPDATA%\DiscImageStudio\blu-ray-presets.json` (`BluRayPresetStore`), schema 1, with records
+`{id, displayName, parameters, invertMapping}` -- no `description`, which that store does not keep.
+The `disc-presets.json` file this tool's CD and DVD export writes is a different document with a
+different schema; the Blu-ray export never touches it.
+
+**What a measurement gave.** The BD-RE in this drive, 12 088 320 sectors:
+
+| run | zones | R^2 | r0 (mm) | v (m/s) | preset inner / outer (mm) |
+| --- | --- | --- | --- | --- | --- |
+| 1.6x, 9 zones | 7 | 0.999994 | 24.6427 | 7.9054 | 24.6427 / 58.0117 |
+| 2.1x, 9 zones | 6 | 0.99994 | 24.6745 | 10.3747 | 24.6745 / 58.0190 |
+| 2.1x, 25 zones, `--fit-offset` | 23 | 0.999998 | 25.0148 | 10.342 | 25.0148 / 58.1707 |
+
+The offset run is the outlier and it is instructive: fitting a free per-period delay moved the radius
+by 0.41 mm, because an offset and a starting radius are nearly the same parameter over the measured
+span. The residuals say the offset is not real -- over 23 zones they run +0.017 to -0.002 ms with no
+slope in LBA (1.7e-10 ms/LBA), so `offset = -246 +- 104 us` is a 2.4 sigma wobble of a parameter that
+should be zero -- and the two speeds agree to 21 um (24.640 vs 24.661 mm) where a real 0.5 ms delay
+would have separated them by 0.2 mm. So the radius is 24.66 mm, `--fit-offset` is a diagnostic
+rather than the default, and the command says out loud when an exported preset came from a run that
+fitted one.
+
+Why 24.66 and not the standard 24.0: this disc holds 12 088 320 sectors, 131 072 fewer than a full
+layer's 12 219 392. In the same physical data area a shorter spiral starts further out. The check is
+that the outermost sector then lands at 58.020 mm, against 58.0232 mm for DiscImageStudio's built-in
+`bd-r-sl-25gb` preset -- 3 um apart, which no fitting artifact produces by accident.
+
+```
+python -m discprobe geo --drive G: --media bd --bd-zones 9
+python -m discprobe disexport --geo results/geo-G-.../summary.json --sectors 12088320 --install
+```

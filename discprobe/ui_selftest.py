@@ -1126,7 +1126,7 @@ def _completion(c) -> None:
     media = next(e for e in rows["timing"] if e[0] == "--media")
     cav = next(e for e in rows["timing"] if e[0] == "--cav")
     out_flag = next(e for e in rows["timing"] if e[0] == "--out")
-    c.check(speed[1] == "v" and speed[3] == "kB/s or 4x" and media[2] == ("dvd", "cd") and cav[1] == "f" and out_flag[1] == "p", "options say what their value is")
+    c.check(speed[1] == "v" and speed[3] == "kB/s or 4x" and media[2] == ("dvd", "cd", "bd") and cav[1] == "f" and out_flag[1] == "p", "options say what their value is")
     scripts = {shell: completion.script(shell, cli._build_parser) for shell in completion.SHELLS}
     c.check(all("--along-track-frames" in text for text in scripts.values()), "every script holds the options")
     c.check("discprobe.__main__" not in "".join(scripts.values()) and not any(
@@ -1148,7 +1148,7 @@ def _completion(c) -> None:
             with open(path, "w", encoding="ascii") as f:
                 f.write(scripts["powershell"])
             checks = (("python -m discprobe timing --sp", "--speed"), ("python -m discprobe ti", "timing tiles tilescan"),
-                      ("python -m discprobe timing --media ", "dvd cd"), ("python -m discprobe --lang zh geo --ref", "--ref-lba"),
+                      ("python -m discprobe timing --media ", "dvd cd bd"), ("python -m discprobe --lang zh geo --ref", "--ref-lba"),
                       ("python C:\\Windows\\win.in", "C:\\Windows\\win.ini"), ("python -m d", "discprobe"), ("python -m ", "discprobe"),
                       ("python -m discprobe xyz", "xyz"), ("python -m discprobe timing --xyz", "--xyz"), ("python -m discprobe timing --reps 1", "1"))
             probe = ". '" + path + "'\n" + "".join(
@@ -1161,7 +1161,7 @@ def _completion(c) -> None:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(scripts["bash"])
             checks = (("python -m discprobe timing --sp", "--speed"), ("python -m discprobe ti", "timing tiles tilescan"),
-                      ("python -m discprobe timing --media ''", "dvd cd"), ("python -m discprobe --lang zh geo --ref", "--ref-lba"),
+                      ("python -m discprobe timing --media ''", "dvd cd bd"), ("python -m discprobe --lang zh geo --ref", "--ref-lba"),
                       ("python script.py ''", ""), ("python -m d", "discprobe"), ("python -", "-m"))
             probe = "source " + path + "\n" + "".join(
                 f"COMP_WORDS=({line}); COMP_CWORD=$((${{#COMP_WORDS[@]}} - 1)); _discprobe_complete; echo \"${{COMPREPLY[*]}}\"\n" for line, _ in checks)

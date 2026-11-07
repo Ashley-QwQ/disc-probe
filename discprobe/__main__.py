@@ -1698,11 +1698,12 @@ def _build_parser():
     if ui.term().interactive:   # scripts read the help as it always was
         p.epilog += "\n\n" + (LANG_NOTE_ZH if i18n.active() == "zh" else LANG_NOTE)
     i18n.localize_parser(p)
-    return p, sub, cd_defaults, bd_defaults
+    return p, sub, {"cd": cd_defaults, "bd": bd_defaults}
 
 
 def _main(argv=None):
-    p, sub, cd_defaults, bd_defaults = _build_parser()
+    p, sub, media_defaults = _build_parser()
+    cd_defaults, bd_defaults = media_defaults["cd"], media_defaults["bd"]
     raw_args = list(sys.argv[1:] if argv is None else argv)
     _Parser.argv, _Parser.commands = raw_args, sub.choices
     if not raw_args and ui.term().interactive:

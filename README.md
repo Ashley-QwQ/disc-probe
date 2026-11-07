@@ -353,7 +353,7 @@ Windows Terminal、Ghostty、WezTerm、kitty 和 Claude 桌面应用的终端会
 
 CD 的沿轨道常数要靠网格盘来定，206 帧只对 GH70N 加 IMAPI 刻录、READ(12) 读取这条路径成立。CMC CD-R 在约 33 mm 处还有约 0.4° 的落差，可能是刻录时的接缝，正在核对。
 
-`geo` 目前只支持 DVD 和 CD，蓝光盘只能跑 `timing`。
+`geo` 对 DVD 和 CD 走角度梯子；蓝光被驱动以恒定线速度读取，用 `geo --media bd` 改量转一圈的时间，再用 `disexport` 直接写成 DiscImageStudio 的蓝光预设（见[使用手册](docs/MANUAL.md)）。
 
 ## 安全
 
