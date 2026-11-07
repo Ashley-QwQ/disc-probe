@@ -70,6 +70,15 @@ def _mapping(c):
     f, s = cd.raw_to_physical(2351)
     c.check(int(f) == 202 and int(s) == 26 and cd.read_end_bits(0) == 206 * 588,
             "last raw pair spans frames 202/205; completion includes 108 tail frames")
+    # Every figure here passes 2**31 for a real disc, and a bare Python int becomes int32 on
+    # 64-bit Windows before NumPy 2.0.
+    c.check(int(cd.read_end_bits(352000)) == (352001 * 98 + 108) * 588,
+            "the end of the last sector is past 2**31 and still exact")
+    c.check(int(cd.channel_position(34_000_000, 10)) == 34_000_000 * 588 + 44 + 17 * 10 + 7,
+            "a channel position past 2**31 is exact too")
+    c.check(int(cd.channel_position(np.array([34_000_000]), np.array([10]))[0])
+            == 34_000_000 * 588 + 44 + 17 * 10 + 7,
+            "the same holds for an array index")
     # The other byte of the final pair has the maximum delay.
     f, s = cd.raw_to_physical(2350)
     c.check(int(f) == 205 and int(s) == 27, "last raw-pair B symbol is at frame 205 slot 27")

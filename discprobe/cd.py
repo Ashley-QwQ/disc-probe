@@ -128,8 +128,13 @@ def physical_to_user(frame, slot):
 
 
 def channel_position(frame, slot, centre=True):
-    """EFM word start (+7 for centre), after 24 sync + 3 merge + 17 subcode."""
-    return np.asarray(frame) * FRAME_BITS + 44 + 17 * np.asarray(slot) + (7 if centre else 0)
+    """EFM word start (+7 for centre), after 24 sync + 3 merge + 17 subcode.
+
+    A plain Python int arrives as int32 on 64-bit Windows before NumPy 2.0, and the frame of the
+    last CD sectors times 588 is past 2**31 already, so both arguments are cast here.
+    """
+    return (np.asarray(frame, np.int64) * FRAME_BITS + 44 + 17 * np.asarray(slot, np.int64)
+            + (7 if centre else 0))
 
 
 def user_positions(lbas):
@@ -154,8 +159,11 @@ def read_end_bits(lba, count=1):
     The last raw byte pair reaches F2 slot 27 at input frame 97+108; the end
     of that frame is (LBA+1)*98+108. Include the tail as ARC LENGTH, never a
     constant angle. Actual firmware completion/sector origin is unmeasured.
+
+    Cast first: a plain Python int becomes int32 on 64-bit Windows before NumPy 2.0, and the end
+    of the last CD sector is 2.03e10 bits, so the product would wrap.
     """
-    return ((np.asarray(lba) + count) * FRAMES_PER_SECTOR + READ_TAIL_FRAMES) * FRAME_BITS
+    return ((np.asarray(lba, np.int64) + count) * FRAMES_PER_SECTOR + READ_TAIL_FRAMES) * FRAME_BITS
 
 
 def check_capacity(sectors, capacity=CAPACITY):
