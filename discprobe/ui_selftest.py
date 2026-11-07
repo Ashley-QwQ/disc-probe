@@ -149,7 +149,7 @@ def _layout(c) -> None:
         c.check("\x1b[" not in p._percent(0.25, 1000.0)[1], f"{name}: the first percentage does not flash")
         level[0] = 0.26
         c.check((" 2\x1b[1;36m6\x1b[0m%" in p._render(100)[0]) == flashes, f"{name}: {'only the digit that changed flashes' if flashes else 'a new digit stays plain'}")
-        p.percent_changed -= ui.PERCENT_FLASH_S
+        p.percent_changed -= ui.PERCENT_FLASH_S + 1
         c.check(" 26%" in p._render(100)[0], f"{name}: it goes back to the terminal's colour")
         level[0] = 0.30
         c.check(("\x1b[1;36m30\x1b[0m%" in p._render(100)[0]) == flashes, f"{name}: two digits that change both flash")
@@ -158,7 +158,7 @@ def _layout(c) -> None:
         level[0] = 1.0
         full = p._render(100)[0]
         c.check(("\x1b[32m100%\x1b[0m" in full) == (term_used is not plain), f"{name}: 100% is green where there is colour")
-        p.percent_changed -= ui.PERCENT_FLASH_S
+        p.percent_changed -= ui.PERCENT_FLASH_S + 1
         c.check(("\x1b[32m100%" in p._render(100)[0]) == (term_used is not plain), f"{name}: and stays green")
         p.close()
     for env, wanted in (({}, "32"), ({"COLORFGBG": "15;0"}, "92"), ({"COLORFGBG": "0;15"}, "32"), ({"COLORFGBG": "0;default;7"}, "32"), ({"COLORFGBG": "bad"}, "32")):
