@@ -411,10 +411,15 @@ def _disexport(c: Checker):
 
 def _disinstall(c: Checker):
     print("DiscImageStudio preset install")
+    import glob
     import json
     import os
     import tempfile
     from . import disinstall
+
+    def backups(path):
+        return sorted(glob.glob(path + ".*.bak"))
+
     preset = {"id": "t-cd", "displayName": "T", "description": "test", "sectors": 359602,
               "innerRadiusMm": 25.14, "outerRadiusMm": 54.4, "linearVelocityMmPerSecond": 1200,
               "pitchLinear": 1e-8, "pitchQuadratic": -2e-8, "pitchCubic": 1e-8}
@@ -430,7 +435,7 @@ def _disinstall(c: Checker):
         r = disinstall.install(preset, path)
         with open(path, "rb") as f:
             after = f.read()
-        c.check(r["action"] == "unchanged" and after == before and not os.path.exists(path + ".bak"),
+        c.check(r["action"] == "unchanged" and after == before and not backups(path),
                 "installing the same preset again changes nothing")
         changed = {**preset, "description": "other"}
         try:
@@ -444,7 +449,31 @@ def _disinstall(c: Checker):
             doc = json.load(f)
         c.check(r["action"] == "replaced" and doc["cdPresets"][0]["description"] == "other",
                 "--replace overwrites the existing preset")
-        c.check(os.path.exists(path + ".bak"), "the file is backed up before it is rewritten")
+        first = backups(path)
+        c.check(len(first) == 1, "the file is backed up before it is rewritten")
+        r = disinstall.install({**preset, "description": "third"}, path, replace=True)
+        second = backups(path)
+        c.check(len(second) == 2 and first[0] in second,
+                "a second install adds a backup instead of overwriting the first")
+        with open(first[0], encoding="utf-8") as f:
+            c.check(json.load(f)["cdPresets"][0]["description"] == "test",
+                    "the first backup still holds the file as it was before any install")
+
+        # A field DiscImageStudio's newer schema has and this tool does not write.
+        with open(path, encoding="utf-8") as f:
+            doc = json.load(f)
+        doc["cdPresets"][0]["usableSectors"] = 330000
+        doc["cdPresets"][0]["description"] = "test"
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(doc, f)
+        r = disinstall.install(preset, path)
+        c.check(r["action"] == "unchanged", "an extra field the tool does not write does not make a preset differ")
+        r = disinstall.install({**preset, "description": "fourth"}, path, replace=True)
+        with open(path, encoding="utf-8") as f:
+            doc = json.load(f)
+        c.check(doc["cdPresets"][0]["usableSectors"] == 330000 and r["kept"] == ["usableSectors"],
+                "--replace keeps a field this tool does not write")
+
         with open(path, "w", encoding="utf-8") as f:
             f.write('{\n  // schema 3\n  "schemaVersion": 3,\n  /* no Blu-ray list yet */\n  "cdPresets": [\n'
                     + json.dumps(preset) + ',\n  ],\n  "dvdPresets": [],\n'
@@ -455,6 +484,36 @@ def _disinstall(c: Checker):
         c.check(r["action"] == "enabled" and r["upgraded"] and doc["schemaVersion"] == 4
                 and doc["bluRayPresets"] == [] and doc["disabledCdPresetIds"] == [],
                 "comments are read, schema 3 is upgraded, and a disabled id is enabled")
+        c.check(r["dropped"] == ["comments", "trailing commas"],
+                "the install reports the comments and trailing commas the rewrite did not keep")
+
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(json.dumps({"schemaVersion": 4, "cdPresets": []}) + "\n/* unterminated\n")
+        with open(path, "rb") as f:
+            before = f.read()
+        try:
+            disinstall.install(preset, path)
+            bad = False
+        except disinstall.InstallError as e:
+            bad = "no closing */" in str(e)
+        with open(path, "rb") as f:
+            after = f.read()
+        c.check(bad and after == before, "an unterminated /* comment is refused and the file is left alone")
+
+        try:
+            disinstall.refuse_same_file(path, path)
+            bad = False
+        except disinstall.InstallError as e:
+            bad = "same file" in str(e)
+        c.check(bad, "--output and --dis-presets on one file are refused")
+        missing = os.path.join(d, "not", "there.json")
+        try:
+            disinstall.refuse_same_file(missing, os.path.join(d, "not", ".", "there.json"))
+            bad = False
+        except disinstall.InstallError:
+            bad = True
+        c.check(bad, "two names for a file that does not exist yet are compared as paths")
+
         dvd = {"id": "t-dvd", "displayName": "T", "description": "test", "totalSectors": 2295104,
                "innerRadiusMm": 24.0, "outerRadiusMm": 58.0, "channelBitLengthNm": 133.3,
                "pitchLinear": 0.0, "pitchQuadratic": 0.0, "pitchCubic": 0.0}
@@ -468,6 +527,46 @@ def _disinstall(c: Checker):
         except disinstall.InstallError:
             bad = True
         c.check(bad, "a pitch that goes negative is refused")
+
+
+def _install_blocker(c: Checker):
+    print("Refusing presets from results nobody should trust")
+    import json
+    import os
+    import tempfile
+    from . import guide
+
+    def result(root, tag, summary, rungs=12):
+        folder = os.path.join(root, f"geo-{tag}-20260101-000000")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump(summary, f)
+        with open(os.path.join(folder, "targets.csv"), "w", encoding="utf-8") as f:
+            f.write("lba,n_bits\n" + "".join(f"{1000 + 100 * i},{i}\n" for i in range(rungs)))
+        return os.path.join(folder, "summary.json")
+
+    fit = {"u": 90000.0, "v": 5.7, "chi2_per_dof": 1.2, "angle_sigma_measured_span_deg": 0.2}
+    good = {"fit": fit, "stopped": None}
+    with tempfile.TemporaryDirectory() as root:
+        c.check(guide.install_blocker(result(root, "SIM-cav-cda", good)) is not None,
+                "a simulated run is refused")
+        c.check("simulated" in guide.install_blocker(result(root, "SIM-cav-cda-1", good)),
+                "and the reason says it was simulated")
+        stopped = guide.install_blocker(result(root, "G", {**good, "stopped": "could not measure the reference"}))
+        c.check(stopped is not None and "stopped" in stopped, "a run that stopped before the fit is refused")
+        c.check(guide.install_blocker(result(root, "G-1", {"stopped": None})) is not None,
+                "a run with no geometry fit is refused")
+        c.check(guide.install_blocker(result(root, "G-2", good, rungs=3)) is not None,
+                "a run with too few points is refused")
+        c.check(guide.install_blocker(result(root, "G-3", {"fit": {**fit, "chi2_per_dof": 40.0}})) is not None,
+                "a run whose fit leaves a large chi2 is refused")
+        c.check(guide.install_blocker(result(root, "G-4", {"fit": {**fit, "angle_sigma_measured_span_deg": 1.5}}))
+                is not None, "a run too noisy to rely on is refused")
+        c.check(guide.install_blocker(result(root, "G-5", good)) is None,
+                "a complete, quiet run of a real disc is installed")
+        audio = {"fit": {**fit, "track": "audio"}, "stopped": None}
+        c.check(guide.install_blocker(result(root, "G-6", audio)) is None,
+                "a CD-DA result is allowed: it is what the audio path of DiscImageStudio is for")
 
 
 def _efmplus(c: Checker):
@@ -557,6 +656,7 @@ def run() -> bool:
         _geo_rotation(c)
         _disexport(c)
         _disinstall(c)
+        _install_blocker(c)
         _efmplus(c)
         _tiles(c)
         from . import cd_selftest

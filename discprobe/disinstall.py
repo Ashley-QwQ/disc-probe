@@ -9,10 +9,16 @@ already there.
 Only that one file is touched. A preset whose id is already present is left alone when its
 values match, refused when they differ (unless --replace is given), and enabled again when
 its id sits in the matching disabled list.
+
+Comments and trailing commas are read but not kept: the rewrite is plain JSON, the same shape
+the app itself saves. `install` says which of them it dropped so the caller can warn. A
+comment that is never closed is refused, and so is writing to the file the export itself is
+about to write (that would have eaten the user's presets before they were read).
 """
 
 from __future__ import annotations
 
+import datetime
 import json
 import math
 import os
@@ -37,41 +43,77 @@ def default_path() -> str:
     return os.path.join(base, "DiscImageStudio", FILE_NAME)
 
 
+def target_path(path: str | None = None) -> str:
+    """Where the presets are written: --dis-presets or DiscImageStudio's own file."""
+    return os.path.abspath(path or default_path())
+
+
+def same_file(first: str, second: str) -> bool:
+    """Whether two paths name one file, existing or not.
+
+    samefile() is the honest test when both exist (it follows links and case); when one does
+    not exist yet there is nothing to stat, so compare the normalised absolute paths.
+    """
+    first, second = os.path.abspath(first), os.path.abspath(second)
+    try:
+        return os.path.samefile(first, second)
+    except OSError:
+        return os.path.normcase(os.path.realpath(first)) == os.path.normcase(os.path.realpath(second))
+
+
+def refuse_same_file(output: str, target: str) -> None:
+    """Refuse an export that would overwrite the preset file before it is read.
+
+    disexport writes --output first and installs afterwards. If both name one file the export
+    has already replaced the presets (and there is no backup, because nothing was read yet),
+    so this has to be checked before anything is written.
+    """
+    if same_file(output, target):
+        raise InstallError(
+            f"--output and the DiscImageStudio preset file are the same file ({target}). The export would "
+            f"overwrite your presets before they are read, so nothing was written. Use another --output "
+            f"name, or omit --output and let --install write only the preset file.")
+
+
 def install(preset: dict, path: str | None = None, replace: bool = False) -> dict:
     """Merge `preset` into the user preset file and return what happened.
 
     Keys: action (added, replaced, enabled, unchanged), path, backup, created, count,
-    upgraded. The file is not rewritten when the preset is already there unchanged.
+    upgraded, dropped (the tolerant syntax the rewrite did not keep), kept (fields of the
+    existing preset this tool does not write, and carried over). The file is not rewritten
+    when the preset is already there unchanged.
     """
     family = _family(preset)
     _validate_preset(preset)
-    path = os.path.abspath(path or default_path())
-    document, text = _read(path)
+    path = target_path(path)
+    document, text, dropped = _read(path)
     created = document is None
     if created:
         document = {"schemaVersion": CURRENT_SCHEMA, "cdPresets": [], "dvdPresets": [],
                     "bluRayPresets": [], "disabledCdPresetIds": [], "disabledDvdPresetIds": [],
                     "disabledBluRayPresetIds": []}
-        upgraded = False
+        upgraded, from_schema = False, CURRENT_SCHEMA
     else:
-        upgraded = _prepare_document(document, path)
+        upgraded, from_schema = _prepare_document(document, path)
     items_key, disabled_key = FAMILIES[family]
     items = document[items_key]
     index = next((i for i, item in enumerate(items) if item.get("id") == preset["id"]), None)
     disabled = document.get(disabled_key)
     was_disabled = isinstance(disabled, list) and preset["id"] in disabled
+    kept: list[str] = []
 
     if index is None:
         items.append(preset)
         action = "added"
-    elif items[index] != preset:
-        if not replace:
-            raise InstallError(f"preset '{preset['id']}' is already in {path} with different values; "
-                               f"pass --replace to overwrite it, or --id to add it under another id")
-        items[index] = preset
-        action = "replaced"
-    else:
+    elif _same_values(items[index], preset):
         action = "unchanged"
+    elif not replace:
+        raise InstallError(f"preset '{preset['id']}' is already in {path} with different values; "
+                           f"pass --replace to overwrite it, or --id to add it under another id")
+    else:
+        kept = sorted(key for key in items[index] if key not in preset)
+        items[index] = {**items[index], **preset}
+        action = "replaced"
     if was_disabled:
         disabled.remove(preset["id"])
         if action == "unchanged":
@@ -80,7 +122,7 @@ def install(preset: dict, path: str | None = None, replace: bool = False) -> dic
     backup = None
     if changed:
         if not created:
-            backup = path + ".bak"
+            backup = _backup_path(path)
             try:
                 shutil.copy2(path, backup)
             except OSError as e:
@@ -91,7 +133,29 @@ def install(preset: dict, path: str | None = None, replace: bool = False) -> dic
         except OSError as e:
             raise InstallError(f"cannot write {path}: {e.strerror or e}") from None
     return {"action": action, "path": path, "backup": backup, "created": created,
-            "count": len(items), "upgraded": upgraded}
+            "count": len(items), "upgraded": upgraded, "from_schema": from_schema,
+            "dropped": dropped, "kept": kept}
+
+
+def _same_values(existing: dict, preset: dict) -> bool:
+    """Whether the existing preset already holds every field this tool writes.
+
+    Extra fields are ignored: DiscImageStudio added an optional `usableSectors` in 1.5.0, and a
+    preset that carries it is still the same preset. It is also why a replace merges instead of
+    replacing wholesale, so that setting survives a re-export.
+    """
+    return all(existing.get(key) == value for key, value in preset.items())
+
+
+def _backup_path(path: str) -> str:
+    """A name that is new every time: the first backup is the file as it was before any install."""
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    candidate = f"{path}.{stamp}.bak"
+    attempt = 1
+    while os.path.exists(candidate):
+        candidate = f"{path}.{stamp}-{attempt}.bak"
+        attempt += 1
+    return candidate
 
 
 def _family(preset: dict) -> str:
@@ -183,24 +247,42 @@ def _pitch_positive(linear: float, quadratic: float, cubic: float) -> bool:
     return check(q / a) and check(c / q)
 
 
-def _read(path: str) -> tuple[dict | None, str | None]:
+def _read(path: str) -> tuple[dict | None, str | None, list[str]]:
+    """The parsed document, its text, and the syntax the rewrite will not keep."""
     try:
         with open(path, encoding="utf-8-sig") as f:
             text = f.read()
     except FileNotFoundError:
-        return None, None
+        return None, None, []
     except OSError as e:
         raise InstallError(f"cannot read {path}: {e.strerror or e}") from None
     try:
         document = json.loads(text)
     except json.JSONDecodeError:
         try:
-            document = json.loads(_strip_trailing_commas(_strip_comments(text)))
+            uncommented = _strip_comments(text)
+        except _UnclosedComment:
+            raise InstallError(f"{path} has a /* comment with no closing */; the file was left alone. "
+                               f"Close or remove the comment and run the install again.") from None
+        trimmed = _strip_trailing_commas(uncommented)
+        notes = []
+        if uncommented != text:
+            notes.append("comments")
+        if trimmed != uncommented:
+            notes.append("trailing commas")
+        try:
+            document = json.loads(trimmed)
         except json.JSONDecodeError as e:
             raise InstallError(f"{path} is not valid JSON: {e.msg} at line {e.lineno}") from None
+    else:
+        notes = []
     if not isinstance(document, dict):
         raise InstallError(f"{path} does not hold a DiscImageStudio preset object")
-    return document, text
+    return document, text, notes
+
+
+class _UnclosedComment(ValueError):
+    """A /* with no */ before the end of the file."""
 
 
 def _strip_comments(text: str) -> str:
@@ -231,10 +313,10 @@ def _strip_comments(text: str) -> str:
                 i += 1
             continue
         if ch == "/" and i + 1 < n and text[i + 1] == "*":
-            i += 2
-            while i + 1 < n and not (text[i] == "*" and text[i + 1] == "/"):
-                i += 1
-            i += 2
+            end = text.find("*/", i + 2)
+            if end < 0:
+                raise _UnclosedComment()
+            i = end + 2
             continue
         out.append(ch)
         i += 1
@@ -275,10 +357,11 @@ def _strip_trailing_commas(text: str) -> str:
     return "".join(out)
 
 
-def _prepare_document(document: dict, path: str) -> bool:
+def _prepare_document(document: dict, path: str) -> tuple[bool, int]:
     """Check the parts of the file this module needs, and migrate it to schema 4.
 
-    Returns True when the document was migrated (the caller then writes it back).
+    Returns whether the document was changed (the caller then writes it back) and the schema
+    it was in, so the caller can say whether it was upgraded or only completed.
     """
     version = document.get("schemaVersion")
     if not _integer(version) or version not in (2, 3, 4):
@@ -299,12 +382,12 @@ def _prepare_document(document: dict, path: str) -> bool:
     if version == CURRENT_SCHEMA:
         if blu_ray is None:
             document["bluRayPresets"] = []
-            return True
-        return False
+            return True, version
+        return False, version
     document["schemaVersion"] = CURRENT_SCHEMA
     if blu_ray is None:
         document["bluRayPresets"] = []
-    return True
+    return True, version
 
 
 def _render(document: dict, crlf: bool) -> str:

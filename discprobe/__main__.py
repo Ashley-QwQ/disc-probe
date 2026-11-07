@@ -613,15 +613,31 @@ def cmd_correction(args):
 
 
 def cmd_disexport(args):
+    from . import disinstall
     from .disexport import export
     if (args.dis_presets or args.replace) and not args.install:
         sys.exit("--dis-presets and --replace only work together with --install")
+    # --install writes the preset file only after the export has written --output. When both name
+    # one file the export has already destroyed the presets by then, so this is checked first.
+    target = None
+    if args.install:
+        try:
+            target = disinstall.target_path(args.dis_presets)
+            disinstall.refuse_same_file(args.output, target)
+        except disinstall.InstallError as e:
+            sys.exit(str(e))
     fit = _geo_fit(args, args.media)
     is_cd = fit.get("media") == "cd"
     if args.media and args.media != ("cd" if is_cd else "dvd"):
         sys.exit(f"--media {args.media} does not match {args.geo}, which measured a {'CD' if is_cd else 'DVD'}")
     if not args.sectors:
         _fail("A preset needs --sectors: the capacity of your disc (`info` prints it)", [guide.sectors_hint(args.geo)])
+    # A preset is used to cut discs and outlives the run: refuse the three kinds of result the
+    # rest of the tool already tells people not to trust.
+    if target:
+        blocker = guide.install_blocker(args.geo)
+        if blocker:
+            _fail(f"Not installing this geo result: {blocker}")
     span = fit["measured_span_mm"] if is_cd else (25.8, 54.4)
     try:
         out = export(args.geo, args.sectors, args.correction, args.output,
@@ -648,12 +664,17 @@ def cmd_disexport(args):
     if args.install:
         from . import disinstall
         try:
-            result = disinstall.install(out["preset"], args.dis_presets, args.replace)
+            result = disinstall.install(out["preset"], target, args.replace)
         except (OSError, ValueError) as e:
             sys.exit(str(e))
         preset_id = out["preset"]["id"]
         if result["created"]:
             print(f"Created {result['path']}")
+        if result["upgraded"] and result["from_schema"] != disinstall.CURRENT_SCHEMA:
+            print(f"Upgraded {result['path']} from preset schema {result['from_schema']} "
+                  f"to {disinstall.CURRENT_SCHEMA}")
+        elif result["upgraded"]:
+            print(f"Added the lists preset schema {disinstall.CURRENT_SCHEMA} needs to {result['path']}")
         if result["action"] == "added":
             print(f"Added preset '{preset_id}' to {result['path']}")
         elif result["action"] == "replaced":
@@ -662,6 +683,10 @@ def cmd_disexport(args):
             print(f"Re-enabled preset '{preset_id}' in {result['path']}")
         else:
             print(f"Preset '{preset_id}' is already in {result['path']} with the same values")
+        if result["kept"]:
+            print(f"Kept its {', '.join(result['kept'])}, which this tool does not write.")
+        if result["dropped"]:
+            print(f"Rewrote the file as plain JSON, so its {' and '.join(result['dropped'])} are not kept.")
         if result["backup"]:
             print(f"Previous file saved as {result['backup']}")
         if result["created"] or result["upgraded"] or result["action"] != "unchanged":

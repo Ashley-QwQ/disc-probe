@@ -188,6 +188,49 @@ def passed_over(chosen: Result, media: str | None = None, out: str = "results") 
     return sum(r.geo_complete() and not r.simulated and not r.reliable() and r.when > chosen.when and (media is None or r.media == media) for r in scan(out))
 
 
+def install_blocker(geo_summary: str) -> str | None:
+    """Why a geo result must not be installed as a DiscImageStudio preset, or None when it may.
+
+    A preset outlives the run it came from: it is used to cut discs, and nothing later says it
+    came from a simulated drive, a ladder that stopped, or a fit that `results` calls too
+    noisy. Everything else in the tool refuses those three, so the install does too. A CD-DA
+    result is allowed: it is what DiscImageStudio's audio path is for, and it passes the same
+    checks.
+    """
+    path = os.path.abspath(geo_summary)
+    folder = os.path.dirname(path)
+    m = RESULT_DIR.match(os.path.basename(folder))
+    if m and m["tag"].startswith("SIM"):
+        return ("this is a simulated run (the result folder says SIM), so the preset would describe a drive "
+                "that does not exist. Measure a real disc, then install that result.")
+    summary = _load(path)
+    if not summary:
+        return None            # not ours to judge: disexport reads the same file and reports what is wrong
+    stopped = summary.get("stopped")
+    if stopped:
+        return (f"this run stopped before the end ({i18n.tr(str(stopped))}), so the ladder never reached the "
+                f"fit. Run geo again and install a run that finished.")
+    fit = summary.get("fit") or {}
+    if "u" not in fit:
+        return "this run has no geometry fit in its summary.json, so there is nothing to install."
+    rungs = 0
+    try:
+        with open(os.path.join(folder, "targets.csv"), encoding="utf-8") as f:
+            rungs = max(0, sum(1 for _ in f) - 1)
+    except OSError:
+        pass
+    chi2 = fit.get("chi2_per_dof")
+    chi2 = float(chi2) if isinstance(chi2, (int, float)) else 0.0
+    if rungs < MIN_RUNGS or chi2 > MAX_LATEST_CHI2:
+        return (f"this run measured {rungs} points and its fit leaves chi2/dof {chi2:.1f}; `results` already "
+                f"treats it as unusable, and a preset is not the place to try it.")
+    sigma = fit.get("angle_sigma_measured_span_deg")
+    if isinstance(sigma, (int, float)) and sigma > BAD_SIGMA_DEG:
+        return (f"this run is too noisy to rely on: angles are known to only {sigma:.2f} deg over the measured "
+                f"span ({_angle(sigma)}). Another speed usually helps; `results` lists what you have.")
+    return None
+
+
 def info_runs(out: str = "results") -> list[Result]:
     return [r for r in scan(out) if r.kind == "info"]
 
