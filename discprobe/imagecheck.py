@@ -81,12 +81,16 @@ def _source_notes(path: str, diameter_mm: float = 116.0) -> list[str]:
     """What only the original file can tell. A file that can't be read again just adds nothing."""
     from PIL import Image
     notes = []
+    limit = Image.MAX_IMAGE_PIXELS
+    Image.MAX_IMAGE_PIXELS = None       # the file `image` has just loaded, so the same size has to pass here
     try:
         with Image.open(path) as im:
             width, height = im.size
             small = np.asarray(im.convert("L").resize((128, 128)), dtype=np.float32) / 255
     except OSError:
         return []
+    finally:
+        Image.MAX_IMAGE_PIXELS = limit
     if abs(width / height - 1) > 0.02:
         notes.append(f"{width} x {height} is not square: it keeps its shape, its longer side fills {diameter_mm:g} mm, and the short sides stay light.")
     if max(width, height) < SMALLEST_SIDE_PX:

@@ -1752,6 +1752,9 @@ def _picture(c) -> None:
         try:
             imagedisc.picture_design(path)
             c.check(Image.MAX_IMAGE_PIXELS == 1000, "a picture above Pillow's size limit loads, and the limit stays for everything else")
+            from . import imagecheck
+            imagecheck._source_notes(path)     # raises if the limit applies: this runs after the ISO is finished
+            c.check(Image.MAX_IMAGE_PIXELS == 1000, "the notes after the ISO read that picture too, and leave the limit alone")
             try:
                 Image.open(path).close()
                 c.check(False, "other code still gets Pillow's refusal")
