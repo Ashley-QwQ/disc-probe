@@ -664,7 +664,7 @@ def after_selftest() -> list[str]:
 
 def after_disexport(cd_constant_open: bool = False) -> list[str]:
     lines = ["Next, check the angle difference above (well under 0.1 deg is fine), then enter the preset in DiscImageStudio",
-             "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.md."]
+             "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.en.md."]
     if cd_constant_open:
         lines.append("On the CD route you can skip --along-track-frames: fine calibration in DiscImageStudio settles that constant.")
     return lines
@@ -731,7 +731,7 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
         lines += ([f"  {note}"] if notes and note else []) + ([f"  {command}"] if command else [])
     if picture and geo:
         lines += ["", *AFTER_BURN]
-    lines += ["", f"All commands: {PROG} -h    One command: {PROG} <command> -h    Details: docs/MANUAL.md"]
+    lines += ["", f"All commands: {PROG} -h    One command: {PROG} <command> -h    Details: docs/MANUAL.en.md"]
     return lines
 
 

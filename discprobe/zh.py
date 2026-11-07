@@ -270,7 +270,7 @@ TEXT = {
     "Much of the picture is mid grey, and it comes out only black or white. More contrast first may keep the detail.": "这张图灰度很多，而刻出来只有黑白两色。先调高对比度可以多保留一些细节。",
     "Then check the drive with it (1 to 3 minutes):": "然后用这张盘检查光驱（1 到 3 分钟）：",
     "Next, check the angle difference above (well under 0.1 deg is fine), then enter the preset in DiscImageStudio": "下一步，看一下上面的角度差（远小于 0.1° 就行），然后把预设填进 DiscImageStudio",
-    "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.md.": "（内外半径、扇区数、三个轨距项）。步骤见 docs/MANUAL.md。",
+    "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.en.md.": "（内外半径、扇区数、三个轨距项）。步骤见 docs/MANUAL.md。",
     "Next, see where you are: {c}": "下一步，看看进行到哪了：{c}",
     "Try --sectors {a} ({b}). Enter the same number in DiscImageStudio. `info` on a blank disc is the count to go by: one user found read-from-disc there too high.":
         "试试 --sectors {a}（{b}）。DiscImageStudio 里也填这个数。以空白盘上 `info` 的数为准：有用户发现它的“从光盘读取”给的数偏大。",
@@ -296,7 +296,7 @@ TEXT = {
     "Try the flow on the simulated drive:": "用模拟光驱走一遍流程：",
     "Where you are, for {m} ({o}: {c}):": "{m} 的进度（要看 {o}：{c}）：",
     "Next:": "下一步：",
-    "All commands: {a}    One command: {b}    Details: docs/MANUAL.md": "全部命令：{a}    单个命令：{b}    详细说明：docs/MANUAL.md",
+    "All commands: {a}    One command: {b}    Details: docs/MANUAL.en.md": "全部命令：{a}    单个命令：{b}    详细说明：docs/MANUAL.md",
     "Python packages": "Python 依赖",
     "Optical drive": "光驱",
     "Random-data disc": "随机数据盘",

@@ -24,7 +24,7 @@ import zipfile
 
 PYTHON = "3.13.14"
 PACKAGES = ("numpy", "pillow", "scipy")
-SOURCE = ("discprobe", "tools", "docs/MANUAL.md", "README.md", "README.en.md", "LICENSE")
+SOURCE = ("discprobe", "tools", "docs/MANUAL.md", "docs/MANUAL.en.md", "README.md", "README.en.md", "LICENSE")
 LEAVE_OUT = ("__pycache__", "tests", "test", "*.pyi", "*.pdb")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

@@ -879,7 +879,7 @@ LANG_NOTE_ZH = ("语言：--lang zh 或 --lang en，也可以设置环境变量 
                 "脚本和管道始终是英文，除非写了 --lang。--no-animation 可以关掉动画。\n"
                 "Tab 补全：python -m discprobe completion install")
 WORKFLOW = """\
-The usual path, on DVD (CD: add --media cd to each command; steps in docs/MANUAL.md):
+The usual path, on DVD (CD: add --media cd to each command; steps in docs/MANUAL.en.md):
   python -m discprobe random --output iso/random.iso    then burn it to a disc
   python -m discprobe timing --drive E:                 can this drive measure?
   python -m discprobe geo --drive E:                    measure the geometry

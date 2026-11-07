@@ -179,7 +179,7 @@ We've tried this on DVD. A flatbed scanner also works, since a scan isn't affect
 
 ### CD route
 
-CD has one more constant that timing can't see, so it takes one more disc for calibration. This is the route we recommend: measure, export a preset, then run fine calibration in [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio). Grid discs, texture rings and the other ways are in the [manual](docs/MANUAL.md#cd-r纹理计时与刻图), which is in Chinese for now.
+CD has one more constant that timing can't see, so it takes one more disc for calibration. This is the route we recommend: measure, export a preset, then run fine calibration in [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio). Grid discs, texture rings and the other ways are in the [manual](docs/MANUAL.en.md#cd-r纹理计时与刻图), which is in Chinese for now.
 
 1. Burn the measuring disc on your first blank. At 8x this took about 11 minutes on a GH70N. The tray opens when the burn ends, and `-Reload` only pulls it back in, without opening it first; on a slim drive, push it in yourself.
 
@@ -323,7 +323,7 @@ The progress line and the games have no background thread, because one could del
 
 `timing` and `geo` raise the process to high priority while measuring. Before 2026-11-06 this always failed on 64-bit Python, so earlier real measurements on 64-bit Python ran at normal priority, including the comparison above. Reports made with this tool on Windows probably did too; ports and other probes may differ. The effect of high priority on jitter hasn't been compared yet.
 
-The opening screen of `guide` is a disc catching the light. Windows Terminal, Ghostty, WezTerm, kitty and the Claude desktop app's terminal draw block characters themselves, so there it's a disc of half-block pixels, dyed further out as the steps get done, with a line-style progress bar (UTF-8 needed). It falls back from that to true colour to 16 colours to plain text, and a small window gets the title alone. The turning disc on the progress line is decoration, not the real speed. Other terminals, such as Windows' old console window, get 7-bit ASCII by default, so no code page or font can break it; `DISCPROBE_UNICODE=1` asks for finer glyphs by hand. `NO_COLOR` turns off colour only; `--no-animation`, `DISCPROBE_NO_ANIMATION=1` and `CI` turn off animation. Details are in the [manual](docs/MANUAL.md#手动使用) (in Chinese).
+The opening screen of `guide` is a disc catching the light. Windows Terminal, Ghostty, WezTerm, kitty and the Claude desktop app's terminal draw block characters themselves, so there it's a disc of half-block pixels, dyed further out as the steps get done, with a line-style progress bar (UTF-8 needed). It falls back from that to true colour to 16 colours to plain text, and a small window gets the title alone. The turning disc on the progress line is decoration, not the real speed. Other terminals, such as Windows' old console window, get 7-bit ASCII by default, so no code page or font can break it; `DISCPROBE_UNICODE=1` asks for finer glyphs by hand. `NO_COLOR` turns off colour only; `--no-animation`, `DISCPROBE_NO_ANIMATION=1` and `CI` turn off animation. Details are in the [manual](docs/MANUAL.en.md#手动使用) (in Chinese).
 
 </details>
 
@@ -359,7 +359,7 @@ The manual, notes and CD model are in Chinese for now.
 
 | Document | Contents |
 |---|---|
-| [Manual](docs/MANUAL.md) | How each command works, its options, outputs and self-test results, including the spoke disc, texture ring disc, multi-hypothesis calibration disc and CD |
+| [Manual](docs/MANUAL.en.md) | How each command works, its options, outputs and self-test results, including the spoke disc, texture ring disc, multi-hypothesis calibration disc and CD |
 | [Notes](docs/KNOWLEDGE.md) | Method, hardware measurements, pitfalls and conclusions |
 | [CD physical model](docs/CD_PHYSICAL_MODEL.md) | CD implementation and timing assumptions |
 | [Showcase](docs/showcase/README.md) | Which disc each photo shows and how it was burned (in English) |
