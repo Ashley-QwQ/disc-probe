@@ -59,6 +59,8 @@ TEXT = {
     "Zone {f} (LBA {l}): T = {t} ms ({r} rpm), jitter {u} us = {d} deg, coherence {c}":
         "位置 {f}（扇区号 {l}）：转一圈 {t} ms（{r} 转/分），抖动 {u} µs = {d}°，周期清晰度 {c}",
     "Zone {f} (LBA {l}): no period found": "位置 {f}（扇区号 {l}）：没找到转动周期",
+    "Zone {f}: reads there completed only every {k} turns, so T = {t} ms ({r} rpm), jitter {d} deg":
+        "位置 {f}：这里每转 {k} 圈才读完一次，按一圈算是 {t} ms（{r} 转/分），抖动 {d}°",
     "Rotation: {m} ({r})": "转速方式：{m}（{r}）",
     "Rotation: {m}": "转速方式：{m}",
     "Target {f}: reference has no clear period; try a fixed speed and measure again": "位置 {f}：参考点没有清晰的周期，试试固定速度再测一次",

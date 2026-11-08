@@ -35,6 +35,7 @@ EVICT_REGION_SECTORS = 32768
 FAR_STEP_SECTORS = 5000
 FAR_COUNTS = (1, 2, 4)      # far reads tried before each timed read on a CD-DA track
 ZONES = (0.05, 0.5, 0.95)
+MULTIPLE_TOLERANCE = 3e-3    # a zone period this close to k times another is k turns per completion
 DEFAULT_TARGETS = (0.15, 0.35, 0.55, 0.75, 0.95)
 
 
@@ -422,7 +423,7 @@ class TimingProbe:
 
     def period_test(self):
         self._experiment = "period"
-        zones = []
+        zones, times_by_zone = [], []
         for frac in ZONES:
             lba = self._align(frac)
             reads = [self._measure(lba, f"zone{frac}") for _ in range(self.period_reads)]
@@ -433,14 +434,40 @@ class TimingProbe:
             if fit:
                 zone.update(fit.summary())
             zones.append(zone)
+            times_by_zone.append(times)
             self.log(f"Zone {frac:.2f} (LBA {lba}): " + (
                 f"T = {zone['period_ms']} ms ({zone['rpm']} rpm), jitter {zone['jitter_us']} us "
                 f"= {zone['jitter_deg']} deg, coherence {zone['coherence']}" if fit else "no period found"))
+        self._resolve_multiples(zones, times_by_zone)
         self.zones = zones
         self.summary["period"] = {"zones": zones, "rotation": self._classify(zones)}
         rotation = self.summary["period"]["rotation"]
         self.log(f"Rotation: {rotation['mode']}" + (f" ({rotation['reason']})" if "reason" in rotation else ""))
         self._check_period(zones)
+
+    def _resolve_multiples(self, zones, times_by_zone):
+        """A zone whose period is a whole multiple of another zone's: the drive there completed reads only
+        every k turns (seen on a GH70N: 62.22 ms at the inner zone, 20.75 ms elsewhere). The completions
+        then fit k turns as well as one, and the period search takes the longest, so refit with the
+        shorter period as the prior. A real speed change would not land on a whole multiple."""
+        clear = [z for z in zones if z.get("period_ms") and z.get("coherence", 0) > 0.5]
+        if len(clear) < 2:
+            return
+        base = min(z["period_ms"] for z in clear)
+        for zone, times in zip(zones, times_by_zone):
+            if zone not in clear:
+                continue
+            k = round(zone["period_ms"] / base)
+            if k < 2 or abs(zone["period_ms"] / (k * base) - 1) > MULTIPLE_TOLERANCE:
+                continue
+            fit = analysis.estimate_period(times, prior_s=base / 1e3)
+            if not fit or fit.coherence <= 0.5 or abs(fit.period_s * 1e3 / base - 1) > MULTIPLE_TOLERANCE:
+                continue
+            completion = zone["period_ms"]
+            zone.update(fit.summary())
+            zone.update(completion_period_ms=completion, completes_every_turns=k)
+            self.log(f"Zone {zone['fraction']:.2f}: reads there completed only every {k} turns, so T = "
+                     f"{zone['period_ms']} ms ({zone['rpm']} rpm), jitter {zone['jitter_deg']} deg")
 
     def _check_period(self, zones):
         """Catch a period that is not the spindle. A re-read from the disc takes whole turns on every

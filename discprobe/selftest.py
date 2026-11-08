@@ -233,6 +233,49 @@ def _zone_conflict(c: Checker):
     zones[1]["period_ms"] = 20
     zones[1]["coherence"] = 0.1
     c.check(probe._classify(zones)["mode"] == "unknown", "incoherent middle zone is unknown")
+    _whole_turn_zone(c, probe)
+
+
+def _zone_from_times(fraction, lba, times):
+    zone = {"fraction": fraction, "lba": lba, "nominal_radius_mm": round(timing.NOMINAL["dvd"].radius(lba), 3)}
+    zone.update(analysis.estimate_period(times).summary())
+    return zone
+
+
+def _whole_turn_zone(c: Checker, probe):
+    """A zone completing only every k turns is CAV at the shorter period; a real speed change is not."""
+    import json
+    import os
+    import random
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "evidence", "drive",
+                        "gh70n_three_turn_zone.json")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            real = json.load(f)["zones"]
+        times = [z["t_end_ns"] for z in real]
+        zones = [_zone_from_times(z["fraction"], z["lba"], t) for z, t in zip(real, times)]
+        c.check(probe._classify(zones)["mode"].startswith("mixed"), "GH70N three-turn zone alone looks mixed")
+        probe._resolve_multiples(zones, times)
+        inner = zones[0]
+        c.check(probe._classify(zones)["mode"] == "CAV" and inner.get("completes_every_turns") == 3
+                and abs(inner["period_ms"] - zones[1]["period_ms"]) < 0.02,
+                f"GH70N three-turn zone resolved: T {inner['period_ms']} ms, every {inner.get('completes_every_turns')} turns")
+    else:
+        print("  (skipped the GH70N record: evidence/ is not part of this copy)")
+    rnd = random.Random(4)
+
+    def completions(period_ms, step=1):
+        n, out = 0, []
+        for _ in range(60):
+            n += step * rnd.randint(1, 4)
+            out.append(round((n * period_ms + rnd.gauss(0, 0.02)) * 1e6))
+        return out
+    # CLV whose outer zone happens to turn at exactly half the inner speed: the middle zone still differs.
+    times = [completions(20.0), completions(30.0), completions(40.0)]
+    zones = [_zone_from_times(f, lba, t)
+             for f, lba, t in zip((0.05, 0.5, 0.95), (107248, 1072560, 2037888), times)]
+    probe._resolve_multiples(zones, times)
+    c.check(probe._classify(zones)["mode"] != "CAV", "a speed change landing on a whole multiple is not CAV")
 
 def _timer_tick(c: Checker):
     print("timer tick diagnosis")
