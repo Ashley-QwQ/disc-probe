@@ -154,7 +154,7 @@ Sudoku's size is chosen the first time it comes up and does not change during th
 
 Like the progress line, the games have no background threads: reading keys, moving and drawing all happen in the random wait before a timed read. Only changed cells are drawn, and each game uses its own random numbers. The Merge Sectors save is only written when the progress line closes, never between two reads. On the simulated drive, measuring while playing all four games with the same seed gives the same `summary` and events, entry for entry, as not playing. This has not been compared on a real drive; when measuring an important disc, do not press `g`.
 
-**Local files.** Besides `results` and generated images, the program only writes two small files in `%LOCALAPPDATA%\disc-probe\` (`~/.local/state/disc-probe/` on other systems): `games.json` holds the Merge Sectors board and high scores, and `tutorial_offered` records that the walkthrough has been offered. An unreadable save starts a new game, and a failed save does not affect measurement. Files written for Tab completion are described above. All of these can be deleted directly.
+**Local files.** Measurements go in `results`, browser-editor pictures and export records default to `art/editor`, and disc images go to the path given in the command. The program also writes two small files in `%LOCALAPPDATA%\disc-probe\` (`~/.local/state/disc-probe/` on other systems): `games.json` holds the Merge Sectors board and high scores, and `tutorial_offered` records that the walkthrough has been offered. An unreadable save starts a new game, and a failed save does not affect measurement. Files written for Tab completion are described above. These two state files can be deleted directly; keep your artwork and measurements if you still need them.
 
 Animation still runs at no more than 8 frames per second, like the previous progress line, but a coloured frame writes more bytes than before. `timing` was compared with the old progress line: the difference with and without it (0.01 to 0.20°) matched the difference between repeat measurements (0.02 to 0.23°). Neither the new animation nor `geo` has been compared on a real drive yet; if this concerns you, add `--no-animation`, or run through a pipe or with `DISCPROBE_PLAIN=1`.
 
@@ -512,6 +512,59 @@ Once the geometry has been measured from timing, it can be used directly to gene
 - `discprobe/tilephoto.py`: reads phone photos. It uses the disc-edge ellipse and the image of the disc centre to find the vanishing line, fits a homography, then checks it against the numbers. `tools/flash_lut_tiles.py` calculates the camera position from flash photos and builds a lookup table of "texture × viewing geometry → colour".
 
 **Viewing advice:** The rainbow "pizza slices" are diffraction from the factory groove. View near the specular direction of a small, bright light source (with the light right next to your eye or camera), and the picture is visible across the whole disc. See [`KNOWLEDGE.md`](KNOWLEDGE.md) (in Chinese) §10 to §10f.
+
+### Local browser editor
+
+`editor` lets you design the data-side artwork for a standard 120 mm CD/DVD in a browser, then pass the picture to the existing `image` command. It uses native Canvas 2D and a local HTTP server from Python's standard library, with no extra runtime dependencies, web framework, build step or CDN. The page connects only to `127.0.0.1`; pictures are processed in the browser and exported to your computer, not uploaded to the internet. Editing needs neither a drive nor administrator access.
+
+```bash
+python -m discprobe editor --geo latest
+# With a photo correction, choose its matching measurement:
+python -m discprobe editor --geo results/geo-H-... --correction correction.json
+```
+
+By default it opens a browser and prints the local address. `--no-browser` only prints the address; `--port` selects a port (`0`, the default, picks a free one). `--geo` also accepts a result folder, `summary.json` or `pick`. You can arrange and export artwork before measuring, but must complete `geo` before building a disc image. Invalid, interrupted, simulated, low-quality or wrong-media measurements do not produce a ready-to-use generation command.
+
+**Disc and controls.** The canvas is 120 × 120 mm with a 15 mm physical centre hole. The edge of that hole is not the start of the writable data area. The default drawable ring has radii of 24.5–56 mm for DVD and 26–56 mm for CD; artwork outside it is exported blank. Change this with `--r-min` / `--r-max` or the radius fields in the page, up to a 58 mm outer radius. This does not guarantee that your disc capacity or measurement covers that area: check the selected disc and measurement first. Use wheel zoom, view panning and image dragging, plus fit-to-window and native-grid views. Image size and position are in mm.
+
+- **Pictures and layers:** add one or more local pictures, change position, proportional size, rotation, opacity, order, visibility and locking, and duplicate or delete layers. Normal, multiply and screen blending are available. Original pictures are kept; adjustments and background removal do not alter their source files.
+- **Plain-background removal:** select a layer, pick its background colour, set tolerance and edge softness, preview, then press Apply. Cancel the preview or restore the background to undo it. Parts of the subject close to the chosen colour may also disappear; this is not AI subject selection.
+- **Greyscale and detail:** adjust the selected layer's exposure, brightness, contrast, highlights, shadows, black and white points, gamma, curve, RGB-to-grey mix, inversion and highlight/shadow compression. Sharpening has radius and threshold controls; there are also local contrast, texture, denoise and grain controls. Auto levels, auto enhance and presets provide starting points. Copy settings between layers, undo/redo edits, and use the histogram and clipping warnings to check lost tones.
+
+**Resource limits.** There can be at most 16 layers. Each source picture is limited to 36 megapixels (MP) and 24 MiB; retained source pictures together may contain at most 48 MP of decoded pixels. Duplicated layers share their source, which is counted once. The layer-preview raster cache is capped at 12 MP. At the native 6000 px size, layers are processed and their intermediate rasters released one at a time, rather than keeping a full canvas for every layer. These are picture and cache limits, not a guarantee of total browser memory use; large pictures still need enough memory.
+
+**Dithering and output compensation.** Choose Floyd–Steinberg error diffusion, ordered Bayer, blue noise, clustered dots or a plain threshold. Strength, cell size, angle and seed apply according to the algorithm. Target grey levels simplify the tones before dithering; they do not count physical textures on a disc. The current `image --picture` handoff is a binary dot pattern using two endpoint textures, not 256 directly writable physical shades. Resampling offers nearest-neighbour, linear and browser high-quality modes.
+
+The output compensation curve maps desired grey to light-endpoint coverage. Enter values from your own tests, and save/load them with the dithering settings as an output-profile JSON file. The default Identity profile is uncalibrated. A user curve is not automatically a measured reflectance model, and does not replace geometry, photo correction or the CD along-track constant. The soft preview only illustrates dot averaging; it does not predict reflected brightness, diffraction colour or real optical resolution. Fast and fine previews are lower-resolution approximations; their dots do not match the export pixel for pixel. For a final detail check, apply or cancel any background-removal preview, then select output dots (输出网点) and native grid (原生网格，较慢). This calculates at 6000 × 6000 with the same binary processing pipeline as export. Also inspect the actual exported PNG.
+
+**Saving and returning to the terminal.** Save project downloads a `.discproject.json` containing the source pictures and non-destructive layer settings. Reopen it in an editor launched with the same `--media`. A PNG is a flattened picture, not separable layers. Save output profile downloads a `.discprofile.json` for reusing output settings with the same medium. These downloads use the browser's download folder. Export instead writes through the local server into a new subfolder under `art/editor` (change with `--output-dir`), without overwriting previous artwork:
+
+| File | Purpose |
+| --- | --- |
+| `disc.png` | Final pure black-and-white dot pattern. The generation command uses this file to keep the calculated dithering. |
+| `disc.grayscale.png` | Continuous-tone, flattened greyscale artwork for further editing, saved by default; this option can be unchecked. Passing it straight to `--picture` thresholds it and does not reproduce the original dithering. |
+| `disc.editor.json` | Export settings, geometry paths, warnings and next-command record. It does not embed source pictures and is not a replacement for the project file. |
+
+Both PNGs are 6000 × 6000 and represent the full 120 × 120 mm canvas. The next command must use `--diameter-mm 120`, not the usual 116 mm picture default, or the layout will shrink. The current image writer has a **0.02 mm, or 20 μm, design grid**. This is a software grid, not the burner's physical resolution; it does not provide 2 μm output. Zooming in does not add final grid cells.
+
+Exit local server after export is checked by default. After a successful export, the original terminal returns to its prompt while the page keeps the full paths and copy button. Choose the command for your shell: PowerShell, CMD or bash/zsh, then paste it there. It carries the medium, concrete measurement path, correction and CD settings forward and chooses a new output name under `iso`. The editor never executes this command, builds an ISO or burns a disc itself. Uncheck this option for repeated exports; when finished, press `Ctrl+C` in the original terminal. Closing the browser tab alone does not stop the server. Save the project before ending the session if you need to keep editable layers.
+
+For CD, for example:
+
+```bash
+python -m discprobe editor --media cd --geo latest --along-track-frames 206
+```
+
+Here `206` is only an example; use the along-track constant measured for your drive and burn path. `--cd-sector` defaults to `mode2form1`, with `mode1` also available; the editor carries this choice to the next command. A CD audio-track measurement cannot be used by the current data-track `image` route, so that command is explicitly withheld.
+
+**Developer checks.** Run these from the repository root; no optical drive is needed. Node and Playwright are development-test tools, not editor runtime dependencies:
+
+```bash
+python -m discprobe.editor_selftest
+node --test tests/editor_processing.test.mjs
+# Optional browser integration test; install Playwright and its Chromium for development:
+node tests/editor_browser.mjs
+```
 
 ## CD-R: textures, timing and burning pictures
 

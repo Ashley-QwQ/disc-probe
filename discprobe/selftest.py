@@ -1171,5 +1171,7 @@ def _run() -> bool:
         cal_selftest.run(c)
     from . import ui_selftest
     ui_selftest.run(c)
+    from . import editor_selftest
+    editor_selftest.run(c)
     print(f"\n{'all checks passed' if c.failures == 0 else f'{c.failures} check(s) failed'}")
     return c.failures == 0

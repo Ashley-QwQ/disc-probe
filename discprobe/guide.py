@@ -600,6 +600,8 @@ def after_geo(args, res: dict, out: str) -> list[str]:
               "  Enter the same --sectors in DiscImageStudio.",
               f"  {why}"]
     picture = f"  {PROG} image{flag} --geo {geo}{correction} --picture my_picture.png --output iso/picture.iso"
+    editor = ["Or arrange layers and adjust greyscale in the local browser editor:",
+              f"  {PROG} editor{flag} --geo {geo}{correction}"]
     if res.get("track") == "audio":
         return lines + ["Next, export a DiscImageStudio preset. This was measured on the audio track, so no other constant is needed:",
                         *preset,
@@ -611,10 +613,10 @@ def after_geo(args, res: dict, out: str) -> list[str]:
         return lines + ["Next, export a DiscImageStudio preset. CD has one more constant that timing cannot see, and fine",
                         "calibration there settles it on one more blank disc (the CD route in README.md):", *preset,
                         "Or make a picture ISO now (replace my_picture.png); radial lines may come out twisted without that constant:",
-                        where, picture]
+                        where, picture, *editor]
     return lines + ["Next, make a picture ISO (replace my_picture.png with your image):", where, picture,
                     f"To move or size the picture on the disc first: {PROG} edit my_picture.png",
-                    "Or export a DiscImageStudio preset:", *preset]
+                    *editor, "Or export a DiscImageStudio preset:", *preset]
 
 
 def after_geo_stop(args, reason: str, unreadable=()) -> list[str]:
@@ -845,6 +847,9 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
         commands += [(first, f"{PROG} image{flag} --geo latest --picture my_picture.png --output iso/picture.iso"),
                     ("Or export a preset for DiscImageStudio (enter the same --sectors there; `info` on a blank disc gives the count):",
                      f"{PROG} disexport --media {media} --geo latest --sectors {sectors} --output dis_preset.json")]
+        if notes and geo.fit.get("track") != "audio":
+            commands.insert(1 if picture else 0, ("Or arrange layers and adjust greyscale in the local browser editor:",
+                                                  f"{PROG} editor{flag} --geo {short(geo.path)}"))
 
     other = "cd" if media == "dvd" else "dvd"
     lines = [f"Where you are, for {media.upper()} ({other.upper()}: {PROG} guide --media {other}):", ""]

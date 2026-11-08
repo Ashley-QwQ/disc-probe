@@ -159,7 +159,15 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
 ```
 
-在终端里，它结束时会画一张盘面缩略图，并提醒几乎全黑或全白、内容落在可绘制区域之外或盘中间、分辨率过低这类情况。这些只是提醒，不会阻止生成，判断的门槛也还没用真盘校准。刻之前先看预览图。刻完运行 `guide`，它会讲怎么看盘，以及看到不同结果该怎么办。
+想先在盘面上排图、调灰阶和抖动，可以打开[本地网页编辑器](docs/MANUAL.md#本地网页编辑器)：
+
+```bash
+python -m discprobe editor --geo latest
+```
+
+它支持图片图层、缩放拖拽和吸色去背景，不需要联网或额外安装网页框架。有修正文件时加 `--correction correction.json`；做 CD 时加 `--media cd`。导出会保存图片，并给出带完整路径和 `--diameter-mm 120` 的下一条 `image` 命令。默认导出后释放终端，复制命令接着做即可；编辑器本身不生成 ISO，也不刻盘。
+
+在终端里，`image` 结束时会画一张盘面缩略图，并提醒几乎全黑或全白、内容落在可绘制区域之外或盘中间、分辨率过低这类情况。这些只是提醒，不会阻止生成，判断的门槛也还没用真盘校准。刻之前先看预览图。刻完运行 `guide`，它会讲怎么看盘，以及看到不同结果该怎么办。
 
 想继续用 DiscImageStudio 的话，可以导出预设。`--sectors` 填你这张盘的扇区数（对空白盘运行 `info` 会打印，DiscImageStudio 里也填这个数；填多了可能封盘失败），半径范围填 `geo` 实际测到的范围，有修正文件的话同样加 `--correction correction.json`。`geo` 跑完打印的命令已经填好这些值。程序会打印和测量结果的转换误差，先看一眼再刻。加上 `--install` 会把预设直接加进 DiscImageStudio 的用户预设文件（`%LOCALAPPDATA%\DiscImageStudio\disc-presets.json`），重启 DiscImageStudio 后就能在预设列表里选到：写之前先备份成 `disc-presets.json.<日期>-<时间>.bak`，每次都是新名字，所以最早那份备份始终是安装任何预设之前的文件。文件里的注释和尾逗号能读，但写回时会去掉；模拟盘的结果、中途停下的结果和噪声太大的结果会被拒绝。它不写的字段会原样保留，但值已经不适用时（比如 `usableSectors` 大于这次的扇区数）会删掉并提示，否则 DiscImageStudio 会因为这一个字段整个文件都读不了。不加 `--install` 则只生成 JSON，需要手动填：新建工程，填内外半径、扇区数和一二三次项：
 
@@ -323,7 +331,7 @@ Linux 版由 bczhc 移植：[bczhc/disc-probe](https://github.com/bczhc/disc-pro
 - 进度：`timing`、`geo` 和写 ISO 时显示同样的状态行。窗口窄时依次省掉部分内容，不会折行。按 Ctrl+C 会保留已测的部分并说明位置。在 Windows Terminal 等支持的终端里，标签页和任务栏按钮也会显示进度。宽窗口里 `timing`、`geo` 的进度行还有最近 12 次读取耗时的小图。
 - 数据行：在终端里，`timing` 的 Zone 和 Target 行按列对齐。管道和脚本拿到的还是原来的字节。
 - 小游戏：测量时按 `g` 打开，`n` 换下一款，`q` 关闭。贪吃蛇：方向键或 WASD 转向，`r` 再来一局。刻满：方块从右边飞进来往左堆，上下移动，右键旋转，左键快落，排满一列就消掉。合并扇区：方向键滑动，相同的块合并翻倍（`2K`、`4K`……），棋盘留到下次等待接着玩。数独：方向键移动，数字键填，`0` 或空格清除；打开时估计还剩 30 秒到 2 分钟是 4×4，2 分钟以上是 6×6（2×3 宫），不足 30 秒不提供。测量输出照常打印在它上方。不按 `g` 就没有这些，管道、`DISCPROBE_PLAIN=1` 和 `--no-animation` 下也不会出现。
-- 本地文件：除了 `results` 和生成的镜像，程序只在 `%LOCALAPPDATA%\disc-probe\`（其他系统是 `~/.local/state/disc-probe/`）写两个小文件：`games.json` 存合并扇区的棋盘，只在进度行关闭时写；`tutorial_offered` 记录问过教程。Tab 补全另外写的文件见上面。这些都可以直接删除。
+- 本地文件：测量写到 `results`，编辑器默认把图片和导出记录写到 `art/editor`，镜像写到命令指定的路径。程序另外在 `%LOCALAPPDATA%\disc-probe\`（其他系统是 `~/.local/state/disc-probe/`）写两个小文件：`games.json` 存合并扇区的棋盘，只在进度行关闭时写；`tutorial_offered` 记录问过教程。Tab 补全另外写的文件见上面。这两个状态文件可以直接删除；作品和测量结果请按需要保留。
 
 进度行和小游戏都没有后台线程，因为后台线程可能拖后完成时间戳。它们在主线程里，趁每次计时读之前的随机等待来画，花掉的时间从等待里扣。在模拟驱动器上，相同种子下加不加这些、玩不玩四款游戏，`summary` 和事件逐条相同。动画每秒最多 8 帧，和之前的进度行一样，但带颜色时每帧写的字节更多。`timing` 比较过旧进度行：有无它的差别（0.01–0.20°）和重复测量的差别（0.02–0.23°）相同。新动画、小游戏和 `geo` 还没在真实光驱上比较过，介意的话加 `--no-animation`，或者用管道跑，重要的测量也别玩游戏。
 

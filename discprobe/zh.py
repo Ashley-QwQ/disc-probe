@@ -7,6 +7,31 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    # Local artwork editor
+    "open the lightweight local disc-art editor and export back to the terminal": "打开轻量本机网页光盘编辑器，导出后接回终端",
+    "disc type for this editor session (default: dvd)": "本次编辑的盘型（默认 dvd）",
+    "CD sector layout to carry into the generated image command": "传给下一条 image 命令的 CD 扇区格式",
+    "directory for new artwork export folders (default: art/editor)": "新建图案导出文件夹的位置（默认 art/editor）",
+    "inner drawing radius in mm (DVD default 24.5, CD default 26)": "可绘制内半径，单位 mm（DVD 默认 24.5，CD 默认 26）",
+    "outer drawing radius in mm, at most 58 (default: 56)": "可绘制外半径，单位 mm，最大 58（默认 56）",
+    "local port; 0 chooses a free port (default: 0)": "本机端口；0 表示自动选择空闲端口（默认 0）",
+    "print the local URL without opening a browser": "只打印本机网址，不自动打开浏览器",
+    "Or arrange layers and adjust greyscale in the local browser editor:": "也可以先在本机网页编辑器中排图层、调灰阶：",
+    "Disc artwork editor (local only; no drive is accessed):": "光盘图案编辑器（仅本机访问，不碰光驱）：",
+    "Export and continue returns to this terminal. Ctrl+C closes the editor without exporting.": "点击“导出并继续”后回到此终端。Ctrl+C 关闭编辑器，不导出。",
+    "The browser did not open automatically. Copy the local URL above into your browser.": "浏览器没有自动打开。请把上面的本机网址复制到浏览器。",
+    "Editor closed.": "编辑器已关闭。",
+    "Artwork saved:": "图案已保存：",
+    "Next, paste this command in the same terminal:": "下一步，把这条命令粘贴到同一个终端：",
+    "No compatible geometry is selected. Choose a data-disc measurement before making an ISO.": "没有选中兼容的几何测量。生成 ISO 前，请先选择一次数据盘测量。",
+    "The image writer uses a 20 micrometre design grid. This is not a prediction of optical resolution or reflected brightness.": "当前镜像生成器采用 20 微米设计网格。这不是对实际光学分辨率或反射亮度的预测。",
+    "No measured geometry is selected. You can edit and export now; run geo before using the image command.": "尚未选中实测几何。现在可以编辑、导出；运行 image 命令前需要先测 geo。",
+    "The selected geometry is missing or invalid. Export is available, but no image command will be offered.": "选中的几何不存在或无效。仍可导出图片，但不会提供 image 命令。",
+    "The selected geometry is for another medium or a CD audio track. It cannot be used by the data-track image writer.": "选中的几何来自另一盘型或 CD 音轨，不能用于这里的数据轨镜像生成器。",
+    "This geometry is simulated or stopped early. Export is available, but do not burn from this measurement.": "这份几何来自模拟盘或提前停止的测量。可以导出图案，但不要按此测量刻盘。",
+    "The selected geometry failed the existing measurement-quality checks. Run results or geo before generating a disc image.": "选中的几何没有通过现有测量质量检查。生成镜像前先运行 results 或重新测 geo。",
+    "The correction file is invalid or belongs to another geometry. Export is available, but no image command will be offered.": "修正文件无效或属于另一份几何。可以导出图案，但不会提供 image 命令。",
+    "CD needs a measured along-track constant for this drive and burn path; the editor cannot determine it.": "CD 还需要这台光驱和刻录路径实测的沿轨常数；编辑器不能替你测出它。",
     # Terms that appear inside other messages
     "CAV": "恒定转速 (CAV)",
     "CLV": "恒定线速度 (CLV)",
@@ -755,6 +780,16 @@ TEXT = {
 }
 
 BLOCKS = {
+    "editor": """\
+示例：
+  python -m discprobe editor
+  python -m discprobe editor --geo latest --correction correction.json
+  python -m discprobe editor --media cd --along-track-frames 206 --output-dir art/editor
+  python -m discprobe editor --no-browser
+
+编辑器只监听 127.0.0.1，不访问光驱。“导出并继续”会保存 120 mm、6000 × 6000 的
+二值 PNG，再打印下一条 image 命令。编辑时请保持这个终端打开。
+CD 仍需要针对当前光驱与刻录路径实测的沿轨常数；206 仅为示例。""",
     "completion": """\
 给 disc-probe 加上 Tab 补全。一条命令就能装好：
   python -m discprobe completion install

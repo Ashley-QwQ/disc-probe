@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="disc-probe 本地图层与灰阶编辑器，在标准 CD / DVD 数据面上设计图案。">
+    <title>光盘设计 · disc-probe</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/editor.css">
+    <script type="module" src="/editor.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#workspace">跳到设计画布</a>
+    <header class="app-header">
+      <div class="brand" aria-label="disc-probe 光盘设计">
+        <span class="brand-disc" aria-hidden="true"><span></span></span>
+        <div class="brand-text"><span class="wordmark">disc-probe</span><span class="brand-subtitle">光盘设计 <span class="brand-divider">/</span> DISC DESIGNER</span></div>
+      </div>
+      <div class="header-actions" aria-label="文件操作">
+        <button id="add-images" class="button button-accent" type="button"><span aria-hidden="true">＋</span> 添加图片</button>
+        <div class="history-actions" role="group" aria-label="编辑历史">
+          <button id="undo" class="icon-button" type="button" title="撤销 · Ctrl / ⌘ Z" aria-label="撤销">↶</button>
+          <button id="redo" class="icon-button" type="button" title="重做" aria-label="重做">↷</button>
+        </div>
+        <div class="project-actions" role="group" aria-label="工程文件">
+          <button id="open-project" class="button button-quiet" type="button">打开工程</button>
+          <button id="save-project" class="button button-quiet" type="button">保存工程</button>
+        </div>
+        <button id="export-open" class="button button-dark" type="button">导出与继续 <span aria-hidden="true">↗</span></button>
+      </div>
+      <input id="image-files" type="file" accept="image/png,image/jpeg,image/webp,image/bmp" multiple hidden aria-label="选择要添加的图片">
+      <input id="project-file" type="file" accept=".json,application/json" hidden aria-label="打开光盘设计工程">
+      <input id="profile-file" type="file" accept=".json,application/json" hidden aria-label="打开输出配置">
+    </header>
+
+    <div class="app-body">
+      <aside class="sidebar sidebar-left" aria-label="图层和光盘设置">
+        <details class="sidebar-section layer-section" open>
+          <summary class="section-heading"><span><span class="eyebrow">COMPOSITION</span>图层</span><span class="section-disclosure" aria-hidden="true">⌄</span></summary>
+          <div class="section-body">
+            <p class="help-text intro-help">选择图层，在画布上拖动位置。</p>
+            <ol id="layer-list" class="layer-list" aria-label="图片图层列表"></ol>
+            <div class="layer-actions" role="group" aria-label="图层操作">
+              <button id="layer-up" type="button" title="向上移动图层" aria-label="向上移动图层">上移 ↑</button>
+              <button id="layer-down" type="button" title="向下移动图层" aria-label="向下移动图层">下移 ↓</button>
+              <button id="layer-duplicate" type="button">复制</button>
+              <button id="layer-delete" class="button-danger" type="button">删除</button>
+            </div>
+            <div class="field">
+              <label for="layer-name">图层名称</label>
+              <input id="layer-name" type="text" maxlength="120" placeholder="选择一个图层" autocomplete="off">
+            </div>
+            <div class="field-grid">
+              <div class="field"><label for="layer-x">水平 X <span class="unit">mm</span></label><input id="layer-x" type="number" value="0" min="-240" max="240" step="0.1" inputmode="decimal"></div>
+              <div class="field"><label for="layer-y">垂直 Y <span class="unit">mm</span></label><input id="layer-y" type="number" value="0" min="-240" max="240" step="0.1" inputmode="decimal"></div>
+              <div class="field"><label for="layer-width">宽度 <span class="unit">mm</span></label><input id="layer-width" type="number" value="90" min="0.1" max="500" step="0.1" inputmode="decimal"></div>
+              <div class="field"><label for="layer-rotation">旋转 <span class="unit">°</span></label><input id="layer-rotation" type="number" value="0" min="-360" max="360" step="0.5" inputmode="decimal"></div>
+              <div class="field"><label for="layer-opacity">不透明度 <span class="unit">%</span></label><input id="layer-opacity" type="number" value="100" min="0" max="100" step="1" inputmode="numeric"></div>
+              <div class="field"><label for="layer-blend">混合模式</label><select id="layer-blend"><option value="source-over">正常 · Normal</option><option value="multiply">正片叠底 · Multiply</option><option value="screen">滤色 · Screen</option></select></div>
+            </div>
+            <label class="check-field" for="layer-lock"><input id="layer-lock" type="checkbox"><span>锁定图层</span></label>
+            <p class="help-text">盘心为原点，X 向右、Y 向上；旋转为顺时针。宽度以 mm 计，调整时保持图片比例。</p>
+          </div>
+        </details>
+
+        <details class="sidebar-section key-section">
+          <summary class="section-heading"><span><span class="eyebrow">COLOR KEY</span>纯色背景去除</span><span class="section-disclosure" aria-hidden="true">⌄</span></summary>
+          <div class="section-body">
+            <p class="help-text">在选中图层上吸取背景色，调整容差后预览。只有点击「确认扣除」才会应用。</p>
+            <div class="key-color-row">
+              <button id="key-pick" class="button" type="button" aria-pressed="false">从画布吸色</button>
+              <label class="swatch-field" for="key-color"><span>背景色</span><input id="key-color" type="color" value="#ffffff" aria-label="要去除的背景颜色"></label>
+            </div>
+            <div class="slider-control"><div class="control-heading"><label for="key-tolerance">颜色容差</label><output id="key-tolerance-value" for="key-tolerance">8%</output></div><input id="key-tolerance" type="range" min="0" max="100" step="1" value="8"></div>
+            <div class="slider-control"><div class="control-heading"><label for="key-softness">边缘柔化</label><output id="key-softness-value" for="key-softness">2%</output></div><input id="key-softness" type="range" min="0" max="100" step="1" value="2"></div>
+            <div class="button-row"><button id="key-preview" class="button" type="button">预览扣除</button><button id="key-apply" class="button button-accent" type="button">确认扣除</button></div>
+            <div class="button-row"><button id="key-cancel" class="button button-quiet" type="button">取消预览</button><button id="key-clear" class="button button-quiet" type="button">恢复背景</button></div>
+          </div>
+        </details>
+
+        <details class="sidebar-section disc-section" open>
+          <summary class="section-heading"><span><span class="eyebrow">DISC SETUP</span>光盘与画布</span><span class="section-disclosure" aria-hidden="true">⌄</span></summary>
+          <div class="section-body">
+            <div class="field"><label for="media-label">介质 / 标准尺寸</label><input id="media-label" type="text" value="DVD · 120 mm" readonly></div>
+            <div class="field"><label for="geometry-label">几何配置</label><input id="geometry-label" type="text" value="正在读取启动配置…" readonly></div>
+            <div class="field-grid">
+              <div class="field"><label for="disc-inner">绘图区内半径 <span class="unit">mm</span></label><input id="disc-inner" type="number" min="24.5" max="57.9" step="0.01" value="24.5" inputmode="decimal"></div>
+              <div class="field"><label for="disc-outer">绘图区外半径 <span class="unit">mm</span></label><input id="disc-outer" type="number" min="24.51" max="58" step="0.01" value="56" inputmode="decimal"></div>
+            </div>
+            <label class="swatch-field canvas-background" for="disc-background"><span>画布背景 · 灰阶</span><input id="disc-background" type="color" value="#ffffff" aria-label="光盘画布背景颜色，自动转换为灰阶"></label>
+            <div class="disc-facts"><span>盘径 <b>120 mm</b></span><span>中心孔 <b>15 mm</b></span><span>输出网格 <b>20 μm</b></span></div>
+            <p class="help-text">这里设置可设计的环形区域，不会修改测量得到的螺旋几何。</p>
+          </div>
+        </details>
+        <div class="local-note"><span class="local-dot" aria-hidden="true"></span>本机处理 · 不上传外网</div>
+      </aside>
+
+      <main id="workspace" class="workspace" tabindex="-1" aria-label="光盘设计画布">
+        <div class="workspace-toolbar">
+          <div class="tool-group" role="group" aria-label="画布工具"><button id="tool-select" class="tool-button" type="button" aria-label="选择并移动图层" aria-pressed="true" title="选择并拖动图层">选择</button><button id="tool-pan" class="tool-button" type="button" aria-label="平移画布" aria-pressed="false" title="平移画布">平移</button></div>
+          <div class="preview-control"><label for="preview-mode">预览</label><select id="preview-mode"><option value="original">原图合成</option><option value="edited" selected>灰阶编辑</option><option value="output">输出网点</option><option value="soft">远看示意</option></select><select id="preview-size" aria-label="预览计算精度"><option value="1200" selected>快速预览</option><option value="2400">精细预览</option><option value="6000">原生网格，较慢</option></select></div>
+          <div class="zoom-control" role="group" aria-label="缩放画布"><button id="zoom-out" type="button" aria-label="缩小画布" title="缩小">−</button><span id="zoom-label" aria-live="off">100%</span><button id="zoom-in" type="button" aria-label="放大画布" title="放大">＋</button><button id="zoom-fit" type="button" title="完整显示光盘">适合</button></div>
+        </div>
+        <div class="canvas-context"><span><span class="context-dot" aria-hidden="true"></span>数据面视角</span><span>CD / DVD <span aria-hidden="true">·</span> Ø 120 mm</span></div>
+        <div id="viewport" class="viewport"><canvas id="stage" width="960" height="960" tabindex="0" aria-label="可缩放和拖拽的光盘画布；图层位置也可通过左侧数值输入调整">需要支持 Canvas 2D 的浏览器。</canvas></div>
+        <div class="canvas-footer"><span>滚轮缩放 <span aria-hidden="true">·</span> 拖拽移动</span><span>6000 × 6000 <span class="muted">/</span> 0.02 mm</span></div>
+        <div class="workspace-status"><p id="status" role="status" aria-live="polite">正在载入本地编辑器…</p><ul id="warnings" class="warnings" aria-label="设计提示"></ul></div>
+      </main>
+
+      <aside class="sidebar sidebar-right" aria-label="图像与输出调整">
+        <div class="adjustment-heading"><div><span class="eyebrow">IMAGE LAB</span><h1>灰阶与细节</h1></div><button id="reset-adjustments" class="text-button" type="button" title="重置当前图像调整">重置</button></div>
+        <div class="preset-area"><label for="preset">从预设开始</label><select id="preset"><option value="neutral">中性 · Neutral</option><option value="portrait">人像 · Portrait</option><option value="landscape">风景 · Landscape</option><option value="illustration">插画 · Illustration</option><option value="lineart">线稿 · Line art</option><option value="soft">柔和 · Soft</option></select></div>
+        <div class="histogram-area"><div class="mini-heading"><span>灰阶分布</span><span class="technical-label">HISTOGRAM</span></div><canvas id="histogram" width="280" height="80" aria-label="当前图像的灰阶直方图"></canvas><label class="check-field" for="clipping-warning"><input id="clipping-warning" type="checkbox"><span>显示死黑 / 过曝警告</span></label></div>
+        <div class="adjustment-tabs" role="tablist" aria-label="图像调整类别"><button id="tab-tone" data-panel="tone" type="button" role="tab" aria-selected="true" aria-controls="panel-tone">明暗</button><button id="tab-detail" data-panel="detail" type="button" role="tab" aria-selected="false" aria-controls="panel-detail">细节</button><button id="tab-output" data-panel="output" type="button" role="tab" aria-selected="false" aria-controls="panel-output">输出</button></div>
+
+        <section id="panel-tone" class="adjustment-panel" role="tabpanel" aria-labelledby="tab-tone">
+          <div class="button-row auto-actions"><button id="auto-levels" class="button" type="button">自动色阶</button><button id="auto-enhance" class="button" type="button">自动增强</button></div>
+          <div id="tone-controls" class="adjustment-controls"></div>
+          <details class="nested-section"><summary>色调曲线 <span class="technical-label">CURVES</span></summary><div class="curve-wrap"><canvas id="tone-curve" width="280" height="160" tabindex="0" aria-label="色调曲线，可用鼠标添加和移动控制点"></canvas><div class="curve-caption"><span>暗部 <span aria-hidden="true">→</span> 亮部</span><button id="reset-curve" class="text-button" type="button">恢复直线</button></div><p class="help-text">调整图像本身的明暗关系。</p></div></details>
+        </section>
+        <section id="panel-detail" class="adjustment-panel" role="tabpanel" aria-labelledby="tab-detail" hidden>
+          <p class="help-text panel-intro">先降噪，再增强细节；锐化过高可能让轮廓出现亮边。</p>
+          <div id="detail-controls" class="adjustment-controls"></div>
+        </section>
+        <section id="panel-output" class="adjustment-panel" role="tabpanel" aria-labelledby="tab-output" hidden>
+          <p class="help-text panel-intro">抖动把连续灰阶转换为可刻录的明暗网点。</p>
+          <div id="output-controls" class="adjustment-controls"></div>
+          <div class="field sampling-field"><label for="resampling">图片缩放采样</label><select id="resampling"><option value="high" selected>高质量 · High</option><option value="linear">双线性 · Linear</option><option value="nearest">最近邻 · Nearest</option></select></div>
+          <details class="nested-section"><summary>输出补偿曲线 <span class="technical-label">RESPONSE</span></summary><div class="curve-wrap"><canvas id="output-curve" width="280" height="160" tabindex="0" aria-label="输出补偿曲线，可用鼠标添加和移动控制点"></canvas><div class="curve-caption"><span>输入灰阶 <span aria-hidden="true">→</span> 输出</span><button id="reset-output-curve" class="text-button" type="button">恢复直线</button></div><p class="help-text">根据实盘试刻调整明暗响应。它不是螺旋几何标定。</p></div></details>
+          <details class="nested-section"><summary>保存输出配置 <span class="technical-label">PROFILE</span></summary><div class="profile-fields"><div class="field"><label for="profile-name">配置名称</label><input id="profile-name" type="text" value="我的输出配置" maxlength="120" autocomplete="off"></div><div class="button-row"><button id="save-profile" class="button" type="button">保存配置</button><button id="open-profile" class="button" type="button">载入配置</button></div></div></details>
+          <p class="help-text output-note">快速 / 精细预览会降采样。要检查最终网点，请选择「原生网格」。「远看示意」仅用于观察网点融合，不代表真实光盘在特定灯光下的反射效果。</p>
+        </section>
+        <div class="settings-actions" role="group" aria-label="复用图像调整"><button id="copy-settings" class="button button-quiet" type="button">复制调整</button><button id="paste-settings" class="button button-quiet" type="button">粘贴调整</button></div>
+      </aside>
+    </div>
+
+    <dialog id="export-dialog" class="export-dialog" aria-labelledby="export-title">
+      <div class="dialog-heading"><div><span class="eyebrow">READY FOR THE NEXT STEP</span><h2 id="export-title">导出图案，继续制盘</h2></div><button id="export-close" class="icon-button" type="button" aria-label="关闭导出窗口">×</button></div>
+      <p class="dialog-intro">生成 120 mm 全尺寸 PNG，保留你的排版和抖动结果。复制生成的命令，回到终端继续。</p>
+      <div class="field"><label for="export-name">文件名称</label><input id="export-name" type="text" value="artwork" maxlength="80" autocomplete="off" spellcheck="false"><p class="help-text">文件会写入启动编辑器时指定的输出目录。</p></div>
+      <div class="export-options"><label class="check-field" for="export-grayscale"><input id="export-grayscale" type="checkbox" checked><span>同时保存连续灰阶 PNG <small>用于保留调整后的灰阶图</small></span></label><label class="check-field" for="export-finish"><input id="export-finish" type="checkbox" checked><span>导出后释放终端，回到下一步 <small>结束本地编辑器服务，不会自动刻盘</small></span></label></div>
+      <div class="export-specs"><span>6000 × 6000 px</span><span>120 × 120 mm</span><span>数据面视角</span></div>
+      <button id="export-confirm" class="button button-dark export-submit" type="button">导出图片与命令 <span aria-hidden="true">↗</span></button>
+      <p id="export-message" class="export-message" role="status" aria-live="polite"></p>
+      <div id="export-result" class="export-result" hidden>
+        <div class="result-heading"><span class="result-mark" aria-hidden="true">✓</span><h3>导出结果</h3></div>
+        <label for="exported-path">图片的完整路径</label><div class="copy-row"><input id="exported-path" type="text" readonly spellcheck="false"><button id="copy-path" class="button" type="button">复制路径</button></div>
+        <div class="command-heading"><label for="export-command">粘贴到终端的下一条命令</label><select id="export-shell" aria-label="命令行类型"><option value="powershell">PowerShell</option><option value="cmd">Windows CMD</option><option value="posix">bash / zsh</option></select></div>
+        <textarea id="export-command" rows="5" readonly spellcheck="false" aria-label="可复制的下一步命令"></textarea>
+        <button id="copy-command" class="button button-accent" type="button">复制完整命令</button>
+        <p class="help-text">命令会沿用启动时的介质、几何与校正参数。请在已安装 disc-probe 的终端运行。</p>
+      </div>
+    </dialog>
+    <noscript><p class="noscript-message">这个本地编辑器需要启用 JavaScript。图片不会上传到外部服务器。</p></noscript>
+  </body>
+</html>

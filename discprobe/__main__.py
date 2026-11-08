@@ -546,6 +546,16 @@ def _warn_other_run(args, fit) -> None:
         print(f"  python tools/geo_polyfit.py {os.path.dirname(args.geo) or '.'} --write-correction {args.correction} --order quadratic")
 
 
+def cmd_editor(args):
+    from . import webeditor
+    if args.geo.lower() == "pick":
+        _geo_fit(args, args.media)
+    try:
+        webeditor.run(args)
+    except ValueError as e:
+        sys.exit(str(e))
+
+
 def cmd_edit(args):
     from . import editor, imagecheck
     try:
@@ -1007,7 +1017,7 @@ def _speed(text: str):
 COMMAND_GROUPS = (
     ("Start here", ("guide", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "timing", "geo", "results")),
-    ("Make a disc image", ("random", "edit", "image", "tiles", "beacons", "rings", "calib", "spokes")),
+    ("Make a disc image", ("random", "edit", "editor", "image", "tiles", "beacons", "rings", "calib", "spokes")),
     ("Read scans of burned discs", ("gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("disexport",)),
 )
@@ -1079,6 +1089,16 @@ examples:
   python -m discprobe image --media cd --geo latest --along-track-frames 206 --output iso/cd-grid.iso
 
 --geo takes a summary.json, a geo result folder, or `latest` (the newest complete real measurement).""",
+    "editor": """\
+examples:
+  python -m discprobe editor
+  python -m discprobe editor --geo latest --correction correction.json
+  python -m discprobe editor --media cd --along-track-frames 206 --output-dir art/editor
+  python -m discprobe editor --no-browser
+
+The editor runs only on 127.0.0.1 and never accesses the drive. Export and continue saves a
+120 mm, 6000 x 6000 binary PNG and prints the next image command. Keep this terminal open.
+CD still needs an along-track constant measured for your drive and burn path; 206 is only an example.""",
     "disexport": """\
 examples:
   python -m discprobe disexport --geo latest --sectors <sectors> --r-min 25.8 --r-max 54.4 --output dis_preset.json
@@ -1261,6 +1281,22 @@ def _build_parser():
                     help="CD audio track only: where this drive's READ CD completes, in bytes before the end of "
                          "the sector in the burned audio stream (HP BU20N 0, PLDS DU-8A5LH -603)")
     sp.set_defaults(func=cmd_geo)
+
+    sp = sub.add_parser("editor", help="open the lightweight local disc-art editor and export back to the terminal")
+    sp.add_argument("--media", choices=("dvd", "cd"), default="dvd",
+                    help="disc type for this editor session (default: dvd)")
+    sp.add_argument("--geo", default="latest", help="summary.json of a geo run, its folder, latest, or pick to choose")
+    sp.add_argument("--correction", help="angle-correction file (phi(r) measured on a burned grid)")
+    sp.add_argument("--along-track-frames", type=float, default=0.0,
+                    help="CD only: along-track constant in frames, as in image --along-track-frames")
+    sp.add_argument("--cd-sector", choices=("mode2form1", "mode1"), default="mode2form1",
+                    help="CD sector layout to carry into the generated image command")
+    sp.add_argument("--output-dir", default="art/editor", help="directory for new artwork export folders (default: art/editor)")
+    sp.add_argument("--r-min", type=float, help="inner drawing radius in mm (DVD default 24.5, CD default 26)")
+    sp.add_argument("--r-max", type=float, default=56.0, help="outer drawing radius in mm, at most 58 (default: 56)")
+    sp.add_argument("--port", type=int, default=0, help="local port; 0 chooses a free port (default: 0)")
+    sp.add_argument("--no-browser", action="store_true", help="print the local URL without opening a browser")
+    sp.set_defaults(func=cmd_editor)
 
     sp = sub.add_parser("edit", help="place a picture on the disc at the terminal, and save a design for image --design")
     sp.add_argument("file", help="a picture, or a design file saved earlier")
