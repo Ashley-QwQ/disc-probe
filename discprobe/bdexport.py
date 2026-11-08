@@ -46,6 +46,9 @@ BD_MAX_RADIUS_MM = 60.0
 # with another: ImgBurn reserves about a megabyte for a Blu-ray lead-out). Two mebibytes covers that
 # and costs 0.002 mm of radius, which is far below what this measurement can see.
 USABLE_MARGIN_SECTORS = 1024
+# A formatted disc's inner spare area is about a percent of the spiral; anything much shorter
+# than that is a disc that was not filled, and its missing sectors are not in front of sector 0.
+ISA0_MIN_FRACTION = 0.90
 FILE_NAME = "disc-presets.json"
 SCHEMA_VERSION = 4
 BD_PRESET_LIST = "bluRayPresets"
@@ -113,9 +116,10 @@ def usable_sectors_for(total_sectors: int, usable_sectors: int | None = None) ->
         usable = total_sectors
     if usable > total_sectors:
         raise BdPresetError(f"usable sector count {usable} is more than the disc holds ({total_sectors})")
-    if usable % BD_SECTORS_PER_RECORDING_UNIT:
-        raise BdPresetError(f"DiscImageStudio needs the usable sector count to be a multiple of "
-                            f"{BD_SECTORS_PER_RECORDING_UNIT}; {usable} is not")
+    usable -= usable % BD_SECTORS_PER_RECORDING_UNIT
+    if usable <= 0:
+        raise BdPresetError(f"usable sector count rounded down to a multiple of "
+                            f"{BD_SECTORS_PER_RECORDING_UNIT} leaves nothing to write")
     return usable
 
 
@@ -167,6 +171,15 @@ def parameters(fit: dict, total_sectors: int, *, inner_mm: float | None = None,
     if r0 is None:
         raise BdPresetError("this geo fit has no r0_mm")
     if pullback_isa0 and measured_sectors and total_sectors > measured_sectors:
+        # A spare area is a fixed few percent of the disc; a disc that simply was not filled can be
+        # most of the way short, and moving its sector 0 inwards would be wrong by millimetres.
+        if measured_sectors < ISA0_MIN_FRACTION * total_sectors:
+            raise BdPresetError(
+                f"this disc was measured up to sector {measured_sectors:,} of {total_sectors:,}: that is "
+                f"too short to be a spare area, so the missing sectors are probably unrecorded rather "
+                f"than reserved, and pulling them back in front of sector 0 would move it by "
+                f"{r0 - pullback_inner_mm(r0, p, total_sectors - measured_sectors, bit_nm):.3f} mm. "
+                f"Leave --pullback-isa0 off for a disc that was not filled")
         r0 = pullback_inner_mm(r0, p, total_sectors - measured_sectors, bit_nm)
     r_out = outer_mm if outer_mm is not None else outer_radius_mm(r0, p, total_sectors, bit_nm)
     usable = usable_sectors_for(total_sectors, usable_sectors)
@@ -342,6 +355,10 @@ def export(geo_summary: str, total_sectors: int, out_path: str, preset_id: str, 
                "r2": None, "v_m_s": None, "anchor": "the angle ladder (u = r0/b, v = p/b)"}
     setup = run.get("setup") or {}
     measured = None if setup.get("last_lba") is None else int(setup["last_lba"]) + 1
+    # A disc that was not filled ends wherever the burn ended, which need not be a recording-unit
+    # boundary; DiscImageStudio needs totalSectors to be one, so the preset covers the last whole unit.
+    requested = int(total_sectors)
+    total_sectors = requested - requested % BD_SECTORS_PER_RECORDING_UNIT
     params = parameters(fit, total_sectors, inner_mm=inner_mm, outer_mm=outer_mm, pitch_um=pitch_um,
                         bit_nm=bit_nm, measured_sectors=measured, pullback_isa0=pullback_isa0)
     anchors = fit.get("dis_equivalent") if fit.get("media") == "bd" else None
@@ -369,6 +386,7 @@ def export(geo_summary: str, total_sectors: int, out_path: str, preset_id: str, 
                                            "chi2_per_dof", "rungs")},
            "derived": {"pitch_um": p, "sector_mm": sector_mm(bit_nm),
                        "measured_sectors": measured,
+                       "total_sectors_requested": requested,
                        "pullback_sectors": (total_sectors - measured
                                             if pullback_isa0 and measured and total_sectors > measured
                                             else 0),

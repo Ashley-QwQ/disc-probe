@@ -910,6 +910,11 @@ def _disexport_bd(args):
           .format(a=f"{preset['totalSectors']:,}", b=f"{preset['innerRadiusMm']:.4f}",
                   c=f"{preset['outerRadiusMm']:.4f}"))
     usable, total = preset["usableSectors"], preset["totalSectors"]
+    asked = derived.get("total_sectors_requested")
+    if asked and asked != total:
+        print(i18n.tr("the disc ends at {a} sectors; DiscImageStudio needs whole {b}-sector units, so the "
+                      "preset stops at {c}").format(a=f"{asked:,}", b=bdexport.BD_SECTORS_PER_RECORDING_UNIT,
+                                                     c=f"{total:,}"))
     if usable < total:
         print(i18n.tr("usable {a} sectors, {b} short of the disc: a burner writes a lead-out inside the "
                       "disc, and a project that fills every sector leaves no room for it")
@@ -932,10 +937,14 @@ def _disexport_bd(args):
                       "keeps there: sector 0 of an unspared BD-R starts at {b} mm, not {c} mm")
               .format(a=f"{derived['pullback_sectors']:,}", b=f"{preset['innerRadiusMm']:.4f}",
                       c=f"{fit['r0_mm']:.4f}"))
-    elif measured and total > measured:
+    elif measured and total > measured and measured >= 0.90 * total:
         print(i18n.tr("this disc holds {a} sectors and the preset says {b}: the difference is the inner "
                       "spare area a formatted disc keeps, so sector 0 sits further out than on an "
                       "unspared BD-R. Add --pullback-isa0 to move the inner radius back for one")
+              .format(a=f"{measured:,}", b=f"{total:,}"))
+    elif measured and total > measured:
+        print(i18n.tr("this disc was written up to sector {a} of {b}; the rest of the spiral is simply "
+                      "unrecorded, and the preset describes the whole spiral, so nothing needs adjusting")
               .format(a=f"{measured:,}", b=f"{total:,}"))
     if fit.get("offset_ms") is not None:
         if fit["offset_ms"]:

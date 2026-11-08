@@ -134,12 +134,10 @@ def test_a_preset_leaves_one_recording_unit_for_the_lead_out():
     assert params["usableSectors"] == SECTORS - 1024
     loose = bdexport.usable_sectors_for(SECTORS, 0)
     assert loose == SECTORS, "0 should mean the whole disc"
-    try:
-        bdexport.usable_sectors_for(SECTORS, SECTORS - 16)
-    except bdexport.BdPresetError as e:
-        assert "multiple of 32" in str(e)
-    else:
-        raise AssertionError("wrote a usable count DiscImageStudio would reject as unaligned")
+    # A disc that was not filled ends on whatever sector the burn stopped at, so a count that is not
+    # a whole recording unit is rounded down rather than refused: DiscImageStudio would reject it.
+    assert bdexport.usable_sectors_for(SECTORS, SECTORS - 16) == SECTORS - 32
+    assert bdexport.usable_sectors_for(7_849_829, None) == 7_848_800
 
 
 def _preset(**overrides):

@@ -515,6 +515,11 @@ class ClvLadder:
         self.summary["cache"] = self.tp.summary.get("cache")
         self.tp.settle_spindle()
         self.summary["settle"] = self.tp.summary.get("settle")
+        # The spindle was settled halfway out, and the ladder then jumps to the innermost zone where a
+        # drive reading at a constant linear speed has to turn much faster. On the UJ272 that ramp read
+        # 0.49 coherence at the 0.05 zone, dropping the one radius the extrapolated r0 leans on most.
+        # Time that zone once and throw it away, so the pass that counts starts already relocked.
+        self.tp.period_test(zones=(self.zones[0],), announce_rotation=False)
         self.precheck_by_measuring()
         self.tp.period_test(zones=self.zones, announce_rotation=False)
         self.summary["period"] = self.tp.summary.get("period")

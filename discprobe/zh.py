@@ -319,7 +319,10 @@ TEXT = {
         "还拟合了一个自由周期偏置（{a} µs，1 sigma {b} µs），但数据分不开它和零，所以没把它从内径里扣掉",
     "The disc holds {a} sectors, {b} fewer than a full layer, so sector 0 sits {c} mm further out than the 24.0 mm of an unspared disc: that is what was measured, not a rounding error.":
         "这张盘只有 {a} 个扇区，比满层少 {b} 个，所以扇区 0 比不留备用区的盘的 24.0 mm 更靠外 {c} mm：这是量到的，不是舍入误差",
-        "usable {a} sectors, {b} short of the disc: a burner writes a lead-out inside the "
+        "the disc ends at {a} sectors; DiscImageStudio needs whole {b}-sector units, so the "
+    "preset stops at {c}":
+    "这张盘写到 {a} 个扇区；DiscImageStudio 要求扇区数是 {b} 的整数倍，所以预设停在 {c}",
+    "usable {a} sectors, {b} short of the disc: a burner writes a lead-out inside the "
     "disc, and a project that fills every sector leaves no room for it":
     "可用 {a} 扇区，比盘片少 {b} 个：刻录机的 lead-out 写在盘内，填满就没地方留给它了",
 "DiscImageStudio Blu-ray preset in {a} (import it with the Blu-ray preset library's Import button)":
@@ -847,6 +850,9 @@ TEXT = {
     "keeps there: sector 0 of an unspared BD-R starts at {b} mm, not {c} mm":
     "内径往回推了 {a} 个扇区，越过格式化盘在内圈留的备用区：没有备用区的 BD-R 上扇区 0 在 {b} mm，而不是 {c} mm",
 
+    "this disc was written up to sector {a} of {b}; the rest of the spiral is simply "
+    "unrecorded, and the preset describes the whole spiral, so nothing needs adjusting":
+    "这张盘只写到 {b} 个扇区中的 {a}；剩下的螺旋没有刻录内容，而预设描述的是整条螺旋，无需调整",
     "this disc holds {a} sectors and the preset says {b}: the difference is the inner "
     "spare area a formatted disc keeps, so sector 0 sits further out than on an "
     "unspared BD-R. Add --pullback-isa0 to move the inner radius back for one":

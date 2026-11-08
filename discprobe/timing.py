@@ -254,6 +254,17 @@ class TimingProbe:
             raise NoReadableDisc("--media cd requires a CD-ROM Mode 1 data track and READ(12)/READ(10), not READ CD")
         if self.last_lba is None and tracks and tracks[-1]["track"] == 0xAA:
             self.last_lba = tracks[-1]["start_lba"] - 1
+        capacity_source = "read capacity" if self.last_lba else None
+        if (not self.last_lba or self.last_lba < 1000) and self.family == "bd":
+            # An unrecorded BD-R or BD-RE reports a zero capacity, but its spiral is
+            # grooved at the factory and the drive will still track and read across
+            # the whole of it. GET PERFORMANCE is what knows how far it goes.
+            perf = self._cmd(mmc.get_performance(0x10, 0x00), 2048)
+            descs = mmc.parse_get_performance(perf.data, 0x00).get("descriptors", []) if perf.ok else []
+            ends = [int(d["end_lba"]) for d in descs if int(d["end_lba"]) > 0]
+            if ends:
+                self.last_lba = max(ends)
+                capacity_source = "get performance"
         if not self.last_lba or self.last_lba < 1000:
             raise NoReadableDisc("no readable recorded area; burn a test disc first (blank media has nothing to read)")
 
@@ -279,6 +290,7 @@ class TimingProbe:
         self.summary["setup"] = {"profile": f"0x{profile:04X}" if profile is not None else None,
                                  "profile_name": mmc.PROFILES.get(profile), "family": self.family,
                                  "block_sectors": self.block, "sectors_per_read": self.sectors, "last_lba": self.last_lba,
+                                 "capacity_source": capacity_source,
                                  "first_track_audio": audio, "read_method": self.method}
         self.log(f"Disc: {self.summary['setup']['profile_name']}, last LBA {self.last_lba}, "
                  f"reading with {self.method}")
