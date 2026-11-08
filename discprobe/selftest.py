@@ -309,7 +309,10 @@ def _ladder_safe_unwrap(c: Checker):
     
         def check_rotation(self):
             pass
-    
+
+        def _random_parts(self, ranges):    # all random data
+            return ranges
+
         def settle(self, *args, **kwargs):
             self.T = .02
             return self.T
@@ -365,6 +368,29 @@ def _ladder(c: Checker):
     e = np.degrees(theta(n, whole.u, whole.v) - theta(n, lad.u, lad.v))
     span = float(e.max() - e.min())
     c.check(span < 1.5, f"reading whole ECC blocks gives the same geometry: {span:.3f} deg apart over 0-85 % of the disc")
+    # A one-disc trial disc: texture rings between random ones, then a picture appended outside them.
+    from .rings import RingLayout
+    layout = RingLayout(textures=("A5", "RND", "B9", "RND", "66", "RND", "64", "RND", "E4", "RND", "92", "RND"),
+                        groups=2, ring_width_mm=1.04, start_mm=25.0, filler="RND").build()
+    patterns = [(r["lba_start"], r["lba_end"], int(r["texture"], 16)) for r in layout.rings if r["texture"] != "RND"]
+    patterns.append((layout.total_sectors, sim.capacity, 0xB9))
+    sim = SimDrive(mode="cav", seed=7, reread_delay_ms=35.0, patterns=patterns)
+    rings = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None)
+    rings.run()
+    on_pattern = [t["lba"] for t in rings.targets if any(a <= t["lba"] < b for a, b, _ in patterns)]
+    outside = [(a, b) for a, b in rings.auto_ranges or [] if any(a < e and s < b for s, e, _ in patterns)]
+    c.check(len(rings.auto_ranges or []) == 12 and not on_pattern and not outside,
+            f"texture-ring disc: {len(rings.auto_ranges or [])} random stretches found, "
+            f"{len(on_pattern)} rungs and {len(outside)} stretches on a pattern")
+    # Measured only out to 50 mm, so judge it there, as the plain run is judged over its range.
+    measured = np.linspace(min(t["n"] for t in rings.targets), max(t["n"] for t in rings.targets), 300)
+    e = np.degrees(theta(measured, rings.u, rings.v) - theta(measured, 23.93 / b, 0.735e-3 / b))
+    c.check(float(e.max() - e.min()) < 1.5, f"angle error over the measured span {float(e.max() - e.min()):.3f} deg")
+    plain = Ladder(SimDrive(mode="cav", seed=7, patterns=[(500000, 520000, 0xA5)]), speed_kbs=None, log=lambda *_: None)
+    plain.tp.setup()
+    found = plain._random_parts([(68000, 1950000)])
+    c.check(len(found) == 2 and found[0][1] <= 500000 - 2900 and found[1][0] >= 520000 + 2900,
+            f"one 0.5 mm picture band splits the range in two: {found}")
 
 
 def _ladder_cd_audio(c: Checker):

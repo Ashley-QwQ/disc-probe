@@ -616,7 +616,10 @@ def after_geo(args, res: dict, out: str) -> list[str]:
                     "Or export a DiscImageStudio preset:", *preset]
 
 
-def after_geo_stop(args, reason: str) -> list[str]:
+def after_geo_stop(args, reason: str, unreadable=()) -> list[str]:
+    """`unreadable`: LBAs that gave a medium error. Plain random data rarely does, so with no --ranges the
+    likelier cause is a disc that holds something else too (texture rings, a picture, a second session),
+    and its other textures read at another latency; another speed would not help."""
     if reason in mmc.NOT_READY:
         return []
     carry, other, word = _carry(args), _other_speed(args), _speed_word(args)
@@ -628,6 +631,14 @@ def after_geo_stop(args, reason: str) -> list[str]:
         return ["Setting the speed can take a drive out of constant rotation, and many keep it until the disc is reloaded.",
                 "Eject the disc and put it back, check that timing says CAV, then run geo without setting a speed:",
                 f"  {PROG} timing {carry}", f"  {PROG} geo {again} --speed keep"]
+    if unreadable and not (getattr(args, "ranges", None) or getattr(args, "rings_layout", None)):
+        where = ", ".join(str(lba) for lba in list(unreadable)[:3])
+        flag = " --media cd" if getattr(args, "media", "dvd") == "cd" else ""
+        return [f"Reads at LBA {where} failed with a medium error, which plain random data rarely gives.",
+                "If this disc holds anything else (texture rings, a picture, a second session), measure only its random part:",
+                f"  {PROG} geo {again}{f' --speed {args.speed}' if getattr(args, 'speed', None) else ''} --ranges a-b,c-d",
+                "For a texture-ring disc, --rings-layout with its .rings.json file does that for you.",
+                f"If it is random data throughout, it may be damaged. Burn a new one: {PROG} random{flag} --output iso/random.iso"]
     if "never settled" in reason or "near the reference" in reason:
         return [f"The drive would not hold one speed. Check it with timing, then try geo at {word}:",
                 f"  {PROG} timing {carry}", f"  {PROG} geo {again} --speed {other}",

@@ -522,7 +522,8 @@ def cmd_geo(args):
     if res:
         _next(guide.after_geo(args, res, out), args)
     else:
-        _next(guide.after_geo_stop(args, stopped or ""))
+        unreadable = [] if ladder.auto_ranges else sorted({e.lba for e in ladder.tp.events if e.sense.startswith("3/")})
+        _next(guide.after_geo_stop(args, stopped or "", unreadable))
     if res is None:     # scripts must not take a run that stopped for one that finished
         sys.exit(1)
 

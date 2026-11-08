@@ -219,6 +219,18 @@ TEXT = {
     "The drive would not hold one speed. Check it with timing, then try geo at {s}:": "光驱保持不住一个速度。先用 timing 检查，再{s}跑 geo：",
     "USB slim drives are often too noisy here; an internal drive may simply work.": "USB 超薄光驱在这里常常噪声太大，换内置光驱可能直接就行。",
     "A whole-turn count went wrong, or the pitch varies more than the model allows. Try {s}:": "整圈数算错了，或者轨距的变化超出了模型范围。先{s}试试：",
+    "Checking which parts of the disc hold random data...": "正在检查盘上哪些部分是随机数据……",
+    "Only part of this disc is random data; measuring just those {n} stretches":
+        "这张盘只有一部分是随机数据（另有图案、纹理或追加的一段），只测其中的 {n} 段",
+    "no random data found in the recorded area": "已刻录的部分里没有随机数据",
+    "Reads at LBA {l} failed with a medium error, which plain random data rarely gives.":
+        "扇区号 {l} 读不出来（介质错误），整张随机数据的盘很少这样。",
+    "If this disc holds anything else (texture rings, a picture, a second session), measure only its random part:":
+        "如果这张盘上还有别的东西（纹理环带、图案、追加的第二段），只测随机数据的部分：",
+    "For a texture-ring disc, --rings-layout with its .rings.json file does that for you.":
+        "纹理环带盘可以用 --rings-layout 加它的 .rings.json 文件，自动只测随机圈。",
+    "If it is random data throughout, it may be damaged. Burn a new one: {c}":
+        "如果整张都是随机数据，盘可能有损伤，重新刻一张：{c}",
     "If it keeps stopping near one LBA, leave that area out with --ranges a-b (see `geo -h`).": "如果总停在同一个扇区附近，用 --ranges a-b 避开那一段（见 `geo -h`）。",
     "A disc whose pitch varies can take a higher limit, for example --chi2-abort 100.": "轨距本来就有变化的盘，可以放宽上限，比如 --chi2-abort 100。",
     "--ranges has to overlap the recorded area. See the last LBA with:": "--ranges 要和已刻录区域有重叠。查看最后扇区号：",

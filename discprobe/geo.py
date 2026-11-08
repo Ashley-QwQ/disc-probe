@@ -114,6 +114,7 @@ class Ladder:
         self.targets: list[dict] = []
         self.u, self.v, self.c = self.u0, self.v0, 0.0
         self.cov = None
+        self.auto_ranges = None   # random stretches found on a disc that isn't all random data
 
     # ------------------------------------------------------------ geometry helpers
 
@@ -309,6 +310,28 @@ class Ladder:
         m["predicted_deg"] = predicted_deg
         self.targets.append(m)
 
+    def _random_parts(self, ranges):
+        """Leave out what isn't random data (see content.py); a disc of random data keeps the default range."""
+        from . import content
+        tp = self.tp
+        before, tp._experiment = tp._experiment, "content"
+        self.log("Checking which parts of the disc hold random data...")
+
+        def read(lba):
+            r = tp._read(lba, 1, label="content")
+            return r.data if r.ok else None
+        try:
+            found = content.random_ranges(read, ranges, block=self.block)
+        finally:
+            tp._experiment = before
+        self.auto_ranges = found
+        if found is None:
+            return ranges
+        if not found:
+            raise RuntimeError("no random data found in the recorded area")
+        self.log(f"Only part of this disc is random data; measuring just those {len(found)} stretches")
+        return found
+
     def run(self) -> dict:
         tp = self.tp
         tp.setup()
@@ -329,6 +352,8 @@ class Ladder:
             self.ranges = [(int(last * CD_AUDIO_RANGE[0]), int(last * CD_AUDIO_RANGE[1]))]
         else:
             self.ranges = [(int(last * 0.03), int(last * 0.85))]
+            if self.media == "dvd":
+                self.ranges = self._random_parts(self.ranges)
         self.ranges = [(a - a % self.block, b - b % self.block) for a, b in self.ranges if b - a > 64]
         if not self.ranges:
             raise RuntimeError(f"no readable {self.media.upper()} ranges longer than 64 sectors")

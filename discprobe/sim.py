@@ -24,8 +24,12 @@ class SimDrive:
                  jitter_us: float = 60.0, outlier_rate: float = 0.01,
                  rev_period_ms: float | None = None, clv_speed_x: float | None = None,
                  capacity: int | None = None, cache_blocks: int | None = None, reread_delay_ms: float = 0.0,
-                 media="dvd", cd_u=None, cd_v=None, cd_audio: bool = False, cd_read_offset_bytes: float = 0.0):
+                 media="dvd", cd_u=None, cd_v=None, cd_audio: bool = False, cd_read_offset_bytes: float = 0.0,
+                 patterns=()):
         self.media = media
+        # A DVD reads back as random data, except (lba_start, lba_end, byte) stretches written as one
+        # scrambled-domain byte, like a texture ring or a picture.
+        self.patterns = tuple(patterns)
         # A CD-DA track (a DiscImageStudio picture burn): READ CD only, and reads complete at the
         # end of the sector in the audio stream, cd_read_offset_bytes earlier (the drive's offset).
         self.cd_audio = media == "cd" and cd_audio
@@ -118,6 +122,18 @@ class SimDrive:
         """Host-side pause between commands, on the simulated clock."""
         self._clock += seconds
 
+    def _content(self, lba: int, count: int) -> bytes:
+        from . import dvd
+        out = bytearray()
+        for k in range(lba, lba + count):
+            byte = next((b for a, e, b in self.patterns if a <= k < e), None)
+            mask = dvd.MASKS[dvd.preset_index(k)]
+            if byte is None:
+                out += bytes(mask[::-1] ^ (k * 2654435761 % 251))  # random to the content check, cheap
+            else:
+                out += bytes(mask ^ byte)
+        return bytes(out)
+
     # ------------------------------------------------------------ SCSI
 
     def execute(self, cdb: bytes, data_len: int = 0, direction: int = 1, timeout_s: int = 30) -> ScsiResult:
@@ -150,7 +166,8 @@ class SimDrive:
                 status, sense = 2, Sense(5, 0x21, 0)
             if status == 0:
                 t_end = self._read(t_issue, lba, count, fua)
-                data = bytes(min(data_len, (2352 if op == 0xBE else 2048) * count))
+                data = (self._content(lba, count) if self.media == "dvd" and op != 0xBE
+                        else bytes((2352 if op == 0xBE else 2048) * count))[:data_len]
             else:
                 t_end = t_issue + 200e-6
         else:
