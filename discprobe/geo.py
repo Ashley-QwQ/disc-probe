@@ -528,6 +528,10 @@ class Ladder:
         if hasattr(self, "completion_status"):
             rep["completion_status"] = self.completion_status
             rep["failed_candidates"] = self.failed_candidates
+        du_0, dv_0 = _dtheta(0.0, self.u, self.v)
+        du_t, dv_t = _dtheta((self.tp.last_lba + 1) * BD_SECTOR_BITS, self.u, self.v)
+        g_full = np.array([du_t - du_0, dv_t - dv_0])
+        rep["angle_sigma_full_disc_deg"] = math.degrees(math.sqrt(float(g_full @ self.cov[:2, :2] @ g_full)))
         rep["c_deg"] = math.degrees(self.c)
         rep["chi2_per_dof"] = self.chi2_dof
         rep["residual_rms_deg"] = float(np.sqrt(np.mean([t["residual_deg"] ** 2 for t in self.targets])))
