@@ -1255,6 +1255,8 @@ def cmd_calibdisc(args):
           .format(a=t["dark"]["byte"], b=t["light"]["byte"],
                   c=t["dark"]["gaps_with_a_transition"], d=t["light"]["gaps_with_a_transition"],
                   e=f"{t['dark']['digital_sum']:+d}", f_=f"{t['light']['digital_sum']:+d}"))
+    print(i18n.tr("Read the far end of the line against the clock: 1 o'clock is 30 degrees, 2 is 60, 3 is 90, "
+                  "4 is 120, 5 is 150, 6 is 180, and that number is what `disexport --twist-deg` takes"))
     print(i18n.tr("Burn it, then time it and look at it: `geo --media bd` on the same disc gives the shape, "
                   "and the line's far end gives the twist; `disexport --twist-deg <hours>` closes the loop"))
     print(f"  {out['path']}")
