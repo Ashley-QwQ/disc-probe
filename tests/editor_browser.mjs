@@ -54,6 +54,16 @@ try {
       if (this.canvas.id === 'stage' && args[0] instanceof HTMLCanvasElement) window.__editorArt = new WeakRef(args[0]);
       return draw.apply(this, args);
     };
+    const strokeRect = CanvasRenderingContext2D.prototype.strokeRect;
+    CanvasRenderingContext2D.prototype.strokeRect = function (...args) {
+      if (this.canvas.id === 'stage' && this.getLineDash().length) window.__editorSelectionColor = this.strokeStyle;
+      return strokeRect.apply(this, args);
+    };
+    const stroke = CanvasRenderingContext2D.prototype.stroke;
+    CanvasRenderingContext2D.prototype.stroke = function (...args) {
+      if (this.canvas.id === 'tone-curve' && this.lineWidth === 2) window.__editorCurveColor = this.strokeStyle;
+      return stroke.apply(this, args);
+    };
   });
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => requests.push(request.url()));
@@ -62,7 +72,16 @@ try {
   await page.waitForSelector('html[data-ready="true"]');
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('添加图片'));
   assert.equal(await page.locator('#media-label').inputValue(), 'DVD · 120 mm');
+  assert.equal(await page.locator('html').getAttribute('data-pixel-status'), 'pass');
+  assert.equal(await page.locator('#integrityNotice').isVisible(), false);
   assert.match(await page.locator('#geometry-label').inputValue(), /已选几何/);
+  const dvdRGB = JSON.parse(execFileSync(process.env.PYTHON || 'python', ['-c',
+    'import json; from discprobe.ui import oklch, DVD_ACCENT_HUE; print(json.dumps(oklch(0.74,0.15,DVD_ACCENT_HUE)))'],
+  { cwd: root, encoding: 'utf8' }).trim());
+  const dvdAccent = '#' + dvdRGB.map(value => value.toString(16).padStart(2, '0')).join('');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()), dvdAccent,
+    'browser accent matches the terminal DVD truecolour accent');
+  assert.equal(await page.locator('#export-open').evaluate(button => getComputedStyle(button).backgroundColor), `rgb(${dvdRGB.join(', ')})`);
   console.log('ok: empty canvas, config, worker and static assets load');
 
   const sources = await page.evaluate(() => {
@@ -80,6 +99,15 @@ try {
   })));
   await page.waitForFunction(() => document.querySelectorAll('#layer-list li').length === 2);
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('2 个图层'));
+  assert.equal(await page.evaluate(() => window.__editorSelectionColor), dvdAccent, 'Canvas selection shares the DVD accent');
+  assert.equal(await page.evaluate(() => window.__editorCurveColor), dvdAccent, 'Canvas tone curve shares the DVD accent');
+  assert.equal(await page.locator('#layer-list .layer-thumb').count(), 2);
+  assert.equal(await page.locator('#preset').inputValue(), 'neutral', 'neutral is not mislabeled by RGB float roundoff');
+  await page.locator('[data-panel="tone"]').focus();
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await page.locator('[data-panel="detail"]').getAttribute('aria-selected'), 'true');
+  await page.keyboard.press('Home');
+  assert.equal(await page.locator('[data-panel="tone"]').getAttribute('aria-selected'), 'true');
   assert.equal(await page.locator('#layer-blend').inputValue(), 'source-over');
   // Hide the top layer, select the F image, then sample its unprocessed cyan.
   await page.locator('#layer-list li').first().locator('input[type=checkbox]').uncheck();
@@ -113,6 +141,7 @@ try {
   await page.locator('#layer-rotation').fill('17'); await page.locator('#layer-rotation').press('Tab');
   await page.locator('#adjust-exposure-number').fill('0.4'); await page.locator('#adjust-exposure-number').press('Tab');
   await page.locator('#adjust-gamma-number').fill('1.25'); await page.locator('#adjust-gamma-number').press('Tab');
+  assert.equal(await page.locator('#preset').inputValue(), 'custom');
   await page.locator('#tone-curve').click({ position: { x: 140, y: 62 } });
   await page.locator('[data-panel="detail"]').click();
   await page.locator('#adjust-sharpen-number').fill('12'); await page.locator('#adjust-sharpen-number').press('Tab');
@@ -157,9 +186,18 @@ try {
   console.log('ok: portable project roundtrip preserves sources, key, transforms and tone; output profile saves');
 
   await page.screenshot({ path: join(directory, 'editor-desktop.png'), fullPage: true });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: join(directory, 'editor-mobile.png'), fullPage: true });
-  assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'mobile has no horizontal overflow');
+  for (const [width, height] of [[1024, 768], [768, 1024], [390, 844], [320, 740]]) {
+    await page.setViewportSize({ width, height });
+    await page.screenshot({ path: join(directory, `editor-${width}.png`), fullPage: true });
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `${width}px has no horizontal overflow`);
+    const stage = await page.locator('#viewport').boundingBox();
+    assert(stage.width >= 250 && stage.height >= 200, `${width}px preserves a usable canvas`);
+    if (width <= 768) {
+      const touchSizes = await page.locator('.auto-actions button').evaluateAll(buttons =>
+        buttons.map(button => Number.parseFloat(getComputedStyle(button).minHeight)));
+      assert(touchSizes.length === 2 && touchSizes.every(size => size >= 44), `${width}px auto-adjust actions have touch-sized targets`);
+    }
+  }
   await page.setViewportSize({ width: 1480, height: 1050 });
   await page.locator('#export-open').click();
   await page.locator('#export-name').fill('test artwork 中文');

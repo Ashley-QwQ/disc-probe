@@ -40,6 +40,7 @@ STATIC_FILES = {
     "/editor.css": ("editor.css", "text/css; charset=utf-8"),
     "/editor.js": ("editor.js", "text/javascript; charset=utf-8"),
     "/processing.mjs": ("processing.mjs", "text/javascript; charset=utf-8"),
+    "/canvas-integrity.mjs": ("canvas-integrity.mjs", "text/javascript; charset=utf-8"),
     "/worker.js": ("worker.js", "text/javascript; charset=utf-8"),
 }
 

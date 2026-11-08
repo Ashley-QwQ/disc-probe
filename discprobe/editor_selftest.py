@@ -156,6 +156,12 @@ def _http(c, Image):
                 c.check(status == 200 and json.loads(data)["media"] == "dvd", "authenticated config is available")
                 c.check(server.server_address[0] == "127.0.0.1" and "#" + server.token in server.url, "service binds loopback and keeps token in URL fragment")
                 c.check(headers["Cache-Control"] == "no-store" and "frame-ancestors 'none'" in headers["Content-Security-Policy"], "responses carry cache and embedding protections")
+                for route, (filename, mime) in editor.STATIC_FILES.items():
+                    code, asset, response_headers = request("GET", route)
+                    c.check(code == 200 and asset == (editor.ASSETS / filename).read_bytes()
+                            and response_headers["Content-Type"] == mime
+                            and response_headers["Cache-Control"] == "no-store",
+                            f"packaged {filename} is served intact with its module type and no stale cache")
                 for values in ({"X-Discprobe-Token": "wrong"}, {"X-Discprobe-Token": "é"},
                                {"Origin": "http://example.org"}, {"Host": "evil.example"},
                                {"Sec-Fetch-Site": "cross-site"}):

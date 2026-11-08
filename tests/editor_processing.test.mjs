@@ -21,6 +21,53 @@ const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
 const flat = (n = 32, gray = 128) => image(n, n, () => gray);
 const ramp = image(256, 1, x => x);
 
+// Vary both axes, all three channels, and local detail. A horizontal ramp alone
+// would make a regression that repeats one scanline look like a valid image.
+function texturedImage(width, height, transparent = false) {
+  return image(width, height, (x, y) => {
+    const u = x / Math.max(1, width - 1), v = y / Math.max(1, height - 1);
+    const r = Math.round(125 + 70 * Math.sin(5 * u + 3 * v) + 30 * Math.cos(15 * v));
+    const g = Math.round(120 + 65 * Math.cos(4 * u - 7 * v) + 30 * Math.sin(17 * u));
+    const b = Math.round(125 + 70 * Math.sin(8 * u * v + 2 * v) + 25 * Math.cos(11 * (u + v)));
+    return [r, g, b, transparent ? ((x * 17 + y * 29) % 7 ? 255 : 0) : 255];
+  });
+}
+
+function transpose(source) {
+  return image(source.height, source.width, (x, y) =>
+    source.data.subarray((x * source.width + y) * 4, (x * source.width + y) * 4 + 4));
+}
+
+// Deliberately independent of the production streaming/ring implementation:
+// build a complete summed-area table from an unmodified source at every stage.
+function referenceSpatial(values, source, radius, apply) {
+  const { width: w, height: h, data } = source, stride = w + 1;
+  const r = Math.max(1, Math.min(Math.ceil(radius), Math.max(w, h)));
+  const sums = new Float64Array(stride * (h + 1));
+  const weights = new Float64Array(sums.length);
+  for (let y = 0; y < h; y++) {
+    let sum = 0, weight = 0;
+    for (let x = 0; x < w; x++) {
+      const pixel = y * w + x, i = (y + 1) * stride + x + 1, alpha = data[pixel * 4 + 3] / 255;
+      sum += values[pixel] * alpha; weight += alpha;
+      sums[i] = sums[i - stride] + sum;
+      weights[i] = weights[i - stride] + weight;
+    }
+  }
+  const result = values.slice();
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x;
+    if (!data[i * 4 + 3]) continue;
+    const left = Math.max(0, x - r), right = Math.min(w, x + r + 1);
+    const top = Math.max(0, y - r), bottom = Math.min(h, y + r + 1);
+    const area = table => table[bottom * stride + right] - table[top * stride + right]
+      - table[bottom * stride + left] + table[top * stride + left];
+    const weight = area(weights);
+    if (weight > 1e-8) result[i] = Math.min(1, Math.max(0, apply(values[i], area(sums) / weight)));
+  }
+  return result;
+}
+
 test("default tone is identity for gray and uses Pillow-compatible RGB weights", () => {
   assert.deepEqual(grays(processRGBA(ramp)), grays(ramp));
   const source = image(4, 1, x => [[255, 0, 0, 255], [0, 255, 0, 127], [0, 0, 255, 1], [20, 20, 20, 0]][x]);
@@ -28,6 +75,66 @@ test("default tone is identity for gray and uses Pillow-compatible RGB weights",
   assert.deepEqual(grays(result), [76, 150, 29, 20]);
   assert.deepEqual(alphas(result), [255, 127, 1, 0]);
   assert.equal(result.histogram.reduce((a, b) => a + b, 0), 3);
+});
+
+test("non-square color images preserve both axes and every neutral pixel", () => {
+  for (const [width, height] of [[317, 193], [193, 317], [1040, 781]]) {
+    const source = texturedImage(width, height), before = source.data.slice();
+    const result = processRGBA(source);
+    assert.deepEqual(source.data, before);
+    assert.equal(result.width, width); assert.equal(result.height, height);
+    let verticalChanges = 0, horizontalChanges = 0;
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const expected = Math.round(source.data[i] * 0.299 + source.data[i + 1] * 0.587 + source.data[i + 2] * 0.114);
+      assert.ok(Math.abs(result.data[i] - expected) <= 1, `pixel ${x}, ${y} of ${width}×${height}`);
+      if (x && result.data[i] !== result.data[i - 4]) horizontalChanges++;
+      if (y && result.data[i] !== result.data[i - width * 4]) verticalChanges++;
+    }
+    assert.ok(horizontalChanges > width * height / 20, 'horizontal subject structure remains');
+    assert.ok(verticalChanges > width * height / 20, 'vertical subject structure remains, not repeated gray bars');
+  }
+});
+
+test("Portrait processing of landscape and portrait textures is transpose-equivariant", () => {
+  for (const [width, height] of [[317, 193], [193, 317]]) {
+    const source = texturedImage(width, height);
+    for (const previewScale of [0.2, 1]) {
+      for (const levels of [{}, { blackPoint: 58, whitePoint: 215 }]) {
+        const options = { shadows: 12, highlights: -12, clarity: 8, denoise: 10, ...levels };
+        const result = processRGBA(source, options, { previewScale });
+        const rotated = transpose(processRGBA(transpose(source), options, { previewScale }));
+        for (let i = 0; i < result.data.length; i += 4) {
+          assert.ok(Math.abs(result.data[i] - rotated.data[i]) <= 1,
+            `Portrait pixel ${i / 4} of ${width}×${height}, previewScale ${previewScale}`);
+        }
+        assert.ok(result.histogram.filter(n => n > 0).length > 100, 'photo-like tones remain distributed');
+      }
+    }
+  }
+});
+
+test("Portrait spatial stages match an independent 2D reference on non-square alpha textures", () => {
+  for (const [width, height] of [[173, 97], [97, 173]]) {
+    const source = texturedImage(width, height, true);
+    for (const previewScale of [0.2, 1]) {
+      let values = Float32Array.from({ length: width * height }, (_, i) => {
+        const j = i * 4;
+        return (source.data[j] * 0.299 + source.data[j + 1] * 0.587 + source.data[j + 2] * 0.114) / 255;
+      });
+      const denoiseRadius = 1.3 * previewScale, effective = 0.1 * Math.min(1, denoiseRadius);
+      values = referenceSpatial(values, source, denoiseRadius,
+        (v, b) => v + effective * (b - v) / (1 + ((v - b) / 0.03) ** 2));
+      values = referenceSpatial(values, source, 20 * previewScale,
+        (v, b) => v + 0.08 * Math.min(1, 20 * previewScale) * (v - b));
+      const result = processRGBA(source, { clarity: 8, denoise: 10 }, { previewScale });
+      for (let i = 0; i < values.length; i++) {
+        assert.ok(Math.abs(result.data[i * 4] - Math.round(values[i] * 255)) <= 1,
+          `independent reference at ${i} of ${width}×${height}, previewScale ${previewScale}`);
+      }
+      assert.deepEqual(alphas(result), alphas(source));
+    }
+  }
 });
 
 test("normalizers make independent settings and keep defaults immutable", () => {

@@ -527,6 +527,12 @@ By default it opens a browser and prints the local address. `--no-browser` only 
 
 **Disc and controls.** The canvas is 120 × 120 mm with a 15 mm physical centre hole. The edge of that hole is not the start of the writable data area. The default drawable ring has radii of 24.5–56 mm for DVD and 26–56 mm for CD; artwork outside it is exported blank. Change this with `--r-min` / `--r-max` or the radius fields in the page, up to a 58 mm outer radius. This does not guarantee that your disc capacity or measurement covers that area: check the selected disc and measurement first. Use wheel zoom, view panning and image dragging, plus fit-to-window and native-grid views. Image size and position are in mm.
 
+The compact layout puts layer thumbnails on the left, the disc in the centre, and Basic / Detail / Output tabs (基础／细节／输出) on the right. Expand position and size (位置与尺寸), plain-background removal (纯色背景去除) or disc and canvas (光盘与画布) only when needed. RGB-to-grey weights and highlight/shadow compression are folded under 灰阶混合与压缩, keeping advanced controls out of everyday adjustments.
+
+The interface uses the terminal's DVD violet-pink accent, `#D988E0`, for buttons, sliders, selection outlines and curves. The canvas background stays neutral grey. Interface colours do not change the exported artwork pixels.
+
+![The local browser editor displaying an actual greyscale preview of a rose photograph](showcase/editor-workspace.png)
+
 - **Pictures and layers:** add one or more local pictures, change position, proportional size, rotation, opacity, order, visibility and locking, and duplicate or delete layers. Normal, multiply and screen blending are available. Original pictures are kept; adjustments and background removal do not alter their source files.
 - **Plain-background removal:** select a layer, pick its background colour, set tolerance and edge softness, preview, then press Apply. Cancel the preview or restore the background to undo it. Parts of the subject close to the chosen colour may also disappear; this is not AI subject selection.
 - **Greyscale and detail:** adjust the selected layer's exposure, brightness, contrast, highlights, shadows, black and white points, gamma, curve, RGB-to-grey mix, inversion and highlight/shadow compression. Sharpening has radius and threshold controls; there are also local contrast, texture, denoise and grain controls. Auto levels, auto enhance and presets provide starting points. Copy settings between layers, undo/redo edits, and use the histogram and clipping warnings to check lost tones.
@@ -557,6 +563,16 @@ python -m discprobe editor --media cd --geo latest --along-track-frames 206
 
 Here `206` is only an example; use the along-track constant measured for your drive and burn path. `--cd-sector` defaults to `mode2form1`, with `mode1` also available; the editor carries this choice to the next command. A CD audio-track measurement cannot be used by the current data-track `image` route, so that command is explicitly withheld.
 
+**Stripes and Canvas diagnostics.** At startup, on picture import, on opening a project and before export, the editor checks Canvas readback, `drawImage` and a PNG round-trip using a known test pattern, not a user picture. A failed check pauses adjustments, colour picking and picture export. The preview switches to the original composite without extracting picture pixels or calculating a histogram. Source pictures and project settings remain intact, and Save project still works. This small check detects some failures; a pass does not guarantee every picture and size will work.
+
+If you see vertical stripes or a pixel-readback warning:
+
+1. Save the project, then open diagnostics (诊断信息) on the left. Copy diagnostics (复制诊断) includes the editor version, browser information, Worker status and check results, but no picture contents, filenames, paths or session token.
+2. Check the browser or privacy extension's permission to extract Canvas image data for **this `127.0.0.1` local site**. If needed, allow only that site; do not turn off fingerprinting or privacy protection globally. The editor does not change permissions or work around a denial.
+3. Return to the page and press Retest (重新检测). A pass restores greyscale editing and export. If it still fails, or stripes remain despite a pass, report the diagnostics and browser version, and include the original JPG or other source file if you are willing to share it. A screenshot alone cannot establish the cause.
+
+[Mozilla bug 1703424](https://bugzilla.mozilla.org/show_bug.cgi?id=1703424) records a similar striped-image case involving Canvas fingerprinting protection, but does not prove the cause of every striped image here. Current Chromium injection tests cover corrupt data such as a repeating 32-byte placeholder. These are not tests in a real Firefox installation or a full reproduction of the user's original-picture problem.
+
 **Developer checks.** Run these from the repository root; no optical drive is needed. Node and Playwright are development-test tools, not editor runtime dependencies:
 
 ```bash
@@ -564,7 +580,11 @@ python -m discprobe.editor_selftest
 node --test tests/editor_processing.test.mjs
 # Optional browser integration test; install Playwright and its Chromium for development:
 node tests/editor_browser.mjs
+node --test tests/editor_imports.test.mjs tests/editor_canvas_integrity.test.mjs tests/editor_recovery.test.mjs
+node --test tests/editor_cache_recovery.test.mjs
 ```
+
+The layout draws on hierarchy, typography, spacing and consistency ideas from [Impeccable](https://github.com/pbakaus/impeccable) and [taste-skill](https://github.com/Leonxlnx/taste-skill), adapted for an editing tool, without marketing-page structures or external runtime dependencies.
 
 ## CD-R: textures, timing and burning pictures
 

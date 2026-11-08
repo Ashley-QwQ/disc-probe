@@ -2,23 +2,40 @@ import {
   DEFAULT_ADJUSTMENTS, DEFAULT_OUTPUT, normalizeAdjustments, normalizeOutput,
   processRGBA, applyChromaKey, renderOutput, physicalPreview, autoLevels, histogram,
 } from './processing.mjs';
+import { checkCanvasIntegrity } from './canvas-integrity.mjs';
 
 // The server only saves exports. Original pictures, undo history, and all image
 // operations live in this browser session; there are no third-party requests.
 const $ = id => document.getElementById(id);
 const clone = value => structuredClone(value);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+// Canvas overlays share the CSS theme. Artwork pixels never use UI colours.
+const themeColor = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+// A display-only comparison: repeated normalization can change an RGB weight
+// by one floating-point ulp. It must not turn a saved preset into "custom".
+const settingsKey = value => JSON.stringify(value, (_, v) =>
+  typeof v === 'number' ? Number(v.toFixed(9)) : v);
 const GRID = 6000, DIAMETER = 120, MAX_LAYERS = 16, MAX_SOURCE_PIXELS = 36_000_000;
 const MAX_TOTAL_SOURCE_PIXELS = 48_000_000, MAX_CACHE_PIXELS = 12_000_000;
 const MAX_SOURCE_BYTES = 24 * 1024 * 1024, MAX_PROJECT_BYTES = 100 * 1024 * 1024;
+const PRESETS = {
+  neutral: {}, portrait: { shadows: 12, highlights: -12, clarity: 8, denoise: 10 },
+  landscape: { contrast: 14, clarity: 18, texture: 10, sharpen: 15 },
+  illustration: { contrast: 8, denoise: 5, sharpen: 12 },
+  lineart: { contrast: 45, blackPoint: 25, whitePoint: 230, sharpen: 15 },
+  soft: { contrast: -10, highlightCompression: 10, shadowCompression: 10 },
+};
 const token = location.hash.slice(1);
+const EDITOR_BUILD = '2026.11.08.2';
 let config, state, dirty = false, sessionEnded = false, exporting = false, pendingEdits = 0;
 let assets = new Map(), layerCache = new Map();
+let cacheEpoch = 0;
 let past = [], future = [], lastEdit = '', lastEditTime = 0;
 let camera = { zoom: 1, x: 0, y: 0 }, tool = 'select', spaceHeld = false;
 let drag = null, keyDraft = null, keyPicking = false;
 let revision = 0, rendering = false, renderWanted = false, previewCanvas = null;
 let exportResult = null, nextJob = 1, worker = null;
+let integrity = null, integrityJob = null;
 const jobs = new Map(), controlInputs = new Map();
 
 function report(text, error = false) {
@@ -49,6 +66,53 @@ function selectedRequired() {
   return layer;
 }
 
+function updateDiagnostics() {
+  const status = integrity ? integrity.ok ? 'PASS' : 'FAIL' : 'CHECKING';
+  document.documentElement.dataset.pixelStatus = status.toLowerCase();
+  const lines = [
+    `disc-probe editor ${EDITOR_BUILD}`, `Browser: ${navigator.userAgent}`,
+    `Canvas integrity: ${status}`, `Worker: ${worker ? 'active' : 'main-thread fallback'}`,
+    ...((integrity?.checks || []).map(item => `${item.name}: ${item.ok ? 'PASS' : 'FAIL'}; changed=${item.changed}; maxDelta=${item.maxDelta}${item.error ? '; ' + item.error : ''}`)),
+    'No image contents, filenames, paths, or session token are included.',
+  ];
+  if ($('diagnosticText')) $('diagnosticText').value = lines.join('\n');
+  if ($('integrityNotice')) {
+    $('integrityNotice').hidden = !integrity || integrity.ok;
+    $('integrityNotice').textContent = '画布像素读取异常，已暂停调色和导出。下方仅显示未处理的原图。浏览器的 Canvas 权限、防指纹设置或扩展可能改写像素；请检查当前本地站点的权限，再到「诊断信息」点「重新检测」。原图未被修改，仍可保存工程；无需关闭全局隐私保护。';
+  }
+  if ($('rerunDiagnostics')) $('rerunDiagnostics').disabled = !!integrityJob || exporting;
+}
+async function verifyPixels() {
+  if (integrityJob) return integrityJob;
+  integrityJob = (async () => {
+    const previous = integrity?.ok;
+    try { integrity = await checkCanvasIntegrity(); }
+    catch (error) { integrity = { ok: false, checks: [{ name: 'check', ok: false,
+      changed: null, maxDelta: null, error: String(error.message || error) }] }; }
+    if (!integrity.ok) {
+      // Keep only direct image drawing available. Never attempt an offscreen or
+      // server-side route around a denied Canvas extraction permission.
+      $('preview-mode').value = 'original';
+      clearLayerCache();
+      releaseCanvas(previewCanvas); previewCanvas = null;
+      drawHistogram([]);
+      requestRender();
+    } else if (previous === false) {
+      clearLayerCache();
+      releaseCanvas(previewCanvas); previewCanvas = null;
+      $('preview-mode').value = 'edited';
+      requestRender();
+    }
+    return integrity.ok;
+  })();
+  updateDiagnostics();
+  try { return await integrityJob; }
+  finally { integrityJob = null; updateDiagnostics(); if (state) syncUI(); }
+}
+function requirePixels() {
+  if (!integrity?.ok) throw new Error('画布像素读取未通过检查。请在「诊断信息」重新检测；允许当前本地站点读取 Canvas 后再调色或导出。');
+}
+
 function remember(key = '') {
   const now = performance.now();
   if (!key || key !== lastEdit || now - lastEditTime > 600) {
@@ -61,6 +125,7 @@ function remember(key = '') {
   dirty = true;
 }
 function change(callback, key = '', update = true) {
+  if (exporting) throw new Error('正在导出，请等待完成后再修改画布。');
   remember(key);
   callback();
   if (update) syncUI();
@@ -129,6 +194,7 @@ function canvas(width, height = width) {
   return c;
 }
 function imageOf(c) {
+  requirePixels();
   const im = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height);
   return { width: im.width, height: im.height, data: im.data };
 }
@@ -144,6 +210,7 @@ function sampling(ctx) {
 function keyFor(layer) { return keyDraft && keyDraft.layerId === layer.id ? keyDraft.key : layer.key; }
 function releaseCanvas(c) { if (c) c.width = c.height = 1; }
 function clearLayerCache() {
+  cacheEpoch++;
   for (const entry of layerCache.values()) releaseCanvas(entry.canvas);
   layerCache.clear();
 }
@@ -161,6 +228,7 @@ function cacheRaster(id, signature, result) {
   layerCache.set(id, { signature, canvas: result });
 }
 async function layerRaster(layer, size, raw = false, committed = false) {
+  const epoch = cacheEpoch;
   const asset = assets.get(layer.assetId);
   if (!asset) throw new Error(`缺少图层原图：${layer.name}`);
   let width = Math.max(1, Math.round(layer.widthMm / DIAMETER * size));
@@ -190,7 +258,9 @@ async function layerRaster(layer, size, raw = false, committed = false) {
       });
       ctx.putImageData(new ImageData(image.data, width, height), 0, 0);
     }
-    if (cacheable) cacheRaster(layer.id, signature, input);
+    // A delayed Worker result may have been read before a failed integrity
+    // check. Never let it repopulate caches cleared during permission recovery.
+    if (cacheable && epoch === cacheEpoch) cacheRaster(layer.id, signature, input);
     return input;
   } catch (error) { releaseCanvas(input); throw error; }
 }
@@ -275,14 +345,14 @@ async function render() {
     while (renderWanted && !exporting) {
       renderWanted = false;
       const version = revision, size = Number($('preview-size').value);
-      const mode = $('preview-mode').value;
+      const mode = integrity?.ok ? $('preview-mode').value : 'original';
       if (state.layers.length) report(`正在生成 ${size} px 预览…`);
       const composite = await compose(size, {
         raw: mode === 'original', transparent: !!keyDraft && mode === 'edited', checkRevision: version,
       });
       if (!composite || version !== revision) continue;
-      let pixels = imageOf(composite);
-      drawHistogram(histogram(pixels));
+      let pixels = integrity?.ok ? imageOf(composite) : null;
+      drawHistogram(pixels ? histogram(pixels) : []);
       let result = composite;
       if (mode === 'output' || mode === 'soft') {
         pixels = null;
@@ -317,7 +387,8 @@ async function render() {
       updateWarnings();
       const suffix = keyDraft ? '去背预览尚未应用' : mode === 'soft' ? '视觉平均示意，不是实物预测'
         : size === GRID ? '原生网格预览' : '快速预览；导出将以 6000 px 重新计算';
-      report(state.layers.length ? `${state.layers.length} 个图层 · ${size} px · ${suffix}` : '从「添加图片」开始，也可以把图片拖到画布。');
+      report(!integrity?.ok ? '像素读取检查未通过：仅显示原图，请打开「诊断信息」。'
+        : state.layers.length ? `${state.layers.length} 个图层 · ${size} px · ${suffix}` : '从「添加图片」开始，也可以把图片拖到画布。');
     }
   } catch (error) { fail(error); }
   finally {
@@ -387,14 +458,13 @@ function drawStage() {
   ctx.fillStyle = '#242825'; ctx.beginPath(); ctx.arc(0, 0, 7.5 * g.scale, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = '#9ea6a0';
   ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(4, 0); ctx.moveTo(0, -4); ctx.lineTo(0, 4); ctx.stroke();
-  ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#bac2bc';
-  ctx.fillText('120 mm · DATA SIDE', 0, -radius - 14);
+  ctx.textAlign = 'center';
   const layer = selected();
   if (layer?.visible) {
     const w = layer.widthMm * g.scale, h = layerHeight(layer) * g.scale;
     ctx.save();
     ctx.translate(layer.x * g.scale, -layer.y * g.scale); ctx.rotate(layer.rotation * Math.PI / 180);
-    ctx.strokeStyle = layer.locked ? '#8a9893' : '#f29656'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = layer.locked ? '#8a9893' : themeColor('--accent'); ctx.lineWidth = 1.5;
     ctx.setLineDash([5, 4]); ctx.strokeRect(-w / 2, -h / 2, w, h); ctx.setLineDash([]);
     if (!layer.locked) {
       ctx.fillStyle = '#fff';
@@ -404,11 +474,8 @@ function drawStage() {
     }
     ctx.restore();
   }
-  if (!state.layers.length) {
-    ctx.fillStyle = '#5f655f'; ctx.font = '15px system-ui, sans-serif';
-    ctx.fillText('把图片放到这张光盘上', 0, -35 * g.scale);
-  }
   ctx.restore();
+  if ($('canvas-empty')) $('canvas-empty').hidden = !!state.layers.length;
   $('zoom-label').textContent = `${Math.round(camera.zoom * 100)}%`;
   c.dataset.tool = keyPicking ? 'eyedropper' : spaceHeld ? 'pan' : tool;
 }
@@ -429,6 +496,7 @@ function setTool(value) {
   drawStage();
 }
 function pickColor(point) {
+  requirePixels();
   const layer = selectedRequired(), local = layerLocal(layer, worldPoint(point));
   const w = layer.widthMm, h = layerHeight(layer);
   if (Math.abs(local.x) > w / 2 || Math.abs(local.y) > h / 2) throw new Error('请点击所选图层的背景。');
@@ -506,15 +574,18 @@ function drawHistogram(bins) {
   ctx.clearRect(0, 0, c.width, c.height);
   const values = Array.isArray(bins) || ArrayBuffer.isView(bins) ? bins : bins.bins || bins.histogram || [];
   const highest = Math.max(1, ...values);
-  ctx.fillStyle = '#748278';
+  ctx.fillStyle = '#bfc3c9';
   for (let i = 0; i < 256; i++) {
     const h = Math.sqrt((values[i] || 0) / highest) * (c.height - 6);
     ctx.fillRect(i / 256 * c.width, c.height - h, Math.ceil(c.width / 256), h);
   }
 }
 function updateWarnings() {
-  const warnings = [...(config.warnings || [])];
-  warnings.push(`当前刻图网格：20 μm/像素；网点单位 ${state.output.cellSize * 20} μm。它不是光学分辨率保证。`);
+  // The fixed software-grid explanation already appears beside the canvas.
+  // Keep the expandable note list for actionable conditions, not repeated copy.
+  const warnings = (config.warnings || []).filter(w => !w.startsWith('The image writer uses a 20 micrometre'))
+    .map(w => w.startsWith('No measured geometry is selected')
+      ? '尚未选择几何测量：可以先设计和导出，生成刻录镜像前再完成 geo 测量。' : w);
   if (Number($('preview-size').value) !== GRID && ['output', 'soft'].includes($('preview-mode').value)) {
     warnings.push('低分辨率网点预览不逐像素对应导出。检查细节时切到「原生网格」。');
   }
@@ -526,6 +597,9 @@ function updateWarnings() {
     if (sourceUm > 200) warnings.push(`「${layer.name}」原图像素约 ${sourceUm.toFixed(0)} μm，放大不会补回细节。`);
   }
   $('warnings').replaceChildren(...warnings.map(w => element('li', w)));
+  if ($('warning-count')) $('warning-count').textContent = warnings.length ? `${warnings.length} 条提示` : '设计提示';
+  const notes = $('warnings').closest('details');
+  if (notes) notes.hidden = warnings.length === 0;
 }
 
 const TONE = [
@@ -567,6 +641,7 @@ function getSetting(key, output) {
   return key.startsWith('mix') ? a.mix[Number(key.at(-1))] : a[key];
 }
 function setSetting(key, value, output) {
+  requirePixels();
   if (output) {
     const candidate = normalizeOutput({ ...state.output, [key]: value });
     change(() => { state.output = candidate; }, `output-${key}`, false);
@@ -585,7 +660,10 @@ function addControls(container, definitions, output = false) {
   for (const [key, label, min, max, step, suffix = ''] of definitions) {
     const row = element('div', undefined, 'control adjustment'), line = element('div', undefined, 'control-heading adjustment-label');
     const prefix = output ? 'output-' : 'adjust-';
-    const caption = element('label', label); caption.htmlFor = prefix + key;
+    const shortLabel = { angle: '网点方向', cellSize: '网点大小', mix0: '红色权重',
+      mix1: '绿色权重', mix2: '蓝色权重' }[key] || label.split(' · ')[0];
+    const caption = element('label', shortLabel); caption.htmlFor = prefix + key;
+    caption.title = label + suffix;
     const number = element('input'); number.type = 'number'; number.min = min; number.max = max; number.step = step;
     number.setAttribute('aria-label', label + suffix); number.id = prefix + key + '-number';
     const range = element('input'); range.type = 'range'; range.min = min; range.max = max; range.step = step;
@@ -605,10 +683,11 @@ function addControls(container, definitions, output = false) {
   }
 }
 function setupControls() {
-  addControls('tone-controls', TONE);
+  addControls('tone-controls', TONE.slice(0, 8));
+  addControls('tone-advanced-controls', TONE.slice(8));
   const invertLabel = element('label', undefined, 'check-label'), invert = element('input');
   invert.type = 'checkbox'; invert.id = 'adjust-invert';
-  invertLabel.append(invert, document.createTextNode('黑白反相 · Invert'));
+  invertLabel.append(invert, document.createTextNode('黑白反相'));
   $('tone-controls').append(invertLabel);
   invert.onchange = () => { try { setSetting('invert', invert.checked, false); } catch (error) { fail(error); } };
   addControls('detail-controls', DETAIL);
@@ -632,12 +711,21 @@ function syncControls() {
   for (const { range, number, key, output } of controlInputs.values()) {
     const value = getSetting(key, output);
     range.value = value; number.value = Number(Number(value).toFixed(3));
-    range.disabled = number.disabled = exporting || (!output && (!selected() || selected().locked));
+    range.style.setProperty('--range-progress', `${100 * (Number(value) - Number(range.min)) / (Number(range.max) - Number(range.min))}%`);
+    range.disabled = number.disabled = exporting || !integrity?.ok || (!output && (!selected() || selected().locked));
   }
   $('adjust-invert').checked = selected()?.adjustments.invert || false;
-  $('adjust-invert').disabled = !selected() || selected().locked;
+  $('adjust-invert').disabled = exporting || !integrity?.ok || !selected() || selected().locked;
   $('output-mode').value = state.output.mode;
   $('output-matrix').value = state.output.matrixSize;
+  $('output-mode').disabled = $('output-matrix').disabled = exporting || !integrity?.ok;
+  const layer = selected(), editable = !!layer && !layer.locked && !exporting && !!integrity?.ok;
+  for (const id of ['auto-levels', 'auto-enhance', 'reset-adjustments', 'reset-curve', 'copy-settings', 'paste-settings', 'preset']) $(id).disabled = !editable;
+  if (!$('preset').querySelector('option[value="custom"]')) {
+    const option = element('option', '自定义'); option.value = 'custom'; $('preset').append(option);
+  }
+  $('preset').value = layer ? Object.entries(PRESETS).find(([, preset]) =>
+    settingsKey(normalizeAdjustments(preset)) === settingsKey(layer.adjustments))?.[0] || 'custom' : 'neutral';
 }
 function syncTransform() {
   const layer = selected();
@@ -660,12 +748,16 @@ function syncLayers() {
     const visibility = element('input'); visibility.type = 'checkbox'; visibility.checked = layer.visible;
     visibility.setAttribute('aria-label', `显示 ${layer.name}`);
     visibility.onchange = () => change(() => { layer.visible = visibility.checked; });
-    const button = element('button', layer.name, 'layer-name'); button.type = 'button';
+    const button = element('button', layer.name, 'layer-name'); button.type = 'button'; button.title = layer.name;
     button.setAttribute('aria-pressed', String(layer.id === state.selectedId));
     button.onclick = () => { state.selectedId = layer.id; keyDraft = null; syncUI(); requestRender(); };
-    row.append(visibility, button, element('span', layer.locked ? '锁定' : `${Math.round(layer.opacity * 100)}%`, 'layer-tag'));
+    const thumbnail = element('img', undefined, 'layer-thumb');
+    thumbnail.src = assets.get(layer.assetId).source; thumbnail.alt = ''; thumbnail.draggable = false;
+    thumbnail.onclick = () => button.click();
+    row.append(thumbnail, visibility, button, element('span', layer.locked ? '锁定' : `${Math.round(layer.opacity * 100)}%`, 'layer-tag'));
     $('layer-list').append(row);
   }
+  if ($('layer-empty')) $('layer-empty').hidden = !!state.layers.length;
 }
 function syncUI() {
   if (!state) return;
@@ -678,22 +770,27 @@ function syncUI() {
   const layer = selected(), key = keyFor(layer || {}) || { color: [255, 255, 255], tolerance: 8, softness: 2 };
   $('key-color').value = '#' + key.color.map(v => v.toString(16).padStart(2, '0')).join('');
   $('key-tolerance').value = key.tolerance; $('key-softness').value = key.softness;
+  $('key-tolerance').style.setProperty('--range-progress', `${key.tolerance}%`);
+  $('key-softness').style.setProperty('--range-progress', `${key.softness}%`);
   $('key-tolerance-value').textContent = `${key.tolerance}%`; $('key-softness-value').textContent = `${key.softness}%`;
-  for (const id of ['key-pick', 'key-preview', 'key-apply', 'key-cancel', 'key-clear']) $(id).disabled = !layer || layer.locked;
-  $('export-open').disabled = exporting || sessionEnded;
+  for (const id of ['key-pick', 'key-preview', 'key-apply', 'key-cancel', 'key-clear', 'key-color', 'key-tolerance', 'key-softness']) $(id).disabled = exporting || !integrity?.ok || !layer || layer.locked;
+  $('export-open').disabled = exporting || sessionEnded || !integrity?.ok;
+  $('export-confirm').disabled = exporting || sessionEnded || !integrity?.ok;
+  $('preview-mode').disabled = !integrity?.ok;
+  $('clipping-warning').disabled = !integrity?.ok;
   drawCurve(false); drawCurve(true); drawStage();
 }
 
 function curvePoints(output) { return output ? state.output.outputCurve : selected()?.adjustments.curve || DEFAULT_ADJUSTMENTS.curve; }
 function drawCurve(output) {
   const c = $(output ? 'output-curve' : 'tone-curve'), ctx = c.getContext('2d'), p = 12;
-  ctx.clearRect(0, 0, c.width, c.height); ctx.strokeStyle = '#dfe3de'; ctx.lineWidth = 1;
+  ctx.clearRect(0, 0, c.width, c.height); ctx.strokeStyle = '#3a3e45'; ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
     const x = p + (c.width - 2 * p) * i / 4, y = p + (c.height - 2 * p) * i / 4;
     ctx.beginPath(); ctx.moveTo(x, p); ctx.lineTo(x, c.height - p); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(p, y); ctx.lineTo(c.width - p, y); ctx.stroke();
   }
-  const pts = curvePoints(output); ctx.strokeStyle = '#d87532'; ctx.lineWidth = 2; ctx.beginPath();
+  const pts = curvePoints(output); ctx.strokeStyle = themeColor('--accent'); ctx.lineWidth = 2; ctx.beginPath();
   pts.forEach(([x, y], i) => {
     const px = p + x * (c.width - 2 * p), py = c.height - p - y * (c.height - 2 * p);
     i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
@@ -711,7 +808,7 @@ function setupCurve(output) {
   };
   const assign = pts => { if (output) state.output.outputCurve = pts; else selected().adjustments.curve = pts; drawCurve(output); requestRender(); };
   c.onpointerdown = event => {
-    if (event.button !== 0 || exporting || (!output && (!selected() || selected().locked))) return;
+    if (event.button !== 0 || exporting || !integrity?.ok || (!output && (!selected() || selected().locked))) return;
     const p = point(event), pts = clone(curvePoints(output));
     active = pts.findIndex(v => Math.hypot(v[0] - p[0], v[1] - p[1]) < 0.08);
     remember();
@@ -735,7 +832,7 @@ function setupCurve(output) {
   c.onpointerup = c.onpointercancel = () => { active = null; lastEdit = ''; syncUI(); };
   c.oncontextmenu = event => {
     event.preventDefault();
-    if (!output && (!selected() || selected().locked)) return;
+    if (!integrity?.ok || exporting || (!output && (!selected() || selected().locked))) return;
     const p = point(event), pts = clone(curvePoints(output));
     const i = pts.findIndex(v => Math.hypot(v[0] - p[0], v[1] - p[1]) < 0.1);
     if (i > 0 && i < pts.length - 1) change(() => { pts.splice(i, 1); assign(pts); });
@@ -752,6 +849,8 @@ function previewKey() {
   $('preview-mode').value = 'edited';
   $('key-tolerance-value').textContent = `${keyDraft.key.tolerance}%`;
   $('key-softness-value').textContent = `${keyDraft.key.softness}%`;
+  $('key-tolerance').style.setProperty('--range-progress', `${keyDraft.key.tolerance}%`);
+  $('key-softness').style.setProperty('--range-progress', `${keyDraft.key.softness}%`);
   requestRender();
 }
 
@@ -780,6 +879,7 @@ async function addImages(files) {
   pendingEdits++;
   try {
   if (files.length + state.layers.length > MAX_LAYERS) throw new Error(`最多 ${MAX_LAYERS} 个图层。`);
+  await verifyPixels();
   const incoming = [];
   let totalPixels = [...assets.values()].reduce((n, a) => n + a.width * a.height, 0);
   let totalBytes = [...assets.values()].reduce((n, a) => n + a.source.length, 0);
@@ -840,6 +940,7 @@ async function loadProject(file) {
   if (exporting || pendingEdits) throw new Error('请等待当前导入、调整或导出完成。');
   pendingEdits++;
   try {
+  await verifyPixels();
   if (file.size > MAX_PROJECT_BYTES) throw new Error('项目文件过大。');
   const p = JSON.parse(await file.text());
   if (p.format !== 'discprobe-editor-project' || p.version !== 1 || p.media !== config.media || p.canvasMm !== DIAMETER) {
@@ -886,6 +987,7 @@ async function copyText(text, fallback) {
   }
 }
 async function setAuto(enhance) {
+  requirePixels();
   if (exporting || pendingEdits) throw new Error('请等待当前导入、调整或导出完成。');
   pendingEdits++;
   try {
@@ -901,6 +1003,7 @@ async function setAuto(enhance) {
 
 async function exportArtwork() {
   if (exporting || sessionEnded) return;
+  requirePixels();
   if (pendingEdits) throw new Error('图片还在导入或计算自动调整，请等待完成后再导出。');
   if (keyDraft) throw new Error('请先「应用去背」或「取消预览」，再导出。');
   exporting = true; revision++; renderWanted = false;
@@ -908,6 +1011,7 @@ async function exportArtwork() {
   $('export-message').textContent = '正在以 6000 × 6000 重新渲染，请稍候。';
   syncUI();
   try {
+    if (!await verifyPixels()) requirePixels();
     // Let any in-flight preview finish before allocating the full export raster.
     while (rendering) await new Promise(resolve => setTimeout(resolve, 30));
     const source = await compose(GRID, { committed: true });
@@ -951,6 +1055,7 @@ async function exportArtwork() {
     exporting = false; clearLayerCache();
     $('export-confirm').disabled = sessionEnded;
     syncUI();
+    if (renderWanted && !sessionEnded) requestRender();
   }
 }
 function updateCommand() {
@@ -961,6 +1066,14 @@ function updateCommand() {
 
 function bind() {
   const click = (id, fn) => $(id).addEventListener('click', () => Promise.resolve().then(fn).catch(fail));
+  click('rerunDiagnostics', async () => {
+    if (exporting || pendingEdits) throw new Error('请先等待当前导入或导出完成。');
+    revision++;
+    report('正在检查本地画布的像素读写…');
+    await verifyPixels();
+    requestRender();
+  });
+  click('copyDiagnostics', () => copyText($('diagnosticText').value, $('diagnosticText')));
   click('add-images', () => $('image-files').click());
   $('image-files').onchange = async event => { try { await addImages([...event.target.files]); } catch (error) { fail(error); } finally { event.target.value = ''; } };
   click('undo', () => historyStep(false)); click('redo', () => historyStep(true));
@@ -1027,14 +1140,10 @@ function bind() {
   });
   $('preset').onchange = () => {
     try {
-      const layer = selectedRequired(), presets = {
-        neutral: {}, portrait: { shadows: 12, highlights: -12, clarity: 8, denoise: 10 },
-        landscape: { contrast: 14, clarity: 18, texture: 10, sharpen: 15 },
-        illustration: { contrast: 8, denoise: 5, sharpen: 12 },
-        lineart: { contrast: 45, blackPoint: 25, whitePoint: 230, sharpen: 15 },
-        soft: { contrast: -10, highlightCompression: 10, shadowCompression: 10 },
-      };
-      change(() => { layer.adjustments = normalizeAdjustments({ ...clone(DEFAULT_ADJUSTMENTS), ...presets[$('preset').value] }); });
+      requirePixels();
+      const layer = selectedRequired(), preset = PRESETS[$('preset').value];
+      if (!preset) return;
+      change(() => { layer.adjustments = normalizeAdjustments(preset); });
     } catch (error) { fail(error); }
   };
   click('save-project', () => { download(safeName($('export-name').value) + '.discproject.json', 'application/json', JSON.stringify(projectObject(true))); dirty = false; report('项目已下载，包含原图和非破坏性图层参数。'); });
@@ -1058,10 +1167,24 @@ function bind() {
         if (['nearest', 'linear', 'high'].includes(p.resampling)) state.resampling = p.resampling; });
     } catch (error) { fail(error); } finally { event.target.value = ''; }
   };
-  for (const button of document.querySelectorAll('[data-panel]')) button.onclick = () => {
-    for (const b of document.querySelectorAll('[data-panel]')) b.setAttribute('aria-selected', String(b === button));
+  const panelTabs = [...document.querySelectorAll('[data-panel]')];
+  for (const button of panelTabs) {
+    button.tabIndex = button.getAttribute('aria-selected') === 'true' ? 0 : -1;
+    button.onclick = () => {
+    for (const b of panelTabs) {
+      b.setAttribute('aria-selected', String(b === button)); b.tabIndex = b === button ? 0 : -1;
+    }
     for (const name of ['tone', 'detail', 'output']) $('panel-' + name).hidden = name !== button.dataset.panel;
-  };
+    };
+    button.onkeydown = event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const i = panelTabs.indexOf(button), offset = event.key === 'ArrowLeft' ? -1 : 1;
+      const next = event.key === 'Home' ? panelTabs[0] : event.key === 'End' ? panelTabs.at(-1)
+        : panelTabs[(i + offset + panelTabs.length) % panelTabs.length];
+      next.click(); next.focus();
+    };
+  }
   click('export-open', () => { $('export-dialog').showModal(); });
   click('export-close', () => { if (!exporting) $('export-dialog').close(); });
   $('export-dialog').addEventListener('cancel', event => { if (exporting) event.preventDefault(); });
@@ -1106,7 +1229,10 @@ async function main() {
   // The Windows release's Start.bat opens CMD, not PowerShell. Other shells
   // remain explicitly selectable in the export dialog.
   $('export-shell').value = /Win/i.test(navigator.platform) ? 'cmd' : 'posix';
-  setupWorker(); setupControls(); bind(); syncUI(); requestRender();
+  setupWorker(); setupControls(); bind();
+  await verifyPixels();
+  syncUI(); requestRender();
+  document.documentElement.dataset.editorBuild = EDITOR_BUILD;
   document.documentElement.dataset.ready = 'true';
 }
 main().catch(error => { fail(error); $('export-open').disabled = true; });
