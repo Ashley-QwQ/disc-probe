@@ -1530,6 +1530,11 @@ def _advice(c) -> None:
     c.check(any(x.strip() == f'{guide.PROG} edit "my photo.png"' for x in picture)
             and any(x.strip() == f"{guide.PROG} edit --media cd p.design.json" for x in design)
             and not any(" edit " in x for x in finished), "after a picture or a design it offers edit, after the grid not")
+    made = guide.after_image("iso/p.iso", "iso/p.preview.png", geo, picture="my photo.png", simulated="iso/p.simulated.png")
+    c.check(any(x.strip().startswith(f'{guide.PROG} simulate --picture "my photo.png" --sheet') for x in picture)
+            and not any("simulate" in x for x in design) and not any("simulate" in x for x in finished)
+            and any("p.simulated.png" in x for x in made) and not any(f"{guide.PROG} simulate" in x for x in made),
+            "a DVD picture offers a simulated photo, or names the one just made; a CD and the grid don't")
     sim_args = Namespace(**{**vars(args), "sim": "cav", "drive": None})
     c.check("simulated drive" in guide.after_timing(sim_args, timed("CAV", [0.4]))[0] and "simulated drive" in guide.after_timing(sim_args, timed("CLV", [0.4]))[0],
             "a verdict on the simulated drive says so")

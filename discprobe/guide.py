@@ -683,11 +683,19 @@ def after_edit(path: str, media: str = "dvd") -> list[str]:
 
 
 def after_image(output: str, preview: str, geometry: str, picture: str | None = None, design: str | None = None,
-                media: str = "dvd") -> list[str]:
+                media: str = "dvd", simulated: str | None = None) -> list[str]:
     """What to do with a finished picture ISO. One made from a simulated run must not reach a disc.
-    Made from a picture or a design file, it also says how to place it with edit, since that is what a look at it asks."""
+    Made from a picture or a design file, it also says how to place it with edit, since that is what a look at it asks,
+    and on a DVD how to see a simulated photo of it (`simulated` when one was just made)."""
     lines = [f"Next, check the preview: {short(preview)}"]
     flag = " --media cd" if media == "cd" else ""
+    if simulated:
+        lines += [f"And the simulated photo (a model, not a measurement): {short(simulated)}"]
+    elif media != "cd" and (design or picture):
+        source = f"--design {short(design)}" if design else f"--picture {short(picture)}"
+        sheet = short(os.path.splitext(output)[0] + ".simulated.png")
+        lines += ["To see roughly how it may look in a photo (a model, not a measurement; a few seconds):",
+                  f"  {PROG} simulate {source} --sheet {sheet}"]
     if design:
         lines += ["To change where it sits, its size or turn, open the design again, then make the ISO the same way:",
                   f"  {PROG} edit{flag} {short(design)}"]

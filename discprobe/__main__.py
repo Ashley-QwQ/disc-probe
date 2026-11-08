@@ -84,10 +84,29 @@ def _image_ready(args, preview: str, design=None, files: str = "") -> None:
     if files:
         print(files)
     ui.iso_ready(args.output)       # after the disc, which is tall, or this scrolls away again
+    simulated = None
+    if (design is not None and design.dtype == bool and getattr(args, "media", "dvd") == "dvd"
+            and ui.term().can_prompt()
+            and ui.ask("Make a simulated photo of it too? A model, not a measurement; it takes a few seconds.")):
+        simulated = _simulated_photo(args, design)
     _next(guide.after_image(args.output, preview, args.geo, getattr(args, "picture", None),
-                            getattr(args, "design", None), getattr(args, "media", "dvd")), args)
+                            getattr(args, "design", None), getattr(args, "media", "dvd"), simulated), args)
     if "geo-SIM-" not in args.geo:
         ui.burn_warning()
+
+
+def _simulated_photo(args, design) -> str | None:
+    """Twelve predicted views of the disc beside the picture, next to the ISO; None when the textures can't be modelled."""
+    from . import simulate
+    path = os.path.splitext(args.output)[0] + ".simulated.png"
+    try:
+        with ui.busy("Rendering the simulated photo..."):
+            simulate.sheet(design, getattr(args, "picture", None), 420, args.dark, args.light,
+                           simulate.CAMERA, simulate.FLASH).save(path)
+    except ValueError as e:
+        print(f"No simulated photo: {e}")
+        return None
+    return path
 
 
 def _need_windows() -> None:
@@ -563,7 +582,13 @@ def cmd_edit(args):
 def cmd_simulate(args):
     from . import imagedisc, simulate
     try:
-        design = simulate.load_design(args.design_npy) if args.design_npy else imagedisc.picture_design(args.picture, args.diameter_mm)
+        if args.design:
+            from . import design as project_file
+            design = project_file.render(project_file.load(args.design))
+        elif args.design_npy:
+            design = simulate.load_design(args.design_npy)
+        else:
+            design = imagedisc.picture_design(args.picture, args.diameter_mm)
         if not args.output and not args.sheet:
             raise ValueError("give --output or --sheet")
         if args.output:
@@ -1290,6 +1315,7 @@ def _build_parser():
     sp = sub.add_parser("simulate", help="predict a disc view from a design (a model, not a photo)")
     source = sp.add_mutually_exclusive_group(required=True)
     source.add_argument("--picture", help="greyscale picture to threshold instead of the grid test")
+    source.add_argument("--design", help="a design file saved by edit")
     source.add_argument("--design-npy", help="prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view")
     sp.add_argument("--diameter-mm", type=float, default=116.0, help="the picture's longer side on the disc, in mm; it keeps its shape")
     sp.add_argument("--dark", default="A5", help="dark texture: one hexadecimal byte")
