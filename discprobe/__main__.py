@@ -664,6 +664,13 @@ def cmd_image(args):
         r_first = bit * 1e-6 * math.sqrt(u * u + v * first * imagedisc.SECTOR_BITS / math.pi)
         print(f"Appending from LBA {first} (about {r_first:.2f} mm): the file holds only that part, with no file system. "
               "Whatever the design has inside that radius is left out.")
+    lead = 0
+    if args.random_below_mm:
+        if args.media != "dvd":
+            sys.exit("--random-below-mm is for DVD for now")
+        lead = min(writer.sectors_to_radius(u, v, bit, args.random_below_mm), total)
+        print(f"Random data up to {args.random_below_mm:g} mm (LBA {lead}); the picture starts there.")
+    extra = {**({"first_lba": first} if first else {}), **({"lead_lba": lead} if lead else {})}
     tex = f"textures {' '.join(args.textures)}" if args.textures else f"dark {args.dark}, light {args.light}"
     print(f"{kind}, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
           f"({total * 2048 / 1e9:.2f} GB), {tex}")
@@ -674,13 +681,12 @@ def cmd_image(args):
                                     meta={"geometry_from": os.path.abspath(args.geo), "design": kind,
                                           "along_track_frames": args.along_track_frames,
                                           "correction": os.path.abspath(args.correction) if args.correction else None},
-                                    correction=corr, textures=args.textures, log=log,
-                                    **({"first_lba": first} if first else {}))
+                                    correction=corr, textures=args.textures, log=log, **extra)
     except ValueError as e:
         sys.exit(str(e))
     with ui.busy("Checking what was written..."):
         problems = writer.verify_iso(args.output, design, u, v, bit, total, args.dark, args.light, correction=corr,
-                                     textures=args.textures, **({"first_lba": first} if first else {}))
+                                     textures=args.textures, **extra)
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     prev = os.path.splitext(args.output)[0] + ".preview.png"
     if design.dtype == bool:
@@ -1339,6 +1345,9 @@ def _build_parser():
     sp.add_argument("--start-lba", type=int, default=0,
                     help="DVD: write only from this sector on, to append to a disc already written up to it "
                          "(`info` shows the next writable address)")
+    sp.add_argument("--random-below-mm", type=float, default=0.0,
+                    help="DVD: random data inside this radius, the picture outside it (25 helps a drive that "
+                         "fails to write a picture from the first sector)")
     sp.add_argument("--line-mm", type=float, default=0.3, help="grid line width")
     sp.add_argument("--correction", help="angle-correction file (phi(r) measured on a burned grid)")
     sp.add_argument("--along-track-frames", type=float, default=0.0,

@@ -1111,6 +1111,15 @@ def _tiles(c: Checker):
             same = f.read() == open(tail, "rb").read()
         c.check(same and not imagedisc.verify_iso(tail, design, u, v, bit, 2400, samples=40, first_lba=1600),
                 "an image started at a later LBA is that part of the whole image, byte for byte")
+        from . import content, dvd
+        lead = os.path.join(d, "lead.iso")
+        imagedisc.write_iso(lead, design, u, v, bit, 2400, log=lambda *_: None, lead_lba=800)
+        with open(lead, "rb") as f, open(whole, "rb") as g:
+            data, ref = f.read(), g.read()
+        start = [content.is_random(k, data[k * 2048:(k + 1) * 2048]) for k in range(32, 800, 50)]
+        c.check(all(start) and data[800 * 2048:] == ref[800 * 2048:]
+                and not imagedisc.verify_iso(lead, design, u, v, bit, 2400, samples=40, lead_lba=800),
+                "below lead_lba it is random data, from there the same picture")
 
 
 def _prediction(c):

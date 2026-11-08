@@ -317,6 +317,10 @@ TEXT = {
     # guide
     "Burn {p} to a disc and load it, then check this drive (1 to 3 minutes):": "把 {p} 刻到盘上并放入光驱，然后检查这台光驱（1 到 3 分钟）：",
     "Next, check the preview: {p}": "下一步，先看预览图：{p}",
+    "Random data up to {r} mm (LBA {l}); the picture starts there.": "{r} mm 以内写随机数据（到扇区号 {l}），图案从那里开始。",
+    "--random-below-mm is for DVD for now": "--random-below-mm 目前只支持 DVD",
+    "DVD: random data inside this radius, the picture outside it (25 helps a drive that fails to write a picture from the first sector)":
+        "DVD：这个半径以内写随机数据，以外才画图（填 25 可以帮到从第一个扇区就写不进图案的光驱）",
     "And the simulated photo (a model, not a measurement): {p}": "还有模拟实拍图（模型推算，不是实测）：{p}",
     "To see roughly how it may look in a photo (a model, not a measurement; about ten seconds):":
         "想大致看看拍出来是什么样（模型推算，不是实测；大约十秒）：",
