@@ -60,6 +60,20 @@ def _byte_bit_offsets() -> np.ndarray:
 BYTE_BITS = _byte_bit_offsets()
 GROUP_BITS = BYTE_BITS.reshape(-1, GROUP_BYTES).mean(axis=1)
 
+# A 2048-byte Blu-ray sector is 2.2399 mm of track: 30 066.75 channel bits at 74.5 nm. The writer
+# needs that number, not DVD's 38 688, or it walks the spiral 28.7 % too fast and only figures that
+# are circles in the design survive the burn.
+SECTOR_BITS_BD = 30066.75
+# Blu-ray inserts its LDC parity between runs of 216 bytes rather than wrapping each byte, and the
+# sector is a slice of a 32-sector cluster, so a group is simply a slice of the sector's track.
+GROUP_BITS_BD = ((np.arange(dvd.SECTOR_BYTES // GROUP_BYTES) + 0.5)
+                 * (SECTOR_BITS_BD / (dvd.SECTOR_BYTES // GROUP_BYTES)))
+
+
+def sector_bits(media: str) -> tuple[float, np.ndarray]:
+    """Channel bits of track in one sector, and the bit offset of each 16-byte group in it."""
+    return (SECTOR_BITS_BD, GROUP_BITS_BD) if media == "bd" else (SECTOR_BITS, GROUP_BITS)
+
 
 def theta(n, u, v):
     """Accumulated track angle in radians at channel bit n."""

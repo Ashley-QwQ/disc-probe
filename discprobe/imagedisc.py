@@ -23,7 +23,7 @@ import re
 import numpy as np
 
 from . import dvd, iso9660
-from .calib import GROUP_BITS, GROUP_BYTES, SECTOR_BITS, theta
+from .calib import GROUP_BITS, GROUP_BYTES, SECTOR_BITS, sector_bits, theta
 
 CELL_MM = 0.02
 HALF_MM = 60.0
@@ -131,10 +131,10 @@ def correction_other_run(path: str, u: float, v: float, geo_path: str) -> str | 
     return None if same else run
 
 
-def sectors_to_radius(u: float, v: float, bit_nm: float, r_mm: float) -> int:
+def sectors_to_radius(u: float, v: float, bit_nm: float, r_mm: float, media: str = "dvd") -> int:
     s = r_mm / (bit_nm * 1e-6)
     n = math.pi * (s * s - u * u) / v
-    return int(n // SECTOR_BITS) // 16 * 16
+    return int(n // sector_bits(media)[0]) // 16 * 16
 
 
 CHUNK = 2048
@@ -168,10 +168,11 @@ def texture_bytes(spec: str, lbas: np.ndarray) -> np.ndarray:
     return np.broadcast_to(seq[_COL % len(seq)], (n, dvd.SECTOR_BYTES)).copy()
 
 
-def _sample(design, u, v, bit_mm, lba0, count, correction=None):
+def _sample(design, u, v, bit_mm, lba0, count, correction=None, media="dvd"):
     """Design value at every 16-byte group of the given sectors (False / 0 outside)."""
+    bits, group_bits = sector_bits(media)
     lbas = np.arange(lba0, lba0 + count)
-    n = lbas[:, None].astype(np.float64) * SECTOR_BITS + GROUP_BITS[None, :]
+    n = lbas[:, None].astype(np.float64) * bits + group_bits[None, :]
     s = np.sqrt(u * u + v * n / math.pi)
     th = -theta(n, u, v)  # clockwise in data-side view
     r = bit_mm * s
@@ -193,9 +194,10 @@ def _textures(design: np.ndarray, dark: str, light: str, textures):
     return list(textures)
 
 
-def _sector_q(design, texs, u, v, bit_mm, lba0, count, correction):
+def _sector_q(design, texs, u, v, bit_mm, lba0, count, correction, media="dvd"):
     lbas = np.arange(lba0, lba0 + count)
-    labels = np.repeat(_sample(design, u, v, bit_mm, lba0, count, correction).astype(np.int64), GROUP_BYTES, axis=1)
+    labels = np.repeat(_sample(design, u, v, bit_mm, lba0, count, correction, media).astype(np.int64),
+                       GROUP_BYTES, axis=1)
     stack = np.stack([texture_bytes(t, lbas) for t in texs])
     return np.take_along_axis(stack, labels[None], 0)[0]
 
@@ -224,7 +226,7 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
     with open(path, "wb") as f:
         while done < total_sectors:
             n = min(CHUNK, total_sectors - done)
-            q = _sector_q(design, texs, u, v, bit_mm, done, n, correction)
+            q = _sector_q(design, texs, u, v, bit_mm, done, n, correction, media)
             if done < lead_lba:
                 k = min(n, lead_lba - done)
                 q[:k] = np.random.default_rng(done).integers(0, 256, (k, dvd.SECTOR_BYTES), dtype=np.uint8)
@@ -259,7 +261,7 @@ def verify_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float,
         for lba in rng.integers(max(32, first_lba, lead_lba), total_sectors, samples):
             f.seek((int(lba) - first_lba) * dvd.SECTOR_BYTES)
             rec = np.frombuffer(f.read(dvd.SECTOR_BYTES), dtype=np.uint8) ^ _scramble_masks(media, np.array([int(lba)]))[0]
-            want = _sector_q(design, texs, u, v, bit_nm * 1e-6, int(lba), 1, correction)[0]
+            want = _sector_q(design, texs, u, v, bit_nm * 1e-6, int(lba), 1, correction, media)[0]
             if not np.array_equal(rec, want):
                 problems.append(f"LBA {lba} differs from the design")
     return problems

@@ -1831,8 +1831,8 @@ def _build_parser():
 
     sp = sub.add_parser("calibdisc", help="write one Blu-ray that both times itself and shows its own twist")
     sp.add_argument("--output", default="iso/bd-calib.iso")
-    sp.add_argument("--sectors", type=int, default=12219392,
-                    help="a whole single-layer Blu-ray by default; it has to fit on the blank")
+    sp.add_argument("--sectors", type=int, default=12_200_000,
+                    help="the blank's capacity less the lead-out a burner needs to close the disc")
     sp.add_argument("--r0-mm", type=float, default=24.04,
                     help="the inner radius the picture is laid out for (the standard's 24.0 mm)")
     sp.add_argument("--pitch-um", type=float, default=0.32,

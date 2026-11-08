@@ -300,6 +300,20 @@ def test_the_calibration_disc_is_a_dial():
     assert calibdisc.clock_to_degrees(1.0) == 30.0
 
 
+def test_a_blu_ray_sector_is_measured_in_blu_ray_bits():
+    """The writer walks the spiral one channel bit at a time, and DVD's 38 688 steps per sector
+    walk a Blu-ray 28.7 % too fast: the same 12.2 million sectors then land 6.5 mm too far out,
+    every angle in the design smears into the track, and only the circles survive the burn."""
+    from discprobe import calib, calibdisc, imagedisc
+
+    assert 2.23 < calib.SECTOR_BITS_BD * 74.5e-6 < 2.25, "a sector is 2.2399 mm of track"
+    u, v = calibdisc.geometry()
+    bd = imagedisc.sectors_to_radius(u, v, 74.5, 58.0, media="bd")
+    dvd = imagedisc.sectors_to_radius(u, v, 74.5, 58.0)
+    assert 12.1e6 < bd < 12.3e6, bd
+    assert 1.27 < bd / dvd < 1.30, (bd, dvd)
+
+
 def test_the_calibration_disc_writes_a_burnable_image():
     """A picture on a Blu-ray is ordinary sectors laid out on the spiral with the nominal numbers."""
     with tempfile.TemporaryDirectory() as work:

@@ -307,6 +307,16 @@ the picture close at 58 mm. A second burn of the same disc is the test: the angl
 the loop closing, the same angle the other way is a sign error, and an angle that does not move at
 all was never the pitch (a stamper whose own spiral wanders, which no preset can take out).
 
+**A sector is not always 38 688 bits.** The writer steps along the spiral a channel bit at a time to
+decide which design pixel a sector carries, and that step was written for DVDs: 38 688 bits of
+133.3 nm track, 5.157 mm per sector. A Blu-ray sector is 2.2399 mm -- 30 066.75 bits at 74.5 nm --
+so the same 12.2 million sectors were taken 6.5 mm further out than the drive puts them, and the
+design was read at radii that ran away from the real ones. Circles are invariant under an angular
+smear, and a 28.7 % error in the radial walk is thousands of turns of angular drift: a disc burnt
+before this was fixed shows its rings (26, 40 and 55 mm would come out at 25.6, 37.0 and 49.8 mm)
+but neither the line nor the tick. `calib.SECTOR_BITS_BD` and `sector_bits(media)` are what the
+picture path now asks for the media it is drawing on.
+
 **What the picture may be made of.** The drive scrambles the 2048 payload bytes (ISO/IEC 30190:
 `seed = (lba + 0x100000) >> 5`, 32 sectors to a seed) before its ECC and its 1-7PP modulator, so a
 host that wants a chosen byte on the disc has to write `P = Q xor S`; that is what

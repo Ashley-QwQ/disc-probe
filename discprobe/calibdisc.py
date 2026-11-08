@@ -35,6 +35,9 @@ SIZE = imagedisc.SIZE
 NOMINAL_R0_MM = 24.04
 NOMINAL_PITCH_UM = 0.32
 NOMINAL_SECTORS = 12_219_392
+# A blank 25 GB single-layer BD-R holds NOMINAL_SECTORS of data and nothing over for a lead-out,
+# so a burner refuses the whole layer ("1.19 MB over"); leave the last 19 392 sectors to it.
+BURNABLE_SECTORS = 12_200_000
 
 
 def design(rings=(26.0, 40.0, 55.0), ring_half_mm: float = 0.35,
@@ -80,7 +83,7 @@ def geometry(r0_mm: float = NOMINAL_R0_MM, pitch_um: float = NOMINAL_PITCH_UM,
     return r0_mm / bit_mm, pitch_um * 1e-3 / bit_mm
 
 
-def write(path: str, *, sectors: int = NOMINAL_SECTORS, r0_mm: float = NOMINAL_R0_MM,
+def write(path: str, *, sectors: int = BURNABLE_SECTORS, r0_mm: float = NOMINAL_R0_MM,
           pitch_um: float = NOMINAL_PITCH_UM, bit_nm: float = 74.5, rings=(26.0, 40.0, 55.0),
           line_deg: float = 90.0, dark: str = "A5", light: str = "B9", log=print,
           preview: str | None = None) -> dict:
