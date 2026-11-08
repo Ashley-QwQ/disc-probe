@@ -902,7 +902,9 @@ def _disexport_bd(args):
     try:
         out = bdexport.export(args.geo, args.sectors, output, preset_id, preset_name,
                               usable_sectors=args.usable_sectors,
-                              pullback_isa0=args.pullback_isa0)
+                              pullback_isa0=args.pullback_isa0,
+                              twist_deg=getattr(args, "twist_deg", None),
+                              twist_at_mm=getattr(args, "twist_at_mm", None))
     except ValueError as e:
         sys.exit(str(e))
     preset, fit, derived = out["preset"], out["fit"], out["derived"]
@@ -931,6 +933,16 @@ def _disexport_bd(args):
                       "rather than from the periods, and DiscImageStudio solves it from the three numbers above")
               .format(a=f"{derived['pitch_um']:.4f}", b=fit.get("zones_used", "?"),
                       c="?" if chi2 is None else f"{chi2:.2f}"))
+    if derived.get("twist_deg"):
+        print(i18n.tr("twisted {a:g} degrees: {b:.3f} turns of the picture over {c:,} turns of spiral, so the "
+                      "pitch is {d:+.2f} ppm ({e:.4f} um), the inner radius moves {f:+.3f} um and the outer "
+                      "{g:+.3f} um. Burn one more dial disc and look again: if the angle is unchanged the "
+                      "twist is not the pitch at all (a stamper whose own spiral wobbles, which no preset "
+                      "can take out), and if it is the same angle the other way the sign was wrong")
+              .format(a=derived["twist_deg"], b=derived["twist_deg"] / 360.0,
+                      c=int(round(derived["twist_turns"])), d=derived["twist_pitch_ppm"],
+                      e=derived["pitch_um"] * (1.0 + derived["twist_pitch_ppm"] * 1e-6),
+                      f=derived["twist_r0_shift_um"], g=derived["twist_outer_shift_um"]))
     measured = derived.get("measured_sectors")
     if derived.get("pullback_sectors"):
         print(i18n.tr("pulled the inner radius back {a} sectors, over the spare area a formatted disc "
@@ -999,6 +1011,11 @@ def cmd_disexport(args):
     from .disexport import export
     if (args.dis_presets or args.replace) and not args.install:
         sys.exit("--dis-presets and --replace only work together with --install")
+    if getattr(args, "twist_deg", None):
+        fit = _geo_fit(args, args.media)
+        if not (fit.get("model") == "clv" or fit.get("media") == "bd"):
+            sys.exit("--twist-deg is for Blu-ray: a DVD or CD preset carries a pitch profile that is "
+                     "fitted, so its twist is corrected by the angle map rather than by one number")
     fit = _geo_fit(args, args.media)
     is_cd = fit.get("media") == "cd"
     # A Blu-ray run is the CLV fit: r0, pitch and speed instead of the angle ladder's u and v.
@@ -1217,6 +1234,30 @@ def cmd_random(args):
     ui.iso_ready(args.output)
     _next(guide.after_random(args), args)
     ui.burn_warning()
+
+
+def cmd_calibdisc(args):
+    """Burn one disc that times itself and shows its own twist."""
+    from . import calibdisc
+    try:
+        out = calibdisc.write(args.output, sectors=args.sectors, r0_mm=args.r0_mm, pitch_um=args.pitch_um,
+                              rings=args.rings_list, line_deg=90.0, log=print, preview=args.preview)
+    except ValueError as e:
+        sys.exit(str(e))
+    print(i18n.tr("{a} sectors ({b:.2f} GB) written with r0 {c} mm and pitch {d} um: three rings at {e} mm "
+                  "and one line from 12 o'clock to the rim")
+          .format(a=f"{out['sectors']:,}", b=out["sectors"] * 2048 / 1e9, c=f"{out['r0_mm']:g}",
+                  d=f"{out['pitch_um']:g}", e=", ".join(f"{r:g}" for r in args.rings_list)))
+    t = out["textures"]
+    print(i18n.tr("Recorded textures {a} (dark) and {b} (light): {c} and {d} of seven gaps with a transition, "
+                  "digital sums {e} and {f_} -- grey, not black and white, which is what keeps the servo's "
+                  "clock recovery and the error correction happy")
+          .format(a=t["dark"]["byte"], b=t["light"]["byte"],
+                  c=t["dark"]["gaps_with_a_transition"], d=t["light"]["gaps_with_a_transition"],
+                  e=f"{t['dark']['digital_sum']:+d}", f_=f"{t['light']['digital_sum']:+d}"))
+    print(i18n.tr("Burn it, then time it and look at it: `geo --media bd` on the same disc gives the shape, "
+                  "and the line's far end gives the twist; `disexport --twist-deg <hours>` closes the loop"))
+    print(f"  {out['path']}")
 
 
 def cmd_selftest(args):
@@ -1745,6 +1786,14 @@ def _build_parser():
                     help="Blu-ray only: when --sectors is larger than the disc the run measured, put the "
                          "difference in front of sector 0 instead of behind the last one, which is where an "
                          "unspared BD-R starts")
+    sp.add_argument("--twist-deg", type=float,
+                    help="Blu-ray only: how far the picture came out twisted, in degrees, as seen on a dial "
+                         "burn (a radial line drawn at 12 o'clock ending at 1 o'clock is 30 degrees). The "
+                         "pitch that implies is folded into the two radii, which is the only place a preset "
+                         "can carry it")
+    sp.add_argument("--twist-at-mm", type=float,
+                    help="with --twist-deg: the radius where the angle was read (default: the outer radius). "
+                         "Read it off a ring if the picture only has to close there")
     sp.add_argument("--id")
     sp.add_argument("--name")
     sp.add_argument("--output", help="the preset file to write (default dis_preset.json; with --install, only if you name one)")
@@ -1777,6 +1826,20 @@ def _build_parser():
     sp.add_argument("--sectors", type=int, default=2295104, help="how much to burn, not the disc size; it has to fit on the blank")
     sp.add_argument("--seed", type=int, default=1)
     sp.set_defaults(func=cmd_random)
+
+    sp = sub.add_parser("calibdisc", help="write one Blu-ray that both times itself and shows its own twist")
+    sp.add_argument("--output", default="iso/bd-calib.iso")
+    sp.add_argument("--sectors", type=int, default=12219392,
+                    help="a whole single-layer Blu-ray by default; it has to fit on the blank")
+    sp.add_argument("--r0-mm", type=float, default=24.04,
+                    help="the inner radius the picture is laid out for (the standard's 24.0 mm)")
+    sp.add_argument("--pitch-um", type=float, default=0.32,
+                    help="the track pitch the picture is laid out with (the format's 0.3200 um)")
+    sp.add_argument("--rings", default="26,40,55",
+                    help="radii of the rings that make the radius scale readable, in mm")
+    sp.add_argument("--preview", default="",
+                    help="also save the picture as a PNG, for burning it with a picture disc tool instead")
+    sp.set_defaults(func=cmd_calibdisc)
 
     sp = sub.add_parser("selftest", help="parser checks and end-to-end runs on the simulated drive and a synthetic scan")
     sp.set_defaults(func=cmd_selftest)
@@ -1842,6 +1905,11 @@ def _main(argv=None):
         args = argparse.Namespace(func=cmd_guide)
         return args.func(args)
     args = p.parse_args(argv)
+    if getattr(args, "rings", None) and isinstance(args.rings, str):
+        try:
+            args.rings_list = [float(x) for x in args.rings.replace(",", " ").split()]
+        except ValueError:
+            p.error(f"--rings wants radii in mm, not {args.rings!r}")
     media = getattr(args, "media", "dvd")
     if media == "cd":
         from .cd import BIT_NM, set_sector_layout

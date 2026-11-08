@@ -258,6 +258,156 @@ def test_disexport_writes_a_blu_ray_preset():
         assert document["luminanceMapping"]["invert"] is False
 
 
+def test_the_dial_angle_becomes_a_pitch_in_the_preset():
+    """The angle a user can see at the rim is a ppm-scale pitch, and the preset carries it.
+
+    A Blu-ray preset has no pitch field: DiscImageStudio solves one constant pitch from the inner
+    radius, the outer radius and the sector count. The timing measured only their product, so the
+    pitch the dial implies carries the inner radius with it, and both radii move by a fraction of a
+    micron -- which is exactly what a burn needs to close, and what nothing else can measure.
+    """
+    from discprobe import bdexport
+    turns = bdexport.twist_turns(24.05, 58.02, 0.32)
+    assert 100_000 < turns < 110_000, turns
+    ppm = bdexport.twist_pitch_ppm(24.05, 58.02, 0.32, 126.0)
+    assert 11.0 < ppm < 11.5, ppm
+    # one hour (30 degrees) is a quarter of the 126, and read nearer the hub the same angle is more
+    assert 2.6 < bdexport.twist_pitch_ppm(24.05, 58.02, 0.32, 30.0) < 2.8
+    assert bdexport.twist_pitch_ppm(24.05, 58.02, 0.32, 126.0, at_mm=55.0) > ppm
+
+
+def test_the_calibration_disc_is_a_dial():
+    """Three rings and one line: the rings read the radius scale, the line reads the twist."""
+    from discprobe import calibdisc
+    pic = calibdisc.design()
+    assert pic.shape == (calibdisc.SIZE, calibdisc.SIZE)
+    assert 0.02 < pic.mean() < 0.08, pic.mean()
+
+    def at(r_mm: float, deg: float) -> bool:
+        x = r_mm * math.cos(math.radians(deg))
+        y = r_mm * math.sin(math.radians(deg))
+        col = int((x + calibdisc.HALF_MM) / calibdisc.CELL_MM)
+        row = int((calibdisc.HALF_MM - y) / calibdisc.CELL_MM)
+        return bool(pic[row, col])
+
+    for ring in (26.0, 40.0, 55.0):
+        assert at(ring, 200.0), ring              # a ring is a whole circle
+    assert at(52.0, 90.0)                          # the line, at 12 o'clock, between two rings
+    assert not at(52.0, 270.0)                     # and nothing opposite it: the dial has one pointer
+    assert not at(52.0, 0.0)                       # nor at 3 o'clock, where only the short tick is
+    assert at(46.0, 0.0)                           # the tick, which says which way round the disc is
+    assert calibdisc.clock_to_degrees(4.0) == 120.0
+    assert calibdisc.clock_to_degrees(1.0) == 30.0
+
+
+def test_the_calibration_disc_writes_a_burnable_image():
+    """A picture on a Blu-ray is ordinary sectors laid out on the spiral with the nominal numbers."""
+    with tempfile.TemporaryDirectory() as work:
+        out = os.path.join(work, "calib.iso")
+        proc = subprocess.run([sys.executable, "-m", "discprobe", "calibdisc", "--sectors", "20000",
+                               "--output", out, "--rings", "26,40,55"],
+                              cwd=ROOT, capture_output=True, text=True, timeout=300)
+        text = proc.stdout + proc.stderr
+        assert proc.returncode == 0, text
+        assert "Traceback" not in text, text
+        assert os.path.getsize(out) == 20000 * 2048
+        with open(os.path.join(work, "calib.image.json"), encoding="utf-8") as f:
+            spec = json.load(f)
+        assert spec["kind"] == "blu-ray-calibration"
+        assert spec["r0_mm"] == 24.04 and spec["pitch_um"] == 0.32
+        from discprobe import calibdisc
+        assert abs(spec["u"] / spec["v"] - calibdisc.geometry()[0] / calibdisc.geometry()[1]) < 1e-6
+
+
+def test_a_blu_ray_picture_is_masked_with_the_blu_ray_scrambler():
+    """The drive XORs a Blu-ray sector with a 16-bit register seeded by the sector number, not with
+    DVD's sixteen preset sequences: compensating a picture with the DVD table burns flat noise."""
+    from discprobe import bd
+    assert bd.seed(0) == (0x100000 >> 5)
+    assert len({bd.seed(x) for x in range(96, 128)}) == 1, "32 sectors share one seed"
+    assert bd.seed(128) != bd.seed(96), "and the next block does not"
+    for lba in (0, 31, 32, 999_999):
+        s = bd.seed(lba)
+        assert (bd._sequence(0x8000 | (s & 0x7FFF)) == bd.sequence(s)).all()
+    with tempfile.TemporaryDirectory() as work:
+        from discprobe import calibdisc, imagedisc
+        out = os.path.join(work, "pic.iso")
+        pic = calibdisc.design(rings=(40.0,))
+        u, v = calibdisc.geometry()
+        imagedisc.write_iso(out, pic, u, v, 74.5, 4096, log=lambda *a: None, media="bd")
+        assert imagedisc.verify_iso(out, pic, u, v, 74.5, 4096, samples=20, media="bd") == []
+        # read with the DVD table, every sector differs: the two scramblers really are different
+        assert len(imagedisc.verify_iso(out, pic, u, v, 74.5, 4096, samples=4, media="dvd")) == 4
+
+
+def test_a_picture_texture_keeps_the_servo_its_edges():
+    """A picture is recorded as a byte texture, and a flat one burns a disc that will not time.
+
+    The drive scrambles the payload before the 1-7PP modulator, so the texture byte is what the
+    channel sees.  00 and FF leave seven gaps with no transition and a digital sum of -8 or +8: a
+    long run for the clock recovery to coast through, which is the failure a "pure black" picture
+    runs into (L-EC errors, and then `geo` cannot time the disc at all).  A5 and B9 keep six and
+    four of the seven gaps changing.
+    """
+    from discprobe import bd
+    dark, light = bd.check_textures("A5", "B9")["dark"], bd.check_textures("A5", "B9")["light"]
+    assert dark["gaps_with_a_transition"] == 6 and dark["digital_sum"] == 0, dark
+    assert light["gaps_with_a_transition"] == 4 and light["digital_sum"] == 2, light
+    for flat in ("00", "FF"):
+        try:
+            bd.check_textures(flat, "B9")
+        except ValueError as e:
+            assert "L-EC" in str(e), e
+        else:
+            raise AssertionError(f"{flat} passed as a picture texture")
+
+
+def test_the_twist_correction_closes_the_loop_on_the_inner_radius():
+    """--twist-deg corrects the pitch and lets the measured shape carry r0 with it."""
+    with tempfile.TemporaryDirectory() as work:
+        folder = os.path.join(work, "geo-G-20260101-000000")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump({"fit": {"media": "bd", "model": "clv", "r0_mm": 24.6427, "pitch_um": 0.32,
+                               "v_m_s": 7.9054, "r2": 0.999994, "zones_used": 7,
+                               "anchor": "pitch 0.32 um"}}, f)
+        plain = os.path.join(work, "plain.json")
+        twisted = os.path.join(work, "twisted.json")
+        for out, extra in ((plain, []), (twisted, ["--twist-deg", "126"])):
+            proc = subprocess.run([sys.executable, "-m", "discprobe", "disexport", "--geo", folder,
+                                   "--sectors", "12088320", "--output", out] + extra,
+                                  cwd=ROOT, capture_output=True, text=True, timeout=120)
+            assert proc.returncode == 0, proc.stdout + proc.stderr
+            assert "Traceback" not in proc.stdout + proc.stderr
+        with open(plain, encoding="utf-8") as f:
+            before = json.load(f)["parameters"]
+        with open(twisted, encoding="utf-8") as f:
+            after = json.load(f)["parameters"]
+        assert after["totalSectors"] == before["totalSectors"]
+        r0_shift_um = 1e3 * (after["innerRadiusMm"] - before["innerRadiusMm"])
+        outer_shift_um = 1e3 * (after["outerRadiusMm"] - before["outerRadiusMm"])
+        assert 0.11 < r0_shift_um < 0.16, r0_shift_um
+        assert 0.30 < outer_shift_um < 0.37, outer_shift_um
+        # c = pi r0^2 / (p S) is what the timing measured: r0^2 and p move together.
+        eps = (after["innerRadiusMm"] / before["innerRadiusMm"]) ** 2 - 1.0
+        assert 1.05e-5 < eps < 1.20e-5, eps
+
+
+def test_a_twist_angle_does_not_belong_to_a_dvd():
+    """The DVD and CD presets already carry a fitted pitch profile, so one angle would be a lie."""
+    with tempfile.TemporaryDirectory() as work:
+        folder = os.path.join(work, "geo-G-20260101-000000")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump({"fit": {"media": "cd", "model": "angular", "r0_mm": 25.0}}, f)
+        proc = subprocess.run([sys.executable, "-m", "discprobe", "disexport", "--geo", folder,
+                               "--sectors", "2295104", "--twist-deg", "126"],
+                              cwd=ROOT, capture_output=True, text=True, timeout=120)
+        assert proc.returncode == 1, proc.stdout + proc.stderr
+        assert "for Blu-ray" in proc.stderr, proc.stderr
+        assert "Traceback" not in proc.stderr, proc.stderr
+
+
 def _zones(staircase_after: float | None = None):
     sector_mm = clv.NOMINAL["bd"].sector_mm
     out = []

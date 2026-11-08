@@ -267,3 +267,56 @@ minutes inside the six this is budgeted at even when a run loses most of its zon
 closed-form conversion of that file and writes nothing else. Both exit non-zero, with the reason,
 rather than writing a preset they do not trust: a break in the line, a dual-layer disc, a pitch
 anchor no radius can satisfy.
+
+## 11. The last few ppm: one disc that times itself and shows its own twist
+
+The timing sees only the product of the inner radius squared and the pitch (`c = pi r0^2 / (p S)`),
+and the two are exactly degenerate there. Three ppm of pitch is 0.04 µm on the inner radius, while
+the fit reports that radius with 1 sigma = 16 µm: the last few ppm cannot be timed out of a disc
+at all. They are also not a property of the individual burn -- the groove pitch is cut by the
+stamper the disc was pressed from, so it is constant within a batch and one reading pins it for
+every disc of that brand and grade.
+
+That reading costs no second burn. `geo` times rotations out of the sector addresses and never
+looks at the 2048 bytes a sector carries, so a disc burnt with a picture can be timed exactly like
+a disc burnt with random data:
+
+```
+python -m discprobe calibdisc --output iso/bd-calib.iso --preview iso/bd-calib.png
+```
+
+lays out a full layer with the nominal `r0 = 24.04 mm` and `p = 0.3200 µm`, showing three rings
+(26, 40 and 55 mm) for the radius scale, one line from 12 o'clock to the rim and a short tick at
+3 o'clock so the disc cannot be read upside down. Burn it, put it back in the drive, run
+`geo --drive G: --media bd --bd-zones 25` on the same disc, then look at where the far end of the
+line points: 1 o'clock is 30 degrees, 4 o'clock about 120.
+
+The angle is not proportional to the pitch in the simple way one expects, because on a disc whose
+pitch is off, the same sector number lands at a different radius as well. Laying the picture out on
+the nominal spiral gives `theta(r) = 2 pi (r - r0) / p`; a disc whose pitch is `p (1 + eps)` puts
+the sector meant for `r` at `sqrt(r0^2 + (1 + eps)(r^2 - r0^2))`, and expanding leaves a quadratic
+remainder,
+
+    dtheta = pi * eps * (r - r0)^2 / (p * r)
+
+so the dial is a weaker lever than "one turn per turn": read at the rim of this disc, 126 degrees
+means `eps` = 11.3 ppm, not 3.3, and 11.3 ppm over the 106,158 turns of a full layer is 1.2 turns
+of spiral. `disexport --twist-deg 126` applies exactly that and moves the inner radius by +0.14 µm
+and the outer by +0.27 µm -- below the precision a preset is written with, and precisely what makes
+the picture close at 58 mm. A second burn of the same disc is the test: the angle disappearing is
+the loop closing, the same angle the other way is a sign error, and an angle that does not move at
+all was never the pitch (a stamper whose own spiral wanders, which no preset can take out).
+
+**What the picture may be made of.** The drive scrambles the 2048 payload bytes (ISO/IEC 30190:
+`seed = (lba + 0x100000) >> 5`, 32 sectors to a seed) before its ECC and its 1-7PP modulator, so a
+host that wants a chosen byte on the disc has to write `P = Q xor S`; that is what
+`discprobe/bd.py` computes, and what a picture compensated with the DVD table (a 15-bit register,
+sixteen preset seeds) turns into flat noise on a Blu-ray -- legal, readable, invisible. The texture
+`Q` itself is what the modulator sees, so it decides the servo's fate as well as the contrast:
+`00` and `FF` give seven gaps with no transition and a digital sum of -8 or +8 per byte, a long run
+for clock recovery to coast through, and a picture burnt that way can come back as an L-EC error --
+at which point the timing fails and there is no fit at all. `A5` and `B9`, the defaults, keep six
+and four of the seven gaps changing with sums of 0 and +2: grey rather than black and white, dense
+enough for the servo, different enough in duty cycle to be seen. `calibdisc` refuses a texture pair
+that would not, and every sector it writes is an ECC-valid payload, which is why the same disc can
+be timed in 25 zones at a coherence of 0.98 to 0.99 and still show a picture.

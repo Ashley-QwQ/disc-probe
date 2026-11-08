@@ -78,6 +78,42 @@ def track_length_mm(total_sectors: int, bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM
     return total_sectors * sector_mm(bit_nm)
 
 
+def twist_turns(inner_mm: float, outer_mm: float, pitch_um: float) -> float:
+    """How many turns the spiral makes between those two radii."""
+    return (outer_mm - inner_mm) / (pitch_um * 1e-3)
+
+
+def twist_pitch_ppm(inner_mm: float, outer_mm: float, pitch_um: float, twist_deg: float,
+                    at_mm: float | None = None) -> float:
+    """The pitch error that puts the picture `twist_deg` out of true, read at `at_mm`.
+
+    A picture is placed at radii; the disc's own spiral turns by `2 pi (r - r0) / p` out to those
+    radii. Let the pitch be a relative `eps` too large and the same sector lands at
+    `theta = 2 pi (r_t - r0) / (p (1 + eps))`, which is short of where the layout put it by
+
+        d_theta = pi * eps * (r - r0)^2 / (p * r),
+
+    quadratic in the distance from the inner edge: near the hub almost nothing, at the rim a whole
+    wedge. The 3.4-fold difference from the naive `eps * turns` counting comes from the radius:
+    the sector also sits a little further out (`eps (r^2 - r0^2) / 2r`), and being further out
+    earns most of the angle back, so what is left is the quadratic residual.
+
+    That also says what this correction can and cannot do. A preset can only move the pitch its
+    layout implies, so it can take out a shear of this (pitch) kind and nothing else. A picture
+    sheared by an angular scale error instead falls off linearly in `(r - r0)`, and no pitch will
+    pull it straight -- which is what the second burn is for: it either comes down or it is the
+    another kind.
+    """
+    r = float(outer_mm if at_mm is None else at_mm)
+    span = r - float(inner_mm)
+    if span <= 0:
+        raise BdPresetError(f"an angle read at {r:g} mm says nothing about a disc whose inner radius "
+                            f"is {inner_mm:g} mm")
+    p_mm = pitch_um * 1e-3
+    eps = math.radians(abs(float(twist_deg))) * p_mm * r / (math.pi * span * span)
+    return math.copysign(eps * 1e6, float(twist_deg))
+
+
 def outer_radius_mm(inner_mm: float, pitch_um: float, total_sectors: int,
                     bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM) -> float:
     """Radius the last sector reaches, from the same area identity the whole tool is built on."""
@@ -151,7 +187,8 @@ def parameters(fit: dict, total_sectors: int, *, inner_mm: float | None = None,
                outer_mm: float | None = None, pitch_um: float | None = None,
                bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM,
                usable_sectors: int | None = None,
-               measured_sectors: int | None = None, pullback_isa0: bool = False) -> dict:
+               measured_sectors: int | None = None, pullback_isa0: bool = False,
+               twist_deg: float | None = None, twist_at_mm: float | None = None) -> dict:
     """The `parameters` object of a Blu-ray preset, from a `model: "clv"` geo fit.
 
     `inner_mm`, `outer_mm` and `pitch_um` override what the run measured; any of them that is
@@ -185,6 +222,14 @@ def parameters(fit: dict, total_sectors: int, *, inner_mm: float | None = None,
                 f"{r0 - pullback_inner_mm(r0, p, total_sectors - measured_sectors, bit_nm):.3f} mm. "
                 f"Leave --pullback-isa0 off for a disc that was not filled")
         r0 = pullback_inner_mm(r0, p, total_sectors - measured_sectors, bit_nm)
+    if twist_deg:
+        # The dial says how far the picture is sheared; the timing measured only c = pi r0^2 / (p S).
+        # Correcting the pitch therefore has to carry r0 with it: c stays what was measured.
+        disc_end = outer_mm if outer_mm is not None else outer_radius_mm(r0, p, total_sectors, bit_nm)
+        eps = twist_pitch_ppm(r0, disc_end, p, twist_deg, at_mm=twist_at_mm or disc_end) * 1e-6
+        p = p * (1.0 + eps)
+        if inner_mm is None:                    # a measured r0 scales with the pitch; a given one does not
+            r0 = r0 * math.sqrt(1.0 + eps)
     r_out = outer_mm if outer_mm is not None else outer_radius_mm(r0, p, total_sectors, bit_nm)
     usable = usable_sectors_for(total_sectors, usable_sectors)
     check(total_sectors, r0, r_out, usable_sectors=usable)
@@ -338,10 +383,27 @@ def install(preset_obj: dict, path: str | None = None, replace: bool = False) ->
     return {"path": target, "action": action, "created": created, "backup": backup, "from_schema": version}
 
 
+def _twist_report(fit: dict, total_sectors: int, inner_mm, outer_mm, pitch_um, bit_nm,
+                  usable_sectors, measured, pullback_isa0, twist_deg, twist_at_mm, twisted: dict) -> dict:
+    """What the dial reading changed: the pitch it implies and how far the two radii moved."""
+    plain = parameters(fit, total_sectors, inner_mm=inner_mm, outer_mm=outer_mm, pitch_um=pitch_um,
+                       bit_nm=bit_nm, usable_sectors=usable_sectors, measured_sectors=measured,
+                       pullback_isa0=pullback_isa0)
+    at = twist_at_mm or plain["outerRadiusMm"]
+    turns = twist_turns(plain["innerRadiusMm"], at, 0.32)
+    ppm = twist_pitch_ppm(plain["innerRadiusMm"], plain["outerRadiusMm"], 0.32, twist_deg, at_mm=at)
+    return {"twist_deg": twist_deg,
+            "twist_turns": turns,
+            "twist_pitch_ppm": ppm,
+            "twist_r0_shift_um": 1e3 * (twisted["innerRadiusMm"] - plain["innerRadiusMm"]),
+            "twist_outer_shift_um": 1e3 * (twisted["outerRadiusMm"] - plain["outerRadiusMm"])}
+
+
 def export(geo_summary: str, total_sectors: int, out_path: str, preset_id: str, name: str, *,
            inner_mm: float | None = None, outer_mm: float | None = None, pitch_um: float | None = None,
            bit_nm: float = BD_CHANNEL_BIT_LENGTH_NM, usable_sectors: int | None = None,
-           pullback_isa0: bool = False) -> dict:
+           pullback_isa0: bool = False, twist_deg: float | None = None,
+           twist_at_mm: float | None = None) -> dict:
     """Build the preset for one CLV run and, when `out_path` is given, write the importable document."""
     with open(geo_summary, encoding="utf-8") as f:
         run = json.load(f)
@@ -364,7 +426,8 @@ def export(geo_summary: str, total_sectors: int, out_path: str, preset_id: str, 
     requested = int(total_sectors)
     total_sectors = requested - requested % BD_SECTORS_PER_RECORDING_UNIT
     params = parameters(fit, total_sectors, inner_mm=inner_mm, outer_mm=outer_mm, pitch_um=pitch_um,
-                        bit_nm=bit_nm, measured_sectors=measured, pullback_isa0=pullback_isa0)
+                        bit_nm=bit_nm, measured_sectors=measured, pullback_isa0=pullback_isa0,
+                        twist_deg=twist_deg, twist_at_mm=twist_at_mm)
     anchors = fit.get("dis_equivalent") if fit.get("media") == "bd" else None
     anchors = anchors if isinstance(anchors, dict) else {}
     p = pitch_um if pitch_um is not None else fit.get("pitch_um")
@@ -396,7 +459,11 @@ def export(geo_summary: str, total_sectors: int, out_path: str, preset_id: str, 
                                             else 0),
                        "usable_sectors": params["usableSectors"],
                        "track_length_mm": track_length_mm(total_sectors, bit_nm),
-                       "outer_from_pitch_mm": outer_radius_mm(params["innerRadiusMm"], p, total_sectors, bit_nm)},
+                       "outer_from_pitch_mm": outer_radius_mm(params["innerRadiusMm"], p, total_sectors, bit_nm),
+                       **(_twist_report(fit, total_sectors, inner_mm, outer_mm, pitch_um, bit_nm,
+                                        usable_sectors, measured, pullback_isa0, twist_deg, twist_at_mm,
+                                        params)
+                          if twist_deg else {})},
            "source": {"geo": os.path.basename(geo_summary.replace("\\", "/"))},
            "written": None}
     if out_path:

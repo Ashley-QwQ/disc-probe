@@ -742,6 +742,15 @@ TEXT = {
     "fit the measured angle map as a DiscImageStudio DVD or CD preset (cubic pitch)": "把测出的角度关系拟合成 DiscImageStudio 的 DVD 或 CD 预设",
     "write a random-data ISO for full-disc timing calibration": "写随机数据镜像，刻好后用来测量",
     "write a DiscImageStudio project and pattern for a CD probe disc": "为 CD 探测盘生成 DiscImageStudio 工程和图案",
+    "Blu-ray only: how far the picture came out twisted, in degrees, as seen on a dial burn (a radial line drawn at 12 o'clock ending at 1 o'clock is 30 degrees). The pitch that implies is folded into the two radii, which is the only place a preset can carry it": "仅蓝光：图案扭了多少度，按表盘盘读（12 点钟的径向线指到 1 点钟就是 30°）。它对应的轨距改动用两个半径承载，因为预设里没有别的地方放它",
+    "with --twist-deg: the radius where the angle was read (default: the outer radius). Read it off a ring if the picture only has to close there": "配合 --twist-deg：在哪个半径上读的这个角度（默认外圈）。如果只需要图案在某一圈上合拢，就按那圈读",
+    "write one Blu-ray that both times itself and shows its own twist": "写一张蓝光镜像：刻好后既能用它测转速，也能看出它的图案扭了多少",
+    "a whole single-layer Blu-ray by default; it has to fit on the blank": "默认写满一张单层蓝光；要放得下这张空盘",
+    "the inner radius the picture is laid out for (the standard's 24.0 mm)": "图案按这个内径排版（标准的 24.0 mm）",
+    "the track pitch the picture is laid out with (the format's 0.3200 um)": "图案按这个轨距排版（格式的 0.3200 µm）",
+    "radii of the rings that make the radius scale readable, in mm": "几条同心环的半径，单位 mm，用来看半径刻度",
+    "also save the picture as a PNG, for burning it with a picture disc tool instead":
+        "同时导出一张 PNG，方便改用现成的画盘工具来刻",
     "parser checks and end-to-end runs on the simulated drive and a synthetic scan": "用模拟光驱和合成扫描图做自检",
 
     # Option help
