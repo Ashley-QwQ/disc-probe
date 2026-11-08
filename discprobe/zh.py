@@ -7,6 +7,17 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    "predict a disc view from a design (a model, not a photo)": "根据设计预测盘面外观（模型，不是照片）",
+    "dark texture: one hexadecimal byte": "深色纹理：一个十六进制字节",
+    "light texture: one hexadecimal byte, or bands to choose by viewing angle as on the figures disc": "亮纹路：一个十六进制字节，或 bands（像人物盘那样按视角选择）",
+    "disc rotation in degrees for the output view": "输出视图的盘片旋转角度",
+    "camera position in mm": "相机位置，单位 mm",
+    "flash position in mm": "闪光灯位置，单位 mm",
+    "save one predicted view as PNG": "将一张预测视图保存为 PNG",
+    "save a 12-tile prediction sheet as PNG": "将 12 格预测图保存为 PNG",
+    "side of a tile in pixels": "每格边长，单位像素",
+    "Prediction from a model, not a photo; real contrast and brightness may differ.": "这是模型预测，不是照片；实际对比度和亮度可能不同。",
+
     # Terms that appear inside other messages
     "CAV": "恒定转速 (CAV)",
     "CLV": "恒定线速度 (CLV)",
@@ -755,6 +766,10 @@ TEXT = {
 }
 
 BLOCKS = {
+    "simulate": """示例：
+  python -m discprobe simulate --picture my_picture.png --output sim.png
+  python -m discprobe simulate --design-npy design.npy --sheet sheet.png""",
+
     "completion": """\
 给 disc-probe 加上 Tab 补全。一条命令就能装好：
   python -m discprobe completion install

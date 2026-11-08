@@ -1113,6 +1113,28 @@ def _tiles(c: Checker):
                 "an image started at a later LBA is that part of the whole image, byte for byte")
 
 
+def _prediction(c):
+    import numpy as np
+    from . import simulate
+    print("disc view prediction")
+    with np.load(__import__("pathlib").Path(simulate.__file__).with_name("simulate_lut.npz")) as z:
+        red = z["single"][0x92, 60]
+    c.check(abs(2.13 * .30 * 1000 - 639) < 1 and red[0] > red[1] and red[0] > red[2], "2.13 um at delta .30 is red")
+    design = np.zeros((6000, 6000), bool)
+    design[800:2700, 3200:5000] = True
+    a = simulate.render(design, 200)
+    b = simulate.render(design, 200, rotate=360)
+    c.check(np.array_equal(a, b), "one full turn returns the same prediction")
+    sheet = simulate.sheet(design, None, 200, "A5", "B9", simulate.CAMERA, simulate.FLASH)
+    c.check(sheet.size == (600, 824), "sheet has 12 square tiles and a footer without an original")
+    try:
+        simulate.texture("RND")
+    except ValueError as e:
+        c.check("single-byte" in str(e), "unsupported texture has a clear error")
+    else:
+        c.check(False, "unsupported texture has a clear error")
+
+
 def run() -> bool:
     t, stream = ui.term(), sys.stdout
     if t.color:
@@ -1165,6 +1187,7 @@ def _run() -> bool:
     except ImportError as e:
         print(f"spoke scan checks skipped ({e}; needs numpy and Pillow)")
     else:
+        _prediction(c)
         scan_selftest.run(c)
         from . import cal_selftest, rings_selftest
         rings_selftest.run(c)

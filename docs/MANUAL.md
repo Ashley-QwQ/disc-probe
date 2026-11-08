@@ -591,3 +591,6 @@ python -m discprobe geo --drive E: --media cd --read-offset-bytes -603
 CD `tiles` 的编号参考改用 `0D`/`AA`，`tilescan` 和 `tilephoto` 复用原来的编号和几何处理；分析输出中的历史字段名 `levels_a5_0_92_1` 对 CD 表示编号的 `0D=0 / AA=1`。重复序列如 `0DAA`、`00FF` 是待测候选，不保证光驱产生整轨固定周期。CD 导槽衍射更靠近镜面方向，拍摄宜使用视角小于 10° 的小光源，先锁定观察几何。
 
 运行 `python -m discprobe selftest` 可验证扰码、CIRC 正逆映射、独立反向重建、破坏检出、模拟梯子、合成扫描及参考 EFM 的 3T–11T / DSV 一致性。软件验收数据在 [`evidence/cd-support/`](../evidence/cd-support/selftest-final.txt) 和 [`evidence/cd-support-20261104/`](../evidence/cd-support-20261104/validation.json)。实测结果见 [`KNOWLEDGE.md`](KNOWLEDGE.md) §12。
+
+
+`python -m discprobe simulate --picture my_picture.png --sheet sheet.png` makes a CPU prediction of the data-side view at several rotations. It is a model, not a photo: brightness and contrast are uncertain, and grooves and camera effects are missing. It accepts single-byte DVD textures; use `--output` for one view.

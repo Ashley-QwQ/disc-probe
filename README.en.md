@@ -389,3 +389,5 @@ The data-side encoding follows [DiscImageStudio](https://github.com/JiaFeiMiao-K
 Copyright (C) 2026 Ashley-QwQ
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY, without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See [LICENSE](LICENSE). SPDX: `GPL-3.0-or-later`.
+
+Use `python -m discprobe simulate --picture my_picture.png --sheet sheet.png` for a CPU prediction of the disc, not a photo.

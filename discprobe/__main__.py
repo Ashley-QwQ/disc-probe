@@ -560,6 +560,21 @@ def cmd_edit(args):
     _next(guide.after_edit(output, args.media))
 
 
+def cmd_simulate(args):
+    from . import imagedisc, simulate
+    try:
+        design = simulate.load_design(args.design_npy) if args.design_npy else imagedisc.picture_design(args.picture, args.diameter_mm)
+        if not args.output and not args.sheet:
+            raise ValueError("give --output or --sheet")
+        if args.output:
+            simulate.render(design, args.size, args.dark, args.light, args.camera, args.flash, args.rotate).save(args.output)
+        if args.sheet:
+            simulate.sheet(design, args.picture, args.size, args.dark, args.light, args.camera, args.flash).save(args.sheet)
+    except (ValueError, TypeError) as e:
+        sys.exit(f"simulate: {e}")
+    print(i18n.tr("Prediction from a model, not a photo; real contrast and brightness may differ."))
+
+
 def cmd_image(args):
     from . import imagedisc
     writer = imagedisc
@@ -1007,7 +1022,7 @@ def _speed(text: str):
 COMMAND_GROUPS = (
     ("Start here", ("guide", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "timing", "geo", "results")),
-    ("Make a disc image", ("random", "edit", "image", "tiles", "beacons", "rings", "calib", "spokes")),
+    ("Make a disc image", ("random", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes")),
     ("Read scans of burned discs", ("gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("disexport",)),
 )
@@ -1028,6 +1043,9 @@ The usual path, on DVD (CD: add --media cd to each command; steps in docs/MANUAL
 At a terminal, --drive can be left out when there is one drive, and each command ends by printing the next one.
 `python -m discprobe <command> -h` shows a command's options."""
 EXAMPLES = {
+    "simulate": """examples:
+  python -m discprobe simulate --picture my_picture.png --output sim.png
+  python -m discprobe simulate --design-npy design.npy --sheet sheet.png""",
     "timing": """\
 examples:
   python -m discprobe timing --drive E:                 first look at a drive, 1 to 3 minutes
@@ -1268,6 +1286,21 @@ def _build_parser():
     sp.add_argument("--media", choices=("dvd", "cd"), default="dvd", help="which disc to show the drawable part of")
     sp.add_argument("--r-max", type=float, default=56.0, help="outer radius of the drawing, as in image")
     sp.set_defaults(func=cmd_edit)
+
+    sp = sub.add_parser("simulate", help="predict a disc view from a design (a model, not a photo)")
+    source = sp.add_mutually_exclusive_group(required=True)
+    source.add_argument("--picture", help="greyscale picture to threshold instead of the grid test")
+    source.add_argument("--design-npy", help="prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view")
+    sp.add_argument("--diameter-mm", type=float, default=116.0, help="the picture's longer side on the disc, in mm; it keeps its shape")
+    sp.add_argument("--dark", default="A5", help="dark texture: one hexadecimal byte")
+    sp.add_argument("--light", default="B9", help="light texture: one hexadecimal byte, or bands to choose by viewing angle as on the figures disc")
+    sp.add_argument("--rotate", type=float, default=0, help="disc rotation in degrees for the output view")
+    sp.add_argument("--camera", type=float, nargs=3, default=(0, 70, 330), metavar=("X", "Y", "Z"), help="camera position in mm")
+    sp.add_argument("--flash", type=float, nargs=3, default=(-43.66, 89.79, 330), metavar=("X", "Y", "Z"), help="flash position in mm")
+    sp.add_argument("--output", help="save one predicted view as PNG")
+    sp.add_argument("--sheet", help="save a 12-tile prediction sheet as PNG")
+    sp.add_argument("--size", type=int, default=420, help="side of a tile in pixels")
+    sp.set_defaults(func=cmd_simulate)
 
     sp = sub.add_parser("image", help="write a picture ISO placed with a measured geometry (grid test by default)")
     sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose")

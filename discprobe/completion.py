@@ -16,7 +16,7 @@ import sys
 from .i18n import block, tr
 
 SHELLS = ("powershell", "bash", "zsh")
-PATH_DESTS = {"output", "geo", "picture", "file", "design", "design_npy", "correction", "layout", "spec", "out", "rings_layout",
+PATH_DESTS = {"output", "sheet", "geo", "picture", "file", "design", "design_npy", "correction", "layout", "spec", "out", "rings_layout",
               "refine_from", "output_dir", "image", "images", "scans", "phi"}
 VALUE_HINTS = {"--geo": ("latest", "pick"), "--speed": ("4x", "8x", "16x", "24x", "keep")}
 POSITIONAL_VALUES = {"results": ("geo", "timing", "info")}
