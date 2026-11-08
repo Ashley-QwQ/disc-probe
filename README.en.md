@@ -353,7 +353,7 @@ So far we have only burned pictures ourselves on the GH70N. Results for other dr
 
 On CD, the along-track constant has to come from a grid disc, and 206 frames only applies to the GH70N with an IMAPI burn and READ(12) reads. CMC CD-R also drops about 0.4° near 33 mm, possibly a seam from burning, which we are still checking.
 
-`geo` measures DVD and CD with the angle ladder; a Blu-ray drive reads at a constant linear speed, so `geo --media bd` times one rotation instead, and `disexport` turns that into a DiscImageStudio Blu-ray preset (see the [manual](docs/MANUAL.md)).
+`geo` measures DVD and CD with the angle ladder; a Blu-ray drive reads at a constant linear speed, so `geo --media bd --bd-zones 25` times one rotation per zone instead, and `disexport` turns that into a DiscImageStudio Blu-ray preset. **The Blu-ray route is experimental**: the timing pins the shape, the capacity and the speed, but the absolute inner radius and the pitch stay priors, so a preset from timing alone is not trusted to place a picture (a 0.1% pitch error is 100 turns at the rim). The limits and the measurements are in the [manual](docs/MANUAL.md) and [`docs/research/BD_CLV_GEOMETRY_SOLVER.md`](docs/research/BD_CLV_GEOMETRY_SOLVER.md).
 
 ## Safety
 

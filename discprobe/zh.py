@@ -467,7 +467,6 @@ TEXT = {
     "The unfinished image was removed.": "没写完的镜像已删除。",
     "This is a CD, but the command has DVD settings. Add --media cd?": "这是 CD，但命令用的是 DVD 设置。要加上 --media cd 吗？",
     "Warning: {name} was made from another geo run ({run}), so it does not fit this one. Make it again:": "警告：{name} 是用另一次 geo（{run}）生成的，和这次对不上。请重新生成：",
-    "Note: geo supports DVD and CD; on this BD only timing is known to work.": "提示：geo 支持 DVD 和 CD；这张 BD 目前只确认 timing 能用。",
     "no such geo result: {p}": "找不到这个 geo 结果：{p}",
     "Your last measurement is {p}.": "你上次的测量结果是 {p}。",
     "Use it with --geo latest.": "用 --geo latest 就能使用它。",
