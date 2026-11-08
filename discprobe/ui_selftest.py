@@ -1524,6 +1524,12 @@ def _advice(c) -> None:
     c.check("preview" in finished[0] and any("burn" in x and "p.iso" in x for x in finished), "a finished picture says: check the preview, then burn")
     fake = guide.after_image("iso/p.iso", "iso/p.preview.png", os.path.join("results", "geo-SIM-cav-20260101-100000", "summary.json"))
     c.check(any("do not burn" in x for x in fake) and not any("If it looks right" in x for x in fake), "a picture from a simulated run must not be burned")
+    geo = os.path.join("results", "geo-H-20260101-100000", "summary.json")
+    picture = guide.after_image("iso/p.iso", "iso/p.preview.png", geo, picture="my photo.png")
+    design = guide.after_image("iso/p.iso", "iso/p.preview.png", geo, design="p.design.json", media="cd")
+    c.check(any(x.strip() == f'{guide.PROG} edit "my photo.png"' for x in picture)
+            and any(x.strip() == f"{guide.PROG} edit --media cd p.design.json" for x in design)
+            and not any(" edit " in x for x in finished), "after a picture or a design it offers edit, after the grid not")
     sim_args = Namespace(**{**vars(args), "sim": "cav", "drive": None})
     c.check("simulated drive" in guide.after_timing(sim_args, timed("CAV", [0.4]))[0] and "simulated drive" in guide.after_timing(sim_args, timed("CLV", [0.4]))[0],
             "a verdict on the simulated drive says so")

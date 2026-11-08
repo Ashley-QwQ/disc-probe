@@ -84,7 +84,8 @@ def _image_ready(args, preview: str, design=None, files: str = "") -> None:
     if files:
         print(files)
     ui.iso_ready(args.output)       # after the disc, which is tall, or this scrolls away again
-    _next(guide.after_image(args.output, preview, args.geo), args)
+    _next(guide.after_image(args.output, preview, args.geo, getattr(args, "picture", None),
+                            getattr(args, "design", None), getattr(args, "media", "dvd")), args)
     if "geo-SIM-" not in args.geo:
         ui.burn_warning()
 

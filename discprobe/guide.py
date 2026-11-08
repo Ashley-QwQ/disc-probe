@@ -682,9 +682,19 @@ def after_edit(path: str, media: str = "dvd") -> list[str]:
             f"  {PROG} image{flag} --geo latest --design {short(path)} --output iso/picture.iso"]
 
 
-def after_image(output: str, preview: str, geometry: str) -> list[str]:
-    """What to do with a finished picture ISO. One made from a simulated run must not reach a disc."""
+def after_image(output: str, preview: str, geometry: str, picture: str | None = None, design: str | None = None,
+                media: str = "dvd") -> list[str]:
+    """What to do with a finished picture ISO. One made from a simulated run must not reach a disc.
+    Made from a picture or a design file, it also says how to place it with edit, since that is what a look at it asks."""
     lines = [f"Next, check the preview: {short(preview)}"]
+    flag = " --media cd" if media == "cd" else ""
+    if design:
+        lines += ["To change where it sits, its size or turn, open the design again, then make the ISO the same way:",
+                  f"  {PROG} edit{flag} {short(design)}"]
+    elif picture:
+        lines += ["To move, size or turn it on the disc, or change where grey turns dark:",
+                  f"  {PROG} edit{flag} {short(picture)}",
+                  "It saves a design file. Then make the ISO again with --design and that file instead of --picture."]
     if "geo-SIM-" in geometry:
         return lines + ["This geometry came from the simulated drive, so it only shows the flow: do not burn this ISO."]
     return lines + [f"If it looks right, burn {short(output)} to a blank disc from the batch you measured",

@@ -306,6 +306,12 @@ TEXT = {
     # guide
     "Burn {p} to a disc and load it, then check this drive (1 to 3 minutes):": "把 {p} 刻到盘上并放入光驱，然后检查这台光驱（1 到 3 分钟）：",
     "Next, check the preview: {p}": "下一步，先看预览图：{p}",
+    "To change where it sits, its size or turn, open the design again, then make the ISO the same way:":
+        "想改位置、大小或角度，就再打开这个设计文件，改完按同样的命令重新生成镜像：",
+    "To move, size or turn it on the disc, or change where grey turns dark:":
+        "想在盘上移动、缩放、旋转图片，或者调整灰色从哪里开始算暗：",
+    "It saves a design file. Then make the ISO again with --design and that file instead of --picture.":
+        "它会保存一个设计文件。之后把 --picture 换成 --design 加这个文件，重新生成镜像。",
     "If it looks right, burn {p} to a blank disc from the batch you measured": "没问题的话，把 {p} 刻到测量用的同一批空盘上",
     "(Windows: right-click the .iso, Burn disc image).": "（Windows：右键 .iso，选“刻录光盘映像”）。",
     "This geometry came from the simulated drive, so it only shows the flow: do not burn this ISO.": "这个几何来自模拟光驱，只用来演示流程：不要刻这个镜像。",
