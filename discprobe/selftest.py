@@ -596,6 +596,27 @@ def _correction_run(c: Checker):
             cli._warn_other_run(Namespace(correction=os.path.join(d, "missing.json"), geo=geo), {"u": 1.0, "v": 1.0})
             cli._warn_other_run(Namespace(correction=None, geo=geo), {"u": 1.0, "v": 1.0})
         c.check(out.getvalue() == "", "no file or a missing one says nothing here")
+        # A grid burned with that timing correction, scanned: the new file is the timing one plus the scan's wave.
+        from .gridscan import fit_correction
+        with contextlib.redirect_stdout(io.StringIO()):
+            polyfit.write_phi_correction(path, np.linspace(26, 54, 8), 0.3 * ((np.linspace(26, 54, 8) - 40) / 15) ** 2,
+                                         2, "results/geo-E-20261107-133324", {"u": 180000.0, "v": 5.5})
+        phi = os.path.join(d, "phi.csv")
+        r = np.arange(25.5, 55.5, 0.1)
+        wave = 0.07 * np.sin(2 * np.pi * r / 10)
+        with open(phi, "w", encoding="utf-8") as f:
+            f.write("radius_mm,phi_rel_deg,peak_strength,good\n" + "".join(f"{a:.2f},{b:.4f},5,1\n" for a, b in zip(r, wave)))
+        stacked = os.path.join(d, "stacked.json")
+        out = fit_correction([phi], stacked, degree=12, base=path)
+        fit_correction([phi], os.path.join(d, "scan.json"), degree=12)
+        alone = I.load_correction(os.path.join(d, "scan.json"))
+        grid = np.linspace(27, 54, 50)
+        both = I.load_correction(stacked)(grid) - I.load_correction(path)(grid) - alone(grid)
+        # The base is held constant outside its own range, so the sum has corners one polynomial only approximates.
+        c.check(np.ptp(both) < 0.02 and out["base_fit_error_deg"] < 0.02,
+                f"--base adds the scans to the burned correction ({np.ptp(both):.4f} deg off)")
+        c.check(I.correction_other_run(stacked, 180001.0, 5.5, geo) == "geo-E-20261107-133324",
+                "and still names the geo run that correction belongs to")
 
 
 def _install_details(c: Checker):

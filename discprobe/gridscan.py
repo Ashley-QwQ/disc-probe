@@ -133,12 +133,15 @@ def analyse(path: str, design: np.ndarray, out_dir: str, dpi: float = 600.0, r_m
 
 
 def fit_correction(phi_csvs: list[str], out_path: str, degree: int = 4, r_lo: float = 25.5,
-                   r_hi: float = 55.5, geometry: str | None = None) -> dict:
+                   r_hi: float = 55.5, geometry: str | None = None, base: str | None = None) -> dict:
     """Fit phi(r) over several grid scans into an angle-correction file for `image --correction`.
 
     Each scan's curve is zeroed by its own median (its overall rotation is arbitrary),
     rings more than 1 degree off are dropped as mis-peaks, the polynomial in
     x = (r - 40) / 15 is fitted, and points beyond 4 robust sigma are rejected once.
+
+    `base` is the correction the grid was burned with. The scans then show only what it left, so the
+    file holds the sum, refitted as one polynomial over r_lo..r_hi (base_fit_error_deg says how closely).
     """
     rs, ps = [], []
     for path in phi_csvs:
@@ -163,6 +166,18 @@ def fit_correction(phi_csvs: list[str], out_path: str, degree: int = 4, r_lo: fl
            "radius_valid_mm": [r_lo, r_hi], "poly_in_x": [float(c) for c in coef], "x": "(r_mm - 40) / 15",
            "source": [os.path.basename(pth) for pth in phi_csvs], "geometry": geometry,
            "points_used": int(keep.sum()), "residual_rms_deg": float(np.sqrt(np.mean(res ** 2)))}
+    if base:
+        from .imagedisc import load_correction
+        with open(base, encoding="utf-8") as fh:
+            b = json.load(fh)
+        grid = np.linspace(r_lo, r_hi, 600)
+        xg = (grid - 40.0) / 15.0
+        total = np.polyval(coef, xg) + load_correction(base)(grid)
+        coef = np.polyfit(xg, total, max(degree, len(b["poly_in_x"]) - 1))
+        out.update(poly_in_x=[float(c) for c in coef], base=os.path.basename(base), base_source=b.get("source"),
+                   base_fit_error_deg=float(np.abs(total - np.polyval(coef, xg)).max()))
+        if b.get("geo_fit"):
+            out["geo_fit"] = b["geo_fit"]
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(out, fh, indent=2)
     return out

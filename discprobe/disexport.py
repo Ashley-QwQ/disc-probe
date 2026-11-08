@@ -153,7 +153,11 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
                          "No preset written.")
     corrected = ""
     if corr:
-        corrected = " + varying-pitch correction from timing" if correction_from_timing(correction_path) else " + grid-scan angle correction"
+        with open(correction_path, encoding="utf-8") as f:
+            stacked = bool(json.load(f).get("base_source"))
+        corrected = (" + timing correction refined by grid scans" if stacked
+                     else " + varying-pitch correction from timing" if correction_from_timing(correction_path)
+                     else " + grid-scan angle correction")
     desc = (f"Drive-timing calibration (discprobe){corrected}; "
             f"fitted over {r_lo}-{r_hi} mm, max angle difference to the measured map "
             f"{fit['max_angle_diff_deg']:.3f} deg; full-capacity mapping difference "

@@ -503,6 +503,10 @@ TEXT = {
     "grid, {a} mm lines": "网格，线宽 {a} mm",
     "{n} rings from {m} scans, fit residual rms {r} deg": "{m} 张扫描共 {n} 个环，拟合残差 rms {r}°",
     "Angle correction: {p}  (use with image --correction)": "角度修正文件：{p}（配合 image --correction 使用）",
+    "the correction file the grid disc was burned with: the scans show only what it left, so the output is that plus what they measure":
+        "刻网格盘时用的修正文件：扫描只量出它剩下的偏差，所以输出的是它加上扫描量到的部分",
+    "Added to {b}, the correction the grid was burned with (the sum is one polynomial, within {e} deg)":
+        "已叠加到刻网格时用的修正 {b} 上（合成为一个多项式，误差 {e}°以内）",
     "inner {a} mm, outer {b} mm, pitch shape {c}": "内半径 {a} mm，外半径 {b} mm，轨距形状 {c}",
     "angle difference to the measured map over {a}-{b} mm: max {c} deg, rms {d} deg": "在 {a}-{b} mm 内与实测角度的差：最大 {c}°，rms {d}°",
     "DiscImageStudio {m} preset object in {p} (key 'preset')": "DiscImageStudio 的 {m} 预设已写入 {p}（键名 preset）",

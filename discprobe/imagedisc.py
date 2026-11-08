@@ -95,6 +95,12 @@ def load_correction(path: str):
     return lambda r: np.polyval(coef, (np.clip(r, lo, hi) - 40.0) / 15.0)
 
 
+def _timing_source(c: dict) -> str | None:
+    """The tools/geo_polyfit.py command behind a correction, itself or as the base scans were added to."""
+    return next((str(c[k]) for k in ("source", "base_source")
+                 if str(c.get(k)).startswith("tools/geo_polyfit.py ")), None)
+
+
 def correction_from_timing(path: str) -> bool:
     """True for a correction made from a geo run by tools/geo_polyfit.py, False for one from grid scans."""
     with open(path, encoding="utf-8") as f:
@@ -104,11 +110,12 @@ def correction_from_timing(path: str) -> bool:
 def correction_other_run(path: str, u: float, v: float, geo_path: str) -> str | None:
     """The geo run a timing correction was made from, if it isn't this one. Its phi(r) is relative to
     that run's u and v, so with another run's it moves the picture by the wrong amount without any error."""
-    if not correction_from_timing(path):
-        return None
     with open(path, encoding="utf-8") as f:
         c = json.load(f)
-    run = re.split(r"[\\/]", c["source"].split(" ", 1)[1].rstrip("\\/"))[-1]
+    source = _timing_source(c)
+    if not source:
+        return None
+    run = re.split(r"[\\/]", source.split(" ", 1)[1].rstrip("\\/"))[-1]
     fit = c.get("geo_fit")
     if fit:
         same = math.isclose(fit["u"], u, rel_tol=1e-9) and math.isclose(fit["v"], v, rel_tol=1e-9)

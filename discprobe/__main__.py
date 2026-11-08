@@ -642,8 +642,11 @@ def cmd_gridscan(args):
 
 def cmd_correction(args):
     from .gridscan import fit_correction
-    c = fit_correction(args.phi, args.output, degree=args.degree, geometry=args.geo)
+    c = fit_correction(args.phi, args.output, degree=args.degree, geometry=args.geo, base=args.base)
     print(f"{c['points_used']} rings from {len(args.phi)} scans, fit residual rms {c['residual_rms_deg']:.4f} deg")
+    if args.base:
+        print(f"Added to {args.base}, the correction the grid was burned with "
+              f"(the sum is one polynomial, within {c['base_fit_error_deg']:.4f} deg)")
     print(f"Angle correction: {os.path.abspath(args.output)}  (use with image --correction)")
 
 
@@ -1286,6 +1289,8 @@ def _build_parser():
     sp.add_argument("--output", default="angle_correction.json")
     sp.add_argument("--degree", type=int, default=4)
     sp.add_argument("--geo", help="summary.json of the geo run the grid disc was burned with (recorded only)")
+    sp.add_argument("--base", help="the correction file the grid disc was burned with: the scans show only what it "
+                                   "left, so the output is that plus what they measure")
     sp.set_defaults(func=cmd_correction)
 
     sp = sub.add_parser("disexport", help="fit the measured angle map as a DiscImageStudio DVD or CD preset (cubic pitch)")
