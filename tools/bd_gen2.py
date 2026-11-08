@@ -2,12 +2,18 @@
 
 The first disc taught three things the hard way, and this file is built around them.
 
-1. The ruler has to survive the sector grid.  One 32-sector recording unit covers
-   about 3 deg at 40 mm, and the LDC interleave smears anything narrower across
-   that much angle.  A 0.225 mm spoke is 0.3 deg wide, which is why the spokes
-   were never going to appear however good the camera was.  Rings are immune
-   (their structure is radial, and 0.45 mm of radius is 158 000 recording units),
-   which is why only rings came back.  So: wide wedges, not thin spokes.
+1. The picture is torn, not smeared.  A disc does not record a pixel grid: the payload is
+   a continuous 1-7PP channel stream along the spiral, and DIS samples the picture once per
+   payload byte, which is about 1.1 um of track - 0.0016 deg at 40 mm.  Nothing about that
+   limits a thin line.  What kills an angular feature is the pitch error: the picture is
+   placed by the geometry the preset assumes, while the disc really turns by
+        d(theta)/dr = 2*pi*eps/p
+   so with eps = 0.11 per cent the whole picture is sheared by 3.4 turns per millimetre of
+   radius, and about 105 turns from the inner to the outer edge.  A 15-degree spoke becomes
+   2 520 overlapping involutes and averages to grey.  (For the record, one sector is
+   2.240 mm = 3.2 deg at 40 mm, and a 32-sector recording unit is 102.7 deg.)  What survives
+   is an angular feature wider than the twist across it, and a circle, because r is constant
+   along it.
 
 2. A radial edge turns into a spiral when the pitch is wrong, and the number of
    turns is the measurement:
@@ -51,8 +57,8 @@ from discprobe import scan                                    # noqa: E402
 # ---------------------------------------------------------------- the design
 
 PICTURE_MM = 116.0      # picture_design fits a picture's longest side to this
-RINGS_MM = (24.9, 29.0, 33.1, 37.2, 41.3, 45.4, 49.5, 53.6, 57.7)
-RING_HALF_MM = 0.30     # 0.6 mm wide: wide enough to see, narrow enough to localise
+RINGS_MM = (26.0, 40.0, 55.0)
+RING_HALF_MM = 0.50     # 0.6 mm wide: wide enough to see, narrow enough to localise
 WEDGE_DEG = 60.0        # 60 deg at 25 mm is 12 recording units, above the smear
 WEDGE_RADII = (24.6, 58.2)
 PITCH_ASSUMED_MM = 0.32e-3   # the pitch a preset is built with; the twist measures what it really is
@@ -60,46 +66,59 @@ SPIRALS = 2             # counter-rotating pair, for a scale-free cross-check
 
 
 def design(n: int = 2320, rings=RINGS_MM, ring_half=RING_HALF_MM,
-           wedges=((0.0, 60.0), (120.0, 60.0), (240.0, 60.0)), notch=(60.0, 8.0)) -> np.ndarray:
+           wedges=((0.0, 60.0), (120.0, 60.0), (240.0, 60.0))) -> np.ndarray:
     """Dark-on-light boolean picture, longest side PICTURE_MM, centred.
 
-    Three 60 degree wedges at 0, 120 and 240 degrees are what the measurement wants: a wide edge
-    survives the recording unit, which smears anything narrower than about three degrees, and three
-    of them average the edge position three times at every radius.
+    Three 60 degree wedges at 0, 120 and 240 degrees, and three rings 1 mm wide at 26, 40 and 55 mm.
 
-    Three identical wedges make the picture look the same after a rotation of 120 degrees, so a
-    match cannot tell which wedge is which. The narrow notch at 60 degrees breaks that symmetry
-    without adding a feature that is too thin to see.
+    The wedges are wide on purpose. A disc burned with a pitch that is off by a fraction of a per
+    cent twists the picture by a few turns per millimetre of radius (0.11 per cent is 3.4 turns per
+    mm), so any angular feature that is narrow in angle is torn into a fine spiral and averages out
+    to grey. What survives is a feature whose angular width covers the twist across it, which is why
+    the wedges are 60 degrees and the old 15-degree spokes were not.
 
-    The rings are at fixed radii and are what gives the photograph its scale: their positions on
-    the disc barely move when the pitch is wrong (a 10 ppm error moves the outermost ring by
-    0.24 um), so their spacing in the picture measures millimetres per pixel.
+    The rings are circles, and a circle is the one shape a rotation cannot disturb: r is constant
+    along them, so they come out as circles whatever the twist. They are also the scale: their radii
+    barely move when the pitch is wrong (10 ppm moves the outermost ring by 0.24 um), so their
+    spacing in a photograph measures millimetres per pixel.
+
+    Three rings, not nine: more rings put a fine radial grating into the picture and a pitch error
+    that slides the pattern by one ring spacing matches almost as well as the truth.
     """
-    half = PICTURE_MM / 2.0
-    y, x = np.mgrid[0:n, 0:n].astype(np.float64)
-    x = (x + 0.5) * PICTURE_MM / n - half
-    y = (y + 0.5) * PICTURE_MM / n - half
-    r = np.hypot(x, y)
-    theta = np.degrees(np.arctan2(y, x)) % 360.0
-
-    def band(centre, width):
-        return (np.abs(((theta - centre + 180.0) % 360.0) - 180.0) <= width / 2.0)
-
     out = np.zeros((n, n), bool)
-    for ring in rings:
-        out |= np.abs(r - ring) <= ring_half
-    mark = (r >= WEDGE_RADII[0]) & (r <= WEDGE_RADII[1])
-    for centre, width in wedges:
-        out |= band(centre, width) & mark
-    if notch is not None:
-        centre, width = notch
-        out |= band(centre, width) & (r >= WEDGE_RADII[0]) & (r <= WEDGE_RADII[1] - 6.0)
+    step = max(1, min(n, 4_000_000 // max(n, 1)))     # keep each block near 4 megapixels
+    xs = (np.arange(n) + 0.5) * (PICTURE_MM / n) - PICTURE_MM / 2.0
+    for row in range(0, n, step):
+        rows = np.arange(row, min(row + step, n))
+        yy = (rows + 0.5) * (PICTURE_MM / n) - PICTURE_MM / 2.0
+        x = xs[None, :]
+        y = yy[:, None]
+        r = np.hypot(x, y)
+        theta = np.degrees(np.arctan2(y, x)) % 360.0
+        block = np.zeros((rows.size, n), bool)
+        for ring in rings:
+            block |= np.abs(r - ring) <= ring_half
+        mark = (r >= WEDGE_RADII[0]) & (r <= WEDGE_RADII[1])
+        for centre, width in wedges:
+            block |= (np.abs(((theta - centre + 180.0) % 360.0) - 180.0) <= width / 2.0) & mark
+        out[row:row + rows.size] = block
     return out
 
 
-def save_design(path: str, n: int = 2320) -> str:
-    img = np.where(design(n), 0, 255).astype(np.uint8)
-    Image.fromarray(img).save(path)
+DPI = 2400.0
+
+
+def pixels_for_dpi(dpi: float = DPI) -> int:
+    return int(round(PICTURE_MM / 25.4 * dpi))
+
+
+def save_design(path: str, n: int | None = None) -> str:
+    """Write the picture as a one-bit PNG.  n defaults to 2400 dpi over PICTURE_MM."""
+    if n is None:
+        n = pixels_for_dpi()
+    # design() is True where the disc must be dark, and PIL's mode "1" draws True as white,
+    # so invert: black pixels are the burned pattern, which is what the first disc used.
+    Image.fromarray(~design(n)).save(path)     # bool -> mode "1", one bit per pixel
     return path
 
 
@@ -539,7 +558,9 @@ def _wedge_phase(p, th):
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--design", metavar="PNG", help="write the second-generation picture here")
-    ap.add_argument("--size", type=int, default=2320, help="picture side in pixels (default 2320)")
+    ap.add_argument("--size", type=int, default=0,
+                    help="picture side in pixels (default 2400 dpi, which is %d for 116 mm)"
+                         % pixels_for_dpi())
     ap.add_argument("--measure", metavar="PHOTO", help="measure a photograph of such a disc")
     ap.add_argument("--centre", nargs=2, type=float, metavar=("X", "Y"))
     ap.add_argument("--scale", type=float, help="pixels per mm, if the rim fit is unreliable")
@@ -549,9 +570,9 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     if args.design:
-        save_design(args.design, args.size)
-        print(f"wrote {args.design}: {PICTURE_MM:.0f} mm across, "
-              f"{len(RINGS_MM)} rings, three wedges of 60 deg and a notch")
+        save_design(args.design, args.size or None)
+        print(f"wrote {args.design}: {PICTURE_MM:.0f} mm across, three 60 deg wedges, "
+              f"{len(RINGS_MM)} rings at {', '.join(f'{x:g}' for x in RINGS_MM)} mm")
         return 0
     if args.selftest:
         worst = 0.0
