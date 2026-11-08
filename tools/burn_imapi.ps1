@@ -72,12 +72,32 @@ public static class BurnCheck {
 }
 "@
 
-function Write-BurnFailure($Failure, [double]$Seconds, [double]$EstimateSeconds, [string]$DriveName) {
+function Get-WrittenTo($Recorder) {
+    # Where the drive would write next, asked afresh after the failure; $null when it won't say (tray out, busy).
+    try {
+        $f = New-Object -ComObject IMAPI2.MsftDiscFormat2Data
+        $f.Recorder = $Recorder
+        if ($f.IsCurrentMediaSupported($Recorder) -and -not $f.MediaHeuristicallyBlank) { return [long]$f.NextWritableAddress }
+    } catch { }
+    return $null
+}
+
+function Write-BurnFailure($Failure, [double]$Seconds, [double]$EstimateSeconds, [string]$DriveName,
+                           $Recorder = $null, [long]$StartLba = 0, [long]$ImageSectors = 0) {
     # The picture may be on the disc already, so the bare COM error says too little and sounds too final.
+    # The drive's next writable address says how far it got; time alone misled once (a drive at half speed).
     $minutes = "{0:0.0} min" -f ($Seconds / 60)
-    if ($EstimateSeconds -gt 0 -and $Seconds -ge 0.95 * $EstimateSeconds) {
+    $next = if ($Recorder -and $ImageSectors -gt 0) { Get-WrittenTo $Recorder } else { $null }
+    if ($null -ne $next -and $next -gt $StartLba) {
+        $written = $next - $StartLba
+        if ($written -lt 0.99 * $ImageSectors) {
+            "The burn failed after $minutes. The drive stopped at LBA ${next}: it wrote {0} of {1} sectors ({2:0} %)." -f $written, $ImageSectors, (100 * $written / $ImageSectors)
+        } else {
+            "The burn reported an error after $minutes, but the drive says the data is all on the disc (next writable LBA $next): closing it failed."
+        }
+    } elseif ($EstimateSeconds -gt 0 -and $Seconds -ge 0.95 * $EstimateSeconds) {
         "The burn reported an error after $minutes, around or past the time the data should have taken."
-        "So the data has probably reached the disc and closing it failed. That is a likely reading, not something the drive reported."
+        "So the data has probably reached the disc and closing it failed. That is a guess from the time; the drive did not say how far it got."
     } elseif ($EstimateSeconds -gt 0) {
         "The burn failed partway, after $minutes of about {0:0.0} min: the disc holds only part of the image." -f ($EstimateSeconds / 60)
     } else {
@@ -175,7 +195,7 @@ $beat = Start-WriteHeartbeat $estimate
 try {
     try { $fmt.Write($stream) } finally { $beat.Stop(); $beat.Dispose() }
 } catch {
-    Write-BurnFailure $_ ((Get-Date) - $t0).TotalSeconds $estimate $Drive
+    Write-BurnFailure $_ ((Get-Date) - $t0).TotalSeconds $estimate $Drive $recorder $(if ($Append) { $ExpectStart } else { 0 }) $sectors
     exit 1
 }
 "Done in {0:0.0} min" -f ((Get-Date) - $t0).TotalMinutes
