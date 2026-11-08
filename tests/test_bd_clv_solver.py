@@ -86,6 +86,30 @@ def test_a_disc_that_is_not_clv_is_refused():
         raise AssertionError("a flat period series should not fit")
 
 
+def test_the_cross_term_is_in_the_r0_tolerance():
+    """Var(r0) = r0^2 [cov_aa/4a^2 + cov_bb/4b^2 - cov_ab/2ab], and the last term is not small.
+
+    Slope and intercept of this fit are strongly anti-correlated: push the line up and it must
+    tilt down to keep the far zones where they are. Keeping only the two diagonal terms therefore
+    claims a tolerance about a third too tight -- 29.5 um against 41.4 um of true scatter in the
+    300-run simulation -- which is why the cross term is carried through `fit_t2`.
+    """
+    import numpy as np
+    jitter = [1.0, -1.3, 0.7, 1.1, -0.9, 0.4, -0.6, 1.5]                 # 2 ppm of period, ~chi2 1
+    pts = [clv.Sample(lba=s.lba, period_ms=s.period_ms * (1 + e * 2e-6))
+           for s, e in zip(_samples(), jitter)]
+    fit = clv.fit_t2(pts, sector_mm=BD_SECTOR_MM, pitch_um=TRUTH["pitch_um"])
+    a, b = fit.slope_ms2_per_lba, fit.intercept_ms2
+    cov = clv._period_fit(np.array([p.lba for p in pts], float),
+                          np.array([p.period_ms for p in pts], float), a, b)[2]
+    full = cov[0, 0] / (4 * a * a) + cov[1, 1] / (4 * b * b) - cov[0, 1] / (2 * a * b)
+    diagonal = cov[0, 0] / (4 * a * a) + cov[1, 1] / (4 * b * b)
+    assert cov[0, 1] < 0, "a rising line through fixed points must have the pair anti-correlated"
+    assert full > diagonal, "the cross term has to widen the tolerance, not narrow it"
+    assert 1.15 < math.sqrt(full / diagonal) < 1.7, math.sqrt(full / diagonal)
+    assert abs(fit.sigma_r0_mm - fit.r0_mm * math.sqrt(full)) < 1e-12, "sigma_r0 must use that formula"
+
+
 # --------------------------------------------------------------- the drive's own answer
 
 def test_classify_rotation_from_get_performance():
@@ -162,8 +186,10 @@ def test_a_cav_disc_is_handed_to_the_angular_ladder():
         text = proc.stdout + proc.stderr
         assert proc.returncode == 0, text[-3000:]
         assert "constant angular velocity" in text, text[-3000:]
-        # The hand-off happens after the two-zone probe, so those are all the linear-speed run read.
-        assert text.count("Zone 0.") == 2, "the probe kept going after two zones: " + text[-2000:]
+        # Three zones get timed before the hand-off: the innermost one, which the drive relocks on
+        # after the spindle settle, then the two the rotation verdict reads. A CLV fit would have
+        # timed every zone of the ladder (nine by default), so three or fewer says the probe stopped.
+        assert text.count("Zone 0.") <= 3, "the probe kept going past the two-zone verdict: " + text[-2000:]
         written = [os.path.join(root, name) for root, _, names in os.walk(out) for name in names
                    if name == "summary.json"]
         assert len(written) == 1, written

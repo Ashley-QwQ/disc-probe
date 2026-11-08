@@ -91,7 +91,7 @@
 （NCC 0.026 对镜像设计 0.032）——那正是混叠的预期结果，不是"没刻上"的证据。
 
 **4.2 真正能判定的做法**：把设计按剪切模型 `θ → θ + 2π(r−r0)ε/p` 整体扭转后再与照片匹配
-（`tools/bd_gen2.py` 的整图匹配就是这件事）。只有这条路径能把"ε 是多少"与"图案在不在"分开。
+（`tools/experimental/bd_gen2.py` 的整图匹配就是这件事）。只有这条路径能把"ε 是多少"与"图案在不在"分开。
 
 **4.3 已经拿这张盘的照片回测了一次**：模板用真正刻上去的 `grid_design.png`，中心取环锐度
 定出的 (1115, 1149)、比例尺 16.8583 px/mm，整图匹配给出 `ε = +3.42 ± 1.34 ppm`，跨
@@ -127,9 +127,9 @@
 ```
 计时：python -m discprobe geo --media bd --bd-zones 25   →  c = b/a = π r0²/(pS)（与 v 无关）
       ↓  取 p0 = 0.320 µm，r0 = √(c·p0·S/π) 作初值
-出图：python tools/bd_gen2.py --design iso/gen2-design.png     （2400 dpi、116 mm、1 bit）
+出图：python tools/experimental/bd_gen2.py --design iso/gen2-design.png     （2400 dpi、116 mm、1 bit）
       ↓  Gen-2 图按 (r0, p0) 的螺旋落点落进盘面；若真实轨距是 p0(1+ε)，盘面被剪切 2π(r−r0)ε/p0
-拍照：python tools/bd_gen2.py --measure photo.jpg --centre X Y --scale S   →  ε
+拍照：python tools/experimental/bd_gen2.py --measure photo.jpg --centre X Y --scale S   →  ε
       ↓
 解算：p = p0(1+ε)，r0 = √(c·p·S/π)，r_out = √(r0² + p·S·N/π)
       ↓
@@ -144,7 +144,7 @@
 1. **回读判定（不需要光学，最便宜）**：盘放回驱动器，按预设的 `(r0, p)` 把 LBA 换算成半径，
    在"设计为暗"的环上取几个扇区、在环间取几个扇区，比较 2048 字节负载的灰度分布。
    渲染成功 → 两者有明显差异；渲染失败 → 都一样。这一步能直接否掉"渲染没生效"。
-2. **改设计（已实现，`tools/bd_gen2.py`）**：两个**不等宽**楔形（0° 处 90° 宽、150° 处 40° 宽）
+2. **改设计（已实现，`tools/experimental/bd_gen2.py`）**：两个**不等宽**楔形（0° 处 90° 宽、150° 处 40° 宽）
    + 三条 1.0 mm 环（26 / 40 / 55 mm），出图 `iso/gen2-design.png`（2400 dpi、116 mm 边长、1 bit）。
    理由：3 重对称（三个 60° 扇形）要扭转 120° 才会周期自重叠，不会像 15° 辐条那样被 2 520 条
    旋臂压成灰底 —— 但 3 重对称对"盘怎么摆"和"扭转的正负"是简并的：盘多转 120° 与扭转一个
@@ -159,7 +159,7 @@
    注入 +3.46 ppm 读成 **−54.7 ppm**，而 0°/300°/330° 仍对、60°/180° 错 —— 镜像把图案送到
    另一组角度上去了。修法：`design_polar()` 改成 `y = −r·sinθ`，与照片采样统一。
 
-   修好后的注入曲线（合成图，已知比例尺，`python tools/bd_gen2.py --selftest`，45 s）：
+   修好后的注入曲线（合成图，已知比例尺，`python tools/experimental/bd_gen2.py --selftest`，45 s）：
 
    | 注入（扭转 / ppm） | 读回 ppm | 误差 | quality |
    | --- | --- | --- | --- |
@@ -216,13 +216,13 @@ python tools/bd_spoke_shear.py D:/discgeo/scratch/bd_grid_photo.jpg --harmonics
 python tools/bd_spoke_shear.py D:/discgeo/scratch/bd_grid_photo.jpg --bands 6
 
 # Gen-2：出标定图（2400 dpi、116 mm、1 bit）
-python tools/bd_gen2.py --design iso/gen2-design.png
+python tools/experimental/bd_gen2.py --design iso/gen2-design.png
 
 # Gen-2：判定器自检（六个注入角 + 一个量程外对照，判据 0.25 ppm 且 quality ≥ 4）
-python tools/bd_gen2.py --selftest
+python tools/experimental/bd_gen2.py --selftest
 
 # Gen-2：量一张盘的照片（比例尺未知时从环上取，误差几百 ppm，只能做"像不像"的判定）
-python tools/bd_gen2.py --measure bd_gen2_photo.jpg --centre 2740 2740 --scale 47.3
+python tools/experimental/bd_gen2.py --measure bd_gen2_photo.jpg --centre 2740 2740 --scale 47.3
 ```
 
 ## 附录：两个恒等式

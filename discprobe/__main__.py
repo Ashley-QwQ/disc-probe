@@ -937,11 +937,16 @@ def _disexport_bd(args):
                       "keeps there: sector 0 of an unspared BD-R starts at {b} mm, not {c} mm")
               .format(a=f"{derived['pullback_sectors']:,}", b=f"{preset['innerRadiusMm']:.4f}",
                       c=f"{fit['r0_mm']:.4f}"))
-    elif measured and total > measured and measured >= 0.90 * total:
+    elif measured and total > measured and measured >= 0.90 * total and total - measured >= bdexport.ISA0_MIN_SECTORS:
         print(i18n.tr("this disc holds {a} sectors and the preset says {b}: the difference is the inner "
                       "spare area a formatted disc keeps, so sector 0 sits further out than on an "
                       "unspared BD-R. Add --pullback-isa0 to move the inner radius back for one")
               .format(a=f"{measured:,}", b=f"{total:,}"))
+    elif measured and total > measured and total - measured < bdexport.ISA0_MIN_SECTORS:
+        print(i18n.tr("this disc holds {a} sectors, {b} fewer than the preset's {c}: too few to be a "
+                      "spare area, so that is a lead-out margin or simply a slightly smaller disc, and "
+                      "sector 0 stays where the timing measured it")
+              .format(a=f"{measured:,}", b=f"{total - measured:,}", c=f"{total:,}"))
     elif measured and total > measured:
         print(i18n.tr("this disc was written up to sector {a} of {b}; the rest of the spiral is simply "
                       "unrecorded, and the preset describes the whole spiral, so nothing needs adjusting")

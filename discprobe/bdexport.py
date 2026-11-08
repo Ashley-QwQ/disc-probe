@@ -49,6 +49,10 @@ USABLE_MARGIN_SECTORS = 1024
 # A formatted disc's inner spare area is about a percent of the spiral; anything much shorter
 # than that is a disc that was not filled, and its missing sectors are not in front of sector 0.
 ISA0_MIN_FRACTION = 0.90
+# An inner spare area is a fixed percent of the spiral: 4096 clusters, 131 072 sectors, on a
+# 25 GB disc. A shortfall smaller than a thousand clusters is a lead-out margin or simply a
+# disc with fewer sectors, and pulling sector 0 back for it would move the spiral for nothing.
+ISA0_MIN_SECTORS = BD_SECTORS_PER_RECORDING_UNIT * 1024
 FILE_NAME = "disc-presets.json"
 SCHEMA_VERSION = 4
 BD_PRESET_LIST = "bluRayPresets"

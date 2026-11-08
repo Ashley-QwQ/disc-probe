@@ -853,6 +853,11 @@ TEXT = {
     "this disc was written up to sector {a} of {b}; the rest of the spiral is simply "
     "unrecorded, and the preset describes the whole spiral, so nothing needs adjusting":
     "这张盘只写到 {b} 个扇区中的 {a}；剩下的螺旋没有刻录内容，而预设描述的是整条螺旋，无需调整",
+    "this disc holds {a} sectors, {b} fewer than the preset's {c}: too few to be a "
+    "spare area, so that is a lead-out margin or simply a slightly smaller disc, and "
+    "sector 0 stays where the timing measured it":
+    "这张盘有 {a} 个扇区，比预设的 {c} 少 {b} 个：差额太小，不是备用区，而是 lead-out 的余量，"
+    "或者这张盘本来就略小；扇区 0 就留在计时量到的位置",
     "this disc holds {a} sectors and the preset says {b}: the difference is the inner "
     "spare area a formatted disc keeps, so sector 0 sits further out than on an "
     "unspared BD-R. Add --pullback-isa0 to move the inner radius back for one":

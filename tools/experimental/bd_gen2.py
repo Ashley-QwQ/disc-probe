@@ -50,7 +50,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
 from discprobe import scan                                    # noqa: E402
 

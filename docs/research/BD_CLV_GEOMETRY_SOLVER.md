@@ -8,6 +8,15 @@ led to it (why the angular ladder cannot see a CLV disc, what the standards say,
 reports). Measured numbers below come from the BD-RE in this drive: 12 088 320 sectors, a single
 layer, read at a constant linear speed.
 
+**Nothing in this path looks at the disc.** There is no photograph, no scan and no external optical
+reference anywhere in it: the measurement is the drive's own completion timing against the disc's
+own sector addresses, and the one number imported from outside is the track pitch the Blu-ray
+standard fixes at 0.320 um. A photographic route was explored first and is now frozen
+(`BD_SPOKE_SHEAR_REPORT.md`, `tools/experimental/bd_gen2.py`): it needs a camera, a centre someone
+picked and a scale someone measured, which is not a step a command-line tool may ask of the user
+that runs it. The same three numbers come out of one unattended command in about two minutes
+(section 10).
+
 ## 1. What the drive gives, and what it does not
 
 At a constant linear speed the disc turns faster at the centre than at the edge, and a read that
@@ -97,7 +106,7 @@ Dropping `cov_ab` understates the tolerance by about a third on this data (29.5 
   line every break "explains" some of a vanishing residual. `results` and `disexport --install` refuse
   a run with a break rather than fit a spiral through it.
 
-## 6. Measured, on the BD-RE in this drive
+## 6. Measured, on the discs in this drive
 
 Nine or 25 zones per run, as noted; `a` in ms^2/LBA, `b` in ms^2.
 
@@ -126,6 +135,27 @@ starts 0.66 mm out. Walking the same spiral back over those 131 072 sectors,
 `sqrt(24.6655^2 - p*S*131072/pi) = 24.0516 mm`, lands on the start of the data zone the standard puts
 at 24.00 +- 0.05 mm -- an independent check of the whole chain, and the number a preset for an
 unspared BD-R needs (`disexport ... --pullback-isa0`).
+
+### A pressed BD-ROM, which has no spare area
+
+The same command on a pressed single-layer BD-ROM (`MATSHITA BD-MLT UJ272`, 12 218 368 sectors)
+returned
+
+    r0 24.0490 mm, pitch 0.3200 um, linear speed 10.390 m/s  (R^2 0.999996 over 23 zones)
+    1 sigma: r0 16.0 um, pitch (anchor), speed 0.002 m/s
+    the outermost sector lands at 58.018 mm
+
+with 23 of 25 zones kept (the two innermost dropped, coherence 0.43 and 0.88). That is 0.049 mm out
+from the standard's data-zone start and no ISA0 subtraction anywhere: a pressed disc begins its
+logical address space where the standard says the data zone begins, while the formatted BD-RE above
+begins it 0.66 mm further out because it reserved that region. Two discs, two starting radii, one
+instrument, and the 0.61 mm between them is the 131 072 sectors of ISA0 to within the fit's
+tolerance -- which is the check the `--pullback-isa0` correction rests on.
+
+The rotation verdict is worth reading again here: `info` reports this disc's nominal rate rising
+2.42x from the inner to the outer edge, which looks like CAV, and `GET PERFORMANCE` calls it CLV.
+The two-zone test settled it by measurement (the period grew 1.280x against a radius ratio of 1.279),
+so the run went on to a full 23-zone line. The drive's answer is a hint; the spindle is the evidence.
 
 A request for 1x (`--speed 4495`) lands at 7.91 m/s as well: the drive floors at one speed for both
 requests, so two speeds is all this drive offers and the two-speed check below cannot grow a
@@ -206,6 +236,19 @@ python -m discprobe geo --drive G: --media bd --bd-zones 25
 python -m discprobe disexport --geo results/geo-G-... --sectors 12088320 --install
 ```
 
-The first command prints the fit, the tolerance, the outermost sector, how far `r0` was extrapolated,
-and the command that turns the run into a preset; the second writes (or installs) the record and
-reports the inner radius, the outer radius and the pitch it will be read back with.
+The first prints the fit, the tolerance, the outermost sector, how far `r0` was extrapolated, and
+the command that turns the run it just wrote into a preset with that disc's own sector count filled
+in, so the second line above need not be retyped from this document:
+
+    For a DiscImageStudio preset: python -m discprobe disexport --geo results\geo-G-20261108-210111 --sectors 12218368 --install
+
+The second writes (or installs) the record and reports the inner radius, the outer radius and the
+pitch DiscImageStudio will read it back with.
+
+Neither one asks a question. The first spins the disc up, decides between CLV and CAV on measured
+zones rather than on what the drive claims, settles the spindle, times 25 zones, fits and writes
+`summary.json`; the 25-zone runs in section 6 took 1:45 to 2:07 of wall clock on the UJ272, five
+minutes inside the six this is budgeted at even when a run loses most of its zones. The second is a
+closed-form conversion of that file and writes nothing else. Both exit non-zero, with the reason,
+rather than writing a preset they do not trust: a break in the line, a dual-layer disc, a pitch
+anchor no radius can satisfy.
