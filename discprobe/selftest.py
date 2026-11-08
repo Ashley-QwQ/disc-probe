@@ -682,13 +682,22 @@ def _incomplete_folder(c: Checker):
     import subprocess
     import tempfile
     here = os.path.dirname(os.path.abspath(__file__))
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONPATH": ""}
     with tempfile.TemporaryDirectory() as d:
+        # The packaged Python takes modules only from its fixed path, never the current folder, so there the
+        # child would run the whole copy instead. It once ran `selftest`, which ran this again, thousands deep.
+        first = subprocess.run([sys.executable, "-c", "import sys; print(sys.path[0])"], cwd=d, capture_output=True,
+                               encoding="utf-8", env=env).stdout.strip()
+        if first not in ("", d):
+            print("  (skipped: this Python doesn't look in the current folder for modules)")
+            return
         folder = os.path.join(d, "discprobe")
         os.mkdir(folder)
         for name in ("__main__.py", "guide.py", "mmc.py"):     # as in a real half-deleted copy: no __init__.py, no i18n.py
             shutil.copy(os.path.join(here, name), folder)
-        got = subprocess.run([sys.executable, "-m", "discprobe", "selftest"], cwd=d, capture_output=True, encoding="utf-8",
-                             env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONPATH": ""})
+        # The check runs on import, before any command, and --help can't start anything if it isn't reached.
+        got = subprocess.run([sys.executable, "-m", "discprobe", "--help"], cwd=d, capture_output=True, encoding="utf-8",
+                             env=env)
     c.check(got.returncode == 1 and "incomplete" in got.stderr and "Traceback" not in got.stderr, "it says the files are incomplete, not a traceback")
 
 
