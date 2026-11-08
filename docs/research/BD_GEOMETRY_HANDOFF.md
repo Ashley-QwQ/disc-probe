@@ -398,4 +398,3 @@ python tests/test_bd_preset.py
 - `docs/research/BD_CLV_FEASIBILITY.md`：CLV 可行性、真实数据、§12 真机结果、§13 预设导出。
 - `docs/research/BD_CLV_GEOMETRY_SOLVER.md`：模型推导、误差预算、交叉校验（本文件是它的"接手版"）。
 - `docs/MANUAL.md` / `docs/MANUAL.en.md`：`--media bd`、`--bd-zones`、`--fit-offset`、`disexport` 的用户说明。
-- `SUMMARY_PHASE2.md` / `OVERNIGHT_BD_SUMMARY.md`：阶段性结果与命令记录。

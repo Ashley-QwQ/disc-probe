@@ -200,6 +200,34 @@ def test_a_cav_disc_is_handed_to_the_angular_ladder():
         assert abs(fit["dis_equivalent"]["inner_radius_mm"] - 24.02) < 0.01, fit["dis_equivalent"]
         assert abs(fit["dis_equivalent"]["pitch_um_estimate"] - 0.3185) < 0.001, fit["dis_equivalent"]
 
+def test_a_random_iso_can_fill_a_blu_ray_layer():
+    """A blank Blu-ray has nothing to time, so the path starts by filling one with ordinary data.
+
+    The writer is the DVD one -- Blu-ray also reads 2048-byte sectors -- so the only Blu-ray part
+    is the capacity: a request past a single layer is refused before a file is opened.
+    """
+    with tempfile.TemporaryDirectory() as work:
+        out = os.path.join(work, "bd-random.iso")
+        proc = subprocess.run([sys.executable, "-m", "discprobe", "random", "--media", "bd",
+                               "--sectors", "8192", "--output", out],
+                              cwd=ROOT, capture_output=True, text=True, timeout=180)
+        text = proc.stdout + proc.stderr
+        assert proc.returncode == 0, text
+        assert os.path.getsize(out) == 8192 * 2048, os.path.getsize(out)
+        with open(out, "rb") as f:
+            f.seek(16 * 2048)
+            assert f.read(6)[1:] == b"CD001", "the burner needs an ISO 9660 header"
+        too_big = os.path.join(work, "no.iso")
+        proc = subprocess.run([sys.executable, "-m", "discprobe", "random", "--media", "bd",
+                               "--sectors", "20000000", "--output", too_big],
+                              cwd=ROOT, capture_output=True, text=True, timeout=120)
+        text = proc.stdout + proc.stderr
+        assert proc.returncode != 0, text
+        assert "single-layer Blu-ray" in text, text
+        assert "Traceback" not in text, text
+        assert not os.path.exists(too_big)
+
+
 def test_disexport_writes_a_blu_ray_preset():
     """A CLV run is exported as a Blu-ray preset: inner radius, outer radius and the sector count.
 

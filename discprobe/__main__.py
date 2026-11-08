@@ -1204,6 +1204,11 @@ def cmd_tilescan(args):
 
 def cmd_random(args):
     from .randomdisc import write_iso
+    if getattr(args, "media", "dvd") == "bd":
+        from .bdexport import BD_SECTORS_PER_LAYER
+        if args.sectors > BD_SECTORS_PER_LAYER:
+            sys.exit(f"{args.sectors:,} sectors do not fit on a single-layer Blu-ray "
+                     f"({BD_SECTORS_PER_LAYER:,}); lower --sectors")
     print(f"Writing {os.path.abspath(args.output)}: {args.sectors} sectors of seeded random data")
     with ui.writing(args.output, args.sectors) as log:
         write_iso(args.output, args.sectors, args.seed, media=args.media, log=log)
@@ -1794,6 +1799,9 @@ def _build_parser():
         "geo": dict(r0_mm=24.0, pitch_um=0.32, bit_nm=74.5, speed=8990, reps=24, max_targets=9,
                     host_delay_ms=35.0),
         "timing": dict(speed=8990, host_delay_ms=35.0),
+        # A blank BD-R reports no capacity and has nothing to read, so a Blu-ray calibration
+        # starts the same way the DVD one does: fill a disc with ordinary data, then time it.
+        "random": dict(output="iso/bd-random.iso", sectors=12_219_392),
     }
     for name in cd_defaults:
         choices = ("dvd", "cd", "bd") if name in bd_defaults else ("dvd", "cd")

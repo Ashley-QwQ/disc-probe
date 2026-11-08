@@ -231,9 +231,18 @@ Two things about the hand-over, from `BluRayPresetStore.Import` in the DiscImage
 
 ## 10. Reproduction
 
+A blank Blu-ray has nothing to time -- an unwritten BD-R reports zero readable capacity and the
+measurement refuses it before spinning up. Fill one first:
+
+```
+python -m discprobe random --media bd --output iso/bd-random.iso
+```
+
+That is a whole 25 GB layer (12,219,392 sectors); burn it with any image burner, then:
+
 ```
 python -m discprobe geo --drive G: --media bd --bd-zones 25
-python -m discprobe disexport --geo results/geo-G-... --sectors 12088320 --install
+python -m discprobe disexport --geo results/geo-G-... --sectors 12219392 --install
 ```
 
 The first prints the fit, the tolerance, the outermost sector, how far `r0` was extrapolated, and
@@ -244,6 +253,12 @@ in, so the second line above need not be retyped from this document:
 
 The second writes (or installs) the record and reports the inner radius, the outer radius and the
 pitch DiscImageStudio will read it back with.
+
+How much of the disc has to be written for this to work? A partially written disc still measures,
+because the fit only needs zones that carry data: refitting the 21:12 run with its zones cut off at
+30%, 50%, 70% and 90% of the layer gives `r0` = 24.144, 24.056, 24.079, 24.043 mm and 1σ = 31.8,
+22.2, 17.7, 16.5 µm against 24.0501 ± 16.5 µm for the whole disc. Half a disc is within 25 µm of the
+full-disc answer and 95% of the tolerance; a third of a disc is not (95 µm out).
 
 Neither one asks a question. The first spins the disc up, decides between CLV and CAV on measured
 zones rather than on what the drive claims, settles the spindle, times 25 zones, fits and writes
