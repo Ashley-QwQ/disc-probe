@@ -26,10 +26,19 @@ implied `tau`, and a plain statement of whether the slope is distinguishable fro
 consistent with zero is a result: it says `C` is a track-length offset only, so no read command on
 this drive will ever see it.
 
+Quality
+-------
+A ladder's own chi2/dof says whether its r0 error is believable. Runs with chi2/dof above
+`--max-chi2-nu` (default 3) are excluded before the fit, with the excluded run and the reason
+printed; the rest enter the line with their r0 sigma inflated by `sqrt(max(1, chi2/dof))`. The
+table still shows the raw sigma. With only two speeds the slope has no residual degrees of
+freedom, so its error is formal and the output says so.
+
 Usage
 -----
     python tools/cd_along_track_speeds.py results/geo-G-2026*/summary.json
     python tools/cd_along_track_speeds.py --json out.json results/geo-G-2026*/summary.json
+    python tools/cd_along_track_speeds.py --max-chi2-nu 0 results/geo-G-2026*/summary.json
 """
 
 from __future__ import annotations
@@ -81,11 +90,14 @@ def load(path: str) -> dict:
         v_ref = 2 * math.pi * r_ref / (float(period_ms) / 1000.0)      # mm/s
     else:
         r_ref = rpm = v_ref = None
+    chi2 = fit.get("chi2_per_dof")
+    scale = math.sqrt(max(1.0, chi2)) if (chi2 is not None and sigma_r0) else 1.0
     return {
         "path": path,
         "u": u, "v": v, "bit_nm": b_mm * 1e6,
         "r0_mm": r0, "pitch_um": pitch * 1e3, "r0_sigma_mm": sigma_r0,
-        "chi2": fit.get("chi2_per_dof"), "rms_deg": fit.get("residual_rms_deg"),
+        "sigma_fit_mm": sigma_r0 * scale if sigma_r0 else None, "sigma_scale": scale,
+        "chi2": chi2, "rms_deg": fit.get("residual_rms_deg"),
         "reference_lba": ref, "period_ms": period_ms,
         "r_ref_mm": r_ref, "rpm": rpm, "v_ref_mm_s": v_ref,
         "stopped": summary.get("stopped"),
@@ -105,15 +117,17 @@ def _rungs(path: str) -> int | None:
 def fit_line(rows: list[dict]) -> dict | None:
     """Weighted least squares of r0_eff^2 against v, with formal errors from the per-run sigma.
 
-    Formal, not residual-based: two speeds have no residual degrees of freedom, and what limits the
-    slope there is how well each run knows its own r0, not how well a line threads two points.
+    Each run's sigma is its own r0 error inflated by sqrt(max(1, chi2/dof)): a ladder that does not
+    fit its own model reports an r0 error that is too small, and scaling it is the cheap way to keep
+    that run from dominating the slope. Formal, not residual-based: two speeds have no residual
+    degrees of freedom, and what limits the slope there is how well each run knows its own r0.
     """
-    use = [r for r in rows if r["v_ref_mm_s"] and r["r0_sigma_mm"]]
+    use = [r for r in rows if r["v_ref_mm_s"] and r["sigma_fit_mm"]]
     if len(use) < 2:
         return None
     x = [r["v_ref_mm_s"] for r in use]
     y = [r["r0_mm"] ** 2 for r in use]
-    sig = [2 * r["r0_mm"] * r["r0_sigma_mm"] for r in use]
+    sig = [2 * r["r0_mm"] * r["sigma_fit_mm"] for r in use]
     w = [1.0 / (s * s) for s in sig]
     sw = sum(w); sx = sum(wi * xi for wi, xi in zip(w, x)); sy = sum(wi * yi for wi, yi in zip(w, y))
     sxx = sum(wi * xi * xi for wi, xi in zip(w, x)); sxy = sum(wi * xi * yi for wi, xi, yi in zip(w, x, y))
@@ -147,7 +161,14 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("summaries", nargs="+", help="geo summary.json files (globs are fine)")
     ap.add_argument("--json", help="also write the table and the fit here")
+    ap.add_argument("--max-chi2-nu", type=float, default=3.0,
+                    help="exclude runs whose ladder chi2/dof is above this before fitting "
+                         "(0 disables; default 3)")
     args = ap.parse_args(argv)
+
+    def bad(r):
+        return (args.max_chi2_nu > 0 and r["chi2"] is not None
+                and r["chi2"] > args.max_chi2_nu)
 
     paths = []
     for pattern in args.summaries:
@@ -165,28 +186,55 @@ def main(argv=None) -> int:
         sig_nm = f"{r['r0_sigma_mm'] * 1e6:.1f}" if r["r0_sigma_mm"] else "-"
         print(f"{name:<40} {rpm:>7} {v:>8} {r['r0_mm']:>10.6f} {sig_nm:>7} {r['pitch_um']:>9.4f} "
               f"{(r['rms_deg'] or 0):>8.3f} {(r['chi2'] or 0):>7.2f} {rung:>5}"
-              + ("  (stopped)" if r["stopped"] else ""))
+              + ("  (stopped)" if r["stopped"] else "")
+              + (f"  (excluded: chi2/dof > {args.max_chi2_nu:g})" if bad(r) else ""))
 
-    speeds = sorted({round(r["v_ref_mm_s"], 3) for r in rows if r["v_ref_mm_s"]})
+    kept = [r for r in rows if not bad(r)]
+    dropped = [r for r in rows if bad(r)]
+    if dropped:
+        print()
+        print(f"Excluded {len(dropped)} run(s) with chi2/dof above {args.max_chi2_nu:g}:")
+        for r in dropped:
+            name = os.path.basename(os.path.dirname(r["path"]))
+            print(f"  {name}: chi2/dof {r['chi2']:.2f} -- its ladder does not fit its own model, "
+                  "so its r0 error is too small to weight a slope with.")
+        print("  (--max-chi2-nu N changes the cut; 0 keeps every run.)")
+
+    inflated = [r for r in kept if r["sigma_scale"] > 1.0]
+    if inflated:
+        print()
+        print("The fit inflates each r0 error by sqrt(chi2/dof); the table shows the raw sigma:")
+        for r in inflated:
+            name = os.path.basename(os.path.dirname(r["path"]))
+            print(f"  {name}: {r['r0_sigma_mm'] * 1e6:.1f} -> {r['sigma_fit_mm'] * 1e6:.1f} nm "
+                  f"(chi2/dof {r['chi2']:.2f})")
+
     print()
+    speeds = sorted({round(r["v_ref_mm_s"], 3) for r in kept if r["v_ref_mm_s"]})
     span_pct = ((speeds[-1] - speeds[0]) / (sum(speeds) / len(speeds)) * 100.0) if len(speeds) > 1 else 0.0
-    if len(speeds) < 2:
-        print(f"One read speed here ({', '.join(f'{s:.1f}' for s in speeds) or 'unknown'} mm/s). "
+    result = {"speeds": speeds, "rows": [_public(r) for r in kept],
+              "excluded": [_public(r) for r in dropped], "max_chi2_nu": args.max_chi2_nu,
+              "fit": None}
+    if not kept:
+        print("All runs were excluded by the quality cut; nothing to fit.")
+    elif not speeds:
+        print("No run carries a usable period_ms/reference_lba, so there is no read speed to fit against.")
+    elif len(speeds) < 2:
+        lead = "After the quality cut one speed remains" if dropped else "One read speed here"
+        print(f"{lead} ({', '.join(f'{s:.1f}' for s in speeds) or 'unknown'} mm/s). "
               "A single speed cannot separate the time-like part of C from r0: the answer is r0 + C, "
               "as CD_GEOMETRY_INVESTIGATION.md section 3 derives.")
-        result = {"speeds": speeds, "rows": [_public(r) for r in rows], "fit": None}
     elif span_pct < 5.0:
         print(f"The read speeds span only {span_pct:.1f}% ({speeds[0]:.1f} to {speeds[-1]:.1f} mm/s). "
               "Those are the same speed for this purpose: the drive did not honour a change, or these are "
               "runs of one geometry. A slope fitted across a span that small is an extrapolation, not a "
               "measurement, so it is not fitted here.")
-        result = {"speeds": speeds, "rows": [_public(r) for r in rows], "fit": None, "span_pct": span_pct}
+        result["span_pct"] = span_pct
     else:
-        fit = fit_line(rows)
+        fit = fit_line(kept)
         if not fit:
-            print("Two or more speeds, but the summaries do not carry period_ms and u_sigma, so the "
-                  "straight-line fit cannot be weighted. Rerun with a current geo.")
-            result = {"speeds": speeds, "rows": [_public(r) for r in rows], "fit": None}
+            print("Two or more speeds remain, but the summaries do not carry period_ms and u_sigma, "
+                  "so the straight-line fit cannot be weighted. Rerun with a current geo.")
         else:
             print(f"r0_eff^2 against v at the reference radius, {fit['n']} runs:")
             print(f"  slope      {fit['slope']:.6e} mm^2/(mm/s)  +- {fit['slope_sigma']:.2e}")
@@ -215,7 +263,12 @@ def main(argv=None) -> int:
                 print(f"The slope is {shown} sigma from zero. C changes with read speed: "
                       f"tau = {fit['tau_s'] * 1e3:+.3f} ms, so C(v) = W + R0 + tau*v/b, and r0_eff at "
                       "one speed predicts the constant at another. The absolute value is still open.")
-            result = {"speeds": speeds, "rows": [_public(r) for r in rows], "fit": fit}
+            if fit["n"] == 2:
+                print()
+                print("Only two speeds contribute: they define a slope, but with no residual degrees of "
+                      "freedom its sigma is formal and cannot test whether the two runs agree. A third "
+                      "speed is what would turn this into an error bar.")
+            result["fit"] = fit
 
     if args.json:
         with open(args.json, "w", encoding="utf-8") as f:
