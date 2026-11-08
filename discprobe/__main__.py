@@ -87,7 +87,7 @@ def _image_ready(args, preview: str, design=None, files: str = "") -> None:
     simulated = None
     if (design is not None and design.dtype == bool and getattr(args, "media", "dvd") == "dvd"
             and ui.term().can_prompt()
-            and ui.ask("Make a simulated photo of it too? A model, not a measurement; it takes a few seconds.")):
+            and ui.ask("Make a simulated photo of it too? A model, not a measurement; it takes about ten seconds.")):
         simulated = _simulated_photo(args, design)
     _next(guide.after_image(args.output, preview, args.geo, getattr(args, "picture", None),
                             getattr(args, "design", None), getattr(args, "media", "dvd"), simulated), args)

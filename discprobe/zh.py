@@ -318,10 +318,10 @@ TEXT = {
     "Burn {p} to a disc and load it, then check this drive (1 to 3 minutes):": "把 {p} 刻到盘上并放入光驱，然后检查这台光驱（1 到 3 分钟）：",
     "Next, check the preview: {p}": "下一步，先看预览图：{p}",
     "And the simulated photo (a model, not a measurement): {p}": "还有模拟实拍图（模型推算，不是实测）：{p}",
-    "To see roughly how it may look in a photo (a model, not a measurement; a few seconds):":
-        "想大致看看拍出来是什么样（模型推算，不是实测；几秒钟）：",
-    "Make a simulated photo of it too? A model, not a measurement; it takes a few seconds.":
-        "顺便生成一张模拟实拍图吗？这是模型推算，不是实测，要几秒钟。",
+    "To see roughly how it may look in a photo (a model, not a measurement; about ten seconds):":
+        "想大致看看拍出来是什么样（模型推算，不是实测；大约十秒）：",
+    "Make a simulated photo of it too? A model, not a measurement; it takes about ten seconds.":
+        "顺便生成一张模拟实拍图吗？这是模型推算，不是实测，大约要十秒。",
     "Rendering the simulated photo...": "正在渲染模拟实拍图……",
     "No simulated photo: {e}": "没有生成模拟实拍图：{e}",
     "a design file saved by edit": "edit 保存的设计文件",

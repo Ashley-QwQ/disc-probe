@@ -13,6 +13,8 @@ FLASH = (-43.66, 89.79, 330.)
 HUB_MM, EDGE_MM = 24.6, 57.6
 GROOVE_GAIN = .15
 BANDS = "bands"     # as --light: bright bytes chosen by viewing angle from a measured chart, as on the figures disc
+FINE_SAMPLES = 2000     # samples across the disc before averaging down: 0.06 mm, as art/sim_view.py
+PHOTO_SATURATION = .6   # a phone records the grating's colours far less pure than the spectrum
 
 
 def texture(value):
@@ -56,7 +58,9 @@ def along_track(x, y, camera, flash):
 
 
 def render(design, size=800, dark="A5", light="B9", camera=CAMERA, flash=FLASH, rotate=0):
-    """Return a model prediction as a Pillow image, with no perspective or camera tone curve."""
+    """Return a model prediction as a Pillow image, with no perspective. It is worked out about every 0.06 mm and
+    averaged in linear light to the output size, so fine lines and dither mix as they do in a photo, and its colour
+    is muted toward what a phone camera records (PHOTO_SATURATION)."""
     if size < 200 or size > 4096:
         raise ValueError("size must be between 200 and 4096 pixels")
     cam, fl = np.asarray(camera, float), np.asarray(flash, float)
@@ -67,7 +71,8 @@ def render(design, size=800, dark="A5", light="B9", camera=CAMERA, flash=FLASH, 
     with np.load(Path(__file__).with_name("simulate_lut.npz")) as z:
         single = (z["single"] / 255.) ** 2 - .02     # stored as a square root in 8 bits
         groove, edges, pairs = z["groove"], z["band_edges"], z["band_bytes"]
-    labels, x, y, dx, dy = sampled(design, size, rotate)
+    k = max(1, math.ceil(FINE_SAMPLES / size))
+    labels, x, y, dx, dy = sampled(design, size * k, rotate)
     r = np.hypot(x, y)
     cx, cy = unit(cam, x, y)
     lx, ly = unit(fl, x, y)
@@ -84,9 +89,11 @@ def render(design, size=800, dark="A5", light="B9", camera=CAMERA, flash=FLASH, 
         bright = single[texture(light), index]
     plain = single[texture(dark), index]
     rgb = (np.where(labels[..., None], plain, bright) + GROOVE_GAIN * groove[across] + .05 * .177) * 4
-    rgb = np.clip(rgb, 0, 1)
-    rgb = np.where(rgb <= .0031308, 12.92 * rgb, 1.055 * rgb ** (1 / 2.4) - .055)
     rgb[(r < HUB_MM) | (r >= EDGE_MM)] = 0
+    rgb = rgb.reshape(size, k, size, k, 3).mean((1, 3))    # box filter, in linear light
+    grey = rgb @ np.array([.2126, .7152, .0722])
+    rgb = np.clip(grey[..., None] + PHOTO_SATURATION * (rgb - grey[..., None]), 0, 1)
+    rgb = np.where(rgb <= .0031308, 12.92 * rgb, 1.055 * rgb ** (1 / 2.4) - .055)
     return Image.fromarray(np.uint8(np.clip(rgb * 255, 0, 255)))
 
 

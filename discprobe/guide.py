@@ -694,7 +694,7 @@ def after_image(output: str, preview: str, geometry: str, picture: str | None = 
     elif media != "cd" and (design or picture):
         source = f"--design {short(design)}" if design else f"--picture {short(picture)}"
         sheet = short(os.path.splitext(output)[0] + ".simulated.png")
-        lines += ["To see roughly how it may look in a photo (a model, not a measurement; a few seconds):",
+        lines += ["To see roughly how it may look in a photo (a model, not a measurement; about ten seconds):",
                   f"  {PROG} simulate {source} --sheet {sheet}"]
     if design:
         lines += ["To change where it sits, its size or turn, open the design again, then make the ISO the same way:",
