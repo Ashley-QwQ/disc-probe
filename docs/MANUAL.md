@@ -547,7 +547,7 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
 
 `geo_polyfit.py` 会打印各阶多项式的留一法误差，用它选阶数。这批 CMC 盘的轨距有波浪，恒定轨距 rms 0.233°，二次 0.163°，七次 0.080°。
 
-**沿轨道常数。**计时测不出"数据沿轨道的绝对位置"，所以 CD 测完几何还差这一个常数。它会让径向线按 `c + a/r` 的形状扭转。这个值在不同路径上差别很大：GH70N 加 IMAPI（Mode 2 Form 1）约 206 帧；TSSTcorp SN-208FB 加 cdrdao（Mode 1，[DiscImageStudio #130](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/130)）约 7 帧，这个值来自一张照片的拟合，还没用第二张网格盘验证。所以不要直接套用别人的数。定这个常数有下面两条路。
+**沿轨道常数。**计时测不出"数据沿轨道的绝对位置"，所以 CD 测完几何还差这一个常数。为什么测不出来，domerawind 的[推导](research/CD_GEOMETRY_INVESTIGATION.md)给出了证明：把数据沿轨道整体挪动，和换一个内半径完全等价，计时分不开这两者。它会让径向线按 `c + a/r` 的形状扭转。这个值在不同路径上差别很大：GH70N 加 IMAPI（Mode 2 Form 1）约 206 帧；TSSTcorp SN-208FB 加 cdrdao（Mode 1，[DiscImageStudio #130](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/130)）约 7 帧，这个值来自一张照片的拟合，还没用第二张网格盘验证。所以不要直接套用别人的数。定这个常数有下面两条路。
 
 **推荐：交给 DiscImageStudio 的精细标定。**用 `geo` 代替它的粗标定和边界标定，少刻盘，也少描点。沿轨道常数的效果只相当于内半径变化约 0.3 µm（206 帧），精细标定本来就在拟合半径，按推算能把它一起吸收，不需要刻网格盘。这条路来自 kasumikira（[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19415813)）和 pugod124（[disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2#issuecomment-6650565706)）的 CD-R 实测，我们自己还没有走过。
 
