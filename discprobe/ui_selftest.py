@@ -1472,10 +1472,12 @@ def _advice(c) -> None:
     bd_lines = guide.after_timing(args, bd)
     c.check("constant linear speed" in bd_lines[1] and "8990" in bd_lines[2] and "3324" not in "".join(bd_lines), "on Blu-ray a non-CAV result does not promise another speed helps, and offers a BD speed")
     bd_good = guide.after_timing(args, {"setup": {"family": "bd"}, **timed("CAV", [9.0])})
-    c.check(any("8990" in x for x in bd_good) and not any("--sectors 16" in x or " geo " in x for x in bd_good), "a noisy Blu-ray stays with BD speeds and is not sent on to geo")
+    c.check(any("8990" in x for x in bd_good) and not any("--sectors 16" in x for x in bd_good)
+            and any(" geo " in x and "--media bd --bd-zones" in x for x in bd_good),
+            "a noisy Blu-ray keeps its BD speed and still offers the geometry pass")
     i18n.use("zh")
     try:
-        c.check(all(i18n.tr(x) != x for x in (bd_lines[1], bd_good[-1], *guide.after_random(Namespace(**vars(args)))[:3],
+        c.check(all(i18n.tr(x) != x for x in (bd_lines[1], bd_good[-2], *guide.after_random(Namespace(**vars(args)))[:3],
                                            *guide.after_disexport(True),
                                            "Restart DiscImageStudio to load the updated preset list.")),
                 "the new advice has Chinese")

@@ -472,7 +472,8 @@ def sectors_from_info(report: dict) -> tuple[int, str] | None:
 
 def _sectors_for(summary: dict, out: str) -> tuple[str, str]:
     """A --sectors value for the preset command, and what the reader should check about it."""
-    media = "cd" if (summary.get("fit") or {}).get("media") == "cd" else "dvd"
+    fit_media = (summary.get("fit") or {}).get("media")
+    media = fit_media if fit_media in ("cd", "dvd", "bd") else "dvd"
     for r in scan(out):
         if r.kind == "info" and not r.simulated:
             report = _load(os.path.join(r.path, "info.json")) or {}
@@ -564,7 +565,8 @@ def after_timing(args, summary: dict) -> list[str]:
         if media == "dvd" and not blu_ray and getattr(args, "sectors", 1) == 1:
             lines.append(f"  Or read whole ECC blocks, which was cleaner on one drive: {PROG} timing {carry} --sectors 16")
     if blu_ray:
-        return lines + ["", "geo supports DVD and CD, so timing is as far as this disc goes for now."]
+        return lines + ["", "Next, measure the geometry (a straight T^2 line over 25 zones, about 2 minutes):",
+                        f"  {PROG} geo {carry} --media bd --bd-zones 25"]
     usual = 1411 if media == "cd" else None
     speed = f" --speed {args.speed}" if getattr(args, "speed", None) not in (None, usual) else ""
     note = ["  It sets 4x first. If that takes this drive out of constant rotation, it stops and says what to do."] if media == "dvd" and getattr(args, "speed", None) is None else []
@@ -572,9 +574,11 @@ def after_timing(args, summary: dict) -> list[str]:
 
 
 def after_timing_stop(args, reason: str) -> list[str]:
-    flag = " --media cd" if getattr(args, "media", "dvd") == "cd" else ""
+    media = getattr(args, "media", "dvd")
+    flag = {"cd": " --media cd", "bd": " --media bd"}.get(media, "")
+    iso = {"cd": "iso/cd-random.iso", "bd": "iso/bd-random.iso"}.get(media, "iso/random.iso")
     if "cannot read" in reason or "recorded area" in reason or "fails on" in reason or "time limit" in reason:
-        return [f"Make a plain data disc: {PROG} random{flag} --output iso/random.iso",
+        return [f"Make a plain data disc: {PROG} random{flag} --output {iso}",
                 "Burn it (Windows: right-click the .iso, Burn disc image) and run timing on it."]
     return []
 
@@ -885,15 +889,17 @@ def after_cdprobe(project: str) -> list[str]:
 
 def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -> list[str]:
     """The workflow with what is already done ticked off, and the next command; `notes` says what each does."""
-    flag = " --media cd" if media == "cd" else ""
-    random_iso = "iso/cd-random.iso" if media == "cd" else "iso/random.iso"
+    flag = {"cd": " --media cd", "bd": " --media bd"}.get(media, "")
+    random_iso = {"cd": "iso/cd-random.iso", "bd": "iso/bd-random.iso"}.get(media, "iso/random.iso")
     results = [r for r in scan(out) if not r.simulated and r.media == media]
     missing = missing_packages()
     drives = optical_drives()
     drive = f"--drive {drives[0]}" if drives else "--drive E:"
 
     timing = next((r for r in results if r.kind == "timing" and r.rotation() and not r.stopped), None)
-    timing_good = timing is not None and timing.rotation() == "CAV"
+    # A Blu-ray is read at a constant linear speed, so CLV is the good answer there, not CAV: the run
+    # that counts is the one that finished, and its own verdict says whether the disc is usable.
+    timing_good = timing is not None and (not timing.stopped if media == "bd" else timing.rotation() == "CAV")
     geo = next((r for r in results if r.geo_complete()), None)
     has_iso = os.path.exists(random_iso) and not os.path.exists(random_iso + iso9660.UNFINISHED)
 
@@ -914,7 +920,13 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
         current = next((i for i, row in enumerate(rows) if not row[0]))
         rows[current] = (rows[current][0], rows[current][1], f"{i18n.tr(rows[current][2])}  <- {i18n.tr('you are here')}")
 
-    if missing:
+    if media == "bd" and geo is not None:
+        sectors = _sectors_for(geo.summary, out)[0]
+        commands = [("Export a DiscImageStudio Blu-ray preset (enter the same --sectors there; `info` on a blank disc gives the count):",
+                     f"{PROG} disexport --media bd --geo latest --sectors {sectors} --output dis_preset.json"),
+                    ("The timing fixes the shape; the two absolute radii still come from the disc itself "
+                     "(see docs/research/BD_CLV_GEOMETRY_SOLVER.md).", None)]
+    elif missing:
         commands = [("Install the Python packages disc-probe uses:", INSTALL)]
     elif sys.platform != "win32":
         commands = [("Try the flow on the simulated drive:", f"{PROG} timing --sim cav{flag}"), (None, PORTS)]
@@ -926,7 +938,9 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
         commands = [("This speed did not work; try another (1 to 3 minutes):",
                      f"{PROG} timing {drive}{flag} --speed {ALTERNATIVE_SPEEDS[media][0]}")]
     elif geo is None:
-        commands = [("Measure the disc's spiral (about 5 minutes):", f"{PROG} geo {drive}{flag}")]
+        measure = (f"{PROG} geo {drive} --media bd --bd-zones 25" if media == "bd"
+                   else f"{PROG} geo {drive}{flag}")
+        commands = [("Measure the disc's spiral (about 5 minutes):", measure)]
     else:
         sectors = _sectors_for(geo.summary, out)[0]
         first = ("CD still needs one more constant, so the preset below is the usual way on (the CD route in README.md). A picture ISO:"

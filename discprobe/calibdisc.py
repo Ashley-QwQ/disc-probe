@@ -71,6 +71,22 @@ def design(rings=(26.0, 40.0, 55.0), ring_half_mm: float = 0.35,
     return dark
 
 
+def split_picture(boundary_deg: float = 90.0) -> np.ndarray:
+    """True = dark. Half the disc dark, the other half light, divided along one diameter.
+
+    A line is a thin thing: when the preset is off, it winds into a spiral a few hundredths of a
+    millimetre wide and disappears into the disc's own texture. The edge between a dark half and a
+    light half is a whole diameter of ink, and the same shear turns it into a handful of arms that
+    are easy to count by eye -- which is the point of this picture. `boundary_deg` is the diameter
+    the edge lies on: 90 puts it at 12-6 o'clock, so a disc that is dark on the left reads at once.
+    """
+    x, y = imagedisc._grid_coords()
+    r = np.hypot(x, y)
+    th = np.degrees(np.arctan2(y, x)) % 360.0
+    delta = ((th - float(boundary_deg) + 180.0) % 360.0) - 180.0
+    return (delta < 0.0) & (r <= 57.0)      # the rim only, so the preview looks like the disc
+
+
 def geometry(r0_mm: float = NOMINAL_R0_MM, pitch_um: float = NOMINAL_PITCH_UM,
              bit_nm: float = 74.5) -> tuple[float, float]:
     """The (u, v) the DVD writer already understands, from a Blu-ray spiral.
@@ -85,8 +101,8 @@ def geometry(r0_mm: float = NOMINAL_R0_MM, pitch_um: float = NOMINAL_PITCH_UM,
 
 def write(path: str, *, sectors: int = BURNABLE_SECTORS, r0_mm: float = NOMINAL_R0_MM,
           pitch_um: float = NOMINAL_PITCH_UM, bit_nm: float = 74.5, rings=(26.0, 40.0, 55.0),
-          line_deg: float = 90.0, dark: str = "A5", light: str = "B9", log=print,
-          preview: str | None = None) -> dict:
+          line_deg: float = 90.0, split: bool = False, dark: str = "A5", light: str = "B9",
+          log=print, preview: str | None = None) -> dict:
     """Write the calibration picture as a burnable image and say what it is.
 
     With `preview`, the same picture is also saved as a PNG: a disc image bakes in one scrambling
@@ -94,12 +110,14 @@ def write(path: str, *, sectors: int = BURNABLE_SECTORS, r0_mm: float = NOMINAL_
     pictures with, and it costs nothing to keep beside the image."""
     u, v = geometry(r0_mm, pitch_um, bit_nm)
     textures = bd.check_textures(dark, light)
-    pic = design(rings=rings, line_deg=line_deg)
+    pic = split_picture(line_deg) if split else design(rings=rings, line_deg=line_deg)
     if preview:
         imagedisc.preview(pic, preview)
     meta = {"kind": "blu-ray-calibration", "r0_mm": r0_mm, "pitch_um": pitch_um,
-            "rings": list(rings), "line_deg": line_deg,
-            "note": "burned with the nominal numbers; the line's far end points at the twist"}
+            "rings": list(rings), "line_deg": line_deg, "split": bool(split),
+            "note": ("burned with the nominal numbers; half the disc is dark, and the shear turns "
+                     "that edge into arms you can count") if split else
+                    "burned with the nominal numbers; the line's far end points at the twist"}
     spec = imagedisc.write_iso(path, pic, u, v, bit_nm, int(sectors), dark=dark, light=light,
                                log=log, meta=meta, media="bd")
     return {"path": os.path.abspath(path), "spec": os.path.abspath(spec), "u": u, "v": v,

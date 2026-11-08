@@ -1241,13 +1241,20 @@ def cmd_calibdisc(args):
     from . import calibdisc
     try:
         out = calibdisc.write(args.output, sectors=args.sectors, r0_mm=args.r0_mm, pitch_um=args.pitch_um,
-                              rings=args.rings_list, line_deg=90.0, log=print, preview=args.preview)
+                              rings=args.rings_list, line_deg=90.0, split=args.split, log=print,
+                              preview=args.preview)
     except ValueError as e:
         sys.exit(str(e))
-    print(i18n.tr("{a} sectors ({b:.2f} GB) written with r0 {c} mm and pitch {d} um: three rings at {e} mm "
-                  "and one line from 12 o'clock to the rim")
-          .format(a=f"{out['sectors']:,}", b=out["sectors"] * 2048 / 1e9, c=f"{out['r0_mm']:g}",
-                  d=f"{out['pitch_um']:g}", e=", ".join(f"{r:g}" for r in args.rings_list)))
+    if args.split:
+        print(i18n.tr("{a} sectors ({b:.2f} GB) written with r0 {c} mm and pitch {d} um: half the disc dark, "
+                      "half light")
+              .format(a=f"{out['sectors']:,}", b=out["sectors"] * 2048 / 1e9, c=f"{out['r0_mm']:g}",
+                      d=f"{out['pitch_um']:g}"))
+    else:
+        print(i18n.tr("{a} sectors ({b:.2f} GB) written with r0 {c} mm and pitch {d} um: three rings at {e} mm "
+                      "and one line from 12 o'clock to the rim")
+              .format(a=f"{out['sectors']:,}", b=out["sectors"] * 2048 / 1e9, c=f"{out['r0_mm']:g}",
+                      d=f"{out['pitch_um']:g}", e=", ".join(f"{r:g}" for r in args.rings_list)))
     t = out["textures"]
     print(i18n.tr("Recorded textures {a} (dark) and {b} (light): {c} and {d} of seven gaps with a transition, "
                   "digital sums {e} and {f_} -- grey, not black and white, which is what keeps the servo's "
@@ -1255,10 +1262,23 @@ def cmd_calibdisc(args):
           .format(a=t["dark"]["byte"], b=t["light"]["byte"],
                   c=t["dark"]["gaps_with_a_transition"], d=t["light"]["gaps_with_a_transition"],
                   e=f"{t['dark']['digital_sum']:+d}", f_=f"{t['light']['digital_sum']:+d}"))
-    print(i18n.tr("Read the far end of the line against the clock: 1 o'clock is 30 degrees, 2 is 60, 3 is 90, "
-                  "4 is 120, 5 is 150, 6 is 180, and that number is what `disexport --twist-deg` takes"))
-    print(i18n.tr("Burn it, then time it and look at it: `geo --media bd` on the same disc gives the shape, "
-                  "and the line's far end gives the twist; `disexport --twist-deg <hours>` closes the loop"))
+    if args.split:
+        print(i18n.tr("Burn it, then count the arms where the dark half meets the light one: dense at the "
+                      "inner edge and coarse outside means the inner radius is off, the other way round "
+                      "means the outer one is, and arms that fold back in the middle mean the two are off "
+                      "in opposite directions. Adjust the preset's two radii in the preview until the "
+                      "preview shows the same arms, and burn again"))
+    else:
+        print(i18n.tr("Read the far end of the line against the clock: 1 o'clock is 30 degrees, 2 is 60, "
+                      "3 is 90, 4 is 120, 5 is 150, 6 is 180, and that number is what "
+                      "`disexport --twist-deg` takes"))
+    if not args.split:
+        print(i18n.tr("Burn it, then time it and look at it: `geo --media bd` on the same disc gives the "
+                      "shape, and the line's far end gives the twist; `disexport --twist-deg <hours>` "
+                      "closes the loop"))
+    else:
+        print(i18n.tr("Burn it, then time the same disc with `geo --media bd`: the timing gives the shape "
+                      "and the arms give the two radii"))
     print(f"  {out['path']}")
 
 
@@ -1401,7 +1421,8 @@ def _speed(text: str):
 COMMAND_GROUPS = (
     ("Start here", ("guide", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "timing", "geo", "results")),
-    ("Make a disc image", ("random", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes")),
+    ("Make a disc image", ("random", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
+                           "calibdisc")),
     ("Read scans of burned discs", ("gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("disexport", "cdprobe")),
 )
@@ -1419,9 +1440,23 @@ The usual path, on DVD (CD: add --media cd to each command; steps in docs/MANUAL
   python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
   python -m discprobe disexport --geo latest --sectors <sectors> --output dis_preset.json
 
+The Blu-ray path is experimental (limits in docs/research/BD_CLV_GEOMETRY_SOLVER.md):
+  python -m discprobe random --media bd --output iso/bd-random.iso   then burn it to a BD-R
+  python -m discprobe geo --drive E: --media bd --bd-zones 25        a straight T^2 line over 25 zones
+  python -m discprobe disexport --geo latest --sectors <sectors>     a DiscImageStudio Blu-ray preset
+Timing pins the shape, the capacity and the speed; the absolute inner radius and the pitch stay priors,
+so a preset from timing alone is not trusted to place a picture (a 0.1% pitch error is 100 turns).
+
 At a terminal, --drive can be left out when there is one drive, and each command ends by printing the next one.
 `python -m discprobe <command> -h` shows a command's options."""
 EXAMPLES = {
+    "calibdisc": """\
+experimental: this is what the camera-based route left behind. Burn it to check the writer and to see
+the geometry of one disc; `geo --media bd` on that same disc is what a preset comes from.
+examples:
+  python -m discprobe calibdisc                                      the whole layer: three rings, a 12 o'clock line, a 3 o'clock tick
+  python -m discprobe calibdisc --split                              half dark, half light: the edge stays countable
+  python -m discprobe calibdisc --sectors 12200000 --preview p.png    a smaller image, plus a PNG of the picture""",
     "simulate": """examples:
   python -m discprobe simulate --picture my_picture.png --output sim.png
   python -m discprobe simulate --design-npy design.npy --sheet sheet.png""",
@@ -1772,7 +1807,7 @@ def _build_parser():
                                    "left, so the output is that plus what they measure")
     sp.set_defaults(func=cmd_correction)
 
-    sp = sub.add_parser("disexport", help="fit the measured angle map as a DiscImageStudio DVD or CD preset (cubic pitch)")
+    sp = sub.add_parser("disexport", help="fit a measurement as a DiscImageStudio preset: a DVD/CD angle map (cubic pitch), or a Blu-ray T^2 line (constant pitch)")
     sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose; "
                                                     "a CD fit gives a CD preset")
     sp.add_argument("--correction", help="angle-correction file from the correction command")
@@ -1841,6 +1876,9 @@ def _build_parser():
                     help="radii of the rings that make the radius scale readable, in mm")
     sp.add_argument("--preview", default="",
                     help="also save the picture as a PNG, for burning it with a picture disc tool instead")
+    sp.add_argument("--split", action="store_true",
+                    help="half the disc dark and half light instead of rings and a line: the edge "
+                         "survives a wrong preset as a handful of arms, where a thin line does not")
     sp.set_defaults(func=cmd_calibdisc)
 
     sp = sub.add_parser("selftest", help="parser checks and end-to-end runs on the simulated drive and a synthetic scan")

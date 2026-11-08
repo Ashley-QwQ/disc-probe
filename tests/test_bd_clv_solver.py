@@ -333,6 +333,41 @@ def test_the_calibration_disc_writes_a_burnable_image():
         assert abs(spec["u"] / spec["v"] - calibdisc.geometry()[0] / calibdisc.geometry()[1]) < 1e-6
 
 
+def test_the_split_picture_survives_a_wrong_preset():
+    """A half-dark, half-light disc reads its own error: the edge between the halves becomes a few arms,
+    where a one-line vernier winds into a spiral that cannot be seen at all."""
+    import numpy as np
+    from discprobe import calibdisc
+    pic = calibdisc.split_picture(90.0)
+    assert pic.shape == (calibdisc.SIZE, calibdisc.SIZE)
+    # One whole half dark, the other light: around a 40 mm ring the dark run is a single 180 deg arc.
+    samples = []
+    for deg in range(0, 360, 10):
+        px = 40.0 * np.cos(np.radians(deg))
+        py = 40.0 * np.sin(np.radians(deg))
+        col = int((px + calibdisc.HALF_MM) / calibdisc.CELL_MM)
+        row = int((calibdisc.HALF_MM - py) / calibdisc.CELL_MM)
+        samples.append(bool(pic[row, col]))
+    assert 16 <= sum(samples) <= 20, sum(samples)       # 18 of 36 samples = a half
+    assert all(a != b for a, b in zip(samples[:18], samples[18:]))  # opposite sides disagree
+    x, y = calibdisc.imagedisc._grid_coords()
+    assert not pic[np.hypot(x, y) > 58.0].any()          # nothing past the rim
+    assert 0.30 < pic.mean() < 0.45
+    # And it writes a burnable image with the split recorded in its spec.
+    with tempfile.TemporaryDirectory() as work:
+        out = os.path.join(work, "split.iso")
+        proc = subprocess.run([sys.executable, "-m", "discprobe", "calibdisc", "--split", "--sectors",
+                               "20000", "--output", out], cwd=ROOT, capture_output=True, text=True,
+                              timeout=300)
+        text = proc.stdout + proc.stderr
+        assert proc.returncode == 0, text
+        assert "Traceback" not in text, text
+        assert os.path.getsize(out) == 20000 * 2048
+        with open(os.path.join(work, "split.image.json"), encoding="utf-8") as f:
+            spec = json.load(f)
+        assert spec["split"] is True
+
+
 def test_a_blu_ray_picture_is_masked_with_the_blu_ray_scrambler():
     """The drive XORs a Blu-ray sector with a 16-bit register seeded by the sector number, not with
     DVD's sixteen preset sequences: compensating a picture with the DVD table burns flat noise."""

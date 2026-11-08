@@ -174,7 +174,6 @@ TEXT = {
     "Nothing is recorded on this disc, so timing cannot use it. Burn a random-data disc first:": "这张盘上没有数据，timing 用不了。先刻一张随机数据盘：",
     "Nothing is recorded on this disc, so timing cannot use it. The usual random disc would not fit, so make a smaller one:": "这张盘上没有数据，timing 用不了。默认大小的随机数据盘放不下，做一张小一点的：",
     "The Blu-ray drives reported so far kept a constant linear speed whatever was asked, so another speed may not change this. To try one:": "目前报告过的蓝光光驱，请求什么速度都保持恒定线速度，所以换速度可能没用。想试的话：",
-    "geo supports DVD and CD, so timing is as far as this disc goes for now.": "geo 只支持 DVD 和 CD，这张盘目前只能测到 timing。",
     "This is a Blu-ray disc, so {a}x is {b} kB/s": "这是蓝光盘，{a}x 是 {b} kB/s",
     "The middle of a CD holds its file system, so the picture is left out inside 26 mm radius.": "CD 中间放着文件系统，所以半径 26 mm 以内不画图。",
     "ISO 9660 sectors overlap the drawing; leave an inner background margin": "图案压到了文件系统的扇区上；请把半径 26 mm 以内留空",
@@ -190,6 +189,12 @@ TEXT = {
     "{a}-{b} deg": "{a}-{b}°",
     "Or read whole ECC blocks, which was cleaner on one drive: {c}": "或者每次读一个完整的 ECC 块（16 扇区），在一台光驱上更干净：{c}",
     "Next, measure the geometry:": "下一步，测量盘面螺旋几何：",
+    "Next, measure the geometry (a straight T^2 line over 25 zones, about 2 minutes):":
+        "下一步，测量盘面几何（25 个区域拟合一条 T^2 直线，约 2 分钟）：",
+    "Export a DiscImageStudio Blu-ray preset (enter the same --sectors there; `info` on a blank disc gives the count):":
+        "导出一个 DiscImageStudio 蓝光预设（--sectors 同一个数也要填进 DiscImageStudio；空白盘的数看 `info`）：",
+    "The timing fixes the shape; the two absolute radii still come from the disc itself (see docs/research/BD_CLV_GEOMETRY_SOLVER.md).":
+        "计时只定形状；两个绝对半径仍然来自这张盘本身（见 docs/research/BD_CLV_GEOMETRY_SOLVER.md）。",
     "Make a plain data disc: {c}": "做一张普通数据盘：{c}",
     "Burn it (Windows: right-click the .iso, Burn disc image) and run timing on it.": "刻录它（Windows：右键 .iso，选“刻录光盘映像”），然后对这张盘运行 timing。",
     "This was the simulated drive: the verdict and commands below show the flow, do not burn from them.": "这是模拟光驱的结果：下面的结论和命令只用来演示流程，不要拿它刻盘。",
@@ -739,7 +744,7 @@ TEXT = {
     "read IDs and swatch levels from flatbed scans of the tile palette target": "从调色板盘的平板扫描图读取编号和色样亮度",
     "measure line straightness on scans of the burned grid test": "在网格测试盘的扫描图上测线条是否笔直",
     "fit an angle-correction curve from gridscan phi.csv files": "用 gridscan 的 phi.csv 拟合角度修正曲线",
-    "fit the measured angle map as a DiscImageStudio DVD or CD preset (cubic pitch)": "把测出的角度关系拟合成 DiscImageStudio 的 DVD 或 CD 预设",
+    "fit a measurement as a DiscImageStudio preset: a DVD/CD angle map (cubic pitch), or a Blu-ray T^2 line (constant pitch)": "把一次测量拟合成 DiscImageStudio 预设：DVD/CD 是角度关系（三次项轨距），蓝光是一条 T^2 直线（恒定轨距）",
     "write a random-data ISO for full-disc timing calibration": "写随机数据镜像，刻好后用来测量",
     "write a DiscImageStudio project and pattern for a CD probe disc": "为 CD 探测盘生成 DiscImageStudio 工程和图案",
     "Blu-ray only: how far the picture came out twisted, in degrees, as seen on a dial burn (a radial line drawn at 12 o'clock ending at 1 o'clock is 30 degrees). The pitch that implies is folded into the two radii, which is the only place a preset can carry it": "仅蓝光：图案扭了多少度，按表盘盘读（12 点钟的径向线指到 1 点钟就是 30°）。它对应的轨距改动用两个半径承载，因为预设里没有别的地方放它",
@@ -751,6 +756,16 @@ TEXT = {
     "radii of the rings that make the radius scale readable, in mm": "几条同心环的半径，单位 mm，用来看半径刻度",
     "also save the picture as a PNG, for burning it with a picture disc tool instead":
         "同时导出一张 PNG，方便改用现成的画盘工具来刻",
+    "the blank's capacity less the lead-out a burner needs to close the disc": "空白盘的容量减去刻录机收尾需要的 lead-out",
+    "half the disc dark and half light instead of rings and a line: the edge survives a wrong preset "
+    "as a handful of arms, where a thin line does not": "半黑半白，而不是圆环加细线：预设错了的时候这条边还在，变成几道能数清的臂，细线则直接消失",
+    "{a} sectors ({b:.2f} GB) written with r0 {c} mm and pitch {d} um: half the disc dark, half light": "写入 {a} 个扇区（{b:.2f} GB），内径 {c} mm、轨距 {d} µm：半张盘深、半张盘浅",
+    "Burn it, then count the arms where the dark half meets the light one: dense at the inner edge and "
+    "coarse outside means the inner radius is off, the other way round means the outer one is, and arms "
+    "that fold back in the middle mean the two are off in opposite directions. Adjust the preset's two "
+    "radii in the preview until the preview shows the same arms, and burn again": "刻好后数深色半边与浅色半边交界处的臂：内圈密、外圈疏说明内径偏了；反过来是外径偏了；中途折回来、出现一个舌形，说明两者反着偏。在预览里调预设的两个半径，直到预览出现同样的臂，再刻一张",
+    "Burn it, then time the same disc with `geo --media bd`: the timing gives the shape and the arms give the two radii": "刻好后用 `geo --media bd` 测同一张盘：计时给形状，臂给两个半径",
+
     "parser checks and end-to-end runs on the simulated drive and a synthetic scan": "用模拟光驱和合成扫描图做自检",
 
     # Option help
@@ -923,6 +938,13 @@ zsh：
   python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
   python -m discprobe disexport --geo latest --sectors <sectors> --output dis_preset.json
 
+蓝光这条路线是实验性的（局限见 docs/research/BD_CLV_GEOMETRY_SOLVER.md）：
+  python -m discprobe random --media bd --output iso/bd-random.iso   然后刻到 BD-R 上
+  python -m discprobe geo --drive E: --media bd --bd-zones 25        25 个区域拟合一条 T^2 直线
+  python -m discprobe disexport --geo latest --sectors <sectors>     生成 DiscImageStudio 蓝光预设
+计时能钉住形状、容量和速度；绝对内径和轨距仍是先验值，
+所以只靠计时的预设还不能用来摆图案（轨距差 0.1% 就是外圈 100 圈）。
+
 在终端里，只有一台光驱时可以不写 --drive，每条命令结束时都会打印下一条。
 `python -m discprobe <command> -h` 查看某条命令的选项。""",
     "timing": """\
@@ -1000,4 +1022,14 @@ DiscImageStudio 刻的 CD 图（一条音轨）：同一条命令直接测这张
   python -m discprobe results --pick          选择 geo 结果：先按盘和光驱，再按精度或日期""",
     "guide": """\
 读取结果文件夹，显示哪些步骤已完成，并打印下一条命令。不会操作光驱。""",
+
+    "calibdisc": """\
+实验性：这是那条需要拍照的路线留下的工具，只作离线验证用。
+例子：
+  python -m discprobe calibdisc                                      整层 25 GB，三条半径环 + 12 点钟线 + 3 点钟短刻度
+  python -m discprobe calibdisc --split                              半黑半白：预设错了也看得见分界线被拧成的臂
+  python -m discprobe calibdisc --sectors 12200000 --preview p.png  更小的镜像，并顺手存一张预览图
+
+刻好后先用 `geo --media bd` 测这张盘自己的几何。盘上的角度由盘的真实内径和轨距决定，
+而这两个数计时只能弱测，所以先刻细线、再读转角的做法并不成立——这是目前这条路的局限。""",
 }

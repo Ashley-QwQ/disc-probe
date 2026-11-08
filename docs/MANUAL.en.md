@@ -534,6 +534,35 @@ Burn a second copy of the same disc: if the angle is gone the loop is closed; if
 
 **Exporting the Blu-ray preset.** A DiscImageStudio Blu-ray preset is three numbers -- inner radius, outer radius and sector count -- and with no pitch coefficients the engine solves one constant pitch from them. `disexport --geo <blu-ray run> --sectors <total sectors>` writes an importable record, and `--install` puts it into the `bluRayPresets` list of `%LOCALAPPDATA%\DiscImageStudio\disc-presets.json` -- the file DiscImageStudio 1.5.0 actually reads (the separate `blu-ray-presets.json` its source can write has no caller). The preset leaves 2 MiB of the disc unused unless `--usable-sectors` says otherwise, because the burner writes a lead-out inside the disc and a project that fills it overburns. When the target is a full, unspared BD-R (12 219 392 sectors), add `--pullback-isa0`: a formatted disc keeps 131 072 sectors of spare area at the inner edge, and those belong in front of sector 0, or the whole drawing shifts 0.6 mm outwards. The three pitch coefficients are left out on purpose: they are relative shape factors, so `0.32` there would mean a pitch 1.32 times p0 at the outer edge. This UJ272 measured 24.66 mm and 58.02 mm on a 12 088 320-sector BD-RE, three microns from the 58.0232 mm of DiscImageStudio's own BD-25 preset -- that disc holds 1.1% fewer sectors than a full layer, so sector 0 sits further out than 24.0 mm, and the command says so. A Blu-ray the drive holds at a constant angular velocity (a pressed BD-ROM, for instance) is measured with the angle ladder instead, and its result already carries the inner radius and the pitch in `dis_equivalent`, so the same command writes that preset too -- the numbers come from `u = r0/b` and `v = p/b` and nothing is fitted a second time.
 
+**The Blu-ray path is experimental.** The timing pins the shape hard (`c = b/a` lands on R^2 above 0.99999, and
+25 zones agree with each other), and it reads the capacity and the linear speed; what it cannot give is an
+absolute inner radius and pitch good enough to place a picture. Two reasons, both measured on one disc:
+
+- **The pitch is not a measurement.** Without `--linear-mm-s` it is the factory 0.32 um and `c` only solves the
+  inner radius. A tenth of a percent is not small: over a hundred thousand turns it adds up to a hundred turns.
+- **The inner radius hangs on a timing offset nobody can see.** Refitting the same 23 zones with a delay tau
+  added to every period gives 1.43 um per us: 54 us in a 26.8 ms period moves the inner radius 77.5 um while
+  R^2 only slides from 0.9999932 to 0.9999927 -- no fit statistic can say which is right.
+
+On one RITEK BD-R, the community's burn-verified preset (issue #213) says 23.988030 mm and 0.32037 um; the
+timing says 24.065504 mm and 0.32000 um. Across the whole disc the two radii differ by 4 um, yet the angles
+differ by **106 turns** -- a ring only eats radius, so it stays visible; a thin line needs angle, so it winds
+into a spiral nobody can see. Burning a thin line first and reading its angle therefore cannot converge. That
+is physics, not a parameter left untuned.
+
+What it can do: measure `c`, the capacity and the linear speed, check somebody else's preset against the same
+`c`, and solve one radius when the other is known.
+
+**The half-dark, half-light edge.** The community replaces the thin line with a disc that is dark on one half
+and light on the other: a wrong preset winds that diameter into a few arms, which survive where a line does not.
+`calibdisc --split` writes that picture. Three signatures read straight off it: **dense at the inner edge and
+coarse outside** means the inner radius is off; **the other way round** means the outer one is; **arms that fold
+back in the middle** mean the two are off in opposite directions. The number of arms is the accumulated turns at
+the rim. Worked through with DiscImageStudio's two-endpoint constant-pitch model, all three match: a 30 um inner
+error gives 10 turns per 8 mm at the inner edge and 0.3 turns at the rim, a 30 um outer error gives the mirror of
+that, and 30 um apiece in opposite directions folds at 40 mm. Nudge the two radii in the preset, match the arms
+in the preview, burn once more -- two or three rounds close it. The only oracle on this path is your eyes.
+
 For your first CD, follow the [README's CD route](../README.en.md#cd-route) first. You need at least 3 blank discs from the same batch (measuring, calibration, picture). This section gives the details of each step and other methods.
 
 To see the light and dark areas produced by different data first, you can burn a texture ring disc that needs no angle calibration:

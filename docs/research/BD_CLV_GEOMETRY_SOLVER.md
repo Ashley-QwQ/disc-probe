@@ -330,3 +330,75 @@ and four of the seven gaps changing with sums of 0 and +2: grey rather than blac
 enough for the servo, different enough in duty cycle to be seen. `calibdisc` refuses a texture pair
 that would not, and every sector it writes is an ECC-valid payload, which is why the same disc can
 be timed in 25 zones at a coherence of 0.98 to 0.99 and still show a picture.
+
+## 12. What the timing cannot close, on one real disc
+
+Everything above is honest about one weak joint, and this section puts a number on it. On the burnable
+BD-R this drive holds, `geo --media bd --bd-zones 25` fits `r0 = 24.0655 mm` (1 sigma 20.4 um,
+R^2 0.999993, 23 of 25 zones kept) with the pitch held at the factory 0.32 um. A burn-verified preset
+for the same media -- a RITEK BD-R 25 GB, posted on issue #213 after the author checked their picture
+came out straight -- says `r0 = 23.988030 mm`, `R = 58.023142 mm`, 12 219 392 sectors, which is a
+pitch of 0.32037 um. Three presets, one formula (`p0 = pi (R^2 - r0^2) / (N L)`, `L` = 30 066.75
+channel bits of 74.5 nm = 2.23997 mm per sector):
+
+| preset | r0 (mm) | R (mm) | span (mm) | pitch (um) |
+| --- | --- | --- | --- | --- |
+| issue #213, burn-verified | 23.988030 | 58.023142 | 34.0351 | **0.32037** |
+| `discprobe` on the same media | 24.040539 | 58.016769 | 33.9762 | 0.32000 |
+| `discprobe`, this drive | 24.065504 | 57.988982 | 33.9235 | 0.32000 |
+
+The shape term is not the answer: the three pitch coefficients in the #213 preset, evaluated at the
+inner edge, the middle and the rim, give 1.0000000, 1.0000005 and 0.9999988 -- a 1.2 ppm wobble around
+a constant. DiscImageStudio's engine is solving one pitch from two radii and a sector count, exactly
+as we thought, so the whole disagreement lives in the two radii.
+
+**What a 105-turn disagreement looks like.** Map the same LBA through both presets and subtract the
+angles:
+
+| LBA | our radius (mm) | theirs (mm) | turning difference |
+| --- | --- | --- | --- |
+| 500 000 | 26.3292 | 26.2610 | +20.5 turns |
+| 1 500 000 | 30.3544 | 30.2996 | +47.9 |
+| 3 000 000 | 35.5476 | 35.5064 | +71.6 |
+| 6 000 000 | 44.1375 | 44.1133 | +93.7 |
+| 12 199 999 | 57.9890 | 57.9846 | **+105.8** |
+
+At every radius the two agree to a few microns in position, and by up to 106 turns in angle. That is
+why the calibration disc burnt with our numbers showed its rings (26, 40 and 55 mm, right where they
+belong) and showed neither its line nor its tick: a radial feature is invariant under an angular
+error, and an angular feature is nothing else. It also retires the idea of reading the twist off a
+first burn: the angle the picture lands at is decided by the disc's own `(r0, p)`, which is the very
+thing the timing cannot pin -- so the measurement was circular.
+
+**Why the two radii are not observable.** The pitch is an anchor (section 3), so `c` yields only `r0`.
+And `r0` itself rides on one constant of the drive: add a delay `tau` to every period and refit the
+same 23 zones
+
+| tau (us) | r0 (mm) | R^2 |
+| --- | --- | --- |
+| 0 | 24.0655 | 0.99999320 |
+| -50 | 23.9939 | 0.99999263 |
+| -100 | 23.9221 | 0.99999200 |
+
+1.43 um of inner radius per microsecond, and 54 us -- two tenths of one percent of a 26.8 ms period --
+covers the whole 77.5 um that separates our fit from the burn-verified preset. `R^2` moves in the sixth
+decimal, which is to say it does not move. No statistic computed from periods can choose between the
+two, and `--fit-offset` does not rescue it: asked to fit that delay it walked to `r0 = 24.693 mm`, a
+number that cannot be a Blu-ray.
+
+**What is left that does work.** The community's answer is the only one that survives contact with a
+burned disc: iterate on two radii and look. `calibdisc --split` writes a disc that is dark on one half
+and light on the other, so the dividing diameter becomes a handful of arms instead of a vanishing
+line. Three signatures, worked out with the two-endpoint constant-pitch model and matching what people
+report:
+
+| what is wrong | what the arms do |
+| --- | --- |
+| inner radius | dense at the inner edge (10 turns per 8 mm for a 30 um error), coarse at the rim (0.3 turns) |
+| outer radius | the mirror image: 0.3 turns near the start, 10 turns per 8 mm near the rim |
+| both, in opposite directions | the arms fold back in the middle, around 40 mm, and the fold is the tongue |
+
+Count the arms at the rim for the size of the error, and watch which end is dense to know which radius
+to move. Two or three burns close it. The timing still does its part -- the capacity, the linear speed
+and `c` (which fixes the shape once one radius is chosen), and the check that a candidate preset is
+self-consistent with the same `c` -- but the last two numbers come off the disc, by eye.
