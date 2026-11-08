@@ -75,11 +75,14 @@ def _next(lines, args=None) -> None:
             ui.say(ui.command(i18n.tr(line)) if line.lstrip().startswith("python ") else line)
 
 
-def _image_ready(args, preview: str, design=None) -> None:
-    """The advice for a finished picture ISO. One from a simulated run is told not to reach a disc at all."""
+def _image_ready(args, preview: str, design=None, files: str = "") -> None:
+    """The advice for a finished picture ISO. One from a simulated run is told not to reach a disc at all.
+    `files` says where the spec and preview went; it comes after the look at the disc, which is tall."""
     if design is not None and ui.term().interactive and design.dtype == bool:
         from . import imagecheck
         imagecheck.show(design, args)
+    if files:
+        print(files)
     ui.iso_ready(args.output)       # after the disc, which is tall, or this scrolls away again
     _next(guide.after_image(args.output, preview, args.geo), args)
     if "geo-SIM-" not in args.geo:
@@ -621,11 +624,13 @@ def cmd_image(args):
     else:
         from . import tiledisc
         tiledisc.preview(design, args.textures, prev)
-    print(f"Spec: {os.path.abspath(spec)}\nPreview (data-side view): {os.path.abspath(prev)}")
-    if args.media == "cd" and problems:
-        sys.exit(1)
-    if not problems:
-        _image_ready(args, prev, design)
+    files = f"Spec: {os.path.abspath(spec)}\nPreview (data-side view): {os.path.abspath(prev)}"
+    if problems:
+        print(files)
+        if args.media == "cd":
+            sys.exit(1)
+        return
+    _image_ready(args, prev, design, files)
 
 
 def cmd_gridscan(args):
