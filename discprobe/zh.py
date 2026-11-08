@@ -292,6 +292,11 @@ TEXT = {
     "2. Check the drive with that disc, 1 to 3 minutes. You want CAV and low jitter.": "2. 用这张盘检查光驱，1 到 3 分钟。结果要是 CAV，抖动越小越好。",
     "3. Measure the disc's spiral, about 5 minutes.": "3. 测量盘面螺旋几何，约 5 分钟。",
     "4. Turn your picture into an ISO, check the preview, and burn it on another blank from the same box.": "4. 把图片做成镜像，看一下预览，再刻到同一盒的另一张空盘上。",
+    "On a Blu-ray (experimental) the same shape comes out of read timing instead of a picture:":
+        "蓝光这条路线（实验性）不用刻图案，形状直接从读取计时里出来：",
+    "Burn that to a BD-R, then:": "把它刻到 BD-R 上，然后：",
+    "The timing pins the shape; the two radii still come from the disc itself, so read the limits in docs/MANUAL.md before burning a picture with that preset.":
+        "计时钉住形状；两个半径仍来自这张盘本身，所以用这个预设刻图案之前，先看 docs/MANUAL.md 里写的局限。",
     "5. Look at the disc in the dark. It takes a knack, and `guide` explains it when you get there.": "5. 在暗处看盘。这有点技巧，走到这一步时 `guide` 会讲。",
     "While a measurement runs, press g for a game. They do not disturb it.": "测量时可以按 g 玩小游戏，不会影响测量。",
     "Lost? {c} shows where you are and what comes next.": "不知道到哪了？{c} 会告诉你进度和下一步。",
