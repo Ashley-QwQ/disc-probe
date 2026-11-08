@@ -60,12 +60,20 @@ SPIRALS = 2             # counter-rotating pair, for a scale-free cross-check
 
 
 def design(n: int = 2320, rings=RINGS_MM, ring_half=RING_HALF_MM,
-           wedges=((0.0, 60.0), (180.0, 60.0)), tick=None) -> np.ndarray:
+           wedges=((0.0, 60.0), (120.0, 60.0), (240.0, 60.0)), notch=(60.0, 8.0)) -> np.ndarray:
     """Dark-on-light boolean picture, longest side PICTURE_MM, centred.
 
-    Two wedges half a turn apart are deliberately symmetric: the whole-picture match sums the phase
-    over every row, so it does not pick a peak and the pi ambiguity never decides anything. Making
-    them different widths only put a ladder of aliases into the score.
+    Three 60 degree wedges at 0, 120 and 240 degrees are what the measurement wants: a wide edge
+    survives the recording unit, which smears anything narrower than about three degrees, and three
+    of them average the edge position three times at every radius.
+
+    Three identical wedges make the picture look the same after a rotation of 120 degrees, so a
+    match cannot tell which wedge is which. The narrow notch at 60 degrees breaks that symmetry
+    without adding a feature that is too thin to see.
+
+    The rings are at fixed radii and are what gives the photograph its scale: their positions on
+    the disc barely move when the pitch is wrong (a 10 ppm error moves the outermost ring by
+    0.24 um), so their spacing in the picture measures millimetres per pixel.
     """
     half = PICTURE_MM / 2.0
     y, x = np.mgrid[0:n, 0:n].astype(np.float64)
@@ -74,16 +82,18 @@ def design(n: int = 2320, rings=RINGS_MM, ring_half=RING_HALF_MM,
     r = np.hypot(x, y)
     theta = np.degrees(np.arctan2(y, x)) % 360.0
 
+    def band(centre, width):
+        return (np.abs(((theta - centre + 180.0) % 360.0) - 180.0) <= width / 2.0)
+
     out = np.zeros((n, n), bool)
-    for ring in rings:                                   # the ruler and the centre fit
+    for ring in rings:
         out |= np.abs(r - ring) <= ring_half
-    for centre, width in wedges:                         # wide edges, the pitch ruler itself
-        out |= (np.abs(((theta - centre + 180.0) % 360.0) - 180.0) <= width / 2.0) & \
-               (r >= WEDGE_RADII[0]) & (r <= WEDGE_RADII[1])
-    if tick is not None:                                 # a narrow mark, to break the remaining symmetry
-        centre, width = tick
-        out |= (np.abs(((theta - centre + 180.0) % 360.0) - 180.0) <= width / 2.0) & \
-               (r >= WEDGE_RADII[0]) & (r <= WEDGE_RADII[1])
+    mark = (r >= WEDGE_RADII[0]) & (r <= WEDGE_RADII[1])
+    for centre, width in wedges:
+        out |= band(centre, width) & mark
+    if notch is not None:
+        centre, width = notch
+        out |= band(centre, width) & (r >= WEDGE_RADII[0]) & (r <= WEDGE_RADII[1] - 6.0)
     return out
 
 
@@ -138,10 +148,12 @@ def find_centre(img: np.ndarray, guess=None, scale=None, iterations: int = 4, ri
         try:
             outer, _ = scan.locate_disc(img, 16.0)
             cx, cy = float(outer["cx"]), float(outer["cy"])
-            scale = float(outer["rx"]) / 60.0
+            if scale is None:                 # a scale that was given is a measurement, not a guess
+                scale = float(outer["rx"]) / 60.0
         except Exception:                     # a picture without a clear rim: assume it fills the frame
             cx, cy = (img.shape[1] - 1) / 2.0, (img.shape[0] - 1) / 2.0
-            scale = 0.5 * min(img.shape) / 60.0
+            if scale is None:
+                scale = 0.5 * min(img.shape) / 60.0
     else:
         cx, cy = map(float, guess)
         scale = float(scale or 16.0)
@@ -539,7 +551,8 @@ def main(argv=None) -> int:
     if args.design:
         save_design(args.design, args.size)
         print(f"wrote {args.design}: {PICTURE_MM:.0f} mm across, "
-              f"{len(RINGS_MM)} rings, {SPIRALS} wedges of {WEDGE_DEG:.0f} deg")
+              f"{len(RINGS_MM)} rings, three wedges of 60 deg and a notch")
+        return 0
     if args.selftest:
         worst = 0.0
         for injected in (0.0, 5e-6, 1e-5, 2e-5, -5e-5):
