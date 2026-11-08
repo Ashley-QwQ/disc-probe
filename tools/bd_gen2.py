@@ -380,6 +380,24 @@ def _global_match(p, dpol, radii, eps_span: float = 1.5e-4, n_eps: int = 601, ha
         col = x[:, kk % nt] * w
         total += (col[:, None] * phase ** kk).sum(axis=0)
     score = np.abs(total)
+
+    # A number is not a measurement until it can fail. Scrambling the template row by row destroys
+    # the radial phase relation the match depends on while keeping every row's angular content, so
+    # the score it reaches is what this photograph would give a picture that is not there.
+    rng = np.random.default_rng(12345)
+    null = []
+    for _ in range(5):
+        roll = rng.integers(0, nt, size=dpol.shape[0])
+        scrambled = np.stack([np.roll(row, int(o)) for row, o in zip(dpol, roll)])
+        y = np.fft.fft(p, axis=1) * np.conj(np.fft.fft(scrambled, axis=1))
+        tot = np.zeros(n_eps, dtype=complex)
+        for kk in k:
+            col = y[:, kk % nt] * w
+            tot += (col[:, None] * phase ** kk).sum(axis=0)
+        null.append(float(np.abs(tot).max()))
+    null95 = float(np.percentile(null, 95)) if null else 0.0
+    quality = float(score.max() / null95) if null95 > 0 else 0.0
+
     i = int(np.argmax(score))
     y0, y1, y2 = score[max(0, i - 1)], score[i], score[min(len(score) - 1, i + 1)]
     denom = y0 - 2 * y1 + y2
@@ -389,8 +407,9 @@ def _global_match(p, dpol, radii, eps_span: float = 1.5e-4, n_eps: int = 601, ha
     # the width of the peak gives the formal error: the score falls to cos-like half width when the
     # outer rows decorrelate by one sample, so use the curvature around the peak.
     sigma = step / max(1e-9, math.sqrt(max(1e-12, (score.sum() / score[i] - 1) / len(eps))))
-    return dict(eps=float(best), sigma=float(sigma), score=float(score[i]),
-                top=[float(eps[i]), float(score[i])], n_eps=n_eps, harmonics=harmonics)
+    return dict(eps=float(best), sigma=float(sigma), score=float(score[i]), quality=quality,
+                null95=null95, top=[float(eps[i]), float(score[i])], n_eps=n_eps,
+                harmonics=harmonics)
 
 
 def _fit_shift(radii, angle, weight):
@@ -454,6 +473,7 @@ def measure_matched(img, centre=None, scale=None, arr=None, verbose=True, eps_sp
                pitch_error_ppm=round(float(eps) * 1e6, 2),
                pitch_sigma_ppm=round(float(out["sigma"]) * 1e6, 2),
                turns=round(float(eps) * (radii[-1] - radii[0]) / PITCH_ASSUMED_MM, 3),
+               quality=round(float(out.get("quality", 0.0)), 2),
                pitch_true_um=round(PITCH_ASSUMED_MM * 1000.0 * (1.0 + eps), 6))
     if verbose:
         print(f"pitch error {res['pitch_error_ppm']:+.2f} +/- {res['pitch_sigma_ppm']:.2f} ppm "
