@@ -50,8 +50,8 @@ RANDOM_SECTORS = {"dvd": 2295104, "cd": 359600}
 BURN_ROOM_SECTORS = {"dvd": 0, "cd": 200}
 BURN_FILL = 0.98
 INSTALL = "python -m pip install numpy pillow scipy"
-PORTS = ("This repository drives real hardware on Windows only. Ports: Linux github.com/bczhc/disc-probe, "
-         "macOS github.com/NaiveTomcat/discprobe-macos. Anything with --sim works here.")
+PORTS = ("This repository drives real hardware on Windows and Linux. macOS port: "
+         "github.com/NaiveTomcat/discprobe-macos. Anything with --sim works here.")
 
 
 class Quiet(str):
@@ -387,20 +387,21 @@ def _info_identity(run: Result) -> dict:
 
 
 def identity_of(run: Result, infos: list[Result] | None = None) -> dict:
-    """{disc, drive, inferred}. Older runs recorded neither, so take them from the nearest `info` of the same disc on that drive letter."""
+    """{disc, drive, inferred}. Older runs use the nearest `info` of the same disc on that device."""
     known = run.summary.get("identity") or {}
     if known.get("disc") and known.get("drive"):
         return {"disc": known["disc"], "drive": known["drive"], "inferred": False}
     disc, drive = known.get("disc"), known.get("drive")
     last_lba = (run.summary.get("setup") or {}).get("last_lba")
-    same_letter = [i for i in (info_runs() if infos is None else infos) if i.tag == run.tag]
-    for i in sorted(same_letter, key=lambda i: abs((i.when - run.when).total_seconds())):
+    same_device = [i for i in (info_runs() if infos is None else infos) if i.tag == run.tag]
+    for i in sorted(same_device, key=lambda i: abs((i.when - run.when).total_seconds())):
         who = _info_identity(i)
         drive = drive or who["drive"]
         if abs((i.when - run.when).total_seconds()) <= MATCH_INFO_S and last_lba is not None and who["last_lba"] == last_lba and who["disc"]:
             disc = disc or who["disc"]
             break
-    return {"disc": disc or "unknown disc", "drive": drive or (f"drive {run.tag}:" if run.tag else "unknown drive"), "inferred": True}
+    tag = run.tag + ":" if run.tag and re.fullmatch("[A-Za-z]", run.tag) else run.tag
+    return {"disc": disc or "unknown disc", "drive": drive or (f"drive {tag}" if tag else "unknown drive"), "inferred": True}
 
 
 def resolve_geo(value: str, media: str | None = None, out: str = "results") -> str:
@@ -429,9 +430,9 @@ def missing_packages() -> list[str]:
 
 
 def optical_drives() -> list[str]:
-    if sys.platform != "win32":
+    if sys.platform not in ("win32", "linux"):
         return []
-    from .spti import list_optical_drives
+    from .device import list_optical_drives
     return list_optical_drives()
 
 
@@ -442,7 +443,7 @@ def drive_flag(args=None) -> str:
     if args is not None and getattr(args, "drive", None):
         return f"--drive {args.drive}"
     drives = optical_drives()
-    return f"--drive {drives[0]}" if drives else "--drive E:"
+    return f"--drive {drives[0]}" if drives else ("--drive /dev/sr0" if sys.platform == "linux" else "--drive E:")
 
 
 def _carry(args) -> str:
@@ -534,11 +535,13 @@ def sectors_hint(geo_path: str) -> str:
 
 def after_list(drives: list[str]) -> list[str]:
     if not drives:
-        return ["Plug the drive in and check that it shows up in Explorer,",
+        return [("Plug the drive in and check that it shows up in Explorer," if sys.platform == "win32" else
+                 "Plug the drive in and check that its device path appears under /dev,"),
                 f"or try the flow on the simulated drive: {PROG} timing --sim cav"]
     lines = ["Next, see what the drive and disc report:", f"  {PROG} info --drive {drives[0]}"]
     if len(drives) > 1:
-        lines.append("With several drives, use the letter of the one holding your disc.")
+        lines.append("With several drives, use the letter of the one holding your disc." if sys.platform == "win32" else
+                     "With several drives, use the device path of the one holding your disc.")
     return lines
 
 
@@ -600,7 +603,8 @@ def after_timing_stop(args, reason: str) -> list[str]:
     iso = {"cd": "iso/cd-random.iso", "bd": "iso/bd-random.iso"}.get(media, "iso/random.iso")
     if "cannot read" in reason or "recorded area" in reason or "fails on" in reason or "time limit" in reason:
         return [f"Make a plain data disc: {PROG} random{flag} --output {iso}",
-                "Burn it (Windows: right-click the .iso, Burn disc image) and run timing on it."]
+                *burn_steps(iso, media),
+                "Then run timing on it."]
     return []
 
 
@@ -798,12 +802,31 @@ def burner_hint() -> list[str]:
     return [Quiet(f"In the burn window, check the burner is {drives[0] if len(drives) == 1 else 'your optical drive'}: it can point at another drive.")]
 
 
+def burn_steps(output: str, media: str = "dvd") -> list[str]:
+    """Platform-specific burn instructions; the caller supplies the ISO and disc type."""
+    if sys.platform == "win32":
+        return ["(Windows: right-click the .iso, Burn disc image).", *burner_hint()]
+    if sys.platform != "linux":
+        return ["Burn it with your system's image-burning tool."]
+    drive = drive_flag().removeprefix("--drive ")
+    command = (f"xorriso -as cdrecord -v dev={drive} -dao {quote(output)}" if media == "cd" else
+               f"growisofs -dvd-compat -Z {drive}={quote(output)}")
+    lines = ["Unmount the disc before burning. For example, use this command-line image burner:", f"  {command}"]
+    if media == "cd":
+        lines.append("For CD pictures (image, tiles, rings), --cd-sector must match the burner's sector layout: the default mode2form1 is what IMAPI writes; cdrecord-style burners usually write Mode 1 unless given -xa.")
+    return lines
+
+
 def after_random(args) -> list[str]:
     flag = " --media cd" if getattr(args, "media", "dvd") == "cd" else ""
     fits = "If the burner says it does not fit, make a smaller one with --sectors."
-    if sys.platform != "win32":
+    if sys.platform not in ("win32", "linux"):
         return ["Burn it onto a blank disc with your system's burning tool, and keep some blanks of the same batch for pictures.",
                 fits, PORTS, f"  {PROG} timing --sim cav{flag}"]
+    if sys.platform == "linux":
+        return ["Burn it onto a blank disc, and keep some blanks of the same batch for pictures.",
+                *burn_steps(getattr(args, "output", "iso/random.iso"), getattr(args, "media", "dvd")), fits,
+                "Then check the drive with it (1 to 3 minutes):", f"  {PROG} timing {drive_flag()}{flag}"]
     return ["Burn it onto a blank disc (Windows: right-click the .iso, Burn disc image), and keep some blanks of the same batch for pictures.",
             *burner_hint(), fits, "Then check the drive with it (1 to 3 minutes):", f"  {PROG} timing {drive_flag()}{flag}"]
 
@@ -838,7 +861,7 @@ def after_image(output: str, preview: str, geometry: str, picture: str | None = 
     if "geo-SIM-" in geometry:
         return lines + ["This geometry came from the simulated drive, so it only shows the flow: do not burn this ISO."]
     return lines + [f"If it looks right, burn {short(output)} to a blank disc from the batch you measured",
-                    "(Windows: right-click the .iso, Burn disc image).", *burner_hint(),
+                    *burn_steps(output, media),
                     "Once it is burned, this says how to look at it and what to do next:", f"  {PROG} guide"]
 
 
@@ -858,11 +881,12 @@ AFTER_BURN = ("How to look at it, not straight on, which only shows your own ref
 
 
 def tutorial_lines() -> list[str]:
-    return ["What you need: a burner on Windows, and a few blank discs from one box. DVD-R has worked best.",
+    return ["What you need: a burner on Windows or Linux, and a few blank discs from one box. DVD-R has worked best.",
             "",
             "1. Burn a random-data disc. It is not your picture yet: it is how the program learns this kind of disc.",
             f"  {PROG} random --output iso/random.iso",
             "  This uses up the disc: a DVD+R, DVD-R or CD-R can't be erased.",
+            *burn_steps("iso/random.iso"),
             "2. Check the drive with that disc, 1 to 3 minutes. You want CAV and low jitter.",
             f"  {PROG} timing {drive_flag()}",
             "3. Measure the disc's spiral, about 5 minutes.",
@@ -953,7 +977,7 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
     results = [r for r in scan(out) if not r.simulated and r.media == media]
     missing = missing_packages()
     drives = optical_drives()
-    drive = f"--drive {drives[0]}" if drives else "--drive E:"
+    drive = f"--drive {drives[0]}" if drives else ("--drive /dev/sr0" if sys.platform == "linux" else "--drive E:")
 
     timing = next((r for r in results if r.kind == "timing" and r.rotation() and not r.stopped), None)
     # A Blu-ray is read at a constant linear speed, so CLV is the good answer there, not CAV: the run
@@ -966,7 +990,7 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
     disc_done = timing is not None or (has_iso and not notes)
     rows = [(not missing, "Python packages", ", ".join(missing) + " missing" if missing else "numpy, pillow, scipy"),
             (bool(drives), "Optical drive", " ".join(drives) if drives else
-             ("none found" if sys.platform == "win32" else "real drives need Windows or a port")),
+             ("none found" if sys.platform in ("win32", "linux") else "real drives need Windows or Linux")),
             (disc_done, "Random-data disc",
              f"{random_iso} written; burn it" if has_iso and timing is None else
              "measured" if timing else "not made yet"),
@@ -989,7 +1013,7 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
                      "edge is 106 turns of difference on a real disc (docs/MANUAL.md).", None)]
     elif missing:
         commands = [("Install the Python packages disc-probe uses:", INSTALL)]
-    elif sys.platform != "win32":
+    elif sys.platform not in ("win32", "linux"):
         commands = [("Try the flow on the simulated drive:", f"{PROG} timing --sim cav{flag}"), (None, PORTS)]
     elif not has_iso and timing is None:
         commands = [("Make the random-data disc: write this file, then burn it:", f"{PROG} random{flag} --output {random_iso}")]
@@ -1020,7 +1044,11 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
     if media == "bd" and geo is not None:
         lines += ["", "  This preset gives the shape of the spiral, not its scale (docs/MANUAL.md).",
                   "  Do not burn a picture with it: on one real BD the angle was off by 106 turns."]
+    if sys.platform == "linux" and timing is None:
+        lines += ["", *burn_steps(random_iso, media)]
     if picture and geo:
+        if sys.platform == "linux":
+            lines += ["", *burn_steps(picture, media)]
         lines += ["", *AFTER_BURN]
     lines += ["", f"All commands: {PROG} -h    One command: {PROG} <command> -h    Details: docs/MANUAL.en.md"]
     return lines

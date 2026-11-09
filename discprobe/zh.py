@@ -204,7 +204,6 @@ TEXT = {
     "The timing fixes the shape; the two absolute radii still come from the disc itself (see docs/research/BD_CLV_GEOMETRY_SOLVER.md).":
         "计时只定形状；两个绝对半径仍然来自这张盘本身（见 docs/research/BD_CLV_GEOMETRY_SOLVER.md）。",
     "Make a plain data disc: {c}": "做一张普通数据盘：{c}",
-    "Burn it (Windows: right-click the .iso, Burn disc image) and run timing on it.": "刻录它（Windows：右键 .iso，选“刻录光盘映像”），然后对这张盘运行 timing。",
     "This was the simulated drive: the verdict and commands below show the flow, do not burn from them.": "这是模拟光驱的结果：下面的结论和命令只用来演示流程，不要拿它刻盘。",
     "Verdict: good. Only noise is left after the fit, and {a} deg is about {b} mm at 50 mm radius.":
         "结论：可以用。拟合后只剩噪声，{a}° 在 50 mm 半径处约 {b} mm。",
@@ -312,7 +311,7 @@ TEXT = {
     "The burn failed or stopped: a DVD+R, DVD-R or CD-R can't be used again, so take a new blank. Failing again? Try a lower burn speed.": "刻录失败或中途停了：DVD+R、DVD-R、CD-R 不能再用，换一张新盘。还不行就换低一点的刻录速度。",
 
     # The tutorial
-    "What you need: a burner on Windows, and a few blank discs from one box. DVD-R has worked best.": "要准备的：Windows 电脑上的一台刻录机，同一盒的几张空白盘。DVD-R 效果最好。",
+    "What you need: a burner on Windows or Linux, and a few blank discs from one box. DVD-R has worked best.": "要准备的：Windows 或 Linux 电脑上的一台刻录机，同一盒的几张空白盘。DVD-R 效果最好。",
     "1. Burn a random-data disc. It is not your picture yet: it is how the program learns this kind of disc.": "1. 刻一张随机数据盘。这还不是你的图，程序要靠它认识这种盘。",
     "This uses up the disc: a DVD+R, DVD-R or CD-R can't be erased.": "这会用掉一张盘：DVD+R、DVD-R、CD-R 不能擦除。",
     "2. Check the drive with that disc, 1 to 3 minutes. You want CAV and low jitter.": "2. 用这张盘检查光驱，1 到 3 分钟。结果要是 CAV，抖动越小越好。",
@@ -378,8 +377,8 @@ TEXT = {
     "Next, see where you are: {c}": "下一步，看看进行到哪了：{c}",
     "Try --sectors {a} ({b}). Enter the same number in DiscImageStudio. `info` on a blank disc is the count to go by: one user found read-from-disc there too high.":
         "试试 --sectors {a}（{b}）。DiscImageStudio 里也填这个数。以空白盘上 `info` 的数为准：有用户发现它的“从光盘读取”给的数偏大。",
-    "This repository drives real hardware on Windows only. Ports: Linux github.com/bczhc/disc-probe, macOS github.com/NaiveTomcat/discprobe-macos. Anything with --sim works here.":
-        "这个仓库只在 Windows 上操作真实光驱。其他系统的移植版：Linux github.com/bczhc/disc-probe，macOS github.com/NaiveTomcat/discprobe-macos。带 --sim 的命令这里都能跑。",
+    "This repository drives real hardware on Windows and Linux. macOS port: github.com/NaiveTomcat/discprobe-macos. Anything with --sim works here.":
+        "这个仓库在 Windows 和 Linux 上支持真实光驱。macOS 移植版：github.com/NaiveTomcat/discprobe-macos。带 --sim 的命令这里都能跑。",
 
     # guide
     "Burn {p} to a disc and load it, then check this drive (1 to 3 minutes):": "把 {p} 刻到盘上并放入光驱，然后检查这台光驱（1 到 3 分钟）：",
@@ -426,7 +425,7 @@ TEXT = {
     "Geometry (geo)": "盘面几何 (geo)",
     "{a} missing": "缺少 {a}",
     "none found": "没找到",
-    "real drives need Windows or a port": "真实光驱需要 Windows 或移植版",
+    "real drives need Windows or Linux": "真实光驱需要 Windows 或 Linux",
     "{a} written; burn it": "{a} 已生成，请刻录",
     "measured": "已测过",
     "not made yet": "还没做",
@@ -486,6 +485,7 @@ TEXT = {
     "Which drive? [{d}]": "用哪一台？[{d}]",
     "no drive chosen": "没有选择光驱",
     "give --drive E: (see `python -m discprobe list`) or --sim cav|clv|cav-nofua": "请给出 --drive E:（盘符见 `python -m discprobe list`）或 --sim cav|clv|cav-nofua",
+    "give --drive /dev/sr0 (see `python -m discprobe list`) or --sim cav|clv|cav-nofua": "请给出 --drive /dev/sr0（设备路径见 `python -m discprobe list`）或 --sim cav|clv|cav-nofua",
     "expected a drive letter such as E:, got {d}": "需要盘符，比如 E:，收到的是 {d}",
     "{e} (see `python -m discprobe list`)": "{e}（盘符见 `python -m discprobe list`）",
     "{e}. Optical drives here: {d}": "{e}。这台电脑的光驱：{d}",
@@ -597,10 +597,10 @@ TEXT = {
     "--sectors {n} is outside {a}..{b}; give the blank's capacity from `info`": "--sectors {n} 不在 {a}..{b} 之内；请填 `info` 打印的空白盘容量",
     "radii {a} / {b} mm are not those of a CD": "半径 {a} / {b} mm 不像 CD 的",
     "{p} exists (add --force to overwrite it)": "{p} 已存在（加 --force 覆盖）",
-    "Burn with any image burner (Windows Disc Image Burner works) and note the speed. The file system is an empty ISO 9660 placeholder.":
-        "用任意镜像刻录工具刻录（Windows 自带的就行），并记下速度。文件系统只是一个空的 ISO 9660 占位。",
-    "Burn with any image burner (Windows Disc Image Burner works). The file system is an empty ISO 9660 placeholder.":
-        "用任意镜像刻录工具刻录（Windows 自带的就行）。文件系统只是一个空的 ISO 9660 占位。",
+    "Burn with any image burner and note the speed. The file system is an empty ISO 9660 placeholder.":
+        "用任意镜像刻录工具刻录，并记下速度。文件系统只是一个空的 ISO 9660 占位。",
+    "Burn with any image burner. The file system is an empty ISO 9660 placeholder.":
+        "用任意镜像刻录工具刻录。文件系统只是一个空的 ISO 9660 占位。",
     "Make the image exactly fill the DiscImageStudio canvas (radius {r} mm), centred.": "让图片正好铺满 DiscImageStudio 的画布（半径 {r} mm）并居中。",
     "{k}, geometry u {u}, v {v} from {g}; {n} sectors ({s} GB), {t}": "{k}，几何 u {u}、v {v}，来自 {g}；{n} 个扇区（{s} GB），{t}",
     "{n} tiles, palette {p}; geometry u {u}, v {v} from {g}; {c} sectors ({s} GB)": "{n} 个色块，调色板 {p}；几何 u {u}、v {v}，来自 {g}；{c} 个扇区（{s} GB）",
@@ -814,9 +814,9 @@ TEXT = {
     "print only the newest folder, skipping simulated runs and stopped geo runs": "只打印最新的文件夹，跳过模拟的和中途停下的 geo 结果",
     "how many to list (default 15)": "列出多少个（默认 15）",
     "results directory (default: results)": "结果目录（默认 results）",
-    "drive letter, e.g. E:; `list` shows them. At a terminal it can be left out when there is one drive": "光驱盘符，比如 E:；用 `list` 查看。在终端里只有一台光驱时可以不写",
+    "drive: E: on Windows, /dev/sr0 on Linux; `list` shows them. At a terminal it can be left out when there is one drive": "光驱：Windows 上用 E:，Linux 上用 /dev/sr0；用 `list` 查看。在终端里只有一台光驱时可以不写",
     "use the simulated drive (nofua: FUA ignored; flush: FUA ignored but a zero-length FUA read drops the cache; audio: with --media cd, a CD-DA track as DiscImageStudio burns pictures)": "使用模拟光驱，不需要真光驱（nofua：模拟忽略 FUA；flush：忽略 FUA，但零长度 FUA 读能清缓存；audio：配合 --media cd，模拟 DiscImageStudio 刻图用的音轨盘）",
-    "Windows command path: spti may need an elevated terminal; imapi (IMAPI2 IDiscRecorder2Ex) works as a standard user; auto tries spti, then imapi": "Windows 上发命令的通道：spti 可能要管理员权限；imapi 普通用户可用；auto 先试 spti，再试 imapi",
+    "Windows-only command path: spti may need an elevated terminal; imapi (IMAPI2 IDiscRecorder2Ex) works as a standard user; auto tries spti, then imapi": "仅 Windows 的命令通道：spti 可能要管理员权限；imapi 普通用户可用；auto 先试 spti，再试 imapi",
     "simulation seed": "模拟用的随机种子",
     "output directory (default: results)": "输出目录（默认 results）",
     "R/X pairs per phase target": "每个测量位置读多少对（基准扇区 / 目标扇区）",
@@ -944,6 +944,15 @@ TEXT = {
     "Blu-ray only: fit a constant offset in the period as well, which is the only way to separate 'this disc really starts further out than 24.0 mm' from 'every period carries a fixed few hundred microseconds'. Needs five zones or more": "只用于蓝光：同时拟合一个固定的周期偏移。这是分开“这张盘确实从比 24.0 mm 更外的地方开始”和“每圈都多几百微秒”的唯一办法。至少要五个区域",
     "check that --geo measured this disc type; the fit decides the preset (a CLV run gives a Blu-ray preset, in print or with --install)": "检查 --geo 测的是不是这种盘；预设类型由拟合结果决定（CLV 结果给出蓝光预设，打印出来或用 --install 装进去）",
     "CD only: sector layout the burner writes; IMAPI2 data burns are Mode 2 Form 1 (user data from byte 24), so textures are pre-scrambled for that unless you burn Mode 1": "仅 CD：刻录工具写的扇区格式；IMAPI2 刻数据盘是 Mode 2 Form 1（用户数据从第 24 字节开始），除非你刻 Mode 1，否则纹理都按它预先加扰",
+    "--transport spti|imapi is Windows-only; on Linux use --transport auto (SG_IO)": "--transport spti|imapi 仅限 Windows；Linux 上请用 --transport auto (SG_IO)",
+    "Windows-only transport choice; on Linux use auto (SG_IO)": "仅 Windows 的传输通道选项；Linux 上请用 auto (SG_IO)",
+    "Plug the drive in and check that its device path appears under /dev,": "接上光驱，确认它的设备路径出现在 /dev 下，",
+    "With several drives, use the device path of the one holding your disc.": "有多台光驱时，用放了盘的那台的设备路径。",
+    "Then run timing on it.": "然后对这张盘运行 timing。",
+    "Burn it with your system's image-burning tool.": "用系统的镜像刻录工具刻录。",
+    "Unmount the disc before burning. For example, use this command-line image burner:": "刻录前先卸载光盘。例如，可以用下面的命令行镜像刻录工具：",
+    "For CD pictures (image, tiles, rings), --cd-sector must match the burner's sector layout: the default mode2form1 is what IMAPI writes; cdrecord-style burners usually write Mode 1 unless given -xa.": "刻 CD 图案（image、tiles、rings）时，--cd-sector 要和刻录工具写的扇区格式一致：默认的 mode2form1 对应 IMAPI；cdrecord 一类工具不加 -xa 时一般写 Mode 1。",
+    "Burn it onto a blank disc, and keep some blanks of the same batch for pictures.": "把它刻到空白盘上，再留几张同一批的空白盘用来刻图。",
 }
 
 BLOCKS = {

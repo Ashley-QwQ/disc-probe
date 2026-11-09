@@ -279,14 +279,22 @@ def _whole_turn_zone(c: Checker, probe):
 
 def _timer_tick(c: Checker):
     print("timer tick diagnosis")
-    for strategy in ("plain", "evict"):
-        for period in (15.625, 7.8125, 15.625 / 3, 10.0):
-            logs = []
-            probe = timing.TimingProbe(SimDrive(), log=logs.append)
-            probe.strategy = strategy
-            probe.summary = {"period": {}}
-            probe._check_period([{"period_ms": period}])
-            c.check(bool(logs) == (period != 10.0), f"{strategy} period {period:.4f} ms")
+    import sys
+    real_platform = sys.platform
+    try:
+        for platform in ("win32", "linux"):
+            sys.platform = platform
+            for strategy in ("plain", "evict"):
+                for period in (15.625, 7.8125, 15.625 / 3, 10.0):
+                    logs = []
+                    probe = timing.TimingProbe(SimDrive(), log=logs.append)
+                    probe.strategy = strategy
+                    probe.summary = {"period": {}}
+                    probe._check_period([{"period_ms": period}])
+                    c.check(bool(logs) == (platform == "win32" and period != 10.0),
+                            f"{platform} {strategy} period {period:.4f} ms")
+    finally:
+        sys.platform = real_platform
 
 
 def _ladder_safe_unwrap(c: Checker):
@@ -599,6 +607,16 @@ def _correction_run(c: Checker):
         c.check(I.correction_other_run(path, 1.0, 1.0, geo) is None and I.correction_from_timing(path), "an older file is judged by its folder: the same one passes")
         older("tools/geo_polyfit.py results/geo-E-20260101-000000")
         c.check(I.correction_other_run(path, 1.0, 1.0, geo) == "geo-E-20260101-000000", "and another is named")
+        linux_geo = os.path.join(d, "geo-sr0-20261107-133324", "summary.json")
+        older("tools/geo_polyfit.py results/geo-sr0-20261107-133324")
+        c.check(I.correction_other_run(path, 1.0, 1.0, linux_geo) is None, "a Linux result name round-trips through correction matching")
+        from . import guide
+        args = Namespace(out=d)
+        dev = Namespace(name="sr0")
+        folder = cli._outdir(args, "geo", dev)
+        run = next(r for r in guide.scan(d) if r.path == folder)
+        c.check(run.tag == "sr0" and guide.identity_of(run, [])["drive"] == "drive sr0",
+                "a Linux device basename round-trips through result naming and identity without a colon")
         older("tools/geo_polyfit.py .")
         c.check(I.correction_other_run(path, 1.0, 1.0, geo) is None, "a folder name that says nothing is no reason to warn")
         older(["a_phi.csv"])
@@ -1601,6 +1619,8 @@ def _run() -> bool:
         from . import cal_selftest, rings_selftest
         rings_selftest.run(c)
         cal_selftest.run(c)
+    from . import sg_selftest
+    sg_selftest.run(c)
     from . import ui_selftest
     ui_selftest.run(c)
     print(f"\n{'all checks passed' if c.failures == 0 else f'{c.failures} check(s) failed'}")

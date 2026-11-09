@@ -75,7 +75,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--drive")
     ap.add_argument("--sim", action="store_true", help="use the simulated drive, to test this script")
-    ap.add_argument("--transport", choices=["auto", "spti", "imapi"], default="auto")
+    ap.add_argument("--transport", choices=["auto", "spti", "imapi"], default="auto",
+                    help="Windows-only transport choice; on Linux use auto (SG_IO)")
     ap.add_argument("--iso", required=True)
     ap.add_argument("--layout", required=True)
     ap.add_argument("--out", required=True)

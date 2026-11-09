@@ -6,6 +6,8 @@ sampled sparsely, e.g. the 4-degree step near 49.9 mm on the first full CD ladde
 
     python tools/geo_probe_points.py --drive H: --media cd --geo results/geo-H-.../summary.json ^
         --lbas 232000:252000:1000 219845 256153
+
+    python tools/geo_probe_points.py --drive /dev/sr0 --media cd --geo results/geo-sr0-.../summary.json --lbas 219845 256153
 """
 import argparse
 import json

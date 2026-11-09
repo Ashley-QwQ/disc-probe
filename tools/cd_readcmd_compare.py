@@ -12,6 +12,7 @@ about 0.6 deg. A difference that doesn't follow 1/r means the paths differ in so
 Only a relative check: it cannot fix the absolute along-track origin both paths share.
 
     python tools/cd_readcmd_compare.py --drive H: --geo results/geo-H-.../summary.json
+    python tools/cd_readcmd_compare.py --drive /dev/sr0 --geo results/geo-sr0-.../summary.json
 """
 import argparse
 import json

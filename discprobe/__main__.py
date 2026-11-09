@@ -109,14 +109,14 @@ def _simulated_photo(args, design) -> str | None:
     return path
 
 
-def _need_windows() -> None:
-    if sys.platform != "win32":
+def _need_hardware_platform() -> None:
+    if sys.platform not in ("win32", "linux"):
         sys.exit(guide.PORTS)
 
 
 def _choose_drive(args) -> None:
     """At a terminal a missing --drive can be worked out."""
-    if args.drive or sys.platform != "win32" or not ui.term().interactive:
+    if args.drive or sys.platform not in ("win32", "linux") or not ui.term().interactive:
         return
     drives = guide.optical_drives()
     if len(drives) == 1:
@@ -128,11 +128,15 @@ def _choose_drive(args) -> None:
         print("Optical drives: " + "  ".join(drives))
         while args.drive not in drives:
             try:
-                answer = input(i18n.tr(f"Which drive? [{drives[0]}] ")).strip().upper()
+                answer = input(i18n.tr(f"Which drive? [{drives[0]}] ")).strip()
             except EOFError:
                 sys.exit("no drive chosen")
             answer = answer or drives[0]
-            args.drive = answer if answer.endswith(":") else answer + ":"
+            if sys.platform == "win32":
+                answer = answer.upper()
+                args.drive = answer if answer.endswith(":") else answer + ":"
+            else:
+                args.drive = next((d for d in drives if os.path.basename(d) == answer), answer)
 
 
 def _open(args):
@@ -145,14 +149,20 @@ def _open(args):
                         seed=args.seed, media=media, cd_audio=variant == "audio",
                         cd_read_offset_bytes=getattr(args, "read_offset_bytes", 0.0),
                         block=32 if media == "bd" and sectors == 32 else None)
+    _need_hardware_platform()
+    transport = getattr(args, "transport", "auto")
+    if sys.platform == "linux" and transport != "auto":
+        sys.exit("--transport spti|imapi is Windows-only; on Linux use --transport auto (SG_IO)")
     _choose_drive(args)
     if not args.drive:
-        sys.exit("give --drive <device> (see `python -m discprobe list`) or --sim cav|clv|cav-nofua")
-    if sys.platform.startswith("linux"):
+        example = "/dev/sr0" if sys.platform == "linux" else "E:"
+        sys.exit(f"give --drive {example} (see `python -m discprobe list`) or --sim cav|clv|cav-nofua")
+    if sys.platform == "linux":
         from .device import Device
-        return Device(args.drive)
-    _need_windows()
-    transport = getattr(args, "transport", "auto")
+        try:
+            return Device(args.drive)
+        except OSError as e:
+            sys.exit(f"{_reason(e)}. Optical drives here: {' '.join(guide.optical_drives()) or 'none'}")
     if transport != "imapi":
         from .spti import SptiDevice
         try:
@@ -408,6 +418,7 @@ def _write_json(path: str, obj) -> None:
 
 
 def cmd_list(args):
+    _need_hardware_platform()
     from .device import list_optical_drives
     drives = list_optical_drives()
     print("\n".join(drives) if drives else "no optical drives found")
@@ -430,6 +441,7 @@ def cmd_info(args):
 
 def cmd_timing(args):
     if not args.sim:
+        _need_hardware_platform()
         from .device import raise_priority
         if not raise_priority():
             print("note: could not raise process priority")
@@ -526,7 +538,7 @@ def cmd_rings(args):
     print("Verified: sampled sectors in every ring record the intended byte" if not problems
           else "VERIFY FAILED:\n  " + "\n  ".join(problems[:10]))
     print(f"Layout: {os.path.abspath(spec_path)}  (needed by ringscan)")
-    print("Burn with any image burner (Windows Disc Image Burner works) and note the speed. "
+    print("Burn with any image burner and note the speed. "
           "The file system is an empty ISO 9660 placeholder.")
     if problems:
         sys.exit(1)
@@ -580,8 +592,7 @@ def cmd_calib(args):
     print("Verified: guards are pure, bands follow their patterns" if not problems
           else "VERIFY FAILED:\n  " + "\n  ".join(problems[:10]))
     print(f"Layout: {os.path.abspath(spec_path)}  (needed by calscan)")
-    print("Burn with any image burner (Windows Disc Image Burner works). "
-          "The file system is an empty ISO 9660 placeholder.")
+    print("Burn with any image burner. The file system is an empty ISO 9660 placeholder.")
     if problems:
         sys.exit(1)
     ui.iso_ready(args.output)
@@ -627,6 +638,7 @@ def cmd_geo(args):
         ranges = [(r["lba_start"] + m, r["lba_end"] - m) for r in lay.rings
                   if r["texture"].upper() == args.texture.upper()]
     if not args.sim:
+        _need_hardware_platform()
         from .device import raise_priority
         raise_priority()
     dev = _open(args)
@@ -1610,14 +1622,14 @@ def _build_parser():
     sp.set_defaults(func=cmd_results)
 
     def common(sp):
-        sp.add_argument("--drive", help="drive letter, e.g. E:; `list` shows them. At a terminal it can be left out "
+        sp.add_argument("--drive", help="drive: E: on Windows, /dev/sr0 on Linux; `list` shows them. At a terminal it can be left out "
                                         "when there is one drive")
         sp.add_argument("--sim", choices=["cav", "clv", "cav-nofua", "cav-flush", "cav-audio"],
                         help="use the simulated drive (nofua: FUA ignored; flush: FUA ignored but a "
                              "zero-length FUA read drops the cache; audio: with --media cd, a CD-DA track "
                              "as DiscImageStudio burns pictures)")
         sp.add_argument("--transport", choices=["auto", "spti", "imapi"], default="auto",
-                        help="Windows command path: spti may need an elevated terminal; imapi (IMAPI2 "
+                        help="Windows-only command path: spti may need an elevated terminal; imapi (IMAPI2 "
                              "IDiscRecorder2Ex) works as a standard user; auto tries spti, then imapi")
         sp.add_argument("--seed", type=int, default=1, help="simulation seed")
         sp.add_argument("--out", default="results", help="output directory (default: results)")
@@ -1969,11 +1981,17 @@ def _build_parser():
     for name, parser in sub.choices.items():
         parser.description = helps[name]
         parser.epilog = i18n.block(name, EXAMPLES.get(name))
+        if sys.platform == "linux" and parser.epilog:
+            parser.epilog = parser.epilog.replace("--drive E:", "--drive /dev/sr0").replace("geo-E-", "geo-sr0-")
+            if name == "random":
+                parser.epilog = "\n".join(parser.epilog.splitlines()[:-1] + [*map(i18n.tr, guide.burn_steps("iso/random.iso")), i18n.tr("Then run timing on it.")])
         parser.formatter_class = argparse.RawDescriptionHelpFormatter
         i18n.localize_parser(parser)
     p.description = tr(p.description) + "\n\n" + "\n\n".join(
         f"{tr(title)}:\n" + "\n".join(f"  {name:11s} {helps[name]}" for name in names) for title, names in COMMAND_GROUPS)
     p.epilog = i18n.block("workflow", p.epilog)
+    if sys.platform == "linux":
+        p.epilog = p.epilog.replace("--drive E:", "--drive /dev/sr0")
     if ui.term().interactive:   # scripts read the help as it always was
         p.epilog += "\n\n" + (LANG_NOTE_ZH if i18n.active() == "zh" else LANG_NOTE)
     i18n.localize_parser(p)
