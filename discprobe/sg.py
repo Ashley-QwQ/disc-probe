@@ -10,6 +10,7 @@ that is mounted (EBUSY), its matching sg device.
 from __future__ import annotations
 
 import ctypes
+import errno
 import os
 import time
 
@@ -107,10 +108,8 @@ def _sg_for_sr(sr_path: str) -> str | None:
 
 
 def raise_priority() -> bool:
-    # Real-time scheduling removes preemption while the process waits on each SG_IO,
-    # which is the dominant Linux-specific timing jitter; pin to one CPU so the loop
-    # never migrates, and fall back to a high nice value (Windows SPTI uses its own
-    # SetPriorityClass path for the same effect).
+    # FIFO prevents preemption by normal tasks while running, not during the SG_IO
+    # wait itself. Pin to one CPU to avoid migration; fall back to a high nice value.
     ok = False
     try:
         lo = os.sched_get_priority_min(os.SCHED_FIFO)
@@ -143,11 +142,7 @@ class SgDevice:
         self._hdr = _SGIOHeader()
 
         candidates = [self.path]
-        if self.name.startswith("sr"):
-            sg = _sg_for_sr(self.path)
-            if sg:
-                candidates.append(sg)
-        last = None
+        failures = []
         for cand in candidates:
             try:
                 # O_RDWR so SET CD SPEED clears the kernel's read-only command
@@ -156,24 +151,30 @@ class SgDevice:
                 self.path, self.name = cand, os.path.basename(cand)
                 break
             except OSError as e:
-                last = e
+                failures.append((cand, e))
+                if len(failures) == 1 and e.errno == errno.EBUSY and self.name.startswith("sr"):
+                    sg = _sg_for_sr(self.path)
+                    if sg:
+                        candidates.append(sg)
         if self._fd is None:
-            self._raise_open_error(last)
+            self._raise_open_error(failures)
 
-    def _raise_open_error(self, err: OSError):
+    def _raise_open_error(self, failures):
         hint = ""
-        if err is not None:
-            if err.errno in (1, 13):  # EPERM, EACCES
-                hint = " (add your user to the cdrom/disk group, or run as root)"
-            elif err.errno == 16:  # EBUSY
-                hint = " (the disc is mounted: unmount it, e.g. udisksctl unmount -b /dev/sr0, or pass /dev/sgN)"
-        msg = f"cannot open {self.path}"
-        if err is not None:
-            msg += f": {err.strerror}"
-        raise OSError(err.errno, msg + hint) from err
+        if any(err.errno in (errno.EPERM, errno.EACCES) for _, err in failures):
+            hint += " (add your user to the cdrom group, or run as root)"
+        if any(err.errno == errno.EBUSY for _, err in failures):
+            hint += " (the disc is mounted: unmount it, e.g. udisksctl unmount -b /dev/sr0, or pass /dev/sgN)"
+        msg = "cannot open " + "; ".join(f"{path}: {err.strerror}" for path, err in failures)
+        first = failures[0][1]
+        raise OSError(first.errno, msg + hint) from first
 
     def execute(self, cdb: bytes, data_len: int = 0, direction: int = DATA_IN,
                 timeout_s: int = 30) -> ScsiResult:
+        if not 1 <= len(cdb) <= 16:
+            raise ValueError("CDB length must be between 1 and 16 bytes")
+        if data_len < 0:
+            raise ValueError("transfer length must not be negative")
         check_allowed(cdb)
         if direction == DATA_OUT:
             raise PermissionError("data-out commands are not used by this probe")
@@ -203,9 +204,18 @@ class SgDevice:
             err = ctypes.get_errno()
             raise OSError(err, f"SG_IO on {self.path} failed: {os.strerror(err)}")
 
-        data = ctypes.string_at(ctypes.addressof(self._buf), data_len) if data_len else b""
-        sense = parse_sense(bytes(self._sense)) if hdr.status else None
-        return ScsiResult(hdr.status, data, sense, t0, t1)
+        if hdr.host_status or hdr.driver_status & ~0x08:
+            raise OSError(errno.EIO, f"SG_IO on {self.path} failed: "
+                          f"host status 0x{hdr.host_status:04X}, driver status 0x{hdr.driver_status:04X}")
+        transferred = max(0, min(data_len, data_len - hdr.resid))
+        data = ctypes.string_at(ctypes.addressof(self._buf), transferred) if transferred else b""
+        sense = None
+        if hdr.status or hdr.driver_status & 0x08 or hdr.sb_len_wr:
+            sense = parse_sense(ctypes.string_at(ctypes.addressof(self._sense), min(hdr.sb_len_wr, SENSE_BYTES)))
+        # Like SPTI CHECK CONDITION, driver sense must reach callers as a failed
+        # result, so media-removal and not-ready handling cannot mistake it for success.
+        status = hdr.status or (0x02 if hdr.driver_status & 0x08 or sense is not None else 0)
+        return ScsiResult(status, data, sense, t0, t1)
 
     def close(self) -> None:
         if self._fd is not None:
