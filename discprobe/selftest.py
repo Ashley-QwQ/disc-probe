@@ -1223,6 +1223,38 @@ def _bd_clv(c: Checker):
             "a disc read in zones is caught: the periods break between two lines instead of one")
 
 
+def _tests_folder(c: Checker):
+    """The files in tests/, which nothing runs by hand: run them here so every check sees them."""
+    print("tests/: the files nobody runs, run here")
+    import glob
+    import importlib.util
+    import os
+    folder = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tests")
+    files = sorted(glob.glob(os.path.join(folder, "test_*.py")))
+    if not files:
+        c.check(True, "no tests/ folder beside the package, so there is nothing to run")
+        return
+    for path in files:
+        name = os.path.splitext(os.path.basename(path))[0]
+        spec = importlib.util.spec_from_file_location(f"discprobe_tests_{name}", path)
+        module = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(module)
+        except Exception as e:                                       # noqa: BLE001 - a test runner
+            c.check(False, f"{name} imports ({type(e).__name__}: {e})")
+            continue
+        checks = [(n, f) for n, f in sorted(vars(module).items()) if n.startswith("test_") and callable(f)]
+        failed = []
+        for n, fn in checks:
+            try:
+                fn()
+            except Exception as e:                                   # noqa: BLE001 - a test runner
+                failed.append(f"{n}: {type(e).__name__}: {e}")
+        c.check(bool(checks), f"{name} has checks to run")
+        c.check(not failed, f"{name} passes ({len(checks)} checks)" +
+                (" -- " + "; ".join(failed[:3]) if failed else ""))
+
+
 def _bd_export(c: Checker):
     print("Blu-ray preset: three numbers DiscImageStudio turns back into a spiral")
     import json
@@ -1475,6 +1507,7 @@ def _run() -> bool:
         _install_blocker(c)
         _bd_clv(c)
         _bd_export(c)
+        _tests_folder(c)
         _efmplus(c)
         _tiles(c)
         from . import cd_selftest
