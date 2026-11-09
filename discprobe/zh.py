@@ -524,8 +524,8 @@ TEXT = {
     "Pattern: {p}": "图案：{p}",
     "Project: {p}": "工程：{p}",
     "inner {a} mm, outer {b} mm, {n} sectors, constant pitch {c} um": "内半径 {a} mm，外半径 {b} mm，{n} 个扇区，恒定轨距 {c} µm",
-    "DiscImageStudio draws CD pictures within 57.5 mm, so beyond that only the parts of the outer ring and spokes away from the image axes are burned.":
-        "DiscImageStudio 只在 57.5 mm 以内画 CD 图，所以再往外只有外圈和辐条上离图像坐标轴远的部分会刻上。",
+    "DiscImageStudio up to v1.4.2 draws CD pictures within 57.5 mm, so beyond that only the parts of the outer ring and spokes away from the image axes are burned. v1.5.0 draws the whole band.":
+        "DiscImageStudio v1.4.2 及以前只在 57.5 mm 以内画 CD 图，所以再往外只有外圈和辐条上离图像坐标轴远的部分会刻上。v1.5.0 会画满整个环带。",
     "Burn it with DiscImageStudio, then run `geo --media cd` on the burned disc.": "用 DiscImageStudio 刻好，再对刻好的盘运行 `geo --media cd`。",
     "--sectors {n} is outside {a}..{b}; give the blank's capacity from `info`": "--sectors {n} 不在 {a}..{b} 之内；请填 `info` 打印的空白盘容量",
     "radii {a} / {b} mm are not those of a CD": "半径 {a} / {b} mm 不像 CD 的",

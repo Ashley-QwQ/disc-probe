@@ -588,6 +588,18 @@ Export a preset from this kind of result with `disexport`. It neither needs nor 
 
 The measurement is of the disc's own geometry, independent of the parameters used to burn it, so a probe disc burned with nominal parameters is enough. A banana CD-R measured on the BU20N differed from another independent program ([dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing)) by only +5 nm / −4 nm; straight lines burned using that program's results were straight.
 
+**Probe disc project (`cdprobe`).** `cdprobe` writes that probe disc: read the blank's capacity with `info`, write a DiscImageStudio project and the matching probe pattern, open the project in DiscImageStudio and burn it, unchanged, on a blank of that type. Then measure the burned disc with `geo --media cd`.
+
+```powershell
+python -m discprobe cdprobe --sectors 359849
+python -m discprobe cdprobe --sectors 359849 --radii 24.9118 57.9317
+```
+
+- The project is a DiscImageStudio `.discproj` that v1.4.0 to v1.5.0 open: CD, the inner and outer radius and the sector count, one layer (the pattern, at 100 %, no offset or rotation), 2 tone levels without dither, interleave on. The pitch terms are 0: a probe disc doesn't need them (v1.5.0 uses pitch terms for CD; earlier releases don't). By default the inner radius is 24.92 mm and the outer radius gives a 1.4865 µm pitch; `--radii` takes the values of a similar disc type.
+- The burn values only affect how readable the pattern is, not the measurement: the timing measures the burned disc itself. The closer they are to this disc type's real geometry, the straighter the spokes.
+- The pattern: 12 spokes; a ring every 5 mm plus one at each edge; a short tick at 10° on each ring, so spoke 0 can be followed ring by ring on a twisted disc; an "F" that reads normally from the data side, so a mirrored photo shows at once; and the half band from 105° to 285° inverted, as a twist gauge. About 1 µm off, the spokes fade to hairlines; the gauge's edges then wind into a two-start spiral that stays visible up to about 100 µm off. The pattern's features are stored as JSON in the PNG's tEXt chunk `DiscImageStudio-probe-pattern`.
+- DiscImageStudio up to v1.4.2 draws CD pictures within 57.5 mm, so beyond that only the parts of the outer ring and spokes away from the image axes are burned; v1.5.0 draws the whole band.
+
 `image --media cd` also accepts Boolean/label `--design-npy`, `--textures` and `--picture`. With `--picture`, the area inside a radius of 26 mm is automatically left blank because the file system is there. The drawing unit becomes 12 consecutive data symbols in a physical frame. Repeated textures have their phase set by "physical frame number ×32 + F2 slot", then user data is filled back through the CIRC mapping. Dark/light default to `0D`/`AA`; the design should leave an inner background margin, and generation is refused if file-system sectors overlap the pattern. CD timing results carry `media=cd`; DVD fits must not be used directly to burn CD pictures.
 
 CD `tiles` use `0D`/`AA` as the number references, while `tilescan` and `tilephoto` reuse the original number and geometry processing. For CD, the historical field name `levels_a5_0_92_1` in the analysis output means `0D=0 / AA=1` for the numbers. Repeated sequences such as `0DAA` and `00FF` are candidates to test; they do not guarantee that the drive produces a fixed period along the whole track. CD groove diffraction is closer to the specular direction. For photos, use a small light source with an angular size below 10°, and fix the viewing geometry first.

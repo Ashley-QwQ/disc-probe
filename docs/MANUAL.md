@@ -586,23 +586,21 @@ python -m discprobe geo --drive E: --media cd --read-offset-bytes -603
 
 测的是盘本身的几何，和刻它时填的参数无关，所以用名义参数刻一张探测盘就够了。在 BU20N 上测一张 banana CD-R，结果和另一套独立的程序（[dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing)）只差 +5 nm / −4 nm，按那套程序的结果刻的直线是直的。
 
-`image --media cd` 同样接受布尔/标签 `--design-npy`、`--textures`、`--picture`。用 `--picture` 时，半径 26 mm 以内自动留空，那里放着文件系统。绘图单元改为物理帧中连续的 12 数据符号；重复纹理按"物理帧号 ×32 + F2 槽"定相位，再通过 CIRC 映射回填用户数据。暗/亮默认 `0D`/`AA`，设计应在内侧留出背景，文件系统扇区与图案相交时会拒绝生成。CD 计时结果带 `media=cd`，禁止把 DVD 的拟合直接用于 CD 刻图。
-
-CD `tiles` 的编号参考改用 `0D`/`AA`，`tilescan` 和 `tilephoto` 复用原来的编号和几何处理；分析输出中的历史字段名 `levels_a5_0_92_1` 对 CD 表示编号的 `0D=0 / AA=1`。重复序列如 `0DAA`、`00FF` 是待测候选，不保证光驱产生整轨固定周期。CD 导槽衍射更靠近镜面方向，拍摄宜使用视角小于 10° 的小光源，先锁定观察几何。
-
-**探测盘工程（`cdprobe`）。**标定一种 CD-R 只要一张盘：先用 `info` 读空白盘的容量，再生成 DiscImageStudio 工程和配套的探测图案，用 DiscImageStudio 打开后什么都不改，直接刻到这种空白盘上。
+**探测盘工程（`cdprobe`）。**上面说的探测盘可以用 `cdprobe` 生成：先用 `info` 读空白盘的容量，再生成 DiscImageStudio 工程和配套的探测图案，用 DiscImageStudio 打开后什么都不改，直接刻到这种空白盘上，刻好后用 `geo --media cd` 测这张盘。
 
 ```powershell
 python -m discprobe cdprobe --sectors 359849
 python -m discprobe cdprobe --sectors 359849 --radii 24.9118 57.9317
 ```
 
-- 工程是 DiscImageStudio v1.4.0–v1.4.2 的 `.discproj`：CD、内外半径和扇区数（恒定轨距；DiscImageStudio 的 CD 只用这两个半径），一个图层（图案，100 %，不偏移不旋转），2 级色调、无抖动、开启交织。默认内半径 24.92 mm，外半径按 1.4865 µm 轨距算；`--radii` 可以改成相近一种盘的值。
+- 工程是 DiscImageStudio 的 `.discproj`，v1.4.0 到 v1.5.0 都能打开：CD、内外半径和扇区数，一个图层（图案，100 %，不偏移不旋转），2 级色调、无抖动、开启交织。轨距系数写 0：探测盘用不到（v1.5.0 的 CD 会用轨距系数，更早的版本不用）。默认内半径 24.92 mm，外半径按 1.4865 µm 轨距算；`--radii` 可以改成相近一种盘的值。
 - 刻录值只影响图案好不好认，不影响测量：计时测的是刻好的这张盘本身。值越接近这种盘的真实几何，辐条越直。
 - 图案：12 条辐条，每 5 mm 一个圆环加内外边缘各一个，每个圆环在 10° 处一道短刻线（扭转时可以逐环跟住 0° 辐条），一个 "F"（从数据面看是正的，照片镜像了一眼就能看出），还有 105°–285° 反色的半圈作扭转标尺：参数差约 1 µm 时辐条就细到看不清，半圈的边界会变成两条螺旋带，差到约 100 µm 还能看见。图案的特征以 JSON 写在 PNG 的 tEXt 块 `DiscImageStudio-probe-pattern` 里。
-- DiscImageStudio 只在 57.5 mm 以内画 CD 图，所以再往外只有外圈和辐条上离图像坐标轴远的部分会刻上。
+- DiscImageStudio v1.4.2 及以前只在 57.5 mm 以内画 CD 图，再往外只有外圈和辐条上离图像坐标轴远的部分会刻上；v1.5.0 会画满整个环带。
 
-刻好后用 `geo --media cd` 测这张盘。
+`image --media cd` 同样接受布尔/标签 `--design-npy`、`--textures`、`--picture`。用 `--picture` 时，半径 26 mm 以内自动留空，那里放着文件系统。绘图单元改为物理帧中连续的 12 数据符号；重复纹理按"物理帧号 ×32 + F2 槽"定相位，再通过 CIRC 映射回填用户数据。暗/亮默认 `0D`/`AA`，设计应在内侧留出背景，文件系统扇区与图案相交时会拒绝生成。CD 计时结果带 `media=cd`，禁止把 DVD 的拟合直接用于 CD 刻图。
+
+CD `tiles` 的编号参考改用 `0D`/`AA`，`tilescan` 和 `tilephoto` 复用原来的编号和几何处理；分析输出中的历史字段名 `levels_a5_0_92_1` 对 CD 表示编号的 `0D=0 / AA=1`。重复序列如 `0DAA`、`00FF` 是待测候选，不保证光驱产生整轨固定周期。CD 导槽衍射更靠近镜面方向，拍摄宜使用视角小于 10° 的小光源，先锁定观察几何。
 
 运行 `python -m discprobe selftest` 可验证扰码、CIRC 正逆映射、独立反向重建、破坏检出、模拟梯子、合成扫描及参考 EFM 的 3T–11T / DSV 一致性。软件验收数据在 [`evidence/cd-support/`](../evidence/cd-support/selftest-final.txt) 和 [`evidence/cd-support-20261104/`](../evidence/cd-support-20261104/validation.json)。实测结果见 [`KNOWLEDGE.md`](KNOWLEDGE.md) §12。
 

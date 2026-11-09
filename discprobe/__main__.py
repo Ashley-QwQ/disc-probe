@@ -833,8 +833,8 @@ def cmd_cdprobe(args):
     print(f"inner {res['ri']:.6f} mm, outer {res['ro']:.6f} mm, {res['sectors']} sectors, constant pitch "
           f"{res['pitch_um']:.4f} um")
     if res["beyond_canvas"]:
-        print("DiscImageStudio draws CD pictures within 57.5 mm, so beyond that only the parts of the outer ring "
-              "and spokes away from the image axes are burned.")
+        print("DiscImageStudio up to v1.4.2 draws CD pictures within 57.5 mm, so beyond that only the parts of the "
+              "outer ring and spokes away from the image axes are burned. v1.5.0 draws the whole band.")
     if not ui.term().interactive:   # at a terminal the advice below says this, with the drive
         print("Burn it with DiscImageStudio, then run `geo --media cd` on the burned disc.")
     _next(guide.after_cdprobe(res["project"]))

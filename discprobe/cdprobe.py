@@ -6,13 +6,15 @@ for the type (its summary's dis_equivalent). The burn values only have to be rou
 timing measures the disc, not the project. Close values keep the probe pattern readable, so a
 burned disc can be checked by eye against the measurement.
 
-The project is DiscImageStudio's .discproj (schema 2, as written by v1.4.0 to v1.4.2; the loader
-rejects unknown fields): CD, the radii and the sector count, constant pitch (DiscImageStudio uses
-only the radii pair for CD), one layer, the pattern at 100 %, no offset or rotation, 2 tone levels
+The project is DiscImageStudio's .discproj (schema 2, as v1.4.0 to v1.5.0 read it; the loader
+rejects unknown fields, and v1.5.0's optional usableSectors is left out): CD, the radii and the
+sector count, constant pitch (a probe disc needs no pitch terms; v1.5.0 uses them for CD, earlier
+releases ignore them), one layer, the pattern at 100 %, no offset or rotation, 2 tone levels
 without dither, interleave on. A layer at 100 % spans +-ro, the project's outer radius
-(DesignLayerViewModel.LoadImage), so the pattern is drawn for that band. DiscImageStudio composes
-a CD on a canvas of +-57.5 mm and samples white beyond it, so past 57.5 mm only the parts of the
-outer ring and spokes away from the image axes survive.
+(DesignLayerViewModel.LoadImage), so the pattern is drawn for that band. Up to v1.4.2,
+DiscImageStudio composes a CD on a canvas of +-57.5 mm and samples white beyond it, so past
+57.5 mm only the parts of the outer ring and spokes away from the image axes survive; v1.5.0
+draws the whole band.
 
 The pattern (black lines on white; image x right, y down, angle clockwise on screen = along the
 track, data side, unmirrored):
@@ -44,7 +46,7 @@ SECTOR_MM = 1200.0 / 75.0       # track length per sector at DiscImageStudio's f
 # (24.912-24.922 mm, 1.4865-1.4926 um); ro follows from the sector count.
 GENERIC_RI_MM = 24.92
 GENERIC_PITCH_UM = 1.4865
-CANVAS_MM = 57.5                # CdDiscParameters.StandardImageOuterRadiusMm
+CANVAS_MM = 57.5                # CdDiscParameters.StandardImageOuterRadiusMm, the CD canvas up to v1.4.2
 MIN_SECTORS, MAX_SECTORS = 10_000, 450_000
 
 
