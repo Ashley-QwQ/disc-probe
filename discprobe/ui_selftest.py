@@ -1059,6 +1059,9 @@ def _chinese(c) -> None:
         c.check(stream.getvalue() == "下一步：\n转速方式：恒定线速度 (CLV)\npartial", "lines are translated whole, however they were written")
         c.check(all(i18n.display_width(x) <= 20 for x in i18n.wrap("每次计时读之前随机等待 0 到 N 毫秒，避免 repeated reads 都跨过相同圈数", 20)), "Chinese help wraps by columns")
         c.check(i18n.display_width("光盘a") == 5 and i18n.display_width(i18n.fit("光盘光盘光盘", 7)) <= 7, "width and cutting count columns")
+        c.check(i18n.tr("Added preset 'my-preset' (\"我的 CD 预设\") to C:\\disc-presets.json")
+                == "已把预设 'my-preset'（“我的 CD 预设”）加入 C:\\disc-presets.json",
+                "an install line is Chinese too, with the id and the display name")
 
         p, sub, _ = cli._build_parser()
         untranslated = [a.help for parser in [p, *sub.choices.values()] for a in parser._actions
@@ -1680,6 +1683,31 @@ def _command_line(c) -> None:
             with open(presets, encoding="utf-8") as f:
                 doc = json.load(f)
             c.check(code == 0 and doc["cdPresets"][0]["displayName"] == "other", "--replace installs the new values")
+            code, text = code_and_output("disexport", "--geo", geo_ok, "--sectors", "359602",
+                                         "--id", " my-preset ", "--name", " 我的 CD 预设 ",
+                                         "--install", "--dis-presets", presets)
+            c.check(code == 0 and "'my-preset' (\"我的 CD 预设\")" in text,
+                    "--id and --name install a preset under a custom id, and the output names both")
+            with open(presets, encoding="utf-8") as f:
+                doc = json.load(f)
+            entry = next((p for p in doc["cdPresets"] if p["id"] == "my-preset"), {})
+            c.check(entry.get("displayName") == "我的 CD 预设",
+                    "the name given is what DiscImageStudio lists, with the spaces around it gone")
+            code, _ = code_and_output("disexport", "--geo", geo_ok, "--sectors", "359602",
+                                      "--id", "my-export", "--name", "My export",
+                                      "--output", os.path.join(d, "named.json"))
+            with open(os.path.join(d, "named.json"), encoding="utf-8") as f:
+                named = json.load(f)["preset"]
+            c.check(code == 0 and named["id"] == "my-export" and named["displayName"] == "My export",
+                    "without --install the exported preset carries the same id and name")
+            code, text = code_and_stderr("disexport", "--geo", geo_ok, "--sectors", "359602", "--id", "__manual__",
+                                         "--install", "--dis-presets", os.path.join(d, "dis4", "disc-presets.json"))
+            c.check(code == 1 and "__manual__" in text and not os.path.exists(os.path.join(d, "dis4", "disc-presets.json")),
+                    "the reserved id __manual__ is refused before anything is written")
+            code, text = code_and_stderr("disexport", "--geo", geo_ok, "--sectors", "359602", "--name", "  ",
+                                         "--output", os.path.join(d, "blank.json"))
+            c.check(code == 1 and "--name is empty" in text and not os.path.exists(os.path.join(d, "blank.json")),
+                    "a blank --name is refused, and no preset file is written")
             code, text = code_and_stderr("disexport", "--geo", geo_ok, "--sectors", "359602", "--dis-presets", presets)
             c.check(code == 1 and "only work together" in text, "--dis-presets without --install is refused")
             fit = {"u": 25.14 / b, "v": 1.4969e-3 / b, "bit_nm_assumed": cd.BIT_NM,
