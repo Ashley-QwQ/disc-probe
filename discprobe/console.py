@@ -20,6 +20,7 @@ import shutil
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 from . import banner, guide, i18n, ui
 from .i18n import tr
@@ -291,10 +292,13 @@ class _Screen:
 # --- text helpers -------------------------------------------------------------------------------
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
+# OSC 8 hyperlinks (and any other OSC string) are invisible to width and to the screen itself.
+OSC_RE = re.compile(r"\x1b\](?:[^\x07\x1b]|\x1b(?!\\))*(?:\x07|\x1b\\)")
+KEYCAP_RE = re.compile(r"(?<![A-Za-z0-9])(Up/Down|Enter/r|Enter|Esc|Tab|PgUp|PgDn|r|e|c|m|l|o|q|\?|:)(?![A-Za-z0-9])")
 
 
 def visible(text: str) -> str:
-    return ANSI_RE.sub("", text)
+    return ANSI_RE.sub("", OSC_RE.sub("", text))
 
 
 def width_of(text: str) -> int:
@@ -305,6 +309,52 @@ def fit_line(text: str, width: int) -> str:
     if width_of(text) <= width:
         return text
     return i18n.fit(visible(text), width)
+
+
+def path_url(path: str) -> str:
+    """A file:// URL for a path, or "" when the platform cannot make one."""
+    try:
+        return Path(os.path.abspath(path)).as_uri()
+    except (OSError, ValueError):
+        return ""
+
+
+def manual_path() -> str:
+    name = "MANUAL.md" if i18n.active() == "zh" else "MANUAL.en.md"
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(root, "docs", name)
+
+
+def hyperlink(text: str, url: str, t, underline: bool = True) -> str:
+    """OSC 8: a clickable link in terminals that support it, plain text everywhere else.
+
+    The sequence is invisible, so it must be stripped before any width calculation (see `visible`).
+    """
+    if not (url and getattr(t, "ansi", False)):
+        return text
+    url = url.replace("\x07", "").replace("\x1b", "")
+    shown = ("\x1b[4m" + text + "\x1b[24m") if underline else text
+    return f"\x1b]8;;{url}\x1b\\{shown}\x1b]8;;\x1b\\"
+
+
+def filled(text: str, t, media: str, danger: bool = False, neutral: bool = False) -> str:
+    """Text on a background: a dark tint with true colour, reverse video everywhere else.
+
+    A background bar is what makes the selected row and the key names readable at a glance;
+    reverse video keeps that cue on terminals that do not do 24-bit colour.
+    """
+    if not getattr(t, "color", False):
+        return text
+    if getattr(t, "truecolor", False):
+        if danger:
+            bg, fg = ui.oklch(0.32, 0.10, 0.03), (255, 255, 255)
+        elif neutral:
+            bg, fg = ui.oklch(0.30, 0.02, 0.62), (255, 255, 255)
+        else:
+            hue = ui.DVD_ACCENT_HUE if media == "dvd" else 0.52
+            bg, fg = ui.oklch(0.30, 0.055, hue), ui.oklch(0.97, 0.01, hue)
+        return "\x1b[1;38;2;%d;%d;%d;48;2;%d;%d;%dm%s\x1b[0m" % (*fg, *bg, text)
+    return "\x1b[1;7m" + text + "\x1b[0m"
 
 
 def clean_path(text: str) -> str:
@@ -1061,15 +1111,35 @@ class Console:
             return self._keys_screen()
         return self._home()
 
+    def _chip(self, text: str) -> str:
+        return filled(text, self.t, self.plan.media)
+
+    def _keycap(self, text: str) -> str:
+        return filled(text, self.t, self.plan.media, neutral=True)
+
+    def _link(self, text: str, url: str) -> str:
+        return hyperlink(text, url, self.t)
+
+    def _selection(self, text: str) -> str:
+        if not self.t.color:
+            return text
+        room = max(0, self.width - width_of(text))
+        return filled(text + " " * room, self.t, self.plan.media)
+
     def _header(self) -> str:
         left = self.t.style("disc-probe", "bold") + "  " + self.t.style(tr("guided console"), "dim")
         done = sum(1 for task in self.plan.tasks if task.done)
         total = len(self.plan.tasks)
         status = tr("{done} of {total} steps done").format(done=done, total=total)
-        right = self.t.style(self.plan.media.upper() + "  |  " + status, "dim")
-        left_width, right_width = width_of(left), width_of(right)
-        if left_width + right_width + 1 <= self.width:
-            return left + " " * (self.width - left_width - right_width) + right
+        right = self._chip(self.plan.media.upper()) + "  " + self.t.style(status, "dim")
+        folder = os.path.basename(os.path.abspath(self.out)) or self.out
+        if self.width >= 72 and folder:
+            shown = self.t.style(folder + ("/" if not folder.endswith("/") else ""), "dim")
+            right += "  " + self._link(shown, path_url(self.out))
+        if width_of(left) + width_of(right) + 1 > self.width:
+            right = self._chip(self.plan.media.upper()) + "  " + self.t.style(status, "dim")
+        if width_of(left) + width_of(right) + 1 <= self.width:
+            return left + " " * (self.width - width_of(left) - width_of(right)) + right
         return left
 
     def _task_line(self, task, selected: bool) -> str:
@@ -1077,25 +1147,29 @@ class Console:
         tick = "[x]" if task.done else "[ ]"
         marker = ">" if selected else " "
         if self.width < 64:
-            line = marker + " " + tick + " " + name + ": " + detail
-            return self.t.style(line, "bold") if selected and self.t.color else line
+            raw = "  " + marker + " " + tick + " " + name + ": " + detail
+            return self._selection(raw) if selected and self.t.color else raw
         padded = i18n.pad(name, 24)
+        raw = "  " + marker + " " + tick + " " + padded + " " + detail
+        if selected and self.t.color:
+            return self._selection(raw)
         if not self.t.color:
-            return marker + " " + tick + " " + padded + " " + detail
+            return raw
         tick_style = self.t.style(tick, "green" if task.done else "dim")
-        if selected:
-            padded = self.t.style(name, "bold") + " " * max(0, 24 - i18n.display_width(name))
-        return marker + " " + tick_style + " " + padded + " " + self.t.style(detail, "dim")
+        return "  " + marker + " " + tick_style + " " + padded + " " + self.t.style(detail, "dim")
 
     def _detail_block(self, task, compact: bool = False) -> list[str]:
         lines = [] if compact else ["  " + self.t.style(tr(task.name), "bold") + "  " + self.t.style(tr(task.detail), "dim")]
+        if task is self.plan.current():
+            lines.append("  " + self._chip(tr("you are here")))
         wrap = max(20, self.width - 4)
         if task.why and (not compact or self.height >= 22):
             lines += ["  " + part for part in i18n.wrap(tr(task.why), wrap)]
         lines.append("  " + self.t.style(tr("Takes:") + " " + tr(task.takes), "dim"))
         command = task.command()
         if task.action in ("run", "shell") and command:
-            lines += ["", "  " + ui.command(command, self.t)]
+            prefix = "" if compact else self._keycap("Enter") + " "
+            lines += ["", "  " + prefix + ui.command(command, self.t)]
         elif task.action == "form":
             lines += ["", "  " + self.t.style(tr("Enter opens the picture form."), "dim")]
         elif task.action == "burn":
@@ -1106,7 +1180,17 @@ class Console:
         text = tr(text)
         if extra:
             text += "   " + tr(extra)
-        return self.t.style(text, "dim") if self.t.color else text
+        if not self.t.color:
+            return text
+        parts, start = [], 0
+        for match in KEYCAP_RE.finditer(text):
+            if match.start() > start:
+                parts.append(self.t.style(text[start:match.start()], "dim"))
+            parts.append(self._keycap(match.group(0)))
+            start = match.end()
+        if start < len(text):
+            parts.append(self.t.style(text[start:], "dim"))
+        return "".join(parts)
 
     def _finish(self, lines: list[str], footer: str) -> list[str]:
         lines = list(lines)
@@ -1156,6 +1240,10 @@ class Console:
                 lines += ["  " + tr(line) for line in guide.AFTER_BURN]
         if self.message:
             lines += ["", "  " + self.t.style(self.message, "yellow")]
+        if self.width >= 70:
+            manual_name = "docs/MANUAL.md" if i18n.active() == "zh" else "docs/MANUAL.en.md"
+            lines += ["", "  " + self._link(tr("The manual is {name}.").format(name=manual_name),
+                                            path_url(manual_path()))]
         if task.action in ("run", "shell"):
             footer = FOOTER_STEP
         elif task.action == "form":
@@ -1169,7 +1257,7 @@ class Console:
         if rows:
             self.row = min(max(0, self.row), len(rows) - 1)
         head = [self._header(), ""]
-        head.append("  " + self.t.style(tr("All commands"), "bold") + "   " + self.t.style(tr("type to filter"), "dim"))
+        head.append("  " + self._chip(tr("All commands")) + "   " + self.t.style(tr("type to filter"), "dim"))
         head.append("  > " + self._field(self.query, self.query_pos, max(8, self.width - 6), True))
         head.append("")
         room = max(1, self.height - len(head) - 1)
@@ -1186,10 +1274,12 @@ class Console:
                 index = self.scroll + offset
                 self._hits[len(head) + offset] = index
                 marker = ">" if index == self.row else " "
-                shown = i18n.pad(name, 14)
                 if index == self.row and self.t.color:
-                    shown = self.t.style(name, "bold") + " " * max(0, 14 - i18n.display_width(name))
-                body.append("  " + marker + " " + shown + " " + tr(description))
+                    body.append(self._selection("  " + marker + " " + i18n.pad(name, 14) + " " + tr(description)))
+                else:
+                    shown = self.t.style(name, "cyan") if self.t.color else name
+                    shown += " " * max(0, 14 - i18n.display_width(name))
+                    body.append("  " + marker + " " + shown + " " + tr(description))
         lines = head + body
         lines += [""] * max(0, self.height - 1 - len(lines))
         lines.append(self._foot(FOOTER_PALETTE))
@@ -1198,15 +1288,18 @@ class Console:
 
     def _command_screen(self) -> list[str]:
         description = next((text for name, text in self.commands if name == self.help_name), "")
-        lines = [self._header(), "", "  " + self.t.style(self.help_name, "bold")]
+        lines = [self._header(), "", "  " + self._chip(self.help_name)]
         if description:
             lines.append("  " + self.t.style(tr(description), "dim"))
         lines.append("")
         lines += ["  " + line for line in self.help_lines]
+        manual_name = "docs/MANUAL.md" if i18n.active() == "zh" else "docs/MANUAL.en.md"
+        lines += ["", "  " + self._link(tr("The manual is {name}.").format(name=manual_name),
+                                       path_url(manual_path()))]
         return self._scrolled(lines, FOOTER_HELP)
 
     def _edit_screen(self) -> list[str]:
-        lines = [self._header(), "", "  " + self.t.style(tr("Edit the command"), "bold"), "",
+        lines = [self._header(), "", "  " + self._chip(tr("Edit the command")), "",
                  "  " + self.t.style(tr("This is the line that will run. Enter runs it; Esc goes back."), "dim"),
                  "", "  " + self._field(self.edit_text, self.edit_pos, max(10, self.width - 4), True)]
         if self.message:
@@ -1219,18 +1312,18 @@ class Console:
         hints = (tr("Drop the picture into this window, or type its path. Tab completes a path."),
                  tr("Where the ISO is written. Relative paths are inside the project folder."),
                  tr("`latest` uses the newest complete measurement, or give a results file."))
-        lines = [self._header(), "", "  " + self.t.style(tr("Make a picture ISO"), "bold"), ""]
+        lines = [self._header(), "", "  " + self._chip(tr("Make a picture ISO")), ""]
         for index, label in enumerate(labels):
             active = index == form["field"]
             marker = ">" if active else " "
             shown = self._field(form["values"][index], form["pos"][index], max(10, self.width - 8), active)
-            title = self.t.style(label, "bold" if active else "dim") if self.t.color else label
+            title = self._chip(label) if active else self.t.style(label, "dim")
             lines.append("  " + marker + " " + title)
             lines.append("    " + shown)
             if active:
                 lines.append("    " + self.t.style(hints[index], "dim"))
         if form.get("error"):
-            lines += ["", "  " + self.t.style(form["error"], "red")]
+            lines += ["", "  " + filled(form["error"], self.t, self.plan.media, danger=True)]
         lines += ["", "  " + self.t.style(tr("Enter on the last field runs it."), "dim")]
         return self._finish(lines, FOOTER_FORM)
 
@@ -1243,6 +1336,11 @@ class Console:
             except Exception:
                 pass
         lines.append("  " + self.t.style(tr("Keys and gestures"), "bold"))
+        lines.append("")
+        manual_name = "docs/MANUAL.md" if i18n.active() == "zh" else "docs/MANUAL.en.md"
+        lines.append("  " + self._link(tr("The manual is {name}.").format(name=manual_name),
+                                      path_url(manual_path())))
+        lines.append("  " + self.t.style(tr("Ctrl+click a link (Cmd+click on macOS) to open it."), "dim"))
         lines.append("")
         pairs = [("Up/Down, j/k", "move between steps"),
                  ("Enter, right", "open the step"),
@@ -1257,15 +1355,15 @@ class Console:
                  ("Esc", "go back"),
                  ("q", "quit")]
         for left, right in pairs:
-            lines.append("  " + i18n.pad(tr(left), 18) + "  " + tr(right))
+            key_text = tr(left)
+            gap = max(2, 18 - width_of(key_text))
+            lines.append("  " + self._keycap(key_text) + " " * gap + "  " + tr(right))
         lines += ["",
                   "  " + " ".join(i18n.wrap(tr("The console runs ordinary disc-probe commands. It prints each command before running it, so the command line can be learned by watching."), max(20, self.width - 4))),
                   "",
                   "  " + " ".join(i18n.wrap(tr("During a measurement, press g for a game; the run is not disturbed."), max(20, self.width - 4))),
                   "",
-                  "  " + " ".join(i18n.wrap(tr("For scripts and pipes the plain version is: python -m discprobe guide"), max(20, self.width - 4))),
-                  "",
-                  "  " + " ".join(i18n.wrap(tr("The manual is docs/MANUAL.en.md."), max(20, self.width - 4)))]
+                  "  " + " ".join(i18n.wrap(tr("For scripts and pipes the plain version is: python -m discprobe guide"), max(20, self.width - 4)))]
         if self.mouse:
             lines += ["", "  " + " ".join(i18n.wrap(tr("Mouse: click a step to open it; the wheel moves through the list."), max(20, self.width - 4)))]
         return self._scrolled(lines, FOOTER_KEYS)

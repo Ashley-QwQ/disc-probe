@@ -1005,6 +1005,8 @@ TEXT = {
     "During a measurement, press g for a game; the run is not disturbed.": "测量时按 g 可以玩小游戏，不会打扰测量。",
     "For scripts and pipes the plain version is: python -m discprobe guide": "脚本和管道里的纯文本版是：python -m discprobe guide",
     "The manual is docs/MANUAL.en.md.": "手册在 docs/MANUAL.en.md。",
+    "The manual is {name}.": "手册在 {name}。",
+    "Ctrl+click a link (Cmd+click on macOS) to open it.": "按住 Ctrl 点击链接（macOS 上按住 Cmd）即可打开。",
     "Mouse: click a step to open it; the wheel moves through the list.": "鼠标：点步骤打开，滚轮在列表里移动。",
     "Now showing the {media} steps.": "现在显示 {media} 的步骤。",
     "Language: {name}": "语言：{name}",

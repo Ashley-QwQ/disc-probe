@@ -52,6 +52,18 @@ class FakeKeys:
         return []
 
 
+class ColorTerm(FakeTerm):
+    """A terminal with colour and true colour: backgrounds and links are drawn, not skipped."""
+
+    def __init__(self):
+        super().__init__()
+        self.color = True
+        self.truecolor = True
+
+    def style(self, text, name="bold"):
+        return "\x1b[1m" + text + "\x1b[0m"
+
+
 def _screen(c, width, height):
     return [console.visible(line) for line in c.text(width, height)]
 
@@ -330,6 +342,42 @@ def _opening(c):
             "console: the full-screen view opens after the animation")
 
 
+def _colour(c, folder):
+    """Background bars, keycaps and OSC 8 links appear only where the terminal can use them."""
+    plan = guide.workflow("dvd", folder, notes=True)
+    term = ColorTerm()
+    con = console.Console(plan, [("timing", "Measure timing")], t=term, out=folder)
+    lines = con.text(100, 30)
+    selected = lines[2 + con.row]
+    c.check("48;2;" in selected, "colour: the selected step is a background bar")
+    c.check(console.visible(selected).startswith("  > ["), "colour: the selected step keeps the plain marker")
+    c.check(any("\x1b]8;;" in line for line in lines), "links: the home screen offers a clickable folder")
+    header = lines[0]
+    c.check(console.path_url(folder) in header, "links: the folder link targets the results folder")
+    c.check(console.width_of(header) <= 100, "colour: styling does not change the measured width")
+    footer = lines[-1]
+    c.check("48;2;" in footer, "colour: footer keys are background keycaps")
+    c.check("Up/Down move" in console.visible(footer), "colour: keycap styling leaves the footer text alone")
+    c.check("\x1b" not in console.visible(header), "colour: visible() removes styling and links")
+
+    con.handle("?")
+    keys = con.text(100, 30)
+    c.check(any(console.path_url(console.manual_path()) in line for line in keys),
+            "links: the help screen links the manual")
+
+    plain = ColorTerm()
+    plain.color = False
+    plain_console = console.Console(plan, [], t=plain, out=folder)
+    plain_lines = plain_console.text(100, 30)
+    c.check("\x1b[48;2;" not in "".join(plain_lines), "colour: no background without colour")
+    c.check(console.visible(plain_lines[2 + plain_console.row]).startswith("  > ["),
+            "colour: the selected step is still marked with >")
+
+    no_ansi = ColorTerm()
+    no_ansi.ansi = False
+    c.check(console.hyperlink("x", "file:///x", no_ansi) == "x", "links: no ANSI means no escape sequence")
+
+
 def run(c) -> None:
     print("guided console: key decoding, command lines, screens, forms, menu and Chinese")
     _keys(c)
@@ -340,4 +388,5 @@ def run(c) -> None:
         _workflow(c, folder)
         _console(c, folder)
         _form(c, folder)
+        _colour(c, folder)
     _language(c)
