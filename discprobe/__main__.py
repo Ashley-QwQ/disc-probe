@@ -75,6 +75,13 @@ def _next(lines, args=None) -> None:
             ui.say(ui.command(i18n.tr(line)) if line.lstrip().startswith("python ") else line)
 
 
+def _cdrdao_toc(args, layout: str | None = None) -> None:
+    """On Linux, a CD ISO gets a cdrdao toc beside it: the burner there that writes the layout the ISO was made for."""
+    if sys.platform == "linux" and getattr(args, "media", "dvd") == "cd":
+        from . import cd
+        print(f"cdrdao toc: {os.path.abspath(cd.write_cdrdao_toc(args.output, layout))}")
+
+
 def _image_ready(args, preview: str, design=None, files: str = "") -> None:
     """The advice for a finished picture ISO. One from a simulated run is told not to reach a disc at all.
     `files` says where the spec and preview went; it comes after the look at the disc, which is tall."""
@@ -83,6 +90,8 @@ def _image_ready(args, preview: str, design=None, files: str = "") -> None:
         imagecheck.show(design, args)
     if files:
         print(files)
+    if "geo-SIM-" not in args.geo:
+        _cdrdao_toc(args)
     ui.iso_ready(args.output)       # after the disc, which is tall, or this scrolls away again
     simulated = None
     if (design is not None and design.dtype == bool and getattr(args, "media", "dvd") == "dvd"
@@ -538,8 +547,11 @@ def cmd_rings(args):
     print("Verified: sampled sectors in every ring record the intended byte" if not problems
           else "VERIFY FAILED:\n  " + "\n  ".join(problems[:10]))
     print(f"Layout: {os.path.abspath(spec_path)}  (needed by ringscan)")
-    print("Burn with any image burner and note the speed. "
-          "The file system is an empty ISO 9660 placeholder.")
+    _cdrdao_toc(args)
+    print("Burn it and note the speed.")
+    for line in guide.burn_steps(args.output, args.media):
+        print(line)
+    print("The file system is an empty ISO 9660 placeholder.")
     if problems:
         sys.exit(1)
     ui.iso_ready(args.output)
@@ -592,7 +604,10 @@ def cmd_calib(args):
     print("Verified: guards are pure, bands follow their patterns" if not problems
           else "VERIFY FAILED:\n  " + "\n  ".join(problems[:10]))
     print(f"Layout: {os.path.abspath(spec_path)}  (needed by calscan)")
-    print("Burn with any image burner. The file system is an empty ISO 9660 placeholder.")
+    print("Burn it.")
+    for line in guide.burn_steps(args.output):
+        print(line)
+    print("The file system is an empty ISO 9660 placeholder.")
     if problems:
         sys.exit(1)
     ui.iso_ready(args.output)
@@ -1281,7 +1296,10 @@ def cmd_random(args):
     with ui.writing(args.output, args.sectors) as log:
         write_iso(args.output, args.sectors, args.seed, media=args.media, log=log)
     if not ui.term().interactive:   # at a terminal the advice below says this, with the right next step
-        print("Burn it with any image burner, then run `geo` on it.")
+        print("Burn it, then run `geo` on it.")
+        for line in guide.burn_steps(args.output, args.media):
+            print(line)
+    _cdrdao_toc(args, "mode2form1")     # the measuring disc goes the same way as the picture discs
     ui.iso_ready(args.output)
     _next(guide.after_random(args), args)
     ui.burn_warning()

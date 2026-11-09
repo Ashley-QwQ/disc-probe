@@ -19,6 +19,8 @@ This module maps data symbols; it does not simulate parity or EFM/DSV.
 
 from __future__ import annotations
 
+import os
+
 import numpy as np
 
 SECTOR_BYTES = 2048
@@ -151,6 +153,32 @@ def set_sector_layout(name: str) -> None:
     USER_OFFSET = SECTOR_LAYOUTS[name]
     MASK = SCRAMBLE[USER_OFFSET:USER_OFFSET + SECTOR_BYTES]
     BYTE_BITS = user_positions(np.array([0]))[0].astype(np.float64)
+
+
+# cdrdao's name for each layout: the disc type on the first line, the track mode on the track.
+CDRDAO_MODES = {"mode1": ("CD_ROM", "MODE1"), "mode2form1": ("CD_ROM_XA", "MODE2_FORM1")}
+
+
+def sector_layout() -> str:
+    return next(name for name, offset in SECTOR_LAYOUTS.items() if offset == USER_OFFSET)
+
+
+def toc_path(iso: str) -> str:
+    return os.path.splitext(iso)[0] + ".toc"
+
+
+def write_cdrdao_toc(iso: str, layout: str | None = None) -> str:
+    """A cdrdao table of contents that burns `iso` as one data track in `layout` (default: the current one).
+
+    cdrecord-style burners write Mode 1 unless told otherwise, and xorriso cannot write Mode 2 Form 1
+    at all, so on Linux this is how a CD gets the layout its textures were pre-scrambled for.
+    The ISO is named by absolute path, so the toc works from any directory.
+    """
+    disc, track = CDRDAO_MODES[layout or sector_layout()]
+    path = toc_path(iso)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(f'{disc}\n\nTRACK {track}\nDATAFILE "{os.path.abspath(iso)}"\n')
+    return path
 
 
 def read_end_bits(lba, count=1):

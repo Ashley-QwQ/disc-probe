@@ -199,7 +199,7 @@ CD has one more constant that timing can't see, so it takes one more disc for ca
    powershell -ExecutionPolicy Bypass -File tools/burn_imapi.ps1 -Drive H: -Iso iso/cd-random.iso -Speed 8 -Burn -Reload
    ```
 
-   On Linux burn it with `cdrecord` or `xorriso -as cdrecord`, e.g. `xorriso -as cdrecord -v dev=/dev/sr0 speed=8 -dao iso/cd-random.iso`. The random disc doesn't depend on the sector layout, but when you later burn a picture (`image`, `tiles`, `rings`), `--cd-sector` must match what the burner writes: the default `mode2form1` is what IMAPI2 writes, while cdrecord-style burners usually write Mode 1 unless given `-xa`. Burning pictures from Linux hasn't been checked on a real disc yet.
+   On Linux, `random`, `image`, `tiles` and `rings` with `--media cd` also write a cdrdao toc next to the ISO (`iso/cd-random.toc`); burn with `cdrdao write --device /dev/sr0 iso/cd-random.toc`. The toc writes the sector layout the ISO was made for: by default Mode 2 Form 1, like IMAPI2. Burn the measuring disc and the pictures the same way. `xorriso` and plain `cdrecord` write Mode 1, which turns the picture textures into noise (`xorriso` cannot write Mode 2 Form 1 at all). FanJZSS has checked cdrdao with a Mode 2 Form 1 toc on a real disc on Windows; on Linux it hasn't been checked yet.
 
 2. Measure. `timing` takes 1 to 3 minutes and `geo` about 5 minutes for 36 steps. If `timing` says the rotation isn't CAV, change speed as it suggests and use the same speed for `geo`. The `geo` command `timing` prints is shorter and uses the default range, which also works; it's written out here to reach a larger radius.
 

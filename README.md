@@ -199,7 +199,7 @@ CD 还有一个计时测不到的常数，所以要多刻一张标定盘。下�
    powershell -ExecutionPolicy Bypass -File tools/burn_imapi.ps1 -Drive H: -Iso iso/cd-random.iso -Speed 8 -Burn -Reload
    ```
 
-   Linux 上用 `cdrecord` 或 `xorriso -as cdrecord` 刻，如 `xorriso -as cdrecord -v dev=/dev/sr0 speed=8 -dao iso/cd-random.iso`。随机数据盘不受扇区格式影响；但之后刻图案（`image`、`tiles`、`rings`）时，`--cd-sector` 要和刻录工具写的格式一致：默认的 `mode2form1` 对应 IMAPI2，cdrecord 系工具一般默认写 Mode 1（`-xa` 才是 Mode 2 Form 1）。Linux 刻录这条路还没在真实图案盘上验证过。
+   Linux 上，`random`、`image`、`tiles`、`rings` 加 `--media cd` 时会在 ISO 旁边多写一个 cdrdao 的 toc 文件（如 `iso/cd-random.toc`），用 `cdrdao write --device /dev/sr0 iso/cd-random.toc` 刻录。toc 按 ISO 生成时的扇区格式刻，默认是 Mode 2 Form 1，和 IMAPI2 一样。测量盘和图案盘都这样刻。`xorriso` 和不加参数的 `cdrecord` 写的是 Mode 1，图案纹理会变成噪声（`xorriso` 根本写不了 Mode 2 Form 1）。cdrdao 加 Mode 2 Form 1 toc 由 FanJZSS 在 Windows 上用实盘验证过，Linux 上还没有验证。
 
 2. 测量，`timing` 约 1 到 3 分钟，`geo` 约 5 分钟，共 36 级。`timing` 说不是 CAV 时，按它的提示换速度，`geo` 也用同一个速度。`timing` 跑完打印的 `geo` 命令更短，用默认的测量范围，也能用；这里写全是为了测到更大的半径。
 

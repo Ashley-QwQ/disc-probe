@@ -573,7 +573,7 @@ TEXT = {
 
     # Writing files
     "Writing {p}: {n} sectors of seeded random data": "正在写 {p}：{n} 个扇区的随机数据",
-    "Burn it with any image burner, then run `geo` on it.": "用任意镜像刻录工具刻好，再对它运行 `geo`。",
+    "Burn it, then run `geo` on it.": "刻好后，对它运行 `geo`。",
     "Writing {p} (about a minute)": "正在写 {p}（约一分钟）",
     "Writing {p}": "正在写 {p}",
     "Checking what was written...": "正在检查写入的内容……",
@@ -597,10 +597,10 @@ TEXT = {
     "--sectors {n} is outside {a}..{b}; give the blank's capacity from `info`": "--sectors {n} 不在 {a}..{b} 之内；请填 `info` 打印的空白盘容量",
     "radii {a} / {b} mm are not those of a CD": "半径 {a} / {b} mm 不像 CD 的",
     "{p} exists (add --force to overwrite it)": "{p} 已存在（加 --force 覆盖）",
-    "Burn with any image burner and note the speed. The file system is an empty ISO 9660 placeholder.":
-        "用任意镜像刻录工具刻录，并记下速度。文件系统只是一个空的 ISO 9660 占位。",
-    "Burn with any image burner. The file system is an empty ISO 9660 placeholder.":
-        "用任意镜像刻录工具刻录。文件系统只是一个空的 ISO 9660 占位。",
+    "Burn it and note the speed.": "刻录它，并记下速度。",
+    "Burn it.": "刻录它。",
+    "The file system is an empty ISO 9660 placeholder.": "文件系统只是一个空的 ISO 9660 占位。",
+    "cdrdao toc: {p}": "cdrdao toc 文件：{p}",
     "Make the image exactly fill the DiscImageStudio canvas (radius {r} mm), centred.": "让图片正好铺满 DiscImageStudio 的画布（半径 {r} mm）并居中。",
     "{k}, geometry u {u}, v {v} from {g}; {n} sectors ({s} GB), {t}": "{k}，几何 u {u}、v {v}，来自 {g}；{n} 个扇区（{s} GB），{t}",
     "{n} tiles, palette {p}; geometry u {u}, v {v} from {g}; {c} sectors ({s} GB)": "{n} 个色块，调色板 {p}；几何 u {u}、v {v}，来自 {g}；{c} 个扇区（{s} GB）",
@@ -951,7 +951,9 @@ TEXT = {
     "Then run timing on it.": "然后对这张盘运行 timing。",
     "Burn it with your system's image-burning tool.": "用系统的镜像刻录工具刻录。",
     "Unmount the disc before burning. For example, use this command-line image burner:": "刻录前先卸载光盘。例如，可以用下面的命令行镜像刻录工具：",
-    "For CD pictures (image, tiles, rings), --cd-sector must match the burner's sector layout: the default mode2form1 is what IMAPI writes; cdrecord-style burners usually write Mode 1 unless given -xa.": "刻 CD 图案（image、tiles、rings）时，--cd-sector 要和刻录工具写的扇区格式一致：默认的 mode2form1 对应 IMAPI；cdrecord 一类工具不加 -xa 时一般写 Mode 1。",
+    "Burn it with cdrdao and the toc written next to the ISO:": "用 cdrdao 和 ISO 旁边生成的 toc 文件刻录：",
+    "The toc burns the sectors in the layout the ISO was made for (--cd-sector, default Mode 2 Form 1, as IMAPI writes). Other burners such as xorriso write Mode 1, and the textures come out as noise. cdrdao with this layout has been checked on a real disc on Windows, not yet on Linux.":
+        "toc 让扇区按 ISO 生成时的格式刻录（--cd-sector，默认 Mode 2 Form 1，与 IMAPI 一致）。xorriso 等其他刻录工具写的是 Mode 1，纹理会变成噪声。cdrdao 按这种格式刻录已在 Windows 上用真实光盘验证过，Linux 上还没有。",
     "Burn it onto a blank disc, and keep some blanks of the same batch for pictures.": "把它刻到空白盘上，再留几张同一批的空白盘用来刻图。",
 }
 

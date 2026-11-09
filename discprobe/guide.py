@@ -809,12 +809,15 @@ def burn_steps(output: str, media: str = "dvd") -> list[str]:
     if sys.platform != "linux":
         return ["Burn it with your system's image-burning tool."]
     drive = drive_flag().removeprefix("--drive ")
-    command = (f"xorriso -as cdrecord -v dev={drive} -dao {quote(output)}" if media == "cd" else
-               f"growisofs -dvd-compat -Z {drive}={quote(output)}")
-    lines = ["Unmount the disc before burning. For example, use this command-line image burner:", f"  {command}"]
     if media == "cd":
-        lines.append("For CD pictures (image, tiles, rings), --cd-sector must match the burner's sector layout: the default mode2form1 is what IMAPI writes; cdrecord-style burners usually write Mode 1 unless given -xa.")
-    return lines
+        toc = os.path.splitext(output)[0] + ".toc"
+        return ["Burn it with cdrdao and the toc written next to the ISO:",
+                f"  cdrdao write --device {drive} {quote(toc)}",
+                "The toc burns the sectors in the layout the ISO was made for (--cd-sector, default Mode 2 Form 1, as IMAPI writes). "
+                "Other burners such as xorriso write Mode 1, and the textures come out as noise. "
+                "cdrdao with this layout has been checked on a real disc on Windows, not yet on Linux."]
+    return ["Unmount the disc before burning. For example, use this command-line image burner:",
+            f"  growisofs -dvd-compat -Z {drive}={quote(output)}"]
 
 
 def after_random(args) -> list[str]:

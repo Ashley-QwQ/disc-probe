@@ -320,7 +320,7 @@ def _burn_warning(c) -> None:
 def _first_steps(c) -> None:
     """What a newcomer is told: where the image went, which burner, where they are, what comes after the burn."""
     from argparse import Namespace
-    from . import __main__ as cli, imagecheck, imagedisc, iso9660
+    from . import __main__ as cli, cd, imagecheck, imagedisc, iso9660
     import numpy as np
     real_term, real_platform, real_drives = ui._term, sys.platform, guide.optical_drives
     env = {"TERM": "xterm", "WT_SESSION": "x"}
@@ -351,8 +351,25 @@ def _first_steps(c) -> None:
                     and any("growisofs" in x and "/dev/sr0=iso/random.iso" in x for x in lines)
                     and any("timing --drive /dev/sr0" in x for x in lines), "Linux gets real-drive burn and timing steps")
             cd_lines = guide.after_random(Namespace(media="cd", output="iso/cd-random.iso"))
-            c.check(any("xorriso" in x and "dev=/dev/sr0" in x for x in cd_lines)
-                    and any("--cd-sector" in x for x in cd_lines), "Linux CD steps explain burning and sector layout")
+            c.check(any("cdrdao write --device /dev/sr0 iso/cd-random.toc" in x for x in cd_lines)
+                    and not any(x.lstrip().startswith("xorriso") for x in cd_lines)
+                    and any("Mode 2 Form 1" in x for x in cd_lines), "Linux CD steps burn with cdrdao and the toc beside the ISO")
+            quiet, ui._term = ui._term, ui.Term(io.StringIO(), env={}, platform="linux")
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    cd.set_sector_layout("mode1")
+                    cli.main(["random", "--media", "cd", "--sectors", "300", "--output", "iso/cd-random.iso"])
+                    cli._cdrdao_toc(Namespace(media="cd", output="iso/cd-grid.iso"))
+                    cli._cdrdao_toc(Namespace(media="dvd", output="iso/grid.iso"))
+            finally:
+                ui._term = quiet
+            with open("iso/cd-random.toc", encoding="utf-8") as f:
+                toc = f.read()
+            c.check(toc == f'CD_ROM_XA\n\nTRACK MODE2_FORM1\nDATAFILE "{os.path.abspath("iso/cd-random.iso")}"\n',
+                    "the measuring CD gets a Mode 2 Form 1 toc, whatever layout was last set")
+            with open("iso/cd-grid.toc", encoding="utf-8") as f:
+                c.check(f.read().startswith("CD_ROM\n\nTRACK MODE1\n"), "a picture made with --cd-sector mode1 gets a Mode 1 toc")
+            c.check(not os.path.exists("iso/grid.toc"), "a DVD gets no toc")
             linux_guide = guide.guide_lines("dvd")
             c.check(any("Optical drive" in x and "/dev/sr0" in x for x in linux_guide)
                     and not any("--sim" in x or "right-click" in x for x in linux_guide), "Linux guide follows the real-drive flow")
@@ -1493,7 +1510,7 @@ def _advice(c) -> None:
     try:
         advice = (bd_lines[1], bd_good[-2], *guide.after_random(Namespace(**vars(args)))[:3],
                   *guide.after_disexport(True), "Restart DiscImageStudio to load the updated preset list.")
-        c.check(all(i18n.tr(x) != x for x in advice if not x.lstrip().startswith(("growisofs ", "xorriso "))),
+        c.check(all(i18n.tr(x) != x for x in advice if not x.lstrip().startswith(("growisofs ", "cdrdao "))),
                 "the new advice has Chinese")
     finally:
         i18n.use("en")
