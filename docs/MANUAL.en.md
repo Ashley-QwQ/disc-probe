@@ -80,7 +80,7 @@ Running `python -m discprobe` with no arguments at a terminal opens it too. It p
 - Each step first says why it exists and about how long it takes, then gives the exact command. Running leaves the full-screen view, prints the command as it is and calls the normal command line; press Enter afterwards to return, and the step states refresh.
 - `:` searches all commands: type a few letters to filter, Enter shows the options, `r` runs, `c` copies. `?` shows every key.
 - The `image` step is a form: drop a picture into the window or type a path, and Tab completes it; the output ISO and `--geo` can be changed too.
-- `m` switches between DVD and CD, `l` switches language; the language is passed on to the commands you run next. `--media` picks the starting disc type and `--out` the results folder.
+- `m` switches between DVD, CD and Blu-ray, `l` switches language; the language is passed on to the commands you run next. `--media` picks the starting disc type and `--out` the results folder.
 - A terminal without keys falls back to a numbered menu; `menu` in a pipe, a redirect or with `DISCPROBE_PLAIN=1` prints the text steps. A no-argument non-terminal call still reports the missing command, so scripts should name `guide` or `menu`.
 
 ## Using it by hand
