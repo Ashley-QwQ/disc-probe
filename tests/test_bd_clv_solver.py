@@ -86,6 +86,19 @@ def test_a_disc_that_is_not_clv_is_refused():
         raise AssertionError("a flat period series should not fit")
 
 
+def test_a_slope_of_rounding_noise_is_refused():
+    # A flat series can fit to a slope just above 0 (2.7e-21 on one numpy 2.5.4); that must not pass
+    # as a disc read at constant linear speed. Here the rise is a millionth of T^2 across the zones.
+    lo, hi = min(ZONES), max(ZONES)
+    tiny = [clv.Sample(lba=lba, period_ms=20.0 * (1 + 5e-7 * (lba - lo) / (hi - lo))) for lba in ZONES]
+    try:
+        clv.fit_t2(tiny, sector_mm=BD_SECTOR_MM, v_m_s=TRUTH["v_m_s"])
+    except ValueError as e:
+        assert "constant linear speed" in str(e)
+    else:
+        raise AssertionError("a slope of rounding noise should not fit")
+
+
 def test_the_cross_term_is_in_the_r0_tolerance():
     """Var(r0) = r0^2 [cov_aa/4a^2 + cov_bb/4b^2 - cov_ab/2ab], and the last term is not small.
 

@@ -41,6 +41,7 @@ from .geometry import NOMINAL, ONE_X_MM_S
 DEFAULT_ZONES = (0.05, 0.15, 0.25, 0.35, 0.5, 0.65, 0.75, 0.85, 0.95)
 
 BD_1X_MM_S = ONE_X_MM_S["bd"]
+MIN_T2_RISE = 1e-3                        # T^2 must rise by this fraction across the zones (see fit_t2)
 BD_SECTORS_PER_LAYER = 12_219_392        # 66 Mb/s of channel bits at 74.50 nm
 BREAK_MIN_RMS_MS = 0.005                 # a step smaller than this is under the read timing
 BREAK_MIN_IMPROVEMENT = 0.5              # two lines have to halve what one line leaves
@@ -300,7 +301,12 @@ def fit_t2(samples, *, sector_mm: float, pitch_um: float | None = None, v_m_s: f
     ss_res = float(((y[keep] - pred) ** 2).sum())
     ss_tot = float(((y[keep] - y[keep].mean()) ** 2).sum())
     r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
-    if a <= 0 or b <= 0:
+    # Compare the rise of T^2 across the zones with T^2 itself, not the slope with 0: a flat series
+    # fits to a slope of rounding noise either side of 0 (2.7e-21 on one numpy 2.5.4), and a disc
+    # read at constant linear speed rises by several times T^2 across a full disc. 1e-3 is a 0.05 %
+    # change in the period, far below any real CLV span and far above rounding.
+    rise = a * float(x[keep].max() - x[keep].min())
+    if a <= 0 or b <= 0 or rise <= MIN_T2_RISE * b:
         raise ValueError(f"the line through these periods has no positive slope and intercept "
                          f"(slope {a:.3e}, intercept {b:.3e}); a disc read at constant linear speed should give both")
 
