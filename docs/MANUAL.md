@@ -9,7 +9,9 @@
 
 ## 准备
 
-1. 用**管理员**身份打开终端，否则 SPTI 可能打不开设备。也可以在命令后加 `--transport imapi`，改走 IMAPI2（`IDiscRecorder2Ex`），普通用户即可；默认的 `auto` 在 SPTI 被拒时会自动改用它。IMAPI2 还会在测量期间独占光驱、关掉换盘检测（MCN），资源管理器等程序的轮询不会插进来。
+1. Windows：用**管理员**身份打开终端，否则 SPTI 可能打不开设备。也可以在命令后加 `--transport imapi`，改走 IMAPI2（`IDiscRecorder2Ex`），普通用户即可；默认的 `auto` 在 SPTI 被拒时会自动改用它。IMAPI2 还会在测量期间独占光驱、关掉换盘检测（MCN），资源管理器等程序的轮询不会插进来。
+
+   Linux：经 libc 的 `ioctl(SG_IO)` 发命令（`discprobe/sg.py`），计时方式和 SPTI 一样，也用同一份操作码白名单。`--drive` 接受 `/dev/sr0`、`/dev/sg0`、`sr0` 或 `sg0`，`list` 从 `/sys/block` 列出光驱。设备以读写方式打开，因为内核只在可写的描述符上（或有 `CAP_SYS_RAWIO` 时）放行 `SET CD SPEED`；加入 `cdrom` 组或用 root。`/dev/srN` 因盘被挂载而忙时，会改开对应的 `/dev/sgN`；也可以先卸载（`udisksctl unmount -b /dev/sr0`）。`--transport` 只在 Windows 上有用。`timing` 和 `geo` 会切到最低优先级的 `SCHED_FIFO` 并绑定一个 CPU（需要 root 或 `CAP_SYS_NICE`），做不到就退回 `nice -20`。bczhc 实测同一张盘、同一台光驱，Linux 和 Windows 的相位相差约 0.1–0.4°，但 USB 光驱（PLDS DS8A8SH）在 Linux 上噪声约为 2 倍（单次 1.4–1.8°，Windows 0.56–0.87°），看起来是 USB 存储的完成路径更深，不是调度造成的。SATA 内置光驱不经 `usb-storage`，这一层噪声应该小得多，但 bczhc 没在 SATA 光驱上实测过。
 2. 电源计划切到"高性能"，减少 SATA 链路节能（ALPM）带来的延迟抖动。这一步可选，效果要实测对比。想更进一步，可以把隐藏的"AHCI 链路电源管理 - HIPM/DIPM"设置项显示出来，在电源选项的高级设置里设为 Active。显示该项的命令如下，测完可以再隐藏回去：
 
    ```bash

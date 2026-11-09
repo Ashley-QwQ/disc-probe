@@ -76,14 +76,16 @@ python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --te
 
 > 如果你在 2026-11-06 之前用 `--correction` 导出过预设，修正可能没有生效。更新后重新导出就行，不用重新测盘。
 
-要准备同一批的空盘：DVD 至少 2 张（测量、刻图），CD 至少 3 张（测量、标定、刻图）。测量盘刻好后不能再刻图，但可以留着，同一批的盘以后不用再刻一张。另外需要 Windows、Python 3.10 以上和一台能刻录的光驱。Linux 和 macOS 见[实践报告表](#有实践报告的光驱)下方的移植版本。下面以 DVD 为例，CD 见后面的 [CD 路线](#cd-路线)。
+要准备同一批的空盘：DVD 至少 2 张（测量、刻图），CD 至少 3 张（测量、标定、刻图）。测量盘刻好后不能再刻图，但可以留着，同一批的盘以后不用再刻一张。另外需要 Windows 或 Linux、Python 3.10 以上和一台能刻录的光驱。macOS 见[实践报告表](#有实践报告的光驱)下方的移植版本。下面以 DVD 为例，CD 见后面的 [CD 路线](#cd-路线)。
 
 也可以不用 git，到 [Releases](https://github.com/Ashley-QwQ/disc-probe/releases/latest) 下载打包好的版本：
 
 - `full-win64`：Windows 用，自带 Python 和依赖。解压后双击 `开始 Start.bat`，不用另外安装。下面的安装步骤可以跳过。
 - `core`：只有 disc-probe，要你已经装好 Python。解压后在文件夹里运行 `python -m pip install -r requirements.txt`，再运行下面的 `selftest`。
 
-用管理员身份打开终端，安装依赖，并用模拟驱动器确认环境正常。不方便用管理员身份时，在读盘的命令后加 `--transport imapi`：它经 Windows 自带的 IMAPI2 刻录接口（`IDiscRecorder2Ex`）发同样的命令，普通用户即可；默认的 `auto` 在 SPTI 被拒时会自动改用它。
+Windows 上用管理员身份打开终端，安装依赖，并用模拟驱动器确认环境正常。不方便用管理员身份时，在读盘的命令后加 `--transport imapi`：它经 Windows 自带的 IMAPI2 刻录接口（`IDiscRecorder2Ex`）发同样的命令，普通用户即可；默认的 `auto` 在 SPTI 被拒时会自动改用它。
+
+Linux 上经 `SG_IO` 直接给 `/dev/sr0` 发命令，不需要额外的包，`--drive` 写 `/dev/sr0`（或 `sr0`）。用户要能读写这个设备，通常加入 `cdrom` 组即可；盘被自动挂载时先卸载（如 `udisksctl unmount -b /dev/sr0`），程序也会自动改用对应的 `/dev/sgN`。`timing` 和 `geo` 会尝试实时调度（`SCHED_FIFO`），这需要 root 或 `CAP_SYS_NICE`，做不到就退回普通优先级。`--transport` 只在 Windows 上有意义。
 
 ```bash
 git clone https://github.com/Ashley-QwQ/disc-probe
@@ -117,7 +119,7 @@ python -m discprobe guide
 
 ### 第 1 步：刻一张随机数据盘
 
-测量盘必须是普通数据，刻了图案的盘读不出来。生成镜像后，在资源管理器里右键 `iso/random.iso`，选“刻录光盘映像”（双击只会挂载，不会刻录），并确认刻录机选的是你的光驱。
+测量盘必须是普通数据，刻了图案的盘读不出来。生成镜像后，Windows 上在资源管理器里右键 `iso/random.iso`，选“刻录光盘映像”（双击只会挂载，不会刻录），并确认刻录机选的是你的光驱。Linux 上用命令行刻录工具，比如 DVD 用 `growisofs -dvd-compat -Z /dev/sr0=iso/random.iso`。
 
 ```bash
 python -m discprobe random --output iso/random.iso
@@ -130,7 +132,7 @@ python -m discprobe random --output iso/random.iso
 约 1 到 3 分钟。刻完托盘可能会弹出，先推回去，等几秒再跑。结果要是 `CAV`，抖动越小越好。只有一台光驱时，在终端里可以不写 `--drive`。
 
 ```bash
-python -m discprobe timing --drive H:
+python -m discprobe timing --drive H:      # Linux: --drive /dev/sr0
 ```
 
 ### 第 3 步：测几何
@@ -196,6 +198,8 @@ CD 还有一个计时测不到的常数，所以要多刻一张标定盘。下�
    ```bash
    powershell -ExecutionPolicy Bypass -File tools/burn_imapi.ps1 -Drive H: -Iso iso/cd-random.iso -Speed 8 -Burn -Reload
    ```
+
+   Linux 上用 `cdrecord` 或 `xorriso -as cdrecord` 刻，如 `xorriso -as cdrecord -v dev=/dev/sr0 speed=8 -dao iso/cd-random.iso`。随机数据盘不受扇区格式影响；但之后刻图案（`image`、`tiles`、`rings`）时，`--cd-sector` 要和刻录工具写的格式一致：默认的 `mode2form1` 对应 IMAPI2，cdrecord 系工具一般默认写 Mode 1（`-xa` 才是 Mode 2 Form 1）。Linux 刻录这条路还没在真实图案盘上验证过。
 
 2. 测量，`timing` 约 1 到 3 分钟，`geo` 约 5 分钟，共 36 级。`timing` 说不是 CAV 时，按它的提示换速度，`geo` 也用同一个速度。`timing` 跑完打印的 `geo` 命令更短，用默认的测量范围，也能用；这里写全是为了测到更大的半径。
 
@@ -300,7 +304,7 @@ CD 还有一个计时测不到的常数，所以要多刻一张标定盘。下�
 
 </details>
 
-Linux 版由 bczhc 移植：[bczhc/disc-probe](https://github.com/bczhc/disc-probe)（见其中的 `README-linux.md`）。macOS 版由 NaiveTomcat 移植：[NaiveTomcat/discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)（GPL-3.0-or-later），发布包里带签名、公证过的通用 helper，不需要编译。
+Linux 支持最初由 bczhc 移植（[bczhc/disc-probe](https://github.com/bczhc/disc-probe)），现已合入本仓库。macOS 版由 NaiveTomcat 移植：[NaiveTomcat/discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)（GPL-3.0-or-later），发布包里带签名、公证过的通用 helper，不需要编译。
 
 ## 手动使用
 
@@ -327,7 +331,7 @@ Linux 版由 bczhc 移植：[bczhc/disc-probe](https://github.com/bczhc/disc-pro
 
 进度行和小游戏都没有后台线程，因为后台线程可能拖后完成时间戳。它们在主线程里，趁每次计时读之前的随机等待来画，花掉的时间从等待里扣。在模拟驱动器上，相同种子下加不加这些、玩不玩四款游戏，`summary` 和事件逐条相同。动画每秒最多 8 帧，和之前的进度行一样，但带颜色时每帧写的字节更多。`timing` 比较过旧进度行：有无它的差别（0.01–0.20°）和重复测量的差别（0.02–0.23°）相同。新动画、小游戏和 `geo` 还没在真实光驱上比较过，介意的话加 `--no-animation`，或者用管道跑，重要的测量也别玩游戏。
 
-`timing` 和 `geo` 测量时会把进程调到高优先级。2026-11-06 之前这一步在 64 位 Python 上一直失败，所以之前用 64 位 Python 跑的真实测量都是普通优先级，上面的比较也是。实践报告表里用这个工具在 Windows 上测的数据多半也是，移植版和别的探针不一定。高优先级对抖动的影响还没有比较过。
+`timing` 和 `geo` 测量时会把进程调到高优先级。2026-11-06 之前这一步在 64 位 Python 上一直失败，所以之前用 64 位 Python 跑的真实测量都是普通优先级，上面的比较也是。实践报告表里用这个工具在 Windows 上测的数据多半也是，移植版和别的探针不一定。高优先级对抖动的影响还没有比较过。Linux 上用 `SCHED_FIFO` 实时调度并绑定一个 CPU，失败时退回 `nice -20`。
 
 Windows Terminal、Ghostty、WezTerm、kitty 和 Claude 桌面应用的终端会自己绘制方块字符，所以在这些终端里自动用线条进度条和半块像素的开屏光盘（需要 UTF-8）。其他终端默认全用 7 位 ASCII，不受代码页和字体影响，比如 Windows 自带的旧控制台窗口；`DISCPROBE_UNICODE=1` 可以手动换成更细的图形。`NO_COLOR` 只关颜色；`--no-animation`、`DISCPROBE_NO_ANIMATION=1` 和 `CI` 关动画。转动的小光盘只是装饰，不代表实际转速。详见[手册](docs/MANUAL.md#手动使用)。
 
@@ -359,7 +363,7 @@ CD 的沿轨道常数要靠网格盘来定，206 帧只对 GH70N 加 IMAPI 刻�
 
 ## 安全
 
-光驱部分只发送读类命令。[`discprobe/scsi.py`](discprobe/scsi.py) 里有一份白名单，白名单之外的操作码在到达设备前就被拒绝，self-test 会验证 WRITE、CLOSE TRACK、FORMAT UNIT 确实被拒。唯一会改变驱动器状态的命令是 `SET CD SPEED`，只在你传 `--speed` 或 `--cav` 时才发送。刻录由 Windows 自带的刻录功能完成，只有 [`tools/burn_imapi.ps1`](tools/burn_imapi.ps1) 加 `-Burn` 时才会写盘。
+光驱部分只发送读类命令。[`discprobe/scsi.py`](discprobe/scsi.py) 里有一份白名单，白名单之外的操作码在到达设备前就被拒绝，self-test 会验证 WRITE、CLOSE TRACK、FORMAT UNIT 确实被拒。唯一会改变驱动器状态的命令是 `SET CD SPEED`，只在你传 `--speed` 或 `--cav` 时才发送。程序本身不刻录：Windows 上由系统自带的刻录功能完成，只有 [`tools/burn_imapi.ps1`](tools/burn_imapi.ps1) 加 `-Burn` 时才会写盘；Linux 上由你自己运行的刻录工具完成。
 
 ## 文档
 
