@@ -19,17 +19,25 @@ A pitch polynomial of order 3 cannot follow a wave of period ~15 mm in radius (s
 --phi-degree N instead fits phi(r) directly with a polynomial of degree N. The table of
 leave-one-out errors printed with it shows which degree the rungs themselves support.
 
-Several folders may be supplied for repeated measurements of the SAME disc. Their joint
-fit shares u, v and pitch coefficients, with one free phase constant per run. In this
-mode --write-correction requires --write-summary; pass that merged summary and correction
-together to `disexport` or `image --geo`. The correction covers the union measured span.
-When the correction is worthwhile, reproducibility is an F-test of one shared fit of the chosen
-pitch order against one fit per run, since each run's constant-pitch model absorbs the pitch
-shape differently; otherwise the runs' constant-pitch models must agree. Significance uses the
-weighted nested-model F-test, and pooled phi leave-one-out fits include a separate offset for each run.
+Several folders of the SAME disc are fitted jointly: shared u, v and pitch, one phase constant
+per run. --write-correction then requires --write-summary; pass both to `disexport` or
+`image --geo`, naming the summary explicitly (`--geo latest` skips it). The correction covers
+the union measured span. A stopped or partial source run carries over to the merged summary,
+so `disexport --install` refuses it as it would that run.
+
+The verdicts judge the model in use: the chosen correction if worthwhile, else constant pitch.
+- run consistency: one shared fit against one fit per run (F-test). No conflict is not proof
+  of agreement.
+- agreement: each pair of runs' own corrections, tangentially at the worst radius of their
+  common span, 2 sigma against --tolerance-mm (0.3 mm, a rough empirical default): within,
+  beyond or inconclusive.
+- suggest another run: on a conflict, or where the merged 2-sigma band exceeds the tolerance.
+When a verdict is a conflict or inconclusive, check and refine the result with the rest of the
+calibration, such as a test burn and a photo fit in DiscImageStudio.
 """
 import argparse
 import csv
+import hashlib
 import json
 import math
 import os
@@ -39,14 +47,14 @@ import numpy as np
 from scipy.optimize import least_squares
 
 RC_MM, RS_MM = 40.0, 15.0
-REPRO_TWIST_PP_DEG = 0.3
-REPRO_DELTA_SIGMA = 2.0
-REPRO_P = 0.01
+CONSISTENCY_P = 0.01
+TOLERANCE_MM = 0.3  # rough empirical default for --tolerance-mm, still to be refined
+AGREE_Z = 2.0
 WORTHWHILE_P = 0.01
 WORTHWHILE_LOO_DEGREE = 3
 STRAIGHTNESS_MM = 0.05
-NOISE_FRACTION = 1 / 3
-TWIST_SPAN_MM = (24.0, 58.0)
+ANGLE_SPAN_MM = (24.0, 58.0)
+GEO_FILES = ("targets.csv", "summary.json", "events.csv")
 
 
 def model(n, u, v, bs, rc, rs):
@@ -220,10 +228,11 @@ def joint_fit(data, order, rc, rs):
     scale = np.sqrt(np.sum(J ** 2, axis=0))
     cov = np.linalg.inv((J / scale).T @ (J / scale)) / np.outer(scale, scale)
     cov *= max(1.0, chi2 / dof)  # same uncertainty floor as geo.Ladder.fit
-    cov = cov[:2, :2] * np.outer([u0 * 1e-5, v0 * 1e-5], [u0 * 1e-5, v0 * 1e-5])
+    units = np.r_[u0 * 1e-5, v0 * 1e-5, [1e-5] * order]
+    cov = cov[:2 + order, :2 + order] * np.outer(units, units)  # (u, v, b...)
     ref, _ = model(pivots, u, v, bs, rc, rs)
     resid = np.degrees(prediction(sol.x) - y)
-    return dict(u=u, v=v, b=list(bs), c=sol.x[2 + order:] - ref, cov=cov,
+    return dict(u=u, v=v, b=list(bs), c=sol.x[2 + order:] - ref, cov=cov[:2, :2], cov_full=cov,
                 chi2=chi2, dof=dof, rms_deg=float(np.sqrt(np.mean(resid ** 2))),
                 resid_deg=resid, r_bits=model(n, u, v, bs, rc, rs)[1])
 
@@ -235,7 +244,10 @@ def merged_summary(data, runs, c):
     u, v, cov = c["u"], c["v"], c["cov"]
     media = data[0][3].get("media", "dvd")
     sector_bits = 57624 if media == "cd" else 38688
-    summaries = [json.load(open(os.path.join(run, "summary.json"))) for run in runs]
+    summaries = []
+    for run in runs:
+        with open(os.path.join(run, "summary.json"), encoding="utf-8") as fh:
+            summaries.append(json.load(fh))
     n = np.concatenate([d[0] for d in data])
     lo, hi = float(n.min()), float(n.max())
     radius = lambda nn: b * np.sqrt(u * u + v * nn / math.pi)
@@ -248,7 +260,7 @@ def merged_summary(data, runs, c):
         g = gradient(nhi) - gradient(nlo)
         return math.degrees(math.sqrt(max(0.0, float(g @ cov @ g))))
 
-    span = [25.0, 58.0] if media == "cd" else list(TWIST_SPAN_MM)
+    span = [25.0, 58.0] if media == "cd" else list(ANGLE_SPAN_MM)
     nlo, nhi = [max(0.0, math.pi * ((r / b) ** 2 - u * u) / v) for r in span]
     totals = {int(k) for d in data for k in
               d[3].get("dis_equivalent", {}).get("outer_radius_mm_for_total_sectors", {})}
@@ -256,9 +268,15 @@ def merged_summary(data, runs, c):
                   if s.get("setup", {}).get("last_lba") is not None)
     if not totals and media == "dvd":
         totals.update((2295104, 2298496))
-    per_run = [dict(run=run, c_deg=math.degrees(float(offset)),
-                    reference_lba=d[3].get("reference_lba"), period_ms=d[3].get("period_ms"))
-               for run, d, offset in zip(runs, data, c["c"])]
+    per_run = []
+    for run, d, s, offset in zip(runs, data, summaries, c["c"]):
+        entry = dict(run=run, c_deg=math.degrees(float(offset)),
+                     reference_lba=d[3].get("reference_lba"), period_ms=d[3].get("period_ms"))
+        if "completion_status" in d[3]:
+            entry["completion_status"] = d[3]["completion_status"]
+        if s.get("stopped"):
+            entry["stopped"] = s["stopped"]
+        per_run.append(entry)
     fit_report = dict(u=u, v=v, coarse_u=u, coarse_v=v,
                       u_sigma=math.sqrt(cov[0, 0]), v_sigma=math.sqrt(cov[1, 1]),
                       r0_mm_at_bit=u * b, pitch_um_at_bit=v * bit * 1e-3,
@@ -272,6 +290,11 @@ def merged_summary(data, runs, c):
                                           outer_radius_mm_for_total_sectors={
                                               str(total): float(radius(total * sector_bits))
                                               for total in sorted(totals)}))
+    # A preset outlives the runs: keep what makes `disexport --install` refuse a source run.
+    partial = next((d[3]["completion_status"] for d in data
+                    if d[3].get("completion_status", "target_reached") != "target_reached"), None)
+    if partial:
+        fit_report["completion_status"] = partial
     if any("media" in d[3] for d in data):
         fit_report["media"] = media
     if media == "cd":
@@ -284,7 +307,8 @@ def merged_summary(data, runs, c):
         fit_report["dis_equivalent"]["note"] = (
             "DiscImageStudio builds its spiral from inner radius, outer radius and track length "
             "(total sectors x 38688 x bit); use the outer radius for your disc's sector count")
-    return dict(fit=fit_report, source_runs=list(runs))
+    stopped = [f"{run}: {s['stopped']}" for run, s in zip(runs, summaries) if s.get("stopped")]
+    return dict(fit=fit_report, source_runs=list(runs), **({"stopped": "; ".join(stopped)} if stopped else {}))
 
 
 def pooled_phi(data, c, rc, rs):
@@ -319,23 +343,111 @@ def pooled_phi_table(r_mm, phi, group):
     return min(scores, key=scores.get)
 
 
-def phi_coefficients(r_mm, phi, group, degree):
+def phi_fit(r_mm, phi, group, degree):
+    """Shared powers and per-run offsets by least squares: (powers, their covariance, rss, dof), or None."""
     H = phi_design(r_mm, group, degree)
-    if degree < 1 or np.linalg.matrix_rank(H) < H.shape[1] or len(phi) <= H.shape[1]:
+    dof = len(phi) - H.shape[1]
+    if np.linalg.matrix_rank(H) < H.shape[1] or dof <= 0:
+        return None
+    z, *_ = np.linalg.lstsq(H, phi, rcond=None)
+    rss = float(np.sum((phi - H @ z) ** 2))
+    cov = np.linalg.inv(H.T @ H) * rss / dof
+    return z[:degree], cov[:degree, :degree], rss, dof
+
+
+def phi_coefficients(r_mm, phi, group, degree):
+    found = phi_fit(r_mm, phi, group, degree) if degree >= 1 else None
+    if found is None:
         raise ValueError("--phi-degree needs a positive degree supported by the pooled rungs")
-    coef = np.r_[np.linalg.lstsq(H, phi, rcond=None)[0][:degree], 0.0]
+    coef = np.r_[found[0], 0.0]
     grid = np.linspace(r_mm.min(), r_mm.max(), 400)
     coef[-1] -= np.polyval(coef, (grid - RC_MM) / RS_MM).mean()
     return coef
 
 
-def multi_run(a, ap):
+def phi_jacobian(r_mm, degree):
+    """d curve / d powers of a mean-removed phi polynomial sampled at r_mm."""
+    x = (r_mm - RC_MM) / RS_MM
+    J = np.column_stack([x ** p for p in range(degree, 0, -1)])
+    return J - J.mean(axis=0)
+
+
+def pitch_curve(f, nn, th_ref, rc, rs):
+    """Mean-removed correction of a pitch fit against th_ref at nn (deg), and its 1-sigma band."""
+    p0 = np.r_[f["u"], f["v"], f["b"]]
+
+    def curve(p):
+        c = np.degrees(th_ref - model(nn, p[0], p[1], p[2:], rc, rs)[0])
+        return c - c.mean()
+
+    cov = f["cov_full"]
+    steps = np.sqrt(np.diag(cov))
+    J = np.column_stack([(curve(p0 + h) - curve(p0 - h)) / (2 * h[k])
+                         for k, h in enumerate(np.diag(np.where(steps > 0, steps, 1e-9)))])
+    return curve(p0), np.sqrt(np.einsum("ij,jk,ik->i", J, cov, J))
+
+
+def nested_f(small, big):
+    """p of the extra parameters of `big` over `small`, each (chi2, dof), residual variance estimated."""
     from scipy.stats import f as fdist
 
+    extra = small[1] - big[1]
+    if extra <= 0 or big[1] <= 0:
+        return float("nan"), float("nan"), extra
+    if big[0] <= 0:
+        return float("inf"), 0.0 if small[0] > 0 else 1.0, extra
+    F = max(0.0, (small[0] - big[0]) / extra / (big[0] / big[1]))
+    return F, float(fdist.sf(F, extra, big[1])), extra
+
+
+def same_file(a, b):
+    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
+
+
+def check_paths(a, ap):
+    """Refuse repeated inputs, which would fake agreement, and outputs that would overwrite a run."""
+    seen = {}
+    for run in a.runs:
+        if any(same_file(run, other) for other in seen):
+            ap.error(f"{run}: the same run folder is given twice")
+        try:
+            with open(os.path.join(run, "targets.csv"), "rb") as fh:
+                digest = hashlib.sha256(fh.read()).hexdigest()
+        except OSError:
+            continue  # load() reports a missing run
+        twin = next((other for other, d in seen.items() if d == digest), None)
+        if twin is not None:
+            ap.error(f"{run}: targets.csv is identical to {twin}'s; one measurement is not two runs")
+        seen[run] = digest
+    outputs = [(flag, path) for flag, path in (("--write-summary", a.write_summary),
+                                               ("--write-correction", a.write_correction),
+                                               ("--plot", a.plot)) if path]
+    for flag, path in outputs:
+        for run in a.runs:
+            for name in GEO_FILES:
+                if same_file(path, os.path.join(run, name)):
+                    ap.error(f"{flag} {path} would overwrite {name} of {run}")
+    for i, (flag, path) in enumerate(outputs):
+        for other_flag, other in outputs[i + 1:]:
+            if same_file(path, other):
+                ap.error(f"{flag} and {other_flag} name the same file {path}")
+
+
+def simulated(run):
+    """A geo-SIM- folder, or a summary that says so, as discprobe.guide reads them."""
+    if os.path.basename(os.path.normpath(run)).startswith("geo-SIM-"):
+        return True
+    with open(os.path.join(run, "summary.json"), encoding="utf-8") as fh:
+        return json.load(fh).get("simulated") is True
+
+
+def multi_run(a, ap):
     if a.write_correction and not a.write_summary:
         ap.error("multiple runs: --write-correction requires --write-summary; use both files together")
     if a.plot:
         ap.error("--plot supports one run only")
+    if not a.tolerance_mm > 0:
+        ap.error("--tolerance-mm must be positive")
     data = [load(run) for run in a.runs]
     bit = data[0][3]["bit_nm_assumed"]
     media = data[0][3].get("media", "dvd")
@@ -346,6 +458,9 @@ def multi_run(a, ap):
         ap.error("each run needs more than six rungs for constant/quadratic/cubic comparison")
     rc, rs = RC_MM / (bit * 1e-6), RS_MM / (bit * 1e-6)
     print(f"joint analysis: {len(data)} runs of the SAME disc, shared u, v, pitch; per-run phase offsets")
+    sims = [run for run in a.runs if simulated(run)]
+    if sims:
+        print(f"SIMULATED: {', '.join(sims)}; nothing here describes a real disc, do not burn from it")
     print("\nindividual constant-pitch runs (c relative to each run's reference):")
     for i, (run, d) in enumerate(zip(a.runs, data), 1):
         f = d[3]
@@ -353,25 +468,6 @@ def multi_run(a, ap):
         print(f"    u {f['u']:.6f} +/- {f['u_sigma']:.6f}  v {f['v']:.9f} +/- {f['v_sigma']:.3e}  "
               f"c {f['c_deg']:+.3f} deg  span {f['measured_span_mm'][0]:.3f}-"
               f"{f['measured_span_mm'][1]:.3f} mm  rms {f['residual_rms_deg']:.3f} deg")
-    constants_agree = True
-    print("\npairwise constant models (rotation removed, 24-58 mm):")
-    for i in range(len(data)):
-        fi = data[i][3]
-        r = np.linspace(*TWIST_SPAN_MM, 400)
-        n = math.pi * ((r / (bit * 1e-6)) ** 2 - fi["u"] ** 2) / fi["v"]
-        thi, _ = model(n, fi["u"], fi["v"], [], rc, rs)
-        for j in range(i + 1, len(data)):
-            fj = data[j][3]
-            du = (fj["u"] - fi["u"]) / math.hypot(fi["u_sigma"], fj["u_sigma"])
-            dv = (fj["v"] - fi["v"]) / math.hypot(fi["v_sigma"], fj["v_sigma"])
-            thj, _ = model(n, fj["u"], fj["v"], [], rc, rs)
-            twist = np.degrees(thj - thi)
-            twist -= twist.mean()
-            print(f"  run{j + 1}-run{i + 1}: du {fj['u'] - fi['u']:+.6f} ({du:+.2f} sigma)  "
-                  f"dv {fj['v'] - fi['v']:+.3e} ({dv:+.2f} sigma)  "
-                  f"twist p-p {np.ptp(twist):.3f} deg  rms {np.sqrt(np.mean(twist ** 2)):.3f} deg")
-            constants_agree &= (np.ptp(twist) <= REPRO_TWIST_PP_DEG and
-                                max(abs(du), abs(dv)) <= REPRO_DELTA_SIGMA)
     fits = {}
     print("\njoint pitch fits:")
     for name, order in (("constant", 0), ("quadratic", 2), ("cubic", 3)):
@@ -381,104 +477,145 @@ def multi_run(a, ap):
               f"b = {', '.join(f'{x:+.3e}' for x in f['b']) or '-'}")
     c = fits["constant"]
     summary = merged_summary(data, a.runs, c)
+    if sims:
+        summary["simulated"] = True
     summ = summary["fit"]
     print(f"  constant sigma: u {summ['u_sigma']:.6f}  v {summ['v_sigma']:.3e}; "
           f"union span {summ['measured_span_mm'][0]:.3f}-{summ['measured_span_mm'][1]:.3f} mm")
+    r_mm, phi, group = pooled_phi(data, c, rc, rs)
+    phi_shared = None
+    if a.phi_degree is not None:
+        coef = phi_coefficients(r_mm, phi, group, a.phi_degree)
+        phi_shared = phi_fit(r_mm, phi, group, a.phi_degree)
+    chosen = f"phi degree {a.phi_degree}" if a.phi_degree is not None else a.order
     probabilities = {}
     print("\nF-test vs constant (weighted chi2, residual variance estimated):")
     for name in ("quadratic", "cubic"):
         f = fits[name]
-        extra = c["dof"] - f["dof"]
-        F = max(0.0, (c["chi2"] - f["chi2"]) / extra / (f["chi2"] / f["dof"]))
-        probabilities[name] = float(fdist.sf(F, extra, f["dof"]))
+        F, probabilities[name], extra = nested_f((c["chi2"], c["dof"]), (f["chi2"], f["dof"]))
         print(f"  {name:9s} F({extra},{f['dof']}) {F:.3f}  p {probabilities[name]:.6g}"
-              f"{' (chosen pitch order)' if name == a.order else ''}")
-    # Do the runs measure one spiral? One shared fit against one fit per run, same pitch order.
-    orders = {"constant": 0, "quadratic": 2, "cubic": 3}
+              f"{' (chosen pitch order)' if name == chosen else ''}")
+    if phi_shared is not None:
+        null = (float(np.sum(phi ** 2)), len(phi) - len(data))  # phi is already centred per run
+        F, probabilities[chosen], extra = nested_f(null, phi_shared[2:])
+        print(f"  {chosen} on the constant-pitch residuals (unweighted): F({extra},{phi_shared[3]}) "
+              f"{F:.3f}  p {probabilities[chosen]:.6g} (chosen)")
+    # Do the runs measure one spiral? One shared fit against one fit per run, same model.
     separate, consistency = {}, {}
     print("\nrun consistency (one shared fit vs one fit per run, F-test):")
     for name in ("constant", a.order):
-        separate[name] = [joint_fit([d], orders[name], rc, rs) for d in data]
-        chi2 = sum(f["chi2"] for f in separate[name])
-        dof = sum(f["dof"] for f in separate[name])
-        extra = fits[name]["dof"] - dof
-        F = max(0.0, (fits[name]["chi2"] - chi2) / extra / (chi2 / dof))
-        consistency[name] = float(fdist.sf(F, extra, dof))
-        print(f"  {name:9s} F({extra},{dof}) {F:.3f}  p {consistency[name]:.6g}")
-    r_mm, phi, group = pooled_phi(data, c, rc, rs)
+        separate[name] = [joint_fit([d], len(fits[name]["b"]), rc, rs) for d in data]
+        mine = (sum(f["chi2"] for f in separate[name]), sum(f["dof"] for f in separate[name]))
+        F, consistency[name], extra = nested_f((fits[name]["chi2"], fits[name]["dof"]), mine)
+        print(f"  {name:9s} F({extra},{mine[1]}) {F:.3f}  p {consistency[name]:.6g}")
+    if phi_shared is not None:
+        own = [phi_fit(r_mm[group == k], phi[group == k], np.zeros((group == k).sum(), int), a.phi_degree)
+               for k in range(len(data))]
+        separate[chosen] = own
+        if any(o is None for o in own):
+            consistency[chosen] = None
+            print(f"  {chosen}: unavailable, a run has too few rungs for its own polynomial")
+        else:
+            mine = (sum(o[2] for o in own), sum(o[3] for o in own))
+            F, consistency[chosen], extra = nested_f(phi_shared[2:], mine)
+            print(f"  {chosen} F({extra},{mine[1]}) {F:.3f}  p {consistency[chosen]:.6g}")
     best_degree = pooled_phi_table(r_mm, phi, group)
     grid_r = np.linspace(r_mm.min(), r_mm.max(), 400)
     grid_n = math.pi * ((grid_r / (bit * 1e-6)) ** 2 - c["u"] ** 2) / c["v"]
     th_const, _ = model(grid_n, c["u"], c["v"], [], rc, rs)
-    coef = None
-    if a.phi_degree is not None:
-        coef = phi_coefficients(r_mm, phi, group, a.phi_degree)
+    if phi_shared is not None:
         curve = np.polyval(coef, (grid_r - RC_MM) / RS_MM)
-        chosen_p = probabilities[a.order]
-        print(f"\nphi degree {a.phi_degree}: significance and reproducibility verdicts use the {a.order} pitch fits above")
     else:
-        f = fits[a.order]
-        curve = np.degrees(th_const - model(grid_n, f["u"], f["v"], f["b"], rc, rs)[0])
-        curve -= curve.mean()
-        chosen_p = probabilities[a.order]
-    # Compare independent corrections in the same constant model, without extrapolating.
-    lo = max(float(d[0].min()) for d in data)
-    hi = min(float(d[0].max()) for d in data)
-    differences = []
-    print("\nindependent correction differences (rotation removed, common measured span):")
-    if lo < hi:
-        nn = np.linspace(lo, hi, 400)
-        shared_th, shared_rad = model(nn, c["u"], c["v"], [], rc, rs)
-        curves = []
-        for k, d in enumerate(data):
-            if a.phi_degree is not None:
-                rr, pp, gg = pooled_phi([d], c, rc, rs)
-                cc = phi_coefficients(rr, pp, gg, a.phi_degree)
-                cc_curve = np.polyval(cc, (shared_rad * bit * 1e-6 - RC_MM) / RS_MM)
-            else:
-                local = separate[a.order][k]
-                cc_curve = np.degrees(shared_th - model(nn, local["u"], local["v"], local["b"], rc, rs)[0])
-            curves.append(cc_curve - cc_curve.mean())
-        for i in range(len(curves)):
-            for j in range(i + 1, len(curves)):
-                diff = float(np.sqrt(np.mean((curves[j] - curves[i]) ** 2)))
-                differences.append(diff)
-                print(f"  run{j + 1}-run{i + 1}: rms {diff:.3f} deg")
-    else:
-        print("  unavailable: runs have no common measured span")
+        curve, _ = pitch_curve(fits[a.order], grid_n, th_const, rc, rs)
     correction_rms = float(np.sqrt(np.mean(curve ** 2)))
     tangent = grid_r * np.radians(curve)
     deviation = float(np.max(np.abs(tangent - np.polyval(np.polyfit(grid_r, tangent, 1), grid_r))))
-    # a pairwise difference carries two runs' noise: per run rms(diff)/sqrt(2), pooled per-run/sqrt(N)
-    noise = (float(np.sqrt(np.mean(np.square(differences)) / 2) / math.sqrt(len(data)))
-             if differences else None)
-    worthwhile = (chosen_p < WORTHWHILE_P and best_degree >= WORTHWHILE_LOO_DEGREE and
+    worthwhile = (probabilities[chosen] < WORTHWHILE_P and best_degree >= WORTHWHILE_LOO_DEGREE and
                   deviation >= STRAIGHTNESS_MM)
+    used = chosen if worthwhile else "constant"  # the model a user is told to rely on
     print(f"\ncorrection: rms {correction_rms:.3f} deg  p-p {np.ptp(curve):.3f} deg  "
           f"straightness deviation {deviation:.3f} mm (max tangential departure from best line)")
-    if worthwhile:
-        # The correction is used, so the runs must agree on the shaped spiral.
-        reproducible = consistency[a.order] >= REPRO_P
-        rule = f"runs share one {a.order} pitch fit: F-test p {consistency[a.order]:.3g} >= {REPRO_P:g}"
+    if used == chosen and phi_shared is not None:
+        J = phi_jacobian(grid_r, a.phi_degree)
+        band = np.sqrt(np.einsum("ij,jk,ik->i", J, phi_shared[1], J))
     else:
-        reproducible = constants_agree
-        rule = f"twist p-p <= {REPRO_TWIST_PP_DEG:g} deg, |du| and |dv| <= {REPRO_DELTA_SIGMA:g} sigma"
-    print(f"reproducible: {'yes' if reproducible else 'no'} ({rule})")
+        _, band = pitch_curve(fits[used], grid_n, th_const, rc, rs)
+    tangent_band = grid_r * np.radians(band)
+    k = int(np.argmax(tangent_band))
+    print(f"merged {used} uncertainty (1 sigma, rotation removed): up to {band.max():.3f} deg, "
+          f"{tangent_band[k]:.3f} mm tangential at {grid_r[k]:.1f} mm")
+    # Each pair of runs' own corrections, in one reference spiral, without extrapolating.
+    lo = max(float(d[0].min()) for d in data)
+    hi = min(float(d[0].max()) for d in data)
+    states = []
+    print(f"\nagreement of each run's own {used} correction (rotation removed, common measured span, "
+          f"tolerance {a.tolerance_mm:g} mm, {AGREE_Z:g} sigma):")
+    if lo >= hi:
+        print("  unavailable: runs have no common measured span")
+    elif used == chosen and phi_shared is not None and consistency[chosen] is None:
+        print("  unavailable: a run has too few rungs for its own polynomial")
+    else:
+        nn = np.linspace(lo, hi, 400)
+        shared_th, shared_rad = model(nn, c["u"], c["v"], [], rc, rs)
+        rr = shared_rad * bit * 1e-6
+        curves = []
+        for kk in range(len(data)):
+            if used == chosen and phi_shared is not None:
+                J = phi_jacobian(rr, a.phi_degree)
+                powers, cov = separate[chosen][kk][:2]
+                curves.append((J @ powers, np.einsum("ij,jk,ik->i", J, cov, J)))
+            else:
+                cc, sd = pitch_curve(separate[used][kk], nn, shared_th, rc, rs)
+                curves.append((cc, sd ** 2))
+        for i in range(len(curves)):
+            for j in range(i + 1, len(curves)):
+                diff = rr * np.radians(curves[j][0] - curves[i][0])
+                sd = rr * np.radians(np.sqrt(curves[i][1] + curves[j][1]))
+                if np.any(np.abs(diff) - AGREE_Z * sd > a.tolerance_mm):
+                    state = "beyond"
+                elif np.all(np.abs(diff) + AGREE_Z * sd < a.tolerance_mm):
+                    state = "within"
+                else:
+                    state = "inconclusive"
+                states.append(state)
+                k = int(np.argmax(np.abs(diff)))
+                print(f"  run{j + 1}-run{i + 1}: max {np.abs(diff).max():.3f} mm at {rr[k]:.1f} mm "
+                      f"(rms {np.degrees(np.sqrt(np.mean((diff / rr) ** 2))):.3f} deg), "
+                      f"1 sigma up to {sd.max():.3f} mm: {state}")
+    agreement = max(states, key=("within", "inconclusive", "beyond").index) if states else None
+    p = consistency[used]
+    print("\nverdicts (hints only):")
+    if p is None:
+        print(f"run consistency: unavailable ({used})")
+    else:
+        print(f"run consistency: {'conflict' if p < CONSISTENCY_P else 'no conflict found'} "
+              f"({used}: shared vs per-run F-test p {p:.3g}, conflict below {CONSISTENCY_P:g}; "
+              f"no conflict is not proof of agreement)")
+    if agreement is None:
+        print("agreement: unavailable")
+    else:
+        print(f"agreement: {agreement} {a.tolerance_mm:g} mm (worst pair; tolerance is a rough empirical "
+              f"value, --tolerance-mm to change)")
     print(f"correction worthwhile: {'yes' if worthwhile else 'no'} "
           f"(p < {WORTHWHILE_P:g}, best LOO degree {best_degree} >= {WORTHWHILE_LOO_DEGREE}, "
           f"straightness >= {STRAIGHTNESS_MM:g} mm)")
-    if noise is None:
-        print("suggest another run: unknown (no overlapping span for a noise estimate)")
+    # More runs narrow the merged band, not the pairwise differences of the runs already taken.
+    known = grid_r[AGREE_Z * tangent_band < a.tolerance_mm]
+    if (p is not None and p < CONSISTENCY_P) or agreement == "beyond":
+        print("suggest another run: yes (the runs disagree; another one shows which is off)")
+    elif len(known) == len(grid_r):
+        print(f"suggest another run: no (merged {AGREE_Z:g} sigma band within {a.tolerance_mm:g} mm everywhere)")
     else:
-        print(f"suggest another run: {'yes' if noise > NOISE_FRACTION * correction_rms else 'no'} "
-              f"(pooled noise {noise:.3f} deg vs correction rms / 3 = {NOISE_FRACTION * correction_rms:.3f} deg)")
+        where = f"only {known.min():.1f}-{known.max():.1f} mm" if len(known) else "nowhere"
+        print(f"suggest another run: yes (merged {AGREE_Z:g} sigma band within {a.tolerance_mm:g} mm {where} "
+              f"of {grid_r[0]:.1f}-{grid_r[-1]:.1f} mm)")
     if a.write_summary:
         parent = os.path.dirname(os.path.abspath(a.write_summary))
         os.makedirs(parent, exist_ok=True)
         with open(a.write_summary, "w", encoding="utf-8") as fh:
             json.dump(summary, fh, indent=2)
         print(f"wrote {a.write_summary}: joint constant-pitch geometry; use with its correction")
-    if a.write_correction and coef is not None:
+    if a.write_correction and phi_shared is not None:
         # Existing writer supplies the file convention; synthetic samples retain the shared polynomial.
         write_phi_correction(a.write_correction, grid_r, curve, a.phi_degree, " ".join(a.runs), summ)
     elif a.write_correction:
@@ -496,7 +633,11 @@ def main():
     ap.add_argument("--phi-degree", type=int,
                     help="--write-correction fits phi(r) directly with this polynomial degree")
     ap.add_argument("--write-summary", help="write the joint constant-pitch summary for disexport/image --geo")
+    ap.add_argument("--tolerance-mm", type=float, default=TOLERANCE_MM,
+                    help=f"several runs: tangential difference counted as agreement (default {TOLERANCE_MM:g}, "
+                         "a rough empirical value)")
     a = ap.parse_args()
+    check_paths(a, ap)
     if len(a.runs) > 1:
         try:
             return multi_run(a, ap)
@@ -508,6 +649,8 @@ def main():
     if a.write_summary:
         report = json.load(open(os.path.join(a.run, "summary.json")))
         report["source_runs"] = a.runs
+        if simulated(a.run):
+            report["simulated"] = True
         os.makedirs(os.path.dirname(os.path.abspath(a.write_summary)), exist_ok=True)
         with open(a.write_summary, "w", encoding="utf-8") as fh:
             json.dump(report, fh, indent=2)
