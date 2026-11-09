@@ -73,7 +73,7 @@ When you would rather not remember commands, run:
 python -m discprobe menu
 ```
 
-Running `python -m discprobe` with no arguments at a terminal opens it too. It draws the full-screen view with what Python ships with, adds no dependency, and leaves every command's output format alone.
+Running `python -m discprobe` with no arguments at a terminal opens it too. It plays the same opening disc animation as `guide`; progress animations and the wait-time games still come from the normal command line, and the console does not turn them off. It draws the full-screen view with what Python ships with, adds no dependency, and leaves every command's output format alone.
 
 - Up/Down or `j`/`k` choose a step, Enter or `→` opens it; `r` runs, `e` edits the command, `c` copies, `o` opens the results folder.
 - Each step first says why it exists and about how long it takes, then gives the exact command. Running leaves the full-screen view, prints the command as it is and calls the normal command line; press Enter afterwards to return, and the step states refresh.

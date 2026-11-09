@@ -1305,6 +1305,11 @@ def run(media: str = "dvd", out: str = "results") -> int:
             print(ui.guide_line(line, t))
         return 0
     plan = guide.workflow(media, out, notes=True)
+    # Keep the opening disc animation the bare `discprobe` command always had. It plays on the
+    # normal screen; the console then takes over the alternate screen.
+    steps = plan.tasks
+    burned = min(sum(task.done for task in steps) / max(len(steps) - 1, 1), 1.0)
+    banner.show(t, burned=burned, media=media)
     commands: list[tuple[str, str]] = []
     builder = None
     try:

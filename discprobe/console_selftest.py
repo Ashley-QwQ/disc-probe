@@ -306,11 +306,36 @@ def _language(c):
         os.environ.pop("DISCPROBE_LANG", None)
 
 
+def _opening(c):
+    """The console keeps the opening disc animation that a bare `discprobe` used to draw."""
+    term = FakeTerm()
+    term.animate = False
+    calls = []
+    old_term, old_show = console.ui.term, console.banner.show
+    old_open, old_events = console._open_keys, console._events
+    try:
+        console.ui.term = lambda: term
+        console.banner.show = lambda *a, **k: calls.append((a, k))
+        console._open_keys = FakeKeys
+        console._events = lambda console_, keys: ("quit", None)
+        console.run("dvd", os.path.join(tempfile.gettempdir(), "disc-probe-console-test"))
+    finally:
+        console.ui.term, console.banner.show = old_term, old_show
+        console._open_keys, console._events = old_open, old_events
+    c.check(bool(calls) and calls[0][1].get("media") == "dvd",
+            "console: the opening disc animation still plays")
+    c.check(bool(calls) and 0.0 <= calls[0][1].get("burned", -1) <= 1.0,
+            "console: the opening disc shows how far the steps got")
+    c.check("\x1b[?1049h" in term.stream.getvalue(),
+            "console: the full-screen view opens after the animation")
+
+
 def run(c) -> None:
     print("guided console: key decoding, command lines, screens, forms, menu and Chinese")
     _keys(c)
     _lines(c)
     _commands(c)
+    _opening(c)
     with tempfile.TemporaryDirectory() as folder:
         _workflow(c, folder)
         _console(c, folder)
