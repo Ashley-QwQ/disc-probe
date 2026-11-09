@@ -308,6 +308,10 @@ TEXT = {
     "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.en.md.": "（内外半径、扇区数、三个轨距项）。步骤见 docs/MANUAL.md。",
     "(inner and outer radius, sectors, the three pitch terms), or run with --install to write it there. Steps: docs/MANUAL.en.md.": "（内外半径、扇区数、三个轨距项），或者加上 --install 让程序直接写进去。步骤见 docs/MANUAL.md。",
     "Restart DiscImageStudio to load the updated preset list.": "重启 DiscImageStudio 以载入更新后的预设列表。",
+    "Next, open {p} in DiscImageStudio and burn it, as it is, on a blank of the type to":
+        "下一步，用 DiscImageStudio 打开 {p}，不做任何修改，刻到要标定的那种空白盘上",
+    "calibrate (lowest speed). Then measure the burned disc on the drive that reads it:":
+        "（用最低速度）。然后在读盘用的光驱上测这张刻好的盘：",
     "Next, see where you are: {c}": "下一步，看看进行到哪了：{c}",
     "Try --sectors {a} ({b}). Enter the same number in DiscImageStudio. `info` on a blank disc is the count to go by: one user found read-from-disc there too high.":
         "试试 --sectors {a}（{b}）。DiscImageStudio 里也填这个数。以空白盘上 `info` 的数为准：有用户发现它的“从光盘读取”给的数偏大。",
@@ -518,6 +522,14 @@ TEXT = {
     "Preview (data-side view): {p}": "预览图（从数据面看）：{p}",
     "Preview (data-side view, false colours): {p}": "预览图（从数据面看，假彩色）：{p}",
     "Pattern: {p}": "图案：{p}",
+    "Project: {p}": "工程：{p}",
+    "inner {a} mm, outer {b} mm, {n} sectors, constant pitch {c} um": "内半径 {a} mm，外半径 {b} mm，{n} 个扇区，恒定轨距 {c} µm",
+    "DiscImageStudio up to v1.4.2 draws CD pictures within 57.5 mm, so beyond that only the parts of the outer ring and spokes away from the image axes are burned. v1.5.0 draws the whole band.":
+        "DiscImageStudio v1.4.2 及以前只在 57.5 mm 以内画 CD 图，所以再往外只有外圈和辐条上离图像坐标轴远的部分会刻上。v1.5.0 会画满整个环带。",
+    "Burn it with DiscImageStudio, then run `geo --media cd` on the burned disc.": "用 DiscImageStudio 刻好，再对刻好的盘运行 `geo --media cd`。",
+    "--sectors {n} is outside {a}..{b}; give the blank's capacity from `info`": "--sectors {n} 不在 {a}..{b} 之内；请填 `info` 打印的空白盘容量",
+    "radii {a} / {b} mm are not those of a CD": "半径 {a} / {b} mm 不像 CD 的",
+    "{p} exists (add --force to overwrite it)": "{p} 已存在（加 --force 覆盖）",
     "Burn with any image burner (Windows Disc Image Burner works) and note the speed. The file system is an empty ISO 9660 placeholder.":
         "用任意镜像刻录工具刻录（Windows 自带的就行），并记下速度。文件系统只是一个空的 ISO 9660 占位。",
     "Burn with any image burner (Windows Disc Image Burner works). The file system is an empty ISO 9660 placeholder.":
@@ -675,6 +687,7 @@ TEXT = {
     "fit an angle-correction curve from gridscan phi.csv files": "用 gridscan 的 phi.csv 拟合角度修正曲线",
     "fit the measured angle map as a DiscImageStudio DVD or CD preset (cubic pitch)": "把测出的角度关系拟合成 DiscImageStudio 的 DVD 或 CD 预设",
     "write a random-data ISO for full-disc timing calibration": "写随机数据镜像，刻好后用来测量",
+    "write a DiscImageStudio project and pattern for a CD probe disc": "为 CD 探测盘生成 DiscImageStudio 工程和图案",
     "parser checks and end-to-end runs on the simulated drive and a synthetic scan": "用模拟光驱和合成扫描图做自检",
 
     # Option help
@@ -769,6 +782,14 @@ TEXT = {
     "angle-correction file from the correction command": "correction 命令生成的角度修正文件",
     "the disc's capacity, not how much was burned (`info` on a blank disc prints it); required": "盘的容量，不是刻了多少（对空白盘运行 `info` 会打印）；必填",
     "how much to burn, not the disc size; it has to fit on the blank": "要刻多少，不是盘的容量；要放得下这张空盘",
+    "capacity of the blank CD-R (`info` prints it); the project's sector count": "空白 CD-R 的容量（`info` 会打印）；即工程的扇区数",
+    "burn values in mm (default: inner 24.92 and the outer radius for a 1.4865 um pitch); close values keep the pattern readable, the measurement does not depend on them":
+        "刻录用的内外半径 (mm)（默认内半径 24.92，外半径按 1.4865 µm 轨距算）；值接近时图案容易辨认，测量结果和它无关",
+    "project file; the pattern goes next to it as .png (default dis/cd-probe-<sectors>.discproj)": "工程文件；图案以 .png 放在它旁边（默认 dis/cd-probe-<sectors>.discproj）",
+    "project name in DiscImageStudio (default: the file name)": "在 DiscImageStudio 里显示的工程名（默认用文件名）",
+    "pattern size in pixels": "图案的像素边长",
+    "leave out the inverted half band (twist gauge)": "不加反色的半圈（扭转标尺）",
+    "overwrite existing files": "覆盖已有的文件",
     "fit range: use the measured span (DVD default 25.8, CD the span geo measured)": "拟合范围：用实测范围（DVD 默认 25.8，CD 用 geo 测到的范围）",
     "DVD default 54.4, CD the span geo measured": "DVD 默认 54.4，CD 用 geo 测到的范围",
     "CD only: along-track constant in frames, as in image --along-track-frames": "仅 CD：沿轨常数（帧），含义同 image --along-track-frames",
@@ -871,6 +892,13 @@ DiscImageStudio 刻的 CD 图（一条音轨）：同一条命令直接测这张
   python -m discprobe image --geo latest --design my_picture.design.json --output iso/picture.iso
 
 它只保存一个小小的设计文件，不会碰光驱。""",
+    "cdprobe": """\
+例子：
+  python -m discprobe cdprobe --sectors 359849                        通用的刻录值
+  python -m discprobe cdprobe --sectors 359849 --radii 24.9118 57.9317  相近一种 CD-R 的值
+
+一张探测盘就能标定一种 CD-R。用 DiscImageStudio 把工程刻到这种空白盘上，再用 geo --media cd 测刻好的盘：
+结果里的 dis_equivalent 就是这种盘的内外半径。""",
     "results": """\
 例子：
   python -m discprobe results                 按时间列出运行过的测量，最新的在前

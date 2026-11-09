@@ -701,6 +701,72 @@ def _incomplete_folder(c: Checker):
     c.check(got.returncode == 1 and "incomplete" in got.stderr and "Traceback" not in got.stderr, "it says the files are incomplete, not a traceback")
 
 
+def _cdprobe(c: Checker):
+    print("cdprobe: DiscImageStudio project and probe pattern for a CD probe disc")
+    import json
+    import os
+    import struct
+    import tempfile
+    import zlib
+    from . import cdprobe
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "probe.discproj")
+        res = cdprobe.write(path, 359849, size=512)
+        doc = json.load(open(path, encoding="utf-8"))
+        # Every field DiscImageStudio v1.4.0-v1.4.2 has for a CD/DVD project (it rejects unknown ones).
+        shape = {"schemaVersion", "name", "discFamily", "geometry", "layers", "outputs", "calibrationSessionPath",
+                 "thumbnailPngBase64", "createdUtc", "modifiedUtc", "tone", "bluRay"}
+        sub = {"geometry": {"innerRadiusMm", "outerRadiusMm", "sectors", "pitchLinear", "pitchQuadratic", "pitchCubic"},
+               "outputs": {"outputPath", "writeCue", "dataDirectory", "volumeLabel", "interleave"},
+               "tone": {"ditherStrength", "levels", "brightness", "srgbLinearization"}}
+        layer = {"id", "name", "imagePath", "visible", "translateXMm", "translateYMm", "rotationDeg", "scale"}
+        g, ly = doc["geometry"], doc["layers"][0]
+        c.check(set(doc) == shape and all(set(doc[k]) == v for k, v in sub.items()) and len(doc["layers"]) == 1
+                and set(ly) == layer and doc["discFamily"] == "cd" and doc["schemaVersion"] == 2,
+                "the project has exactly DiscImageStudio's CD project fields")
+        pitch = cdprobe.pitch_um(g["innerRadiusMm"], g["outerRadiusMm"], g["sectors"])
+        c.check(g["sectors"] == 359849 and g["innerRadiusMm"] == 24.92 and abs(pitch - 1.4865) < 1e-9
+                and g["pitchLinear"] == g["pitchQuadratic"] == g["pitchCubic"] == 0
+                and ly["scale"] == 1 and ly["rotationDeg"] == 0 and ly["translateXMm"] == ly["translateYMm"] == 0
+                and ly["imagePath"].endswith("probe.png") and doc["outputs"]["outputPath"].endswith("probe.wav")
+                and doc["tone"]["levels"] == 2 and doc["outputs"]["interleave"] is True,
+                f"generic burn values: ri 24.92 mm, ro {g['outerRadiusMm']:.4f} mm, pitch {pitch:.4f} um, "
+                f"one layer at 100 %")
+        data = open(res["pattern"], "rb").read()
+        chunks, k = {}, 8
+        while k < len(data):
+            n, t = struct.unpack(">I4s", data[k:k + 8])
+            chunks.setdefault(t, []).append(data[k + 8:k + 8 + n])
+            k += 12 + n
+        w, h, depth, colour = struct.unpack(">IIBB", chunks[b"IHDR"][0][:10])
+        key, _, text = chunks[b"tEXt"][0].partition(b"\x00")
+        feat = json.loads(text)
+        c.check(data[:8] == b"\x89PNG\r\n\x1a\n" and (w, h, depth, colour) == (512, 512, 8, 0)
+                and key.decode() == cdprobe.TEXT_KEY and feat["band"] == [g["innerRadiusMm"], g["outerRadiusMm"]]
+                and len(feat["spokes"]) == 12 and "gauge" in feat,
+                "the pattern is a 512 px greyscale PNG carrying its features for the project's band")
+        raw = zlib.decompress(b"".join(chunks[b"IDAT"]))
+        mmpx = 2 * feat["span_mm"] / w
+
+        def pixel(r, deg):     # image frame: x right, y down, angle clockwise on screen
+            x, y = r * math.cos(math.radians(deg)), r * math.sin(math.radians(deg))
+            i, j = round(x / mmpx + w / 2 - 0.5), round(y / mmpx + h / 2 - 0.5)
+            return raw[j * (w + 1) + 1 + i]
+        c.check(pixel(42.5, 0) == 0 and pixel(42.5, 15) == 255 and pixel(42.5, 165) == 0 and pixel(42.5, 180) == 255,
+                "spoke 0 is black on white; from 105 to 285 deg the band is inverted (background black, spoke 180 white)")
+        refused = []
+        for kwargs in (dict(sectors=500), dict(sectors=359849, radii=(40.0, 42.0))):
+            try:
+                cdprobe.write(os.path.join(d, "bad.discproj"), size=64, **kwargs)
+            except ValueError:
+                refused.append(True)
+        try:
+            cdprobe.write(path, 359849, size=64)
+        except FileExistsError:
+            refused.append(True)
+        c.check(len(refused) == 3, "a bad sector count, non-CD radii and an existing project are refused")
+
+
 def _unreadable(c: Checker):
     print("timing stops early on unreadable discs and non-CAV drives")
     from .scsi import ScsiResult, Sense
@@ -1170,6 +1236,7 @@ def _run() -> bool:
     _sim_run(c, "cav", False, "evict", "CAV")
     _sim_run(c, "clv", True, "fua", "CLV")
     _unreadable(c)
+    _cdprobe(c)
     try:
         import numpy  # noqa: F401
     except ImportError:

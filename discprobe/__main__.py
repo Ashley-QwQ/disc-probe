@@ -820,6 +820,26 @@ def cmd_disexport(args):
     _next(guide.after_disexport(is_cd and not audio and not args.along_track_frames, args.install))
 
 
+def cmd_cdprobe(args):
+    from . import cdprobe
+    output = args.output or f"dis/cd-probe-{args.sectors}.discproj"
+    try:
+        res = cdprobe.write(output, args.sectors, tuple(args.radii) if args.radii else None, gauge=not args.no_gauge,
+                            size=args.size, name=args.name, force=args.force)
+    except (ValueError, FileExistsError) as e:
+        sys.exit(str(e))
+    print(f"Project: {res['project']}")
+    print(f"Pattern: {res['pattern']}")
+    print(f"inner {res['ri']:.6f} mm, outer {res['ro']:.6f} mm, {res['sectors']} sectors, constant pitch "
+          f"{res['pitch_um']:.4f} um")
+    if res["beyond_canvas"]:
+        print("DiscImageStudio up to v1.4.2 draws CD pictures within 57.5 mm, so beyond that only the parts of the "
+              "outer ring and spokes away from the image axes are burned. v1.5.0 draws the whole band.")
+    if not ui.term().interactive:   # at a terminal the advice below says this, with the drive
+        print("Burn it with DiscImageStudio, then run `geo --media cd` on the burned disc.")
+    _next(guide.after_cdprobe(res["project"]))
+
+
 def cmd_tiles(args):
     from . import imagedisc, tiledisc
     writer = imagedisc
@@ -1055,7 +1075,7 @@ COMMAND_GROUPS = (
     ("Measure a disc", ("info", "timing", "geo", "results")),
     ("Make a disc image", ("random", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes")),
     ("Read scans of burned discs", ("gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
-    ("Use elsewhere", ("disexport",)),
+    ("Use elsewhere", ("disexport", "cdprobe")),
 )
 LANG_NOTE = ("Language: --lang zh or --lang en, or DISCPROBE_LANG; at a terminal it follows the system. "
              "Scripts and pipes stay English unless --lang is given. --no-animation keeps the screen still.\n"
@@ -1105,6 +1125,13 @@ choosing --ranges: the default (3-85 % of the recorded area; 1.25-99 % on a CD a
 keeps failing or sits past a speed change: the run prints the LBA it stopped at, and `info` shows
 the last LBA. Widening it covers more radius, if the drive reads that far cleanly.
   python -m discprobe geo --drive E: --ranges 70000-1900000""",
+    "cdprobe": """\
+examples:
+  python -m discprobe cdprobe --sectors 359849                        generic burn values
+  python -m discprobe cdprobe --sectors 359849 --radii 24.9118 57.9317  values of a similar CD-R type
+
+One probe disc calibrates a CD-R type. Burn the project with DiscImageStudio on a blank of that type, then
+measure the burned disc with geo --media cd: its dis_equivalent is the inner and outer radius for the type.""",
     "info": """\
 examples:
   python -m discprobe info --drive E:     works on a blank disc too; shows the MID or ATIP and the sector count""",
@@ -1426,6 +1453,20 @@ def _build_parser():
     sp.add_argument("--replace", action="store_true",
                     help="with --install: overwrite an existing preset with the same --id but different values")
     sp.set_defaults(func=cmd_disexport)
+
+    sp = sub.add_parser("cdprobe", help="write a DiscImageStudio project and pattern for a CD probe disc")
+    sp.add_argument("--sectors", type=int, required=True,
+                    help="capacity of the blank CD-R (`info` prints it); the project's sector count")
+    sp.add_argument("--radii", type=float, nargs=2, metavar=("RI", "RO"),
+                    help="burn values in mm (default: inner 24.92 and the outer radius for a 1.4865 um pitch); "
+                         "close values keep the pattern readable, the measurement does not depend on them")
+    sp.add_argument("--output", help="project file; the pattern goes next to it as .png "
+                                     "(default dis/cd-probe-<sectors>.discproj)")
+    sp.add_argument("--name", help="project name in DiscImageStudio (default: the file name)")
+    sp.add_argument("--size", type=int, default=4096, help="pattern size in pixels")
+    sp.add_argument("--no-gauge", action="store_true", help="leave out the inverted half band (twist gauge)")
+    sp.add_argument("--force", action="store_true", help="overwrite existing files")
+    sp.set_defaults(func=cmd_cdprobe)
 
     sp = sub.add_parser("random", help="write a random-data ISO for full-disc timing calibration")
     sp.add_argument("--output", default="iso/random.iso")
