@@ -617,6 +617,36 @@ def _noisy(sigma: float) -> str:
             else f"usable, but noisy: {_angle(sigma)}.")
 
 
+def _state_lines(res: dict, lines: list[str], retry: list[str]) -> list[str]:
+    """The check points read at the start and again at the end (geo.Ladder.check_state). A drive whose timing
+    changed during the run in a way that depends on the radius bends the geometry while the fit still looks
+    clean, so "changed" replaces the verdict."""
+    sc = res.get("state_check")
+    if not sc:
+        return lines
+    moved = [p for p in sc["points"] if p.get("change_deg") is not None]
+    worst = max(moved, key=lambda p: abs(p["change_deg"])) if moved else None
+    if sc["verdict"] == "changed":
+        alone = abs(worst["change_deg"]) > max(sc["tolerance_deg"], sc["sigmas"] * worst["sigma_deg"])
+        what = (f"the point at {worst['radius_mm']} mm read {worst['change_deg']:+.2f} deg differently at the end "
+                "than at the start, more than its noise" if alone else
+                f"the check points read {sc['mean_change_deg']:+.2f} deg differently on average at the end than at "
+                "the start, more than their noise")
+        return [line for line in lines if not line.startswith("Verdict:")] + [
+            f"Verdict: not settled. The drive changed during the run: {what}. The fit can look clean anyway, and "
+            "its angle uncertainty leaves this out, so the geometry can be further off than it says.",
+            "Measure again later, after the drive has been idle for a while, or eject and reload the disc first:", *retry]
+    if sc["verdict"] == "steady":
+        return lines + [f"Points read at the start and again at the end agree within {sc['tolerance_deg']} deg, "
+                        "so the drive stayed in one state."]
+    if sc["verdict"] == "inconclusive":
+        return lines + [f"Points read at the start and again at the end can't show a change of "
+                        f"{sc['tolerance_deg']} deg: the reads were too noisy"
+                        + (f" (largest difference {worst['change_deg']:+.2f} deg)." if worst else ".")]
+    return lines + ["The points read at the start could not all be read again at the end, so it is not known "
+                    "whether the drive stayed in one state."]
+
+
 def after_geo(args, res: dict, out: str) -> list[str]:
     media = getattr(args, "media", "dvd")
     summary = _load(os.path.join(out, "summary.json")) or {}
@@ -654,6 +684,7 @@ def after_geo(args, res: dict, out: str) -> list[str]:
         lines.append(f"Verdict: {_noisy(sigma)}")
     else:
         lines.append("Verdict: usable, but noisy.")
+    lines = _state_lines(res, lines, retry)
     if span[1] - span[0] < NARROW_SPAN_MM:
         lines.append(f"This run only covers {span[0]}-{span[1]} mm, so angles outside that are extrapolated.")
     if res["chi2_per_dof"] > 2:

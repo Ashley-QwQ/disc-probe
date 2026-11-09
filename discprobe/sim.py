@@ -26,8 +26,14 @@ class SimDrive:
                  rev_period_ms: float | None = None, clv_speed_x: float | None = None,
                  capacity: int | None = None, cache_blocks: int | None = None, reread_delay_ms: float = 0.0,
                  media="dvd", cd_u=None, cd_v=None, cd_audio: bool = False, cd_read_offset_bytes: float = 0.0,
-                 patterns=(), block: int | None = None):
+                 patterns=(), block: int | None = None, state_change_after_reads: int | None = None,
+                 state_us_per_mm: float = 0.0):
         self.media = media
+        # A drive that changes state partway through: after that many media reads, each read completes
+        # state_us_per_mm later per mm of radius beyond 40 mm (a latency that depends on where the head is).
+        self.state_change_after_reads = state_change_after_reads
+        self.state_us_per_mm = state_us_per_mm
+        self.media_reads = 0
         # A DVD reads back as random data, except (lba_start, lba_end, byte) stretches written as one
         # scrambled-domain byte, like a texture ring or a picture.
         self.patterns = tuple(patterns)
@@ -244,6 +250,9 @@ class SimDrive:
         self._cache = self._cache[-self.cache_blocks:]
 
         done = t_end_pass + 0.25e-3 + self.rng.gauss(0, self.jitter_s)
+        self.media_reads += 1
+        if self.state_change_after_reads is not None and self.media_reads > self.state_change_after_reads:
+            done += self.state_us_per_mm * 1e-6 * (r_target - 40.0)
         if self.rng.random() < self.outlier_rate:
             done += self.rng.uniform(0.3e-3, 3e-3)
         return max(done, t_end_pass)

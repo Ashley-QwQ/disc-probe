@@ -226,6 +226,24 @@ TEXT = {
     "Or make a picture ISO now (replace my_picture.png); radial lines may come out twisted without that constant:": "或者现在就做图片镜像（把 my_picture.png 换成你的图片）；没有这个常数，径向线可能是扭的：",
     "CD still needs one more constant, so the preset below is the usual way on (the CD route in README.md). A picture ISO:": "CD 还差一个常数，通常走下面的预设（见 README.md 的 CD 路线）。图片镜像：",
     "This run only covers {a}-{b} mm, so angles outside that are extrapolated.": "这次只测到 {a}-{b} mm，范围外的角度是外推的。",
+    "Verdict: not settled. The drive changed during the run: the point at {a} mm read {b} deg differently at the end than at the start, more than its noise. The fit can look clean anyway, and its angle uncertainty leaves this out, so the geometry can be further off than it says.":
+        "结论：还不能用。光驱在测量过程中变了状态：{a} mm 处的检查点，结束时读到的角度和开始时差了 {b}°，超出了噪声范围。拟合结果可能看着照样干净，但它报的角度不确定度没有算进这部分，实际几何可能比它说的偏得更多。",
+    "Verdict: not settled. The drive changed during the run: the check points read {a} deg differently on average at the end than at the start, more than their noise. The fit can look clean anyway, and its angle uncertainty leaves this out, so the geometry can be further off than it says.":
+        "结论：还不能用。光驱在测量过程中变了状态：几个检查点结束时读到的角度和开始时平均差了 {a}°，超出了噪声范围。拟合结果可能看着照样干净，但它报的角度不确定度没有算进这部分，实际几何可能比它说的偏得更多。",
+    "Measure again later, after the drive has been idle for a while, or eject and reload the disc first:":
+        "过一会儿再测，先让光驱闲置一段时间，或者先弹出再放回光盘：",
+    "Points read at the start and again at the end agree within {a} deg, so the drive stayed in one state.":
+        "开始和结束时读的检查点相差不到 {a}°，光驱在整个测量过程中状态没变。",
+    "Points read at the start and again at the end can't show a change of {a} deg: the reads were too noisy (largest difference {b} deg).":
+        "开始和结束时读的检查点噪声太大，分辨不出 {a}° 的变化（最大差值 {b}°）。",
+    "Points read at the start and again at the end can't show a change of {a} deg: the reads were too noisy.":
+        "开始和结束时读的检查点噪声太大，分辨不出 {a}° 的变化。",
+    "The points read at the start could not all be read again at the end, so it is not known whether the drive stayed in one state.":
+        "开始时读的检查点，结束时有的没能再读出来，所以不知道光驱的状态有没有变。",
+    "Check points read: {a} (read again at the end)": "已读检查点：{a}（结束时再读一次）",
+    "Reading the check points again, to see that the drive stayed in one state...": "再读一次检查点，看光驱状态有没有变……",
+    "{a} mm: moved {b} deg (+/- {c})": "{a} mm：变化 {b}°（± {c}）",
+    "{a} mm: no stable measurement this time": "{a} mm：这次没测稳",
     "The fit left more than noise. Compare pitch models first, no new measurement needed; if quadratic is": "拟合后剩下的误差比噪声大。先比较轨距模型，不用重新测量；如果二次模型明显更好，",
     "clearly better, write a correction and add --correction correction.json to the commands below:": "就写一个修正文件，并在下面的命令里加上 --correction correction.json：",
     "Measured {n} points across {a}-{b} mm: angles known to about {s} deg, points {r} deg from the fit on average.":

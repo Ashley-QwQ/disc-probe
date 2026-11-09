@@ -298,7 +298,7 @@ def _ladder_safe_unwrap(c: Checker):
     class PhaseOracle(Ladder):
         # Only replace the instrument. Selection, unwrapping and fitting are production code.
         def __init__(self, seed=3, sigma=1.0, readable=None):
-            super().__init__(None, max_targets=22, log=lambda *_: None)
+            super().__init__(None, max_targets=22, log=lambda *_: None, state_check=False)
             self.tp = SimpleNamespace(
                 setup=lambda: None, cache_test=lambda: None, strategy="fua",
                 last_lba=2295103, summary={}, audio=False)
@@ -352,8 +352,10 @@ def _ladder(c: Checker):
     import numpy as np
     from .calib import SECTOR_BITS, theta
     from .geo import Ladder
+    # The ladder's own accuracy, with the reads of the end-of-run state check left out (they only change
+    # which random draws the rungs get; checked separately below).
     sim = SimDrive(mode="cav", seed=7, reread_delay_ms=35.0)
-    lad = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None)
+    lad = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None, state_check=False)
     res = lad.run()
     b = 133.6e-6  # the simulator's off-nominal geometry
     n = np.linspace(0, 0.85 * sim.capacity * SECTOR_BITS, 400)
@@ -362,8 +364,18 @@ def _ladder(c: Checker):
     c.check(span < 1.5, f"{len(lad.targets)} rungs, angle error over 0-85 % of the disc {span:.3f} deg "
                         f"(reported 1 sigma {res['angle_sigma_measured_span_deg']:.3f}, "
                         f"chi2/dof {res['chi2_per_dof']:.2f})")
+    # Check points read at the start and again at the end: a drive that changes state partway through
+    # (a latency that grows with radius) bends the geometry while chi2 stays where it was.
+    verdicts = []
+    for kw in ({}, {"state_change_after_reads": 500, "state_us_per_mm": 1.0}):
+        sim = SimDrive(mode="cav", seed=7, reread_delay_ms=35.0, jitter_us=8.0, outlier_rate=0.0, **kw)
+        run = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None).run()
+        verdicts.append((run["state_check"]["verdict"], run["chi2_per_dof"]))
+    c.check([v for v, _ in verdicts] == ["steady", "changed"],
+            f"check points: a steady drive reads as {verdicts[0][0]}, one that changes partway as {verdicts[1][0]} "
+            f"(chi2/dof {verdicts[0][1]:.2f} and {verdicts[1][1]:.2f}, so the fit alone can't tell)")
     sim = SimDrive(mode="cav", seed=7, reread_delay_ms=35.0)
-    whole = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None, sectors=16)
+    whole = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None, sectors=16, state_check=False)
     whole.run()
     e = np.degrees(theta(n, whole.u, whole.v) - theta(n, lad.u, lad.v))
     span = float(e.max() - e.min())

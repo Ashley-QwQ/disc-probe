@@ -64,6 +64,10 @@ SETTLE_COHERENCE = 0.95
 MEASURE_COHERENCE = 0.93
 MAX_PHASE_STD_DEG = 30.0
 MIN_SPACING_SECTORS = 4000  # about a third of a millimetre of radius
+SENTINEL_REPS = 3            # check points take this many times the usual reads: two readings are compared
+STATE_TOL_DEG = 0.25        # a rung measured again may move this much before the run counts as changed
+STATE_SIGMAS = 3.5          # ... and by more than this many standard errors of the difference (3 points at 3 sigma
+                            # would call about 1 % of steady runs changed; at 3.5 about 0.14 %)
 # Default readable range of a CD-DA picture burn, as fractions of the recorded area: about
 # 25.6-57.7 mm on an 80-minute disc. A picture fills the whole disc, so the ladder can reach
 # the outer edge (the HP BU20N at 1241 rpm showed no outer-radius read artefacts there).
@@ -84,8 +88,10 @@ class Ladder:
     def __init__(self, dev, ranges=None, r0_mm=None, pitch_um=None, bit_nm=None, reps=None,
                  max_targets=None, sigma_u=None, sigma_v=None, speed_kbs="default", ref_lba=None,
                  host_delay_ms=25.0, log=print, seed=1, media="dvd", chi2_abort=CHI2_ABORT, sectors=1,
-                 read_offset_bytes: float = 0.0):
+                 read_offset_bytes: float = 0.0, state_check: bool = True):
         self.media = media
+        self.state_check = state_check
+        self.state = None
         self.chi2_abort = chi2_abort
         self.read_offset_bytes = float(read_offset_bytes)
         self.audio = False  # set by run() when the CD turns out to be a CD-DA track
@@ -237,10 +243,10 @@ class Ladder:
             prev = fit.period_s if fit and fit.coherence > SETTLE_COHERENCE else None
         raise RuntimeError("the spindle speed never settled; is the read speed fixed (--speed)?")
 
-    def measure(self, lba: int) -> dict | None:
+    def measure(self, lba: int, reps: int | None = None) -> dict | None:
         tp = self.tp
         ref_t, x_t = [], []
-        for _ in range(self.reps):
+        for _ in range(reps or self.reps):
             r = tp._measure(self.ref, "ref")
             if tp._usable(r):
                 ref_t.append(r.t_end_ns)
@@ -255,15 +261,15 @@ class Ladder:
             return None
         self.T = fit.period_s  # follow slow drift of the regulated speed
         return {"lba": lba, "n": self._n_end(lba), "phase_deg": ph["mean_deg"],
-                "sigma_deg": max(ph["sem_deg"], MIN_SIGMA_DEG), "std_deg": ph["std_deg"],
+                "sigma_deg": max(ph["sem_deg"], MIN_SIGMA_DEG), "sem_deg": ph["sem_deg"], "std_deg": ph["std_deg"],
                 "used": ph["used"], "period_ms": round(fit.period_s * 1e3, 5)}
 
-    def _measure_retry(self, lba: int) -> dict | None:
-        m = self.measure(lba)
+    def _measure_retry(self, lba: int, reps: int | None = None) -> dict | None:
+        m = self.measure(lba, reps)
         if m is None:
             self.log(f"  LBA {lba}: spindle unsteady or reads failing; settling and retrying")
             self.settle()
-            m = self.measure(lba)
+            m = self.measure(lba, reps)
         return m
 
     # ------------------------------------------------------------ fitting
@@ -381,6 +387,9 @@ class Ladder:
         self.log(f"Reference LBA {self.ref}; readable ranges {self.ranges}")
         self.check_rotation()
         self.settle()
+        self.sentinels = []
+        if self.state_check:
+            self.sentinels_first()
 
         # First rungs: a turn or two away, where the nominal model is good to a few degrees.
         used = {self.ref}
@@ -457,7 +466,67 @@ class Ladder:
             if self.chi2_dof > self.chi2_abort or worst > TURN_ABORT_DEG:
                 raise RuntimeError(f"after the rung at LBA {lba}: chi2/dof {self.chi2_dof:.1f}, worst residual "
                                    f"{worst:.1f} deg; a whole-turn count is probably wrong, so the fit was stopped")
+        if self.sentinels:
+            self.check_state()
         return self.result()
+
+    def sentinels_first(self) -> None:
+        """Before the ladder: read the raw phase of three far-apart points (near the inner end, a quarter of
+        the way and near the outer end of the range); check_state reads them again at the end. Comparing a
+        point with itself needs no whole-turn count, so they can be far from the reference from the start.
+        The reference is re-read in every block, so a change in timing common to all reads cancels; what
+        moves a point is a change that depends on where the head is. Such a change during the run bends
+        the geometry and the fit can't show it: three noisy GH70N runs of one disc fitted tidily yet sat
+        0.5-0.8 deg from a clean run (evidence/geo/gh70n-20261107). These points are not fitted."""
+        lo = min(a for a, _ in self.ranges)
+        hi = max(b for _, b in self.ranges)
+        self.sentinels = []
+        for f in (0.03, 0.25, 0.97):
+            lba = self._allowed(int(lo + f * (hi - lo)))
+            if lba is None or any(abs(lba - s["lba"]) < self.spacing for s in self.sentinels) \
+                    or abs(lba - self.ref) < self.spacing:
+                continue
+            m = self._measure_retry(lba, SENTINEL_REPS * self.reps)
+            if m is not None:
+                self.sentinels.append(m)
+        if self.sentinels:
+            self.log("Check points read: " + ", ".join(f"{self._radius(s['lba']):.1f} mm" for s in self.sentinels)
+                     + " (read again at the end)")
+
+    def check_state(self) -> None:
+        b = self.prior.bit_nm * 1e-6
+        sem = lambda x: x.get("sem_deg") if x.get("sem_deg") is not None else x["sigma_deg"]
+        self.log("Reading the check points again, to see that the drive stayed in one state...")
+        out = []
+        for s in self.sentinels:
+            e = {"lba": s["lba"], "radius_mm": round(b * math.sqrt(self.u ** 2 + self.v * s["n"] / math.pi), 2),
+                 "phase_first_deg": s["phase_deg"], "phase_again_deg": None, "period_first_ms": s["period_ms"]}
+            m = self._measure_retry(s["lba"], SENTINEL_REPS * self.reps)
+            if m is not None:
+                e.update(phase_again_deg=m["phase_deg"],
+                         change_deg=round((m["phase_deg"] - s["phase_deg"] + 180.0) % 360.0 - 180.0, 3),
+                         sigma_deg=round(math.hypot(sem(s), sem(m)), 3), period_again_ms=m["period_ms"])
+                self.log(f"  {e['radius_mm']:.1f} mm: moved {e['change_deg']:+.3f} deg (+/- {e['sigma_deg']:.3f})")
+            else:
+                self.log(f"  {e['radius_mm']:.1f} mm: no stable measurement this time")
+            out.append(e)
+        done = [e for e in out if e["phase_again_deg"] is not None]
+        # The points together: a shift they share (seen against the reference) is a change too, and
+        # their weighted mean shows it with less noise than any one of them.
+        w = [1 / max(e["sigma_deg"], 1e-3) ** 2 for e in done]
+        mean = sum(wi * e["change_deg"] for wi, e in zip(w, done)) / sum(w) if done else None
+        mean_sigma = 1 / math.sqrt(sum(w)) if done else None
+        if len(done) < 2:
+            verdict = "unmeasured"
+        elif any(abs(e["change_deg"]) > max(STATE_TOL_DEG, STATE_SIGMAS * e["sigma_deg"]) for e in done)                 or abs(mean) > max(STATE_TOL_DEG, STATE_SIGMAS * mean_sigma):
+            verdict = "changed"
+        elif all(abs(e["change_deg"]) <= STATE_TOL_DEG and e["sigma_deg"] <= STATE_TOL_DEG for e in done):
+            verdict = "steady"
+        else:
+            verdict = "inconclusive"     # too noisy to tell a change of STATE_TOL_DEG
+        self.state = {"verdict": verdict, "tolerance_deg": STATE_TOL_DEG, "sigmas": STATE_SIGMAS, "points": out,
+                      "mean_change_deg": None if mean is None else round(mean, 3),
+                      "mean_sigma_deg": None if mean_sigma is None else round(mean_sigma, 3)}
 
     def result(self) -> dict:
         rep = _report(self.u, self.v, self.cov, (self.u, self.v), self.prior, None)
@@ -524,6 +593,11 @@ class Ladder:
         b_mm = self.prior.bit_nm * 1e-6
         r_of = lambda n: b_mm * math.sqrt(self.u ** 2 + self.v * n / math.pi)
         rep["measured_span_mm"] = [round(r_of(lo), 3), round(r_of(hi), 3)]
+        radii = sorted(r_of(n) for n in n_meas)
+        gap = max(zip(radii, radii[1:]), key=lambda p: p[1] - p[0]) if len(radii) > 1 else (radii[0], radii[0])
+        rep["largest_gap_mm"] = [round(gap[0], 2), round(gap[1], 2)]
+        if self.state is not None:
+            rep["state_check"] = self.state
         rep["angle_sigma_measured_span_deg"] = math.degrees(math.sqrt(float(g @ self.cov[:2, :2] @ g)))
         if hasattr(self, "completion_status"):
             rep["completion_status"] = self.completion_status

@@ -1975,7 +1975,7 @@ def _stopped_part_way(c) -> None:
                 print("geo part-way checks skipped (need numpy and scipy)")
                 return
             out = os.path.join(d, "geo")
-            cli._open = lambda args: Goes(tray, 900)
+            cli._open = lambda args: Goes(tray, 1300)   # rung 10 or so, after the check points read at the start
             code, text = run("geo", "--sim", "cav", "--out", out)
             result = guide.scan(out)[0]
             c.check(code == 1 and mmc.TRAY_OPEN in text and "never settled" not in text and "hold one speed" not in text, "geo, tray opened: stops, says why and exits 1")
@@ -1988,7 +1988,7 @@ def _stopped_part_way(c) -> None:
             c.check(rows and rows[0].startswith("  [ ]"), "guide does not tick it either")
             for name, thrown in (("Ctrl+C", KeyboardInterrupt()), ("a drive that vanishes", OSError(433, "gone"))):
                 out = os.path.join(d, f"geo-{type(thrown).__name__}")
-                cli._open = lambda args: Goes(tray, 700, 1, thrown)
+                cli._open = lambda args: Goes(tray, 1100, 1, thrown)   # rung 5 or so
                 code, text = run("geo", "--sim", "cav", "--out", out)
                 result = guide.scan(out)[0]
                 c.check(code != 0 and result.stopped == "interrupted" and not result.geo_complete(), f"{name} during geo is not complete either")
