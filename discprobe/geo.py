@@ -42,6 +42,9 @@ import numpy as np
 
 from . import analysis
 from .calib import SECTOR_BITS, CalLayout, theta
+
+BD_SECTOR_PER_UNIT = 32           # a Blu-ray recording unit is 32 sectors, the way a DVD block is 16
+BD_SECTOR_BITS = 962136 / 32.0    # channel bits per Blu-ray sector
 from .calscan import _dtheta, _report
 from .timing import TimingProbe
 
@@ -87,17 +90,20 @@ class Ladder:
         self.read_offset_bytes = float(read_offset_bytes)
         self.audio = False  # set by run() when the CD turns out to be a CD-DA track
         is_cd = media == "cd"
+        is_bd = media == "bd"
         from . import cd
-        r0_mm = r0_mm if r0_mm is not None else (cd.R0_MM if is_cd else 24.0)
-        pitch_um = pitch_um if pitch_um is not None else (cd.PITCH_UM if is_cd else 0.74)
-        bit_nm = bit_nm if bit_nm is not None else (cd.BIT_NM if is_cd else 133.3)
+        from .geometry import NOMINAL as NOM
+        r0_mm = r0_mm if r0_mm is not None else (cd.R0_MM if is_cd else NOM["bd" if is_bd else "dvd"].r0_mm)
+        pitch_um = pitch_um if pitch_um is not None else (
+            cd.PITCH_UM if is_cd else NOM["bd"].pitch_mm * 1000.0 if is_bd else 0.74)
+        bit_nm = bit_nm if bit_nm is not None else (cd.BIT_NM if is_cd else 74.5 if is_bd else 133.3)
         reps = reps if reps is not None else (32 if is_cd else 24)
         max_targets = max_targets if max_targets is not None else (36 if is_cd else 22)
         sigma_u = sigma_u if sigma_u is not None else (0.08 if is_cd else 0.01)
         sigma_v = sigma_v if sigma_v is not None else (0.15 if is_cd else 0.03)
         if speed_kbs == "default":
-            speed_kbs = 1411 if is_cd else 5540
-        self.block = 1 if is_cd else 16
+            speed_kbs = 1411 if is_cd else 8990 if is_bd else 5540
+        self.block = 1 if is_cd else BD_SECTOR_PER_UNIT if is_bd else 16
         self.spacing = 64 if is_cd else MIN_SPACING_SECTORS
         self.first_turns = (0.5, 1.5) if is_cd else FIRST_TURNS
         self.dev = dev
@@ -126,6 +132,8 @@ class Ladder:
         if self.media == "cd":
             from .cd import read_end_bits
             return float(read_end_bits(lba))
+        if self.media == "bd":
+            return float((lba // BD_SECTOR_PER_UNIT + 1) * BD_SECTOR_PER_UNIT * BD_SECTOR_BITS)
         return float((lba // 16 + 1) * 16 * SECTOR_BITS)
 
     def _lba_at_turns(self, turns: float) -> int:
@@ -138,6 +146,8 @@ class Ladder:
         if self.media == "cd":
             from .cd import SECTOR_BITS as CD_BITS, FRAME_BITS, READ_TAIL_FRAMES
             return int((n - READ_TAIL_FRAMES * FRAME_BITS) // CD_BITS) - 1
+        if self.media == "bd":
+            return int(n // BD_SECTOR_BITS) // BD_SECTOR_PER_UNIT * BD_SECTOR_PER_UNIT
         return int(n // SECTOR_BITS) // 16 * 16
 
     def _predict(self, n):
@@ -490,6 +500,22 @@ class Ladder:
                     "outer_radius_mm_for_total_sectors": {
                         str(cd.CAPACITY): b * math.sqrt(self.u ** 2 + self.v * cd.CAPACITY * cd.SECTOR_BITS / math.pi)},
                     "note": "CD forward CIRC reference origin, hardware origin unmeasured; not a DVD preset"}
+        if self.media == "bd":
+            b = self.prior.bit_nm * 1e-6
+            rep["media"] = "bd"
+            rep["sector_bits"] = BD_SECTOR_BITS
+            rep["block_sectors"] = BD_SECTOR_PER_UNIT
+            rep["rungs"] = len(self.targets)
+            rep["dis_equivalent"] = {
+                "bit_nm": self.prior.bit_nm,
+                "inner_radius_mm": self.u * b,
+                "pitch_um_estimate": self.v * b * 1e3,
+                "outer_radius_mm_for_total_sectors": {
+                    str(self.tp.last_lba + 1):
+                        b * math.sqrt(self.u ** 2 + self.v * (self.tp.last_lba + 1) * BD_SECTOR_BITS / math.pi)},
+                "note": "angular measurement of a disc the drive reads at a constant angular velocity: "
+                        "inner radius and pitch come from one fit, and the pitch is only as good as "
+                        "the prior it was pulled towards"}
         n_meas = [t["n"] for t in self.targets] + [self.n_ref]
         lo, hi = min(n_meas), max(n_meas)
         du_lo, dv_lo = _dtheta(lo, self.u, self.v)
@@ -502,6 +528,10 @@ class Ladder:
         if hasattr(self, "completion_status"):
             rep["completion_status"] = self.completion_status
             rep["failed_candidates"] = self.failed_candidates
+        du_0, dv_0 = _dtheta(0.0, self.u, self.v)
+        du_t, dv_t = _dtheta((self.tp.last_lba + 1) * BD_SECTOR_BITS, self.u, self.v)
+        g_full = np.array([du_t - du_0, dv_t - dv_0])
+        rep["angle_sigma_full_disc_deg"] = math.degrees(math.sqrt(float(g_full @ self.cov[:2, :2] @ g_full)))
         rep["c_deg"] = math.degrees(self.c)
         rep["chi2_per_dof"] = self.chi2_dof
         rep["residual_rms_deg"] = float(np.sqrt(np.mean([t["residual_deg"] ** 2 for t in self.targets])))

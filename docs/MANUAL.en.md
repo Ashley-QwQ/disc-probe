@@ -103,7 +103,7 @@ For a path in a script, use `results geo --latest`, which prints just one line c
 |---|---|
 | DVD (1x = 1385 kB/s) | `2.4x` = 3324, `4x` = 5540 (the `geo` default), `8x` = 11080 |
 | CD (1x = 176.4 kB/s) | `8x` = 1411 (the `--media cd` default), `16x` = 2822, `24x` = 4234 |
-| Blu-ray (1x = 4495 kB/s) | `8x` = 35960, `12x` = 53940. Multiples are converted using the actual disc type; all Blu-ray drives reported so far have been CLV, so changing speed may not make them CAV, and `geo` does not support Blu-ray |
+| Blu-ray (1x = 4495 kB/s) | `8x` = 35960, `12x` = 53940. Multiples are converted using the actual disc type; all Blu-ray drives reported so far have been CLV, so changing speed may not make them CAV, ; `geo --media bd` treats the disc as a constant linear speed, see below |
 
 **Choosing `--ranges`.** The default, 3% to 85% of the burned area, suits most discs and usually needs no change. It accepts LBA ranges `a-b,c-d`. If `geo` always stops near the same LBA, or the speed jumps near the outer edge, leave out that part; to cover a larger radius, widen the range, provided the drive reads it cleanly. Measuring the outer edge doesn't make it come out right: on the GP65NB60 a wider range reached 58.09 mm with 0.092° left after a quadratic correction, and the user still saw the outermost radial lines curl slightly. `info` shows the last LBA.
 
@@ -515,7 +515,53 @@ Once the geometry has been measured from timing, it can be used directly to gene
 
 ## CD-R: textures, timing and burning pictures
 
-`rings`, `random`, `timing`, `geo`, `image`, `tiles` and `gridscan` support `--media cd`; DVD remains the default. A CD sector has 57624 channel bits; implementation and timing assumptions are in the [CD physical model](CD_PHYSICAL_MODEL.md) (in Chinese). The measurement and grid-disc parts have been tested on an HL-DT-ST GH70N and CMC CD-R. Changing the drive or disc needs fresh verification.
+`rings`, `random`, `timing`, `geo`, `image`, `tiles` and `gridscan` support `--media cd`; DVD remains the default.
+**Blu-ray (`geo --media bd`).** This path uses nothing but the drive's own I/O: no photograph, no scan and no external optical reference -- a blank BD-R has nothing to time, so `random --media bd` fills one first (`geo` refuses an unwritten disc and says so) -- and one unattended command finishes in about two minutes (25 zones, measured at 1:45-2:07) with the absolute inner radius r0, the pitch and the rest of the geometry. A drive reads Blu-ray at a constant linear speed, so the angle ladder cannot measure anything; `geo --media bd` times one rotation per zone instead and fits `T^2` against LBA: `T^2 = (2*pi*r0/v)^2 + (4*pi*p*L/v^2)*LBA`. The slope and the intercept carry two numbers, and one anchor turns them into r0 and the track pitch. The default anchor is the factory pitch of 0.32 um (which then measures the linear speed); `--linear-mm-s` says instead that the drive runs at that speed (which then measures the pitch); with neither, only `r0/v` and `p/v^2` are written, and `anchor` says so. Before measuring, two zones (0.5 and 0.95) are measured to decide the rotation mode: a period that grows 1:1 with the radius is CLV, a period that does not move is CAV -- and then `geo --media bd` switches to the angle ladder above by itself (32 sectors a read, fitting u = r0/b and v = p/b), with no second command, and neither means the run probably spans a ZCLV change, which is not fitted. `GET PERFORMANCE` type 00h is nominally the test, but this UJ272 reports 2.36 on a BD-RE, which looks like CAV while the measurement says CLV, so the measurement is what decides. A zone whose period has a coherence below 0.90 is left out of the fit; that happens while the drive is still coming down from another speed. `--bd-zones N` asks for more zones, and `--fit-offset` also fits one fixed per-period delay, prints it with its sigma and takes it out of the inner radius it is nearly degenerate with -- but only when
+the delay is worth three sigma; otherwise it says the data cannot tell it from zero and leaves the
+radius as it was. The result also prints two checks on itself: how far inside the first measured zone the starting radius sits (it is the fit's curvature, not a radius that was measured), and where the outermost sector would land from the disc's own sector count (a full 25 GB layer should come out near 58.0 mm). If the periods step instead of rising, the command names the break and refuses to install the result as a preset. Theory and measurements: [BD CLV feasibility](research/BD_CLV_FEASIBILITY.md). A CD sector has 57624 channel bits; implementation and timing assumptions are in the [CD physical model](CD_PHYSICAL_MODEL.md) (in Chinese). The measurement and grid-disc parts have been tested on an HL-DT-ST GH70N and CMC CD-R. Changing the drive or disc needs fresh verification.
+
+**One disc that times itself and shows its own twist: `calibdisc`.** The drive can only ever measure the product of `r0^2` and the pitch (`c = pi*r0^2/(p*S)`); the two are exactly degenerate. Three ppm of pitch is 0.04 um on the inner radius, and the fit reports that radius to 1 sigma = 16 um -- so the last few ppm cannot be timed out of a disc at all. It is a property of the **mould** (every disc of one brand and grade is pressed from the same stamper, whose pitch is constant within a batch), and one reading pins it for the whole grade. That reading does not cost a second disc, and it does not need a first pass: `geo` only needs readable sectors and does not care what the 2048 bytes hold, so timing and the picture can share one burn.
+
+`calibdisc --output iso/bd-calib.iso` writes that disc: a whole layer by default (12,219,392 sectors, 25.03 GB), laid out with the nominal `r0 = 24.04 mm` and `p = 0.3200 um`, showing three rings (26, 40 and 55 mm, for the radius scale), one thick line from 12 o'clock to the rim (for the twist) and a short tick at 3 o'clock (so you can tell which way round you are holding it). Burn it, put it back in the drive, run `geo --drive G: --media bd --bd-zones 25` on the same disc for `c`, then look at where the line's far end points: 1 o'clock is 30 degrees of twist, 4 o'clock about 120. Then
+
+```
+python -m discprobe disexport --geo results/geo-G-... --sectors 12219392 --twist-deg 126 --install
+```
+
+The lever is not turns: the picture sits at a fixed radius, and on a disc whose pitch is off the same sector number lands at a different radius -- that radial drift cancels most of the angular one, leaving `dtheta = pi*eps*(r - r0)^2/(p*r)` (radians), a quadratic remainder. Read at the rim of a 24.05-58.02 mm disc, 126 degrees is therefore **11.3 ppm** of pitch (the same angle read at 55 mm is 12.9 ppm): not a third of a spiral turn of pitch, but about 1.2 turns. A preset has no pitch field -- the engine solves one constant pitch from the inner radius, the outer radius and the sector count -- and the timing measured only the product, so the pitch and `r0` have to move together: `p' = p(1+eps)`, `r0' = r0*sqrt(1+eps)` with `c` held at what was measured, and the outer radius follows. For 126 degrees that is **+0.14 um on the inner radius and +0.27 um on the outer**: smaller than the precision the preset is written with, and exactly what makes the picture close at 58 mm. The command prints the turns, the ppm and both shifts.
+
+Burn a second copy of the same disc: if the angle is gone the loop is closed; if the same angle comes back the other way, the sign was wrong; if the angle does not move at all, the shear was never the pitch (a stamper whose own spiral wobbles, which no preset can take out) and that is as far as this goes. A tick at 9 o'clock instead of 3 means you are holding the disc the other way round; negate the angle. If you read the angle off one ring, say which with `--twist-at-mm`. A tick at 9 o'clock instead of 3 means you are looking at the disc from the other side; negate the angle. DVDs and CDs do not use this (their presets already carry a fitted pitch profile) and the command refuses them.
+
+**Exporting the Blu-ray preset.** A DiscImageStudio Blu-ray preset is three numbers -- inner radius, outer radius and sector count -- and with no pitch coefficients the engine solves one constant pitch from them. `disexport --geo <blu-ray run> --sectors <total sectors>` writes an importable record, and `--install` puts it into the `bluRayPresets` list of `%LOCALAPPDATA%\DiscImageStudio\disc-presets.json` -- the file DiscImageStudio 1.5.0 actually reads (the separate `blu-ray-presets.json` its source can write has no caller). The preset leaves 2 MiB of the disc unused unless `--usable-sectors` says otherwise, because the burner writes a lead-out inside the disc and a project that fills it overburns. When the target is a full, unspared BD-R (12 219 392 sectors), add `--pullback-isa0`: a formatted disc keeps 131 072 sectors of spare area at the inner edge, and those belong in front of sector 0, or the whole drawing shifts 0.6 mm outwards. The three pitch coefficients are left out on purpose: they are relative shape factors, so `0.32` there would mean a pitch 1.32 times p0 at the outer edge. This UJ272 measured 24.66 mm and 58.02 mm on a 12 088 320-sector BD-RE, three microns from the 58.0232 mm of DiscImageStudio's own BD-25 preset -- that disc holds 1.1% fewer sectors than a full layer, so sector 0 sits further out than 24.0 mm, and the command says so. A Blu-ray the drive holds at a constant angular velocity (a pressed BD-ROM, for instance) is measured with the angle ladder instead, and its result already carries the inner radius and the pitch in `dis_equivalent`, so the same command writes that preset too -- the numbers come from `u = r0/b` and `v = p/b` and nothing is fitted a second time.
+
+**The Blu-ray path is experimental.** The timing pins the shape hard (`c = b/a` lands on R^2 above 0.99999, and
+25 zones agree with each other), and it reads the capacity and the linear speed; what it cannot give is an
+absolute inner radius and pitch good enough to place a picture. Two reasons, both measured on one disc:
+
+- **The pitch is not a measurement.** Without `--linear-mm-s` it is the factory 0.32 um and `c` only solves the
+  inner radius. A tenth of a percent is not small: over a hundred thousand turns it adds up to a hundred turns.
+- **The inner radius hangs on a timing offset nobody can see.** Refitting the same 23 zones with a delay tau
+  added to every period gives 1.43 um per us: 54 us in a 26.8 ms period moves the inner radius 77.5 um while
+  R^2 only slides from 0.9999932 to 0.9999927 -- no fit statistic can say which is right.
+
+On one RITEK BD-R, the community's burn-verified preset (issue #213) says 23.988030 mm and 0.32037 um; the
+timing says 24.065504 mm and 0.32000 um. Across the whole disc the two radii differ by 4 um, yet the angles
+differ by **106 turns** -- a ring only eats radius, so it stays visible; a thin line needs angle, so it winds
+into a spiral nobody can see. Burning a thin line first and reading its angle therefore cannot converge. That
+is physics, not a parameter left untuned.
+
+What it can do: measure `c`, the capacity and the linear speed, check somebody else's preset against the same
+`c`, and solve one radius when the other is known.
+
+**The half-dark, half-light edge.** The community replaces the thin line with a disc that is dark on one half
+and light on the other: a wrong preset winds that diameter into a few arms, which survive where a line does not.
+`calibdisc --split` writes that picture. Three signatures read straight off it: **dense at the inner edge and
+coarse outside** means the inner radius is off; **the other way round** means the outer one is; **arms that fold
+back in the middle** mean the two are off in opposite directions. The number of arms is the accumulated turns at
+the rim. Worked through with DiscImageStudio's two-endpoint constant-pitch model, all three match: a 30 um inner
+error gives 10 turns per 8 mm at the inner edge and 0.3 turns at the rim, a 30 um outer error gives the mirror of
+that, and 30 um apiece in opposite directions folds at 40 mm. Nudge the two radii in the preset, match the arms
+in the preview, burn once more -- two or three rounds close it. The only oracle on this path is your eyes.
 
 For your first CD, follow the [README's CD route](../README.en.md#cd-route) first. You need at least 3 blank discs from the same batch (measuring, calibration, picture). This section gives the details of each step and other methods.
 

@@ -121,6 +121,12 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
            r_lo: float, r_hi: float, preset_id: str, name: str, along_track_frames: float = 0) -> dict:
     with open(geo_summary, encoding="utf-8") as f:
         geo = json.load(f)["fit"]
+    if geo.get("model") == "clv" or geo.get("media") == "bd":
+        raise ValueError("this geo result measured a disc the drive reads at a constant linear speed, so it "
+                         "holds r0_mm, pitch_um and v_m_s rather than the angular u/v fit this module "
+                         "converts. DiscImageStudio's Blu-ray preset is those three numbers, so use "
+                         "`disexport --geo ... --sectors ...` with no --media, which writes one through "
+                         "discprobe.bdexport")
     media = "cd" if geo.get("media") == "cd" else "dvd"
     u, v, bit = geo["u"], geo["v"], geo["bit_nm_assumed"]
     audio = geo.get("track") == "audio"

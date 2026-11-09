@@ -1101,6 +1101,257 @@ def _install_blocker(c: Checker):
                 "a chi2 of None is not read as zero, so the run is not refused for it")
 
 
+def _bd_clv(c: Checker):
+    print("Blu-ray CLV geometry: periods against LBA")
+    import json
+    import math
+    import os
+    from . import clv
+
+    # Round trip on data built from a known disc: the fit has to give it back.
+    truth_r0, truth_pitch, truth_v = 24.02, 0.3185, 39.336
+    sector_mm = clv.NOMINAL["bd"].sector_mm
+    samples = []
+    for lba in [497408, 1_500_000, 2_500_000, 3_500_000, 4_974_208, 6_000_000, 8_000_000, 10_000_000]:
+        r = math.sqrt(truth_r0 ** 2 + truth_pitch * 1e-3 * sector_mm * lba / math.pi)
+        samples.append(clv.Sample(lba=lba, period_ms=2000 * math.pi * r / (truth_v * 1000)))
+    by_speed = clv.fit_t2(samples, sector_mm=sector_mm, v_m_s=truth_v)
+    c.check(abs(by_speed.r0_mm - truth_r0) < 0.002 and abs(by_speed.pitch_um - truth_pitch) < 0.0005,
+            f"with the linear speed given, r0 {by_speed.r0_mm:.4f} mm and pitch {by_speed.pitch_um:.4f} um "
+            f"come back (truth {truth_r0} mm, {truth_pitch} um)")
+    by_pitch = clv.fit_t2(samples, sector_mm=sector_mm, pitch_um=truth_pitch)
+    c.check(abs(by_pitch.v_m_s - truth_v) < 0.01 and abs(by_pitch.r0_mm - truth_r0) < 0.002,
+            f"with the pitch given, the speed {by_pitch.v_m_s:.3f} m/s comes back (truth {truth_v})")
+    free, speed_d = clv.fit_t2(samples, sector_mm=sector_mm), by_speed.as_dict()
+    c.check(abs(free.as_dict()["pitch_over_v2_um_s2"] - speed_d["pitch_over_v2_um_s2"]) < 1e-9
+            and abs(free.as_dict()["r0_over_v_mm_s"] - speed_d["r0_over_v_mm_s"]) < 1e-6,
+            "with neither anchor the two ratios are still measured, and the fit says what stayed unknown")
+    outlier = list(samples)
+    outlier[3] = clv.Sample(lba=samples[3].lba, period_ms=samples[3].period_ms * 1.06)
+    caught = clv.fit_t2(outlier, sector_mm=sector_mm, v_m_s=truth_v)
+    c.check(3 in caught.dropped and abs(caught.r0_mm - truth_r0) < 0.002,
+            "one zone timed 6% long is dropped and the rest still fit")
+
+    # The drive's own answer, before any timing: GET PERFORMANCE type 00h.
+    cav = {"descriptors": [{"start_kBps": 14752, "end_kBps": 35960}]}
+    clv_perf = {"descriptors": [{"start_kBps": 7193, "end_kBps": 7193}]}
+    mid = {"descriptors": [{"start_kBps": 10000, "end_kBps": 18000}]}
+    c.check(clv.classify_rotation(clv_perf)["mode"] == "CLV", "a flat performance ratio reads as CLV")
+    c.check(clv.classify_rotation(cav)["mode"] == "CAV", "58/24 on a BD reads as CAV")
+    c.check(clv.classify_rotation(mid)["mode"] not in ("CAV", "CLV"), "a ratio in between is neither, and is not fitted")
+    c.check(clv.classify_rotation({})["mode"] == "unknown", "a drive that reports nothing is not guessed at")
+
+    # The 39 zones this drive left in the repository: a real regression set.
+    import statistics
+    path = os.path.join(os.path.dirname(__file__), "..", "tests", "data", "bd_discussion_samples",
+                        "local_uj272_bd_zones.csv")
+    if not os.path.exists(path):
+        c.check(False, "the recorded BD zone set is in the tree")
+        return
+    runs = {}
+    with open(path, encoding="utf-8") as f:
+        next(f)
+        for line in f:
+            run, profile, req, frac, lba, radius, period, rpm, v, coh, jitter, method, block, last, stopped = \
+                line.rstrip("\n").split(",")
+            if stopped or not period:
+                continue
+            runs.setdefault(run, []).append((float(v), clv.Sample(lba=int(lba), period_ms=float(period),
+                                                                  coherence=float(coh or 1))))
+    clean, harmonic = [], []
+    for run, items in runs.items():
+        speeds = [v for v, _ in items]
+        if max(speeds) > 1.3 * statistics.median(speeds):
+            harmonic.append(run)     # the inner zone turned at twice the outer rate: not a CLV fit
+            continue
+        try:
+            clean.append(clv.fit_t2([s for _, s in items], sector_mm=sector_mm, pitch_um=0.32))
+        except ValueError:
+            pass
+    ok = [f for f in clean if f.r2 >= 0.999 and 23.5 <= f.r0_mm <= 24.5]
+    if not ok:
+        c.check(False, "no recorded run fit as CLV")
+        return
+    c.check(len(ok) >= 5 and all(10.2 <= f.v_m_s <= 10.5 for f in ok),
+            f"{len(ok)} of {len(runs)} recorded runs fit as a straight line in T^2 with r0 "
+            f"{min(f.r0_mm for f in ok):.3f}-{max(f.r0_mm for f in ok):.3f} mm at 10.2-10.5 m/s")
+    c.check(len(harmonic) >= 3,
+            f"the {len(harmonic)} runs whose inner zone turned at twice the outer rate are left out")
+    # What the line says about itself: how far inside the first zone the answer sits, and whether one
+    # line describes the periods at all (a drive reading in zones holds one angular speed per zone,
+    # so its periods step instead of rising smoothly).
+    fit = ok[0]
+    c.check(fit.r_first_mm is not None and 0.5 < fit.r0_extrapolated_mm < 3.0,
+            f"the first zone sits {fit.r0_extrapolated_mm:.2f} mm outside r0, which the fit reports")
+    c.check(fit.break_fit is None, "a clean CLV run shows no break in its periods")
+    sector_mm = clv.NOMINAL["bd"].sector_mm
+
+    def periods(constant_omega_after: float | None = None):
+        out = []
+        for fraction in (0.05, 0.15, 0.25, 0.35, 0.5, 0.65, 0.75, 0.85, 0.95):
+            lba = int(fraction * 12_000_000)
+            radius = math.sqrt(24.66 ** 2 + 0.32e-3 * sector_mm * lba / math.pi)
+            # radius in mm over a speed in m/s is a period in ms, so omega is v/r in rad/ms and
+            # the turn is 2*pi/omega: the same numbers a real zone reports, not 2*pi times smaller.
+            omega = 10.34 / (radius if constant_omega_after is None or fraction < 0.5 else constant_omega_after)
+            out.append(clv.Sample(lba=lba, period_ms=2 * math.pi / omega, coherence=1.0))
+        return out
+
+    # The tolerance has to mean something: a nine-zone simulation whose truth is known should
+    # scatter by about what the fit says it will. Twenty minutes of noise on a 15 ms turn.
+    import random
+    rng = random.Random(11)
+    strayed, told = [], []
+    for _ in range(120):
+        noisy = [clv.Sample(lba=s.lba, period_ms=s.period_ms + rng.gauss(0.0, 0.02), coherence=1.0)
+                 for s in periods()]
+        try:
+            fit_n = clv.fit_t2(noisy, sector_mm=sector_mm, pitch_um=0.32)
+        except ValueError:
+            continue
+        strayed.append(fit_n.r0_mm - 24.66)
+        told.append(fit_n.sigma_r0_mm)
+    scatter = (sum(d * d for d in strayed) / len(strayed)) ** 0.5 * 1000
+    claimed = sum(told) / len(told) * 1000
+    c.check(0.6 <= claimed / scatter <= 1.5,
+            f"the tolerance tracks the scatter it is meant to describe: {claimed:.0f} um claimed "
+            f"against {scatter:.0f} um seen over {len(strayed)} simulations")
+
+    stepped = clv.fit_t2(periods(47.0), sector_mm=sector_mm, pitch_um=0.32)
+    c.check(stepped.break_fit is not None and abs(stepped.break_fit["break_lba"] - 6_000_000) <= 1_200_000
+            and stepped.break_fit["improvement"] > 0.9,
+            "a disc read in zones is caught: the periods break between two lines instead of one")
+
+
+def _tests_folder(c: Checker):
+    """The files in tests/, which nothing runs by hand: run them here so every check sees them."""
+    print("tests/: the files nobody runs, run here")
+    import glob
+    import importlib.util
+    import os
+    folder = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tests")
+    files = sorted(glob.glob(os.path.join(folder, "test_*.py")))
+    if not files:
+        c.check(True, "no tests/ folder beside the package, so there is nothing to run")
+        return
+    for path in files:
+        name = os.path.splitext(os.path.basename(path))[0]
+        spec = importlib.util.spec_from_file_location(f"discprobe_tests_{name}", path)
+        module = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(module)
+        except Exception as e:                                       # noqa: BLE001 - a test runner
+            c.check(False, f"{name} imports ({type(e).__name__}: {e})")
+            continue
+        checks = [(n, f) for n, f in sorted(vars(module).items()) if n.startswith("test_") and callable(f)]
+        failed = []
+        for n, fn in checks:
+            try:
+                fn()
+            except Exception as e:                                   # noqa: BLE001 - a test runner
+                failed.append(f"{n}: {type(e).__name__}: {e}")
+        c.check(bool(checks), f"{name} has checks to run")
+        c.check(not failed, f"{name} passes ({len(checks)} checks)" +
+                (" -- " + "; ".join(failed[:3]) if failed else ""))
+
+
+def _bd_export(c: Checker):
+    print("Blu-ray preset: three numbers DiscImageStudio turns back into a spiral")
+    import json
+    import os
+    import tempfile
+    from . import bdexport
+
+    fit = {"model": "clv", "media": "bd", "r0_mm": 24.6427, "pitch_um": 0.32, "v_m_s": 7.9054,
+           "r2": 0.999994, "zones_used": 7, "anchor": "pitch 0.32 um", "pitch_um_anchor": 0.32}
+    params = bdexport.parameters(fit, 12_088_320)
+    c.check(abs(params["outerRadiusMm"] - 58.0117) < 1e-3,
+            "outer radius follows from inner, pitch and sectors")
+    c.check("pitchLinear" not in params and "channelBitLengthNm" not in params,
+            "no pitch coefficient: DiscImageStudio reads those as a shape, not as a pitch")
+    c.check(params["usableSectors"] == 12_088_320 - 1024,
+            "a preset leaves room for the lead-out, so a full project does not overburn")
+    # 24.0 -> 58.0 over a full layer is the standard 0.320 um pitch, so the constants agree with each other.
+    length = bdexport.track_length_mm(bdexport.BD_SECTORS_PER_LAYER)
+    implied = (58.0 ** 2 - 24.0 ** 2) * 3.141592653589793 / length * 1e3
+    c.check(abs(implied - bdexport.BD_NOMINAL_PITCH_UM) < 2e-4,
+            f"the standard radii and pitch close their own identity ({implied:.5f} um)")
+    try:
+        bdexport.check(12_088_321, 24.6, 58.0)
+    except bdexport.BdPresetError:
+        c.check(True, "a sector count that is not a multiple of 32 is refused")
+    else:
+        c.check(False, "a sector count that is not a multiple of 32 is refused")
+    try:
+        bdexport.parameters({"model": None}, 12_088_320)
+    except bdexport.BdPresetError:
+        c.check(True, "a fit with no radius and no pitch is refused as a Blu-ray preset")
+    else:
+        c.check(False, "a fit with no radius and no pitch is refused as a Blu-ray preset")
+    angular = {"model": None, "media": "bd", "rungs": 9, "chi2_per_dof": 1.10,
+               "dis_equivalent": {"inner_radius_mm": 24.02, "pitch_um_estimate": 0.3185}}
+    params = bdexport.parameters(angular, 12_088_320)
+    c.check(abs(params["innerRadiusMm"] - 24.02) < 1e-9 and
+            abs(params["outerRadiusMm"] - bdexport.outer_radius_mm(24.02, 0.3185, 12_088_320)) < 1e-6,
+            "an angular u/v fit is converted from the radius and pitch it already carries")
+    preset = bdexport.preset(fit, 12_088_320, "discprobe-bd-re", "BD-RE", "selftest")
+    entry = bdexport.catalog_entry(preset)
+    c.check(set(entry) == {"id", "displayName", "description", "totalSectors", "innerRadiusMm",
+                           "outerRadiusMm", "invertMapping", "usableSectors"},
+            "the catalog entry is the flat record disc-presets.json keeps")
+    document = bdexport.document(preset)
+    c.check(set(document["parameters"]) == {"totalSectors", "layerCount", "innerRadiusMm",
+                                            "outerRadiusMm", "startAngleDegrees", "usableSectors"} and
+            document["luminanceMapping"] == {"invert": False},
+            "the written document is the shape the preset library's Import reads")
+    with tempfile.TemporaryDirectory() as work:
+        path = os.path.join(work, bdexport.FILE_NAME)
+        first = bdexport.install(preset, path)
+        before = open(path, "rb").read()
+        again = bdexport.install(preset, path)
+        c.check(first["action"] == "added" and first["created"] and again["action"] == "unchanged",
+                "installing the same preset twice changes nothing")
+        c.check(open(path, "rb").read() == before, "an unchanged install does not rewrite the file")
+        replaced = bdexport.install(bdexport.preset(dict(fit, r0_mm=24.65), 12_088_320,
+                                                    "discprobe-bd-re", "BD-RE", "selftest"), path, replace=True)
+        c.check(replaced["action"] == "replaced" and open(replaced["backup"], "rb").read() == before,
+                "a replacement keeps the file it replaced as a backup")
+        try:
+            bdexport.install(bdexport.preset(dict(fit, r0_mm=24.66), 12_088_320,
+                                             "discprobe-bd-re", "BD-RE", "selftest"), path)
+        except bdexport.BdPresetError:
+            c.check(True, "a different preset under the same id needs --replace")
+        else:
+            c.check(False, "a different preset under the same id needs --replace")
+        other = os.path.join(work, "other.json")
+        with open(other, "w", encoding="utf-8") as f:
+            f.write('{"schemaVersion": 2, "presets": []}')
+        try:
+            bdexport.install(preset, other)
+        except bdexport.BdPresetError:
+            c.check(open(other, encoding="utf-8").read() == '{"schemaVersion": 2, "presets": []}',
+                    "a catalog of another schema is left untouched")
+        else:
+            c.check(False, "a catalog of another schema is left untouched")
+    from . import guide
+    # The angle ladder's own result: rungs and chi2/dof are the figures install_blocker reads.
+    angular = {"fit": {"media": "bd", "rungs": 9, "chi2_per_dof": 1.10,
+                       "dis_equivalent": {"inner_radius_mm": 24.02, "pitch_um_estimate": 0.3185}}}
+    with tempfile.TemporaryDirectory() as root:
+        folder = os.path.join(root, "geo-G-20260101-000000")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump(angular, f)
+        path = os.path.join(folder, "summary.json")
+        c.check(guide.install_blocker(path) is None,
+                "an angular Blu-ray result is installable: rungs and chi2/dof are its figures")
+        c.check(guide.install_warning(path) is None, "and nothing is left unchecked for it")
+        thin = {"fit": {**angular["fit"], "rungs": 3}}
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(thin, f)
+        c.check(guide.install_blocker(path) is not None, "an angular result with too few rungs is refused")
+
+
 def _efmplus(c: Checker):
     print("EFMPlus modulation with DSV control")
     import numpy as np
@@ -1254,6 +1505,9 @@ def _run() -> bool:
         _correction_run(c)
         _disinstall(c)
         _install_blocker(c)
+        _bd_clv(c)
+        _bd_export(c)
+        _tests_folder(c)
         _efmplus(c)
         _tiles(c)
         from . import cd_selftest

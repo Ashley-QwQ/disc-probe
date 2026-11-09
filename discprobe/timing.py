@@ -254,6 +254,17 @@ class TimingProbe:
             raise NoReadableDisc("--media cd requires a CD-ROM Mode 1 data track and READ(12)/READ(10), not READ CD")
         if self.last_lba is None and tracks and tracks[-1]["track"] == 0xAA:
             self.last_lba = tracks[-1]["start_lba"] - 1
+        capacity_source = "read capacity" if self.last_lba else None
+        if (not self.last_lba or self.last_lba < 1000) and self.family == "bd":
+            # An unrecorded BD-R or BD-RE reports a zero capacity, but its spiral is
+            # grooved at the factory and the drive will still track and read across
+            # the whole of it. GET PERFORMANCE is what knows how far it goes.
+            perf = self._cmd(mmc.get_performance(0x10, 0x00), 2048)
+            descs = mmc.parse_get_performance(perf.data, 0x00).get("descriptors", []) if perf.ok else []
+            ends = [int(d["end_lba"]) for d in descs if int(d["end_lba"]) > 0]
+            if ends:
+                self.last_lba = max(ends)
+                capacity_source = "get performance"
         if not self.last_lba or self.last_lba < 1000:
             raise NoReadableDisc("no readable recorded area; burn a test disc first (blank media has nothing to read)")
 
@@ -279,6 +290,7 @@ class TimingProbe:
         self.summary["setup"] = {"profile": f"0x{profile:04X}" if profile is not None else None,
                                  "profile_name": mmc.PROFILES.get(profile), "family": self.family,
                                  "block_sectors": self.block, "sectors_per_read": self.sectors, "last_lba": self.last_lba,
+                                 "capacity_source": capacity_source,
                                  "first_track_audio": audio, "read_method": self.method}
         self.log(f"Disc: {self.summary['setup']['profile_name']}, last LBA {self.last_lba}, "
                  f"reading with {self.method}")
@@ -421,10 +433,16 @@ class TimingProbe:
         self.log("Spindle did not reach a steady speed; expect noisy results")
         self.summary["settle"] = {"steady": False}
 
-    def period_test(self):
+    def period_test(self, zones=None, announce_rotation=True):
+        """One period per zone. `zones` overrides the three used to classify the spindle, which is
+        what a CLV fit wants: more zones, spread further, because it fits a line through them.
+
+        `announce_rotation` is for callers that judge the rotation themselves: this method's own
+        verdict reads the first and last zone, and a caller that skips the ramp-up zone would be
+        told the wrong thing twice."""
         self._experiment = "period"
-        zones, times_by_zone = [], []
-        for frac in ZONES:
+        zones_out, times_by_zone = [], []
+        for frac in (ZONES if zones is None else zones):
             lba = self._align(frac)
             reads = [self._measure(lba, f"zone{frac}") for _ in range(self.period_reads)]
             times = [r.t_end_ns for r in reads if self._usable(r)]
@@ -433,17 +451,19 @@ class TimingProbe:
                     "nominal_radius_mm": round(self._nominal_spiral().radius(lba), 3)}
             if fit:
                 zone.update(fit.summary())
-            zones.append(zone)
+            zones_out.append(zone)
             times_by_zone.append(times)
             self.log(f"Zone {frac:.2f} (LBA {lba}): " + (
                 f"T = {zone['period_ms']} ms ({zone['rpm']} rpm), jitter {zone['jitter_us']} us "
                 f"= {zone['jitter_deg']} deg, coherence {zone['coherence']}" if fit else "no period found"))
-        self._resolve_multiples(zones, times_by_zone)
-        self.zones = zones
-        self.summary["period"] = {"zones": zones, "rotation": self._classify(zones)}
+        self._resolve_multiples(zones_out, times_by_zone)
+        self.zones = zones_out
+        self.summary["period"] = {"zones": zones_out, "rotation": self._classify(zones_out)}
         rotation = self.summary["period"]["rotation"]
-        self.log(f"Rotation: {rotation['mode']}" + (f" ({rotation['reason']})" if "reason" in rotation else ""))
-        self._check_period(zones)
+        if announce_rotation:
+            self.log(f"Rotation: {rotation['mode']}"
+                     + (f" ({rotation['reason']})" if "reason" in rotation else ""))
+        self._check_period(zones_out)
 
     def _resolve_multiples(self, zones, times_by_zone):
         """A zone whose period is a whole multiple of another zone's: the drive there completed reads only

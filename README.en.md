@@ -353,7 +353,9 @@ So far we have only burned pictures ourselves on the GH70N. Results for other dr
 
 On CD, the along-track constant has to come from a grid disc, and 206 frames only applies to the GH70N with an IMAPI burn and READ(12) reads. CMC CD-R also drops about 0.4° near 33 mm, possibly a seam from burning, which we are still checking.
 
-`geo` supports DVD and CD only. Blu-ray discs can only run `timing`.
+`geo` measures DVD and CD with the angle ladder; a Blu-ray drive reads at a constant linear speed, so `geo --media bd --bd-zones 25` times one rotation per zone instead, and `disexport` turns that into a DiscImageStudio Blu-ray preset.
+
+**The Blu-ray route is experimental: it gives the shape of the spiral, not its scale.** The timing pins the curvature, the capacity and the speed, but the track pitch is still the 0.3200 um prior and the inner radius rides on a timing offset the fit cannot see (1.43 um per microsecond of read overhead), so the final scale has to come from the disc itself, off a calibration disc. **Do not burn a picture from a preset made by timing alone.** On one real BD-R, the timing preset and a burn-verified preset for the same media agreed to 4 um at the rim and differed by 106 turns of angle -- a spiral of a dozen arms. The limits, the three edge shapes and the measurements are in the [manual](docs/MANUAL.md) and [`docs/research/BD_CLV_GEOMETRY_SOLVER.md`](docs/research/BD_CLV_GEOMETRY_SOLVER.md).
 
 ## Safety
 

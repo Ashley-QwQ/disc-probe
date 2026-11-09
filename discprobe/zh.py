@@ -174,7 +174,6 @@ TEXT = {
     "Nothing is recorded on this disc, so timing cannot use it. Burn a random-data disc first:": "这张盘上没有数据，timing 用不了。先刻一张随机数据盘：",
     "Nothing is recorded on this disc, so timing cannot use it. The usual random disc would not fit, so make a smaller one:": "这张盘上没有数据，timing 用不了。默认大小的随机数据盘放不下，做一张小一点的：",
     "The Blu-ray drives reported so far kept a constant linear speed whatever was asked, so another speed may not change this. To try one:": "目前报告过的蓝光光驱，请求什么速度都保持恒定线速度，所以换速度可能没用。想试的话：",
-    "geo supports DVD and CD, so timing is as far as this disc goes for now.": "geo 只支持 DVD 和 CD，这张盘目前只能测到 timing。",
     "This is a Blu-ray disc, so {a}x is {b} kB/s": "这是蓝光盘，{a}x 是 {b} kB/s",
     "The middle of a CD holds its file system, so the picture is left out inside 26 mm radius.": "CD 中间放着文件系统，所以半径 26 mm 以内不画图。",
     "ISO 9660 sectors overlap the drawing; leave an inner background margin": "图案压到了文件系统的扇区上；请把半径 26 mm 以内留空",
@@ -190,6 +189,20 @@ TEXT = {
     "{a}-{b} deg": "{a}-{b}°",
     "Or read whole ECC blocks, which was cleaner on one drive: {c}": "或者每次读一个完整的 ECC 块（16 扇区），在一台光驱上更干净：{c}",
     "Next, measure the geometry:": "下一步，测量盘面螺旋几何：",
+    "Next, measure the geometry (a straight T^2 line over 25 zones, about 2 minutes):":
+        "下一步，测量盘面几何（25 个区域拟合一条 T^2 直线，约 2 分钟）：",
+    "Export a DiscImageStudio Blu-ray preset (enter the same --sectors there; `info` on a blank disc gives the count):":
+        "导出一个 DiscImageStudio 蓝光预设（--sectors 同一个数也要填进 DiscImageStudio；空白盘的数看 `info`）：",
+    "This preset gives the shape of the spiral, not its scale (docs/MANUAL.md).":
+        "这个预设给的是螺旋的形状，不是它的尺度（见 docs/MANUAL.md）。",
+    "Do not burn a picture with it: on one real BD the angle was off by 106 turns.":
+        "先别拿它刻图案：在一张真的蓝光上，角度差了 106 圈。",
+    "This preset carries the shape of the spiral, not its scale: the pitch is the 0.3200 um prior and the inner radius rides on a timing offset the fit cannot see.":
+        "这个预设只带螺旋的形状、不带尺度：轨距还是 0.3200 µm 先验，内径挂着一个拟合看不见的计时偏置。",
+    "Do not burn a picture with it yet. Calibrate against the disc first: one BD-R and one look at the edge is 106 turns of difference on a real disc (docs/MANUAL.md).":
+        "先别拿它刻图案。得先对着盘本身校准：一张 BD-R、看一眼边缘，在真盘上就是 106 圈的差别（见 docs/MANUAL.md）。",
+    "The timing fixes the shape; the two absolute radii still come from the disc itself (see docs/research/BD_CLV_GEOMETRY_SOLVER.md).":
+        "计时只定形状；两个绝对半径仍然来自这张盘本身（见 docs/research/BD_CLV_GEOMETRY_SOLVER.md）。",
     "Make a plain data disc: {c}": "做一张普通数据盘：{c}",
     "Burn it (Windows: right-click the .iso, Burn disc image) and run timing on it.": "刻录它（Windows：右键 .iso，选“刻录光盘映像”），然后对这张盘运行 timing。",
     "This was the simulated drive: the verdict and commands below show the flow, do not burn from them.": "这是模拟光驱的结果：下面的结论和命令只用来演示流程，不要拿它刻盘。",
@@ -287,6 +300,11 @@ TEXT = {
     "2. Check the drive with that disc, 1 to 3 minutes. You want CAV and low jitter.": "2. 用这张盘检查光驱，1 到 3 分钟。结果要是 CAV，抖动越小越好。",
     "3. Measure the disc's spiral, about 5 minutes.": "3. 测量盘面螺旋几何，约 5 分钟。",
     "4. Turn your picture into an ISO, check the preview, and burn it on another blank from the same box.": "4. 把图片做成镜像，看一下预览，再刻到同一盒的另一张空盘上。",
+    "On a Blu-ray (experimental) the same shape comes out of read timing instead of a picture:":
+        "蓝光这条路线（实验性）不用刻图案，形状直接从读取计时里出来：",
+    "Burn that to a BD-R, then:": "把它刻到 BD-R 上，然后：",
+    "The timing pins the shape; the two radii still come from the disc itself, so read the limits in docs/MANUAL.md before burning a picture with that preset.":
+        "计时钉住形状；两个半径仍来自这张盘本身，所以用这个预设刻图案之前，先看 docs/MANUAL.md 里写的局限。",
     "5. Look at the disc in the dark. It takes a knack, and `guide` explains it when you get there.": "5. 在暗处看盘。这有点技巧，走到这一步时 `guide` 会讲。",
     "While a measurement runs, press g for a game. They do not disturb it.": "测量时可以按 g 玩小游戏，不会影响测量。",
     "Lost? {c} shows where you are and what comes next.": "不知道到哪了？{c} 会告诉你进度和下一步。",
@@ -307,11 +325,38 @@ TEXT = {
     "Next, check the angle difference above (well under 0.1 deg is fine), then enter the preset in DiscImageStudio": "下一步，看一下上面的角度差（远小于 0.1° 就行），然后把预设填进 DiscImageStudio",
     "(inner and outer radius, sectors, the three pitch terms). Steps: docs/MANUAL.en.md.": "（内外半径、扇区数、三个轨距项）。步骤见 docs/MANUAL.md。",
     "(inner and outer radius, sectors, the three pitch terms), or run with --install to write it there. Steps: docs/MANUAL.en.md.": "（内外半径、扇区数、三个轨距项），或者加上 --install 让程序直接写进去。步骤见 docs/MANUAL.md。",
+    "{a} sectors, inner {b} mm, outer {c} mm (both measured/derived, not nominal)":
+        "{a} 个扇区，内径 {b} mm，外径 {c} mm（两个都是量出来或推出来的，不是标称值）",
+    "constant pitch {a} um at {b} m/s, R^2 {c} over {d} zones; DiscImageStudio solves the pitch from the three numbers above":
+        "恒定轨距 {a} µm，线速度 {b} m/s，R^2 {c}，{d} 个区域；轨距由 DiscImageStudio 从上面三个数自己解出来",
+    "For a DiscImageStudio preset: {a} disexport --geo {b} --sectors {c} --install":
+        "要生成 DiscImageStudio 预设：{a} disexport --geo {b} --sectors {c} --install",
+    "constant pitch {a} um from {b} rungs of the angle ladder, chi^2/dof {c}; the drive holds this disc at a constant angular velocity, so the pitch comes from sector addresses rather than from the periods, and DiscImageStudio solves it from the three numbers above":
+        "恒定轨距 {a} µm，来自角度梯子的 {b} 级，chi^2/dof {c}；这张盘被光驱以恒定角速度读，所以轨距是从扇区地址而不是从周期量出来的，DiscImageStudio 会从上面三个数自己解出它",
+    "A free period offset was also fitted ({a} us, 1 sigma {b} us), but the data cannot tell it from zero, so it was left out of the radius.":
+        "还拟合了一个自由周期偏置（{a} µs，1 sigma {b} µs），但数据分不开它和零，所以没把它从内径里扣掉",
+    "The disc holds {a} sectors, {b} fewer than a full layer, so sector 0 sits {c} mm further out than the 24.0 mm of an unspared disc: that is what was measured, not a rounding error.":
+        "这张盘只有 {a} 个扇区，比满层少 {b} 个，所以扇区 0 比不留备用区的盘的 24.0 mm 更靠外 {c} mm：这是量到的，不是舍入误差",
+        "the disc ends at {a} sectors; DiscImageStudio needs whole {b}-sector units, so the "
+    "preset stops at {c}":
+    "这张盘写到 {a} 个扇区；DiscImageStudio 要求扇区数是 {b} 的整数倍，所以预设停在 {c}",
+    "usable {a} sectors, {b} short of the disc: a burner writes a lead-out inside the "
+    "disc, and a project that fills every sector leaves no room for it":
+    "可用 {a} 扇区，比盘片少 {b} 个：刻录机的 lead-out 写在盘内，填满就没地方留给它了",
+"DiscImageStudio Blu-ray preset in {a} (import it with the Blu-ray preset library's Import button)":
+        "DiscImageStudio 蓝光预设已写入 {a}（用蓝光预设库的 Import 按钮导入）",
+    "DiscImageStudio names an imported preset after the file it reads, so this one will be called after its file name: rename the file before importing to change it":
+        "DiscImageStudio 导入时用文件名作为预设名，所以这一条会以文件名命名：想改名就在导入前改文件名",
+    "Restart DiscImageStudio to load the updated Blu-ray preset list.":
+        "重启 DiscImageStudio 以载入更新后的蓝光预设列表",
     "Restart DiscImageStudio to load the updated preset list.": "重启 DiscImageStudio 以载入更新后的预设列表。",
     "Next, open {p} in DiscImageStudio and burn it, as it is, on a blank of the type to":
         "下一步，用 DiscImageStudio 打开 {p}，不做任何修改，刻到要标定的那种空白盘上",
     "calibrate (lowest speed). Then measure the burned disc on the drive that reads it:":
         "（用最低速度）。然后在读盘用的光驱上测这张刻好的盘：",
+    "This disc turns at a constant angular velocity, so its period carries no radius. "
+    "Measuring the spiral from sector addresses instead.":
+        "这张盘是恒定角速度转的，周期里没有半径信息。改用扇区地址来量这条螺旋。",
     "Next, see where you are: {c}": "下一步，看看进行到哪了：{c}",
     "Try --sectors {a} ({b}). Enter the same number in DiscImageStudio. `info` on a blank disc is the count to go by: one user found read-from-disc there too high.":
         "试试 --sectors {a}（{b}）。DiscImageStudio 里也填这个数。以空白盘上 `info` 的数为准：有用户发现它的“从光盘读取”给的数偏大。",
@@ -435,7 +480,6 @@ TEXT = {
     "The unfinished image was removed.": "没写完的镜像已删除。",
     "This is a CD, but the command has DVD settings. Add --media cd?": "这是 CD，但命令用的是 DVD 设置。要加上 --media cd 吗？",
     "Warning: {name} was made from another geo run ({run}), so it does not fit this one. Make it again:": "警告：{name} 是用另一次 geo（{run}）生成的，和这次对不上。请重新生成：",
-    "Note: geo supports DVD and CD; on this BD only timing is known to work.": "提示：geo 支持 DVD 和 CD；这张 BD 目前只确认 timing 能用。",
     "no such geo result: {p}": "找不到这个 geo 结果：{p}",
     "Your last measurement is {p}.": "你上次的测量结果是 {p}。",
     "Use it with --geo latest.": "用 --geo latest 就能使用它。",
@@ -577,6 +621,33 @@ TEXT = {
     "Not installing this geo result: {x}": "不安装这个 geo 结果：{x}",
     "this is a simulated run (the result folder says SIM), so the preset would describe a drive that does not exist. Measure a real disc, then install that result.":
         "这是模拟盘的结果（结果文件夹名里带 SIM），预设描述的会是一台不存在的光驱。请先测一张真实的盘，再安装那次的结果。",
+    "linear speed {a} m/s": "线速度 {a} m/s",
+    "none: p and r0 are pinned to {a} m/s (1x), so only p/v^2 and r0/v are measured":
+        "无：p 与 r0 钉在 {a} m/s（1 倍速），所以只测到 p/v^2 与 r0/v",
+    "pitch {a} um": "轨距 {a} µm",
+    "r0 {a} mm, pitch {b} um, linear speed {c} m/s  (R^2 {d} over {e} zones, anchor: {f})":
+        "r0 {a} mm，轨距 {b} µm，线速度 {c} m/s（R^2 {d}，{e} 个区域，锚点：{f}）",
+    "1 sigma: {a}": "1 sigma：{a}",
+    "r0 {a} um": "r0 {a} µm",
+    "r0 (anchor)": "r0（锚点）",
+    "pitch (anchor)": "轨距（锚点）",
+    "speed {a} m/s": "速度 {a} m/s",
+    "the outermost sector lands at {a} mm{b}": "最外圈扇区落在 {a} mm{b}",
+    " (a full 25 GB layer: the standard puts its edge at 58.0 mm)": "（满层 25 GB：规范把它放在 58.0 mm）",
+    "the periods do not lie on one line: two lines with a break at sector {a} leave {b}% less residual. That is what a disc read in zones looks like, and the numbers above are the single line through it, not a spiral measurement":
+        "这些周期不在一条直线上：在扇区 {a} 处断开用两条线描述，残差少 {b}%。这正是分区读取的盘的样子，上面那些数字只是穿过它的一条线，不是螺旋测量结果",
+    "r0 sits {a} mm inside the innermost zone ({b} mm), so it comes from the line's curvature rather than from a point measured there; the tolerance above is the fit's, not the model's":
+        "r0 落在最内测量区域（{b} mm）往里 {a} mm 处，所以它来自直线的曲率，而不是在那里量到的点；上面的容差是拟合的，不是模型的",
+    "period offset {a} us (1 sigma {b} us): the fit already took it out of r0": "周期偏置 {a} µs（1 sigma {b} µs）：拟合已经把它从 r0 里扣掉了",
+    "period offset {a} us: the fit already took it out of r0": "周期偏置 {a} µs：拟合已经把它从 r0 里扣掉了",
+    "period offset: {a} us (1 sigma {b} us), which the data cannot tell from zero, "
+    "so the fit left it out and r0 is the plain answer":
+        "周期偏置：{a} µs（1 sigma {b} µs），数据分不开它和零，所以拟合把它留在了外面，r0 就是直接的答案",
+    "zones.csv, summary.json: {a}": "zones.csv、summary.json 保存在：{a}",
+    "Left {a} zone(s) out of the fit: their period did not follow the line (sector {b}{c}). A zone can lock to a harmonic of the spindle instead of the spindle itself; zones.csv lists every zone, used or not":
+        "有 {a} 个区域没进拟合：它们的周期不在这条线上（扇区 {b}{c}）。某个区域可能锁定到主轴的谐波上而不是主轴本身；zones.csv 里列出全部区域，用到的和没用到的都在",
+    "Pass --linear-mm-s to trade that anchor for a pitch: without it the pitch is nominal and only r0/v is measured.":
+        "加 --linear-mm-s 可以把这个锚点换成轨距：不加时轨距用标称值，只测到 r0/v。",
     "this is a simulated run (its summary says so), so the preset would describe a drive that does not exist. Measure a real disc, then install that result.":
         "这是模拟盘的结果（summary 里写了），预设描述的会是一台不存在的光驱。请先测一张真实的盘，再安装那次的结果。",
     "this run stopped before the end ({x}), so the ladder never reached the fit. Run geo again and install a run that finished.":
@@ -685,9 +756,28 @@ TEXT = {
     "read IDs and swatch levels from flatbed scans of the tile palette target": "从调色板盘的平板扫描图读取编号和色样亮度",
     "measure line straightness on scans of the burned grid test": "在网格测试盘的扫描图上测线条是否笔直",
     "fit an angle-correction curve from gridscan phi.csv files": "用 gridscan 的 phi.csv 拟合角度修正曲线",
-    "fit the measured angle map as a DiscImageStudio DVD or CD preset (cubic pitch)": "把测出的角度关系拟合成 DiscImageStudio 的 DVD 或 CD 预设",
+    "fit a measurement as a DiscImageStudio preset: a DVD/CD angle map (cubic pitch), or a Blu-ray T^2 line (constant pitch)": "把一次测量拟合成 DiscImageStudio 预设：DVD/CD 是角度关系（三次项轨距），蓝光是一条 T^2 直线（恒定轨距）",
     "write a random-data ISO for full-disc timing calibration": "写随机数据镜像，刻好后用来测量",
     "write a DiscImageStudio project and pattern for a CD probe disc": "为 CD 探测盘生成 DiscImageStudio 工程和图案",
+    "Blu-ray only: how far the picture came out twisted, in degrees, as seen on a dial burn (a radial line drawn at 12 o'clock ending at 1 o'clock is 30 degrees). The pitch that implies is folded into the two radii, which is the only place a preset can carry it": "仅蓝光：图案扭了多少度，按表盘盘读（12 点钟的径向线指到 1 点钟就是 30°）。它对应的轨距改动用两个半径承载，因为预设里没有别的地方放它",
+    "with --twist-deg: the radius where the angle was read (default: the outer radius). Read it off a ring if the picture only has to close there": "配合 --twist-deg：在哪个半径上读的这个角度（默认外圈）。如果只需要图案在某一圈上合拢，就按那圈读",
+    "write one Blu-ray that both times itself and shows its own twist": "写一张蓝光镜像：刻好后既能用它测转速，也能看出它的图案扭了多少",
+    "a whole single-layer Blu-ray by default; it has to fit on the blank": "默认写满一张单层蓝光；要放得下这张空盘",
+    "the inner radius the picture is laid out for (the standard's 24.0 mm)": "图案按这个内径排版（标准的 24.0 mm）",
+    "the track pitch the picture is laid out with (the format's 0.3200 um)": "图案按这个轨距排版（格式的 0.3200 µm）",
+    "radii of the rings that make the radius scale readable, in mm": "几条同心环的半径，单位 mm，用来看半径刻度",
+    "also save the picture as a PNG, for burning it with a picture disc tool instead":
+        "同时导出一张 PNG，方便改用现成的画盘工具来刻",
+    "the blank's capacity less the lead-out a burner needs to close the disc": "空白盘的容量减去刻录机收尾需要的 lead-out",
+    "half the disc dark and half light instead of rings and a line: the edge survives a wrong preset "
+    "as a handful of arms, where a thin line does not": "半黑半白，而不是圆环加细线：预设错了的时候这条边还在，变成几道能数清的臂，细线则直接消失",
+    "{a} sectors ({b:.2f} GB) written with r0 {c} mm and pitch {d} um: half the disc dark, half light": "写入 {a} 个扇区（{b:.2f} GB），内径 {c} mm、轨距 {d} µm：半张盘深、半张盘浅",
+    "Burn it, then count the arms where the dark half meets the light one: dense at the inner edge and "
+    "coarse outside means the inner radius is off, the other way round means the outer one is, and arms "
+    "that fold back in the middle mean the two are off in opposite directions. Adjust the preset's two "
+    "radii in the preview until the preview shows the same arms, and burn again": "刻好后数深色半边与浅色半边交界处的臂：内圈密、外圈疏说明内径偏了；反过来是外径偏了；中途折回来、出现一个舌形，说明两者反着偏。在预览里调预设的两个半径，直到预览出现同样的臂，再刻一张",
+    "Burn it, then time the same disc with `geo --media bd`: the timing gives the shape and the arms give the two radii": "刻好后用 `geo --media bd` 测同一张盘：计时给形状，臂给两个半径",
+
     "parser checks and end-to-end runs on the simulated drive and a synthetic scan": "用模拟光驱和合成扫描图做自检",
 
     # Option help
@@ -792,9 +882,39 @@ TEXT = {
     "overwrite existing files": "覆盖已有的文件",
     "fit range: use the measured span (DVD default 25.8, CD the span geo measured)": "拟合范围：用实测范围（DVD 默认 25.8，CD 用 geo 测到的范围）",
     "DVD default 54.4, CD the span geo measured": "DVD 默认 54.4，CD 用 geo 测到的范围",
-    "CD only: along-track constant in frames, as in image --along-track-frames": "仅 CD：沿轨常数（帧），含义同 image --along-track-frames",
-    "disc type; cd also switches the defaults to CD values (default: dvd)": "盘的类型；cd 同时会把默认值换成 CD 的值（默认 dvd）",
-    "check that --geo measured this disc type; the fit decides the preset": "检查 --geo 测的是不是这种盘；预设类型由拟合结果决定",
+            "pulled the inner radius back {a} sectors, over the spare area a formatted disc "
+    "keeps there: sector 0 of an unspared BD-R starts at {b} mm, not {c} mm":
+    "内径往回推了 {a} 个扇区，越过格式化盘在内圈留的备用区：没有备用区的 BD-R 上扇区 0 在 {b} mm，而不是 {c} mm",
+
+    "this disc was written up to sector {a} of {b}; the rest of the spiral is simply "
+    "unrecorded, and the preset describes the whole spiral, so nothing needs adjusting":
+    "这张盘只写到 {b} 个扇区中的 {a}；剩下的螺旋没有刻录内容，而预设描述的是整条螺旋，无需调整",
+    "this disc holds {a} sectors, {b} fewer than the preset's {c}: too few to be a "
+    "spare area, so that is a lead-out margin or simply a slightly smaller disc, and "
+    "sector 0 stays where the timing measured it":
+    "这张盘有 {a} 个扇区，比预设的 {c} 少 {b} 个：差额太小，不是备用区，而是 lead-out 的余量，"
+    "或者这张盘本来就略小；扇区 0 就留在计时量到的位置",
+    "this disc holds {a} sectors and the preset says {b}: the difference is the inner "
+    "spare area a formatted disc keeps, so sector 0 sits further out than on an "
+    "unspared BD-R. Add --pullback-isa0 to move the inner radius back for one":
+    "这张盘有 {a} 个扇区，预设写的是 {b}：差的就是格式化盘在内圈留的备用区，"
+    "所以扇区 0 比没有备用区的 BD-R 更靠外。要给那种盘出预设，加 --pullback-isa0 把内径往回推",
+
+    "Blu-ray only: when --sectors is larger than the disc the run measured, put the "
+    "difference in front of sector 0 instead of behind the last one, which is where an "
+    "unspared BD-R starts":
+    "仅蓝光：当 --sectors 大于实测盘片的扇区数时，把差额放在扇区 0 之前而不是最后一个扇区之后，"
+    "没有备用区的 BD-R 就从那里开始",
+
+"Blu-ray only: sectors a project may fill; default 2 MiB short of the disc so a burner "
+    "still has room for its lead-out, 0 for the whole disc":
+    "仅蓝光：工程可用的扇区数；默认比盘片少 2 MiB，给刻录机的 lead-out 留出位置，0 表示整盘",
+"CD only: along-track constant in frames, as in image --along-track-frames": "仅 CD：沿轨常数（帧），含义同 image --along-track-frames",
+    "disc type; cd also switches the defaults to CD values, bd to Blu-ray (default: dvd)": "盘的类型；cd 同时会把默认值换成 CD 的值，bd 换成蓝光的（默认 dvd）",
+    "Blu-ray only: the linear speed the drive reads at, in mm/s. With it the fit gives the pitch; without it the pitch is an anchor and only the ratio stays known": "只用于蓝光：光驱读取的线速度（mm/s）。给了它就测出轨距；不给则轨距当锚点，只保留比值",
+    "Blu-ray only: how many zones to time, spread evenly from 5%% to 95%% of the disc (default 9). Two numbers come out of the line, so nine zones already pin them; more zones buy a better check that the line is straight, which is what tells a clean CLV disc from one that changes speed part way": "只用于蓝光：量几个区域，从盘的 5%% 到 95%% 均匀分布（默认 9）。一条直线只出两个数，九个区域就够；多出来的点买的是“线是不是直的”这个检验，靠它区分干净的 CLV 盘和中途换速的盘",
+    "Blu-ray only: fit a constant offset in the period as well, which is the only way to separate 'this disc really starts further out than 24.0 mm' from 'every period carries a fixed few hundred microseconds'. Needs five zones or more": "只用于蓝光：同时拟合一个固定的周期偏移。这是分开“这张盘确实从比 24.0 mm 更外的地方开始”和“每圈都多几百微秒”的唯一办法。至少要五个区域",
+    "check that --geo measured this disc type; the fit decides the preset (a CLV run gives a Blu-ray preset, in print or with --install)": "检查 --geo 测的是不是这种盘；预设类型由拟合结果决定（CLV 结果给出蓝光预设，打印出来或用 --install 装进去）",
     "CD only: sector layout the burner writes; IMAPI2 data burns are Mode 2 Form 1 (user data from byte 24), so textures are pre-scrambled for that unless you burn Mode 1": "仅 CD：刻录工具写的扇区格式；IMAPI2 刻数据盘是 Mode 2 Form 1（用户数据从第 24 字节开始），除非你刻 Mode 1，否则纹理都按它预先加扰",
 }
 
@@ -829,6 +949,13 @@ zsh：
   python -m discprobe geo --drive E:                    测量盘面螺旋几何
   python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
   python -m discprobe disexport --geo latest --sectors <sectors> --output dis_preset.json
+
+蓝光这条路线是实验性的（局限见 docs/research/BD_CLV_GEOMETRY_SOLVER.md）：
+  python -m discprobe random --media bd --output iso/bd-random.iso   然后刻到 BD-R 上
+  python -m discprobe geo --drive E: --media bd --bd-zones 25        25 个区域拟合一条 T^2 直线
+  python -m discprobe disexport --geo latest --sectors <sectors>     生成 DiscImageStudio 蓝光预设
+计时能钉住形状、容量和速度；绝对内径和轨距仍是先验值，
+所以只靠计时的预设还不能用来摆图案（轨距差 0.1% 就是外圈 100 圈）。
 
 在终端里，只有一台光驱时可以不写 --drive，每条命令结束时都会打印下一条。
 `python -m discprobe <command> -h` 查看某条命令的选项。""",
@@ -907,4 +1034,14 @@ DiscImageStudio 刻的 CD 图（一条音轨）：同一条命令直接测这张
   python -m discprobe results --pick          选择 geo 结果：先按盘和光驱，再按精度或日期""",
     "guide": """\
 读取结果文件夹，显示哪些步骤已完成，并打印下一条命令。不会操作光驱。""",
+
+    "calibdisc": """\
+实验性：这是那条需要拍照的路线留下的工具，只作离线验证用。
+例子：
+  python -m discprobe calibdisc                                      整层 25 GB，三条半径环 + 12 点钟线 + 3 点钟短刻度
+  python -m discprobe calibdisc --split                              半黑半白：预设错了也看得见分界线被拧成的臂
+  python -m discprobe calibdisc --sectors 12200000 --preview p.png  更小的镜像，并顺手存一张预览图
+
+刻好后先用 `geo --media bd` 测这张盘自己的几何。盘上的角度由盘的真实内径和轨距决定，
+而这两个数计时只能弱测，所以先刻细线、再读转角的做法并不成立——这是目前这条路的局限。""",
 }

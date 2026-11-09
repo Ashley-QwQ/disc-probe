@@ -8,3 +8,6 @@ art/
 results/
 docs/goals/
 research-prompt*.md
+/dis_preset*.json
+/*_preset.json
+/*.iso

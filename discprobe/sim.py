@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import math
 import random
+import struct
 
 from . import mmc
 from .geometry import DVD_SECTOR_MM, ONE_X_MM_S, Spiral
@@ -25,7 +26,7 @@ class SimDrive:
                  rev_period_ms: float | None = None, clv_speed_x: float | None = None,
                  capacity: int | None = None, cache_blocks: int | None = None, reread_delay_ms: float = 0.0,
                  media="dvd", cd_u=None, cd_v=None, cd_audio: bool = False, cd_read_offset_bytes: float = 0.0,
-                 patterns=()):
+                 patterns=(), block: int | None = None):
         self.media = media
         # A DVD reads back as random data, except (lba_start, lba_end, byte) stretches written as one
         # scrambled-domain byte, like a texture ring or a picture.
@@ -39,7 +40,7 @@ class SimDrive:
         if clv_speed_x is None:
             clv_speed_x = 16.0 if media == "cd" else 8.0
         if capacity is None:
-            capacity = 359849 if media == "cd" else 2295104
+            capacity = {"cd": 359849, "bd": 12088319}.get(media, 2295104)
         self.name = f"SIM-{mode}{'' if fua_honoured else '-nofua'}{'-flush' if flush_honoured else ''}"
         if media == "cd":
             self.name += "-cda" if self.cd_audio else "-cd"
@@ -60,6 +61,13 @@ class SimDrive:
             self.spiral = Spiral((cd_u if cd_u is not None else cd.R0_MM / b * 1.01) * b,
                                  (cd_v if cd_v is not None else cd.PITCH_UM * 1e-3 / b * 0.99) * b,
                                  cd.SECTOR_BITS * b)
+        elif media == "bd":
+            from .geometry import BD_SECTOR_MM
+            # Off-nominal on purpose: 0.3185 um pitch, start radius 24.02 mm.
+            # `block` is the read granularity: one sector for the linear-speed ladder, 32 for the
+            # angular one, which is the recording unit a CAV read completes on.
+            self.block = block if block is not None else 1
+            self.spiral = Spiral(24.02, 0.3185e-3, BD_SECTOR_MM)
         self.clv_speed_mm_s = clv_speed_x * ONE_X_MM_S[media]
         # One read plus two blocks of read-ahead (a single segment, like the HP BU20N, which a far
         # read clears) on a CD-DA track; six blocks otherwise.
@@ -179,7 +187,17 @@ class SimDrive:
                 d[32:36] = b"0.01"
                 data = bytes(d)
             elif op == 0x46:
-                data = bytes([0, 0, 0, 4, 0, 0, 0x00, 0x08 if self.media == "cd" else 0x11])
+                profile = {"cd": 0x08, "bd": 0x41}.get(self.media, 0x11)
+                data = bytes([0, 0, 0, 4, 0, 0, 0x00, profile])
+            elif op == 0xAC and (cdb[1] & 0x0F) == 0x00:
+                # GET PERFORMANCE type 00h: the start and end read rate. Under CLV they are equal;
+                # under CAV their ratio is the radius ratio of the range.
+                def kbps(lba: int) -> int:
+                    r = self.spiral.radius(max(0.0, float(lba)))
+                    v = self.clv_speed_mm_s if self.mode == "clv" else self._w * r
+                    return int(round(v / self.spiral.sector_mm * 2048 / 1000))
+                body = struct.pack(">IIII", 0, kbps(0), self.capacity - 1, kbps(self.capacity - 1))
+                data = struct.pack(">I", 20) + bytes(4) + body
             elif op == 0x25:
                 data = (self.capacity - 1).to_bytes(4, "big") + (2048).to_bytes(4, "big")
             elif op == 0x43 and (cdb[2] & 0x0F) == 0:

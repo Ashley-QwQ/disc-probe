@@ -36,6 +36,11 @@ PITCH_CLEARLY_BETTER = 0.5
 # is where the CD run at 3226 rpm sat (0.77) that the drive table says can't be used.
 GOOD_SIGMA_DEG = 0.25
 BAD_SIGMA_DEG = 0.6
+# A Blu-ray run is a straight T^2 line: five zones already leave three checks of its straightness, and a
+# disc read at a constant linear speed lands on R^2 0.9999 or better. Its own real run over 23 zones gave
+# R^2 0.999998; a run whose speed moved during the measurement falls well under 0.99.
+MIN_BD_ZONES = 5
+MIN_BD_R2 = 0.99
 MATCH_INFO_S = 24 * 3600    # how far from a measurement an `info` run can be and still be taken for the same disc
 ALTERNATIVE_SPEEDS = {"dvd": ("3324", "5540", "11080"), "cd": ("1411", "2822", "4234"), "bd": ("8990", "17980", "35960")}
 RANDOM_SECTORS = {"dvd": 2295104, "cd": 359600}
@@ -94,9 +99,15 @@ class Result:
         return self.summary.get("fit") or {}
 
     @property
+    def is_clv(self) -> bool:
+        """A Blu-ray result: periods against LBA, not angles."""
+        return self.kind == "geo" and self.fit.get("model") == "clv"
+
+    @property
     def media(self) -> str:
         if self.kind == "geo":
-            return "cd" if self.fit.get("media") == "cd" else "dvd"
+            media = self.fit.get("media")
+            return media if media in ("cd", "dvd", "bd") else "dvd"
         return "cd" if (self.summary.get("args") or {}).get("media") == "cd" else "dvd"
 
     def rungs(self) -> int:
@@ -110,9 +121,23 @@ class Result:
     def stopped(self) -> str | None:
         return self.summary.get("stopped")
 
+    def zones(self) -> int:
+        """Zones in a CLV result; the angle ladder has rungs instead."""
+        try:
+            with open(os.path.join(self.path, "zones.csv"), encoding="utf-8") as f:
+                return max(0, sum(1 for _ in f) - 1)
+        except OSError:
+            return 0
+
     def geo_complete(self) -> bool:
-        return (self.kind == "geo" and "u" in self.fit and not self.stopped
-                and self.fit.get("completion_status", "target_reached") == "target_reached" and self.rungs() >= MIN_RUNGS
+        if self.kind != "geo":
+            return False
+        reached = self.fit.get("completion_status", "target_reached") == "target_reached"
+        if self.is_clv:
+            r2 = self.fit.get("r2")
+            return ("r0_mm" in self.fit and not self.stopped and reached and self.zones() >= 5
+                    and isinstance(r2, (int, float)) and not isinstance(r2, bool) and r2 >= 0.99)
+        return ("u" in self.fit and not self.stopped and reached and self.rungs() >= MIN_RUNGS
                 and self.fit.get("chi2_per_dof", 0) <= MAX_LATEST_CHI2)
 
     @property
@@ -127,6 +152,8 @@ class Result:
     def quality(self) -> str:
         if not self.geo_complete():
             return "stopped early"
+        if self.is_clv:
+            return "good" if (self.fit.get("r2") or 0) >= 0.9999 else "usable"
         if not self.reliable():
             return "too noisy"
         span = self.fit.get("measured_span_mm") or [0, NARROW_SPAN_MM]
@@ -140,6 +167,12 @@ class Result:
     def describe(self) -> str:
         if self.kind == "geo":
             f = self.fit
+            if self.is_clv:
+                if "r0_mm" not in f:
+                    return "stopped before the period fit"
+                state = "" if self.geo_complete() else "  (stopped early)"
+                return (f"{self.zones()} zones, R^2 {f.get('r2', 0):.6f}, r0 {f.get('r0_mm', 0):.3f} mm, "
+                        f"pitch {f.get('pitch_um', 0):.4f} um{state}")
             if "u" not in f:
                 return "stopped before the first fit"
             state = "" if self.geo_complete() else "  (stopped early)"
@@ -237,6 +270,42 @@ def install_blocker(geo_summary: str) -> str | None:
         return (f"this run stopped before the end ({i18n.tr(str(stopped))}), so the ladder never reached the "
                 f"fit. Run geo again and install a run that finished.")
     fit = summary.get("fit") or {}
+    if fit.get("model") == "clv":
+        # A Blu-ray run is judged by the T^2 line it fitted, not by an angle ladder: the figures are
+        # the zone count and R^2 (`clv.ClvFit`), and a run of that kind has no chi2/dof or angle sigma.
+        if _quality_number(fit, "r0_mm") is None:
+            return "this run has no geometry fit in its summary.json, so there is nothing to install."
+        zones = _quality_number(fit, "zones_used") or 0
+        if zones < MIN_BD_ZONES:
+            return (f"this run fitted {zones:g} zones, fewer than the {MIN_BD_ZONES} a straight T^2 line needs "
+                    f"before `results` trusts it (`geo --media bd --bd-zones` sets how many). A preset is not the "
+                    f"place to try one.")
+        r2 = _quality_number(fit, "r2")
+        if r2 is not None and r2 < MIN_BD_R2:
+            return (f"this run's T^2 line only reaches R^2 {r2:.5f}; a disc read at a constant linear speed gives "
+                    f"0.999 or better. The spindle speed probably moved during the run, so measure it again.")
+        brk = fit.get("break_fit")
+        if isinstance(brk, dict) and brk.get("break_lba") is not None:
+            return (f"this run's periods step at sector {int(brk['break_lba']):,} instead of rising smoothly: two "
+                    f"lines describe it with {float(brk.get('improvement', 0.0)) * 100:.0f}% less residual. A drive "
+                    f"reading in zones holds one angular speed per zone, and a preset built on that would place the "
+                    f"spiral wrongly.")
+        return None
+    if fit.get("media") == "bd" and isinstance(fit.get("dis_equivalent"), dict):
+        # A Blu-ray the drive reads at a constant angular velocity: the angle ladder measured
+        # u = r0/b and v = p/b, so the figures to judge are the rung count and chi2/dof.
+        anchors = fit["dis_equivalent"]
+        if _quality_number(anchors, "inner_radius_mm") is None or _quality_number(anchors, "pitch_um_estimate") is None:
+            return "this run's summary has neither an inner radius nor a pitch to build a preset from."
+        rungs = _quality_number(fit, "rungs") or 0
+        if rungs < MIN_BD_ZONES:
+            return (f"this run fitted {rungs:g} rungs, fewer than the {MIN_BD_ZONES} the angle ladder needs "
+                    f"before `results` trusts it. A preset is not the place to try one.")
+        chi2 = _quality_number(fit, "chi2_per_dof")
+        if chi2 is not None and chi2 > MAX_LATEST_CHI2:
+            return (f"this run's angle fit leaves chi2/dof {chi2:.1f}; `results` already treats it as unusable, "
+                    f"and a preset is not the place to try it.")
+        return None
     if "u" not in fit:
         return "this run has no geometry fit in its summary.json, so there is nothing to install."
     if fit.get("completion_status", "target_reached") != "target_reached":
@@ -268,6 +337,13 @@ def install_warning(geo_summary: str) -> str | None:
     otherwise look like a run that passed the check.
     """
     fit = ((_load(os.path.abspath(geo_summary)) or {}).get("fit") or {})
+    if fit.get("model") == "clv":
+        # A constant-linear-speed run has no chi2/dof or angle sigma by construction: its figures are
+        # the zone count and R^2, and `install_blocker` checks both, so nothing is unchecked here.
+        return None
+    if fit.get("media") == "bd" and isinstance(fit.get("dis_equivalent"), dict):
+        # The angle ladder on a Blu-ray: rung count and chi2/dof are both checked by install_blocker.
+        return None
     missing = [name for name in ("chi2_per_dof", "angle_sigma_measured_span_deg")
                if _quality_number(fit, name) is None]
     if not missing:
@@ -396,7 +472,8 @@ def sectors_from_info(report: dict) -> tuple[int, str] | None:
 
 def _sectors_for(summary: dict, out: str) -> tuple[str, str]:
     """A --sectors value for the preset command, and what the reader should check about it."""
-    media = "cd" if (summary.get("fit") or {}).get("media") == "cd" else "dvd"
+    fit_media = (summary.get("fit") or {}).get("media")
+    media = fit_media if fit_media in ("cd", "dvd", "bd") else "dvd"
     for r in scan(out):
         if r.kind == "info" and not r.simulated:
             report = _load(os.path.join(r.path, "info.json")) or {}
@@ -488,7 +565,8 @@ def after_timing(args, summary: dict) -> list[str]:
         if media == "dvd" and not blu_ray and getattr(args, "sectors", 1) == 1:
             lines.append(f"  Or read whole ECC blocks, which was cleaner on one drive: {PROG} timing {carry} --sectors 16")
     if blu_ray:
-        return lines + ["", "geo supports DVD and CD, so timing is as far as this disc goes for now."]
+        return lines + ["", "Next, measure the geometry (a straight T^2 line over 25 zones, about 2 minutes):",
+                        f"  {PROG} geo {carry} --media bd --bd-zones 25"]
     usual = 1411 if media == "cd" else None
     speed = f" --speed {args.speed}" if getattr(args, "speed", None) not in (None, usual) else ""
     note = ["  It sets 4x first. If that takes this drive out of constant rotation, it stops and says what to do."] if media == "dvd" and getattr(args, "speed", None) is None else []
@@ -496,9 +574,11 @@ def after_timing(args, summary: dict) -> list[str]:
 
 
 def after_timing_stop(args, reason: str) -> list[str]:
-    flag = " --media cd" if getattr(args, "media", "dvd") == "cd" else ""
+    media = getattr(args, "media", "dvd")
+    flag = {"cd": " --media cd", "bd": " --media bd"}.get(media, "")
+    iso = {"cd": "iso/cd-random.iso", "bd": "iso/bd-random.iso"}.get(media, "iso/random.iso")
     if "cannot read" in reason or "recorded area" in reason or "fails on" in reason or "time limit" in reason:
-        return [f"Make a plain data disc: {PROG} random{flag} --output iso/random.iso",
+        return [f"Make a plain data disc: {PROG} random{flag} --output {iso}",
                 "Burn it (Windows: right-click the .iso, Burn disc image) and run timing on it."]
     return []
 
@@ -739,6 +819,13 @@ def tutorial_lines() -> list[str]:
             f"  {PROG} image --geo latest --picture my_picture.png --output iso/picture.iso",
             "5. Look at the disc in the dark. It takes a knack, and `guide` explains it when you get there.",
             "",
+            "On a Blu-ray (experimental) the same shape comes out of read timing instead of a picture:",
+            f"  {PROG} random --media bd --output iso/bd-random.iso",
+            "  Burn that to a BD-R, then:",
+            f"  {PROG} geo {drive_flag()} --media bd --bd-zones 25",
+            f"  {PROG} disexport --geo latest --sectors <sectors> --output dis_preset.json",
+            "  The timing pins the shape; the two radii still come from the disc itself, so read the limits in docs/MANUAL.md before burning a picture with that preset.",
+            "",
             "While a measurement runs, press g for a game. They do not disturb it.",
             f"Lost? {PROG} guide shows where you are and what comes next.",
             f"To read this again: {PROG} tutorial",
@@ -809,15 +896,17 @@ def after_cdprobe(project: str) -> list[str]:
 
 def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -> list[str]:
     """The workflow with what is already done ticked off, and the next command; `notes` says what each does."""
-    flag = " --media cd" if media == "cd" else ""
-    random_iso = "iso/cd-random.iso" if media == "cd" else "iso/random.iso"
+    flag = {"cd": " --media cd", "bd": " --media bd"}.get(media, "")
+    random_iso = {"cd": "iso/cd-random.iso", "bd": "iso/bd-random.iso"}.get(media, "iso/random.iso")
     results = [r for r in scan(out) if not r.simulated and r.media == media]
     missing = missing_packages()
     drives = optical_drives()
     drive = f"--drive {drives[0]}" if drives else "--drive E:"
 
     timing = next((r for r in results if r.kind == "timing" and r.rotation() and not r.stopped), None)
-    timing_good = timing is not None and timing.rotation() == "CAV"
+    # A Blu-ray is read at a constant linear speed, so CLV is the good answer there, not CAV: the run
+    # that counts is the one that finished, and its own verdict says whether the disc is usable.
+    timing_good = timing is not None and (not timing.stopped if media == "bd" else timing.rotation() == "CAV")
     geo = next((r for r in results if r.geo_complete()), None)
     has_iso = os.path.exists(random_iso) and not os.path.exists(random_iso + iso9660.UNFINISHED)
 
@@ -838,7 +927,15 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
         current = next((i for i, row in enumerate(rows) if not row[0]))
         rows[current] = (rows[current][0], rows[current][1], f"{i18n.tr(rows[current][2])}  <- {i18n.tr('you are here')}")
 
-    if missing:
+    if media == "bd" and geo is not None:
+        sectors = _sectors_for(geo.summary, out)[0]
+        commands = [("Export a DiscImageStudio Blu-ray preset (enter the same --sectors there; `info` on a blank disc gives the count):",
+                     f"{PROG} disexport --media bd --geo latest --sectors {sectors} --output dis_preset.json"),
+                    ("This preset carries the shape of the spiral, not its scale: the pitch is the 0.3200 um prior and "
+                     "the inner radius rides on a timing offset the fit cannot see.", None),
+                    ("Do not burn a picture with it yet. Calibrate against the disc first: one BD-R and one look at the "
+                     "edge is 106 turns of difference on a real disc (docs/MANUAL.md).", None)]
+    elif missing:
         commands = [("Install the Python packages disc-probe uses:", INSTALL)]
     elif sys.platform != "win32":
         commands = [("Try the flow on the simulated drive:", f"{PROG} timing --sim cav{flag}"), (None, PORTS)]
@@ -850,7 +947,9 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
         commands = [("This speed did not work; try another (1 to 3 minutes):",
                      f"{PROG} timing {drive}{flag} --speed {ALTERNATIVE_SPEEDS[media][0]}")]
     elif geo is None:
-        commands = [("Measure the disc's spiral (about 5 minutes):", f"{PROG} geo {drive}{flag}")]
+        measure = (f"{PROG} geo {drive} --media bd --bd-zones 25" if media == "bd"
+                   else f"{PROG} geo {drive}{flag}")
+        commands = [("Measure the disc's spiral (about 5 minutes):", measure)]
     else:
         sectors = _sectors_for(geo.summary, out)[0]
         first = ("CD still needs one more constant, so the preset below is the usual way on (the CD route in README.md). A picture ISO:"
@@ -866,6 +965,9 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
     lines += ["", "Next:"]
     for note, command in commands:
         lines += ([f"  {note}"] if notes and note else []) + ([f"  {command}"] if command else [])
+    if media == "bd" and geo is not None:
+        lines += ["", "  This preset gives the shape of the spiral, not its scale (docs/MANUAL.md).",
+                  "  Do not burn a picture with it: on one real BD the angle was off by 106 turns."]
     if picture and geo:
         lines += ["", *AFTER_BURN]
     lines += ["", f"All commands: {PROG} -h    One command: {PROG} <command> -h    Details: docs/MANUAL.en.md"]

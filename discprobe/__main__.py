@@ -139,9 +139,12 @@ def _open(args):
     if args.sim:
         from .sim import SimDrive
         mode, _, variant = args.sim.partition("-")
+        media = getattr(args, "media", "dvd")
+        sectors = getattr(args, "sectors", 1)
         return SimDrive(mode=mode, fua_honoured=variant in ("", "audio"), flush_honoured=variant == "flush",
-                        seed=args.seed, media=getattr(args, "media", "dvd"), cd_audio=variant == "audio",
-                        cd_read_offset_bytes=getattr(args, "read_offset_bytes", 0.0))
+                        seed=args.seed, media=media, cd_audio=variant == "audio",
+                        cd_read_offset_bytes=getattr(args, "read_offset_bytes", 0.0),
+                        block=32 if media == "bd" and sectors == 32 else None)
     _choose_drive(args)
     if not args.drive:
         sys.exit("give --drive E: (see `python -m discprobe list`) or --sim cav|clv|cav-nofua")
@@ -177,8 +180,10 @@ def _check_disc(dev, args) -> None:
         if ui.ask("This is a CD, but the command has DVD settings. Add --media cd?"):
             dev.close() if hasattr(dev, "close") else None
             raise _Rerun(["--media", "cd"])
-    if family == "bd" and args.func is cmd_geo:
-        ui.say("Note: geo supports DVD and CD; on this BD only timing is known to work.", "yellow")
+    if family == "bd" and getattr(args, "media", "dvd") != "bd" and args.func in (cmd_geo, cmd_timing):
+        if ui.ask("This is a Blu-ray disc, which the drive reads at a constant linear speed. Add --media bd?"):
+            dev.close() if hasattr(dev, "close") else None
+            raise _Rerun(["--media", "bd"])
 
 
 def _blu_ray_speed(dev, args) -> None:
@@ -210,6 +215,136 @@ def _identity(args, dev) -> dict | None:
         return info.identify(dev, getattr(args, "media", None))
     except Exception:       # a label, never worth stopping a measurement
         return None
+
+
+def _geo_clv(args):
+    """`geo --media bd`: the drive holds the linear speed, so fit spindle periods against LBA.
+
+    The angle ladder needs the *angular* rate held constant, which no BD drive offers: MMC has no
+    command that sets a read speed for Blu-ray, and the drive picks CLV for BD-R/BD-RE and CAV for
+    a pressed BD-ROM. Under CLV a turn takes T = 2*pi*r/v, and r^2 grows linearly with the sector,
+    so T^2 is a straight line in LBA and carries (r0, pitch) up to one anchor.
+    """
+    from .clv import DEFAULT_ZONES, ClvLadder, ConstantAngularVelocity, write_outputs
+    if args.sectors != 1:
+        sys.exit("--sectors 1 only: a Blu-ray fit uses the time to turn once, which one sector gives")
+    if not args.sim:
+        _need_windows()
+        from .spti import raise_priority
+        raise_priority()
+    dev = _open(args)
+    _check_disc(dev, args)
+    _blu_ray_speed(dev, args)
+    reader = _measuring(dev, args)
+    zones = DEFAULT_ZONES
+    if args.bd_zones:
+        if args.bd_zones < 3:
+            sys.exit("--bd-zones needs at least 3: a straight line through two points has nothing left to check")
+        zones = tuple(0.05 + 0.90 * i / (args.bd_zones - 1) for i in range(args.bd_zones))
+    ladder = ClvLadder(reader, media=args.media, reps=args.reps, zones=zones,
+                       speed_kbs=None if args.sim else args.speed,
+                       pitch_um=None if args.linear_mm_s else args.pitch_um,
+                       v_m_s=None if not args.linear_mm_s else args.linear_mm_s / 1000.0,
+                       r0_mm=args.r0_mm, host_delay_ms=args.host_delay_ms,
+                       fit_offset=args.fit_offset)
+    ladder.tp.summary["identity"] = _identity(args, dev)
+    if args.sim:
+        ladder.tp.summary["simulated"] = True
+    progress, log = None, print
+    if reader is not dev:
+        def status():
+            period = (ladder.summary or {}).get("period") or {}
+            done = len(period.get("zones") or [])
+            if not period:
+                stage = "cache test" if "cache" not in ladder.summary else "waiting for a steady spindle"
+                return None, stage, None
+            return done / max(len(ladder.zones), 1), f"zone {done}/{len(ladder.zones)}", None
+        progress = reader.progress = ui.Progress(status, keys=ui.open_keys(), pulse=reader.read_times,
+                                                 wait_s=GEO_WAIT_S)
+        log = ladder.log = ladder.tp.log = progress.log
+    out = _outdir(args, "geo", dev)
+    stopped, res, hand_off = None, None, None
+    try:
+        res = ladder.run()
+    except ConstantAngularVelocity as e:
+        # Not a failure: this disc wants the other instrument. The probe is all this run did.
+        hand_off = e
+    except (RuntimeError, ValueError) as e:
+        log(f"stopped: {e}")
+        stopped = str(e)
+    finally:
+        if progress:
+            progress.close()
+        dev.close() if hasattr(dev, "close") else None
+        if (ladder.summary or {}).get("period") and hand_off is None:
+            write_outputs(ladder, out, None if res else stopped or "interrupted")
+    if hand_off is not None:
+        print(i18n.tr("This disc turns at a constant angular velocity, so its period carries no radius. "
+                      "Measuring the spiral from sector addresses instead."))
+        args.bd_angular = True
+        args.sectors = 32 if getattr(args, "sectors", 1) == 1 else args.sectors
+        return cmd_geo(args)
+    if res:
+        print()
+        print(i18n.tr("r0 {a} mm, pitch {b} um, linear speed {c} m/s  (R^2 {d} over {e} zones, anchor: {f})")
+              .format(a=f"{res['r0_mm']:.4f}", b=f"{res['pitch_um']:.4f}", c=f"{res['v_m_s']:.3f}",
+                      d=f"{res['r2']:.6f}", e=res["zones_used"], f=i18n.tr(res["anchor"])))
+        sigma = [i18n.tr("r0 {a} um").format(a=f"{res['sigma_r0_mm'] * 1000:.1f}")
+                 if res.get("sigma_r0_mm") is not None else i18n.tr("r0 (anchor)"),
+                 i18n.tr("pitch {a} um").format(a=f"{res['sigma_pitch_um']:.4f}")
+                 if res.get("sigma_pitch_um") is not None else i18n.tr("pitch (anchor)")]
+        if res.get("sigma_v_m_s") is not None:
+            sigma.append(i18n.tr("speed {a} m/s").format(a=f"{res['sigma_v_m_s']:.3f}"))
+        print(i18n.tr("1 sigma: {a}").format(a=("，" if i18n.active() == "zh" else ", ").join(sigma)))
+        derived = (ladder.summary or {}).get("derived") or {}
+        if derived.get("outer_radius_mm"):
+            tail = i18n.tr(" (a full 25 GB layer: the standard puts its edge at 58.0 mm)") if derived.get("full_layer") else ""
+            print(i18n.tr("the outermost sector lands at {a} mm{b}").format(a=f"{derived['outer_radius_mm']:.3f}", b=tail))
+        brk = res.get("break_fit")
+        if brk:
+            print(i18n.tr("the periods do not lie on one line: two lines with a break at sector {a} leave {b}% less "
+                          "residual. That is what a disc read in zones looks like, and the numbers above are the "
+                          "single line through it, not a spiral measurement")
+                  .format(a=f"{brk['break_lba']:,}", b=f"{brk['improvement'] * 100:.0f}"))
+        extrapolated = res.get("r0_extrapolated_mm")
+        if extrapolated and extrapolated > 0.5:
+            print(i18n.tr("r0 sits {a} mm inside the innermost zone ({b} mm), so it comes from the line's curvature "
+                          "rather than from a point measured there; the tolerance above is the fit's, not the model's")
+                  .format(a=f"{extrapolated:.2f}", b=f"{res['r_first_mm']:.2f}"))
+        if res.get("offset_ms") is not None:
+            sig = res.get("sigma_offset_ms")
+            fitted = res.get("offset_fitted_ms")
+            if fitted is not None and not res.get("offset_ms"):
+                print(i18n.tr("period offset: {a} us (1 sigma {b} us), which the data cannot tell from zero, "
+                              "so the fit left it out and r0 is the plain answer")
+                      .format(a=f"{fitted * 1000:+.1f}", b="?" if sig is None else f"{sig * 1000:.1f}"))
+            else:
+                print(i18n.tr("period offset {a} us (1 sigma {b} us): the fit already took it out of r0")
+                      .format(a=f"{res['offset_ms'] * 1000:+.1f}",
+                              b="?" if sig is None else f"{sig * 1000:.1f}")
+                      if sig is not None else
+                      i18n.tr("period offset {a} us: the fit already took it out of r0")
+                      .format(a=f"{res['offset_ms'] * 1000:+.1f}"))
+        dropped = res.get("zones_dropped_lbas") or []
+        if dropped:
+            shown = ", ".join(f"{int(x):,}" for x in dropped[:4])
+            more = "" if len(dropped) <= 4 else f" and {len(dropped) - 4} more"
+            print(i18n.tr("Left {a} zone(s) out of the fit: their period did not follow the line "
+                          "(sector {b}{c}). A zone can lock to a harmonic of the spindle instead of the "
+                          "spindle itself; zones.csv lists every zone, used or not")
+                  .format(a=len(dropped), b=shown, c=more))
+        print(i18n.tr("zones.csv, summary.json: {a}").format(a=os.path.abspath(out)))
+        last = derived.get("last_lba")
+        if last is not None and not getattr(args, "sim", None):
+            print(i18n.tr("For a DiscImageStudio preset: {a} disexport --geo {b} --sectors {c} --install")
+                  .format(a=guide.PROG, b=out, c=f"{int(last) + 1}"))
+        if res.get("v_m_s_anchor") is None:          # pitch was the anchor, so pitch is still nominal
+            print(i18n.tr("Pass --linear-mm-s to trade that anchor for a pitch: without it the pitch is nominal "
+                          "and only r0/v is measured."))
+    else:
+        print("no results written: it stopped before the fit.")
+    if res is None:
+        sys.exit(1)
 
 
 def _geo_fit(args, media=None) -> dict:
@@ -466,9 +601,14 @@ def cmd_calscan(args):
 
 
 def cmd_geo(args):
+    media = getattr(args, "media", "dvd")
+    if media == "bd" and not getattr(args, "bd_angular", False):
+        return _geo_clv(args)
     from .geo import Ladder, write_outputs
-    if args.sectors not in (1, 16) or (args.media == "cd" and args.sectors != 1):
-        sys.exit(f"--sectors {args.sectors}: geo reads 1 sector, or on a DVD 16 for one whole ECC block")
+    allowed = (1,) if media == "cd" else (1, 16, 32) if media == "bd" else (1, 16)
+    if args.sectors not in allowed:
+        sys.exit(f"--sectors {args.sectors}: geo reads 1 sector, on a DVD 16 for one whole ECC block, "
+                 "on a Blu-ray 32 for one recording unit")
     ranges = None
     if args.ranges:
         try:
@@ -725,11 +865,174 @@ def cmd_correction(args):
     print(f"Angle correction: {os.path.abspath(args.output)}  (use with image --correction)")
 
 
+def _disexport_bd(args):
+    """Write the DiscImageStudio Blu-ray preset for a constant-linear-speed run.
+
+    A Blu-ray preset is three numbers -- inner radius, outer radius and a sector count -- and the
+    engine solves one constant pitch from them. The CLV fit already measured the radius of sector 0
+    and the pitch, so the third number follows from the area identity; nothing here is fitted.
+    """
+    from . import bdexport, disinstall
+    for option, given, why in (
+            ("--along-track-frames", args.along_track_frames, "the CD along-track constant"),
+            ("--correction", args.correction, "a CD or DVD angle map"),
+            ("--r-min/--r-max", args.r_min or args.r_max, "the fitted span of an angle map")):
+        if given:
+            sys.exit(f"{option} is for {why}; a Blu-ray preset covers the whole spiral from the sector "
+                     "count and needs none of it")
+    target = None
+    if args.install:
+        try:
+            target = os.path.abspath(args.dis_presets or bdexport.default_path())
+            if args.output:
+                disinstall.refuse_same_file(args.output, target)
+        except disinstall.InstallError as e:
+            sys.exit(str(e))
+        blocker = guide.install_blocker(args.geo)
+        if blocker:
+            _fail(f"Not installing this geo result: {blocker}")
+        warning = guide.install_warning(args.geo)
+        if warning:
+            print(f"Note: {warning}")
+    preset_id = args.id or "discprobe-bd-re"
+    preset_name = args.name or "BD-RE (drive-timing calibration)"
+    # DiscImageStudio names an imported preset after the file it reads, so the default file name is
+    # the preset name rather than a fixed "dis_preset_bd.json".
+    output = args.output or (None if args.install else bdexport.suggested_file_name(preset_name))
+    try:
+        out = bdexport.export(args.geo, args.sectors, output, preset_id, preset_name,
+                              usable_sectors=args.usable_sectors,
+                              pullback_isa0=args.pullback_isa0,
+                              twist_deg=getattr(args, "twist_deg", None),
+                              twist_at_mm=getattr(args, "twist_at_mm", None))
+    except ValueError as e:
+        sys.exit(str(e))
+    preset, fit, derived = out["preset"], out["fit"], out["derived"]
+    print(i18n.tr("{a} sectors, inner {b} mm, outer {c} mm (both measured/derived, not nominal)")
+          .format(a=f"{preset['totalSectors']:,}", b=f"{preset['innerRadiusMm']:.4f}",
+                  c=f"{preset['outerRadiusMm']:.4f}"))
+    usable, total = preset["usableSectors"], preset["totalSectors"]
+    asked = derived.get("total_sectors_requested")
+    if asked and asked != total:
+        print(i18n.tr("the disc ends at {a} sectors; DiscImageStudio needs whole {b}-sector units, so the "
+                      "preset stops at {c}").format(a=f"{asked:,}", b=bdexport.BD_SECTORS_PER_RECORDING_UNIT,
+                                                     c=f"{total:,}"))
+    if usable < total:
+        print(i18n.tr("usable {a} sectors, {b} short of the disc: a burner writes a lead-out inside the "
+                      "disc, and a project that fills every sector leaves no room for it")
+              .format(a=f"{usable:,}", b=f"{total - usable:,}"))
+    if fit.get("v_m_s") is not None and fit.get("r2") is not None:
+        print(i18n.tr("constant pitch {a} um at {b} m/s, R^2 {c} over {d} zones; DiscImageStudio solves the "
+                      "pitch from the three numbers above")
+              .format(a=f"{derived['pitch_um']:.4f}", b=f"{fit['v_m_s']:.3f}", c=f"{fit['r2']:.6f}",
+                      d=fit['zones_used']))
+    else:
+        chi2 = fit.get("chi2_per_dof")
+        print(i18n.tr("constant pitch {a} um from {b} rungs of the angle ladder, chi^2/dof {c}; the drive holds "
+                      "this disc at a constant angular velocity, so the pitch comes from sector addresses "
+                      "rather than from the periods, and DiscImageStudio solves it from the three numbers above")
+              .format(a=f"{derived['pitch_um']:.4f}", b=fit.get("zones_used", "?"),
+                      c="?" if chi2 is None else f"{chi2:.2f}"))
+    if derived.get("twist_deg"):
+        print(i18n.tr("twisted {a:g} degrees: {b:.3f} turns of the picture over {c:,} turns of spiral, so the "
+                      "pitch is {d:+.2f} ppm ({e:.4f} um), the inner radius moves {f:+.3f} um and the outer "
+                      "{g:+.3f} um. Burn one more dial disc and look again: if the angle is unchanged the "
+                      "twist is not the pitch at all (a stamper whose own spiral wobbles, which no preset "
+                      "can take out), and if it is the same angle the other way the sign was wrong")
+              .format(a=derived["twist_deg"], b=derived["twist_deg"] / 360.0,
+                      c=int(round(derived["twist_turns"])), d=derived["twist_pitch_ppm"],
+                      e=derived["pitch_um"] * (1.0 + derived["twist_pitch_ppm"] * 1e-6),
+                      f=derived["twist_r0_shift_um"], g=derived["twist_outer_shift_um"]))
+    measured = derived.get("measured_sectors")
+    if derived.get("pullback_sectors"):
+        print(i18n.tr("pulled the inner radius back {a} sectors, over the spare area a formatted disc "
+                      "keeps there: sector 0 of an unspared BD-R starts at {b} mm, not {c} mm")
+              .format(a=f"{derived['pullback_sectors']:,}", b=f"{preset['innerRadiusMm']:.4f}",
+                      c=f"{fit['r0_mm']:.4f}"))
+    elif measured and total > measured and measured >= 0.90 * total and total - measured >= bdexport.ISA0_MIN_SECTORS:
+        print(i18n.tr("this disc holds {a} sectors and the preset says {b}: the difference is the inner "
+                      "spare area a formatted disc keeps, so sector 0 sits further out than on an "
+                      "unspared BD-R. Add --pullback-isa0 to move the inner radius back for one")
+              .format(a=f"{measured:,}", b=f"{total:,}"))
+    elif measured and total > measured and total - measured < bdexport.ISA0_MIN_SECTORS:
+        print(i18n.tr("this disc holds {a} sectors, {b} fewer than the preset's {c}: too few to be a "
+                      "spare area, so that is a lead-out margin or simply a slightly smaller disc, and "
+                      "sector 0 stays where the timing measured it")
+              .format(a=f"{measured:,}", b=f"{total - measured:,}", c=f"{total:,}"))
+    elif measured and total > measured:
+        print(i18n.tr("this disc was written up to sector {a} of {b}; the rest of the spiral is simply "
+                      "unrecorded, and the preset describes the whole spiral, so nothing needs adjusting")
+              .format(a=f"{measured:,}", b=f"{total:,}"))
+    if fit.get("offset_ms") is not None:
+        if fit["offset_ms"]:
+            moved = fit["v_m_s"] * abs(fit["offset_ms"]) / (2 * 3.141592653589793)
+            print(f"This run fitted a free period offset of {fit['offset_ms'] * 1e3:+.0f} us, which moves the radius "
+                  f"of sector 0 outwards by {moved:.3f} mm: the offset and the starting radius are nearly one "
+                  "parameter, so the inner radius is only as good as that fit.")
+        elif fit.get("offset_fitted_ms") is not None:
+            sigma = fit.get("sigma_offset_ms")
+            print(i18n.tr("A free period offset was also fitted ({a} us, 1 sigma {b} us), but the data cannot "
+                          "tell it from zero, so it was left out of the radius.")
+                  .format(a=f"{fit['offset_fitted_ms'] * 1e3:+.0f}",
+                          b="?" if sigma is None else f"{sigma * 1e3:.0f}"))
+    if args.sectors < bdexport.BD_SECTORS_PER_LAYER and preset["innerRadiusMm"] > 24.2:
+        short = bdexport.BD_SECTORS_PER_LAYER - args.sectors
+        print(i18n.tr("The disc holds {a} sectors, {b} fewer than a full layer, so sector 0 sits {c} mm "
+                      "further out than the 24.0 mm of an unspared disc: that is what was measured, not a "
+                      "rounding error.")
+              .format(a=f"{args.sectors:,}", b=f"{short:,}", c=f"{preset['innerRadiusMm'] - 24.0:.2f}"))
+    if output:
+        print(i18n.tr("DiscImageStudio Blu-ray preset in {a} (import it with the Blu-ray preset "
+                      "library's Import button)").format(a=os.path.abspath(output)))
+        if not args.output:
+            print(i18n.tr("DiscImageStudio names an imported preset after the file it reads, so this "
+                          "one will be called after its file name: rename the file before importing "
+                          "to change it"))
+    if args.install:
+        try:
+            result = bdexport.install(preset, target, args.replace)
+        except (OSError, ValueError) as e:
+            sys.exit(str(e))
+        if result["created"]:
+            print(f"Created {result['path']}")
+        print({"added": f"Added preset '{preset['id']}' to {result['path']}",
+               "replaced": f"Replaced preset '{preset['id']}' in {result['path']}",
+               "unchanged": f"Preset '{preset['id']}' is already in {result['path']} with the same values"}
+              .get(result["action"], f"{result['action']} in {result['path']}"))
+        if result["backup"]:
+            print(f"Previous file saved as {result['backup']}")
+        if result["action"] != "unchanged":
+            print(i18n.tr("Restart DiscImageStudio to load the updated Blu-ray preset list."))
+    _next(guide.after_disexport(False, args.install))
+
+
 def cmd_disexport(args):
     from . import disinstall
     from .disexport import export
     if (args.dis_presets or args.replace) and not args.install:
         sys.exit("--dis-presets and --replace only work together with --install")
+    if getattr(args, "twist_deg", None):
+        fit = _geo_fit(args, args.media)
+        if not (fit.get("model") == "clv" or fit.get("media") == "bd"):
+            sys.exit("--twist-deg is for Blu-ray: a DVD or CD preset carries a pitch profile that is "
+                     "fitted, so its twist is corrected by the angle map rather than by one number")
+    fit = _geo_fit(args, args.media)
+    is_cd = fit.get("media") == "cd"
+    # A Blu-ray run is the CLV fit: r0, pitch and speed instead of the angle ladder's u and v.
+    is_bd = fit.get("model") == "clv" or fit.get("media") == "bd"
+    if args.media and args.media != ("bd" if is_bd else "cd" if is_cd else "dvd"):
+        sys.exit(f"--media {args.media} does not match {args.geo}, which measured a "
+                 f"{'Blu-ray' if is_bd else 'CD' if is_cd else 'DVD'}")
+    if not args.sectors:
+        _fail("A preset needs --sectors: the capacity of your disc (`info` prints it)", [guide.sectors_hint(args.geo)])
+    if is_bd:
+        if fit.get("model") != "clv":
+            # The angle ladder measured a disc the drive holds at a constant angular velocity, so the
+            # default name should not claim it was a BD-RE read at a constant linear speed.
+            args.id = args.id or "discprobe-bd"
+            args.name = args.name or "Blu-ray (drive-timing calibration)"
+        _disexport_bd(args)
+        return
     # --install writes the preset file only after the export has written --output. When both name
     # one file the export has already destroyed the presets by then, so this is checked first.
     target = None
@@ -740,12 +1043,6 @@ def cmd_disexport(args):
                 disinstall.refuse_same_file(args.output, target)
         except disinstall.InstallError as e:
             sys.exit(str(e))
-    fit = _geo_fit(args, args.media)
-    is_cd = fit.get("media") == "cd"
-    if args.media and args.media != ("cd" if is_cd else "dvd"):
-        sys.exit(f"--media {args.media} does not match {args.geo}, which measured a {'CD' if is_cd else 'DVD'}")
-    if not args.sectors:
-        _fail("A preset needs --sectors: the capacity of your disc (`info` prints it)", [guide.sectors_hint(args.geo)])
     # A preset is used to cut discs and outlives the run: refuse the three kinds of result the
     # rest of the tool already tells people not to trust.
     if target:
@@ -924,6 +1221,11 @@ def cmd_tilescan(args):
 
 def cmd_random(args):
     from .randomdisc import write_iso
+    if getattr(args, "media", "dvd") == "bd":
+        from .bdexport import BD_SECTORS_PER_LAYER
+        if args.sectors > BD_SECTORS_PER_LAYER:
+            sys.exit(f"{args.sectors:,} sectors do not fit on a single-layer Blu-ray "
+                     f"({BD_SECTORS_PER_LAYER:,}); lower --sectors")
     print(f"Writing {os.path.abspath(args.output)}: {args.sectors} sectors of seeded random data")
     with ui.writing(args.output, args.sectors) as log:
         write_iso(args.output, args.sectors, args.seed, media=args.media, log=log)
@@ -932,6 +1234,52 @@ def cmd_random(args):
     ui.iso_ready(args.output)
     _next(guide.after_random(args), args)
     ui.burn_warning()
+
+
+def cmd_calibdisc(args):
+    """Burn one disc that times itself and shows its own twist."""
+    from . import calibdisc
+    try:
+        out = calibdisc.write(args.output, sectors=args.sectors, r0_mm=args.r0_mm, pitch_um=args.pitch_um,
+                              rings=args.rings_list, line_deg=90.0, split=args.split, log=print,
+                              preview=args.preview)
+    except ValueError as e:
+        sys.exit(str(e))
+    if args.split:
+        print(i18n.tr("{a} sectors ({b:.2f} GB) written with r0 {c} mm and pitch {d} um: half the disc dark, "
+                      "half light")
+              .format(a=f"{out['sectors']:,}", b=out["sectors"] * 2048 / 1e9, c=f"{out['r0_mm']:g}",
+                      d=f"{out['pitch_um']:g}"))
+    else:
+        print(i18n.tr("{a} sectors ({b:.2f} GB) written with r0 {c} mm and pitch {d} um: three rings at {e} mm "
+                      "and one line from 12 o'clock to the rim")
+              .format(a=f"{out['sectors']:,}", b=out["sectors"] * 2048 / 1e9, c=f"{out['r0_mm']:g}",
+                      d=f"{out['pitch_um']:g}", e=", ".join(f"{r:g}" for r in args.rings_list)))
+    t = out["textures"]
+    print(i18n.tr("Recorded textures {a} (dark) and {b} (light): {c} and {d} of seven gaps with a transition, "
+                  "digital sums {e} and {f_} -- grey, not black and white, which is what keeps the servo's "
+                  "clock recovery and the error correction happy")
+          .format(a=t["dark"]["byte"], b=t["light"]["byte"],
+                  c=t["dark"]["gaps_with_a_transition"], d=t["light"]["gaps_with_a_transition"],
+                  e=f"{t['dark']['digital_sum']:+d}", f_=f"{t['light']['digital_sum']:+d}"))
+    if args.split:
+        print(i18n.tr("Burn it, then count the arms where the dark half meets the light one: dense at the "
+                      "inner edge and coarse outside means the inner radius is off, the other way round "
+                      "means the outer one is, and arms that fold back in the middle mean the two are off "
+                      "in opposite directions. Adjust the preset's two radii in the preview until the "
+                      "preview shows the same arms, and burn again"))
+    else:
+        print(i18n.tr("Read the far end of the line against the clock: 1 o'clock is 30 degrees, 2 is 60, "
+                      "3 is 90, 4 is 120, 5 is 150, 6 is 180, and that number is what "
+                      "`disexport --twist-deg` takes"))
+    if not args.split:
+        print(i18n.tr("Burn it, then time it and look at it: `geo --media bd` on the same disc gives the "
+                      "shape, and the line's far end gives the twist; `disexport --twist-deg <hours>` "
+                      "closes the loop"))
+    else:
+        print(i18n.tr("Burn it, then time the same disc with `geo --media bd`: the timing gives the shape "
+                      "and the arms give the two radii"))
+    print(f"  {out['path']}")
 
 
 def cmd_selftest(args):
@@ -1073,7 +1421,8 @@ def _speed(text: str):
 COMMAND_GROUPS = (
     ("Start here", ("guide", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "timing", "geo", "results")),
-    ("Make a disc image", ("random", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes")),
+    ("Make a disc image", ("random", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
+                           "calibdisc")),
     ("Read scans of burned discs", ("gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("disexport", "cdprobe")),
 )
@@ -1091,9 +1440,26 @@ The usual path, on DVD (CD: add --media cd to each command; steps in docs/MANUAL
   python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
   python -m discprobe disexport --geo latest --sectors <sectors> --output dis_preset.json
 
+The Blu-ray path is experimental: it gives the SHAPE of the spiral, not its scale.
+  python -m discprobe random --media bd --output iso/bd-random.iso   then burn it to a BD-R
+  python -m discprobe geo --drive E: --media bd --bd-zones 25        a straight T^2 line over 25 zones
+  python -m discprobe disexport --geo latest --sectors <sectors>     a DiscImageStudio Blu-ray preset
+Timing pins the curve, the capacity and the speed. The track pitch is still the 0.3200 um prior and
+the inner radius rides on a timing offset the fit cannot see, so the scale of that curve has to come
+from the disc itself before a picture is burned with the preset. Do not burn a picture from a preset
+made by timing alone: on one real BD-R the timing preset and a burn-verified preset for the same
+media agreed to 4 um at the rim and differed by 106 turns of angle, which is a spiral of a dozen arms.
+
 At a terminal, --drive can be left out when there is one drive, and each command ends by printing the next one.
 `python -m discprobe <command> -h` shows a command's options."""
 EXAMPLES = {
+    "calibdisc": """\
+experimental: this is what the camera-based route left behind. Burn it to check the writer and to see
+the geometry of one disc; `geo --media bd` on that same disc is what a preset comes from.
+examples:
+  python -m discprobe calibdisc                                      the whole layer: three rings, a 12 o'clock line, a 3 o'clock tick
+  python -m discprobe calibdisc --split                              half dark, half light: the edge stays countable
+  python -m discprobe calibdisc --sectors 12200000 --preview p.png    a smaller image, plus a PNG of the picture""",
     "simulate": """examples:
   python -m discprobe simulate --picture my_picture.png --output sim.png
   python -m discprobe simulate --design-npy design.npy --sheet sheet.png""",
@@ -1336,6 +1702,18 @@ def _build_parser():
     sp.add_argument("--read-offset-bytes", type=float, default=0.0,
                     help="CD audio track only: where this drive's READ CD completes, in bytes before the end of "
                          "the sector in the burned audio stream (HP BU20N 0, PLDS DU-8A5LH -603)")
+    sp.add_argument("--linear-mm-s", type=float,
+                    help="Blu-ray only: the linear speed the drive reads at, in mm/s. With it the fit gives the "
+                         "pitch; without it the pitch is an anchor and only the ratio stays known")
+    sp.add_argument("--bd-zones", type=int,
+                    help="Blu-ray only: how many zones to time, spread evenly from 5%% to 95%% of the disc "
+                         "(default 9). Two numbers come out of the line, so nine zones already pin them; "
+                         "more zones buy a better check that the line is straight, which is what tells a "
+                         "clean CLV disc from one that changes speed part way")
+    sp.add_argument("--fit-offset", action="store_true",
+                    help="Blu-ray only: fit a constant offset in the period as well, which is the only way to "
+                         "separate 'this disc really starts further out than 24.0 mm' from 'every period "
+                         "carries a fixed few hundred microseconds'. Needs five zones or more")
     sp.set_defaults(func=cmd_geo)
 
     sp = sub.add_parser("edit", help="place a picture on the disc at the terminal, and save a design for image --design")
@@ -1432,7 +1810,7 @@ def _build_parser():
                                    "left, so the output is that plus what they measure")
     sp.set_defaults(func=cmd_correction)
 
-    sp = sub.add_parser("disexport", help="fit the measured angle map as a DiscImageStudio DVD or CD preset (cubic pitch)")
+    sp = sub.add_parser("disexport", help="fit a measurement as a DiscImageStudio preset: a DVD/CD angle map (cubic pitch), or a Blu-ray T^2 line (constant pitch)")
     sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose; "
                                                     "a CD fit gives a CD preset")
     sp.add_argument("--correction", help="angle-correction file from the correction command")
@@ -1441,6 +1819,21 @@ def _build_parser():
     sp.add_argument("--r-max", type=float, help="DVD default 54.4, CD the span geo measured")
     sp.add_argument("--along-track-frames", type=float, default=0,
                     help="CD only: along-track constant in frames, as in image --along-track-frames")
+    sp.add_argument("--usable-sectors", type=int,
+                    help="Blu-ray only: sectors a project may fill; default 2 MiB short of the disc so a burner "
+                         "still has room for its lead-out, 0 for the whole disc")
+    sp.add_argument("--pullback-isa0", action="store_true",
+                    help="Blu-ray only: when --sectors is larger than the disc the run measured, put the "
+                         "difference in front of sector 0 instead of behind the last one, which is where an "
+                         "unspared BD-R starts")
+    sp.add_argument("--twist-deg", type=float,
+                    help="Blu-ray only: how far the picture came out twisted, in degrees, as seen on a dial "
+                         "burn (a radial line drawn at 12 o'clock ending at 1 o'clock is 30 degrees). The "
+                         "pitch that implies is folded into the two radii, which is the only place a preset "
+                         "can carry it")
+    sp.add_argument("--twist-at-mm", type=float,
+                    help="with --twist-deg: the radius where the angle was read (default: the outer radius). "
+                         "Read it off a ring if the picture only has to close there")
     sp.add_argument("--id")
     sp.add_argument("--name")
     sp.add_argument("--output", help="the preset file to write (default dis_preset.json; with --install, only if you name one)")
@@ -1474,6 +1867,23 @@ def _build_parser():
     sp.add_argument("--seed", type=int, default=1)
     sp.set_defaults(func=cmd_random)
 
+    sp = sub.add_parser("calibdisc", help="write one Blu-ray that both times itself and shows its own twist")
+    sp.add_argument("--output", default="iso/bd-calib.iso")
+    sp.add_argument("--sectors", type=int, default=12_200_000,
+                    help="the blank's capacity less the lead-out a burner needs to close the disc")
+    sp.add_argument("--r0-mm", type=float, default=24.04,
+                    help="the inner radius the picture is laid out for (the standard's 24.0 mm)")
+    sp.add_argument("--pitch-um", type=float, default=0.32,
+                    help="the track pitch the picture is laid out with (the format's 0.3200 um)")
+    sp.add_argument("--rings", default="26,40,55",
+                    help="radii of the rings that make the radius scale readable, in mm")
+    sp.add_argument("--preview", default="",
+                    help="also save the picture as a PNG, for burning it with a picture disc tool instead")
+    sp.add_argument("--split", action="store_true",
+                    help="half the disc dark and half light instead of rings and a line: the edge "
+                         "survives a wrong preset as a handful of arms, where a thin line does not")
+    sp.set_defaults(func=cmd_calibdisc)
+
     sp = sub.add_parser("selftest", help="parser checks and end-to-end runs on the simulated drive and a synthetic scan")
     sp.set_defaults(func=cmd_selftest)
 
@@ -1489,11 +1899,24 @@ def _build_parser():
         "tiles": dict(output="iso/cd-tiles.iso", palette=["0D", "AA", "10", "63", "RND", "0DAA", "00FF", "1063", "0D10AA"]),
         "gridscan": dict(line_mm=0.6),
     }
+    # Blu-ray is read at a constant linear speed, so `geo` measures it by period against LBA
+    # instead of by angle. Only the commands with a CLV path take --media bd.
+    bd_defaults = {
+        "geo": dict(r0_mm=24.0, pitch_um=0.32, bit_nm=74.5, speed=8990, reps=24, max_targets=9,
+                    host_delay_ms=35.0),
+        "timing": dict(speed=8990, host_delay_ms=35.0),
+        # A blank BD-R reports no capacity and has nothing to read, so a Blu-ray calibration
+        # starts the same way the DVD one does: fill a disc with ordinary data, then time it.
+        "random": dict(output="iso/bd-random.iso", sectors=12_219_392),
+    }
     for name in cd_defaults:
-        sub.choices[name].add_argument("--media", choices=("dvd", "cd"), default="dvd",
-                                       help="disc type; cd also switches the defaults to CD values (default: dvd)")
-    sub.choices["disexport"].add_argument("--media", choices=("dvd", "cd"),
-                                          help="check that --geo measured this disc type; the fit decides the preset")
+        choices = ("dvd", "cd", "bd") if name in bd_defaults else ("dvd", "cd")
+        sub.choices[name].add_argument("--media", choices=choices, default="dvd",
+                                       help="disc type; cd also switches the defaults to CD values, bd to Blu-ray "
+                                            "(default: dvd)")
+    sub.choices["disexport"].add_argument("--media", choices=("dvd", "cd", "bd"),
+                                          help="check that --geo measured this disc type; the fit decides the preset "
+                                               "(a CLV run gives a Blu-ray preset, in print or with --install)")
     for name in ("rings", "image", "tiles"):
         sub.choices[name].add_argument(
             "--cd-sector", choices=("mode2form1", "mode1"), default="mode2form1",
@@ -1513,18 +1936,25 @@ def _build_parser():
     if ui.term().interactive:   # scripts read the help as it always was
         p.epilog += "\n\n" + (LANG_NOTE_ZH if i18n.active() == "zh" else LANG_NOTE)
     i18n.localize_parser(p)
-    return p, sub, cd_defaults
+    return p, sub, {"cd": cd_defaults, "bd": bd_defaults}
 
 
 def _main(argv=None):
-    p, sub, cd_defaults = _build_parser()
+    p, sub, media_defaults = _build_parser()
+    cd_defaults, bd_defaults = media_defaults["cd"], media_defaults["bd"]
     raw_args = list(sys.argv[1:] if argv is None else argv)
     _Parser.argv, _Parser.commands = raw_args, sub.choices
     if not raw_args and ui.term().interactive:
         args = argparse.Namespace(func=cmd_guide)
         return args.func(args)
     args = p.parse_args(argv)
-    if getattr(args, "media", "dvd") == "cd":
+    if getattr(args, "rings", None) and isinstance(args.rings, str):
+        try:
+            args.rings_list = [float(x) for x in args.rings.replace(",", " ").split()]
+        except ValueError:
+            p.error(f"--rings wants radii in mm, not {args.rings!r}")
+    media = getattr(args, "media", "dvd")
+    if media == "cd":
         from .cd import BIT_NM, set_sector_layout
         if hasattr(args, "cd_sector"):
             set_sector_layout(args.cd_sector)
@@ -1537,8 +1967,14 @@ def _main(argv=None):
         for key, value in defaults.items():
             if not any(("--" + key.replace("_", "-")).startswith(given) for given in supplied):
                 setattr(args, key, value)
+    elif media == "bd":
+        defaults = bd_defaults.get(raw_args[0], {}).copy()
+        supplied = {a.split("=")[0] for a in raw_args if a.startswith("--") and len(a) > 2}
+        for key, value in defaults.items():
+            if not any(("--" + key.replace("_", "-")).startswith(given) for given in supplied):
+                setattr(args, key, value)
     if isinstance(getattr(args, "speed", None), _SpeedX):
-        one_x = 176.4 if getattr(args, "media", "dvd") == "cd" else 1385
+        one_x = {"cd": 176.4, "bd": 4495}.get(media, 1385)
         multiple = float(args.speed)
         args.speed = _SpeedKbs(round(multiple * one_x))
         args.speed.multiple = multiple
