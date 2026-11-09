@@ -11,11 +11,12 @@ layer, read at a constant linear speed.
 **Nothing in this path looks at the disc.** There is no photograph, no scan and no external optical
 reference anywhere in it: the measurement is the drive's own completion timing against the disc's
 own sector addresses, and the one number imported from outside is the track pitch the Blu-ray
-standard fixes at 0.320 um. A photographic route was explored first and is now frozen
-(`BD_SPOKE_SHEAR_REPORT.md`, `tools/experimental/bd_gen2.py`): it needs a camera, a centre someone
+standard fixes at 0.320 um. A photographic route was explored first and is now frozen: it needs a camera, a centre someone
 picked and a scale someone measured, which is not a step a command-line tool may ask of the user
-that runs it. The same three numbers come out of one unattended command in about two minutes
-(section 10).
+that runs it. (The experiment is kept out of this change and lives in the branch
+`bd/gen2-photo-hold`; its finding is unchanged -- a photo of the pattern measures the angle, and the
+angle is not what the preset needs.) The same three numbers come out of one unattended command in
+about two minutes (section 10).
 
 ## 1. What the drive gives, and what it does not
 

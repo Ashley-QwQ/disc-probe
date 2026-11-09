@@ -1,5 +1,12 @@
 # Blu-ray geometry from one BD-RE, and the preset DiscImageStudio needs
 
+> **Read this with the correction in mind.** This note was written from the first BD-RE, before the
+> spare area was understood. The 24.677 mm inner radius below is what the timing gave; the disc is a
+> formatted BD-RE, and pulling back its 4096-cluster ISA0 spare area (131,072 sectors) puts sector 0
+> at **24.0485 mm**, 0.5 um from a pressed BD-ROM of the same size. Section 6 of
+> [`BD_CLV_GEOMETRY_SOLVER.md`](BD_CLV_GEOMETRY_SOLVER.md) has the corrected reading and the current
+> test counts; the explanation of *why* the radius sits outward is the part this note got wrong.
+
 Phase-2 deliverable. The disc in `G:` is a single-layer BD-RE holding 12 088 320 sectors, read by a
 MATSHITA BD-MLT UJ272 at a constant linear speed. This note records what that one disc yields: the
 model, the numbers, how they were checked, and what is still missing. Everything here was measured
@@ -22,8 +29,9 @@ anchor, `r0` and `v` follow; the ratio `b/a = pi r0^2/(p L)` has no `v` in it at
 | linear speed at 2.1x | 10.390 +- 0.002 m/s | 10.33 m/s for 2.1x (4.917 m/s at 1x) | 0.6% high, within the 2.1x binning of the drive |
 | total sectors | 12 088 320 | 12 219 392 for a full single layer | 131 072 fewer, 1.07% |
 
-Why 24.677 and not 24.0: the spiral of this disc is shorter than a full layer's in the same physical
-data area, so it starts further out. The consistency check is that the outermost sector then lands at
+Why 24.677 and not 24.0, as this note first read it: the spiral of this disc is shorter than a full
+layer's in the same physical data area, so it starts further out. (The shorter spiral is a formatted
+disc's inner spare area, not a smaller physical extent -- see the note at the top.) The consistency check is that the outermost sector then lands at
 58.024 mm against the 58.0232 mm of DiscImageStudio's built-in BD-25 preset -- 3 um apart -- and read
 the other way, a 58.0232 mm outer edge with this sector count implies an inner radius of 24.6698 mm,
 7 um (0.5 sigma) from what the timing measured.
@@ -81,7 +89,7 @@ file of its own, separate from the CD and DVD `disc-presets.json`.
 | import into DiscImageStudio | **not tested** -- this machine has no DiscImageStudio 1.5.0; the record is written against `BluRayPresetStore.Import`/`Validate` in the DIS source |
 | dual-layer discs | refused before measuring (sector count above 12,219,392); the LBA-to-radius map jumps at the layer break |
 | DIS's own pitch inversion | re-ran the bisection from `BluRayTrackGeometry` on our three numbers: `0.320000 um` back, so the record is self-consistent in DIS's model |
-| pushed / PR | **not yet** -- waiting for the owner's go-ahead |
+| pushed / PR | in review as a pull request against `main` |
 
 ## The commands, as actually run
 
@@ -96,7 +104,7 @@ summary. `disexport` takes either that directory or the `summary.json` inside it
 
 ## Where the work lives
 
-Branch `feat/bd-clv-geometry-solver` (13 commits over `main`): `discprobe/clv.py` (the fit),
+Branch `feat/bd-clv-geometry-solver`: `discprobe/clv.py` (the fit),
 `discprobe/bdexport.py` (the preset), `geo --media bd`, `disexport --media bd`,
 `tests/test_bd_clv_solver.py`, `tests/test_bd_preset.py`, and the two research notes
 `docs/research/BD_CLV_FEASIBILITY.md` (study) and `docs/research/BD_CLV_GEOMETRY_SOLVER.md` (model).
