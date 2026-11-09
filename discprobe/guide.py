@@ -67,12 +67,13 @@ def quote(path: str) -> str:
 
 
 def short(path: str) -> str:
-    """A path to paste into a command: relative when it is below the current folder."""
+    """A path to paste into a command: relative when it is below the current folder. Forward slashes, which
+    cmd, PowerShell and Git Bash all take; Git Bash ate the backslashes of `results\\geo-...` (DIS #108)."""
     try:
         rel = os.path.relpath(path)
     except ValueError:      # another drive on Windows
-        return quote(os.path.abspath(path))
-    return quote(os.path.abspath(path) if rel.startswith("..") else rel)
+        return quote(os.path.abspath(path).replace("\\", "/"))
+    return quote((os.path.abspath(path) if rel.startswith("..") else rel).replace("\\", "/"))
 
 
 def _load(path: str):
