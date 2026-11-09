@@ -1440,12 +1440,15 @@ The usual path, on DVD (CD: add --media cd to each command; steps in docs/MANUAL
   python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso
   python -m discprobe disexport --geo latest --sectors <sectors> --output dis_preset.json
 
-The Blu-ray path is experimental (limits in docs/research/BD_CLV_GEOMETRY_SOLVER.md):
+The Blu-ray path is experimental: it gives the SHAPE of the spiral, not its scale.
   python -m discprobe random --media bd --output iso/bd-random.iso   then burn it to a BD-R
   python -m discprobe geo --drive E: --media bd --bd-zones 25        a straight T^2 line over 25 zones
   python -m discprobe disexport --geo latest --sectors <sectors>     a DiscImageStudio Blu-ray preset
-Timing pins the shape, the capacity and the speed; the absolute inner radius and the pitch stay priors,
-so a preset from timing alone is not trusted to place a picture (a 0.1% pitch error is 100 turns).
+Timing pins the curve, the capacity and the speed. The track pitch is still the 0.3200 um prior and
+the inner radius rides on a timing offset the fit cannot see, so the scale of that curve has to come
+from the disc itself before a picture is burned with the preset. Do not burn a picture from a preset
+made by timing alone: on one real BD-R the timing preset and a burn-verified preset for the same
+media agreed to 4 um at the rim and differed by 106 turns of angle, which is a spiral of a dozen arms.
 
 At a terminal, --drive can be left out when there is one drive, and each command ends by printing the next one.
 `python -m discprobe <command> -h` shows a command's options."""

@@ -193,6 +193,14 @@ TEXT = {
         "下一步，测量盘面几何（25 个区域拟合一条 T^2 直线，约 2 分钟）：",
     "Export a DiscImageStudio Blu-ray preset (enter the same --sectors there; `info` on a blank disc gives the count):":
         "导出一个 DiscImageStudio 蓝光预设（--sectors 同一个数也要填进 DiscImageStudio；空白盘的数看 `info`）：",
+    "This preset gives the shape of the spiral, not its scale (docs/MANUAL.md).":
+        "这个预设给的是螺旋的形状，不是它的尺度（见 docs/MANUAL.md）。",
+    "Do not burn a picture with it: on one real BD the angle was off by 106 turns.":
+        "先别拿它刻图案：在一张真的蓝光上，角度差了 106 圈。",
+    "This preset carries the shape of the spiral, not its scale: the pitch is the 0.3200 um prior and the inner radius rides on a timing offset the fit cannot see.":
+        "这个预设只带螺旋的形状、不带尺度：轨距还是 0.3200 µm 先验，内径挂着一个拟合看不见的计时偏置。",
+    "Do not burn a picture with it yet. Calibrate against the disc first: one BD-R and one look at the edge is 106 turns of difference on a real disc (docs/MANUAL.md).":
+        "先别拿它刻图案。得先对着盘本身校准：一张 BD-R、看一眼边缘，在真盘上就是 106 圈的差别（见 docs/MANUAL.md）。",
     "The timing fixes the shape; the two absolute radii still come from the disc itself (see docs/research/BD_CLV_GEOMETRY_SOLVER.md).":
         "计时只定形状；两个绝对半径仍然来自这张盘本身（见 docs/research/BD_CLV_GEOMETRY_SOLVER.md）。",
     "Make a plain data disc: {c}": "做一张普通数据盘：{c}",

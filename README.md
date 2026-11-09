@@ -353,7 +353,9 @@ Windows Terminal、Ghostty、WezTerm、kitty 和 Claude 桌面应用的终端会
 
 CD 的沿轨道常数要靠网格盘来定，206 帧只对 GH70N 加 IMAPI 刻录、READ(12) 读取这条路径成立。CMC CD-R 在约 33 mm 处还有约 0.4° 的落差，可能是刻录时的接缝，正在核对。
 
-`geo` 对 DVD 和 CD 走角度梯子；蓝光被驱动以恒定线速度读取，用 `geo --media bd --bd-zones 25` 改量转一圈的时间，再用 `disexport` 直接写成 DiscImageStudio 的蓝光预设。**蓝光这条路线目前是实验性的**：计时能把形状、容量、线速度测准，但绝对内径和轨距仍是先验值，所以只靠计时的预设还不能用来摆图案（轨距差 0.1% 外圈就差 100 圈），局限与实测见[使用手册](docs/MANUAL.md)与 [`docs/research/BD_CLV_GEOMETRY_SOLVER.md`](docs/research/BD_CLV_GEOMETRY_SOLVER.md)。
+`geo` 对 DVD 和 CD 走角度梯子；蓝光被驱动以恒定线速度读取，用 `geo --media bd --bd-zones 25` 改量转一圈的时间，再用 `disexport` 写成 DiscImageStudio 的蓝光预设。
+
+**蓝光这条路线是实验性的：它给的是螺旋的「形状」，不是「尺度」。** 计时能把曲率、容量、线速度测准，但轨距仍是 0.3200 µm 的先验，内径又挂着一个拟合看不见的计时偏置（1.43 µm/µs），所以最后那个比例必须靠一张校准盘从盘上定下来，**不能直接拿计时预设去刻图案**。实测过一次：同一张 BD-R，计时预设与 burn-verified 预设的半径在盘缘只差 4 µm，角度却差 106 圈，刻出来是十几条臂的螺旋。局限、三条判据与实测表见[使用手册](docs/MANUAL.md)与 [`docs/research/BD_CLV_GEOMETRY_SOLVER.md`](docs/research/BD_CLV_GEOMETRY_SOLVER.md)。
 
 ## 安全
 

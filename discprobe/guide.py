@@ -931,8 +931,10 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
         sectors = _sectors_for(geo.summary, out)[0]
         commands = [("Export a DiscImageStudio Blu-ray preset (enter the same --sectors there; `info` on a blank disc gives the count):",
                      f"{PROG} disexport --media bd --geo latest --sectors {sectors} --output dis_preset.json"),
-                    ("The timing fixes the shape; the two absolute radii still come from the disc itself "
-                     "(see docs/research/BD_CLV_GEOMETRY_SOLVER.md).", None)]
+                    ("This preset carries the shape of the spiral, not its scale: the pitch is the 0.3200 um prior and "
+                     "the inner radius rides on a timing offset the fit cannot see.", None),
+                    ("Do not burn a picture with it yet. Calibrate against the disc first: one BD-R and one look at the "
+                     "edge is 106 turns of difference on a real disc (docs/MANUAL.md).", None)]
     elif missing:
         commands = [("Install the Python packages disc-probe uses:", INSTALL)]
     elif sys.platform != "win32":
@@ -963,6 +965,9 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
     lines += ["", "Next:"]
     for note, command in commands:
         lines += ([f"  {note}"] if notes and note else []) + ([f"  {command}"] if command else [])
+    if media == "bd" and geo is not None:
+        lines += ["", "  This preset gives the shape of the spiral, not its scale (docs/MANUAL.md).",
+                  "  Do not burn a picture with it: on one real BD the angle was off by 106 turns."]
     if picture and geo:
         lines += ["", *AFTER_BURN]
     lines += ["", f"All commands: {PROG} -h    One command: {PROG} <command> -h    Details: docs/MANUAL.en.md"]
