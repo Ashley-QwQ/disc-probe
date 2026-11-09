@@ -1,0 +1,98 @@
+{
+  "fit": {
+    "u": 180518.45145578744,
+    "v": 5.591208975899113,
+    "coarse_u": 180518.45145578744,
+    "coarse_v": 5.591208975899113,
+    "r0_mm_at_bit": 24.063109579056466,
+    "pitch_um_at_bit": 0.7453081564873518,
+    "bit_nm_assumed": 133.3,
+    "note": "angles depend only on u and v; any bit length with r0 = u*b and pitch = v*b gives the same image",
+    "dis_equivalent": {
+      "bit_nm": 133.3,
+      "inner_radius_mm": 24.06310957905647,
+      "outer_radius_mm_for_total_sectors": {
+        "2295104": 58.19809574492304,
+        "2298496": 58.23373893221332
+      },
+      "note": "DiscImageStudio builds its spiral from inner radius, outer radius and track length (total sectors x 38688 x bit); use the outer radius for your disc's sector count"
+    },
+    "angle_span_mm": [
+      24.0,
+      58.0
+    ],
+    "nominal_error_deg": 52217.94958951752,
+    "angle_sigma_deg": 0.27519738143550077,
+    "u_sigma": 0.02320434204332394,
+    "v_sigma": 1.0842162017584764e-06,
+    "measured_span_mm": [
+      26.111,
+      49.923
+    ],
+    "angle_sigma_measured_span_deg": 0.19423992569830212,
+    "completion_status": "target_reached",
+    "failed_candidates": [],
+    "c_deg": 0.03035975218617122,
+    "chi2_per_dof": 1.6934760118694443,
+    "residual_rms_deg": 0.5014313594735753,
+    "period_ms": 21.206216408440756,
+    "reference_lba": 772688
+  },
+  "cache": {
+    "lba": 1072560,
+    "sectors": 1,
+    "plain": {
+      "n": 40,
+      "p50_us": 1096.7,
+      "p95_us": 1400.3,
+      "p99_us": 132685.1,
+      "min_us": 1024.8,
+      "max_us": 132685.1,
+      "failed": 0
+    },
+    "fua": {
+      "n": 40,
+      "p50_us": 42326.3,
+      "p95_us": 42407.9,
+      "p99_us": 43724.8,
+      "min_us": 37867.7,
+      "max_us": 43724.8,
+      "failed": 0
+    },
+    "plain_served_from_cache": true,
+    "fua_reads_media": true,
+    "flush_then_read_media": false,
+    "strategy": "fua"
+  },
+  "setup": {
+    "profile": "0x0010",
+    "profile_name": "DVD-ROM",
+    "family": "dvd",
+    "block_sectors": 16,
+    "sectors_per_read": 1,
+    "last_lba": 2145151,
+    "first_track_audio": false,
+    "read_method": "read12"
+  },
+  "identity": {
+    "drive": "HL-DT-ST DVD-RAM GH70N",
+    "firmware": "NYA2",
+    "disc": "RITEKF1"
+  },
+  "set_cd_speed": {
+    "requested_kBps": 5540,
+    "pure_cav": false,
+    "status": 0,
+    "sense": ""
+  },
+  "rotation_check": {
+    "inner_lba": 83952,
+    "outer_lba": 1563824,
+    "period_ms": [
+      63.554863932639925,
+      21.191216402680475
+    ],
+    "ratio": 0.3334318585771888,
+    "expected_clv": 1.9108751732175424
+  }
+}
