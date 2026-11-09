@@ -44,10 +44,10 @@ chcp 65001 >nul
 cd /d "%~dp0.."
 set "PATH=%~dp0;%PATH%"
 title disc-probe
-python -m discprobe guide
+python -m discprobe menu
 echo.
-echo Type the commands above in this window. Close it when you are done.
-echo 把上面的命令输入到这个窗口。用完直接关闭就行。
+echo This window is ready for disc-probe. Type a command here if you like; close it when you are done.
+echo 这个窗口已经准备好。也可以直接输入命令；用完关闭即可。
 """
 
 NOTICE = """disc-probe, GPL-3.0-or-later. See LICENSE. Source: https://github.com/Ashley-QwQ/disc-probe

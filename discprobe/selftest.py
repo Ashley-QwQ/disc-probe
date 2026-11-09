@@ -1623,5 +1623,7 @@ def _run() -> bool:
     sg_selftest.run(c)
     from . import ui_selftest
     ui_selftest.run(c)
+    from . import console_selftest
+    console_selftest.run(c)
     print(f"\n{'all checks passed' if c.failures == 0 else f'{c.failures} check(s) failed'}")
     return c.failures == 0
