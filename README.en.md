@@ -85,7 +85,7 @@ You can also skip git and download a package from [Releases](https://github.com/
 
 On Windows, open a terminal as administrator, install the dependencies, and check your setup on the simulated drive. If you cannot run as administrator, add `--transport imapi` to the drive commands: it sends the same CDBs through Windows' own IMAPI2 recorder interface (`IDiscRecorder2Ex`), which a standard user may call. The default, `auto`, switches to it when SPTI is refused.
 
-On Linux, commands go straight to `/dev/sr0` through `SG_IO`, with no extra packages; pass `--drive /dev/sr0` (or `sr0`). Your user needs read and write access to the device, usually by joining the `cdrom` group. If the disc was mounted automatically, unmount it first (e.g. `udisksctl unmount -b /dev/sr0`); the tool also falls back to the matching `/dev/sgN`. `timing` and `geo` try real-time scheduling (`SCHED_FIFO`), which needs root or `CAP_SYS_NICE`, and otherwise run at normal priority. `--transport` only applies on Windows.
+On Linux, commands go straight to `/dev/sr0` through `SG_IO`, with no extra packages; pass `--drive /dev/sr0` (or `sr0`). Your user needs read and write access to the device, usually by joining the `cdrom` group. A disc that was mounted automatically can stay mounted; if another program holds `/dev/sr0` exclusively, the tool falls back to the matching `/dev/sgN`. `timing` and `geo` try real-time scheduling (`SCHED_FIFO`), which needs root or `CAP_SYS_NICE`, and otherwise run at normal priority. `--transport` only applies on Windows.
 
 ```bash
 git clone https://github.com/Ashley-QwQ/disc-probe

@@ -85,7 +85,7 @@ python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --te
 
 Windows 上用管理员身份打开终端，安装依赖，并用模拟驱动器确认环境正常。不方便用管理员身份时，在读盘的命令后加 `--transport imapi`：它经 Windows 自带的 IMAPI2 刻录接口（`IDiscRecorder2Ex`）发同样的命令，普通用户即可；默认的 `auto` 在 SPTI 被拒时会自动改用它。
 
-Linux 上经 `SG_IO` 直接给 `/dev/sr0` 发命令，不需要额外的包，`--drive` 写 `/dev/sr0`（或 `sr0`）。用户要能读写这个设备，通常加入 `cdrom` 组即可；盘被自动挂载时先卸载（如 `udisksctl unmount -b /dev/sr0`），程序也会自动改用对应的 `/dev/sgN`。`timing` 和 `geo` 会尝试实时调度（`SCHED_FIFO`），这需要 root 或 `CAP_SYS_NICE`，做不到就退回普通优先级。`--transport` 只在 Windows 上有意义。
+Linux 上经 `SG_IO` 直接给 `/dev/sr0` 发命令，不需要额外的包，`--drive` 写 `/dev/sr0`（或 `sr0`）。用户要能读写这个设备，通常加入 `cdrom` 组即可。盘被自动挂载也能测，不用先卸载；`/dev/sr0` 被别的程序独占时，程序会改用对应的 `/dev/sgN`。`timing` 和 `geo` 会尝试实时调度（`SCHED_FIFO`），这需要 root 或 `CAP_SYS_NICE`，做不到就退回普通优先级。`--transport` 只在 Windows 上有意义。
 
 ```bash
 git clone https://github.com/Ashley-QwQ/disc-probe

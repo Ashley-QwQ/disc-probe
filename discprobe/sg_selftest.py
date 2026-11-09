@@ -118,7 +118,7 @@ def _opening(c, sg):
         _raises(c, OSError, lambda: sg.SgDevice("sr0"), "failed fallback names both paths and keeps first errno",
                 lambda e: e.errno == errno.EBUSY and f"/dev/sr0: {busy.strerror}" in str(e)
                 and f"/dev/sg7: {denied.strerror}" in str(e)
-                and "unmount" in str(e) and "cdrom group" in str(e))
+                and "another program" in str(e) and "cdrom group" in str(e))
     for name in ("sr0", "sg7", "/dev/sr0", "/dev/sg7"):
         with patch.object(sg.os, "open", return_value=123), patch.object(sg.os, "close"):
             with sg.SgDevice(name) as dev:

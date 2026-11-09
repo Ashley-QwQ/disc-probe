@@ -4,7 +4,8 @@ Same contract as spti.py: open an optical drive, send a raw SCSI CDB with one
 ioctl, and timestamp with time.perf_counter_ns() immediately around that ioctl.
 SG_IO works on both /dev/srN (the sr driver's generic SCSI ioctl) and /dev/sgN
 (the raw sg driver); the open tries the given path and, when it is an sr device
-that is mounted (EBUSY), its matching sg device.
+the kernel reports busy (EBUSY), its matching sg device. A mounted disc does not
+by itself make sr busy: a plain O_RDWR open succeeds alongside the mount.
 """
 
 from __future__ import annotations
@@ -164,7 +165,7 @@ class SgDevice:
         if any(err.errno in (errno.EPERM, errno.EACCES) for _, err in failures):
             hint += " (add your user to the cdrom group, or run as root)"
         if any(err.errno == errno.EBUSY for _, err in failures):
-            hint += " (the disc is mounted: unmount it, e.g. udisksctl unmount -b /dev/sr0, or pass /dev/sgN)"
+            hint += " (another program may hold the drive exclusively: close burning software, or pass /dev/sgN)"
         msg = "cannot open " + "; ".join(f"{path}: {err.strerror}" for path, err in failures)
         first = failures[0][1]
         raise OSError(first.errno, msg + hint) from first
