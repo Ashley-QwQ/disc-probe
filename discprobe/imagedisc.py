@@ -93,13 +93,23 @@ def clear_inside(design: np.ndarray, r_mm: float) -> np.ndarray:
     return out
 
 
-def load_correction(path: str):
+class Correction:
+    """phi(r) in degrees: a polynomial in x = (r - 40) / 15, held constant outside [lo, hi] mm. A class rather than
+    a closure so that write_iso can hand it to worker processes."""
+
+    def __init__(self, coef, lo: float, hi: float):
+        self.coef, self.lo, self.hi = np.asarray(coef, dtype=np.float64), float(lo), float(hi)
+
+    def __call__(self, r):
+        return np.polyval(self.coef, (np.clip(r, self.lo, self.hi) - 40.0) / 15.0)
+
+
+def load_correction(path: str) -> Correction:
     """phi(r) in degrees from an angle-correction file (polynomial, held constant outside its range)."""
     with open(path, encoding="utf-8") as f:
         c = json.load(f)
     lo, hi = c["radius_valid_mm"]
-    coef = np.array(c["poly_in_x"])
-    return lambda r: np.polyval(coef, (np.clip(r, lo, hi) - 40.0) / 15.0)
+    return Correction(c["poly_in_x"], lo, hi)
 
 
 def _timing_source(c: dict) -> str | None:
@@ -212,6 +222,77 @@ def _scramble_masks(media: str, lbas: np.ndarray) -> np.ndarray:
     return dvd.MASKS[((lbas + dvd.DATA_START_PSN) >> 4) & 0xF]
 
 
+PARALLEL_MIN_SECTORS = 64 * CHUNK     # below this (tests, small rings) the pool costs more than it saves
+_JOB: dict = {}
+
+
+def workers() -> int:
+    """Worker processes for write_iso: DISCPROBE_WORKERS if set (1 = in this process), else half the logical
+    cores (about the physical ones), up to 6. On a 12-thread machine a chunk took 52 ms alone and 148 ms with
+    twelve at once, and the total stopped improving past four to six. Each worker holds its own copy of the
+    design (36 MB for a 6000 x 6000 one)."""
+    try:
+        n = int(os.environ.get("DISCPROBE_WORKERS", "0"))
+    except ValueError:
+        n = 0
+    return n if n > 0 else max(1, min(6, (os.cpu_count() or 2) // 2))
+
+
+def _job_init(job: dict) -> None:
+    _JOB.clear()
+    _JOB.update(job)
+
+
+def _job_chunk(span):
+    """The recorded bytes of sectors a .. a+n as written to the file: the design (or random data below
+    lead_lba, seeded by the chunk start), scrambled as the drive will scramble it."""
+    a, n = span
+    j = _JOB
+    q = _sector_q(j["design"], j["texs"], j["u"], j["v"], j["bit_mm"], a, n, j["correction"], j["media"])
+    if a < j["lead_lba"]:
+        k = min(n, j["lead_lba"] - a)
+        q[:k] = np.random.default_rng(a).integers(0, 256, (k, dvd.SECTOR_BYTES), dtype=np.uint8)
+    return a, n, (q ^ _scramble_masks(j["media"], np.arange(a, a + n))).tobytes()
+
+
+def _job_chunk_to_file(span):
+    """In a worker: compute a chunk and write it at its place in the file, so only (a, n) travels back."""
+    a, n, data = _job_chunk(span)
+    if "file" not in _JOB:
+        _JOB["file"] = open(_JOB["path"], "r+b")
+    f = _JOB["file"]
+    f.seek((a - _JOB["first_lba"]) * dvd.SECTOR_BYTES)
+    f.write(data)
+    f.flush()
+    return a, n
+
+
+def _write_chunks(path: str, job: dict, spans, first_lba: int):
+    """Write the chunks to path and yield (a, n) as each is done. Chunks are independent, so a large image goes
+    to a pool of processes that each write their chunks in place (a full DVD on a 12-thread machine: about
+    70 s in one process, 30 s in a pool). The chunk boundaries are the same either way, so the file is
+    identical byte for byte."""
+    total = sum(n for _, n in spans)
+    count = workers()
+    if count == 1 or total < PARALLEL_MIN_SECTORS:
+        _job_init(job)
+        try:
+            with open(path, "wb") as f:
+                for a, n, data in map(_job_chunk, spans):
+                    f.write(data)
+                    yield a, n
+        finally:
+            _JOB.clear()
+        return
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+    with open(path, "wb") as f:
+        f.truncate(total * dvd.SECTOR_BYTES)
+    with ProcessPoolExecutor(max_workers=count, initializer=_job_init,
+                             initargs=({**job, "path": path, "first_lba": first_lba},)) as pool:
+        for done in as_completed([pool.submit(_job_chunk_to_file, span) for span in spans]):
+            yield done.result()
+
+
 def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, total_sectors: int,
               dark: str = "A5", light: str = "B9", log=print, meta: dict | None = None, correction=None,
               textures=None, first_lba: int = 0, lead_lba: int = 0, media: str = "dvd") -> str:
@@ -220,21 +301,15 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
     a GU70N in a USB case failed to write a picture from the first sector on, yet wrote textures after random data."""
     texs = _textures(design, dark, light, textures)
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    bit_mm = bit_nm * 1e-6
-    done, next_report = first_lba, 0.0
-    count = total_sectors - first_lba
-    with open(path, "wb") as f:
-        while done < total_sectors:
-            n = min(CHUNK, total_sectors - done)
-            q = _sector_q(design, texs, u, v, bit_mm, done, n, correction, media)
-            if done < lead_lba:
-                k = min(n, lead_lba - done)
-                q[:k] = np.random.default_rng(done).integers(0, 256, (k, dvd.SECTOR_BYTES), dtype=np.uint8)
-            f.write((q ^ _scramble_masks(media, np.arange(done, done + n))).tobytes())
-            done += n
-            if (done - first_lba) / count >= next_report:
-                log(f"  {100 * (done - first_lba) / count:5.1f} %")
-                next_report += 0.2
+    job = {"design": design, "texs": texs, "u": u, "v": v, "bit_mm": bit_nm * 1e-6, "correction": correction,
+           "media": media, "lead_lba": lead_lba}
+    spans = [(a, min(CHUNK, total_sectors - a)) for a in range(first_lba, total_sectors, CHUNK)]
+    next_report, count, written = 0.0, total_sectors - first_lba, 0
+    for a, n in _write_chunks(path, job, spans, first_lba):
+        written += n
+        if written / count >= next_report:
+            log(f"  {100 * written / count:5.1f} %")
+            next_report += 0.2
     if not first_lba:
         iso9660.add(path, total_sectors, "DISCPROBE_IMAGE")
     spec = {"kind": "dvd-picture", "media": media, "u": u, "v": v, "bit_nm": bit_nm,

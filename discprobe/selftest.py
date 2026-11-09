@@ -1437,6 +1437,28 @@ def _tiles(c: Checker):
         c.check(all(start) and data[800 * 2048:] == ref[800 * 2048:]
                 and not imagedisc.verify_iso(lead, design, u, v, bit, 2400, samples=40, lead_lba=800),
                 "below lead_lba it is random data, from there the same picture")
+        # The pool of worker processes, forced on for a small image: the same file, byte for byte, with a
+        # random lead-in and an angle correction (which has to travel to the workers).
+        corr = imagedisc.Correction([0.3, -0.2, 0.1], 26.0, 56.0)
+        serial, pooled = os.path.join(d, "serial.iso"), os.path.join(d, "pooled.iso")
+        before = imagedisc.PARALLEL_MIN_SECTORS, os.environ.get("DISCPROBE_WORKERS")
+        try:
+            os.environ["DISCPROBE_WORKERS"] = "1"
+            imagedisc.write_iso(serial, design, u, v, bit, 5 * imagedisc.CHUNK + 300, log=lambda *_: None,
+                                lead_lba=3000, correction=corr)
+            imagedisc.PARALLEL_MIN_SECTORS = 0
+            os.environ["DISCPROBE_WORKERS"] = "2"
+            imagedisc.write_iso(pooled, design, u, v, bit, 5 * imagedisc.CHUNK + 300, log=lambda *_: None,
+                                lead_lba=3000, correction=corr)
+        finally:
+            imagedisc.PARALLEL_MIN_SECTORS = before[0]
+            if before[1] is None:
+                os.environ.pop("DISCPROBE_WORKERS", None)
+            else:
+                os.environ["DISCPROBE_WORKERS"] = before[1]
+        with open(serial, "rb") as f, open(pooled, "rb") as g:     # past the file system, which holds the time
+            c.check(f.read()[32 * 2048:] == g.read()[32 * 2048:],
+                    "two worker processes write the same image as one, byte for byte")
 
 
 def _prediction(c):
