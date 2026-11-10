@@ -1454,6 +1454,11 @@ def _tiles(c: Checker):
         c.check(all(start) and data[800 * 2048:] == ref[800 * 2048:]
                 and not imagedisc.verify_iso(lead, design, u, v, bit, 2400, samples=40, lead_lba=800),
                 "below lead_lba it is random data, from there the same picture")
+        mostly = bytes(range(256)) + bytes([0x92]) * (2048 - 256)
+        rng = np.random.default_rng(5)
+        c.check(not content.is_random(4000, mostly) and all(
+                    content.is_random(k, rng.integers(0, 256, 2048, dtype=np.uint8).tobytes()) for k in range(200)),
+                "a sector that is mostly one texture byte is not random, and 200 random sectors all are")
         # The pool of worker processes, forced on for a small image: the same file, byte for byte, with a
         # random lead-in and an angle correction (which has to travel to the workers).
         corr = imagedisc.Correction([0.3, -0.2, 0.1], 26.0, 56.0)

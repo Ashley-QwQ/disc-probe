@@ -14,6 +14,10 @@ import numpy as np
 from . import dvd
 
 MIN_DISTINCT = 200      # 2048 random bytes take about 250 values; a texture 1, a picture 2
+# ...and no value much more often than the 8 times each one averages: 32 is about 8.5 standard deviations
+# out. Without it a sector of one texture byte with 256 different bytes in front passed (the 6pro audit
+# of 1f7f92e: 87.5 % 0x92 counted as random).
+MAX_SAME = 32
 SAMPLES = 160           # about 0.25 mm apart over the default range, finer than any texture ring so far
 MARGIN_SECTORS = 3000   # kept away from each edge, as geo does for texture rings
 MIN_SECTORS = 20000     # shorter stretches (under about 0.5 mm) are left out
@@ -24,7 +28,12 @@ def is_random(lba: int, data: bytes) -> bool:
         return False
     raw = np.frombuffer(data[:dvd.SECTOR_BYTES], np.uint8)
     plain = raw ^ dvd.MASKS[dvd.preset_index(lba)]
-    return len(np.unique(raw)) >= MIN_DISTINCT and len(np.unique(plain)) >= MIN_DISTINCT
+    return _spread(raw) and _spread(plain)
+
+
+def _spread(b: np.ndarray) -> bool:
+    counts = np.bincount(b, minlength=256)
+    return int((counts > 0).sum()) >= MIN_DISTINCT and int(counts.max()) <= MAX_SAME
 
 
 def random_ranges(read, ranges, block: int = 16, samples: int = SAMPLES, margin: int = MARGIN_SECTORS,
