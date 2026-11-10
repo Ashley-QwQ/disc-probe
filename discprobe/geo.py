@@ -256,7 +256,9 @@ class Ladder:
         fit = self._ref_period(ref_t) if len(ref_t) >= 8 else None
         if not fit or fit.coherence < MEASURE_COHERENCE or abs(fit.period_s / self.T - 1) > PERIOD_TOL or len(x_t) < 8:
             return None
-        ph = analysis.robust_circular_mean(analysis.phase_offsets(fit, x_t))
+        # Clipped about the median: real drives return some reads late, and a window centred on the
+        # mean lets part of that tail in (tools/geo_reanalyse.py compares the two on a finished run).
+        ph = analysis.robust_median_mean(analysis.phase_offsets(fit, x_t))
         if ph["mean_deg"] is None or ph["std_deg"] > MAX_PHASE_STD_DEG:
             return None
         self.T = fit.period_s  # follow slow drift of the regulated speed
