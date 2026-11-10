@@ -461,6 +461,9 @@ TEXT = {
     "good": "好",
     "usable": "能用",
     "too noisy": "噪声太大",
+    "drive changed": "光驱状态变了",
+    "the drive changed during this run (its check points read differently at the end than at the start), so the fit can look clean while the geometry is off. Measure again and install a run whose check points held.":
+        "这次测量中光驱状态变了（结束时读的检查点和开始时不一样），拟合看起来再干净，几何也可能是偏的。请再测一次，装检查点前后一致的那次结果。",
     "narrow span": "只测了一小段",
     "stopped early": "中途停下",
     "most precise first": "按精度：最好的在前",

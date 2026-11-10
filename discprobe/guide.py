@@ -146,15 +146,22 @@ class Result:
         """How well this run knows the angles across what it measured, in degrees. Smaller is better."""
         return self.fit.get("angle_sigma_measured_span_deg")
 
+    def drive_changed(self) -> bool:
+        """The check points read at the start and again at the end disagreed (geo.Ladder.check_state)."""
+        return drive_changed(self.fit)
+
     def reliable(self) -> bool:
-        """Complete, and not judged too noisy to rely on."""
-        return self.geo_complete() and (self.sigma is None or self.sigma <= BAD_SIGMA_DEG)
+        """Complete, not judged too noisy, and the drive did not change state during the run."""
+        return (self.geo_complete() and (self.sigma is None or self.sigma <= BAD_SIGMA_DEG)
+                and not self.drive_changed())
 
     def quality(self) -> str:
         if not self.geo_complete():
             return "stopped early"
         if self.is_clv:
             return "good" if (self.fit.get("r2") or 0) >= 0.9999 else "usable"
+        if self.drive_changed():
+            return "drive changed"
         if not self.reliable():
             return "too noisy"
         span = self.fit.get("measured_span_mm") or [0, NARROW_SPAN_MM]
@@ -244,6 +251,17 @@ def _quality_number(fit: dict, name: str) -> float | None:
     return float(value)
 
 
+def drive_changed(fit: dict) -> bool:
+    """A run whose check points moved: the fit can look clean while the geometry is off, and its
+    angle uncertainty leaves that out (seen on the GH70N: 0.135 deg claimed, 0.29 deg off)."""
+    return ((fit or {}).get("state_check") or {}).get("verdict") == "changed"
+
+
+DRIVE_CHANGED_BLOCK = ("the drive changed during this run (its check points read differently at the end than at the "
+                       "start), so the fit can look clean while the geometry is off. Measure again and install a run "
+                       "whose check points held.")
+
+
 def install_blocker(geo_summary: str) -> str | None:
     """Why a geo result must not be installed as a DiscImageStudio preset, or None when it may.
 
@@ -292,6 +310,8 @@ def install_blocker(geo_summary: str) -> str | None:
                     f"reading in zones holds one angular speed per zone, and a preset built on that would place the "
                     f"spiral wrongly.")
         return None
+    if drive_changed(fit):
+        return DRIVE_CHANGED_BLOCK
     if fit.get("media") == "bd" and isinstance(fit.get("dis_equivalent"), dict):
         # A Blu-ray the drive reads at a constant angular velocity: the angle ladder measured
         # u = r0/b and v = p/b, so the figures to judge are the rung count and chi2/dof.

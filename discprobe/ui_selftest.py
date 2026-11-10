@@ -1703,6 +1703,21 @@ def _command_line(c) -> None:
                                          "--install", "--dis-presets", os.path.join(d, "dis3", "disc-presets.json"))
             c.check(code == 0 and "no chi2_per_dof" in text,
                     "a summary without quality figures installs, and says which check did not run")
+            moved_dir = os.path.join(d, "geo-H-20250102-000000")
+            os.makedirs(moved_dir)
+            moved = dict(fit, chi2_per_dof=0.3, angle_sigma_measured_span_deg=0.1,
+                         state_check={"verdict": "changed", "tolerance_deg": 0.25, "sigmas": 3.5, "points": []})
+            with open(os.path.join(moved_dir, "summary.json"), "w", encoding="utf-8") as f:
+                json.dump({"fit": moved}, f)
+            _targets(moved_dir, rows=22)
+            code, text = code_and_stderr("disexport", "--geo", os.path.join(moved_dir, "summary.json"),
+                                         "--sectors", "359602", "--output", os.path.join(d, "p4.json"),
+                                         "--install", "--dis-presets", os.path.join(d, "dis4", "disc-presets.json"))
+            c.check(code == 1 and "check points" in text,
+                    "--install refuses a clean-looking fit whose check points moved")
+            run = guide.Result(moved_dir, "geo", "H", "20250102-000000")
+            c.check(not run.reliable() and run.quality() == "drive changed",
+                    "results calls a run whose drive changed what it is, and latest leaves it out")
 
     class Stopped:
         name = "SIM"
