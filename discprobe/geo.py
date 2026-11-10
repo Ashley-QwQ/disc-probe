@@ -603,7 +603,9 @@ class Ladder:
             rep["completion_status"] = self.completion_status
             rep["failed_candidates"] = self.failed_candidates
         du_0, dv_0 = _dtheta(0.0, self.u, self.v)
-        du_t, dv_t = _dtheta((self.tp.last_lba + 1) * BD_SECTOR_BITS, self.u, self.v)
+        # The end of the last sector in this medium's own channel bits (a DVD or CD counted in Blu-ray
+        # sectors put this figure 9 % and 32 % too high; the 6pro audit of 1f7f92e).
+        du_t, dv_t = _dtheta(self._n_end(self.tp.last_lba), self.u, self.v)
         g_full = np.array([du_t - du_0, dv_t - dv_0])
         rep["angle_sigma_full_disc_deg"] = math.degrees(math.sqrt(float(g_full @ self.cov[:2, :2] @ g_full)))
         rep["c_deg"] = math.degrees(self.c)
