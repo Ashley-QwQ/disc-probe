@@ -1,0 +1,205 @@
+{
+  "image_size": [
+    1600,
+    1062
+  ],
+  "pixel_origin": "top-left, y down; final-image pixels; same grid as ../burner_<theme>.png (not mirrored: the page mirrors everything itself)",
+  "framing_check": {
+    "footprint_front_left": [
+      412.98,
+      651.04
+    ],
+    "footprint_rear_right": [
+      1580.77,
+      565.11
+    ],
+    "note": "must equal footprint_floor.front_left / rear_right in ../burner.json"
+  },
+  "layer_order": [
+    {
+      "file": "bg_%s.png",
+      "blend": "source-over",
+      "moves": false
+    },
+    {
+      "file": "sled_%s.png",
+      "blend": "source-over",
+      "moves": "translate by sled.offset_px * t"
+    },
+    {
+      "file": "mid_%s.png",
+      "blend": "source-over",
+      "moves": false
+    },
+    {
+      "file": "disc_%s.png (or disc_cut_%s.png)",
+      "blend": "source-over",
+      "opacity": "0.45-0.6 to see the pickup through it (disc_%s); 1.0 for disc_cut_%s",
+      "moves": "static; spin is drawn on top of it (see disc.spin)"
+    },
+    {
+      "file": "glow_%s.png",
+      "blend": "dark: lighter (additive); paper: source-over (additive light on a near-white page only bleaches it)",
+      "moves": "translate by sled.offset_px * t, together with the sled"
+    },
+    {
+      "file": "occluders_%s.png",
+      "blend": "source-over",
+      "moves": false
+    }
+  ],
+  "layer_notes": {
+    "bg": "all static parts: bottom pan, main PCB, chassis, closed tray, mechanism, sled motor and gears, guide rod and rail, spindle, clamp bridge, bezel and the top cover cut at z = 66.0 mm (side and rear walls kept, lid removed; boolean solver EXACT)",
+    "mid": "the subset of bg that is in front of the pickup at every point of its travel and behind the disc (tray floor around the pickup slot, rail, rod clamp...). Pixel-identical to bg where it is opaque.",
+    "occluders": "the subset of bg in front of the disc: clamp bridge and puck. The bezel and the cut-down walls never overlap the disc or the pickup in this view.",
+    "split_counts_supersampled_px": {
+      "occluders_px_ss": 995006,
+      "mid_px_ss": 527810,
+      "ambiguous_px_ss": 2278,
+      "ambiguous_bbox_px": [
+        867.5,
+        424.8,
+        927.8,
+        495.0
+      ]
+    }
+  },
+  "disc": {
+    "centre_px_top_face": [
+      1102.63,
+      337.97
+    ],
+    "centre_px_data_plane": [
+      1102.63,
+      338.33
+    ],
+    "centre_mm": [
+      -0.0,
+      219.0
+    ],
+    "radius_mm": 60.0,
+    "z_mm": [
+      56.52,
+      57.78
+    ],
+    "hole_radius_mm": 7.5,
+    "plane_matrix_px_per_mm": {
+      "a": 3.13333,
+      "b": 1.80903,
+      "c": 3.13333,
+      "d": -1.80903,
+      "note": "screen offset = [a c; b d] * [dx_mm, dy_mm] for a step (dx, dy) in the disc plane (+X right side of drive, +Y towards its rear). Canvas: ctx.setTransform(a, b, c, d, cx, cy) then draw in disc-plane millimetres."
+    },
+    "ellipse_px": {
+      "semi_major_x": 265.87,
+      "semi_minor_y": 153.5,
+      "note": "top face outline: axis-aligned ellipse around centre_px_top_face"
+    },
+    "spin": "a plain toon disc shows no rotation; draw marks (label print, a sheen wedge, a sector tick) in disc-plane mm with plane_matrix and rotate them by theta: M * R(theta) * M^-1 about the centre. Seen from above (label side) a disc turns clockwise, i.e. theta decreasing in this un-mirrored image (and increasing after the page's mirror).",
+    "cut": {
+      "file": "disc_cut_%s.png",
+      "removed": "quarter x > 1.5 mm, y < centre (front-right, nearest the viewer)",
+      "note": "the lens path runs 1.5 mm inside the remaining disc's cut face, so the spot sits at the cut edge; do not rotate this layer"
+    }
+  },
+  "sled": {
+    "file": "sled_%s.png",
+    "radius_mm": [
+      25.27,
+      58.0
+    ],
+    "travel_mm": 32.73,
+    "direction": "radially outward along [-0.0, -1.0] (towards the drive front)",
+    "offset_px": [
+      -102.56,
+      59.213
+    ],
+    "px_per_mm": [
+      -3.13333,
+      1.80903
+    ],
+    "lens_top_px_inner": [
+      1023.45,
+      392.84
+    ],
+    "lens_top_px_outer": [
+      920.89,
+      452.05
+    ],
+    "note": "layer is rendered at the INNER position; position(t) = offset_px * t, t = (r_mm - 25.27) / 32.73. Model check: the module clears every static part up to 19.7 mm of travel (r 45 mm); beyond that it intersects the guide-rod end clamp (CAD detail), and the base plate from 35 mm (r 60). The layers hide this."
+  },
+  "laser": {
+    "spot_px_inner": [
+      1023.45,
+      384.04
+    ],
+    "spot_px_outer": [
+      920.89,
+      443.25
+    ],
+    "spot_plane_z_mm": 57.68,
+    "beam_px": [
+      [
+        1023.45,
+        392.84
+      ],
+      [
+        1023.45,
+        384.04
+      ]
+    ],
+    "beam_note": "lens top to disc spot is only 2.43 mm (8.8 px), drawn as a short vertical line in glow; visible only through a translucent disc or at the cut edge",
+    "glow_png": "glow_%s.png = core + halo + bloom + beam at the INNER spot; slide with the sled",
+    "glow_params_mm": {
+      "core_mm": 0.7,
+      "halo_mm": 2.6,
+      "bloom_mm": 7.0,
+      "core_a": 1.0,
+      "halo_a": 0.85,
+      "bloom_a": 0.3,
+      "beam_px": 1.6,
+      "beam_a": 0.55
+    },
+    "colours": {
+      "dark": {
+        "glow_core": "#fff3ea",
+        "glow_halo": "#ff5a3c",
+        "glow_bloom": "#ff3b30"
+      },
+      "paper": {
+        "glow_core": "#fff6ef",
+        "glow_halo": "#f0442c",
+        "glow_bloom": "#e8321f"
+      }
+    },
+    "diffraction": "draw on the page, in disc-plane mm with plane_matrix: a short arc of the track circle through the spot (radius r, +-25 deg around the spot), as 5-7 thin concentric bands at r-1.5 .. r+1.5 mm coloured red..violet, alpha falling off with arc distance from the spot (gaussian sigma ~8 mm), blend 'lighter'. Its curvature depends on r, so it cannot be a pre-rendered sliding PNG."
+  },
+  "scale": {
+    "px_per_mm_view_plane": 4.4312,
+    "px_per_mm_along_each_world_axis": 3.61806
+  },
+  "render": {
+    "engine": "Cycles, emission-only toon fill, image-space outlines",
+    "supersample": 4,
+    "samples": 16,
+    "line_px": 0.8,
+    "cover_cut_z_mm": 66.0
+  },
+  "layers_webp": [
+    "bg_dark.webp",
+    "bg_paper.webp",
+    "disc_cut_dark.webp",
+    "disc_cut_paper.webp",
+    "disc_dark.webp",
+    "disc_paper.webp",
+    "glow_dark.webp",
+    "glow_paper.webp",
+    "mid_dark.webp",
+    "mid_paper.webp",
+    "occluders_dark.webp",
+    "occluders_paper.webp",
+    "sled_dark.webp",
+    "sled_paper.webp"
+  ],
+  "layers_webp_note": "lossless WebP copies (Pillow, lossless=True, method=6), pixel-identical where alpha > 0"
+}

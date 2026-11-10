@@ -1,0 +1,46 @@
+/* Trial only: palettes and faces to compare on samples.html. The chosen one moves into tokens.css. */
+@font-face { font-family: "Archivo"; src: url(fonts/Archivo-VF.ttf) format("truetype"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
+@font-face { font-family: "Mona Sans"; src: url(fonts/MonaSans-VF.ttf) format("truetype"); font-weight: 200 900; font-stretch: 75% 125%; font-display: swap; }
+@font-face { font-family: "Smiley Sans"; src: url(fonts/SmileySans-Oblique.woff2) format("woff2"); font-display: swap; }
+
+/* shape: square, like a tool */
+:root { --r-control: 3px; --r-card: 4px; }
+.bar, .bar-fill { border-radius: 0; }
+.kbd { border-radius: 2px; }
+
+/* faces */
+:root[data-face="archivo"] { --font-latin: "Archivo"; --font: "Archivo", system-ui, "Microsoft YaHei UI", "PingFang SC", sans-serif; --display-stretch: 88%; }
+:root[data-face="mona"] { --font-latin: "Mona Sans"; --font: "Mona Sans", system-ui, "Microsoft YaHei UI", "PingFang SC", sans-serif; --display-stretch: 92%; }
+:root[data-face="system"] { --font-latin: system-ui; --display-stretch: 100%; }
+.page-title, .sheet h2, .hold > span, .disc-name { font-stretch: var(--display-stretch, 100%); }
+/* Chinese titles in Smiley Sans; Latin letters in a title keep the UI face */
+:root[data-cjk-title="smiley"] .page-title, :root[data-cjk-title="smiley"] .sheet h2, :root[data-cjk-title="smiley"] .disc-name { font-family: var(--font-latin), "Smiley Sans", sans-serif; }
+.disc-name { font-weight: 700; font-size: 1.6rem; line-height: 1.1; letter-spacing: 0; }
+
+/* palette A: ink. Achromatic shell; the only colour on screen is the disc's rainbow and states. */
+:root[data-palette="ink"] {
+  --bg: #121211; --panel: #181816; --rail: #151513; --raised: #1f1f1c; --input: #141412; --canvas: #0e0e0d;
+  --line: #2a2a26; --line-strong: #3a3a35; --line-control: #67645d;
+  --text: #ecebe6; --text-secondary: #b2afa7; --text-faint: #86837b;
+  --primary: #ecebe6; --primary-hover: #ffffff; --primary-press: #cfcdc6; --on-primary: #121211; --focus: #ecebe6;
+  --good: #8fca9a; --warn: #e2b866; --error: #ee7f72; --unknown: #b2afa7; --error-ground: #2a1916; --warn-ground: #29230f;
+}
+:root[data-palette="ink"] ::selection { background: #3a3a35; }
+
+/* palette B: laser. The DVD burner's 650 nm red as the one action colour; errors turn to a deep magenta-free crimson with an icon. */
+:root[data-palette="laser"] {
+  --bg: #121211; --panel: #181816; --rail: #151513; --raised: #1f1f1c; --input: #141412; --canvas: #0e0e0d;
+  --line: #2a2a26; --line-strong: #3a3a35; --line-control: #67645d;
+  --text: #ecebe6; --text-secondary: #b2afa7; --text-faint: #86837b;
+  --primary: #ff5a3c; --primary-hover: #ff7a60; --primary-press: #e5472b; --on-primary: #160c09; --focus: #ff8a70;
+  --good: #8fca9a; --warn: #e2b866; --error: #ff8f9a; --unknown: #b2afa7; --error-ground: #2c1719; --warn-ground: #29230f;
+}
+
+/* palette C: gold. The gold reflective layer of an archival CD-R. */
+:root[data-palette="gold"] {
+  --bg: #121211; --panel: #181816; --rail: #151513; --raised: #1f1f1c; --input: #141412; --canvas: #0e0e0d;
+  --line: #2a2a26; --line-strong: #3a3a35; --line-control: #67645d;
+  --text: #ecebe6; --text-secondary: #b2afa7; --text-faint: #86837b;
+  --primary: #d9ad55; --primary-hover: #e8c070; --primary-press: #c39540; --on-primary: #17130a; --focus: #e8c070;
+  --good: #8fca9a; --warn: #ee9a5c; --error: #ee7f72; --unknown: #b2afa7; --error-ground: #2a1916; --warn-ground: #2b1d12;
+}
