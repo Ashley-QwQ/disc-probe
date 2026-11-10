@@ -76,14 +76,16 @@ The preview's colours only tell the textures apart, so it won't match the disc. 
 
 > If you exported a preset with `--correction` before 2026-11-06, the correction may not be in it. Update and export again; you don't need to measure again.
 
-You need blank discs from the same batch: at least 2 for DVD (measuring, picture) and at least 3 for CD (measuring, calibration, picture). The measuring disc can't take a picture afterwards, but keep it: other discs of that batch don't need a new one. You also need Windows, Python 3.10 or later and a drive that can burn. For Linux and macOS, see the ports listed under the [table of reports](#drives-with-hands-on-reports). The steps below are for DVD. For CD, see the [CD route](#cd-route) further down.
+You need blank discs from the same batch: at least 2 for DVD (measuring, picture) and at least 3 for CD (measuring, calibration, picture). The measuring disc can't take a picture afterwards, but keep it: other discs of that batch don't need a new one. You also need Windows or Linux, Python 3.10 or later and a drive that can burn. For macOS, see the port listed under the [table of reports](#drives-with-hands-on-reports). The steps below are for DVD. For CD, see the [CD route](#cd-route) further down.
 
 You can also skip git and download a package from [Releases](https://github.com/Ashley-QwQ/disc-probe/releases/latest):
 
 - `full-win64`: for Windows, with its own Python and dependencies. Unpack it and double-click `开始 Start.bat`, nothing to install. You can skip the install steps below.
 - `core`: disc-probe alone, for a machine that has Python. Unpack it, run `python -m pip install -r requirements.txt` in the folder, then the `selftest` below.
 
-Open a terminal as administrator, install the dependencies, and check your setup on the simulated drive. If you cannot run as administrator, add `--transport imapi` to the drive commands: it sends the same CDBs through Windows' own IMAPI2 recorder interface (`IDiscRecorder2Ex`), which a standard user may call. The default, `auto`, switches to it when SPTI is refused.
+On Windows, open a terminal as administrator, install the dependencies, and check your setup on the simulated drive. If you cannot run as administrator, add `--transport imapi` to the drive commands: it sends the same CDBs through Windows' own IMAPI2 recorder interface (`IDiscRecorder2Ex`), which a standard user may call. The default, `auto`, switches to it when SPTI is refused.
+
+On Linux, commands go straight to `/dev/sr0` through `SG_IO`, with no extra packages; pass `--drive /dev/sr0` (or `sr0`). Your user needs read and write access to the device, usually by joining the `cdrom` group. A disc that was mounted automatically can stay mounted; if another program holds `/dev/sr0` exclusively, the tool falls back to the matching `/dev/sgN`. `timing` and `geo` try real-time scheduling (`SCHED_FIFO`), which needs root or `CAP_SYS_NICE`, and otherwise run at normal priority. `--transport` only applies on Windows.
 
 ```bash
 git clone https://github.com/Ashley-QwQ/disc-probe
@@ -117,7 +119,7 @@ At a terminal, `timing` and `geo` end with a one-line verdict, and each command 
 
 ### Step 1: burn a random-data disc
 
-The measuring disc must hold plain data, since discs with burned patterns often can't be read. Once the image is ready, right-click `iso/random.iso` in Explorer and choose Burn disc image (a double-click only mounts it), and check that the burner is your optical drive.
+The measuring disc must hold plain data, since discs with burned patterns often can't be read. Once the image is ready, on Windows right-click `iso/random.iso` in Explorer and choose Burn disc image (a double-click only mounts it), and check that the burner is your optical drive. On Linux use a command-line burner, e.g. for DVD `growisofs -dvd-compat -Z /dev/sr0=iso/random.iso`.
 
 ```bash
 python -m discprobe random --output iso/random.iso
@@ -130,7 +132,7 @@ python -m discprobe random --output iso/random.iso
 This takes 1 to 3 minutes. The tray may have opened after the burn, so push it back in and wait a few seconds first. You want to see `CAV` and as little jitter as possible. With only one drive, you can leave out `--drive` at a terminal.
 
 ```bash
-python -m discprobe timing --drive H:
+python -m discprobe timing --drive H:      # Linux: --drive /dev/sr0
 ```
 
 ### Step 3: measure the geometry
@@ -196,6 +198,8 @@ CD has one more constant that timing can't see, so it takes one more disc for ca
    ```bash
    powershell -ExecutionPolicy Bypass -File tools/burn_imapi.ps1 -Drive H: -Iso iso/cd-random.iso -Speed 8 -Burn -Reload
    ```
+
+   On Linux, `random`, `image`, `tiles` and `rings` with `--media cd` also write a cdrdao toc next to the ISO (`iso/cd-random.toc`); burn with `cdrdao write --device /dev/sr0 iso/cd-random.toc`. The toc writes the sector layout the ISO was made for: by default Mode 2 Form 1, like IMAPI2. Burn the measuring disc and the pictures the same way. `xorriso` and plain `cdrecord` write Mode 1, which turns the picture textures into noise (`xorriso` cannot write Mode 2 Form 1 at all). FanJZSS has checked cdrdao with a Mode 2 Form 1 toc on a real disc on Windows; on Linux it hasn't been checked yet.
 
 2. Measure. `timing` takes 1 to 3 minutes and `geo` about 5 minutes for 36 steps. If `timing` says the rotation isn't CAV, change speed as it suggests and use the same speed for `geo`. The `geo` command `timing` prints is shorter and uses the default range, which also works; it's written out here to reach a larger radius.
 
@@ -300,7 +304,7 @@ This is the result for the reported disc and speed, and other conditions may dif
 
 </details>
 
-bczhc ported the tool to Linux: [bczhc/disc-probe](https://github.com/bczhc/disc-probe) (see its `README-linux.md`). NaiveTomcat ported it to macOS: [NaiveTomcat/discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos) (GPL-3.0-or-later). The release includes a signed, notarized universal helper, so you don't need to compile anything.
+Linux support was first ported by bczhc ([bczhc/disc-probe](https://github.com/bczhc/disc-probe)) and is now part of this repository. NaiveTomcat ported it to macOS: [NaiveTomcat/discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos) (GPL-3.0-or-later). The release includes a signed, notarized universal helper, so you don't need to compile anything.
 
 ## Using it by hand
 
@@ -327,7 +331,7 @@ The hints, progress and animation below only appear when stdout is a terminal. P
 
 The progress line and the games have no background thread, because one could delay the completion timestamps. They're drawn on the main thread during the random pause before each timed read, and the drawing time comes off that pause. On the simulated drive, the same seed gives identical summaries and events with or without them. The games work the same way: keys, moves and drawing all happen in that pause, only changed cells are drawn, and each has its own random generator. On the simulated drive, playing all four also leaves summaries and events identical. The animation still draws at most 8 frames a second, like the earlier progress line, though a colour frame writes more bytes. `timing` was compared with that earlier line on a real drive: the difference with and without it (0.01–0.20°) matched the difference between repeats (0.02–0.23°). The new animation, the games and `geo` haven't been compared yet, so add `--no-animation` or use a pipe if you want to rule them out, and don't play during a measurement that matters.
 
-`timing` and `geo` raise the process to high priority while measuring. Before 2026-11-06 this always failed on 64-bit Python, so earlier real measurements on 64-bit Python ran at normal priority, including the comparison above. Reports made with this tool on Windows probably did too; ports and other probes may differ. The effect of high priority on jitter hasn't been compared yet.
+`timing` and `geo` raise the process to high priority while measuring. Before 2026-11-06 this always failed on 64-bit Python, so earlier real measurements on 64-bit Python ran at normal priority, including the comparison above. Reports made with this tool on Windows probably did too; ports and other probes may differ. The effect of high priority on jitter hasn't been compared yet. On Linux it uses `SCHED_FIFO` real-time scheduling pinned to one CPU, falling back to `nice -20`.
 
 The opening screen of `guide` is a disc catching the light. Windows Terminal, Ghostty, WezTerm, kitty and the Claude desktop app's terminal draw block characters themselves, so there it's a disc of half-block pixels, dyed further out as the steps get done, with a line-style progress bar (UTF-8 needed). It falls back from that to true colour to 16 colours to plain text, and a small window gets the title alone. The turning disc on the progress line is decoration, not the real speed. Other terminals, such as Windows' old console window, get 7-bit ASCII by default, so no code page or font can break it; `DISCPROBE_UNICODE=1` asks for finer glyphs by hand. `NO_COLOR` turns off colour only; `--no-animation`, `DISCPROBE_NO_ANIMATION=1` and `CI` turn off animation. Details are in the [manual](docs/MANUAL.en.md#手动使用) (in Chinese).
 
@@ -359,7 +363,7 @@ On CD, the along-track constant has to come from a grid disc, and 206 frames onl
 
 ## Safety
 
-The drive code only sends read commands. A whitelist in [`discprobe/scsi.py`](discprobe/scsi.py) rejects any other opcode before it reaches the device, and the self-test confirms that WRITE, CLOSE TRACK and FORMAT UNIT are refused. The one command that changes drive state is `SET CD SPEED`, sent only if you pass `--speed` or `--cav`. Burning is left to Windows' own burning components, and [`tools/burn_imapi.ps1`](tools/burn_imapi.ps1) only writes when given `-Burn`.
+The drive code only sends read commands. A whitelist in [`discprobe/scsi.py`](discprobe/scsi.py) rejects any other opcode before it reaches the device, and the self-test confirms that WRITE, CLOSE TRACK and FORMAT UNIT are refused. The one command that changes drive state is `SET CD SPEED`, sent only if you pass `--speed` or `--cav`. The tool itself never burns: on Windows that is left to Windows' own burning components, and [`tools/burn_imapi.ps1`](tools/burn_imapi.ps1) only writes when given `-Burn`; on Linux it is the burner you run yourself.
 
 ## Documentation
 

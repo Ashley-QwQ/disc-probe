@@ -320,7 +320,7 @@ def _burn_warning(c) -> None:
 def _first_steps(c) -> None:
     """What a newcomer is told: where the image went, which burner, where they are, what comes after the burn."""
     from argparse import Namespace
-    from . import __main__ as cli, imagecheck, imagedisc, iso9660
+    from . import __main__ as cli, cd, imagecheck, imagedisc, iso9660
     import numpy as np
     real_term, real_platform, real_drives = ui._term, sys.platform, guide.optical_drives
     env = {"TERM": "xterm", "WT_SESSION": "x"}
@@ -345,8 +345,44 @@ def _first_steps(c) -> None:
             c.check("your optical drive" in guide.burner_hint()[0], "with several drives it does not guess")
             guide.optical_drives = lambda: ["H:"]
             sys.platform = "linux"
+            guide.optical_drives = lambda: ["/dev/sr0"]
+            lines = guide.after_random(Namespace(media="dvd", output="iso/random.iso"))
+            c.check(not guide.burner_hint() and not any("right-click" in x or "--sim" in x for x in lines)
+                    and any("growisofs" in x and "/dev/sr0=iso/random.iso" in x for x in lines)
+                    and any("timing --drive /dev/sr0" in x for x in lines), "Linux gets real-drive burn and timing steps")
+            cd_lines = guide.after_random(Namespace(media="cd", output="iso/cd-random.iso"))
+            c.check(any("cdrdao write --device /dev/sr0 iso/cd-random.toc" in x for x in cd_lines)
+                    and not any(x.lstrip().startswith("xorriso") for x in cd_lines)
+                    and any("Mode 2 Form 1" in x for x in cd_lines), "Linux CD steps burn with cdrdao and the toc beside the ISO")
+            quiet, ui._term = ui._term, ui.Term(io.StringIO(), env={}, platform="linux")
+            layout = cd.sector_layout()     # global: put back what the rest of the checks expect
+            os.makedirs("cd")
+            os.chdir("cd")                  # its own folder, so the iso/ made below is the only one
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    cd.set_sector_layout("mode1")
+                    cli.main(["random", "--media", "cd", "--sectors", "300", "--output", "iso/cd-random.iso"])
+                    cli._cdrdao_toc(Namespace(media="cd", output="iso/cd-grid.iso"))
+                    cli._cdrdao_toc(Namespace(media="dvd", output="iso/grid.iso"))
+                with open("iso/cd-random.toc", encoding="utf-8") as f:
+                    toc = f.read()
+                c.check(toc == f'CD_ROM_XA\n\nTRACK MODE2_FORM1\nDATAFILE "{os.path.abspath("iso/cd-random.iso")}"\n',
+                        "the measuring CD gets a Mode 2 Form 1 toc, whatever layout was last set")
+                with open("iso/cd-grid.toc", encoding="utf-8") as f:
+                    c.check(f.read().startswith("CD_ROM\n\nTRACK MODE1\n"), "a picture made with --cd-sector mode1 gets a Mode 1 toc")
+                c.check(not os.path.exists("iso/grid.toc"), "a DVD gets no toc")
+            finally:
+                os.chdir(d)
+                cd.set_sector_layout(layout)
+                ui._term = quiet
+            linux_guide = guide.guide_lines("dvd")
+            c.check(any("Optical drive" in x and "/dev/sr0" in x for x in linux_guide)
+                    and not any("--sim" in x or "right-click" in x for x in linux_guide), "Linux guide follows the real-drive flow")
+            sys.platform = "darwin"
             lines = guide.after_random(Namespace(media="dvd"))
-            c.check(not guide.burner_hint() and not any("right-click" in x or "--drive" in x for x in lines) and any("--sim" in x for x in lines), "elsewhere: no Windows steps, and no command that cannot run")
+            c.check(not guide.burner_hint() and not any("right-click" in x or "--drive" in x for x in lines)
+                    and any("--sim" in x for x in lines), "other platforms keep simulated guidance")
+            guide.optical_drives = lambda: ["H:"]
             sys.platform = "win32"
 
             lines = guide.guide_lines("dvd")
@@ -1477,9 +1513,9 @@ def _advice(c) -> None:
             "a noisy Blu-ray keeps its BD speed and still offers the geometry pass")
     i18n.use("zh")
     try:
-        c.check(all(i18n.tr(x) != x for x in (bd_lines[1], bd_good[-2], *guide.after_random(Namespace(**vars(args)))[:3],
-                                           *guide.after_disexport(True),
-                                           "Restart DiscImageStudio to load the updated preset list.")),
+        advice = (bd_lines[1], bd_good[-2], *guide.after_random(Namespace(**vars(args)))[:3],
+                  *guide.after_disexport(True), "Restart DiscImageStudio to load the updated preset list.")
+        c.check(all(i18n.tr(x) != x for x in advice if not x.lstrip().startswith(("growisofs ", "cdrdao "))),
                 "the new advice has Chinese")
     finally:
         i18n.use("en")
@@ -2239,6 +2275,26 @@ def _preflight(c) -> None:
             c.check(False, "no drive at all is reported")
         except SystemExit as e:
             c.check("--sim" in str(e.code), "no drive at all is reported")
+        cli.sys.platform = "linux"
+        guide.optical_drives = lambda: ["/dev/sr0"]
+        with contextlib.redirect_stdout(io.StringIO()):
+            cli._choose_drive(args)
+        c.check(args.drive == "/dev/sr0", "Linux auto-selects the only drive")
+        guide.optical_drives = lambda: ["/dev/sr0", "/dev/sr1"]
+        import builtins
+        real_input = builtins.input
+        real_stdin = sys.stdin
+        sys.stdin = FakeTty()
+        try:
+            for answer in ("sr1", "/dev/sr1"):
+                args.drive = None
+                builtins.input = lambda prompt, answer=answer: answer
+                with contextlib.redirect_stdout(io.StringIO()):
+                    cli._choose_drive(args)
+                c.check(args.drive == "/dev/sr1", "Linux accepts a drive basename or full path")
+        finally:
+            builtins.input = real_input
+            sys.stdin = real_stdin
     finally:
         ui._term, ui.ask, guide.optical_drives, cli.sys.platform = real_term, real_ask, real_drives, real_platform
 

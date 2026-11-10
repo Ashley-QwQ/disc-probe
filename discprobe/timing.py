@@ -493,11 +493,12 @@ class TimingProbe:
         """Catch a period that is not the spindle. A re-read from the disc takes whole turns on every
         drive so far. Reads served from cache follow the host instead: with a coarse sleep their
         completion times lock to the Windows timer tick (15.625 ms) and its harmonics."""
+        import sys
         periods = [z["period_ms"] for z in zones if "period_ms" in z]
         if not periods:
             return
         T = statistics.median(periods)
-        if self.strategy in ("plain", "evict") and any(abs(15.625 / k - T) < 0.15 for k in (1, 2, 3)):
+        if sys.platform == "win32" and self.strategy in ("plain", "evict") and any(abs(15.625 / k - T) < 0.15 for k in (1, 2, 3)):
             self.log("Warning: this period looks like the Windows timer tick (15.625 ms), not the spindle")
         # The cache test runs before the spindle settles, so its FUA time can span two speeds.
         settle = self.summary.get("settle", {})

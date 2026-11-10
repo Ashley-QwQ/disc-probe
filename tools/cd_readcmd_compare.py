@@ -12,6 +12,7 @@ about 0.6 deg. A difference that doesn't follow 1/r means the paths differ in so
 Only a relative check: it cannot fix the absolute along-track origin both paths share.
 
     python tools/cd_readcmd_compare.py --drive H: --geo results/geo-H-.../summary.json
+    python tools/cd_readcmd_compare.py --drive /dev/sr0 --geo results/geo-sr0-.../summary.json
 """
 import argparse
 import json
@@ -25,7 +26,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from discprobe import mmc  # noqa: E402
 from discprobe.geo import Ladder  # noqa: E402
-from discprobe.spti import SptiDevice, raise_priority  # noqa: E402
+from discprobe.device import Device, raise_priority  # noqa: E402
 from discprobe.timing import TimingProbe  # noqa: E402
 
 ANY_TYPE = 0  # READ CD expected sector type; IMAPI writes CD data as Mode 2 Form 1, so "Mode 1" (2) is refused
@@ -77,7 +78,7 @@ def main():
     b = fit["bit_nm_assumed"] * 1e-6
     raise_priority()
     rows = []
-    with SptiDevice(a.drive) as dev:
+    with Device(a.drive) as dev:
         A = ladder(dev, fit, a.speed, readcd=False)
         B = ladder(dev, fit, a.speed, readcd=True)
         t0 = time.time()

@@ -6,6 +6,8 @@ sampled sparsely, e.g. the 4-degree step near 49.9 mm on the first full CD ladde
 
     python tools/geo_probe_points.py --drive H: --media cd --geo results/geo-H-.../summary.json ^
         --lbas 232000:252000:1000 219845 256153
+
+    python tools/geo_probe_points.py --drive /dev/sr0 --media cd --geo results/geo-sr0-.../summary.json --lbas 219845 256153
 """
 import argparse
 import json
@@ -16,7 +18,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from discprobe.geo import Ladder  # noqa: E402
-from discprobe.spti import SptiDevice, raise_priority  # noqa: E402
+from discprobe.device import Device, raise_priority  # noqa: E402
 
 
 def parse_lbas(items):
@@ -46,7 +48,7 @@ def main():
     f = json.load(open(a.geo))["fit"]
     speed = a.speed or (1411 if a.media == "cd" else 5540)
     raise_priority()
-    with SptiDevice(a.drive) as dev:
+    with Device(a.drive) as dev:
         ref = a.ref_lba if a.ref_lba is not None else f["reference_lba"]
         L = Ladder(dev, media=a.media, ref_lba=ref, speed_kbs=speed, log=print,
                    host_delay_ms=a.host_delay_ms, reps=a.reps)
