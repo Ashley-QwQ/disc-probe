@@ -124,14 +124,44 @@ def correction_from_timing(path: str) -> bool:
         return str(json.load(f).get("source")).startswith("tools/geo_polyfit.py ")
 
 
+def geometry_fit(geo: str) -> dict | None:
+    """u and v of a geo summary.json (or its folder), or None when it can't be read."""
+    path = os.path.join(geo, "summary.json") if os.path.isdir(geo) else geo
+    try:
+        with open(path, encoding="utf-8") as f:
+            fit = json.load(f).get("fit") or {}
+        return {"u": float(fit["u"]), "v": float(fit["v"])}
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def _geometry_name(geometry) -> str:
+    g = str(geometry).rstrip("\\/")
+    parts = re.split(r"[\\/]", g)
+    return parts[-2] if parts[-1].endswith(".json") and len(parts) > 1 else parts[-1]
+
+
+def correction_unchecked(path: str) -> bool:
+    """A grid-scan correction that records no geometry that can be read: which run it fits is unknown."""
+    with open(path, encoding="utf-8") as f:
+        c = json.load(f)
+    return (not _timing_source(c) and not c.get("geo_fit")
+            and not (c.get("geometry") and geometry_fit(str(c["geometry"]))))
+
+
 def correction_other_run(path: str, u: float, v: float, geo_path: str) -> str | None:
-    """The geo run a timing correction was made from, if it isn't this one. Its phi(r) is relative to
-    that run's u and v, so with another run's it moves the picture by the wrong amount without any error."""
+    """The geo run a correction was made for, if it isn't this one. A timing correction's phi(r) is
+    relative to that run's u and v; a grid-scan correction measures what a grid burned with one
+    geometry left. With another run's either moves the picture by the wrong amount without any error."""
     with open(path, encoding="utf-8") as f:
         c = json.load(f)
     source = _timing_source(c)
     if not source:
-        return None
+        fit = c.get("geo_fit") or (geometry_fit(str(c["geometry"])) if c.get("geometry") else None)
+        if not fit:
+            return None
+        same = math.isclose(fit["u"], u, rel_tol=1e-9) and math.isclose(fit["v"], v, rel_tol=1e-9)
+        return None if same else _geometry_name(c.get("geometry") or "the run its grid was burned with")
     run = re.split(r"[\\/]", source.split(" ", 1)[1].rstrip("\\/"))[-1]
     fit = c.get("geo_fit")
     if fit:

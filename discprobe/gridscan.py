@@ -178,6 +178,13 @@ def fit_correction(phi_csvs: list[str], out_path: str, degree: int = 4, r_lo: fl
                    base_fit_error_deg=float(np.abs(total - np.polyval(coef, xg)).max()))
         if b.get("geo_fit"):
             out["geo_fit"] = b["geo_fit"]
+    if "geo_fit" not in out and geometry:
+        # The scans measure what the grid burned with this geometry left, so they only fit it: keep
+        # its u and v, which `image` and `disexport` compare with the run they are given.
+        from .imagedisc import geometry_fit
+        fit = geometry_fit(geometry)
+        if fit:
+            out["geo_fit"] = fit
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(out, fh, indent=2)
     return out

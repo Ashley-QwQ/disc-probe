@@ -700,9 +700,15 @@ def _warn_other_run(args, fit) -> None:
         run = imagedisc.correction_other_run(args.correction, fit["u"], fit["v"], args.geo)
     except (OSError, ValueError, KeyError):     # the step that needs the file says what is wrong with it
         return
-    if run:
+    if run and not imagedisc.correction_from_timing(args.correction):
+        print(f"Warning: {os.path.basename(args.correction)} was measured on a grid burned with another geo run "
+              f"({run}), so it does not fit this one. Use that run, or burn and scan a grid made with this one.")
+    elif run:
         print(f"Warning: {os.path.basename(args.correction)} was made from another geo run ({run}), so it does not fit this one. Make it again:")
         print(f"  python tools/geo_polyfit.py {os.path.dirname(args.geo) or '.'} --write-correction {args.correction} --order quadratic")
+    elif imagedisc.correction_unchecked(args.correction):
+        print(f"Note: {os.path.basename(args.correction)} does not record a geo run that can be read, so it could not be "
+              "checked against this one. It only fits the geometry its scanned grid was burned with.")
 
 
 def cmd_edit(args):

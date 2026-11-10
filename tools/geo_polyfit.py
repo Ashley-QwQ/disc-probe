@@ -276,6 +276,8 @@ def merged_summary(data, runs, c):
             entry["completion_status"] = d[3]["completion_status"]
         if s.get("stopped"):
             entry["stopped"] = s["stopped"]
+        if (d[3].get("state_check") or {}).get("verdict"):
+            entry["state_check"] = d[3]["state_check"]["verdict"]
         per_run.append(entry)
     fit_report = dict(u=u, v=v, coarse_u=u, coarse_v=v,
                       u_sigma=math.sqrt(cov[0, 0]), v_sigma=math.sqrt(cov[1, 1]),
@@ -295,6 +297,18 @@ def merged_summary(data, runs, c):
                     if d[3].get("completion_status", "target_reached") != "target_reached"), None)
     if partial:
         fit_report["completion_status"] = partial
+    # Likewise a source run whose check points moved: two runs that drifted the same way agree with
+    # each other, so the merge must not wash the verdict out (the 6pro audit of 1f7f92e).
+    verdicts = [(run, (d[3].get("state_check") or {}).get("verdict")) for run, d in zip(runs, data)]
+    changed = [run for run, verdict in verdicts if verdict == "changed"]
+    if changed:
+        fit_report["state_check"] = dict(verdict="changed", runs=changed,
+                                         note="a source run's check points moved; see that run")
+    elif verdicts and all(verdict == "steady" for _, verdict in verdicts):
+        fit_report["state_check"] = dict(verdict="steady", runs=list(runs))
+    elif any(verdict for _, verdict in verdicts):
+        fit_report["state_check"] = dict(verdict="inconclusive", runs=[run for run, v in verdicts if v != "steady"],
+                                         note="not every source run showed steady check points")
     if any("media" in d[3] for d in data):
         fit_report["media"] = media
     if media == "cd":
@@ -601,7 +615,12 @@ def multi_run(a, ap):
           f"straightness >= {STRAIGHTNESS_MM:g} mm)")
     # More runs narrow the merged band, not the pairwise differences of the runs already taken.
     known = grid_r[AGREE_Z * tangent_band < a.tolerance_mm]
-    if (p is not None and p < CONSISTENCY_P) or agreement == "beyond":
+    moved = (summary["fit"].get("state_check") or {}).get("verdict") == "changed"
+    if moved:
+        print("suggest another run: yes (the check points of "
+              f"{', '.join(summary['fit']['state_check']['runs'])} moved during the run: agreeing runs can share "
+              "that drift, so install from new runs whose check points held)")
+    elif (p is not None and p < CONSISTENCY_P) or agreement == "beyond":
         print("suggest another run: yes (the runs disagree; another one shows which is off)")
     elif len(known) == len(grid_r):
         print(f"suggest another run: no (merged {AGREE_Z:g} sigma band within {a.tolerance_mm:g} mm everywhere)")

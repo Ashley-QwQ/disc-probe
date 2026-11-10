@@ -634,6 +634,41 @@ def _correction_run(c: Checker):
                 f"--base adds the scans to the burned correction ({np.ptp(both):.4f} deg off)")
         c.check(I.correction_other_run(stacked, 180001.0, 5.5, geo) == "geo-E-20261107-133324",
                 "and still names the geo run that correction belongs to")
+        # A grid-scan correction keeps the u, v of the geometry its grid was burned with, and is checked
+        # against the run it is used with (the 6pro audit of 1f7f92e: an old one was added silently).
+        os.makedirs(os.path.dirname(geo), exist_ok=True)
+        with open(geo, "w", encoding="utf-8") as f:
+            json.dump({"fit": {"u": 180000.0, "v": 5.5}}, f)
+        scanned = os.path.join(d, "scanned.json")
+        fit_correction([phi], scanned, degree=4, geometry=geo)
+        c.check(I.correction_other_run(scanned, 180000.0, 5.5, geo) is None, "a scan correction passes with its own geometry")
+        c.check(I.correction_other_run(scanned, 180001.0, 5.5, geo) == "geo-E-20261107-133324",
+                "and names the run its grid was burned with when used with another")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            cli._warn_other_run(Namespace(correction=scanned, geo=geo), {"u": 180001.0, "v": 5.5})
+        c.check("grid burned with another geo run" in out.getvalue(), "the warning says the scans belong to another run")
+        bare = os.path.join(d, "bare.json")
+        fit_correction([phi], bare, degree=4)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            cli._warn_other_run(Namespace(correction=bare, geo=geo), {"u": 180001.0, "v": 5.5})
+        c.check("could not be checked" in out.getvalue(), "one that records no geometry says it could not be checked")
+        # A merge of runs whose check points moved keeps that verdict, so `disexport` still refuses it.
+        from . import guide
+        runs = []
+        for k, verdict in enumerate(("changed", "steady")):
+            run = os.path.join(d, f"geo-E-2026010{k + 1}-000000")
+            os.makedirs(run)
+            fit = {"u": 180000.0, "v": 5.5, "bit_nm_assumed": 133.3, "state_check": {"verdict": verdict}}
+            with open(os.path.join(run, "summary.json"), "w", encoding="utf-8") as f:
+                json.dump({"fit": fit, "setup": {"last_lba": 2295103}}, f)
+            runs.append((run, fit))
+        data = [(np.linspace(1e9, 6e10, 10), None, None, fit) for _, fit in runs]
+        joint = {"u": 180000.0, "v": 5.5, "cov": np.eye(2) * 1e-6, "c": [0.0, 0.0], "chi2": 1.0, "dof": 10, "rms_deg": 0.1}
+        merged = polyfit.merged_summary(data, [run for run, _ in runs], joint)
+        c.check(merged["fit"]["state_check"]["verdict"] == "changed" and runs[0][0] in merged["fit"]["state_check"]["runs"]
+                and guide.drive_changed(merged["fit"]), "a merge keeps a source run's moved check points")
 
 
 def _install_details(c: Checker):
