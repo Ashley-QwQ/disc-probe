@@ -1,0 +1,190 @@
+{
+  "image_size": [
+    1600,
+    1062
+  ],
+  "pixel_origin": "top-left, y down; values in final-image pixels",
+  "projection": "true isometric orthographic; camera looks along (-1,+1,-1) from the (+X,-Y,+Z) corner; drive front is -Y (lower-left on screen), its +X side faces lower-right",
+  "footprint_floor": {
+    "note": "drive body (shell) footprint on the floor plane z=0, tray excluded; left/right as seen when facing the drive front",
+    "front_left": [
+      412.98,
+      651.04
+    ],
+    "front_right": [
+      922.46,
+      945.19
+    ],
+    "rear_right": [
+      1580.77,
+      565.11
+    ],
+    "rear_left": [
+      1071.29,
+      270.96
+    ],
+    "size_mm": [
+      162.6,
+      210.1
+    ]
+  },
+  "tray_footprint_floor": {
+    "note": "open tray outline dropped straight down onto z=0 (part of it falls below the image)",
+    "front_left": [
+      22.57,
+      931.07
+    ],
+    "front_right": [
+      437.42,
+      1170.59
+    ],
+    "rear_right": [
+      875.15,
+      917.87
+    ],
+    "rear_left": [
+      460.29,
+      678.35
+    ],
+    "tray_out_mm": 139.7
+  },
+  "scale": {
+    "px_per_mm_view_plane": 4.4312,
+    "px_per_mm_along_each_world_axis": 3.61806,
+    "note": "model mm; a 1 mm step along X, Y or Z spans px_per_mm_along_each_world_axis pixels"
+  },
+  "screen_axes": {
+    "+X_mm": [
+      3.13333,
+      1.80903
+    ],
+    "+Y_mm": [
+      3.13333,
+      -1.80903
+    ],
+    "+Z_mm": [
+      0.0,
+      -3.61806
+    ],
+    "note": "pixel offset of a 1 mm step along each world axis; +Y runs from the drive front to its rear (the tray comes out along -Y)"
+  },
+  "features_px": {
+    "SHELL_led": [
+      825.01,
+      775.97
+    ],
+    "SHELL_eject_button": [
+      871.0,
+      803.69
+    ],
+    "note": "LED and eject button sit behind the open tray in this view (not visible)"
+  },
+  "render": {
+    "engine": "Cycles, emission-only toon fill, image-space outlines",
+    "supersample": 4,
+    "samples": 16,
+    "tray_open_m": 0.14,
+    "line_px": 0.8
+  },
+  "tray_travel_mm": 140.0,
+  "tray_slide_px": [
+    438.666,
+    -253.264
+  ],
+  "tray_slide_note": "add tray_slide_px * t (t = 0 open .. 1 closed) to the position of the tray layers to close the tray; the layers are rendered at t = 0",
+  "front_plane_px": {
+    "left": [
+      459.98,
+      506.97
+    ],
+    "right": [
+      877.34,
+      747.93
+    ],
+    "note": "bezel front plane (y = 80.50 mm) at the tray's mid height (z = 47.02 mm), at the left and right ends of the tray slot (x = -66.60 / 66.60 mm)"
+  },
+  "bezel_thickness_px": [
+    -9.337,
+    5.391
+  ],
+  "bezel_thickness_note": "screen offset of the tray front plate's thickness (2.98 mm) along -Y; closed, the plate sits flush in the slot from the front plane 2.98 mm inward; the slot itself is a 2.00 mm deep tunnel in the bezel",
+  "slot_px": {
+    "top_left": [
+      459.98,
+      465.0
+    ],
+    "top_right": [
+      877.34,
+      705.96
+    ],
+    "bottom_right": [
+      877.34,
+      789.9
+    ],
+    "bottom_left": [
+      459.98,
+      548.94
+    ],
+    "size_mm": [
+      133.2,
+      23.2
+    ],
+    "note": "tray slot opening on the bezel front plane (rounded corners, r ~1.5 mm, ignored)"
+  },
+  "tray_clip": {
+    "polygon_px": [
+      [
+        876.84,
+        706.17
+      ],
+      [
+        0.0,
+        199.93
+      ],
+      [
+        0.0,
+        1062.0
+      ],
+      [
+        876.84,
+        1062.0
+      ]
+    ],
+    "inset_px": 0.5,
+    "note": "fixed screen-space clip for the tray layers at ANY slide position (clip-path in canvas pixels; it does not move with the tray): left of the vertical through the slot's top-right corner and below the slot's top edge line, both inset 0.5 px so the bezel outline stays whole. Tray outside the drive always falls inside it; tray inside the drive is visible only through the slot, which is exactly this region. Draw: body layer, then the clipped tray layer on top."
+  },
+  "disc": {
+    "centre_mm": [
+      -0.0,
+      77.53
+    ],
+    "diameter_mm": 120.0,
+    "bottom_z_mm": 52.57,
+    "top_z_mm": 53.83,
+    "model_diameter_mm": 120.0,
+    "xy_scale": 1.0,
+    "centre_px": [
+      659.34,
+      608.19
+    ],
+    "note": "disc in burner_traydisc_*: label side up in the tray's 120 mm recess, tray open; centre_px is the centre of its top face"
+  },
+  "layers": [
+    "burner_body_paper.png",
+    "burner_body_dark.png",
+    "burner_tray_paper.png",
+    "burner_tray_dark.png",
+    "burner_traydisc_paper.png",
+    "burner_traydisc_dark.png"
+  ],
+  "layers_note": "transparent PNGs on the same 1600x1062 pixel grid as burner_<theme>.png. body = drive without tray/front plate; tray = tray + front plate, open; traydisc = open tray with one disc",
+  "layers_webp": [
+    "burner_body_paper.webp",
+    "burner_body_dark.webp",
+    "burner_tray_paper.webp",
+    "burner_tray_dark.webp",
+    "burner_traydisc_paper.webp",
+    "burner_traydisc_dark.webp"
+  ],
+  "layers_webp_note": "lossless WebP copies of the layer PNGs (Pillow, lossless=True, method=6), pixel-identical where alpha > 0"
+}

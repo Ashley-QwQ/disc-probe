@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>disc-probe</title>
+<script>
+  // before the first paint, so a dark page never flashes light
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem("dp-theme"); } catch (e) {}
+    document.documentElement.dataset.theme = t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    var l = null;
+    try { l = localStorage.getItem("dp-lang"); } catch (e) {}
+    l = l || ((navigator.language || "").toLowerCase().indexOf("zh") === 0 ? "zh" : "en");
+    document.documentElement.lang = l === "zh" ? "zh-CN" : "en";
+    document.documentElement.dataset.lang = l;
+  })();
+</script>
+<style>
+  @font-face { font-family: "Archivo"; src: url(../fonts/Archivo-VF-latin.woff2) format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
+  :root {
+    color-scheme: light;
+    --paper: #ebe7e0; --paper-2: #e4dfd7; --ink: #1d1b18; --ink-2: #5d5850; --ink-3: #8a847a;
+    --rule: #cfc9bf; --rule-strong: #a9a297; --copper: #a8693c;
+    --good: #3f7d55; --warn: #9a6a14; --unknown: #6f6a62;
+    /* the TUI's DVD title colours (banner.TITLE_HUES dvd: OKLCH hue .80 to 1.02 turns), darker on paper */
+    --dvd: linear-gradient(90deg, #7262c6, #8d58b7, #a150a1, #b04985, #ba4765);
+    --font: "Archivo", system-ui, "Microsoft YaHei UI", "PingFang SC", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --edge: clamp(20px, 3.2vw, 56px);
+    --t: 260ms; --ease: cubic-bezier(.2, .8, .2, 1); --io: cubic-bezier(.65, 0, .35, 1);
+    --over: cubic-bezier(.34, 1.45, .55, 1);
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #161d1c; --paper-2: #1f2827; --ink: #ecebe4; --ink-2: #aeb3ab; --ink-3: #7f8780;
+    --rule: #2c3634; --rule-strong: #46514e; --copper: #d9a75c;
+    --good: #8fca9a; --warn: #e2b866; --unknown: #aeb3ab;
+    --dvd: linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a);
+  }
+  :root.idle :not(.live, .live *), :root.idle :not(.live, .live *)::before, :root.idle :not(.live, .live *)::after { animation-play-state: paused !important; }
+  @media (prefers-reduced-motion: reduce) { :root { --t: 0ms; } }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--paper); color: var(--ink); font: 400 16px/1.55 var(--font); overflow: hidden; transition: background-color var(--t) var(--ease), color var(--t) var(--ease); }
+  ::selection { background: #d6cfc3; }
+  :root[data-theme="dark"] ::selection { background: #3a4542; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  button { font: inherit; color: inherit; }
+
+  /* ---- stage ---- */
+  .stage { position: fixed; inset: 0; }
+  .art { position: absolute; left: 4vw; top: 41%; width: min(108vw, 2000px); aspect-ratio: 1600 / 1000; transform: translateY(-50%); }
+  .cam { position: absolute; inset: 0; transition: transform 700ms var(--ease); will-change: transform; }
+  .layer { position: absolute; inset: 0; pointer-events: none; transition: opacity 420ms var(--ease); will-change: opacity; }
+  .layer.solid[data-depth="0"] .disc { pointer-events: auto; }
+  img.layer { width: 100%; height: 100%; display: block; }
+  /* a solid row that is not in focus is fully transparent: take it out of painting once faded */
+  .layer.solid { visibility: hidden; transition: opacity 420ms var(--ease), visibility 0s linear 420ms; }
+  .layer.solid[data-depth="0"] { visibility: visible; transition: opacity 420ms var(--ease), visibility 0s; }
+  .layer svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .layer.burner img { position: absolute; display: block; pointer-events: none; }
+  /* air perspective, the cheap way: each row is its own layer; rows not in focus become line
+     drawings (filled with the page colour so they still hide what is behind) and fade with
+     distance. Only opacity changes, so the browser composites instead of repainting. */
+  .layer.solid { opacity: 0; }
+  .layer.solid[data-depth="0"] { opacity: 1; }
+  .layer.ghost[data-depth="0"] { opacity: 0; }
+  :is(.layer.ghost, .layer.burner)[data-depth="1"] { opacity: .5; }
+  :is(.layer.ghost, .layer.burner)[data-depth="2"] { opacity: .3; }
+  :is(.layer.ghost, .layer.burner)[data-depth="3"] { opacity: .2; }
+  .layer.ghost[data-front="true"] { opacity: .16; }
+  /* the burner rig: body, and the tray sliding in its slot (closed = moved in by --slide) */
+  .layer.burner .rig { position: absolute; }
+  .layer.burner .rig > img, .layer.burner .slot { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .layer.burner .slot img { position: absolute; inset: 0; width: 100%; height: 100%; transform: translate(var(--slide)); transition: transform 900ms cubic-bezier(.45, 0, .2, 1); }
+  .layer.burner.open .slot img { transform: translate(var(--open, 0, 0)); }
+  .layer.burner .tray.full, .layer.burner.has-disc .tray.empty { visibility: hidden; }
+  .layer.burner.has-disc .tray.full { visibility: visible; }
+  .layer.burner .rig.dark, :root[data-theme="dark"] .layer.burner .rig.light { display: none; }
+  :root[data-theme="dark"] .layer.burner .rig.dark { display: block; }
+  /* the burner: one picture per theme, both loaded, the theme picks */
+  .layer.burner img.dark, :root[data-theme="dark"] .layer.burner img.light { display: none; }
+  :root[data-theme="dark"] .layer.burner img.dark { display: block; }   /* a row in front of the focus is foreground haze: keep it faint */
+  .art.entering { animation: dolly 900ms var(--ease) both; }
+  @keyframes dolly { from { opacity: 0; transform: translateY(-50%) scale(.965); } to { opacity: 1; transform: translateY(-50%) scale(1); } }
+
+
+  /* each kind of disc keeps its own tint, from the TUI's media colours: DVD violet-pink, CD cyan, BD copper */
+  .layer[data-row="dvd"] .paper.iso { --disc-top: #f3edf3; --disc-side: #ddd3e0; --rw-top: #e6dee8; --rw-side: #cbc0ce; --shelf-top: #f0eaf0; --shelf-side: #d9cfda; }
+  .layer[data-row="cd"] .paper.iso { --disc-top: #ecf2f3; --disc-side: #d2dddf; --rw-top: #dfe7e8; --rw-side: #c3cfd1; --shelf-top: #eaf0f1; --shelf-side: #d1dadc; }
+  .layer[data-row="bd"] .paper.iso { --disc-top: #f3ede5; --disc-side: #ded3c5; --rw-top: #e7dfd4; --rw-side: #cdc1b0; --shelf-top: #f0eae2; --shelf-side: #d9cec0; }
+  :root[data-theme="dark"] .layer .paper.iso { --halo: #000; --halo-a: .5; }
+  :root[data-theme="dark"] .layer[data-row="dvd"] .paper.iso { --disc-top: #2e2734; --disc-side: #221d28; --rw-top: #28222d; --rw-side: #1d1922; --shelf-top: #252029; --shelf-side: #1b171f; --on-top: #6f5a82; --on-side: #574669; }
+  :root[data-theme="dark"] .layer[data-row="cd"] .paper.iso { --disc-top: #243134; --disc-side: #1a2528; --rw-top: #202b2d; --rw-side: #172123; --shelf-top: #1e282a; --shelf-side: #161f21; --on-top: #4e7279; --on-side: #3d5b61; }
+  :root[data-theme="dark"] .layer[data-row="bd"] .paper.iso { --disc-top: #322c25; --disc-side: #26201a; --rw-top: #2b2620; --rw-side: #201c17; --shelf-top: #29241f; --shelf-side: #1f1b16; --on-top: #8b6e48; --on-side: #6e5638; }
+  :root[data-theme="dark"] .paper .disc.is-on { --disc-top: var(--on-top); --disc-side: var(--on-side); --rw-top: var(--on-top); --rw-side: var(--on-side); }
+  .layer .far { opacity: .5; }
+
+  /* the gallery: a triangle floating over the CD stacks, pointing up-left (the way the racks run
+     back), with the word lying on the floor plane under it. Faint until pointed at. */
+  .gallery { position: absolute; z-index: 1; display: grid; justify-items: start; gap: 2px; padding: 0; border: 0; background: none; color: var(--ink); cursor: pointer; opacity: .42; pointer-events: auto;
+    transform: translate(-50%, -50%); transition: left 700ms var(--ease), top 700ms var(--ease), opacity var(--t) var(--ease); }
+  .gallery:hover, .gallery:focus-visible { opacity: .9; }
+  .gallery .pin { display: block; width: 150px; height: 98px; animation: hover-float 3.2s ease-in-out infinite; }
+  .gallery .pin svg { width: 100%; height: 100%; overflow: visible; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0); }
+  .gallery .pin path { fill: color-mix(in srgb, var(--paper) 60%, transparent); stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; }
+  .gallery .pin .shade { fill: currentColor; opacity: .14; stroke: none; }
+  /* the word lies on the floor too, written along the racks' width (up and to the right) */
+  .gallery .word { display: block; font-weight: 800; font-stretch: 120%; font-size: 40px; line-height: 1; letter-spacing: .06em; transform: matrix(0.866, -0.5, 0.866, 0.5, 0, 0); margin: 6px 0 0 120px; }
+  @keyframes hover-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+
+  /* lifting: the chosen disc overshoots a little and settles; its neighbours follow late */
+  .paper .disc { transition: transform 300ms var(--ease); }
+  .paper .disc.is-on { transition: transform 460ms var(--over); }
+  .paper .disc.is-on .iso-line[data-tone="lo"] { stroke: var(--copper); }
+  :root[data-theme="dark"] .paper.iso { --anatomy-hi: #d5d9d2; --anatomy-mid: #7d8781; --anatomy-lo: #56615c; --anatomy-faint: #36413e; --anatomy-halo: #000; --anatomy-halo-opacity: .6; }
+  :root[data-theme="dark"] .paper .iso-line[data-tone="hi"] { stroke-opacity: .55; }
+  :root[data-theme="dark"] .paper .disc.is-on .aura { opacity: 1; }
+  :root[data-theme="dark"] .paper .disc.is-on .iso-line[data-tone="lo"] { stroke: #f3e2c4; }
+
+  /* ---- corners ---- */
+  .corner { position: fixed; z-index: 2; }
+  /* the header: one row, one control height, the wordmark and the tools on one centre line; the
+     outermost glyphs sit on the page's content edges (left = the wordmark, right = the next button) */
+  .top { position: fixed; z-index: 3; top: var(--edge); left: var(--edge); right: var(--edge); height: 52px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
+  .top > * { pointer-events: auto; }
+  .tools { display: flex; align-items: center; gap: 4px; margin-right: -14px; }
+  .bl { top: calc(100vh - 80px - var(--edge) - 236px); left: calc(var(--edge) + 120px); transform-origin: 0 0; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0); }
+
+  .wordmark { margin: 0; font-weight: 800; font-stretch: 125%; font-size: 34px; letter-spacing: .01em; line-height: 1; display: flex; align-items: center; }
+  .pro { background: var(--dvd); -webkit-background-clip: text; background-clip: text; color: transparent; display: inline-flex; align-items: center; }
+  .o-disc { /* the o of "pro" is a small disc in the same DVD colours, turning when pointed at */
+    position: relative; display: inline-block; width: .78em; height: .78em; margin: 0 .07em 0 .05em; border-radius: 50%;
+    background: conic-gradient(from 210deg, #b4abff, #d4a0ed, #f396bd, #f896aa, #e19bdf, #c5a5f8, #b4abff);
+    -webkit-mask: radial-gradient(circle, transparent 0 15%, #000 16% 100%); mask: radial-gradient(circle, transparent 0 15%, #000 16% 100%);
+    box-shadow: inset 0 0 0 .07em color-mix(in srgb, var(--ink) 18%, transparent);
+    transition: transform 1200ms var(--ease);
+  }
+  .o-disc::after { content: ""; position: absolute; inset: 30%; border-radius: 50%; box-shadow: 0 0 0 .04em color-mix(in srgb, var(--ink) 30%, transparent); }
+  .wordmark:hover .o-disc { transform: rotate(1turn); }
+
+  .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 18px; font-size: 18px; border: 1px solid transparent; border-radius: 2px; background: transparent; cursor: pointer; transition: background-color var(--t) var(--ease); }
+  .btn:hover { background: var(--paper-2); }
+  .btn:active { transform: translateY(1px); }
+
+  .btn-icon { width: 52px; padding: 0; justify-content: center; }
+  .btn-lang { font-weight: 600; font-stretch: 110%; padding: 0 14px; }
+  .btn .icon { width: 24px; height: 24px; }
+
+  /* ---- where you are ---- */
+  .counter { display: grid; gap: 14px; }
+  .count { font-weight: 300; font-size: 112px; line-height: .9; font-variant-numeric: tabular-nums; letter-spacing: -.02em; display: flex; align-items: baseline; }
+  .count small { font-size: 38px; color: var(--ink-3); font-weight: 300; margin-left: 8px; }
+  .kinds { display: flex; gap: 2px; }
+  .kind { min-height: 52px; padding: 0 18px; font-size: 19px; border: 1px solid transparent; background: none; cursor: pointer; color: var(--ink-3); font-weight: 600; font-stretch: 110%; border-radius: 2px; transition: color var(--t) var(--ease), border-color var(--t) var(--ease); }
+  .kind:hover { color: var(--ink); }
+  .kind[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
+
+  /* text roll: each character leaves upward while its new one comes in from below (staggered) */
+  .roll { display: inline; }
+  .roll .w { white-space: nowrap; }
+  .roll .ch { display: inline-block; overflow: hidden; vertical-align: top; }
+  .roll .col { display: flex; flex-direction: column; transition: transform 360ms var(--io); }
+  .roll .col > span { display: block; white-space: pre; }
+  .roll.down .col { flex-direction: column-reverse; }
+
+  /* ---- the chosen disc ---- */
+  .detail { position: fixed; z-index: 2; right: var(--edge); top: 50%; transform: translateY(-50%); width: min(560px, 36vw); }
+  .name { margin: 0; font-weight: 800; font-stretch: 118%; font-size: clamp(34px, 3.6vw, 64px); line-height: 1.08; min-height: 2.16em; display: flex; align-items: flex-end; }
+  .mid { margin: 14px 0 0; font-family: var(--mono); font-size: 17px; color: var(--ink-2); }
+  .rule { height: 1px; background: var(--ink); margin: 22px 0 18px; transform-origin: left; }
+  .rule.draw { animation: draw 520ms var(--io) both; }
+  @keyframes draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  .status { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 24px; }
+  .status .icon { width: 26px; height: 26px; }
+  .status[data-s="good"] { color: var(--good); }
+  .status[data-s="narrow"] { color: var(--warn); }
+  .status[data-s="none"] { color: var(--unknown); }
+  .why { margin: 8px 0 0 36px; color: var(--ink-2); font-size: 18px; min-height: 3.1em; }
+  .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 28px; margin: 26px 0 0; }
+  .facts dt { font-size: 15px; color: var(--ink-3); }
+  .facts dd .nb { white-space: nowrap; }
+  .facts dd { margin: 2px 0 0; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 24px; }
+  .in-drive { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 17px; color: var(--copper); font-weight: 600; min-height: 22px; }
+  .in-drive.off { visibility: hidden; }
+  .fade { transition: opacity 200ms var(--ease); }
+  .fade.out { opacity: 0; }
+
+  /* ---- the bar: drive on the left, next on the right ---- */
+  .bar { position: fixed; z-index: 2; left: 0; right: 0; bottom: 0; height: 80px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 0 var(--edge); border-top: 1px solid var(--rule); background: color-mix(in srgb, var(--paper) 92%, transparent); }
+  :root[data-theme="dark"] .bar { box-shadow: inset 0 1px 0 #d9a75c55; }
+  .drive { color: var(--ink-2); font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .drive b { color: var(--ink); font-weight: 600; }
+  .next { min-height: 56px; padding: 0 28px; font-size: 19px; border: 0; border-radius: 2px; background: var(--ink); color: var(--paper); font-weight: 600; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; white-space: nowrap; transition: transform 150ms var(--ease); }
+  .next:active { transform: translateY(1px); }
+  .next .icon { transition: transform var(--t) var(--ease); }
+  .next:hover .icon { transform: translateX(3px); }
+
+  @media (max-width: 820px) {
+    body { overflow: auto; }
+    .stage { position: relative; height: 44vh; }
+    .art { left: -10vw; width: 122vw; top: 56%; }
+    .detail { position: static; transform: none; width: auto; padding: 8px var(--edge) 120px; }
+    .name { min-height: 0; }
+    .bl { position: static; padding: 0 var(--edge) 16px; transform: none; }
+    .count { font-size: 72px; }
+    .name { font-size: 34px; }
+    .tools .btn .label { display: none; }
+    .wordmark { font-size: 24px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .art.entering, .rule.draw { animation: none; }
+    .paper .disc, .paper .disc.is-on, .roll .col, .o-disc, .cam, .layer, .gallery { transition: none; }
+    .gallery .pin { animation: none; }
+    .layer.burner .slot img { transition: none; }
+  }
+
+  /* ================= calibration flow (calibrate.js) ================= */
+  .back { margin-left: -18px; }
+  .back[hidden] { display: none; }
+  /* the back button and the wordmark share the top-left corner: one shows at a time */
+  .top > .back + .wordmark { margin-right: auto; }
+  .top > .back:not([hidden]) { margin-right: auto; }
+  :root[data-mode="cal"] .wordmark, :root[data-mode="cal"] .detail, :root[data-mode="cal"] .counter, :root[data-mode="cal"] .gallery { display: none; }
+  :root[data-mode="cal"] .layer.ghost, :root[data-mode="cal"] .layer.solid { opacity: .1 !important; }
+  .cal { position: fixed; z-index: 2; right: var(--edge); top: 50%; transform: translateY(-50%); width: min(600px, 40vw); display: grid; gap: 18px; }
+  .cal[hidden] { display: none; }
+  .cal .steps { display: flex; gap: 22px; margin: 0 0 6px; padding: 0; list-style: none; font-size: 17px; font-weight: 600; font-stretch: 110%; color: var(--ink-3); }
+  .cal .steps li[aria-current="step"] { color: var(--ink); }
+  .cal .steps li.done { color: var(--ink-2); }
+  .cal h2 { margin: 0; font-weight: 800; font-stretch: 118%; font-size: clamp(32px, 3vw, 52px); line-height: 1.08; }
+  .cal .lede { margin: 0; color: var(--ink-2); font-size: 19px; max-width: 34em; }
+  .cal .choices { display: grid; gap: 10px; }
+  .cal .choice { display: grid; grid-template-columns: 22px 1fr; gap: 4px 12px; align-items: start; padding: 16px 18px; border: 1px solid var(--rule-strong); border-radius: 3px; cursor: pointer; }
+  .cal .choice:has(input:checked) { border-color: var(--ink); }
+  .cal .choice input { margin: 4px 0 0; accent-color: var(--ink); width: 18px; height: 18px; }
+  .cal .choice b { font-size: 18px; font-weight: 600; }
+  .cal .choice span { grid-column: 2; color: var(--ink-2); font-size: 16px; }
+  .cal .readout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 24px; margin: 0; }
+  .cal .readout dt { font-size: 15px; color: var(--ink-3); }
+  .cal .readout dd { margin: 2px 0 0; font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .cal .note { display: flex; gap: 10px; align-items: flex-start; font-size: 18px; padding: 12px 14px; margin: 0 -14px; border-radius: 3px; }
+  /* a new warning flashes a pale orange three times, then rests */
+  .cal .note.flash { animation: note-flash 520ms ease-in-out 3; }
+  @keyframes note-flash { 50% { background: color-mix(in srgb, #e8a24e 22%, transparent); } }
+  .cal .note .icon { flex: none; width: 24px; height: 24px; margin-top: 2px; }
+  .cal .note[data-s="good"] { color: var(--good); } .cal .note[data-s="warn"] { color: var(--warn); } .cal .note[data-s="error"] { color: #c0574a; } .cal .note[data-s="unknown"] { color: var(--unknown); }
+  :root[data-theme="dark"] .cal .note[data-s="error"] { color: #ee7f72; }
+  .cal .note p { margin: 0; } .cal .note small { display: block; color: var(--ink-2); font-size: 16px; margin-top: 4px; }
+  .cal .demo { justify-self: start; min-height: 44px; padding: 0 16px; border: 1px dashed var(--rule-strong); border-radius: 3px; background: none; color: var(--ink-2); cursor: pointer; font: inherit; font-size: 15px; }
+  .cal .demo:hover { color: var(--ink); border-color: var(--ink-3); }
+  .cal .chart { width: 100%; height: auto; display: block; }
+  .cal .chart .axis { stroke: var(--rule-strong); stroke-width: 1; fill: none; }
+  .cal .chart .grid { stroke: var(--rule); stroke-width: 1; }
+  .cal .chart text { fill: var(--ink-3); font: 13px var(--font); font-variant-numeric: tabular-nums; }
+  .cal .chart .band { fill: color-mix(in srgb, var(--copper) 18%, transparent); }
+  .cal .chart .fit { stroke: var(--copper); stroke-width: 2; fill: none; }
+  .cal .chart .pt { fill: var(--ink); } .cal .chart .bar { stroke: var(--ink-3); stroke-width: 1.2; }
+  .cal .chart .pt.new { animation: pt-in 300ms var(--ease) both; }
+  @keyframes pt-in { from { opacity: 0; transform: translateY(-6px); } }
+  .cal .qr { width: 168px; height: 168px; border: 1px solid var(--rule-strong); display: grid; place-items: center; color: var(--ink-3); font-size: 15px; background:
+      repeating-linear-gradient(0deg, transparent 0 11px, var(--rule) 11px 12px), repeating-linear-gradient(90deg, transparent 0 11px, var(--rule) 11px 12px); }
+  .cal .row { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .cal .count-input { display: flex; align-items: center; gap: 12px; font-size: 18px; }
+  .cal .count-input input { width: 92px; min-height: 52px; padding: 0 12px; border: 1px solid var(--rule-strong); border-radius: 3px; background: transparent; color: var(--ink); font: 600 22px var(--font); font-variant-numeric: tabular-nums; }
+
+  /* the job in the bar: what runs, how far (rainbow by radius for disc jobs), time left, cancel */
+  .job { display: grid; grid-template-columns: auto minmax(120px, 1fr) auto auto; align-items: center; gap: 16px; min-width: 0; }
+  .job[hidden] { display: none; }
+  .job-name { font-weight: 600; white-space: nowrap; }
+  .job-bar { position: relative; height: 4px; background: var(--rule); overflow: hidden; }
+  .job-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ink); }
+  .job-time { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bar:has(.job:not([hidden])) .drive { display: none; }
+
+  /* pieces of the calibration scene, all inside the camera layer so they pan with it */
+  .floor { width: 100%; aspect-ratio: 1; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0); }
+  .cal-plate { position: absolute; z-index: 3; transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 400ms var(--ease); }
+  .cal-plate.on { opacity: 1; }
+  .cal-plate canvas { width: 100%; height: 100%; display: block; }
+  .cal-plate.breathe .floor { animation: breathe 2.6s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .6; } }
+
+  /* the inside of the drive while it burns: a big cutaway over the left half, grown out of the
+     drive picture (transform and opacity only); the scene behind it steps back */
+  .cutaway { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 500ms var(--ease); }
+  .cutaway.on { opacity: 1; }
+  .cutaway-in { position: absolute; transform-origin: 0 0; transition: transform 800ms var(--ease); container-type: inline-size; }
+  .cutaway .inside { position: absolute; inset: 0; transform: scaleX(-1); }
+  .cutaway .inside img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .cutaway .sled, .cutaway .glow { transform: translate(var(--sled, 0, 0)); transition: transform 120ms linear; }
+  .cutaway .inside.dark .disc { opacity: .5; }
+  .cutaway .inside.dark .glow { mix-blend-mode: screen; }
+  .cutaway .glow { animation: laser 1.6s ease-in-out infinite; }
+  @keyframes laser { 50% { opacity: .72; } }
+  .cutaway .occ { opacity: .75; }
+  .cutaway .inside.dark, :root[data-theme="dark"] .cutaway .inside.light { display: none; }
+  :root[data-theme="dark"] .cutaway .inside.dark { display: block; }
+  .layer.burner .rig { transition: opacity 450ms var(--ease); }
+  .layer.burner.inside-on .rig { opacity: 0; }
+  .cam { transition: transform 700ms var(--ease), opacity 600ms var(--ease); }
+  :root.burning .cam { opacity: .14; }
+  /* type lying flat inside: the percentage on the disc, the time left on the tray floor */
+  .inside-type { position: absolute; transform: translate(-50%, -50%) matrix(0.866, 0.5, -0.866, 0.5, 0, 0);
+    font-weight: 700; font-size: 4.2cqw; font-variant-numeric: tabular-nums; letter-spacing: .02em; color: var(--ink); opacity: .92; white-space: nowrap; }
+  .inside-type.big { font-size: 6.6cqw; font-weight: 800; font-stretch: 112%; }
+  @media (prefers-reduced-motion: reduce) { .cutaway-in { transition: none; } .cutaway .glow { animation: none; } }
+
+  /* the parcel: the measurement image, a small box beside the drive with its disc printed on the lid */
+  .parcel { position: absolute; z-index: 3; pointer-events: none; opacity: 0; transform: translate(0, 12px); transition: opacity 450ms var(--ease), transform 450ms var(--ease); }
+  .parcel.on { opacity: 1; transform: none; }
+  .parcel.ship { opacity: 0; transform: translate(14%, -6%) scale(.6); transition: opacity 800ms var(--ease), transform 800ms cubic-bezier(.5, 0, .7, .4); }
+  .parcel svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .parcel polygon, .parcel polyline { stroke: var(--ink); stroke-opacity: .55; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+  .parcel .lid { fill: #e3d2b4; } .parcel .side-l { fill: #cdb995; } .parcel .side-r { fill: #bba57f; }
+  .parcel .tape { fill: #efe4cc; stroke-opacity: .3; } .parcel .tape-edge { fill: none; stroke-opacity: .3; }
+  :root[data-theme="dark"] .parcel .lid { fill: #4e4335; } :root[data-theme="dark"] .parcel .side-l { fill: #413729; } :root[data-theme="dark"] .parcel .side-r { fill: #362e22; }
+  :root[data-theme="dark"] .parcel .tape { fill: #5d5141; }
+  .parcel .lid-print { position: absolute; }
+  .parcel .lid-print canvas { width: 100%; height: 100%; display: block; }
+
+  /* the disc that flies in (printed with its model) or lifts out, with its arrow */
+  .flyer { position: absolute; z-index: 4; transform: translate(-50%, -50%); pointer-events: none; opacity: 0;
+    transition: left 1400ms cubic-bezier(.25, .6, .3, 1), top 1400ms cubic-bezier(.25, .6, .3, 1), opacity 400ms var(--ease); }
+  .flyer.on { opacity: 1; }
+  .flyer.drop { transition: left 950ms cubic-bezier(.45, .05, .75, .55), top 950ms cubic-bezier(.45, .05, .75, .55); }
+  .flyer .face { position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center;
+    background: radial-gradient(circle, transparent 0 6.2%, var(--paper-2) 6.4% 19%, color-mix(in srgb, var(--paper) 70%, var(--ink) 6%) 19.5% 100%);
+    box-shadow: inset 0 0 0 1.5px var(--ink), inset 0 0 0 9px color-mix(in srgb, var(--paper) 80%, transparent); }
+  .flyer .face::before { content: ""; position: absolute; inset: 37%; border-radius: 50%; box-shadow: 0 0 0 1px var(--ink-3); }
+  .flyer .print { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .flyer .print text { font: 800 7.6px var(--font); font-stretch: 118%; letter-spacing: .06em; fill: var(--ink); }
+  .flyer.hover .floor { animation: bob 2.4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: matrix(0.866, 0.5, -0.866, 0.5, 0, -8); } }
+  .flyer .arrow { position: absolute; left: 50%; top: 92%; width: 26px; height: 44px; margin-left: -13px; fill: none; stroke: var(--copper); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transition: opacity 300ms; }
+  .flyer.hover .arrow { opacity: 1; animation: point 1.6s ease-in-out infinite; }
+  .flyer.up .arrow { top: auto; bottom: 92%; transform: rotate(180deg); }
+  @keyframes point { 50% { translate: 0 8px; } }
+  .flyer.up.hover .arrow { animation-name: point-up; }
+  @keyframes point-up { 50% { translate: 0 -8px; } }
+
+  /* the problem sign: an exclamation mark standing over the drive, parallel to its front */
+  .warn-sign { position: absolute; z-index: 4; transform: translate(-50%, -100%); pointer-events: none; opacity: 0; transition: opacity 300ms var(--ease); }
+  .warn-sign.on { opacity: 1; }
+  .warn-sign { transform: translate(-50%, -50%); }
+  .warn-sign .flat { transform: matrix(0.866, -0.5, 0.866, 0.5, 0, 0); animation: warn-pulse 1.6s ease-in-out infinite; }
+  @keyframes warn-pulse { 50% { opacity: .55; } }
+  .warn-sign span { display: block; font-weight: 900; font-stretch: 100%; font-size: 190px; line-height: 1; color: #c9772f; -webkit-text-stroke: 2px color-mix(in srgb, var(--ink) 40%, transparent); }
+  :root[data-theme="dark"] .warn-sign span { color: #e2a24f; }
+  @keyframes bob-up { 50% { translate: 0 -8px; } }
+
+  /* the drive's activity light */
+  .drive-led { position: absolute; z-index: 3; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: #f0a640; box-shadow: 0 0 8px 2px #f0a64088; opacity: 0; pointer-events: none; }
+  .drive-led.on { animation: led 0.5s steps(2, jump-none) infinite; }
+  @keyframes led { 0% { opacity: 1; } 100% { opacity: .1; } }
+
+  .cal .placed { min-height: 52px; padding: 0 24px; border: 1.5px solid var(--ink); border-radius: 3px; background: transparent; color: var(--ink); font: 600 18px var(--font); cursor: pointer; }
+  .cal .placed:hover { background: var(--paper-2); }
+  .cal .choice:has(input:disabled) { opacity: .5; cursor: default; }
+
+  /* hold to confirm: the next button fills from the left while held */
+  .next.hold { position: relative; overflow: hidden; }
+  .next.hold::before { content: ""; position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--hold, 0)); background: var(--arc-flat, #8a6a3c); opacity: .55; }
+  .next.hold > * { position: relative; }
+  .next[disabled] { opacity: .4; cursor: not-allowed; }
+  @media (prefers-reduced-motion: reduce) { .cal-plate.breathe .floor, .cal .chart .pt.new, .flyer.hover .floor, .flyer .arrow, .warn-sign .flat, .cal .note.flash { animation: none !important; } .flyer, .flyer.drop { transition: opacity 0s; } .drive-led.on { animation: none; opacity: 1; } }
+  @media (max-width: 820px) { .cal { position: static; transform: none; width: auto; padding: 8px var(--edge) 120px; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="i-theme" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-error" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.2h.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="i-good" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.8"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3.8L21 19.5H3z"/><path d="M12 10v4.2M12 17h.01"/></symbol>
+  <symbol id="i-none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></symbol>
+  <symbol id="i-drive" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="1"/><path d="M6 13.5h7"/><circle cx="17.5" cy="13.5" r=".6"/></symbol>
+</svg>
+
+<div class="stage"><div class="art" id="art"></div></div>
+
+<header class="top">
+  <button class="btn back" id="back" type="button" hidden><svg class="icon"><use href="#i-back"/></svg><span data-i18n="back"></span></button>
+  <h1 class="wordmark" aria-label="disc-probe"><span aria-hidden="true">DISC-</span><span class="pro" aria-hidden="true">PR<span class="o-disc"></span></span><span aria-hidden="true">BE</span></h1>
+  <nav class="tools" data-i18n-aria="tools">
+    <button class="btn" type="button" data-i18n-title="searchTitle"><svg class="icon"><use href="#i-search"/></svg><span class="label" data-i18n="search"></span></button>
+    <button class="btn btn-lang" type="button" id="lang" data-i18n="langButton" data-i18n-aria="langAria"></button>
+    <button class="btn btn-icon" type="button" id="theme" data-i18n-aria="theme"><svg class="icon"><use href="#i-theme"/></svg></button>
+    <button class="btn btn-icon" type="button" data-i18n-aria="settings"><svg class="icon"><use href="#i-settings"/></svg></button>
+  </nav>
+</header>
+
+<div class="corner bl counter">
+  <div class="count" aria-live="polite"><span id="idx">01</span><small>/ <span id="total">07</span></small></div>
+  <div class="kinds" role="group" data-i18n-aria="kinds">
+    <button class="kind" data-col="dvd">DVD</button><button class="kind" data-col="cd">CD</button><button class="kind" data-col="bd">BD</button><button class="kind" data-col="drive" data-i18n="driveTab"></button>
+  </div>
+</div>
+
+<section class="detail" id="detail" aria-live="polite">
+  <h2 class="name" id="name"></h2>
+  <p class="mid fade" id="mid"></p>
+  <span class="in-drive" id="indrive"><svg class="icon"><use href="#i-drive"/></svg><span data-i18n="inDrive"></span></span>
+  <div class="rule" id="rule"></div>
+  <div class="fade" id="state">
+    <div class="status" id="status"></div>
+    <p class="why" id="why"></p>
+    <dl class="facts">
+      <div><dt id="k1"></dt><dd id="sectors"></dd></div>
+      <div><dt id="k2"></dt><dd id="left"></dd></div>
+      <div><dt id="k3"></dt><dd id="last"></dd></div>
+      <div><dt id="k4"></dt><dd id="drive"></dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="cal" id="cal" hidden aria-live="polite"></section>
+
+<footer class="bar">
+  <div class="drive" id="drivebar"></div>
+  <div class="job" id="job" hidden>
+    <span class="job-name" id="job-name"></span>
+    <span class="job-bar"><span class="job-fill" id="job-fill"></span></span>
+    <span class="job-time" id="job-time"></span>
+    <button class="btn btn-icon job-cancel" id="job-cancel" type="button"><svg class="icon"><use href="#i-x"/></svg></button>
+  </div>
+  <button class="next" id="next" type="button"><span id="next-text"></span><svg class="icon"><use href="#i-next"/></svg></button>
+</footer>
+
+<script type="module">
+  // Sample data for the mock only. The real page reads /api/state (docs/goals/gui-flow.md).
+  // Each list runs front (index 0) to back; write-once discs first, then the rewritables.
+  const d = (name, mid, sectors, left, of, s = "none", extra = {}) => ({ name, mid, sectors, left, of, s, ...extra });
+  const DATA = {
+    dvd: [
+      d("Verbatim DVD-R 16x", "MCC 004 · AZO", 2295104, 37, 50, "good", { last: "2026-11-07", drive: "GH70N", inDrive: true }),
+      d("TDK DVD-R 16x", "CMC MAG. AM3", 2298496, 12, 25, "narrow", { last: "2026-10-30", drive: "GH70N" }),
+      d("Maxell DVD-R 16x", "RITEKF1", 2298496, 50, 50),
+      d("Verbatim DVD+R 16x", "MCC 004", 2295104, 20, 25),
+      d("Ritek DVD-R 8x", "RITEKG05", 2298496, 8, 50),
+      d("Ritek DVD+RW 4x", "RITEK 004", 2295104, 3, 3, "good", { last: "2026-11-02", drive: "GP65NB60", rw: true }),
+      d("Verbatim DVD-RW 2x", "MKM", 2298496, 2, 2, "none", { rw: true }),
+    ],
+    cd: [
+      d("Verbatim CD-R 52x", "AZO", 359847, 42, 50, "good", { last: "2026-11-03", drive: "GH70N" }),
+      d("Ritek CD-R 52x", "CMC", 359847, 18, 50),
+      d("TDK CD-R 52x", "TY", 359847, 50, 50),
+      d("Maxell CD-R 48x", "RITEK", 359847, 7, 50),
+      d("Verbatim CD-RW 10x", "", 359847, 2, 2, "none", { rw: true }),
+      d("Ritek CD-RW 12x", "", 359847, 1, 1, "none", { rw: true }),
+    ],
+    bd: [
+      d("Verbatim BD-R 6x", "VERBAT-IMk", 12219392, 10, 10),
+      d("Sony BD-R 4x", "SONY-NS2", 12219392, 5, 10),
+      d("Panasonic BD-RE 2x", "MEI-RA1", 11826176, 3, 3, "none", { rw: true }),
+      d("Verbatim BD-RE 2x", "VERBAT-IM0", 11826176, 2, 2, "none", { rw: true }),
+    ],
+  };
+  DATA.drive = [{ kind: "drive", name: "HL-DT-ST GH70N", mid: "H: · SATA", s: "good", inDrive: false, trayDisc: "Verbatim DVD-R",
+    burns: ["DVD±R/RW", "CD-R/RW"], reads: ["DVD", "CD"], calibrated: 3, lastUsed: "2026-11-07" }];
+  const COLS = ["dvd", "cd", "bd", "drive"];
+  const ROWPOS = [0, 1, 2, 2.66];      // how many rows back each stop stands (the burner is past BD)
+  const ICON = { good: "i-good", narrow: "i-warn", none: "i-none", noneRw: "i-none" };
+  // ?motion=1 plays the motion even when the system asks for less (for testing)
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches && !new URLSearchParams(location.search).has("motion");
+  if (!reduce) document.documentElement.dataset.motion = "on";
+  const $ = (id) => document.getElementById(id);
+  const root = document.documentElement;
+
+  // ---- words: Chinese and English ----
+  const STR = {
+    zh: {
+      back: "上一步", tools: "工具", search: "找盘", searchTitle: "找盘（键盘 /）", theme: "切换亮色和暗色", settings: "设置",
+      langButton: "EN", langAria: "Switch to English", kinds: "盘的种类", driveTab: "光驱", inDrive: "就是光驱里这张",
+      sectors: "扇区数", left: "这一桶还剩", last: "上次标定", usedDrive: "标定用的光驱",
+      leftVal: (l, o) => `${l} / ${o} 张`, inserted: (d) => `已插入 ${d}`, rw: "可擦写", sep: "、",
+      nextOpen: "下一步：打开工程", nextCal: "下一步：开始标定", nextDrive: "下一步：检查光驱",
+      good: ["几何测好了", "可以直接设计、刻录。"],
+      narrow: ["测到的范围偏窄", "外圈没测到，超出 41 mm 的图会偏。再测一次外圈。"],
+      none: ["还没标定", "先刻一张测量盘，测一次就能用。"],
+      noneRw: ["还没标定", "可擦写盘可以反复用来测量，一张就够。"],
+      tray: (d) => `托盘里是 ${d}`, trayEmpty: "托盘是空的", inDriveNow: (d) => `光驱里是 ${d}`, driveEmpty: "光驱里没有盘", driveWhy: "可以测量和刻录 DVD、CD。",
+      burns: "能刻", reads: "能读", calibrated: "标定过的盘", lastUsed: "上次使用", kindsN: (n) => `${n} 种`,
+      gallery: "画廊", galleryAria: "画廊：画面设计、仿真照片和实拍",
+      brand: (n) => n.replace(/^Ritek /, "铼德 "),
+    },
+    en: {
+      back: "Back", tools: "Tools", search: "Search", searchTitle: "Search discs (key /)", theme: "Switch light and dark", settings: "Settings",
+      langButton: "中文", langAria: "切换到中文", kinds: "Disc kinds", driveTab: "Drive", inDrive: "This is the disc in the drive",
+      sectors: "Sectors", left: "Left in this spindle", last: "Last calibrated", usedDrive: "Calibrated on",
+      leftVal: (l, o) => `${l} / ${o}`, inserted: (d) => `${d} inserted`, rw: "rewritable", sep: ", ",
+      nextOpen: "Next: open a project", nextCal: "Next: calibrate", nextDrive: "Next: check the drive",
+      good: ["Geometry measured", "Ready to design and burn."],
+      narrow: ["Measured range is narrow", "The outer area wasn't measured, so artwork beyond 41 mm will be off. Measure it again."],
+      none: ["Not calibrated yet", "Burn one measurement disc; one run is enough."],
+      noneRw: ["Not calibrated yet", "A rewritable disc can be reused for measuring; one is enough."],
+      tray: (d) => `${d} is in the tray`, trayEmpty: "The tray is empty", inDriveNow: (d) => `${d} is in the drive`, driveEmpty: "The drive is empty", driveWhy: "Measures and burns DVD and CD.",
+      burns: "Burns", reads: "Reads", calibrated: "Calibrated discs", lastUsed: "Last used", kindsN: (n) => `${n} kinds`,
+      gallery: "GALLERY", galleryAria: "Gallery: designs, simulated photos and your own shots",
+      brand: (n) => n,
+    },
+  };
+  let lang = root.dataset.lang === "zh" ? "zh" : "en";
+  const T = () => STR[lang];
+  const day = (iso) => iso ? new Intl.DateTimeFormat(lang === "zh" ? "zh-CN" : "en", { month: "short", day: "numeric" }).format(new Date(iso + "T12:00")) : "—";
+  function applyStatic() {
+    for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = T()[el.dataset.i18n];
+    for (const el of document.querySelectorAll("[data-i18n-aria]")) el.setAttribute("aria-label", T()[el.dataset.i18nAria]);
+    for (const el of document.querySelectorAll("[data-i18n-title]")) el.title = T()[el.dataset.i18nTitle];
+    root.lang = lang === "zh" ? "zh-CN" : "en";
+    root.dataset.lang = lang;
+  }
+
+  // ---- the scene: the burner at the very back, then one layer per row, back to front ----
+  const art = $("art");
+  const meta = await fetch("rows.json").then((r) => r.json());
+  const cam = document.createElement("div");
+  cam.className = "cam";
+  art.append(cam);
+  const burnerLayer = document.createElement("div");
+  burnerLayer.className = "layer burner";
+  cam.append(burnerLayer);
+  // Each row exists twice: a solid SVG (interactive, fetched when first needed) and a faint
+  // line-art picture baked per theme (an <img>: rasterised once, then only composited, and no DOM).
+  // Changing focus only crossfades the two, which never restyles or repaints any SVG.
+  const layers = {}, ghosts = {}, loaded = {};
+  let discs = [];
+  const ghostSrc = (id) => `row-${id}-ghost-${root.dataset.theme === "dark" ? "dark" : "light"}.svg`;
+  for (const id of ["bd", "cd", "dvd"]) {
+    const ghost = document.createElement("img");
+    ghost.className = "layer ghost"; ghost.alt = ""; ghost.decoding = "async"; ghost.dataset.row = id;
+    ghost.src = ghostSrc(id);
+    const solid = document.createElement("div");
+    solid.className = "layer solid"; solid.dataset.row = id;
+    cam.append(ghost, solid);
+    layers[id] = solid; ghosts[id] = ghost;
+  }
+  function loadSolid(id) {
+    if (!layers[id]) return Promise.resolve();
+    loaded[id] ??= fetch(`row-${id}.svg`).then((r) => r.text()).then((t) => {
+      layers[id].innerHTML = t;
+      discs = [...art.querySelectorAll(".layer.solid .disc")];
+    });
+    return loaded[id];
+  }
+  await loadSolid("dvd");
+  (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => { loadSolid("cd"); loadSolid("bd"); });
+  let burner = null;
+  try { burner = await fetch("burner.json").then((r) => (r.ok ? r.json() : null)); } catch {}
+  function placeBurner() {
+    if (!burner) return;
+    // scale the render to the scene's millimetres and stand its footprint centre on the anchor
+    const [bw, bh] = burner.image_size;
+    const k = meta.axisPx / burner.scale.px_per_mm_along_each_world_axis;
+    const f = burner.footprint_floor, pts = [f.front_left, f.front_right, f.rear_right, f.rear_left];
+    // Mirrored left-right so the tray comes out toward the lower right. A true isometric picture
+    // mirrored is still true isometric, so no new render is needed; the footprint centre flips too.
+    const fx = bw - pts.reduce((a, p) => a + p[0], 0) / 4, fy = pts.reduce((a, p) => a + p[1], 0) / 4;
+    const box = (el) => {
+      el.style.transform = "scaleX(-1)";
+      el.style.width = `${(bw * k / meta.width * 100).toFixed(3)}%`;
+      el.style.left = `${((meta.burnerAnchor.x - fx * k) / meta.width * 100).toFixed(3)}%`;
+      el.style.top = `${((meta.burnerAnchor.y - fy * k) / meta.height * 100).toFixed(3)}%`;
+      el.style.aspectRatio = `${bw} / ${bh}`;
+    };
+    const layered = Array.isArray(burner.layers) && burner.tray_slide_px && burner.front_plane_px;
+    if (!layered) {                       // the single picture: no moving tray
+      for (const theme of ["light", "dark"]) {
+        const img = document.createElement("img");
+        img.alt = ""; img.decoding = "async"; img.className = theme;
+        const want = theme === "dark" ? "burner_dark.webp" : "burner_paper.webp";
+      if ((root.dataset.theme === "dark") === (theme === "dark")) img.src = want; else img.dataset.src = want;
+        box(img);
+        burnerLayer.append(img);
+      }
+      return;
+    }
+    // The drive in two pieces: the body, and the tray sliding along the drive's axis. The tray is
+    // clipped to the outside of the front bezel plane, so the part that has gone in disappears.
+    const fp = burner.front_plane_px, bez = burner.bezel_thickness_px ?? [0, 0];
+    const [p1, p2] = Array.isArray(fp) ? fp : [fp.left, fp.right];
+    const a = [p1[0] - bez[0], p1[1] - bez[1]], b = [p2[0] - bez[0], p2[1] - bez[1]];   // just inside the plane
+    const d = [b[0] - a[0], b[1] - a[1]], out = [-burner.tray_slide_px[0], -burner.tray_slide_px[1]];   // toward the viewer
+    const far = (p, v, s) => [p[0] + v[0] * s, p[1] + v[1] * s];
+    // the render's own clip (the slot seen from this angle) when it has one, else the plane
+    // The render's clip stops at its canvas edges, but the tray here opens 60 mm further and
+    // leaves the canvas, so the clip's two outer sides are pushed far beyond it.
+    let pts2 = burner.tray_clip?.polygon_px;
+    if (pts2) {
+      const [c0, c1] = pts2, t = 6;                       // the slanted top edge, extended
+      pts2 = [c0, [c0[0] + (c1[0] - c0[0]) * t, c0[1] + (c1[1] - c0[1]) * t], [c0[0] + (c1[0] - c0[0]) * t, bh * 4], [c0[0], bh * 4]];
+    } else pts2 = [far(a, d, -10), far(b, d, 10), far(far(b, d, 10), out, 10), far(far(a, d, -10), out, 10)];
+    const poly = pts2
+      .map(([x, y]) => `${(x / bw * 100).toFixed(2)}% ${(y / bh * 100).toFixed(2)}%`).join(", ");
+    const slide = `${(burner.tray_slide_px[0] / bw * 100).toFixed(3)}%, ${(burner.tray_slide_px[1] / bh * 100).toFixed(3)}%`;
+    // The render's tray is 140 mm out, which leaves the disc's centre right at the bezel. A real
+    // tray opens further, so the open position is pushed out another 60 mm along the same axis.
+    const more = -60 / (burner.tray_travel_mm ?? 140);
+    const openAt = `${(more * burner.tray_slide_px[0] / bw * 100).toFixed(3)}%, ${(more * burner.tray_slide_px[1] / bh * 100).toFixed(3)}%`;
+    for (const theme of ["light", "dark"]) {
+      const t = theme === "dark" ? "dark" : "paper";
+      const rig = document.createElement("div");
+      rig.className = `rig ${theme}`;
+      box(rig);
+      rig.innerHTML = `<img class="body" alt="" decoding="async" src="burner_body_${t}.webp">` +
+        `<div class="slot" style="clip-path: polygon(${poly})">` +
+        `<img class="tray empty" alt="" decoding="async" src="burner_tray_${t}.webp">` +
+        `<img class="tray full" alt="" decoding="async" src="burner_traydisc_${t}.webp"></div>`;
+      rig.style.setProperty("--slide", slide);
+      rig.style.setProperty("--open", openAt);
+      burnerLayer.append(rig);
+    }
+  }
+  placeBurner();
+
+  // The tray follows the drive: closed while you look elsewhere; when the drive comes into focus it
+  // opens, showing the disc if there is one. When the drive reports a change it closes first, then
+  // opens on the new state.
+  let trayOpen = false, trayDisc = true, trayTimer = 0;
+  function setTray(open, disc = trayDisc, done) {
+    clearTimeout(trayTimer);
+    const apply = () => {
+      trayDisc = disc;
+      burnerLayer.classList.toggle("has-disc", disc);
+      burnerLayer.classList.toggle("open", open);
+      trayOpen = open;
+      done?.();
+    };
+    if (open && trayOpen && disc !== trayDisc) {          // a change while open: close, swap, reopen
+      burnerLayer.classList.remove("open");
+      trayOpen = false;
+      trayTimer = setTimeout(() => { apply(); }, reduce ? 0 : 950);
+      return;
+    }
+    if (open && !trayOpen) { trayTimer = setTimeout(apply, reduce ? 0 : 250); return; }
+    apply();
+  }
+  $("theme").addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    try { localStorage.setItem("dp-theme", root.dataset.theme); } catch {}
+    for (const id in ghosts) ghosts[id].src = ghostSrc(id);
+    for (const img of burnerLayer.querySelectorAll("img[data-src]")) { img.src = img.dataset.src; img.removeAttribute("data-src"); }
+  });
+
+  const gallery = document.createElement("button");
+  gallery.className = "gallery";
+  gallery.type = "button";
+  gallery.dataset.i18nAria = "galleryAria";
+  gallery.innerHTML = `<span class="pin" aria-hidden="true"><svg viewBox="0 0 150 98"><path d="M8 49 L142 8 L142 90 Z"/><path class="shade" d="M8 49 L142 49 L142 90 Z"/></svg></span><span class="word" aria-hidden="true" data-i18n="gallery"></span>`;
+  cam.append(gallery);
+
+  let first = true;
+  try { first = !sessionStorage.getItem("dp-entered"); sessionStorage.setItem("dp-entered", "1"); } catch {}
+  if (first && !reduce) art.classList.add("entering");
+  const LIFT = 48 * meta.liftPerMm, WAVE = [0, 10, 4, 1.5].map((mm) => mm * meta.liftPerMm);
+
+  let sweepRaf = 0;
+  function sweep(rowId) {
+    cancelAnimationFrame(sweepRaf);
+    const g = art.querySelector(`#glint-${rowId}`);
+    if (reduce || !g) return;
+    const t0 = performance.now(), D = 1050;
+    const step = (now) => {
+      const p = Math.min(1, (now - t0) / D), e = p < .5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2;
+      g.setAttribute("gradientTransform", `translate(${(-1.2 + 2.4 * e).toFixed(3)} 0)`);
+      if (p < 1) sweepRaf = requestAnimationFrame(step);
+    };
+    sweepRaf = requestAnimationFrame(step);
+  }
+
+  // Text roll: each character leaves one way while the new one arrives, staggered. Characters are
+  // grouped by word, so a long name still wraps at its spaces while it rolls.
+  function roll(el, text, dir = 1, stagger = 0.035) {
+    const old = el.dataset.text ?? "";
+    el.dataset.text = text;
+    clearTimeout(el._rollT);
+    if (reduce || !old || old === text) { el.textContent = text; return; }
+    const n = Math.max(old.length, text.length);
+    const box = document.createElement("span");
+    box.className = "roll" + (dir < 0 ? " down" : "");
+    const cols = [];
+    let word = null;
+    for (let i = 0; i < n; i++) {
+      const ch = text[i] ?? "";
+      if (ch === " " && (old[i] ?? " ") === " ") { box.append(" "); word = null; continue; }
+      if (!word) { word = document.createElement("span"); word.className = "w"; box.append(word); }
+      // a space in either name is a place the line may break
+      const breakAfter = ch === " " || old[i] === " ";
+      const clip = document.createElement("span"), c = document.createElement("span");
+      clip.className = "ch"; c.className = "col";
+      const a = document.createElement("span"), b = document.createElement("span");
+      a.textContent = old[i] ?? ""; b.textContent = ch;
+      c.append(a, b);
+      c.style.transitionDelay = `${(i * stagger).toFixed(3)}s`;
+      clip.append(c); word.append(clip); cols.push(c);
+      if (breakAfter) { box.append(document.createElement("wbr")); word = null; }
+    }
+    el.replaceChildren(box);
+    const h = cols[0]?.firstChild.getBoundingClientRect().height || el.getBoundingClientRect().height;
+    for (const c of cols) c.parentElement.style.height = `${h}px`;
+    if (dir < 0) for (const c of cols) c.style.transform = `translateY(${-h}px)`;
+    void box.offsetWidth;                      // start from here, then move (no animation frame needed)
+    for (const c of cols) c.style.transform = dir < 0 ? "translateY(0)" : `translateY(${-h}px)`;
+    el._rollT = setTimeout(() => { if (el.dataset.text === text) el.textContent = text; }, 420 + n * stagger * 1000);
+  }
+
+  let col = "dvd", idx = 0, lastFocus = "dvd";
+  const fmt = (n) => n.toLocaleString("en-US");
+  const pad = (n) => String(n).padStart(2, "0");
+
+  function render(dir = 1, initial = false) {
+    const list = DATA[col];
+    idx = (idx + list.length) % list.length;
+    const item = list[idx];
+    // focus: the chosen row is solid; the others turn into line drawings that fade with distance
+    const ci = COLS.indexOf(col);
+    for (const id of ["dvd", "cd", "bd"]) {
+      const depth = Math.abs(COLS.indexOf(id) - ci);
+      for (const el of [layers[id], ghosts[id]]) {
+        el.dataset.depth = String(depth);
+        el.dataset.front = String(COLS.indexOf(id) < ci);   // rows between the camera and the focus
+      }
+    }
+    burnerLayer.dataset.depth = String(Math.min(3, 3 - ci));
+    const g = meta.galleryAnchors[Math.min(ci, meta.galleryAnchors.length - 1)];
+    gallery.style.left = `${(g.x / meta.width * 100).toFixed(2)}%`;
+    gallery.style.top = `${(g.y / meta.height * 100).toFixed(2)}%`;
+    // tracking shot: pan so the row in focus stands where the front row stood
+    const deep = item.kind === "drive" ? 0 : Math.max(0, idx - 2), r = ROWPOS[ci];
+    let px = -r * meta.rowStep.x - deep * meta.stackStep.x, py = -r * meta.rowStep.y - deep * meta.stackStep.y;
+    if (item.kind === "drive") {
+      // put the drive's footprint centre at 38% / 56% of the window, left of the text column
+      const box = art.getBoundingClientRect(), s = box.width / meta.width;
+      px = (innerWidth * 0.32 - box.left) / s - meta.burnerAnchor.x;
+      py = (innerHeight * 0.47 - box.top) / s - meta.burnerAnchor.y;
+    }
+    cam.style.transform = `translate(${(px / meta.width * 100).toFixed(2)}%, ${(py / meta.height * 100).toFixed(2)}%)`;
+    for (const el of discs) {
+      const i = Number(el.dataset.idx);
+      const dist = el.dataset.row === col ? Math.abs(i - idx) : 99;
+      const up = dist === 0 ? LIFT : WAVE[dist] ?? 0;
+      el.style.transitionDelay = dist === 0 || dist > 3 ? "0ms" : `${dist * 45}ms`;
+      el.style.transform = `translate(0px, ${(-up).toFixed(1)}px)`;
+      el.classList.toggle("is-on", dist === 0);
+    }
+    for (const b of document.querySelectorAll(".kind")) b.setAttribute("aria-pressed", String(b.dataset.col === col));
+    roll($("idx"), pad(idx + 1), dir);
+    $("total").textContent = pad(list.length);
+    const shown = T().brand(item.name);
+    roll($("name"), shown, dir, shown.length > 14 ? 0.014 : 0.024);
+    const rule = $("rule");
+    rule.classList.remove("draw"); void rule.offsetWidth; rule.classList.add("draw");
+    if (item.kind !== "drive") sweep(col);
+    if (item.kind !== "drive") setTray(false);
+    else if (lastFocus !== "drive") setTray(true, trayDisc, () => render(1, true));   // reword once it is open
+    lastFocus = item.kind === "drive" ? "drive" : col;
+    const fill = () => {
+      const t = T();
+      $("mid").textContent = [item.mid, item.rw ? t.rw : ""].filter(Boolean).join(" · ");
+      $("indrive").classList.toggle("off", !item.inDrive);
+      let icon, label, why, facts;
+      if (item.kind === "drive") {
+        label = trayOpen ? (trayDisc ? t.tray(item.trayDisc) : t.trayEmpty) : (trayDisc ? t.inDriveNow(item.trayDisc) : t.driveEmpty);
+        [icon, why] = ["i-drive", t.driveWhy];
+        facts = [[t.burns, item.burns], [t.reads, item.reads], [t.calibrated, t.kindsN(item.calibrated)], [t.lastUsed, day(item.lastUsed)]];
+      } else {
+        const key = item.s === "none" && item.rw ? "noneRw" : item.s;
+        icon = ICON[key]; [label, why] = t[key];
+        facts = [[t.sectors, fmt(item.sectors)], [t.left, t.leftVal(item.left, item.of)], [t.last, day(item.last)], [t.usedDrive, item.drive ?? "—"]];
+      }
+      $("status").dataset.s = item.kind === "drive" ? "drive" : item.s;
+      $("status").innerHTML = `<svg class="icon"><use href="#${icon}"/></svg>${label}`;
+      $("why").textContent = why;
+      ["k1", "k2", "k3", "k4"].forEach((k, i) => { $(k).textContent = facts[i][0]; });
+      ["sectors", "left", "last", "drive"].forEach((k, i) => {
+        const v = facts[i][1];
+        $(k).innerHTML = (Array.isArray(v) ? v : [v]).map((x) => `<span class="nb">${x}</span>`).join(`${t.sep}<wbr>`);
+      });
+      if (!root.dataset.mode)       // inside the flow the button belongs to the flow
+        $("next-text").textContent = item.kind === "drive" ? t.nextDrive : item.s === "none" ? t.nextCal : t.nextOpen;
+      $("drivebar").innerHTML = `<b>H:</b> HL-DT-ST GH70N · ${t.inserted("Verbatim DVD-R")}`;
+    };
+    if (initial || reduce) { fill(); return; }
+    const parts = [$("mid"), $("state")];
+    parts.forEach((p) => p.classList.add("out"));
+    setTimeout(() => { fill(); parts.forEach((p) => p.classList.remove("out")); }, 160);
+  }
+
+  addEventListener("keydown", async (e) => {
+    if (root.dataset.mode) return;
+    if (e.target instanceof Element && e.target.closest("input, textarea")) return;
+    const c = COLS.indexOf(col);
+    let dir = 1;
+    if (e.key === "ArrowLeft") { col = COLS[(c + COLS.length - 1) % COLS.length]; idx = 0; dir = -1; }
+    else if (e.key === "ArrowRight") { col = COLS[(c + 1) % COLS.length]; idx = 0; }
+    else if (e.key === "ArrowUp") { idx -= 1; dir = -1; }
+    else if (e.key === "ArrowDown") idx += 1;
+    else if (e.key === "Enter" && e.target === document.body) { $("next").click(); return; }
+    else if ((e.key === "e" || e.key === "E") && col === "drive") { setTray(true, !trayDisc, () => render(1)); return; }
+    else return;
+    e.preventDefault();
+    await loadSolid(col);
+    render(dir);
+  });
+  for (const b of document.querySelectorAll(".kind")) b.addEventListener("click", async () => {
+    const dir = COLS.indexOf(b.dataset.col) < COLS.indexOf(col) ? -1 : 1;
+    col = b.dataset.col; idx = 0; await loadSolid(col); render(dir);
+  });
+  // A disc of the row in focus picks that disc. Anywhere else, the click goes to whatever stands
+  // under the pointer: a row (front rows first, as they are drawn on top) or the drive.
+  const inside = (pt, poly) => {
+    let hit = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i], [xj, yj] = poly[j];
+      if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < ((xj - xi) * (pt[1] - yi)) / (yj - yi) + xi) hit = !hit;
+    }
+    return hit;
+  };
+  art.addEventListener("click", async (e) => {
+    if (root.dataset.mode) return;
+    const el = e.target instanceof Element ? e.target.closest(".disc") : null;
+    if (el && el.dataset.row === col) {
+      const dir = Number(el.dataset.idx) < idx ? -1 : 1;
+      idx = Number(el.dataset.idx); render(dir);
+      return;
+    }
+    if (e.target instanceof Element && e.target.closest(".gallery")) return;
+    // the point in scene units: undo the camera's pan
+    const box = cam.getBoundingClientRect(), k = box.width / meta.width;
+    const pt = [(e.clientX - box.left) / k, (e.clientY - box.top) / k];
+    // the drive: the picture of the current theme (the other one has no size)
+    const onDrive = (() => {
+      const n = [...burnerLayer.querySelectorAll(".rig, img")].find((x) => x.getBoundingClientRect().width > 0);
+      const r = n?.getBoundingClientRect();
+      return !!r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    })();
+    // in front first: the drive when it is in focus, else the rows from the front
+    let to = col === "drive" && onDrive ? "drive" : ["dvd", "cd", "bd"].find((id) => inside(pt, meta.hit[id]));
+    if (!to && onDrive) to = "drive";
+    if (to === "drive" && col === "drive") {
+      // In the real page this sends an eject or load, after the usual "the tray will move" check.
+      setTray(!trayOpen, trayDisc, () => render(1));
+      return;
+    }
+    if (!to || to === col) return;
+    const dir = COLS.indexOf(to) < COLS.indexOf(col) ? -1 : 1;
+    col = to; idx = 0;
+    await loadSolid(col);
+    render(dir);
+  });
+  $("lang").addEventListener("click", () => {
+    lang = lang === "zh" ? "en" : "zh";
+    try { localStorage.setItem("dp-lang", lang); } catch {}
+    applyStatic();
+    dispatchEvent(new CustomEvent("dp-lang"));
+    $("name").dataset.text = ""; $("idx").dataset.text = "";     // a new language appears at once
+    render(1, true);
+  });
+  // ---- idle: after 10 s without input, every looping animation slows to a stop; any input
+  // brings them back the same way. Nothing on the page keeps the GPU busy while nobody looks.
+  {
+    const IDLE_MS = 10000, RAMP_MS = 900;
+    let idle = false, timer = 0, raf = 0;
+    // loops inside .live (the laser while it burns) keep going: the work is still happening
+    const loops = () => document.getAnimations().filter((a) => a.effect?.getTiming?.().iterations === Infinity && !a.effect.target?.closest?.(".live"));
+    function ramp(to) {
+      clearInterval(raf);
+      const anims = loops(), from = to ? 0 : 1, t0 = performance.now();
+      if (to) { root.classList.remove("idle"); for (const a of anims) { a.playbackRate = 0.001; a.play(); } }
+      if (reduce) { for (const a of anims) { a.playbackRate = 1; to ? a.play() : a.pause(); } root.classList.toggle("idle", !to); return; }
+      // stepped by a timer, not animation frames, so it always finishes
+      raf = setInterval(() => {
+        const p = Math.min(1, (performance.now() - t0) / RAMP_MS), r = from + (to - from) * (1 - (1 - p) ** 2);
+        for (const a of anims) a.playbackRate = Math.max(r, 0.001);
+        if (p < 1) return;
+        clearInterval(raf);
+        if (!to) { for (const a of anims) a.pause(); root.classList.add("idle"); }   // fully still
+      }, 40);
+    }
+    const wake = () => {
+      clearTimeout(timer);
+      if (idle) { idle = false; ramp(1); }
+      timer = setTimeout(() => { idle = true; ramp(0); }, IDLE_MS);
+    };
+    for (const ev of ["pointermove", "pointerdown", "keydown", "wheel", "touchstart"]) addEventListener(ev, wake, { passive: true });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) { clearTimeout(timer); idle = true; for (const a of loops()) a.pause(); root.classList.add("idle"); }
+      else wake();
+    });
+    wake();
+  }
+
+  // ---- what the calibration flow (calibrate.js) may use ----
+  const api = {
+    T: () => T(), lang: () => lang, reduce, meta, cam, art, burnerLayer, $,
+    setTray, tray: () => ({ open: trayOpen, disc: trayDisc }),
+    current: () => ({ col, idx, item: DATA[col][idx] }),
+    focusDrive() { col = "drive"; idx = 0; render(1); },
+    goTo(c, i) { col = c; idx = i; render(-1); },
+    refresh() { render(1, true); },
+    locate(item) {
+      for (const c of ["dvd", "cd", "bd"]) { const i = DATA[c].indexOf(item); if (i >= 0) return [c, i]; }
+      return ["dvd", 0];
+    },
+    placeDisc(v) { trayDisc = v; burnerLayer.classList.toggle("has-disc", v); },
+    focusDisc: () => discs.find((d) => d.classList.contains("is-on")),
+  };
+  $("next").addEventListener("click", async () => {
+    if (root.dataset.mode) return;
+    const item = DATA[col][idx];
+    if (item.kind === "drive") return;
+    if (item.s === "good") { (await import("./design.js")).start(api); return; }   // a measured disc: its project
+    const flow = await import("./calibrate.js");
+    flow.start(api);
+  });
+  applyStatic();
+  render(1, true);
+</script>
+</body>
+</html>

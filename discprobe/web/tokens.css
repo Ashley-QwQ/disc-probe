@@ -1,0 +1,63 @@
+/* disc-probe design tokens. Source of truth: DESIGN.md (repo root). */
+:root {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg: #0e1317;
+  --panel: #141b20;
+  --rail: #11181d;          /* side rail: a second, slightly cooler neutral */
+  --raised: #1b242b;
+  --input: #10161a;
+  --canvas: #0b1014;
+  --line: #26323b;
+  --line-strong: #3a4853;
+  --line-control: #5b6a75;  /* outlines of inputs and secondary buttons: 3:1 against the panel */
+
+  /* text */
+  --text: #e8eef2;
+  --text-secondary: #a9b6bf;
+  --text-faint: #7f8d97;
+
+  /* action */
+  --primary: #4cc9d6;
+  --primary-hover: #6fd6e0;
+  --primary-press: #3bb3c0;
+  --on-primary: #0e1317;
+  --focus: #8ae3eb;
+
+  /* state (proposal, to confirm) */
+  --good: #6fcf97;
+  --warn: #e3b75f;
+  --error: #f07a7a;
+  --unknown: #a9b6bf;
+  --error-ground: #2a1a1d;
+  --warn-ground: #2a2419;
+
+  /* type */
+  --font: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --fs-small: 0.875rem;
+  --fs-body: 1rem;
+  --fs-title: 1.2rem;
+  --fs-page: 1.44rem;
+
+  /* shape and space */
+  --r-control: 8px;
+  --r-card: 12px;
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --tap: 44px;
+
+  /* motion */
+  --t-fast: 150ms;
+  --t-base: 220ms;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --t-fast: 0ms; --t-base: 0ms; }
+}
