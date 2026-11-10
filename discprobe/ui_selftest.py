@@ -1638,6 +1638,13 @@ def _command_line(c) -> None:
                 json.dump({"fit": {"u": 150000.0, "v": 9.0, "bit_nm_assumed": 277.0, "media": "cd"}}, f)
             code, text = code_and_stderr("disexport", "--geo", geo_cd, "--media", "dvd", "--output", os.path.join(d, "p.json"))
             c.check(code == 1 and "does not match" in text, "disexport --media checks the fit")
+            code, text = code_and_stderr("image", "--geo", geo_cd, "--output", os.path.join(d, "cd-as-dvd.iso"))
+            c.check(code == 1 and "--media cd" in text and not os.path.exists(os.path.join(d, "cd-as-dvd.iso")),
+                    "a CD fit without --media cd is refused, not written as a DVD picture")
+            with open(os.path.join(d, "dvd-fit.json"), "w", encoding="utf-8") as f:
+                json.dump({"fit": {"u": 120000.0, "v": 3.0, "bit_nm_assumed": 133.3, "media": "dvd"}}, f)
+            code, text = code_and_stderr("image", "--geo", os.path.join(d, "dvd-fit.json"), "--media", "cd")
+            c.check(code == 1 and "measured on a DVD" in text, "and a DVD fit is refused for a CD picture")
             code, text = code_and_stderr("disexport", "--geo", geo_cd, "--output", os.path.join(d, "p.json"))
             c.check(code == 1 and "needs --sectors" in text, "a CD preset without --sectors is refused")
             geo_dvd = os.path.join(d, "dvd.json")

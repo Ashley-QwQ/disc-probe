@@ -740,14 +740,28 @@ def cmd_simulate(args):
     print(i18n.tr("Prediction from a model, not a photo; real contrast and brightness may differ."))
 
 
+def _require_fit_media(args, fit, tiles: bool = False) -> None:
+    """A picture is placed and encoded for one medium: a CD fit run through the DVD writer (a missing
+    --media cd) still builds an ISO that verifies against its own wrong model (the 6pro audit of 1f7f92e)."""
+    measured = "bd" if (fit.get("model") == "clv" or fit.get("media") == "bd") else fit.get("media") or "dvd"
+    wanted = getattr(args, "media", None) or "dvd"
+    if measured == wanted:
+        return
+    if measured == "cd":
+        sys.exit("This geometry was measured on a CD; add --media cd to make a CD tile target." if tiles else
+                 "This geometry was measured on a CD; add --media cd to make a CD picture.")
+    names = {"dvd": "DVD", "bd": "Blu-ray"}
+    sys.exit(f"This geometry was measured on a {names.get(measured, measured)}, but a "
+             f"{'CD' if wanted == 'cd' else 'DVD'} {'tile target' if tiles else 'picture'} needs one measured on that disc.")
+
+
 def cmd_image(args):
     from . import imagedisc
     writer = imagedisc
     if args.media == "cd":
         from . import cdimage as writer
     fit = _geo_fit(args, args.media)
-    if args.media == "cd" and fit.get("media") != "cd":
-        sys.exit("CD image needs a CD geometry fit (media=cd); DVD fits must not be reused")
+    _require_fit_media(args, fit)
     _refuse_audio_fit(fit)
     _warn_other_run(args, fit)
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
@@ -1143,8 +1157,7 @@ def cmd_tiles(args):
     if args.media == "cd":
         from . import cdimage as writer
     fit = _geo_fit(args, args.media)
-    if args.media == "cd" and fit.get("media") != "cd":
-        sys.exit("CD tiles need a CD geometry fit (media=cd)")
+    _require_fit_media(args, fit, tiles=True)
     _refuse_audio_fit(fit)
     _warn_other_run(args, fit)
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
