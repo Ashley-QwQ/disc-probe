@@ -355,21 +355,26 @@ def _first_steps(c) -> None:
                     and not any(x.lstrip().startswith("xorriso") for x in cd_lines)
                     and any("Mode 2 Form 1" in x for x in cd_lines), "Linux CD steps burn with cdrdao and the toc beside the ISO")
             quiet, ui._term = ui._term, ui.Term(io.StringIO(), env={}, platform="linux")
+            layout = cd.sector_layout()     # global: put back what the rest of the checks expect
+            os.makedirs("cd")
+            os.chdir("cd")                  # its own folder, so the iso/ made below is the only one
             try:
                 with contextlib.redirect_stdout(io.StringIO()):
                     cd.set_sector_layout("mode1")
                     cli.main(["random", "--media", "cd", "--sectors", "300", "--output", "iso/cd-random.iso"])
                     cli._cdrdao_toc(Namespace(media="cd", output="iso/cd-grid.iso"))
                     cli._cdrdao_toc(Namespace(media="dvd", output="iso/grid.iso"))
+                with open("iso/cd-random.toc", encoding="utf-8") as f:
+                    toc = f.read()
+                c.check(toc == f'CD_ROM_XA\n\nTRACK MODE2_FORM1\nDATAFILE "{os.path.abspath("iso/cd-random.iso")}"\n',
+                        "the measuring CD gets a Mode 2 Form 1 toc, whatever layout was last set")
+                with open("iso/cd-grid.toc", encoding="utf-8") as f:
+                    c.check(f.read().startswith("CD_ROM\n\nTRACK MODE1\n"), "a picture made with --cd-sector mode1 gets a Mode 1 toc")
+                c.check(not os.path.exists("iso/grid.toc"), "a DVD gets no toc")
             finally:
+                os.chdir(d)
+                cd.set_sector_layout(layout)
                 ui._term = quiet
-            with open("iso/cd-random.toc", encoding="utf-8") as f:
-                toc = f.read()
-            c.check(toc == f'CD_ROM_XA\n\nTRACK MODE2_FORM1\nDATAFILE "{os.path.abspath("iso/cd-random.iso")}"\n',
-                    "the measuring CD gets a Mode 2 Form 1 toc, whatever layout was last set")
-            with open("iso/cd-grid.toc", encoding="utf-8") as f:
-                c.check(f.read().startswith("CD_ROM\n\nTRACK MODE1\n"), "a picture made with --cd-sector mode1 gets a Mode 1 toc")
-            c.check(not os.path.exists("iso/grid.toc"), "a DVD gets no toc")
             linux_guide = guide.guide_lines("dvd")
             c.check(any("Optical drive" in x and "/dev/sr0" in x for x in linux_guide)
                     and not any("--sim" in x or "right-click" in x for x in linux_guide), "Linux guide follows the real-drive flow")
