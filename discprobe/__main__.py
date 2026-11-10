@@ -1400,7 +1400,7 @@ def _guide(args):
 
 def cmd_menu(args):
     """Open the guided console; it carries on with the disc type measured last."""
-    from . import console
+    from . import completion, console, greetings
     before = ui.use_media("dvd")
     try:
         media = getattr(args, "menu_media", None)
@@ -1409,7 +1409,25 @@ def cmd_menu(args):
             newest = next((r for r in guide.scan(out) if not r.simulated and r.kind in ("timing", "geo")), None)
             media = newest.media if newest else "dvd"
         ui.use_media(media)
-        console.run(media, out)
+        first_time = not any(not r.simulated for r in guide.scan(out))
+
+        def prelude():
+            # What `guide` prints around the checklist: the greeting, the one-time tutorial offer and
+            # the completion hint. The console's own banner is already on screen when this runs.
+            ui.say(greetings.pick(first_time=first_time))
+            ui.say()
+            if first_time and ui.term().can_prompt() and not guide.tutorial_offered():
+                guide.remember_tutorial_offered()
+                if ui.ask("First time here? Walk through the steps?"):
+                    cmd_tutorial(args)
+            if not completion.installed():
+                ui.say(f"Tab completion: {guide.PROG} completion install", "dim")
+
+        console.run(media, out, prelude=prelude)
+        if ui.term().interactive:
+            # Start.bat closes the console window after this; leave the checklist visible there.
+            for line in guide.progress_lines(media, out):
+                print(ui.guide_line(line))
     finally:
         ui.use_media(before)
 

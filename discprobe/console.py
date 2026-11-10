@@ -1231,10 +1231,18 @@ class Console:
     def _step_screen(self) -> list[str]:
         task = self.task()
         lines = [self._header(), "", self._task_line(task, True), "", *self._detail_block(task)]
+        if self.plan.media == "bd" and task.key in ("picture", "burn"):
+            lines += [""]
+            for note in ("This preset carries the shape of the spiral, not its scale: the pitch is the 0.3200 um prior "
+                         "and the inner radius rides on a timing offset the fit cannot see.",
+                         "Do not burn a picture with it yet. Calibrate against the disc first: one BD-R and one look at "
+                         "the edge is 106 turns of difference on a real disc (docs/MANUAL.md)."):
+                lines += ["  " + part for part in i18n.wrap(tr(note), max(20, self.width - 4))]
         if task.action == "burn":
-            hints = [tr(line) for line in guide.burner_hint()]
+            output = self.plan.picture if task.key == "burn" and self.plan.picture else self.plan.random_iso
+            hints = guide.burn_steps(output, self.plan.media)
             if hints:
-                lines += [""] + ["  " + self.t.style(line, "dim") for line in hints]
+                lines += [""] + ["  " + self.t.style(tr(line), "dim") for line in hints]
             if task.key == "burn":
                 lines += ["", "  " + self.t.style(tr("How to look at it:"), "bold")]
                 lines += ["  " + tr(line) for line in guide.AFTER_BURN]
@@ -1395,7 +1403,7 @@ class Console:
 
 # --- running ------------------------------------------------------------------------------------
 
-def run(media: str = "dvd", out: str = "results") -> int:
+def run(media: str = "dvd", out: str = "results", prelude=None) -> int:
     """Open the guided console. Without a terminal or keys it falls back to plain lines."""
     t = ui.term()
     if not t.interactive or not t.can_prompt():
@@ -1408,6 +1416,9 @@ def run(media: str = "dvd", out: str = "results") -> int:
     steps = plan.tasks
     burned = min(sum(task.done for task in steps) / max(len(steps) - 1, 1), 1.0)
     banner.show(t, burned=burned, media=media)
+    if prelude is not None:
+        # The greeting, first-run tutorial offer and completion hint that `guide` prints.
+        prelude()
     commands: list[tuple[str, str]] = []
     builder = None
     try:

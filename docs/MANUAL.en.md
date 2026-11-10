@@ -81,6 +81,8 @@ Running `python -m discprobe` with no arguments at a terminal opens it too. It p
 - `:` searches all commands: type a few letters to filter, Enter shows the options, `r` runs, `c` copies. `?` shows every key.
 - The `image` step is a form: drop a picture into the window or type a path, and Tab completes it; the output ISO and `--geo` can be changed too.
 - `m` switches between DVD, CD and Blu-ray, `l` switches language; the language is passed on to the commands you run next. `--media` picks the starting disc type and `--out` the results folder.
+- The first run in a terminal still greets you and offers the walkthrough once; after `q` the checklist and your progress stay on screen, so the packaged Start.bat window is not blank.
+- Burning follows the operating system: right-click the ISO on Windows, or use `cdrdao`/`growisofs` with the matching toc on Linux. On Blu-ray the picture and burn steps repeat `guide`'s caution about shape versus scale before offering `image --media bd`.
 - A terminal without keys falls back to a numbered menu; `menu` in a pipe, a redirect or with `DISCPROBE_PLAIN=1` prints the text steps. A no-argument non-terminal call still reports the missing command, so scripts should name `guide` or `menu`.
 
 ## Using it by hand

@@ -452,7 +452,7 @@ TEXT = {
     "Choose a disc (arrows move, Enter opens, q quits)": "选择盘（方向键移动，回车进入，q 退出）",
     "(s sort, r reverse, Enter chooses, left goes back, q quits)": "（s 换排序，r 反过来，回车选择，左键返回，q 退出）",
     "~ matched from an info run near the same time, as older results didn't record the disc": "~ 旧结果没有记录盘型，这是按时间相近的 info 记录匹配的",
-    "Which number? Enter alone cancels: ": "选哪一个？输入序号，直接回车取消：",
+    "Which number? Enter alone cancels:": "选哪一个？输入序号，直接回车取消：",
     "runs": "次",
     "best": "最好",
     "points": "个点",

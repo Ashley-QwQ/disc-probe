@@ -323,6 +323,7 @@ def _opening(c):
     term = FakeTerm()
     term.animate = False
     calls = []
+    prelude = []
     old_term, old_show = console.ui.term, console.banner.show
     old_open, old_events = console._open_keys, console._events
     try:
@@ -330,7 +331,8 @@ def _opening(c):
         console.banner.show = lambda *a, **k: calls.append((a, k))
         console._open_keys = FakeKeys
         console._events = lambda console_, keys: ("quit", None)
-        console.run("dvd", os.path.join(tempfile.gettempdir(), "disc-probe-console-test"))
+        console.run("dvd", os.path.join(tempfile.gettempdir(), "disc-probe-console-test"),
+                    prelude=lambda: prelude.append("shown"))
     finally:
         console.ui.term, console.banner.show = old_term, old_show
         console._open_keys, console._events = old_open, old_events
@@ -338,8 +340,27 @@ def _opening(c):
             "console: the opening disc animation still plays")
     c.check(bool(calls) and 0.0 <= calls[0][1].get("burned", -1) <= 1.0,
             "console: the opening disc shows how far the steps got")
+    c.check(prelude == ["shown"], "console: the greeting and tutorial prelude runs after the animation")
     c.check("\x1b[?1049h" in term.stream.getvalue(),
             "console: the full-screen view opens after the animation")
+
+
+def _step_notes(c, folder):
+    """Blu-ray cautions appear where a picture could be burned, and burn steps are platform-specific."""
+    plan = guide.workflow("bd", folder, notes=True)
+    con = console.Console(plan, [], t=FakeTerm(), out=folder)
+    for key in ("picture", "burn"):
+        con.row = next(i for i, task in enumerate(plan.tasks) if task.key == key)
+        con.handle("enter")
+        lines = "\n".join(console.visible(line) for line in con.text(100, 70))
+        c.check("106 turns" in lines and "not its scale" in lines,
+                f"console: the Blu-ray caution shows on the {key} step")
+        con.handle("esc")
+    con.row = next(i for i, task in enumerate(plan.tasks) if task.key == "burn")
+    con.handle("enter")
+    burn = "\n".join(console.visible(line) for line in con.text(100, 70))
+    expected = guide.burn_steps(plan.random_iso, "bd")[0]
+    c.check(expected in burn, "console: the burn step follows the platform's burn instructions")
 
 
 def _colour(c, folder):
@@ -388,5 +409,6 @@ def run(c) -> None:
         _workflow(c, folder)
         _console(c, folder)
         _form(c, folder)
+        _step_notes(c, folder)
         _colour(c, folder)
     _language(c)
