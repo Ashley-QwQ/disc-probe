@@ -1722,6 +1722,14 @@ def _command_line(c) -> None:
                                          "--install", "--dis-presets", os.path.join(d, "dis4", "disc-presets.json"))
             c.check(code == 1 and "check points" in text,
                     "--install refuses a clean-looking fit whose check points moved")
+            code, text = code_and_stderr("disexport", "--geo", os.path.join(moved_dir, "summary.json"),
+                                         "--sectors", "359602", "--output", os.path.join(d, "p5.json"))
+            c.check(code == 1 and "check points" in text and "--force" in text and not os.path.exists(os.path.join(d, "p5.json")),
+                    "a plain export refuses what --install refuses, and says how to write it anyway")
+            code, text = code_and_output("disexport", "--geo", os.path.join(moved_dir, "summary.json"),
+                                         "--sectors", "359602", "--output", os.path.join(d, "p5.json"), "--force")
+            c.check(code == 0 and "--force" in text and os.path.exists(os.path.join(d, "p5.json")),
+                    "--force writes it with the reason printed")
             run = guide.Result(moved_dir, "geo", "H", "20250102-000000")
             c.check(not run.reliable() and run.quality() == "drive changed",
                     "results calls a run whose drive changed what it is, and latest leaves it out")

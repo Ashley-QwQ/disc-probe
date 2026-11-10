@@ -642,6 +642,11 @@ TEXT = {
     "Kept its {x}, which this tool does not write.": "保留了它原有的 {x}，这个字段本程序不负责写。",
     "Rewrote the file as plain JSON, so its {x} are not kept.": "文件被改写成了纯 JSON，它原有的 {x} 没有保留。",
     "Not installing this geo result: {x}": "不安装这个 geo 结果：{x}",
+    "Not exporting this geo result: {x} Add --force to write it anyway, to inspect it rather than burn with it.":
+        "不导出这个 geo 结果：{x}如果只是想看看，可以加 --force 照样写出，但不要拿它刻盘。",
+    "Warning (--force): {x}": "警告（--force）：{x}",
+    "write the preset even from a run the quality checks refuse (to inspect it, not to burn with)":
+        "质量检查不通过也照样写出预设（只用来查看，不要拿它刻盘）",
     "this is a simulated run (the result folder says SIM), so the preset would describe a drive that does not exist. Measure a real disc, then install that result.":
         "这是模拟盘的结果（结果文件夹名里带 SIM），预设描述的会是一台不存在的光驱。请先测一张真实的盘，再安装那次的结果。",
     "linear speed {a} m/s": "线速度 {a} m/s",

@@ -1020,6 +1020,23 @@ def _disexport_bd(args):
     _next(guide.after_disexport(False, args.install))
 
 
+def _export_gate(args) -> None:
+    """A plain export (no --install) gets the same quality checks as an install. The file ends up in
+    DiscImageStudio by hand just the same, and a fit that `results` calls unusable can still convert
+    to a preset with a tiny conversion error (the 6pro audit of 1f7f92e: chi2/dof 38 exported cleanly).
+    A simulated run may still be exported, for trying the tool; --force writes the rest anyway."""
+    if args.install:
+        return
+    blocker = guide.install_blocker(args.geo, allow_simulated=True)
+    if not blocker:
+        return
+    if getattr(args, "force", False):
+        print(f"Warning (--force): {blocker}")
+        return
+    _fail(f"Not exporting this geo result: {blocker} Add --force to write it anyway, to inspect it rather than "
+          f"burn with it.")
+
+
 def cmd_disexport(args):
     from . import disinstall
     from .disexport import export
@@ -1045,8 +1062,10 @@ def cmd_disexport(args):
             # default name should not claim it was a BD-RE read at a constant linear speed.
             args.id = args.id or "discprobe-bd"
             args.name = args.name or "Blu-ray (drive-timing calibration)"
+        _export_gate(args)
         _disexport_bd(args)
         return
+    _export_gate(args)
     # --install writes the preset file only after the export has written --output. When both name
     # one file the export has already destroyed the presets by then, so this is checked first.
     target = None
@@ -1858,6 +1877,8 @@ def _build_parser():
                          "%%LOCALAPPDATA%%\\DiscImageStudio\\disc-presets.json")
     sp.add_argument("--replace", action="store_true",
                     help="with --install: overwrite an existing preset with the same --id but different values")
+    sp.add_argument("--force", action="store_true",
+                    help="write the preset even from a run the quality checks refuse (to inspect it, not to burn with)")
     sp.set_defaults(func=cmd_disexport)
 
     sp = sub.add_parser("cdprobe", help="write a DiscImageStudio project and pattern for a CD probe disc")

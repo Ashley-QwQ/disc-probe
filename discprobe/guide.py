@@ -262,7 +262,7 @@ DRIVE_CHANGED_BLOCK = ("the drive changed during this run (its check points read
                        "whose check points held.")
 
 
-def install_blocker(geo_summary: str) -> str | None:
+def install_blocker(geo_summary: str, allow_simulated: bool = False) -> str | None:
     """Why a geo result must not be installed as a DiscImageStudio preset, or None when it may.
 
     A preset outlives the run it came from: it is used to cut discs, and nothing later says it
@@ -275,11 +275,11 @@ def install_blocker(geo_summary: str) -> str | None:
     path = os.path.abspath(geo_summary)
     folder = os.path.dirname(path)
     summary = _load(path)
-    if summary is not None and _simulated(summary):
+    if summary is not None and _simulated(summary) and not allow_simulated:
         return ("this is a simulated run (its summary says so), so the preset would describe a drive that "
                 "does not exist. Measure a real disc, then install that result.")
     m = RESULT_DIR.match(os.path.basename(folder))
-    if m and (m["tag"] or "").startswith("SIM"):
+    if m and (m["tag"] or "").startswith("SIM") and not allow_simulated:
         return ("this is a simulated run (the result folder says SIM), so the preset would describe a drive "
                 "that does not exist. Measure a real disc, then install that result.")
     if not summary:
