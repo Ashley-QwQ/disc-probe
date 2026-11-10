@@ -3,6 +3,7 @@
 // Mock only: the steps follow `guide` (docs/goals/gui-flow.md) but the jobs are simulated, sped up
 // DEMO times, with made-up readings. The real page drives them from /api/run and /api/events.
 
+import { cutaway } from "./drive-scene.js";
 const DEMO = Number(new URLSearchParams(location.search).get("demo")) || 40;   // simulated jobs run this many times faster (?demo=N)
 const R0 = 22, R1 = 58.5;             // data area, mm: the radius the head sweeps while burning
 
@@ -33,6 +34,9 @@ const STR = {
     burnJob: "刻测量盘",
     burned: "测量盘刻好了",
     startMeasure: "下一步：开始测量",
+    nameH: "先认一下这张新盘", newPut: (k) => `把这种盘的一张空白 ${k} 放进光驱，先读出它的类型和厂商编号。`,
+    identified: (k, mid) => [`读出来了：空白 ${k}`, `厂商编号 ${mid}。同一个编号的盘，刻出来的几何一样。`],
+    nameLabel: "给这种盘起个名字", nameUse: "下一步：就叫这个", newDiscPrint: "新盘",
     timing: "正在测转速", timingLede: "确认这台光驱读盘时转速稳定，1 到 3 分钟。",
     timingJob: "测转速",
     rpm: "转速", jitter: "抖动", mode: "转法",
@@ -83,6 +87,9 @@ const STR = {
     burnJob: "Burning",
     burned: "Measurement disc burned",
     startMeasure: "Next: start measuring",
+    nameH: "First, identify the new disc", newPut: (k) => `Put a blank ${k} of this kind in the drive; its type and maker code are read first.`,
+    identified: (k, mid) => [`Found a blank ${k}`, `Maker code ${mid}. Discs with the same code burn with the same geometry.`],
+    nameLabel: "Name this kind of disc", nameUse: "Next: use this name", newDiscPrint: "New disc",
     timing: "Measuring the speed", timingLede: "Checks the drive spins the disc steadily. 1 to 3 minutes.",
     timingJob: "Speed",
     rpm: "Speed", jitter: "Jitter", mode: "Mode",
@@ -141,6 +148,7 @@ function newFlow(item) {
     // a DVD-R burned with something else); the real page reads it with `info`
     inDrive: api.tray().disc ? "foreign" : "empty",
     state: null, job: null, rungs: 0, photos: 0, left: item.left, plate: "off", plateP: 0,
+    naming: item.kind === "new",            // a kind that isn't listed: read it and name it first
     ...ui,
   };
 }
@@ -370,7 +378,7 @@ async function takenOut() {
 // ---------------------------------------------------------------- the disc going in
 async function flyIn() {
   const f = flow.flyerEl;
-  f.querySelector(".print textPath").textContent = flow.item.name;
+  f.querySelector(".print textPath").textContent = flow.item.name || T().newDiscPrint;
   f.classList.remove("up");
   const [x, y] = pct(...hoverPoint());
   f.style.transition = "none";
@@ -460,100 +468,10 @@ function cancelJob() {
 // exactly on the drive picture and grows from there (transform only). The pickup moves with the
 // head's radius, so the pickup IS the progress bar; the percentage lies on the disc and the time
 // left on the tray floor, both flat like the floor.
-const CROP = [10, 25, 1180, 920];             // what of the 1600 × 1062 canvas is drive (mirrored px)
-let inside = null;
-async function buildInterior() {
-  if (inside) return inside;
-  const info = await fetch("interior/interior.json").then((r) => r.json());
-  const stage = document.createElement("div");
-  stage.className = "cutaway live";
-  stage.innerHTML = `<div class="cutaway-in"></div>`;
-  const box = stage.firstChild, sets = {};
-  for (const theme of ["dark", "paper"]) {
-    const set = document.createElement("div");
-    set.className = `inside ${theme === "dark" ? "dark" : "light"}`;
-    const disc = theme === "dark" ? "disc" : "disc_cut";          // dark: see-through disc; paper: cut away
-    const img = (name, cls) => `<img class="${cls}" alt="" decoding="async" data-src="interior/${name}_${theme}.webp">`;
-    set.innerHTML = img("bg", "bg") + img("sled", "sled") + img("mid", "mid") + img(disc, "disc") + img("glow", "glow") + img("occluders", "occ");
-    box.append(set);
-    sets[theme] = set;
-  }
-  // flat type, placed in canvas px (the picture is mirrored, the type is not)
-  const at = (el, x, y) => { el.style.left = `${(1 - x / 1600) * 100}%`; el.style.top = `${(y / 1062) * 100}%`; };
-  const pct = document.createElement("div"), clock = document.createElement("div");
-  pct.className = "inside-type big"; clock.className = "inside-type";
-  const d = info.disc.centre_px_top_face, m = info.disc.plane_matrix_px_per_mm;
-  at(pct, d[0] + m.a * 37 + m.c * 17, d[1] + m.b * 37 + m.d * 17);   // the open part of the disc, below the clamp bridge
-  at(clock, 705, 468);                         // the flat floor of the closed tray, beside the pickup
-  box.append(pct, clock);
-  document.body.append(stage);
-  inside = { info, stage, box, sets, pct, clock, on: false };
-  addEventListener("resize", () => { if (inside.on) place(); });
-  return inside;
-}
-function insideTheme() { return document.documentElement.dataset.theme === "dark" ? "dark" : "paper"; }
-function loadInside(theme) {
-  for (const im of inside.sets[theme].querySelectorAll("img[data-src]")) { im.src = im.dataset.src; im.removeAttribute("data-src"); }
-}
-function rigRect() {
-  return [...api.burnerLayer.querySelectorAll(".rig")].find((n) => n.getBoundingClientRect().width > 0)?.getBoundingClientRect();
-}
-// the big place: the left half of the window, up to the text column, between the top row and the bar
-function place() {
-  const W = innerWidth, H = innerHeight;
-  const calLeft = $("cal").getBoundingClientRect().left || W * 0.56;
-  const x0 = 12, x1 = Math.min(calLeft - 56, W * 0.6), y0 = 76, y1 = H - 80 - 8;
-  const [cx, cy, cw, ch] = CROP;
-  const k = Math.min((x1 - x0) / cw, (y1 - y0) / ch);
-  const L = x0 + (x1 - x0 - cw * k) / 2 - cx * k, T0 = y0 + (y1 - y0 - ch * k) / 2 - cy * k;
-  Object.assign(inside.box.style, { left: `${L}px`, top: `${T0}px`, width: `${1600 * k}px`, height: `${1062 * k}px` });
-  return { L, T: T0, w: 1600 * k };
-}
-// the transform that puts the big cutaway back onto the drive picture
-function fromRig(to) {
-  const r = rigRect();
-  if (!r) return "none";
-  return `translate(${r.left - to.L}px, ${r.top - to.T}px) scale(${r.width / to.w})`;
-}
-async function showInterior(on) {
-  const root = document.documentElement;
-  if (!on) {
-    if (!inside?.on) return;
-    inside.on = false;
-    const to = { L: parseFloat(inside.box.style.left), T: parseFloat(inside.box.style.top), w: parseFloat(inside.box.style.width) };
-    inside.box.style.transform = fromRig(to);          // shrink back into the drive
-    inside.stage.classList.remove("on");
-    root.classList.remove("burning");
-    api.burnerLayer.classList.remove("inside-on");
-    return;
-  }
-  const s0 = await buildInterior();
-  if (s0.on) { place(); return; }
-  s0.on = true;
-  loadInside(insideTheme());
-  const to = place();
-  s0.box.style.transition = "none";
-  s0.box.style.transform = fromRig(to);               // start exactly on the drive picture
-  void s0.box.offsetWidth;
-  s0.box.style.transition = "";
-  s0.stage.classList.add("on");
-  api.burnerLayer.classList.add("inside-on");
-  root.classList.add("burning");
-  setTimeout(() => { if (s0.on) s0.box.style.transform = "none"; }, 30);   // then grow into place
-}
-function updateInterior(p, leftS) {
-  if (!inside) return;
-  const sl = inside.info.sled, size = inside.info.image_size;
-  const r = Math.min(sl.radius_mm[1], Math.max(sl.radius_mm[0], radiusAt(p) * (sl.radius_mm[1] / R1)));
-  const t = (r - sl.radius_mm[0]) / sl.travel_mm;
-  const tx = `${((sl.offset_px[0] * t) / size[0]) * 100}%`, ty = `${((sl.offset_px[1] * t) / size[1]) * 100}%`;
-  inside.box.style.setProperty("--sled", `${tx}, ${ty}`);
-  inside.pct.textContent = `${Math.floor(p * 100)}%`;
-  const m = Math.floor(leftS / 60), sec = Math.floor(leftS % 60);
-  inside.clock.textContent = `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-}
-// the theme can change while it burns: load the other set when it is first needed
-new MutationObserver(() => { if (inside) loadInside(insideTheme()); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+let cut = null;                               // the cutaway (drive-scene.js), made on first use
+const cutOf = () => cut ??= cutaway(api, { mirrored: true, textLeft: () => $("cal").getBoundingClientRect().left || innerWidth * 0.56 });
+function showInterior(on) { return on || cut ? cutOf().show(on) : undefined; }
+function updateInterior(p, leftS) { cut?.update(p, leftS); }
 
 // ---------------------------------------------------------------- the plate over the drive
 let NOISE;
@@ -630,6 +548,13 @@ function next() {
   switch (flow.step) {
     case 0:
       if (flow.disc !== "ok") return;
+      if (flow.naming) {                      // the new kind gets its name; then the usual first step
+        const v = document.getElementById("newname")?.value.trim();
+        Object.assign(flow.item, { name: v || flow.item.name || "?", mid: flow.newMid, s: "none" });
+        flow.naming = false;
+        paint();
+        return;
+      }
       if (flow.choice === "have") { flow.step = 1; startTiming(); return; }
       flow.step = 0.3; setPlate("gen");
       runJob("gen", 40, null, () => { flow.step = 0.4; paint(); });
@@ -737,8 +662,8 @@ const PROBLEM = { noDisc: 1, blank: 1, stopped: 1, changed: 1, narrow: 1, unknow
 
 function paint() {
   if (!flow || !isCal()) return;
-  const t = T(), it = flow.item, kind = it.name.match(/BD|CD|DVD/)?.[0] ?? "DVD";
-  const discWord = it.name.replace(/\s+\d+x$/, "");
+  const t = T(), it = flow.item, kind = it.row ? it.row.toUpperCase() : it.name.match(/BD|CD|DVD/)?.[0] ?? "DVD";
+  const discWord = flow.naming ? `${kind}-R` : it.name.replace(/\s+\d+x$/, "");
   const stepIx = flow.step < 1 ? 0 : flow.step < 2 ? 1 : flow.step < 3 ? 2 : 3;
   const steps = `<ol class="steps">${t.steps.map((s, i) => `<li${i === stepIx ? ' aria-current="step"' : i < stepIx ? ' class="done"' : ""}>${s}</li>`).join("")}</ol>`;
   let h = "", lede = "", body = "", nextText = t.next, nextOn = true, hold = false;
@@ -754,6 +679,26 @@ function paint() {
     h = map[1][0];                                   // the problem itself is the title
     body = note(map[0], [map[1][1], ""]);
     nextText = map[2]; nextOn = map[3];
+  } else if (flow.step === 0 && flow.naming) {
+    h = t.nameH; lede = t.newPut(discWord);
+    if (flow.disc === "detect" || flow.disc === "detecting" || flow.disc === "identify") {
+      body = note("info", [flow.disc === "identify" ? t.identify : t.detect, ""]); nextOn = false;
+    } else if (flow.disc === "remove") {
+      body = note("warn", t.notMeasure) + `<div class="row"><button class="placed" id="removed" type="button">${t.removed}</button></div>`;
+      nextOn = false; warn = true;
+    } else if (flow.disc === "out" || flow.disc === "flying" || flow.disc === "hover") {
+      body = `<div class="row"><button class="placed" id="placed" type="button">${t.placed}</button></div>`; nextOn = false;
+    } else if (flow.disc === "falling" || flow.disc === "checking") {
+      body = note("info", [t.checking, ""]); nextOn = false;
+    } else {
+      // mock: what `info` would read off the blank disc
+      const mid = { DVD: "CMC MAG. M01", CD: "97m26s66f", BD: "CMCMAG-BA5" }[kind];
+      flow.newMid = mid;
+      const guess = { DVD: "CMC DVD-R 16x", CD: "CD-R 52x (97m26s66f)", BD: "CMC BD-R 6x" }[kind];
+      body = note("good", t.identified(`${kind}-R`, mid)) +
+        `<label class="name-field"><span>${t.nameLabel}</span><input id="newname" type="text" maxlength="40" value="${flow.newName ?? guess}"></label>`;
+      nextText = t.nameUse;
+    }
   } else if (flow.step === 0) {
     h = t.prepare; lede = t.prepareLede(discWord);
     const free = ["out", "flying", "hover", "remove"].includes(flow.disc);
@@ -838,6 +783,8 @@ function paint() {
     flow.disc = "out"; paint();
   });
   $("removed")?.addEventListener("click", takenOut);
+  $("newname")?.addEventListener("input", (e) => { flow.newName = e.target.value; });
+  $("newname")?.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") next(); });
   $("photo")?.addEventListener("click", () => { flow.photos += 1; paint(); });
   // first look at what is in the drive; once it is empty and open, bring a disc down to it
   if (flow.step === 0 && !flow.state && flow.disc === "detect") { detect(); return; }

@@ -22,7 +22,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import guide, i18n
+from . import guide, i18n, iso9660
 
 ACTIONS = {"info", "timing", "geo", "random", "image", "disexport", "cdprobe", "burn"}
 DRIVE_ACTIONS = {"info", "timing", "geo", "burn"}
@@ -32,12 +32,14 @@ OPTIONS = {
     "timing": {"speed": "speed", "reps": "count", "period_reads": "count", "max_minutes": "minutes"},
     "geo": {"speed": "speed", "reps": "count", "max_targets": "count", "bd_zones": "count"},
     "random": {"sectors": "sectors", "seed": "seed", "output": "path"},
-    "image": {"geo": "geo", "picture": "path", "design": "path", "output": "path",
-              "diameter_mm": "diameter", "r_max": "radius", "along_track_frames": "frames"},
+    "image": {"geo": "geo", "picture": "path", "design": "path", "design_npy": "path", "output": "path",
+              "diameter_mm": "diameter", "r_max": "radius", "along_track_frames": "frames",
+              "dark": "texture", "light": "texture"},
     "disexport": {"geo": "geo", "sectors": "sectors", "output": "path", "r_min": "radius", "r_max": "radius"},
     "cdprobe": {"sectors": "sectors", "output": "path", "size": "size"},
     "burn": {},
 }
+DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell (checked in the tests)
 LIMITS = {"count": (1, 1000), "sectors": (1, 25_000_000), "seed": (0, 2**32 - 1),
           "minutes": (0.1, 120), "diameter": (1, 120), "radius": (1, 58),
           "frames": (-10000, 10000), "size": (64, 8192)}
@@ -96,6 +98,9 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
                 pass
             else:
                 raise APIError("invalid speed")
+        elif rule == "texture":
+            if not isinstance(value, str) or not re.fullmatch(r"[0-9A-Fa-f]{2}", value):
+                raise APIError("invalid " + name)
         else:
             lo, hi = LIMITS[rule]
             integer = rule in ("count", "sectors", "seed", "size")
@@ -106,7 +111,7 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
     for name in {"image": ("geo",), "disexport": ("geo", "sectors"), "cdprobe": ("sectors",)}.get(action, ()):
         if args.get(name) is None:
             raise APIError(name + " is required")
-    if args.get("picture") and args.get("design"):
+    if sum(bool(args.get(name)) for name in ("picture", "design", "design_npy")) > 1:
         raise APIError("choose picture or design")
     return argv, drive
 
@@ -297,6 +302,32 @@ class Backend:
             threading.Thread(target=self._watch, args=(job,), daemon=True).start()
             return dict(job=ident)
 
+    def iso_file(self, value: str) -> dict:
+        """Size of a finished ISO under iso/, for the page to show; nothing is read from it."""
+        path = Path(local_path(self.root, value))
+        if path.suffix.lower() != ".iso" or not path.is_relative_to((self.root / "iso").resolve()):
+            raise APIError("not an ISO in iso/")
+        if not path.is_file() or Path(str(path) + iso9660.UNFINISHED).exists():
+            raise APIError("not found", 404)
+        size = path.stat().st_size
+        return dict(path=path.relative_to(self.root).as_posix(), bytes=size, sectors=size // 2048)
+
+    def save_design(self, packed: bytes) -> dict:
+        """Keep a design the page drew (one bit per 20 µm cell, row by row, dark = 1) as image --design-npy reads it."""
+        import numpy as np
+        from . import imagedisc
+        if len(packed) != DESIGN_BYTES:
+            raise APIError("a design is %d bytes" % DESIGN_BYTES, 413)
+        cells = imagedisc.SIZE
+        dark = np.unpackbits(np.frombuffer(packed, np.uint8))[:cells * cells].reshape(cells, cells).astype(bool)
+        folder = self.root / "designs"
+        if not folder.resolve().is_relative_to(self.root):
+            raise APIError("design directory must stay inside the workspace")
+        folder.mkdir(exist_ok=True)
+        path = folder / ("web-" + time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3) + ".npy")
+        np.save(path, dark)
+        return dict(design_npy=path.relative_to(self.root).as_posix(), dark_share=round(float(dark.mean()), 4))
+
     def _watch(self, job):
         code = job.child.wait()
         job.child.close()
@@ -437,6 +468,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, backend.burn_token())
             elif path == "/api/events":
                 self._events()
+            elif path == "/api/iso":
+                self._json(200, backend.iso_file(parse_qs(urlsplit(self.path).query).get("path", [""])[0]))
             elif path.startswith("/api/"):
                 raise APIError("not found", 404)
             else:
@@ -448,7 +481,7 @@ class Handler(BaseHTTPRequestHandler):
                     self._send(200, target.read_bytes(), mimetypes.guess_type(target.name)[0] or "application/octet-stream")
         except APIError as exc:
             self._json(exc.status, dict(error=i18n.tr(str(exc))))
-        except (BrokenPipeError, ConnectionResetError, TimeoutError):
+        except (ConnectionError, TimeoutError):
             pass
 
     def _events(self):
@@ -469,9 +502,31 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.flush()
             time.sleep(0.25)
 
+    def _body(self, limit):
+        lengths = self.headers.get_all("Content-Length", [])
+        if self.headers.get("Transfer-Encoding") or len(lengths) != 1 or not lengths[0].isdigit():
+            raise APIError("one Content-Length required", 411)
+        length = int(lengths[0])
+        if not 0 < length <= limit:
+            raise APIError("invalid request size", 413)
+        self.connection.settimeout(30)
+        chunks, left = [], length
+        while left:
+            chunk = self.rfile.read(min(left, 1 << 20))
+            if not chunk:
+                raise APIError("request body ended early")
+            chunks.append(chunk)
+            left -= len(chunk)
+        return b"".join(chunks)
+
     def do_POST(self):
         try:
             self._allowed()
+            if urlsplit(self.path).path == "/api/design":
+                if self.headers.get_content_type() != "application/octet-stream":
+                    raise APIError("application/octet-stream required", 415)
+                self._json(200, self.server.backend.save_design(self._body(DESIGN_BYTES)))
+                return
             if self.headers.get_content_type() != "application/json":
                 raise APIError("application/json required", 415)
             lengths = self.headers.get_all("Content-Length", [])

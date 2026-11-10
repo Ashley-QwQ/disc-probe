@@ -20,6 +20,9 @@
 .ws-title .sub { color: var(--ink-3); }
 .ws-title .dirty { width: 8px; height: 8px; border-radius: 50%; background: var(--copper); opacity: 0; transition: opacity 200ms; }
 .ws-title .dirty.on { opacity: 1; }
+.ws-title .filebtns { display: flex; gap: 6px; margin-left: 8px; }
+.ws-title .filebtns .sbtn { min-height: 36px; padding: 0 10px; font-size: 14px; }
+.ws-title .filebtns .sbtn:active:not(:disabled) { transform: translateY(1px); }
 
 /* ---- columns ---- */
 .col { position: fixed; top: var(--top); bottom: 92px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; display: grid; align-content: start; gap: 0; }

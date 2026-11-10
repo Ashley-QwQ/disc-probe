@@ -334,6 +334,46 @@ time.sleep(60)
         self.assertEqual(self.request(server, "GET", "/api/burn-token")[0], 200)
         self.assertEqual(self.request(server, "POST", "/api/jobs/j-0000/cancel", {})[0], 404)
 
+    def test_design_upload_feeds_image(self):
+        import numpy as np
+        from discprobe import imagedisc
+        self.assertEqual(webui.DESIGN_BYTES, imagedisc.SIZE * imagedisc.SIZE // 8)
+        server = self.http_server()
+        dark = np.zeros((imagedisc.SIZE, imagedisc.SIZE), bool)
+        dark[100:200, 3000:3100] = True
+        dark[5999, 5999] = True
+        packed = np.packbits(dark).tobytes()
+        octet = {"Content-Type": "application/octet-stream"}
+        c = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=10)
+        c.request("POST", "/api/design", packed, octet)
+        response = c.getresponse()
+        body = json.loads(response.read())
+        c.close()
+        self.assertEqual(response.status, 200, body)
+        saved = np.load(server.backend.root / body["design_npy"])
+        self.assertEqual(saved.dtype, bool)
+        self.assertTrue((saved == dark).all())
+        # wrong size or type is refused before anything is written
+        c = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=10)
+        c.request("POST", "/api/design", packed[:-1], octet)
+        self.assertEqual(c.getresponse().status, 413)
+        c.close()
+        self.assertEqual(self.request(server, "POST", "/api/design", {"x": 1})[0], 415)
+        argv, _ = webui.command(dict(action="image", args={"geo": "latest", "design_npy": body["design_npy"],
+                                                           "light": "92", "output": "iso/web.iso"}),
+                                server.backend.root, [])
+        self.assertIn("--design-npy", argv)
+        self.assertEqual(argv[argv.index("--light") + 1], "92")
+        for bad in ({"light": "9"}, {"dark": "A5 --force"}, {"design_npy": "x.npy", "picture": "p.png"}):
+            with self.subTest(bad=bad), self.assertRaises(webui.APIError):
+                webui.command(dict(action="image", args={"geo": "latest", **bad}), server.backend.root, [])
+        (server.backend.root / "iso").mkdir()
+        (server.backend.root / "iso" / "web.iso").write_bytes(bytes(4096))
+        code, body = self.request(server, "GET", "/api/iso?path=iso/web.iso")
+        self.assertEqual((code, json.loads(body)["sectors"]), (200, 2))
+        self.assertEqual(self.request(server, "GET", "/api/iso?path=designs/x.npy")[0], 400)
+        self.assertEqual(self.request(server, "GET", "/api/iso?path=../x.iso")[0], 400)
+
     def test_lan_every_request_requires_token(self):
         server = self.http_server(lan=True)
         self.assertEqual(server.server_address[0], "0.0.0.0")

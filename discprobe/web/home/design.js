@@ -1,10 +1,13 @@
 // The design page: put pictures on the disc and set the tone. A mode of the home page, like
 // calibrate.js. Brief: docs/goals/gui-pages/design.md.
 //
-// Mock: nothing is saved to disk, the project lives in this module until the page is reloaded.
-// Image processing (tone, levels, dithering) is processing.mjs from the earlier web editor, run on
-// the main thread on the part of the disc in view only.
+// Each disc keeps its project while the page lives; "Save project" writes it to a .discdesign file
+// (pictures embedded) and closing the page with unsaved work asks first. `makeBurnFile` draws the
+// whole disc and has the webui back end run `image --design-npy` on it.
+// Tone, dither and export bit packing run in a module worker.
 import { processRGBA, renderOutput, autoLevels } from "./design/processing.mjs";
+
+import { processingWorker } from "./design/worker-client.mjs";
 
 let api, $;
 const root = document.documentElement;
@@ -14,6 +17,18 @@ const isOn = () => root.dataset.mode === "design";
 const STR = {
   zh: {
     untitled: "未命名工程", next: "下一步：预览", nextLater: "预览页下一轮做",
+    burnLater: "网页里还不能直接刻录：后端这一版没有刻录命令。展开“用别的软件刻”，复制刻录文件的路径，用你常用的刻录软件刻。",
+    open: "打开工程", save: "保存工程", saveAs: "另存为", saved: (n) => `已保存：${n}`, opened: (n) => `已打开：${n}`,
+    notProject: (n) => `${n} 不是 disc-probe 的工程文件。`, newer: (n) => `${n} 是新版本存的，这一版读不了。`,
+    otherMedia: (a, b) => `这份工程是给 ${a} 做的，现在打开在 ${b} 上；可刻范围按 ${b} 算。`,
+    unsaved: "工程还没保存，关掉页面会丢失。",
+    exp: {
+      drawing: "正在画整张盘的设计图…", sending: "正在交给后端…", making: "正在生成刻录文件…",
+      noBackend: "生成刻录文件要由 disc-probe 打开这个页面：在命令行运行 python -m discprobe webui，再用它给的网址。",
+      noGeo: "还没有这台光驱测好的盘面几何，先完成标定。", otherMedia: (a, b) => `后端现在按 ${a} 工作，这张盘是 ${b}；用 --media ${b} 重新启动 webui。`,
+      fineGrid: "10 µm 和 5 µm 还不能导出：命令行先要有正式的格子大小选项。先切回 20 µm。",
+      failed: "生成失败。", empty: "盘上还没有图。", four: "4 级灰阶还不能导出：先用 2 级。",
+    },
     layers: "图层", undo: "撤销（Ctrl+Z）", redo: "重做（Ctrl+Shift+Z）", import: "导入图片", noLayers: "还没有图层。",
     show: "显示", hide: "隐藏", lock: "锁定", unlock: "解锁", remove: "删除",
     files: "随盘文件", pickFolder: "选择文件夹", inner: "内圈", outer: "外圈", clear: "清除",
@@ -68,6 +83,18 @@ const STR = {
   },
   en: {
     untitled: "Untitled project", next: "Next: preview", nextLater: "The preview page comes in the next round",
+    burnLater: "Burning from the page isn't ready: this back end has no burn command yet. Open “Burn with another program”, copy the burn file's path and use the burning program you normally use.",
+    open: "Open project", save: "Save project", saveAs: "Save as", saved: (n) => `Saved: ${n}`, opened: (n) => `Opened: ${n}`,
+    notProject: (n) => `${n} isn't a disc-probe project file.`, newer: (n) => `${n} was saved by a newer version; this one can't read it.`,
+    otherMedia: (a, b) => `This project was made for ${a} and is now open on ${b}; the burnable range is ${b}'s.`,
+    unsaved: "The project isn't saved; closing the page loses it.",
+    exp: {
+      drawing: "Drawing the whole disc…", sending: "Handing it to the back end…", making: "Making the burn file…",
+      noBackend: "Making the burn file needs disc-probe to serve this page: run python -m discprobe webui and open the address it prints.",
+      noGeo: "There's no measured disc geometry for this drive yet. Finish calibration first.", otherMedia: (a, b) => `The back end is working on ${a} and this disc is ${b}; restart webui with --media ${b}.`,
+      fineGrid: "10 µm and 5 µm can't be exported yet: the command line needs a proper grid option first. Switch back to 20 µm.",
+      failed: "Making the file failed.", empty: "There's no picture on the disc yet.", four: "4 grey levels can't be exported yet: use 2 for now.",
+    },
     layers: "Layers", undo: "Undo (Ctrl+Z)", redo: "Redo (Ctrl+Shift+Z)", import: "Import picture", noLayers: "No layers yet.",
     show: "Show", hide: "Hide", lock: "Lock", unlock: "Unlock", remove: "Delete",
     files: "Files on the disc", pickFolder: "Choose folder", inner: "Inner", outer: "Outer", clear: "Clear",
@@ -140,6 +167,8 @@ const I = {
   fx: '<svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="2.5"/></svg>',
   loupe: '<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5M8 10.5h5M10.5 8v5"/></svg>',
   swap: '<svg viewBox="0 0 24 24"><path d="M7 4L3.5 7.5 7 11M3.5 7.5h14M17 13l3.5 3.5L17 20M20.5 16.5h-14"/></svg>',
+  save: '<svg viewBox="0 0 24 24"><path d="M5 4.5h11l3 3V19a.5.5 0 01-.5.5h-13A.5.5 0 015 19z"/><path d="M8 4.5v4.5h7V4.5M8 19.5v-6h8v6"/></svg>',
+  open: '<svg viewBox="0 0 24 24"><path d="M3.5 18.5V6a1 1 0 011-1h4.6l2 2h7.4a1 1 0 011 1v2.5"/><path d="M3.5 18.5l2.8-7.2a1 1 0 01.9-.6h13.6l-2.9 7.8H3.5z"/></svg>',
 };
 
 // ---------------------------------------------------------------- the project
@@ -151,7 +180,8 @@ const COLOURS = { red: 0.62, green: 0.53, blue: 0.46 };   // target wavelengths,
 const FLASH = [-43.66, 19.79];               // iPhone 17 Pro flash relative to the lens (drawing values)
 const FWHM = 0.08;                           // measured peak width in δ (the model said 0.04)
 
-let S = null;                                // the project; kept while the page lives
+let S = null;                                // the project on screen
+const projects = new Map();                  // one project per disc, kept while the page lives
 let W = null;                                // the workspace's DOM
 const V = { s: 5, cx: 0, cy: 0, w: 0, h: 0, dpr: 1 };   // canvas view: px per mm and the disc centre
 let nextId = 1;
@@ -159,7 +189,7 @@ let nextId = 1;
 function newProject(item, media) {
   return {
     item, media, layers: [], selected: null, tool: "move", view: "proj",
-    tone: { ...DEFAULT_TONE }, files: null, dirty: false,
+    tone: { ...DEFAULT_TONE }, files: null, dirty: false, name: null, handle: null,
     pro: false, cell: 0.02, loupe: false, lookColour: false, lookY: 70, playing: 0,
     scene: { preset: "design", cam: [0, -70, 330], lamp: [0, 0, 0], follows: true },
     past: [], future: [],
@@ -272,7 +302,8 @@ async function importFiles(files) {
     let bmp;
     try { bmp = await createImageBitmap(f); } catch { toast(t.badType(f.name)); continue; }
     if (bmp.width * bmp.height > 36e6) { toast(t.tooBig(f.name)); continue; }
-    addImageLayer(f.name, bmp, bmp.width, bmp.height);
+    const L = addImageLayer(f.name, bmp, bmp.width, bmp.height);
+    if (L) L.file = f;                       // the original, for export at full size and for saving
     bmp.close?.();
   }
 }
@@ -391,6 +422,7 @@ function applySelection(L, keep) {
   const out = new ImageData(new Uint8ClampedArray(L.px.data), L.w, L.h);
   for (let i = 0; i < m.length; i++) out.data[i * 4 + 3] = Math.round(out.data[i * 4 + 3] * (keep ? m[i] : 1 - m[i]));
   L.px = out;
+  L.alphaEdited = true;
   pixelsChanged(L);
   clearSelection(L);
   changed(); buildLeft();
@@ -447,27 +479,40 @@ function toneOptions() {
   return { adjustments, output };
 }
 // Draw the picture layers (not the effects) into a canvas covering [x0, x1] × [y0, y1] mm at ppm.
-function rasterise(x0, y0, x1, y1, ppm, white = true) {
+// With `originals` (layer → full-size bitmap), each picture is drawn from its original file; where the
+// selection tool removed parts, the working copy's alpha cuts the same parts out of it.
+function rasterise(x0, y0, x1, y1, ppm, white = true, originals = null, layers = imageLayers()) {
   const pw = Math.max(1, Math.round((x1 - x0) * ppm)), ph = Math.max(1, Math.round((y1 - y0) * ppm));
   const c = document.createElement("canvas");
   c.width = pw; c.height = ph;
   const g = c.getContext("2d", { willReadFrequently: true });
   if (white) { g.fillStyle = "#fff"; g.fillRect(0, 0, pw, ph); }
   g.setTransform(ppm, 0, 0, ppm, -x0 * ppm, -y0 * ppm);
-  for (const L of imageLayers()) {
+  for (const L of layers) {
     if (!L.visible) continue;
     g.save();
     g.globalAlpha = L.opacity;
     g.translate(L.x, L.y); g.rotate(L.rot * Math.PI / 180);
-    const hh = heightOf(L);
-    g.drawImage(L.src, -L.width / 2, -hh / 2, L.width, hh);
+    const hh = heightOf(L), full = originals?.get(L);
+    if (full && L.alphaEdited) {
+      // the original with the working copy's alpha, put together at the size it lands on the canvas
+      const k = Math.min(1, ppm * L.width / full.width), t = document.createElement("canvas");
+      t.width = Math.max(1, Math.round(full.width * k)); t.height = Math.max(1, Math.round(full.height * k));
+      const tg = t.getContext("2d");
+      tg.drawImage(full, 0, 0, t.width, t.height);
+      tg.globalCompositeOperation = "destination-in";
+      tg.drawImage(L.src, 0, 0, t.width, t.height);
+      g.drawImage(t, -L.width / 2, -hh / 2, L.width, hh);
+    } else g.drawImage(full ?? L.src, -L.width / 2, -hh / 2, L.width, hh);
     g.restore();
   }
   return { c, g, pw, ph };
 }
 let comp = null, composeT = 0, composeKey = "";
-function queueCompose() { clearTimeout(composeT); composeT = setTimeout(compose, 140); }
-function compose() {
+let composeRevision = 0, composing = false, composeAgain = false, previewWorker = null;
+function queueCompose() { composeRevision++; clearTimeout(composeT); composeT = setTimeout(compose, 40); }
+async function compose() {
+  if (composing) { composeAgain = true; return; }
   if (!S || !isOn() || !imageLayers().length) { comp = null; draw(); return; }
   const [, r1] = pictureRange();
   const [ax, ay] = toMm(0, 0), [bx, by] = toMm(V.w, V.h);
@@ -478,17 +523,28 @@ function compose() {
   const key = JSON.stringify([x0.toFixed(1), y0.toFixed(1), x1.toFixed(1), y1.toFixed(1), ppm.toFixed(2), S.tone, S.media,
     imageLayers().map((L) => [L.id, L.version, L.x, L.y, L.width, L.rot, L.opacity, L.visible])]);
   if (key === composeKey && comp) return;
-  composeKey = key;
+  const revision = composeRevision, project = S;
   const { c, g, pw, ph } = rasterise(x0, y0, x1, y1, ppm);
   const { adjustments, output } = toneOptions();
+  composing = true;
   try {
-    const toned = processRGBA(g.getImageData(0, 0, pw, ph), adjustments, { previewScale: ppm * S.cell });
-    const out = renderOutput(toned, output);
+    previewWorker ??= processingWorker();
+    const image = g.getImageData(0, 0, pw, ph);
+    const { image: out } = await previewWorker.run({ kind: "preview", image, adjustments, output,
+      context: { previewScale: ppm * S.cell } }, [image.data.buffer]);
+    if (revision !== composeRevision || project !== S || !isOn()) return;
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.putImageData(new ImageData(out.data, pw, ph), 0, 0);
-  } catch (e) { console.warn("tone", e); }
-  comp = { c, x0, y0, x1, y1, ppm };
-  draw();
+    composeKey = key;
+    comp = { c, x0, y0, x1, y1, ppm };
+    draw();
+  } catch (e) {
+    console.warn("tone", e);
+    previewWorker?.close(); previewWorker = null;
+  } finally {
+    composing = false;
+    if (composeAgain) { composeAgain = false; compose(); }
+  }
 }
 
 // ---------------------------------------------------------------- PRO: what the disc shows from a position
@@ -791,6 +847,7 @@ function removeLayer(L) {
 function changed() {
   S.dirty = true;
   W?.dirty.classList.toggle("on", S.dirty);
+  if (W) W.dirty.title = T().unsaved;
   draw(); queueCompose();
   refreshLayerRows();
   $("next").disabled = !imageLayers().length;
@@ -908,6 +965,8 @@ function onKey(e) {
   if (k === " " && !spaceDown) { spaceDown = true; W.cv.classList.add("pan"); e.preventDefault(); return; }
   if ((e.ctrlKey || e.metaKey) && (k === "z" || k === "Z")) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if ((e.ctrlKey || e.metaKey) && (k === "y")) { e.preventDefault(); redo(); return; }
+  if ((e.ctrlKey || e.metaKey) && (k === "s" || k === "S")) { e.preventDefault(); saveProject(e.shiftKey); return; }
+  if ((e.ctrlKey || e.metaKey) && (k === "o" || k === "O")) { e.preventDefault(); pickProject(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (k === "0") { fit(); return; }
   if (k === "1") { zoomAt(1 / S.cell / V.s, V.w / 2, V.h / 2); return; }
@@ -1261,6 +1320,173 @@ function togglePlay() {
   updateTilt();
 }
 
+// ---------------------------------------------------------------- saving and opening a project
+// One JSON file holds everything: each picture as the working copy (with what the selection tool
+// removed) and, when it came from a file, the original file too, so export can use full size.
+const FILE_KIND = "disc-probe design", FILE_VERSION = 1, FILE_EXT = ".discdesign";
+const blobURL = (blob) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(blob); });
+const canvasBlob = (c) => new Promise((ok) => c.toBlob(ok, "image/png"));
+async function projectText() {
+  const layers = [];
+  for (const L of S.layers) {
+    const e = { kind: L.kind, name: L.name, x: L.x, y: L.y, width: L.width, rot: L.rot, opacity: L.opacity, visible: L.visible, locked: L.locked };
+    if (L.kind === "image") {
+      Object.assign(e, { colour: L.colour, w: L.w, h: L.h, alphaEdited: !!L.alphaEdited, picture: await blobURL(await canvasBlob(L.src)) });
+      if (L.file) e.original = await blobURL(L.file);
+    } else Object.assign(e, { fxKind: L.fxKind, height: L.height, y1: L.y1, y2: L.y2 });
+    layers.push(e);
+  }
+  return JSON.stringify({
+    format: FILE_KIND, version: FILE_VERSION, media: S.media, disc: S.item?.name ?? null,
+    tone: S.tone, files: S.files, pro: S.pro, cell: S.cell, scene: S.scene, lookColour: S.lookColour, lookY: S.lookY, layers,
+  });
+}
+const baseName = (n) => n.replace(/\.discdesign$/i, "").replace(/\.json$/i, "");
+async function saveProject(as = false) {
+  const t = T();
+  if (!S.layers.length) { toast(t.exp.empty); return false; }
+  const text = await projectText();
+  let name = (S.name ?? t.untitled) + FILE_EXT;
+  if (window.showSaveFilePicker) {
+    try {
+      if (!S.handle || as) S.handle = await showSaveFilePicker({ suggestedName: name, types: [{ description: "disc-probe", accept: { "application/json": [FILE_EXT] } }] });
+      const w = await S.handle.createWritable();
+      await w.write(text); await w.close();
+      name = S.handle.name;
+    } catch (e) { if (e?.name !== "AbortError") toast(String(e?.message ?? e)); return false; }
+  } else {                                   // no file handles: download a copy
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([text], { type: "application/json" })), download: name });
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  S.name = baseName(name); S.dirty = false;
+  W.dirty.classList.remove("on"); W.pname.textContent = S.name;
+  toast(t.saved(name));
+  return true;
+}
+async function openProject(file, handle = null) {
+  const t = T();
+  let data;
+  try { data = JSON.parse(await file.text()); } catch { toast(t.notProject(file.name)); return; }
+  if (data?.format !== FILE_KIND || !Array.isArray(data.layers)) { toast(t.notProject(file.name)); return; }
+  if (data.version > FILE_VERSION) { toast(t.newer(file.name)); return; }
+  const layers = [];
+  for (const e of data.layers) {
+    const base = { id: nextId++, kind: e.kind === "fx" ? "fx" : "image", name: String(e.name ?? ""), x: +e.x || 0, y: +e.y || 0,
+      width: Math.max(1, +e.width || 1), rot: +e.rot || 0, opacity: Math.min(1, Math.max(0, e.opacity ?? 1)), visible: e.visible !== false, locked: !!e.locked };
+    if (base.kind === "fx") {
+      if (!["flow", "ox", "merge", "sync"].includes(e.fxKind)) continue;
+      layers.push({ ...base, fxKind: e.fxKind, height: Math.max(1, +e.height || 1), y1: +e.y1 || 70, y2: +e.y2 || 70 });
+      continue;
+    }
+    try {
+      const bmp = await createImageBitmap(await (await fetch(e.picture)).blob());
+      const c = document.createElement("canvas");
+      c.width = bmp.width; c.height = bmp.height;
+      const g = c.getContext("2d", { willReadFrequently: true });
+      g.drawImage(bmp, 0, 0); bmp.close?.();
+      const L = { ...base, w: c.width, h: c.height, colour: e.colour ?? "none", alphaEdited: !!e.alphaEdited, px: g.getImageData(0, 0, c.width, c.height), src: c, version: 1 };
+      if (typeof e.original === "string" && e.original.startsWith("data:image/")) L.file = await (await fetch(e.original)).blob();
+      layers.push(L);
+    } catch { /* a picture that can't be read is left out */ }
+  }
+  checkpoint();
+  S.layers = layers.slice(0, 16);
+  S.selected = null;
+  for (const k of ["files", "pro", "lookColour"]) if (k in data) S[k] = data[k];
+  if (data.tone) S.tone = { ...DEFAULT_TONE, ...data.tone };
+  if (data.scene) S.scene = { ...S.scene, ...data.scene };
+  if ([0.02, 0.01, 0.005].includes(data.cell)) S.cell = data.cell;
+  if (Number.isFinite(data.lookY)) S.lookY = data.lookY;
+  S.name = baseName(file.name); S.handle = handle;
+  changed();
+  S.dirty = false; W.dirty.classList.remove("on");
+  W.ws.classList.toggle("pro-on", S.pro);
+  W.pname.textContent = S.name;
+  buildLeft(); buildRight(); updateTilt();
+  toast(data.media && data.media !== S.media ? t.otherMedia(data.media.toUpperCase(), S.media.toUpperCase()) : t.opened(file.name));
+}
+async function pickProject() {
+  if (window.showOpenFilePicker) {
+    try {
+      const [h] = await showOpenFilePicker({ types: [{ description: "disc-probe", accept: { "application/json": [FILE_EXT, ".json"] } }] });
+      await openProject(await h.getFile(), h);
+    } catch (e) { if (e?.name !== "AbortError") toast(String(e?.message ?? e)); }
+  } else W.proj.click();
+}
+
+// ---------------------------------------------------------------- the whole disc, for the burn file
+// The design as `image --design-npy` reads it: 6000 × 6000 cells of 20 µm, row by row, dark = 1,
+// seen from the data side like the canvas. Drawn from the original pictures and toned like the canvas.
+const GRID = 6000, GRID_MM = 120;
+export async function designBits(onStage = () => {}) {
+  const t = T().exp;
+  if (!S || !imageLayers().some((L) => L.visible)) throw new Error(t.empty);
+  if (S.cell !== 0.02) throw new Error(t.fineGrid);
+  if (S.tone.levels === 4 && S.media === "cd") throw new Error(t.four);
+  onStage(t.drawing);
+  await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));   // let the stage show first
+  // Keep the DOM canvas rasteriser: converting working canvases to bitmaps
+  // or worker canvases changes sampled colours (and therefore diffused bits).
+  // Tone, dither and packing own the transferred pixels entirely in the worker.
+  const layers = imageLayers().map(L => ({ ...L })), originals = new Map();
+  const { adjustments, output } = toneOptions();
+  const [p0, p1] = pictureRange(), r0 = S.media === "cd" ? Math.max(p0, 26) : p0, rMax = Math.min(58, p1);
+  for (const L of layers) if (L.visible && L.file) {
+    try { originals.set(L, await createImageBitmap(L.file)); } catch { /* the working copy then */ }
+  }
+  let worker;
+  try {
+    const { g } = rasterise(-GRID_MM / 2, -GRID_MM / 2, GRID_MM / 2, GRID_MM / 2, GRID / GRID_MM, true, originals, layers);
+    const image = g.getImageData(0, 0, GRID, GRID);
+    worker = processingWorker();
+    return await worker.run({ kind: "export", image, adjustments, output, r0, rMax }, [image.data.buffer]);
+  } finally {
+    worker?.close();
+    for (const bitmap of originals.values()) bitmap.close();
+  }
+}
+// Draw the design, hand it to the back end and run `image`; resolves with the ISO's path and size.
+// onProgress({ stage, fraction }) — fraction is null while unknown.
+export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
+  const t = T().exp;
+  const stop = () => { if (signal?.aborted) throw new DOMException("cancelled", "AbortError"); };
+  let state;
+  try { const r = await fetch("/api/state"); if (!r.ok) throw 0; state = await r.json(); } catch { throw new Error(t.noBackend); }
+  if (state.media !== S.media) throw new Error(t.otherMedia(state.media.toUpperCase(), S.media.toUpperCase()));
+  const geo = state.steps?.find((s) => s.id === "geo");
+  if (!geo?.done || !geo.result) throw new Error(t.noGeo);
+  const { bits, rMax } = await designBits((stage) => onProgress({ stage, fraction: null }));
+  stop();
+  onProgress({ stage: t.sending, fraction: null });
+  const up = await fetch("/api/design", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: bits });
+  const saved = await up.json().catch(() => ({}));
+  if (!up.ok) throw new Error(saved.error ?? t.failed);
+  stop();
+  const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
+  const output = `iso/${(S.name ?? "design").replace(/[^\w-]+/g, "-").slice(0, 40) || "design"}-${stamp}.iso`;
+  onProgress({ stage: t.making, fraction: 0 });
+  const run = await fetch("/api/run", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "image", media: S.media, args: { geo: geo.result, design_npy: saved.design_npy, output, r_max: rMax } }),
+  });
+  const job = await run.json().catch(() => ({}));
+  if (!run.ok) throw new Error(job.error ?? t.failed);
+  const exit = await new Promise((resolve, reject) => {
+    const es = new EventSource("/api/events");
+    signal?.addEventListener("abort", () => {          // stop the back end's job too
+      es.close();
+      fetch(`/api/jobs/${job.job}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+      reject(new DOMException("cancelled", "AbortError"));
+    }, { once: true });
+    const mine = (e) => { const d = JSON.parse(e.data); return d.job === job.job ? d : null; };
+    es.addEventListener("progress", (e) => { const d = mine(e); if (d) onProgress({ stage: t.making, fraction: d.fraction ?? null }); });
+    es.addEventListener("done", (e) => { const d = mine(e); if (d) { es.close(); resolve(d.exit); } });
+  });
+  if (exit !== 0) throw new Error(t.failed);
+  const info = await (await fetch(`/api/iso?path=${encodeURIComponent(output)}`)).json();
+  return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job };
+}
+
 // ---------------------------------------------------------------- building the page
 function build() {
   const t = T();
@@ -1269,7 +1495,8 @@ function build() {
   document.head.append(css);
   const ws = document.createElement("div");
   ws.className = "ws";
-  ws.innerHTML = `<div class="ws-title"><b class="pname"></b><span class="sub"></span><span class="dirty" aria-hidden="true"></span></div>` +
+  ws.innerHTML = `<div class="ws-title"><b class="pname"></b><span class="sub"></span><span class="dirty" aria-hidden="true"></span>` +
+    `<span class="filebtns"><button class="sbtn" type="button" data-a="open"></button><button class="sbtn" type="button" data-a="save"></button></span></div>` +
     `<aside class="col col-l"></aside><aside class="col col-r"></aside>` +
     `<div class="cv"><canvas class="main"></canvas>` +
     `<div class="tools-v" role="toolbar"></div>` +
@@ -1280,13 +1507,14 @@ function build() {
     `<div class="tilt"><span class="lbl"></span><input class="rng" type="range" min="40" max="120" step="1"><output></output><button class="sbtn" type="button"></button></div>` +
     `<div class="loupe"><canvas></canvas><small></small></div>` +
     `<button class="zoomr" type="button"></button><div class="dropzone"></div></div>` +
-    `<input type="file" accept="image/png,image/jpeg,image/webp,image/bmp" multiple hidden class="f-img"><input type="file" webkitdirectory multiple hidden class="f-dir">`;
+    `<input type="file" accept="image/png,image/jpeg,image/webp,image/bmp" multiple hidden class="f-img"><input type="file" webkitdirectory multiple hidden class="f-dir">` +
+    `<input type="file" accept="${FILE_EXT},.json,application/json" hidden class="f-proj">`;
   document.body.append(ws);
   const q = (s) => ws.querySelector(s);
   W = {
     ws, left: q(".col-l"), right: q(".col-r"), cv: q(".cv"), canvas: q("canvas.main"), tools: q(".tools-v"), view: q(".viewsw"),
     note: q(".cv-note"), empty: q(".empty-c"), bar: q(".fbar"), tilt: q(".tilt"), loupe: q(".loupe"), zoom: q(".zoomr"),
-    drop: q(".dropzone"), file: q(".f-img"), folder: q(".f-dir"), dirty: q(".dirty"), pname: q(".pname"), sub: q(".ws-title .sub"),
+    drop: q(".dropzone"), file: q(".f-img"), folder: q(".f-dir"), dirty: q(".dirty"), pname: q(".pname"), sub: q(".ws-title .sub"), proj: q(".f-proj"), filebtns: q(".filebtns"),
   };
   // canvas input
   const cvs = W.canvas;
@@ -1325,6 +1553,14 @@ function build() {
   W.tilt.querySelector("input").addEventListener("input", (e) => { S.lookY = Number(e.target.value); updateTilt(); draw(); });
   W.tilt.querySelector("button").addEventListener("click", togglePlay);
   W.file.addEventListener("change", () => { importFiles([...W.file.files]); W.file.value = ""; });
+  W.proj.addEventListener("change", () => { const f = W.proj.files[0]; if (f) openProject(f); W.proj.value = ""; });
+  W.filebtns.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-a]")?.dataset.a;
+    if (a === "open") pickProject();
+    if (a === "save") saveProject(e.shiftKey);
+  });
+  // closing or reloading the page loses what isn't saved
+  addEventListener("beforeunload", (e) => { if ([...projects.values()].some((p) => p.dirty && p.layers.length)) { e.preventDefault(); e.returnValue = ""; } });
   W.folder.addEventListener("change", () => {
     const fs = [...W.folder.files];
     if (fs.length) { S.files = { count: fs.length, bytes: fs.reduce((a, f) => a + f.size, 0), where: S.files?.where ?? "inner" }; changed(); buildLeft(); }
@@ -1338,11 +1574,12 @@ function build() {
   addEventListener("drop", (e) => {
     if (!isOn() || !e.dataTransfer?.files.length) return;
     e.preventDefault(); depth = 0; W.drop.classList.remove("on");
-    importFiles([...e.dataTransfer.files]);
+    const files = [...e.dataTransfer.files], proj = files.find((f) => /\.(discdesign|json)$/i.test(f.name));
+    if (proj) openProject(proj); else importFiles(files);
   });
   new ResizeObserver(resize).observe(W.cv);
   $("back").addEventListener("click", () => { if (isOn()) leave(); });
-  $("next").addEventListener("click", () => { if (isOn() && imageLayers().length) toast(T().nextLater); });
+  $("next").addEventListener("click", () => { if (isOn() && imageLayers().length) toPreview(); });
   addEventListener("dp-lang", () => { if (isOn()) words(); });
   new MutationObserver(() => { if (isOn()) { draw(); drawScene(); } }).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
 }
@@ -1357,7 +1594,12 @@ function resize() {
 // all the words, in the current language
 function words() {
   const t = T();
-  W.pname.textContent = t.untitled;
+  W.pname.textContent = S.name ?? t.untitled;
+  W.dirty.classList.toggle("on", S.dirty);
+  W.dirty.title = S.dirty ? t.unsaved : "";
+  const [bo, bs] = W.filebtns.children;
+  bo.innerHTML = `${I.open}<span>${t.open}</span>`; bo.title = `${t.open} (Ctrl+O)`;
+  bs.innerHTML = `${I.save}<span>${t.save}</span>`; bs.title = `${t.save} (Ctrl+S) · ${t.saveAs} (Ctrl+Shift+S)`;
   W.sub.textContent = api.T().brand?.(S.item.name) ?? S.item.name;
   W.tools.innerHTML = ["move", "wand", "pan"].map((k) => `<button class="tb" type="button" data-tool="${k}" aria-label="${t.tools[k]}" title="${t.tools[k]}" aria-pressed="${S.tool === k}">${I[k]}</button>`).join("");
   W.tools.onclick = (e) => { const b = e.target.closest("[data-tool]"); if (b) setTool(b.dataset.tool); };
@@ -1383,43 +1625,59 @@ function toast(text) {
 }
 
 // ---------------------------------------------------------------- coming in, going out
-// The chosen disc lifts off the shelf and turns to face you, landing where the canvas disc is.
+// Forward always moves to the right, back to the left (DESIGN.md): going in, the chosen disc slides
+// off the shelf to the right and the canvas disc comes in from the left; going out, the canvas disc
+// leaves to the left and the shelf disc comes back from the right. Any input skips it.
 function flight(fromRect, toCircle, back, done) {
-  const D = toCircle.d, el = document.createElement("div");
-  el.className = "dflyer";
-  el.style.width = el.style.height = `${D}px`;
-  el.style.background = `radial-gradient(circle, transparent 0 12.5%, var(--face-2) 12.5% 28%, var(--face) 28% 100%)`;
-  el.style.boxShadow = "0 0 0 1px var(--rule-strong)";
-  const flat = `translate(${toCircle.x - D / 2}px, ${toCircle.y - D / 2}px) scale(1)`;
-  let iso = flat;
+  const D = toCircle.d, shift = Math.min(innerWidth * 0.3, 460);
+  const flat = `translate(${toCircle.x - D / 2}px, ${toCircle.y - D / 2}px)`;
+  let iso = null;
   if (fromRect?.width) {
     const k = fromRect.width / (1.2247 * D);
     iso = `translate(${fromRect.left + fromRect.width / 2 - D / 2}px, ${fromRect.top + fromRect.height * 0.3 - D / 2}px) matrix(${0.866 * k}, ${0.5 * k}, ${-0.866 * k}, ${0.5 * k}, 0, 0)`;
   }
-  document.body.append(el);
-  el.style.transition = "none";
-  el.style.transform = back ? flat : iso;
-  void el.offsetWidth;
-  el.style.transition = "";
+  const by = (dx, t) => `translate(${dx}px, 0px) ${t}`;
+  // each leg: [from, to, fading out?]
+  const legs = (back
+    ? [[flat, by(-shift, flat), true], iso && [by(shift, iso), iso, false]]
+    : [iso && [iso, by(shift, iso), true], [by(-shift, flat), flat, false]]).filter(Boolean);
+  const els = [], anims = [];
   let finished = false;
   const finish = () => {
     if (finished) return;
     finished = true;
     removeEventListener("pointerdown", finish, true); removeEventListener("keydown", finish, true);
-    el.style.opacity = "0";
-    setTimeout(() => el.remove(), 240);
+    for (const a of anims) a.cancel();
+    for (const el of els) el.remove();
     done?.();
   };
   if (api.reduce) { finish(); return; }
-  setTimeout(() => { el.style.transform = back ? iso : flat; }, 20);
-  setTimeout(finish, 640);
-  addEventListener("pointerdown", finish, true); addEventListener("keydown", finish, true);   // any input skips it
+  let at = 0;
+  for (const [a, b, out] of legs) {
+    const el = document.createElement("div");
+    el.className = "dflyer";
+    el.style.width = el.style.height = `${D}px`;
+    el.style.background = `radial-gradient(circle, transparent 0 12.5%, var(--face-2) 12.5% 28%, var(--face) 28% 100%)`;
+    el.style.boxShadow = "0 0 0 1px var(--rule-strong)";
+    el.style.transition = "none";
+    el.style.transform = a; el.style.opacity = out ? "1" : "0";
+    document.body.append(el);
+    els.push(el);
+    const anim = el.animate([{ transform: a, opacity: out ? 1 : 0 }, { transform: b, opacity: out ? 0 : 1 }],
+      { duration: 300, delay: at, easing: out ? "cubic-bezier(.5,0,.75,0)" : "cubic-bezier(.2,.8,.2,1)", fill: "both" });
+    anims.push(anim);
+    at += out ? 200 : 300;                  // the second disc starts while the first is still fading
+  }
+  anims.at(-1).finished.then(finish, () => {});
+  addEventListener("pointerdown", finish, true); addEventListener("keydown", finish, true);
 }
 
-export function start(homeApi) {
+export function start(homeApi, { fly = true } = {}) {
+  composeRevision++;
   api = homeApi; $ = api.$;
   const { col, item } = api.current();
-  if (!S || S.item !== item) { S = newProject(item, col); S.selTol = 18; S.selFeather = 1; }
+  S = projects.get(item);
+  if (!S) { S = newProject(item, col); S.selTol = 18; S.selFeather = 1; projects.set(item, S); }
   if (!W) build();
   const from = api.focusDisc()?.getBoundingClientRect();
   root.dataset.mode = "design";
@@ -1433,11 +1691,68 @@ export function start(homeApi) {
   setTimeout(() => {
     resize();
     const r = W.cv.getBoundingClientRect();
-    flight(from, { x: r.left + V.cx, y: r.top + V.cy, d: 120 * V.s }, false);
+    if (fly) flight(from, { x: r.left + V.cx, y: r.top + V.cy, d: 120 * V.s }, false);
   }, 30);
 }
 
+// ---------------------------------------------------------------- on to preview and burn
+// The projection of the whole disc (120 mm square, centre in the middle) at ppm px per mm.
+function projection(ppm) {
+  ppm = Math.min(ppm, 20);
+  const { c, g, pw, ph } = rasterise(-GRID_MM / 2, -GRID_MM / 2, GRID_MM / 2, GRID_MM / 2, ppm);
+  const { adjustments, output } = toneOptions();
+  const out = renderOutput(processRGBA(g.getImageData(0, 0, pw, ph), adjustments, { previewScale: ppm * S.cell }), output);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.putImageData(new ImageData(out.data, pw, ph), 0, 0);
+  return c;
+}
+function hideDesign() {
+  composeRevision++;
+  stopPlay();
+  W.ws.classList.remove("on");
+  W.loupe.classList.remove("on");
+}
+async function toPreview() {
+  hideDesign();
+  const P = S, preview = await import("./preview.js");
+  const ctx = {
+    media: P.media, item: P.item, alongTrackMeasured: false,
+    project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection },
+    exportIso: (onProgress, opts) => makeBurnFile((p) => onProgress({ fraction: p.fraction, stage: p.stage }), opts),
+    back: () => start(api, { fly: false }),
+    next: (iso) => toBurn(iso, () => preview.start(api, ctx)),   // the same context keeps the file it made
+  };
+  preview.start(api, ctx);
+}
+function mockBurn(onProgress) {
+  const total = 40, t0 = performance.now();
+  const id = setInterval(() => {
+    const s = (performance.now() - t0) / 1000, p = Math.min(1, s / total);
+    onProgress({ progress: p, elapsed: s * 20, remaining: (total - s) * 20, status: p >= 1 ? "success" : undefined });
+    if (p >= 1) clearInterval(id);
+  }, 250);
+  return { cancel() { clearInterval(id); onProgress({ status: "cancelled" }); } };
+}
+async function toBurn(iso, back) {
+  const burn = await import("./burn.js");
+  // The drive's real write speeds come from `info`, which the page doesn't run yet; until then offer
+  // the usual low speeds (pictures have burned well at 4x).
+  const speeds = S.media === "cd" ? [4, 8, 16] : [4, 8];
+  let drive = { id: "", name: "", speeds };
+  try {
+    const s = await (await fetch("/api/state")).json();
+    if (s.drives?.[0]) drive = { id: s.drives[0].id, name: s.drives[0].name, speeds };
+  } catch { /* the page says what it can */ }
+  burn.start(api, {
+    media: S.media, item: S.item, iso, drive, back,
+    // The back end has no burn command yet: say so plainly and point to the other-program route.
+    // ?mockburn plays a pretend burn (a timer, no drive) so the page's animation can be looked at.
+    burn: new URLSearchParams(location.search).has("mockburn") ? mockBurn : () => { throw new Error(T().burnLater); },
+  });
+}
+
 function leave() {
+  composeRevision++;
   stopPlay();
   const r = W.cv.getBoundingClientRect(), to = { x: r.left + V.cx, y: r.top + V.cy, d: 120 * V.s };
   root.dataset.mode = "";

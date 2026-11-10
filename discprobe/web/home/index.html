@@ -73,6 +73,10 @@
   :is(.layer.ghost, .layer.burner)[data-depth="3"] { opacity: .2; }
   .layer.ghost[data-front="true"] { opacity: .16; }
   /* the burner rig: body, and the tray sliding in its slot (closed = moved in by --slide) */
+  .disc.new-slot :is(.iso-fill, .iso-top, .iso-shade) { fill: none !important; }
+  .disc.new-slot :is(.aura, .sheen, .glint) { display: none; }
+  .disc.new-slot .iso-line { stroke-dasharray: 5 4; }
+  #state.is-new .facts { display: none; }
   .layer.burner .rig { position: absolute; }
   .layer.burner .rig > img, .layer.burner .slot { position: absolute; inset: 0; width: 100%; height: 100%; }
   .layer.burner .slot img { position: absolute; inset: 0; width: 100%; height: 100%; transform: translate(var(--slide)); transition: transform 900ms cubic-bezier(.45, 0, .2, 1); }
@@ -265,6 +269,9 @@
   .cal .qr { width: 168px; height: 168px; border: 1px solid var(--rule-strong); display: grid; place-items: center; color: var(--ink-3); font-size: 15px; background:
       repeating-linear-gradient(0deg, transparent 0 11px, var(--rule) 11px 12px), repeating-linear-gradient(90deg, transparent 0 11px, var(--rule) 11px 12px); }
   .cal .row { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .cal .name-field { display: grid; gap: 8px; margin-top: 18px; font-size: 17px; color: var(--ink-2); }
+  .cal .name-field input { font: inherit; font-size: 20px; color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--rule-strong); padding: 6px 0; caret-color: var(--copper); }
+  .cal .name-field input:focus-visible { outline: none; border-bottom-color: var(--ink); }
   .cal .count-input { display: flex; align-items: center; gap: 12px; font-size: 18px; }
   .cal .count-input input { width: 92px; min-height: 52px; padding: 0 12px; border: 1px solid var(--rule-strong); border-radius: 3px; background: transparent; color: var(--ink); font: 600 22px var(--font); font-variant-numeric: tabular-nums; }
 
@@ -383,6 +390,7 @@
   <symbol id="i-good" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.8"/></symbol>
   <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3.8L21 19.5H3z"/><path d="M12 10v4.2M12 17h.01"/></symbol>
   <symbol id="i-none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="2.6 2.4"/><path d="M12 8v8M8 12h8"/></symbol>
   <symbol id="i-drive" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="1"/><path d="M6 13.5h7"/><circle cx="17.5" cy="13.5" r=".6"/></symbol>
 </svg>
 
@@ -465,6 +473,8 @@
       d("Verbatim BD-RE 2x", "VERBAT-IM0", 11826176, 2, 2, "none", { rw: true }),
     ],
   };
+  // the last place in each row is empty: a disc kind that isn't listed is calibrated from there
+  for (const row of ["dvd", "cd", "bd"]) DATA[row].push({ kind: "new", row, name: "", mid: "", s: "new" });
   DATA.drive = [{ kind: "drive", name: "HL-DT-ST GH70N", mid: "H: · SATA", s: "good", inDrive: false, trayDisc: "Verbatim DVD-R",
     burns: ["DVD±R/RW", "CD-R/RW"], reads: ["DVD", "CD"], calibrated: 3, lastUsed: "2026-11-07" }];
   const COLS = ["dvd", "cd", "bd", "drive"];
@@ -483,7 +493,9 @@
       langButton: "EN", langAria: "Switch to English", kinds: "盘的种类", driveTab: "光驱", inDrive: "就是光驱里这张",
       sectors: "扇区数", left: "这一桶还剩", last: "上次标定", usedDrive: "标定用的光驱",
       leftVal: (l, o) => `${l} / ${o} 张`, inserted: (d) => `已插入 ${d}`, rw: "可擦写", sep: "、",
-      nextOpen: "下一步：打开工程", nextCal: "下一步：开始标定", nextDrive: "下一步：检查光驱",
+      nextOpen: "下一步：打开工程", nextCal: "下一步：开始标定", nextDrive: "下一步：认一下光驱里的盘", nextNew: "下一步：标定新盘",
+      newName: "标定新盘", newState: ["没列出来的盘", "把它放进光驱，先读出盘的类型和厂商编号，再刻一张测量盘。"],
+      reading: "正在读光驱里的盘……", foundKnown: (d) => `光驱里是 ${d}，已经在架子上。`, foundNew: (k) => `光驱里是一种没列出来的 ${k}，可以标定它。`, driveNone: "光驱里没有盘。",
       good: ["几何测好了", "可以直接设计、刻录。"],
       narrow: ["测到的范围偏窄", "外圈没测到，超出 41 mm 的图会偏。再测一次外圈。"],
       none: ["还没标定", "先刻一张测量盘，测一次就能用。"],
@@ -498,7 +510,9 @@
       langButton: "中文", langAria: "切换到中文", kinds: "Disc kinds", driveTab: "Drive", inDrive: "This is the disc in the drive",
       sectors: "Sectors", left: "Left in this spindle", last: "Last calibrated", usedDrive: "Calibrated on",
       leftVal: (l, o) => `${l} / ${o}`, inserted: (d) => `${d} inserted`, rw: "rewritable", sep: ", ",
-      nextOpen: "Next: open a project", nextCal: "Next: calibrate", nextDrive: "Next: check the drive",
+      nextOpen: "Next: open a project", nextCal: "Next: calibrate", nextDrive: "Next: identify the disc in the drive", nextNew: "Next: calibrate a new disc",
+      newName: "Calibrate a new disc", newState: ["A disc that isn't listed", "Put it in the drive: its type and maker code are read first, then one measurement disc is burned."],
+      reading: "Reading the disc in the drive…", foundKnown: (d) => `The drive holds ${d}; it's already on the shelf.`, foundNew: (k) => `The drive holds a ${k} that isn't listed; you can calibrate it.`, driveNone: "The drive is empty.",
       good: ["Geometry measured", "Ready to design and burn."],
       narrow: ["Measured range is narrow", "The outer area wasn't measured, so artwork beyond 41 mm will be off. Measure it again."],
       none: ["Not calibrated yet", "Burn one measurement disc; one run is enough."],
@@ -548,9 +562,31 @@
     if (!layers[id]) return Promise.resolve();
     loaded[id] ??= fetch(`row-${id}.svg`).then((r) => r.text()).then((t) => {
       layers[id].innerHTML = t;
+      addNewSlot(id);
       discs = [...art.querySelectorAll(".layer.solid .disc")];
     });
     return loaded[id];
+  }
+  // The empty place behind the last disc of a row: the last disc drawn again one step further back,
+  // as an outline only. Picking it calibrates a disc kind that isn't listed.
+  function addNewSlot(id) {
+    const n = DATA[id].length - 1, svg = layers[id].querySelector("svg");
+    const last = svg?.querySelector(`.disc[data-idx="${n - 1}"]`), prev = svg?.querySelector(`.disc[data-idx="${n - 2}"]`);
+    if (!last || !prev || svg.querySelector(".new-slot")) return;
+    const a = last.querySelector(".aura"), b = prev.querySelector(".aura");
+    const dx = a.cx.baseVal.value - b.cx.baseVal.value, dy = a.cy.baseVal.value - b.cy.baseVal.value;
+    const slot = last.cloneNode(true);
+    slot.classList.add("new-slot");
+    slot.dataset.idx = String(n);
+    for (const m of slot.querySelectorAll("mask[id]")) {
+      const old = m.id;
+      m.id = `${old}-new`;
+      for (const u of slot.querySelectorAll(`[mask="url(#${old})"]`)) u.setAttribute("mask", `url(#${m.id})`);
+    }
+    const wrap = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    wrap.setAttribute("transform", `translate(${dx} ${dy})`);
+    wrap.append(slot);
+    last.before(wrap);
   }
   await loadSolid("dvd");
   (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => { loadSolid("cd"); loadSolid("bd"); });
@@ -714,6 +750,7 @@
   }
 
   let col = "dvd", idx = 0, lastFocus = "dvd";
+  let pendingWhy = null;                     // a one-off status line for the next render (what the drive held)
   const fmt = (n) => n.toLocaleString("en-US");
   const pad = (n) => String(n).padStart(2, "0");
 
@@ -755,7 +792,7 @@
     for (const b of document.querySelectorAll(".kind")) b.setAttribute("aria-pressed", String(b.dataset.col === col));
     roll($("idx"), pad(idx + 1), dir);
     $("total").textContent = pad(list.length);
-    const shown = T().brand(item.name);
+    const shown = item.kind === "new" ? (item.name || T().newName) : T().brand(item.name);
     roll($("name"), shown, dir, shown.length > 14 ? 0.014 : 0.024);
     const rule = $("rule");
     rule.classList.remove("draw"); void rule.offsetWidth; rule.classList.add("draw");
@@ -768,7 +805,11 @@
       $("mid").textContent = [item.mid, item.rw ? t.rw : ""].filter(Boolean).join(" · ");
       $("indrive").classList.toggle("off", !item.inDrive);
       let icon, label, why, facts;
-      if (item.kind === "drive") {
+      $("state").classList.toggle("is-new", item.kind === "new");
+      if (item.kind === "new") {
+        [icon, label, why] = ["i-plus", ...t.newState];
+        facts = [["", ""], ["", ""], ["", ""], ["", ""]];
+      } else if (item.kind === "drive") {
         label = trayOpen ? (trayDisc ? t.tray(item.trayDisc) : t.trayEmpty) : (trayDisc ? t.inDriveNow(item.trayDisc) : t.driveEmpty);
         [icon, why] = ["i-drive", t.driveWhy];
         facts = [[t.burns, item.burns], [t.reads, item.reads], [t.calibrated, t.kindsN(item.calibrated)], [t.lastUsed, day(item.lastUsed)]];
@@ -779,14 +820,15 @@
       }
       $("status").dataset.s = item.kind === "drive" ? "drive" : item.s;
       $("status").innerHTML = `<svg class="icon"><use href="#${icon}"/></svg>${label}`;
-      $("why").textContent = why;
+      $("why").textContent = pendingWhy ?? why;
+      pendingWhy = null;
       ["k1", "k2", "k3", "k4"].forEach((k, i) => { $(k).textContent = facts[i][0]; });
       ["sectors", "left", "last", "drive"].forEach((k, i) => {
         const v = facts[i][1];
         $(k).innerHTML = (Array.isArray(v) ? v : [v]).map((x) => `<span class="nb">${x}</span>`).join(`${t.sep}<wbr>`);
       });
       if (!root.dataset.mode)       // inside the flow the button belongs to the flow
-        $("next-text").textContent = item.kind === "drive" ? t.nextDrive : item.s === "none" ? t.nextCal : t.nextOpen;
+        $("next-text").textContent = item.kind === "drive" ? t.nextDrive : item.kind === "new" ? t.nextNew : item.s === "none" ? t.nextCal : t.nextOpen;
       $("drivebar").innerHTML = `<b>H:</b> HL-DT-ST GH70N · ${t.inserted("Verbatim DVD-R")}`;
     };
     if (initial || reduce) { fill(); return; }
@@ -914,10 +956,27 @@
     placeDisc(v) { trayDisc = v; burnerLayer.classList.toggle("has-disc", v); },
     focusDisc: () => discs.find((d) => d.classList.contains("is-on")),
   };
+  // The drive's next step: read what is in it (the real page runs `info`, read-only). A listed disc
+  // kind takes you to its place on the shelf, one that isn't listed to the row's empty place.
+  // Mock: ?newdisc makes the disc in the drive one that isn't listed.
+  async function identifyDisc() {
+    const t = T(), nb = $("next");
+    nb.disabled = true; $("next-text").textContent = t.reading;
+    await new Promise((r) => setTimeout(r, reduce ? 0 : 1200));
+    nb.disabled = false;
+    if (!trayDisc) { pendingWhy = t.driveNone; render(1, true); return; }
+    const held = DATA.drive[0].trayDisc;      // what `info` read: "Verbatim DVD-R"
+    const kind = /CD/.test(held) ? "cd" : /BD/.test(held) ? "bd" : "dvd";
+    const i = new URLSearchParams(location.search).has("newdisc") ? -1 : DATA[kind].findIndex((x) => x.name && x.name.startsWith(held));
+    col = kind; idx = i >= 0 ? i : DATA[kind].length - 1;
+    pendingWhy = i >= 0 ? t.foundKnown(t.brand(DATA[kind][i].name)) : t.foundNew(held.replace(/^\S+\s/, ""));
+    await loadSolid(col);
+    render(1);
+  }
   $("next").addEventListener("click", async () => {
     if (root.dataset.mode) return;
     const item = DATA[col][idx];
-    if (item.kind === "drive") return;
+    if (item.kind === "drive") { identifyDisc(); return; }
     if (item.s === "good") { (await import("./design.js")).start(api); return; }   // a measured disc: its project
     const flow = await import("./calibrate.js");
     flow.start(api);

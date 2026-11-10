@@ -1,0 +1,59 @@
+﻿/* The preview page (preview.js): the design page's layout without its left column. Reuses design.css
+   (.ws, .ws-title, .col-r, .cv, .seg, .sbtn, .rng, .zoomr, .empty-c, .cv-note). */
+
+:root[data-mode="preview"] .stage { opacity: 0; pointer-events: none; transition: opacity 420ms var(--ease); }
+:root[data-mode="preview"] .wordmark, :root[data-mode="preview"] .detail, :root[data-mode="preview"] .counter,
+:root[data-mode="preview"] .gallery { display: none; }
+
+.ws.pv { --colL: 0px; }
+.ws.pv .cv { left: calc(var(--edge) + 20px); }
+.ws.pv .cv-note { top: auto; bottom: 0; left: 0; transform: none; }
+
+.pv-file { display: grid; gap: 4px; }
+.pv-file b { font-weight: 650; overflow-wrap: anywhere; }
+.pv-file .mono, .pv-more .mono, .pv-ctl output { font-family: var(--mono); font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.pv-more summary { cursor: pointer; color: var(--ink-2); font-size: 15px; }
+.pv-more p { margin: 6px 0 0; overflow-wrap: anywhere; }
+.pv-err { color: var(--warn); }
+.col p.note.pv-warn { color: var(--warn); }
+.pv-ctl { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; font-size: 15px; }
+.pv-ctl input { grid-column: 1 / -1; width: 100%; }
+.pv-ctl output { grid-column: 2; grid-row: 1; }
+
+/* progress: a thin bar, moving while the page is idle (.live) */
+.pv-bar { height: 6px; border-radius: 3px; background: var(--paper-2); overflow: hidden; }
+.pv-bar i { display: block; height: 100%; width: 100%; background: var(--ink); transform-origin: left; transform: scaleX(var(--f)); transition: transform 250ms var(--ease); }
+.pv-bar i.indet { transform: scaleX(.3); animation: pv-indet 1.4s ease-in-out infinite; }
+@keyframes pv-indet { from { transform: translateX(-100%) scaleX(.3); } to { transform: translateX(100%) scaleX(.3); } }
+
+/* the light in the simulated view */
+.pv-sun { position: absolute; z-index: 3; width: 44px; height: 44px; margin: -22px 0 0 -22px; display: grid; place-items: center; border-radius: 50%;
+  border: 1px solid #f3d27a; background: rgb(243 210 122 / .18); color: #f3d27a; cursor: grab; padding: 0; touch-action: none; }
+.pv-sun:active { cursor: grabbing; }
+.pv-sun svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.pv-sun[hidden] { display: none; }
+
+/* Optical controls share the page's native controls; the prediction owns the dark stage. */
+.pv-looking .cv-note { max-width: 100%; white-space: normal; pointer-events: none; }
+.pv-looking .col-r { scrollbar-color: var(--rule-strong) var(--paper); }
+.pv-looking .pv-ctl { font-size: 16px; }
+.pv-looking .pv-ctl input { min-height: 28px; }
+.pv-phone { position: absolute; z-index: 3; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  display: grid; place-items: center; border-radius: 50%; border: 1px solid #e5eceb;
+  background: #263331; color: #e5eceb; cursor: grab; padding: 0; touch-action: none; }
+.pv-phone svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.pv-phone:active { cursor: grabbing; }
+.pv-phone[hidden] { display: none; }
+.pv-sun:hover { background: #544a2c; }
+.pv-phone:hover { background: #3b4e4b; }
+.pv-sun:focus-visible, .pv-phone:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+@media (max-width: 700px) {
+  .ws.pv.pv-looking .cv { top: 156px; left: 16px; right: 16px; bottom: auto; height: 38vh; min-height: 220px; }
+  .ws.pv.pv-looking .col-r { top: max(calc(156px + 38vh + 12px), 388px); left: 20px; right: 20px; width: auto; bottom: 86px; }
+  .pv-looking .viewsw { max-width: 100%; flex-wrap: wrap; }
+  .pv-looking .viewsw button { padding-inline: 8px; font-size: 13px; }
+  .pv-looking .cv-note { margin-bottom: 0; padding: 4px 8px; font-size: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) { .pv-bar i.indet { animation: none; width: 100%; opacity: .4; } }

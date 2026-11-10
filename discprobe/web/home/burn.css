@@ -1,0 +1,78 @@
+/* Home's paper/ink system; the disc circumference is the sole signature motion. */
+:root[data-mode="burn"] :is(.wordmark,.detail,.counter,.gallery){display:none}
+/* The scene is the home page's drive, flipped so its tray faces the other way, with the calibration
+   flow's disc that drops into the tray and its cutaway while burning (drive-scene.js). */
+:root[data-mode="burn"] .layer.burner .rig{transform:none!important}
+:root[data-mode="burn"] .burn-page{pointer-events:none}
+:root[data-mode="burn"] .burn-panel,:root[data-mode="burn"] .burn-page h1{pointer-events:auto}
+.burn-art,.burn-scene-caption{display:none!important}
+.burn-disc{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden;clip-path:inset(50%)}
+.cutaway.unmirrored .inside{transform:none}
+.cutaway.unmirrored .inside-type{transform:translate(-50%,-50%) matrix(0.866,-0.5,0.866,0.5,0,0)}
+:root[data-mode="burn"] #drivebar{visibility:hidden}
+.burn-page{position:fixed;inset:88px var(--edge) 104px;z-index:2;overflow:auto;scrollbar-color:var(--rule-strong) var(--paper);scrollbar-width:thin}
+.burn-page[hidden],.burn-page [hidden],.burn-mini[hidden]{display:none!important}
+.burn-page h1{font-size:28px;font-weight:650;font-stretch:112%;line-height:1.2;margin:0 0 24px}
+.burn-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(340px, .85fr);gap:clamp(28px,5vw,88px);align-items:start}
+.burn-panel{max-width:560px;padding-bottom:20px}
+.burn-intro{margin:0 0 24px;color:var(--ink-2)}
+.burn-facts{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px 16px;margin:0 0 24px}
+.burn-facts dt{color:var(--ink-2)}
+.burn-facts dd{margin:0;overflow-wrap:anywhere}
+.burn-facts dd.burn-file-details{grid-column:2;margin-top:-8px;color:var(--ink-2)}
+.burn-data{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.burn-speed{border-top:1px solid var(--rule);padding-top:20px;display:grid;grid-template-columns:1fr 116px;gap:8px 16px;align-items:center}
+.burn-speed select{font:inherit;min-height:44px;padding:0 12px;border:1px solid var(--rule-strong);border-radius:3px;background:var(--paper);color:var(--ink)}
+.burn-speed p{grid-column:1/-1;color:var(--ink-2);margin:0 0 16px}
+.burn-warning{margin:8px 0 16px;color:var(--warn)}
+.burn-consent{display:flex;align-items:flex-start;gap:12px;min-height:44px;cursor:pointer;padding:12px 0;border-top:1px solid var(--rule)}
+.burn-consent input{flex:none;width:20px;height:20px;margin:3px 0;accent-color:var(--copper)}
+.burn-result{margin:20px 0 12px}
+.burn-result h2{font-size:21px;line-height:1.3;margin:0 0 8px;font-weight:600}
+.burn-result p{color:var(--ink-2);margin:0}
+.burn-page[data-state="ready"] .burn-result{display:none}
+.burn-page[data-state="ready"]:has(.burn-consent[hidden]) .burn-result{display:block}
+.burn-timing{display:flex;gap:24px;flex-wrap:wrap;font-variant-numeric:tabular-nums;margin:24px 0}
+.burn-actions{display:flex;flex-wrap:wrap;gap:8px}
+.burn-page button,.burn-mini{min-height:44px;padding:8px 16px;border:1px solid var(--rule-strong);border-radius:3px;background:transparent;color:var(--ink);font:inherit;cursor:pointer;transition:background-color 180ms,transform 150ms}
+.burn-page button:hover:not(:disabled),.burn-mini:hover{background:var(--paper-2);border-color:var(--ink-2)}
+.burn-page button:active:not(:disabled),.burn-mini:active{transform:translateY(1px);background:var(--paper-2)}
+.burn-page button:disabled{opacity:.5;cursor:default}
+.burn-page :focus-visible,.burn-mini:focus-visible{outline:2px solid var(--copper);outline-offset:3px}
+.burn-cancel-check{margin:16px 0;padding:16px 0;border-block:1px solid var(--rule)}
+.burn-cancel-check p{color:var(--warn);margin:0 0 12px}
+.burn-cancel-check button{margin:0 8px 8px 0}
+.burn-other{margin-top:24px;border-top:1px solid var(--rule);padding-top:8px}
+.burn-page summary{min-height:44px;cursor:pointer;display:list-item;padding:10px 0;transition:color 150ms}
+.burn-page summary:hover{color:var(--copper)}
+.burn-page summary:active{opacity:.7}
+.burn-path{font-family:var(--mono);overflow-wrap:anywhere;user-select:all;padding:12px;background:var(--paper-2)}
+.burn-scene{position:relative;min-height:420px;align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+.burn-art{position:relative;width:100%;aspect-ratio:1600/1062;transition:opacity 220ms}
+.burn-art>img,.burn-interior,.burn-interior img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.burn-art .dark{display:none}
+:root[data-theme="dark"] .burn-art .paper{display:none}
+:root[data-theme="dark"] .burn-art .dark{display:block}
+.burn-interior{opacity:0;transition:opacity 220ms}
+.burn-page[data-state="burning"] .burn-interior,.burn-page[data-state="success"] .burn-interior{opacity:1}
+.burn-page[data-state="burning"] .burn-shell,.burn-page[data-state="success"] .burn-shell{opacity:0}
+.burn-page[data-state="burning"] .burn-art{opacity:.7;animation:burn-breathe 3.5s ease-in-out infinite}
+.burn-scene-caption{color:var(--ink-2);text-align:center;margin:0;min-height:32px;font-variant-numeric:tabular-nums}
+.burn-disc{position:absolute;left:12%;top:17%;width:clamp(130px,17vw,250px);aspect-ratio:1;transform:rotate(-12deg);pointer-events:none}
+.burn-face{position:absolute;inset:8px;border:1px solid var(--rule-strong);border-radius:50%;background:repeating-radial-gradient(circle,var(--paper-2) 0 3px,var(--rule) 4px,var(--paper-2) 5px 8px);opacity:.95;mask:radial-gradient(circle,transparent 0 12%,#000 13%)}
+.burn-ring{position:absolute;inset:0;border-radius:50%;background:var(--rule);mask:radial-gradient(circle,transparent 0 65%,#000 66% 70%,transparent 71%);display:block}
+.burn-ring>span{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,#c68d4c,#ce5363,#9b79ce,#629fc1,#70b78a,#d7bc65,#c68d4c);mask:conic-gradient(#000 0 var(--progress),transparent var(--progress) 100%)}
+.burn-page[data-state="burning"] .burn-disc{animation:burn-breathe 3.5s ease-in-out infinite}
+.burn-primary{position:relative;min-height:56px!important;min-width:272px;touch-action:none;user-select:none;-webkit-user-select:none}
+.burn-primary:active:not(:disabled){transform:translateY(1px)}
+.burn-hold-ring{position:relative;display:inline-block;width:32px;height:32px;inset:auto;flex:none;vertical-align:middle;margin-left:12px;background:color-mix(in srgb,var(--paper) 30%,var(--ink))}
+.burn-mini{position:fixed;right:var(--edge);top:24px;z-index:8;display:flex;align-items:center;gap:12px;background:var(--paper)}
+.burn-mini .burn-ring{position:relative;inset:auto;width:36px;height:36px;flex:none}
+.burn-toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);max-width:90vw;z-index:20;background:var(--ink);color:var(--paper);padding:12px 16px;border-radius:3px;opacity:0;pointer-events:none;transition:opacity 180ms}
+.burn-toast.on{opacity:1}
+.burn-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+@keyframes burn-breathe{50%{opacity:.85}}
+@media(max-width:850px){.burn-page{inset:124px var(--edge) 120px}.burn-layout{grid-template-columns:1fr;gap:16px}.burn-scene{min-height:230px;max-width:520px;width:100%;justify-self:center}.burn-art{max-height:300px}.burn-disc{top:8%;width:140px}.burn-panel{max-width:none}.burn-page h1{font-size:24px;margin-bottom:12px}.burn-primary{min-width:0}.burn-facts{grid-template-columns:90px minmax(0,1fr)}}
+@media(max-width:600px){:root[data-mode="burn"] #next{width:calc(100vw - 190px);max-width:calc(100vw - 190px);white-space:normal;gap:4px}.burn-hold-ring{width:28px;height:28px;margin-left:4px}}
+@media(prefers-reduced-motion:reduce){.burn-page *,.burn-primary,.burn-mini{animation:none!important;transition:none!important}}
+.burn-page.burn-reduce *{animation:none!important;transition:none!important}

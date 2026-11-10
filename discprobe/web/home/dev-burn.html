@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-lang="zh">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>disc-probe · 刻录样稿</title>
+<style>
+@font-face{font-family:Archivo;src:url(../fonts/Archivo-VF-latin.woff2) format('woff2');font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+:root{color-scheme:light;--paper:#ebe7e0;--paper-2:#e4dfd7;--ink:#1d1b18;--ink-2:#5d5850;--ink-3:#8a847a;--rule:#cfc9bf;--rule-strong:#a9a297;--copper:#a8693c;--warn:#9a6a14;--font:Archivo,system-ui,'Microsoft YaHei UI',sans-serif;--mono:ui-monospace,'Cascadia Mono',Consolas,monospace;--edge:clamp(20px,3.2vw,56px);--ease:cubic-bezier(.2,.8,.2,1)}
+:root[data-theme=dark]{color-scheme:dark;--paper:#161d1c;--paper-2:#1f2827;--ink:#ecebe4;--ink-2:#aeb3ab;--ink-3:#7f8780;--rule:#2c3634;--rule-strong:#46514e;--copper:#d9a75c;--warn:#e2b866}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 var(--font);overflow:hidden}button,select{font:inherit;color:inherit}button{cursor:pointer;border:1px solid var(--rule-strong);background:transparent;border-radius:3px;min-height:44px;padding:8px 14px}button:hover:not(:disabled){background:var(--paper-2)}button:active:not(:disabled){transform:translateY(1px)}button:disabled{opacity:.4;cursor:default}button:focus-visible,select:focus-visible{outline:2px solid var(--copper);outline-offset:3px}::selection{background:var(--ink);color:var(--paper)}
+header{position:fixed;left:var(--edge);right:var(--edge);top:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;z-index:5}header p{margin:0;color:var(--ink-2)}.dev-tools{display:flex;gap:8px;align-items:center}select{background:var(--paper);min-height:44px;border:1px solid var(--rule-strong);border-radius:3px;padding:6px 10px;max-width:180px}footer{position:fixed;bottom:0;left:0;right:0;min-height:88px;padding:16px var(--edge);border-top:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;background:var(--paper);z-index:7;gap:16px}#next{background:var(--ink);color:var(--paper);display:inline-flex;align-items:center;justify-content:center;border-color:var(--ink);font-weight:600;min-height:56px;padding:12px 24px}#next:disabled{opacity:.4}#next:hover:not(:disabled){background:var(--ink-2)}#away{position:fixed;inset:140px var(--edge) 130px;max-width:600px}#away[hidden]{display:none}#away h1{font-size:28px}#away p{color:var(--ink-2)}
+:root.idle :not(.live,.live *),:root.idle :not(.live,.live *)::before,:root.idle :not(.live,.live *)::after{animation-play-state:paused!important}
+@media(max-width:600px){header{top:12px;align-items:flex-start;gap:8px}header p{max-width:145px;font-size:16px}.dev-tools{gap:4px;flex-wrap:wrap;justify-content:flex-end}.dev-tools button{padding:6px 10px}.dev-tools select{max-width:140px}footer{padding:12px var(--edge);gap:8px}#next{max-width:64%;padding:8px 12px;font-size:16px}#back{padding:8px;font-size:16px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header><p id="mock-note">交互样稿 · 不会操作光驱</p><div class="dev-tools"><label for="scenario" id="scenario-label" hidden>样稿状态</label><select id="scenario" aria-label="样稿状态"><option value="success">模拟成功</option><option value="failed">模拟失败</option><option value="missing">缺少刻录文件</option><option value="cd">CD · 长文件名</option></select><button id="theme" type="button">切换深色</button><button id="lang" type="button">English</button></div></header>
+<section id="away" hidden><h1></h1><p></p><button id="return" type="button"></button></section>
+<footer><button id="back" type="button">返回预览</button><button id="next" type="button"><span id="next-text"></span></button></footer>
+<script type="module">
+import {start,leave} from './burn.js';
+const root=document.documentElement,$=id=>document.getElementById(id),params=new URLSearchParams(location.search);
+let lang=params.get('lang')==='en'?'en':'zh';root.dataset.theme=params.get('theme')==='dark'?'dark':'light';
+const duration=Math.max(3,Number(params.get('duration'))||24);let busy=false,context;
+const api={$,lang:()=>lang,reduce:matchMedia('(prefers-reduced-motion: reduce)').matches,focusDrive(){},placeDisc(value){document.body.dataset.trayDisc=value;},setTray(open,disc){document.body.dataset.trayOpen=open;document.body.dataset.trayDisc=disc;},tray:()=>({open:false,disc:true})};
+function words(){root.lang=lang==='zh'?'zh-CN':'en';root.dataset.lang=lang;$('mock-note').textContent=lang==='zh'?'交互样稿 · 不会操作光驱':'Interactive mock · no drive access';$('theme').textContent=lang==='zh'?(root.dataset.theme==='dark'?'切换浅色':'切换深色'):(root.dataset.theme==='dark'?'Use light theme':'Use dark theme');$('lang').textContent=lang==='zh'?'English':'中文';$('scenario').setAttribute('aria-label',lang==='zh'?'样稿状态':'Mock scenario');[...$('scenario').options].forEach((o,i)=>o.textContent=(lang==='zh'?['模拟成功','模拟失败','缺少刻录文件','CD · 长文件名']:['Simulate success','Simulate failure','Missing burn file','CD · long file name'])[i]);$('return').textContent=lang==='zh'?'返回刻录页面':'Return to burning';$('away').querySelector('h1').textContent=lang==='zh'?'已返回预览':'Back in preview';$('away').querySelector('p').textContent=lang==='zh'?'刻录在后台继续。右上角的小光盘会持续显示进度。':'Burning continues in the background. The small disc at the top right keeps showing its progress.';}
+function makeContext(){const scenario=$('scenario').value,cd=scenario==='cd';return{media:cd?'cd':'dvd',item:{name:cd?'Verbatim CD-R 52x · 三月的海与城市 / Sea and city':'铼德 Ritek DVD-R 16x'},iso:scenario==='missing'?null:{path:cd?'D:\\Disc projects\\三月的海与城市 · Sea and city — final design.iso':'D:\\Disc projects\\山海之间.iso',bytes:cd?681574400:4324325376,sectors:cd?332800:2111487},drive:{id:'mock-drive',name:'HL-DT-ST DVDRAM GH70N',speeds:cd?[16,4,8]:[16,4,8]},back(){leave();$('away').hidden=false;$('back').hidden=true;$('next').hidden=true;},burn(onProgress,{speed}){busy=true;$('scenario').disabled=true;const begin=performance.now();let stopped=false;const timer=setInterval(()=>{const elapsed=(performance.now()-begin)/1000,p=Math.min(1,elapsed/duration);if(scenario==='failed'&&p>=.45){clearInterval(timer);busy=false;$('scenario').disabled=false;onProgress({progress:p,elapsed,remaining:duration-elapsed,status:'failed'});return;}onProgress({progress:p,elapsed,remaining:Math.max(0,duration-elapsed),status:p===1?'success':'burning'});if(p===1){clearInterval(timer);busy=false;$('scenario').disabled=false;}},150);return{cancel(){if(stopped)return;stopped=true;clearInterval(timer);busy=false;$('scenario').disabled=false;onProgress({progress:Math.min(.99,(performance.now()-begin)/1000/duration),status:'cancelled'});}};}};}
+function open(){context=makeContext();$('away').hidden=true;$('next').hidden=false;start(api,context);}
+$('scenario').onchange=()=>{if(!busy){leave();open();}};
+$('return').onclick=()=>{$('away').hidden=true;$('next').hidden=false;start(api,context);};
+// The mini disc restores the module itself; restore the host footer alongside it.
+document.addEventListener('click',e=>{if(e.target.closest('.burn-mini')){$('away').hidden=true;$('next').hidden=false;}});
+$('lang').onclick=()=>{lang=lang==='zh'?'en':'zh';words();dispatchEvent(new CustomEvent('dp-lang'));};$('theme').onclick=()=>{root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';words();};
+let idle;const wake=()=>{root.classList.remove('idle');clearTimeout(idle);idle=setTimeout(()=>root.classList.add('idle'),10000);};for(const e of ['pointermove','pointerdown','keydown','wheel'])addEventListener(e,wake,{passive:true});wake();words();open();
+</script>
+</body>
+</html>

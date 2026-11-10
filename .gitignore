@@ -6,6 +6,8 @@ scans/
 photos/
 art/
 results/
+designs/
+.webui-jobs/
 docs/goals/
 research-prompt*.md
 /dis_preset*.json
