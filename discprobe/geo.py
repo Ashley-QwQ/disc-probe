@@ -641,3 +641,6 @@ def write_outputs(ladder: Ladder, out_dir: str, stopped: str | None = None) -> N
             w = csv.DictWriter(f, fieldnames=list(events[0]))
             w.writeheader()
             w.writerows(events)
+
+    from . import ui
+    ui.result_event("geo", out_dir, stopped)

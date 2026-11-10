@@ -222,7 +222,7 @@ def _blu_ray_speed(dev, args) -> None:
 
 def _measuring(dev, args):
     """What the probe reads through: at a terminal, a wrapper that also draws the progress line."""
-    if not ui.term().interactive:
+    if not ui.term().interactive and not os.environ.get("DISCPROBE_EVENTS"):
         return dev
     limit = f" It gives up after {args.max_minutes:g} minutes." if getattr(args, "max_minutes", 0) else ""
     ui.say(f"Measuring on {getattr(dev, 'name', 'the drive')}. Ctrl+C stops and keeps what was measured.{limit}", "dim")
@@ -281,6 +281,7 @@ def _geo_clv(args):
                 stage = "cache test" if "cache" not in ladder.summary else "waiting for a steady spindle"
                 return None, stage, None
             return done / max(len(ladder.zones), 1), f"zone {done}/{len(ladder.zones)}", None
+        status.location = lambda: ({"lba": reader.event_lba} if hasattr(reader, "event_lba") else {})
         progress = reader.progress = ui.Progress(status, keys=ui.open_keys(), pulse=reader.read_times,
                                                  wait_s=GEO_WAIT_S)
         log = ladder.log = ladder.tp.log = progress.log
@@ -494,6 +495,7 @@ def cmd_timing(args):
         summary["args"] = {k: v for k, v in vars(args).items()
                            if k != "func" and (k != "media" or v != "dvd")}
         _write_json(os.path.join(out, "summary.json"), summary)
+        ui.result_event("timing", out, summary.get("stopped"))
         print(f"\nRaw events and summary: {os.path.abspath(out)}")
     if stopped:
         _fail(stopped, guide.after_timing_stop(args, stopped))
@@ -1488,7 +1490,7 @@ def _speed(text: str):
 
 # (group title, commands); `main` fills in what each one does.
 COMMAND_GROUPS = (
-    ("Start here", ("guide", "tutorial", "selftest", "list")),
+    ("Start here", ("guide", "webui", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "timing", "geo", "results")),
     ("Make a disc image", ("random", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc")),
@@ -1954,6 +1956,14 @@ def _build_parser():
                     help="half the disc dark and half light instead of rings and a line: the edge "
                          "survives a wrong preset as a handful of arms, where a thin line does not")
     sp.set_defaults(func=cmd_calibdisc)
+
+    sp = sub.add_parser("webui", help="serve the web GUI backend")
+    sp.add_argument("--port", type=int, default=8765, help="HTTP port (default: 8765)")
+    sp.add_argument("--lan", action="store_true", help="listen on the LAN with a session token")
+    sp.add_argument("--media", choices=("dvd", "cd", "bd"), default="dvd", help="disc type")
+    sp.add_argument("--out", default="results", help="results directory (default: results)")
+    from .webui import run as run_webui
+    sp.set_defaults(func=run_webui)
 
     sp = sub.add_parser("selftest", help="parser checks and end-to-end runs on the simulated drive and a synthetic scan")
     sp.set_defaults(func=cmd_selftest)

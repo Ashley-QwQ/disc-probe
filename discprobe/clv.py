@@ -613,3 +613,5 @@ def write_outputs(run: "ClvLadder", out_dir: str, stopped: str | None = None) ->
         payload["stopped"] = stopped
     with open(os.path.join(out_dir, "summary.json"), "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, default=float)
+    from . import ui
+    ui.result_event("geo", out_dir, stopped)

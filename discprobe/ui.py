@@ -16,6 +16,8 @@ import collections
 import contextlib
 import functools
 import math
+import json
+import uuid
 import os
 import re
 import shutil
@@ -177,8 +179,51 @@ def say(text: str = "", style: str | None = None) -> None:
         print(t.style(text, style) if style else text, flush=True)
 
 
-def ask(question: str, default: bool = True) -> bool:
+_event_lock = threading.Lock()
+
+
+def event(event_type: str, **fields) -> None:
+    """Optional JSONL outlet. The terminal path does no I/O when it is disabled."""
+    path = os.environ.get("DISCPROBE_EVENTS")
+    if path:
+        record = dict(type=event_type, job=os.environ.get("DISCPROBE_JOB"), **fields)
+        with _event_lock, open(path, "a", encoding="utf-8") as stream:
+            stream.write(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n")
+
+
+def result_event(step: str, path: str, stopped=None) -> None:
+    event("result", step=step, path=os.path.abspath(path),
+          verdict="stopped_early" if stopped else "unknown", summary={})
+    if stopped:
+        event("stopped", reason=stopped)
+    event("state")
+
+
+def ask(question: str, default: bool = True, *, kind: str = "confirm") -> bool:
     """Yes or no at the terminal; the default wherever nobody can answer."""
+    if os.environ.get("DISCPROBE_EVENTS"):
+        ident = uuid.uuid4().hex
+        event("ask", id=ident, question=tr(question), default=default, kind=kind)
+        answer_path = os.environ.get("DISCPROBE_ANSWERS", os.environ["DISCPROBE_EVENTS"] + ".answers")
+        deadline = time.monotonic() + float(os.environ.get("DISCPROBE_ASK_TIMEOUT", "30"))
+        answer = default
+        while time.monotonic() < deadline:
+            try:
+                with open(answer_path, encoding="utf-8") as stream:
+                    for line in stream:
+                        try:
+                            reply = json.loads(line)
+                        except ValueError:
+                            continue
+                        if reply.get("id") == ident and type(reply.get("yes")) is bool:
+                            answer = reply["yes"]
+                            event("answer", id=ident, yes=answer)
+                            return answer
+            except FileNotFoundError:
+                pass
+            time.sleep(0.05)
+        event("answer", id=ident, yes=answer, timeout=True)
+        return answer
     if not term().can_prompt():
         return default
     try:
@@ -218,6 +263,7 @@ def burn_warning(t: Term | None = None, pause=time.sleep) -> None:
 
     Drawn by the clock, as terminals differ on whether they blink. The flash is skipped by Ctrl+C or --no-animation.
     """
+    event("log", text=tr(BURN_WARNING), level="warning")
     t = t or term()
     if not t.interactive:
         return
@@ -372,6 +418,8 @@ class Progress:
         self.percent_changed = 0.0
         self.interval = 1 / (ANIMATED_FPS if self.t.animate else PLAIN_FPS)
         self.closed = False
+        self.event_at = None
+        self.location = getattr(status, "location", None)
         self.keys = keys
         self.game = None        # the one on show; `games` keeps each one's board and best score
         self.games = {}
@@ -501,6 +549,14 @@ class Progress:
         if self.closed:
             return
         now = time.monotonic()
+        if os.environ.get("DISCPROBE_EVENTS"):
+            if self.event_at is None or now - self.event_at >= 0.25:
+                fraction, stage, eta = self.status()
+                event("progress", fraction=fraction, stage=stage, eta_s=eta,
+                      **(self.location() if self.location else {}))
+                self.event_at = now
+            if not self.t.interactive:
+                return
         if not force and now - self.last_draw < (interval if interval is not None else self.interval):
             return
         self.last_draw = now
@@ -546,6 +602,7 @@ class Progress:
 
     def log(self, *parts) -> None:
         """Print a line above the progress line."""
+        event("log", text=tr(" ".join(str(p) for p in parts)), level="info")
         self._wipe()
         print(tr(aligned(" ".join(str(p) for p in parts))), file=self.t.stream, flush=True)
         if self.playing:
@@ -555,6 +612,9 @@ class Progress:
     def close(self) -> None:
         if self.closed:
             return
+        if os.environ.get("DISCPROBE_EVENTS"):
+            self.event_at = None
+            self.tick(force=True)
         self.closed = True
         self._wipe()
         self.playing = False
@@ -706,6 +766,9 @@ class ProgressDevice:
         return getattr(self._dev, name)
 
     def execute(self, *args, **kwargs):
+        cdb = args[0] if args else kwargs.get("cdb", b"")
+        if os.environ.get("DISCPROBE_EVENTS") and cdb and cdb[0] in (0x28, 0xA8, 0xBE):
+            self.event_lba = int.from_bytes(cdb[2:6], "big")
         res = self.last = self._dev.execute(*args, **kwargs)
         if self.progress:
             self.progress.tick(interval=OUTSIDE_PAUSE_INTERVAL_S)
@@ -791,6 +854,17 @@ def geo_status(ladder, dev: ProgressDevice):
         total = ladder.max_targets * per_rung
         label = f"rung {min(rungs + 1, ladder.max_targets)}/{ladder.max_targets}"
         return done / total, label, rate.left(done, total)
+    def location():
+        lba = getattr(dev, "event_lba", None)
+        if lba is None:
+            return {}
+        values = dict(lba=lba)
+        # The initial prior is not a measured geometry. Wait for fitted targets.
+        if getattr(ladder, "cov", None) is not None:
+            b = ladder.prior.bit_nm * 1e-6
+            values["radius_mm"] = b * math.sqrt(ladder.u ** 2 + ladder.v * ladder._n_end(lba) / math.pi)
+        return values
+    status.location = location
     return status
 
 

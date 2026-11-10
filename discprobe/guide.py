@@ -973,13 +973,14 @@ def after_cdprobe(project: str) -> list[str]:
             f"  {PROG} geo {drive_flag()} --media cd"]
 
 
-def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -> list[str]:
-    """The workflow with what is already done ticked off, and the next command; `notes` says what each does."""
-    flag = {"cd": " --media cd", "bd": " --media bd"}.get(media, "")
+def guide_state(media: str = "dvd", out: str = "results", *, drives=None) -> dict:
+    """Disk-derived workflow, shared by the CLI and HTTP service. No drive is opened."""
+    if media not in ("dvd", "cd", "bd"):
+        raise ValueError("media must be dvd, cd or bd")
     random_iso = {"cd": "iso/cd-random.iso", "bd": "iso/bd-random.iso"}.get(media, "iso/random.iso")
     results = [r for r in scan(out) if not r.simulated and r.media == media]
     missing = missing_packages()
-    drives = optical_drives()
+    drives = optical_drives() if drives is None else drives
     drive = f"--drive {drives[0]}" if drives else ("--drive /dev/sr0" if sys.platform == "linux" else "--drive E:")
 
     timing = next((r for r in results if r.kind == "timing" and r.rotation() and not r.stopped), None)
@@ -989,22 +990,75 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
     geo = next((r for r in results if r.geo_complete()), None)
     has_iso = os.path.exists(random_iso) and not os.path.exists(random_iso + iso9660.UNFINISHED)
 
-    # A written file is not yet a disc. Scripts keep the tick they always saw.
-    disc_done = timing is not None or (has_iso and not notes)
-    rows = [(not missing, "Python packages", ", ".join(missing) + " missing" if missing else "numpy, pillow, scipy"),
-            (bool(drives), "Optical drive", " ".join(drives) if drives else
-             ("none found" if sys.platform in ("win32", "linux") else "real drives need Windows or Linux")),
-            (disc_done, "Random-data disc",
-             f"{random_iso} written; burn it" if has_iso and timing is None else
-             "measured" if timing else "not made yet"),
-            (timing_good, "Drive check (timing)", timing.describe() if timing else "not run yet"),
-            (geo is not None, "Geometry (geo)", geo.describe() if geo else "not run yet")]
-    picture = picture_iso() if notes else None
-    if notes:       # scripts keep the steps they always saw. The burn is the person's own, so nothing here can tick it.
-        rows += [(picture is not None, "Picture ISO (image)", short(picture) if picture else "not made yet"),
-                 (False, "Burn it on a blank", "from the batch you measured")]
-        current = next((i for i, row in enumerate(rows) if not row[0]))
-        rows[current] = (rows[current][0], rows[current][1], f"{i18n.tr(rows[current][2])}  <- {i18n.tr('you are here')}")
+    picture = picture_iso()
+    latest_timing = timing or next((r for r in results if r.kind == "timing"), None)
+    latest_geometry = geo or next((r for r in results if r.kind == "geo"), None)
+    def verdict(run):
+        if run is None:
+            return None
+        if run.kind == "geo":
+            return run.quality().replace(" ", "_")
+        if run.stopped:
+            return "stopped_early"
+        if not run.rotation():
+            return "unknown"
+        if run.rotation() != ("CLV" if media == "bd" else "CAV"):
+            return "too_noisy"
+        jitter = _jitter(run.summary)
+        return "good" if jitter and max(jitter) <= GOOD_JITTER_DEG else "usable"
+
+    steps = [
+        dict(id="packages", done=not missing, label="Python packages",
+             detail=", ".join(missing) + " missing" if missing else "numpy, pillow, scipy"),
+        dict(id="drive", done=bool(drives), label="Optical drive",
+             detail=" ".join(drives) if drives else "none found"),
+        dict(id="random_disc", done=timing is not None, label="Random-data disc",
+             detail="measured" if timing else f"{random_iso} written; burn it" if has_iso else "not made yet"),
+        dict(id="timing", done=timing_good, label="Drive check (timing)",
+             detail=timing.describe() if timing else "not run yet", verdict=verdict(latest_timing),
+             result=latest_timing.path if latest_timing else None),
+        dict(id="geo", done=geo is not None, label="Geometry (geo)",
+             detail=geo.describe() if geo else "not run yet", verdict=verdict(latest_geometry),
+             result=latest_geometry.path if latest_geometry else None),
+        # Batch identity and photo import do not exist yet; CD always needs this constant.
+        dict(id="photo_l", needed=media == "cd", done=False, label="Photograph L", detail="not measured yet"),
+        dict(id="picture_iso", done=picture is not None, label="Picture ISO (image)",
+             detail=short(picture) if picture else "not made yet"),
+        dict(id="burn", done=False, label="Burn it on a blank", detail="from the batch you measured")]
+    current = next(s["id"] for s in steps if not s["done"] and s.get("needed", True))
+    action = {"packages": None, "drive": "info", "random_disc": "timing" if has_iso else "random",
+              "timing": "timing", "geo": "geo", "photo_l": None, "picture_iso": "image", "burn": "burn"}[current]
+    return dict(media=media, drives=[dict(id=d, name=d, disc=None) for d in drives], steps=steps,
+                current=current, next=dict(action=action, label=i18n.tr(next(s["label"] for s in steps if s["id"] == current)),
+                                           minutes={"timing": 3, "geo": 5}.get(current)),
+                jobs=[], counter=None)
+
+
+def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -> list[str]:
+    """The workflow with what is already done ticked off, and the next command; `notes` says what each does."""
+    flag = {"cd": " --media cd", "bd": " --media bd"}.get(media, "")
+    random_iso = {"cd": "iso/cd-random.iso", "bd": "iso/bd-random.iso"}.get(media, "iso/random.iso")
+    state = guide_state(media, out)
+    steps = {s["id"]: s for s in state["steps"]}
+    missing = not steps["packages"]["done"]
+    drives = [d["id"] for d in state["drives"]]
+    drive = f"--drive {drives[0]}" if drives else ("--drive /dev/sr0" if sys.platform == "linux" else "--drive E:")
+    timing = next((r for r in scan(out) if r.path == steps["timing"]["result"]), None)
+    timing_good = steps["timing"]["done"]
+    geo = next((r for r in scan(out) if r.path == steps["geo"]["result"] and steps["geo"]["done"]), None)
+    has_iso = steps["random_disc"]["detail"].endswith("written; burn it") or steps["random_disc"]["done"]
+    picture = picture_iso() if steps["picture_iso"]["done"] else None
+    rows = []
+    for step in state["steps"]:
+        if not step.get("needed", True) or (not notes and step["id"] in ("photo_l", "picture_iso", "burn")):
+            continue
+        detail = step["detail"]
+        if notes and step["id"] == state["current"]:
+            detail = f"{i18n.tr(detail)}  <- {i18n.tr('you are here')}"
+        # Legacy pipe consumers tick file creation, while the current step still
+        # comes from the shared state (a file has not yet been measured as a disc).
+        done = step["done"] or (not notes and step["id"] == "random_disc" and has_iso)
+        rows.append((done, step["label"], detail))
 
     if media == "bd" and geo is not None:
         sectors = _sectors_for(geo.summary, out)[0]
