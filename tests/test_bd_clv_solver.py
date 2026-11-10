@@ -517,6 +517,29 @@ def test_an_offset_the_data_can_see_is_taken_out():
     assert abs(fit.r0_mm - 24.66) < 0.05, fit.r0_mm
 
 
+def test_a_fitted_offset_widens_the_radius_sigma():
+    # Its uncertainty belongs in r0's. Treating the fitted offset as known put the truth inside the
+    # reported 1 sigma 5 times in 100 (the 6pro audit of 1f7f92e); with it carried, about two thirds.
+    import random
+    sector_mm = clv.NOMINAL["bd"].sector_mm
+    inside, used = 0, 0
+    for seed in range(60):
+        rng = random.Random(seed)
+        zones = []
+        for k in range(25):
+            lba = 100_000 + k * (12_000_000 - 100_000) // 24
+            radius = math.sqrt(24.66 ** 2 + 0.32e-3 * sector_mm * lba / math.pi)
+            zones.append(clv.Sample(lba=lba, period_ms=2 * math.pi * radius / 10.34 + 0.1 + rng.gauss(0.0, 0.002),
+                                    coherence=1.0))
+        fit = clv.fit_t2(zones, sector_mm=sector_mm, pitch_um=0.32, fit_offset=True)
+        if not fit.offset_ms or fit.sigma_r0_mm is None:
+            continue
+        used += 1
+        inside += abs(fit.r0_mm - 24.66) <= fit.sigma_r0_mm
+    assert used >= 40, used
+    assert 0.5 <= inside / used <= 0.9, (inside, used)
+
+
 def test_cli_reports_the_rotation_before_measuring():
     with tempfile.TemporaryDirectory() as out:
         proc = subprocess.run([sys.executable, "-m", "discprobe", "timing", "--sim", "clv", "--media", "bd",

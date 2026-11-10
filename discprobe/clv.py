@@ -241,6 +241,22 @@ def _offset_fit(x, t, a0: float, b0: float, iterations: int = 40):
     return float(eps), sigma
 
 
+def _offset_cov(x, t, a: float, b: float, eps: float):
+    """Covariance of (a, b) when eps was fitted with them: from the three-parameter Jacobian, so the
+    uncertainty of eps is carried into a and b. Treating the fitted eps as known understated the
+    radius sigma about eightfold on a 25-zone run (the 6pro audit of 1f7f92e)."""
+    s = np.sqrt(np.maximum(a * x + b, 1e-9))
+    j = np.column_stack([x / (2 * s), 1.0 / (2 * s), np.ones_like(x)])
+    dof = len(x) - 3
+    resid = t - (s + eps)
+    if dof <= 0 or not np.isfinite(resid).all():
+        return None
+    try:
+        return (float((resid ** 2).sum() / dof) * np.linalg.inv(j.T @ j))[:2, :2]
+    except np.linalg.LinAlgError:
+        return None
+
+
 def fit_t2(samples, *, sector_mm: float, pitch_um: float | None = None, v_m_s: float | None = None,
            drop_outliers: bool = True, clip: float = 4.0, fit_offset: bool = False) -> ClvFit:
     """Fit T^2 = a*LBA + b, then anchor it.
@@ -310,7 +326,8 @@ def fit_t2(samples, *, sector_mm: float, pitch_um: float | None = None, v_m_s: f
         raise ValueError(f"the line through these periods has no positive slope and intercept "
                          f"(slope {a:.3e}, intercept {b:.3e}); a disc read at constant linear speed should give both")
 
-    cov = _period_fit(x[keep], t[keep] if not fit_offset else t[keep] - offset, a, b)[2]
+    cov = (_offset_cov(x[keep], t[keep], a, b, offset) if fit_offset and offset
+           else _period_fit(x[keep], t[keep] if not fit_offset else t[keep] - offset, a, b)[2])
     sigma_a, sigma_b = ((None, None) if cov is None
                         else (math.sqrt(abs(cov[0, 0])), math.sqrt(abs(cov[1, 1]))))
 
