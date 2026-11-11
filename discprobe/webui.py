@@ -537,8 +537,9 @@ class Backend:
                 done = next((e for e in reversed(job.history) if e.get("type") == "calibrated"), None)
                 if done:
                     rel = lambda p: str(Path(p).resolve().relative_to(self.root)).replace("\\", "/") if p else None
+                    # the preset as the catalogue names it (relative to the workspace), so the batch links to it
                     result = dict(ok=bool(done.get("ok")), reason=done.get("reason"), disc=done.get("disc"),
-                                  preset=done.get("preset"))
+                                  preset=rel(done.get("preset")))
                     for kind in ("timing", "geo"):
                         part = done.get(kind) or {}
                         if part.get("path"):

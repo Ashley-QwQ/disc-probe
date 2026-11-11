@@ -18,10 +18,13 @@ def disc_report(report):
     if blank is None:
         status = parsed('disc_information').get('disc_status')
         blank = status in (0, 'empty') if status in (0, 1, 2, 'empty', 'incomplete', 'complete') else None
+    # closed: the disc was finalized (READ DISC INFORMATION says complete); False while a session is open
+    status = parsed('disc_information').get('disc_status')
+    closed = True if status == 'complete' else False if status == 'incomplete' else None
     disc = dict(present=family != 'unknown', media=family,
                 kind=cfg.get('current_profile_name') or 'unknown',
                 mid=disc_id(parsed('dvd_prerecorded_0e'), parsed('dvd_plus_adip_11'), parsed('atip')),
-                blank=blank, sectors=count[0] if count else None)
+                blank=blank, sectors=count[0] if count else None, closed=closed)
     capacity = recordable_capacity(report)
     disc['capacity_sectors'] = capacity[0] if capacity else None
     disc['capacity_source'] = capacity[1] if capacity else None
@@ -34,7 +37,13 @@ def catalogue(root, out):
     runs = guide.scan(str(out))
     infos = [r for r in runs if r.kind == 'info' and not r.simulated]
     metadata = guide._load(str(root / 'catalogue.json')) or {}
-    linked_presets = {value.get('preset') for value in metadata.values() if isinstance(value, dict)}
+    def linked(value):
+        # older pages saved the preset's absolute path; both spellings name the same file
+        path = Path(value) if isinstance(value, str) else None
+        if path is not None and path.is_absolute() and path.resolve().is_relative_to(root):
+            return path.resolve().relative_to(root).as_posix()
+        return value
+    linked_presets = {linked(value.get('preset')) for value in metadata.values() if isinstance(value, dict)}
     seen = set()
     for run in sorted(runs, key=lambda r: (r.geo_complete() if r.kind == 'geo' else False, r.when), reverse=True):
         if run.kind != 'geo' or run.simulated or not Path(run.path).resolve().is_relative_to(root):
@@ -94,6 +103,9 @@ def save_entry(root, out, payload):
         path = (Path(root) / value).resolve() if isinstance(value, str) else None
         if path is None or not path.is_relative_to((Path(root) / 'presets').resolve()) or path.suffix != '.json' or not path.is_file():
             raise ValueError('invalid preset path')
+        # stored relative to the workspace, as catalogue() compares it: an absolute path would leave the
+        # preset listed again as a batch of its own
+        payload = {**payload, 'preset': path.relative_to(Path(root).resolve()).as_posix()}
     path = Path(root) / 'catalogue.json'
     if not path.resolve().is_relative_to(Path(root).resolve()):
         raise ValueError('catalogue must stay inside the workspace')

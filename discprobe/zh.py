@@ -346,7 +346,7 @@ TEXT = {
     "No picture: most likely the light, not the burn. Step 5 in README.md has more on this.": "看不到图：多半是打光问题，不是刻坏了。详见 README.md 第 5 步。",
     "Twisted or broken lines: check it was the same batch and the same burner. If so, the geometry may be off.": "线条扭曲或错开：先确认是同一批盘、同一台刻录机。如果是，几何可能不准。",
     "Burn the grid test on another blank and see if its lines come out straight:": "用另一张空盘刻网格测试，看线条直不直：",
-    "The burn failed or stopped: a DVD+R, DVD-R or CD-R can't be used again, so take a new blank. Failing again? Try a lower burn speed.": "刻录失败或中途停了：DVD+R、DVD-R、CD-R 不能再用，换一张新盘。还不行就换低一点的刻录速度。",
+    "The burn failed or stopped: a DVD+R, DVD-R or CD-R can't be used again, so take a new blank. Failing again? Try another burn speed; slower is not always better.": "刻录失败或中途停了：DVD+R、DVD-R、CD-R 不能再用，换一张新盘。还不行就换一个刻录速度，慢不一定更好。",
 
     # The tutorial
     "What you need: a burner on Windows or Linux, and a few blank discs from one box. DVD-R has worked best.": "要准备的：Windows 或 Linux 电脑上的一台刻录机，同一盒的几张空白盘。DVD-R 效果最好。",

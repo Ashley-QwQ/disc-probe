@@ -32,6 +32,19 @@ vm.runInContext(String.raw`
   assert.match(q('.burn-result p').textContent,/另一速度刻录/);
   task.burnResult.verification={status:'skipped'}; paint();
   assert.match(q('.burn-result p').textContent,/已跳过回读/);
+  // after a write: written, closed, read back and picture are four separate answers
+  const rows=(job,en)=>afterChecks(job,en).map(([label,s])=>label+':'+s).join(' ');
+  const clean={status:'success',closed:true,burnResult:{selected_speed_x:8,actual_speed_x:8,verification:{status:'completed',ok:96,differing:0,unreadable:0,untested:0,failures:[]}}};
+  assert.equal(rows(clean,true),'Written:good Closed:good Read back:good Picture:unknown');
+  assert.equal(rows({...clean,closed:false},true),'Written:good Closed:warn Read back:good Picture:unknown');
+  assert.equal(rows({...clean,closed:null},false),'写入:good 关盘:unknown 回读:good 图案:unknown');
+  const bad={...clean,burnResult:{...clean.burnResult,verification:{status:'completed',ok:70,differing:0,unreadable:26,untested:0,failures:[]}}};
+  assert.equal(rows(bad,true),'Written:good Closed:good Read back:warn Picture:unknown');
+  assert.equal(rows({...clean,burnResult:{verification:{status:'skipped'}}},true),'Written:good Closed:good Read back:unknown Picture:unknown');
+  // never a green picture: the program cannot see it
+  assert.ok(!afterChecks(clean,true).some(([l,s])=>l==='Picture'&&s==='good'));
+  // a clean sample is not repeated in the paragraph
+  task=clean; paint(); assert.equal(q('.burn-result p').textContent,'');
 `, sandbox);
 
 // Exercise realBurn's event forwarding using an in-memory EventSource; no HTTP or server.

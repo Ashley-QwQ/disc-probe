@@ -976,7 +976,7 @@ function realPaint() {
   } else if (phase === "saved") {
     title = liveText('预设已保存', 'Preset saved'); text = flow.savedPath;
     if (flow.detected.media === "cd") html = `<p>${esc(cdPhoto[api.lang()])}</p>`;
-    button = liveText('回到首页', 'Return home');
+    button = returnTo ? liveText('回到新作品', 'Back to the new work') : liveText('回到首页', 'Return home');
   }
   if (["prepare", "burn"].includes(phase)) html = budgetHTML(flow.detected.media, api.lang()) + html;
   if (flow.ask) {
@@ -1095,7 +1095,11 @@ async function realNext(forceMeasure = false) {
       } else if (flow.detected.media === "cd") flow.realPhase = "photo";
       else await realSave();
     } else if (phase === "photo") await realSave();
-    else if (phase === "saved") { flow = null; release(); await api.reload(); return; }
+    else if (phase === "saved") {
+      // opened from the new-plan form: back to it with the library read again, the new batch in it
+      if (returnTo) { await api.syncState?.(); leave(); flow = null; return; }
+      flow = null; release(); await api.reload(); return;
+    }
     paint();
   } catch(error) { realError(error); }
 }

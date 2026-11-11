@@ -1441,7 +1441,8 @@ export async function designBits(onStage = () => {}, { band: bandRows } = {}) {
   if (![6000, 12000, 24000].includes(side)) throw new Error(api.lang() === "zh" ? "请选择 20、10 或 5 µm 格子。" : "Choose a 20, 10 or 5 µm grid.");
   if (S.tone.levels === 4 && S.media === "cd") throw new Error(t.four);
   onStage(t.drawing);
-  await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));   // let the stage show first
+  // let the stage show first; a page in a background tab gets no frames, so a timer goes on without one
+  await new Promise((r) => { let go = () => { go = () => {}; setTimeout(r, 0); }; requestAnimationFrame(() => go()); setTimeout(() => go(), 100); });
   // Keep the DOM canvas rasteriser: converting working canvases to bitmaps
   // or worker canvases changes sampled colours (and therefore diffused bits).
   // Tone, dither and packing own the transferred pixels entirely in the worker.
@@ -1481,6 +1482,11 @@ export async function designBits(onStage = () => {}, { band: bandRows } = {}) {
     for (const bitmap of originals.values()) bitmap.close();
   }
 }
+// The burn file's name from the plan's: letters of any script, digits, _ and -, joined by -; never starting
+// with - (the core refuses such a path, and the default Chinese plan name begins with one once spaces go)
+export function isoStem(name) {
+  return String(name ?? "").replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "") || "design";
+}
 // Draw the design, hand it to the back end and run `image`; resolves with the ISO's path and size.
 // onProgress({ stage, fraction }) — fraction is null while unknown.
 export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
@@ -1489,7 +1495,7 @@ export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
   let state;
   try { const r = await fetch(`/api/state?media=${S.media}`); if (!r.ok) throw 0; state = await r.json(); } catch { throw new Error(t.noBackend); }
   const geoPath = projectGeo(state);
-  if (!geoPath) throw new Error(t.noGeo);
+  if (!geoPath) throw Object.assign(new Error(t.noGeo), { code: "nogeo" });
   const { bits, rMax } = await designBits((stage) => onProgress({ stage, fraction: null }));
   stop();
   onProgress({ stage: t.sending, fraction: null });
@@ -1498,7 +1504,7 @@ export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
   if (!up.ok) throw new Error(saved.error ?? t.failed);
   stop();
   const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
-  const output = `iso/${(S.name ?? "design").replace(/[^\w-]+/g, "-").slice(0, 40) || "design"}-${stamp}.iso`;
+  const output = `iso/${isoStem(S.name)}-${stamp}.iso`;
   onProgress({ stage: t.making, fraction: 0 });
   const run = await fetch("/api/run", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -1506,6 +1512,7 @@ export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
   });
   const job = await run.json().catch(() => ({}));
   if (!run.ok) throw new Error(job.error ?? t.failed);
+  let why = "", lastLine = "";
   const exit = await new Promise((resolve, reject) => {
     const es = new EventSource("/api/events");
     signal?.addEventListener("abort", () => {          // stop the back end's job too
@@ -1515,9 +1522,12 @@ export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
     }, { once: true });
     const mine = (e) => { const d = JSON.parse(e.data); return d.job === job.job ? d : null; };
     es.addEventListener("progress", (e) => { const d = mine(e); if (d) onProgress({ stage: t.making, fraction: d.fraction ?? null }); });
+    // what the core said last, so a failure says why (the error event if there is one, else its last line)
+    es.addEventListener("error", (e) => { if (!e.data) return; const d = mine(e); if (d?.message) why = d.message; });
+    es.addEventListener("log", (e) => { const d = mine(e); if (d?.text && !/^\s*$/.test(d.text)) lastLine = d.text; });
     es.addEventListener("done", (e) => { const d = mine(e); if (d) { es.close(); resolve(d.exit); } });
   });
-  if (exit !== 0) throw new Error(t.failed);
+  if (exit !== 0) throw new Error([t.failed, why || lastLine].filter(Boolean).join(" "));
   const info = await (await fetch(`/api/iso?path=${encodeURIComponent(output)}`)).json();
   S.geo = geoPath;                                     // the project keeps the geometry it was made with
   return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job, geo: geoPath };
@@ -1797,6 +1807,21 @@ async function toPreview() {
     exportIso: (onProgress, opts) => makeBurnFile((p) => onProgress({ fraction: p.fraction, stage: p.stage }), opts),
     back: () => start(api, { fly: false }),
     next: (iso) => toBurn(iso, () => preview.start(api, ctx)),   // the same context keeps the file it made
+    // no measured geometry for these discs: calibrate the batch (the one picked, else the disc in the drive),
+    // then come back here; a batch measured meanwhile becomes this plan's
+    calibrate: async () => {
+      const cal = await import("./calibrate.js");
+      api.useForPlan?.(P.media, P.item?.kind === "new" ? null : P.item ?? null);
+      cal.start(api, { returnTo: async ({ done }) => {
+        if (done) {
+          await api.syncState?.();
+          const d = api.driveDisc?.(), mine = (x) => ["good", "usable"].includes(x.s) && (P.item?.id ? x.id === P.item.id : d?.mid && x.mid === d.mid);
+          const it = (api.catalogue?.(P.media) ?? []).find(mine);
+          if (it) { P.item = it; api.rememberBatch?.(it); }
+        }
+        preview.start(api, ctx);
+      } });
+    },
   };
   preview.start(api, ctx);
 }
@@ -1844,6 +1869,17 @@ async function toBurn(iso, back) {
       : async () => { ({ problem: ctx.driveProblem, swap: ctx.needSwap } = await inspectDisc(drive, iso)); return ctx; },
     // ?mockburn plays a pretend burn (a timer, no drive) so the page's animation can be looked at.
     burn: mock ? mockBurn : (onProgress, opts) => realBurn(iso, drive, onProgress, opts),
+    // after a write: read the disc again (read-only) to see whether it was closed. The home page reads the
+    // drive at the same moment (refreshFinishedDisc), so a busy answer waits and asks again.
+    checkDisc: mock ? null : async () => {
+      for (let i = 0; i < 4; i++) {
+        try { return await api.readDisc(drive.id); }
+        catch (e) { if (e?.status !== 409) throw e; await new Promise((r) => setTimeout(r, 1500)); }
+      }
+      return null;
+    },
+    // the work is done: back to the desk (the plan stays in its recent list)
+    done: () => { root.dataset.mode = ""; $("back").hidden = true; $("next").disabled = false; api.toLobby ? api.toLobby() : api.goTo(...api.locate(S.item)); },
   };
   burn.start(api, ctx);
 }

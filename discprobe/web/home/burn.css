@@ -76,3 +76,11 @@
 @media(max-width:600px){:root[data-mode="burn"] #next{width:calc(100vw - 190px);max-width:calc(100vw - 190px);white-space:normal;gap:4px}.burn-hold-ring{width:28px;height:28px;margin-left:4px}}
 :root[data-motion="off"] .burn-page *, :root[data-motion="off"] .burn-primary, :root[data-motion="off"] .burn-mini {animation:none!important;transition:none!important}
 .burn-page.burn-reduce *{animation:none!important;transition:none!important}
+/* after a write: four answers, each with its own state (good / warn / unknown) */
+.burn-checks{display:grid;grid-template-columns:72px minmax(0,1fr);gap:8px 16px;margin:0 0 20px}
+.burn-checks dt{color:var(--ink-2)}
+.burn-checks dd{margin:0;overflow-wrap:anywhere;padding-left:14px;position:relative}
+.burn-checks dd::before{content:"";position:absolute;left:0;top:.55em;width:7px;height:7px;border-radius:50%;background:var(--unknown)}
+.burn-checks dd[data-s="good"]::before{background:var(--good)}
+.burn-checks dd[data-s="warn"]::before{background:var(--warn)}
+.burn-checks dd[data-s="warn"]{color:var(--warn)}

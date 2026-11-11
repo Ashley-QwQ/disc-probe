@@ -51,6 +51,13 @@ def test_results_identity_verdict_and_counter():
         catalog.save_entry(root,root/'results',dict(id=entry['id'],preset='presets/export.json'))
         linked=catalog.catalogue(root,root/'results')['dvd']
         assert len(linked)==1 and linked[0]['name']=='My batch' and linked[0]['left']==13
+        # the core reports the preset by its absolute path: stored relative, still one batch
+        catalog.save_entry(root,root/'results',dict(id=entry['id'],preset=str((root/'presets'/'export.json').resolve())))
+        assert json.loads((root/'catalogue.json').read_text())[entry['id']]['preset'] == 'presets/export.json'
+        assert len(catalog.catalogue(root,root/'results')['dvd']) == 1
+        # an absolute path saved by an older page links the preset too
+        (root/'catalogue.json').write_text(json.dumps({entry['id']: {'preset': str((root/'presets'/'export.json').resolve())}}))
+        assert len(catalog.catalogue(root,root/'results')['dvd']) == 1
         assert (path/'summary.json').exists()
         for bad in [dict(id=entry['id'],left=True),dict(id='missing',name='x'),dict(id=entry['id'],name='')]:
             try: catalog.save_entry(root,root/'results',bad)
@@ -72,12 +79,15 @@ def test_info_report_blank_capacity_and_family():
         track_1=dict(blank=True,track_start=0,free_blocks=1000),
         dvd_prerecorded_0e=dict(manufacturer_id='TEST MID')).items()}
     disc=catalog.disc_report(report)
-    assert disc == dict(present=True,media='dvd',kind='DVD-R',mid='TEST MID',blank=True,sectors=1000,
+    assert disc == dict(present=True,media='dvd',kind='DVD-R',mid='TEST MID',blank=True,sectors=1000,closed=None,
                         capacity_sectors=1000,capacity_source='free space of this blank disc')
     report['track_1']['parsed'].pop('blank')
     report['disc_information']={'parsed':{'disc_status':'empty'}}
     assert catalog.disc_report(report)['blank'] is True
     assert catalog.disc_report({})['present'] is False
+    for status, closed in (('complete', True), ('incomplete', False), ('empty', None)):
+        report['disc_information']={'parsed':{'disc_status':status}}
+        assert catalog.disc_report(report)['closed'] is closed
 
 
 def test_measurement_preserves_stop_reason(tmp_path):

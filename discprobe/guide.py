@@ -880,7 +880,7 @@ AFTER_BURN = ("How to look at it, not straight on, which only shows your own ref
               "  Twisted or broken lines: check it was the same batch and the same burner. If so, the geometry may be off.",
               "  Burn the grid test on another blank and see if its lines come out straight:",
               f"  {PROG} image --geo latest --output iso/grid.iso",
-              "  The burn failed or stopped: a DVD+R, DVD-R or CD-R can't be used again, so take a new blank. Failing again? Try a lower burn speed.")
+              "  The burn failed or stopped: a DVD+R, DVD-R or CD-R can't be used again, so take a new blank. Failing again? Try another burn speed; slower is not always better.")
 
 
 def tutorial_lines() -> list[str]:

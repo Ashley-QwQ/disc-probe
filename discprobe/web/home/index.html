@@ -1421,9 +1421,9 @@
       console.error("disc refresh", error);
     }
   }
-  if (!backend.mock) backend.events(async event => {
-    await refreshFinishedDisc(event);
-    if (event.type !== "state" || root.dataset.mode) return;
+  // The library's rows from the core's state: on every state event while no page is open, and when a page
+  // that changed them (a calibration saved from the new-plan form) hands back to the one that opened it.
+  async function syncState() {
     try {
       backendState = await backend.state(); backendError = null;
       const selectedId = DATA[col][idx]?.id;
@@ -1435,8 +1435,14 @@
         delete loaded[row];
       }
       if (col !== "drive") idx = Math.max(0, DATA[col].findIndex(x => x.id === selectedId));
-      await loadSolid(col); render(1,true);
-    } catch(e) {backendError=e; render(1,true);}
+      if (!root.dataset.mode) { await loadSolid(col); render(1,true); }
+    } catch(e) {backendError=e; if (!root.dataset.mode) render(1,true);}
+  }
+  api.syncState = backend.mock ? async () => {} : syncState;
+  if (!backend.mock) backend.events(async event => {
+    await refreshFinishedDisc(event);
+    if (event.type !== "state" || root.dataset.mode) return;
+    await syncState();
   });
   // ---- the lobby and the library (docs/goals/gui-outline.md 3.0) ----
   // The page opens on the lobby. "New plan" starts a work at once, on the discs it can guess: the batch used

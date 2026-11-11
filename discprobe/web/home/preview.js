@@ -27,7 +27,7 @@ const STR = {
     title: "预览", next: "下一步：刻录", views: "预览方式",
     v: { design: "设计投影", off: "失配模拟", look: "拟真" },
     file: "刻录文件", fileNote: "把设计变成可以刻录的文件。生成以后才能去刻录。",
-    make: "生成刻录文件", again: "重新生成", cancel: "取消", making: "正在生成…", made: "刻录文件已生成",
+    make: "生成刻录文件", again: "重新生成", calibrate: "先标定这批盘", cancel: "取消", making: "正在生成…", made: "刻录文件已生成",
     cancelled: "已取消，可以重新生成。", failed: "没有生成出来。", sectors: "扇区", where: "保存位置", folder: "在文件夹里显示",
     details: "详细信息",
     cd: "这张 CD 的沿轨常数尚未确认，径向线可能扭曲。网页拍照标定还没做好，请先按 README 的 CD 路线，在 DIS 做精细标定。",
@@ -43,7 +43,7 @@ const STR = {
     title: "Preview", next: "Next: burn", views: "Preview mode",
     v: { design: "Design", off: "Off by a little", look: "Simulated" },
     file: "Burn file", fileNote: "Turn the design into a file to burn. Make it before going on to burn.",
-    make: "Make the burn file", again: "Make it again", cancel: "Cancel", making: "Making…", made: "Burn file ready",
+    make: "Make the burn file", again: "Make it again", calibrate: "Calibrate this batch first", cancel: "Cancel", making: "Making…", made: "Burn file ready",
     cancelled: "Cancelled. You can make it again.", failed: "The file wasn't made.", sectors: "sectors", where: "Saved at", folder: "Show in folder",
     details: "Details",
     cd: "This CD’s along-track constant is unconfirmed; radial lines may twist. Web photo calibration is not ready. Follow the README CD route and run fine calibration in DIS first.",
@@ -98,7 +98,9 @@ function buildRight() {
       `<p class="note">${esc(s.stage || t.making)}${s.fraction ? ` <span class="mono">${Math.floor(s.fraction * 100)}%</span>` : ""}</p>` +
       `<button class="sbtn wide" type="button" data-a="cancel">${t.cancel}</button>`
     : `<p class="note">${s.phase === "failed" ? `<span class="pv-err">${esc(s.error || t.failed)}</span>` : s.phase === "cancelled" ? t.cancelled : t.fileNote}</p>` +
-      `<button class="sbtn wide pv-make" type="button" data-a="make" ${src ? "" : "disabled"}>${s.phase === "failed" ? t.again : t.make}</button>`) +
+      // no geometry yet: the way on is calibrating, not making the file again
+      (s.code === "nogeo" && ctx.calibrate ? `<button class="sbtn wide pv-make" type="button" data-a="calibrate">${t.calibrate}</button>`
+        : `<button class="sbtn wide pv-make" type="button" data-a="make" ${src ? "" : "disabled"}>${s.phase === "failed" ? t.again : t.make}</button>`)) +
     (ctx.media === "cd" && !ctx.alongTrackMeasured ? `<p class="note pv-warn">${t.cd}</p>` : "") + `</section>`;
   let viewSec = "";
   if (view === "off") viewSec = `<section><h3>${t.offH}</h3><p class="note">${t.offNote}</p>` +
@@ -173,7 +175,7 @@ async function make() {
     state = { phase: "ready", iso };
   } catch (e) {
     if (state !== job) return;
-    state = { phase: e?.name === "AbortError" ? "cancelled" : "failed", error: e?.message };
+    state = { phase: e?.name === "AbortError" ? "cancelled" : "failed", error: e?.message, code: e?.code };
   }
   ctx.state = state;
   buildRight();
@@ -285,6 +287,7 @@ function bind(signal) {
     const a = e.target.closest("[data-a]")?.dataset.a;
     if (a === "reset-look") { Object.assign(look, DEFAULT_POSE, PHOTO_DEFAULTS); buildRight(); draw(); }
     if (a === "make") make();
+    if (a === "calibrate") { state = ctx.state = { phase: "idle" }; leave(false); ctx.calibrate(); }
     if (a === "cancel") cancel();
     if (a === "folder") ctx.showInFolder?.(state.iso.path);
   });
