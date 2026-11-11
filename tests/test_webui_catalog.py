@@ -72,7 +72,8 @@ def test_info_report_blank_capacity_and_family():
         track_1=dict(blank=True,track_start=0,free_blocks=1000),
         dvd_prerecorded_0e=dict(manufacturer_id='TEST MID')).items()}
     disc=catalog.disc_report(report)
-    assert disc == dict(present=True,media='dvd',kind='DVD-R',mid='TEST MID',blank=True,sectors=1000)
+    assert disc == dict(present=True,media='dvd',kind='DVD-R',mid='TEST MID',blank=True,sectors=1000,
+                        capacity_sectors=1000,capacity_source='free space of this blank disc')
     report['track_1']['parsed'].pop('blank')
     report['disc_information']={'parsed':{'disc_status':'empty'}}
     assert catalog.disc_report(report)['blank'] is True

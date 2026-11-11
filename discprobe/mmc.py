@@ -260,7 +260,8 @@ def parse_atip(d: bytes) -> dict:
         "leadin_start_lba": msf_to_lba(*leadin),
         # Last possible lead-out start on classic media; newer formats may put SAL here.
         "last_leadout_start_msf": "%02d:%02d:%02d" % leadout,
-        "last_leadout_start_lba": msf_to_lba(*leadout),
+        "last_leadout_start_lba": (msf_to_lba(*leadout)
+                                  if leadout[0] < 90 and leadout[1] < 60 and leadout[2] < 75 else None),
         "a1_a2_a3_valid": [bool(a[2] & 4), bool(a[2] & 2), bool(a[2] & 1)],
     }
 

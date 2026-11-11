@@ -1132,7 +1132,9 @@ async function realBurn() {
 async function realSave() {
   flow.realPhase = "saving";
   const output = `presets/calibration-${Date.now()}.json`;
-  const result = flow.preset ? { path: flow.preset } : await realJob("disexport", {geo:flow.geo.path, sectors:flow.blankSectors ?? flow.detected.sectors, output});
+  const sectors = flow.blankSectors ?? flow.detected.capacity_sectors;
+  if (!flow.preset && (!Number.isInteger(sectors) || sectors <= 0)) throw new Error(liveText('空白盘容量未知。请用 calibrate --sectors 指定容量。', 'Blank capacity is unknown. Run calibrate with --sectors.'));
+  const result = flow.preset ? { path: flow.preset } : await realJob("disexport", {geo:flow.geo.path, sectors, output});
   if (!result?.path) throw new Error("No preset was saved.");
   const state = await api.backend.state();
   const entry = state.catalogue[flow.detected.media].find(x => x.geo === flow.geo.path);

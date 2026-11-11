@@ -123,6 +123,10 @@ def summarize(r: dict) -> list[str]:
         return r.get(key, {}).get("parsed") or {}
 
     lines = []
+    from .capacity import recordable_capacity
+    recordable = recordable_capacity(r)
+    if recordable:
+        lines.append(f"Recordable capacity: {recordable[0]} sectors ({recordable[1]})")
     inq = parsed("inquiry")
     if inq:
         lines.append(f"Drive: {inq['vendor']} {inq['product']} rev {inq['revision']}")

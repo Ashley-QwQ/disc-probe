@@ -28,6 +28,7 @@ import threading
 import time
 
 from . import guide, ui
+from .capacity import catalogue_capacity, positive_sectors
 
 GOOD = ("good", "usable")
 
@@ -87,17 +88,20 @@ def run(args) -> None:
         line = next((ln for ln in reversed(seen.stdout.splitlines()) if ln.startswith("{")), None)
         return (json.loads(line) if line else {}).get("disc") or {}
 
-    # A preset carries the disc's capacity, which only the blank tells (a burned disc reads as long as what
-    # was burned): --sectors, else read off the blank before burning it.
+    # READ CAPACITY on a written disc is its readable length, never a preset capacity.
     capacity = args.sectors
+    capacity_source = '--sectors' if capacity is not None else None
     try:
+        if capacity is not None and not positive_sectors(capacity):
+            raise Stopped('--sectors must be a positive sector count below 4294967295')
         if args.iso:
             step("burn")
             if not args.yes_write:
                 raise Stopped("burning needs --yes-write")
             if capacity is None:
                 blank = read_disc()
-                capacity = blank.get("sectors") if blank.get("blank") is True else None
+                capacity = blank.get("capacity_sectors") if blank.get("blank") is True else None
+                capacity_source = 'blank disc before burning' if capacity else None
             code = child("burn", "--drive", args.drive, "--iso", args.iso, "--media", args.media, "--yes-write",
                          *(["--speed", args.burn_speed] if args.burn_speed else []))
             if code:
@@ -115,6 +119,15 @@ def run(args) -> None:
         if args.mid and disc.get("mid") != args.mid:
             raise Stopped(f"the disc's maker code is {disc.get('mid')}, not {args.mid}")
         found["disc"] = disc
+        if capacity is None and positive_sectors(disc.get('capacity_sectors')):
+            capacity, capacity_source = disc['capacity_sectors'], disc.get('capacity_source')
+        if capacity is None:
+            known = catalogue_capacity(disc.get('mid'), args.media)
+            if known:
+                capacity, capacity_source = known
+        if args.preset and not positive_sectors(capacity):
+            raise Stopped("recordable capacity is unknown; give --sectors with the blank disc's whole capacity "
+                          "(not the burned length), or record it by MID in presets/catalogue.json")
         ui.say(f"{disc.get('kind')} · {disc.get('mid') or 'unknown maker code'} · {disc.get('sectors')} sectors")
 
         for kind in ("timing", "geo"):
@@ -131,8 +144,6 @@ def run(args) -> None:
 
         if args.preset:
             step("preset")
-            if not capacity:
-                raise Stopped("the preset needs the blank disc's capacity (--sectors; `discprobe disc` on a blank prints it)")
             sectors = capacity
             Path(args.preset).parent.mkdir(parents=True, exist_ok=True)
             code = child("disexport", "--geo", found["geo"]["path"], "--sectors", sectors, "--output", args.preset)
@@ -140,6 +151,7 @@ def run(args) -> None:
                 raise Stopped("the preset was not written")
             found["preset"] = args.preset
             found["sectors"] = sectors
+            found["capacity_source"] = capacity_source
         ui.event("calibrated", ok=True, **found)
         ui.say("\nCalibrated.", "green")
     except Stopped as why:
@@ -161,7 +173,7 @@ def add_parser(sub) -> None:
     sp.add_argument("--speed", help="read speed for timing and geo (as those commands take it)")
     sp.add_argument("--mid", help="the maker code the disc must have (the batch's)")
     sp.add_argument("--preset", help="also write a DiscImageStudio preset here")
-    sp.add_argument("--sectors", type=int, help="the disc's capacity for the preset (default: read off the blank before burning)")
+    sp.add_argument("--sectors", type=int, help="whole blank capacity for the preset (default: read-only media capacity, then MID catalogue)")
     sp.add_argument("--transport", choices=["auto", "spti", "imapi"], default="auto")
     sp.add_argument("--sim", choices=["cav", "clv", "cav-nofua", "cav-flush", "cav-audio"],
                     help="run every step on the simulated drive (no burn)")
