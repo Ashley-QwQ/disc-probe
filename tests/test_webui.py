@@ -1,6 +1,7 @@
 """Drive-free backend tests. The only children are tiny Python scripts below."""
 import contextlib
 import http.client
+from http.cookies import SimpleCookie
 import io
 import json
 import os
@@ -10,6 +11,7 @@ import sys
 import tempfile
 import threading
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -330,18 +332,119 @@ time.sleep(60)
         self.addCleanup(cleanup)
         return server
 
-    def request(self, server, method, path, payload=None, headers=None):
+    def request(self, server, method, path, payload=None, headers=None, *, with_headers=False):
         c = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
         hdr = {"Content-Type": "application/json", **(headers or {})}
         c.request(method, path, json.dumps(payload) if payload is not None else None, hdr)
         response = c.getresponse()
         body = response.read()
         c.close()
+        if with_headers:
+            return response.status, body, dict(response.getheaders())
         return response.status, body
+
+    def test_home_routes_and_traversal(self):
+        server = self.http_server()
+        for query in ("", "?token=example&view=a%2Fb&view=c"):
+            with self.subTest(query=query):
+                code, body, headers = self.request(server, "GET", "/" + query, with_headers=True)
+                self.assertEqual((code, body, headers["Location"]), (302, b"", "/home/" + query))
+        home = (ROOT / "discprobe/web/home/index.html").read_bytes()
+        for path in ("/home/", "/home/index.html"):
+            with self.subTest(path=path):
+                self.assertEqual(self.request(server, "GET", path), (200, home))
+        for path in ("/home/../../webui.py", "/home/../../webui.py/",
+                     "/home/%2e%2e/%2e%2e/webui.py", "/home/data/"):
+            with self.subTest(path=path):
+                self.assertEqual(self.request(server, "GET", path)[0], 404)
+
+    def test_lan_token_sets_cookie_for_page_and_redirect(self):
+        server = self.http_server(lan=True)
+        cases = (("/home/?token=" + server.token, {}, 200),
+                 ("/home/", {"X-Discprobe-Token": server.token}, 200),
+                 ("/home/?token=" + server.token, {"X-Discprobe-Token": "wrong"}, 200),
+                 ("/?token=" + server.token + "&view=a%2Fb", {}, 302))
+        for path, request_headers, expected in cases:
+            with self.subTest(path=path, headers=request_headers):
+                code, _, headers = self.request(server, "GET", path, headers=request_headers, with_headers=True)
+                self.assertEqual(code, expected)
+                cookie = SimpleCookie(headers["Set-Cookie"])
+                session = cookie["discprobe_session"]
+                self.assertEqual(session.value, server.token)
+                self.assertEqual(session["path"], "/")
+                self.assertTrue(session["httponly"])
+                self.assertEqual(session["samesite"], "Strict")
+                self.assertFalse(session["secure"])
+                if expected == 302:
+                    self.assertEqual(headers["Location"], "/home/?token=" + server.token + "&view=a%2Fb")
+                    code, _, landing = self.request(server, "GET", headers["Location"], with_headers=True)
+                    self.assertEqual(code, 200)
+                    self.assertEqual(landing["Set-Cookie"], headers["Set-Cookie"])
+                cookie_header = {"Cookie": "other=value; " + session.OutputString(attrs=[])}
+                for resource in ("/home/api.js", "/home/burner.json", "/home/row-cd.svg", "/api/state"):
+                    code, _, resource_headers = self.request(server, "GET", resource, headers=cookie_header,
+                                                             with_headers=True)
+                    self.assertEqual(code, 200, resource)
+                    self.assertNotIn("Set-Cookie", resource_headers)
+
+    def test_lan_cookie_preserves_auth_and_site_checks(self):
+        server = self.http_server(lan=True)
+        for path in ("/home/", "/home/api.js", "/api/state"):
+            with self.subTest(path=path):
+                code, error, headers = self.request(server, "GET", path, with_headers=True)
+                self.assertEqual(code, 403)
+                self.assertIn("error", json.loads(error))
+                self.assertNotIn("Set-Cookie", headers)
+                for cookie in ("discprobe_session=wrong", "discprobe_session=", "other=value", "=bad"):
+                    code, body = self.request(server, "GET", path, headers={"Cookie": cookie})
+                    self.assertEqual((code, body), (403, error))
+                cookie = {"Cookie": "discprobe_session=" + server.token}
+                for extra in ({"Origin": "http://evil.example"}, {"Sec-Fetch-Site": "cross-site"}):
+                    code, _, headers = self.request(server, "GET", path, headers={**cookie, **extra},
+                                                     with_headers=True)
+                    self.assertEqual(code, 403)
+                    self.assertNotIn("Set-Cookie", headers)
+        # Cookie authentication also reaches POST routing without starting a job.
+        self.assertEqual(self.request(server, "POST", "/api/unknown", {}, headers=cookie)[0], 404)
+
+    def test_lan_cookie_authenticates_event_stream(self):
+        server = self.http_server(lan=True)
+        c = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+        self.addCleanup(c.close)
+        c.request("GET", "/api/events", headers={"Cookie": "discprobe_session=" + server.token})
+        response = c.getresponse()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.getheader("Content-Type"), "text/event-stream")
+        self.assertEqual(response.readline(), b": heartbeat\n")
+        response.close()
+        c.close()
+
+    def test_local_mode_needs_no_token_and_sets_no_cookie(self):
+        server = self.http_server()
+        for path, expected in (("/", 302), ("/home/", 200), ("/api/state", 200),
+                               ("/home/?token=example", 200)):
+            for request_headers in ({}, {"X-Discprobe-Token": "example", "Cookie": "discprobe_session=example"}):
+                with self.subTest(path=path, headers=request_headers):
+                    code, _, headers = self.request(server, "GET", path, headers=request_headers, with_headers=True)
+                    self.assertEqual(code, expected)
+                    self.assertNotIn("Set-Cookie", headers)
+        self.assertEqual(self.request(server, "GET", "/api/state", headers={"Host": "evil.example"})[0], 403)
+
+    def test_run_prints_home_address(self):
+        for lan in (False, True):
+            with self.subTest(lan=lan):
+                output = io.StringIO()
+                args = SimpleNamespace(media="dvd", out="results", port=0, lan=lan)
+                with patch.object(webui, "Backend", return_value=self.backend()), \
+                        patch.object(webui.Server, "serve_forever", side_effect=KeyboardInterrupt), \
+                        contextlib.redirect_stdout(output):
+                    webui.run(args)
+                suffix = r"\?token=[A-Za-z0-9_-]+" if lan else ""
+                self.assertRegex(output.getvalue(), r"\Ahttp://127\.0\.0\.1:[0-9]+/home/" + suffix + r"\n\Z")
 
     def test_http_endpoints_and_origin(self):
         server = self.http_server()
-        self.assertEqual(self.request(server, "GET", "/")[0], 404)
+        self.assertEqual(self.request(server, "GET", "/")[0], 302)
         self.assertEqual(self.request(server, "GET", "/../guide.py")[0], 404)
         self.assertEqual(self.request(server, "GET", "/%2e%2e/guide.py")[0], 404)
         code, body = self.request(server, "GET", "/api/state")
