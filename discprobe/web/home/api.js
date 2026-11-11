@@ -32,6 +32,11 @@ export function events(onEvent, onError) {
 export async function job(payload, onEvent = () => {}) {
   const {job: id} = await run(payload);
   onEvent({type:'started', job:id});
+  return follow(id, onEvent);
+}
+// A job already running, maybe started before this page was (re)loaded: everything it has said so far,
+// then what it says next, until it ends. Its result, or an error if it failed.
+export async function follow(id, onEvent = () => {}) {
   const seen = new Set();
   const deliver = event => {
     if (event.job && event.job !== id) return;

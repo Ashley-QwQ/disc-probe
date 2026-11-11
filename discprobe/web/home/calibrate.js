@@ -176,6 +176,24 @@ export function start(homeApi, { returnTo: back = null } = {}) {
   open();
 }
 
+// A calibration the core is already running (the page was reloaded or closed meanwhile): show it and follow
+// it to its end, as if it had been started here.
+export function attach(homeApi, job) {
+  api = homeApi; $ = api.$;
+  returnTo = null;
+  if (!flow?.job) {
+    flow = newFlow({ kind: "new", row: job.media || "dvd", name: "", mid: "", s: "new" });
+    if (!ui) build();
+    flow.realPhase = "checking"; flow.detected = { media: job.media || "dvd" };
+  }
+  open();
+  if (flow.job) return;
+  (async () => {
+    try { finishCalibrate(await realJob(job.action, {}, {}, job.id)); paint(); }
+    catch (error) { realError(error); }
+  })();
+}
+
 function T() { return STR[api.lang()]; }
 
 // ---------------------------------------------------------------- scene pieces
@@ -446,11 +464,7 @@ function runJob(kind, seconds, onTick, onDone) {
     if (flow.job !== job) return;
     job.p = Math.min(1, ((performance.now() - job.started) / 1000) * DEMO / seconds);
     const r = radiusAt(job.p);
-    const fill = $("job-fill");
-    fill.style.width = `${(job.p * 100).toFixed(2)}%`;
-    fill.style.background = disc
-      ? `linear-gradient(90deg, ${Array.from({ length: 9 }, (_, i) => rainbowAt(R0 + ((r - R0) * i) / 8)).join(", ")})`
-      : "var(--ink)";
+    api.jobProgress(job.p, flow.item?.row || "dvd");
     const leftS = seconds * (1 - job.p);
     $("job-time").textContent = leftS > 90 ? T().left(leftS) : T().leftSec(leftS);
     flow.plateP = job.p;
@@ -840,6 +854,8 @@ function paint() {
   nb.classList.toggle("hold", hold && nextOn);
   nb.dataset.hold = hold && nextOn ? "1" : "";
   flow.warnEl.classList.toggle("on", warn);
+  flog.title(flow.job ? h : "");
+  $("cal").classList.toggle("floor-titled", !!flow.job);
 
   for (const r of $("cal").querySelectorAll('input[name="src"]')) r.addEventListener("change", () => {
     flow.choice = r.value;
@@ -928,13 +944,14 @@ function realPaint() {
       button = liveText('测转速', 'Measure rotation'); disabled = !flow.measureConfirmed;
     } else { text += liveText('。空白状态未知，请重新检测。', '. Blank status is unknown; check again.'); button = liveText('重新检测', 'Check again'); }
   } else if (phase === "burn") {
-    title = liveText('测量镜像已准备好', 'Measurement image ready');
-    text = flow.iso;
-    html = `<p>${liveText('用其他刻录程序将此镜像刻到同批次空白盘，然后放入刻好的测量盘。', 'Burn this image to a blank disc from this batch with another program, then insert the written measurement disc.')}</p>`;
-    button = liveText('我已经刻好：检测光盘', 'I have burned it: check disc');
-    if (api.burnMeasurementDisc) html += `<button id="real-burn" type="button">${liveText('刻测量盘', 'Burn measurement disc')}</button>`;
-  } else if (phase === "timing" || phase === "geo" || phase === "random" || phase === "saving") {
-    title = {timing:T().timing, geo:T().geo, random:T().generate, saving:liveText('正在保存预设', 'Saving preset')}[phase];
+    title = liveText('刻测量盘', 'Burn the measurement disc');
+    text = liveText('光驱里放着同批次的空白盘。按住下一步 1 秒开始刻录：托盘会关上，刻录不能撤销，DVD 约 14 分钟。刻完会自己检查这张盘，接着开始测量。',
+      'The drive holds a blank from this batch. Hold Next for a second to burn: the tray closes, burning cannot be undone, about 14 minutes for a DVD. When it is done the disc is checked and measuring starts on its own.');
+    html = `<p class="cal-aside">${liveText('也可以用别的刻录程序把', 'Or burn')} <code>${esc(flow.iso)}</code> ${liveText('刻到同批次的空白盘上，放进光驱后', 'to a blank from this batch with another program, put it in, and')} <button id="real-have" type="button" class="btn">${liveText('检测刻好的盘', 'check the burned disc')}</button></p>`;
+    button = liveText('下一步：刻测量盘（按住）', 'Next: burn the disc (hold)');
+  } else if (["timing", "geo", "random", "saving", "burning", "checking"].includes(phase)) {
+    title = {timing:T().timing, geo:T().geo, random:T().generate, saving:liveText('正在保存预设', 'Saving preset'), burning:T().burning,
+      checking:liveText('正在检查刻好的盘', 'Checking the burned disc')}[phase];
     text = flow.stage || liveText('等待任务进度。可以取消。', 'Waiting for progress. You can cancel.'); disabled = true;
   } else if (phase === "review") {
     title = liveText('几何测量结果', 'Geometry result');
@@ -961,8 +978,13 @@ function realPaint() {
   }
   if (flow.error) { html += `<p role="alert">${esc(flow.error)}</p><button id="real-retry">${liveText('重新检测', 'Check again')}</button>`; disabled = true; }
   $("cal").innerHTML = `<h2>${esc(title)}</h2><p class="lede">${esc(text)}</p>${html}`;
-  $("next-text").textContent = button; $("next").disabled = disabled; $("next").dataset.hold = "";
-  $("next").classList.remove("hold");
+  // while a job runs, its step's name lies on the floor in front of the drive (floor-log.js)
+  flog.title(flow.job ? title : "");
+  $("cal").classList.toggle("floor-titled", !!flow.job);
+  // burning is confirmed by holding the button (holdButton), everything else by a click
+  const hold = phase === "burn" && !disabled;
+  $("next-text").textContent = button; $("next").disabled = disabled; $("next").dataset.hold = hold ? "1" : "";
+  $("next").classList.toggle("hold", hold);
   $("real-name")?.addEventListener("input", e => {flow.realName = e.target.value;});
   $("measurement-confirm")?.addEventListener("change", e => {flow.measureConfirmed = e.target.checked; paint();});
   $("left-input")?.addEventListener("input", e => { flow.left = e.target.value === "" ? null : Number(e.target.value); });
@@ -970,9 +992,7 @@ function realPaint() {
   for (const [id, yes] of [["real-yes",true],["real-no",false]]) $(id)?.addEventListener("click", async () => {
     try { const ask = flow.ask; await api.backend.answer(ask.job, ask.id, yes); flow.ask = null; paint(); } catch(e) {realError(e);}
   });
-  $("real-burn")?.addEventListener("click", async () => {
-    try { await api.burnMeasurementDisc(flow.iso); } catch(e) {realError(e);}
-  });
+  $("real-have")?.addEventListener("click", () => { flow.realPhase = "inspect"; realNext(); });
   if (phase === "photo" && !flow.photoLoading) mountRealPhone();
 }
 async function mountRealPhone() {
@@ -992,29 +1012,40 @@ async function mountRealPhone() {
     if (target) target.textContent = liveText('手机拍照模块尚未就绪。保留测量结果，模块可用后重新打开。', 'The phone capture module is not available yet. The measurement is saved; reopen when the module is ready.');
   }
 }
-async function realJob(action, args = {}) {
+// the core's steps (calibrate.py) as this page's phases
+const STEP_PHASE = { burn: "burning", check: "checking", timing: "timing", geo: "geo", preset: "saving" };
+async function realJob(action, args = {}, extra = {}, following = null) {
   const f = flow;
-  const current = {kind:action, id:null, p:0}; f.job = current;
+  const current = {kind:action, id:following, p:0}; f.job = current;
   $("job").hidden = false; $("job-name").textContent = action; paint();
-  const drive = ["info","timing","geo"].includes(action) ? api.selectedDrive() : undefined;
+  const drive = ["info","timing","geo","burn","calibrate"].includes(action) ? api.selectedDrive() : undefined;
   placeLog(); flog.start(commandLine(action, drive));
-  try {
-    return await api.backend.job({action, media:f.detected?.media || f.item.row || "dvd", drive, args}, event => {
+  const onEvent = event => {
       if (flow !== f) return;
       if (event.type === "started") current.id = event.job;
-      if (event.type === "log") flog.log(event.text, event.level);
+      if (event.type === "step") {
+        f.realPhase = STEP_PHASE[event.name] ?? f.realPhase; f.stage = null; current.p = 0;
+        $("job-name").textContent = event.name;
+        flog.log(`$ python -m discprobe ${event.name}`, "command");
+        if (event.name !== "geo") showInterior(false);
+        paint();
+      }
+      if (event.type === "disc" && event.present) f.detected = { ...f.detected, ...event };
+      if (event.type === "log") flog.log(event.text, event.level, event.ansi);
       if (event.type === "progress") flog.progress(event.fraction, event.stage, event.eta_s);
       if (event.type === "ask") { f.ask = event; paint(); }
       if (event.type === "answer") { f.ask = null; paint(); }
       if (event.type === "stopped") f.error = liveText('提前停止：', 'Stopped early: ') + event.reason;
       if (event.type === "progress") {
         current.p = Math.max(0, Math.min(1, event.fraction || 0)); f.plateP = current.p;
-        f.stage = event.stage; $("job-fill").style.width = `${current.p * 100}%`;
-        $("job-fill").style.background = Number.isFinite(event.radius_mm) ? rainbowAt(event.radius_mm) : "var(--ink)";
+        f.stage = event.stage; api.jobProgress(current.p, f.detected?.media || f.item?.row || "dvd");
         $("job-time").textContent = Number.isFinite(event.eta_s) ? T().leftSec(event.eta_s) : "?";
-        if (action === "geo") { setPlate("geo"); showInterior(true); updateInterior(current.p, event.eta_s || 0); }
+        if (action === "geo" || f.realPhase === "geo") { setPlate("geo"); showInterior(true); updateInterior(current.p, event.eta_s || 0); }
       }
-    });
+  };
+  try {
+    return following ? await api.backend.follow(following, onEvent)
+      : await api.backend.job({action, media:f.detected?.media || f.item.row || "dvd", drive, args, ...extra}, onEvent);
   } finally { if (flow === f) {endJob(); f.ask = null; showInterior(false);} }
 }
 async function realNext() {
@@ -1022,15 +1053,18 @@ async function realNext() {
   flow.error = null;
   try {
     const phase = flow.realPhase;
-    if (phase === "inspect" || phase === "burn" || (phase === "prepare" && flow.detected.blank == null)) {
+    if (phase === "burn") await realBurn();
+    else if (phase === "inspect" || (phase === "prepare" && flow.detected.blank == null)) {
       const result = await realJob("info");
       if (!result?.disc?.present) throw new Error(liveText('没有读到盘。放入光盘再检测。', 'No disc detected. Insert a disc and check again.'));
       if (result.disc.media !== (flow.item.row || flow.detected?.media || "dvd")) throw new Error(liveText('盘的类型不符，请换盘后重试。', 'Wrong disc family. Replace the disc and check again.'));
       const expectedMid = flow.detected?.mid || flow.item.mid;
       if (expectedMid && result.disc.mid !== expectedMid) throw new Error(liveText('厂商编号已改变，请放回同批次光盘。', 'The maker code changed. Insert a disc from the same batch.'));
       flow.detected = result.disc; flow.realPhase = "prepare"; flow.measureConfirmed = false;
+      if (result.disc.blank === true) flow.blankSectors = result.disc.sectors;     // the capacity a preset needs
     } else if (phase === "prepare") {
-      if (flow.detected.blank === true) {
+      if (flow.detected.blank === true && flow.iso) flow.realPhase = "burn";     // the image made before, kept for a retry
+      else if (flow.detected.blank === true) {
         const media = flow.detected.media;
         const capacity = flow.detected.sectors;
         if (!Number.isInteger(capacity)) throw new Error(liveText('容量未知。请重新检测空白盘。', 'Capacity is unknown. Check the blank disc again.'));
@@ -1040,16 +1074,7 @@ async function realNext() {
         const result = await realJob("random", {sectors, output:flow.iso});
         if (!result?.path) throw new Error("No measurement image was saved.");
         flow.realPhase = "burn";
-      } else if (flow.measureConfirmed) {
-        flow.realPhase = "timing";
-        const timing = await realJob("timing");
-        flow.timing = timing;
-        if (!["good", "usable"].includes(timing?.verdict)) throw new Error(liveText('转速测量未通过。检查结果，换速度后重试。', 'Rotation measurement was not usable. Review the result and retry at another speed.'));
-        flow.realPhase = "geo";
-        flow.geo = await realJob("geo");
-        if (!flow.geo) throw new Error("No geometry result was saved.");
-        flow.realPhase = "review";
-      }
+      } else if (flow.measureConfirmed) await realCalibrate();
     } else if (phase === "review") {
       if (!["good","usable"].includes(flow.geo.verdict)) {flow.realPhase = "inspect";}
       else if (flow.detected.media === "cd") flow.realPhase = "photo";
@@ -1059,10 +1084,37 @@ async function realNext() {
     paint();
   } catch(error) { realError(error); }
 }
+// The rest is the core's (`discprobe calibrate`, one job): with an image it burns it first, then checks the
+// disc, measures the rotation and the geometry and writes the preset. The page only follows the job's steps,
+// so a reload or a closed tab does not stop it (home finds the job again and calls attach()).
+async function realCalibrate(args = {}, extra = {}) {
+  const preset = `presets/calibration-${Date.now()}.json`;
+  // the preset needs the blank's capacity: known when the blank was read here; else the core reads it before burning
+  const result = await realJob("calibrate", { ...args, mid: flow.detected?.mid || undefined, preset, sectors: flow.blankSectors || undefined }, extra);
+  finishCalibrate(result);
+}
+function finishCalibrate(result) {
+  if (!result?.ok) throw new Error(result?.reason ? liveText('标定停在这一步：', 'Calibration stopped: ') + result.reason : liveText('标定没有完成。', 'The calibration did not finish.'));
+  flow.timing = result.timing; flow.geo = result.geo; flow.preset = result.preset;
+  if (result.disc) flow.detected = { ...flow.detected, ...result.disc };
+  flow.realPhase = "review";
+}
+// The measurement disc, burned here: a fresh read-only look that the tray still holds a blank (which also
+// lets the server accept this one burn), a one-time token, the burn; then the disc is read again (written
+// now, same maker code) and measuring starts.
+async function realBurn() {
+  const media = flow.detected.media, drive = api.selectedDrive();
+  flow.realPhase = "burning"; flow.stage = liveText('检查托盘里还是空白盘…', 'Checking the tray still holds the blank…'); paint();
+  const report = await api.backend.request(`/api/burn-speeds?drive=${encodeURIComponent(drive)}&media=${media}`);
+  if (report?.blank !== true) { flow.realPhase = "burn"; throw new Error(liveText('光驱里不是空白盘。放回这批的空白盘再刻。', 'The drive does not hold a blank. Put a blank from this batch back and burn again.')); }
+  const { token } = await api.backend.request("/api/burn-token");
+  flow.stage = null;
+  await realCalibrate({ iso: flow.iso }, { burn_token: token });
+}
 async function realSave() {
   flow.realPhase = "saving";
   const output = `presets/calibration-${Date.now()}.json`;
-  const result = await realJob("disexport", {geo:flow.geo.path, sectors:flow.detected.sectors, output});
+  const result = flow.preset ? { path: flow.preset } : await realJob("disexport", {geo:flow.geo.path, sectors:flow.blankSectors ?? flow.detected.sectors, output});
   if (!result?.path) throw new Error("No preset was saved.");
   const state = await api.backend.state();
   const entry = state.catalogue[flow.detected.media].find(x => x.geo === flow.geo.path);

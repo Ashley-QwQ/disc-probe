@@ -1696,6 +1696,9 @@ def _build_parser():
                     "CD sector layout; must match the ISO generator (default: mode2form1)")
     sp.set_defaults(func=burner.run)
 
+    from . import calibrate
+    calibrate.add_parser(sub)
+
     sp = sub.add_parser("list", help="list optical drives")
     sp.set_defaults(func=cmd_list)
 

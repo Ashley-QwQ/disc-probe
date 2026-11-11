@@ -7,6 +7,13 @@
 //
 // Placed in the render's own pixels (burner.json: 1600 × 1062, true isometric), in whatever box shows
 // that picture unmirrored at the moment: the drive picture on the home page, or the big cutaway.
+//
+// The lines keep the core's colours (log events carry its SGR codes), and the meter is the core's own
+// progress line (core-render.js, the same renderer as the terminal page). The step's title lies on the
+// floor in front of the drive, turned 45° anticlockwise in the floor's plane, so it reads across the
+// picture like a word painted on the ground.
+
+import { painted, progressLine } from "./core-render.js";
 
 const W = 1600, H = 1062;
 const PX_PER_MM = 3.61806;                    // along each world axis, render px
@@ -27,18 +34,10 @@ function at(a, o) {
   return [((W - x) / W) * 100, (y / H) * 100];
 }
 
-const clock = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-const BAR = 24;
-function meter(fraction, stage, eta) {
-  const parts = [];
-  if (Number.isFinite(fraction)) {
-    const f = Math.max(0, Math.min(1, fraction)), n = Math.round(f * BAR);
-    parts.push(`[${"#".repeat(n)}${"-".repeat(BAR - n)}]`, `${String(Math.floor(f * 100)).padStart(3)}%`);
-  }
-  if (stage) parts.push(stage);
-  if (Number.isFinite(eta)) parts.push(`about ${clock(eta)} left`);
-  return parts.join("  ");
-}
+// the title (shown only while a job runs, when the tray is shut): centred this far along the side, in front of the closed tray, and
+// this far in from it (the middle of the front face, the drive being about 148 mm wide); letters this tall
+const TITLE_AT = [300, -74], TITLE_MM = 36;
+const reduce = () => document.documentElement.dataset.motion !== "on";
 
 export function floorLog() {
   const el = document.createElement("div");
@@ -50,12 +49,18 @@ export function floorLog() {
   for (const [k, v] of Object.entries({ "--mm": `${MM}cqw`, "--fl-pitch": PITCH_MM, "--fl-font": FONT_MM, "--fl-lines": LINES }))
     el.style.setProperty(k, v);
   const lines = el.firstChild, bar = el.lastChild;
-  let host = null;
+  const title = document.createElement("div");
+  title.className = "fl-title";
+  title.setAttribute("aria-hidden", "true");
+  const [tl, tt] = at(...TITLE_AT);
+  Object.assign(title.style, { left: `${tl}%`, top: `${tt}%` });
+  for (const [k, v] of Object.entries({ "--mm": `${MM}cqw`, "--fl-title": TITLE_MM })) title.style.setProperty(k, v);
+  let host = null, meterLine = null;
 
-  function push(text, level = "info") {
+  function push(text, level = "info", ansi = null) {
     const row = document.createElement("div");
     row.className = `fl-line ${level}`;
-    row.textContent = text;
+    if (ansi) row.append(painted(ansi)); else row.textContent = text;
     lines.append(row);
     while (lines.children.length > LINES + 1) lines.firstChild.remove();
     // the column moves one line toward the drive; the newest line rises into the free place
@@ -70,17 +75,25 @@ export function floorLog() {
     mount(box) {
       if (!box || host === box) return;
       host = box;
-      box.append(el);
+      box.append(el, title);
     },
     start(command) {
       lines.replaceChildren();
-      bar.textContent = "";
+      meterLine?.stop(); meterLine = null; bar.replaceChildren();
       el.classList.add("on");
       push(command, "command");
     },
-    log(text, level) { if (text) push(text, level); },
-    progress(fraction, stage, eta) { bar.textContent = meter(fraction, stage, eta); },
-    end() { bar.textContent = ""; },
-    hide() { el.classList.remove("on"); },
+    log(text, level, ansi) { if (text) push(text, level, ansi); },
+    progress(fraction, stage, eta) {
+      meterLine ??= progressLine(bar, { reduce, alive: () => el.classList.contains("on") });
+      meterLine.update({ fraction, stage, eta_s: eta });
+    },
+    end() { meterLine?.stop(); meterLine = null; bar.replaceChildren(); },
+    // the step's name on the floor in front of the drive; empty takes it away
+    title(text) {
+      if (text) title.textContent = text;
+      title.classList.toggle("on", !!text);
+    },
+    hide() { el.classList.remove("on"); title.classList.remove("on"); },
   };
 }

@@ -43,8 +43,8 @@ def version():
         _VERSION = (m.group(1) + ("-dev" if m.group(2) else "")) if m else ""
     return _VERSION
 
-ACTIONS = {"info", "timing", "geo", "random", "image", "disexport", "cdprobe", "burn", "swap"}
-DRIVE_ACTIONS = {"info", "timing", "geo", "burn", "swap"}
+ACTIONS = {"info", "timing", "geo", "random", "image", "disexport", "cdprobe", "burn", "swap", "calibrate"}
+DRIVE_ACTIONS = {"info", "timing", "geo", "burn", "swap", "calibrate"}
 # Deliberately exclude force/install/replace, raw transport commands and arbitrary flags.
 OPTIONS = {
     "info": {},
@@ -58,6 +58,9 @@ OPTIONS = {
     "disexport": {"geo": "geo", "sectors": "sectors", "output": "path", "r_min": "radius", "r_max": "radius"},
     "cdprobe": {"sectors": "sectors", "output": "path", "size": "size"},
     "burn": {"iso": "path", "speed": "burn_speed", "cd_sector": "cd_layout"},
+    # the whole calibration in one job (calibrate.py); with `iso` it burns first, under the burn's rules
+    "calibrate": {"iso": "path", "burn_speed": "burn_speed", "speed": "speed", "mid": "mid", "preset": "path",
+                  "sectors": "sectors"},
 }
 DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell (checked in the tests)
 # a design upload by its length: one bit per cell, at 20, 10 or 5 um (imagedisc.CELL_SIDES)
@@ -99,6 +102,8 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
         raise APIError("this action has no Blu-ray path")
     if action == "cdprobe" and media != "cd":
         raise APIError("cdprobe requires cd media")
+    if action == "calibrate" and media == "bd":
+        raise APIError("this action has no Blu-ray path")
     drive = payload.get("drive")
     if drive is not None and (not isinstance(drive, str) or drive not in [d["id"] for d in drives]):
         raise APIError("unknown drive")
@@ -112,7 +117,7 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
     argv = [sys.executable, *(["-P"] if sys.version_info >= (3, 11) else []), "-m", "discprobe", action]
     if action in DRIVE_ACTIONS:
         argv += ["--drive", drive]
-    if action in {"timing", "geo", "random", "image", "disexport"}:
+    if action in {"timing", "geo", "random", "image", "disexport", "calibrate"}:
         argv += ["--media", media]
     for name, value in args.items():
         if value is None:
@@ -133,6 +138,9 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
                 pass
             else:
                 raise APIError("invalid speed")
+        elif rule == "mid":
+            if not isinstance(value, str) or not re.fullmatch(r"[\x20-\x7e]{1,64}", value):
+                raise APIError("invalid " + name)
         elif rule == "texture":
             if not isinstance(value, str) or not re.fullmatch(r"[0-9A-Fa-f]{2}", value):
                 raise APIError("invalid " + name)
@@ -404,14 +412,16 @@ class Backend:
     def start(self, payload):
         drives = self.drive_provider()
         argv, drive = command(payload, self.root, drives)
-        if payload["action"] in {"info", "timing", "geo"}:
+        if payload["action"] in {"info", "timing", "geo", "calibrate"}:
             argv += ["--out", self.out]
+        # what writes to a disc: a burn, or a calibration that starts with one
+        writes = payload["action"] == "burn" or (payload["action"] == "calibrate" and bool(payload.get("args", {}).get("iso")))
         with self.lock:
             if self.closed:
                 raise APIError("service is closing", 503)
             if drive and (drive in self.reading or any(j.drive == drive and j.exit is None for j in self.jobs.values())):
                 raise APIError("drive busy", 409)
-            if payload["action"] == "burn":
+            if writes:
                 token = payload.get("burn_token")
                 if not isinstance(token, str) or self.tokens.pop(token, 0) <= time.monotonic():
                     raise APIError("valid burn token required", 403)
@@ -427,7 +437,7 @@ class Backend:
                 if not image:
                     raise APIError("burn is not implemented without an ISO; iso is required")
                 self.iso_file(image)
-                argv += ["--media", payload.get("media", "dvd"), "--yes-write"]
+                argv += (["--media", payload.get("media", "dvd")] if payload["action"] == "burn" else []) + ["--yes-write"]
             if not self.folder.resolve().is_relative_to(self.root):
                 raise APIError("job directory must stay inside the workspace")
             self.folder.mkdir(exist_ok=True)
@@ -451,7 +461,7 @@ class Backend:
             self.jobs[ident] = job
             try:
                 with (folder / "output.log").open("wb") as output:
-                    runner = burner.web_child if payload["action"] == "burn" and self.runner is Child else self.runner
+                    runner = burner.web_child if writes and self.runner is Child else self.runner
                     job.child = runner(argv, env=env, cwd=str(self.root), stdout=output)
             except Exception:
                 del self.jobs[ident]
@@ -505,12 +515,30 @@ class Backend:
                     job.result["disc"] = webui_catalog.disc_report(guide._load(str(Path(run.path) / "info.json")) or {})
                     self.discs[job.drive] = dict(job.result["disc"], tray="ready", read_at=round(time.time()))
                 job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
+            elif job.action == "calibrate":
+                # what the core found, from its last `calibrated` event: the measured folders, their
+                # verdicts and the geometry's points for the page's chart
+                done = next((e for e in reversed(job.history) if e.get("type") == "calibrated"), None)
+                if done:
+                    rel = lambda p: str(Path(p).resolve().relative_to(self.root)).replace("\\", "/") if p else None
+                    result = dict(ok=bool(done.get("ok")), reason=done.get("reason"), disc=done.get("disc"),
+                                  preset=done.get("preset"))
+                    for kind in ("timing", "geo"):
+                        part = done.get(kind) or {}
+                        if part.get("path"):
+                            run = next((r for r in guide.scan(self.out) if Path(r.path).resolve() == Path(part["path"]).resolve()), None)
+                            result[kind] = dict(path=rel(part["path"]), verdict=part.get("verdict"),
+                                                measurement=webui_catalog.measurement(run) if run else None)
+                    result["verdict"] = (result.get("geo") or {}).get("verdict", "unknown")
+                    result["path"] = (result.get("geo") or {}).get("path")
+                    job.result = result
+                    job.history.append(dict(type="result", job=job.id, step="calibrate", **result))
             elif job.action in {"random", "disexport"} and code == 0:
                 output = job.args.get("output")
                 if output and Path(local_path(self.root, output)).is_file():
                     job.result = dict(path=output, verdict="unknown")
                     job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
-            if job.action in {"burn", "swap"}:
+            if job.action in {"burn", "swap", "calibrate"}:
                 self.discs.pop(job.drive, None)          # the disc there is not the one read before
             job.asks.clear()
             job.history += [dict(type="done", job=job.id, exit=code), dict(type="state")]

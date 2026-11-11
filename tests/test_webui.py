@@ -413,6 +413,40 @@ time.sleep(60)
         got = b.read_disc(dict(drive="H:"))["disc"]
         self.assertEqual((got["present"], got["tray"]), (False, "open"))
 
+    def test_calibrate_is_one_job_and_burns_only_under_the_burn_rules(self):
+        geo = self.result("geo", {"fit": {"media": "dvd"}})
+        script = f'''import json, os
+p = os.environ['DISCPROBE_EVENTS']
+with open(p, 'a') as f:
+ f.write(json.dumps(dict(type='step', name='geo', index=2, total=3))+'\\n')
+ f.write(json.dumps(dict(type='calibrated', ok=True, disc=dict(mid='RITEKF1'), geo=dict(path={str(geo)!r}, verdict='usable')))+'\\n')
+'''
+        b = self.backend(script)
+        for bad in (dict(action="calibrate", drive="H:", media="bd"),
+                    dict(action="calibrate", drive="H:", args={"mid": "a\nb"}),
+                    dict(action="calibrate", args={})):
+            with self.assertRaises(webui.APIError):
+                b.start(bad)
+        # without an image it only measures: no token asked, nothing written
+        ident = b.start(dict(action="calibrate", drive="H:", args={"mid": "RITEKF1", "preset": "presets/p.json"}))["job"]
+        self.assertNotIn("--yes-write", self.argv)
+        self.assertEqual(self.argv.count("--media"), 1)
+        self.assertIn("--out", self.argv)
+        eventually(lambda: b.jobs[ident].exit is not None)
+        result = b.job_state(ident)["result"]
+        self.assertTrue(result["ok"])
+        self.assertEqual((result["verdict"], result["geo"]["path"]), ("usable", "results/" + geo.name))
+        self.assertTrue(any(e["type"] == "step" for e in b.job_state(ident)["events"]))      # the page follows the steps
+        # with an image it starts with a burn: the burn's token and blank check apply
+        (self.root / "iso").mkdir()
+        (self.root / "iso" / "m.iso").write_bytes(b"\0" * 4096)
+        with self.assertRaisesRegex(webui.APIError, "burn token"):
+            b.start(dict(action="calibrate", drive="I:", args={"iso": "iso/m.iso"}))
+        token = b.burn_token()["token"]
+        b.start(dict(action="calibrate", drive="I:", args={"iso": "iso/m.iso"}, burn_token=token))
+        self.assertIn("--yes-write", self.argv)
+        self.assertEqual(self.argv.count("--media"), 1)
+
     def test_disc_command_prints_one_json_line(self):
         env = dict(os.environ, PYTHONPATH=str(ROOT))
         out = subprocess.run([sys.executable, "-m", "discprobe", "disc", "--sim", "cav"], cwd=self.root, env=env,

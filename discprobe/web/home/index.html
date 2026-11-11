@@ -31,6 +31,9 @@
     --good: #3f7d55; --warn: #9a6a14; --unknown: #6f6a62;
     /* the TUI's DVD title colours (banner.TITLE_HUES dvd: OKLCH hue .80 to 1.02 turns), darker on paper */
     --dvd: linear-gradient(90deg, #7262c6, #8d58b7, #a150a1, #b04985, #ba4765);
+    /* the other two kinds' bars: CD in its cyan, BD in copper */
+    --cd: linear-gradient(90deg, #2f7f95, #2f9396, #3c9f88, #57a874);
+    --bd: linear-gradient(90deg, #8a5a2e, #a8693c, #bf8448, #c99a52);
     --font: "Archivo", system-ui, "Microsoft YaHei UI", "PingFang SC", sans-serif;
     --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
     --edge: clamp(20px, 3.2vw, 56px);
@@ -47,6 +50,8 @@
     --rule: #2c3634; --rule-strong: #46514e; --copper: #d9a75c;
     --good: #8fca9a; --warn: #e2b866; --unknown: #aeb3ab;
     --dvd: linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a);
+    --cd: linear-gradient(90deg, #6cc6dc, #6fd3cf, #82dbb7, #a3e29b);
+    --bd: linear-gradient(90deg, #c98b4f, #d9a75c, #e4bb72, #ecca86);
   }
   :root.idle :not(.live, .live *), :root.idle :not(.live, .live *)::before, :root.idle :not(.live, .live *)::after { animation-play-state: paused !important; }
   :root[data-motion="off"] { --t: 0ms; }
@@ -324,6 +329,10 @@
   .cal .steps li.done { color: var(--ink-2); }
   .cal h2 { margin: 0; font-weight: 800; font-stretch: 118%; font-size: clamp(32px, 3vw, 52px); line-height: 1.08; }
   .cal .lede { margin: 0; color: var(--ink-2); font-size: 19px; max-width: 34em; }
+  /* the other way round a step (burn the measurement image with another program): one quiet line */
+  .cal .cal-aside { margin: 0; color: var(--ink-3); font-size: 15px; font-weight: 400; line-height: 1.6; max-width: 40em; }
+  .cal .cal-aside code { font: 13px var(--mono); color: var(--ink-2); word-break: break-all; }
+  .cal .cal-aside .btn { min-height: 0; padding: 2px 6px; margin-left: -6px; font-size: 15px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
   .cal .choices { display: grid; gap: 10px; }
   .cal .choice { display: grid; grid-template-columns: 22px 1fr; gap: 4px 12px; align-items: start; padding: 16px 18px; border: 1px solid var(--rule-strong); border-radius: 4px; cursor: pointer; }
   .cal .choice:has(input:checked) { border-color: var(--ink); }
@@ -365,8 +374,27 @@
   .job { display: grid; grid-template-columns: auto minmax(120px, 1fr) auto auto; align-items: center; gap: 16px; min-width: 0; }
   .job[hidden] { display: none; }
   .job-name { font-weight: 600; white-space: nowrap; }
-  .job-bar { position: relative; height: 4px; background: var(--rule); overflow: hidden; }
-  .job-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ink); }
+  /* The bar is the core's progress bar (ui.Progress) in the page: the media's colours laid along the whole
+     track, so a colour stays where it is as the fill grows over it; a glint running down the done part every
+     few seconds; a bright tip, and a short flash when the percentage goes up (api.jobProgress sets --p and
+     the flash). Without motion: the fill alone. */
+  @property --p { syntax: "<number>"; inherits: true; initial-value: 0; }
+  .job-bar { --p: 0; --job-grad: var(--dvd); position: relative; height: 6px; border-radius: 2px; background: var(--rule); overflow: hidden;
+    transition: --p 450ms var(--ease); }
+  .job-bar[data-media="cd"] { --job-grad: var(--cd); }
+  .job-bar[data-media="bd"] { --job-grad: var(--bd); }
+  .job-fill { position: absolute; inset: 0; background: var(--job-grad); clip-path: inset(0 calc((1 - var(--p)) * 100%) 0 0); }
+  .job-fill::after { content: ""; position: absolute; top: 0; bottom: 0; left: -24%; width: 22%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .7), transparent); }
+  :root[data-motion="on"] .job-fill::after { animation: job-glint 4s cubic-bezier(.4, 0, .3, 1) infinite; }
+  @keyframes job-glint { 0% { left: -24%; } 30%, 100% { left: calc(var(--p) * 100%); } }
+  .job-bar::after { content: ""; position: absolute; top: 0; bottom: 0; left: calc(var(--p) * 100%); width: 4px; translate: -100% 0;
+    background: rgba(255, 255, 255, .55); box-shadow: 0 0 6px rgba(255, 255, 255, .6); opacity: calc(var(--p) * 100); }
+  :root[data-motion="on"] .job-bar.grew .job-fill { animation: job-grew 400ms ease-out; }
+  :root[data-motion="on"] .job-bar.grew::after { animation: job-grew 400ms ease-out; }
+  @keyframes job-grew { from { filter: brightness(1.45) saturate(1.2); } }
+  :root[data-motion="off"] .job-bar { transition: none; }
+  :root[data-motion="off"] .job-bar::after { box-shadow: none; }
   .job-time { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .bar:has(.job:not([hidden])) .drive { display: none; }
 
@@ -432,6 +460,15 @@
   .floor-log .warning { color: var(--copper); }
   .floor-log .fl-meter { min-height: calc(var(--mm) * var(--fl-pitch)); color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
   @keyframes fl-in { from { opacity: 0; } }
+  /* the step's title painted on the floor in front of the drive: the floor's plane, turned 45° anticlockwise
+     in it (so it reads across the picture), centred on its spot */
+  .fl-title { position: absolute; transform-origin: 0 0; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0) rotate(-45deg) translate(-50%, -50%);
+    font-size: calc(var(--mm) * var(--fl-title)); line-height: 1; font-weight: 800; font-stretch: 112%; letter-spacing: .02em;
+    color: var(--ink); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 500ms var(--ease); }
+  .fl-title.on { opacity: .92; }
+  .cutaway .fl-title { z-index: 2; }
+  /* while the title lies on the floor, the panel keeps it only for screen readers */
+  .cal.floor-titled > h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .cutaway .floor-log { z-index: 2; }
 
   /* the disc that flies in (printed with its model) or lifts out, with its arrow */
@@ -1257,6 +1294,15 @@
       return ["dvd", 0];
     },
     readDisc, driveDisc, discName,
+    // the footer bar for the running job: how far (0..1) and on what kind of disc (its colours)
+    jobProgress(p, media = "dvd") {
+      const bar = document.querySelector(".job-bar");
+      const f = Math.max(0, Math.min(1, Number(p) || 0)), pct = Math.floor(f * 100);
+      bar.dataset.media = media;
+      bar.style.setProperty("--p", f.toFixed(4));
+      if (pct > (Number(bar.dataset.pct) || 0)) { bar.classList.remove("grew"); void bar.offsetWidth; bar.classList.add("grew"); }
+      bar.dataset.pct = String(pct);
+    },
     placeDisc(v) { wakeScene(); trayDisc = v; burnerLayer.classList.toggle("has-disc", v); },
     focusDisc: () => discs.find((d) => d.classList.contains("is-on")),
   };
@@ -1409,8 +1455,14 @@
   applyStatic();
   root.dataset.home = "lobby";
   try { await (await import("./lobby.js")).init(api); } catch (e) { console.error("lobby", e); }
+  // a calibration still running (this page was reloaded or reopened meanwhile): back to it
+  const running = backend.mock ? null : (backendState?.jobs || []).find((j) => j.exit === null && j.action === "calibrate");
+  if (running) {
+    chosenDrive = running.drive ?? chosenDrive;
+    (await import("./calibrate.js")).attach(api, running);
+  }
   // what the drive holds, read once in the background (read-only, a second or two) so the footer can say it
-  if (!backend.mock && !driveDisc()) readDisc().catch(() => {});
+  else if (!backend.mock && !driveDisc()) readDisc().catch(() => {});
   paintRecent();
   render(1, true);
 </script>
