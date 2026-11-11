@@ -904,7 +904,14 @@ def cmd_image(args):
     if args.media == "dvd":
         total = min(total, 2295104)
     else:
-        from .cd import check_capacity
+        from .cd import check_capacity, CAPACITY
+        # As on DVD, a drawing out to the rim stops where the disc does. IMAPI refused 359849 and 359800 sectors
+        # on an 80-minute CD-R and burned 359600 (KNOWLEDGE, 2026-11-04): closing the disc needs room.
+        room = CAPACITY - 249
+        if total > room:
+            print(f"The disc ends before {args.r_max:g} mm: the image stops at {room} sectors, and the picture's "
+                  "outermost ring is left out.")
+            total = room
         check_capacity(total)
     first = args.start_lba
     if first and args.media != "dvd":

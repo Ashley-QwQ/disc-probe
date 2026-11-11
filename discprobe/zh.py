@@ -750,6 +750,8 @@ TEXT = {
         "预设与实测角度差了 {a}°（{b}-{c} mm 范围内，外半径算出来是 {d} mm）；请检查 --sectors 和拟合范围。没有写入预设。",
     "CD output already exists: {p}; choose a new filename": "CD 输出文件已存在：{p}；请换一个文件名",
     "CD image needs {a} sectors, got {b}": "CD 镜像需要 {a} 个扇区，实际是 {b}",
+    "The disc ends before {a} mm: the image stops at {b} sectors, and the picture's outermost ring is left out.":
+        "盘在 {a} mm 之前就到头了：镜像停在 {b} 个扇区，图案最外面的一圈刻不上。",
     "ISO 9660 sectors overlap the drawing; leave an inner background margin": "ISO 9660 扇区和图案重叠了；内圈要留出背景余量",
     "phase.csv, summary.json and check images: {p}": "phase.csv、summary.json 和检查图保存在：{p}",
     "rings.csv, textures.csv, summary.json and unrolled views: {p}": "rings.csv、textures.csv、summary.json 和展开图保存在：{p}",
