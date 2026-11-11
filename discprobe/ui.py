@@ -521,6 +521,7 @@ class Progress:
         now = time.monotonic()
         fraction, label, left = self.status()
         self.fraction = None if fraction is None else max(0.0, min(1.0, fraction))
+        left = None if left is None else max(0.0, left)
         self.left = left
         label = tr(label)
         glyph = self._spinner(now)
@@ -565,6 +566,8 @@ class Progress:
         if os.environ.get("DISCPROBE_EVENTS"):
             if self.event_at is None or now - self.event_at >= 0.25:
                 fraction, stage, eta = self.status()
+                fraction = None if fraction is None else max(0.0, min(1.0, fraction))
+                eta = None if eta is None else max(0.0, eta)
                 event("progress", fraction=fraction, stage=stage, eta_s=eta,
                       **(self.location() if self.location else {}))
                 self.event_at = now
@@ -818,7 +821,7 @@ class _Rate:
             self.start, self.done_at_start = now, done
             return None
         finished = done - self.done_at_start
-        return (now - self.start) / finished * (total - done) if finished >= self.MIN_DONE else None
+        return (now - self.start) / finished * max(0.0, total - done) if finished >= self.MIN_DONE else None
 
 
 def timing_status(probe, dev: ProgressDevice):
@@ -849,24 +852,27 @@ def timing_status(probe, dev: ProgressDevice):
 
 
 def geo_status(ladder, dev: ProgressDevice):
-    """Progress of `geo`, in rungs of the ladder. A retried rung takes longer, so the time left is a guess."""
-    per_rung = max(2 * ladder.reps, 1)
+    """Planned read pairs: fitted rungs and both weighted check-point passes.
+
+    Retry/settle reads consume time but do not advance completed work.
+    """
     rate = _Rate()
-    state = {"rungs": -1, "mark": 0}
 
     def status():
         rungs = len(ladder.targets)
-        if getattr(ladder, "T", None) is None:
+        total = getattr(ladder, "progress_total", 0)
+        if not total:
             stage = "cache test" if not hasattr(ladder, "ref") else "waiting for a steady spindle"
-            done = rungs / max(ladder.max_targets, 1)
-            return (done if rungs else None), f"rung {rungs}/{ladder.max_targets}: {stage}" if rungs else stage, None
-        if rungs != state["rungs"]:
-            state.update(rungs=rungs, mark=dev.pauses)
-        current = min((dev.pauses - state["mark"]) / per_rung, 1.0)
-        done = (rungs + current) * per_rung
-        total = ladder.max_targets * per_rung
-        label = f"rung {min(rungs + 1, ladder.max_targets)}/{ladder.max_targets}"
-        return done / total, label, rate.left(done, total)
+            return None, stage, None
+        done = rungs * ladder.reps + ladder.progress_checks_done + ladder.progress_current
+        done = min(max(done, 0), total)
+        stage = ladder.progress_stage
+        if stage == "ladder":
+            stage = f"rung {min(rungs + 1, ladder.max_targets)}/{ladder.max_targets}"
+        if ladder.progress_finished:
+            return 1.0, "geometry complete", 0.0
+        # A final measurement still has to be accepted, fitted and checked.
+        return min(done / total, 0.999), stage, rate.left(done, total)
     def location():
         lba = getattr(dev, "event_lba", None)
         if lba is None:
