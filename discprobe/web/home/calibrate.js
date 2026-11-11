@@ -972,6 +972,11 @@ function realPaint() {
     const kind = recoveryKind(flow);
     const severity = kind === 'good' ? 'good' : ['too_noisy','drive_changed','media'].includes(kind) ? 'error' : 'warn';
     html = `<div class="cal-recovery">${note(severity, [esc(measurementRecovery(flow)[api.lang()]), ''])}</div>`;
+    // the measurement disc's own read-back after it was burned here: a bad sample is said, never hidden
+    const v = flow.burnCheck?.verification;
+    if (v && v.status !== "skipped" && (v.status !== "completed" || v.differing || v.unreadable))
+      html += note("warn", [liveText(`刻好的测量盘抽样回读：${v.unreadable} 块读不出、${v.differing} 块不对。测量结果照上面的判断用；若几何停在这些地方，换一张同批空白盘、换个速度再刻测量盘。`,
+        `Read-back of the measurement disc burned here: ${v.unreadable} sampled blocks unreadable, ${v.differing} differing. Use the result as judged above; if measuring stops there, burn another measurement disc from this batch at another speed.`), ""]);
     const ok = recovery.id === 'save';
     button = ok ? (flow.detected.media === "cd" ? liveText('查看 CD 标定下一步', 'CD calibration: next step') : returnTo ? liveText('保存测量', 'Save the measurement') : T().save) : recovery.label[api.lang()];
     html += `<details class="cal-details"><summary>${liveText('详情', 'Details')}</summary><p>${liveText('导出的预设仍覆盖整盘；半径参数只限定拟合区域，不能裁掉未测区域。更换读取速度、选择测量区域和比较模型须在电脑命令行操作。将 START-END 换成实际的数据扇区范围，SPEED 换成光驱支持的读取速度（如 4x）；先确认恒速，再执行下一条。光驱保持恒速检查通过后，页面才会继续测量。', 'Use the computer terminal to change reading speed, select measurement areas or compare models. An exported preset covers the full disc; radius options limit fitting and do not remove unmeasured areas. Replace START-END with actual data-sector limits and SPEED with a supported reading speed (such as 4x); confirm steady rotation before the next command. The page continues measuring only after a steady-rotation check passes.')}</p><pre>${esc(recoveryCommands(flow, {drive:api.selectedDrive(), media:flow.detected.media, sectors:flow.blankSectors ?? flow.detected.sectors}))}</pre><p><code>${esc(part?.path || '')}</code></p>${realChart(flow.geo?.measurement)}</details>`;

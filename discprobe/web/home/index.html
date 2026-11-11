@@ -316,7 +316,7 @@
   @media (hover: hover) and (pointer: fine) {
     .next .i-chev { display: none; }
     .next-key { display: inline-flex; }
-    #back, #lang, #theme, #settings { position: relative; }
+    #back, #lang, #sound, #theme, #settings { position: relative; }
     .key-cap { display: block; position: absolute; left: 50%; top: calc(100% - 6px); transform: translateX(-50%); padding: 0 4px;
       font: 600 10px/14px var(--mono); letter-spacing: .04em; color: var(--ink-3); border: 1px solid var(--rule); border-radius: 4px;
       pointer-events: none; white-space: nowrap; }
@@ -357,6 +357,7 @@
   .top > .back:not([hidden]) { margin-right: auto; }
   :root[data-mode="cal"] .detail, :root[data-mode="cal"] .counter, :root[data-mode="cal"] .gallery { display: none; }
   #sound[aria-pressed="true"] .icon.off, #sound[aria-pressed="false"] .icon.on { display: none; }
+  @media (max-width: 560px) { #sound { display: none; } }   /* no room in the header: the settings menu has it too */
   :root[data-mode="cal"] .layer.ghost, :root[data-mode="cal"] .layer.solid { opacity: .1 !important; }
   /* Keep the whole step between the fixed corner rows. Tall steps scroll here,
      rather than growing upwards into the header or down behind the footer. */
@@ -594,6 +595,8 @@
   <p class="set-row"><span id="set-motion-label"></span><span class="set-seg" role="radiogroup" aria-labelledby="set-motion-label">
     <button type="button" role="radio" data-motion="auto"></button><button type="button" role="radio" data-motion="on"></button><button type="button" role="radio" data-motion="off"></button></span></p>
   <small class="set-note" id="set-motion-note"></small>
+  <p class="set-row"><span id="set-sound-label"></span><span class="set-seg" role="radiogroup" aria-labelledby="set-sound-label">
+    <button type="button" role="radio" data-sound="on"></button><button type="button" role="radio" data-sound="off"></button></span></p>
 </div>
 
 <section class="lobby" id="lobby" aria-labelledby="lobby-hello">
@@ -958,6 +961,13 @@
       b.setAttribute("aria-checked", String(b.dataset.motion === c));
     }
     $("set-motion-note").textContent = t.motionNote(sysReduce());
+    // sound, here too: on a narrow screen the header has no room for its switch
+    $("set-sound-label").textContent = lang === "zh" ? "声音" : "Sound";
+    const on = (() => { try { return localStorage.getItem("dp-sound") !== "off"; } catch { return true; } })();
+    for (const b of $("set-menu").querySelectorAll("[data-sound]")) {
+      b.textContent = b.dataset.sound === "on" ? t.motionOn : t.motionOff;
+      b.setAttribute("aria-checked", String((b.dataset.sound === "on") === on));
+    }
   }
   function setMotion(c) {
     try { c === "auto" ? localStorage.removeItem("dp-motion") : localStorage.setItem("dp-motion", c); } catch {}
@@ -971,10 +981,12 @@
     if (open) { paintSettings(); $("set-menu").querySelector('[aria-checked="true"]')?.focus(); }
   }
   $("settings").addEventListener("click", (e) => { e.stopPropagation(); showSettings($("set-menu").hidden); });
-  $("set-menu").addEventListener("click", (e) => { e.stopPropagation(); const b = e.target.closest("[data-motion]"); if (b) setMotion(b.dataset.motion); });
+  $("set-menu").addEventListener("click", (e) => { e.stopPropagation(); const b = e.target.closest("[data-motion]"); if (b) setMotion(b.dataset.motion);
+    const snd = e.target.closest("[data-sound]"); if (snd) import("./sfx.js").then((m) => { m.setSound(snd.dataset.sound === "on"); paintSettings(); }); });
   document.addEventListener("click", () => { if (!$("set-menu").hidden) showSettings(false); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("set-menu").hidden) { e.preventDefault(); showSettings(false); $("settings").focus(); } });
   addEventListener("dp-lang", () => { if (!$("set-menu").hidden) paintSettings(); });
+  addEventListener("dp-sound", () => { if (!$("set-menu").hidden) paintSettings(); });
 
   // Switching the theme crossfades the whole page, old picture into new, instead of letting the background
   // ease while every baked picture flips at once (and blinks empty while the other theme's file loads).
