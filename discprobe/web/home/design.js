@@ -17,6 +17,7 @@ const isOn = () => root.dataset.mode === "design";
 const STR = {
   zh: {
     untitled: "未命名工程", next: "下一步：预览",
+    burnCdWindows: "这台电脑上还不能从这里刻 CD。在文件夹里右键这个 .iso，选“刻录光盘映像”，刻到这批的空白 CD 上。",
     burnNoDrive: "没找到光驱。接好光驱后再回到这一页。", burnNoDisc: (why) => `读不了光驱里的盘：${why || "可能没放盘"}。放一张空白盘再回到这一页。`,
     burnNotBlank: "光驱里这张不是空白盘。换一张同一批的空白盘，再回到这一页。", burnTooBig: "刻录文件比这张盘放得下的大。",
     burnNotBlankSwap: (what) => `光驱里这张${what ? ` ${what} ` : ""}已经刻过了。按光驱上的弹出键把它取出来。`,
@@ -89,6 +90,7 @@ const STR = {
   },
   en: {
     untitled: "Untitled project", next: "Next: preview",
+    burnCdWindows: "This computer cannot burn CDs from here yet. In the folder, right-click this .iso and choose Burn disc image, onto a blank CD from this batch.",
     burnNoDrive: "No drive found. Connect the drive and come back to this page.", burnNoDisc: (why) => `Couldn't read the disc in the drive: ${why || "maybe there is none"}. Put in a blank disc and come back to this page.`,
     burnNotBlank: "The disc in the drive isn't blank. Put in a blank from the same batch and come back to this page.", burnTooBig: "The burn file is bigger than this disc can hold.",
     burnNotBlankSwap: (what) => `The disc in the drive${what ? ` (${what})` : ""} has already been written. Press the drive's eject button and take it out.`,
@@ -1814,10 +1816,10 @@ async function toPreview() {
     calibrate: async () => {
       const cal = await import("./calibrate.js");
       api.useForPlan?.(P.media, P.item?.kind === "new" ? null : P.item ?? null);
-      cal.start(api, { returnTo: async ({ done }) => {
+      cal.start(api, { returnTo: async ({ done, id }) => {
         if (done) {
           await api.syncState?.();
-          const d = api.driveDisc?.(), mine = (x) => ["good", "usable"].includes(x.s) && (P.item?.id ? x.id === P.item.id : d?.mid && x.mid === d.mid);
+          const d = api.driveDisc?.(), mine = (x) => ["good", "usable"].includes(x.s) && (id ? x.id === id : P.item?.id ? x.id === P.item.id : d?.mid && x.mid === d.mid);
           const it = (api.catalogue?.(P.media) ?? []).find(mine);
           if (it) { P.item = it; api.rememberBatch?.(it); }
         }
@@ -1844,7 +1846,10 @@ async function toBurn(iso, back) {
   const mock = new URLSearchParams(location.search).has("mockburn");
   // Which drive: the one this project's geometry was measured on (geo-H-…), else the first one listed.
   let drive = { id: "", name: "", speeds: mock ? (S.media === "cd" ? [4, 8, 16] : [4, 8]) : [] }, problem = "", needSwap = false;
-  if (!mock) {
+  // a CD on Windows: the core has no CD writer there yet (burner.WindowsDVD); the page says how, and does not try
+  const otherOnly = !mock && S.media === "cd" && api.platform?.() === "win32";
+  if (otherOnly) problem = t.burnCdWindows;
+  else if (!mock) {
     try {
       const s = await (await fetch(`/api/state?media=${S.media}`)).json();
       const letter = /geo-([A-Z])-/i.exec(S.geo ?? projectGeo(s) ?? "")?.[1];
@@ -1857,7 +1862,7 @@ async function toBurn(iso, back) {
   const mockSwap = mock && new URLSearchParams(location.search).has("mockswap");
   if (mockSwap) { problem = t.burnNotBlankSwap(S.item?.mid || "RITEKF1"); needSwap = true; drive = { id: "H:", name: "H:", speeds: [] }; }
   const ctx = {
-    media: S.media, item: S.item, iso, drive, back, driveProblem: problem, needSwap,
+    media: S.media, item: S.item, iso, drive, back, driveProblem: problem, needSwap, otherOnly,
     swapWords: { open: t.burnTrayOpen, checking: t.burnChecking, put: t.burnPutBlank(S.item?.mid || S.item?.name || "") },
     // the disc in the drive is the wrong one: wait (read-only) while it is changed, then look again
     swap: mockSwap ? async (onTray) => {

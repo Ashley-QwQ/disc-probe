@@ -1434,7 +1434,12 @@
         DATA[row].push({kind:"new",row,name:"",mid:"",s:"new"});
         delete loaded[row];
       }
+      // a drive plugged in (or gone) since the page opened: the drive stop and the chosen drive follow
+      const drives = (backendState.drives || []).map(d => ({...d, kind:"drive", name:d.name || d.id,
+        mid:d.id, s:"unknown", burns:[], reads:[], calibrated:0, lastUsed:null}));
+      if (drives.length) { DATA.drive = drives; if (!drives.some(d => d.id === chosenDrive)) chosenDrive = drives[0].id; }
       if (col !== "drive") idx = Math.max(0, DATA[col].findIndex(x => x.id === selectedId));
+      else idx = Math.min(idx, DATA.drive.length - 1);
       if (!root.dataset.mode) { await loadSolid(col); render(1,true); }
     } catch(e) {backendError=e; if (!root.dataset.mode) render(1,true);}
   }

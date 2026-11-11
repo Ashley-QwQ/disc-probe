@@ -161,7 +161,7 @@ function giveBack(done) {
   const r = returnTo;
   returnTo = null;
   if (!r) return false;
-  r({ done });
+  r({ done, id: done ? flow?.savedId : undefined });     // the library entry just saved, for the opener to pick
   return true;
 }
 export function start(homeApi, { returnTo: back = null } = {}) {
@@ -945,6 +945,13 @@ function realPaint() {
       html += `<label><input id="measurement-confirm" type="checkbox" ${flow.measureConfirmed ? "checked" : ""}>${liveText('这是同批次、刻满随机数据的测量盘', 'This is a full random-data measurement disc from this batch')}</label>`;
       button = liveText('测转速', 'Measure rotation'); disabled = !flow.measureConfirmed;
     } else { text += liveText('。空白状态未知，请重新检测。', '. Blank status is unknown; check again.'); button = liveText('重新检测', 'Check again'); }
+  } else if (phase === "burn" && cdHere()) {
+    // the core cannot write CDs on Windows yet (burner.WindowsDVD): Windows' own image burner, as guide.py says
+    title = liveText('刻测量盘', 'Burn the measurement disc');
+    text = liveText('这台电脑上还不能从这里刻 CD。在文件夹里右键下面这个 .iso，选“刻录光盘映像”，刻到同批次的空白 CD 上；刻好后放回光驱，再点“检测刻好的盘”。',
+      "This computer cannot burn CDs from here yet. In the folder, right-click the .iso below and choose Burn disc image, onto a blank CD from this batch; then put it back in the drive and press Check the burned disc.");
+    html = `<p><code>${esc(flow.iso)}</code></p>`;
+    button = liveText('检测刻好的盘', 'Check the burned disc');
   } else if (phase === "burn") {
     title = liveText('刻测量盘', 'Burn the measurement disc');
     text = liveText('光驱里放着同批次的空白盘。按住下一步 1 秒开始刻录：托盘会关上，刻录不能撤销，DVD 约 14 分钟。刻完会自己检查这张盘，接着开始测量。',
@@ -964,7 +971,7 @@ function realPaint() {
     const severity = kind === 'good' ? 'good' : ['too_noisy','drive_changed','media'].includes(kind) ? 'error' : 'warn';
     html = `<div class="cal-recovery">${note(severity, [esc(measurementRecovery(flow)[api.lang()]), ''])}</div>`;
     const ok = recovery.id === 'save';
-    button = ok ? (flow.detected.media === "cd" ? liveText('查看 CD 标定下一步', 'CD calibration: next step') : T().save) : recovery.label[api.lang()];
+    button = ok ? (flow.detected.media === "cd" ? liveText('查看 CD 标定下一步', 'CD calibration: next step') : returnTo ? liveText('保存测量', 'Save the measurement') : T().save) : recovery.label[api.lang()];
     html += `<details class="cal-details"><summary>${liveText('详情', 'Details')}</summary><p>${liveText('导出的预设仍覆盖整盘；半径参数只限定拟合区域，不能裁掉未测区域。更换读取速度、选择测量区域和比较模型须在电脑命令行操作。将 START-END 换成实际的数据扇区范围，SPEED 换成光驱支持的读取速度（如 4x）；先确认恒速，再执行下一条。光驱保持恒速检查通过后，页面才会继续测量。', 'Use the computer terminal to change reading speed, select measurement areas or compare models. An exported preset covers the full disc; radius options limit fitting and do not remove unmeasured areas. Replace START-END with actual data-sector limits and SPEED with a supported reading speed (such as 4x); confirm steady rotation before the next command. The page continues measuring only after a steady-rotation check passes.')}</p><pre>${esc(recoveryCommands(flow, {drive:api.selectedDrive(), media:flow.detected.media, sectors:flow.blankSectors ?? flow.detected.sectors}))}</pre><p><code>${esc(part?.path || '')}</code></p>${realChart(flow.geo?.measurement)}</details>`;
     if (part?.verdict === 'usable') html += `<button id="real-remeasure" class="placed" type="button">${liveText('检查转速并重测', 'Check rotation and remeasure')}</button>`;
     if (ok) html += `<label class="count-input">${T().leftQ}<input id="left-input" type="number" min="0" max="100000" value="${flow.left ?? ""}"></label>`;
@@ -976,7 +983,7 @@ function realPaint() {
   } else if (phase === "saved") {
     title = liveText('预设已保存', 'Preset saved'); text = flow.savedPath;
     if (flow.detected.media === "cd") html = `<p>${esc(cdPhoto[api.lang()])}</p>`;
-    button = returnTo ? liveText('回到新作品', 'Back to the new work') : liveText('回到首页', 'Return home');
+    button = returnTo ? liveText('回到刚才那一步', 'Back to where you were') : liveText('回到首页', 'Return home');
   }
   if (["prepare", "burn"].includes(phase)) html = budgetHTML(flow.detected.media, api.lang()) + html;
   if (flow.ask) {
@@ -996,7 +1003,7 @@ function realPaint() {
   flog.title(flow.job ? title : "");
   $("cal").classList.toggle("floor-titled", !!flow.job);
   // burning is confirmed by holding the button (holdButton), everything else by a click
-  const hold = phase === "burn" && !disabled;
+  const hold = phase === "burn" && !disabled && !cdHere();
   $("next-text").textContent = button; $("next").disabled = disabled; $("next").dataset.hold = hold ? "1" : "";
   $("next").classList.toggle("hold", hold);
   $("real-name")?.addEventListener("input", e => {flow.realName = e.target.value;});
@@ -1010,6 +1017,8 @@ function realPaint() {
   $("real-have")?.addEventListener("click", () => { flow.realPhase = "inspect"; realNext(); });
 
 }
+// a CD on a Windows machine: the core has no CD writer there (burner.WindowsDVD), so the disc is burned elsewhere
+const cdHere = () => flow?.detected?.media === "cd" && api.platform?.() === "win32";
 // the core's steps (calibrate.py) as this page's phases
 const STEP_PHASE = { burn: "burning", check: "checking", timing: "timing", geo: "geo", preset: "saving" };
 async function realJob(action, args = {}, extra = {}, following = null) {
@@ -1058,8 +1067,11 @@ async function realNext(forceMeasure = false) {
   flow.error = null;
   try {
     const phase = flow.realPhase;
+    if (phase === "burn" && cdHere()) { flow.realPhase = "inspect"; return realNext(); }   // burned elsewhere: read it
     if (phase === "burn") await realBurn();
     else if (phase === "inspect" || (phase === "prepare" && flow.detected.blank == null)) {
+      if (!api.selectedDrive()) await api.syncState?.();          // plugged in since the page opened?
+      if (!api.selectedDrive()) throw new Error(liveText('没找到光驱。接好光驱，等电脑认出它，再点“重新检测”。', 'No drive found. Connect the drive, wait for the computer to see it, then press Check again.'));
       const result = await realJob("info");
       if (!result?.disc?.present) throw new Error(liveText('没有读到盘。放入光盘再检测。', 'No disc detected. Insert a disc and check again.'));
       if (result.disc.media !== (flow.item.row || flow.detected?.media || "dvd")) throw new Error(liveText('盘的类型不符，请换盘后重试。', 'Wrong disc family. Replace the disc and check again.'));
@@ -1162,9 +1174,10 @@ async function realSave() {
   const state = await api.backend.state();
   const entry = state.catalogue[flow.detected.media].find(x => x.geo === flow.geo.path);
   if (!entry) throw new Error("The calibration is not in the saved catalogue.");
-  await api.backend.request("/api/catalogue", {id:entry.id, name:flow.realName || entry.name, preset:result.path,
+  // the name the form showed (the maker code, else the disc kind) unless one was typed; never the folder name
+  await api.backend.request("/api/catalogue", {id:entry.id, name:flow.realName || flow.detected?.mid || flow.detected?.kind || entry.name, preset:result.path,
     ...(flow.left == null ? {} : {left:flow.left})});
-  flow.savedPath = result.path; flow.realPhase = "saved";
+  flow.savedPath = result.path; flow.savedId = entry.id; flow.realPhase = "saved";
 }
 
 function realChart(measurement) {
