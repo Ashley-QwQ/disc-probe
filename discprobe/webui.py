@@ -20,6 +20,7 @@ import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.cookies import CookieError, SimpleCookie
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from . import guide, i18n, iso9660, webui_catalog
@@ -658,6 +659,12 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass  # URLs may carry the LAN token for EventSource/static requests.
 
+    def end_headers(self):
+        # Share authentication with subresources, redirects and event streams too.
+        if getattr(self, "_set_session_cookie", False):
+            self.send_header("Set-Cookie", f"discprobe_session={self.server.token}; Path=/; HttpOnly; SameSite=Strict")
+        super().end_headers()
+
     def _send(self, code, body, content_type="application/json; charset=utf-8"):
         self.send_response(code)
         self.send_header("Content-Type", content_type)
@@ -672,6 +679,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(code, json.dumps(payload, ensure_ascii=False).encode("utf-8"))
 
     def _allowed(self):
+        self._set_session_cookie = False
         host = self.headers.get("Host", "")
         if not self.server.token and host not in (f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"):
             raise APIError("invalid Host", 403)
@@ -681,18 +689,33 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get("Sec-Fetch-Site") not in (None, "same-origin", "none"):
             raise APIError("cross-site request refused", 403)
         if self.server.token:
-            token = self.headers.get("X-Discprobe-Token", "")
             query = parse_qs(urlsplit(self.path).query)
-            token = token or query.get("token", [""])[0]
-            if not hmac.compare_digest(token.encode("utf-8"), self.server.token.encode("ascii")):
-                raise APIError("invalid session token", 403)
+            tokens = (self.headers.get("X-Discprobe-Token", ""), query.get("token", [""])[0])
+            expected = self.server.token.encode("ascii")
+            self._set_session_cookie = any(hmac.compare_digest(token.encode("utf-8"), expected) for token in tokens)
+            if not self._set_session_cookie:
+                cookie = SimpleCookie()
+                try:
+                    cookie.load(self.headers.get("Cookie", ""))
+                except CookieError:
+                    pass
+                session = cookie.get("discprobe_session")
+                if not session or not hmac.compare_digest(session.value.encode("utf-8"), expected):
+                    raise APIError("invalid session token", 403)
 
     def do_GET(self):
         try:
             self._allowed()
-            path = unquote(urlsplit(self.path).path)
+            url = urlsplit(self.path)
+            path = unquote(url.path)
             backend = self.server.backend
-            if path == "/api/state":
+            if path == "/":
+                self.send_response(302)
+                self.send_header("Location", "/home/" + ("?" + url.query if url.query else ""))
+                self.send_header("Content-Length", "0")
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+            elif path == "/api/state":
                 self._json(200, backend.state(parse_qs(urlsplit(self.path).query).get("media", [None])[0]))
             elif path == "/api/greetings":
                 # the terminal's greetings, so the page picks by the viewer's own clock (see greetings.py)
@@ -752,7 +775,8 @@ class Handler(BaseHTTPRequestHandler):
                 raise APIError("not found", 404)
             else:
                 root = Path(__file__).with_name("web").resolve()
-                target = (root / (path.lstrip("/") or "index.html")).resolve()
+                relative = path.lstrip("/") + ("index.html" if path.endswith("/") else "")
+                target = (root / relative).resolve()
                 if not target.is_relative_to(root) or not target.is_file():
                     self._send(404, b"Not found\n", "text/plain; charset=utf-8")
                 else:
@@ -851,7 +875,7 @@ def guide_drive_tag(drive):
 def run(args):
     backend = Backend(media=args.media, out=args.out)
     with Server(backend, args.port, lan=args.lan) as server:
-        url = f"http://127.0.0.1:{server.server_port}/"
+        url = f"http://127.0.0.1:{server.server_port}/home/"
         if server.token:
             url += "?token=" + server.token
         print(url, flush=True)
