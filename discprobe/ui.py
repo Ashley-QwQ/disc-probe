@@ -953,10 +953,29 @@ def writing(path: str, sectors: int):
     """
     with _whole_or_gone(path):
         if not term().interactive:
-            yield print
+            yield _report_lines() if os.environ.get("DISCPROBE_EVENTS") else print
             return
         with _writing_line(path, sectors) as log:
             yield log
+
+
+def _report_lines():
+    """The writers' log for the web UI: each percentage report (asked for every 1 %) is a progress event; the
+    printed lines stay as a pipe always had them, one per 20 %."""
+    shown = [-1.0]
+
+    def log(message):
+        match = re.search(r"([\d.]+) %", message)
+        if not match:
+            print(message, flush=True)
+            return
+        fraction = float(match.group(1)) / 100
+        event("progress", fraction=round(fraction, 4), stage="writing the image")
+        if fraction >= 0.999 or fraction - shown[0] >= 0.2 - 1e-9 or shown[0] < 0:
+            shown[0] = fraction
+            print(message, flush=True)
+    log.every = 0.01
+    return log
 
 
 @contextlib.contextmanager
@@ -979,6 +998,7 @@ def _writing_line(path: str, sectors: int):
                 reported[0] = float(match.group(1)) / 100
             else:
                 show(message)
+        log.every = 0.01        # the bar moves with each 1 % the writer reports
         yield log
     say(f"Finished in {clock(time.monotonic() - progress.started)}", "dim")
 

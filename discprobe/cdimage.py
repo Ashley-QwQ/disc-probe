@@ -30,14 +30,17 @@ def _labels(design, u, v, bit_mm, frame, slot, correction):
     # Data halves are contiguous on the physical track, unlike user byte groups.
     middle_slot = np.where(slot < 12, 5.5, 21.5)
     n = frame * 588 + 51 + middle_slot * 17
-    r = bit_mm * np.sqrt(u * u + v * n / math.pi)
-    th = -theta(n, u, v)
+    s = np.sqrt(u * u + v * n / math.pi)
+    r = bit_mm * s
+    th = -(2.0 * n / (s + u))
     if correction is not None:
         th += np.radians(correction(r))
-    ix = np.floor((r * np.cos(th) + I.HALF_MM) / I.CELL_MM).astype(np.int64)
-    iy = np.floor((I.HALF_MM - r * np.sin(th)) / I.CELL_MM).astype(np.int64)
-    ok = (ix >= 0) & (ix < I.SIZE) & (iy >= 0) & (iy < I.SIZE)
-    return np.where(ok, design[np.clip(iy, 0, I.SIZE - 1), np.clip(ix, 0, I.SIZE - 1)], 0)
+    size = design.shape[0]
+    cell = 2 * I.HALF_MM / size
+    ix = np.floor((r * np.cos(th) + I.HALF_MM) / cell).astype(np.int64)
+    iy = np.floor((I.HALF_MM - r * np.sin(th)) / cell).astype(np.int64)
+    ok = (ix >= 0) & (ix < size) & (iy >= 0) & (iy < size)
+    return np.where(ok, design[np.clip(iy, 0, size - 1), np.clip(ix, 0, size - 1)], 0)
 
 
 def texture_bytes(spec, frame, slot, random_bytes):
@@ -54,6 +57,20 @@ def texture_bytes(spec, frame, slot, random_bytes):
 
 def _sector_q(design, textures, u, v, bit_mm, lba0, count, correction):
     lbas = np.arange(lba0, lba0 + count)
+    if all(len(t) == 2 for t in textures):
+        # CIRC's byte/slot permutation repeats each sector: a sector translates
+        # frame numbers by exactly 98 (2352 raw bytes / 24). Resolve 2048 byte
+        # positions once, not count*2048 full physical coordinate triples.
+        frame, slot = cd.user_to_physical(0, np.arange(2048))
+        first = int(frame.min())
+        start, end = lba0 * 98 + first, (lba0 + count - 1) * 98 + int(frame.max())
+        labels = _labels(design, u, v, bit_mm, np.arange(start, end + 1)[:, None],
+                         np.array([0, 16])[None, :], correction)
+        palette = np.array([bytes.fromhex(t)[0] for t in textures], np.uint8)
+        indices = labels.astype(np.uint8) if labels.dtype == bool else labels.astype(np.int64, copy=False)
+        by_frame = palette[indices]
+        return by_frame[(np.arange(count) * 98)[:, None] + (frame - first)[None, :],
+                        (slot >= 16).astype(np.int8)[None, :]]
     frame, slot = cd.user_to_physical(lbas[:, None], np.arange(2048)[None, :])
     # Evaluate the geometry once per physical half-frame, then gather in user
     # order. CIRC scatters a sector, but many bytes still share one sample.
@@ -61,11 +78,12 @@ def _sector_q(design, textures, u, v, bit_mm, lba0, count, correction):
     labels_by_frame = _labels(design, u, v, bit_mm, np.arange(first, last + 1)[:, None],
                               np.array([0, 16])[None, :], correction)
     labels = labels_by_frame[frame - first, (slot >= 16).astype(np.int8)]
-    rnd = I.texture_bytes("RND", lbas)
+    # Deterministic textures do not need the multi-megabyte splitmix stream.
+    rnd = I.texture_bytes("RND", lbas) if any(t == "RND" or t.startswith("MIX:") for t in textures) else None
     q = np.empty(labels.shape, np.uint8)
     for i, spec in enumerate(textures):
         m = labels == i
-        q[m] = texture_bytes(spec, frame[m], slot[m], rnd[m])
+        q[m] = texture_bytes(spec, frame[m], slot[m], rnd[m] if rnd is not None else None)
     return q
 
 
@@ -95,12 +113,12 @@ def write_iso(path, design, u, v, bit_nm, total_sectors, dark="0D", light="AA", 
             q = _sector_q(design, texs, u, v, bit_nm * 1e-6, done, count, correction)
             fh.write((q ^ cd.MASK).tobytes())
             done += count
-            if done / total_sectors >= next_report:
+            if done / total_sectors >= next_report - 1e-9:   # (steps of 0.01 add up to a hair over 1)
                 log(f"  {100 * done / total_sectors:5.1f} %")
-                next_report += 0.2
+                next_report += getattr(log, "every", 0.2)
     iso9660.add(path, total_sectors, "DISCPROBE_CD_IMAGE")
     spec = {"kind": "cd-picture", "media": "cd", "user_offset": cd.USER_OFFSET, "u": u, "v": v, "bit_nm": bit_nm,
-            "total_sectors": total_sectors, "textures": texs, "cell_mm": I.CELL_MM,
+            "total_sectors": total_sectors, "textures": texs, "cell_mm": I.cell_mm(design),
             "sampling": "physical 12-data-symbol half-frame", "origin": "ECMA-130 fig C.4, sector byte 0 at F1 slot 1",
             "physical_origin_measured": False, **(meta or {})}
     if design.dtype == bool:

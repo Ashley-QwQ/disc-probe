@@ -449,6 +449,46 @@ def cmd_info(args):
     _next(guide.after_info(args, report))
 
 
+def tray_state(sense, ok: bool) -> str:
+    """What TEST UNIT READY says about the tray: ready, open, empty (closed, no disc), loading, changed."""
+    if ok:
+        return "ready"
+    text = str(sense or "")
+    if text.startswith("2/3A/"):
+        return "open" if text[5:] == "02" else "empty"
+    if text.startswith("6/28/"):
+        return "changed"
+    return "loading" if text.startswith("2/04/") else "unknown"
+
+
+def cmd_swap(args):
+    """Wait, read-only, while a disc is taken out and another put in: TEST UNIT READY every half second until the
+    drive has been without a disc (or reports a new one) and then has one ready. Nothing moves the tray."""
+    import time
+    from .scsi import DATA_NONE
+    dev = _open(args)
+    deadline = time.monotonic() + args.minutes * 60
+    seen, out = None, False
+    try:
+        while time.monotonic() < deadline:
+            res = dev.execute(mmc.test_unit_ready(), 0, DATA_NONE)
+            state = tray_state(res.sense, res.ok)
+            if state != seen:
+                ui.event("tray", state=state)
+                print({"ready": "Disc ready", "open": "Tray open", "empty": "Tray closed, no disc",
+                       "loading": "Reading the disc...", "changed": "The drive reports a new disc",
+                       "unknown": f"Not ready ({res.sense})"}[state], flush=True)
+                seen = state
+            if state in ("open", "empty", "changed"):
+                out = True
+            elif state == "ready" and (out or args.ready_now):
+                return
+            time.sleep(0.5)
+    finally:
+        dev.close() if hasattr(dev, "close") else None
+    sys.exit(f"No disc change within {args.minutes:g} minutes")
+
+
 def cmd_timing(args):
     if not args.sim:
         _need_hardware_platform()
@@ -813,8 +853,10 @@ def cmd_image(args):
     if args.design_npy:
         import numpy as np
         design = np.load(args.design_npy)
-        if design.shape != (imagedisc.SIZE, imagedisc.SIZE):
-            sys.exit(f"design must be {imagedisc.SIZE} x {imagedisc.SIZE} cells of {imagedisc.CELL_MM} mm")
+        try:
+            imagedisc.check_cells(design, args.cell_um)
+        except ValueError as e:
+            sys.exit(str(e))
         if args.textures:
             design = design.astype(np.uint8)
         elif design.dtype != bool:
@@ -824,11 +866,11 @@ def cmd_image(args):
         if args.design:
             from . import design as project_file
             try:
-                design = project_file.render(project_file.load(args.design))
+                design = project_file.render(project_file.load(args.design), size=imagedisc.CELL_SIDES[args.cell_um or 20])
             except ValueError as e:
                 sys.exit(str(e))
         else:
-            design = imagedisc.picture_design(args.picture, args.diameter_mm)
+            design = imagedisc.picture_design(args.picture, args.diameter_mm, cell=(args.cell_um or 20) / 1000)
         if args.media == "cd":      # the file system sits here, and write_iso refuses a drawing on top of it
             kept = imagedisc.clear_inside(design, 26.0)
             if (kept != design).any():
@@ -837,7 +879,7 @@ def cmd_image(args):
         kind = f"design {os.path.basename(args.design)}" if args.design else f"picture {os.path.basename(args.picture)}"
     else:
         design = imagedisc.grid_design(r_min=26.0 if args.media == "cd" else 24.5,
-                                      r_max=args.r_max, line=args.line_mm)
+                                      r_max=args.r_max, line=args.line_mm, size=imagedisc.CELL_SIDES[args.cell_um or 20])
         kind = f"grid, {args.line_mm} mm lines"
     total = writer.sectors_to_radius(u, v, bit, args.r_max + 0.6)
     if args.media == "dvd":
@@ -862,7 +904,7 @@ def cmd_image(args):
         print(f"Random data up to {args.random_below_mm:g} mm (LBA {lead}); the picture starts there.")
     extra = {**({"first_lba": first} if first else {}), **({"lead_lba": lead} if lead else {})}
     tex = f"textures {' '.join(args.textures)}" if args.textures else f"dark {args.dark}, light {args.light}"
-    print(f"{kind}, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
+    print(f"{kind}, {imagedisc.cell_mm(design) * 1000:g} um cells, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
           f"({total * 2048 / 1e9:.2f} GB), {tex}")
     corr = imagedisc.load_correction(args.correction) if args.correction else None
     try:
@@ -1619,6 +1661,22 @@ def _build_parser():
                             "Drive commands only read.", formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(required=True, metavar="<command>", help=argparse.SUPPRESS, prog=guide.PROG)
 
+    from . import burner
+    burn_zh = i18n.active() == "zh"
+    sp = sub.add_parser("burn", help="刻录 ISO（独立写入路径，必须明确确认）" if burn_zh else
+                        "write an ISO (separate, explicitly confirmed write path)")
+    sp.add_argument("--drive", required=True)
+    sp.add_argument("--iso", required=True)
+    sp.add_argument("--media", choices=("dvd", "cd"), default="dvd")
+    sp.add_argument("--speed", type=float, help="刻录倍速；默认选择支持的最低速度" if burn_zh else
+                    "multiple of 1x; default: lowest supported")
+    sp.add_argument("--yes-write", action="store_true", help="确认不可逆的刻录操作" if burn_zh else
+                    "confirm irreversible writing")
+    sp.add_argument("--cd-sector", choices=("mode2form1", "mode1"), default="mode2form1",
+                    help="CD 扇区布局，必须与 ISO 生成时相同" if burn_zh else
+                    "CD sector layout; must match the ISO generator (default: mode2form1)")
+    sp.set_defaults(func=burner.run)
+
     sp = sub.add_parser("list", help="list optical drives")
     sp.set_defaults(func=cmd_list)
 
@@ -1657,6 +1715,12 @@ def _build_parser():
     sp = sub.add_parser("info", help="dump drive and disc information")
     common(sp)
     sp.set_defaults(func=cmd_info)
+
+    sp = sub.add_parser("swap", help="wait (read-only) while the disc is taken out and another put in")
+    common(sp)
+    sp.add_argument("--minutes", type=float, default=10, help="give up after this long")
+    sp.add_argument("--ready-now", action="store_true", help="return at once if a disc is already ready")
+    sp.set_defaults(func=cmd_swap)
 
     sp = sub.add_parser("timing", help="cache/FUA test, CAV check, sector phase measurement")
     common(sp)
@@ -1815,7 +1879,10 @@ def _build_parser():
     sp.add_argument("--output", default="iso/grid.iso")
     sp.add_argument("--picture", help="greyscale picture to threshold instead of the grid test")
     sp.add_argument("--design", help="a design file saved by edit, instead of --picture")
-    sp.add_argument("--design-npy", help="prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view")
+    sp.add_argument("--design-npy", help="prepared boolean design (True = dark), data-side view, spanning the 120 mm disc: "
+                    "6000 x 6000 (20 um cells), 12000 x 12000 (10 um) or 24000 x 24000 (5 um)")
+    sp.add_argument("--cell-um", type=int, choices=(20, 10, 5), help="cell size of the drawing in um "
+                    "(default 20; 10 and 5 are finer). With --design-npy it must match the array, which sets it anyway")
     sp.add_argument("--diameter-mm", type=float, default=116.0, help="the picture's longer side on the disc, in mm; it keeps its shape")
     sp.add_argument("--r-max", type=float, default=56.0, help="outer radius of the drawing")
     sp.add_argument("--start-lba", type=int, default=0,
@@ -2035,6 +2102,8 @@ def _main(argv=None):
         args = argparse.Namespace(func=cmd_guide)
         return args.func(args)
     args = p.parse_args(argv)
+    if raw_args[:1] == ["burn"]:
+        return args.func(args)  # Write speeds have their own units and safety checks.
     if getattr(args, "rings", None) and isinstance(args.rings, str):
         try:
             args.rings_list = [float(x) for x in args.rings.replace(",", " ").split()]

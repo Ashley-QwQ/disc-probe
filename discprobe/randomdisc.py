@@ -39,7 +39,7 @@ def write_iso(path: str, sectors: int = DEFAULT_SECTORS, seed: int = 1, log=prin
             n = min(CHUNK_SECTORS, sectors - done)
             f.write(rng.integers(0, 256, n * dvd.SECTOR_BYTES, dtype=np.uint8).tobytes())
             done += n
-            if done / sectors >= next_report:
+            if done / sectors >= next_report - 1e-9:   # (steps of 0.01 add up to a hair over 1)
                 log(f"  {100 * done / sectors:5.1f} %")
-                next_report += 0.2
+                next_report += getattr(log, "every", 0.2)
     iso9660.add(path, sectors, "DISCPROBE_RANDOM")

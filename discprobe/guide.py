@@ -973,6 +973,21 @@ def after_cdprobe(project: str) -> list[str]:
             f"  {PROG} geo {drive_flag()} --media cd"]
 
 
+def result_verdict(run, media="dvd"):
+    if run is None:
+        return None
+    if run.kind == "geo":
+        return run.quality().replace(" ", "_")
+    if run.stopped:
+        return "stopped_early"
+    if not run.rotation():
+        return "unknown"
+    if run.rotation() != ("CLV" if media == "bd" else "CAV"):
+        return "too_noisy"
+    jitter = _jitter(run.summary)
+    return "good" if jitter and max(jitter) <= GOOD_JITTER_DEG else "usable"
+
+
 def guide_state(media: str = "dvd", out: str = "results", *, drives=None) -> dict:
     """Disk-derived workflow, shared by the CLI and HTTP service. No drive is opened."""
     if media not in ("dvd", "cd", "bd"):
@@ -993,19 +1008,7 @@ def guide_state(media: str = "dvd", out: str = "results", *, drives=None) -> dic
     picture = picture_iso()
     latest_timing = timing or next((r for r in results if r.kind == "timing"), None)
     latest_geometry = geo or next((r for r in results if r.kind == "geo"), None)
-    def verdict(run):
-        if run is None:
-            return None
-        if run.kind == "geo":
-            return run.quality().replace(" ", "_")
-        if run.stopped:
-            return "stopped_early"
-        if not run.rotation():
-            return "unknown"
-        if run.rotation() != ("CLV" if media == "bd" else "CAV"):
-            return "too_noisy"
-        jitter = _jitter(run.summary)
-        return "good" if jitter and max(jitter) <= GOOD_JITTER_DEG else "usable"
+    verdict = lambda run: result_verdict(run, media)
 
     steps = [
         dict(id="packages", done=not missing, label="Python packages",

@@ -233,9 +233,9 @@ def write_iso(path: str, layout: CalLayout, log=print) -> str:
                 fh.write(data.tobytes())
                 lba += n
                 done += n
-                if done / layout.total_sectors >= next_report:
+                if done / layout.total_sectors >= next_report - 1e-9:   # (steps of 0.01 add up to a hair over 1)
                     log(f"  {100 * done / layout.total_sectors:5.1f} %")
-                    next_report += 0.1
+                    next_report += getattr(log, "every", 0.1)
     iso9660.add(path, layout.total_sectors, "DISCPROBE_CAL")
     spec_path = os.path.splitext(path)[0] + ".cal.json"
     layout.save(spec_path)

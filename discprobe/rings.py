@@ -144,9 +144,9 @@ def write_iso(path: str, layout: RingLayout, log=print) -> str:
                         k += m
                 b += n
                 done += n * dvd.BLOCK_SECTORS
-                if done / total >= next_report:
+                if done / total >= next_report - 1e-9:   # (steps of 0.01 add up to a hair over 1)
                     log(f"  {100 * done / total:5.1f} %")
-                    next_report += 0.1
+                    next_report += getattr(log, "every", 0.1)
     iso9660.add(path, layout.total_sectors, "DISCPROBE_RINGS")
     spec_path = os.path.splitext(path)[0] + ".rings.json"
     layout.save(spec_path)

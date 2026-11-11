@@ -48,7 +48,7 @@ def _label(action) -> str:
     if action.nargs == 0:
         return ""
     if action.choices:
-        return "|".join(action.choices)
+        return "|".join(map(str, action.choices))
     if action.type is int:
         return tr("integer")
     if action.type is float:
@@ -74,7 +74,7 @@ def table(build_parser):
         for action in parser._actions:
             help_text = (action.help or "").replace("%%", "%")
             for flag in action.option_strings:
-                values = tuple(action.choices or VALUE_HINTS.get(flag, ()))
+                values = tuple(map(str, action.choices or VALUE_HINTS.get(flag, ())))
                 kind = "f" if action.nargs == 0 else "p" if action.dest in PATH_DESTS else "v"
                 rows[name].append((flag, kind, values, _label(action), help_text))
         rows[name] += shared

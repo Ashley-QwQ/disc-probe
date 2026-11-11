@@ -772,6 +772,9 @@ TEXT = {
     "show which steps are done and the next command to run": "显示做到了哪一步，以及下一条命令",
     "list past results, newest first": "列出以前的结果，最新的在前",
     "dump drive and disc information": "显示光驱和光盘的信息",
+    "wait (read-only) while the disc is taken out and another put in": "等你取出这张盘、放进另一张（只读，不动托盘）",
+    "give up after this long": "超过这么久就放弃",
+    "return at once if a disc is already ready": "如果光驱里已经有可读的盘，马上返回",
     "cache/FUA test, CAV check, sector phase measurement": "检查光驱能不能测量：缓存、转速是否恒定、扇区角度",
     "generate the radial-spoke calibration pattern": "生成径向辐条标定图",
     "measure spoke rotation versus radius on a flatbed scan": "在平板扫描图上测辐条随半径的旋转",
@@ -907,6 +910,10 @@ TEXT = {
     "summary.json of a geo run, its folder, latest, or pick to choose": "geo 结果的 summary.json、它所在的文件夹、latest（最新一次可靠的结果），或 pick（手动选）",
     "greyscale picture to threshold instead of the grid test": "用这张灰度图代替网格测试图",
     "prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view": "准备好的布尔图案（True 为深色），6000 x 6000 格，每格 0.02 mm，从数据面看",
+    "prepared boolean design (True = dark), data-side view, spanning the 120 mm disc: 6000 x 6000 (20 um cells), 12000 x 12000 (10 um) or 24000 x 24000 (5 um)":
+        "准备好的布尔图案（True 为深色），从数据面看，铺满 120 mm 的盘：6000 x 6000（每格 20 µm）、12000 x 12000（10 µm）或 24000 x 24000（5 µm）",
+    "cell size of the drawing in um (default 20; 10 and 5 are finer). With --design-npy it must match the array, which sets it anyway":
+        "图案的格子大小，单位 µm（默认 20；10 和 5 更细）。配 --design-npy 时要和数组一致，数组本身就决定了它",
     "the picture's longer side on the disc, in mm; it keeps its shape": "图片长边在盘上的长度（mm），保持比例",
     "outer radius of the drawing": "图案的外半径",
     "DVD: write only from this sector on, to append to a disc already written up to it (`info` shows the next writable address)": "DVD：只从这个扇区开始写，用来接着写在已经写到这里的盘上（`info` 会显示下一个可写地址）",

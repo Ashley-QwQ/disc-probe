@@ -39,11 +39,13 @@ param(
     [switch]$Reload,
     [switch]$KeepOpen,
     [switch]$Append,
-    [long]$ExpectStart = -1
+    [long]$ExpectStart = -1,
+    [switch]$Machine,
+    [string]$CancelFile
 )
 $ErrorActionPreference = "Stop"
 
-Add-Type -TypeDefinition @"
+Add-Type -ReferencedAssemblies System.dll,System.Core.dll,Microsoft.CSharp.dll -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
@@ -70,7 +72,136 @@ public static class BurnCheck {
         return v.GetBurnVerificationLevel();
     }
 }
+// Isolated JSONL mode. No recording or exclusive access is acquired by Inspect.
+public static class MachineBurn {
+    static readonly Guid Events = new Guid("2735413C-7F64-5B0F-8F00-5D77AFBE261E");
+    public delegate void UpdateHandler([MarshalAs(UnmanagedType.IDispatch)] object sender,
+                                      [MarshalAs(UnmanagedType.IDispatch)] object progress);
+    static void Emit(string value) { Console.WriteLine(value); Console.Out.Flush(); }
+    static string Number(double value) { return value.ToString(System.Globalization.CultureInfo.InvariantCulture); }
+    public static void Run(string drive, string image, double speed, bool burn, string cancel) {
+        RunWithFactory(drive, image, speed, burn, cancel,
+            name => Activator.CreateInstance(Type.GetTypeFromProgID(name)),
+            (format, handler) => ComEventsHelper.Combine(format, Events, 0x200, handler),
+            (format, handler) => ComEventsHelper.Remove(format, Events, 0x200, handler));
+    }
+    // Injectable COM creation/event boundary for offline tests. Production uses only Run above.
+    public static void RunWithFactory(string drive, string image, double speed, bool burn, string cancel,
+        Func<string, object> create, Action<object, UpdateHandler> subscribe, Action<object, UpdateHandler> unsubscribe) {
+        object masterObject = null, recorderObject = null, formatObject = null;
+        IStream stream = null;
+        UpdateHandler handler = null;
+        bool subscribed = false;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        try {
+            masterObject = create("IMAPI2.MsftDiscMaster2");
+            dynamic master = masterObject;
+            for (int i = 0; i < (int)master.Count; i++) {
+                object candidate = create("IMAPI2.MsftDiscRecorder2");
+                dynamic r = candidate;
+                r.InitializeDiscRecorder(master[i]);
+                bool found = false;
+                foreach (string volume in r.VolumePathNames)
+                    if (String.Equals(volume.TrimEnd('\\'), drive.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)) found = true;
+                if (found) { recorderObject = candidate; break; }
+                if (Marshal.IsComObject(candidate)) Marshal.FinalReleaseComObject(candidate);
+            }
+            if (recorderObject == null) throw new InvalidOperationException("No recorder at requested drive.");
+            dynamic recorder = recorderObject;
+            formatObject = create("IMAPI2.MsftDiscFormat2Data");
+            dynamic fmt = formatObject;
+            fmt.Recorder = recorder;
+            fmt.ClientName = "discprobe-burn";
+            if (!fmt.IsCurrentMediaSupported(recorder)) throw new InvalidOperationException("No writable medium.");
+            int physical = (int)fmt.CurrentPhysicalMediaType;
+            // Physical type plus CURRENT profile, never recorder-supported profiles.
+            int profile = 0;
+            foreach (object p in recorder.CurrentProfiles) {
+                int v = Convert.ToInt32(p);
+                if ((physical == 6 && v == 0x1B) || (physical == 7 && v == 0x1A) ||
+                    (physical == 8 && v == 0x2B) || (physical == 9 && v == 0x11) ||
+                    (physical == 10 && (v == 0x13 || v == 0x14)) ||
+                    (physical == 11 && (v == 0x15 || v == 0x16)) ||
+                    (physical == 13 && v == 0x2A)) profile = v;
+            }
+            if (profile == 0) throw new InvalidOperationException("Inserted medium is not a supported writable DVD.");
+            bool blank = (bool)fmt.MediaPhysicallyBlank && (((int)fmt.CurrentMediaStatus & 2) != 0);
+            long free = (long)fmt.FreeSectorsOnMedia;
+            var speeds = new System.Collections.Generic.List<int>();
+            foreach (object s in fmt.SupportedWriteSpeeds) {
+                int value = Convert.ToInt32(s);
+                if (value > 0 && !speeds.Contains(value)) speeds.Add(value);
+            }
+            speeds.Sort();
+            if (!burn) {
+                var values = speeds.ConvertAll(s => Number(s / 675.0));
+                Emit("{\"media\":\"dvd\",\"blank\":" + (blank ? "true" : "false") +
+                     ",\"free_sectors\":" + free + ",\"speeds_x\":[" + String.Join(",", values) + "]}");
+                return;
+            }
+            if (!blank) throw new InvalidOperationException("Disc is not physically blank; refusing write.");
+            long bytes = new System.IO.FileInfo(image).Length;
+            if (bytes <= 0 || bytes % 2048 != 0 || bytes / 2048 > free)
+                throw new InvalidOperationException("Image size invalid or exceeds free sectors.");
+            if (speeds.Count == 0) throw new InvalidOperationException("No supported write speeds.");
+            int chosen = speeds[0];
+            if (speed > 0) {
+                foreach (int s in speeds) if (Math.Abs(s / 675.0 - speed) < Math.Abs(chosen / 675.0 - speed)) chosen = s;
+                if (Math.Abs(chosen / 675.0 - speed) > Math.Max(.03, speed * .01))
+                    throw new InvalidOperationException("Requested speed unsupported by inserted disc.");
+            }
+            fmt.BufferUnderrunFreeDisabled = false;
+            fmt.ForceMediaToBeClosed = true;
+            fmt.ForceOverwrite = false;
+            if (BurnCheck.Set(formatObject, 0) != 0) throw new InvalidOperationException("Cannot disable verification.");
+            fmt.SetWriteSpeed(chosen, false);
+            int actualSpeed = (int)fmt.CurrentWriteSpeed;
+            if (actualSpeed <= 0) throw new InvalidOperationException("Recorder did not report a valid actual speed.");
+            Emit("{\"type\":\"speed\",\"actual_x\":" + Number(actualSpeed / 675.0) + "}");
+            handler = delegate(object sender, object data) {
+                dynamic update = data;
+                if (!String.IsNullOrEmpty(cancel) && System.IO.File.Exists(cancel)) {
+                    ((dynamic)sender).CancelWrite();
+                    return;
+                }
+                double count = (double)update.SectorCount;
+                double fraction = count > 0 ? ((double)update.LastWrittenLba - (double)update.StartLba + 1) / count : 0;
+                // Data completion is not session completion. Keep the bar below 100% until Write returns.
+                fraction = Math.Max(0, Math.Min(.999, fraction));
+                Emit("{\"type\":\"progress\",\"fraction\":" + Number(fraction) +
+                     ",\"elapsed_s\":" + Number((double)update.ElapsedTime) +
+                     ",\"eta_s\":" + Number((double)update.RemainingTime) +
+                     ",\"stage\":\"imapi-" + (int)update.CurrentAction + "\"}");
+            };
+            subscribe(formatObject, handler);
+            subscribed = true;
+            stream = IsoStream.Open(image); // denies concurrent image writers
+            if (!String.IsNullOrEmpty(cancel) && System.IO.File.Exists(cancel))
+                throw new OperationCanceledException("Cancelled before Write.");
+            fmt.Write(stream); // exactly once; never retry a failed WRITE
+            Emit("{\"type\":\"progress\",\"fraction\":1,\"elapsed_s\":" + Number(clock.Elapsed.TotalSeconds) + ",\"eta_s\":0,\"stage\":\"completed\"}");
+        } catch (Exception e) {
+            Exception detail = e;
+            while (detail.InnerException != null) detail = detail.InnerException;
+            Console.Error.WriteLine("Burn/inspection failed. Details: 0x" + detail.HResult.ToString("X8") + " " + detail.Message);
+            throw;
+        } finally {
+            if (subscribed) unsubscribe(formatObject, handler);
+            if (stream != null) Marshal.FinalReleaseComObject(stream);
+            if (formatObject != null && Marshal.IsComObject(formatObject)) Marshal.FinalReleaseComObject(formatObject);
+            if (recorderObject != null && Marshal.IsComObject(recorderObject)) Marshal.FinalReleaseComObject(recorderObject);
+            if (masterObject != null && Marshal.IsComObject(masterObject)) Marshal.FinalReleaseComObject(masterObject);
+        }
+    }
+}
 "@
+
+if ($Machine) {
+    if ($Verify -or $Reload -or $KeepOpen -or $Append) { throw "Machine mode does not accept legacy session options" }
+    try { [MachineBurn]::Run($Drive, $Iso, $Speed, [bool]$Burn, $CancelFile) }
+    catch { exit 1 }
+    exit 0
+}
 
 function Get-WrittenTo($Recorder) {
     # Where the drive would write next, asked afresh after the failure; $null when it won't say (tray out, busy).
