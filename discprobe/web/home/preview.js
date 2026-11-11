@@ -25,34 +25,34 @@ let twist = 1;                       // degrees at the outer edge in the "off by
 const STR = {
   zh: {
     title: "预览", next: "下一步：刻录", views: "预览方式",
-    v: { design: "设计投影", off: "失配模拟", look: "拟真", read: "成品读回" },
+    v: { design: "设计投影", off: "失配模拟", look: "拟真" },
     file: "刻录文件", fileNote: "把设计变成可以刻录的文件。生成以后才能去刻录。",
     make: "生成刻录文件", again: "重新生成", cancel: "取消", making: "正在生成…", made: "刻录文件已生成",
     cancelled: "已取消，可以重新生成。", failed: "没有生成出来。", sectors: "扇区", where: "保存位置", folder: "在文件夹里显示",
-    folderLater: "接上桌面服务以后才能打开文件夹。", details: "详细信息",
-    cd: "这张 CD 还没做拍照标定：文件照样能生成，但刻出来的图可能整体歪一点。",
+    details: "详细信息",
+    cd: "这张 CD 的沿轨常数尚未确认，径向线可能扭曲。网页拍照标定还没做好，请先按 README 的 CD 路线，在 DIS 做精细标定。",
     offH: "差一点会怎样", offNote: "标定差一点时，图会一圈一圈地拧开，离中间那一圈越远拧得越多。这就是要先标定的原因。",
     offAt: "外圈偏多少", lookH: "拟真", lookNote: "模型预测，不是照片。拖动太阳移动灯，拖动手机移动相机。转动或倾斜盘片，看看图案和彩虹怎样变化。",
     photoLook: "照片感", flash: "闪光灯（关闭用室内灯）", wear: "灰尘和划痕", background: "背后是什么", hand: "手心", table: "暗桌面", roughNote: "按实拍照片加了反光、划痕和手机成像的瑕疵。",
     rotate: "转动盘片", exposure: "曝光", camera: "手机", height: "相机高度", lightHeight: "灯的高度", resetLook: "恢复默认位置",
     loading: "正在准备设计…", refining: "正在细化…", simError: "模拟没有完成，请返回设计页再试。", cdModel: "此模型适用于 DVD，暂不预测 CD 的外观。",
-    tilt: "盘斜多少", light: "灯", readH: "先刻录，再读回", readNote: "刻好以后回到这里，把盘读回来和设计对比。现在还没有刻好的盘。",
+    tilt: "盘斜多少", light: "灯",
     dim: "压暗的内圈和外圈不刻图。", fit: "适应", noProject: "设计页还没有图。回去放一张图再来。",
   },
   en: {
     title: "Preview", next: "Next: burn", views: "Preview mode",
-    v: { design: "Design", off: "Off by a little", look: "Simulated", read: "Read back" },
+    v: { design: "Design", off: "Off by a little", look: "Simulated" },
     file: "Burn file", fileNote: "Turn the design into a file to burn. Make it before going on to burn.",
     make: "Make the burn file", again: "Make it again", cancel: "Cancel", making: "Making…", made: "Burn file ready",
     cancelled: "Cancelled. You can make it again.", failed: "The file wasn't made.", sectors: "sectors", where: "Saved at", folder: "Show in folder",
-    folderLater: "Opening the folder needs the desktop service.", details: "Details",
-    cd: "This CD hasn't had its photo calibration yet: the file can still be made, but the picture may come out slightly turned.",
+    details: "Details",
+    cd: "This CD’s along-track constant is unconfirmed; radial lines may twist. Web photo calibration is not ready. Follow the README CD route and run fine calibration in DIS first.",
     offH: "What a small error does", offNote: "When calibration is a little off, the picture twists ring by ring, more the further from the middle ring. That is why calibration comes first.",
     offAt: "Off at the outer edge", lookH: "Simulated look", lookNote: "Model prediction, not a photo. Drag the sun to move the light and the phone to move the camera. Turn or tilt the disc to see the picture and rainbow change.",
     photoLook: "Photo look", flash: "Flash (off: room lamp)", wear: "Dust and scratches", background: "Behind the disc", hand: "Hand", table: "Dark table", roughNote: "Reflections, scratches and phone-camera imperfections added from photo references.",
     rotate: "Turn the disc", exposure: "Exposure", camera: "Phone", height: "Camera height", lightHeight: "Light height", resetLook: "Reset the view",
     loading: "Preparing the design…", refining: "Refining…", simError: "Simulation failed. Return to Design and try again.", cdModel: "This model predicts DVD appearance. CD appearance is not available yet.",
-    tilt: "Disc tilt", light: "Light", readH: "Burn first, then read back", readNote: "After burning, come back here to read the disc and compare it with the design. There's no burned disc yet.",
+    tilt: "Disc tilt", light: "Light",
     dim: "The dimmed inner and outer rings aren't drawn.", fit: "Fit", noProject: "The design page has no picture yet. Go back and add one.",
   },
 };
@@ -93,7 +93,7 @@ function buildRight() {
     (ready ? `<p class="note">${t.made}</p>` +
       `<div class="pv-file"><b>${esc(s.iso.path.split(/[\\/]/).pop())}</b><span class="mono">${fmtBytes(s.iso.bytes)} · ${s.iso.sectors.toLocaleString()} ${t.sectors}</span></div>` +
       `<details class="pv-more"><summary>${t.details}</summary><p class="note mono">${esc(s.iso.path)}</p></details>` +
-      `<div class="row2"><button class="sbtn" type="button" data-a="folder">${t.folder}</button><button class="sbtn" type="button" data-a="make">${t.again}</button></div>`
+      `<div class="row2">${ctx.showInFolder ? `<button class="sbtn" type="button" data-a="folder">${t.folder}</button>` : ''}<button class="sbtn" type="button" data-a="make">${t.again}</button></div>`
     : busy ? `<div class="pv-gen" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round((s.fraction ?? 0) * 100)}"></div>` +
       `<p class="note">${esc(s.stage || t.making)}${s.fraction ? ` <span class="mono">${Math.floor(s.fraction * 100)}%</span>` : ""}</p>` +
       `<button class="sbtn wide" type="button" data-a="cancel">${t.cancel}</button>`
@@ -204,9 +204,9 @@ function draw() {
   const t = T(), g = W.canvas.getContext("2d"), [r0, r1] = RANGE[ctx.media] ?? RANGE.dvd;
   g.setTransform(V.dpr, 0, 0, V.dpr, 0, 0);
   g.clearRect(0, 0, V.w, V.h);
-  const empty = view === "read" || !src;
+  const empty = !src;
   W.empty.hidden = !empty;
-  W.empty.querySelector("p").textContent = view === "read" ? `${t.readH}。${t.readNote}`.replace("。。", "。") : t.noProject;
+  W.empty.querySelector("p").textContent = t.noProject;
   W.ws.classList.toggle("pv-looking", view === "look");
   W.sun.hidden = W.phone.hidden = view !== "look" || !src || ctx.media === "cd";
   W.zoom.hidden = empty || view === "look";
@@ -286,7 +286,7 @@ function bind(signal) {
     if (a === "reset-look") { Object.assign(look, DEFAULT_POSE, PHOTO_DEFAULTS); buildRight(); draw(); }
     if (a === "make") make();
     if (a === "cancel") cancel();
-    if (a === "folder") ctx.showInFolder ? ctx.showInFolder(state.iso.path) : toast(T().folderLater);
+    if (a === "folder") ctx.showInFolder?.(state.iso.path);
   });
   on(W.right, "change", (e) => {
     const k = e.target.dataset.photo;

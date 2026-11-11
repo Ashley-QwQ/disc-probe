@@ -50,7 +50,7 @@ export async function follow(id, onEvent = () => {}) {
       const snapshot = await request(`/api/jobs/${id}`);
       snapshot.events.forEach(deliver);
       if (snapshot.exit !== null) {
-        if (snapshot.exit !== 0) throw Object.assign(new Error('Job failed (' + snapshot.exit + ').'), {status:422});
+        if (snapshot.exit !== 0) throw Object.assign(new Error('Job failed (' + snapshot.exit + ').'), {status:422, result:snapshot.result});
         return snapshot.result;
       }
       await new Promise(resolve => setTimeout(resolve, 250));

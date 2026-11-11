@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict';
+import {measurementRecovery, calibrationBudget, cdPhoto, afterBurn, budgetHTML, recoveryAction, recoveryCommands, remeasure} from '../discprobe/web/home/guidance.mjs';
+for (const lang of ['zh','en']) {
+  const verdicts = ['good','usable','too_noisy','drive_changed','narrow_span','stopped_early','unknown'];
+  for (const verdict of verdicts) {
+    const result = {geo:{path:'results/test',verdict,measurement:{span_mm:[28,48]}}};
+    const body = measurementRecovery(result)[lang];
+    assert.ok(body.length > 8);
+    assert.doesNotMatch(body, /--|timing|geo|disexport/);
+    assert.equal(recoveryAction(result).id, ({good:'save',usable:'save'})[verdict] || 'measure');
+  }
+  assert.match(budgetHTML('cd',lang), /<ul>.*3/s);
+  assert.match(budgetHTML('dvd',lang), /<ul>.*2/s);
+  assert.match(budgetHTML('dvd',lang), /<details><summary>/);
+  assert.doesNotMatch(budgetHTML('dvd',lang), /<details open/);
+  assert.match(cdPhoto[lang], /DIS|DiscImageStudio/);
+  assert.equal(afterBurn.length,3);
+}
+for (const span of [undefined, [48,28], [0,48], [28,59], [28,NaN]]) {
+  assert.equal(recoveryAction({geo:{verdict:'narrow_span',path:'x',measurement:{span_mm:span}}}).id,'measure');
+}
+assert.equal(recoveryAction({geo:{verdict:'narrow_span',path:'x',measurement:{span_mm:[28,48]}}}).id,'measure');
+assert.equal(recoveryAction({geo:{measurement:{stopped:'medium error'}}}).id,'blank');
+assert.equal(recoveryAction({timing:{verdict:'good',measurement:{rotation:'CLV'}}}).id,'measure');
+assert.equal(recoveryAction({geo:{verdict:'future_verdict'}}).id,'measure');
+for (const rotation of ['CAV','CLV','unknown']) {
+  const calls=[];
+  await remeasure(async (action,args)=>{calls.push({action,args});return {verdict:'good',measurement:{rotation}};});
+  assert.deepEqual(calls, rotation === 'CAV' ? [{action:'timing',args:{}},{action:'geo',args:{speed:'keep'}}] : [{action:'timing',args:{}}]);
+}
+for (const verdict of ['unknown','too_noisy','stopped_early']) {
+  const calls=[];
+  await remeasure(async action=>{calls.push(action);return {verdict,measurement:{rotation:'CAV'}};});
+  assert.deepEqual(calls,['timing']);
+}
+await assert.rejects(remeasure(async()=>{throw new Error('cancelled');}),/cancelled/);
+assert.match(recoveryCommands({geo:{verdict:'narrow_span',path:'results/test',measurement:{span_mm:[28,48]}}},{drive:'H:',media:'cd',sectors:300000}), /--r-min START --r-max END/);
+// A failed job must still carry its saved result to the calibration page.
+globalThis.location = {search:''};
+globalThis.EventSource = class {addEventListener(){} close(){}};
+globalThis.fetch = async () => ({ok:true,json:async()=>({events:[],exit:1,result:{ok:false,timing:{verdict:'too_noisy'}}})});
+const source = await (await import('node:fs/promises')).readFile(new URL('../discprobe/web/home/api.js',import.meta.url),'utf8');
+const api = await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+await assert.rejects(api.follow('test'), error => error.result?.timing.verdict === 'too_noisy');
+console.log('Bilingual recovery, budget and failed-job tests passed');

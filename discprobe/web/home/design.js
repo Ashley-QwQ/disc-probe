@@ -16,8 +16,7 @@ const isOn = () => root.dataset.mode === "design";
 // ---------------------------------------------------------------- words
 const STR = {
   zh: {
-    untitled: "未命名工程", next: "下一步：预览", nextLater: "预览页下一轮做",
-    burnLater: "网页里还不能直接刻录：后端这一版没有刻录命令。展开“用别的软件刻”，复制刻录文件的路径，用你常用的刻录软件刻。",
+    untitled: "未命名工程", next: "下一步：预览",
     burnNoDrive: "没找到光驱。接好光驱后再回到这一页。", burnNoDisc: (why) => `读不了光驱里的盘：${why || "可能没放盘"}。放一张空白盘再回到这一页。`,
     burnNotBlank: "光驱里这张不是空白盘。换一张同一批的空白盘，再回到这一页。", burnTooBig: "刻录文件比这张盘放得下的大。",
     burnNotBlankSwap: (what) => `光驱里这张${what ? ` ${what} ` : ""}已经刻过了。按光驱上的弹出键把它取出来。`,
@@ -33,7 +32,6 @@ const STR = {
       drawing: "正在画整张盘的设计图…", sending: "正在交给后端…", making: "正在生成刻录文件…",
       noBackend: "生成刻录文件要由 disc-probe 打开这个页面：在命令行运行 python -m discprobe webui，再用它给的网址。",
       noGeo: "这种盘还没有测好的盘面几何，先校准。",
-      fineGrid: "10 µm 和 5 µm 还不能导出：命令行先要有正式的格子大小选项。先切回 20 µm。",
       failed: "生成失败。", empty: "盘上还没有图。", four: "4 级灰阶还不能导出：先用 2 级。",
     },
     layers: "图层", undo: "撤销（Ctrl+Z）", redo: "重做（Ctrl+Shift+Z）", import: "导入图片", noLayers: "还没有图层。",
@@ -41,7 +39,7 @@ const STR = {
     files: "随盘文件", pickFolder: "选择文件夹", inner: "内圈", outer: "外圈", clear: "清除",
     filesN: (n, size) => `${n} 个文件 · ${size}`, filesRing: (a, b) => `占半径 ${a}–${b} mm，这一圈放文件，不刻图。`,
     filesNone: "不带文件时，整个可刻范围都给图。", cdFiles: "CD：不带文件就刻音轨，带文件就刻数据盘。",
-    tone: "影调", dither: "抖动强度", bright: "亮度", levels: "灰阶档位", lv: (n) => `${n} 级`, lv4: "4 级只对 CD 有效",
+    tone: "影调", dither: "抖动强度", bright: "亮度", levels: "灰阶档位", lv: (n) => n === 4 ? '4 级（仅预览）' : `${n} 级`, lv4: "4 级仅供 CD 预览，导出请选 2 级",
     lin: "sRGB 线性化", inv: "反转 3T/6T 映射",
     more: "更多", auto: "自动色阶", autoOff: "取消自动色阶", autoOn: (b, w) => `黑点 ${b} · 白点 ${w}`,
     contrast: "对比度", hi: "高光", sh: "阴影", mode: "抖动方式",
@@ -79,18 +77,17 @@ const STR = {
     precision: "雕刻精度", precEv: "实刻：LTVA1 显微镜",
     prec: { 20: "20 µm（默认）", 10: "10 µm", 5: "5 µm" },
     precNote: {
-      20: "现在的刻录格子。DIS 的 8192 像素约 14 µm。",
+      20: "默认刻录格子。DIS 的 8192 像素约 14 µm。",
       10: "显微镜下线条和棋盘格都清楚。",
       5: "线条能分开但带颗粒，棋盘格是临界失败。",
     },
-    precCost: (n) => `整盘 ${n} × ${n} 格，导出交给后端；命令行要先加正式参数（现在是一次性补丁）。`,
+    precCost: (n) => `整盘 ${n} × ${n} 格，由后端导出。支持 20、10、5 µm；格子更小会多用内存和时间。`,
     loupe: "放大镜", loupeHint: (c, f) => `1 格 = ${c} µm · 视野 ${f} mm`,
     sampleName: "示例：山和太阳",
     fit: "适应", hundred: "100%",
   },
   en: {
-    untitled: "Untitled project", next: "Next: preview", nextLater: "The preview page comes in the next round",
-    burnLater: "Burning from the page isn't ready: this back end has no burn command yet. Open “Burn with another program”, copy the burn file's path and use the burning program you normally use.",
+    untitled: "Untitled project", next: "Next: preview",
     burnNoDrive: "No drive found. Connect the drive and come back to this page.", burnNoDisc: (why) => `Couldn't read the disc in the drive: ${why || "maybe there is none"}. Put in a blank disc and come back to this page.`,
     burnNotBlank: "The disc in the drive isn't blank. Put in a blank from the same batch and come back to this page.", burnTooBig: "The burn file is bigger than this disc can hold.",
     burnNotBlankSwap: (what) => `The disc in the drive${what ? ` (${what})` : ""} has already been written. Press the drive's eject button and take it out.`,
@@ -106,7 +103,6 @@ const STR = {
       drawing: "Drawing the whole disc…", sending: "Handing it to the back end…", making: "Making the burn file…",
       noBackend: "Making the burn file needs disc-probe to serve this page: run python -m discprobe webui and open the address it prints.",
       noGeo: "No measured disc geometry for this disc type yet. Calibrate first.",
-      fineGrid: "10 µm and 5 µm can't be exported yet: the command line needs a proper grid option first. Switch back to 20 µm.",
       failed: "Making the file failed.", empty: "There's no picture on the disc yet.", four: "4 grey levels can't be exported yet: use 2 for now.",
     },
     layers: "Layers", undo: "Undo (Ctrl+Z)", redo: "Redo (Ctrl+Shift+Z)", import: "Import picture", noLayers: "No layers yet.",
@@ -114,7 +110,7 @@ const STR = {
     files: "Files on the disc", pickFolder: "Choose folder", inner: "Inner", outer: "Outer", clear: "Clear",
     filesN: (n, size) => `${n} files · ${size}`, filesRing: (a, b) => `Radius ${a}–${b} mm holds the files; no picture there.`,
     filesNone: "Without files, the whole burnable range is the picture's.", cdFiles: "CD: without files it burns an audio track; with files, a data disc.",
-    tone: "Tone", dither: "Dither strength", bright: "Brightness", levels: "Grey levels", lv: (n) => `${n} levels`, lv4: "4 levels work on CD only",
+    tone: "Tone", dither: "Dither strength", bright: "Brightness", levels: "Grey levels", lv: (n) => n === 4 ? '4 levels (preview only)' : `${n} levels`, lv4: "4 levels are for CD preview only; choose 2 to export",
     lin: "sRGB linearisation", inv: "Swap the 3T/6T mapping",
     more: "More", auto: "Auto levels", autoOff: "Undo auto levels", autoOn: (b, w) => `Black ${b} · white ${w}`,
     contrast: "Contrast", hi: "Highlights", sh: "Shadows", mode: "Dither method",
@@ -152,11 +148,11 @@ const STR = {
     precision: "Engraving grid", precEv: "Burned: LTVA1 microscope",
     prec: { 20: "20 µm (default)", 10: "10 µm", 5: "5 µm" },
     precNote: {
-      20: "Today's burn grid. DIS's 8192 pixels are about 14 µm.",
+      20: "Default burn grid. DIS's 8192 pixels are about 14 µm.",
       10: "Lines and checkerboards both clear under the microscope.",
       5: "Lines separate but grainy; the checkerboard is a borderline fail.",
     },
-    precCost: (n) => `${n} × ${n} cells for the whole disc; the back end exports it. The command line needs a proper option first (today it's a one-off patch).`,
+    precCost: (n) => `${n} × ${n} cells for the whole disc; the back end exports it. 20, 10 and 5 µm are supported; finer grids need more memory and time.`,
     loupe: "Loupe", loupeHint: (c, f) => `1 cell = ${c} µm · ${f} mm across`,
     sampleName: "Sample: hills and sun",
     fit: "Fit", hundred: "100%",
@@ -1181,7 +1177,7 @@ function buildRight() {
     Object.entries(t.fxKinds).map(([k, [name, note]]) => `<button class="fx-opt" type="button" data-fx-add="${k}"><b>${name}</b><span>${note}</span></button>`).join("") + `</div></section>`;
 
   // PRO: engraving grid
-  const um = Math.round(S.cell * 1000), cells = Math.round(120 / S.cell * 0.9667);
+  const um = Math.round(S.cell * 1000), cells = Math.round(GRID_MM / S.cell);
   const precS = `<section class="pro-only"><h3><span class="grow">${t.precision}</span><span class="ev">${t.precEv}</span></h3>` +
     `<div class="seg" role="group" aria-label="${t.precision}">${[20, 10, 5].map((u) => `<button type="button" data-um="${u}" aria-pressed="${um === u}">${t.prec[u]}</button>`).join("")}</div>` +
     `<p class="note">${t.precNote[um]}</p>` + (um < 20 ? `<p class="note quiet">${t.precCost(cells)}</p>` : "") +
@@ -1442,7 +1438,7 @@ export async function designBits(onStage = () => {}, { band: bandRows } = {}) {
   const t = T().exp;
   if (!S || !imageLayers().some((L) => L.visible)) throw new Error(t.empty);
   const side = Math.round(GRID_MM / S.cell);           // 6000, 12000 or 24000 cells across
-  if (![6000, 12000, 24000].includes(side)) throw new Error(t.fineGrid);
+  if (![6000, 12000, 24000].includes(side)) throw new Error(api.lang() === "zh" ? "请选择 20、10 或 5 µm 格子。" : "Choose a 20, 10 or 5 µm grid.");
   if (S.tone.levels === 4 && S.media === "cd") throw new Error(t.four);
   onStage(t.drawing);
   await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));   // let the stage show first

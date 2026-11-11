@@ -77,3 +77,9 @@ def test_info_report_blank_capacity_and_family():
     report['disc_information']={'parsed':{'disc_status':'empty'}}
     assert catalog.disc_report(report)['blank'] is True
     assert catalog.disc_report({})['present'] is False
+
+
+def test_measurement_preserves_stop_reason(tmp_path):
+    path = write_geo(tmp_path, stopped='medium error at LBA 42')
+    run = next(r for r in guide.scan(str(tmp_path / 'results')) if Path(r.path) == path)
+    assert catalog.measurement(run)['stopped'] == 'medium error at LBA 42'

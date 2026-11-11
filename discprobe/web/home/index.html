@@ -371,6 +371,13 @@
   .cal h2 { margin: 0; font-weight: 800; font-stretch: 118%; font-size: clamp(32px, 3vw, 52px); line-height: 1.08; }
   .cal .lede { margin: 0; color: var(--ink-2); font-size: 19px; max-width: 34em; }
   /* the other way round a step (burn the measurement image with another program): one quiet line */
+  .cal .cal-budget, .cal .cal-recovery, .cal .cal-details { font-size: 16px; line-height: 1.6; color: var(--ink); }
+  .cal .cal-budget ul { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+  .cal .cal-recovery .note p { margin: 0; color: var(--ink); }
+  .cal .cal-budget p { margin: 12px 0 0; }
+  .cal details summary { cursor: pointer; min-height: 44px; display: list-item; align-content: center; color: var(--ink); }
+  .cal details pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 14px/1.6 var(--mono); }
+  .cal .cal-details { border-top: 1px solid var(--rule); }
   .cal .cal-aside { margin: 0; color: var(--ink-3); font-size: 15px; font-weight: 400; line-height: 1.6; max-width: 40em; }
   .cal .cal-aside code { font: 13px var(--mono); color: var(--ink-2); word-break: break-all; }
   .cal .cal-aside .btn { min-height: 0; padding: 2px 6px; margin-left: -6px; font-size: 15px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }

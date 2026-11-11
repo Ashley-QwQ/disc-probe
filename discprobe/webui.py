@@ -132,7 +132,9 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
             if type(value) not in (int, float) or not math.isfinite(value) or not 0 < value <= 56:
                 raise APIError("invalid write speed (multiples of 1x)")
         elif rule == "speed":
-            if type(value) is int and 1 <= value <= 65535:
+            if action == "geo" and value == "keep":
+                pass
+            elif type(value) is int and 1 <= value <= 65535:
                 pass
             elif isinstance(value, str) and re.fullmatch(r"(?:[1-9]|[1-4][0-9]|5[0-6])x", value):
                 pass
@@ -151,6 +153,9 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
                     or not lo <= value <= hi or not math.isfinite(value)):
                 raise APIError("invalid " + name)
         argv += ["--" + name.replace("_", "-"), str(value)]
+    if action == "disexport" and args.get("r_min") is not None and args.get("r_max") is not None:
+        if args["r_min"] >= args["r_max"]:
+            raise APIError("r_min must be less than r_max")
     for name in {"image": ("geo",), "disexport": ("geo", "sectors"), "cdprobe": ("sectors",)}.get(action, ()):
         if args.get(name) is None:
             raise APIError(name + " is required")

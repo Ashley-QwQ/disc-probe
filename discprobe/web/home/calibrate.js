@@ -2,6 +2,7 @@
 // becomes the step panel, the bar shows the job, the back button takes the top-left corner.
 // Live jobs use the local API. Simulated readings and timers are limited to ?mock / ?demo=N.
 
+import { budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure } from "./guidance.mjs";
 import { cutaway } from "./drive-scene.js";
 import { floorLog } from "./floor-log.js";
 const DEMO = Number(new URLSearchParams(location.search).get("demo")) || 40;   // simulated jobs run this many times faster (?demo=N)
@@ -12,7 +13,7 @@ const STR = {
     steps: ["准备测量盘", "测转速", "测几何", "拍照"],
     prepare: "准备一张测量盘",
     prepareLede: (d) => `测量要用一张刻满随机数据的 ${d}。刻一次，测量就能开始。`,
-    optBurn: "刻一张测量盘", optBurnSub: "放入一张同批次的空白盘，约 14 分钟。",
+    optBurn: "刻一张测量盘", optBurnSub: "放入一张同批次的空白盘；耗盘和时间见上面的预算。",
     optHave: "用已刻好的数据盘", optHaveSub: "同批次、刻满随机数据的盘也可以，省一张盘。",
     optRw: "擦写这张可擦写盘再刻", optRwSub: "可擦写盘可以反复用来测量。",
     putBlank: (d) => `把一张空白 ${d} 放到托盘上。`, putData: "把刻好的测量盘放到托盘上。",
@@ -28,14 +29,14 @@ const STR = {
     genJob: "生成镜像",
     recheck: "开刻之前，再确认一次托盘里还是那张空白盘……",
     notBlankNow: ["托盘里不是空盘了", "可能被换过。这次没有开始刻录，放一张空白盘再来。"],
-    readyBurn: "镜像好了，可以刻", readyLede: "按住右下角的按钮开始刻录，约 14 分钟。刻的时候托盘会关上。",
+    readyBurn: "镜像好了，可以刻", readyLede: "按住右下角的按钮开始刻录。刻的时候托盘会关上；耗盘和时间见下面的预算。",
     holdBurn: "下一步：刻测量盘（按住）",
     burning: "正在刻测量盘", burningLede: "托盘关着，别动光驱。刻完会自动接着测量。",
     burnJob: "刻测量盘",
     burned: "测量盘刻好了",
     startMeasure: "下一步：开始测量",
     nameH: "先认一下这张新盘", newPut: (k) => `把这种盘的一张空白 ${k} 放进光驱，先读出它的类型和厂商编号。`,
-    identified: (k, mid) => [`读出来了：空白 ${k}`, `厂商编号 ${mid}。同一个编号的盘，刻出来的几何一样。`],
+    identified: (k, mid) => [`读出来了：空白 ${k}`, `厂商编号 ${mid}。页面会复用这个编号以前的测量（如果有）；编号相同也可能几何不同。先在另一张同批空盘上刻网格，检查线是否笔直。`],
     nameLabel: "给这种盘起个名字", nameUse: "下一步：就叫这个", newDiscPrint: "新盘",
     timing: "正在测转速", timingLede: "确认这台光驱读盘时转速稳定，1 到 3 分钟。",
     timingJob: "测转速",
@@ -65,7 +66,7 @@ const STR = {
     steps: ["Measurement disc", "Speed", "Geometry", "Photos"],
     prepare: "Prepare a measurement disc",
     prepareLede: (d) => `Measuring needs a ${d} filled with random data. Burn it once and measuring can start.`,
-    optBurn: "Burn a measurement disc", optBurnSub: "Put in a blank from the same batch. About 14 minutes.",
+    optBurn: "Burn a measurement disc", optBurnSub: "Put in a blank from the same batch; see the disc and time budget above.",
     optHave: "Use a data disc you already burned", optHaveSub: "A disc from the same batch filled with random data works too, and saves a blank.",
     optRw: "Erase this rewritable and burn it", optRwSub: "A rewritable can be measured again and again.",
     putBlank: (d) => `Put a blank ${d} on the tray.`, putData: "Put the burned measurement disc on the tray.",
@@ -81,14 +82,14 @@ const STR = {
     genJob: "Image",
     recheck: "Before burning, checking once more that the tray still holds the blank…",
     notBlankNow: ["The disc is no longer blank", "It may have been swapped. Burning didn't start; put in a blank and try again."],
-    readyBurn: "The image is ready to burn", readyLede: "Hold the button at the bottom right to start. About 14 minutes; the tray closes while it burns.",
+    readyBurn: "The image is ready to burn", readyLede: "Hold the button at the bottom right to start. The tray closes while it burns; see the disc and time budget below.",
     holdBurn: "Next: burn the disc (hold)",
     burning: "Burning the measurement disc", burningLede: "The tray stays closed; leave the drive alone. Measuring follows on its own.",
     burnJob: "Burning",
     burned: "Measurement disc burned",
     startMeasure: "Next: start measuring",
     nameH: "First, identify the new disc", newPut: (k) => `Put a blank ${k} of this kind in the drive; its type and maker code are read first.`,
-    identified: (k, mid) => [`Found a blank ${k}`, `Maker code ${mid}. Discs with the same code burn with the same geometry.`],
+    identified: (k, mid) => [`Found a blank ${k}`, `Maker code ${mid}. The page reuses an earlier measurement for this code, if one exists. Geometry can still differ: burn a grid on another blank from this batch and check for straight lines.`],
     nameLabel: "Name this kind of disc", nameUse: "Next: use this name", newDiscPrint: "New disc",
     timing: "Measuring the speed", timingLede: "Checks the drive spins the disc steadily. 1 to 3 minutes.",
     timingJob: "Speed",
@@ -190,7 +191,7 @@ export function attach(homeApi, job) {
   if (flow.job) return;
   (async () => {
     try { finishCalibrate(await realJob(job.action, {}, {}, job.id)); paint(); }
-    catch (error) { realError(error); }
+    catch (error) { if (error.result?.geo || error.result?.timing) { finishCalibrate(error.result); flow.error = null; paint(); } else realError(error); }
   })();
 }
 
@@ -843,6 +844,7 @@ function paint() {
     nextText = t.save;
   }
 
+  if ([0, 0.4].includes(flow.step)) body = budgetHTML(it.row, api.lang()) + body;
   const before = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]')?.textContent;
   $("cal").innerHTML = `${steps}<h2>${h}</h2>${lede ? `<p class="lede">${lede}</p>` : ""}${body}`;
   const alertNote = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]');
@@ -937,6 +939,7 @@ function realPaint() {
     title = flow.detected.kind;
     text = `${flow.detected.mid || liveText('厂商编号未知', 'Unknown maker code')} · ${flow.detected.sectors ?? "—"} sectors`;
     html = `<label class="name-field">${liveText('盘的名称', 'Disc name')}<input id="real-name" maxlength="120" value="${esc(flow.realName || flow.detected.mid || flow.detected.kind)}"></label>`;
+    html += `<p>${esc(T().identified(flow.detected.kind, flow.detected.mid || '—')[1])}</p>`;
     if (flow.detected.blank === true) button = liveText('生成测量镜像', 'Make measurement image');
     else if (flow.detected.blank === false) {
       html += `<label><input id="measurement-confirm" type="checkbox" ${flow.measureConfirmed ? "checked" : ""}>${liveText('这是同批次、刻满随机数据的测量盘', 'This is a full random-data measurement disc from this batch')}</label>`;
@@ -953,30 +956,39 @@ function realPaint() {
       checking:liveText('正在检查刻好的盘', 'Checking the burned disc')}[phase];
     text = flow.stage || liveText('等待任务进度。可以取消。', 'Waiting for progress. You can cancel.'); disabled = true;
   } else if (phase === "review") {
-    title = liveText('几何测量结果', 'Geometry result');
-    text = api.lang() === "zh" ? ({good:"几何测好了",usable:"可以使用",narrow_span:"测量范围偏窄",too_noisy:"测量太吵",drive_changed:"光驱状态改变",stopped_early:"提前停止",unknown:"结果未知"}[flow.geo?.verdict] || "结果未知") : (flow.geo?.verdict || "unknown").replaceAll("_", " ");
-    const state = {narrow_span:"stNarrow", too_noisy:"stUnknown", drive_changed:"stChanged", stopped_early:"stStopped", unknown:"stUnknown"}[flow.geo?.verdict];
-    html = realChart(flow.geo?.measurement) + (state ? note("unknown", T()[state]) : note("good", [liveText('测量已完成', 'Measurement completed'), esc(flow.geo.path)]));
-    const timing = flow.timing?.measurement;
-    if (timing) html += `<p>${esc(timing.rotation || "—")} · ${esc(timing.jitter_deg?.join("–") || "—")}°</p>`;
-    const ok = ["good", "usable"].includes(flow.geo?.verdict);
-    button = ok ? (flow.detected.media === "cd" ? liveText('用手机拍照', 'Connect phone camera') : T().save) : T().remeasure;
+    title = liveText('测量结果', 'Measurement result');
+    const part = flow.geo || flow.timing;
+    text = api.lang() === 'zh' ? ({good:'测量可用', usable:'测量可用但有噪声', narrow_span:'测量范围偏窄', too_noisy:'噪声太大', drive_changed:'光驱状态改变', stopped_early:'提前停止', unknown:'结果未知'}[part?.verdict] || '结果未知') : (part?.verdict || "unknown").replaceAll("_", " ");
+    const recovery = recoveryAction(flow);
+    const kind = recoveryKind(flow);
+    const severity = kind === 'good' ? 'good' : ['too_noisy','drive_changed','media'].includes(kind) ? 'error' : 'warn';
+    html = `<div class="cal-recovery">${note(severity, [esc(measurementRecovery(flow)[api.lang()]), ''])}</div>`;
+    const ok = recovery.id === 'save';
+    button = ok ? (flow.detected.media === "cd" ? liveText('查看 CD 标定下一步', 'CD calibration: next step') : T().save) : recovery.label[api.lang()];
+    html += `<details class="cal-details"><summary>${liveText('详情', 'Details')}</summary><p>${liveText('导出的预设仍覆盖整盘；半径参数只限定拟合区域，不能裁掉未测区域。更换读取速度、选择测量区域和比较模型须在电脑命令行操作。将 START-END 换成实际的数据扇区范围，SPEED 换成光驱支持的读取速度（如 4x）；先确认恒速，再执行下一条。光驱保持恒速检查通过后，页面才会继续测量。', 'Use the computer terminal to change reading speed, select measurement areas or compare models. An exported preset covers the full disc; radius options limit fitting and do not remove unmeasured areas. Replace START-END with actual data-sector limits and SPEED with a supported reading speed (such as 4x); confirm steady rotation before the next command. The page continues measuring only after a steady-rotation check passes.')}</p><pre>${esc(recoveryCommands(flow, {drive:api.selectedDrive(), media:flow.detected.media, sectors:flow.blankSectors ?? flow.detected.sectors}))}</pre><p><code>${esc(part?.path || '')}</code></p>${realChart(flow.geo?.measurement)}</details>`;
+    if (part?.verdict === 'usable') html += `<button id="real-remeasure" class="placed" type="button">${liveText('检查转速并重测', 'Check rotation and remeasure')}</button>`;
     if (ok) html += `<label class="count-input">${T().leftQ}<input id="left-input" type="number" min="0" max="100000" value="${flow.left ?? ""}"></label>`;
   } else if (phase === "photo") {
-    title = T().photo;
-    text = liveText('照片模块需要确认沿轨常数。完成后再保存；不能跳过未测量的数据。', 'The photo module must confirm the along-track constant before saving.');
-    html = '<div id="phone-link"></div>';
-    button = liveText('保存预设', 'Save preset'); disabled = !flow.photoComplete;
+    title = liveText('CD：接着在 DIS 标定', 'CD: continue calibration in DIS');
+    text = cdPhoto[api.lang()];
+    html = `<p>${esc(flow.geo.path)}</p><p>${liveText('导出预设不代表已完成 CD 标定。', 'Exporting a preset does not complete CD calibration.')}</p>`;
+    button = liveText('导出 DIS 预设', 'Export DIS preset');
   } else if (phase === "saved") {
     title = liveText('预设已保存', 'Preset saved'); text = flow.savedPath;
+    if (flow.detected.media === "cd") html = `<p>${esc(cdPhoto[api.lang()])}</p>`;
     button = liveText('回到首页', 'Return home');
   }
+  if (["prepare", "burn"].includes(phase)) html = budgetHTML(flow.detected.media, api.lang()) + html;
   if (flow.ask) {
     html += `<p role="status">${esc(flow.ask.question)}</p><button id="real-yes">${liveText('继续', 'Continue')}</button><button id="real-no">${liveText('取消这一步', 'Decline')}</button>`;
     disabled = true;
   }
-  if (flow.error) { html += `<p role="alert">${esc(flow.error)}</p><button id="real-retry">${liveText('重新检测', 'Check again')}</button>`; disabled = true; }
+  if (flow.error) { html += `<div role="alert">${note("error", [esc(flow.error), ""])}</div><button id="real-retry">${liveText('重新检测', 'Check again')}</button>`; disabled = true; }
+  const previousAlert = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]')?.textContent;
   $("cal").innerHTML = `<h2>${esc(title)}</h2><p class="lede">${esc(text)}</p>${html}`;
+  const alertNote = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]');
+  if (alertNote && alertNote.textContent !== previousAlert) alertNote.classList.add('flash');
+  flow.warnEl.classList.toggle('on', !!flow.error || (phase === 'review' && recoveryKind(flow) !== 'good'));
   // while a job runs, its step's name lies on the floor in front of the drive (floor-log.js)
   flog.title(flow.job ? title : "");
   $("cal").classList.toggle("floor-titled", !!flow.job);
@@ -991,25 +1003,9 @@ function realPaint() {
   for (const [id, yes] of [["real-yes",true],["real-no",false]]) $(id)?.addEventListener("click", async () => {
     try { const ask = flow.ask; await api.backend.answer(ask.job, ask.id, yes); flow.ask = null; paint(); } catch(e) {realError(e);}
   });
+  $("real-remeasure")?.addEventListener("click", () => realNext(true));
   $("real-have")?.addEventListener("click", () => { flow.realPhase = "inspect"; realNext(); });
-  if (phase === "photo" && !flow.photoLoading) mountRealPhone();
-}
-async function mountRealPhone() {
-  flow.photoLoading = true;
-  try {
-    const {mountPhoneLink} = await import("./phone-link.js");
-    if (typeof mountPhoneLink !== "function") throw new Error("Phone module unavailable");
-    flow.photoLink = await mountPhoneLink($("phone-link"), {geo:flow.geo.path, drive:api.selectedDrive(), media:"cd",
-      onComplete: async () => {
-        // Completion is accepted only if the shared disk state agrees.
-        const state = await api.backend.state();
-        flow.photoComplete = state.steps.find(s => s.id === "photo_l")?.done === true;
-        paint();
-      }});
-  } catch (error) {
-    const target = $("phone-link");
-    if (target) target.textContent = liveText('手机拍照模块尚未就绪。保留测量结果，模块可用后重新打开。', 'The phone capture module is not available yet. The measurement is saved; reopen when the module is ready.');
-  }
+
 }
 // the core's steps (calibrate.py) as this page's phases
 const STEP_PHASE = { burn: "burning", check: "checking", timing: "timing", geo: "geo", preset: "saving" };
@@ -1047,7 +1043,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       : await api.backend.job({action, media:f.detected?.media || f.item.row || "dvd", drive, args, ...extra}, onEvent);
   } finally { if (flow === f) {endJob(); f.ask = null; showInterior(false);} }
 }
-async function realNext() {
+async function realNext(forceMeasure = false) {
   if (flow.job) return;
   flow.error = null;
   try {
@@ -1075,10 +1071,30 @@ async function realNext() {
         flow.realPhase = "burn";
       } else if (flow.measureConfirmed) await realCalibrate();
     } else if (phase === "review") {
-      if (!["good","usable"].includes(flow.geo.verdict)) {flow.realPhase = "inspect";}
-      else if (flow.detected.media === "cd") flow.realPhase = "photo";
+      const recovery = forceMeasure === true ? {id:'measure'} : recoveryAction(flow);
+      if (recovery.id === 'blank') {
+        flow.geo = null; flow.timing = null; flow.preset = null;
+        flow.realPhase = "inspect";
+        await realNext();
+      } else if (recovery.id === 'measure') {
+        flow.preset = null; flow.geo = null; flow.timing = null;
+        try {
+          const result = await remeasure(async (action, args) => {
+            flow.realPhase = action;
+            const result = await realJob(action, args);
+            flow[action] = result;
+            return result;
+          });
+          Object.assign(flow, result);
+        } catch (error) {
+          if (!error.result) throw error;
+          const part = error.result.geo || error.result.timing || error.result;
+          flow[flow.realPhase] = part;
+        }
+        flow.realPhase = 'review';
+      } else if (flow.detected.media === "cd") flow.realPhase = "photo";
       else await realSave();
-    } else if (phase === "photo" && flow.photoComplete) await realSave();
+    } else if (phase === "photo") await realSave();
     else if (phase === "saved") { flow = null; release(); await api.reload(); return; }
     paint();
   } catch(error) { realError(error); }
@@ -1089,11 +1105,14 @@ async function realNext() {
 async function realCalibrate(args = {}, extra = {}) {
   const preset = `presets/calibration-${Date.now()}.json`;
   // the preset needs the blank's capacity: known when the blank was read here; else the core reads it before burning
-  const result = await realJob("calibrate", { ...args, mid: flow.detected?.mid || undefined, preset, sectors: flow.blankSectors || undefined }, extra);
+  let result;
+  try { result = await realJob("calibrate", { ...args, mid: flow.detected?.mid || undefined, preset, sectors: flow.blankSectors || undefined }, extra); }
+  catch (error) { if (!error.result?.timing && !error.result?.geo) throw error; result = error.result; }
+  flow.error = null;
   finishCalibrate(result);
 }
 function finishCalibrate(result) {
-  if (!result?.ok) throw new Error(result?.reason ? liveText('标定停在这一步：', 'Calibration stopped: ') + result.reason : liveText('标定没有完成。', 'The calibration did not finish.'));
+  if (!result?.ok && !result?.geo && !result?.timing) throw new Error(result?.reason ? liveText('标定停在这一步：', 'Calibration stopped: ') + result.reason : liveText('标定没有完成。', 'The calibration did not finish.'));
   flow.timing = result.timing; flow.geo = result.geo; flow.preset = result.preset;
   if (result.disc) flow.detected = { ...flow.detected, ...result.disc };
   flow.realPhase = "review";

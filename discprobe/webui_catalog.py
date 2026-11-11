@@ -114,6 +114,6 @@ def measurement(run):
                     continue
     except OSError:
         pass
-    return dict(points=points, span_mm=run.fit.get('measured_span_mm'),
+    return dict(points=points, stopped=run.stopped, span_mm=run.fit.get('measured_span_mm'),
                 sigma_deg=run.fit.get('angle_sigma_measured_span_deg'),
                 rotation=run.rotation(), jitter_deg=guide._jitter(run.summary))

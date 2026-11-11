@@ -1,0 +1,77 @@
+// Display advice follows guide.py after_timing, after_geo, after_geo_stop and AFTER_BURN.
+// These are instructions, never a substitute for a core verdict or a measurement.
+const pair = (zh, en) => ({zh, en});
+// Body copy never contains terminal syntax. Actions are resolved from the same verdict.
+export function recoveryKind(result = {}) {
+  const part = result.geo || result.timing || result;
+  const m = part.measurement || {}, reason = m.stopped || '';
+  if (/medium|recorded area|fails on|cannot read/.test(reason)) return 'media';
+  if (/not turning at a constant speed/.test(reason)) return 'rotation';
+  if (!result.geo && m.rotation && !['unknown','CAV'].includes(m.rotation)) return 'rotation';
+  return ['good','usable','too_noisy','drive_changed','narrow_span','stopped_early'].includes(part.verdict) ? part.verdict : 'unknown';
+}
+export function measurementRecovery(result = {}) {
+  return ({
+    good: pair('测量可用，可以保存。', 'The measurement is usable and ready to save.'),
+    usable: pair('测量有些噪声，但仍可使用。可以保存，也可以保留这张盘再测一次。', 'There is some noise, but the measurement is usable. Save it, or keep this disc and measure again.'),
+    too_noisy: pair('这次读数太乱，不能依赖。保留这张测量盘，重新检查转速再测；仍然如此时，试试其他读取速度或光驱。', 'The readings are too noisy to rely on. Keep this measurement disc, check rotation and measure again. If this persists, try another reading speed or drive.'),
+    drive_changed: pair('光驱在测量前后的状态不一致，不能依赖这次结果。保留这张盘，重新检查转速并测量。', 'The drive behaved differently before and after measuring. Do not rely on this result. Keep the disc, check rotation and measure again.'),
+    narrow_span: pair('只测准了盘面的一部分，范围以外还需要补测。保留这张盘，检查转速后重新测量。', 'Only part of the disc was measured. The rest still needs measuring. Keep this disc, check rotation and measure again.'),
+    stopped_early: pair('测量中途停了，不能当作整张盘的结果。保留这张盘，重新检查转速再测；若总停在同一处，请查看详情中的避开方法。', 'Measuring stopped early. This is not a whole-disc result. Keep the disc, check rotation and measure again. If it always stops in one place, see Details for ways to leave that area out.'),
+    unknown: pair('还不知道结果是否可用。先保留数据，重新检查转速；若仍无法确定，请查看详情中的分析方法，不必急着重刻。', 'It is not known whether this result is usable. Keep the data and check rotation again. If it remains uncertain, see Details for analysis before burning another disc.'),
+    rotation: pair('光驱没有保持稳定转速。先手动弹出并放回这张测量盘，再检查转速。仍不稳定时，请试试其他读取速度或光驱。', 'The drive did not hold a steady rotation. Manually eject and reload this measurement disc, then check rotation again. If it stays unstable, try another reading speed or drive.'),
+    media: pair('这张盘有一部分读不出来。如果盘上还有图案或其他内容，请只测其中的测量区域，方法见详情。如果整张都是测量数据，盘可能已损坏，请换一张同批空白盘。', 'Part of this disc could not be read. If it also contains a picture or other content, measure only its measurement area; see Details. If the whole disc contains measurement data, it may be damaged. Use a fresh blank from the same batch.'),
+  })[recoveryKind(result)];
+}
+export function recoveryAction(result = {}) {
+  const kind = recoveryKind(result);
+  if (['good','usable'].includes(kind) && result.geo) return {id:'save', label:pair('保存测量', 'Save measurement')};
+  if (kind === 'media') return {id:'blank', label:pair('换空白盘并检测', 'Check a new blank')};
+  return {id:'measure', label:pair('检查转速并重测', 'Check rotation and remeasure')};
+}
+// The executor is shared by the UI and drive-free tests. Geometry starts only after a usable CAV check.
+export async function remeasure(run) {
+  const timing = await run('timing', {});
+  if (!['good','usable'].includes(timing?.verdict) || timing.measurement?.rotation !== 'CAV') return {timing};
+  const geo = await run('geo', {speed:'keep'});
+  return {timing, geo};
+}
+export function recoveryCommands(result, {drive, media, sectors}) {
+  const part = result.geo || result.timing || {}, kind = recoveryKind(result);
+  const base = `python -m discprobe`, flags = `--drive ${JSON.stringify(drive)} --media ${media}`;
+  const commands = [`${base} timing ${flags}`, `${base} geo ${flags} --speed keep`, `${base} timing ${flags} --speed SPEED`, `${base} geo ${flags} --speed keep`];
+  if (kind === 'media' || kind === 'stopped_early') commands.push(`${base} geo ${flags} --ranges START-END`);
+  if (kind === 'narrow_span') {
+    commands.push(`${base} disexport --media ${media} --geo ${JSON.stringify(part.path)} --sectors ${sectors} --r-min START --r-max END --output presets/fitted.json`);
+  }
+  if (kind === 'unknown' && result.geo?.path) commands.push(`python tools/geo_polyfit.py ${JSON.stringify(part.path)}`);
+  return commands.join('\n');
+}
+export const cdPhoto = pair(
+  '网页的 CD 拍照标定还没做好。计时测不出沿轨道的绝对位置，不能当作已完成标定。测量数据已保留：导出 DIS 预设后，在 DiscImageStudio 做精细标定，需要另一张同批空盘；然后再刻成品。这是 README 的 CD 路线。',
+  'CD photo calibration is not ready on this page. Timing cannot determine the absolute along-track position, so calibration is still incomplete. The measurement is kept: export a DIS preset, then run fine calibration in DiscImageStudio on another blank from this batch before burning the picture. This is the README CD route.');
+export function calibrationBudget(media) {
+  const cd = media === 'cd';
+  if (media === 'bd') return {
+    items: [pair('BD 仍在试验中：耗盘数量未知。', 'BD is experimental: the disc budget is unknown.'), pair('分区测量约 2 分钟；刻录时间未知。', 'Zone measurement: about 2 minutes; burn time unknown.')],
+    note:pair('刻好测量盘后才能检查光驱；暂无可靠的总用时预算。', 'The drive can only be checked after burning the measurement disc; no reliable total time is available.'),
+    details:pair('两个半径仍需其他依据，不能套用 DVD 的预算。', 'The two radii still need other evidence. The DVD budget does not apply.')};
+  return {
+    items:[
+      cd ? pair('至少 3 张同批空白盘：测量、精细标定、成品各一张。', 'At least 3 blanks from one batch: one to measure, one to fine-calibrate, one for the picture.') : pair('至少 2 张同批空白盘：一张测量，一张刻成品。', 'At least 2 blanks from one batch: one to measure, one for the picture.'),
+      pair('生成测量文件：几十秒。', 'Make the measurement file: tens of seconds.'),
+      cd ? pair('刻测量盘：约 11 分钟，依光驱而异。', 'Burn the measurement disc: about 11 minutes, depending on the drive.') : pair('刻测量盘：约 14 分钟。', 'Burn the measurement disc: about 14 minutes.'),
+      pair('检查转速：1–3 分钟；测量盘面：约 5 分钟。', 'Check rotation: 1–3 minutes; measure the disc: about 5 minutes.'),
+      cd ? pair('精细标定和刻成品：时间尚不确定，见详情。', 'Fine calibration and picture burn: time unknown; see Details.') : pair('刻成品：约 14 分钟，依速度和内容而异。', 'Burn the picture: about 14 minutes, depending on speed and content.')],
+    note:pair('刻好测量盘后才能检查光驱；约一小时是目标，不是保证。', 'The drive can only be checked after the measurement burn; about an hour is a goal, not a promise.'),
+    details:pair('以上为 README 与现有流程的估时，不是新测试。失败可能多耗盘。保留测量盘，同批盘可复用。' + (cd ? ' CD 的 11 分钟来自 GH70N、8 倍速。网页拍照标定尚未就绪，须导出 DIS 预设，在 DiscImageStudio 用另一张同批空盘精细标定，之后再刻成品。' : ''), 'These estimates come from the README and existing workflow, not new benchmarks. Failures may cost more discs. Keep the measurement disc for this batch.' + (cd ? ' The CD observation was 11 minutes at 8× on GH70N. Web photo calibration is unavailable: export a DIS preset and fine-calibrate in DiscImageStudio with another blank before burning the picture.' : ''))};
+}
+export function budgetHTML(media, lang) {
+  const b = calibrationBudget(media);
+  return `<section class="cal-budget"><ul>${b.items.map(x=>`<li>${x[lang]}</li>`).join('')}</ul><p>${b.note[lang]}</p><details><summary>${lang === 'zh' ? '详情' : 'Details'}</summary><p>${b.details[lang]}</p></details></section>`;
+}
+export const afterBurn = [
+  pair('关掉房间的灯，把手机手电等小光源放在眼睛旁边。盘拿到约一米外，轻轻倾斜，避开灯和自己的倒影，慢慢转动；盘面暗下来时能看到图。彩虹扇面是沟槽，不是图片。看的是数据面，与预览相同。', 'Turn off the room lights and hold a small light, such as a phone torch, beside your eyes. Hold the disc about a metre away, tilt it away from reflections of the light and yourself, and turn it slowly. The picture shows when the surface goes dark. The rainbow fan is the grooves, not your picture. Look at the data side, as in the preview.'),
+  pair('看不见图：先调整灯光，最常见的原因是光线。线条扭曲或断开：核对是否同批盘、同一台刻录机；若是，几何可能不准。用另一张空白盘刻网格测试，看看线是否笔直（在终端用 image --geo 加这次的测量路径，--output iso/grid.iso）。', 'No picture: adjust the light first; lighting is the most likely cause. Twisted or broken lines: check the batch and burner match the measurement. If they do, geometry may be off. Burn a grid on another blank to check for straight lines (in Terminal, use image --geo with this measurement’s path and --output iso/grid.iso).'),
+  pair('刻录失败或中断：DVD+R、DVD-R、CD-R 不能再用，换一张空白盘；再次失败时试试降低刻录速度。图案位置正确就完成了，以后同批盘可以复用测量。', 'If the burn failed or stopped, a DVD+R, DVD-R or CD-R cannot be reused; take a fresh blank. If it fails again, try a lower burn speed. If the picture is in the right place, you are done; reuse the measurement for later discs from this batch.'),
+];
