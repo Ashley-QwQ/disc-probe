@@ -25,12 +25,13 @@ class BurnError(ValueError):
     pass
 
 
-def choose_speed(requested, supported):
+def choose_speed(requested, supported, media="dvd"):
     speeds = sorted({float(s) for s in supported if math.isfinite(float(s)) and float(s) > 0})
     if not speeds:
         raise BurnError("The inserted disc reports no supported write speeds.")
     if requested is None:
-        return speeds[0]
+        # Prefer 8x for DVD; a tie goes to the lower speed. CD retains its old default.
+        return min(speeds, key=lambda s: abs(s - 8)) if media == "dvd" else speeds[0]
     if not math.isfinite(requested) or requested <= 0:
         raise BurnError("Write speed must be a positive multiple of 1x.")
     nearest = min(speeds, key=lambda s: abs(s - requested))
@@ -126,6 +127,7 @@ class WindowsDVD:
                             item = json.loads(line)
                             if item.get("type") == "speed":
                                 actual = item["actual_x"]
+                                progress(stage="speed", actual_speed_x=actual)
                         except (ValueError, AttributeError, KeyError):
                             pass
                 code = process.wait()
@@ -139,8 +141,7 @@ class WindowsDVD:
                 hint = (" CD DAO devices may need raw P-W subchannels (type 3)."
                         if "C0AA0301" in detail.upper() else "")
                 raise BurnError("IMAPI burn failed; no retry was attempted." + hint + "\nDetails: " + detail)
-            if actual is None:
-                raise BurnError("IMAPI finished without reporting the actual speed; inspect diagnostics.")
+            # A missing speed report does not turn a completed write into a failed one.
             return actual
 
 
@@ -216,6 +217,7 @@ class LinuxBurner:
                     fraction = min(1., float(match[1]) / 100)
                     elapsed = time.monotonic() - started
                     actual = float(match[2])
+                    progress(stage="speed", actual_speed_x=actual)
                     progress(fraction=fraction, elapsed_s=elapsed,
                              eta_s=elapsed * (1 - fraction) / fraction if fraction else 0, stage="writing")
                 elif cd_match and int(cd_match[2]):
@@ -244,7 +246,62 @@ def adapter(drive, media):
     raise BurnError("Burning on macOS/this platform is not yet implemented.")
 
 
-def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None, cancel=None):
+def sample_lbas(sectors, samples=96):
+    """Up to 96 distinct, evenly spaced 16-sector blocks, including both ends.
+
+    A short image has one partial block; a non-aligned tail is not sampled.
+    """
+    blocks = max(1, sectors // 16)
+    count = min(samples, blocks)
+    return [16 * (i * (blocks - 1) // max(1, count - 1)) for i in range(count)]
+
+
+def verify_image(drive, image, media, cancel, *, device_factory=None):
+    """Compare user bytes via allowlisted READ(10), without application retries."""
+    from . import mmc
+    from .geometry import NOMINAL
+    if device_factory is None:
+        from .device import Device
+        device_factory = Device
+    sectors = image.stat().st_size // 2048
+    lbas = sample_lbas(sectors)
+    summary = dict(status="completed", sampled_blocks=len(lbas), ok=0, differing=0,
+                   unreadable=0, failures=[], radius_model="nominal", untested=0)
+    def failure(lba, kind, error):
+        summary[kind] += 1
+        summary["failures"].append(dict(lba=lba, radius_mm=NOMINAL[media].radius(lba),
+                                        kind=kind, error=error))
+    try:
+        with device_factory(drive) as dev, image.open("rb") as source:
+            for index, lba in enumerate(lbas):
+                if cancel.is_set():
+                    summary.update(status="cancelled", untested=len(lbas) - index)
+                    break
+                count = min(16, sectors - lba)
+                source.seek(lba * 2048)
+                expected = source.read(count * 2048)
+                try:
+                    response = dev.execute(mmc.read10(lba, count), data_len=count * 2048, timeout_s=10)
+                    if not response.ok:
+                        raise OSError(f"status {response.status}; sense {response.sense}")
+                    if len(response.data) != len(expected):
+                        raise OSError(f"short read: {len(response.data)} of {len(expected)} bytes")
+                except OSError as exc:
+                    failure(lba, "unreadable", str(exc))
+                else:
+                    if response.data == expected:
+                        summary["ok"] += 1
+                    else:
+                        failure(lba, "differing", "bytes differ from the ISO")
+                ui.event("verify_progress", fraction=(index + 1) / len(lbas), lba=lba)
+    except OSError as exc:
+        summary.update(status="unavailable", error=str(exc),
+                       untested=len(lbas) - summary["ok"] - summary["differing"] - summary["unreadable"])
+    return summary
+
+
+def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None, cancel=None,
+         no_verify=False, verifier=None):
     if yes_write is not True:
         raise BurnError("Writing requires explicit --yes-write confirmation.")
     if media not in ("dvd", "cd"):
@@ -258,24 +315,73 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
     recorder = recorder or adapter(drive, media)
     info = recorder.inspect()
     validate_media(info, media, size // 2048)
-    selected = choose_speed(speed, info["speeds_x"])
+    selected = choose_speed(speed, info["speeds_x"], media)
     cancel = cancel or threading.Event()
     if cancel.is_set():
         raise BurnError("Cancelled before writing; nothing was written.")
-    ui.say("The tray closes for writing. Burning cannot be undone. Verification is a separate read-back step.")
+    log_path = Path(str(image) + ".burn.jsonl")
+    # Open the durable log before any write. Append to preserve earlier burns of this image.
+    def record(kind, **fields):
+        with log_path.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(dict(type=kind, time=time.time(), drive=drive, media=media,
+                                         image=str(image), **fields), ensure_ascii=False, allow_nan=False) + "\n")
+        ui.event(kind, **fields)
+    record("burn_speed", requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=None)
+    print(f"Requested write speed: {selected:g}x ({'default' if speed is None else f'--speed {speed:g}x'}). "
+          f"Burn log: {log_path}", flush=True)
+    print("The tray closes for writing. Burning cannot be undone.", flush=True)
     started = time.monotonic()
+    reported = None
+    def progress(**fields):
+        nonlocal reported
+        if fields.get("stage") == "speed":
+            actual = fields["actual_speed_x"]
+            if actual != reported:
+                reported = actual
+                record("burn_speed", requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=actual)
+                print(f"Drive/utility reports write speed: {actual:g}x.", flush=True)
+        else:
+            ui.event("progress", **fields)
     try:
-        actual = recorder.write(image, selected, cancel, lambda **fields: ui.event("progress", **fields))
+        actual = recorder.write(image, selected, cancel, progress)
     except BurnError as exc:
         elapsed = time.monotonic() - started
-        ui.event("burn_result", result="cancelled" if cancel.is_set() else "failed",
-                 selected_speed_x=selected, actual_speed_x=None, elapsed_s=elapsed, verified=False)
+        record("burn_result", result="cancelled" if cancel.is_set() else "failed",
+               requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=reported,
+               elapsed_s=elapsed, verified=False)
         raise BurnError(f"{exc}\nElapsed: {elapsed:.1f}s.") from exc
     elapsed = time.monotonic() - started
+    record("burn_speed", requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=actual)
+    print(f"Write completed in {elapsed:.1f}s; drive/utility reports: "
+          f"{str(actual) + 'x' if actual else 'speed not reported'}.", flush=True)
+    verification = dict(status="skipped")
+    if not no_verify:
+        print("Reading back up to 96 evenly spaced 16-sector blocks; drive retries may take time...", flush=True)
+        ui.event("verify_progress", fraction=0, lba=None)
+        try:
+            verification = (verifier or verify_image)(drive, image, media, cancel)
+        except OSError as exc:
+            verification = dict(status="unavailable", sampled_blocks=len(sample_lbas(size // 2048)),
+                                ok=0, differing=0, unreadable=0, failures=[],
+                                untested=len(sample_lbas(size // 2048)), error=str(exc))
+        print(f"Read-back sample: {verification['ok']} blocks ok / {verification['differing']} differing / "
+              f"{verification['unreadable']} unreadable; {verification['untested']} untested "
+              f"({verification['status']}). This is a sample, not a full-disc check.", flush=True)
+        if verification.get("error"):
+            print(f"Read-back could not finish: {verification['error']}", flush=True)
+        for failure in verification["failures"]:
+            print(f"  LBA {failure['lba']} (~{failure['radius_mm']:.2f} mm, nominal): "
+                  f"{failure['kind']}: {failure['error']}", flush=True)
+        if verification["status"] != "completed" or verification["differing"] or verification["unreadable"]:
+            print("The write completed. Reading back failed or could not finish; the picture may still look fine. "
+                  "Try burning another blank disc at another speed.", flush=True)
+    else:
+        print("Read-back verification skipped (--no-verify).", flush=True)
     result = dict(result="completed", actual_speed_x=actual, requested_speed_x=speed,
-                  selected_speed_x=selected, elapsed_s=elapsed, verified=False)
-    ui.event("burn_result", **result)
-    ui.say(f"Burn completed in {elapsed:.1f}s; actual speed: {str(actual) + 'x' if actual else 'not reported by utility'}. Read-back verification not run.")
+                  selected_speed_x=selected, elapsed_s=elapsed, verification=verification,
+                  verified=verification["status"] == "completed" and not
+                  (verification["differing"] or verification["unreadable"]), log_path=str(log_path))
+    record("burn_result", **result)
     return result
 
 
@@ -294,7 +400,8 @@ def run(args):
     watcher = threading.Thread(target=watch, daemon=True)
     watcher.start()
     try:
-        burn(args.drive, args.iso, media=args.media, speed=args.speed, yes_write=args.yes_write, cancel=cancel)
+        burn(args.drive, args.iso, media=args.media, speed=args.speed, yes_write=args.yes_write,
+             cancel=cancel, no_verify=args.no_verify)
     except BurnError as exc:
         ui.event("error", message=str(exc))
         raise SystemExit(str(exc)) from None

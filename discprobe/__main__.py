@@ -1687,8 +1687,10 @@ def _build_parser():
     sp.add_argument("--drive", required=True)
     sp.add_argument("--iso", required=True)
     sp.add_argument("--media", choices=("dvd", "cd"), default="dvd")
-    sp.add_argument("--speed", type=float, help="刻录倍速；默认选择支持的最低速度" if burn_zh else
-                    "multiple of 1x; default: lowest supported")
+    sp.add_argument("--speed", type=float, help="刻录倍速；DVD 默认选最接近 8x 的支持速度，CD 默认最低速度" if burn_zh else
+                    "multiple of 1x; default: DVD nearest supported to 8x, CD lowest supported")
+    sp.add_argument("--no-verify", action="store_true", help="跳过刻录后的抽样回读" if burn_zh else
+                    "skip automatic sampled read-back after writing")
     sp.add_argument("--yes-write", action="store_true", help="确认不可逆的刻录操作" if burn_zh else
                     "confirm irreversible writing")
     sp.add_argument("--cd-sector", choices=("mode2form1", "mode1"), default="mode2form1",
@@ -2163,6 +2165,8 @@ def _main(argv=None):
         ui.say(f"--speed is {args.speed} kB/s", "dim")
     elif getattr(args, "speed", None) and args.speed < 100:
         ui.say(f"Note: --speed is in kB/s, so {args.speed} is very slow. For a multiple, write {args.speed}x.", "yellow")
+    if raw_args[0] in {"image", "random", "rings", "calib", "tiles", "beacons", "calibdisc", "disexport", "cdprobe", "spokes"}:
+        print(i18n.tr("Preparing the design and image data; this may take a few seconds..."), flush=True)
     args.func(args)
 
 

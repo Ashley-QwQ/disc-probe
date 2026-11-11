@@ -1874,7 +1874,7 @@ async function inspectDisc(drive, iso) {
 // Burn through the back end: a one-time token, the `burn` job, its progress over the event stream.
 // Returns a handle at once; failures arrive as a "failed" status with the reason.
 function realBurn(iso, drive, onProgress, { speed } = {}) {
-  let job = null, es = null, closed = false, cancelled = false;
+  let job = null, es = null, closed = false, cancelled = false, burnResult = null;
   // started: whether the drive may have begun writing (after the job was accepted)
   const fail = (error, started = !!job) => { if (closed) return; closed = true; es?.close(); onProgress({ status: "failed", error, started }); };
   (async () => {
@@ -1894,10 +1894,19 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
         onProgress({ progress: d.fraction, elapsed: d.elapsed_s, remaining: d.eta_s });
       });
       es.addEventListener("error", (e) => { if (e.data) { const d = mine(e); if (d?.message) fail(d.message); } });
+      es.addEventListener("burn_speed", (e) => {
+        const d = mine(e); if (d) onProgress({ speedReport: d });
+      });
+      es.addEventListener("verify_progress", (e) => {
+        const d = mine(e); if (d) onProgress({ verifying: true });
+      });
+      es.addEventListener("burn_result", (e) => {
+        const d = mine(e); if (d) { burnResult = d; onProgress({ burnResult: d }); }
+      });
       es.addEventListener("done", (e) => {
         const d = mine(e); if (!d || closed) return;
         closed = true; es.close();
-        onProgress(d.exit === 0 ? { status: "success", progress: 1 } : cancelled ? { status: "cancelled" } : { status: "failed", error: T().burnFailed, started: true });
+        onProgress(d.exit === 0 ? { status: "success", progress: 1, burnResult } : cancelled ? { status: "cancelled" } : { status: "failed", error: T().burnFailed, started: true });
       });
     } catch { fail(T().exp.noBackend); }
   })();

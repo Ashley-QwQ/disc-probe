@@ -57,7 +57,7 @@ OPTIONS = {
               "dark": "texture", "light": "texture"},
     "disexport": {"geo": "geo", "sectors": "sectors", "output": "path", "r_min": "radius", "r_max": "radius"},
     "cdprobe": {"sectors": "sectors", "output": "path", "size": "size"},
-    "burn": {"iso": "path", "speed": "burn_speed", "cd_sector": "cd_layout"},
+    "burn": {"iso": "path", "speed": "burn_speed", "cd_sector": "cd_layout", "no_verify": "flag"},
     # the whole calibration in one job (calibrate.py); with `iso` it burns first, under the burn's rules
     "calibrate": {"iso": "path", "burn_speed": "burn_speed", "speed": "speed", "mid": "mid", "preset": "path",
                   "sectors": "sectors"},
@@ -123,6 +123,12 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
         if value is None:
             continue
         rule = OPTIONS[action][name]
+        if rule == "flag":
+            if type(value) is not bool:
+                raise APIError("invalid " + name)
+            if value:
+                argv += ["--" + name.replace("_", "-")]
+            continue
         if rule in ("path", "geo"):
             value = "latest" if rule == "geo" and value == "latest" else local_path(root, value)
         elif rule == "cd_layout":

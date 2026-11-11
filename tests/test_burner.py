@@ -28,7 +28,7 @@ class BurnerTests(unittest.TestCase):
         self.recorder.write.return_value = 4.01
 
     def burn(self, **kw):
-        return burner.burn("H:", self.iso, recorder=self.recorder, **kw)
+        return burner.burn("H:", self.iso, recorder=self.recorder, **{"no_verify": True, **kw})
 
     def test_confirmation_precedes_all_hardware(self):
         with patch.object(burner, "adapter") as factory:
@@ -52,7 +52,11 @@ class BurnerTests(unittest.TestCase):
             self.burn(yes_write=True)
 
     def test_speed_selection(self):
-        self.assertEqual(burner.choose_speed(None, [8, 4, 4]), 4)
+        self.assertEqual(burner.choose_speed(None, [8, 4, 4]), 8)
+        self.assertEqual(burner.choose_speed(None, [4, 16], "cd"), 4)
+        self.assertEqual(burner.choose_speed(None, [4, 6, 10, 16]), 6)
+        self.assertEqual(burner.choose_speed(None, [12, 16]), 12)
+        self.assertEqual(burner.choose_speed(4, [4, 8]), 4)
         self.assertEqual(burner.choose_speed(8, [4, 5410 / 675]), 5410 / 675)
         for speed in (0, -1, float("nan"), float("inf"), 12):
             with self.assertRaises(burner.BurnError):
@@ -60,7 +64,7 @@ class BurnerTests(unittest.TestCase):
 
     def test_actual_speed_result_and_progress_outlet(self):
         def write(image, speed, cancel, progress):
-            self.assertEqual((image, speed), (self.iso.resolve(), 4))
+            self.assertEqual((image, speed), (self.iso.resolve(), 8))
             progress(fraction=.5, elapsed_s=2, eta_s=2, stage="writing")
             return 4.01
         self.recorder.write.side_effect = write
@@ -68,8 +72,103 @@ class BurnerTests(unittest.TestCase):
             result = self.burn(yes_write=True)
         self.assertFalse(result["verified"])
         self.assertEqual(result["actual_speed_x"], 4.01)
-        self.assertEqual(event.call_args_list[0].args, ("progress",))
+        self.assertEqual(event.call_args_list[1].args, ("progress",))
         self.assertEqual(event.call_args_list[-1].args, ("burn_result",))
+
+    def test_durable_speed_log_and_events(self):
+        events = self.root / "events.jsonl"
+        with patch.dict(os.environ, DISCPROBE_EVENTS=str(events)), patch("sys.stdout", new_callable=io.StringIO) as output:
+            result = self.burn(yes_write=True, speed=8)
+        records = [json.loads(line) for line in Path(result["log_path"]).read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(records[0]["requested_speed_x"], 8)
+        self.assertEqual(records[1]["actual_speed_x"], 4.01)
+        self.assertEqual(records[-1]["verification"]["status"], "skipped")
+        self.assertEqual([x["type"] for x in records], ["burn_speed", "burn_speed", "burn_result"])
+        emitted = [json.loads(line) for line in events.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(emitted[-1]["selected_speed_x"], 8)
+        self.assertIn("Requested write speed: 8x", output.getvalue())
+        self.assertIn("4.01x", output.getvalue())
+
+    def test_sample_verification_recorded_reads(self):
+        self.iso.write_bytes(bytes(1600 * 2048))
+        lbas = burner.sample_lbas(1600)
+        self.assertEqual((len(lbas), lbas[0], lbas[-1]), (96, 0, 1584))
+        self.assertTrue(all(lba % 16 == 0 for lba in lbas))
+        dev = Mock()
+        dev.__enter__ = Mock(return_value=dev)
+        dev.__exit__ = Mock(return_value=False)
+        def read(cdb, **kw):
+            scsi.check_allowed(cdb)
+            self.assertEqual(cdb[0], 0x28)
+            self.assertEqual(kw["data_len"], 16 * 2048)
+            lba = int.from_bytes(cdb[2:6], "big")
+            if lba == lbas[10]:
+                return scsi.ScsiResult(2, b"", scsi.Sense(3, 17, 0), 0, 1)
+            if lba == lbas[20]:
+                raise OSError("injected unreadable")
+            if lba == lbas[30]:
+                return scsi.ScsiResult(0, b"", None, 0, 1)
+            return scsi.ScsiResult(0, (b"x" if lba == lbas[40] else b"\0") * (16 * 2048), None, 0, 1)
+        dev.execute.side_effect = read
+        verifier = lambda drive, image, media, cancel: burner.verify_image(drive, image, media, cancel, device_factory=lambda _: dev)
+        self.recorder.inspect.return_value["free_sectors"] = 1600
+        with patch("sys.stdout", new_callable=io.StringIO) as output, patch.object(burner.ui, "event") as event:
+            result = self.burn(yes_write=True, no_verify=False, verifier=verifier)
+        summary = result["verification"]
+        self.assertEqual((summary["ok"], summary["differing"], summary["unreadable"]), (92, 1, 3))
+        self.assertEqual(dev.execute.call_count, 96)
+        self.assertEqual([f["lba"] for f in summary["failures"]], [lbas[i] for i in (10, 20, 30, 40)])
+        self.assertTrue(all(f["radius_mm"] >= 24 for f in summary["failures"]))
+        self.assertEqual(result["result"], "completed")
+        self.assertFalse(result["verified"])
+        self.assertEqual(event.call_args_list[-1].kwargs["verification"], summary)
+        self.assertIn("picture may still look fine", output.getvalue())
+        self.recorder.write.assert_called_once()
+
+    def test_verify_open_failure_and_cancel_preserve_write(self):
+        def unavailable(*args):
+            return burner.verify_image(*args, device_factory=Mock(side_effect=OSError("access denied")))
+        result = self.burn(yes_write=True, no_verify=False, verifier=unavailable)
+        self.assertEqual(result["result"], "completed")
+        self.assertEqual(result["verification"]["status"], "unavailable")
+        self.assertEqual(result["verification"]["untested"], 1)
+        self.assertFalse(result["verified"])
+
+    def test_no_verify_does_not_open_device(self):
+        with patch.object(burner, "verify_image") as verify:
+            result = self.burn(yes_write=True)
+        verify.assert_not_called()
+        self.assertFalse(result["verified"])
+        self.assertEqual(result["verification"], {"status": "skipped"})
+
+    def test_short_image_sample(self):
+        self.assertEqual(burner.sample_lbas(2), [0])
+        self.assertEqual(burner.sample_lbas(33), [0, 16])
+
+    def test_sample_match_and_cancellation(self):
+        self.iso.write_bytes(bytes(32 * 2048))
+        dev = Mock()
+        dev.__enter__ = Mock(return_value=dev)
+        dev.__exit__ = Mock(return_value=False)
+        cancel = threading.Event()
+        dev.execute.return_value = scsi.ScsiResult(0, bytes(16 * 2048), None, 0, 1)
+        summary = burner.verify_image("fake", self.iso, "dvd", cancel, device_factory=lambda _: dev)
+        self.assertEqual((summary["ok"], summary["unreadable"], summary["untested"]), (2, 0, 0))
+        def read(*args, **kw):
+            cancel.set()
+            return scsi.ScsiResult(0, bytes(16 * 2048), None, 0, 1)
+        dev.execute.side_effect = read
+        summary = burner.verify_image("fake", self.iso, "dvd", cancel, device_factory=lambda _: dev)
+        self.assertEqual((summary["status"], summary["ok"], summary["untested"]), ("cancelled", 1, 1))
+
+    def test_reported_speed_survives_failed_write(self):
+        def write(image, speed, cancel, progress):
+            progress(stage="speed", actual_speed_x=7.9)
+            raise burner.BurnError("injected write failure")
+        self.recorder.write.side_effect = write
+        with patch.object(burner.ui, "event") as event, self.assertRaises(burner.BurnError):
+            self.burn(yes_write=True)
+        self.assertEqual(event.call_args_list[-1].kwargs["actual_speed_x"], 7.9)
 
     def test_cancel_before_write_and_no_retry(self):
         cancel = threading.Event()
@@ -111,7 +210,8 @@ class BurnerTests(unittest.TestCase):
                                      '{"type":"progress","fraction":0.5,"elapsed_s":1,"eta_s":1}\n'])
         progress = Mock()
         self.assertEqual(rec.write(self.iso, 4, threading.Event(), progress), 4.01)
-        progress.assert_called_once()
+        self.assertEqual(progress.call_count, 2)
+        self.assertEqual(progress.call_args_list[0].kwargs, dict(stage="speed", actual_speed_x=4.01))
         self.assertIn("-Burn", rec.popen.call_args.args[0])
         rec, process = self.windows(["0xC0AA0301"], 1)
         with self.assertRaisesRegex(burner.BurnError, "raw P-W"):
@@ -151,9 +251,10 @@ class BurnerTests(unittest.TestCase):
     def test_cli_keeps_write_units_separate(self):
         from discprobe import __main__
         with patch.object(burner, "burn") as write:
-            __main__._main(["burn", "--drive", "H:", "--iso", str(self.iso), "--speed", "4", "--yes-write"])
+            __main__._main(["burn", "--drive", "H:", "--iso", str(self.iso), "--speed", "4", "--yes-write", "--no-verify"])
         self.assertEqual(write.call_args.kwargs["speed"], 4)
         self.assertTrue(write.call_args.kwargs["yes_write"])
+        self.assertTrue(write.call_args.kwargs["no_verify"])
 
     def test_linux_cd_layout_and_cancel(self):
         from discprobe import cd
@@ -235,6 +336,13 @@ class BurnerTests(unittest.TestCase):
             handler.do_GET()
         run()
         self.assertIn("--yes-write", started[-1])
+
+    def test_web_no_verify_flag(self):
+        for value in (True, False):
+            argv, _ = webui.command(dict(action="burn", drive="H:", args=dict(iso="iso/" + self.iso.name, no_verify=value)), self.root, [dict(id="H:")])
+            self.assertEqual("--no-verify" in argv, value)
+        with self.assertRaises(webui.APIError):
+            webui.command(dict(action="burn", drive="H:", args=dict(iso="iso/" + self.iso.name, no_verify="true")), self.root, [dict(id="H:")])
 
     def test_web_child_cooperative_cancel(self):
         class FakeChild:

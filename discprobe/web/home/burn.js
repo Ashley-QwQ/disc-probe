@@ -19,11 +19,11 @@ import { cutaway, flyer } from "./drive-scene.js";
 const root = document.documentElement;
 const STR = {
   zh: {
-    title:'刻录光盘', intro:'核对文件和光盘，再按住右下角开始刻录。', disc:'光盘', file:'刻录文件', speed:'刻录速度', reason:'默认选最低速度，给光驱留出更稳定的写入时间。', estimate:'预计用时', unknown:'暂时无法估算', drive:'光驱', sectors:'扇区',
+    title:'刻录光盘', intro:'核对文件和光盘，再按住右下角开始刻录。', disc:'光盘', file:'刻录文件', speed:'刻录速度', reason:'DVD 默认选最接近 8x 的支持速度；CD 保持最低速度。较慢不一定更可靠。', estimate:'预计用时', unknown:'暂时无法估算', drive:'光驱', sectors:'扇区',
     consent:'光驱里是空白盘；我知道托盘会关闭，光驱会开始写入。', warning:'开始后托盘会关闭。请先放好空白盘，不要移动光驱。', hold:'按住 1 秒，开始刻录', holding:'继续按住…', ready:'等待确认', writing:'正在刻录光盘', running:'请让光驱保持连接，等到写入完成。', elapsed:'已用时', remaining:'剩余时间', cancel:'取消刻录', cancelWarn:'取消会让光盘只写入一部分，这张盘将无法再用。', confirmCancel:'确认取消刻录', keep:'继续刻录', stopping:'正在停止写入…', done:'光盘刻好了', doneNote:'接下来读回检查，或拍照看看实际的图案。', read:'下一步：读回光盘', photo:'拍摄光盘', failed:'这次没有刻好', notStarted:'还没有开始刻，盘没有动过', failedNote:'请检查光驱连接，换一张空白盘，再重新确认刻录。', cancelled:'刻录已取消', cancelledNote:'这张盘已经写入了一部分。请换一张空白盘后再试。', retry:'准备另一张空白盘', other:'用别的软件刻录', copy:'复制文件路径', copied:'已复制文件路径', copyFail:'无法自动复制，请选中路径后复制。', back:'返回预览', mini:'查看刻录进度', missing:'先准备刻录文件和光驱', missingNote:'返回预览生成刻录文件，再选择可用的光驱和速度。', details:'查看文件详情', waiting:'等待光驱报告进度', placeholder:'此入口将在接入读回或拍照页面后启用。', percent:'完成', swapping:'换一张空白盘',
   },
   en: {
-    title:'Burn the disc', intro:'Check the file and disc, then hold the button at the bottom right.', disc:'Disc', file:'Burn file', speed:'Write speed', reason:'The lowest speed is selected to give the drive more time for a steady write.', estimate:'Estimated time', unknown:'Not enough information yet', drive:'Drive', sectors:'sectors',
+    title:'Burn the disc', intro:'Check the file and disc, then hold the button at the bottom right.', disc:'Disc', file:'Burn file', speed:'Write speed', reason:'DVD defaults to the supported speed nearest 8x; CD keeps the lowest. Slower is not always more reliable.', estimate:'Estimated time', unknown:'Not enough information yet', drive:'Drive', sectors:'sectors',
     consent:'The disc in the drive is blank. I understand the tray will close and the drive will write to it.', warning:'The tray will close when you start. Place the blank disc first and keep the drive still.', hold:'Hold 1 second to burn', holding:'Keep holding…', ready:'Waiting for confirmation', writing:'Burning the disc', running:'Keep the drive connected until writing is complete.', elapsed:'Elapsed', remaining:'Remaining', cancel:'Cancel burning', cancelWarn:'Cancelling leaves the disc partly written and unusable.', confirmCancel:'Confirm cancellation', keep:'Continue burning', stopping:'Stopping the write…', done:'Your disc is ready', doneNote:'Read it back to check the result, or photograph the pattern.', read:'Next: read back the disc', photo:'Photograph the disc', failed:'The write did not finish', notStarted:'Nothing was written; the disc is untouched', failedNote:'Check the drive connection, replace the disc with a blank one, then confirm again.', cancelled:'Burning cancelled', cancelledNote:'This disc is partly written. Replace it with a blank disc before trying again.', retry:'Prepare another blank disc', other:'Burn with another program', copy:'Copy file path', copied:'File path copied', copyFail:'Automatic copy is unavailable. Select and copy the path.', back:'Back to preview', mini:'View burn progress', missing:'Prepare a burn file and drive first', missingNote:'Go back to preview to make the burn file, then choose an available drive and speed.', details:'View file details', waiting:'Waiting for progress from the drive', placeholder:'This opens when the read-back or photography page is connected.', percent:'complete', swapping:'Change the disc',
   }
 };
@@ -77,6 +77,30 @@ function paint() {
   q('.burn-timing').hidden=!active;const times=q('.burn-timing').children;times[0].textContent=`${t.elapsed} ${time(task?.elapsed)}`;times[1].textContent=`${t.remaining} ${time(task?.remaining)}`;
   const key=!hasInput?(swapping?'swapping':'missing'):status==='success'?'done':status==='ready'?'ready':status==='burning'?'writing':status;
   q('.burn-result h2').textContent=key==='failed'&&task?.notStarted?t.notStarted:t[key];q('.burn-result p').textContent=!hasInput?(ctx.driveProblem||t.missingNote):active?(task.stopping?t.stopping:t.running):(key==='failed'&&task?.error)||t[`${key}Note`]||'';
+  if(active&&task?.verifying)q('.burn-result p').textContent=api.lang()==='en'?'Write complete. Reading back a sample; drive retries may take time…':'写入完成，正在抽样回读；光驱重试可能需要一些时间…';
+  if(active&&task?.verifying){
+    q('[data-a="cancel"]').textContent=api.lang()==='en'?'Stop read-back':'停止回读';
+    q('.burn-cancel-check p').textContent=api.lang()==='en'?'The write is complete. Stopping now leaves the read-back check unfinished.':'写入已完成。现在停止会留下未检查的回读样本。';
+  }
+  const report=task?.burnResult||task?.speedReport;
+  if(report){
+    const en=api.lang()==='en', actual=report.actual_speed_x;
+    let note=en?`Requested: ${report.selected_speed_x}×; drive/utility reports: ${actual==null?'not reported':actual+'×'}. `:`请求速度：${report.selected_speed_x}×；光驱/工具报告：${actual==null?'未报告':actual+'×'}。`;
+    const v=report.verification;
+    if(status==='success'&&v){
+      if(v.status==='skipped')note+=en?'Read-back skipped.':'已跳过回读验证。';
+      else {
+        note+=en?`Sample: ${v.ok} blocks ok / ${v.differing} differing / ${v.unreadable} unreadable; ${v.untested} untested. `:`抽样：${v.ok} 块一致 / ${v.differing} 块不同 / ${v.unreadable} 块无法读取；${v.untested} 块未检查。`;
+        if(v.status!=='completed'||v.differing||v.unreadable){
+          note+=en?'The write completed. Reading failed or could not finish; the picture may still look fine. Try another blank disc at another speed. ':'写入已完成。回读失败或未能完成，图案仍可能看起来正常。建议换一张空白光盘，以另一速度刻录。';
+          q('.burn-result h2').textContent=en?'Write completed; check read-back results':'写入完成，请检查回读结果';
+        }
+        else note+=en?'Only a sample was checked, not the whole disc. ':'仅检查了样本，并非整盘验证。';
+        note+=(v.failures||[]).map(f=>`LBA ${f.lba} (~${f.radius_mm.toFixed(2)} mm, ${en?'nominal':'标称'})`).join('; ');
+      }
+      q('.burn-result p').textContent=note;
+    }else if(active)q('.burn-result p').textContent+=' '+note;
+  }
   const p=Math.round((task?.progress||0)*100);W.progress.style.setProperty('--progress',`${p}%`);W.miniRing.style.setProperty('--progress',`${p}%`);
   const caption=active?`${p}% · ${t.percent}`:status==='success'?t.done:t[key];q('.burn-scene-caption').textContent=caption;W.mini.lastChild.textContent=active?`${p}%`:t[key];
   q('.burn-disc').setAttribute('role','progressbar');q('.burn-disc').setAttribute('aria-label',t.writing);q('.burn-disc').setAttribute('aria-valuemin','0');q('.burn-disc').setAttribute('aria-valuemax','100');q('.burn-disc').setAttribute('aria-valuenow',String(p));
@@ -90,7 +114,7 @@ function sceneOf(){return scene??={cut:cutaway(api,{mirrored:false,textLeft:()=>
 function waitForDisc(){api.setTray(true,false);setTimeout(()=>{if(visible&&!task)sceneOf().fly.hover(ctx.item?.name||'');},900);}
 function fillSpeeds(){
   const speeds=[...new Set((ctx.drive?.speeds||[]).filter(x=>Number.isFinite(x)&&x>0))].sort((a,b)=>a-b);
-  if(!speeds.includes(speed))speed=speeds[0];W.select.replaceChildren(...speeds.map(s=>{const o=el('option','',`${s}×`);o.value=s;return o;}));W.select.value=speed;
+  if(!speeds.includes(speed))speed=ctx.media==='cd'?speeds[0]:speeds.reduce((best,s)=>Math.abs(s-8)<Math.abs(best-8)?s:best,speeds[0]);W.select.replaceChildren(...speeds.map(s=>{const o=el('option','',`${s}×`);o.value=s;return o;}));W.select.value=speed;
 }
 // The disc in the drive is not a blank of this batch. As on the calibration page: it rises out of the tray
 // and goes; the page waits, read-only, while the person opens the drive, changes the disc and closes it
@@ -143,7 +167,7 @@ async function beginBurn() {
   W.q('.burn-cancel-check').hidden=true;paint();
   const sc=sceneOf(); if(!ctx.discIn)await sc.fly.drop(); if(task!==current)return;
   api.placeDisc(true);api.setTray(false,true);
-  try { const handle=ctx.burn(p=>{if(task!==current||current.status!=='burning')return; current.progress=Number.isFinite(p.progress)?Math.max(current.progress,Math.min(1,p.progress)):current.progress;current.elapsed=p.elapsed;current.remaining=p.remaining;sc.cut.update(current.progress,current.remaining);if(['success','failed','cancelled'].includes(p.status)){current.status=p.status;if(p.error)current.error=p.error;if(p.started===false)current.notStarted=true;if(p.status==='success')current.progress=1;W.q('.burn-cancel-check').hidden=true;setTimeout(()=>sc.cut.show(false),1200);}paint();},{speed});current.handle=handle;
+  try { const handle=ctx.burn(p=>{if(task!==current||current.status!=='burning')return; if(p.burnResult)current.burnResult=p.burnResult;if(p.speedReport)current.speedReport=p.speedReport;if(p.verifying)current.verifying=true; current.progress=Number.isFinite(p.progress)?Math.max(current.progress,Math.min(1,p.progress)):current.progress;current.elapsed=p.elapsed;current.remaining=p.remaining;sc.cut.update(current.progress,current.remaining);if(['success','failed','cancelled'].includes(p.status)){current.status=p.status;if(p.error)current.error=p.error;if(p.started===false)current.notStarted=true;if(p.status==='success')current.progress=1;W.q('.burn-cancel-check').hidden=true;setTimeout(()=>sc.cut.show(false),1200);}paint();},{speed});current.handle=handle;
     setTimeout(()=>{if(task===current&&current.status==='burning'&&visible){sc.cut.update(current.progress,current.remaining);sc.cut.show(true);}},900); }
   catch (e) {current.status='failed';current.error=e?.message||'';current.notStarted=true;paint();}
 }
