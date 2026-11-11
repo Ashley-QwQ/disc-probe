@@ -339,6 +339,22 @@ time.sleep(60)
         c.close()
         return response.status, body
 
+    def test_burn_command_for_a_cd_burned_outside_the_core(self):
+        # a CD on Windows: the page shows the core's tested command (IMAPI script, 8x), with absolute paths
+        server = self.http_server()
+        (Path(self.root) / "iso").mkdir(exist_ok=True)
+        (Path(self.root) / "iso" / "cd pic.iso").write_bytes(bytes(4096))
+        status, body = self.request(server, "GET", "/api/burn-command?drive=H:&media=cd&iso=iso/cd%20pic.iso")
+        self.assertEqual(status, 200)
+        argv = json.loads(body)["argv"]
+        self.assertTrue(argv[argv.index("-File") + 1].endswith("burn_imapi.ps1"))
+        self.assertEqual(argv[argv.index("-Speed") + 1], "8")
+        self.assertEqual(Path(argv[argv.index("-Iso") + 1]), (Path(self.root) / "iso" / "cd pic.iso").resolve())
+        self.assertIn('"', json.loads(body)["command"])          # the space in the name is quoted
+        for bad in ("drive=X:&media=cd&iso=iso/cd%20pic.iso", "drive=H:&media=dvd&iso=iso/cd%20pic.iso",
+                    "drive=H:&media=cd&iso=../webui.py", "drive=H:&media=cd&iso=iso/missing.iso"):
+            self.assertNotEqual(self.request(server, "GET", "/api/burn-command?" + bad)[0], 200, bad)
+
     def test_http_endpoints_and_origin(self):
         server = self.http_server()
         self.assertEqual(self.request(server, "GET", "/")[0], 404)

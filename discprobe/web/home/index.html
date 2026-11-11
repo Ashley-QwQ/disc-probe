@@ -357,6 +357,9 @@
   .top > .back:not([hidden]) { margin-right: auto; }
   :root[data-mode="cal"] .detail, :root[data-mode="cal"] .counter, :root[data-mode="cal"] .gallery { display: none; }
   #sound[aria-pressed="true"] .icon.off, #sound[aria-pressed="false"] .icon.on { display: none; }
+  /* a command to copy (a CD burned outside the core): data, so mono; wraps instead of scrolling */
+  .cal .cal-cmd { font: 13px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-2);
+    padding: 10px 12px; border-radius: 4px; user-select: all; margin: 8px 0; }
   @media (max-width: 560px) { #sound { display: none; } }   /* no room in the header: the settings menu has it too */
   :root[data-mode="cal"] .layer.ghost, :root[data-mode="cal"] .layer.solid { opacity: .1 !important; }
   /* Keep the whole step between the fixed corner rows. Tall steps scroll here,

@@ -734,6 +734,20 @@ class Handler(BaseHTTPRequestHandler):
                 self._events()
             elif path == "/api/iso":
                 self._json(200, backend.iso_file(parse_qs(urlsplit(self.path).query).get("path", [""])[0]))
+            elif path == "/api/burn-command":
+                # the command a person runs to burn this ISO where the core cannot (a CD on Windows): the core's own
+                # words (burner.imapi_cd_command, as guide.burn_steps prints it), never assembled by the page
+                import subprocess
+                from . import burner
+                query = parse_qs(urlsplit(self.path).query)
+                drive = query.get("drive", [""])[0]
+                if drive not in [d["id"] for d in backend.drive_provider()]:
+                    raise APIError("unknown drive", 404)
+                if query.get("media", ["cd"])[0] != "cd":
+                    raise APIError("only CDs are burned outside the core")
+                iso = backend.iso_file(query.get("iso", [""])[0])
+                argv = burner.imapi_cd_command(drive, backend.root / iso["path"])
+                self._json(200, dict(command=subprocess.list2cmdline(argv), argv=argv))
             elif path.startswith("/api/"):
                 raise APIError("not found", 404)
             else:

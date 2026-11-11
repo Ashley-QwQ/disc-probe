@@ -17,7 +17,8 @@ const isOn = () => root.dataset.mode === "design";
 const STR = {
   zh: {
     untitled: "未命名工程", next: "下一步：预览",
-    burnCdWindows: "这台电脑上还不能从这里刻 CD。在文件夹里右键这个 .iso，选“刻录光盘映像”，刻到这批的空白 CD 上。",
+    burnCdWindows: "这台电脑上还不能从页面刻 CD。放一张这批的空白 CD，在 PowerShell 里运行下面这条命令：它用仓库里的刻录脚本以 8x 刻。Windows 自带的“刻录光盘映像”会用 40x，在 GH70N 上刻便宜的 CD-R 失败过。",
+    burnCdWindowsNoDrive: "这台电脑上还不能从页面刻 CD，而且没找到光驱。接好光驱后回到这一页，这里会给出刻录命令。",
     burnNoDrive: "没找到光驱。接好光驱后再回到这一页。", burnNoDisc: (why) => `读不了光驱里的盘：${why || "可能没放盘"}。放一张空白盘再回到这一页。`,
     burnNotBlank: "光驱里这张不是空白盘。换一张同一批的空白盘，再回到这一页。", burnTooBig: "刻录文件比这张盘放得下的大。",
     burnNotBlankSwap: (what) => `光驱里这张${what ? ` ${what} ` : ""}已经刻过了。按光驱上的弹出键把它取出来。`,
@@ -40,7 +41,8 @@ const STR = {
     show: "显示", hide: "隐藏", lock: "锁定", unlock: "解锁", remove: "删除",
     files: "随盘文件", pickFolder: "选择文件夹", inner: "内圈", outer: "外圈", clear: "清除",
     filesN: (n, size) => `${n} 个文件 · ${size}`, filesRing: (a, b) => `占半径 ${a}–${b} mm，这一圈放文件，不刻图。`,
-    filesNone: "不带文件时，整个可刻范围都给图。", cdFiles: "CD：不带文件就刻音轨，带文件就刻数据盘。",
+    filesNone: "不带文件时，整个可刻范围都给图。",
+    filesLater: "还不能把文件一起刻进盘：核心还没有这项功能。现在整个可刻范围都给图。", cdFiles: "CD：不带文件就刻音轨，带文件就刻数据盘。",
     tone: "影调", dither: "抖动强度", bright: "亮度", levels: "灰阶档位", lv: (n) => n === 4 ? '4 级（仅预览）' : `${n} 级`, lv4: "4 级仅供 CD 预览，导出请选 2 级",
     lin: "sRGB 线性化", inv: "反转 3T/6T 映射",
     more: "更多", auto: "自动色阶", autoOff: "取消自动色阶", autoOn: (b, w) => `黑点 ${b} · 白点 ${w}`,
@@ -90,7 +92,8 @@ const STR = {
   },
   en: {
     untitled: "Untitled project", next: "Next: preview",
-    burnCdWindows: "This computer cannot burn CDs from here yet. In the folder, right-click this .iso and choose Burn disc image, onto a blank CD from this batch.",
+    burnCdWindows: "This computer cannot burn CDs from the page yet. Put in a blank CD from this batch and run the command below in PowerShell: it burns at 8x with the repo's script. Windows' own Burn disc image picks 40x, which failed on a GH70N with cheap CD-R.",
+    burnCdWindowsNoDrive: "This computer cannot burn CDs from the page yet, and no drive was found. Connect the drive and come back to this page for the burn command.",
     burnNoDrive: "No drive found. Connect the drive and come back to this page.", burnNoDisc: (why) => `Couldn't read the disc in the drive: ${why || "maybe there is none"}. Put in a blank disc and come back to this page.`,
     burnNotBlank: "The disc in the drive isn't blank. Put in a blank from the same batch and come back to this page.", burnTooBig: "The burn file is bigger than this disc can hold.",
     burnNotBlankSwap: (what) => `The disc in the drive${what ? ` (${what})` : ""} has already been written. Press the drive's eject button and take it out.`,
@@ -113,7 +116,8 @@ const STR = {
     show: "Show", hide: "Hide", lock: "Lock", unlock: "Unlock", remove: "Delete",
     files: "Files on the disc", pickFolder: "Choose folder", inner: "Inner", outer: "Outer", clear: "Clear",
     filesN: (n, size) => `${n} files · ${size}`, filesRing: (a, b) => `Radius ${a}–${b} mm holds the files; no picture there.`,
-    filesNone: "Without files, the whole burnable range is the picture's.", cdFiles: "CD: without files it burns an audio track; with files, a data disc.",
+    filesNone: "Without files, the whole burnable range is the picture's.",
+    filesLater: "Files can't be burned onto the disc yet: the core does not do it. The whole burnable range is the picture's.", cdFiles: "CD: without files it burns an audio track; with files, a data disc.",
     tone: "Tone", dither: "Dither strength", bright: "Brightness", levels: "Grey levels", lv: (n) => n === 4 ? '4 levels (preview only)' : `${n} levels`, lv4: "4 levels are for CD preview only; choose 2 to export",
     lin: "sRGB linearisation", inv: "Swap the 3T/6T mapping",
     more: "More", auto: "Auto levels", autoOff: "Undo auto levels", autoOn: (b, w) => `Black ${b} · white ${w}`,
@@ -186,6 +190,8 @@ const I = {
 };
 
 // ---------------------------------------------------------------- the project
+// files burned beside the picture: off until the core writes them (image takes no files, the ISO gets no entries)
+const FILES_READY = false;
 const RANGE = { dvd: [24, 58], cd: [23, 58], bd: [24, 58] };          // burnable radii, mm
 const CAPACITY = { dvd: 4.7e9, cd: 0.7e9, bd: 25e9 };
 const DEFAULT_TONE = { dither: 100, bright: 0, levels: 2, lin: false, inv: false, contrast: 0, hi: 0, sh: 0, mode: "floyd-steinberg", auto: null };
@@ -221,7 +227,7 @@ const heightOf = (L) => L.kind === "image" ? L.width * L.h / L.w : L.height;
 
 // the part of the disc that holds files, if any: [from, to] radius in mm
 function filesRing() {
-  if (!S.files?.bytes) return null;
+  if (!FILES_READY || !S.files?.bytes) return null;
   const [r0, r1] = range(), f = Math.min(0.95, S.files.bytes / CAPACITY[S.media] + 0.002);
   if (S.files.where === "outer") return [Math.sqrt(r1 * r1 - (r1 * r1 - r0 * r0) * f), r1];
   return [r0, Math.sqrt(r0 * r0 + (r1 * r1 - r0 * r0) * f)];
@@ -1060,13 +1066,16 @@ function buildLeft() {
       : `<p class="empty-l">${t.noLayers}</p>`) +
     `<button class="sbtn wide" type="button" data-a="import">${I.image}${t.import}</button></section>` +
     `<section><h3>${t.files}</h3>` +
+    // files on the disc: the core cannot write them yet (`image` has no files, the ISO no entries), so the page
+    // does not offer them: a ring kept free for files that never arrive would be a picture made smaller for nothing
+    (!FILES_READY ? `<p class="note quiet">${t.filesLater}</p></section>` :
     (S.files ? `<p class="note">${t.filesN(S.files.count, size(S.files.bytes))}</p>` +
       `<div class="seg" role="group" aria-label="${t.files}"><button type="button" data-a="inner" aria-pressed="${S.files.where === "inner"}">${t.inner}</button><button type="button" data-a="outer" aria-pressed="${S.files.where === "outer"}">${t.outer}</button></div>` +
       `<p class="note quiet">${t.filesRing(...filesRing().map((r) => r.toFixed(1)))}</p>`
       : `<p class="note quiet">${t.filesNone}</p>`) +
     (S.media === "cd" ? `<p class="note quiet">${t.cdFiles}</p>` : "") +
     `<div class="row2"><button class="sbtn" type="button" data-a="folder">${I.folder}${t.pickFolder}</button>` +
-    `<button class="sbtn" type="button" data-a="nofiles" ${S.files ? "" : "disabled"}>${t.clear}</button></div></section>`;
+    `<button class="sbtn" type="button" data-a="nofiles" ${S.files ? "" : "disabled"}>${t.clear}</button></div></section>`);
   for (const li of W.left.querySelectorAll(".lay")) {
     const L = S.layers.find((x) => x.id === Number(li.dataset.id));
     if (L.kind === "image") li.querySelector(".th").replaceWith(thumb(L));
@@ -1848,7 +1857,15 @@ async function toBurn(iso, back) {
   let drive = { id: "", name: "", speeds: mock ? (S.media === "cd" ? [4, 8, 16] : [4, 8]) : [] }, problem = "", needSwap = false;
   // a CD on Windows: the core has no CD writer there yet (burner.WindowsDVD); the page says how, and does not try
   const otherOnly = !mock && S.media === "cd" && api.platform?.() === "win32";
-  if (otherOnly) problem = t.burnCdWindows;
+  let otherCommand = "";
+  if (otherOnly) {
+    // the core's own command for this ISO and drive (burner.imapi_cd_command), shown to copy
+    try {
+      const s = await api.backend.request(`/api/state?media=cd`), d = s.drives?.[0];
+      if (d) otherCommand = (await api.backend.request(`/api/burn-command?drive=${encodeURIComponent(d.id)}&media=cd&iso=${encodeURIComponent(iso.path)}`)).command;
+    } catch { /* no drive or no backend: said below */ }
+    problem = otherCommand ? t.burnCdWindows : t.burnCdWindowsNoDrive;
+  }
   else if (!mock) {
     try {
       const s = await (await fetch(`/api/state?media=${S.media}`)).json();
@@ -1862,7 +1879,7 @@ async function toBurn(iso, back) {
   const mockSwap = mock && new URLSearchParams(location.search).has("mockswap");
   if (mockSwap) { problem = t.burnNotBlankSwap(S.item?.mid || "RITEKF1"); needSwap = true; drive = { id: "H:", name: "H:", speeds: [] }; }
   const ctx = {
-    media: S.media, item: S.item, iso, drive, back, driveProblem: problem, needSwap, otherOnly,
+    media: S.media, item: S.item, iso, drive, back, driveProblem: problem, needSwap, otherOnly, otherCommand,
     swapWords: { open: t.burnTrayOpen, checking: t.burnChecking, put: t.burnPutBlank(S.item?.mid || S.item?.name || "") },
     // the disc in the drive is the wrong one: wait (read-only) while it is changed, then look again
     swap: mockSwap ? async (onTray) => {
@@ -1930,6 +1947,11 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
   const fail = (error, started = !!job) => { if (closed) return; closed = true; es?.close(); onProgress({ status: "failed", error, started }); };
   (async () => {
     try {
+      // look at the disc again right before writing (read-only): it may have been changed, and the server only
+      // accepts a burn within two minutes of such a look, however long the person stayed on this page
+      const look = await fetch(`/api/burn-speeds?drive=${encodeURIComponent(drive.id)}&media=${S.media}`);
+      const seen = await look.json().catch(() => ({}));
+      if (!look.ok || seen.blank !== true) { fail(look.ok ? T().burnNotBlank : T().burnNoDisc(seen.error ?? ""), false); return; }
       const tok = await (await fetch("/api/burn-token")).json();
       const r = await fetch("/api/run", {
         method: "POST", headers: { "Content-Type": "application/json" },

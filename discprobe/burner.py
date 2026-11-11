@@ -40,6 +40,16 @@ def choose_speed(requested, supported, media="dvd"):
     return nearest
 
 
+def imapi_cd_command(drive, iso, speed=8):
+    """The tested way to burn a CD on Windows (README step 1; KNOWLEDGE, 2026-11-04): this repo's IMAPI2 script at 8x,
+    which writes Mode 2 Form 1, the layout our CD images are made for. Windows' own "Burn disc image" picks 40x, and
+    that failed on a GH70N with cheap CD-R. The core does not run it itself yet (WindowsDVD refuses CD): it is shown
+    to the person, with absolute paths so it works from any folder."""
+    script = Path(__file__).resolve().parent.parent / "tools" / "burn_imapi.ps1"
+    return ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(script), "-Drive", drive,
+            "-Iso", str(Path(iso).resolve()), "-Speed", f"{speed:g}", "-Burn", "-Reload"]
+
+
 def cd_sector_type(supported):
     """For a future Windows RawCD adapter: prefer raw P-W, never silently use data mode."""
     for kind in (3, 2):

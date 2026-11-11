@@ -804,6 +804,13 @@ def burner_hint() -> list[str]:
 
 def burn_steps(output: str, media: str = "dvd") -> list[str]:
     """Platform-specific burn instructions; the caller supplies the ISO and disc type."""
+    if sys.platform == "win32" and media == "cd":
+        from .burner import imapi_cd_command
+        import subprocess
+        drive = drive_flag().removeprefix("--drive ")
+        return ["Burn it at 8x with the IMAPI script (Windows' own Burn disc image picks 40x, which failed on a GH70N with cheap CD-R):",
+                "  " + subprocess.list2cmdline(imapi_cd_command(drive, output)),
+                "The tray opens when it is done; -Reload pulls it back in."]
     if sys.platform == "win32":
         return ["(Windows: right-click the .iso, Burn disc image).", *burner_hint()]
     if sys.platform != "linux":
@@ -826,7 +833,7 @@ def after_random(args) -> list[str]:
     if sys.platform not in ("win32", "linux"):
         return ["Burn it onto a blank disc with your system's burning tool, and keep some blanks of the same batch for pictures.",
                 fits, PORTS, f"  {PROG} timing --sim cav{flag}"]
-    if sys.platform == "linux":
+    if sys.platform == "linux" or getattr(args, "media", "dvd") == "cd":     # a CD on Windows: the IMAPI script, not the right-click
         return ["Burn it onto a blank disc, and keep some blanks of the same batch for pictures.",
                 *burn_steps(getattr(args, "output", "iso/random.iso"), getattr(args, "media", "dvd")), fits,
                 "Then check the drive with it (1 to 3 minutes):", f"  {PROG} timing {drive_flag()}{flag}"]

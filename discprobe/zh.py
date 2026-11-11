@@ -441,6 +441,9 @@ TEXT = {
         "它会保存一个设计文件。之后把 --picture 换成 --design 加这个文件，重新生成镜像。",
     "If it looks right, burn {p} to a blank disc from the batch you measured": "没问题的话，把 {p} 刻到测量用的同一批空盘上",
     "(Windows: right-click the .iso, Burn disc image).": "（Windows：右键 .iso，选“刻录光盘映像”）。",
+    "Burn it at 8x with the IMAPI script (Windows' own Burn disc image picks 40x, which failed on a GH70N with cheap CD-R):":
+        "用仓库里的 IMAPI 脚本以 8x 刻（Windows 自带的“刻录光盘映像”会用 40x，在 GH70N 上刻便宜的 CD-R 失败过）：",
+    "The tray opens when it is done; -Reload pulls it back in.": "刻完托盘会弹出，-Reload 会把它收回去。",
     "This geometry came from the simulated drive, so it only shows the flow: do not burn this ISO.": "这个几何来自模拟光驱，只用来演示流程：不要刻这个镜像。",
     "This was the simulated drive, so the verdict below says nothing about your own drive.": "这是模拟光驱的结果，下面的结论和你自己的光驱无关。",
     "Those were only the checks that run without {p}. Install what is missing and run it again:": "刚才只跑了不需要 {p} 的检查。装上缺的依赖，再运行一次：",

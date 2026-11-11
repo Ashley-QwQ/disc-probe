@@ -950,9 +950,12 @@ function realPaint() {
   } else if (phase === "burn" && cdHere()) {
     // the core cannot write CDs on Windows yet (burner.WindowsDVD): Windows' own image burner, as guide.py says
     title = liveText('刻测量盘', 'Burn the measurement disc');
-    text = liveText('这台电脑上还不能从这里刻 CD。在文件夹里右键下面这个 .iso，选“刻录光盘映像”，刻到同批次的空白 CD 上；刻好后放回光驱，再点“检测刻好的盘”。',
-      "This computer cannot burn CDs from here yet. In the folder, right-click the .iso below and choose Burn disc image, onto a blank CD from this batch; then put it back in the drive and press Check the burned disc.");
-    html = `<p><code>${esc(flow.iso)}</code></p>`;
+    cdCommand();
+    text = liveText('这台电脑上还不能从页面刻 CD。光驱里放着这批的空白 CD 时，在 PowerShell 里运行下面这条命令，用仓库里的刻录脚本以 8x 刻（Windows 自带的“刻录光盘映像”会用 40x，在 GH70N 上刻便宜的 CD-R 失败过）。约 11 分钟；刻完托盘弹出又收回，再点“检测刻好的盘”。',
+      "This computer cannot burn CDs from the page yet. With a blank CD from this batch in the drive, run the command below in PowerShell: it burns at 8x with the repo's script (Windows' own Burn disc image picks 40x, which failed on a GH70N with cheap CD-R). About 11 minutes; the tray opens and closes again when it is done, then press Check the burned disc.");
+    html = flow.cdCommand ? `<pre class="cal-cmd">${esc(flow.cdCommand)}</pre><button id="real-copy" type="button" class="btn">${liveText('复制刻录命令', 'Copy the burn command')}</button>`
+      : flow.cdCommand === "" ? `<p>${liveText('没取到刻录命令。在终端运行 guide --media cd，它会打印同一条命令。', 'Could not get the burn command. In Terminal, guide --media cd prints the same command.')}</p><p><code>${esc(flow.iso)}</code></p>`
+      : `<p><code>${esc(flow.iso)}</code></p>`;
     button = liveText('检测刻好的盘', 'Check the burned disc');
   } else if (phase === "burn") {
     title = liveText('刻测量盘', 'Burn the measurement disc');
@@ -1022,10 +1025,23 @@ function realPaint() {
   });
   $("real-remeasure")?.addEventListener("click", () => realNext(true));
   $("real-have")?.addEventListener("click", () => { flow.realPhase = "inspect"; realNext(); });
+  $("real-copy")?.addEventListener("click", async (e) => {
+    try { await navigator.clipboard.writeText(flow.cdCommand); e.target.textContent = liveText('已复制', 'Copied'); }
+    catch { e.target.textContent = liveText('复制不了，请选中命令复制', 'Select the command to copy it'); }
+  });
 
 }
 // a CD on a Windows machine: the core has no CD writer there (burner.WindowsDVD), so the disc is burned elsewhere
 const cdHere = () => flow?.detected?.media === "cd" && api.platform?.() === "win32";
+// the core's command for that (burner.imapi_cd_command): fetched once per image, "" when it could not be had
+function cdCommand() {
+  const f = flow;
+  if (!f?.iso || f.cdCommandFor === f.iso) return;
+  f.cdCommandFor = f.iso; f.cdCommand = undefined;
+  api.backend.request(`/api/burn-command?drive=${encodeURIComponent(api.selectedDrive() || "")}&media=cd&iso=${encodeURIComponent(f.iso)}`)
+    .then((r) => { f.cdCommand = r.command || ""; }, () => { f.cdCommand = ""; })
+    .finally(() => { if (flow === f) paint(); });
+}
 // the core's steps (calibrate.py) as this page's phases
 const STEP_PHASE = { burn: "burning", check: "checking", timing: "timing", geo: "geo", preset: "saving" };
 async function realJob(action, args = {}, extra = {}, following = null) {
