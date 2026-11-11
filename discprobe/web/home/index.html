@@ -157,6 +157,20 @@
   .set-menu { position: fixed; z-index: 4; top: calc(var(--edge) + 58px); right: var(--edge); width: min(360px, calc(100vw - 2 * var(--edge))); padding: 14px 16px;
     background: var(--paper); color: var(--ink); border: 1px solid var(--rule-strong); border-radius: 8px; }
   .set-menu[hidden] { display: none; }
+  /* The keys (keys.js, opened with ?): a card over a veil of the page's ground */
+  .keys-help { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; padding: var(--edge);
+    background: color-mix(in srgb, var(--paper) 72%, transparent); }
+  .keys-help[hidden] { display: none; }
+  .keys-card { width: min(460px, 100%); max-height: 100%; overflow-y: auto; padding: 22px 24px 18px; background: var(--paper); color: var(--ink);
+    border: 1px solid var(--rule-strong); border-radius: 8px; }
+  .keys-card h2 { margin: 0 0 14px; font-size: 22px; font-weight: 800; font-stretch: 112%; }
+  .keys-card dl { display: grid; grid-template-columns: max-content 1fr; gap: 10px 18px; align-items: center; margin: 0; }
+  .keys-card dt { display: flex; gap: 4px; }
+  .keys-card dd { margin: 0; color: var(--ink-2); }
+  .keys-card kbd { min-width: 26px; padding: 2px 7px; border: 1px solid var(--rule-strong); border-bottom-width: 2px; border-radius: 4px;
+    font: 600 13px/1.4 var(--mono); text-align: center; color: var(--ink); }
+  .keys-card p { margin: 16px 0 0; font-size: 14px; color: var(--ink-3); }
+  .keys-card .keys-close { margin-top: 14px; }
   .set-row { margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 600; }
   .set-seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 4px; overflow: hidden; }
   .set-seg button { min-height: 36px; padding: 0 12px; border: 0; background: none; color: var(--ink-2); font: 600 14px var(--font); cursor: pointer; }
@@ -290,7 +304,28 @@
   .next { min-height: var(--row); padding: 0 28px; font-size: 19px; border: 0; border-radius: 4px; background: var(--ink); color: var(--paper); font-weight: 600; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; white-space: nowrap; transition: transform 150ms var(--ease); }
   .next:active { transform: translateY(1px); }
   .next .icon { transition: transform var(--t) var(--ease); }
-  .next:hover .icon { transform: translateX(3px); }
+  .next:hover .i-chev { transform: translateX(3px); }
+  /* The keys (keys.js), hidden until they help: a button's own cap fades in while the pointer is on it, and
+     all of them while the keyboard is in use (kbd-mode: any key, gone again soon after the mouse moves).
+     Next always ends in the Enter key's arrow; its word "Enter" follows the caps. Only with a mouse or
+     trackpad (a keyboard is likely); on touch, Next keeps its chevron and there are no caps. */
+  .next-key { display: none; position: relative; margin-right: -4px; }
+  .next-key .icon { width: 20px; height: 20px; }
+  .next-key kbd { position: absolute; top: calc(100% + 1px); left: 50%; transform: translateX(-50%); font: 600 10px/1 var(--mono); letter-spacing: .04em; }
+  .key-cap { display: none; }
+  @media (hover: hover) and (pointer: fine) {
+    .next .i-chev { display: none; }
+    .next-key { display: inline-flex; }
+    #back, #lang, #theme, #settings { position: relative; }
+    .key-cap { display: block; position: absolute; left: 50%; top: calc(100% - 6px); transform: translateX(-50%); padding: 0 4px;
+      font: 600 10px/14px var(--mono); letter-spacing: .04em; color: var(--ink-3); border: 1px solid var(--rule); border-radius: 4px;
+      pointer-events: none; white-space: nowrap; }
+    #back .key-cap { left: 30px; }
+    .key-cap, .next-key kbd { opacity: 0; transition: opacity 400ms var(--ease) 150ms; }
+    button:hover > .key-cap, .next:hover .next-key kbd { opacity: 1; transition-delay: 300ms; }
+    :root.kbd-mode .key-cap, :root.kbd-mode .next-key kbd { opacity: 1; transition-delay: 0ms; }
+    .next:hover .next-key kbd, :root.kbd-mode .next-key kbd { opacity: .7; }
+  }
 
   @media (max-width: 820px) {
     body { overflow: auto; }
@@ -322,9 +357,15 @@
   .top > .back:not([hidden]) { margin-right: auto; }
   :root[data-mode="cal"] .detail, :root[data-mode="cal"] .counter, :root[data-mode="cal"] .gallery { display: none; }
   :root[data-mode="cal"] .layer.ghost, :root[data-mode="cal"] .layer.solid { opacity: .1 !important; }
-  .cal { position: fixed; z-index: 2; right: var(--edge); top: 50%; transform: translateY(-50%); width: min(600px, 40vw); display: grid; gap: 18px; }
+  /* Keep the whole step between the fixed corner rows. Tall steps scroll here,
+     rather than growing upwards into the header or down behind the footer. */
+  .cal { position: fixed; z-index: 2; right: var(--edge); top: calc(var(--edge) + var(--row) + 16px);
+    bottom: calc(var(--foot) + 16px); width: min(600px, 40vw); display: grid; grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content; align-content: safe center; gap: 18px; overflow-y: auto; scrollbar-gutter: stable;
+    padding: 2px; overflow-wrap: anywhere; }
+  .cal > * { min-width: 0; }
   .cal[hidden] { display: none; }
-  .cal .steps { display: flex; gap: 22px; margin: 0 0 6px; padding: 0; list-style: none; font-size: 17px; font-weight: 600; font-stretch: 110%; color: var(--ink-3); }
+  .cal .steps { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0 0 6px; padding: 0; list-style: none; font-size: 17px; font-weight: 600; font-stretch: 110%; color: var(--ink-3); }
   .cal .steps li[aria-current="step"] { color: var(--ink); }
   .cal .steps li.done { color: var(--ink-2); }
   .cal h2 { margin: 0; font-weight: 800; font-stretch: 118%; font-size: clamp(32px, 3vw, 52px); line-height: 1.08; }
@@ -334,7 +375,7 @@
   .cal .cal-aside code { font: 13px var(--mono); color: var(--ink-2); word-break: break-all; }
   .cal .cal-aside .btn { min-height: 0; padding: 2px 6px; margin-left: -6px; font-size: 15px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
   .cal .choices { display: grid; gap: 10px; }
-  .cal .choice { display: grid; grid-template-columns: 22px 1fr; gap: 4px 12px; align-items: start; padding: 16px 18px; border: 1px solid var(--rule-strong); border-radius: 4px; cursor: pointer; }
+  .cal .choice { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px 12px; align-items: start; padding: 16px 18px; border: 1px solid var(--rule-strong); border-radius: 4px; cursor: pointer; }
   .cal .choice:has(input:checked) { border-color: var(--ink); }
   .cal .choice input { margin: 4px 0 0; accent-color: var(--ink); width: 18px; height: 18px; }
   .cal .choice b { font-size: 18px; font-weight: 600; }
@@ -342,7 +383,8 @@
   .cal .readout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 24px; margin: 0; }
   .cal .readout dt { font-size: 15px; color: var(--ink-3); }
   .cal .readout dd { margin: 2px 0 0; font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .cal .note { display: flex; gap: 10px; align-items: flex-start; font-size: 18px; padding: 12px 14px; margin: 0 -14px; border-radius: 4px; }
+  .cal .note { display: flex; gap: 10px; align-items: flex-start; font-size: 18px; padding: 12px 14px; margin: 0; border-radius: 4px; }
+  .cal .note p { min-width: 0; }
   /* a new warning flashes a pale orange three times, then rests */
   .cal .note.flash { animation: note-flash 520ms ease-in-out 3; }
   @keyframes note-flash { 50% { background: color-mix(in srgb, #e8a24e 22%, transparent); } }
@@ -358,7 +400,7 @@
   .cal .chart text { fill: var(--ink-3); font: 13px var(--font); font-variant-numeric: tabular-nums; }
   .cal .chart .band { fill: color-mix(in srgb, var(--copper) 18%, transparent); }
   .cal .chart .fit { stroke: var(--copper); stroke-width: 2; fill: none; }
-  .cal .chart .pt { fill: var(--ink); } .cal .chart .bar { stroke: var(--ink-3); stroke-width: 1.2; }
+  .cal .chart .pt { fill: var(--ink); } .cal .chart .bar { position: static; display: inline; stroke: var(--ink-3); stroke-width: 1.2; }
   .cal .chart .pt.new { animation: pt-in 300ms var(--ease) both; }
   @keyframes pt-in { from { opacity: 0; transform: translateY(-6px); } }
   .cal .qr { width: 168px; height: 168px; border: 1px solid var(--rule-strong); display: grid; place-items: center; color: var(--ink-3); font-size: 15px; background:
@@ -444,32 +486,32 @@
   .parcel .lid-print { position: absolute; }
   .parcel .lid-print canvas { width: 100%; height: 100%; display: block; }
 
-  /* the job's command-line output lying on the floor beside the drive (floor-log.js) */
+  /* The job's command-line output and its step's name, lying on the floor in front of the drive
+     (floor-log.js): in the floor's plane like .inside-type, lines running down to the right. Fixed on the
+     screen (placed and, in a small window, scaled by the script inside the free part of the window), with
+     a soft patch of the page's ground under it so it stands off the drawing. Newest line in full ink, older
+     ones fading upwards. */
   .layer.burner .burner-frame { position: absolute; container-type: inline-size; pointer-events: none; }
-  .floor-log { position: absolute; transform-origin: 0 0; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0);
-    font-family: var(--mono); font-size: calc(var(--mm) * var(--fl-font)); line-height: calc(var(--mm) * var(--fl-pitch));
-    font-weight: 600; letter-spacing: -.02em; color: var(--ink-2); white-space: pre; pointer-events: none; opacity: 0; transition: opacity 500ms var(--ease); }
-  .floor-log.on { opacity: 1; }
-  .floor-log .fl-lines { height: calc(var(--mm) * var(--fl-pitch) * var(--fl-lines)); overflow: hidden;
-    display: flex; flex-direction: column; justify-content: flex-end;
-    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 45%); mask-image: linear-gradient(to bottom, transparent, #000 45%); }
-  .floor-log .fl-lines > * { flex: none; overflow: hidden; text-overflow: ellipsis; }
-  .floor-log .fl-lines { transition: transform 320ms var(--ease); }
-  .floor-log .fl-line:last-child { color: var(--ink); animation: fl-in 320ms var(--ease); }
+  .floor-log { position: fixed; z-index: 2; transform-origin: 0 0; transform: matrix(.866, .5, -.866, .5, 0, 0); padding: 14px 18px 12px;
+    font: 600 15px/1.5 var(--mono); letter-spacing: -.01em; color: var(--ink-2); white-space: pre; pointer-events: none;
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--paper) 82%, transparent), color-mix(in srgb, var(--paper) 55%, transparent) 70%, transparent);
+    opacity: 0; transition: opacity 500ms var(--ease); }
+  /* faint: it balances the drawing in a wide window; the panel on the right is what you read. Hidden when
+     the window leaves it too little floor (cramped), and then the panel shows the step's title again. */
+  .floor-log.on { opacity: .5; }
+  .floor-log.cramped { visibility: hidden; opacity: 0; }
+  /* the step's name: up to three lines rather than cut off (the script scales the whole block in a small window) */
+  .floor-log .fl-title { font: 800 34px/1.12 var(--font); font-stretch: 112%; letter-spacing: .02em; color: var(--ink); margin-bottom: 8px;
+    white-space: normal; text-wrap: balance; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+  .floor-log .fl-lines > *, .floor-log .fl-meter { overflow: hidden; text-overflow: ellipsis; }
+  .floor-log .fl-line { opacity: calc(1 - var(--age, 0) * .13); }
+  .floor-log .fl-line:last-child { color: var(--ink); }
   .floor-log .command { color: var(--ink-3); }
   .floor-log .warning { color: var(--copper); }
-  .floor-log .fl-meter { min-height: calc(var(--mm) * var(--fl-pitch)); color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
-  @keyframes fl-in { from { opacity: 0; } }
-  /* the step's title painted on the floor in front of the drive: the floor's plane, turned 45° anticlockwise
-     in it (so it reads across the picture), centred on its spot */
-  .fl-title { position: absolute; transform-origin: 0 0; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0) rotate(-45deg) translate(-50%, -50%);
-    font-size: calc(var(--mm) * var(--fl-title)); line-height: 1; font-weight: 800; font-stretch: 112%; letter-spacing: .02em;
-    color: var(--ink); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 500ms var(--ease); }
-  .fl-title.on { opacity: .92; }
-  .cutaway .fl-title { z-index: 2; }
+  .floor-log .error { color: var(--warn); }
+  .floor-log .fl-meter { min-height: 1.5em; margin-top: 4px; color: var(--ink); }
   /* while the title lies on the floor, the panel keeps it only for screen readers */
-  .cal.floor-titled > h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .cutaway .floor-log { z-index: 2; }
+  :root:not(.fl-off) .cal.floor-titled > h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
   /* the disc that flies in (printed with its model) or lifts out, with its arrow */
   .flyer { position: absolute; z-index: 4; transform: translate(-50%, -50%); pointer-events: none; opacity: 0;
@@ -528,6 +570,7 @@
   <symbol id="i-error" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.2h.01"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="i-enter" viewBox="0 0 24 24"><path d="M19 5v6.5a3 3 0 0 1-3 3H6"/><path d="M9.5 10.5l-4 4 4 4"/></symbol>
   <symbol id="i-good" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.8"/></symbol>
   <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3.8L21 19.5H3z"/><path d="M12 10v4.2M12 17h.01"/></symbol>
   <symbol id="i-none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></symbol>
@@ -552,13 +595,13 @@
 </section>
 
 <header class="top">
-  <button class="btn back" id="back" type="button" hidden><svg class="icon"><use href="#i-back"/></svg><span data-i18n="back"></span></button>
+  <button class="btn back" id="back" type="button" aria-keyshortcuts="Escape" hidden><svg class="icon"><use href="#i-back"/></svg><span data-i18n="back"></span><kbd class="key-cap" aria-hidden="true">Esc</kbd></button>
   <h1 class="wordmark" id="wordmark" aria-label="disc-probe"><span aria-hidden="true">D</span><span class="wm-cut" aria-hidden="true"><span>ISC-</span></span><span class="pro" aria-hidden="true"><span class="wm-p"><span class="wm-pfull">P</span><span class="wm-pstem">P</span></span><span class="wm-cut"><span>R</span></span><span class="o-disc"></span></span><span class="wm-cut" aria-hidden="true"><span>BE</span></span><small class="wm-ver" id="wm-ver"></small></h1>
   <nav class="tools" data-i18n-aria="tools">
     <button class="btn" type="button" id="library" data-i18n-title="libraryTitle"><svg class="icon"><use href="#i-drive"/></svg><span class="label" data-i18n="library"></span></button>
-    <button class="btn btn-lang" type="button" id="lang" data-i18n="langButton" data-i18n-aria="langAria"></button>
-    <button class="btn btn-icon" type="button" id="theme" data-i18n-aria="theme"><svg class="icon"><use href="#i-theme"/></svg></button>
-    <button class="btn btn-icon" type="button" id="settings" data-i18n-aria="settings" aria-haspopup="true" aria-expanded="false"><svg class="icon"><use href="#i-settings"/></svg></button>
+    <button class="btn btn-lang" type="button" id="lang" data-i18n-aria="langAria" aria-keyshortcuts="L"><span data-i18n="langButton"></span><kbd class="key-cap" aria-hidden="true">L</kbd></button>
+    <button class="btn btn-icon" type="button" id="theme" data-i18n-aria="theme" aria-keyshortcuts="T"><svg class="icon"><use href="#i-theme"/></svg><kbd class="key-cap" aria-hidden="true">T</kbd></button>
+    <button class="btn btn-icon" type="button" id="settings" data-i18n-aria="settings" aria-haspopup="true" aria-expanded="false" aria-keyshortcuts="O"><svg class="icon"><use href="#i-settings"/></svg><kbd class="key-cap" aria-hidden="true">O</kbd></button>
   </nav>
 </header>
 
@@ -596,7 +639,7 @@
     <span class="job-time" id="job-time"></span>
     <button class="btn btn-icon job-cancel" id="job-cancel" type="button"><svg class="icon"><use href="#i-x"/></svg></button>
   </div>
-  <button class="next" id="next" type="button"><span id="next-text"></span><svg class="icon"><use href="#i-next"/></svg></button>
+  <button class="next" id="next" type="button" aria-keyshortcuts="Enter"><span id="next-text"></span><svg class="icon i-chev"><use href="#i-next"/></svg><span class="next-key" aria-hidden="true"><svg class="icon"><use href="#i-enter"/></svg><kbd>Enter</kbd></span></button>
 </footer>
 
 <script type="module">
@@ -919,7 +962,7 @@
   $("settings").addEventListener("click", (e) => { e.stopPropagation(); showSettings($("set-menu").hidden); });
   $("set-menu").addEventListener("click", (e) => { e.stopPropagation(); const b = e.target.closest("[data-motion]"); if (b) setMotion(b.dataset.motion); });
   document.addEventListener("click", () => { if (!$("set-menu").hidden) showSettings(false); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("set-menu").hidden) { showSettings(false); $("settings").focus(); } });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("set-menu").hidden) { e.preventDefault(); showSettings(false); $("settings").focus(); } });
   addEventListener("dp-lang", () => { if (!$("set-menu").hidden) paintSettings(); });
 
   // Switching the theme crossfades the whole page, old picture into new, instead of letting the background
@@ -1112,7 +1155,6 @@
     else if (e.key === "ArrowRight") { col = COLS[(c + 1) % COLS.length]; idx = 0; }
     else if (e.key === "ArrowUp") { idx -= 1; dir = -1; }
     else if (e.key === "ArrowDown") idx += 1;
-    else if (e.key === "Enter" && e.target === document.body) { $("next").click(); return; }
     else if ((e.key === "e" || e.key === "E") && col === "drive" && backend.mock) { setTray(true, !trayDisc, () => render(1)); return; }
     else return;
     e.preventDefault();
@@ -1454,6 +1496,7 @@
 
   applyStatic();
   root.dataset.home = "lobby";
+  (await import("./keys.js")).install({ $ });   // Esc back, Enter next, W A S D, O settings, ? the list
   try { await (await import("./lobby.js")).init(api); } catch (e) { console.error("lobby", e); }
   // a calibration still running (this page was reloaded or reopened meanwhile): back to it
   const running = backend.mock ? null : (backendState?.jobs || []).find((j) => j.exit === null && j.action === "calibrate");

@@ -339,8 +339,7 @@ function bind(signal) {
   }
   on(window, "keydown", (e) => {
     if (!isOn() || e.target.closest?.("input, select, textarea")) return;
-    if (e.key === "0") fit();
-    if (e.key === "Escape") leave();
+    if (e.key === "0") fit();       // Esc is keys.js's: the Back button, which leaves
   });
   on(document, "dp-lang", () => { if (isOn()) words(); });
   on(window, "dp-lang", () => { if (isOn()) words(); });

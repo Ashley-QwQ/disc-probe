@@ -66,7 +66,7 @@ function words() {
   q('.burn-other summary').textContent=t.other;q('.burn-path').textContent=ctx.iso?.path||'—';q('[data-a="copy"]').disabled=!ctx.iso?.path;
   for(const a of ['cancel','retry','photo','copy','confirmCancel','keep'])q(`[data-a="${a}"]`).textContent=t[a];
   q('.burn-cancel-check p').textContent=t.cancelWarn; W.mini.setAttribute('aria-label',t.mini);
-  if(visible&&W.back)W.back.textContent=t.back;
+  if(visible&&W.back)W.back.replaceChildren(t.back,...W.back.querySelectorAll('.key-cap'));
   if(W.help)W.help.textContent=api.lang()==='en'?'Hold Space or Enter for one second. Release to cancel.':'按住空格或回车一秒；松开即可取消。';
   facts();paint();
 }
@@ -167,7 +167,7 @@ export function start(homeApi,context) {
   visible=true;root.dataset.mode='burn';W.page.hidden=false;if(changed)W.page.scrollTop=0;W.page.dataset.theme=root.dataset.theme;api.focusDrive?.();
   W.next=api.$('next');W.nextLabel=api.$('next-text')?.textContent;W.next.classList.add('burn-primary');W.next.append(W.holdRing);W.holdRing.setAttribute('aria-hidden','true');
   W.help=el('span','burn-sr',api.lang()==='en'?'Hold Space or Enter for one second. Release to cancel.':'按住空格或回车一秒；松开即可取消。');W.help.id='burn-hold-help';W.page.append(W.help);
-  W.back=api.$('back');W.backHidden=W.back.hidden;W.back.hidden=false;W.backLabel=W.back.innerHTML;W.back.textContent=T().back;
+  W.back=api.$('back');W.backHidden=W.back.hidden;W.back.hidden=false;W.backLabel=W.back.innerHTML;W.back.replaceChildren(T().back,...W.back.querySelectorAll('.key-cap'));
   W.events=new AbortController();const signal=W.events.signal, on=(node,event,fn)=>node.addEventListener(event,fn,{signal,capture:true});
   on(W.next,'pointerdown',e=>{if(e.button!==0)return;e.preventDefault();W.next.focus();W.next.setPointerCapture(e.pointerId);beginHold('pointer');});
   on(W.next,'pointerup',stopHold);on(W.next,'pointercancel',stopHold);on(W.next,'lostpointercapture',stopHold);on(W.next,'pointerleave',stopHold);

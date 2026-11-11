@@ -299,10 +299,9 @@ function build() {
   $("back").addEventListener("click", back);
   $("job-cancel").addEventListener("click", cancelJob);
   addEventListener("dp-lang", () => { if (isCal()) paint(); });
+  // Esc is keys.js's (the Back button); in the mock, Shift+S steps through the states
   addEventListener("keydown", (e) => {
-    if (!isCal()) return;
-    if (e.key === "Escape") back();
-    if (api.backend.mock && (e.key === "s" || e.key === "S")) cycleState();
+    if (isCal() && api.backend.mock && e.key === "S" && e.shiftKey) cycleState();
   });
   holdButton($("next"));
 }
