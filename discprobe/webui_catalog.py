@@ -9,6 +9,7 @@ from . import guide, mmc
 
 def disc_report(report):
     from .info import disc_id
+    from .capacity import recordable_capacity
     parsed = lambda key: guide._parsed(report, key)
     cfg = parsed('configuration')
     family = mmc.media_family(cfg.get('current_profile'))
@@ -17,10 +18,14 @@ def disc_report(report):
     if blank is None:
         status = parsed('disc_information').get('disc_status')
         blank = status in (0, 'empty') if status in (0, 1, 2, 'empty', 'incomplete', 'complete') else None
-    return dict(present=family != 'unknown', media=family,
+    disc = dict(present=family != 'unknown', media=family,
                 kind=cfg.get('current_profile_name') or 'unknown',
                 mid=disc_id(parsed('dvd_prerecorded_0e'), parsed('dvd_plus_adip_11'), parsed('atip')),
                 blank=blank, sectors=count[0] if count else None)
+    capacity = recordable_capacity(report)
+    disc['capacity_sectors'] = capacity[0] if capacity else None
+    disc['capacity_source'] = capacity[1] if capacity else None
+    return disc
 
 
 def catalogue(root, out):
