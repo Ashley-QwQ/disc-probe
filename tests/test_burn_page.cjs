@@ -28,7 +28,9 @@ vm.runInContext(String.raw`
   assert.match(q('.burn-result p').textContent,/another speed/);
   assert.match(q('.burn-result p').textContent,/LBA 772000/);
   assert.match(q('.burn-result p').textContent,/39.20 mm/);
-  assert.match(q('.burn-result p').textContent,/8.01/);
+  assert.match(q('.burn-result p').textContent,/reports: 8×/);
+  // IMAPI's speeds on a real GH70N (2026-11-11) read as people say them
+  assert.deepEqual([4.00740740740741,8.01481481481481,16.0296296296296].map(X),['4×','8×','16×']);
   api.lang=()=> 'zh'; paint();
   assert.match(q('.burn-result p').textContent,/图案仍可能看起来正常/);
   assert.match(q('.burn-result p').textContent,/另一速度刻录/);

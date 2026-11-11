@@ -31,6 +31,7 @@ const STR = {
 };
 let scene = null, api, ctx, W, task = null, visible = false, speed, holdTimer, holdStart, holdSource, toastTimer, swapping = null;
 const T = () => STR[api?.lang() === 'en' ? 'en' : 'zh'];
+const X = v => `${+(+v).toFixed(1)}×`;   // a write speed as people say it (IMAPI reports 8x as 8.0148…)
 const el = (tag, cls, text) => { const e = document.createElement(tag); if(cls)e.className=cls; if(text)e.textContent=text; return e; };
 const time = s => Number.isFinite(s) ? `${Math.floor(Math.max(0,s)/60)}:${String(Math.floor(Math.max(0,s)%60)).padStart(2,'0')}` : T().unknown;
 const ring = cls => { const n=el('span', `burn-ring live ${cls||''}`); n.innerHTML='<span></span>'; n.style.setProperty('--progress','0%'); return n; };
@@ -78,7 +79,7 @@ function words() {
 export function afterChecks(job, en=api?.lang()==='en'){
   const r=job?.burnResult||job?.speedReport||{}, v=r.verification, actual=r.actual_speed_x, sel=r.selected_speed_x;
   const L=(zh,e)=>en?e:zh, rows=[];
-  rows.push([L('写入','Written'),'good',sel?L(`光驱报告写完了（请求 ${sel}×，光驱报告 ${actual==null?'没报':actual+'×'}）。`,`The drive reports the write finished (asked ${sel}×, drive reports ${actual==null?'nothing':actual+'×'}).`):L('光驱报告写完了。','The drive reports the write finished.')]);
+  rows.push([L('写入','Written'),'good',sel?L(`光驱报告写完了（请求 ${X(sel)}，光驱报告 ${actual==null?'没报':X(actual)}）。`,`The drive reports the write finished (asked ${X(sel)}, drive reports ${actual==null?'nothing':X(actual)}).`):L('光驱报告写完了。','The drive reports the write finished.')]);
   const c=job?.closed;
   rows.push([L('关盘','Closed'),c===true?'good':c===false?'warn':'unknown',
     c===true?L('已关盘，别的光驱和电脑也能读。','Finalized: other drives and computers can read it.')
@@ -109,14 +110,14 @@ function paint() {
   const report=task?.burnResult||task?.speedReport;
   if(report){
     const en=api.lang()==='en', actual=report.actual_speed_x;
-    let note=en?`Requested: ${report.selected_speed_x}×; drive/utility reports: ${actual==null?'not reported':actual+'×'}. `:`请求速度：${report.selected_speed_x}×；光驱/工具报告：${actual==null?'未报告':actual+'×'}。`;
+    let note=en?`Requested: ${X(report.selected_speed_x)}; drive/utility reports: ${actual==null?'not reported':X(actual)}. `:`请求速度：${X(report.selected_speed_x)}；光驱/工具报告：${actual==null?'未报告':X(actual)}。`;
     const v=report.verification;
     if(status==='success'&&v){
       if(v.status==='skipped')note+=en?'Read-back skipped.':'已跳过回读验证。';
       else {
         note+=en?`Sample: ${v.ok} blocks ok / ${v.differing} differing / ${v.unreadable} unreadable; ${v.untested} untested. `:`抽样：${v.ok} 块一致 / ${v.differing} 块不同 / ${v.unreadable} 块无法读取；${v.untested} 块未检查。`;
         if(v.status!=='completed'||v.differing||v.unreadable){
-          note+=en?'The write completed. Reading failed or could not finish; the picture may still look fine. Try another blank disc at another speed. ':'写入已完成。回读失败或未能完成，图案仍可能看起来正常。建议换一张空白光盘，以另一速度刻录。';
+          note+=en?'The write completed. Some sampled blocks did not read back; picture discs often do this, and the picture may still look fine. Look at it first; only if it is wrong, try another blank disc at another speed. ':'写入已完成。有抽样块读不回来；图案盘常这样，图案仍可能看起来正常。先看图，图不对再换一张空白盘、以另一速度刻录。';
           q('.burn-result h2').textContent=en?'Write completed; check read-back results':'写入完成，请检查回读结果';
         }
         else note+=en?'Only a sample was checked, not the whole disc. ':'仅检查了样本，并非整盘验证。';
@@ -149,7 +150,7 @@ function paint() {
   q('.burn-disc').setAttribute('role','progressbar');q('.burn-disc').setAttribute('aria-label',t.writing);q('.burn-disc').setAttribute('aria-valuemin','0');q('.burn-disc').setAttribute('aria-valuemax','100');q('.burn-disc').setAttribute('aria-valuenow',String(p));
   W.mini.hidden=visible||!task; if(!visible||!W.next)return;
   W.next.disabled=!ctx.otherOnly && status!=='success' && (status!=='ready'||!hasInput||!W.consent.checked);
-  const text=api.$('next-text');if(text)text.textContent=ctx.otherOnly?(ctx.done?t.finish:t.back):status==='success'?(ctx.readBack?t.read:ctx.done?t.finish:t.back):holdSource?t.holding:t.hold;
+  const text=api.$('next-text');if(text)text.textContent=ctx.otherOnly?(ctx.done?t.finish:t.back):status==='success'?(ctx.readBack?t.read:ctx.done?t.finish:t.back):status==='burning'?t.writing:holdSource?t.holding:t.hold;
   const needsHold = status === 'ready' && !ctx.otherOnly;
   W.next.classList.toggle('burn-primary', needsHold);
   if (needsHold) {W.next.append(W.holdRing);W.next.setAttribute('aria-describedby', 'burn-hold-help');}
@@ -161,7 +162,7 @@ function sceneOf(){return scene??={cut:cutaway(api,{mirrored:false,textLeft:()=>
 function waitForDisc(){api.setTray(true,false);setTimeout(()=>{if(visible&&!task)sceneOf().fly.hover(ctx.item?.name||'');},900);}
 function fillSpeeds(){
   const speeds=[...new Set((ctx.drive?.speeds||[]).filter(x=>Number.isFinite(x)&&x>0))].sort((a,b)=>a-b);
-  if(!speeds.includes(speed))speed=ctx.media==='cd'?speeds[0]:speeds.reduce((best,s)=>Math.abs(s-8)<Math.abs(best-8)?s:best,speeds[0]);W.select.replaceChildren(...speeds.map(s=>{const o=el('option','',`${s}×`);o.value=s;return o;}));W.select.value=speed;
+  if(!speeds.includes(speed))speed=ctx.media==='cd'?speeds[0]:speeds.reduce((best,s)=>Math.abs(s-8)<Math.abs(best-8)?s:best,speeds[0]);W.select.replaceChildren(...speeds.map(s=>{const o=el('option','',X(s));o.value=s;return o;}));W.select.value=speed;
 }
 // The disc in the drive is not a blank of this batch. As on the calibration page: it rises out of the tray
 // and goes; the page waits, read-only, while the person opens the drive, changes the disc and closes it
