@@ -447,6 +447,34 @@ with open(p, 'a') as f:
         self.assertIn("--yes-write", self.argv)
         self.assertEqual(self.argv.count("--media"), 1)
 
+    def test_writing_job_completion_invalidates_only_its_drive_even_on_failure(self):
+        (self.root / "iso").mkdir()
+        (self.root / "iso" / "m.iso").write_bytes(bytes(4096))
+        for action in ("burn", "calibrate"):
+            for code in (0, 1):
+                with self.subTest(action=action, exit=code):
+                    b = self.backend(f"import sys; sys.exit({code})")
+                    b.disc_reader = lambda drive: dict(tray="ready", disc=dict(present=True, blank=True))
+                    b.read_disc(dict(drive="H:"))
+                    other = b.read_disc(dict(drive="I:"))["disc"]
+                    b.verified_blank = {d: (time.monotonic() + 30, "dvd") for d in ("H:", "I:")}
+                    ident = b.start(dict(action=action, drive="H:", args={"iso": "iso/m.iso"},
+                                         burn_token=b.burn_token()["token"]))["job"]
+                    eventually(lambda: b.get_job(ident).finished.is_set())
+                    self.assertEqual(b.job_state(ident)["exit"], code)
+                    replay = b.events({}, reconnect=True)
+                    self.assertIn(dict(type="done", job=ident, exit=code), replay)
+                    self.assertNotIn("H:", b.discs)
+                    self.assertNotIn("H:", b.verified_blank)
+                    self.assertEqual(b.discs["I:"], other)
+                    self.assertIn("I:", b.verified_blank)
+                    # Production inventory has no disc identity: the next read owns the truth.
+                    b.drive_provider = lambda: [dict(id=d, disc=None) for d in ("H:", "I:")]
+                    self.assertIsNone(b.state()["drives"][0]["disc"])
+                    b.disc_reader = lambda drive: dict(tray="ready", disc=dict(present=True, blank=False))
+                    b.read_disc(dict(drive="H:"))
+                    self.assertFalse(b.state()["drives"][0]["disc"]["blank"])
+
     def test_disc_command_prints_one_json_line(self):
         env = dict(os.environ, PYTHONPATH=str(ROOT))
         out = subprocess.run([sys.executable, "-m", "discprobe", "disc", "--sim", "cav"], cwd=self.root, env=env,
@@ -523,6 +551,74 @@ def test_stdlib_suite():
     output = io.StringIO()
     result = unittest.TextTestRunner(stream=output).run(suite)
     assert result.wasSuccessful(), output.getvalue()
+
+
+def test_home_refreshes_completed_writes_including_replayed_jobs():
+    """Execute the page's real refresh/read/paint functions with a drive-free backend."""
+    import shutil
+    import pytest
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node is needed to execute the home page JavaScript")
+    home = (ROOT / "discprobe/web/home/index.html").read_text(encoding="utf-8")
+    functions = home[home.index("  function paintDriveLine() {"):home.index("  const api = {", home.index("  function paintDriveLine() {"))]
+    refresh = home[home.index("  const refreshedDiscs = new Set();"):home.index("  if (!backend.mock) backend.events(async event => {")]
+    # The refresh must run before the mode guard (calibration owns the screen while attached).
+    handler_start = home.index("  if (!backend.mock) backend.events(async event => {")
+    handler = home[handler_start:home.index("  // ---- the lobby and the library", handler_start)]
+    assert handler.index("await refreshFinishedDisc(event)") < handler.index("root.dataset.mode")
+    script = r'''
+const assert = require('node:assert/strict');
+(async () => {
+  const line = {textContent: ''}, $ = () => line;
+  const lang = 'en', discName = () => 'DVD-R';
+  const T = () => ({inserted: name => name, blankTag: ' blank', noDiscShort: 'empty'});
+  const api = {selectedDrive: () => 'H:'};
+  const root = {dataset: {mode: 'calibrate'}};
+  let backendState, active, reads = 0, failRead = false, onEvent;
+  const backend = {
+    mock: false,
+    events: callback => { onEvent = callback; },
+    state: async () => ({jobs: [active]}),
+    request: async (path, payload) => {
+      assert.equal(path, '/api/disc');
+      assert.deepEqual(payload, {drive: 'I:'});
+      reads++;
+      if (failRead) throw new Error('read unavailable');
+      return {disc: {present: true, blank: false, tray: 'ready'}};
+    }
+  };
+''' + functions + refresh + handler + r'''
+  for (const action of ['burn', 'calibrate', 'info']) {
+    for (const exit of [0, 1]) {
+      // A newly loaded page can first see this job as a replayed done event.
+      active = {id: `${action}-${exit}`, action, exit, drive: 'I:'};
+      backendState = {drives: ['H:', 'I:'].map(id => ({id, disc: {present: true, blank: true}}))};
+      paintDriveLine();
+      const before = reads;
+      const event = {type: 'done', job: active.id, exit};
+      await onEvent(event);
+      await onEvent(event); // reconnect replay is harmless
+      assert.equal(reads - before, action === 'info' ? 0 : 1);
+      assert.equal(backendState.drives[0].disc.blank, true); // selected drive is unrelated
+      assert.equal(backendState.drives[1].disc.blank, action === 'info');
+      if (action !== 'info') assert.equal(line.textContent, 'H: · DVD-R blank · I: · DVD-R');
+    }
+  }
+  active = {id: 'read-failed', action: 'burn', exit: 1, drive: 'I:'};
+  failRead = true;
+  const originalError = console.error;
+  console.error = () => {};
+  await refreshFinishedDisc({type: 'done', job: active.id});
+  console.error = originalError;
+  assert.equal(backendState.drives[1].disc, null); // never keep showing the old blank
+  failRead = false;
+  await refreshFinishedDisc({type: 'done', job: active.id});
+  assert.equal(backendState.drives[1].disc.blank, false);
+})().catch(error => { console.error(error); process.exitCode = 1; });
+'''
+    result = subprocess.run([node], input=script, capture_output=True, text=True, encoding="utf-8", timeout=15)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 # Pytest already collects the class; the adapter is for the built-in runner.

@@ -499,6 +499,11 @@ class Backend:
         code = job.child.wait()
         job.child.close()
         with self.lock:
+            # Even a failed write may have changed the disc. Invalidate before publishing
+            # completion or interpreting reports, which can themselves be incomplete.
+            if job.action in {"burn", "swap", "calibrate"}:
+                self.discs.pop(job.drive, None)
+                self.verified_blank.pop(job.drive, None)
             job.read()
             job.exit = code
             # info has no engine result event; associate only newly created reports on this job's device.
@@ -538,8 +543,6 @@ class Backend:
                 if output and Path(local_path(self.root, output)).is_file():
                     job.result = dict(path=output, verdict="unknown")
                     job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
-            if job.action in {"burn", "swap", "calibrate"}:
-                self.discs.pop(job.drive, None)          # the disc there is not the one read before
             job.asks.clear()
             job.history += [dict(type="done", job=job.id, exit=code), dict(type="state")]
             job.finished.set()

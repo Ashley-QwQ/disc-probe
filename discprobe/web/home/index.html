@@ -1266,12 +1266,11 @@
       return `${head} · ${tail}`;
     }).join(" · ") || (lang === "zh" ? "未发现光驱" : "No drives found");
   }
-  async function readDisc() {
+  async function readDisc(drive = api.selectedDrive()) {
     if (backend.mock) {
       await new Promise((r) => setTimeout(r, reduce ? 0 : 500));
       return trayDisc ? { present: true, media: "dvd", kind: "DVD-R", mid: "MCC 004", blank: true, tray: "ready" } : { present: false, tray: "empty" };
     }
-    const drive = api.selectedDrive();
     if (!drive) return null;
     const { disc } = await backend.request("/api/disc", { drive });
     const d = backendState?.drives?.find((x) => x.id === drive);
@@ -1354,7 +1353,27 @@
     const flow = await import("./calibrate.js");
     flow.start(api);
   });
+  // SSE replays completed jobs on reconnect too, including a job attached after reload.
+  // Refresh its drive even while a workflow owns the screen, and only once per job.
+  const refreshedDiscs = new Set();
+  async function refreshFinishedDisc(event) {
+    if (event.type !== "done" || refreshedDiscs.has(event.job)) return;
+    refreshedDiscs.add(event.job);
+    try {
+      const state = await backend.state();
+      const job = state.jobs.find(j => j.id === event.job);
+      if (!job?.drive || !["burn", "calibrate"].includes(job.action)) return;
+      const drive = backendState?.drives?.find(d => d.id === job.drive);
+      if (drive) drive.disc = null;
+      paintDriveLine();
+      await readDisc(job.drive);
+    } catch (error) {
+      refreshedDiscs.delete(event.job);
+      console.error("disc refresh", error);
+    }
+  }
   if (!backend.mock) backend.events(async event => {
+    await refreshFinishedDisc(event);
     if (event.type !== "state" || root.dataset.mode) return;
     try {
       backendState = await backend.state(); backendError = null;
