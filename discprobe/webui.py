@@ -270,8 +270,13 @@ class Job:
         self.asks = {}
 
     def read(self):
-        # Only consume complete lines; the child may still be appending one.
-        with self.events.open("rb") as stream:
+        # Only consume complete lines; the child may still be appending one. A job folder that is gone
+        # (cleaned up by hand) has nothing more to say; it must not stop the event stream for every page.
+        try:
+            stream = self.events.open("rb")
+        except FileNotFoundError:
+            return
+        with stream:
             stream.seek(self.offset)
             while True:
                 line = stream.readline()

@@ -24,6 +24,7 @@ const STR = {
     burnOtherBatch: (got, want) => `这张是 ${got}，几何是在 ${want} 上测的。取出它，换一张 ${want} 空白盘。`,
     burnChecking: "正在检查这张盘（只读）…", burnTrayOpen: "托盘开着。放一张空白盘，再推回去。",
     burnFailed: "刻录没有完成。这张盘可能已经写了一部分，不要再用。详细原因在任务日志里。",
+    burnNotStarted: "刻录没有开始，盘没有被写过，还能用。",
     open: "打开工程", save: "保存工程", saveAs: "另存为", saved: (n) => `已保存：${n}`, opened: (n) => `已打开：${n}`,
     notProject: (n) => `${n} 不是 disc-probe 的工程文件。`, newer: (n) => `${n} 是新版本存的，这一版读不了。`,
     changeDiscs: "换一批盘（打开盘库）", noDiscYet: "还没选盘", otherMedia: (a, b) => `这份工程是给 ${a} 做的，现在打开在 ${b} 上；可刻范围按 ${b} 算。`,
@@ -95,6 +96,7 @@ const STR = {
     burnOtherBatch: (got, want) => `This disc is ${got}; the geometry was measured on ${want}. Take it out and put in a blank ${want}.`,
     burnChecking: "Checking this disc (read-only)…", burnTrayOpen: "The tray is open. Put in a blank disc and push it in.",
     burnFailed: "The burn didn't finish. The disc may be partly written; don't use it. The job log has the details.",
+    burnNotStarted: "The burn did not start: nothing was written, and the disc can still be used.",
     open: "Open project", save: "Save project", saveAs: "Save as", saved: (n) => `Saved: ${n}`, opened: (n) => `Opened: ${n}`,
     notProject: (n) => `${n} isn't a disc-probe project file.`, newer: (n) => `${n} was saved by a newer version; this one can't read it.`,
     changeDiscs: "Use other discs (opens the disc library)", noDiscYet: "No discs chosen yet", otherMedia: (a, b) => `This project was made for ${a} and is now open on ${b}; the burnable range is ${b}'s.`,
@@ -1527,7 +1529,7 @@ export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
     es.addEventListener("log", (e) => { const d = mine(e); if (d?.text && !/^\s*$/.test(d.text)) lastLine = d.text; });
     es.addEventListener("done", (e) => { const d = mine(e); if (d) { es.close(); resolve(d.exit); } });
   });
-  if (exit !== 0) throw new Error([t.failed, why || lastLine].filter(Boolean).join(" "));
+  if (exit !== 0) throw new Error([t.failed, why || lastLine || (await jobWords(job.job)).why].filter(Boolean).join(" "));
   const info = await (await fetch(`/api/iso?path=${encodeURIComponent(output)}`)).json();
   S.geo = geoPath;                                     // the project keeps the geometry it was made with
   return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job, geo: geoPath };
@@ -1903,10 +1905,22 @@ async function inspectDisc(drive, iso) {
   drive.speeds = m.speeds_x ?? [];
   return { problem: "", swap: false };
 }
+// What a finished job said last, from its saved events (the event stream replays only "done" to a page that
+// connected after the job ended): its error, else its last line; and whether it reached the disc.
+async function jobWords(id) {
+  try {
+    const events = (await (await fetch(`/api/jobs/${id}`)).json()).events ?? [];
+    const last = (type, key) => [...events].reverse().find((e) => e.type === type && String(e[key] ?? "").trim())?.[key] ?? "";
+    return { why: last("error", "message") || last("log", "text"),
+      wrote: events.some((e) => e.type === "burn_result" || (e.type === "progress" && e.fraction > 0)) };
+  } catch { return { why: "", wrote: false }; }
+}
 // Burn through the back end: a one-time token, the `burn` job, its progress over the event stream.
 // Returns a handle at once; failures arrive as a "failed" status with the reason.
 function realBurn(iso, drive, onProgress, { speed } = {}) {
-  let job = null, es = null, closed = false, cancelled = false, burnResult = null;
+  // wrote: the drive reported progress, or the core logged a burn result (it does once writing began); without
+  // either, a failed job never wrote, and the disc is still good
+  let job = null, es = null, closed = false, cancelled = false, burnResult = null, wrote = false, why = "";
   // started: whether the drive may have begun writing (after the job was accepted)
   const fail = (error, started = !!job) => { if (closed) return; closed = true; es?.close(); onProgress({ status: "failed", error, started }); };
   (async () => {
@@ -1923,9 +1937,11 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
       const mine = (e) => { const d = JSON.parse(e.data); return d.job === job ? d : null; };
       es.addEventListener("progress", (e) => {
         const d = mine(e); if (!d) return;
+        if (d.fraction > 0) wrote = true;
         onProgress({ progress: d.fraction, elapsed: d.elapsed_s, remaining: d.eta_s });
       });
-      es.addEventListener("error", (e) => { if (e.data) { const d = mine(e); if (d?.message) fail(d.message); } });
+      // the core's own reason; the job's end (done) decides what it means for the disc
+      es.addEventListener("error", (e) => { if (e.data) { const d = mine(e); if (d?.message) why = d.message; } });
       es.addEventListener("burn_speed", (e) => {
         const d = mine(e); if (d) onProgress({ speedReport: d });
       });
@@ -1935,10 +1951,13 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
       es.addEventListener("burn_result", (e) => {
         const d = mine(e); if (d) { burnResult = d; onProgress({ burnResult: d }); }
       });
-      es.addEventListener("done", (e) => {
+      es.addEventListener("done", async (e) => {
         const d = mine(e); if (!d || closed) return;
         closed = true; es.close();
-        onProgress(d.exit === 0 ? { status: "success", progress: 1, burnResult } : cancelled ? { status: "cancelled" } : { status: "failed", error: T().burnFailed, started: true });
+        if (d.exit !== 0) { const said = await jobWords(job); why ||= said.why; wrote ||= said.wrote; }
+        const started = wrote || !!burnResult;
+        onProgress(d.exit === 0 ? { status: "success", progress: 1, burnResult } : cancelled ? { status: "cancelled" }
+          : { status: "failed", error: [started ? T().burnFailed : T().burnNotStarted, why].filter(Boolean).join(" "), started });
       });
     } catch { fail(T().exp.noBackend); }
   })();

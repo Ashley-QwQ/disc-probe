@@ -2,7 +2,7 @@
 // becomes the step panel, the bar shows the job, the back button takes the top-left corner.
 // Live jobs use the local API. Simulated readings and timers are limited to ?mock / ?demo=N.
 
-import { budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure } from "./guidance.mjs";
+import { budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason } from "./guidance.mjs";
 import { cutaway } from "./drive-scene.js";
 import { floorLog } from "./floor-log.js";
 const DEMO = Number(new URLSearchParams(location.search).get("demo")) || 40;   // simulated jobs run this many times faster (?demo=N)
@@ -983,7 +983,10 @@ function realPaint() {
     html += `<p role="status">${esc(flow.ask.question)}</p><button id="real-yes">${liveText('继续', 'Continue')}</button><button id="real-no">${liveText('取消这一步', 'Decline')}</button>`;
     disabled = true;
   }
-  if (flow.error) { html += `<div role="alert">${note("error", [esc(flow.error), ""])}</div><button id="real-retry">${liveText('重新检测', 'Check again')}</button>`; disabled = true; }
+  if (flow.error) {
+    if (!flow.job && ["timing", "geo", "random", "saving", "burning", "checking"].includes(phase)) { title = liveText('这一步没有完成', 'This step did not finish'); text = ""; }
+    html += `<div role="alert">${note("error", [esc(flow.error), ""])}</div><button id="real-retry">${liveText('重新检测', 'Check again')}</button>`; disabled = true;
+  }
   const previousAlert = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]')?.textContent;
   $("cal").innerHTML = `<h2>${esc(title)}</h2><p class="lede">${esc(text)}</p>${html}`;
   const alertNote = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]');
@@ -1015,8 +1018,12 @@ async function realJob(action, args = {}, extra = {}, following = null) {
   $("job").hidden = false; $("job-name").textContent = action; paint();
   const drive = ["info","timing","geo","burn","calibrate"].includes(action) ? api.selectedDrive() : undefined;
   placeLog(); flog.start(commandLine(action, drive));
+  let why = "", lastLine = "";            // what the core said last: a failed job is told by it, not by its exit code
   const onEvent = event => {
       if (flow !== f) return;
+      if (event.type === "error" && event.message) why = event.message;
+      if (event.type === "log" && event.text?.trim()) lastLine = event.text.trim();
+      if (event.type === "burn_result") f.burnCheck = event;
       if (event.type === "started") current.id = event.job;
       if (event.type === "step") {
         f.realPhase = STEP_PHASE[event.name] ?? f.realPhase; f.stage = null; current.p = 0;
@@ -1041,6 +1048,9 @@ async function realJob(action, args = {}, extra = {}, following = null) {
   try {
     return following ? await api.backend.follow(following, onEvent)
       : await api.backend.job({action, media:f.detected?.media || f.item.row || "dvd", drive, args, ...extra}, onEvent);
+  } catch (error) {
+    if (error.status === 422 && (why || lastLine)) error.message = why || lastLine;
+    throw error;
   } finally { if (flow === f) {endJob(); f.ask = null; showInterior(false);} }
 }
 async function realNext(forceMeasure = false) {
@@ -1110,13 +1120,22 @@ async function realCalibrate(args = {}, extra = {}) {
   const preset = `presets/calibration-${Date.now()}.json`;
   // the preset needs the blank's capacity: known when the blank was read here; else the core reads it before burning
   let result;
+  flow.burnCheck = null;
   try { result = await realJob("calibrate", { ...args, mid: flow.detected?.mid || undefined, preset, sectors: flow.blankSectors || undefined }, extra); }
-  catch (error) { if (!error.result?.timing && !error.result?.geo) throw error; result = error.result; }
+  catch (error) {
+    if (!error.result?.timing && !error.result?.geo) {
+      // the core said why it stopped: in words, with the next step (a half-written disc is not used again)
+      if (error.result?.reason) throw new Error(stopText(error.result.reason));
+      throw error;
+    }
+    result = error.result;
+  }
   flow.error = null;
   finishCalibrate(result);
 }
+const stopText = (reason) => stopReason(reason, {burnStarted: ["failed", "cancelled"].includes(flow?.burnCheck?.result)})[api.lang()];
 function finishCalibrate(result) {
-  if (!result?.ok && !result?.geo && !result?.timing) throw new Error(result?.reason ? liveText('标定停在这一步：', 'Calibration stopped: ') + result.reason : liveText('标定没有完成。', 'The calibration did not finish.'));
+  if (!result?.ok && !result?.geo && !result?.timing) throw new Error(result?.reason ? stopText(result.reason) : liveText('标定没有完成。', 'The calibration did not finish.'));
   flow.timing = result.timing; flow.geo = result.geo; flow.preset = result.preset;
   if (result.disc) flow.detected = { ...flow.detected, ...result.disc };
   flow.realPhase = "review";

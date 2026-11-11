@@ -776,3 +776,13 @@ def test_version_is_a_release_tag_or_empty():
     from discprobe import webui
     v = webui.version()
     assert v == "" or re.fullmatch(r"v[\d.]+(-dev)?", v), v
+
+
+def test_job_whose_folder_is_gone_does_not_break_events(tmp_path):
+    # A job folder removed by hand must not stop the event stream for every page.
+    folder = tmp_path / "j"
+    folder.mkdir()
+    job = webui.Job("j-00", None, folder)
+    (folder / "events.jsonl").unlink()
+    job.read()
+    assert job.history == []

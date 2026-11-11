@@ -72,6 +72,26 @@ export function budgetHTML(media, lang) {
 }
 export const afterBurn = [
   pair('关掉房间的灯，把手机手电等小光源放在眼睛旁边。盘拿到约一米外，轻轻倾斜，避开灯和自己的倒影，慢慢转动；盘面暗下来时能看到图。彩虹扇面是沟槽，不是图片。看的是数据面，与预览相同。', 'Turn off the room lights and hold a small light, such as a phone torch, beside your eyes. Hold the disc about a metre away, tilt it away from reflections of the light and yourself, and turn it slowly. The picture shows when the surface goes dark. The rainbow fan is the grooves, not your picture. Look at the data side, as in the preview.'),
-  pair('看不见图：先调整灯光，最常见的原因是光线。线条扭曲或断开：核对是否同批盘、同一台刻录机；若是，几何可能不准。用另一张空白盘刻网格测试，看看线是否笔直（在终端用 image --geo 加这次的测量路径，--output iso/grid.iso）。', 'No picture: adjust the light first; lighting is the most likely cause. Twisted or broken lines: check the batch and burner match the measurement. If they do, geometry may be off. Burn a grid on another blank to check for straight lines (in Terminal, use image --geo with this measurement’s path and --output iso/grid.iso).'),
-  pair('刻录失败或中断：DVD+R、DVD-R、CD-R 不能再用，换一张空白盘；再次失败时换一个刻录速度，慢不一定更好。图案位置正确就完成了，以后同批盘可以复用测量。', 'If the burn failed or stopped, a DVD+R, DVD-R or CD-R cannot be reused; take a fresh blank. If it fails again, try another burn speed; slower is not always better. If the picture is in the right place, you are done; reuse the measurement for later discs from this batch.'),
+  pair('图案位置正确就完成了，以后同批盘可以复用这次测量。看不见图：先调整灯光，最常见的原因是光线。线条扭曲或断开：核对是否同批盘、同一台刻录机；若是，几何可能不准。用另一张空白盘刻网格测试，看看线是否笔直（在终端用 image --geo 加这次的测量路径，--output iso/grid.iso）。', 'If the picture is in the right place, you are done; reuse the measurement for later discs from this batch. No picture: adjust the light first; lighting is the most likely cause. Twisted or broken lines: check the batch and burner match the measurement. If they do, geometry may be off. Burn a grid on another blank to check for straight lines (in Terminal, use image --geo with this measurement’s path and --output iso/grid.iso).'),
+  pair('刻录失败或中断：DVD+R、DVD-R、CD-R 不能再用，换一张空白盘；再次失败时换一个刻录速度，慢不一定更好。', 'If the burn failed or stopped, a DVD+R, DVD-R or CD-R cannot be reused; take a fresh blank. If it fails again, try another burn speed; slower is not always better.'),
 ];
+// Why `calibrate` stopped (calibrate.py Stopped reasons), in words, with what to do next. burnStarted: the
+// page saw the burn report a result, so the disc may be partly written. Unknown reasons are shown as they are.
+export function stopReason(reason = '', {burnStarted = false} = {}) {
+  const r = String(reason);
+  let m;
+  if (/the burn did not finish/.test(r)) return burnStarted
+    ? pair('测量盘没有刻完：这张盘已经写了一部分，不能再用。换一张同批空白盘，再点“重新检测”。', 'The measurement disc did not finish burning. It is partly written and cannot be used again. Put in a fresh blank from this batch, then press Check again.')
+    : pair('测量盘没有开始刻，盘没有动过。看一眼光驱和这张盘，再点“重新检测”。', 'The measurement burn did not start; the disc is untouched. Check the drive and the disc, then press Check again.');
+  if (/no disc is ready/.test(r)) return pair('光驱里没有准备好的盘。放回测量盘，等灯不闪了，再点“重新检测”。', 'No disc is ready in the drive. Put the measurement disc back, wait for the light to settle, then press Check again.');
+  if (/is blank, not a measurement disc/.test(r)) return pair('光驱里是空白盘，不是刻好的测量盘。放回测量盘再检测。', 'The drive holds a blank, not the measurement disc. Put the measurement disc back and check again.');
+  if ((m = /the disc is a (\w+) disc, not (\w+)/.exec(r))) return pair(`光驱里是 ${m[1].toUpperCase()} 盘，这里要的是 ${m[2].toUpperCase()}。换对的盘再检测。`, `The drive holds a ${m[1].toUpperCase()} disc; this needs ${m[2].toUpperCase()}. Put the right disc in and check again.`);
+  if ((m = /maker code is (.+), not (.+)/.exec(r))) return pair(`这张盘的厂商编号是 ${m[1]}，不是这批的 ${m[2]}。放回同批的测量盘。`, `This disc's maker code is ${m[1]}, not this batch's ${m[2]}. Put this batch's measurement disc back.`);
+  if (/recordable capacity is unknown/.test(r)) return pair('不知道这批空白盘的总容量，没法写预设。在终端用 calibrate --sectors 给出空白盘的容量。', 'The blank disc capacity is unknown, so no preset could be written. In Terminal, give it with calibrate --sectors.');
+  if ((m = /the (timing|geo) measurement was not usable/.exec(r))) return m[1] === 'timing'
+    ? pair('转速检查没通过，没有接着测几何。保留这张测量盘，弹出放回后再测；还不行就换个读取速度或光驱。', 'The rotation check did not pass, so the geometry was not measured. Keep the measurement disc, eject and reload it, and measure again; if it persists, try another reading speed or drive.')
+    : pair('几何测量不能用。保留这张测量盘，检查转速后再测。', 'The geometry measurement is not usable. Keep the measurement disc, check rotation and measure again.');
+  if (/the preset was not written/.test(r)) return pair('测量完成，但预设没写出来。测量数据还在，可以点保存再试。', 'Measured, but the preset was not written. The measurement is kept; save again.');
+  if (/cancelled/.test(r)) return pair('已取消。已经测出的数据保留着。', 'Cancelled. What was measured so far is kept.');
+  return pair(r, r);
+}
