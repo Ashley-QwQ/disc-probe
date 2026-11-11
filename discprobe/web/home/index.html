@@ -295,6 +295,11 @@
   :root[data-motion="off"] .paper .disc, :root[data-motion="off"] .paper .disc.is-on, :root[data-motion="off"] .roll .col, :root[data-motion="off"] .o-disc, :root[data-motion="off"] .cam, :root[data-motion="off"] .layer, :root[data-motion="off"] .gallery { transition: none; }
   :root[data-motion="off"] .gallery .pin { animation: none; }
   :root[data-motion="off"] .layer.burner .slot img { transition: none; }
+  /* the theme switch (index.html swapTheme): one crossfade of the whole page; nothing else eases meanwhile */
+  :root.theme-swap, :root.theme-swap * { transition: none !important; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 520ms; animation-timing-function: cubic-bezier(.4, 0, .2, 1); }
+  :root[data-theme-to="light"]::view-transition-old(root), :root[data-theme-to="light"]::view-transition-new(root) { animation-duration: 760ms; animation-timing-function: cubic-bezier(.5, 0, .3, 1); }
+  :root[data-motion="off"]::view-transition-old(root), :root[data-motion="off"]::view-transition-new(root) { animation-duration: 180ms; }
 
   /* ================= calibration flow (calibrate.js) ================= */
   .back { margin-left: -18px; }
@@ -860,11 +865,30 @@
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("set-menu").hidden) { showSettings(false); $("settings").focus(); } });
   addEventListener("dp-lang", () => { if (!$("set-menu").hidden) paintSettings(); });
 
-  $("theme").addEventListener("click", () => {
-    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
-    try { localStorage.setItem("dp-theme", root.dataset.theme); } catch {}
+  // Switching the theme crossfades the whole page, old picture into new, instead of letting the background
+  // ease while every baked picture flips at once (and blinks empty while the other theme's file loads).
+  // The new picture is taken once the pictures that changed have loaded (at most 600 ms of waiting).
+  // Into light it is slower, so the brightness rises gently.
+  function swapTheme() {
+    const to = root.dataset.theme === "dark" ? "light" : "dark";
+    root.dataset.theme = to;
+    try { localStorage.setItem("dp-theme", to); } catch {}
     for (const id in ghosts) ghosts[id].src = ghostSrc(id);
     for (const img of burnerLayer.querySelectorAll("img[data-src]")) { img.src = img.dataset.src; img.removeAttribute("data-src"); }
+  }
+  const settled = async () => {
+    await new Promise((r) => setTimeout(r));                     // the pages' own theme observers set their pictures first
+    const loading = [...document.images].filter((i) => i.src && !i.complete && i.offsetParent);
+    await Promise.race([Promise.all(loading.map((i) => i.decode().catch(() => {}))), new Promise((r) => setTimeout(r, 600))]);
+  };
+  let swaps = 0;
+  $("theme").addEventListener("click", () => {
+    if (!document.startViewTransition) { swapTheme(); return; }
+    const n = ++swaps;                                           // a second click mid-fade starts a new fade
+    root.dataset.themeTo = root.dataset.theme === "dark" ? "light" : "dark";
+    root.classList.add("theme-swap");
+    const vt = document.startViewTransition(async () => { swapTheme(); await settled(); });
+    vt.finished.finally(() => { if (n === swaps) { root.classList.remove("theme-swap"); delete root.dataset.themeTo; } });
   });
 
   const gallery = document.createElement("button");
