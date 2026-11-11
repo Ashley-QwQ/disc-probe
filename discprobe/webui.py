@@ -323,6 +323,7 @@ class Backend:
             state["jobs"] = [dict(id=j.id, drive=j.drive, action=j.action, media=j.media, exit=j.exit, result=j.result) for j in self.jobs.values()]
         state["catalogue"] = webui_catalog.catalogue(self.root, self.out)
         state["version"] = version()
+        state["platform"] = sys.platform          # which shell the terminal page looks like (win32: PowerShell)
         return state
 
     def job_state(self, ident):

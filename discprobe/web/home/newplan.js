@@ -188,7 +188,7 @@ function build() {
   });
   // the wheel turns the ring under the pointer; the arrow keys move along the focused ring
   W.dial.addEventListener("wheel", (e) => {
-    e.preventDefault();
+    e.preventDefault(); e.stopPropagation();          // the wheel over the dial turns it, it does not pull the sheet
     stepDial(e.target.closest(".np-ring2") ? "sub" : "kind", e.deltaY > 0 ? 1 : -1);
   }, { passive: false });
   W.dial.addEventListener("keydown", (e) => {
@@ -198,6 +198,7 @@ function build() {
     if (dir) { e.preventDefault(); stepDial(k.dataset.kind ? "kind" : "sub", dir); }
   });
   W.batch.addEventListener("change", () => { state.picked = chosen(); paintLeft(); });
+  pullable();
   q(".np-cal-go").addEventListener("click", calibrateFirst);
   q(".np-pack").addEventListener("click", () => toast(T().soon));
   W.sheet.addEventListener("submit", (e) => { e.preventDefault(); next(); });
@@ -271,6 +272,53 @@ function firstSub(kind, item) {
   return (SUBS[kind].find((s) => s.re.test(name)) ?? SUBS[kind].find((s) => s.key === "-R") ?? SUBS[kind][0]).key;
 }
 
+// ---------------------------------------------------------------- the pull
+// The sheet is paper lying on the desk: the wheel or a drag moves the whole of it (paper and form
+// together), against a resistance that grows the further it goes, and it springs back when let go
+// (the wheel stopping counts as letting go). Up, it can go most of the way to show what the footer
+// covers; down, only a little.
+function pullable() {
+  const reach = () => ({ up: innerHeight * .42, down: innerHeight * .1 });
+  // offered distance d (px, down positive) to where the sheet goes: d at first, then less and less
+  const give = (d) => { const L = d < 0 ? reach().up : reach().down; return Math.sign(d) * L * (1 - Math.exp(-Math.abs(d) / L)); };
+  let offered = 0, x = 0, v = 0, raf = 0, last = 0, idle = 0, held = false;
+  const paint = () => W.sheet.style.setProperty("--pull", `${x.toFixed(2)}px`);
+  const run = (t) => {
+    const dt = Math.min(.05, (t - (last || t)) / 1000 || 1 / 60); last = t;
+    const target = give(offered);
+    if (held) { x += (target - x) * Math.min(1, dt * 30); v = 0; }          // following the hand or the wheel
+    else { v += (170 * (target - x) - 22 * v) * dt; x += v * dt; }         // a spring back to rest
+    paint();
+    if (held || Math.abs(target - x) > .3 || Math.abs(v) > .3) raf = requestAnimationFrame(run);
+    else { x = target; paint(); raf = 0; last = 0; }
+  };
+  const go = () => { if (!raf) raf = requestAnimationFrame(run); };
+  const letGo = () => { held = false; offered = 0; go(); };
+  W.addEventListener("wheel", (e) => {
+    if (api.reduce || W.classList.contains("filing")) return;
+    e.preventDefault();
+    offered -= e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    held = true; go();
+    clearTimeout(idle); idle = setTimeout(letGo, 140);
+  }, { passive: false });
+  // a drag on the paper itself (not on a field, a key or a link)
+  W.sheet.addEventListener("pointerdown", (e) => {
+    if (api.reduce || e.button !== 0 || e.target.closest("input, select, button, a, .np-key, kbd")) return;
+    const y0 = e.clientY;
+    let dragging = false;           // a press without moving stays a click (a label still focuses its field)
+    const move = (m) => {
+      if (!dragging && Math.abs(m.clientY - y0) < 5) return;
+      if (!dragging) { dragging = true; W.sheet.setPointerCapture(e.pointerId); held = true; go(); }
+      offered = m.clientY - y0;
+    };
+    const up = () => { W.sheet.removeEventListener("pointermove", move); W.sheet.removeEventListener("pointerup", up); W.sheet.removeEventListener("pointercancel", up); if (dragging) letGo(); };
+    W.sheet.addEventListener("pointermove", move);
+    W.sheet.addEventListener("pointerup", up);
+    W.sheet.addEventListener("pointercancel", up);
+  });
+  W.resetPull = () => { offered = x = v = 0; held = false; paint(); };
+}
+
 // ---------------------------------------------------------------- in and out
 const wait = (ms) => new Promise((r) => setTimeout(r, api.reduce ? 0 : ms));
 export async function start(homeApi, { from = null, file = null } = {}) {
@@ -283,29 +331,66 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   state = { kind, sub: firstSub(kind, item), item, picked: null, file, list: [], seed: Math.floor(Math.random() * 1e6) };
   W.name.value = "";
   paintDial(); fillBatches(); words_();
+  // the camera flies at the drive: the lobby pushes in with the drive coming to the middle of the window;
+  // the top view fades in over it with its disc in the middle and close, then settles (the disc moving
+  // left, the sheet coming in)
+  const fly = from?.getBoundingClientRect?.().width > 0 && !api.reduce;
+  const push = fly ? pushLobby(from) : null;
+  if (push) await wait(300);
   root.dataset.mode = "newplan";
   $("back").hidden = false; $("next").disabled = false;
   W.hidden = false;
   W.classList.remove("leaving", "filing");
-  // the zoom: the page grows out of the drive in the lobby
-  const r = from?.getBoundingClientRect?.();
-  if (r && !api.reduce) {
-    const sx = r.width / innerWidth, x = r.left + r.width / 2 - innerWidth / 2, y = r.top + r.height / 2 - innerHeight / 2;
-    W.animate([{ transform: `translate(${x}px, ${y}px) scale(${Math.max(sx, 0.15)})`, opacity: 0 }, { transform: "none", opacity: 1 }],
-      { duration: 650, easing: "cubic-bezier(.2, .8, .2, 1)" });
+  if (push) {
+    const [tx, ty] = discPoint();
+    W.style.transformOrigin = `${tx}px ${ty}px`;
+    W.animate([{ transform: topStart(), opacity: 0 }, { opacity: 1, offset: .45 }, { transform: "none", opacity: 1 }], { duration: 760, easing: "cubic-bezier(.2, .8, .2, 1)" })
+      .finished.finally(() => { push.done(); W.style.transformOrigin = ""; });
   }
-  setTimeout(() => W.name.focus({ preventScroll: true }), api.reduce ? 0 : 500);
+  setTimeout(() => W.name.focus({ preventScroll: true }), api.reduce ? 0 : 700);
+}
+// where the top view has the blank disc (top.json: centre 512, 632.6 of 2560 x 1440), the picture covering the window
+function discPoint() {
+  const vw = innerWidth, vh = innerHeight, sw = Math.max(vw, vh * 16 / 9), sh = sw * 9 / 16;
+  return [(vw - sw) / 2 + sw * 512 / 2560, (vh - sh) / 2 + sh * 632.59 / 1440];
+}
+const LOBBY_PUSH = 2.6, TOP_START = 1.5;    // how close the lobby camera gets; how close the top view starts
+const mid = () => [innerWidth / 2, innerHeight / 2];
+const pushTransform = (from) => {
+  const r = from.getBoundingClientRect(), [sx, sy] = [r.left + r.width / 2, r.top + r.height / 2], [cx, cy] = mid();
+  return { origin: `${sx}px ${sy}px`, to: `translate(${cx - sx}px, ${cy - sy}px) scale(${LOBBY_PUSH})` };
+};
+// the top view with its disc in the middle of the window, close (origin: the disc)
+const topStart = () => { const [tx, ty] = discPoint(), [cx, cy] = mid(); return `translate(${cx - tx}px, ${cy - ty}px) scale(${TOP_START})`; };
+// the lobby flying in (or, reversed, back out); it stays drawn under this page until done() (lobby.css .leaving)
+function pushLobby(from, reverse = false) {
+  const lobby = $("lobby"), art = $("lobby-art"), greet = lobby.querySelector(".lobby-greet");
+  lobby.classList.add("leaving");
+  const p = pushTransform(from);
+  art.style.transformOrigin = p.origin;
+  const frames = [{ transform: "none" }, { transform: p.to }], fade = [{ opacity: 1 }, { opacity: 0 }];
+  const a = art.animate(reverse ? frames.reverse() : frames, { duration: 560, easing: reverse ? "cubic-bezier(.2, .8, .2, 1)" : "cubic-bezier(.5, 0, .6, 1)", fill: "forwards" });
+  const g = greet?.animate(reverse ? fade.reverse() : fade, { duration: reverse ? 400 : 200, fill: "forwards" });
+  return { finished: a.finished, done() { a.cancel(); g?.cancel(); art.style.transformOrigin = ""; lobby.classList.remove("leaving"); } };
 }
 function leave() {
   W.hidden = true;
   root.dataset.mode = "";
   $("back").hidden = true;
 }
+// back: the same flight backwards, the top view lifting off while the lobby camera pulls back out
 export function back() {
   if (!W || W.hidden) return;
   if (api.reduce) { leave(); api.toLobby(); return; }
-  W.animate([{ transform: "none", opacity: 1 }, { transform: "scale(.6)", opacity: 0 }], { duration: 320, easing: "ease-in" })
-    .finished.then(() => { leave(); api.toLobby(); });
+  const pull = pushLobby($("lobby-new"), true), [tx, ty] = discPoint();
+  W.style.transformOrigin = `${tx}px ${ty}px`;
+  W.animate([{ transform: "none", opacity: 1 }, { opacity: 1, offset: .55 }, { transform: topStart(), opacity: 0 }], { duration: 520, easing: "cubic-bezier(.5, 0, .9, .5)", fill: "forwards" })
+    .finished.then(async () => {
+      leave(); api.toLobby();
+      W.getAnimations().forEach((a) => a.cancel()); W.style.transformOrigin = "";
+      await pull.finished.catch(() => {});
+      pull.done();
+    });
 }
 // Where the envelope stops and how the sheet goes in, measured from the page as it is laid out.
 // Envelope picture (envelope.json): 1600 x 1541, pocket top 27.3 % down, its front ends 6 % above the
@@ -331,6 +416,7 @@ async function next() {
   going = true;
   const name = W.name.value.trim() || suggestion(), item = chosen();
   // the envelope rises, the sheet slides in, both drop out of the frame
+  W.resetPull?.();
   fileInto();
   W.classList.add("filing");
   await wait(1000);

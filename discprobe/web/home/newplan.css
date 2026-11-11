@@ -4,7 +4,7 @@
   --m: calc(var(--wp) * 60 / 1280);                 /* the paper picture's margin around the sheet (1400 px picture, 60 px each side) */
   --fs: clamp(13px, min(1.45vw, 2.35vh), 23px); }   /* the form's type scales with the window */
 .np[hidden] { display: none; }
-:root[data-mode="newplan"] :is(.lobby, .stage, .counter, .detail) { visibility: hidden; }
+:root[data-mode="newplan"] :is(.lobby:not(.leaving), .stage, .counter, .detail) { visibility: hidden; }
 
 /* the drive from above on the lit desk: one 2560 x 1440 picture covering the window (the DP on the
    blank disc is printed in the render) */
@@ -14,7 +14,9 @@
 :root[data-theme="dark"] .np-scene { background-image: url(newplan/top_dark.webp); }
 
 .np-title { position: absolute; left: var(--edge); bottom: calc(80px + 3vh); margin: 0; font-weight: 800; font-stretch: 112%;
-  font-size: clamp(56px, 11vh, 132px); line-height: 1; color: color-mix(in srgb, var(--ink) 55%, transparent); }
+  font-size: clamp(56px, 11vh, 132px); line-height: 1; color: color-mix(in srgb, var(--ink) 55%, transparent);
+  text-shadow: .03em .05em .05em rgba(40, 30, 18, .22); }
+:root[data-theme="dark"] .np-title { text-shadow: .03em .05em .06em rgba(0, 0, 0, .5); }
 
 /* the sheet: the baked paper (and its shadow, away from the lamp), large, running on under the footer
    and out of the window */
@@ -26,7 +28,7 @@
   --disc-f: #eee4cd; --hub-f: #e2d5ba; --hole-f: #f7f3ea; --key-fill: rgba(255,255,255,.25); --key-line: #bdb4a0; --key-ink: #8b8576;
   --key-on: #24221e; --key-on-fill: rgba(255,255,255,.6); --key-blank: #ddd4c2; --warn-f: #c08a3e; --note-f: rgba(192,138,62,.09);
   color: var(--ink-f); transform-origin: 0 0; transition: transform 520ms var(--ease);
-  overflow-y: auto; scrollbar-width: none; padding-bottom: 110px; }   /* on a short window the form scrolls out from under the footer */
+  translate: 0 var(--pull, 0px); touch-action: none; }   /* the whole sheet can be pulled (newplan.js "the pull") */
 :root[data-theme="dark"] .np-sheet { background-image: url(newplan/paper_dark.webp), url(newplan/paper_shadow_dark.webp);
   --ink-f: #ece6d6; --soft-f: #b9b3a3; --line-f: #9a9484; --well-f: rgba(0,0,0,.16); --left-f: #9fc7b2; --link-f: #b7b2ff;
   --disc-f: #8b897c; --hub-f: #7b796d; --hole-f: #6a6b60; --key-fill: rgba(0,0,0,.08); --key-line: #8f8b7d; --key-ink: #b4ae9f;
@@ -96,4 +98,4 @@
 .np-toast { position: absolute; left: 50%; bottom: 100px; transform: translate(-50%, 8px); padding: 10px 16px; border-radius: 3px; background: var(--ink); color: var(--paper); opacity: 0; transition: opacity 200ms, transform 200ms; pointer-events: none; }
 .np-toast.on { opacity: 1; transform: translate(-50%, 0); }
 @media (max-width: 860px) { .np { --wp: 92vw; } .np-sheet { right: calc(4vw - var(--m)); top: calc(84px - var(--m)); } .np-title { display: none; } }
-@media (prefers-reduced-motion: reduce) { .np-env-back, .np-env-front, .np-sheet, .np-face { transition: none !important; animation: none !important; } }
+:root[data-motion="off"] .np-env-back, :root[data-motion="off"] .np-env-front, :root[data-motion="off"] .np-sheet, :root[data-motion="off"] .np-face { transition: none !important; animation: none !important; }

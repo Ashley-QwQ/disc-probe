@@ -368,6 +368,7 @@ time.sleep(60)
         self.assertEqual(b.state("bd")["media"], "bd")
         with self.assertRaises(webui.APIError):
             b.state("hddvd")
+        self.assertEqual(b.state()["platform"], sys.platform)      # the terminal page dresses as this machine's shell
 
     def test_design_upload_size_sets_the_cell(self):
         import numpy as np

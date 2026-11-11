@@ -74,5 +74,5 @@
 @keyframes burn-breathe{50%{opacity:.85}}
 @media(max-width:850px){.burn-page{inset:124px var(--edge) 120px}.burn-layout{grid-template-columns:1fr;gap:16px}.burn-scene{min-height:230px;max-width:520px;width:100%;justify-self:center}.burn-art{max-height:300px}.burn-disc{top:8%;width:140px}.burn-panel{max-width:none}.burn-page h1{font-size:24px;margin-bottom:12px}.burn-primary{min-width:0}.burn-facts{grid-template-columns:90px minmax(0,1fr)}}
 @media(max-width:600px){:root[data-mode="burn"] #next{width:calc(100vw - 190px);max-width:calc(100vw - 190px);white-space:normal;gap:4px}.burn-hold-ring{width:28px;height:28px;margin-left:4px}}
-@media(prefers-reduced-motion:reduce){.burn-page *,.burn-primary,.burn-mini{animation:none!important;transition:none!important}}
+:root[data-motion="off"] .burn-page *, :root[data-motion="off"] .burn-primary, :root[data-motion="off"] .burn-mini {animation:none!important;transition:none!important}
 .burn-page.burn-reduce *{animation:none!important;transition:none!important}

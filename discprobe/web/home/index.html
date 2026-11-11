@@ -10,6 +10,11 @@
     var t = null;
     try { t = localStorage.getItem("dp-theme"); } catch (e) {}
     document.documentElement.dataset.theme = t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    // motion: this page's own setting (Settings), else the system's; ?motion forces it on
+    var m = null;
+    try { m = localStorage.getItem("dp-motion"); } catch (e) {}
+    var on = /[?&]motion(\b|=)/.test(location.search) || m === "on" || (m !== "off" && !matchMedia("(prefers-reduced-motion: reduce)").matches);
+    document.documentElement.dataset.motion = on ? "on" : "off";
     var l = null;
     try { l = localStorage.getItem("dp-lang"); } catch (e) {}
     l = l || ((navigator.language || "").toLowerCase().indexOf("zh") === 0 ? "zh" : "en");
@@ -40,7 +45,7 @@
     --dvd: linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a);
   }
   :root.idle :not(.live, .live *), :root.idle :not(.live, .live *)::before, :root.idle :not(.live, .live *)::after { animation-play-state: paused !important; }
-  @media (prefers-reduced-motion: reduce) { :root { --t: 0ms; } }
+  :root[data-motion="off"] { --t: 0ms; }
 
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
@@ -138,30 +143,18 @@
   .lobby { position: fixed; inset: 0; z-index: 1; display: none; background: var(--paper); }
   :root[data-home="lobby"]:is(:not([data-mode]), [data-mode=""]) .lobby { display: block; }
   :root[data-home="lobby"]:is(:not([data-mode]), [data-mode=""]) :is(.counter, .detail, .stage) { visibility: hidden; }
-  .lobby-art { position: absolute; left: 50%; top: 52%; width: min(1180px, 92vw); aspect-ratio: 1600 / 1062; transform: translate(-50%, -50%); }
-  .lobby-art svg, .lobby-art img { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .lobby-art .ph { fill: none; stroke: var(--ink-3); stroke-width: 1.4; stroke-linejoin: round; }
-  .lobby-art .ph-fill { fill: var(--paper-2); }
-  /* a label is a pane of glass standing in the room, in front of / above its object (user, 2026-11-10):
-     a vertical plane parallel to the back wall, so it is skewed like the isometric view. Clear glass:
-     a faint tint, a bright top edge and a thin rim, no blur (impeccable bans decorative frosted glass). */
-  .lobby-go { position: absolute; transform: translate(-50%, -100%) matrix(0.866, -0.5, 0, 1, 0, 0); transform-origin: 50% 100%;
-    display: grid; justify-items: start; gap: 6px; padding: 14px 22px 16px; color: var(--ink); cursor: pointer; font: inherit;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--ink) 9%, transparent), color-mix(in srgb, var(--ink) 3%, transparent));
-    border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent); border-top-color: color-mix(in srgb, var(--ink) 55%, transparent); border-radius: 3px;
-    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--paper) 40%, transparent); }
-  .lobby-go b { font-weight: 800; font-stretch: 120%; font-size: clamp(28px, 3.2vw, 46px); letter-spacing: .04em; line-height: 1; }
-  .lobby-go small { font-size: 15px; color: var(--ink-2); }
-  .lobby-go:focus-visible { outline: 2px solid var(--copper); outline-offset: 6px; border-radius: 4px; }
-  :root[data-motion="on"] .lobby-go { animation: lobby-float 3.2s ease-in-out infinite; }
-  :root[data-motion="on"] .lobby-go.open { animation-delay: -1.6s; }
-  @keyframes lobby-float { 50% { translate: 0 -6px; } }
-  .lobby-go:hover, .lobby-go:focus-visible { border-color: color-mix(in srgb, var(--copper) 60%, transparent); }
-  .lobby-go:hover b, .lobby-go:focus-visible b { color: var(--copper); }
-  .lobby-recent { position: absolute; transform: translate(-50%, 0); margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; min-width: 220px; }
-  .lobby-recent button { width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 8px 2px; color: var(--ink); font: 15px var(--font); cursor: pointer; }
-  .lobby-recent button:hover { color: var(--copper); }
-  @media (max-width: 720px) { .lobby-art { top: 46%; width: 112vw; } .lobby-go b { font-size: 26px; } }
+  /* the scene, labels and greeting: lobby.css / lobby.js */
+  /* Settings: a small panel under its button (for now only animation) */
+  .set-menu { position: fixed; z-index: 4; top: calc(var(--edge) + 58px); right: var(--edge); width: min(360px, calc(100vw - 2 * var(--edge))); padding: 14px 16px;
+    background: var(--paper); color: var(--ink); border: 1px solid var(--rule-strong); border-radius: 3px; }
+  .set-menu[hidden] { display: none; }
+  .set-row { margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 600; }
+  .set-seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 3px; overflow: hidden; }
+  .set-seg button { min-height: 36px; padding: 0 12px; border: 0; background: none; color: var(--ink-2); font: 600 14px var(--font); cursor: pointer; }
+  .set-seg button + button { border-left: 1px solid var(--rule-strong); }
+  .set-seg button[aria-checked="true"] { background: var(--ink); color: var(--paper); }
+  .set-seg button:focus-visible { outline: 2px solid var(--copper); outline-offset: -2px; }
+  .set-note { display: block; margin-top: 10px; font-size: 13px; color: var(--ink-2); line-height: 1.5; }
   /* the header: one row, one control height, the wordmark and the tools on one centre line; the
      outermost glyphs sit on the page's content edges (left = the wordmark, right = the next button) */
   .top { position: fixed; z-index: 3; top: var(--edge); left: var(--edge); right: var(--edge); height: 52px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
@@ -186,40 +179,47 @@
   .o-disc::after { content: ""; position: absolute; inset: 30%; border-radius: 50%; box-shadow: 0 0 0 .04em color-mix(in srgb, var(--ink) 30%, transparent); }
   .wordmark:hover .o-disc { transform: rotate(1turn); }
 
-  /* off the home page the wordmark folds to an italic "DP": ISC-, R and BE close up, the P keeps
-     only its stem and the disc slides left onto the stem's top as the P's bowl. Every length is in
-     em of Archivo 800 at 125% width (cap height .69em, cap top .145em below the line box top,
-     P stem from .09em to .29em). The motion lives in the transitions below; reversing the mode
-     plays it backwards. */
-  .wm-cut { display: inline-grid; grid-template-columns: 1fr; }
-  .wm-cut > span { min-width: 0; overflow: hidden; white-space: pre; }
-  .wm-p { display: inline-grid; grid-template-columns: minmax(.29em, 1fr); }
-  .wm-p > span { min-width: 0; overflow: hidden; }
-  .wordmark { transform-origin: 0 .835em; }       /* the slant pivots on the baseline */
+  /* Off the home page the wordmark folds to an italic "DP" (after anthropic.com's header mark):
+     nothing is cut and no letter is squeezed. First ISC-, R, BE and the bowl of the P fade where they
+     stand; then the P (its stem) and the disc slide left together, the disc shrinking onto the stem's
+     top as the P's bowl, and the slant comes in. Unfolding plays it the other way round: the pieces
+     slide back first, then the letters fade in. The distances are measured from the font once
+     (index.html, "wordmark: fold distances") into --wm-* on :root, in em. */
+  .wordmark { position: relative; transform-origin: 0 .835em; width: var(--wm-w0, auto); }   /* the slant pivots on the baseline */
+  .wm-cut > span { white-space: pre; }
+  .wm-p { display: inline-grid; position: relative; z-index: 1; }      /* the stem stays in front of the landing disc */
+  .wm-p > span { grid-area: 1 / 1; }
+  .wm-pstem { clip-path: inset(0 calc(100% - .29em) 0 0); }          /* a still copy of the P cut to its stem (.09-.29em) */
+  .pro { position: relative; }
   :root[data-mode]:not([data-mode=""]) .top > .wordmark { display: flex; transform: skewX(-11deg); }
-  :root[data-mode]:not([data-mode=""]) .wm-cut { grid-template-columns: 0fr; }
-  :root[data-mode]:not([data-mode=""]) .wm-cut > span { opacity: 0; }
-  :root[data-mode]:not([data-mode=""]) .wm-p { grid-template-columns: minmax(.29em, 0fr); }
-  :root[data-mode]:not([data-mode=""]) .pro { margin-left: -.05em; }     /* italic D and P sit looser: close up a little */
-  /* collapsed, the disc is the P's bowl: only its right half shows, the cut edge standing on the P's stem */
-  :root[data-mode]:not([data-mode=""]) .o-disc { width: .5em; height: .5em; margin: 0 0 0 -.245em; translate: 0 -.105em; clip-path: inset(0 0 0 50%); }
+  :root[data-mode]:not([data-mode=""]) .wordmark { width: var(--wm-w1, auto); }
+  :root[data-mode]:not([data-mode=""]) :is(.wm-cut > span, .wm-pfull) { opacity: 0; }
+  :root[data-mode]:not([data-mode=""]) .pro { translate: var(--wm-pro, 0) 0; }
+  /* folded, the disc is the P's bowl: only its right half shows, the cut edge standing on the P's stem */
+  :root[data-mode]:not([data-mode=""]) .o-disc { translate: var(--wm-disc, 0) -.105em; scale: var(--wm-disc-s, .64); clip-path: inset(0 0 0 50%); }
   /* beside the back button, not pushed to the middle by the two auto margins */
   :root[data-mode]:not([data-mode=""]) .top > .back:not([hidden]) { margin-right: 0; }
   :root[data-mode]:not([data-mode=""]) .top > .back:not([hidden]) + .wordmark { margin-left: 10px; }
   :root[data-mode]:not([data-mode=""]) .top > .back { flex-shrink: 0; }     /* the mark never squeezes the back button */
   /* folded, the release follows the mark, upright and quiet */
-  .wm-ver { display: none; }
-  :root[data-mode]:not([data-mode=""]) .wm-ver:not(:empty) { display: inline-block; margin-left: .6em; font-size: .4em; font-weight: 600; font-stretch: 100%;
-    letter-spacing: .02em; color: var(--ink-3); transform: skewX(11deg); translate: 0 .12em; }
+  .wm-ver { position: absolute; left: 100%; top: 50%; margin-left: .6em; font-size: .4em; font-weight: 600; font-stretch: 100%; white-space: nowrap;
+    letter-spacing: .02em; color: var(--ink-3); transform: translateY(-50%) skewX(11deg); translate: 0 .12em; opacity: 0; pointer-events: none; }
+  .wm-ver:empty { display: none; }
+  :root[data-mode]:not([data-mode=""]) .top .wm-ver { opacity: 1; }
   @media (max-width: 480px) { :root[data-mode]:not([data-mode=""]) .top > .wordmark { display: none; } }   /* no room beside back and the tools */
-  /* timing: the dying letters fade fast on the way in, so they are gone before the letters
-     closing over them arrive; on the way back they fade in as their room opens */
-  :root[data-motion="on"] .wordmark { transition: transform 440ms var(--ease); }
-  :root[data-motion="on"] .wm-cut, :root[data-motion="on"] .wm-p { transition: grid-template-columns 440ms var(--ease); }
-  :root[data-motion="on"] .pro { transition: margin 440ms var(--ease); }
-  :root[data-motion="on"] .wm-cut > span { transition: opacity 260ms var(--ease) 60ms; }
-  :root[data-motion="on"][data-mode]:not([data-mode=""]) .wm-cut > span { transition: opacity 160ms var(--ease); }
-  :root[data-motion="on"] .o-disc { transition: transform 1200ms var(--ease), width 440ms var(--ease), height 440ms var(--ease), margin 440ms var(--ease), translate 440ms var(--ease), clip-path 440ms var(--ease); }
+  /* timing. Folding: the letters go (0-200 ms), then the slide and slant (120-500), the disc's left half
+     tucks behind the stem (380-540), the version comes in (420-620). Unfolding: version and half-disc
+     first, the slide back (60-420), then the letters (300-560). */
+  :root[data-motion="on"] .wordmark { transition: transform 360ms var(--ease) 60ms, width 360ms var(--ease) 60ms; }
+  :root[data-motion="on"] .pro { transition: translate 360ms var(--ease) 60ms; }
+  :root[data-motion="on"] .o-disc { transition: transform 1200ms var(--ease), translate 360ms var(--ease) 60ms, scale 360ms var(--ease) 60ms, clip-path 120ms linear; }
+  :root[data-motion="on"] :is(.wm-cut > span, .wm-pfull) { transition: opacity 260ms ease-out 300ms; }
+  :root[data-motion="on"] .wm-ver { transition: opacity 120ms ease-in; }
+  :root[data-motion="on"][data-mode]:not([data-mode=""]) .wordmark { transition: transform 380ms var(--ease) 120ms, width 380ms var(--ease) 120ms; }
+  :root[data-motion="on"][data-mode]:not([data-mode=""]) .pro { transition: translate 380ms var(--ease) 120ms; }
+  :root[data-motion="on"][data-mode]:not([data-mode=""]) .o-disc { transition: transform 1200ms var(--ease), translate 380ms var(--ease) 120ms, scale 380ms var(--ease) 120ms, clip-path 160ms ease-out 380ms; }
+  :root[data-motion="on"][data-mode]:not([data-mode=""]) :is(.wm-cut > span, .wm-pfull) { transition: opacity 200ms ease-out; }
+  :root[data-motion="on"][data-mode]:not([data-mode=""]) .wm-ver { transition: opacity 200ms ease-out 420ms; }
 
   .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
   .btn { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 18px; font-size: 18px; border: 1px solid transparent; border-radius: 2px; background: transparent; cursor: pointer; transition: background-color var(--t) var(--ease); }
@@ -291,12 +291,10 @@
     .tools .btn .label { display: none; }
     .wordmark { font-size: 24px; }
   }
-  @media (prefers-reduced-motion: reduce) {
-    .art.entering, .rule.draw { animation: none; }
-    .paper .disc, .paper .disc.is-on, .roll .col, .o-disc, .cam, .layer, .gallery { transition: none; }
-    .gallery .pin { animation: none; }
-    .layer.burner .slot img { transition: none; }
-  }
+  :root[data-motion="off"] .art.entering, :root[data-motion="off"] .rule.draw { animation: none; }
+  :root[data-motion="off"] .paper .disc, :root[data-motion="off"] .paper .disc.is-on, :root[data-motion="off"] .roll .col, :root[data-motion="off"] .o-disc, :root[data-motion="off"] .cam, :root[data-motion="off"] .layer, :root[data-motion="off"] .gallery { transition: none; }
+  :root[data-motion="off"] .gallery .pin { animation: none; }
+  :root[data-motion="off"] .layer.burner .slot img { transition: none; }
 
   /* ================= calibration flow (calibrate.js) ================= */
   .back { margin-left: -18px; }
@@ -390,7 +388,7 @@
   .inside-type { position: absolute; transform: translate(-50%, -50%) matrix(0.866, 0.5, -0.866, 0.5, 0, 0);
     font-weight: 700; font-size: 4.2cqw; font-variant-numeric: tabular-nums; letter-spacing: .02em; color: var(--ink); opacity: .92; white-space: nowrap; }
   .inside-type.big { font-size: 6.6cqw; font-weight: 800; font-stretch: 112%; }
-  @media (prefers-reduced-motion: reduce) { .cutaway-in { transition: none; } .cutaway .glow { animation: none; } }
+  :root[data-motion="off"] .cutaway-in { transition: none; } :root[data-motion="off"] .cutaway .glow { animation: none; }
 
   /* the parcel: the measurement image, a small box beside the drive with its disc printed on the lid */
   .parcel { position: absolute; z-index: 3; pointer-events: none; opacity: 0; transform: translate(0, 12px); transition: opacity 450ms var(--ease), transform 450ms var(--ease); }
@@ -467,7 +465,7 @@
   .next.hold::before { content: ""; position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--hold, 0)); background: var(--arc-flat, #8a6a3c); opacity: .55; }
   .next.hold > * { position: relative; }
   .next[disabled] { opacity: .4; cursor: not-allowed; }
-  @media (prefers-reduced-motion: reduce) { .cal-plate.breathe .floor, .cal .chart .pt.new, .flyer.hover .floor, .flyer .arrow, .warn-sign .flat, .cal .note.flash { animation: none !important; } .flyer, .flyer.drop { transition: opacity 0s; } .drive-led.on { animation: none; opacity: 1; } }
+  :root[data-motion="off"] .cal-plate.breathe .floor, :root[data-motion="off"] .cal .chart .pt.new, :root[data-motion="off"] .flyer.hover .floor, :root[data-motion="off"] .flyer .arrow, :root[data-motion="off"] .warn-sign .flat, :root[data-motion="off"] .cal .note.flash { animation: none !important; } :root[data-motion="off"] .flyer, :root[data-motion="off"] .flyer.drop { transition: opacity 0s; } :root[data-motion="off"] .drive-led.on { animation: none; opacity: 1; }
   @media (max-width: 820px) { .cal { position: static; transform: none; width: auto; padding: 8px var(--edge) 120px; } }
 </style>
 </head>
@@ -489,39 +487,28 @@
 
 <div class="stage"><div class="art" id="art"></div></div>
 
-<section class="lobby" id="lobby" aria-labelledby="lobby-new-label">
-  <div class="lobby-art" id="lobby-art">
-    <!-- stand-in until the desk renders arrive (art/desk): an open envelope with sheets, and a pile of closed ones -->
-    <svg viewBox="0 0 1600 1062" aria-hidden="true">
-      <g transform="translate(470 640)">
-        <path class="ph-fill" d="M-210 0 L0 -121 L210 0 L0 121 Z"/><path class="ph" d="M-210 0 L0 -121 L210 0 L0 121 Z"/>
-        <path class="ph" d="M-150 -30 L40 -140 L180 -60 L-10 50 Z"/><path class="ph" d="M-130 -46 L60 -156 L190 -82 L0 28 Z"/>
-        <path class="ph" d="M-110 -60 L80 -170 L200 -100 L10 10 Z"/>
-        <path class="ph" d="M0 121 L-60 170 L150 50 L210 0"/>
-      </g>
-      <g transform="translate(1130 640)">
-        <path class="ph-fill" d="M-200 0 L0 -115 L200 0 L0 115 Z"/>
-        <path class="ph" d="M-200 0 L0 -115 L200 0 L0 115 Z M-200 0 v-22 M200 0 v-22 M0 115 v-22"/>
-        <path class="ph-fill" d="M-200 -22 L0 -137 L200 -22 L0 93 Z"/><path class="ph" d="M-200 -22 L0 -137 L200 -22 L0 93 Z M-200 -22 v-22 M200 -22 v-22 M0 93 v-22"/>
-        <path class="ph-fill" d="M-200 -44 L0 -159 L200 -44 L0 71 Z"/><path class="ph" d="M-200 -44 L0 -159 L200 -44 L0 71 Z M-200 -44 v-22 M200 -44 v-22 M0 71 v-22"/>
-        <path class="ph-fill" d="M-200 -66 L0 -181 L200 -66 L0 49 Z"/><path class="ph" d="M-200 -66 L0 -181 L200 -66 L0 49 Z"/>
-        <path class="ph" d="M-60 -147 L60 -78 L-20 -32"/>
-      </g>
-    </svg>
-    <button class="lobby-go new" id="lobby-new" type="button" style="left: 29.4%; top: 38%"><b id="lobby-new-label" data-i18n="lobbyNew"></b><small data-i18n="lobbyNewSub"></small></button>
-    <button class="lobby-go open" id="lobby-open" type="button" style="left: 70.6%; top: 38%"><b data-i18n="lobbyOpen"></b><small data-i18n="lobbyOpenSub"></small></button>
-    <ul class="lobby-recent" id="lobby-recent" style="left: 70.6%; top: 78%" hidden></ul>
-  </div>
+<div class="set-menu" id="set-menu" role="group" aria-labelledby="set-motion-label" hidden>
+  <p class="set-row"><span id="set-motion-label"></span><span class="set-seg" role="radiogroup" aria-labelledby="set-motion-label">
+    <button type="button" role="radio" data-motion="auto"></button><button type="button" role="radio" data-motion="on"></button><button type="button" role="radio" data-motion="off"></button></span></p>
+  <small class="set-note" id="set-motion-note"></small>
+</div>
+
+<section class="lobby" id="lobby" aria-labelledby="lobby-hello">
+  <div class="lobby-art" id="lobby-art"></div>
+  <!-- the hit areas of "new work" (the drive) and "past works" (the file box); lobby.js puts them on the objects -->
+  <button class="lb-hit" id="lobby-new" type="button"></button>
+  <button class="lb-hit" id="lobby-open" type="button"></button>
+  <div class="lobby-greet"><p id="lobby-hello"></p><p id="lobby-recent" hidden></p></div>
 </section>
 
 <header class="top">
   <button class="btn back" id="back" type="button" hidden><svg class="icon"><use href="#i-back"/></svg><span data-i18n="back"></span></button>
-  <h1 class="wordmark" id="wordmark" aria-label="disc-probe"><span aria-hidden="true">D</span><span class="wm-cut" aria-hidden="true"><span>ISC-</span></span><span class="pro" aria-hidden="true"><span class="wm-p"><span>P</span></span><span class="wm-cut"><span>R</span></span><span class="o-disc"></span></span><span class="wm-cut" aria-hidden="true"><span>BE</span></span><small class="wm-ver" id="wm-ver"></small></h1>
+  <h1 class="wordmark" id="wordmark" aria-label="disc-probe"><span aria-hidden="true">D</span><span class="wm-cut" aria-hidden="true"><span>ISC-</span></span><span class="pro" aria-hidden="true"><span class="wm-p"><span class="wm-pfull">P</span><span class="wm-pstem">P</span></span><span class="wm-cut"><span>R</span></span><span class="o-disc"></span></span><span class="wm-cut" aria-hidden="true"><span>BE</span></span><small class="wm-ver" id="wm-ver"></small></h1>
   <nav class="tools" data-i18n-aria="tools">
     <button class="btn" type="button" id="library" data-i18n-title="libraryTitle"><svg class="icon"><use href="#i-drive"/></svg><span class="label" data-i18n="library"></span></button>
     <button class="btn btn-lang" type="button" id="lang" data-i18n="langButton" data-i18n-aria="langAria"></button>
     <button class="btn btn-icon" type="button" id="theme" data-i18n-aria="theme"><svg class="icon"><use href="#i-theme"/></svg></button>
-    <button class="btn btn-icon" type="button" data-i18n-aria="settings"><svg class="icon"><use href="#i-settings"/></svg></button>
+    <button class="btn btn-icon" type="button" id="settings" data-i18n-aria="settings" aria-haspopup="true" aria-expanded="false"><svg class="icon"><use href="#i-settings"/></svg></button>
   </nav>
 </header>
 
@@ -618,8 +605,7 @@
   const ROWPOS = [0, 1, 2, 2.66];      // how many rows back each stop stands (the burner is past BD)
   const ICON = { good: "i-good", narrow: "i-warn", none: "i-none", noneRw: "i-none" };
   // ?motion=1 plays the motion even when the system asks for less (for testing)
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches && !new URLSearchParams(location.search).has("motion");
-  if (!reduce) document.documentElement.dataset.motion = "on";
+  let reduce = document.documentElement.dataset.motion !== "on";     // set in the head; changed in Settings
   const $ = (id) => document.getElementById(id);
   $("wm-ver").textContent = backend.mock ? "v0.1.2.1" : backendState?.version ?? "";   // after the folded mark
   // what the version adds to the mark's width, for page titles that sit right of the mark (design.css)
@@ -632,9 +618,11 @@
   // ---- words: Chinese and English ----
   const STR = {
     zh: {
+      motion: "动画", motionAuto: "跟随系统", motionOn: "开", motionOff: "关",
+      motionNote: (sys) => `系统现在${sys ? "关着" : "开着"}动画效果。这里的设置只管这个页面，不改系统。`,
       back: "上一步", tools: "工具", search: "找盘", searchTitle: "找盘（键盘 /）", theme: "切换亮色和暗色", settings: "设置",
       library: "盘库", libraryTitle: "盘库：标定过的盘、每桶还剩几张", lobbyNew: "新建计划", lobbyNewSub: "拖一张图进来，或点这里选",
-      lobbyOpen: "打开计划", lobbyOpenSub: "打开以前存的 .discdesign", nextNewPlan: "下一步：新建计划", nextUseBatch: "下一步：用这批盘",
+      lobbyOpen: "打开计划", lobbyOpenSub: "打开以前存的 .discdesign", nextNewPlan: "下一步：新作品", nextUseBatch: "下一步：用这批盘",
       langButton: "EN", langAria: "Switch to English", kinds: "盘的种类", driveTab: "光驱", inDrive: "就是光驱里这张",
       sectors: "扇区数", left: "这一桶还剩", last: "上次标定", usedDrive: "标定用的光驱",
       leftVal: (l, o) => `${l} / ${o} 张`, inserted: (d) => `已插入 ${d}`, rw: "可擦写", sep: "、",
@@ -651,9 +639,11 @@
       brand: (n) => n.replace(/^Ritek /, "铼德 "),
     },
     en: {
+      motion: "Animation", motionAuto: "As system", motionOn: "On", motionOff: "Off",
+      motionNote: (sys) => `The system has animation ${sys ? "off" : "on"}. This only changes this page, not the system.`,
       back: "Back", tools: "Tools", search: "Search", searchTitle: "Search discs (key /)", theme: "Switch light and dark", settings: "Settings",
       library: "Discs", libraryTitle: "Disc library: calibrated discs and how many are left", lobbyNew: "New plan", lobbyNewSub: "Drop a picture here, or click to choose",
-      lobbyOpen: "Open plan", lobbyOpenSub: "Open a saved .discdesign", nextNewPlan: "Next: new plan", nextUseBatch: "Next: use these discs",
+      lobbyOpen: "Open plan", lobbyOpenSub: "Open a saved .discdesign", nextNewPlan: "Next: new work", nextUseBatch: "Next: use these discs",
       langButton: "中文", langAria: "切换到中文", kinds: "Disc kinds", driveTab: "Drive", inDrive: "This is the disc in the drive",
       sectors: "Sectors", left: "Left in this spindle", last: "Last calibrated", usedDrive: "Calibrated on",
       leftVal: (l, o) => `${l} / ${o}`, inserted: (d) => `${d} inserted`, rw: "rewritable", sep: ", ",
@@ -840,6 +830,36 @@
     if (open && !trayOpen) { trayTimer = setTimeout(apply, reduce ? 0 : 250); return; }
     apply();
   }
+  // ---- Settings: animation follows the system, or is on / off for this page only (Windows users often keep
+  // the system's animations off for speed; the page then stood still)
+  const sysReduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function motionChoice() { try { return localStorage.getItem("dp-motion") || "auto"; } catch { return "auto"; } }
+  function paintSettings() {
+    const t = T(), c = motionChoice();
+    $("set-motion-label").textContent = t.motion;
+    for (const b of $("set-menu").querySelectorAll("[data-motion]")) {
+      b.textContent = t[{ auto: "motionAuto", on: "motionOn", off: "motionOff" }[b.dataset.motion]];
+      b.setAttribute("aria-checked", String(b.dataset.motion === c));
+    }
+    $("set-motion-note").textContent = t.motionNote(sysReduce());
+  }
+  function setMotion(c) {
+    try { c === "auto" ? localStorage.removeItem("dp-motion") : localStorage.setItem("dp-motion", c); } catch {}
+    const on = c === "on" || (c === "auto" && !sysReduce());
+    root.dataset.motion = on ? "on" : "off";
+    reduce = !on;
+    paintSettings();
+  }
+  function showSettings(open) {
+    $("set-menu").hidden = !open; $("settings").setAttribute("aria-expanded", String(open));
+    if (open) { paintSettings(); $("set-menu").querySelector('[aria-checked="true"]')?.focus(); }
+  }
+  $("settings").addEventListener("click", (e) => { e.stopPropagation(); showSettings($("set-menu").hidden); });
+  $("set-menu").addEventListener("click", (e) => { e.stopPropagation(); const b = e.target.closest("[data-motion]"); if (b) setMotion(b.dataset.motion); });
+  document.addEventListener("click", () => { if (!$("set-menu").hidden) showSettings(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("set-menu").hidden) { showSettings(false); $("settings").focus(); } });
+  addEventListener("dp-lang", () => { if (!$("set-menu").hidden) paintSettings(); });
+
   $("theme").addEventListener("click", () => {
     root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
     try { localStorage.setItem("dp-theme", root.dataset.theme); } catch {}
@@ -1106,6 +1126,26 @@
     wake();
   }
 
+  // ---- wordmark: fold distances. The folded "DP" is the unfolded mark with pieces moved, so the
+  // distances come from the unfolded layout (measured while unfolded, so nothing is moved yet), in em, once the font is in:
+  // the P closes up to the D (less ISC-, and .05em more: the italic D and P sit loose), and the disc
+  // lands with its centre on the stem's right edge (.29em into the P) at .5em across.
+  function foldDistances() {
+    const mark = $("wordmark"), fs = parseFloat(getComputedStyle(mark).fontSize), em = (px) => px / fs;
+    const box = (el) => { const r = el.getBoundingClientRect(), m = mark.getBoundingClientRect(); return { l: em(r.left - m.left), w: em(r.width) }; };
+    const isc = box(mark.children[1]), p = box(mark.querySelector(".wm-p")), disc = box(mark.querySelector(".o-disc")), end = box(mark.querySelector(".pro + .wm-cut"));
+    if (!isc.w || !end.w) return;
+    const pro = -isc.w - .05, pLeft = p.l + pro;
+    const r = root.style;
+    r.setProperty("--wm-pro", `${pro.toFixed(4)}em`);
+    r.setProperty("--wm-disc", `${(pLeft + .295 - (disc.l + disc.w / 2) - pro).toFixed(4)}em`);
+    r.setProperty("--wm-disc-s", (.5 / disc.w).toFixed(4));
+    r.setProperty("--wm-w0", `${(end.l + end.w).toFixed(4)}em`);
+    r.setProperty("--wm-w1", `${(pLeft + .545).toFixed(4)}em`);
+  }
+  if (!root.dataset.mode) foldDistances();
+  document.fonts?.ready.then(() => { if (!root.dataset.mode) foldDistances(); });
+
   // ---- wordmark: the folding itself is CSS keyed on root.dataset.mode. Here only the slide that
   // carries the mark past the back button (which shows and hides at once, shifting the layout:
   // right going in, left coming home), and any input skipping to the end.
@@ -1132,7 +1172,7 @@
   const api = {
     backend, selectedDrive: () => col === "drive" ? DATA.drive[idx]?.id : chosenDrive,
     reload: async () => { location.reload(); },
-    T: () => T(), lang: () => lang, reduce, meta, cam, art, burnerLayer, $,
+    T: () => T(), lang: () => lang, get reduce() { return reduce; }, meta, cam, art, burnerLayer, $,
     setTray, tray: () => ({ open: trayOpen, disc: trayDisc }),
     current: () => ({ col, idx, item: DATA[col][idx] }),
     focusDrive() { col = "drive"; idx = Math.max(0, DATA.drive.findIndex(d => d.id === chosenDrive)); render(1); },
@@ -1242,16 +1282,10 @@
     col = c; idx = Math.max(0, DATA[c].indexOf(item));
     (await import("./design.js")).start(api, { newPlan: true, fly: false, pick: true });
   }
+  // the greeting's second line: the last plan
   async function paintRecent() {
-    const list = $("lobby-recent");
-    const plans = (await import("./design.js")).recentPlans();
-    list.hidden = !plans.length;
-    list.replaceChildren(...plans.slice(0, 5).map((plan) => {
-      const li = document.createElement("li"), b = document.createElement("button");
-      b.type = "button"; b.textContent = plan.name ?? plan.item?.name ?? "—";
-      b.addEventListener("click", async () => (await import("./design.js")).start(api, { plan, fly: false }));
-      li.append(b); return li;
-    }));
+    const design = await import("./design.js");
+    (await import("./lobby.js")).paintRecent(design.recentPlans(), (plan) => design.start(api, { plan, fly: false }));
   }
   $("lobby-new").addEventListener("click", () => newPlan());
   $("lobby-open").addEventListener("click", () => openPlan());
@@ -1279,6 +1313,8 @@
     chooseBatch(plan) { choosingFor = plan; setHome("library"); },
     rememberBatch(item) { try { if (item?.id) localStorage.setItem("dp-batch", item.id); } catch {} },
     lastBatch,
+    // the machine the core runs on ("win32", "linux", ...): the server's; in the mock, this browser's
+    platform: () => backend.mock ? (/win/i.test(navigator.platform) ? "win32" : "linux") : backendState?.platform ?? "",
     // the disc batches of one kind (the library's entries, no empty place, no drive stop)
     catalogue: (kind) => (DATA[kind] ?? []).filter((x) => x.kind !== "new" && x.kind !== "drive"),
     // what the drive holds, as the shelf names it ("Verbatim DVD-R"); empty if unknown
@@ -1293,6 +1329,7 @@
 
   applyStatic();
   root.dataset.home = "lobby";
+  try { await (await import("./lobby.js")).init(api); } catch (e) { console.error("lobby", e); }
   paintRecent();
   render(1, true);
 </script>
