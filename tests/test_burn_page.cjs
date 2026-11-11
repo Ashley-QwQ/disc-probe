@@ -60,7 +60,7 @@ const realBurn = design.slice(design.indexOf('function realBurn('), design.index
 const listeners = {};
 const updates = [];
 const context = vm.createContext({S:{media:'dvd'},T:()=>({exp:{},burnFailed:'failed'}),
-  fetch:async url=>({ok:true,json:async()=>url.includes('token')?{token:'fake'}:{job:'job1'}}),
+  fetch:async url=>({ok:true,json:async()=>url.includes('token')?{token:'fake'}:url.includes('burn-speeds')?{blank:true,speeds_x:[8]}:{job:'job1'}}),
   EventSource:class {addEventListener(name,callback){listeners[name]=callback;}close(){}}, updates});
 vm.runInContext(realBurn + '\nrealBurn({path:"p.iso"},{id:"fake"},p=>updates.push(p),{speed:8});',context);
 setImmediate(()=>{
