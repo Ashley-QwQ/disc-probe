@@ -1243,7 +1243,7 @@ def cmd_cdprobe(args):
     if res["beyond_canvas"]:
         print("DiscImageStudio up to v1.4.2 draws CD pictures within 57.5 mm, so beyond that only the parts of the "
               "outer ring and spokes away from the image axes are burned. v1.5.0 draws the whole band.")
-    if not ui.term().interactive:   # at a terminal the advice below says this, with the drive
+    if not ui.term().reader:   # for a person (a terminal, or the page's) the advice below says this, with the drive
         print("Burn it with DiscImageStudio, then run `geo --media cd` on the burned disc.")
     _next(guide.after_cdprobe(res["project"]))
 
@@ -1339,7 +1339,7 @@ def cmd_random(args):
     print(f"Writing {os.path.abspath(args.output)}: {args.sectors} sectors of seeded random data")
     with ui.writing(args.output, args.sectors) as log:
         write_iso(args.output, args.sectors, args.seed, media=args.media, log=log)
-    if not ui.term().interactive:   # at a terminal the advice below says this, with the right next step
+    if not ui.term().reader:   # for a person (a terminal, or the page's) the advice below says this, with the right next step
         print("Burn it, then run `geo` on it.")
         for line in guide.burn_steps(args.output, args.media):
             print(line)

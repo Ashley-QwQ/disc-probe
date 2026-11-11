@@ -14,9 +14,7 @@
 :root[data-theme="dark"] .np-scene { background-image: url(newplan/top_dark.webp); }
 
 .np-title { position: absolute; left: var(--edge); bottom: calc(80px + 3vh); margin: 0; font-weight: 800; font-stretch: 112%;
-  font-size: clamp(56px, 11vh, 132px); line-height: 1; color: color-mix(in srgb, var(--ink) 55%, transparent);
-  text-shadow: .03em .05em .05em rgba(40, 30, 18, .22); }
-:root[data-theme="dark"] .np-title { text-shadow: .03em .05em .06em rgba(0, 0, 0, .5); }
+  font-size: clamp(56px, 11vh, 132px); line-height: 1; color: color-mix(in srgb, var(--ink) 55%, transparent); }
 
 /* the sheet: the baked paper (and its shadow, away from the lamp), large, running on under the footer
    and out of the window */

@@ -128,6 +128,22 @@ class BackendTests(unittest.TestCase):
             f.write(b" line\n")
         job.read()
         self.assertEqual(job.history[-1]["text"], "partial line")
+        # colour stays for the terminal page (ansi), other escapes go, and the plain words stay plain
+        with job.output.open("ab") as f:
+            f.write(b"\x1b]9;4;1;40\x07\x1b[?25l\x1b[32mISO ready!\x1b[0m\n")
+        job.read()
+        self.assertEqual(job.history[-1]["text"], "ISO ready!")
+        self.assertEqual(job.history[-1]["ansi"], "\x1b[32mISO ready!\x1b[0m")
+
+    def test_force_color_paints_without_a_terminal(self):
+        plain = ui.Term(io.StringIO(), env={})
+        forced = ui.Term(io.StringIO(), env={"FORCE_COLOR": "3"})
+        self.assertFalse(plain.color)
+        self.assertTrue(forced.color and forced.truecolor)
+        self.assertFalse(forced.animate or forced.interactive)        # colour only: nothing redrawn in place
+        self.assertTrue(forced.reader and not plain.reader)           # the lines meant for people are printed
+        self.assertFalse(ui.Term(io.StringIO(), env={"FORCE_COLOR": "3", "NO_COLOR": "1"}).color)
+        self.assertEqual(forced.style("ok", "green"), "\x1b[32mok\x1b[0m")
 
     def test_ask_answer_and_timeout(self):
         events = self.root / "events"

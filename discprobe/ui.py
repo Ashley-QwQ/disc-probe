@@ -136,6 +136,15 @@ class Term:
         self.color = self.ansi and not env.get("NO_COLOR")
         self.animate = self.ansi and not env.get("CI") and not env.get("DISCPROBE_NO_ANIMATION")
         self.truecolor = self.color and (env.get("COLORTERM", "") in ("truecolor", "24bit") or bool(env.get("WT_SESSION")))
+        # `reader`: a person reads this stream, so the lines meant for people (say()) are printed. At a
+        # terminal, always. FORCE_COLOR (the common convention) asks for colour codes even into a file or a
+        # pipe, for a reader that draws them (the web page's terminal): the person's lines and their colours,
+        # but nothing redrawn in place (no animation, no cursor moves) and no prompts.
+        self.forced = env.get("FORCE_COLOR", "") not in ("", "0", "false") and not self.interactive
+        if self.forced:
+            if not env.get("NO_COLOR"):
+                self.color = True
+                self.truecolor = env.get("FORCE_COLOR") == "3" or env.get("COLORTERM", "") in ("truecolor", "24bit")
         # Few terminals say what is behind the text. Told it is dark, use bright green; otherwise
         # the theme's own green, which its author made readable on that theme.
         background = env.get("COLORFGBG", "").rpartition(";")[2]
@@ -147,6 +156,10 @@ class Term:
         self.blocks = self.unicode or (self.ansi and utf8 and modern)
         self.sync = self.ansi and modern
         self.taskbar = self.ansi and (modern or env.get("ConEmuANSI") == "ON")
+
+    @property
+    def reader(self) -> bool:
+        return self.interactive or getattr(self, "forced", False)
 
     def style(self, text: str, name: str) -> str:
         return f"\x1b[{_code(name, self)}m{text}\x1b[0m" if self.color else text
@@ -172,9 +185,9 @@ def clock(seconds: float) -> str:
 
 
 def say(text: str = "", style: str | None = None) -> None:
-    """A line only people at a terminal see."""
+    """A line only people see: at a terminal, or through a page that draws one (Term.reader)."""
     t = term()
-    if t.interactive:
+    if getattr(t, "reader", t.interactive):
         text = tr(text)
         print(t.style(text, style) if style else text, flush=True)
 

@@ -17,22 +17,39 @@
 .lb-outline { position: absolute; overflow: visible; pointer-events: none; transition: translate 220ms var(--ease); }
 .lb-outline polygon { fill: none; stroke: var(--copper); stroke-width: 3; stroke-linejoin: round; opacity: 0; transition: opacity 180ms; }
 .lb-outline.own.hot { translate: 0 -8px; }
-.lb-outline.hot polygon { opacity: .55; }
+.lb-outline.hot polygon { opacity: 0; }
 .lb-hit:focus-visible ~ .lb-outline polygon, .lb-outline:has(~ .lb-hit:focus-visible) polygon { opacity: 1; stroke-width: 4; }
-/* a label on its object's face: the quad is mapped by lobby.js, the text fills its height. The letters
-   stand a hair off the surface, so they drop a soft shadow on it (in the face's own plane, away from the
-   light at the upper left) */
+/* a label printed flat on its object's face, as the disc library writes on its floor (the old lobby):
+   quiet grey wide letters, no shadow; under the pointer the words turn ink and get a thin frame, which
+   leans with the face like the library's "DVD" box. The quad is mapped by lobby.js. */
 .lb-label { position: absolute; left: 0; top: 0; transform-origin: 0 0; display: grid; place-items: center; white-space: nowrap; overflow: visible;
-  font: 800 calc(var(--h) * .62) / 1 var(--font); font-stretch: 118%; letter-spacing: .04em;
-  color: rgba(36, 34, 30, .82); pointer-events: none; transition: color 180ms, translate 220ms var(--ease);
-  text-shadow: .05em .07em .06em rgba(40, 30, 18, .3); }
-.lb-label > i { font-style: normal; display: inline-block; }
-:root[data-theme="dark"] .lb-label { color: rgba(236, 230, 214, .86); text-shadow: .05em .07em .07em rgba(0, 0, 0, .55); }
+  font: 800 calc(var(--h) * .62) / 1 var(--font); font-stretch: 120%; letter-spacing: .06em;
+  color: var(--ink-3); pointer-events: none; transition: color 180ms, translate 220ms var(--ease); }
+.lb-label > i { font-style: normal; display: inline-block; padding: .14em .4em .1em; border: max(1.5px, .045em) solid transparent; border-radius: 2px;
+  transition: border-color 180ms; }
 /* on the terminal's screen, in both themes: light text that glows a little, in the console's face */
 .lb-label[data-target="screen"], :root[data-theme="dark"] .lb-label[data-target="screen"] {
   font-family: var(--mono); font-weight: 600; font-stretch: 100%; letter-spacing: .02em; color: #e3f2ea;
   text-shadow: 0 0 .12em rgba(200, 255, 225, .7), 0 0 .45em rgba(150, 235, 195, .35); }
-.lb-label.hot { color: var(--copper); }
+.lb-label.hot { color: var(--ink); }
+.lb-label.hot > i { border-color: currentColor; }
+.lb-label[data-target="screen"].hot { color: #f2fff8; }      /* the screen's words stay lit, only brighter */
+/* the big words floating by their objects (lobby.js FLOAT): flat in the desk's plane, bold and wide, rising
+   and sinking a little; under the pointer they turn full ink and get the thin frame */
+.lb-float { width: auto; height: auto; display: block; font-size: var(--size); font-weight: 800; font-stretch: 125%; letter-spacing: .05em;
+  color: color-mix(in srgb, var(--ink) 74%, transparent); pointer-events: auto; cursor: pointer; }
+.lb-float > i { padding: .12em .38em .08em; border-width: .04em; }
+:root[data-motion="on"] .lb-float { animation: lb-bob 3.2s ease-in-out infinite; }
+@keyframes lb-bob { 50% { translate: 0 -10px; } }
+.lb-float.hot { color: var(--ink); }
+/* a floating word's shadow on the surface below: sharpest and darkest when the word is lowest */
+.lb-shadow { color: rgba(40, 30, 18, .3); pointer-events: none; cursor: default; filter: blur(5px); }
+:root[data-theme="dark"] .lb-shadow { color: rgba(0, 0, 0, .55); }
+.lb-shadow > i { border-color: transparent !important; }
+:root[data-motion="on"] .lb-shadow { animation: lb-shadow 3.2s ease-in-out infinite; }
+@keyframes lb-shadow { 50% { opacity: .55; filter: blur(9px); } }
+.lb-shadow.hot { color: rgba(40, 30, 18, .3); }
+:root[data-theme="dark"] .lb-shadow.hot { color: rgba(0, 0, 0, .55); }
 .lb-label.own.hot { translate: 0 -8px; }
 
 /* the greeting: under the wordmark, in the scene's empty top left */

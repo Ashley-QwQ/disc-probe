@@ -43,7 +43,7 @@ const ACTIONS = ["info", "timing", "geo", "swap", "random", "image", "disexport"
 // the help's left column (ASCII, so the columns line up in a monospaced face), in the order of STR.help
 const USAGE = ["info", "timing [--speed 8x]", "geo [--speed 8x] [--media cd]", "swap [--minutes 5]", "random --sectors N",
   "image --geo latest --picture PATH", "disexport --geo latest --sectors N", "cdprobe --sectors N", "status", "clear", "exit"];
-let api, $, W = null, onClose = null, job = null, ask = null, history = [], back = 0, progressLine = null;
+let api, $, W = null, onClose = null, job = null, ask = null, history = [], back = 0;
 const T = () => STR[api.lang() === "en" ? "en" : "zh"];
 const kind = () => (/^win/i.test(api.platform?.() ?? "") ? "win" : "bash");
 const prompt = () => (kind() === "win" ? "PS disc-probe> " : "disc-probe:~$ ");
@@ -92,22 +92,110 @@ function words() {
 }
 
 // ---------------------------------------------------------------- output
-function print(text, cls = "") {
+// The 16 terminal colours, per look (Campbell for PowerShell, Tango for bash), for the core's plain codes.
+const PALETTE = {
+  win: ["#0c0c0c", "#c50f1f", "#13a10e", "#c19c00", "#0037da", "#881798", "#3a96dd", "#cccccc",
+        "#767676", "#e74856", "#16c60c", "#f9f1a5", "#3b78ff", "#b4009e", "#61d6d6", "#f2f2f2"],
+  bash: ["#2e3436", "#cc0000", "#4e9a06", "#c4a000", "#3465a4", "#75507b", "#06989a", "#d3d7cf",
+         "#555753", "#ef2929", "#8ae234", "#fce94f", "#729fcf", "#ad7fa8", "#34e2e2", "#eeeeec"],
+};
+// a line with SGR codes to spans: bold, dim, the 16 colours and 24-bit colour (the core's rainbow)
+function painted(ansi) {
+  const frag = document.createDocumentFragment(), pal = PALETTE[kind()];
+  let fg = null, bold = false, dim = false;
+  const re = /\x1b\[([0-9;]*)m/g;
+  let at = 0, m;
+  const put = (text) => {
+    if (!text) return;
+    const span = document.createElement("span");
+    span.textContent = text;
+    if (fg) span.style.color = fg;
+    if (bold) span.style.fontWeight = "700";
+    if (dim) span.style.opacity = ".62";
+    frag.append(span);
+  };
+  while ((m = re.exec(ansi))) {
+    put(ansi.slice(at, m.index));
+    at = re.lastIndex;
+    const c = (m[1] || "0").split(";").map(Number);
+    for (let i = 0; i < c.length; i++) {
+      const n = c[i];
+      if (n === 0) { fg = null; bold = dim = false; }
+      else if (n === 1) bold = true;
+      else if (n === 2) dim = true;
+      else if (n === 22) bold = dim = false;
+      else if (n === 39) fg = null;
+      else if (n >= 30 && n <= 37) fg = pal[n - 30];
+      else if (n >= 90 && n <= 97) fg = pal[n - 82];
+      else if (n === 38 && c[i + 1] === 2) { fg = `rgb(${c[i + 2]}, ${c[i + 3]}, ${c[i + 4]})`; i += 4; }
+      else if (n === 38 && c[i + 1] === 5) { const k = c[i + 2]; fg = k < 16 ? pal[k] : null; i += 2; }
+    }
+  }
+  put(ansi.slice(at));
+  return frag;
+}
+function print(text, cls = "", ansi = null) {
   const line = document.createElement("div");
   line.className = "term-row" + (cls ? " " + cls : "");
-  line.textContent = text;
+  if (ansi) line.append(painted(ansi)); else line.textContent = text;
   W.out.append(line);
   while (W.out.childElementCount > 2000) W.out.firstElementChild.remove();
   W.screen.scrollTop = W.screen.scrollHeight;
   return line;
 }
-// one line that updates in place, as the command line does: a bar, the percentage, the stage, time left
+// The core's colours (ui.py): OKLCH, its rainbow in 48 hue steps (ui._tone), its timings.
+function oklch(l, c, h) {
+  const a = c * Math.cos(2 * Math.PI * h), b = c * Math.sin(2 * Math.PI * h);
+  const L = (l + .3963377774 * a + .2158037573 * b) ** 3, M = (l - .1055613458 * a - .0638541728 * b) ** 3, S = (l - .0894841775 * a - 1.291485548 * b) ** 3;
+  return [4.0767416621 * L - 3.3077115913 * M + .2309699292 * S, -1.2684380046 * L + 2.6097574011 * M - .3413193965 * S, -.0041960863 * L - .7034186147 * M + 1.707614701 * S]
+    .map((v) => Math.round(255 * Math.min(1, v <= 0 ? 0 : v < .0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - .055)));
+}
+const tone = (pos, lift = 0) => { const h = Math.round((((pos % 1) + 1) % 1) * 48) % 48, lv = 3, lf = Math.round(lift * 2) / 2;
+  const [r, g, b] = oklch(.68 + .1 * lf, (.05 + .025 * lv) * (1 - .3 * lf), .08 + h / 48); return `rgb(${r}, ${g}, ${b})`; };
+const BAR = 20, CELLS = 4, SPIN = ["◐", "◓", "◑", "◒"], SPIN_S = .12, GLINT_EVERY = 4, GLINT_SWEEP = 1.2, GLINT_REACH = 2,
+  SWEEP_S = 1.7, SWEEP_REACH = 4, FLASH_S = .4;
+let prog = null;          // the last progress event and the state of its drawing
 function progress(e) {
-  const f = Math.max(0, Math.min(1, e.fraction ?? 0)), n = 28, k = Math.round(f * n);
-  const eta = Number.isFinite(e.eta_s) && e.eta_s > 0 ? `  ${Math.floor(e.eta_s / 60)}:${String(Math.round(e.eta_s % 60)).padStart(2, "0")}` : "";
-  const text = `[${"#".repeat(k)}${".".repeat(n - k)}] ${String(Math.round(f * 100)).padStart(3)}%  ${e.stage ?? ""}${eta}`;
-  if (!progressLine || !progressLine.isConnected) progressLine = print(text, "progress");
-  else progressLine.textContent = text;
+  const now = performance.now() / 1000;
+  const pct = `${Math.floor(Math.max(0, Math.min(1, e.fraction ?? 0)) * 100 + 1e-9)}%`.padStart(4);
+  if (!prog || !prog.line.isConnected) {
+    prog = { line: print("", "progress"), started: now, pct, changed: -1, lit: new Set() };
+    prog.raf = 0;
+  }
+  if (pct !== prog.pct) {
+    prog.lit = new Set([...pct].map((ch, i) => (ch !== prog.pct[i] ? i : -1)).filter((i) => i >= 0));
+    prog.pct = pct; prog.changed = now;
+  }
+  prog.e = e;
+  drawProgress();
+  if (!api.reduce && !prog.raf) { const tick = () => { if (!prog?.line.isConnected || !job) { if (prog) prog.raf = 0; return; } drawProgress(); prog.raf = setTimeout(tick, 70); }; prog.raf = setTimeout(tick, 70); }
+}
+function drawProgress() {
+  const { e, line } = prog, now = performance.now() / 1000, still = api.reduce;
+  const f = Math.max(0, Math.min(1, e.fraction ?? 0)), halves = Math.floor(f * BAR * 2), filled = Math.floor(halves / 2);
+  const parts = [];
+  const put = (text, color, extra = {}) => parts.push({ text, color, ...extra });
+  if (!still) put(SPIN[Math.floor((now - prog.started) / SPIN_S) % 4] + " ", tone(now * .1));
+  // the stage, with a band of the rainbow crossing it now and then
+  const label = String(e.stage ?? "");
+  const cols = label.length, at = ((now % SWEEP_S) / SWEEP_S) * (cols + 2 * SWEEP_REACH) - SWEEP_REACH;
+  [...label].forEach((ch, i) => { const d = Math.abs(i - at) / SWEEP_REACH; put(ch, !still && d < 1 ? tone(.08 + i / Math.max(cols, 1) * .5, 1 - d) : null); });
+  put("  ");
+  // the bar: the rainbow in steps of four cells, a glint down the done part every few seconds
+  const glintAt = Math.min((now % GLINT_EVERY) / GLINT_SWEEP, 1) * (filled + 2 * GLINT_REACH) - GLINT_REACH;
+  for (let i = 0; i < filled; i++) {
+    const d = Math.min(Math.abs(i - glintAt) / GLINT_REACH, 1), lift = still ? 0 : .5 * (1 + Math.cos(Math.PI * d));
+    put("━", tone(Math.floor(i / CELLS) * CELLS / BAR * .75, lift));
+  }
+  const tip = filled < BAR && halves % 2 ? "╸" : "";
+  if (tip) put(tip, tone(Math.floor(filled / CELLS) * CELLS / BAR * .75, 1));
+  put("─".repeat(BAR - filled - tip.length), null, { dim: true });
+  put(" ");
+  // the percentage: a digit that just changed flashes; 100 % is green
+  const flash = !still && now - prog.changed < FLASH_S;
+  [...prog.pct].forEach((ch, i) => put(ch, prog.pct.trim() === "100%" ? PALETTE[kind()][10] : flash && prog.lit.has(i) ? tone(.75) : null, { bold: flash && prog.lit.has(i) }));
+  if (Number.isFinite(e.eta_s) && e.eta_s > 0) put(`  ${Math.floor(e.eta_s / 60)}:${String(Math.round(e.eta_s % 60)).padStart(2, "0")}`, null, { dim: true });
+  line.replaceChildren(...parts.map((p) => { const s = document.createElement("span"); s.textContent = p.text; if (p.color) s.style.color = p.color; if (p.dim) s.style.opacity = ".55"; if (p.bold) s.style.fontWeight = "700"; return s; }));
 }
 
 // ---------------------------------------------------------------- input
@@ -195,14 +283,28 @@ async function run(payload) {
   if (api.backend.mock) {                    // the mock has no core behind it
     print(t.demo, "dim");
     if (payload.action === "info") ["Drive: HL-DT-ST GH70N  (H:)", "Disc: DVD-R, blank", "MID: MCC 004 (Verbatim)", "Sectors: 2,295,104"].forEach((l) => print(l));
+    else if (["timing", "geo", "random", "image"].includes(payload.action)) {
+      job = { id: "demo" }; prog = null;
+      const t0 = performance.now();
+      await new Promise((done) => {
+        const step = () => {
+          const f = Math.min(1, (performance.now() - t0) / 6000);
+          progress({ fraction: f, stage: payload.action === "geo" ? "measuring the geometry" : "reading", eta_s: (1 - f) * 6 });
+          if (f < 1) setTimeout(step, 250); else done();
+        };
+        step();
+      });
+      job = null;
+      print("", "", "\x1b[32mDone.\x1b[0m \x1b[2m(demo)\x1b[0m");
+    }
     return;
   }
   job = { id: null };
-  progressLine = null;
+  prog = null;
   try {
     await api.backend.job(payload, (e) => {
       if (e.type === "started") job.id = e.job;
-      else if (e.type === "log") print(e.text, e.level === "error" ? "error" : e.level === "warn" ? "warn" : "");
+      else if (e.type === "log") print(e.text, e.level === "error" ? "error" : e.level === "warn" || e.level === "warning" ? "warn" : "", e.ansi);
       else if (e.type === "progress") progress(e);
       else if (e.type === "ask") { ask = { job: e.job, id: e.id, question: e.question, default: e.default }; words(); }
       else if (e.type === "stopped") print(t.stopped, "warn");

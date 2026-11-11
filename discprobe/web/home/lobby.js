@@ -28,6 +28,18 @@ const T = () => STR[api.lang() === "en" ? "en" : "zh"];
 const shellName = () => (/^win/i.test(api.platform?.() ?? "") ? "shell" : "bash");
 // a label that sits off-centre on its face is moved along it, as fractions of its box (u along the text, v down)
 const NUDGE = { newplan: [-0.07, 0.06] };
+// The big words float by their objects, lying flat in the desk's plane like the disc library's floor
+// words: over the drive, in front of the file box, over the fax. `at`: canvas px from the centre of the
+// object's label face; `size`: letter height in canvas px; `max`: the longest the words may run (canvas px),
+// `plane`: flat on the desk (default), flat but turned a quarter clockwise, or standing in the plane of the
+// object's labelled face; `shadow` (if any): where the word's shadow lies on the surface below (canvas px from the
+// word, a little to the lower right, away from the light at the upper left; always flat on the desk);
+// so longer words (English) come out smaller. The screen keeps its words on its face.
+const FLOAT = {
+  newplan: { at: [-85, -100], size: 106, max: 400, shadow: [22, 112] },     // lower, its first word over the disc
+  filebox: { at: [-70, 18], size: 88, max: 380, plane: "face", shadow: [40, 62] },     // standing, like the box's front
+  fax: { at: [-20, -155], size: 80, max: 360, plane: "turned" },     // no lamp over there: no shadow     // flat, turned a quarter clockwise
+};
 const root = document.documentElement;
 const theme = () => (root.dataset.theme === "dark" ? "dark" : "paper");
 
@@ -53,7 +65,7 @@ function build(meta, dir) {
   // depth to drift: the nearest layer 1, the farthest 1/3
   const ds = M.layers.map((l) => l.depth ?? 0), dn = Math.min(...ds), df = Math.max(...ds);
   const reach = (d) => (df > dn ? 1 - (2 / 3) * ((d - dn) / (df - dn)) : 1 / 3);
-  const layer = {};
+  const layer = {}, overs = [];
   for (const l of M.layers) {
     const g = document.createElement("div");
     g.className = l.hidden ? "lb-layer off" : "lb-layer"; g.dataset.name = l.name;     // hidden: shown on demand (the lit screen)
@@ -68,8 +80,22 @@ function build(meta, dir) {
   }
   // per object: its click outline (an SVG polygon), its button (keyboard, screen readers) and its printed label
   const svgNS = "http://www.w3.org/2000/svg";
+  // the desk's plane on screen, from the drive's top face (its label quad): along the words, and down them
+  const unit = ([x0, y0], [x1, y1]) => { const d = Math.hypot(x1 - x0, y1 - y0) || 1; return [(x1 - x0) / d, (y1 - y0) / d]; };
+  const top = M.targets.newplan?.label?.quad;
+  const [ux, uy] = top ? unit(top[0], top[1]) : [0.851, -0.524], [vx, vy] = top ? unit(top[0], top[3]) : [0.851, 0.524];
+  const matrix = ([ax, ay], [bx, by]) => `matrix(${ax.toFixed(4)}, ${ay.toFixed(4)}, ${bx.toFixed(4)}, ${by.toFixed(4)}, 0, 0)`;
+  const planes = {
+    desk: matrix([ux, uy], [vx, vy]),
+    turned: matrix([vx, vy], [-ux, -uy]),             // a quarter turn clockwise in the desk's plane
+  };
   for (const [key, t] of Object.entries(M.targets)) {
-    const g = layer[t.layer] ?? layer.base, own = !!layer[t.layer] && t.layer !== "base";   // its own layer lifts
+    const home = layer[t.layer] ?? layer.base, own = !!layer[t.layer] && t.layer !== "base";   // its own layer lifts
+    // the label, outline and hit area sit above every picture layer (a layer shown later, like the lit
+    // screen, must not cover them), drifting and lifting with their object's layer
+    const g = document.createElement("div");
+    g.className = "lb-layer lb-over"; g.dataset.over = key;
+    g.style.setProperty("--reach", home.style.getPropertyValue("--reach"));
     const pts = t.hotspot;
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
     const [bx, by, bw, bh] = [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
@@ -86,7 +112,37 @@ function build(meta, dir) {
     Object.assign(btn.style, { left: `${bx}px`, top: `${by}px`, width: `${bw}px`, height: `${bh}px`,
       clipPath: `polygon(${pts.map(([x, y]) => `${(x - bx).toFixed(1)}px ${(y - by).toFixed(1)}px`).join(",")})` });
     g.append(svg, btn);
-    if (t.label) {
+    if (t.label && FLOAT[key]) {
+      // floating by the object, flat in the desk's plane, a little up and down
+      const q = t.label.quad, f = FLOAT[key];
+      const cx = q.reduce((a, p) => a + p[0], 0) / 4 + f.at[0], cy = q.reduce((a, p) => a + p[1], 0) / 4 + f.at[1];
+      const lab = document.createElement("span");
+      lab.className = "lb-label lb-float"; lab.dataset.target = key; lab.setAttribute("aria-hidden", "true");
+      const plane = f.plane === "face" ? matrix(unit(q[0], q[1]), unit(q[0], q[3])) : planes[f.plane ?? "desk"];
+      Object.assign(lab.style, { left: `${cx.toFixed(1)}px`, top: `${cy.toFixed(1)}px`, transform: `${plane} translate(-50%, -50%)` });
+      lab.style.setProperty("--size", `${f.size}px`);
+      lab.dataset.max = f.max;
+      lab.style.animationDelay = `${(-Math.random() * 3.2).toFixed(2)}s`;      // not all in step
+      const text = document.createElement("i");
+      lab.append(text);
+      // its shadow: the same words, dark and soft, lying on what is below; fainter as the word rises
+      if (f.shadow) {
+      const sh = document.createElement("span");
+      sh.className = "lb-label lb-float lb-shadow"; sh.dataset.target = key; sh.setAttribute("aria-hidden", "true");
+      const flat = f.plane === "turned" ? planes.turned : planes.desk;
+      Object.assign(sh.style, { left: `${(cx + f.shadow[0]).toFixed(1)}px`, top: `${(cy + f.shadow[1]).toFixed(1)}px`, transform: `${flat} translate(-50%, -50%)` });
+      sh.style.setProperty("--size", `${f.size}px`);
+      sh.dataset.max = f.max;
+      sh.style.animationDelay = lab.style.animationDelay;
+      sh.append(document.createElement("i"));
+      g.append(sh);
+      }
+      // the words are a way in too
+      lab.addEventListener("pointerenter", () => hover(key, true));
+      lab.addEventListener("pointerleave", () => hover(key, false));
+      lab.addEventListener("click", () => btn.click());
+      g.append(lab);
+    } else if (t.label) {
       const q = t.label.quad, w = dist(q[0], q[1]), h = dist(q[0], q[3]), [nu, nv] = NUDGE[key] ?? [0, 0];
       const lab = document.createElement("span");
       lab.className = own ? "lb-label own" : "lb-label"; lab.dataset.target = key; lab.setAttribute("aria-hidden", "true");
@@ -97,12 +153,14 @@ function build(meta, dir) {
       lab.append(text);
       g.append(lab);
     }
+    overs.push(g);
     btn.addEventListener("pointerenter", () => hover(key, true));
     btn.addEventListener("pointerleave", () => hover(key, false));
     btn.addEventListener("focus", () => hover(key, true));
     btn.addEventListener("blur", () => hover(key, false));
     if (!["newplan", "filebox"].includes(key)) btn.addEventListener("click", () => act(key));
   }
+  world.append(...overs);
   L.art.replaceChildren(world);
   L.world = world; L.layer = layer;
   paintTheme(); words(); fit();
@@ -166,7 +224,10 @@ function words() {
   for (const n of L.root.querySelectorAll(".lb-label")) {
     const i = n.firstElementChild;
     i.textContent = n.dataset.target === "screen" ? shellName() : t[n.dataset.target] ?? "";
-    fitLabel(n, i);
+    if (!n.classList.contains("lb-float")) { fitLabel(n, i); continue; }
+    i.style.fontSize = "";                                         // floating words: no longer than their `max`
+    const over = i.offsetWidth / Number(n.dataset.max);
+    if (over > 1) i.style.fontSize = `${(1 / over).toFixed(3)}em`;
   }
   for (const n of L.root.querySelectorAll(".lb-hit")) n.setAttribute("aria-label", t[n.dataset.target] ?? n.dataset.target);
   paintHello();

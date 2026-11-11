@@ -67,6 +67,11 @@ LIMITS = {"count": (1, 1000), "sectors": (1, 25_000_000), "seed": (0, 2**32 - 1)
           "frames": (-10000, 10000), "size": (64, 8192)}
 
 
+# escapes in a job's output: SGR (colour) ones, and the rest (OSC titles and taskbar progress, cursor moves)
+SGR = re.compile(r"\x1b\[[0-9;]*m")
+NOT_SGR = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?]*[A-Za-ln-z]|\x1b[()][A-Za-z0-9]|\x1b[=>78]")
+
+
 class APIError(ValueError):
     def __init__(self, message, status=400):
         super().__init__(message)
@@ -287,11 +292,18 @@ class Job:
                 if not line.endswith(b"\n"):
                     break
                 self.output_offset = stream.tell()
-                text = line.decode("utf-8", "replace").rstrip("\r\n").rsplit("\r", 1)[-1].rstrip()
-                if text:
+                raw = line.decode("utf-8", "replace").rstrip("\r\n").rsplit("\r", 1)[-1].rstrip()
+                # colour codes (SGR) are kept for the terminal page as `ansi`; every other escape (the
+                # taskbar's progress, cursor moves) is dropped; `text` is the line as plain words
+                coloured = NOT_SGR.sub("", raw)
+                text = SGR.sub("", coloured)
+                if text.strip():
                     # n keeps two identical lines apart (the page drops events it has already seen)
-                    self.history.append(dict(type="log", job=self.id, text=text, n=len(self.history),
-                                             level=self.levels.pop(text.strip(), "info")))
+                    event = dict(type="log", job=self.id, text=text, n=len(self.history),
+                                 level=self.levels.pop(text.strip(), "info"))
+                    if coloured != text:
+                        event["ansi"] = coloured
+                    self.history.append(event)
 
 
 class Backend:
@@ -383,6 +395,7 @@ class Backend:
             # Force plain child output; events have their own progress outlet.
             env["DISCPROBE_PLAIN"] = "1"
             env["PYTHONUNBUFFERED"] = "1"     # each line reaches output.log, and so the page, as it is printed
+            env["FORCE_COLOR"] = "3"          # the core's colours (true colour) in its lines, for the page's terminal
             # The child runs `-m discprobe` from the workspace, which may hold another copy of the package (an
             # older checkout without event output). Put this server's own copy first so both run the same code.
             here = str(Path(__file__).resolve().parent.parent)
