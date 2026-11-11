@@ -30,13 +30,13 @@ assert.equal(bar.dataset.pct, '0');
 const calibrate = readFileSync(new URL('../discprobe/web/home/calibrate.js', import.meta.url), 'utf8');
 const eventBody = calibrate.replace(/\r\n/g, '\n').match(/const onEvent = event => \{([\s\S]*?)\n  \};\n  try \{/)[1];
 const handler = new Function('event', 'flow', 'f', 'current', 'flog', 'api', '$', 'T', 'action',
-                            'setPlate', 'showInterior', 'updateInterior', eventBody);
+                            'setPlate', 'showInterior', 'updateInterior', 'paintStage', 'paintRuler', 'isCal', 'paint', eventBody);
 const flow = { realPhase: 'geo' }, current = {}, jobTime = {};
 let fraction, interiorEta;
 handler({ type: 'progress', fraction: 1.05, eta_s: -12, stage: 'geo' },
         flow, flow, current, { progress() {} }, { jobProgress(p) { fraction = p; } },
         () => jobTime, () => ({ leftSec: s => String(s) }), 'geo', () => {}, () => {},
-        (p, eta) => { interiorEta = eta; });
+        (p, eta) => { interiorEta = eta; }, () => {}, () => {}, () => false, () => {});
 assert.equal(current.p, 1);
 assert.equal(fraction, 1);
 assert.equal(jobTime.textContent, '0');

@@ -1,0 +1,109 @@
+{
+  "image_size": [
+    1249,
+    1400
+  ],
+  "pixel_origin": "top-left, y down; final-image pixels; straight down, the drive's front at the bottom",
+  "layer_order": [
+    {
+      "file": "shadow_%s.png",
+      "blend": "source-over",
+      "moves": false
+    },
+    {
+      "file": "bg_%s.png",
+      "blend": "source-over",
+      "moves": false
+    },
+    {
+      "file": "sled_%s.png",
+      "blend": "source-over",
+      "moves": "translate by sled.offset_px * t"
+    },
+    {
+      "file": "mid_%s.png",
+      "blend": "source-over",
+      "moves": false
+    },
+    {
+      "file": "disc_%s.png",
+      "blend": "source-over",
+      "opacity": "about 0.5 to see the pickup through it"
+    },
+    {
+      "file": "glow_%s.png",
+      "blend": "dark: lighter; paper: source-over",
+      "moves": "with the sled"
+    },
+    {
+      "file": "occluders_%s.png",
+      "blend": "source-over",
+      "moves": false
+    },
+    {
+      "file": "lid_%s.png",
+      "blend": "source-over",
+      "opacity": "low (0.15-0.3): the see-through top shell"
+    }
+  ],
+  "split_counts_supersampled_px": {
+    "occluders_px_ss": 2079422,
+    "mid_px_ss": 228616,
+    "ambiguous_px_ss": 0
+  },
+  "disc": {
+    "centre_px": [
+      800.2,
+      397.52
+    ],
+    "radius_px": 307.35,
+    "radius_mm": 60.0,
+    "hole_radius_px": 38.42,
+    "note": "a circle (top view): draw progress and marks in px around centre_px; 1 mm = scale.px_per_mm"
+  },
+  "sled": {
+    "file": "sled_%s.png",
+    "radius_mm": [
+      25.27,
+      58.0
+    ],
+    "travel_mm": 32.73,
+    "offset_px": [
+      -0.0,
+      167.668
+    ],
+    "px_per_mm": [
+      -0.0,
+      5.12246
+    ],
+    "direction": "radially outward along [-0.0, -1.0]",
+    "note": "rendered at the INNER position; position(t) = offset_px * t, t = (r_mm - 25.27) / 32.73"
+  },
+  "laser": {
+    "spot_px_inner": [
+      800.2,
+      526.95
+    ],
+    "spot_px_outer": [
+      800.2,
+      694.62
+    ]
+  },
+  "shadow": {
+    "offset_mm": [
+      -40.0,
+      -22.0
+    ],
+    "note": "lamp up right: the shadow falls lower left, more left than down"
+  },
+  "scale": {
+    "px_per_mm": 5.12246
+  },
+  "render": {
+    "engine": "Cycles, emission-only toon fill, image-space outlines",
+    "supersample": 4,
+    "samples": 16,
+    "line_px": 0.8,
+    "source": "derived from interior/render_interior.py"
+  }
+}
