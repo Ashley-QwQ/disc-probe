@@ -7,6 +7,16 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    "burn this measurement image first (needs --yes-write and a blank in the drive)": "先刻录这个测量镜像（需要 --yes-write 和空白盘）",
+    "confirm the irreversible burn of --iso": "确认将 --iso 刻录到盘上，此操作不可撤销",
+    "write multiple for the burn (default: the lowest)": "刻录倍速（默认最低倍速）",
+    "read speed for timing and geo (as those commands take it)": "timing 和 geo 的读取速度（格式与这两个命令相同）",
+    "the maker code the disc must have (the batch's)": "要求盘片具有的制造商代码（该批次的代码）",
+    "also write a DiscImageStudio preset here": "同时将 DiscImageStudio 预设写到这里",
+    "the disc's capacity for the preset (default: read off the blank before burning)": "预设所用的盘片容量（默认在刻录前读取空白盘）",
+    "run every step on the simulated drive (no burn)": "所有步骤都使用模拟光驱（不刻录）",
+    "calibrate a disc batch end to end: (burn,) check, timing, geo(, preset)": "完整校准一批盘片：刻录（可选）、检查、计时、几何测量、预设（可选）",
+    "which disc is in the drive (read-only, quick; one JSON line)": "快速只读检查光驱中的盘片，输出一行 JSON",
     "drive busy": "光驱正忙",
     "unknown drive": "未知光驱",
     "the drive did not answer in time": "光驱没有及时回应",

@@ -1,0 +1,992 @@
+[
+  {
+    "group": "archived_preset",
+    "field": "fit_range_mm[]",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\evidence\\dis_preset_ritekf1.json",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "archived_preset",
+    "field": "full_angle_diff_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\evidence\\dis_preset_ritekf1.json",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "archived_preset",
+    "field": "innerRadiusMm",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\evidence\\dis_preset_ritekf1.json",
+    "order": "",
+    "printed_precision": ".9f mm",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "archived_preset",
+    "field": "max_angle_diff_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\evidence\\dis_preset_ritekf1.json",
+    "order": "",
+    "printed_precision": ".4f degrees",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "archived_preset",
+    "field": "outerRadiusMm",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\evidence\\dis_preset_ritekf1.json",
+    "order": "",
+    "printed_precision": ".9f mm",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "archived_preset",
+    "field": "outside_angle_diff_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\evidence\\dis_preset_ritekf1.json",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "archived_preset",
+    "field": "p0_um",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\evidence\\dis_preset_ritekf1.json",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "archived_preset",
+    "field": "peak_to_peak_angle_diff_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\evidence\\dis_preset_ritekf1.json",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "archived_preset",
+    "field": "pitchCubic",
+    "max_delta": 5.759824041329242e-20,
+    "input": "D:\\disc-probe\\evidence\\dis_preset_ritekf1.json",
+    "order": "",
+    "printed_precision": ".3e",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "archived_preset",
+    "field": "pitchLinear",
+    "max_delta": 4.870439446712227e-20,
+    "input": "D:\\disc-probe\\evidence\\dis_preset_ritekf1.json",
+    "order": "",
+    "printed_precision": ".3e",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "archived_preset",
+    "field": "pitchQuadratic",
+    "max_delta": 9.402065714522734e-20,
+    "input": "D:\\disc-probe\\evidence\\dis_preset_ritekf1.json",
+    "order": "",
+    "printed_precision": ".3e",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "archived_preset",
+    "field": "rms_angle_diff_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\evidence\\dis_preset_ritekf1.json",
+    "order": "",
+    "printed_precision": ".4f degrees",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "disexport",
+    "field": "fit_range_mm[]",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "disexport",
+    "field": "full_angle_diff_deg",
+    "max_delta": 3.889917768074014e-05,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-144156",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "disexport",
+    "field": "innerRadiusMm",
+    "max_delta": 1.6981545059024938e-09,
+    "input": "D:\\disc-probe\\results\\geo-H-20261106-014530",
+    "order": "",
+    "printed_precision": ".9f mm",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "disexport",
+    "field": "max_angle_diff_deg",
+    "max_delta": 2.2982686090724548e-08,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": ".4f degrees",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "disexport",
+    "field": "outerRadiusMm",
+    "max_delta": 6.090274951020547e-10,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": ".9f mm",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "disexport",
+    "field": "outside_angle_diff_deg",
+    "max_delta": 3.889917768074014e-05,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-144156",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "disexport",
+    "field": "p0_um",
+    "max_delta": 7.485334574397484e-11,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "disexport",
+    "field": "peak_to_peak_angle_diff_deg",
+    "max_delta": 1.5841503201883753e-08,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "disexport",
+    "field": "pitchCubic",
+    "max_delta": 1.0584599395857552e-09,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": ".3e",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "disexport",
+    "field": "pitchLinear",
+    "max_delta": 6.762960345371735e-10,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": ".3e",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "disexport",
+    "field": "pitchQuadratic",
+    "max_delta": 1.4830455429169033e-09,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": ".3e",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "disexport",
+    "field": "rms_angle_diff_deg",
+    "max_delta": 4.709422885300005e-11,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-144156",
+    "order": "",
+    "printed_precision": ".4f degrees",
+    "uncertainty_comparison": "compare map difference to source angle noise; inner radius also to recorded u_sigma; shape covariance not reported"
+  },
+  {
+    "group": "geo",
+    "field": "cov[][]",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "residual_deg[]",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.angle_sigma_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.angle_sigma_full_disc_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.angle_sigma_measured_span_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.angle_span_mm[]",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.bit_nm_assumed",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.c_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.chi2_per_dof",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.coarse_u",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.coarse_v",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.dis_equivalent.bit_nm",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.dis_equivalent.inner_radius_mm",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.dis_equivalent.outer_radius_mm_for_total_sectors.*",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.largest_gap_mm[]",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.measured_span_mm[]",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.nominal_error_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.period_ms",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.pitch_um_at_bit",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.r0_mm_at_bit",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.read_tail_frames",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261104-121358",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.reference_lba",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.residual_rms_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.sector_bits",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261104-121358",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.state_check.mean_change_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261109-112125",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.state_check.mean_sigma_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261109-112125",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.state_check.points[].change_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261109-111146",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.state_check.points[].lba",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261109-111146",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.state_check.points[].period_again_ms",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261109-111146",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.state_check.points[].period_first_ms",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261109-111146",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.state_check.points[].phase_again_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261109-111146",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.state_check.points[].phase_first_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261109-111146",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.state_check.points[].radius_mm",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261109-111146",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.state_check.points[].sigma_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261109-111146",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.state_check.sigmas",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261109-111146",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.state_check.tolerance_deg",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261109-111146",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.u",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.u_sigma",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.v",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "geo",
+    "field": "summary.v_sigma",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "all deltas exactly zero; same reconstructed summary uncertainty"
+  },
+  {
+    "group": "joint",
+    "field": "b[]",
+    "max_delta": 7.986951380588379e-14,
+    "input": "GH70N 5 runs",
+    "order": "3",
+    "printed_precision": ".3e",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "joint",
+    "field": "c[]",
+    "max_delta": 6.024492904543877e-09,
+    "input": "GH70N 5 runs",
+    "order": "3",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "joint",
+    "field": "chi2",
+    "max_delta": 1.7721987433105824e-07,
+    "input": "GH70N 5 runs",
+    "order": "3",
+    "printed_precision": "chi2/dof .2f",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "joint",
+    "field": "cov[][]",
+    "max_delta": 1.2024060132981296e-12,
+    "input": "GH70N 5 runs",
+    "order": "3",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "joint",
+    "field": "cov_full[][]",
+    "max_delta": 1.2024060132981296e-12,
+    "input": "GH70N 5 runs",
+    "order": "3",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "joint",
+    "field": "dof",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "0",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "joint",
+    "field": "r_bits[]",
+    "max_delta": 1.0069925338029861e-08,
+    "input": "GH70N 5 runs",
+    "order": "3",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "joint",
+    "field": "resid_deg[]",
+    "max_delta": 3.2850275061280243e-07,
+    "input": "GH70N 5 runs",
+    "order": "3",
+    "printed_precision": ".3f degrees; source sigma floor .05 degrees",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "joint",
+    "field": "rms_deg",
+    "max_delta": 3.772621215425431e-09,
+    "input": "GH70N 5 runs",
+    "order": "3",
+    "printed_precision": ".3f degrees; source sigma floor .05 degrees",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "joint",
+    "field": "u",
+    "max_delta": 2.8230715543031693e-09,
+    "input": "GH70N 5 runs",
+    "order": "3",
+    "printed_precision": "converted r0_mm .5f",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "joint",
+    "field": "v",
+    "max_delta": 1.1723955140041653e-13,
+    "input": "GH70N 5 runs",
+    "order": "3",
+    "printed_precision": "converted pitch_um .6f",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "joint_cli_correction.json",
+    "field": "geo_fit.u",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_correction.json",
+    "field": "geo_fit.v",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_correction.json",
+    "field": "peak_to_peak_deg",
+    "max_delta": 4.480826502895052e-08,
+    "input": "GH70N 5 runs",
+    "order": "cubic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_correction.json",
+    "field": "poly_in_x[]",
+    "max_delta": 2.3836240536923015e-07,
+    "input": "GH70N 5 runs",
+    "order": "cubic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_correction.json",
+    "field": "radius_valid_mm[]",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.angle_sigma_deg",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.angle_sigma_measured_span_deg",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.angle_span_mm[]",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.bit_nm_assumed",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.chi2_per_dof",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.coarse_u",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.coarse_v",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.dis_equivalent.bit_nm",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.dis_equivalent.inner_radius_mm",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.dis_equivalent.outer_radius_mm_for_total_sectors.*",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.measured_span_mm[]",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.per_run[].c_deg",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.per_run[].period_ms",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.per_run[].reference_lba",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.pitch_um_at_bit",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.r0_mm_at_bit",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.residual_rms_deg",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.u",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.u_sigma",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.v",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "joint_cli_summary.json",
+    "field": "fit.v_sigma",
+    "max_delta": 0.0,
+    "input": "GH70N 5 runs",
+    "order": "quadratic",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "not separately reported for this field"
+  },
+  {
+    "group": "polyfit",
+    "field": "b[]",
+    "max_delta": 1.9993944087165483e-10,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "3",
+    "printed_precision": ".3e",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "polyfit",
+    "field": "chi2",
+    "max_delta": 1.2205811117382837e-07,
+    "input": "D:\\disc-probe\\results\\geo-H-20261104-124027",
+    "order": "0",
+    "printed_precision": "chi2/dof .2f",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "polyfit",
+    "field": "dof",
+    "max_delta": 0.0,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "0",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "polyfit",
+    "field": "r_bits[]",
+    "max_delta": 1.005362719297409e-06,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-144156",
+    "order": "0",
+    "printed_precision": "JSON full float; no fixed decimal guarantee",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "polyfit",
+    "field": "resid_deg[]",
+    "max_delta": 9.755030919156304e-08,
+    "input": "D:\\disc-probe\\results\\geo-H-20261104-124027",
+    "order": "0",
+    "printed_precision": ".3f degrees; source sigma floor .05 degrees",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "polyfit",
+    "field": "rms_deg",
+    "max_delta": 1.3501422202466529e-09,
+    "input": "D:\\disc-probe\\results\\geo-H-20261106-014054",
+    "order": "0",
+    "printed_precision": ".3f degrees; source sigma floor .05 degrees",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "polyfit",
+    "field": "span_sigma_deg",
+    "max_delta": 2.5646405055201882e-08,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-131003",
+    "order": "3",
+    "printed_precision": ".3f degrees; source sigma floor .05 degrees",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "polyfit",
+    "field": "u",
+    "max_delta": 0.00013407491496764123,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-144156",
+    "order": "0",
+    "printed_precision": "converted r0_mm .5f",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  },
+  {
+    "group": "polyfit",
+    "field": "v",
+    "max_delta": 3.8938914315167494e-09,
+    "input": "D:\\disc-probe\\results\\geo-H-20261103-144156",
+    "order": "0",
+    "printed_precision": "converted pitch_um .6f",
+    "uncertainty_comparison": "solution covariance and weighted observation-sigma comparison in recorded.json"
+  }
+]

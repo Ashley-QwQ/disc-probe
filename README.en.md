@@ -96,7 +96,7 @@ cd disc-probe
 ```
 
 ```bash
-python -m pip install numpy pillow scipy
+python -m pip install numpy pillow
 ```
 
 ```bash

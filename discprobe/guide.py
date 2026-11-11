@@ -49,7 +49,7 @@ RANDOM_SECTORS = {"dvd": 2295104, "cd": 359600}
 # image for a smaller disc still leaves room: a 713,936-sector miniDVD refused its full count by 4 KB.
 BURN_ROOM_SECTORS = {"dvd": 0, "cd": 200}
 BURN_FILL = 0.98
-INSTALL = "python -m pip install numpy pillow scipy"
+INSTALL = "python -m pip install numpy pillow"
 PORTS = ("This repository drives real hardware on Windows and Linux. macOS port: "
          "github.com/NaiveTomcat/discprobe-macos. Anything with --sim works here.")
 
@@ -425,7 +425,7 @@ def describe_chosen(path: str) -> str:
 
 
 def missing_packages() -> list[str]:
-    return [pip for module, pip in (("numpy", "numpy"), ("PIL", "pillow"), ("scipy", "scipy"))
+    return [pip for module, pip in (("numpy", "numpy"), ("PIL", "pillow"))
             if importlib.util.find_spec(module) is None]
 
 
@@ -1012,7 +1012,7 @@ def guide_state(media: str = "dvd", out: str = "results", *, drives=None) -> dic
 
     steps = [
         dict(id="packages", done=not missing, label="Python packages",
-             detail=", ".join(missing) + " missing" if missing else "numpy, pillow, scipy"),
+             detail=", ".join(missing) + " missing" if missing else "numpy, pillow"),
         dict(id="drive", done=bool(drives), label="Optical drive",
              detail=" ".join(drives) if drives else "none found"),
         dict(id="random_disc", done=timing is not None, label="Random-data disc",

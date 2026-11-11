@@ -1,0 +1,20 @@
+{
+  "core": {
+    "path": "D:\\disc-probe-dist\\slim-20261111\\disc-probe-slim-20261111-core.zip",
+    "sha256": "91f4d60eb55ae82c25251184050172e68f671f1d09f942eed4a3715fd3904eb1",
+    "source_manifest_verified": true
+  },
+  "full-win64": {
+    "path": "D:\\disc-probe-dist\\slim-20261111\\disc-probe-slim-20261111-full-win64.zip",
+    "sha256": "669c8cb6edd6a929067e62877cb9a9a020c6442f651ee9c15f87a5570a89e2a4",
+    "source_manifest_verified": true,
+    "identical_to_selftested_files": 698,
+    "final_extracted_import_probe": {
+      "scipy_absent": true,
+      "F_sf": 0.40736028599449425,
+      "numpy": "2.5.1",
+      "pillow": "12.3.0"
+    }
+  },
+  "destination": "D:\\disc-probe-dist\\slim-20261111\\最终 核验 1794434783978904200"
+}

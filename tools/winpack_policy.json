@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "remove_top": {
+    "_sqlite3.pyd": "No application or bundled tool imports sqlite3 or uses a database; recorded tests do not load it.",
+    "sqlite3.dll": "Only _sqlite3.pyd needs this DLL; removed together after checking the module/DLL trace."
+  },
+  "stdlib": "Keep every entry. Dynamic codecs, subprocess, multiprocessing and the shipped analysis tools prevent a smaller proved closure.",
+  "pillow": "Keep all plugins and extension modules. Image.open accepts user-chosen formats; TrueType fonts are used by tiledisc and tools.",
+  "ssl": "Keep _ssl, libssl and libcrypto. Standard-library urllib is shipped and HTTPS/hashed data support has no complete negative reachability proof."
+}

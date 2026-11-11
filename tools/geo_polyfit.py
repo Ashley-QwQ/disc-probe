@@ -44,7 +44,8 @@ import os
 import sys
 
 import numpy as np
-from scipy.optimize import least_squares
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from discprobe.numerics import least_squares
 
 RC_MM, RS_MM = 40.0, 15.0
 CONSISTENCY_P = 0.01
@@ -403,7 +404,7 @@ def pitch_curve(f, nn, th_ref, rc, rs):
 
 def nested_f(small, big):
     """p of the extra parameters of `big` over `small`, each (chi2, dof), residual variance estimated."""
-    from scipy.stats import f as fdist
+    from discprobe.numerics import f_sf
 
     extra = small[1] - big[1]
     if extra <= 0 or big[1] <= 0:
@@ -411,7 +412,7 @@ def nested_f(small, big):
     if big[0] <= 0:
         return float("inf"), 0.0 if small[0] > 0 else 1.0, extra
     F = max(0.0, (small[0] - big[0]) / extra / (big[0] / big[1]))
-    return F, float(fdist.sf(F, extra, big[1])), extra
+    return F, float(f_sf(F, extra, big[1])), extra
 
 
 def same_file(a, b):

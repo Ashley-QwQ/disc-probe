@@ -19,7 +19,7 @@ import json
 import math
 
 import numpy as np
-from scipy.optimize import least_squares
+from .numerics import least_squares
 
 from . import cd
 from .calib import SECTOR_BITS, theta
