@@ -356,6 +356,7 @@
   .top > .back + .wordmark { margin-right: auto; }
   .top > .back:not([hidden]) { margin-right: auto; }
   :root[data-mode="cal"] .detail, :root[data-mode="cal"] .counter, :root[data-mode="cal"] .gallery { display: none; }
+  #sound[aria-pressed="true"] .icon.off, #sound[aria-pressed="false"] .icon.on { display: none; }
   :root[data-mode="cal"] .layer.ghost, :root[data-mode="cal"] .layer.solid { opacity: .1 !important; }
   /* Keep the whole step between the fixed corner rows. Tall steps scroll here,
      rather than growing upwards into the header or down behind the footer. */
@@ -572,6 +573,8 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></symbol>
   <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 10h3l5-4v12l-5-4H4z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5M18 7a7 7 0 0 1 0 10"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 10h3l5-4v12l-5-4H4z"/><path d="M16 10l4 4M20 10l-4 4"/></symbol>
   <symbol id="i-theme" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
   <symbol id="i-error" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.2h.01"/></symbol>
@@ -607,6 +610,7 @@
   <nav class="tools" data-i18n-aria="tools">
     <button class="btn" type="button" id="library" data-i18n-title="libraryTitle"><svg class="icon"><use href="#i-drive"/></svg><span class="label" data-i18n="library"></span></button>
     <button class="btn btn-lang" type="button" id="lang" data-i18n-aria="langAria" aria-keyshortcuts="L"><span data-i18n="langButton"></span><kbd class="key-cap" aria-hidden="true">L</kbd></button>
+    <button class="btn btn-icon" type="button" id="sound" aria-pressed="true" aria-keyshortcuts="M"><svg class="icon on"><use href="#i-sound"/></svg><svg class="icon off"><use href="#i-mute"/></svg><kbd class="key-cap" aria-hidden="true">M</kbd></button>
     <button class="btn btn-icon" type="button" id="theme" data-i18n-aria="theme" aria-keyshortcuts="T"><svg class="icon"><use href="#i-theme"/></svg><kbd class="key-cap" aria-hidden="true">T</kbd></button>
     <button class="btn btn-icon" type="button" id="settings" data-i18n-aria="settings" aria-haspopup="true" aria-expanded="false" aria-keyshortcuts="O"><svg class="icon"><use href="#i-settings"/></svg><kbd class="key-cap" aria-hidden="true">O</kbd></button>
   </nav>
@@ -1532,6 +1536,18 @@
   });
 
   applyStatic();
+  // the mute switch (M): sounds are on by default and quiet; the words on the page always say the same
+  const sfx = await import("./sfx.js");
+  const paintSound = () => {
+    const on = sfx.soundOn();
+    $("sound").setAttribute("aria-pressed", String(on));
+    $("sound").setAttribute("aria-label", lang === "zh" ? (on ? "声音开着（M 关掉）" : "声音关着（M 打开）") : (on ? "Sound on (M to mute)" : "Sound off (M to turn on)"));
+    $("sound").title = $("sound").getAttribute("aria-label");
+  };
+  $("sound").addEventListener("click", () => { sfx.setSound(!sfx.soundOn()); paintSound(); });
+  addEventListener("dp-lang", paintSound);
+  addEventListener("dp-sound", paintSound);
+  paintSound();
   root.dataset.home = "lobby";
   (await import("./keys.js")).install({ $ });   // Esc back, Enter next, W A S D, O settings, ? the list
   try { await (await import("./lobby.js")).init(api); } catch (e) { console.error("lobby", e); }

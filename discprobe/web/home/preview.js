@@ -12,6 +12,7 @@
 
 import { DEFAULT_POSE } from "./sim/model.mjs";
 import { SimView } from "./sim/view.mjs";
+import * as sfx from "./sfx.js";
 
 let simulation = null;
 let api, $, ctx = null, W = null, life = null, state = null, src = null, view = "design";
@@ -176,6 +177,7 @@ async function make() {
   } catch (e) {
     if (state !== job) return;
     state = { phase: e?.name === "AbortError" ? "cancelled" : "failed", error: e?.message, code: e?.code };
+    if (state.phase === "failed") sfx.problem();
   }
   ctx.state = state;
   buildRight();

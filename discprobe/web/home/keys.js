@@ -6,6 +6,7 @@
 //   O          the settings menu
 //   T          light / dark
 //   L          the language
+//   M          sound on / off
 //   ?          this list
 //
 // The buttons show their keys (a small cap under Back, the language, the theme and settings; Next ends in
@@ -28,13 +29,13 @@ const STEP = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRig
 const WORDS = {
   en: { title: "Keys", close: "Close", rows: [
     ["Esc", "Back one step"], ["Enter", "Next (hold it where Next must be held)"],
-    ["W A S D", "Move the choice (as the arrow keys)"], ["O", "Settings"], ["T", "Light or dark"], ["L", "中文"],
+    ["W A S D", "Move the choice (as the arrow keys)"], ["O", "Settings"], ["T", "Light or dark"], ["L", "中文"], ["M", "Sound on or off"],
     ["?", "This list"],
     ["Tab", "Move between buttons"]],
     note: "In the design view: V move, W wand, H pan, 0 fit, Space drag the view." },
   zh: { title: "快捷键", close: "关闭", rows: [
     ["Esc", "返回上一步"], ["Enter", "下一步（需要按住的地方就按住）"],
-    ["W A S D", "移动选择（同方向键）"], ["O", "设置"], ["T", "浅色或深色"], ["L", "English"],
+    ["W A S D", "移动选择（同方向键）"], ["O", "设置"], ["T", "浅色或深色"], ["L", "English"], ["M", "声音开或关"],
     ["?", "打开这张表"],
     ["Tab", "在按钮之间移动"]],
     note: "设计页另有一套：V 移动、W 魔棒、H 拖动、0 适配画面、按住空格拖动视图。" },
@@ -151,7 +152,7 @@ export function install({ $ }) {
       return;
     }
     if (!typing(e.target)) {
-      const tool = { o: "settings", t: "theme", l: "lang" }[k.toLowerCase()];
+      const tool = { o: "settings", t: "theme", l: "lang", m: "sound" }[k.toLowerCase()];
       if (tool && !e.shiftKey) { e.preventDefault(); $(tool).click(); return; }
       if (k === "?") { e.preventDefault(); showHelp(true); return; }
     }

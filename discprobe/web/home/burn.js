@@ -17,6 +17,7 @@
  */
 import { afterBurn } from "./guidance.mjs";
 import { cutaway, flyer } from "./drive-scene.js";
+import * as sfx from "./sfx.js";
 const root = document.documentElement;
 const STR = {
   zh: {
@@ -205,13 +206,20 @@ function beginHold(source) {
   holdSource=source;holdStart=performance.now();paint();
   holdTimer=setInterval(()=>{const p=Math.min(1,(performance.now()-holdStart)/1000);W.holdRing.style.setProperty('--progress',`${p*100}%`);if(p===1){stopHold();beginBurn();}},20);
 }
+// the end of a burn, heard: clean, something to look at, nothing written, a disc lost (a cancel is the person's own)
+function chime(p){
+  const v=(p.burnResult||task?.burnResult)?.verification;
+  if(p.status==='success')(v&&v.status!=='skipped'&&(v.status!=='completed'||v.differing||v.unreadable))?sfx.problem():sfx.done();
+  else if(p.status==='failed')(p.started===false?sfx.problem:sfx.failure)();
+}
 async function beginBurn() {
   if(!visible||!valid()||!W.consent.checked||task?.status==='burning')return;
   task={status:'burning',progress:0,elapsed:0,remaining:undefined,handle:null,stopping:false}; const current=task;
+  sfx.step(0);
   W.q('.burn-cancel-check').hidden=true;paint();
   const sc=sceneOf(); if(!ctx.discIn)await sc.fly.drop(); if(task!==current)return;
   api.placeDisc(true);api.setTray(false,true);
-  try { const handle=ctx.burn(p=>{if(task!==current||current.status!=='burning')return; if(p.burnResult)current.burnResult=p.burnResult;if(p.speedReport)current.speedReport=p.speedReport;if(p.verifying)current.verifying=true; current.progress=Number.isFinite(p.progress)?Math.max(current.progress,Math.min(1,p.progress)):current.progress;current.elapsed=p.elapsed;current.remaining=p.remaining;sc.cut.update(current.progress,current.remaining);if(['success','failed','cancelled'].includes(p.status)){current.status=p.status;if(p.error)current.error=p.error;if(p.started===false)current.notStarted=true;if(p.status==='success')current.progress=1;W.q('.burn-cancel-check').hidden=true;setTimeout(()=>sc.cut.show(false),1200);}paint();},{speed});current.handle=handle;
+  try { const handle=ctx.burn(p=>{if(task!==current||current.status!=='burning')return; if(p.burnResult)current.burnResult=p.burnResult;if(p.speedReport)current.speedReport=p.speedReport;if(p.verifying&&!current.verifying){current.verifying=true;sfx.step(1);} current.progress=Number.isFinite(p.progress)?Math.max(current.progress,Math.min(1,p.progress)):current.progress;current.elapsed=p.elapsed;current.remaining=p.remaining;sc.cut.update(current.progress,current.remaining);if(['success','failed','cancelled'].includes(p.status)){current.status=p.status;chime(p);if(p.error)current.error=p.error;if(p.started===false)current.notStarted=true;if(p.status==='success')current.progress=1;W.q('.burn-cancel-check').hidden=true;setTimeout(()=>sc.cut.show(false),1200);}paint();},{speed});current.handle=handle;
     setTimeout(()=>{if(task===current&&current.status==='burning'&&visible){sc.cut.update(current.progress,current.remaining);sc.cut.show(true);}},900); }
   catch (e) {current.status='failed';current.error=e?.message||'';current.notStarted=true;paint();}
 }

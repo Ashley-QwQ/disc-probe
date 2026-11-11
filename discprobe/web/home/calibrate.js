@@ -5,6 +5,7 @@
 import { budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason } from "./guidance.mjs";
 import { cutaway } from "./drive-scene.js";
 import { floorLog } from "./floor-log.js";
+import * as sfx from "./sfx.js";
 const DEMO = Number(new URLSearchParams(location.search).get("demo")) || 40;   // simulated jobs run this many times faster (?demo=N)
 const R0 = 22, R1 = 58.5;             // data area, mm: the radius the head sweeps while burning
 
@@ -921,6 +922,7 @@ function holdButton(btn) {
 // Live workflow: phases describe the visible panel; measurements and verdicts come from disk.
 const liveText = (zh, en) => api.lang() === "zh" ? zh : en;
 function realError(error) {
+  if (error?.failure) sfx.failure(); else sfx.problem();      // a disc lost, or something to put right
   flow.error = api.backend.errorText(error, api.lang());
   flow.ask = null;
   if (flow.job) endJob();
@@ -1036,6 +1038,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       if (event.type === "started") current.id = event.job;
       if (event.type === "step") {
         f.realPhase = STEP_PHASE[event.name] ?? f.realPhase; f.stage = null; current.p = 0;
+        sfx.step(event.index ?? 0);
         $("job-name").textContent = event.name;
         flog.log(`$ python -m discprobe ${event.name}`, "command");
         if (event.name !== "geo") showInterior(false);
@@ -1074,7 +1077,8 @@ async function realNext(forceMeasure = false) {
       if (!api.selectedDrive()) throw new Error(liveText('没找到光驱。接好光驱，等电脑认出它，再点“重新检测”。', 'No drive found. Connect the drive, wait for the computer to see it, then press Check again.'));
       const result = await realJob("info");
       if (!result?.disc?.present) throw new Error(liveText('没有读到盘。放入光盘再检测。', 'No disc detected. Insert a disc and check again.'));
-      if (result.disc.media !== (flow.item.row || flow.detected?.media || "dvd")) throw new Error(liveText('盘的类型不符，请换盘后重试。', 'Wrong disc family. Replace the disc and check again.'));
+      const want = flow.item.row || flow.detected?.media || "dvd", got = String(result.disc.media || "?").toUpperCase();
+      if (result.disc.media !== want) throw new Error(liveText(`光驱里是 ${got} 盘，这里标定的是 ${want.toUpperCase()}。换一张 ${want.toUpperCase()} 再检测。`, `The drive holds a ${got} disc; this calibrates ${want.toUpperCase()}. Put in a ${want.toUpperCase()} and check again.`));
       const expectedMid = flow.detected?.mid || flow.item.mid;
       if (expectedMid && result.disc.mid !== expectedMid) throw new Error(liveText('厂商编号已改变，请放回同批次光盘。', 'The maker code changed. Insert a disc from the same batch.'));
       flow.detected = result.disc; flow.realPhase = "prepare"; flow.measureConfirmed = false;
@@ -1137,7 +1141,8 @@ async function realCalibrate(args = {}, extra = {}) {
   catch (error) {
     if (!error.result?.timing && !error.result?.geo) {
       // the core said why it stopped: in words, with the next step (a half-written disc is not used again)
-      if (error.result?.reason) throw new Error(stopText(error.result.reason));
+      if (error.result?.reason) throw Object.assign(new Error(stopText(error.result.reason)),
+        { failure: /the burn did not finish/.test(error.result.reason) && ["failed", "cancelled"].includes(flow.burnCheck?.result) });
       throw error;
     }
     result = error.result;
@@ -1149,6 +1154,7 @@ const stopText = (reason) => stopReason(reason, {burnStarted: ["failed", "cancel
 function finishCalibrate(result) {
   if (!result?.ok && !result?.geo && !result?.timing) throw new Error(result?.reason ? stopText(result.reason) : liveText('标定没有完成。', 'The calibration did not finish.'));
   flow.timing = result.timing; flow.geo = result.geo; flow.preset = result.preset;
+  if (result.ok) sfx.done(); else sfx.problem();          // measured and usable / measured, but not usable yet
   if (result.disc) flow.detected = { ...flow.detected, ...result.disc };
   flow.realPhase = "review";
 }

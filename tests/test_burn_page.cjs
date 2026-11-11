@@ -9,7 +9,9 @@ const source = fs.readFileSync(path.join(home, 'burn.js'), 'utf8')
 const node = () => ({textContent:'', dataset:{}, style:{setProperty(){}}, classList:{toggle(){}}, setAttribute(){}, replaceChildren(){}, after(){}, children:[{},{}], lastChild:{}});
 const nodes = new Map();
 const q = key => { if(!nodes.has(key))nodes.set(key,node());return nodes.get(key); };
-const sandbox = vm.createContext({document:{documentElement:node(),createElement:node}, console, q, node, assert, afterBurn:[]});
+const heard = [];
+const sfx = {step:i=>heard.push('step'+i), done:()=>heard.push('done'), problem:()=>heard.push('problem'), failure:()=>heard.push('failure')};
+const sandbox = vm.createContext({document:{documentElement:node(),createElement:node}, console, q, node, assert, afterBurn:[], sfx, heard});
 vm.runInContext(source, sandbox);
 vm.runInContext(String.raw`
   api={lang:()=> 'en'};
@@ -45,6 +47,11 @@ vm.runInContext(String.raw`
   assert.ok(!afterChecks(clean,true).some(([l,s])=>l==='Picture'&&s==='good'));
   // a clean sample is not repeated in the paragraph
   task=clean; paint(); assert.equal(q('.burn-result p').textContent,'');
+  // what is heard at the end: clean read-back done, a bad sample a problem, nothing written a problem, a lost disc a failure
+  heard.length=0;
+  chime({status:'success',burnResult:clean.burnResult}); chime({status:'success',burnResult:bad.burnResult});
+  chime({status:'success',burnResult:{verification:{status:'skipped'}}}); chime({status:'failed',started:false}); chime({status:'failed',started:true}); chime({status:'cancelled'});
+  assert.deepEqual([...heard],['done','problem','done','problem','failure']);
 `, sandbox);
 
 // Exercise realBurn's event forwarding using an in-memory EventSource; no HTTP or server.
