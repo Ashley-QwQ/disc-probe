@@ -350,6 +350,7 @@ def _write_chunks(path: str, job: dict, spans, first_lba: int):
         finally:
             _JOB.clear()
         return
+    print(f"Starting {count} worker processes (DISCPROBE_WORKERS={os.environ.get('DISCPROBE_WORKERS', 'auto')}); preparing image chunks...", flush=True)
     from concurrent.futures import ProcessPoolExecutor, as_completed
     with open(path, "wb") as f:
         f.truncate(total * dvd.SECTOR_BYTES)

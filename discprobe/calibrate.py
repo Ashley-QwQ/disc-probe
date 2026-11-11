@@ -169,7 +169,7 @@ def add_parser(sub) -> None:
     sp.add_argument("--media", choices=("dvd", "cd"), default="dvd")
     sp.add_argument("--iso", help="burn this measurement image first (needs --yes-write and a blank in the drive)")
     sp.add_argument("--yes-write", action="store_true", help="confirm the irreversible burn of --iso")
-    sp.add_argument("--burn-speed", type=float, help="write multiple for the burn (default: the lowest)")
+    sp.add_argument("--burn-speed", type=float, help="write multiple for the burn (default: DVD nearest supported to 8x, CD lowest)")
     sp.add_argument("--speed", help="read speed for timing and geo (as those commands take it)")
     sp.add_argument("--mid", help="the maker code the disc must have (the batch's)")
     sp.add_argument("--preset", help="also write a DiscImageStudio preset here")

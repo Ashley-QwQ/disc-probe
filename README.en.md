@@ -125,7 +125,11 @@ The measuring disc must hold plain data, since discs with burned patterns often 
 python -m discprobe random --output iso/random.iso
 ```
 
-**A burn can't be undone.** DVD+R, DVD-R and CD-R can't be erased; only RW discs can. The tool doesn't do the burning and can't stop one on the wrong disc, so it flashes a red warning once the image is ready.
+**A burn can't be undone.** DVD+R, DVD-R and CD-R can't be erased; only RW discs can. Check the image and the inserted disc before starting.
+
+The optional built-in command is `python -m discprobe burn --drive E: --iso iso/random.iso --yes-write` (Linux: `--drive /dev/sr0`). DVD defaults to the supported write speed closest to 8x; equal-distance ties choose the lower speed. CD keeps its previous lowest-speed default. Use `--speed 4` or another supported multiple to override. Slower is not always more reliable: on the reported GH70N/RITEKF1 picture-disc comparison, 4x had unreadable samples while 8x read cleanly. This is a practical default, not a guarantee for every drive or disc.
+
+The command and the web burn page print/report the requested and drive/utility-reported speeds, append them to `<image>.iso.burn.jsonl`, and automatically compare up to 96 evenly spaced, 16-sector-aligned blocks against the ISO after writing. Results count matching, differing and unreadable blocks and identify failed LBAs with approximate nominal radii. This checks a sample, not the entire disc. Reading can fail even when the picture looks fine; the write remains completed. Try another blank disc at another speed. Add `--no-verify` to skip the read-back sample. Windows CD burning remains unsupported by this command; Linux CD uses cdrdao.
 
 ### Step 2: check the drive
 
