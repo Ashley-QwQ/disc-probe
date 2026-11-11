@@ -105,7 +105,8 @@ export function cutaway(api, { mirrored = true, textLeft = () => innerWidth * 0.
       inside.clock.textContent = `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
     } else inside.clock.textContent = "";
   }
-  return { show, update, get on() { return !!inside?.on; } };
+  // box: the cutaway's picture, unmirrored, in render px (a container for cqw sizes)
+  return { show, update, get on() { return !!inside?.on; }, get box() { return inside?.box; } };
 }
 
 // A disc hovering over the open tray. Positions are worked out from the rig's box (which does not
@@ -152,6 +153,29 @@ export function flyer(api, { mirrored = true } = {}) {
       el.style.left = x; el.style.top = y;
       await wait(950);
       el.classList.remove("on", "drop");
+    },
+    // the disc in the tray rises out of it and hovers, the arrow pointing up (as on the calibration page)
+    async lift(name) {
+      el.querySelector(".print textPath").textContent = name ?? "";
+      el.classList.remove("drop", "hover");
+      const [tx, ty] = pct(...trayPoint());
+      el.style.transition = "none";
+      el.style.left = tx; el.style.top = ty;
+      el.classList.add("on", "up");
+      api.placeDisc(false);
+      void el.offsetWidth;
+      el.style.transition = "";
+      const [hx, hy] = pct(...hoverPoint());
+      el.style.left = hx; el.style.top = hy;
+      await wait(1400);
+      if (el.classList.contains("up") && el.classList.contains("on")) el.classList.add("hover");
+    },
+    // taken away: up and out of the picture
+    async away() {
+      el.classList.remove("hover");
+      el.style.top = "-30%";
+      await wait(1300);
+      el.classList.remove("on", "up");
     },
     hide() { el.classList.remove("on", "hover", "drop", "up"); },
   };

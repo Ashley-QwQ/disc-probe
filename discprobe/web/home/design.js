@@ -18,14 +18,21 @@ const STR = {
   zh: {
     untitled: "未命名工程", next: "下一步：预览", nextLater: "预览页下一轮做",
     burnLater: "网页里还不能直接刻录：后端这一版没有刻录命令。展开“用别的软件刻”，复制刻录文件的路径，用你常用的刻录软件刻。",
+    burnNoDrive: "没找到光驱。接好光驱后再回到这一页。", burnNoDisc: (why) => `读不了光驱里的盘：${why || "可能没放盘"}。放一张空白盘再回到这一页。`,
+    burnNotBlank: "光驱里这张不是空白盘。换一张同一批的空白盘，再回到这一页。", burnTooBig: "刻录文件比这张盘放得下的大。",
+    burnNotBlankSwap: (what) => `光驱里这张${what ? ` ${what} ` : ""}已经刻过了。按光驱上的弹出键把它取出来。`,
+    burnPutBlank: (mid) => `放一张空白的 ${mid || "同一批"} 盘，把托盘推回去。推回后会自动检查。`,
+    burnOtherBatch: (got, want) => `这张是 ${got}，几何是在 ${want} 上测的。取出它，换一张 ${want} 空白盘。`,
+    burnChecking: "正在检查这张盘（只读）…", burnTrayOpen: "托盘开着。放一张空白盘，再推回去。",
+    burnFailed: "刻录没有完成。这张盘可能已经写了一部分，不要再用。详细原因在任务日志里。",
     open: "打开工程", save: "保存工程", saveAs: "另存为", saved: (n) => `已保存：${n}`, opened: (n) => `已打开：${n}`,
     notProject: (n) => `${n} 不是 disc-probe 的工程文件。`, newer: (n) => `${n} 是新版本存的，这一版读不了。`,
-    otherMedia: (a, b) => `这份工程是给 ${a} 做的，现在打开在 ${b} 上；可刻范围按 ${b} 算。`,
+    changeDiscs: "换一批盘（打开盘库）", noDiscYet: "还没选盘", otherMedia: (a, b) => `这份工程是给 ${a} 做的，现在打开在 ${b} 上；可刻范围按 ${b} 算。`,
     unsaved: "工程还没保存，关掉页面会丢失。",
     exp: {
       drawing: "正在画整张盘的设计图…", sending: "正在交给后端…", making: "正在生成刻录文件…",
       noBackend: "生成刻录文件要由 disc-probe 打开这个页面：在命令行运行 python -m discprobe webui，再用它给的网址。",
-      noGeo: "还没有这台光驱测好的盘面几何，先完成标定。", otherMedia: (a, b) => `后端现在按 ${a} 工作，这张盘是 ${b}；用 --media ${b} 重新启动 webui。`,
+      noGeo: "这种盘还没有测好的盘面几何，先校准。",
       fineGrid: "10 µm 和 5 µm 还不能导出：命令行先要有正式的格子大小选项。先切回 20 µm。",
       failed: "生成失败。", empty: "盘上还没有图。", four: "4 级灰阶还不能导出：先用 2 级。",
     },
@@ -84,14 +91,21 @@ const STR = {
   en: {
     untitled: "Untitled project", next: "Next: preview", nextLater: "The preview page comes in the next round",
     burnLater: "Burning from the page isn't ready: this back end has no burn command yet. Open “Burn with another program”, copy the burn file's path and use the burning program you normally use.",
+    burnNoDrive: "No drive found. Connect the drive and come back to this page.", burnNoDisc: (why) => `Couldn't read the disc in the drive: ${why || "maybe there is none"}. Put in a blank disc and come back to this page.`,
+    burnNotBlank: "The disc in the drive isn't blank. Put in a blank from the same batch and come back to this page.", burnTooBig: "The burn file is bigger than this disc can hold.",
+    burnNotBlankSwap: (what) => `The disc in the drive${what ? ` (${what})` : ""} has already been written. Press the drive's eject button and take it out.`,
+    burnPutBlank: (mid) => `Put in a blank ${mid || "disc from the same batch"} and push the tray in. It is checked as soon as the tray closes.`,
+    burnOtherBatch: (got, want) => `This disc is ${got}; the geometry was measured on ${want}. Take it out and put in a blank ${want}.`,
+    burnChecking: "Checking this disc (read-only)…", burnTrayOpen: "The tray is open. Put in a blank disc and push it in.",
+    burnFailed: "The burn didn't finish. The disc may be partly written; don't use it. The job log has the details.",
     open: "Open project", save: "Save project", saveAs: "Save as", saved: (n) => `Saved: ${n}`, opened: (n) => `Opened: ${n}`,
     notProject: (n) => `${n} isn't a disc-probe project file.`, newer: (n) => `${n} was saved by a newer version; this one can't read it.`,
-    otherMedia: (a, b) => `This project was made for ${a} and is now open on ${b}; the burnable range is ${b}'s.`,
+    changeDiscs: "Use other discs (opens the disc library)", noDiscYet: "No discs chosen yet", otherMedia: (a, b) => `This project was made for ${a} and is now open on ${b}; the burnable range is ${b}'s.`,
     unsaved: "The project isn't saved; closing the page loses it.",
     exp: {
       drawing: "Drawing the whole disc…", sending: "Handing it to the back end…", making: "Making the burn file…",
       noBackend: "Making the burn file needs disc-probe to serve this page: run python -m discprobe webui and open the address it prints.",
-      noGeo: "There's no measured disc geometry for this drive yet. Finish calibration first.", otherMedia: (a, b) => `The back end is working on ${a} and this disc is ${b}; restart webui with --media ${b}.`,
+      noGeo: "No measured disc geometry for this disc type yet. Calibrate first.",
       fineGrid: "10 µm and 5 µm can't be exported yet: the command line needs a proper grid option first. Switch back to 20 µm.",
       failed: "Making the file failed.", empty: "There's no picture on the disc yet.", four: "4 grey levels can't be exported yet: use 2 for now.",
     },
@@ -181,7 +195,11 @@ const FLASH = [-43.66, 19.79];               // iPhone 17 Pro flash relative to 
 const FWHM = 0.08;                           // measured peak width in δ (the model said 0.04)
 
 let S = null;                                // the project on screen
-const projects = new Map();                  // one project per disc, kept while the page lives
+// The plans (works) made or opened while the page lives, newest first. A plan is a work, not a disc:
+// one batch of discs can carry many plans (docs/goals/gui-flow.md 1.1).
+const plans = [];
+const projects = new Map();                  // the shelf's old way in: one plan per shelf disc
+export const recentPlans = () => plans.filter((P) => P.layers.length || P.name);
 let W = null;                                // the workspace's DOM
 const V = { s: 5, cx: 0, cy: 0, w: 0, h: 0, dpr: 1 };   // canvas view: px per mm and the disc centre
 let nextId = 1;
@@ -1337,7 +1355,7 @@ async function projectText() {
     layers.push(e);
   }
   return JSON.stringify({
-    format: FILE_KIND, version: FILE_VERSION, media: S.media, disc: S.item?.name ?? null,
+    format: FILE_KIND, version: FILE_VERSION, media: S.media, disc: S.item?.name ?? null, geo: S.geo ?? null,
     tone: S.tone, files: S.files, pro: S.pro, cell: S.cell, scene: S.scene, lookColour: S.lookColour, lookY: S.lookY, layers,
   });
 }
@@ -1396,6 +1414,7 @@ async function openProject(file, handle = null) {
   if (data.tone) S.tone = { ...DEFAULT_TONE, ...data.tone };
   if (data.scene) S.scene = { ...S.scene, ...data.scene };
   if ([0.02, 0.01, 0.005].includes(data.cell)) S.cell = data.cell;
+  if (typeof data.geo === "string" && data.media === S.media) S.geo = data.geo;      // checked against the catalogue at export
   if (Number.isFinite(data.lookY)) S.lookY = data.lookY;
   S.name = baseName(file.name); S.handle = handle;
   changed();
@@ -1415,13 +1434,15 @@ async function pickProject() {
 }
 
 // ---------------------------------------------------------------- the whole disc, for the burn file
-// The design as `image --design-npy` reads it: 6000 × 6000 cells of 20 µm, row by row, dark = 1,
+// The design as `image --design-npy` reads it: one bit per cell (6000², 12000² or 24000² cells of 20, 10
+// or 5 µm across the 120 mm disc), row by row, dark = 1,
 // seen from the data side like the canvas. Drawn from the original pictures and toned like the canvas.
 const GRID = 6000, GRID_MM = 120;
-export async function designBits(onStage = () => {}) {
+export async function designBits(onStage = () => {}, { band: bandRows } = {}) {
   const t = T().exp;
   if (!S || !imageLayers().some((L) => L.visible)) throw new Error(t.empty);
-  if (S.cell !== 0.02) throw new Error(t.fineGrid);
+  const side = Math.round(GRID_MM / S.cell);           // 6000, 12000 or 24000 cells across
+  if (![6000, 12000, 24000].includes(side)) throw new Error(t.fineGrid);
   if (S.tone.levels === 4 && S.media === "cd") throw new Error(t.four);
   onStage(t.drawing);
   await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));   // let the stage show first
@@ -1436,10 +1457,29 @@ export async function designBits(onStage = () => {}) {
   }
   let worker;
   try {
-    const { g } = rasterise(-GRID_MM / 2, -GRID_MM / 2, GRID_MM / 2, GRID_MM / 2, GRID / GRID_MM, true, originals, layers);
-    const image = g.getImageData(0, 0, GRID, GRID);
+    // One band of rows at a time: a whole 5 µm disc (24000²) is more than a canvas can hold. Every band
+    // but the last has one row more, where the dithering runs on into the next band (processing.mjs).
+    // 20 µm stays one piece, as it was burned and checked: drawn in bands the browser resamples the picture a
+    // little differently, and dithering turns that into a different (equally good) pattern.
+    const ppm = side / GRID_MM, band = bandRows ?? (side <= GRID ? side : Math.max(64, Math.floor(12e6 / side)));   // bandRows: for checks
     worker = processingWorker();
-    return await worker.run({ kind: "export", image, adjustments, output, r0, rMax }, [image.data.buffer]);
+    await worker.run({ kind: "export-begin", side, r0, rMax, adjustments, output });
+    let pending = null;
+    for (let y0 = 0; y0 < side; y0 += band) {
+      const rows = Math.min(band, side - y0), more = y0 + rows < side ? 1 : 0;
+      const { g } = rasterise(-GRID_MM / 2, -GRID_MM / 2 + y0 / ppm, GRID_MM / 2, -GRID_MM / 2 + (y0 + rows + more) / ppm,
+        ppm, true, originals, layers);
+      const image = g.getImageData(0, 0, side, rows + more);
+      // Rasterize the next band while the worker processes this one. Keep at
+      // most one band waiting and preserve band order for diffusion carry.
+      if (pending) await pending;
+      pending = worker.run({ kind: "export-strip", image, y0, rows }, [image.data.buffer]);
+      // Attach a handler now, even if drawing the next band delays our await.
+      pending.catch(() => {});
+      if (side > GRID) onStage(`${t.drawing} ${Math.floor((100 * (y0 + rows)) / side)}%`);
+    }
+    await pending;
+    return await worker.run({ kind: "export-end" });
   } finally {
     worker?.close();
     for (const bitmap of originals.values()) bitmap.close();
@@ -1451,10 +1491,9 @@ export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
   const t = T().exp;
   const stop = () => { if (signal?.aborted) throw new DOMException("cancelled", "AbortError"); };
   let state;
-  try { const r = await fetch("/api/state"); if (!r.ok) throw 0; state = await r.json(); } catch { throw new Error(t.noBackend); }
-  if (state.media !== S.media) throw new Error(t.otherMedia(state.media.toUpperCase(), S.media.toUpperCase()));
-  const geo = state.steps?.find((s) => s.id === "geo");
-  if (!geo?.done || !geo.result) throw new Error(t.noGeo);
+  try { const r = await fetch(`/api/state?media=${S.media}`); if (!r.ok) throw 0; state = await r.json(); } catch { throw new Error(t.noBackend); }
+  const geoPath = projectGeo(state);
+  if (!geoPath) throw new Error(t.noGeo);
   const { bits, rMax } = await designBits((stage) => onProgress({ stage, fraction: null }));
   stop();
   onProgress({ stage: t.sending, fraction: null });
@@ -1467,7 +1506,7 @@ export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
   onProgress({ stage: t.making, fraction: 0 });
   const run = await fetch("/api/run", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "image", media: S.media, args: { geo: geo.result, design_npy: saved.design_npy, output, r_max: rMax } }),
+    body: JSON.stringify({ action: "image", media: S.media, args: { geo: geoPath, design_npy: saved.design_npy, output, r_max: rMax } }),
   });
   const job = await run.json().catch(() => ({}));
   if (!run.ok) throw new Error(job.error ?? t.failed);
@@ -1484,7 +1523,18 @@ export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
   });
   if (exit !== 0) throw new Error(t.failed);
   const info = await (await fetch(`/api/iso?path=${encodeURIComponent(output)}`)).json();
-  return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job };
+  S.geo = geoPath;                                     // the project keeps the geometry it was made with
+  return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job, geo: geoPath };
+}
+// Which measured geometry this project's burn file is made from: the one it was made with before (kept in the
+// project file), else its disc batch's own measurement (the shelf entry), else the newest complete one for the
+// disc type. The last is a guess about the batch, so it is only the fallback.
+function projectGeo(state) {
+  const known = new Set((state.catalogue?.[S.media] ?? []).filter((x) => ["good", "usable"].includes(x.s)).map((x) => x.geo));
+  if (S.geo && known.has(S.geo)) return S.geo;
+  if (S.item?.geo && ["good", "usable"].includes(S.item.s)) return S.item.geo;
+  const latest = state.steps?.find((x) => x.id === "geo");
+  return latest?.done && latest.result ? latest.result : null;
 }
 
 // ---------------------------------------------------------------- building the page
@@ -1495,7 +1545,7 @@ function build() {
   document.head.append(css);
   const ws = document.createElement("div");
   ws.className = "ws";
-  ws.innerHTML = `<div class="ws-title"><b class="pname"></b><span class="sub"></span><span class="dirty" aria-hidden="true"></span>` +
+  ws.innerHTML = `<div class="ws-title"><b class="pname"></b><button class="sub" type="button"></button><span class="dirty" aria-hidden="true"></span>` +
     `<span class="filebtns"><button class="sbtn" type="button" data-a="open"></button><button class="sbtn" type="button" data-a="save"></button></span></div>` +
     `<aside class="col col-l"></aside><aside class="col col-r"></aside>` +
     `<div class="cv"><canvas class="main"></canvas>` +
@@ -1601,6 +1651,8 @@ function words() {
   bo.innerHTML = `${I.open}<span>${t.open}</span>`; bo.title = `${t.open} (Ctrl+O)`;
   bs.innerHTML = `${I.save}<span>${t.save}</span>`; bs.title = `${t.save} (Ctrl+S) · ${t.saveAs} (Ctrl+Shift+S)`;
   W.sub.textContent = api.T().brand?.(S.item.name) ?? S.item.name;
+  W.sub.title = t.changeDiscs;
+  W.sub.onclick = chooseBatch;
   W.tools.innerHTML = ["move", "wand", "pan"].map((k) => `<button class="tb" type="button" data-tool="${k}" aria-label="${t.tools[k]}" title="${t.tools[k]}" aria-pressed="${S.tool === k}">${I[k]}</button>`).join("");
   W.tools.onclick = (e) => { const b = e.target.closest("[data-tool]"); if (b) setTool(b.dataset.tool); };
   const [p, o] = W.view.children;
@@ -1672,12 +1724,27 @@ function flight(fromRect, toCircle, back, done) {
   addEventListener("pointerdown", finish, true); addEventListener("keydown", finish, true);
 }
 
-export function start(homeApi, { fly = true } = {}) {
+// start(api): the shelf's way in (the disc in focus, its plan). Options:
+//   plan: open this plan; newPlan: a new plan on the disc in focus, then
+//   file: a picture to put in it, projectFile: a .discdesign to load into it, pick: ask for a .discdesign.
+export function start(homeApi, { fly = true, plan = null, newPlan = false, file = null, projectFile = null, pick = false,
+                                  name = null, noDisc = false, dropIn = false } = {}) {
   composeRevision++;
   api = homeApi; $ = api.$;
   const { col, item } = api.current();
-  S = projects.get(item);
-  if (!S) { S = newProject(item, col); S.selTol = 18; S.selFeather = 1; projects.set(item, S); }
+  if (plan) S = plan;
+  else if (newPlan) {
+    // "decide later" in the form: a plan with no disc batch yet (the kind still sets the drawable range)
+    const it = noDisc ? { kind: "unset", name: T().noDiscYet, mid: "", s: "none" } : item;
+    S = newProject(it, col); S.selTol = 18; S.selFeather = 1;
+    if (name) S.name = name;
+  }
+  else {
+    S = projects.get(item);
+    if (!S) { S = newProject(item, col); S.selTol = 18; S.selFeather = 1; projects.set(item, S); }
+  }
+  plans.splice(0, plans.length, S, ...plans.filter((P) => P !== S));
+  api.rememberBatch?.(S.item);
   if (!W) build();
   const from = api.focusDisc()?.getBoundingClientRect();
   root.dataset.mode = "design";
@@ -1693,6 +1760,19 @@ export function start(homeApi, { fly = true } = {}) {
     const r = W.cv.getBoundingClientRect();
     if (fly) flight(from, { x: r.left + V.cx, y: r.top + V.cy, d: 120 * V.s }, false);
   }, 30);
+  if (dropIn && !api.reduce) W.ws.animate([{ transform: "translateY(-40px)", opacity: 0 }, { transform: "none", opacity: 1 }],
+    { duration: 420, easing: "cubic-bezier(.2, .8, .2, 1)" });       // the next sheet comes down from above
+  if (file) importFiles([file]);
+  if (projectFile) openProject(projectFile);
+  if (pick) pickProject();
+}
+// The library handed back a batch for this plan: switch its discs (the disc kind too, if it changed).
+export function useBatch(homeApi, plan, item, col) {
+  const before = plan.media;
+  plan.item = item; plan.media = col;
+  if (plan.geo && before !== col) plan.geo = null;          // a geometry is for one disc kind
+  start(homeApi, { plan, fly: false });
+  if (before !== col) toast(T().otherMedia(before.toUpperCase(), col.toUpperCase()));
 }
 
 // ---------------------------------------------------------------- on to preview and burn
@@ -1733,22 +1813,100 @@ function mockBurn(onProgress) {
   }, 250);
   return { cancel() { clearInterval(id); onProgress({ status: "cancelled" }); } };
 }
+// ?mockburn: the burn page can be opened straight from the console, to look at its animations
+if (new URLSearchParams(location.search).has("mockburn")) globalThis.dpToBurn = (iso, back = () => {}) => toBurn(iso, back);
 async function toBurn(iso, back) {
   const burn = await import("./burn.js");
-  // The drive's real write speeds come from `info`, which the page doesn't run yet; until then offer
-  // the usual low speeds (pictures have burned well at 4x).
-  const speeds = S.media === "cd" ? [4, 8, 16] : [4, 8];
-  let drive = { id: "", name: "", speeds };
-  try {
-    const s = await (await fetch("/api/state")).json();
-    if (s.drives?.[0]) drive = { id: s.drives[0].id, name: s.drives[0].name, speeds };
-  } catch { /* the page says what it can */ }
-  burn.start(api, {
-    media: S.media, item: S.item, iso, drive, back,
-    // The back end has no burn command yet: say so plainly and point to the other-program route.
+  const t = T();
+  const mock = new URLSearchParams(location.search).has("mockburn");
+  // Which drive: the one this project's geometry was measured on (geo-H-…), else the first one listed.
+  let drive = { id: "", name: "", speeds: mock ? (S.media === "cd" ? [4, 8, 16] : [4, 8]) : [] }, problem = "", needSwap = false;
+  if (!mock) {
+    try {
+      const s = await (await fetch(`/api/state?media=${S.media}`)).json();
+      const letter = /geo-([A-Z])-/i.exec(S.geo ?? projectGeo(s) ?? "")?.[1];
+      const d = s.drives?.find((x) => letter && x.id.toUpperCase() === `${letter.toUpperCase()}:`) ?? s.drives?.[0];
+      if (d) drive = { id: d.id, name: d.name && d.name !== d.id ? d.name : d.id, speeds: [] };
+      if (d) ({ problem, swap: needSwap } = await inspectDisc(drive, iso)); else problem = t.burnNoDrive;
+    } catch { problem = t.exp.noBackend; }
+  }
+  // ?mockburn&mockswap: the drive holds a written disc; a pretend person changes it (open, empty, closed)
+  const mockSwap = mock && new URLSearchParams(location.search).has("mockswap");
+  if (mockSwap) { problem = t.burnNotBlankSwap(S.item?.mid || "RITEKF1"); needSwap = true; drive = { id: "H:", name: "H:", speeds: [] }; }
+  const ctx = {
+    media: S.media, item: S.item, iso, drive, back, driveProblem: problem, needSwap,
+    swapWords: { open: t.burnTrayOpen, checking: t.burnChecking, put: t.burnPutBlank(S.item?.mid || S.item?.name || "") },
+    // the disc in the drive is the wrong one: wait (read-only) while it is changed, then look again
+    swap: mockSwap ? async (onTray) => {
+      for (const [ms, state] of [[2500, "open"], [3000, "empty"], [3000, "loading"], [1500, "ready"]]) {
+        await new Promise((r) => setTimeout(r, ms)); onTray(state);
+      }
+    } : mock ? null : (onTray) => api.backend.job({ action: "swap", drive: drive.id, media: S.media, args: { minutes: 15 } },
+      (e) => { if (e.type === "tray") onTray(e.state); if (e.type === "started") ctx.swapJob = e.job; }),
+    stopSwap: () => { if (ctx.swapJob) api.backend.cancel(ctx.swapJob).catch(() => {}); },
+    recheck: mockSwap ? async () => { await new Promise((r) => setTimeout(r, 1200)); Object.assign(ctx, { driveProblem: "", needSwap: false }); drive.speeds = [4, 8]; return ctx; }
+      : async () => { ({ problem: ctx.driveProblem, swap: ctx.needSwap } = await inspectDisc(drive, iso)); return ctx; },
     // ?mockburn plays a pretend burn (a timer, no drive) so the page's animation can be looked at.
-    burn: new URLSearchParams(location.search).has("mockburn") ? mockBurn : () => { throw new Error(T().burnLater); },
-  });
+    burn: mock ? mockBurn : (onProgress, opts) => realBurn(iso, drive, onProgress, opts),
+  };
+  burn.start(api, ctx);
+}
+// A read-only look at the disc in the drive, asked for by coming to the burn page: `info` for what it is
+// (blank? which maker code?), then the burner's own inspection for room and speeds. A blank disc found
+// here opens the burn for two minutes. swap: the disc has to come out for a blank one of this batch.
+async function inspectDisc(drive, iso) {
+  const t = T();
+  let disc;
+  try { disc = (await api.backend.job({ action: "info", drive: drive.id, media: S.media }))?.disc; }
+  catch (e) { return { problem: t.burnNoDisc(e?.message ?? ""), swap: true }; }
+  if (!disc?.present) return { problem: t.burnPutBlank(S.item?.mid || S.item?.name || ""), swap: true };
+  if (disc.blank !== true) return { problem: t.burnNotBlankSwap(disc.mid || disc.kind || ""), swap: true };
+  const want = S.item?.mid;
+  if (want && disc.mid && disc.mid !== want) return { problem: t.burnOtherBatch(disc.mid, want), swap: true };
+  const r = await fetch(`/api/burn-speeds?drive=${encodeURIComponent(drive.id)}&media=${S.media}`);
+  const m = await r.json().catch(() => ({}));
+  if (!r.ok) return { problem: t.burnNoDisc(m.error ?? ""), swap: true };
+  if (m.blank !== true) return { problem: t.burnNotBlankSwap(disc.mid || ""), swap: true };
+  if (iso.sectors && m.free_sectors && iso.sectors > m.free_sectors) return { problem: t.burnTooBig, swap: false };
+  drive.speeds = m.speeds_x ?? [];
+  return { problem: "", swap: false };
+}
+// Burn through the back end: a one-time token, the `burn` job, its progress over the event stream.
+// Returns a handle at once; failures arrive as a "failed" status with the reason.
+function realBurn(iso, drive, onProgress, { speed } = {}) {
+  let job = null, es = null, closed = false, cancelled = false;
+  // started: whether the drive may have begun writing (after the job was accepted)
+  const fail = (error, started = !!job) => { if (closed) return; closed = true; es?.close(); onProgress({ status: "failed", error, started }); };
+  (async () => {
+    try {
+      const tok = await (await fetch("/api/burn-token")).json();
+      const r = await fetch("/api/run", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "burn", drive: drive.id, media: S.media, args: { iso: iso.path, ...(speed ? { speed } : {}) }, burn_token: tok.token }),
+      });
+      const out = await r.json().catch(() => ({}));
+      if (!r.ok) { fail(out.error ?? T().exp.failed); return; }
+      job = out.job;
+      es = new EventSource("/api/events");
+      const mine = (e) => { const d = JSON.parse(e.data); return d.job === job ? d : null; };
+      es.addEventListener("progress", (e) => {
+        const d = mine(e); if (!d) return;
+        onProgress({ progress: d.fraction, elapsed: d.elapsed_s, remaining: d.eta_s });
+      });
+      es.addEventListener("error", (e) => { if (e.data) { const d = mine(e); if (d?.message) fail(d.message); } });
+      es.addEventListener("done", (e) => {
+        const d = mine(e); if (!d || closed) return;
+        closed = true; es.close();
+        onProgress(d.exit === 0 ? { status: "success", progress: 1 } : cancelled ? { status: "cancelled" } : { status: "failed", error: T().burnFailed, started: true });
+      });
+    } catch { fail(T().exp.noBackend); }
+  })();
+  return {
+    cancel() {
+      cancelled = true;
+      if (job) fetch(`/api/jobs/${job}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+    },
+  };
 }
 
 function leave() {
@@ -1760,6 +1918,18 @@ function leave() {
   W.loupe.classList.remove("on");
   $("back").hidden = true;
   $("next").disabled = false;
-  api.goTo(...api.locate(S.item));          // back to where the disc stands on the shelf
-  setTimeout(() => flight(api.focusDisc()?.getBoundingClientRect(), to, true), 30);
+  void to;
+  api.toLobby ? api.toLobby() : api.goTo(...api.locate(S.item));      // back to the desk (the plan is in its recent list)
+}
+// the disc batch in the title: pick other discs for this plan in the library
+function chooseBatch() {
+  if (!api.chooseBatch) return;
+  composeRevision++;
+  stopPlay();
+  root.dataset.mode = "";
+  W.ws.classList.remove("on");
+  W.loupe.classList.remove("on");
+  $("next").disabled = false;               // the library's own button now (an empty plan had it off)
+  api.goTo(...api.locate(S.item));
+  api.chooseBatch(S);
 }

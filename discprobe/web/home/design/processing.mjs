@@ -126,7 +126,7 @@ export function normalizeOutput(options = {}) {
 
 function imageInfo(image) {
   record(image, "image");
-  const width = number(image.width, 1, 12000, "image width", true);
+  const width = number(image.width, 1, 24000, "image width", true);     // a 5 µm export band is 24000 wide
   const height = number(image.height, 1, 12000, "image height", true);
   if (width * height > MAX_PIXELS) throw new RangeError("image exceeds the 36 megapixel editor limit");
   if (!(image.data instanceof Uint8Array || image.data instanceof Uint8ClampedArray)
@@ -275,7 +275,7 @@ export function processRGBA(input, options = {}, context = {}) {
     }
   }
   const output = toRGBA(values, image);
-  output.histogram = histogram(output);
+  if (context.histogram !== false) output.histogram = histogram(output);
   return output;
 }
 
@@ -434,26 +434,32 @@ function averagedCells(image, o) {
   return { values, width, height };
 }
 
-function diffuse(values, w, h, o) {
+// strip: part of a taller picture, rows y0.. of it (see renderOutput). Its last row is the next strip's first:
+// it only gathers error here, and the next strip starts from those values, so the result is the same as in one piece.
+function diffuse(values, w, h, o, strip = null) {
   const add = (x, y, error) => {
     if (x < 0 || x >= w || y >= h) return;
     const i = y * w + x;
     if (!Number.isNaN(values[i])) values[i] += error;
   };
-  for (let y = 0; y < h; y++) {
-    const direction = y % 2 ? -1 : 1;
+  const y0 = strip?.y0 ?? 0, rows = strip?.more ? h - 1 : h;
+  if (strip?.carry) values.set(strip.carry.subarray(0, w), 0);
+  for (let y = 0; y < rows; y++) {
+    const direction = (y + y0) % 2 ? -1 : 1;
     for (let x = direction > 0 ? 0 : w - 1; x >= 0 && x < w; x += direction) {
       const i = y * w + x, v = values[i];
       if (Number.isNaN(v)) continue;
       const q = v <= 0 ? 0 : v >= 1 ? 1 : v >= o.threshold ? 1 : 0;
       const error = (v - q) * o.strength;
       values[i] = q;
+      if (error === 0) continue;
       add(x + direction, y, error * 7 / 16);
       add(x - direction, y + 1, error * 3 / 16);
       add(x, y + 1, error * 5 / 16);
       add(x + direction, y + 1, error / 16);
     }
   }
+  if (strip) strip.carry = strip.more ? values.slice((h - 1) * w, h * w) : null;
 }
 
 /**
@@ -462,11 +468,45 @@ function diffuse(values, w, h, o) {
  * alpha is preserved for editing/preview, not interpreted as a physical texture.
  * In particular the existing Python --picture loader discards PNG alpha.
  */
-export function renderOutput(input, options = {}) {
+// strip (optional): { y0, more, carry } for a band of rows y0.. of a taller picture, drawn one band at a time.
+// more: the band has one row below its own (the next band's first), for the error diffusion to run on into;
+// carry: what the previous band left in that row (replaced on the way out). Needs cellSize 1.
+export function renderOutputCells(input, options = {}, strip = null) {
   const image = imageInfo(input), o = normalizeOutput(options);
+  if (strip && o.cellSize !== 1) throw new RangeError("a strip needs cellSize 1");
   const { values, width: w, height: h } = averagedCells(image, o);
+  return ditherCells(values, w, h, o, strip);
+}
+
+// The page's tone controls have no spatial filters. Fuse their point transform
+// with output-cell preparation, retaining BOTH the Float32 and byte rounding
+// boundaries of processRGBA -> renderOutput. No intermediate RGBA is needed.
+export function renderExportCells(input, adjustments = {}, options = {}, strip = null) {
+  const image = imageInfo(input), a = normalizeAdjustments(adjustments), o = normalizeOutput(options);
+  if (o.cellSize !== 1 || a.denoise || a.clarity || a.texture || a.sharpen || a.grain) {
+    return renderOutputCells(processRGBA(image, adjustments, { previewScale: 1, histogram: false }), options, strip);
+  }
+  const table = toneTable(a), lookup = new Float32Array(256);
+  const coverage = Float32Array.from({ length: o.levels }, (_, i) => mapCurve(o.outputCurve, i / (o.levels - 1)));
+  for (let g = 0; g < 256; g++) {
+    const index = Math.round((g * 0.299 + g * 0.587 + g * 0.114) / 255 * (o.levels - 1));
+    lookup[g] = coverage[index];
+  }
+  const { width, height, data } = image, values = new Float32Array(width * height);
+  for (let i = 0; i < values.length; i++) {
+    const j = i * 4;
+    if (!data[j + 3]) { values[i] = NaN; continue; }
+    const v = (data[j] * a.mix[0] + data[j + 1] * a.mix[1] + data[j + 2] * a.mix[2]) / 255 * 4096;
+    const k = Math.min(4095, Math.floor(v)), t = v - k;
+    values[i] = lookup[byte(Math.fround(table[k] + (table[k + 1] - table[k]) * t))];
+  }
+  return ditherCells(values, width, height, o, strip);
+}
+
+function ditherCells(values, w, h, o, strip) {
+  const y0 = strip?.y0 ?? 0;
   if (o.mode === "floyd-steinberg") {
-    diffuse(values, w, h, o);
+    diffuse(values, w, h, o, strip);
   } else if (o.mode !== "grayscale") {
     let size = o.matrixSize, ranks;
     if (o.mode === "ordered") ranks = bayer(size);
@@ -482,14 +522,20 @@ export function renderOutput(input, options = {}) {
       if (Number.isNaN(v)) continue;
       let threshold = o.threshold;
       if (ranks) {
-        const xx = wrap(Math.floor(c * x + s * y) + phaseX), yy = wrap(Math.floor(-s * x + c * y) + phaseY);
+        const yy0 = y + y0, xx = wrap(Math.floor(c * x + s * yy0) + phaseX), yy = wrap(Math.floor(-s * x + c * yy0) + phaseY);
         threshold += o.strength * ((ranks[yy * size + xx] + 0.5) / ranks.length - 0.5);
       }
       values[i] = v <= 0 ? 0 : v >= 1 ? 1 : v >= threshold ? 1 : 0;
     }
   }
+  return { values, width: w, height: h, cellSize: o.cellSize };
+}
+
+export function renderOutput(input, options = {}, strip = null) {
+  const image = imageInfo(input);
+  const { values, width: w, cellSize } = renderOutputCells(image, options, strip);
   const data = new Uint8ClampedArray(image.data.length);
-  if (o.cellSize === 1) {
+  if (cellSize === 1) {
     for (let i = 0; i < values.length; i++) {
       const j = i * 4, v = values[i], g = Number.isNaN(v) ? 255 : byte(v);
       data[j] = data[j + 1] = data[j + 2] = g;
@@ -499,7 +545,7 @@ export function renderOutput(input, options = {}) {
   }
   for (let y = 0; y < image.height; y++) for (let x = 0; x < image.width; x++) {
     const j = (y * image.width + x) * 4;
-    const v = values[Math.floor(y / o.cellSize) * w + Math.floor(x / o.cellSize)];
+    const v = values[Math.floor(y / cellSize) * w + Math.floor(x / cellSize)];
     const g = Number.isNaN(v) ? 255 : byte(v);
     data[j] = data[j + 1] = data[j + 2] = g;
     data[j + 3] = image.data[j + 3];

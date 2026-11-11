@@ -15,14 +15,18 @@
 .ws.on > * { pointer-events: auto; }
 @media (max-width: 1240px) { .ws { --colL: 232px; --colR: 268px; } }
 
-.ws-title { position: fixed; top: var(--edge); left: calc(var(--edge) + 128px); height: 52px; display: flex; align-items: center; gap: 12px; font-size: 18px; white-space: nowrap; }
+/* left of the title: the back button, then the collapsed "DP" mark (index.html) */
+.ws-title { position: fixed; top: var(--edge); left: calc(var(--edge) + 192px + var(--ver-w, 0px));   /* past the mark and its version */ height: 52px; display: flex; align-items: center; gap: 12px; font-size: 18px; white-space: nowrap; }
 .ws-title b { font-weight: 700; font-stretch: 112%; }
-.ws-title .sub { color: var(--ink-3); }
+.ws-title .sub { color: var(--ink-3); background: none; border: 0; padding: 4px 6px; margin: 0 -6px; font: inherit; cursor: pointer; border-radius: 3px; }
+.ws-title .sub:hover, .ws-title .sub:focus-visible { color: var(--ink); text-decoration: underline dotted; text-underline-offset: 4px; }
 .ws-title .dirty { width: 8px; height: 8px; border-radius: 50%; background: var(--copper); opacity: 0; transition: opacity 200ms; }
 .ws-title .dirty.on { opacity: 1; }
 .ws-title .filebtns { display: flex; gap: 6px; margin-left: 8px; }
 .ws-title .filebtns .sbtn { min-height: 36px; padding: 0 10px; font-size: 14px; }
 .ws-title .filebtns .sbtn:active:not(:disabled) { transform: translateY(1px); }
+@media (max-width: 1240px) { .ws-title .filebtns .sbtn span { display: none; } }   /* icons only: room for the tools on the right */
+@media (max-width: 480px) { .ws-title { left: calc(var(--edge) + 128px); } }       /* no "DP" mark this narrow */
 
 /* ---- columns ---- */
 .col { position: fixed; top: var(--top); bottom: 92px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; display: grid; align-content: start; gap: 0; }

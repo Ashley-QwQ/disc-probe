@@ -1,4 +1,5 @@
 import { render } from './model.mjs';
+import { photoSurface } from './surface.mjs';
 let design, width, latest = 0;
 let tableError;
 const table = fetch(new URL('./textures.bin', import.meta.url)).then(r => {
@@ -30,9 +31,12 @@ self.onmessage = async ({ data: m }) => {
     const lut = await table;
     if (!lut) throw tableError;
     if (token !== latest || !design) return;
-    const start = performance.now(), pixels = await render(design, width, lut, m.pose, m.size, m.fine,
+    const start = performance.now();
+    let pixels = await render(design, width, lut, m.pose, m.size, m.fine,
       () => token !== latest, yieldTask);
+    const modelMs = performance.now() - start;
+    if (pixels && m.pose.photoLook) pixels = await photoSurface(pixels, m.size, m.pose, () => token !== latest, yieldTask, { design, width });
     if (pixels && token === latest) self.postMessage({ id: m.id, size: m.size, fine: m.fine,
-      ms: performance.now() - start, buffer: pixels.buffer }, [pixels.buffer]);
+      ms: performance.now() - start, modelMs, buffer: pixels.buffer }, [pixels.buffer]);
   } catch (error) { self.postMessage({ id: m.id, error: error.message }); }
 };

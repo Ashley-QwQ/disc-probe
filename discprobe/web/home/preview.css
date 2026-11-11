@@ -57,3 +57,18 @@
 }
 
 @media (prefers-reduced-motion: reduce) { .pv-bar i.indet { animation: none; width: 100%; opacity: .4; } }
+
+/* Camera controls inherit the preview's native tool vocabulary. */
+.pv-photo-controls { display: grid; gap: 12px; padding-block: 4px 12px; border-bottom: 1px solid var(--rule); }
+.pv-check, .pv-backing { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; font-size: 16px; }
+.pv-check input { width: 22px; height: 22px; flex-shrink: 0; accent-color: var(--copper); }
+.pv-backing select { min-height: 44px; max-width: 52%; font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 3px; padding: 4px 8px; }
+.pv-photo-controls :disabled { opacity: .45; cursor: default; }
+.pv-photo-controls :focus-visible { outline: 2px solid var(--copper); outline-offset: 3px; }
+.pv-looking .col p.pv-rough-note { color: var(--ink-2); }
+/* the disc filling while the burn file is made (preview.js paintThumb) */
+.pv-gen { display: grid; place-items: center; margin: 4px 0 14px; }
+.pv-gen canvas { width: min(240px, 100%); aspect-ratio: 1; }
+.pv-gen[aria-valuenow="0"] canvas { animation: pv-wait 1.6s ease-in-out infinite; }
+@keyframes pv-wait { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .pv-gen canvas { animation: none !important; } }

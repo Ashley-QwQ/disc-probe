@@ -1,0 +1,96 @@
+{
+ "top": {
+  "mode": "top",
+  "image_size": [
+   2560,
+   1440
+  ],
+  "px_per_mm": 3.455,
+  "pixel_origin": "top-left, y down",
+  "disc": {
+   "centre_px": [
+    512.0,
+    632.59
+   ],
+   "radius_px": 207.3,
+   "label_radius_px": 202.12,
+   "label_inner_radius_px": 79.47,
+   "hole_radius_px": 25.91,
+   "note": "blank printable disc, label side up: put the DP mark (HTML/SVG) inside the label ring (between label_inner_radius_px and label_radius_px)"
+  },
+  "drive_body_rect_px": [
+   231.11,
+   -304.75,
+   792.89,
+   421.14
+  ],
+  "tray_rect_px": [
+   283.28,
+   399.29,
+   740.72,
+   1111.11
+  ],
+  "rect_note": "[left, top, right, bottom] in px",
+  "pool_centre_px": [
+   1210.9,
+   650.9
+  ],
+  "pool_sigma_px": 829.2,
+  "free_area_note": "right of x = 833 px is plain lit desk (the form floats there)"
+ },
+ "paper": {
+  "mode": "paper",
+  "image_size": [
+   1400,
+   1700
+  ],
+  "px_per_mm": 4.9231,
+  "pixel_origin": "top-left, y down",
+  "sheet_rect_px": [
+   60.0,
+   60.09,
+   1340.0,
+   1639.91
+  ],
+  "content_rect_px": [
+   162.0,
+   163.09,
+   1238.0,
+   1536.91
+  ],
+  "inner_margins_px": {
+   "left": 102,
+   "right": 102,
+   "top": 103,
+   "bottom": 103
+  },
+  "shadow_note": "paper_shadow_<theme>.png has the same canvas; lift the sheet by moving it up-right of the shadow (light from the upper right)"
+ },
+ "envelope": {
+  "mode": "envelope",
+  "image_size": [
+   1600,
+   1541
+  ],
+  "px_per_mm": 4.5373,
+  "pixel_origin": "top-left, y down",
+  "pocket_top_y_px": 421.13,
+  "back_top_y_px": 366.68,
+  "flap_top_y_px": 85.37,
+  "opening_x_px": [
+   40.0,
+   1560.0
+  ],
+  "envelope_rect_px": [
+   40.0,
+   85.37,
+   1560.0,
+   1455.63
+  ],
+  "button_centre_px": [
+   800.0,
+   647.99
+  ],
+  "layer_note": "draw envelope_back, then the sliding sheet, then envelope_front; a sheet clipped at pocket_top_y_px looks inside the pocket"
+ }
+}

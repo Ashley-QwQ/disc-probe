@@ -1,0 +1,99 @@
+/* The new-plan page (newplan.js). Art: baked renders in ./newplan/ (positions in newplan/newplan.json). */
+.np { position: fixed; inset: 0; z-index: 1; background: var(--paper); overflow: hidden; transform-origin: 50% 50%;
+  --wp: min(63.5vw, 1180px);                        /* the paper as seen: its left edge near a third of the window */
+  --m: calc(var(--wp) * 60 / 1280);                 /* the paper picture's margin around the sheet (1400 px picture, 60 px each side) */
+  --fs: clamp(13px, min(1.45vw, 2.35vh), 23px); }   /* the form's type scales with the window */
+.np[hidden] { display: none; }
+:root[data-mode="newplan"] :is(.lobby, .stage, .counter, .detail) { visibility: hidden; }
+
+/* the drive from above on the lit desk: one 2560 x 1440 picture covering the window (the DP on the
+   blank disc is printed in the render) */
+.np-desk { position: absolute; inset: 0; }
+.np-scene { position: absolute; left: 50%; top: 50%; width: max(100vw, 177.78vh); aspect-ratio: 16 / 9; transform: translate(-50%, -50%);
+  background: url(newplan/top_paper.webp) 0 0 / 100% 100%; }
+:root[data-theme="dark"] .np-scene { background-image: url(newplan/top_dark.webp); }
+
+.np-title { position: absolute; left: var(--edge); bottom: calc(80px + 3vh); margin: 0; font-weight: 800; font-stretch: 112%;
+  font-size: clamp(56px, 11vh, 132px); line-height: 1; color: color-mix(in srgb, var(--ink) 55%, transparent); }
+
+/* the sheet: the baked paper (and its shadow, away from the lamp), large, running on under the footer
+   and out of the window */
+.np-sheet { position: absolute; right: calc(2.5vw - var(--m)); top: calc(96px - var(--m)); bottom: 0; width: calc(var(--wp) + 2 * var(--m));
+  box-sizing: border-box; padding: calc(var(--m) + 1.5em) calc(var(--m) + 2.6em) 0; font-size: var(--fs);
+  background: url(newplan/paper_paper.webp) 0 0 / 100% auto no-repeat,
+              url(newplan/paper_shadow_paper.webp) calc(var(--m) * -.4) calc(var(--m) * .5) / 100% auto no-repeat;
+  --ink-f: #24221e; --soft-f: #6b6558; --line-f: #8b8576; --well-f: rgba(255,255,255,.35); --left-f: #4a6b5c; --link-f: #4b46b8;
+  --disc-f: #eee4cd; --hub-f: #e2d5ba; --hole-f: #f7f3ea; --key-fill: rgba(255,255,255,.25); --key-line: #bdb4a0; --key-ink: #8b8576;
+  --key-on: #24221e; --key-on-fill: rgba(255,255,255,.6); --key-blank: #ddd4c2; --warn-f: #c08a3e; --note-f: rgba(192,138,62,.09);
+  color: var(--ink-f); transform-origin: 0 0; transition: transform 520ms var(--ease);
+  overflow-y: auto; scrollbar-width: none; padding-bottom: 110px; }   /* on a short window the form scrolls out from under the footer */
+:root[data-theme="dark"] .np-sheet { background-image: url(newplan/paper_dark.webp), url(newplan/paper_shadow_dark.webp);
+  --ink-f: #ece6d6; --soft-f: #b9b3a3; --line-f: #9a9484; --well-f: rgba(0,0,0,.16); --left-f: #9fc7b2; --link-f: #b7b2ff;
+  --disc-f: #8b897c; --hub-f: #7b796d; --hole-f: #6a6b60; --key-fill: rgba(0,0,0,.08); --key-line: #8f8b7d; --key-ink: #b4ae9f;
+  --key-on: #f1ebdc; --key-on-fill: rgba(255,255,255,.1); --key-blank: #7a786d; --warn-f: #e0b066; --note-f: rgba(224,176,102,.1); }
+/* the letterhead: the folded wordmark, large, and the release after it (the header hides its own here) */
+.np-head { display: flex; align-items: flex-end; gap: .9em; }
+.np-wm { font-size: 3em; transform: skewX(-11deg); color: var(--ink-f); }
+.np-ver { font: 600 .95em var(--font); letter-spacing: .02em; color: var(--soft-f); padding-bottom: .35em; }
+:root[data-mode="newplan"] .top .wm-ver:not(:empty) { display: none; }
+.np-field { display: grid; gap: .45em; margin-top: 1.5em; }
+.np-first { margin-top: 5.6em; }                  /* below the dial hanging from the top edge (9.6em tall) */
+.np-label { font-size: 1.6em; font-weight: 700; }
+.np-input { display: flex; align-items: center; gap: .6em; border: 1.5px solid var(--line-f); border-radius: 4px; padding: 0 .7em; background: var(--well-f); }
+.np-input:focus-within { border-color: var(--ink-f); }
+.np-name { flex: 1; min-width: 0; height: 2.7em; border: 0; background: transparent; font: 400 1.12em var(--font); color: var(--ink-f); outline: none; }
+.np-name::placeholder { color: var(--soft-f); }
+.np-tab { font: 600 .7em var(--mono); padding: .3em .6em; border: 1px solid var(--line-f); border-radius: 4px; color: var(--soft-f); }
+.np-batch { height: 2.6em; border: 1.5px solid var(--line-f); border-radius: 4px; padding: 0 .7em; background: var(--well-f); font: 600 1.15em var(--font); color: var(--ink-f); }
+.np-batch option { color: #24221e; }
+.np-batch:focus { outline: none; border-color: var(--ink-f); }
+.np-help { font-size: .9em; color: var(--soft-f); display: flex; gap: 1em; justify-content: space-between; }
+.np-left { color: var(--left-f); font-weight: 700; }
+/* calibrated or not, under the batch: a quiet date, or a note with the detour */
+.np-cal { margin: .7em 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: .3em 1em; font-size: .95em; color: var(--soft-f); }
+.np-cal:not(.ok) { padding: .55em .8em; border-left: 3px solid var(--warn-f); background: var(--note-f); color: var(--ink-f); }
+.np-cal[hidden], .np-cal-go[hidden] { display: none; }
+.np-cal-go { background: none; border: 0; padding: 0; font: 700 1em var(--font); color: var(--link-f); cursor: pointer; text-decoration: underline; text-underline-offset: .3em; }
+.np-pack { margin-top: 1.7em; background: none; border: 0; padding: 0; font: 600 1.15em var(--font); color: var(--link-f); cursor: pointer;
+  text-decoration: underline; text-underline-offset: .3em; }
+
+/* the disc: half a disc hanging from the sheet's top edge, two rings of keys below it cut from
+   concentric circles (inner: the kind, outer: the type); the half disc shows the two together */
+.np-dial { position: absolute; top: calc(var(--m) - .1em); right: calc(var(--m) + 1.6em); width: 19em; }
+.np-dial-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.np-disc { fill: var(--disc-f); stroke: var(--key-line); stroke-width: 1.5; }
+.np-hub { fill: var(--hub-f); }
+.np-hole { fill: var(--hole-f); }
+.np-face-text { font: 800 27px var(--font); font-stretch: 115%; letter-spacing: .04em; fill: var(--ink-f); text-anchor: middle; }
+.np-face { transform-box: view-box; transform-origin: 0 0; }
+.np-face.turn-down { animation: np-turn-down 380ms var(--ease); }
+.np-face.turn-up { animation: np-turn-up 380ms var(--ease); }
+@keyframes np-turn-down { from { transform: rotate(-70deg); } }
+@keyframes np-turn-up { from { transform: rotate(70deg); } }
+.np-key path { fill: var(--key-fill); stroke: var(--key-line); stroke-width: 2.2; stroke-linejoin: round; cursor: pointer; transition: fill 160ms, stroke 160ms; }
+.np-key text { font: 700 19px var(--font); font-stretch: 110%; letter-spacing: .03em; text-anchor: middle; fill: var(--key-ink); pointer-events: none; transition: fill 160ms; }
+.np-key:not(.blank):hover path { stroke: var(--key-on); }
+.np-key.on path { fill: var(--key-on-fill); stroke: var(--key-on); stroke-width: 3; }
+.np-key.on text { fill: var(--key-on); }
+.np-key.blank path { fill: none; stroke: var(--key-blank); cursor: default; }
+.np-key:focus { outline: none; }
+.np-key:focus-visible path { stroke: var(--copper); stroke-width: 3.4; }
+
+/* on next: the envelope rises (its pocket top to a third of the height), the sheet shrinks into it
+   between its back and front, then everything drops out of the frame. newplan.js measures the stops
+   (--env-*, --file-*) from the page as laid out. */
+.np-env-back, .np-env-front { position: absolute; left: var(--env-x, 40vw); top: var(--env-y, 20vh); width: var(--env-w, 50vw); aspect-ratio: 1600 / 1541;
+  pointer-events: none; background: 0 0 / 100% 100% no-repeat; transform: translateY(110vh); transition: transform 1000ms cubic-bezier(.2, .8, .2, 1); }
+.np-env-back { background-image: url(newplan/envelope_back_paper.webp); }
+.np-env-front { background-image: url(newplan/envelope_front_paper.webp); }
+:root[data-theme="dark"] .np-env-back { background-image: url(newplan/envelope_back_dark.webp); }
+:root[data-theme="dark"] .np-env-front { background-image: url(newplan/envelope_front_dark.webp); }
+.np.filing :is(.np-env-back, .np-env-front) { transform: none; }
+.np.filing .np-sheet { transform: translate(var(--file-x), var(--file-y)) scale(var(--file-s)); transition-duration: 1000ms; }
+.np.leaving :is(.np-env-back, .np-env-front) { transform: translateY(120vh); transition-duration: 600ms; transition-timing-function: cubic-bezier(.5, 0, .9, .5); }
+.np.leaving .np-sheet { transform: translate(var(--file-x), calc(var(--file-y) + 120vh)) scale(var(--file-s)); transition-duration: 600ms; transition-timing-function: cubic-bezier(.5, 0, .9, .5); }
+
+.np-toast { position: absolute; left: 50%; bottom: 100px; transform: translate(-50%, 8px); padding: 10px 16px; border-radius: 3px; background: var(--ink); color: var(--paper); opacity: 0; transition: opacity 200ms, transform 200ms; pointer-events: none; }
+.np-toast.on { opacity: 1; transform: translate(-50%, 0); }
+@media (max-width: 860px) { .np { --wp: 92vw; } .np-sheet { right: calc(4vw - var(--m)); top: calc(84px - var(--m)); } .np-title { display: none; } }
+@media (prefers-reduced-motion: reduce) { .np-env-back, .np-env-front, .np-sheet, .np-face { transition: none !important; animation: none !important; } }

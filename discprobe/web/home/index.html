@@ -72,6 +72,11 @@
   :is(.layer.ghost, .layer.burner)[data-depth="2"] { opacity: .3; }
   :is(.layer.ghost, .layer.burner)[data-depth="3"] { opacity: .2; }
   .layer.ghost[data-front="true"] { opacity: .16; }
+  :root[data-live] .layer.ghost { display: none; }
+  :root[data-live] .layer.solid[data-depth="1"] { opacity: .5; }
+  :root[data-live] .layer.solid[data-depth="2"] { opacity: .3; }
+  :root[data-live] .layer.solid[data-depth="3"] { opacity: .2; }
+  :root[data-live] .layer.solid[data-front="true"] { opacity: .16; }
   /* the burner rig: body, and the tray sliding in its slot (closed = moved in by --slide) */
   .disc.new-slot :is(.iso-fill, .iso-top, .iso-shade) { fill: none !important; }
   .disc.new-slot :is(.aura, .sheen, .glint) { display: none; }
@@ -127,6 +132,36 @@
 
   /* ---- corners ---- */
   .corner { position: fixed; z-index: 2; }
+
+  /* ===== the lobby: a desk, "new plan" on the left, "open plan" on the right (docs/goals/gui-outline.md 3.0).
+     The shelf behind it is the disc library, reached from the header. ===== */
+  .lobby { position: fixed; inset: 0; z-index: 1; display: none; background: var(--paper); }
+  :root[data-home="lobby"]:is(:not([data-mode]), [data-mode=""]) .lobby { display: block; }
+  :root[data-home="lobby"]:is(:not([data-mode]), [data-mode=""]) :is(.counter, .detail, .stage) { visibility: hidden; }
+  .lobby-art { position: absolute; left: 50%; top: 52%; width: min(1180px, 92vw); aspect-ratio: 1600 / 1062; transform: translate(-50%, -50%); }
+  .lobby-art svg, .lobby-art img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .lobby-art .ph { fill: none; stroke: var(--ink-3); stroke-width: 1.4; stroke-linejoin: round; }
+  .lobby-art .ph-fill { fill: var(--paper-2); }
+  /* a label is a pane of glass standing in the room, in front of / above its object (user, 2026-11-10):
+     a vertical plane parallel to the back wall, so it is skewed like the isometric view. Clear glass:
+     a faint tint, a bright top edge and a thin rim, no blur (impeccable bans decorative frosted glass). */
+  .lobby-go { position: absolute; transform: translate(-50%, -100%) matrix(0.866, -0.5, 0, 1, 0, 0); transform-origin: 50% 100%;
+    display: grid; justify-items: start; gap: 6px; padding: 14px 22px 16px; color: var(--ink); cursor: pointer; font: inherit;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--ink) 9%, transparent), color-mix(in srgb, var(--ink) 3%, transparent));
+    border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent); border-top-color: color-mix(in srgb, var(--ink) 55%, transparent); border-radius: 3px;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--paper) 40%, transparent); }
+  .lobby-go b { font-weight: 800; font-stretch: 120%; font-size: clamp(28px, 3.2vw, 46px); letter-spacing: .04em; line-height: 1; }
+  .lobby-go small { font-size: 15px; color: var(--ink-2); }
+  .lobby-go:focus-visible { outline: 2px solid var(--copper); outline-offset: 6px; border-radius: 4px; }
+  :root[data-motion="on"] .lobby-go { animation: lobby-float 3.2s ease-in-out infinite; }
+  :root[data-motion="on"] .lobby-go.open { animation-delay: -1.6s; }
+  @keyframes lobby-float { 50% { translate: 0 -6px; } }
+  .lobby-go:hover, .lobby-go:focus-visible { border-color: color-mix(in srgb, var(--copper) 60%, transparent); }
+  .lobby-go:hover b, .lobby-go:focus-visible b { color: var(--copper); }
+  .lobby-recent { position: absolute; transform: translate(-50%, 0); margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; min-width: 220px; }
+  .lobby-recent button { width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 8px 2px; color: var(--ink); font: 15px var(--font); cursor: pointer; }
+  .lobby-recent button:hover { color: var(--copper); }
+  @media (max-width: 720px) { .lobby-art { top: 46%; width: 112vw; } .lobby-go b { font-size: 26px; } }
   /* the header: one row, one control height, the wordmark and the tools on one centre line; the
      outermost glyphs sit on the page's content edges (left = the wordmark, right = the next button) */
   .top { position: fixed; z-index: 3; top: var(--edge); left: var(--edge); right: var(--edge); height: 52px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
@@ -135,9 +170,14 @@
   .bl { top: calc(100vh - 80px - var(--edge) - 236px); left: calc(var(--edge) + 120px); transform-origin: 0 0; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0); }
 
   .wordmark { margin: 0; font-weight: 800; font-stretch: 125%; font-size: 34px; letter-spacing: .01em; line-height: 1; display: flex; align-items: center; }
-  .pro { background: var(--dvd); -webkit-background-clip: text; background-clip: text; color: transparent; display: inline-flex; align-items: center; }
+  .pro { display: inline-flex; align-items: center; }
+  /* one gradient across "PRO", painted per letter (a text clip on .pro itself would ignore the
+     letters' own clipping and fading below): sized to the whole of .pro (P .871 + R .942 + disc
+     .90em) and shifted by each letter's offset */
+  .pro .wm-p > span, .pro .wm-cut > span { background: var(--dvd) 0 0 / 2.713em 100% no-repeat; -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .pro .wm-cut > span { background-position: -.871em 0; }
   .o-disc { /* the o of "pro" is a small disc in the same DVD colours, turning when pointed at */
-    position: relative; display: inline-block; width: .78em; height: .78em; margin: 0 .07em 0 .05em; border-radius: 50%;
+    position: relative; display: inline-block; clip-path: inset(0 0 0 0); width: .78em; height: .78em; margin: 0 .07em 0 .05em; border-radius: 50%;
     background: conic-gradient(from 210deg, #b4abff, #d4a0ed, #f396bd, #f896aa, #e19bdf, #c5a5f8, #b4abff);
     -webkit-mask: radial-gradient(circle, transparent 0 15%, #000 16% 100%); mask: radial-gradient(circle, transparent 0 15%, #000 16% 100%);
     box-shadow: inset 0 0 0 .07em color-mix(in srgb, var(--ink) 18%, transparent);
@@ -145,6 +185,41 @@
   }
   .o-disc::after { content: ""; position: absolute; inset: 30%; border-radius: 50%; box-shadow: 0 0 0 .04em color-mix(in srgb, var(--ink) 30%, transparent); }
   .wordmark:hover .o-disc { transform: rotate(1turn); }
+
+  /* off the home page the wordmark folds to an italic "DP": ISC-, R and BE close up, the P keeps
+     only its stem and the disc slides left onto the stem's top as the P's bowl. Every length is in
+     em of Archivo 800 at 125% width (cap height .69em, cap top .145em below the line box top,
+     P stem from .09em to .29em). The motion lives in the transitions below; reversing the mode
+     plays it backwards. */
+  .wm-cut { display: inline-grid; grid-template-columns: 1fr; }
+  .wm-cut > span { min-width: 0; overflow: hidden; white-space: pre; }
+  .wm-p { display: inline-grid; grid-template-columns: minmax(.29em, 1fr); }
+  .wm-p > span { min-width: 0; overflow: hidden; }
+  .wordmark { transform-origin: 0 .835em; }       /* the slant pivots on the baseline */
+  :root[data-mode]:not([data-mode=""]) .top > .wordmark { display: flex; transform: skewX(-11deg); }
+  :root[data-mode]:not([data-mode=""]) .wm-cut { grid-template-columns: 0fr; }
+  :root[data-mode]:not([data-mode=""]) .wm-cut > span { opacity: 0; }
+  :root[data-mode]:not([data-mode=""]) .wm-p { grid-template-columns: minmax(.29em, 0fr); }
+  :root[data-mode]:not([data-mode=""]) .pro { margin-left: -.05em; }     /* italic D and P sit looser: close up a little */
+  /* collapsed, the disc is the P's bowl: only its right half shows, the cut edge standing on the P's stem */
+  :root[data-mode]:not([data-mode=""]) .o-disc { width: .5em; height: .5em; margin: 0 0 0 -.245em; translate: 0 -.105em; clip-path: inset(0 0 0 50%); }
+  /* beside the back button, not pushed to the middle by the two auto margins */
+  :root[data-mode]:not([data-mode=""]) .top > .back:not([hidden]) { margin-right: 0; }
+  :root[data-mode]:not([data-mode=""]) .top > .back:not([hidden]) + .wordmark { margin-left: 10px; }
+  :root[data-mode]:not([data-mode=""]) .top > .back { flex-shrink: 0; }     /* the mark never squeezes the back button */
+  /* folded, the release follows the mark, upright and quiet */
+  .wm-ver { display: none; }
+  :root[data-mode]:not([data-mode=""]) .wm-ver:not(:empty) { display: inline-block; margin-left: .6em; font-size: .4em; font-weight: 600; font-stretch: 100%;
+    letter-spacing: .02em; color: var(--ink-3); transform: skewX(11deg); translate: 0 .12em; }
+  @media (max-width: 480px) { :root[data-mode]:not([data-mode=""]) .top > .wordmark { display: none; } }   /* no room beside back and the tools */
+  /* timing: the dying letters fade fast on the way in, so they are gone before the letters
+     closing over them arrive; on the way back they fade in as their room opens */
+  :root[data-motion="on"] .wordmark { transition: transform 440ms var(--ease); }
+  :root[data-motion="on"] .wm-cut, :root[data-motion="on"] .wm-p { transition: grid-template-columns 440ms var(--ease); }
+  :root[data-motion="on"] .pro { transition: margin 440ms var(--ease); }
+  :root[data-motion="on"] .wm-cut > span { transition: opacity 260ms var(--ease) 60ms; }
+  :root[data-motion="on"][data-mode]:not([data-mode=""]) .wm-cut > span { transition: opacity 160ms var(--ease); }
+  :root[data-motion="on"] .o-disc { transition: transform 1200ms var(--ease), width 440ms var(--ease), height 440ms var(--ease), margin 440ms var(--ease), translate 440ms var(--ease), clip-path 440ms var(--ease); }
 
   .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
   .btn { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 18px; font-size: 18px; border: 1px solid transparent; border-radius: 2px; background: transparent; cursor: pointer; transition: background-color var(--t) var(--ease); }
@@ -229,7 +304,7 @@
   /* the back button and the wordmark share the top-left corner: one shows at a time */
   .top > .back + .wordmark { margin-right: auto; }
   .top > .back:not([hidden]) { margin-right: auto; }
-  :root[data-mode="cal"] .wordmark, :root[data-mode="cal"] .detail, :root[data-mode="cal"] .counter, :root[data-mode="cal"] .gallery { display: none; }
+  :root[data-mode="cal"] .detail, :root[data-mode="cal"] .counter, :root[data-mode="cal"] .gallery { display: none; }
   :root[data-mode="cal"] .layer.ghost, :root[data-mode="cal"] .layer.solid { opacity: .1 !important; }
   .cal { position: fixed; z-index: 2; right: var(--edge); top: 50%; transform: translateY(-50%); width: min(600px, 40vw); display: grid; gap: 18px; }
   .cal[hidden] { display: none; }
@@ -330,6 +405,24 @@
   .parcel .lid-print { position: absolute; }
   .parcel .lid-print canvas { width: 100%; height: 100%; display: block; }
 
+  /* the job's command-line output lying on the floor beside the drive (floor-log.js) */
+  .layer.burner .burner-frame { position: absolute; container-type: inline-size; pointer-events: none; }
+  .floor-log { position: absolute; transform-origin: 0 0; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0);
+    font-family: var(--mono); font-size: calc(var(--mm) * var(--fl-font)); line-height: calc(var(--mm) * var(--fl-pitch));
+    font-weight: 600; letter-spacing: -.02em; color: var(--ink-2); white-space: pre; pointer-events: none; opacity: 0; transition: opacity 500ms var(--ease); }
+  .floor-log.on { opacity: 1; }
+  .floor-log .fl-lines { height: calc(var(--mm) * var(--fl-pitch) * var(--fl-lines)); overflow: hidden;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 45%); mask-image: linear-gradient(to bottom, transparent, #000 45%); }
+  .floor-log .fl-lines > * { flex: none; overflow: hidden; text-overflow: ellipsis; }
+  .floor-log .fl-lines { transition: transform 320ms var(--ease); }
+  .floor-log .fl-line:last-child { color: var(--ink); animation: fl-in 320ms var(--ease); }
+  .floor-log .command { color: var(--ink-3); }
+  .floor-log .warning { color: var(--copper); }
+  .floor-log .fl-meter { min-height: calc(var(--mm) * var(--fl-pitch)); color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+  @keyframes fl-in { from { opacity: 0; } }
+  .cutaway .floor-log { z-index: 2; }
+
   /* the disc that flies in (printed with its model) or lifts out, with its arrow */
   .flyer { position: absolute; z-index: 4; transform: translate(-50%, -50%); pointer-events: none; opacity: 0;
     transition: left 1400ms cubic-bezier(.25, .6, .3, 1), top 1400ms cubic-bezier(.25, .6, .3, 1), opacity 400ms var(--ease); }
@@ -396,11 +489,36 @@
 
 <div class="stage"><div class="art" id="art"></div></div>
 
+<section class="lobby" id="lobby" aria-labelledby="lobby-new-label">
+  <div class="lobby-art" id="lobby-art">
+    <!-- stand-in until the desk renders arrive (art/desk): an open envelope with sheets, and a pile of closed ones -->
+    <svg viewBox="0 0 1600 1062" aria-hidden="true">
+      <g transform="translate(470 640)">
+        <path class="ph-fill" d="M-210 0 L0 -121 L210 0 L0 121 Z"/><path class="ph" d="M-210 0 L0 -121 L210 0 L0 121 Z"/>
+        <path class="ph" d="M-150 -30 L40 -140 L180 -60 L-10 50 Z"/><path class="ph" d="M-130 -46 L60 -156 L190 -82 L0 28 Z"/>
+        <path class="ph" d="M-110 -60 L80 -170 L200 -100 L10 10 Z"/>
+        <path class="ph" d="M0 121 L-60 170 L150 50 L210 0"/>
+      </g>
+      <g transform="translate(1130 640)">
+        <path class="ph-fill" d="M-200 0 L0 -115 L200 0 L0 115 Z"/>
+        <path class="ph" d="M-200 0 L0 -115 L200 0 L0 115 Z M-200 0 v-22 M200 0 v-22 M0 115 v-22"/>
+        <path class="ph-fill" d="M-200 -22 L0 -137 L200 -22 L0 93 Z"/><path class="ph" d="M-200 -22 L0 -137 L200 -22 L0 93 Z M-200 -22 v-22 M200 -22 v-22 M0 93 v-22"/>
+        <path class="ph-fill" d="M-200 -44 L0 -159 L200 -44 L0 71 Z"/><path class="ph" d="M-200 -44 L0 -159 L200 -44 L0 71 Z M-200 -44 v-22 M200 -44 v-22 M0 71 v-22"/>
+        <path class="ph-fill" d="M-200 -66 L0 -181 L200 -66 L0 49 Z"/><path class="ph" d="M-200 -66 L0 -181 L200 -66 L0 49 Z"/>
+        <path class="ph" d="M-60 -147 L60 -78 L-20 -32"/>
+      </g>
+    </svg>
+    <button class="lobby-go new" id="lobby-new" type="button" style="left: 29.4%; top: 38%"><b id="lobby-new-label" data-i18n="lobbyNew"></b><small data-i18n="lobbyNewSub"></small></button>
+    <button class="lobby-go open" id="lobby-open" type="button" style="left: 70.6%; top: 38%"><b data-i18n="lobbyOpen"></b><small data-i18n="lobbyOpenSub"></small></button>
+    <ul class="lobby-recent" id="lobby-recent" style="left: 70.6%; top: 78%" hidden></ul>
+  </div>
+</section>
+
 <header class="top">
   <button class="btn back" id="back" type="button" hidden><svg class="icon"><use href="#i-back"/></svg><span data-i18n="back"></span></button>
-  <h1 class="wordmark" aria-label="disc-probe"><span aria-hidden="true">DISC-</span><span class="pro" aria-hidden="true">PR<span class="o-disc"></span></span><span aria-hidden="true">BE</span></h1>
+  <h1 class="wordmark" id="wordmark" aria-label="disc-probe"><span aria-hidden="true">D</span><span class="wm-cut" aria-hidden="true"><span>ISC-</span></span><span class="pro" aria-hidden="true"><span class="wm-p"><span>P</span></span><span class="wm-cut"><span>R</span></span><span class="o-disc"></span></span><span class="wm-cut" aria-hidden="true"><span>BE</span></span><small class="wm-ver" id="wm-ver"></small></h1>
   <nav class="tools" data-i18n-aria="tools">
-    <button class="btn" type="button" data-i18n-title="searchTitle"><svg class="icon"><use href="#i-search"/></svg><span class="label" data-i18n="search"></span></button>
+    <button class="btn" type="button" id="library" data-i18n-title="libraryTitle"><svg class="icon"><use href="#i-drive"/></svg><span class="label" data-i18n="library"></span></button>
     <button class="btn btn-lang" type="button" id="lang" data-i18n="langButton" data-i18n-aria="langAria"></button>
     <button class="btn btn-icon" type="button" id="theme" data-i18n-aria="theme"><svg class="icon"><use href="#i-theme"/></svg></button>
     <button class="btn btn-icon" type="button" data-i18n-aria="settings"><svg class="icon"><use href="#i-settings"/></svg></button>
@@ -445,6 +563,10 @@
 </footer>
 
 <script type="module">
+  import * as backend from "./api.js";
+  const esc = backend.escapeHTML;
+  let backendState = null, backendError = null;
+  const overflow = {};
   // Sample data for the mock only. The real page reads /api/state (docs/goals/gui-flow.md).
   // Each list runs front (index 0) to back; write-once discs first, then the rewritables.
   const d = (name, mid, sectors, left, of, s = "none", extra = {}) => ({ name, mid, sectors, left, of, s, ...extra });
@@ -477,6 +599,21 @@
   for (const row of ["dvd", "cd", "bd"]) DATA[row].push({ kind: "new", row, name: "", mid: "", s: "new" });
   DATA.drive = [{ kind: "drive", name: "HL-DT-ST GH70N", mid: "H: · SATA", s: "good", inDrive: false, trayDisc: "Verbatim DVD-R",
     burns: ["DVD±R/RW", "CD-R/RW"], reads: ["DVD", "CD"], calibrated: 3, lastUsed: "2026-11-07" }];
+  if (!backend.mock) {
+    try { backendState = await backend.state(); } catch (e) { backendError = e; }
+    for (const row of ["dvd", "cd", "bd"]) {
+      const limit = {dvd:7, cd:6, bd:4}[row];
+      const kinds = backendState?.catalogue?.[row] || [];
+      overflow[row] = Math.max(0, kinds.length - limit);
+      DATA[row] = kinds.slice(0, limit).map(x => ({...x, s: x.s === "narrow_span" ? "narrow" : x.s}));
+      DATA[row].push({kind:"new", row, name:"", mid:"", s:"new"});
+    }
+    DATA.drive = (backendState?.drives || []).map(d => ({...d, kind:"drive", name:d.name || d.id,
+      mid:d.id, s:"unknown", burns:[], reads:[], calibrated:0, lastUsed:null}));
+    if (!DATA.drive.length) DATA.drive = [{kind:"drive", name:"?", mid:"", s:"unknown", burns:[], reads:[], calibrated:0}];
+  }
+  let chosenDrive = DATA.drive[0]?.id;
+  if (!backend.mock) document.documentElement.dataset.live = "true";
   const COLS = ["dvd", "cd", "bd", "drive"];
   const ROWPOS = [0, 1, 2, 2.66];      // how many rows back each stop stands (the burner is past BD)
   const ICON = { good: "i-good", narrow: "i-warn", none: "i-none", noneRw: "i-none" };
@@ -484,12 +621,20 @@
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches && !new URLSearchParams(location.search).has("motion");
   if (!reduce) document.documentElement.dataset.motion = "on";
   const $ = (id) => document.getElementById(id);
+  $("wm-ver").textContent = backend.mock ? "v0.1.2.1" : backendState?.version ?? "";   // after the folded mark
+  // what the version adds to the mark's width, for page titles that sit right of the mark (design.css)
+  new ResizeObserver(([e]) => {
+    const w = e.target.getBoundingClientRect().width;
+    document.documentElement.style.setProperty("--ver-w", w ? `${Math.ceil(w + parseFloat(getComputedStyle(e.target).marginLeft))}px` : "0px");
+  }).observe($("wm-ver"));
   const root = document.documentElement;
 
   // ---- words: Chinese and English ----
   const STR = {
     zh: {
       back: "上一步", tools: "工具", search: "找盘", searchTitle: "找盘（键盘 /）", theme: "切换亮色和暗色", settings: "设置",
+      library: "盘库", libraryTitle: "盘库：标定过的盘、每桶还剩几张", lobbyNew: "新建计划", lobbyNewSub: "拖一张图进来，或点这里选",
+      lobbyOpen: "打开计划", lobbyOpenSub: "打开以前存的 .discdesign", nextNewPlan: "下一步：新建计划", nextUseBatch: "下一步：用这批盘",
       langButton: "EN", langAria: "Switch to English", kinds: "盘的种类", driveTab: "光驱", inDrive: "就是光驱里这张",
       sectors: "扇区数", left: "这一桶还剩", last: "上次标定", usedDrive: "标定用的光驱",
       leftVal: (l, o) => `${l} / ${o} 张`, inserted: (d) => `已插入 ${d}`, rw: "可擦写", sep: "、",
@@ -507,6 +652,8 @@
     },
     en: {
       back: "Back", tools: "Tools", search: "Search", searchTitle: "Search discs (key /)", theme: "Switch light and dark", settings: "Settings",
+      library: "Discs", libraryTitle: "Disc library: calibrated discs and how many are left", lobbyNew: "New plan", lobbyNewSub: "Drop a picture here, or click to choose",
+      lobbyOpen: "Open plan", lobbyOpenSub: "Open a saved .discdesign", nextNewPlan: "Next: new plan", nextUseBatch: "Next: use these discs",
       langButton: "中文", langAria: "切换到中文", kinds: "Disc kinds", driveTab: "Drive", inDrive: "This is the disc in the drive",
       sectors: "Sectors", left: "Left in this spindle", last: "Last calibrated", usedDrive: "Calibrated on",
       leftVal: (l, o) => `${l} / ${o}`, inserted: (d) => `${d} inserted`, rw: "rewritable", sep: ", ",
@@ -570,24 +717,27 @@
   // The empty place behind the last disc of a row: the last disc drawn again one step further back,
   // as an outline only. Picking it calibrates a disc kind that isn't listed.
   function addNewSlot(id) {
-    const n = DATA[id].length - 1, svg = layers[id].querySelector("svg");
-    const last = svg?.querySelector(`.disc[data-idx="${n - 1}"]`), prev = svg?.querySelector(`.disc[data-idx="${n - 2}"]`);
-    if (!last || !prev || svg.querySelector(".new-slot")) return;
-    const a = last.querySelector(".aura"), b = prev.querySelector(".aura");
-    const dx = a.cx.baseVal.value - b.cx.baseVal.value, dy = a.cy.baseVal.value - b.cy.baseVal.value;
-    const slot = last.cloneNode(true);
-    slot.classList.add("new-slot");
-    slot.dataset.idx = String(n);
-    for (const m of slot.querySelectorAll("mask[id]")) {
-      const old = m.id;
-      m.id = `${old}-new`;
-      for (const u of slot.querySelectorAll(`[mask="url(#${old})"]`)) u.setAttribute("mask", `url(#${m.id})`);
-    }
-    const wrap = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    wrap.setAttribute("transform", `translate(${dx} ${dy})`);
-    wrap.append(slot);
-    last.before(wrap);
+    const svg = layers[id].querySelector("svg");
+    const originals = [...svg.querySelectorAll('.disc')];
+    const n = DATA[id].length - 1;
+    const template = originals[Math.min(n, originals.length - 1)];
+    if (!template) return;
+    if (n === originals.length) {
+      const slot = template.cloneNode(true);
+      const a = template.querySelector('.aura'), b = originals[n-2].querySelector('.aura');
+      const wrap = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      wrap.setAttribute('transform', `translate(${a.cx.baseVal.value-b.cx.baseVal.value} ${a.cy.baseVal.value-b.cy.baseVal.value})`);
+      // Cloned masks must have unique IDs.
+      for (const m of slot.querySelectorAll('mask[id]')) {
+        const old = m.id; m.id += '-new';
+        for (const u of slot.querySelectorAll(`[mask="url(#${old})"]`)) u.setAttribute('mask', `url(#${m.id})`);
+      }
+      slot.classList.add('new-slot'); slot.dataset.idx = n;
+      wrap.append(slot); template.before(wrap);
+    } else template.classList.add('new-slot');
+    originals.forEach((el, i) => { el.style.display = i > n ? 'none' : ''; });
   }
+
   await loadSolid("dvd");
   (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => { loadSolid("cd"); loadSolid("bd"); });
   let burner = null;
@@ -655,6 +805,13 @@
       rig.style.setProperty("--open", openAt);
       burnerLayer.append(rig);
     }
+    // the same box unmirrored, in the render's own pixels: things lying on the floor around the
+    // drive (the job's log) are placed in it
+    const frame = document.createElement("div");
+    frame.className = "burner-frame";
+    box(frame);
+    frame.style.transform = "none";
+    burnerLayer.append(frame);
   }
   placeBurner();
 
@@ -662,7 +819,10 @@
   // opens, showing the disc if there is one. When the drive reports a change it closes first, then
   // opens on the new state.
   let trayOpen = false, trayDisc = true, trayTimer = 0;
-  function setTray(open, disc = trayDisc, done) {
+  // known: the state comes from the drive itself (a swap watch on the burn page), so the picture
+  // follows it outside the mock too; otherwise only the mock moves the tray picture.
+  function setTray(open, disc = trayDisc, done, known = false) {
+    if (!backend.mock && !known) { done?.(); return; }
     clearTimeout(trayTimer);
     const apply = () => {
       trayDisc = disc;
@@ -751,13 +911,14 @@
 
   let col = "dvd", idx = 0, lastFocus = "dvd";
   let pendingWhy = null;                     // a one-off status line for the next render (what the drive held)
-  const fmt = (n) => n.toLocaleString("en-US");
+  const fmt = (n) => n == null ? "?" : n.toLocaleString("en-US");
   const pad = (n) => String(n).padStart(2, "0");
 
   function render(dir = 1, initial = false) {
     const list = DATA[col];
     idx = (idx + list.length) % list.length;
     const item = list[idx];
+    if (item.kind === "drive" && item.id) chosenDrive = item.id;
     // focus: the chosen row is solid; the others turn into line drawings that fade with distance
     const ci = COLS.indexOf(col);
     for (const id of ["dvd", "cd", "bd"]) {
@@ -798,7 +959,7 @@
     rule.classList.remove("draw"); void rule.offsetWidth; rule.classList.add("draw");
     if (item.kind !== "drive") sweep(col);
     if (item.kind !== "drive") setTray(false);
-    else if (lastFocus !== "drive") setTray(true, trayDisc, () => render(1, true));   // reword once it is open
+    else if (backend.mock && lastFocus !== "drive") setTray(true, trayDisc, () => render(1, true));   // reword once it is open
     lastFocus = item.kind === "drive" ? "drive" : col;
     const fill = () => {
       const t = T();
@@ -810,26 +971,30 @@
         [icon, label, why] = ["i-plus", ...t.newState];
         facts = [["", ""], ["", ""], ["", ""], ["", ""]];
       } else if (item.kind === "drive") {
-        label = trayOpen ? (trayDisc ? t.tray(item.trayDisc) : t.trayEmpty) : (trayDisc ? t.inDriveNow(item.trayDisc) : t.driveEmpty);
-        [icon, why] = ["i-drive", t.driveWhy];
+        label = !backend.mock ? (lang === "zh" ? "点按钮读取光驱里的盘" : "Press the button to identify the inserted disc") : trayOpen ? (trayDisc ? t.tray(item.trayDisc) : t.trayEmpty) : (trayDisc ? t.inDriveNow(item.trayDisc) : t.driveEmpty);
+        [icon, why] = ["i-drive", backend.mock ? t.driveWhy : (lang === "zh" ? "打开页面不会读取光盘。" : "Opening this page does not read the disc.")];
         facts = [[t.burns, item.burns], [t.reads, item.reads], [t.calibrated, t.kindsN(item.calibrated)], [t.lastUsed, day(item.lastUsed)]];
       } else {
         const key = item.s === "none" && item.rw ? "noneRw" : item.s;
-        icon = ICON[key]; [label, why] = t[key];
-        facts = [[t.sectors, fmt(item.sectors)], [t.left, t.leftVal(item.left, item.of)], [t.last, day(item.last)], [t.usedDrive, item.drive ?? "—"]];
+        icon = ICON[key] || "i-none"; [label, why] = t[key] || (lang === "zh" ? [{usable:"可以使用",too_noisy:"测量太吵",drive_changed:"光驱状态改变",stopped_early:"测量提前停止",unknown:"标定状态未知"}[item.s] || "标定状态未知", "查看标定结果，再决定是否重测。"] : [item.s.replaceAll("_", " "), "Review the calibration result before measuring again."]);
+        facts = [[t.sectors, fmt(item.sectors)], [t.left, item.left == null ? "?" : item.of == null ? fmt(item.left) : t.leftVal(item.left, item.of)], [t.last, day(item.last)], [t.usedDrive, item.drive ?? "—"]];
       }
       $("status").dataset.s = item.kind === "drive" ? "drive" : item.s;
-      $("status").innerHTML = `<svg class="icon"><use href="#${icon}"/></svg>${label}`;
-      $("why").textContent = pendingWhy ?? why;
+      $("status").innerHTML = `<svg class="icon"><use href="#${icon}"/></svg>${esc(label)}`;
+      $("why").textContent = pendingWhy ?? (backendError ? backend.errorText(backendError, lang) : why);
+      if (!backend.mock && DATA[col].length === 1 && col !== "drive") $("why").textContent += lang === "zh" ? " 先标定一种新盘，结果会保存在这里。" : " Calibrate a new disc to keep its result here.";
+      if (overflow[col]) $("why").textContent += ` +${overflow[col]}`;
       pendingWhy = null;
       ["k1", "k2", "k3", "k4"].forEach((k, i) => { $(k).textContent = facts[i][0]; });
       ["sectors", "left", "last", "drive"].forEach((k, i) => {
         const v = facts[i][1];
-        $(k).innerHTML = (Array.isArray(v) ? v : [v]).map((x) => `<span class="nb">${x}</span>`).join(`${t.sep}<wbr>`);
+        $(k).innerHTML = (Array.isArray(v) ? v : [v]).map((x) => `<span class="nb">${esc(x)}</span>`).join(`${t.sep}<wbr>`);
       });
       if (!root.dataset.mode)       // inside the flow the button belongs to the flow
-        $("next-text").textContent = item.kind === "drive" ? t.nextDrive : item.kind === "new" ? t.nextNew : item.s === "none" ? t.nextCal : t.nextOpen;
-      $("drivebar").innerHTML = `<b>H:</b> HL-DT-ST GH70N · ${t.inserted("Verbatim DVD-R")}`;
+        $("next-text").textContent = root.dataset.home === "lobby" ? t.nextNewPlan
+          : choosingFor && item.kind !== "drive" && item.kind !== "new" ? t.nextUseBatch
+          : item.kind === "drive" ? t.nextDrive : item.kind === "new" ? t.nextNew : !["good", "usable"].includes(item.s) ? t.nextCal : t.nextOpen;
+      $("drivebar").textContent = backend.mock ? `H: HL-DT-ST GH70N · ${t.inserted("Verbatim DVD-R")}` : (backendState?.drives || []).map(d => d.name && d.name !== d.id ? `${d.id} ${d.name}` : d.id).join(" · ") || (lang === "zh" ? "未发现光驱" : "No drives found");
     };
     if (initial || reduce) { fill(); return; }
     const parts = [$("mid"), $("state")];
@@ -838,7 +1003,7 @@
   }
 
   addEventListener("keydown", async (e) => {
-    if (root.dataset.mode) return;
+    if (root.dataset.mode || root.dataset.home === "lobby") return;
     if (e.target instanceof Element && e.target.closest("input, textarea")) return;
     const c = COLS.indexOf(col);
     let dir = 1;
@@ -847,7 +1012,7 @@
     else if (e.key === "ArrowUp") { idx -= 1; dir = -1; }
     else if (e.key === "ArrowDown") idx += 1;
     else if (e.key === "Enter" && e.target === document.body) { $("next").click(); return; }
-    else if ((e.key === "e" || e.key === "E") && col === "drive") { setTray(true, !trayDisc, () => render(1)); return; }
+    else if ((e.key === "e" || e.key === "E") && col === "drive" && backend.mock) { setTray(true, !trayDisc, () => render(1)); return; }
     else return;
     e.preventDefault();
     await loadSolid(col);
@@ -868,7 +1033,7 @@
     return hit;
   };
   art.addEventListener("click", async (e) => {
-    if (root.dataset.mode) return;
+    if (root.dataset.mode || root.dataset.home === "lobby") return;
     const el = e.target instanceof Element ? e.target.closest(".disc") : null;
     if (el && el.dataset.row === col) {
       const dir = Number(el.dataset.idx) < idx ? -1 : 1;
@@ -941,12 +1106,36 @@
     wake();
   }
 
+  // ---- wordmark: the folding itself is CSS keyed on root.dataset.mode. Here only the slide that
+  // carries the mark past the back button (which shows and hides at once, shifting the layout:
+  // right going in, left coming home), and any input skipping to the end.
+  {
+    const mark = $("wordmark"), back = $("back");
+    let left = mark.offsetLeft, short = !!root.dataset.mode;
+    new MutationObserver(() => {
+      const now = !!root.dataset.mode;
+      if (now === short) return;
+      short = now;
+      const was = left; left = mark.offsetLeft;
+      if (reduce) return;
+      const timing = { duration: 440, easing: "cubic-bezier(.2, .8, .2, 1)" };
+      if (was !== left) mark.animate([{ translate: `${was - left}px 0` }, { translate: "0 0" }], timing);
+      // the back button arrives as the mark clears its spot
+      if (now && !back.hidden) back.animate([{ opacity: 0 }, { opacity: 1 }], { ...timing, duration: 260, delay: 140, fill: "backwards" });
+    }).observe(root, { attributes: true, attributeFilter: ["data-mode"] });
+    const spin = (a) => a.transitionProperty === "transform" && a.effect?.target?.classList?.contains("o-disc");   // the hover turn is not part of it
+    const skip = () => { for (const a of [...mark.getAnimations({ subtree: true }), ...back.getAnimations()]) if (a.playState === "running" && !spin(a)) a.finish(); };
+    for (const ev of ["pointerdown", "keydown", "wheel"]) addEventListener(ev, skip, { passive: true });
+  }
+
   // ---- what the calibration flow (calibrate.js) may use ----
   const api = {
+    backend, selectedDrive: () => col === "drive" ? DATA.drive[idx]?.id : chosenDrive,
+    reload: async () => { location.reload(); },
     T: () => T(), lang: () => lang, reduce, meta, cam, art, burnerLayer, $,
     setTray, tray: () => ({ open: trayOpen, disc: trayDisc }),
     current: () => ({ col, idx, item: DATA[col][idx] }),
-    focusDrive() { col = "drive"; idx = 0; render(1); },
+    focusDrive() { col = "drive"; idx = Math.max(0, DATA.drive.findIndex(d => d.id === chosenDrive)); render(1); },
     goTo(c, i) { col = c; idx = i; render(-1); },
     refresh() { render(1, true); },
     locate(item) {
@@ -961,6 +1150,26 @@
   // Mock: ?newdisc makes the disc in the drive one that isn't listed.
   async function identifyDisc() {
     const t = T(), nb = $("next");
+    if (!backend.mock) {
+      chosenDrive = api.selectedDrive();
+      nb.disabled = true;
+      try {
+        const result = await backend.job({action:"info", drive:api.selectedDrive()}, event => {
+          if (event.type === "ask") { pendingWhy = lang === "zh" ? "请在标定面板回答光驱的问题。" : "Answer the drive question in the calibration panel."; }
+        });
+        const disc = result?.disc;
+        if (!disc?.present || !DATA[disc.media]) { pendingWhy = t.driveNone; render(1,true); return; }
+        col = disc.media;
+        const found = DATA[col].findIndex(x => x.kind !== "new" && disc.mid && x.mid === disc.mid);
+        idx = found >= 0 ? found : DATA[col].length - 1;
+        Object.assign(DATA[col][idx], {detected:disc});
+        if (found < 0) Object.assign(DATA[col][idx], {mid:disc.mid, sectors:disc.sectors});
+        pendingWhy = found >= 0 ? t.foundKnown(DATA[col][idx].name) : t.foundNew(disc.kind);
+        await loadSolid(col); render(1,true);
+      } catch (error) { pendingWhy = backend.errorText(error,lang); render(1,true); }
+      finally { nb.disabled = false; }
+      return;
+    }
     nb.disabled = true; $("next-text").textContent = t.reading;
     await new Promise((r) => setTimeout(r, reduce ? 0 : 1200));
     nb.disabled = false;
@@ -975,13 +1184,116 @@
   }
   $("next").addEventListener("click", async () => {
     if (root.dataset.mode) return;
+    if (root.dataset.home === "lobby") { newPlan(); return; }
     const item = DATA[col][idx];
+    if (choosingFor && item.kind !== "drive" && item.kind !== "new") {     // the library, picking discs for an open plan
+      const plan = choosingFor; choosingFor = null;
+      (await import("./design.js")).useBatch(api, plan, item, col);
+      return;
+    }
     if (item.kind === "drive") { identifyDisc(); return; }
-    if (item.s === "good") { (await import("./design.js")).start(api); return; }   // a measured disc: its project
+    if (["good", "usable"].includes(item.s)) { (await import("./design.js")).start(api); return; }   // a measured disc: its project
     const flow = await import("./calibrate.js");
     flow.start(api);
   });
+  if (!backend.mock) backend.events(async event => {
+    if (event.type !== "state" || root.dataset.mode) return;
+    try {
+      backendState = await backend.state(); backendError = null;
+      const selectedId = DATA[col][idx]?.id;
+      for (const row of ["dvd","cd","bd"]) {
+        const limit = {dvd:7,cd:6,bd:4}[row], kinds = backendState.catalogue[row];
+        overflow[row] = Math.max(0, kinds.length-limit);
+        DATA[row] = kinds.slice(0,limit).map(x => ({...x,s:x.s === "narrow_span" ? "narrow" : x.s}));
+        DATA[row].push({kind:"new",row,name:"",mid:"",s:"new"});
+        delete loaded[row];
+      }
+      if (col !== "drive") idx = Math.max(0, DATA[col].findIndex(x => x.id === selectedId));
+      await loadSolid(col); render(1,true);
+    } catch(e) {backendError=e; render(1,true);}
+  });
+  // ---- the lobby and the library (docs/goals/gui-outline.md 3.0) ----
+  // The page opens on the lobby. "New plan" starts a work at once, on the discs it can guess: the batch used
+  // last, else the disc kind the drive holds, else the first measured DVD. The batch can be changed from the
+  // plan later (its title), which opens the library with the plan waiting. The library is the old shelf.
+  let choosingFor = null;                       // a plan waiting for a batch picked in the library
+  function lastBatch() {
+    let id = null;
+    try { id = localStorage.getItem("dp-batch"); } catch {}
+    for (const c of ["dvd", "cd", "bd"]) { const it = DATA[c].find((x) => id && x.id === id); if (it) return [c, it]; }
+    const held = backend.mock ? DATA.drive[0]?.trayDisc ?? "" : "";
+    const kind = /CD/.test(held) ? "cd" : /BD/.test(held) ? "bd" : "dvd";
+    const measured = (c) => DATA[c].find((x) => ["good", "usable"].includes(x.s));
+    for (const c of [kind, "dvd", "cd", "bd"]) { const it = measured(c); if (it) return [c, it]; }
+    return ["dvd", DATA.dvd[0]];
+  }
+  function setHome(where) {
+    root.dataset.home = where;
+    $("back").hidden = where !== "library";
+    if (where === "lobby") paintRecent();
+    render(1, true);
+  }
+  // new plan: the form page first (name, disc kind and batch), then the design page
+  async function newPlan(file = null) {
+    (await import("./newplan.js")).start(api, { from: $("lobby-new"), file });
+  }
+  async function openPlan() {
+    const [c, item] = lastBatch();
+    col = c; idx = Math.max(0, DATA[c].indexOf(item));
+    (await import("./design.js")).start(api, { newPlan: true, fly: false, pick: true });
+  }
+  async function paintRecent() {
+    const list = $("lobby-recent");
+    const plans = (await import("./design.js")).recentPlans();
+    list.hidden = !plans.length;
+    list.replaceChildren(...plans.slice(0, 5).map((plan) => {
+      const li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button"; b.textContent = plan.name ?? plan.item?.name ?? "—";
+      b.addEventListener("click", async () => (await import("./design.js")).start(api, { plan, fly: false }));
+      li.append(b); return li;
+    }));
+  }
+  $("lobby-new").addEventListener("click", () => newPlan());
+  $("lobby-open").addEventListener("click", () => openPlan());
+  // a picture dropped anywhere on the lobby starts a plan with it
+  $("lobby").addEventListener("dragover", (e) => { e.preventDefault(); });
+  $("lobby").addEventListener("drop", (e) => {
+    e.preventDefault();
+    const f = [...(e.dataTransfer?.files ?? [])][0];
+    if (!f) return;
+    if (/\.discdesign$|\.json$/i.test(f.name)) { const [c, item] = lastBatch(); col = c; idx = Math.max(0, DATA[c].indexOf(item)); import("./design.js").then((d) => d.start(api, { newPlan: true, fly: false, projectFile: f })); }
+    else if (f.type.startsWith("image/")) newPlan(f);
+  });
+  $("library").addEventListener("click", () => { if (!root.dataset.mode) setHome("library"); });
+  // back from the library: to the plan that was waiting for discs, else to the lobby (capture: the
+  // calibration page also listens on this button)
+  $("back").addEventListener("click", async (e) => {
+    if (root.dataset.mode || root.dataset.home !== "library") return;
+    e.stopImmediatePropagation();
+    if (choosingFor) { const plan = choosingFor; choosingFor = null; (await import("./design.js")).start(api, { plan, fly: false }); return; }
+    setHome("lobby");
+  }, { capture: true });
+  Object.assign(api, {
+    toLobby: () => setHome("lobby"),
+    // the plan's title asks for other discs: show the library with the plan waiting
+    chooseBatch(plan) { choosingFor = plan; setHome("library"); },
+    rememberBatch(item) { try { if (item?.id) localStorage.setItem("dp-batch", item.id); } catch {} },
+    lastBatch,
+    // the disc batches of one kind (the library's entries, no empty place, no drive stop)
+    catalogue: (kind) => (DATA[kind] ?? []).filter((x) => x.kind !== "new" && x.kind !== "drive"),
+    // what the drive holds, as the shelf names it ("Verbatim DVD-R"); empty if unknown
+    heldDisc: () => backend.mock && trayDisc ? DATA.drive[0]?.trayDisc ?? "" : "",
+    // the form chose this kind and batch (or none): point the home page at it before design starts
+    useForPlan(kind, item) {
+      col = kind;
+      const i = item ? DATA[kind].indexOf(item) : DATA[kind].findIndex((x) => x.kind === "new");
+      idx = Math.max(0, i);
+    },
+  });
+
   applyStatic();
+  root.dataset.home = "lobby";
+  paintRecent();
   render(1, true);
 </script>
 </body>

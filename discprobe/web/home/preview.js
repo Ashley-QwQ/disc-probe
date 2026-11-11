@@ -18,7 +18,8 @@ let api, $, ctx = null, W = null, life = null, state = null, src = null, view = 
 const root = document.documentElement;
 const isOn = () => root.dataset.mode === "preview";
 const V = { s: 1, cx: 0, cy: 0, w: 0, h: 0, dpr: 1, moved: false };   // moved: the user zoomed or panned
-const look = { ...DEFAULT_POSE };
+const PHOTO_DEFAULTS = { photoLook: 1, flash: 1, wear: 45, background: 0 };
+const look = { ...DEFAULT_POSE, ...PHOTO_DEFAULTS };
 let twist = 1;                       // degrees at the outer edge in the "off by a little" view
 
 const STR = {
@@ -32,6 +33,7 @@ const STR = {
     cd: "这张 CD 还没做拍照标定：文件照样能生成，但刻出来的图可能整体歪一点。",
     offH: "差一点会怎样", offNote: "标定差一点时，图会一圈一圈地拧开，离中间那一圈越远拧得越多。这就是要先标定的原因。",
     offAt: "外圈偏多少", lookH: "拟真", lookNote: "模型预测，不是照片。拖动太阳移动灯，拖动手机移动相机。转动或倾斜盘片，看看图案和彩虹怎样变化。",
+    photoLook: "照片感", flash: "闪光灯（关闭用室内灯）", wear: "灰尘和划痕", background: "背后是什么", hand: "手心", table: "暗桌面", roughNote: "按实拍照片加了反光、划痕和手机成像的瑕疵。",
     rotate: "转动盘片", exposure: "曝光", camera: "手机", height: "相机高度", lightHeight: "灯的高度", resetLook: "恢复默认位置",
     loading: "正在准备设计…", refining: "正在细化…", simError: "模拟没有完成，请返回设计页再试。", cdModel: "此模型适用于 DVD，暂不预测 CD 的外观。",
     tilt: "盘斜多少", light: "灯", readH: "先刻录，再读回", readNote: "刻好以后回到这里，把盘读回来和设计对比。现在还没有刻好的盘。",
@@ -47,6 +49,7 @@ const STR = {
     cd: "This CD hasn't had its photo calibration yet: the file can still be made, but the picture may come out slightly turned.",
     offH: "What a small error does", offNote: "When calibration is a little off, the picture twists ring by ring, more the further from the middle ring. That is why calibration comes first.",
     offAt: "Off at the outer edge", lookH: "Simulated look", lookNote: "Model prediction, not a photo. Drag the sun to move the light and the phone to move the camera. Turn or tilt the disc to see the picture and rainbow change.",
+    photoLook: "Photo look", flash: "Flash (off: room lamp)", wear: "Dust and scratches", background: "Behind the disc", hand: "Hand", table: "Dark table", roughNote: "Reflections, scratches and phone-camera imperfections added from photo references.",
     rotate: "Turn the disc", exposure: "Exposure", camera: "Phone", height: "Camera height", lightHeight: "Light height", resetLook: "Reset the view",
     loading: "Preparing the design…", refining: "Refining…", simError: "Simulation failed. Return to Design and try again.", cdModel: "This model predicts DVD appearance. CD appearance is not available yet.",
     tilt: "Disc tilt", light: "Light", readH: "Burn first, then read back", readNote: "After burning, come back here to read the disc and compare it with the design. There's no burned disc yet.",
@@ -91,8 +94,8 @@ function buildRight() {
       `<div class="pv-file"><b>${esc(s.iso.path.split(/[\\/]/).pop())}</b><span class="mono">${fmtBytes(s.iso.bytes)} · ${s.iso.sectors.toLocaleString()} ${t.sectors}</span></div>` +
       `<details class="pv-more"><summary>${t.details}</summary><p class="note mono">${esc(s.iso.path)}</p></details>` +
       `<div class="row2"><button class="sbtn" type="button" data-a="folder">${t.folder}</button><button class="sbtn" type="button" data-a="make">${t.again}</button></div>`
-    : busy ? `<p class="note">${esc(s.stage || t.making)}</p>` +
-      `<div class="pv-bar live" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round((s.fraction ?? 0) * 100)}"><i style="--f:${s.fraction ?? 0}" class="${s.fraction ? "" : "indet"}"></i></div>` +
+    : busy ? `<div class="pv-gen" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round((s.fraction ?? 0) * 100)}"></div>` +
+      `<p class="note">${esc(s.stage || t.making)}${s.fraction ? ` <span class="mono">${Math.floor(s.fraction * 100)}%</span>` : ""}</p>` +
       `<button class="sbtn wide" type="button" data-a="cancel">${t.cancel}</button>`
     : `<p class="note">${s.phase === "failed" ? `<span class="pv-err">${esc(s.error || t.failed)}</span>` : s.phase === "cancelled" ? t.cancelled : t.fileNote}</p>` +
       `<button class="sbtn wide pv-make" type="button" data-a="make" ${src ? "" : "disabled"}>${s.phase === "failed" ? t.again : t.make}</button>`) +
@@ -102,19 +105,60 @@ function buildRight() {
     `<label class="pv-ctl"><span>${t.offAt}</span><input class="rng" type="range" min="0" max="2" step="0.05" value="${twist}" data-k="twist"><output class="mono">${twist.toFixed(2)}°</output></label></section>`;
   if (view === "look") viewSec = `<section><h3>${t.lookH}</h3><p class="note">${t.lookNote}</p>` +
     (ctx.media === "cd" ? `<p class="note">${t.cdModel}</p>` :
+      `<div class="pv-photo-controls">` +
+      ["photoLook", "flash"].map(k => `<label class="pv-check"><span>${t[k]}</span><input type="checkbox" data-photo="${k}" ${look[k] ? "checked" : ""} ${k !== "photoLook" && !look.photoLook ? "disabled" : ""}></label>`).join("") +
+      `<label class="pv-backing"><span>${t.wear}</span><select data-photo="wear" ${!look.photoLook ? "disabled" : ""}>${[0, 45, 100].map(v => `<option value="${v}" ${look.wear === v ? "selected" : ""}>${v}%</option>`).join("")}</select></label>` +
+      `<label class="pv-backing"><span>${t.background}</span><select data-photo="background" ${!look.photoLook ? "disabled" : ""}><option value="0" ${!look.background ? "selected" : ""}>${t.hand}</option><option value="1" ${look.background ? "selected" : ""}>${t.table}</option></select></label></div>` +
+      `<p class="note pv-rough-note" ${!look.photoLook ? "hidden" : ""}>${t.roughNote}</p>` +
       [["rotate", t.rotate, -180, 180, 1], ["tilt", t.tilt, -30, 30, 1], ["exposure", t.exposure, -3, 3, .1],
        ["cz", t.height, 150, 650, 10], ["lz", t.lightHeight, 150, 650, 10]].map(([key, label, min, max, step]) =>
         `<label class="pv-ctl"><span>${label}</span><input class="rng" type="range" min="${min}" max="${max}" step="${step}" value="${look[key]}" data-k="${key}"><output class="mono">${lookValue(key, look[key])}</output></label>`).join("") +
       `<button class="sbtn" type="button" data-a="reset-look">${t.resetLook}</button>`) + `</section>`;
   W.right.innerHTML = fileSec + viewSec;
+  if (busy && s.thumb) { W.right.querySelector(".pv-gen").append(s.thumb); paintThumb(s); }
   $("next").disabled = !ready;
 }
-const lookValue = (key, v) => key === "exposure" ? `${v > 0 ? "+" : ""}${v.toFixed(1)} EV` : key === "cz" || key === "lz" ? `${v} mm` : `${v}°`;
+
+// While the burn file is made: the disc thumbnail fills cell by cell, counterclockwise from twelve
+// o'clock, like the random-data disc on the calibration page, but each cell shows the design.
+const RINGS = 20, SECTORS = 120, HUB_MM = 7.5, DATA_MM = 22;
+function paintThumb(job) {
+  const c = job.thumb, g = c.getContext("2d"), N = c.width, cx = N / 2, R = N / 2 - 3;
+  const ri = R * (DATA_MM / 60), rh = R * (HUB_MM / 60), top = -Math.PI / 2, p = job.fraction ?? 0;
+  g.clearRect(0, 0, N, N);
+  g.lineWidth = 1.5; g.strokeStyle = css("--ink-3") || "#888";
+  g.beginPath(); g.arc(cx, cx, R, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); g.arc(cx, cx, rh, 0, Math.PI * 2); g.stroke();
+  // the data area as one quiet base, so the cells never show seams
+  g.fillStyle = css("--paper-2") || "rgba(128,128,128,.2)";
+  g.beginPath(); g.arc(cx, cx, R, 0, Math.PI * 2); g.arc(cx, cx, ri, 0, Math.PI * 2, true); g.fill();
+  if (!src || p <= 0) return;
+  // every cell written so far as one clip, then the design through it
+  g.save();
+  g.beginPath();
+  for (let k = 0; k < RINGS; k++) {
+    const a = ri + ((R - ri) * k) / RINGS, b = ri + ((R - ri) * (k + 1)) / RINGS;
+    for (let s = 0; s < SECTORS && s / SECTORS < p; s++) {
+      const t0 = top - (s / SECTORS) * Math.PI * 2, t1 = top - ((s + 1.15) / SECTORS) * Math.PI * 2;
+      g.moveTo(cx + b * Math.cos(t0), cx + b * Math.sin(t0));
+      g.arc(cx, cx, b, t0, t1, true); g.arc(cx, cx, a, t1, t0, false); g.closePath();
+    }
+  }
+  g.clip();
+  g.fillStyle = css("--face") || "#d6d1c8"; g.fillRect(cx - R, cx - R, 2 * R, 2 * R);
+  g.imageSmoothingEnabled = true;
+  g.drawImage(src, cx - R, cx - R, 2 * R, 2 * R);     // src spans the whole 120 mm disc
+  g.restore();
+}
+const lookValue = (key, v) => key === "wear" ? `${v}%` : key === "exposure" ? `${v > 0 ? "+" : ""}${v.toFixed(1)} EV` : key === "cz" || key === "lz" ? `${v} mm` : `${v}°`;
 const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 async function make() {
   if (!src || state.phase === "making") return;
-  const job = state = { phase: "making", fraction: null, stage: "", ctl: new AbortController() };
+  const thumb = document.createElement("canvas");
+  thumb.width = thumb.height = Math.round(240 * Math.min(2, devicePixelRatio || 1));
+  thumb.setAttribute("aria-hidden", "true");
+  const job = state = { phase: "making", fraction: null, stage: "", ctl: new AbortController(), thumb };
   buildRight();
   try {
     const iso = await ctx.exportIso((p) => {
@@ -239,10 +283,20 @@ function bind(signal) {
   });
   on(W.right, "click", (e) => {
     const a = e.target.closest("[data-a]")?.dataset.a;
-    if (a === "reset-look") { Object.assign(look, DEFAULT_POSE); buildRight(); draw(); }
+    if (a === "reset-look") { Object.assign(look, DEFAULT_POSE, PHOTO_DEFAULTS); buildRight(); draw(); }
     if (a === "make") make();
     if (a === "cancel") cancel();
     if (a === "folder") ctx.showInFolder ? ctx.showInFolder(state.iso.path) : toast(T().folderLater);
+  });
+  on(W.right, "change", (e) => {
+    const k = e.target.dataset.photo;
+    if (!k) return;
+    look[k] = (k === "background" || k === "wear") ? Number(e.target.value) : Number(e.target.checked);
+    if (k === "photoLook") {
+      W.right.querySelectorAll('[data-photo="flash"], [data-photo="background"], [data-photo="wear"]').forEach(el => { el.disabled = !look.photoLook; });
+      W.right.querySelector('.pv-rough-note').hidden = !look.photoLook;
+    }
+    draw();
   });
   on(W.right, "input", (e) => {
     const k = e.target.dataset.k, v = Number(e.target.value);

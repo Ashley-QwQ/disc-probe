@@ -46,8 +46,10 @@ camera movement and exposure affect the optical calculation, not a colored
 overlay. Sun and phone handles support dragging and arrow keys, with bounded
 positions. Reset restores all pose and exposure values.
 
-No bands, alternate textures, CD spectrum, physical hub appearance, specular
-flash, scratches, speckle, sensor noise or camera tone curve are invented. The
+In the exact model path, no bands, alternate textures, CD spectrum, physical
+hub appearance, specular flash, scratches, speckle, sensor noise or camera
+tone curve are invented. The optional photo stage described below adds artistic
+surface/camera effects after this path; it does not change the optical model. The
 room term and groove approximation are those of Python. The design page's
 0.08 peak-width envelope is for its effect overlays; adding it here would
 broaden the source lookup table again and break the Python comparison.
@@ -74,3 +76,79 @@ artifacts, not desktop or browser-window screen captures.
 See `evidence/comparison.json` and `evidence/browser-check.json` for bounded
 numerical results. The compared 500 px fixtures match exactly; this does not
 prove equality for every design/pose or fidelity to a physical phone photo.
+
+## Photo look (default on in the Preview UI)
+
+`surface.mjs` adds a separate camera/surface approximation in the existing worker.
+`model.mjs` and `textures.bin` are unchanged. The worker takes the exact path when
+`pose.photoLook` is false or absent; the UI explicitly sends 1 by default. This
+keeps existing programmatic callers and `verify.cjs` on the exact model.
+
+The reflected light position is the plane intersection of the camera-to-mirrored
+light ray, with the same tilt transform as the model. A clipped hotspot and
+soft blue bloom follow it. Round 2 replaces uniform radial white streaks with
+a tapered flame and an opposed thin spectral needle. The opposed needle is an explicit
+approximation; round 3 replaces the flame with a fitted aperture/order hypothesis. Blurred environment lobes
+move with the camera. The clear hub offsets a shared procedural backing, with
+directional step-edge arcs, frosting and a thin outer rim.
+A fixed seed makes dust, scratches and fingerprint ridges stable in disc space.
+The final pipeline boosts chroma/contrast, clips highlights, adds a blue cast,
+radial channel separation, a small unsharp halo, vignette and sensor grain.
+This is an artistic prediction, never a physical-photo fidelity claim.
+
+Controls in both languages: Photo look on/off; flash versus broad room lamp;
+dust/scratches 0/45/100%; hand-coloured or dark-table backing. Existing five
+pose/exposure sliders and light/camera handles remain. Reset restores all of
+these defaults. Photo controls are disabled while viewing the pure model.
+
+Both passes remain cancellable: 160 px while interacting, 500 px after 180 ms
+idle. Surface processing yields every 16 rows and reuses two cached procedural
+mark maps. Run `node discprobe/web/home/sim/rough-check.cjs` with the loopback
+server above for UI-off pixel equality, default/control state, optical movement,
+bilingual desktop/mobile checks, worker timings and canvas-only PNG exports.
+`evidence/rough/checks.json` records the exact poses and measurements. The PNGs
+are raw face-on worker maps; comparison boards apply the UI's cos(tilt) squash.
+The CD-RW reference informs finish only: the DVD model does not predict CD.
+
+
+## Round 2 evidence
+
+`gratingWavelength` evaluates the 740 nm first-order radial grating relation.
+The sampled +/-12 mm mirror neighborhoods at the three evidence poses remain
+below 50 nm; a compact visible flame is therefore approximated explicitly.
+Its radial axis and finite envelope follow the geometric mirror point. The
+round-2 camera toe was removed in round 3; selective A5/environment darkening
+preserves the exposed silver surface. Additive glare still clips.
+See `codex-rough2-last.md` for the physical limits and visual assessment.
+
+Run `rough2-check.cjs` with the existing loopback server, then
+`python -B discprobe/web/home/sim/build-rough2-evidence.py` from the worktree
+root. Three procedural block-pattern worker renders, timings, grating probes,
+raw exports, reference comparison boards and a signature close-up are under
+`evidence/rough2/`. Surrounding blanket pixels are evidence staging; the live
+preview surrounding canvas stays black. No reference pixels enter the renderer.
+
+
+## Round 3 hypothesis and evidence
+
+`RADIAL_APERTURE` in `surface.mjs` exposes internal width/period parameters:
+16 um effective radial aperture, 20 um long period, 10:1 outward-order blaze.
+The suggested 40/40 um trial is preserved beside the fitted result. These are
+appearance-fit hypotheses, not measurements or a demonstrated burn mechanism.
+The stage integrates 400..700 nm in 25 nm steps, using the exact model's tilted
+camera/light rays. A Gaussian-apodized central lobe has FWHM .886*lambda/w;
+orders are centered at radial mismatch +/-lambda/period. Finite source width,
+RGB response, gains, tangential softness and halo are approximate.
+
+The worker passes the existing binary design to the photo stage for selective
+A5 darkening. No global toe remains; silvery environment reflection stays bright.
+Hub catches are broken, asymmetric and vary in width; the hole has a paired
+bright/dark thickness cue. All controls and the exact off path are retained.
+
+With the loopback server above, run `verify.cjs`, `rough-check.cjs`, and
+`rough2-check.cjs` (set `ROUGH_EVIDENCE=rough3` to preserve old evidence).
+Run `rough3-check.cjs` for wavelength/aperture scaling, mirror geometry,
+blaze symmetry and rotated material selection, then
+`python -B discprobe/web/home/sim/build-rough3-evidence.py` for local reference
+composites and brightness statistics. See `codex-rough3-last.md` and
+`evidence/rough3/brightness.json` for masks, measurements and limitations.
