@@ -13,12 +13,12 @@
   background: url(newplan/top_paper.webp) 0 0 / 100% 100%; }
 :root[data-theme="dark"] .np-scene { background-image: url(newplan/top_dark.webp); }
 
-.np-title { position: absolute; left: var(--edge); bottom: calc(80px + 3vh); margin: 0; font-weight: 800; font-stretch: 112%;
+.np-title { position: absolute; left: var(--edge); bottom: calc(var(--foot) + 3vh); margin: 0; font-weight: 800; font-stretch: 112%;
   font-size: clamp(56px, 11vh, 132px); line-height: 1; color: color-mix(in srgb, var(--ink) 55%, transparent); }
 
 /* the sheet: the baked paper (and its shadow, away from the lamp), large, running on under the footer
    and out of the window */
-.np-sheet { position: absolute; right: calc(2.5vw - var(--m)); top: calc(96px - var(--m)); bottom: 0; width: calc(var(--wp) + 2 * var(--m));
+.np-sheet { position: absolute; right: calc(var(--edge) - var(--m)); top: calc(var(--edge) + var(--row) + 16px - var(--m)); bottom: 0; width: calc(var(--wp) + 2 * var(--m));
   box-sizing: border-box; padding: calc(var(--m) + 1.5em) calc(var(--m) + 2.6em) 0; font-size: var(--fs);
   background: url(newplan/paper_paper.webp) 0 0 / 100% auto no-repeat,
               url(newplan/paper_shadow_paper.webp) calc(var(--m) * -.4) calc(var(--m) * .5) / 100% auto no-repeat;
@@ -93,7 +93,7 @@
 .np.leaving :is(.np-env-back, .np-env-front) { transform: translateY(120vh); transition-duration: 600ms; transition-timing-function: cubic-bezier(.5, 0, .9, .5); }
 .np.leaving .np-sheet { transform: translate(var(--file-x), calc(var(--file-y) + 120vh)) scale(var(--file-s)); transition-duration: 600ms; transition-timing-function: cubic-bezier(.5, 0, .9, .5); }
 
-.np-toast { position: absolute; left: 50%; bottom: 100px; transform: translate(-50%, 8px); padding: 10px 16px; border-radius: 3px; background: var(--ink); color: var(--paper); opacity: 0; transition: opacity 200ms, transform 200ms; pointer-events: none; }
+.np-toast { position: absolute; left: 50%; bottom: calc(var(--foot) + 16px); transform: translate(-50%, 8px); padding: 10px 16px; border-radius: 8px; background: var(--ink); color: var(--paper); opacity: 0; transition: opacity 200ms, transform 200ms; pointer-events: none; }
 .np-toast.on { opacity: 1; transform: translate(-50%, 0); }
 @media (max-width: 860px) { .np { --wp: 92vw; } .np-sheet { right: calc(4vw - var(--m)); top: calc(84px - var(--m)); } .np-title { display: none; } }
 :root[data-motion="off"] .np-env-back, :root[data-motion="off"] .np-env-front, :root[data-motion="off"] .np-sheet, :root[data-motion="off"] .np-face { transition: none !important; animation: none !important; }

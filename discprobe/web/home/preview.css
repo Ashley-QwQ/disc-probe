@@ -21,7 +21,7 @@
 .pv-ctl output { grid-column: 2; grid-row: 1; }
 
 /* progress: a thin bar, moving while the page is idle (.live) */
-.pv-bar { height: 6px; border-radius: 3px; background: var(--paper-2); overflow: hidden; }
+.pv-bar { height: 6px; border-radius: 4px; background: var(--paper-2); overflow: hidden; }
 .pv-bar i { display: block; height: 100%; width: 100%; background: var(--ink); transform-origin: left; transform: scaleX(var(--f)); transition: transform 250ms var(--ease); }
 .pv-bar i.indet { transform: scaleX(.3); animation: pv-indet 1.4s ease-in-out infinite; }
 @keyframes pv-indet { from { transform: translateX(-100%) scaleX(.3); } to { transform: translateX(100%) scaleX(.3); } }
@@ -50,7 +50,7 @@
 
 @media (max-width: 700px) {
   .ws.pv.pv-looking .cv { top: 156px; left: 16px; right: 16px; bottom: auto; height: 38vh; min-height: 220px; }
-  .ws.pv.pv-looking .col-r { top: max(calc(156px + 38vh + 12px), 388px); left: 20px; right: 20px; width: auto; bottom: 86px; }
+  .ws.pv.pv-looking .col-r { top: max(calc(156px + 38vh + 12px), 388px); left: 20px; right: 20px; width: auto; bottom: calc(var(--foot) + 16px); }
   .pv-looking .viewsw { max-width: 100%; flex-wrap: wrap; }
   .pv-looking .viewsw button { padding-inline: 8px; font-size: 13px; }
   .pv-looking .cv-note { margin-bottom: 0; padding: 4px 8px; font-size: 13px; }
@@ -62,7 +62,7 @@
 .pv-photo-controls { display: grid; gap: 12px; padding-block: 4px 12px; border-bottom: 1px solid var(--rule); }
 .pv-check, .pv-backing { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; font-size: 16px; }
 .pv-check input { width: 22px; height: 22px; flex-shrink: 0; accent-color: var(--copper); }
-.pv-backing select { min-height: 44px; max-width: 52%; font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 3px; padding: 4px 8px; }
+.pv-backing select { min-height: 44px; max-width: 52%; font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 4px; padding: 4px 8px; }
 .pv-photo-controls :disabled { opacity: .45; cursor: default; }
 .pv-photo-controls :focus-visible { outline: 2px solid var(--copper); outline-offset: 3px; }
 .pv-looking .col p.pv-rough-note { color: var(--ink-2); }

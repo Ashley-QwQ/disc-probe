@@ -1,19 +1,19 @@
 /* The terminal (terminal.js): a console that slides down over the lobby, dressed as the machine's shell. */
-.term { position: fixed; z-index: 3; left: 50%; top: calc(var(--edge) + 64px); width: min(1100px, calc(100vw - 2 * var(--edge))); height: min(640px, calc(100vh - 220px));
+.term { position: fixed; z-index: 3; left: 50%; top: calc(var(--edge) + var(--row) + 16px); bottom: calc(var(--foot) + 16px); width: min(1100px, calc(100vw - 2 * var(--edge)));
   translate: -50% 0; --term-bg: #0c0c0c; --term-fg: #cccccc; --term-ps: #8ae234; --term-dim: #8a8a8a; --term-warn: #e9c46a; --term-err: #f07178; --term-ok: #8ae234; }
 .term[hidden] { display: none; }
 .term[data-shell="win"] { --term-bg: #012456; --term-fg: #eeedf0; --term-ps: #eeedf0; --term-dim: #9fb3d1; --term-warn: #f9f1a5; --term-err: #ff8f8f; --term-ok: #a6e3a1; }
 /* the monitor around it: a dark bezel, a thin bar with the title and two controls */
-.term-bezel { position: relative; height: 100%; display: grid; grid-template-rows: auto 1fr; padding: 10px 12px 14px; border-radius: 4px;
+.term-bezel { position: relative; height: 100%; display: grid; grid-template-rows: auto 1fr; padding: 10px 12px 14px; border-radius: 8px;
   background: #1b1c1d; box-shadow: 0 24px 60px rgba(0, 0, 0, .35), 0 0 0 1px rgba(255, 255, 255, .06) inset; }
 .term-bar { display: flex; align-items: center; gap: 16px; padding: 0 4px 8px; color: #b9bcbf; font: 600 13px var(--font); }
 .term-title { margin-right: auto; }
 .term-real { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .term-real input { accent-color: var(--copper); }
-.term-close { min-height: 30px; padding: 0 10px; border: 1px solid #3a3d40; border-radius: 3px; background: none; color: #d8dbde; font: 600 13px var(--font); cursor: pointer; }
+.term-close { min-height: 30px; padding: 0 10px; border: 1px solid #3a3d40; border-radius: 4px; background: none; color: #d8dbde; font: 600 13px var(--font); cursor: pointer; }
 .term-close:hover, .term-close:focus-visible { border-color: var(--copper); color: #fff; outline: none; }
 /* the console face */
-.term-screen { position: relative; overflow-y: auto; padding: 12px 14px; border-radius: 2px; background: var(--term-bg); color: var(--term-fg);
+.term-screen { position: relative; overflow-y: auto; padding: 12px 14px; border-radius: 4px; background: var(--term-bg); color: var(--term-fg);
   font: 15px / 1.45 "Cascadia Mono", Consolas, ui-monospace, monospace; cursor: text; scrollbar-width: thin; scrollbar-color: #555 transparent; }
 .term-row { white-space: pre-wrap; word-break: break-word; min-height: 1.45em; }
 .term-row.echo { color: var(--term-fg); }
@@ -26,7 +26,7 @@
 .term[data-shell="bash"] .term-ps { font-weight: 700; }
 .term-in { flex: 1; min-width: 0; border: 0; padding: 0; background: none; color: inherit; font: inherit; outline: none; caret-color: var(--term-fg); }
 /* the worn-screen look (optional): fine scan lines, a few scratches, the glass darker at the corners, a faint glow */
-.term-fx { position: absolute; inset: 40px 12px 14px; border-radius: 2px; pointer-events: none; opacity: 0; transition: opacity 240ms; }
+.term-fx { position: absolute; inset: 40px 12px 14px; border-radius: 4px; pointer-events: none; opacity: 0; transition: opacity 240ms; }
 .term.real .term-fx { opacity: 1;
   background:
     linear-gradient(103deg, transparent 31.7%, rgba(255, 255, 255, .07) 31.8% 31.95%, transparent 32.1%),

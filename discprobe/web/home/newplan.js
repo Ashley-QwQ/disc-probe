@@ -321,9 +321,42 @@ function pullable() {
 
 // ---------------------------------------------------------------- in and out
 const wait = (ms) => new Promise((r) => setTimeout(r, api.reduce ? 0 : ms));
+// Everything the page needs before it can fly in: its words, its markup and style, and its pictures for the
+// current theme decoded. The lobby calls this when the pointer (or focus) reaches the drive, so the first
+// frame of the flight is not spent loading (it was one frame of about a quarter second).
+let ready = null, readyTheme = "";
+const ART = ["top", "paper", "paper_shadow", "envelope_back", "envelope_front"];
+const kept = [];          // the decoded pictures, held so they stay decoded
+export function prepare(homeApi) {
+  api = homeApi; $ = api.$;
+  const theme = root.dataset.theme === "dark" ? "dark" : "paper";
+  if (ready && readyTheme === theme) return ready;
+  readyTheme = theme;
+  ready = (async () => {
+    await loadWords();
+    if (!W) build();
+    await cssReady;
+    await Promise.all(ART.map((n) => {
+      const img = new Image();
+      img.src = new URL(`./newplan/${n}_${theme}.webp`, import.meta.url).href;
+      kept.push(img);
+      return img.decode().catch(() => {});
+    }));
+    // Drawn once, invisibly, for a few frames: the graphics card rasterises the big pictures now rather
+    // than in the first frame of the flight (where it stalled the flight for about a third of a second).
+    if (!W.hidden || api.reduce) return;
+    const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    Object.assign(W.style, { opacity: "0.002", pointerEvents: "none" });
+    W.hidden = false;
+    await frame(); await frame();
+    if (root.dataset.mode !== "newplan") W.hidden = true;      // unless the page was opened meanwhile
+    Object.assign(W.style, { opacity: "", pointerEvents: "" });
+  })();
+  return ready;
+}
 export async function start(homeApi, { from = null, file = null } = {}) {
   api = homeApi; $ = api.$;
-  await loadWords();
+  await Promise.race([prepare(homeApi), wait(600)]);     // pictures still loading after 0.6 s come in late
   if (!W) build();
   await cssReady;
   const [col, item] = api.lastBatch();
@@ -419,10 +452,11 @@ async function next() {
   W.resetPull?.();
   fileInto();
   W.classList.add("filing");
+  const designing = import("./design.js");       // fetched and parsed while the envelope animates
   await wait(1000);
   W.classList.add("leaving");
   await wait(600);
-  const design = await import("./design.js");
+  const design = await designing;
   api.useForPlan(state.kind, item);
   leave();
   W.classList.remove("filing", "leaving");

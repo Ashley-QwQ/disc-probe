@@ -10,7 +10,7 @@
 .cutaway.unmirrored .inside{transform:none}
 .cutaway.unmirrored .inside-type{transform:translate(-50%,-50%) matrix(0.866,-0.5,0.866,0.5,0,0)}
 :root[data-mode="burn"] #drivebar{visibility:hidden}
-.burn-page{position:fixed;inset:88px var(--edge) 104px;z-index:2;overflow:auto;scrollbar-color:var(--rule-strong) var(--paper);scrollbar-width:thin}
+.burn-page{position:fixed;inset:calc(var(--edge) + var(--row, 52px) + 16px) var(--edge) calc(var(--foot, calc(var(--edge) + 52px)) + 16px);z-index:2;overflow:auto;scrollbar-color:var(--rule-strong) var(--paper);scrollbar-width:thin}
 .burn-page[hidden],.burn-page [hidden],.burn-mini[hidden]{display:none!important}
 .burn-page h1{font-size:28px;font-weight:650;font-stretch:112%;line-height:1.2;margin:0 0 24px}
 .burn-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(340px, .85fr);gap:clamp(28px,5vw,88px);align-items:start}
@@ -22,7 +22,7 @@
 .burn-facts dd.burn-file-details{grid-column:2;margin-top:-8px;color:var(--ink-2)}
 .burn-data{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .burn-speed{border-top:1px solid var(--rule);padding-top:20px;display:grid;grid-template-columns:1fr 116px;gap:8px 16px;align-items:center}
-.burn-speed select{font:inherit;min-height:44px;padding:0 12px;border:1px solid var(--rule-strong);border-radius:3px;background:var(--paper);color:var(--ink)}
+.burn-speed select{font:inherit;min-height:44px;padding:0 12px;border:1px solid var(--rule-strong);border-radius:4px;background:var(--paper);color:var(--ink)}
 .burn-speed p{grid-column:1/-1;color:var(--ink-2);margin:0 0 16px}
 .burn-warning{margin:8px 0 16px;color:var(--warn)}
 .burn-consent{display:flex;align-items:flex-start;gap:12px;min-height:44px;cursor:pointer;padding:12px 0;border-top:1px solid var(--rule)}
@@ -34,7 +34,7 @@
 .burn-page[data-state="ready"]:has(.burn-consent[hidden]) .burn-result{display:block}
 .burn-timing{display:flex;gap:24px;flex-wrap:wrap;font-variant-numeric:tabular-nums;margin:24px 0}
 .burn-actions{display:flex;flex-wrap:wrap;gap:8px}
-.burn-page button,.burn-mini{min-height:44px;padding:8px 16px;border:1px solid var(--rule-strong);border-radius:3px;background:transparent;color:var(--ink);font:inherit;cursor:pointer;transition:background-color 180ms,transform 150ms}
+.burn-page button,.burn-mini{min-height:44px;padding:8px 16px;border:1px solid var(--rule-strong);border-radius:4px;background:transparent;color:var(--ink);font:inherit;cursor:pointer;transition:background-color 180ms,transform 150ms}
 .burn-page button:hover:not(:disabled),.burn-mini:hover{background:var(--paper-2);border-color:var(--ink-2)}
 .burn-page button:active:not(:disabled),.burn-mini:active{transform:translateY(1px);background:var(--paper-2)}
 .burn-page button:disabled{opacity:.5;cursor:default}
@@ -66,9 +66,9 @@
 .burn-primary{position:relative;min-height:56px!important;min-width:272px;touch-action:none;user-select:none;-webkit-user-select:none}
 .burn-primary:active:not(:disabled){transform:translateY(1px)}
 .burn-hold-ring{position:relative;display:inline-block;width:32px;height:32px;inset:auto;flex:none;vertical-align:middle;margin-left:12px;background:color-mix(in srgb,var(--paper) 30%,var(--ink))}
-.burn-mini{position:fixed;right:var(--edge);top:24px;z-index:8;display:flex;align-items:center;gap:12px;background:var(--paper)}
+.burn-mini{position:fixed;right:var(--edge);top:var(--edge);z-index:8;display:flex;align-items:center;gap:12px;background:var(--paper)}
 .burn-mini .burn-ring{position:relative;inset:auto;width:36px;height:36px;flex:none}
-.burn-toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);max-width:90vw;z-index:20;background:var(--ink);color:var(--paper);padding:12px 16px;border-radius:3px;opacity:0;pointer-events:none;transition:opacity 180ms}
+.burn-toast{position:fixed;left:50%;bottom:calc(var(--foot, calc(var(--edge) + 52px)) + 16px);transform:translateX(-50%);max-width:90vw;z-index:20;background:var(--ink);color:var(--paper);padding:12px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity 180ms}
 .burn-toast.on{opacity:1}
 .burn-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 @keyframes burn-breathe{50%{opacity:.85}}

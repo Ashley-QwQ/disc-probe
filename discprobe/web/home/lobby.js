@@ -187,6 +187,7 @@ function fitLabel(n, i) {
 }
 function hover(key, on) {
   const t = M.targets[key];
+  if (on && key === "newplan") import("./newplan.js").then((m) => m.prepare(api)).catch(() => {});   // ready before the click
   if (t.layer !== "base") L.layer[t.layer]?.classList.toggle("lift", on);
   L.root.querySelectorAll(`[data-target="${key}"]`).forEach((n) => n.classList.toggle("hot", on));
 }
@@ -275,12 +276,14 @@ function drift() {
   const fine = matchMedia("(pointer: fine)").matches;
   if (!DRIFT || !fine) return;
   let tx = 0, ty = 0, x = 0, y = 0, raf = 0;
+  L.drifters = [...L.world.querySelectorAll(".lb-layer")].map((g) => [g, Number(g.style.getPropertyValue("--reach")) || 0]);
   const step = () => {
     x += (tx - x) * 0.08; y += (ty - y) * 0.08;
     // in canvas px: the world is scaled by k
-    const s = DRIFT / (L.k || 1);
-    L.world.style.setProperty("--dx", `${(-x * s).toFixed(2)}px`);
-    L.world.style.setProperty("--dy", `${(-y * s).toFixed(2)}px`);
+    // Each layer's own offset (its reach times the world's): a variable on the world would make every
+    // element under it restyle on every frame (about a tenth of the main thread while the mouse moves).
+    const s = DRIFT / (L.k || 1), dx = -x * s, dy = -y * s;
+    for (const [g, r] of L.drifters) g.style.translate = `${(dx * r).toFixed(2)}px ${(dy * r).toFixed(2)}px`;
     raf = Math.abs(tx - x) + Math.abs(ty - y) > 0.002 ? requestAnimationFrame(step) : 0;
   };
   L.root.addEventListener("pointermove", (e) => {

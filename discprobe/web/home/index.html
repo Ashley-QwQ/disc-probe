@@ -34,6 +34,10 @@
     --font: "Archivo", system-ui, "Microsoft YaHei UI", "PingFang SC", sans-serif;
     --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
     --edge: clamp(20px, 3.2vw, 56px);
+    /* The frame: the header row and the footer row are both --row tall and --edge in from the window,
+       so the four corner things (the wordmark, the tools, the drive line, next) sit at equal distances
+       from both edges. --foot is how much of the window's bottom the footer row takes. */
+    --row: 52px; --foot: calc(var(--edge) + var(--row));
     --t: 260ms; --ease: cubic-bezier(.2, .8, .2, 1); --io: cubic-bezier(.65, 0, .35, 1);
     --over: cubic-bezier(.34, 1.45, .55, 1);
   }
@@ -146,10 +150,10 @@
   /* the scene, labels and greeting: lobby.css / lobby.js */
   /* Settings: a small panel under its button (for now only animation) */
   .set-menu { position: fixed; z-index: 4; top: calc(var(--edge) + 58px); right: var(--edge); width: min(360px, calc(100vw - 2 * var(--edge))); padding: 14px 16px;
-    background: var(--paper); color: var(--ink); border: 1px solid var(--rule-strong); border-radius: 3px; }
+    background: var(--paper); color: var(--ink); border: 1px solid var(--rule-strong); border-radius: 8px; }
   .set-menu[hidden] { display: none; }
   .set-row { margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 600; }
-  .set-seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 3px; overflow: hidden; }
+  .set-seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 4px; overflow: hidden; }
   .set-seg button { min-height: 36px; padding: 0 12px; border: 0; background: none; color: var(--ink-2); font: 600 14px var(--font); cursor: pointer; }
   .set-seg button + button { border-left: 1px solid var(--rule-strong); }
   .set-seg button[aria-checked="true"] { background: var(--ink); color: var(--paper); }
@@ -157,8 +161,9 @@
   .set-note { display: block; margin-top: 10px; font-size: 13px; color: var(--ink-2); line-height: 1.5; }
   /* the header: one row, one control height, the wordmark and the tools on one centre line; the
      outermost glyphs sit on the page's content edges (left = the wordmark, right = the next button) */
-  .top { position: fixed; z-index: 3; top: var(--edge); left: var(--edge); right: var(--edge); height: 52px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
+  .top { position: fixed; z-index: 3; top: var(--edge); left: var(--edge); right: var(--edge); height: var(--row); display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
   .top > * { pointer-events: auto; }
+  :root[data-home="library"]:is(:not([data-mode]), [data-mode=""]) .top > .wordmark { position: absolute; left: 50%; translate: -50% 0; }
   .tools { display: flex; align-items: center; gap: 4px; margin-right: -14px; }
   .bl { top: calc(100vh - 80px - var(--edge) - 236px); left: calc(var(--edge) + 120px); transform-origin: 0 0; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0); }
 
@@ -222,7 +227,7 @@
   :root[data-motion="on"][data-mode]:not([data-mode=""]) .wm-ver { transition: opacity 200ms ease-out 420ms; }
 
   .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-  .btn { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 18px; font-size: 18px; border: 1px solid transparent; border-radius: 2px; background: transparent; cursor: pointer; transition: background-color var(--t) var(--ease); }
+  .btn { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 18px; font-size: 18px; border: 1px solid transparent; border-radius: 4px; background: transparent; cursor: pointer; transition: background-color var(--t) var(--ease); }
   .btn:hover { background: var(--paper-2); }
   .btn:active { transform: translateY(1px); }
 
@@ -235,7 +240,7 @@
   .count { font-weight: 300; font-size: 112px; line-height: .9; font-variant-numeric: tabular-nums; letter-spacing: -.02em; display: flex; align-items: baseline; }
   .count small { font-size: 38px; color: var(--ink-3); font-weight: 300; margin-left: 8px; }
   .kinds { display: flex; gap: 2px; }
-  .kind { min-height: 52px; padding: 0 18px; font-size: 19px; border: 1px solid transparent; background: none; cursor: pointer; color: var(--ink-3); font-weight: 600; font-stretch: 110%; border-radius: 2px; transition: color var(--t) var(--ease), border-color var(--t) var(--ease); }
+  .kind { min-height: 52px; padding: 0 18px; font-size: 19px; border: 1px solid transparent; background: none; cursor: pointer; color: var(--ink-3); font-weight: 600; font-stretch: 110%; border-radius: 4px; transition: color var(--t) var(--ease), border-color var(--t) var(--ease); }
   .kind:hover { color: var(--ink); }
   .kind[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
 
@@ -269,12 +274,15 @@
   .fade { transition: opacity 200ms var(--ease); }
   .fade.out { opacity: 0; }
 
-  /* ---- the bar: drive on the left, next on the right ---- */
-  .bar { position: fixed; z-index: 2; left: 0; right: 0; bottom: 0; height: 80px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 0 var(--edge); border-top: 1px solid var(--rule); background: color-mix(in srgb, var(--paper) 92%, transparent); }
-  :root[data-theme="dark"] .bar { box-shadow: inset 0 1px 0 #d9a75c55; }
+  /* ---- the footer row: drive on the left, next on the right, --edge in from the bottom corners as the
+     header is from the top ones. No band or rule: the page fades to paper under it, so whatever runs on
+     below (the new-work sheet, a scrolled column) stays legible behind the row ---- */
+  .bar { position: fixed; z-index: 2; left: var(--edge); right: var(--edge); bottom: var(--edge); height: var(--row); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; }
+  .bar::before { content: ""; position: absolute; z-index: -1; pointer-events: none; left: calc(-1 * var(--edge)); right: calc(-1 * var(--edge)); bottom: calc(-1 * var(--edge));
+    height: calc(var(--foot) + 32px); background: linear-gradient(to top, color-mix(in srgb, var(--paper) 88%, transparent) 55%, transparent); }
   .drive { color: var(--ink-2); font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .drive b { color: var(--ink); font-weight: 600; }
-  .next { min-height: 56px; padding: 0 28px; font-size: 19px; border: 0; border-radius: 2px; background: var(--ink); color: var(--paper); font-weight: 600; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; white-space: nowrap; transition: transform 150ms var(--ease); }
+  .next { min-height: var(--row); padding: 0 28px; font-size: 19px; border: 0; border-radius: 4px; background: var(--ink); color: var(--paper); font-weight: 600; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; white-space: nowrap; transition: transform 150ms var(--ease); }
   .next:active { transform: translateY(1px); }
   .next .icon { transition: transform var(--t) var(--ease); }
   .next:hover .icon { transform: translateX(3px); }
@@ -317,7 +325,7 @@
   .cal h2 { margin: 0; font-weight: 800; font-stretch: 118%; font-size: clamp(32px, 3vw, 52px); line-height: 1.08; }
   .cal .lede { margin: 0; color: var(--ink-2); font-size: 19px; max-width: 34em; }
   .cal .choices { display: grid; gap: 10px; }
-  .cal .choice { display: grid; grid-template-columns: 22px 1fr; gap: 4px 12px; align-items: start; padding: 16px 18px; border: 1px solid var(--rule-strong); border-radius: 3px; cursor: pointer; }
+  .cal .choice { display: grid; grid-template-columns: 22px 1fr; gap: 4px 12px; align-items: start; padding: 16px 18px; border: 1px solid var(--rule-strong); border-radius: 4px; cursor: pointer; }
   .cal .choice:has(input:checked) { border-color: var(--ink); }
   .cal .choice input { margin: 4px 0 0; accent-color: var(--ink); width: 18px; height: 18px; }
   .cal .choice b { font-size: 18px; font-weight: 600; }
@@ -325,7 +333,7 @@
   .cal .readout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 24px; margin: 0; }
   .cal .readout dt { font-size: 15px; color: var(--ink-3); }
   .cal .readout dd { margin: 2px 0 0; font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .cal .note { display: flex; gap: 10px; align-items: flex-start; font-size: 18px; padding: 12px 14px; margin: 0 -14px; border-radius: 3px; }
+  .cal .note { display: flex; gap: 10px; align-items: flex-start; font-size: 18px; padding: 12px 14px; margin: 0 -14px; border-radius: 4px; }
   /* a new warning flashes a pale orange three times, then rests */
   .cal .note.flash { animation: note-flash 520ms ease-in-out 3; }
   @keyframes note-flash { 50% { background: color-mix(in srgb, #e8a24e 22%, transparent); } }
@@ -333,7 +341,7 @@
   .cal .note[data-s="good"] { color: var(--good); } .cal .note[data-s="warn"] { color: var(--warn); } .cal .note[data-s="error"] { color: #c0574a; } .cal .note[data-s="unknown"] { color: var(--unknown); }
   :root[data-theme="dark"] .cal .note[data-s="error"] { color: #ee7f72; }
   .cal .note p { margin: 0; } .cal .note small { display: block; color: var(--ink-2); font-size: 16px; margin-top: 4px; }
-  .cal .demo { justify-self: start; min-height: 44px; padding: 0 16px; border: 1px dashed var(--rule-strong); border-radius: 3px; background: none; color: var(--ink-2); cursor: pointer; font: inherit; font-size: 15px; }
+  .cal .demo { justify-self: start; min-height: 44px; padding: 0 16px; border: 1px dashed var(--rule-strong); border-radius: 4px; background: none; color: var(--ink-2); cursor: pointer; font: inherit; font-size: 15px; }
   .cal .demo:hover { color: var(--ink); border-color: var(--ink-3); }
   .cal .chart { width: 100%; height: auto; display: block; }
   .cal .chart .axis { stroke: var(--rule-strong); stroke-width: 1; fill: none; }
@@ -351,7 +359,7 @@
   .cal .name-field input { font: inherit; font-size: 20px; color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--rule-strong); padding: 6px 0; caret-color: var(--copper); }
   .cal .name-field input:focus-visible { outline: none; border-bottom-color: var(--ink); }
   .cal .count-input { display: flex; align-items: center; gap: 12px; font-size: 18px; }
-  .cal .count-input input { width: 92px; min-height: 52px; padding: 0 12px; border: 1px solid var(--rule-strong); border-radius: 3px; background: transparent; color: var(--ink); font: 600 22px var(--font); font-variant-numeric: tabular-nums; }
+  .cal .count-input input { width: 92px; min-height: 52px; padding: 0 12px; border: 1px solid var(--rule-strong); border-radius: 4px; background: transparent; color: var(--ink); font: 600 22px var(--font); font-variant-numeric: tabular-nums; }
 
   /* the job in the bar: what runs, how far (rainbow by radius for disc jobs), time left, cancel */
   .job { display: grid; grid-template-columns: auto minmax(120px, 1fr) auto auto; align-items: center; gap: 16px; min-width: 0; }
@@ -461,7 +469,7 @@
   .drive-led.on { animation: led 0.5s steps(2, jump-none) infinite; }
   @keyframes led { 0% { opacity: 1; } 100% { opacity: .1; } }
 
-  .cal .placed { min-height: 52px; padding: 0 24px; border: 1.5px solid var(--ink); border-radius: 3px; background: transparent; color: var(--ink); font: 600 18px var(--font); cursor: pointer; }
+  .cal .placed { min-height: 52px; padding: 0 24px; border: 1.5px solid var(--ink); border-radius: 4px; background: transparent; color: var(--ink); font: 600 18px var(--font); cursor: pointer; }
   .cal .placed:hover { background: var(--paper-2); }
   .cal .choice:has(input:disabled) { opacity: .5; cursor: default; }
 
@@ -694,14 +702,13 @@
   for (const id of ["bd", "cd", "dvd"]) {
     const ghost = document.createElement("img");
     ghost.className = "layer ghost"; ghost.alt = ""; ghost.decoding = "async"; ghost.dataset.row = id;
-    ghost.src = ghostSrc(id);
     const solid = document.createElement("div");
     solid.className = "layer solid"; solid.dataset.row = id;
     cam.append(ghost, solid);
     layers[id] = solid; ghosts[id] = ghost;
   }
   function loadSolid(id) {
-    if (!layers[id]) return Promise.resolve();
+    if (!layers[id] || !awake) return Promise.resolve();
     loaded[id] ??= fetch(`row-${id}.svg`).then((r) => r.text()).then((t) => {
       layers[id].innerHTML = t;
       addNewSlot(id);
@@ -733,8 +740,18 @@
     originals.forEach((el, i) => { el.style.display = i > n ? 'none' : ''; });
   }
 
-  await loadSolid("dvd");
-  (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => { loadSolid("cd"); loadSolid("bd"); });
+  // The shelf and the drive are pictures for the library, calibration and burning; the page opens on the
+  // lobby, which shows neither. They are fetched and built the first time one of those is shown (or the
+  // pointer reaches the library button), not on the way to the lobby: that was 1.1 MB of the lobby's 1.8.
+  let awake = false;
+  function wakeScene() {
+    if (awake) return;
+    awake = true;
+    for (const id in ghosts) ghosts[id].src = ghostSrc(id);
+    placeBurner();
+    loadSolid(col === "drive" ? "dvd" : col).then(() => render(1, true));
+    (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => { for (const id of ["dvd", "cd", "bd"]) loadSolid(id); });
+  }
   let burner = null;
   try { burner = await fetch("burner.json").then((r) => (r.ok ? r.json() : null)); } catch {}
   function placeBurner() {
@@ -792,10 +809,12 @@
       const rig = document.createElement("div");
       rig.className = `rig ${theme}`;
       box(rig);
-      rig.innerHTML = `<img class="body" alt="" decoding="async" src="burner_body_${t}.webp">` +
+      // the other theme's pictures load on the first switch (the theme button sets their data-src)
+      const src = (root.dataset.theme === "dark") === (theme === "dark") ? "src" : "data-src";
+      rig.innerHTML = `<img class="body" alt="" decoding="async" ${src}="burner_body_${t}.webp">` +
         `<div class="slot" style="clip-path: polygon(${poly})">` +
-        `<img class="tray empty" alt="" decoding="async" src="burner_tray_${t}.webp">` +
-        `<img class="tray full" alt="" decoding="async" src="burner_traydisc_${t}.webp"></div>`;
+        `<img class="tray empty" alt="" decoding="async" ${src}="burner_tray_${t}.webp">` +
+        `<img class="tray full" alt="" decoding="async" ${src}="burner_traydisc_${t}.webp"></div>`;
       rig.style.setProperty("--slide", slide);
       rig.style.setProperty("--open", openAt);
       burnerLayer.append(rig);
@@ -808,7 +827,8 @@
     frame.style.transform = "none";
     burnerLayer.append(frame);
   }
-  placeBurner();
+  // calibration and burning stand in front of the drive
+  new MutationObserver(() => { if (["cal", "burn"].includes(root.dataset.mode)) wakeScene(); }).observe(root, { attributes: true, attributeFilter: ["data-mode"] });
 
   // The tray follows the drive: closed while you look elsewhere; when the drive comes into focus it
   // opens, showing the disc if there is one. When the drive reports a change it closes first, then
@@ -873,7 +893,7 @@
     const to = root.dataset.theme === "dark" ? "light" : "dark";
     root.dataset.theme = to;
     try { localStorage.setItem("dp-theme", to); } catch {}
-    for (const id in ghosts) ghosts[id].src = ghostSrc(id);
+    if (awake) for (const id in ghosts) ghosts[id].src = ghostSrc(id);
     for (const img of burnerLayer.querySelectorAll("img[data-src]")) { img.src = img.dataset.src; img.removeAttribute("data-src"); }
   }
   const settled = async () => {
@@ -1197,16 +1217,16 @@
     backend, selectedDrive: () => col === "drive" ? DATA.drive[idx]?.id : chosenDrive,
     reload: async () => { location.reload(); },
     T: () => T(), lang: () => lang, get reduce() { return reduce; }, meta, cam, art, burnerLayer, $,
-    setTray, tray: () => ({ open: trayOpen, disc: trayDisc }),
+    setTray(...a) { wakeScene(); return setTray(...a); }, tray: () => ({ open: trayOpen, disc: trayDisc }),
     current: () => ({ col, idx, item: DATA[col][idx] }),
-    focusDrive() { col = "drive"; idx = Math.max(0, DATA.drive.findIndex(d => d.id === chosenDrive)); render(1); },
-    goTo(c, i) { col = c; idx = i; render(-1); },
+    focusDrive() { wakeScene(); col = "drive"; idx = Math.max(0, DATA.drive.findIndex(d => d.id === chosenDrive)); render(1); },
+    goTo(c, i) { wakeScene(); col = c; idx = i; render(-1); },
     refresh() { render(1, true); },
     locate(item) {
       for (const c of ["dvd", "cd", "bd"]) { const i = DATA[c].indexOf(item); if (i >= 0) return [c, i]; }
       return ["dvd", 0];
     },
-    placeDisc(v) { trayDisc = v; burnerLayer.classList.toggle("has-disc", v); },
+    placeDisc(v) { wakeScene(); trayDisc = v; burnerLayer.classList.toggle("has-disc", v); },
     focusDisc: () => discs.find((d) => d.classList.contains("is-on")),
   };
   // The drive's next step: read what is in it (the real page runs `info`, read-only). A listed disc
@@ -1292,6 +1312,7 @@
     return ["dvd", DATA.dvd[0]];
   }
   function setHome(where) {
+    if (where === "library") wakeScene();
     root.dataset.home = where;
     $("back").hidden = where !== "library";
     if (where === "lobby") paintRecent();
@@ -1323,6 +1344,7 @@
     else if (f.type.startsWith("image/")) newPlan(f);
   });
   $("library").addEventListener("click", () => { if (!root.dataset.mode) setHome("library"); });
+  $("library").addEventListener("pointerenter", wakeScene, { once: true });      // fetch while the pointer is on its way
   // back from the library: to the plan that was waiting for discs, else to the lobby (capture: the
   // calibration page also listens on this button)
   $("back").addEventListener("click", async (e) => {

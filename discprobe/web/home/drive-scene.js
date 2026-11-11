@@ -54,7 +54,7 @@ export function cutaway(api, { mirrored = true, textLeft = () => innerWidth * 0.
   // the big place: the left of the window, up to the text column, between the top row and the bar
   function place() {
     const W = innerWidth, H = innerHeight;
-    const x0 = 12, x1 = Math.min((textLeft() || W * 0.56) - 56, W * 0.6), y0 = 76, y1 = H - 80 - 8;
+    const x0 = 12, x1 = Math.min((textLeft() || W * 0.56) - 56, W * 0.6), y0 = 76, y1 = (document.getElementById("next")?.getBoundingClientRect().top ?? H - 80) - 8;   // above the footer row
     const [cx0, cy, cw, ch] = CROP, cx = mirrored ? cx0 : 1600 - cx0 - cw;
     const k = Math.min((x1 - x0) / cw, (y1 - y0) / ch);
     const L = x0 + (x1 - x0 - cw * k) / 2 - cx * k, T0 = y0 + (y1 - y0 - ch * k) / 2 - cy * k;
