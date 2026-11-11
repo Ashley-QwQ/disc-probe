@@ -1039,8 +1039,8 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       if (event.type === "progress") {
         current.p = Math.max(0, Math.min(1, event.fraction || 0)); f.plateP = current.p;
         f.stage = event.stage; api.jobProgress(current.p, f.detected?.media || f.item?.row || "dvd");
-        $("job-time").textContent = Number.isFinite(event.eta_s) ? T().leftSec(event.eta_s) : "?";
-        if (action === "geo" || f.realPhase === "geo") { setPlate("geo"); showInterior(true); updateInterior(current.p, event.eta_s || 0); }
+        $("job-time").textContent = Number.isFinite(event.eta_s) ? T().leftSec(Math.max(0, event.eta_s)) : "?";
+        if (action === "geo" || f.realPhase === "geo") { setPlate("geo"); showInterior(true); updateInterior(current.p, Math.max(0, event.eta_s || 0)); }
       }
   };
   try {

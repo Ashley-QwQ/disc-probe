@@ -126,6 +126,13 @@ class Ladder:
         self.targets: list[dict] = []
         self.u, self.v, self.c = self.u0, self.v0, 0.0
         self.cov = None
+        # Progress counts reference/target pairs, not sectors or all device pauses.
+        # Settling and retries are elapsed time, not additional completed work.
+        self.progress_total = 0
+        self.progress_checks_done = 0
+        self.progress_current = 0
+        self.progress_stage = "starting"
+        self.progress_finished = False
         self.auto_ranges = None   # random stretches found on a disc that isn't all random data
 
     # ------------------------------------------------------------ geometry helpers
@@ -253,6 +260,7 @@ class Ladder:
             x = tp._measure(lba, "target")
             if tp._usable(x):
                 x_t.append(x.t_end_ns)
+            self.progress_current += 1
         fit = self._ref_period(ref_t) if len(ref_t) >= 8 else None
         if not fit or fit.coherence < MEASURE_COHERENCE or abs(fit.period_s / self.T - 1) > PERIOD_TOL or len(x_t) < 8:
             return None
@@ -265,11 +273,14 @@ class Ladder:
                 "used": ph["used"], "period_ms": round(fit.period_s * 1e3, 5)}
 
     def _measure_retry(self, lba: int, reps: int | None = None) -> dict | None:
+        self.progress_current = 0
         m = self.measure(lba, reps)
         if m is None:
             self.log(f"  LBA {lba}: spindle unsteady or reads failing; settling and retrying")
+            self.progress_current = 0
             self.settle()
             m = self.measure(lba, reps)
+        self.progress_current = 0
         return m
 
     # ------------------------------------------------------------ fitting
@@ -388,8 +399,11 @@ class Ladder:
         self.check_rotation()
         self.settle()
         self.sentinels = []
+        self.progress_total = self.max_targets * self.reps
         if self.state_check:
             self.sentinels_first()
+
+        self.progress_stage = "ladder"
 
         # First rungs: a turn or two away, where the nominal model is good to a few degrees.
         used = {self.ref}
@@ -468,7 +482,9 @@ class Ladder:
                                    f"{worst:.1f} deg; a whole-turn count is probably wrong, so the fit was stopped")
         if self.sentinels:
             self.check_state()
-        return self.result()
+        result = self.result()
+        self.progress_finished = True
+        return result
 
     def sentinels_first(self) -> None:
         """Before the ladder: read the raw phase of three far-apart points (near the inner end, a quarter of
@@ -481,14 +497,26 @@ class Ladder:
         lo = min(a for a, _ in self.ranges)
         hi = max(b for _, b in self.ranges)
         self.sentinels = []
+        planned = []
         for f in (0.03, 0.25, 0.97):
             lba = self._allowed(int(lo + f * (hi - lo)))
-            if lba is None or any(abs(lba - s["lba"]) < self.spacing for s in self.sentinels) \
-                    or abs(lba - self.ref) < self.spacing:
+            if lba is None or abs(lba - self.ref) < self.spacing:
                 continue
-            m = self._measure_retry(lba, SENTINEL_REPS * self.reps)
+            planned.append(lba)
+        cost = SENTINEL_REPS * self.reps
+        self.progress_total += 2 * len(planned) * cost
+        self.progress_stage = "reading check points"
+        for lba in planned:
+            if any(abs(lba - s["lba"]) < self.spacing for s in self.sentinels):
+                self.progress_total -= 2 * cost
+                continue
+            m = self._measure_retry(lba, cost)
+            self.progress_checks_done += cost
             if m is not None:
                 self.sentinels.append(m)
+            else:
+                # Only successfully read check points will be read again.
+                self.progress_total -= cost
         if self.sentinels:
             self.log("Check points read: " + ", ".join(f"{self._radius(s['lba']):.1f} mm" for s in self.sentinels)
                      + " (read again at the end)")
@@ -497,11 +525,13 @@ class Ladder:
         b = self.prior.bit_nm * 1e-6
         sem = lambda x: x.get("sem_deg") if x.get("sem_deg") is not None else x["sigma_deg"]
         self.log("Reading the check points again, to see that the drive stayed in one state...")
+        self.progress_stage = "reading check points again"
         out = []
         for s in self.sentinels:
             e = {"lba": s["lba"], "radius_mm": round(b * math.sqrt(self.u ** 2 + self.v * s["n"] / math.pi), 2),
                  "phase_first_deg": s["phase_deg"], "phase_again_deg": None, "period_first_ms": s["period_ms"]}
             m = self._measure_retry(s["lba"], SENTINEL_REPS * self.reps)
+            self.progress_checks_done += SENTINEL_REPS * self.reps
             if m is not None:
                 e.update(phase_again_deg=m["phase_deg"],
                          change_deg=round((m["phase_deg"] - s["phase_deg"] + 180.0) % 360.0 - 180.0, 3),

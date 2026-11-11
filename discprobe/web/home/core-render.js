@@ -92,6 +92,7 @@ export function progressLine(line, { reduce = () => false, alive = () => true, p
     line.replaceChildren(...parts.map((p) => { const s = document.createElement("span"); s.textContent = p.text; if (p.color) s.style.color = p.color; if (p.dim) s.style.opacity = ".55"; if (p.bold) s.style.fontWeight = "700"; return s; }));
   }
   function update(e) {
+    e = { ...e, fraction: Math.max(0, Math.min(1, e.fraction || 0)), eta_s: Number.isFinite(e.eta_s) ? Math.max(0, e.eta_s) : null };
     const now = performance.now() / 1000;
     const pct = `${Math.floor(Math.max(0, Math.min(1, e.fraction ?? 0)) * 100 + 1e-9)}%`.padStart(4);
     if (state.pct !== null && pct !== state.pct) {
