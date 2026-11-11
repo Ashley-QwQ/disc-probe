@@ -22,13 +22,33 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import guide, i18n, iso9660
+from . import guide, i18n, iso9660, webui_catalog
 
-ACTIONS = {"info", "timing", "geo", "random", "image", "disexport", "cdprobe", "burn"}
-DRIVE_ACTIONS = {"info", "timing", "geo", "burn"}
+
+_VERSION = None
+
+
+def version():
+    """This copy's release, shown after the folded wordmark: the newest tag of its git checkout
+    ("v0.1.2.1"), with "-dev" when there are commits after that tag; empty outside a checkout."""
+    global _VERSION
+    if _VERSION is None:
+        try:
+            out = subprocess.run(["git", "describe", "--tags", "--match", "v*"], cwd=Path(__file__).parent,
+                                 capture_output=True, text=True, timeout=5)
+            tag = out.stdout.strip() if out.returncode == 0 else ""
+        except (OSError, subprocess.SubprocessError):
+            tag = ""
+        m = re.fullmatch(r"(v[\d.]+)(-\d+-g[0-9a-f]+)?", tag)
+        _VERSION = (m.group(1) + ("-dev" if m.group(2) else "")) if m else ""
+    return _VERSION
+
+ACTIONS = {"info", "timing", "geo", "random", "image", "disexport", "cdprobe", "burn", "swap"}
+DRIVE_ACTIONS = {"info", "timing", "geo", "burn", "swap"}
 # Deliberately exclude force/install/replace, raw transport commands and arbitrary flags.
 OPTIONS = {
     "info": {},
+    "swap": {"minutes": "minutes"},       # read-only: TEST UNIT READY while the disc is changed
     "timing": {"speed": "speed", "reps": "count", "period_reads": "count", "max_minutes": "minutes"},
     "geo": {"speed": "speed", "reps": "count", "max_targets": "count", "bd_zones": "count"},
     "random": {"sectors": "sectors", "seed": "seed", "output": "path"},
@@ -37,9 +57,11 @@ OPTIONS = {
               "dark": "texture", "light": "texture"},
     "disexport": {"geo": "geo", "sectors": "sectors", "output": "path", "r_min": "radius", "r_max": "radius"},
     "cdprobe": {"sectors": "sectors", "output": "path", "size": "size"},
-    "burn": {},
+    "burn": {"iso": "path", "speed": "burn_speed", "cd_sector": "cd_layout"},
 }
 DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell (checked in the tests)
+# a design upload by its length: one bit per cell, at 20, 10 or 5 um (imagedisc.CELL_SIDES)
+DESIGN_SIDES = {side * side // 8: side for side in (6000, 12000, 24000)}
 LIMITS = {"count": (1, 1000), "sectors": (1, 25_000_000), "seed": (0, 2**32 - 1),
           "minutes": (0.1, 120), "diameter": (1, 120), "radius": (1, 58),
           "frames": (-10000, 10000), "size": (64, 8192)}
@@ -80,7 +102,9 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
     args = payload.get("args", {})
     if not isinstance(args, dict) or set(args) - OPTIONS[action].keys():
         raise APIError("argument is not allowed")
-    argv = [sys.executable, "-m", "discprobe", action]
+    # -P: the workspace (the child's cwd) is not put in front of the import path, so a checkout of
+    # another version there cannot stand in for this one (PYTHONPATH, set in start(), names this copy)
+    argv = [sys.executable, *(["-P"] if sys.version_info >= (3, 11) else []), "-m", "discprobe", action]
     if action in DRIVE_ACTIONS:
         argv += ["--drive", drive]
     if action in {"timing", "geo", "random", "image", "disexport"}:
@@ -91,6 +115,12 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
         rule = OPTIONS[action][name]
         if rule in ("path", "geo"):
             value = "latest" if rule == "geo" and value == "latest" else local_path(root, value)
+        elif rule == "cd_layout":
+            if value not in ("mode2form1", "mode1"):
+                raise APIError("invalid CD sector layout")
+        elif rule == "burn_speed":
+            if type(value) not in (int, float) or not math.isfinite(value) or not 0 < value <= 56:
+                raise APIError("invalid write speed (multiples of 1x)")
         elif rule == "speed":
             if type(value) is int and 1 <= value <= 65535:
                 pass
@@ -198,12 +228,20 @@ class Job:
         self.id, self.drive, self.folder = ident, drive, folder
         self.events = folder / "events.jsonl"
         self.answers = folder / "answers.jsonl"
+        self.output = folder / "output.log"
         self.events.touch()
+        self.output_offset = 0
+        self.levels = {}    # text -> level of a log event, waiting for the same line on stdout
         self.child = None
         self.finished = threading.Event()
         self.exit = None
         self.offset = 0
         self.history = []
+        self.action = None
+        self.args = {}
+        self.media = "dvd"
+        self.result = None
+        self.before = set()
         self.progress = None
         self.asks = {}
 
@@ -229,8 +267,31 @@ class Job:
                     self.asks[event["id"]] = event
                 elif event["type"] == "answer":
                     self.asks.pop(event.get("id"), None)
-                if event["type"] != "answer":
-                    self.history.append(event)
+                elif event["type"] == "log":
+                    # The same line is printed on stdout, which is where the page reads the log from.
+                    self.levels[str(event.get("text", "")).strip()] = event.get("level", "info")
+                    continue
+                self.history.append(event)
+        self.read_output()
+
+    def read_output(self):
+        """The command-line output, line by line, as log events: the page shows what a terminal would."""
+        try:
+            stream = self.output.open("rb")
+        except OSError:
+            return
+        with stream:
+            stream.seek(self.output_offset)
+            while True:
+                line = stream.readline()
+                if not line.endswith(b"\n"):
+                    break
+                self.output_offset = stream.tell()
+                text = line.decode("utf-8", "replace").rstrip("\r\n").rsplit("\r", 1)[-1].rstrip()
+                if text:
+                    # n keeps two identical lines apart (the page drops events it has already seen)
+                    self.history.append(dict(type="log", job=self.id, text=text, n=len(self.history),
+                                             level=self.levels.pop(text.strip(), "info")))
 
 
 class Backend:
@@ -244,16 +305,32 @@ class Backend:
         self.lock = threading.RLock()
         self.jobs = {}
         self.tokens = {}
+        # drive -> (expiry, media): a read-only inspection just found a blank disc there
+        self.verified_blank = {}
         self.closed = False
         self.folder = self.root / ".webui-jobs"
 
-    def state(self):
+    def state(self, media=None):
+        """The workflow for one disc type. The page asks for the type of the work it has open; the server's
+        --media is only the default, so one server serves DVD, CD and BD alike."""
+        media = media or self.media
+        if media not in ("dvd", "cd", "bd"):
+            raise APIError("invalid media")
         drives = self.drive_provider()
-        state = guide.guide_state(self.media, self.out, drives=[d["id"] for d in drives])
+        state = guide.guide_state(media, self.out, drives=[d["id"] for d in drives])
         state["drives"] = drives
         with self.lock:
-            state["jobs"] = [dict(id=j.id, drive=j.drive, exit=j.exit) for j in self.jobs.values()]
+            state["jobs"] = [dict(id=j.id, drive=j.drive, action=j.action, media=j.media, exit=j.exit, result=j.result) for j in self.jobs.values()]
+        state["catalogue"] = webui_catalog.catalogue(self.root, self.out)
+        state["version"] = version()
         return state
+
+    def job_state(self, ident):
+        with self.lock:
+            job = self.get_job(ident)
+            job.read()
+            return dict(job=ident, action=job.action, media=job.media, exit=job.exit,
+                        events=list(job.history), result=job.result)
 
     def burn_token(self):
         with self.lock:
@@ -278,24 +355,42 @@ class Backend:
                 if not isinstance(token, str) or self.tokens.pop(token, 0) <= time.monotonic():
                     raise APIError("valid burn token required", 403)
                 disc = next(d.get("disc") for d in drives if d["id"] == drive)
-                if not disc or disc.get("blank") is not True:
+                fresh = self.verified_blank.get(drive)
+                fresh_ok = fresh is not None and fresh[0] > time.monotonic() and fresh[1] == payload.get("media", "dvd")
+                if not fresh_ok and (not disc or disc.get("blank") is not True):
                     raise APIError("a verified blank disc is required", 409)
-                # This branch contains no burn command. Never pretend a saved report authorizes a write.
-                raise APIError("burn is not implemented by this engine", 501)
+                from . import burner
+                if payload.get("media", "dvd") not in ("dvd", "cd"):
+                    raise APIError("burn requires dvd or cd media")
+                image = payload.get("args", {}).get("iso")
+                if not image:
+                    raise APIError("burn is not implemented without an ISO; iso is required")
+                self.iso_file(image)
+                argv += ["--media", payload.get("media", "dvd"), "--yes-write"]
             if not self.folder.resolve().is_relative_to(self.root):
                 raise APIError("job directory must stay inside the workspace")
             self.folder.mkdir(exist_ok=True)
             ident = "j-" + secrets.token_hex(8)
             folder = Path(tempfile.mkdtemp(prefix=ident + "-", dir=self.folder))
             job = Job(ident, drive, folder)
+            job.action, job.media, job.args = payload["action"], payload.get("media", "dvd"), payload.get("args", {})
+            job.before = {r.path: result_signature(r) for r in guide.scan(self.out)}
+            if payload["action"] == "disexport" and job.args.get("output"):
+                Path(local_path(self.root, job.args["output"])).parent.mkdir(parents=True, exist_ok=True)
             env = os.environ.copy()
             env.update(DISCPROBE_EVENTS=str(job.events), DISCPROBE_ANSWERS=str(job.answers), DISCPROBE_JOB=ident)
             # Force plain child output; events have their own progress outlet.
             env["DISCPROBE_PLAIN"] = "1"
+            env["PYTHONUNBUFFERED"] = "1"     # each line reaches output.log, and so the page, as it is printed
+            # The child runs `-m discprobe` from the workspace, which may hold another copy of the package (an
+            # older checkout without event output). Put this server's own copy first so both run the same code.
+            here = str(Path(__file__).resolve().parent.parent)
+            env["PYTHONPATH"] = os.pathsep.join(p for p in (here, env.get("PYTHONPATH")) if p)
             self.jobs[ident] = job
             try:
                 with (folder / "output.log").open("wb") as output:
-                    job.child = self.runner(argv, env=env, cwd=str(self.root), stdout=output)
+                    runner = burner.web_child if payload["action"] == "burn" and self.runner is Child else self.runner
+                    job.child = runner(argv, env=env, cwd=str(self.root), stdout=output)
             except Exception:
                 del self.jobs[ident]
                 raise
@@ -313,13 +408,13 @@ class Backend:
         return dict(path=path.relative_to(self.root).as_posix(), bytes=size, sectors=size // 2048)
 
     def save_design(self, packed: bytes) -> dict:
-        """Keep a design the page drew (one bit per 20 µm cell, row by row, dark = 1) as image --design-npy reads it."""
+        """Keep a design the page drew (one bit per cell of 20, 10 or 5 µm, row by row, dark = 1) as image
+        --design-npy reads it; its length says the cell size."""
         import numpy as np
-        from . import imagedisc
-        if len(packed) != DESIGN_BYTES:
-            raise APIError("a design is %d bytes" % DESIGN_BYTES, 413)
-        cells = imagedisc.SIZE
-        dark = np.unpackbits(np.frombuffer(packed, np.uint8))[:cells * cells].reshape(cells, cells).astype(bool)
+        cells = DESIGN_SIDES.get(len(packed))
+        if cells is None:
+            raise APIError("a design is %s bytes" % " or ".join(str(n) for n in DESIGN_SIDES), 413)
+        dark = np.unpackbits(np.frombuffer(packed, np.uint8)).reshape(cells, cells).view(bool)
         folder = self.root / "designs"
         if not folder.resolve().is_relative_to(self.root):
             raise APIError("design directory must stay inside the workspace")
@@ -334,6 +429,24 @@ class Backend:
         with self.lock:
             job.read()
             job.exit = code
+            # info has no engine result event; associate only newly created reports on this job's device.
+            candidates = [r for r in guide.scan(self.out) if job.before.get(r.path) != result_signature(r)
+                          and r.kind == job.action and r.tag == guide_drive_tag(job.drive)
+                          and not r.simulated]
+            if candidates:
+                run = candidates[0]
+                job.result = dict(path=str(Path(run.path).relative_to(self.root)).replace("\\", "/"),
+                                  verdict=guide.result_verdict(run, job.media) or "unknown")
+                if job.action in {"geo", "timing"}:
+                    job.result["measurement"] = webui_catalog.measurement(run)
+                if job.action == "info":
+                    job.result["disc"] = webui_catalog.disc_report(guide._load(str(Path(run.path) / "info.json")) or {})
+                job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
+            elif job.action in {"random", "disexport"} and code == 0:
+                output = job.args.get("output")
+                if output and Path(local_path(self.root, output)).is_file():
+                    job.result = dict(path=output, verdict="unknown")
+                    job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
             job.asks.clear()
             job.history += [dict(type="done", job=job.id, exit=code), dict(type="state")]
             job.finished.set()
@@ -379,6 +492,10 @@ class Backend:
                             files.append((str(path), stat.st_mtime_ns, stat.st_size))
                         except FileNotFoundError:
                             pass
+            for path in [self.root / "catalogue.json", *sorted((self.root / "presets").glob("*.json"))]:
+                if path.is_file():
+                    stat = path.stat()
+                    files.append((str(path), stat.st_mtime_ns, stat.st_size))
             fingerprint = (json.dumps(self.drive_provider(), sort_keys=True), sorted(files))
             previous = cursors.get("_state")
             if previous is not None and fingerprint != previous:
@@ -463,9 +580,43 @@ class Handler(BaseHTTPRequestHandler):
             path = unquote(urlsplit(self.path).path)
             backend = self.server.backend
             if path == "/api/state":
-                self._json(200, backend.state())
+                self._json(200, backend.state(parse_qs(urlsplit(self.path).query).get("media", [None])[0]))
+            elif path == "/api/greetings":
+                # the terminal's greetings, so the page picks by the viewer's own clock (see greetings.py)
+                from . import greetings
+                self._json(200, dict(first_time=[list(e) for e in greetings.FIRST_TIME],
+                                     week=[[list(e) for e in day] for day in greetings.WEEK],
+                                     slots="late night 22-05, early 05-09, morning 09-12, afternoon 12-18, evening 18-22",
+                                     first_day="Monday"))
+            elif path == "/api/catalogue":
+                self._json(200, webui_catalog.catalogue(backend.root, backend.out))
+            elif re.fullmatch(r"/api/jobs/j-[0-9a-f]+", path):
+                self._json(200, backend.job_state(path.rsplit("/", 1)[1]))
             elif path == "/api/burn-token":
                 self._json(200, backend.burn_token())
+            elif path == "/api/burn-speeds" or re.fullmatch(r"/api/drives/[^/]+/speeds", path):
+                from . import burner
+                drive = (parse_qs(urlsplit(self.path).query).get("drive", [""])[0]
+                         if path == "/api/burn-speeds" else path.split("/")[3])
+                if drive not in [d["id"] for d in backend.drive_provider()]:
+                    raise APIError("unknown drive", 404)
+                with backend.lock:
+                    if any(j.drive == drive and j.exit is None for j in backend.jobs.values()):
+                        raise APIError("drive busy", 409)
+                    try:
+                        media = parse_qs(urlsplit(self.path).query).get("media", ["dvd"])[0]
+                        if media not in ("dvd", "cd"):
+                            raise APIError("invalid media")
+                        report = burner.adapter(drive, media).inspect()
+                        # A blank disc found by this read-only, user-requested check authorizes a burn
+                        # on this drive for two minutes; the burner checks the disc again before writing.
+                        if isinstance(report, dict) and report.get("blank") is True:
+                            backend.verified_blank[drive] = (time.monotonic() + 120, media)
+                        else:
+                            backend.verified_blank.pop(drive, None)
+                        self._json(200, report)
+                    except burner.BurnError as exc:
+                        raise APIError(str(exc), 409) from exc
             elif path == "/api/events":
                 self._events()
             elif path == "/api/iso":
@@ -525,7 +676,7 @@ class Handler(BaseHTTPRequestHandler):
             if urlsplit(self.path).path == "/api/design":
                 if self.headers.get_content_type() != "application/octet-stream":
                     raise APIError("application/octet-stream required", 415)
-                self._json(200, self.server.backend.save_design(self._body(DESIGN_BYTES)))
+                self._json(200, self.server.backend.save_design(self._body(max(DESIGN_SIDES))))
                 return
             if self.headers.get_content_type() != "application/json":
                 raise APIError("application/json required", 415)
@@ -539,7 +690,10 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length))
             path = urlsplit(self.path).path
             backend = self.server.backend
-            if path == "/api/run":
+            if path == "/api/catalogue":
+                with backend.lock:
+                    result = webui_catalog.save_entry(backend.root, backend.out, payload)
+            elif path == "/api/run":
                 result = backend.start(payload)
             else:
                 match = re.fullmatch(r"/api/jobs/(j-[0-9a-f]+)/(?P<action>cancel|answer)", path)
@@ -553,6 +707,16 @@ class Handler(BaseHTTPRequestHandler):
             self._json(400, dict(error=i18n.tr("invalid JSON request")))
         except OSError:
             self._json(500, dict(error=i18n.tr("job I/O failed")))
+
+
+def result_signature(run):
+    return tuple((p.name, p.stat().st_mtime_ns, p.stat().st_size)
+                 for p in sorted(Path(run.path).glob("*.json")))
+
+
+def guide_drive_tag(drive):
+    # Mirrors _outdir's device tag; never opens the device.
+    return (drive or "").replace(":", "")
 
 
 def run(args):

@@ -1,4 +1,4 @@
-﻿"""Drive-free backend tests. The only children are tiny Python scripts below."""
+"""Drive-free backend tests. The only children are tiny Python scripts below."""
 import contextlib
 import http.client
 import io
@@ -113,6 +113,22 @@ class BackendTests(unittest.TestCase):
         self.assertEqual([e["type"] for e in rows], ["progress", "log", "progress", "log"])
         self.assertEqual(rows[-1]["level"], "warning")
 
+    def test_job_log_comes_from_the_command_line_output(self):
+        folder = self.root / "job"
+        folder.mkdir()
+        job = webui.Job("j-1", "H:", folder)
+        job.events.write_text(json.dumps(dict(type="log", text="careful", level="warning")) + "\n", encoding="utf-8")
+        job.output.write_bytes(b"Zone 0.05: T = 10.1 ms\r\nsame\nsame\ncareful\npartial")
+        job.read()
+        logs = [e for e in job.history if e["type"] == "log"]
+        self.assertEqual([e["text"] for e in logs], ["Zone 0.05: T = 10.1 ms", "same", "same", "careful"])
+        self.assertEqual(logs[-1]["level"], "warning")
+        self.assertEqual(len({json.dumps(e) for e in logs}), 4)     # repeated lines stay distinct
+        with job.output.open("ab") as f:
+            f.write(b" line\n")
+        job.read()
+        self.assertEqual(job.history[-1]["text"], "partial line")
+
     def test_ask_answer_and_timeout(self):
         events = self.root / "events"
         env = {"DISCPROBE_EVENTS": str(events), "DISCPROBE_ASK_TIMEOUT": "2"}
@@ -193,7 +209,8 @@ time.sleep(60)
                              ("disexport", {"geo": "latest", "sectors": 1000}), ("cdprobe", {"sectors": 1000})]:
             payload = dict(action=action, drive="H:", media="cd", args=args)
             argv, drive = webui.command(payload, b.root, b.drive_provider())
-            self.assertEqual(argv[:4], [sys.executable, "-m", "discprobe", action])
+            self.assertEqual(argv[0], sys.executable)
+            self.assertEqual(argv[argv.index("-m"):argv.index("-m") + 3], ["-m", "discprobe", action])
             self.assertEqual(drive, "H:")
 
     def test_jobs_busy_answers_replay_and_cancel(self):
@@ -334,6 +351,36 @@ time.sleep(60)
         self.assertEqual(self.request(server, "GET", "/api/burn-token")[0], 200)
         self.assertEqual(self.request(server, "POST", "/api/jobs/j-0000/cancel", {})[0], 404)
 
+    def test_greetings_are_the_terminal_ones(self):
+        from discprobe import greetings
+        server = self.http_server()
+        status, raw = self.request(server, "GET", "/api/greetings")
+        body = json.loads(raw)
+        self.assertEqual(status, 200)
+        self.assertEqual(len(body["week"]), 7)
+        self.assertEqual(tuple(body["week"][0][2]), greetings.WEEK[0][2])
+        self.assertEqual(tuple(body["first_time"][0]), greetings.FIRST_TIME[0])
+
+    def test_state_takes_the_disc_type_per_request(self):
+        b = webui.Backend(self.root, media="dvd", drive_provider=lambda: [])
+        self.assertEqual(b.state()["media"], "dvd")
+        self.assertEqual(b.state("cd")["media"], "cd")
+        self.assertEqual(b.state("bd")["media"], "bd")
+        with self.assertRaises(webui.APIError):
+            b.state("hddvd")
+
+    def test_design_upload_size_sets_the_cell(self):
+        import numpy as np
+        b = webui.Backend(self.root, drive_provider=lambda: [])
+        dark = np.zeros((12000, 12000), bool)
+        dark[0, 0] = dark[11999, 11999] = True
+        saved = b.save_design(np.packbits(dark).tobytes())
+        back = np.load(self.root / saved["design_npy"])
+        self.assertEqual((back.shape, back.dtype), ((12000, 12000), np.dtype(bool)))
+        self.assertTrue(np.array_equal(back, dark))
+        with self.assertRaises(webui.APIError):
+            b.save_design(b"x" * 1000)
+
     def test_design_upload_feeds_image(self):
         import numpy as np
         from discprobe import imagedisc
@@ -397,3 +444,152 @@ test_stdlib_suite.__test__ = False
 
 if __name__ == "__main__":
     unittest.main()
+
+# Shared fake for HTTP/browser checks. It never invokes command argv or a device API.
+def workflow_fake_backend(root, out='results', ask=True):
+    import shutil
+    from types import SimpleNamespace
+    root = Path(root)
+    sequence = [0]
+    written = [False]
+    original = ROOT / 'evidence/geo/gh70n-20261107/geo-H-20261107-210507'
+    calls = []
+
+    class FakeChild:
+        def __init__(self, argv, *, env, cwd, stdout):
+            self.stop = threading.Event()
+            self.done = threading.Event()
+            self.code = 0
+            calls.append(argv)
+            threading.Thread(target=self.work, args=(argv, env), daemon=True).start()
+
+        def work(self, argv, env):
+            def event(**data):
+                with open(env['DISCPROBE_EVENTS'], 'a', encoding='utf-8') as stream:
+                    stream.write(json.dumps(data) + '\n')
+            def arg(name, default=None):
+                flag = '--' + name
+                return argv[argv.index(flag)+1] if flag in argv else default
+            try:
+                action = argv[argv.index("discprobe") + 1]
+                event(type='progress', fraction=.15, eta_s=1, stage='Fake runner: no hardware')
+                if action == 'timing' and ask:
+                    event(type='ask', id='fake-tray', question='Fake tray question. Continue?', default=False, kind='tray')
+                    answers = Path(env['DISCPROBE_ANSWERS'])
+                    deadline = time.monotonic() + 15
+                    while time.monotonic() < deadline and not self.stop.is_set():
+                        if answers.exists():
+                            rows = [json.loads(line) for line in answers.read_text().splitlines()]
+                            reply = next((r for r in rows if r['id']=='fake-tray'), None)
+                            if reply:
+                                event(type='answer', id='fake-tray', yes=reply['yes'])
+                                if not reply['yes']: self.code = 1
+                                break
+                        time.sleep(.02)
+                    else: self.code = 1
+                if self.stop.wait(.25) or self.code:
+                    self.code = 1
+                    event(type='stopped', reason='Fake job cancelled')
+                    return
+                if action in ('random','disexport'):
+                    target = Path(arg('output'))
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_text(json.dumps({'preset':{'id':'fake-export','displayName':'Fake preset','totalSectors':2295104}}) if action=='disexport' else 'FAKE ISO - NOT FOR BURNING')
+                    if action=='random': written[0] = True
+                else:
+                    sequence[0] += 1
+                    path = root/out/f'{action}-H-20261110-12{sequence[0]:04d}'
+                    path.mkdir(parents=True)
+                    if action == 'info':
+                        report={k:{'parsed':v} for k,v in dict(configuration=dict(current_profile=0x11,current_profile_name='DVD-R'),
+                            inquiry=dict(vendor='TEST',product='FAKE DRIVE'),
+                            capacity=dict(last_lba=2295103), track_1=dict(blank=not written[0],track_start=0,free_blocks=2295104),
+                            dvd_prerecorded_0e=dict(manufacturer_id='FAKE NEW MID')).items()}
+                        (path/'info.json').write_text(json.dumps(report))
+                    elif action == 'timing':
+                        (path/'summary.json').write_text(json.dumps(dict(period=dict(rotation=dict(mode='CAV'),zones=[dict(jitter_deg=.5)]))))
+                    elif action == 'geo':
+                        data=json.loads((original/'summary.json').read_text())
+                        data['identity']={'disc':'FAKE NEW MID','drive':'TEST FAKE DRIVE'}
+                        data['setup']={'last_lba':2295103}
+                        (path/'summary.json').write_text(json.dumps(data))
+                        shutil.copy2(original/'targets.csv',path/'targets.csv')
+                event(type='progress', fraction=1, eta_s=0, stage='Fake job complete',radius_mm=49.9)
+            finally:
+                self.done.set()
+
+        def wait(self):
+            self.done.wait()
+            return self.code
+
+        def cancel(self):
+            self.stop.set()
+
+        def close(self):
+            self.stop.set()
+
+    b = webui.Backend(root, out=out, runner=FakeChild,
+        drive_provider=lambda:[dict(id='H:',name='TEST FAKE DRIVE',disc=None)])
+    b.fake_calls = calls
+    return b
+
+
+def test_catalogue_and_finished_job_http():
+    with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
+        backend = workflow_fake_backend(tmp, ask=False)
+        server = webui.Server(backend, 0)
+        thread=threading.Thread(target=server.serve_forever,daemon=True)
+        thread.start()
+        try:
+            c=http.client.HTTPConnection('127.0.0.1', server.server_port, timeout=5)
+            c.request('GET','/api/state')
+            state=json.loads(c.getresponse().read())
+            assert state['catalogue']==dict(dvd=[],cd=[],bd=[]) and backend.fake_calls==[]
+            c.request('POST','/api/run',json.dumps(dict(action='info',drive='H:')),{'Content-Type':'application/json'})
+            ident=json.loads(c.getresponse().read())['job']
+            eventually(lambda: backend.get_job(ident).finished.is_set())
+            c.request('GET','/api/jobs/'+ident)
+            snapshot=json.loads(c.getresponse().read())
+            assert snapshot['exit']==0 and snapshot['result']['disc']['blank'] is True
+            assert snapshot['result']['disc']['mid']=='FAKE NEW MID'
+            assert any(e['type']=='result' for e in snapshot['events'])
+            assert snapshot['events'][-2]['type']=='done'
+            c.request('GET','/api/catalogue')
+            assert json.loads(c.getresponse().read())==dict(dvd=[],cd=[],bd=[])
+            c.close()
+        finally:
+            backend.close();server.shutdown();server.server_close();thread.join()
+
+
+def test_fake_workflow_results_answers_and_persistence():
+    with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
+        backend=workflow_fake_backend(tmp)
+        try:
+            def run(action, **args):
+                ident=backend.start(dict(action=action,drive='H:' if action in ('info','timing','geo') else None,args=args))['job']
+                if action=='timing':
+                    eventually(lambda: [e for e in backend.job_state(ident)['events'] if e['type']=='ask'])
+                    backend.answer(ident,dict(id='fake-tray',yes=True))
+                eventually(lambda: backend.get_job(ident).finished.is_set())
+                result=backend.job_state(ident)
+                assert result['exit']==0
+                return result['result']
+            assert run('info')['disc']['blank']
+            assert run('random',output='iso/fake.iso',sectors=10)['path']=='iso/fake.iso'
+            assert run('info')['disc']['blank'] is False
+            assert run('timing')['verdict']=='good'
+            geometry=run('geo')
+            assert geometry['verdict']=='good'
+            run('disexport',geo=geometry['path'],sectors=2295104,output='presets/fake.json')
+            entry=backend.state()['catalogue']['dvd'][0]
+            from discprobe import webui_catalog
+            webui_catalog.save_entry(backend.root,backend.out,dict(id=entry['id'],name='My test batch',left=17))
+            assert backend.state()['catalogue']['dvd'][0]['left']==17
+        finally: backend.close()
+
+
+def test_version_is_a_release_tag_or_empty():
+    import re
+    from discprobe import webui
+    v = webui.version()
+    assert v == "" or re.fullmatch(r"v[\d.]+(-dev)?", v), v
