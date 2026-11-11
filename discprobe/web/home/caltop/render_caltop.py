@@ -57,6 +57,9 @@ SHADOW_MM = [float(v) for v in arg("--shadow-mm", "-40,-22").split(",")]   # dro
 SHADOW_BLUR_MM = float(arg("--shadow-blur", "11"))   # its softness (gaussian sigma, mm); long and large (user, 2026-11-11)
 CUT_X = float(arg("--cut-x", "0.0015"))            # disc_cut: quarter x > CUT_X, y < centre removed
 CHECKS = arg("--checks", "0") == "1"
+ANIM = arg("--anim", "0") == "1"                    # render the "disc goes in" animation layers instead (render_caltop_anim.py)
+POOL_OFF_MM = [float(v) for v in arg("--pool-off", "22,28").split(",")]   # warm pool centre from the disc centre (x, y mm)
+POOL_SIGMA_MM = float(arg("--pool-sigma", "140"))
 os.makedirs(OUTDIR, exist_ok=True)
 
 # ---------------------------------------------------------------- palettes
@@ -89,6 +92,15 @@ VARIANT_STYLE = {
         shadow_rgb="#3a2f22", shadow_alpha=0.24, contact_alpha=0.34,
     ),
 }
+# The lamp's warm pool on the protagonist (as the lobby's render_desk.py: colour * (amb + gain * f) + add * f,
+# f = gaussian of the distance to the pool centre on the desk, weighted vert_w on walls, 1 on top faces). The lamp
+# is up and to the right: the pool sits right of and behind the disc centre, the shadows fall lower left.
+POOL_STYLE = {
+    "dark": dict(amb=(0.8, 0.8, 0.8), gain=(2.0, 1.75, 1.35), add=(0.05, 0.028, 0.006), vert_w=0.55),
+    "paper": dict(amb=(0.975, 0.975, 0.975), gain=(0.10, 0.07, 0.025), add=(0.0, 0.0, 0.0), vert_w=0.5),
+}
+CUR_POOL = None                          # set per variant before materials are built; None = no pool
+POOL_C = None                            # pool centre (x, y) in metres; the animation shifts it for moving parts
 LINE_PX = 0.8
 CREASE_DEG = 30.0
 DEPTH_STEP_M = 0.0004
@@ -257,6 +269,7 @@ D_co = world_mesh(disc)
 DCX, DCY = [float(v) for v in 0.5 * (D_co.min(0) + D_co.max(0))[:2]]
 D_R = float(np.hypot(D_co[:, 0] - DCX, D_co[:, 1] - DCY).max())
 D_BOT, D_TOP = float(D_co[:, 2].min()), float(D_co[:, 2].max())
+POOL_C = (DCX + POOL_OFF_MM[0] / 1000.0, DCY + POOL_OFF_MM[1] / 1000.0)
 print("[caltop] disc centre %.2f %.2f mm, r %.2f mm, z %.2f..%.2f mm"
       % (DCX * 1e3, DCY * 1e3, D_R * 1e3, D_BOT * 1e3, D_TOP * 1e3))
 
@@ -323,10 +336,72 @@ def facing_normal(nt):
     return scl.outputs["Vector"]
 
 
-def make_toon(name, top, front=None, side=None):
+def pooled(nt, color, is_top):
+    """colour * (amb + gain * f) + add * f with the current variant's pool (CUR_POOL) about POOL_C."""
+    st = CUR_POOL
+    if st is None:
+        return color
+    geo = nt.nodes.new("ShaderNodeNewGeometry")
+    d = nt.nodes.new("ShaderNodeVectorMath")
+    d.operation = "SUBTRACT"
+    nt.links.new(geo.outputs["Position"], d.inputs[0])
+    d.inputs[1].default_value = (POOL_C[0], POOL_C[1], 0.0)
+    m0 = nt.nodes.new("ShaderNodeVectorMath")
+    m0.operation = "MULTIPLY"
+    nt.links.new(d.outputs[0], m0.inputs[0])
+    m0.inputs[1].default_value = (1.0, 1.0, 0.0)          # distance on the desk plane
+    dot = nt.nodes.new("ShaderNodeVectorMath")
+    dot.operation = "DOT_PRODUCT"
+    nt.links.new(m0.outputs[0], dot.inputs[0])
+    nt.links.new(m0.outputs[0], dot.inputs[1])
+    k = nt.nodes.new("ShaderNodeMath")
+    k.operation = "MULTIPLY"
+    k.inputs[1].default_value = -1.0 / (2.0 * (POOL_SIGMA_MM / 1000.0) ** 2)
+    nt.links.new(dot.outputs["Value"], k.inputs[0])
+    ex = nt.nodes.new("ShaderNodeMath")
+    ex.operation = "EXPONENT"
+    nt.links.new(k.outputs[0], ex.inputs[0])
+    w = nt.nodes.new("ShaderNodeMath")
+    w.operation = "MULTIPLY_ADD"
+    w.inputs[1].default_value = 1.0 - st["vert_w"]
+    w.inputs[2].default_value = st["vert_w"]
+    if is_top is None:
+        w.inputs[0].default_value = 1.0
+    else:
+        nt.links.new(is_top, w.inputs[0])
+    f = nt.nodes.new("ShaderNodeMath")
+    f.operation = "MULTIPLY"
+    nt.links.new(ex.outputs[0], f.inputs[0])
+    nt.links.new(w.outputs[0], f.inputs[1])
+    cf = nt.nodes.new("ShaderNodeCombineXYZ")
+    for ch in "XYZ":
+        nt.links.new(f.outputs[0], cf.inputs[ch])
+    g = nt.nodes.new("ShaderNodeVectorMath")
+    g.operation = "MULTIPLY_ADD"
+    nt.links.new(cf.outputs[0], g.inputs[0])
+    g.inputs[1].default_value = st["gain"]
+    g.inputs[2].default_value = st["amb"]
+    mul = nt.nodes.new("ShaderNodeVectorMath")
+    mul.operation = "MULTIPLY"
+    nt.links.new(color, mul.inputs[0])
+    nt.links.new(g.outputs[0], mul.inputs[1])
+    ad = nt.nodes.new("ShaderNodeVectorMath")
+    ad.operation = "MULTIPLY_ADD"
+    nt.links.new(cf.outputs[0], ad.inputs[0])
+    ad.inputs[1].default_value = st["add"]
+    nt.links.new(mul.outputs[0], ad.inputs[2])
+    return ad.outputs[0]
+
+
+def make_toon(name, top, front=None, side=None, pool=True):
     m, nt, emi = new_mat(name)
     if front is None:
-        emi.inputs["Color"].default_value = top
+        if pool and CUR_POOL is not None:
+            rgb = nt.nodes.new("ShaderNodeRGB")
+            rgb.outputs[0].default_value = top
+            nt.links.new(pooled(nt, rgb.outputs[0], None), emi.inputs["Color"])
+        else:
+            emi.inputs["Color"].default_value = top
         return m
     sep = nt.nodes.new("ShaderNodeSeparateXYZ")
     nt.links.new(facing_normal(nt), sep.inputs[0])
@@ -352,7 +427,7 @@ def make_toon(name, top, front=None, side=None):
     nt.links.new(is_top.outputs[0], mix2.inputs["Factor"])
     nt.links.new(mix1.outputs["Result"], mix2.inputs["A"])
     mix2.inputs["B"].default_value = top
-    nt.links.new(mix2.outputs["Result"], emi.inputs["Color"])
+    nt.links.new(pooled(nt, mix2.outputs["Result"], is_top.outputs[0]) if pool else mix2.outputs["Result"], emi.inputs["Color"])
     return m
 
 
@@ -395,10 +470,12 @@ def toon3(name, tones):
 
 
 def apply_variant(v, objs):
+    global CUR_POOL
+    CUR_POOL = POOL_STYLE[v]
     st = VARIANT_STYLE[v]
     mats = {k: toon3("toon_%s_%s" % (k, v), st[k]) for k in ("body", "mech", "tray", "pcb", "sled", "disc")}
     mats["lens"] = make_toon("toon_lens_" + v, hex_lin(st["lens"]))
-    mats["led"] = make_toon("toon_led_" + v, hex_lin(st["led"]))
+    mats["led"] = make_toon("toon_led_" + v, hex_lin(st["led"]), pool=False)      # self-lit
     for o in objs:
         if o is disc:
             k = "disc"
@@ -606,6 +683,12 @@ def color_layers(objs, tag, mask, outputs):
             compose_and_save(col, mask, VARIANT_STYLE[v], os.path.join(OUTDIR, pattern % v), keep)
         del col
 
+
+# ---------------------------------------------------------------- the animation's layers instead (--anim 1)
+if ANIM:
+    with open(os.path.join(os.getcwd(), "render_caltop_anim.py"), encoding="utf-8") as fh:
+        exec(compile(fh.read(), "render_caltop_anim.py", "exec"), globals())
+    sys.exit(0)
 
 # ---------------------------------------------------------------- 1. moving parts first (depths)
 show(sled)
@@ -858,6 +941,9 @@ info = {
     "laser": {"spot_px_inner": to_px((LX, LY, D_TOP)), "spot_px_outer": to_px(tuple(Vector((LX, LY, D_TOP)) + RAD * TRAVEL))},
     "shadow": {"offset_mm": SHADOW_MM, "note": "lamp up right: the shadow falls lower left, more left than down"},
     "scale": {"px_per_mm": round(ppu / 1000.0, 5)},
+    "pool": {"centre_px": to_px((POOL_C[0], POOL_C[1], 0.0)), "sigma_px": round(POOL_SIGMA_MM * ppu / 1000.0, 2),
+             "sigma_mm": POOL_SIGMA_MM, "style": POOL_STYLE,
+             "note": "the lamp's warm pool baked into every layer: lin colour * (amb + gain * f) + add * f, f = exp(-d^2 / 2 sigma^2) on the desk plane (top faces; walls * vert_w)"},
     "render": {"engine": "Cycles, emission-only toon fill, image-space outlines", "supersample": SS, "samples": SAMPLES,
                "line_px": LINE_PX, "source": "derived from interior/render_interior.py"},
 }

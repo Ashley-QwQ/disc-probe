@@ -30,7 +30,10 @@ function build() {
   el.className = "cal-stage";
   el.hidden = true;
   const [W, H] = meta.image_size;
-  el.innerHTML = `<div class="cs-art" style="aspect-ratio:${W}/${H}">` +
+  // the picture has room for the shadow on its left and below: centre the drive itself, the shadow spills over
+  const [bx0, by0, bx1, by1] = meta.body_px || [0, 0, W, H];
+  const shift = `translate:${((W / 2 - (bx0 + bx1) / 2) / W * 100).toFixed(2)}% ${((H / 2 - (by0 + by1) / 2) / H * 100).toFixed(2)}%`;
+  el.innerHTML = `<div class="cs-art" style="aspect-ratio:${W}/${H};${shift}">` +
     ORDER.map((k) => k === "over" ? `<canvas class="cs-over" width="${W}" height="${H}"></canvas>` : `<img class="cs-${k}" alt="" draggable="false">`).join("") +
     `<span class="cs-label" hidden></span></div>` +
     `<p class="cs-big" hidden><b></b><span></span></p>`;
@@ -110,6 +113,8 @@ export async function stage(homeApi) {
   if (!el) build();
   return {
     show(on) { el.hidden = !on; if (on) draw(); },
+    art: () => el.querySelector(".cs-art"),          // the picture's box: the grid loaddisc.js lines up with
+    hold(on) { el.style.visibility = on ? "hidden" : ""; },   // laid out but unseen while the disc goes in
     set(next) { state = { ...next }; draw(); },
   };
 }

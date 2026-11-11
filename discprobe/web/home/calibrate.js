@@ -7,6 +7,7 @@ import { cutaway } from "./drive-scene.js";
 import { floorLog } from "./floor-log.js";
 import * as sfx from "./sfx.js";
 import { stage } from "./calstage.js";
+import * as loadDisc from "./loaddisc.js";
 const DEMO = Number(new URLSearchParams(location.search).get("demo")) || 40;   // simulated jobs run this many times faster (?demo=N)
 const R0 = 22, R1 = 58.5;             // data area, mm: the radius the head sweeps while burning
 
@@ -310,16 +311,20 @@ function build() {
 }
 
 let st = null;                             // the stage (calstage.js), live pages only
+let discWentIn = false;                    // the "disc goes into the drive" animation played on this visit
 function open() {
   document.documentElement.dataset.mode = "cal";
+  discWentIn = false;
   $("cal").hidden = false;
   $("back").hidden = false;
   api.focusDrive();
   if (!api.backend.mock) stage(api).then((s) => {
     st = s;
     if (!isCal()) return;
-    document.documentElement.classList.add("cal-staged"); st.show(true); paint();
-  }).catch((e) => console.error("calibration stage", e));
+    document.documentElement.classList.add("cal-staged"); st.show(true);
+    loadDisc.desk(true, st.art());
+    paint();
+  }).catch((e) => { st?.hold(false); console.error("calibration stage", e); });
   paint();
   // coming back while it burns: the drive is open again, the plate as it was
   if (flow.job?.kind === "burn") setTimeout(() => showInterior(true), 750);
@@ -329,7 +334,7 @@ function open() {
 function release() {
   document.documentElement.dataset.mode = "";
   const ruler = document.getElementById("cal-ruler"); if (ruler) ruler.hidden = true;
-  st?.show(false); document.documentElement.classList.remove("cal-staged"); sideButton(null);
+  st?.show(false); loadDisc.desk(false); document.documentElement.classList.remove("cal-staged"); sideButton(null);
   $("cal").hidden = true;
   $("back").hidden = true;
   const nb = $("next");
@@ -1118,6 +1123,11 @@ function paintStage() {
     if (m?.span_mm) read = m.span_mm;
     if (["stopped_early", "narrow_span", "media"].includes(k) && m?.span_mm) band = [m.span_mm[1], Math.min(58, m.span_mm[1] + 3)];
   }
+  // the moment the drive holds a disc on this visit: it goes in, seen from above (loaddisc.js); then the stage
+  if (disc !== "none" && !discWentIn) {
+    discWentIn = true; st.hold(true);
+    loadDisc.play(st.art()).catch((e) => console.error("disc animation", e)).finally(() => st.hold(false));
+  }
   st.set({ disc, read, head, band, busy: !!job,
     percent: job ? p * 100 : null, left: job ? $("job-time").textContent : "" });
 }
@@ -1162,7 +1172,7 @@ function paintRuler() {
   nav.innerHTML = RULER.map((r, i) => {
     const state = i < at ? "done" : i === at && !(r.dashed && usable) ? "now" : "next";
     const fill = state === "now" && flow.job ? Math.round(100 * Math.max(0, Math.min(1, flow.job.p || 0))) : 0;
-    return `<div class="seg" data-s="${state}" ${r.dashed ? "data-dashed" : ""} style="flex:${r.min / total}" ${state === "now" ? 'aria-current="step"' : ""}>` +
+    return `<div class="step" data-s="${state}" ${r.dashed ? "data-dashed" : ""} style="flex:${r.min / total}" ${state === "now" ? 'aria-current="step"' : ""}>` +
       `<span class="name">${state === "done" ? '<svg class="tick" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5l2.6 2.6L10 3.5"/></svg>' : ""}${r[lang][0]}</span>` +
       `<span class="line"><i style="width:${fill}%"></i></span><span class="len">${r[lang][1]}</span></div>`;
   }).join("");

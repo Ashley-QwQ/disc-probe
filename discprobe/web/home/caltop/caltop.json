@@ -99,11 +99,64 @@
   "scale": {
     "px_per_mm": 5.12246
   },
+  "pool": {
+    "centre_px": [
+      912.89,
+      254.09
+    ],
+    "sigma_px": 717.14,
+    "sigma_mm": 140.0,
+    "style": {
+      "dark": {
+        "amb": [
+          0.8,
+          0.8,
+          0.8
+        ],
+        "gain": [
+          2.0,
+          1.75,
+          1.35
+        ],
+        "add": [
+          0.05,
+          0.028,
+          0.006
+        ],
+        "vert_w": 0.55
+      },
+      "paper": {
+        "amb": [
+          0.975,
+          0.975,
+          0.975
+        ],
+        "gain": [
+          0.1,
+          0.07,
+          0.025
+        ],
+        "add": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "vert_w": 0.5
+      }
+    },
+    "note": "the lamp's warm pool baked into every layer: lin colour * (amb + gain * f) + add * f, f = exp(-d^2 / 2 sigma^2) on the desk plane (top faces; walls * vert_w)"
+  },
   "render": {
     "engine": "Cycles, emission-only toon fill, image-space outlines",
     "supersample": 4,
     "samples": 16,
     "line_px": 0.8,
     "source": "derived from interior/render_interior.py"
-  }
+  },
+  "body_px": [
+    383,
+    32,
+    1217,
+    1109
+  ]
 }
