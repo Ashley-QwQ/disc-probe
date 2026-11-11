@@ -306,19 +306,44 @@ class Job:
                     self.history.append(event)
 
 
+def read_disc_child(root: Path, drive: str) -> dict:
+    """`discprobe disc` in a child process (the drive is opened the way every job opens it, never in the
+    server): which disc is in the drive, read-only, nothing written."""
+    here = str(Path(__file__).resolve().parent.parent)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(p for p in (here, env.get("PYTHONPATH")) if p)
+    env["DISCPROBE_PLAIN"] = "1"
+    argv = [sys.executable, *(["-P"] if sys.version_info >= (3, 11) else []), "-m", "discprobe", "disc", "--drive", drive]
+    try:
+        done = subprocess.run(argv, cwd=str(root), env=env, stdin=subprocess.DEVNULL, capture_output=True,
+                              text=True, encoding="utf-8", errors="replace", timeout=90,
+                              creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+    except subprocess.TimeoutExpired:
+        raise APIError("the drive did not answer in time", 504) from None
+    for line in reversed(done.stdout.splitlines()):
+        if line.startswith("{"):
+            return json.loads(line)
+    raise APIError("could not read the drive: " + (done.stderr or done.stdout).strip()[-300:], 502)
+
+
 class Backend:
-    def __init__(self, root=None, *, media="dvd", out="results", runner=Child, drive_provider=None):
+    def __init__(self, root=None, *, media="dvd", out="results", runner=Child, drive_provider=None, disc_reader=None):
         self.root = Path(root or Path.cwd()).resolve()
         self.media = media
         self.out = local_path(self.root, out)
         self.runner = runner
-        # Only enumerate device names; no info polling or drive opening on page load.
+        # Only enumerate device names here; the disc in a drive is read when the page asks (read_disc).
         self.drive_provider = drive_provider or (lambda: [dict(id=d, name=d, disc=None) for d in guide.optical_drives()])
         self.lock = threading.RLock()
         self.jobs = {}
         self.tokens = {}
         # drive -> (expiry, media): a read-only inspection just found a blank disc there
         self.verified_blank = {}
+        # drive -> what the last read of its disc found (`discprobe disc`, or an `info` job), with when. Only
+        # shown to the page; a burn never relies on it (it needs verified_blank or the provider's own disc).
+        self.discs = {}
+        self.reading = set()                 # drives being read right now: busy for jobs
+        self.disc_reader = disc_reader or (lambda drive: read_disc_child(self.root, drive))
         self.closed = False
         self.folder = self.root / ".webui-jobs"
 
@@ -330,13 +355,36 @@ class Backend:
             raise APIError("invalid media")
         drives = self.drive_provider()
         state = guide.guide_state(media, self.out, drives=[d["id"] for d in drives])
-        state["drives"] = drives
+        with self.lock:
+            state["drives"] = [dict(d, disc=d.get("disc") or self.discs.get(d["id"])) for d in drives]
         with self.lock:
             state["jobs"] = [dict(id=j.id, drive=j.drive, action=j.action, media=j.media, exit=j.exit, result=j.result) for j in self.jobs.values()]
         state["catalogue"] = webui_catalog.catalogue(self.root, self.out)
         state["version"] = version()
         state["platform"] = sys.platform          # which shell the terminal page looks like (win32: PowerShell)
         return state
+
+    def read_disc(self, payload) -> dict:
+        """Which disc is in a drive, read now (read-only). The answer is kept for /api/state until the drive's
+        disc may have changed (a burn or a swap on it)."""
+        drive = payload.get("drive") if isinstance(payload, dict) else None
+        if not isinstance(drive, str) or drive not in [d["id"] for d in self.drive_provider()]:
+            raise APIError("unknown drive")
+        with self.lock:
+            if drive in self.reading or any(j.drive == drive and j.exit is None for j in self.jobs.values()):
+                raise APIError("drive busy", 409)
+            self.reading.add(drive)
+        try:
+            found = self.disc_reader(drive)
+        finally:
+            with self.lock:
+                self.reading.discard(drive)
+        disc = found.get("disc") if isinstance(found, dict) else None
+        report = dict(disc or dict(present=False), tray=found.get("tray", "unknown") if isinstance(found, dict) else "unknown",
+                      read_at=round(time.time()))
+        with self.lock:
+            self.discs[drive] = report
+        return dict(drive=drive, disc=report)
 
     def job_state(self, ident):
         with self.lock:
@@ -361,7 +409,7 @@ class Backend:
         with self.lock:
             if self.closed:
                 raise APIError("service is closing", 503)
-            if drive and any(j.drive == drive and j.exit is None for j in self.jobs.values()):
+            if drive and (drive in self.reading or any(j.drive == drive and j.exit is None for j in self.jobs.values())):
                 raise APIError("drive busy", 409)
             if payload["action"] == "burn":
                 token = payload.get("burn_token")
@@ -455,12 +503,15 @@ class Backend:
                     job.result["measurement"] = webui_catalog.measurement(run)
                 if job.action == "info":
                     job.result["disc"] = webui_catalog.disc_report(guide._load(str(Path(run.path) / "info.json")) or {})
+                    self.discs[job.drive] = dict(job.result["disc"], tray="ready", read_at=round(time.time()))
                 job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
             elif job.action in {"random", "disexport"} and code == 0:
                 output = job.args.get("output")
                 if output and Path(local_path(self.root, output)).is_file():
                     job.result = dict(path=output, verdict="unknown")
                     job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
+            if job.action in {"burn", "swap"}:
+                self.discs.pop(job.drive, None)          # the disc there is not the one read before
             job.asks.clear()
             job.history += [dict(type="done", job=job.id, exit=code), dict(type="state")]
             job.finished.set()
@@ -615,7 +666,7 @@ class Handler(BaseHTTPRequestHandler):
                 if drive not in [d["id"] for d in backend.drive_provider()]:
                     raise APIError("unknown drive", 404)
                 with backend.lock:
-                    if any(j.drive == drive and j.exit is None for j in backend.jobs.values()):
+                    if drive in backend.reading or any(j.drive == drive and j.exit is None for j in backend.jobs.values()):
                         raise APIError("drive busy", 409)
                     try:
                         media = parse_qs(urlsplit(self.path).query).get("media", ["dvd"])[0]
@@ -709,6 +760,8 @@ class Handler(BaseHTTPRequestHandler):
                     result = webui_catalog.save_entry(backend.root, backend.out, payload)
             elif path == "/api/run":
                 result = backend.start(payload)
+            elif path == "/api/disc":
+                result = backend.read_disc(payload)
             else:
                 match = re.fullmatch(r"/api/jobs/(j-[0-9a-f]+)/(?P<action>cancel|answer)", path)
                 if not match:

@@ -449,6 +449,25 @@ def cmd_info(args):
     _next(guide.after_info(args, report))
 
 
+def cmd_disc(args):
+    """Which disc is in the drive, for the web page: a handful of read-only commands, nothing written to
+    disk, one JSON line on stdout ({"tray", "drive", "disc"}). `info` is the full dump."""
+    import json
+    from . import webui_catalog
+    dev = _open(args)
+    try:
+        report = info.quick(dev)
+    finally:
+        dev.close() if hasattr(dev, "close") else None
+    tur = report.get("test_unit_ready", {})
+    inq = (report.get("inquiry") or {}).get("parsed") or {}
+    ready = "sense" not in tur and "error" not in tur
+    out = dict(tray=tray_state(tur.get("sense"), ready) if "error" not in tur else "unknown",
+               drive=f"{inq.get('vendor', '')} {inq.get('product', '')}".strip() or None,
+               disc=webui_catalog.disc_report(report) if ready else None)
+    print(json.dumps(out, ensure_ascii=False))
+
+
 def tray_state(sense, ok: bool) -> str:
     """What TEST UNIT READY says about the tray: ready, open, empty (closed, no disc), loading, changed."""
     if ok:
@@ -1715,6 +1734,10 @@ def _build_parser():
     sp = sub.add_parser("info", help="dump drive and disc information")
     common(sp)
     sp.set_defaults(func=cmd_info)
+
+    sp = sub.add_parser("disc", help="which disc is in the drive (read-only, quick; one JSON line)")
+    common(sp)
+    sp.set_defaults(func=cmd_disc)
 
     sp = sub.add_parser("swap", help="wait (read-only) while the disc is taken out and another put in")
     common(sp)

@@ -67,6 +67,33 @@ def collect(dev) -> dict:
     return r
 
 
+def quick(dev) -> dict:
+    """The few reads `collect` makes that say which disc this is: whether one is ready, its profile, blank or
+    not, its size and its manufacturer code. Read-only, a second or two once the disc has spun up; the keys
+    are those of `collect`, so the same parsers read either."""
+    r: dict[str, dict] = {}
+    r["test_unit_ready"] = _run(dev, "TUR", mmc.test_unit_ready(), 0)
+    r["inquiry"] = _run(dev, "INQUIRY", mmc.inquiry(), 96, mmc.parse_inquiry)
+    if "sense" in r["test_unit_ready"] or "error" in r["test_unit_ready"]:
+        return r                                     # no disc ready (tray open, empty, still loading)
+    r["configuration"] = _run(dev, "GET CONFIGURATION", mmc.get_configuration(), 4096, mmc.parse_configuration)
+    family = mmc.media_family((r["configuration"].get("parsed") or {}).get("current_profile"))
+    r["disc_information"] = _run(dev, "READ DISC INFORMATION", mmc.read_disc_information(), 34,
+                                 mmc.parse_disc_information)
+    r["track_1"] = _run(dev, "READ TRACK INFORMATION", mmc.read_track_information(1), 48,
+                        mmc.parse_track_information)
+    r["capacity"] = _run(dev, "READ CAPACITY", mmc.read_capacity(), 8, mmc.parse_capacity)
+    if family == "cd":
+        r["atip"] = _run(dev, "READ ATIP", mmc.read_toc(4, msf=True), 2048, mmc.parse_atip)
+    elif family == "dvd":
+        r["dvd_prerecorded_0e"] = _run(dev, "DVD-R pre-recorded info", mmc.read_disc_structure(0, 0x0E),
+                                       2052, mmc.parse_dvd_r_prerecorded)
+        if not (r["dvd_prerecorded_0e"].get("parsed") or {}).get("manufacturer_id"):
+            r["dvd_plus_adip_11"] = _run(dev, "DVD+R ADIP", mmc.read_disc_structure(0, 0x11), 2052,
+                                         mmc.parse_dvd_plus_adip)
+    return r
+
+
 def disc_id(mid: dict, adip: dict, atip: dict) -> str | None:
     """A disc's manufacturer code, in the form `info` prints it."""
     if mid.get("manufacturer_id"):

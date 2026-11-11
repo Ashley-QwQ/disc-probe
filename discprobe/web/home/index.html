@@ -638,7 +638,7 @@
       lobbyOpen: "打开计划", lobbyOpenSub: "打开以前存的 .discdesign", nextNewPlan: "下一步：新作品", nextUseBatch: "下一步：用这批盘",
       langButton: "EN", langAria: "Switch to English", kinds: "盘的种类", driveTab: "光驱", inDrive: "就是光驱里这张",
       sectors: "扇区数", left: "这一桶还剩", last: "上次标定", usedDrive: "标定用的光驱",
-      leftVal: (l, o) => `${l} / ${o} 张`, inserted: (d) => `已插入 ${d}`, rw: "可擦写", sep: "、",
+      leftVal: (l, o) => `${l} / ${o} 张`, inserted: (d) => `已插入 ${d}`, trayOpenShort: "托盘开着", noDiscShort: "没有盘", blankTag: "（空白）", rw: "可擦写", sep: "、",
       nextOpen: "下一步：打开工程", nextCal: "下一步：开始标定", nextDrive: "下一步：认一下光驱里的盘", nextNew: "下一步：标定新盘",
       newName: "标定新盘", newState: ["没列出来的盘", "把它放进光驱，先读出盘的类型和厂商编号，再刻一张测量盘。"],
       reading: "正在读光驱里的盘……", foundKnown: (d) => `光驱里是 ${d}，已经在架子上。`, foundNew: (k) => `光驱里是一种没列出来的 ${k}，可以标定它。`, driveNone: "光驱里没有盘。",
@@ -659,7 +659,7 @@
       lobbyOpen: "Open plan", lobbyOpenSub: "Open a saved .discdesign", nextNewPlan: "Next: new work", nextUseBatch: "Next: use these discs",
       langButton: "中文", langAria: "切换到中文", kinds: "Disc kinds", driveTab: "Drive", inDrive: "This is the disc in the drive",
       sectors: "Sectors", left: "Left in this spindle", last: "Last calibrated", usedDrive: "Calibrated on",
-      leftVal: (l, o) => `${l} / ${o}`, inserted: (d) => `${d} inserted`, rw: "rewritable", sep: ", ",
+      leftVal: (l, o) => `${l} / ${o}`, inserted: (d) => `${d} inserted`, trayOpenShort: "tray open", noDiscShort: "no disc", blankTag: " (blank)", rw: "rewritable", sep: ", ",
       nextOpen: "Next: open a project", nextCal: "Next: calibrate", nextDrive: "Next: identify the disc in the drive", nextNew: "Next: calibrate a new disc",
       newName: "Calibrate a new disc", newState: ["A disc that isn't listed", "Put it in the drive: its type and maker code are read first, then one measurement disc is burned."],
       reading: "Reading the disc in the drive…", foundKnown: (d) => `The drive holds ${d}; it's already on the shelf.`, foundNew: (k) => `The drive holds a ${k} that isn't listed; you can calibrate it.`, driveNone: "The drive is empty.",
@@ -1058,7 +1058,7 @@
         $("next-text").textContent = root.dataset.home === "lobby" ? t.nextNewPlan
           : choosingFor && item.kind !== "drive" && item.kind !== "new" ? t.nextUseBatch
           : item.kind === "drive" ? t.nextDrive : item.kind === "new" ? t.nextNew : !["good", "usable"].includes(item.s) ? t.nextCal : t.nextOpen;
-      $("drivebar").textContent = backend.mock ? `H: HL-DT-ST GH70N · ${t.inserted("Verbatim DVD-R")}` : (backendState?.drives || []).map(d => d.name && d.name !== d.id ? `${d.id} ${d.name}` : d.id).join(" · ") || (lang === "zh" ? "未发现光驱" : "No drives found");
+      paintDriveLine();
     };
     if (initial || reduce) { fill(); return; }
     const parts = [$("mid"), $("state")];
@@ -1213,6 +1213,36 @@
   }
 
   // ---- what the calibration flow (calibrate.js) may use ----
+  // ---- the disc in the drive: read on request (POST /api/disc, read-only `discprobe disc`), kept by the server
+  const driveDisc = () => (backendState?.drives || []).find((d) => d.id === api.selectedDrive())?.disc ?? null;
+  // a disc as the shelf names it: its batch when one with its manufacturer code is listed, else its kind and code
+  const batchOf = (disc) => { for (const c of ["dvd", "cd", "bd"]) { const it = DATA[c].find((x) => x.kind !== "new" && disc?.mid && x.mid === disc.mid); if (it) return it; } return null; };
+  const discName = (disc) => batchOf(disc)?.name ?? [String(disc.kind ?? "").split(" ")[0], disc.mid].filter(Boolean).join(" ");
+  function paintDriveLine() {
+    const t = T();
+    if (backend.mock) { $("drivebar").textContent = `H: HL-DT-ST GH70N · ${t.inserted("Verbatim DVD-R")}`; return; }
+    $("drivebar").textContent = (backendState?.drives || []).map((d) => {
+      const head = d.name && d.name !== d.id ? `${d.id} ${d.name}` : d.id, disc = d.disc;
+      if (!disc) return head;
+      const tail = disc.present ? t.inserted(T().brand?.(discName(disc)) ?? discName(disc)) + (disc.blank ? t.blankTag : "")
+        : disc.tray === "open" ? t.trayOpenShort : t.noDiscShort;
+      return `${head} · ${tail}`;
+    }).join(" · ") || (lang === "zh" ? "未发现光驱" : "No drives found");
+  }
+  async function readDisc() {
+    if (backend.mock) {
+      await new Promise((r) => setTimeout(r, reduce ? 0 : 500));
+      return trayDisc ? { present: true, media: "dvd", kind: "DVD-R", mid: "MCC 004", blank: true, tray: "ready" } : { present: false, tray: "empty" };
+    }
+    const drive = api.selectedDrive();
+    if (!drive) return null;
+    const { disc } = await backend.request("/api/disc", { drive });
+    const d = backendState?.drives?.find((x) => x.id === drive);
+    if (d) d.disc = disc;
+    paintDriveLine();
+    return disc;
+  }
+
   const api = {
     backend, selectedDrive: () => col === "drive" ? DATA.drive[idx]?.id : chosenDrive,
     reload: async () => { location.reload(); },
@@ -1226,6 +1256,7 @@
       for (const c of ["dvd", "cd", "bd"]) { const i = DATA[c].indexOf(item); if (i >= 0) return [c, i]; }
       return ["dvd", 0];
     },
+    readDisc, driveDisc, discName,
     placeDisc(v) { wakeScene(); trayDisc = v; burnerLayer.classList.toggle("has-disc", v); },
     focusDisc: () => discs.find((d) => d.classList.contains("is-on")),
   };
@@ -1238,10 +1269,7 @@
       chosenDrive = api.selectedDrive();
       nb.disabled = true;
       try {
-        const result = await backend.job({action:"info", drive:api.selectedDrive()}, event => {
-          if (event.type === "ask") { pendingWhy = lang === "zh" ? "请在标定面板回答光驱的问题。" : "Answer the drive question in the calibration panel."; }
-        });
-        const disc = result?.disc;
+        const disc = await readDisc();
         if (!disc?.present || !DATA[disc.media]) { pendingWhy = t.driveNone; render(1,true); return; }
         col = disc.media;
         const found = DATA[col].findIndex(x => x.kind !== "new" && disc.mid && x.mid === disc.mid);
@@ -1305,8 +1333,8 @@
     let id = null;
     try { id = localStorage.getItem("dp-batch"); } catch {}
     for (const c of ["dvd", "cd", "bd"]) { const it = DATA[c].find((x) => id && x.id === id); if (it) return [c, it]; }
-    const held = backend.mock ? DATA.drive[0]?.trayDisc ?? "" : "";
-    const kind = /CD/.test(held) ? "cd" : /BD/.test(held) ? "bd" : "dvd";
+    const held = backend.mock ? DATA.drive[0]?.trayDisc ?? "" : driveDisc()?.present ? driveDisc().kind ?? "" : "";
+    const kind = /^CD|[^V]CD/.test(held) ? "cd" : /BD/.test(held) ? "bd" : "dvd";
     const measured = (c) => DATA[c].find((x) => ["good", "usable"].includes(x.s));
     for (const c of [kind, "dvd", "cd", "bd"]) { const it = measured(c); if (it) return [c, it]; }
     return ["dvd", DATA.dvd[0]];
@@ -1363,8 +1391,13 @@
     platform: () => backend.mock ? (/win/i.test(navigator.platform) ? "win32" : "linux") : backendState?.platform ?? "",
     // the disc batches of one kind (the library's entries, no empty place, no drive stop)
     catalogue: (kind) => (DATA[kind] ?? []).filter((x) => x.kind !== "new" && x.kind !== "drive"),
-    // what the drive holds, as the shelf names it ("Verbatim DVD-R"); empty if unknown
-    heldDisc: () => backend.mock && trayDisc ? DATA.drive[0]?.trayDisc ?? "" : "",
+    // what the drive holds, as the shelf names it ("Verbatim DVD-R"), else its kind ("DVD-R Sequential");
+    // empty if no disc or not read yet
+    heldDisc: () => {
+      if (backend.mock) return trayDisc ? DATA.drive[0]?.trayDisc ?? "" : "";
+      const d = driveDisc();
+      return d?.present ? batchOf(d)?.name ?? d.kind ?? "" : "";
+    },
     // the form chose this kind and batch (or none): point the home page at it before design starts
     useForPlan(kind, item) {
       col = kind;
@@ -1376,6 +1409,8 @@
   applyStatic();
   root.dataset.home = "lobby";
   try { await (await import("./lobby.js")).init(api); } catch (e) { console.error("lobby", e); }
+  // what the drive holds, read once in the background (read-only, a second or two) so the footer can say it
+  if (!backend.mock && !driveDisc()) readDisc().catch(() => {});
   paintRecent();
   render(1, true);
 </script>

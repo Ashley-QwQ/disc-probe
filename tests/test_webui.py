@@ -386,6 +386,42 @@ time.sleep(60)
             b.state("hddvd")
         self.assertEqual(b.state()["platform"], sys.platform)      # the terminal page dresses as this machine's shell
 
+    def test_disc_in_the_drive_is_read_on_request_and_kept(self):
+        found = dict(tray="ready", drive="HL-DT-ST GH70N",
+                     disc=dict(present=True, media="dvd", kind="DVD-R Sequential", mid="RITEKF1", blank=True, sectors=2298496))
+        reads = []
+        def reader(drive):
+            reads.append(drive)
+            # while it reads, the drive is busy for jobs
+            with self.assertRaisesRegex(webui.APIError, "drive busy"):
+                b.start(dict(action="info", drive=drive))
+            return found
+        b = webui.Backend(self.root, drive_provider=lambda: [dict(id="H:", name="H:", disc=None)], disc_reader=reader)
+        self.assertIsNone(b.state()["drives"][0]["disc"])            # nothing is read on page load
+        with self.assertRaisesRegex(webui.APIError, "unknown drive"):
+            b.read_disc(dict(drive="Z:"))
+        got = b.read_disc(dict(drive="H:"))["disc"]
+        self.assertEqual((got["mid"], got["media"], got["tray"]), ("RITEKF1", "dvd", "ready"))
+        self.assertEqual(reads, ["H:"])
+        self.assertEqual(b.state()["drives"][0]["disc"]["mid"], "RITEKF1")    # kept for the page
+        # a blank disc seen this way never authorizes a burn by itself
+        token = b.burn_token()["token"]
+        with self.assertRaisesRegex(webui.APIError, "verified blank"):
+            b.start(dict(action="burn", drive="H:", burn_token=token))
+        # no disc: an empty tray is reported, not an error
+        found.update(tray="open", disc=None)
+        got = b.read_disc(dict(drive="H:"))["disc"]
+        self.assertEqual((got["present"], got["tray"]), (False, "open"))
+
+    def test_disc_command_prints_one_json_line(self):
+        env = dict(os.environ, PYTHONPATH=str(ROOT))
+        out = subprocess.run([sys.executable, "-m", "discprobe", "disc", "--sim", "cav"], cwd=self.root, env=env,
+                             capture_output=True, text=True, timeout=60).stdout.strip().splitlines()[-1]
+        report = json.loads(out)
+        self.assertEqual(report["tray"], "ready")
+        self.assertEqual(report["disc"]["media"], "dvd")
+        self.assertFalse((self.root / "results").exists())         # nothing written
+
     def test_design_upload_size_sets_the_cell(self):
         import numpy as np
         b = webui.Backend(self.root, drive_provider=lambda: [])

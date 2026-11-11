@@ -9,6 +9,7 @@ Developer output (selftest) stays English on purpose.
 TEXT = {
     "drive busy": "光驱正忙",
     "unknown drive": "未知光驱",
+    "the drive did not answer in time": "光驱没有及时回应",
     "drive is required": "必须指定光驱",
     "action is not allowed": "不允许的动作",
     "argument is not allowed": "不允许的参数",

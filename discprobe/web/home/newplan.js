@@ -21,12 +21,16 @@ const STR = {
     calOk: (d) => `已标定 · ${d}`, calNone: "这批盘还没标定。刻录前要先标定，也可以先画，刻录前再标。", calGo: "先去标定",
     months: ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"],
     suggest: (m, d, w) => `${m}${d} 的 ${w}`, soon: "这一项以后接上",
+    reading: "正在读光驱里的盘…", readFail: "没读到光驱里的盘，可以手动选。", trayOpen: "光驱托盘开着。",
+    noDisc: "光驱里没有盘。", unknownBatch: (k, m) => `光驱里是 ${k}${m ? `（${m}）` : ""}，盘库里还没有这一批。`,
   },
   en: {
     title: "New work", name: "Plan name", nameHelp: "What should we call this plan?", tab: "Tab to use",
     disc: "Discs", discHelp: "Disc model and batch", later: "Decide later", inDrive: (n) => `In the drive: ${n}`,
     left: (l, o) => `${l} / ${o} left`, newPack: "Opened a new pack? Register it", kinds: "Disc kind", subs: "Disc type",
     next: "Next: add a picture", none: (k) => `No ${k} registered yet`,
+    reading: "Reading the disc in the drive…", readFail: "Couldn't read the drive; choose by hand.", trayOpen: "The drive's tray is open.",
+    noDisc: "No disc in the drive.", unknownBatch: (k, m) => `The drive holds a ${k}${m ? ` (${m})` : ""}; this batch isn't in the library yet.`,
     calOk: (d) => `Calibrated · ${d}`, calNone: "This batch isn't calibrated yet. It must be before burning; you can draw first and calibrate then.", calGo: "Calibrate first",
     months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     suggest: (m, d, w) => `${m}${d}'s ${w}`, soon: "Not connected yet",
@@ -41,6 +45,11 @@ const SUBS = {
   bd: [{ key: "-R", label: "BD-R", re: /BD-R(?!E)/i }, { key: "RE", label: "BD-RE", re: /BD-RE/i }],
 };
 const sub = () => SUBS[state.kind].find((s) => s.key === state.sub) ?? SUBS[state.kind][0];
+// a batch's type: from its name ("Verbatim DVD-R 16x"); a batch named by its manufacturer code alone goes by
+// the code's form: a DVD+R's ADIP code has slashes (MKM/001/00), a DVD-R's pre-recorded one does not
+const subOf = (kind, it) => SUBS[kind].find((s) => s.re.test(it.name ?? ""))?.key ?? (kind === "dvd" && /\//.test(it.mid ?? "") ? "+R" : "-R");
+// "DVD-R Sequential" -> "DVD-R": the profile's first word is the type people know
+const shortKind = (k) => String(k ?? "").split(" ")[0];
 
 let api, $, W = null, state = null, words = null, cssReady = Promise.resolve();
 const T = () => STR[api.lang() === "en" ? "en" : "zh"];
@@ -184,20 +193,22 @@ function build() {
   W.dial.addEventListener("click", (e) => {
     const k = e.target.closest(".np-key:not(.blank)");
     if (!k) return;
+    state.touched = true;
     if (k.dataset.kind) setKind(k.dataset.kind); else setSub(k.dataset.sub);
   });
   // the wheel turns the ring under the pointer; the arrow keys move along the focused ring
   W.dial.addEventListener("wheel", (e) => {
     e.preventDefault(); e.stopPropagation();          // the wheel over the dial turns it, it does not pull the sheet
+    state.touched = true;
     stepDial(e.target.closest(".np-ring2") ? "sub" : "kind", e.deltaY > 0 ? 1 : -1);
   }, { passive: false });
   W.dial.addEventListener("keydown", (e) => {
     const k = e.target.closest(".np-key");
     if (!k) return;
     const dir = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
-    if (dir) { e.preventDefault(); stepDial(k.dataset.kind ? "kind" : "sub", dir); }
+    if (dir) { e.preventDefault(); state.touched = true; stepDial(k.dataset.kind ? "kind" : "sub", dir); }
   });
-  W.batch.addEventListener("change", () => { state.picked = chosen(); paintLeft(); });
+  W.batch.addEventListener("change", () => { state.touched = true; state.picked = chosen(); paintLeft(); });
   pullable();
   q(".np-cal-go").addEventListener("click", calibrateFirst);
   q(".np-pack").addEventListener("click", () => toast(T().soon));
@@ -211,7 +222,7 @@ function words_() {
   const t = T(), q = W.q;
   q(".np-title").textContent = t.title;
   q(".np-name-label").textContent = t.name; q(".np-name-help").textContent = t.nameHelp;
-  q(".np-disc-label").textContent = t.disc; q(".np-disc-help").textContent = t.discHelp;
+  q(".np-disc-label").textContent = t.disc; q(".np-disc-help").textContent = state.discLine?.(t) ?? t.discHelp;
   q(".np-pack").textContent = t.newPack + " ↗";
   q(".np-cal-go").textContent = t.calGo + " ↗";
   q(".np-tab").title = t.tab;
@@ -222,7 +233,7 @@ const held = () => api.heldDisc?.() ?? "";
 const isHeld = (it) => { const h = held(); return !!h && (it.name === h || it.name?.startsWith(h + " ")); };
 function fillBatches() {
   const t = T(), brand = (n) => api.T().brand?.(n) ?? n;
-  state.list = api.catalogue(state.kind).filter((it) => sub().re.test(it.name ?? ""));
+  state.list = api.catalogue(state.kind).filter((it) => subOf(state.kind, it) === sub().key);
   W.batch.replaceChildren();
   const add = (value, text) => { const o = document.createElement("option"); o.value = value; o.textContent = text; W.batch.append(o); };
   add("", state.list.length ? t.later : `${t.later}（${t.none(sub().label)}）`);   // always on top: the drive may hold no disc yet
@@ -266,8 +277,31 @@ function reopen() {
   if (!api.reduce) W.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
   W.q(".np-cal-go:not([hidden])")?.focus({ preventScroll: true });
 }
+// The disc in the drive, read when the form opens (read-only, a second or two): the dial and the batch follow
+// it until the person picks a kind or a batch; the line under the batch says what was found.
+async function readDrive() {
+  if (!api.readDisc) return;
+  const help = W.q(".np-disc-help");
+  state.discLine = (t) => t.reading;
+  help.textContent = T().reading;
+  let disc;
+  try { disc = await api.readDisc(); }
+  catch { disc = undefined; }
+  if (!isOn()) return;
+  state.discLine = (t) => disc === undefined ? t.readFail : !disc ? t.discHelp : disc.tray === "open" ? t.trayOpen
+    : !disc.present ? t.noDisc : held() && state.list.some(isHeld) ? t.discHelp : t.unknownBatch(shortKind(disc.kind) || KIND_KEY[disc.media] || "?", disc.mid);
+  if (disc?.present && KINDS.includes(disc.media) && !state.touched) {
+    const turn = KINDS.indexOf(disc.media) - KINDS.indexOf(state.kind);
+    state.kind = disc.media; state.sub = firstSub(disc.media, state.item); state.picked = null;
+    paintDial(Math.sign(turn)); fillBatches();
+  }
+  help.textContent = state.discLine(T());
+}
 // the type the page opens on: that of the disc in the drive, else of the last batch used, else -R
 function firstSub(kind, item) {
+  // the disc in the drive: its batch's type, or its own profile ("DVD-R Sequential")
+  const d = api.driveDisc?.(), inDrive = d?.present && d.media === kind ? api.catalogue(kind).find(isHeld) : null;
+  if (inDrive) return subOf(kind, inDrive);
   const name = (held() && KINDS.find((k) => SUBS[k].some((s) => s.re.test(held()))) === kind ? held() : item?.name) ?? "";
   return (SUBS[kind].find((s) => s.re.test(name)) ?? SUBS[kind].find((s) => s.key === "-R") ?? SUBS[kind][0]).key;
 }
@@ -364,6 +398,7 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   state = { kind, sub: firstSub(kind, item), item, picked: null, file, list: [], seed: Math.floor(Math.random() * 1e6) };
   W.name.value = "";
   paintDial(); fillBatches(); words_();
+  readDrive();
   // the camera flies at the drive: the lobby pushes in with the drive coming to the middle of the window;
   // the top view fades in over it with its disc in the middle and close, then settles (the disc moving
   // left, the sheet coming in)
