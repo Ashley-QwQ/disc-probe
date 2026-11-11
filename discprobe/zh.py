@@ -632,10 +632,13 @@ TEXT = {
         "预设准不准，取决于 --read-offset-bytes（{x}）对这台光驱是否正确，请用实刻的一条直线核对一次。",
     "image and tiles do not take this result: they write a data track, which counts from another origin.": "image 和 tiles 不接受这个结果：它们写的是数据轨，起算点不同。",
     "Created {p}": "已新建 {p}",
-    "Added preset '{i}' to {p}": "已把预设 {i} 加入 {p}",
-    "Replaced preset '{i}' in {p}": "已替换 {p} 里的预设 {i}",
-    "Re-enabled preset '{i}' in {p}": "已重新启用 {p} 里的预设 {i}",
-    "Preset '{i}' is already in {p} with the same values": "{p} 里已经有取值相同的预设 {i}，没有改动",
+    "Added preset '{i}' (\"{n}\") to {p}": "已把预设 '{i}'（“{n}”）加入 {p}",
+    "Replaced preset '{i}' (\"{n}\") in {p}": "已替换 {p} 里的预设 '{i}'（“{n}”）",
+    "Re-enabled preset '{i}' (\"{n}\") in {p}": "已重新启用 {p} 里的预设 '{i}'（“{n}”）",
+    "Preset '{i}' (\"{n}\") is already in {p} with the same values": "{p} 里已经有取值相同的预设 '{i}'（“{n}”），没有改动",
+    "--id is empty: DiscImageStudio needs an id to tell presets apart": "--id 是空的：DiscImageStudio 需要 id 来区分不同预设",
+    "--id __manual__ is reserved by DiscImageStudio; choose another id": "__manual__ 是 DiscImageStudio 保留的 id；请换一个",
+    "--name is empty: it is the name DiscImageStudio shows in its preset list": "--name 是空的：它就是 DiscImageStudio 预设列表里显示的名字",
     "Previous file saved as {p}": "原文件已备份为 {p}",
     "Upgraded {p} from preset schema {a} to {b}": "已把 {p} 的预设格式从第 {a} 版升到第 {b} 版",
     "Added the lists preset schema {a} needs to {p}": "已给 {p} 补上第 {a} 版预设需要的列表",
@@ -703,6 +706,10 @@ TEXT = {
         "配合 --install：要写入的 disc-presets.json；默认 %%LOCALAPPDATA%%\\DiscImageStudio\\disc-presets.json",
     "with --install: overwrite an existing preset with the same --id but different values":
         "配合 --install：覆盖同一 --id 但取值不同的现有预设",
+    "the preset id in DiscImageStudio (default: discprobe-cd, discprobe-dvd-r, discprobe-bd-re or discprobe-bd); an id already in the file is updated only with --replace when its values differ, and a built-in preset's id overrides the built-in for every disc it is meant for":
+        "预设的 id（DiscImageStudio 靠它区分预设；默认 discprobe-cd、discprobe-dvd-r、discprobe-bd-re 或 discprobe-bd）；文件里已有这个 id 时，取值不同要加 --replace 才会更新那一条，用内置预设的 id 则会盖过那条内置预设，影响它适用的每一种盘",
+    "the name DiscImageStudio lists the preset under (default: the disc type plus 'drive-timing calibration'); a Blu-ray export without --install names its file after it too":
+        "DiscImageStudio 预设列表里显示的名称（默认是盘型加上“drive-timing calibration”）；蓝光导出不加 --install 时，文件名也按它来取",
     "Timing cannot see the CD along-track constant and none was given, so radial lines may come out twisted. Measure it on a burned disc, then use --along-track-frames.":
         "计时测不到 CD 的沿轨常数，而你也没有提供，所以径向线可能会扭曲。请在刻好的盘上测出它，再用 --along-track-frames。",
     "the preset misses the measured map by {a} deg over {b}-{c} mm (outer radius came out {d} mm); check --sectors and the fit range. No preset written.":

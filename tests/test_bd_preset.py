@@ -246,6 +246,24 @@ def test_the_command_installs_into_the_blu_ray_catalog_not_the_cd_one():
         assert "Restart DiscImageStudio" in text
 
 
+def test_a_blu_ray_install_refuses_a_blank_or_reserved_value_before_writing():
+    """The id and name checks run on the Blu-ray path too, and nothing is written."""
+    with tempfile.TemporaryDirectory() as work:
+        folder = os.path.join(work, "geo-G-20260101-000000")
+        _summary(folder)
+        cases = (("blank-id", ("--id", " "), "--id is empty"),
+                 ("reserved-id", ("--id", "__manual__"), "__manual__"),
+                 ("blank-name", ("--name", "  "), "--name is empty"))
+        for label, option, needle in cases:
+            catalog = os.path.join(work, "catalog-" + label, bdexport.FILE_NAME)
+            proc = _run("disexport", "--geo", folder, "--sectors", str(SECTORS),
+                        *option, "--install", "--dis-presets", catalog)
+            text = proc.stdout + proc.stderr
+            assert proc.returncode == 1, text
+            assert needle in text, text
+            assert not os.path.exists(catalog), text
+
+
 def test_the_command_says_why_the_angle_map_options_do_not_apply():
     with tempfile.TemporaryDirectory() as work:
         folder = os.path.join(work, "geo-G-20260101-000000")
