@@ -7,7 +7,14 @@
 
 .ws.pv { --colL: 0px; }
 .ws.pv .cv { left: calc(var(--edge) + 20px); }
-.ws.pv .cv-note { top: auto; bottom: 0; left: 0; transform: none; }
+/* what the view shows, in one line, at the same place under the disc for every view */
+.ws.pv .cv-note { top: auto; bottom: 8px; left: 50%; transform: translateX(-50%); max-width: min(90%, 40em); white-space: normal; text-align: center; }
+/* the checklist before burning: done is a tick in ink, what needs the person a copper dot, not known a ring */
+.pv-list ul { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 8px; }
+.pv-list li { position: relative; padding-left: 18px; line-height: 1.35; }
+.pv-list li::before { content: ""; position: absolute; left: 0; top: .5em; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--unknown); }
+.pv-list li[data-s="good"]::before { width: 8px; height: 4px; top: .4em; border-radius: 0; border: solid var(--ink); border-width: 0 0 1.5px 1.5px; transform: rotate(-45deg); }
+.pv-list li[data-s="warn"]::before { background: var(--copper); border-color: var(--copper); }
 
 .pv-file { display: grid; gap: 4px; }
 .pv-file b { font-weight: 650; overflow-wrap: anywhere; }

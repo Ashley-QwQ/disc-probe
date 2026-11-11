@@ -1015,6 +1015,12 @@ function realPaint() {
   // burning is confirmed by holding the button (holdButton), everything else by a click
   const hold = phase === "burn" && !disabled && !cdHere();
   $("next-text").textContent = button; $("next").disabled = disabled; $("next").dataset.hold = hold ? "1" : "";
+  // why it is grey, beside it: running, waiting for an answer, a problem to put right, a box to tick
+  api.nextWhy?.(flow.error ? liveText('先处理上面的问题', 'Put the problem above right first')
+    : flow.ask ? liveText('先回答上面的问题', 'Answer the question above first')
+    : flow.job ? liveText('在测，做完会自己接上；可以关掉网页', 'Working; it goes on by itself, even with the page closed')
+    : phase === "prepare" && flow.detected?.blank === false && !flow.measureConfirmed ? liveText('先勾选上面：这是测量盘', 'Tick the box above first: this is the measurement disc')
+    : "");
   $("next").classList.toggle("hold", hold);
   $("real-name")?.addEventListener("input", e => {flow.realName = e.target.value;});
   $("measurement-confirm")?.addEventListener("change", e => {flow.measureConfirmed = e.target.checked; paint();});

@@ -16,7 +16,8 @@ const isOn = () => root.dataset.mode === "design";
 // ---------------------------------------------------------------- words
 const STR = {
   zh: {
-    untitled: "未命名工程", next: "下一步：预览",
+    untitled: "未命名作品", next: "下一步：预览", whyNoPicture: "先放一张图",
+    burnLooking: "正在看光驱里的盘…",
     burnCdWindows: "这台电脑上还不能从页面刻 CD。放一张这批的空白 CD，在 PowerShell 里运行下面这条命令：它用仓库里的刻录脚本以 8x 刻。Windows 自带的“刻录光盘映像”会用 40x，在 GH70N 上刻便宜的 CD-R 失败过。",
     burnCdWindowsNoDrive: "这台电脑上还不能从页面刻 CD，而且没找到光驱。接好光驱后回到这一页，这里会给出刻录命令。",
     burnNoDrive: "没找到光驱。接好光驱后再回到这一页。", burnNoDisc: (why) => `读不了光驱里的盘：${why || "可能没放盘"}。放一张空白盘再回到这一页。`,
@@ -27,10 +28,10 @@ const STR = {
     burnChecking: "正在检查这张盘（只读）…", burnTrayOpen: "托盘开着。放一张空白盘，再推回去。",
     burnFailed: "刻录没有完成。这张盘可能已经写了一部分，不要再用。详细原因在任务日志里。",
     burnNotStarted: "刻录没有开始，盘没有被写过，还能用。",
-    open: "打开工程", save: "保存工程", saveAs: "另存为", saved: (n) => `已保存：${n}`, opened: (n) => `已打开：${n}`,
-    notProject: (n) => `${n} 不是 disc-probe 的工程文件。`, newer: (n) => `${n} 是新版本存的，这一版读不了。`,
-    changeDiscs: "换一批盘（打开盘库）", noDiscYet: "还没选盘", otherMedia: (a, b) => `这份工程是给 ${a} 做的，现在打开在 ${b} 上；可刻范围按 ${b} 算。`,
-    unsaved: "工程还没保存，关掉页面会丢失。",
+    open: "打开作品", save: "保存作品", saveAs: "另存为", saved: (n) => `已保存：${n}`, opened: (n) => `已打开：${n}`,
+    notProject: (n) => `${n} 不是 disc-probe 的作品文件。`, newer: (n) => `${n} 是新版本存的，这一版读不了。`,
+    changeDiscs: "换一批盘（打开盘库）", noDiscYet: "还没选盘", otherMedia: (a, b) => `这件作品是给 ${a} 做的，现在打开在 ${b} 上；可刻范围按 ${b} 算。`,
+    unsaved: "作品还没保存，关掉页面会丢失。",
     exp: {
       drawing: "正在画整张盘的设计图…", sending: "正在交给后端…", making: "正在生成刻录文件…",
       noBackend: "生成刻录文件要由 disc-probe 打开这个页面：在命令行运行 python -m discprobe webui，再用它给的网址。",
@@ -43,7 +44,7 @@ const STR = {
     filesN: (n, size) => `${n} 个文件 · ${size}`, filesRing: (a, b) => `占半径 ${a}–${b} mm，这一圈放文件，不刻图。`,
     filesNone: "不带文件时，整个可刻范围都给图。",
     filesLater: "还不能把文件一起刻进盘：核心还没有这项功能。现在整个可刻范围都给图。", cdFiles: "CD：不带文件就刻音轨，带文件就刻数据盘。",
-    tone: "影调", dither: "抖动强度", bright: "亮度", levels: "灰阶档位", lv: (n) => n === 4 ? '4 级（仅预览）' : `${n} 级`, lv4: "4 级仅供 CD 预览，导出请选 2 级",
+    tone: "影调", dither: "抖动强度", bright: "亮度", levels: "灰阶", lv: (n) => n === 4 ? '4 级 · 只能预览' : `${n} 级`, lv4: "4 级仅供 CD 预览，导出请选 2 级",
     lin: "sRGB 线性化", inv: "反转 3T/6T 映射",
     more: "更多", auto: "自动色阶", autoOff: "取消自动色阶", autoOn: (b, w) => `黑点 ${b} · 白点 ${w}`,
     contrast: "对比度", hi: "高光", sh: "阴影", mode: "抖动方式",
@@ -91,7 +92,8 @@ const STR = {
     fit: "适应", hundred: "100%",
   },
   en: {
-    untitled: "Untitled project", next: "Next: preview",
+    untitled: "Untitled work", next: "Next: preview", whyNoPicture: "Add a picture first",
+    burnLooking: "Looking at the disc in the drive…",
     burnCdWindows: "This computer cannot burn CDs from the page yet. Put in a blank CD from this batch and run the command below in PowerShell: it burns at 8x with the repo's script. Windows' own Burn disc image picks 40x, which failed on a GH70N with cheap CD-R.",
     burnCdWindowsNoDrive: "This computer cannot burn CDs from the page yet, and no drive was found. Connect the drive and come back to this page for the burn command.",
     burnNoDrive: "No drive found. Connect the drive and come back to this page.", burnNoDisc: (why) => `Couldn't read the disc in the drive: ${why || "maybe there is none"}. Put in a blank disc and come back to this page.`,
@@ -102,10 +104,10 @@ const STR = {
     burnChecking: "Checking this disc (read-only)…", burnTrayOpen: "The tray is open. Put in a blank disc and push it in.",
     burnFailed: "The burn didn't finish. The disc may be partly written; don't use it. The job log has the details.",
     burnNotStarted: "The burn did not start: nothing was written, and the disc can still be used.",
-    open: "Open project", save: "Save project", saveAs: "Save as", saved: (n) => `Saved: ${n}`, opened: (n) => `Opened: ${n}`,
-    notProject: (n) => `${n} isn't a disc-probe project file.`, newer: (n) => `${n} was saved by a newer version; this one can't read it.`,
-    changeDiscs: "Use other discs (opens the disc library)", noDiscYet: "No discs chosen yet", otherMedia: (a, b) => `This project was made for ${a} and is now open on ${b}; the burnable range is ${b}'s.`,
-    unsaved: "The project isn't saved; closing the page loses it.",
+    open: "Open work", save: "Save work", saveAs: "Save as", saved: (n) => `Saved: ${n}`, opened: (n) => `Opened: ${n}`,
+    notProject: (n) => `${n} isn't a disc-probe work file.`, newer: (n) => `${n} was saved by a newer version; this one can't read it.`,
+    changeDiscs: "Use other discs (opens the disc library)", noDiscYet: "No discs chosen yet", otherMedia: (a, b) => `This work was made for ${a} and is now open on ${b}; the burnable range is ${b}'s.`,
+    unsaved: "The work isn't saved; closing the page loses it.",
     exp: {
       drawing: "Drawing the whole disc…", sending: "Handing it to the back end…", making: "Making the burn file…",
       noBackend: "Making the burn file needs disc-probe to serve this page: run python -m discprobe webui and open the address it prints.",
@@ -118,7 +120,7 @@ const STR = {
     filesN: (n, size) => `${n} files · ${size}`, filesRing: (a, b) => `Radius ${a}–${b} mm holds the files; no picture there.`,
     filesNone: "Without files, the whole burnable range is the picture's.",
     filesLater: "Files can't be burned onto the disc yet: the core does not do it. The whole burnable range is the picture's.", cdFiles: "CD: without files it burns an audio track; with files, a data disc.",
-    tone: "Tone", dither: "Dither strength", bright: "Brightness", levels: "Grey levels", lv: (n) => n === 4 ? '4 levels (preview only)' : `${n} levels`, lv4: "4 levels are for CD preview only; choose 2 to export",
+    tone: "Tone", dither: "Dither strength", bright: "Brightness", levels: "Grey", lv: (n) => n === 4 ? '4 · preview only' : `${n} levels`, lv4: "4 levels are for CD preview only; choose 2 to export",
     lin: "sRGB linearisation", inv: "Swap the 3T/6T mapping",
     more: "More", auto: "Auto levels", autoOff: "Undo auto levels", autoOn: (b, w) => `Black ${b} · white ${w}`,
     contrast: "Contrast", hi: "Highlights", sh: "Shadows", mode: "Dither method",
@@ -477,9 +479,10 @@ function hitLayer(mm, kinds = ["image", "fx"]) {
   }
   return null;
 }
+const DOCK = 56;                             // the canvas's bottom strip, where the number bar docks
 function fit() {
-  V.s = Math.min(V.w, V.h) * 0.92 / 120;
-  V.cx = V.w / 2; V.cy = V.h / 2;
+  V.s = Math.min(V.w, V.h - DOCK) * 0.92 / 120;
+  V.cx = V.w / 2; V.cy = (V.h - DOCK) / 2;
   draw(); queueCompose();
 }
 function zoomAt(f, sx, sy) {
@@ -687,6 +690,29 @@ function annulus(g, a, b) {
   g.arc(V.cx, V.cy, b * V.s, 0, Math.PI * 2);
   g.arc(V.cx, V.cy, a * V.s, 0, Math.PI * 2, true);
 }
+// 45° hatching in the ring a..b mm: 0.75 px ink at 40 %, a fixed screen pitch so it reads as a drawing at any zoom
+function hatch(g, a, b, ink) {
+  if (b <= a) return;
+  g.save(); annulus(g, a, b); g.clip("evenodd");
+  g.strokeStyle = ink; g.globalAlpha = 0.4; g.lineWidth = 0.75;
+  const R = b * V.s;
+  g.beginPath();
+  for (let k = -2 * R; k < 2 * R; k += 7) { g.moveTo(V.cx + k - R, V.cy + R); g.lineTo(V.cx + k + R, V.cy - R); }
+  g.stroke(); g.restore();
+}
+// a faint scale along one radius (to the right): ticks every 5 mm, the burnable range's ends numbered
+function ruler(g, r0, r1, ink) {
+  const px = (mm) => V.cx + mm * V.s, y = V.cy;
+  if (V.s * 5 < 6) return;                    // too small to read
+  g.save(); g.strokeStyle = ink; g.fillStyle = ink; g.globalAlpha = 0.4; g.lineWidth = 0.75;
+  g.beginPath(); g.moveTo(px(r0), y); g.lineTo(px(r1), y);
+  for (let mm = Math.ceil(r0 / 5) * 5; mm <= r1; mm += 5) { const h = mm % 10 ? 3 : 5; g.moveTo(px(mm), y - h); g.lineTo(px(mm), y + h); }
+  for (const mm of [r0, r1]) { g.moveTo(px(mm), y - 7); g.lineTo(px(mm), y + 7); }
+  g.stroke();
+  g.globalAlpha = 0.7; g.font = `11px ${cssVar("--mono")}`; g.textAlign = "center"; g.textBaseline = "top";
+  for (const mm of [r0, r1]) g.fillText(String(mm), px(mm), y + 9);
+  g.restore();
+}
 function paintCanvas() {
   if (!W || !S) return;
   const cv = W.canvas, g = cv.getContext("2d");
@@ -715,6 +741,7 @@ function paintCanvas() {
     g.save(); annulus(g, p0, p1); g.clip("evenodd");
     g.imageSmoothingEnabled = comp.ppm < V.s * V.dpr * 0.95 ? false : true;
     g.drawImage(comp.c, V.cx + comp.x0 * V.s, V.cy + comp.y0 * V.s, (comp.x1 - comp.x0) * V.s, (comp.y1 - comp.y0) * V.s);
+    g.globalCompositeOperation = "multiply"; g.fillStyle = face; g.fillRect(0, 0, V.w, V.h);   // the disc's own face colour
     g.restore();
   }
   // PRO: how it looks from the chosen position
@@ -735,10 +762,22 @@ function paintCanvas() {
     g.drawImage(L.selCanvas, -L.width * V.s / 2, -hh / 2, L.width * V.s, hh);
     g.restore();
   }
-  // everything outside the burnable ring is dimmed, not hidden (as DiscImageStudio does)
-  g.fillStyle = dim;
-  g.beginPath(); g.rect(0, 0, V.w, V.h); g.arc(V.cx, V.cy, r1 * V.s, 0, Math.PI * 2, true); g.fill();
+  // everything outside the burnable ring stays in sight at about a quarter, with its outline (as DIS does)
+  g.fillStyle = dim;                                         // the page around the disc
+  g.beginPath(); g.rect(0, 0, V.w, V.h); g.arc(V.cx, V.cy, 60 * V.s, 0, Math.PI * 2, true); g.fill();
+  g.fillStyle = cssVar("--face-dim");                       // the disc where nothing is burned
+  annulus(g, r1, 60); g.fill("evenodd");
   g.beginPath(); g.arc(V.cx, V.cy, r0 * V.s, 0, Math.PI * 2); g.fill();
+  const ink = cssVar("--face-ink");
+  g.save(); g.strokeStyle = cssVar("--ink-3"); g.globalAlpha = 0.8; g.lineWidth = 0.75;
+  for (const P of imageLayers()) {
+    if (!P.visible || !cornersOutside(P, p0, p1)) continue;
+    const cs = corners(P); g.beginPath(); cs.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.stroke();
+  }
+  g.restore();
+  // what is not yours to draw on, as on a drawing: fine 45° hatching on the clamp ring and the rim
+  hatch(g, 7.5, r0, ink); hatch(g, r1, 60, ink);
+  // the hole shows the page through it
   // the ring that holds files: light diagonal lines
   if (fr) {
     g.save(); annulus(g, fr[0], fr[1]); g.clip("evenodd");
@@ -748,9 +787,14 @@ function paintCanvas() {
     for (let k = -2 * R; k < 2 * R; k += 9) { g.beginPath(); g.moveTo(V.cx + k - R, V.cy + R); g.lineTo(V.cx + k + R, V.cy - R); g.stroke(); }
     g.restore();
   }
-  // the edges of the burnable range
-  g.strokeStyle = cssVar("--rule-strong"); g.lineWidth = 1;
-  for (const r of [r0, r1, 60]) { g.beginPath(); g.arc(V.cx, V.cy, r * V.s, 0, Math.PI * 2); g.stroke(); }
+  g.fillStyle = paper; g.beginPath(); g.arc(V.cx, V.cy, 7.5 * V.s, 0, Math.PI * 2); g.fill();
+  // lines by the drawing rule (DESIGN.md): the disc's outline 1.5 px ink, its structure 1 px at 70 %
+  g.save(); g.strokeStyle = ink;
+  g.lineWidth = 1.5; g.beginPath(); g.arc(V.cx, V.cy, 60 * V.s, 0, Math.PI * 2); g.stroke();
+  g.lineWidth = 1; g.globalAlpha = 0.7;
+  for (const r of [7.5, r0, r1]) { g.beginPath(); g.arc(V.cx, V.cy, r * V.s, 0, Math.PI * 2); g.stroke(); }
+  g.restore();
+  ruler(g, r0, r1, ink);
   // effect areas: their outline and name
   for (const F of S.layers) {
     if (F.kind !== "fx" || !F.visible) continue;
@@ -800,15 +844,11 @@ function placeBar() {
   if (bar.dataset.mode !== mode || bar.dataset.id !== String(L.id) || bar.dataset.lang !== api.lang()) fillBar(L, mode);
   else syncBar(L);
   bar.hidden = false;
-  const cs = corners(L), xs = cs.map((p) => p[0]), ys = cs.map((p) => p[1]);
-  const bw = bar.offsetWidth, bh = bar.offsetHeight;
-  // under the layer; above it if there is no room; at the bottom of the canvas if neither fits
-  let top = Math.max(...ys) + 14;
-  if (top + bh > V.h - 44) {
-    top = Math.min(...ys) - 14 - bh - (S.tool === "move" ? 30 : 0);
-    if (top < 48) top = V.h - bh - 44;
-  }
-  const left = Math.min(Math.max((Math.min(...xs) + Math.max(...xs)) / 2 - bw / 2, 52), V.w - bw - 4);
+  // docked: the middle of the canvas's bottom strip, under the disc, the same place whatever is selected
+  // (above the tilt bar when that one is out)
+  const bw = bar.offsetWidth, bh = bar.offsetHeight, tilt = W.tilt?.offsetParent ? W.tilt.offsetHeight + 8 : 0;
+  const top = V.h - bh - tilt - Math.max(0, (DOCK - bh) / 2 - 4);
+  const left = Math.min(Math.max(V.w / 2 - bw / 2, 4), V.w - bw - 4);
   bar.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
 }
 function fillBar(L, mode) {
@@ -874,7 +914,7 @@ function changed() {
   if (W) W.dirty.title = T().unsaved;
   draw(); queueCompose();
   refreshLayerRows();
-  $("next").disabled = !imageLayers().length;
+  $("next").disabled = !imageLayers().length; api.nextWhy?.(T().whyNoPicture);
 }
 
 // ---------------------------------------------------------------- canvas input
@@ -1065,10 +1105,9 @@ function buildLeft() {
       `<button class="ib" type="button" data-a="lock" aria-label="${L.locked ? t.unlock : t.lock}" title="${L.locked ? t.unlock : t.lock}">${L.locked ? I.lock : I.unlock}</button></li>`).join("")}</ul>`
       : `<p class="empty-l">${t.noLayers}</p>`) +
     `<button class="sbtn wide" type="button" data-a="import">${I.image}${t.import}</button></section>` +
-    `<section><h3>${t.files}</h3>` +
     // files on the disc: the core cannot write them yet (`image` has no files, the ISO no entries), so the page
-    // does not offer them: a ring kept free for files that never arrive would be a picture made smaller for nothing
-    (!FILES_READY ? `<p class="note quiet">${t.filesLater}</p></section>` :
+    // does not show them at all until it does (a column explaining a missing feature is noise)
+    (!FILES_READY ? "" : `<section><h3>${t.files}</h3>` +
     (S.files ? `<p class="note">${t.filesN(S.files.count, size(S.files.bytes))}</p>` +
       `<div class="seg" role="group" aria-label="${t.files}"><button type="button" data-a="inner" aria-pressed="${S.files.where === "inner"}">${t.inner}</button><button type="button" data-a="outer" aria-pressed="${S.files.where === "outer"}">${t.outer}</button></div>` +
       `<p class="note quiet">${t.filesRing(...filesRing().map((r) => r.toFixed(1)))}</p>`
@@ -1154,7 +1193,7 @@ function buildRight() {
     `<div class="ctl-line"><span>${t.levels}</span><div class="seg" role="group" aria-label="${t.levels}">` +
     `<button type="button" data-lv="2" aria-pressed="${tone.levels === 2}">${t.lv(2)}</button>` +
     `<button type="button" data-lv="4" aria-pressed="${tone.levels === 4}" ${S.media === "cd" ? "" : `disabled title="${t.lv4}"`}>${t.lv(4)}</button></div></div>` +
-    (S.media === "cd" ? "" : `<p class="note quiet">${t.lv4}</p>`) +
+    // the rule is in the button's own words now ("4 · preview only"); its title says the rest
     `<label class="chk"><input type="checkbox" data-k="lin" ${tone.lin ? "checked" : ""}>${t.lin}</label>` +
     (S.media === "bd" ? `<label class="chk"><input type="checkbox" data-k="inv" ${tone.inv ? "checked" : ""}>${t.inv}</label>` : "") +
     `<details class="more"><summary>${t.more}</summary><div>` +
@@ -1571,7 +1610,7 @@ function build() {
     `<div class="tools-v" role="toolbar"></div>` +
     `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="orig"></button></div>` +
     `<p class="cv-note warn" hidden></p>` +
-    `<div class="empty-c"><p></p><div class="row"><button class="sbtn" type="button" data-a="import"></button><button class="sbtn" type="button" data-a="sample"></button></div></div>` +
+    `<div class="empty-c"><p></p><div class="row"><button class="sbtn" type="button" data-a="sample"></button><button class="sbtn" type="button" data-a="import"></button></div></div>` +
     `<div class="fbar" hidden></div>` +
     `<div class="tilt"><span class="lbl"></span><input class="rng" type="range" min="40" max="120" step="1"><output></output><button class="sbtn" type="button"></button></div>` +
     `<div class="loupe"><canvas></canvas><small></small></div>` +
@@ -1585,6 +1624,9 @@ function build() {
     note: q(".cv-note"), empty: q(".empty-c"), bar: q(".fbar"), tilt: q(".tilt"), loupe: q(".loupe"), zoom: q(".zoomr"),
     drop: q(".dropzone"), file: q(".f-img"), folder: q(".f-dir"), dirty: q(".dirty"), pname: q(".pname"), sub: q(".ws-title .sub"), proj: q(".f-proj"), filebtns: q(".filebtns"),
   };
+  // open and save belong to the work's tools, above the layers, not to its title (the header keeps only the
+  // work's name and its discs)
+  ws.append(W.filebtns);
   // canvas input
   const cvs = W.canvas;
   cvs.addEventListener("pointerdown", onDown);
@@ -1768,7 +1810,7 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
   const from = api.focusDisc()?.getBoundingClientRect();
   root.dataset.mode = "design";
   $("back").hidden = false;
-  $("next").disabled = !imageLayers().length;
+  $("next").disabled = !imageLayers().length; api.nextWhy?.(T().whyNoPicture);
   W.ws.classList.add("on");
   W.ws.classList.toggle("pro-on", S.pro);
   words();
@@ -1818,6 +1860,18 @@ async function toPreview() {
     media: P.media, item: P.item, alongTrackMeasured: false,
     project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection },
     exportIso: (onProgress, opts) => makeBurnFile((p) => onProgress({ fraction: p.fraction, stage: p.stage }), opts),
+    // what the preview's checklist reads before burning; each answer is what is known now, never a guess
+    checks: () => {
+      const good = (x) => ["good", "usable"].includes(x?.s);
+      const [p0, p1] = pictureRange(), d = api.driveDisc?.();
+      return {
+        geo: good(P.item) ? "batch" : (api.catalogue?.(P.media) ?? []).some(good) ? "latest" : "none",
+        inRange: !imageLayers().some((L) => L.visible && cornersOutside(L, p0, p1)),
+        levels: P.tone.levels === 4 && P.media === "cd" ? 4 : 2,
+        disc: !d?.present ? "none" : d.media !== P.media ? "kind" : P.item?.mid && d.mid && d.mid !== P.item.mid ? "other" : d.blank === true ? "blank" : "written",
+        discName: d?.mid || d?.kind || "",
+      };
+    },
     back: () => start(api, { fly: false }),
     next: (iso) => toBurn(iso, () => preview.start(api, ctx)),   // the same context keeps the file it made
     // no measured geometry for these discs: calibrate the batch (the one picked, else the disc in the drive),
@@ -1850,8 +1904,11 @@ function mockBurn(onProgress) {
 // ?mockburn: the burn page can be opened straight from the console, to look at its animations
 if (new URLSearchParams(location.search).has("mockburn")) globalThis.dpToBurn = (iso, back = () => {}) => toBurn(iso, back);
 async function toBurn(iso, back) {
-  const burn = await import("./burn.js");
   const t = T();
+  // the drive is looked at first (a few seconds on a real one): meanwhile this is the burn page, not the
+  // lobby, so Next must not read "new work"
+  root.dataset.mode = "burn"; $("next").disabled = true; $("next-text").textContent = t.burnLooking; api.nextWhy?.("");
+  const burn = await import("./burn.js");
   const mock = new URLSearchParams(location.search).has("mockburn");
   // Which drive: the one this project's geometry was measured on (geo-H-…), else the first one listed.
   let drive = { id: "", name: "", speeds: mock ? (S.media === "cd" ? [4, 8, 16] : [4, 8]) : [] }, problem = "", needSwap = false;

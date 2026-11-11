@@ -58,7 +58,7 @@ export function calibrationBudget(media) {
     details:pair('两个半径仍需其他依据，不能套用 DVD 的预算。', 'The two radii still need other evidence. The DVD budget does not apply.')};
   return {
     items:[
-      cd ? pair('至少 3 张同批空白盘：测量、精细标定、成品各一张。', 'At least 3 blanks from one batch: one to measure, one to fine-calibrate, one for the picture.') : pair('至少 2 张同批空白盘：一张测量，一张刻成品。', 'At least 2 blanks from one batch: one to measure, one for the picture.'),
+      cd ? pair('至少 3 张同批空白盘：测量、精细标定、成品各一张。', 'At least 3 blanks from one batch: one to measure, one to fine-calibrate, one for the picture.') : pair('至少 2 张同批空白盘，可能 3 张：一张测量，一张刻图；图偏了就拍这张来精修，再刻第三张。', 'At least 2 blanks from one batch, maybe 3: one to measure, one for the picture; if the picture is off, photograph it to refine and burn a third.'),
       pair('生成测量文件：几十秒。', 'Make the measurement file: tens of seconds.'),
       cd ? pair('刻测量盘：约 11 分钟，依光驱而异。', 'Burn the measurement disc: about 11 minutes, depending on the drive.') : pair('刻测量盘：约 14 分钟。', 'Burn the measurement disc: about 14 minutes.'),
       pair('检查转速：1–3 分钟；测量盘面：约 5 分钟。', 'Check rotation: 1–3 minutes; measure the disc: about 5 minutes.'),

@@ -2,8 +2,11 @@
    disc. Middle: the disc, face on. Right column: tone, and the PRO-Experimental panels. Properties
    float under the selected layer. Same tokens as the home page; square corners (3 / 4 px). */
 
-:root { --face: #d6d1c8; --face-2: #c9c3b9; --dim: rgb(235 231 224 / .66); }
-:root[data-theme="dark"] { --face: #2b3433; --face-2: #333d3b; --dim: rgb(22 29 28 / .66); }
+/* The disc is a thing on the desk: in both themes a light face with dark lines on it (on the ink page it is
+   paper-coloured, never pure white). --face-dim covers the disc where nothing is burned, --dim the page around
+   it; both leave a picture there at about a quarter. */
+:root { --face: #d6d1c8; --face-2: #c9c3b9; --face-ink: #1d1b18; --face-dim: rgb(214 209 200 / .75); --dim: rgb(235 231 224 / .75); }
+:root[data-theme="dark"] { --face: #ebe7e0; --face-2: #e4dfd7; --face-ink: #1d1b18; --face-dim: rgb(235 231 224 / .75); --dim: rgb(22 29 28 / .75); }
 
 :root[data-mode="design"] .stage { opacity: 0; pointer-events: none; transition: opacity 420ms var(--ease); }
 .stage { transition: opacity 420ms var(--ease); }
@@ -22,10 +25,11 @@
 .ws-title .sub:hover, .ws-title .sub:focus-visible { color: var(--ink); text-decoration: underline dotted; text-underline-offset: 4px; }
 .ws-title .dirty { width: 8px; height: 8px; border-radius: 50%; background: var(--copper); opacity: 0; transition: opacity 200ms; }
 .ws-title .dirty.on { opacity: 1; }
-.ws-title .filebtns { display: flex; gap: 6px; margin-left: 8px; }
-.ws-title .filebtns .sbtn { min-height: 36px; padding: 0 10px; font-size: 14px; }
-.ws-title .filebtns .sbtn:active:not(:disabled) { transform: translateY(1px); }
-@media (max-width: 1240px) { .ws-title .filebtns .sbtn span { display: none; } }   /* icons only: room for the tools on the right */
+.ws > .filebtns { position: fixed; z-index: 2; left: var(--edge); top: var(--top); width: var(--colL); display: flex; gap: 6px; }
+.ws > .filebtns .sbtn { flex: 1; min-height: 36px; padding: 0 10px; font-size: 14px; }
+.ws > .filebtns .sbtn:active:not(:disabled) { transform: translateY(1px); }
+.ws:not(.on) > .filebtns { display: none; }
+.ws > .col-l { top: calc(var(--top) + 48px); }          /* under open / save */
 @media (max-width: 480px) { .ws-title { left: calc(var(--edge) + 128px); } }       /* no "DP" mark this narrow */
 
 /* ---- columns ---- */
@@ -97,7 +101,7 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 /* PRO switch */
 .pro-sw { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding-bottom: 12px; }
 .pro-sw .lbl { font-size: 16px; font-weight: 650; font-stretch: 110%; }
-.pro-sw .lbl .pr { background: var(--dvd); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.pro-sw .lbl .pr { color: var(--ink); }   /* gradient type is the wordmark's alone */
 .sw { position: relative; width: 44px; height: 24px; border: 1px solid var(--rule-strong); border-radius: 4px; background: none; cursor: pointer; padding: 0; }
 .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 2px; background: var(--ink-3); transition: transform 180ms var(--ease), background-color 180ms; }
 .sw[aria-checked="true"] { border-color: var(--ink); }

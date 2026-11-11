@@ -80,7 +80,7 @@
 .burn-checks{display:grid;grid-template-columns:72px minmax(0,1fr);gap:8px 16px;margin:0 0 20px}
 .burn-checks dt{color:var(--ink-2)}
 .burn-checks dd{margin:0;overflow-wrap:anywhere;padding-left:14px;position:relative}
-.burn-checks dd::before{content:"";position:absolute;left:0;top:.55em;width:7px;height:7px;border-radius:50%;background:var(--unknown)}
-.burn-checks dd[data-s="good"]::before{background:var(--good)}
-.burn-checks dd[data-s="warn"]::before{background:var(--warn)}
-.burn-checks dd[data-s="warn"]{color:var(--warn)}
+.burn-checks dd::before{content:"";position:absolute;left:0;top:.5em;width:6px;height:6px;border-radius:50%;background:none;border:1.5px solid var(--unknown)}   /* not known: a hollow ring */
+.burn-checks dd[data-s="good"]::before{width:8px;height:4px;top:.42em;border-radius:0;background:none;border:solid var(--ink);border-width:0 0 1.5px 1.5px;transform:rotate(-45deg)}   /* done: a tick in ink */
+.burn-checks dd[data-s="warn"]::before{background:var(--copper);border-color:var(--copper)}
+.burn-checks dd[data-s="warn"]{color:var(--ink)}
