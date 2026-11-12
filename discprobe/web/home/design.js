@@ -12,6 +12,7 @@ import * as EditorOps from "./design/editor-ops.mjs";
 
 import { processingWorker } from "./design/worker-client.mjs";
 import { downloadTemplate } from "./design/template-download.mjs";
+import { hasCapability } from "./handshake.mjs";
 
 let api, $;
 const root = document.documentElement;
@@ -1185,7 +1186,7 @@ function buildLeft() {
       `<button class="ib" type="button" data-a="lock" aria-label="${L.locked ? t.unlock : t.lock}" title="${L.locked ? t.unlock : t.lock}">${L.locked ? I.lock : I.unlock}</button><button class="ib row-action" data-a="up" aria-label="${api.lang()==="zh"?"上移图层":"Raise layer"}" title="Alt+↑" ${L.locked?"disabled":""}><svg viewBox="0 0 24 24"><path d="M6 14l6-6 6 6M12 8v12"/></svg></button><button class="ib row-action" data-a="down" aria-label="${api.lang()==="zh"?"下移图层":"Lower layer"}" title="Alt+↓" ${L.locked?"disabled":""}><svg viewBox="0 0 24 24"><path d="M6 10l6 6 6-6M12 4v12"/></svg></button><button class="ib row-action" data-a="del" aria-label="${t.remove}" title="Delete" ${L.locked?"disabled":""}>${I.trash}</button></li>`).join("")}</ul>`
       : `<p class="empty-l">${t.noLayers}</p>`) +
     `<button class="sbtn wide" type="button" data-a="import">${I.image}${t.import}</button>` +
-    `<button class="sbtn wide template-download" type="button" data-a="template">${api.lang() === "en" ? "Download template" : "下载模板"}</button></section>` +
+    `<button class="sbtn wide template-download" type="button" data-a="template" data-capability="templates" ${hasCapability('templates') ? '' : 'hidden'}>${api.lang() === "en" ? "Download template" : "下载模板"}</button></section>` +
     // files on the disc: the core cannot write them yet (`image` has no files, the ISO no entries), so the page
     // does not show them at all until it does (a column explaining a missing feature is noise)
     (!FILES_READY ? "" : `<section><h3>${t.files}</h3>` +
@@ -1223,7 +1224,7 @@ function leftClick(e) {
   if (a === "undo") return undo();
   if (a === "redo") return redo();
   if (a === "import") return W.file.click();
-  if (a === "template") return downloadTemplate(S, b, toast);
+  if (a === "template" && hasCapability('templates')) return downloadTemplate(S, b, toast);
   if(L && ["up","down","del"].includes(a)){S.selected=L.id;editor.click({target:{closest:()=>({dataset:{edAction:a==="del"?"remove":a}})},preventDefault(){},stopPropagation(){}});return;}
   if (a === "folder") return W.folder.click();
   if (a === "nofiles") { S.files = null; changed(); buildLeft(); return; }

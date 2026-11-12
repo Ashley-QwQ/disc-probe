@@ -26,7 +26,7 @@ import zipfile
 PYTHON = "3.13.14"
 PACKAGES = ("numpy", "pillow", "scipy", "opencv-python")
 SELFTEST_DATA = "tests/data/bd_discussion_samples/local_uj272_bd_zones.csv"
-SOURCE = ("discprobe", "tools", "presets", "docs/MANUAL.md", "docs/MANUAL.en.md", "README.md", "README.en.md", "LICENSE", SELFTEST_DATA)
+SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_backend.py", "docs/API_VERSIONING.md", "docs/MANUAL.md", "docs/MANUAL.en.md", "README.md", "README.en.md", "LICENSE", SELFTEST_DATA)
 LEAVE_OUT = ("__pycache__", "tests", "test", "*.pyi", "*.pdb")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

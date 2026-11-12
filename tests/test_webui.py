@@ -890,11 +890,11 @@ def test_fake_workflow_results_answers_and_persistence():
         finally: backend.close()
 
 
-def test_version_is_a_release_tag_or_empty():
-    import re
+def test_version_uses_the_package_release_without_git():
     from discprobe import webui
-    v = webui.version()
-    assert v == "" or re.fullmatch(r"v[\d.]+(-dev)?", v), v
+    from discprobe.version import __version__
+    with patch.object(webui.subprocess, "run", side_effect=AssertionError("version must not invoke git")):
+        assert webui.version() == "v" + __version__
 
 
 def test_job_whose_folder_is_gone_does_not_break_events(tmp_path):

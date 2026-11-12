@@ -7,6 +7,9 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    "show core and GUI API versions and capabilities": "显示核心、GUI API 版本与能力",
+    "print version information as JSON": "以 JSON 输出版本信息",
+    "GUI folder containing gui.json (default: bundled GUI)": "包含 gui.json 的 GUI 文件夹（默认：内置 GUI）",
     "Timing and drawing use numpy and Pillow; photo reading also needs SciPy and OpenCV.": "计时与绘图使用 numpy 和 Pillow；照片读取还需要 SciPy 与 OpenCV。",
     "Identity copies stay in the first session; omit --disc-id when appending the label.": "身份副本保留在首段会话；追加标签时不要使用 --disc-id。",
     "identity slot overlaps label metadata": "身份记录槽与标签元数据重叠",
