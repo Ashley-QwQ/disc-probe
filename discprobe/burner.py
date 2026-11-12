@@ -45,7 +45,8 @@ def imapi_cd_command(drive, iso, speed=8):
     which writes Mode 2 Form 1, the layout our CD images are made for. Windows' own "Burn disc image" picks 40x, and
     that failed on a GH70N with cheap CD-R. The core does not run it itself yet (WindowsDVD refuses CD): it is shown
     to the person, with absolute paths so it works from any folder."""
-    script = Path(__file__).resolve().parent.parent / "tools" / "burn_imapi.ps1"
+    from .resources import tool
+    script = tool("burn_imapi.ps1")
     return ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(script), "-Drive", drive,
             "-Iso", str(Path(iso).resolve()), "-Speed", f"{speed:g}", "-Burn", "-Reload"]
 

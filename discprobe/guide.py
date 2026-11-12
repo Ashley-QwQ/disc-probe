@@ -720,7 +720,8 @@ def after_timing_stop(args, reason: str) -> list[str]:
 
 def compare_pitch(out: str, with_sigma: bool = False) -> tuple | None:
     """chi2/dof of the constant-pitch and quadratic-pitch fits of a finished run, by tools/geo_polyfit.py."""
-    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools", "geo_polyfit.py")
+    from .resources import tool
+    path = str(tool("geo_polyfit.py"))
     try:
         spec = importlib.util.spec_from_file_location("geo_polyfit", path)
         tool = importlib.util.module_from_spec(spec)

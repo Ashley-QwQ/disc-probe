@@ -1,0 +1,11 @@
+{
+  "name": "disc-probe default",
+  "gui_version": "0.1.2.1",
+  "required_api": ">=1.0 <2",
+  "required_capabilities": [
+    "state", "drives-info", "jobs-events", "timing", "geo", "image-design",
+    "editor", "burn", "photo-calibration", "phone-link", "presets",
+    "catalogue", "results-history", "greetings"
+  ],
+  "optional_capabilities": ["templates", "presets-io"]
+}

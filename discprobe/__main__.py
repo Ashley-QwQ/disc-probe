@@ -1823,7 +1823,7 @@ def cmd_template(args):
 
 
 COMMAND_GROUPS = (
-    ("Start here", ("menu", "guide", "webui", "tutorial", "selftest", "list")),
+    ("Start here", ("menu", "guide", "webui", "version", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "whois", "timing", "geo", "results")),
     ("Make a disc image", ("random", "label", "compose", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc")),
@@ -1980,6 +1980,10 @@ def _build_parser():
 
     from . import photo
     photo.add_parser(sub)
+
+    sp = sub.add_parser("version", help="show core and GUI API versions and capabilities")
+    sp.add_argument("--json", action="store_true", help="print version information as JSON")
+    sp.set_defaults(func=cmd_version)
 
     sp = sub.add_parser("list", help="list optical drives")
     sp.set_defaults(func=cmd_list)
@@ -2387,6 +2391,7 @@ def _build_parser():
     sp.set_defaults(func=cmd_calibdisc)
 
     sp = sub.add_parser("webui", help="serve the web GUI backend")
+    sp.add_argument("--gui", metavar="PATH", help="GUI folder containing gui.json (default: bundled GUI)")
     sp.add_argument("--port", type=int, default=8765, help="HTTP port (default: 8765)")
     sp.add_argument("--lan", action="store_true", help="accepted for compatibility; no-op (LAN is on by default)")
     sp.add_argument("--local-only", action="store_true", help="listen only on 127.0.0.1; disable LAN phone access")
@@ -2511,6 +2516,17 @@ def _main(argv=None):
     if raw_args[0] in {"image", "random", "rings", "calib", "tiles", "beacons", "calibdisc", "disexport", "cdprobe", "spokes"}:
         print(i18n.tr("Preparing the design and image data; this may take a few seconds..."), flush=True)
     args.func(args)
+
+
+def cmd_version(args):
+    from .api import version_payload
+    payload = version_payload()
+    if args.json:
+        print(json.dumps(payload))
+    else:
+        print(f"disc-probe {payload['core_version']} (API {payload['api_version']})")
+        print("Capabilities: " + ", ".join(payload["capabilities"]))
+        print("Supported older API majors: " + (", ".join(map(str, payload["supported_older_api_majors"])) or "none"))
 
 
 def main(argv=None):

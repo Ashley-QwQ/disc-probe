@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-handshake="pending">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,6 +26,10 @@
 <link rel="stylesheet" href="./presetio.css">
 <style>
   @font-face { font-family: "Archivo"; src: url(../fonts/Archivo-VF-latin.woff2) format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
+  html[data-handshake="pending"] body { visibility: hidden; }
+  #gui-compatibility { box-sizing: border-box; width: min(100%, 42rem); margin: 12vh auto; padding: clamp(20px, 5vw, 48px); color: var(--ink); background: var(--paper); line-height: 1.6; overflow-wrap: anywhere; }
+  #gui-compatibility h1 { font-size: clamp(1.4rem, 4vw, 2rem); line-height: 1.25; margin: 0 0 1.5rem; }
+  #gui-compatibility p { margin: 0 0 1rem; }
   :root {
     color-scheme: light;
     --paper: #ebe7e0; --paper-2: #e4dfd7; --ink: #1d1b18; --ink-2: #5d5850; --ink-3: #8a847a;
@@ -797,6 +801,8 @@
 </footer>
 
 <script type="module">
+  import { handshake } from "./handshake.mjs";
+  await handshake();
   import * as backend from "./api.js";
   import { flipWatch } from "./kit/flipnum.js";
   import { statusBars } from "./kit/statusbars.js";

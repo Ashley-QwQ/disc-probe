@@ -23,26 +23,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import CookieError, SimpleCookie
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import guide, i18n, iso9660, webui_catalog
-
-
-_VERSION = None
+from . import api, guide, i18n, iso9660, webui_catalog
 
 
 def version():
-    """This copy's release, shown after the folded wordmark: the newest tag of its git checkout
-    ("v0.1.2.1"), with "-dev" when there are commits after that tag; empty outside a checkout."""
-    global _VERSION
-    if _VERSION is None:
-        try:
-            out = subprocess.run(["git", "describe", "--tags", "--match", "v*"], cwd=Path(__file__).parent,
-                                 capture_output=True, text=True, timeout=5)
-            tag = out.stdout.strip() if out.returncode == 0 else ""
-        except (OSError, subprocess.SubprocessError):
-            tag = ""
-        m = re.fullmatch(r"(v[\d.]+)(-\d+-g[0-9a-f]+)?", tag)
-        _VERSION = (m.group(1) + ("-dev" if m.group(2) else "")) if m else ""
-    return _VERSION
+    """The installed release identity, also available outside a checkout."""
+    return "v" + api.version_payload()["core_version"]
 
 ACTIONS = {"info", "timing", "geo", "random", "image", "disexport", "cdprobe", "burn", "swap", "calibrate", "photo"}
 DRIVE_ACTIONS = {"info", "timing", "geo", "burn", "swap", "calibrate"}
@@ -774,7 +760,9 @@ class Backend:
 class Server(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, backend, port=8765, *, lan=False):
+    def __init__(self, backend, port=8765, *, lan=False, gui=None):
+        self.gui_root, self.gui_manifest = api.load_manifest(gui if gui is not None else api.BUNDLED_GUI)
+        api.check_manifest(self.gui_manifest)
         if type(port) is not int or not 0 <= port <= 65535:
             raise ValueError("invalid port")
         self.backend = backend
@@ -913,7 +901,11 @@ class Handler(BaseHTTPRequestHandler):
             url = urlsplit(self.path)
             path = unquote(url.path)
             backend = self.server.backend
-            if path == "/api/phone-link":
+            if path == "/api/version":
+                self._json(200, api.version_payload())
+            elif path == "/gui.json":
+                self._json(200, self.server.gui_manifest)
+            elif path == "/api/phone-link":
                 from . import photo, qr
                 run = parse_qs(url.query).get("run", [""])[0]
                 backend.photos.run_dir(run)
@@ -940,7 +932,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, image.read_bytes(), kind)
             elif path.startswith("/phone/"):
                 config = dict(run=self._phone_run, token=path.removeprefix("/phone/"))
-                page = Path(__file__).with_name("web") / "phone" / "index.html"
+                page = self.server.gui_root / "phone" / "index.html"
                 self._send(200, page.read_text(encoding="utf-8").replace("__PHOTO_CONFIG__", json.dumps(config)).encode("utf-8"),
                            "text/html; charset=utf-8")
             elif path == "/":
@@ -1008,7 +1000,7 @@ class Handler(BaseHTTPRequestHandler):
             elif path.startswith("/api/"):
                 raise APIError("not found", 404)
             else:
-                root = Path(__file__).with_name("web").resolve()
+                root = self.server.gui_root
                 relative = path.lstrip("/") + ("index.html" if path.endswith("/") else "")
                 target = (root / relative).resolve()
                 if not target.is_relative_to(root) or not target.is_file():
@@ -1180,8 +1172,13 @@ def guide_drive_tag(drive):
 
 
 def run(args):
+    try:
+        gui, manifest = api.load_manifest(getattr(args, "gui", None) or api.BUNDLED_GUI)
+        api.check_manifest(manifest)
+    except ValueError as exc:
+        sys.exit(str(exc))
     backend = Backend(media=args.media, out=args.out)
-    with Server(backend, args.port, lan=not args.local_only) as server:
+    with Server(backend, args.port, lan=not args.local_only, gui=gui) as server:
         url = f"http://127.0.0.1:{server.server_port}/home/"
         if server.token:
             url += "?token=" + server.token
