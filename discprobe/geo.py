@@ -89,8 +89,12 @@ class Ladder:
     def __init__(self, dev, ranges=None, r0_mm=None, pitch_um=None, bit_nm=None, reps=None,
                  max_targets=None, sigma_u=None, sigma_v=None, speed_kbs="default", ref_lba=None,
                  host_delay_ms=25.0, log=print, seed=1, media="dvd", chi2_abort=CHI2_ABORT, sectors=1,
-                 read_offset_bytes: float = 0.0, state_check: bool = True):
+                 read_offset_bytes: float = 0.0, state_check: bool = True, completion_sectors: int = 0):
         self.media = media
+        from .read_completion import sectors as check_completion
+        self.completion_sectors = check_completion(completion_sectors)
+        if media != 'dvd' and completion_sectors:
+            raise ValueError('--completion-sectors is for DVD')
         self.state_check = state_check
         self.state = None
         self.chi2_abort = chi2_abort
@@ -148,7 +152,7 @@ class Ladder:
             return float(read_end_bits(lba))
         if self.media == "bd":
             return float((lba // BD_SECTOR_PER_UNIT + 1) * BD_SECTOR_PER_UNIT * BD_SECTOR_BITS)
-        return float((lba // 16 + 1) * 16 * SECTOR_BITS)
+        return float(((lba // 16 + 1) * 16 + self.completion_sectors) * SECTOR_BITS)
 
     def _lba_at_turns(self, turns: float) -> int:
         th = theta(self.n_ref, self.u, self.v) + 2 * math.pi * turns
@@ -162,7 +166,9 @@ class Ladder:
             return int((n - READ_TAIL_FRAMES * FRAME_BITS) // CD_BITS) - 1
         if self.media == "bd":
             return int(n // BD_SECTOR_BITS) // BD_SECTOR_PER_UNIT * BD_SECTOR_PER_UNIT
-        return int(n // SECTOR_BITS) // 16 * 16
+        if not self.completion_sectors:
+            return int(n // SECTOR_BITS) // 16 * 16
+        return int((n / SECTOR_BITS - self.completion_sectors) // 16) * 16
 
     def _predict(self, n):
         return float(theta(n, self.u, self.v) - theta(self.n_ref, self.u, self.v)) + self.c
@@ -573,6 +579,12 @@ class Ladder:
 
     def result(self) -> dict:
         rep = _report(self.u, self.v, self.cov, (self.u, self.v), self.prior, None)
+        if self.media == 'dvd' and self.completion_sectors:
+            rep['completion_sectors'] = self.completion_sectors
+            rep['fit_prior'] = dict(r0_mm=self.prior.r0_mm, pitch_um=self.prior.pitch_um,
+                                    sigma_u=self.sig_u / self.u0, sigma_v=self.sig_v / self.v0)
+            if getattr(self, 'completion_source', None):
+                rep['completion_source'] = self.completion_source
         if self.media == "cd":
             from . import cd
             b = self.prior.bit_nm * 1e-6

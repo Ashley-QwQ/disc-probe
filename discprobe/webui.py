@@ -51,18 +51,19 @@ OPTIONS = {
     "info": {},
     "swap": {"minutes": "minutes"},       # read-only: TEST UNIT READY while the disc is changed
     "timing": {"speed": "speed", "reps": "count", "period_reads": "count", "max_minutes": "minutes"},
-    "geo": {"speed": "speed", "reps": "count", "max_targets": "count", "bd_zones": "count"},
+    "geo": {"speed": "speed", "reps": "count", "max_targets": "count", "bd_zones": "count",
+            "completion_sectors": "completion_sectors"},
     "random": {"sectors": "sectors", "seed": "seed", "output": "path"},
     "image": {"geo": "geo", "picture": "path", "design": "path", "design_npy": "path", "output": "path",
               "diameter_mm": "diameter", "r_max": "radius", "along_track_frames": "frames",
               "dark": "texture", "light": "texture"},
     "disexport": {"geo": "geo", "sectors": "sectors", "output": "path", "r_min": "radius", "r_max": "radius",
-                  "photo": "path", "reading_drive": "device_id"},
+                  "photo": "path", "reading_drive": "device_id", "completion_sectors": "completion_sectors"},
     "cdprobe": {"sectors": "sectors", "output": "path", "size": "size"},
     "burn": {"iso": "path", "speed": "burn_speed", "cd_sector": "cd_layout", "no_verify": "flag"},
     # the whole calibration in one job (calibrate.py); with `iso` it burns first, under the burn's rules
     "calibrate": {"iso": "path", "burn_speed": "burn_speed", "speed": "speed", "mid": "mid", "preset": "path",
-                  "sectors": "sectors", "avoid_mm": "radius_bands"},
+                  "sectors": "sectors", "avoid_mm": "radius_bands", "completion_sectors": "completion_sectors"},
     "photo": {"run": "photo", "media": "photo", "photos": "photo", "rings_mm": "photo"},
 }
 DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell (checked in the tests)
@@ -70,7 +71,7 @@ DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell 
 DESIGN_SIDES = {side * side // 8: side for side in (6000, 12000, 24000)}
 LIMITS = {"count": (1, 1000), "sectors": (1, 25_000_000), "seed": (0, 2**32 - 1),
           "minutes": (0.1, 120), "diameter": (1, 120), "radius": (1, 58),
-          "frames": (-10000, 10000), "size": (64, 8192)}
+          "frames": (-10000, 10000), "size": (64, 8192), "completion_sectors": (-65536, 65536)}
 
 
 # escapes in a job's output: SGR (colour) ones, and the rest (OSC titles and taskbar progress, cursor moves)
@@ -179,7 +180,9 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
                 raise APIError("invalid " + name)
         else:
             lo, hi = LIMITS[rule]
-            integer = rule in ("count", "sectors", "seed", "size")
+            integer = rule in ("count", "sectors", "seed", "size", "completion_sectors")
+            if rule == 'completion_sectors' and media != 'dvd':
+                raise APIError('--completion-sectors is for DVD')
             if (type(value) not in (int, float) or (integer and type(value) is not int)
                     or not lo <= value <= hi or not math.isfinite(value)):
                 raise APIError("invalid " + name)

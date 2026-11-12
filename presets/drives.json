@@ -1,0 +1,20 @@
+{
+  "dvd_read_completion": [
+    {
+      "vendor": "HL-DT-ST",
+      "product": "DVD-RAM GH70N",
+      "firmware": "NYA2",
+      "completion_sectors": 0,
+      "evidence": "measured: burned grid, GH70N + RITEKF1",
+      "source": "docs/KNOWLEDGE.md"
+    },
+    {
+      "vendor": "HL-DT-ST",
+      "product": "DVDRAM GUE0N",
+      "firmware": "T.02",
+      "completion_sectors": 16,
+      "evidence": "reporter scan: issue #33, 600/1200 DPI, corrected burn upright",
+      "source": "https://github.com/Ashley-QwQ/disc-probe/issues/33"
+    }
+  ]
+}

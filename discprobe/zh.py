@@ -7,6 +7,8 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    "DVD: read completion offset in sectors after the ECC block end (geo default: drive registry or 0; export default: stored value)": "DVD：读取完成点超出 ECC 块末尾的扇区数（默认查光驱登记表，未登记用 0；导出时默认沿用测量值）",
+    "reapply the completion offset to an existing geo folder or summary without drive access; --out is a new folder": "不访问光驱，给已有 geo 文件夹或 summary 重新应用完成偏移；--out 指定新文件夹",
     "drive busy": "光驱正忙",
     "unknown drive": "未知光驱",
     "the drive did not answer in time": "光驱没有及时回应",
