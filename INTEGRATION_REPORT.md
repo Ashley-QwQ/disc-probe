@@ -103,3 +103,5 @@ slim 合并提交：`e76786a`，来源 `a38f502698f77d5207eaa258371a860fc1947c1b
 编辑器合并提交 `371707e`。完整 pytest：**432 passed、1 skipped、174 subtests passed**。首轮 Node 为 **19/20 入口退出 0**；`test_pastworks_browser.mjs` 的桌面、窄屏和真实 lobby 功能断言均已通过，但 finally 同步删除 Edge 配置目录时报 Windows EPERM。原始日志 `editor-test_pastworks_browser.txt` 保留。
 
 独立修复该退出竞态：等待测试自己启动的浏览器关闭；超时终止后也等待关闭并检查退出状态；删除目录前保留绝对路径边界断言，改用异步、有限次重试清理，使事件循环能完成退出通知。没有吞掉清理错误、跳过断言或终止其他浏览器。定向重跑完整浏览器入口退出 0（`editor-pastworks-fixed.txt`），随后重跑全部 Node 入口。
+
+编辑器步骤最终回归：pytest **432 passed、1 skipped、174 subtests passed**；修复 `8915e70` 后全部 Node **20/20 退出 0**；selftest **14 项旧断言失败，无新增失败断言**。完整回归仍覆盖首段元数据类型修复 `0c432e6`。日志分别为 `editor-*.txt`、`editor-node-fixed-*.txt`，原始失败文本差异和全部中文缺项比较为 `editor-audit.json` / `editor-zh-audit.json`；中文新增缺项为 0。原始失败日志没有覆写。
