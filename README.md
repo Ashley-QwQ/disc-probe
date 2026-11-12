@@ -111,6 +111,14 @@ python -m discprobe selftest
 python -m discprobe guide
 ```
 
+第一次用，或者不想记命令，可以直接打开引导控制台：
+
+```bash
+python -m discprobe menu
+```
+
+不带参数运行 `python -m discprobe` 在终端里也会打开它。全屏界面里用上下键选步骤，Enter 看详情，`r` 直接运行，`e` 改命令行，`:` 搜索全部命令，`?` 看按键。选中的步骤和底部按键带背景色，当前步骤有「现在到这里」标签；支持链接的终端里，标题栏的结果文件夹和说明书可以直接点开（按住 Ctrl 点击）；Windows Terminal 和 cmd.exe 里都能用鼠标：点选步骤、点 Run/Edit/Copy 按钮或底部按键即可运行或切换，不必按顺序。每一步都显示为什么要做、大概要多久和要运行的确切命令；运行前会把命令完整打印出来。它只用 Python 自带的功能，没有新的依赖；管道和脚本里不会打开全屏界面，要文字版就用 `guide`。
+
 在终端里，`timing` 和 `geo` 跑完会给一句结论，每条命令跑完也会打印下一步可以直接复制的命令。系统是中文时，帮助、提示和测量输出都显示中文，也可以用 `--lang zh` 或 `--lang en` 指定；脚本和管道仍是英文，也没有这些结论和提示。其他用法见[手动使用](#手动使用)。
 
 <img src="docs/showcase/cli_demo_zh.gif" width="100%" alt="终端动图：开屏光盘、下一步提示、测量进度行和等待时的小游戏">
@@ -314,7 +322,8 @@ Linux 支持最初由 bczhc 移植（[bczhc/disc-probe](https://github.com/bczhc
 这些提示、进度和动画只在标准输出是终端时出现。管道、重定向和脚本调用得到的输出基本和以前一样，结果文件的格式也没变。在终端里想关掉它们，设 `DISCPROBE_PLAIN=1`。
 
 - 新手教程：第一次运行 `guide` 时会问要不要看，回车或 `y` 看，`n` 跳过，只问一次；已经有真实测量结果的不会问。`python -m discprobe tutorial` 随时可以再看。
-- 下一步跑什么：`guide` 列出做过的步骤并打印下一条命令，不碰光驱。不带参数运行 `python -m discprobe` 也是它。有了图片镜像后，它还会讲怎么看盘和看到不同结果该怎么办。`info`、`timing`、`geo`、`random`、`image`、`disexport` 跑完也会打印下一步，`timing`、`geo`、`random`、`image` 还会在前面列出进度。`timing` 还会给判定：不是 CAV 就换速度，抖动大于约 2° 建议换个速度，大于约 5° 说明这台光驱很可能不适合（这两个门槛来自实践报告表，不是严格界限）。
+- 引导控制台：`python -m discprobe menu` 打开全屏步骤界面，不带参数运行 `python -m discprobe` 也是它。打开时先播放和 `guide` 一样的光盘动画，命令运行时的进度动画和等待小游戏也没有改动。上下键选步骤，Enter 看详情，`r` 运行，`e` 改命令行，`c` 复制，`:` 搜索全部命令，`?` 看按键；图片步骤是一个表单，可以把图片拖进窗口，Tab 补全路径。它只用 Python 自带的功能，没有新依赖；终端不支持按键时退回编号菜单，管道和 `DISCPROBE_PLAIN=1` 下只打印文字步骤。
+- 下一步跑什么：`guide` 列出做过的步骤并打印下一条命令，不碰光驱。不带参数运行 `python -m discprobe` 会打开引导控制台（`menu`）；在管道和脚本里仍是原来的提示输出。有了图片镜像后，它还会讲怎么看盘和看到不同结果该怎么办。`info`、`timing`、`geo`、`random`、`image`、`disexport` 跑完也会打印下一步，`timing`、`geo`、`random`、`image` 还会在前面列出进度。`timing` 还会给判定：不是 CAV 就换速度，抖动大于约 2° 建议换个速度，大于约 5° 说明这台光驱很可能不适合（这两个门槛来自实践报告表，不是严格界限）。
 - 盘符：`list` 列出光驱。在终端里可以不写 `--drive`，只有一台就直接用，有多台就问你。
 - 结果路径：`--geo` 还接受结果文件夹、`latest` 和 `pick`（手动选）。`results --pick` 按盘和光驱分组，再按精度或日期排序。`latest` 会跳过模拟驱动器的结果和中途停下的结果。现在的结果会标明自己提前停止了；之前版本留下的结果只能按少于 8 级或 χ²/dof 超过 25 判断，8 级以上中途停下的分辨不出来。`results geo` 列出做过的测量，`results geo --latest` 只打印一行路径，方便写脚本。
 - `--sectors` 有三个意思：`timing`、`geo` 里是每次读几个扇区，`16` 读一个完整的 DVD ECC 块；`random` 里是刻多少；`disexport` 里是盘的容量，DiscImageStudio 里也填同一个数。`info` 会打印建议值和来源，以空白盘上的为准。
@@ -386,6 +395,8 @@ CD 的沿轨道常数要靠网格盘来定，206 帧只对 GH70N 加 IMAPI 刻�
 - 飞利浦专利 US7538787B2《在光盘上写入标签的方法》（优先权 2002 年，2017 年失效）已经描述了同样的思路用于在数据区刻可见标签：记录 ECC 块读完的时间戳、用重复读取求转动周期、跳跃距离逐轮加倍。
 
 本仓库做的是：在普通消费级光驱上可复现的开源实现，处理实机的各种问题，用协方差驱动的逐级测量加不确定度估计，做实盘网格验证和跨盘修正，并能导出 DiscImageStudio 预设。
+
+其中实验性 BD/CD 几何计算的部分算法与实现，以及 `--install` 安装功能，由 domerawind 与 DeepSeek-v41F 共同完成；相关 PR 见仓库历史，便于追踪代码来源。
 
 数据面刻图的编码参考了 [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio)，`discprobe/efmplus.py` 移植自它。感谢 NaiveTomcat 和 bczhc 的移植，也感谢报告实测结果的 anyezhixie、bczhc、Disappear9、domerawind、FanJZSS、kasumikira、Lakida0、li-yifei、MasterMT9、moodyos、NaiveTomcat、NO-ob、pugod124、ShiroiTree、Sliicy、WindowsNoEditor 和 zhajial。
 

@@ -65,6 +65,26 @@ python -m discprobe selftest
 
 All results go into a timestamped folder under `results\`: `info.json`, or `summary.json` with `events.csv`. `events.csv` records the start and end timestamps of every command for later offline analysis.
 
+## Guided console
+
+When you would rather not remember commands, run:
+
+```bash
+python -m discprobe menu
+```
+
+Running `python -m discprobe` with no arguments at a terminal opens it too. It plays the same opening disc animation as `guide`; progress animations and the wait-time games still come from the normal command line, and the console does not turn them off. It draws the full-screen view with what Python ships with, adds no dependency, and leaves every command's output format alone.
+
+- Up/Down or `j`/`k` choose a step, Enter or `→` opens it; `r` runs, `e` edits the command, `c` copies, `o` opens the results folder. The selected row and the footer keys are drawn as background bars, and the current step has a `you are here` badge, so a first-time user can see where they are without reading the whole screen.
+- On terminals that support OSC 8 links, the header links the results folder and the step, command and key screens link the manual; Ctrl+click (Cmd+click on macOS) opens them, and both Windows Terminal and cmd.exe let you click a step, a Run/Edit/Copy button or a footer key, so commands do not have to be run in order. Without colour or links the same text is shown with `>` and plain paths.
+- Each step first says why it exists and about how long it takes, then gives the exact command. Running leaves the full-screen view, prints the command as it is and calls the normal command line; press Enter afterwards to return, and the step states refresh.
+- `:` searches all commands: type a few letters to filter, Enter shows the options, `r` runs, `c` copies. `?` shows every key.
+- The `image` step is a form: drop a picture into the window or type a path, and Tab completes it; the output ISO and `--geo` can be changed too.
+- `m` switches between DVD, CD and Blu-ray, `l` switches language; the language is passed on to the commands you run next. `--media` picks the starting disc type and `--out` the results folder.
+- The first run greets you on the console home screen and offers the walkthrough once; if you accept, it pauses before the full screen opens. After `q` the checklist, your progress and the completion hint stay on screen, so the packaged Start.bat window is not blank.
+- Burning follows the operating system: right-click the ISO on Windows, or use `cdrdao`/`growisofs` with the matching toc on Linux. On Blu-ray the picture and burn steps repeat `guide`'s caution about shape versus scale before offering `image --media bd`.
+- A terminal without keys falls back to a numbered menu; `menu` in a pipe, a redirect or with `DISCPROBE_PLAIN=1` prints the text steps. A no-argument non-terminal call still reports the missing command, so scripts should name `guide` or `menu`.
+
 ## Using it by hand
 
 The hints, progress and animation below only appear when stdout is a terminal. Pipes, redirects and scripts get the same output as before, and result files keep their format. To turn these off in a terminal, set `DISCPROBE_PLAIN=1`.

@@ -1409,6 +1409,42 @@ def _guide(args):
         ui.say(f"Tab completion: {guide.PROG} completion install", "dim")
 
 
+def cmd_menu(args):
+    """Open the guided console; it carries on with the disc type measured last."""
+    from . import completion, console, greetings
+    before = ui.use_media("dvd")
+    try:
+        media = getattr(args, "menu_media", None)
+        out = getattr(args, "out", "results")
+        if media is None:
+            newest = next((r for r in guide.scan(out) if not r.simulated and r.kind in ("timing", "geo")), None)
+            media = newest.media if newest else "dvd"
+        ui.use_media(media)
+        first_time = not any(not r.simulated for r in guide.scan(out))
+
+        def prelude():
+            # The one-time tutorial offer, before the full-screen console takes over. The greeting
+            # rides on the console's home screen instead, so it is still there after the redraw.
+            if first_time and ui.term().can_prompt() and not guide.tutorial_offered():
+                guide.remember_tutorial_offered()
+                if ui.ask("First time here? Walk through the steps?"):
+                    cmd_tutorial(args)
+                    try:
+                        input(i18n.tr("Press Enter to continue.") + " ")
+                    except (EOFError, KeyboardInterrupt):
+                        pass
+        opened = console.run(media, out, prelude=prelude,
+                             intro=greetings.pick(first_time=first_time))
+        if opened and ui.term().interactive:
+            # Start.bat leaves this window open after this; leave the checklist visible there.
+            for line in guide.progress_lines(media, out):
+                print(ui.guide_line(line))
+            if not completion.installed():
+                ui.say(f"Tab completion: {guide.PROG} completion install", "dim")
+    finally:
+        ui.use_media(before)
+
+
 def cmd_tutorial(args):
     for line in guide.tutorial_lines():
         if line.lstrip().startswith("python "):
@@ -1499,7 +1535,7 @@ def _speed(text: str):
 
 # (group title, commands); `main` fills in what each one does.
 COMMAND_GROUPS = (
-    ("Start here", ("guide", "tutorial", "selftest", "list")),
+    ("Start here", ("menu", "guide", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "timing", "geo", "results")),
     ("Make a disc image", ("random", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc")),
@@ -1635,6 +1671,12 @@ def _build_parser():
     sp.add_argument("--media", dest="guide_media", choices=("dvd", "cd"),
                     help="which steps to show (default: what you measured last)")
     sp.set_defaults(func=cmd_guide)
+
+    sp = sub.add_parser("menu", help="open the guided console: steps, commands and forms on one screen")
+    sp.add_argument("--media", dest="menu_media", choices=("dvd", "cd", "bd"),
+                    help="which disc type to start on (default: what you measured last)")
+    sp.add_argument("--out", default="results", help="results directory (default: results)")
+    sp.set_defaults(func=cmd_menu)
 
     sp = sub.add_parser("tutorial", help="walk through the whole path, from blank discs to a picture on a disc")
     sp.set_defaults(func=cmd_tutorial)
@@ -2038,7 +2080,7 @@ def _main(argv=None):
     raw_args = list(sys.argv[1:] if argv is None else argv)
     _Parser.argv, _Parser.commands = raw_args, sub.choices
     if not raw_args and ui.term().interactive:
-        args = argparse.Namespace(func=cmd_guide)
+        args = argparse.Namespace(func=cmd_menu, menu_media=None, out="results")
         return args.func(args)
     args = p.parse_args(argv)
     if getattr(args, "rings", None) and isinstance(args.rings, str):
