@@ -1,5 +1,4 @@
 // The sheet delegates all parsing, geometry and filesystem work to the shared core.
-import { hasCapability } from "./handshake.mjs";
 export async function request(fetcher, payload) {
   const response = await fetcher('/api/presets', payload ? {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
@@ -38,7 +37,6 @@ const translate = y => `translateY(${y}px)`;
 export async function init(entry, fetcher = fetch) {
   let catalogue;
   entry.hidden = true;
-  if (!hasCapability('presets-io')) return null;          // the handshake says this core has no /api/presets
   try { catalogue = await request(fetcher); } catch { return null; } // old server: no dead entry
   if (catalogue.version !== 1) return null;
   entry.hidden = false;

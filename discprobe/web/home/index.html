@@ -1719,7 +1719,7 @@
   });
 
   applyStatic();
-  (await import("./presetio.js")).init($("presetio-entry")).catch(() => {});
+  if ((await import("./handshake.mjs")).hasCapability("presets-io")) (await import("./presetio.js")).init($("presetio-entry")).catch(() => {});
   // the mute switch (M): sounds are on by default and quiet; the words on the page always say the same
   const sfx = await import("./sfx.js");
   const paintSound = () => {
