@@ -703,6 +703,14 @@ def _install_details(c: Checker):
     c.check(disinstall._drop_unusable_fields(dvd, False) == ["sectors", "usableSectors"] and dvd == {"totalSectors": 1008}, "a leftover sectors on a DVD preset doesn't set its total")
     fine = {"totalSectors": 1008, "sectors": 16, "usableSectors": 992}
     c.check(disinstall._drop_unusable_fields(fine, False) == ["sectors"] and fine["usableSectors"] == 992, "and doesn't cost a usableSectors that fits")
+    c.check(disinstall.check_identity("  mine  ", "  my name  ") == ("mine", "my name"), "--id and --name lose the spaces around them")
+    for preset_id, display_name in ((" ", None), (None, ""), ("__manual__", None)):
+        try:
+            disinstall.check_identity(preset_id, display_name)
+            refused = False
+        except disinstall.InstallError:
+            refused = True
+        c.check(refused, f"an empty or reserved --id/--name is refused ({preset_id!r}, {display_name!r})")
     c.check(guide._quality_number({"x": float("nan")}, "x") is None and guide._quality_number({"x": float("inf")}, "x") is None and guide._quality_number({"x": 0.5}, "x") == 0.5, "a quality figure of NaN or infinity counts as missing")
     here = os.getcwd()
     with tempfile.TemporaryDirectory() as d:
@@ -1623,5 +1631,7 @@ def _run() -> bool:
     sg_selftest.run(c)
     from . import ui_selftest
     ui_selftest.run(c)
+    from . import console_selftest
+    console_selftest.run(c)
     print(f"\n{'all checks passed' if c.failures == 0 else f'{c.failures} check(s) failed'}")
     return c.failures == 0

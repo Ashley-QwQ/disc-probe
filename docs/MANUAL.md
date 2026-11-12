@@ -63,6 +63,26 @@ python -m discprobe selftest
 
 所有结果写到 `results\` 下按时间命名的文件夹：`info.json`，或者 `summary.json` 加 `events.csv`。`events.csv` 记录每一条命令的起止时间戳，以后可以离线重新分析。
 
+## 引导控制台
+
+不想记命令时，运行：
+
+```bash
+python -m discprobe menu
+```
+
+在终端里不带参数运行 `python -m discprobe` 也会打开它。打开时会先播放和 `guide` 一样的光盘动画；命令运行时的进度动画和等待小游戏仍由原来的命令行负责，控制台不会关掉它们。它用 Python 自带的功能画出全屏界面，不引入新依赖，也不改变任何命令的输出格式。
+
+- 上下键或 `j`/`k` 选步骤，Enter 或 `→` 打开；`r` 运行，`e` 改命令行，`c` 复制，`o` 打开结果文件夹。选中的一行和底部按键会画成有底色的横条，当前步骤带「现在到这里」标签，第一次用的人不用读完整个屏幕就知道自己在哪。
+- 支持 OSC 8 链接的终端里，标题栏的结果文件夹、步骤/命令/按键屏的手册都是可点的超链接，按住 Ctrl（macOS 是 Cmd）点击打开；Windows Terminal 和 cmd.exe 里还可以直接用鼠标点选步骤、点 Run/Edit/Copy 按钮或底部按键，所以命令不必按顺序执行。没有颜色或链接时退回 `>` 和纯文本路径。
+- 每一步先说明为什么要做、大概要多久，再给出完整命令。运行时先退出全屏、把命令原样打印出来，再调用普通命令行；跑完按 Enter 回到控制台，步骤状态会刷新。
+- `:` 搜索全部命令：输入几个字母过滤，Enter 看参数，`r` 运行，`c` 复制。`?` 看所有按键。
+- `image` 步骤是一个表单：把图片拖进窗口或输入路径，Tab 补全；目标 ISO 和 `--geo` 也可以改。
+- `m` 在 DVD、CD 和蓝光之间切换，`l` 切换中英文；切换后的语言也会传给之后运行的命令。`--media` 指定起始盘型，`--out` 指定结果文件夹。
+- 第一次在终端里运行时，问候显示在控制台首页；只问一次要不要看教程，回答要后会先停一下再进全屏。按 `q` 退出后，步骤清单、进度和补全提示会留在屏幕上，打包的 Start.bat 窗口也不会只剩两行提示。
+- 刻录说明按系统给出：Windows 右键 ISO，Linux 用 `cdrdao`/`growisofs` 和对应的 toc。蓝光的图片和刻录步骤会先重复 `guide` 里关于「形状不等于尺度」的提醒，再给出 `image --media bd`。
+- 终端不支持按键时退回编号菜单；`menu` 在管道、重定向或 `DISCPROBE_PLAIN=1` 下只打印文字步骤。不带参数的非终端调用仍是原来的缺少子命令错误，脚本请显式写 `guide` 或 `menu`。
+
 ## 手动使用
 
 下面的提示、进度和动画只在标准输出是终端时出现。管道、重定向和脚本调用得到的输出和以前一样，结果文件的格式也没变。在终端里想关掉它们，设 `DISCPROBE_PLAIN=1`。
@@ -532,7 +552,7 @@ python -m discprobe disexport --geo results/geo-G-... --sectors 12219392 --twist
 
 刻第二张同样的盘确认：角度消失就是闭环了；角度一样大但反了方向，说明符号取错；角度一动不动，说明这些偏差根本不是轨距（而是母盘自己的螺旋就不匀），任何预设都去不掉，就到此为止。表盘上看到短刻度在 9 点钟而不是 3 点钟，说明盘是反着看的，把角度取负。多次刻录时若只在某一圈上读的角度，用 `--twist-at-mm` 指明那个半径。DVD/CD 不走这条路（它们的预设本来就带拟合出来的轨距曲线），命令会直接拒绝。
 
-**导出蓝光预设。** DiscImageStudio 的蓝光预设只有三个数：内径、外径、总扇区数；不给轨距系数时它自己解出一个恒定轨距。`disexport --geo <蓝光结果> --sectors <总扇区数>` 写出 `blu-ray-presets.json` 的记录，`--install` 直接装进 `%LOCALAPPDATA%\DiscImageStudio\disc-presets.json` 的 `bluRayPresets` 列表（DiscImageStudio 1.5.0 只读这一处；它代码里那个独立的 `blu-ray-presets.json` 没有任何调用者）。预设默认留出 2 MiB 不用（`--usable-sectors` 可改），因为刻录机要在盘内写 lead-out，填满会变成“超刻”。如果目标是没有备用区的满层 BD-R（12 219 392 扇区），加 `--pullback-isa0`：格式化盘在内圈留了 131 072 个扇区的备用区，这部分要算在扇区 0 之前，否则整幅图案会外移 0.6 mm。三个轨距系数留空：它们是相对形状系数，写 0.32 会被读成“外缘轨距是 p0 的 1.32 倍”。这台 UJ272 读一张 12 088 320 扇区的 BD-RE 得到内径 24.66 mm、外径 58.02 mm，与 DiscImageStudio 自带 BD-25 的 58.0232 mm 差 3 µm——这张盘比满层少 1.1% 的扇区，扇区 0 因此比 24.0 mm 更靠外，命令会把这一点说明出来。 恒角速度的蓝光（压盘 BD-ROM 这类）量的是角度梯子，结果里的 `dis_equivalent` 已经带了内径与轨距，同一条命令照样写出预设，数字来自 `u = r0/b`、`v = p/b`，不再拟合第二次。
+**导出蓝光预设。** DiscImageStudio 的蓝光预设只有三个数：内径、外径、总扇区数；不给轨距系数时它自己解出一个恒定轨距。`disexport --geo <蓝光结果> --sectors <总扇区数>` 写出 `blu-ray-presets.json` 的记录，`--install` 直接装进 `%LOCALAPPDATA%\DiscImageStudio\disc-presets.json` 的 `bluRayPresets` 列表（DiscImageStudio 1.5.0 只读这一处；它代码里那个独立的 `blu-ray-presets.json` 没有任何调用者）。预设默认留出 2 MiB 不用（`--usable-sectors` 可改），因为刻录机要在盘内写 lead-out，填满会变成“超刻”。如果目标是没有备用区的满层 BD-R（12 219 392 扇区），加 `--pullback-isa0`：格式化盘在内圈留了 131 072 个扇区的备用区，这部分要算在扇区 0 之前，否则整幅图案会外移 0.6 mm。三个轨距系数留空：它们是相对形状系数，写 0.32 会被读成“外缘轨距是 p0 的 1.32 倍”。这台 UJ272 读一张 12 088 320 扇区的 BD-RE 得到内径 24.66 mm、外径 58.02 mm，与 DiscImageStudio 自带 BD-25 的 58.0232 mm 差 3 µm——这张盘比满层少 1.1% 的扇区，扇区 0 因此比 24.0 mm 更靠外，命令会把这一点说明出来。 恒角速度的蓝光（压盘 BD-ROM 这类）量的是角度梯子，结果里的 `dis_equivalent` 已经带了内径与轨距，同一条命令照样写出预设，数字来自 `u = r0/b`、`v = p/b`，不再拟合第二次。预设的 id 默认 `discprobe-bd-re`（恒角速度那条路是 `discprobe-bd`），显示名称默认 `BD-RE (drive-timing calibration)`（恒角速度是 `Blu-ray (drive-timing calibration)`），`--id` / `--name` 可以改；不加 `--install` 时文件名也按 `--name` 取，因为 DiscImageStudio 导入时拿文件名当预设名，导入前改文件名就换了名字。
 
 **蓝光这条路线目前是实验性的。** 计时把"形状"钉得很死（`c = b/a` 的 R² 在 0.99999 以上，25 个区域彼此一致），也能读出容量和线速度；但它给不出可以直接摆图案的绝对内径与轨距。两个原因，都在同一张盘上量到过：
 
@@ -585,7 +605,7 @@ python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json
    python -m discprobe disexport --geo <summary.json> --correction correction.json --sectors <扇区数> --output dis_preset_cd.json --install
    ```
 
-   `disexport` 看 `summary.json` 里的 `media`，CD 的结果导出 CD 预设（`sectors`、内外半径、三个轨距系数，速度固定 1200 mm/s）。`--sectors` 必填，拟合范围默认用 `geo` 测到的范围。预设和测量结果相差超过 5° 时不写文件。加 `--install` 会顺便把预设写进 DiscImageStudio 的用户预设文件（`%LOCALAPPDATA%\DiscImageStudio\disc-presets.json`）；文件在别处或不在 Windows 上时用 `--dis-presets 路径` 指定。写之前先备份成 `disc-presets.json.<日期>-<时间>.bak`，每次用新名字，不会把上一份覆盖掉。文件里的注释和尾逗号能读，但写回时会去掉（这个会提示）。模拟盘的结果、中途停下的结果和 `results` 判为噪声太大的结果会被拒绝；CD 音轨的结果照常安装，它本来就是给 DiscImageStudio 的音轨路径用的。`--output` 和 `--dis-presets` 指向同一个文件时会直接报错，什么也不写。这个程序不写的字段会原样保留，但它的值要是已经不适用了（比如 `usableSectors` 大于这次的扇区数），就会把它删掉并在输出里说明——DiscImageStudio 会因为这一个字段拒绝整个文件。`summary.json` 里没有噪声、chi2 这类质量数字时仍会写入，但会先提示那项检查没能做。不加 `--install` 则只生成 JSON。
+   `disexport` 看 `summary.json` 里的 `media`，CD 的结果导出 CD 预设（`sectors`、内外半径、三个轨距系数，速度固定 1200 mm/s）。`--sectors` 必填，拟合范围默认用 `geo` 测到的范围。预设和测量结果相差超过 5° 时不写文件。加 `--install` 会顺便把预设写进 DiscImageStudio 的用户预设文件（`%LOCALAPPDATA%\DiscImageStudio\disc-presets.json`）；文件在别处或不在 Windows 上时用 `--dis-presets 路径` 指定。写之前先备份成 `disc-presets.json.<日期>-<时间>.bak`，每次用新名字，不会把上一份覆盖掉。文件里的注释和尾逗号能读，但写回时会去掉（这个会提示）。模拟盘的结果、中途停下的结果和 `results` 判为噪声太大的结果会被拒绝；CD 音轨的结果照常安装，它本来就是给 DiscImageStudio 的音轨路径用的。`--output` 和 `--dis-presets` 指向同一个文件时会直接报错，什么也不写。这个程序不写的字段会原样保留，但它的值要是已经不适用了（比如 `usableSectors` 大于这次的扇区数），就会把它删掉并在输出里说明——DiscImageStudio 会因为这一个字段拒绝整个文件。`summary.json` 里没有噪声、chi2 这类质量数字时仍会写入，但会先提示那项检查没能做。不加 `--install` 则只生成 JSON。预设的 id 和显示名称默认按类型取 `discprobe-cd`、`discprobe-dvd-r`、`discprobe-bd-re`、`discprobe-bd` 和 `CD (drive-timing calibration)`、`DVD-R (drive-timing calibration)` 这类名字；`--id`、`--name` 可以换成自己的，DiscImageStudio 列表里看到的就是 `--name`。id 是它区分预设的键：同一个 id 再装一次就是更新那一条（值不同时要加 `--replace`，也可以靠这个办法只改显示名称），换个 id 就是并列的新预设；id 若和内置预设相同，用户预设会**整条盖过**那条内置预设，选它适用的任何盘都会用到，除非确实要替换内置项，否则请用新 id。名字前后的空白会去掉。
 
 2. 用了 `--install` 就重启 DiscImageStudio，在预设列表里选新预设；只有写了 `--output` 才会另外生成文件。如果第 1 步没加 `--install`，二选一：在标定页手动填内外半径、扇区数和三个系数；或者把输出里 `preset` 这个对象加进 `%LOCALAPPDATA%\DiscImageStudio\disc-presets.json` 的 `cdPresets` 数组，再重启程序（格式见它的[预设文档](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/DISC_PRESETS.md)。moodyos 用这个办法导入成功了，我们自己没有试过）。
 3. 在辅助标定页直接选**精细标定**，新建标靶，刻盘，拍照矫正，沿一条十字线细臂描点，再反推并应用。拟合三次轨距至少要 12 个不同半径的点，覆盖环带宽度的 60%。步骤见它的[辅助标定说明](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/blob/main/docs/CALIBRATION.md)。

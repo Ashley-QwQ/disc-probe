@@ -105,3 +105,12 @@ slim 合并提交：`e76786a`，来源 `a38f502698f77d5207eaa258371a860fc1947c1b
 独立修复该退出竞态：等待测试自己启动的浏览器关闭；超时终止后也等待关闭并检查退出状态；删除目录前保留绝对路径边界断言，改用异步、有限次重试清理，使事件循环能完成退出通知。没有吞掉清理错误、跳过断言或终止其他浏览器。定向重跑完整浏览器入口退出 0（`editor-pastworks-fixed.txt`），随后重跑全部 Node 入口。
 
 编辑器步骤最终回归：pytest **432 passed、1 skipped、174 subtests passed**；修复 `8915e70` 后全部 Node **20/20 退出 0**；selftest **14 项旧断言失败，无新增失败断言**。完整回归仍覆盖首段元数据类型修复 `0c432e6`。日志分别为 `editor-*.txt`、`editor-node-fixed-*.txt`，原始失败文本差异和全部中文缺项比较为 `editor-audit.json` / `editor-zh-audit.json`；中文新增缺项为 0。原始失败日志没有覆写。
+
+## 第四步：本地 origin/main
+
+来源 `c25dfaccee4658c4158ed0d9e9d59e241f486af1`（已合并 PR #32 的引导控制台）。未 fetch。
+
+- `__main__.py` 冲突：Start here 同时列 menu、guide、webui；保留 whois、label、compose、template 及各自参数，接入 main 的控制台入口。
+- `guide.py` 两处冲突：保留网页所需的 result_verdict / guide_state JSON 契约，并接入控制台所需的 Task / Plan / workflow 对象契约；不把一个返回类型替换成另一个。workflow 增加可注入 drives 参数以保留合并后的驱动列表读取语义，命令建议继续使用当前 after_timing 的速度历史与 CLV 处理。核心依赖状态仍与 slim 的 numpy/Pillow 检查一致，说明明确区分照片额外依赖并补中文。
+
+自动合并后的打包器仍保留 SciPy、OpenCV、presets、照片审计入口。Linux SG_IO 提交 `86720d1` 在此合并前就已经是当前分支祖先；本次不需要修改 discprobe/scsi.py，也未运行真实 Linux 设备测试。

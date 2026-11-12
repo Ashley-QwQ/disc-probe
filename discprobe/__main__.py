@@ -1115,6 +1115,11 @@ def cmd_correction(args):
     print(f"Angle correction: {os.path.abspath(args.output)}  (use with image --correction)")
 
 
+def _preset_label(preset: dict) -> str:
+    """The preset as the install output names it: its id, and the name DiscImageStudio lists."""
+    return f"'{preset['id']}' (\"{preset['displayName']}\")"
+
+
 def _disexport_bd(args):
     """Write the DiscImageStudio Blu-ray preset for a constant-linear-speed run.
 
@@ -1245,9 +1250,9 @@ def _disexport_bd(args):
             sys.exit(str(e))
         if result["created"]:
             print(f"Created {result['path']}")
-        print({"added": f"Added preset '{preset['id']}' to {result['path']}",
-               "replaced": f"Replaced preset '{preset['id']}' in {result['path']}",
-               "unchanged": f"Preset '{preset['id']}' is already in {result['path']} with the same values"}
+        print({"added": f"Added preset {_preset_label(preset)} to {result['path']}",
+               "replaced": f"Replaced preset {_preset_label(preset)} in {result['path']}",
+               "unchanged": f"Preset {_preset_label(preset)} is already in {result['path']} with the same values"}
               .get(result["action"], f"{result['action']} in {result['path']}"))
         if result["backup"]:
             print(f"Previous file saved as {result['backup']}")
@@ -1278,6 +1283,12 @@ def cmd_disexport(args):
     from .disexport import export
     if (args.dis_presets or args.replace) and not args.install:
         sys.exit("--dis-presets and --replace only work together with --install")
+    try:
+        # Before anything is written: an id or name DiscImageStudio would refuse must not leave
+        # an exported file behind, and the values are what both the export and the install use.
+        args.id, args.name = disinstall.check_identity(args.id, args.name)
+    except disinstall.InstallError as e:
+        sys.exit(str(e))
     if getattr(args, "twist_deg", None):
         fit = _geo_fit(args, args.media)
         if not (fit.get("model") == "clv" or fit.get("media") == "bd"):
@@ -1362,7 +1373,7 @@ def cmd_disexport(args):
             result = disinstall.install(out["preset"], target, args.replace)
         except (OSError, ValueError) as e:
             sys.exit(str(e))
-        preset_id = out["preset"]["id"]
+        preset_label = _preset_label(out["preset"])
         if result["created"]:
             print(f"Created {result['path']}")
         if result["upgraded"] and result["from_schema"] != disinstall.CURRENT_SCHEMA:
@@ -1371,13 +1382,13 @@ def cmd_disexport(args):
         elif result["upgraded"]:
             print(f"Added the lists preset schema {disinstall.CURRENT_SCHEMA} needs to {result['path']}")
         if result["action"] == "added":
-            print(f"Added preset '{preset_id}' to {result['path']}")
+            print(f"Added preset {preset_label} to {result['path']}")
         elif result["action"] == "replaced":
-            print(f"Replaced preset '{preset_id}' in {result['path']}")
+            print(f"Replaced preset {preset_label} in {result['path']}")
         elif result["action"] == "enabled":
-            print(f"Re-enabled preset '{preset_id}' in {result['path']}")
+            print(f"Re-enabled preset {preset_label} in {result['path']}")
         else:
-            print(f"Preset '{preset_id}' is already in {result['path']} with the same values")
+            print(f"Preset {preset_label} is already in {result['path']} with the same values")
         if result["kept"]:
             print(f"Kept its {', '.join(result['kept'])}, which this tool does not write.")
         if result["dropped_fields"]:
@@ -1624,6 +1635,42 @@ def _guide(args):
         ui.say(f"Tab completion: {guide.PROG} completion install", "dim")
 
 
+def cmd_menu(args):
+    """Open the guided console; it carries on with the disc type measured last."""
+    from . import completion, console, greetings
+    before = ui.use_media("dvd")
+    try:
+        media = getattr(args, "menu_media", None)
+        out = getattr(args, "out", "results")
+        if media is None:
+            newest = next((r for r in guide.scan(out) if not r.simulated and r.kind in ("timing", "geo")), None)
+            media = newest.media if newest else "dvd"
+        ui.use_media(media)
+        first_time = not any(not r.simulated for r in guide.scan(out))
+
+        def prelude():
+            # The one-time tutorial offer, before the full-screen console takes over. The greeting
+            # rides on the console's home screen instead, so it is still there after the redraw.
+            if first_time and ui.term().can_prompt() and not guide.tutorial_offered():
+                guide.remember_tutorial_offered()
+                if ui.ask("First time here? Walk through the steps?"):
+                    cmd_tutorial(args)
+                    try:
+                        input(i18n.tr("Press Enter to continue.") + " ")
+                    except (EOFError, KeyboardInterrupt):
+                        pass
+        opened = console.run(media, out, prelude=prelude,
+                             intro=greetings.pick(first_time=first_time))
+        if opened and ui.term().interactive:
+            # Start.bat leaves this window open after this; leave the checklist visible there.
+            for line in guide.progress_lines(media, out):
+                print(ui.guide_line(line))
+            if not completion.installed():
+                ui.say(f"Tab completion: {guide.PROG} completion install", "dim")
+    finally:
+        ui.use_media(before)
+
+
 def cmd_tutorial(args):
     for line in guide.tutorial_lines():
         if line.lstrip().startswith("python "):
@@ -1724,7 +1771,7 @@ def cmd_template(args):
 
 
 COMMAND_GROUPS = (
-    ("Start here", ("guide", "webui", "tutorial", "selftest", "list")),
+    ("Start here", ("menu", "guide", "webui", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "whois", "timing", "geo", "results")),
     ("Make a disc image", ("random", "label", "compose", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc")),
@@ -1887,6 +1934,12 @@ def _build_parser():
     sp.add_argument("--media", dest="guide_media", choices=("dvd", "cd"),
                     help="which steps to show (default: what you measured last)")
     sp.set_defaults(func=cmd_guide)
+
+    sp = sub.add_parser("menu", help="open the guided console: steps, commands and forms on one screen")
+    sp.add_argument("--media", dest="menu_media", choices=("dvd", "cd", "bd"),
+                    help="which disc type to start on (default: what you measured last)")
+    sp.add_argument("--out", default="results", help="results directory (default: results)")
+    sp.set_defaults(func=cmd_menu)
 
     sp = sub.add_parser("tutorial", help="walk through the whole path, from blank discs to a picture on a disc")
     sp.set_defaults(func=cmd_tutorial)
@@ -2210,8 +2263,13 @@ def _build_parser():
     sp.add_argument("--twist-at-mm", type=float,
                     help="with --twist-deg: the radius where the angle was read (default: the outer radius). "
                          "Read it off a ring if the picture only has to close there")
-    sp.add_argument("--id")
-    sp.add_argument("--name")
+    sp.add_argument("--id", help="the preset id in DiscImageStudio (default: discprobe-cd, discprobe-dvd-r, "
+                                 "discprobe-bd-re or discprobe-bd); an id already in the file is updated only "
+                                 "with --replace when its values differ, and a built-in preset's id overrides "
+                                 "the built-in for every disc it is meant for")
+    sp.add_argument("--name", help="the name DiscImageStudio lists the preset under (default: the disc type plus "
+                                   "'drive-timing calibration'); a Blu-ray export without --install names its file "
+                                   "after it too")
     sp.add_argument("--output", help="the preset file to write (default dis_preset.json; with --install, only if you name one)")
     sp.add_argument("--install", action="store_true",
                     help="also add the preset to DiscImageStudio's user preset file (Windows; created when missing; "
@@ -2353,7 +2411,7 @@ def _main(argv=None):
     raw_args = list(sys.argv[1:] if argv is None else argv)
     _Parser.argv, _Parser.commands = raw_args, sub.choices
     if not raw_args and ui.term().interactive:
-        args = argparse.Namespace(func=cmd_guide)
+        args = argparse.Namespace(func=cmd_menu, menu_media=None, out="results")
         return args.func(args)
     args = p.parse_args(argv)
     if getattr(args, "cd_clv", False):

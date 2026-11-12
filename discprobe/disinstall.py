@@ -75,6 +75,27 @@ def refuse_same_file(output: str, target: str) -> None:
             f"name, or omit --output and let --install write only the preset file.")
 
 
+def check_identity(preset_id: str | None, display_name: str | None) -> tuple[str | None, str | None]:
+    """Clean the --id and --name the command line was given.
+
+    None means the option was not used, and the caller supplies its own default. Surrounding
+    whitespace is dropped, because DiscImageStudio shows the name and compares the id exactly as
+    they are stored. An empty value and the reserved id `__manual__` are refused here, before an
+    export writes a file whose preset DiscImageStudio would refuse as a whole.
+    """
+    if preset_id is not None:
+        preset_id = preset_id.strip()
+        if not preset_id:
+            raise InstallError("--id is empty: DiscImageStudio needs an id to tell presets apart")
+        if preset_id == "__manual__":
+            raise InstallError("--id __manual__ is reserved by DiscImageStudio; choose another id")
+    if display_name is not None:
+        display_name = display_name.strip()
+        if not display_name:
+            raise InstallError("--name is empty: it is the name DiscImageStudio shows in its preset list")
+    return preset_id, display_name
+
+
 def install(preset: dict, path: str | None = None, replace: bool = False) -> dict:
     """Merge `preset` into the user preset file and return what happened.
 

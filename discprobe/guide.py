@@ -1129,31 +1129,111 @@ def guide_state(media: str = "dvd", out: str = "results", *, drives=None) -> dic
                 jobs=[], counter=None)
 
 
-def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -> list[str]:
-    """The workflow with what is already done ticked off, and the next command; `notes` says what each does."""
+class Task:
+    """A step of the workflow: what `guide` prints, and what the console needs to run it.
+
+    `action` says what Enter does in the console: "run" runs `argv` as a disc-probe command,
+    "shell" is a line to copy (installing packages is pip's job), "form" opens the picture
+    form, and "burn" is done by a disc burner outside this program.
+    """
+
+    def __init__(self, key, name, done, detail, action="run", argv=None, form=None,
+                 shell=None, why="", takes="", current=False):
+        self.key = key
+        self.name, self.done, self.detail = name, done, detail
+        self.action, self.argv, self.form, self.shell = action, argv, form, shell
+        self.why, self.takes, self.current = why, takes, current
+
+    def command(self) -> str | None:
+        """The line a person would type, or None when the step has no command of ours."""
+        if self.action == "shell":
+            return self.shell
+        if self.argv:
+            return f"{PROG} " + " ".join(quote(part) if " " in part else part for part in self.argv)
+        return None
+
+
+class Plan:
+    """Where the workflow stands for one disc type, and the commands that move it on."""
+
+    def __init__(self, media, out, tasks, commands, has_iso, geo, picture, timing=None, random_iso=""):
+        self.media, self.out = media, out
+        self.tasks, self.commands = tasks, commands
+        self.has_iso, self.geo, self.picture = has_iso, geo, picture
+        self.timing, self.random_iso = timing, random_iso
+
+    def current(self) -> "Task | None":
+        """The first step still open: where a person would start."""
+        return next((task for task in self.tasks if not task.done), None)
+
+
+def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, drives=None) -> Plan:
+    """The steps as objects, for `guide` to print and for the console to show and run."""
     flag = {"cd": " --media cd", "bd": " --media bd"}.get(media, "")
+    media_args = ["--media", media] if media in ("cd", "bd") else []
     random_iso = {"cd": "iso/cd-random.iso", "bd": "iso/bd-random.iso"}.get(media, "iso/random.iso")
-    state = guide_state(media, out)
-    steps = {s["id"]: s for s in state["steps"]}
-    missing = not steps["packages"]["done"]
-    drives = [d["id"] for d in state["drives"]]
+    results = [r for r in scan(out) if not r.simulated and r.media == media]
+    missing = missing_packages()
+    drives = optical_drives() if drives is None else drives
     drive = f"--drive {drives[0]}" if drives else ("--drive /dev/sr0" if sys.platform == "linux" else "--drive E:")
-    timing = next((r for r in scan(out) if r.path == steps["timing"]["result"]), None)
-    timing_good = steps["timing"]["done"]
-    geo = next((r for r in scan(out) if r.path == steps["geo"]["result"] and steps["geo"]["done"]), None)
-    has_iso = steps["random_disc"]["detail"].endswith("written; burn it") or steps["random_disc"]["done"]
-    picture = picture_iso() if steps["picture_iso"]["done"] else None
-    rows = []
-    for step in state["steps"]:
-        if not step.get("needed", True) or (not notes and step["id"] in ("photo_l", "picture_iso", "burn")):
-            continue
-        detail = step["detail"]
-        if notes and step["id"] == state["current"]:
-            detail = f"{i18n.tr(detail)}  <- {i18n.tr('you are here')}"
-        # Legacy pipe consumers tick file creation, while the current step still
-        # comes from the shared state (a file has not yet been measured as a disc).
-        done = step["done"] or (not notes and step["id"] == "random_disc" and has_iso)
-        rows.append((done, step["label"], detail))
+
+    timing = next((r for r in results if r.kind == "timing" and r.rotation() and not r.stopped), None)
+    # A Blu-ray is read at a constant linear speed, so CLV is the good answer there, not CAV: the run
+    # that counts is the one that finished, and its own verdict says whether the disc is usable.
+    timing_good = timing is not None and (not timing.stopped if media == "bd" else timing.rotation() == "CAV")
+    geo = next((r for r in results if r.geo_complete()), None)
+    has_iso = os.path.exists(random_iso) and not os.path.exists(random_iso + iso9660.UNFINISHED)
+
+    # A written file is not yet a disc. Scripts keep the tick they always saw.
+    disc_done = timing is not None or (has_iso and not notes)
+    tasks = [
+        Task("packages", "Python packages", not missing,
+             ", ".join(missing) + " missing" if missing else "numpy, pillow",
+             action="shell", shell=INSTALL,
+             why="Timing and drawing use numpy and Pillow; photo reading also needs SciPy and OpenCV.",
+             takes="once, about a minute"),
+        Task("drive", "Optical drive", bool(drives),
+             " ".join(drives) if drives else
+             ("none found" if sys.platform in ("win32", "linux") else "real drives need Windows or Linux"),
+             argv=["list"],
+             why="Shows the optical drives this computer can see, and the name each one uses.",
+             takes="a second"),
+        Task("disc", "Random-data disc", disc_done,
+             f"{random_iso} written; burn it" if has_iso and timing is None else
+             "measured" if timing else "not made yet",
+             action="burn" if has_iso else "run",
+             argv=None if has_iso else ["random", *media_args, "--output", random_iso],
+             why="A disc of random data lets the drive's timing be measured without a pattern of its own getting in the way.",
+             takes="a few seconds to write; burning is up to your burner"),
+        Task("timing", "Drive check (timing)", timing_good,
+             timing.describe() if timing else "not run yet",
+             argv=["timing", *(["--drive", drives[0]] if drives else []), *media_args],
+             why="Reads the disc at several speeds and radii to see whether this drive reports clean times and keeps a steady speed.",
+             takes="1 to 3 minutes"),
+        Task("geo", "Geometry (geo)", geo is not None,
+             geo.describe() if geo else "not run yet",
+             argv=["geo", *(["--drive", drives[0]] if drives else []), *media_args,
+                   *(["--bd-zones", "25"] if media == "bd" else [])],
+             why="Finds how the disc's spiral is laid out, so a picture can be put where it will actually appear.",
+             takes="about 5 minutes"),
+    ]
+    picture = picture_iso() if notes else None
+    if notes:       # scripts keep the steps they always saw. The burn is the person's own, so nothing here can tick it.
+        tasks += [
+            Task("picture", "Picture ISO (image)", picture is not None,
+                 short(picture) if picture else "not made yet",
+                 action="form", form="image", argv=["image", *media_args, "--geo", "latest",
+                                                     "--picture", "my_picture.png", "--output", "iso/picture.iso"],
+                 why="Turns a picture into the ISO that gets burned onto the disc. Nothing is burned yet.",
+                 takes="about a minute"),
+            Task("burn", "Burn it on a blank", False, "from the batch you measured",
+                 action="burn",
+                 why="Burn the ISO on a blank from the batch you measured, then look at the data side in the dark.",
+                 takes="as long as your burner takes"),
+        ]
+        current = next((task for task in tasks if not task.done), None)
+        if current is not None:
+            current.current = True
 
     if media == "bd" and geo is not None:
         sectors = _sectors_for(geo.summary, out)[0]
@@ -1189,21 +1269,28 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
         commands += [(first, f"{PROG} image{flag} --geo latest --picture my_picture.png --output iso/picture.iso"),
                     ("Or export a preset for DiscImageStudio (enter the same --sectors there; `info` on a blank disc gives the count):",
                      f"{PROG} disexport --media {media} --geo latest --sectors {sectors} --output dis_preset.json")]
+    return Plan(media, out, tasks, commands, has_iso, geo, picture, timing=timing, random_iso=random_iso)
 
+
+def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -> list[str]:
+    """The workflow with what is already done ticked off, and the next command; `notes` says what each does."""
+    plan = workflow(media, out, notes)
     other = "cd" if media == "dvd" else "dvd"
     lines = [f"Where you are, for {media.upper()} ({other.upper()}: {PROG} guide --media {other}):", ""]
-    lines += [f"  [{'x' if done else ' '}] {i18n.pad(i18n.tr(name), 22)} {i18n.tr(detail)}" for done, name, detail in rows]
+    for task in plan.tasks:
+        detail = f"{i18n.tr(task.detail)}  <- {i18n.tr('you are here')}" if task.current else task.detail
+        lines.append(f"  [{'x' if task.done else ' '}] {i18n.pad(i18n.tr(task.name), 22)} {i18n.tr(detail)}")
     lines += ["", "Next:"]
-    for note, command in commands:
+    for note, command in plan.commands:
         lines += ([f"  {note}"] if notes and note else []) + ([f"  {command}"] if command else [])
-    if media == "bd" and geo is not None:
+    if media == "bd" and plan.geo is not None:
         lines += ["", "  This preset gives the shape of the spiral, not its scale (docs/MANUAL.md).",
                   "  Do not burn a picture with it: on one real BD the angle was off by 106 turns."]
-    if sys.platform == "linux" and timing is None:
-        lines += ["", *burn_steps(random_iso, media)]
-    if picture and geo:
+    if sys.platform == "linux" and plan.timing is None:
+        lines += ["", *burn_steps(plan.random_iso, media)]
+    if plan.picture and plan.geo:
         if sys.platform == "linux":
-            lines += ["", *burn_steps(picture, media)]
+            lines += ["", *burn_steps(plan.picture, media)]
         lines += ["", *AFTER_BURN]
     lines += ["", f"All commands: {PROG} -h    One command: {PROG} <command> -h    Details: docs/MANUAL.en.md"]
     return lines
