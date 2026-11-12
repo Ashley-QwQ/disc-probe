@@ -204,6 +204,8 @@ c345332 Merge branch 'core/cd-clv-20261112' into release/1.0.0-alpha
 
 在本工作树执行原 `tools/geo_varpitch_check.py` 的标准、`--noise`、`--coverage` 与 `--saved-only` 模式。外层小包装仅把 OUT 改到 `C:/disc-probe-scratch/release-alpha/task2-varpitch-evidence/`，不改模拟或验收。标准 10 例及高噪声 4 例的梯级数、重复位置数、rms/最大误差和模拟光驱时间，按来源报告显示精度逐项相同；全部整圈错误为 0，rms 均小于 0.5°。四种恒定轨距回归的选点完全相同，Δu=Δv=0，无自动修正。程序时间受当前机器负载影响，不能作为真实读盘耗时。22 份保存记录的原始文件只读，重拟合均无 u/v/c/χ² 差异。
 
+参数细节以工具和原始 CSV 为准：该工具没有覆盖 Ladder 的 reps 默认值，DVD/BD 为每点 24 对，CD 为每点 32 对；本轮 targets.csv 的 used 列也分别为 24/32。来源报告“统一每点 24 对”的文字描述不够准确，本轮没有为匹配这句话而改变工具参数。
+
 标准噪声（20 μs）；所有数值列均为“来源报告 → 本轮”。
 
 | 介质 / 曲线 | 梯级 / 重复位置 | 整圈错误 | 最终 rms / 最大（°） | 程序秒 | 模拟光驱秒 |
@@ -229,3 +231,61 @@ c345332 Merge branch 'core/cd-clv-20261112' into release/1.0.0-alpha
 | dvd / step | 64/118 → 64/118 | 0 → 0 | 0.1178/0.3199 → 0.1178/0.3199 | 2.98 → 3.66 | 1183.6 → 1183.6 |
 
 变轨距步骤修复后的完整结果：pytest **440 passed、1 skipped、174 subtests passed**（562.31 秒）；Node **20/20 入口退出 0**；selftest **14 项旧失败、退出 1**（435.42 秒），完整失败文本和顺序与本轮基线逐条相同，新增/消失均为 0，`task2-geo-fixed-audit.json` 中 identical=true。原始日志为 `task2-geo-first-*` 和 `task2-geo-fixed-*`，初轮失败日志未覆写。中文完整缺项集合也已审计，新增选项和命令缺项均为 0。完成这一整套检查后才开始下一项网页合并。
+
+### 手机校准分支
+
+`476e1ff..ac8a951` 只有 `ac8a951` 这一个新增提交，来源增量共 15 个文件；整体合入，没有只摘手机页面。合并提交为 `4f3995f`，其前一提交 `71833d2` 记录了第一步的完整验证。
+
+唯一冲突是 `discprobe/webui.py` 的 OPTIONS：保留 calibrate 的 `completion_sectors`，同时为 photo 增加 `burner`、`burn_path`、`burn_mode`。它们使用 photo 原有参数校验入口，不能把整个 calibrate 或 photo 对象替换成另一侧版本。冲突原始文件保存在 C 盘 `task2-webui-conflict.py`。
+
+自动合并后逐项复核：CLI 默认 LAN 开、`--local-only` 关闭 LAN、`--lan` 保留为兼容空操作；LAN 地址候选和默认路由优先；手机端 JPEG 转码、相册/相机入口、逐张状态和重拍原因；电脑端对同次全部照片去抖、串行合读；刻录来源由实际 burn_result 事件提供。`guidance.mjs` 新增手机状态词表，同时保留变轨距/部分覆盖建议、CLV 速度历史和修正图像命令；webui 的模板 ZIP、compose、完成偏移、照片 L 及原会话/手机令牌校验继续保留。`docs/codex-cards/phone-1.0.md` 和新增/更新测试一并合入。
+
+合并后完整中文帮助审计复现两项新缺词，分别为默认 LAN 的兼容参数说明和 local-only 说明。独立提交 `4f4864a` 补齐两条翻译；原有 selftest 判定未改。修复后完整缺项审计新增选项/命令均为 0，日志为 `task2-web-first-zh-output.txt`，前后 JSON 为 `task2-web-first-zh-audit.json` / `task2-web-fixed-zh-audit.json`。
+
+网页步骤完整 pytest 为 **449 passed、1 skipped、174 subtests passed**（681.65 秒），完整 selftest 为 **14 项旧断言失败、退出 1**（543.66 秒）。首轮 Node **19/21 退出 0**，两个问题均保留原日志并独立处理：
+
+- `test_kit_browser.mjs` 在未修改的 UI kit 输入上发生 Edge spawnSync ETIMEDOUT，原参数重跑也超时。诊断捕获到完整 `PASS: UI kit DOM, cancellation, focus and bilingual preview`，但进程未正常及时退出；不是放宽 UI 断言来修复。独立提交 `6f92c6c` 改为 CDP 读取同一夹具的原 DOM 结果，保留两个窗口尺寸、全部原断言和 30 秒执行预算；明确将测试页置前，恢复虚拟时钟、跳到空白页停止预览，再 Browser.close 并核对自身子进程退出，最后在已验证路径内异步重试清理。中间诊断曾暴露焦点及退出等待问题，日志也保留在 `task2-web-kit-*.txt`；最终两个尺寸均通过。
+- `test_photo_wire_browser.mjs` 新增 24999 ms 边界检查出现 1 ms 竞态：页面的 phoneShown 与测试捕获的定时器创建时刻是两次 Date.now。独立提交 `6558e14` 在创建页面前固定夹具时钟，再显式推进到原 24999/25001 ms，原 25 秒阈值和断言均未改；并让浏览器配置目录使用 TEMP/TMP 的 C 盘位置，保留清理路径边界检查。定向完整照片流程通过（17.98 秒），覆盖 375×812、812×375、820×1180、1180×820 四种尺寸。截图在 `C:/disc-probe-scratch/release-alpha/task2-phone-shots/`，已抽查手机横竖屏。
+
+上述两项只改 JS 测试驱动，`git diff 4f4864a..HEAD -- discprobe` 为空；完成 pytest/selftest 后生产代码未再改变。最终全套 Node 另用 `task2-web-node-final-*` 保留独立日志，不覆写首轮失败。
+
+### 本轮补充的 alpha 风险
+
+- 变轨距仍没有真实光盘新读数。模拟通过不能证明任意隐藏尖峰、未读空洞或实测边缘外的误差小于 0.5°；参数协方差也不包含这些模型偏差。身份槽和标签保留区仍是覆盖空洞，不能用最内/最外两点把它们填平。
+- 自动加密可能显著增加真机时间：DVD I218 的模拟光驱时间仍为 2204.9 秒，约 36.7 分钟，程序执行几秒不等于真机几秒。Primeon / AD-7701H 的真实噪声、长时状态、实际耗时和再刻图效果均为 NOT_RUN。
+- 样条修正不一定可由 DIS 的三次轨距预设表达；保留转换误差检查和越界限制。普通导出的 force 也不会把外推或缺覆盖变成已验证结果。
+- 变轨距使 geo/varpitch 再次依赖 SciPy，不再只有照片读取需要它。现有 alpha 打包器已保留 SciPy/OpenCV，本轮未重建 Windows 包或验证新的离线依赖闭包，不能继续使用历史瘦包“生产无 SciPy”的结论。
+- LAN 默认开启是本次来源分支的明确行为，`--local-only` 可关闭；手机逐次令牌和主会话令牌仍分开。真实 LAN 可达性、防火墙、iOS/Android 相机及 HEIC 转码没有实机验证。浏览器和后端测试不能替代这些实测。
+- 自动合读由电脑校准页的轮询和去抖队列触发；电脑校准页应保持打开。仅上传照片而关闭该页面，不代表后台有独立的自动读取服务。
+- 原有 14 项 selftest 失败仍需独立维护；本轮没有修改旧自测的通过标准、隐藏断言或新增跳过项。原合并提交 `e1981a9` 不能单独使用，必须包含完整恢复及后续两个几何修复提交。
+
+### 本轮最终检查汇总
+
+| 次序 / 来源 | 合并及独立修复 | pytest | Node 入口 | selftest |
+|---|---|---|---|---|
+| 1 geo-varpitch `9bca225` | `e1981a9`；`ddbef85`、`1e6d508`、`49f49fe` | 440 passed, 1 skipped, 174 subtests passed in 562.31s (0:09:22) | 20/20 退出 0 | 14 项旧断言，0 新增；退出 1 |
+| 2 walkthrough `ac8a951` | `4f3995f`；`4f4864a`、`6558e14`、`6f92c6c` | 449 passed, 1 skipped, 174 subtests passed in 681.65s (0:11:21) | 21/21 退出 0 | 14 项旧断言，0 新增；退出 1 |
+
+表中采用各项最终有效结果。两个阶段均实际运行全套 pytest、全部 JS/MJS/CJS Node 测试入口和 selftest，没有增加跳过项。网页的两项 JS 测试驱动修复只改测试夹具，生产代码与完成 Python 检查时相同；随后重跑全部 Node 入口，结果见 `task2-web-node-final-*`。Python 日志与逐项审计分别为 `task2-geo-fixed-*` 和 `task2-web-fixed-*`。
+
+网页步骤的 selftest 原始失败文本并非逐字相同：来源分支增加测试后，既有零参数加载器仍无法提供 pytest fixture，旧失败包装器的检查数量或 fixture 提示发生变化。完整 before/after 和未改变的 14 个顶层断言身份保存在 `task2-web-fixed-audit.json`；全部新增用例在 pytest 中通过。完整中文缺项集合另有审计，新增为 0。
+
+最终确认：`scsi.py`、`pcal.py`、`timing.py`、`reserved.py`、`read_completion.py` 与本轮起点的 Git 内容一致。两个来源分支头仍为指定提交；没有改写任何既有提交，没有推送、打标签或发布。关键文件的原始 SHA-256、LF 归一化 SHA-256 和两个合并的完整父提交记录见 C 盘 `task2-manifest.json`。
+
+测试生成的两个编辑器 JSON 已移存 C 盘 `task2-editor-evidence/`，原路径、目标和 SHA-256 见 `task2-editor-evidence-manifest.json`；没有混入提交。原先未跟踪的三个任务/会话文件保持不动。
+
+本轮结束时的完整合并日志（`git log --first-parent --merges --oneline 476e1ff..HEAD`）：
+
+```text
+4f3995f integration: merge phone calibration with completion-aware web commands
+e1981a9 integration: merge variable pitch with completion offsets and reserved ranges
+bb8c83f integration: merge the research documents and community calibrations
+fa9c92f integration: merge the guided console while preserving the web workflow
+371707e integration: merge the editor with template downloads and shared rendering
+2633c67 integration: merge template export with shared label preview rendering
+e76786a integration: merge slim numerics while retaining photo dependencies
+a51aecd integration: merge disc identity with label sessions
+31990f2 Merge branch 'core/random-label-20261112' into release/1.0.0-alpha
+c345332 Merge branch 'core/cd-clv-20261112' into release/1.0.0-alpha
+0f7104b Merge branch 'core/completion-offset-20261112' into release/1.0.0-alpha
+```
