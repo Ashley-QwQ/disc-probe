@@ -77,7 +77,7 @@ def _texture_table(spec):
 
 def _linear_response(texture_rgb, across, radius, *, paper=False, edge_mm=EDGE_MM):
     # Keep the operation order of release render(), including the approximate groove/room terms.
-    rgb = (texture_rgb + GROOVE_GAIN * _tables()[1][across] + .05*.177)*4
+    rgb = linear_samples(texture_rgb, across, _tables()[1])
     rgb = np.array(rgb, copy=True)
     rgb[(radius < HUB_MM) | (radius >= edge_mm)] = 1 if paper else 0
     return rgb
@@ -105,8 +105,9 @@ def sampled(design, size, rotate=0):
     x, y = np.meshgrid(c, -c)
     dx = x * math.cos(a) + y * math.sin(a)
     dy = -x * math.sin(a) + y * math.cos(a)
-    ix = np.clip(np.floor((dx + 60) / .02).astype(int), 0, 5999)
-    iy = np.clip(np.floor((60 - dy) / .02).astype(int), 0, 5999)
+    cell = 120 / design.shape[0]
+    ix = np.clip(np.floor((dx + 60) / cell).astype(int), 0, design.shape[1]-1)
+    iy = np.clip(np.floor((60 - dy) / cell).astype(int), 0, design.shape[0]-1)
     return design[iy, ix], x, y, dx, dy
 
 
@@ -123,8 +124,58 @@ def along_track(x, y, camera, flash):
     return np.abs(-(cx + lx) * y + (cy + ly) * x) / np.maximum(np.hypot(x, y), 1e-9)
 
 
+@lru_cache(maxsize=1)
+def spectral_data():
+    """Compatibility name for the shared cached release tables."""
+    return _tables()
+
+
+def material_response(material, dt, single):
+    """Existing byte spectra; unknown recipe spectra use a documented period warp.
+
+    This is not a measured multi-byte spectrum. Keep the approximation in the
+    core so CLI, swatches and document previews make exactly the same prediction.
+    """
+    spec = material["spec"]
+    if len(spec) == 2:
+        return single[texture(spec), np.clip(np.rint(dt/.005).astype(int), 0, 260)]
+    period = material.get("period_um") or material.get("periods_um", [None])[0]
+    if not period or not math.isfinite(period) or period <= 0:
+        raise ValueError("multi-byte simulation requires a positive material period")
+    index = np.clip(np.rint(dt*period/.8528123052898693/.005).astype(int), 0, 260)
+    return single[0xA5, index]
+
+
+def linear_samples(response, across, groove):
+    return (response + GROOVE_GAIN * groove[across] + .05 * .177) * 4
+
+
+def encode_photo(rgb):
+    """Compatibility name for the shared release tone response."""
+    return preview_rgb(rgb)
+
+
+def material_swatches(materials, camera=CAMERA, flash=FLASH):
+    """Tiny 0.06 mm samples around r=40 mm, averaged in linear light, as render()."""
+    single, groove, _, _ = spectral_data()
+    offsets=np.array([-.06, 0., .06])
+    x,y=np.meshgrid(40+offsets,offsets)
+    dt=along_track(x,y,camera,flash)
+    cx,cy=unit(camera,x,y);lx,ly=unit(flash,x,y)
+    across=np.clip(np.rint(np.abs((cx+lx)*x+(cy+ly)*y)/np.hypot(x,y)/.005).astype(int),0,260)
+    result={}
+    for m in materials:
+        linear=linear_samples(material_response(m,dt,single),across,groove).mean((0,1))
+        rgb=encode_photo(linear).tolist()
+        import colorsys
+        hue=colorsys.rgb_to_hsv(*(v/255 for v in rgb))[0]*360
+        # Palette grouping only; do not suppress faint orders or groove light in render().
+        result[m['id']]=dict(rgb=rgb,hue=hue,dark=max(rgb)<85 or max(rgb)-min(rgb)<12)
+    return result
+
+
 def render(design, size=800, dark="A5", light="B9", camera=CAMERA, flash=FLASH, rotate=0,
-           random_mask=None, paper=False, edge_mm=EDGE_MM):
+           random_mask=None, paper=False, edge_mm=EDGE_MM, *, materials=None, fine=True):
     """Return a model prediction as a Pillow image, with no perspective. It is worked out about every 0.06 mm and
     averaged in linear light to the output size, so fine lines and dither mix as they do in a photo, and its colour
     is muted toward what a phone camera records (PHOTO_SATURATION)."""
@@ -136,7 +187,7 @@ def render(design, size=800, dark="A5", light="B9", camera=CAMERA, flash=FLASH, 
     if not math.isfinite(rotate):
         raise ValueError("rotation must be finite")
     single, groove, edges, pairs = _tables()
-    k = max(1, math.ceil(FINE_SAMPLES / size))
+    k = max(1, math.ceil(FINE_SAMPLES / size)) if fine else 1
     labels, x, y, dx, dy = sampled(design, size * k, rotate)
     r = np.hypot(x, y)
     cx, cy = unit(cam, x, y)
@@ -146,14 +197,21 @@ def render(design, size=800, dark="A5", light="B9", camera=CAMERA, flash=FLASH, 
     index = np.clip(np.rint(dt / .005).astype(int), 0, 260)
     across = np.clip(np.rint(dr / .005).astype(int), 0, 260)
     # The grooves' own rainbow. It leaves out the along-track part of the view, so its place is only roughly right.
-    if isinstance(light, str) and light.lower() == BANDS:
-        # Which byte went where is fixed by the pose the disc was designed for, wherever the disc is now.
-        zone = np.clip(np.searchsorted(edges, along_track(dx, dy, CAMERA, FLASH)) - 1, 0, len(pairs) - 1)
-        bright = single[pairs[zone], index[..., None]].mean(axis=-2)
+    if materials is not None:
+        if design.dtype != np.uint8 or not materials or int(labels.max()) >= len(materials):
+            raise ValueError("material labels must index the document's material table")
+        signal = np.zeros((*dt.shape, 3))
+        for slot in np.unique(labels):
+            hit = labels == slot
+            signal[hit] = material_response(materials[slot], dt[hit], single)
     else:
-        bright = _texture_table(light)[index]
-    plain = _texture_table(dark)[index]
-    signal = np.where(labels[..., None], plain, bright)
+        if isinstance(light, str) and light.lower() == BANDS:
+            zone = np.clip(np.searchsorted(edges, along_track(dx, dy, CAMERA, FLASH)) - 1, 0, len(pairs) - 1)
+            bright = single[pairs[zone], index[..., None]].mean(axis=-2)
+        else:
+            bright = _texture_table(light)[index]
+        plain = _texture_table(dark)[index]
+        signal = np.where(labels[..., None], plain, bright)
     if random_mask is not None:
         # Random bytes have no single dominant period: use the existing palette's mean
         # as context only, not a calibrated prediction of a random burn's reflectance.

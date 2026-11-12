@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import {LampPreview} from '../discprobe/web/home/design/editor-lamp.mjs';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const calls=[],phases=[];
+const lamp=new LampPreview({delay:8,onChange:()=>phases.push(lamp.phase),decode:async x=>x,request:async(url,options)=>{
+  const body=JSON.parse(options.body);calls.push(body);return {ok:true,blob:async()=>({width:body.size,quality:body.quality,close(){this.closed=true;}})};
+}});
+const payload={document:{id:1},pose:{camera:[0,70,330]},size:600};
+lamp.schedule('a',payload);lamp.schedule('b',payload);lamp.schedule('c',payload);
+assert.equal(calls.length,0,'pose movement is debounced');await sleep(35);
+assert.deepEqual(calls.map(c=>[c.size,c.quality]),[[200,'draft'],[600,'full']]);
+assert(phases.includes('refining'));assert.equal(lamp.phase,'ready');assert.equal(lamp.image.width,600);
+const image=lamp.image;lamp.pause();lamp.schedule('c',payload);assert.strictEqual(lamp.image,image);assert.equal(calls.length,2,'client cache reused');
+lamp.schedule('cancelled',payload);lamp.pause();await sleep(20);assert.equal(calls.length,2,'leaving view cancels scheduled work');
+let resolveOld;
+const stale=new LampPreview({delay:1,decode:async x=>x,request:()=>new Promise(resolve=>resolveOld=resolve)});
+stale.schedule('old',payload);await sleep(5);stale.pause();const discarded={close(){this.closed=true;}};
+resolveOld({ok:true,blob:async()=>discarded});await sleep(5);assert(discarded.closed);assert.equal(stale.image,null,'late response discarded');
+const errors=new LampPreview({delay:1,decode:async x=>x,request:async()=>({ok:false,json:async()=>({error:'offline'})})});
+errors.schedule('e',payload);await sleep(8);assert.equal(errors.phase,'error');assert.equal(errors.error,'offline');errors.retry();assert.equal(errors.key,null);errors.pause();
+const pendingDraft={closed:false,close(){this.closed=true;}};
+lamp.image=pendingDraft;lamp.key='transient-draft';lamp.schedule('replacement',payload);assert(pendingDraft.closed,'superseded quick image released');lamp.pause();
+for(let i=0;i<6;i++){lamp.schedule('cache-'+i,payload);await sleep(15);}assert.equal(lamp.cache.size,4,'client image cache bounded');lamp.pause();
+console.log('editor lamp transport: debounce, draft/full progression, reuse, cancellation, stale responses, errors/retry, bounded cache');

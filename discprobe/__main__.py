@@ -920,6 +920,17 @@ def cmd_simulate(args):
     if args.actual_geo:
         sys.exit("--actual-geo needs --random-label-image")
     try:
+        if args.work:
+            from .editor_preview import Renderer
+            from pathlib import Path
+            if not args.output or args.sheet:
+                raise ValueError("work simulation requires --output; use --rotate for another view")
+            document=json.loads(Path(args.work).read_text(encoding="utf-8-sig"))
+            data,_=Renderer().render(dict(document=document,size=args.size,
+                pose=dict(camera=args.camera,flash=args.flash,rotate=args.rotate)))
+            Path(args.output).write_bytes(data)
+            print(i18n.tr("Prediction from a model, not a photo; real contrast and brightness may differ."))
+            return
         if args.design:
             from . import design as project_file
             design = project_file.render(project_file.load(args.design))
@@ -951,6 +962,16 @@ def _require_fit_media(args, fit, tiles: bool = False) -> None:
     names = {"dvd": "DVD", "bd": "Blu-ray"}
     sys.exit(f"This geometry was measured on a {names.get(measured, measured)}, but a "
              f"{'CD' if wanted == 'cd' else 'DVD'} {'tile target' if tiles else 'picture'} needs one measured on that disc.")
+
+
+def cmd_compose(args):
+    from .editor_ops import compose_file
+    try:
+        doc = compose_file(args.work, args.out)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        sys.exit(str(exc))
+    print(f"{args.out}: uint8 material labels; {len(doc['materials'])} textures")
+    print(f"Texture order: {os.path.splitext(args.out)[0]}.textures.json")
 
 
 def cmd_image(args):
@@ -1705,7 +1726,7 @@ def cmd_template(args):
 COMMAND_GROUPS = (
     ("Start here", ("guide", "webui", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "whois", "timing", "geo", "results")),
-    ("Make a disc image", ("random", "label", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
+    ("Make a disc image", ("random", "label", "compose", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc")),
     ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("template", "disexport", "cdprobe")),
@@ -2061,6 +2082,7 @@ def _build_parser():
     source = sp.add_mutually_exclusive_group(required=True)
     source.add_argument("--picture", help="greyscale picture to threshold instead of the grid test")
     source.add_argument("--design", help="a design file saved by edit")
+    source.add_argument("--work", help="an editor work document to compose and simulate")
     source.add_argument("--design-npy", help="prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view")
     source.add_argument("--random-label-image", help="random label .image.json: paper view including geometry error")
     sp.add_argument("--actual-geo", help="actual DVD geo summary for the random label preview (default: written geometry)")
@@ -2084,6 +2106,10 @@ def _build_parser():
     sp.add_argument("--preset-id", help="select a preset ID when the JSON contains several")
     sp.add_argument("--pose", nargs="?", const="default", help="approximate DVD first-order layer: default or cx,cy,cz,lx,ly,lz in mm")
     sp.set_defaults(func=cmd_template)
+    sp = sub.add_parser("compose", help="compose an editor work document into material labels (no drive access)")
+    sp.add_argument("work", help="versioned work JSON saved by the page")
+    sp.add_argument("--out", required=True, help="output uint8 design.npy; texture order saved beside it")
+    sp.set_defaults(func=cmd_compose)
 
     sp = sub.add_parser("image", help="write a picture ISO placed with a measured geometry (grid test by default)")
     sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose")

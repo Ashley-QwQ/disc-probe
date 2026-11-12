@@ -89,3 +89,13 @@ slim 合并提交：`e76786a`，来源 `a38f502698f77d5207eaa258371a860fc1947c1b
 模板合并提交 `2633c67`。回归：pytest **357 passed、1 skipped、174 subtests passed**；Node **17/17 入口退出 0**；selftest **14 项旧断言失败**。日志为 `template-*.txt`，原始失败文本差异在 `template-audit.json`。另对基线全部 CLI 中文缺项作集合比较（不只看自测截出的前两项）：未翻译选项由 20 条降至 14 条，新增选项/命令缺项均为 0；详见 `template-zh-audit.json`。
 
 随后独立修复首段长度发现的元数据边界：有效哈希的 JSON 数组/字符串曾触发 AttributeError，定向用例先复现 1 failed，再增加对象类型检查，使其按既有 ValueError 路径拒绝；相关会话测试 **6 passed**。未改变正常布局、位置协议或校验规则，并增加三个集成错误的中文提示。日志为 `metadata-before.txt` / `metadata-after.txt`。后续各合并的完整回归继续覆盖此用例。
+
+## 第三步之二：编辑器
+
+来源 `8e80e38a7e59d9dffdc1825441eb9ee0602b8644`。五个冲突文件：
+
+- `__main__.py`：template 与 compose 分别建解析器，并把 compose 放入制作镜像命令组；保留已有 label、whois、身份和 completion 参数。
+- `simulate.py`：共享缓存色表、线性光响应和最终色调编码；普通纹理/模板、标签 random_mask/白纸/外缘、编辑器材料标签与 fine/draft 开关接入同一最终渲染流程。保留编辑器按设计尺寸采样的能力。文档多字节材料沿用原编辑器公开说明的周期近似，不把它升级成实测光谱结论。
+- `web/home/design.js`：模板下载和图层上下移动/删除各自保留明确的提前返回分支，不让图层操作吞掉模板按钮。
+- `webui.py`：image 参数增加 textures，disexport 的 photo/reading_drive/completion 保留；模板 ZIP 与 compose 方法并存。响应函数第四位置参数保留给编辑器 headers，模板附件 filename 改为显式关键字，防止把缓存头字典写成附件名。原照片/手机路由和写入确认逻辑保留。
+- `zh.py`：增加编辑器、compose、作品模拟的词条，保留前面所有中文和错误提示。
