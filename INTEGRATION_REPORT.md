@@ -122,3 +122,7 @@ main 合并提交 `fa9c92f`。首轮完整 pytest 为 **1 failed、432 passed、
 首轮 Node 的历史作品用例另报 Edge 写入 DevToolsActivePort 时的 EBUSY。独立修复 `48da762`：在原 10 秒上限内等待可读且包含有效端口/endpoint 的完整文件，只重试指定临时文件错误，其他错误仍立即失败。全部 Node 重跑 **20/20 退出 0**。
 
 修复后的全量 pytest 再次执行，结果：**433 passed, 1 skipped, 174 subtests passed in 541.47s (0:09:01)**。本次 main selftest **14 项旧断言失败，新增断言失败为 0**，新增控制台检查通过。原始日志为 `main-*.txt`，全量复核为 `main-recheck-pytest.txt`，修复后的 Node 为 `main-node-fixed-*.txt`；失败原始日志均保留，未覆写或排除用例。
+
+## 第五步：研究文档与社区校准数据
+
+来源 `822905187737caa99f2b028e008d92fac0c38a2e`。无冲突。提交前核对来源增量恰为六个文件：五个 docs/research/dis 文档和 data/community-calibrations/dis-github.json，没有带入生产代码、其他数据或排除分支。研究链接及社区记录是本地快照，本次未联网复核新鲜度。
