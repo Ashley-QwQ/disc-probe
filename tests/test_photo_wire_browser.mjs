@@ -6,11 +6,11 @@ import {existsSync,readFileSync} from 'node:fs';
 import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 import {join,resolve,dirname,extname} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {tmpdir} from 'node:os';
 import {once} from 'node:events';
 
 const edge=process.env.PHOTO_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-const testRoot=fileURLToPath(new URL('.',import.meta.url));
+const testRoot=tmpdir();
 const home=new URL('../discprobe/web/home/',import.meta.url);
 const calibrate=readFileSync(new URL('calibrate.js',home),'utf8');
 const index=readFileSync(new URL('index.html',home),'utf8');
@@ -27,6 +27,7 @@ import {ringButton} from '/kit/ringbutton.js';
 import {flipValue} from '/kit/flipnum.js';
 import {photoPage} from '/photocal.js';
 import {budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason,photoSaveWords,photoReasonWords} from '/guidance.mjs';
+let clockNow=Date.now(); Date.now=()=>clockNow;
 const realTimeout=window.setTimeout.bind(window);
 window.setTimeout=(fn,ms,...args)=>{if(ms===25000){window.helpTimer=fn;window.helpBorn=Date.now();}return realTimeout(fn,ms,...args);};
 const loadDisc={desk(){}}; const calchart={resultChart:()=>''}; const sfx={done(){},problem(){},failure(){}};
@@ -40,7 +41,7 @@ export const wire={
 init({media='dvd',verdict='narrow_span',missing='',lang='zh',phone=null}={}){closePhoto();window.requests=[];window.jobs=[];window.photos=[];window.devices=[];window.photoResult={verdict:'unsure',per_photo:[]};window.missing=missing;window.lang=lang;window.phone=phone;api=fakeApi;$=id=>document.getElementById(id);flow={realPhase:'review',geo:{path:'results/run-one',verdict,measurement:{span_mm:[28,48]}},timing:{verdict:'good'},detected:{media,kind:media,mid:'MID',capacity_sectors:300000},item:{row:media},preset:'presets/existing.json',warnEl:document.createElement('div')};discWentIn=true;st={show(on){document.body.dataset.stage=on;},set(){}};document.getElementById('back').onclick=back;document.getElementById('next').onclick=()=>realNext();paint();},
 phase(name,fraction=null){closePhoto();flow.realPhase=name;flow.iso='iso/test.iso';flow.job=name==='random'?{kind:'random',fraction}:null;paint();},enter:enterPhoto,next:realNext,back,state:()=>flow,page:()=>photoUI?.page,ui:()=>photoUI,
 photo:(id='p1')=>({id,name:id+'.svg',url:'/disc.svg'}),
-helpAfter(ms){const now=Date.now;Date.now=()=>window.helpBorn+ms;window.helpTimer();Date.now=now;},
+helpAfter(ms){clockNow=window.helpBorn+ms;window.helpTimer();},
 };`;
 
 test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallback', {skip:!existsSync(edge),timeout:60000}, async()=>{
