@@ -307,6 +307,7 @@ class BurnerTests(unittest.TestCase):
         started = []
         backend = webui.Backend(self.root, drive_provider=drives,
                                 runner=lambda argv, **kw: started.append(argv) or Mock(wait=Mock(return_value=0), close=Mock()))
+        self.addCleanup(backend.close)
         (self.root / "iso").mkdir(exist_ok=True)
         (self.root / "iso" / "p.iso").write_bytes(bytes(4096))
         handler = webui.Handler.__new__(webui.Handler)
@@ -334,7 +335,8 @@ class BurnerTests(unittest.TestCase):
             run()                                                  # expired
         with patch.object(burner, "adapter", return_value=fake):
             handler.do_GET()
-        run()
+        ident = run()["job"]
+        self.assertTrue(backend.jobs[ident].finished.wait(3), "fake burn watcher finished")
         self.assertIn("--yes-write", started[-1])
 
     def test_web_no_verify_flag(self):
