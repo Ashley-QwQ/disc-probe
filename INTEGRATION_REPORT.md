@@ -1,0 +1,26 @@
+# 1.0.0 alpha ????
+
+???`31990f2`??? `release/1.0.0-alpha`???????????????????????????????????????? `INTEGRATION_TASK.md`?
+
+## ?????
+
+pytest?302 passed?1 skipped?46 subtests passed?Node?16 ????????? 0?selftest??? 1??? 14 ??????????????
+
+```text
+FAIL  and names the read offset, no along-track constant
+FAIL  disexport --along-track-frames is refused on an audio fit
+FAIL  test_along_track_preset passes (9 checks) -- test_different_directory_with_identical_summary_is_not_same_run: TypeError: test_different_directory_with_identical_summary_is_not_same_run() missing 1 required positional argument: 'tmp_path'; test_explicit_cli_photo_path: TypeError: test_explicit_cli_photo_path() missing 3 required positional arguments: 'tmp_path', 'selected_drive', and 'expected'; test_legacy_disexport_cli_discovers_same_run_photo: TypeError: test_legacy_disexport_cli_discovers_same_run_photo() missing 1 required positional argument: 'tmp_path'
+FAIL  test_burn_progress passes (3 checks) -- test_preparation_precedes_generator: TypeError: test_preparation_precedes_generator() missing 1 required positional argument: 'command'
+FAIL  test_geo_progress passes (4 checks) -- test_calibrate_simulator_events: TypeError: test_calibrate_simulator_events() missing 1 required positional argument: 'tmp_path'; test_rate_and_emitted_progress_are_bounded: TypeError: test_rate_and_emitted_progress_are_bounded() missing 2 required positional arguments: 'monkeypatch' and 'tmp_path'; test_simulated_geo_progress: TypeError: test_simulated_geo_progress() missing 4 required positional arguments: 'monkeypatch', 'state_check', 'max_targets', and 'sectors'
+FAIL  test_geo_unsteady passes (9 checks) -- test_avoid_bands_use_geo_radius_model: TypeError: test_avoid_bands_use_geo_radius_model() missing 3 required positional arguments: 'media', 'audio', and 'last'; test_calibrate_children_and_stop_reason: TypeError: test_calibrate_children_and_stop_reason() missing 4 required positional arguments: 'monkeypatch', 'tmp_path', 'capsys', and 'speed'; test_invalid_avoid_band: TypeError: test_invalid_avoid_band() missing 1 required positional argument: 'band'
+FAIL  test_photo passes (15 checks) -- test_accepted_result_mapping_and_original_diagnostics: TypeError: test_accepted_result_mapping_and_original_diagnostics() missing 2 required positional arguments: 'tmp_path' and 'media'; test_duplicate_image_cannot_be_two_independent_photos: TypeError: test_duplicate_image_cannot_be_two_independent_photos() missing 1 required positional argument: 'tmp_path'; test_phone_devices_count_and_rotation_revoke_every_old_link: TypeError: test_phone_devices_count_and_rotation_revoke_every_old_link() missing 1 required positional argument: 'tmp_path'
+FAIL  test_recordable_capacity passes (10 checks) -- test_calibrate_exports_whole_capacity: TypeError: test_calibrate_exports_whole_capacity() missing 7 required positional arguments: 'monkeypatch', 'tmp_path', 'capacity', 'explicit', 'catalogue', 'burn', and 'expected'; test_catalogue_is_exact_mid_and_explicit_capacity_only: TypeError: test_catalogue_is_exact_mid_and_explicit_capacity_only() missing 1 required positional argument: 'tmp_path'; test_measurements_without_preset_do_not_require_blank_capacity: TypeError: test_measurements_without_preset_do_not_require_blank_capacity() missing 2 required positional arguments: 'monkeypatch' and 'tmp_path'
+FAIL  test_webui passes (6 checks) -- test_job_whose_folder_is_gone_does_not_break_events: TypeError: test_job_whose_folder_is_gone_does_not_break_events() missing 1 required positional argument: 'tmp_path'
+FAIL  test_webui_catalog passes (8 checks) -- test_history_saved_runs_and_explicit_burn_links: TypeError: test_history_saved_runs_and_explicit_burn_links() missing 1 required positional argument: 'tmp_path'; test_history_unidentified_runs_stay_separate: TypeError: test_history_unidentified_runs_stay_separate() missing 1 required positional argument: 'tmp_path'; test_measurement_preserves_stop_reason: TypeError: test_measurement_preserves_stop_reason() missing 1 required positional argument: 'tmp_path'
+FAIL  test_webui_recovery passes (2 checks) -- test_export_radius_order: TypeError: test_export_radius_order() missing 1 required positional argument: 'tmp_path'; test_recovery_arguments: TypeError: test_recovery_arguments() missing 1 required positional argument: 'tmp_path'
+FAIL  every option's help has Chinese (add it to zh.py): ['selected drive identity; required for measuring, checked when saving photo L', 'burn this measurement image first (needs --yes-write and a blank in the drive)']
+FAIL  every command's description has Chinese
+FAIL  Chinese: -h ['  photo       read the along-track residual from target photos (no drive access)']
+```
+
+?????`C:/disc-probe-scratch/release-alpha/baseline-*.txt`?

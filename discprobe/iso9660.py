@@ -2,8 +2,10 @@
 
 Windows' Disc Image Burner rejects an image without a recognisable file system. This
 writes a primary volume descriptor (LBA 16), a terminator (17), the two path tables
-(18, 19) and an empty root directory (20). Those five sectors lie in the filler
-before the first ring or band (inside 25 mm), so the pattern is untouched. Layout per
+(18, 19) and a root directory (20). By explicit consent, DISCPROBE.ID uses
+21--24 plus three scattered duplicate slots; otherwise the root stays empty
+and the original bytes are preserved. The scattered slots can overwrite a
+picture; its sidecar records their sectors. Layout per
 ECMA-119; numbers are both-endian where the standard says so.
 """
 
@@ -25,13 +27,13 @@ def _both16(v: int) -> bytes:
     return struct.pack("<H", v) + struct.pack(">H", v)
 
 
-def _dir_record(name: bytes, when: datetime.datetime) -> bytes:
+def _dir_record(name: bytes, when: datetime.datetime, extent=_ROOT, size=2048, directory=True) -> bytes:
     rec = bytearray(33 + len(name) + (1 if len(name) % 2 == 0 else 0))
     rec[0] = len(rec)
-    rec[2:10] = _both32(_ROOT)
-    rec[10:18] = _both32(2048)
+    rec[2:10] = _both32(extent)
+    rec[10:18] = _both32(size)
     rec[18:25] = bytes([when.year - 1900, when.month, when.day, when.hour, when.minute, when.second, 0])
-    rec[25] = 0x02  # directory
+    rec[25] = 0x02 if directory else 0
     rec[28:32] = _both16(1)
     rec[32] = len(name)
     rec[33:33 + len(name)] = name
@@ -48,7 +50,7 @@ def _date17(when: datetime.datetime | None) -> bytes:
     return when.strftime("%Y%m%d%H%M%S").encode() + b"00\x00"
 
 
-def sectors(total_sectors: int, volume_id: str) -> dict[int, bytes]:
+def sectors(total_sectors: int, volume_id: str, identity=None) -> dict[int, bytes]:
     when = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None, microsecond=0)
     pvd = bytearray(2048)
     pvd[0] = 1
@@ -85,11 +87,22 @@ def sectors(total_sectors: int, volume_id: str) -> dict[int, bytes]:
     dot, dotdot = _dir_record(b"\x00", when), _dir_record(b"\x01", when)
     root[0:len(dot)] = dot
     root[len(dot):len(dot) + len(dotdot)] = dotdot
-    return {_PVD: bytes(pvd), _TERM: bytes(term), _LPATH: bytes(lpath), _MPATH: bytes(mpath), _ROOT: bytes(root)}
+    extra = {}
+    if identity is not None:
+        from . import discid
+        starts = discid.positions(total_sectors)
+        entry = _dir_record(b"DISCPROBE.ID;1", when, discid.LBA, discid.SIZE, False)
+        offset = len(dot) + len(dotdot)
+        root[offset:offset + len(entry)] = entry
+        for index, start in enumerate(starts):
+            data = discid.encode_copy(identity, index)
+            extra.update({start+i: data[i*2048:(i+1)*2048] for i in range(4)})
+    return {_PVD: bytes(pvd), _TERM: bytes(term), _LPATH: bytes(lpath), _MPATH: bytes(mpath), _ROOT: bytes(root), **extra}
 
 
-def add(path: str, total_sectors: int, volume_id: str) -> None:
+def add(path: str, total_sectors: int, volume_id: str, identity=None) -> None:
+    header = sectors(total_sectors, volume_id, identity)
     with open(path, "r+b") as f:
-        for lba, data in sectors(total_sectors, volume_id).items():
+        for lba, data in header.items():
             f.seek(lba * 2048)
             f.write(data)

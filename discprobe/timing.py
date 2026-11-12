@@ -111,6 +111,7 @@ class TimingProbe:
         self.evict_sectors = evict_sectors
         self.events: list[Event] = []
         self.summary: dict = {}
+        self.reserved_lba = []  # append label bands/markers here too; half-open ranges
         self._experiment = ""
         self._evict_cursor = 0
         self.far_count = 1
@@ -124,6 +125,11 @@ class TimingProbe:
         return self.dev.execute(cdb, alloc, DATA_IN if alloc else DATA_NONE)
 
     def _read(self, lba: int, count: int = 1, fua: bool = False, label: str = ""):
+        if label not in ('disc-identity', 'layout') and (self.reserved_lba or self.summary.get('random_label')) and count:
+            safe = self.safe_ranges([(0, self.last_lba+1)])
+            if not any(a <= lba and lba + count <= b for a,b in safe):
+                # Never move a timed target secretly: its LBA determines phase.
+                raise NoReadableDisc('read intersects reserved LBA ranges or guard')
         if self.method == "readcd":
             cdb, size = mmc.read_cd(lba, count), 2352 * count
         elif self.method == "read10":
@@ -172,26 +178,55 @@ class TimingProbe:
     def _align(self, fraction: float) -> int:
         lba = int(self.last_lba * fraction)
         lba -= lba % self.block
-        lba = max(0, min(lba, self.last_lba - self.block + 1))
-        spec = self.summary.get("random_label")
-        if spec:
-            from .randomlabel import exclude_ranges
-            safe = exclude_ranges([(0, self.last_lba + 1)], spec["exclude_lba"], self.block,
-                                  max(3000, self.sectors + self.block))
-            for span in spec.get('avoid_lba', []):
-                safe = exclude_ranges(safe, span, self.block, max(3000, self.sectors + self.block))
-            candidates = [max(a, min(lba, b - max(self.block, self.sectors))) for a, b in safe
-                          if b - a >= max(self.block, self.sectors)]
-            if not candidates:
-                raise NoReadableDisc("no random data remains outside the label")
-            lba = min(candidates, key=lambda x: abs(x - lba)) // self.block * self.block
-        return lba
+        return self.safe_lba(max(0, min(lba, self.last_lba - self.block + 1)))
+
+    def safe_ranges(self, ranges, extra_guard=0):
+        from .reserved import exclude_ranges
+        # Label branch can feed this list directly; also accept its summary shape.
+        spec = self.summary.get('random_label') or {}
+        spans = [*self.reserved_lba, *spec.get('avoid_lba', [])]
+        if spec.get('exclude_lba'):
+            spans.append(spec['exclude_lba'])
+        return exclude_ranges(ranges, spans, self.block,
+                              max(3000, self.sectors+self.block+extra_guard))
+
+    def safe_lba(self, lba, count=None):
+        if not self.reserved_lba and not self.summary.get('random_label'):
+            return lba
+        from .reserved import nearest
+        try:
+            return nearest(lba, self.safe_ranges([(0, self.last_lba+1)]), self.block,
+                           self.sectors if count is None else count)
+        except ValueError as exc:
+            raise NoReadableDisc(str(exc)) from exc
+
+    def load_identity_layout(self):
+        if self.audio:
+            return
+        from . import discid
+        # The plain timing simulator has no stored metadata. Preserve its RNG stream.
+        if getattr(self.dev, 'identity_sectors', None) == {}:
+            return
+        def read(lba, count):
+            result = self._read(lba, count, label='disc-identity')
+            if not result.ok:
+                raise OSError('identity sector unreadable')
+            return result.data
+        total = getattr(self, 'identity_total', self.last_lba+1)
+        result = discid.inspect_copies(read, total)
+        # Conservatively reserve every formula slot even on old/unreadable discs.
+        # This avoids calling arbitrary identity bytes random after partial damage.
+        starts = [c['lba'] for c in result['copies']]
+        unit = 32 if self.media == 'bd' else 16
+        self.reserved_lba.extend((x//unit*unit, (x//unit+1)*unit) for x in starts)
+        self.summary['disc_identity'] = result
+        self.summary['reserved_lba'] = list(self.reserved_lba)
 
     def _far_lba(self, lba: int, i: int = 0) -> int:
         """The i-th far sector: a third of the disc away on the side with room, then 5000 sectors
         further apart for each next one, so each lands in a different cache segment."""
         third = self.last_lba // 3 + FAR_STEP_SECTORS * i
-        return lba + third if lba < self.last_lba // 2 else lba - third
+        return self.safe_lba(lba + third if lba < self.last_lba // 2 else lba - third, 1)
 
     def _far_reads(self, lba: int, k: int):
         for i in range(k):
@@ -202,7 +237,7 @@ class TimingProbe:
         start = self._align(0.6)
         done = 0
         while done < self.evict_sectors:
-            lba = start + self._evict_cursor
+            lba = self.safe_lba(start + self._evict_cursor, chunk)
             self._read(lba, chunk, label="evict")
             self._evict_cursor = (self._evict_cursor + chunk) % EVICT_REGION_SECTORS
             done += chunk
@@ -293,6 +328,11 @@ class TimingProbe:
         self.method = self.read_method
         if self.method == "auto":
             self.method = "readcd" if audio else "read12"
+        spec = self.summary.get('random_label') or {}
+        self.reserved_lba.extend(spec.get('avoid_lba', []))
+        if spec.get('exclude_lba'):
+            self.reserved_lba.append(spec['exclude_lba'])
+        self.load_identity_layout()
         if self.method == "read12":
             res = self._read(self._align(0.5), label="probe")
             # Only a refused command means "try READ(10)"; a medium error says nothing about the opcode.
@@ -345,6 +385,7 @@ class TimingProbe:
                             raise ValueError('random-label marker at wrong address')
                         if spec.get('state') == 'pending':
                             pending = spec
+                            self.identity_total = spec['total_sectors']
                             # Do not probe the unrecorded outer band of the first session.
                             # After append-and-close the final band marker supersedes this one.
                             disc = self._cmd(mmc.read_disc_information(), 34)

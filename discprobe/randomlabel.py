@@ -68,16 +68,9 @@ def read_marker(data, total_sectors):
 
 
 def exclude_ranges(ranges, span, block=16, margin=3000):
-    """Half-open ranges with the band and a read/latency guard removed, aligned inward."""
-    lo, hi = span[0] - margin, span[1] + margin
-    out = []
-    for a, b in ranges:
-        for x, y in ((a, min(b, lo)), (max(a, hi), b)):
-            x = math.ceil(x / block) * block
-            y = y // block * block
-            if y - x > 64:
-                out.append((x, y))
-    return out
+    """Compatibility wrapper for the common reservation implementation."""
+    from .reserved import exclude_ranges as exclude
+    return [(a,b) for a,b in exclude(ranges, [span], block, margin) if b-a > 64]
 
 
 class Label:

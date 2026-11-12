@@ -1,4 +1,4 @@
-<#
+﻿<#
 Burn an ISO image with Windows' own IMAPI2 at a chosen write speed (isoburn.exe cannot set one).
 
 Without -Burn it only reports the recorder, the media, its blank state and the supported write
@@ -41,14 +41,101 @@ param(
     [switch]$Append,
     [long]$ExpectStart = -1,
     [switch]$Machine,
-    [string]$CancelFile
+    [string]$CancelFile,
+    [string]$IdentityPatch,
+    [long]$IdentityOffset = 43008
 )
 $ErrorActionPreference = "Stop"
+if ($IdentityPatch -and -not $Machine) { throw "Identity patches require Machine mode" }
 
 Add-Type -ReferencedAssemblies System.dll,System.Core.dll,Microsoft.CSharp.dll -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
+using STATSTG = System.Runtime.InteropServices.ComTypes.STATSTG;
+// A seekable, read-only IStream overlay. IMAPI sees the patched bytes while
+// the original ISO stays open with FileAccess.Read and cannot be rewritten.
+[ComVisible(true), ClassInterface(ClassInterfaceType.None)]
+public sealed class IdentityStream : IStream, IDisposable {
+    readonly System.IO.FileStream source;
+    readonly byte[] patch;
+    readonly long offset;
+    readonly byte[][] parts;
+    readonly long[] offsets;
+    readonly string imagePath;
+    public IdentityStream(string image, string patchFile, long patchOffset)
+        : this(image, System.IO.File.ReadAllBytes(patchFile), patchOffset) { }
+    IdentityStream(string image, byte[] patchBytes, long patchOffset) {
+        patch = patchBytes;
+        if (patchOffset != 43008) throw new ArgumentException("Invalid identity patch extent.");
+        if (patch.Length == 8192) {
+            parts = new byte[][] { patch }; offsets = new long[] { patchOffset };
+        } else {
+            using (var input = new System.IO.BinaryReader(new System.IO.MemoryStream(patch))) {
+                if (System.Text.Encoding.ASCII.GetString(input.ReadBytes(8)) != "DPIDPAT2")
+                    throw new ArgumentException("Invalid identity patch bundle.");
+                int count = input.ReadInt32();
+                if (count != 4) throw new ArgumentException("Invalid identity copy count.");
+                parts = new byte[count][]; offsets = new long[count];
+                for (int i = 0; i < count; i++) {
+                    offsets[i] = input.ReadInt64(); int length = input.ReadInt32();
+                    if (length != 8192 || offsets[i] < 43008 ||
+                        (i > 0 && offsets[i] < offsets[i-1] + 8192))
+                        throw new ArgumentException("Invalid identity copy extent.");
+                    parts[i] = input.ReadBytes(length);
+                    if (parts[i].Length != length) throw new ArgumentException("Short identity bundle.");
+                }
+                if (input.BaseStream.Position != patch.Length) throw new ArgumentException("Trailing identity bundle.");
+            }
+        }
+        source = new System.IO.FileStream(image, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read);
+        offset = patchOffset;
+        imagePath = image;
+        if (offsets[offsets.Length-1] + parts[parts.Length-1].Length > source.Length) {
+            source.Dispose(); throw new ArgumentException("Short ISO.");
+        }
+    }
+    public void Read(byte[] buffer, int count, IntPtr read) {
+        long start = source.Position;
+        int n = source.Read(buffer, 0, count);
+        for (int i = 0; i < parts.Length; i++) {
+            long lo = Math.Max(start, offsets[i]), hi = Math.Min(start + n, offsets[i] + parts[i].Length);
+            if (lo < hi) Array.Copy(parts[i], lo - offsets[i], buffer, lo - start, hi - lo);
+        }
+        if (read != IntPtr.Zero) Marshal.WriteInt32(read, n);
+    }
+    public void Seek(long move, int origin, IntPtr position) {
+        long p = source.Seek(move, (System.IO.SeekOrigin)origin);
+        if (position != IntPtr.Zero) Marshal.WriteInt64(position, p);
+    }
+    public void Stat(out STATSTG stat, int flags) { stat = new STATSTG(); stat.type = 2; stat.cbSize = source.Length; }
+    public void CopyTo(IStream target, long count, IntPtr read, IntPtr written) {
+        byte[] buffer = new byte[65536]; long total = 0;
+        IntPtr got = Marshal.AllocHGlobal(4), put = Marshal.AllocHGlobal(4);
+        try {
+            while (total < count) {
+                Read(buffer, (int)Math.Min(buffer.Length, count - total), got);
+                int n = Marshal.ReadInt32(got); if (n == 0) break;
+                target.Write(buffer, n, put);
+                if (Marshal.ReadInt32(put) != n) throw new System.IO.IOException("Short stream write.");
+                total += n;
+            }
+            if (read != IntPtr.Zero) Marshal.WriteInt64(read, total);
+            if (written != IntPtr.Zero) Marshal.WriteInt64(written, total);
+        } finally { Marshal.FreeHGlobal(got); Marshal.FreeHGlobal(put); }
+    }
+    public void Write(byte[] b, int n, IntPtr w) { throw new NotSupportedException(); }
+    public void SetSize(long n) { throw new NotSupportedException(); }
+    public void Commit(int flags) { }
+    public void Revert() { throw new NotSupportedException(); }
+    public void LockRegion(long o, long n, int t) { throw new NotSupportedException(); }
+    public void UnlockRegion(long o, long n, int t) { throw new NotSupportedException(); }
+    public void Clone(out IStream stream) {
+        IdentityStream clone = new IdentityStream(imagePath, patch, offset);
+        clone.Seek(source.Position, 0, IntPtr.Zero); stream = clone;
+    }
+    public void Dispose() { source.Dispose(); }
+}
 public static class IsoStream {
     [DllImport("shlwapi.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
     static extern void SHCreateStreamOnFileEx(string file, uint mode, uint attrs, bool create, IntPtr template, out IStream stream);
@@ -79,16 +166,29 @@ public static class MachineBurn {
                                       [MarshalAs(UnmanagedType.IDispatch)] object progress);
     static void Emit(string value) { Console.WriteLine(value); Console.Out.Flush(); }
     static string Number(double value) { return value.ToString(System.Globalization.CultureInfo.InvariantCulture); }
+    static string Quote(string value) { return value == null ? "null" : "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "") + "\""; }
     public static void Run(string drive, string image, double speed, bool burn, string cancel, bool keepOpen = false, bool append = false, long expectStart = -1) {
         RunWithFactory(drive, image, speed, burn, cancel,
             name => Activator.CreateInstance(Type.GetTypeFromProgID(name)),
             (format, handler) => ComEventsHelper.Combine(format, Events, 0x200, handler),
             (format, handler) => ComEventsHelper.Remove(format, Events, 0x200, handler), keepOpen, append, expectStart);
     }
+    public static void RunPatched(string drive, string image, double speed, bool burn, string cancel, string patch, long offset,
+        bool keepOpen = false, bool append = false, long expectStart = -1) {
+        RunWithFactory(drive, image, speed, burn, cancel,
+            name => Activator.CreateInstance(Type.GetTypeFromProgID(name)),
+            (format, handler) => ComEventsHelper.Combine(format, Events, 0x200, handler),
+            (format, handler) => ComEventsHelper.Remove(format, Events, 0x200, handler), keepOpen, append, expectStart, patch, offset);
+    }
+    public static void RunWithFactory(string drive, string image, double speed, bool burn, string cancel,
+        Func<string, object> create, Action<object, UpdateHandler> subscribe, Action<object, UpdateHandler> unsubscribe,
+        string patch, long offset) {
+        RunWithFactory(drive, image, speed, burn, cancel, create, subscribe, unsubscribe, false, false, -1, patch, offset);
+    }
     // Injectable COM creation/event boundary for offline tests. Production uses only Run above.
     public static void RunWithFactory(string drive, string image, double speed, bool burn, string cancel,
         Func<string, object> create, Action<object, UpdateHandler> subscribe, Action<object, UpdateHandler> unsubscribe,
-        bool keepOpen = false, bool append = false, long expectStart = -1) {
+        bool keepOpen = false, bool append = false, long expectStart = -1, string patch = "", long offset = 43008) {
         object masterObject = null, recorderObject = null, formatObject = null;
         IStream stream = null;
         UpdateHandler handler = null;
@@ -141,6 +241,8 @@ public static class MachineBurn {
             if (!burn) {
                 var values = speeds.ConvertAll(s => Number(s / 675.0));
                 Emit("{\"media\":\"dvd\",\"blank\":" + (blank ? "true" : "false") +
+                     ",\"vendor\":" + Quote((string)recorder.VendorId) + ",\"product\":" + Quote((string)recorder.ProductId) +
+                     ",\"firmware\":" + Quote((string)recorder.ProductRevision) +
                      ",\"free_sectors\":" + free + ",\"closed\":" + (closed ? "true" : "false") +
                      ",\"next_writable\":" + nwa + ",\"speeds_x\":[" + String.Join(",", values) + "]}");
                 return;
@@ -184,7 +286,7 @@ public static class MachineBurn {
             };
             subscribe(formatObject, handler);
             subscribed = true;
-            stream = IsoStream.Open(image); // denies concurrent image writers
+            stream = String.IsNullOrEmpty(patch) ? IsoStream.Open(image) : new IdentityStream(image, patch, offset);
             if (!String.IsNullOrEmpty(cancel) && System.IO.File.Exists(cancel))
                 throw new OperationCanceledException("Cancelled before Write.");
             fmt.Write(stream); // exactly once; never retry a failed WRITE
@@ -196,7 +298,8 @@ public static class MachineBurn {
             throw;
         } finally {
             if (subscribed) unsubscribe(formatObject, handler);
-            if (stream != null) Marshal.FinalReleaseComObject(stream);
+            if (stream is IDisposable) ((IDisposable)stream).Dispose();
+            else if (stream != null && Marshal.IsComObject(stream)) Marshal.FinalReleaseComObject(stream);
             if (formatObject != null && Marshal.IsComObject(formatObject)) Marshal.FinalReleaseComObject(formatObject);
             if (recorderObject != null && Marshal.IsComObject(recorderObject)) Marshal.FinalReleaseComObject(recorderObject);
             if (masterObject != null && Marshal.IsComObject(masterObject)) Marshal.FinalReleaseComObject(masterObject);
@@ -207,7 +310,7 @@ public static class MachineBurn {
 
 if ($Machine) {
     if ($Verify -or $Reload) { throw "Machine mode does not accept legacy session options" }
-    try { [MachineBurn]::Run($Drive, $Iso, $Speed, [bool]$Burn, $CancelFile, [bool]$KeepOpen, [bool]$Append, $ExpectStart) }
+    try { [MachineBurn]::RunPatched($Drive, $Iso, $Speed, [bool]$Burn, $CancelFile, $IdentityPatch, $IdentityOffset, [bool]$KeepOpen, [bool]$Append, $ExpectStart) }
     catch { exit 1 }
     exit 0
 }

@@ -457,17 +457,52 @@ def cmd_list(args):
 
 
 def cmd_info(args):
+    if getattr(args, "image", None):
+        return cmd_whois(args)
     dev = _open(args)
     try:
         report = info.collect(dev)
+        from . import discid
+        try:
+            report["disc_identity"] = discid.read_device(dev, detailed=True)
+            identity = report['disc_identity']['record']
+            if identity and getattr(args, "register", None):
+                report["disc_identity"]["register"] = discid.match_register(identity, args.register)
+        except (OSError, ValueError) as exc:
+            report["disc_identity"] = dict(status="unavailable_or_invalid", error=str(exc), hash_verified=False)
     finally:
         dev.close() if hasattr(dev, "close") else None
     out = _outdir(args, "info", dev)
     _write_json(os.path.join(out, "info.json"), report)
     for line in info.summarize(report):
         print(line)
+    print(json.dumps(report["disc_identity"], ensure_ascii=False, indent=2))
     print(f"\nFull dump: {os.path.abspath(out)}")
     _next(guide.after_info(args, report))
+
+
+def cmd_whois(args):
+    from . import discid
+    if getattr(args, "image", None) and (args.drive or getattr(args, "sim", None)):
+        sys.exit("Choose --image or --drive, not both")
+    try:
+        if getattr(args, "image", None):
+            result = discid.read_image(args.image, detailed=True)
+        else:
+            dev = _open(args)
+            try:
+                result = discid.read_device(dev, detailed=True)
+            finally:
+                dev.close() if hasattr(dev, "close") else None
+        record = result['record']
+        if record and getattr(args, "register", None):
+            result["register"] = discid.match_register(record, args.register)
+    except (OSError, ValueError, KeyError) as exc:
+        print(json.dumps(dict(status="unavailable_or_invalid", reason="read_failed", hash_verified=False, error=str(exc)), ensure_ascii=False))
+        sys.exit(1)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    if result['reason'] != 'ok':
+        sys.exit(1)
 
 
 def cmd_disc(args):
@@ -678,7 +713,8 @@ def cmd_calib(args):
     print(f"\nWriting {os.path.abspath(args.output)} (about a minute)")
     try:
         with ui.writing(args.output, layout.total_sectors) as log:
-            spec_path = write_iso(args.output, layout, log=log)
+            from . import discid
+            spec_path = write_iso(args.output, layout, log=log, **discid.options(args))
     except ValueError as e:
         sys.exit(str(e))
     with ui.busy("Checking what was written..."):
@@ -996,6 +1032,13 @@ def cmd_image(args):
         lead = min(writer.sectors_to_radius(u, v, bit, args.random_below_mm), total)
         print(f"Random data up to {args.random_below_mm:g} mm (LBA {lead}); the picture starts there.")
     extra = {**({"first_lba": first} if first else {}), **({"lead_lba": lead} if lead else {})}
+    from . import discid
+    identity_meta = {}
+    if discid.requested(**discid.options(args)):
+        origin = fit.get("completion_source") or {"origin": "legacy_default"}
+        identity_meta = dict(source_file=args.picture or args.design_npy or args.design,
+                             identity_design=kind, completion_sectors=fit.get("completion_sectors", 0),
+                             completion_source={k: origin[k] for k in ("origin", "vendor", "product", "firmware", "source") if k in origin})
     tex = f"textures {' '.join(args.textures)}" if args.textures else f"dark {args.dark}, light {args.light}"
     print(f"{kind}, {imagedisc.cell_mm(design) * 1000:g} um cells, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
           f"({total * 2048 / 1e9:.2f} GB), {tex}")
@@ -1005,8 +1048,9 @@ def cmd_image(args):
             spec = writer.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
                                     meta={"geometry_from": os.path.abspath(args.geo), "design": kind,
                                           "along_track_frames": args.along_track_frames,
-                                          "correction": os.path.abspath(args.correction) if args.correction else None},
-                                    correction=corr, textures=args.textures, log=log, **extra)
+                                          "correction": os.path.abspath(args.correction) if args.correction else None,
+                                          **identity_meta},
+                                    correction=corr, textures=args.textures, log=log, **extra, **discid.options(args))
     except ValueError as e:
         sys.exit(str(e))
     with ui.busy("Checking what was written..."):
@@ -1434,6 +1478,7 @@ def cmd_label(args):
 
 def cmd_random(args):
     from .randomdisc import write_iso
+    from . import discid
     if getattr(args, "media", "dvd") == "bd":
         from .bdexport import BD_SECTORS_PER_LAYER
         if args.sectors > BD_SECTORS_PER_LAYER:
@@ -1447,7 +1492,7 @@ def cmd_random(args):
     try:
         with ui.writing(args.output, written_sectors) as log:
             write_iso(args.output, args.sectors, args.seed, media=args.media, log=log,
-                      label=getattr(args, "label", None), geo=getattr(args, 'geo', None))
+                      label=getattr(args, "label", None), geo=getattr(args, 'geo', None), **discid.options(args))
     except ValueError as e:
         sys.exit(str(e))
     if getattr(args, 'label', None) and not getattr(args, 'geo', None):
@@ -1467,10 +1512,11 @@ def cmd_random(args):
 def cmd_calibdisc(args):
     """Burn one disc that times itself and shows its own twist."""
     from . import calibdisc
+    from . import discid
     try:
         out = calibdisc.write(args.output, sectors=args.sectors, r0_mm=args.r0_mm, pitch_um=args.pitch_um,
                               rings=args.rings_list, line_deg=90.0, split=args.split, log=print,
-                              preview=args.preview)
+                              preview=args.preview, **discid.options(args))
     except ValueError as e:
         sys.exit(str(e))
     if args.split:
@@ -1648,7 +1694,7 @@ def _speed(text: str):
 # (group title, commands); `main` fills in what each one does.
 COMMAND_GROUPS = (
     ("Start here", ("guide", "webui", "tutorial", "selftest", "list")),
-    ("Measure a disc", ("info", "timing", "geo", "results")),
+    ("Measure a disc", ("info", "whois", "timing", "geo", "results")),
     ("Make a disc image", ("random", "label", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc")),
     ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
@@ -1840,7 +1886,15 @@ def _build_parser():
 
     sp = sub.add_parser("info", help="dump drive and disc information")
     common(sp)
+    sp.add_argument("--image", help="read disc identity from an ISO without drive access")
+    sp.add_argument("--register", help="match identity against a local register JSON (read-only)")
     sp.set_defaults(func=cmd_info)
+
+    sp = sub.add_parser("whois", help="read and check a public disc identity record")
+    common(sp)
+    sp.add_argument("--image", help="read disc identity from an ISO without drive access")
+    sp.add_argument("--register", help="match identity against a local register JSON (read-only)")
+    sp.set_defaults(func=cmd_whois)
 
     sp = sub.add_parser("disc", help="which disc is in the drive (read-only, quick; one JSON line)")
     common(sp)
@@ -2221,6 +2275,11 @@ def _build_parser():
                  "(user data from byte 24), so textures are pre-scrambled for that unless you burn Mode 1")
     # Each command's help names what it does, and the top level lists the commands in workflow order.
     tr = i18n.tr
+    for name in ("image", "random", "calib", "calibdisc", "burn"):
+        sub.choices[name].add_argument("--disc-id", action="store_true",
+            help="write a public disc identity record (default: off)")
+        sub.choices[name].add_argument("--disc-id-code", "--disc-code", dest="disc_id_code",
+            help="consent to disc identity and set its disc code, e.g. KOI-A 3-05")
     helps = {a.dest: tr(a.help) for a in sub._choices_actions}
     for name, parser in sub.choices.items():
         parser.description = helps[name]

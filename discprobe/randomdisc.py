@@ -21,7 +21,8 @@ DEFAULT_SECTORS = 2295104  # fits DVD+R and DVD-R single layer
 CHUNK_SECTORS = 8192
 
 
-def write_iso(path: str, sectors: int = DEFAULT_SECTORS, seed: int = 1, log=print, media="dvd", label=None, geo=None) -> None:
+def write_iso(path: str, sectors: int = DEFAULT_SECTORS, seed: int = 1, log=print, media="dvd", label=None, geo=None,
+              *, disc_id=False, disc_id_code=None) -> None:
     # Validate before opening/truncating any output. With no label the old byte stream is unchanged.
     overlay = None
     spec = None
@@ -38,6 +39,18 @@ def write_iso(path: str, sectors: int = DEFAULT_SECTORS, seed: int = 1, log=prin
             sectors = spec['total_sectors']
     elif geo:
         raise ValueError('--geo requires --label')
+    from . import discid
+    identity = None
+    if discid.requested(disc_id, disc_id_code):
+        discid.positions(sectors)  # after the pending layout chooses the first-session end
+        identity = discid.create(code=disc_id_code, command="random", seed=seed, textures=["RND"])
+        discid.encode_copy(identity, 0)
+        if spec is not None:
+            metadata = [spec['marker_lba']]
+            if any(a <= marker < b for a,b in discid.layout(sectors, media)['overwritten_lba'] for marker in metadata):
+                raise ValueError('identity slot overlaps label metadata')
+            spec['disc_identity_layout'] = discid.layout(sectors, media)
+        discid.notice()
     if media == "cd":
         from . import cd, cdimage
         cd.check_capacity(sectors)
@@ -63,7 +76,7 @@ def write_iso(path: str, sectors: int = DEFAULT_SECTORS, seed: int = 1, log=prin
             if done / sectors >= next_report - 1e-9:   # (steps of 0.01 add up to a hair over 1)
                 log(f"  {100 * done / sectors:5.1f} %")
                 next_report += getattr(log, "every", 0.2)
-    iso9660.add(path, sectors, "DISCPROBE_RANDOM")
+    iso9660.add(path, sectors, "DISCPROBE_RANDOM", identity)
     if spec and spec.get('state') == 'pending':
         from .randomlabel import PENDING_LBA, marker
         with open(path, 'r+b') as f:

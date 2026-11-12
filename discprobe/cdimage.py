@@ -96,16 +96,26 @@ def _new_paths(path, suffix):
 
 
 def write_iso(path, design, u, v, bit_nm, total_sectors, dark="0D", light="AA", log=print,
-              meta=None, correction=None, textures=None):
+              meta=None, correction=None, textures=None, disc_id=False, disc_id_code=None):
     cd.check_capacity(total_sectors)
     texs = I._textures(design, dark, light, textures)
     # Metadata sectors and their CIRC footprint must be in background label 0.
-    f, s = cd.user_to_physical(np.arange(16, 21)[:, None], np.arange(2048)[None, :])
+    from . import discid
+    enabled = discid.requested(disc_id, disc_id_code)
+    if enabled:
+        discid.positions(total_sectors)
+    f, s = cd.user_to_physical(np.arange(0 if enabled else 16, 32 if enabled else 21)[:, None], np.arange(2048)[None, :])
     if np.any(_labels(design, u, v, bit_nm * 1e-6, f, s, correction) != 0):
         raise ValueError("ISO 9660 sectors overlap the drawing; leave an inner background margin")
     for t in texs:
         texture_bytes(t, np.array([0]), np.array([0]), np.array([0], np.uint8))
     _new_paths(path, ".image.json")
+    identity = None
+    if enabled:
+        identity = discid.create(code=disc_id_code, design=design, u=u, v=v, bit_nm=bit_nm,
+                                 textures=texs, meta=meta)
+        discid.encode_copy(identity, 0)
+        discid.notice()
     done, next_report = 0, 0.0
     with open(path, "xb") as fh:
         while done < total_sectors:
@@ -116,13 +126,15 @@ def write_iso(path, design, u, v, bit_nm, total_sectors, dark="0D", light="AA", 
             if done / total_sectors >= next_report - 1e-9:   # (steps of 0.01 add up to a hair over 1)
                 log(f"  {100 * done / total_sectors:5.1f} %")
                 next_report += getattr(log, "every", 0.2)
-    iso9660.add(path, total_sectors, "DISCPROBE_CD_IMAGE")
+    iso9660.add(path, total_sectors, "DISCPROBE_CD_IMAGE", identity)
     spec = {"kind": "cd-picture", "media": "cd", "user_offset": cd.USER_OFFSET, "u": u, "v": v, "bit_nm": bit_nm,
             "total_sectors": total_sectors, "textures": texs, "cell_mm": I.cell_mm(design),
             "sampling": "physical 12-data-symbol half-frame", "origin": "ECMA-130 fig C.4, sector byte 0 at F1 slot 1",
             "physical_origin_measured": False, **(meta or {})}
     if design.dtype == bool:
         spec.update(dark=dark, light=light)
+    if identity is not None:
+        spec["disc_identity_layout"] = discid.layout(total_sectors, "cd")
     spec_path = os.path.splitext(path)[0] + ".image.json"
     with open(spec_path, "x", encoding="utf-8") as fh:
         json.dump(spec, fh, indent=2)
@@ -165,6 +177,8 @@ def verify_iso(path, design, u, v, bit_nm, total_sectors, dark="0D", light="AA",
     sums = np.zeros((1200, 1200), np.float64) if reconstruction else None
     hits = np.zeros((1200, 1200), np.int64) if reconstruction else None
     problems = []
+    from . import discid
+    extra = discid.sectors_for(total_sectors) if discid.read_image(path) else []
     # Independent bit-stream scrambler, rather than the writer's byte mask.
     bits, reg = [], 1
     for _ in range(2340 * 8):
@@ -177,7 +191,7 @@ def verify_iso(path, design, u, v, bit_nm, total_sectors, dark="0D", light="AA",
             fh.seek(start * 2048)
             data = np.frombuffer(fh.read(count * 2048), np.uint8).reshape(count, 2048)
             lba, byte, frame, slot = inverse_positions(start, count)
-            keep = ~np.isin(lba, list(iso9660.SECTORS))
+            keep = ~np.isin(lba, list(iso9660.SECTORS) + extra)
             lba, byte, frame, slot = (a[keep] for a in (lba, byte, frame, slot))
             rec = data[lba - start, byte] ^ mask[byte]
             # Reconstruct the group's location with the rationalized closed form.

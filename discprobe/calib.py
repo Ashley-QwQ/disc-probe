@@ -215,7 +215,18 @@ def segments(layout: CalLayout):
     return out
 
 
-def write_iso(path: str, layout: CalLayout, log=print) -> str:
+def write_iso(path: str, layout: CalLayout, log=print, *, disc_id=False, disc_id_code=None) -> str:
+    from . import discid
+    identity = None
+    if discid.requested(disc_id, disc_id_code):
+        discid.positions(layout.total_sectors)
+        if any(
+                b['lba_start'] < 32 and b['lba_end'] > 0 for b in layout.bands):
+            raise ValueError("Disc identity overlaps calibration bands or image is too short")
+        identity = discid.create(code=disc_id_code, command="calib", u=layout.u0, v=layout.v0,
+                                 bit_nm=layout.bit_nm, seed=layout.seed, textures=[layout.guard, "A5", "92"])
+        discid.encode_copy(identity, 0)
+        discid.notice()
     if layout.total_sectors > DVD_PLUS_R_SECTORS:
         raise ValueError(f"layout needs {layout.total_sectors} sectors, more than a single-layer disc "
                          f"({DVD_PLUS_R_SECTORS}); lower --end-mm")
@@ -236,7 +247,7 @@ def write_iso(path: str, layout: CalLayout, log=print) -> str:
                 if done / layout.total_sectors >= next_report - 1e-9:   # (steps of 0.01 add up to a hair over 1)
                     log(f"  {100 * done / layout.total_sectors:5.1f} %")
                     next_report += getattr(log, "every", 0.1)
-    iso9660.add(path, layout.total_sectors, "DISCPROBE_CAL")
+    iso9660.add(path, layout.total_sectors, "DISCPROBE_CAL", identity)
     spec_path = os.path.splitext(path)[0] + ".cal.json"
     layout.save(spec_path)
     return spec_path
@@ -245,6 +256,8 @@ def write_iso(path: str, layout: CalLayout, log=print) -> str:
 def verify_iso(path: str, layout: CalLayout, samples: int = 6, seed: int = 9) -> list[str]:
     """Descramble sampled sectors: guards are pure, bands use only A5/92 and follow the pattern."""
     problems = []
+    from . import discid
+    discid_sectors = discid.sectors_for(layout.total_sectors) if discid.read_image(path) else ()
     size = os.path.getsize(path)
     if size != layout.total_sectors * dvd.SECTOR_BYTES:
         return [f"size {size} bytes, expected {layout.total_sectors * dvd.SECTOR_BYTES}"]
@@ -253,7 +266,7 @@ def verify_iso(path: str, layout: CalLayout, samples: int = 6, seed: int = 9) ->
     with open(path, "rb") as fh:
         for start, end, band in segments(layout):
             for lba in sorted({start, end - 1, *rng.integers(start, end, samples).tolist()}):
-                if lba in iso9660.SECTORS:
+                if lba in iso9660.SECTORS or (lba in discid_sectors):
                     continue
                 fh.seek(lba * dvd.SECTOR_BYTES)
                 rec = dvd.recorded(np.frombuffer(fh.read(dvd.SECTOR_BYTES), dtype=np.uint8), lba)
