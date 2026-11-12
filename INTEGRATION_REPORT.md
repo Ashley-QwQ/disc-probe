@@ -77,3 +77,11 @@ FAIL  Chinese: -h ['  photo       read the along-track residual from target phot
 slim 合并提交：`e76786a`，来源 `a38f502698f77d5207eaa258371a860fc1947c1b`。完整回归：pytest **336 passed、1 skipped、46 subtests passed**；Node **16/16 退出 0**；selftest **14 项旧断言失败，无新增失败断言**。日志为 `slim-*.txt`，原始逐条文本差异在 `slim-audit.json`。
 
 中文自测的失败文本发生变化：slim 补齐了“先刻录测量镜像”的翻译，原先排在第三项的“DVD 默认 8x”缺项进入前两项输出。已核对 `calibrate.py` 与基线完全相同，后者也是既有缺项，不是新回归。另作独立提交补齐这条翻译，定向解析中文 CLI 并断言 burn-speed 帮助含中文及 8x，通过。自测断言和失败判断未改，后续各步骤仍运行完整 selftest。
+
+## 第三步之一：模板导出
+
+来源 `752aab0958344b08f5833e590ac617b39fa3107d`。三个冲突：
+
+- `simulate.py`：使用模板分支的共享纹理色表及线性响应函数；把已有 random_mask、白纸背景和可选外缘半径一起接入共享响应。默认渲染运算顺序保留，避免把标签预览恢复成黑色背景或丢掉随机数据上下文。
+- `webui.py`：模板 ZIP 路由先返回二进制结果，再走原有手机断开/目录/任务分派；不把两个独立 if 生硬拼接，避免成功断开手机后又落入未知路由。
+- `zh.py`：新增模板词条加入现有字典，保留身份、标签、slim 和速度文案。
