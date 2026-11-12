@@ -1,11 +1,86 @@
 // DOM/event integration in headless Edge. File URLs only: no server, backend or drives.
 // Synthetic pointer capture and a deterministic animation clock exercise the actual handlers.
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
+
+async function browserReport(edge, fixture, profile, size) {
+  const deadline=Date.now()+30000;
+  const browser=spawn(edge,['--headless=new','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check',
+    '--allow-file-access-from-files','--remote-debugging-port=0',`--user-data-dir=${profile}`,`--window-size=${size}`,'about:blank'],
+    {stdio:['ignore','ignore','pipe'],windowsHide:true});
+  let stderr='',spawnError,ws,seq=0;
+  const pending=new Map();
+  browser.stderr.on('data',chunk=>{stderr=(stderr+chunk).slice(-8192);});
+  const exited=new Promise(done=>{
+    browser.once('exit',(code,signal)=>done({code,signal}));
+    browser.once('error',error=>{spawnError=error;done({error});});
+  });
+  const pause=ms=>new Promise(done=>setTimeout(done,ms));
+  const waitExit=async ms=>{
+    let timer;
+    try{return await Promise.race([exited,new Promise(done=>{timer=setTimeout(()=>done(null),ms);})]);}
+    finally{clearTimeout(timer);}
+  };
+  const send=(method,params={},timeout=Math.max(1,Math.min(5000,deadline-Date.now())))=>new Promise((ok,fail)=>{
+    const id=++seq,timer=setTimeout(()=>{pending.delete(id);fail(new Error('CDP timeout: '+method));},timeout);
+    pending.set(id,message=>{clearTimeout(timer);message.error?fail(new Error(JSON.stringify(message.error))):ok(message.result);});
+    ws.send(JSON.stringify({id,method,params}));
+  });
+  try {
+    let port;
+    while(Date.now()<deadline) {
+      if(spawnError)throw spawnError;
+      try {
+        const [value,endpoint]=(await readFile(join(profile,'DevToolsActivePort'),'utf8')).trim().split(/\r?\n/);
+        if(/^\d+$/.test(value)&&endpoint?.startsWith('/devtools/browser/')){port=value;break;}
+      }catch(error){if(!['ENOENT','EBUSY','EACCES','EPERM'].includes(error.code))throw error;}
+      await pause(100);
+    }
+    assert.ok(port,'Headless browser did not start: '+stderr);
+    const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`,{signal:AbortSignal.timeout(Math.max(1,Math.min(5000,deadline-Date.now())))})).json();
+    const target=pages.find(page=>page.type==='page'&&page.url==='about:blank');
+    assert.ok(target,'No fixture tab');
+    ws=new WebSocket(target.webSocketDebuggerUrl);
+    await new Promise((ok,fail)=>{
+      const timer=setTimeout(()=>fail(new Error('CDP connection timeout')),Math.max(1,Math.min(5000,deadline-Date.now())));
+      ws.addEventListener('open',()=>{clearTimeout(timer);ok();},{once:true});
+      ws.addEventListener('error',()=>{clearTimeout(timer);fail(new Error('CDP connection failed'));},{once:true});
+    });
+    ws.addEventListener('message',event=>{const message=JSON.parse(event.data);if(message.id){pending.get(message.id)?.(message);pending.delete(message.id);}});
+    await send('Page.enable');
+    await send('Page.bringToFront');
+    await send('Page.navigate',{url:pathToFileURL(fixture).href});
+    await send('Emulation.setVirtualTimePolicy',{policy:'pauseIfNetworkFetchesPending',budget:6000});
+    while(Date.now()<deadline) {
+      const result=await send('Runtime.evaluate',{expression:"document.getElementById('result')?.textContent",returnByValue:true});
+      if(result.exceptionDetails)throw new Error(JSON.stringify(result.exceptionDetails));
+      const report=result.result?.value;
+      if(report&&report!=='PENDING')return report;
+      await pause(30);
+    }
+    throw new Error('UI kit did not finish within 30000 ms: '+stderr);
+  }finally{
+    // Close this profile through CDP: dump-dom can finish all assertions yet
+    // leave Edge waiting during its own shutdown, causing spawnSync ETIMEDOUT.
+    let closeError;
+    if(ws?.readyState===WebSocket.OPEN&&browser.exitCode===null)try{
+      await send('Emulation.setVirtualTimePolicy',{policy:'advance'},3000);
+      await send('Page.navigate',{url:'about:blank'},3000);
+      await send('Browser.close',{},3000);
+    }catch(error){closeError=error;}
+    ws?.close();
+    const closed=await waitExit(Math.max(3000,deadline-Date.now()));
+    if(!closed){browser.kill();await waitExit(3000);throw new Error('The UI kit browser did not close');}
+    if(closed.error)throw closed.error;
+    if(closeError&&closed.code!==0)throw closeError;
+    assert.equal(closed.code,0,'UI kit browser exit: '+JSON.stringify(closed)+' '+stderr);
+  }
+}
 
 const edge = process.env.KIT_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 if (!existsSync(edge)) {
@@ -143,13 +218,8 @@ if (!existsSync(edge)) {
     for (const size of ['1360,1000', '390,844']) {
       // Edge's outer headless window has a minimum width; the iframe sets the actual test viewport.
       writeFileSync(fixture, html.replace('__PREVIEW_WIDTH__', size.startsWith('390') ? '390' : '1280'));
-      const result = spawnSync(edge, ['--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
-        '--allow-file-access-from-files', `--user-data-dir=${join(dir, `profile-${size}`)}`, `--window-size=${size}`,
-        '--virtual-time-budget=6000', '--dump-dom', pathToFileURL(fixture).href],
-      { encoding: 'utf8', timeout: 30000, maxBuffer: 4 * 1024 * 1024, windowsHide: true });
-      assert.ifError(result.error);
-      const report = result.stdout.match(/<pre id="result">([\s\S]*?)<\/pre>/)?.[1];
-      assert.match(report || result.stderr, /^PASS: UI kit/, `${size}: ${report || result.stderr}`);
+      const report=await browserReport(edge,fixture,join(dir,`profile-${size}`),size);
+      assert.match(report, /^PASS: UI kit/, `${size}: ${report}`);
       console.log(`UI kit browser integration passed (${size}; file URLs, synthetic events)`);
     }
     // Exact tokens are a requirement; the live index belongs to other concurrent jobs.
@@ -162,7 +232,8 @@ if (!existsSync(edge)) {
     }
   } finally {
     // Only the verified OS temporary directory created above is removed.
-    assert.ok(dir.startsWith(join(tmpdir(), 'discprobe-kit-')));
-    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    assert.equal(dirname(resolve(dir)),resolve(tmpdir()));
+    assert.ok(resolve(dir).startsWith(join(resolve(tmpdir()),'discprobe-kit-')));
+    await rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
 }
