@@ -19,15 +19,17 @@ def assess_range(fit, radius_range):
     # region stays outside coverage even when the extreme measured radii enclose it.
     missing = []
     cursor = lo
+    intersects = False
     for a, z in sorted(intervals):
         if z < cursor - .002 or a > hi + .002:
             continue
+        intersects = True
         if a > cursor + .002:
             missing.append([cursor, min(float(a), hi)])
         cursor = max(cursor, float(z))
         if cursor >= hi - .002:
             break
-    if cursor < hi - .002:
+    if not intersects or cursor < hi - .002:
         missing.append([cursor, hi])
     sigma = None
     cov = fit.get('covariance_uv')
