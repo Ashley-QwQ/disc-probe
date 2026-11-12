@@ -51,9 +51,10 @@ assert.match(stopReason("the disc's maker code is ABC, not RITEKF1").en, /ABC.*R
 assert.match(stopReason('the disc is a cd disc, not dvd').zh, /CD.*DVD/);
 assert.match(stopReason('the timing measurement was not usable (too_noisy)').zh, /转速检查没通过/);
 assert.equal(stopReason('something new').en, 'something new');
-const unsteady = stopReason("the drive's speed is not steady (63.50 ms a turn at 26 mm, 21.18 ms at 56 mm): it probably slowed down on a hard-to-read part of the disc");
-assert.equal(unsteady.zh, '光驱转速不稳，多半是这张盘某一段难读，光驱在那里反复降速。页面会用固定的读速、避开那一段再测；还不行就换一个刻录速度另刻一张测量盘。');
-assert.equal(unsteady.en, 'The drive changed speed, probably slowing down repeatedly on a hard-to-read part of this disc. The page will measure again at a fixed read speed, avoiding that band. If it still fails, burn another measurement disc at a different write speed.');
+const unsteady = stopReason("the drive's speed is not steady (63.50 ms a turn at 26 mm, 40.10 ms at 56 mm): the two periods differ and are not a whole number of turns apart");
+assert.equal(unsteady.zh, '光驱在内圈和外圈测到的每圈时间对不上，也不是整圈的倍数，说明这次测量时转速在变。可以再测一次；如果每次都这样，这台光驱这次没法用来测几何。');
+assert.ok(!/难读|避开/.test(unsteady.zh), 'no guessed cause');
+assert.equal(unsteady.en, 'The time per turn near the centre and near the edge does not match, and is not a whole multiple either, so the drive was changing speed during this run. Measure again; if it happens every time, this drive cannot measure the geometry for now.');
 for (const r of ['the burn did not finish','no disc is ready in the drive','cancelled during geo','the preset was not written'])
   for (const lang of ['zh','en']) assert.ok(!/[a-z_]{4,} [a-z]{3,} [a-z]{3,}/.test(stopReason(r)[lang]) || lang === 'en', r);
 console.log('Bilingual recovery, budget and failed-job tests passed');

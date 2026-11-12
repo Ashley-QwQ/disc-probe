@@ -16,7 +16,7 @@ from discprobe import calibrate, geo, webui
 
 
 REASON = ("the drive's speed is not steady (63.50 ms a turn at 26 mm, 21.18 ms at 56 mm): "
-          "it probably slowed down on a hard-to-read part of the disc")
+          "the two periods differ and are not a whole number of turns apart")
 
 
 def arguments(*extra):
@@ -28,7 +28,9 @@ def arguments(*extra):
 @pytest.mark.parametrize('ratio,reason', [
     (1, None), (1.04, None), (0.96, None),
     (56 / 26, 'the drive is not turning at a constant speed here'),
-    (21.18 / 63.50, REASON), (1.06, "the drive's speed is not steady"),
+    # 63.50 vs 21.18 ms is a whole-turn alias (exactly 3x), seen on two GH70N discs whose timing ran at a
+    # steady 10.15 ms: it must not stop geo. A non-whole change still does.
+    (21.18 / 63.50, None), (0.4, "the drive's speed is not steady"), (1.06, "the drive's speed is not steady"),
 ])
 def test_rotation_fake_periods(monkeypatch, ratio, reason):
     ladder = geo.Ladder(None)
@@ -49,6 +51,8 @@ def test_rotation_fake_periods(monkeypatch, ratio, reason):
     else:
         ladder.check_rotation()
     assert tp.summary['rotation_check']['ratio'] == pytest.approx(ratio)
+    if ratio == 21.18 / 63.50:
+        assert tp.summary['rotation_check']['alias_turns'] == 3
     assert not ladder.targets
 
 

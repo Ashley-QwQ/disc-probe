@@ -99,7 +99,7 @@ export const afterBurn = [
 export function stopReason(reason = '', {burnStarted = false} = {}) {
   const r = String(reason);
   let m;
-  if (/the drive's speed is not steady/.test(r)) return pair('光驱转速不稳，多半是这张盘某一段难读，光驱在那里反复降速。页面会用固定的读速、避开那一段再测；还不行就换一个刻录速度另刻一张测量盘。', 'The drive changed speed, probably slowing down repeatedly on a hard-to-read part of this disc. The page will measure again at a fixed read speed, avoiding that band. If it still fails, burn another measurement disc at a different write speed.');
+  if (/the drive's speed is not steady/.test(r)) return pair('光驱在内圈和外圈测到的每圈时间对不上，也不是整圈的倍数，说明这次测量时转速在变。可以再测一次；如果每次都这样，这台光驱这次没法用来测几何。', 'The time per turn near the centre and near the edge does not match, and is not a whole multiple either, so the drive was changing speed during this run. Measure again; if it happens every time, this drive cannot measure the geometry for now.');
   if (/the burn did not finish/.test(r)) return burnStarted
     ? pair('测量盘没有刻完：这张盘已经写了一部分，不能再用。换一张同批空白盘，再点“重新检测”。', 'The measurement disc did not finish burning. It is partly written and cannot be used again. Put in a fresh blank from this batch, then press Check again.')
     : pair('测量盘没有开始刻，盘没有动过。看一眼光驱和这张盘，再点“重新检测”。', 'The measurement burn did not start; the disc is untouched. Check the drive and the disc, then press Check again.');

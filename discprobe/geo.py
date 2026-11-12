@@ -236,10 +236,16 @@ class Ladder:
         if looks_clv(ratio, expected):
             raise RuntimeError(f"the drive is not turning at a constant speed here ({periods[0] * 1e3:.2f} ms a turn at "
                                f"{self._radius(inner):.0f} mm, {periods[1] * 1e3:.2f} ms at {self._radius(outer):.0f} mm), and geo needs it to")
+        # A whole-turn alias (one estimate locked onto every n-th turn) gives a ratio of n or 1/n.
+        # It says nothing against constant rotation, so fold it before calling the speed unsteady.
+        folds = round(ratio) if ratio >= 1 else round(1 / ratio)
+        if folds >= 2 and abs((ratio / folds if ratio >= 1 else ratio * folds) - 1) <= CAV_RATIO_SLACK:
+            tp.summary["rotation_check"]["alias_turns"] = folds
+            return
         if abs(ratio - 1) > CAV_RATIO_SLACK:
             raise RuntimeError(f"the drive's speed is not steady ({periods[0] * 1e3:.2f} ms a turn at "
                                f"{self._radius(inner):.0f} mm, {periods[1] * 1e3:.2f} ms at {self._radius(outer):.0f} mm): "
-                               "it probably slowed down on a hard-to-read part of the disc")
+                               "the two periods differ and are not a whole number of turns apart")
 
     def settle(self, max_rounds: int = 10) -> float:
         tp, prev = self.tp, None
