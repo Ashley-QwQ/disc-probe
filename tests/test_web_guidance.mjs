@@ -51,6 +51,15 @@ assert.match(stopReason("the disc's maker code is ABC, not RITEKF1").en, /ABC.*R
 assert.match(stopReason('the disc is a cd disc, not dvd').zh, /CD.*DVD/);
 assert.match(stopReason('the timing measurement was not usable (too_noisy)').zh, /转速检查没通过/);
 assert.equal(stopReason('something new').en, 'something new');
+const variable = {geo:{path:'results/geo-test',verdict:'good',measurement:{
+  completion_status:'target_reached',correction:'correction.json',span_mm:[24.5,57.9]}}};
+assert.match(measurementRecovery(variable).zh, /轨距.*自动.*修正/);
+assert.match(measurementRecovery(variable).en, /automatically/);
+assert.match(recoveryCommands(variable,{drive:'SIM',media:'dvd',sectors:2295104}), /--correction.*correction.json/);
+const partial = {geo:{verdict:'stopped_early',measurement:{completion_status:'candidates_exhausted',
+  coverage:{measured_intervals_mm:[[40.5,44.6]]}}}};
+assert.match(measurementRecovery(partial).zh, /40.5.*44.6.*外推/);
+assert.equal(recoveryAction(partial).id,'measure');
 const unsteady = stopReason("the drive's speed is not steady (63.50 ms a turn at 26 mm, 40.10 ms at 56 mm): the two periods differ and are not a whole number of turns apart");
 assert.equal(unsteady.zh, '光驱在内圈和外圈测到的每圈时间对不上，也不是整圈的倍数，说明这次测量时转速在变。可以再测一次；如果每次都这样，这台光驱这次没法用来测几何。');
 assert.ok(!/难读|避开/.test(unsteady.zh), 'no guessed cause');

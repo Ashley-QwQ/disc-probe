@@ -381,13 +381,13 @@ def _geo_fit(args, media=None) -> dict:
             path = os.path.join(chosen.path, "summary.json")
             print(f"Using the geo result you chose: {guide.describe_chosen(path)}")
         else:
-            path = guide.resolve_geo(args.geo, media)
+            path = guide.resolve_geo(args.geo, media, radius_range=getattr(args, '_radius_range', None))
     except ValueError as e:
         sys.exit(str(e))
     if args.geo.lower() == "latest":
         print(f"Using the latest geo result: {guide.describe_chosen(path)}")
-        chosen = guide.latest_geo(media)
-        if chosen is not None and not chosen.reliable():
+        chosen = guide.latest_geo(media, radius_range=getattr(args, '_radius_range', None))
+        if chosen is not None and not chosen.reliable(getattr(args, '_radius_range', None)):
             print("It was judged too noisy to rely on, and there is nothing better. To see them all: python -m discprobe results --pick")
         elif chosen is not None and guide.passed_over(chosen, media):
             print(f"Left out {guide.passed_over(chosen, media)} newer run(s) judged too noisy. To see them all: python -m discprobe results --pick")
@@ -725,7 +725,7 @@ def cmd_geo(args):
                     reps=args.reps, max_targets=args.max_targets, ref_lba=args.ref_lba,
                     speed_kbs=None if args.sim else args.speed, host_delay_ms=args.host_delay_ms, media=args.media,
                     chi2_abort=args.chi2_abort, sectors=args.sectors,
-                    read_offset_bytes=args.read_offset_bytes)
+                    read_offset_bytes=args.read_offset_bytes, auto_correct=not getattr(args, 'no_auto_correction', False))
     ladder.tp.summary["identity"] = _identity(args, dev)
     if args.sim:
         ladder.tp.summary["simulated"] = True
@@ -760,7 +760,11 @@ def cmd_geo(args):
         detail(f"Angle uncertainty across the measured span {res['measured_span_mm'][0]}-"
                f"{res['measured_span_mm'][1]} mm: {res['angle_sigma_measured_span_deg']:.3f} deg (1 sigma); "
                f"across {'25' if args.media == 'cd' else '24'}-58 mm: {res.get('angle_sigma_deg', float('nan')):.2f} deg")
-    if res and res["chi2_per_dof"] > 2 and not at_terminal:     # at a terminal the advice below settles this
+        coverage = res['coverage']
+        detail(f"Measured intervals (mm): {coverage['measured_intervals_mm']}. Largest unsampled gap: "
+               f"{coverage['largest_unsampled_gap_mm']:.3f} mm. Model bias between samples is not bounded.")
+        detail(f"Geometry measurement took {res['elapsed_s']:.1f} s; status: {res['completion_status']}.")
+    if res and res["chi2_per_dof"] > 2 and not at_terminal and not res.get('correction_file'):
         print(f"The constant-pitch fit leaves more than noise. See whether a varying pitch fits better: "
               f"python tools/geo_polyfit.py {out}")
     if ladder.targets and ladder.cov is not None:
@@ -783,6 +787,14 @@ def cmd_geo(args):
 def _warn_other_run(args, fit) -> None:
     """A correction left over from an earlier run still loads and still gives a tidy result, so nothing else would show it."""
     from . import imagedisc
+    if not args.correction and fit.get('correction_file'):
+        name = fit['correction_file']
+        if os.path.basename(name) != name:
+            sys.exit('invalid automatic correction filename')
+        args.correction = os.path.join(os.path.dirname(args.geo), name)
+        if not os.path.isfile(args.correction):
+            sys.exit('automatic angle correction is missing; restore correction.json for this geo run')
+        print(f'Using the automatic angle correction: {args.correction}')
     if not args.correction:
         return
     try:
@@ -855,18 +867,14 @@ def cmd_image(args):
     writer = imagedisc
     if args.media == "cd":
         from . import cdimage as writer
-    fit = _geo_fit(args, args.media)
-    _require_fit_media(args, fit)
-    _refuse_audio_fit(fit)
-    _warn_other_run(args, fit)
-    u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
-    if args.along_track_frames:
-        # Timing cannot see an along-track offset d (read completion vs written position): theta(n - d)
-        # is the same spiral with u^2 - v d / pi. Measure d on a burned grid disc.
-        from .cd import FRAME_BITS
-        if args.media != "cd":
-            sys.exit("--along-track-frames is for CD")
-        u = math.sqrt(u * u - v * args.along_track_frames * FRAME_BITS / math.pi)
+    # Explicit files (including an audio-track fit) can be rejected before loading
+    # a design. Resolve `latest` after the drawing span is known, so a partial run
+    # can still be selected for a small picture inside its measured interval.
+    fit = None
+    if args.geo.lower() != 'latest':
+        fit = _geo_fit(args, args.media)
+        _require_fit_media(args, fit)
+        _refuse_audio_fit(fit)
     if args.design and (args.design_npy or args.picture):
         sys.exit("--design replaces --picture and --design-npy: give one of them")
     if args.design_npy:
@@ -900,6 +908,17 @@ def cmd_image(args):
         design = imagedisc.grid_design(r_min=26.0 if args.media == "cd" else 24.5,
                                       r_max=args.r_max, line=args.line_mm, size=imagedisc.CELL_SIDES[args.cell_um or 20])
         kind = f"grid, {args.line_mm} mm lines"
+    args._radius_range = imagedisc.drawing_span(design)
+    fit = fit or _geo_fit(args, args.media)
+    _require_fit_media(args, fit)
+    _refuse_audio_fit(fit)
+    _warn_other_run(args, fit)
+    u, v, bit = fit['u'], fit['v'], fit['bit_nm_assumed']
+    if args.along_track_frames:
+        from .cd import FRAME_BITS
+        if args.media != 'cd':
+            sys.exit('--along-track-frames is for CD')
+        u = math.sqrt(u * u - v * args.along_track_frames * FRAME_BITS / math.pi)
     total = writer.sectors_to_radius(u, v, bit, args.r_max + 0.6)
     if args.media == "dvd":
         total = min(total, 2295104)
@@ -929,6 +948,19 @@ def cmd_image(args):
         lead = min(writer.sectors_to_radius(u, v, bit, args.random_below_mm), total)
         print(f"Random data up to {args.random_below_mm:g} mm (LBA {lead}); the picture starts there.")
     extra = {**({"first_lba": first} if first else {}), **({"lead_lba": lead} if lead else {})}
+    if args._radius_range:
+        from .coverage import range_warning
+        if args.media == 'cd':
+            from .cd import SECTOR_BITS as picture_bits
+        else:
+            picture_bits = imagedisc.SECTOR_BITS
+        radius_at = lambda l: bit * 1e-6 * math.sqrt(u * u + v * l * picture_bits / math.pi)
+        span = [max(args._radius_range[0], radius_at(max(first, lead))),
+                min(args._radius_range[1], radius_at(total))]
+        if span[1] > span[0]:
+            warning = range_warning(fit, span)
+            if warning:
+                print(f'Warning: {warning}')
     tex = f"textures {' '.join(args.textures)}" if args.textures else f"dark {args.dark}, light {args.light}"
     print(f"{kind}, {imagedisc.cell_mm(design) * 1000:g} um cells, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
           f"({total * 2048 / 1e9:.2f} GB), {tex}")
@@ -1131,7 +1163,13 @@ def _export_gate(args) -> None:
     A simulated run may still be exported, for trying the tool; --force writes the rest anyway."""
     if args.install:
         return
-    blocker = guide.install_blocker(args.geo, allow_simulated=True)
+    blocker = guide.install_blocker(args.geo, allow_simulated=True, radius_range=getattr(args, '_radius_range', None))
+    if not blocker and getattr(args, '_radius_range', None):
+        from .coverage import range_warning
+        with open(args.geo, encoding='utf-8') as stream:
+            warning = range_warning(json.load(stream).get('fit', {}), args._radius_range)
+        if warning:
+            print(f'Warning: {warning}')
     if not blocker:
         return
     if getattr(args, "force", False):
@@ -1151,6 +1189,8 @@ def cmd_disexport(args):
         if not (fit.get("model") == "clv" or fit.get("media") == "bd"):
             sys.exit("--twist-deg is for Blu-ray: a DVD or CD preset carries a pitch profile that is "
                      "fitted, so its twist is corrected by the angle map rather than by one number")
+    args._radius_range = ((args.r_min or 25.8, args.r_max or 54.4) if args.media != 'cd' else
+                          ((args.r_min, args.r_max) if args.r_min and args.r_max else None))
     fit = _geo_fit(args, args.media)
     is_cd = fit.get("media") == "cd"
     # A Blu-ray run is the CLV fit: r0, pitch and speed instead of the angle ladder's u and v.
@@ -1169,6 +1209,8 @@ def cmd_disexport(args):
         _export_gate(args)
         _disexport_bd(args)
         return
+    span = fit['measured_span_mm'] if is_cd else (25.8, 54.4)
+    args._radius_range = (args.r_min or span[0], args.r_max or span[1])
     _export_gate(args)
     # --install writes the preset file only after the export has written --output. When both name
     # one file the export has already destroyed the presets by then, so this is checked first.
@@ -1183,7 +1225,7 @@ def cmd_disexport(args):
     # A preset is used to cut discs and outlives the run: refuse the three kinds of result the
     # rest of the tool already tells people not to trust.
     if target:
-        blocker = guide.install_blocker(args.geo)
+        blocker = guide.install_blocker(args.geo, radius_range=args._radius_range)
         if blocker:
             _fail(f"Not installing this geo result: {blocker}")
         warning = guide.install_warning(args.geo)
@@ -1868,10 +1910,11 @@ def _build_parser():
     sp.add_argument("--r0-mm", type=float, default=24.0, help="prior geometry (loose)")
     sp.add_argument("--pitch-um", type=float, default=0.74)
     sp.add_argument("--bit-nm", type=float, default=133.3)
+    sp.add_argument('--no-auto-correction', action='store_true',
+                    help='disable variable-pitch prediction and automatic repeated angle probes')
     sp.add_argument("--chi2-abort", type=float, default=25.0,
-                    help="stop when chi2/dof of the constant-pitch fit exceeds this; raise it for media "
-                         "whose pitch varies (CD: a smooth S of a few degrees), the 90-degree residual "
-                         "check still catches whole-turn errors")
+                    help="constant-pitch abort limit (default 25); variable pitch is followed automatically "
+                         "unless --no-auto-correction is given; whole-turn checks remain active")
     sp.add_argument("--read-offset-bytes", type=float, default=0.0,
                     help="CD audio track only: where this drive's READ CD completes, in bytes before the end of "
                          "the sector in the burned audio stream (HP BU20N 0, PLDS DU-8A5LH -603)")

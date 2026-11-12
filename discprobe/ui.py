@@ -864,7 +864,8 @@ def geo_status(ladder, dev: ProgressDevice):
         if not total:
             stage = "cache test" if not hasattr(ladder, "ref") else "waiting for a steady spindle"
             return None, stage, None
-        done = rungs * ladder.reps + ladder.progress_checks_done + ladder.progress_current
+        done = (rungs * ladder.reps + ladder.progress_checks_done + ladder.progress_current
+                + getattr(ladder, 'progress_probe_done', 0))
         done = min(max(done, 0), total)
         stage = ladder.progress_stage
         if stage == "ladder":

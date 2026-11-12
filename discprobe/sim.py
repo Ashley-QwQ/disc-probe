@@ -19,6 +19,34 @@ from .scsi import ScsiResult, Sense, check_allowed
 
 TWO_PI = 2.0 * math.pi
 
+# I218_POST.md, data-side picture correction (the track angle has the opposite sign).
+I218_RADIUS = (24.5, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+               39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 57.9)
+I218_PHI = (-135.8, -111.4, -65, -28.9, -16.2, -12.5, -7.8, -4.4, -2, 1.6, 7.1,
+            9.7, 10.9, 11.2, 9.5, 3.9, 0, -3.7, -8.5, -11.6, -13.5, -17.2, -19.6,
+            -21, -20.5, -19.7, -20.2, -19.9, -18.5, -15.9, -11.9, -7.3, -1.5, 5.2, 11.6)
+
+
+def pitch_profile(name):
+    """A callable phi(radius_mm), in picture degrees; custom callables are accepted too."""
+    if callable(name):
+        return name
+    if name == 'i218':
+        from scipy.interpolate import PchipInterpolator
+        # Continue the edge tangent; clipping would manufacture another sharp bend.
+        p = PchipInterpolator(I218_RADIUS, I218_PHI)
+        def profile(r):
+            edge = min(max(r, I218_RADIUS[0]), I218_RADIUS[-1])
+            return float(p(edge) + p.derivative()(edge) * (r - edge))
+        return profile
+    if name == 'mild':
+        return lambda r: 3.0 * math.sin((r - 24.5) * TWO_PI / 33.4)
+    if name == 'step':
+        return lambda r: 2.0 * (1 + math.tanh((r - 49.9) / 0.035))
+    if name is None or name == 'constant':
+        return lambda r: 0.0
+    raise ValueError(f'unknown pitch profile: {name}')
+
 
 class SimDrive:
     def __init__(self, mode: str = "cav", fua_honoured: bool = True, flush_honoured: bool = False, seed: int = 1,
@@ -27,8 +55,9 @@ class SimDrive:
                  capacity: int | None = None, cache_blocks: int | None = None, reread_delay_ms: float = 0.0,
                  media="dvd", cd_u=None, cd_v=None, cd_audio: bool = False, cd_read_offset_bytes: float = 0.0,
                  patterns=(), block: int | None = None, state_change_after_reads: int | None = None,
-                 state_us_per_mm: float = 0.0):
+                 state_us_per_mm: float = 0.0, phi_profile=None):
         self.media = media
+        self.phi_profile = pitch_profile(phi_profile)
         # A drive that changes state partway through: after that many media reads, each read completes
         # state_us_per_mm later per mm of radius beyond 40 mm (a latency that depends on where the head is).
         self.state_change_after_reads = state_change_after_reads
@@ -127,7 +156,11 @@ class SimDrive:
 
     def block_end_angle(self, lba: int, count: int = 1) -> float:
         last_block_end = ((lba + count - 1) // self.block + 1) * self.block
-        return self.spiral.angle(self._end_sectors(last_block_end)) % TWO_PI
+        return self.track_angle(self._end_sectors(last_block_end)) % TWO_PI
+
+    def track_angle(self, sector: float) -> float:
+        """Unwrapped truth, shared by the spindle simulation and test comparisons."""
+        return self.spiral.angle(sector) - math.radians(self.phi_profile(self.spiral.radius(sector)))
 
     def true_phase_deg(self, ref_lba: int, target_lba: int) -> float:
         return math.degrees((self.block_end_angle(target_lba) - self.block_end_angle(ref_lba)) % TWO_PI)
@@ -238,8 +271,8 @@ class SimDrive:
 
         # The head sits at a fixed lab angle; disc angle theta is under it when the
         # unwrapped spindle phase equals theta modulo 2*pi.
-        theta_start = self.spiral.angle(start)
-        theta_end = self.spiral.angle(self._end_sectors(end))
+        theta_start = self.track_angle(start)
+        theta_end = self.track_angle(self._end_sectors(end))
         phase_now = self._phase(t_arrive)
         wait = (theta_start - phase_now) % TWO_PI
         t_start_pass = self._time_to_reach(t_arrive, phase_now + wait)

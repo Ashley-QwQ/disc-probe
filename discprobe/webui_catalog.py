@@ -237,4 +237,6 @@ def measurement(run):
         pass
     return dict(points=points, stopped=run.stopped, span_mm=run.fit.get('measured_span_mm'),
                 sigma_deg=run.fit.get('angle_sigma_measured_span_deg'),
+                completion_status=run.fit.get('completion_status'), coverage=run.fit.get('coverage'),
+                correction=run.fit.get('correction_file'), correction_validation=run.fit.get('correction_validation'),
                 rotation=run.rotation(), jitter_deg=guide._jitter(run.summary))

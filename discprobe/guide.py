@@ -139,7 +139,8 @@ class Result:
             return ("r0_mm" in self.fit and not self.stopped and reached and self.zones() >= 5
                     and isinstance(r2, (int, float)) and not isinstance(r2, bool) and r2 >= 0.99)
         return ("u" in self.fit and not self.stopped and reached and self.rungs() >= MIN_RUNGS
-                and self.fit.get("chi2_per_dof", 0) <= MAX_LATEST_CHI2)
+                and (self.fit.get('correction_validation', {}).get('repeat_cv_rms_deg', float('inf')) <= BAD_SIGMA_DEG
+                     or self.fit.get("chi2_per_dof", 0) <= MAX_LATEST_CHI2))
 
     @property
     def sigma(self) -> float | None:
@@ -150,9 +151,15 @@ class Result:
         """The check points read at the start and again at the end disagreed (geo.Ladder.check_state)."""
         return drive_changed(self.fit)
 
-    def reliable(self) -> bool:
+    def reliable(self, radius_range=None) -> bool:
         """Complete, not judged too noisy, and the drive did not change state during the run."""
-        return (self.geo_complete() and (self.sigma is None or self.sigma <= BAD_SIGMA_DEG)
+        from .coverage import range_warning
+        local_use = radius_range is not None and self.fit.get('completion_status') in ('candidates_exhausted', 'partial_readable')
+        complete = self.geo_complete() or (local_use and 'u' in self.fit and not self.stopped and self.rungs() >= MIN_RUNGS)
+        validation = self.fit.get('correction_validation')
+        sigma = validation.get('repeat_cv_rms_deg') if validation else self.sigma
+        return (complete and (sigma is None or sigma <= BAD_SIGMA_DEG)
+                and (radius_range is None or range_warning(self.fit, radius_range) is None)
                 and not self.drive_changed())
 
     def quality(self) -> str:
@@ -167,6 +174,9 @@ class Result:
         span = self.fit.get("measured_span_mm") or [0, NARROW_SPAN_MM]
         if span[1] - span[0] < NARROW_SPAN_MM:
             return "narrow span"
+        validation = self.fit.get('correction_validation')
+        if validation:
+            return 'good' if validation.get('repeat_cv_rms_deg', float('inf')) <= GOOD_SIGMA_DEG else 'usable'
         return "good" if self.sigma is not None and self.sigma <= GOOD_SIGMA_DEG and self.fit.get("chi2_per_dof", 0) <= 2 else "usable"
 
     def rotation(self) -> str | None:
@@ -185,6 +195,10 @@ class Result:
                 return "stopped before the first fit"
             state = "" if self.geo_complete() else "  (stopped early)"
             span = f.get("measured_span_mm") or ["?", "?"]
+            if f.get('correction_validation'):
+                validation = f['correction_validation']
+                return (f"{self.rungs()} rungs, corrected rms {validation['residual_rms_deg']:.2f} deg, "
+                        f"repeat CV {validation['repeat_cv_rms_deg']:.2f} deg, {span[0]}-{span[1]} mm{state}")
             return (f"{self.rungs()} rungs, rms {f.get('residual_rms_deg', 0):.2f} deg, "
                     f"chi2/dof {f.get('chi2_per_dof', 0):.1f}, {span[0]}-{span[1]} mm{state}")
         if self.kind == "timing":
@@ -219,10 +233,11 @@ def scan(out: str = "results") -> list[Result]:
     return sorted(found, key=lambda r: r.when, reverse=True)
 
 
-def latest_geo(media: str | None = None, out: str = "results") -> Result | None:
+def latest_geo(media: str | None = None, out: str = "results", radius_range=None) -> Result | None:
     """The newest measurement of a real disc that can be relied on, or failing that the newest complete one."""
-    runs = [r for r in scan(out) if r.geo_complete() and not r.simulated and (media is None or r.media == media)]
-    return next((r for r in runs if r.reliable()), runs[0] if runs else None)
+    runs = [r for r in scan(out) if (r.geo_complete() or (radius_range is not None and r.reliable(radius_range)))
+            and not r.simulated and (media is None or r.media == media)]
+    return next((r for r in runs if r.reliable(radius_range)), runs[0] if runs else None)
 
 
 def passed_over(chosen: Result, media: str | None = None, out: str = "results") -> int:
@@ -262,7 +277,7 @@ DRIVE_CHANGED_BLOCK = ("the drive changed during this run (its check points read
                        "whose check points held.")
 
 
-def install_blocker(geo_summary: str, allow_simulated: bool = False) -> str | None:
+def install_blocker(geo_summary: str, allow_simulated: bool = False, radius_range=None) -> str | None:
     """Why a geo result must not be installed as a DiscImageStudio preset, or None when it may.
 
     A preset outlives the run it came from: it is used to cut discs, and nothing later says it
@@ -289,6 +304,11 @@ def install_blocker(geo_summary: str, allow_simulated: bool = False) -> str | No
         return (f"this run stopped before the end ({i18n.tr(str(stopped))}), so the ladder never reached the "
                 f"fit. Run geo again and install a run that finished.")
     fit = summary.get("fit") or {}
+    from .coverage import range_warning
+    if radius_range is not None:
+        warning = range_warning(fit, radius_range)
+        if warning and (fit.get('measured_span_mm') or 'coverage' in fit):
+            return warning
     if fit.get("model") == "clv":
         # A Blu-ray run is judged by the T^2 line it fitted, not by an angle ladder: the figures are
         # the zone count and R^2 (`clv.ClvFit`), and a run of that kind has no chi2/dof or angle sigma.
@@ -329,7 +349,8 @@ def install_blocker(geo_summary: str, allow_simulated: bool = False) -> str | No
         return None
     if "u" not in fit:
         return "this run has no geometry fit in its summary.json, so there is nothing to install."
-    if fit.get("completion_status", "target_reached") != "target_reached":
+    status = fit.get('completion_status', 'target_reached')
+    if status != 'target_reached' and not (radius_range is not None and status in ('candidates_exhausted', 'partial_readable')):
         return "this run exhausted its candidates before reaching the target; measure again before installing a preset."
     rungs = None
     try:
@@ -340,11 +361,13 @@ def install_blocker(geo_summary: str, allow_simulated: bool = False) -> str | No
     if rungs is not None and rungs < MIN_RUNGS:
         return (f"this run measured {rungs} points, fewer than the {MIN_RUNGS} `results` needs before it trusts a "
                 f"fit. A preset is not the place to try one, and another run is the way to get there.")
-    chi2 = _quality_number(fit, "chi2_per_dof")
+    validation = fit.get('correction_validation')
+    chi2 = _quality_number(fit, "chi2_per_dof") if not validation else None
     if chi2 is not None and chi2 > MAX_LATEST_CHI2:
         return (f"this run's fit leaves chi2/dof {chi2:.1f}; `results` already treats it as unusable, and a "
                 f"preset is not the place to try it.")
-    sigma = _quality_number(fit, "angle_sigma_measured_span_deg")
+    sigma = (_quality_number(validation, 'repeat_cv_rms_deg') if validation else
+             _quality_number(fit, "angle_sigma_measured_span_deg"))
     if sigma is not None and sigma > BAD_SIGMA_DEG:
         return (f"this run is too noisy to rely on: angles are known to only {sigma:.2f} deg over the measured "
                 f"span ({_angle(sigma)}). Another speed usually helps; `results` lists what you have.")
@@ -404,12 +427,18 @@ def identity_of(run: Result, infos: list[Result] | None = None) -> dict:
     return {"disc": disc or "unknown disc", "drive": drive or (f"drive {tag}" if tag else "unknown drive"), "inferred": True}
 
 
-def resolve_geo(value: str, media: str | None = None, out: str = "results") -> str:
+def resolve_geo(value: str, media: str | None = None, out: str = "results", radius_range=None) -> str:
     """--geo takes a summary.json, a geo result folder, or `latest`. Raises ValueError with what to do."""
     if value.lower() == "latest":
-        r = latest_geo(media, out)
+        r = latest_geo(media, out, radius_range=radius_range)
         if r is None:
             have = any(x.kind == "geo" for x in scan(out))
+            partial = [x for x in scan(out) if x.kind == 'geo' and not x.simulated and
+                       x.fit.get('completion_status') in ('candidates_exhausted', 'partial_readable')]
+            if partial:
+                spans = [(x.fit.get('coverage') or {}).get('measured_intervals_mm', x.fit.get('measured_span_mm')) for x in partial]
+                raise ValueError(f'--geo latest: only partial measurements cover radii {spans} mm. '
+                                 'Use an explicit summary.json within its measured intervals; outside is extrapolation.')
             why = "only simulated or stopped runs were found" if have else "there is no geo result yet"
             raise ValueError(f"--geo latest: {why} in {out}. Run geo first, or give a summary.json path.")
         return os.path.join(r.path, "summary.json")
@@ -628,6 +657,12 @@ def compare_pitch(out: str, with_sigma: bool = False) -> tuple | None:
 
 def geo_summary(res: dict, rungs: int) -> str:
     span = res["measured_span_mm"]
+    if res.get('correction_validation'):
+        validation = res['correction_validation']
+        value = validation.get('independent_rms_deg')
+        check = f'{value:.2f}' if value is not None else 'unknown'
+        return (f"Measured {rungs} points across {span[0]}-{span[1]} mm with a variable-pitch correction; "
+                f"independent check rms {check} deg. Model bias between samples is not bounded.")
     return (f"Measured {rungs} points across {span[0]}-{span[1]} mm: angles known to about "
             f"{res['angle_sigma_measured_span_deg']:.2f} deg, points {res['residual_rms_deg']:.2f} deg from the fit on average.")
 
@@ -682,6 +717,19 @@ def after_geo(args, res: dict, out: str) -> list[str]:
     span = res.get("measured_span_mm") or [25.8, 54.4]
     correction = ""
     lines = []
+    if res.get('correction_file'):
+        s = res['correction_validation']
+        correction = ' --correction ' + short(os.path.join(out, res['correction_file']))
+        lines = ["Track pitch varies. Extra repeated points were measured and a smooth angle correction was saved.",
+                 f"Correction residual: rms {s['residual_rms_deg']:.3f} deg, max {s['residual_max_deg']:.3f} deg; repeat CV {s['repeat_cv_rms_deg']:.3f} deg.",
+                 f"Extra probing took {s['elapsed_s']:.1f} s. Thin radius intervals (mm): {s['thin_intervals_mm']}.",
+                 f"Measured radius range: {span[0]}-{span[1]} mm. Outside measured intervals is extrapolation.",
+                 "The correction is used automatically with this geometry. To disable extra probing on a new run, use geo --no-auto-correction.",
+                 "A cubic-pitch DIS preset may not reproduce this spline; check its conversion error before use.",
+                 f"  {PROG} image{flag} --geo {short(out)}{correction} --picture my_picture.png --output iso/picture.iso"]
+        if res.get('completion_status', 'target_reached') != 'target_reached':
+            lines.insert(0, 'Partial measurement: the correction did not pass all coverage or independent checks.')
+        return _state_lines(res, lines, [])
     if getattr(args, "sim", None):
         lines.append("This was the simulated drive: the verdict and commands below show the flow, do not burn from them.")
     compared = compare_pitch(out) if res["chi2_per_dof"] > 2 else None
@@ -691,7 +739,7 @@ def after_geo(args, res: dict, out: str) -> list[str]:
     too_noisy = sigma > BAD_SIGMA_DEG
     if res["chi2_per_dof"] <= 2:
         if sigma <= GOOD_SIGMA_DEG:
-            lines.append(f"Verdict: good. Only noise is left after the fit, and {_angle(sigma)}.")
+            lines.append(f"Verdict: good. The model is compatible with the measured points, and {_angle(sigma)}.")
         else:
             lines += [f"Verdict: {_noisy(sigma)}", f"For a cleaner run, try {word} or another drive:", *retry]
     elif compared is None:
@@ -711,6 +759,9 @@ def after_geo(args, res: dict, out: str) -> list[str]:
     lines = _state_lines(res, lines, retry)
     if span[1] - span[0] < NARROW_SPAN_MM:
         lines.append(f"This run only covers {span[0]}-{span[1]} mm, so angles outside that are extrapolated.")
+    lines.append(f"Measured radius range: {span[0]}-{span[1]} mm. Outside measured intervals is extrapolation.")
+    if res.get('completion_status', 'target_reached') != 'target_reached':
+        lines.insert(0, 'Partial measurement: candidates ran out; use only the measured radius intervals.')
     if res["chi2_per_dof"] > 2:
         if compared is None:
             lines += ["The fit left more than noise. Compare pitch models first, no new measurement needed; if quadratic is",
@@ -784,7 +835,7 @@ def after_geo_stop(args, reason: str, unreadable=()) -> list[str]:
         return [f"A whole-turn count went wrong, or the pitch varies more than the model allows. Try {word}:",
                 f"  {PROG} geo {again} --speed {other} --reps 32",
                 "If it keeps stopping near one LBA, leave that area out with --ranges a-b (see `geo -h`).",
-                "A disc whose pitch varies can take a higher limit, for example --chi2-abort 100."]
+                "Variable pitch is followed automatically, with closer rungs and repeated correction probes. Keep the whole-turn safety limit."]
     if "ranges" in reason:
         return ["--ranges has to overlap the recorded area. See the last LBA with:", f"  {PROG} info {carry}"]
     if "recorded area" in reason or "medium" in reason or "fails on" in reason:

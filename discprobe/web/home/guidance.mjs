@@ -30,6 +30,13 @@ export function recoveryKind(result = {}) {
   return ['good','usable','too_noisy','drive_changed','narrow_span','stopped_early'].includes(part.verdict) ? part.verdict : 'unknown';
 }
 export function measurementRecovery(result = {}) {
+  const part = result.geo || result.timing || result, m = part.measurement || {};
+  if (m.completion_status && m.completion_status !== 'target_reached') return pair(
+    `测量只完成了一部分。实测范围为 ${JSON.stringify(m.coverage?.measured_intervals_mm || m.span_mm || [])} mm；范围外属于外推，局部误差小不能证明整盘可用。`,
+    `Partial measurement. Measured radii: ${JSON.stringify(m.coverage?.measured_intervals_mm || m.span_mm || [])} mm. Outside is extrapolation; small local error does not validate the whole disc.`);
+  if (m.correction && ['good','usable'].includes(part.verdict)) return pair(
+    '盘的轨距会变化，已自动加密测量并保存平滑角度修正，生成图片时会自动使用。详情有重复读数误差、独立检查、耗时及测点稀疏区；范围外仍是外推。DIS 预设可能无法复现这条曲线，导出前须检查转换误差。',
+    'Track pitch varies. Extra points were measured and a smooth angle correction was saved; images use it automatically. Details contain repeat errors, independent checks, time and thin areas. Outside measured radii is extrapolation. A DIS preset may not reproduce the curve: check conversion error.');
   return ({
     good: pair('测量可用，可以保存。', 'The measurement is usable and ready to save.'),
     usable: pair('测量有些噪声，但仍可使用。可以保存，也可以保留这张盘再测一次。', 'There is some noise, but the measurement is usable. Save it, or keep this disc and measure again.'),
@@ -64,6 +71,7 @@ export function recoveryCommands(result, {drive, media, sectors}) {
     commands.push(`${base} disexport --media ${media} --geo ${JSON.stringify(part.path)} --sectors ${sectors} --r-min START --r-max END --output presets/fitted.json`);
   }
   if (kind === 'unknown' && result.geo?.path) commands.push(`python tools/geo_polyfit.py ${JSON.stringify(part.path)}`);
+  if (part.measurement?.correction && part.path) commands.push(`${base} image --media ${media} --geo ${JSON.stringify(part.path)} --correction ${JSON.stringify(part.path + '/' + part.measurement.correction)} --picture my_picture.png --output iso/picture.iso`);
   return commands.join('\n');
 }
 export const cdPhoto = pair(

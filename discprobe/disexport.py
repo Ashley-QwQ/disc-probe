@@ -133,6 +133,13 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
         decision = dict(written=True, frames=along_track_frames, origin="manual")
     with open(geo_summary, encoding="utf-8") as f:
         geo = json.load(f)["fit"]
+    from .coverage import range_warning
+    warning = range_warning(geo, (r_lo, r_hi))
+    if warning:
+        print(f'Warning: {warning}')
+    if not correction_path and geo.get('correction_file'):
+        import os
+        correction_path = os.path.join(os.path.dirname(geo_summary), geo['correction_file'])
     if geo.get("model") == "clv" or geo.get("media") == "bd":
         raise ValueError("this geo result measured a disc the drive reads at a constant linear speed, so it "
                          "holds r0_mm, pitch_um and v_m_s rather than the angular u/v fit this module "
