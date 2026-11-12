@@ -132,85 +132,10 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
         if not math.isfinite(along_track_frames):
             raise ValueError("--along-track-frames must be finite")
         decision = dict(written=True, frames=along_track_frames, origin="manual")
-    from .read_completion import load_fit
-    geo, completion_method = load_fit(geo_summary, completion_sectors)
-    if geo.get("model") == "clv" or geo.get("media") == "bd":
-        raise ValueError("this geo result measured a disc the drive reads at a constant linear speed, so it "
-                         "holds r0_mm, pitch_um and v_m_s rather than the angular u/v fit this module "
-                         "converts. DiscImageStudio's Blu-ray preset is those three numbers, so use "
-                         "`disexport --geo ... --sectors ...` with no --media, which writes one through "
-                         "discprobe.bdexport")
-    media = "cd" if geo.get("media") == "cd" else "dvd"
-    u, v, bit = geo["u"], geo["v"], geo["bit_nm_assumed"]
-    audio = geo.get("track") == "audio"
-    # Photo L is a measured property of the entire burn/read path. It can be
-    # nonzero on a DIS audio path too; read-offset calibration does not prove L=0.
-    if media == "cd":
-        cd.check_capacity(total_sectors)
-        if abs(bit - cd.BIT_NM) > 1e-6:
-            raise ValueError(f"DiscImageStudio fixes the CD speed at 1200 mm/s ({cd.BIT_NM:.4f} nm per bit), "
-                             f"this geo run assumed {bit} nm")
-        # Same convention as image --along-track-frames: theta(n - d) is the spiral with u^2 - v d / pi.
-        if along_track_frames is not None:
-            u = math.sqrt(u * u - v * along_track_frames * cd.FRAME_BITS / math.pi)
-    elif along_track_frames:
-        raise ValueError("--along-track-frames is for CD")
-    corr = None
-    if correction_path:
-        from .imagedisc import correction_from_timing, load_correction
-        corr = load_correction(correction_path)
-    fit = fit_preset(u, v, bit, total_sectors, r_lo, r_hi, corr, cd.SECTOR_BITS if media == "cd" else SECTOR_BITS)
-    if fit["max_angle_diff_deg"] > MAX_EXPORT_DIFF_DEG:
-        raise ValueError(f"the preset misses the measured map by {fit['max_angle_diff_deg']:.1f} deg over "
-                         f"{r_lo}-{r_hi} mm (outer radius came out {fit['outerRadiusMm']:.3f} mm); "
-                         f"check --sectors and the fit range. No preset written.")
-    if fit["full_angle_diff_deg"] > MAX_EXPORT_DIFF_DEG:
-        # Outside the fitted range the preset's cubic pitch and the correction (held constant there) part ways.
-        way = ("export without --correction, or measure a wider range" if corr else "measure a wider range")
-        raise ValueError(f"outside {r_lo}-{r_hi} mm the preset would be {fit['full_angle_diff_deg']:.1f} deg away from "
-                         f"the measured mapping, and a DiscImageStudio preset can't follow it there; {way}. "
-                         "No preset written.")
-    corrected = ""
-    if corr:
-        with open(correction_path, encoding="utf-8") as f:
-            stacked = bool(json.load(f).get("base_source"))
-        corrected = (" + timing correction refined by grid scans" if stacked
-                     else " + varying-pitch correction from timing" if correction_from_timing(correction_path)
-                     else " + grid-scan angle correction")
-    desc = (f"Drive-timing calibration (discprobe){corrected}; "
-            f"fitted over {r_lo}-{r_hi} mm, max angle difference to the measured map "
-            f"{fit['max_angle_diff_deg']:.3f} deg; full-capacity mapping difference "
-            f"{fit['full_angle_diff_deg']:.3f} deg")
-    if audio:
-        desc += f"; measured on the CD-DA track, read offset {geo.get('read_offset_bytes', 0.0):g} bytes"
-    if media == "cd" and along_track_frames is not None:
-        desc += f"; along-track constant {along_track_frames:g} frames"
-    elif media == "cd":
-        desc += "; along-track constant unknown"
-    out = {"preset": preset_json(fit, total_sectors, bit, preset_id, name, desc, media), "fit": fit,
-           "source": {"geo": geo_summary.replace("\\", "/").split("/")[-1],
-                      "correction": correction_path.replace("\\", "/").split("/")[-1] if correction_path else None}}
-    if geo.get('completion_sectors') or geo.get('completion_adjustment'):
-        out['source']['completion_sectors'] = geo.get('completion_sectors', 0)
-        out['source']['completion_method'] = completion_method
-        if geo.get('completion_adjustment'):
-            out['source']['completion_adjustment'] = geo['completion_adjustment']
-        if geo.get('completion_source'):
-            out['source']['completion_source'] = geo['completion_source']
-    if media == "cd" and along_track_frames is not None:
-        out["source"]["along_track_frames"] = along_track_frames
-    if media == "cd" or photo_path is not None:
-        out["source"]["photo_shift"] = decision
-        if decision.get("provenance"):
-            out["source"]["photo_provenance"] = decision["provenance"]
-            # DIS has no separate L field. Put provenance in its supported text
-            # field too, so installing only `preset` retains the registration.
-            out["preset"]["description"] += "; photo provenance: " + json.dumps(
-                decision["provenance"], ensure_ascii=False, sort_keys=True)
-    if audio:
-        out["source"]["track"] = "audio"
-        out["source"]["read_offset_bytes"] = geo.get("read_offset_bytes", 0.0)
-    if out_path:
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(out, f, indent=2, ensure_ascii=False)
-    return out
+    from .coverage import range_warning
+    warning = range_warning(geo, (r_lo, r_hi))
+    if warning:
+        print(f'Warning: {warning}')
+    if not correction_path and geo.get('correction_file'):
+        import os
+        correction_path = os.path.join(os.path.dirname(geo_summary), geo['correction_file'])

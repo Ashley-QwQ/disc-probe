@@ -125,12 +125,38 @@ class Correction:
         return np.polyval(self.coef, (np.clip(r, self.lo, self.hi) - 40.0) / 15.0)
 
 
+def drawing_span(design):
+    """Actual non-background pixels, in mm; row chunks avoid another full-size grid."""
+    coords = (np.arange(design.shape[0]) + .5) * (2 * HALF_MM / design.shape[0]) - HALF_MM
+    lo, hi = float('inf'), 0.
+    for offset in range(0, len(coords), 128):
+        y, x = np.nonzero(design[offset:offset + 128])
+        if len(x):
+            radii = np.hypot(coords[x], coords[y + offset])
+            lo, hi = min(lo, float(radii.min())), max(hi, float(radii.max()))
+    half_cell = HALF_MM / len(coords)
+    return [max(0., lo - half_cell), hi + half_cell] if math.isfinite(lo) else None
+
+
 def load_correction(path: str) -> Correction:
     """phi(r) in degrees from an angle-correction file (polynomial, held constant outside its range)."""
     with open(path, encoding="utf-8") as f:
         c = json.load(f)
     lo, hi = c["radius_valid_mm"]
+    if 'spline' in c:
+        return SplineCorrection(c['spline'], lo, hi)
     return Correction(c["poly_in_x"], lo, hi)
+
+
+class SplineCorrection:
+    """Same clipped phi(r) contract as Correction, with a cubic B-spline payload."""
+    def __init__(self, spline, lo, hi):
+        from scipy.interpolate import BSpline
+        self.lo, self.hi = float(lo), float(hi)
+        self.spline = BSpline(spline['t'], spline['c'], spline['k'])
+
+    def __call__(self, r):
+        return self.spline(np.clip(r, self.lo, self.hi))
 
 
 def _timing_source(c: dict) -> str | None:
@@ -142,7 +168,7 @@ def _timing_source(c: dict) -> str | None:
 def correction_from_timing(path: str) -> bool:
     """True for a correction made from a geo run by tools/geo_polyfit.py, False for one from grid scans."""
     with open(path, encoding="utf-8") as f:
-        return str(json.load(f).get("source")).startswith("tools/geo_polyfit.py ")
+        return str(json.load(f).get("source")).startswith(("tools/geo_polyfit.py ", 'geo automatic'))
 
 
 def geometry_fit(geo: str) -> dict | None:
