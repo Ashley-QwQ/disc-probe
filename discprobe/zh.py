@@ -7,6 +7,11 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    "an editor work document to compose and simulate": "合成并模拟编辑器作品文档",
+    "work simulation requires --output; use --rotate for another view": "作品模拟需要 --output；用 --rotate 查看其他角度",
+    "compose an editor work document into material labels (no drive access)": "把编辑器作品合成为材质标签图（不操作光驱）",
+    "versioned work JSON saved by the page": "网页保存的带版本号作品 JSON",
+    "output uint8 design.npy; texture order saved beside it": "输出 uint8 design.npy；材质顺序另存于旁边",
     "drive busy": "光驱正忙",
     "unknown drive": "未知光驱",
     "the drive did not answer in time": "光驱没有及时回应",

@@ -55,7 +55,7 @@ OPTIONS = {
     "random": {"sectors": "sectors", "seed": "seed", "output": "path"},
     "image": {"geo": "geo", "picture": "path", "design": "path", "design_npy": "path", "output": "path",
               "diameter_mm": "diameter", "r_max": "radius", "along_track_frames": "frames",
-              "dark": "texture", "light": "texture"},
+              "dark": "texture", "light": "texture", "textures": "texture_list"},
     "disexport": {"geo": "geo", "sectors": "sectors", "output": "path", "r_min": "radius", "r_max": "radius"},
     "cdprobe": {"sectors": "sectors", "output": "path", "size": "size"},
     "burn": {"iso": "path", "speed": "burn_speed", "cd_sector": "cd_layout", "no_verify": "flag"},
@@ -143,6 +143,13 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
                 except argparse.ArgumentTypeError:
                     raise APIError("invalid " + name) from None
                 argv += ["--avoid-mm", band]
+            continue
+        if rule == "texture_list":
+            if not isinstance(value, list) or not 1 <= len(value) <= 256 or any(
+                not isinstance(v, str) or not re.fullmatch(r"(?:[0-9A-Fa-f]{2}){1,128}", v) for v in value
+            ):
+                raise APIError("invalid texture list")
+            argv += ["--textures", *value]
             continue
         if rule == "flag":
             if type(value) is not bool:
@@ -393,6 +400,8 @@ class Backend:
         self.disc_reader = disc_reader or (lambda drive: read_disc_child(self.root, drive))
         self.closed = False
         self.folder = self.root / ".webui-jobs"
+        from .editor_preview import Renderer
+        self.editor_renderer = Renderer()
 
     def state(self, media=None):
         """The workflow for one disc type. The page asks for the type of the work it has open; the server's
@@ -525,6 +534,25 @@ class Backend:
             raise APIError("not found", 404)
         size = path.stat().st_size
         return dict(path=path.relative_to(self.root).as_posix(), bytes=size, sectors=size // 2048)
+
+    def compose_document(self, document: dict) -> dict:
+        """Save the portable work and compose with the same pure core as the CLI."""
+        from .editor_ops import compose_file, validate, migrate
+        try:
+            document = validate(migrate(document))
+            folder = self.root / "designs"
+            if not folder.resolve().is_relative_to(self.root):
+                raise ValueError("design directory must stay inside the workspace")
+            folder.mkdir(exist_ok=True)
+            path = folder / ("work-" + secrets.token_hex(8) + ".json")
+            path.write_text(json.dumps(document), encoding="utf8")
+            target = path.with_suffix(".npy")
+            compose_file(path, target)
+            return dict(work=path.relative_to(self.root).as_posix(),
+                        design_npy=target.relative_to(self.root).as_posix(),
+                        textures=[m["spec"] for m in document["materials"]])
+        except (ValueError, KeyError, TypeError) as exc:
+            raise APIError(str(exc)) from exc
 
     def save_design(self, packed: bytes) -> dict:
         """Keep a design the page drew (one bit per cell of 20, 10 or 5 µm, row by row, dark = 1) as image
@@ -701,13 +729,15 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Set-Cookie", f"discprobe_session={self.server.token}; Path=/; HttpOnly; SameSite=Strict")
         super().end_headers()
 
-    def _send(self, code, body, content_type="application/json; charset=utf-8"):
+    def _send(self, code, body, content_type="application/json; charset=utf-8", headers=None):
         self.send_response(code)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
+        for name,value in (headers or {}).items():
+            self.send_header(name,str(value))
         self.end_headers()
         self.wfile.write(body)
 
@@ -906,6 +936,26 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             self._allowed()
+            if urlsplit(self.path).path in ("/api/editor-preview", "/api/editor-swatches"):
+                if self.headers.get_content_type() != "application/json":
+                    raise APIError("application/json required", 415)
+                payload=json.loads(self._body(64 * 1024 * 1024))
+                if not isinstance(payload,dict):
+                    raise APIError("invalid preview request")
+                try:
+                    renderer=self.server.backend.editor_renderer
+                    if urlsplit(self.path).path == "/api/editor-swatches":
+                        self._json(200,renderer.swatches(payload.get('pose')))
+                    else:
+                        data,meta=renderer.render(payload)
+                        try:
+                            self._send(200,data,"image/png",{'X-Editor-Document':meta['document_hash'],
+                                       'X-Editor-Quality':meta['quality'],'X-Editor-Cache':'hit' if meta['cache_hit'] else 'miss'})
+                        except (BrokenPipeError,ConnectionResetError,ConnectionAbortedError):
+                            pass  # A pose change may have cancelled this image request.
+                except (ValueError,KeyError,TypeError,IndexError) as exc:
+                    raise APIError(str(exc)) from exc
+                return
             if urlsplit(self.path).path == "/api/photos":
                 from .photo import PHOTO_TYPES
                 kind = self.headers.get_content_type()
@@ -923,6 +973,11 @@ class Handler(BaseHTTPRequestHandler):
                         raise
                     raise APIError(str(exc)) from exc
                 self._json(200, result)
+                return
+            if urlsplit(self.path).path == "/api/compose":
+                if self.headers.get_content_type() != "application/json":
+                    raise APIError("application/json required", 415)
+                self._json(200, self.server.backend.compose_document(json.loads(self._body(64 * 1024 * 1024))))
                 return
             if urlsplit(self.path).path == "/api/design":
                 if self.headers.get_content_type() != "application/octet-stream":

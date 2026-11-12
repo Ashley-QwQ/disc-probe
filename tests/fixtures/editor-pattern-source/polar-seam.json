@@ -1,0 +1,35 @@
+{
+  "fill": {
+    "version": 1,
+    "pattern": "diamond",
+    "coordinates": "polar",
+    "pitch_mm": 5.0,
+    "size_mm": 0.75,
+    "angle_deg": 0.0,
+    "origin_mm": [
+      0.0,
+      0.0
+    ],
+    "phase_mm": [
+      0.31,
+      -0.27
+    ],
+    "reference_radius_mm": 40.0,
+    "materials": [
+      0,
+      300
+    ],
+    "segments": 51
+  },
+  "grid": {
+    "width": 96,
+    "height": 96,
+    "left_mm": 29.0,
+    "top_mm": -0.1,
+    "cell_mm": 0.005,
+    "annulus_mm": [
+      24.0,
+      58.0
+    ]
+  }
+}

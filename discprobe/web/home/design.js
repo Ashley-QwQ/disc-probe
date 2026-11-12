@@ -7,6 +7,9 @@
 // Tone, dither and export bit packing run in a module worker.
 import { processRGBA, renderOutput, autoLevels } from "./design/processing.mjs";
 
+import { Editor } from "./design/editor-ui.mjs";
+import * as EditorOps from "./design/editor-ops.mjs";
+
 import { processingWorker } from "./design/worker-client.mjs";
 
 let api, $;
@@ -51,7 +54,7 @@ const STR = {
     modes: { "floyd-steinberg": "误差扩散", "blue-noise": "蓝噪声", ordered: "有序", clustered: "网点", threshold: "不抖动" },
     reset: "恢复默认",
     tools: { move: "选择（V）", wand: "选区（W）", pan: "平移（H，或按住空格）" },
-    proj: "投影", orig: "原图", viewAria: "画布显示", zoomAria: "在适应盘面和 100% 之间切换",
+    proj: "设计", orig: "灯下", viewAria: "画布显示", zoomAria: "在适应盘面和 100% 之间切换",
     empty: "把图片拖到这里，或者按导入图片", sample: "用示例图试试", drop: "松手，放到盘上",
     outside: "有一部分在可刻范围外，压暗的地方会被裁掉。",
     tooBig: (n) => `${n} 太大了：单张最多 3600 万像素、24 MiB。先缩小再导入。`, badType: (n) => `${n} 不是能读的图片（PNG、JPEG、WebP、BMP）。`,
@@ -127,7 +130,7 @@ const STR = {
     modes: { "floyd-steinberg": "Error diffusion", "blue-noise": "Blue noise", ordered: "Ordered", clustered: "Halftone", threshold: "No dither" },
     reset: "Reset",
     tools: { move: "Select (V)", wand: "Selection (W)", pan: "Pan (H, or hold Space)" },
-    proj: "Projection", orig: "Original", viewAria: "Canvas shows", zoomAria: "Switch between fit and 100%",
+    proj: "Design", orig: "Under the lamp", viewAria: "Canvas shows", zoomAria: "Switch between fit and 100%",
     empty: "Drop a picture here, or use Import picture", sample: "Try a sample picture", drop: "Let go to put it on the disc",
     outside: "Part of it is outside the burnable range; the dimmed part will be cut off.",
     tooBig: (n) => `${n} is too large: at most 36 megapixels and 24 MiB. Shrink it first.`, badType: (n) => `${n} isn't a picture this can read (PNG, JPEG, WebP, BMP).`,
@@ -202,6 +205,7 @@ const COLOURS = { red: 0.62, green: 0.53, blue: 0.46 };   // target wavelengths,
 const FLASH = [-43.66, 19.79];               // iPhone 17 Pro flash relative to the lens (drawing values)
 const FWHM = 0.08;                           // measured peak width in δ (the model said 0.04)
 
+let editor = null;
 let S = null;                                // the project on screen
 // The plans (works) made or opened while the page lives, newest first. A plan is a work, not a disc:
 // one batch of discs can carry many plans (docs/goals/gui-flow.md 1.1).
@@ -246,7 +250,7 @@ function pictureRange() {
 // snapshot only holds references to them.
 const PROPS = ["name", "x", "y", "width", "height", "rot", "opacity", "visible", "locked", "px", "colour", "y1", "y2", "fxKind"];
 function snapshot() {
-  return { layers: S.layers.map((L) => ({ obj: L, props: Object.fromEntries(PROPS.map((k) => [k, L[k]])) })), selected: S.selected };
+  return { editor: structuredClone({selections:S.selections, assignments:S.assignments, activeMask:S.activeMask, maskGrid:S.maskGrid, materials:S.materials}), layers: S.layers.map((L) => ({ obj: L, props: Object.fromEntries(PROPS.map((k) => [k, L[k]])) })), selected: S.selected };
 }
 let lastMark = { key: "", t: 0 };
 function checkpoint(key = "") {
@@ -265,10 +269,14 @@ function restore(snap) {
     if (pxChanged) pixelsChanged(obj);
     return obj;
   });
+  Object.assign(S, snap.editor ?? {});
+  editor?.invalidate();
+  editor?.selectionOptions(S.selections?.find(m=>m.id===S.activeMask)?.definition);
   S.selected = snap.selected;
   for (const L of S.layers) clearSelection(L);
   changed();
   buildLeft();
+  editor?.panels();
 }
 function undo() { if (!S.past.length) return; S.future.push(snapshot()); restore(S.past.pop()); }
 function redo() { if (!S.future.length) return; S.past.push(snapshot()); restore(S.future.pop()); }
@@ -323,13 +331,21 @@ function addEffect(kind) {
 async function importFiles(files) {
   const t = T();
   for (const f of files) {
-    if (!/^image\/(png|jpeg|webp|bmp)$/.test(f.type)) { toast(t.badType(f.name)); continue; }
+    if (!/^image\/(png|jpeg|webp|bmp|svg\+xml)$/.test(f.type)) { toast(t.badType(f.name)); continue; }
     if (f.size > 24 * 1024 * 1024) { toast(t.tooBig(f.name)); continue; }
-    let bmp;
-    try { bmp = await createImageBitmap(f); } catch { toast(t.badType(f.name)); continue; }
+    let bmp, svg;
+    try {
+      if (f.type === "image/svg+xml" || /\.svg$/i.test(f.name)) {
+        svg = await f.text();
+        const parsed = new DOMParser().parseFromString(svg, "image/svg+xml");
+        if (parsed.querySelector("parsererror,script,foreignObject") || [...parsed.querySelectorAll("*")].some(n => [...n.attributes].some(a => /^on/i.test(a.name) || (!a.name.startsWith("xmlns") && /(?:https?:|file:|javascript:)/i.test(a.value))))) throw Error("SVG must be self-contained");
+        const url = URL.createObjectURL(new Blob([svg], {type:"image/svg+xml"}));
+        try { bmp = await new Promise((ok,no)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=no;im.src=url;}); } finally { URL.revokeObjectURL(url); }
+      } else bmp = await createImageBitmap(f);
+    } catch { toast(t.badType(f.name)); continue; }
     if (bmp.width * bmp.height > 36e6) { toast(t.tooBig(f.name)); continue; }
     const L = addImageLayer(f.name, bmp, bmp.width, bmp.height);
-    if (L) L.file = f;                       // the original, for export at full size and for saving
+    if (L) { L.file = f; L.sourceKind = svg ? "svg" : "bitmap"; if(svg)L.svg=svg; }                       // the original, for export at full size and for saving
     bmp.close?.();
   }
 }
@@ -398,7 +414,7 @@ function runSelection(L) {
   L.sel = mask;
   // the inverted view of the selected pixels
   const img = new ImageData(L.w, L.h), d = L.px.data, o = img.data;
-  const grey = S.view === "proj";
+  const grey = S.view !== "orig";
   for (let i = 0; i < n; i++) {
     if (!mask[i]) continue;
     const j = i * 4;
@@ -479,10 +495,12 @@ function hitLayer(mm, kinds = ["image", "fx"]) {
   }
   return null;
 }
-const DOCK = 56;                             // the canvas's bottom strip, where the number bar docks
+const TOP_DOCK = 64;
+const DOCK = 96;                             // the canvas's bottom strip, where the number bar docks
 function fit() {
-  V.s = Math.min(V.w, V.h - DOCK) * 0.92 / 120;
-  V.cx = V.w / 2; V.cy = (V.h - DOCK) / 2;
+  V.s = Math.min(V.w - 64, V.h - TOP_DOCK - DOCK) * 0.92 / 120;
+  V.cx = V.w / 2 + 20; V.cy = TOP_DOCK + (V.h - TOP_DOCK - DOCK) / 2;
+  editor?.invalidate();
   draw(); queueCompose();
 }
 function zoomAt(f, sx, sy) {
@@ -539,6 +557,7 @@ let comp = null, composeT = 0, composeKey = "";
 let composeRevision = 0, composing = false, composeAgain = false, previewWorker = null;
 function queueCompose() { composeRevision++; clearTimeout(composeT); composeT = setTimeout(compose, 40); }
 async function compose() {
+  if (editor) { comp = null; draw(); return; }
   if (composing) { composeAgain = true; return; }
   if (!S || !isOn() || !imageLayers().length) { comp = null; draw(); return; }
   const [, r1] = pictureRange();
@@ -725,9 +744,10 @@ function paintCanvas() {
   g.fillStyle = face2; annulus(g, 7.5, 17); g.fill("evenodd");
   g.fillStyle = paper; g.beginPath(); g.arc(V.cx, V.cy, 7.5 * V.s, 0, Math.PI * 2); g.fill();
   // the pictures as they are (grey in the projection), everywhere, so what falls outside still shows
-  const grey = S.view === "proj";
+  const grey = S.view !== "orig";
   for (const L of imageLayers()) {
     if (!L.visible) continue;
+    if (S.view === "lamp") continue;       // this view shows only the core's disc image
     g.save();
     g.globalAlpha = L.opacity;
     if (grey) g.filter = "grayscale(1)";
@@ -745,7 +765,7 @@ function paintCanvas() {
     g.restore();
   }
   // PRO: how it looks from the chosen position
-  const look = lookOverlay();
+  const look = editor ? null : lookOverlay();
   if (look) {
     g.save(); annulus(g, p0, p1); g.clip("evenodd");
     g.imageSmoothingEnabled = true;
@@ -754,6 +774,7 @@ function paintCanvas() {
     g.globalCompositeOperation = "source-over"; g.globalAlpha = 0.95; g.drawImage(look.fx, ...box);
     g.restore();
   }
+  editor?.paint(g);
   // selected pixels, inverted
   const L = sel();
   if (L?.selCanvas) {
@@ -771,7 +792,7 @@ function paintCanvas() {
   const ink = cssVar("--face-ink");
   g.save(); g.strokeStyle = cssVar("--ink-3"); g.globalAlpha = 0.8; g.lineWidth = 0.75;
   for (const P of imageLayers()) {
-    if (!P.visible || !cornersOutside(P, p0, p1)) continue;
+    if (S.tool !== "move" || !P.visible || !cornersOutside(P, p0, p1)) continue;
     const cs = corners(P); g.beginPath(); cs.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.stroke();
   }
   g.restore();
@@ -806,7 +827,7 @@ function paintCanvas() {
     g.fillText(F.name, cs[0][0] + 4, cs[0][1] - 6);
   }
   // the selected layer's frame and handles
-  if (L && S.tool === "move") {
+  if (L && S.tool === "move" && !spaceDown) {
     const cs = corners(L), acc = cssVar("--copper");
     g.strokeStyle = acc; g.lineWidth = 1.5;
     g.beginPath(); cs.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.stroke();
@@ -823,7 +844,7 @@ function paintCanvas() {
   const out = imageLayers().some((L) => L.visible && cornersOutside(L, p0, p1));
   W.note.hidden = !out;
   W.note.textContent = T().outside;
-  W.empty.hidden = S.layers.length > 0;
+  W.empty.hidden = S.layers.length > 0 || !!S.assignments?.length;
   placeBar();
 }
 function cornersOutside(L, p0, p1) {
@@ -839,7 +860,7 @@ function cornersOutside(L, p0, p1) {
 function placeBar() {
   const L = sel(), bar = W?.bar;
   if (!bar) return;
-  if (!L || !L.visible) { bar.hidden = true; return; }
+  if (!L || !L.visible || S.tool !== "move" || spaceDown) { bar.hidden = true; return; }
   const mode = L.sel && L.selCount ? "sel" : "props";
   if (bar.dataset.mode !== mode || bar.dataset.id !== String(L.id) || bar.dataset.lang !== api.lang()) fillBar(L, mode);
   else syncBar(L);
@@ -847,8 +868,8 @@ function placeBar() {
   // docked: the middle of the canvas's bottom strip, under the disc, the same place whatever is selected
   // (above the tilt bar when that one is out)
   const bw = bar.offsetWidth, bh = bar.offsetHeight, tilt = W.tilt?.offsetParent ? W.tilt.offsetHeight + 8 : 0;
-  const top = V.h - bh - tilt - Math.max(0, (DOCK - bh) / 2 - 4);
-  const left = Math.min(Math.max(V.w / 2 - bw / 2, 4), V.w - bw - 4);
+  const top = 4;
+  const left = 56;
   bar.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
 }
 function fillBar(L, mode) {
@@ -901,8 +922,10 @@ function barClick(e) {
   else if (a === "del") removeLayer(L);
 }
 function removeLayer(L) {
+  if(L.locked)return;
   checkpoint();
   S.layers = S.layers.filter((x) => x !== L);
+  S.assignments = (S.assignments??[]).filter(a=>a.layer!==L.id);
   if (S.selected === L.id) S.selected = null;
   changed(); buildLeft(); buildRight();
 }
@@ -912,9 +935,10 @@ function changed() {
   S.dirty = true;
   W?.dirty.classList.toggle("on", S.dirty);
   if (W) W.dirty.title = T().unsaved;
+  editor?.invalidate();
   draw(); queueCompose();
   refreshLayerRows();
-  $("next").disabled = !imageLayers().length; api.nextWhy?.(T().whyNoPicture);
+  $("next").disabled = !imageLayers().length && !S.assignments?.length; api.nextWhy?.(T().whyNoPicture);
 }
 
 // ---------------------------------------------------------------- canvas input
@@ -923,6 +947,7 @@ let drag = null, spaceDown = false;
 function canvasPoint(e) { const r = W.canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
 function onDown(e) {
   if (!S) return;
+  if (e.button===0 && !spaceDown && editor?.pointer("down",e,toMm(...canvasPoint(e)))) {e.preventDefault();return;}
   W.canvas.setPointerCapture(e.pointerId);
   const p = canvasPoint(e);
   pointers.set(e.pointerId, p);
@@ -976,6 +1001,7 @@ function onDown(e) {
 }
 function onMove(e) {
   if (!S) return;
+  if(!drag&&!spaceDown&&editor?.pointer("move",e,toMm(...canvasPoint(e))))return;
   const p = canvasPoint(e);
   if (pointers.has(e.pointerId)) pointers.set(e.pointerId, p);
   if (S.loupe) loupeAt(p);
@@ -1008,6 +1034,7 @@ function onMove(e) {
   }
 }
 function onUp(e) {
+  if(!drag&&editor?.pointer(e.type==="pointercancel"?"cancel":"up",e,toMm(...canvasPoint(e))))return;
   pointers.delete(e.pointerId);
   if (drag?.kind === "pan") W.cv.classList.remove("panning");
   if (pointers.size < 2 && drag?.kind === "pinch") drag = null;
@@ -1025,7 +1052,13 @@ function onWheel(e) {
 function onKey(e) {
   if (!isOn() || !S) return;
   if (e.target.closest?.("input, select, textarea")) return;
+  if(!spaceDown&&editor?.key(e)){e.preventDefault();return;}
   const L = sel(), k = e.key;
+  if (k === "Escape" && editor?.drag) {editor.drag=null;draw();return;}
+  if (k === "Escape" && S.activeMask) {checkpoint();S.activeMask=null;editor.invalidate();changed();editor.panels();return;}
+  if (k === "F2" && L) {e.preventDefault();editor.h.rename(L.id);return;}
+  if (e.altKey && ["ArrowUp","ArrowDown"].includes(k) && L && !L.locked) {e.preventDefault();editor.click({target:{closest:()=>({dataset:{edAction:k==="ArrowUp"?"up":"down"}})},preventDefault(){},stopPropagation(){}});return;}
+
   if (k === " " && !spaceDown) { spaceDown = true; W.cv.classList.add("pan"); e.preventDefault(); return; }
   if ((e.ctrlKey || e.metaKey) && (k === "z" || k === "Z")) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if ((e.ctrlKey || e.metaKey) && (k === "y")) { e.preventDefault(); redo(); return; }
@@ -1054,7 +1087,9 @@ function onKey(e) {
 }
 function onKeyUp(e) { if (e.key === " ") { spaceDown = false; W?.cv.classList.remove("pan"); } }
 function setTool(t) {
+  t=t==="shape"?(editor?.options.shape??"rectangleShape"):t==="wand"?"colour":t;
   S.tool = t;
+  if(editor){editor.tool=t;editor.toolbar();editor.optionsBar();}
   W.cv.dataset.tool = t;
   for (const b of W.tools.querySelectorAll("[data-tool]")) b.setAttribute("aria-pressed", String(b.dataset.tool === t));
   W.cv.classList.toggle("pan", t === "pan");
@@ -1102,7 +1137,7 @@ function buildLeft() {
       (L.kind === "fx" ? `<span class="fxmark">${I.fx}</span>` : `<span class="th"></span>`) +
       `<span class="nm">${esc(L.name)}${L.kind === "fx" ? `<small>${t.fxY(L.y1, L.y2)}</small>` : ""}</span>` +
       `<button class="ib" type="button" data-a="vis" aria-label="${L.visible ? t.hide : t.show}" title="${L.visible ? t.hide : t.show}">${L.visible ? I.eye : I.eyeOff}</button>` +
-      `<button class="ib" type="button" data-a="lock" aria-label="${L.locked ? t.unlock : t.lock}" title="${L.locked ? t.unlock : t.lock}">${L.locked ? I.lock : I.unlock}</button></li>`).join("")}</ul>`
+      `<button class="ib" type="button" data-a="lock" aria-label="${L.locked ? t.unlock : t.lock}" title="${L.locked ? t.unlock : t.lock}">${L.locked ? I.lock : I.unlock}</button><button class="ib row-action" data-a="up" aria-label="${api.lang()==="zh"?"上移图层":"Raise layer"}" title="Alt+↑" ${L.locked?"disabled":""}><svg viewBox="0 0 24 24"><path d="M6 14l6-6 6 6M12 8v12"/></svg></button><button class="ib row-action" data-a="down" aria-label="${api.lang()==="zh"?"下移图层":"Lower layer"}" title="Alt+↓" ${L.locked?"disabled":""}><svg viewBox="0 0 24 24"><path d="M6 10l6 6 6-6M12 4v12"/></svg></button><button class="ib row-action" data-a="del" aria-label="${t.remove}" title="Delete" ${L.locked?"disabled":""}>${I.trash}</button></li>`).join("")}</ul>`
       : `<p class="empty-l">${t.noLayers}</p>`) +
     `<button class="sbtn wide" type="button" data-a="import">${I.image}${t.import}</button></section>` +
     // files on the disc: the core cannot write them yet (`image` has no files, the ISO no entries), so the page
@@ -1119,6 +1154,7 @@ function buildLeft() {
     const L = S.layers.find((x) => x.id === Number(li.dataset.id));
     if (L.kind === "image") li.querySelector(".th").replaceWith(thumb(L));
   }
+  editor?.left();
 }
 function refreshLayerRows() {
   for (const li of W?.left.querySelectorAll(".lay") ?? []) {
@@ -1141,6 +1177,7 @@ function leftClick(e) {
   if (a === "undo") return undo();
   if (a === "redo") return redo();
   if (a === "import") return W.file.click();
+  if(L && ["up","down","del"].includes(a)){S.selected=L.id;editor.click({target:{closest:()=>({dataset:{edAction:a==="del"?"remove":a}})},preventDefault(){},stopPropagation(){}});return;}
   if (a === "folder") return W.folder.click();
   if (a === "nofiles") { S.files = null; changed(); buildLeft(); return; }
   if (a === "inner" || a === "outer") { S.files.where = a; changed(); buildLeft(); return; }
@@ -1155,7 +1192,8 @@ function leftDbl(e) {
   const inp = document.createElement("input");
   inp.value = L.name; inp.className = "num"; inp.style.textAlign = "left";
   nm.replaceWith(inp); inp.focus(); inp.select();
-  const done = (ok) => { if (ok && inp.value.trim() && inp.value !== L.name) { checkpoint(); L.name = inp.value.trim(); } buildLeft(); };
+  let finished=false;
+  const done = (ok) => { if(finished)return;finished=true;if (ok && inp.value.trim() && inp.value !== L.name) { checkpoint(); L.name = inp.value.trim(); } buildLeft(); };
   inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") done(true); if (ev.key === "Escape") done(false); ev.stopPropagation(); });
   inp.addEventListener("blur", () => done(true));
 }
@@ -1163,6 +1201,7 @@ function leftDbl(e) {
 let dragRow = null;
 function leftDrag(e) {
   const li = e.target.closest?.(".lay");
+  if(e.type==="dragstart"&&li&&S.layers.find(l=>String(l.id)===li.dataset.id)?.locked){e.preventDefault();return;}
   if (e.type === "dragstart" && li) { dragRow = Number(li.dataset.id); li.classList.add("drag"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", li.dataset.id); }
   else if (e.type === "dragover" && li && dragRow !== null) { e.preventDefault(); for (const x of W.left.querySelectorAll(".over")) x.classList.remove("over"); li.classList.add("over"); }
   else if (e.type === "drop" && li && dragRow !== null) {
@@ -1184,6 +1223,7 @@ function slider(id, label, min, max, step, value) {
     `<input class="rng" id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${value}" data-k="${id}"></div>`;
 }
 function buildRight() {
+  if(editor){editor.right();return;}
   if (!W) return;
   const t = T(), tone = S.tone, L = sel();
   const proSw = `<div class="pro-sw"><span class="lbl"><span class="pr">PRO</span>-Experimental</span>` +
@@ -1389,7 +1429,7 @@ function togglePlay() {
 // ---------------------------------------------------------------- saving and opening a project
 // One JSON file holds everything: each picture as the working copy (with what the selection tool
 // removed) and, when it came from a file, the original file too, so export can use full size.
-const FILE_KIND = "disc-probe design", FILE_VERSION = 1, FILE_EXT = ".discdesign";
+const FILE_KIND = "disc-probe design", FILE_VERSION = 2, FILE_EXT = ".discdesign";
 const blobURL = (blob) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(blob); });
 const canvasBlob = (c) => new Promise((ok) => c.toBlob(ok, "image/png"));
 async function projectText() {
@@ -1402,15 +1442,17 @@ async function projectText() {
     } else Object.assign(e, { fxKind: L.fxKind, height: L.height, y1: L.y1, y2: L.y2 });
     layers.push(e);
   }
+  const portable = editor?.document();
   return JSON.stringify({
+    ...portable,
     format: FILE_KIND, version: FILE_VERSION, media: S.media, disc: S.item?.name ?? null, geo: S.geo ?? null,
-    tone: S.tone, files: S.files, pro: S.pro, cell: S.cell, scene: S.scene, lookColour: S.lookColour, lookY: S.lookY, layers,
+    tone: S.tone, files: S.files, pro: S.pro, cell: S.cell, scene: S.scene, lookColour: S.lookColour, lookY: S.lookY, layers: layers.map((l,i)=>({...l,...portable?.layers[i]})),
   });
 }
 const baseName = (n) => n.replace(/\.discdesign$/i, "").replace(/\.json$/i, "");
 async function saveProject(as = false) {
   const t = T();
-  if (!S.layers.length) { toast(t.exp.empty); return false; }
+  if (!S.layers.length && !S.assignments?.length) { toast(t.exp.empty); return false; }
   const text = await projectText();
   let name = (S.name ?? t.untitled) + FILE_EXT;
   if (window.showSaveFilePicker) {
@@ -1435,9 +1477,10 @@ async function openProject(file, handle = null) {
   try { data = JSON.parse(await file.text()); } catch { toast(t.notProject(file.name)); return; }
   if (data?.format !== FILE_KIND || !Array.isArray(data.layers)) { toast(t.notProject(file.name)); return; }
   if (data.version > FILE_VERSION) { toast(t.newer(file.name)); return; }
+  if(file.size>64*1024*1024 || data.layers.length>16){toast(t.notProject(file.name));return;}
   const layers = [];
   for (const e of data.layers) {
-    const base = { id: nextId++, kind: e.kind === "fx" ? "fx" : "image", name: String(e.name ?? ""), x: +e.x || 0, y: +e.y || 0,
+    const base = { id: e.id ?? nextId++, kind: e.kind === "fx" ? "fx" : "image", name: String(e.name ?? ""), x: +e.x || 0, y: +e.y || 0,
       width: Math.max(1, +e.width || 1), rot: +e.rot || 0, opacity: Math.min(1, Math.max(0, e.opacity ?? 1)), visible: e.visible !== false, locked: !!e.locked };
     if (base.kind === "fx") {
       if (!["flow", "ox", "merge", "sync"].includes(e.fxKind)) continue;
@@ -1445,18 +1488,27 @@ async function openProject(file, handle = null) {
       continue;
     }
     try {
-      const bmp = await createImageBitmap(await (await fetch(e.picture)).blob());
       const c = document.createElement("canvas");
-      c.width = bmp.width; c.height = bmp.height;
+      let bmp;
+      if(e.raster){c.width=e.raster.width;c.height=e.raster.height;}
+      else if(e.shape&&!e.picture){c.width=512;c.height=Math.max(1,Math.round(512*(e.height??e.width)/e.width));}
+      else {bmp=await createImageBitmap(await (await fetch(e.picture)).blob());c.width=bmp.width;c.height=bmp.height;}
       const g = c.getContext("2d", { willReadFrequently: true });
-      g.drawImage(bmp, 0, 0); bmp.close?.();
+      if(e.raster)g.putImageData(new ImageData(new Uint8ClampedArray(EditorOps.bytes(e.raster.rgba)),c.width,c.height),0,0);
+      else if(bmp){g.drawImage(bmp,0,0);bmp.close?.();}
+      else {const im=g.createImageData(c.width,c.height);for(let j=0;j<c.height;j++)for(let i=0;i<c.width;i++)if(EditorOps.shapeHit(e.shape,(i+.5)/c.width-.5,(j+.5)/c.height-.5))im.data.set([30,30,30,255],4*(j*c.width+i));g.putImageData(im,0,0);}
       const L = { ...base, w: c.width, h: c.height, colour: e.colour ?? "none", alphaEdited: !!e.alphaEdited, px: g.getImageData(0, 0, c.width, c.height), src: c, version: 1 };
+      Object.assign(L,{sourceKind:e.sourceKind,shape:e.shape,svg:e.svg});
       if (typeof e.original === "string" && e.original.startsWith("data:image/")) L.file = await (await fetch(e.original)).blob();
       layers.push(L);
-    } catch { /* a picture that can't be read is left out */ }
+    } catch { toast(t.notProject(file.name)); return; }
   }
   checkpoint();
   S.layers = layers.slice(0, 16);
+  nextId=Math.max(nextId,...S.layers.map(l=>Number(l.id)+1));
+  S.selections=structuredClone(data.selections??[]);S.assignments=structuredClone(data.assignments??[]);S.activeMask=data.activeMask??null;
+  S.maskGrid=structuredClone(data.maskGrid??EditorOps.grid());S.materials=data.materials?structuredClone(data.materials):null;
+  editor?.init();editor?.invalidate();
   S.selected = null;
   for (const k of ["files", "pro", "lookColour"]) if (k in data) S[k] = data[k];
   if (data.tone) S.tone = { ...DEFAULT_TONE, ...data.tone };
@@ -1548,19 +1600,26 @@ export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
   try { const r = await fetch(`/api/state?media=${S.media}`); if (!r.ok) throw 0; state = await r.json(); } catch { throw new Error(t.noBackend); }
   const geoPath = projectGeo(state);
   if (!geoPath) throw Object.assign(new Error(t.noGeo), { code: "nogeo" });
-  const { bits, rMax } = await designBits((stage) => onProgress({ stage, fraction: null }));
+  let saved, rMax;
+  if(editor){
+    onProgress({stage:t.drawing,fraction:null});
+    const response=await fetch("/api/compose",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(editor.document()),signal});
+    saved=await response.json();if(!response.ok)throw Error(saved.error??t.failed);rMax=pictureRange()[1];
+  }else{
+  const { bits, rMax:rm } = await designBits((stage) => onProgress({ stage, fraction: null }));rMax=rm;
   stop();
   onProgress({ stage: t.sending, fraction: null });
   const up = await fetch("/api/design", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: bits });
-  const saved = await up.json().catch(() => ({}));
+  saved = await up.json().catch(() => ({}));
   if (!up.ok) throw new Error(saved.error ?? t.failed);
+  }
   stop();
   const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
   const output = `iso/${isoStem(S.name)}-${stamp}.iso`;
   onProgress({ stage: t.making, fraction: 0 });
   const run = await fetch("/api/run", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "image", media: S.media, args: { geo: geoPath, design_npy: saved.design_npy, output, r_max: rMax } }),
+    body: JSON.stringify({ action: "image", media: S.media, args: { geo: geoPath, design_npy: saved.design_npy, ...(saved.textures?{textures:saved.textures}:{}), output, r_max: rMax } }),
   });
   const job = await run.json().catch(() => ({}));
   if (!run.ok) throw new Error(job.error ?? t.failed);
@@ -1596,6 +1655,12 @@ function projectGeo(state) {
 }
 
 // ---------------------------------------------------------------- building the page
+function viewNote(){
+  const lamp=S.view==='lamp',zh=api.lang()==='zh';
+  const phase=editor?.lamp?.phase,note=W.cv.querySelector('.ed-view-note');
+  note.textContent=lamp?(phase==='ready'?(zh?'核心模拟 · 待照片验证':'Core simulation · awaiting photo validation'):phase==='error'?(zh?'预览未完成 · 再点“灯下”重试':'Preview failed · click Under the lamp to retry'):phase==='refining'?(zh?'低清预览 · 正在计算细采样…':'Quick preview · rendering fine samples…'):(zh?'正在计算灯下预览…':'Rendering under the lamp…')):(zh?'材质分区 · 纹理表示材质身份':'Material map · texture identifies the material');
+  note.setAttribute('aria-busy',String(lamp&&!['ready','error'].includes(phase)));
+}
 function build() {
   const t = T();
   const css = document.createElement("link");
@@ -1608,14 +1673,14 @@ function build() {
     `<aside class="col col-l"></aside><aside class="col col-r"></aside>` +
     `<div class="cv"><canvas class="main"></canvas>` +
     `<div class="tools-v" role="toolbar"></div>` +
-    `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="orig"></button></div>` +
+    `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="lamp"></button></div><p class="ed-view-note" aria-live="polite"></p>` +
     `<p class="cv-note warn" hidden></p>` +
     `<div class="empty-c"><p></p><div class="row"><button class="sbtn" type="button" data-a="sample"></button><button class="sbtn" type="button" data-a="import"></button></div></div>` +
     `<div class="fbar" hidden></div>` +
     `<div class="tilt"><span class="lbl"></span><input class="rng" type="range" min="40" max="120" step="1"><output></output><button class="sbtn" type="button"></button></div>` +
     `<div class="loupe"><canvas></canvas><small></small></div>` +
     `<button class="zoomr" type="button"></button><div class="dropzone"></div></div>` +
-    `<input type="file" accept="image/png,image/jpeg,image/webp,image/bmp" multiple hidden class="f-img"><input type="file" webkitdirectory multiple hidden class="f-dir">` +
+    `<input type="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/svg+xml" multiple hidden class="f-img"><input type="file" webkitdirectory multiple hidden class="f-dir">` +
     `<input type="file" accept="${FILE_EXT},.json,application/json" hidden class="f-proj">`;
   document.body.append(ws);
   const q = (s) => ws.querySelector(s);
@@ -1636,6 +1701,15 @@ function build() {
   cvs.addEventListener("pointerleave", () => W.loupe.classList.remove("on"));
   cvs.addEventListener("pointerenter", () => W.loupe.classList.toggle("on", !!S?.loupe));
   cvs.addEventListener("wheel", onWheel, { passive: false });
+  let temporaryTool=null;
+  addEventListener("keydown",e=>{
+    if(!isOn()||!S||e.isComposing||e.ctrlKey||e.metaKey||e.altKey||e.target.closest?.("input,select,textarea,[contenteditable=true]"))return;
+    if(e.key===" "){if(!e.repeat&&temporaryTool===null){temporaryTool=S.tool;editor.drag=null;spaceDown=true;setTool("pan");}e.preventDefault();e.stopPropagation();return;}
+    const t=({v:"move",r:"rectangle",f:"lasso",c:"ring",g:"sector",w:"colour",y:"shape",n:"pen",h:"pan"})[e.key.toLowerCase()];
+    if(t&&!e.shiftKey){if(!e.repeat){editor.drag=null;setTool(t);}e.preventDefault();e.stopPropagation();}
+  },true);
+  addEventListener("keyup",e=>{if(e.key===" "&&temporaryTool!==null){const t=temporaryTool;temporaryTool=null;spaceDown=false;setTool(t);e.preventDefault();e.stopPropagation();}},true);
+  addEventListener("blur",()=>{if(temporaryTool!==null){const t=temporaryTool;temporaryTool=null;spaceDown=false;setTool(t);}});
   addEventListener("keydown", onKey);
   addEventListener("keyup", onKeyUp);
   W.zoom.addEventListener("click", () => { if (zoomPct() >= 99) fit(); else zoomAt(1 / S.cell / V.s, V.w / 2, V.h / 2); });
@@ -1643,7 +1717,9 @@ function build() {
     const b = e.target.closest("[data-v]");
     if (!b) return;
     S.view = b.dataset.v;
+    if(S.view==='lamp'&&editor?.lamp?.phase==='error')editor.lamp.retry();
     for (const x of W.view.children) x.setAttribute("aria-pressed", String(x.dataset.v === S.view));
+    viewNote();
     const L = sel(); if (L?.seeds?.length) runSelection(L);
     draw();
   });
@@ -1671,7 +1747,7 @@ function build() {
     if (a === "save") saveProject(e.shiftKey);
   });
   // closing or reloading the page loses what isn't saved
-  addEventListener("beforeunload", (e) => { if ([...projects.values()].some((p) => p.dirty && p.layers.length)) { e.preventDefault(); e.returnValue = ""; } });
+  addEventListener("beforeunload", (e) => { if (plans.some((p) => p.dirty && (p.layers.length||p.assignments?.length))) { e.preventDefault(); e.returnValue = ""; } });
   W.folder.addEventListener("change", () => {
     const fs = [...W.folder.files];
     if (fs.length) { S.files = { count: fs.length, bytes: fs.reduce((a, f) => a + f.size, 0), where: S.files?.where ?? "inner" }; changed(); buildLeft(); }
@@ -1688,9 +1764,23 @@ function build() {
     const files = [...e.dataTransfer.files], proj = files.find((f) => /\.(discdesign|json)$/i.test(f.name));
     if (proj) openProject(proj); else importFiles(files);
   });
+  editor = new Editor({state:()=>S,dom:()=>W,lang:()=>api.lang(),view:()=>V,colour:cssVar,active:isOn,
+    checkpoint, changed, draw, status:viewNote, annulus, fit, rename:id=>{const row=W.left.querySelector(`[data-id="${id}"]`);if(row)leftDbl({target:row.querySelector(".nm")});}, error:toast,tool:setTool,rebuild:()=>{buildLeft();buildRight();},
+    raster:g=>rasterise(-60,-60,60,60,g.width/120,false),
+    shape:(kind,points)=>{
+      const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),x0=Math.min(...xs),y0=Math.min(...ys),width=Math.max(.5,Math.max(...xs)-x0),height=Math.max(.5,Math.max(...ys)-y0);
+      const local=points.map(([x,y])=>[(x-x0)/width-.5,(y-y0)/height-.5]);
+      const type=kind==="rectangleShape"?"rectangle":kind==="pen"?"stroke":kind;
+      const shape={type,points:type==="line"?[local[0],local.at(-1)]:local,stroke:.035};
+      const c=document.createElement("canvas");c.width=Math.max(1,Math.ceil(width*8));c.height=Math.max(1,Math.ceil(height*8));const g=c.getContext("2d");const px=g.createImageData(c.width,c.height);
+      for(let j=0;j<c.height;j++)for(let i=0;i<c.width;i++)if(EditorOps.shapeHit(shape,(i+.5)/c.width-.5,(j+.5)/c.height-.5))px.data.set([30,30,30,255],4*(j*c.width+i));
+      g.putImageData(px,0,0);const l=addImageLayer(editor.t[kind]??kind,c,c.width,c.height);if(l){Object.assign(l,{x:x0+width/2,y:y0+height/2,width,sourceKind:kind==="pen"?"stroke":"shape",shape});changed();}
+    }});
+  W.canvas.tabIndex=0;W.canvas.setAttribute("aria-label","Disc editor canvas");
+  W.canvas.addEventListener("keydown",e=>{if(!spaceDown&&e.key!==" "&&editor.key(e)){e.preventDefault();e.stopPropagation();}});
   new ResizeObserver(resize).observe(W.cv);
   $("back").addEventListener("click", () => { if (isOn()) leave(); });
-  $("next").addEventListener("click", () => { if (isOn() && imageLayers().length) toPreview(); });
+  $("next").addEventListener("click", () => { if (isOn() && (imageLayers().length || S.assignments?.length)) toPreview(); });
   addEventListener("dp-lang", () => { if (isOn()) words(); });
   new MutationObserver(() => { if (isOn()) { draw(); drawScene(); } }).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
 }
@@ -1714,10 +1804,11 @@ function words() {
   W.sub.textContent = api.T().brand?.(S.item.name) ?? S.item.name;
   W.sub.title = t.changeDiscs;
   W.sub.onclick = chooseBatch;
-  W.tools.innerHTML = ["move", "wand", "pan"].map((k) => `<button class="tb" type="button" data-tool="${k}" aria-label="${t.tools[k]}" title="${t.tools[k]}" aria-pressed="${S.tool === k}">${I[k]}</button>`).join("");
-  W.tools.onclick = (e) => { const b = e.target.closest("[data-tool]"); if (b) setTool(b.dataset.tool); };
+  editor?.toolbar();editor?.optionsBar();
   const [p, o] = W.view.children;
+  if(!['proj','lamp'].includes(S.view))S.view='proj';
   p.textContent = t.proj; o.textContent = t.orig;
+  viewNote();
   W.view.setAttribute("aria-label", t.viewAria);
   for (const x of W.view.children) x.setAttribute("aria-pressed", String(x.dataset.v === S.view));
   W.zoom.setAttribute("aria-label", t.zoomAria); W.zoom.title = `${t.fit} / ${t.hundred} (0 / 1)`;
@@ -1727,7 +1818,7 @@ function words() {
   W.drop.textContent = t.drop;
   $("next-text").textContent = t.next;
   if (W.bar) W.bar.dataset.lang = "";
-  buildLeft(); buildRight(); draw();
+  buildLeft(); buildRight(); editor?.panels(); draw();
 }
 
 let toastT = 0, toastEl = null;
@@ -1810,7 +1901,7 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
   const from = api.focusDisc()?.getBoundingClientRect();
   root.dataset.mode = "design";
   $("back").hidden = false;
-  $("next").disabled = !imageLayers().length; api.nextWhy?.(T().whyNoPicture);
+  $("next").disabled = !imageLayers().length && !S.assignments?.length; api.nextWhy?.(T().whyNoPicture);
   W.ws.classList.add("on");
   W.ws.classList.toggle("pro-on", S.pro);
   words();
@@ -1839,6 +1930,7 @@ export function useBatch(homeApi, plan, item, col) {
 // ---------------------------------------------------------------- on to preview and burn
 // The projection of the whole disc (120 mm square, centre in the middle) at ppm px per mm.
 function projection(ppm) {
+  if(editor)return editor.preview(Math.min(1200,Math.round(120*ppm)),true);
   ppm = Math.min(ppm, 20);
   const { c, g, pw, ph } = rasterise(-GRID_MM / 2, -GRID_MM / 2, GRID_MM / 2, GRID_MM / 2, ppm);
   const { adjustments, output } = toneOptions();
@@ -2054,6 +2146,8 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
 }
 
 function leave() {
+  editor?.lamp?.pause();
+  clearTimeout(editor?.lightTimer);
   composeRevision++;
   stopPlay();
   const r = W.cv.getBoundingClientRect(), to = { x: r.left + V.cx, y: r.top + V.cy, d: 120 * V.s };
@@ -2077,3 +2171,7 @@ function chooseBatch() {
   api.goTo(...api.locate(S.item));
   api.chooseBatch(S);
 }
+
+// Public automation/export surface uses the same actions and document serializer as the UI.
+export const editorDocument = () => editor.document();
+export const editorActions = () => ({editor, importFiles, openProject, projectText, undo, redo, state:()=>S});
