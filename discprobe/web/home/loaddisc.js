@@ -9,7 +9,7 @@
 //   load.desk(on, anchor)          the desk under the stage: grain, pool, the three objects (stays after play)
 //   await load.slide(dir, anchor)  the last frame (one baked picture + pool + grain) slides out: "left" | "right" | "up" | "down"
 //   await load.slide(dir, anchor, true)   ... or slides in from that side
-// Sprites and placement: caltop/anim/anim.json (caltop/compose_anim.py). Reduced motion: straight to the last frame.
+// Sprites and placement: caltop/anim/anim.json (caltop/compose_anim.py). Motion off (the page's setting): straight to the last frame.
 
 const BASE = new URL("./caltop/anim/", import.meta.url);
 const STAGE = new URL("./caltop/", import.meta.url);
@@ -20,7 +20,9 @@ let meta = null, root = null, world = null, grain = null, els = {}, running = nu
 const ease = { out: (x) => 1 - (1 - x) ** 3, in: (x) => x * x, inOut: (x) => (x < 0.5 ? 4 * x ** 3 : 1 - (-2 * x + 2) ** 3 / 2) };
 const span = (ms, [a, b]) => Math.max(0, Math.min(1, (ms - a) / (b - a)));
 const theme = () => (document.documentElement.dataset.theme === "dark" ? "dark" : "paper");
-const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+// the page's own motion setting (index.html: Settings, else the system's, ?motion forces it on)
+const reduced = () => document.documentElement.dataset.motion === "off" ||
+  (!document.documentElement.dataset.motion && matchMedia("(prefers-reduced-motion: reduce)").matches);
 
 async function ready() {
   if (!meta) meta = await fetch(new URL("anim.json", BASE)).then((r) => r.json());
@@ -148,7 +150,10 @@ export async function play(anchor) {
   if (running) running.stop();
   root.hidden = false; els.final.hidden = true; root.style.transform = "";
   showDrive(true);
-  await Promise.all([...root.querySelectorAll("img")].filter((i) => !i.hidden).map((i) => i.decode().catch(() => {})));
+  frame(anchor, 0);                            // placed before anything shows, even while pictures decode
+  // the pictures ready before the first frame, but never wait long (a background tab may not decode at all)
+  const decoded = Promise.all([...root.querySelectorAll("img")].filter((i) => !i.hidden).map((i) => i.decode().catch(() => {})));
+  await Promise.race([decoded, new Promise((r) => setTimeout(r, 1200))]);
   return new Promise((resolve) => {
     let t0 = null, raf = 0, timer = 0, done = false;
     const finish = () => {
