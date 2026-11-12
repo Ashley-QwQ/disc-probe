@@ -1,14 +1,17 @@
+import { lobbyStatus } from "./lobby-state.js";
+import { rugGreeting, nextLocalDayDelay } from "./lobby-weekday.js";
+
 // The lobby: a corner desk with four things on it (docs/goals/gui-outline.md 3.0, art/desk NOTES "Lobby v3").
 //
 //   the optical drive, tray out with a blank disc   new work        (#lobby-new)
 //   the file box of envelopes                       past works      (#lobby-open)
 //   the monitor and keyboard                        terminal
-//   the fax                                         import / export
+//   the letter tray and tent card (target: fax)      import / export
 //   the floor lamp                                  light / dark
 //
 // Art: baked renders, one layer per object (lobby/lobby.json, written by art/desk/export_lobby.py). The
 // page draws the labels printed on the objects (each label's quad on its object's face), the click
-// outlines, and the greeting top left (the terminal's greeting for this hour of the week).
+// outlines, and the live status top left.
 //
 // The camera drifts a few pixels with the mouse: near layers move more than far ones (their depth in
 // lobby.json), so the desk reads as a place. Off with reduced motion and on touch screens; DRIFT = 0
@@ -18,28 +21,12 @@ const ART = "./lobby/lobby.json";
 const DRIFT = 7;                      // screen px the nearest layer moves at the window's edge (the farthest: a third)
 const STR = {
   zh: { newplan: "新作品", filebox: "往期作品", screen: "终端", fax: "导入导出", lamp: "开灯 / 关灯",
-        soon: "这一项以后接上", last: "上次：", hello: "你好。" },
-  en: { newplan: "New work", filebox: "Past works", screen: "Terminal", fax: "Import / export", lamp: "Lamp: light / dark",
-        soon: "Not connected yet", last: "Last: ", hello: "Hello." },
+        soon: "这一项以后接上", last: "上次：" },
+  en: { newplan: "New work", filebox: "Past works", screen: "Terminal", fax: "Import / Export", lamp: "Lamp: light / dark",
+        soon: "Not connected yet", last: "Last: " },
 };
-let api, $, M = null, base = "", L = null, greetings = null;
+let api, $, M = null, base = "", L = null;
 const T = () => STR[api.lang() === "en" ? "en" : "zh"];
-// printed on the screen: the shell of the machine the core runs on (the server's, from /api/state)
-const shellName = () => (/^win/i.test(api.platform?.() ?? "") ? "shell" : "bash");
-// a label that sits off-centre on its face is moved along it, as fractions of its box (u along the text, v down)
-const NUDGE = { newplan: [-0.07, 0.06] };
-// The big words float by their objects, lying flat in the desk's plane like the disc library's floor
-// words: over the drive, in front of the file box, over the fax. `at`: canvas px from the centre of the
-// object's label face; `size`: letter height in canvas px; `max`: the longest the words may run (canvas px),
-// `plane`: flat on the desk (default), flat but turned a quarter clockwise, or standing in the plane of the
-// object's labelled face; `shadow` (if any): where the word's shadow lies on the surface below (canvas px from the
-// word, a little to the lower right, away from the light at the upper left; always flat on the desk);
-// so longer words (English) come out smaller. The screen keeps its words on its face.
-const FLOAT = {
-  newplan: { at: [-85, -100], size: 106, max: 400, shadow: [22, 112] },     // lower, its first word over the disc
-  filebox: { at: [-70, 18], size: 88, max: 380, plane: "face", shadow: [40, 62] },     // standing, like the box's front
-  fax: { at: [-20, -155], size: 80, max: 360, plane: "turned" },     // no lamp over there: no shadow     // flat, turned a quarter clockwise
-};
 const root = document.documentElement;
 const theme = () => (root.dataset.theme === "dark" ? "dark" : "paper");
 
@@ -80,15 +67,6 @@ function build(meta, dir) {
   }
   // per object: its click outline (an SVG polygon), its button (keyboard, screen readers) and its printed label
   const svgNS = "http://www.w3.org/2000/svg";
-  // the desk's plane on screen, from the drive's top face (its label quad): along the words, and down them
-  const unit = ([x0, y0], [x1, y1]) => { const d = Math.hypot(x1 - x0, y1 - y0) || 1; return [(x1 - x0) / d, (y1 - y0) / d]; };
-  const top = M.targets.newplan?.label?.quad;
-  const [ux, uy] = top ? unit(top[0], top[1]) : [0.851, -0.524], [vx, vy] = top ? unit(top[0], top[3]) : [0.851, 0.524];
-  const matrix = ([ax, ay], [bx, by]) => `matrix(${ax.toFixed(4)}, ${ay.toFixed(4)}, ${bx.toFixed(4)}, ${by.toFixed(4)}, 0, 0)`;
-  const planes = {
-    desk: matrix([ux, uy], [vx, vy]),
-    turned: matrix([vx, vy], [-ux, -uy]),             // a quarter turn clockwise in the desk's plane
-  };
   for (const [key, t] of Object.entries(M.targets)) {
     const home = layer[t.layer] ?? layer.base, own = !!layer[t.layer] && t.layer !== "base";   // its own layer lifts
     // the label, outline and hit area sit above every picture layer (a layer shown later, like the lit
@@ -112,46 +90,28 @@ function build(meta, dir) {
     Object.assign(btn.style, { left: `${bx}px`, top: `${by}px`, width: `${bw}px`, height: `${bh}px`,
       clipPath: `polygon(${pts.map(([x, y]) => `${(x - bx).toFixed(1)}px ${(y - by).toFixed(1)}px`).join(",")})` });
     g.append(svg, btn);
-    if (t.label && FLOAT[key]) {
-      // floating by the object, flat in the desk's plane, a little up and down
-      const q = t.label.quad, f = FLOAT[key];
-      const cx = q.reduce((a, p) => a + p[0], 0) / 4 + f.at[0], cy = q.reduce((a, p) => a + p[1], 0) / 4 + f.at[1];
+    if (t.label) {
+      const q = t.label.quad, w = dist(q[0], q[1]), h = dist(q[0], q[3]);
       const lab = document.createElement("span");
-      lab.className = "lb-label lb-float"; lab.dataset.target = key; lab.setAttribute("aria-hidden", "true");
-      const plane = f.plane === "face" ? matrix(unit(q[0], q[1]), unit(q[0], q[3])) : planes[f.plane ?? "desk"];
-      Object.assign(lab.style, { left: `${cx.toFixed(1)}px`, top: `${cy.toFixed(1)}px`, transform: `${plane} translate(-50%, -50%)` });
-      lab.style.setProperty("--size", `${f.size}px`);
-      lab.dataset.max = f.max;
-      lab.style.animationDelay = `${(-Math.random() * 3.2).toFixed(2)}s`;      // not all in step
-      const text = document.createElement("i");
-      lab.append(text);
-      // its shadow: the same words, dark and soft, lying on what is below; fainter as the word rises
-      if (f.shadow) {
-      const sh = document.createElement("span");
-      sh.className = "lb-label lb-float lb-shadow"; sh.dataset.target = key; sh.setAttribute("aria-hidden", "true");
-      const flat = f.plane === "turned" ? planes.turned : planes.desk;
-      Object.assign(sh.style, { left: `${(cx + f.shadow[0]).toFixed(1)}px`, top: `${(cy + f.shadow[1]).toFixed(1)}px`, transform: `${flat} translate(-50%, -50%)` });
-      sh.style.setProperty("--size", `${f.size}px`);
-      sh.dataset.max = f.max;
-      sh.style.animationDelay = lab.style.animationDelay;
-      sh.append(document.createElement("i"));
-      g.append(sh);
-      }
-      // the words are a way in too
-      lab.addEventListener("pointerenter", () => hover(key, true));
-      lab.addEventListener("pointerleave", () => hover(key, false));
-      lab.addEventListener("click", () => btn.click());
-      g.append(lab);
-    } else if (t.label) {
-      const q = t.label.quad, w = dist(q[0], q[1]), h = dist(q[0], q[3]), [nu, nv] = NUDGE[key] ?? [0, 0];
-      const lab = document.createElement("span");
-      lab.className = own ? "lb-label own" : "lb-label"; lab.dataset.target = key; lab.setAttribute("aria-hidden", "true");
+      lab.className = own ? "lb-label own" : "lb-label"; lab.dataset.target = key;
+      lab.setAttribute("aria-hidden", "true");
       Object.assign(lab.style, { width: `${w}px`, height: `${h}px`, transform: quadMatrix(w, h, q) });
       lab.style.setProperty("--h", `${h}px`);
-      const text = document.createElement("i");               // the words, moved along the face if need be
-      text.style.translate = `${(nu * w).toFixed(1)}px ${(nv * h).toFixed(1)}px`;
-      lab.append(text);
+      lab.append(document.createElement("i"));
       g.append(lab);
+    }
+    if (key === "lamp") {
+      const hint = document.createElement("span");
+      hint.className = "lb-lamp-hint"; hint.setAttribute("aria-hidden", "true");
+      const [x, y] = M.lamp.bulb;
+      Object.assign(hint.style, { left: `${x + 66}px`, top: `${y - 35}px` });
+      g.append(hint);
+      // Reuse the lamp's own image alpha, clipped to its shade, to brighten only the shade.
+      const glow = layer.lamp.querySelector("img").cloneNode();
+      glow.className = "lb-lamp-glow";
+      const [lx, ly] = M.layers.find(l => l.name === "lamp").box;
+      glow.style.clipPath = `ellipse(75px 75px at ${x - lx}px ${y - ly}px)`;
+      layer.lamp.append(glow);
     }
     overs.push(g);
     btn.addEventListener("pointerenter", () => hover(key, true));
@@ -161,9 +121,21 @@ function build(meta, dir) {
     if (!["newplan", "filebox"].includes(key)) btn.addEventListener("click", () => act(key));
   }
   world.append(...overs);
+  const rug = M.greeting_faces?.runner;
+  if (rug) {
+    const q = rug.quad, w = dist(q[0], q[1]), h = dist(q[0], q[3]);
+    const lab = document.createElement("span");
+    lab.className = "lb-label lb-rug-greeting";
+    Object.assign(lab.style, { width: `${w}px`, height: `${h}px`, transform: quadMatrix(w, h, q) });
+    lab.style.setProperty("--h", `${h}px`);
+    lab.append(document.createElement("i"));
+    layer.base.append(lab); // Same floor and parallax; no button or separate target.
+    L.rug = lab;
+  }
   L.art.replaceChildren(world);
   L.world = world; L.layer = layer;
   paintTheme(); words(); fit();
+  document.fonts?.ready.then(words);
 }
 // Longer words (English) shrink to fit their face, with a margin. A label that would shrink below
 // about 35 % (the fax's narrow face in English) breaks onto two lines first ("Import /" over "export", 导入 over 导出) if its face is tall
@@ -175,9 +147,10 @@ function fitLabel(n, i) {
     if (k < 1) i.style.fontSize = `${k.toFixed(3)}em`;
     return k;
   };
-  i.style.whiteSpace = ""; i.style.lineHeight = "";
+  const multiline = i.textContent.includes("\n");
+  i.style.whiteSpace = multiline ? "pre" : ""; i.style.lineHeight = multiline ? "1.05" : "";
   const words = i.textContent, one = fit();
-  if (one >= .35) return;
+  if (one >= .35 || multiline) return;
   const NL = String.fromCharCode(10);
   const cut = words.includes(" / ") ? words.replace(" / ", " /" + NL) : words.includes(" ") ? words.replace(" ", NL)
     : /^[　-鿿]{4}$/.test(words) ? words.slice(0, 2) + NL + words.slice(2) : null;
@@ -187,8 +160,10 @@ function fitLabel(n, i) {
 }
 function hover(key, on) {
   const t = M.targets[key];
+  on ||= L.root.querySelector(`.lb-hit[data-target="${key}"]`) === document.activeElement;
   if (on && key === "newplan") import("./newplan.js").then((m) => m.prepare(api)).catch(() => {});   // ready before the click
   if (t.layer !== "base") L.layer[t.layer]?.classList.toggle("lift", on);
+  if (key === "lamp") L.root.classList.toggle("lamp-hot", on);
   L.root.querySelectorAll(`[data-target="${key}"]`).forEach((n) => n.classList.toggle("hot", on));
 }
 function act(key) {
@@ -216,22 +191,32 @@ function toast(text) {
 function paintTheme() {
   if (!M) return;
   const th = theme();
-  for (const l of M.layers) L.layer[l.name].querySelector("img").src = `${base}${l.name}_${th}.webp`;
+  for (const l of M.layers) for (const img of L.layer[l.name].querySelectorAll("img")) img.src = `${base}${l.name}_${th}.webp`;
+  lampWords();
   if (M.bg?.[th]) L.root.style.setProperty("--lb-bg", M.bg[th]); else L.root.style.removeProperty("--lb-bg");
 }
 function words() {
   if (!M) return;
   const t = T();
-  for (const n of L.root.querySelectorAll(".lb-label")) {
+  for (const n of L.root.querySelectorAll(".lb-label[data-target]")) {
     const i = n.firstElementChild;
-    i.textContent = n.dataset.target === "screen" ? shellName() : t[n.dataset.target] ?? "";
-    if (!n.classList.contains("lb-float")) { fitLabel(n, i); continue; }
-    i.style.fontSize = "";                                         // floating words: no longer than their `max`
-    const over = i.offsetWidth / Number(n.dataset.max);
-    if (over > 1) i.style.fontSize = `${(1 / over).toFixed(3)}em`;
+    i.textContent = t[n.dataset.target] ?? "";
+    if (n.dataset.target === "fax" && api.lang() === "en") i.textContent = "Import /\nExport";
+    fitLabel(n, i);
   }
   for (const n of L.root.querySelectorAll(".lb-hit")) n.setAttribute("aria-label", t[n.dataset.target] ?? n.dataset.target);
+  lampWords();
   paintHello();
+  paintRug();
+}
+function paintRug() {
+  if (!L?.rug) return;
+  const text = rugGreeting(api.lang());
+  L.rug.setAttribute("aria-label", text);
+  L.rug.firstElementChild.textContent = api.lang() === "en" ? text.replace(" ", "\n") : text;
+  fitLabel(L.rug, L.rug.firstElementChild);
+  clearTimeout(L.rugTimer);
+  L.rugTimer = setTimeout(paintRug, nextLocalDayDelay());
 }
 // the scene fits the window (contain), centred; the header and the footer sit over its empty top and bottom
 function fit() {
@@ -242,21 +227,17 @@ function fit() {
   L.world.style.transform = `translate(${((vw - W * k) / 2).toFixed(1)}px, ${((vh - H * k) / 2).toFixed(1)}px) scale(${k.toFixed(5)})`;
 }
 
-// ---------------------------------------------------------------- the greeting
-// The terminal's greeting (greetings.py via /api/greetings): one line per part of each weekday,
-// picked by the viewer's own clock; a first visit gets a welcome instead.
-function pickGreeting() {
-  const zh = api.lang() !== "en", g = greetings;
-  if (!g) return T().hello;
-  const now = new Date(), day = (now.getDay() + 6) % 7, h = now.getHours();
-  const slot = h >= 5 && h < 9 ? 1 : h >= 9 && h < 12 ? 2 : h >= 12 && h < 18 ? 3 : h >= 18 && h < 22 ? 4 : 0;
-  let first = false;
-  try { first = !localStorage.getItem("dp-seen"); localStorage.setItem("dp-seen", "1"); } catch {}
-  const e = first ? g.first_time[Math.floor(Date.now() / 864e5) % g.first_time.length] : g.week[day][slot];
-  return e[zh ? 1 : 0];
+function lampWords() {
+  if (!L) return;
+  const dark = theme() === "dark", en = api.lang() === "en";
+  const text = en ? (dark ? "Lights on" : "Lights off") : (dark ? "开灯" : "关灯");
+  const hint = L.root.querySelector(".lb-lamp-hint");
+  if (hint) hint.textContent = text;
+  L.root.querySelector('.lb-hit[data-target="lamp"]')?.setAttribute("aria-label", text);
 }
+// The home page owns updates; the lobby only reads its cached state.
 function paintHello() {
-  L.hello.textContent = L.helloText ??= pickGreeting();
+  if (L) L.hello.textContent = lobbyStatus(api.lobbyState?.(), api.lang());
 }
 // the second line: the last plan, to pick up where it was left
 export function paintRecent(plans, open) {
@@ -304,12 +285,14 @@ export async function init(homeApi) {
   L = { root: sec, art: $("lobby-art"), hello: $("lobby-hello"), recent: $("lobby-recent"), toast: document.createElement("div") };
   L.toast.className = "lb-toast"; L.toast.setAttribute("role", "status");
   sec.append(L.toast);
-  api.backend.request("/api/greetings").then((g) => { greetings = g; L.helloText = null; paintHello(); }).catch(() => {});
+  paintHello();
+  addEventListener("dp-drive-state", paintHello);
   const url = new URL(ART, import.meta.url);
   build(await fetch(url).then((r) => r.json()), new URL(".", url).href);
   addEventListener("resize", fit);
   new MutationObserver(paintTheme).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
-  addEventListener("dp-lang", () => { L.helloText = null; words(); });
+  addEventListener("dp-lang", words);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) paintRug(); });
   drift();
 }
 export const relabel = () => words();
