@@ -112,9 +112,17 @@ try {
   { windowsHide: true, stdio: 'ignore' });
   browserProcess.on('error', error => { throw error; });
   const portFile = join(dir, 'profile', 'DevToolsActivePort');
-  for (let i = 0; i < 100 && !existsSync(portFile); i++) await delay(100);
-  assert.ok(existsSync(portFile), 'headless browser debugging endpoint ready');
-  const port = readFileSync(portFile, 'utf8').split(/\r?\n/)[0];
+  let port;
+  for (let i = 0; i < 100 && !port; i++) {
+    try {
+      const [number, endpoint] = readFileSync(portFile, 'utf8').trim().split(/\r?\n/);
+      if (/^\d+$/.test(number) && Number(number) > 0 && Number(number) <= 65535 && endpoint?.startsWith('/devtools/browser/')) port = number;
+    } catch (error) {
+      if (!['ENOENT', 'EBUSY', 'EPERM', 'EACCES'].includes(error.code)) throw error;
+    }
+    if (!port) await delay(100);
+  }
+  assert.ok(port, 'headless browser debugging endpoint ready and readable');
   const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then(r => r.json());
   socket = new WebSocket(targets.find(t => t.type === 'page').webSocketDebuggerUrl);
   await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
