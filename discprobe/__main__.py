@@ -1412,22 +1412,24 @@ def cmd_menu(args):
         first_time = not any(not r.simulated for r in guide.scan(out))
 
         def prelude():
-            # What `guide` prints around the checklist: the greeting, the one-time tutorial offer and
-            # the completion hint. The console's own banner is already on screen when this runs.
-            ui.say(greetings.pick(first_time=first_time))
-            ui.say()
+            # The one-time tutorial offer, before the full-screen console takes over. The greeting
+            # rides on the console's home screen instead, so it is still there after the redraw.
             if first_time and ui.term().can_prompt() and not guide.tutorial_offered():
                 guide.remember_tutorial_offered()
                 if ui.ask("First time here? Walk through the steps?"):
                     cmd_tutorial(args)
-            if not completion.installed():
-                ui.say(f"Tab completion: {guide.PROG} completion install", "dim")
-
-        console.run(media, out, prelude=prelude)
-        if ui.term().interactive:
-            # Start.bat closes the console window after this; leave the checklist visible there.
+                    try:
+                        input(i18n.tr("Press Enter to continue.") + " ")
+                    except (EOFError, KeyboardInterrupt):
+                        pass
+        opened = console.run(media, out, prelude=prelude,
+                             intro=greetings.pick(first_time=first_time))
+        if opened and ui.term().interactive:
+            # Start.bat leaves this window open after this; leave the checklist visible there.
             for line in guide.progress_lines(media, out):
                 print(ui.guide_line(line))
+            if not completion.installed():
+                ui.say(f"Tab completion: {guide.PROG} completion install", "dim")
     finally:
         ui.use_media(before)
 

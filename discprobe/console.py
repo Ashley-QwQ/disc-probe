@@ -168,7 +168,13 @@ def _open_keys():
     """A key reader for this terminal, or None when stdin is not one."""
     try:
         if sys.platform == "win32":
-            return _WindowsKeys()
+            try:
+                keys = _WindowsVtKeys()
+                keys.resume()
+                keys.pause()
+                return keys
+            except (ImportError, OSError, AttributeError, ValueError):
+                return _WindowsKeys()
         if not (sys.stdin and sys.stdin.isatty()):
             return None
         return _PosixKeys()
@@ -209,6 +215,78 @@ class _WindowsKeys:
                     return keys
             else:
                 time.sleep(0.01)
+        return []
+
+
+class _WindowsVtKeys:
+    """Read Windows Terminal's VT input, including SGR mouse reports.
+
+    conhost reports the mouse only through ReadConsoleInput, which msvcrt does not expose. Windows
+    Terminal (and other VT terminals on Windows) instead sends keys and mouse reports as the same
+    escape sequences the POSIX reader gets, once the input handle has ENABLE_VIRTUAL_TERMINAL_INPUT.
+    """
+
+    ENABLE_MOUSE_INPUT = 0x0010
+    ENABLE_QUICK_EDIT_MODE = 0x0040
+    ENABLE_EXTENDED_FLAGS = 0x0080
+    ENABLE_VIRTUAL_TERMINAL_INPUT = 0x0200
+
+    def __init__(self):
+        import ctypes
+        import msvcrt
+        self.ctypes = ctypes
+        self.msvcrt = msvcrt
+        self.buf = ""
+        self.raw = False
+        self.mouse = bool(os.environ.get("WT_SESSION"))
+        self.kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        self.kernel32.GetConsoleMode.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
+        self.kernel32.GetConsoleMode.restype = ctypes.c_int
+        self.kernel32.SetConsoleMode.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+        self.kernel32.SetConsoleMode.restype = ctypes.c_int
+        self.handle = msvcrt.get_osfhandle(sys.stdin.fileno())
+        self.saved = ctypes.c_uint()
+        if not self.kernel32.GetConsoleMode(self.handle, ctypes.byref(self.saved)):
+            raise OSError(ctypes.get_last_error(), "stdin is not a console")
+
+    def resume(self) -> None:
+        if self.raw:
+            return
+        mode = (self.saved.value | self.ENABLE_MOUSE_INPUT | self.ENABLE_EXTENDED_FLAGS
+                | self.ENABLE_VIRTUAL_TERMINAL_INPUT) & ~self.ENABLE_QUICK_EDIT_MODE
+        if not self.kernel32.SetConsoleMode(self.handle, mode):
+            raise OSError(self.ctypes.get_last_error(), "could not enable VT input")
+        self.raw = True
+
+    def pause(self) -> None:
+        if self.raw:
+            self.kernel32.SetConsoleMode(self.handle, self.saved.value)
+            self.raw = False
+
+    def close(self) -> None:
+        self.pause()
+
+    def read(self, timeout: float = 0.25) -> list[str]:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self.msvcrt.kbhit():
+                char = self.msvcrt.getwch()
+                if char in ("\x00", "\xe0"):
+                    scan = self.msvcrt.getwch()
+                    key = WIN_ARROWS.get(scan)
+                    if key:
+                        return [key]
+                    continue
+                self.buf += char
+                keys, rest = parse_keys(self.buf.encode("utf-8", "replace"))
+                if keys:
+                    self.buf = rest.decode("utf-8", "replace")
+                    return keys
+            else:
+                time.sleep(0.01)
+        if self.buf == "\x1b":
+            self.buf = ""
+            return ["esc"]
         return []
 
 
@@ -1244,8 +1322,10 @@ class Console:
             if hints:
                 lines += [""] + ["  " + self.t.style(tr(line), "dim") for line in hints]
             if task.key == "burn":
-                lines += ["", "  " + self.t.style(tr("How to look at it:"), "bold")]
-                lines += ["  " + tr(line) for line in guide.AFTER_BURN]
+                lines += [""]
+                for index, line in enumerate(guide.AFTER_BURN):
+                    text = tr(line)
+                    lines.append("  " + (self.t.style(text, "bold") if index == 0 else text))
         if self.message:
             lines += ["", "  " + self.t.style(self.message, "yellow")]
         if self.width >= 70:
@@ -1403,13 +1483,13 @@ class Console:
 
 # --- running ------------------------------------------------------------------------------------
 
-def run(media: str = "dvd", out: str = "results", prelude=None) -> int:
+def run(media: str = "dvd", out: str = "results", prelude=None, intro: str | None = None) -> bool:
     """Open the guided console. Without a terminal or keys it falls back to plain lines."""
     t = ui.term()
     if not t.interactive or not t.can_prompt():
         for line in guide.guide_lines(media, out, notes=False):
             print(ui.guide_line(line, t))
-        return 0
+        return False
     plan = guide.workflow(media, out, notes=True)
     # Keep the opening disc animation the bare `discprobe` command always had. It plays on the
     # normal screen; the console then takes over the alternate screen.
@@ -1428,11 +1508,16 @@ def run(media: str = "dvd", out: str = "results", prelude=None) -> int:
     except Exception:
         pass
     if not t.ansi:
-        return _numbered(plan, t)
+        _numbered(plan, t)
+        return False
     keys = _open_keys()
     if keys is None:
-        return _numbered(plan, t)
-    console = Console(plan, commands, t=t, builder=builder, out=out, mouse=sys.platform != "win32")
+        _numbered(plan, t)
+        return False
+    console = Console(plan, commands, t=t, builder=builder, out=out,
+                      mouse=getattr(keys, "mouse", sys.platform != "win32"))
+    if intro:
+        console.message = intro
     try:
         while True:
             size = shutil.get_terminal_size((80, 24))
@@ -1462,7 +1547,7 @@ def run(media: str = "dvd", out: str = "results", prelude=None) -> int:
         pass
     finally:
         keys.close()
-    return 0
+    return True
 
 
 def _events(console: Console, keys):

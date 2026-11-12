@@ -313,6 +313,10 @@ def _language(c):
         c.check(menu_zh and menu_zh != menu_en, "language: the menu description has a Chinese entry")
         c.check(media_zh and media_zh != media_en, "language: the menu option help has a Chinese entry")
         c.check("中文" in i18n.tr("Language: {name}").format(name="中文"), "language: translated messages encode")
+        c.check(i18n.tr("Shows the optical drives this computer can see, and the name each one uses.")
+                == "显示这台电脑能看到的光驱，以及各自的名称。", "language: the drive step's Chinese key is current")
+        c.check(i18n.tr("Press Enter to continue.") == "按 Enter 继续。",
+                "language: the walkthrough pause is translated")
     finally:
         i18n.use("en")
         os.environ.pop("DISCPROBE_LANG", None)
@@ -361,6 +365,8 @@ def _step_notes(c, folder):
     burn = "\n".join(console.visible(line) for line in con.text(100, 70))
     expected = guide.burn_steps(plan.random_iso, "bd")[0]
     c.check(expected in burn, "console: the burn step follows the platform's burn instructions")
+    c.check(burn.count("How to look at it") == 1,
+            "console: the burn step does not print the 'How to look at it' heading twice")
 
 
 def _colour(c, folder):

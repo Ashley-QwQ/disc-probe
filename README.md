@@ -117,7 +117,7 @@ python -m discprobe guide
 python -m discprobe menu
 ```
 
-不带参数运行 `python -m discprobe` 在终端里也会打开它。全屏界面里用上下键选步骤，Enter 看详情，`r` 直接运行，`e` 改命令行，`:` 搜索全部命令，`?` 看按键。选中的步骤和底部按键带背景色，当前步骤有「现在到这里」标签；支持链接的终端里，标题栏的结果文件夹和说明书可以直接点开（按住 Ctrl 点击）。每一步都显示为什么要做、大概要多久和要运行的确切命令；运行前会把命令完整打印出来。它只用 Python 自带的功能，没有新的依赖；管道和脚本里不会打开全屏界面，要文字版就用 `guide`。
+不带参数运行 `python -m discprobe` 在终端里也会打开它。全屏界面里用上下键选步骤，Enter 看详情，`r` 直接运行，`e` 改命令行，`:` 搜索全部命令，`?` 看按键。选中的步骤和底部按键带背景色，当前步骤有「现在到这里」标签；支持链接的终端里，标题栏的结果文件夹和说明书可以直接点开（按住 Ctrl 点击）；Windows Terminal 里也能用鼠标点选步骤。每一步都显示为什么要做、大概要多久和要运行的确切命令；运行前会把命令完整打印出来。它只用 Python 自带的功能，没有新的依赖；管道和脚本里不会打开全屏界面，要文字版就用 `guide`。
 
 在终端里，`timing` 和 `geo` 跑完会给一句结论，每条命令跑完也会打印下一步可以直接复制的命令。系统是中文时，帮助、提示和测量输出都显示中文，也可以用 `--lang zh` 或 `--lang en` 指定；脚本和管道仍是英文，也没有这些结论和提示。其他用法见[手动使用](#手动使用)。
 
@@ -395,6 +395,8 @@ CD 的沿轨道常数要靠网格盘来定，206 帧只对 GH70N 加 IMAPI 刻�
 - 飞利浦专利 US7538787B2《在光盘上写入标签的方法》（优先权 2002 年，2017 年失效）已经描述了同样的思路用于在数据区刻可见标签：记录 ECC 块读完的时间戳、用重复读取求转动周期、跳跃距离逐轮加倍。
 
 本仓库做的是：在普通消费级光驱上可复现的开源实现，处理实机的各种问题，用协方差驱动的逐级测量加不确定度估计，做实盘网格验证和跨盘修正，并能导出 DiscImageStudio 预设。
+
+其中实验性 BD/CD 几何计算的部分算法与实现，以及 `--install` 安装功能，由 domerawind 与 DeepSeek-v41F 共同完成；相关 PR 见仓库历史，便于追踪代码来源。
 
 数据面刻图的编码参考了 [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio)，`discprobe/efmplus.py` 移植自它。感谢 NaiveTomcat 和 bczhc 的移植，也感谢报告实测结果的 anyezhixie、bczhc、Disappear9、domerawind、FanJZSS、kasumikira、Lakida0、li-yifei、MasterMT9、moodyos、NaiveTomcat、NO-ob、pugod124、ShiroiTree、Sliicy、WindowsNoEditor 和 zhajial。
 

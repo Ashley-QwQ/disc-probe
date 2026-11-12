@@ -117,7 +117,7 @@ For a first run, or if you would rather not remember commands, open the guided c
 python -m discprobe menu
 ```
 
-Running `python -m discprobe` with no arguments at a terminal opens it too. Use the arrow keys to choose a step, Enter to open it, `r` to run it, `e` to edit the command, `:` to search all commands, and `?` for the keys. The selected step and the footer keys carry a background colour, the current step has a `you are here` badge, and on terminals with link support the results folder and the manual are clickable (Ctrl+click). Each step says why it exists, about how long it takes and the exact command; the command is printed in full before it runs. It uses only what Python ships with, so there is no new dependency. Pipes and scripts don't open the full-screen view; use `guide` for the text version.
+Running `python -m discprobe` with no arguments at a terminal opens it too. Use the arrow keys to choose a step, Enter to open it, `r` to run it, `e` to edit the command, `:` to search all commands, and `?` for the keys. The selected step and the footer keys carry a background colour, the current step has a `you are here` badge, and on terminals with link support the results folder and the manual are clickable (Ctrl+click), and Windows Terminal lets you click a step too. Each step says why it exists, about how long it takes and the exact command; the command is printed in full before it runs. It uses only what Python ships with, so there is no new dependency. Pipes and scripts don't open the full-screen view; use `guide` for the text version.
 
 At a terminal, `timing` and `geo` end with a one-line verdict, and each command also ends by printing the next one, ready to copy. Scripts and pipes don't get these. See [Using it by hand](#using-it-by-hand) for the rest.
 
@@ -396,6 +396,8 @@ Measuring sector angles from read timing didn't start here:
 - Philips patent US7538787B2 on writing labels on optical discs (priority 2002, lapsed 2017), which describes the same idea for burning visible labels in the data area: timestamps at the end of ECC blocks, repeated reads for the rotation period, and jump distances doubling each round.
 
 This repository adds an open source implementation that can be reproduced on ordinary consumer drives and handles the problems real drives have. It uses covariance-driven stepwise measurement with uncertainty estimates, checks results on burned grid discs, carries corrections across discs, and exports DiscImageStudio presets.
+
+Parts of the experimental BD/CD geometry algorithms and implementation, and the `--install` setup, were made by domerawind and DeepSeek-v41F in the corresponding pull requests, so the code's origin stays traceable.
 
 The data-side encoding follows [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio), and `discprobe/efmplus.py` is ported from it. Thanks to NaiveTomcat and bczhc for the ports, and to anyezhixie, bczhc, Disappear9, domerawind, FanJZSS, kasumikira, Lakida0, li-yifei, MasterMT9, moodyos, NaiveTomcat, NO-ob, pugod124, ShiroiTree, Sliicy, WindowsNoEditor and zhajial for their reports.
 
