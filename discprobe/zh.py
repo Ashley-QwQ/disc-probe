@@ -51,6 +51,7 @@ TEXT = {
     "burn this measurement image first (needs --yes-write and a blank in the drive)": "先刻录这个测量镜像（需要 --yes-write 和空白盘）",
     "confirm the irreversible burn of --iso": "确认将 --iso 刻录到盘上，此操作不可撤销",
     "write multiple for the burn (default: the lowest)": "刻录倍速（默认最低倍速）",
+    "write multiple for the burn (default: DVD nearest supported to 8x, CD lowest)": "刻录倍速（DVD 默认选最接近 8x 的支持速度，CD 默认最低倍速）",
     "read speed for timing and geo (as those commands take it)": "timing 和 geo 的读取速度（格式与这两个命令相同）",
     "the maker code the disc must have (the batch's)": "要求盘片具有的制造商代码（该批次的代码）",
     "also write a DiscImageStudio preset here": "同时将 DiscImageStudio 预设写到这里",
