@@ -21,7 +21,23 @@ DEFAULT_SECTORS = 2295104  # fits DVD+R and DVD-R single layer
 CHUNK_SECTORS = 8192
 
 
-def write_iso(path: str, sectors: int = DEFAULT_SECTORS, seed: int = 1, log=print, media="dvd") -> None:
+def write_iso(path: str, sectors: int = DEFAULT_SECTORS, seed: int = 1, log=print, media="dvd", label=None, geo=None) -> None:
+    # Validate before opening/truncating any output. With no label the old byte stream is unchanged.
+    overlay = None
+    spec = None
+    if label is not None:
+        from .labelsession import measured_label, pending
+        if geo:
+            if media != 'dvd':
+                raise ValueError('--label currently supports DVD only')
+            overlay = measured_label(label, sectors, geo)
+            spec = overlay.spec
+        else:
+            spec = pending(label, sectors, media)
+            spec['seed'] = seed
+            sectors = spec['total_sectors']
+    elif geo:
+        raise ValueError('--geo requires --label')
     if media == "cd":
         from . import cd, cdimage
         cd.check_capacity(sectors)
@@ -32,14 +48,40 @@ def write_iso(path: str, sectors: int = DEFAULT_SECTORS, seed: int = 1, log=prin
             raise ValueError(f"{sectors:,} sectors do not fit on a single-layer Blu-ray "
                              f"({BD_SECTORS_PER_LAYER:,}); lower --sectors")
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    if spec is not None:
+        open(path + iso9660.UNFINISHED, 'w').close()
     rng = np.random.default_rng(seed)
     done, next_report = 0, 0.0
     with open(path, "xb" if media == "cd" else "wb") as f:
         while done < sectors:
             n = min(CHUNK_SECTORS, sectors - done)
-            f.write(rng.integers(0, 256, n * dvd.SECTOR_BYTES, dtype=np.uint8).tobytes())
+            data = rng.integers(0, 256, n * dvd.SECTOR_BYTES, dtype=np.uint8)
+            if overlay is not None:
+                overlay.patch(data.reshape(n, dvd.SECTOR_BYTES), done)
+            f.write(data.tobytes())
             done += n
             if done / sectors >= next_report - 1e-9:   # (steps of 0.01 add up to a hair over 1)
                 log(f"  {100 * done / sectors:5.1f} %")
                 next_report += getattr(log, "every", 0.2)
     iso9660.add(path, sectors, "DISCPROBE_RANDOM")
+    if spec and spec.get('state') == 'pending':
+        from .randomlabel import PENDING_LBA, marker
+        with open(path, 'r+b') as f:
+            f.seek(PENDING_LBA * 2048)
+            f.write(marker(spec))
+    spec_path = os.path.splitext(path)[0] + ".image.json"
+    if spec is not None:
+        import json
+        with open(spec_path, "w", encoding="utf-8") as f:
+            json.dump(spec, f, indent=2)
+        os.remove(path + iso9660.UNFINISHED)
+    elif os.path.isfile(spec_path):
+        # An overwrite must not leave the previous label's layout attached to a plain ISO.
+        import json
+        try:
+            with open(spec_path, encoding="utf-8") as f:
+                previous = json.load(f)
+        except (OSError, ValueError):
+            previous = None
+        if isinstance(previous, dict) and previous.get("kind") == "random-label":
+            os.remove(spec_path)

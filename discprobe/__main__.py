@@ -845,6 +845,18 @@ def cmd_edit(args):
 
 def cmd_simulate(args):
     from . import imagedisc, simulate
+    if args.random_label_image:
+        if not args.output or args.sheet:
+            sys.exit("--random-label-image needs --output and does not support --sheet")
+        try:
+            simulate.random_label(args.random_label_image, args.size, args.actual_geo,
+                                  args.camera, args.flash, rotate=args.rotate).save(args.output)
+        except (OSError, ValueError, KeyError) as e:
+            sys.exit(f"simulate: {e}")
+        print(i18n.tr("Prediction from a model, not a photo; real contrast and brightness may differ."))
+        return
+    if args.actual_geo:
+        sys.exit("--actual-geo needs --random-label-image")
     try:
         if args.design:
             from . import design as project_file
@@ -1389,6 +1401,11 @@ def cmd_tilescan(args):
             print(f"    {name:24s} {v}")
 
 
+def cmd_label(args):
+    from .labelsession import run
+    return run(args)
+
+
 def cmd_random(args):
     from .randomdisc import write_iso
     if getattr(args, "media", "dvd") == "bd":
@@ -1396,9 +1413,21 @@ def cmd_random(args):
         if args.sectors > BD_SECTORS_PER_LAYER:
             sys.exit(f"{args.sectors:,} sectors do not fit on a single-layer Blu-ray "
                      f"({BD_SECTORS_PER_LAYER:,}); lower --sectors")
-    print(f"Writing {os.path.abspath(args.output)}: {args.sectors} sectors of seeded random data")
-    with ui.writing(args.output, args.sectors) as log:
-        write_iso(args.output, args.sectors, args.seed, media=args.media, log=log)
+    written_sectors = args.sectors
+    if getattr(args, 'label', None) and not getattr(args, 'geo', None):
+        from .randomlabel import STOP_SECTORS
+        written_sectors = STOP_SECTORS
+    print(f"Writing {os.path.abspath(args.output)}: {written_sectors} sectors of seeded random data")
+    try:
+        with ui.writing(args.output, written_sectors) as log:
+            write_iso(args.output, args.sectors, args.seed, media=args.media, log=log,
+                      label=getattr(args, "label", None), geo=getattr(args, 'geo', None))
+    except ValueError as e:
+        sys.exit(str(e))
+    if getattr(args, 'label', None) and not getattr(args, 'geo', None):
+        print('Label pending: burn --keep-open, then geo, label --geo ... --drive ..., and burn --append --expect-start NWA.')
+        ui.iso_ready(args.output)
+        return
     if not ui.term().reader:   # for a person (a terminal, or the page's) the advice below says this, with the right next step
         print("Burn it, then run `geo` on it.")
         for line in guide.burn_steps(args.output, args.media):
@@ -1594,7 +1623,7 @@ def _speed(text: str):
 COMMAND_GROUPS = (
     ("Start here", ("guide", "webui", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "timing", "geo", "results")),
-    ("Make a disc image", ("random", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
+    ("Make a disc image", ("random", "label", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc")),
     ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("disexport", "cdprobe")),
@@ -1734,6 +1763,9 @@ def _build_parser():
                     "skip automatic sampled read-back after writing")
     sp.add_argument("--yes-write", action="store_true", help="确认不可逆的刻录操作" if burn_zh else
                     "confirm irreversible writing")
+    sp.add_argument('--keep-open', action='store_true', help='DVD：本次刻录后保持光盘开放' if burn_zh else 'DVD: leave disc open after this session')
+    sp.add_argument('--append', action='store_true', help='DVD：追加会话并封盘，需要 --expect-start' if burn_zh else 'DVD: append and close; requires --expect-start')
+    sp.add_argument('--expect-start', type=int, help='必须与当前 NWA 相等的起始 LBA' if burn_zh else 'required NWA for appended image')
     sp.add_argument("--cd-sector", choices=("mode2form1", "mode1"), default="mode2form1",
                     help="CD 扇区布局，必须与 ISO 生成时相同" if burn_zh else
                     "CD sector layout; must match the ISO generator (default: mode2form1)")
@@ -1938,6 +1970,8 @@ def _build_parser():
     source.add_argument("--picture", help="greyscale picture to threshold instead of the grid test")
     source.add_argument("--design", help="a design file saved by edit")
     source.add_argument("--design-npy", help="prepared boolean design (True = dark), 6000 x 6000 cells of 0.02 mm, data-side view")
+    source.add_argument("--random-label-image", help="random label .image.json: paper view including geometry error")
+    sp.add_argument("--actual-geo", help="actual DVD geo summary for the random label preview (default: written geometry)")
     sp.add_argument("--diameter-mm", type=float, default=116.0, help="the picture's longer side on the disc, in mm; it keeps its shape")
     sp.add_argument("--dark", default="A5", help="dark texture: one hexadecimal byte")
     sp.add_argument("--light", default="B9", help="light texture: one hexadecimal byte, or bands to choose by viewing angle as on the figures disc")
@@ -2081,7 +2115,18 @@ def _build_parser():
     sp.add_argument("--output", default="iso/random.iso")
     sp.add_argument("--sectors", type=int, default=2295104, help="how much to burn, not the disc size; it has to fit on the blank")
     sp.add_argument("--seed", type=int, default=1)
+    sp.add_argument("--label", metavar="TEXT", help="DVD: pending ASCII label; stop random data at 50 mm, burn --keep-open then geo and label. With --geo, write the measured label in one burn (default nearest 8x)")
+    sp.add_argument('--geo', help='same-batch DVD geo folder or summary.json for a one-burn label')
     sp.set_defaults(func=cmd_random)
+
+    sp = sub.add_parser('label', help='build an appended DVD label session using measured geometry')
+    sp.add_argument('--geo', required=True, help='DVD geo folder or summary.json')
+    sp.add_argument('--text', required=True, help='printable ASCII label text')
+    sp.add_argument('--output', default='iso/label.iso', help='appended session ISO output')
+    sp.add_argument('--drive', help='read current DVD NWA from this drive (no writing)')
+    sp.add_argument('--start-lba', type=int, help='explicit NWA for offline construction')
+    sp.add_argument('--sectors', type=int, default=2295104, help='absolute DVD capacity in sectors')
+    sp.set_defaults(func=cmd_label)
 
     sp = sub.add_parser("calibdisc", help="write one Blu-ray that both times itself and shows its own twist")
     sp.add_argument("--output", default="iso/bd-calib.iso")

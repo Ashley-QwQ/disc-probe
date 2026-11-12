@@ -372,6 +372,22 @@ class Ladder:
         self.log(f"Only part of this disc is random data; measuring just those {len(found)} stretches")
         return found
 
+    def _label_parts(self, ranges):
+        """Read the in-band layout marker before any content samples or timed rungs there."""
+        if self.media != "dvd":
+            return ranges
+        from .randomlabel import exclude_ranges
+        tp = self.tp
+        # setup has already discovered pending or measured layouts before warmup.
+        spec = tp.summary.get("random_label")
+        if spec is None:
+            return ranges
+        # Also guard multi-sector reads and the drive's completion block.
+        margin = max(3000, tp.sectors + self.completion_sectors + self.block)
+        for span in [spec['exclude_lba'], *spec.get('avoid_lba', [])]:
+            ranges = exclude_ranges(ranges, span, self.block, margin)
+        return ranges
+
     def run(self) -> dict:
         tp = self.tp
         tp.setup()
@@ -392,8 +408,9 @@ class Ladder:
             self.ranges = [(int(last * CD_AUDIO_RANGE[0]), int(last * CD_AUDIO_RANGE[1]))]
         else:
             self.ranges = [(int(last * 0.03), int(last * 0.85))]
-            if self.media == "dvd":
-                self.ranges = self._random_parts(self.ranges)
+        self.ranges = self._label_parts(self.ranges)
+        if not self.ranges_arg and not self.audio and self.media == "dvd":
+            self.ranges = self._random_parts(self.ranges)
         self.ranges = [(a - a % self.block, b - b % self.block) for a, b in self.ranges if b - a > 64]
         if not self.ranges:
             raise RuntimeError(f"no readable {self.media.upper()} ranges longer than 64 sectors")
@@ -682,6 +699,7 @@ def write_outputs(ladder: Ladder, out_dir: str, stopped: str | None = None) -> N
                    "setup": ladder.tp.summary.get("setup"), "identity": ladder.tp.summary.get("identity"),
                    "set_cd_speed": ladder.tp.summary.get("set_cd_speed"),
                    "rotation_check": ladder.tp.summary.get("rotation_check"),
+                   **({"random_label": ladder.tp.summary["random_label"]} if "random_label" in ladder.tp.summary else {}),
                    **({"simulated": True} if ladder.tp.summary.get("simulated") else {}),
                    **({"stopped": stopped} if stopped else {})}, f, indent=2, default=float)
     events = ladder.tp.events_as_rows()

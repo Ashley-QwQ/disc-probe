@@ -7,6 +7,17 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    "actual DVD geo summary for the random label preview (default: written geometry)": "标签预览的实际 DVD geo 结果（默认沿用写入几何）",
+    "Label pending: burn --keep-open, then geo, label --geo ... --drive ..., and burn --append --expect-start NWA.": "标签待写：先用 burn --keep-open 刻录，再 geo 测量、label --geo ... --drive ... 生成标签，最后 burn --append --expect-start NWA 追加封盘。",
+    "DVD: pending ASCII label; stop random data at 50 mm, burn --keep-open then geo and label. With --geo, write the measured label in one burn (default nearest 8x)": "DVD：先登记 ASCII 标签，随机数据止于 50 mm；用 burn --keep-open 刻录、geo 测量，再用 label 生成追加会话。加 --geo 可按同批几何一次刻录（默认最接近 8x）",
+    "same-batch DVD geo folder or summary.json for a one-burn label": "同批 DVD 的 geo 文件夹或 summary.json，用于一次刻录标签",
+    "build an appended DVD label session using measured geometry": "用实测几何生成 DVD 标签追加会话",
+    "DVD geo folder or summary.json": "DVD 的 geo 结果文件夹或 summary.json",
+    "printable ASCII label text": "可打印的 ASCII 标签文字",
+    "appended session ISO output": "追加会话的 ISO 输出路径",
+    "read current DVD NWA from this drive (no writing)": "从此光驱只读查询 DVD 当前可写地址 NWA",
+    "explicit NWA for offline construction": "离线生成时显式指定 NWA",
+    "absolute DVD capacity in sectors": "DVD 总容量（绝对扇区数）",
     "DVD: read completion offset in sectors after the ECC block end (geo default: drive registry or 0; export default: stored value)": "DVD：读取完成点超出 ECC 块末尾的扇区数（默认查光驱登记表，未登记用 0；导出时默认沿用测量值）",
     "reapply the completion offset to an existing geo folder or summary without drive access; --out is a new folder": "不访问光驱，给已有 geo 文件夹或 summary 重新应用完成偏移；--out 指定新文件夹",
     "drive busy": "光驱正忙",
@@ -616,6 +627,10 @@ TEXT = {
 
     # Writing files
     "Writing {p}: {n} sectors of seeded random data": "正在写 {p}：{n} 个扇区的随机数据",
+    "DVD: ASCII label in the 54.5-57.5 mm band (nominal geometry; other batches may shear it). Burn at the default 8x: RITEKF1 at 4x failed read-back in the outer two thirds":
+        "DVD：在 54.5–57.5 mm 环带写 ASCII 标签（名义几何，其他批次可能严重扭曲）。纹理盘请用默认 8x 刻录：RITEKF1 在 4x 时外侧三分之二曾回读失败",
+    "random label .image.json: paper view including geometry error": "随机盘标签的 .image.json：生成白底预览，计入几何误差",
+    "actual DVD geo summary for the random label preview (default nominal)": "标签预览的实际 DVD geo 结果（默认名义几何）",
     "Burn it, then run `geo` on it.": "刻好后，对它运行 `geo`。",
     "Writing {p} (about a minute)": "正在写 {p}（约一分钟）",
     "Writing {p}": "正在写 {p}",
