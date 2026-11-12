@@ -1,0 +1,1209 @@
+{
+  "schema_version": 2,
+  "comment": "预测占位色，尚未经照片验证；颜色随盘面位置和姿态改变。 Placeholder colours, not photo validated; position and pose change the colour.",
+  "model": {
+    "name": "discprobe.simulate-v0.1.2.1",
+    "version": "1.0.0",
+    "function": "discprobe.simulate.texture_colour",
+    "release": "v0.1.2.1",
+    "lut_sha256": "fe930edca10e4ea1fc9e3dd19d5ee1201a51336351a66c33a5ae345bc530937c",
+    "extended_lut_sha256": "438bfa2b4a8f420b09bcd79bde0c43291adbbbf961cbbc10c530f3a6dee9773f",
+    "spectrum": "full recording ECC/EFMPlus PSD; existing CIE/LED integration; 3 LBAs 64000/900000/1700000",
+    "encoding": "release sqrt 8-bit LUT, linear-light box filter, saturation .6, sRGB floor to uint8"
+  },
+  "source": {
+    "file": "palette_merged.json",
+    "sha256": "d2d4323b953607515362610239e32843b5cba9221908afd55726af2aed9a0b0b",
+    "selection": "16 distinct low-risk non-conflicting singles near 410..640 nm, plus 5 existing grey recipes"
+  },
+  "pose": {
+    "camera": [
+      0.0,
+      70.0,
+      330.0
+    ],
+    "flash": [
+      -43.66,
+      89.79,
+      330.0
+    ],
+    "size": 800,
+    "patch": [
+      666,
+      400,
+      667,
+      401
+    ],
+    "sample_mm": [
+      39.974999999999994,
+      -0.07500000000000284
+    ],
+    "delta": 0.46083640085709676,
+    "axes": "x right, y up; one physical render pixel near r40 mm"
+  },
+  "trust": "Same model as simulate v0.1.2.1, not photo validated; position and pose dependent. DVD only; CD/BD files are reference colours, not predictions.",
+  "swatches": {
+    "DP-01 410nm A5A7DFA5A4": {
+      "kind": "single",
+      "spec": "A5A7DFA5A4",
+      "periods_um": [
+        0.8888666666666667
+      ],
+      "periods_T": [
+        6.666666666666667
+      ],
+      "srgb": [
+        67,
+        66,
+        71
+      ],
+      "hex": "#434247",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 409.6221155085114,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0521",
+      "source": "gpu_search3.json#/best/7",
+      "purity": [
+        0.672
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-02 426nm EEA0A5F89E9CA7C8EBE29C619E": {
+      "kind": "single",
+      "spec": "EEA0A5F89E9CA7C8EBE29C619E",
+      "periods_um": [
+        0.9244213333333334
+      ],
+      "periods_T": [
+        6.933333333333334
+      ],
+      "srgb": [
+        78,
+        60,
+        122
+      ],
+      "hex": "#4e3c7a",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 426.00700012885187,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0689",
+      "source": "gpu_search3b.json#/best/4",
+      "purity": [
+        0.6361
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-03 441nm AD61DDA76E3B5AE4A19EEEC4F8": {
+      "kind": "single",
+      "spec": "AD61DDA76E3B5AE4A19EEEC4F8",
+      "periods_um": [
+        0.9562979310344828
+      ],
+      "periods_T": [
+        7.172413793103448
+      ],
+      "srgb": [
+        95,
+        36,
+        197
+      ],
+      "hex": "#5f24c5",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 440.6968966850192,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0535",
+      "source": "gpu_search3.json#/best/21",
+      "purity": [
+        0.6341
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-04 457nm E4FDAFE1B6B4C4B8EE66E4A36E": {
+      "kind": "single",
+      "spec": "E4FDAFE1B6B4C4B8EE66E4A36E",
+      "periods_um": [
+        0.9904514285714286
+      ],
+      "periods_T": [
+        7.428571428571429
+      ],
+      "srgb": [
+        86,
+        44,
+        219
+      ],
+      "hex": "#562cdb",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 456.43607156662705,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0542",
+      "source": "gpu_search3.json#/best/28",
+      "purity": [
+        0.6622
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-05 472nm 6FADC4E4CC5B6FAD66E4FDF8": {
+      "kind": "single",
+      "spec": "6FADC4E4CC5B6FAD66E4FDF8",
+      "periods_um": [
+        1.0239744
+      ],
+      "periods_T": [
+        7.68
+      ],
+      "srgb": [
+        60,
+        79,
+        162
+      ],
+      "hex": "#3c4fa2",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 471.88467706580514,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0549",
+      "source": "gpu_search3.json#/best/35",
+      "purity": [
+        0.6528
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-06 486nm 4011471FEB94E8DAE834AF6D34ADC47E7EC479C6EDF8FC3C81EB7FA498743568A947BBC2C2C048CD": {
+      "kind": "single",
+      "spec": "4011471FEB94E8DAE834AF6D34ADC47E7EC479C6EDF8FC3C81EB7FA498743568A947BBC2C2C048CD",
+      "periods_um": [
+        1.0534716049382715
+      ],
+      "periods_T": [
+        7.901234567901234
+      ],
+      "srgb": [
+        52,
+        96,
+        116
+      ],
+      "hex": "#346074",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 485.47806282490234,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0696",
+      "source": "gpu_search3b.json#/best/11",
+      "purity": [
+        0.5167
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-07 503nm 66AD6F6F58EE46F07BC2E468AD42A4582D47CB7B57C666": {
+      "kind": "single",
+      "spec": "66AD6F6F58EE46F07BC2E468AD42A4582D47CB7B57C666",
+      "periods_um": [
+        1.090343111111111
+      ],
+      "periods_T": [
+        8.177777777777777
+      ],
+      "srgb": [
+        62,
+        133,
+        106
+      ],
+      "hex": "#3e856a",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 502.469795023774,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0697",
+      "source": "gpu_search3b.json#/best/12",
+      "purity": [
+        0.6083
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-08 518nm 6F81C6666798CBBFCE67": {
+      "kind": "single",
+      "spec": "6F81C6666798CBBFCE67",
+      "periods_um": [
+        1.122778947368421
+      ],
+      "periods_T": [
+        8.421052631578947
+      ],
+      "srgb": [
+        93,
+        175,
+        114
+      ],
+      "hex": "#5daf72",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 517.4174090633828,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0564",
+      "source": "gpu_search3.json#/best/50",
+      "purity": [
+        0.6515
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-09 533nm 98BF7D6F93AD58BBC66781C667": {
+      "kind": "single",
+      "spec": "98BF7D6F93AD58BBC66781C667",
+      "periods_um": [
+        1.1555266666666666
+      ],
+      "periods_T": [
+        8.666666666666666
+      ],
+      "srgb": [
+        114,
+        205,
+        120
+      ],
+      "hex": "#72cd78",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 532.5087501610648,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0568",
+      "source": "gpu_search3.json#/best/54",
+      "purity": [
+        0.6505
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-10 546nm 98BF67CCCE": {
+      "kind": "single",
+      "spec": "98BF67CCCE",
+      "periods_um": [
+        1.1851555555555557
+      ],
+      "periods_T": [
+        8.88888888888889
+      ],
+      "srgb": [
+        122,
+        218,
+        123
+      ],
+      "hex": "#7ada7b",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 546.1628206780152,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0348",
+      "source": "gpu_search.json#/best/4",
+      "purity": [
+        0.6847
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-11 562nm CC67": {
+      "kind": "single",
+      "spec": "CC67",
+      "periods_um": [
+        1.2190171428571428
+      ],
+      "periods_T": [
+        9.142857142857142
+      ],
+      "srgb": [
+        179,
+        214,
+        126
+      ],
+      "hex": "#b3d67e",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 561.767472697387,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0350",
+      "source": "gpu_search.json#/best/6",
+      "purity": [
+        0.6998
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-12 579nm AD86CFB75CAD86CF935C": {
+      "kind": "single",
+      "spec": "AD86CFB75CAD86CF935C",
+      "periods_um": [
+        1.2548705882352942
+      ],
+      "periods_T": [
+        9.411764705882353
+      ],
+      "srgb": [
+        222,
+        191,
+        123
+      ],
+      "hex": "#debf7b",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 578.2900454237808,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0578",
+      "source": "gpu_search3.json#/best/64",
+      "purity": [
+        0.6628
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-13 595nm B78698A4865D66869B66D99880EDDCD664D9437D936A1D": {
+      "kind": "single",
+      "spec": "B78698A4865D66869B66D99880EDDCD664D9437D936A1D",
+      "periods_um": [
+        1.2911957894736843
+      ],
+      "periods_T": [
+        9.68421052631579
+      ],
+      "srgb": [
+        229,
+        150,
+        112
+      ],
+      "hex": "#e59670",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 595.0300204228903,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0581",
+      "source": "gpu_search3.json#/best/67",
+      "purity": [
+        0.6261
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-14 609nm FDFB976AE9B786495D66B79737": {
+      "kind": "single",
+      "spec": "FDFB976AE9B786495D66B79737",
+      "periods_um": [
+        1.3206019047619049
+      ],
+      "periods_T": [
+        9.904761904761905
+      ],
+      "srgb": [
+        220,
+        117,
+        101
+      ],
+      "hex": "#dc7565",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 608.5814287555027,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0357",
+      "source": "gpu_search.json#/best/13",
+      "purity": [
+        0.6401
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-15 626nm 5CD68866F9B097": {
+      "kind": "single",
+      "spec": "5CD68866F9B097",
+      "periods_um": [
+        1.3575418181818182
+      ],
+      "periods_T": [
+        10.181818181818182
+      ],
+      "srgb": [
+        189,
+        88,
+        88
+      ],
+      "hex": "#bd5858",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 625.6046855039084,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0359",
+      "source": "gpu_search.json#/best/15",
+      "purity": [
+        0.6658
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-16 639nm 215EB7B0869743826A6A988866": {
+      "kind": "single",
+      "spec": "215EB7B0869743826A6A988866",
+      "periods_um": [
+        1.386632
+      ],
+      "periods_T": [
+        10.4
+      ],
+      "srgb": [
+        150,
+        74,
+        81
+      ],
+      "hex": "#964a51",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "wavelength_nm": 639.0105001932778,
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "note": "Wavelength is a period label only; RGB comes from the complete recording spectrum"
+      },
+      "id": "observation_0361",
+      "source": "gpu_search.json#/best/17",
+      "purity": [
+        0.6712
+      ],
+      "purity_basis": "whole-ECC-block +/-5% AC power",
+      "risk": "low (A5-like)",
+      "risk_basis": "source string",
+      "period_conflict": false
+    },
+    "DP-G000 灰阶 Grey": {
+      "kind": "grey-recipe",
+      "spec": null,
+      "periods_um": [],
+      "srgb": [
+        63,
+        65,
+        63
+      ],
+      "hex": "#3f413f",
+      "recipe": {
+        "dark": "A5",
+        "light": [
+          "57",
+          "FD"
+        ],
+        "bright_fraction": 0.0,
+        "method": "linear-light area mixture; not an encoded single texture"
+      },
+      "source": "art/compose_grey.py: LEVELS and chart-selected bright/dark experiment; simulate.render(light=\"bands\")",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "descriptor": {
+          "components": [
+            {
+              "spec": "A5",
+              "weight": 1.0
+            },
+            {
+              "spec": "57",
+              "weight": 0.0
+            },
+            {
+              "spec": "FD",
+              "weight": 0.0
+            }
+          ]
+        },
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "band_zone": 8,
+        "note": "Same texture_colour function; weighted spectra in linear light; may be tinted"
+      },
+      "risk": "UNKNOWN",
+      "risk_basis": "Photo validation of this grey recipe is not established"
+    },
+    "DP-G025 灰阶 Grey": {
+      "kind": "grey-recipe",
+      "spec": null,
+      "periods_um": [],
+      "srgb": [
+        69,
+        73,
+        72
+      ],
+      "hex": "#454948",
+      "recipe": {
+        "dark": "A5",
+        "light": [
+          "57",
+          "FD"
+        ],
+        "bright_fraction": 0.25,
+        "method": "linear-light area mixture; not an encoded single texture"
+      },
+      "source": "art/compose_grey.py: LEVELS and chart-selected bright/dark experiment; simulate.render(light=\"bands\")",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "descriptor": {
+          "components": [
+            {
+              "spec": "A5",
+              "weight": 0.75
+            },
+            {
+              "spec": "57",
+              "weight": 0.125
+            },
+            {
+              "spec": "FD",
+              "weight": 0.125
+            }
+          ]
+        },
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "band_zone": 8,
+        "note": "Same texture_colour function; weighted spectra in linear light; may be tinted"
+      },
+      "risk": "UNKNOWN",
+      "risk_basis": "Photo validation of this grey recipe is not established"
+    },
+    "DP-G050 灰阶 Grey": {
+      "kind": "grey-recipe",
+      "spec": null,
+      "periods_um": [],
+      "srgb": [
+        74,
+        80,
+        79
+      ],
+      "hex": "#4a504f",
+      "recipe": {
+        "dark": "A5",
+        "light": [
+          "57",
+          "FD"
+        ],
+        "bright_fraction": 0.5,
+        "method": "linear-light area mixture; not an encoded single texture"
+      },
+      "source": "art/compose_grey.py: LEVELS and chart-selected bright/dark experiment; simulate.render(light=\"bands\")",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "descriptor": {
+          "components": [
+            {
+              "spec": "A5",
+              "weight": 0.5
+            },
+            {
+              "spec": "57",
+              "weight": 0.25
+            },
+            {
+              "spec": "FD",
+              "weight": 0.25
+            }
+          ]
+        },
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "band_zone": 8,
+        "note": "Same texture_colour function; weighted spectra in linear light; may be tinted"
+      },
+      "risk": "UNKNOWN",
+      "risk_basis": "Photo validation of this grey recipe is not established"
+    },
+    "DP-G075 灰阶 Grey": {
+      "kind": "grey-recipe",
+      "spec": null,
+      "periods_um": [],
+      "srgb": [
+        79,
+        87,
+        86
+      ],
+      "hex": "#4f5756",
+      "recipe": {
+        "dark": "A5",
+        "light": [
+          "57",
+          "FD"
+        ],
+        "bright_fraction": 0.75,
+        "method": "linear-light area mixture; not an encoded single texture"
+      },
+      "source": "art/compose_grey.py: LEVELS and chart-selected bright/dark experiment; simulate.render(light=\"bands\")",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "descriptor": {
+          "components": [
+            {
+              "spec": "A5",
+              "weight": 0.25
+            },
+            {
+              "spec": "57",
+              "weight": 0.375
+            },
+            {
+              "spec": "FD",
+              "weight": 0.375
+            }
+          ]
+        },
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "band_zone": 8,
+        "note": "Same texture_colour function; weighted spectra in linear light; may be tinted"
+      },
+      "risk": "UNKNOWN",
+      "risk_basis": "Photo validation of this grey recipe is not established"
+    },
+    "DP-G100 灰阶 Grey": {
+      "kind": "grey-recipe",
+      "spec": null,
+      "periods_um": [],
+      "srgb": [
+        83,
+        93,
+        92
+      ],
+      "hex": "#535d5c",
+      "recipe": {
+        "dark": "A5",
+        "light": [
+          "57",
+          "FD"
+        ],
+        "bright_fraction": 1.0,
+        "method": "linear-light area mixture; not an encoded single texture"
+      },
+      "source": "art/compose_grey.py: LEVELS and chart-selected bright/dark experiment; simulate.render(light=\"bands\")",
+      "computed": {
+        "function": "discprobe.simulate.texture_colour",
+        "model": "discprobe.simulate-v0.1.2.1",
+        "version": "1.0.0",
+        "descriptor": {
+          "components": [
+            {
+              "spec": "A5",
+              "weight": 0.0
+            },
+            {
+              "spec": "57",
+              "weight": 0.5
+            },
+            {
+              "spec": "FD",
+              "weight": 0.5
+            }
+          ]
+        },
+        "delta": 0.46083640085709676,
+        "pose": {
+          "camera": [
+            0.0,
+            70.0,
+            330.0
+          ],
+          "flash": [
+            -43.66,
+            89.79,
+            330.0
+          ],
+          "size": 800,
+          "patch": [
+            666,
+            400,
+            667,
+            401
+          ]
+        },
+        "band_zone": 8,
+        "note": "Same texture_colour function; weighted spectra in linear light; may be tinted"
+      },
+      "risk": "UNKNOWN",
+      "risk_basis": "Photo validation of this grey recipe is not established"
+    }
+  }
+}

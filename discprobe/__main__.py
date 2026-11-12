@@ -1557,13 +1557,23 @@ def _speed(text: str):
 
 
 # (group title, commands); `main` fills in what each one does.
+def cmd_template(args):
+    from . import template
+    try:
+        target = template.write(args.geo, args.out, media=args.media, sectors=args.sectors,
+                                size=args.size, pose=args.pose, preset_id=args.preset_id)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        sys.exit(f'Template export: {exc}')
+    print(f'Template: {target.resolve()} (SVG, PNG, GPL, ASE, JSON, README; layered PSD skipped)')
+
+
 COMMAND_GROUPS = (
     ("Start here", ("guide", "webui", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "timing", "geo", "results")),
     ("Make a disc image", ("random", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc")),
     ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
-    ("Use elsewhere", ("disexport", "cdprobe")),
+    ("Use elsewhere", ("template", "disexport", "cdprobe")),
 )
 LANG_NOTE = ("Language: --lang zh or --lang en, or DISCPROBE_LANG; at a terminal it follows the system. "
              "Scripts and pipes stay English unless --lang is given. --no-animation keeps the screen still.\n"
@@ -1911,6 +1921,16 @@ def _build_parser():
     sp.add_argument("--sheet", help="save a 12-tile prediction sheet as PNG")
     sp.add_argument("--size", type=int, default=420, help="side of a tile in pixels")
     sp.set_defaults(func=cmd_simulate)
+
+    sp = sub.add_parser("template", help="export a batch-sized drawing template and material swatches")
+    sp.add_argument("--geo", required=True, help="geo summary/folder, latest, or DiscImageStudio preset JSON")
+    sp.add_argument("--media", choices=("dvd", "cd", "bd"), help="check geometry media (inferred by default)")
+    sp.add_argument("--sectors", type=int, help="written sector count; default: capacity recorded in geometry")
+    sp.add_argument("--size", type=int, default=4096, help="PNG side in pixels (256..8192)")
+    sp.add_argument("--out", default="disc-template", help="output directory")
+    sp.add_argument("--preset-id", help="select a preset ID when the JSON contains several")
+    sp.add_argument("--pose", nargs="?", const="default", help="approximate DVD first-order layer: default or cx,cy,cz,lx,ly,lz in mm")
+    sp.set_defaults(func=cmd_template)
 
     sp = sub.add_parser("image", help="write a picture ISO placed with a measured geometry (grid test by default)")
     sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose")

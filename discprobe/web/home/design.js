@@ -8,6 +8,7 @@
 import { processRGBA, renderOutput, autoLevels } from "./design/processing.mjs";
 
 import { processingWorker } from "./design/worker-client.mjs";
+import { downloadTemplate } from "./design/template-download.mjs";
 
 let api, $;
 const root = document.documentElement;
@@ -1104,7 +1105,8 @@ function buildLeft() {
       `<button class="ib" type="button" data-a="vis" aria-label="${L.visible ? t.hide : t.show}" title="${L.visible ? t.hide : t.show}">${L.visible ? I.eye : I.eyeOff}</button>` +
       `<button class="ib" type="button" data-a="lock" aria-label="${L.locked ? t.unlock : t.lock}" title="${L.locked ? t.unlock : t.lock}">${L.locked ? I.lock : I.unlock}</button></li>`).join("")}</ul>`
       : `<p class="empty-l">${t.noLayers}</p>`) +
-    `<button class="sbtn wide" type="button" data-a="import">${I.image}${t.import}</button></section>` +
+    `<button class="sbtn wide" type="button" data-a="import">${I.image}${t.import}</button>` +
+    `<button class="sbtn wide template-download" type="button" data-a="template">${api.lang() === "en" ? "Download template" : "下载模板"}</button></section>` +
     // files on the disc: the core cannot write them yet (`image` has no files, the ISO no entries), so the page
     // does not show them at all until it does (a column explaining a missing feature is noise)
     (!FILES_READY ? "" : `<section><h3>${t.files}</h3>` +
@@ -1141,6 +1143,7 @@ function leftClick(e) {
   if (a === "undo") return undo();
   if (a === "redo") return redo();
   if (a === "import") return W.file.click();
+  if (a === "template") return downloadTemplate(S, b, toast);
   if (a === "folder") return W.folder.click();
   if (a === "nofiles") { S.files = null; changed(); buildLeft(); return; }
   if (a === "inner" || a === "outer") { S.files.where = a; changed(); buildLeft(); return; }

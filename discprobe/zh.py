@@ -7,6 +7,15 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    "export a batch-sized drawing template and material swatches": "按这批盘的几何导出绘图模板和材料色板",
+    "geo summary/folder, latest, or DiscImageStudio preset JSON": "geo 的 summary.json、结果目录、latest，或 DiscImageStudio 预设 JSON",
+    "check geometry media (inferred by default)": "检查几何对应的盘种（默认从文件判断）",
+    "written sector count; default: capacity recorded in geometry": "本次写入的扇区数；默认用几何记录的批次容量",
+    "PNG side in pixels (256..8192)": "PNG 边长像素数（256..8192）",
+    "output directory": "输出目录",
+    "select a preset ID when the JSON contains several": "JSON 有多个预设时，指定其中一个预设 ID",
+    "approximate DVD first-order layer: default or cx,cy,cz,lx,ly,lz in mm": "近似 DVD 一阶光暗区层：default 或 cx,cy,cz,lx,ly,lz，单位 mm",
+    "Template: {a} (SVG, PNG, GPL, ASE, JSON, README; layered PSD skipped)": "模板：{a}（SVG、PNG、GPL、ASE、JSON、README；未生成分层 PSD）",
     "drive busy": "光驱正忙",
     "unknown drive": "未知光驱",
     "the drive did not answer in time": "光驱没有及时回应",

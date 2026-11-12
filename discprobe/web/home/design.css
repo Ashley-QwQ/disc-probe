@@ -53,6 +53,9 @@
 .sbtn { min-height: 40px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: 4px; background: none; color: var(--ink); font: inherit; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .sbtn:hover:not(:disabled) { border-color: var(--ink-3); background: var(--paper-2); }
 .sbtn:disabled { opacity: .4; cursor: default; }
+.sbtn.template-download { min-height: 44px; border-color: transparent; color: var(--ink-2); }
+.sbtn.template-download:hover:not(:disabled) { color: var(--ink); text-decoration: underline; }
+.sbtn.template-download:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sbtn.wide { width: 100%; }
 .sbtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

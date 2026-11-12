@@ -526,6 +526,24 @@ class Backend:
         size = path.stat().st_size
         return dict(path=path.relative_to(self.root).as_posix(), bytes=size, sectors=size // 2048)
 
+    def template_zip(self, payload):
+        from . import template
+        if not isinstance(payload, dict) or set(payload) - {'geo', 'media', 'sectors', 'size', 'pose', 'preset_id'}:
+            raise APIError('invalid template request')
+        source = Path(local_path(self.root, payload.get('geo')))
+        if source.is_dir():
+            source /= 'summary.json'
+        if not source.resolve().is_relative_to(self.root) or not source.is_file():
+            raise APIError('template geometry must be a file inside the workspace')
+        if payload.get('preset_id') is not None and not isinstance(payload['preset_id'], str):
+            raise APIError('invalid preset ID')
+        try:
+            # Serialize large raster exports; no background job, hardware access or workspace writes.
+            with self.lock:
+                return template.zip_bytes(template.export_files(source, **{k:v for k,v in payload.items() if k != 'geo'}))
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            raise APIError(f'Template export: {exc}') from exc
+
     def save_design(self, packed: bytes) -> dict:
         """Keep a design the page drew (one bit per cell of 20, 10 or 5 µm, row by row, dark = 1) as image
         --design-npy reads it; its length says the cell size."""
@@ -701,9 +719,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Set-Cookie", f"discprobe_session={self.server.token}; Path=/; HttpOnly; SameSite=Strict")
         super().end_headers()
 
-    def _send(self, code, body, content_type="application/json; charset=utf-8"):
+    def _send(self, code, body, content_type="application/json; charset=utf-8", filename=None):
         self.send_response(code)
         self.send_header("Content-Type", content_type)
+        if filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
@@ -941,7 +961,10 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length))
             path = urlsplit(self.path).path
             backend = self.server.backend
-            if path == "/api/catalogue":
+            if path == "/api/template":
+                self._send(200, backend.template_zip(payload), "application/zip", "disc-template.zip")
+                return
+            elif path == "/api/catalogue":
                 with backend.lock:
                     result = webui_catalog.save_entry(backend.root, backend.out, payload)
             elif path == "/api/run":
