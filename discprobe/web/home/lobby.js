@@ -163,6 +163,7 @@ function hover(key, on) {
   const t = M.targets[key];
   on ||= L.root.querySelector(`.lb-hit[data-target="${key}"]`) === document.activeElement;
   if (on && key === "newplan") import("./newplan.js").then((m) => m.prepare(api)).catch(() => {});   // ready before the click
+  if (on && key === "filebox") import("./pastworks.js").then((m) => m.prepare(api)).catch(() => {});
   if (t.layer !== "base") L.layer[t.layer]?.classList.toggle("lift", on);
   if (key === "lamp") L.root.classList.toggle("lamp-hot", on);
   L.root.querySelectorAll(`[data-target="${key}"]`).forEach((n) => n.classList.toggle("hot", on));
@@ -286,6 +287,16 @@ export async function init(homeApi) {
   L = { root: sec, art: $("lobby-art"), hello: $("lobby-hello"), recent: $("lobby-recent"), toast: document.createElement("div") };
   L.toast.className = "lb-toast"; L.toast.setAttribute("role", "status");
   sec.append(L.toast);
+  // Own this entry in capture phase: index.html's old file-picker listener stays dormant.
+  // The same native button answers the printed label/hotspot and the lobby keyboard path.
+  $("lobby-open").addEventListener("click", async (e) => {
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (root.dataset.mode === "pastworks") return;
+    const button = $("lobby-open"); button.setAttribute("aria-busy", "true");
+    try { await (await import("./pastworks.js")).start(api, { from: button }); }
+    catch (error) { console.error("past works", error); toast(api.lang() === "en" ? "Could not open past works. Try again." : "没能打开往期作品，请重试。"); }
+    finally { button.removeAttribute("aria-busy"); }
+  }, { capture: true });
   paintHello();
   addEventListener("dp-drive-state", paintHello);
   const url = new URL(ART, import.meta.url);

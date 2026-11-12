@@ -494,14 +494,14 @@ function zoomAt(f, sx, sy) {
 const zoomPct = () => Math.round(V.s * S.cell * 100);
 
 // ---------------------------------------------------------------- the picture after tone (the projection)
-function toneOptions() {
-  const t = S.tone;
+function toneOptions(plan = S) {
+  const t = plan.tone;
   const adjustments = {
     brightness: t.bright / 64 * 50, contrast: t.contrast, highlights: t.hi, shadows: t.sh,
-    gamma: t.lin ? 1 / 2.2 : 1, invert: !!t.inv && S.media === "bd",
+    gamma: t.lin ? 1 / 2.2 : 1, invert: !!t.inv && plan.media === "bd",
     ...(t.auto ? { blackPoint: t.auto[0], whitePoint: t.auto[1] } : {}),
   };
-  const four = t.levels === 4 && S.media === "cd";
+  const four = t.levels === 4 && plan.media === "cd";
   const output = four ? { mode: "grayscale", levels: 4 } : { mode: t.mode, strength: t.dither / 100, levels: 256 };
   return { adjustments, output };
 }
@@ -534,6 +534,50 @@ function rasterise(x0, y0, x1, y1, ppm, white = true, originals = null, layers =
     g.restore();
   }
   return { c, g, pw, ph };
+}
+// Archive thumbnails use the editor's rasteriser, tone processing and measured drawing range.
+// They never select a project, touch the editor's canvas, or start its worker/device flows.
+const planThumbs = new WeakMap();
+export function planThumbnail(plan, px = 256) {
+  px = Math.max(32, Math.min(512, Math.round(px)));
+  const dark = root.dataset.theme === "dark";
+  const key = JSON.stringify([px, dark, plan.media, plan.view, plan.tone, plan.pro, plan.lookColour, plan.lookY, plan.scene,
+    plan.past?.length, plan.future?.length,
+    (plan.layers || []).map((L) => [L.kind, L.w, L.h, L.version, ...PROPS.filter((k) => k !== "px").map((k) => L[k])])]);
+  const sources = (plan.layers || []).flatMap((L) => [L.src, L.px]);
+  const cached = planThumbs.get(plan);
+  if (cached?.key === key && sources.every((src, i) => src === cached.sources[i])) return cached.url;
+  const face = dark ? "#ebe7e0" : "#d6d1c8", hub = dark ? "#e4dfd7" : "#c9c3b9";
+  const c = document.createElement("canvas"); c.width = c.height = px;
+  const g = c.getContext("2d"), ppm = px / 120, centre = px / 2;
+  const ring = (a, b) => { g.beginPath(); g.arc(centre, centre, b * ppm, 0, 2 * Math.PI); g.arc(centre, centre, a * ppm, 0, 2 * Math.PI, true); };
+  g.fillStyle = face; ring(7.5, 60); g.fill("evenodd");
+  g.fillStyle = hub; ring(7.5, 17); g.fill("evenodd");
+  const layers = (plan.layers || []).filter((L) => L.kind === "image");
+  if (layers.some((L) => L.visible)) {
+    const raster = rasterise(-60, -60, 60, 60, ppm, true, null, layers);
+    if (plan.view !== "orig") {
+      const { adjustments, output } = toneOptions({ ...plan, tone: { ...DEFAULT_TONE, ...plan.tone } });
+      const out = renderOutput(processRGBA(raster.g.getImageData(0, 0, px, px), adjustments, { previewScale: ppm * (plan.cell || .02) }), output);
+      raster.g.setTransform(1, 0, 0, 1, 0, 0); raster.g.putImageData(new ImageData(out.data, px, px), 0, 0);
+    }
+    const [r0, r1] = RANGE[plan.media] || RANGE.dvd;
+    g.save(); ring(r0, r1); g.clip("evenodd"); g.drawImage(raster.c, 0, 0);
+    if (plan.view !== "orig") { g.globalCompositeOperation = "multiply"; g.fillStyle = face; g.fillRect(0, 0, px, px); }
+    g.restore();
+  }
+  const look = lookOverlay(plan);
+  if (look) {
+    const [r0, r1] = RANGE[plan.media] || RANGE.dvd;
+    g.save(); ring(r0, r1); g.clip("evenodd");
+    g.globalCompositeOperation = "multiply"; g.drawImage(look.colour, 0, 0, px, px);
+    g.globalCompositeOperation = "source-over"; g.globalAlpha = .95; g.drawImage(look.fx, 0, 0, px, px); g.restore();
+  }
+  g.strokeStyle = "#1d1b18"; g.globalAlpha = .25; g.lineWidth = .7;
+  for (const r of [7.5, 17, 60]) { g.beginPath(); g.arc(centre, centre, r * ppm - .4, 0, 2 * Math.PI); g.stroke(); }
+  const url = c.toDataURL("image/png");
+  planThumbs.set(plan, { key, sources, url });
+  return url;
 }
 let comp = null, composeT = 0, composeKey = "";
 let composeRevision = 0, composing = false, composeAgain = false, previewWorker = null;
@@ -583,9 +627,9 @@ function delta(x, y, cam, lamp) {
   return Math.abs((a[0] + b[0]) * tx + (a[1] + b[1]) * ty);
 }
 // the camera (and a lamp that rides on the phone) moved so the phone's offset toward the top is y
-function poseAt(y) {
-  const cam = [S.scene.cam[0], -y, S.scene.cam[2]];
-  const lamp = S.scene.follows ? [cam[0] + FLASH[0], cam[1] - FLASH[1], cam[2]] : S.scene.lamp;
+function poseAt(y, plan = S) {
+  const cam = [plan.scene.cam[0], -y, plan.scene.cam[2]];
+  const lamp = plan.scene.follows ? [cam[0] + FLASH[0], cam[1] - FLASH[1], cam[2]] : plan.scene.lamp;
   return [cam, lamp];
 }
 function wavelengthRGB(nm) {
@@ -619,20 +663,19 @@ function effectY(L, u, v, cellParity) {
   return NaN;
 }
 let lookCanvas = null, lookKey = "";
-function lookOverlay() {
-  const fx = S.layers.filter((L) => L.kind === "fx" && L.visible);
-  const coloured = imageLayers().filter((L) => L.visible && L.colour !== "none");
-  if (!S.pro || (!fx.length && !(S.lookColour && coloured.length))) return null;
-  const key = JSON.stringify([S.lookY, S.scene, S.lookColour, fx.map((L) => PROPS.map((k) => L[k])), coloured.map((L) => [L.id, L.version, L.x, L.y, L.width, L.rot, L.colour])]);
-  if (key === lookKey && lookCanvas) return lookCanvas;
-  lookKey = key;
+function lookOverlay(plan = S) {
+  const fx = plan.layers.filter((L) => L.kind === "fx" && L.visible);
+  const coloured = plan.layers.filter((L) => L.kind === "image" && L.visible && L.colour !== "none");
+  if (!plan.pro || (!fx.length && !(plan.lookColour && coloured.length))) return null;
+  const key = JSON.stringify([plan.lookY, plan.scene, plan.lookColour, fx.map((L) => PROPS.map((k) => L[k])), coloured.map((L) => [L.id, L.version, L.x, L.y, L.width, L.rot, L.colour])]);
+  if (plan === S && key === lookKey && lookCanvas) return lookCanvas;
   const N = 240, mm = 120 / N, imgC = new ImageData(N, N), imgF = new ImageData(N, N);
-  const [camP, lampP] = poseAt(S.lookY);
-  const [camD, lampD] = poseAt(-S.scene.cam[1]);   // the design position: what the textures were chosen for
+  const [camP, lampP] = poseAt(plan.lookY, plan);
+  const [camD, lampD] = poseAt(-plan.scene.cam[1], plan);   // the design position: what the textures were chosen for
   // where each coloured layer is: its alpha on the same grid
   const masks = coloured.map((L) => {
     const one = { ...L };
-    const { g } = rasterise(-60, -60, 60, 60, N / 120, false);
+    const { g } = rasterise(-60, -60, 60, 60, N / 120, false, null, []);
     g.clearRect(-60, -60, 120, 120);
     g.save(); g.translate(one.x, one.y); g.rotate(one.rot * Math.PI / 180);
     const hh = heightOf(one); g.drawImage(one.src, -one.width / 2, -hh / 2, one.width, hh); g.restore();
@@ -659,7 +702,7 @@ function lookOverlay() {
       if (Math.abs(lu) > 0.5 || Math.abs(lv) > 0.5) continue;
       const yt = effectY(L, lu, lv, (i + j) % 2);
       if (Number.isNaN(yt)) continue;
-      const [camT, lampT] = poseAt(yt);
+      const [camT, lampT] = poseAt(yt, plan);
       const dT = delta(x, y, camT, lampT), dP = delta(x, y, camP, lampP);
       const b = Math.exp(-4 * Math.LN2 * ((dP - dT) / FWHM) ** 2);
       if (b < 0.04) { rgb = rgb ?? [0, 0, 0]; B = Math.max(B, 0.0001); continue; }
@@ -671,8 +714,9 @@ function lookOverlay() {
     o[k + 3] = 235;
   }
   const put = (img) => { const c = document.createElement("canvas"); c.width = N; c.height = N; c.getContext("2d").putImageData(img, 0, 0); return c; };
-  lookCanvas = { colour: put(imgC), fx: put(imgF) };
-  return lookCanvas;
+  const result = { colour: put(imgC), fx: put(imgF) };
+  if (plan === S) { lookKey = key; lookCanvas = result; }
+  return result;
 }
 
 // ---------------------------------------------------------------- drawing the canvas

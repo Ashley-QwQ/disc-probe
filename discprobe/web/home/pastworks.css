@@ -1,0 +1,104 @@
+/* Archive paper on the desk; controls on the glass. Only the discs carry colour. */
+.pw { position: fixed; inset: 0; z-index: 1; overflow: hidden; color: var(--ink);
+  background: url(caltop/anim/desk_paper.webp) 0 0 / 384px repeat,
+              radial-gradient(70% 55% at 62% 18%, rgb(255 244 222 / .55), transparent 70%), #dbd4c9; }
+:root[data-theme="dark"] .pw { background: url(caltop/anim/desk_dark.webp) 0 0 / 384px repeat,
+              radial-gradient(65% 50% at 62% 16%, rgb(120 98 62 / .32), transparent 72%), #1d2524; }
+.pw[hidden], .pw [hidden] { display: none; }
+:root[data-mode="pastworks"] :is(.stage, .counter, .detail, .gallery, .lobby:not(.leaving)) { visibility: hidden; }
+:root[data-mode="pastworks"] :is(#next, #next-why, .next-side) { display: none; }
+:root[data-mode="pastworks"] .top > * { filter: var(--glass-desk-drop); }
+.pw-background, .pw-depth { position: absolute; inset: 0; pointer-events: none; }
+.pw-background { overflow: hidden; }
+/* the rabbit hole: the file box's dark carried into the fall, a warm light far below where the paper waits */
+.pw-hole { position: absolute; inset: 0; opacity: calc(var(--pw-hole, 0) * .92); pointer-events: none;
+  background: radial-gradient(120% 70% at 50% 118%, #6b5638 0, #2a241b 38%, #0d100f 72%); }
+.pw-depth { will-change: transform; }
+.pw-depth img { position: absolute; object-fit: contain; user-select: none; }
+.pw-scroll { position: absolute; inset: calc(var(--edge) + var(--row) + 16px) 0 0; overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent;
+  padding: 0 max(var(--edge), calc((100vw - 1180px) / 2)) calc(var(--foot) + 40px); box-sizing: border-box; }
+.pw-focus-paper, .pw-paper::before { border: 0 solid transparent; border-image: url(newplan/paper_paper.webp) 120 fill / 46px / 23px stretch;
+  box-shadow: var(--paper-desk); }
+/* the report is thin paper: the sheet alone is see-through (::before), the ink on it is not */
+.pw-paper { position: relative; isolation: isolate; padding: clamp(24px, 3vw, 48px); min-height: calc(100vh - var(--foot) - var(--edge) - var(--row) - 56px); }
+.pw-paper::before { content: ""; position: absolute; inset: 0; z-index: -1; opacity: .72; pointer-events: none; }
+:root[data-theme="dark"] .pw-focus-paper, :root[data-theme="dark"] .pw-paper::before { border-image-source: url(newplan/paper_dark.webp); }
+:root[data-theme="dark"] .pw-paper::before { opacity: .8; }
+/* The supplied dark paper reaches RGB 119,119,108. White ink keeps even the small
+   dates above 4.5:1 across that texture; hierarchy comes from size and weight. */
+:root[data-theme="dark"] :is(.pw-paper, .pw-focus) { --ink: #ece6d6; --ink-2: #d6d0c1; --ink-3: #b9b3a3; --rule: rgb(236 230 214 / .28); }
+.pw-heading { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 6px 24px; padding-bottom: 18px;
+  border-bottom: 1.5px solid var(--ink); box-shadow: 0 4px 0 -3.25px var(--ink-3); }
+.pw-count { grid-column: 1; margin: 0; font: 13px var(--mono); color: var(--ink-3); }
+.pw-heading h1 { margin: 0; font-size: clamp(28px, 3.1vw, 44px); font-weight: 800; font-stretch: 112%; line-height: 1.15; text-wrap: balance; }
+.pw-heading h1 small { margin-left: .5em; font-size: .42em; font-weight: 600; font-stretch: 112%; color: var(--ink-3); }
+/* sort: two words on the form, the chosen one inked and underlined (no browser menu) */
+.pw-sort { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 18px; }
+.pw-sort button { padding: 6px 0; border: 0; background: none; color: var(--ink-3); font: 600 15px var(--font); font-stretch: 110%; cursor: pointer;
+  border-bottom: 1.5px solid transparent; }
+.pw-sort button[aria-checked="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.pw-sort button:hover { color: var(--ink); }
+.pw-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 30px 34px; margin-top: 30px; }
+.pw-cell { display: flex; flex-direction: column; align-items: stretch; min-width: 0; min-height: 44px; margin: 0; padding: 0;
+  background: none; border: 0; border-radius: 4px; color: var(--ink); font: 500 16px / 1.4 var(--font); cursor: pointer; text-align: left; }
+.pw-envelope { display: block; position: relative; width: 100%; aspect-ratio: 1600 / 1541; flex: none; rotate: var(--tilt, 0deg);
+  filter: drop-shadow(calc(-3 * var(--mm, 2.4px)) calc(1.7 * var(--mm, 2.4px)) calc(1.5 * var(--mm, 2.4px)) var(--glass-ink));
+  transform-origin: 50% 50%; --lift-ease: cubic-bezier(.25, .7, .3, 1);
+  transition: translate 620ms var(--lift-ease), rotate 700ms var(--lift-ease), filter 620ms var(--lift-ease); }
+.pw-cell:is(:hover, :focus-visible) .pw-envelope { transition-duration: 420ms, 520ms, 420ms; }
+.pw-envelope > img[data-envelope] { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; }
+/* the bag picture (1600 x 1541): flap 85..421 px down, pocket 421..1455, button at 42 %. The disc lies on the pocket
+   below the button, a little right, larger than life (the disc is the point), with its own short shadow */
+.pw-disc { position: absolute; width: 52%; height: auto; aspect-ratio: 1; left: 37%; top: 44%; border-radius: 50%; rotate: var(--turn, 0deg);
+  filter: drop-shadow(calc(-2 * var(--mm, 2.4px)) calc(1.2 * var(--mm, 2.4px)) calc(1 * var(--mm, 2.4px)) var(--glass-ink)); }
+.pw-blank { rotate: none; }
+.pw-cell:hover .pw-envelope, .pw-cell:focus-visible .pw-envelope { translate: 2px -6px; rotate: calc(var(--tilt, 0deg) * .35);
+  filter: drop-shadow(calc(-4.6 * var(--mm, 2.4px)) calc(2.7 * var(--mm, 2.4px)) calc(2.6 * var(--mm, 2.4px)) var(--glass-ink)); }
+.pw-cell:active .pw-envelope { translate: 1px -3px; transition-duration: 120ms; }
+.pw-cell-name, .pw-cell-name .pw-no { transition: color 300ms var(--ease); }
+/* the catalogue line under each bag: number in mono, the name, the date */
+.pw-cell-name { display: flex; align-items: baseline; gap: 10px; margin-top: 12px; max-width: 100%; overflow-wrap: anywhere;
+  font-weight: 700; font-stretch: 110%; border-top: .75px solid var(--rule); padding-top: 8px; }
+.pw-cell-name small { font-weight: 500; color: var(--ink-3); }
+.pw-no { font: 400 12px var(--mono); font-style: normal; color: var(--ink-3); }
+.pw-cell:hover .pw-cell-name, .pw-cell:focus-visible .pw-cell-name { color: var(--copper); }
+.pw-cell time { display: block; margin: 3px 0 0 32px; font: 12px var(--mono); color: var(--ink-3); }
+.pw-empty { margin: 24px 0 0; color: var(--ink-2); font-size: 15px; line-height: 1.6; }
+.pw button:focus-visible { outline: none; }
+.pw ::selection { color: var(--paper); background: var(--ink); }
+.pw-focused .pw-scroll { visibility: hidden; }
+.pw-focus { position: absolute; inset: calc(var(--edge) + var(--row) + 16px) var(--edge) calc(var(--foot) + 16px); }
+.pw-focus-paper { position: absolute; inset: 0; }
+.pw-focus-art { position: absolute; left: 4%; top: 6%; width: 42%; height: 86%; display: grid; place-items: center; }
+.pw-focus-art .pw-envelope { width: min(100%, 34vh); }
+.pw-details { position: absolute; left: 53%; right: 5%; top: 21%; margin: 0; font-size: clamp(17px, 1.8vw, 26px); line-height: 1.7;
+  overflow-wrap: anywhere; font-weight: 600; }
+.pw-details:focus { outline: none; }
+.pw-glass { position: fixed; right: var(--edge); bottom: var(--edge); min-height: var(--row); padding: 0 22px;
+  border: 0; border-radius: 4px; background: var(--ink); color: var(--paper); box-shadow: var(--glass-edge), var(--glass-desk);
+  font: 700 17px var(--font); cursor: pointer; }
+.pw-glass:hover { background: var(--copper); }
+.pw-glass:active { translate: 0 1px; }
+.pw-glass:disabled { cursor: wait; opacity: .6; }
+.pw-status { position: absolute; bottom: calc(var(--foot) + 16px); left: var(--edge); right: var(--edge); margin: 0; padding: 12px 16px;
+  background: var(--paper); color: var(--ink); font: 600 16px / 1.5 var(--font); box-shadow: var(--paper-desk); }
+.pw-thumbnail-missing::after { content: "缩略图不可用 / Preview unavailable"; position: absolute; inset: 62% 8% auto 40%; font-size: 12px; text-align: center; color: var(--ink-3); }
+@media (max-width: 1000px) {
+  .pw-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 650px) {
+  .pw-heading { display: block; padding-bottom: 14px; }
+  .pw-sort { margin-top: 14px; }
+  .pw-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 20px; }
+  .pw-cell { font-size: 15px; }
+  .pw-cell time { font-size: 12px; }
+  .pw-paper { padding: 22px 14px; }
+  .pw-focus-art { left: 6%; top: 4%; width: 88%; height: 58%; }
+  .pw-focus-art .pw-envelope { width: min(80%, 25vh); }
+  .pw-details { left: 9%; right: 9%; top: 68%; font-size: 17px; }
+  .pw-glass { font-size: 16px; }
+}
+:root[data-motion="off"] .pw *, :root[data-motion="off"] .pw *::after { transition: none; }
+/* the system setting only when the page has no setting of its own (a forced "on" keeps the motion) */
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion]) .pw * { transition: none; } }
