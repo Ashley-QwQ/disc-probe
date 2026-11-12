@@ -79,7 +79,7 @@ class CopyTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         script = (root/'tools/burn_imapi.ps1').read_text(encoding='utf-8')
         source = script.split('-TypeDefinition @"',1)[1].split('\n"@',1)[0]
-        with tempfile.TemporaryDirectory(dir='C:/disc-probe-scratch/disc-id') as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp); image=folder/'x.iso'; bundle=folder/'patch.bin'
             starts = discid.positions(32768)
             with image.open('wb') as f:
@@ -172,7 +172,7 @@ public class IdentitySink : IStream, IDisposable {
                 self.assertEqual(json.loads(output.getvalue())['reason'], result['reason'], name)
 
     def test_patch_refused_before_drive_inspection(self):
-        with tempfile.TemporaryDirectory(dir='C:/disc-probe-scratch/disc-id') as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp)/'test.iso'
             h = media(total=32768)
             with path.open('wb') as f:

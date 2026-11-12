@@ -333,7 +333,7 @@ class DiscIdTests(unittest.TestCase):
                 self.seek(0)
                 self.truncate()
                 return SimpleNamespace(out=out, err='')
-        with tempfile.TemporaryDirectory(dir='C:/disc-probe-scratch/disc-id') as folder, \
+        with tempfile.TemporaryDirectory() as folder, \
              patch.object(iso9660.datetime,'datetime',Fixed), \
              patch.dict(os.environ, DISCPROBE_WORKERS='1'), \
              redirect_stdout(Capture()) as captured:

@@ -1,4 +1,4 @@
-﻿"""Cross-feature checks use synthetic sectors and injected recorders only."""
+"""Cross-feature checks use synthetic sectors and injected recorders only."""
 import io
 import json
 from pathlib import Path
@@ -12,7 +12,7 @@ from discprobe.timing import TimingProbe
 
 class IdentitySessionTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(dir='C:/disc-probe-scratch/release-alpha')
+        self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.image = Path(self.temp.name) / 'first.iso'
         with patch.object(randomlabel, 'STOP_SECTORS', 32768):
