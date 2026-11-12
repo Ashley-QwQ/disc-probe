@@ -57,7 +57,8 @@ def along_track(x, y, camera, flash):
     return np.abs(-(cx + lx) * y + (cy + ly) * x) / np.maximum(np.hypot(x, y), 1e-9)
 
 
-def render(design, size=800, dark="A5", light="B9", camera=CAMERA, flash=FLASH, rotate=0):
+def render(design, size=800, dark="A5", light="B9", camera=CAMERA, flash=FLASH, rotate=0,
+           random_mask=None, paper=False, edge_mm=EDGE_MM):
     """Return a model prediction as a Pillow image, with no perspective. It is worked out about every 0.06 mm and
     averaged in linear light to the output size, so fine lines and dither mix as they do in a photo, and its colour
     is muted toward what a phone camera records (PHOTO_SATURATION)."""
@@ -88,13 +89,45 @@ def render(design, size=800, dark="A5", light="B9", camera=CAMERA, flash=FLASH, 
     else:
         bright = single[texture(light), index]
     plain = single[texture(dark), index]
-    rgb = (np.where(labels[..., None], plain, bright) + GROOVE_GAIN * groove[across] + .05 * .177) * 4
-    rgb[(r < HUB_MM) | (r >= EDGE_MM)] = 0
+    signal = np.where(labels[..., None], plain, bright)
+    if random_mask is not None:
+        # Random bytes have no single dominant period: use the existing palette's mean
+        # as context only, not a calibrated prediction of a random burn's reflectance.
+        background, *_ = sampled(random_mask, size * k, rotate)
+        signal = np.where(background[..., None], single.mean(axis=0)[index], signal)
+    rgb = (signal + GROOVE_GAIN * groove[across] + .05 * .177) * 4
+    rgb[(r < HUB_MM) | (r >= edge_mm)] = 1 if paper else 0
     rgb = rgb.reshape(size, k, size, k, 3).mean((1, 3))    # box filter, in linear light
     grey = rgb @ np.array([.2126, .7152, .0722])
     rgb = np.clip(grey[..., None] + PHOTO_SATURATION * (rgb - grey[..., None]), 0, 1)
     rgb = np.where(rgb <= .0031308, 12.92 * rgb, 1.055 * rgb ** (1 / 2.4) - .055)
     return Image.fromarray(np.uint8(np.clip(rgb * 255, 0, 255)))
+
+
+def random_label(spec_path, size=1200, actual_geo=None, camera=CAMERA, flash=FLASH, paper=True, rotate=0):
+    """Predict the written label under an actual spiral, aligned by one rotation only."""
+    import json
+    from .randomlabel import Label, U, V, BIT_NM
+    from .calib import SECTOR_BITS
+    from .imagedisc import geometry_fit
+    with open(spec_path, encoding="utf-8") as f:
+        spec = json.load(f)
+    if spec.get('state') == 'pending':
+        raise ValueError('label is pending: run geo, then label to build its session')
+    geo = dict(u=spec['u'], v=spec['v'], bit_nm_assumed=spec['bit_nm'],
+               completion_sectors=spec.get('completion_sectors', 0)) if spec['version'] == 2 else None
+    label = Label(spec["text"], max(spec["total_sectors"], spec.get('capacity_sectors', 0)), spec["media"], geometry=geo)
+    if any(spec.get(k) != value for k, value in label.spec.items() if k != 'total_sectors'):
+        raise ValueError("unsupported random-label image metadata")
+    label.spec = spec
+    fit = geometry_fit(actual_geo) if actual_geo else dict(u=spec['u'], v=spec['v'])
+    if fit is None or not all(math.isfinite(fit[k]) and fit[k] > 0 for k in ("u", "v")):
+        raise ValueError("cannot read --actual-geo fit")
+    u, v = fit["u"], fit["v"]
+    glyphs, band = label.design(u, v)
+    edge = BIT_NM * 1e-6 * math.sqrt(u*u + v*spec["total_sectors"]*SECTOR_BITS/math.pi)
+    return render(~glyphs, size, label.spec["dark"], label.spec["light"], camera, flash, rotate,
+                  random_mask=~band, paper=paper, edge_mm=edge)
 
 
 def ideal(design, size):

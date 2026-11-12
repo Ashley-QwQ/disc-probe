@@ -172,7 +172,20 @@ class TimingProbe:
     def _align(self, fraction: float) -> int:
         lba = int(self.last_lba * fraction)
         lba -= lba % self.block
-        return max(0, min(lba, self.last_lba - self.block + 1))
+        lba = max(0, min(lba, self.last_lba - self.block + 1))
+        spec = self.summary.get("random_label")
+        if spec:
+            from .randomlabel import exclude_ranges
+            safe = exclude_ranges([(0, self.last_lba + 1)], spec["exclude_lba"], self.block,
+                                  max(3000, self.sectors + self.block))
+            for span in spec.get('avoid_lba', []):
+                safe = exclude_ranges(safe, span, self.block, max(3000, self.sectors + self.block))
+            candidates = [max(a, min(lba, b - max(self.block, self.sectors))) for a, b in safe
+                          if b - a >= max(self.block, self.sectors)]
+            if not candidates:
+                raise NoReadableDisc("no random data remains outside the label")
+            lba = min(candidates, key=lambda x: abs(x - lba)) // self.block * self.block
+        return lba
 
     def _far_lba(self, lba: int, i: int = 0) -> int:
         """The i-th far sector: a third of the disc away on the side with room, then 5000 sectors
@@ -255,6 +268,15 @@ class TimingProbe:
         if self.last_lba is None and tracks and tracks[-1]["track"] == 0xAA:
             self.last_lba = tracks[-1]["start_lba"] - 1
         capacity_source = "read capacity" if self.last_lba else None
+        if self.family == 'dvd' and self.last_lba:
+            # READ CAPACITY can describe the whole medium on an open DVD.
+            # Our pending marker supplies the actual first session's burned end.
+            self.method = 'read10'
+            self.load_layout()
+            layout = self.summary.get('random_label', {})
+            if layout.get('state') == 'pending':
+                self.last_lba = min(self.last_lba, layout['total_sectors'] - 1)
+                capacity_source = 'pending label recorded end'
         if (not self.last_lba or self.last_lba < 1000) and self.family == "bd":
             # An unrecorded BD-R or BD-RE reports a zero capacity, but its spiral is
             # grooved at the factory and the drive will still track and read across
@@ -300,6 +322,45 @@ class TimingProbe:
         bad = [r for r in warm if not r.ok and r.sense is not None and r.sense.key == 3]
         if len(bad) >= 3:
             raise NoReadableDisc(UNREADABLE_DISC.format(sense=bad[0].sense))
+
+    def load_layout(self):
+        """Read the optional in-band marker when a caller can reach the outer band."""
+        # A simulated image explicitly knows whether it has layout sectors.
+        # Keep the established no-layout timing simulation's reads and noise stream.
+        if getattr(self.dev, 'layout_sectors', None) == {}:
+            return
+        if self.media == "dvd":
+            from .randomlabel import START, END, MARKER_LBA, PENDING_LBA, STOP_SECTORS, read_marker
+            self._experiment = 'layout'
+            pending = None
+            for anchor in (PENDING_LBA, MARKER_LBA, START):
+                if anchor >= self.last_lba + 1:
+                    continue
+                # This runs before a timed-read method is selected during setup.
+                result = self._read(anchor, label='layout')
+                if result.ok:
+                    spec = read_marker(result.data, self.last_lba + 1)
+                    if spec:
+                        if spec.get('marker_lba', START) != anchor:
+                            raise ValueError('random-label marker at wrong address')
+                        if spec.get('state') == 'pending':
+                            pending = spec
+                            # Do not probe the unrecorded outer band of the first session.
+                            # After append-and-close the final band marker supersedes this one.
+                            disc = self._cmd(mmc.read_disc_information(), 34)
+                            state = mmc.parse_disc_information(disc.data) if disc.ok else {}
+                            if state.get('disc_status') != 'complete':
+                                self.summary['random_label'] = pending
+                                return
+                        else:
+                            self.summary['random_label'] = spec
+                            return
+                elif anchor != PENDING_LBA and self.last_lba + 1 >= END:
+                    # Unknown edge content must not become a timing target. Default geo
+                    # still ends inside this band, even on an old disc with an unreadable edge.
+                    self.summary["random_label"] = {"exclude_lba": [min(STOP_SECTORS, START), self.last_lba + 1], "unreadable_marker": True}
+            if pending is not None:
+                raise ValueError('closed pending-label disc has no valid appended layout; do not measure its outer area')
 
     def cache_test(self, reads: int = 40):
         self._experiment = "cache"
@@ -600,6 +661,7 @@ class TimingProbe:
         gc.disable()
         try:
             self.setup()
+            self.load_layout()
             self.cache_test()
             self.settle_spindle()
             self.period_test()

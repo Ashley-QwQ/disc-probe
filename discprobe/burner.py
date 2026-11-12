@@ -58,8 +58,13 @@ def cd_sector_type(supported):
     raise BurnError("CD DAO requires raw P-W (3) or cooked R-W (2).")
 
 
-def validate_media(info, media, sectors):
-    if info.get("blank") is not True:
+def validate_media(info, media, sectors, *, append=False, expect_start=None):
+    if append:
+        if info.get('blank') is not False or info.get('closed') is not False:
+            raise BurnError('Append requires a recorded open DVD, not a blank or closed disc.')
+        if expect_start is None or info.get('next_writable') != expect_start:
+            raise BurnError(f"NWA mismatch: drive {info.get('next_writable')}, expected {expect_start}.")
+    elif info.get("blank") is not True:
         raise BurnError("A freshly verified blank disc is required.")
     if info.get("media") != media:
         raise BurnError(f"Wrong disc kind: expected {media}.")
@@ -110,11 +115,12 @@ class WindowsDVD:
         except ValueError as exc:
             raise BurnError("IMAPI returned an invalid media report.") from exc
 
-    def write(self, image, speed, cancel, progress):
+    def write(self, image, speed, cancel, progress, *, keep_open=False, append=False, expect_start=None):
         with tempfile.TemporaryDirectory(prefix="discprobe-burn-") as folder:
             marker = Path(folder) / "cancel"
+            session = (['-KeepOpen'] if keep_open else []) + (['-Append', '-ExpectStart', str(expect_start)] if append else [])
             process = self.popen(self.base + ["-Burn", "-Iso", str(image), "-Speed", str(speed),
-                                            "-CancelFile", str(marker)], stdout=subprocess.PIPE,
+                                            "-CancelFile", str(marker)] + session, stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT, text=True, creationflags=0x08000000)
             stop = threading.Event()
             def watch():
@@ -266,7 +272,7 @@ def sample_lbas(sectors, samples=96):
     return [16 * (i * (blocks - 1) // max(1, count - 1)) for i in range(count)]
 
 
-def verify_image(drive, image, media, cancel, *, device_factory=None):
+def verify_image(drive, image, media, cancel, *, device_factory=None, start_lba=0):
     """Compare user bytes via allowlisted READ(10), without application retries."""
     from . import mmc
     from .geometry import NOMINAL
@@ -291,19 +297,19 @@ def verify_image(drive, image, media, cancel, *, device_factory=None):
                 source.seek(lba * 2048)
                 expected = source.read(count * 2048)
                 try:
-                    response = dev.execute(mmc.read10(lba, count), data_len=count * 2048, timeout_s=10)
+                    response = dev.execute(mmc.read10(start_lba + lba, count), data_len=count * 2048, timeout_s=10)
                     if not response.ok:
                         raise OSError(f"status {response.status}; sense {response.sense}")
                     if len(response.data) != len(expected):
                         raise OSError(f"short read: {len(response.data)} of {len(expected)} bytes")
                 except OSError as exc:
-                    failure(lba, "unreadable", str(exc))
+                    failure(start_lba + lba, "unreadable", str(exc))
                 else:
                     if response.data == expected:
                         summary["ok"] += 1
                     else:
-                        failure(lba, "differing", "bytes differ from the ISO")
-                ui.event("verify_progress", fraction=(index + 1) / len(lbas), lba=lba)
+                        failure(start_lba + lba, "differing", "bytes differ from the ISO")
+                ui.event("verify_progress", fraction=(index + 1) / len(lbas), lba=start_lba + lba)
     except OSError as exc:
         summary.update(status="unavailable", error=str(exc),
                        untested=len(lbas) - summary["ok"] - summary["differing"] - summary["unreadable"])
@@ -311,20 +317,35 @@ def verify_image(drive, image, media, cancel, *, device_factory=None):
 
 
 def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None, cancel=None,
-         no_verify=False, verifier=None):
+         no_verify=False, verifier=None, keep_open=False, append=False, expect_start=None):
     if yes_write is not True:
         raise BurnError("Writing requires explicit --yes-write confirmation.")
     if media not in ("dvd", "cd"):
         raise BurnError("Only DVD and CD burning are supported.")
+    if (keep_open or append or expect_start is not None) and media != 'dvd':
+        raise BurnError('Session options currently support DVD only.')
+    if keep_open and append:
+        raise BurnError('--append closes the disc; do not combine with --keep-open.')
+    if append != (expect_start is not None) or (expect_start is not None and expect_start <= 0):
+        raise BurnError('--append requires a positive --expect-start, and vice versa.')
     image = Path(iso).resolve()
     if not image.is_file() or image.suffix.lower() != ".iso" or Path(str(image) + iso9660.UNFINISHED).exists():
         raise BurnError("Choose a finished ISO image.")
     size = image.stat().st_size
     if not size or size % 2048:
         raise BurnError("ISO size must be a positive multiple of 2048 bytes.")
+    sidecar = image.with_suffix('.image.json')
+    if sidecar.exists():
+        spec = json.loads(sidecar.read_text(encoding='utf-8'))
+        if spec.get('state') == 'pending' and not keep_open:
+            raise BurnError('Label pending: burn --keep-open, then geo and label.')
+        if spec.get('first_lba', 0) != (expect_start or 0):
+            raise BurnError('Image first_lba does not match --expect-start.')
     recorder = recorder or adapter(drive, media)
+    if (keep_open or append) and isinstance(recorder, LinuxBurner):
+        raise BurnError('Session options currently require the Windows DVD IMAPI path.')
     info = recorder.inspect()
-    validate_media(info, media, size // 2048)
+    validate_media(info, media, size // 2048, append=append, expect_start=expect_start)
     selected = choose_speed(speed, info["speeds_x"], media)
     cancel = cancel or threading.Event()
     if cancel.is_set():
@@ -354,7 +375,8 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
         else:
             ui.event("progress", **fields)
     try:
-        actual = recorder.write(image, selected, cancel, progress)
+        options = dict(keep_open=keep_open, append=append, expect_start=expect_start) if keep_open or append else {}
+        actual = recorder.write(image, selected, cancel, progress, **options)
     except BurnError as exc:
         elapsed = time.monotonic() - started
         record("burn_result", result="cancelled" if cancel.is_set() else "failed",
@@ -370,7 +392,8 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
         print("Reading back up to 96 evenly spaced 16-sector blocks; drive retries may take time...", flush=True)
         ui.event("verify_progress", fraction=0, lba=None)
         try:
-            verification = (verifier or verify_image)(drive, image, media, cancel)
+            verification = (verifier or verify_image)(drive, image, media, cancel,
+                **(dict(start_lba=expect_start) if append else {}))
         except OSError as exc:
             verification = dict(status="unavailable", sampled_blocks=len(sample_lbas(size // 2048)),
                                 ok=0, differing=0, unreadable=0, failures=[],
@@ -390,6 +413,7 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
         print("Read-back verification skipped (--no-verify).", flush=True)
     result = dict(result="completed", actual_speed_x=actual, requested_speed_x=speed,
                   selected_speed_x=selected, elapsed_s=elapsed, verification=verification,
+                  keep_open=keep_open, append=append, first_lba=expect_start or 0,
                   verified=verification["status"] == "completed" and not
                   (verification["differing"] or verification["unreadable"]), log_path=str(log_path))
     record("burn_result", **result)
@@ -412,7 +436,8 @@ def run(args):
     watcher.start()
     try:
         burn(args.drive, args.iso, media=args.media, speed=args.speed, yes_write=args.yes_write,
-             cancel=cancel, no_verify=args.no_verify)
+             cancel=cancel, no_verify=args.no_verify, keep_open=args.keep_open,
+             append=args.append, expect_start=args.expect_start)
     except BurnError as exc:
         ui.event("error", message=str(exc))
         raise SystemExit(str(exc)) from None

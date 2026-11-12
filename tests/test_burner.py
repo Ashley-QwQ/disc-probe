@@ -427,11 +427,11 @@ public class FakeFormat : IBurnVerification {
     public string ClientName { get; set; }
     public int CurrentPhysicalMediaType = 6, CurrentMediaStatus = 2;
     public bool MediaPhysicallyBlank = true;
-    public long FreeSectorsOnMedia = 100;
+    public long FreeSectorsOnMedia = 100, NextWritableAddress = 0;
     public int[] SupportedWriteSpeeds = new [] { 5400, 2700 };
     public bool BufferUnderrunFreeDisabled = true, ForceMediaToBeClosed = false, ForceOverwrite = true;
     public int CurrentWriteSpeed = 0, Level = -1, Writes = 0, Cancels = 0;
-    public bool Fail;
+    public bool Fail, ExpectKeepOpen;
     public string CancelMarker;
     public MachineBurn.UpdateHandler Handler;
     public bool IsCurrentMediaSupported(object recorder) { return true; }
@@ -441,7 +441,7 @@ public class FakeFormat : IBurnVerification {
     public void CancelWrite() { Cancels++; }
     public void Write(object stream) {
         Writes++;
-        if (BufferUnderrunFreeDisabled || !ForceMediaToBeClosed || ForceOverwrite || Level != 0)
+        if (BufferUnderrunFreeDisabled || ForceMediaToBeClosed == ExpectKeepOpen || ForceOverwrite || Level != 0)
             throw new Exception("Unsafe settings");
         if (CancelMarker != null) System.IO.File.WriteAllText(CancelMarker, "");
         Handler(this, new FakeProgress());
@@ -450,7 +450,7 @@ public class FakeFormat : IBurnVerification {
 }
 public static class FakeHarness {
     public static void Run(string image) {
-        for (int mode = 0; mode < 8; mode++) {
+        for (int mode = 0; mode < 15; mode++) {
             FakeFormat format = new FakeFormat();
             if (mode == 1) format.MediaPhysicallyBlank = false;
             if (mode == 2) format.CurrentPhysicalMediaType = 2;
@@ -458,15 +458,20 @@ public static class FakeHarness {
             if (mode == 5) format.Fail = true;
             if (mode == 6) format.CancelMarker = image + ".cancel";
             if (mode == 7) format.CurrentMediaStatus = 0;
+            if (mode >= 9) { format.MediaPhysicallyBlank = false; format.CurrentMediaStatus = 4; format.NextWritableAddress = 1640000; }
+            if (mode == 8) format.ExpectKeepOpen = true;
+            if (mode == 10) format.NextWritableAddress++;
+            if (mode == 11) { format.MediaPhysicallyBlank = true; format.CurrentMediaStatus = 2; }
+            if (mode == 12) format.CurrentMediaStatus = 0x4000;
             bool failed = false;
             try {
                 MachineBurn.RunWithFactory("H:", image, mode == 4 ? 12 : 4, true, format.CancelMarker,
                     name => name.EndsWith("Master2") ? (object)new FakeMaster() :
                             name.EndsWith("Recorder2") ? (object)new FakeRecorder() : format,
                     (obj, handler) => format.Handler = handler,
-                    (obj, handler) => format.Handler = null);
+                    (obj, handler) => format.Handler = null, mode == 8 || mode == 14, mode >= 9, mode >= 9 && mode != 13 ? 1640000 : -1);
             } catch { failed = true; }
-            if (mode == 0) {
+            if (mode == 0 || mode == 8 || mode == 9) {
                 if (failed || format.Writes != 1 || format.CurrentWriteSpeed != 2700) throw new Exception("success path failed");
             } else if (mode == 5 || mode == 6) {
                 if (!failed || format.Writes != 1) throw new Exception("failed write retried or hidden");

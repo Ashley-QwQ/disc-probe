@@ -79,15 +79,16 @@ public static class MachineBurn {
                                       [MarshalAs(UnmanagedType.IDispatch)] object progress);
     static void Emit(string value) { Console.WriteLine(value); Console.Out.Flush(); }
     static string Number(double value) { return value.ToString(System.Globalization.CultureInfo.InvariantCulture); }
-    public static void Run(string drive, string image, double speed, bool burn, string cancel) {
+    public static void Run(string drive, string image, double speed, bool burn, string cancel, bool keepOpen = false, bool append = false, long expectStart = -1) {
         RunWithFactory(drive, image, speed, burn, cancel,
             name => Activator.CreateInstance(Type.GetTypeFromProgID(name)),
             (format, handler) => ComEventsHelper.Combine(format, Events, 0x200, handler),
-            (format, handler) => ComEventsHelper.Remove(format, Events, 0x200, handler));
+            (format, handler) => ComEventsHelper.Remove(format, Events, 0x200, handler), keepOpen, append, expectStart);
     }
     // Injectable COM creation/event boundary for offline tests. Production uses only Run above.
     public static void RunWithFactory(string drive, string image, double speed, bool burn, string cancel,
-        Func<string, object> create, Action<object, UpdateHandler> subscribe, Action<object, UpdateHandler> unsubscribe) {
+        Func<string, object> create, Action<object, UpdateHandler> subscribe, Action<object, UpdateHandler> unsubscribe,
+        bool keepOpen = false, bool append = false, long expectStart = -1) {
         object masterObject = null, recorderObject = null, formatObject = null;
         IStream stream = null;
         UpdateHandler handler = null;
@@ -127,6 +128,10 @@ public static class MachineBurn {
             if (profile == 0) throw new InvalidOperationException("Inserted medium is not a supported writable DVD.");
             bool blank = (bool)fmt.MediaPhysicallyBlank && (((int)fmt.CurrentMediaStatus & 2) != 0);
             long free = (long)fmt.FreeSectorsOnMedia;
+            bool closed = (((int)fmt.CurrentMediaStatus & (1 << 14)) != 0) || free <= 0;
+            long nwa = (long)fmt.NextWritableAddress;
+            if (keepOpen && append) throw new InvalidOperationException("Append must close the disc.");
+            if (append != (expectStart >= 0)) throw new InvalidOperationException("Append needs ExpectStart.");
             var speeds = new System.Collections.Generic.List<int>();
             foreach (object s in fmt.SupportedWriteSpeeds) {
                 int value = Convert.ToInt32(s);
@@ -136,10 +141,14 @@ public static class MachineBurn {
             if (!burn) {
                 var values = speeds.ConvertAll(s => Number(s / 675.0));
                 Emit("{\"media\":\"dvd\",\"blank\":" + (blank ? "true" : "false") +
-                     ",\"free_sectors\":" + free + ",\"speeds_x\":[" + String.Join(",", values) + "]}");
+                     ",\"free_sectors\":" + free + ",\"closed\":" + (closed ? "true" : "false") +
+                     ",\"next_writable\":" + nwa + ",\"speeds_x\":[" + String.Join(",", values) + "]}");
                 return;
             }
-            if (!blank) throw new InvalidOperationException("Disc is not physically blank; refusing write.");
+            if (append) {
+                if (blank || closed || expectStart <= 0 || nwa != expectStart)
+                    throw new InvalidOperationException("Append requires an open recorded DVD and matching NWA.");
+            } else if (!blank) throw new InvalidOperationException("Disc is not physically blank; refusing write.");
             long bytes = new System.IO.FileInfo(image).Length;
             if (bytes <= 0 || bytes % 2048 != 0 || bytes / 2048 > free)
                 throw new InvalidOperationException("Image size invalid or exceeds free sectors.");
@@ -151,7 +160,7 @@ public static class MachineBurn {
                     throw new InvalidOperationException("Requested speed unsupported by inserted disc.");
             }
             fmt.BufferUnderrunFreeDisabled = false;
-            fmt.ForceMediaToBeClosed = true;
+            fmt.ForceMediaToBeClosed = !keepOpen;
             fmt.ForceOverwrite = false;
             if (BurnCheck.Set(formatObject, 0) != 0) throw new InvalidOperationException("Cannot disable verification.");
             fmt.SetWriteSpeed(chosen, false);
@@ -197,8 +206,8 @@ public static class MachineBurn {
 "@
 
 if ($Machine) {
-    if ($Verify -or $Reload -or $KeepOpen -or $Append) { throw "Machine mode does not accept legacy session options" }
-    try { [MachineBurn]::Run($Drive, $Iso, $Speed, [bool]$Burn, $CancelFile) }
+    if ($Verify -or $Reload) { throw "Machine mode does not accept legacy session options" }
+    try { [MachineBurn]::Run($Drive, $Iso, $Speed, [bool]$Burn, $CancelFile, [bool]$KeepOpen, [bool]$Append, $ExpectStart) }
     catch { exit 1 }
     exit 0
 }
