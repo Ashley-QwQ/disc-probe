@@ -450,7 +450,7 @@ time.sleep(60)
         for lan in (False, True):
             with self.subTest(lan=lan):
                 output = io.StringIO()
-                args = SimpleNamespace(media="dvd", out="results", port=0, lan=lan)
+                args = SimpleNamespace(media="dvd", out="results", port=0, lan=False, local_only=not lan)
                 with patch.object(webui, "Backend", return_value=self.backend()), \
                         patch.object(webui.Server, "serve_forever", side_effect=KeyboardInterrupt), \
                         contextlib.redirect_stdout(output):

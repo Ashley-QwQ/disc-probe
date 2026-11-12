@@ -7,7 +7,7 @@ import * as guidance from '../discprobe/web/home/guidance.mjs';
 const source = readFileSync(new URL('../discprobe/web/home/calibrate.js',import.meta.url),'utf8');
 const strip = source.replace(/^import .*;.*$/gm,'').replace(/^export /gm,'');
 const escapeHTML = v => String(v ?? '').replace(/[&<>"']/g,c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVerdict='ok', phone=null, photos=[], savedShift={written:true,frames:2.5}}={}) {
+function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVerdict='ok', phone=null, photos=[], gate, savedShift={written:true,frames:2.5}}={}) {
   const nodes = new Map(), timers = new Map(), calls = [], show = [], pages = [];
   class Element {
     constructor() { this.dataset={}; this.hidden=false; this.disabled=false; this.style={removeProperty(){}}; this.children=[]; this.events={}; this.textContent=''; this.html=''; }
@@ -41,6 +41,7 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
         calls.push(payload);
         if(failJob) throw Object.assign(new Error('Not found'),{status:404});
         if(payload.action==='disexport') return {path:'presets/test.json',photo_shift:savedShift};
+        if(gate) await gate();
         return {verdict:photoVerdict,path:'results/run-one',per_photo:[{id:'p1',verdict:photoVerdict,reason:'反光强 <script>'}],rings_mm:[30,38,47,55],offset_mm:-0.12,L_frames:2.5};
       },
       state:async()=>({catalogue:{[media]:[{id:'saved',geo:geo.path,name:'MID'}]}}),
@@ -53,12 +54,13 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
     floorLog:()=>({mount(){},start(){},end(){},title(){}}),
     photoPage:(host,o)=>{
       opts=o;
-      const p={reasons:[],destroy(){this.destroyed=true;},state:()=>({photos:[],focus:false}),setReasons(v){this.reasons=v;},setPhotoId(){},
-        setDevices(values){p.devices=values;},setPhoneLink(value){p.link=value;},addPhotos:async values=>{p.added=values;},back(){o.onBack();},use:()=>o.onUse({id:'p1'},[30,38,47,55])};
+      const visible=[...o.photos];
+      const p={reasons:[],destroy(){this.destroyed=true;},state:()=>({photos:visible,focus:false}),setReasons(v){this.reasons=v;},setPhotoId(){},
+        setDevices(values){p.devices=values;},setPhoneLink(value){p.link=value;},addPhotos:async values=>{p.added=values;visible.push(...values);if(values.length)o.onPhotos?.();},back(){o.onBack();},use:()=>o.onUse({id:'p1'},[30,38,47,55])};
       o.paperHost.paper=new Element(); o.onStateChange({canUse:true}); pages.push(p); return p;
     },
   });
-  vm.runInContext(strip+`; globalThis.wire={set(a,f){api=a;$=id=>document.getElementById(id);flow=f;discWentIn=true;st={show:v=>globalThis.shows.push(v),set(){}};},paint:realPaint,next:realNext,save:realSave,back,enterPhoto,closePhoto,photoRun,photoStamp,getUI:()=>photoUI};`,context);
+  vm.runInContext(strip+`; globalThis.wire={set(a,f){api=a;$=id=>document.getElementById(id);flow=f;discWentIn=true;st={show:v=>globalThis.shows.push(v),set(){}};},paint:realPaint,next:realNext,save:realSave,back,enterPhoto,closePhoto,photoRun,photoStamp,pollPhotos,queuePhotoRead,readPhoto,getUI:()=>photoUI};`,context);
   context.shows=show; context.wire.set(api,f);
   return {wire:context.wire,f,geo,nodes,calls,timers,pages,show,opts:()=>opts};
 }
@@ -123,7 +125,7 @@ for(const missing of ['/api/phone-link','/api/photos']) {
   assert.equal(x.opts().phoneUrl,'http://lan/phone/token');
   const mapped=await x.opts().autoAlign({id:'p1'},[30,38,47,55]);
   assert.equal(mapped.offsetMm,-0.12);
-  assert.deepEqual(JSON.parse(JSON.stringify(x.calls.find(c=>c.action==='photo').args)),{run:'run-one',media:'cd',photos:['p1'],rings_mm:[30,38,47,55]});
+  assert.deepEqual(JSON.parse(JSON.stringify(x.calls.find(c=>c.action==='photo').args)),{run:'run-one',media:'cd',photos:['p1'],rings_mm:[30,38,47,55],burner:null,burn_path:null,burn_mode:null});
   assert.equal(x.pages[0].reasons[0].reason,'反光强 <script>');
   assert.match(x.wire.getUI().result.innerHTML,/&lt;script&gt;/);
   await x.wire.next();
@@ -182,3 +184,41 @@ for(const photoVerdict of ['unsure','rejected']) {
   assert.equal(x.wire.photoRun({}),null);
 }
 console.log('Photo routing, contract jobs, polling lifecycle, verdicts, saved L and 404 fallback passed');
+
+async function fire(x,ms) {
+  const entry=[...x.timers].find(([id,t])=>t.ms===ms);assert.ok(entry,`Missing ${ms} timer`);
+  x.timers.delete(entry[0]);entry[1].fn();await flush();
+}
+{
+  const photos=[{id:'p1',url:'/1'}], x=fixture({photos});x.wire.enterPhoto();await flush();
+  assert.equal(x.calls.filter(c=>c.action==='photo').length,0,'arrival waits for debounce');
+  assert.equal(x.opts().automaticRead,true);
+  assert.equal(typeof x.opts().onAddress,'function');
+  photos.push({id:'p2',url:'/2'});await x.wire.pollPhotos(x.wire.getUI());await flush();
+  assert.equal([...x.timers.values()].filter(t=>t.ms===1500).length,1,'burst resets one debounce');
+  x.f.burnCheck={result:'completed',burner:'WRITER:',burn_path:'IMAPI',burn_mode:'mode2form1; physical interleave unknown'};
+  await fire(x,1500);
+  const jobs=x.calls.filter(c=>c.action==='photo');assert.equal(jobs.length,1);
+  assert.deepEqual(Array.from(jobs[0].args.photos),['p1','p2']);assert.equal(jobs[0].args.rings_mm,null,'default reader design, no manual ring guesses');
+  assert.equal(jobs[0].args.burner,'WRITER:');assert.equal(jobs[0].args.burn_path,'IMAPI');
+  assert.equal(jobs[0].args.burn_mode,'mode2form1; physical interleave unknown');
+  assert.equal(x.nodes.get('next').disabled,false);x.wire.closePhoto();
+}
+{
+  let release;const photos=[{id:'p1',url:'/1'}];
+  const x=fixture({photos,gate:()=>new Promise(resolve=>{release=resolve;})});x.wire.enterPhoto();await flush();await fire(x,1500);
+  assert.equal(x.calls.filter(c=>c.action==='photo').length,1);
+  photos.push({id:'p2',url:'/2'},{id:'p3',url:'/3'});await x.wire.pollPhotos(x.wire.getUI());await fire(x,1500);
+  assert.equal(x.calls.filter(c=>c.action==='photo').length,1,'never overlap photo jobs');
+  release();await flush();await fire(x,1500);
+  const jobs=x.calls.filter(c=>c.action==='photo');assert.equal(jobs.length,2);
+  assert.deepEqual(Array.from(jobs[1].args.photos),['p1','p2','p3'],'new arrivals rerun the whole run');
+  release();await flush();x.wire.closePhoto();
+}
+{
+  const x=fixture({media:'cd',photos:[{id:'server-readable',url:'/unsupported.heic'}]});
+  x.wire.enterPhoto();await flush();
+  x.pages[0].state=()=>({photos:[],activePhoto:-1});
+  await fire(x,1500);await x.wire.next();
+  assert.equal(x.f.realPhase,'saved','a missing browser thumbnail must not block a server-readable photo');
+}

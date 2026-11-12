@@ -1,6 +1,44 @@
 // Display advice follows guide.py after_timing, after_geo, after_geo_stop and AFTER_BURN.
 // These are instructions, never a substitute for a core verdict or a measurement.
 const pair = (zh, en) => ({zh, en});
+// Shared by the computer strip and the token-scoped phone page. New reader
+// codes need only one entry here; unknown codes retain the server's explanation.
+export const photoReasons = {
+  ok: pair('照片可以用。', 'The photo is usable.'),
+  no_rim: pair('把整张盘拍进画面，四周留一点边。', 'Keep the whole disc in frame with a little space around it.'),
+  too_few_votes: pair('转动盘，移动灯光，让条纹更清楚。', 'Turn the disc and move the light to make the pattern clearer.'),
+  few_inliers: pair('转动盘，再拍一张清楚的条纹。', 'Turn the disc and take another clear photo of the pattern.'),
+  rings_not_found: pair('把整张盘拍进画面，移动灯光让圆环清楚。', 'Keep the whole disc in frame and move the light to show the rings.'),
+  weak_peak: pair('条纹太弱。移动灯光，轻点盘面使相机对焦。', 'The pattern is faint. Move the light and tap the disc to focus.'),
+  two_peaks: pair('有两个可能的位置。转动盘，换个角度重拍。', 'Two positions look possible. Turn the disc and retake from another angle.'),
+  poor_angle_coverage: pair('转动盘，让更多方向的条纹出现在画面里。', 'Turn the disc to show the pattern in more directions.'),
+  poor_radius_coverage: pair('把整张盘拍进画面，让内圈和外圈都清楚。', 'Keep the whole disc in frame so both inner and outer rings are clear.'),
+  large_residual: pair('条纹位置对不上。把盘放平，拍全盘。', 'The pattern does not fit. Lay the disc flat and photograph the whole disc.'),
+  unstable_L: pair('这张照片的位置读数不稳定。转动盘重拍。', 'The position reading varies within this photo. Turn the disc and retake.'),
+  shape_not_1_over_r: pair('内外圈的读数对不上。拍全盘，移动灯光后重拍。', 'Inner and outer readings disagree. Keep the whole disc in frame and move the light.'),
+  unreadable_image: pair('照片打不开。重新拍照，或从相册导出 JPEG 后再发。', 'The image could not be opened. Retake or export a JPEG from Photos and send it.'),
+  duplicate_photo: pair('这张照片重复了。转动盘，拍一张不同角度的。', 'This photo is a duplicate. Turn the disc and take a different view.'),
+};
+export function photoReasonWords(photo = {}) {
+  return Object.prototype.hasOwnProperty.call(photoReasons, photo.status) ? photoReasons[photo.status] : pair(photo.reason || '', photo.reason || '');
+}
+export function photoStateWords(photo = {}) {
+  if (!photo.verdict) return pair('读取中', 'Reading');
+  if (photo.verdict === 'ok') return pair('可以用', 'Usable');
+  const reason = photoReasonWords(photo);
+  return pair('重拍：' + reason.zh, 'Retake: ' + reason.en);
+}
+export function photoOverallWords(photos = [], verdict) {
+  // An old ok read cannot cover newly arrived, as-yet unread photos.
+  if (verdict === 'ok' && photos.length && photos.every(p => p.verdict))
+    return pair('够了，回到电脑上看结果。', "That's enough. Look at the computer.");
+  // the phone page asks for 3 (the reader needs 2 clear ones; the third covers a retake)
+  if (!photos.length) return pair('还没收到照片。拍第一张吧。', 'No photos yet. Take the first one.');
+  if (photos.some(p => !p.verdict)) return pair(`已收到 ${photos.length} 张，正在读……`, `Received ${photos.length}. Reading…`);
+  const ok = photos.filter(p => p.verdict === 'ok').length, more = Math.max(1, 3 - ok);
+  return pair(`已收到 ${photos.length} 张，能用 ${ok} 张。再拍 ${more} 张不同角度的。`,
+    `Received ${photos.length}, ${ok} usable. Take ${more} more from different angles.`);
+}
 // These words describe the saved file's decision, never the provisional photo read.
 export function photoSaveWords(decision = {}) {
   if (decision.written === true && Number.isFinite(decision.frames)) return pair(
@@ -67,8 +105,8 @@ export function recoveryCommands(result, {drive, media, sectors}) {
   return commands.join('\n');
 }
 export const cdPhoto = pair(
-  '网页的 CD 拍照标定还没做好。计时测不出沿轨道的绝对位置，不能当作已完成标定。测量数据已保留：导出 DIS 预设后，在 DiscImageStudio 做精细标定，需要另一张同批空盘；然后再刻成品。这是 README 的 CD 路线。',
-  'CD photo calibration is not ready on this page. Timing cannot determine the absolute along-track position, so calibration is still incomplete. The measurement is kept: export a DIS preset, then run fine calibration in DiscImageStudio on another blank from this batch before burning the picture. This is the README CD route.');
+  '照片还没有给出可保存的沿轨常数。计时测不出沿轨道的绝对位置，标定还未完成。可以继续拍不同角度的照片；也可以保留测量、导出 DIS 预设，在 DiscImageStudio 用另一张同批空盘做精细标定，再刻成品。',
+  'The photos have not supplied an along-track constant that can be saved. Timing cannot determine the absolute along-track position, so calibration is incomplete. Take more photos from different angles, or keep the measurement, export a DIS preset and fine-calibrate in DiscImageStudio on another blank from this batch before burning the picture.');
 export function calibrationBudget(media) {
   const cd = media === 'cd';
   if (media === 'bd') return {
@@ -83,7 +121,7 @@ export function calibrationBudget(media) {
       pair('检查转速：1–3 分钟；测量盘面：约 5 分钟。', 'Check rotation: 1–3 minutes; measure the disc: about 5 minutes.'),
       cd ? pair('精细标定和刻成品：时间尚不确定，见详情。', 'Fine calibration and picture burn: time unknown; see Details.') : pair('刻成品：约 14 分钟，依速度和内容而异。', 'Burn the picture: about 14 minutes, depending on speed and content.')],
     note:pair('刻好测量盘后才能检查光驱；约一小时是目标，不是保证。', 'The drive can only be checked after the measurement burn; about an hour is a goal, not a promise.'),
-    details:pair('以上为 README 与现有流程的估时，不是新测试。失败可能多耗盘。保留测量盘，同批盘可复用。' + (cd ? ' CD 的 11 分钟来自 GH70N、8 倍速。网页拍照标定尚未就绪，须导出 DIS 预设，在 DiscImageStudio 用另一张同批空盘精细标定，之后再刻成品。' : ''), 'These estimates come from the README and existing workflow, not new benchmarks. Failures may cost more discs. Keep the measurement disc for this batch.' + (cd ? ' The CD observation was 11 minutes at 8× on GH70N. Web photo calibration is unavailable: export a DIS preset and fine-calibrate in DiscImageStudio with another blank before burning the picture.' : ''))};
+    details:pair('以上为 README 与现有流程的估时，不是新测试。失败可能多耗盘。保留测量盘，同批盘可复用。' + (cd ? ' CD 的 11 分钟来自 GH70N、8 倍速。页面会自动合读不同角度的照片，读取沿轨常数；读不准时会说明重拍原因。也可以导出 DIS 预设，在 DiscImageStudio 用另一张同批空盘精细标定。' : ''), 'These estimates come from the README and existing workflow, not new benchmarks. Failures may cost more discs. Keep the measurement disc for this batch.' + (cd ? ' The CD observation was 11 minutes at 8× on GH70N. The page automatically reads photos from different angles together for the along-track constant, with retake advice when needed. Alternatively, export a DIS preset and fine-calibrate in DiscImageStudio with another blank.' : ''))};
 }
 export function budgetHTML(media, lang) {
   const b = calibrationBudget(media);

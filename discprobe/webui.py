@@ -63,7 +63,8 @@ OPTIONS = {
     # the whole calibration in one job (calibrate.py); with `iso` it burns first, under the burn's rules
     "calibrate": {"iso": "path", "burn_speed": "burn_speed", "speed": "speed", "mid": "mid", "preset": "path",
                   "sectors": "sectors", "avoid_mm": "radius_bands"},
-    "photo": {"run": "photo", "media": "photo", "photos": "photo", "rings_mm": "photo"},
+    "photo": {"run": "photo", "media": "photo", "photos": "photo", "rings_mm": "photo",
+              "burner": "photo", "burn_path": "photo", "burn_mode": "photo"},
 }
 DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell (checked in the tests)
 # a design upload by its length: one bit per cell, at 20, 10 or 5 um (imagedisc.CELL_SIDES)
@@ -324,6 +325,18 @@ class Job:
                 if not isinstance(event, dict) or not isinstance(event.get("type"), str):
                     continue
                 event["job"] = self.id
+                if event["type"] == "burn_result" and getattr(self, "action", None) in {"burn", "calibrate"}:
+                    # The core selected these adapters for this actual write. Do not
+                    # infer a burn path from a later geometry read or an external command.
+                    event["burner"] = self.drive
+                    event["burn_path"] = ("IMAPI" if sys.platform == "win32" else
+                                          ("cdrdao" if self.media == "cd" else "growisofs")
+                                          if sys.platform.startswith("linux") else None)
+                    event["burn_mode"] = ((getattr(self, "args", {}).get("cd_sector") or "mode2form1")
+                                          if self.media == "cd" else "2048-byte data sectors")
+                    # calibrate invokes the burn CLI with its default CD layout.
+                    # Neither adapter reports the drive's physical interleave.
+                    event["burn_mode"] += "; physical interleave unknown"
                 if event["type"] == "progress":
                     self.progress = event
                 elif event["type"] == "ask" and isinstance(event.get("id"), str):
@@ -765,6 +778,10 @@ class Handler(BaseHTTPRequestHandler):
             raise APIError("cross-site request refused", 403)
         url = urlsplit(self.path)
         path, query = unquote(url.path), parse_qs(url.query)
+        # Shared display words contain no session data. Phones need this one static
+        # module without gaining access to the computer page or any main API.
+        if self.command == "GET" and path == "/home/guidance.mjs":
+            return
         if path.startswith("/phone/"):
             if self.command != "GET":
                 raise APIError("not found", 404)
@@ -823,9 +840,14 @@ class Handler(BaseHTTPRequestHandler):
                 from . import photo, qr
                 run = parse_qs(url.query).get("run", [""])[0]
                 backend.photos.run_dir(run)
-                address = photo.lan_ip() if self.server.token else None
+                addresses = photo.lan_ips() if self.server.token else []
+                chosen = parse_qs(url.query, keep_blank_values=True).get("address")
+                if chosen is not None and chosen[0] not in addresses:
+                    raise APIError("address must be one of this computer's LAN addresses")
+                address = chosen[0] if chosen else next(iter(addresses), None)
                 link = f"http://{address}:{self.server.server_port}/phone/{backend.photos.token(run)}" if address else None
-                self._json(200, dict(url=link, qr_svg=qr.svg(link) if link else None))
+                self._json(200, dict(url=link, qr_svg=qr.svg(link) if link else None,
+                                     addresses=addresses, address=address))
             elif path == '/api/phone-devices':
                 try:
                     self._json(200, backend.photos.connected(parse_qs(url.query).get('run', [''])[0]))
@@ -1052,7 +1074,7 @@ def guide_drive_tag(drive):
 
 def run(args):
     backend = Backend(media=args.media, out=args.out)
-    with Server(backend, args.port, lan=args.lan) as server:
+    with Server(backend, args.port, lan=not args.local_only) as server:
         url = f"http://127.0.0.1:{server.server_port}/home/"
         if server.token:
             url += "?token=" + server.token
