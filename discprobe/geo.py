@@ -384,6 +384,13 @@ class Ladder:
         self.log(f"Only part of this disc is random data; measuring just those {len(found)} stretches")
         return found
 
+    def _label_parts(self, ranges):
+        """Compatibility entry point; all metadata uses the shared reservation path."""
+        tp = self.tp
+        if getattr(tp, 'reserved_lba', []) or tp.summary.get('random_label'):
+            return tp.safe_ranges(ranges, self.completion_sectors)
+        return ranges
+
     def run(self) -> dict:
         tp = self.tp
         tp.setup()

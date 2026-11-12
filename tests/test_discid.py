@@ -52,7 +52,7 @@ def baseline_jobs(sectors=128):
 
 
 def _check_prechange_hashes_and_only_filesystem_changes(tmp_path, name):
-    before = json.loads((ROOT / 'evidence/discid/baseline.json').read_text())[name]
+    before = json.loads((ROOT / 'tests/data/discid-baseline.json').read_text())[name]
     old, new = tmp_path / 'old.iso', tmp_path / 'new.iso'
     fn = baseline_jobs()[name]
     fn(old)
