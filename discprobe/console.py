@@ -1431,7 +1431,7 @@ class Console:
     def _commit_zones(self, top: int, footer_line: int, footer_text: str) -> None:
         """Turn the buttons and footer keycaps into click targets for this frame."""
         self._zones = [(line - top, x1, x2, key) for line, x1, x2, key in self._pending_zones
-                       if top <= line < footer_line]
+                       if top <= line < top + footer_line]
         self._pending_zones = []
         self._footer_zones(footer_line, footer_text)
 
