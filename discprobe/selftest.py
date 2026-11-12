@@ -495,13 +495,14 @@ def _audio_fit_uses(c: Checker, res: dict, x: float):
         d_ri = (e["preset"]["innerRadiusMm"] - dis["inner_radius_mm"]) * 1e6
         d_ro = (e["preset"]["outerRadiusMm"] - dis["outer_radius_mm"]) * 1e6
         c.check(abs(d_ri) < 50 and abs(d_ro) < 50, f"the preset from an audio fit is dis_equivalent: ri {d_ri:+.0f} nm, ro {d_ro:+.0f} nm")
-        c.check("along-track" not in e["preset"]["description"] and e["source"]["read_offset_bytes"] == x, "and names the read offset, no along-track constant")
-        try:
-            export(geo, res["sectors"], None, out, span[0], span[1], "t", "t", along_track_frames=206)
-            refused = False
-        except ValueError as err:
-            refused = "--read-offset-bytes" in str(err)
-        c.check(refused, "disexport --along-track-frames is refused on an audio fit")
+        # The read offset does not prove L = 0 on an audio path (DIS with delayed interleave reads about -105 frames),
+        # so without a photo or a stated L the preset says the constant is unknown rather than writing a 0.
+        c.check("along-track constant unknown" in e["preset"]["description"] and e["source"]["read_offset_bytes"] == x
+                and "along_track_frames" not in e["source"],
+                "and names the read offset, with the along-track constant left unknown")
+        e = export(geo, res["sectors"], None, out, span[0], span[1], "t", "t", along_track_frames=-105)
+        c.check(e["source"].get("along_track_frames") == -105 and "along-track constant -105 frames" in e["preset"]["description"],
+                "disexport --along-track-frames on an audio fit writes the stated constant")
         try:
             export(geo, res["sectors"] // 2, None, out, span[0], span[1], "t", "t")
             refused = False

@@ -7,6 +7,26 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    # calibrate, photo and presets help
+    "selected drive identity; required for measuring, checked when saving photo L": "所选光驱的身份；测量时必填，保存照片测得的 L 时会核对",
+    "read speed for timing and geo, in kB/s or a multiple like 4x (default: 4x of the disc's kind)": "timing 和 geo 的读取速度，写 kB/s 或 4x 这样的倍速（默认：该盘种的 4x）",
+    "exclude radius band A-B in mm from geo rungs (repeatable; uses geo's nominal radius/LBA model)": "geo 的测量点避开半径 A-B 毫米这一圈（可重复；按 geo 的标称半径/LBA 模型换算）",
+    "export this existing geo run without accessing a drive; needs --preset and --sectors": "直接导出这次已有的 geo 结果，不读光驱；需要同时给 --preset 和 --sectors",
+    "photo.json to apply only for verdict ok, the same geo run and specific drive; refusals save without L. With --geo this is drive-free. Without --photo, calibrate/disexport discover photo.json beside the geo summary; unknown L is never assumed zero": "要套用的 photo.json：只有结论为 ok、同一次 geo、同一台光驱时才写入，否则预设保存时不带 L。和 --geo 一起用时不读光驱。不给 --photo 时，calibrate/disexport 会在 geo 结果旁边找 photo.json；不知道的 L 绝不当成 0",
+    "with --geo: lower fit radius in mm": "配合 --geo：拟合范围的内半径（毫米）",
+    "with --geo: upper fit radius in mm": "配合 --geo：拟合范围的外半径（毫米）",
+    "whole blank capacity for the preset (default: read-only media capacity, then MID catalogue)": "预设用的整张空盘容量（默认：先读盘上的容量，读不到再查 MID 目录）",
+    "calibration result directory": "标定结果文件夹",
+    "image files": "照片文件",
+    "target ring radii; default: the burned PN target": "标靶圆环的半径；默认：刻进去的 PN 标靶",
+    "specific burner identity used for this target (unknown if omitted)": "刻这张标靶用的那台刻录机（不填就记为未知）",
+    "target burn program/path, e.g. DIS or IMAPI (never inferred)": "刻标靶用的软件/路径，例如 DIS 或 IMAPI（不会自动猜）",
+    "target burn mode, including sector layout/interleave (never inferred)": "刻标靶的模式，包括扇区格式/交织（不会自动猜）",
+    "read the along-track residual from target photos (no drive access)": "从标靶照片读出沿轨残差（不读光驱）",
+    "import DIS presets or export DP presets": "导入 DIS 预设，或导出 DP 预设",
+    "media of a standalone preset": "单个预设的盘种",
+    "zero-based preview indexes (default: valid enabled presets)": "要导入的预览序号，从 0 开始（默认：所有有效且启用的预设）",
+    "save one DIS object here; refuses existing files": "把一个 DIS 预设对象存到这里；已有文件不会覆盖",
     "accepted for compatibility; no-op (LAN is on by default)": "为兼容旧命令保留；局域网默认启用，此参数不再改变设置",
     "listen only on 127.0.0.1; disable LAN phone access": "仅监听 127.0.0.1，关闭手机通过局域网访问",
     "show core and GUI API versions and capabilities": "显示核心、GUI API 版本与能力",
