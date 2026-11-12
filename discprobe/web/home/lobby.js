@@ -1,11 +1,12 @@
 import { lobbyStatus } from "./lobby-state.js";
+import { rugGreeting, nextLocalDayDelay } from "./lobby-weekday.js";
 
 // The lobby: a corner desk with four things on it (docs/goals/gui-outline.md 3.0, art/desk NOTES "Lobby v3").
 //
 //   the optical drive, tray out with a blank disc   new work        (#lobby-new)
 //   the file box of envelopes                       past works      (#lobby-open)
 //   the monitor and keyboard                        terminal
-//   the fax                                         import / export
+//   the letter tray and tent card (target: fax)      import / export
 //   the floor lamp                                  light / dark
 //
 // Art: baked renders, one layer per object (lobby/lobby.json, written by art/desk/export_lobby.py). The
@@ -120,6 +121,17 @@ function build(meta, dir) {
     if (!["newplan", "filebox"].includes(key)) btn.addEventListener("click", () => act(key));
   }
   world.append(...overs);
+  const rug = M.greeting_faces?.runner;
+  if (rug) {
+    const q = rug.quad, w = dist(q[0], q[1]), h = dist(q[0], q[3]);
+    const lab = document.createElement("span");
+    lab.className = "lb-label lb-rug-greeting";
+    Object.assign(lab.style, { width: `${w}px`, height: `${h}px`, transform: quadMatrix(w, h, q) });
+    lab.style.setProperty("--h", `${h}px`);
+    lab.append(document.createElement("i"));
+    layer.base.append(lab); // Same floor and parallax; no button or separate target.
+    L.rug = lab;
+  }
   L.art.replaceChildren(world);
   L.world = world; L.layer = layer;
   paintTheme(); words(); fit();
@@ -135,9 +147,10 @@ function fitLabel(n, i) {
     if (k < 1) i.style.fontSize = `${k.toFixed(3)}em`;
     return k;
   };
-  i.style.whiteSpace = ""; i.style.lineHeight = "";
+  const multiline = i.textContent.includes("\n");
+  i.style.whiteSpace = multiline ? "pre" : ""; i.style.lineHeight = multiline ? "1.05" : "";
   const words = i.textContent, one = fit();
-  if (one >= .35) return;
+  if (one >= .35 || multiline) return;
   const NL = String.fromCharCode(10);
   const cut = words.includes(" / ") ? words.replace(" / ", " /" + NL) : words.includes(" ") ? words.replace(" ", NL)
     : /^[　-鿿]{4}$/.test(words) ? words.slice(0, 2) + NL + words.slice(2) : null;
@@ -185,14 +198,25 @@ function paintTheme() {
 function words() {
   if (!M) return;
   const t = T();
-  for (const n of L.root.querySelectorAll(".lb-label")) {
+  for (const n of L.root.querySelectorAll(".lb-label[data-target]")) {
     const i = n.firstElementChild;
     i.textContent = t[n.dataset.target] ?? "";
+    if (n.dataset.target === "fax" && api.lang() === "en") i.textContent = "Import /\nExport";
     fitLabel(n, i);
   }
   for (const n of L.root.querySelectorAll(".lb-hit")) n.setAttribute("aria-label", t[n.dataset.target] ?? n.dataset.target);
   lampWords();
   paintHello();
+  paintRug();
+}
+function paintRug() {
+  if (!L?.rug) return;
+  const text = rugGreeting(api.lang());
+  L.rug.setAttribute("aria-label", text);
+  L.rug.firstElementChild.textContent = api.lang() === "en" ? text.replace(" ", "\n") : text;
+  fitLabel(L.rug, L.rug.firstElementChild);
+  clearTimeout(L.rugTimer);
+  L.rugTimer = setTimeout(paintRug, nextLocalDayDelay());
 }
 // the scene fits the window (contain), centred; the header and the footer sit over its empty top and bottom
 function fit() {
@@ -268,6 +292,7 @@ export async function init(homeApi) {
   addEventListener("resize", fit);
   new MutationObserver(paintTheme).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
   addEventListener("dp-lang", words);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) paintRug(); });
   drift();
 }
 export const relabel = () => words();

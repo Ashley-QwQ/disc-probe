@@ -1,4 +1,5 @@
 /* The lobby (lobby.js): the desk scene, printed labels and live status top left. */
+@font-face { font-family: "LobbyHand"; src: url(../fonts/SmileySans-Oblique.woff2) format("woff2"); font-display: swap; }
 .lobby { --lb-screen-ink: #ecebe4; background: var(--lb-bg, var(--paper)); overflow: hidden; }
 .lobby-art { position: absolute; inset: 0; }
 /* flying to or from the new-work page (newplan.js): the lobby stays drawn under it until the flight ends */
@@ -38,6 +39,8 @@
   background: var(--paper); border-radius: 4px; opacity: 0; transition: opacity 180ms; }
 .lobby.lamp-hot .lb-lamp-hint { opacity: 1; }
 .lb-label.own.hot { translate: 0 -8px; }
+.lb-rug-greeting { font-family: "LobbyHand", sans-serif; font-weight: 400; font-size: calc(var(--h) * .4); letter-spacing: .04em; color: var(--ink-2); }
+.lb-rug-greeting > i { border: 0; padding: .08em; }
 
 /* The state line stays in the scene's empty top left. */
 .lobby-greet { position: absolute; left: var(--edge); top: calc(var(--edge) + 52px + 2.4vh); margin: 0; max-width: min(46vw, 640px); pointer-events: none; }
