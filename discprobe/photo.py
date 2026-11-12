@@ -182,7 +182,7 @@ def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=Non
         reading["id"] = ident
         readings.append(reading)
         status = reading["status"]
-        per_photo.append(dict(id=ident, verdict="ok" if status == "ok" else "unsure",
+        per_photo.append(dict(id=ident, verdict="ok" if status == "ok" else "unsure", status=status,
                               reason=REASONS.get(status, "The reader cannot determine a reliable alignment.")))
         log(f"{ident}: {status}")
     group = pcal.combine(readings)
@@ -226,17 +226,35 @@ def run(args):
         raise
 
 
-def lan_ip():
+def lan_ips():
     """Discover a private interface without sending packets or contacting an Internet service."""
     try:
         candidates = socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET, socket.SOCK_STREAM)
     except OSError:
-        return None
+        return []
+    addresses = set()
     for item in candidates:
-        address = ipaddress.ip_address(item[4][0])
-        if address.is_private and not (address.is_loopback or address.is_link_local or address.is_unspecified):
-            return str(address)
-    return None
+        try:
+            address = ipaddress.IPv4Address(item[4][0])
+        except ValueError:
+            continue
+        if address.is_private and not (address.is_loopback or address.is_link_local
+                                       or address.is_unspecified or address.is_reserved or address.is_multicast):
+            addresses.add(address)
+    # A virtual switch (Hyper-V / WSL, often 172.x) sorts before the Wi-Fi address and phones can't reach it.
+    # Put first the address the default route leaves from: a UDP connect picks the route and sends nothing.
+    first = None
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect(("192.0.2.1", 9))           # TEST-NET-1, never contacted
+            first = ipaddress.IPv4Address(probe.getsockname()[0])
+    except (OSError, ValueError):
+        pass
+    return [str(address) for address in sorted(addresses, key=lambda a: (a != first, a))]
+
+
+def lan_ip():
+    return next(iter(lan_ips()), None)
 
 
 class PhotoStore:
@@ -359,7 +377,18 @@ class PhotoStore:
         with self.lock:
             folder = self._folder(run_id)
             rows = [self.get(run_id, p.stem)[2] for p in folder.glob("*.json")]
-            return dict(photos=sorted(rows, key=lambda p: (p["time"], p["id"])))
+            try:
+                record = json.loads((folder.parent / "photo.json").read_text(encoding="utf-8"))
+                readings = {p["id"]: p for p in record.get("per_photo", [])}
+            except (OSError, ValueError, TypeError, KeyError, AttributeError):
+                record, readings = {}, {}
+            for row in rows:
+                reading = readings.get(row["id"], {})
+                row.update({key: reading.get(key) for key in ("verdict", "status", "reason")})
+            result = dict(photos=sorted(rows, key=lambda p: (p["time"], p["id"])))
+            if record.get("verdict"):
+                result["verdict"] = record["verdict"]
+            return result
 
     def upload(self, run_id, data, kind, name, *, token=None, device_id=None):
         if kind not in PHOTO_TYPES:
@@ -387,7 +416,7 @@ class PhotoStore:
             return {k: row[k] for k in ("id", "name", "url", "time")}
 
     def argv(self, args):
-        if not isinstance(args, dict) or set(args) - {"run", "media", "photos", "rings_mm"}:
+        if not isinstance(args, dict) or set(args) - {"run", "media", "photos", "rings_mm", "burner", "burn_path", "burn_mode"}:
             raise ValueError("invalid photo arguments")
         folder = self.run_dir(args.get("run"))
         if args.get("media") not in ("cd", "dvd"):
@@ -402,4 +431,11 @@ class PhotoStore:
         argv = ["--run", str(folder), "--media", args["media"], "--photos", *paths]
         if rings is not None:
             argv += ["--rings-mm", *map(str, rings)]
+        for key in ("burner", "burn_path", "burn_mode"):
+            value = args.get(key)
+            if value is not None:
+                if (not isinstance(value, str) or not 1 <= len(value) <= 500
+                        or value.startswith("-") or any(ord(c) < 32 for c in value)):
+                    raise ValueError("invalid " + key)
+                argv += ["--" + key.replace("_", "-"), value]
         return argv

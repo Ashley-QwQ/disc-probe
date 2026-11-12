@@ -26,18 +26,21 @@ const moduleSource=`import {nextConfirm} from '/kit/nextconfirm.js';
 import {ringButton} from '/kit/ringbutton.js';
 import {flipValue} from '/kit/flipnum.js';
 import {photoPage} from '/photocal.js';
-import {budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason,photoSaveWords} from '/guidance.mjs';
+import {budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason,photoSaveWords,photoReasonWords} from '/guidance.mjs';
+const realTimeout=window.setTimeout.bind(window);
+window.setTimeout=(fn,ms,...args)=>{if(ms===25000){window.helpTimer=fn;window.helpBorn=Date.now();}return realTimeout(fn,ms,...args);};
 const loadDisc={desk(){}}; const calchart={resultChart:()=>''}; const sfx={done(){},problem(){},failure(){}};
 const floorLog=()=>({mount(){},start(){},end(){},title(){},progress(){},log(){}});
 ${calibrate.replace(/^import .*;.*$/gm,'')}
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fakeApi={lang:()=>window.lang||'zh',selectedDrive:()=>null,burnerLayer:document.body,nextWhy(){},jobProgress(){},backend:{mock:false,escapeHTML:esc,errorText:e=>e.message,
-request:async(path,payload)=>{window.requests.push({path,payload}); if(window.missing&&path.includes(window.missing))throw Object.assign(new Error('Not found'),{status:404}); if(path.startsWith('/api/phone-link'))return {url:window.phone||null,qr_svg:null};if(path.startsWith('/api/photos'))return {photos:window.photos};if(path.endsWith('/disconnect')){window.devices=[];window.phone='http://lan/phone/new-token';return {disconnected:true};}if(path.startsWith('/api/phone-devices'))return {devices:window.devices||[]};return {};},
+request:async(path,payload)=>{window.requests.push({path,payload}); if(window.missing&&path.includes(window.missing))throw Object.assign(new Error('Not found'),{status:404}); if(path.startsWith('/api/phone-link')){const address=new URL(path,location.href).searchParams.get('address')||'10.0.0.2';return {url:window.phone||null,qr_svg:'<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"/>',addresses:['10.0.0.2','192.168.1.2'],address};}if(path.startsWith('/api/photos'))return {photos:window.photos};if(path.endsWith('/disconnect')){window.devices=[];window.phone='http://lan/phone/new-token';return {disconnected:true};}if(path.startsWith('/api/phone-devices'))return {devices:window.devices||[]};return {};},
 job:async(payload)=>{window.jobs.push(payload);return payload.action==='disexport'?{path:'presets/photo.json',photo_shift:{written:true,frames:2.5}}:window.photoResult;},state:async()=>({catalogue:{[flow.detected.media]:[{id:'saved',geo:flow.geo.path,name:'MID'}]}})}};
 export const wire={
-init({media='dvd',verdict='narrow_span',missing='',lang='zh',phone=null}={}){closePhoto();window.requests=[];window.jobs=[];window.photos=[];window.missing=missing;window.lang=lang;window.phone=phone;api=fakeApi;$=id=>document.getElementById(id);flow={realPhase:'review',geo:{path:'results/run-one',verdict,measurement:{span_mm:[28,48]}},timing:{verdict:'good'},detected:{media,kind:media,mid:'MID',capacity_sectors:300000},item:{row:media},preset:'presets/existing.json',warnEl:document.createElement('div')};discWentIn=true;st={show(on){document.body.dataset.stage=on;},set(){}};document.getElementById('back').onclick=back;document.getElementById('next').onclick=()=>realNext();paint();},
+init({media='dvd',verdict='narrow_span',missing='',lang='zh',phone=null}={}){closePhoto();window.requests=[];window.jobs=[];window.photos=[];window.devices=[];window.photoResult={verdict:'unsure',per_photo:[]};window.missing=missing;window.lang=lang;window.phone=phone;api=fakeApi;$=id=>document.getElementById(id);flow={realPhase:'review',geo:{path:'results/run-one',verdict,measurement:{span_mm:[28,48]}},timing:{verdict:'good'},detected:{media,kind:media,mid:'MID',capacity_sectors:300000},item:{row:media},preset:'presets/existing.json',warnEl:document.createElement('div')};discWentIn=true;st={show(on){document.body.dataset.stage=on;},set(){}};document.getElementById('back').onclick=back;document.getElementById('next').onclick=()=>realNext();paint();},
 phase(name,fraction=null){closePhoto();flow.realPhase=name;flow.iso='iso/test.iso';flow.job=name==='random'?{kind:'random',fraction}:null;paint();},enter:enterPhoto,next:realNext,back,state:()=>flow,page:()=>photoUI?.page,ui:()=>photoUI,
 photo:(id='p1')=>({id,name:id+'.svg',url:'/disc.svg'}),
+helpAfter(ms){const now=Date.now;Date.now=()=>window.helpBorn+ms;window.helpTimer();Date.now=now;},
 };`;
 
 test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallback', {skip:!existsSync(edge),timeout:60000}, async()=>{
@@ -55,7 +58,8 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     ws=new WebSocket(target.webSocketDebuggerUrl);await once(ws,'open');
     let seq=0;const pending=new Map(),exceptions=[];
     let paused;
-    ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.method==='Fetch.requestPaused')paused?.(m.params);if(m.method==='Runtime.exceptionThrown')exceptions.push(m.params.exceptionDetails);if(m.id){pending.get(m.id)?.(m);pending.delete(m.id);}});
+    const intercepts=new Set(),interceptErrors=[];
+    ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.method==='Fetch.requestPaused'){const task=Promise.resolve().then(()=>paused?.(m.params)).catch(error=>interceptErrors.push(error)).finally(()=>intercepts.delete(task));intercepts.add(task);}if(m.method==='Runtime.exceptionThrown')exceptions.push(m.params.exceptionDetails);if(m.id){pending.get(m.id)?.(m);pending.delete(m.id);}});
     const send=(method,params={})=>new Promise((ok,fail)=>{const id=++seq,timer=setTimeout(()=>{pending.delete(id);fail(new Error('CDP timeout: '+method));},5000);pending.set(id,m=>{clearTimeout(timer);m.error?fail(new Error(JSON.stringify(m.error))):ok(m.result);});ws.send(JSON.stringify({id,method,params}));});
     const run=async code=>{
       const r=await send('Runtime.evaluate',{expression:`(async()=>{${code}})()`,awaitPromise:true,returnByValue:true});
@@ -68,6 +72,9 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     paused=async({requestId,request})=>{
       const path=new URL(request.url).pathname;let body,type='text/plain',status=200;
       if(path==='/'){body=html;type='text/html';}
+      else if(path==='/phone/fixture'){body=readFileSync(new URL('../discprobe/web/phone/index.html',import.meta.url),'utf8').replace('__PHOTO_CONFIG__',JSON.stringify({run:'run-one',token:'fixture-token'}));type='text/html';}
+      else if(path==='/home/guidance.mjs'){body=await readFile(new URL('guidance.mjs',home));type='text/javascript';}
+      else if(path==='/api/photos'&&request.method==='GET'){type='application/json';body=JSON.stringify({verdict:'unsure',photos:[{id:'mine',name:'相片-'+ 'long-name-'.repeat(20)+'.jpg',url:'/disc.svg',verdict:'unsure',status:'no_rim'}]});}
       else if(path==='/wire.js'){body=moduleSource;type='text/javascript';}
       else if(path==='/disc.svg'){type='image/svg+xml';body='<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><rect width="600" height="600" fill="#555"/><circle cx="300" cy="300" r="255" fill="#aaa" stroke="#222"/><circle cx="300" cy="300" r="32" fill="#555"/></svg>';}
       else if(path==='/api/photos'&&request.method==='POST'){
@@ -86,6 +93,8 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     assert.equal(await run(`return document.querySelector('[data-pc="auto"]')!==null;`),true);
     assert.equal(await run(`return document.querySelector('.pc-phone-block')===null;`),true,'No LAN link means no phone block');
     await run(`window.photos=[wire.photo()];`);await waitFor("wire.page()?.state().photos.length===1");
+    assert.equal(await run(`return document.querySelector('.pc-manual').open;`),false,'manual editor is folded');
+    await run(`document.querySelector('.pc-manual').open=true;`);
     assert.equal(await run(`return document.querySelector('#cal .pc-after').getBoundingClientRect().height>0;`),true);
     assert.equal(await run(`return document.querySelector('#cal .pc-before').getBoundingClientRect().height===0;`),true);
     assert.equal(await run(`const b=document.querySelector('#cal [data-pc="auto"]'),s=getComputedStyle(b);return s.color!==s.backgroundColor;`),true,'Auto-align text must be visible');
@@ -101,6 +110,14 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     await run(`document.querySelector('.pc-phone-empty .kit-text-button').click();`);
     await waitFor("document.querySelector('.pc-phone-empty a')?.href==='http://lan/phone/new-token'");
     assert.equal(await run(`return document.querySelectorAll('.pc-phone-empty .kit-devices button').length;`),0);
+    assert.equal(await run(`return document.querySelector('.pc-phone-help').hidden;`),true);
+    await run(`wire.helpAfter(24999);`);assert.equal(await run(`return document.querySelector('.pc-phone-help').hidden;`),true);
+    await run(`wire.helpAfter(25001);`);assert.equal(await run(`return document.querySelector('.pc-phone-help').hidden;`),false);
+    assert.match(await run(`return document.querySelector('.pc-phone-help').textContent;`),/Windows may have blocked/);
+    await run(`const select=document.querySelector('.pc-address select');select.value='192.168.1.2';select.dispatchEvent(new Event('change'));`);
+    await waitFor("sessionStorage.getItem('discprobe-phone-address')==='192.168.1.2'");
+    await run(`wire.back();wire.enter();`);await waitFor("wire.ui()?.status==='ready'");
+    assert.equal(await run(`return document.querySelector('.pc-address select').value;`),'192.168.1.2','address persists for session');
     await run(`wire.init({missing:'/api/phone-devices'});wire.enter();`);await waitFor("wire.ui()?.devicesUnavailable");
     assert.equal(await run(`return wire.ui().status==='ready' && [...document.querySelectorAll('.pc-devices')].every(n=>n.hidden);`),true);
     await run(`wire.back();wire.init();wire.enter();`);await waitFor("wire.ui()?.status==='ready'");
@@ -115,8 +132,9 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     assert.equal(await run(`return !wire.ui().skip.hidden && wire.ui().result.textContent.includes('反光强');`),true,'Cached unsure results keep their explanation and exits');
     // A successful auto-align has a signed offset and Next uses it without another photo job.
     await run(`wire.init({media:'cd',verdict:'good',phone:'http://lan/phone/token'});await wire.next();`);await waitFor("wire.ui()?.status==='ready'");
-    await run(`await wire.page().addPhotos([wire.photo()]);window.photoResult={verdict:'ok',per_photo:[{id:'p1',verdict:'ok',reason:'清楚'}],rings_mm:[30,38,47,55],offset_mm:-0.12,L_frames:2.5};document.querySelector('#cal [data-pc="auto"]').click();`);
+    await run(`window.photoResult={verdict:'ok',per_photo:[{id:'p1',verdict:'ok',status:'ok'},{id:'p2',verdict:'ok',status:'ok'}],rings_mm:[30,38,47,55],offset_mm:-0.12,L_frames:2.5};window.photos=[wire.photo(),wire.photo('p2')];`);
     await waitFor("wire.page()?.state().offsetMm===-0.12");
+    assert.deepEqual(await run(`return window.jobs.find(j=>j.action==='photo').args.photos;`),['p1','p2']);
     await run(`await wire.next();`);
     assert.equal(await run(`return wire.state().realPhase;`),'saved');
     assert.equal(await run(`return window.jobs.filter(j=>j.action==='photo').length;`),1);
@@ -160,6 +178,22 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
       await run(`wire.back();`);assert.equal(await run(`return wire.state().realPhase;`),'review');
     }
     await run(`wire.ui()&&wire.back();`);
+    // The real phone HTML, with token-scoped listing fixtures and no backend/server.
+    await run(`sessionStorage.setItem('discprobe-phone-fixture-token','["mine"]');`);
+    await send('Page.navigate',{url:'http://photo.test/phone/fixture'});
+    await waitFor("document.querySelector('#sent button')");
+    for(const [width,height] of [[375,812],[812,375],[820,1180],[1180,820]]){
+      await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
+      const layout=await run(`return {scroll:document.documentElement.scrollWidth,width:innerWidth,targets:[...document.querySelectorAll('input,button,a')].filter(n=>n.getBoundingClientRect().width).map(n=>{const b=n.getBoundingClientRect();return {tag:n.tagName,w:b.width,h:b.height};})};`);
+      assert.ok(layout.scroll<=width,JSON.stringify(layout));
+      assert.ok(layout.targets.length>=4);for(const target of layout.targets)assert.ok(target.w>=44&&target.h>=44,JSON.stringify({width,height,target}));
+      if(process.env.PHOTO_TEST_SHOTS){const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(resolve(process.env.PHOTO_TEST_SHOTS),`phone-${width}x${height}.png`),Buffer.from(shot.data,'base64'));}
+    }
+    // Stop the phone's poll before closing CDP, then drain intercepted requests.
+    await send('Page.navigate',{url:'about:blank'});
+    await send('Fetch.disable');
+    await Promise.all([...intercepts]);
+    assert.deepEqual(interceptErrors,[],'fixture requests must complete before teardown');
   }finally{
     ws?.close();
     if(browser && browser.exitCode===null){browser.kill();await Promise.race([once(browser,'exit'),new Promise(r=>setTimeout(r,3000))]);}

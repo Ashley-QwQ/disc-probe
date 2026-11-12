@@ -5,7 +5,7 @@ import { flipValue } from "./kit/flipnum.js";
 // becomes the step panel, the bar shows the job, the back button takes the top-left corner.
 // Live jobs use the local API. Simulated readings and timers are limited to ?mock / ?demo=N.
 
-import { budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason, photoSaveWords } from "./guidance.mjs";
+import { budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason, photoSaveWords, photoReasonWords } from "./guidance.mjs";
 import { cutaway } from "./drive-scene.js";
 import { floorLog } from "./floor-log.js";
 import * as sfx from "./sfx.js";
@@ -1102,6 +1102,7 @@ function closePhoto() {
   if (!photoUI) return;
   const u = photoUI; photoUI = null;
   clearTimeout(u.timer);
+  clearTimeout(u.readTimer);
   if (u.page) u.flow.photoSnapshot = u.page.state();
   u.page?.destroy(); u.host.remove();
   document.documentElement.classList.remove('cal-photo');
@@ -1112,7 +1113,7 @@ function photoReview() {
 const photoLive = u => photoUI === u && flow === u.flow && isCal() && flow.realPhase === 'photo';
 function photoStamp(result, saved = null) {
   const esc = api.backend.escapeHTML, ok = result.verdict === 'ok';
-  const reasons = (result.per_photo || []).map(p => p.reason).filter(Boolean).join('；');
+  const reasons = (result.per_photo || []).map(p => photoReasonWords(p)[api.lang()]).filter(Boolean).join('；');
   const value = Number.isFinite(result.L_frames) ? `L = ${result.L_frames} frames` : '';
   const row = (zh, en, text, act = false) => `<div><dt>${liveText(zh,en)}</dt><dd${act ? ' class="act"' : ''}>${esc(text)}</dd></div>`;
   return `<div class="cal-stamp" role="status"><b>${ok ? liveText('照片可用','Photo usable') : result.verdict === 'rejected' ? liveText('照片读不出','Photo unreadable') : liveText('不知道','Not sure')}</b><dl>` +
@@ -1124,13 +1125,13 @@ function photoNavigation(u) {
   if (!photoLive(u)) return;
   const unavailable = u.status === 'unavailable', cd = flow.detected.media === 'cd';
   nextKit(false, false);
-  $('next-text').textContent = unavailable ? (cd ? liveText('导出 DIS 预设','Export DIS preset') : liveText('返回测量结果','Back to measurement result')) : liveText('下一步：用这张照片','Next: use this photo');
-  $('next').disabled = !!flow.job || (!unavailable && (u.status !== 'ready' || !u.canUse));
-  api.nextWhy?.(unavailable ? '' : flow.job ? liveText('正在读取照片…','Reading the photo…') : u.status === 'loading' ? liveText('正在连接照片服务…','Connecting to the photo service…') : !u.canUse ? liveText('先选一张照片','Choose a photo first') : '');
+  $('next-text').textContent = unavailable ? (cd ? liveText('导出 DIS 预设','Export DIS preset') : liveText('返回测量结果','Back to measurement result')) : liveText('下一步：保存照片结果','Next: save photo result');
+  $('next').disabled = !!flow.job || !!u.reading || !!u.readTimer || (!unavailable && (u.status !== 'ready' || u.flow.photoResult?.verdict !== 'ok'));
+  api.nextWhy?.(unavailable ? '' : flow.job || u.reading ? liveText('正在读取照片…','Reading photos…') : u.status === 'loading' ? liveText('正在连接照片服务…','Connecting to the photo service…') : u.flow.photoResult?.verdict !== 'ok' ? liveText('照片会自动读取；请拍不同角度的照片。','Photos are read automatically; take different views.') : '');
 }
 function photoFallback(u, error) {
   if (!photoLive(u)) return;
-  u.status = 'unavailable'; clearTimeout(u.timer);
+  u.status = 'unavailable'; clearTimeout(u.timer); clearTimeout(u.readTimer); u.readTimer = null;
   if (u.page) u.flow.photoSnapshot = u.page.state();
   u.page?.destroy(); u.page = null; u.host.replaceChildren();
   const esc = api.backend.escapeHTML;
@@ -1146,10 +1147,12 @@ async function pollPhotos(u) {
     const result = await api.backend.request(`/api/photos?run=${encodeURIComponent(u.run)}`);
     if (!photoLive(u)) return;
     const fresh = (result.photos || []).filter(p => !u.seen.has(p.id));
+    for (const p of result.photos || []) u.rows.set(p.id,p);
     for (const p of fresh) u.seen.add(p.id);
     await u.page.addPhotos(fresh, {preserveSelection:true});
     if (!photoLive(u)) return;
     u.page.setReasons(u.flow.photoResult?.per_photo || []);
+    if (fresh.length) queuePhotoRead(u);
     u.notice.textContent = u.flow.photoNotice || '';
     await pollDevices(u);
   } catch (error) {
@@ -1158,6 +1161,18 @@ async function pollPhotos(u) {
     u.notice.textContent = api.backend.errorText(error,api.lang());
   }
   if (photoLive(u) && u.status === 'ready') u.timer = setTimeout(() => pollPhotos(u), 2000);
+}
+async function phoneLink(u, address) {
+  if (address === undefined) { try { address = sessionStorage.getItem('discprobe-phone-address'); } catch { /* storage unavailable */ } }
+  const base = `/api/phone-link?run=${encodeURIComponent(u.run)}`;
+  try { return await api.backend.request(base + (address ? '&address=' + encodeURIComponent(address) : '')); }
+  catch (error) { if (address && error.status === 400) return api.backend.request(base); throw error; }
+}
+async function choosePhoneAddress(u, address) {
+  const link = await phoneLink(u,address);
+  if (!photoLive(u)) return;
+  try { sessionStorage.setItem('discprobe-phone-address',address); } catch { /* storage unavailable */ }
+  u.page.setPhoneLink(link); await pollDevices(u);
 }
 async function pollDevices(u) {
   if (!photoLive(u) || u.devicesUnavailable) return;
@@ -1186,7 +1201,7 @@ async function disconnectPhone(u, id) {
   // Rotation revokes every device using the old run token. Refresh the QR before reconnecting.
   u.page.setDevices?.(null);
   try {
-    const link = await api.backend.request(`/api/phone-link?run=${encodeURIComponent(u.run)}`);
+    const link = await phoneLink(u);
     if (!photoLive(u)) return;
     u.page.setPhoneLink?.(link);
     u.notice.textContent = liveText('旧链接已失效。其他手机也需重新扫码。','The old link has expired. Other phones must scan again too.');
@@ -1200,36 +1215,68 @@ async function disconnectPhone(u, id) {
 function showPhotoResult(u, result) {
   if (!photoLive(u)) return;
   u.page.setReasons(result.per_photo || []);
+  u.page.setReadResult?.(result);
   u.result.innerHTML = photoStamp(result); u.result.hidden = false;
   u.retry.hidden = u.skip.hidden = result.verdict === 'ok';
 }
-async function readPhoto(u, photo, rings) {
+function queuePhotoRead(u) {
+  if (!photoLive(u) || u.status !== 'ready') return;
+  clearTimeout(u.readTimer);
+  u.readTimer = setTimeout(() => {
+    u.readTimer = null;
+    if (u.reading) { u.readAgain = true; return; }
+    readPhoto(u);
+  }, 1500);
+  photoNavigation(u);
+}
+function photoBurnArgs(f) {
+  const burn = f.burnCheck;
+  // A displayed external command cannot prove how, or where, a disc was burned.
+  return {burner:burn?.result === 'completed' ? burn.burner || null : null,
+    burn_path:burn?.result === 'completed' ? burn.burn_path || null : null,
+    burn_mode:burn?.result === 'completed' ? burn.burn_mode || null : null};
+}
+async function usePhotoResult(u, photo = null) {
+  const result = await readPhoto(u,photo);
+  if (result?.verdict !== 'ok' || !photoLive(u)) return;
+  try { await realSave(); if (isCal()) paint(); }
+  catch (error) { if (isCal() && flow === u.flow) { u.flow.photoNotice = api.backend.errorText(error,api.lang()); u.flow.realPhase = 'photo'; paint(); if (photoUI?.notice) photoUI.notice.textContent = u.flow.photoNotice; } }
+}
+async function readPhoto(u, photo = null, rings = null) {
   const f = u.flow;
-  if (!photoLive(u) || f.job) return null;
+  if (!photoLive(u) || u.status !== 'ready' || !u.page) return null;
+  if (u.reading || f.job) { u.readAgain = true; return null; }
+  clearTimeout(u.readTimer); u.readTimer = null; u.reading = true;
   f.photoNotice = null; u.notice.textContent = '';
   try {
-    let id = photo.id;
-    if (!id && photo.file) {
-      f.photoUploads ??= new Map(); id = f.photoUploads.get(photo.file);
-      if (!id) {
-        const token = new URLSearchParams(location.search).get('token');
-        const response = await fetch(`/api/photos?run=${encodeURIComponent(u.run)}`, {method:'POST', headers:{'Content-Type':photo.file.type || 'image/jpeg', 'X-Filename':encodeURIComponent(photo.name), ...(token ? {'X-Discprobe-Token':token} : {})}, body:photo.file});
-        if (!response.ok) throw Object.assign(new Error(response.statusText),{status:response.status});
-        const uploaded = await response.json(); id = uploaded.id;
-        f.photoUploads.set(photo.file,id); u.seen.add(id);
+    const candidates = [...(u.page.state().photos || [])];
+    if (photo && !candidates.some(p => p.id && p.id === photo.id || p.file && p.file === photo.file)) candidates.push(photo);
+    for (const photo of candidates) {
+      let id = photo.id;
+      if (!id && photo.file) {
+        f.photoUploads ??= new Map(); id = f.photoUploads.get(photo.file);
+        if (!id) {
+          const token = new URLSearchParams(location.search).get('token');
+          const response = await fetch(`/api/photos?run=${encodeURIComponent(u.run)}`, {method:'POST', headers:{'Content-Type':photo.file.type || 'image/jpeg', 'X-Filename':encodeURIComponent(photo.name), ...(token ? {'X-Discprobe-Token':token} : {})}, body:photo.file});
+          if (!response.ok) throw Object.assign(new Error(response.statusText),{status:response.status});
+          const uploaded = await response.json(); id = uploaded.id;
+          f.photoUploads.set(photo.file,id); u.seen.add(id);
+        }
       }
+      if (!photoLive(u)) return null;
+      if (!id) throw new Error(liveText('这张照片还没上传。请重新加入照片。','This photo has not uploaded. Add it again.'));
+      u.page.setPhotoId(photo,id); u.rows.set(id,{id});
     }
-    if (!photoLive(u)) return null;
-    if (!id) throw new Error(liveText('这张照片还没上传。请重新加入照片。','This photo has not uploaded. Add it again.'));
-    u.page.setPhotoId(photo,id);
-    const key = JSON.stringify([id,rings]);
-    if (f.photoReadKey === key && f.photoResult) { showPhotoResult(u,f.photoResult); return f.photoResult; }
+    const ids = [...u.rows.keys()].sort();
+    if (!ids.length) return null;
+    const key = JSON.stringify([ids,rings]);
+    if ((f.photoReadKey === key || rings === null && f.photoReadIds === JSON.stringify(ids)) && f.photoResult) { showPhotoResult(u,f.photoResult); return f.photoResult; }
     let result;
-    try { result = await realJob('photo', {run:u.run, media:f.detected.media, photos:[id], rings_mm:rings || null}); }
+    try { result = await realJob('photo', {run:u.run, media:f.detected.media, photos:ids, rings_mm:rings, ...photoBurnArgs(f)}); }
     catch (error) { if (!error.result?.verdict) throw error; result = error.result; }
     if (!['ok','unsure','rejected'].includes(result?.verdict)) throw new Error(liveText('照片服务没有返回判断。','The photo service returned no verdict.'));
     // A job may finish after Back. Keep its evidence with its own flow, but never navigate that page.
-    f.photoResult = result; f.photoReadKey = key;
+    f.photoResult = result; f.photoReadKey = key; f.photoReadIds = JSON.stringify(ids);
     showPhotoResult(u,result);
     return result;
   } catch (error) {
@@ -1239,6 +1286,8 @@ async function readPhoto(u, photo, rings) {
     }
     return null;
   } finally {
+    u.reading = false;
+    if (photoLive(u)) { if (u.readAgain) { u.readAgain = false; queuePhotoRead(u); } photoNavigation(u); }
     if (flow === f && isCal() && f.realPhase === 'review') paint();
   }
 }
@@ -1248,14 +1297,14 @@ function paintPhoto() {
   if (photoUI) { photoNavigation(photoUI); return; }
   document.documentElement.classList.add('cal-photo');
   const host = document.createElement('div'); host.className = 'cal-photo-host'; document.body.append(host);
-  const u = photoUI = {host,flow,run:photoRun(flow),lang:api.lang(),status:'loading',seen:new Set()};
+  const u = photoUI = {host,flow,run:photoRun(flow),lang:api.lang(),status:'loading',seen:new Set(),rows:new Map()};
   $('cal').innerHTML = `<p role="status">${liveText('正在连接照片服务…','Connecting to the photo service…')}</p>`;
   photoNavigation(u);
   (async () => {
     if (!u.run) { photoFallback(u); return; }
     try {
       const results = await Promise.allSettled([
-        api.backend.request(`/api/phone-link?run=${encodeURIComponent(u.run)}`),
+        phoneLink(u),
         api.backend.request(`/api/photos?run=${encodeURIComponent(u.run)}`),
       ]);
       if (!photoLive(u)) return;
@@ -1265,28 +1314,24 @@ function paintPhoto() {
       const photos = [...(u.flow.photoSnapshot?.photos || [])];
       for (const p of list.photos || []) if (!photos.some(x => x.id === p.id)) photos.push(p);
       photos.forEach(p => { if (p.id) u.seen.add(p.id); });
+      for (const p of list.photos || []) u.rows.set(p.id,p);
       u.status = 'ready';
       u.page = photoPage(host, {
         lang:u.lang, media:u.flow.detected.media, paperHost:$('cal'), photos, ringsMm:u.flow.photoSnapshot?.ringsMm, activePhoto:u.flow.photoSnapshot?.activePhoto,
         measuredMm:u.flow.geo?.measurement?.span_mm,
-        phoneUrl:phone.url, phoneQrSvg:phone.qr_svg,
+        phoneUrl:phone.url, phoneQrSvg:phone.qr_svg, addresses:phone.addresses, address:phone.address,
+        onAddress:address => choosePhoneAddress(u,address), automaticRead:true, onPhotos:() => queuePhotoRead(u),
         onDisconnect:id => disconnectPhone(u, id),
         onStateChange:state => { u.canUse = state.canUse; photoNavigation(u); },
         onBack:photoReview, onSkip:photoReview,
         autoAlign:async (photo,rings) => {
           const result = await readPhoto(u,photo,rings);
           if (result?.verdict === 'ok') {
-            if (Array.isArray(result.rings_mm)) u.flow.photoReadKey = JSON.stringify([photo.id || u.flow.photoUploads?.get(photo.file),result.rings_mm]);
             return {rings:result.rings_mm,offsetMm:result.offset_mm};
           }
           return null;
         },
-        onUse:async (photo,rings) => {
-          const result = await readPhoto(u,photo,rings);
-          if (result?.verdict !== 'ok' || !photoLive(u)) return;
-          try { await realSave(); if (isCal()) paint(); }
-          catch (error) { if (isCal() && flow === u.flow) { u.flow.photoNotice = api.backend.errorText(error,api.lang()); u.flow.realPhase = 'photo'; paint(); if (photoUI?.notice) photoUI.notice.textContent = u.flow.photoNotice; } }
-        },
+        onUse:photo => usePhotoResult(u,photo),
       });
       const paper = $('cal').querySelector('.pc-paper');
       u.notice = document.createElement('p'); u.notice.setAttribute('role','status');
@@ -1297,6 +1342,7 @@ function paintPhoto() {
       u.retry = action(liveText('再拍一张','Take another photo'), () => { u.result.hidden = u.retry.hidden = u.skip.hidden = true; host.querySelector('[data-pc="add"]').click(); });
       u.skip = action(liveText('跳过，就用现在的结果','Skip and keep the current result'),photoReview);
       u.page.ready?.then(() => { if (photoLive(u) && u.flow.photoResult) showPhotoResult(u,u.flow.photoResult); });
+      if (photos.length) queuePhotoRead(u);
       pollPhotos(u);
     } catch (error) { photoFallback(u,photoUnavailable(error) ? null : error); }
   })();
@@ -1572,6 +1618,8 @@ async function realNext(forceMeasure = false) {
       else await realSave();
     } else if (phase === "photo") {
       if (photoUI?.status === 'unavailable') { if (flow.detected.media === 'cd') await realSave(); else photoReview(); }
+      // A server-readable photo (e.g. HEIC) may have no preview in this browser.
+      else if (photoUI?.page?.state().activePhoto < 0) await usePhotoResult(photoUI);
       else await photoUI?.page?.use();
     }
     else if (phase === "saved") {

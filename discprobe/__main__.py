@@ -2376,7 +2376,8 @@ def _build_parser():
 
     sp = sub.add_parser("webui", help="serve the web GUI backend")
     sp.add_argument("--port", type=int, default=8765, help="HTTP port (default: 8765)")
-    sp.add_argument("--lan", action="store_true", help="listen on the LAN with a session token")
+    sp.add_argument("--lan", action="store_true", help="accepted for compatibility; no-op (LAN is on by default)")
+    sp.add_argument("--local-only", action="store_true", help="listen only on 127.0.0.1; disable LAN phone access")
     sp.add_argument("--media", choices=("dvd", "cd", "bd"), default="dvd", help="disc type")
     sp.add_argument("--out", default="results", help="results directory (default: results)")
     from .webui import run as run_webui

@@ -176,10 +176,22 @@
 .pc-embedded-paper:not(.pc-has-photo) .pc-after, .pc-embedded-paper.pc-has-photo :is(.pc-before,.pc-range,.pc-range-key,.pc-skip) { display: none; }
 .pc-embedded-paper button { cursor: pointer; }
 .pc-embedded-paper .pc-wide { margin-top: 16px; }
-.cal-photo:has(.pc-is-focus) :is(#cal,.top,.bar,#cal-ruler) { visibility: hidden; }
-.cal-photo-host:has(.pc-is-focus) { z-index: 1000; }
+.pc-photo-focus :is(#cal,.top,.bar,#cal-ruler) { visibility: hidden; }
+.pc-photo-focus .cal-photo-host { z-index: 1000; }
 @media (max-width: 900px) {
   .cal-photo-host { right: var(--edge); bottom: auto; height: 40vh; }
   .pc-embedded .pc-empty { overflow-y: auto; }
   .pc-embedded .pc-empty-columns { flex: none; overflow: visible; }
+}
+.pc-automatic:not(.pc-manual-open) :is(.pc-overlay,.pc-toolbar,.pc-focus-button) { display: none; }
+.pc-manual > summary, .pc-phone-help > summary { min-height: 44px; align-content: center; cursor: pointer; }
+.pc-phone-block > div { min-width: 0; flex: 1; }
+.pc-address { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; font-size: 14px; }
+.pc-address select { width: 100%; min-width: 44px; min-height: 44px; padding: 8px; font: inherit; font-size: 16px; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; }
+.pc-phone-help { margin-top: 12px; font-size: 14px; overflow-wrap: anywhere; }
+.pc-phone-block a { min-height: 44px; min-width: 44px; }
+@media (max-width: 900px) {
+  .pc-phone-block, .pc-embedded .pc-phone-empty .pc-phone-block { flex-wrap: wrap; }
+  .pc-phone-block > div { flex-basis: 180px; }
+  .pc-embedded .pc-phone-empty .pc-qr { max-width: 100%; }
 }

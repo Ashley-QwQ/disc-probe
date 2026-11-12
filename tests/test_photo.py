@@ -21,6 +21,70 @@ ROOT = Path(__file__).resolve().parents[1]
 RESEARCH = Path("D:/disc-probe/docs/goals/photo-calibration")
 
 
+def listed(row):
+    return {**row, "verdict": None, "status": None, "reason": None}
+
+
+def test_lan_ips_are_private_unique_and_stable():
+    addresses = ["192.168.1.20", "127.0.0.1", "169.254.1.2", "8.8.8.8", "10.0.0.5",
+                 "172.16.2.1", "192.168.1.20", "0.0.0.0", "255.255.255.255", "224.0.0.1"]
+    candidates = [(None, None, None, None, (a, 0)) for a in addresses]
+    with patch.object(photo.socket, "getaddrinfo", return_value=candidates):
+        assert photo.lan_ips() == ["10.0.0.5", "172.16.2.1", "192.168.1.20"]
+        assert photo.lan_ip() == "10.0.0.5"
+    with patch.object(photo.socket, "getaddrinfo", side_effect=OSError):
+        assert photo.lan_ips() == [] and photo.lan_ip() is None
+
+
+def test_lan_ips_put_the_default_route_first():
+    """A Hyper-V/WSL switch (172.x) sorts before the Wi-Fi address; phones can only reach the Wi-Fi one."""
+    candidates = [(None, None, None, None, (a, 0)) for a in ("172.29.80.1", "192.168.0.101")]
+
+    class Probe:
+        def __init__(self, *a): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def connect(self, where): assert where[0] == "192.0.2.1"
+        def getsockname(self): return ("192.168.0.101", 50000)
+    with patch.object(photo.socket, "getaddrinfo", return_value=candidates), patch.object(photo.socket, "socket", Probe):
+        assert photo.lan_ips() == ["192.168.0.101", "172.29.80.1"]
+
+
+@pytest.mark.parametrize("flags, lan", [([], True), (["--lan"], True), (["--local-only"], False),
+                                         (["--lan", "--local-only"], False)])
+def test_webui_lan_default_and_local_only(flags, lan, capsys):
+    from discprobe.__main__ import main
+    # Exercise the real parser and run(), but bind no socket and enumerate no drives.
+    with patch.object(webui, "Backend"), patch.object(webui, "Server") as server:
+        instance = server.return_value.__enter__.return_value
+        instance.server_port = 45678
+        instance.token = "session" if lan else None
+        main(["webui", *flags])
+        assert server.call_args.kwargs["lan"] is lan
+        assert "http://127.0.0.1:45678/home/" + ("?token=session" if lan else "") in capsys.readouterr().out
+
+
+def test_chosen_lan_address_validation(tmp_path):
+    with serving(tmp_path, lan=True) as s, patch.object(photo, "lan_ips", return_value=["10.0.0.2", "192.168.1.10"]):
+        session = {"X-Discprobe-Token": s.token}
+        code, link = json_request(s, "GET", "/api/phone-link?run=geo-test&address=192.168.1.10", headers=session)
+        assert code == 200 and link["url"].startswith("http://192.168.1.10:")
+        assert link["addresses"] == ["10.0.0.2", "192.168.1.10"] and link["address"] == "192.168.1.10"
+        for address in ("", "evil.test", "127.0.0.1", "192.168.1.11", "192.168.1.10%3A80%40evil.test"):
+            assert request(s, "GET", "/api/phone-link?run=geo-test&address=" + address, headers=session)[0] == 400
+
+
+def test_burn_event_records_selected_path_without_drive_access(tmp_path):
+    job = webui.Job("fixture", "TEST:", tmp_path)
+    job.action, job.media, job.args = "burn", "cd", {"cd_sector": "mode2form1"}
+    job.events.write_text(json.dumps(dict(type="burn_result", result="completed")) + "\n", encoding="utf-8")
+    with patch.object(webui.sys, "platform", "win32"):
+        job.read()
+    result = job.history[0]
+    assert result["burner"] == "TEST:" and result["burn_path"] == "IMAPI"
+    assert result["burn_mode"] == "mode2form1; physical interleave unknown"
+
+
 @pytest.fixture
 def tmp_path():
     # Keep all test writes inside the checkout, including in restricted Windows sessions.
@@ -86,13 +150,13 @@ def upload(server, run="geo-test", *, token=None, name="first.png"):
 
 def test_upload_list_serve_roundtrip_and_local_phone_link(tmp_path):
     with serving(tmp_path) as s:
-        assert json_request(s, "GET", "/api/phone-link?run=geo-test") == (200, dict(url=None, qr_svg=None))
+        assert json_request(s, "GET", "/api/phone-link?run=geo-test") == (200, dict(url=None, qr_svg=None, addresses=[], address=None))
         code, first = upload(s, name="..%2F..%2F%E7%85%A7%E7%89%87.png")
         assert code == 200 and first["name"] == "照片.png"
         assert set(first) == {"id", "name", "url", "time"}
         code, second = upload(s, name="second.png")
         assert code == 200
-        assert json_request(s, "GET", "/api/photos?run=geo-test") == (200, dict(photos=[first, second]))
+        assert json_request(s, "GET", "/api/photos?run=geo-test") == (200, dict(photos=[listed(first), listed(second)]))
         code, body, headers = request(s, "GET", first["url"])
         assert code == 200 and body == png() and headers["Content-Type"] == "image/png"
         assert (tmp_path / "results/geo-test/photos" / (first["id"] + ".png")).read_bytes() == png()
@@ -103,7 +167,7 @@ def test_upload_list_serve_roundtrip_and_local_phone_link(tmp_path):
 
 
 def test_phone_tokens_are_scoped_and_do_not_grant_main_session(tmp_path):
-    with serving(tmp_path, lan=True) as s, patch.object(photo, "lan_ip", return_value="192.168.1.10"):
+    with serving(tmp_path, lan=True) as s, patch.object(photo, "lan_ips", return_value=["192.168.1.10"]):
         session = {"X-Discprobe-Token": s.token}
         assert request(s, "GET", "/api/phone-link?run=geo-test")[0] == 403
         code, link = json_request(s, "GET", "/api/phone-link?run=geo-test", headers=session)
@@ -120,13 +184,17 @@ def test_phone_tokens_are_scoped_and_do_not_grant_main_session(tmp_path):
         code, row = upload(s, token=token)
         assert code == 200
         auth = {"X-Photo-Token": token}
-        assert json_request(s, "GET", "/api/photos?run=geo-test", headers=auth)[1]["photos"] == [row]
+        assert json_request(s, "GET", "/api/photos?run=geo-test", headers=auth)[1]["photos"] == [listed(row)]
+        assert request(s, "GET", "/home/guidance.mjs", headers=auth)[0] == 200
+        assert request(s, "GET", "/home/", headers=auth)[0] == 403
         assert request(s, "GET", row["url"] + "?token=" + token)[1] == png()
         assert request(s, "GET", "/api/photos?run=geo-other", headers=auth)[0] == 403
         assert upload(s, "geo-other", token=token)[0] == 403
         assert request(s, "GET", row["url"].replace("geo-test", "geo-other"), headers=auth)[0] == 403
         for route in ("/api/state", "/api/burn-token", "/api/phone-link?run=geo-other"):
             assert request(s, "GET", route, headers={"X-Discprobe-Token": token})[0] == 403
+            assert request(s, "GET", route, headers=auth)[0] == 403
+            assert request(s, "GET", route, headers={"Cookie": "discprobe_session=" + token})[0] == 403
         assert request(s, "POST", "/api/run?token=" + token, headers={"Content-Type": "application/json", "Content-Length": "2"})[0] == 403
         assert request(s, "GET", "/api/photos?run=geo-test", headers={"X-Photo-Token": "wrong", **session})[0] == 403
         assert request(s, "GET", "/api/photos?run=geo-test", headers={**auth, "Origin": "http://evil.test"})[0] == 403
@@ -135,8 +203,8 @@ def test_phone_tokens_are_scoped_and_do_not_grant_main_session(tmp_path):
         assert request(s, "GET", path)[0] == 403
         new = json_request(s, "GET", "/api/phone-link?run=geo-test", headers=session)[1]
         assert new["url"] != link["url"]
-        with patch.object(photo, "lan_ip", return_value=None):
-            assert json_request(s, "GET", "/api/phone-link?run=geo-test", headers=session)[1] == dict(url=None, qr_svg=None)
+        with patch.object(photo, "lan_ips", return_value=[]):
+            assert json_request(s, "GET", "/api/phone-link?run=geo-test", headers=session)[1] == dict(url=None, qr_svg=None, addresses=[], address=None)
 
 
 def test_upload_body_limit_content_type_and_auth_before_body(tmp_path):
@@ -155,7 +223,7 @@ def test_upload_body_limit_content_type_and_auth_before_body(tmp_path):
 
 
 def test_phone_devices_count_and_rotation_revoke_every_old_link(tmp_path):
-    with serving(tmp_path, lan=True) as s, patch.object(photo, 'lan_ip', return_value='192.168.1.10'):
+    with serving(tmp_path, lan=True) as s, patch.object(photo, 'lan_ips', return_value=['192.168.1.10']):
         session = {'X-Discprobe-Token': s.token}
         link = json_request(s, 'GET', '/api/phone-link?run=geo-test', headers=session)[1]
         path = urlsplit(link['url']).path
@@ -239,7 +307,8 @@ def test_photo_web_job_result_and_validation(tmp_path):
     pytest.importorskip("cv2")
     with serving(tmp_path) as s:
         row = upload(s)[1]
-        payload = dict(action="photo", args=dict(run="geo-test", media="dvd", photos=[row["id"]], rings_mm=None))
+        payload = dict(action="photo", args=dict(run="geo-test", media="dvd", photos=[row["id"]], rings_mm=None,
+                                               burner="TEST:", burn_path="IMAPI", burn_mode="2048-byte data sectors"))
         code, started = json_request(s, "POST", "/api/run", json.dumps(payload), {"Content-Type": "application/json"})
         assert code == 200
         job = s.backend.get_job(started["job"])
@@ -247,9 +316,16 @@ def test_photo_web_job_result_and_validation(tmp_path):
         assert job.exit == 0 and job.media == "dvd" and job.result["verdict"] == "unsure"
         assert set(job.result) == {"verdict", "per_photo", "rings_mm", "offset_mm", "L_frames", "confidence", "path"}
         assert job.result["per_photo"][0]["id"] == row["id"]
+        assert job.result["per_photo"][0]["status"] == "no_rim"
+        record = json.loads((tmp_path / "results/geo-test/photo.json").read_text(encoding="utf-8"))
+        assert record["burn_path"] == dict(burner="TEST:", path="IMAPI", mode="2048-byte data sectors")
+        listing = json_request(s, "GET", "/api/photos?run=geo-test")[1]
+        assert listing["verdict"] == "unsure"
+        assert listing["photos"][0] == {**row, **job.result["per_photo"][0]}
         assert any(e["type"] == "result" and e.get("step") == "photo" for e in job.history)
         for change in (dict(run="geo-other"), dict(photos=["../x"]), dict(photos=[]), dict(photos=[row["id"], row["id"]]),
-                       dict(media="bd"), dict(rings_mm=[30, 29]), dict(rings_mm=[27, float("nan")])):
+                       dict(media="bd"), dict(rings_mm=[30, 29]), dict(rings_mm=[27, float("nan")]),
+                       dict(burner="--help"), dict(burn_mode=[]), dict(burn_path="bad\npath")):
             with pytest.raises(webui.APIError):
                 s.backend.start(dict(action="photo", args={**payload["args"], **change}))
 

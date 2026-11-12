@@ -7,6 +7,7 @@
  * image, never inserted as markup. All callbacks receive independent arrays.
  */
 import { deviceList } from './kit/devices.js';
+import { photoReasonWords } from './guidance.mjs';
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 export const DEFAULT_RINGS = Object.freeze([30, 38, 47, 55]);
 export function ringHandles(radius) {
@@ -144,6 +145,10 @@ export function photoPage(host, opts = {}) {
       t.why = () => en ? 'This drive and disc batch need a photo to read the along-track constant. Keep the whole target disc in frame.' : '这台光驱和这批盘还需要靠照片读出沿轨常数。把整张标靶盘拍进画面。';
     }
   }
+  if (opts.automaticRead) {
+    t.afterBody = en ? 'Photos are read together automatically. Turn the disc between shots.' : '照片会一起自动读取。每张之间转动一下盘。';
+    t.reader = en ? 'Keep the whole disc in frame. If a photo needs retaking, its reason appears below.' : '把整张盘拍进画面。需要重拍时，原因会显示在下面。';
+  }
   const abort = new win.AbortController(), ownedUrls = new Set();
   const initialRings = validRings(opts.ringsMm);
   const measured = Array.isArray(opts.measuredMm) && opts.measuredMm.length === 2 && opts.measuredMm.every(Number.isFinite)
@@ -190,11 +195,12 @@ export function photoPage(host, opts = {}) {
         <div class="pc-before"><section><h2>${t.after}</h2><p>${t.afterBody}</p><p>${t.reader}</p></section><section><h2>${t.skipTitle}</h2><p>${t.skipBody}</p></section></div>
         <div class="pc-after"><section><div class="pc-section-title"><h2>${t.photos}</h2><span class="pc-photo-count"></span></div><div class="pc-strip"></div></section>
           <section class="pc-add-section"><div class="pc-phone-small"></div>${button('add', t.add, 'upload', 'pc-wide')}</section>
-          <section><div class="pc-section-title"><h2>${t.alignment}</h2><span class="pc-stamp">${t.manual}</span></div>
+          <section>${opts.automaticRead ? '<details class="pc-manual"><summary>手动调整 / Adjust by hand</summary>' : ''}<div class="pc-section-title"><h2>${t.alignment}</h2><span class="pc-stamp">${t.manual}</span></div>
             <dl class="pc-summary"><div><dt>${t.rings}</dt><dd class="pc-ring-count"></dd></div><div><dt>${t.offset}</dt><dd class="pc-offset"></dd></div></dl>
             <p class="pc-registration"></p><p>${t.reader}</p>
             <div class="pc-actions">${typeof opts.autoAlign === 'function' ? button('auto', t.auto, 'auto', 'pc-primary') : ''}${button('reset', t.reset, 'reset')}</div>
             <details class="pc-radius-editor"><summary>${t.adjust}</summary><p>${t.radiusTip}</p><div></div></details>
+            ${opts.automaticRead ? '</details>' : ''}
           </section>
         </div>
         ${typeof opts.onSkip === 'function' ? button('skip', t.skip, null, 'pc-skip pc-wide') : ''}
@@ -213,6 +219,10 @@ export function photoPage(host, opts = {}) {
     if (node === root && opts.paperHost) paper.addEventListener(event, fn, {...extra, signal: abort.signal});
   };
   const stage = $('.pc-viewport'), image = $('.pc-image'), overlay = $('.pc-overlay'), loupe = $('.pc-loupe');
+  if (opts.automaticRead) {
+    root.classList.add('pc-automatic');
+    on($('.pc-manual'), 'toggle', event => root.classList.toggle('pc-manual-open', event.target.open));
+  }
   const message = text => { if (!destroyed) $('.pc-message').textContent = text; };
   const selected = () => photos[active];
   const objectUrl = blob => { const url = win.URL.createObjectURL(blob); ownedUrls.add(url); return url; };
@@ -225,7 +235,18 @@ export function photoPage(host, opts = {}) {
     try { const url = new URL(value, doc.baseURI); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; }
   };
   let phoneUrl = safePhoneUrl(opts.phoneUrl);
+  let phoneShown = Date.now(), phoneOpened = false, helpTimer;
   const deviceHosts = [];
+  function updatePhoneHelp() {
+    for (const host of [$('.pc-phone-empty'), $('.pc-phone-small')]) {
+      const help = host.querySelector('.pc-phone-help');
+      if (help) help.hidden = phoneOpened || Date.now() - phoneShown < 25000;
+    }
+  }
+  function startPhoneHelp() {
+    win.clearTimeout(helpTimer);
+    helpTimer = win.setTimeout(() => { if (!destroyed) updatePhoneHelp(); }, 25000);
+  }
   function phoneBlock(node, small) {
     if (!phoneUrl) {
       const p = doc.createElement('p'); p.className = 'pc-phone-offline'; p.textContent = t.phoneOffline;
@@ -240,16 +261,43 @@ export function photoPage(host, opts = {}) {
     const text = doc.createElement('div'), heading = doc.createElement('h2'), link = doc.createElement('a');
     heading.textContent = small ? t.phoneSmall : t.phone; link.textContent = phoneUrl; link.href = phoneUrl; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.title = t.openPhone;
     text.append(heading, link);
+    const addresses = opts.addresses || [];
+    if (addresses.length > 1) {
+      const label = doc.createElement('label'); label.className = 'pc-address'; label.textContent = '电脑地址 / Computer address';
+      const select = doc.createElement('select'); select.setAttribute('aria-label', label.textContent);
+      for (const address of addresses) { const option = doc.createElement('option'); option.value = option.textContent = address; select.append(option); }
+      select.value = opts.address || new URL(phoneUrl).hostname;
+      on(select, 'change', async () => {
+        select.disabled = true;
+        try { await opts.onAddress?.(select.value); } catch (error) { message(error.message); }
+        finally { select.disabled = false; }
+      });
+      label.append(select); text.append(label);
+    }
+    const help = doc.createElement('details'); help.className = 'pc-phone-help'; help.hidden = true;
+    const summary = doc.createElement('summary'); summary.textContent = "手机打不开链接？ / Phone can't open the link?"; help.append(summary);
+    const advice = [
+      '手机和电脑连同一个 Wi-Fi，不要用访客网络。 / Use the same Wi-Fi as this computer, not a guest network.',
+      'Windows 可能拦住了连接：在 Windows 安全中心 → 防火墙 → 允许应用中，允许 Python 使用专用网络。 / Windows may have blocked the connection: in Windows Security → Firewall → Allow an app, allow Python on private networks.',
+    ];
+    if (addresses.length > 1) advice.push('试试上面的另一个地址。 / Try the other address above.');
+    for (const line of advice) { const p = doc.createElement('p'); p.textContent = line; help.append(p); }
+    text.append(help);
     if (!small) { const steps = doc.createElement('ol'); for (const line of t.phoneSteps) { const li = doc.createElement('li'); li.textContent = line; steps.append(li); } text.append(steps); }
     block.append(text); node.append(block);
   }
   phoneBlock($('.pc-phone-empty'), false); phoneBlock($('.pc-phone-small'), true);
+  if (phoneUrl) startPhoneHelp();
   for (const host of [$('.pc-phone-empty'), $('.pc-phone-small')]) {
     const devices = doc.createElement('div'); devices.hidden = true; devices.className = 'pc-devices';
     host.append(devices); deviceHosts.push(devices);
   }
   function setDevices(devices) {
     if (destroyed) return;
+    if (Array.isArray(devices)) {
+      phoneOpened = devices.some(device => !device.thisDevice);
+      updatePhoneHelp();
+    } else { phoneOpened = true; updatePhoneHelp(); }
     for (const host of deviceHosts) {
       host.hidden = !Array.isArray(devices);
       if (host.hidden) continue;
@@ -259,6 +307,8 @@ export function photoPage(host, opts = {}) {
   function setPhoneLink(link) {
     if (destroyed) return;
     phoneUrl = safePhoneUrl(link.url); opts.phoneQrSvg = link.qr_svg;
+    opts.addresses = link.addresses || []; opts.address = link.address;
+    phoneShown = Date.now(); phoneOpened = false; startPhoneHelp();
     for (const [i, selector] of ['.pc-phone-empty', '.pc-phone-small'].entries()) {
       const host = $(selector);
       for (const img of host.querySelectorAll('.pc-qr')) {
@@ -296,6 +346,7 @@ export function photoPage(host, opts = {}) {
   function setFocus(value) {
     if (active < 0 || value === focus) return;
     cancelDrag(); focus = value; root.classList.toggle('pc-is-focus', focus);
+    if (opts.paperHost) doc.documentElement.classList.toggle('pc-photo-focus', focus);
     layout();
     if (focus) stage.focus({preventScroll:true}); else $('[data-pc="focus"]').focus();
   }
@@ -414,6 +465,7 @@ export function photoPage(host, opts = {}) {
   }
   function descriptor(p) { return {id:p.id,src:p.src,name:p.name,label:p.label,reason:p.reason,file:p.file,rim:p.rim ? {...p.rim} : null,ringsMm:[...p.rings]}; }
   async function addPhotos(values, {preserveSelection = false} = {}) {
+    let added = false;
     for (const value of values) {
       if (destroyed) return;
       let src, file = null, name, label = '', rim = null, rings = initialRings;
@@ -430,9 +482,11 @@ export function photoPage(host, opts = {}) {
       const width = photoImage.naturalWidth, height = photoImage.naturalHeight;
       if (!rim || ![rim.cx,rim.cy,rim.radiusPx].every(Number.isFinite) || rim.radiusPx <= 0 || rim.cx < 0 || rim.cy < 0 || rim.cx > width || rim.cy > height) rim = null;
       photos.push({id:value?.id,src,file,name:name || `${t.photo} ${photos.length+1}`,label,reason:value?.reason || '',rim:rim ? {...rim} : null,rings:[...rings],baseline:[...rings],offsetMm:null,image:photoImage,width,height});
+      added = true;
       message('');
       if (preserveSelection && active >= 0) paintStrip(); else choose(photos.length-1);
     }
+    if (added) opts.onPhotos?.();
   }
   async function runAuto() {
     if (busy || !selected() || typeof opts.autoAlign !== 'function') return;
@@ -542,10 +596,11 @@ export function photoPage(host, opts = {}) {
     setPhoneLink,
     addPhotos,
     setPhotoId(photo, id) { const p = photos.find(p => photo.file ? p.file === photo.file : p.src === photo.src); if (p) p.id = id; },
-    setReasons(perPhoto) { for (const p of photos) { const result = perPhoto.find(r => r.id === p.id); if (result) p.reason = result.reason || ''; } paintStrip(); },
+    setReasons(perPhoto) { for (const p of photos) { const result = perPhoto.find(r => r.id === p.id); if (result) { const reason = photoReasonWords(result); p.reason = reason.zh === reason.en ? reason.en : reason.zh + ' / ' + reason.en; } } paintStrip(); },
+    setReadResult(result) { if (result.verdict !== 'ok') return; for (const p of photos) { p.offsetMm = result.offset_mm; if (result.rings_mm) p.rings = [...result.rings_mm]; } if (selected()) { radiusEditor(); paint(); } },
     back() { if (focus) setFocus(false); else callHost(opts.onBack); },
     use() { if (selected() && !busy) return callHost(opts.onUse,descriptor(selected()),[...selected().rings]); },
-    destroy() { if (destroyed) return; destroyed = true; task++; abort.abort(); resize.disconnect(); cancelDrag(); for (const url of ownedUrls) win.URL.revokeObjectURL(url); ownedUrls.clear(); paper.remove(); opts.paperHost?.classList.remove('pc-embedded-paper','pc-has-photo'); root.remove(); },
+    destroy() { if (destroyed) return; destroyed = true; win.clearTimeout(helpTimer); if (opts.paperHost) doc.documentElement.classList.remove('pc-photo-focus'); task++; abort.abort(); resize.disconnect(); cancelDrag(); for (const url of ownedUrls) win.URL.revokeObjectURL(url); ownedUrls.clear(); paper.remove(); opts.paperHost?.classList.remove('pc-embedded-paper','pc-has-photo'); root.remove(); },
     state() { const p = selected(); return {mode:p ? 'aligning' : 'no-photo',lang:opts.lang === 'en' ? 'en' : 'zh',photos:photos.map(descriptor),activePhoto:active,ringsMm:p ? [...p.rings] : [...initialRings],measuredMm:[...measured],offsetMm:p?.offsetMm ?? null,rimRegistered:!!p?.rim,focus,zoom:view.zoom,pan:{x:view.panX,y:view.panY},curves,enhance,busy}; },
   };
 }

@@ -7,11 +7,39 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 
 from discprobe import cd, disexport, photo, webui, webui_catalog
+
+
+def test_reader_ok_with_burn_provenance_can_be_saved(tmp_path):
+    from PIL import Image
+    from discprobe import pcal
+    summary, target, _ = run_files(tmp_path)
+    recorded = json.loads((ROOT / "tests/data/photo_sealed_read_v1.json").read_text(encoding="utf-8"))
+    readings = [p for p in recorded["photos"] if p["status"] == "ok"]
+    inputs = []
+    for index in range(2):
+        path = tmp_path / f"synthetic-{index}.png"
+        Image.new("RGB", (48, 48), (100 + index, 100, 100)).save(path)
+        inputs.append((f"photo-{index}", path))
+    # Stored reader diagnostics isolate the wiring/provenance gate; this is not
+    # evidence that synthetic images or real phone captures passed the reader.
+    with patch.object(pcal, "read_photo", side_effect=readings):
+        result = photo.analyze(summary.parent, "cd", inputs, burner="H:", burn_path="IMAPI",
+                               burn_mode="mode2form1; physical interleave unknown")
+    assert result["verdict"] == "ok"
+    decision = photo.photo_shift(summary, target, device_id="H:")
+    assert decision["written"] is True
+    output = tmp_path / "saved phone preset.json"
+    export(summary, target, output)
+    saved = json.loads(output.read_text(encoding="utf-8"))
+    assert saved["source"]["along_track_frames"] == result["L_frames"]
+    assert saved["source"]["photo_provenance"]["burn_path"] == dict(
+        burner="H:", path="IMAPI", mode="mode2form1; physical interleave unknown")
 
 ROOT = Path(__file__).resolve().parents[1]
 
