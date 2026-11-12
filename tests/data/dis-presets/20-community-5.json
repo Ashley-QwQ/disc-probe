@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [],
+  "dvdPresets": [
+    {
+      "id": "D172-3",
+      "displayName": "百诗嫚 (Baishiman)",
+      "description": "Community starting point https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/172#discussioncomment-19471847"
+    }
+  ],
+  "bluRayPresets": []
+}

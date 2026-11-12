@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [
+    {
+      "innerRadiusMm": 24.911653497674305,
+      "outerRadiusMm": 57.93159241880254,
+      "sectors": 359849,
+      "pitchLinear": 0,
+      "pitchQuadratic": 0,
+      "pitchCubic": 0,
+      "id": "D169-1",
+      "displayName": "Banana (香蕉)",
+      "description": "Community starting point https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/169"
+    }
+  ],
+  "dvdPresets": [],
+  "bluRayPresets": []
+}

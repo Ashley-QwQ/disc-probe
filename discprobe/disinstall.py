@@ -28,7 +28,8 @@ import tempfile
 FILE_NAME = "disc-presets.json"
 CURRENT_SCHEMA = 4
 MAX_UINT = 2 ** 32 - 1
-FAMILIES = {"cd": ("cdPresets", "disabledCdPresetIds"), "dvd": ("dvdPresets", "disabledDvdPresetIds")}
+FAMILIES = {"cd": ("cdPresets", "disabledCdPresetIds"), "dvd": ("dvdPresets", "disabledDvdPresetIds"),
+            "bd": ("bluRayPresets", "disabledBluRayPresetIds")}
 
 
 class InstallError(ValueError):
@@ -108,6 +109,11 @@ def install(preset: dict, path: str | None = None, replace: bool = False) -> dic
     """
     family = _family(preset)
     _validate_preset(preset)
+    return _install_validated(preset, path, replace, family)
+
+
+def _install_validated(preset: dict, path: str | None, replace: bool, family: str) -> dict:
+    """Shared merge/backup writer. Callers must validate their media's catalog entry first."""
     path = target_path(path)
     document, text, dropped = _read(path)
     created = document is None
@@ -137,7 +143,7 @@ def install(preset: dict, path: str | None = None, replace: bool = False) -> dic
     else:
         kept = sorted(key for key in items[index] if key not in preset)
         merged = {**items[index], **preset}
-        dropped_fields = _drop_unusable_fields(merged, "sectors" in preset)
+        dropped_fields = _drop_unusable_fields(merged, "sectors" in preset) if family != "bd" else []
         if dropped_fields:
             kept = [key for key in kept if key not in dropped_fields]
         items[index] = merged

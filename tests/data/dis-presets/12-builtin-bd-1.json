@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [],
+  "dvdPresets": [],
+  "bluRayPresets": [
+    {
+      "id": "bd-r-ritek-10x",
+      "displayName": "铼德 BD-R 10x（实测）",
+      "description": "实测参数：内半径 23.988221 mm、外半径 58.023235 mm、12,219,392 扇区。",
+      "totalSectors": 12219392,
+      "usableSectors": 12219392,
+      "innerRadiusMm": 23.98822105616562,
+      "outerRadiusMm": 58.023234731100764,
+      "invertMapping": false
+    }
+  ]
+}

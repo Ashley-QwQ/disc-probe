@@ -1693,10 +1693,12 @@ export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
 // Which measured geometry this project's burn file is made from: the one it was made with before (kept in the
 // project file), else its disc batch's own measurement (the shelf entry), else the newest complete one for the
 // disc type. The last is a guess about the batch, so it is only the fallback.
-function projectGeo(state) {
-  const known = new Set((state.catalogue?.[S.media] ?? []).filter((x) => ["good", "usable"].includes(x.s)).map((x) => x.geo));
-  if (S.geo && known.has(S.geo)) return S.geo;
-  if (S.item?.geo && ["good", "usable"].includes(S.item.s)) return S.item.geo;
+export function projectGeo(state, plan = S) {
+  const known = new Set((state.catalogue?.[plan.media] ?? []).filter((x) => ["good", "usable"].includes(x.s) || x.image_compatible === true).map((x) => x.geo));
+  // An explicitly chosen imported preset takes precedence over a previous batch's geometry.
+  if (plan.item?.imported) return plan.item.image_compatible === true && known.has(plan.item.geo) ? plan.item.geo : null;
+  if (plan.geo && known.has(plan.geo)) return plan.geo;
+  if (plan.item?.geo && ["good", "usable"].includes(plan.item.s)) return plan.item.geo;
   const latest = state.steps?.find((x) => x.id === "geo");
   return latest?.done && latest.result ? latest.result : null;
 }
@@ -2001,10 +2003,10 @@ async function toPreview() {
     exportIso: (onProgress, opts) => makeBurnFile((p) => onProgress({ fraction: p.fraction, stage: p.stage }), opts),
     // what the preview's checklist reads before burning; each answer is what is known now, never a guess
     checks: () => {
-      const good = (x) => ["good", "usable"].includes(x?.s);
+      const good = (x) => ["good", "usable"].includes(x?.s) || x?.image_compatible === true;
       const [p0, p1] = pictureRange(), d = api.driveDisc?.();
       return {
-        geo: good(P.item) ? "batch" : (api.catalogue?.(P.media) ?? []).some(good) ? "latest" : "none",
+        geo: P.item?.imported ? (P.item.image_compatible === true ? (P.item.correction_required ? "imported_corrected" : "imported") : "none") : good(P.item) ? "batch" : (api.catalogue?.(P.media) ?? []).some(good) ? "latest" : "none",
         inRange: !imageLayers().some((L) => L.visible && cornersOutside(L, p0, p1)),
         levels: P.tone.levels === 4 && P.media === "cd" ? 4 : 2,
         disc: !d?.present ? "none" : d.media !== P.media ? "kind" : P.item?.mid && d.mid && d.mid !== P.item.mid ? "other" : d.blank === true ? "blank" : "written",

@@ -307,7 +307,7 @@ class BurnerTests(unittest.TestCase):
         started = []
         backend = webui.Backend(self.root, drive_provider=drives,
                                 runner=lambda argv, **kw: started.append(argv) or Mock(wait=Mock(return_value=0), close=Mock()))
-        self.addCleanup(backend.close)
+        self.addCleanup(backend.close)  # join the mock job before TemporaryDirectory cleanup
         (self.root / "iso").mkdir(exist_ok=True)
         (self.root / "iso" / "p.iso").write_bytes(bytes(4096))
         handler = webui.Handler.__new__(webui.Handler)

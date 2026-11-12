@@ -412,9 +412,17 @@ def _geo_fit(args, media=None) -> dict:
     args.geo = path
     try:
         with open(path, encoding="utf-8") as f:
-            fit = json.load(f)["fit"]
+            document = json.load(f)
+            fit = document["fit"]
         if fit.get("model") == "clv" and fit.get("media") == "cd":
             sys.exit(i18n.tr(guide.CD_CLV_LIMIT))
+        if fit.get("model") == "dis_import" and not fit.get("image_compatible"):
+            sys.exit("This DIS preset cannot drive the DP image sampler; see source.issues in the preset.")
+        if fit.get('model') == 'dis_import' and hasattr(args, 'correction'):
+            from .presets import linked_correction
+            linked = linked_correction(path, document)
+            if not args.correction:
+                args.correction = linked
         return fit
     except FileNotFoundError:
         latest = guide.latest_geo(media)
@@ -1044,6 +1052,8 @@ def cmd_image(args):
             sys.exit('--along-track-frames is for CD')
         u = math.sqrt(u * u - v * args.along_track_frames * FRAME_BITS / math.pi)
     total = writer.sectors_to_radius(u, v, bit, args.r_max + 0.6)
+    if fit.get('model') == 'dis_import' and fit.get('capacity_sectors'):
+        total = min(total, fit['capacity_sectors'])
     if args.media == "dvd":
         total = min(total, 2295104)
     else:
@@ -1965,6 +1975,8 @@ def _build_parser():
 
     from . import calibrate
     calibrate.add_parser(sub)
+    from . import presets
+    presets.add_parser(sub)
 
     from . import photo
     photo.add_parser(sub)

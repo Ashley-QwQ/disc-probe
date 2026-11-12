@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [
+    {
+      "id": "ritek-medical-aqua",
+      "displayName": "铼德医疗水蓝盘（实测）",
+      "description": "实测参数：内半径 24.911275 mm、外半径 57.931155 mm、359,845 扇区；扫描速度采用 1200 mm/s。",
+      "sectors": 359845,
+      "usableSectors": 359843,
+      "innerRadiusMm": 24.911275,
+      "outerRadiusMm": 57.931155,
+      "linearVelocityMmPerSecond": 1200,
+      "displayNameResourceKey": "DiscPreset_RitekMedicalAqua_DisplayName",
+      "descriptionResourceKey": "DiscPreset_RitekMedicalAqua_Description"
+    }
+  ],
+  "dvdPresets": [],
+  "bluRayPresets": []
+}

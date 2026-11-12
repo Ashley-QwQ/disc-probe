@@ -171,6 +171,10 @@ function hover(key, on) {
 function act(key) {
   if (key === "lamp") { $("theme").click(); return; }
   if (key === "screen") { openTerminal(); return; }
+  if (key === "fax") {                     // the letter tray: DIS presets in and out (presetio.js; hidden on an old server)
+    import("./presetio.js").then((m) => { if (!m.open(document.activeElement)) toast(T().soon); }).catch(() => toast(T().soon));
+    return;
+  }
   toast(T().soon);
 }
 // the monitor: its screen lights up (the baked screen_on layer, when the art has it), then the terminal
