@@ -27,8 +27,9 @@ class SimDrive:
                  capacity: int | None = None, cache_blocks: int | None = None, reread_delay_ms: float = 0.0,
                  media="dvd", cd_u=None, cd_v=None, cd_audio: bool = False, cd_read_offset_bytes: float = 0.0,
                  patterns=(), block: int | None = None, state_change_after_reads: int | None = None,
-                 state_us_per_mm: float = 0.0):
+                 state_us_per_mm: float = 0.0, cav_above_kbs: int | None = None):
         self.media = media
+        self.cav_above_kbs = cav_above_kbs
         # A drive that changes state partway through: after that many media reads, each read completes
         # state_us_per_mm later per mm of radius beyond 40 mm (a latency that depends on where the head is).
         self.state_change_after_reads = state_change_after_reads
@@ -210,6 +211,15 @@ class SimDrive:
                 adr_ctl = 0x10 if self.cd_audio else 0x14  # control bit 2 set: data track
                 data = bytes([0, 18, 1, 1, 0, adr_ctl, 1, 0, 0, 0, 0, 0,
                               0, adr_ctl, 0xAA, 0, *self.capacity.to_bytes(4, "big")])
+            elif op == 0xBB and self.cav_above_kbs is not None:
+                # Optional drive policy for retry tests; existing simulations keep their fixed law.
+                speed = int.from_bytes(cdb[2:4], "big")
+                self._phi = self._phase(t_issue)
+                self._t_s = t_issue
+                self.mode = "cav" if speed >= self.cav_above_kbs else "clv"
+                self.clv_speed_mm_s = speed * 1000 * self.spiral.sector_mm / 2048
+                self._w = self.clv_speed_mm_s / self._head_r
+                self._alpha = 0.0
             elif op in (0x00, 0xBB):
                 pass
             else:

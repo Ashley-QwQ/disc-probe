@@ -248,8 +248,19 @@ def _geo_clv(args):
     so T^2 is a straight line in LBA and carries (r0, pitch) up to one anchor.
     """
     from .clv import DEFAULT_ZONES, ClvLadder, ConstantAngularVelocity, write_outputs
+    if args.media == "cd":
+        if args.linear_mm_s is None and not getattr(args, "cd_clv_pitch_explicit", False):
+            sys.exit("CD CLV needs an independently known --linear-mm-s or an explicit --pitch-um anchor; --speed is only a request.")
+        if args.linear_mm_s is not None and getattr(args, "cd_clv_pitch_explicit", False):
+            sys.exit("Choose one CD CLV anchor: --linear-mm-s or --pitch-um.")
+        anchor = args.linear_mm_s if args.linear_mm_s is not None else args.pitch_um
+        if not math.isfinite(anchor) or anchor <= 0:
+            sys.exit("The CD CLV anchor must be finite and positive.")
+        print(i18n.tr(guide.CD_CLV_LIMIT))
+        if args.bd_zones is not None and args.bd_zones < 5:
+            sys.exit("CD CLV needs at least five zones (--clv-zones).")
     if args.sectors != 1:
-        sys.exit("--sectors 1 only: a Blu-ray fit uses the time to turn once, which one sector gives")
+        sys.exit("--sectors 1 only: a CLV fit uses the time to turn once, which one sector gives")
     if not args.sim:
         _need_windows()
         from .spti import raise_priority
@@ -270,6 +281,7 @@ def _geo_clv(args):
                        r0_mm=args.r0_mm, host_delay_ms=args.host_delay_ms,
                        fit_offset=args.fit_offset)
     ladder.tp.summary["identity"] = _identity(args, dev)
+    ladder.tp.summary["args"] = {k: v for k, v in vars(args).items() if k != "func"}
     if args.sim:
         ladder.tp.summary["simulated"] = True
     progress, log = None, print
@@ -291,7 +303,11 @@ def _geo_clv(args):
         res = ladder.run()
     except ConstantAngularVelocity as e:
         # Not a failure: this disc wants the other instrument. The probe is all this run did.
-        hand_off = e
+        if args.media == "cd":
+            stopped = str(e)
+            log(f"stopped: {e}")
+        else:
+            hand_off = e
     except (RuntimeError, ValueError) as e:
         log(f"stopped: {e}")
         stopped = str(e)
@@ -358,12 +374,14 @@ def _geo_clv(args):
                   .format(a=len(dropped), b=shown, c=more))
         print(i18n.tr("zones.csv, summary.json: {a}").format(a=os.path.abspath(out)))
         last = derived.get("last_lba")
-        if last is not None and not getattr(args, "sim", None):
+        if last is not None and args.media == "bd" and not getattr(args, "sim", None):
             print(i18n.tr("For a DiscImageStudio preset: {a} disexport --geo {b} --sectors {c} --install")
                   .format(a=guide.PROG, b=out, c=f"{int(last) + 1}"))
         if res.get("v_m_s_anchor") is None:          # pitch was the anchor, so pitch is still nominal
             print(i18n.tr("Pass --linear-mm-s to trade that anchor for a pitch: without it the pitch is nominal "
                           "and only r0/v is measured."))
+        if args.media == "cd":
+            print(i18n.tr(guide.CD_CLV_LIMIT))
     else:
         print("no results written: it stopped before the fit.")
     if res is None:
@@ -394,7 +412,10 @@ def _geo_fit(args, media=None) -> dict:
     args.geo = path
     try:
         with open(path, encoding="utf-8") as f:
-            return json.load(f)["fit"]
+            fit = json.load(f)["fit"]
+        if fit.get("model") == "clv" and fit.get("media") == "cd":
+            sys.exit(i18n.tr(guide.CD_CLV_LIMIT))
+        return fit
     except FileNotFoundError:
         latest = guide.latest_geo(media)
         _fail(f"no such geo result: {path}",
@@ -711,6 +732,10 @@ def cmd_geo(args):
         return
     if media != 'dvd' and getattr(args, 'completion_sectors', None) is not None:
         sys.exit('--completion-sectors is for DVD')
+    if getattr(args, "cd_clv", False):
+        if media != "cd":
+            sys.exit("--cd-clv requires --media cd")
+        return _geo_clv(args)
     if media == "bd" and not getattr(args, "bd_angular", False):
         return _geo_clv(args)
     from .geo import Ladder, write_outputs
@@ -756,6 +781,7 @@ def cmd_geo(args):
     ladder.completion_sectors, ladder.completion_source = value, origin
     if media == 'dvd':
         print(read_completion.notice(value, origin))
+    ladder.tp.summary["args"] = {k: v for k, v in vars(args).items() if k != "func"}
     if args.sim:
         ladder.tp.summary["simulated"] = True
     progress, log = None, print
@@ -1912,16 +1938,18 @@ def _build_parser():
     sp.add_argument("--read-offset-bytes", type=float, default=0.0,
                     help="CD audio track only: where this drive's READ CD completes, in bytes before the end of "
                          "the sector in the burned audio stream (HP BU20N 0, PLDS DU-8A5LH -603)")
+    sp.add_argument("--cd-clv", action="store_true",
+                    help="experimental CD period fit; requires --linear-mm-s or explicit --pitch-um; no calibrated angle map")
     sp.add_argument("--linear-mm-s", type=float,
-                    help="Blu-ray only: the linear speed the drive reads at, in mm/s. With it the fit gives the "
+                    help="CLV fit: independently known linear speed in mm/s. With it the fit gives the "
                          "pitch; without it the pitch is an anchor and only the ratio stays known")
-    sp.add_argument("--bd-zones", type=int,
-                    help="Blu-ray only: how many zones to time, spread evenly from 5%% to 95%% of the disc "
+    sp.add_argument("--bd-zones", "--clv-zones", type=int,
+                    help="CLV fit: how many zones to time, spread evenly from 5%% to 95%% of the disc "
                          "(default 9). Two numbers come out of the line, so nine zones already pin them; "
                          "more zones buy a better check that the line is straight, which is what tells a "
                          "clean CLV disc from one that changes speed part way")
     sp.add_argument("--fit-offset", action="store_true",
-                    help="Blu-ray only: fit a constant offset in the period as well, which is the only way to "
+                    help="CLV fit: fit a constant offset in the period as well, which is the only way to "
                          "separate 'this disc really starts further out than 24.0 mm' from 'every period "
                          "carries a fixed few hundred microseconds'. Needs five zones or more")
     sp.set_defaults(func=cmd_geo)
@@ -2178,6 +2206,9 @@ def _main(argv=None):
         args = argparse.Namespace(func=cmd_guide)
         return args.func(args)
     args = p.parse_args(argv)
+    if getattr(args, "cd_clv", False):
+        args.cd_clv_pitch_explicit = any("--pitch-um".startswith(a.split("=")[0])
+                                        for a in raw_args if a.startswith("--"))
     if raw_args[:1] == ["burn"]:
         return args.func(args)  # Write speeds have their own units and safety checks.
     if getattr(args, "rings", None) and isinstance(args.rings, str):

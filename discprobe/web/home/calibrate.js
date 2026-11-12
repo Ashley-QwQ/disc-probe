@@ -1543,11 +1543,15 @@ async function realNext(forceMeasure = false) {
       } else if (flow.measureConfirmed) await realCalibrate();
     } else if (phase === "review") {
       const recovery = forceMeasure === true ? {id:'measure'} : recoveryAction(flow);
-      if (recovery.id === 'blank') {
+      if (recovery.id === 'drive') {
+        flow.geo = null; flow.timing = null; flow.preset = null;
+        flow.realPhase = "inspect";
+      } else if (recovery.id === 'blank') {
         flow.geo = null; flow.timing = null; flow.preset = null;
         flow.realPhase = "inspect";
         await realNext();
       } else if (recovery.id === 'measure') {
+        const previous = {timing:flow.timing};
         flow.photoResult = null; flow.photoReadKey = null; flow.photoSnapshot = null; flow.photoUploads = null; flow.photoNotice = null;
         flow.preset = null; flow.geo = null; flow.timing = null;
         try {
@@ -1556,7 +1560,7 @@ async function realNext(forceMeasure = false) {
             const result = await realJob(action, args);
             flow[action] = result;
             return result;
-          });
+          }, previous);
           Object.assign(flow, result);
         } catch (error) {
           if (!error.result) throw error;

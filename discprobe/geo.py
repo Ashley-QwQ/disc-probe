@@ -240,6 +240,7 @@ class Ladder:
         ratio = periods[1] / periods[0]
         tp.summary["rotation_check"] = {"inner_lba": inner, "outer_lba": outer, "period_ms": [p * 1e3 for p in periods], "ratio": ratio, "expected_clv": expected}
         if looks_clv(ratio, expected):
+            tp.summary["rotation_check"]["mode"] = "CLV"
             raise RuntimeError(f"the drive is not turning at a constant speed here ({periods[0] * 1e3:.2f} ms a turn at "
                                f"{self._radius(inner):.0f} mm, {periods[1] * 1e3:.2f} ms at {self._radius(outer):.0f} mm), and geo needs it to")
         # A whole-turn alias (one estimate locked onto every n-th turn) gives a ratio of n or 1/n.
@@ -247,11 +248,13 @@ class Ladder:
         folds = round(ratio) if ratio >= 1 else round(1 / ratio)
         if folds >= 2 and abs((ratio / folds if ratio >= 1 else ratio * folds) - 1) <= CAV_RATIO_SLACK:
             tp.summary["rotation_check"]["alias_turns"] = folds
+            tp.summary["rotation_check"]["mode"] = "CAV"
             return
         if abs(ratio - 1) > CAV_RATIO_SLACK:
             raise RuntimeError(f"the drive's speed is not steady ({periods[0] * 1e3:.2f} ms a turn at "
                                f"{self._radius(inner):.0f} mm, {periods[1] * 1e3:.2f} ms at {self._radius(outer):.0f} mm): "
                                "the two periods differ and are not a whole number of turns apart")
+        tp.summary["rotation_check"]["mode"] = "CAV"
 
     def settle(self, max_rounds: int = 10) -> float:
         tp, prev = self.tp, None
@@ -688,6 +691,7 @@ def write_outputs(ladder: Ladder, out_dir: str, stopped: str | None = None) -> N
                    "setup": ladder.tp.summary.get("setup"), "identity": ladder.tp.summary.get("identity"),
                    "set_cd_speed": ladder.tp.summary.get("set_cd_speed"),
                    "rotation_check": ladder.tp.summary.get("rotation_check"),
+                   "args": ladder.tp.summary.get("args"),
                    **({"simulated": True} if ladder.tp.summary.get("simulated") else {}),
                    **({"stopped": stopped} if stopped else {})}, f, indent=2, default=float)
     events = ladder.tp.events_as_rows()

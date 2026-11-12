@@ -35,6 +35,23 @@ for (const verdict of ['unknown','too_noisy','stopped_early']) {
 }
 await assert.rejects(remeasure(async()=>{throw new Error('cancelled');}),/cancelled/);
 assert.match(recoveryCommands({geo:{verdict:'narrow_span',path:'results/test',measurement:{span_mm:[28,48]}}},{drive:'H:',media:'cd',sectors:300000}), /--r-min START --r-max END/);
+// The server's saved speed history drives both copy and execution, including after reload.
+for (const media of ['cd','dvd','bd']) {
+  const previous = {timing:{verdict:'too_noisy',measurement:{rotation:'CLV',speed_advice:{media,next_speed:'7056',exhausted:false,all_clv:false}}}};
+  assert.match(measurementRecovery(previous).en, /untried 7056/);
+  const calls=[];
+  await remeasure(async (action,args)=>{calls.push({action,args});return {verdict:'too_noisy',measurement:{rotation:'CLV'}};},previous);
+  assert.deepEqual(calls,[{action:'timing',args:{speed:'7056'}}]);
+  assert.match(recoveryCommands(previous,{drive:'E:',media,sectors:359849}),/timing.*--speed 7056/);
+  Object.assign(previous.timing.measurement.speed_advice,{next_speed:null,exhausted:true,all_clv:true});
+  assert.equal(recoveryAction(previous).id,'drive');
+  assert.match(measurementRecovery(previous).en,/every speed tried/);
+  assert.match(measurementRecovery(previous).zh,/恒定线速度/);
+  await remeasure(async ()=>{throw new Error('must not repeat an exhausted speed');},previous);
+  const commands=recoveryCommands(previous,{drive:'E:',media,sectors:359849});
+  assert.doesNotMatch(commands,/ timing |SPEED|null|undefined/);
+  if (media === 'bd') assert.match(commands,/geo.*--media bd.*--bd-zones 25/);
+}
 // A failed job must still carry its saved result to the calibration page.
 globalThis.location = {search:''};
 globalThis.EventSource = class {addEventListener(){} close(){}};
