@@ -99,3 +99,7 @@ slim 合并提交：`e76786a`，来源 `a38f502698f77d5207eaa258371a860fc1947c1b
 - `web/home/design.js`：模板下载和图层上下移动/删除各自保留明确的提前返回分支，不让图层操作吞掉模板按钮。
 - `webui.py`：image 参数增加 textures，disexport 的 photo/reading_drive/completion 保留；模板 ZIP 与 compose 方法并存。响应函数第四位置参数保留给编辑器 headers，模板附件 filename 改为显式关键字，防止把缓存头字典写成附件名。原照片/手机路由和写入确认逻辑保留。
 - `zh.py`：增加编辑器、compose、作品模拟的词条，保留前面所有中文和错误提示。
+
+编辑器合并提交 `371707e`。完整 pytest：**432 passed、1 skipped、174 subtests passed**。首轮 Node 为 **19/20 入口退出 0**；`test_pastworks_browser.mjs` 的桌面、窄屏和真实 lobby 功能断言均已通过，但 finally 同步删除 Edge 配置目录时报 Windows EPERM。原始日志 `editor-test_pastworks_browser.txt` 保留。
+
+独立修复该退出竞态：等待测试自己启动的浏览器关闭；超时终止后也等待关闭并检查退出状态；删除目录前保留绝对路径边界断言，改用异步、有限次重试清理，使事件循环能完成退出通知。没有吞掉清理错误、跳过断言或终止其他浏览器。定向重跑完整浏览器入口退出 0（`editor-pastworks-fixed.txt`），随后重跑全部 Node 入口。

@@ -1,6 +1,7 @@
 // Actual DOM/events/assets in Edge, file URLs only. No server, backend, or device access.
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -179,10 +180,19 @@ try {
   }
 } finally {
   if (socket?.readyState === WebSocket.OPEN) { await cdp('Browser.close').catch(() => {}); socket.close(); }
-  if (browserProcess && browserProcess.exitCode === null) {
-    await Promise.race([new Promise(resolve => browserProcess.once('exit', resolve)), delay(2000)]);
-    if (browserProcess.exitCode === null) browserProcess.kill();
+  if (browserProcess) {
+    const exited = () => browserProcess.exitCode !== null || browserProcess.signalCode !== null;
+    const closed = new Promise(resolve => browserProcess.once('close', resolve));
+    if (!exited()) {
+      await Promise.race([closed, delay(2000)]);
+      if (!exited()) {
+        browserProcess.kill();
+        await Promise.race([closed, delay(5000)]);
+      }
+    }
+    assert.ok(exited(), 'fixture browser must exit before removing its profile');
   }
   assert.ok(resolve(dir).startsWith(resolve(tmpdir(), 'discprobe-pastworks-')));
-  rmSync(dir, { recursive: true, force: true, maxRetries: 8, retryDelay: 200 });
+  // Keep the event loop available while Chromium releases Windows profile handles.
+  await rm(dir, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
 }
