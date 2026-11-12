@@ -691,6 +691,26 @@ def cmd_calscan(args):
 
 def cmd_geo(args):
     media = getattr(args, "media", "dvd")
+    from . import read_completion
+    if getattr(args, 'refit', None):
+        try:
+            source = read_completion.summary_path(args.refit)
+            saved = json.loads(source.read_text(encoding='utf-8'))
+            value, origin = read_completion.resolve(saved.get('identity'), args.completion_sectors,
+                                                     saved['fit'].get('media', 'dvd'))
+            if args.completion_sectors is None and origin is None:
+                value = saved['fit'].get('completion_sectors', 0)
+                origin = dict(origin='stored')
+            output = args.out if args.out != 'results' else os.path.join(
+                args.out, source.parent.name + f'-completion-{value}')
+            fit, method = read_completion.save_reapplied(source, value, output, source=origin)
+        except (OSError, ValueError) as e:
+            sys.exit(str(e))
+        print(read_completion.notice(value, origin))
+        print(f"Completion offset applied: {method}; u={fit['u']:.8f}, v={fit['v']:.10f}; {output}")
+        return
+    if media != 'dvd' and getattr(args, 'completion_sectors', None) is not None:
+        sys.exit('--completion-sectors is for DVD')
     if media == "bd" and not getattr(args, "bd_angular", False):
         return _geo_clv(args)
     from .geo import Ladder, write_outputs
@@ -727,6 +747,15 @@ def cmd_geo(args):
                     chi2_abort=args.chi2_abort, sectors=args.sectors,
                     read_offset_bytes=args.read_offset_bytes)
     ladder.tp.summary["identity"] = _identity(args, dev)
+    try:
+        value, origin = read_completion.resolve(ladder.tp.summary['identity'],
+                                                 getattr(args, 'completion_sectors', None), media)
+    except ValueError as e:
+        dev.close() if hasattr(dev, 'close') else None
+        sys.exit(str(e))
+    ladder.completion_sectors, ladder.completion_source = value, origin
+    if media == 'dvd':
+        print(read_completion.notice(value, origin))
     if args.sim:
         ladder.tp.summary["simulated"] = True
     progress, log = None, print
@@ -1155,6 +1184,8 @@ def cmd_disexport(args):
     is_cd = fit.get("media") == "cd"
     # A Blu-ray run is the CLV fit: r0, pitch and speed instead of the angle ladder's u and v.
     is_bd = fit.get("model") == "clv" or fit.get("media") == "bd"
+    if (is_cd or is_bd) and getattr(args, 'completion_sectors', None) is not None:
+        sys.exit('--completion-sectors is for DVD')
     if args.media and args.media != ("bd" if is_bd else "cd" if is_cd else "dvd"):
         sys.exit(f"--media {args.media} does not match {args.geo}, which measured a "
                  f"{'Blu-ray' if is_bd else 'CD' if is_cd else 'DVD'}")
@@ -1198,7 +1229,10 @@ def cmd_disexport(args):
                      args.r_min or span[0], args.r_max or span[1],
                      args.id or ("discprobe-cd" if is_cd else "discprobe-dvd-r"),
                      args.name or ("CD (drive-timing calibration)" if is_cd else "DVD-R (drive-timing calibration)"),
-                     args.along_track_frames)
+                     args.along_track_frames, completion_sectors=getattr(args, 'completion_sectors', None))
+        if out['source'].get('completion_method'):
+            print(f"DVD completion offset: {out['source']['completion_sectors']} sectors; "
+                  f"{out['source']['completion_method']}")
     except ValueError as e:
         sys.exit(str(e))
     f = out["fit"]
@@ -1852,6 +1886,9 @@ def _build_parser():
 
     sp = sub.add_parser("geo", help="measure the spiral geometry of a burned DVD or CD from read timing (ladder)")
     common(sp)
+    from .read_completion import HELP as completion_help, REFIT_HELP, argument as completion_argument
+    sp.add_argument('--completion-sectors', type=completion_argument, help=completion_help)
+    sp.add_argument('--reapply', dest='refit', metavar='GEO', help=REFIT_HELP)
     sp.add_argument("--speed", type=_speed, default=5540,
                     help="read speed to fix, in kB/s or as a multiple like 4x (default 4x = 5540; CD 8x = 1411), "
                          "or keep to send no speed command and leave the drive as it is")
@@ -1987,6 +2024,7 @@ def _build_parser():
     sp.set_defaults(func=cmd_correction)
 
     sp = sub.add_parser("disexport", help="fit a measurement as a DiscImageStudio preset: a DVD/CD angle map (cubic pitch), or a Blu-ray T^2 line (constant pitch)")
+    sp.add_argument('--completion-sectors', type=completion_argument, help=completion_help)
     sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose; "
                                                     "a CD fit gives a CD preset")
     sp.add_argument("--correction", help="angle-correction file from the correction command")

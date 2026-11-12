@@ -93,6 +93,8 @@ class Stopped(Exception):
 
 
 def run(args) -> None:
+    if args.media != 'dvd' and getattr(args, 'completion_sectors', None) is not None:
+        raise SystemExit('--completion-sectors is for DVD')
     if getattr(args, "geo", None):
         return save_preset(args)
     if not args.drive:
@@ -218,6 +220,9 @@ def run(args) -> None:
                 ranges = ["--ranges", _geo_ranges(args.media, setup, args.avoid_mm)]
                 print("Geo readable LBA ranges after --avoid-mm: " + ranges[1], flush=True)
             since = datetime.datetime.now().replace(microsecond=0) - datetime.timedelta(seconds=1)
+            completion = getattr(args, 'completion_sectors', None)
+            if kind == 'geo' and completion is not None:
+                ranges += ['--completion-sectors', str(completion)]
             code = child(kind, *common(), "--media", args.media, "--out", args.out,
                          "--speed", speed, *ranges)
             result = measured(kind, since)
@@ -287,7 +292,11 @@ def save_preset(args):
     out = disexport.export(args.geo, args.sectors, None, args.preset,
                            lo, hi,
                            "discprobe-" + media, media.upper() + " (drive-timing calibration)",
-                           photo_path=getattr(args, "photo", None), device_id=getattr(args, "drive", None))
+                           photo_path=getattr(args, "photo", None), device_id=getattr(args, "drive", None),
+                           completion_sectors=getattr(args, 'completion_sectors', None))
+    if out['source'].get('completion_method'):
+        print(f"DVD completion offset: {out['source']['completion_sectors']} sectors; "
+              f"{out['source']['completion_method']}")
     decision = out["source"].get("photo_shift", dict(written=False, reason="not_cd"))
     ui.event("result", step="preset", path=args.preset, verdict="unknown", photo_shift=decision)
     print(f"Preset saved: {args.preset}", flush=True)
@@ -301,6 +310,8 @@ def add_parser(sub) -> None:
     from .__main__ import _speed
 
     sp = sub.add_parser("calibrate", help="calibrate a disc batch end to end: (burn,) check, timing, geo(, preset)")
+    from .read_completion import HELP, argument
+    sp.add_argument('--completion-sectors', type=argument, help=HELP)
     sp.add_argument("--drive", help="selected drive identity; required for measuring, checked when saving photo L")
     sp.add_argument("--media", choices=("dvd", "cd"), default="dvd")
     sp.add_argument("--iso", help="burn this measurement image first (needs --yes-write and a blank in the drive)")

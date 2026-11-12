@@ -81,7 +81,10 @@ def model(n, u, v, bs, rc, rs):
 def load(run):
     rows = list(csv.DictReader(open(os.path.join(run, "targets.csv"))))
     summ = json.load(open(os.path.join(run, "summary.json")))["fit"]
-    n = np.array([float(r["n_bits"]) for r in rows])
+    n = np.array([float(r.get("n_bits", r.get("n"))) for r in rows])
+    if summ.get('media', 'dvd') == 'dvd' and summ.get('completion_sectors'):
+        n = np.array([((int(r['lba']) // 16 + 1) * 16 + summ['completion_sectors']) * 38688.0
+                      for r in rows])
     y = np.radians([float(r["unwrapped_deg"]) for r in rows])
     s = np.radians([max(float(r["sigma_deg"]), 0.05) for r in rows])
     return n, y, s, summ
@@ -187,6 +190,8 @@ def write_phi_correction(path, r_mm, phi, degree, run, summ):
 
 def joint_fit(data, order, rc, rs):
     """Shared spiral, with centred angles to keep each run's large origin out of the solve."""
+    if any(d[3].get('completion_sectors', 0) != data[0][3].get('completion_sectors', 0) for d in data):
+        raise ValueError('completion sectors differ; reapply the same convention to all runs first')
     u0, v0 = data[0][3]["u"], data[0][3]["v"]
     n = np.concatenate([d[0] for d in data])
     y = np.concatenate([d[1] for d in data])
@@ -292,6 +297,11 @@ def merged_summary(data, runs, c):
                                           outer_radius_mm_for_total_sectors={
                                               str(total): float(radius(total * sector_bits))
                                               for total in sorted(totals)}))
+    completion = data[0][3].get('completion_sectors', 0)
+    if any(d[3].get('completion_sectors', 0) != completion for d in data):
+        raise ValueError('completion sectors differ; reapply the same convention to all runs first')
+    if completion:
+        fit_report['completion_sectors'] = completion
     # A preset outlives the runs: keep what makes `disexport --install` refuse a source run.
     partial = next((d[3]["completion_status"] for d in data
                     if d[3].get("completion_status", "target_reached") != "target_reached"), None)

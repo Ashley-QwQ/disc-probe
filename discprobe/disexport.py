@@ -119,7 +119,8 @@ def preset_json(fit, total_sectors, bit_nm, preset_id, name, description, media=
 
 def export(geo_summary: str, total_sectors: int, correction_path: str | None, out_path: str,
            r_lo: float, r_hi: float, preset_id: str, name: str, along_track_frames: float | None = None,
-           *, photo_path: str | None = None, device_id: str | None = None) -> dict:
+           *, photo_path: str | None = None, device_id: str | None = None,
+           completion_sectors: int | None = None) -> dict:
     from .photo import photo_shift
     geo_summary = str(geo_summary)
     decision = photo_shift(geo_summary, photo_path, device_id=device_id)
@@ -131,8 +132,8 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
         if not math.isfinite(along_track_frames):
             raise ValueError("--along-track-frames must be finite")
         decision = dict(written=True, frames=along_track_frames, origin="manual")
-    with open(geo_summary, encoding="utf-8") as f:
-        geo = json.load(f)["fit"]
+    from .read_completion import load_fit
+    geo, completion_method = load_fit(geo_summary, completion_sectors)
     if geo.get("model") == "clv" or geo.get("media") == "bd":
         raise ValueError("this geo result measured a disc the drive reads at a constant linear speed, so it "
                          "holds r0_mm, pitch_um and v_m_s rather than the angular u/v fit this module "
@@ -189,6 +190,13 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
     out = {"preset": preset_json(fit, total_sectors, bit, preset_id, name, desc, media), "fit": fit,
            "source": {"geo": geo_summary.replace("\\", "/").split("/")[-1],
                       "correction": correction_path.replace("\\", "/").split("/")[-1] if correction_path else None}}
+    if geo.get('completion_sectors') or geo.get('completion_adjustment'):
+        out['source']['completion_sectors'] = geo.get('completion_sectors', 0)
+        out['source']['completion_method'] = completion_method
+        if geo.get('completion_adjustment'):
+            out['source']['completion_adjustment'] = geo['completion_adjustment']
+        if geo.get('completion_source'):
+            out['source']['completion_source'] = geo['completion_source']
     if media == "cd" and along_track_frames is not None:
         out["source"]["along_track_frames"] = along_track_frames
     if media == "cd" or photo_path is not None:

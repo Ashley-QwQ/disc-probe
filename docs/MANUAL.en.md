@@ -653,3 +653,39 @@ python -m discprobe cdprobe --sectors 359849 --radii 24.9118 57.9317
 CD `tiles` use `0D`/`AA` as the number references, while `tilescan` and `tilephoto` reuse the original number and geometry processing. For CD, the historical field name `levels_a5_0_92_1` in the analysis output means `0D=0 / AA=1` for the numbers. Repeated sequences such as `0DAA` and `00FF` are candidates to test; they do not guarantee that the drive produces a fixed period along the whole track. CD groove diffraction is closer to the specular direction. For photos, use a small light source with an angular size below 10°, and fix the viewing geometry first.
 
 Run `python -m discprobe selftest` to check scrambling, forward and inverse CIRC mapping, independent reverse reconstruction, corruption detection, the simulated ladder, synthetic scans and 3T to 11T / DSV consistency with the reference EFM. Software validation data is in [`evidence/cd-support/`](../evidence/cd-support/selftest-final.txt) and [`evidence/cd-support-20261104/`](../evidence/cd-support-20261104/validation.json). Real measurement results are in [`KNOWLEDGE.md`](KNOWLEDGE.md) (in Chinese) §12.
+
+
+### DVD drive read-completion offset
+
+`geo` looks up the exact INQUIRY vendor, product and firmware in `presets/drives.json`,
+and prints the entry used. GH70N NYA2 uses 0 (burned-grid evidence); GUE0N T.02 uses 16
+(the reporter's scan and corrected burn in issue #33). Unknown drives default to 0;
+that default is a convention, not a measurement. `--completion-sectors N` overrides it.
+A positive value means completion after the end of the containing ECC block.
+
+Both commands below work without opening a drive:
+
+```powershell
+python -m discprobe geo --reapply results/geo-run --completion-sectors 16 --out results/geo-run-offset16
+python -m discprobe disexport --geo results/geo-run --completion-sectors 16 --sectors 2297888 --output offset16-preset.json
+```
+
+The refit writes a new folder, leaving inputs untouched. Without an explicit value,
+it uses the drive registry if matched, otherwise the stored value. It reports whether
+it replayed events and refitted accepted rungs, refitted the saved targets, or used
+the closed-form correction because only a fit was available. Input hashes are saved.
+The number is an absolute convention: applying 16 twice does not subtract twice.
+
+Nonzero values are saved in `fit.completion_sectors`. An absent field means zero;
+zero stays omitted to preserve the bytes of existing results. Exports use the stored
+value by default and do not consult the current drive. The calibration preset and
+web flow share this path; `calibrate` and the web task API also accept the override.
+`tools/geo_polyfit.py` retains the value and refuses to merge different conventions.
+CD keeps its separate byte/frame options.
+
+Relative completion phases cannot distinguish a constant offset of 0 from 16: a
+change in `u` absorbs it exactly, including reads across ECC boundaries. There is
+no automatic fixed-offset detector; an unknown drive needs an independent scan,
+burn check or physical position reference. MCC 02RG20's blank capacity is 2,297,888
+sectors; the reporter's 2,295,104 sectors describe the image, not the whole blank.
+Source: [issue #33](https://github.com/Ashley-QwQ/disc-probe/issues/33).

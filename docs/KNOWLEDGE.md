@@ -32,6 +32,25 @@
 
 ## 4. 硬件与介质（实物确认）
 
+### DVD 读取完成点（#33）
+
+`geo` 的 DVD 完成位置是 `((lba // 16 + 1) * 16 + completion_sectors) * 38688`。
+正值表示晚完成。光驱登记表在 `presets/drives.json`，按 INQUIRY 厂商、型号和固件精确匹配：
+GH70N NYA2 为 0（网格盘实刻）；GUE0N T.02 为 16（#33 报告者的扫描和修正后实刻）。
+这些证据不是对其他固件或其他光驱的测量。
+
+固定完成偏移无法由相对完成相位单独辨认：令 `d = 扇区偏移 * 38688`，
+`u'² = u² - v*d/pi`，则 `theta(n+d,u',v)` 和 `theta(n,u,v)` 只差常数。
+参考点相减以后常数也消失；跨块边界读仍不能消除这个退化。
+`geo --reapply` 可以在不重新测量的情况下改用另一完成约定，并记录重拟合或公式修正的来源。
+缺少 `completion_sectors` 的旧 summary 按 0 解释；零值继续省略，以保持原来的文件字节。
+
+MCC 02RG20 的整张空盘容量是 2,297,888 扇区，报告者镜像是 2,295,104 扇区，不能混用。
+扫描得到 `u=179980.30192, v=5.53741687`，25.5–55.5 mm 内为 0.28° RMS；
+该几何是报告者那批盘的证据，媒体目录不会自动把它当成本机新盘的校准结果。
+来源：<https://github.com/Ashley-QwQ/disc-probe/issues/33>，
+<https://github.com/exotic-namruth/dvdr-portrait-etching>。
+
 ### 光驱：HL-DT-ST DVD-RAM GH70N，固件 NYA2
 
 - **接口**：直连主板 Intel 600 系 SATA 控制器（ASUS 主板）。
