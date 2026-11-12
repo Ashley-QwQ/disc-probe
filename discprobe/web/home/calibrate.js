@@ -2,7 +2,7 @@
 // becomes the step panel, the bar shows the job, the back button takes the top-left corner.
 // Live jobs use the local API. Simulated readings and timers are limited to ?mock / ?demo=N.
 
-import { budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason } from "./guidance.mjs";
+import { budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason, photoSaveWords } from "./guidance.mjs";
 import { cutaway } from "./drive-scene.js";
 import { floorLog } from "./floor-log.js";
 import * as sfx from "./sfx.js";
@@ -1048,8 +1048,9 @@ function realPaint() {
     if (ok) html += `<label class="count-input">${T().leftQ}<input id="left-input" type="number" min="0" max="100000" value="${flow.left ?? ""}"></label>`;
   } else if (phase === "saved") {
     title = liveText('预设已保存', 'Preset saved'); text = flow.savedPath;
-    if (flow.detected.media === "cd") html = `<p>${esc(cdPhoto[api.lang()])}</p>`;
-    if (flow.photoResult) html += photoStamp(flow.photoResult);
+    html = `<p role="status">${esc(photoSaveWords(flow.savedPhotoShift)[api.lang()])}</p>`;
+    if (flow.detected.media === "cd" && !flow.savedPhotoShift?.written) html += `<p>${esc(cdPhoto[api.lang()])}</p>`;
+    if (flow.photoResult) html += photoStamp(flow.photoResult, flow.savedPhotoShift || {});
     button = returnTo ? liveText('回到刚才那一步', 'Back to where you were') : liveText('回到首页', 'Return home');
   }
   if (["prepare", "burn"].includes(phase)) html = budgetHTML(flow.detected.media, api.lang()) + html;
@@ -1117,7 +1118,7 @@ function photoReview() {
   closePhoto(); flow.realPhase = 'review'; flow.error = null; paint();
 }
 const photoLive = u => photoUI === u && flow === u.flow && isCal() && flow.realPhase === 'photo';
-function photoStamp(result) {
+function photoStamp(result, saved = null) {
   const esc = api.backend.escapeHTML, ok = result.verdict === 'ok';
   const reasons = (result.per_photo || []).map(p => p.reason).filter(Boolean).join('；');
   const value = Number.isFinite(result.L_frames) ? `L = ${result.L_frames} frames` : '';
@@ -1125,7 +1126,7 @@ function photoStamp(result) {
   return `<div class="cal-stamp" role="status"><b>${ok ? liveText('照片可用','Photo usable') : result.verdict === 'rejected' ? liveText('照片读不出','Photo unreadable') : liveText('不知道','Not sure')}</b><dl>` +
     row('意思','Means', reasons || (ok ? liveText('照片读完了。','Photo read.') : liveText('照片还不能给出可信的结果。','The photo cannot give a trusted result yet.'))) +
     row('对你的图','For the picture', ok ? liveText('已保留照片结果；现有几何的覆盖限制仍按测量结果判断。','Photo result retained; the measured geometry still determines its coverage limits.') : liveText('保留现有测量，不用这次照片改它。','Keep the existing measurement; this photo does not change it.')) +
-    row('现在','Now', ok ? (value ? `${value} · ${liveText('已保留，尚未写入预设','retained, not yet written into the preset')}` : liveText('保存现有测量和照片结果。','Save the existing measurement and retain the photo result.')) : liveText('再拍一张，或跳过，就用现在的结果。','Take another photo, or skip and keep the current result.'), !ok) + '</dl></div>';
+    row('现在','Now', saved ? photoSaveWords(saved)[api.lang()] : ok ? (value ? `${value} · ${liveText('已保留，尚未写入预设','retained, not yet written into the preset')}` : liveText('保存现有测量和照片结果。','Save the existing measurement and retain the photo result.')) : liveText('再拍一张，或跳过，就用现在的结果。','Take another photo, or skip and keep the current result.'), !ok) + '</dl></div>';
 }
 function photoNavigation(u) {
   if (!photoLive(u)) return;
@@ -1614,15 +1615,23 @@ async function realSave() {
   flow.realPhase = "saving";
   const output = `presets/calibration-${Date.now()}.json`;
   const sectors = flow.blankSectors ?? flow.detected.capacity_sectors;
-  if (!flow.preset && (!Number.isInteger(sectors) || sectors <= 0)) throw new Error(liveText('空白盘容量未知。请用 calibrate --sectors 指定容量。', 'Blank capacity is unknown. Run calibrate with --sectors.'));
-  const result = flow.preset ? { path: flow.preset } : await realJob("disexport", {geo:flow.geo.path, sectors, output});
+  // Recheck a CD even when a preset already exists: its registered drive may
+  // differ from the one now selected, including when the photo step was skipped.
+  const needsExport = !flow.preset || !!flow.photoResult || flow.detected.media === 'cd';
+  if (needsExport && (!Number.isInteger(sectors) || sectors <= 0)) throw new Error(liveText('空白盘容量未知。请用 calibrate --sectors 指定容量。', 'Blank capacity is unknown. Run calibrate with --sectors.'));
+  // Only send a path to the stored reader record. Browser-supplied L/verdicts
+  // cannot bypass the exporter's provenance gate, including a stale photo run.
+  const photoPath = flow.photoResult?.path || (flow.photoResult ? flow.geo.path : null);
+  const result = needsExport ? await realJob("disexport", {geo:flow.geo.path, sectors, output,
+    reading_drive:api.selectedDrive(), ...(photoPath ? {photo:`${photoPath.replace(/[\\/]+$/, '')}/photo.json`} : {})}) : { path: flow.preset };
   if (!result?.path) throw new Error("No preset was saved.");
   const state = await api.backend.state();
   const entry = state.catalogue[flow.detected.media].find(x => x.geo === flow.geo.path);
   if (!entry) throw new Error("The calibration is not in the saved catalogue.");
   // the name the form showed (the maker code, else the disc kind) unless one was typed; never the folder name
-  await api.backend.request("/api/catalogue", {id:entry.id, name:flow.realName || flow.detected?.mid || flow.detected?.kind || entry.name, preset:result.path,
+  const saved = await api.backend.request("/api/catalogue", {id:entry.id, name:flow.realName || flow.detected?.mid || flow.detected?.kind || entry.name, preset:result.path,
     ...(flow.left == null ? {} : {left:flow.left})});
+  flow.savedPhotoShift = saved.photo_shift || result.photo_shift || {written:false, reason:'invalid_preset'};
   flow.savedPath = result.path; flow.savedId = entry.id; flow.realPhase = "saved";
 }
 

@@ -56,7 +56,8 @@ OPTIONS = {
     "image": {"geo": "geo", "picture": "path", "design": "path", "design_npy": "path", "output": "path",
               "diameter_mm": "diameter", "r_max": "radius", "along_track_frames": "frames",
               "dark": "texture", "light": "texture"},
-    "disexport": {"geo": "geo", "sectors": "sectors", "output": "path", "r_min": "radius", "r_max": "radius"},
+    "disexport": {"geo": "geo", "sectors": "sectors", "output": "path", "r_min": "radius", "r_max": "radius",
+                  "photo": "path", "reading_drive": "device_id"},
     "cdprobe": {"sectors": "sectors", "output": "path", "size": "size"},
     "burn": {"iso": "path", "speed": "burn_speed", "cd_sector": "cd_layout", "no_verify": "flag"},
     # the whole calibration in one job (calibrate.py); with `iso` it burns first, under the burn's rules
@@ -170,6 +171,9 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
         elif rule == "mid":
             if not isinstance(value, str) or not re.fullmatch(r"[\x20-\x7e]{1,64}", value):
                 raise APIError("invalid " + name)
+        elif rule == "device_id":
+            if not isinstance(value, str) or not 1 <= len(value) <= 200 or any(ord(c) < 32 for c in value):
+                raise APIError("invalid " + name)
         elif rule == "texture":
             if not isinstance(value, str) or not re.fullmatch(r"[0-9A-Fa-f]{2}", value):
                 raise APIError("invalid " + name)
@@ -188,6 +192,15 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
             raise APIError(name + " is required")
     if sum(bool(args.get(name)) for name in ("picture", "design", "design_npy")) > 1:
         raise APIError("choose picture or design")
+    if action == "disexport" and (args.get("photo") is not None or args.get("reading_drive") is not None):
+        # calibrate's drive-free export mode provides explicit photo selection;
+        # the legacy disexport CLI also discovers a same-run photo automatically.
+        if not args.get("output"):
+            raise APIError("output is required when saving a photo result")
+        start = argv.index("disexport")
+        argv[start] = "calibrate"
+        for index in range(start + 1, len(argv), 2):
+            argv[index] = {"--output": "--preset", "--reading-drive": "--drive"}.get(argv[index], argv[index])
     return argv, drive
 
 
@@ -594,6 +607,13 @@ class Backend:
                 output = job.args.get("output")
                 if output and Path(local_path(self.root, output)).is_file():
                     job.result = dict(path=output, verdict="unknown")
+                    if job.action == "disexport":
+                        try:
+                            document = json.loads(Path(local_path(self.root, output)).read_text(encoding="utf-8"))
+                            job.result["photo_shift"] = document.get("source", {}).get(
+                                "photo_shift", dict(written=False, reason="no_photo"))
+                        except (OSError, ValueError, AttributeError):
+                            job.result["photo_shift"] = dict(written=False, reason="invalid_preset")
                     job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
             job.asks.clear()
             job.history += [dict(type="done", job=job.id, exit=code), dict(type="state")]

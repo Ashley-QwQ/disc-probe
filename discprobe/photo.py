@@ -51,10 +51,86 @@ def add_parser(sub):
     sp.add_argument("--media", required=True, choices=("cd", "dvd"))
     sp.add_argument("--photos", required=True, nargs="+", help="image files")
     sp.add_argument("--rings-mm", type=float, nargs="+", help="target ring radii; default: the burned PN target")
+    sp.add_argument("--burner", help="specific burner identity used for this target (unknown if omitted)")
+    sp.add_argument("--burn-path", help="target burn program/path, e.g. DIS or IMAPI (never inferred)")
+    sp.add_argument("--burn-mode", help="target burn mode, including sector layout/interleave (never inferred)")
     sp.set_defaults(func=run)
 
 
-def analyze(run_dir, media, photos, rings_mm=None):
+def drive_identity(geo, folder):
+    """Use the model AND the recorded device, never the model as a machine identity.
+
+    Older summaries only have a model. Their run name retains the device selected
+    by the page (geo-H-YYYYMMDD-HHMMSS on Windows).
+    """
+    identity = geo.get("identity") or {}
+    device = identity.get("device_id") or identity.get("device")
+    match = re.fullmatch(r"geo-(.+)-\d{8}-\d{6}", Path(folder).name)
+    if not device and match:
+        device = match[1] + ":" if re.fullmatch(r"[A-Za-z]", match[1]) else match[1]
+    return dict(model=identity.get("drive"), device_id=device,
+                serial=identity.get("serial"), firmware=identity.get("firmware"),
+                machine=socket.gethostname())
+
+
+def photo_shift(geo_summary, photo_path=None, *, device_id=None):
+    """One provenance gate shared by web and CLI exports. Refusals retain no L.
+
+    No batch/MID participates in the drive comparison. Missing burn details stay
+    unknown, scoped to this exact run; they are never guessed from its read method.
+    """
+    summary = Path(geo_summary).resolve()
+    if summary.is_dir():
+        summary /= "summary.json"
+    path = Path(photo_path).resolve() if photo_path else summary.parent / "photo.json"
+    def refused(reason):
+        return dict(written=False, reason=reason)
+    if not path.is_file():
+        return refused("no_photo")
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        raw = summary.read_bytes()
+        geo = json.loads(raw)
+        if not isinstance(record, dict):
+            return refused("invalid_photo")
+        if record.get("verdict") != "ok":
+            return refused("verdict_not_ok")
+        frames = record.get("L_frames")
+        if type(frames) not in (int, float) or not math.isfinite(frames):
+            return refused("missing_L")
+        source = record.get("source_geo") or {}
+        run = source.get("run_id")
+        # The original contract's path is the photo run, not just its basename.
+        if (not record.get("path") or Path(record["path"]).resolve() != summary.parent
+                or path.parent != summary.parent or (run and run != summary.parent.name)):
+            return refused("different_run")
+        current = drive_identity(geo, summary.parent)
+        original = source.get("drive_identity")
+        if not original:
+            # A legacy model label cannot establish the original machine.
+            return refused("unknown_drive")
+        if (not all(isinstance(current[k], str) and current[k] for k in ("model", "device_id"))
+                or not all(isinstance(original.get(k), str) and original[k]
+                           for k in ("model", "device_id", "machine"))):
+            return refused("unknown_drive")
+        if original != current or (device_id is not None and device_id != current["device_id"]):
+            return refused("different_drive")
+        if source.get("sha256") != hashlib.sha256(raw).hexdigest():
+            return refused("different_run")
+        if record.get("media") != "cd" or geo.get("fit", {}).get("media") != "cd":
+            return refused("not_cd")
+        provenance = dict(geo_run_id=summary.parent.name, geo_summary=str(summary),
+                          geo_sha256=source["sha256"], photo_json=str(path),
+                          drive_identity=current, burn_path=record.get("burn_path") or
+                          dict(burner=None, path=None, mode=None), verdict="ok",
+                          photo_ids=[p["id"] for p in record.get("per_photo", []) if p.get("id")],
+                          scope="this geometry run and burn path; independent of disc batch")
+        return dict(written=True, frames=frames, provenance=provenance)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, OverflowError):
+        return refused("invalid_photo")
+
+
+def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=None, burn_mode=None):
     """Return and persist both the contract result and the original reader diagnostics.
 
     Geometry is inferred from rings by the frozen reader; geo's fit is not fed back into it.
@@ -118,7 +194,9 @@ def analyze(run_dir, media, photos, rings_mm=None):
                   confidence=None, path=str(folder))
     # No calibrated probability was established by the research; keep confidence unknown.
     record = dict(**result, media=media, reader_sha256=READER_SHA256, photos=readings, group=group,
+                  burn_path=dict(burner=burner, path=burn_path, mode=burn_mode),
                   source_geo=dict(sha256=hashlib.sha256(source).hexdigest() if source else None,
+                                  run_id=folder.name, drive_identity=drive_identity(geo, folder),
                                   identity=geo.get("identity"), setup=geo.get("setup")))
     target = folder / "photo.json"
     temporary = folder / (".photo-" + secrets.token_hex(8) + ".json")
@@ -141,7 +219,8 @@ def log(message):
 
 def run(args):
     try:
-        analyze(args.run, args.media, [(Path(p).stem, p) for p in args.photos], args.rings_mm)
+        analyze(args.run, args.media, [(Path(p).stem, p) for p in args.photos], args.rings_mm,
+                burner=args.burner, burn_path=args.burn_path, burn_mode=args.burn_mode)
     except Exception as exc:
         ui.event("error", message=str(exc))
         raise

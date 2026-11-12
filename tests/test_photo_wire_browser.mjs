@@ -23,16 +23,16 @@ import {wire} from '/wire.js';
 window.wire=wire; window.ready=true;
 </script></body></html>`;
 const moduleSource=`import {photoPage} from '/photocal.js';
-import {budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason} from '/guidance.mjs';
+import {budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason,photoSaveWords} from '/guidance.mjs';
 const loadDisc={desk(){}}; const calchart={resultChart:()=>''}; const sfx={done(){},problem(){},failure(){}};
 const floorLog=()=>({mount(){},start(){},end(){},title(){},progress(){},log(){}});
 ${calibrate.replace(/^import .*;.*$/gm,'')}
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fakeApi={lang:()=>window.lang||'zh',selectedDrive:()=>null,burnerLayer:document.body,nextWhy(){},jobProgress(){},backend:{mock:false,escapeHTML:esc,errorText:e=>e.message,
 request:async(path,payload)=>{window.requests.push({path,payload}); if(window.missing&&path.includes(window.missing))throw Object.assign(new Error('Not found'),{status:404}); if(path.startsWith('/api/phone-link'))return {url:window.phone||null,qr_svg:null};if(path.startsWith('/api/photos'))return {photos:window.photos};return {};},
-job:async(payload)=>{window.jobs.push(payload);return window.photoResult;},state:async()=>({catalogue:{[flow.detected.media]:[{id:'saved',geo:flow.geo.path,name:'MID'}]}})}};
+job:async(payload)=>{window.jobs.push(payload);return payload.action==='disexport'?{path:'presets/photo.json',photo_shift:{written:true,frames:2.5}}:window.photoResult;},state:async()=>({catalogue:{[flow.detected.media]:[{id:'saved',geo:flow.geo.path,name:'MID'}]}})}};
 export const wire={
-init({media='dvd',verdict='narrow_span',missing='',lang='zh',phone=null}={}){closePhoto();window.requests=[];window.jobs=[];window.photos=[];window.missing=missing;window.lang=lang;window.phone=phone;api=fakeApi;$=id=>document.getElementById(id);flow={realPhase:'review',geo:{path:'results/run-one',verdict,measurement:{span_mm:[28,48]}},timing:{verdict:'good'},detected:{media,kind:media,mid:'MID'},item:{row:media},preset:'presets/existing.json',warnEl:document.createElement('div')};discWentIn=true;st={show(on){document.body.dataset.stage=on;},set(){}};document.getElementById('back').onclick=back;document.getElementById('next').onclick=()=>realNext();paint();},
+init({media='dvd',verdict='narrow_span',missing='',lang='zh',phone=null}={}){closePhoto();window.requests=[];window.jobs=[];window.photos=[];window.missing=missing;window.lang=lang;window.phone=phone;api=fakeApi;$=id=>document.getElementById(id);flow={realPhase:'review',geo:{path:'results/run-one',verdict,measurement:{span_mm:[28,48]}},timing:{verdict:'good'},detected:{media,kind:media,mid:'MID',capacity_sectors:300000},item:{row:media},preset:'presets/existing.json',warnEl:document.createElement('div')};discWentIn=true;st={show(on){document.body.dataset.stage=on;},set(){}};document.getElementById('back').onclick=back;document.getElementById('next').onclick=()=>realNext();paint();},
 enter:enterPhoto,next:realNext,back,state:()=>flow,page:()=>photoUI?.page,ui:()=>photoUI,
 photo:(id='p1')=>({id,name:id+'.svg',url:'/disc.svg'}),
 };`;
@@ -106,6 +106,7 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     assert.equal(await run(`return wire.state().realPhase;`),'saved');
     assert.equal(await run(`return window.jobs.filter(j=>j.action==='photo').length;`),1);
     assert.equal(await run(`return document.querySelector('#cal').textContent.includes('L = 2.5 frames');`),true);
+    assert.equal(await run(`return document.querySelector('#cal').textContent.includes('沿轨常数已写入') && !document.querySelector('#cal').textContent.includes('尚未写入预设');`),true);
     // Local file uploads carry the session token and become the job's photo id.
     await run(`wire.init();wire.enter();`);await waitFor("wire.ui()?.status==='ready'");
     await run(`const canvas=document.createElement('canvas');canvas.width=canvas.height=600;const img=await new Promise(r=>canvas.toBlob(r,'image/png'));await wire.page().addPhotos([new File([img],'上传.png',{type:'image/png'})]);window.photoResult={verdict:'rejected',per_photo:[{id:'uploaded',verdict:'rejected',reason:'不是照片'}]};await wire.next();`);

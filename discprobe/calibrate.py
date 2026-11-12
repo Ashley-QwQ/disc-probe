@@ -93,6 +93,10 @@ class Stopped(Exception):
 
 
 def run(args) -> None:
+    if getattr(args, "geo", None):
+        return save_preset(args)
+    if not args.drive:
+        raise SystemExit("--drive is required unless exporting an existing --geo run")
     cancel = threading.Event()
     previous = signal.signal(signal.SIGINT, lambda *_: cancel.set())
     marker = os.environ.get("DISCPROBE_BURN_CANCEL")          # the page's cancel, as for a burn job
@@ -228,7 +232,14 @@ def run(args) -> None:
             step("preset")
             sectors = capacity
             Path(args.preset).parent.mkdir(parents=True, exist_ok=True)
-            code = child("disexport", "--geo", found["geo"]["path"], "--sectors", sectors, "--output", args.preset)
+            if getattr(args, "photo", None):
+                # The explicit photo path is checked against the newly measured
+                # geometry, so a previous run's L will be refused.
+                saved = save_preset(argparse.Namespace(**{**vars(args), "geo": found["geo"]["path"],
+                                                          "sectors": sectors, "iso": None}))
+                code = 0 if saved else 1
+            else:
+                code = child("disexport", "--geo", found["geo"]["path"], "--sectors", sectors, "--output", args.preset)
             if code or not Path(args.preset).is_file():
                 raise Stopped("the preset was not written")
             found["preset"] = args.preset
@@ -245,11 +256,52 @@ def run(args) -> None:
         signal.signal(signal.SIGINT, previous)
 
 
+def save_preset(args):
+    """Drive-free CLI parity with the photo step's save, including the quality gate.
+
+    The main disexport parser is outside this task's edit scope. It discovers
+    photo.json beside --geo automatically; calibrate --geo provides explicit
+    photo selection and a selected-device check without a parser monkey patch.
+    """
+    from . import disexport
+    from .__main__ import _export_gate
+    if not args.preset or not positive_sectors(args.sectors):
+        raise SystemExit("saving --geo needs --preset and --sectors (whole blank capacity)")
+    if getattr(args, "iso", None):
+        raise SystemExit("--geo exports an existing run; it cannot be combined with --iso")
+    args.geo = guide.resolve_geo(args.geo, getattr(args, "media", None))
+    args.install = False
+    _export_gate(args)
+    with open(args.geo, encoding="utf-8") as stream:
+        fit = json.load(stream)["fit"]
+    media = fit.get("media", "dvd")
+    if getattr(args, "media", None) and args.media != media:
+        raise SystemExit("--media does not match the geo run")
+    span = fit.get("measured_span_mm", (25.8, 54.4)) if media == "cd" else (25.8, 54.4)
+    lo = getattr(args, "r_min", None)
+    hi = getattr(args, "r_max", None)
+    lo, hi = span[0] if lo is None else lo, span[1] if hi is None else hi
+    if not (math.isfinite(lo) and math.isfinite(hi) and 0 < lo < hi):
+        raise SystemExit("fit radii must be finite, positive and --r-min less than --r-max")
+    Path(args.preset).parent.mkdir(parents=True, exist_ok=True)
+    out = disexport.export(args.geo, args.sectors, None, args.preset,
+                           lo, hi,
+                           "discprobe-" + media, media.upper() + " (drive-timing calibration)",
+                           photo_path=getattr(args, "photo", None), device_id=getattr(args, "drive", None))
+    decision = out["source"].get("photo_shift", dict(written=False, reason="not_cd"))
+    ui.event("result", step="preset", path=args.preset, verdict="unknown", photo_shift=decision)
+    print(f"Preset saved: {args.preset}", flush=True)
+    print(f"Along-track constant written: {decision['frames']:g} frames (from photo; independent of disc batch; "
+           "rephotograph after changing drives)" if decision["written"] else
+           f"Along-track constant not written: {decision['reason']}", flush=True)
+    return out
+
+
 def add_parser(sub) -> None:
     from .__main__ import _speed
 
     sp = sub.add_parser("calibrate", help="calibrate a disc batch end to end: (burn,) check, timing, geo(, preset)")
-    sp.add_argument("--drive", required=True)
+    sp.add_argument("--drive", help="selected drive identity; required for measuring, checked when saving photo L")
     sp.add_argument("--media", choices=("dvd", "cd"), default="dvd")
     sp.add_argument("--iso", help="burn this measurement image first (needs --yes-write and a blank in the drive)")
     sp.add_argument("--yes-write", action="store_true", help="confirm the irreversible burn of --iso")
@@ -260,6 +312,12 @@ def add_parser(sub) -> None:
                     help="exclude radius band A-B in mm from geo rungs (repeatable; uses geo's nominal radius/LBA model)")
     sp.add_argument("--mid", help="the maker code the disc must have (the batch's)")
     sp.add_argument("--preset", help="also write a DiscImageStudio preset here")
+    sp.add_argument("--geo", help="export this existing geo run without accessing a drive; needs --preset and --sectors")
+    sp.add_argument("--photo", help="photo.json to apply only for verdict ok, the same geo run and specific drive; "
+                    "refusals save without L. With --geo this is drive-free. Without --photo, calibrate/disexport "
+                    "discover photo.json beside the geo summary; unknown L is never assumed zero")
+    sp.add_argument("--r-min", type=float, help="with --geo: lower fit radius in mm")
+    sp.add_argument("--r-max", type=float, help="with --geo: upper fit radius in mm")
     sp.add_argument("--sectors", type=int, help="whole blank capacity for the preset (default: read-only media capacity, then MID catalogue)")
     sp.add_argument("--transport", choices=["auto", "spti", "imapi"], default="auto")
     sp.add_argument("--sim", choices=["cav", "clv", "cav-nofua", "cav-flush", "cav-audio"],

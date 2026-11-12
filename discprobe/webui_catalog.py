@@ -89,6 +89,7 @@ def catalogue(root, out):
 
 
 def save_entry(root, out, payload):
+    photo_shift = None
     if not isinstance(payload, dict) or set(payload) - {'id', 'name', 'left', 'preset'}:
         raise ValueError('invalid catalogue entry')
     entries = [item for row in catalogue(root, out).values() for item in row]
@@ -106,6 +107,11 @@ def save_entry(root, out, payload):
         # stored relative to the workspace, as catalogue() compares it: an absolute path would leave the
         # preset listed again as a batch of its own
         payload = {**payload, 'preset': path.relative_to(Path(root).resolve()).as_posix()}
+        document = guide._load(str(path)) or {}
+        source = document.get('source') if isinstance(document, dict) else None
+        photo_shift = dict(written=False, reason='invalid_preset')
+        if isinstance(source, dict):
+            photo_shift = source.get('photo_shift', photo_shift)
     path = Path(root) / 'catalogue.json'
     if not path.resolve().is_relative_to(Path(root).resolve()):
         raise ValueError('catalogue must stay inside the workspace')
@@ -114,7 +120,7 @@ def save_entry(root, out, payload):
     temp = path.with_suffix('.tmp')
     temp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
     temp.replace(path)
-    return dict(saved=True)
+    return dict(saved=True, **({'photo_shift': photo_shift} if photo_shift is not None else {}))
 
 
 def measurement(run):

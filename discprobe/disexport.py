@@ -118,7 +118,19 @@ def preset_json(fit, total_sectors, bit_nm, preset_id, name, description, media=
 
 
 def export(geo_summary: str, total_sectors: int, correction_path: str | None, out_path: str,
-           r_lo: float, r_hi: float, preset_id: str, name: str, along_track_frames: float = 0) -> dict:
+           r_lo: float, r_hi: float, preset_id: str, name: str, along_track_frames: float | None = None,
+           *, photo_path: str | None = None, device_id: str | None = None) -> dict:
+    from .photo import photo_shift
+    geo_summary = str(geo_summary)
+    decision = photo_shift(geo_summary, photo_path, device_id=device_id)
+    # The older disexport parser passes 0 even when no flag was supplied. It is
+    # not a measured zero. An accepted photo may, of course, measure exactly 0.
+    if photo_path is not None or along_track_frames in (None, 0):
+        along_track_frames = decision.get("frames")
+    else:
+        if not math.isfinite(along_track_frames):
+            raise ValueError("--along-track-frames must be finite")
+        decision = dict(written=True, frames=along_track_frames, origin="manual")
     with open(geo_summary, encoding="utf-8") as f:
         geo = json.load(f)["fit"]
     if geo.get("model") == "clv" or geo.get("media") == "bd":
@@ -130,16 +142,16 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
     media = "cd" if geo.get("media") == "cd" else "dvd"
     u, v, bit = geo["u"], geo["v"], geo["bit_nm_assumed"]
     audio = geo.get("track") == "audio"
-    if audio and along_track_frames:
-        raise ValueError("this geo result measured an audio track, which has no along-track constant; "
-                         "if lines come out rotated, check --read-offset-bytes and run geo again")
+    # Photo L is a measured property of the entire burn/read path. It can be
+    # nonzero on a DIS audio path too; read-offset calibration does not prove L=0.
     if media == "cd":
         cd.check_capacity(total_sectors)
         if abs(bit - cd.BIT_NM) > 1e-6:
             raise ValueError(f"DiscImageStudio fixes the CD speed at 1200 mm/s ({cd.BIT_NM:.4f} nm per bit), "
                              f"this geo run assumed {bit} nm")
         # Same convention as image --along-track-frames: theta(n - d) is the spiral with u^2 - v d / pi.
-        u = math.sqrt(u * u - v * along_track_frames * cd.FRAME_BITS / math.pi)
+        if along_track_frames is not None:
+            u = math.sqrt(u * u - v * along_track_frames * cd.FRAME_BITS / math.pi)
     elif along_track_frames:
         raise ValueError("--along-track-frames is for CD")
     corr = None
@@ -170,13 +182,23 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
             f"{fit['full_angle_diff_deg']:.3f} deg")
     if audio:
         desc += f"; measured on the CD-DA track, read offset {geo.get('read_offset_bytes', 0.0):g} bytes"
-    elif media == "cd":
+    if media == "cd" and along_track_frames is not None:
         desc += f"; along-track constant {along_track_frames:g} frames"
+    elif media == "cd":
+        desc += "; along-track constant unknown"
     out = {"preset": preset_json(fit, total_sectors, bit, preset_id, name, desc, media), "fit": fit,
            "source": {"geo": geo_summary.replace("\\", "/").split("/")[-1],
                       "correction": correction_path.replace("\\", "/").split("/")[-1] if correction_path else None}}
-    if media == "cd":
+    if media == "cd" and along_track_frames is not None:
         out["source"]["along_track_frames"] = along_track_frames
+    if media == "cd" or photo_path is not None:
+        out["source"]["photo_shift"] = decision
+        if decision.get("provenance"):
+            out["source"]["photo_provenance"] = decision["provenance"]
+            # DIS has no separate L field. Put provenance in its supported text
+            # field too, so installing only `preset` retains the registration.
+            out["preset"]["description"] += "; photo provenance: " + json.dumps(
+                decision["provenance"], ensure_ascii=False, sort_keys=True)
     if audio:
         out["source"]["track"] = "audio"
         out["source"]["read_offset_bytes"] = geo.get("read_offset_bytes", 0.0)

@@ -7,7 +7,7 @@ import * as guidance from '../discprobe/web/home/guidance.mjs';
 const source = readFileSync(new URL('../discprobe/web/home/calibrate.js',import.meta.url),'utf8');
 const strip = source.replace(/^import .*;.*$/gm,'').replace(/^export /gm,'');
 const escapeHTML = v => String(v ?? '').replace(/[&<>"']/g,c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVerdict='ok', phone=null, photos=[]}={}) {
+function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVerdict='ok', phone=null, photos=[], savedShift={written:true,frames:2.5}}={}) {
   const nodes = new Map(), timers = new Map(), calls = [], show = [], pages = [];
   class Element {
     constructor() { this.dataset={}; this.hidden=false; this.disabled=false; this.style={removeProperty(){}}; this.children=[]; this.events={}; this.textContent=''; this.html=''; }
@@ -39,8 +39,8 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
       job:async payload=>{
         calls.push(payload);
         if(failJob) throw Object.assign(new Error('Not found'),{status:404});
-        if(payload.action==='disexport') return {path:'presets/test.json'};
-        return {verdict:photoVerdict,per_photo:[{id:'p1',verdict:photoVerdict,reason:'反光强 <script>'}],rings_mm:[30,38,47,55],offset_mm:-0.12,L_frames:2.5};
+        if(payload.action==='disexport') return {path:'presets/test.json',photo_shift:savedShift};
+        return {verdict:photoVerdict,path:'results/run-one',per_photo:[{id:'p1',verdict:photoVerdict,reason:'反光强 <script>'}],rings_mm:[30,38,47,55],offset_mm:-0.12,L_frames:2.5};
       },
       state:async()=>({catalogue:{[media]:[{id:'saved',geo:geo.path,name:'MID'}]}}),
     }};
@@ -56,7 +56,7 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
       o.paperHost.paper=new Element(); o.onStateChange({canUse:true}); pages.push(p); return p;
     },
   });
-  vm.runInContext(strip+`; globalThis.wire={set(a,f){api=a;$=id=>document.getElementById(id);flow=f;discWentIn=true;st={show:v=>globalThis.shows.push(v),set(){}};},paint:realPaint,next:realNext,back,enterPhoto,closePhoto,photoRun,photoStamp,getUI:()=>photoUI};`,context);
+  vm.runInContext(strip+`; globalThis.wire={set(a,f){api=a;$=id=>document.getElementById(id);flow=f;discWentIn=true;st={show:v=>globalThis.shows.push(v),set(){}};},paint:realPaint,next:realNext,save:realSave,back,enterPhoto,closePhoto,photoRun,photoStamp,getUI:()=>photoUI};`,context);
   context.shows=show; context.wire.set(api,f);
   return {wire:context.wire,f,geo,nodes,calls,timers,pages,show,opts:()=>opts};
 }
@@ -111,7 +111,32 @@ for(const missing of ['/api/phone-link','/api/photos']) {
   assert.equal(x.f.realPhase,'saved'); assert.equal(x.f.photoResult.L_frames,2.5);
   assert.equal(x.calls.filter(c=>c.action==='photo').length,1);
   assert.match(x.nodes.get('cal').innerHTML,/L = 2.5 frames/);
-  assert.match(x.nodes.get('cal').innerHTML,/尚未写入预设/);
+  assert.match(x.nodes.get('cal').innerHTML,/沿轨常数已写入/);
+  assert.doesNotMatch(x.nodes.get('cal').innerHTML,/尚未写入预设|CD photo calibration is not ready/);
+  const save=x.calls.find(c=>c.action==='disexport');
+  assert.equal(save.args.photo,'results/run-one/photo.json');
+  assert.equal(save.args.reading_drive,'FAKE:');
+  assert.equal(save.args.L_frames,undefined);
+}
+// A browser result never overrules the decision returned by saving.
+{
+  const x=fixture({media:'cd',savedShift:{written:false,reason:'no_photo'}});
+  x.f.preset='presets/previous.json';
+  await x.wire.save();
+  const save=x.calls.find(c=>c.action==='disexport');
+  assert.ok(save,'recheck the selected drive even when reusing a preset without a new photo');
+  assert.equal(save.args.reading_drive,'FAKE:');
+  assert.equal(save.args.photo,undefined);
+  assert.equal(x.f.savedPhotoShift.reason,'no_photo');
+}
+for (const reason of ['different_run','different_drive','verdict_not_ok','missing_L']) {
+  const x=fixture({media:'cd',savedShift:{written:false,reason}});
+  x.f.preset='presets/previous.json';
+  x.wire.enterPhoto(); await flush(); await x.wire.next();
+  assert.equal(x.f.realPhase,'saved');
+  assert.ok(x.calls.some(c=>c.action==='disexport'),'an existing preset must be re-exported for photo L');
+  assert.match(x.nodes.get('cal').innerHTML,/沿轨常数没写进去/);
+  assert.doesNotMatch(x.nodes.get('cal').innerHTML,/沿轨常数已写入|尚未写入预设/);
 }
 for(const photoVerdict of ['unsure','rejected']) {
   const x=fixture({photoVerdict}); x.wire.enterPhoto(); await flush(); await x.wire.next();
