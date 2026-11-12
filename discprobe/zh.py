@@ -7,6 +7,13 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    "Reading back up to 96 evenly spaced 16-sector blocks plus the identity block; drive retries may take time...": "正在回读最多 96 个均匀分布的 16 扇区块，并额外检查身份记录所在块；光驱重试可能需要一些时间……",
+    "Disc identity writes a random id, design and burn parameters, without personal data; anyone with the disc can read it.": "光盘身份记录会写入随机编号、设计和刻录参数，不含个人信息；任何拿到光盘的人都能读取。",
+    "write a public disc identity record (default: off)": "写入公开的光盘身份记录（默认关闭）",
+    "consent to disc identity and set its disc code, e.g. KOI-A 3-05": "同意写入光盘身份记录并指定盘号，例如 KOI-A 3-05",
+    "read disc identity from an ISO without drive access": "从 ISO 读取光盘身份记录，不访问光驱",
+    "match identity against a local register JSON (read-only)": "与本地登记表 JSON 匹配（只读）",
+    "read and check a public disc identity record": "读取公开的光盘身份记录并校验哈希",
     "DVD: read completion offset in sectors after the ECC block end (geo default: drive registry or 0; export default: stored value)": "DVD：读取完成点超出 ECC 块末尾的扇区数（默认查光驱登记表，未登记用 0；导出时默认沿用测量值）",
     "reapply the completion offset to an existing geo folder or summary without drive access; --out is a new folder": "不访问光驱，给已有 geo 文件夹或 summary 重新应用完成偏移；--out 指定新文件夹",
     "drive busy": "光驱正忙",

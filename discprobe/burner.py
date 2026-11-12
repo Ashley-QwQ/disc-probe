@@ -18,7 +18,7 @@ import tempfile
 import threading
 import time
 
-from . import ui, iso9660
+from . import ui, iso9660, discid
 
 
 class BurnError(ValueError):
@@ -113,7 +113,14 @@ class WindowsDVD:
     def write(self, image, speed, cancel, progress):
         with tempfile.TemporaryDirectory(prefix="discprobe-burn-") as folder:
             marker = Path(folder) / "cancel"
-            process = self.popen(self.base + ["-Burn", "-Iso", str(image), "-Speed", str(speed),
+            patch_args = []
+            source = image
+            if isinstance(image, discid.PatchedImage):
+                source = image.path
+                patch_file = Path(folder) / "identity.bin"
+                patch_file.write_bytes(image.patch_bundle())
+                patch_args = ["-IdentityPatch", str(patch_file), "-IdentityOffset", str(image.patch_offset)]
+            process = self.popen(self.base + patch_args + ["-Burn", "-Iso", str(source), "-Speed", str(speed),
                                             "-CancelFile", str(marker)], stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT, text=True, creationflags=0x08000000)
             stop = threading.Event()
@@ -197,6 +204,17 @@ class LinuxBurner:
                     speeds_x=sorted(set(map(float, speeds))))
 
     def write(self, image, speed, cancel, progress):
+        # cdrdao requires a seekable on-disk data file. Use a private spool of
+        # the patched stream; never rewrite the user's ISO or its sidecars.
+        if isinstance(image, discid.PatchedImage) and self.media == "cd":
+            with tempfile.TemporaryDirectory(prefix="discprobe-stream-") as folder:
+                spool = Path(folder) / "disc.iso"
+                with image.open("rb") as source, spool.open("xb") as target:
+                    while data := source.read(1024 * 1024):
+                        if cancel.is_set():
+                            raise BurnError("Cancelled while preparing the stream; nothing was written.")
+                        target.write(data)
+                return self.write(spool, speed, cancel, progress)
         if self.media == "cd":
             from . import cd
             if '"' in str(image) or "\n" in str(image) or "\r" in str(image):
@@ -206,9 +224,32 @@ class LinuxBurner:
                 raise BurnError("cdrdao requires an integer CD speed multiplier.")
             argv = [self.writer, "write", "--device", self.drive, "--speed", str(int(speed)), toc]
         else:
-            argv = [self.writer, "-dvd-compat", "-speed=" + str(speed), "-Z", self.drive + "=" + str(image)]
+            argv = [self.writer, "-dvd-compat", "-speed=" + str(speed), "-Z",
+                    self.drive + "=" + ("/dev/fd/0" if isinstance(image, discid.PatchedImage) else str(image))]
+            if isinstance(image, discid.PatchedImage):
+                argv.insert(1, "-use-the-force-luke=tracksize:" + str(image.stat().st_size // 2048))
         process = self.popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                             **({"stdin": subprocess.PIPE} if isinstance(image, discid.PatchedImage) else {}),
                              env={**os.environ, "LC_ALL": "C"}, start_new_session=True)
+        feed_errors = []
+        feeder = None
+        if isinstance(image, discid.PatchedImage):
+            def feed():
+                try:
+                    with image.open("rb") as source:
+                        while data := source.read(1024 * 1024):
+                            if cancel.is_set():
+                                break
+                            process.stdin.buffer.write(data)
+                except (OSError, ValueError) as exc:
+                    feed_errors.append(exc)
+                finally:
+                    try:
+                        process.stdin.close()
+                    except OSError as exc:
+                        feed_errors.append(exc)
+            feeder = threading.Thread(target=feed, daemon=True)
+            feeder.start()
         stop = threading.Event()
         def watch():
             while not stop.wait(.1):
@@ -240,10 +281,14 @@ class LinuxBurner:
         finally:
             stop.set()
             watcher.join()
+            if feeder:
+                feeder.join()
         if cancel.is_set():
             raise BurnError("Burn cancelled. The cancelled disc is unusable; do not retry it.")
         if code:
             raise BurnError("Burn failed; no retry was attempted.\nDetails: " + "\n".join(diagnostics))
+        if feed_errors:
+            raise BurnError("Burn stream failed; no retry was attempted: " + str(feed_errors[0]))
         progress(fraction=1, elapsed_s=time.monotonic() - started, eta_s=0, stage="completed")
         return actual  # None means the utility did not report measured throughput.
 
@@ -275,6 +320,9 @@ def verify_image(drive, image, media, cancel, *, device_factory=None):
         device_factory = Device
     sectors = image.stat().st_size // 2048
     lbas = sample_lbas(sectors)
+    if isinstance(image, discid.PatchedImage):
+        # Always include the whole identity, even when regular samples miss it.
+        lbas = sorted(set(lbas) | image.verification_lbas())
     summary = dict(status="completed", sampled_blocks=len(lbas), ok=0, differing=0,
                    unreadable=0, failures=[], radius_model="nominal", untested=0)
     def failure(lba, kind, error):
@@ -311,7 +359,7 @@ def verify_image(drive, image, media, cancel, *, device_factory=None):
 
 
 def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None, cancel=None,
-         no_verify=False, verifier=None):
+         no_verify=False, verifier=None, disc_id=False, disc_id_code=None):
     if yes_write is not True:
         raise BurnError("Writing requires explicit --yes-write confirmation.")
     if media not in ("dvd", "cd"):
@@ -322,6 +370,20 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
     size = image.stat().st_size
     if not size or size % 2048:
         raise BurnError("ISO size must be a positive multiple of 2048 bytes.")
+    enabled = discid.requested(disc_id, disc_id_code)
+    identity = None
+    if enabled:
+        try:
+            identity = discid.preflight(image)['record']
+            if not identity:
+                raise ValueError("Burn identity requires an ISO generated with --disc-id")
+        except ValueError as exc:
+            raise BurnError(str(exc)) from exc
+    elif size >= 25 * 2048:
+        try:
+            identity = discid.read_image(image)
+        except ValueError:
+            pass  # no opt-in: send even an unrecognised old ISO exactly as supplied
     recorder = recorder or adapter(drive, media)
     info = recorder.inspect()
     validate_media(info, media, size // 2048)
@@ -329,6 +391,23 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
     cancel = cancel or threading.Event()
     if cancel.is_set():
         raise BurnError("Cancelled before writing; nothing was written.")
+    source = image
+    if enabled:
+        try:
+            if isinstance(recorder, (WindowsDVD, LinuxBurner)):
+                from .device import Device
+                from .info import quick
+                try:
+                    with Device(drive) as dev:
+                        fields = discid.media_fields(quick(dev))
+                    info.update({k: v for k, v in fields.items() if v is not None})
+                except OSError:
+                    pass  # unsupported/unreadable MID stays null, never guessed
+            source = discid.patch_burn(image, info, speed=speed, selected=selected, media=media, code=disc_id_code)
+            identity = source.record
+        except ValueError as exc:
+            raise BurnError(str(exc)) from exc
+        discid.notice()
     log_path = Path(str(image) + ".burn.jsonl")
     # Open the durable log before any write. Append to preserve earlier burns of this image.
     def record(kind, **fields):
@@ -338,6 +417,8 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
                                          image=str(image), **fields), ensure_ascii=False, allow_nan=False) + "\n")
         ui.event(kind, time=stamp, **dict(fields, log_path=str(log_path)))
     record("burn_speed", requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=None)
+    if identity:
+        record("disc_identity", id=identity["body"]["id"], identity=identity)
     print(f"Requested write speed: {selected:g}x ({'default' if speed is None else f'--speed {speed:g}x'}). "
           f"Burn log: {log_path}", flush=True)
     print("The tray closes for writing. Burning cannot be undone.", flush=True)
@@ -354,8 +435,8 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
         else:
             ui.event("progress", **fields)
     try:
-        actual = recorder.write(image, selected, cancel, progress)
-    except BurnError as exc:
+        actual = recorder.write(source, selected, cancel, progress)
+    except (BurnError, OSError) as exc:
         elapsed = time.monotonic() - started
         record("burn_result", result="cancelled" if cancel.is_set() else "failed",
                requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=reported,
@@ -367,14 +448,19 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
           f"{str(actual) + 'x' if actual else 'speed not reported'}.", flush=True)
     verification = dict(status="skipped")
     if not no_verify:
-        print("Reading back up to 96 evenly spaced 16-sector blocks; drive retries may take time...", flush=True)
+        print("Reading back up to 96 evenly spaced 16-sector blocks plus the identity block; drive retries may take time..."
+              if isinstance(source, discid.PatchedImage) else
+              "Reading back up to 96 evenly spaced 16-sector blocks; drive retries may take time...", flush=True)
         ui.event("verify_progress", fraction=0, lba=None)
         try:
-            verification = (verifier or verify_image)(drive, image, media, cancel)
+            verification = (verifier or verify_image)(drive, source, media, cancel)
         except OSError as exc:
-            verification = dict(status="unavailable", sampled_blocks=len(sample_lbas(size // 2048)),
+            expected_lbas = set(sample_lbas(size // 2048))
+            if isinstance(source, discid.PatchedImage):
+                expected_lbas.update(source.verification_lbas())
+            verification = dict(status="unavailable", sampled_blocks=len(expected_lbas),
                                 ok=0, differing=0, unreadable=0, failures=[],
-                                untested=len(sample_lbas(size // 2048)), error=str(exc))
+                                untested=len(expected_lbas), error=str(exc))
         print(f"Read-back sample: {verification['ok']} blocks ok / {verification['differing']} differing / "
               f"{verification['unreadable']} unreadable; {verification['untested']} untested "
               f"({verification['status']}). This is a sample, not a full-disc check.", flush=True)
@@ -392,6 +478,8 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
                   selected_speed_x=selected, elapsed_s=elapsed, verification=verification,
                   verified=verification["status"] == "completed" and not
                   (verification["differing"] or verification["unreadable"]), log_path=str(log_path))
+    if identity:
+        result["identity"] = identity
     record("burn_result", **result)
     return result
 
@@ -412,7 +500,7 @@ def run(args):
     watcher.start()
     try:
         burn(args.drive, args.iso, media=args.media, speed=args.speed, yes_write=args.yes_write,
-             cancel=cancel, no_verify=args.no_verify)
+             cancel=cancel, no_verify=args.no_verify, **discid.options(args))
     except BurnError as exc:
         ui.event("error", message=str(exc))
         raise SystemExit(str(exc)) from None

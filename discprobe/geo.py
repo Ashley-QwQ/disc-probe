@@ -201,8 +201,11 @@ class Ladder:
     def _allowed(self, lba: int) -> int | None:
         """Nearest block-aligned LBA inside the readable ranges."""
         best = None
+        span = math.ceil(getattr(self.tp, 'sectors', 1) / self.block) * self.block
         for a, b in self.ranges:
-            x = min(max(lba, a), b - self.block)
+            if b-a < span:
+                continue
+            x = min(max(lba, a), b - span)
             x -= x % self.block
             if best is None or abs(x - lba) < abs(best - lba):
                 best = x
@@ -392,8 +395,10 @@ class Ladder:
             self.ranges = [(int(last * CD_AUDIO_RANGE[0]), int(last * CD_AUDIO_RANGE[1]))]
         else:
             self.ranges = [(int(last * 0.03), int(last * 0.85))]
-            if self.media == "dvd":
-                self.ranges = self._random_parts(self.ranges)
+        if getattr(tp, 'reserved_lba', []) or tp.summary.get('random_label'):
+            self.ranges = tp.safe_ranges(self.ranges, self.completion_sectors)
+        if not self.ranges_arg and not self.audio and self.media == "dvd":
+            self.ranges = self._random_parts(self.ranges)
         self.ranges = [(a - a % self.block, b - b % self.block) for a, b in self.ranges if b - a > 64]
         if not self.ranges:
             raise RuntimeError(f"no readable {self.media.upper()} ranges longer than 64 sectors")
@@ -682,6 +687,7 @@ def write_outputs(ladder: Ladder, out_dir: str, stopped: str | None = None) -> N
                    "setup": ladder.tp.summary.get("setup"), "identity": ladder.tp.summary.get("identity"),
                    "set_cd_speed": ladder.tp.summary.get("set_cd_speed"),
                    "rotation_check": ladder.tp.summary.get("rotation_check"),
+                   **{k: ladder.tp.summary[k] for k in ('disc_identity', 'reserved_lba') if k in ladder.tp.summary},
                    **({"simulated": True} if ladder.tp.summary.get("simulated") else {}),
                    **({"stopped": stopped} if stopped else {})}, f, indent=2, default=float)
     events = ladder.tp.events_as_rows()

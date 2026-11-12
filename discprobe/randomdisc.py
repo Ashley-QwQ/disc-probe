@@ -21,7 +21,15 @@ DEFAULT_SECTORS = 2295104  # fits DVD+R and DVD-R single layer
 CHUNK_SECTORS = 8192
 
 
-def write_iso(path: str, sectors: int = DEFAULT_SECTORS, seed: int = 1, log=print, media="dvd") -> None:
+def write_iso(path: str, sectors: int = DEFAULT_SECTORS, seed: int = 1, log=print, media="dvd",
+              *, disc_id=False, disc_id_code=None) -> None:
+    from . import discid
+    identity = None
+    if discid.requested(disc_id, disc_id_code):
+        discid.positions(sectors)
+        identity = discid.create(code=disc_id_code, command="random", seed=seed, textures=["RND"])
+        discid.encode_copy(identity, 0)
+        discid.notice()
     if media == "cd":
         from . import cd, cdimage
         cd.check_capacity(sectors)
@@ -42,4 +50,4 @@ def write_iso(path: str, sectors: int = DEFAULT_SECTORS, seed: int = 1, log=prin
             if done / sectors >= next_report - 1e-9:   # (steps of 0.01 add up to a hair over 1)
                 log(f"  {100 * done / sectors:5.1f} %")
                 next_report += getattr(log, "every", 0.2)
-    iso9660.add(path, sectors, "DISCPROBE_RANDOM")
+    iso9660.add(path, sectors, "DISCPROBE_RANDOM", identity)

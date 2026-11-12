@@ -27,8 +27,9 @@ class SimDrive:
                  capacity: int | None = None, cache_blocks: int | None = None, reread_delay_ms: float = 0.0,
                  media="dvd", cd_u=None, cd_v=None, cd_audio: bool = False, cd_read_offset_bytes: float = 0.0,
                  patterns=(), block: int | None = None, state_change_after_reads: int | None = None,
-                 state_us_per_mm: float = 0.0):
+                 state_us_per_mm: float = 0.0, identity_sectors=None):
         self.media = media
+        self.identity_sectors = dict(identity_sectors or {})
         # A drive that changes state partway through: after that many media reads, each read completes
         # state_us_per_mm later per mm of radius beyond 40 mm (a latency that depends on where the head is).
         self.state_change_after_reads = state_change_after_reads
@@ -182,6 +183,12 @@ class SimDrive:
                 t_end = self._read(t_issue, lba, count, fua)
                 data = (self._content(lba, count) if self.media == "dvd" and op != 0xBE
                         else bytes((2352 if op == 0xBE else 2048) * count))[:data_len]
+                if self.identity_sectors and op != 0xBE:
+                    data = bytearray(data)
+                    for i in range(count):
+                        if lba+i in self.identity_sectors:
+                            data[i*2048:(i+1)*2048] = self.identity_sectors[lba+i]
+                    data = bytes(data)
             else:
                 t_end = t_issue + 200e-6
         else:
