@@ -95,7 +95,9 @@ The hints, progress and animation below only appear when stdout is a terminal. P
 python -m discprobe tutorial
 ```
 
-**What to run next.** `guide` reads the `results` folder, lists the steps you have done and prints the next command without touching the drive. Running `python -m discprobe` with no arguments does the same. `guide --media cd` shows the CD steps; without it, the disc type follows your most recent measurement.
+**What to run next.** `guide` reads the `results` folder, lists the steps you have done and prints the next command without touching the drive. Running `python -m discprobe` with no arguments opens the guided console described above. `guide --media cd` shows the CD steps; without it, the disc type follows your most recent measurement.
+
+**Read the blank disc first.** Before burning the random-data disc, put a blank from the same batch in the drive and run `python -m discprobe info --drive D:`. `guide` and the guided console place this after `list` and before burning; use this count for `disexport --sectors` and in DiscImageStudio, and prefer the count from a blank disc (see `--sectors` below).
 
 ```bash
 python -m discprobe guide

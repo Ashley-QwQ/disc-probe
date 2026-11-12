@@ -125,7 +125,17 @@ python -m discprobe menu
 
 *这是在模拟光驱上录的，不是真实测量。游戏的按键由脚本代按；测量时按 `g` 才会打开，按 `n` 换游戏。*
 
-### 第 1 步：刻一张随机数据盘
+### 第 1 步：读空盘的可用扇区
+
+先放一张空盘（和后面要刻的盘同一批），读它的可用扇区数。`disexport --sectors`、DiscImageStudio 的预设和后面的 `image` 都要用这个数；从已经刻过的盘上读回来的数可能偏大。`list` 之后、刻随机盘之前，`guide` 和引导控制台都会先让你做这步。
+
+```bash
+python -m discprobe info --drive H:      # Linux: --drive /dev/sr0
+```
+
+约几秒钟，同时会报告盘的类型（CD/DVD/BD）和写入速度。
+
+### 第 2 步：刻一张随机数据盘
 
 测量盘必须是普通数据，刻了图案的盘读不出来。生成镜像后，Windows 上在资源管理器里右键 `iso/random.iso`，选“刻录光盘映像”（双击只会挂载，不会刻录），并确认刻录机选的是你的光驱。Linux 上用命令行刻录工具，比如 DVD 用 `growisofs -dvd-compat -Z /dev/sr0=iso/random.iso`。
 
@@ -135,7 +145,7 @@ python -m discprobe random --output iso/random.iso
 
 **刻录不可撤销。** DVD+R、DVD-R、CD-R 刻了就不能擦除，只有 RW 盘能擦。程序不负责刻录，也拦不住刻错盘，所以生成镜像后会闪一行红字提醒。
 
-### 第 2 步：看这台光驱能不能用
+### 第 3 步：看这台光驱能不能用
 
 约 1 到 3 分钟。刻完托盘可能会弹出，先推回去，等几秒再跑。结果要是 `CAV`，抖动越小越好。只有一台光驱时，在终端里可以不写 `--drive`。
 
@@ -143,7 +153,7 @@ python -m discprobe random --output iso/random.iso
 python -m discprobe timing --drive H:      # Linux: --drive /dev/sr0
 ```
 
-### 第 3 步：测几何
+### 第 4 步：测几何
 
 约 5 分钟。DVD 测 22 级，终端的进度行会显示走到第几级。
 
@@ -159,7 +169,7 @@ python -m discprobe geo --drive H:
 python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json --order quadratic
 ```
 
-### 第 4 步：生成图片 ISO，刻到同一批的空盘上
+### 第 5 步：生成图片 ISO，刻到同一批的空盘上
 
 `--geo latest` 用最近一次完整的真实测量，会打印选中的是哪一次；也可以填结果文件夹或 `summary.json` 的路径。有修正文件的话再加 `--correction correction.json`。图片长边铺满 116 mm（可用 `--diameter-mm` 改）并保持比例，不足的地方留白。图片放在当前文件夹，或者写完整路径（有空格要加引号）。生成后程序会抽查扇区，和设计逐字节核对。
 
@@ -179,7 +189,7 @@ python -m discprobe disexport --geo latest --sectors 你的扇区数 --r-min 25.
 python -m discprobe disexport --geo latest --sectors 你的扇区数 --r-min 25.8 --r-max 54.5 --install
 ```
 
-### 第 5 步：看盘和拍照
+### 第 6 步：看盘和拍照
 
 盘面像一面镜子，看到和拍到的主要是它映出来的东西。正对着看只会映出你自己，屋里的灯和亮的墙也会把图盖住，所以刻好的图不一定一眼看得到。彩虹"披萨片"是出厂导槽的衍射，不是刻上去的。小而亮的光源紧挨着眼睛或相机时，图像整盘可见。
 

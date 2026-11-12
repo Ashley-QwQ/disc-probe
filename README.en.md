@@ -125,7 +125,17 @@ At a terminal, `timing` and `geo` end with a one-line verdict, and each command 
 
 *Recorded on the simulated drive, so this isn't a real measurement. A script presses the games' keys; press `g` while measuring to open one, `n` to change game.*
 
-### Step 1: burn a random-data disc
+### Step 1: read the blank disc's available sectors
+
+Put a blank disc (from the same batch you will burn) in the drive and read its available sector count. `disexport --sectors`, the DiscImageStudio preset and the later `image` step all need this number; a count read back from a burned disc can be too high. After `list` and before the random-data disc, both `guide` and the guided console ask for this step first.
+
+```bash
+python -m discprobe info --drive D:      # Linux: --drive /dev/sr0
+```
+
+A few seconds. It also reports the disc type (CD/DVD/BD) and write speeds.
+
+### Step 2: burn a random-data disc
 
 The measuring disc must hold plain data, since discs with burned patterns often can't be read. Once the image is ready, on Windows right-click `iso/random.iso` in Explorer and choose Burn disc image (a double-click only mounts it), and check that the burner is your optical drive. On Linux use a command-line burner, e.g. for DVD `growisofs -dvd-compat -Z /dev/sr0=iso/random.iso`.
 
@@ -135,7 +145,7 @@ python -m discprobe random --output iso/random.iso
 
 **A burn can't be undone.** DVD+R, DVD-R and CD-R can't be erased; only RW discs can. The tool doesn't do the burning and can't stop one on the wrong disc, so it flashes a red warning once the image is ready.
 
-### Step 2: check the drive
+### Step 3: check the drive
 
 This takes 1 to 3 minutes. The tray may have opened after the burn, so push it back in and wait a few seconds first. You want to see `CAV` and as little jitter as possible. With only one drive, you can leave out `--drive` at a terminal.
 
@@ -143,7 +153,7 @@ This takes 1 to 3 minutes. The tray may have opened after the burn, so push it b
 python -m discprobe timing --drive H:      # Linux: --drive /dev/sr0
 ```
 
-### Step 3: measure the geometry
+### Step 4: measure the geometry
 
 This takes about 5 minutes. A DVD gets 22 steps, and the progress line at a terminal shows which one it's on.
 
@@ -159,7 +169,7 @@ When the residual is high, `geo` compares the two models at the end, with no new
 python tools/geo_polyfit.py results/geo-H-... --write-correction correction.json --order quadratic
 ```
 
-### Step 4: build a picture ISO and burn it to a blank disc from the same batch
+### Step 5: build a picture ISO and burn it to a blank disc from the same batch
 
 `--geo latest` uses your newest real measurement that can be relied on and prints which one it chose; `results --pick` lets you choose by disc and drive, then by precision or date; a result folder or a `summary.json` path works too. Add `--correction correction.json` if you have a correction file. The picture's longer side spans 116 mm (`--diameter-mm` changes it) and it keeps its shape, with the rest left blank. Put the picture in the current folder, or give its full path, in quotes if it has spaces. The tool then samples sectors and compares them byte by byte with the design.
 
@@ -179,7 +189,7 @@ python -m discprobe disexport --geo latest --sectors YOUR_SECTOR_COUNT --r-min 2
 python -m discprobe disexport --geo latest --sectors YOUR_SECTOR_COUNT --r-min 25.8 --r-max 54.5 --install
 ```
 
-### Step 5: look at the disc and photograph it
+### Step 6: look at the disc and photograph it
 
 The data side works like a mirror, so your eye or a photo mostly sees what it reflects. Straight on, that's only you, and room lights and bright walls can cover the picture, so a burned image may not show at first glance. The rainbow "pizza slices" are diffraction from the factory groove and aren't part of what you burned. The whole image shows up with a small, bright light right next to your eye or camera.
 
