@@ -168,6 +168,21 @@ def _open_keys():
     """A key reader for this terminal, or None when stdin is not one."""
     try:
         if sys.platform == "win32":
+            if os.environ.get("WT_SESSION"):
+                try:
+                    keys = _WindowsVtKeys()
+                    keys.resume()
+                    keys.pause()
+                    return keys
+                except (ImportError, OSError, AttributeError, ValueError):
+                    pass
+            try:
+                keys = _WindowsConsoleKeys()
+                keys.resume()
+                keys.pause()
+                return keys
+            except (ImportError, OSError, AttributeError, ValueError):
+                pass
             try:
                 keys = _WindowsVtKeys()
                 keys.resume()
@@ -290,6 +305,156 @@ class _WindowsVtKeys:
         return []
 
 
+class _WindowsConsoleKeys:
+    """Read conhost input records, so cmd.exe gets the same clicks as Windows Terminal.
+
+    Windows Terminal is asked for VT input (and SGR mouse reports) separately; this reader uses
+    ReadConsoleInput, which is the only mouse source in the classic console host.
+    """
+
+    ENABLE_MOUSE_INPUT = 0x0010
+    ENABLE_QUICK_EDIT_MODE = 0x0040
+    ENABLE_EXTENDED_FLAGS = 0x0080
+    ENABLE_VIRTUAL_TERMINAL_INPUT = 0x0200
+    KEY_EVENT = 0x0001
+    MOUSE_EVENT = 0x0002
+    MOUSE_WHEELED = 0x0004
+    SCAN = {0x48: "up", 0x50: "down", 0x4B: "left", 0x4D: "right",
+            0x47: "home", 0x4F: "end", 0x49: "pgup", 0x51: "pgdn",
+            0x52: "insert", 0x53: "delete"}
+
+    def __init__(self):
+        import ctypes
+        import msvcrt
+        from ctypes import wintypes
+
+        class Coord(ctypes.Structure):
+            _fields_ = [("X", wintypes.SHORT), ("Y", wintypes.SHORT)]
+
+        class KeyEvent(ctypes.Structure):
+            _fields_ = [("bKeyDown", wintypes.BOOL),
+                        ("wRepeatCount", wintypes.WORD),
+                        ("wVirtualKeyCode", wintypes.WORD),
+                        ("wVirtualScanCode", wintypes.WORD),
+                        ("uChar", wintypes.WCHAR),
+                        ("dwControlKeyState", wintypes.DWORD)]
+
+        class MouseEvent(ctypes.Structure):
+            _fields_ = [("dwMousePosition", Coord),
+                        ("dwButtonState", wintypes.DWORD),
+                        ("dwControlKeyState", wintypes.DWORD),
+                        ("dwEventFlags", wintypes.DWORD)]
+
+        class Event(ctypes.Union):
+            _fields_ = [("KeyEvent", KeyEvent), ("MouseEvent", MouseEvent)]
+
+        class InputRecord(ctypes.Structure):
+            _fields_ = [("EventType", wintypes.WORD), ("Event", Event)]
+
+        class SmallRect(ctypes.Structure):
+            _fields_ = [("Left", wintypes.SHORT), ("Top", wintypes.SHORT),
+                        ("Right", wintypes.SHORT), ("Bottom", wintypes.SHORT)]
+
+        class ScreenBufferInfo(ctypes.Structure):
+            _fields_ = [("dwSize", Coord), ("dwCursorPosition", Coord),
+                        ("wAttributes", wintypes.WORD), ("srWindow", SmallRect),
+                        ("dwMaximumWindowSize", Coord)]
+
+        self.ctypes = ctypes
+        self.ScreenBufferInfo = ScreenBufferInfo
+        self.msvcrt = msvcrt
+        self.Coord, self.KeyEvent, self.MouseEvent = Coord, KeyEvent, MouseEvent
+        self.Event, self.InputRecord = Event, InputRecord
+        self.kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        self.kernel32.GetConsoleMode.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
+        self.kernel32.GetConsoleMode.restype = ctypes.c_int
+        self.kernel32.SetConsoleMode.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+        self.kernel32.SetConsoleMode.restype = ctypes.c_int
+        self.kernel32.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+        self.kernel32.WaitForSingleObject.restype = ctypes.c_uint
+        self.kernel32.ReadConsoleInputW.argtypes = [ctypes.c_void_p, ctypes.POINTER(InputRecord),
+                                                     ctypes.c_uint, ctypes.POINTER(ctypes.c_uint)]
+        self.kernel32.ReadConsoleInputW.restype = ctypes.c_int
+        self.kernel32.GetConsoleScreenBufferInfo.argtypes = [ctypes.c_void_p,
+                                                             ctypes.POINTER(ScreenBufferInfo)]
+        self.kernel32.GetConsoleScreenBufferInfo.restype = ctypes.c_int
+        self.handle = msvcrt.get_osfhandle(sys.stdin.fileno())
+        self.info = ScreenBufferInfo()
+        self.saved = ctypes.c_uint()
+        if not self.kernel32.GetConsoleMode(self.handle, ctypes.byref(self.saved)):
+            raise OSError(ctypes.get_last_error(), "stdin is not a console")
+        self.raw = False
+        self.mouse = True
+        self.vt_mouse = False
+        self.left = False
+
+    def resume(self) -> None:
+        if self.raw:
+            return
+        mode = (self.saved.value | self.ENABLE_MOUSE_INPUT | self.ENABLE_EXTENDED_FLAGS)
+        mode &= ~(self.ENABLE_QUICK_EDIT_MODE | self.ENABLE_VIRTUAL_TERMINAL_INPUT)
+        if not self.kernel32.SetConsoleMode(self.handle, mode):
+            raise OSError(self.ctypes.get_last_error(), "could not enable console mouse input")
+        self.raw = True
+
+    def pause(self) -> None:
+        if self.raw:
+            self.kernel32.SetConsoleMode(self.handle, self.saved.value)
+            self.raw = False
+
+    def close(self) -> None:
+        self.pause()
+
+    def read(self, timeout: float = 0.25) -> list[str]:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            wait = max(1, min(50, int((deadline - time.monotonic()) * 1000)))
+            if self.kernel32.WaitForSingleObject(self.handle, wait) != 0:
+                continue
+            record = self.InputRecord()
+            count = self.ctypes.c_uint()
+            if not self.kernel32.ReadConsoleInputW(self.handle, self.ctypes.byref(record), 1,
+                                                   self.ctypes.byref(count)):
+                return []
+            if count.value:
+                keys = self._record(record)
+                if keys:
+                    return keys
+        return []
+
+    def _record(self, record) -> list[str]:
+        if record.EventType == self.KEY_EVENT:
+            event = record.Event.KeyEvent
+            if not event.bKeyDown:
+                return []
+            if event.uChar:
+                return [key for key in _char_keys(event.uChar) if key]
+            key = self.SCAN.get(event.wVirtualScanCode)
+            return [key] if key else []
+        if record.EventType != self.MOUSE_EVENT:
+            return []
+        event = record.Event.MouseEvent
+        x, y = event.dwMousePosition.X + 1, event.dwMousePosition.Y + 1
+        if self.kernel32.GetConsoleScreenBufferInfo(self.handle, self.ctypes.byref(self.info)):
+            # dwMousePosition is a buffer coordinate; the screen shows only the window rectangle.
+            x -= self.info.srWindow.Left
+            y -= self.info.srWindow.Top
+        x, y = max(1, x), max(1, y)
+        if event.dwEventFlags == 0:
+            pressed = bool(event.dwButtonState & 0x0001)
+            if pressed and not self.left:
+                self.left = True
+                return ["mouse:0:%d:%d:M" % (x, y)]
+            if not pressed:
+                self.left = False
+            return []
+        if event.dwEventFlags & self.MOUSE_WHEELED:
+            delta = self.ctypes.c_short((event.dwButtonState >> 16) & 0xFFFF).value
+            bits = 64 if delta > 0 else 65
+            return ["mouse:%d:%d:%d:M" % (bits, x, y)]
+        return []
+
+
 class _PosixKeys:
     """cbreak stdin, read in groups, so the console gets keys without waiting for Enter."""
 
@@ -347,19 +512,21 @@ class _Screen:
 
     def __init__(self, t, keys, mouse: bool):
         self.t, self.keys, self.mouse = t, keys, mouse
+        # conhost delivers mouse records through ReadConsoleInput; only VT terminals need the modes.
+        self.vt_mouse = bool(mouse and getattr(keys, "vt_mouse", True))
 
     def __enter__(self):
         self.keys.resume()
         write = self.t.stream.write
         write("\x1b[?1049h\x1b[?25l")
-        if self.mouse:
+        if self.vt_mouse:
             write("\x1b[?1000h\x1b[?1006h\x1b[?2004h")
         self.t.stream.flush()
         return self
 
     def __exit__(self, *exc):
         write = self.t.stream.write
-        if self.mouse:
+        if self.vt_mouse:
             write("\x1b[?1006l\x1b[?1000l\x1b[?2004l")
         write("\x1b[?25h\x1b[?1049l")
         self.t.stream.flush()
@@ -588,6 +755,8 @@ class Console:
         self.help_lines: list[str] = []
         self._previous = "home"
         self._hits: dict[int, int] = {}
+        self._zones: list[tuple[int, int, int, str]] = []
+        self._pending_zones: list[tuple[int, int, int, str]] = []
         current = plan.current()
         for index, task in enumerate(plan.tasks):
             if task is current:
@@ -1146,6 +1315,9 @@ class Console:
             return None
         if final != "M" or (bits & 3) != 0:
             return None
+        for line, x1, x2, key in self._zones:
+            if line == y - 1 and x1 <= x - 1 < x2:
+                return self.handle(key)
         index = self._hits.get(y - 1)
         if index is None:
             return None
@@ -1175,6 +1347,8 @@ class Console:
         if height:
             self.height = height
         self._hits = {}
+        self._zones = []
+        self._pending_zones = []
         if self.screen == "step":
             return self._step_screen()
         if self.screen == "palette":
@@ -1254,6 +1428,49 @@ class Console:
             lines += ["", "  " + self.t.style(tr("Done with your disc burner; open the step for the steps."), "dim")]
         return lines
 
+    def _commit_zones(self, top: int, footer_line: int, footer_text: str) -> None:
+        """Turn the buttons and footer keycaps into click targets for this frame."""
+        self._zones = [(line - top, x1, x2, key) for line, x1, x2, key in self._pending_zones
+                       if top <= line < footer_line]
+        self._pending_zones = []
+        self._footer_zones(footer_line, footer_text)
+
+    def _footer_zones(self, line_index: int, footer_text: str) -> None:
+        # The footer is already the last line of the frame, so its tokens are the clickable keys.
+        line = visible(footer_text)
+        mapping = {"Enter": "enter", "Enter/r": "enter", "Esc": "esc", "Tab": "tab",
+                   "PgUp": "pgup", "PgDn": "pgdn", "r": "r", "e": "e", "c": "c",
+                   "m": "m", "l": "l", "o": "o", "q": "q", "?": "?", ":": ":"}
+        for match in KEYCAP_RE.finditer(line):
+            key = mapping.get(match.group(0))
+            if key is None:
+                continue
+            start = i18n.display_width(line[:match.start()])
+            end = start + i18n.display_width(match.group(0))
+            self._zones.append((line_index, start, end, key))
+
+    def _button_line(self, index: int, buttons) -> str:
+        line, pos = "", 0
+        for label, key in buttons:
+            if line:
+                line += "   "
+                pos += 3
+            start = pos
+            shown = self._keycap(tr(label))
+            line += shown
+            pos += width_of(shown)
+            self._pending_zones.append((index, start, pos, key))
+        return line
+
+    def _task_buttons(self, task):
+        first = ("Run", "r") if task.action in ("run", "shell") else ("Open", "enter")
+        buttons = [first]
+        if task.command():
+            buttons.append(("Copy", "c"))
+        if task.action == "run":
+            buttons.append(("Edit", "e"))
+        return buttons
+
     def _foot(self, text: str, extra: str = "") -> str:
         text = tr(text)
         if extra:
@@ -1275,7 +1492,9 @@ class Console:
         if len(lines) >= self.height:
             lines = lines[:self.height - 1]
         lines += [""] * (self.height - 1 - len(lines))
-        lines.append(self._foot(footer))
+        footer_line = self._foot(footer)
+        lines.append(footer_line)
+        self._commit_zones(0, len(lines) - 1, footer_line)
         return lines
 
     def _scrolled(self, lines: list[str], footer: str) -> list[str]:
@@ -1286,10 +1505,13 @@ class Console:
             self.scroll = top
             view = list(lines[top:top + room])
         else:
+            top = 0
             self.scroll = 0
             view = list(lines)
         view += [""] * max(0, room - len(view))
-        view.append(self._foot(footer, "[more]" if more else ""))
+        footer_line = self._foot(footer, "[more]" if more else "")
+        view.append(footer_line)
+        self._commit_zones(top, len(view) - 1, footer_line)
         return view
 
     def _home(self) -> list[str]:
@@ -1300,6 +1522,8 @@ class Console:
         lines.append("")
         if self.height >= 18:
             lines += self._detail_block(self.plan.tasks[self.row], compact=True)
+        if self.height >= 12:
+            lines += ["", self._button_line(len(lines) + 1, self._task_buttons(self.plan.tasks[self.row]))]
         if self.message:
             lines += ["", "  " + self.t.style(self.message, "yellow")]
         final = self._finish(lines, FOOTER_HOME)
@@ -1309,6 +1533,7 @@ class Console:
     def _step_screen(self) -> list[str]:
         task = self.task()
         lines = [self._header(), "", self._task_line(task, True), "", *self._detail_block(task)]
+        lines += ["", self._button_line(len(lines) + 1, self._task_buttons(task) + [("Back", "esc")])]
         if self.plan.media == "bd" and task.key in ("picture", "burn"):
             lines += [""]
             for note in ("This preset carries the shape of the spiral, not its scale: the pitch is the 0.3200 um prior "
@@ -1370,8 +1595,10 @@ class Console:
                     body.append("  " + marker + " " + shown + " " + tr(description))
         lines = head + body
         lines += [""] * max(0, self.height - 1 - len(lines))
-        lines.append(self._foot(FOOTER_PALETTE))
+        footer_line = self._foot(FOOTER_PALETTE)
+        lines.append(footer_line)
         self._hits = {row: index for row, index in self._hits.items() if row < len(lines) - 1}
+        self._commit_zones(0, len(lines) - 1, footer_line)
         return lines
 
     def _command_screen(self) -> list[str]:
@@ -1453,7 +1680,7 @@ class Console:
                   "",
                   "  " + " ".join(i18n.wrap(tr("For scripts and pipes the plain version is: python -m discprobe guide"), max(20, self.width - 4)))]
         if self.mouse:
-            lines += ["", "  " + " ".join(i18n.wrap(tr("Mouse: click a step to open it; the wheel moves through the list."), max(20, self.width - 4)))]
+            lines += ["", "  " + " ".join(i18n.wrap(tr("Mouse: click a step, a button or a footer key; the wheel moves through the list."), max(20, self.width - 4)))]
         return self._scrolled(lines, FOOTER_KEYS)
 
     def _field(self, text: str, pos: int, width: int, active: bool) -> str:

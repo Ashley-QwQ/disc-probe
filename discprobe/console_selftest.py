@@ -369,6 +369,54 @@ def _step_notes(c, folder):
             "console: the burn step does not print the 'How to look at it' heading twice")
 
 
+def _clicks(c, folder):
+    """Buttons and footer keycaps are click targets, not only keyboard shortcuts."""
+    plan = guide.workflow("dvd", folder, notes=True)
+    commands = [("timing", "Measure the drive timing"), ("geo", "Measure the spiral geometry")]
+    con = console.Console(plan, commands, t=FakeTerm(), out=folder)
+    con.row = next(i for i, task in enumerate(plan.tasks) if task.key == "timing")
+    lines = con.text(100, 30)
+    footer_line = len(lines) - 1
+    buttons = [z for z in con._zones if z[3] == "r" and z[0] < footer_line]
+    c.check(bool(buttons), "clicks: a runnable step shows a clickable Run button")
+    if buttons:
+        line, x1, x2, _ = buttons[0]
+        action = con.handle("mouse:0:%d:%d:M" % (x1 + 1, line + 1))
+        c.check(action is not None and action[0] == "run" and action[1][0] == "timing",
+                "clicks: clicking Run starts the selected command")
+
+    con2 = console.Console(plan, commands, t=FakeTerm(), out=folder)
+    lines = con2.text(100, 30)
+    colon = [z for z in con2._zones if z[3] == ":" and z[0] == len(lines) - 1]
+    c.check(bool(colon), "clicks: the footer keycaps are clickable")
+    if colon:
+        line, x1, x2, _ = colon[0]
+        con2.handle("mouse:0:%d:%d:M" % (x1 + 1, line + 1))
+        c.check(con2.screen == "palette", "clicks: clicking : opens all commands")
+
+    con3 = console.Console(plan, commands, t=FakeTerm(), out=folder)
+    con3.row = next(i for i, task in enumerate(plan.tasks) if task.key == "timing")
+    con3.handle("enter")
+    lines = con3.text(100, 30)
+    run = [z for z in con3._zones if z[3] in ("r", "enter") and z[0] == len(lines) - 1]
+    c.check(bool(run), "clicks: the footer Run key is clickable on a step")
+    if run:
+        line, x1, x2, _ = run[0]
+        action = con3.handle("mouse:0:%d:%d:M" % (x1 + 1, line + 1))
+        c.check(action is not None and action[0] == "run", "clicks: clicking footer Run starts the step")
+
+    con4 = console.Console(plan, commands, t=FakeTerm(), out=folder)
+    lines = con4.text(100, 30)
+    quit_zone = [z for z in con4._zones if z[3] == "q" and z[0] == len(lines) - 1]
+    if quit_zone:
+        line, x1, x2, _ = quit_zone[0]
+        c.check(con4.handle("mouse:0:%d:%d:M" % (x1 + 1, line + 1)) == ("quit", None),
+                "clicks: clicking footer q quits")
+
+    c.check(con4.handle("mouse:0:1:%d:M" % (len(lines) - 1)) is None,
+            "clicks: a click on empty space does nothing")
+
+
 def _colour(c, folder):
     """Background bars, keycaps and OSC 8 links appear only where the terminal can use them."""
     plan = guide.workflow("dvd", folder, notes=True)
@@ -417,4 +465,5 @@ def run(c) -> None:
         _form(c, folder)
         _step_notes(c, folder)
         _colour(c, folder)
+        _clicks(c, folder)
     _language(c)
