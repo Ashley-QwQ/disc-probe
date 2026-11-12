@@ -1312,25 +1312,55 @@ def _tests_folder(c: Checker):
     if not files:
         c.check(True, "no tests/ folder beside the package, so there is nothing to run")
         return
-    for path in files:
-        name = os.path.splitext(os.path.basename(path))[0]
-        spec = importlib.util.spec_from_file_location(f"discprobe_tests_{name}", path)
-        module = importlib.util.module_from_spec(spec)
+    import inspect
+    import sys
+
+    def needs_pytest(fn):
+        """A check that takes arguments wants pytest's fixtures or parametrize; pytest runs it, not us."""
         try:
-            spec.loader.exec_module(module)
-        except Exception as e:                                       # noqa: BLE001 - a test runner
-            c.check(False, f"{name} imports ({type(e).__name__}: {e})")
-            continue
-        checks = [(n, f) for n, f in sorted(vars(module).items()) if n.startswith("test_") and callable(f)]
-        failed = []
-        for n, fn in checks:
+            params = inspect.signature(fn).parameters.values()
+        except (TypeError, ValueError):
+            return False
+        return any(p.default is p.empty and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+                   for p in params)
+
+    # Test files import each other by bare name (from test_presets import ...), as they do under pytest.
+    added = folder not in sys.path
+    if added:
+        sys.path.insert(0, folder)
+    try:
+        for path in files:
+            name = os.path.splitext(os.path.basename(path))[0]
+            spec = importlib.util.spec_from_file_location(f"discprobe_tests_{name}", path)
+            module = importlib.util.module_from_spec(spec)
             try:
-                fn()
+                spec.loader.exec_module(module)
+            except ModuleNotFoundError as e:
+                if e.name == "pytest":
+                    c.check(True, f"{name} needs pytest, which is not installed here, so pytest alone runs it")
+                    continue
+                c.check(False, f"{name} imports ({type(e).__name__}: {e})")
+                continue
             except Exception as e:                                   # noqa: BLE001 - a test runner
-                failed.append(f"{n}: {type(e).__name__}: {e}")
-        c.check(bool(checks), f"{name} has checks to run")
-        c.check(not failed, f"{name} passes ({len(checks)} checks)" +
-                (" -- " + "; ".join(failed[:3]) if failed else ""))
+                c.check(False, f"{name} imports ({type(e).__name__}: {e})")
+                continue
+            found = [(n, f) for n, f in sorted(vars(module).items())
+                     if n.startswith("test_") and inspect.isfunction(f)]
+            checks = [(n, f) for n, f in found if not needs_pytest(f)]
+            left = len(found) - len(checks)
+            failed = []
+            for n, fn in checks:
+                try:
+                    fn()
+                except Exception as e:                               # noqa: BLE001 - a test runner
+                    failed.append(f"{n}: {type(e).__name__}: {e}")
+            c.check(bool(found), f"{name} has checks to run")
+            c.check(not failed, f"{name} passes ({len(checks)} checks" +
+                    (f", {left} with fixtures left to pytest)" if left else ")") +
+                    (" -- " + "; ".join(failed[:3]) if failed else ""))
+    finally:
+        if added:
+            sys.path.remove(folder)
 
 
 def _bd_export(c: Checker):
