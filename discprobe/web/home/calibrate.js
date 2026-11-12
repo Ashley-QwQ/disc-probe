@@ -9,6 +9,7 @@ import * as sfx from "./sfx.js";
 import { stage } from "./calstage.js";
 import * as loadDisc from "./loaddisc.js";
 import * as calchart from "./calchart.js";      // the measurement charts as engineering drawings (the designer's review)
+import { photoPage } from "./photocal.js";
 const DEMO = Number(new URLSearchParams(location.search).get("demo")) || 40;   // simulated jobs run this many times faster (?demo=N)
 const R0 = 22, R1 = 58.5;             // data area, mm: the radius the head sweeps while burning
 
@@ -340,6 +341,7 @@ function open() {
 }
 
 function release() {
+  closePhoto();
   document.documentElement.dataset.mode = "";
   const ruler = document.getElementById("cal-ruler"); if (ruler) ruler.hidden = true;
   st?.show(false); loadDisc.desk(false); document.documentElement.classList.remove("cal-staged"); sideButton(null);
@@ -371,7 +373,7 @@ function leave() {
 }
 
 function back() {
-  if (!api.backend.mock) { if (flow.photoLink?.dispose) flow.photoLink.dispose(); leave(); return; }
+  if (!api.backend.mock) { if (flow.realPhase === "photo") { if (photoUI?.page) photoUI.page.back(); else photoReview(); return; } leave(); return; }
   if (!isCal()) return;
   if (flow.job) { leave(); return; }               // the job keeps running in the bar
   if (flow.state) { flow.state = null; paint(); return; }
@@ -965,6 +967,8 @@ function realError(error) {
 function realPaint() {
   if (!flow || !isCal()) return;
   const esc = api.backend.escapeHTML, phase = flow.realPhase;
+  if (phase === "photo") { paintRuler(); paintPhoto(); return; }
+  closePhoto(); st?.show(true);
   let title = liveText('标定这批盘', 'Calibrate this batch'), text = "", button = T().next;
   let html = "", disabled = !!flow.job;
   if (phase === "inspect") {
@@ -1039,15 +1043,13 @@ function realPaint() {
     button = ok ? (flow.detected.media === "cd" ? liveText('查看 CD 标定下一步', 'CD calibration: next step') : returnTo ? liveText('保存测量', 'Save the measurement') : T().save) : recovery.label[api.lang()];
     html += `<details class="cal-details"><summary>${liveText('详情', 'Details')}</summary><p>${liveText('导出的预设仍覆盖整盘；半径参数只限定拟合区域，不能裁掉未测区域。更换读取速度、选择测量区域和比较模型须在电脑命令行操作。将 START-END 换成实际的数据扇区范围，SPEED 换成光驱支持的读取速度（如 4x）；先确认恒速，再执行下一条。光驱保持恒速检查通过后，页面才会继续测量。', 'Use the computer terminal to change reading speed, select measurement areas or compare models. An exported preset covers the full disc; radius options limit fitting and do not remove unmeasured areas. Replace START-END with actual data-sector limits and SPEED with a supported reading speed (such as 4x); confirm steady rotation before the next command. The page continues measuring only after a steady-rotation check passes.')}</p><pre>${esc(recoveryCommands(flow, {drive:api.selectedDrive(), media:flow.detected.media, sectors:flow.blankSectors ?? flow.detected.sectors}))}</pre><p><code>${esc(part?.path || '')}</code></p>${calchart.resultChart(flow.geo?.measurement, { zh: api.lang() === "zh" })}</details>`;
     if (part?.verdict === 'usable') html += `<button id="real-remeasure" class="placed" type="button">${liveText('检查转速并重测', 'Check rotation and remeasure')}</button>`;
+    if (kind === 'narrow_span') html += `<button id="real-photo" class="placed" type="button">${liveText('拍一张照，补上外圈', 'Take a photo to fill in the outer rings')}</button>`;
+    if (flow.photoResult) html += photoStamp(flow.photoResult);
     if (ok) html += `<label class="count-input">${T().leftQ}<input id="left-input" type="number" min="0" max="100000" value="${flow.left ?? ""}"></label>`;
-  } else if (phase === "photo") {
-    title = liveText('CD：接着在 DIS 标定', 'CD: continue calibration in DIS');
-    text = cdPhoto[api.lang()];
-    html = `<p>${esc(flow.geo.path)}</p><p>${liveText('导出预设不代表已完成 CD 标定。', 'Exporting a preset does not complete CD calibration.')}</p>`;
-    button = liveText('导出 DIS 预设', 'Export DIS preset');
   } else if (phase === "saved") {
     title = liveText('预设已保存', 'Preset saved'); text = flow.savedPath;
     if (flow.detected.media === "cd") html = `<p>${esc(cdPhoto[api.lang()])}</p>`;
+    if (flow.photoResult) html += photoStamp(flow.photoResult);
     button = returnTo ? liveText('回到刚才那一步', 'Back to where you were') : liveText('回到首页', 'Return home');
   }
   if (["prepare", "burn"].includes(phase)) html = budgetHTML(flow.detected.media, api.lang()) + html;
@@ -1087,12 +1089,184 @@ function realPaint() {
     try { const ask = flow.ask; await api.backend.answer(ask.job, ask.id, yes); flow.ask = null; paint(); } catch(e) {realError(e);}
   });
   $("real-remeasure")?.addEventListener("click", () => realNext(true));
+  $("real-photo")?.addEventListener("click", enterPhoto);
   $("real-have")?.addEventListener("click", () => { flow.realPhase = "inspect"; realNext(); });
   $("real-copy")?.addEventListener("click", async (e) => {
     try { await navigator.clipboard.writeText(flow.cdCommand); e.target.textContent = liveText('已复制', 'Copied'); }
     catch { e.target.textContent = liveText('复制不了，请选中命令复制', 'Select the command to copy it'); }
   });
 
+}
+// ---------------------------------------------------------------- photos, scoped to this geometry run
+let photoUI = null;
+const photoRun = f => String(f.geo?.path || '').replace(/\\/g, '/').replace(/\/$/, '').split('/').pop() || null;
+const photoUnavailable = error => error?.status === 404;
+function enterPhoto() {
+  if (flow.job) return;
+  flow.error = null; flow.realPhase = 'photo'; paint();
+}
+function closePhoto() {
+  if (!photoUI) return;
+  const u = photoUI; photoUI = null;
+  clearTimeout(u.timer);
+  if (u.page) u.flow.photoSnapshot = u.page.state();
+  u.page?.destroy(); u.host.remove();
+  document.documentElement.classList.remove('cal-photo');
+}
+function photoReview() {
+  closePhoto(); flow.realPhase = 'review'; flow.error = null; paint();
+}
+const photoLive = u => photoUI === u && flow === u.flow && isCal() && flow.realPhase === 'photo';
+function photoStamp(result) {
+  const esc = api.backend.escapeHTML, ok = result.verdict === 'ok';
+  const reasons = (result.per_photo || []).map(p => p.reason).filter(Boolean).join('；');
+  const value = Number.isFinite(result.L_frames) ? `L = ${result.L_frames} frames` : '';
+  const row = (zh, en, text, act = false) => `<div><dt>${liveText(zh,en)}</dt><dd${act ? ' class="act"' : ''}>${esc(text)}</dd></div>`;
+  return `<div class="cal-stamp" role="status"><b>${ok ? liveText('照片可用','Photo usable') : result.verdict === 'rejected' ? liveText('照片读不出','Photo unreadable') : liveText('不知道','Not sure')}</b><dl>` +
+    row('意思','Means', reasons || (ok ? liveText('照片读完了。','Photo read.') : liveText('照片还不能给出可信的结果。','The photo cannot give a trusted result yet.'))) +
+    row('对你的图','For the picture', ok ? liveText('已保留照片结果；现有几何的覆盖限制仍按测量结果判断。','Photo result retained; the measured geometry still determines its coverage limits.') : liveText('保留现有测量，不用这次照片改它。','Keep the existing measurement; this photo does not change it.')) +
+    row('现在','Now', ok ? (value ? `${value} · ${liveText('已保留，尚未写入预设','retained, not yet written into the preset')}` : liveText('保存现有测量和照片结果。','Save the existing measurement and retain the photo result.')) : liveText('再拍一张，或跳过，就用现在的结果。','Take another photo, or skip and keep the current result.'), !ok) + '</dl></div>';
+}
+function photoNavigation(u) {
+  if (!photoLive(u)) return;
+  const unavailable = u.status === 'unavailable', cd = flow.detected.media === 'cd';
+  $('next').dataset.hold = ''; $('next').classList.remove('hold');
+  $('next-text').textContent = unavailable ? (cd ? liveText('导出 DIS 预设','Export DIS preset') : liveText('返回测量结果','Back to measurement result')) : liveText('下一步：用这张照片','Next: use this photo');
+  $('next').disabled = !!flow.job || (!unavailable && (u.status !== 'ready' || !u.canUse));
+  api.nextWhy?.(unavailable ? '' : flow.job ? liveText('正在读取照片…','Reading the photo…') : u.status === 'loading' ? liveText('正在连接照片服务…','Connecting to the photo service…') : !u.canUse ? liveText('先选一张照片','Choose a photo first') : '');
+}
+function photoFallback(u, error) {
+  if (!photoLive(u)) return;
+  u.status = 'unavailable'; clearTimeout(u.timer);
+  if (u.page) u.flow.photoSnapshot = u.page.state();
+  u.page?.destroy(); u.page = null; u.host.replaceChildren();
+  const esc = api.backend.escapeHTML;
+  $('cal').innerHTML = `<h2>${liveText('照片暂不可用','Photos not available')}</h2><p role="status">${esc(error ? api.backend.errorText(error,api.lang()) : liveText('照片服务暂不可用；可以返回测量结果。','The photo service is not available; you can return to the measurement result.'))}</p>` +
+    (flow.detected.media === 'cd' ? `<h2>${liveText('CD：接着在 DIS 标定','CD: continue calibration in DIS')}</h2><p>${esc(cdPhoto[api.lang()])}</p>` : '') +
+    `<button id="photo-back" class="placed" type="button">${liveText('返回测量结果','Back to measurement result')}</button>`;
+  $('photo-back').onclick = photoReview;
+  photoNavigation(u);
+}
+async function pollPhotos(u) {
+  if (!photoLive(u) || u.status !== 'ready') return;
+  try {
+    const result = await api.backend.request(`/api/photos?run=${encodeURIComponent(u.run)}`);
+    if (!photoLive(u)) return;
+    const fresh = (result.photos || []).filter(p => !u.seen.has(p.id));
+    for (const p of fresh) u.seen.add(p.id);
+    await u.page.addPhotos(fresh, {preserveSelection:true});
+    if (!photoLive(u)) return;
+    u.page.setReasons(u.flow.photoResult?.per_photo || []);
+    u.notice.textContent = u.flow.photoNotice || '';
+  } catch (error) {
+    if (!photoLive(u)) return;
+    if (photoUnavailable(error)) { photoFallback(u); return; }
+    u.notice.textContent = api.backend.errorText(error,api.lang());
+  }
+  if (photoLive(u) && u.status === 'ready') u.timer = setTimeout(() => pollPhotos(u), 2000);
+}
+function showPhotoResult(u, result) {
+  if (!photoLive(u)) return;
+  u.page.setReasons(result.per_photo || []);
+  u.result.innerHTML = photoStamp(result); u.result.hidden = false;
+  u.retry.hidden = u.skip.hidden = result.verdict === 'ok';
+}
+async function readPhoto(u, photo, rings) {
+  const f = u.flow;
+  if (!photoLive(u) || f.job) return null;
+  f.photoNotice = null; u.notice.textContent = '';
+  try {
+    let id = photo.id;
+    if (!id && photo.file) {
+      f.photoUploads ??= new Map(); id = f.photoUploads.get(photo.file);
+      if (!id) {
+        const token = new URLSearchParams(location.search).get('token');
+        const response = await fetch(`/api/photos?run=${encodeURIComponent(u.run)}`, {method:'POST', headers:{'Content-Type':photo.file.type || 'image/jpeg', 'X-Filename':encodeURIComponent(photo.name), ...(token ? {'X-Discprobe-Token':token} : {})}, body:photo.file});
+        if (!response.ok) throw Object.assign(new Error(response.statusText),{status:response.status});
+        const uploaded = await response.json(); id = uploaded.id;
+        f.photoUploads.set(photo.file,id); u.seen.add(id);
+      }
+    }
+    if (!photoLive(u)) return null;
+    if (!id) throw new Error(liveText('这张照片还没上传。请重新加入照片。','This photo has not uploaded. Add it again.'));
+    u.page.setPhotoId(photo,id);
+    const key = JSON.stringify([id,rings]);
+    if (f.photoReadKey === key && f.photoResult) { showPhotoResult(u,f.photoResult); return f.photoResult; }
+    let result;
+    try { result = await realJob('photo', {run:u.run, media:f.detected.media, photos:[id], rings_mm:rings || null}); }
+    catch (error) { if (!error.result?.verdict) throw error; result = error.result; }
+    if (!['ok','unsure','rejected'].includes(result?.verdict)) throw new Error(liveText('照片服务没有返回判断。','The photo service returned no verdict.'));
+    // A job may finish after Back. Keep its evidence with its own flow, but never navigate that page.
+    f.photoResult = result; f.photoReadKey = key;
+    showPhotoResult(u,result);
+    return result;
+  } catch (error) {
+    if (photoLive(u)) {
+      if (photoUnavailable(error)) photoFallback(u);
+      else u.notice.textContent = api.backend.errorText(error,api.lang());
+    }
+    return null;
+  } finally {
+    if (flow === f && isCal() && f.realPhase === 'review') paint();
+  }
+}
+function paintPhoto() {
+  st?.show(false); loadDisc.desk(false); sideButton(null);
+  if (photoUI && photoUI.lang !== api.lang()) closePhoto();
+  if (photoUI) { photoNavigation(photoUI); return; }
+  document.documentElement.classList.add('cal-photo');
+  const host = document.createElement('div'); host.className = 'cal-photo-host'; document.body.append(host);
+  const u = photoUI = {host,flow,run:photoRun(flow),lang:api.lang(),status:'loading',seen:new Set()};
+  $('cal').innerHTML = `<p role="status">${liveText('正在连接照片服务…','Connecting to the photo service…')}</p>`;
+  photoNavigation(u);
+  (async () => {
+    if (!u.run) { photoFallback(u); return; }
+    try {
+      const results = await Promise.allSettled([
+        api.backend.request(`/api/phone-link?run=${encodeURIComponent(u.run)}`),
+        api.backend.request(`/api/photos?run=${encodeURIComponent(u.run)}`),
+      ]);
+      if (!photoLive(u)) return;
+      const failed = results.find(r => r.status === 'rejected');
+      if (failed) { photoFallback(u,photoUnavailable(failed.reason) ? null : failed.reason); return; }
+      const [phone,list] = results.map(r => r.value);
+      const photos = [...(u.flow.photoSnapshot?.photos || [])];
+      for (const p of list.photos || []) if (!photos.some(x => x.id === p.id)) photos.push(p);
+      photos.forEach(p => { if (p.id) u.seen.add(p.id); });
+      u.status = 'ready';
+      u.page = photoPage(host, {
+        lang:u.lang, media:u.flow.detected.media, paperHost:$('cal'), photos, ringsMm:u.flow.photoSnapshot?.ringsMm, activePhoto:u.flow.photoSnapshot?.activePhoto,
+        measuredMm:u.flow.geo?.measurement?.span_mm,
+        phoneUrl:phone.url, phoneQrSvg:phone.qr_svg,
+        onStateChange:state => { u.canUse = state.canUse; photoNavigation(u); },
+        onBack:photoReview, onSkip:photoReview,
+        autoAlign:async (photo,rings) => {
+          const result = await readPhoto(u,photo,rings);
+          if (result?.verdict === 'ok') {
+            if (Array.isArray(result.rings_mm)) u.flow.photoReadKey = JSON.stringify([photo.id || u.flow.photoUploads?.get(photo.file),result.rings_mm]);
+            return {rings:result.rings_mm,offsetMm:result.offset_mm};
+          }
+          return null;
+        },
+        onUse:async (photo,rings) => {
+          const result = await readPhoto(u,photo,rings);
+          if (result?.verdict !== 'ok' || !photoLive(u)) return;
+          try { await realSave(); if (isCal()) paint(); }
+          catch (error) { if (isCal() && flow === u.flow) { u.flow.photoNotice = api.backend.errorText(error,api.lang()); u.flow.realPhase = 'photo'; paint(); if (photoUI?.notice) photoUI.notice.textContent = u.flow.photoNotice; } }
+        },
+      });
+      const paper = $('cal').querySelector('.pc-paper');
+      u.notice = document.createElement('p'); u.notice.setAttribute('role','status');
+      u.notice.textContent = u.flow.photoNotice || '';
+      u.result = document.createElement('div'); u.result.hidden = true;
+      const action = (text,fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'pc-button pc-wide'; b.textContent = text; b.hidden = true; b.onclick = fn; paper.append(b); return b; };
+      paper.append(u.notice,u.result);
+      u.retry = action(liveText('再拍一张','Take another photo'), () => { u.result.hidden = u.retry.hidden = u.skip.hidden = true; host.querySelector('[data-pc="add"]').click(); });
+      u.skip = action(liveText('跳过，就用现在的结果','Skip and keep the current result'),photoReview);
+      u.page.ready?.then(() => { if (photoLive(u) && u.flow.photoResult) showPhotoResult(u,u.flow.photoResult); });
+      pollPhotos(u);
+    } catch (error) { photoFallback(u,photoUnavailable(error) ? null : error); }
+  })();
 }
 // a CD on a Windows machine: the core has no CD writer there (burner.WindowsDVD), so the disc is burned elsewhere
 const cdHere = () => flow?.detected?.media === "cd" && api.platform?.() === "win32";
@@ -1215,7 +1389,7 @@ const STEP_PHASE = { burn: "burning", check: "checking", timing: "timing", geo: 
 const STEP_WORDS = {
   info: ["检测光盘", "Checking the disc"], random: ["生成测量图", "Making the image"], burn: ["刻测量盘", "Burning"],
   check: ["检查刻好的盘", "Checking the burn"], timing: ["测转速", "Rotation"], geo: ["测几何", "Geometry"],
-  preset: ["保存预设", "Saving the preset"], calibrate: ["标定", "Calibrating"],
+  preset: ["保存预设", "Saving the preset"], calibrate: ["标定", "Calibrating"], photo: ["读照片", "Reading photo"],
 };
 const stepWords = (name) => STEP_WORDS[name] ? liveText(...STEP_WORDS[name]) : name;
 const CHECK_MS = 5000;                     // how long the disc check's bar takes to fill (the check itself: a second or two)
@@ -1338,6 +1512,7 @@ async function realNext(forceMeasure = false) {
         flow.realPhase = "inspect";
         await realNext();
       } else if (recovery.id === 'measure') {
+        flow.photoResult = null; flow.photoReadKey = null; flow.photoSnapshot = null; flow.photoUploads = null; flow.photoNotice = null;
         flow.preset = null; flow.geo = null; flow.timing = null;
         try {
           const result = await remeasure(async (action, args) => {
@@ -1353,9 +1528,12 @@ async function realNext(forceMeasure = false) {
           flow[flow.realPhase] = part;
         }
         flow.realPhase = 'review';
-      } else if (flow.detected.media === "cd") flow.realPhase = "photo";
+      } else if (flow.detected.media === "cd") enterPhoto();
       else await realSave();
-    } else if (phase === "photo") await realSave();
+    } else if (phase === "photo") {
+      if (photoUI?.status === 'unavailable') { if (flow.detected.media === 'cd') await realSave(); else photoReview(); }
+      else await photoUI?.page?.use();
+    }
     else if (phase === "saved") {
       // opened from the new-plan form: back to it with the library read again, the new batch in it
       if (returnTo) { await api.syncState?.(); leave(); flow = null; return; }
@@ -1414,6 +1592,7 @@ function callBack() {
 function finishCalibrate(result) {
   if (!result?.ok && !result?.geo && !result?.timing) throw new Error(result?.reason ? stopText(result.reason) : liveText('标定没有完成。', 'The calibration did not finish.'));
   flow.timing = result.timing; flow.geo = result.geo; flow.preset = result.preset;
+  flow.photoResult = null; flow.photoReadKey = null; flow.photoSnapshot = null; flow.photoUploads = null; flow.photoNotice = null;
   if (result.ok) sfx.done(); else sfx.problem();          // measured and usable / measured, but not usable yet
   if (result.disc) flow.detected = { ...flow.detected, ...result.disc };
   flow.realPhase = "review";

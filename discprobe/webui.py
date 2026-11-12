@@ -44,7 +44,7 @@ def version():
         _VERSION = (m.group(1) + ("-dev" if m.group(2) else "")) if m else ""
     return _VERSION
 
-ACTIONS = {"info", "timing", "geo", "random", "image", "disexport", "cdprobe", "burn", "swap", "calibrate"}
+ACTIONS = {"info", "timing", "geo", "random", "image", "disexport", "cdprobe", "burn", "swap", "calibrate", "photo"}
 DRIVE_ACTIONS = {"info", "timing", "geo", "burn", "swap", "calibrate"}
 # Deliberately exclude force/install/replace, raw transport commands and arbitrary flags.
 OPTIONS = {
@@ -62,6 +62,7 @@ OPTIONS = {
     # the whole calibration in one job (calibrate.py); with `iso` it burns first, under the burn's rules
     "calibrate": {"iso": "path", "burn_speed": "burn_speed", "speed": "speed", "mid": "mid", "preset": "path",
                   "sectors": "sectors", "avoid_mm": "radius_bands"},
+    "photo": {"run": "photo", "media": "photo", "photos": "photo", "rings_mm": "photo"},
 }
 DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell (checked in the tests)
 # a design upload by its length: one bit per cell, at 20, 10 or 5 um (imagedisc.CELL_SIDES)
@@ -116,6 +117,11 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
     # -P: the workspace (the child's cwd) is not put in front of the import path, so a checkout of
     # another version there cannot stand in for this one (PYTHONPATH, set in start(), names this copy)
     argv = [sys.executable, *(["-P"] if sys.version_info >= (3, 11) else []), "-m", "discprobe", action]
+    if action == "photo":
+        # Photo ids are resolved by Backend against its configured results folder.
+        if drive is not None:
+            raise APIError("photo does not use a drive")
+        return argv, None
     if action in DRIVE_ACTIONS:
         argv += ["--drive", drive]
     if action in {"timing", "geo", "random", "image", "disexport", "calibrate"}:
@@ -376,6 +382,8 @@ class Backend:
         self.lock = threading.RLock()
         self.jobs = {}
         self.tokens = {}
+        from .photo import PhotoStore
+        self.photos = PhotoStore(self.out)
         # drive -> (expiry, media): a read-only inspection just found a blank disc there
         self.verified_blank = {}
         # drive -> what the last read of its disc found (`discprobe disc`, or an `info` job), with when. Only
@@ -441,8 +449,14 @@ class Backend:
             return dict(token=token, expires_in=30)
 
     def start(self, payload):
-        drives = self.drive_provider()
+        is_photo = isinstance(payload, dict) and payload.get("action") == "photo"
+        drives = [] if is_photo else self.drive_provider()
         argv, drive = command(payload, self.root, drives)
+        if is_photo:
+            try:
+                argv += self.photos.argv(payload.get("args", {}))
+            except (ValueError, OSError) as exc:
+                raise APIError(str(exc)) from exc
         if payload["action"] in {"info", "timing", "geo", "calibrate"}:
             argv += ["--out", self.out]
         # what writes to a disc: a burn, or a calibration that starts with one
@@ -476,6 +490,8 @@ class Backend:
             folder = Path(tempfile.mkdtemp(prefix=ident + "-", dir=self.folder))
             job = Job(ident, drive, folder)
             job.action, job.media, job.args = payload["action"], payload.get("media", "dvd"), payload.get("args", {})
+            if is_photo:
+                job.media = job.args["media"]
             job.before = {r.path: result_signature(r) for r in guide.scan(self.out)}
             if payload["action"] == "disexport" and job.args.get("output"):
                 Path(local_path(self.root, job.args["output"])).parent.mkdir(parents=True, exist_ok=True)
@@ -551,6 +567,10 @@ class Backend:
                     job.result["disc"] = webui_catalog.disc_report(guide._load(str(Path(run.path) / "info.json")) or {})
                     self.discs[job.drive] = dict(job.result["disc"], tray="ready", read_at=round(time.time()))
                 job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
+            elif job.action == "photo":
+                done = next((e for e in reversed(job.history) if e.get("type") == "result" and e.get("step") == "photo"), None)
+                if done:
+                    job.result = {k: done[k] for k in ("verdict", "per_photo", "rings_mm", "offset_mm", "L_frames", "confidence", "path")}
             elif job.action == "calibrate":
                 # what the core found, from its last `calibrated` event: the measured folders, their
                 # verdicts and the geometry's points for the page's chart
@@ -643,6 +663,8 @@ class Backend:
     def close(self):
         with self.lock:
             self.closed = True
+            with self.photos.lock:
+                self.photos.tokens.clear()
             jobs = list(self.jobs.values())
             for job in jobs:
                 if job.exit is None:
@@ -702,6 +724,28 @@ class Handler(BaseHTTPRequestHandler):
             raise APIError("cross-origin request refused", 403)
         if self.headers.get("Sec-Fetch-Site") not in (None, "same-origin", "none"):
             raise APIError("cross-site request refused", 403)
+        url = urlsplit(self.path)
+        path, query = unquote(url.path), parse_qs(url.query)
+        if path.startswith("/phone/"):
+            if self.command != "GET":
+                raise APIError("not found", 404)
+            try:
+                self._phone_run = self.server.backend.photos.token_run(path.removeprefix("/phone/"))
+            except ValueError as exc:
+                raise APIError(str(exc), 403) from exc
+            return
+        if path == "/api/photos" or path.startswith("/api/photos/"):
+            token = (self.headers.get("X-Photo-Token") or self.headers.get("X-Discprobe-Token")
+                     or query.get("token", [""])[0])
+            if token and token != self.server.token:
+                try:
+                    run = self.server.backend.photos.token_run(token)
+                except ValueError as exc:
+                    raise APIError(str(exc), 403) from exc
+                target_run = query.get("run", [""])[0] if path == "/api/photos" else path.split("/")[3]
+                if run != target_run:
+                    raise APIError("photo token belongs to another run", 403)
+                return
         if self.server.token:
             query = parse_qs(urlsplit(self.path).query)
             tokens = (self.headers.get("X-Discprobe-Token", ""), query.get("token", [""])[0])
@@ -723,7 +767,27 @@ class Handler(BaseHTTPRequestHandler):
             url = urlsplit(self.path)
             path = unquote(url.path)
             backend = self.server.backend
-            if path == "/":
+            if path == "/api/phone-link":
+                from . import photo, qr
+                run = parse_qs(url.query).get("run", [""])[0]
+                backend.photos.run_dir(run)
+                address = photo.lan_ip() if self.server.token else None
+                link = f"http://{address}:{self.server.server_port}/phone/{backend.photos.token(run)}" if address else None
+                self._json(200, dict(url=link, qr_svg=qr.svg(link) if link else None))
+            elif path == "/api/photos":
+                self._json(200, backend.photos.listing(parse_qs(url.query).get("run", [""])[0]))
+            elif path.startswith("/api/photos/"):
+                parts = path.split("/")
+                if len(parts) != 5:
+                    raise APIError("not found", 404)
+                image, kind, _ = backend.photos.get(parts[3], parts[4])
+                self._send(200, image.read_bytes(), kind)
+            elif path.startswith("/phone/"):
+                config = dict(run=self._phone_run, token=path.removeprefix("/phone/"))
+                page = Path(__file__).with_name("web") / "phone" / "index.html"
+                self._send(200, page.read_text(encoding="utf-8").replace("__PHOTO_CONFIG__", json.dumps(config)).encode("utf-8"),
+                           "text/html; charset=utf-8")
+            elif path == "/":
                 self.send_response(302)
                 self.send_header("Location", "/home/" + ("?" + url.query if url.query else ""))
                 self.send_header("Content-Length", "0")
@@ -797,8 +861,12 @@ class Handler(BaseHTTPRequestHandler):
                     self._send(200, target.read_bytes(), mimetypes.guess_type(target.name)[0] or "application/octet-stream")
         except APIError as exc:
             self._json(exc.status, dict(error=i18n.tr(str(exc))))
+        except ValueError as exc:
+            self._json(404, dict(error=str(exc)))
         except (ConnectionError, TimeoutError):
             pass
+        except OSError:
+            self._json(500, dict(error="photo I/O failed"))
 
     def _events(self):
         self.send_response(200)
@@ -838,6 +906,24 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             self._allowed()
+            if urlsplit(self.path).path == "/api/photos":
+                from .photo import PHOTO_TYPES
+                kind = self.headers.get_content_type()
+                if kind not in PHOTO_TYPES:
+                    raise APIError("JPEG, PNG, HEIC or WebP required", 415)
+                run = parse_qs(urlsplit(self.path).query).get("run", [""])[0]
+                try:
+                    self.server.backend.photos.run_dir(run)
+                    data = self._body(max(DESIGN_SIDES))
+                    self._photo_body_read = True
+                    result = self.server.backend.photos.upload(run, data, kind,
+                                                              self.headers.get("X-Filename", "photo"))
+                except ValueError as exc:
+                    if isinstance(exc, APIError):
+                        raise
+                    raise APIError(str(exc)) from exc
+                self._json(200, result)
+                return
             if urlsplit(self.path).path == "/api/design":
                 if self.headers.get_content_type() != "application/octet-stream":
                     raise APIError("application/octet-stream required", 415)
@@ -869,6 +955,17 @@ class Handler(BaseHTTPRequestHandler):
                 result = backend.cancel(match[1]) if match["action"] == "cancel" else backend.answer(match[1], payload)
             self._json(200, result)
         except APIError as exc:
+            if urlsplit(self.path).path == "/api/photos" and not getattr(self, "_photo_body_read", False):
+                # Drain small rejected uploads so closing with unread socket data does not
+                # turn a useful 403/415 into a TCP reset (especially on Windows). Never
+                # consume oversized uploads, or wait indefinitely for an absent body.
+                length = self.headers.get("Content-Length", "")
+                if length.isdigit() and 0 < int(length) <= 65536:
+                    self.connection.settimeout(0.2)
+                    try:
+                        self.rfile.read(int(length))
+                    except OSError:
+                        pass
             self._json(exc.status, dict(error=i18n.tr(str(exc))))
         except (ValueError, UnicodeError, RecursionError):
             self._json(400, dict(error=i18n.tr("invalid JSON request")))

@@ -1562,7 +1562,7 @@ COMMAND_GROUPS = (
     ("Measure a disc", ("info", "timing", "geo", "results")),
     ("Make a disc image", ("random", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc")),
-    ("Read scans of burned discs", ("gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
+    ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("disexport", "cdprobe")),
 )
 LANG_NOTE = ("Language: --lang zh or --lang en, or DISCPROBE_LANG; at a terminal it follows the system. "
@@ -1707,6 +1707,9 @@ def _build_parser():
 
     from . import calibrate
     calibrate.add_parser(sub)
+
+    from . import photo
+    photo.add_parser(sub)
 
     sp = sub.add_parser("list", help="list optical drives")
     sp.set_defaults(func=cmd_list)

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>拍摄标靶 · disc-probe</title>
+<style>
+  :root { color-scheme: light; --paper: #ebe7e0; --ink: #1d1b18; --muted: #5d5850; --rule: #cfc9bf; --copper: #a8693c;
+    background: var(--paper); color: var(--ink); font: 16px/1.55 system-ui, "Microsoft YaHei UI", "PingFang SC", sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(32px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left)); }
+  main { max-width: 480px; margin-inline: auto; }
+  h1 { font-size: clamp(28px, 7vw, 36px); line-height: 1.2; margin: 20px 0 16px; text-wrap: balance; }
+  h2 { font-size: 20px; margin: 32px 0 12px; }
+  p { margin: 12px 0; text-wrap: pretty; }
+  .en { display: block; font-size: 14px; color: var(--muted); font-weight: 400; }
+  .frame { width: min(68vw, 260px); aspect-ratio: 1; border: 1px solid var(--rule); border-radius: 50%; margin: 28px auto; display: grid; place-items: center; text-align: center; padding: 32px; }
+  .frame p { max-width: 12em; }
+  .actions { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .pick { position: relative; display: grid; place-items: center; cursor: pointer; }
+  .shutter { width: 104px; height: 104px; border: 4px solid var(--copper); border-radius: 50%; background: var(--paper); font-weight: 600; }
+  .gallery { min-height: 48px; padding: 8px 20px; border: 1px solid var(--rule); border-radius: 4px; }
+  .pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .pick:focus-within { outline: 2px solid var(--ink); outline-offset: 5px; }
+  .pick:hover { background: #e4dfd7; }
+  .pick:active { transform: translateY(1px); }
+  .pick:has(input:disabled) { opacity: .5; cursor: wait; }
+  .pick input:disabled { cursor: wait; }
+  #status, #error { min-height: 3em; margin: 16px 0; }
+  #error:empty { display: none; }
+  #error { border: 1px solid var(--ink); border-radius: 4px; padding: 12px; }
+  #sent { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 12px; padding: 0; }
+  #sent li { min-width: 0; }
+  #sent img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; }
+  #sent a { color: var(--ink); display: block; text-underline-offset: 3px; overflow-wrap: anywhere; font-size: 14px; }
+  a:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  ::selection { background: var(--ink); color: var(--paper); }
+  footer { margin-top: 32px; border-top: 1px solid var(--rule); padding-top: 16px; color: var(--muted); }
+</style>
+<main>
+  <h1>拍摄标靶<span class="en" lang="en">Photograph the target</span></h1>
+  <p>把盘放平，拍 3 张。每张之间转动一下盘，让反光换个位置。<span class="en" lang="en">Lay the disc flat. Take 3 photos, turning it between shots to move the reflections.</span></p>
+  <div class="frame"><p>把整张盘放进圈里<span class="en" lang="en">Keep the whole disc in the frame</span></p></div>
+  <div class="actions">
+    <label class="pick shutter"><span>拍照<span class="en" lang="en">Take photo</span></span><input id="camera" type="file" accept="image/*" capture="environment" aria-label="拍照 / Take photo"></label>
+    <label class="pick gallery"><span>从相册选择 <span lang="en">/ Choose photos</span></span><input id="gallery" type="file" accept="image/*" multiple aria-label="从相册选择 / Choose photos"></label>
+  </div>
+  <p id="status" role="status" aria-live="polite">拍一张照片，发送到电脑。<span class="en" lang="en">Take a photo to send it to the computer.</span></p>
+  <p id="error" role="alert"></p>
+  <h2>已发送<span class="en" lang="en">Sent photos</span></h2>
+  <ul id="sent"></ul>
+  <footer>照片只留在家庭局域网内，保存在电脑的这次标定里。<span class="en" lang="en">Photos stay on your home network, saved with this calibration on your computer.</span></footer>
+</main>
+<script type="application/json" id="config">__PHOTO_CONFIG__</script>
+<script>
+  'use strict';
+  const config = JSON.parse(document.getElementById('config').textContent);
+  const status = document.getElementById('status'), error = document.getElementById('error');
+  const sent = document.getElementById('sent'), inputs = [...document.querySelectorAll('input')];
+  const endpoint = '/api/photos?run=' + encodeURIComponent(config.run);
+  const headers = { 'X-Photo-Token': config.token };
+  let busy = false, last = '';
+  async function response(res) {
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  }
+  async function refresh() {
+    const data = await response(await fetch(endpoint, { headers }));
+    const signature = JSON.stringify(data.photos);
+    if (signature === last) return;
+    last = signature;
+    sent.replaceChildren();
+    for (const photo of data.photos) {
+      const item = document.createElement('li'), link = document.createElement('a'), img = document.createElement('img');
+      link.href = photo.url + '?token=' + encodeURIComponent(config.token);
+      img.src = link.href; img.alt = photo.name; img.loading = 'lazy';
+      img.addEventListener('error', () => { img.hidden = true; }, { once: true });
+      link.append(img, document.createTextNode(photo.name)); item.append(link); sent.append(item);
+    }
+    status.textContent = `已发送 ${data.photos.length} 张 / ${data.photos.length} photos sent`;
+  }
+  for (const input of inputs) input.addEventListener('change', async () => {
+    const files = [...input.files];
+    if (!files.length || busy) return;
+    busy = true; error.textContent = ''; inputs.forEach(i => { i.disabled = true; });
+    try {
+      for (const [i, file] of files.entries()) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        const type = file.type || ({ jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', heic: 'image/heic', webp: 'image/webp' })[ext];
+        if (!['image/jpeg', 'image/png', 'image/heic', 'image/webp'].includes(type)) throw new Error('请选择 JPEG、PNG、HEIC 或 WebP / Choose JPEG, PNG, HEIC or WebP');
+        status.textContent = `正在发送 ${i + 1}/${files.length} / Sending ${i + 1}/${files.length}`;
+        await response(await fetch(endpoint, { method: 'POST', headers: { ...headers, 'Content-Type': type, 'X-Filename': encodeURIComponent(file.name) }, body: file }));
+        await refresh();
+      }
+    } catch (e) { error.textContent = `发送未完成，请重新选择未发送的照片。/ Sending failed; select the unsent photos again. ${e.message}`; }
+    finally { busy = false; inputs.forEach(i => { i.disabled = false; }); input.value = ''; }
+  });
+  refresh().catch(e => { error.textContent = '无法连接电脑，请重新扫描二维码。/ Cannot reach the computer; scan the QR code again. ' + e.message; });
+  // The computer page's independent poll uses the same listing contract every two seconds.
+  setInterval(() => { if (!busy && !document.hidden) refresh().catch(e => { error.textContent = '无法连接电脑 / Cannot reach the computer. ' + e.message; }); }, 2000);
+</script>
+</html>

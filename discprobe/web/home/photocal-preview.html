@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>disc-probe · 照片标定</title>
+  <style>
+    @font-face { font-family: "Archivo"; src: url(../fonts/Archivo-VF-latin.woff2) format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
+    :root {
+    color-scheme: light;
+    --paper: #ebe7e0; --paper-2: #e4dfd7; --ink: #1d1b18; --ink-2: #5d5850; --ink-3: #8a847a;
+    --rule: #cfc9bf; --rule-strong: #a9a297; --copper: #a8693c;
+    /* Only the disc has colour (DESIGN.md): done is ink with a tick, what needs the person is copper, an
+       error is copper in bold with its picture. No green, no red. */
+    --good: var(--ink); --warn: var(--copper); --unknown: #6f6a62;
+    /* The page is a sheet of glass held just above the scene: the bars, buttons and paper are all on the glass,
+       one plane, and throw shadows down away from the lamp (up right): lower left, as the scene's own shadows.
+       How far depends on what lies under each: on the drive (just under the glass) a short shadow; on the bare
+       desk (a drive's height below) as far as the drive's own shadow, 40 x 22 mm. --mm is the
+       scene's px per mm, set by the page (newplan.js, calstage.js). Words printed on things in the scene belong
+       to the scene and throw none. Ink theme: deeper shadows and a thin highlight on the edges facing the lamp. */
+    --mm: 2.4px; --glass-ink: rgb(58 47 34 / .3);
+    --glass-desk: calc(-40 * var(--mm)) calc(22 * var(--mm)) calc(8 * var(--mm)) var(--glass-ink);
+    --glass-drive: calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(2.4 * var(--mm)) var(--glass-ink);
+    --glass-desk-drop: drop-shadow(calc(-40 * var(--mm)) calc(22 * var(--mm)) calc(3.5 * var(--mm)) var(--glass-ink));   /* small things: a crisper penumbra, still readable */
+    --glass-drive-drop: drop-shadow(calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(1.2 * var(--mm)) var(--glass-ink));
+    --glass-edge: 0 0 0 transparent; --glass-edge-drop: drop-shadow(0 0 0 transparent);
+    /* paper lying on the desk (scene, not glass): its short shadow */
+    --paper-desk: calc(-3 * var(--mm)) calc(1.7 * var(--mm)) calc(3 * var(--mm)) var(--glass-ink);
+    --envelope-desk-drop: drop-shadow(calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(1.6 * var(--mm)) var(--glass-ink));   /* a bag with a sheet in it */
+    /* the TUI's DVD title colours (banner.TITLE_HUES dvd: OKLCH hue .80 to 1.02 turns), darker on paper */
+    --dvd: linear-gradient(90deg, #7262c6, #8d58b7, #a150a1, #b04985, #ba4765);
+    /* the other two kinds' bars: CD in its cyan, BD in copper */
+    --cd: linear-gradient(90deg, #2f7f95, #2f9396, #3c9f88, #57a874);
+    --bd: linear-gradient(90deg, #8a5a2e, #a8693c, #bf8448, #c99a52);
+    --font: "Archivo", system-ui, "Microsoft YaHei UI", "PingFang SC", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --edge: clamp(20px, 3.2vw, 56px);
+    /* The frame: the header row and the footer row are both --row tall and --edge in from the window,
+       so the four corner things (the wordmark, the tools, the drive line, next) sit at equal distances
+       from both edges. --foot is how much of the window's bottom the footer row takes. */
+    --row: 52px; --foot: calc(var(--edge) + var(--row));
+    --t: 260ms; --ease: cubic-bezier(.2, .8, .2, 1); --io: cubic-bezier(.65, 0, .35, 1);
+    --over: cubic-bezier(.34, 1.45, .55, 1);
+  }
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #161d1c; --paper-2: #1f2827; --ink: #ecebe4; --ink-2: #aeb3ab; --ink-3: #7f8780;
+    --rule: #2c3634; --rule-strong: #46514e; --copper: #d9a75c;
+    --good: var(--ink); --warn: var(--copper); --unknown: #aeb3ab;
+    --glass-ink: rgb(0 0 0 / .66);
+    --glass-edge: inset -1px 1px 0 rgb(255 255 255 / .1); --glass-edge-drop: drop-shadow(1px -1px 0 rgb(255 255 255 / .12));
+    --dvd: linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a);
+    --cd: linear-gradient(90deg, #6cc6dc, #6fd3cf, #82dbb7, #a3e29b);
+    --bd: linear-gradient(90deg, #c98b4f, #d9a75c, #e4bb72, #ecca86);
+  }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--paper); color: var(--ink); font: 16px/1.5 var(--font); }
+    #photocal { height: 100%; }
+    .preview-tools { position: absolute; top: var(--edge); right: var(--edge); z-index: 4; height: var(--row); display: flex; align-items: center; gap: 8px; }
+    .preview-tools button { min-height: 44px; min-width: 44px; padding: 0 12px; background: transparent; color: var(--ink); border: 0; border-radius: 4px; font: inherit; cursor: pointer; }
+    .preview-tools button:hover { background: var(--paper-2); }
+    .preview-tools button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+    .preview-result { position: fixed; z-index: 5; left: var(--edge); bottom: calc(var(--foot) + 24px); max-width: min(540px,50vw); margin: 0; padding: 12px 16px; border-radius: 8px; background: var(--paper); color: var(--ink); box-shadow: var(--glass-desk, none); }
+    .preview-result:empty { display: none; }
+    body:has(.pc-is-focus) :is(.preview-tools,.preview-result) { display: none; }
+  </style>
+  <link rel="stylesheet" href="photocal.css">
+</head>
+<body>
+  <main id="photocal"></main>
+  <nav class="preview-tools" aria-label="预览设置 / Preview settings">
+    <button id="language" type="button" aria-label="Switch to English">EN</button>
+    <button id="theme" type="button" aria-label="切换墨色主题">墨色</button>
+  </nav>
+  <p class="preview-result" role="status" aria-live="polite"></p>
+  <script type="module">
+    import { photoPage } from './photocal.js';
+    let lang = 'zh', page;
+    const host = document.querySelector('#photocal');
+    const result = document.querySelector('.preview-result');
+    function mount(snapshot) {
+      // File objects survive remounting; the module owns and revokes its URLs.
+      page?.destroy();
+      page = photoPage(host, {
+        lang, photos: snapshot?.photos || [], ringsMm: snapshot?.ringsMm,
+        measuredMm: snapshot?.measuredMm,
+        onUse: (photo, rings) => {
+          result.textContent = lang === 'zh'
+            ? `预览已选用 ${photo.name}：${rings.map(r => r.toFixed(1)).join(' / ')} mm。主页面接入后会继续标定。`
+            : `Preview selected ${photo.name}: ${rings.map(r => r.toFixed(1)).join(' / ')} mm. The host will continue calibration when connected.`;
+        },
+        onSkip: () => { result.textContent = lang === 'zh' ? '预览：已选择跳过照片，使用现有计时结果。' : 'Preview: photo skipped; keep the current timing results.'; },
+        onBack: () => { result.textContent = lang === 'zh' ? '预览：这里将返回标定页。' : 'Preview: this will return to calibration.'; },
+      });
+    }
+    function labels() {
+      const dark = document.documentElement.dataset.theme === 'dark';
+      document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+      document.title = lang === 'zh' ? 'disc-probe · 照片标定' : 'disc-probe · Photo calibration';
+      document.querySelector('#language').textContent = lang === 'zh' ? 'EN' : '中文';
+      document.querySelector('#language').setAttribute('aria-label', lang === 'zh' ? 'Switch to English' : '切换到中文');
+      document.querySelector('#theme').textContent = lang === 'zh' ? (dark ? '纸色' : '墨色') : (dark ? 'Paper' : 'Ink');
+      document.querySelector('#theme').setAttribute('aria-label', lang === 'zh' ? `切换${dark ? '纸色' : '墨色'}主题` : `Switch to ${dark ? 'paper' : 'ink'} theme`);
+    }
+    document.querySelector('#language').addEventListener('click', () => {
+      const snapshot = page.state(); lang = lang === 'zh' ? 'en' : 'zh'; result.textContent = ''; labels(); mount(snapshot);
+    });
+    document.querySelector('#theme').addEventListener('click', () => {
+      document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; labels();
+    });
+    window.addEventListener('pagehide', () => page.destroy(), {once: true});
+    labels(); mount();
+  </script>
+</body>
+</html>
