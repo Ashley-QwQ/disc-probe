@@ -126,3 +126,51 @@ main 合并提交 `fa9c92f`。首轮完整 pytest 为 **1 failed、432 passed、
 ## 第五步：研究文档与社区校准数据
 
 来源 `822905187737caa99f2b028e008d92fac0c38a2e`。无冲突。提交前核对来源增量恰为六个文件：五个 docs/research/dis 文档和 data/community-calibrations/dis-github.json，没有带入生产代码、其他数据或排除分支。研究链接及社区记录是本地快照，本次未联网复核新鲜度。
+
+研究文档步骤完整回归见下表；与所有前面步骤一样，未省略 pytest、Node 或 selftest。最终六个来源父提交逐一匹配指定顺序，未合并 geo-varpitch、pcal-v2、pcal-lottery 或 atlas-core。
+
+## 合并顺序与最终检查汇总
+
+| 次序 | 来源提交 | 集成分支合并提交 | pytest | Node 入口 | selftest |
+|---|---|---|---|---|---|
+| 1 core/disc-id-20261112 | `3030687fbee1cb8a61c3314b65252599c524fc73` | `a51aecd2ae4374599222799ee34d3aa86ca36c77` | 331 passed, 1 skipped, 46 subtests passed in 286.27s (0:04:46) | 16/16 退出 0 | 14 项旧断言，0 新增 |
+| 2 core/slim-pack-20261111 | `a38f502698f77d5207eaa258371a860fc1947c1b` | `e76786a71a5b4f06697ff26eda54d9996f5f4983` | 336 passed, 1 skipped, 46 subtests passed in 214.13s (0:03:34) | 16/16 退出 0 | 14 项旧断言，0 新增 |
+| 3 core/template-export-20261111 | `752aab0958344b08f5833e590ac617b39fa3107d` | `2633c67dd1cfc85ad2913bb1f70c034ef4c7a9e3` | 357 passed, 1 skipped, 174 subtests passed in 502.43s (0:08:22) | 17/17 退出 0 | 14 项旧断言，0 新增 |
+| 4 web/editor-20261111 | `8e80e38a7e59d9dffdc1825441eb9ee0602b8644` | `371707e2351f0c6bd83b1b89d1fe2b85c500bc33` | 432 passed, 1 skipped, 174 subtests passed in 525.52s (0:08:45) | 20/20 退出 0 | 14 项旧断言，0 新增 |
+| 5 origin/main | `c25dfaccee4658c4158ed0d9e9d59e241f486af1` | `fa9c92f0b5eadb3539a589fc114f0dd7e773ba91` | 433 passed, 1 skipped, 174 subtests passed in 541.47s (0:09:01) | 20/20 退出 0 | 14 项旧断言，0 新增 |
+| 6 docs/dis-research-20261112 | `822905187737caa99f2b028e008d92fac0c38a2e` | `bb8c83fc4bf1104a9fb7ee014ea2342bbe09ba41` | 433 passed, 1 skipped, 174 subtests passed in 542.00s (0:09:02) | 20/20 退出 0 | 14 项旧断言，0 新增 |
+
+表格采用修复后的完整结果；初轮失败、具体原因、独立修复提交与定向验证保留在各节及原始日志中。selftest 退出码仍为 1；没有将原有失败标成通过，没有增加跳过项。中文自测只显示前两项缺词，故另比较了完整缺项集合，确保没有新帮助词条缺失。
+
+实际命令：各步骤在本工作树运行 `python -m pytest -q --basetemp=C:/disc-probe-scratch/release-alpha/<步骤>-pytest-temp`；逐个运行 tests/ 下所有 test_ 开头的 JS/MJS/CJS Node 入口；运行 `python -m discprobe selftest`。日志统一在 `C:/disc-probe-scratch/release-alpha/`。HTTP/浏览器用例仅使用本地文件或回环测试服务。
+
+执行说明：第一次基线 selftest 和初轮定向测试沿用了原来的临时目录设置；随后正式逐步回归统一设置 TEMP/TMP 到指定 C 盘目录。最初因合并中临时冲突而中断的照片调用已整批重跑，不计入有效照片结果。所有有效照片输入都来自原始 11 张文件，未修改原图、参考哈希或验收断言。
+
+## Alpha 尚存限制与风险
+
+- 14 项既有 selftest 断言仍失败：包含旧的 CD 音轨导出断言、零参数测试加载器无法提供 pytest fixture、尚未补齐的中文。完整原始清单在报告开头。它们需要独立维护；当前报告不宣称 selftest 全通过。
+- 本次没有访问光驱。开放首段、实际 NWA、身份补丁、追加封盘及回读仅有离线、假设备和编译后的假 COM 验证，真实介质行为与标签可见性为 NOT_RUN。抽样回读也不等于全盘校验。
+- 四份身份留在首段；追加后发现旧槽依赖可读取、校验正确的首段布局标记。标记与首份同时受损时，不能承诺发现全部旧槽。复制镜像会复制身份记录，它不是防复制凭证。标签盘内布局仍继承原分支的几何来源路径字段；身份记录本身的 basename 隐私边界不等于整盘标签元数据已净化。
+- 冻结照片读取器保留 SciPy；11 张实拍输入的原始 status/L 精确相同，只证明这组输入。单张组合 verdict 均为 unsure，不能当作已接受的 L 校准。
+- 未重建 Windows 包，未验证离线缓存是否齐备。alpha 现在要求保留 SciPy/OpenCV，不能沿用原瘦包的体积、SciPy 不存在或依赖闭包结论；打包器测试门槛没有放宽。
+- 原 EQUIVALENCE.md 的优化最优性、协方差等未证明范围没有在本次解除；额外 slim acceptance 工具本次 NOT_RUN。编辑器多字节材料仍包含周期近似，所有颜色仍是模型预测。
+- Linux SG_IO 已在历史中，本次 Windows 环境未运行真实 Linux 设备测试。新标签/身份完整流程仍以 CLI 的独立 opt-in 为准，未另外制作整套控制台或网页专用流程。
+- 社区研究是本地资料快照，未联网刷新链接或记录。没有推送、打标签、发布或改写历史。
+
+最终检查确认 discprobe/scsi.py 与起点逐字不变；discprobe/pcal.py 同样不变，照片读取相关直接依赖在照片对照之后也没有变化。编辑器测试产生的两个小 JSON 已移存 C 盘 `editor-evidence/`，对应 SHA-256 在 `editor-evidence-manifest.json`；不混入提交。
+
+## 最终合并日志
+
+命令：`git log --first-parent --merges --oneline 476e1ff..HEAD`。包含任务开始前已合并的三个来源：
+
+```text
+bb8c83f integration: merge the research documents and community calibrations
+fa9c92f integration: merge the guided console while preserving the web workflow
+371707e integration: merge the editor with template downloads and shared rendering
+2633c67 integration: merge template export with shared label preview rendering
+e76786a integration: merge slim numerics while retaining photo dependencies
+a51aecd integration: merge disc identity with label sessions
+31990f2 Merge branch 'core/random-label-20261112' into release/1.0.0-alpha
+c345332 Merge branch 'core/cd-clv-20261112' into release/1.0.0-alpha
+0f7104b Merge branch 'core/completion-offset-20261112' into release/1.0.0-alpha
+```
