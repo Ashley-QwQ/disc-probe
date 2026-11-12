@@ -110,10 +110,6 @@ def main():
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', PYTHONUTF8='1', PIP_NO_INDEX='1',
                PIP_DISABLE_PIP_VERSION_CHECK='1', PYTEST_DISABLE_PLUGIN_AUTOLOAD='1',
                OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1', MKL_NUM_THREADS='1', NUMEXPR_NUM_THREADS='1')
-    # One regression compares against a historical render. Reuse local Git objects
-    # read-only while every imported source file comes from the prepared copy.
-    env['GIT_DIR'] = git('rev-parse', '--absolute-git-dir').decode().strip()
-    env['GIT_WORK_TREE'] = str(snapshot)
     checks = []
     original_version = (ROOT / 'discprobe/version.py').read_bytes()
     try:
@@ -123,6 +119,10 @@ def main():
                 if not allowed(member.name):
                     raise RuntimeError('excluded source path')
                 source.extract(member, snapshot, filter='data')
+        # A historical-render regression needs local Git objects. A gitfile in
+        # this copy supplies read-only history without exporting GIT_DIR into
+        # subprocesses that initialize their own temporary test repositories.
+        (snapshot / '.git').write_text('gitdir: ' + git('rev-parse', '--absolute-git-dir').decode().strip() + '\n', encoding='utf-8')
         set_version(snapshot, args.version)
         info = dict(commit=commit, public_version=args.version, source_archive_sha256=hashlib.sha256(archive).hexdigest())
         write_json(snapshot / 'release-build.json', info)
