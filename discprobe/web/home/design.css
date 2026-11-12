@@ -16,6 +16,10 @@
 .ws { --colL: 272px; --colR: 316px; --top: calc(var(--edge) + var(--row) + 16px); position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 360ms var(--ease); }
 .ws.on { opacity: 1; }
 .ws.on > * { pointer-events: auto; }
+/* a page's workspace shows only while that page is the mode: a way out that forgot to switch it off (seen coming
+   back to the lobby with the design page still drawn over it) cannot leave it on screen */
+:root:not([data-mode="design"]) .ws.on:not(.pv), :root:not([data-mode="preview"]) .ws.pv.on { opacity: 0; }
+:root:not([data-mode="design"]) .ws.on:not(.pv) > *, :root:not([data-mode="preview"]) .ws.pv.on > * { pointer-events: none; }
 @media (max-width: 1240px) { .ws { --colL: 232px; --colR: 268px; } }
 
 /* left of the title: the back button, then the collapsed "DP" mark (index.html) */

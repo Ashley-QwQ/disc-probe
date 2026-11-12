@@ -141,6 +141,7 @@ function build(meta, dir) {
 // about 35 % (the fax's narrow face in English) breaks onto two lines first ("Import /" over "export", 导入 over 导出) if its face is tall
 // enough, and then fits.
 function fitLabel(n, i) {
+  if (!n.offsetWidth || !n.offsetHeight) return;      // the lobby is hidden (another page): fitted when it shows again
   const fit = () => {
     i.style.fontSize = "";
     const w = n.offsetWidth * .86, h = n.offsetHeight * .92, k = Math.min(1, w / i.offsetWidth, h / i.offsetHeight);
@@ -292,6 +293,10 @@ export async function init(homeApi) {
   addEventListener("resize", fit);
   new MutationObserver(paintTheme).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
   addEventListener("dp-lang", words);
+  // the labels are measured against their faces: words changed (language, fonts) while the lobby was hidden could not
+  // be, so fit them again whenever the lobby comes back on screen
+  let shown = false;
+  new ResizeObserver(() => { const now = sec.offsetWidth > 0; if (now && !shown) words(); shown = now; }).observe(sec);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) paintRug(); });
   drift();
 }

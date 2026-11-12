@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN" data-motion="on">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>小组件预览 · disc-probe</title>
+  <link rel="stylesheet" href="./kit.css">
+  <style>
+    @font-face { font-family: "Archivo"; src: url(../../fonts/Archivo-VF-latin.woff2) format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
+    /* Site token blocks copied verbatim from ../index.html. */
+      :root {
+    color-scheme: light;
+    --paper: #ebe7e0; --paper-2: #e4dfd7; --ink: #1d1b18; --ink-2: #5d5850; --ink-3: #8a847a;
+    --rule: #cfc9bf; --rule-strong: #a9a297; --copper: #a8693c;
+    /* Only the disc has colour (DESIGN.md): done is ink with a tick, what needs the person is copper, an
+       error is copper in bold with its picture. No green, no red. */
+    --good: var(--ink); --warn: var(--copper); --unknown: #6f6a62;
+    /* The page is a sheet of glass held just above the scene: the bars, buttons and paper are all on the glass,
+       one plane, and throw shadows down away from the lamp (up right): lower left, as the scene's own shadows.
+       How far depends on what lies under each: on the drive (just under the glass) a short shadow; on the bare
+       desk (a drive's height below) as far as the drive's own shadow, 40 x 22 mm. --mm is the
+       scene's px per mm, set by the page (newplan.js, calstage.js). Words printed on things in the scene belong
+       to the scene and throw none. Ink theme: deeper shadows and a thin highlight on the edges facing the lamp. */
+    --mm: 2.4px; --glass-ink: rgb(58 47 34 / .3);
+    --glass-desk: calc(-40 * var(--mm)) calc(22 * var(--mm)) calc(8 * var(--mm)) var(--glass-ink);
+    --glass-drive: calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(2.4 * var(--mm)) var(--glass-ink);
+    --glass-desk-drop: drop-shadow(calc(-40 * var(--mm)) calc(22 * var(--mm)) calc(3.5 * var(--mm)) var(--glass-ink));   /* small things: a crisper penumbra, still readable */
+    --glass-drive-drop: drop-shadow(calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(1.2 * var(--mm)) var(--glass-ink));
+    --glass-edge: 0 0 0 transparent; --glass-edge-drop: drop-shadow(0 0 0 transparent);
+    /* paper lying on the desk (scene, not glass): its short shadow */
+    --paper-desk: calc(-3 * var(--mm)) calc(1.7 * var(--mm)) calc(3 * var(--mm)) var(--glass-ink);
+    --envelope-desk-drop: drop-shadow(calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(1.6 * var(--mm)) var(--glass-ink));   /* a bag with a sheet in it */
+    /* the TUI's DVD title colours (banner.TITLE_HUES dvd: OKLCH hue .80 to 1.02 turns), darker on paper */
+    --dvd: linear-gradient(90deg, #7262c6, #8d58b7, #a150a1, #b04985, #ba4765);
+    /* the other two kinds' bars: CD in its cyan, BD in copper */
+    --cd: linear-gradient(90deg, #2f7f95, #2f9396, #3c9f88, #57a874);
+    --bd: linear-gradient(90deg, #8a5a2e, #a8693c, #bf8448, #c99a52);
+    --font: "Archivo", system-ui, "Microsoft YaHei UI", "PingFang SC", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --edge: clamp(20px, 3.2vw, 56px);
+    /* The frame: the header row and the footer row are both --row tall and --edge in from the window,
+       so the four corner things (the wordmark, the tools, the drive line, next) sit at equal distances
+       from both edges. --foot is how much of the window's bottom the footer row takes. */
+    --row: 52px; --foot: calc(var(--edge) + var(--row));
+    --t: 260ms; --ease: cubic-bezier(.2, .8, .2, 1); --io: cubic-bezier(.65, 0, .35, 1);
+    --over: cubic-bezier(.34, 1.45, .55, 1);
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #161d1c; --paper-2: #1f2827; --ink: #ecebe4; --ink-2: #aeb3ab; --ink-3: #7f8780;
+    --rule: #2c3634; --rule-strong: #46514e; --copper: #d9a75c;
+    --good: var(--ink); --warn: var(--copper); --unknown: #aeb3ab;
+    --glass-ink: rgb(0 0 0 / .66);
+    --glass-edge: inset -1px 1px 0 rgb(255 255 255 / .1); --glass-edge-drop: drop-shadow(1px -1px 0 rgb(255 255 255 / .12));
+    --dvd: linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a);
+    --cd: linear-gradient(90deg, #6cc6dc, #6fd3cf, #82dbb7, #a3e29b);
+    --bd: linear-gradient(90deg, #c98b4f, #d9a75c, #e4bb72, #ecca86);
+  }
+    /* The second sheet uses the same dark values, scoped for comparison. */
+      .kit-preview-theme[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #161d1c; --paper-2: #1f2827; --ink: #ecebe4; --ink-2: #aeb3ab; --ink-3: #7f8780;
+    --rule: #2c3634; --rule-strong: #46514e; --copper: #d9a75c;
+    --good: var(--ink); --warn: var(--copper); --unknown: #aeb3ab;
+    --glass-ink: rgb(0 0 0 / .66);
+    --glass-edge: inset -1px 1px 0 rgb(255 255 255 / .1); --glass-edge-drop: drop-shadow(1px -1px 0 rgb(255 255 255 / .12));
+    --dvd: linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a);
+    --cd: linear-gradient(90deg, #6cc6dc, #6fd3cf, #82dbb7, #a3e29b);
+    --bd: linear-gradient(90deg, #c98b4f, #d9a75c, #e4bb72, #ecca86);
+  }
+  </style>
+  <script>
+    document.documentElement.dataset.motion = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : 'on';
+  </script>
+  <script type="module" src="./preview.js"></script>
+</head>
+<body class="kit-preview">
+  <header class="kit-preview-header">
+    <h1 data-copy="title">小组件预览</h1>
+    <p data-copy="intro">纸色与墨色，同一套交互。以下都是演示数据，确认操作只在此页显示结果。</p>
+    <div class="kit-preview-toolbar">
+      <button type="button" id="language" lang="en">English</button>
+      <button type="button" id="motion" aria-pressed="true">动效：开</button>
+    </div>
+  </header>
+  <main class="kit-preview-grid" aria-label="组件的两套主题" id="themes"></main>
+  <template id="theme-template">
+    <article class="kit-preview-theme">
+      <h2 class="theme-title"></h2>
+      <section class="kit-preview-section">
+        <h3 data-copy="numbers">变化的数字</h3>
+        <div class="kit-preview-numbers">
+          <output data-number="percent">62%</output>
+          <output data-number="minutes">约 4 分钟</output>
+          <output data-number="fraction">01 / 08</output>
+        </div>
+        <div class="kit-preview-actions">
+          <button type="button" data-action="increase" data-copy="increase">增加数字</button>
+          <button type="button" data-action="decrease" data-copy="decrease">减少数字</button>
+        </div>
+      </section>
+      <section class="kit-preview-section">
+        <h3 data-copy="history">测量记录</h3>
+        <div data-status></div>
+        <p class="kit-preview-note" data-copy="historyHelp">指向、点按或聚焦细条可查看日期；方向键可切换记录。</p>
+        <div class="kit-preview-actions">
+          <button type="button" data-action="status-ok" data-copy="addOK">加一条正常记录</button>
+          <button type="button" data-action="status-needs" data-copy="addNeeds">加一条要看的记录</button>
+          <button type="button" data-action="status-unknown" data-copy="addUnknown">加一条未知记录</button>
+        </div>
+      </section>
+      <section class="kit-preview-section">
+        <h3 data-copy="devices">已连接的设备</h3>
+        <div data-devices></div>
+        <div class="kit-preview-actions">
+          <button type="button" data-action="device-add" data-copy="addDevice">连上一台手机</button>
+          <button type="button" data-action="device-clear" data-copy="clearDevices">清空演示列表</button>
+        </div>
+      </section>
+      <section class="kit-preview-section">
+        <h3 data-copy="confirm">滑动确认</h3>
+        <div data-slide class="kit-preview-slide"></div>
+        <p data-result class="kit-preview-note" role="status"></p>
+        <div data-slide-disabled class="kit-preview-slide"></div>
+        <div class="kit-preview-actions">
+          <button type="button" data-action="slide-reset" data-copy="resetConfirm">重置确认</button>
+          <button type="button" data-action="slide-disable" aria-pressed="false" data-copy="disableConfirm">禁用确认</button>
+        </div>
+      </section>
+      <section class="kit-preview-section">
+        <h3 data-copy="progress">按钮里的进度</h3>
+        <button type="button" data-ring data-copy="runProgress">运行演示进度</button>
+        <div class="kit-preview-actions">
+          <button type="button" data-action="progress-wait" data-copy="waitProgress">演示未知进度</button>
+          <button type="button" data-action="progress-reset" data-copy="resetProgress">重置进度</button>
+        </div>
+        <p class="kit-preview-note" data-copy="progressHelp">进度从 0 到 100%，完成后显示勾；文字始终可读。</p>
+      </section>
+    </article>
+  </template>
+</body>
+</html>
