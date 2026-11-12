@@ -1506,7 +1506,9 @@ def _advice(c) -> None:
     c.check("--media cd" in "".join(guide.after_info(Namespace(**vars(args)), blank(0x09, 359847))), "info on a blank CD offers the CD command")
     bd = {"setup": {"family": "bd"}, **timed("mixed", [0.4])}
     bd_lines = guide.after_timing(args, bd)
-    c.check("constant linear speed" in bd_lines[1] and "8990" in bd_lines[2] and "3324" not in "".join(bd_lines), "on Blu-ray a non-CAV result does not promise another speed helps, and offers a BD speed")
+    c.check("8990" in "".join(bd_lines) and "3324" not in "".join(bd_lines)
+            and any("--bd-zones 25" in x for x in bd_lines),
+            "on Blu-ray a non-CAV result offers an untried BD speed and the anchored CLV route")
     bd_good = guide.after_timing(args, {"setup": {"family": "bd"}, **timed("CAV", [9.0])})
     c.check(any("8990" in x for x in bd_good) and not any("--sectors 16" in x for x in bd_good)
             and any(" geo " in x and "--media bd --bd-zones" in x for x in bd_good),

@@ -42,7 +42,9 @@ BAD_SIGMA_DEG = 0.6
 MIN_BD_ZONES = 5
 MIN_BD_R2 = 0.99
 MATCH_INFO_S = 24 * 3600    # how far from a measurement an `info` run can be and still be taken for the same disc
-ALTERNATIVE_SPEEDS = {"dvd": ("3324", "5540", "11080"), "cd": ("1411", "2822", "4234"), "bd": ("8990", "17980", "35960")}
+ALTERNATIVE_SPEEDS = {"dvd": ("3324", "5540", "11080"),
+                      "cd": ("1411", "2822", "4234", "5645", "7056", "8467"),
+                      "bd": ("8990", "17980", "35960")}
 RANDOM_SECTORS = {"dvd": 2295104, "cd": 359600}
 # Spare room a random disc needs. CD: on a 359,847-sector disc 359,800 was refused and 359,600 went through.
 # DVD: the usual 2,295,104 has burned many times on 2,295,104-sector discs, so it only has to fit. A smaller
@@ -101,15 +103,18 @@ class Result:
 
     @property
     def is_clv(self) -> bool:
-        """A Blu-ray result: periods against LBA, not angles."""
+        """A period fit against LBA, rather than an angle map."""
         return self.kind == "geo" and self.fit.get("model") == "clv"
 
     @property
     def media(self) -> str:
         if self.kind == "geo":
             media = self.fit.get("media")
-            return media if media in ("cd", "dvd", "bd") else "dvd"
-        return "cd" if (self.summary.get("args") or {}).get("media") == "cd" else "dvd"
+            if media in ("cd", "dvd", "bd"):
+                return media
+        family = (self.summary.get("setup") or {}).get("family")
+        media = family if family in ("cd", "dvd", "bd") else (self.summary.get("args") or {}).get("media")
+        return media if media in ("cd", "dvd", "bd") else "dvd"
 
     def rungs(self) -> int:
         try:
@@ -135,6 +140,8 @@ class Result:
             return False
         reached = self.fit.get("completion_status", "target_reached") == "target_reached"
         if self.is_clv:
+            if self.media == "cd":
+                return False  # experimental radius fit, not a calibrated CD angle map
             r2 = self.fit.get("r2")
             return ("r0_mm" in self.fit and not self.stopped and reached and self.zones() >= 5
                     and isinstance(r2, (int, float)) and not isinstance(r2, bool) and r2 >= 0.99)
@@ -156,6 +163,8 @@ class Result:
                 and not self.drive_changed())
 
     def quality(self) -> str:
+        if self.is_clv and self.media == "cd":
+            return "experimental"
         if not self.geo_complete():
             return "stopped early"
         if self.is_clv:
@@ -289,6 +298,8 @@ def install_blocker(geo_summary: str, allow_simulated: bool = False) -> str | No
         return (f"this run stopped before the end ({i18n.tr(str(stopped))}), so the ladder never reached the "
                 f"fit. Run geo again and install a run that finished.")
     fit = summary.get("fit") or {}
+    if fit.get("model") == "clv" and fit.get("media") == "cd":
+        return CD_CLV_LIMIT
     if fit.get("model") == "clv":
         # A Blu-ray run is judged by the T^2 line it fitted, not by an angle ladder: the figures are
         # the zone count and R^2 (`clv.ClvFit`), and a run of that kind has no chi2/dof or angle sigma.
@@ -446,11 +457,14 @@ def drive_flag(args=None) -> str:
     return f"--drive {drives[0]}" if drives else ("--drive /dev/sr0" if sys.platform == "linux" else "--drive E:")
 
 
-def _carry(args) -> str:
+def _carry(args, media: str | None = None) -> str:
     """Options the next drive command should repeat."""
     parts = [drive_flag(args)]
-    if getattr(args, "media", "dvd") == "cd":
+    media = media or getattr(args, "media", "dvd")
+    if media == "cd":
         parts.append("--media cd")
+    elif media == "bd":
+        parts.append("--media bd")
     if getattr(args, "sectors", 1) == 16:
         parts.append("--sectors 16")
     if getattr(args, "transport", "auto") != "auto":
@@ -466,16 +480,83 @@ def _carry_geo(args) -> str:
     return _carry(args) + (f" --read-offset-bytes {offset:g}" if offset else "")
 
 
-def _other_speed(args, family: str | None = None) -> str:
-    media = "bd" if family == "bd" else getattr(args, "media", "dvd")
+CD_CLV_LIMIT = ("Experimental CD CLV geometry gives an anchored radius and constant pitch, not a calibrated "
+                "sector-angle map. It cannot determine the along-track constant or pitch variation. "
+                "Use another drive for CAV geometry and calibrate in DiscImageStudio before burning a picture.")
+
+
+def speed_advice(args, family: str | None = None, summary: dict | None = None) -> dict:
+    """Remember completed rotation tests in the selected results root; never open a drive."""
+    media = family if family in ALTERNATIVE_SPEEDS else getattr(args, "media", "dvd")
     current = str(getattr(args, "speed", ""))
-    return next(s for s in ALTERNATIVE_SPEEDS[media] if s != current)
+    sim = getattr(args, "sim", None)
+    endpoint = str(getattr(args, "drive", "") or "").casefold()
+    identity = (summary or {}).get("identity") or {}
+    tried = {}
+    for run in scan(getattr(args, "out", "results")):
+        old = run.summary.get("args") or {}
+        mode = (run.rotation() if run.kind == "timing" else
+                ((run.summary.get("rotation_measured") or run.summary.get("rotation_check") or {}).get("mode")))
+        if run.kind not in ("timing", "geo") or run.media != media or not mode:
+            continue
+        if run.kind == "timing" and run.stopped:
+            continue
+        if sim:
+            if old.get("sim") != sim:
+                continue
+        elif run.simulated or not endpoint or str(old.get("drive") or run.summary.get("device") or "").casefold() != endpoint:
+            continue
+        previous = run.summary.get("identity") or {}
+        if any(identity.get(k) and previous.get(k) and identity[k] != previous[k] for k in ("drive", "firmware")):
+            continue
+        speed = str(old.get("speed", ""))
+        if speed.isdigit():
+            tried.setdefault(speed, mode)  # newest verdict wins
+    rotation = (((summary or {}).get("period") or {}).get("rotation") or {}).get("mode")
+    if current.isdigit() and (not summary or (rotation and not summary.get("stopped"))):
+        tried[current] = rotation or tried.get(current)
+    rotation = rotation or tried.get(current)
+    choices = [s for s in ALTERNATIVE_SPEEDS[media] if s not in tried]
+    if media == "cd" and rotation == "CLV":
+        choices.sort(key=lambda s: (int(s) <= int(current) if current.isdigit() else False, int(s)))
+    return dict(media=media, tried=sorted(tried, key=int), next_speed=choices[0] if choices else None,
+                exhausted=not choices,
+                all_clv=all(tried.get(s) == "CLV" for s in ALTERNATIVE_SPEEDS[media]))
+
+
+def _other_speed(args, family: str | None = None) -> str | None:
+    return speed_advice(args, family)["next_speed"]
 
 
 def _speed_word(args) -> str:
     """How to name _other_speed. It is a higher one when this run is already at the lowest we list."""
     current = getattr(args, "speed", None)
-    return "a lower speed" if current and int(_other_speed(args)) < current else "a different speed"
+    other = _other_speed(args)
+    return "a lower speed" if current and other and int(other) < current else "a different speed"
+
+
+def _clv_next(args, advice: dict) -> list[str]:
+    media, other = advice["media"], advice["next_speed"]
+    carry = _carry(args, media)
+    lines = []
+    if other:
+        lines += ["Next, try an untried speed (kB/s):",
+                  f"  {PROG} timing {carry} --speed {other}"]
+        if media == "cd":
+            lines.append("A higher CD speed may allow CAV.")
+    elif advice["all_clv"]:
+        lines.append(f"This drive appears to keep a constant linear speed for {media.upper()}s at every speed tried.")
+    else:
+        lines.append("Every speed on the list has been tried. No untried speed remains; try another drive.")
+    if not other:
+        lines.append("Try another drive. timing --force only continues diagnostic sampling; it does not force CAV or make CLV sector angles valid.")
+    if media == "bd":
+        speed = f" --speed {args.speed}" if getattr(args, "speed", None) else " --speed keep"
+        lines += ["CLV can still give anchored Blu-ray geometry:", f"  {PROG} geo {carry}{speed} --bd-zones 25"]
+    elif media == "cd":
+        lines += [CD_CLV_LIMIT,
+                  "For research, geo --media cd --cd-clv needs an independently known --linear-mm-s or an explicit --pitch-um anchor. A requested read speed is not a measured anchor."]
+    return lines
 
 
 def sectors_from_info(report: dict) -> tuple[int, str] | None:
@@ -566,13 +647,12 @@ def after_timing(args, summary: dict) -> list[str]:
         return []
     family = (summary.get("setup") or {}).get("family")
     blu_ray = family == "bd"
-    carry, other = _carry(args), _other_speed(args, family)
+    advice = speed_advice(args, family, summary)
+    carry, other = _carry(args, advice["media"]), advice["next_speed"]
     simulated = ["This was the simulated drive, so the verdict below says nothing about your own drive.", ""] if getattr(args, "sim", None) else []
     if rotation != "CAV":
         return simulated + [f"Verdict: rotation is {rotation}, not CAV, so sector angles cannot be read at this speed.",
-                "The Blu-ray drives reported so far kept a constant linear speed whatever was asked, so another speed may not change this. To try one:"
-                if blu_ray else "Next, try another speed. Some drives never leave one, and the rotation test will show that:",
-                f"  {PROG} timing {carry} --speed {other}"]
+                            *_clv_next(args, advice)]
     jitter = _jitter(summary)
     worst = max(jitter) if jitter else None
     span = f"{min(jitter):.2f}-{worst:.2f} deg" if jitter else ""
@@ -585,12 +665,13 @@ def after_timing(args, summary: dict) -> list[str]:
         lines.append(f"Verdict: CAV, but {span} jitter is noisy. Another speed may help:" if worst <= BAD_JITTER_DEG
                      else f"Verdict: CAV, but {span} jitter is too high: drives reported at this level stopped early "
                           "or gave a wrong geometry. Try another speed or another drive:")
-        lines.append(f"  {PROG} timing {carry} --speed {other}")
+        lines.append(f"  {PROG} timing {carry} --speed {other}" if other else
+                     "Every speed on the list has been tried. No untried speed remains; try another drive.")
         if media == "dvd" and not blu_ray and getattr(args, "sectors", 1) == 1:
             lines.append(f"  Or read whole ECC blocks, which was cleaner on one drive: {PROG} timing {carry} --sectors 16")
     if blu_ray:
         return lines + ["", "Next, measure the geometry (a straight T^2 line over 25 zones, about 2 minutes):",
-                        f"  {PROG} geo {carry} --media bd --bd-zones 25"]
+                        f"  {PROG} geo {carry} --bd-zones 25"]
     usual = 1411 if media == "cd" else None
     speed = f" --speed {args.speed}" if getattr(args, "speed", None) not in (None, usual) else ""
     note = ["  It sets 4x first. If that takes this drive out of constant rotation, it stops and says what to do."] if media == "dvd" and getattr(args, "speed", None) is None else []
@@ -686,7 +767,9 @@ def after_geo(args, res: dict, out: str) -> list[str]:
         lines.append("This was the simulated drive: the verdict and commands below show the flow, do not burn from them.")
     compared = compare_pitch(out) if res["chi2_per_dof"] > 2 else None
     sigma = res["angle_sigma_measured_span_deg"]
-    retry = [f"  {PROG} geo {_carry_geo(args)} --speed {_other_speed(args)}"]
+    other = _other_speed(args)
+    retry = ([f"  {PROG} geo {_carry_geo(args)} --speed {other}"] if other else
+             ["Every speed on the list has been tried. No untried speed remains; try another drive."])
     word = _speed_word(args)
     too_noisy = sigma > BAD_SIGMA_DEG
     if res["chi2_per_dof"] <= 2:
@@ -760,6 +843,8 @@ def after_geo_stop(args, reason: str, unreadable=()) -> list[str]:
     if reason in mmc.NOT_READY:
         return []
     carry, other, word = _carry(args), _other_speed(args), _speed_word(args)
+    if other is None and any(s in reason for s in ("never settled", "near the reference", "whole-turn", "safe")):
+        return ["Every speed on the list has been tried. No untried speed remains; try another drive."]
     again = _carry_geo(args)
     if "not turning at a constant speed" in reason:
         if getattr(args, "speed", None) is None:
@@ -1087,8 +1172,11 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
     elif timing is None:
         commands = [(f"Burn {random_iso} to a disc and load it, then check this drive (1 to 3 minutes):", f"{PROG} timing {drive}{flag}")]
     elif not timing_good:
-        commands = [("This speed did not work; try another (1 to 3 minutes):",
-                     f"{PROG} timing {drive}{flag} --speed {ALTERNATIVE_SPEEDS[media][0]}")]
+        from argparse import Namespace
+        saved_args = {**(timing.summary.get("args") or {}), "media": media, "out": out}
+        saved_args.setdefault("drive", drives[0] if drives else None)
+        args = Namespace(**saved_args)
+        commands = [(None, line.strip()) for line in after_timing(args, timing.summary)]
     elif geo is None:
         measure = (f"{PROG} geo {drive} --media bd --bd-zones 25" if media == "bd"
                    else f"{PROG} geo {drive}{flag}")

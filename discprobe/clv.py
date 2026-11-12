@@ -514,10 +514,13 @@ class ClvLadder:
         # outside edge are settled, and the radius ratio is wide enough to tell CAV from CLV.
         zones = self.zones if len(self.zones) < 3 else (self.zones[len(self.zones) // 2], self.zones[-1])
         self.tp.period_test(zones=zones, announce_rotation=False)
+        self.summary["period"] = self.tp.summary.get("period")
         shape = classify_from_zones(self.tp.summary.get("period", {}).get("zones") or [])
         self.summary["rotation_measured"] = shape
         self.log(f"Rotation by two zones: {shape['mode']}" + (f" ({shape['reason']})" if "reason" in shape else ""))
         if shape["mode"] == "CAV":
+            if self.media == "cd":
+                raise ConstantAngularVelocity("The CD is CAV: use geo --media cd without --cd-clv for the angular ladder.")
             raise ConstantAngularVelocity(
                 "the disc turns at a constant angular velocity (" + shape["reason"] + "), so the completion "
                 "period carries no radius and there is no spiral to fit; disc-probe has no angular ladder for "
@@ -527,8 +530,12 @@ class ClvLadder:
     def run(self) -> dict:
         self.tp.setup()
         self.summary["setup"] = self.tp.summary.get("setup")
+        self.summary["identity"] = self.tp.summary.get("identity")
+        self.summary["args"] = self.tp.summary.get("args")
+        if self.tp.summary.get("simulated"):
+            self.summary["simulated"] = True
         setup = self.summary.get("setup") or {}
-        if setup.get("last_lba") is not None:
+        if self.media == "bd" and setup.get("last_lba") is not None:
             check_single_layer(int(setup["last_lba"]))
         self.summary["set_cd_speed"] = self.tp.summary.get("set_cd_speed")
         if self.rotation is None:
@@ -563,9 +570,11 @@ class ClvLadder:
         self.summary["rotation_measured"] = shape
         self.log(f"Rotation over the zones kept: {shape['mode']}"
                  + (f" ({shape['reason']})" if "reason" in shape else ""))
+        if self.media == "cd" and shape["mode"] != "CLV":
+            raise ValueError("The CD zones do not confirm CLV; no CD CLV geometry was fitted.")
 
         samples = [s for s in samples if s.coherence >= COHERENCE_FLOOR]
-        if len(samples) < 2:
+        if len(samples) < (5 if self.media == "cd" else 2):
             raise RuntimeError(f"only {len(samples)} of {len(self.zones)} zones gave a period that "
                                f"belongs to the spindle (coherence {COHERENCE_FLOOR} or better); "
                                "the drive may be changing speed, or the disc may be too noisy to time")
@@ -573,6 +582,9 @@ class ClvLadder:
                           pitch_um=self.pitch_um, v_m_s=self.v_m_s, fit_offset=self.fit_offset)
         self.summary["fit"] = self.fit.as_dict()
         self.summary["fit"]["media"] = self.media
+        if self.media == "cd":
+            self.summary["fit"].update(experimental=True, calibrated_angles=False,
+                                      along_track_frames=None, pitch_variation_measured=False)
         return self.summary["fit"]
 
 
@@ -591,6 +603,8 @@ def write_outputs(run: "ClvLadder", out_dir: str, stopped: str | None = None) ->
                "period": run.summary.get("period"), "rotation_check": run.summary.get("rotation_check"),
                "rotation_measured": run.summary.get("rotation_measured"),
                "identity": run.summary.get("identity")}
+    if run.summary.get("args"):
+        payload["args"] = run.summary["args"]
     if run.summary.get("zones_unstable"):
         payload["zones_unstable"] = run.summary["zones_unstable"]
     if run.summary.get("simulated"):

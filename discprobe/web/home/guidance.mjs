@@ -30,6 +30,20 @@ export function recoveryKind(result = {}) {
   return ['good','usable','too_noisy','drive_changed','narrow_span','stopped_early'].includes(part.verdict) ? part.verdict : 'unknown';
 }
 export function measurementRecovery(result = {}) {
+  const m = (result.timing || result).measurement || {}, a = m.speed_advice;
+  if (!result.geo && m.rotation === 'CLV' && a) {
+    const route = a.media === 'bd'
+      ? pair(' 可在终端使用 BD 的 CLV 分区拟合。', ' The BD CLV zone fit is available in Terminal.')
+      : a.media === 'cd'
+        ? pair(' CD 的 CLV 实验路线需要独立的速度或轨距依据，测不出沿轨常数，也不是已标定的角度图。', ' The experimental CD CLV route needs an independent speed or pitch anchor; it cannot determine the along-track constant or a calibrated angle map.')
+        : pair('', '');
+    const body = a.exhausted
+      ? a.all_clv
+        ? pair(`这台光驱在所有试过的 ${a.media.toUpperCase()} 速度下似乎都保持恒定线速度。请换一台光驱。`, `This drive appears to keep a constant linear speed for ${a.media.toUpperCase()}s at every speed tried. Try another drive.`)
+        : pair('列表中的速度都试过了，请换一台光驱。', 'Every speed on the list has been tried. Try another drive.')
+      : pair(`这次保持恒定线速度。下一步尝试尚未试过的 ${a.next_speed} kB/s；CD 在较高速度下可能改用恒定角速度。`, `This run kept a constant linear speed. Next try the untried ${a.next_speed} kB/s; higher CD speeds may allow CAV.`);
+    return pair(body.zh + route.zh, body.en + route.en);
+  }
   return ({
     good: pair('测量可用，可以保存。', 'The measurement is usable and ready to save.'),
     usable: pair('测量有些噪声，但仍可使用。可以保存，也可以保留这张盘再测一次。', 'There is some noise, but the measurement is usable. Save it, or keep this disc and measure again.'),
@@ -44,13 +58,18 @@ export function measurementRecovery(result = {}) {
 }
 export function recoveryAction(result = {}) {
   const kind = recoveryKind(result);
+  const m = (result.timing || result).measurement || {};
+  if (!result.geo && m.rotation === 'CLV' && m.speed_advice?.exhausted)
+    return {id:'drive', label:pair('选择其他光驱', 'Choose another drive')};
   if (['good','usable'].includes(kind) && result.geo) return {id:'save', label:pair('保存测量', 'Save measurement')};
   if (kind === 'media') return {id:'blank', label:pair('换空白盘并检测', 'Check a new blank')};
   return {id:'measure', label:pair('检查转速并重测', 'Check rotation and remeasure')};
 }
 // The executor is shared by the UI and drive-free tests. Geometry starts only after a usable CAV check.
-export async function remeasure(run) {
-  const timing = await run('timing', {});
+export async function remeasure(run, previous = {}) {
+  const m = (previous.timing || previous).measurement || {}, a = m.speed_advice;
+  if (m.rotation === 'CLV' && a?.exhausted) return previous;
+  const timing = await run('timing', m.rotation === 'CLV' && a?.next_speed ? {speed:a.next_speed} : {});
   if (!['good','usable'].includes(timing?.verdict) || timing.measurement?.rotation !== 'CAV') return {timing};
   const geo = await run('geo', {speed:'keep'});
   return {timing, geo};
@@ -58,6 +77,12 @@ export async function remeasure(run) {
 export function recoveryCommands(result, {drive, media, sectors}) {
   const part = result.geo || result.timing || {}, kind = recoveryKind(result);
   const base = `python -m discprobe`, flags = `--drive ${JSON.stringify(drive)} --media ${media}`;
+  const m = part.measurement || {}, a = m.speed_advice;
+  if (!result.geo && m.rotation === 'CLV' && a) {
+    const commands = a.next_speed ? [`${base} timing ${flags} --speed ${a.next_speed}`] : [];
+    if (media === 'bd') commands.push(`${base} geo ${flags} --speed keep --bd-zones 25`);
+    return commands.join('\n');
+  }
   const commands = [`${base} timing ${flags}`, `${base} geo ${flags} --speed keep`, `${base} timing ${flags} --speed SPEED`, `${base} geo ${flags} --speed keep`];
   if (kind === 'media' || kind === 'stopped_early') commands.push(`${base} geo ${flags} --ranges START-END`);
   if (kind === 'narrow_span') {
