@@ -6113,6 +6113,47 @@
    "related": [
     "I278-1"
    ]
+  },
+  {
+   "id": "I86-2",
+   "media": "cd",
+   "disc": {
+    "mid": null,
+    "brand": "JVC",
+    "type": "CD-R (same thread as I86-1)",
+    "capacity_sectors": 359845
+   },
+   "drive": {
+    "model": null,
+    "firmware": null,
+    "connection": null
+   },
+   "burn": {
+    "speed": null,
+    "software": "DiscImageStudio (latest version, three-term pitch)"
+   },
+   "parameters": {
+    "innerRadiusMm": 24.92157313130725,
+    "outerRadiusMm": 57.83895664859282,
+    "sectors": 359845,
+    "usableSectors": 359843,
+    "linearDensity": 1200,
+    "pitchLinear": -3.527656817649574e-05,
+    "pitchQuadratic": 1.7942866698010085e-05,
+    "pitchCubic": -4.764356646282355e-06
+   },
+   "parameters_as_posted": "inner 24.92157313130725 mm, outer 57.83895664859282 mm, total sectors 359845, usable 359843, linear density 1200, linear/quadratic/cubic -3.527656817649574E-05 / 1.7942866698010085E-05 / -4.764356646282355E-06",
+   "result": "worked",
+   "result_notes": "Posted as the newer three-term calibration for the JVC CD-R in this thread, with two photos (not read). Radii agree with I86-1 to 0.1 um / 0.07 um. Posted by a different account than the thread starter; whether it is the same person is not stated.",
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/86#issuecomment-6822624773",
+   "author": "Li-O-Li",
+   "posted": "2026-11-12",
+   "language": "zh",
+   "confidence": "medium",
+   "confidence_why": "Full numbers as text; no drive named; result judged from the poster's own photos.",
+   "related": [
+    "I86-1"
+   ]
   }
  ],
  "skipped": [
@@ -6183,6 +6224,13 @@
     "D323-1"
    ],
    "checked_through": "2026-11-12T09:16Z"
+  },
+  {
+   "date": "2026-11-12",
+   "added": [
+    "I86-2"
+   ],
+   "checked_through": "2026-11-12T11:41Z"
   }
  ]
 }
