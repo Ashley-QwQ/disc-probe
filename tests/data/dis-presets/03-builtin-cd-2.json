@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [
+    {
+      "id": "verbatim-azo-43438",
+      "displayName": "威宝 CD-R AZO (43438)（实测）",
+      "description": "实测参数：内半径 24.837775 mm、外半径 58.020875 mm、359,848 扇区；扫描速度采用 1200 mm/s。",
+      "sectors": 359848,
+      "usableSectors": 359846,
+      "innerRadiusMm": 24.837775,
+      "outerRadiusMm": 58.020875,
+      "linearVelocityMmPerSecond": 1200,
+      "displayNameResourceKey": "DiscPreset_VerbatimAzo43438_DisplayName",
+      "descriptionResourceKey": "DiscPreset_VerbatimAzo43438_Description"
+    }
+  ],
+  "dvdPresets": [],
+  "bluRayPresets": []
+}

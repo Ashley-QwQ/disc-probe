@@ -813,9 +813,34 @@ class Handler(BaseHTTPRequestHandler):
         self._photo_device = self.server.backend.photos.use(token, self.headers.get('User-Agent', ''),
                                                           device.value if device else None)
 
+    # Preset interchange routes stay together; no hardware work runs here.
+    def _presetio(self, method):
+        if urlsplit(self.path).path != "/api/presets":
+            return False
+        from . import presetio_api
+        backend = self.server.backend
+        try:
+            if method == "GET":
+                result = presetio_api.listing(backend.root)
+            else:
+                # Consume the bounded body before replying: closing an HTTP/1.0
+                # socket with unread request bytes can reset the 415 response on Windows.
+                body = self._body(3 * 1024 * 1024)
+                if self.headers.get_content_type() != "application/json":
+                    raise APIError("application/json required", 415)
+                payload = json.loads(body)
+                with backend.lock:
+                    result = presetio_api.handle(backend.root, payload)
+            self._json(200, result)
+        except (ValueError, OSError) as exc:
+            self._json(exc.status if isinstance(exc, APIError) else 400, dict(error=str(exc)))
+        return True
+
     def do_GET(self):
         try:
             self._allowed()
+            if self._presetio("GET"):
+                return
             url = urlsplit(self.path)
             path = unquote(url.path)
             backend = self.server.backend
@@ -963,6 +988,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             self._allowed()
+            if self._presetio("POST"):
+                return
             if urlsplit(self.path).path == "/api/photos":
                 from .photo import PHOTO_TYPES
                 kind = self.headers.get_content_type()

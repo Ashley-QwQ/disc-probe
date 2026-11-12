@@ -394,7 +394,16 @@ def _geo_fit(args, media=None) -> dict:
     args.geo = path
     try:
         with open(path, encoding="utf-8") as f:
-            return json.load(f)["fit"]
+            document = json.load(f)
+            fit = document["fit"]
+            if fit.get("model") == "dis_import" and not fit.get("image_compatible"):
+                sys.exit("This DIS preset cannot drive the DP image sampler; see source.issues in the preset.")
+            if fit.get('model') == 'dis_import' and hasattr(args, 'correction'):
+                from .presets import linked_correction
+                linked = linked_correction(path, document)
+                if not args.correction:
+                    args.correction = linked
+            return fit
     except FileNotFoundError:
         latest = guide.latest_geo(media)
         _fail(f"no such geo result: {path}",
@@ -901,6 +910,8 @@ def cmd_image(args):
                                       r_max=args.r_max, line=args.line_mm, size=imagedisc.CELL_SIDES[args.cell_um or 20])
         kind = f"grid, {args.line_mm} mm lines"
     total = writer.sectors_to_radius(u, v, bit, args.r_max + 0.6)
+    if fit.get('model') == 'dis_import' and fit.get('capacity_sectors'):
+        total = min(total, fit['capacity_sectors'])
     if args.media == "dvd":
         total = min(total, 2295104)
     else:
@@ -1707,6 +1718,8 @@ def _build_parser():
 
     from . import calibrate
     calibrate.add_parser(sub)
+    from . import presets
+    presets.add_parser(sub)
 
     from . import photo
     photo.add_parser(sub)

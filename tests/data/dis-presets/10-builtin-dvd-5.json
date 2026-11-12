@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [],
+  "dvdPresets": [
+    {
+      "id": "ritek-dvd-plus-r-e-series",
+      "displayName": "铼德 DVD+R E时代系列（实测）",
+      "description": "铼德 DVD+R E时代系列实测标定参数：24.0482013258–58.0264881612 mm，共 2,295,104 个扇区；采用三次轨距分布。",
+      "totalSectors": 2295104,
+      "usableSectors": 2295104,
+      "innerRadiusMm": 24.048201325754512,
+      "outerRadiusMm": 58.02648816120639,
+      "channelBitLengthNm": 133.3,
+      "pitchLinear": 4.448895078187968e-05,
+      "pitchQuadratic": -0.00010130233076827166,
+      "pitchCubic": 6.625808735161595e-05,
+      "displayNameResourceKey": "DiscPreset_RitekDvdPlusRESeries_DisplayName",
+      "descriptionResourceKey": "DiscPreset_RitekDvdPlusRESeries_Description",
+      "contributor": "EternalEve"
+    }
+  ],
+  "bluRayPresets": []
+}

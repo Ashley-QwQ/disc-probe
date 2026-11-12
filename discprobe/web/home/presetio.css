@@ -1,0 +1,118 @@
+.presetio-entry[hidden], .presetio[hidden] { display: none; }
+.presetio-entry { position: fixed; top: calc(var(--edge) + var(--row) + 8px); right: var(--edge); }
+:root:not([data-home="library"]) .presetio-entry { display: none; }
+.presetio { position: fixed; inset: 0; z-index: 90; overflow: hidden; color: var(--ink); background: var(--paper);
+  font: 30px / 1.5 var(--font); scrollbar-color: var(--rule-strong) transparent; }
+.presetio *, .presetio *::before, .presetio *::after { box-sizing: border-box; }
+.presetio-scene { position: absolute; inset: 0; overflow: clip; }
+/* All artwork shares the original 2560 ? 1440 canvas. DOM order is the art's draw order. */
+.presetio-stage { position: absolute; width: 2560px; height: 1440px; left: 50%; top: 50%; transform-origin: center; }
+.presetio [data-art], .presetio-layer, .presetio-writing { position: absolute; inset: 0; width: 2560px; height: 1440px; pointer-events: none; }
+.presetio [data-art] { user-select: none; }
+.presetio-tabs { display: none; }
+.presetio-content { position: absolute; overflow: auto; overscroll-behavior: contain; pointer-events: auto;
+  scrollbar-width: thin; padding: 4px 12px 16px 4px; color: var(--ink); }
+.presetio-content[inert] { pointer-events: none; }
+.presetio [data-art="doc_paper_shadow"] { transform-origin: 1440.95px 719.91px; }
+.presetio [data-art="doc_envelope_shadow"] { transform-origin: 1440.95px 960.39px; }
+/* Both documents use the paper ink palette of the current theme. */
+:root[data-theme="dark"] .presetio .presetio-document {
+  --ink: #ece6d6; --ink-2: #ece6d6; --ink-3: #ece6d6; --rule: rgb(236 230 214 / .28); --rule-strong: rgb(236 230 214 / .5); }
+/* These supplied grey paper rasters need white to clear 4.5:1 at their brightest pixels. */
+:root[data-theme="dark"] .presetio [data-layer="doc_paper"],
+:root[data-theme="dark"] .presetio[data-compact="true"] .presetio-document { --ink: #fff; --ink-2: #fff; --ink-3: #fff; }
+.presetio button { font: 600 30px / 1.35 var(--font); color: var(--ink); min-height: 76px; padding: 14px 24px; max-width: 100%;
+  border: 1.5px solid var(--rule-strong); border-radius: 4px; background: transparent; cursor: pointer; }
+.presetio button:hover { border-color: var(--copper); color: var(--copper); }
+.presetio :focus-visible { outline: 3px solid var(--copper); outline-offset: 5px; }
+.presetio button:disabled { opacity: .45; cursor: default; color: var(--ink); border-color: var(--rule-strong); }
+.presetio .presetio-primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.presetio .presetio-primary:disabled { color: var(--paper); }
+.presetio .presetio-primary:hover:not(:disabled) { background: var(--copper); border-color: var(--copper); color: var(--paper); }
+.presetio .presetio-close, .presetio-title { position: fixed; z-index: 2; top: var(--edge); margin: 0;
+  min-height: var(--row); padding: 12px 18px; border: 0; border-radius: 4px; background: var(--paper); color: var(--ink);
+  font: 600 15px / 1.6 var(--font); box-shadow: var(--glass-edge), var(--glass-desk); }
+.presetio .presetio-close { right: var(--edge); }
+.presetio-title { left: var(--edge); display: flex; align-items: center; gap: .4em; }
+.presetio-title small { font-size: inherit; color: var(--ink-2); }
+.presetio-title:focus { outline: none; }
+/* Desk ink ends 70 scene px before the plate; its leader runs from 12 px after the words to 18 px short of the plate. */
+.presetio-writing button { position: absolute; transform: translateY(-50%); min-height: 88px; padding: 0;
+  text-align: right; color: var(--ink-2); border: 0; background: none; box-shadow: none; font-size: 34px; font-weight: 600;
+  pointer-events: auto; }
+.presetio-writing button:hover { color: var(--ink); }
+.presetio-writing small { display: block; font-size: 24px; font-weight: 500; }
+.presetio-writing button::after { content: ""; position: absolute; left: calc(100% + 12px); top: 50%; width: var(--leader);
+  border-top: 1.5px solid var(--ink-2); }
+.presetio-tick { position: absolute; width: 24px; border-top: 1.5px solid var(--ink-2); }
+.presetio-knob { position: absolute; border-radius: 50%; pointer-events: auto; cursor: ns-resize; touch-action: none; user-select: none; }
+.presetio-knob:active { cursor: grabbing; }
+.presetio-led { position: absolute; pointer-events: none; border-radius: 50%; background: #7dff6a; opacity: 0;
+  box-shadow: 0 0 10px 4px rgb(125 255 106 / .65), 0 0 24px 10px rgb(125 255 106 / .25); }
+.presetio-content header { padding-bottom: 24px; margin-bottom: 28px; border-bottom: 1.5px solid var(--ink); }
+.presetio h3 { margin: 0; font-size: 46px; line-height: 1.2; font-weight: 800; font-stretch: 112%; overflow-wrap: anywhere; }
+.presetio h3 small { display: block; margin-top: 10px; font-size: 28px; font-weight: 600; color: var(--ink-2); }
+.presetio p { margin: 24px 0; color: var(--ink-2); }
+.presetio label { color: var(--ink-2); font-size: 30px; }
+.presetio-drop { border: 1.5px dashed var(--rule-strong); border-radius: 4px; padding: 24px; margin: 20px 0 28px; }
+.presetio-drop[data-over="true"] { border-color: var(--copper); background: rgb(196 120 60 / .06); }
+.presetio-file { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 24px; cursor: pointer; }
+.presetio-file input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.presetio-pick { display: inline-flex; align-items: center; min-height: 76px; padding: 12px 24px; border-radius: 4px;
+  background: var(--ink); color: var(--paper); font: 600 30px / 1.35 var(--font); }
+.presetio-file:hover .presetio-pick { background: var(--copper); }
+.presetio-file:has(input:focus-visible) .presetio-pick { outline: 3px solid var(--copper); outline-offset: 5px; }
+.presetio-file:has(input:disabled) { opacity: .5; cursor: default; }
+.presetio-hint { font-size: 26px; color: var(--ink-2); overflow-wrap: anywhere; }
+.presetio select { display: block; width: 100%; margin-top: 12px; min-height: 76px; padding: 12px 40px 12px 0;
+  font: 600 30px / 1.35 var(--font); color: var(--ink); appearance: none; border: 0; border-bottom: 1.5px solid var(--ink);
+  border-radius: 0; cursor: pointer;
+  background: linear-gradient(45deg, transparent 50%, currentColor 50%) right 16px center / 8px 8px no-repeat,
+              linear-gradient(-45deg, transparent 50%, currentColor 50%) right 8px center / 8px 8px no-repeat; }
+.presetio select option { color: #1d1b18; background: #ebe7e0; }
+.presetio-row { padding: 28px 0; border-bottom: 1px solid var(--rule); }
+.presetio-row label { display: flex; gap: 20px; align-items: baseline; cursor: pointer; color: var(--ink); font-size: 32px; }
+.presetio-row input { accent-color: var(--copper); width: 30px; height: 30px; flex: none; translate: 0 4px; }
+.presetio-row strong { overflow-wrap: anywhere; }
+.presetio .presetio-data { font: 24px / 1.6 var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+  color: var(--ink-2); margin: 12px 0 8px 50px; }
+.presetio-row ul { margin: 0 0 0 50px; padding-inline-start: 28px; color: var(--ink-2); font-size: 28px; line-height: 1.6; }
+.presetio-actions { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 32px; }
+.presetio-status { min-height: 3em; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 28px; }
+.presetio-status[data-error="true"] { color: var(--ink); font-weight: 650; }
+/* Compact mode uses these very same documents and controls, without the art stage. */
+.presetio[data-compact="true"] { overflow: auto; font-size: 16px; }
+.presetio[data-compact="true"] .presetio-scene { position: relative; inset: auto; overflow: visible; margin: calc(var(--edge) + var(--row) + 24px) 20px 32px;
+  padding: 24px; border: 0 solid transparent; border-image: url(newplan/paper_paper.webp) 120 fill / 46px / 12px stretch;
+  box-shadow: var(--paper-desk); }
+:root[data-theme="dark"] .presetio[data-compact="true"] .presetio-paper { border-image-source: url(newplan/paper_dark.webp); }
+.presetio[data-compact="true"] .presetio-stage { position: static; width: auto; height: auto; transform: none !important; }
+.presetio[data-compact="true"] :is([data-art], .presetio-writing, [data-layer="bag"], [data-layer="sheets"], [data-layer="knob"], .presetio-led) { display: none; }
+.presetio[data-compact="true"] .presetio-document { position: static; width: auto; height: auto; transform: none !important; }
+.presetio[data-compact="true"] .presetio-document:has(.presetio-content[inert]) { display: none; }
+.presetio[data-compact="true"] .presetio-content { position: static; width: auto !important; height: auto !important; overflow: visible; padding: 0; }
+.presetio[data-compact="true"] .presetio-tabs { display: flex; gap: 12px; margin-bottom: 28px; border-bottom: 1px solid var(--rule-strong); }
+.presetio[data-compact="true"] .presetio-tabs button { flex: 1; padding: 8px 4px; border: 0; border-radius: 0; }
+.presetio[data-compact="true"] .presetio-tabs [aria-selected="true"] { box-shadow: inset 0 -2px var(--ink); }
+.presetio[data-compact="true"] :is(button, select, .presetio-pick) { font-size: 16px; min-height: 44px; padding: 8px 12px; }
+.presetio[data-compact="true"] .presetio-title { display: block; max-width: calc(100% - var(--edge) * 2 - 136px); font-size: 13px; padding: 6px 10px; }
+.presetio[data-compact="true"] .presetio-title small { display: block; }
+.presetio[data-compact="true"] h3 { font-size: 26px; }
+.presetio[data-compact="true"] h3 small { font-size: 16px; }
+.presetio[data-compact="true"] :is(label, .presetio-row label) { font-size: 16px; }
+.presetio[data-compact="true"] .presetio-content header { padding-bottom: 14px; margin-bottom: 18px; }
+.presetio[data-compact="true"] .presetio-drop { padding: 16px; margin: 16px 0 20px; }
+.presetio[data-compact="true"] .presetio-file { gap: 12px; }
+.presetio[data-compact="true"] .presetio-hint { font-size: 14px; }
+.presetio[data-compact="true"] select { padding-right: 30px; margin-top: 6px; }
+.presetio[data-compact="true"] .presetio-row { padding: 18px 0; }
+.presetio[data-compact="true"] .presetio-row input { width: 20px; height: 20px; }
+.presetio[data-compact="true"] .presetio-data { font-size: 13px; margin: 8px 0; }
+.presetio[data-compact="true"] .presetio-row ul { font-size: 15px; padding-left: 18px; margin: 0; }
+.presetio[data-compact="true"] .presetio-actions { gap: 12px; margin-top: 20px; }
+.presetio[data-compact="true"] .presetio-actions button { width: 100%; }
+.presetio[data-compact="true"] .presetio-status { font-size: 15px; }
+/* on the desk the scene speaks for itself: the title stays for screen readers only (a glass label over the tray
+   threw its shadow across the sheets); the compact card still shows it */
+.presetio:not([data-compact="true"]) .presetio-title { width: 1px; height: 1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; box-shadow: none; }

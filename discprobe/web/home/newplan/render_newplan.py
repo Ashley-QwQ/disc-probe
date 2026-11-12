@@ -7,6 +7,12 @@ Everything is shot straight down with an orthographic camera (looking -Z, screen
   --mode paper     a sheet of paper (lying flat) -> paper_<theme>.png + paper_shadow_<theme>.png (1400 x 1700)
   --mode envelope  the string-and-button archive envelope lying on its back, flap open "above" (+Y), as two layers
                    -> envelope_back_<theme>.png, envelope_front_<theme>.png (1600 wide)
+  --mode desk      the presets page as one desk scene, a hair off straight down (orthographic, 12 deg from the
+                   front): the lobby's letter tray, a lever, the Penrose block, a notebook and the fountain pen, and
+                   the two documents that fly in (a sheet for import, a closed archive bag for export); every moving
+                   thing on its own layer with its own shadow layer -> desk_<layer>_<theme>.png + desk.json
+  --mode tray      the lobby's letter tray (desk-prop-tray/final_bundle/tray.blend, the import/export target) straight down,
+                   for the presets sheet -> tray_<theme>.png + tray_shadow_<theme>.png (transparent, own shadow layer)
 Each mode writes <mode>.json with placement data (px, origin top-left).
 
     blender -b [disc_explode_render.blend] --python render_newplan.py -- --mode top --outdir OUT [--ss 2]
@@ -36,7 +42,7 @@ VARIANTS = arg("--variants", "paper,dark").split(",")
 SAMPLES = int(arg("--samples", "16"))
 DEVICE = arg("--device", "OPTIX")
 PREVIEW = "--preview" in argv
-SS = int(arg("--ss", {"top": "2", "paper": "3", "envelope": "3"}[MODE]))
+SS = int(arg("--ss", {"top": "2", "paper": "3", "envelope": "3", "tray": "3", "desk": "2"}[MODE]))
 if PREVIEW:
     SS, SAMPLES = 1, 4
 os.makedirs(OUTDIR, exist_ok=True)
@@ -50,7 +56,10 @@ STYLE = {
         desk="#ddd6cb", disc="#f6f4ef", disc_hub="#d4d6d3", disc_rim="#c9cbc8", disc_hole="#9c968c",
         kraft="#d0c0a2", kraft_in="#c3b192", kraft_flap_in="#dbcfb7", kraft_edge="#b3a386",
         button="#f3f0ea", grommet="#aaa59d", string="#efe9de",
-        sheet="#f9f8f4", sheet_edge="#dfdbd3",
+        sheet="#f9f8f4", sheet_edge="#dfdbd3", fax="#d9d4ca", fax_edge="#bdb6aa",
+        pen="#4a4741", pen_edge="#36342f", metal="#f3f1ec", metal_edge="#d6d1c8",
+        penrose_light="#f7f4ee", penrose_mid="#d4cec4", penrose_dark="#a39c91",
+        notebook="#5a5650", notebook_edge="#f1ede4", band="#2f2d29", led_off="#a9a296",
         line="#2b2924", line_alpha=1.0,
         amb=(0.975, 0.975, 0.975), gain=(0.075, 0.055, 0.02), add=(0.0, 0.0, 0.0),
         shadow_tint=(0.80, 0.77, 0.72), shadow_rgb="#3a2f22", drop_alpha=0.22, bg="#ebe7e0",
@@ -60,7 +69,10 @@ STYLE = {
         desk="#1f2726", disc="#4a504e", disc_hub="#353b3a", disc_rim="#3f4543", disc_hole="#101514",
         kraft="#3b352c", kraft_in="#2e2922", kraft_flap_in="#433d33", kraft_edge="#312c25",
         button="#5b625f", grommet="#2f3433", string="#6e736f",
-        sheet="#454c4b", sheet_edge="#343a39",
+        sheet="#454c4b", sheet_edge="#343a39", fax="#3d4442", fax_edge="#2c3231",
+        pen="#1b2221", pen_edge="#141a19", metal="#465150", metal_edge="#323b3a",
+        penrose_light="#5c6865", penrose_mid="#3e4947", penrose_dark="#252e2d",
+        notebook="#2a3231", notebook_edge="#3e4544", band="#121817", led_off="#141a19",
         line="#d5d9d2", line_alpha=0.55,
         amb=(0.9, 0.9, 0.9), gain=(1.6, 1.4, 1.1), add=(0.035, 0.018, 0.004),
         shadow_tint=(0.62, 0.66, 0.66), shadow_rgb="#050807", drop_alpha=0.40, bg="#161d1c",
@@ -310,6 +322,187 @@ elif MODE == "envelope":
     POOL = dict(center=(-0.12, EH + 0.05), sigma=0.32)
     SHADOW = None
 
+elif MODE == "tray":
+    # the lobby's import/export letter tray (art/desk/skills/desk-prop-tray/final_bundle/tray.blend, objects fax_*:
+    # two sheet-metal tiers, sheets on top, a file bag below), real size, shot straight down; open mouth (+X) faces the
+    # form on its right
+    MATS = {"drive_body": "body", "drive_tray": "tray", "kraft": "kraft", "kraft_flap": "kraft_flap_in",
+            "button": "button", "grommet": "grommet", "string": "string", "sheet": "sheet"}
+    with bpy.data.libraries.load(os.path.abspath(arg("--blend", "lobby_tray.blend")), link=False) as (src, dst):
+        dst.objects = [n for n in src.objects if n.startswith("fax_")]
+    parts = []
+    for o in dst.objects:
+        if o is None or o.type != "MESH":
+            continue
+        scene.collection.objects.link(o)
+        ROLE[o.name], LAYER[o.name] = MATS.get(o.get("mat"), "body"), "main"
+        parts.append(o)
+    # straight down the top tier hides everything, so the contents are half pulled out of the open mouth (+X),
+    # toward the form: the file bag from the lower tier, the top sheets a little askew ("in" and "out")
+    pull_in = float(arg("--bag-out", "0.085"))
+    for o in parts:
+        if o.name.startswith("fax_in_") and o.name != "fax_in_pan":
+            o.matrix_world = Matrix.Translation((pull_in, -0.012, 0)) @ o.matrix_world
+    for name, dx, dy, deg in (("fax_out_sheet_1", 0.034, 0.0, -2.2), ("fax_out_sheet_2", 0.016, -0.003, 1.4)):
+        o = bpy.data.objects.get(name)
+        if o is not None:
+            c = o.matrix_world @ (sum((v.co for v in o.data.vertices), Vector()) / len(o.data.vertices))
+            o.matrix_world = (Matrix.Translation((dx, dy, 0)) @ Matrix.Translation(c) @ Matrix.Rotation(math.radians(deg), 4, "Z")
+                              @ Matrix.Translation(-c) @ o.matrix_world)
+    # the mouth (where the bag comes out) faces down the picture, toward the person
+    rz = Matrix.Rotation(math.radians(float(arg("--tray-rot", "-90"))), 4, "Z")
+    for o in parts:
+        o.matrix_world = rz @ o.matrix_world
+    vs = np.array([tuple(o.matrix_world @ v.co) for o in parts for v in o.data.vertices])
+    lo, hi = vs.min(0), vs.max(0)
+    sh_ = Matrix.Translation((-(lo[0] + hi[0]) / 2, -(lo[1] + hi[1]) / 2, -lo[2]))
+    for o in parts:
+        o.matrix_world = sh_ @ o.matrix_world
+    lo, hi = lo - np.array([(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, lo[2]]), hi - np.array([(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, lo[2]])
+    print("[newplan] tray %.0f x %.0f x %.0f mm, %d parts" % (*((hi - lo) * 1000), len(parts)))
+    SHADOW = dict(dx_m=-0.016, dy_m=-0.021, blur_m=0.018)       # same as the burner's: lamp up-right, shadow down-left
+    MARGIN = 0.06
+    W = int(arg("--width", "1200"))
+    PPM = W / (hi[0] - lo[0] + 2 * MARGIN)
+    H = int(round((hi[1] - lo[1] + 2 * MARGIN) * PPM))
+    CX, CY = 0.0, 0.0
+    POOL = dict(center=(hi[0] + 0.14, hi[1] - 0.06), sigma=0.32)  # the pool sits on the form, right of the tray
+    TRAY_BOX = (lo, hi)
+
+elif MODE == "desk":
+    W, H = 2560, 1440
+    PPM = 2900.0                                       # the frame is 0.88 x 0.50 m of desk
+    CX, CY = 0.0, 0.0
+    TILT = math.radians(float(arg("--tilt", "12")))     # orthographic, seen a little from the front (no perspective)
+    mesh_obj("desk", prism([(-0.7, -0.6), (0.7, -0.6), (0.7, 0.6), (-0.7, 0.6)], -0.02, 0.0), "desk", "base")
+
+    def place(objs, dx, dy, deg=0.0, dz=0.0, scale=1.0):
+        M = Matrix.Translation((dx, dy, dz)) @ Matrix.Rotation(math.radians(deg), 4, "Z") @ Matrix.Scale(scale, 4)
+        for o in objs:
+            o.matrix_world = M @ o.matrix_world
+
+    # ---- the letter tray (the lobby's, real size), mouth down toward the person; the bag peeks out of the mouth
+    MATS = {"drive_body": "body", "drive_tray": "tray", "kraft": "kraft", "kraft_flap": "kraft_flap_in",
+            "button": "button", "grommet": "grommet", "string": "string", "sheet": "sheet"}
+    with bpy.data.libraries.load(os.path.abspath(arg("--blend", "lobby_tray.blend")), link=False) as (src, dst):
+        dst.objects = [n for n in src.objects if n.startswith("fax_")]
+    tray = []
+    for o in dst.objects:
+        if o is None or o.type != "MESH":
+            continue
+        scene.collection.objects.link(o)
+        n = o.name
+        lay = ("bag" if n.startswith("fax_in_") and n != "fax_in_pan" else
+               "sheets" if n.startswith("fax_out_sheet") or n == "fax_out_stack" else
+               "upper" if n in ("fax_out_pan",) or n.startswith("fax_post") else "base")
+        ROLE[n], LAYER[n] = MATS.get(o.get("mat"), "body"), lay
+        tray.append(o)
+    BAG_OUT = float(arg("--bag-out", "0.040"))
+    for o in tray:
+        if LAYER[o.name] == "bag":
+            o.matrix_world = Matrix.Translation((BAG_OUT, 0, 0)) @ o.matrix_world
+    vs = np.array([tuple(o.matrix_world @ v.co) for o in tray if LAYER[o.name] != "bag" for v in o.data.vertices])
+    lo, hi = vs.min(0), vs.max(0)
+    place(tray, 0, 0, 0, 0)
+    for o in tray:                                      # centre the tray body on its origin, base on the desk
+        o.matrix_world = Matrix.Translation((-(lo[0] + hi[0]) / 2, -(lo[1] + hi[1]) / 2, -lo[2])) @ o.matrix_world
+    TRAY_C = (-0.262, 0.036)
+    place(tray, TRAY_C[0], TRAY_C[1], -90.0)            # +X (the mouth) -> -Y (down the picture)
+
+    # ---- the Penrose block (the person's logo, render_caltop_anim.py's shape), a little larger than on the burner page
+    with open(os.path.abspath(arg("--penrose", "penrose.json"))) as fh:
+        PEN_SHAPE = json.load(fh)
+    pz = []
+    for piece in PEN_SHAPE["pieces"]:
+        pz.append(mesh_obj("penrose_%s" % piece["tone"], prism([(x * 1e-3, y * 1e-3) for x, y in piece["poly"]], 0, 0.006),
+                           "penrose_" + piece["tone"], "base"))
+    place(pz, 0.040, -0.118, 7.0, 0, 1.75)                # under the document column: fully covered once one lands
+
+    # ---- the lever: a metal plate with a slot, the knob in the middle (moves: its own layer), two LED windows
+    LV = (0.272, 0.058)
+    PW, PH, PT = 0.058, 0.200, 0.006
+    SLX, SLW, SLH = 0.008, 0.010, 0.150                 # slot centre x (from the plate centre), width, length
+    plate = rounded_rect(-PW / 2, -PH / 2, PW / 2, PH / 2, 0.010)
+    slot = rounded_rect(SLX - SLW / 2, -SLH / 2, SLX + SLW / 2, SLH / 2, SLW / 2 - 1e-4)
+    bm = bmesh.new()
+    for poly, z0, z1 in ((plate, 0.0, PT),):
+        b_ = prism(poly, z0, z1)
+        me_ = bpy.data.meshes.new("t"); b_.to_mesh(me_); b_.free(); bm.from_mesh(me_); bpy.data.meshes.remove(me_)
+    lever_parts = [mesh_obj("lever_plate", bm, "metal", "base"),
+                   mesh_obj("lever_slot", prism(slot, PT, PT + 0.0004), "cavity", "base")]
+    LEDS = {"export": (-0.016, 0.068), "import": (-0.016, -0.068)}
+    for k, (lx, ly) in LEDS.items():
+        lever_parts.append(mesh_obj("led_%s_bezel" % k, ring(0.0034, 0.0052, PT, PT + 0.0012, lx, ly, 48), "metal", "base"))
+        lever_parts.append(mesh_obj("led_%s" % k, ring(0.0, 0.0034, PT, PT + 0.0006, lx, ly, 48), "led_off", "base"))
+    knob = [mesh_obj("knob_stem", ring(0.0, 0.0035, PT, PT + 0.012, SLX, 0.0, 40), "metal", "knob"),
+            mesh_obj("knob_head", ring(0.0, 0.0125, PT + 0.012, PT + 0.020, SLX, 0.0, 64), "pen", "knob"),
+            mesh_obj("knob_cap", ring(0.0, 0.0085, PT + 0.020, PT + 0.0208, SLX, 0.0, 64), "metal", "knob")]
+    place(lever_parts + knob, LV[0], LV[1], 0)
+    KNOB_TRAVEL = SLH / 2 - SLW / 2 - 0.004
+
+    # ---- the notebook (hard cover, an elastic band) and the fountain pen lying on it
+    NB = (0.300, -0.138, -12.0)
+    nb = [mesh_obj("nb_pages", prism(rounded_rect(-0.050, -0.074, 0.048, 0.074, 0.004), 0.0012, 0.0098), "notebook_edge", "base"),
+          mesh_obj("nb_cover_b", prism(rounded_rect(-0.051, -0.075, 0.051, 0.075, 0.005), 0.0, 0.0012), "notebook", "base"),
+          mesh_obj("nb_cover_t", prism(rounded_rect(-0.051, -0.075, 0.051, 0.075, 0.005), 0.0098, 0.0110), "notebook", "base"),
+          mesh_obj("nb_band", prism([(0.036, -0.0752), (0.042, -0.0752), (0.042, 0.0752), (0.036, 0.0752)], 0.0110, 0.0116), "band", "base")]
+    place(nb, NB[0], NB[1], NB[2])
+
+    def rod(x0, x1, r0, r1, seg=40):
+        bm = bmesh.new()
+        rings = [[bm.verts.new((x, rr * math.cos(2 * math.pi * k / seg), rr * math.sin(2 * math.pi * k / seg))) for k in range(seg)]
+                 for x, rr in ((x0, r0), (x1, r1))]
+        for k in range(seg):
+            bm.faces.new((rings[0][k], rings[0][(k + 1) % seg], rings[1][(k + 1) % seg], rings[1][k]))
+        bm.faces.new(rings[0][::-1]); bm.faces.new(rings[1])
+        bm.normal_update()
+        return bm
+    mm = 1e-3
+    R_CAP, R_BAR = 6.5 * mm, 6.0 * mm
+    pen = [mesh_obj("pen_cap", rod(-71 * mm, -10 * mm, R_CAP - 1.2 * mm, R_CAP), "pen", "base"),
+           mesh_obj("pen_band", rod(-12 * mm, -7 * mm, R_CAP + 0.25 * mm, R_CAP + 0.25 * mm), "metal", "base"),
+           mesh_obj("pen_barrel", rod(-7 * mm, 44 * mm, R_BAR, R_BAR - 0.6 * mm), "pen", "base"),
+           mesh_obj("pen_grip", rod(44 * mm, 56 * mm, 4.7 * mm, 4.0 * mm), "pen", "base"),
+           mesh_obj("pen_nib", prism([(55 * mm, -3.2 * mm), (71 * mm, -0.6 * mm), (71.5 * mm, 0), (71 * mm, 0.6 * mm), (55 * mm, 3.2 * mm)], 0, 0.8 * mm), "metal", "base"),
+           mesh_obj("pen_clip", prism([(-66 * mm, -1.3 * mm), (-22 * mm, -1.3 * mm), (-20 * mm, 0), (-22 * mm, 1.3 * mm), (-66 * mm, 1.3 * mm)], 0, 1.4 * mm), "metal", "base")]
+    for o in pen:
+        lift = R_CAP - 1.1 * mm if o.name == "pen_nib" else 2 * R_CAP - 0.3 * mm if o.name == "pen_clip" else R_CAP
+        o.matrix_world = Matrix.Translation((0, 0, lift)) @ o.matrix_world
+    place(pen, NB[0] + 0.004, NB[1] + 0.006, 62.0, 0.0116)
+
+    # ---- the documents that fly in (centre column): a sheet (import) and the closed archive bag (export)
+    # centred between the tray's right edge and the lever plate's left edge
+    DOC_X = 0.5 * ((TRAY_C[0] + 0.130) + (LV[0] - PW / 2))
+    SH_W, SH_H = 0.290, 0.400
+    mesh_obj("doc_sheet", prism(rounded_rect(DOC_X - SH_W / 2, -SH_H / 2, DOC_X + SH_W / 2, SH_H / 2, 0.0015), 0.0, 0.0003), "sheet", "doc_paper")
+    EV_W, EV_TOP, EV_H, EV_FL = 0.296, 0.215, 0.600, 0.105
+    T_ = 0.0012
+    mesh_obj("env_body", prism(rounded_rect(DOC_X - EV_W / 2, EV_TOP - EV_H, DOC_X + EV_W / 2, EV_TOP, 0.003), 0.0, T_), "kraft", "doc_envelope")
+    flap = [(DOC_X - EV_W / 2, EV_TOP), (DOC_X + EV_W / 2, EV_TOP), (DOC_X + EV_W / 2 - 0.004, EV_TOP - 0.020),
+            (DOC_X + 0.050, EV_TOP - EV_FL), (DOC_X - 0.050, EV_TOP - EV_FL), (DOC_X - EV_W / 2 + 0.004, EV_TOP - 0.020)]
+    mesh_obj("env_flap", prism(flap, T_, 2 * T_), "kraft_flap_in", "doc_envelope")
+    B1 = (DOC_X, EV_TOP - EV_FL + 0.022)                 # on the flap's tip
+    B2 = (DOC_X, EV_TOP - EV_FL - 0.040)                 # on the body below it
+    for i, (bx, by) in enumerate((B1, B2)):
+        bz = 2 * T_ if i == 0 else T_
+        mesh_obj("env_button_%d" % i, ring(0.0, 0.0115, bz, bz + 0.0012, bx, by), "button", "doc_envelope")
+        mesh_obj("env_grommet_%d" % i, ring(0.0017, 0.0040, bz + 0.0012, bz + 0.0020, bx, by), "grommet", "doc_envelope")
+    pts = []
+    for i in range(120):                                 # wound round the lower button, then up round the upper one
+        a = 2 * math.pi * 1.6 * i / 119 - math.pi / 2
+        pts.append((B2[0] + 0.0082 * math.cos(a), B2[1] + 0.0082 * math.sin(a), T_ + 0.0026))
+    for i in range(1, 25):
+        t = i / 24
+        pts.append((B2[0] + (B1[0] - 0.008 - B2[0]) * t, B2[1] + 0.008 + (B1[1] - B2[1] - 0.008) * t, T_ + 0.0026 + T_ * t))
+    for i in range(90):
+        a = math.pi + 2 * math.pi * 1.2 * i / 89
+        pts.append((B1[0] + 0.0082 * math.cos(a), B1[1] + 0.0082 * math.sin(a), 2 * T_ + 0.0026))
+    mesh_obj("env_string", tube(pts, 0.0010), "string", "doc_envelope")
+    DOC_TEXT_SHEET = (DOC_X - SH_W / 2 + 0.024, SH_H / 2 - 0.024, DOC_X + SH_W / 2 - 0.024, -SH_H / 2 + 0.024)
+    DOC_TEXT_ENV = (DOC_X - EV_W / 2 + 0.026, B2[1] - 0.026, DOC_X + EV_W / 2 - 0.026, -0.248 + 0.020)
+    POOL = dict(center=(0.07, 0.08), sigma=0.36)          # the lamp up right shines on the middle of the desk
+    SHADOW = dict(dx_m=-0.016, dy_m=-0.021, blur_m=0.018)
+
 # --tumble rx,ry,rz (degrees, envelope mode): the bag turned in 3D, for the past-works page's falling background; one
 # layer, a square canvas round the bag's bounding sphere, no shadow (it floats)
 TUMBLE = arg("--tumble", "")
@@ -344,9 +537,31 @@ scene.collection.objects.link(cam)
 cam.location = (CX, CY, 5.0)
 cam.rotation_euler = (0, 0, 0)
 scene.camera = cam
+if MODE == "desk":
+    cam.location = (CX, CY - 5.0 * math.sin(TILT), 5.0 * math.cos(TILT))
+    cam.rotation_euler = (TILT, 0.0, 0.0)
+if MODE == "tray":
+    # not quite straight down: a little height, seen from the upper right looking down-left, a gentle perspective,
+    # so that next to the (flat) form it reads as two things lying on the desk
+    TILT, AZ, DIST = (math.radians(float(arg("--tilt", "16"))), math.radians(float(arg("--azimuth", "45"))),
+                      float(arg("--dist", "1.4")))
+    cam_data.type = "PERSP"
+    cam_data.sensor_fit = "HORIZONTAL"
+    cam_data.sensor_width = 36.0
+    cam_data.lens = 36.0 * DIST / (W / PPM)            # the desk plane through the tray keeps about the same px/m
+    tgt = Vector((CX, CY, 0.02))
+    off = Vector((math.sin(TILT) * math.cos(AZ), math.sin(TILT) * math.sin(AZ), math.cos(TILT))) * DIST
+    cam.location = tgt + off
+    zc = off.normalized()                              # camera back axis; keep world +Y as the picture's up
+    xc = Vector((0.0, 1.0, 0.0)).cross(zc).normalized()
+    yc = zc.cross(xc)
+    cam.rotation_euler = Matrix((xc, yc, zc)).transposed().to_euler()
 
 
-def to_px(x, y):
+def to_px(x, y, z=0.0):
+    if MODE == "desk":                                   # the tilted orthographic camera: up = (0, cos t, sin t)
+        yy = (y - CY) * math.cos(TILT) + z * math.sin(TILT)
+        return [round(float(W / 2 + (x - CX) * PPM), 2), round(float(H / 2 - yy * PPM), 2)]
     return [round(float(W / 2 + (x - CX) * PPM), 2), round(float(H / 2 - (y - CY) * PPM), 2)]
 
 
@@ -503,7 +718,9 @@ def palette(role, st):
         return hex_lin(st["body"], st["tray_mul"]), hex_lin(st["body_side"], st["tray_mul"])
     if role in ("cavity", "led"):
         return hex_lin(st[role]), hex_lin(st[role])
-    side = {"sheet": "sheet_edge", "kraft": "kraft_edge", "kraft_in": "kraft_edge", "kraft_flap_in": "kraft_edge"}
+    if role.startswith("penrose_"):
+        return hex_lin(st[role]), hex_lin(st[role], 0.86)
+    side = {"sheet": "sheet_edge", "fax": "fax_edge", "pen": "pen_edge", "metal": "metal_edge", "notebook": "notebook_edge", "kraft": "kraft_edge", "kraft_in": "kraft_edge", "kraft_flap_in": "kraft_edge"}
     return hex_lin(st[role]), hex_lin(st[side.get(role, role)], 0.9 if role not in side else 1.0)
 
 
@@ -723,7 +940,52 @@ def render_layer(names, tag_suffix=""):
 
 
 NRM, IDM = make_normal_mat(), make_id_mat()
-if MODE == "envelope" and TUMBLE:
+
+
+def shadow_of(mask, k=1.0):
+    return box_blur(shift(mask.astype(np.float32), k * SHADOW["dx_m"] * PPM * SS, -k * SHADOW["dy_m"] * PPM * SS),
+                    max(1.0, (0.35 + 0.65 * k) * SHADOW["blur_m"] * PPM * SS / 2))
+
+
+def drop_shadow(alpha, name, k=1.0):
+    s_al = shadow_of(alpha, k)
+    for v in VARIANTS:
+        st = STYLE[v]
+        sc = np.array(hex_srgb(st["shadow_rgb"]), dtype=np.float32)
+        al = (s_al * st["drop_alpha"])[..., None]
+        save_png(np.concatenate([sc * al, al], axis=2), os.path.join(OUTDIR, "%s_shadow_%s.png" % (name, v)))
+
+
+if MODE == "desk":
+    by = {}
+    for o in render_meshes:
+        by.setdefault(LAYER[o.name], set()).add(o.name)
+    # the base's shadow: only what never moves (the tray, props, lever plate). The bag, the sheets and the knob carry
+    # their own shadow layers, or a shadow would stay behind on the desk when they leave
+    rest = by["base"] | by["upper"]
+    _, oid_all, al_all = render_layer(rest, "_rest")
+    desk_id = [o.pass_index for o in render_meshes if o.name == "desk"][0]
+    tray_ids = {o.pass_index for o in render_meshes if o.name.startswith("fax_")}
+    occ = al_all & (oid_all != desk_id)
+    is_tray = np.isin(oid_all, list(tray_ids))
+    base_shadow = np.maximum(shadow_of(occ & is_tray, 1.0), shadow_of(occ & ~is_tray, 0.42)) * (oid_all == desk_id)
+    del oid_all, al_all, occ, is_tray
+    for lname in ("base", "bag", "upper", "sheets", "knob", "doc_paper", "doc_envelope"):
+        names = by[lname]
+        mask, oid, alpha = render_layer(names, "_" + lname)
+        if lname in ("bag", "sheets", "knob", "doc_paper", "doc_envelope"):
+            drop_shadow(alpha, "desk_" + lname, {"bag": 0.5, "sheets": 0.5, "knob": 0.45}.get(lname, 0.22))
+        for v in VARIANTS:
+            apply_variant(v)
+            for o in render_meshes:
+                o.hide_render = o.name not in names
+            col = render_exr("color_%s_%s" % (lname, v), SAMPLES, 1.5)
+            out = compose(col, mask, STYLE[v], shadow=base_shadow if lname == "base" else None, opaque=(lname == "base"))
+            save_png(out, os.path.join(OUTDIR, "desk_%s_%s.png" % (lname, v)))
+            del col, out
+        del mask, oid, alpha
+    layers = {}
+elif MODE == "envelope" and TUMBLE:
     layers = {"tumble": {o.name for o in render_meshes}}
 elif MODE == "envelope":
     layers = {"back": {o.name for o in render_meshes if LAYER[o.name] == "back"},
@@ -739,14 +1001,14 @@ for lname, names in layers.items():
         occ = (alpha & (oid != desk_id)).astype(np.float32)
         sh_ = box_blur(shift(occ, SHADOW["dx_m"] * PPM * SS, -SHADOW["dy_m"] * PPM * SS), SHADOW["blur_m"] * PPM * SS / 2)
         shadow = sh_ * (oid == desk_id)
-    if MODE == "paper":                         # its own layer: a soft drop shadow of the sheet
+    if MODE in ("paper", "tray"):               # its own layer: a soft drop shadow
         s_al = box_blur(shift(alpha.astype(np.float32), SHADOW["dx_m"] * PPM * SS, -SHADOW["dy_m"] * PPM * SS),
                         SHADOW["blur_m"] * PPM * SS / 2)
         for v in VARIANTS:
             st = STYLE[v]
             sc = np.array(hex_srgb(st["shadow_rgb"]), dtype=np.float32)
             al = (s_al * st["drop_alpha"])[..., None]
-            save_png(np.concatenate([sc * al, al], axis=2), os.path.join(OUTDIR, "paper_shadow_%s.png" % v))
+            save_png(np.concatenate([sc * al, al], axis=2), os.path.join(OUTDIR, "%s_shadow_%s.png" % (MODE, v)))
     for v in VARIANTS:
         apply_variant(v)
         for o in render_meshes:
@@ -754,7 +1016,7 @@ for lname, names in layers.items():
         col = render_exr("color_%s_%s" % (lname, v), SAMPLES, 1.5)
         out = compose(col, mask, STYLE[v], shadow=shadow, opaque=(MODE == "top"))
         dst = ("tumble_%s_%%s.png" % arg("--tag", "0") if lname == "tumble" else
-               {"top": "top_%s.png", "paper": "paper_%s.png"}.get(MODE, "envelope_%s_%%s.png" % lname)) % v
+               {"top": "top_%s.png", "paper": "paper_%s.png", "tray": "tray_%s.png"}.get(MODE, "envelope_%s_%%s.png" % lname)) % v
         save_png(out, os.path.join(OUTDIR, dst))
         del col, out
     del mask, oid, alpha
@@ -798,6 +1060,38 @@ elif MODE == "paper":
     META["inner_margins_px"] = {"left": mx, "right": mx, "top": my, "bottom": my}
     META["shadow_note"] = "paper_shadow_<theme>.png has the same canvas; lift the sheet by moving it up-right of " \
                           "the shadow (light from the upper right)"
+elif MODE == "desk":
+    def rect_of(names):
+        P = np.array([tuple(o.matrix_world @ v.co) for o in render_meshes if o.name in names for v in o.data.vertices])
+        pts = [to_px(*p) for p in P]
+        xs, ys = [q[0] for q in pts], [q[1] for q in pts]
+        return [min(xs), min(ys), max(xs), max(ys)]
+    names_of = lambda lay: {o.name for o in render_meshes if LAYER[o.name] == lay}
+    META["layers"] = ["base", "bag", "upper", "sheets", "knob", "doc_paper", "doc_envelope"]
+    META["draw_order"] = ("base (opaque) -> bag_shadow, bag -> upper -> sheets_shadow, sheets -> knob_shadow, knob -> "
+                          "doc_*_shadow, doc_*; each moving layer moves together with its shadow")
+    META["tray_rect_px"] = rect_of(names_of("upper"))
+    META["bag_rect_px"] = rect_of(names_of("bag"))
+    META["sheets_rect_px"] = rect_of(names_of("sheets"))
+    kx, ky = LV[0] + SLX, LV[1]
+    META["knob"] = {"centre_px": to_px(kx, ky, PT + 0.020), "radius_px": round(0.0125 * PPM, 1),
+                    "travel_px": round(KNOB_TRAVEL * PPM * math.cos(TILT), 1),
+                    "note": "up = export, down = import; the knob layer is drawn at the middle"}
+    META["slot_px"] = [to_px(kx, ky + SLH / 2, PT), to_px(kx, ky - SLH / 2, PT)]
+    META["leds"] = {k: {"centre_px": to_px(LV[0] + lx, LV[1] + ly, PT), "radius_px": round(0.0034 * PPM, 1)}
+                    for k, (lx, ly) in LEDS.items()}
+    META["lever_plate_rect_px"] = rect_of({"lever_plate"})
+    META["doc_paper_rect_px"] = rect_of(names_of("doc_paper"))
+    META["doc_envelope_rect_px"] = rect_of(names_of("doc_envelope"))
+    META["doc_paper_text_rect_px"] = to_px(DOC_TEXT_SHEET[0], DOC_TEXT_SHEET[1]) + to_px(DOC_TEXT_SHEET[2], DOC_TEXT_SHEET[3])
+    META["doc_envelope_text_rect_px"] = to_px(DOC_TEXT_ENV[0], DOC_TEXT_ENV[1]) + to_px(DOC_TEXT_ENV[2], DOC_TEXT_ENV[3])
+    META["camera"] = "orthographic, %g deg from straight down toward the front; up the picture = away from the person" % math.degrees(TILT)
+    META["rect_note"] = "[left, top, right, bottom] in px"
+elif MODE == "tray":
+    lo, hi = TRAY_BOX
+    META["tray_rect_px"] = to_px(lo[0], hi[1]) + to_px(hi[0], lo[1])
+    META["tray_height_mm"] = round(float(hi[2] - lo[2]) * 1000, 1)
+    META["rect_note"] = "[left, top, right, bottom] in px; tray_shadow_<theme>.png has the same canvas"
 elif MODE == "envelope":
     META["pocket_top_y_px"] = to_px(0, PT)[1]
     META["back_top_y_px"] = to_px(0, EH)[1]

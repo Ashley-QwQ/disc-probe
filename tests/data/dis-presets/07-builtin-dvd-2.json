@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 4,
+  "cdPresets": [],
+  "dvdPresets": [
+    {
+      "id": "verbatim-dvd-r-azo-43523",
+      "displayName": "威宝 DVD-R AZO (43523)（实测）",
+      "description": "威宝 DVD-R AZO 43523 实测标定参数：23.9914606277–57.9648936579 mm，共 2,297,888 个扇区；采用三次轨距分布；参数与 43533 一致。",
+      "totalSectors": 2297888,
+      "usableSectors": 2297888,
+      "innerRadiusMm": 23.991460627731737,
+      "outerRadiusMm": 57.964893657925366,
+      "channelBitLengthNm": 133.3,
+      "pitchLinear": -3.9256854319227684e-05,
+      "pitchQuadratic": 6.964795915429256e-05,
+      "pitchCubic": -4.670918950137523e-05,
+      "displayNameResourceKey": "DiscPreset_VerbatimDvdAzo43523_DisplayName",
+      "descriptionResourceKey": "DiscPreset_VerbatimDvdAzo43523_Description",
+      "contributor": "H4CNPE"
+    }
+  ],
+  "bluRayPresets": []
+}

@@ -179,10 +179,26 @@ def catalogue(root, out):
             for preset in presets:
                 if not isinstance(preset, dict) or not preset.get('displayName') or not preset.get('id'):
                     continue
-                media = 'cd' if 'sectors' in preset else 'bd' if 'layerCount' in preset else 'dvd'
+                source = data.get('source') if isinstance(data, dict) else None
+                media = source.get('media') if isinstance(source, dict) else None
+                if media not in groups:
+                    media = 'cd' if 'sectors' in preset else 'bd' if 'layerCount' in preset or 'invertMapping' in preset else 'dvd'
+                fit = data.get('fit') if isinstance(data, dict) else None
+                imported = isinstance(fit, dict) and fit.get('model') == 'dis_import'
+                compatible = imported and fit.get('image_compatible') is True
+                if compatible:
+                    from .presets import linked_correction
+                    try:
+                        linked_correction(path, data)
+                    except (OSError, ValueError, KeyError, TypeError):
+                        compatible = False
                 groups[media].append(dict(id='preset:' + str(preset['id']), row=media,
                     name=preset['displayName'], mid=None, sectors=preset.get('totalSectors', preset.get('sectors')),
-                    s='unknown', last=None, drive=None, left=None, of=None, preset=str(path.relative_to(root)), history=[]))
+                    s='unknown', last=None, drive=None, left=None, of=None, preset=str(path.relative_to(root)), history=[],
+                    image_compatible=bool(compatible), imported=imported,
+                    correction_required=bool(fit.get('correction_required')) if imported else False,
+                    import_status=source.get('status') if isinstance(source, dict) else None,
+                    geo=str(path.relative_to(root)) if compatible else None))
     return groups
 
 

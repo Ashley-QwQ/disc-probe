@@ -23,6 +23,7 @@
   })();
 </script>
 <link rel="stylesheet" href="./kit/kit.css">
+<link rel="stylesheet" href="./presetio.css">
 <style>
   @font-face { font-family: "Archivo"; src: url(../fonts/Archivo-VF-latin.woff2) format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
   :root {
@@ -748,6 +749,7 @@
   <h1 class="wordmark" id="wordmark" aria-label="disc-probe"><span aria-hidden="true">D</span><span class="wm-cut" aria-hidden="true"><span>ISC-</span></span><span class="pro" aria-hidden="true"><span class="wm-p"><span class="wm-pfull">P</span><span class="wm-pstem">P</span></span><span class="wm-cut"><span>R</span></span><span class="o-disc"></span></span><span class="wm-cut" aria-hidden="true"><span>BE</span></span><small class="wm-ver" id="wm-ver"></small></h1>
   <nav class="tools" data-i18n-aria="tools">
     <button class="btn" type="button" id="library" data-i18n-title="libraryTitle"><svg class="icon"><use href="#i-drive"/></svg><span class="label" data-i18n="library"></span></button>
+    <button class="btn presetio-entry" type="button" id="presetio-entry" hidden>预设导入导出 / Presets</button>
     <button class="btn btn-lang" type="button" id="lang" data-i18n-aria="langAria" aria-keyshortcuts="L"><span data-i18n="langButton"></span><kbd class="key-cap" aria-hidden="true">L</kbd></button>
     <button class="btn btn-icon" type="button" id="sound" aria-pressed="true" aria-keyshortcuts="M"><svg class="icon on"><use href="#i-sound"/></svg><svg class="icon off"><use href="#i-mute"/></svg><kbd class="key-cap" aria-hidden="true">M</kbd></button>
     <button class="btn btn-icon" type="button" id="theme" data-i18n-aria="theme" aria-keyshortcuts="T"><svg class="icon"><use href="#i-theme"/></svg><kbd class="key-cap" aria-hidden="true">T</kbd></button>
@@ -1711,6 +1713,7 @@
   });
 
   applyStatic();
+  (await import("./presetio.js")).init($("presetio-entry")).catch(() => {});
   // the mute switch (M): sounds are on by default and quiet; the words on the page always say the same
   const sfx = await import("./sfx.js");
   const paintSound = () => {
