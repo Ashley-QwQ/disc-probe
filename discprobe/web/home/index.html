@@ -688,7 +688,7 @@
   <!-- the hit areas of "new work" (the drive) and "past works" (the file box); lobby.js puts them on the objects -->
   <button class="lb-hit" id="lobby-new" type="button"></button>
   <button class="lb-hit" id="lobby-open" type="button"></button>
-  <div class="lobby-greet"><p id="lobby-hello"></p><p id="lobby-recent" hidden></p></div>
+  <div class="lobby-greet"><p id="lobby-hello" role="status" aria-live="polite" aria-atomic="true"></p><p id="lobby-recent" hidden></p></div>
 </section>
 
 <header class="top">
@@ -1406,6 +1406,7 @@
   const batchOf = (disc) => { for (const c of ["dvd", "cd", "bd"]) { const it = DATA[c].find((x) => x.kind !== "new" && disc?.mid && x.mid === disc.mid); if (it) return it; } return null; };
   const discName = (disc) => batchOf(disc)?.name ?? [String(disc.kind ?? "").split(" ")[0], disc.mid].filter(Boolean).join(" ");
   function paintDriveLine() {
+    globalThis.dispatchEvent?.(new Event("dp-drive-state"));
     const t = T();
     if (backend.mock) { $("drivebar").textContent = `H: HL-DT-ST GH70N · ${t.inserted("Verbatim DVD-R")}`; return; }
     $("drivebar").textContent = (backendState?.drives || []).map((d) => {
@@ -1511,6 +1512,8 @@
     refreshedDiscs.add(event.job);
     try {
       const state = await backend.state();
+      if (backendState) backendState.jobs = state.jobs;
+      globalThis.dispatchEvent?.(new Event("dp-drive-state"));
       const job = state.jobs.find(j => j.id === event.job);
       if (!job?.drive || !["burn", "calibrate"].includes(job.action)) return;
       const drive = backendState?.drives?.find(d => d.id === job.drive);
@@ -1543,10 +1546,19 @@
       else idx = Math.min(idx, DATA.drive.length - 1);
       if (!root.dataset.mode) { await loadSolid(col); render(1,true); }
     } catch(e) {backendError=e; if (!root.dataset.mode) render(1,true);}
+    globalThis.dispatchEvent?.(new Event("dp-drive-state"));
   }
   api.syncState = backend.mock ? async () => {} : syncState;
   if (!backend.mock) backend.events(async event => {
     await refreshFinishedDisc(event);
+    // A terminal job can start while the lobby is open. Its first event identifies it;
+    // fetch saved job state once so a cached blank disc never reads as ready while busy.
+    if (event.job && backendState && !backendState.jobs?.some(j => j.id === event.job)) {
+      try {
+        backendState.jobs = (await backend.state()).jobs;
+        globalThis.dispatchEvent?.(new Event("dp-drive-state"));
+      } catch {}
+    }
     if (event.type !== "state" || root.dataset.mode) return;
     await syncState();
   });
@@ -1614,6 +1626,11 @@
     chooseBatch(plan) { choosingFor = plan; setHome("library"); },
     rememberBatch(item) { try { if (item?.id) localStorage.setItem("dp-batch", item.id); } catch {} },
     lastBatch,
+    // Read cached state for the lobby; no device command belongs to its status line.
+    lobbyState: () => backend.mock ? {
+      drives: [{ id: "demo", disc: { present: trayDisc, blank: trayDisc ? true : null, kind: "DVD-R" } }],
+      selectedDrive: "demo", jobs: [],
+    } : backendError ? { error: true } : backendState ? { ...backendState, selectedDrive: api.selectedDrive() } : null,
     // the machine the core runs on ("win32", "linux", ...): the server's; in the mock, this browser's
     platform: () => backend.mock ? (/win/i.test(navigator.platform) ? "win32" : "linux") : backendState?.platform ?? "",
     // the disc batches of one kind (the library's entries, no empty place, no drive stop)

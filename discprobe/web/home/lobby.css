@@ -1,5 +1,5 @@
-/* The lobby (lobby.js): the desk scene, labels printed on the objects, the greeting top left. */
-.lobby { background: var(--lb-bg, var(--paper)); overflow: hidden; }
+/* The lobby (lobby.js): the desk scene, printed labels and live status top left. */
+.lobby { --lb-screen-ink: #ecebe4; background: var(--lb-bg, var(--paper)); overflow: hidden; }
 .lobby-art { position: absolute; inset: 0; }
 /* flying to or from the new-work page (newplan.js): the lobby stays drawn under it until the flight ends */
 :root[data-mode] .lobby.leaving { display: block; }
@@ -11,7 +11,7 @@
 /* a layer shown on demand: the monitor's lit screen, while the terminal is open */
 .lb-layer.off { opacity: 0; transition: opacity 320ms ease-out; }
 .lb-layer.off.lit { opacity: 1; }
-.lobby.screen-lit .lb-label[data-target="screen"] { color: #f2fff8; text-shadow: 0 0 .15em rgba(210, 255, 230, .9), 0 0 .6em rgba(160, 240, 200, .55); transition: color 320ms, text-shadow 320ms; }
+.lobby.screen-lit .lb-label[data-target="screen"] { color: var(--lb-screen-ink); }
 .lb-layer.lift > img { translate: 0 -8px; filter: brightness(1.03); }
 .lb-hit { position: absolute; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; pointer-events: auto; }
 .lb-hit:focus { outline: none; }
@@ -23,41 +23,26 @@
 /* a label printed flat on its object's face, as the disc library writes on its floor (the old lobby):
    quiet grey wide letters, no shadow; under the pointer the words turn ink and get a thin frame, which
    leans with the face like the library's "DVD" box. The quad is mapped by lobby.js. */
-.lb-label { position: absolute; left: 0; top: 0; transform-origin: 0 0; display: grid; place-items: center; white-space: nowrap; overflow: visible;
+.lb-label { position: absolute; left: 0; top: 0; transform-origin: 0 0; display: grid; place-items: center; white-space: nowrap; overflow: hidden;
   font: 800 calc(var(--h) * .62) / 1 var(--font); font-stretch: 120%; letter-spacing: .06em;
-  color: var(--ink-3); pointer-events: none; transition: color 180ms, translate 220ms var(--ease); }
+  color: var(--ink); text-shadow: none; pointer-events: none; transition: color 180ms, translate 220ms var(--ease); }
 .lb-label > i { font-style: normal; display: inline-block; padding: .14em .4em .1em; border: max(1.5px, .045em) solid transparent; border-radius: 4px;
   transition: border-color 180ms; }
-/* on the terminal's screen, in both themes: light text that glows a little, in the console's face */
-.lb-label[data-target="screen"], :root[data-theme="dark"] .lb-label[data-target="screen"] {
-  font-family: var(--mono); font-weight: 600; font-stretch: 100%; letter-spacing: .02em; color: #e3f2ea;
-  text-shadow: 0 0 .12em rgba(200, 255, 225, .7), 0 0 .45em rgba(150, 235, 195, .35); }
+.lb-label[data-target="screen"] { color: var(--lb-screen-ink); }
 .lb-label.hot { color: var(--ink); }
 .lb-label.hot > i { border-color: currentColor; }
-.lb-label[data-target="screen"].hot { color: #f2fff8; }      /* the screen's words stay lit, only brighter */
-/* the big words floating by their objects (lobby.js FLOAT): flat in the desk's plane, bold and wide, rising
-   and sinking a little; under the pointer they turn full ink and get the thin frame */
-.lb-float { width: auto; height: auto; display: block; font-size: var(--size); font-weight: 800; font-stretch: 125%; letter-spacing: .05em;
-  color: color-mix(in srgb, var(--ink) 74%, transparent); pointer-events: auto; cursor: pointer; }
-.lb-float > i { padding: .12em .38em .08em; border-width: .04em; }
-:root[data-motion="on"] .lb-float { animation: lb-bob 3.2s ease-in-out infinite; }
-@keyframes lb-bob { 50% { translate: 0 -10px; } }
-.lb-float.hot { color: var(--ink); }
-/* a floating word's shadow on the surface below: sharpest and darkest when the word is lowest */
-.lb-shadow { color: rgba(40, 30, 18, .3); pointer-events: none; cursor: default; filter: blur(5px); }
-:root[data-theme="dark"] .lb-shadow { color: rgba(0, 0, 0, .55); }
-.lb-shadow > i { border-color: transparent !important; }
-:root[data-motion="on"] .lb-shadow { animation: lb-shadow 3.2s ease-in-out infinite; }
-/* only its opacity moves: a changing blur would be drawn again every frame */
-@keyframes lb-shadow { 50% { opacity: .55; } }
-.lb-shadow.hot { color: rgba(40, 30, 18, .3); }
-:root[data-theme="dark"] .lb-shadow.hot { color: rgba(0, 0, 0, .55); }
+.lb-label[data-target="screen"].hot { color: var(--lb-screen-ink); }
+.lb-lamp-glow, .lb-layer.lift > .lb-lamp-glow { opacity: 0; filter: brightness(1.22); }
+.lobby.lamp-hot .lb-lamp-glow { opacity: .65; }
+.lb-lamp-hint { position: absolute; padding: 8px 12px; font: 600 28px / 1.2 var(--font); color: var(--ink-2);
+  background: var(--paper); border-radius: 4px; opacity: 0; transition: opacity 180ms; }
+.lobby.lamp-hot .lb-lamp-hint { opacity: 1; }
 .lb-label.own.hot { translate: 0 -8px; }
 
-/* the greeting: under the wordmark, in the scene's empty top left */
+/* The state line stays in the scene's empty top left. */
 .lobby-greet { position: absolute; left: var(--edge); top: calc(var(--edge) + 52px + 2.4vh); margin: 0; max-width: min(46vw, 640px); pointer-events: none; }
 .lobby-greet p { margin: 0; }
-#lobby-hello { font-weight: 700; font-stretch: 108%; font-size: clamp(22px, 2.6vw, 38px); line-height: 1.2; color: var(--ink); }
+#lobby-hello { font-weight: 700; font-stretch: 108%; font-size: clamp(22px, 2.1vw, 30px); line-height: 1.35; color: var(--ink); }
 #lobby-recent { margin-top: .7em; font-size: clamp(14px, 1.15vw, 17px); color: var(--ink-2); pointer-events: auto; }
 #lobby-recent[hidden] { display: none; }
 #lobby-recent button { background: none; border: 0; padding: 0; font: 600 1em var(--font); color: var(--ink); cursor: pointer; text-decoration: underline; text-underline-offset: .25em; text-decoration-color: color-mix(in srgb, var(--ink) 35%, transparent); }
@@ -65,4 +50,6 @@
 
 .lb-toast { position: absolute; left: 50%; bottom: calc(var(--foot) + 16px); transform: translate(-50%, 8px); padding: 10px 16px; border-radius: 8px; background: var(--ink); color: var(--paper); opacity: 0; transition: opacity 200ms, transform 200ms; pointer-events: none; }
 .lb-toast.on { opacity: 1; transform: translate(-50%, 0); }
-:root[data-motion="off"] .lb-layer > img, :root[data-motion="off"] .lb-outline, :root[data-motion="off"] .lb-label { transition: none; }
+:root[data-motion="off"] .lb-layer > img, :root[data-motion="off"] .lb-outline,
+:root[data-motion="off"] .lb-outline polygon, :root[data-motion="off"] .lb-label,
+:root[data-motion="off"] .lb-lamp-hint { transition: none; }
