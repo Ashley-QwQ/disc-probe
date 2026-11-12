@@ -6074,6 +6074,45 @@
    "language": "zh",
    "confidence": "medium",
    "confidence_why": "Numbers posted as text with method; single disc; no independent visual check; the +6 offset is tuned to the preset."
+  },
+  {
+   "id": "D323-1",
+   "media": "dvd",
+   "disc": {
+    "mid": "TYG03",
+    "brand": "HP",
+    "type": "DVD-R 16x 4.7GB (inner ring CMDR47G-TYMSM01-133 0617; also GHOO8133)",
+    "capacity_sectors": 2297888
+   },
+   "drive": {
+    "model": "PIONEER DVD-RW DVR-220L",
+    "firmware": "1.00",
+    "connection": "SATA to USB enclosure"
+   },
+   "burn": {
+    "speed": "4x",
+    "software": "DiscImageStudio v1.5.0"
+   },
+   "parameters": {
+    "innerRadiusMm": 23.934090363794045,
+    "outerRadiusMm": 57.987156121353,
+    "sectors": 2297888,
+    "pitchLinear": -3.003650783380961e-06,
+    "pitchQuadratic": 1.3626652538376547e-05,
+    "pitchCubic": -1.0989865066606084e-05
+   },
+   "parameters_as_posted": "r0 23.934090363794045, r1 57.987156121353003, sectors 2297888, relative linear/quadratic/cubic -3.003650783380961E-06 / 1.3626652538376547E-05 / -1.0989865066606084E-05. r0/r1/sectors taken from #278; pitch terms refitted on this disc.",
+   "result": "worked",
+   "result_notes": "Posted in the contribute-parameters category with label-side and data-side photos (not read). r0/r1 not independently confirmed; poster thinks the inner edge may have ~2 mm slack. Same MID as I278 (TYG03), different pitch terms.",
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/323",
+   "author": "SirTamago",
+   "posted": "2026-11-12",
+   "language": "zh",
+   "confidence": "medium",
+   "confidence_why": "Full numbers as text with disc and drive; radii borrowed from another report rather than measured.",
+   "related": [
+    "I278-1"
+   ]
   }
  ],
  "skipped": [
@@ -6137,6 +6176,13 @@
    ],
    "checked_through": "2026-11-12T06:18Z",
    "note": "Diff against the 2026-11-11 dump: 13 new posts, only I320 carries numbers."
+  },
+  {
+   "date": "2026-11-12",
+   "added": [
+    "D323-1"
+   ],
+   "checked_through": "2026-11-12T09:16Z"
   }
  ]
 }
