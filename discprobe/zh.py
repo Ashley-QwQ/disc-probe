@@ -7,6 +7,8 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    "accepted for compatibility; no-op (LAN is on by default)": "为兼容旧命令保留；局域网默认启用，此参数不再改变设置",
+    "listen only on 127.0.0.1; disable LAN phone access": "仅监听 127.0.0.1，关闭手机通过局域网访问",
     "Timing and drawing use numpy and Pillow; photo reading also needs SciPy and OpenCV.": "计时与绘图使用 numpy 和 Pillow；照片读取还需要 SciPy 与 OpenCV。",
     "Identity copies stay in the first session; omit --disc-id when appending the label.": "身份副本保留在首段会话；追加标签时不要使用 --disc-id。",
     "identity slot overlaps label metadata": "身份记录槽与标签元数据重叠",
