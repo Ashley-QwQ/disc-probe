@@ -886,7 +886,10 @@ class Ladder:
         rep["period_ms"] = self.T * 1e3 if self.T else None  # None if a run stopped while resettling
         rep["reference_lba"] = self.ref
         rep['elapsed_s'] = time.monotonic() - self.started if hasattr(self, 'started') else None
-        rep['coverage'] = self.coverage()
+        # Offline completion refits have accepted targets but no probed ranges.
+        # Do not invent coverage; callers updating a saved fit keep its coverage.
+        if hasattr(self, 'ranges'):
+            rep['coverage'] = self.coverage()
         rep['covariance_uv'] = self.cov[:2, :2].tolist()
         if self.bend is not None:
             rep['varying_pitch'] = True
