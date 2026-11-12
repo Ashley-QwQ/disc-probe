@@ -19,8 +19,8 @@ import math
 import os
 
 import numpy as np
-from scipy.ndimage import gaussian_filter
-from scipy.optimize import minimize
+from .numerics import gaussian_filter
+from .numerics import minimize
 
 from . import scan, tiledisc as T, tilescan
 from .imagedisc import CELL_MM, HALF_MM, SIZE
@@ -190,7 +190,7 @@ def centre_candidates(rim, focal, cx, cy, radius=DISC_R):
     (pinhole, focal length in pixels, principal point cx, cy) is the rim ellipse. Under perspective
     the centre does not project to the ellipse centre; for oblique views the difference breaks the
     vanishing-line construction."""
-    from scipy.optimize import least_squares
+    from .numerics import least_squares
     x0, y0, a, b, ang = rim
     t = np.linspace(0, 2 * math.pi, 48, endpoint=False)
 
@@ -280,6 +280,7 @@ def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False, mirrors=(Fa
     if focal:
         hubs = centre_candidates(e, focal, grey.shape[1] / 2, grey.shape[0] / 2)
     best = (-1, None)
+    candidates = []
     for hc in hubs:
         for mirror in mirrors:
             for deg in range(0, 360, 2):
@@ -287,9 +288,14 @@ def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False, mirrors=(Fa
                 if angle_prior and abs((image_angle(Hc) - angle_prior[0] + 180) % 360 - 180) > angle_prior[1]:
                     continue
                 s = sc(Hc)
+                candidates.append((s, deg, mirror, hc))
                 if s > best[0]:
                     best = (s, (deg, mirror, hc))
     deg, mirror, hub = best[1]
+    alternatives = [c for c in candidates if best[0] - c[0] <= 1e-6 and
+                    (c[2] != mirror or abs((c[1] - deg + 180) % 360 - 180) > 2)]
+    if alternatives:
+        log(f"warning: {len(alternatives)} other rotation/pose candidates have the same score; the pose is ambiguous")
     log(f"rotation sweep: {deg} deg, mirrored {mirror}, centre ({hub[0]:.0f}, {hub[1]:.0f}), score {best[0]:.3f}")
     H0 = perspective_h(e, hub, math.radians(deg), mirror)
     # Refine: 8 homography entries scaled to comparable steps, maximise the score.
@@ -299,14 +305,25 @@ def fit(rgb_small, labels, textures, hub, log=print, auto_hub=False, mirrors=(Fa
         H = np.append(q * scale, 1.0).reshape(3, 3)
         return -sc(H)
     q = p0 / scale
+    optimization = []
     for sigma in (12.0, 6.0):
         sc.sigma = sigma
         res = minimize(cost, q, method="Nelder-Mead", options={"maxiter": 3000, "xatol": 1e-3, "fatol": 1e-6})
         q = res.x
+        base = cost(q)
+        neighbours = [cost(q + sign * 1e-3 * e) for e in np.eye(len(q)) for sign in (-1, 1)]
+        improvement = max(0.0, base - min(neighbours))
+        optimization.append({"sigma": sigma, "success": bool(res.success),
+                             "local_probe_improvement": float(improvement),
+                             "first_order": "unproved: pixel sampling and absolute values need not be differentiable",
+                             "covariance": "not estimated by this photo model"})
+        if not res.success or improvement > 1e-6:
+            log(f"warning: photo refinement is not certified (success {res.success}, nearby improvement {improvement:.3g})")
         log(f"refine (sigma {sigma}): score {-res.fun:.3f}")
     H = np.append(q * scale, 1.0).reshape(3, 3)
     return H, {"rim_points": len(pts), "rim_inliers": n_in, "sweep_deg": deg, "mirrored": mirror,
-               "image_angle_deg": round(image_angle(H), 2), "angle_prior": angle_prior}
+               "image_angle_deg": round(image_angle(H), 2), "angle_prior": angle_prior,
+               "ambiguous_candidates": len(alternatives), "optimization": optimization}
 
 
 def exif_focal_px(path, width, height):

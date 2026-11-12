@@ -184,7 +184,7 @@ python -m discprobe --lang zh guide
 
 标准输出不是终端或 `TERM=dumb` 时什么都不画。
 
-**常见报错。**缺 numpy、scipy、Pillow 时会打印安装命令。`--geo` 的文件不存在，或者不是 `geo` 的结果，`--ranges` 格式不对，`--drive` 打不开，都改成了一行说明，退出码仍是 1；参数错误的退出码仍是 2。
+**常见报错。**缺 numpy、Pillow 时会打印安装命令。`--geo` 的文件不存在，或者不是 `geo` 的结果，`--ranges` 格式不对，`--drive` 打不开，都改成了一行说明，退出码仍是 1；参数错误的退出码仍是 2。
 
 ## `info` 读了什么
 

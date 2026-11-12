@@ -393,7 +393,7 @@ $$
 
 在解 $\rho_*$ 处，右侧迭代函数的导数是 $-e(x_*)$。如果附近整个有效区间的导数绝对值小于 1，并且迭代留在该区间内，就有局部收缩：误差会逐轮变小。轻微轨距扰动使这个条件容易满足，但不是所有多项式都满足。
 
-当前实现固定更新四次；“四次足够”是小扰动下的数值选择，不是任意参数下的收敛定理。外层参数拟合使用 SciPy 的 Levenberg–Marquardt。多项式降了残差，也不能单独证明盘片轨距确实按该多项式变化。
+当前实现固定更新四次；“四次足够”是小扰动下的数值选择，不是任意参数下的收敛定理。外层参数拟合使用 基于 NumPy 的 SVD 信赖域法。多项式降了残差，也不能单独证明盘片轨距确实按该多项式变化。
 
 </details>
 
@@ -507,7 +507,7 @@ $$
 | 转成 DiscImageStudio 的模型 | [`disexport.py`](../discprobe/disexport.py)，这是映射拟合，不是简单复制系数 |
 | 成品盘的独立评估 | [`eval_grid.py`](../evidence/eval_grid.py) |
 
-配套的[数学数值检查](../tools/check_autocalibration_math.py)不访问光驱、不生成镜像、不写盘。安装项目已有的 NumPy、Pillow、SciPy 等依赖后，在仓库根目录运行：
+配套的[数学数值检查](../tools/check_autocalibration_math.py)不访问光驱、不生成镜像、不写盘。安装项目已有的 NumPy、Pillow 等依赖后，在仓库根目录运行：
 
 ```bash
 python tools/check_autocalibration_math.py

@@ -184,7 +184,7 @@ The progress line has a small turning disc, and a rainbow highlight sweeps over 
 
 Nothing is drawn if stdout is not a terminal or `TERM=dumb`.
 
-**Common errors.** If numpy, scipy or Pillow is missing, an install command is printed. A missing `--geo` file or a file that is not a `geo` result, an invalid `--ranges` format or a `--drive` that cannot be opened now gets a one-line explanation, still with exit code 1; parameter errors still use exit code 2.
+**Common errors.** If numpy or Pillow is missing, an install command is printed. A missing `--geo` file or a file that is not a `geo` result, an invalid `--ranges` format or a `--drive` that cannot be opened now gets a one-line explanation, still with exit code 1; parameter errors still use exit code 2.
 
 ## What `info` reads
 

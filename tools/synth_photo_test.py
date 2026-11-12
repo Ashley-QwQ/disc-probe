@@ -18,9 +18,9 @@ import tempfile
 
 import numpy as np
 from PIL import Image
-from scipy.ndimage import gaussian_filter
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from discprobe.numerics import gaussian_filter
 from discprobe import tiledisc as T, tilephoto  # noqa: E402
 from discprobe.imagedisc import CELL_MM, HALF_MM, SIZE  # noqa: E402
 

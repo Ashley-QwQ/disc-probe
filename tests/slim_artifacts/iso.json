@@ -1,0 +1,59 @@
+[
+  {
+    "command": [
+      "random",
+      "--sectors",
+      "256",
+      "--seed",
+      "317"
+    ],
+    "sha256": {
+      "old": "8dbaec93a251b290aba9651dadd6f8c6a9661b38a5ac866cf380f0a9c6d6e979",
+      "new": "8dbaec93a251b290aba9651dadd6f8c6a9661b38a5ac866cf380f0a9c6d6e979"
+    },
+    "bytes": 524288,
+    "identical": true,
+    "scipy_modules": {
+      "old": [],
+      "new": []
+    }
+  },
+  {
+    "command": [
+      "random",
+      "--sectors",
+      "256",
+      "--seed",
+      "318",
+      "--media",
+      "bd"
+    ],
+    "sha256": {
+      "old": "f97e818bd9f9421736c85f0703dddba9222afce24ae4ec2ca81970353b8ece31",
+      "new": "f97e818bd9f9421736c85f0703dddba9222afce24ae4ec2ca81970353b8ece31"
+    },
+    "bytes": 524288,
+    "identical": true,
+    "scipy_modules": {
+      "old": [],
+      "new": []
+    }
+  },
+  {
+    "command": [
+      "calibdisc",
+      "--sectors",
+      "512"
+    ],
+    "sha256": {
+      "old": "f01a5ce0047ed21b39852c92b91d3e055c0ea05f4809385b97dbb08d745b3146",
+      "new": "f01a5ce0047ed21b39852c92b91d3e055c0ea05f4809385b97dbb08d745b3146"
+    },
+    "bytes": 1048576,
+    "identical": true,
+    "scipy_modules": {
+      "old": [],
+      "new": []
+    }
+  }
+]

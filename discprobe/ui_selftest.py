@@ -1581,8 +1581,8 @@ def _advice(c) -> None:
     c.check(not any("simulated" in x for x in guide.after_timing(args, timed("CAV", [0.4]))), "a real drive's verdict does not")
     real_missing = guide.missing_packages
     try:
-        guide.missing_packages = lambda: ["numpy", "scipy"]
-        c.check("numpy, scipy" in guide.after_selftest()[0] and guide.INSTALL in guide.after_selftest()[1], "a self-test that skipped checks says so")
+        guide.missing_packages = lambda: ["numpy", "pillow"]
+        c.check("numpy, pillow" in guide.after_selftest()[0] and guide.INSTALL in guide.after_selftest()[1], "a self-test that skipped checks says so")
         guide.missing_packages = lambda: []
         c.check("guide" in guide.after_selftest()[0], "a complete self-test points to guide")
     finally:
@@ -1656,8 +1656,8 @@ def _command_line(c) -> None:
         c.check(code == 2 and "not a speed" in text, "a bad --speed is an argument error")
         code, _ = code_and_stderr()
         c.check(code == 2, "no command in a pipe is still an argument error")
-        if importlib.util.find_spec("numpy") is None or importlib.util.find_spec("scipy") is None:
-            print("--geo and --ranges error checks skipped (need numpy and scipy)")
+        if importlib.util.find_spec("numpy") is None:
+            print("--geo and --ranges error checks skipped (need numpy)")
         else:
             code, _ = code_and_stderr("timing", "--sim", "cav", "--media", "cd", "--speed", "8x", "--reps", "4", "--period-reads", "20", "--out", out)
             speeds = sorted(r.summary["args"]["speed"] for r in guide.scan(out))
@@ -1928,8 +1928,8 @@ def _no_disc(c) -> None:
             cli._open = lambda args: Empty(0x3A)
             code, text = run("timing", "--sim", "cav", "--out", d)
             c.check(code == 1 and mmc.TRAY_OPEN in text and "burn a test disc" not in text, "timing on an open tray says so")
-            if importlib.util.find_spec("numpy") is None or importlib.util.find_spec("scipy") is None:
-                print("CD and geo open-tray checks skipped (need numpy and scipy)")
+            if importlib.util.find_spec("numpy") is None:
+                print("CD and geo open-tray checks skipped (need numpy)")
             else:
                 code, text = run("timing", "--sim", "cav", "--media", "cd", "--out", d)
                 c.check(code == 1 and mmc.TRAY_OPEN in text and "Mode 1" not in text, "timing --media cd on an open tray says so")
@@ -2039,8 +2039,8 @@ def _stopped_part_way(c) -> None:
             result = next(r for r in guide.scan(stopped_folder) if r.path == path)
             c.check("stopped early" in result.describe(), "and `results` says it stopped early")
 
-            if importlib.util.find_spec("numpy") is None or importlib.util.find_spec("scipy") is None:
-                print("geo part-way checks skipped (need numpy and scipy)")
+            if importlib.util.find_spec("numpy") is None:
+                print("geo part-way checks skipped (need numpy)")
                 return
             out = os.path.join(d, "geo")
             cli._open = lambda args: Goes(tray, 1300)   # rung 10 or so, after the check points read at the start
@@ -2216,7 +2216,7 @@ def _plain_errors(c) -> None:
 def _missing_package(c) -> None:
     import subprocess
     import sys
-    code = ("import sys; sys.modules['scipy'] = None; from discprobe.__main__ import main; "
+    code = ("import sys; sys.modules['numpy'] = None; from discprobe.__main__ import main; "
             "main(['disexport', '--geo', sys.argv[1]])")
     with tempfile.TemporaryDirectory() as d:
         geo = os.path.join(d, "s.json")

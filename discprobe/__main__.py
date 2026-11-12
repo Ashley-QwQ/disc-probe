@@ -2378,7 +2378,7 @@ def main(argv=None):
         sys.exit(130)
     except ModuleNotFoundError as e:
         package = (e.name or "").split(".")[0]
-        if package not in ("numpy", "scipy", "PIL"):
+        if package not in ("numpy", "PIL", "scipy", "cv2"):
             raise
         sys.exit(f"this command needs {'Pillow' if package == 'PIL' else package}. "
                  f"Install what disc-probe uses with: {guide.INSTALL}")
