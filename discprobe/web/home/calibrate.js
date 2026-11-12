@@ -8,6 +8,7 @@ import { floorLog } from "./floor-log.js";
 import * as sfx from "./sfx.js";
 import { stage } from "./calstage.js";
 import * as loadDisc from "./loaddisc.js";
+import * as calchart from "./calchart.js";      // the measurement charts as engineering drawings (the designer's review)
 const DEMO = Number(new URLSearchParams(location.search).get("demo")) || 40;   // simulated jobs run this many times faster (?demo=N)
 const R0 = 22, R1 = 58.5;             // data area, mm: the radius the head sweeps while burning
 
@@ -159,7 +160,7 @@ function newFlow(item) {
 
 // returnTo: who opened this page and gets it back when it closes (the new-plan form's "calibrate
 // first"), called with { done } instead of going back to the disc's place on the shelf
-let returnTo = null;
+let returnTo = null, returnAnim = null;     // returnAnim(finish): the opener's way back (newplan.js panBack)
 function giveBack(done) {
   const r = returnTo;
   returnTo = null;
@@ -167,9 +168,9 @@ function giveBack(done) {
   r({ done, id: done ? flow?.savedId : undefined });     // the library entry just saved, for the opener to pick
   return true;
 }
-export function start(homeApi, { returnTo: back = null } = {}) {
+export function start(homeApi, { returnTo: back = null, returnAnim: anim = null } = {}) {
   api = homeApi; $ = api.$;
-  returnTo = back;
+  returnTo = back; returnAnim = back ? anim : null;
   const item = api.current().item;
   // a job still running belongs to its disc: come back to it; otherwise start over for this disc
   if (!flow || (flow.item !== item && !flow.job)) {
@@ -177,7 +178,7 @@ export function start(homeApi, { returnTo: back = null } = {}) {
     if (!ui) build();
   }
   if (!api.backend.mock) { flow.realPhase ??= "inspect"; flow.disc = "waiting"; }
-  open();
+  return open();
 }
 
 // A calibration the core is already running (the page was reloaded or closed meanwhile): show it and follow
@@ -314,27 +315,35 @@ let st = null;                             // the stage (calstage.js), live page
 let discWentIn = false;                    // the "disc goes into the drive" animation played on this visit
 function open() {
   document.documentElement.dataset.mode = "cal";
-  discWentIn = false;
+  // the disc goes in once on a visit, when the drive is seen to hold it; a job running or a result on the
+  // paper: it is in already
+  discWentIn = !!flow.job || ["review", "saving", "saved"].includes(flow.realPhase);
   $("cal").hidden = false;
   $("back").hidden = false;
   api.focusDrive();
-  if (!api.backend.mock) stage(api).then((s) => {
+  // resolves when the stage and the desk under it are on screen (at once on the mock page)
+  const shown = api.backend.mock ? Promise.resolve() : stage(api).then(async (s) => {
     st = s;
     if (!isCal()) return;
     document.documentElement.classList.add("cal-staged"); st.show(true);
-    loadDisc.desk(true, st.art());
+    // until then the story's first frame: the disc on the desk before the open tray (loaddisc.js)
+    st.hold(!discWentIn);
+    const desk = discWentIn ? loadDisc.desk(true, st.art()) : loadDisc.pose(st.art(), 0);
     paint();
+    await desk;
   }).catch((e) => { st?.hold(false); console.error("calibration stage", e); });
   paint();
   // coming back while it burns: the drive is open again, the plate as it was
   if (flow.job?.kind === "burn") setTimeout(() => showInterior(true), 750);
   else if (flow.plate !== "off") setPlate(flow.plate);
+  return shown;
 }
 
 function release() {
   document.documentElement.dataset.mode = "";
   const ruler = document.getElementById("cal-ruler"); if (ruler) ruler.hidden = true;
   st?.show(false); loadDisc.desk(false); document.documentElement.classList.remove("cal-staged"); sideButton(null);
+  document.title = "disc-probe";
   $("cal").hidden = true;
   $("back").hidden = true;
   const nb = $("next");
@@ -344,11 +353,19 @@ function release() {
   flog.hide();
 }
 
+let leaving = false;
 function leave() {
-  release();
   // a disc that was in the air goes back to waiting; detection starts over next time
   if (!flow.job && ["detecting", "identify", "flying", "hover", "falling", "checking"].includes(flow.disc)) flow.disc = "detect";
   if (!flow.job && flow.disc === "remove") flow.disc = "detect";
+  if (returnTo && returnAnim && !api.reduce) {          // the opener takes the camera back first, then the page closes
+    if (leaving) return;
+    leaving = true;
+    const anim = returnAnim; returnAnim = null;
+    anim(() => { release(); giveBack(flow.realPhase === "saved"); }).finally(() => { leaving = false; });
+    return;
+  }
+  release();
   if (giveBack(flow.realPhase === "saved")) return;
   api.goTo(...api.locate(flow.item));     // back to where the disc stands on the shelf
 }
@@ -987,7 +1004,13 @@ function realPaint() {
     const stage = rung ? liveText(`第 ${rung[1]} 处，共 ${rung[2]} 处。`, `Place ${rung[1]} of ${rung[2]}.`) : flow.stage ? flow.stage + " " : "";
     text = stage + liveText('可以关掉这个网页，测量在后台继续。', 'You can close this page; the work goes on.');
     disabled = true;
-    html += runningPaper(phase);
+    if (flow.job) {
+      html += runningPaper(phase);                       // what is happening: only while it happens
+      const verb = { burning: liveText("刻录中", "Burning"), random: liveText("生成中", "Making"), saving: liveText("保存中", "Saving") }[phase]
+        ?? liveText("测量中", "Measuring");
+      const left = $("job-time").textContent;              // only a real time left (not "about 0 s" between steps)
+      button = flow.etaS > 0 && left && left !== "?" ? liveText(`${verb}，${left}`, `${verb}, ${left}`) : verb;
+    }
   } else if (phase === "review") {
     title = liveText('测量结果', 'Measurement result');
     const part = flow.geo || flow.timing;
@@ -1014,7 +1037,7 @@ function realPaint() {
         `Read-back of the measurement disc burned here: ${v.unreadable} sampled blocks unreadable, ${v.differing} differing. Use the result as judged above; if measuring stops there, burn another measurement disc from this batch at another speed.`), ""]);
     const ok = recovery.id === 'save';
     button = ok ? (flow.detected.media === "cd" ? liveText('查看 CD 标定下一步', 'CD calibration: next step') : returnTo ? liveText('保存测量', 'Save the measurement') : T().save) : recovery.label[api.lang()];
-    html += `<details class="cal-details"><summary>${liveText('详情', 'Details')}</summary><p>${liveText('导出的预设仍覆盖整盘；半径参数只限定拟合区域，不能裁掉未测区域。更换读取速度、选择测量区域和比较模型须在电脑命令行操作。将 START-END 换成实际的数据扇区范围，SPEED 换成光驱支持的读取速度（如 4x）；先确认恒速，再执行下一条。光驱保持恒速检查通过后，页面才会继续测量。', 'Use the computer terminal to change reading speed, select measurement areas or compare models. An exported preset covers the full disc; radius options limit fitting and do not remove unmeasured areas. Replace START-END with actual data-sector limits and SPEED with a supported reading speed (such as 4x); confirm steady rotation before the next command. The page continues measuring only after a steady-rotation check passes.')}</p><pre>${esc(recoveryCommands(flow, {drive:api.selectedDrive(), media:flow.detected.media, sectors:flow.blankSectors ?? flow.detected.sectors}))}</pre><p><code>${esc(part?.path || '')}</code></p>${realChart(flow.geo?.measurement)}</details>`;
+    html += `<details class="cal-details"><summary>${liveText('详情', 'Details')}</summary><p>${liveText('导出的预设仍覆盖整盘；半径参数只限定拟合区域，不能裁掉未测区域。更换读取速度、选择测量区域和比较模型须在电脑命令行操作。将 START-END 换成实际的数据扇区范围，SPEED 换成光驱支持的读取速度（如 4x）；先确认恒速，再执行下一条。光驱保持恒速检查通过后，页面才会继续测量。', 'Use the computer terminal to change reading speed, select measurement areas or compare models. An exported preset covers the full disc; radius options limit fitting and do not remove unmeasured areas. Replace START-END with actual data-sector limits and SPEED with a supported reading speed (such as 4x); confirm steady rotation before the next command. The page continues measuring only after a steady-rotation check passes.')}</p><pre>${esc(recoveryCommands(flow, {drive:api.selectedDrive(), media:flow.detected.media, sectors:flow.blankSectors ?? flow.detected.sectors}))}</pre><p><code>${esc(part?.path || '')}</code></p>${calchart.resultChart(flow.geo?.measurement, { zh: api.lang() === "zh" })}</details>`;
     if (part?.verdict === 'usable') html += `<button id="real-remeasure" class="placed" type="button">${liveText('检查转速并重测', 'Check rotation and remeasure')}</button>`;
     if (ok) html += `<label class="count-input">${T().leftQ}<input id="left-input" type="number" min="0" max="100000" value="${flow.left ?? ""}"></label>`;
   } else if (phase === "photo") {
@@ -1093,22 +1116,24 @@ function runningPaper(phase) {
   if (phase === "checking") return say("读一下刚刻好的盘：是不是这批、刻满了没有。几秒钟。", "Reading the disc just burned: the right batch, filled. A few seconds.");
   if (phase === "timing") return say("在盘的三个位置各读几十次，看光驱转得稳不稳。稳了才能测几何。", "Reading at three places on the disc, many times each, to see whether the drive turns steadily. Geometry needs that.") + tape;
   if (phase === "geo") return say("光头从里往外读，每到一处记下一圈转到哪里。点越贴近中线越好。", "The head reads from the inside out, noting at each place where the turn is. The closer the points sit to the middle line, the better.")
-    + liveChart(flow.points || [], flow.head) + tape;
+    + calchart.liveChart(flow.points || [], { head: flow.head, zh: api.lang() === "zh" }) + soFar(flow.points || []) + tape;
   if (phase === "saving") return say("把测量写成这批盘的预设。", "Writing the measurement as this batch's preset.");
   return "";
 }
-// measured points against radius, with their uncertainty; where the head has not been yet stays blank
-function liveChart(points, head) {
-  const X = (mm) => 44 + (mm - 24) / 34 * 500, ext = Math.max(0.3, ...points.map((p) => Math.abs(p.d) + p.s)) * 1.15;
-  const Y = (v) => 96 - v / ext * 80, at = Number.isFinite(head) ? head : points.at(-1)?.r;
-  const unread = Number.isFinite(at) && at < 57 ? `<line class="now" x1="${X(at)}" x2="${X(at)}" y1="12" y2="180"/>` +
-    `<text class="still" x="${(X(at) + 544) / 2}" y="100" text-anchor="middle">${liveText("还没读到", "not read yet")}</text>` : "";
-  return `<svg class="chart" viewBox="0 0 560 210" role="img" aria-label="${liveText("每一处的转角偏差和误差", "Turn offset at each radius, with its uncertainty")}">` +
-    `<line class="grid" x1="44" x2="544" y1="96" y2="96"/><line class="axis" x1="44" x2="44" y1="12" y2="180"/>` +
-    points.map((p) => `<line class="bar" x1="${X(p.r)}" x2="${X(p.r)}" y1="${Y(p.d - p.s)}" y2="${Y(p.d + p.s)}"/><circle class="pt" cx="${X(p.r)}" cy="${Y(p.d)}" r="3.5"/>`).join("") +
-    unread + [24, 30, 40, 50, 58].map((mm) => `<text x="${X(mm)}" y="200" text-anchor="middle">${mm}</text>`).join("") +
-    `<text x="40" y="20" text-anchor="end">+${ext.toFixed(1)}°</text><text x="40" y="180" text-anchor="end">−${ext.toFixed(1)}°</text>` +
-    `<text x="544" y="188" text-anchor="end" class="unit">${liveText("半径 mm", "radius mm")}</text></svg>`;
+// While the geometry is measured: what the points so far say, as the result's stamp says it (designer's example:
+// "目前可用 / 读过的这一段很稳 / 内圈到 41 mm ... / 不用做什么"). Judged only on what was read: steady when the
+// points' scatter is within about twice their own uncertainty.
+function soFar(points) {
+  if (points.length < 3) return "";
+  const r = Math.max(...points.map((p) => p.r)), s = points.map((p) => p.s).sort((a, b) => a - b)[points.length >> 1];
+  const mean = points.reduce((a, p) => a + p.d, 0) / points.length;
+  const spread = Math.sqrt(points.reduce((a, p) => a + (p.d - mean) ** 2, 0) / points.length);
+  const steady = spread <= 2 * Math.max(s, .02);
+  const row = (dt, dd, act = false) => `<div><dt>${dt}</dt><dd${act ? ' class="act"' : ""}>${dd}</dd></div>`;
+  return `<div class="cal-stamp"><b>${steady ? liveText("目前可用", "Usable so far") : liveText("还看不出", "Not clear yet")}</b><dl>` +
+    row(liveText("意思", "Means"), steady ? liveText("读过的这一段很稳。", "What was read so far is steady.") : liveText("读过的这一段有些抖，再读几处才知道。", "What was read so far wavers; a few more places will tell."), false) +
+    row(liveText("对你的图", "For the picture"), steady ? liveText(`内圈到 ${r.toFixed(0)} mm 的位置可信。`, `Positions out to ${r.toFixed(0)} mm can be trusted.`) : liveText("还不好说。", "Too early to say.")) +
+    row(liveText("现在", "Now"), liveText("不用做什么，等它读完外圈。", "Nothing to do; let it read the outer part.")) + `</dl></div>`;
 }
 // ---------------------------------------------------------------- the stage: what the disc shows now
 function paintStage() {
@@ -1117,6 +1142,11 @@ function paintStage() {
   const disc = (phase === "inspect" && !d) || d?.present === false ? "none" : d?.blank === true ? "blank" : "in";
   let read = null, head = null, band = null;
   if (phase === "burning") read = [R0, radiusAt(p)];                       // the measurement image going on
+  // a burn that stopped part way: what was written, and a copper band where it stopped (that disc is spent)
+  if (phase === "burning" && !job && flow.error && flow.burnP > 0) {
+    const r = radiusAt(flow.burnP);
+    read = [R0, r]; band = [r, Math.min(58, r + 2)];
+  }
   if (phase === "geo" && Number.isFinite(flow.head)) { head = flow.head; read = [24, flow.head]; }
   if (phase === "review") {
     const m = flow.geo?.measurement, k = recoveryKind(flow);
@@ -1128,6 +1158,8 @@ function paintStage() {
     discWentIn = true; st.hold(true);
     loadDisc.play(st.art()).catch((e) => console.error("disc animation", e)).finally(() => st.hold(false));
   }
+  // the browser tab says it too, so a person in another tab sees it going ("62% · 测几何")
+  document.title = job ? `${Math.round(p * 100)}% · ${$("job-name").textContent}` : "disc-probe";
   st.set({ disc, read, head, band, busy: !!job,
     percent: job ? p * 100 : null, left: job ? $("job-time").textContent : "" });
 }
@@ -1179,13 +1211,40 @@ function paintRuler() {
 }
 // the core's steps (calibrate.py) as this page's phases
 const STEP_PHASE = { burn: "burning", check: "checking", timing: "timing", geo: "geo", preset: "saving" };
+// the core's step names (calibrate.py, info, random) in the page's words, for the job bar
+const STEP_WORDS = {
+  info: ["检测光盘", "Checking the disc"], random: ["生成测量图", "Making the image"], burn: ["刻测量盘", "Burning"],
+  check: ["检查刻好的盘", "Checking the burn"], timing: ["测转速", "Rotation"], geo: ["测几何", "Geometry"],
+  preset: ["保存预设", "Saving the preset"], calibrate: ["标定", "Calibrating"],
+};
+const stepWords = (name) => STEP_WORDS[name] ? liveText(...STEP_WORDS[name]) : name;
+const CHECK_MS = 5000;                     // how long the disc check's bar takes to fill (the check itself: a second or two)
 async function realJob(action, args = {}, extra = {}, following = null) {
   const f = flow;
   const current = {kind:action, id:following, p:0}; f.job = current;
-  $("job").hidden = false; $("job-name").textContent = action; paint();
+  $("job").hidden = false; $("job-name").textContent = stepWords(action); paint();
   const drive = ["info","timing","geo","burn","calibrate"].includes(action) ? api.selectedDrive() : undefined;
   placeLog(); flog.start(commandLine(action, drive));
   let why = "", lastLine = "";            // what the core said last: a failed job is told by it, not by its exit code
+  // checking the disc takes a few seconds and reports no progress of its own: the bar simply runs for a fixed
+  // CHECK_MS (a guessed time left would only be wrong): a quick answer waits for the bar to finish, a slow drive
+  // keeps the bar full until it answers
+  let checkTimer = 0;
+  const t0 = performance.now();
+  if (action === "info") {
+    const media = f.detected?.media || f.item?.row || "dvd";
+    const tick = () => {
+      if (flow !== f) return;
+      const ms = performance.now() - t0;
+      current.p = Math.min(1, ms / CHECK_MS);
+      api.jobProgress(current.p, media);
+      const left = Math.ceil((CHECK_MS - ms) / 1000);       // a countdown, not an estimate: no "about"
+      $("job-time").textContent = left > 0 ? liveText(`${left} 秒`, `${left} s`) : "";
+      paintStage();
+    };
+    tick();
+    checkTimer = setInterval(tick, 100);
+  }
   const onEvent = event => {
       if (flow !== f) return;
       if (event.type === "error" && event.message) why = event.message;
@@ -1206,7 +1265,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
         f.realPhase = STEP_PHASE[event.name] ?? f.realPhase; f.stage = null; current.p = 0; f.head = null;
         if (event.name === "geo") { f.points = []; f.tape = []; }
         sfx.step(event.index ?? 0);
-        $("job-name").textContent = event.name;
+        $("job-name").textContent = stepWords(event.name);
         flog.log(`$ python -m discprobe ${event.name}`, "command");
         if (event.name !== "geo") showInterior(false);
         paint();
@@ -1217,21 +1276,29 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       if (event.type === "ask") { f.ask = event; paint(); }
       if (event.type === "answer") { f.ask = null; paint(); }
       if (event.type === "stopped") f.error = liveText('提前停止：', 'Stopped early: ') + event.reason;
-      if (event.type === "progress") {
+      if (event.type === "progress" && action !== "info") {
         current.p = Math.max(0, Math.min(1, event.fraction || 0)); f.plateP = current.p;
+        if (f.realPhase === "burning") f.burnP = current.p;           // how far the burn got (a stop shows it)
         f.stage = event.stage; api.jobProgress(current.p, f.detected?.media || f.item?.row || "dvd");
-        $("job-time").textContent = Number.isFinite(event.eta_s) ? T().leftSec(Math.max(0, event.eta_s)) : "?";
+        const eta = Math.max(0, event.eta_s);            // minutes past a minute and a half, as the mock page says it
+        f.etaS = Number.isFinite(event.eta_s) ? eta : null;
+        $("job-time").textContent = Number.isFinite(event.eta_s) ? (eta > 90 ? T().left(eta) : T().leftSec(eta)) : "?";
         if (action === "geo" || f.realPhase === "geo") { setPlate("geo"); showInterior(true); updateInterior(current.p, Math.max(0, event.eta_s || 0)); }
         paintStage(); paintRuler();
       }
   };
   try {
-    return following ? await api.backend.follow(following, onEvent)
+    const result = following ? await api.backend.follow(following, onEvent)
       : await api.backend.job({action, media:f.detected?.media || f.item.row || "dvd", drive, args, ...extra}, onEvent);
+    if (action === "info") {
+      await new Promise((r) => setTimeout(r, Math.max(0, CHECK_MS - (performance.now() - t0))));
+      current.p = 1; api.jobProgress(1, f.detected?.media || f.item?.row || "dvd");      // the bar ends full
+    }
+    return result;
   } catch (error) {
     if (error.status === 422 && (why || lastLine)) error.message = why || lastLine;
     throw error;
-  } finally { if (flow === f) {endJob(); f.ask = null; showInterior(false);} }
+  } finally { clearInterval(checkTimer); if (flow === f) {endJob(); f.ask = null; showInterior(false);} }
 }
 async function realNext(forceMeasure = false) {
   if (flow.job) return;
@@ -1304,8 +1371,18 @@ async function realCalibrate(args = {}, extra = {}) {
   const preset = `presets/calibration-${Date.now()}.json`;
   // the preset needs the blank's capacity: known when the blank was read here; else the core reads it before burning
   let result;
+  const avoid = (flow.burnCheck?.verification?.failures || [])
+    .filter(f => typeof f.radius_mm === "number" && Number.isFinite(f.radius_mm))
+    .map(f => [Math.max(0, f.radius_mm - 2), f.radius_mm + 2])
+    .filter(([a, b]) => a < b).sort((a, b) => a[0] - b[0]);
+  const bands = [];
+  for (const [a, b] of avoid) {
+    const last = bands[bands.length - 1];
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b);
+    else bands.push([a, b]);
+  }
   flow.burnCheck = null;
-  try { result = await realJob("calibrate", { ...args, mid: flow.detected?.mid || undefined, preset, sectors: flow.blankSectors || undefined }, extra); }
+  try { result = await realJob("calibrate", { ...args, speed: "4x", avoid_mm: bands.map(([a, b]) => `${a}-${b}`), mid: flow.detected?.mid || undefined, preset, sectors: flow.blankSectors || undefined }, extra); }
   catch (error) {
     if (!error.result?.timing && !error.result?.geo) {
       // the core said why it stopped: in words, with the next step (a half-written disc is not used again)
@@ -1347,7 +1424,7 @@ function finishCalibrate(result) {
 // now, same maker code) and measuring starts.
 async function realBurn() {
   const media = flow.detected.media, drive = api.selectedDrive();
-  flow.realPhase = "burning"; flow.stage = liveText('检查托盘里还是空白盘…', 'Checking the tray still holds the blank…'); paint();
+  flow.realPhase = "burning"; flow.burnP = 0; flow.stage = liveText('检查托盘里还是空白盘…', 'Checking the tray still holds the blank…'); paint();
   const report = await api.backend.request(`/api/burn-speeds?drive=${encodeURIComponent(drive)}&media=${media}`);
   if (report?.blank !== true) { flow.realPhase = "burn"; throw new Error(liveText('光驱里不是空白盘。放回这批的空白盘再刻。', 'The drive does not hold a blank. Put a blank from this batch back and burn again.')); }
   const { token } = await api.backend.request("/api/burn-token");
@@ -1370,15 +1447,3 @@ async function realSave() {
   flow.savedPath = result.path; flow.savedId = entry.id; flow.realPhase = "saved";
 }
 
-function realChart(measurement) {
-  const points = measurement?.points || [];
-  if (!points.length) return "";
-  const lo = Math.min(...points.map(p => p.lba)), hi = Math.max(...points.map(p => p.lba));
-  const extent = Math.max(.1, ...points.map(p => Math.abs(p.residual_deg) + p.sigma_deg));
-  const X = p => 45 + (p.lba-lo)/Math.max(1,hi-lo)*500;
-  const Y = v => 100-v/extent*80;
-  return `<svg class="chart" viewBox="0 0 560 230" role="img" aria-label="Measured residuals and one sigma error bars">` +
-    `<line class="grid" x1="45" x2="545" y1="100" y2="100"/>` +
-    points.map(p=>`<line class="bar" x1="${X(p)}" x2="${X(p)}" y1="${Y(p.residual_deg-p.sigma_deg)}" y2="${Y(p.residual_deg+p.sigma_deg)}"/><circle class="pt" cx="${X(p)}" cy="${Y(p.residual_deg)}" r="3"/>`).join("") +
-    `<text x="45" y="220">LBA ${lo.toFixed(0)}</text><text x="545" y="220" text-anchor="end">${hi.toFixed(0)} · ±${extent.toFixed(2)}°</text></svg>`;
-}

@@ -31,6 +31,21 @@
     /* Only the disc has colour (DESIGN.md): done is ink with a tick, what needs the person is copper, an
        error is copper in bold with its picture. No green, no red. */
     --good: var(--ink); --warn: var(--copper); --unknown: #6f6a62;
+    /* The page is a sheet of glass held just above the scene: the bars, buttons and paper are all on the glass,
+       one plane, and throw shadows down away from the lamp (up right): lower left, as the scene's own shadows.
+       How far depends on what lies under each: on the drive (just under the glass) a short shadow; on the bare
+       desk (a drive's height below) as far as the drive's own shadow, 40 x 22 mm. --mm is the
+       scene's px per mm, set by the page (newplan.js, calstage.js). Words printed on things in the scene belong
+       to the scene and throw none. Ink theme: deeper shadows and a thin highlight on the edges facing the lamp. */
+    --mm: 2.4px; --glass-ink: rgb(58 47 34 / .3);
+    --glass-desk: calc(-40 * var(--mm)) calc(22 * var(--mm)) calc(8 * var(--mm)) var(--glass-ink);
+    --glass-drive: calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(2.4 * var(--mm)) var(--glass-ink);
+    --glass-desk-drop: drop-shadow(calc(-40 * var(--mm)) calc(22 * var(--mm)) calc(3.5 * var(--mm)) var(--glass-ink));   /* small things: a crisper penumbra, still readable */
+    --glass-drive-drop: drop-shadow(calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(1.2 * var(--mm)) var(--glass-ink));
+    --glass-edge: 0 0 0 transparent; --glass-edge-drop: drop-shadow(0 0 0 transparent);
+    /* paper lying on the desk (scene, not glass): its short shadow */
+    --paper-desk: calc(-3 * var(--mm)) calc(1.7 * var(--mm)) calc(3 * var(--mm)) var(--glass-ink);
+    --envelope-desk-drop: drop-shadow(calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(1.6 * var(--mm)) var(--glass-ink));   /* a bag with a sheet in it */
     /* the TUI's DVD title colours (banner.TITLE_HUES dvd: OKLCH hue .80 to 1.02 turns), darker on paper */
     --dvd: linear-gradient(90deg, #7262c6, #8d58b7, #a150a1, #b04985, #ba4765);
     /* the other two kinds' bars: CD in its cyan, BD in copper */
@@ -51,6 +66,8 @@
     --paper: #161d1c; --paper-2: #1f2827; --ink: #ecebe4; --ink-2: #aeb3ab; --ink-3: #7f8780;
     --rule: #2c3634; --rule-strong: #46514e; --copper: #d9a75c;
     --good: var(--ink); --warn: var(--copper); --unknown: #aeb3ab;
+    --glass-ink: rgb(0 0 0 / .66);
+    --glass-edge: inset -1px 1px 0 rgb(255 255 255 / .1); --glass-edge-drop: drop-shadow(1px -1px 0 rgb(255 255 255 / .12));
     --dvd: linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a);
     --cd: linear-gradient(90deg, #6cc6dc, #6fd3cf, #82dbb7, #a3e29b);
     --bd: linear-gradient(90deg, #c98b4f, #d9a75c, #e4bb72, #ecca86);
@@ -401,12 +418,36 @@
   .cal-stage { position: fixed; z-index: 1; left: var(--edge); top: calc(var(--edge) + var(--row) + 16px); bottom: calc(var(--foot) + 16px);
     right: calc(var(--edge) + min(600px, 40vw) + 40px); display: grid; place-items: center; pointer-events: none; }
   .cal-stage[hidden] { display: none; }
+  /* newplan.js: the camera pans to the scene; what lies on the glass (paper, ruler) waits, then is laid down */
+  :root.pan-in :is(.cal-stage, .ld) { translate: 100vw 0; }
+  :root.pan-in :is(#cal, #cal-ruler) { opacity: 0; }
+  /* the glass (see --glass-*): new-work and calibration pages first */
+  :root:is([data-mode="newplan"], [data-mode="cal"]) .top > * { filter: var(--glass-desk-drop); }
+  :root[data-mode="newplan"] .top > :is(.back, .wordmark) { filter: var(--glass-drive-drop); }      /* over the drive */
+  :root:is([data-mode="newplan"], [data-mode="cal"]) :is(.next, .next-side) { box-shadow: var(--glass-edge), var(--glass-desk); }
+  :root[data-mode="cal"] .cal-ruler { filter: var(--glass-desk-drop); }
+  :root:is([data-mode="newplan"], [data-mode="cal"]) .bar > :is(.job, .drive, .next-why) { filter: var(--glass-desk-drop); }   /* the bottom bar's words are on the glass too */
+  :root[data-mode="cal"] .cs-big { filter: var(--glass-desk-drop); }                                    /* so are the big percent and its time */
+  /* the calibration card: the new-work page's paper (newplan/paper_*), lying on the desk, as long as what is on it;
+     it comes out of the archive envelope (newplan.js cardOut) */
+  :root.cal-staged .cal { padding: 30px 32px; box-shadow: var(--paper-desk); background: none;
+    /* 120 px of the picture at each edge (its 60 px clear margin + 60 px of sheet) drawn 46 px wide, the clear half
+       pushed outside: the sheet's edge is the box's edge */
+    border-image: url(newplan/paper_paper.webp) 120 fill / 46px / 23px stretch;
+    bottom: auto; max-height: calc(100vh - var(--edge) - var(--row) - var(--foot) - 32px); box-sizing: border-box; }
+  :root[data-theme="dark"].cal-staged .cal { border-image-source: url(newplan/paper_dark.webp);
+    --ink: #ece6d6; --ink-2: #d6d0c1; --ink-3: #b9b3a3; --rule: rgb(236 230 214 / .28); }   /* the words of the dark paper (newplan.css .np-sheet) */
   .cs-art { position: relative; height: 100%; max-width: 100%; }
   .cs-art > img, .cs-art > canvas { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; }
   .cs-art .cs-disc { opacity: .62; }                         /* the pickup shows through the disc */
   .cs-art .cs-occluders { opacity: .45; }                    /* the clamp bridge: structure, not a wall over the disc */
   .cs-art .cs-lid { opacity: .2; transition: opacity var(--t) var(--ease); }    /* the see-through top shell */
   .cs-art.busy .cs-lid { opacity: .28; }
+  .cs-art > .cs-spin { display: none; overflow: visible; }
+  .cs-art.spinning > .cs-spin { display: block; }
+  .cs-spin path { fill: none; stroke: var(--ink); stroke-opacity: .4; stroke-width: 6; stroke-linecap: round; }
+  :root[data-motion="on"] .cs-art.spinning > .cs-spin { animation: cs-spin 1.6s linear infinite; transform-origin: var(--spin-o, 50% 50%); }
+  @keyframes cs-spin { to { rotate: 360deg; } }
   .cs-art[data-disc="none"] .cs-disc { opacity: 0; }
   .cs-art .cs-sled, .cs-art .cs-glow { transition: transform 300ms linear; }
   :root[data-theme="dark"] .cs-art .cs-glow { mix-blend-mode: plus-lighter; }
@@ -435,7 +476,7 @@
     .cs-big { left: auto; right: 0; text-align: right; }
     .cs-big b { font-size: 44px; }
     :root.cal-staged .cal { position: fixed; top: calc(var(--edge) + var(--row) + 24px + 40vh); left: var(--edge); right: var(--edge);
-      bottom: calc(var(--foot) + 16px); width: auto; transform: none; padding: 0 0 16px; overflow-y: auto; }
+      bottom: calc(var(--foot) + 16px); width: auto; transform: none; padding: 22px 24px; overflow-y: auto; }   /* the card keeps its margins */
   }
   @media (max-width: 760px) { .bar > .next-side { display: none; } }
   /* the verdict: a stamp of equal weight whatever it says, then what it means, for the picture, and now */

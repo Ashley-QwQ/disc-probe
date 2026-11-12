@@ -76,6 +76,7 @@ ROTATION_READS = 24
 ROTATION_COHERENCE = 0.8    # one outlier takes a clear period to about 0.93 in 24 reads
 MIN_ROTATION_RATIO = 1.1    # a span narrower than this can't tell CLV from constant rotation
 CLV_RATIO_SLACK = 0.03      # one report's CLV was 0.3 % off the nominal radii, and a period read as twice the turn must not pass
+CAV_RATIO_SLACK = 0.05      # outer/inner periods must agree within 5 % for constant rotation
 
 
 def looks_clv(ratio: float, expected: float) -> bool:
@@ -211,9 +212,11 @@ class Ladder:
         return self.prior.bit_nm * 1e-6 * math.sqrt(self.u0 * self.u0 + self.v0 * self._n_end(lba) / math.pi)
 
     def check_rotation(self) -> None:
-        """Stop if the spindle slows towards the outside, as under CLV. A set speed can put a drive there, and phase
-        is no angle then: it still fits the few rungs near the reference, then gets nowhere. A period too unclear
-        to compare stops nothing here, and a whole number of turns apart isn't CLV, so only a clear match stops it."""
+        """Stop on clear CLV or inconsistent speeds before fitting any rungs.
+
+        A period too unclear to compare stops nothing here. Whole-turn aliases must
+        not be mistaken for CLV; they also cannot establish constant rotation.
+        """
         tp = self.tp
         inner = self._allowed(min(a for a, _ in self.ranges))
         outer = self._allowed(max(b for _, b in self.ranges) - self.block)
@@ -233,6 +236,10 @@ class Ladder:
         if looks_clv(ratio, expected):
             raise RuntimeError(f"the drive is not turning at a constant speed here ({periods[0] * 1e3:.2f} ms a turn at "
                                f"{self._radius(inner):.0f} mm, {periods[1] * 1e3:.2f} ms at {self._radius(outer):.0f} mm), and geo needs it to")
+        if abs(ratio - 1) > CAV_RATIO_SLACK:
+            raise RuntimeError(f"the drive's speed is not steady ({periods[0] * 1e3:.2f} ms a turn at "
+                               f"{self._radius(inner):.0f} mm, {periods[1] * 1e3:.2f} ms at {self._radius(outer):.0f} mm): "
+                               "it probably slowed down on a hard-to-read part of the disc")
 
     def settle(self, max_rounds: int = 10) -> float:
         tp, prev = self.tp, None

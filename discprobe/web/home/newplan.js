@@ -276,28 +276,135 @@ function paintLeft() {
   W.q(".np-cal-text").textContent = it.last ? t.calOk(it.last) : t.calNone;
   W.q(".np-cal-go").hidden = !!it.last;
 }
-// the detour: calibrate this batch, then come back to the form as it was
+// the detour: calibrate this batch, then come back to the form as it was.
+// The sheet goes into the envelope as on "next"; then the camera moves right along the desk: this page (drive,
+// envelope) leaves to the left while the calibration page (its desk, drive and paper) comes in from the right.
+const PAN_IN = ".cal-stage, .ld";                // the calibration page's scene; its card comes out of the envelope after
+const LAID = "#cal-ruler";                       // on the glass: does not travel with the scene; laid down after
 async function calibrateFirst() {
   const item = chosen();          // none: the batch to calibrate is the one in the drive (the new-disc place)
   if (going) return;
+  going = true;
   state.picked = item;
-  const cal = await import("./calibrate.js");
+  const pan = !api.reduce;
+  const calibrating = import("./calibrate.js");
+  if (pan) { W.resetPull?.(); fileInto(); W.classList.add("filing"); await wait(1000); }
+  const cal = await calibrating;
   api.useForPlan(state.kind, item);
-  W.hidden = true;
-  cal.start(api, { returnTo: ({ id } = {}) => {
+  if (pan) root.classList.add("pan-in");                      // its layers wait off to the right
+  let panned = false;
+  const shown = cal.start(api, { returnTo: ({ id } = {}) => {
     // the batch just calibrated, by its library entry (its name may not match the disc in the drive)
     const saved = id && api.catalogue(state.kind).find((x) => x.id === id);
     if (saved) { state.picked = saved; state.sub = subOf(state.kind, saved); }
-    reopen();
-  } });
+    reopen({ unfile: panned });
+  }, returnAnim: pan ? (finish) => { panned = true; return panBack(finish); } : null });
+  if (pan) {
+    await Promise.race([shown, wait(1500)]);
+    const opt = { duration: 760, easing: "cubic-bezier(.65, 0, .35, 1)" };
+    const coming = [...document.querySelectorAll(PAN_IN)].map((el) => el.animate([{ translate: "100vw 0" }, { translate: "0 0" }], { ...opt, fill: "forwards" }));
+    const going_ = W.animate([{ transform: "none" }, { transform: "translateX(-100vw)" }], { ...opt, fill: "forwards" });
+    await Promise.all([going_.finished, ...coming.map((a) => a.finished)]).catch(() => {});
+    root.classList.remove("pan-in");
+    W.hidden = true; going_.cancel(); coming.forEach((a) => a.cancel());
+    // the ruler comes down onto the glass (its shadow grows from nothing as it settles); the card comes out of
+    // the envelope, the filing played backwards with the calibration's words on the sheet
+    for (const el of document.querySelectorAll(LAID))
+      el.animate([{ opacity: 0, transform: "translate(10px, -14px)" }, { opacity: 1, transform: "translate(0, 0)" }],
+        { duration: 320, easing: "cubic-bezier(.2, .8, .2, 1)", composite: "add" });     // on top of the element's own placing
+    await cardOut($("cal"));
+  } else W.hidden = true;
+  W.classList.remove("filing", "leaving");
+  going = false;
 }
-function reopen() {
+// the scene's scale for the glass shadows (index.html --mm): the top view covers the window, 3.455 px/mm at 2560 wide
+function sceneScale() {
+  if (root.dataset.mode !== "newplan") return;
+  root.style.setProperty("--mm", `${(Math.max(innerWidth, innerHeight * 16 / 9) / 2560 * 3.455).toFixed(3)}px`);
+}
+addEventListener("resize", sceneScale);
+// The envelope rises from below the window with the card in its pocket (only its top peeking out), the card slides
+// up out of it to its place, and the envelope drops away. The tall envelope's bottom stays below the window.
+function envelopeFor(card) {
+  const r = card.getBoundingClientRect(), v = root.dataset.theme === "dark" ? "dark" : "paper";
+  const we = r.width * 1.12, eh = we * ENV_H, peek = Math.min(56, r.height * .14);
+  const pocket = Math.max(r.top + 2 * peek, Math.min(innerHeight * .62, r.bottom + 24));   // the slot while the card is in
+  const dy = pocket - peek - r.top;                                                       // how far down the card sits then
+  const px = (n) => `${n.toFixed(1)}px`;
+  const part = (name) => {
+    const e = document.createElement("div");
+    Object.assign(e.style, { position: "fixed", zIndex: 2, left: px(r.left + r.width / 2 - we / 2), top: px(pocket - ENV_POCKET * eh),
+      width: px(we), height: px(eh), pointerEvents: "none", filter: "var(--envelope-desk-drop)",
+      background: `url(${new URL(`./newplan/envelope_${name}_${v}.webp`, import.meta.url).href}) 0 0 / 100% 100% no-repeat` });
+    e.setAttribute("aria-hidden", "true");
+    return e;
+  };
+  const back = part("back"), front = part("front");
+  card.before(back); card.after(front);                   // back, the card, front: the card is in the pocket
+  return { back, front, dy, px };
+}
+// one timeline, each stretch with its own easing (an easing on the whole would bend the stops)
+const RISE = "cubic-bezier(.2, .8, .2, 1)", SLIDE = "cubic-bezier(.45, 0, .25, 1)", DROP = "cubic-bezier(.5, 0, .9, .5)";
+async function cardOut(card) {
+  if (!card || card.hidden) return;
+  const { back, front, dy, px } = envelopeFor(card);
+  const T = 1300, rise = RISE, slide = SLIDE, drop = DROP;
+  const env = [{ transform: "translateY(110vh)", easing: rise }, { transform: "none", offset: .4 }, { transform: "none", offset: .62, easing: drop },
+    { transform: "translateY(120vh)" }];
+  const sheet = [{ transform: `translateY(calc(${px(dy)} + 110vh))`, easing: rise }, { transform: `translateY(${px(dy)})`, offset: .4 },
+    { transform: `translateY(${px(dy)})`, offset: .46, easing: slide }, { transform: "translateY(0)", offset: .8 }, { transform: "translateY(0)" }];
+  const anims = [back.animate(env, { duration: T }), front.animate(env, { duration: T }),
+    card.animate(sheet, { duration: T, composite: "add" })];
+  await Promise.all(anims.map((a) => a.finished)).catch(() => {});
+  back.remove(); front.remove();
+}
+// ... and back in: the envelope rises under the card, the card slides down into the pocket; both stay (they leave
+// with the scene). Returns what to move and to clean up.
+async function cardIn(card) {
+  const { back, front, dy, px } = envelopeFor(card);
+  const T = 1000;
+  const env = [{ transform: "translateY(110vh)", easing: RISE }, { transform: "none", offset: .5 }, { transform: "none" }];
+  const sheet = [{ transform: "translateY(0)" }, { transform: "translateY(0)", offset: .42, easing: SLIDE }, { transform: `translateY(${px(dy)})` }];
+  const anims = [back.animate(env, { duration: T, fill: "forwards" }), front.animate(env, { duration: T, fill: "forwards" }),
+    card.animate(sheet, { duration: T, composite: "add", fill: "forwards" })];
+  await Promise.all(anims.map((a) => a.finished)).catch(() => {});
+  return { parts: [back, front], anims };
+}
+// From calibration back to this page, the way it came, backwards: the card into its envelope, the camera pans left
+// (the calibration desk with the envelope leaves to the right, this page comes in from the left with its sheet in
+// its envelope), and the sheet comes out while the envelope drops away. finish(): calibrate.js closes its page and
+// hands back (reopen).
+async function panBack(finish) {
+  const card = $("cal"), ruler = document.getElementById("cal-ruler");
+  ruler?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: "forwards" });
+  const inEnv = card && !card.hidden ? await cardIn(card) : { parts: [], anims: [] };
+  // this page, filed, waiting off to the left (measured where it stands, then moved)
+  W.hidden = false;
+  W.classList.add("instant");
+  fileInto(); W.classList.add("filing");
+  W.getBoundingClientRect();
+  W.classList.remove("instant");
+  const opt = { duration: 760, easing: "cubic-bezier(.65, 0, .35, 1)", fill: "forwards" };
+  const leaving = [...document.querySelectorAll(PAN_IN), card, ...inEnv.parts].filter(Boolean)
+    .map((el) => el.animate([{ translate: "0 0" }, { translate: "100vw 0" }], opt));
+  const coming = W.animate([{ transform: "translateX(-100vw)" }, { transform: "none" }], opt);
+  await Promise.all([coming.finished, ...leaving.map((a) => a.finished)]).catch(() => {});
+  finish();                                               // calibration closes; reopen() takes the sheet out
+  coming.cancel(); leaving.forEach((a) => a.cancel()); inEnv.anims.forEach((a) => a.cancel());
+  inEnv.parts.forEach((p) => p.remove()); ruler?.getAnimations().forEach((a) => a.cancel());
+}
+function reopen({ unfile = false } = {}) {
   root.dataset.mode = "newplan";
+  sceneScale();
   $("back").hidden = false; $("next").disabled = false;
+  if (unfile) {                        // came back panning, filed: the sheet comes out, then the envelope drops
+    W.classList.add("unfiling");
+    setTimeout(() => W.classList.remove("unfiling"), 1200);
+  }
   W.classList.remove("leaving", "filing");
   W.hidden = false;
   paintDial(); fillBatches(); words_();
-  if (!api.reduce) W.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
+  if (!api.reduce && !unfile) W.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
   W.q(".np-cal-go:not([hidden])")?.focus({ preventScroll: true });
 }
 // The disc in the drive, read when the form opens (read-only, a second or two): the dial and the batch follow
@@ -406,7 +513,7 @@ export function prepare(homeApi) {
     Object.assign(W.style, { opacity: "0.002", pointerEvents: "none" });
     W.hidden = false;
     await frame(); await frame();
-    if (root.dataset.mode !== "newplan") W.hidden = true;      // unless the page was opened meanwhile
+    if (root.dataset.mode !== "newplan" && !going) W.hidden = true;      // unless the page was opened (or is panning away) meanwhile
     Object.assign(W.style, { opacity: "", pointerEvents: "" });
   })();
   return ready;
@@ -429,6 +536,7 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   const push = fly ? pushLobby(from) : null;
   if (push) await wait(300);
   root.dataset.mode = "newplan";
+  sceneScale();
   $("back").hidden = false; $("next").disabled = false;
   W.hidden = false;
   W.classList.remove("leaving", "filing");
@@ -484,19 +592,21 @@ export function back() {
     });
 }
 // Where the envelope stops and how the sheet goes in, measured from the page as it is laid out.
-// Envelope picture (envelope.json): 1600 x 1541, pocket top 27.3 % down, its front ends 6 % above the
-// picture's bottom. Paper picture: the sheet sits 60 px inside a 1400 px wide picture.
+// Envelope picture (envelope.json): 1600 x 2494, pocket top 16.9 % down, its front ends 3.4 % above the
+// picture's bottom: a tall bag whose bottom stays below the window. Paper picture: the sheet sits 60 px inside a
+// 1400 px wide picture.
+const ENV_H = 2494 / 1600, ENV_POCKET = 421.21 / 2494, ENV_FOOT = (2494 - 2408.55) / 2494;
 function fileInto() {
   const r = W.sheet.getBoundingClientRect(), m = r.width * 60 / 1400;
   const pw = r.width - 2 * m, top = r.top + m, ph = innerHeight - top;      // the paper as seen, cut by the window
-  const we = Math.min(pw * .92, innerWidth * .62, innerHeight * .95), eh = we * 1541 / 1600;
-  const pocket = innerHeight / 3, depth = eh * (1 - .273 - .06), peek = Math.min(64, depth * .14);
+  const we = Math.min(pw * .92, innerWidth * .62), eh = we * ENV_H;
+  const pocket = innerHeight / 3, depth = eh * (1 - ENV_POCKET - ENV_FOOT), peek = Math.min(64, depth * .14);
   const s = Math.min((depth + peek) / ph, we * .95 * .9 / pw);
   const cx = r.left + r.width / 2;
   const px = (n) => `${n.toFixed(1)}px`;
   W.style.setProperty("--env-w", px(we));
   W.style.setProperty("--env-x", px(cx - we / 2));
-  W.style.setProperty("--env-y", px(pocket - .273 * eh));
+  W.style.setProperty("--env-y", px(pocket - ENV_POCKET * eh));
   W.style.setProperty("--file-x", px(cx - pw * s / 2 - m * s - r.left));
   W.style.setProperty("--file-y", px(pocket - peek - m * s - r.top));
   W.style.setProperty("--file-s", s.toFixed(4));

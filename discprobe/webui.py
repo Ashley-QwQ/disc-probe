@@ -61,7 +61,7 @@ OPTIONS = {
     "burn": {"iso": "path", "speed": "burn_speed", "cd_sector": "cd_layout", "no_verify": "flag"},
     # the whole calibration in one job (calibrate.py); with `iso` it burns first, under the burn's rules
     "calibrate": {"iso": "path", "burn_speed": "burn_speed", "speed": "speed", "mid": "mid", "preset": "path",
-                  "sectors": "sectors"},
+                  "sectors": "sectors", "avoid_mm": "radius_bands"},
 }
 DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell (checked in the tests)
 # a design upload by its length: one bit per cell, at 20, 10 or 5 um (imagedisc.CELL_SIDES)
@@ -124,6 +124,20 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
         if value is None:
             continue
         rule = OPTIONS[action][name]
+        if rule == "radius_bands":
+            from .calibrate import _avoid_band
+            import argparse
+            if not isinstance(value, list) or len(value) > 1000:
+                raise APIError("invalid " + name)
+            for band in value:
+                if not isinstance(band, str) or len(band) > 100:
+                    raise APIError("invalid " + name)
+                try:
+                    _avoid_band(band)
+                except argparse.ArgumentTypeError:
+                    raise APIError("invalid " + name) from None
+                argv += ["--avoid-mm", band]
+            continue
         if rule == "flag":
             if type(value) is not bool:
                 raise APIError("invalid " + name)

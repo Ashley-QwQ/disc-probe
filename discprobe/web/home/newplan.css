@@ -12,6 +12,11 @@
 .np-scene { position: absolute; left: 50%; top: 50%; width: max(100vw, 177.78vh); aspect-ratio: 16 / 9; transform: translate(-50%, -50%);
   background: url(newplan/top_paper.webp) 0 0 / 100% 100%; }
 :root[data-theme="dark"] .np-scene { background-image: url(newplan/top_dark.webp); }
+/* the desk's grain, the same as under the calibration stage (caltop/anim/desk_*): one desk when the camera pans;
+   on the desk only (newplan/desk_mask: the top view without the drive and its tray) */
+.np-scene::after { content: ""; position: absolute; inset: 0; background: url(caltop/anim/desk_paper.webp) 0 0 / 384px repeat; pointer-events: none;
+  -webkit-mask: url(newplan/desk_mask.webp) 0 0 / 100% 100% no-repeat; mask: url(newplan/desk_mask.webp) 0 0 / 100% 100% no-repeat; }
+:root[data-theme="dark"] .np-scene::after { background-image: url(caltop/anim/desk_dark.webp); }
 
 .np-title { position: absolute; left: var(--edge); bottom: calc(var(--foot) + 3vh); margin: 0; font-weight: 800; font-stretch: 112%;
   font-size: clamp(56px, 11vh, 132px); line-height: 1; color: color-mix(in srgb, var(--ink) 55%, transparent); }
@@ -21,7 +26,7 @@
 .np-sheet { position: absolute; right: calc(var(--edge) - var(--m)); top: calc(var(--edge) + var(--row) + 16px - var(--m)); bottom: 0; width: calc(var(--wp) + 2 * var(--m));
   box-sizing: border-box; padding: calc(var(--m) + 1.5em) calc(var(--m) + 2.6em) 0; font-size: var(--fs);
   background: url(newplan/paper_paper.webp) 0 0 / 100% auto no-repeat,
-              url(newplan/paper_shadow_paper.webp) calc(var(--m) * -.4) calc(var(--m) * .5) / 100% auto no-repeat;
+              url(newplan/paper_shadow_paper.webp) calc(var(--m) * -.4) calc(var(--m) * .5) / 100% auto no-repeat;   /* it lies on the desk (scene) */
   --ink-f: #24221e; --soft-f: #6b6558; --line-f: #8b8576; --well-f: rgba(255,255,255,.35); --left-f: var(--ink-f); --link-f: #a8693c;
   --disc-f: #eee4cd; --hub-f: #e2d5ba; --hole-f: #f7f3ea; --key-fill: rgba(255,255,255,.25); --key-line: #bdb4a0; --key-ink: #8b8576;
   --key-on: #24221e; --key-on-fill: rgba(255,255,255,.6); --key-blank: #ddd4c2; --warn-f: #c08a3e; --note-f: rgba(192,138,62,.09);
@@ -82,14 +87,18 @@
 /* on next: the envelope rises (its pocket top to a third of the height), the sheet shrinks into it
    between its back and front, then everything drops out of the frame. newplan.js measures the stops
    (--env-*, --file-*) from the page as laid out. */
-.np-env-back, .np-env-front { position: absolute; left: var(--env-x, 40vw); top: var(--env-y, 20vh); width: var(--env-w, 50vw); aspect-ratio: 1600 / 1541;
-  pointer-events: none; background: 0 0 / 100% 100% no-repeat; transform: translateY(110vh); transition: transform 1000ms cubic-bezier(.2, .8, .2, 1); }
+.np-env-back, .np-env-front { position: absolute; left: var(--env-x, 40vw); top: var(--env-y, 20vh); width: var(--env-w, 50vw); aspect-ratio: 1600 / 2494;
+  pointer-events: none; background: 0 0 / 100% 100% no-repeat; transform: translateY(110vh); transition: transform 1000ms cubic-bezier(.2, .8, .2, 1);
+  filter: var(--envelope-desk-drop); }   /* on the desk: a short shadow lower left (the front's falls on the back too) */
 .np-env-back { background-image: url(newplan/envelope_back_paper.webp); }
 .np-env-front { background-image: url(newplan/envelope_front_paper.webp); }
 :root[data-theme="dark"] .np-env-back { background-image: url(newplan/envelope_back_dark.webp); }
 :root[data-theme="dark"] .np-env-front { background-image: url(newplan/envelope_front_dark.webp); }
 .np.filing :is(.np-env-back, .np-env-front) { transform: none; }
 .np.filing .np-sheet { transform: translate(var(--file-x), var(--file-y)) scale(var(--file-s)); transition-duration: 1000ms; }
+.np.instant, .np.instant * { transition: none !important; }          /* newplan.js panBack: set the filed state at once */
+.np.unfiling .np-sheet { transition-duration: 760ms; transition-timing-function: cubic-bezier(.45, 0, .25, 1); }
+.np.unfiling :is(.np-env-back, .np-env-front) { transition: transform 600ms cubic-bezier(.5, 0, .9, .5) 420ms; }   /* drops once the sheet is out */
 .np.leaving :is(.np-env-back, .np-env-front) { transform: translateY(120vh); transition-duration: 600ms; transition-timing-function: cubic-bezier(.5, 0, .9, .5); }
 .np.leaving .np-sheet { transform: translate(var(--file-x), calc(var(--file-y) + 120vh)) scale(var(--file-s)); transition-duration: 600ms; transition-timing-function: cubic-bezier(.5, 0, .9, .5); }
 

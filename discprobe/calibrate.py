@@ -17,8 +17,10 @@ on, and the page finds it again in /api/state.
 """
 from __future__ import annotations
 
+import argparse
 import datetime
 import json
+import math
 import os
 from pathlib import Path
 import signal
@@ -31,6 +33,55 @@ from . import guide, ui
 from .capacity import catalogue_capacity, positive_sectors
 
 GOOD = ("good", "usable")
+DEFAULT_READ_SPEED = "4x"  # 4x of the disc's own kind (DVD: 5540 kB/s, as geo-H-20261111-200909 set successfully; CD: 706)
+
+
+def _avoid_band(text: str) -> tuple[float, float]:
+    try:
+        a, b = map(float, text.split("-"))
+        if not (math.isfinite(a) and math.isfinite(b) and 0 <= a < b):
+            raise ValueError
+    except ValueError:
+        raise argparse.ArgumentTypeError("give a radius band in mm as A-B, with 0 <= A < B") from None
+    return a, b
+
+
+def _geo_ranges(media: str, setup: dict, bands) -> str:
+    """Subtract bands from geo's default span, using its read-completion radius model.
+
+    Binary search on block-aligned LBAs also covers CD data's frame tail and CD-DA's
+    different origin. Expand exclusions to whole blocks so rounding cannot put a
+    rung back inside a band. The setup is from timing, not the blank's capacity.
+    """
+    from .geo import CD_AUDIO_RANGE, Ladder
+
+    last = setup.get("last_lba")
+    if type(last) is not int or last <= 0:
+        raise Stopped("the readable disc length is unknown; cannot apply --avoid-mm")
+    model = Ladder(None, media=media)
+    model.audio = media == "cd" and setup.get("first_track_audio") is True
+    block = model.block
+    lo, hi = CD_AUDIO_RANGE if model.audio else (0.03, 0.85)
+    ranges = [(int(last * lo) // block * block, int(last * hi) // block * block)]
+
+    def boundary(radius, inclusive=False):
+        a, b = 0, last // block + 1
+        while a < b:
+            mid = (a + b) // 2
+            r = model._radius(mid * block)
+            if r < radius or (inclusive and r == radius):
+                a = mid + 1
+            else:
+                b = mid
+        return a * block
+
+    for a, b in bands:
+        start, end = boundary(a), boundary(b, inclusive=True)
+        ranges = [(lo, hi) for lo, hi in ranges for lo, hi in
+                  ((lo, min(hi, start)), (max(lo, end), hi)) if hi - lo > 64]
+    if not ranges:
+        raise Stopped("--avoid-mm leaves no readable geo ranges longer than 64 sectors")
+    return ",".join(f"{a}-{b}" for a, b in ranges)
 
 
 def _argv(*args) -> list[str]:
@@ -54,6 +105,7 @@ def run(args) -> None:
     threading.Thread(target=watch, daemon=True).start()
     steps = (["burn"] if args.iso else []) + ["check", "timing", "geo"] + (["preset"] if args.preset else [])
     found: dict = {}
+    child_reason = None
 
     def step(name):
         if cancel.is_set():
@@ -65,11 +117,30 @@ def run(args) -> None:
     def child(*a) -> int:
         """One step's command, its output on ours; stopped if the run is cancelled (a burn stops itself
         through the same marker, at a point where stopping is safe)."""
-        proc = subprocess.Popen(_argv(*a), stdin=subprocess.DEVNULL)
+        nonlocal child_reason
+        child_reason = None
+        # A rotation stop precedes geo's first fit, so there may be no summary.json.
+        # Relay stdout while retaining its plain stop sentence for the job event.
+        proc = subprocess.Popen(_argv(*a), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
+
+        def relay():
+            nonlocal child_reason
+            for line in proc.stdout:
+                print(line, end="", flush=True)
+                if line.startswith("stopped: "):
+                    child_reason = line[len("stopped: "):].strip()
+
+        reader = threading.Thread(target=relay, daemon=True) if getattr(proc, "stdout", None) else None
+        if reader:
+            reader.start()
         while proc.poll() is None:
             if cancel.is_set() and a[0] != "burn":
                 proc.terminate()
             time.sleep(.2)
+        if reader:
+            reader.join()
+            proc.stdout.close()
         if cancel.is_set():
             raise Stopped("cancelled during " + a[0])
         return proc.returncode
@@ -132,15 +203,26 @@ def run(args) -> None:
 
         for kind in ("timing", "geo"):
             step(kind)
+            # a multiple stays a multiple ("4x": its kB/s follow the disc's kind in timing/geo)
+            speed = "keep" if args.speed is None else f"{args.speed:g}x" if type(args.speed).__name__ == "_SpeedX" else str(args.speed)
+            print(f"Read speed for {kind}: {speed} (kB/s unless given as a multiple)", flush=True)
+            ranges = []
+            if kind == "geo" and args.avoid_mm:
+                timing = found["timing"]["path"]
+                with open(Path(timing) / "summary.json", encoding="utf-8") as stream:
+                    setup = json.load(stream).get("setup") or {}
+                ranges = ["--ranges", _geo_ranges(args.media, setup, args.avoid_mm)]
+                print("Geo readable LBA ranges after --avoid-mm: " + ranges[1], flush=True)
             since = datetime.datetime.now().replace(microsecond=0) - datetime.timedelta(seconds=1)
             code = child(kind, *common(), "--media", args.media, "--out", args.out,
-                         *(["--speed", args.speed] if args.speed else []))
+                         "--speed", speed, *ranges)
             result = measured(kind, since)
             verdict = guide.result_verdict(result, args.media) if result else None
             found[kind] = dict(path=result.path if result else None, verdict=verdict or "unknown", exit=code)
             ui.event("step_result", name=kind, path=found[kind]["path"], verdict=found[kind]["verdict"])
             if code or verdict not in GOOD:
-                raise Stopped(f"the {kind} measurement was not usable ({verdict or 'no result'})")
+                reason = getattr(result, "stopped", None) if result else None
+                raise Stopped(reason or child_reason or f"the {kind} measurement was not usable ({verdict or 'no result'})")
 
         if args.preset:
             step("preset")
@@ -164,13 +246,18 @@ def run(args) -> None:
 
 
 def add_parser(sub) -> None:
+    from .__main__ import _speed
+
     sp = sub.add_parser("calibrate", help="calibrate a disc batch end to end: (burn,) check, timing, geo(, preset)")
     sp.add_argument("--drive", required=True)
     sp.add_argument("--media", choices=("dvd", "cd"), default="dvd")
     sp.add_argument("--iso", help="burn this measurement image first (needs --yes-write and a blank in the drive)")
     sp.add_argument("--yes-write", action="store_true", help="confirm the irreversible burn of --iso")
     sp.add_argument("--burn-speed", type=float, help="write multiple for the burn (default: DVD nearest supported to 8x, CD lowest)")
-    sp.add_argument("--speed", help="read speed for timing and geo (as those commands take it)")
+    sp.add_argument("--speed", type=_speed, default=DEFAULT_READ_SPEED,
+                    help="read speed for timing and geo, in kB/s or a multiple like 4x (default: 4x of the disc's kind)")
+    sp.add_argument("--avoid-mm", action="append", type=_avoid_band, default=[], metavar="A-B",
+                    help="exclude radius band A-B in mm from geo rungs (repeatable; uses geo's nominal radius/LBA model)")
     sp.add_argument("--mid", help="the maker code the disc must have (the batch's)")
     sp.add_argument("--preset", help="also write a DiscImageStudio preset here")
     sp.add_argument("--sectors", type=int, help="whole blank capacity for the preset (default: read-only media capacity, then MID catalogue)")

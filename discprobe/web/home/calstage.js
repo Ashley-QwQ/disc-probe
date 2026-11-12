@@ -35,12 +35,19 @@ function build() {
   const shift = `translate:${((W / 2 - (bx0 + bx1) / 2) / W * 100).toFixed(2)}% ${((H / 2 - (by0 + by1) / 2) / H * 100).toFixed(2)}%`;
   el.innerHTML = `<div class="cs-art" style="aspect-ratio:${W}/${H};${shift}">` +
     ORDER.map((k) => k === "over" ? `<canvas class="cs-over" width="${W}" height="${H}"></canvas>` : `<img class="cs-${k}" alt="" draggable="false">`).join("") +
+    // the disc turning while the drive works: one grey arc near the rim going round (designer: "光驱正忙")
+    `<svg class="cs-spin" viewBox="0 0 ${W} ${H}" aria-hidden="true" style="--spin-o:${(meta.disc.centre_px[0] / W * 100).toFixed(2)}% ${(meta.disc.centre_px[1] / H * 100).toFixed(2)}%"><path d="${spinArc()}"/></svg>` +
     `<span class="cs-label" hidden></span></div>` +
     `<p class="cs-big" hidden><b></b><span></span></p>`;
   document.body.append(el);
   addEventListener("dp-theme", paintArt);
   new MutationObserver(paintArt).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   paintArt();
+}
+function spinArc() {
+  const [cx, cy] = meta.disc.centre_px, r = 56.5 * meta.scale.px_per_mm, a0 = -Math.PI / 2, a1 = a0 + Math.PI * 40 / 180;
+  const pt = (a) => `${(cx + r * Math.cos(a)).toFixed(1)} ${(cy + r * Math.sin(a)).toFixed(1)}`;
+  return `M ${pt(a0)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${pt(a1)}`;
 }
 function paintArt() {
   if (!el) return;
@@ -60,6 +67,7 @@ function draw() {
   const art = el.querySelector(".cs-art");
   art.dataset.disc = s.disc || "in";
   art.classList.toggle("busy", !!s.busy);
+  art.classList.toggle("spinning", !!s.busy && s.disc !== "none");
   g.clearRect(0, 0, W, H);
   // the head: the sled slides along its travel; the laser spot with it while it reads
   const [rIn, rOut] = meta.sled.radius_mm, travel = rOut - rIn;
@@ -73,7 +81,7 @@ function draw() {
     g.save(); g.setLineDash([R(2.4), R(1.8)]); g.strokeStyle = cssVar("--copper"); g.lineWidth = R(0.5);
     g.beginPath(); g.arc(cx, cy, R(60), 0, Math.PI * 2); g.stroke(); g.restore();
   }
-  if (s.disc === "in" && s.read) {         // what has been read: rings coloured by radius
+  if (s.disc !== "none" && s.read) {       // what has been read or written: rings coloured by radius (a blank being burned too)
     const [a, b] = s.read, step = 0.5;
     g.save(); g.globalAlpha = 0.85;
     for (let mm = a; mm < b; mm += step) {
@@ -104,6 +112,14 @@ function draw() {
   big.hidden = !Number.isFinite(s.percent);
   if (!big.hidden) { big.querySelector("b").textContent = `${Math.round(s.percent)}%`; big.querySelector("span").textContent = s.left || ""; }
 }
+// the scene's scale for the glass shadows (index.html --mm): the stage picture's px per mm on screen
+function scale() {
+  const art = el?.querySelector(".cs-art");
+  if (!art || el.hidden) return;
+  const w = art.getBoundingClientRect().width;
+  if (w) document.documentElement.style.setProperty("--mm", `${(w / meta.image_size[0] * meta.scale.px_per_mm).toFixed(3)}px`);
+}
+addEventListener("resize", () => scale());
 const unit = ([x, y]) => { const n = Math.hypot(x, y) || 1; return [x / n, y / n]; };
 const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
@@ -112,7 +128,7 @@ export async function stage(homeApi) {
   if (!meta) meta = await fetch(new URL("caltop.json", BASE)).then((r) => r.json());
   if (!el) build();
   return {
-    show(on) { el.hidden = !on; if (on) draw(); },
+    show(on) { el.hidden = !on; if (on) { draw(); scale(); } },
     art: () => el.querySelector(".cs-art"),          // the picture's box: the grid loaddisc.js lines up with
     hold(on) { el.style.visibility = on ? "hidden" : ""; },   // laid out but unseen while the disc goes in
     set(next) { state = { ...next }; draw(); },

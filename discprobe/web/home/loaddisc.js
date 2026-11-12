@@ -48,7 +48,8 @@ function group(cls, kids) {
 function build() {
   const st = document.createElement("style");
   st.textContent = `
-  .ld { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; contain: strict; }
+  .ld { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; contain: strict; background: ${meta.desk_far.paper}; }
+  :root[data-theme="dark"] .ld { background: ${meta.desk_far.dark}; }
   .ld[hidden] { display: none; }
   .ld-grain { position: absolute; left: -10%; right: -10%; background-repeat: repeat; background-size: 384px; will-change: transform; }
   .ld-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
@@ -98,8 +99,9 @@ const GRAIN = 0.85;
 let lastAnchor = null, lastCam = [0, 0];
 function place(anchor, cam = [0, 0]) {
   lastAnchor = anchor; lastCam = cam;
-  const r = anchor.getBoundingClientRect(), s = r.width / meta.image_size[0];
-  world.style.transform = `translate(${r.left}px, ${r.top}px) scale(${s}) translate(${-cam[0]}px, ${-cam[1]}px)`;
+  // relative to the root: when the page pans in, the root and the stage move together
+  const r = anchor.getBoundingClientRect(), o = root.getBoundingClientRect(), s = r.width / meta.image_size[0];
+  world.style.transform = `translate(${r.left - o.left}px, ${r.top - o.top}px) scale(${s}) translate(${-cam[0]}px, ${-cam[1]}px)`;
   const travel = Math.abs(meta.disc.start_px[1] - meta.disc.clamped_px[1]) * s;
   grain.style.top = "-64px"; grain.style.bottom = `${-travel - 64}px`;
   grain.style.transform = `translate(${-cam[0] * GRAIN * s}px, ${-cam[1] * GRAIN * s}px)`;
@@ -178,6 +180,7 @@ export async function play(anchor) {
 // one still of the story at ms (0 .. about 1080), for checks and pictures
 export async function pose(anchor, ms) {
   await ready();
+  if (playing) return;                         // the story is being told: leave it
   if (running) running.stop();
   root.hidden = false; els.final.hidden = true; showDrive(true); frame(anchor, ms);
 }

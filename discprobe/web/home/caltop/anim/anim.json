@@ -289,5 +289,9 @@
     "disc": 0.62,
     "occluders": 0.45,
     "lid": 0.2
+  },
+  "desk_far": {
+    "dark": "#1d2524",
+    "paper": "#dbd4c9"
   }
 }

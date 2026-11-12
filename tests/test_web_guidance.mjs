@@ -51,6 +51,9 @@ assert.match(stopReason("the disc's maker code is ABC, not RITEKF1").en, /ABC.*R
 assert.match(stopReason('the disc is a cd disc, not dvd').zh, /CD.*DVD/);
 assert.match(stopReason('the timing measurement was not usable (too_noisy)').zh, /转速检查没通过/);
 assert.equal(stopReason('something new').en, 'something new');
+const unsteady = stopReason("the drive's speed is not steady (63.50 ms a turn at 26 mm, 21.18 ms at 56 mm): it probably slowed down on a hard-to-read part of the disc");
+assert.equal(unsteady.zh, '光驱转速不稳，多半是这张盘某一段难读，光驱在那里反复降速。页面会用固定的读速、避开那一段再测；还不行就换一个刻录速度另刻一张测量盘。');
+assert.equal(unsteady.en, 'The drive changed speed, probably slowing down repeatedly on a hard-to-read part of this disc. The page will measure again at a fixed read speed, avoiding that band. If it still fails, burn another measurement disc at a different write speed.');
 for (const r of ['the burn did not finish','no disc is ready in the drive','cancelled during geo','the preset was not written'])
   for (const lang of ['zh','en']) assert.ok(!/[a-z_]{4,} [a-z]{3,} [a-z]{3,}/.test(stopReason(r)[lang]) || lang === 'en', r);
 console.log('Bilingual recovery, budget and failed-job tests passed');

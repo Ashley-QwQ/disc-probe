@@ -34,7 +34,10 @@ TO = os.path.join(HERE, arg("--to", "."))
 OUTA = os.path.join(TO, "anim")
 os.makedirs(OUTA, exist_ok=True)
 V = ["dark", "paper"]
-PAGE = {"paper": "#ebe7e0", "dark": "#161d1c"}           # --paper in index.html
+# the desk: the new-plan page's (art/newplan/render_newplan.py STYLE: desk tone, amb, pool gain / add), so that a
+# camera pan from that page lands on the same desk; DESK_FAR is its tone away from any pool (the page's ground)
+DESK = {"paper": ("#ddd6cb", 0.975, (0.075, 0.055, 0.02), (0.0, 0.0, 0.0)),
+        "dark": ("#1f2726", 0.9, (1.6, 1.4, 1.1), (0.035, 0.018, 0.004))}
 INK = {"paper": "#1d1b18", "dark": "#ecebe4"}
 SHADOW = {"dark": ("#050807", 0.42, 0.55), "paper": ("#3a2f22", 0.24, 0.34)}   # render_caltop.py VARIANT_STYLE
 STAGE_OPACITY = {"disc": 0.62, "occluders": 0.45, "lid": 0.2}                 # index.html .cs-art rules
@@ -157,18 +160,18 @@ for name, sigma_mm, which in (("discshadow_near", 1.0, 2), ("discshadow_far", ma
     sprites[name] = {"box": [round(cx - n / 2), round(cy - n / 2), round(cx - n / 2) + n, round(cy - n / 2) + n],
                      "note": "centred on the disc centre; offset by the height (shadow.per_mm_height * h mm)"}
 
-# the lamp's pool on the desk: page colour * (1 + gain f) + add f (amb 1 on the desk, so it meets the page seamlessly)
+# the lamp's pool on the desk: desk * (amb + gain f) + add f, over the desk's far tone (desk * amb) as ground
 pc, ps = an["pool"]["centre_px"], an["pool"]["sigma_px"]
 Q = 4
 half = int(math.ceil(3.2 * ps / Q))
 yy, xx = (np.mgrid[0:2 * half, 0:2 * half] + 0.5 - half) * Q
 f = np.exp(-(xx ** 2 + yy ** 2) / (2 * ps ** 2))[..., None]
 for v in V:
-    st = an["pool"]["style"][v]
-    bg = lin(hexf(PAGE[v]))
-    tgt = bg * (1 + np.array(st["gain"]) * f) + np.array(st["add"]) * f
+    tone, amb, gain, addc = DESK[v]
+    desk = lin(hexf(tone))
+    tgt = desk * (amb + np.array(gain) * f) + np.array(addc) * f
     tgt_s = srgb(tgt)
-    bg_s = hexf(PAGE[v])
+    bg_s = srgb(desk * amb)
     al = np.clip(np.abs(tgt_s - bg_s).max(axis=2, keepdims=True) * 40, 0, 1)    # opaque where it differs visibly
     rgb = np.where(al > 1e-4, bg_s + (tgt_s - bg_s) / np.maximum(al, 1e-4), bg_s)
     save_webp(np.concatenate([np.clip(rgb, 0, 1), al], axis=2), os.path.join(OUTA, "pool_%s.webp" % v))
@@ -217,5 +220,6 @@ meta = dict(an)
 meta["sprites"] = sprites
 meta["apex_mm"] = APEX_MM
 meta["stage_opacity"] = STAGE_OPACITY
+meta["desk_far"] = {v: "#" + "".join("%02x" % int(round(c * 255)) for c in srgb(lin(hexf(DESK[v][0])) * DESK[v][1])) for v in V}
 json.dump(meta, open(os.path.join(OUTA, "anim.json"), "w"), indent=2)
 print("wrote", OUTA, "sprites:", ", ".join(sorted(sprites)))

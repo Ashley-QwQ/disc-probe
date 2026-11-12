@@ -70,26 +70,26 @@
   "mode": "envelope",
   "image_size": [
    1600,
-   1541
+   2494
   ],
   "px_per_mm": 4.5373,
   "pixel_origin": "top-left, y down",
-  "pocket_top_y_px": 421.13,
-  "back_top_y_px": 366.68,
-  "flap_top_y_px": 85.37,
+  "pocket_top_y_px": 421.21,
+  "back_top_y_px": 366.76,
+  "flap_top_y_px": 85.45,
   "opening_x_px": [
    40.0,
    1560.0
   ],
   "envelope_rect_px": [
    40.0,
-   85.37,
+   85.45,
    1560.0,
-   1455.63
+   2408.55
   ],
   "button_centre_px": [
    800.0,
-   647.99
+   648.07
   ],
   "layer_note": "draw envelope_back, then the sliding sheet, then envelope_front; a sheet clipped at pocket_top_y_px looks inside the pocket"
  }
