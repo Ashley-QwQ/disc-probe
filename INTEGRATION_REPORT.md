@@ -114,3 +114,11 @@ slim 合并提交：`e76786a`，来源 `a38f502698f77d5207eaa258371a860fc1947c1b
 - `guide.py` 两处冲突：保留网页所需的 result_verdict / guide_state JSON 契约，并接入控制台所需的 Task / Plan / workflow 对象契约；不把一个返回类型替换成另一个。workflow 增加可注入 drives 参数以保留合并后的驱动列表读取语义，命令建议继续使用当前 after_timing 的速度历史与 CLV 处理。核心依赖状态仍与 slim 的 numpy/Pillow 检查一致，说明明确区分照片额外依赖并补中文。
 
 自动合并后的打包器仍保留 SciPy、OpenCV、presets、照片审计入口。Linux SG_IO 提交 `86720d1` 在此合并前就已经是当前分支祖先；本次不需要修改 discprobe/scsi.py，也未运行真实 Linux 设备测试。
+
+main 合并提交 `fa9c92f`。首轮完整 pytest 为 **1 failed、432 passed、1 skipped、174 subtests passed**，唯一失败是 `test_fresh_blank_inspection_opens_the_gate_briefly` 清理临时目录时，后台 watcher 仍持有 events.jsonl（Windows WinError 32），不是写入门槛断言失败。定向单跑和修复前 40 次重跑均通过，完整批次堆栈才暴露生命周期竞态。
+
+独立修复 `5c25739`：测试登记 backend.close 清理，并在删除临时目录前等待假任务 finished；不改变 120 秒门槛、确认码、介质或空白盘校验。修复后连续 40 次通过，完整 burner 文件 **26 passed、4 subtests passed**。
+
+首轮 Node 的历史作品用例另报 Edge 写入 DevToolsActivePort 时的 EBUSY。独立修复 `48da762`：在原 10 秒上限内等待可读且包含有效端口/endpoint 的完整文件，只重试指定临时文件错误，其他错误仍立即失败。全部 Node 重跑 **20/20 退出 0**。
+
+修复后的全量 pytest 再次执行，结果：**433 passed, 1 skipped, 174 subtests passed in 541.47s (0:09:01)**。本次 main selftest **14 项旧断言失败，新增断言失败为 0**，新增控制台检查通过。原始日志为 `main-*.txt`，全量复核为 `main-recheck-pytest.txt`，修复后的 Node 为 `main-node-fixed-*.txt`；失败原始日志均保留，未覆写或排除用例。
