@@ -39,7 +39,7 @@ def project():
     version = next(ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
                    and any(isinstance(t, ast.Name) and t.id == '__version__' for t in n.targets))
     # The public spelling 1.0.0-alpha.1 has canonical PEP 440 spelling 1.0.0a1.
-    data['version'] = re.sub(r'-alpha\.(\d+)$', r'a\1', version)
+    data['version'] = re.sub(r'-alpha(?:\.(\d+))?$', lambda m: 'a' + (m[1] or '0'), version)
     return data
 
 
@@ -98,6 +98,11 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
         for folder in ('presets', 'tools', 'data'):
             for source, relative in files(folder):
                 write('discprobe/_' + relative, source.read_bytes())
+        # The installed selftest resolves this recorded fixture beside discprobe.
+        fixture = 'tests/data/bd_discussion_samples/local_uj272_bd_zones.csv'
+        write(fixture, (ROOT / fixture).read_bytes())
+        if (ROOT / 'release-build.json').is_file():
+            write('discprobe/_release.json', (ROOT / 'release-build.json').read_bytes())
         for relative, data in metadata_files().items():
             write(name + '.dist-info/' + relative, data)
         record = name + '.dist-info/RECORD'
@@ -116,8 +121,11 @@ def build_sdist(sdist_directory, config_settings=None):
         for folder in ('discprobe', 'presets', 'tools', 'data'):
             for source, relative in files(folder):
                 archive.add(source, arcname=f'{name}/{relative}', recursive=False)
-        for relative in ('pyproject.toml', '_build_backend.py', 'README.en.md', 'LICENSE', 'docs/API_VERSIONING.md'):
+        for relative in ('pyproject.toml', '_build_backend.py', 'README.md', 'README.en.md', 'LICENSE', 'docs/API_VERSIONING.md',
+                         'INSTALL-linux.md', 'tests/data/bd_discussion_samples/local_uj272_bd_zones.csv'):
             archive.add(ROOT / relative, arcname=f'{name}/{relative}', recursive=False)
+        if (ROOT / 'release-build.json').is_file():
+            archive.add(ROOT / 'release-build.json', arcname=f'{name}/release-build.json', recursive=False)
         data = metadata_files()['METADATA']
         entry = tarfile.TarInfo(f'{name}/PKG-INFO'); entry.size = len(data)
         archive.addfile(entry, io.BytesIO(data))
