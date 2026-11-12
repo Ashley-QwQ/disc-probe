@@ -1,7 +1,7 @@
 // The page's keys, one set everywhere, so they become habit:
 //
 //   Esc        back one step (the Back button), or close what is open on top
-//   Enter      next (the Next button); where Next has to be held, hold Enter
+//   Enter      next (the Next button); burning uses the slider's Right / End gesture
 //   W A S D    the arrow keys: move the choice
 //   O          the settings menu
 //   T          light / dark
@@ -28,13 +28,13 @@ const STEP = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRig
 
 const WORDS = {
   en: { title: "Keys", close: "Close", rows: [
-    ["Esc", "Back one step"], ["Enter", "Next (hold it where Next must be held)"],
+    ["Esc", "Back one step"], ["Enter", "Next"], ["→ / End", "Focus the burn slider and hold for 1 second"],
     ["W A S D", "Move the choice (as the arrow keys)"], ["O", "Settings"], ["T", "Light or dark"], ["L", "中文"], ["M", "Sound on or off"],
     ["?", "This list"],
     ["Tab", "Move between buttons"]],
     note: "In the design view: V move, W wand, H pan, 0 fit, Space drag the view." },
   zh: { title: "快捷键", close: "关闭", rows: [
-    ["Esc", "返回上一步"], ["Enter", "下一步（需要按住的地方就按住）"],
+    ["Esc", "返回上一步"], ["Enter", "下一步"], ["→ / End", "聚焦刻录滑块，按住 1 秒确认"],
     ["W A S D", "移动选择（同方向键）"], ["O", "设置"], ["T", "浅色或深色"], ["L", "English"], ["M", "声音开或关"],
     ["?", "打开这张表"],
     ["Tab", "在按钮之间移动"]],

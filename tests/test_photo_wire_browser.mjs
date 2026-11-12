@@ -15,25 +15,28 @@ const home=new URL('../discprobe/web/home/',import.meta.url);
 const calibrate=readFileSync(new URL('calibrate.js',home),'utf8');
 const index=readFileSync(new URL('index.html',home),'utf8');
 const html=`<!doctype html><html data-mode="cal" data-motion="off" class="cal-staged"><head><meta charset="utf-8"><base href="http://photo.test/">
-<style>${index.match(/<style>([\s\S]*?)<\/style>/)[1]}</style><link rel="stylesheet" href="/photocal.css"></head>
+<link rel="stylesheet" href="/kit/kit.css"><style>${index.match(/<style>([\s\S]*?)<\/style>/)[1]}</style><link rel="stylesheet" href="/photocal.css"></head>
 <body><div class="top"><button id="back">Back</button></div><main id="cal" class="cal"></main>
 <div class="bar"><div id="job" hidden><span id="job-name"></span><span id="job-time"></span></div><button id="next" class="next"><span id="next-text"></span></button></div>
 <script type="module">
 import {wire} from '/wire.js';
 window.wire=wire; window.ready=true;
 </script></body></html>`;
-const moduleSource=`import {photoPage} from '/photocal.js';
+const moduleSource=`import {nextConfirm} from '/kit/nextconfirm.js';
+import {ringButton} from '/kit/ringbutton.js';
+import {flipValue} from '/kit/flipnum.js';
+import {photoPage} from '/photocal.js';
 import {budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason,photoSaveWords} from '/guidance.mjs';
 const loadDisc={desk(){}}; const calchart={resultChart:()=>''}; const sfx={done(){},problem(){},failure(){}};
 const floorLog=()=>({mount(){},start(){},end(){},title(){},progress(){},log(){}});
 ${calibrate.replace(/^import .*;.*$/gm,'')}
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fakeApi={lang:()=>window.lang||'zh',selectedDrive:()=>null,burnerLayer:document.body,nextWhy(){},jobProgress(){},backend:{mock:false,escapeHTML:esc,errorText:e=>e.message,
-request:async(path,payload)=>{window.requests.push({path,payload}); if(window.missing&&path.includes(window.missing))throw Object.assign(new Error('Not found'),{status:404}); if(path.startsWith('/api/phone-link'))return {url:window.phone||null,qr_svg:null};if(path.startsWith('/api/photos'))return {photos:window.photos};return {};},
+request:async(path,payload)=>{window.requests.push({path,payload}); if(window.missing&&path.includes(window.missing))throw Object.assign(new Error('Not found'),{status:404}); if(path.startsWith('/api/phone-link'))return {url:window.phone||null,qr_svg:null};if(path.startsWith('/api/photos'))return {photos:window.photos};if(path.endsWith('/disconnect')){window.devices=[];window.phone='http://lan/phone/new-token';return {disconnected:true};}if(path.startsWith('/api/phone-devices'))return {devices:window.devices||[]};return {};},
 job:async(payload)=>{window.jobs.push(payload);return payload.action==='disexport'?{path:'presets/photo.json',photo_shift:{written:true,frames:2.5}}:window.photoResult;},state:async()=>({catalogue:{[flow.detected.media]:[{id:'saved',geo:flow.geo.path,name:'MID'}]}})}};
 export const wire={
 init({media='dvd',verdict='narrow_span',missing='',lang='zh',phone=null}={}){closePhoto();window.requests=[];window.jobs=[];window.photos=[];window.missing=missing;window.lang=lang;window.phone=phone;api=fakeApi;$=id=>document.getElementById(id);flow={realPhase:'review',geo:{path:'results/run-one',verdict,measurement:{span_mm:[28,48]}},timing:{verdict:'good'},detected:{media,kind:media,mid:'MID',capacity_sectors:300000},item:{row:media},preset:'presets/existing.json',warnEl:document.createElement('div')};discWentIn=true;st={show(on){document.body.dataset.stage=on;},set(){}};document.getElementById('back').onclick=back;document.getElementById('next').onclick=()=>realNext();paint();},
-enter:enterPhoto,next:realNext,back,state:()=>flow,page:()=>photoUI?.page,ui:()=>photoUI,
+phase(name,fraction=null){closePhoto();flow.realPhase=name;flow.iso='iso/test.iso';flow.job=name==='random'?{kind:'random',fraction}:null;paint();},enter:enterPhoto,next:realNext,back,state:()=>flow,page:()=>photoUI?.page,ui:()=>photoUI,
 photo:(id='p1')=>({id,name:id+'.svg',url:'/disc.svg'}),
 };`;
 
@@ -90,6 +93,18 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     assert.equal(await run(`return wire.state().realPhase==='photo' && !wire.page().state().focus;`),true);
     await run(`const input=document.querySelector('#cal [data-radius]');input.focus();input.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));`);
     assert.equal(await run(`return wire.state().realPhase;`),'review');
+    // Actual paper device rows, protected computer, token rotation and old-server fallback.
+    await run(`wire.init({phone:'http://lan/phone/old-token'});window.devices=[{id:'phone1',name:'iPhone Safari',kind:'phone',first_seen:Date.now()-120000,last_seen:Date.now(),photos_sent:2}];wire.enter();`);
+    await waitFor("document.querySelector('.pc-phone-empty .kit-text-button')");
+    assert.equal(await run(`return document.querySelectorAll('.pc-phone-empty .kit-devices li').length;`),2);
+    assert.equal(await run(`return document.querySelectorAll('.pc-phone-empty .kit-devices button').length;`),1);
+    await run(`document.querySelector('.pc-phone-empty .kit-text-button').click();`);
+    await waitFor("document.querySelector('.pc-phone-empty a')?.href==='http://lan/phone/new-token'");
+    assert.equal(await run(`return document.querySelectorAll('.pc-phone-empty .kit-devices button').length;`),0);
+    await run(`wire.init({missing:'/api/phone-devices'});wire.enter();`);await waitFor("wire.ui()?.devicesUnavailable");
+    assert.equal(await run(`return wire.ui().status==='ready' && [...document.querySelectorAll('.pc-devices')].every(n=>n.hidden);`),true);
+    await run(`wire.back();wire.init();wire.enter();`);await waitFor("wire.ui()?.status==='ready'");
+    await run(`await wire.page().addPhotos([wire.photo()]);`);
     // Geometry stays unchanged on an unsure result; reasons appear under thumbnails and stamp.
     await run(`wire.enter();`);await waitFor("wire.page()?.state().photos.length===1");
     await run(`window.photoResult={verdict:'unsure',per_photo:[{id:'p1',verdict:'unsure',reason:'反光强'}],rings_mm:null,offset_mm:null,L_frames:null};await wire.next();`);
@@ -114,9 +129,9 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     assert.equal(await run(`return window.jobs[0].args.photos[0];`),'uploaded');
     assert.equal(await run(`return document.querySelector('.pc-photo-reason').textContent;`),'不是照片');
     // Check both themes and desktop/narrow layouts without a production server.
-    for(const [width,theme,lang] of [[1440,'light','zh'],[760,'dark','en']]){
+    for(const [width,theme,lang] of [[1440,'light','zh'],[760,'dark','en'],[390,'light','zh']]){
       await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});
-      await run(`wire.init({lang:${JSON.stringify(lang)}});document.documentElement.dataset.theme=${JSON.stringify(theme)};wire.enter();`);await waitFor("wire.ui()?.status==='ready'");
+      await run(`wire.init({lang:${JSON.stringify(lang)},phone:'http://lan/phone/test-fixture'});window.devices=[{id:'test-phone',name:'iPhone Safari',kind:'phone',first_seen:Date.now()-120000,last_seen:Date.now(),photos_sent:3}];document.documentElement.dataset.theme=${JSON.stringify(theme)};wire.enter();`);await waitFor("wire.ui()?.status==='ready'");
       await run(`await document.fonts.ready;const url=getComputedStyle(document.querySelector('#cal')).borderImageSource.match(/url\\(["']?(.*?)["']?\\)/)?.[1];if(url){const image=new Image();image.src=url;await image.decode().catch(()=>{});}await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));`);
       if(process.env.PHOTO_TEST_SHOTS){const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(resolve(process.env.PHOTO_TEST_SHOTS),`photo-wire-${width}-${theme}-empty.png`),Buffer.from(shot.data,'base64'));}
       await run(`await wire.page().addPhotos([wire.photo()]);`);
@@ -124,6 +139,20 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
       assert.ok(boxes.scroll<=width,JSON.stringify(boxes));assert.ok(boxes.p.right<=width && boxes.v.right<=width,JSON.stringify(boxes));
       if(width>900)assert.ok(boxes.v.right<boxes.p.x);else assert.ok(boxes.v.bottom<boxes.p.y);
       if(process.env.PHOTO_TEST_SHOTS){const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(resolve(process.env.PHOTO_TEST_SHOTS),`photo-wire-${width}-${theme}.png`),Buffer.from(shot.data,'base64'));}
+      // The actual calibration paint swaps Next only for the burn phase.
+      await run(`wire.phase('burn');`);
+      assert.equal(await run(`return document.querySelector('#next').hidden && document.querySelector('.next-confirm .kit-slide-knob').getAttribute('aria-disabled')==='false';`),true);
+      const sliderBox=await run(`const b=document.querySelector('.next-confirm').getBoundingClientRect();return {left:b.left,right:b.right,bottom:b.bottom,width:innerWidth};`);
+      assert.ok(sliderBox.left>=0&&sliderBox.right<=width&&sliderBox.bottom<=900,JSON.stringify(sliderBox));
+      if(process.env.PHOTO_TEST_SHOTS){const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(resolve(process.env.PHOTO_TEST_SHOTS),`kit-wire-${width}-${theme}-slide.png`),Buffer.from(shot.data,'base64'));}
+      await run(`wire.phase('random');`);
+      assert.equal(await run(`return !document.querySelector('#next').hidden && !document.querySelector('.next-confirm') && document.querySelector('#next').dataset.kitProgress==='indeterminate';`),true);
+      await run(`wire.phase('random',.62);`);
+      assert.equal(await run(`return document.querySelector('.kit-ring-fill').style.strokeDashoffset;`),'38');
+      const colours=await run(`const b=document.querySelector('#next'),f=document.querySelector('.kit-ring-fill');return {bg:getComputedStyle(b).backgroundColor,fg:getComputedStyle(b).color,ring:getComputedStyle(f).stroke};`);
+      assert.notEqual(colours.bg,colours.fg);assert.equal(colours.ring,colours.fg);
+      if(process.env.PHOTO_TEST_SHOTS){const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(resolve(process.env.PHOTO_TEST_SHOTS),`kit-wire-${width}-${theme}-ring.png`),Buffer.from(shot.data,'base64'));}
+
     }
     for(const missing of ['/api/phone-link','/api/photos']){
       await run(`wire.init({media:'cd',verdict:'good',missing:${JSON.stringify(missing)}});await wire.next();`);await waitFor("wire.ui()?.status==='unavailable'");

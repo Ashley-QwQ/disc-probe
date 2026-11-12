@@ -4,7 +4,101 @@ import csv
 import math
 import hashlib
 import json
+from datetime import datetime, timezone
 from . import guide, mmc
+
+
+def burn_state(result):
+    if result.get('result') in ('failed', 'cancelled', 'stopped'):
+        return 'needs'
+    verify = result.get('verification') or {}
+    if not isinstance(verify, dict):
+        return 'unknown'
+    if verify.get('differing') or verify.get('unreadable') or verify.get('failures'):
+        return 'needs'
+    if (result.get('result') == 'completed' and verify.get('status') == 'completed'
+            and verify.get('untested') == 0 and verify.get('ok', 0) > 0):
+        return 'ok'
+    return 'unknown'
+
+
+def saved_burns(root):
+    """Only bounded, explicit saved links; never infer a batch from dates or file names."""
+    found = []
+    paths = [*sorted((root / '.webui-jobs').glob('*/burn.json')),
+             *sorted((root / 'iso').glob('*.iso.burn.jsonl'))]
+    for path in paths:
+        if not path.resolve().is_relative_to(root):
+            continue
+        try:
+            if path.name == 'burn.json':
+                record = json.loads(path.read_text(encoding='utf-8'))
+                if isinstance(record, dict):
+                    found.append(record)
+                continue
+            spec_path = path.with_name(path.name.removesuffix('.iso.burn.jsonl') + '.image.json')
+            if not spec_path.resolve().is_relative_to(root):
+                continue
+            spec = guide._load(str(spec_path)) or {}
+            geo = spec.get('geometry_from') if isinstance(spec, dict) else None
+            if not isinstance(geo, str):
+                continue
+            for line in path.read_text(encoding='utf-8').splitlines():
+                try:
+                    record = json.loads(line)
+                except ValueError:
+                    continue  # a truncated last line does not discard earlier completed burns
+                if isinstance(record, dict) and record.get('type') == 'burn_result':
+                    found.append(dict(record, geo=geo, log_path=str(path)))
+        except (OSError, ValueError):
+            continue
+    # The web record and the engine log can describe the very same burn.
+    unique = {}
+    for record in found:
+        key = (record.get('log_path'), record.get('time'))
+        unique.setdefault(key if key[0] else id(record), record)
+    return list(unique.values())
+
+
+def batch_history(root, runs, infos, chosen, burns):
+    who = guide.identity_of(chosen, infos)
+    def matches(run):
+        identity = guide.identity_of(run, infos)
+        return (run.path == chosen.path or (who['disc'] != 'unknown disc' and
+                run.media == chosen.media and identity['disc'] == who['disc'] and identity['drive'] == who['drive']))
+    related = [r for r in runs if r.kind == 'geo' and not r.simulated and matches(r)
+               and Path(r.path).resolve().is_relative_to(root)]
+    history = []
+    for run in related:
+        verdict = guide.result_verdict(run, run.media)
+        state = 'ok' if verdict in ('good', 'usable') else 'needs' if (run.stopped or verdict in
+            ('stopped_early', 'drive_changed', 'too_noisy', 'narrow_span')) else 'unknown'
+        history.append(dict(kind='calibrate', state=state, when=run.when.isoformat(),
+                            label='标定 / Calibration · ' + str(verdict or 'unknown')))
+    geo_paths = {Path(r.path).resolve() for r in related}
+    for record in burns:
+        geo = record.get('geo')
+        linked = (root / geo).resolve() if isinstance(geo, str) else None
+        if linked and linked.name == 'summary.json':
+            linked = linked.parent
+        identity = record.get('identity') or {}
+        if not isinstance(identity, dict):
+            identity = {}
+        match = linked in geo_paths or (who['disc'] != 'unknown disc' and
+            identity.get('disc') == who['disc'] and identity.get('drive') == who['drive'] and
+            record.get('media') == chosen.media)
+        if not match:
+            continue
+        when = record.get('time')
+        if not isinstance(when, (int, float)) or not math.isfinite(when):
+            continue
+        try:
+            when = datetime.fromtimestamp(when, timezone.utc).isoformat()
+        except (ValueError, OSError, OverflowError):
+            continue
+        history.append(dict(kind='burn', state=burn_state(record), when=when,
+                            label='刻录 / Burn · ' + str(record.get('result', 'unknown'))))
+    return sorted(history, key=lambda item: datetime.fromisoformat(item['when']).timestamp())
 
 
 def disc_report(report):
@@ -12,6 +106,7 @@ def disc_report(report):
     from .capacity import recordable_capacity
     parsed = lambda key: guide._parsed(report, key)
     cfg = parsed('configuration')
+    inquiry = parsed('inquiry')
     family = mmc.media_family(cfg.get('current_profile'))
     count = guide.sectors_from_info(report)
     blank = parsed('track_1').get('blank')
@@ -28,6 +123,7 @@ def disc_report(report):
     capacity = recordable_capacity(report)
     disc['capacity_sectors'] = capacity[0] if capacity else None
     disc['capacity_source'] = capacity[1] if capacity else None
+    disc['drive_name'] = f"{inquiry.get('vendor', '')} {inquiry.get('product', '')}".strip() or None
     return disc
 
 
@@ -36,6 +132,7 @@ def catalogue(root, out):
     groups = {media: [] for media in ('dvd', 'cd', 'bd')}
     runs = guide.scan(str(out))
     infos = [r for r in runs if r.kind == 'info' and not r.simulated]
+    burns = saved_burns(root)
     metadata = guide._load(str(root / 'catalogue.json')) or {}
     def linked(value):
         # older pages saved the preset's absolute path; both spellings name the same file
@@ -64,7 +161,8 @@ def catalogue(root, out):
             mid=mid, sectors=sectors + 1 if isinstance(sectors, int) else None,
             s=guide.result_verdict(run, run.media), last=run.when.date().isoformat(),
             drive=who.get('drive'), left=saved.get('left'), of=saved.get('of'),
-            geo=str(Path(run.path).relative_to(root)).replace('\\', '/'), inferred=who.get('inferred', False)))
+            geo=str(Path(run.path).relative_to(root)).replace('\\', '/'), inferred=who.get('inferred', False),
+            history=batch_history(root, runs, infos, run, burns)))
     # Only explicit preset locations; do not traverse evidence or read held-out folders.
     locations = [*sorted((root / 'presets').glob('*.json')), *sorted((root / 'dis').glob('*.json')),
                  *sorted(root.glob('dis_preset*.json')), *sorted(root.glob('disc-presets.json'))]
@@ -84,7 +182,7 @@ def catalogue(root, out):
                 media = 'cd' if 'sectors' in preset else 'bd' if 'layerCount' in preset else 'dvd'
                 groups[media].append(dict(id='preset:' + str(preset['id']), row=media,
                     name=preset['displayName'], mid=None, sectors=preset.get('totalSectors', preset.get('sectors')),
-                    s='unknown', last=None, drive=None, left=None, of=None, preset=str(path.relative_to(root))))
+                    s='unknown', last=None, drive=None, left=None, of=None, preset=str(path.relative_to(root)), history=[]))
     return groups
 
 

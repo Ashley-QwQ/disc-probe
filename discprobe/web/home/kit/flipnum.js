@@ -39,6 +39,16 @@ export function characterChanges(before, after) {
 }
 
 const mounted = new WeakMap();
+/** Observe ordinary textContent assignments; internal renders are disconnected. */
+export function flipWatch(el, options = {}) {
+  const number = flipNumber(el, options);
+  number.watch();
+  return number;
+}
+// Read the supplied value, excluding animated old glyphs and the duplicate visual layer.
+export function flipValue(el) {
+  return el.querySelector('.kit-sr')?.textContent ?? el.textContent;
+}
 export function flipNumber(el, { lang = 'zh' } = {}) {
   if (mounted.has(el)) return mounted.get(el);
   const doc = el.ownerDocument;
@@ -52,8 +62,15 @@ export function flipNumber(el, { lang = 'zh' } = {}) {
   el.setAttribute('aria-live', 'polite');
   el.setAttribute('aria-atomic', 'true');
 
+  let textObserver = null;
+  const observeText = () => textObserver?.observe(el, { childList: true, characterData: true, subtree: true });
   function set(text) {
+    textObserver?.disconnect();
+    try { render(text); } finally { observeText(); }
+  }
+  function render(text) {
     text = String(text);
+    el.dataset.flipValue = text;
     if (motionOff(el)) {
       el.textContent = text;
       value = text;
@@ -88,12 +105,26 @@ export function flipNumber(el, { lang = 'zh' } = {}) {
     readable.textContent = text;
     value = text;
   }
-  const observer = new doc.defaultView.MutationObserver(() => set(value));
+  function refreshMotion() {
+    const pending = textObserver?.takeRecords() || [];
+    const external = pending.some(r => r.target === el || !visual.contains(r.target));
+    set(external ? flipValue(el) : value);
+  }
+  const observer = new doc.defaultView.MutationObserver(refreshMotion);
   observer.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-motion'] });
   const media = doc.defaultView.matchMedia?.('(prefers-reduced-motion: reduce)');
-  const refreshMotion = () => set(value);
   media?.addEventListener('change', refreshMotion);
-  const api = { set, destroy() {
+  const api = { set, watch() {
+    if (textObserver) return;
+    textObserver = new doc.defaultView.MutationObserver(records => {
+      // Animation cleanup inside the visual layer is not an external value change.
+      if (records.some(r => r.target === el || !visual.contains(r.target))) {
+        set(el.firstChild === visual ? readable.textContent : el.textContent);
+      }
+    });
+    observeText();
+  }, destroy() {
+    textObserver?.disconnect();
     observer.disconnect(); media?.removeEventListener('change', refreshMotion); mounted.delete(el);
   } };
   mounted.set(el, api);

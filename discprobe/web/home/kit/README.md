@@ -1,7 +1,7 @@
 # 小组件 / Small UI kit
 
-仅包含组件和演示，尚未接入页面。加载 `kit.css`，再按需导入 ES 模块；不用框架、包或 CDN。
-Components and preview only; page wiring is left to the integration job. Load `kit.css`, then import the modules you need.
+组件、演示与页面接入。加载 `kit.css`，再按需导入 ES 模块；不用框架、包或 CDN。
+Components, preview and page integration. Load `kit.css`, then import the modules you need.
 
 ## 用法 / API
 
@@ -9,7 +9,7 @@ Components and preview only; page wiring is left to the integration job. Load `k
 All generated copy defaults to Chinese; pass `{ lang: 'en' }` for English. Number text belongs to the caller.
 
 ```js
-import { flipNumber } from './kit/flipnum.js';
+import { flipNumber, flipWatch, flipValue } from './kit/flipnum.js';
 import { statusBars } from './kit/statusbars.js';
 import { deviceList } from './kit/devices.js';
 import { slideConfirm } from './kit/slideconfirm.js';
@@ -19,6 +19,10 @@ const number = flipNumber(numberEl);
 number.set('62%');
 number.set('约 4 分钟');
 number.set('01 / 08');
+// Observe ordinary textContent assignments; read without the animation's old glyphs.
+const watched = flipWatch(timeEl);
+timeEl.textContent = '5 秒';
+flipValue(timeEl);
 // Before removing a number host: number.destroy().
 
 const history = statusBars(historyEl, [
@@ -54,6 +58,20 @@ progress.reset();
 - `ringButton` preserves the supplied button's label nodes, listeners and disabled state. Use `progress` for fractions, `done` for completion and `reset` to return to the idle badge and original `aria-busy` / `aria-describedby` state. Localized progress is explicitly included in the button's accessible description, preserving pre-existing descriptions; completion also has a status announcement. `null` means indeterminate; numeric values clamp to 0…1, NaN/invalid values to 0. Label updates after mounting should target `.kit-ring-label`.
 - `data-motion="off"` on the document root makes numbers plain text swaps, stops indeterminate rotation and removes spring transitions. The system's reduced-motion preference also stops these animations. No progress or confirmation is fabricated when motion is off.
 
+## 页面接入 / Page integration
+
+- 数字：标定大百分比和时间、底栏时间（含读盘的 5 秒倒计时）、盘库页码。Numbers: calibration percent/time, footer time including the 5-second disc check, library counters. `flipWatch` disconnects observation during internal rendering and ignores animation cleanup; `destroy()` stops text and motion observation.
+- 记录条：盘批次详情；只用保存的真实 geo 结果及有明确几何或批次关联的刻录结果。无记录时隐藏。History: saved non-simulated geometry runs and explicitly linked burn results, oldest to newest. Unlinked old burns are omitted; no event is invented.
+- 手机：照片列表轮询时一起读取 `/api/phone-devices`；404 只隐藏设备列表。断开会轮换该次测量的共享口令，所有旧链接失效，重新获取链接与二维码。Devices poll with photos; disconnect rotates the shared run token, revokes all old links and refreshes the QR. “This computer” cannot be disconnected.
+- 确认：测量盘与成品刻录都用滑动条，保留原有勾选和检查。键盘聚焦滑块，按住 → / End 1 秒。Burn sliders retain consent and checks. `nextconfirm.js` swaps the shared Next button only for the irreversible step.
+- 进度：测量镜像与预览页生成文件的 Next 按钮；没有进度时只转圈，关闭动效时停止。Image generation rings use job fractions; unknown progress is indeterminate. `ringButton.destroy()` restores label nodes and accessibility state before another page takes Next.
+
+刻录数据：引擎的 `iso/*.iso.burn.jsonl` 经 `.image.json` 的 `geometry_from` 关联；网页任务另存 `.webui-jobs/*/burn.json`，保留引擎结果、时间与写入前已知的批次。两处同一日志与时间的记录只显示一次。失败、取消、坏回读为铜色；已完成且样本全可读为墨色；未验证或无法判断为淡色。这不证明实物图案正确。
+Burn sources: engine JSONL plus image-sidecar geometry links, and durable web-job burn records with the batch known before writing. Duplicate log/time pairs count once. Failed/cancelled/bad read-back needs attention; a completed clean sample is OK; missing verification stays unknown. This does not certify the physical artwork.
+
+页面接入验证（2026-11-11）：`python -m pytest -q tests`：234 通过、1 跳过、46 subtests 通过；全部 16 个 `tests/*.mjs` / `*.cjs` 通过。受限 Windows 会话用 `PYTEST_ADDOPTS=--basetemp=.test-tmp/pytest-kit-wire-verified` 把临时文件放在工作树。浏览器测试使用本地文件或拦截的测试响应，没有启动长期服务器或接触光驱；检查了桌面、760 px、390 px、纸色/墨色、减弱动效、断开与口令轮换后的链接、旧服务器 404，以及刻录滑块和生成进度。未实测触屏、读屏器或实际刻录。
+Page integration validation: 234 pytest tests passed, 1 skipped, 46 subtests passed; all 16 Node test files passed. Browser checks cover actual page DOM and kit behavior using local/intercepted fixtures. Physical touch, screen readers and real burning were not exercised.
+
 ## 来源与授权 / Provenance
 
 | Component | Reference | Adapted / written here |
@@ -88,6 +106,6 @@ node tests/test_burn_page.cjs
 
 The mechanical style detector ran once. Its cream-palette, glass-shadow and spring-easing findings correspond to the task's explicit design requirements. Its Archivo finding conflicts with the existing `DESIGN.md` body-font token. Existing design files and tokens were preserved.
 
-Final validation: the kit pure/browser tests and `test_burn_page.cjs` pass. An earlier full run of all 12 `.mjs` files and the burn-page test passed. After concurrent edits outside this kit, the final full run has 10 of 12 `.mjs` files passing: `test_photo_wire.mjs:113` expects `L = 2.5 frames` but receives the unverified-saved-preset message; `test_photo_wire_browser.mjs:106` expects phase `saved` but receives `photo`. Both failures reproduced in a focused rerun. These tests exercise the protected photo/calibration integration and do not import the new kit; no protected implementation or test was changed to resolve them. Whole-repository green status is therefore not claimed.
+Kit-only validation before page integration: the kit pure/browser tests and `test_burn_page.cjs` pass. An earlier full run of all 12 `.mjs` files and the burn-page test passed. After concurrent edits outside this kit, the final full run has 10 of 12 `.mjs` files passing: `test_photo_wire.mjs:113` expects `L = 2.5 frames` but receives the unverified-saved-preset message; `test_photo_wire_browser.mjs:106` expects phase `saved` but receives `photo`. Both failures reproduced in a focused rerun. These tests exercise the protected photo/calibration integration and do not import the new kit; no protected implementation or test was changed to resolve them. Whole-repository green status is therefore not claimed.
 
-The skill's separate finish reviewer inspected the modules, tests, provenance and final desktop/390 CSS px captures after the correction batch and returned **ship within the kit's scope**, with no unresolved kit blockers. It did not certify physical touch, screen-reader behavior or the unrelated photo-wire suite.
+The skill's separate finish reviewer inspected the modules, tests, provenance and final desktop/390 CSS px captures after the correction batch and returned **ship within the kit's scope**, with no unresolved kit blockers. It did not certify physical touch, screen-reader behavior or the photo-wire suite. The page integration and current tests are documented above and below.

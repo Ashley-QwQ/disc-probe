@@ -11,7 +11,9 @@ const nodes = new Map();
 const q = key => { if(!nodes.has(key))nodes.set(key,node());return nodes.get(key); };
 const heard = [];
 const sfx = {step:i=>heard.push('step'+i), done:()=>heard.push('done'), problem:()=>heard.push('problem'), failure:()=>heard.push('failure')};
-const sandbox = vm.createContext({document:{documentElement:node(),createElement:node}, console, q, node, assert, afterBurn:[], sfx, heard});
+let confirmOptions;
+const sandbox = vm.createContext({document:{documentElement:node(),createElement:node}, console, q, node, assert, afterBurn:[], sfx, heard,
+  nextConfirm:(button,options)=>{confirmOptions=options;},getConfirmation:()=>confirmOptions});
 vm.runInContext(source, sandbox);
 vm.runInContext(String.raw`
   api={lang:()=> 'en'};
@@ -54,6 +56,15 @@ vm.runInContext(String.raw`
   chime({status:'success',burnResult:clean.burnResult}); chime({status:'success',burnResult:bad.burnResult});
   chime({status:'success',burnResult:{verification:{status:'skipped'}}}); chime({status:'failed',started:false}); chime({status:'failed',started:true}); chime({status:'cancelled'});
   assert.deepEqual([...heard],['done','problem','done','problem','failure']);
+  // The ready step replaces Next with a slider, retaining the checkbox gate.
+  api.$=id=>q(id);api.nextWhy=()=>{};visible=true;W.next=node();W.consent={checked:false};
+  ctx.discIn=true;ctx.media='dvd';speed=8;task=null;
+  paint();assert.equal(getConfirmation().active,true);assert.equal(getConfirmation().disabled,true);
+  getConfirmation().done();assert.equal(task,null,'unchecked consent cannot start a write');
+  W.consent.checked=true;paint();assert.equal(getConfirmation().disabled,false);
+  task={status:'burning',progress:.25};paint();assert.equal(getConfirmation().active,false);
+  task={status:'success',progress:1};paint();assert.equal(getConfirmation().active,false);
+  assert.equal(W.next.disabled,false,'normal Next remains available after success');
 `, sandbox);
 
 // Exercise realBurn's event forwarding using an in-memory EventSource; no HTTP or server.

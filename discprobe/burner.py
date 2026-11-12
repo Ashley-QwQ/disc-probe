@@ -332,10 +332,11 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
     log_path = Path(str(image) + ".burn.jsonl")
     # Open the durable log before any write. Append to preserve earlier burns of this image.
     def record(kind, **fields):
+        stamp = time.time()
         with log_path.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(dict(type=kind, time=time.time(), drive=drive, media=media,
+            stream.write(json.dumps(dict(type=kind, time=stamp, drive=drive, media=media,
                                          image=str(image), **fields), ensure_ascii=False, allow_nan=False) + "\n")
-        ui.event(kind, **fields)
+        ui.event(kind, time=stamp, **dict(fields, log_path=str(log_path)))
     record("burn_speed", requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=None)
     print(f"Requested write speed: {selected:g}x ({'default' if speed is None else f'--speed {speed:g}x'}). "
           f"Burn log: {log_path}", flush=True)

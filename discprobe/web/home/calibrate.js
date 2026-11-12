@@ -1,3 +1,6 @@
+import { nextConfirm } from "./kit/nextconfirm.js";
+import { ringButton } from "./kit/ringbutton.js";
+import { flipValue } from "./kit/flipnum.js";
 // The calibration flow, as a mode of the home page: the scene stays at the drive, the right column
 // becomes the step panel, the bar shows the job, the back button takes the top-left corner.
 // Live jobs use the local API. Simulated readings and timers are limited to ?mock / ?demo=N.
@@ -34,8 +37,8 @@ const STR = {
     genJob: "生成镜像",
     recheck: "开刻之前，再确认一次托盘里还是那张空白盘……",
     notBlankNow: ["托盘里不是空盘了", "可能被换过。这次没有开始刻录，放一张空白盘再来。"],
-    readyBurn: "镜像好了，可以刻", readyLede: "按住右下角的按钮开始刻录。刻的时候托盘会关上；耗盘和时间见下面的预算。",
-    holdBurn: "下一步：刻测量盘（按住）",
+    readyBurn: "镜像好了，可以刻", readyLede: "滑动右下角的确认条开始刻录。刻的时候托盘会关上；耗盘和时间见下面的预算。",
+    holdBurn: "滑动确认刻测量盘",
     burning: "正在刻测量盘", burningLede: "托盘关着，别动光驱。刻完会自动接着测量。",
     burnJob: "刻测量盘",
     burned: "测量盘刻好了",
@@ -87,8 +90,8 @@ const STR = {
     genJob: "Image",
     recheck: "Before burning, checking once more that the tray still holds the blank…",
     notBlankNow: ["The disc is no longer blank", "It may have been swapped. Burning didn't start; put in a blank and try again."],
-    readyBurn: "The image is ready to burn", readyLede: "Hold the button at the bottom right to start. The tray closes while it burns; see the disc and time budget below.",
-    holdBurn: "Next: burn the disc (hold)",
+    readyBurn: "The image is ready to burn", readyLede: "Slide the confirmation at the bottom right to start. The tray closes while it burns; see the disc and time budget below.",
+    holdBurn: "Slide to burn the measurement disc",
     burning: "Burning the measurement disc", burningLede: "The tray stays closed; leave the drive alone. Measuring follows on its own.",
     burnJob: "Burning",
     burned: "Measurement disc burned",
@@ -309,7 +312,7 @@ function build() {
   addEventListener("keydown", (e) => {
     if (isCal() && api.backend.mock && e.key === "S" && e.shiftKey) cycleState();
   });
-  holdButton($("next"));
+  bindNext($("next"));
 }
 
 let st = null;                             // the stage (calstage.js), live pages only
@@ -342,6 +345,7 @@ function open() {
 
 function release() {
   closePhoto();
+  nextKit(false, false);
   document.documentElement.dataset.mode = "";
   const ruler = document.getElementById("cal-ruler"); if (ruler) ruler.hidden = true;
   st?.show(false); loadDisc.desk(false); document.documentElement.classList.remove("cal-staged"); sideButton(null);
@@ -501,6 +505,8 @@ function runJob(kind, seconds, onTick, onDone) {
     api.jobProgress(job.p, flow.item?.row || "dvd");
     const leftS = seconds * (1 - job.p);
     $("job-time").textContent = leftS > 90 ? T().left(leftS) : T().leftSec(leftS);
+    job.fraction = job.p;
+    if (kind === "gen") imageRing?.progress(job.p);
     flow.plateP = job.p;
     if (kind === "burn") updateInterior(job.p, leftS);
     else drawPlate();
@@ -887,8 +893,8 @@ function paint() {
   const nb = $("next");
   $("next-text").textContent = nextText;
   nb.disabled = !nextOn;
-  nb.classList.toggle("hold", hold && nextOn);
-  nb.dataset.hold = hold && nextOn ? "1" : "";
+
+  nextKit(hold, !nextOn, flow.job?.kind === "gen");
   flow.warnEl.classList.toggle("on", warn);
   flog.title(flow.job ? h : "");
   $("cal").classList.toggle("floor-titled", !!flow.job && !st);     // with the stage, the title stays on the paper
@@ -921,37 +927,23 @@ function paint() {
   }
 }
 
-// ---------------------------------------------------------------- hold to confirm on the next button
-function holdButton(btn) {
-  // A timer decides (one second held = confirmed); animation frames only draw the fill, so the
-  // confirmation works even when the page gets no frames.
-  let t0 = 0, raf = 0, timer = 0;
-  const set = (v) => btn.style.setProperty("--hold", v.toFixed(3));
-  const stop = () => { cancelAnimationFrame(raf); clearTimeout(timer); t0 = 0; set(0); };
-  const draw = (now) => {
-    if (!t0) return;
-    set(api.reduce ? 0 : Math.min(1, (now - t0) / 1000));
-    raf = requestAnimationFrame(draw);
-  };
-  const begin = (e) => {
-    if (!isCal() || btn.disabled || !btn.dataset.hold) return;
-    e.preventDefault();
-    if (!t0) {
-      t0 = performance.now();
-      raf = requestAnimationFrame(draw);
-      timer = setTimeout(() => { if (t0) { stop(); next(); } }, 1000);
-    }
-  };
-  btn.addEventListener("pointerdown", begin);
-  for (const ev of ["pointerup", "pointerleave", "pointercancel"]) btn.addEventListener(ev, () => { if (btn.dataset.hold) stop(); });
-  btn.addEventListener("keydown", (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat && btn.dataset.hold) begin(e); });
-  btn.addEventListener("keyup", (e) => { if ((e.key === " " || e.key === "Enter") && btn.dataset.hold) stop(); });
+// The irreversible step owns a slider; other steps keep the normal Next button.
+let imageRing = null;
+function nextKit(slide, disabled, making = false) {
+  nextConfirm($("next"), {active:slide, disabled, lang:api.lang(), done:() => {
+    if (isCal() && !$("next").disabled) next();
+  }});
+  if (making) {
+    imageRing ||= ringButton($("next"), {lang:api.lang()});
+    imageRing.progress(flow.job?.fraction ?? null);
+  } else { imageRing?.destroy(); imageRing = null; }
+}
+function bindNext(btn) {
   btn.addEventListener("click", () => {
-    if (!isCal() || btn.dataset.hold || btn.disabled) return;
+    if (!isCal() || btn.hidden || btn.disabled) return;
     next();
   });
 }
-
 
 // Live workflow: phases describe the visible panel; measurements and verdicts come from disk.
 const liveText = (zh, en) => api.lang() === "zh" ? zh : en;
@@ -996,10 +988,10 @@ function realPaint() {
     button = liveText('检测刻好的盘', 'Check the burned disc');
   } else if (phase === "burn") {
     title = liveText('刻测量盘', 'Burn the measurement disc');
-    text = liveText('光驱里放着同批次的空白盘。按住下一步 1 秒开始刻录：托盘会关上，刻录不能撤销，DVD 约 14 分钟。刻完会自己检查这张盘，接着开始测量。',
-      'The drive holds a blank from this batch. Hold Next for a second to burn: the tray closes, burning cannot be undone, about 14 minutes for a DVD. When it is done the disc is checked and measuring starts on its own.');
+    text = liveText('光驱里放着同批次的空白盘。滑动右下角确认刻录：托盘会关上，刻录不能撤销，DVD 约 14 分钟。刻完会自己检查这张盘，接着开始测量。',
+      'The drive holds a blank from this batch. Slide the confirmation at the bottom right to burn: the tray closes, burning cannot be undone, about 14 minutes for a DVD. When it is done the disc is checked and measuring starts on its own.');
     html = `<p class="cal-aside">${liveText('也可以用别的刻录程序把', 'Or burn')} <code>${esc(flow.iso)}</code> ${liveText('刻到同批次的空白盘上，放进光驱后', 'to a blank from this batch with another program, put it in, and')} <button id="real-have" type="button" class="btn">${liveText('检测刻好的盘', 'check the burned disc')}</button></p>`;
-    button = liveText('下一步：刻测量盘（按住）', 'Next: burn the disc (hold)');
+    button = liveText('滑动确认刻测量盘', 'Slide to burn the measurement disc');
   } else if (["timing", "geo", "random", "saving", "burning", "checking"].includes(phase)) {
     title = {timing:T().timing, geo:T().geo, random:T().generate, saving:liveText('正在保存预设', 'Saving preset'), burning:T().burning,
       checking:liveText('正在检查刻好的盘', 'Checking the burned disc')}[phase];
@@ -1012,7 +1004,7 @@ function realPaint() {
       html += runningPaper(phase);                       // what is happening: only while it happens
       const verb = { burning: liveText("刻录中", "Burning"), random: liveText("生成中", "Making"), saving: liveText("保存中", "Saving") }[phase]
         ?? liveText("测量中", "Measuring");
-      const left = $("job-time").textContent;              // only a real time left (not "about 0 s" between steps)
+      const left = flipValue($("job-time"));              // only a real time left (not "about 0 s" between steps)
       button = flow.etaS > 0 && left && left !== "?" ? liveText(`${verb}，${left}`, `${verb}, ${left}`) : verb;
     }
   } else if (phase === "review") {
@@ -1072,16 +1064,16 @@ function realPaint() {
   // while a job runs, its step's name lies on the floor in front of the drive (floor-log.js)
   flog.title(flow.job ? title : "");
   $("cal").classList.toggle("floor-titled", !!flow.job && !st);     // with the stage, the title stays on the paper
-  // burning is confirmed by holding the button (holdButton), everything else by a click
-  const hold = phase === "burn" && !disabled && !cdHere();
-  $("next-text").textContent = button; $("next").disabled = disabled; $("next").dataset.hold = hold ? "1" : "";
+  // The burn step requires the kit slider; all other steps use Next.
+  const hold = phase === "burn" && !cdHere();
+  $("next-text").textContent = button; $("next").disabled = disabled; nextKit(hold, disabled, phase === "random" && !!flow.job);
   // why it is grey, beside it: running, waiting for an answer, a problem to put right, a box to tick
   api.nextWhy?.(flow.error ? liveText('先处理上面的问题', 'Put the problem above right first')
     : flow.ask ? liveText('先回答上面的问题', 'Answer the question above first')
     : flow.job ? liveText('在测，做完会自己接上；可以关掉网页', 'Working; it goes on by itself, even with the page closed')
     : phase === "prepare" && flow.detected?.blank === false && !flow.measureConfirmed ? liveText('先勾选上面：这是测量盘', 'Tick the box above first: this is the measurement disc')
     : "");
-  $("next").classList.toggle("hold", hold);
+
   $("real-name")?.addEventListener("input", e => {flow.realName = e.target.value;});
   $("measurement-confirm")?.addEventListener("change", e => {flow.measureConfirmed = e.target.checked; paint();});
   $("left-input")?.addEventListener("input", e => { flow.left = e.target.value === "" ? null : Number(e.target.value); });
@@ -1131,7 +1123,7 @@ function photoStamp(result, saved = null) {
 function photoNavigation(u) {
   if (!photoLive(u)) return;
   const unavailable = u.status === 'unavailable', cd = flow.detected.media === 'cd';
-  $('next').dataset.hold = ''; $('next').classList.remove('hold');
+  nextKit(false, false);
   $('next-text').textContent = unavailable ? (cd ? liveText('导出 DIS 预设','Export DIS preset') : liveText('返回测量结果','Back to measurement result')) : liveText('下一步：用这张照片','Next: use this photo');
   $('next').disabled = !!flow.job || (!unavailable && (u.status !== 'ready' || !u.canUse));
   api.nextWhy?.(unavailable ? '' : flow.job ? liveText('正在读取照片…','Reading the photo…') : u.status === 'loading' ? liveText('正在连接照片服务…','Connecting to the photo service…') : !u.canUse ? liveText('先选一张照片','Choose a photo first') : '');
@@ -1159,12 +1151,51 @@ async function pollPhotos(u) {
     if (!photoLive(u)) return;
     u.page.setReasons(u.flow.photoResult?.per_photo || []);
     u.notice.textContent = u.flow.photoNotice || '';
+    await pollDevices(u);
   } catch (error) {
     if (!photoLive(u)) return;
     if (photoUnavailable(error)) { photoFallback(u); return; }
     u.notice.textContent = api.backend.errorText(error,api.lang());
   }
   if (photoLive(u) && u.status === 'ready') u.timer = setTimeout(() => pollPhotos(u), 2000);
+}
+async function pollDevices(u) {
+  if (!photoLive(u) || u.devicesUnavailable) return;
+  try {
+    const result = await api.backend.request(`/api/phone-devices?run=${encodeURIComponent(u.run)}`);
+    if (!photoLive(u)) return;
+    const rows = Array.isArray(result.devices) ? result.devices : [];
+    u.page.setDevices?.([
+      {id:'this-computer', name:liveText('这台电脑','This computer'), kind:'computer', thisDevice:true},
+      ...rows.map(d => ({...d, since:d.first_seen, sent:d.photos_sent})),
+    ]);
+  } catch (error) {
+    if (!photoLive(u)) return;
+    if (photoUnavailable(error)) { u.devicesUnavailable = true; u.page.setDevices?.(null); }
+    else u.notice.textContent = api.backend.errorText(error,api.lang());
+  }
+}
+async function disconnectPhone(u, id) {
+  if (!photoLive(u)) return;
+  try {
+    await api.backend.request(`/api/phone-devices/${encodeURIComponent(id)}/disconnect`, {});
+  } catch (error) {
+    if (photoUnavailable(error)) { u.devicesUnavailable = true; u.page.setDevices?.(null); return; }
+    throw error;
+  }
+  // Rotation revokes every device using the old run token. Refresh the QR before reconnecting.
+  u.page.setDevices?.(null);
+  try {
+    const link = await api.backend.request(`/api/phone-link?run=${encodeURIComponent(u.run)}`);
+    if (!photoLive(u)) return;
+    u.page.setPhoneLink?.(link);
+    u.notice.textContent = liveText('旧链接已失效。其他手机也需重新扫码。','The old link has expired. Other phones must scan again too.');
+    await pollDevices(u);
+  } catch (error) {
+    if (!photoLive(u)) return;
+    u.page.setPhoneLink?.({url:null,qr_svg:null});
+    u.notice.textContent = api.backend.errorText(error,api.lang());
+  }
 }
 function showPhotoResult(u, result) {
   if (!photoLive(u)) return;
@@ -1239,6 +1270,7 @@ function paintPhoto() {
         lang:u.lang, media:u.flow.detected.media, paperHost:$('cal'), photos, ringsMm:u.flow.photoSnapshot?.ringsMm, activePhoto:u.flow.photoSnapshot?.activePhoto,
         measuredMm:u.flow.geo?.measurement?.span_mm,
         phoneUrl:phone.url, phoneQrSvg:phone.qr_svg,
+        onDisconnect:id => disconnectPhone(u, id),
         onStateChange:state => { u.canUse = state.canUse; photoNavigation(u); },
         onBack:photoReview, onSkip:photoReview,
         autoAlign:async (photo,rings) => {
@@ -1336,7 +1368,7 @@ function paintStage() {
   // the browser tab says it too, so a person in another tab sees it going ("62% · 测几何")
   document.title = job ? `${Math.round(p * 100)}% · ${$("job-name").textContent}` : "disc-probe";
   st.set({ disc, read, head, band, busy: !!job,
-    percent: job ? p * 100 : null, left: job ? $("job-time").textContent : "" });
+    percent: job ? p * 100 : null, left: job ? flipValue($("job-time")) : "" });
 }
 // "place the picture first, call me when it is measured": the job goes on; the person goes back to the work
 // (or starts one); the done sound and a note say when it has finished
@@ -1453,6 +1485,8 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       if (event.type === "stopped") f.error = liveText('提前停止：', 'Stopped early: ') + event.reason;
       if (event.type === "progress" && action !== "info") {
         current.p = Math.max(0, Math.min(1, event.fraction || 0)); f.plateP = current.p;
+        current.fraction = Number.isFinite(event.fraction) ? current.p : null;
+        if (action === "random" && isCal()) imageRing?.progress(current.fraction);
         if (f.realPhase === "burning") f.burnP = current.p;           // how far the burn got (a stop shows it)
         f.stage = event.stage; api.jobProgress(current.p, f.detected?.media || f.item?.row || "dvd");
         const eta = Math.max(0, event.eta_s);            // minutes past a minute and a half, as the mock page says it
@@ -1469,6 +1503,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       await new Promise((r) => setTimeout(r, Math.max(0, CHECK_MS - (performance.now() - t0))));
       current.p = 1; api.jobProgress(1, f.detected?.media || f.item?.row || "dvd");      // the bar ends full
     }
+    if (action === "random") imageRing?.done();
     return result;
   } catch (error) {
     if (error.status === 422 && (why || lastLine)) error.message = why || lastLine;

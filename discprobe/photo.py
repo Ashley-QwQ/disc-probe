@@ -248,6 +248,7 @@ class PhotoStore:
     def __init__(self, results):
         self.results = Path(results).resolve()
         self.tokens = {}
+        self.devices = {}
         self.lock = threading.RLock()
 
     def run_dir(self, run_id):
@@ -288,6 +289,49 @@ class PhotoStore:
                 self.tokens.pop(token, None)
         raise ValueError("invalid or expired photo token")
 
+    def use(self, token, agent, device_id=None):
+        """A random browser cookie distinguishes devices; user-agent is only a display summary."""
+        with self.lock:
+            run = self.token_run(token)
+            row = self.devices.get(device_id)
+            if not row or row['token'] != token:
+                device_id = secrets.token_hex(16)
+                platform = next((p for p in ('iPhone', 'iPad', 'Android', 'Windows', 'Macintosh', 'Linux') if p in agent), None)
+                browser = next((name for marker, name in (('Edg/', 'Edge'), ('Firefox/', 'Firefox'),
+                    ('Chrome/', 'Chrome'), ('Safari/', 'Safari')) if marker in agent), None)
+                summary = ' · '.join(filter(None, (platform, browser))) or '未知设备 / Unknown device'
+                row = dict(id=device_id, run=run, token=token, name=summary, kind='phone',
+                           first_seen=time.time() * 1000, photos_sent=0)
+                self.devices[device_id] = row
+            row['last_seen'] = time.time() * 1000
+            return device_id
+
+    def connected(self, run_id):
+        with self.lock:
+            self.run_dir(run_id)
+            rows = []
+            for row in self.devices.values():
+                if row['run'] != run_id:
+                    continue
+                try:
+                    self.token_run(row['token'])
+                except ValueError:
+                    continue
+                rows.append({k: row[k] for k in ('id', 'name', 'kind', 'first_seen', 'last_seen', 'photos_sent')})
+            return dict(devices=sorted(rows, key=lambda r: (r['first_seen'], r['id'])))
+
+    def disconnect(self, device_id):
+        with self.lock:
+            row = self.devices.get(device_id)
+            if not row:
+                raise ValueError('device not found')
+            run = self.token_run(row['token'])
+            # The capability is shared by this run: rotate it, revoking every old link.
+            self.tokens = {t: item for t, item in self.tokens.items() if item[0] != run}
+            self.devices = {i: r for i, r in self.devices.items() if r['run'] != run}
+            self.token(run)
+            return dict(disconnected=True, run=run)
+
     def _folder(self, run_id):
         run = self.run_dir(run_id)
         folder = (run / "photos").resolve()
@@ -317,10 +361,12 @@ class PhotoStore:
             rows = [self.get(run_id, p.stem)[2] for p in folder.glob("*.json")]
             return dict(photos=sorted(rows, key=lambda p: (p["time"], p["id"])))
 
-    def upload(self, run_id, data, kind, name):
+    def upload(self, run_id, data, kind, name, *, token=None, device_id=None):
         if kind not in PHOTO_TYPES:
             raise ValueError("JPEG, PNG, HEIC or WebP required")
         with self.lock:
+            if token is not None and self.token_run(token) != run_id:
+                raise ValueError('photo token belongs to another run')
             folder = self._folder(run_id)
             folder.mkdir(exist_ok=True)
             ident = secrets.token_hex(16)
@@ -334,6 +380,10 @@ class PhotoStore:
             except Exception:
                 image.unlink(missing_ok=True)
                 raise
+            device = self.devices.get(device_id)
+            if device and device['token'] == token:
+                device['photos_sent'] += 1
+                device['last_seen'] = time.time() * 1000
             return {k: row[k] for k in ("id", "name", "url", "time")}
 
     def argv(self, args):

@@ -34,6 +34,7 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
         if(path.includes(missing || 'NEVER')) throw Object.assign(new Error('Not found'),{status:404});
         if(path.startsWith('/api/phone-link')) return {url:phone,qr_svg:null};
         if(path.startsWith('/api/photos')) return {photos};
+        if(path.startsWith('/api/phone-devices')) return {devices:[{id:'phone1',name:'iPhone',first_seen:1000,last_seen:2000,photos_sent:2}]};
         return {};
       },
       job:async payload=>{
@@ -46,13 +47,14 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
     }};
   let opts;
   const context = vm.createContext({...guidance,document,location:{search:''},URLSearchParams,console,
+    flipValue:el=>el.textContent,nextConfirm:(btn,options={})=>{btn.hidden=!!options.active;btn.confirmOptions=options;},ringButton:()=>({progress(){},done(){},destroy(){}}),
     setTimeout:(fn,ms)=>{const id=timers.size+1;timers.set(id,{fn,ms});return id;},clearTimeout:id=>timers.delete(id),clearInterval(){},performance,
     loadDisc:{desk(){}},calchart:{resultChart:()=>''},sfx:{done(){},problem(){},failure(){}},
     floorLog:()=>({mount(){},start(){},end(){},title(){}}),
     photoPage:(host,o)=>{
       opts=o;
       const p={reasons:[],destroy(){this.destroyed=true;},state:()=>({photos:[],focus:false}),setReasons(v){this.reasons=v;},setPhotoId(){},
-        addPhotos:async values=>{p.added=values;},back(){o.onBack();},use:()=>o.onUse({id:'p1'},[30,38,47,55])};
+        setDevices(values){p.devices=values;},setPhoneLink(value){p.link=value;},addPhotos:async values=>{p.added=values;},back(){o.onBack();},use:()=>o.onUse({id:'p1'},[30,38,47,55])};
       o.paperHost.paper=new Element(); o.onStateChange({canUse:true}); pages.push(p); return p;
     },
   });
@@ -61,6 +63,23 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
   return {wire:context.wire,f,geo,nodes,calls,timers,pages,show,opts:()=>opts};
 }
 const flush=async()=>{for(let i=0;i<20;i++) await Promise.resolve();};
+
+{
+  const x=fixture();x.wire.enterPhoto();await flush();
+  assert.equal(x.pages[0].devices[0].thisDevice,true);
+  assert.equal(x.pages[0].devices[1].since,1000);
+  assert.equal(x.pages[0].devices[1].sent,2);
+  await x.opts().onDisconnect('phone1');await flush();
+  assert.ok(x.calls.some(c=>c.path==='/api/phone-devices/phone1/disconnect'));
+  assert.ok(x.pages[0].link,'rotation refreshes the link');
+  x.wire.closePhoto();
+}
+{
+  const x=fixture({missing:'/api/phone-devices'});x.wire.enterPhoto();await flush();
+  assert.equal(x.wire.getUI().status,'ready','old server keeps photo work available');
+  assert.equal(x.pages[0].devices,null,'unsupported devices piece hides');
+  x.wire.closePhoto();
+}
 
 // The narrow-span action supplements the existing recovery action and returns to the same result.
 {

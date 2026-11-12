@@ -115,7 +115,7 @@ def test_phone_tokens_are_scoped_and_do_not_grant_main_session(tmp_path):
         code, html, headers = request(s, "GET", path)
         assert code == 200 and '把整张盘放进圈里'.encode() in html
         assert b'capture="environment"' in html and b'__PHOTO_CONFIG__' not in html
-        assert b'"run": "geo-test"' in html and "Set-Cookie" not in headers
+        assert b'"run": "geo-test"' in html and 'discprobe_session=' not in headers.get('Set-Cookie', '')
         assert request(s, "GET", "/phone/wrong")[0] == 403
         code, row = upload(s, token=token)
         assert code == 200
@@ -152,6 +152,51 @@ def test_upload_body_limit_content_type_and_auth_before_body(tmp_path):
             assert code == 200
             assert (tmp_path / "results/geo-test/photos" / (row["id"] + "." + extension)).read_bytes() == b"original bytes"
     assert not s.backend.photos.tokens
+
+
+def test_phone_devices_count_and_rotation_revoke_every_old_link(tmp_path):
+    with serving(tmp_path, lan=True) as s, patch.object(photo, 'lan_ip', return_value='192.168.1.10'):
+        session = {'X-Discprobe-Token': s.token}
+        link = json_request(s, 'GET', '/api/phone-link?run=geo-test', headers=session)[1]
+        path = urlsplit(link['url']).path
+        token = path.rsplit('/', 1)[1]
+        assert json_request(s, 'GET', '/api/phone-devices?run=geo-test', headers=session)[1] == {'devices': []}
+        _, _, headers = request(s, 'GET', path, headers={'User-Agent': 'Mozilla iPhone Safari/604'})
+        cookie = headers['Set-Cookie'].split(';')[0]
+        auth = {'X-Photo-Token': token, 'Cookie': cookie, 'User-Agent': 'Mozilla iPhone Safari/604'}
+        assert json_request(s, 'POST', '/api/photos?run=geo-test', png(), {'Content-Type': 'image/png', **auth})[0] == 200
+        request(s, 'GET', '/api/photos?run=geo-test', headers=auth)
+        # A second browser with the same user-agent still has its own identity.
+        request(s, 'GET', path, headers={'User-Agent': auth['User-Agent']})
+        rows = json_request(s, 'GET', '/api/phone-devices?run=geo-test', headers=session)[1]['devices']
+        assert len(rows) == 2 and rows[0]['id'] != rows[1]['id']
+        row = next(r for r in rows if r['photos_sent'] == 1)
+        assert row['name'] == 'iPhone · Safari' and row['last_seen'] >= row['first_seen']
+        route = '/api/phone-devices/' + row['id'] + '/disconnect'
+        for endpoint in ('/api/phone-devices?run=geo-test', '/api/phone-link?run=geo-test'):
+            assert request(s, 'GET', endpoint, headers=auth)[0] == 403
+        assert json_request(s, 'POST', route, b'{}', {'Content-Type': 'application/json', **auth})[0] == 403
+        assert json_request(s, 'POST', route, b'{}', {'Content-Type': 'application/json', **session}) == (200, {'disconnected': True, 'run': 'geo-test'})
+        assert request(s, 'GET', path)[0] == 403
+        assert request(s, 'GET', '/api/photos?run=geo-test', headers=auth)[0] == 403
+        assert json_request(s, 'POST', '/api/photos?run=geo-test', png(), {'Content-Type': 'image/png', **auth})[0] == 403
+        assert json_request(s, 'GET', '/api/phone-devices?run=geo-test', headers=session)[1] == {'devices': []}
+        new = json_request(s, 'GET', '/api/phone-link?run=geo-test', headers=session)[1]
+        assert new['url'] != link['url'] and request(s, 'GET', urlsplit(new['url']).path)[0] == 200
+        assert json_request(s, 'GET', '/api/phone-devices?run=geo-other', headers=session)[1] == {'devices': []}
+        assert request(s, 'GET', '/api/phone-devices?run=missing', headers=session)[0] == 404
+        assert json_request(s, 'POST', route, b'{}', {'Content-Type': 'application/json', **session})[0] == 404
+
+
+def test_upload_rechecks_token_after_disconnect(tmp_path):
+    make_run(tmp_path)
+    store = photo.PhotoStore(tmp_path / 'results')
+    token = store.token('geo-test')
+    device = store.use(token, 'Android Chrome/130')
+    store.disconnect(device)
+    with pytest.raises(ValueError, match='expired'):
+        store.upload('geo-test', png(), 'image/png', 'late.png', token=token, device_id=device)
+    assert store.listing('geo-test') == {'photos': []}
 
 
 @pytest.mark.parametrize("text", ["", "hello", "a" * 25, "a" * 42, "a" * 62, "a" * 84, "a" * 106,

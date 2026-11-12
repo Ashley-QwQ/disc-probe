@@ -13,6 +13,7 @@ export function timeWords(since, now = Date.now(), lang = 'zh') {
   return words(lang, `已连上 ${count} ${zh}`, `Connected for ${count} ${en}${count === 1 ? '' : 's'}`);
 }
 export function deviceMeta(device, now = Date.now(), lang = 'zh') {
+  if (!Number.isFinite(device.sent)) return `${timeWords(device.since, now, lang)} · ${words(lang, '照片数未知', 'Photo count unknown')}`;
   const count = Number.isFinite(device.sent) ? Math.max(0, Math.floor(device.sent)) : 0;
   return `${timeWords(device.since, now, lang)} · ${words(lang, `发来 ${count} 张`, `Sent ${count} ${count === 1 ? 'photo' : 'photos'}`)}`;
 }

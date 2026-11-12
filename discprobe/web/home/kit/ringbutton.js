@@ -52,6 +52,12 @@ export function ringButton(btn, { lang = 'zh' } = {}) {
     else btn.setAttribute('aria-busy', originalBusy);
   }
   const api = {
+    destroy() {
+      api.reset();
+      btn.replaceChildren(...Array.from(label.childNodes));
+      btn.classList.remove('kit-ring-button');
+      mounted.delete(btn);
+    },
     progress(value) {
       const p = clampProgress(value);
       badge.hidden = false; meter.hidden = false; tick.hidden = true;

@@ -48,6 +48,7 @@ for (const since of [null, undefined, '', 'bad']) assert.equal(timeWords(since, 
 assert.equal(deviceMeta({ since: now - 180000, sent: 2 }, now), '已连上 3 分钟 · 发来 2 张');
 assert.equal(deviceMeta({ since: now, sent: 1 }, now, 'en'), 'Just connected · Sent 1 photo');
 assert.equal(deviceMeta({ since: now, sent: -2 }, now, 'en'), 'Just connected · Sent 0 photos');
+assert.equal(deviceMeta({ since: now }, now, 'en'), 'Just connected · Photo count unknown');
 
 assert.equal(HOLD_MS, 1000);
 assert.equal(slideProgress(-5, 100), 0);

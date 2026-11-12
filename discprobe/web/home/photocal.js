@@ -6,6 +6,7 @@
  * phoneQrSvg may be a host-generated SVG string; it is displayed as an inert
  * image, never inserted as markup. All callbacks receive independent arrays.
  */
+import { deviceList } from './kit/devices.js';
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 export const DEFAULT_RINGS = Object.freeze([30, 38, 47, 55]);
 export function ringHandles(radius) {
@@ -219,10 +220,12 @@ export function photoPage(host, opts = {}) {
     try { const url = new URL(value, doc.baseURI); return ['http:', 'https:', 'blob:', 'data:', 'file:'].includes(url.protocol) ? url.href : ''; }
     catch { return ''; }
   };
-  const phoneUrl = (() => {
-    if (!opts.phoneUrl) return '';
-    try { const url = new URL(opts.phoneUrl, doc.baseURI); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; }
-  })();
+  const safePhoneUrl = value => {
+    if (!value) return '';
+    try { const url = new URL(value, doc.baseURI); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; }
+  };
+  let phoneUrl = safePhoneUrl(opts.phoneUrl);
+  const deviceHosts = [];
   function phoneBlock(node, small) {
     if (!phoneUrl) {
       const p = doc.createElement('p'); p.className = 'pc-phone-offline'; p.textContent = t.phoneOffline;
@@ -241,6 +244,29 @@ export function photoPage(host, opts = {}) {
     block.append(text); node.append(block);
   }
   phoneBlock($('.pc-phone-empty'), false); phoneBlock($('.pc-phone-small'), true);
+  for (const host of [$('.pc-phone-empty'), $('.pc-phone-small')]) {
+    const devices = doc.createElement('div'); devices.hidden = true; devices.className = 'pc-devices';
+    host.append(devices); deviceHosts.push(devices);
+  }
+  function setDevices(devices) {
+    if (destroyed) return;
+    for (const host of deviceHosts) {
+      host.hidden = !Array.isArray(devices);
+      if (host.hidden) continue;
+      deviceList(host, devices, {lang:opts.lang, onDisconnect:opts.onDisconnect});
+    }
+  }
+  function setPhoneLink(link) {
+    if (destroyed) return;
+    phoneUrl = safePhoneUrl(link.url); opts.phoneQrSvg = link.qr_svg;
+    for (const [i, selector] of ['.pc-phone-empty', '.pc-phone-small'].entries()) {
+      const host = $(selector);
+      for (const img of host.querySelectorAll('.pc-qr')) {
+        if (ownedUrls.has(img.src)) { win.URL.revokeObjectURL(img.src); ownedUrls.delete(img.src); }
+      }
+      host.replaceChildren(); phoneBlock(host, !!i); host.append(deviceHosts[i]);
+    }
+  }
   $('.pc-why').textContent = t.why(...measured);
   const svgNode = (name, attrs = {}) => { const n = doc.createElementNS('http://www.w3.org/2000/svg', name); for (const [k,v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
   const range = $('.pc-range'), rx = n => 4 + (n - 24) / 34 * 336;
@@ -512,6 +538,8 @@ export function photoPage(host, opts = {}) {
   const ready = addPhotos(opts.photos || []).then(() => { if (!destroyed && Number.isInteger(opts.activePhoto)) choose(opts.activePhoto); });
   return {
     ready,
+    setDevices,
+    setPhoneLink,
     addPhotos,
     setPhotoId(photo, id) { const p = photos.find(p => photo.file ? p.file === photo.file : p.src === photo.src); if (p) p.id = id; },
     setReasons(perPhoto) { for (const p of photos) { const result = perPhoto.find(r => r.id === p.id); if (result) p.reason = result.reason || ''; } paintStrip(); },

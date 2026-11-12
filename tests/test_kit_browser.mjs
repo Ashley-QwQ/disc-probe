@@ -19,11 +19,12 @@ if (!existsSync(edge)) {
     </head><body><div id="flip">62%</div><div id="bars"></div><div id="devices"></div><div id="slide"></div><button id="ring"><b>处理照片</b></button>
     <iframe id="preview" style="width:__PREVIEW_WIDTH__px" src="${new URL('kit-preview.html', kit)}"></iframe><pre id="result">PENDING</pre>
     <script type="module">
-    import {flipNumber} from '${new URL('flipnum.js', kit)}';
+    import {flipNumber,flipWatch,flipValue} from '${new URL('flipnum.js', kit)}';
     import {statusBars} from '${new URL('statusbars.js', kit)}';
     import {deviceList} from '${new URL('devices.js', kit)}';
     import {slideConfirm} from '${new URL('slideconfirm.js', kit)}';
     import {ringButton} from '${new URL('ringbutton.js', kit)}';
+    import {nextConfirm} from '${new URL('nextconfirm.js', kit)}';
     const check=(condition,message)=>{if(!condition)throw Error(message)};
     const $=id=>document.getElementById(id);
     const flush=async()=>{await Promise.resolve();await Promise.resolve();await Promise.resolve()};
@@ -39,6 +40,26 @@ if (!existsSync(edge)) {
       document.documentElement.dataset.motion='off'; await flush(); flip.set('约 4 分钟');
       check($('flip').textContent==='约 4 分钟'&&!$('flip').children.length,'motion off is a plain text swap');
       document.documentElement.dataset.motion='on'; await flush();
+      const watched=document.createElement('output');document.body.append(watched);watched.textContent='09';
+      const watcher=flipWatch(watched);check(flipWatch(watched)===watcher,'watch mounts once');
+      watched.textContent='10';await flush();check(flipValue(watched)==='10','ordinary textContent rolls');
+      check(watched.querySelectorAll('.kit-flip-previous').length===2,'both digits carry');
+      await new Promise(resolve=>setTimeout(resolve,280));await flush();
+      check(flipValue(watched)==='10','animation cleanup never feeds back');
+      watched.firstChild && (watched.textContent='11');await flush();
+      document.documentElement.dataset.motion='off';await flush();
+      watched.textContent='5 s';await flush();check(watched.textContent==='5 s'&&!watched.children.length,'watched reduced motion');
+      document.documentElement.dataset.motion='on';await flush();check(flipValue(watched)==='5 s','motion toggles preserve value');
+      watched.textContent='4 s';document.documentElement.dataset.motion='off';await flush();
+      check(watched.textContent==='4 s','a motion toggle cannot overwrite a pending assignment');
+      document.documentElement.dataset.motion='on';await flush();
+      watcher.destroy();watched.textContent='plain';await flush();check(!watched.children.length,'watch cleanup');
+      const next=document.createElement('button');next.textContent='Next';document.body.append(next);let burns=0;
+      nextConfirm(next,{active:true,disabled:true,done:()=>burns++});
+      check(next.hidden&&next.nextElementSibling.querySelector('.kit-slide-knob').getAttribute('aria-disabled')==='true','Next replaced with disabled slider');
+      nextConfirm(next,{active:true,disabled:false,done:()=>burns++});
+      next.nextElementSibling.querySelector('.kit-slide-knob').click();check(burns===0,'click never burns');
+      nextConfirm(next);check(!next.hidden&&!document.querySelector('.next-confirm'),'normal Next restored');
       const bars=statusBars($('bars'),[{state:'ok',label:'正常',when:'2026-11-11'},{state:'needs',label:'复查',when:'2026-11-10'},{state:'bad',label:'未知',when:null}]);
       let buttons=$('bars').querySelectorAll('button'); check(buttons.length===3,'one bar per event');
       buttons[0].focus();check(!$('bars').querySelector('[role=tooltip]').hidden,'focus tooltip');
@@ -67,6 +88,10 @@ if (!existsSync(edge)) {
       check($('devices').querySelectorAll('li').length===1,'successful disconnect removes row');
       check($('devices').contains(document.activeElement),'focus recovered after disconnect');
       list.update([], {lang:'en'});check($('devices').textContent.includes('No devices connected.'),'empty device state');
+      const lifecycle=document.createElement('button');lifecycle.innerHTML='<span>Next</span>';document.body.append(lifecycle);
+      const labelNode=lifecycle.firstChild;const badge=ringButton(lifecycle);badge.progress(null);badge.destroy();
+      check(lifecycle.firstChild===labelNode&&!lifecycle.hasAttribute('aria-busy'),'ring teardown preserves label and state');
+      check(ringButton(lifecycle)!==badge,'ring remount after teardown');
       const oldBold=$('ring').querySelector('b');const ring=ringButton($('ring'));
       check($('ring').querySelector('b')===oldBold,'original button label nodes preserved');
       ring.progress(1.5);check(document.getElementById($('ring').getAttribute('aria-describedby')).textContent==='进度 100%','clamped accessible progress description');

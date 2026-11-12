@@ -310,6 +310,21 @@ elif MODE == "envelope":
     POOL = dict(center=(-0.12, EH + 0.05), sigma=0.32)
     SHADOW = None
 
+# --tumble rx,ry,rz (degrees, envelope mode): the bag turned in 3D, for the past-works page's falling background; one
+# layer, a square canvas round the bag's bounding sphere, no shadow (it floats)
+TUMBLE = arg("--tumble", "")
+if MODE == "envelope" and TUMBLE:
+    rx, ry, rz = (math.radians(float(v)) for v in TUMBLE.split(","))
+    piv = Matrix.Translation((0.0, (EH + FL) / 2, 0.0))
+    rot = piv @ Matrix.Rotation(rz, 4, "Z") @ Matrix.Rotation(ry, 4, "Y") @ Matrix.Rotation(rx, 4, "X") @ piv.inverted()
+    for o in scene.objects:
+        if o.type == "MESH" and o.name in ROLE:
+            o.matrix_world = rot @ o.matrix_world
+    RAD = 0.5 * math.hypot(EW, EH + FL) + 0.01
+    W = H = int(arg("--size", "640"))
+    PPM = W / (2 * RAD)
+    CX, CY = 0.0, (EH + FL) / 2
+    SHADOW = None
 render_meshes = [o for o in scene.objects if o.type == "MESH" and not o.hide_render and o.name in ROLE]
 for i, o in enumerate(render_meshes):
     o.pass_index = i + 1
@@ -708,7 +723,9 @@ def render_layer(names, tag_suffix=""):
 
 
 NRM, IDM = make_normal_mat(), make_id_mat()
-if MODE == "envelope":
+if MODE == "envelope" and TUMBLE:
+    layers = {"tumble": {o.name for o in render_meshes}}
+elif MODE == "envelope":
     layers = {"back": {o.name for o in render_meshes if LAYER[o.name] == "back"},
               "front": {o.name for o in render_meshes if LAYER[o.name] == "front"}}
 else:
@@ -736,7 +753,8 @@ for lname, names in layers.items():
             o.hide_render = o.name not in names
         col = render_exr("color_%s_%s" % (lname, v), SAMPLES, 1.5)
         out = compose(col, mask, STYLE[v], shadow=shadow, opaque=(MODE == "top"))
-        dst = {"top": "top_%s.png", "paper": "paper_%s.png"}.get(MODE, "envelope_%s_%%s.png" % lname) % v
+        dst = ("tumble_%s_%%s.png" % arg("--tag", "0") if lname == "tumble" else
+               {"top": "top_%s.png", "paper": "paper_%s.png"}.get(MODE, "envelope_%s_%%s.png" % lname)) % v
         save_png(out, os.path.join(OUTDIR, dst))
         del col, out
     del mask, oid, alpha

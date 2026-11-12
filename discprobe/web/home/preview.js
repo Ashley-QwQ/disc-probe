@@ -1,3 +1,4 @@
+import { ringButton } from "./kit/ringbutton.js";
 ﻿// The preview page: look at the disc as it will be written, then make the burn file. A mode of the
 // home page like design.js, and laid out like it: title at the top left, the disc in the middle with
 // the view switch at its top right, the burn file in the right column.
@@ -14,7 +15,7 @@ import { DEFAULT_POSE } from "./sim/model.mjs";
 import { SimView } from "./sim/view.mjs";
 import * as sfx from "./sfx.js";
 
-let simulation = null;
+let simulation = null, makeRing = null;
 let api, $, ctx = null, W = null, life = null, state = null, src = null, view = "design";
 const root = document.documentElement;
 const isOn = () => root.dataset.mode === "preview";
@@ -163,6 +164,10 @@ function paintNext() {
   $("next-text").textContent = step === "burn" ? t.next : step === "calibrate" ? t.nextCal
     : s.phase === "making" ? t.making2(s.fraction == null ? null : Math.floor(s.fraction * 100)) : t.nextMake;
   $("next").disabled = !step;
+  makeRing ||= ringButton($("next"), {lang:api.lang()});
+  if (s.phase === 'making') makeRing.progress(s.fraction ?? null);
+  else if (s.phase === 'ready') makeRing.done();
+  else makeRing.reset();
   api.nextWhy?.(!src ? t.whyEmpty : s.phase === "making" ? t.whyMaking : ctx.checks?.()?.levels === 4 ? t.whyLevels : "");
 }
 // While the burn file is made: the disc thumbnail fills cell by cell, counterclockwise from twelve
@@ -430,6 +435,7 @@ export function start(homeApi, context = {}) {
 }
 export function leave(goBack = true) {
   if (state?.phase === "making") cancel();
+  makeRing?.destroy(); makeRing = null;
   life?.abort(); life = null;
   simulation?.stop(); simulation = null;
   W?.ws.classList.remove("on");

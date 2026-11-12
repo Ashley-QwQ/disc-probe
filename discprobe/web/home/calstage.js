@@ -1,3 +1,4 @@
+import { flipWatch } from "./kit/flipnum.js";
 // The calibration page's stage: the burner seen straight down with its top shell see-through (caltop/,
 // rendered by caltop/render_caltop.py), the disc as the main character. The page draws on the disc what is
 // happening: the rainbow growing out from the inner edge as the head reads (hue by radius, as everywhere a
@@ -40,6 +41,7 @@ function build() {
     `<span class="cs-label" hidden></span></div>` +
     `<p class="cs-big" hidden><b></b><span></span></p>`;
   document.body.append(el);
+  for (const n of el.querySelectorAll(".cs-big b, .cs-big span")) flipWatch(n, {lang:api.lang()});
   addEventListener("dp-theme", paintArt);
   new MutationObserver(paintArt).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   paintArt();

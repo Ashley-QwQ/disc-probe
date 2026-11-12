@@ -503,6 +503,8 @@ class Backend:
             folder = Path(tempfile.mkdtemp(prefix=ident + "-", dir=self.folder))
             job = Job(ident, drive, folder)
             job.action, job.media, job.args = payload["action"], payload.get("media", "dvd"), payload.get("args", {})
+            known_disc = self.discs.get(drive) or next((d.get('disc') for d in drives if d['id'] == drive), None) or {}
+            job.batch_identity = dict(disc=known_disc.get('mid'), drive=known_disc.get('drive_name'))
             if is_photo:
                 job.media = job.args["media"]
             job.before = {r.path: result_signature(r) for r in guide.scan(self.out)}
@@ -566,6 +568,20 @@ class Backend:
                 self.verified_blank.pop(job.drive, None)
             job.read()
             job.exit = code
+            burn = next((e for e in reversed(job.history) if e.get('type') == 'burn_result'), None)
+            started_burn = next((e for e in job.history if e.get('type') == 'burn_speed'), None)
+            if burn is None and started_burn and code != 0:
+                burn = dict(type='burn_result', result='stopped', time=time.time(), exit=code,
+                            log_path=started_burn.get('log_path'))
+            if burn:
+                # Save only an actual engine result, with the batch known before the write.
+                identity = dict(job.batch_identity)
+                record = dict(burn, time=burn.get('time', time.time()), media=job.media, identity=identity)
+                try:
+                    (job.folder / 'burn.json').write_text(json.dumps(record, ensure_ascii=False), encoding='utf-8')
+                except OSError:
+                    # Completion must still be delivered if the results disk becomes unavailable.
+                    job.history.append(dict(type='log', job=job.id, level='warning', text='Could not save burn history.'))
             # info has no engine result event; associate only newly created reports on this job's device.
             candidates = [r for r in guide.scan(self.out) if job.before.get(r.path) != result_signature(r)
                           and r.kind == job.action and r.tag == guide_drive_tag(job.drive)
@@ -719,6 +735,8 @@ class Handler(BaseHTTPRequestHandler):
         # Share authentication with subresources, redirects and event streams too.
         if getattr(self, "_set_session_cookie", False):
             self.send_header("Set-Cookie", f"discprobe_session={self.server.token}; Path=/; HttpOnly; SameSite=Strict")
+        if getattr(self, '_photo_device', None):
+            self.send_header('Set-Cookie', f'discprobe_phone_device={self._photo_device}; Path=/; HttpOnly; SameSite=Strict')
         super().end_headers()
 
     def _send(self, code, body, content_type="application/json; charset=utf-8"):
@@ -736,6 +754,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _allowed(self):
         self._set_session_cookie = False
+        self._photo_device = self._photo_token = None
         host = self.headers.get("Host", "")
         if not self.server.token and host not in (f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"):
             raise APIError("invalid Host", 403)
@@ -751,6 +770,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise APIError("not found", 404)
             try:
                 self._phone_run = self.server.backend.photos.token_run(path.removeprefix("/phone/"))
+                self._use_phone(path.removeprefix('/phone/'))
             except ValueError as exc:
                 raise APIError(str(exc), 403) from exc
             return
@@ -765,6 +785,7 @@ class Handler(BaseHTTPRequestHandler):
                 target_run = query.get("run", [""])[0] if path == "/api/photos" else path.split("/")[3]
                 if run != target_run:
                     raise APIError("photo token belongs to another run", 403)
+                self._use_phone(token)
                 return
         if self.server.token:
             query = parse_qs(urlsplit(self.path).query)
@@ -781,6 +802,17 @@ class Handler(BaseHTTPRequestHandler):
                 if not session or not hmac.compare_digest(session.value.encode("utf-8"), expected):
                     raise APIError("invalid session token", 403)
 
+    def _use_phone(self, token):
+        cookie = SimpleCookie()
+        try:
+            cookie.load(self.headers.get('Cookie', ''))
+        except CookieError:
+            pass
+        device = cookie.get('discprobe_phone_device')
+        self._photo_token = token
+        self._photo_device = self.server.backend.photos.use(token, self.headers.get('User-Agent', ''),
+                                                          device.value if device else None)
+
     def do_GET(self):
         try:
             self._allowed()
@@ -794,6 +826,11 @@ class Handler(BaseHTTPRequestHandler):
                 address = photo.lan_ip() if self.server.token else None
                 link = f"http://{address}:{self.server.server_port}/phone/{backend.photos.token(run)}" if address else None
                 self._json(200, dict(url=link, qr_svg=qr.svg(link) if link else None))
+            elif path == '/api/phone-devices':
+                try:
+                    self._json(200, backend.photos.connected(parse_qs(url.query).get('run', [''])[0]))
+                except ValueError as exc:
+                    raise APIError(str(exc), 404) from exc
             elif path == "/api/photos":
                 self._json(200, backend.photos.listing(parse_qs(url.query).get("run", [""])[0]))
             elif path.startswith("/api/photos/"):
@@ -937,7 +974,8 @@ class Handler(BaseHTTPRequestHandler):
                     data = self._body(max(DESIGN_SIDES))
                     self._photo_body_read = True
                     result = self.server.backend.photos.upload(run, data, kind,
-                                                              self.headers.get("X-Filename", "photo"))
+                                                              self.headers.get("X-Filename", "photo"),
+                                                              token=self._photo_token, device_id=self._photo_device)
                 except ValueError as exc:
                     if isinstance(exc, APIError):
                         raise
@@ -958,10 +996,17 @@ class Handler(BaseHTTPRequestHandler):
             if not 0 < length <= 65536:
                 raise APIError("invalid request size", 413)
             self.connection.settimeout(5)
-            payload = json.loads(self.rfile.read(length))
+            body = self.rfile.read(length)
+            self._json_body_read = True
+            payload = json.loads(body)
             path = urlsplit(self.path).path
             backend = self.server.backend
-            if path == "/api/catalogue":
+            if re.fullmatch(r'/api/phone-devices/[0-9a-f]{32}/disconnect', path):
+                try:
+                    result = backend.photos.disconnect(path.split('/')[3])
+                except ValueError as exc:
+                    raise APIError(str(exc), 404) from exc
+            elif path == "/api/catalogue":
                 with backend.lock:
                     result = webui_catalog.save_entry(backend.root, backend.out, payload)
             elif path == "/api/run":
@@ -975,8 +1020,10 @@ class Handler(BaseHTTPRequestHandler):
                 result = backend.cancel(match[1]) if match["action"] == "cancel" else backend.answer(match[1], payload)
             self._json(200, result)
         except APIError as exc:
-            if urlsplit(self.path).path == "/api/photos" and not getattr(self, "_photo_body_read", False):
-                # Drain small rejected uploads so closing with unread socket data does not
+            route = urlsplit(self.path).path
+            if ((route == '/api/photos' and not getattr(self, '_photo_body_read', False)) or
+                    (route.startswith('/api/phone-devices/') and not getattr(self, '_json_body_read', False))):
+                # Drain small rejected bodies so closing with unread socket data does not
                 # turn a useful 403/415 into a TCP reset (especially on Windows). Never
                 # consume oversized uploads, or wait indefinitely for an absent body.
                 length = self.headers.get("Content-Length", "")
