@@ -7,6 +7,9 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    "Identity copies stay in the first session; omit --disc-id when appending the label.": "身份副本保留在首段会话；追加标签时不要使用 --disc-id。",
+    "identity slot overlaps label metadata": "身份记录槽与标签元数据重叠",
+    "damaged random-label metadata; identity size is unverified": "随机标签元数据损坏，无法核实身份副本所在首段的长度",
     "actual DVD geo summary for the random label preview (default: written geometry)": "标签预览的实际 DVD geo 结果（默认沿用写入几何）",
     "Label pending: burn --keep-open, then geo, label --geo ... --drive ..., and burn --append --expect-start NWA.": "标签待写：先用 burn --keep-open 刻录，再 geo 测量、label --geo ... --drive ... 生成标签，最后 burn --append --expect-start NWA 追加封盘。",
     "DVD: pending ASCII label; stop random data at 50 mm, burn --keep-open then geo and label. With --geo, write the measured label in one burn (default nearest 8x)": "DVD：先登记 ASCII 标签，随机数据止于 50 mm；用 burn --keep-open 刻录、geo 测量，再用 label 生成追加会话。加 --geo 可按同批几何一次刻录（默认最接近 8x）",

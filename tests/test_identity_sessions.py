@@ -1,5 +1,6 @@
 """Cross-feature checks use synthetic sectors and injected recorders only."""
 import io
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -93,6 +94,13 @@ class IdentitySessionTests(unittest.TestCase):
         with self.assertRaisesRegex(burner.BurnError,'first session'):
             burner.burn('SIM',session,yes_write=True,append=True,expect_start=1630976,disc_id=True,recorder=rec)
         rec.inspect.assert_not_called();rec.write.assert_not_called()
+
+    def test_malformed_pending_payload_reports_a_metadata_error(self):
+        for payload in (b'[]', b'"text"'):
+            data = (randomlabel.MAGIC + hashlib.sha256(payload).hexdigest().encode()
+                    + b'\n' + payload + b'\n').ljust(2048, b'\0')
+            with self.assertRaisesRegex(ValueError, 'damaged random-label metadata'):
+                discid.recorded_total(lambda *_: data, 2295104)
 
     def test_windows_passes_both_patch_and_keep_open(self):
         stream=discid.patch_burn(self.image,{},speed=None,selected=8,media='dvd')

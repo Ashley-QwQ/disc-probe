@@ -335,7 +335,7 @@ def recorded_total(read_sectors, total):
     try:
         digest, payload = data[len(magic):].split(b"\n", 2)[:2]
         spec = json.loads(payload)
-        if hashlib.sha256(payload).hexdigest().encode() != digest:
+        if not isinstance(spec, dict) or hashlib.sha256(payload).hexdigest().encode() != digest:
             raise ValueError()
         if spec.get('state') != 'pending':
             return total
