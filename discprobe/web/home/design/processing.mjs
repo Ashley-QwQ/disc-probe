@@ -325,7 +325,7 @@ export function applyChromaKey(input, options = {}) {
 }
 
 const bayerCache = new Map(), clusterCache = new Map();
-function bayer(size) {
+export function bayer(size) {
   if (bayerCache.has(size)) return bayerCache.get(size);
   let n = 1, ranks = new Uint16Array([0]);
   while (n < size) {
@@ -343,7 +343,7 @@ function bayer(size) {
   return ranks;
 }
 
-function clustered(size) {
+export function clustered(size) {
   if (clusterCache.has(size)) return clusterCache.get(size);
   const center = (size - 1) / 2;
   const pixels = Array.from({ length: size * size }, (_, i) => i);
@@ -401,7 +401,7 @@ const BLUE_NOISE_HEX = `
 00324407212c0ab1c205a2751692321223cd1600ea2543430af22d0fd02e1cb0821ef3c70c72f31292a32351792b0134
 `.replace(/\s/g, "");
 
-const BLUE_NOISE_RANKS = Uint16Array.from({ length: 1024 },
+export const BLUE_NOISE_RANKS = Uint16Array.from({ length: 1024 },
   (_, i) => Number.parseInt(BLUE_NOISE_HEX.slice(i * 3, i * 3 + 3), 16));
 
 function blueNoise() { return BLUE_NOISE_RANKS; }

@@ -277,3 +277,10 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws .lay:focus-visible,.ws .ed-mask:focus-visible,.ws button:focus-visible,.ws input:focus-visible,.ws select:focus-visible { outline:2px solid var(--copper);outline-offset:2px; }
 /* the burn grid: three equal choices across the column */
 .burnset .seg { display: grid; }
+/* a picture's tone and dither, above the materials */
+.ws .ed-tone { display: grid; gap: 8px; padding: 0 0 14px; margin-bottom: 12px; border-bottom: 1px solid var(--rule); }
+.ws .ed-tone h3 { margin: 0; }
+.ws .ed-tone .ed-tone-ctl { display: grid; grid-template-columns: 5.5em 1fr 3ch; align-items: center; gap: 8px; }
+.ws .ed-tone .ed-tone-ctl input { min-height: 0; padding: 0; border: 0; background: none; }
+.ws .ed-tone output { font: 13px var(--mono); text-align: right; color: var(--ink-2); }
+
