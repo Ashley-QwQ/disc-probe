@@ -12,7 +12,7 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
   const nodes = new Map(), timers = new Map(), calls = [], show = [], pages = [];
   class Element {
     constructor() { this.dataset={}; this.hidden=false; this.disabled=false; this.style={removeProperty(){}}; this.children=[]; this.events={}; this.textContent=''; this.html=''; }
-    classList={add(){},remove(){},toggle(){}};
+    classList={add(){},remove(){},toggle(){},contains(){return false;}};
     set innerHTML(v) { this.html=v; for(const m of v.matchAll(/id="([^"]+)"/g)) nodes.set(m[1],new Element()); }
     get innerHTML() { return this.html; }
     append(...children) { this.children.push(...children); for(const child of children) if(child?.id) nodes.set(child.id,child); }

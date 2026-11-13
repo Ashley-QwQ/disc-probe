@@ -40,6 +40,11 @@ Element.prototype.animate=function(frames,options){
   flights.push({el:this,a,frames,options});return a;
 };
 window.finishFlights=()=>flights.filter(f=>f.a.playState!=='idle').forEach(f=>f.a.finish());
+const nativeRAF=window.requestAnimationFrame.bind(window),nativeCancelRAF=window.cancelAnimationFrame.bind(window);
+window.rafQueue=new Map();let rafId=0;
+window.requestAnimationFrame=fn=>window.manualRAF?(rafQueue.set(--rafId,fn),rafId):nativeRAF(fn);
+window.cancelAnimationFrame=id=>id<0?rafQueue.delete(id):nativeCancelRAF(id);
+window.tickRAF=now=>{const jobs=[...rafQueue.values()];rafQueue.clear();jobs.forEach(fn=>fn(now));};
 window.setMotion=value=>document.querySelector('[data-motion="'+value+'"]').click();
 window.esc=()=>{document.activeElement?.blur();dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));};
 </script>`;
@@ -108,6 +113,132 @@ try {
   socket.onmessage=({data})=>{const m=JSON.parse(data),p=pending.get(m.id);if(p){pending.delete(m.id);m.error?p.reject(Error(JSON.stringify(m.error))):p.resolve(m.result);}};
   await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
   await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+  await open();
+
+  // 18: keep the previous page's words until the push/pan reaches its destination.
+  const lobbyNext=await evaluate('return document.getElementById("next-text").textContent');
+  await newWork(true);
+  for (const t of [0,380,759]) {
+    await evaluate(`flights.filter(f=>f.el.classList.contains('np')).forEach(f=>f.a.currentTime=${t});`);
+    assert.equal(await evaluate('return document.getElementById("next-text").textContent'),lobbyNext,'18: lobby label until push arrives at '+t);
+  }
+  await evaluate('finishFlights();');await until('!document.getElementById("lobby").classList.contains("leaving")','18: pushed');
+  const planNext=await evaluate('return document.getElementById("next-text").textContent');
+  assert.notEqual(planNext,lobbyNext,'18: new work label changes at arrival');
+  await evaluate(`document.querySelector('.np-batch').value='Label test';document.querySelector('.np-batch').dispatchEvent(new Event('input'));
+    flights=[];document.querySelector('.np-cal-go').click();dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));`);
+  await until('flights.some(f=>f.options.duration===760)','18: pan ready');
+  await evaluate('flights.filter(f=>f.options.duration===760).forEach(f=>f.a.currentTime=379);');
+  assert.equal(await evaluate('return document.getElementById("next-text").textContent'),planNext,'18: plan label halfway through pan');
+  await evaluate('finishFlights();');await until('flights.some(f=>f.options.duration===1300)','18: calibration arrived');
+  assert.notEqual(await evaluate('return document.getElementById("next-text").textContent'),planNext,'18: calibration label at arrival');
+
+  // 19: actual mock-disc entry/drop uses only transform; the dormant gallery rule also excludes layout.
+  await open();await calibrate();await evaluate('finishFlights();');
+  await until('flights.some(f=>f.options.duration===1300)','19: calibration');await evaluate('finishFlights();');
+  await evaluate(`window.flyer=document.querySelector('.flyer');`);
+  await until('!!document.getElementById("removed")','19: mock foreign disc identified');
+  await evaluate('document.getElementById("removed").click();');
+  await until('flyer.classList.contains("on") && !flyer.classList.contains("up")','19: new disc entry');
+  await until('flyer.classList.contains("on")','19: flyer entry');
+  await check('!flyer.style.left && !flyer.style.top && flyer.style.transform.includes("translate(") && getComputedStyle(flyer).transitionProperty==="transform, opacity"','19: flyer translates rather than animating coordinates');
+  await evaluate(`flyer.classList.add('drop');window.gallery=document.createElement('button');gallery.className='gallery';motionTest.api.cam.append(gallery);`);
+  await check('getComputedStyle(flyer).transitionProperty==="transform" && getComputedStyle(gallery).transitionProperty==="transform, opacity"','19: drop and gallery transitions exclude left/top');
+
+  // 20: both labels turn in opposite directions, keys crossfade, rapid retarget and motion-off clean up.
+  await open();await newWork();
+  await evaluate(`setMotion('on');flights=[];document.querySelector('.np-key[data-kind="cd"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));`);
+  await check('document.querySelectorAll(".np-face-text").length===2 && document.querySelectorAll(".np-ring2").length===2','20: outgoing label and keys retained');
+  await evaluate(`window.dial=flights.filter(f=>[380,120].includes(f.options.duration));dial.forEach(f=>{f.a.pause();f.a.currentTime=f.options.duration/2;});`);
+  await check('dial.length===4 && dial[0].frames[1].transform==="rotate(70deg)" && dial[1].frames[0].transform==="rotate(-70deg)" && dial.slice(2).every(f=>+getComputedStyle(f.el).opacity>.4 && +getComputedStyle(f.el).opacity<.6)','20: opposing turns and 120ms outer-key crossfade');
+  await screenshot('dial-two-labels');
+  await evaluate(`document.querySelector('.np-key[data-kind="bd"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));`);
+  await check('document.querySelectorAll(".np-face-text").length===2','20: retarget leaves only one outgoing copy');
+  await evaluate('setMotion("off");');
+  await check('document.querySelectorAll(".np-face-text").length===1 && document.querySelectorAll(".np-ring2").length===1 && flights.filter(f=>[380,120].includes(f.options.duration)).every(f=>f.a.playState==="idle")','20: off cancels dial motion and removes copies');
+  await evaluate(`document.querySelector('.np-key[data-kind="dvd"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));`);
+  await check('document.querySelectorAll(".np-face-text").length===1 && flights.filter(f=>[380,120].includes(f.options.duration)).every(f=>f.a.playState==="idle")','20: off never creates dial motion');
+
+  // 21,24: hold the first preview state request; design must stay opaque throughout readiness and fade-in.
+  await evaluate('document.getElementById("next").click();');await until('document.documentElement.dataset.mode==="design"','21: design');
+  await evaluate(`window.design=await import('./design.js');document.querySelector('.ws [data-a="sample"]').click();
+    setMotion('on');window.testFetch=window.fetch;window.previewWait=null;
+    window.fetch=(path,...args)=>String(path).startsWith('/api/state?')?new Promise(r=>previewWait=()=>r({ok:true,json:async()=>({})})):testFetch(path,...args);
+    window.designSheet=document.querySelector('.ws:not(.pv)');getComputedStyle(designSheet).opacity;
+    document.getElementById('next').click();`);
+  await until('!!previewWait','21: first preview module loaded, state pending');
+  await check('document.documentElement.dataset.mode==="design" && designSheet.classList.contains("on") && +getComputedStyle(designSheet).opacity===1','21: no empty page while loading');
+  await evaluate('previewWait();');await until('document.documentElement.dataset.mode==="preview"','21: preview starts');
+  await evaluate(`window.previewSheet=document.querySelector('.ws.pv');getComputedStyle(previewSheet).opacity;
+    window.previewFade=previewSheet.getAnimations();previewFade.forEach(a=>a.pause());`);
+  for (const t of [0,90,180,359]) {
+    await evaluate(`previewFade.forEach(a=>a.currentTime=${t});`);
+    await check('+getComputedStyle(designSheet).opacity===1 || +getComputedStyle(previewSheet).opacity===1','21: an opaque sheet backs preview at '+t+'ms');
+  }
+  await screenshot('preview-backed-by-design');
+  await evaluate('previewFade.forEach(a=>a.finish());');await until('!designSheet.classList.contains("on")','21: design hides after preview arrives');
+  await evaluate(`setMotion('off');document.getElementById('back').click();window.dot=document.querySelector('.ws:not(.pv) .dirty');dot.classList.remove('on');getComputedStyle(dot).opacity;dot.classList.add('on');`);
+  await check('getComputedStyle(dot).transitionDuration==="0s" && +getComputedStyle(dot).opacity===1 && !dot.getAnimations().length','24: dirty dot instant with motion off');
+  await evaluate('setMotion("on");');
+  await check('getComputedStyle(dot).transitionDuration==="0.2s"','24: dot still fades with motion on');
+
+  // 22: real stage with an entirely fake backend job, never a drive. Scrub its rAF load backwards on Back.
+  for (const skip of [false,true]) {
+    await open();await newWork();
+    await evaluate(`motionTest.api.backend={...motionTest.api.backend,mock:false,
+      job:async req=>{if(req.action!=='info')throw Error('Forbidden action '+req.action);return {disc:{present:true,media:'dvd',kind:'DVD-R',blank:false,sectors:2000000}};}};
+      motionTest.api.selectedDrive=()=> 'FAKE';
+      document.querySelector('.np-batch').value='Reverse load test';document.querySelector('.np-batch').dispatchEvent(new Event('input'));
+      setMotion('on');flights=[];document.querySelector('.np-cal-go').click();dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));`);
+    await until('flights.some(f=>f.options.duration===760)','22: live pan');await evaluate('finishFlights();');
+    await until('flights.some(f=>f.options.duration===1300)','22: live card');await evaluate('finishFlights();');
+    await until('!document.querySelector(".np").classList.contains("filing")','22: live settled');
+    await evaluate('document.getElementById("next").click();');
+    await until('!!document.querySelector("#measurement-confirm")','22: fake written-disc info returned');
+    // Pose the final frame before beginning the reverse. All forward and reverse sprites are real assets.
+    await evaluate(`window.load=await import('./loaddisc.js');setMotion('off');await load.desk(false);
+      window.anchor=document.querySelector('.cs-art');await load.pose(anchor,1080);setMotion('on');
+      window.manualRAF=true;window.startTray=document.querySelector('.ld-world .ld-g img[data-file="tray"]').parentElement.style.transform;
+      window.spriteState=()=>[...document.querySelectorAll('.ld-world .ld-g')].map(e=>e.style.transform+'|'+e.style.opacity);
+      window.endPose=spriteState();flights=[];esc();`);
+    await until('rafQueue.size>0 && flights.some(f=>f.options.duration===1000)','22: reverse and card started');
+    await evaluate('tickRAF(0);tickRAF(160);window.midReverse=spriteState();');
+    await check('midReverse.some((v,i)=>v!==endPose[i]) && document.querySelector(".cal-stage").style.visibility==="hidden"','22: load actually reverses under the hidden stage');
+    await check('[...motionTest.api.burnerLayer.querySelectorAll(".tray.full")].every(el=>getComputedStyle(el).visibility==="hidden")','22: library tray cannot show through the reverse scene');
+    if (!skip) await screenshot('disc-load-reversed');
+    if (skip) {
+      await evaluate('document.body.click();');
+      await until('document.documentElement.dataset.mode==="newplan" && !document.querySelector(".np").classList.contains("unfiling")','22: skip cancels disc, card and pan');
+      await check('rafQueue.size===0 && document.querySelector(".ld").hidden && document.getElementById("cal").hidden','22: skip cleans reverse sprites and rAF');
+    } else {
+      await evaluate('tickRAF(1080);window.reverseStart=spriteState();');
+      await evaluate('await load.pose(anchor,0);window.expectedStart=spriteState();');
+      assert.deepEqual(await evaluate('return reverseStart'),await evaluate('return expectedStart'),'22: reverse lands on forward frame zero');
+      await evaluate('finishFlights();');await until('flights.some(f=>f.options.duration===760)','22: return pan after reverse');
+      await evaluate('finishFlights();');await until('document.documentElement.dataset.mode==="newplan"','22: reverse return');
+      await evaluate('document.body.click();');
+    }
+    await evaluate('window.manualRAF=false;rafQueue.clear();');
+  }
+
+  // 23: resizing finishes push and archive clocks, in both directions, at the new layout.
+  for (const reversing of [false,true]) {
+    await open();await newWork(true);
+    await evaluate('flights.forEach(f=>{f.a.pause();f.a.currentTime=f.options.duration/2;});');
+    if (reversing) await evaluate('esc();');
+    await cdp('Emulation.setDeviceMetricsOverride',{width:reversing?1440:1280,height:900,deviceScaleFactor:1,mobile:false});
+    await until(reversing?'!document.documentElement.dataset.mode':'!document.getElementById("lobby").classList.contains("leaving")','23: push finishes on resize');
+    await check('!document.querySelector(".np").getAnimations().length && !document.getElementById("lobby-art").getAnimations().length','23: no stale push keyframes');
+  }
+  await open();
+  await evaluate(`window.pw=await import('./pastworks.js');window.resizeArchive=pw.createPastWorks(motionTest.api);setMotion('on');flights=[];window.resizedShow=resizeArchive.show();`);
+  await until('resizeArchive.state.phase==="entering"','23: archive entering');
+  await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:800,deviceScaleFactor:1,mobile:false});
+  await until('resizeArchive.state.phase==="idle"','23: archive finishes on resize');
+  await evaluate('resizeArchive.back();');
+  await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+  await until('resizeArchive.state.phase==="closed"','23: archive reverse finishes on resize');
+  await evaluate('resizeArchive.destroy();');
   await open();
 
   // 2, 7: halfway opacity and exact-frame reversal; the second Esc cannot add or restart anything.
@@ -322,7 +453,7 @@ try {
     window.burn=await import('./burn.js');burn.start(api,{media:'dvd',item:{name:'Test'},iso:{path:'mock.iso',bytes:32768,sectors:16},drive:{id:'FAKE',speeds:[4,8]}});`);
   await until('visualTray.read() && motionTest.api.burnerLayer.classList.contains("open")','8: pictured tray opens for non-mock backend');
   await check('calls.every(c=>c.path==="/api/presets" && c.method==="GET") && errors.length===0','8: no drive calls or browser errors');
-  console.log('PASS: motion audit 1–17, paused/scrubbed WAAPI, cancellation, alignment, preloading, return/desk/lever transitions and archive latency');
+  console.log('PASS: motion audit 1–24, paused/scrubbed WAAPI and rAF, labels, transform flights, dial, preview readiness, reverse load, resize, motion-off and prior interruption regressions');
 } finally {
   if(socket?.readyState===WebSocket.OPEN){await cdp('Browser.close').catch(()=>{});socket.close();}
   if(browser?.exitCode===null){await Promise.race([new Promise(r=>browser.once('close',r)),pause(2000)]);if(browser.exitCode===null)browser.kill();}

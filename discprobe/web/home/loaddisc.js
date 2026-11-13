@@ -16,6 +16,7 @@ const STAGE = new URL("./caltop/", import.meta.url);
 const T = { lift: [0, 300], travel: [140, 650], settle: [520, 760], close: [760, 1080], end: 1080 };
 const DRIVE = ["trayshadow", "shadowbody", "under", "tray", "dshadow", "disc", "overbody", "overclamp", "lid"];
 let meta = null, root = null, world = null, grain = null, els = {}, running = null, playing = false;
+let playId = 0, lastMs = T.end;
 
 const ease = { out: (x) => 1 - (1 - x) ** 3, in: (x) => x * x, inOut: (x) => (x < 0.5 ? 4 * x ** 3 : 1 - (-2 * x + 2) ** 3 / 2) };
 const span = (ms, [a, b]) => Math.max(0, Math.min(1, (ms - a) / (b - a)));
@@ -119,6 +120,7 @@ const lit = (p, a, b) => Math.max(0, Math.min(1, (lightAt(p) - lightAt(a)) / (li
 
 // one frame of the story at ms
 function frame(anchor, ms) {
+  lastMs = ms;
   const d = meta.disc, apex = meta.apex_mm, pxmm = meta.px_per_mm, per = meta.shadow.per_mm_height;
   const C = d.clamped_px, travel = meta.tray.travel_px;
   const t = ease.inOut(span(ms, T.close));
@@ -146,34 +148,44 @@ function frame(anchor, ms) {
 function showDrive(on) { for (const k of DRIVE) els[k].hidden = !on; }
 
 // play: resolves when the last frame is on screen (and the stage may take over)
-export async function play(anchor) {
+export async function play(anchor, { reverse = false, signal } = {}) {
+  const start = reverse ? (playing && lastAnchor === anchor ? lastMs : T.end) : 0;
+  const id = ++playId;
+  if (running) running.stop();
   playing = true;
   try { await ready(); } catch (e) { playing = false; throw e; }
-  if (running) running.stop();
+  if (id !== playId) return;
   root.hidden = false; els.final.hidden = true; root.style.transform = "";
   showDrive(true);
-  frame(anchor, 0);                            // placed before anything shows, even while pictures decode
+  frame(anchor, start);                        // reversing starts at the displayed forward frame
   // the pictures ready before the first frame, but never wait long (a background tab may not decode at all)
   const decoded = Promise.all([...root.querySelectorAll("img")].filter((i) => !i.hidden).map((i) => i.decode().catch(() => {})));
-  await Promise.race([decoded, new Promise((r) => setTimeout(r, 1200))]);
+  // Reverse uses the already shown sprites and must also be skippable during initial readiness.
+  if (!reverse) await Promise.race([decoded, new Promise((r) => setTimeout(r, 1200))]);
+  if (id !== playId) return;
   return new Promise((resolve) => {
     let t0 = null, raf = 0, timer = 0, done = false;
     const finish = () => {
       if (done) return; done = true; cancelAnimationFrame(raf); clearTimeout(timer); running = null;
-      frame(anchor, T.end); showDrive(false); place(anchor); playing = false; resolve();
+      signal?.removeEventListener("abort", finish);
+      frame(anchor, reverse ? 0 : T.end);
+      if (!reverse) { showDrive(false); place(anchor); }
+      playing = false; resolve();
     };
     running = { stop: finish };
-    if (reduced() || document.hidden) { finish(); return; }
+    signal?.addEventListener("abort", finish, { once: true });
+    if (signal?.aborted || reduced() || document.hidden) { finish(); return; }
+    const duration = reverse ? start : T.end;
     const step = (now) => {
       if (t0 === null) t0 = now;
       const ms = now - t0;
-      if (ms >= T.end) { finish(); return; }
-      frame(anchor, ms);
+      if (reduced() || ms >= duration) { finish(); return; }
+      frame(anchor, reverse ? start - ms : ms);
       raf = requestAnimationFrame(step);
     };
-    frame(anchor, 0);
+    frame(anchor, start);
     raf = requestAnimationFrame(step);
-    timer = setTimeout(finish, T.end + 600);   // a hidden tab stops animation frames: end anyway
+    timer = setTimeout(finish, duration + 600);   // a hidden tab stops animation frames: end anyway
   });
 }
 
@@ -187,7 +199,7 @@ export async function pose(anchor, ms) {
 
 // the desk under the stage (grain, pool, objects) without the moving drive
 export async function desk(on, anchor) {
-  if (!on) { running?.stop(); if (root) root.hidden = true; return; }
+  if (!on) { ++playId; running?.stop(); playing = false; if (root) root.hidden = true; return; }
   await ready();
   if (playing) return;
   root.hidden = false; root.style.transform = ""; els.final.hidden = true; showDrive(false); place(anchor);

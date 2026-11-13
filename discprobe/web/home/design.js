@@ -99,7 +99,7 @@ const STR = {
     grid: "刻录格子",
     cellCost: (um, c) => um === 20 ? `默认。生成约 ${c.minutes} 分钟。` : `生成约 ${c.minutes} 分钟，要 ${c.gb} GB 左右内存。${um === 5 ? "显微镜下 5 µm 棋盘格是临界失败。" : ""}`,
     coarse: (um) => `图片本身每像素约 ${um} µm，比格子粗：格子再细，图也不会更清楚。`,
-    limits: "随盘文件和音乐还不能一起刻。颜色、彩色图案和特效只是预览实验，默认按黑白刻。",
+    limits: "这一版网页还没有“随盘文件 / 音乐”这一步。黑白图本身能顺带存数据，已在一张盘上实测读回无误，但要用专门程序读出，还没接进网页。颜色、彩色图案和特效只是预览实验，默认按黑白刻。",
     cdLimit: "CD 只刻深浅两级，四级灰度和颜色都还不能刻。",
     lost: (names) => `这些图层没能读出来，已跳过：${names}。其余照原样打开；再保存就不带它们了。`,
     tooLarge: (n, mb) => `${n} 有 ${mb} MB，超过这一版能打开的 400 MB。`,
@@ -184,7 +184,7 @@ const STR = {
     grid: "Burn grid",
     cellCost: (um, c) => um === 20 ? `Default. Takes about ${c.minutes} min to make.` : `Takes about ${c.minutes} min and ${c.gb} GB of memory to make.${um === 5 ? " A 5 µm checkerboard is a borderline fail under the microscope." : ""}`,
     coarse: (um) => `The picture itself has about ${um} µm per pixel, coarser than the grid: a finer grid won't make it sharper.`,
-    limits: "Files and music can't be burned with it yet. Colours, coloured patterns and effects are a preview experiment; they burn in black and white by default.",
+    limits: "This version of the page has no \"files / music\" step. A black-and-white picture can carry data itself; one disc read back without errors, but reading it needs our own program, which the page does not use yet. Colours, coloured patterns and effects are a preview experiment; they burn in black and white by default.",
     cdLimit: "A CD burns two levels, dark and light; four grey levels and colours can't be burned yet.",
     lost: (names) => `These layers couldn't be read and were left out: ${names}. The rest opened as saved; saving again drops them.`,
     tooLarge: (n, mb) => `${n} is ${mb} MB, more than the 400 MB this version can open.`,
@@ -2122,11 +2122,18 @@ function hideDesign() {
   W.ws.classList.remove("on");
   W.loupe.classList.remove("on");
 }
+let previewOpening = false;
 async function toPreview() {
-  hideDesign();
+  if (previewOpening) return;
+  previewOpening = true;
+  try { await openPreview(); }
+  finally { previewOpening = false; }
+}
+async function openPreview() {
   const P = S, preview = await import("./preview.js");
   // the newest finished geo run, for a plan with no batch (named in the checklist, never used silently)
   const served = await fetch(`/api/state?media=${P.media}`).then((r) => r.ok ? r.json() : null).catch(() => null);
+  if (!isOn() || S !== P) return;
   const ctx = {
     media: P.media, item: P.item, alongTrackMeasured: false,
     project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection },
@@ -2170,6 +2177,13 @@ async function toPreview() {
     },
   };
   preview.start(api, ctx);
+  // Keep the design underneath until the new sheet is opaque, including its first module load.
+  const sheet = document.querySelector(".ws.pv");
+  if (sheet) {
+    getComputedStyle(sheet).opacity;
+    await Promise.all(sheet.getAnimations().map(a => a.finished.catch(() => {})));
+  }
+  if (root.dataset.mode === "preview" && S === P) hideDesign();
 }
 function mockBurn(onProgress) {
   const total = 40, t0 = performance.now();

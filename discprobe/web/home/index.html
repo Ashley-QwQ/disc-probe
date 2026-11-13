@@ -166,7 +166,7 @@
   /* the gallery: a triangle floating over the CD stacks, pointing up-left (the way the racks run
      back), with the word lying on the floor plane under it. Faint until pointed at. */
   .gallery { position: absolute; z-index: 1; display: grid; justify-items: start; gap: 2px; padding: 0; border: 0; background: none; color: var(--ink); cursor: pointer; opacity: .42; pointer-events: auto;
-    transform: translate(-50%, -50%); transition: left 700ms var(--ease), top 700ms var(--ease), opacity var(--t) var(--ease); }
+    transform: translate(-50%, -50%); transition: transform 700ms var(--ease), opacity var(--t) var(--ease); }
   .gallery:hover, .gallery:focus-visible { opacity: .9; }
   .gallery .pin { display: block; width: 150px; height: 98px; animation: hover-float 3.2s ease-in-out infinite; }
   .gallery .pin svg { width: 100%; height: 100%; overflow: visible; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0); }
@@ -509,7 +509,7 @@
   .cs-big b { font-size: clamp(48px, 5vw, 84px); font-weight: 800; font-stretch: 120%; line-height: 1; font-variant-numeric: tabular-nums; }
   .cs-big > span { color: var(--ink-2); font-size: 18px; }
   /* with the stage up, the library scene behind calibration steps back entirely */
-  :root[data-mode="cal"].cal-staged .stage { visibility: hidden; }
+  :root[data-mode="cal"].cal-staged .stage, :root[data-mode="cal"].cal-staged .stage * { visibility: hidden !important; }
   :root.cal-staged .floor-log, :root.cal-staged .cal-plate, :root.cal-staged .flyer, :root.cal-staged .warn-sign, :root.cal-staged .drive-led, :root.cal-staged .parcel { display: none !important; }
   /* the measurement record on the paper: the last few readings, as a strip of instrument tape */
   .cal .cal-tape { margin: 0; font: 14px/1.7 var(--mono); color: var(--ink-2); white-space: pre; overflow: hidden; }
@@ -698,10 +698,10 @@
   :root:not(.fl-off) .cal.floor-titled > h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
   /* the disc that flies in (printed with its model) or lifts out, with its arrow */
-  .flyer { position: absolute; z-index: 4; transform: translate(-50%, -50%); pointer-events: none; opacity: 0;
-    transition: left 1400ms cubic-bezier(.25, .6, .3, 1), top 1400ms cubic-bezier(.25, .6, .3, 1), opacity 400ms var(--ease); }
+  .flyer { position: absolute; left: 0; top: 0; z-index: 4; transform: translate(-50%, -50%); pointer-events: none; opacity: 0;
+    transition: transform 1400ms cubic-bezier(.25, .6, .3, 1), opacity 400ms var(--ease); }
   .flyer.on { opacity: 1; }
-  .flyer.drop { transition: left 950ms cubic-bezier(.45, .05, .75, .55), top 950ms cubic-bezier(.45, .05, .75, .55); }
+  .flyer.drop { transition: transform 950ms cubic-bezier(.45, .05, .75, .55); }
   .flyer .face { position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center;
     background: radial-gradient(circle, transparent 0 6.2%, var(--paper-2) 6.4% 19%, color-mix(in srgb, var(--paper) 70%, var(--ink) 6%) 19.5% 100%);
     box-shadow: inset 0 0 0 1.5px var(--ink), inset 0 0 0 9px color-mix(in srgb, var(--paper) 80%, transparent); }
@@ -968,6 +968,13 @@
 
   // ---- the scene: the burner at the very back, then one layer per row, back to front ----
   const art = $("art");
+  // A resized archive flight has stale source bounds. Finish its WAAPI clock; its owner
+  // then restores the lobby and lays out the archive at the new viewport size.
+  addEventListener("resize", () => {
+    if (root.dataset.mode !== "pastworks") return;
+    for (const page of document.querySelectorAll(".pw:not([hidden])"))
+      for (const a of page.getAnimations()) if (a.effect?.target === page) a.finish();
+  });
   const meta = await fetch("rows.json").then((r) => r.json());
   const cam = document.createElement("div");
   cam.className = "cam";

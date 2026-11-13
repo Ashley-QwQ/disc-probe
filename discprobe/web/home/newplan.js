@@ -118,10 +118,22 @@ function dialMarkup() {
     <g class="np-ring2" role="radiogroup"></g>
   </svg>`;
 }
+let dialFlight = null, nextPending = false;
+function clearDialFlight() {
+  dialFlight?.anims.forEach(a => a.cancel());
+  dialFlight?.copies.forEach(el => el.remove());
+  dialFlight = null;
+}
+new MutationObserver(() => { if (root.dataset.motion === "off") clearDialFlight(); })
+  .observe(root, { attributes: true, attributeFilter: ["data-motion"] });
 function paintDial(turn = 0) {
+  clearDialFlight();
   const t = T(), svg = W.dial;
   svg.querySelector(".np-ring1").setAttribute("aria-label", t.kinds);
   const ring2 = svg.querySelector(".np-ring2");
+  const label = svg.querySelector(".np-face-text");
+  const oldLabel = turn && !motionOff() ? label.cloneNode(true) : null;
+  const oldKeys = oldLabel ? ring2.cloneNode(true) : null;
   ring2.setAttribute("aria-label", t.subs);
   ring2.innerHTML = SUBS[state.kind].map((s, i) => keyMarkup(RING2, OUTER[i][0], OUTER[i][1], s.key, `data-sub="${s.key}"`)).join("");
   for (const k of svg.querySelectorAll(".np-key:not(.blank)")) {
@@ -131,11 +143,23 @@ function paintDial(turn = 0) {
     k.setAttribute("tabindex", on ? "0" : "-1");
     k.setAttribute("aria-label", k.dataset.kind ? KIND_KEY[k.dataset.kind] : SUBS[state.kind].find((s) => s.key === k.dataset.sub).label);
   }
-  svg.querySelector(".np-face-text").textContent = sub().label;
-  if (turn) {
-    const face = svg.querySelector(".np-face");
-    face.classList.remove("turn-up", "turn-down"); void face.getBBox();
-    face.classList.add(turn > 0 ? "turn-down" : "turn-up");
+  label.textContent = sub().label;
+  if (oldLabel) {
+    label.after(oldLabel); ring2.after(oldKeys);
+    for (const copy of [oldLabel, oldKeys]) {
+      copy.setAttribute("aria-hidden", "true"); copy.style.pointerEvents = "none";
+      copy.removeAttribute("role");
+      for (const key of copy.querySelectorAll("[tabindex]")) { key.removeAttribute("tabindex"); key.removeAttribute("role"); }
+    }
+    for (const el of [label, oldLabel]) Object.assign(el.style, { transformBox: "view-box", transformOrigin: "0px 0px" });
+    const angle = Math.sign(turn) * 70, opt = { duration: 380, easing: "cubic-bezier(.2,.8,.2,1)", fill: "both" };
+    const flight = dialFlight = { copies: [oldLabel, oldKeys], anims: [
+      oldLabel.animate([{ transform: "rotate(0deg)", opacity: 1 }, { transform: `rotate(${angle}deg)`, opacity: 0 }], opt),
+      label.animate([{ transform: `rotate(${-angle}deg)`, opacity: 0 }, { transform: "rotate(0deg)", opacity: 1 }], opt),
+      oldKeys.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: "both" }),
+      ring2.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120, fill: "both" }),
+    ] };
+    Promise.all(flight.anims.map(a => a.finished)).catch(() => {}).then(() => { if (dialFlight === flight) clearDialFlight(); });
   }
 }
 function setKind(kind, turn = 0) {
@@ -327,7 +351,7 @@ function words_() {
   q(".np-type").textContent = api.lang() === "en" ? "Type them in" : "手动填写";
   paintLeft();
   W.name.placeholder = suggestion();
-  $("next-text").textContent = t.next;            // never forced into calibration: drawing first (or only, for DIS) is fine
+  if (!nextPending && root.dataset.mode === "newplan") $("next-text").textContent = t.next;
 }
 // Keep usage separately from calibration dates. Neither a MID nor a catalogue's order is a brand.
 function usage() {
@@ -412,7 +436,7 @@ function paintMatches() {
 }
 function paintLeft() {
   const it = chosen(), t = T(), d = state.detected, zh = api.lang() !== "en";
-  $("next-text").textContent = t.next;
+  if (!nextPending && root.dataset.mode === "newplan") $("next-text").textContent = t.next;
   W.q(".np-library").hidden = !isLibrary(it) || !api.inspectBatch;
   W.q(".np-left").textContent = it && Number.isFinite(it.left) && Number.isFinite(it.of) ? t.left(it.left, it.of) : "";
   W.q(".np-cal").classList.toggle("ok", hasGeometry(it));
@@ -449,7 +473,7 @@ async function calibrateFirst() {
     const saved = id && api.catalogue(state.kind).find((x) => x.id === id);
     if (saved) { state.picked = saved; state.sub = subOf(state.kind, saved); }
     reopen({ unfile: panned });
-  }, returnAnim: pan ? (finish) => { panned = true; return panBack(finish); } : null });
+  }, returnAnim: pan ? (finish, reverseDisc) => { panned = true; return panBack(finish, reverseDisc); } : null });
   if (pan) {
     await Promise.race([shown, wait(1500)]);
     if (!stillCal()) return;
@@ -460,6 +484,7 @@ async function calibrateFirst() {
     await Promise.all([going_.finished, ...coming.map((a) => a.finished)]).catch(() => {});
     if (!stillCal()) return;
     root.classList.remove("pan-in");
+    cal.arrived();
     W.hidden = true; going_.cancel(); coming.forEach((a) => a.cancel());
     panFlight = null;
     // the ruler comes down onto the glass (its shadow grows from nothing as it settles); the card comes out of
@@ -545,9 +570,9 @@ async function cardIn(card, track) {
 // its envelope), and the sheet comes out while the envelope drops away. finish(): calibrate.js closes its page and
 // hands back (reopen).
 let returnFlight = null;
-async function panBack(finish) {
+async function panBack(finish, reverseDisc) {
   going = true;
-  const returning = returnFlight = { skipped: false, anims: new Set() };
+  const returning = returnFlight = { skipped: false, anims: new Set(), disc: new AbortController() };
   const track = anims => {
     for (const a of anims) { returning.anims.add(a); if (returning.skipped) a.finish(); }
   };
@@ -556,6 +581,7 @@ async function panBack(finish) {
     if (e?.target?.closest?.("#back")) return;
     e?.preventDefault(); e?.stopImmediatePropagation();
     returning.skipped = true;
+    returning.disc.abort();
     returning.anims.forEach(a => { if (a.playState !== "idle") a.finish(); });
     W.classList.add("instant"); W.classList.remove("unfiling");
   };
@@ -563,12 +589,13 @@ async function panBack(finish) {
   addEventListener("click", skip, true); addEventListener("keydown", skip, true);
   changed.observe(root, { attributes: true, attributeFilter: ["data-motion"] });
   try {
+    const disc = reverseDisc?.(returning.disc.signal) ?? Promise.resolve();
     if (panFlight) {
       const flight = panFlight;
       flight.reversing = true;
       flight.anims.forEach((a) => a.reverse());
       track(flight.anims);
-      await Promise.all(flight.anims.map((a) => a.finished)).catch(() => {});
+      await Promise.all([disc, ...flight.anims.map((a) => a.finished)]).catch(() => {});
       finish();
       flight.anims.forEach((a) => a.cancel());
       root.classList.remove("pan-in");
@@ -576,7 +603,7 @@ async function panBack(finish) {
     } else {
       const card = $("cal"), ruler = document.getElementById("cal-ruler");
       if (ruler) track([ruler.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: "forwards" })]);
-      const inEnv = card && !card.hidden ? await cardIn(card, track) : { parts: [], anims: [] };
+      const [inEnv] = await Promise.all([card && !card.hidden ? cardIn(card, track) : { parts: [], anims: [] }, disc]);
       // this page, filed, waiting off to the left (measured where it stands, then moved)
       W.hidden = false;
       W.classList.add("instant");
@@ -599,6 +626,7 @@ async function panBack(finish) {
     const extraction = W.getAnimations({ subtree: true }); track(extraction);
     await Promise.all(extraction.map(a => a.finished)).catch(() => {});
   } finally {
+    returning.disc.abort();
     changed.disconnect(); removeEventListener("click", skip, true); removeEventListener("keydown", skip, true);
     returning.anims.forEach(a => a.cancel());
     W.classList.remove("instant", "unfiling"); returnFlight = null;
@@ -733,6 +761,7 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   await Promise.race([prepare(homeApi), wait(600)]);     // pictures still loading after 0.6 s come in late
   if (!W) build();
   await cssReady;
+  nextPending = !!from && !motionOff();
   const [col, item] = api.lastBatch();
   const inDrive = api.driveDisc?.();
   let saved = [];
@@ -746,7 +775,7 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   // the camera flies at the drive: the lobby pushes in with the drive coming to the middle of the window;
   // the top view fades in over it with its disc in the middle and close, then settles (the disc moving
   // left, the sheet coming in)
-  const fly = from?.getBoundingClientRect?.().width > 0 && !api.reduce;
+  const fly = from?.getBoundingClientRect?.().width > 0 && !motionOff();
   leavingBack = false;
   pushOrigin = fly ? pushTransform(from) : null;       // measure before the lobby acquires a transform
   const push = fly ? pushLobby(pushOrigin) : null;
@@ -756,6 +785,7 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   sceneScale();
   $("back").hidden = false; $("next").disabled = false;
   W.hidden = false;
+  if (!push) { nextPending = false; $("next-text").textContent = T().next; }
   readDrive();
   W.classList.remove("leaving", "filing");
   if (push) {
@@ -766,9 +796,12 @@ export async function start(homeApi, { from = null, file = null } = {}) {
     const opacity = W.animate([{ opacity: 0 }, { opacity: 1, offset: .65 }, { opacity: 1 }],
       { duration: 760, easing: "linear", fill: "both" });
     push.anims.push(transform, opacity);
+    if (push.resized) push.anims.forEach(a => a.finish());
     Promise.all(push.anims.map((a) => a.finished)).catch(() => {}).then(() => {
       if (pushFlight !== push || leavingBack) return;
       push.done(); pushFlight = null; W.style.transformOrigin = "";
+      nextPending = false;
+      if (root.dataset.mode === "newplan") $("next-text").textContent = T().next;
     });
   }
   setTimeout(() => W.name.focus({ preventScroll: true }), api.reduce ? 0 : 700);
@@ -791,6 +824,12 @@ const pushTransform = (from) => {
 const topStart = () => { const [tx, ty] = discPoint(), [cx, cy] = mid(); return `translate(${cx - tx}px, ${cy - ty}px) scale(${TOP_START})`; };
 // the lobby flying in (or, reversed, back out); it stays drawn under this page until done() (lobby.css .leaving)
 let pushFlight = null, pushOrigin = null, leavingBack = false;
+addEventListener("resize", () => {
+  pushOrigin = null;
+  if (!pushFlight) return;
+  pushFlight.resized = true;
+  pushFlight.anims.forEach(a => { if (a.playState !== "idle") a.finish(); });
+});
 function leave() {
   W.hidden = true;
   root.dataset.mode = "";
