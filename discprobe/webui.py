@@ -56,6 +56,9 @@ OPTIONS = {
 DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell (checked in the tests)
 # a design upload by its length: one bit per cell, at 20, 10 or 5 um (imagedisc.CELL_SIDES)
 DESIGN_SIDES = {side * side // 8: side for side in (6000, 12000, 24000)}
+# An editor work as the design page sends it to /api/compose: up to 16 layers of RGBA (2048 px a side at most)
+# in base64. Three photos are already over 64 MB; 16 full-size layers are about 360 MB.
+COMPOSE_BYTES = 384 * 1024 * 1024
 LIMITS = {"count": (1, 1000), "sectors": (1, 25_000_000), "seed": (0, 2**32 - 1),
           "minutes": (0.1, 120), "diameter": (1, 120), "radius": (1, 58),
           "frames": (-10000, 10000), "size": (64, 8192), "completion_sectors": (-65536, 65536)}
@@ -582,11 +585,23 @@ class Backend:
             path.write_text(json.dumps(document), encoding="utf8")
             target = path.with_suffix(".npy")
             compose_file(path, target)
+            textures = [m["spec"] for m in document["materials"]]
             return dict(work=path.relative_to(self.root).as_posix(),
                         design_npy=target.relative_to(self.root).as_posix(),
-                        textures=[m["spec"] for m in document["materials"]])
+                        textures=textures, textures_used=self._textures_used(target, textures))
         except (ValueError, KeyError, TypeError) as exc:
             raise APIError(str(exc)) from exc
+
+    @staticmethod
+    def _textures_used(npy: Path, textures: list) -> list:
+        """The textures the composed labels really put on the disc (slot 0, the background, included only when
+        present), read in bands so a 24000 x 24000 design is never copied whole."""
+        import numpy as np
+        labels = np.load(npy, mmap_mode="r")
+        seen = np.zeros(256, bool)
+        for y in range(0, labels.shape[0], 1024):
+            seen |= np.bincount(np.asarray(labels[y:y + 1024]).ravel(), minlength=256)[:256] > 0
+        return sorted({str(textures[i]).upper() for i in np.nonzero(seen)[0] if i < len(textures)})
 
     def save_design(self, packed: bytes) -> dict:
         """Keep a design the page drew (one bit per cell of 20, 10 or 5 µm, row by row, dark = 1) as image
@@ -1098,7 +1113,7 @@ class Handler(BaseHTTPRequestHandler):
             if urlsplit(self.path).path == "/api/compose":
                 if self.headers.get_content_type() != "application/json":
                     raise APIError("application/json required", 415)
-                self._json(200, self.server.backend.compose_document(json.loads(self._body(64 * 1024 * 1024))))
+                self._json(200, self.server.backend.compose_document(json.loads(self._body(COMPOSE_BYTES))))
                 return
             if urlsplit(self.path).path == "/api/design":
                 if self.headers.get_content_type() != "application/octet-stream":
