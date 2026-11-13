@@ -1,6 +1,20 @@
 # DIS 用户想要什么、卡在哪里，DP 应该接住什么
 
-数据截点：2026-11-11。只读本地讨论、Issues 和源码；没有联网、下载附件、构建或运行 DIS，也没有做实盘试验。
+数据覆盖更新到多伦多 2026-11-12 晚间（采集窗口 2026-11-13 00:44:53–00:46:21 UTC）。本轮仅通过只读 `gh` 查询 GitHub，没有下载图片或附件、构建、运行 DIS 或做实盘试验；11-11 的人工需求归类和静态源码核对保留为历史基线。
+
+## 11-12 增量：覆盖量与新增需求
+
+当前 DIS **101 个 Discussion＋170 个 Issue＝271 个线程、1,374 条正文／评论／回复**；相对 11-12 原快照（265／1,288）新增 6 个线程、29 条发言，另补齐 57 条旧分页遗漏（D108 54、D107 3），没有旧正文修改。当前 260 条为 Ashley-QwQ 发言，其余涉及 254 个账号（含维护者和贡献者，不等于客户数）。相对 11-11 的 263／1,275，净增覆盖 8 个线程、99 条发言；其中历史补齐不算新需求票数。
+
+另保存 DIS 全部 **53 个 PR、115 条正文／评论／审阅记录**，以及 DP **17 个 Issue＋17 个 PR、162 条记录**。两者没有旧基线，按消息创建／更新时间筛近期活动：DIS PR298 一条新评论；DP #33、PR32、PR34 共 9 条新记录。上述 PR／DP 数量不混入 271／1,374 的旧统计口径。逐文件统计与限制见 [comparison.json](../../goals/dis-community/data-20261113/comparison.json)，问题和 alpha 落点见 [本轮反馈](FEEDBACK_LOG.md)。
+
+下文 13 条摘要及 R01–R13／P01–P11 的账号数、优先分、TSV 仍是 **11-11 人工确认下限**，没有用增量关键词重新累加。新增需求单列，不改旧排序：
+
+| 新类型 | 明确提出的账号数 | 用户要完成什么；证据 | DP 状态 |
+|---|---:|---|---|
+| R14 原始描线／拟合预测并排检查，解释模型失配 | **1** | gelinkpink 想把可见但不规则的边界变成可信几何，分清描错点与模型无法表示；I324 的 423 点未过校验，I325 的 158 点在三次轨距下平均误差 1.399 mm、最大 4.869 mm，并要求显示未经平滑的原始描线。[I324](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/324)、[I325](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/325) 为同一账号，不算两人 | alpha A2／A6 保留证据、拒绝不可靠修正；A1／A4 解释下一步。完整 φ(r) 人工编辑属 F1，未列入 alpha；变轨距尚不能宣称已解决该实盘案例 |
+
+这也补强既有 P10／R01／R02，未据此重算人数。D270 的“刻前颜色较深更好”只是观察线索，属于原有 R04／P02；D231 从“仍差一到两圈”到“更接近”尚无最终成功；I326 后续已见螺旋，不能继续当纯显色失败。新校准数据 174 → 178 条，I327 保留 `unknown`；新记录不是新的兼容性保证。
 
 ## 先看这 13 条
 
@@ -16,11 +30,11 @@
 10. 本地 DP 已有 `guide`、`calibrate`、`disexport --install` 和质量拒绝检查，应先把它们放到用户自然经过的入口。
 11. 最需要新增的是可靠的盘批次／写入路径记录、按症状排错、可直接分享的报告包，以及素材和参数的可追溯保存。
 12. DIS 做得好的地方值得接住：社区会补 MID 和内圈码、提供完整 JSON、回报成功，也会用对照试验推翻早期判断。
-13. 这些是快照中的人工确认计数，不是故障率。原始导出有一处回复缺口：D108 的一组回复声明 114 条、实际只有 60 条；以下结论均限于已提供内容。
+13. 这些是 11-11 快照中的人工确认计数，不是故障率。旧导出 D108 的一组回复声明 114 条、只存 60 条；11-12 晚间已补齐旧缺口和新增回复（现为 116 条），以下历史人数仍限于原归类证据，不追溯当成全量重审。
 
 ## 范围、计数和排序方法
 
-读取了 **99 个 Discussion、164 个 Issue，共 263 个线程、1,275 条正文／评论／回复**。其中 Ashley-QwQ 的 **234 条**全部排除在用户需求和故障计数外，只用于核对我们答过什么、承诺过什么。快照有 242 个非 Ashley 账号；这包括维护者和贡献者，不能直接当“242 位客户”。需求和问题计数另排除了能明确识别的维护者 `JiaFeiMiao-K-Cat`、`Catho168`；其解释和提议作为背景保留。
+11-11 人工基线读取了 **99 个 Discussion、164 个 Issue，共 263 个线程、1,275 条正文／评论／回复**。其中 Ashley-QwQ 的 **234 条**全部排除在用户需求和故障计数外，只用于核对我们答过什么、承诺过什么。旧快照有 242 个非 Ashley 账号；这包括维护者和贡献者，不能直接当“242 位客户”。需求和问题计数另排除了能明确识别的维护者 `JiaFeiMiao-K-Cat`、`Catho168`；其解释和提议作为背景保留。
 
 同一登录名在同一主题只算一次；不同主题可以重复。因此各行不能相加。Issue 搬到 Discussion、同帖中英文重复、转引他人发言都不增加人数。没有按点赞数、评论数或关键词命中数当需求票数。功能表计入明确要求的改进、工具、资料或教程；不会把每一个抱怨标定难的人都算作“要求自动标定”。故障表较宽，包含本人报告的问题、困惑及实际结果。
 
@@ -140,7 +154,7 @@
 
 **根因层次要分开：** 已有证据支持“特定纹理、编码状态和位置影响某些组合的可靠读写”；EFM+ 状态、低频偏置和长游程是机制分析，不能把未经测量的实际坑岸波形当事实。维护者最初也明确未完成原介质复现，不认为是“缺 ECC”。后续 `0x9B` 和桥接方案有用户实盘反馈，但不等于全型号保证。[I90.c5 · JiaFeiMiao-K-Cat · 2026-11-05](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/90)；[I90.c33 · JiaFeiMiao-K-Cat · 2026-11-06](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/90)；[I90.c34 · bczhc · 2026-11-06](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/90)
 
-**DP 更不能自称已免疫：** LTVA1 在我们的 D108 反复报告图案失败、卡住、外圈扭曲，普通随机数据和某些纹理又成功；加随机起始区改善过一些情况，仍不能解释全部 ISO。D108 还有 54 条未导出的回复，无法从这份文件追到完整最终结论。POPCORNBOOM 也独立报告长片 `A5` 可能在刻录时失去寻迹。[D108.c18.r46 · LTVA1 · 2026-11-08](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)；[D108.c18.r56 · LTVA1 · 2026-11-08](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)；[D207 · POPCORNBOOM · 2026-11-07](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/207)
+**DP 更不能自称已免疫：** LTVA1 在我们的 D108 反复报告图案失败、卡住、外圈扭曲，普通随机数据和某些纹理又成功；加随机起始区改善过一些情况，仍不能解释全部 ISO。11-11 的 D108 导出少了 54 条回复，不能从旧文件追到完整结论；本轮已在新快照补齐，未重新归类旧表中的尝试。POPCORNBOOM 也独立报告长片 `A5` 可能在刻录时失去寻迹。[D108.c18.r46 · LTVA1 · 2026-11-08](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)；[D108.c18.r56 · LTVA1 · 2026-11-08](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)；[D207 · POPCORNBOOM · 2026-11-07](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/207)
 
 ### 8. 局部接缝、外圈外推、计时假象：DP 的质量门槛有实际来由
 
@@ -279,11 +293,11 @@ DP 工作树 HEAD 为 `6fba5eefea0e8e592bb901faa9f9bed07df395c4`；不据此假�
 - [REPORT.md](REPORT.md)：这份报告。
 - [evidence.tsv](evidence.tsv)：人工纳入的人数依据，只含主题、帖子位置、登录名、日期、URL。
 - [theme_counts.tsv](theme_counts.tsv)：去重人数及账号集合；可查为何同一人只算一次。
-- [thread_index.tsv](thread_index.tsv)：263 个线程的目录、主题和预设候选标记；候选筛选不是可信度判断。
+- [thread_index.tsv](thread_index.tsv)：11-11 的 263 个线程目录、主题和预设候选标记；候选筛选不是可信度判断。
 - [media_seeds.tsv](media_seeds.tsv)：下表的结构化版本，保留未知和失败。
 - [audit.json](audit.json)：原始文件 SHA-256、范围与导出缺口。
 - [source_context.json](source_context.json)：已读核心源码和文档的内容哈希及 HEAD 定位。
 - [coding.py](coding.py)：人工标签和标准库统计；`python -I coding.py` 可重新生成计数与目录。它不联网、不读外部项目、不执行帖子内容。
 - [review.py](review.py)：按线程／范围阅读 JSON 的辅助工具，去掉长代码、引用块及邮箱，仅供检查；最终短引述均在报告内。
 
-原始文件 SHA-256：`discussions.json = ab0487985d0ca348e289bf0ef4f4f797899ea48098545b5073ad38a88b4af50d`；`issues.json = ef98688c855783731595904eb4efb1dab7af79044c96236615da4cbd1a2a86dd`。本次没有改原始数据和外部源码，也没有把已经解决的旧版问题当成 HEAD 仍未修复的缺陷。
+11-11 原始文件 SHA-256：`discussions.json = ab0487985d0ca348e289bf0ef4f4f797899ea48098545b5073ad38a88b4af50d`；`issues.json = ef98688c855783731595904eb4efb1dab7af79044c96236615da4cbd1a2a86dd`。本次没有改原始数据和外部源码，也没有把已经解决的旧版问题当成 HEAD 仍未修复的缺陷。
