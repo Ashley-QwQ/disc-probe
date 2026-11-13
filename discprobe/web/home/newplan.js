@@ -4,7 +4,7 @@
 // on the left, and on the right a large sheet of paper on the desk, running on under the footer, holding a
 // short form: the plan's name (a suggestion taken with Tab), the disc (a half disc hanging from the sheet's
 // top edge, with two rings of keys cut from concentric circles below it: the kind DVD / CD / BD on the
-// inner ring, the type -R / +R / RW on the outer) and the disc batch (or "decide later"). On "next" an
+// inner ring, the type -R / +R / RW on the outer) and a suggested, editable disc batch. On "next" an
 // archive envelope rises from below, the sheet slides into it, and both drop out of the frame while the
 // next page comes down from above.
 //
@@ -12,33 +12,28 @@
 // the drive from above on the lit desk, the paper sheet and its shadow, the envelope's back and front.
 // All motion is transform / opacity only.
 
-import { discGoal } from "./guidance.mjs";
 import * as presets from "./presetio.js";
 
 const STR = {
   zh: {
     title: "新作品", name: "作品名", nameHelp: "这件作品叫什么", tab: "Tab 采用",
-    disc: "所使用的光盘", discHelp: "光盘的型号与批次", later: "先不填", inDrive: (n) => `驱内：${n}`,
+    disc: "盘类型 / Disc type", discHelp: "例如：Verbatim DVD-R 16x", noBatch: "没选盘：画好后要刻时再选",
     left: (l, o) => `还剩 ${l} / ${o} 张`, newPack: "新开一包 · 登记", kinds: "盘的种类", subs: "盘的类型",
-    next: "下一步：放进图片", auto: "自动认出", autoNone: "自动认出（认不出这张盘）", manual: "手动选择", library: "去盘库看这批盘", none: (k) => `还没有登记过 ${k}`,
-    calOk: (d) => `已标定 · ${d}`, calNone: "这批盘还没标定。刻录前要先标定，也可以先画，刻录前再标。", calGo: "先去标定",
-    calUnknown: (cd) => `要刻图，先用这批盘标定一次${cd ? "（CD 还要拍照读出沿轨常数）" : ""}。${discGoal.zh}也可以先画，回头再标。`,
-    calEmpty: (k) => `还没有标定过的 ${k}。要刻图，先放一张这种空白盘进光驱，标定一次；也可以先画，回头再标。`,
+    next: "下一步：放进图片", library: "去盘库看这批盘",
+    calOk: (d) => `已标定 · ${d}`, calNone: "这批还没有参数：可以先画；要刻之前标定一次，或者带上已有参数", calGo: "标定这批",
     months: ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"],
     suggest: (m, d, w) => `${m}${d} 的 ${w}`, soon: "这一项以后接上",
     reading: "正在读光驱里的盘…", readFail: "没读到光驱里的盘，可以手动选。", trayOpen: "光驱托盘开着。",
-    noDisc: "光驱里没有盘。", unknownBatch: (k, m) => `光驱里这张是 ${k}${m ? `（${m}）` : ""}，这一批盘库里还没有。`,
+    noDisc: "光驱里没有盘。",
   },
   en: {
     title: "New work", name: "Name", nameHelp: "What is this work called?", tab: "Tab to use",
-    disc: "Discs", discHelp: "Disc model and batch", later: "Decide later", inDrive: (n) => `In the drive: ${n}`,
+    disc: "Disc type", discHelp: "For example: Verbatim DVD-R 16x", noBatch: "No disc selected: choose one when you are ready to burn",
     left: (l, o) => `${l} / ${o} left`, newPack: "Opened a new pack? Register it", kinds: "Disc kind", subs: "Disc type",
-    next: "Next: add a picture", auto: "Recognised", autoNone: "Recognised (can't tell this disc)", manual: "Choose by hand", library: "View this batch in the library", none: (k) => `No ${k} registered yet`,
+    next: "Next: add a picture", library: "View this batch in the library",
     reading: "Reading the disc in the drive…", readFail: "Couldn't read the drive; choose by hand.", trayOpen: "The drive's tray is open.",
-    noDisc: "No disc in the drive.", unknownBatch: (k, m) => `The drive holds a ${k}${m ? ` (${m})` : ""}; this batch isn't in the library yet.`,
-    calOk: (d) => `Calibrated · ${d}`, calNone: "This batch isn't calibrated yet. It must be before burning; you can draw first and calibrate then.", calGo: "Calibrate first",
-    calUnknown: (cd) => `To burn a picture, calibrate this batch once${cd ? " (a CD also needs photos to read its along-track constant)" : ""}. ${discGoal.en} Or draw first and calibrate later.`,
-    calEmpty: (k) => `No ${k} has been calibrated yet. To burn a picture, put a blank of this kind in the drive and calibrate once; or draw first and calibrate later.`,
+    noDisc: "No disc in the drive.",
+    calOk: (d) => `Calibrated · ${d}`, calNone: "This batch has no parameters yet: draw first; calibrate before burning, or bring your existing parameters", calGo: "Calibrate this batch",
     months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     suggest: (m, d, w) => `${m}${d}'s ${w}`, soon: "Not connected yet",
   },
@@ -66,52 +61,13 @@ const motionOff = () => root.dataset.motion === "off" || (root.dataset.motion !=
 const calibrated = (it) => !!it && ["good", "usable"].includes(it.s);
 const imported = (it) => it?.imported && it.image_compatible === true;
 const hasGeometry = (it) => calibrated(it) || imported(it);
-const needsCalibration = () => chosen() ? !hasGeometry(chosen()) : !!unlisted() || !state.list.some(hasGeometry);
 function calibrationNotice() {
-  const zh = api.lang() !== "en";
-  if (imported(chosen())) return (zh ? "参数来自 DIS（未经 DP 实测）" : "Parameters from DIS (not measured by DP)") +
-    (state.kind === "cd" ? (zh ? "；CD 的沿轨常数仍未知。" : "; the CD along-track constant is still unknown.") : "");
-  if (state.kind === "bd") return zh ? "这批盘第一次用，要先测一次。BD 仍在试验中：耗盘数量和总时间未知；分区测量约 2 分钟。" : "Measure this batch first. BD is experimental: disc budget and total time unknown; zone measurement takes about 2 minutes.";
-  // the disc budget comes from one place (guidance.mjs discGoal), so the pages can't disagree
-  return state.kind === "cd"
-    ? zh ? `这批盘第一次用，要先测一次（CD 还要拍照读出沿轨常数）。${discGoal.zh}` : `Measure this batch first (a CD also needs photos to read its along-track constant). ${discGoal.en}`
-    : zh ? `这批盘第一次用，要先测一次，约一小时。${discGoal.zh}` : `Measure this batch first: about an hour. ${discGoal.en}`;
-}
-// The kind: two choices like an answer sheet (the designer's stamp was not obvious): "自动认出 · DVD-R" and
-// "手动选择", a tick in the box of the one that holds. Manual slides the half disc down from the sheet's top-right
-// edge, where it hangs; auto puts it away and goes back to the disc in the drive.
-const manualKind = () => !state.recognised || !!state.manualKind;
-function paintStamp() {
-  const t = T(), manual = manualKind();
-  for (const opt of W.q(".np-choice").children) {
-    const on = (opt.dataset.opt === "manual") === manual;
-    opt.setAttribute("aria-checked", String(on)); opt.tabIndex = on ? 0 : -1;
-  }
-  const auto = W.q('[data-opt="auto"]');
-  auto.disabled = !state.recognised;
-  // auto names what the drive holds: the current type while it holds, the drive's kind when the hand chose another
-  const seen = !manual ? sub().label : KIND_KEY[state.detected?.media] || "";
-  auto.querySelector(".np-opt-text").textContent = state.recognised ? `${t.auto} · ${seen}` : t.autoNone;
-  W.q('[data-opt="manual"] .np-opt-text').textContent = manual ? `${t.manual} · ${sub().label}` : t.manual;
-}
-function expandDial(open, focus = false) {
-  const dial = W.q(".np-dial");
-  dial.dataset.open = String(open); dial.inert = !open;
-  W.q('[data-opt="manual"]').setAttribute("aria-expanded", String(open));
-  if (focus) (open ? W.dial.querySelector(".np-key.on") : W.q('[data-opt="manual"]'))?.focus({ preventScroll: true });   // Esc: done choosing
-}
-function chooseKind(manual) {
-  if (manual) { state.manualKind = true; state.touched = true; paintStamp(); expandDial(true, true); return; }
-  if (!state.recognised) return;
-  state.manualKind = false; state.touched = false;
-  const disc = state.detected;
-  if (disc?.present && KINDS.includes(disc.media)) {
-    const turn = KINDS.indexOf(disc.media) - KINDS.indexOf(state.kind);
-    state.kind = disc.media; state.sub = firstSub(disc.media, state.item); state.picked = null;
-    paintDial(Math.sign(turn)); fillBatches();
-  }
-  paintStamp(); expandDial(false);
-  W.q('[data-opt="auto"]').focus({ preventScroll: true });
+  const it = chosen(), zh = api.lang() !== "en";
+  if (!it) return T().noBatch;
+  const text = calibrated(it) ? T().calOk((it.last || "—").slice(0, 10))
+    : imported(it) ? (zh ? "参数来自 DIS（未经 DP 实测）" : "Parameters from DIS (not measured by DP)") : T().calNone;
+  return text + (state.kind === "cd" && !it.along_track?.known
+    ? (zh ? "；沿轨常数未知" : "; along-track constant unknown") : "");
 }
 
 async function loadWords() {
@@ -175,7 +131,6 @@ function paintDial(turn = 0) {
     k.setAttribute("aria-label", k.dataset.kind ? KIND_KEY[k.dataset.kind] : SUBS[state.kind].find((s) => s.key === k.dataset.sub).label);
   }
   svg.querySelector(".np-face-text").textContent = sub().label;
-  paintStamp();
   if (turn) {
     const face = svg.querySelector(".np-face");
     face.classList.remove("turn-up", "turn-down"); void face.getBBox();
@@ -185,7 +140,7 @@ function paintDial(turn = 0) {
 function setKind(kind, turn = 0) {
   if (kind === state.kind) return;
   turn ||= KINDS.indexOf(kind) > KINDS.indexOf(state.kind) ? 1 : -1;
-  state.kind = kind;
+  state.kind = kind; state.edited = false; state.picked = null; state.newItem = null;
   state.sub = SUBS[kind].find((s) => s.key === "-R")?.key ?? SUBS[kind][0].key;
   paintDial(turn); fillBatches(); words_();
 }
@@ -193,7 +148,7 @@ function setSub(key, turn = 0) {
   if (key === state.sub) return;
   const list = SUBS[state.kind], at = (k) => list.findIndex((s) => s.key === k);
   turn ||= at(key) > at(sub().key) ? 1 : -1;
-  state.sub = key;
+  state.sub = key; state.edited = false; state.picked = null; state.newItem = null;
   paintDial(turn);
   fillBatches();
 }
@@ -223,23 +178,22 @@ function build() {
     <div class="np-env-back" aria-hidden="true"></div>
     <form class="np-sheet" autocomplete="off" novalidate>
       <div class="np-head"></div>
-      <div class="np-dial-clip"><div class="np-dial" id="np-dial" data-open="false" inert>${dialMarkup()}</div></div>
+      <div class="np-dial-clip"><div class="np-dial" id="np-dial">${dialMarkup()}</div></div>
       <label class="np-field np-first"><span class="np-label np-name-label"></span>
         <span class="np-input"><input class="np-name" name="name" spellcheck="false"><kbd class="np-tab">Tab</kbd></span>
         <small class="np-help np-name-help"></small></label>
       <div class="np-field"><label class="np-label np-disc-label" for="np-batch"></label>
-        <div class="np-choice" role="radiogroup">
-          <button type="button" role="radio" class="np-opt" data-opt="auto" aria-checked="true"><span class="np-tick" aria-hidden="true"></span><span class="np-opt-text"></span></button>
-          <button type="button" role="radio" class="np-opt" data-opt="manual" aria-checked="false" aria-controls="np-dial" aria-expanded="false"><span class="np-tick" aria-hidden="true"></span><span class="np-opt-text"></span></button>
+        <div class="np-batch-control">
+          <span class="np-input"><input id="np-batch" class="np-batch" name="batch" spellcheck="false"
+            role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="np-matches"
+            aria-describedby="np-cal-text np-disc-help"><kbd class="np-tab">Tab</kbd></span>
+          <div id="np-matches" class="np-matches" role="listbox" hidden></div>
         </div>
-        <div class="np-disc-controls">
-          <span class="np-select"><select id="np-batch" class="np-batch" name="batch"></select><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 6 5 5 5-5"/></svg></span>
-        </div>
-        <div class="np-own"><span class="np-own-question"></span> <button type="button" class="np-import"></button><span aria-hidden="true"> · </span><button type="button" class="np-type"></button></div>
-        <button type="button" class="np-library"></button>
-        <small class="np-help"><span class="np-disc-help"></span><span class="np-left"></span></small></div>
-      <p class="np-cal" hidden><span class="np-cal-text"></span><button type="button" class="np-cal-go"></button></p>
-      <button type="button" class="np-pack"></button>
+        <div class="np-cal"><span class="np-cal-text" id="np-cal-text"></span>
+          <button type="button" class="np-cal-go"></button>
+          <span class="np-own"><button type="button" class="np-import"></button><span aria-hidden="true"> · </span><button type="button" class="np-type"></button></span></div>
+        <small class="np-help"><span class="np-disc-help" id="np-disc-help"></span><span class="np-left"></span></small>
+        <button type="button" class="np-library"></button></div>
     </form>
     <div class="np-env-front" aria-hidden="true"></div>
     <div class="np-toast" role="status"></div>`;
@@ -254,18 +208,9 @@ function build() {
   W.querySelector(".np-head").append(mark, ver);
   const q = (s) => W.querySelector(s);
   Object.assign(W, { q, sheet: q(".np-sheet"), name: q(".np-name"), batch: q(".np-batch"), dial: q(".np-dial-svg"), toast: q(".np-toast") });
-  for (const opt of q(".np-choice").children) opt.addEventListener("click", () => chooseKind(opt.dataset.opt === "manual"));
-  q(".np-choice").addEventListener("keydown", (e) => {
-    const dir = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
-    if (!dir) return;
-    e.preventDefault(); chooseKind(!manualKind());
-  });
-  W.dial.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); expandDial(false, true); }
-  });
   q(".np-library").addEventListener("click", () => {
     const it = chosen();
-    if (!it || !api.inspectBatch) return;
+    if (!isLibrary(it) || !api.inspectBatch) return;
     W.hidden = true; root.dataset.mode = "";
     api.inspectBatch(state.kind, it, (kind, item) => {
       if (item) { state.kind = kind; state.sub = subOf(kind, item); state.picked = item; }
@@ -291,7 +236,7 @@ function build() {
       },
       onClose: () => {
         reopen();
-        if (!original && !importedItem) { W.batch.value = ""; paintLeft(); }
+        if (!original && !importedItem) { W.batch.value = ""; state.edited = true; paintLeft(); }
         opener.focus({preventScroll: true});
       },
     })) W.hidden = true;
@@ -304,7 +249,7 @@ function build() {
   W.dial.addEventListener("click", (e) => {
     const k = e.target.closest(".np-key:not(.blank)");
     if (!k) return;
-    state.touched = true; state.manualKind = true;
+    state.touched = true;
     if (k.dataset.kind) setKind(k.dataset.kind); else setSub(k.dataset.sub);
   });
   // the wheel turns the ring under the pointer; the arrow keys move along the focused ring
@@ -319,10 +264,43 @@ function build() {
     const dir = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
     if (dir) { e.preventDefault(); state.touched = true; stepDial(k.dataset.kind ? "kind" : "sub", dir); }
   });
-  W.batch.addEventListener("change", () => { state.touched = true; state.picked = chosen(); paintLeft(); });
+  W.batch.addEventListener("input", () => {
+    state.touched = true; state.edited = true; state.picked = null; state.newItem = null;
+    W.batch.placeholder = ""; paintLeft();
+    if (W.batch.value.trim()) showMatches(); else hideMatches();
+  });
+  W.batch.addEventListener("focus", () => { if (W.batch.value) showMatches(); });
+  W.batch.addEventListener("blur", hideMatches);
+  W.batch.addEventListener("keydown", (e) => {
+    if (e.isComposing) return;
+    if (e.key === "Tab") {
+      if (!e.shiftKey && !W.batch.value && !state.edited && state.suggested) {
+        e.preventDefault(); pickBatch(state.suggested); W.batch.select();
+      }
+      hideMatches();
+    } else if (["ArrowDown", "ArrowUp"].includes(e.key)) {
+      e.preventDefault();
+      if (W.q(".np-matches").hidden) showMatches();
+      const n = state.matches.length;
+      if (n) {
+        state.active = state.active < 0 ? (e.key === "ArrowDown" ? 0 : n - 1)
+          : (state.active + (e.key === "ArrowDown" ? 1 : n - 1)) % n;
+        paintMatches();
+      }
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (!W.q(".np-matches").hidden && state.active >= 0) pickBatch(state.matches[state.active]);
+      else hideMatches();
+    } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); hideMatches(); }
+  });
+  q(".np-matches").addEventListener("pointerdown", (e) => e.preventDefault());
+  q(".np-matches").addEventListener("click", (e) => {
+    const option = e.target.closest("[data-match]");
+    if (option) pickBatch(state.matches[Number(option.dataset.match)]);
+  });
+  q(".np-matches").addEventListener("wheel", (e) => e.stopPropagation());
   pullable();
   q(".np-cal-go").addEventListener("click", calibrateFirst);
-  q(".np-pack").hidden = true;          // registering a new pack is not wired to the core yet: no dead button
   W.sheet.addEventListener("submit", (e) => { e.preventDefault(); next(); });
 }
 function toast(text) {
@@ -335,64 +313,110 @@ function words_() {
   // printed on the drive's face: the size fits the face whatever the language (CJK ~1.05 em a glyph, Latin ~.62)
   q(".np-title").style.setProperty("--title-em", [...t.title].reduce((n, c) => n + (/[⺀-鿿]/.test(c) ? 1.05 : .62), 0).toFixed(2));
   q(".np-name-label").textContent = t.name; q(".np-name-help").textContent = t.nameHelp;
-  q(".np-disc-label").textContent = t.disc; q(".np-disc-help").textContent = state.discLine?.(t) ?? t.discHelp;
-  q(".np-pack").textContent = t.newPack + " ↗";
-  q(".np-cal-go").textContent = t.calGo + " ↗";
-  q(".np-tab").title = t.tab;
+  q(".np-disc-label").textContent = t.disc;
+  q(".np-cal-go").textContent = t.calGo;
+  for (const cap of W.querySelectorAll(".np-tab")) cap.title = t.tab;
   q(".np-library").textContent = t.library;
-  q(".np-own").hidden = !presets.ready();
-  q(".np-own-question").textContent = api.lang() === "en" ? "Already have this batch’s numbers?" : "已经有这批盘的参数？";
   q(".np-import").textContent = api.lang() === "en" ? "Import from DIS" : "从 DIS 导入";
   q(".np-type").textContent = api.lang() === "en" ? "Type them in" : "手动填写";
-  q(".np-choice").setAttribute("aria-label", t.kinds);
-  paintStamp();
+  paintLeft();
   W.name.placeholder = suggestion();
   $("next-text").textContent = t.next;            // never forced into calibration: drawing first (or only, for DIS) is fine
 }
-const held = () => api.heldDisc?.() ?? "";
-const isHeld = (it) => { const h = held(); return !!h && (it.name === h || it.name?.startsWith(h + " ")); };
+// Keep usage separately from calibration dates. Neither a MID nor a catalogue's order is a brand.
+function usage() {
+  try {
+    const ids = JSON.parse(localStorage.getItem("dp-disc-batches") || "[]");
+    return Array.isArray(ids) ? ids : [];
+  } catch { return []; }
+}
+function remember(item) {
+  try {
+    localStorage.setItem("dp-disc-kind", JSON.stringify([state.kind, state.sub]));
+    if (isLibrary(item)) localStorage.setItem("dp-disc-batches", JSON.stringify([item.id, ...usage().filter((id) => id !== item.id)].slice(0, 100)));
+  } catch {}
+}
+const isLibrary = (it) => !!it && state.list.includes(it);
+const driveOfKind = () => state.detected?.present && state.detected.media === state.kind ? state.detected : null;
+function newBatch(name) {
+  const d = driveOfKind();
+  const key = JSON.stringify([state.kind, name, d?.mid, d?.kind, d?.sectors]);
+  if (state.newItems.has(key)) return state.newItems.get(key);
+  // Deliberately no `mid`: export-rules uses that key to look up measured geometry by maker code.
+  const item = { id: "new:" + crypto.randomUUID(), kind: "new", row: state.kind, name, s: "none",
+    ...(d ? { readMid: d.mid, readKind: d.kind, readSectors: d.sectors } : {}) };
+  state.newItems.set(key, item);
+  return item;
+}
 function fillBatches() {
-  const t = T(), brand = (n) => api.T().brand?.(n) ?? n;
   state.list = api.catalogue(state.kind).filter((it) => (!it.imported || imported(it)) && subOf(state.kind, it) === sub().key);
-  W.batch.replaceChildren();
-  const add = (value, text) => { const o = document.createElement("option"); o.value = value; o.textContent = text; W.batch.append(o); };
-  add("", state.list.length ? t.later : `${t.later}（${t.none(sub().label)}）`);   // always on top: the drive may hold no disc yet
-  state.list.forEach((it, i) => add(String(i), brand(it.name)));
-  // what was picked here stays picked (coming back from calibrating); else the disc in the drive, else the last batch
-  const picked = state.list.indexOf(state.picked), inDrive = state.list.findIndex(isHeld), last = state.list.indexOf(state.item);
-  W.batch.value = String([picked, inDrive, last].find((i) => i >= 0) ?? "");
-  paintLeft();
+  const [lastKind, last] = api.lastBatch(), recent = usage();
+  let lastId;
+  try { lastId = localStorage.getItem("dp-batch"); } catch {}
+  const wasLast = (it) => !!lastId && it.id === lastId && lastKind === state.kind && it === last;
+  const ordered = [...state.list].sort((a, b) => {
+    const rank = (it) => wasLast(it) ? -1 : recent.includes(it.id) ? recent.indexOf(it.id) : Infinity;
+    return rank(a) - rank(b);
+  });
+  const d = driveOfKind();
+  state.suggested = d ? ordered.find((it) => d.mid && it.mid?.toLowerCase() === d.mid.toLowerCase())
+    ?? newBatch([d.maker || d.manufacturer, shortKind(d.kind) || KIND_KEY[d.media]].filter(Boolean).join(" ") + (d.mid ? `（${d.mid}）` : ""))
+    : !state.detected?.present ? ordered.find((it) => wasLast(it) || recent.includes(it.id)) ?? null : null;
+  // A detour can return a newly calibrated/imported library entry. Otherwise preserve even an empty edit.
+  if (state.picked && state.list.includes(state.picked)) {
+    W.batch.value = state.picked.name; state.edited = true;
+  } else if (!state.edited) W.batch.value = "";
+  W.batch.placeholder = !state.edited ? state.suggested?.name ?? "" : "";
+  hideMatches(); paintLeft();
 }
 function chosen() {
-  const v = W.batch.value;
-  return v === "" ? null : state.list[Number(v)] ?? null;
+  const name = W.batch.value.trim();
+  if (!name) return state.edited ? null : state.suggested;
+  if (state.picked?.name === name && isLibrary(state.picked)) return state.picked;
+  return state.list.find((it) => it.name.toLowerCase() === name.toLowerCase()) ?? newBatch(name);
 }
-// No batch picked: is there one that needs calibrating first? The disc in the drive when it is of this kind
-// and not in the library, else none at all of this kind. Either way the detour starts on the new-disc place.
-function unlisted() {
-  const d = api.driveDisc?.();
-  if (d?.present && d.media === state.kind && !state.list.some(isHeld)) return { kind: shortKind(d.kind) || KIND_KEY[d.media] || "?", mid: d.mid };
-  return null;
+function pickBatch(it) {
+  state.edited = true; state.touched = true; state.picked = isLibrary(it) ? it : null;
+  W.batch.value = it.name; W.batch.placeholder = "";
+  hideMatches(); paintLeft();
+}
+function hideMatches() {
+  W.q(".np-matches").hidden = true; W.batch.setAttribute("aria-expanded", "false");
+  W.batch.removeAttribute("aria-activedescendant");
+}
+function showMatches() {
+  const query = W.batch.value.trim().toLowerCase();
+  state.matches = state.list.filter((it) => [it.name, it.mid].some((v) => v?.toLowerCase().includes(query)));
+  state.active = -1; paintMatches();
+}
+function paintMatches() {
+  const box = W.q(".np-matches"); box.replaceChildren();
+  state.matches.forEach((it, i) => {
+    const row = document.createElement("div"); row.id = `np-match-${i}`; row.dataset.match = i;
+    row.setAttribute("role", "option"); row.setAttribute("aria-selected", String(i === state.active));
+    const name = document.createElement("span"); name.textContent = it.name; row.append(name);
+    if (it.mid) { const mid = document.createElement("small"); mid.textContent = it.mid; row.append(mid); }
+    box.append(row);
+  });
+  box.hidden = !state.matches.length; W.batch.setAttribute("aria-expanded", String(!box.hidden));
+  if (state.active >= 0) {
+    W.batch.setAttribute("aria-activedescendant", `np-match-${state.active}`);
+    box.children[state.active]?.scrollIntoView({ block: "nearest" });
+  } else W.batch.removeAttribute("aria-activedescendant");
 }
 function paintLeft() {
-  const it = chosen(), t = T();
-  $("next-text").textContent = t.next;            // never forced into calibration: drawing first (or only, for DIS) is fine
-  W.q(".np-library").hidden = !it || !api.inspectBatch;
+  const it = chosen(), t = T(), d = state.detected, zh = api.lang() !== "en";
+  $("next-text").textContent = t.next;
+  W.q(".np-library").hidden = !isLibrary(it) || !api.inspectBatch;
   W.q(".np-left").textContent = it && Number.isFinite(it.left) && Number.isFinite(it.of) ? t.left(it.left, it.of) : "";
-  // calibrated or not: a batch with a measurement has its date; one without offers the detour
-  const cal = W.q(".np-cal");
-  if (!it) {
-    const u = unlisted(), measured = state.list.some(hasGeometry);
-    cal.hidden = !u && measured;
-    cal.classList.remove("ok");
-    W.q(".np-cal-text").textContent = calibrationNotice();
-    W.q(".np-cal-go").hidden = false;
-    return;
-  }
-  cal.hidden = false;
-  cal.classList.toggle("ok", hasGeometry(it));
-  W.q(".np-cal-text").textContent = calibrated(it) ? t.calOk(it.last || "—") : calibrationNotice();
-  W.q(".np-cal-go").hidden = hasGeometry(it);
+  W.q(".np-cal").classList.toggle("ok", hasGeometry(it));
+  W.q(".np-cal-text").textContent = calibrationNotice();
+  W.q(".np-cal-go").hidden = !it || hasGeometry(it);
+  W.q(".np-own").hidden = !!it && hasGeometry(it) || !presets.ready();
+  const mid = it?.readMid;
+  W.q(".np-disc-help").textContent = state.reading ? t.reading : state.readFailed ? t.readFail
+    : state.recognised ? (zh ? `光驱里认出的是 ${shortKind(d.kind) || KIND_KEY[d.media]}` : `The drive recognised ${shortKind(d.kind) || KIND_KEY[d.media]}`) + (mid ? ` · ${mid}` : "")
+    : !it ? t.discHelp : d?.tray === "open" ? t.trayOpen : d && !d.present ? t.noDisc : t.discHelp;
 }
 // the detour: calibrate this batch, then come back to the form as it was.
 // The sheet goes into the envelope as on "next"; then the camera moves right along the desk: this page (drive,
@@ -408,10 +432,10 @@ async function calibrateFirst() {
   const calibrating = import("./calibrate.js");
   if (pan) await bagging(false);
   const cal = await calibrating;
-  api.useForPlan(state.kind, item);
+  api.useForPlan(state.kind, isLibrary(item) ? item : null);
   if (pan) root.classList.add("pan-in");                      // its layers wait off to the right
   let panned = false;
-  const shown = cal.start(api, { returnTo: ({ id } = {}) => {
+  const shown = cal.start(withInitialItem(item ? { ...item } : api.current().item), { returnTo: ({ id } = {}) => {
     // the batch just calibrated, by its library entry (its name may not match the disc in the drive)
     const saved = id && api.catalogue(state.kind).find((x) => x.id === id);
     if (saved) { state.picked = saved; state.sub = subOf(state.kind, saved); }
@@ -529,38 +553,28 @@ function reopen({ unfile = false } = {}) {
 // it until the person picks a kind or a batch; the line under the batch says what was found.
 async function readDrive() {
   if (!api.readDisc) return;
-  const help = W.q(".np-disc-help");
-  state.discLine = (t) => t.reading;
-  help.textContent = T().reading;
+  const readingState = state;
+  state.reading = true; paintLeft();
   let disc;
-  try { disc = await api.readDisc(); }
-  catch { disc = undefined; }
-  if (!isOn()) return;
-  // "recognised" = the drive told us what kind of disc this is (DVD / CD / BD). Whether its batch is already in the
-  // library is another question (said under the select): a new batch is still recognised, it is just new.
+  try { disc = await api.readDisc(); } catch { disc = undefined; }
+  if (state !== readingState || !isOn()) return;
+  state.reading = false; state.readFailed = disc === undefined;
   state.recognised = !!disc?.present && KINDS.includes(disc.media);
   state.detected = disc;
-  if (!state.touched) expandDial(!state.recognised);
-  if (disc?.present && KINDS.includes(disc.media) && !state.touched) {
-    const turn = KINDS.indexOf(disc.media) - KINDS.indexOf(state.kind);
-    state.kind = disc.media; state.sub = firstSub(disc.media, state.item); state.picked = null;
-    paintDial(Math.sign(turn)); fillBatches();
-  }
-  // name the disc as the page names it (DVD-R …): a burned disc reports its drive profile ("DVD-ROM"), which
-  // reads like a different kind
-  const seen = state.recognised && disc.media === state.kind ? sub().label : shortKind(disc?.kind) || KIND_KEY[disc?.media] || "?";
-  state.discLine = (t) => disc === undefined ? t.readFail : !disc ? t.discHelp : disc.tray === "open" ? t.trayOpen
-    : !disc.present ? t.noDisc : held() && state.list.some(isHeld) ? t.discHelp : t.unknownBatch(seen, disc.mid);
-  help.textContent = state.discLine(T());
-  paintStamp();
+  if (!state.touched) {
+    if (state.recognised) {
+      const turn = KINDS.indexOf(disc.media) - KINDS.indexOf(state.kind);
+      state.kind = disc.media; state.sub = firstSub(disc.media, state.item); state.newItem = null;
+      paintDial(Math.sign(turn));
+    }
+    fillBatches();
+  } else { state.newItem = null; paintLeft(); }
 }
-// the type the page opens on: that of the disc in the drive, else of the last batch used, else -R
+// The actual profile wins over the last batch's type. ROM profiles have no recordable subtype.
 function firstSub(kind, item) {
-  // the disc in the drive: its batch's type, or its own profile ("DVD-R Sequential")
-  const d = api.driveDisc?.(), inDrive = d?.present && d.media === kind ? api.catalogue(kind).find(isHeld) : null;
-  if (inDrive) return subOf(kind, inDrive);
-  const name = (held() && KINDS.find((k) => SUBS[k].some((s) => s.re.test(held()))) === kind ? held() : item?.name) ?? "";
-  return (SUBS[kind].find((s) => s.re.test(name)) ?? SUBS[kind].find((s) => s.key === "-R") ?? SUBS[kind][0]).key;
+  const d = state?.detected ?? api.driveDisc?.();
+  const name = d?.present && d.media === kind ? d.kind : item?.name;
+  return (SUBS[kind].find((s) => s.re.test(name ?? "")) ?? SUBS[kind].find((s) => s.key === "-R") ?? SUBS[kind][0]).key;
 }
 
 // ---------------------------------------------------------------- the pull
@@ -651,13 +665,15 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   if (!W) build();
   await cssReady;
   const [col, item] = api.lastBatch();
-  const kind = KINDS.includes(col) ? col : "dvd";
   const inDrive = api.driveDisc?.();
-  state = { kind, sub: firstSub(kind, item), item, picked: null, file, list: [], recognised: !!inDrive?.present && KINDS.includes(inDrive.media),
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem("dp-disc-kind") || "[]"); } catch {}
+  const kind = inDrive?.present && KINDS.includes(inDrive.media) ? inDrive.media : KINDS.includes(saved[0]) ? saved[0] : KINDS.includes(col) ? col : "dvd";
+  state = { kind, item, picked: null, file, list: [], newItems: new Map(), edited: false, recognised: !!inDrive?.present && KINDS.includes(inDrive.media),
             detected: inDrive, seed: Math.floor(Math.random() * 1e6) };
+  state.sub = !inDrive?.present && saved[0] === kind && SUBS[kind].some((s) => s.key === saved[1]) ? saved[1] : firstSub(kind, item);
   W.name.value = "";
   paintDial(); fillBatches(); words_();
-  expandDial(!state.recognised);
   // the camera flies at the drive: the lobby pushes in with the drive coming to the middle of the window;
   // the top view fades in over it with its disc in the middle and close, then settles (the disc moving
   // left, the sheet coming in)
@@ -774,6 +790,7 @@ async function next() {
   if (going) return;
   going = true;
   const name = W.name.value.trim() || suggestion(), item = chosen();
+  hideMatches(); remember(item);
   // the envelope rises, the sheet slides in, both drop out of the frame
   const designing = import("./design.js");       // fetched and parsed while the envelope animates
   await bagging();
@@ -781,7 +798,21 @@ async function next() {
   api.useForPlan(state.kind, item);
   leave();
   W.classList.remove("filing", "leaving");
-  design.start(api, { newPlan: true, fly: false, file: state.file, name, dropIn: true, noDisc: !item });
+  // useForPlan locates only library objects. Supply the form's exact item for the editor's first read,
+  // then delegate subsequent reads (e.g. calibration) to the home API as usual.
+  design.start(withInitialItem(item), { newPlan: true, fly: false, file: state.file, name, dropIn: true, noDisc: !item });
   going = false;
 }
+function withInitialItem(item) {
+  let initial = true;
+  const home = api, kind = state.kind, handoff = Object.create(home);
+  handoff.current = () => {
+    const current = home.current();
+    if (!initial) return current;
+    initial = false; return { ...current, col: kind, item };
+  };
+  return handoff;
+}
 export const isOn = () => !!W && !W.hidden;
+// the plan's disc as the form stands (tests check it against design/export-rules.mjs)
+export const currentItem = () => (W && state ? chosen() ?? null : null);
