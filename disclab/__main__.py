@@ -36,7 +36,7 @@ def lab_env(lab: Lab, base=None) -> dict:
 
 
 def dp(lab: Lab, args, *, check=True, capture=False, timeout=None):
-    """Run `python -m discprobe ARGS` against the lab, from the repository root."""
+    """Run `python -m discprobe ARGS` against the lab, from the unpacked package root."""
     argv = [sys.executable, "-B", "-m", "discprobe", *map(str, args)]
     print("$ discprobe " + " ".join(map(str, args)), flush=True)
     res = subprocess.run(argv, cwd=ROOT, env=lab_env(lab), text=True, encoding="utf-8", errors="replace",
@@ -86,6 +86,8 @@ def cmd_env(a):
 
 
 def main(argv=None):
+    from .compat import require_discprobe
+    require_discprobe()
     p = argparse.ArgumentParser(prog="python -m disclab", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(required=True)

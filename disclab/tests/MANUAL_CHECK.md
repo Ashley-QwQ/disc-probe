@@ -1,14 +1,16 @@
 # Task-card verification, 2026-11-13
 
+Historical report; machine-specific paths below have been replaced with relative LABS/ placeholders. These are records of that earlier check, not instructions to launch a server during packaging verification.
+
 Only `disclab/web.py` and files in `disclab/tests/` were edited/added. No protected-module fixes, packaging changes, commits, pushes, real drive access or physical burns were performed. Test burns used the lab recorder and 4096-sector (8 MiB) ISOs.
 
 ## Commands
 
-From `D:/disc-probe/.claude/worktrees/disclab`:
+From `the folder containing disclab/`:
 
 ```powershell
-python -m disclab web --lab C:/disc-probe-scratch/disclab/codex-lab --port 8853 --media dvd
-python -m disclab upload --url http://127.0.0.1:8853 --run geo-X-20261113-143516 --photos C:/disc-probe-scratch/disclab/lab2/photos/try/IMG_00300.jpg C:/disc-probe-scratch/disclab/lab2/photos/try/IMG_00301.jpg
+python -m disclab web --lab LABS/codex-lab --port 8853 --media dvd
+python -m disclab upload --url http://127.0.0.1:8853 --run geo-X-20261113-143516 --photos LABS/lab2/photos/try/IMG_00300.jpg LABS/lab2/photos/try/IMG_00301.jpg
 python -m pytest disclab/tests -q
 ```
 
@@ -16,7 +18,7 @@ The first two commands are the task card's requested commands. They cannot curre
 
 ## Required external-copy check
 
-Copied `lab2` to `C:/disc-probe-scratch/disclab/codex-lab`, excluding `iso` directories and retaining burn records with their shared ISO references. Launched the exact requested web command, with repository cwd and `lab_env`.
+Copied `lab2` to `LABS/codex-lab`, excluding `iso` directories and retaining burn records with their shared ISO references. Launched the exact requested web command, with repository cwd and `lab_env`.
 
 ```text
 http://127.0.0.1:8853/home/

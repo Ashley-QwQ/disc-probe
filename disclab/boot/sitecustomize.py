@@ -10,9 +10,24 @@ import os
 import sys
 
 if os.environ.get("DISCPROBE_DISCLAB"):
-    _root = os.environ.get("DISCLAB_ROOT")
-    if _root and _root not in sys.path:
-        sys.path.append(_root)
+    from pathlib import Path
+
+    # Locate the unpacked package even when the child cwd is the lab folder.
+    # Its sibling discprobe wins when present; otherwise Python uses the installed wheel.
+    _root = str(Path(__file__).resolve().parents[2])
+    if _root in sys.path:
+        sys.path.remove(_root)
+    sys.path.insert(0, _root)
+    from disclab.compat import require_discprobe
+
+    try:
+        require_discprobe()
+    except SystemExit as exc:
+        # Python normally ignores exceptions from sitecustomize. Refuse before any
+        # device module loads, with just the same sentence as the parent CLI.
+        sys.stderr.write(str(exc) + "\n")
+        sys.stderr.flush()
+        os._exit(1)
     import importlib.abc
 
     class _DisclabFinder(importlib.abc.MetaPathFinder):

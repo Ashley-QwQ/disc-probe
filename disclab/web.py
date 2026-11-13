@@ -1,4 +1,4 @@
-"""Development-only web launcher and photo uploader; disclab is not packaged."""
+"""Development web launcher and photo uploader for the standalone Disc Lab package."""
 from __future__ import annotations
 
 import argparse
@@ -15,7 +15,7 @@ from urllib.request import HTTPCookieProcessor, Request, build_opener
 
 from .lab import Lab
 
-FORBIDDEN_PORTS = frozenset({8772, 8795, 8798, 8812, 8813, 8841, 8863})
+FORBIDDEN_PORTS = frozenset({8772, 8795, 8798, 8812, 8813, 8841, 8863, 8877, 8879})
 PHOTO_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
                ".heic": "image/heic", ".heif": "image/heic", ".webp": "image/webp"}
 

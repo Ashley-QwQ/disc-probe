@@ -5,7 +5,7 @@ real EFMPlus + ECC recorded rows, rectangular marks 0.35 um wide, lamp and pupil
 A5 and B9 reuse that model's saved spectra; RND is computed here with the same functions.
 delta = (c + l) . t, c and l unit vectors to camera and lamp, t the local track tangent.
 
-    python -m disclab.tables       (once; about a minute; needs the a3card folder)
+    python -m disclab.tables --a3 SOURCE_FOLDER  (once; about a minute)
 """
 from __future__ import annotations
 
@@ -15,22 +15,22 @@ from pathlib import Path
 
 import numpy as np
 
-A3 = Path("D:/disc-probe/docs/goals/night/palette/a3card")
 OUT = Path(__file__).resolve().parent / "data" / "wave_xyz.npz"
 TEXTURES = ("A5", "B9", "RND")
 
 
-def build():
-    sys.path.insert(0, str(A3))
+def build(a3):
+    a3 = Path(a3).resolve()
+    sys.path.insert(0, str(a3))
     import wave_model as W
     from discprobe.imagedisc import texture_bytes
     W.texture_bytes = texture_bytes          # the extracted copy lacks _hash, which RND needs
     from colour_tables import observer
-    op = np.load(A3 / "v3" / "operator_64.npy", mmap_mode="r")
+    op = np.load(a3 / "v3" / "operator_64.npy", mmap_mode="r")
     xyz = {}
     for spec in TEXTURES:
         key = hashlib.sha256(spec.encode()).hexdigest()[:24]
-        path = A3 / "v3" / "checkpoints" / f"{key}.npz"
+        path = a3 / "v3" / "checkpoints" / f"{key}.npz"
         if path.exists():
             with np.load(path, allow_pickle=False) as z:
                 mass = np.mean(z["samples"], axis=0)
@@ -51,4 +51,7 @@ def build():
 
 
 if __name__ == "__main__":
-    build()
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--a3", required=True, type=Path, help="source a3card folder (rebuild only)")
+    build(parser.parse_args().a3)

@@ -196,7 +196,7 @@ def test_small_photo_from_real_burn_map(burned):
     assert focal > 0 and record["disc"] == disc_id
 
 
-@pytest.mark.parametrize("port", [8772, 8795, 8798, 8812, 8813, 8841, 8863, 0, 65536])
+@pytest.mark.parametrize("port", [8772, 8795, 8798, 8812, 8813, 8841, 8863, 8877, 8879, 0, 65536])
 def test_web_refuses_forbidden_ports(port, monkeypatch, lab):
     from disclab import web
 

@@ -1,57 +1,134 @@
-# disclab：disc-probe 的开发者测试台
+# Disc Lab
 
-不刻盘、不接真光驱，把"测几何 → 出 ISO → 拍照 → 修正 L → 再出图"整条路走一遍，并且知道每一步离真值多远。
-只给开发者用：`disclab/` 不在 `pyproject`、wheel、sdist、Windows 包的任何清单里，`discprobe/` 一行没改。
+[中文说明](README.zh.md)
 
-## 怎么用
+Disc Lab gives disc-probe a virtual optical drive, a box of made-up discs with hidden truth, rendered phone photos, and scores against that truth. It is for developers and people testing geometry and photo calibration. No physical drive or recordable disc is needed. Disc-probe sees virtual SCSI replies and images; only the lab drive, renderer and scorer read `answers.json`.
 
-```bash
-python -m disclab box  --lab LAB --media dvd-r --count 12 --seed 1     # 一盒 12 张虚构盘，真值写进 LAB/answers.json
-python -m disclab tray --lab LAB --drive X: --disc "LAB-A 1-01"         # 放盘
-python -m disclab dp   --lab LAB -- info --drive X: --out LAB/results   # 任何 discprobe 命令，对着虚拟光驱
-python -m disclab loop geo   --lab LAB                                  # 每张盘：刻随机盘 → geo → 打分
-python -m disclab loop photo --lab LAB --targets 6 --photos 6           # 盘1 geo → 盘2..7 标靶 → 照片 → 照片 L → 出图 → 打分
-python -m disclab poses --lab LAB --disc ... --geo ... --out f.json     # 同一张盘绕一圈拍，看 L 跟不跟机位
-python -m disclab web  --lab LAB --port 8853 [--lan]                    # 网页连虚拟光驱（开发模式；--lan 才有手机链接）
-python -m disclab upload --url "http://127.0.0.1:8853/home/?token=..." --run GEO_RUN --photos a.jpg b.jpg   # 按手机页协议上传
-python -m disclab env  --lab LAB --powershell                           # 在自己的终端里直接用 python -m discprobe
+## Install and open
+
+Use Python 3.11 or newer. This snapshot requires **disc-probe 0.1.2.1**, the value of `discprobe.version.__version__`. Version strings must be exactly equal, including pre-release tags. A missing package or a different version stops with a plain sentence. The planned release asset name is `disc-lab-1.0.0.0-alpha.zip`; this source snapshot still uses 0.1.2.1. The release maintainer must align `disclab/compat.py` with the actual matching disc-probe release and repeat verification before publishing that release.
+
+Two layouts work:
+
+1. Install the matching wheel into the Python environment you will use: `python -m pip install disc_probe-0.1.2.1-py3-none-any.whl`. It supplies NumPy, SciPy, Pillow and OpenCV dependencies through its package requirements. For offline use, provide those dependencies locally. Unpack the Disc Lab zip anywhere and open a terminal in the folder containing `disclab/`.
+2. Unpack the matching Windows full package, with its Python runtime and dependencies. Unpack the Disc Lab zip into the folder containing `discprobe/`, so `disclab/` and `discprobe/` are siblings. Use that package's Python executable for every command (replace `python` below with its path). Disc Lab does not bundle disc-probe or another Python runtime.
+
+Run `python -m disclab --help`. All examples below start from the folder containing `disclab/`; lab folders may be elsewhere. The boot hook locates its own package, finds a sibling discprobe first or the installed wheel otherwise, and checks the version before loading device hooks. It also works when the child process starts inside the lab folder, as the web launcher does. Keep the unpacked package at its location while running; saved lab records contain resolved paths.
+
+To assemble the standalone archive locally: `python -m disclab.package --output disclab/dist/disc-lab-1.0.0.0-alpha.zip`. It contains the `disclab/` folder, both READMEs, examples, tests, spectrum data and license. It excludes disc-probe, Python, experiment output and caches. The filename does not override the required disc-probe version above.
+
+## Five-minute example
+
+PowerShell:
+
+```powershell
+& ./disclab/examples/run-example.ps1 -Lab ./LAB-demo
 ```
 
-`--drive X:` 是实验盒里登记的虚拟光驱名。实验进程里打不开任何真光驱：`SptiDevice`/`SgDevice` 对非实验盘名直接报错，
-`list` 只列实验光驱。CPU 重的部分（`image` 用 `DISCPROBE_WORKERS=3`，照片读取 2–3 个进程）不超过 4 个进程。
+Bash:
 
-## 怎么接上 discprobe
+```bash
+bash ./disclab/examples/run-example.sh ./LAB-demo
+```
 
-`disclab/boot/sitecustomize.py` 放在子进程 `PYTHONPATH` 最前面，只在设了 `DISCPROBE_DISCLAB=<实验目录>` 时生效。
-它在模块加载时打补丁，不改文件：
+Use a fresh folder. Existing folders are refused. Omit the folder argument to create a new temporary lab whose location is printed. In PowerShell, `-Python` selects an interpreter; in Bash, set `PYTHON` to its executable path. Both scripts read `examples/dvd-r-3.json`: a 3-disc DVD-R box, each disc burned full of random data and measured with the default reads like a real disc; the first run is scored explicitly, and all scores and the wall time are printed. For the whole 12-disc box use `-Config examples/dvd-r-12.json` (Bash: `--config`). Runtime depends on the machine.
 
-| 模块 | 替换 | 作用 |
+Burn the whole disc: with only an inner band written, geometry is measured on that band alone and the whole-disc placement is an extrapolation, with numbers far too large to say anything about the algorithms.
+
+The equivalent steps are:
+
+```bash
+python -m disclab box --lab LAB --media dvd-r --count 3 --seed 1
+python -m disclab loop geo --lab LAB
+# Replace GEO_DIR with the first row's geo folder in LAB/scores/geo-wide.json:
+python -m disclab score --lab LAB --disc "LAB-A 1-01" --geo GEO_DIR
+```
+
+The quick example uses a 256 MiB random image, 8 read pairs per rung and at most 8 ladder targets. It measures only the recorded inner part of the disc; full-disc placement scores therefore include extrapolation and can be much worse. It is a working example, not a precision benchmark. Omitting the three quick options preserves the existing full-image and measurement defaults. Do not reuse the quick-example lab for the full photo loop: its geometry covers a smaller span.
+
+`LAB/box.json` is the public box label, `answers.json` holds truth, and `state.json` records virtual drives and virtual writes. Results go to `results/`, rendered photos to `photos/`, and scores to `scores/geo-wide.json` (or `geo-default.json`). Intermediate ISOs live under `LAB/iso/` and are deleted after use, including failed loop steps. Burn maps and small retained headers remain; the full ISO's byte contents cannot be read again after deletion. Create a new lab for a different experiment.
+
+## Photo loop
+
+Use a separate, full-size lab. This path can take much longer and temporarily needs several GB of free space:
+
+```bash
+python -m disclab box --lab LAB-photo --media dvd-r --count 12 --seed 1
+python -m disclab loop photo --lab LAB-photo --targets 6 --photos 6 --workers 3
+```
+
+It writes a random image on disc 1 in the virtual recorder, measures geo, writes the lab's A5/B9 target on discs 2–7, renders phone photos, runs disc-probe's photo reader, and compares the reported L against truth. If a photo group applies L, it generates picture images with and without L, scores both on the picture disc, and virtually records the corrected picture. Summary and per-photo results are in `LAB-photo/scores/photo.json`; logs are in `loop-photo.log`. Refused photos and groups remain refused.
+
+For one target already made by that loop:
+
+```bash
+python -m disclab photos --lab LAB-photo --disc "LAB-A 1-02" -n 3 --out LAB-photo/photos/manual
+python -m disclab poses --lab LAB-photo --disc "LAB-A 1-02" --geo GEO_DIR --out LAB-photo/scores/poses.json --workers 2
+```
+
+`poses` holds a disc fixed and varies camera pose and optical effects to see whether the estimated L follows the pose. `tray --lab LAB --disc "LAB-A 1-01"` selects a virtual disc. `dp --lab LAB -- info --drive X: --out LAB/results` runs disc-probe against it. `env --lab LAB --powershell` prints the environment for a separate PowerShell session (omit `--powershell` for POSIX export statements). Apply those settings before starting disc-probe yourself. Lab hooks list only registered virtual drives and reject other drive names. `X:` is a virtual name, not a filesystem path.
+
+## Web hookup and upload
+
+These are commands for a separate development session; packaging verification does not start a server or send network requests.
+
+```bash
+python -m disclab web --lab LAB-photo --port 8853 --media dvd
+```
+
+The child workspace is the lab directory. Open the printed local URL; the page uses virtual drives. This default local-only mode disables phone links. To use phone uploads, run the token-guarded LAN mode instead and use the computer page URL containing its session token:
+
+```bash
+python -m disclab web --lab LAB-photo --port 8853 --media dvd --lan
+python -m disclab upload --url "http://127.0.0.1:8853/home/?token=YOUR_SESSION_TOKEN" --run GEO_RUN_NAME --photos LAB-photo/photos/manual/IMG_00000.jpg
+```
+
+Replace `GEO_RUN_NAME` with an existing geo folder name visible to the page, and use actual photo filenames. `upload` asks the computer API for a phone link, sends each supplied image as raw bytes using that phone capability, then lists photos using computer authentication. It reports server failures and exits nonzero if an upload fails. It does not perform the browser's canvas/JPEG conversion. Local-only mode cannot supply the required phone capability. Stop the launcher with Ctrl+C. No real-drive backend files are changed.
+
+## What the scores mean
+
+Lower errors are better; there is no overall pass/fail grade. A successful command exit does not establish physical accuracy. `score` prints one result; `loop geo` also saves a list with each geo exit code.
+
+| Field | Meaning |
+|---|---|
+| `u`, `v`; `true_u`, `true_v` | Measured spiral ratios `u=r0/b`, `v=pitch/b`, and the disc's hidden values. |
+| `du_bits`, `dv_rel` | `u - true_u` in bit units; `v / true_v - 1` as a fraction, not percent. |
+| `vs_timing_measured_span` | Error against what read timing can observe, restricted to geo's measured radial span. |
+| `vs_timing_full` | The same timing comparison over the scorer's default 26–57 mm span, including extrapolation. |
+| `placement_on_target` | Actual image placement error on the target disc, using its truth; includes the path offset. |
+| `c_deg` | Fitted constant rotation in degrees; a free rotation does not bend an image. |
+| `L_mm` | Fitted along-track term in mm in `error(r) = c + L/r + residual`, with the angle in radians. Its sign is retained. |
+| `rms_deg`, `pp_deg` | RMS and peak-to-peak angular error after removing the mean rotation. |
+| `residual_after_L_rms_deg`, `residual_after_L_pp_deg` | Angular error left after removing both rotation and the fitted L term. |
+| `path_L_mm` | Reader completion distance plus head offset; the model's nominal path L, not a photo estimate. |
+| `geo_reported` | Disc-probe's own residual RMS, angle sigma, chi-squared per degree of freedom, completion status and correction filename. These describe its fit, not truth error. |
+| `exit` | Geo subprocess exit code saved by the loop. Zero means the command succeeded. |
+
+Photo scores keep per-photo status, estimated `L_mm`, signed `err_mm`, pose, group `verdict`, applied L and its error. `photos`, `accepted`, `accept_rate` and `statuses` count all/accepted photos and outcomes; `accepted_mae_mm` and `accepted_max_mm` summarize absolute L error among accepted photos. `false_accepts` counts accepted photos with absolute error **greater than 0.326 mm**. `groups` and `groups_applied` count target groups and those applying L; `group_false_applied` uses the same strict threshold, `group_abs_err_mm` lists applied absolute errors, and `reasons` preserves reasons for no application. Missing estimates remain JSON null. `pictures.nophoto` and `pictures.photo` contain placement decomposition with and without photo L; `photo_l` records whether and why L was written. None of these thresholds or equations has been changed for packaging.
+
+## Truth model: measured and assumed
+
+A user bit n is at `alpha(n) = -theta_g(n + w)`. The read-completion angle is `theta_t(n) = theta_g(n + w + d) + asin(h/r) - (e/r) sin(psi + theta_g)`. The along-track path constant is `L = d*b + h`, the L in photo calibration's `tau(r) = c + L/r`. See `physics.py` for implementation. The following table preserves the original model's evidence claims; packaging has not independently repeated those physical measurements.
+
+| Item | Value | Basis |
 |---|---|---|
-| `discprobe.spti` / `sg` / `imapi` | `SptiDevice` 等、`list_optical_drives` | 实验盘名返回 `LabDrive`，其他名字报错 |
-| `discprobe.burner` | `adapter()` | 实验光驱返回 `LabRecorder` |
+| u/v identical within one stamper | Zero disc-to-disc spread by default | **Measured:** separate GH70N/RITEKF1 discs fit u=180518.44±0.05, v=5.591208±1e-6. **Inference:** moulding fixes bits per turn; shrinkage scales mm. |
+| Batch mean u/v | 180518.44, 5.591208 | **Measured**, as above. |
+| Variable pitch | Slow wave, 0.04° RMS | **Assumed**, scaled from GH70N grid-disc residual of 0.03° RMS. |
+| GH70N timing noise | 13 µs jitter, two turns per read, FUA effective | **Aligned to measurements:** read std 0.2565°, geo residual 0.076°, FUA read 41.4 ms. |
+| Path L, GH70N + IMAPI DVD | +0.19 mm: completion 0.13 + head 0.06 | **Measured sum:** user photo groups +0.08..+0.12 / +0.25..+0.28 mm and a sealed test at 0.19 mm. The split is **unknown**. |
+| Eccentricity and warp | 18 µm eccentricity sigma; dish 0.12±0.08 mm; saddle 0.06 mm | **Assumed**, specification-scale values. |
+| Outer texture fails at low write speed | At ≤4x, texture sectors beyond 35 mm give 3/11/00 | **Measured phenomenon**, GH70N + RITEKF1 at 4x; radius threshold is estimated. |
+| Photo texture colour versus delta | A3 colour-card wave model, real EFMPlus + ECC | **Model**, not calibrated to real photos. |
+| Photo zero-order reflection darkening | A5 15% darker than B9, per disc | **Assumed**, estimated from user photos. |
+| Refraction, warp, rainbow arms, specular spots | Geometric optics | Physically expected; magnitudes not checked against real photos. |
+| Phone colour processing | 40% desaturation | **Assumed**. |
+| CD, BD | Virtual drive and geo paths; photos are DVD only | CD byte layout / CIRC interleaving is not modelled. |
 
-`LabDrive` 继承 `discprobe.sim.SimDrive`（主轴、寻道、缓存、FUA 的模型都是它的），换掉螺旋、计时角、容量、识别信息、数据内容和故障。
-每条 CDB 仍过 `scsi.check_allowed()`，白名单没动。网页、`calibrate` 起的子进程都继承这个环境，所以也走虚拟光驱。
+## Limits and verification
 
-## 真值模型
+The photo renderer knows **only A5, B9 and random-data textures**. Multi-byte textures such as the `checkdisc` target render blank for the intended pattern; this renderer cannot validate that target. CD and BD support geometry measurement only, not a photo/byte-layout round trip. The supplied spectrum table `data/wave_xyz.npz` is sufficient at runtime. Rebuilding it requires separate source material: `python -m disclab.tables --a3 SOURCE_FOLDER`. The A3 source is not shipped and is never needed for ordinary commands.
 
-见 `physics.py` 开头。一句话：盘上第 n 个用户比特真实在 `alpha(n) = -theta_g(n + w)`；
-光驱报读完的角度是 `theta_t(n) = theta_g(n + w + d) + asin(h/r) - (e/r) sin(psi + theta_g)`。
-所以路径的沿轨常数 `L = d·b + h`，正是 pcal 读的 `tau(r) = c + L/r`。
+Existing model limitations remain, including the recorded per-session write offset not being consumed by the physics model's top-level lookup; see the historical test report. Keep at most four CPU-heavy processes active: default image workers are three, photo-reader workers three, pose workers two. Run workflows sequentially and do not increase worker settings beyond that budget.
 
-## 哪些有依据，哪些是假设
-
-| 项 | 取值 | 依据 |
-|---|---|---|
-| 同一压模的盘 u、v 完全相同 | 盘间 0 | **实测**：GH70N 上不同 RITEKF1 盘的 geo 拟合 u=180518.44±0.05、v=5.591208±1e-6；加上推理：每圈的位数在模压时定死，收缩只缩放毫米 |
-| 批次均值 u、v | 180518.44、5.591208 | **实测**（同上） |
-| 变螺距 | 0.04° rms 的慢波 | **假设**，量级参照 GH70N 网格盘 0.03° rms |
-| GH70N 档计时噪声 | 抖动 13 µs、读两圈、FUA 生效 | **实测**对齐：真盘每次读 std 0.2565°、geo 残差 0.076°、FUA 读 41.4 ms |
-| 路径 L（GH70N + IMAPI DVD） | +0.19 mm（完成点 0.13 + 光头 0.06） | **实测**总和：用户两组照片 +0.08..+0.12 / +0.25..+0.28 和密封盲测 0.19 mm；两部分怎么分**不知道** |
-| 偏心、翘曲 | 偏心 18 µm σ、碟形 0.12±0.08 mm、马鞍 0.06 mm | **假设**（规格量级） |
-| 低速刻纹理外圈读不出 | ≤4x 时 35 mm 外纹理扇区 3/11/00 | **实测**现象（GH70N + RITEKF1 4x），阈值半径是估的 |
-| 照片：纹理颜色随 δ | A3 色卡波动模型（真 EFMPlus + ECC） | **模型**，未用真照片标定 |
-| 照片：零级反射暗化 | A5 比 B9 暗 15%（按盘） | **假设**，从用户照片的观感估 |
-| 照片：折射、翘曲、彩虹臂、反光点 | 几何光学 | 物理上应有；量级未对真照片核对 |
-| 照片：手机色彩处理 | 降饱和 40% | **假设** |
-| CD、BD | 驱动和 geo 能跑；照片只做了 DVD | CD 的字节布局（CIRC 交织）没建模 |
+Verified here on **Windows, Python 3.13.14**: the original 20 tests, the added portable-package tests, the tiny two-disc end-to-end example, and the full 12-disc example scripts in Windows PowerShell and Git Bash. The sibling layout and a locally installed matching wheel are checked from extracted paths with spaces and Chinese characters. Web launch/upload unit tests mock subprocesses and HTTP; no live web server or live upload was run for this packaging task. The full photo loop and A3 table rebuild were not run here. **Linux was not run here**; the shell script was exercised with Git Bash on Windows, which is not a Linux test. Exact counts, timings and scores are in [PACKAGE_REPORT.md](PACKAGE_REPORT.md).

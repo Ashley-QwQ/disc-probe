@@ -24,7 +24,6 @@ import numpy as np
 
 from .lab import Lab, atomic_json
 
-SCRATCH_ISO = Path("C:/disc-probe-scratch/disclab/iso")
 FALSE_ACCEPT_MM = 0.326          # the pcal studies' "wrong" line (two CD frames)
 BELOW_NORMAL = 0x4000
 
@@ -71,42 +70,54 @@ def burn(lab, drive, disc, iso, log, speed=None):
     dp(lab, ["burn", "--drive", drive, "--iso", iso, "--yes-write", *(["--speed", speed] if speed else [])], log=log)
 
 
-def geo(lab, drive, disc, log, ranges="wide"):
+def geo(lab, drive, disc, log, ranges="wide", *, reps=None, max_targets=None):
     tray(lab, drive, disc)
     t = time.time()
     extra = []
     if ranges == "wide":
         cap = max(s["start_lba"] + s["sectors"] for s in lab.state()["burns"][disc]["sessions"])
         extra = ["--ranges", f"{int(cap * 0.03) // 16 * 16}-{int(cap * 0.97) // 16 * 16}"]
+    if reps is not None:
+        extra += ["--reps", str(reps)]
+    if max_targets is not None:
+        extra += ["--max-targets", str(max_targets)]
     res = dp(lab, ["geo", "--drive", drive, "--out", lab.root / "results", *extra], log=log, check=False)
     folder = newest(lab.root / "results", f"geo-{drive.rstrip(':')}-", t)
     return folder, res.returncode
 
 
-def random_iso(lab, log):
-    path = SCRATCH_ISO / "random.iso"
+def random_iso(lab, log, sectors=None):
+    path = lab.root / "iso" / "random.iso"
     if not path.exists():
-        dp(lab, ["random", "--output", path], log=log)
+        try:
+            dp(lab, ["random", "--output", path, *(["--sectors", sectors] if sectors is not None else [])], log=log)
+        except BaseException:
+            path.unlink(missing_ok=True)
+            raise
     return path
 
 
-def loop_geo(lab: Lab, drive="X:", ranges="wide", discs=None):
+def loop_geo(lab: Lab, drive="X:", ranges="wide", discs=None, *, iso_sectors=None, reps=None, max_targets=None):
     from .score import geo_score
-    log = open(lab.root / "loop-geo.log", "a", encoding="utf-8")
-    iso = random_iso(lab, log)
     discs = discs or lab.box()["discs"]
     rows = []
-    for d in discs:
-        burn(lab, drive, d, iso, log)
-        folder, code = geo(lab, drive, d, log, ranges)
-        s = geo_score(lab, d, folder)
-        s["exit"] = code
-        rows.append(s)
-        vt, pl = s["vs_timing_measured_span"], s["placement_on_target"]
-        print(f"{d}: du {s['du_bits']:+.3f} bit, dv {s['dv_rel']:+.1e}; vs timing {vt['rms_deg']:.3f} deg rms "
-              f"{vt['pp_deg']:.3f} pp; on disc L {pl['L_mm']:+.3f} mm (path {s['path_L_mm']:+.3f}), "
-              f"rest {pl['residual_after_L_rms_deg']:.3f} rms; geo says resid {s['geo_reported']['residual_rms_deg']:.3f}"
-              f" sigma {s['geo_reported']['angle_sigma_deg']:.3f}", flush=True)
+    with open(lab.root / "loop-geo.log", "a", encoding="utf-8") as log:
+        iso = lab.root / "iso" / "random.iso"
+        try:
+            random_iso(lab, log, iso_sectors)
+            for d in discs:
+                burn(lab, drive, d, iso, log)
+                folder, code = geo(lab, drive, d, log, ranges, reps=reps, max_targets=max_targets)
+                s = geo_score(lab, d, folder)
+                s["exit"] = code
+                rows.append(s)
+                vt, pl = s["vs_timing_measured_span"], s["placement_on_target"]
+                print(f"{d}: du {s['du_bits']:+.3f} bit, dv {s['dv_rel']:+.1e}; vs timing {vt['rms_deg']:.3f} deg rms "
+                      f"{vt['pp_deg']:.3f} pp; on disc L {pl['L_mm']:+.3f} mm (path {s['path_L_mm']:+.3f}), "
+                      f"rest {pl['residual_after_L_rms_deg']:.3f} rms; geo says resid {s['geo_reported']['residual_rms_deg']:.3f}"
+                      f" sigma {s['geo_reported']['angle_sigma_deg']:.3f}", flush=True)
+        finally:
+            iso.unlink(missing_ok=True)
     atomic_json(lab.root / "scores" / f"geo-{ranges}.json", rows)
     return rows
 
@@ -160,24 +171,29 @@ def loop_photo(lab: Lab, drive="X:", geo_disc=None, targets=None, n_photos=6, st
     geo_disc = geo_disc or discs[0]
     targets = targets or discs[1:7]
     iso = random_iso(lab, log)
-    burn(lab, drive, geo_disc, iso, log)
-    marker = lab.root / "scores" / f"{tag}-geo.txt"
-    if marker.is_file():
-        geo_dir = Path(marker.read_text(encoding="utf-8").strip())
-    else:
-        geo_dir, _ = geo(lab, drive, geo_disc, log)
-        marker.parent.mkdir(parents=True, exist_ok=True)
-        marker.write_text(str(geo_dir), encoding="utf-8")
+    try:
+        burn(lab, drive, geo_disc, iso, log)
+        marker = lab.root / "scores" / f"{tag}-geo.txt"
+        if marker.is_file():
+            geo_dir = Path(marker.read_text(encoding="utf-8").strip())
+        else:
+            geo_dir, _ = geo(lab, drive, geo_disc, log)
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text(str(geo_dir), encoding="utf-8")
+    finally:
+        iso.unlink(missing_ok=True)
     print(f"geo of {geo_disc}: {geo_dir.name}", flush=True)
     from .target import target_npy
     design = target_npy(lab.root / "designs" / "pn_burn.npy")
-    t_iso = SCRATCH_ISO / f"target-{lab.root.name}.iso"
-    if any(t not in lab.state().get("burns", {}) for t in targets):
-        dp(lab, ["image", "--geo", geo_dir / "summary.json", "--design-npy", design, "--output", t_iso,
-                 "--no-photo-l"], log=log)
-    for t in targets:
-        burn(lab, drive, t, t_iso, log)
-    t_iso.unlink(missing_ok=True)          # the burn maps keep what was written; disk space is short
+    t_iso = lab.root / "iso" / "target.iso"
+    try:
+        if any(t not in lab.state().get("burns", {}) for t in targets):
+            dp(lab, ["image", "--geo", geo_dir / "summary.json", "--design-npy", design, "--output", t_iso,
+                     "--no-photo-l"], log=log)
+        for t in targets:
+            burn(lab, drive, t, t_iso, log)
+    finally:
+        t_iso.unlink(missing_ok=True)          # the burn maps keep what was written
     from . import photos as P
     sets = {}
     for i, t in enumerate(targets):
@@ -226,18 +242,18 @@ def loop_photo(lab: Lab, drive="X:", geo_disc=None, targets=None, n_photos=6, st
         run = Path(applied[0]["run"])
         pic_disc = picture_disc or discs[-1]
         for flag, name in ((["--no-photo-l"], "nophoto"), ([], "photo")):
-            out = SCRATCH_ISO / f"picture-{lab.root.name}-{name}.iso"
+            out = lab.root / "iso" / f"picture-{name}.iso"
             # The default grid starts at 24.5 mm, inside geo's measured span only with a wider read; use the
             # target design so the finished disc can be photographed and read again.
-            dp(lab, ["image", "--geo", run / "summary.json", "--design-npy", design, "--output", out, *flag], log=log)
-            pictures[name] = picture_score(lab, out.with_suffix(".image.json"), pic_disc)
-            if name == "photo" and pic_disc not in lab.state().get("burns", {}):
-                burn(lab, drive, pic_disc, out, log)
+            try:
+                dp(lab, ["image", "--geo", run / "summary.json", "--design-npy", design, "--output", out, *flag], log=log)
+                pictures[name] = picture_score(lab, out.with_suffix(".image.json"), pic_disc)
+                if name == "photo" and pic_disc not in lab.state().get("burns", {}):
+                    burn(lab, drive, pic_disc, out, log)
+            finally:
                 out.unlink(missing_ok=True)
             print(f"picture ({name}) on {pic_disc}: rms {pictures[name]['rms_deg']:.3f} deg, "
                   f"pp {pictures[name]['pp_deg']:.3f} deg, L left {pictures[name]['L_mm']:+.3f} mm", flush=True)
-            if name == "nophoto":
-                out.unlink(missing_ok=True)
     summary = summarise(rows)
     summary["pictures"] = pictures
     atomic_json(lab.root / "scores" / f"{tag}.json", dict(summary=summary, rows=rows))
@@ -275,11 +291,14 @@ def add_parser(sub):
     s.add_argument("--seed", type=int, default=0)
     s.add_argument("--tag", default="photo")
     s.add_argument("--workers", type=int, default=3)
+    s.add_argument("--iso-sectors", type=int, help="geo: random image size; omitted keeps the full-size default")
+    s.add_argument("--reps", type=int, help="geo: read pairs per rung; omitted keeps disc-probe's default")
+    s.add_argument("--max-targets", type=int, help="geo: maximum ladder targets; omitted keeps disc-probe's default")
 
     def go(a):
         lab = Lab(a.lab)
         if a.what == "geo":
-            loop_geo(lab, a.drive, a.ranges)
+            loop_geo(lab, a.drive, a.ranges, iso_sectors=a.iso_sectors, reps=a.reps, max_targets=a.max_targets)
         else:
             discs = lab.box()["discs"]
             loop_photo(lab, a.drive, discs[0], discs[1:1 + a.targets], a.photos, a.style, a.seed,
