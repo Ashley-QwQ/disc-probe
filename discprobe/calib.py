@@ -34,6 +34,7 @@ import json
 import math
 import os
 from dataclasses import asdict, dataclass, field
+from functools import lru_cache
 
 import numpy as np
 
@@ -41,7 +42,7 @@ from . import dvd, iso9660
 from .rings import DVD_PLUS_R_SECTORS
 
 SECTOR_BITS = 38688
-GROUP_BYTES = 16  # angle evaluated once per 16 bytes (about 34 um of track)
+GROUP_BYTES = 16  # legacy calibration/randomlabel step (about 34 um of DVD track)
 
 
 def _byte_bit_offsets() -> np.ndarray:
@@ -70,9 +71,27 @@ GROUP_BITS_BD = ((np.arange(dvd.SECTOR_BYTES // GROUP_BYTES) + 0.5)
                  * (SECTOR_BITS_BD / (dvd.SECTOR_BYTES // GROUP_BYTES)))
 
 
-def sector_bits(media: str) -> tuple[float, np.ndarray]:
-    """Channel bits of track in one sector, and the bit offset of each 16-byte group in it."""
-    return (SECTOR_BITS_BD, GROUP_BITS_BD) if media == "bd" else (SECTOR_BITS, GROUP_BITS)
+@lru_cache(maxsize=24, typed=True)
+def group_bits(group_bytes: int = GROUP_BYTES, media: str = "dvd") -> np.ndarray:
+    """Bit offsets at group centres; legacy constants remain 16-byte arrays.
+
+    DVD uses the actual user-byte positions, including sync/parity gaps. BD uses
+    equal slices of its sector's track, as in the existing 16-byte model.
+    """
+    if (isinstance(group_bytes, bool) or not isinstance(group_bytes, int)
+            or group_bytes <= 0 or dvd.SECTOR_BYTES % group_bytes):
+        raise ValueError("group size must be a positive integer divisor of 2048")
+    if group_bytes == GROUP_BYTES:
+        return GROUP_BITS_BD if media == "bd" else GROUP_BITS
+    if media == "bd":
+        groups = dvd.SECTOR_BYTES // group_bytes
+        return (np.arange(groups) + .5) * (SECTOR_BITS_BD / groups)
+    return BYTE_BITS.reshape(-1, group_bytes).mean(axis=1)
+
+
+def sector_bits(media: str, group_bytes: int = GROUP_BYTES) -> tuple[float, np.ndarray]:
+    """Channel bits per sector and offsets for the requested byte-group size."""
+    return (SECTOR_BITS_BD if media == "bd" else SECTOR_BITS), group_bits(group_bytes, media)
 
 
 def theta(n, u, v):
