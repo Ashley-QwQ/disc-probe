@@ -444,7 +444,7 @@ export function photoPage(host, opts = {}) {
       }
       // The stage's own words (the core's status, in this page's language) win over the server's English reason.
       // A fresh read's reason (setReasons) is newer than a listing that has not caught up with it yet.
-      const reasonText = p.stage?.stage === 'ok' ? '' : p.stage?.stage === 'retake' || !p.reason ? p.stage?.why[en ? 'en' : 'zh'] || '' : p.reason;
+      const reasonText = p.stage?.stage === 'ok' ? '' : ['retake', 'outlier'].includes(p.stage?.stage) || !p.reason ? p.stage?.why[en ? 'en' : 'zh'] || '' : p.reason;
       if (reasonText) { const reason = doc.createElement('small'); reason.className = 'pc-photo-reason'; reason.textContent = reasonText; b.append(reason); }
     });
     strip.insertAdjacentHTML('beforeend',button('add',t.addMore,'plus','pc-thumb-add pc-icon-only'));

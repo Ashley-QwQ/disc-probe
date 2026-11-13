@@ -68,12 +68,27 @@ for(const st of ['retake','ok','reading','queued','waiting'])assert.doesNotMatch
 
 // ---- adoption: adopted / provisional / disagree / none ------------------------------------------------------
 assert.equal(words.adoptionWords({state:'adopted',n_agree:2,spread_mm:.012}).title.zh,'已采用');
-assert.match(words.adoptionWords({state:'adopted',n_agree:2,spread_mm:.012}).body.zh,/2 张.*相差 0.012 mm/);
+assert.match(words.adoptionWords({state:'adopted',n_agree:2,spread_mm:.012}).body.zh,/2 张不同角度的照片读数一致，采用它们的中位数/);
 assert.match(words.adoptionWords({state:'provisional'}).body.zh,/临时 L，尚未采用.*再拍一张不同角度.*不用重刻/);
 assert.match(words.adoptionWords({state:'disagree',spread_mm:.4}).body.zh,/对不上.*0.400 mm.*不用重刻/);
 assert.equal(words.adoptionWords({},[]).title.zh,'还没有照片');
 assert.equal(words.adoptionWords({},[{id:'a'}]).title.zh,'等待读取');
 assert.equal(words.adoptionWords({},[{id:'a',verdict:'unsure'}]).title.zh,'还没有可用的');
+// The majority rule: outliers are named and get a retake; a two-camp tie names nobody.
+{
+  const outliers=[{id:'x',name:'IMG_7912.jpeg',L_mm:.3175}];
+  const adopted=words.adoptionWords({state:'adopted',agreeing_count:3,ok_count:4,required_count:3,outliers});
+  assert.match(adopted.body.zh,/4 张可用照片里 3 张读数一致.*中位数.*这几张和多数不一致.*建议转盘重拍：IMG_7912\.jpeg/);
+  const split=words.adoptionWords({state:'split',agreeing_count:3,ok_count:6,required_count:4,outliers});
+  assert.equal(split.title.zh,'分成两派');assert.match(split.body.zh,/两组读数分成了两派（各 3 张）.*请再拍几张不同角度/);
+  assert.doesNotMatch(split.body.zh,/IMG_7912/,'a tie names no outlier');
+  assert.match(words.adoptionWords({state:'disagree',agreeing_count:3,ok_count:6,required_count:4,outliers}).body.zh,/最多 3 张读数一致，没到 6 张可用照片的三分之二（4 张）.*IMG_7912/);
+  assert.equal(words.adoptionWords({state:'disagree',ok_count:2}).title.zh,'两张不一致');
+  assert.equal(words.photoStage({id:'x',verdict:'ok',status:'ok'},{adoption:{state:'adopted',outliers}}).stage,'outlier');
+  assert.equal(words.photoStage({id:'x',verdict:'ok',status:'ok'},{adoption:{state:'split'},outliers}).stage,'ok');
+  assert.equal(words.photoStage({id:'y',verdict:'ok',status:'ok'},{adoption:{state:'adopted',outliers}}).stage,'ok');
+  const many=words.outlierWords([1,2,3,4,5].map(i=>({id:'p'+i,name:'n'+i})));assert.match(many.zh,/n1、n2、n3 等 5 张/);
+}
 // The computer page that starts reads: open, closed, or moved to another run.
 assert.equal(words.deskWords({photos:[{id:'a'}],desk_age:2}).state,'open');
 assert.equal(words.deskWords({photos:[{id:'a'}],desk_age:40}).state,'closed');

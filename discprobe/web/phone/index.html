@@ -25,7 +25,7 @@
   #overall { border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule); padding: 12px 0; margin: 16px 0; }
   #overall b { font-size: 20px; display: block; }
   #overall[data-state="adopted"] b { color: var(--good); }
-  #overall[data-state="provisional"] b, #overall[data-state="disagree"] b, #overall[data-state="refused"] b { color: var(--warn); }
+  #overall[data-state="provisional"] b, #overall[data-state="disagree"] b, #overall[data-state="refused"] b, #overall[data-state="split"] b { color: var(--warn); }
   #overall .sub { color: var(--muted); font-size: 14px; }
   /* a problem the person can fix: a thin line on the left, then the fix */
   .banner { border-left: 3px solid var(--warn); padding: 8px 0 8px 12px; margin: 12px 0; }
@@ -48,7 +48,7 @@
   #sent .name { font-size: 13px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #sent .act { font-weight: 600; }
   #sent [data-stage="ok"] .act { color: var(--good); }
-  #sent [data-stage="retake"] .act, #sent [data-stage="failed"] .act, #sent [data-stage="error"] .act { color: var(--warn); }
+  #sent [data-stage="retake"] .act, #sent [data-stage="failed"] .act, #sent [data-stage="outlier"] .act, #sent [data-stage="error"] .act { color: var(--warn); }
   #sent .why { margin: 0; font-size: 15px; }
   #sent .when { margin: 0; font-size: 13px; color: var(--muted); }
   #sent .row { display: flex; flex-wrap: wrap; gap: 8px; grid-column: 2; }
@@ -243,7 +243,7 @@
     li.append(img, name, both(s.act, 'span'), both(s.why, 'p'));
     li.children[2].className = 'act'; li.children[3].className = 'why';
     if (s.when.zh) { const w = document.createElement('p'); w.className = 'when'; w.textContent = line(s.when); li.append(w); }
-    if (s.stage === 'retake' || s.stage === 'failed') {
+    if (s.stage === 'retake' || s.stage === 'failed' || s.stage === 'outlier') {
       const row = document.createElement('div'); row.className = 'row';
       const retake = document.createElement('button'); retake.type = 'button'; retake.textContent = '重拍 / Retake'; retake.disabled = !!blocked;
       retake.onclick = () => $('camera').click(); row.append(retake); li.append(row);

@@ -102,7 +102,7 @@
 .pc-photo-reason { white-space: normal; overflow-wrap: anywhere; color: var(--ink-2); font-size: 13px; line-height: 1.4; }
 .pc-photo-act { font-size: 13px; font-weight: 600; line-height: 1.3; color: var(--ink-2); transition: color 200ms var(--ease, ease); }
 .pc-photo-act[data-stage="ok"] { color: var(--good, var(--ink)); }
-.pc-photo-act[data-stage="retake"], .pc-photo-act[data-stage="failed"] { color: var(--warn, var(--ink)); }
+.pc-photo-act[data-stage="retake"], .pc-photo-act[data-stage="failed"], .pc-photo-act[data-stage="outlier"] { color: var(--warn, var(--ink)); }
 .pc-read-state { font-size: 14px; color: var(--ink-2); margin: 8px 0 0; }
 .cal-stamp[data-adoption="provisional"] b, .cal-stamp[data-adoption="disagree"] b { color: var(--warn, var(--ink)); }
 .cal-stamp[data-adoption="adopted"] b { color: var(--good, var(--ink)); }
@@ -207,4 +207,6 @@
 .pc-disc-id input { font: inherit; color: var(--ink); background: transparent; min-height: 44px; max-width: 16em; padding: 8px 10px; border: 1px solid var(--rule-strong); border-radius: 4px; }
 .pc-disc-id input:focus-visible { outline: 2px solid var(--copper, var(--ink)); outline-offset: 2px; }
 .pc-disc-id small { color: var(--ink-2); font-size: 13px; line-height: 1.45; }
-.cal-stamp[data-adoption="refused"] b { color: var(--warn, var(--ink)); }
+.cal-stamp[data-adoption="refused"] b, .cal-stamp[data-adoption="split"] b { color: var(--warn, var(--ink)); }
+/* The photo stamp can have more than three rows: keep every row beside the stamp, never under it. */
+.cal .cal-stamp[data-adoption] > dl > div { grid-column: 2; }

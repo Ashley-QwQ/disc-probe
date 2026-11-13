@@ -531,3 +531,27 @@ def test_listing_carries_the_application_gate_and_the_disc_number(tmp_path):
         assert listing["application"]["written"] is False and listing["application"]["reason"]
         # The gate's reason is a code the pages translate, never a sentence with a colon.
         assert ":" not in listing["application"]["reason"]
+
+
+def test_photo_adoption_majority_outliers_and_the_two_camp_tie():
+    def camp(ident, value):
+        return dict(id=ident, name=f"IMG_{ident}.jpeg", status="ok", L_mm=value)
+    # A unique majority: the outside photo is named, with its file name.
+    outlier = dict(id="7912", name="IMG_7912.jpeg", L_mm=.3175, reason="outside_common_interval", suggestion="Turn the disc and reshoot this photo.")
+    record = dict(verdict="ok", photos=[camp("7911", .126), camp("7917", -.017), camp("7919", .072), camp("7912", .3175)],
+                  outliers=[outlier], application_agreement=dict(written=True, L_mm=.072, photo_ids=["7911", "7917", "7919"],
+                  outliers=[outlier], agreeing_count=3, ok_count=4, required_count=3, common_interval_mm=[.08, .118]))
+    result = webui.photo_adoption(record)
+    assert result["state"] == "adopted" and result["agreeing_count"] == 3 and result["ok_count"] == 4
+    assert result["outliers"] == [dict(id="7912", name="IMG_7912.jpeg", L_mm=.3175, reason="outside_common_interval")]
+    assert result["common_interval_mm"] == [.08, .118]
+    # The user's eleven real photos: six ok, two camps of three that do not overlap. Nobody is named.
+    six = [camp(i, v) for i, v in (("7911", .126), ("7917", -.017), ("7919", .072), ("7909", .211), ("7912", .318), ("7914", .270))]
+    tie = dict(verdict="unsure", photos=six, outliers=[outlier],
+               application_agreement=dict(written=False, reason="ambiguous_majority", outliers=[], agreeing_count=3, ok_count=6, required_count=4))
+    result = webui.photo_adoption(tie)
+    assert result["state"] == "split" and result["outliers"] == [] and result["agreeing_count"] == 3
+    # Below two-thirds with a unique largest set: disagree, and the outside photos are still reported.
+    short = dict(tie, application_agreement=dict(written=False, reason="photos_disagree", outliers=[outlier], agreeing_count=3, ok_count=6, required_count=4))
+    result = webui.photo_adoption(short)
+    assert result["state"] == "disagree" and result["required_count"] == 4 and [o["id"] for o in result["outliers"]] == ["7912"]

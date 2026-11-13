@@ -134,10 +134,18 @@ for(const missing of ['/api/phone-link','/api/photos']) {
   // Adopted, then the core's own application gate: applied with its value, or why not.
   assert.match(x.wire.photoStamp({verdict:'ok',per_photo:[],adoption:{state:'adopted'},application:{written:true,L_mm:-2.12,frames:-12.98,disc_id:'T1'}}),/出图会用 L −2.120 mm · -12.98 frames（标靶盘 T1）/);
   assert.match(x.wire.photoStamp({verdict:'ok',per_photo:[],adoption:{state:'adopted'},application:{written:false,reason:'unknown_disc'}}),/<dd class="act">没填标靶盘号/);
+  // Majority: an adopted read names its outliers; a two-camp tie is held and names nobody.
+  {
+    const outliers=[{id:'p3',name:'IMG_7912.jpeg',L_mm:.3}];
+    const adopted=x.wire.photoStamp({verdict:'ok',per_photo:[],adoption:{state:'adopted',source:'core',agreeing_count:3,ok_count:4,required_count:3,outliers}});
+    assert.match(adopted,/已采用/);assert.match(adopted,/<dd class="act">4 张可用照片里 3 张读数一致.*IMG_7912\.jpeg/);
+    const split=x.wire.photoStamp({verdict:'unsure',per_photo:[],adoption:{state:'split',source:'core',agreeing_count:3,ok_count:6,outliers:[]}});
+    assert.match(split,/data-adoption="split"/);assert.match(split,/分成两派/);assert.match(split,/两组读数分成了两派/);
+  }
   // Repeated advice is said once, with how many photos it applies to.
   assert.match(x.wire.photoStamp({verdict:'unsure',per_photo:[{id:'a',verdict:'unsure',status:'no_rim'},{id:'b',verdict:'unsure',status:'no_rim'}]}),/2 张 · 拍全盘/);
   // The two-photo rule: a single photo is provisional and a disagreement is said, neither is "usable".
-  for (const [state, words] of [['provisional',/暂定.*再拍一张不同角度/s],['disagree',/两张不一致.*不用重刻/s],['refused',/不采用/s]]) {
+  for (const [state, words] of [['provisional',/暂定.*再拍一张不同角度/s],['disagree',/不一致.*不用重刻/s],['refused',/不采用/s]]) {
     const html=x.wire.photoStamp({verdict:'ok',per_photo:[{id:'p1',verdict:'ok',status:'ok'}],adoption:{state,spread_mm:.31,reason:'same_pose'}});
     assert.match(html,words); assert.match(html,new RegExp(`data-adoption="${state}"`)); assert.doesNotMatch(html,/已采用/);
   }
