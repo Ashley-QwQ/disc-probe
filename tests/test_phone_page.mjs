@@ -69,7 +69,7 @@ for(const st of ['retake','ok','reading','queued','waiting'])assert.doesNotMatch
 // ---- adoption: adopted / provisional / disagree / none ------------------------------------------------------
 assert.equal(words.adoptionWords({state:'adopted',n_agree:2,spread_mm:.012}).title.zh,'已采用');
 assert.match(words.adoptionWords({state:'adopted',n_agree:2,spread_mm:.012}).body.zh,/2 张.*相差 0.012 mm/);
-assert.match(words.adoptionWords({state:'provisional'}).body.zh,/暂定.*再拍一张不同角度.*不用重刻/);
+assert.match(words.adoptionWords({state:'provisional'}).body.zh,/临时 L，尚未采用.*再拍一张不同角度.*不用重刻/);
 assert.match(words.adoptionWords({state:'disagree',spread_mm:.4}).body.zh,/对不上.*0.400 mm.*不用重刻/);
 assert.equal(words.adoptionWords({},[]).title.zh,'还没有照片');
 assert.equal(words.adoptionWords({},[{id:'a'}]).title.zh,'等待读取');
@@ -81,6 +81,23 @@ assert.equal(words.deskWords({photos:[{id:'a'}],desk_age:null}).state,'closed');
 assert.equal(words.deskWords({photos:[{id:'a',verdict:'ok'}],desk_age:40}).state,'open','nothing waits: nothing to say');
 assert.match(words.deskWords({desk_elsewhere:true}).words.zh,/另一次标定.*不会挂到新的上/);
 assert.ok(words.shootingTips.some(t=>/背对/.test(t.zh))&&words.shootingTips.some(t=>/白色圆形反光/.test(t.zh)));
+// The core's two-pose rule: provisional shows its value as provisional, refusals say which check failed.
+assert.match(words.adoptionWords({state:'provisional',provisional_mm:-2.1234}).body.zh,/临时 L −2.123 mm，尚未采用.*转一下盘/);
+assert.doesNotMatch(words.adoptionWords({state:'provisional'}).body.zh,/L 0|0\.000/,'no value is never shown as zero');
+for (const reason of ['same_pose','duplicate_photo','unknown_spread_or_pose','unknown_photo_input','group_not_ok']) {
+  const w=words.adoptionWords({state:'refused',reason});assert.equal(w.title.zh,'不采用');assert.ok(w.body.zh&&w.body.en,reason);
+}
+assert.match(words.adoptionWords({state:'refused',reason:'same_pose'}).body.zh,/10°/);
+// Applied to pictures only through the core's gate; every refusal it can give has words.
+const py2=readFileSync(new URL('../discprobe/photo.py',import.meta.url),'utf8');
+for (const code of new Set([...py2.matchAll(/(?:refused|no)\("([A-Za-z_]+)/g)].map(m=>m[1]))) assert.ok(words.applicationReasons[code],code);
+assert.match(words.applicationWords({written:true,L_mm:-2.12,frames:-12.985,sectors:-.33,disc_id:'T1'},'cd').words.zh,/−2.120 mm · -12.98 frames（标靶盘 T1）/);
+assert.match(words.applicationWords({written:true,L_mm:.5,frames:3,sectors:.012},'dvd').words.en,/\+0.500 mm · 0.012 sectors/);
+assert.doesNotMatch(words.applicationWords({written:true,L_mm:.5,frames:3,sectors:.012},'dvd').words.en,/frames/,'DVD never in CD frames');
+assert.match(words.applicationWords({written:false,reason:'unknown_disc'}).words.zh,/标靶盘号/);
+assert.match(words.applicationWords({written:false,reason:'unknown_burn_path'}).words.zh,/不能说已修正/);
+assert.match(words.photoLWords({written:true,L_mm:1,sectors:.5,reader_version:'v1'},'dvd',{reopened:true}).zh,/沿用此 ISO 已保存的 L \+1.000 mm/);
+assert.match(words.photoLWords({written:false,reason:'opted_out'}).zh,/没有用照片 L：.*不用照片修正/);
 
 // ---- the page itself, with a small DOM ----------------------------------------------------------------------
 class Element {
@@ -91,7 +108,7 @@ class Element {
   closest(){return this.parent||new Element('label');}
   get innerText(){return [this.textContent,...this.children.map(c=>typeof c==='string'?c:c.innerText)].join(' ');}
 }
-const ids=['config','run','overall','problem','tips','tip-list','empty','sent','camera','gallery'];
+const ids=['config','run','disc','overall','problem','tips','tip-list','empty','sent','camera','gallery'];
 const nodes=Object.fromEntries(ids.map(id=>[id,new Element('div')]));
 nodes.camera.parent=new Element('label');nodes.gallery.parent=new Element('label');
 nodes.config.textContent=JSON.stringify({run:'run-one',token:'phone-token'});
@@ -109,12 +126,15 @@ const flush=async()=>{for(let i=0;i<20;i++)await Promise.resolve();};await flush
 assert.equal(requests[0].opts.headers['X-Photo-Token'],'phone-token');
 assert.equal(requests[0].path,'/api/photos?run=run-one');
 assert.match(nodes.run.innerText,/run-one/,'the page names the run the photos belong to');
+assert.equal(nodes.disc.hidden,true,'no disc number declared yet');
 assert.equal(nodes['tip-list'].children.length,words.shootingTips.length);
 assert.match(nodes.overall.innerText,/还没有照片/);
 // Photos from every device of this run are listed; their stage and time are shown.
 answer.body={photos:[{id:'a',name:'a.jpg',url:'/api/photos/run-one/a',time:990,verdict:'unsure',status:'too_few_votes'},{id:'b',name:'b.jpg',url:'/api/photos/run-one/b',time:995}],
   adoption:{state:'none'},now:1000,read_at:999,read_photos:['a'],analysis:{state:'reading',photos:['a','b'],seconds:4},desk_age:1};
+answer.body.disc_id='T1';
 await context.poll();
+assert.equal(nodes.disc.hidden,false);assert.match(nodes.disc.textContent,/T1/);
 assert.equal(nodes.sent.children.length,2);
 const [newest,older]=nodes.sent.children;
 assert.equal(newest.dataset.stage,'reading');assert.equal(older.dataset.stage,'retake');

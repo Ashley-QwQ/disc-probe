@@ -25,7 +25,7 @@
   #overall { border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule); padding: 12px 0; margin: 16px 0; }
   #overall b { font-size: 20px; display: block; }
   #overall[data-state="adopted"] b { color: var(--good); }
-  #overall[data-state="provisional"] b, #overall[data-state="disagree"] b { color: var(--warn); }
+  #overall[data-state="provisional"] b, #overall[data-state="disagree"] b, #overall[data-state="refused"] b { color: var(--warn); }
   #overall .sub { color: var(--muted); font-size: 14px; }
   /* a problem the person can fix: a thin line on the left, then the fix */
   .banner { border-left: 3px solid var(--warn); padding: 8px 0 8px 12px; margin: 12px 0; }
@@ -83,6 +83,7 @@
 <main>
   <h1>拍摄标靶<span class="en" lang="en">Photograph the target</span></h1>
   <p class="run" id="run"></p>
+  <p class="run" id="disc" hidden></p>
   <div class="banner" id="problem" role="alert" hidden></div>
   <section id="overall" role="status" aria-live="polite" data-state="none"><b></b><span class="sub"></span></section>
   <details class="tips" id="tips" open>
@@ -211,6 +212,9 @@
     const photos = listing.photos || [];
     const adoption = adoptionWords(listing.adoption || {}, photos);
     const desk = deskWords(listing);
+    // The target disc the computer declared for these photos (photo --disc-id); set on the computer, shown here.
+    const disc = $('disc'); disc.hidden = !listing.disc_id;
+    if (listing.disc_id && disc.dataset.value !== listing.disc_id) { disc.dataset.value = listing.disc_id; disc.textContent = '标靶盘 / Target disc: ' + listing.disc_id; }
     const overall = $('overall');
     overall.dataset.state = adoption.state;
     overall.hidden = !!blocked;

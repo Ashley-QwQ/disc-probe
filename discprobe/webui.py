@@ -398,19 +398,45 @@ def read_disc_child(root: Path, drive: str) -> dict:
     raise APIError("could not read the drive: " + (done.stderr or done.stdout).strip()[-300:], 502)
 
 
-def photo_adoption(record):
-    """Whether the along-track constant from this read is used, in four states the pages put into words.
+PHOTO_REFUSALS = ("same_pose", "duplicate_photo", "unknown_spread_or_pose", "unknown_photo_input")
 
-    The core's own decision wins when photo.json carries one (``adoption``: state, photos, spread_mm, L_mm).
-    Until then it is read from the reader's group vote: two or more photos that agree is "adopted", one
-    accepted photo is "provisional", photos that disagree is "disagree", anything else "none".
+
+def photo_adoption(record):
+    """The read's state for the pages: adopted, provisional, disagree, refused or none.
+
+    It follows the core's two-pose rule (photo.json ``application_agreement``, photo.photo_agreement):
+    two or more ok photos with distinct originals, at least 10 degrees apart, that all agree. One ok photo
+    is provisional, with its value only as ``provisional_mm``. Older records without the rule fall back to
+    the reader's group vote. Whether L is then applied to a picture is a further gate: photo_application().
     """
     if not isinstance(record, dict):
         return dict(state="none", source="none")
-    own = record.get("adoption")
-    if isinstance(own, dict) and own.get("state") in ("adopted", "provisional", "disagree", "none"):
-        keep = {k: own.get(k) for k in ("state", "photos", "spread_mm", "L_mm", "reason") if k in own}
-        return dict(keep, source="core")
+    ok = [p for p in record.get("photos") or [] if isinstance(p, dict) and p.get("status") == "ok"]
+    agreement = record.get("application_agreement")
+    if isinstance(agreement, dict):
+        reason = agreement.get("reason")
+        if agreement.get("written") and record.get("verdict") == "ok":
+            state = "adopted"
+        elif reason == "one_photo_provisional":
+            state = "provisional"
+        elif reason == "photos_disagree":
+            state = "disagree"
+        elif reason in PHOTO_REFUSALS:
+            state = "refused"
+        elif agreement.get("written"):
+            # The two-pose rule agrees but the reader's own group vote did not accept it.
+            state, reason = "refused", "group_not_ok"
+        else:
+            state = "none"
+        out = dict(state=state, source="core", reason=reason, n_ok=len(ok), disc_id=record.get("disc_id"))
+        values = [p["L_mm"] for p in ok if isinstance(p.get("L_mm"), (int, float)) and math.isfinite(p["L_mm"])]
+        if state == "disagree" and len(values) > 1:
+            out["spread_mm"] = max(values) - min(values)
+        if state == "adopted":
+            out["n_agree"] = len(agreement.get("photo_ids") or [])
+        if state == "provisional" and isinstance(record.get("provisional_mm"), (int, float)):
+            out["provisional_mm"] = record["provisional_mm"]
+        return out
     group = record.get("group") if isinstance(record.get("group"), dict) else {}
     status, why = group.get("status"), str(group.get("why") or "")
     spread = group.get("spread_mm") if isinstance(group.get("spread_mm"), (int, float)) else None
@@ -427,6 +453,31 @@ def photo_adoption(record):
         out["spread_mm"] = spread
     if why:
         out["why"] = why
+    return out
+
+
+def photo_application(run_dir):
+    """Whether a picture made from this run would use its photo L now, by the core's own gate (photo.photo_l).
+
+    Only what the pages show: applied or not, the reason code, and the value in the run's media units.
+    It reads the run's files and changes nothing; the picture job decides again when it runs.
+    """
+    from . import photo
+    folder = Path(run_dir)
+    if not (folder / "photo.json").is_file() or not (folder / "summary.json").is_file():
+        return dict(written=False, reason="no_photo")
+    try:
+        decision = photo.photo_l(folder / "summary.json")
+    except Exception:          # the gate is advisory here; the picture job runs it again
+        return dict(written=False, reason="invalid_photo")
+    out = dict(written=bool(decision.get("written")), reason=str(decision.get("reason") or "").split(":", 1)[0] or None)
+    for key in ("L_mm", "frames", "sectors", "channel_bits", "reader_version"):
+        if key in decision:
+            out[key] = decision[key]
+    provenance = decision.get("provenance") or {}
+    if provenance:
+        out.update(disc_id=provenance.get("disc_id"), burn_path=provenance.get("burn_path"),
+                   photo_ids=provenance.get("photo_ids"))
     return out
 
 
@@ -619,7 +670,10 @@ class Backend:
             listing["group"] = {k: group[k] for k in ("status", "why", "n_ok", "n_agree", "spread_mm") if k in group}
             listing["read_photos"] = [p.get("id") for p in record.get("per_photo", []) if isinstance(p, dict)]
             listing["media"] = record.get("media")
+            listing["disc_id"] = record.get("disc_id")
+            listing["provisional_mm"] = record.get("provisional_mm")
         listing["adoption"] = photo_adoption(record)
+        listing["application"] = photo_application(self.photos.run_dir(run))
         listing.update(analysis=analysis, now=now, desk_elsewhere=elsewhere,
                        desk_age=None if seen is None else round(now - seen, 1))
         return listing
@@ -766,6 +820,7 @@ class Backend:
                     group = record.get("group") if isinstance(record, dict) and isinstance(record.get("group"), dict) else {}
                     job.result["group"] = {k: group[k] for k in ("status", "why", "n_ok", "n_agree", "spread_mm") if k in group}
                     job.result["adoption"] = photo_adoption(record)
+                    job.result["application"] = photo_application(done.get("path") or "")
                     job.result["seconds"] = round(job.finished_at - job.started_at, 1)
             elif job.action == "calibrate":
                 # what the core found, from its last `calibrated` event: the measured folders, their

@@ -27,7 +27,7 @@ import {ringButton} from '/kit/ringbutton.js';
 import {flipValue} from '/kit/flipnum.js';
 import {photoPage} from '/photocal.js';
 import {budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason,photoSaveWords} from '/guidance.mjs';
-import {photoReasonWords,adoptionWords,seconds as photoSeconds} from '/photowords.mjs';
+import {photoReasonWords,adoptionWords,applicationWords,seconds as photoSeconds} from '/photowords.mjs';
 let clockNow=Date.now(); Date.now=()=>clockNow;
 const realTimeout=window.setTimeout.bind(window);
 window.setTimeout=(fn,ms,...args)=>{if(ms===25000){window.helpTimer=fn;window.helpBorn=Date.now();}return realTimeout(fn,ms,...args);};
@@ -67,7 +67,7 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
       const r=await send('Runtime.evaluate',{expression:`(async()=>{${code}})()`,awaitPromise:true,returnByValue:true});
       if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception.description);return r.result.value;
     };
-    const waitFor=async code=>{for(let i=0;i<100;i++){if(await run(`return !!(${code});`))return;await new Promise(r=>setTimeout(r,30));}throw new Error('Timeout: '+code+' '+JSON.stringify(exceptions));};
+    const waitFor=async(code,tries=100)=>{for(let i=0;i<tries;i++){if(await run(`return !!(${code});`))return;await new Promise(r=>setTimeout(r,30));}throw new Error('Timeout: '+code+' '+JSON.stringify(exceptions));};
     await send('Runtime.enable');
     await send('Page.enable');
     await send('Page.stopLoading');
@@ -135,7 +135,8 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     // A successful auto-align has a signed offset and Next uses it without another photo job.
     await run(`wire.init({media:'cd',verdict:'good',phone:'http://lan/phone/token'});await wire.next();`);await waitFor("wire.ui()?.status==='ready'");
     await run(`window.photoResult={verdict:'ok',per_photo:[{id:'p1',verdict:'ok',status:'ok'},{id:'p2',verdict:'ok',status:'ok'}],rings_mm:[30,38,47,55],offset_mm:-0.12,L_frames:2.5};window.photos=[wire.photo(),wire.photo('p2')];`);
-    await waitFor("wire.page()?.state().offsetMm===-0.12");
+    // New photos arrive with the next 2 s listing poll, then the 1.5 s read debounce: allow for both under load.
+    await waitFor("wire.page()?.state().offsetMm===-0.12",300);
     assert.deepEqual(await run(`return window.jobs.find(j=>j.action==='photo').args.photos;`),['p1','p2']);
     await run(`await wire.next();`);
     assert.equal(await run(`return wire.state().realPhase;`),'saved');

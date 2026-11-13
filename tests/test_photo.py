@@ -323,7 +323,7 @@ def test_photo_web_job_result_and_validation(tmp_path):
         assert job.finished.wait(45)
         assert job.exit == 0 and job.media == "dvd" and job.result["verdict"] == "unsure"
         assert set(job.result) == {"verdict", "per_photo", "rings_mm", "offset_mm", "L_frames", "confidence", "path", "provisional_mm",
-                                   "group", "adoption", "seconds"}
+                                   "group", "adoption", "application", "seconds"}
         assert job.result["adoption"]["state"] == "none" and job.result["seconds"] >= 0
         assert job.result["per_photo"][0]["id"] == row["id"]
         assert job.result["per_photo"][0]["status"] == "no_rim"
@@ -465,12 +465,44 @@ def test_listing_says_whether_the_computer_page_is_open_and_on_which_run(tmp_pat
     (dict(verdict="unsure", group=dict(status="unknown", why="photos disagree", n_ok=2, spread_mm=.4)), "disagree"),
     (dict(verdict="unsure", group=dict(status="unknown", why="the photos' L scans disagree", n_ok=0)), "disagree"),
     (dict(verdict="unsure", group=dict(status="unknown", why="fewer than two photos with a clear peak")), "none"),
-    # The core's own decision wins once photo.json carries one.
-    (dict(verdict="ok", group=dict(status="ok"), adoption=dict(state="provisional", photos=["a"])), "provisional"),
-    (dict(verdict="ok", group=dict(status="ok"), adoption=dict(state="nonsense")), "adopted"),
 ])
-def test_photo_adoption_states(record, state):
+def test_photo_adoption_of_records_before_the_two_pose_rule(record, state):
     result = webui.photo_adoption(record)
     assert result["state"] == state
-    if record and isinstance(record.get("adoption"), dict) and record["adoption"].get("state") == state:
-        assert result["source"] == "core" and result["photos"] == ["a"]
+
+
+@pytest.mark.parametrize("agreement, extra, state, reason", [
+    (dict(written=True, L_mm=1.0, photo_ids=["a", "b"]), dict(verdict="ok"), "adopted", None),
+    (dict(written=False, reason="one_photo_provisional"), dict(verdict="unsure", provisional_mm=1.2), "provisional", "one_photo_provisional"),
+    (dict(written=False, reason="photos_disagree"), dict(verdict="unsure"), "disagree", "photos_disagree"),
+    (dict(written=False, reason="same_pose"), dict(verdict="unsure"), "refused", "same_pose"),
+    (dict(written=False, reason="duplicate_photo"), dict(verdict="unsure"), "refused", "duplicate_photo"),
+    (dict(written=True, L_mm=1.0, photo_ids=["a", "b"]), dict(verdict="unsure"), "refused", "group_not_ok"),
+    (dict(written=False, reason="no_accepted_photos"), dict(verdict="unsure"), "none", "no_accepted_photos"),
+])
+def test_photo_adoption_follows_the_core_two_pose_rule(agreement, extra, state, reason):
+    photos = [dict(status="ok", L_mm=1.0), dict(status="ok", L_mm=1.4), dict(status="no_rim")]
+    result = webui.photo_adoption(dict(application_agreement=agreement, photos=photos, disc_id="T1", **extra))
+    assert result["state"] == state and result["reason"] == reason and result["source"] == "core"
+    assert result["n_ok"] == 2 and result["disc_id"] == "T1"
+    if state == "provisional":
+        assert result["provisional_mm"] == 1.2
+    if state == "disagree":
+        assert result["spread_mm"] == pytest.approx(.4)
+    if state == "adopted":
+        assert result["n_agree"] == 2
+
+
+def test_listing_carries_the_application_gate_and_the_disc_number(tmp_path):
+    with serving(tmp_path) as s:
+        upload(s)
+        listing = json_request(s, "GET", "/api/photos?run=geo-test")[1]
+        assert listing["application"] == dict(written=False, reason="no_photo")
+        folder = tmp_path / "results/geo-test"
+        (folder / "photo.json").write_text(json.dumps(dict(verdict="unsure", media="cd", per_photo=[], photos=[], disc_id="T1",
+            provisional_mm=None, application_agreement=dict(written=False, reason="no_accepted_photos"))), encoding="utf-8")
+        listing = json_request(s, "GET", "/api/photos?run=geo-test")[1]
+        assert listing["disc_id"] == "T1" and listing["adoption"]["state"] == "none"
+        assert listing["application"]["written"] is False and listing["application"]["reason"]
+        # The gate's reason is a code the pages translate, never a sentence with a colon.
+        assert ":" not in listing["application"]["reason"]

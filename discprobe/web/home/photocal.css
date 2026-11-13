@@ -202,3 +202,9 @@
   .pc-embedded .pc-phone-empty .pc-qr { max-width: 100%; }
 }
 .cal-stamp[data-adoption] dd { white-space: pre-line; }
+.pc-disc-id { display: grid; gap: 6px; margin: 16px 0 4px; }
+.pc-disc-id span { font-weight: 600; }
+.pc-disc-id input { font: inherit; color: var(--ink); background: transparent; min-height: 44px; max-width: 16em; padding: 8px 10px; border: 1px solid var(--rule-strong); border-radius: 4px; }
+.pc-disc-id input:focus-visible { outline: 2px solid var(--copper, var(--ink)); outline-offset: 2px; }
+.pc-disc-id small { color: var(--ink-2); font-size: 13px; line-height: 1.45; }
+.cal-stamp[data-adoption="refused"] b { color: var(--warn, var(--ink)); }
