@@ -5,7 +5,10 @@ import {readFileSync} from 'node:fs';
 // Import the source unchanged, with no DOM mocks or third-party packages.
 const source = readFileSync(new URL('../discprobe/web/home/photocal.js', import.meta.url), 'utf8');
 const {DEFAULT_RINGS, ringHandles, mmToPx, pxToMm, zoomAt, resizeRing, magnifierPlacement, photoKey}
-  = await import('data:text/javascript;base64,' + Buffer.from(source.replace(/^import .*;$/gm, '')).toString('base64'));
+  = await import('data:text/javascript;base64,' + Buffer.from(
+    `import {photoReasonWords, photoStage, shootingTips} from '${new URL('../discprobe/web/home/photowords.mjs', import.meta.url).href}';
+`
+    + source.replace(/^import .*;$/gm, '')).toString('base64'));
 const close = (a,b) => assert.ok(Math.abs(a-b) < 1e-9, `${a} != ${b}`);
 
 assert.deepEqual(DEFAULT_RINGS, [30,38,47,55]);

@@ -13,6 +13,7 @@ import * as EditorOps from "./design/editor-ops.mjs";
 import { processingWorker } from "./design/worker-client.mjs";
 import { downloadTemplate } from "./design/template-download.mjs";
 import { hasCapability } from "./handshake.mjs";
+import { CELLS, COST, geoChoice, burnDocument, checkTextures, experimentalContent, pictureSampling } from "./design/export-rules.mjs";
 
 let api, $;
 const root = document.documentElement;
@@ -95,6 +96,15 @@ const STR = {
     loupe: "放大镜", loupeHint: (c, f) => `1 格 = ${c} µm · 视野 ${f} mm`,
     sampleName: "示例：山和太阳",
     fit: "适应", hundred: "100%",
+    grid: "刻录格子",
+    cellCost: (um, c) => um === 20 ? `默认。生成约 ${c.minutes} 分钟。` : `生成约 ${c.minutes} 分钟，要 ${c.gb} GB 左右内存。${um === 5 ? "显微镜下 5 µm 棋盘格是临界失败。" : ""}`,
+    coarse: (um) => `图片本身每像素约 ${um} µm，比格子粗：格子再细，图也不会更清楚。`,
+    limits: "随盘文件和音乐还不能一起刻。颜色、彩色图案和特效只是预览实验，默认按黑白刻。",
+    cdLimit: "CD 只刻深浅两级，四级灰度和颜色都还不能刻。",
+    lost: (names) => `这些图层没能读出来，已跳过：${names}。其余照原样打开；再保存就不带它们了。`,
+    tooLarge: (n, mb) => `${n} 有 ${mb} MB，超过这一版能打开的 400 MB。`,
+    bigWork: (mb) => `这件作品有 ${mb} MB，超过一次能交给后端的 384 MB：删掉几个图层或换小一点的图再试。`,
+    exp2: { bwOnly: (s) => `刻录文件里出现了黑白以外的纹理（${s}），没有生成。`, noCell: "格子只能是 20、10 或 5 µm。" },
   },
   en: {
     untitled: "Untitled work", next: "Next: preview", whyNoPicture: "Add a picture first",
@@ -171,6 +181,15 @@ const STR = {
     loupe: "Loupe", loupeHint: (c, f) => `1 cell = ${c} µm · ${f} mm across`,
     sampleName: "Sample: hills and sun",
     fit: "Fit", hundred: "100%",
+    grid: "Burn grid",
+    cellCost: (um, c) => um === 20 ? `Default. Takes about ${c.minutes} min to make.` : `Takes about ${c.minutes} min and ${c.gb} GB of memory to make.${um === 5 ? " A 5 µm checkerboard is a borderline fail under the microscope." : ""}`,
+    coarse: (um) => `The picture itself has about ${um} µm per pixel, coarser than the grid: a finer grid won't make it sharper.`,
+    limits: "Files and music can't be burned with it yet. Colours, coloured patterns and effects are a preview experiment; they burn in black and white by default.",
+    cdLimit: "A CD burns two levels, dark and light; four grey levels and colours can't be burned yet.",
+    lost: (names) => `These layers couldn't be read and were left out: ${names}. The rest opened as saved; saving again drops them.`,
+    tooLarge: (n, mb) => `${n} is ${mb} MB, more than the 400 MB this version can open.`,
+    bigWork: (mb) => `This work is ${mb} MB, more than the 384 MB the back end takes at once: remove a few layers or use smaller pictures.`,
+    exp2: { bwOnly: (s) => `The burn file had textures other than black and white (${s}); nothing was made.`, noCell: "The grid can only be 20, 10 or 5 µm." },
   },
 };
 const T = () => STR[api.lang()] ?? STR.zh;
@@ -252,7 +271,7 @@ function pictureRange() {
 // snapshot only holds references to them.
 const PROPS = ["name", "x", "y", "width", "height", "rot", "opacity", "visible", "locked", "px", "colour", "y1", "y2", "fxKind"];
 function snapshot() {
-  return { editor: structuredClone({selections:S.selections, assignments:S.assignments, activeMask:S.activeMask, maskGrid:S.maskGrid, materials:S.materials}), layers: S.layers.map((L) => ({ obj: L, props: Object.fromEntries(PROPS.map((k) => [k, L[k]])) })), selected: S.selected };
+  return { editor: structuredClone({selections:S.selections, assignments:S.assignments, activeMask:S.activeMask, maskGrid:S.maskGrid, materials:S.materials, cell:S.cell}), layers: S.layers.map((L) => ({ obj: L, props: Object.fromEntries(PROPS.map((k) => [k, L[k]])) })), selected: S.selected };
 }
 let lastMark = { key: "", t: 0 };
 function checkpoint(key = "") {
@@ -1187,6 +1206,7 @@ function buildLeft() {
       : `<p class="empty-l">${t.noLayers}</p>`) +
     `<button class="sbtn wide" type="button" data-a="import">${I.image}${t.import}</button>` +
     `<button class="sbtn wide template-download" type="button" data-a="template" data-capability="templates" ${hasCapability('templates') ? '' : 'hidden'}>${api.lang() === "en" ? "Download template" : "下载模板"}</button></section>` +
+    burnSection() +
     // files on the disc: the core cannot write them yet (`image` has no files, the ISO no entries), so the page
     // does not show them at all until it does (a column explaining a missing feature is noise)
     (!FILES_READY ? "" : `<section><h3>${t.files}</h3>` +
@@ -1203,6 +1223,21 @@ function buildLeft() {
   }
   editor?.left();
 }
+// What the burn file will be: the grid (20 µm unless chosen), what a finer one costs, whether the pictures are
+// fine enough for it, and what can't be burned yet. Said where the work is made, not only at the burn.
+function burnKey() {
+  const um = Math.round(S.cell * 1000), px = pictureSampling(S.layers);
+  return [um, um < 20 && px && px > um * 1.05 ? Math.round(px) : 0, S.media, api.lang()].join("|");
+}
+function burnSection() {
+  const t = T(), um = Math.round(S.cell * 1000), px = pictureSampling(S.layers);
+  return `<section class="burnset" data-key="${burnKey()}"><h3>${t.grid}</h3>` +
+    `<div class="seg" role="group" aria-label="${t.grid}">` +
+    Object.keys(CELLS).map(Number).sort((a, b) => b - a).map((u) => `<button type="button" data-um="${u}" aria-pressed="${um === u}">${u} µm</button>`).join("") +
+    `</div><p class="note quiet">${t.cellCost(um, COST[um])}</p>` +
+    (um < 20 && px && px > um * 1.05 ? `<p class="note quiet">${t.coarse(Math.round(px))}</p>` : "") +
+    `<p class="note quiet">${t.limits}${S.media === "cd" ? ` ${t.cdLimit}` : ""}</p></section>`;
+}
 function refreshLayerRows() {
   for (const li of W?.left.querySelectorAll(".lay") ?? []) {
     const L = S.layers.find((x) => x.id === Number(li.dataset.id));
@@ -1211,6 +1246,8 @@ function refreshLayerRows() {
     const small = li.querySelector("small");
     if (small && L.kind === "fx") small.textContent = T().fxY(L.y1, L.y2);
   }
+  const burn = W?.left.querySelector(".burnset");
+  if (burn && burn.dataset.key !== burnKey()) burn.outerHTML = burnSection();      // the picture's sampling follows its size
   const u = W?.left.querySelector('[data-a="undo"]'), r = W?.left.querySelector('[data-a="redo"]');
   if (u) u.disabled = !S.past.length;
   if (r) r.disabled = !S.future.length;
@@ -1225,6 +1262,8 @@ function leftClick(e) {
   if (a === "redo") return redo();
   if (a === "import") return W.file.click();
   if (a === "template" && hasCapability('templates')) return downloadTemplate(S, b, toast);
+  const um = Number(e.target.closest("[data-um]")?.dataset.um);
+  if (CELLS[um] && um !== Math.round(S.cell * 1000)) { checkpoint(); S.cell = um / 1000; changed(); buildLeft(); return; }
   if(L && ["up","down","del"].includes(a)){S.selected=L.id;editor.click({target:{closest:()=>({dataset:{edAction:a==="del"?"remove":a}})},preventDefault(){},stopPropagation(){}});return;}
   if (a === "folder") return W.folder.click();
   if (a === "nofiles") { S.files = null; changed(); buildLeft(); return; }
@@ -1541,11 +1580,13 @@ async function saveProject(as = false) {
 async function openProject(file, handle = null, work = null) {
   const t = T();
   let data;
+  // a work with a few photos is tens of MB (each layer keeps its pixels, its PNG and the original file)
+  if (file.size > OPEN_LIMIT) { toast(t.tooLarge(file.name, Math.round(file.size / 2 ** 20)), 8000); return; }
   try { data = JSON.parse(await file.text()); } catch { toast(t.notProject(file.name)); return; }
   if (data?.format !== FILE_KIND || !Array.isArray(data.layers)) { toast(t.notProject(file.name)); return; }
   if (data.version > FILE_VERSION) { toast(t.newer(file.name)); return; }
-  if(file.size>64*1024*1024 || data.layers.length>16){toast(t.notProject(file.name));return;}
-  const layers = [];
+  if (data.layers.length > 16) { toast(t.notProject(file.name)); return; }
+  const layers = [], lost = [];
   for (const e of data.layers) {
     const base = { id: e.id ?? nextId++, kind: e.kind === "fx" ? "fx" : "image", name: String(e.name ?? ""), x: +e.x || 0, y: +e.y || 0,
       width: Math.max(1, +e.width || 1), rot: +e.rot || 0, opacity: Math.min(1, Math.max(0, e.opacity ?? 1)), visible: e.visible !== false, locked: !!e.locked };
@@ -1568,19 +1609,23 @@ async function openProject(file, handle = null, work = null) {
       Object.assign(L,{sourceKind:e.sourceKind,shape:e.shape,svg:e.svg});
       if (typeof e.original === "string" && e.original.startsWith("data:image/")) L.file = await (await fetch(e.original)).blob();
       layers.push(L);
-    } catch { toast(t.notProject(file.name)); return; }
+    } catch { lost.push(e); }               // one unreadable picture: open the rest and say which
   }
+  if (data.layers.length && lost.length === data.layers.length) { toast(t.notProject(file.name)); return; }
   checkpoint();
   S.layers = layers.slice(0, 16);
   nextId=Math.max(nextId,...S.layers.map(l=>Number(l.id)+1));
   S.selections=structuredClone(data.selections??[]);S.assignments=structuredClone(data.assignments??[]);S.activeMask=data.activeMask??null;
+  // fills of a layer that is gone would make the export refuse the whole work
+  const kept = new Set(S.layers.map((l) => l.id));
+  S.assignments = S.assignments.filter((a) => a.layer === undefined || kept.has(a.layer));
   S.maskGrid=structuredClone(data.maskGrid??EditorOps.grid());S.materials=data.materials?structuredClone(data.materials):null;
   editor?.init();editor?.invalidate();
   S.selected = null;
   for (const k of ["files", "pro", "lookColour"]) if (k in data) S[k] = data[k];
   if (data.tone) S.tone = { ...DEFAULT_TONE, ...data.tone };
   if (data.scene) S.scene = { ...S.scene, ...data.scene };
-  if ([0.02, 0.01, 0.005].includes(data.cell)) S.cell = data.cell;
+  S.cell = [0.02, 0.01, 0.005].includes(data.cell) ? data.cell : 0.02;      // the work's grid, else the default
   if (typeof data.geo === "string" && data.media === S.media) S.geo = data.geo;      // checked against the catalogue at export
   if (Number.isFinite(data.lookY)) S.lookY = data.lookY;
   S.name = baseName(file.name); S.handle = handle; S.work = work;
@@ -1589,8 +1634,11 @@ async function openProject(file, handle = null, work = null) {
   W.ws.classList.toggle("pro-on", S.pro);
   W.pname.textContent = S.name;
   buildLeft(); buildRight(); updateTilt();
-  toast(data.media && data.media !== S.media ? t.otherMedia(data.media.toUpperCase(), S.media.toUpperCase()) : t.opened(work ? S.name : file.name));
+  if (lost.length) { S.dirty = true; W.dirty.classList.add("on"); }
+  toast([data.media && data.media !== S.media ? t.otherMedia(data.media.toUpperCase(), S.media.toUpperCase()) : t.opened(work ? S.name : file.name),
+    lost.length ? t.lost(lost.map((e) => `“${String(e.name ?? "?")}”`).join(api.lang() === "en" ? ", " : "、")) : ""].filter(Boolean).join(" "), lost.length ? 12000 : 2600);
 }
+const OPEN_LIMIT = 400 * 2 ** 20;
 async function pickProject() {
   if (window.showOpenFilePicker) {
     try {
@@ -1660,18 +1708,29 @@ export function isoStem(name) {
 }
 // Draw the design, hand it to the back end and run `image`; resolves with the ISO's path and size.
 // onProgress({ stage, fraction }) — fraction is null while unknown.
-export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
-  const t = T().exp;
+// effects: "bw" (default) burns colours, colour patterns and effects as plain dark areas; "experimental" (DVD
+// only) burns the textures the model chose. Either way the result says which, and which geometry it used.
+export async function makeBurnFile(onProgress = () => {}, { signal, effects = "bw" } = {}) {
+  const t = T().exp, t2 = T();
   const stop = () => { if (signal?.aborted) throw new DOMException("cancelled", "AbortError"); };
   let state;
-  try { const r = await fetch(`/api/state?media=${S.media}`); if (!r.ok) throw 0; state = await r.json(); } catch { throw new Error(t.noBackend); }
-  const geoPath = projectGeo(state);
+  try { const r = await fetch(`/api/state?media=${S.media}`, { signal }); if (!r.ok) throw 0; state = await r.json(); }
+  catch (e) { if (e?.name === "AbortError") throw e; throw new Error(t.noBackend); }
+  const geo = planGeo(state), geoPath = geo.path;
   if (!geoPath) throw Object.assign(new Error(t.noGeo), { code: "nogeo" });
-  let saved, rMax;
+  const um = Math.round(S.cell * 1000);
+  if (!CELLS[um]) throw new Error(t2.exp2.noCell);
+  let saved, rMax, burn = null;
   if(editor){
     onProgress({stage:t.drawing,fraction:null});
-    const response=await fetch("/api/compose",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(editor.document()),signal});
-    saved=await response.json();if(!response.ok)throw Error(saved.error??t.failed);rMax=pictureRange()[1];
+    burn = burnDocument(editor.document(), S.media, effects);
+    const body = JSON.stringify(burn.doc);
+    if (body.length > COMPOSE_LIMIT) throw new Error(t2.bigWork(Math.round(body.length / 2 ** 20)));
+    const response=await fetch("/api/compose",{method:"POST",headers:{"Content-Type":"application/json"},body,signal});
+    saved=await response.json().catch(()=>({}));if(!response.ok)throw Error(saved.error??t.failed);rMax=pictureRange()[1];
+    // what the composed array really holds: in black and white, nothing but the two textures
+    const extra = checkTextures(saved.textures_used ?? saved.textures, S.media, burn.mode);
+    if (extra.length) throw new Error(t2.exp2.bwOnly(extra.join(" ")));
   }else{
   const { bits, rMax:rm } = await designBits((stage) => onProgress({ stage, fraction: null }));rMax=rm;
   stop();
@@ -1682,7 +1741,7 @@ export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
   }
   stop();
   const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
-  const output = `iso/${isoStem(S.name)}-${stamp}.iso`;
+  const output = `iso/${isoStem(S.name)}-${um}um-${stamp}${burn?.mode === "experimental" ? "-exp" : ""}.iso`;
   onProgress({ stage: t.making, fraction: 0 });
   const run = await fetch("/api/run", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -1706,22 +1765,20 @@ export async function makeBurnFile(onProgress = () => {}, { signal } = {}) {
     es.addEventListener("done", (e) => { const d = mine(e); if (d) { es.close(); resolve(d.exit); } });
   });
   if (exit !== 0) throw new Error([t.failed, why || lastLine || (await jobWords(job.job)).why].filter(Boolean).join(" "));
-  const info = await (await fetch(`/api/iso?path=${encodeURIComponent(output)}`)).json();
+  stop();
+  const info = await (await fetch(`/api/iso?path=${encodeURIComponent(output)}`)).json().catch(() => ({}));
+  if (!(info.bytes > 0) || !(info.sectors > 0)) throw new Error(t.failed);
   S.geo = geoPath;                                     // the project keeps the geometry it was made with
-  return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job, geo: geoPath };
+  return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job, geo: geoPath,
+    geoSource: geo.source, geoName: geo.name, cellUm: um, effects: burn?.mode ?? "bw", experimental: burn?.mode === "experimental",
+    textures: saved.textures_used ?? null };
 }
-// Which measured geometry this project's burn file is made from: the one it was made with before (kept in the
-// project file), else its disc batch's own measurement (the shelf entry), else the newest complete one for the
-// disc type. The last is a guess about the batch, so it is only the fallback.
-export function projectGeo(state, plan = S) {
-  const known = new Set((state.catalogue?.[plan.media] ?? []).filter((x) => ["good", "usable"].includes(x.s) || x.image_compatible === true).map((x) => x.geo));
-  // An explicitly chosen imported preset takes precedence over a previous batch's geometry.
-  if (plan.item?.imported) return plan.item.image_compatible === true && known.has(plan.item.geo) ? plan.item.geo : null;
-  if (plan.geo && known.has(plan.geo)) return plan.geo;
-  if (plan.item?.geo && ["good", "usable"].includes(plan.item.s)) return plan.item.geo;
-  const latest = state.steps?.find((x) => x.id === "geo");
-  return latest?.done && latest.result ? latest.result : null;
-}
+const COMPOSE_LIMIT = 384 * 2 ** 20;                   // webui.COMPOSE_BYTES
+// Which measured geometry this plan's burn file is made from (export-rules.geoChoice): its batch's own
+// measurement, an imported preset, or, only for a plan with no batch, its earlier one or the newest, named.
+const latestGeo = (state) => { const x = state?.steps?.find((s) => s.id === "geo"); return x?.done && x.result ? x.result : null; };
+const planGeo = (state, plan = S) => geoChoice(plan, state?.catalogue?.[plan.media] ?? [], latestGeo(state));
+export const projectGeo = (state, plan = S) => planGeo(state, plan).path;
 
 // ---------------------------------------------------------------- building the page
 function viewNote(){
@@ -1891,10 +1948,10 @@ function words() {
 }
 
 let toastT = 0, toastEl = null;
-function toast(text) {
+function toast(text, ms = 2600) {
   if (!toastEl) { toastEl = document.createElement("div"); toastEl.className = "toast"; toastEl.setAttribute("role", "status"); document.body.append(toastEl); }
   toastEl.textContent = text; toastEl.classList.add("on");
-  clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove("on"), 2600);
+  clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove("on"), ms);
 }
 
 // ---------------------------------------------------------------- coming in, going out
@@ -2005,7 +2062,7 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
 export function useBatch(homeApi, plan, item, col) {
   const before = plan.media;
   plan.item = item; plan.media = col;
-  if (plan.geo && before !== col) plan.geo = null;          // a geometry is for one disc kind
+  plan.geo = null;                       // a geometry is for one batch: the new one's own measurement decides
   start(homeApi, { plan, fly: false });
   if (before !== col) toast(T().otherMedia(before.toUpperCase(), col.toUpperCase()));
 }
@@ -2022,6 +2079,21 @@ function projection(ppm) {
   g.putImageData(new ImageData(out.data, pw, ph), 0, 0);
   return c;
 }
+// Whether the work holds colour, colour-pattern or effect content (export-rules.experimentalContent), from the
+// label slots of the editor's own composed preview; remembered per edit.
+let expMemo = null;
+function experimentalNow(P = S) {
+  if (!editor) return { any: false, colours: [], effects: 0 };
+  const key = `${editor.revision}|${P.media}`;
+  if (expMemo?.key === key) return expMemo.value;
+  if (!editor.labelCache?.key?.endsWith(`:${editor.revision}`)) editor.preview(600, true);
+  const { materials, labels } = editor.labelCache, seen = new Uint8Array(256);
+  for (let i = 0; i < labels.length; i++) seen[labels[i]] = 1;
+  const slots = [...seen.keys()].filter((k) => seen[k]);
+  const value = experimentalContent({ materials, assignments: P.assignments ?? [], layers: P.layers }, P.media, slots);
+  expMemo = { key, value };
+  return value;
+}
 function hideDesign() {
   composeRevision++;
   stopPlay();
@@ -2031,23 +2103,33 @@ function hideDesign() {
 async function toPreview() {
   hideDesign();
   const P = S, preview = await import("./preview.js");
+  // the newest finished geo run, for a plan with no batch (named in the checklist, never used silently)
+  const served = await fetch(`/api/state?media=${P.media}`).then((r) => r.ok ? r.json() : null).catch(() => null);
   const ctx = {
     media: P.media, item: P.item, alongTrackMeasured: false,
     project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection },
-    exportIso: (onProgress, opts) => makeBurnFile((p) => onProgress({ fraction: p.fraction, stage: p.stage }), opts),
+    // colours and effects burn in black and white unless the person asks for the experiment (DVD only)
+    effects: "bw",
+    setEffects(mode) { ctx.effects = mode === "experimental" && P.media === "dvd" ? "experimental" : "bw"; },
+    exportIso: (onProgress, opts) => makeBurnFile((p) => onProgress({ fraction: p.fraction, stage: p.stage }),
+      { ...opts, effects: experimentalNow(P).any ? ctx.effects : "bw" }),
     // what the preview's checklist reads before burning; each answer is what is known now, never a guess
     checks: () => {
-      const good = (x) => ["good", "usable"].includes(x?.s) || x?.image_compatible === true;
       const [p0, p1] = pictureRange(), d = api.driveDisc?.();
+      const geo = geoChoice(P, api.catalogue?.(P.media) ?? served?.catalogue?.[P.media] ?? [], latestGeo(served));
+      const exp = experimentalNow(P);
       return {
-        geo: P.item?.imported ? (P.item.image_compatible === true ? (P.item.correction_required ? "imported_corrected" : "imported") : "none") : good(P.item) ? "batch" : (api.catalogue?.(P.media) ?? []).some(good) ? "latest" : "none",
+        geo: geo.source, geoName: geo.name, geoWhen: geo.when ?? "",
         inRange: !imageLayers().some((L) => L.visible && cornersOutside(L, p0, p1)),
-        levels: P.tone.levels === 4 && P.media === "cd" ? 4 : 2,
+        levels: 2,                                    // the editor burns two textures; tone levels no longer apply
         disc: !d?.present ? "none" : d.media !== P.media ? "kind" : P.item?.mid && d.mid && d.mid !== P.item.mid ? "other" : d.blank === true ? "blank" : "written",
         discName: d?.mid || d?.kind || "",
+        cellUm: Math.round(P.cell * 1000),
+        effects: !exp.any ? "none" : ctx.effects,
+        canExperiment: P.media === "dvd",
       };
     },
-    back: () => start(api, { fly: false }),
+    back: () => start(api, { plan: P, fly: false }),           // the same work, not the shelf disc's own plan
     next: (iso) => toBurn(iso, () => preview.start(api, ctx)),   // the same context keeps the file it made
     // no measured geometry for these discs: calibrate the batch (the one picked, else the disc in the drive),
     // then come back here; a batch measured meanwhile becomes this plan's
