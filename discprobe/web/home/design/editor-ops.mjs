@@ -1,5 +1,6 @@
 // Deterministic editor raster operations. Cell centres, mm, x right/y down.
 import {render as pattern} from './pattern.mjs';
+import {tone,table,luminance,Diffusion,matrixDark} from './tone.mjs';
 export const q = v => Math.floor(v * 1e6 + .5) / 1e6;
 const COVERAGE=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
 export const grid = (size=600) => ({width:size,height:size,left_mm:-60,top_mm:-60,cell_mm:120/size,annulus_mm:[24,58]});
@@ -69,34 +70,64 @@ export function effectPose(e,u,v,parity){
 }
 // Same grating equation and default pose as the existing page. Prediction, not photo validation.
 export function delta(x,y,phone=70){const cam=[0,-phone,330],lamp=[-43.66,-phone-19.79,330],r=Math.max(Math.hypot(x,y),1e-9);let v=0;for(const p of [cam,lamp]){const n=Math.hypot(p[0]-x,p[1]-y,p[2]);v+=(-(p[0]-x)*y+(p[1]-y)*x)/n/r;}return Math.abs(v);}
-export function compose(input,g=grid(600)) {
-  const d=migrate(input),w=g.width,h=g.height,out=new Uint8Array(w*h),mats=new Map(d.materials.map((m,i)=>[m.id,i]));
+// rows: [r0, r1) of the grid only (the canvas's exact view of a window); the result then holds those rows. Error
+// diffusion still starts at each picture's first row, so the cells are the ones the whole grid has.
+export function compose(input,g=grid(600),{rows=null}={}) {
+  const d=migrate(input),w=g.width,h=g.height,[r0,r1]=rows??[0,h],out=new Uint8Array(w*(r1-r0)),mats=new Map(d.materials.map((m,i)=>[m.id,i]));
   if(d.materials.length>256)throw Error('at most 256 material slots');
   const masks=new Map(d.selections.map(s=>[s.id,bytes(s.bits)]));
-  const patterns=new Map();
-  for(const a of d.assignments)if(a.pattern)patterns.set(a,pattern({...a.pattern,materials:a.pattern.materials.map(id=>mats.get(id))},{...g,annulus_mm:d.annulus_mm}));
-  const shade=(a,i,x,y,u,v)=>{
-    if(a.pattern)return patterns.get(a)[i];
-    if(a.effect){const pose=effectPose(a.effect,u,v,(i%w+Math.floor(i/w))%2);if(!Number.isFinite(pose))return -1;const dt=delta(x,y,pose),wave=a.effect.wavelength_um??.53;let best=Infinity,slot=-1;d.materials.forEach((m,k)=>{if(m.period_um){const err=Math.abs(m.period_um*dt-wave);if(err<best){best=err;slot=k;}}});return slot;}
+  const patterns=new Map(),band={...g,height:r1-r0,top_mm:g.top_mm+r0*g.cell_mm,annulus_mm:d.annulus_mm};
+  for(const a of d.assignments)if(a.pattern)patterns.set(a,pattern({...a.pattern,materials:a.pattern.materials.map(id=>mats.get(id))},band));
+  const shade=(a,j,i,x,y,u,v)=>{
+    if(a.pattern)return patterns.get(a)[(j-r0)*w+i];
+    if(a.effect){const pose=effectPose(a.effect,u,v,(i+j)%2);if(!Number.isFinite(pose))return -1;const dt=delta(x,y,pose),wave=a.effect.wavelength_um??.53;let best=Infinity,slot=-1;d.materials.forEach((m,k)=>{if(m.period_um){const err=Math.abs(m.period_um*dt-wave);if(err<best){best=err;slot=k;}}});return slot;}
     if(!mats.has(a.material))throw Error('unknown material');return mats.get(a.material);
   };
   const decoded=new Map(d.layers.filter(l=>l.raster).map(l=>[l,bytes(l.raster.rgba)]));
-  const colourSlots=new Map();d.materials.forEach((m,i)=>{if(m.rgb&&!colourSlots.has(m.rgb.join(',')))colourSlots.set(m.rgb.join(','),i);});
-  d.materials.forEach((m,i)=>{if(m.template_name&&m.rgb)colourSlots.set(m.rgb.join(','),i);});
+  const key=(r,gg,b)=>(r<<16)|(gg<<8)|b;
+  // a template's colours only (editor_ops.compose): the palette's import colours repeat across swatches
+  const colourSlots=new Map();d.materials.forEach((m,i)=>{if(m.template_name&&m.rgb&&!colourSlots.has(key(...m.rgb)))colourSlots.set(key(...m.rgb),i);});
   const dark=mats.get('dark')??d.materials.findIndex(m=>m.spec==='A5');
+  const cx=i=>q(g.left_mm+(i+.5)*g.cell_mm),cy=j=>q(g.top_mm+(j+.5)*g.cell_mm);
+  // the grid cells a layer's frame can touch, with a margin: nothing outside it is inside the layer
+  const span=l=>{const a=l.rot*Math.PI/180,c=Math.cos(a),s=Math.sin(a),W=l.width,H=l.height??l.width*l.h/l.w;
+    const xs=[],ys=[];for(const u of [-.5,.5])for(const v of [-.5,.5]){xs.push(l.x+u*W*c-v*H*s);ys.push(l.y+u*W*s+v*H*c);}
+    const at=(mm,o)=>Math.floor((mm-o)/g.cell_mm);
+    return [Math.max(0,at(Math.min(...xs),g.left_mm)-2),Math.min(w-1,at(Math.max(...xs),g.left_mm)+2),Math.max(0,at(Math.min(...ys),g.top_mm)-2),Math.min(h-1,at(Math.max(...ys),g.top_mm)+2)];};
+  const P=new Int32Array(w),M=new Int16Array(w),G=new Int32Array(w),T=new Uint8Array(w),D=new Uint8Array(w),U=new Float64Array(w),V=new Float64Array(w);
   for(const l of d.layers){if(!l.visible)continue;const r=l.raster,px=decoded.get(l),assign=d.assignments.filter(a=>a.layer===l.id);if(!r&&!l.shape)continue;
-    for(let j=0;j<h;j++)for(let i=0;i<w;i++){
-      const k=j*w+i,x=q(g.left_mm+(i+.5)*g.cell_mm),y=q(g.top_mm+(j+.5)*g.cell_mm),[u,v]=local(l,x,y);let slot=dark>=0?dark:1,alpha=255;
-      if(r){const sx=Math.floor((u+.5)*r.width),sy=Math.floor((v+.5)*r.height);if(sx<0||sy<0||sx>=r.width||sy>=r.height)continue;const p=4*(sy*r.width+sx);alpha=px[p+3];slot=px[p]*.2126+px[p+1]*.7152+px[p+2]*.0722<128?slot:0;const match=colourSlots.get(`${px[p]},${px[p+1]},${px[p+2]}`);if(match!==undefined)slot=match;
-      }else if(!shapeHit(l.shape,u,v))continue;
-      if(alpha*l.opacity<=255*(COVERAGE[(j%4)*4+i%4]+.5)/16)continue;
-      for(const a of assign){const s=shade(a,k,x,y,u,v);if(s>=0)slot=s;}out[k]=slot;
+    const [i0,i1,j0,j1]=span(l);
+    if(r){
+      // a picture: template colours where they match, else its toned grey dithered on this grid (tone.mjs)
+      const tn=tone(l.tone),lut=table(tn),fs=tn.dither==='floyd-steinberg'?new Diffusion(w,tn.strength):null;
+      for(let j=fs?j0:Math.max(j0,r0);j<=Math.min(j1,r1-1);j++){const y=cy(j);
+        P.fill(-1);T.fill(0);
+        for(let i=i0;i<=i1;i++){const x=cx(i),[u,v]=local(l,x,y);U[i]=u;V[i]=v;
+          const sx=Math.floor((u+.5)*r.width),sy=Math.floor((v+.5)*r.height);
+          if(sx<0||sy<0||sx>=r.width||sy>=r.height)continue;
+          const p=4*(sy*r.width+sx),match=colourSlots.get(key(px[p],px[p+1],px[p+2]));
+          P[i]=p;M[i]=match??-1;G[i]=lut[luminance(px[p],px[p+1],px[p+2])];T[i]=px[p+3]>0&&M[i]<0?1:0;}
+        if(fs)fs.row(j,G,T,D);else for(let i=i0;i<=i1;i++)D[i]=T[i]&&matrixDark(tn.dither,tn.strength,i,j,G[i])?1:0;
+        if(j<r0)continue;
+        for(let i=i0;i<=i1;i++){if(P[i]<0)continue;
+          if(px[P[i]+3]*l.opacity<=255*(COVERAGE[(j%4)*4+i%4]+.5)/16)continue;
+          let slot=M[i]>=0?M[i]:D[i]?(dark>=0?dark:1):0;
+          if(assign.length){const x=cx(i);for(const a of assign){const s=shade(a,j,i,x,y,U[i],V[i]);if(s>=0)slot=s;}}
+          out[(j-r0)*w+i]=slot;}
+      }
+      continue;
+    }
+    for(let j=Math.max(j0,r0);j<=Math.min(j1,r1-1);j++)for(let i=i0;i<=i1;i++){
+      const x=cx(i),y=cy(j),[u,v]=local(l,x,y);let slot=dark>=0?dark:1;
+      if(!shapeHit(l.shape,u,v))continue;
+      if(255*l.opacity<=255*(COVERAGE[(j%4)*4+i%4]+.5)/16)continue;
+      for(const a of assign){const s=shade(a,j,i,x,y,u,v);if(s>=0)slot=s;}out[(j-r0)*w+i]=slot;
     }
   }
   for(const a of d.assignments.filter(a=>a.selection)){
     const m=masks.get(a.selection);if(!m)throw Error('unknown selection');
-    for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k=j*w+i,x=q(g.left_mm+(i+.5)*g.cell_mm),y=q(g.top_mm+(j+.5)*g.cell_mm);if(sampleMask(m,d.maskGrid,x,y)){const s=shade(a,k,x,y,x/120,y/120);if(s>=0)out[k]=s;}}
+    for(let j=r0;j<r1;j++)for(let i=0;i<w;i++){const x=cx(i),y=cy(j);if(sampleMask(m,d.maskGrid,x,y)){const s=shade(a,j,i,x,y,x/120,y/120);if(s>=0)out[(j-r0)*w+i]=s;}}
   }
-  for(let j=0;j<h;j++)for(let i=0;i<w;i++){const r=q(Math.hypot(q(g.left_mm+(i+.5)*g.cell_mm),q(g.top_mm+(j+.5)*g.cell_mm)));if(r<d.annulus_mm[0]||r>=d.annulus_mm[1])out[j*w+i]=0;}
+  for(let j=r0;j<r1;j++)for(let i=0;i<w;i++){const rr=q(Math.hypot(cx(i),cy(j)));if(rr<d.annulus_mm[0]||rr>=d.annulus_mm[1])out[(j-r0)*w+i]=0;}
   return out;
 }

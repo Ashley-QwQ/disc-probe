@@ -13,6 +13,7 @@ from collections import deque
 from pathlib import Path
 import numpy as np
 from . import editor_pattern
+from . import editor_tone
 COVERAGE=np.array([[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]])
 
 
@@ -131,6 +132,8 @@ def validate(d):
             r=l["raster"]
             if not 0 < r["width"]*r["height"] <= 36_000_000 or len(base64.b64decode(r["rgba"],validate=True)) != r["width"]*r["height"]*4:
                 raise ValueError("raster dimensions")
+        if "tone" in l:
+            editor_tone.tone(l["tone"])
         if l.get("sourceKind")=="svg" and not l.get("raster"):
             raise ValueError("SVG requires the page raster fallback beside the original")
         if not l.get("raster") and not l.get("shape"):
@@ -205,15 +208,25 @@ def compose(data, g=None, out=None):
     masks={s["id"]:np.frombuffer(base64.b64decode(s["bits"]),np.uint8).reshape(d["maskGrid"]["height"],-1) for s in d["selections"]}
     raster={l["id"]:np.frombuffer(base64.b64decode(l["raster"]["rgba"]),np.uint8).reshape(l["raster"]["height"],l["raster"]["width"],4) for l in d["layers"] if l.get("raster")}
     dark=ids.get("dark",next((i for i,m in enumerate(d["materials"]) if m["spec"]=="A5"),1))
-    source_slots={}
-    for lid,px in raster.items():
-        slots=np.where(px[:,:,:3]@np.array([.2126,.7152,.0722])<128,dark,0).astype(np.uint8)
-        matched=np.zeros(px.shape[:2],bool)
-        ordered=sorted(enumerate(d["materials"]),key=lambda item:not bool(item[1].get("template_name")))
-        for k,m in ordered:
-            if "rgb" in m:
-                same=np.all(px[:,:,:3]==m["rgb"],axis=2)&~matched;slots[same]=k;matched|=same
-        source_slots[lid]=slots
+    # per picture: the template colour each pixel matches (-1: none) and its toned grey (editor_tone)
+    source_slots={};greys={};tones={};diffusion={}
+    for l in d["layers"]:
+        if l.get("raster"):
+            px=raster[l["id"]];tones[l["id"]]=editor_tone.tone(l.get("tone"))
+            slots=np.full(px.shape[:2],-1,np.int16)
+            matched=np.zeros(px.shape[:2],bool)
+            ordered=sorted(enumerate(d["materials"]),key=lambda item:not bool(item[1].get("template_name")))
+            for k,m in ordered:
+                # only a downloaded template's colours are a material's key: the palette's own import colours
+                # repeat (145 swatches share 50,50,50), and a photo's pixel must not pick one of them by accident
+                if "rgb" in m and m.get("template_name"):
+                    same=np.all(px[:,:,:3]==m["rgb"],axis=2)&~matched;slots[same]=k;matched|=same
+            source_slots[l["id"]]=slots
+            lum=editor_tone.luminance(*(px[:,:,c].astype(np.int32) for c in range(3)))
+            greys[l["id"]]=np.asarray(editor_tone.table(tones[l["id"]]),np.uint8)[lum]
+            if tones[l["id"]]["dither"]=="floyd-steinberg":
+                diffusion[l["id"]]=editor_tone.Diffusion(w,tones[l["id"]]["strength"])
+    columns=np.arange(w)
     def shade(a,x,y,u,v,j):
         if "pattern" in a:
             p={**a["pattern"],"materials":[ids[k] for k in a["pattern"]["materials"]]}
@@ -240,9 +253,19 @@ def compose(data, g=None, out=None):
             v=q((-dx*math.sin(a)+dy*math.cos(a))/l.get("height",l["width"]*l.get("h",1)/l.get("w",1)))
             if r:
                 sx=np.floor((u+.5)*r["width"]).astype(int);sy=np.floor((v+.5)*r["height"]).astype(int)
-                px=raster[l["id"]][np.clip(sy,0,r["height"]-1),np.clip(sx,0,r["width"]-1)]
-                hit=(sx>=0)&(sy>=0)&(sx<r["width"])&(sy<r["height"])&(px[:,3]*l["opacity"]>255*(COVERAGE[j%4,np.arange(w)%4]+.5)/16)
-                slots=source_slots[l["id"]][np.clip(sy,0,r["height"]-1),np.clip(sx,0,r["width"]-1)].astype(int)
+                cy,cx=np.clip(sy,0,r["height"]-1),np.clip(sx,0,r["width"]-1)
+                px=raster[l["id"]][cy,cx]
+                inside=(sx>=0)&(sy>=0)&(sx<r["width"])&(sy<r["height"])
+                hit=inside&(px[:,3]*l["opacity"]>255*(COVERAGE[j%4,columns%4]+.5)/16)
+                slots=source_slots[l["id"]][cy,cx].astype(int)
+                # the rest of the picture: its toned grey, dithered on this grid
+                take=inside&(px[:,3]>0)&(slots<0)
+                grey=greys[l["id"]][cy,cx].astype(np.int32);t=tones[l["id"]]
+                if l["id"] in diffusion:
+                    dark_cells=diffusion[l["id"]].row(j,grey,take)
+                else:
+                    dark_cells=editor_tone.matrix_dark(t["dither"],t["strength"],j,columns,grey)&take
+                slots=np.where(slots>=0,slots,np.where(dark_cells,dark,0))
             else:
                 hit=shape_hit(s,u,v)&(255*l["opacity"]>255*(COVERAGE[j%4,np.arange(w)%4]+.5)/16);slots=np.full(w,dark)
             for a in d["assignments"]:
