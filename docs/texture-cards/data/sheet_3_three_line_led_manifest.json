@@ -1,0 +1,6373 @@
+{
+  "version": 3,
+  "sheet": "3",
+  "lamp": "LED",
+  "rows": [
+    {
+      "id": "observation_0459",
+      "spec": "8A5EBEAC15D88B882AC5",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        1.9393454545454545,
+        1.6409846153846155,
+        1.3333
+      ],
+      "purity": [
+        0.1628,
+        0.1656,
+        0.1716
+      ],
+      "bbox": [
+        142,
+        670,
+        3366,
+        755
+      ],
+      "strip_bbox": [
+        1162,
+        671,
+        3366,
+        685
+      ],
+      "second_order_bbox": [
+        1162,
+        750,
+        3366,
+        753
+      ],
+      "spatial_frequency_per_mm": [
+        515.6378909472737,
+        609.3902347558688,
+        750.0187504687617
+      ]
+    },
+    {
+      "id": "observation_0460",
+      "spec": "D8C2DA5CC7CBE67EF5C078A1",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        1.9691815384615385,
+        1.59996,
+        1.3473347368421051
+      ],
+      "purity": [
+        0.1717,
+        0.1677,
+        0.1766
+      ],
+      "bbox": [
+        142,
+        755,
+        3366,
+        840
+      ],
+      "strip_bbox": [
+        1162,
+        756,
+        3366,
+        770
+      ],
+      "second_order_bbox": [
+        1162,
+        835,
+        3366,
+        838
+      ],
+      "spatial_frequency_per_mm": [
+        507.82519562989074,
+        625.0156253906348,
+        742.2060551513789
+      ]
+    },
+    {
+      "id": "observation_0461",
+      "spec": "5FD0AC787C9B4CD2BCD887D19D",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        1.9809028571428573,
+        1.6313317647058823,
+        1.386632
+      ],
+      "purity": [
+        0.1595,
+        0.1549,
+        0.161
+      ],
+      "bbox": [
+        142,
+        840,
+        3366,
+        925
+      ],
+      "strip_bbox": [
+        1162,
+        841,
+        3366,
+        855
+      ],
+      "second_order_bbox": [
+        1162,
+        920,
+        3366,
+        923
+      ],
+      "spatial_frequency_per_mm": [
+        504.82031281551264,
+        612.9960941331226,
+        721.1718754507324
+      ]
+    },
+    {
+      "id": "observation_0462",
+      "spec": "8587DED1D7AA77172E926CF786D5",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        1.9910613333333333,
+        1.659217777777778,
+        1.3575418181818182
+      ],
+      "purity": [
+        0.143,
+        0.1394,
+        0.1501
+      ],
+      "bbox": [
+        142,
+        925,
+        3366,
+        1010
+      ],
+      "strip_bbox": [
+        1162,
+        926,
+        3366,
+        940
+      ],
+      "second_order_bbox": [
+        1162,
+        1005,
+        3366,
+        1008
+      ],
+      "spatial_frequency_per_mm": [
+        502.2446989746172,
+        602.6936387695406,
+        736.6255584961052
+      ]
+    },
+    {
+      "id": "observation_0463",
+      "spec": "608D714685B9A324FE59BDD7AA8760",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        1.9999500000000001,
+        1.6841684210526318,
+        1.3912695652173914
+      ],
+      "purity": [
+        0.1492,
+        0.1429,
+        0.1307
+      ],
+      "bbox": [
+        142,
+        1010,
+        3366,
+        1095
+      ],
+      "strip_bbox": [
+        1162,
+        1011,
+        3366,
+        1025
+      ],
+      "second_order_bbox": [
+        1162,
+        1090,
+        3366,
+        1093
+      ],
+      "spatial_frequency_per_mm": [
+        500.01250031250777,
+        593.764844121103,
+        718.7679691992299
+      ]
+    },
+    {
+      "id": "observation_0464",
+      "spec": "69B9AC8D8D71B0CBFF29F4ECD894544F",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.007792941176471,
+        1.6253561904761904,
+        1.4221866666666667
+      ],
+      "purity": [
+        0.1405,
+        0.1434,
+        0.1416
+      ],
+      "bbox": [
+        142,
+        1095,
+        3366,
+        1180
+      ],
+      "strip_bbox": [
+        1162,
+        1096,
+        3366,
+        1110
+      ],
+      "second_order_bbox": [
+        1162,
+        1175,
+        3366,
+        1178
+      ],
+      "spatial_frequency_per_mm": [
+        498.059326483162,
+        615.2497562439062,
+        703.1425785644641
+      ]
+    },
+    {
+      "id": "observation_0465",
+      "spec": "D38AD8BF73AACBE596CAF58D87B0DA85",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.007792941176471,
+        1.7066240000000001,
+        1.4221866666666667
+      ],
+      "purity": [
+        0.134,
+        0.1326,
+        0.1451
+      ],
+      "bbox": [
+        142,
+        1180,
+        3366,
+        1265
+      ],
+      "strip_bbox": [
+        1162,
+        1181,
+        3366,
+        1195
+      ],
+      "second_order_bbox": [
+        1162,
+        1260,
+        3366,
+        1263
+      ],
+      "spatial_frequency_per_mm": [
+        498.059326483162,
+        585.9521488037201,
+        703.1425785644641
+      ]
+    },
+    {
+      "id": "observation_0470",
+      "spec": "1C98D1B9EC548DC5AC74608CDB9597",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.13328,
+        1.7777333333333334,
+        1.4545090909090908
+      ],
+      "purity": [
+        0.1267,
+        0.136,
+        0.1343
+      ],
+      "bbox": [
+        142,
+        1265,
+        3366,
+        1350
+      ],
+      "strip_bbox": [
+        1162,
+        1266,
+        3366,
+        1280
+      ],
+      "second_order_bbox": [
+        1162,
+        1345,
+        3366,
+        1348
+      ],
+      "spatial_frequency_per_mm": [
+        468.76171904297604,
+        562.5140628515712,
+        687.5171879296984
+      ]
+    },
+    {
+      "id": "observation_0467",
+      "spec": "20D746DC6E414E927A3EEDE9CD",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.13328,
+        1.73329,
+        1.4596126315789475
+      ],
+      "purity": [
+        0.1591,
+        0.1593,
+        0.1591
+      ],
+      "bbox": [
+        142,
+        1350,
+        3366,
+        1435
+      ],
+      "strip_bbox": [
+        1162,
+        1351,
+        3366,
+        1365
+      ],
+      "second_order_bbox": [
+        1162,
+        1430,
+        3366,
+        1433
+      ],
+      "spatial_frequency_per_mm": [
+        468.76171904297604,
+        576.9375003605859,
+        685.1132816781958
+      ]
+    },
+    {
+      "id": "observation_0466",
+      "spec": "61E68BCA45CBE6E0C09059807CD74EB071",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.13328,
+        1.7269409523809525,
+        1.5110733333333335
+      ],
+      "purity": [
+        0.1176,
+        0.122,
+        0.1236
+      ],
+      "bbox": [
+        142,
+        1435,
+        3366,
+        1520
+      ],
+      "strip_bbox": [
+        1162,
+        1436,
+        3366,
+        1450
+      ],
+      "second_order_bbox": [
+        1162,
+        1515,
+        3366,
+        1518
+      ],
+      "spatial_frequency_per_mm": [
+        468.76171904297604,
+        579.0585941119116,
+        661.7812504136132
+      ]
+    },
+    {
+      "id": "observation_0473",
+      "spec": "6BEDD2CAE6CD3E8AF5F787",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.13328,
+        1.805083076923077,
+        1.46663
+      ],
+      "purity": [
+        0.1614,
+        0.148,
+        0.1533
+      ],
+      "bbox": [
+        142,
+        1520,
+        3366,
+        1605
+      ],
+      "strip_bbox": [
+        1162,
+        1521,
+        3366,
+        1535
+      ],
+      "second_order_bbox": [
+        1162,
+        1600,
+        3366,
+        1603
+      ],
+      "spatial_frequency_per_mm": [
+        468.76171904297604,
+        553.9911225053353,
+        681.8352276988743
+      ]
+    },
+    {
+      "id": "observation_0468",
+      "spec": "8DCD8DB7B29285CDC1",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.13328,
+        1.7454109090909093,
+        1.476886153846154
+      ],
+      "purity": [
+        0.1917,
+        0.2091,
+        0.177
+      ],
+      "bbox": [
+        142,
+        1605,
+        3366,
+        1690
+      ],
+      "strip_bbox": [
+        1162,
+        1606,
+        3366,
+        1620
+      ],
+      "second_order_bbox": [
+        1162,
+        1685,
+        3366,
+        1688
+      ],
+      "spatial_frequency_per_mm": [
+        468.76171904297604,
+        572.9309899414151,
+        677.1002608398543
+      ]
+    },
+    {
+      "id": "observation_0474",
+      "spec": "8DDB8271BDD1CBCDB2BDFF87CD83DEA0B4",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.13328,
+        1.813288,
+        1.5110733333333335
+      ],
+      "purity": [
+        0.1707,
+        0.1609,
+        0.1471
+      ],
+      "bbox": [
+        142,
+        1690,
+        3366,
+        1775
+      ],
+      "strip_bbox": [
+        1162,
+        1691,
+        3366,
+        1705
+      ],
+      "second_order_bbox": [
+        1162,
+        1770,
+        3366,
+        1773
+      ],
+      "spatial_frequency_per_mm": [
+        468.76171904297604,
+        551.4843753446777,
+        661.7812504136132
+      ]
+    },
+    {
+      "id": "observation_0472",
+      "spec": "A5E8CDE6E59A46DB85B2560E9854F99C",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.13328,
+        1.7964463157894737,
+        1.4840208695652175
+      ],
+      "purity": [
+        0.1322,
+        0.1287,
+        0.1388
+      ],
+      "bbox": [
+        142,
+        1775,
+        3366,
+        1860
+      ],
+      "strip_bbox": [
+        1162,
+        1776,
+        3366,
+        1790
+      ],
+      "second_order_bbox": [
+        1162,
+        1855,
+        3366,
+        1858
+      ],
+      "spatial_frequency_per_mm": [
+        468.76171904297604,
+        556.6545413635341,
+        673.844971124278
+      ]
+    },
+    {
+      "id": "observation_0469",
+      "spec": "D272EDA2EFBDFF6BEDEC87AB25ED",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.13328,
+        1.7568188235294118,
+        1.493296
+      ],
+      "purity": [
+        0.1518,
+        0.145,
+        0.1539
+      ],
+      "bbox": [
+        142,
+        1860,
+        3366,
+        1945
+      ],
+      "strip_bbox": [
+        1162,
+        1861,
+        3366,
+        1875
+      ],
+      "second_order_bbox": [
+        1162,
+        1940,
+        3366,
+        1943
+      ],
+      "spatial_frequency_per_mm": [
+        468.76171904297604,
+        569.2106588378995,
+        669.659598632823
+      ]
+    },
+    {
+      "id": "observation_0471",
+      "spec": "EA83D4F3CB",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.13328,
+        1.7777333333333334,
+        1.5237714285714286
+      ],
+      "purity": [
+        0.2095,
+        0.1997,
+        0.2023
+      ],
+      "bbox": [
+        142,
+        1945,
+        3366,
+        2030
+      ],
+      "strip_bbox": [
+        1162,
+        1946,
+        3366,
+        1960
+      ],
+      "second_order_bbox": [
+        1162,
+        2025,
+        3366,
+        2028
+      ],
+      "spatial_frequency_per_mm": [
+        468.76171904297604,
+        562.5140628515712,
+        656.2664066601665
+      ]
+    },
+    {
+      "id": "observation_0476",
+      "spec": "83467C3EC0C98D7AD2D23973DD19CBBD5EC3",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.2587670588235294,
+        1.919952,
+        1.59996
+      ],
+      "purity": [
+        0.1105,
+        0.1057,
+        0.1092
+      ],
+      "bbox": [
+        142,
+        2030,
+        3366,
+        2115
+      ],
+      "strip_bbox": [
+        1162,
+        2031,
+        3366,
+        2045
+      ],
+      "second_order_bbox": [
+        1162,
+        2110,
+        3366,
+        2113
+      ],
+      "spatial_frequency_per_mm": [
+        442.7194013183663,
+        520.8463544921956,
+        625.0156253906348
+      ]
+    },
+    {
+      "id": "observation_0475",
+      "spec": "C04FAA383494C8B0C050D15081D7ACFA5CB5",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.2587670588235294,
+        1.8285257142857143,
+        1.59996
+      ],
+      "purity": [
+        0.114,
+        0.1122,
+        0.1083
+      ],
+      "bbox": [
+        142,
+        2115,
+        3366,
+        2200
+      ],
+      "strip_bbox": [
+        1162,
+        2116,
+        3366,
+        2130
+      ],
+      "second_order_bbox": [
+        1162,
+        2195,
+        3366,
+        2198
+      ],
+      "spatial_frequency_per_mm": [
+        442.7194013183663,
+        546.8886722168054,
+        625.0156253906348
+      ]
+    },
+    {
+      "id": "observation_0477",
+      "spec": "9E85AA85D27CE68F6CF5608DFA318BCDCB",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.26661,
+        1.9087242105263158,
+        1.5767721739130434
+      ],
+      "purity": [
+        0.1238,
+        0.1299,
+        0.1192
+      ],
+      "bbox": [
+        142,
+        2200,
+        3366,
+        2285
+      ],
+      "strip_bbox": [
+        1162,
+        2201,
+        3366,
+        2215
+      ],
+      "second_order_bbox": [
+        1162,
+        2280,
+        3366,
+        2283
+      ],
+      "spatial_frequency_per_mm": [
+        441.1875002757422,
+        523.9101565774439,
+        634.2070316463794
+      ]
+    },
+    {
+      "id": "observation_0478",
+      "spec": "65EDED60F4EDAA8D78EFF9CDB27C8794",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.2754986666666666,
+        1.8962488888888889,
+        1.5514763636363638
+      ],
+      "purity": [
+        0.143,
+        0.1348,
+        0.1355
+      ],
+      "bbox": [
+        142,
+        2285,
+        3366,
+        2370
+      ],
+      "strip_bbox": [
+        1162,
+        2286,
+        3366,
+        2300
+      ],
+      "second_order_bbox": [
+        1162,
+        2365,
+        3366,
+        2368
+      ],
+      "spatial_frequency_per_mm": [
+        439.46411160279007,
+        527.356933923348,
+        644.547363684092
+      ]
+    },
+    {
+      "id": "observation_0479",
+      "spec": "8DCD51EAE5D1DBBDD5D6F2FB45D285",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.285657142857143,
+        1.8823058823529413,
+        1.59996
+      ],
+      "purity": [
+        0.1651,
+        0.1624,
+        0.1734
+      ],
+      "bbox": [
+        142,
+        2370,
+        3366,
+        2455
+      ],
+      "strip_bbox": [
+        1162,
+        2371,
+        3366,
+        2385
+      ],
+      "second_order_bbox": [
+        1162,
+        2450,
+        3366,
+        2453
+      ],
+      "spatial_frequency_per_mm": [
+        437.5109377734443,
+        531.2632815820396,
+        625.0156253906348
+      ]
+    },
+    {
+      "id": "observation_0480",
+      "spec": "93E3D1FFE96B7CEA605F6060B9D1",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.2973784615384614,
+        1.8666200000000002,
+        1.5718905263157894
+      ],
+      "purity": [
+        0.1383,
+        0.1368,
+        0.1273
+      ],
+      "bbox": [
+        142,
+        2455,
+        3366,
+        2540
+      ],
+      "strip_bbox": [
+        1162,
+        2456,
+        3366,
+        2470
+      ],
+      "second_order_bbox": [
+        1162,
+        2535,
+        3366,
+        2538
+      ],
+      "spatial_frequency_per_mm": [
+        435.27873911133497,
+        535.7276789062583,
+        636.1766187011818
+      ]
+    },
+    {
+      "id": "observation_0481",
+      "spec": "D1D87F218CCDCB65D27C8721",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.327214545454545,
+        1.9691815384615385,
+        1.59996
+      ],
+      "purity": [
+        0.1475,
+        0.1511,
+        0.1403
+      ],
+      "bbox": [
+        142,
+        2540,
+        3366,
+        2625
+      ],
+      "strip_bbox": [
+        1162,
+        2541,
+        3366,
+        2555
+      ],
+      "second_order_bbox": [
+        1162,
+        2620,
+        3366,
+        2623
+      ],
+      "spatial_frequency_per_mm": [
+        429.69824245606145,
+        507.82519562989074,
+        625.0156253906348
+      ]
+    },
+    {
+      "id": "observation_0482",
+      "spec": "8583E3D18E80838DCD73",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.3703111111111115,
+        1.9393454545454545,
+        1.6409846153846155
+      ],
+      "purity": [
+        0.1816,
+        0.1642,
+        0.1586
+      ],
+      "bbox": [
+        142,
+        2625,
+        3366,
+        2710
+      ],
+      "strip_bbox": [
+        1162,
+        2626,
+        3366,
+        2640
+      ],
+      "second_order_bbox": [
+        1162,
+        2705,
+        3366,
+        2708
+      ],
+      "spatial_frequency_per_mm": [
+        421.8855471386784,
+        515.6378909472737,
+        609.3902347558688
+      ]
+    },
+    {
+      "id": "observation_0483",
+      "spec": "402DEB878786",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.559936,
+        2.13328,
+        1.8285257142857143
+      ],
+      "purity": [
+        0.1711,
+        0.1737,
+        0.1693
+      ],
+      "bbox": [
+        142,
+        2710,
+        3366,
+        2795
+      ],
+      "strip_bbox": [
+        1162,
+        2711,
+        3366,
+        2725
+      ],
+      "second_order_bbox": [
+        1162,
+        2790,
+        3366,
+        2793
+      ],
+      "spatial_frequency_per_mm": [
+        390.63476586914675,
+        468.76171904297604,
+        546.8886722168054
+      ]
+    },
+    {
+      "id": "observation_0208",
+      "spec": "EA9AA540A2E683D5C087151D2049BD408C",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.5904114285714286,
+        2.13328,
+        1.813288
+      ],
+      "purity": [
+        0.1135,
+        0.1089,
+        0.1298
+      ],
+      "bbox": [
+        142,
+        2795,
+        3366,
+        2880
+      ],
+      "strip_bbox": [
+        1162,
+        2796,
+        3366,
+        2810
+      ],
+      "second_order_bbox": [
+        1162,
+        2875,
+        3366,
+        2878
+      ],
+      "spatial_frequency_per_mm": [
+        386.0390627412744,
+        468.76171904297604,
+        551.4843753446777
+      ]
+    },
+    {
+      "id": "observation_0484",
+      "spec": "158B83A3858D8BA193E085",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        2.6073422222222224,
+        2.13328,
+        1.805083076923077
+      ],
+      "purity": [
+        0.1563,
+        0.1397,
+        0.15
+      ],
+      "bbox": [
+        142,
+        2880,
+        3366,
+        2965
+      ],
+      "strip_bbox": [
+        1162,
+        2881,
+        3366,
+        2895
+      ],
+      "second_order_bbox": [
+        1162,
+        2960,
+        3366,
+        2963
+      ],
+      "spatial_frequency_per_mm": [
+        383.53231558061674,
+        468.76171904297604,
+        553.9911225053353
+      ]
+    },
+    {
+      "id": "observation_0206",
+      "spec": "2112832BCA74CB8B5126",
+      "sheet": "3",
+      "column": 1,
+      "periods_um": [
+        4.26656,
+        3.5554666666666668,
+        3.047542857142857
+      ],
+      "purity": [
+        0.05,
+        0.0471,
+        0.0483
+      ],
+      "bbox": [
+        142,
+        2965,
+        3366,
+        3050
+      ],
+      "strip_bbox": [
+        1162,
+        2966,
+        3366,
+        2980
+      ],
+      "second_order_bbox": [
+        1162,
+        3045,
+        3366,
+        3048
+      ],
+      "spatial_frequency_per_mm": [
+        234.38085952148802,
+        281.2570314257856,
+        328.13320333008323
+      ]
+    }
+  ],
+  "annotations": [
+    {
+      "id": "observation_0459",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:194–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.195942398559964
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0459",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–1842 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.4021975549388735,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0459",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:164–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.23156828920723016
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0459",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1559 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.47532438310957775,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0459",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:133–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.2850071251781295
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0459",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1267 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.5850146253656342,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0460",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:197–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.19297357433935847
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0460",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–1871 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.3961036525913148,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0460",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:160–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.23750593764844122
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0460",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1520 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.48751218780469513,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0460",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:135–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.28203830095752397
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0460",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1280 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.5789207230180755,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0461",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:198–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1918317188698948
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0461",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–1882 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.39375984399609987,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0461",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:163–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.23293851577058658
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0461",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1550 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.47813695342383566,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0461",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:139–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.2740453126712783
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0461",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1317 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.5625140628515712,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0462",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:199–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.19085298561035455
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0462",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–1892 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.39175086520020147,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0462",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:166–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.22902358273242543
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0462",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1576 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.4701010382402417,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0462",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:136–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.27991771222852
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0462",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1290 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.5745679356269621,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0463",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:200–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.19000475011875295
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0463",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–1900 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.39000975024375606,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0463",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:168–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.22563064076601913
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0463",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1600 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.4631365784144603,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0463",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:139–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.27313182829570737
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0463",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1322 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.5606390159753993,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0464",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:201–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.18926254406360157
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0464",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–1907 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.3884862746568664,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0464",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:163–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.23379490737268432
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0464",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1544 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.4798948098702468,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0464",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:142–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.26719417985449634
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0464",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1351 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.548451211280282,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0465",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:201–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.18926254406360157
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0465",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–1907 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.3884862746568664,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0465",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:171–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.22266181654541362
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0465",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1621 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.45704267606690163,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0465",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:142–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.26719417985449634
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0465",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1351 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.548451211280282,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0470",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:213–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1781294532363309
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0470",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2027 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.36563414085352136,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0470",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:178–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.2137553438835971
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0470",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1689 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.4387609690242256,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0470",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:145–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.26125653141328536
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0470",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1382 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.5362634065851647,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0467",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:213–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1781294532363309
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0467",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2027 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.36563414085352136,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0467",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:173–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.21923625013702266
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0467",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1647 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.45001125028125705,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0467",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:146–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.2603430470377144
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0467",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1387 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.5343883597089927,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0466",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:213–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1781294532363309
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0466",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2027 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.36563414085352136,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0466",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:173–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.22004226576252642
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0466",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1641 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.45166570340729106,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0466",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:151–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.25147687515717304
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0466",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1436 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.5161893753226183,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0473",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:213–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1781294532363309
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0473",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2027 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.36563414085352136,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0473",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:181–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.21051662655202744
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0473",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1715 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.43211307555416156,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0473",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:147–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.25909738652557224
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0473",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1393 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.531831477605122,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0468",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:213–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1781294532363309
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0468",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2027 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.36563414085352136,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0468",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:175–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.21771377617773774
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0468",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1658 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.4468861721543038,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0468",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:148–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.25729809911914464
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0468",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1403 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.5281382034550863,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0474",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:213–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1781294532363309
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0474",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2027 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.36563414085352136,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0474",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:181–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.20956406263097754
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0474",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1723 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.4301578127688486,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0474",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:151–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.25147687515717304
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0474",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1436 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.5161893753226183,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0472",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:213–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1781294532363309
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0472",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2027 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.36563414085352136,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0472",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:180–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.21152872571814296
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0472",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1707 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.43419054226355663,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0472",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:148–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.2560610890272257
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0472",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1410 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.5255990774769369,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0469",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:213–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1781294532363309
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0469",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2027 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.36563414085352136,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0469",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:176–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.21630005035840183
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0469",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1669 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.44398431389356163,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0469",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:149–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.2544706474804727
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0469",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1419 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.522334486933602,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0471",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:213–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1781294532363309
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0471",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2027 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.36563414085352136,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0471",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:178–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.2137553438835971
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0471",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1689 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.4387609690242256,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0471",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:152–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.24938123453086328
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0471",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1448 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.5118877971949299,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0476",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:226–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1682333725009792
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0476",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2146 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.34532113302832573,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0476",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:192–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.19792161470703434
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0476",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1824 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.4062601565039126,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0476",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:160–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.23750593764844122
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0476",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1520 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.48751218780469513,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0475",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:226–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1682333725009792
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0475",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2146 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.34532113302832573,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0475",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:183–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.20781769544238607
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0475",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1737 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.42657316432910825,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0475",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:160–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.23750593764844122
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0475",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1520 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.48751218780469513,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0477",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:227–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.16765125010478205
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0477",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2153 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.3441262502150789,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0477",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:191–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.19908585949942867
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0477",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1813 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.40864992213040624,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0477",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:158–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.2409986720256242
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0477",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1498 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.494681484684176,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0478",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:228–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.16699636240906024
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0478",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2162 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.3427820070501763,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0478",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:190–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.20039563489087228
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0478",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1801 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.4113384084602115,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0478",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:155–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.24492799819995498
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0478",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1474 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.5027469436735919,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0479",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:229–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.16625415635390883
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0479",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2171 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.34125853146328655,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0479",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:188–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.201880047001175
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0479",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1788 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.41438535963399087,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0479",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:160–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.23750593764844122
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0479",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1520 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.48751218780469513,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0480",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:230–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1654059208623073
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0480",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2183 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.33951741650684125,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0480",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:187–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.20357651798437817
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0480",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1773 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.4178675895468815,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0480",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:157–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.2417471151064491
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0480",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1493 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.49621776258692185,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0481",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:233–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.16328533213330335
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0481",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2211 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.3351646291157279,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0481",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:197–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.19297357433935847
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0481",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1871 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.3961036525913148,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0481",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:160–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.23750593764844122
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0481",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1520 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.48751218780469513,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0482",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:237–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1603165079126978
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0482",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2252 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.3290707267681692,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0482",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:194–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.195942398559964
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0482",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–1842 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.4021975549388735,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0482",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:164–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.23156828920723016
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0482",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1559 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.47532438310957775,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0483",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:256–380 nm",
+      "inside_interval": false,
+      "delta_range": [
+        0.1,
+        0.14844121103027577
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0483",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2432 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.3046951173779345,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0483",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:213–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1781294532363309
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0483",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–2027 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.36563414085352136,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0483",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:183–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.20781769544238607
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0483",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1737 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.42657316432910825,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0208",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:259–380 nm",
+      "inside_interval": false,
+      "delta_range": [
+        0.1,
+        0.14669484384168427
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0208",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2461 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.30111046893819404,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0208",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:213–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1781294532363309
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0208",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–2027 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.36563414085352136,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0208",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:181–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.20956406263097754
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0208",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1723 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.4301578127688486,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0484",
+      "line": 1,
+      "zone": "UV",
+      "label": "UV1:261–380 nm",
+      "inside_interval": false,
+      "delta_range": [
+        0.1,
+        0.14574227992063438
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0484",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–2477 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.2991552061528811,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0484",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:213–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.1781294532363309
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0484",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–2027 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.36563414085352136,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0484",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:181–380 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.1,
+        0.21051662655202744
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0484",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–1715 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.43211307555416156,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0206",
+      "line": 1,
+      "zone": "IR",
+      "label": "IR1:780–4053 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.18281707042676068,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0206",
+      "line": 2,
+      "zone": "UV",
+      "label": "UV2:356–380 nm",
+      "inside_interval": false,
+      "delta_range": [
+        0.1,
+        0.10687767194179855
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0206",
+      "line": 2,
+      "zone": "IR",
+      "label": "IR2:780–3378 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.2193804845121128,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0206",
+      "line": 3,
+      "zone": "UV",
+      "label": "UV3:305–380 nm",
+      "inside_interval": false,
+      "delta_range": [
+        0.1,
+        0.12469061726543164
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    },
+    {
+      "id": "observation_0206",
+      "line": 3,
+      "zone": "IR",
+      "label": "IR3:780–2895 nm",
+      "inside_interval": true,
+      "delta_range": [
+        0.25594389859746497,
+        0.95
+      ],
+      "meaning": "nominal first-order wavelength; upper strip still includes every order"
+    }
+  ],
+  "count": 28,
+  "every_selected_target_once": true,
+  "annotation_minimum_pt": 5.04,
+  "label_minimum_pt": 6.0,
+  "text_overlap_count": 0,
+  "exposure": 17.55764790904807,
+  "PDF": {
+    "pages": 1,
+    "lossless_rgb_match": true,
+    "A3_media_box": true
+  },
+  "model_signature": "38a6f94ff89746325cb350b79600a6c94e9ca5b28dcab176587502f583644a99",
+  "renderer_sha256": "17507d28d964e69a18a2f35e6dcf2a1b054e7b6853bffe0bb0f6fe0d944fbcdb",
+  "font_sha256": {
+    "ui": "9d96bf1303b964cc9101ea2419de780204cb6ace16375b017b66d1fe98a3a435",
+    "zh": "d79c55e68b1131eea0cc1c47be4f572d964f28c682e143db2ad09c1e4cb07a3f",
+    "mono": "cf00b507b3286870cc5064ebd0633c303f70b491a4af25eec2d32df413db0179",
+    "note": "0e094a7d3c7c4c25cf1310c4b30014f1dae9332220b1c2c88f4fa996f0b05053"
+  },
+  "PNG_sha256": "52a35c8cc37448e20764304c5be44b297221fa6110d6a945bb226204aadf21e7",
+  "PDF_sha256": "9779348ceff1d8dabc63c6450923bddc0ed541def0858777804ca0bed60761ce",
+  "text_boxes": [
+    {
+      "sheet": "3_LED",
+      "text": "disc-probe ",
+      "bbox": [
+        142,
+        150,
+        477,
+        213
+      ],
+      "px": 66
+    },
+    {
+      "sheet": "3_LED",
+      "text": "纹理色卡",
+      "bbox": [
+        477,
+        150,
+        741,
+        214
+      ],
+      "px": 66
+    },
+    {
+      "sheet": "3_LED",
+      "text": "/ Texture colour card",
+      "bbox": [
+        756,
+        150,
+        1382,
+        206
+      ],
+      "px": 66
+    },
+    {
+      "sheet": "3_LED",
+      "text": "V3 / 三线 · 28 条 + 图例",
+      "bbox": [
+        142,
+        258,
+        647,
+        303
+      ],
+      "px": 46
+    },
+    {
+      "sheet": "3_LED",
+      "text": "2026-11-11 | 28 textures | LED",
+      "bbox": [
+        2856,
+        270,
+        3366,
+        300
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "Three-line / all orders / optical and colour key",
+      "bbox": [
+        142,
+        330,
+        925,
+        366
+      ],
+      "px": 38
+    },
+    {
+      "sheet": "3_LED",
+      "text": "颜色由波动光学模型计算（LED 照明、CIE 1931 观察者），待实拍验证 / Colours from a wave-optics model (LED light, CIE 1931 observer), awaiting photos",
+      "bbox": [
+        142,
+        408,
+        2079,
+        438
+      ],
+      "px": 27
+    },
+    {
+      "sheet": "3_LED",
+      "text": "LED: Gaussians 450/12 + 0.75×560/55 nm | CIE 1931 2° | 380–780 nm | W=0.35 µm, ΔL=0, edge σ=0.03 µm | 8 ECC blocks | exposure=17.558",
+      "bbox": [
+        142,
+        513,
+        1970,
+        542
+      ],
+      "px": 27
+    },
+    {
+      "sheet": "3_LED",
+      "text": "ID = observation_#### | P: µm | q: legacy purity (not a gain) | 1/P: lines/mm | upper strip: ALL orders",
+      "bbox": [
+        142,
+        557,
+        1584,
+        582
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "ID / P × 3 / q × 3 / spec / 1/P",
+      "bbox": [
+        142,
+        608,
+        576,
+        630
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.1",
+      "bbox": [
+        1141,
+        627,
+        1183,
+        643
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.2",
+      "bbox": [
+        1400,
+        627,
+        1442,
+        643
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.3",
+      "bbox": [
+        1659,
+        627,
+        1701,
+        643
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.4",
+      "bbox": [
+        1919,
+        627,
+        1961,
+        643
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.5",
+      "bbox": [
+        2178,
+        626,
+        2220,
+        643
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.6",
+      "bbox": [
+        2437,
+        627,
+        2479,
+        643
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.7",
+      "bbox": [
+        2696,
+        627,
+        2738,
+        643
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.8",
+      "bbox": [
+        2955,
+        627,
+        2997,
+        643
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.9",
+      "bbox": [
+        3214,
+        627,
+        3256,
+        643
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "δ",
+      "bbox": [
+        3349,
+        586,
+        3365,
+        606
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:194–380 nm",
+      "bbox": [
+        1220.8300611927064,
+        686,
+        1351.8300611927064,
+        700
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–1842 nm",
+      "bbox": [
+        2588.1124785472575,
+        686,
+        2722.1124785472575,
+        700
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:164–380 nm",
+      "bbox": [
+        1266.4970241903106,
+        708,
+        1398.4970241903106,
+        722
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1559 nm",
+      "bbox": [
+        2682.8762447002355,
+        708,
+        2816.8762447002355,
+        722
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:133–380 nm",
+      "bbox": [
+        1336.2474686867172,
+        730,
+        1467.2474686867172,
+        744
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1267 nm",
+      "bbox": [
+        2825.021893929701,
+        730,
+        2959.021893929701,
+        744
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0459 1.939/1.641/1.333",
+      "bbox": [
+        142,
+        673,
+        516,
+        697
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".163/.166/.172 8A5EBEAC…",
+      "bbox": [
+        142,
+        701,
+        550,
+        725
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 516/609/750 /mm",
+      "bbox": [
+        142,
+        731,
+        436,
+        751
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:197–380 nm",
+      "bbox": [
+        1217.4828142762392,
+        771,
+        1347.4828142762392,
+        785
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–1871 nm",
+      "bbox": [
+        2581.2154980345094,
+        771,
+        2713.2154980345094,
+        785
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:160–380 nm",
+      "bbox": [
+        1274.6915180232447,
+        793,
+        1405.6915180232447,
+        807
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1520 nm",
+      "bbox": [
+        2698.6702057257316,
+        793,
+        2832.6702057257316,
+        807
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:135–380 nm",
+      "bbox": [
+        1332.40022177025,
+        815,
+        1463.40022177025,
+        829
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1280 nm",
+      "bbox": [
+        2817.124913416953,
+        815,
+        2951.124913416953,
+        829
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0460 1.969/1.600/1.347",
+      "bbox": [
+        142,
+        758,
+        516,
+        782
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".172/.168/.177 D8C2DA5C…",
+      "bbox": [
+        142,
+        786,
+        550,
+        810
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 508/625/742 /mm",
+      "bbox": [
+        142,
+        816,
+        436,
+        836
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:198–380 nm",
+      "bbox": [
+        1216.003103923752,
+        856,
+        1346.003103923752,
+        870
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–1882 nm",
+      "bbox": [
+        2577.6781978372987,
+        856,
+        2710.6781978372987,
+        870
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:163–380 nm",
+      "bbox": [
+        1268.7726766132955,
+        878,
+        1399.7726766132955,
+        892
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1550 nm",
+      "bbox": [
+        2686.5210049368884,
+        878,
+        2820.5210049368884,
+        892
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:139–380 nm",
+      "bbox": [
+        1322.0422493028389,
+        900,
+        1453.0422493028389,
+        914
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1317 nm",
+      "bbox": [
+        2796.363812036477,
+        900,
+        2929.363812036477,
+        914
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0461 1.981/1.631/1.387",
+      "bbox": [
+        142,
+        843,
+        516,
+        867
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".160/.155/.161 5FD0AC78…",
+      "bbox": [
+        142,
+        871,
+        550,
+        895
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 505/613/721 /mm",
+      "bbox": [
+        142,
+        901,
+        436,
+        921
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:199–380 nm",
+      "bbox": [
+        1214.7347807644771,
+        941,
+        1344.7347807644771,
+        955
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–1892 nm",
+      "bbox": [
+        2575.074797668261,
+        941,
+        2708.074797668261,
+        955
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:166–380 nm",
+      "bbox": [
+        1263.699383976196,
+        963,
+        1394.699383976196,
+        977
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1576 nm",
+      "bbox": [
+        2676.107404260737,
+        963,
+        2810.107404260737,
+        977
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:136–380 nm",
+      "bbox": [
+        1329.652188258488,
+        985,
+        1460.652188258488,
+        999
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1290 nm",
+      "bbox": [
+        2811.4842130507045,
+        985,
+        2945.4842130507045,
+        999
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0462 1.991/1.659/1.358",
+      "bbox": [
+        142,
+        928,
+        516,
+        952
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".143/.139/.150 8587DED1…",
+      "bbox": [
+        142,
+        956,
+        550,
+        980
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 502/603/737 /mm",
+      "bbox": [
+        142,
+        986,
+        436,
+        1006
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:200–380 nm",
+      "bbox": [
+        1213.1355673597723,
+        1026,
+        1344.1355673597723,
+        1040
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–1900 nm",
+      "bbox": [
+        2572.8185175217614,
+        1026,
+        2705.8185175217614,
+        1040
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:168–380 nm",
+      "bbox": [
+        1259.3025303573766,
+        1048,
+        1390.3025303573766,
+        1062
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1600 nm",
+      "bbox": [
+        2667.082283674739,
+        1048,
+        2801.082283674739,
+        1062
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:139–380 nm",
+      "bbox": [
+        1320.858481020849,
+        1070,
+        1451.858481020849,
+        1084
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1322 nm",
+      "bbox": [
+        2793.4339718787087,
+        1070,
+        2927.4339718787087,
+        1084
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0463 2.000/1.684/1.391",
+      "bbox": [
+        142,
+        1013,
+        516,
+        1037
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".149/.143/.131 608D7146…",
+      "bbox": [
+        142,
+        1041,
+        550,
+        1065
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 500/594/719 /mm",
+      "bbox": [
+        142,
+        1071,
+        436,
+        1091
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:201–380 nm",
+      "bbox": [
+        1212.6737556306555,
+        1111,
+        1342.6737556306555,
+        1125
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–1907 nm",
+      "bbox": [
+        2570.8442723935746,
+        1111,
+        2703.8442723935746,
+        1125
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:163–380 nm",
+      "bbox": [
+        1269.8824593776608,
+        1133,
+        1400.8824593776608,
+        1147
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1544 nm",
+      "bbox": [
+        2687.7989800847963,
+        1133,
+        2823.7989800847963,
+        1147
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:142–380 nm",
+      "bbox": [
+        1312.663987187915,
+        1155,
+        1444.663987187915,
+        1169
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1351 nm",
+      "bbox": [
+        2778.1400108532125,
+        1155,
+        2911.1400108532125,
+        1169
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0464 2.008/1.625/1.422",
+      "bbox": [
+        142,
+        1098,
+        516,
+        1122
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".141/.143/.142 69B9AC8D…",
+      "bbox": [
+        142,
+        1126,
+        550,
+        1150
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 498/615/703 /mm",
+      "bbox": [
+        142,
+        1156,
+        436,
+        1176
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:201–380 nm",
+      "bbox": [
+        1212.6737556306555,
+        1196,
+        1342.6737556306555,
+        1210
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–1907 nm",
+      "bbox": [
+        2570.8442723935746,
+        1196,
+        2703.8442723935746,
+        1210
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:171–380 nm",
+      "bbox": [
+        1255.9552834409096,
+        1218,
+        1385.9552834409096,
+        1232
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1621 nm",
+      "bbox": [
+        2659.6853031619908,
+        1218,
+        2792.6853031619908,
+        1232
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:142–380 nm",
+      "bbox": [
+        1312.663987187915,
+        1240,
+        1444.663987187915,
+        1254
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1351 nm",
+      "bbox": [
+        2778.1400108532125,
+        1240,
+        2911.1400108532125,
+        1254
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0465 2.008/1.707/1.422",
+      "bbox": [
+        142,
+        1183,
+        516,
+        1207
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".134/.133/.145 D38AD8BF…",
+      "bbox": [
+        142,
+        1211,
+        550,
+        1235
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 498/586/703 /mm",
+      "bbox": [
+        142,
+        1241,
+        436,
+        1261
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:213–380 nm",
+      "bbox": [
+        1198.246579693904,
+        1281,
+        1328.246579693904,
+        1295
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2027 nm",
+      "bbox": [
+        2540.730595470769,
+        1281,
+        2674.730595470769,
+        1295
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:178–380 nm",
+      "bbox": [
+        1243.9135426915086,
+        1303,
+        1374.9135426915086,
+        1317
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1689 nm",
+      "bbox": [
+        2635.4943616237465,
+        1303,
+        2769.4943616237465,
+        1317
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:145–380 nm",
+      "bbox": [
+        1304.9694933549808,
+        1325,
+        1436.9694933549808,
+        1339
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1382 nm",
+      "bbox": [
+        2761.8460498277163,
+        1325,
+        2895.8460498277163,
+        1339
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0470 2.133/1.778/1.455",
+      "bbox": [
+        142,
+        1268,
+        516,
+        1292
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".127/.136/.134 1C98D1B9…",
+      "bbox": [
+        142,
+        1296,
+        550,
+        1320
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 469/563/688 /mm",
+      "bbox": [
+        142,
+        1326,
+        436,
+        1346
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:213–380 nm",
+      "bbox": [
+        1198.246579693904,
+        1366,
+        1328.246579693904,
+        1380
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2027 nm",
+      "bbox": [
+        2540.730595470769,
+        1366,
+        2674.730595470769,
+        1380
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:173–380 nm",
+      "bbox": [
+        1251.0161523834477,
+        1388,
+        1382.0161523834477,
+        1402
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1647 nm",
+      "bbox": [
+        2649.573402570358,
+        1388,
+        2784.573402570358,
+        1402
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:146–380 nm",
+      "bbox": [
+        1303.785725072991,
+        1410,
+        1435.785725072991,
+        1424
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1387 nm",
+      "bbox": [
+        2759.4162096699474,
+        1410,
+        2893.4162096699474,
+        1424
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0467 2.133/1.733/1.460",
+      "bbox": [
+        142,
+        1353,
+        516,
+        1377
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".159/.159/.159 20D746DC…",
+      "bbox": [
+        142,
+        1381,
+        550,
+        1405
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 469/577/685 /mm",
+      "bbox": [
+        142,
+        1411,
+        436,
+        1431
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:213–380 nm",
+      "bbox": [
+        1198.246579693904,
+        1451,
+        1328.246579693904,
+        1465
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2027 nm",
+      "bbox": [
+        2540.730595470769,
+        1451,
+        2674.730595470769,
+        1465
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:173–380 nm",
+      "bbox": [
+        1252.0606538087327,
+        1473,
+        1383.0606538087327,
+        1487
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1641 nm",
+      "bbox": [
+        2652.2173791801542,
+        1473,
+        2786.2173791801542,
+        1487
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:151–380 nm",
+      "bbox": [
+        1293.2962093948543,
+        1495,
+        1423.2962093948543,
+        1509
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1436 nm",
+      "bbox": [
+        2735.332466962193,
+        1495,
+        2870.332466962193,
+        1509
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0466 2.133/1.727/1.511",
+      "bbox": [
+        142,
+        1438,
+        516,
+        1462
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".118/.122/.124 61E68BCA…",
+      "bbox": [
+        142,
+        1466,
+        550,
+        1490
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 469/579/662 /mm",
+      "bbox": [
+        142,
+        1496,
+        436,
+        1516
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:213–380 nm",
+      "bbox": [
+        1198.246579693904,
+        1536,
+        1328.246579693904,
+        1550
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2027 nm",
+      "bbox": [
+        2540.730595470769,
+        1536,
+        2674.730595470769,
+        1550
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:181–380 nm",
+      "bbox": [
+        1240.2165460553626,
+        1558,
+        1370.2165460553626,
+        1572
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1715 nm",
+      "bbox": [
+        2627.379473791658,
+        1558,
+        2760.379473791658,
+        1572
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:147–380 nm",
+      "bbox": [
+        1302.1714955975503,
+        1580,
+        1434.1714955975503,
+        1594
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1393 nm",
+      "bbox": [
+        2756.1027912729905,
+        1580,
+        2890.1027912729905,
+        1594
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0473 2.133/1.805/1.467",
+      "bbox": [
+        142,
+        1523,
+        516,
+        1547
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".161/.148/.153 6BEDD2CA…",
+      "bbox": [
+        142,
+        1551,
+        550,
+        1575
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 469/554/682 /mm",
+      "bbox": [
+        142,
+        1581,
+        436,
+        1601
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:213–380 nm",
+      "bbox": [
+        1198.246579693904,
+        1621,
+        1328.246579693904,
+        1635
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2027 nm",
+      "bbox": [
+        2540.730595470769,
+        1621,
+        2674.730595470769,
+        1635
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:175–380 nm",
+      "bbox": [
+        1249.0432052467977,
+        1643,
+        1380.0432052467977,
+        1657
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1658 nm",
+      "bbox": [
+        2646.0236689740773,
+        1643,
+        2780.0236689740773,
+        1657
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:148–380 nm",
+      "bbox": [
+        1299.8398307996915,
+        1665,
+        1431.8398307996915,
+        1679
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1403 nm",
+      "bbox": [
+        2750.8167424773856,
+        1665,
+        2885.8167424773856,
+        1679
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0468 2.133/1.745/1.477",
+      "bbox": [
+        142,
+        1608,
+        516,
+        1632
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".192/.209/.177 8DCD8DB7…",
+      "bbox": [
+        142,
+        1636,
+        550,
+        1660
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 469/573/677 /mm",
+      "bbox": [
+        142,
+        1666,
+        436,
+        1686
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:213–380 nm",
+      "bbox": [
+        1198.246579693904,
+        1706,
+        1328.246579693904,
+        1720
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2027 nm",
+      "bbox": [
+        2540.730595470769,
+        1706,
+        2674.730595470769,
+        1720
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:181–380 nm",
+      "bbox": [
+        1238.9821352800257,
+        1728,
+        1368.9821352800257,
+        1742
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1723 nm",
+      "bbox": [
+        2624.345683252808,
+        1728,
+        2758.345683252808,
+        1742
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:151–380 nm",
+      "bbox": [
+        1293.2962093948543,
+        1750,
+        1423.2962093948543,
+        1764
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1436 nm",
+      "bbox": [
+        2735.332466962193,
+        1750,
+        2870.332466962193,
+        1764
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0474 2.133/1.813/1.511",
+      "bbox": [
+        142,
+        1693,
+        516,
+        1717
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".171/.161/.147 8DDB8271…",
+      "bbox": [
+        142,
+        1721,
+        550,
+        1745
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 469/551/662 /mm",
+      "bbox": [
+        142,
+        1751,
+        436,
+        1771
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:213–380 nm",
+      "bbox": [
+        1198.246579693904,
+        1791,
+        1328.246579693904,
+        1805
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2027 nm",
+      "bbox": [
+        2540.730595470769,
+        1791,
+        2674.730595470769,
+        1805
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:180–380 nm",
+      "bbox": [
+        1241.0281075041582,
+        1813,
+        1372.0281075041582,
+        1827
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1707 nm",
+      "bbox": [
+        2629.571626239185,
+        1813,
+        2763.571626239185,
+        1827
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:148–380 nm",
+      "bbox": [
+        1298.2368112511635,
+        1835,
+        1430.2368112511635,
+        1849
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1410 nm",
+      "bbox": [
+        2748.026333930407,
+        1835,
+        2882.026333930407,
+        1849
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0472 2.133/1.796/1.484",
+      "bbox": [
+        142,
+        1778,
+        516,
+        1802
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".132/.129/.139 A5E8CDE6…",
+      "bbox": [
+        142,
+        1806,
+        550,
+        1830
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 469/557/674 /mm",
+      "bbox": [
+        142,
+        1836,
+        436,
+        1856
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:213–380 nm",
+      "bbox": [
+        1198.246579693904,
+        1876,
+        1328.246579693904,
+        1890
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2027 nm",
+      "bbox": [
+        2540.730595470769,
+        1876,
+        2674.730595470769,
+        1890
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:176–380 nm",
+      "bbox": [
+        1247.211182905623,
+        1898,
+        1378.211182905623,
+        1912
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1669 nm",
+      "bbox": [
+        2642.263202063245,
+        1898,
+        2776.263202063245,
+        1912
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:149–380 nm",
+      "bbox": [
+        1296.1757861173419,
+        1920,
+        1428.1757861173419,
+        1934
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1419 nm",
+      "bbox": [
+        2743.7958086557205,
+        1920,
+        2877.7958086557205,
+        1934
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0469 2.133/1.757/1.493",
+      "bbox": [
+        142,
+        1863,
+        516,
+        1887
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".152/.145/.154 D272EDA2…",
+      "bbox": [
+        142,
+        1891,
+        550,
+        1915
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 469/569/670 /mm",
+      "bbox": [
+        142,
+        1921,
+        436,
+        1941
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:213–380 nm",
+      "bbox": [
+        1198.246579693904,
+        1961,
+        1328.246579693904,
+        1975
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2027 nm",
+      "bbox": [
+        2540.730595470769,
+        1961,
+        2674.730595470769,
+        1975
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:178–380 nm",
+      "bbox": [
+        1243.9135426915086,
+        1983,
+        1374.9135426915086,
+        1997
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1689 nm",
+      "bbox": [
+        2635.4943616237465,
+        1983,
+        2769.4943616237465,
+        1997
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:152–380 nm",
+      "bbox": [
+        1290.080505689113,
+        2005,
+        1421.080505689113,
+        2019
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1448 nm",
+      "bbox": [
+        2729.258127776724,
+        2005,
+        2865.258127776724,
+        2019
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0471 2.133/1.778/1.524",
+      "bbox": [
+        142,
+        1948,
+        516,
+        1972
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".209/.200/.202 EA83D4F3…",
+      "bbox": [
+        142,
+        1976,
+        550,
+        2000
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 469/563/656 /mm",
+      "bbox": [
+        142,
+        2006,
+        436,
+        2026
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:226–380 nm",
+      "bbox": [
+        1184.9224233056807,
+        2046,
+        1315.9224233056807,
+        2060
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2146 nm",
+      "bbox": [
+        2514.407327094942,
+        2046,
+        2648.407327094942,
+        2060
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:192–380 nm",
+      "bbox": [
+        1223.394892470351,
+        2068,
+        1354.394892470351,
+        2082
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1824 nm",
+      "bbox": [
+        2592.8771322224234,
+        2068,
+        2727.8771322224234,
+        2082
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:160–380 nm",
+      "bbox": [
+        1274.6915180232447,
+        2090,
+        1405.6915180232447,
+        2104
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1520 nm",
+      "bbox": [
+        2698.6702057257316,
+        2090,
+        2832.6702057257316,
+        2104
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0476 2.259/1.920/1.600",
+      "bbox": [
+        142,
+        2033,
+        516,
+        2057
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".111/.106/.109 83467C3E…",
+      "bbox": [
+        142,
+        2061,
+        550,
+        2085
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 443/521/625 /mm",
+      "bbox": [
+        142,
+        2091,
+        436,
+        2111
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:226–380 nm",
+      "bbox": [
+        1184.9224233056807,
+        2131,
+        1315.9224233056807,
+        2145
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2146 nm",
+      "bbox": [
+        2514.407327094942,
+        2131,
+        2648.407327094942,
+        2145
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:183–380 nm",
+      "bbox": [
+        1236.2190488585743,
+        2153,
+        1367.2190488585743,
+        2167
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1737 nm",
+      "bbox": [
+        2619.7004005982503,
+        2153,
+        2753.7004005982503,
+        2167
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:160–380 nm",
+      "bbox": [
+        1274.6915180232447,
+        2175,
+        1405.6915180232447,
+        2189
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1520 nm",
+      "bbox": [
+        2698.6702057257316,
+        2175,
+        2832.6702057257316,
+        2189
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0475 2.259/1.829/1.600",
+      "bbox": [
+        142,
+        2118,
+        516,
+        2142
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".114/.112/.108 C04FAA38…",
+      "bbox": [
+        142,
+        2146,
+        550,
+        2170
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 443/547/625 /mm",
+      "bbox": [
+        142,
+        2176,
+        436,
+        2196
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:227–380 nm",
+      "bbox": [
+        1184.1680611651968,
+        2216,
+        1315.1680611651968,
+        2230
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2153 nm",
+      "bbox": [
+        2513.358899543423,
+        2216,
+        2646.358899543423,
+        2230
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:191–380 nm",
+      "bbox": [
+        1225.4036167513184,
+        2238,
+        1355.4036167513184,
+        2252
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1813 nm",
+      "bbox": [
+        2596.9739873254616,
+        2238,
+        2729.9739873254616,
+        2252
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:158–380 nm",
+      "bbox": [
+        1279.2176908661472,
+        2260,
+        1410.2176908661472,
+        2274
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1498 nm",
+      "bbox": [
+        2707.460771034847,
+        2260,
+        2842.460771034847,
+        2274
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0477 2.267/1.909/1.577",
+      "bbox": [
+        142,
+        2203,
+        516,
+        2227
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".124/.130/.119 9E85AA85…",
+      "bbox": [
+        142,
+        2231,
+        550,
+        2255
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 441/524/634 /mm",
+      "bbox": [
+        142,
+        2261,
+        436,
+        2281
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:228–380 nm",
+      "bbox": [
+        1183.3194037571527,
+        2301,
+        1314.3194037571527,
+        2315
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2162 nm",
+      "bbox": [
+        2511.616918547964,
+        2301,
+        2644.616918547964,
+        2315
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:190–380 nm",
+      "bbox": [
+        1226.6009315674069,
+        2323,
+        1357.6009315674069,
+        2337
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1801 nm",
+      "bbox": [
+        2600.45794931638,
+        2323,
+        2733.45794931638,
+        2337
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:155–380 nm",
+      "bbox": [
+        1284.3096353144124,
+        2345,
+        1415.3096353144124,
+        2359
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1474 nm",
+      "bbox": [
+        2717.412657007602,
+        2345,
+        2853.412657007602,
+        2359
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0478 2.275/1.896/1.551",
+      "bbox": [
+        142,
+        2288,
+        516,
+        2312
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".143/.135/.136 65EDED60…",
+      "bbox": [
+        142,
+        2316,
+        550,
+        2340
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 439/527/645 /mm",
+      "bbox": [
+        142,
+        2346,
+        436,
+        2366
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:229–380 nm",
+      "bbox": [
+        1182.357592028036,
+        2386,
+        1313.357592028036,
+        2400
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2171 nm",
+      "bbox": [
+        2510.1426734197767,
+        2386,
+        2642.1426734197767,
+        2400
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:188–380 nm",
+      "bbox": [
+        1228.5245550256404,
+        2408,
+        1359.5245550256404,
+        2422
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1788 nm",
+      "bbox": [
+        2603.9064395727537,
+        2408,
+        2737.9064395727537,
+        2422
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:160–380 nm",
+      "bbox": [
+        1274.6915180232447,
+        2430,
+        1405.6915180232447,
+        2444
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1520 nm",
+      "bbox": [
+        2698.6702057257316,
+        2430,
+        2832.6702057257316,
+        2444
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0479 2.286/1.882/1.600",
+      "bbox": [
+        142,
+        2373,
+        516,
+        2397
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".165/.162/.173 8DCD51EA…",
+      "bbox": [
+        142,
+        2401,
+        550,
+        2425
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 438/531/625 /mm",
+      "bbox": [
+        142,
+        2431,
+        436,
+        2451
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:230–380 nm",
+      "bbox": [
+        1181.2583786233313,
+        2471,
+        1312.2583786233313,
+        2485
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2183 nm",
+      "bbox": [
+        2507.3863932732775,
+        2471,
+        2640.3863932732775,
+        2485
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:187–380 nm",
+      "bbox": [
+        1230.7229818350502,
+        2493,
+        1361.7229818350502,
+        2507
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1773 nm",
+      "bbox": [
+        2608.418999865753,
+        2493,
+        2742.418999865753,
+        2507
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:157–380 nm",
+      "bbox": [
+        1280.187585046769,
+        2515,
+        1411.187585046769,
+        2529
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1493 nm",
+      "bbox": [
+        2709.4516064582285,
+        2515,
+        2844.4516064582285,
+        2529
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0480 2.297/1.867/1.572",
+      "bbox": [
+        142,
+        2458,
+        516,
+        2482
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".138/.137/.127 93E3D1FF…",
+      "bbox": [
+        142,
+        2486,
+        550,
+        2510
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 435/536/636 /mm",
+      "bbox": [
+        142,
+        2516,
+        436,
+        2536
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:233–380 nm",
+      "bbox": [
+        1178.510345111569,
+        2556,
+        1309.510345111569,
+        2570
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2211 nm",
+      "bbox": [
+        2502.2456929070286,
+        2556,
+        2634.2456929070286,
+        2570
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:197–380 nm",
+      "bbox": [
+        1216.9828142762392,
+        2578,
+        1347.9828142762392,
+        2592
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1871 nm",
+      "bbox": [
+        2580.7154980345094,
+        2578,
+        2713.7154980345094,
+        2592
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:160–380 nm",
+      "bbox": [
+        1274.6915180232447,
+        2600,
+        1405.6915180232447,
+        2614
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1520 nm",
+      "bbox": [
+        2698.6702057257316,
+        2600,
+        2832.6702057257316,
+        2614
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0481 2.327/1.969/1.600",
+      "bbox": [
+        142,
+        2543,
+        516,
+        2567
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".147/.151/.140 D1D87F21…",
+      "bbox": [
+        142,
+        2571,
+        550,
+        2595
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 430/508/625 /mm",
+      "bbox": [
+        142,
+        2601,
+        436,
+        2621
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:237–380 nm",
+      "bbox": [
+        1174.663098195102,
+        2641,
+        1305.663098195102,
+        2655
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2252 nm",
+      "bbox": [
+        2493.3487123942805,
+        2641,
+        2627.3487123942805,
+        2655
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:194–380 nm",
+      "bbox": [
+        1220.3300611927064,
+        2663,
+        1352.3300611927064,
+        2677
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–1842 nm",
+      "bbox": [
+        2587.6124785472575,
+        2663,
+        2722.6124785472575,
+        2677
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:164–380 nm",
+      "bbox": [
+        1266.4970241903106,
+        2685,
+        1398.4970241903106,
+        2699
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1559 nm",
+      "bbox": [
+        2682.8762447002355,
+        2685,
+        2816.8762447002355,
+        2699
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0482 2.370/1.939/1.641",
+      "bbox": [
+        142,
+        2628,
+        516,
+        2652
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".182/.164/.159 8583E3D1…",
+      "bbox": [
+        142,
+        2656,
+        550,
+        2680
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 422/516/609 /mm",
+      "bbox": [
+        142,
+        2686,
+        436,
+        2706
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:256–380 nm",
+      "bbox": [
+        1167,
+        2726,
+        1298,
+        2740
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2432 nm",
+      "bbox": [
+        2461.260790343288,
+        2726,
+        2596.260790343288,
+        2740
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:213–380 nm",
+      "bbox": [
+        1197.746579693904,
+        2748,
+        1328.746579693904,
+        2762
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–2027 nm",
+      "bbox": [
+        2540.230595470769,
+        2748,
+        2675.230595470769,
+        2762
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:183–380 nm",
+      "bbox": [
+        1236.2190488585743,
+        2770,
+        1367.2190488585743,
+        2784
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1737 nm",
+      "bbox": [
+        2619.7004005982503,
+        2770,
+        2753.7004005982503,
+        2784
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0483 2.560/2.133/1.829",
+      "bbox": [
+        142,
+        2713,
+        516,
+        2737
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".171/.174/.169 402DEB87…",
+      "bbox": [
+        142,
+        2741,
+        550,
+        2765
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 391/469/547 /mm",
+      "bbox": [
+        142,
+        2771,
+        436,
+        2791
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:259–380 nm",
+      "bbox": [
+        1167,
+        2811,
+        1298,
+        2825
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2461 nm",
+      "bbox": [
+        2457.1155076887303,
+        2811,
+        2591.1155076887303,
+        2825
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:213–380 nm",
+      "bbox": [
+        1197.746579693904,
+        2833,
+        1328.746579693904,
+        2847
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–2027 nm",
+      "bbox": [
+        2540.230595470769,
+        2833,
+        2675.230595470769,
+        2847
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:181–380 nm",
+      "bbox": [
+        1238.9821352800257,
+        2855,
+        1368.9821352800257,
+        2869
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1723 nm",
+      "bbox": [
+        2624.345683252808,
+        2855,
+        2758.345683252808,
+        2869
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0208 2.590/2.133/1.813",
+      "bbox": [
+        142,
+        2798,
+        516,
+        2822
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".114/.109/.130 EA9AA540…",
+      "bbox": [
+        142,
+        2826,
+        550,
+        2850
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 386/469/551 /mm",
+      "bbox": [
+        142,
+        2856,
+        436,
+        2876
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV1:261–380 nm",
+      "bbox": [
+        1167,
+        2896,
+        1297,
+        2910
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–2477 nm",
+      "bbox": [
+        2454.0817171498807,
+        2896,
+        2589.0817171498807,
+        2910
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:213–380 nm",
+      "bbox": [
+        1197.746579693904,
+        2918,
+        1328.746579693904,
+        2932
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–2027 nm",
+      "bbox": [
+        2540.230595470769,
+        2918,
+        2675.230595470769,
+        2932
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:181–380 nm",
+      "bbox": [
+        1240.2165460553626,
+        2940,
+        1370.2165460553626,
+        2954
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–1715 nm",
+      "bbox": [
+        2627.379473791658,
+        2940,
+        2760.379473791658,
+        2954
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0484 2.607/2.133/1.805",
+      "bbox": [
+        142,
+        2883,
+        516,
+        2907
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".156/.140/.150 158B83A3…",
+      "bbox": [
+        142,
+        2911,
+        550,
+        2935
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 384/469/554 /mm",
+      "bbox": [
+        142,
+        2941,
+        436,
+        2961
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR1:780–4053 nm",
+      "bbox": [
+        2303.3211800883255,
+        2981,
+        2438.3211800883255,
+        2995
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV2:356–380 nm",
+      "bbox": [
+        1167,
+        3003,
+        1299,
+        3017
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR2:780–3378 nm",
+      "bbox": [
+        2350.7030631648145,
+        3003,
+        2485.7030631648145,
+        3017
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "UV3:305–380 nm",
+      "bbox": [
+        1167,
+        3025,
+        1299,
+        3039
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "IR3:780–2895 nm",
+      "bbox": [
+        2398.084946241303,
+        3025,
+        2533.084946241303,
+        3039
+      ],
+      "px": 21
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0206 4.267/3.555/3.048",
+      "bbox": [
+        142,
+        2968,
+        516,
+        2992
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": ".050/.047/.048 2112832B…",
+      "bbox": [
+        142,
+        2996,
+        550,
+        3020
+      ],
+      "px": 30
+    },
+    {
+      "sheet": "3_LED",
+      "text": "1/P = 234/281/328 /mm",
+      "bbox": [
+        142,
+        3026,
+        436,
+        3046
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.1",
+      "bbox": [
+        1141,
+        3080,
+        1183,
+        3096
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.2",
+      "bbox": [
+        1400,
+        3080,
+        1442,
+        3096
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.3",
+      "bbox": [
+        1659,
+        3080,
+        1701,
+        3096
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.4",
+      "bbox": [
+        1919,
+        3080,
+        1961,
+        3096
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.5",
+      "bbox": [
+        2178,
+        3080,
+        2220,
+        3097
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.6",
+      "bbox": [
+        2437,
+        3080,
+        2479,
+        3096
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.7",
+      "bbox": [
+        2696,
+        3080,
+        2738,
+        3096
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.8",
+      "bbox": [
+        2955,
+        3080,
+        2997,
+        3096
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "0.9",
+      "bbox": [
+        3214,
+        3080,
+        3256,
+        3096
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "δ",
+      "bbox": [
+        3349,
+        3116,
+        3365,
+        3136
+      ],
+      "px": 25
+    },
+    {
+      "sheet": "3_LED",
+      "text": "模型：实际 EFMPlus 通道位；每纹理 8 个真实 ECC 块，4 组编码初态；随机邻域的 PI / PO 真实计算。",
+      "bbox": [
+        142,
+        3290,
+        1483,
+        3319
+      ],
+      "px": 29
+    },
+    {
+      "sheet": "3_LED",
+      "text": "矩形标记 W=0.35 µm、长度偏移 0、边缘 σ=0.03 µm；这些尺寸未测量。邻轨按功率相加。",
+      "bbox": [
+        142,
+        3378,
+        1343,
+        3410
+      ],
+      "px": 29
+    },
+    {
+      "sheet": "3_LED",
+      "text": "LED：450 nm 蓝峰（σ=12）+ 0.75 × 560 nm 荧光峰（σ=55）；不是一盏已测量的实灯。",
+      "bbox": [
+        142,
+        3466,
+        1338,
+        3496
+      ],
+      "px": 29
+    },
+    {
+      "sheet": "3_LED",
+      "text": "观察者：CIE 1931 2°（离线 5 nm 表）；积分 380–780 nm；XYZ 转 D65 sRGB，不做相机白平衡。",
+      "bbox": [
+        142,
+        3554,
+        1448,
+        3584
+      ],
+      "px": 29
+    },
+    {
+      "sheet": "3_LED",
+      "text": "有限灯面与瞳孔按均匀圆孔积分；中央 δr=0，采用对称入射／观察几何 θ=asin(δ/2)。",
+      "bbox": [
+        142,
+        3642,
+        1260,
+        3672
+      ],
+      "px": 29
+    },
+    {
+      "sheet": "3_LED",
+      "text": "上色带包含谱中全部阶次与连续背景；下面的 UV / IR 文本只是各目标周期的一阶位置。",
+      "bbox": [
+        142,
+        3730,
+        1275,
+        3760
+      ],
+      "px": 29
+    },
+    {
+      "sheet": "3_LED",
+      "text": "薄彩轨从实算功率谱提取 2/P ±5% 频带，同一曝光；偶次谱缺失时它自然很暗。",
+      "bbox": [
+        142,
+        3818,
+        1180,
+        3848
+      ],
+      "px": 29
+    },
+    {
+      "sheet": "3_LED",
+      "text": "一个固定曝光覆盖全页；负 sRGB 分量裁剪。人眼可见的部分颜色超出 sRGB 和纸张色域。",
+      "bbox": [
+        142,
+        3906,
+        1308,
+        3936
+      ],
+      "px": 29
+    },
+    {
+      "sheet": "3_LED",
+      "text": "旧照片检验未通过；B9、低 NA 明暗与染料色散仍未解决。数值复现不等于实物验证。",
+      "bbox": [
+        142,
+        3994,
+        1254,
+        4023
+      ],
+      "px": 29
+    },
+    {
+      "sheet": "3_LED",
+      "text": "完整模型、哈希、采样误差、数值收敛和运行记录见 REPORT.md 与 v3/validation.json。",
+      "bbox": [
+        142,
+        4082,
+        1305,
+        4114
+      ],
+      "px": 29
+    },
+    {
+      "sheet": "3_LED",
+      "text": "δ 为沿轨道的方向差，不是角度。上色带含全部可见谱；暗标注带仅解释名义一阶 UV / IR（380 / 780 nm）。",
+      "bbox": [
+        142,
+        4700,
+        1467,
+        4729
+      ],
+      "px": 27
+    },
+    {
+      "sheet": "3_LED",
+      "text": "细彩轨 = 2/P 附近 ±5% 频带的计算颜色与强度；q 不再乘作增益。所有行共用一个曝光；无逐行归一化。",
+      "bbox": [
+        142,
+        4743,
+        1412,
+        4773
+      ],
+      "px": 27
+    },
+    {
+      "sheet": "3_LED",
+      "text": "灯：5 cm / 1 m；瞳孔：4 mm / 30 cm。标记尺寸、染料反差与灯谱仍是假设；不保证实拍或印刷吻合。",
+      "bbox": [
+        142,
+        4786,
+        1408,
+        4814
+      ],
+      "px": 27
+    },
+    {
+      "sheet": "3_LED",
+      "text": "V3 3 / LED / A3 300 dpi sRGB / print at 100%",
+      "bbox": [
+        2750,
+        4817,
+        3366,
+        4840
+      ],
+      "px": 25
+    }
+  ]
+}

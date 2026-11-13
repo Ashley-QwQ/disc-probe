@@ -1,0 +1,307 @@
+{
+  "analytic_rectangular_grating": [
+    {
+      "order": 1,
+      "computed_line_area": 0.012411844996186376,
+      "analytic_line_area": 0.012411844996186378
+    },
+    {
+      "order": 2,
+      "computed_line_area": 0.0,
+      "analytic_line_area": 4.653696488478286e-35
+    },
+    {
+      "order": 3,
+      "computed_line_area": 0.0013790938884651533,
+      "analytic_line_area": 0.001379093888465153
+    },
+    {
+      "order": 4,
+      "computed_line_area": 0.0,
+      "analytic_line_area": 4.653696488478286e-35
+    },
+    {
+      "order": 5,
+      "computed_line_area": 0.0004964737998474551,
+      "analytic_line_area": 0.0004964737998474551
+    }
+  ],
+  "flat_spectrum_change_of_variables": [
+    {
+      "lamp": "LED",
+      "flat_P_operator_vs_direct_wavelength_integral_relative_max_error": 1.0064224055717817e-05
+    },
+    {
+      "lamp": "D65",
+      "flat_P_operator_vs_direct_wavelength_integral_relative_max_error": 7.153471273731816e-06
+    }
+  ],
+  "parameter_sensitivity": {
+    "scenario_results": [
+      {
+        "texture": "92",
+        "scenario": "nominal",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.0,
+        "xy_distance_max_on_visible_cells": 0.0,
+        "integrated_Y_ratio_to_nominal": 1.0
+      },
+      {
+        "texture": "92",
+        "scenario": "dl_minus_30nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.0013886270616548404,
+        "xy_distance_max_on_visible_cells": 0.018822257182881514,
+        "integrated_Y_ratio_to_nominal": 0.9982068812928023
+      },
+      {
+        "texture": "92",
+        "scenario": "dl_plus_30nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.0014207643336452494,
+        "xy_distance_max_on_visible_cells": 0.018891617229699034,
+        "integrated_Y_ratio_to_nominal": 0.9981877707090135
+      },
+      {
+        "texture": "92",
+        "scenario": "edge_5nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.0012946368724824873,
+        "xy_distance_max_on_visible_cells": 0.004036303705499229,
+        "integrated_Y_ratio_to_nominal": 1.01445433101926
+      },
+      {
+        "texture": "92",
+        "scenario": "edge_60nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.003969336572237924,
+        "xy_distance_max_on_visible_cells": 0.012512178480848115,
+        "integrated_Y_ratio_to_nominal": 0.9584368307113715
+      },
+      {
+        "texture": "92",
+        "scenario": "D4_effective_run_widths",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.013126607152541395,
+        "xy_distance_max_on_visible_cells": 0.06674134030830434,
+        "integrated_Y_ratio_to_nominal": 0.9628934657490418
+      },
+      {
+        "texture": "A5",
+        "scenario": "nominal",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.0,
+        "xy_distance_max_on_visible_cells": 0.0,
+        "integrated_Y_ratio_to_nominal": 1.0
+      },
+      {
+        "texture": "A5",
+        "scenario": "dl_minus_30nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.00033969882231976977,
+        "xy_distance_max_on_visible_cells": 0.022471663821091954,
+        "integrated_Y_ratio_to_nominal": 0.9894846656646018
+      },
+      {
+        "texture": "A5",
+        "scenario": "dl_plus_30nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.0003445858024789138,
+        "xy_distance_max_on_visible_cells": 0.02262255434808754,
+        "integrated_Y_ratio_to_nominal": 0.9894904144082833
+      },
+      {
+        "texture": "A5",
+        "scenario": "edge_5nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.0007125344856088621,
+        "xy_distance_max_on_visible_cells": 0.0076009605618145475,
+        "integrated_Y_ratio_to_nominal": 1.0446306379358106
+      },
+      {
+        "texture": "A5",
+        "scenario": "edge_60nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.002196917441627389,
+        "xy_distance_max_on_visible_cells": 0.02232943509625822,
+        "integrated_Y_ratio_to_nominal": 0.8750676197588756
+      },
+      {
+        "texture": "A5",
+        "scenario": "D4_effective_run_widths",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.02375877753467916,
+        "xy_distance_max_on_visible_cells": 0.09099113364920453,
+        "integrated_Y_ratio_to_nominal": 0.5230346509147331
+      },
+      {
+        "texture": "66",
+        "scenario": "nominal",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.0,
+        "xy_distance_max_on_visible_cells": 0.0,
+        "integrated_Y_ratio_to_nominal": 1.0
+      },
+      {
+        "texture": "66",
+        "scenario": "dl_minus_30nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.00010439502714056203,
+        "xy_distance_max_on_visible_cells": 0.0005066468981503814,
+        "integrated_Y_ratio_to_nominal": 0.9932374793211806
+      },
+      {
+        "texture": "66",
+        "scenario": "dl_plus_30nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.00015475159272010033,
+        "xy_distance_max_on_visible_cells": 0.0005394077296578107,
+        "integrated_Y_ratio_to_nominal": 0.9932471706830724
+      },
+      {
+        "texture": "66",
+        "scenario": "edge_5nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.00039169161943380167,
+        "xy_distance_max_on_visible_cells": 0.0031658209669109113,
+        "integrated_Y_ratio_to_nominal": 1.0297886817689899
+      },
+      {
+        "texture": "66",
+        "scenario": "edge_60nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.0012140030573792905,
+        "xy_distance_max_on_visible_cells": 0.009506634586602338,
+        "integrated_Y_ratio_to_nominal": 0.9137239869985954
+      },
+      {
+        "texture": "66",
+        "scenario": "D4_effective_run_widths",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.01305139625344126,
+        "xy_distance_max_on_visible_cells": 0.037860674686123245,
+        "integrated_Y_ratio_to_nominal": 0.6711339292993279
+      },
+      {
+        "texture": "B9",
+        "scenario": "nominal",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.0,
+        "xy_distance_max_on_visible_cells": 0.0,
+        "integrated_Y_ratio_to_nominal": 1.0
+      },
+      {
+        "texture": "B9",
+        "scenario": "dl_minus_30nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.00022787882162265694,
+        "xy_distance_max_on_visible_cells": 0.06860263853076987,
+        "integrated_Y_ratio_to_nominal": 0.9983508543633806
+      },
+      {
+        "texture": "B9",
+        "scenario": "dl_plus_30nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.00030055866641818217,
+        "xy_distance_max_on_visible_cells": 0.0692583200367995,
+        "integrated_Y_ratio_to_nominal": 0.9984031827868313
+      },
+      {
+        "texture": "B9",
+        "scenario": "edge_5nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.0005859731946082562,
+        "xy_distance_max_on_visible_cells": 0.005209342629888077,
+        "integrated_Y_ratio_to_nominal": 1.019077771797381
+      },
+      {
+        "texture": "B9",
+        "scenario": "edge_60nm",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.0018015197481347314,
+        "xy_distance_max_on_visible_cells": 0.015652519248618022,
+        "integrated_Y_ratio_to_nominal": 0.9439390729987143
+      },
+      {
+        "texture": "B9",
+        "scenario": "D4_effective_run_widths",
+        "samples": 2,
+        "xy_distance_median_on_visible_cells": 0.0637439584570583,
+        "xy_distance_max_on_visible_cells": 0.26305704212020226,
+        "integrated_Y_ratio_to_nominal": 0.6452499440015835
+      }
+    ],
+    "width_025_045_relative_intensity_factors": [
+      0.5102040816326531,
+      1.6530612244897962
+    ],
+    "interpretation": "Sensitivity scenarios, not confidence intervals or fitted physical dimensions. D4 run weights were fitted effective strengths, not measured widths."
+  },
+  "Monte_Carlo_sampling": [
+    {
+      "texture": "92",
+      "even_vs_odd_blocks_relative_max_XYZ_difference": 0.0006359248159294529,
+      "median_xy_distance_on_visible_cells": 0.0019172684429905095
+    },
+    {
+      "texture": "A5",
+      "even_vs_odd_blocks_relative_max_XYZ_difference": 0.0006824498154441178,
+      "median_xy_distance_on_visible_cells": 0.000624609913625816
+    },
+    {
+      "texture": "66",
+      "even_vs_odd_blocks_relative_max_XYZ_difference": 0.0007659888539629043,
+      "median_xy_distance_on_visible_cells": 0.0004286899287637146
+    },
+    {
+      "texture": "B9",
+      "even_vs_odd_blocks_relative_max_XYZ_difference": 0.0008165812773964747,
+      "median_xy_distance_on_visible_cells": 0.0006395795312607624
+    }
+  ],
+  "checkpoint_resume": {
+    "started_from_samples": 6,
+    "finished_samples": 8,
+    "byte_exact_mean_power_match": true
+  },
+  "frequency_and_aperture_convergence": {
+    "spatial_frequency_bins": [
+      {
+        "texture": "92",
+        "df_0005_vs_00025_relative_max_XYZ_error": 0.00010076205309199
+      },
+      {
+        "texture": "A5",
+        "df_0005_vs_00025_relative_max_XYZ_error": 0.0001247054825201447
+      },
+      {
+        "texture": "66",
+        "df_0005_vs_00025_relative_max_XYZ_error": 0.0001019226024893894
+      },
+      {
+        "texture": "B9",
+        "df_0005_vs_00025_relative_max_XYZ_error": 0.00014864904295612492
+      }
+    ],
+    "coherent_window_length": [
+      {
+        "texture": "92",
+        "8_sector_coherent_vs_two_4_sector_powers_relative_max_XYZ_error": 0.0008028091267623544
+      },
+      {
+        "texture": "A5",
+        "8_sector_coherent_vs_two_4_sector_powers_relative_max_XYZ_error": 3.767504086343089e-05
+      },
+      {
+        "texture": "66",
+        "8_sector_coherent_vs_two_4_sector_powers_relative_max_XYZ_error": 4.5238482170374783e-05
+      },
+      {
+        "texture": "B9",
+        "8_sector_coherent_vs_two_4_sector_powers_relative_max_XYZ_error": 5.631478933910976e-05
+      }
+    ]
+  },
+  "model_signature": "38a6f94ff89746325cb350b79600a6c94e9ca5b28dcab176587502f583644a99",
+  "seconds": 13.233472699997947
+}
