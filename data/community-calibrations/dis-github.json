@@ -6154,6 +6154,157 @@
    "related": [
     "I86-1"
    ]
+  },
+  {
+   "id": "I311-1",
+   "media": "dvd",
+   "disc": {
+    "mid": null,
+    "brand": "RiTEK",
+    "type": "Excellent DVD+RW 4X (inner ring VW47H-01062)",
+    "capacity_sectors": 2295104
+   },
+   "drive": {
+    "model": null,
+    "firmware": null,
+    "connection": null
+   },
+   "burn": {
+    "speed": null,
+    "software": null
+   },
+   "parameters": {
+    "innerRadiusMm": 23.9417487816327,
+    "outerRadiusMm": 58.14382318029559,
+    "sectors": 2295104,
+    "pitchLinear": 2.2357549829061135e-05,
+    "pitchQuadratic": -4.5758130304781394e-06,
+    "pitchCubic": 2.207847749834821e-06,
+    "usableSectors": 2295104
+   },
+   "parameters_as_posted": "innerRadiusMm=23.9417487816327; outerRadiusMm=58.14382318029559; sectors=2295104; pitchLinear=2.2357549829061135e-05; pitchQuadratic=-4.5758130304781394e-06; pitchCubic=2.207847749834821e-06; usableSectors=2295104",
+   "result": "worked",
+   "result_notes": "Original post has result photos (not inspected). SweetSourFox independently says \"Tested and perfectly fitted my disc\" on 2026-11-12: https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/311#issuecomment-6827225180. The same user names Verbatim 66768 in D270 c3; that is the reuse drive, not evidence of the original author's drive. MID, original drive and actual write speed are unknown; 4X is the disc rating.",
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/311",
+   "author": "SodiumSulfate",
+   "posted": "2026-11-11",
+   "language": "zh",
+   "confidence": "medium",
+   "confidence_why": "Full numeric text and an explicit independent reuse report. MID is not supplied; do not infer RITEK-004-48 from brand or inner-ring code."
+  },
+  {
+   "id": "PR298-1",
+   "media": "cd",
+   "disc": {
+    "mid": "97:26:66",
+    "brand": "Verbatim",
+    "type": "CD-R Extra Protection 43347",
+    "capacity_sectors": 359844
+   },
+   "drive": {
+    "model": "TSSTcorp CDDVDW SU-228GB",
+    "firmware": "AS00",
+    "connection": null
+   },
+   "burn": {
+    "speed": null,
+    "software": null
+   },
+   "parameters": {
+    "innerRadiusMm": 25.276144212110722,
+    "outerRadiusMm": 58.28306795541299,
+    "sectors": 359844,
+    "usableSectors": 359842,
+    "pitchLinear": 2.5851954651236925e-09,
+    "pitchQuadratic": -5.91768627050507e-10,
+    "pitchCubic": -2.6989935400056038e-09,
+    "linearVelocityMmPerSecond": 1200
+   },
+   "parameters_as_posted": "innerRadiusMm=25.276144212110722; outerRadiusMm=58.28306795541299; sectors=359844; usableSectors=359842; pitchLinear=2.5851954651236925e-09; pitchQuadratic=-5.91768627050507e-10; pitchCubic=-2.6989935400056038e-09; linearVelocityMmPerSecond=1200",
+   "result": "worked",
+   "result_notes": "Earlier PR body newly included because previous snapshots omitted PRs. Poster reports visible artwork and no obvious distortion on radial/circular targets using the same drive. READ CD offset assumed zero, not calibrated; timing radii are effective geometry, not independent physical boundary measurements. Posted linear velocity is 1200 mm/s. PR remains open; no cross-drive or batch guarantee.",
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/pull/298",
+   "author": "Try2Take",
+   "posted": "2026-11-10",
+   "language": "en",
+   "confidence": "medium",
+   "confidence_why": "Full numeric table and explicit same-drive physical validation, reported by author only.",
+   "method": "disc-probe CD-DA timing; 36/36 points, angular fit RMS 0.172 deg"
+  },
+  {
+   "id": "PR298-2",
+   "media": "cd",
+   "disc": {
+    "mid": null,
+    "brand": "Verbatim",
+    "type": "CD-R Extra Protection 43725 (10 pack wrap spindle)",
+    "capacity_sectors": 359846
+   },
+   "drive": {
+    "model": "PLDS DVD+-RW DH-16ABS (Lite-On)",
+    "firmware": null,
+    "connection": null
+   },
+   "burn": {
+    "speed": "16x",
+    "software": "DiscImageStudio streaming burn; CD delay interleaving on"
+   },
+   "parameters": {
+    "innerRadiusMm": 25.279705174092161,
+    "outerRadiusMm": 58.284462337181466,
+    "sectors": 359846,
+    "usableSectors": 359844,
+    "pitchLinear": 1.7576786015792444e-05,
+    "pitchQuadratic": -9.5765810980462908e-05,
+    "pitchCubic": 4.5700188636938378e-05
+   },
+   "parameters_as_posted": "inner 25.279705174092161 mm; outer 58.284462337181466 mm; sectors 359846 (359844 usable); pitch linear 1.7576786015792444E-05; pitch quadratic -9.5765810980462908E-05; pitch cubic 4.5700188636938378E-05",
+   "result": "worked",
+   "result_notes": "Independent configuration, not a reuse of PR298-1: poster says clean images. Different product number, drive, sector count and pitch terms. MID/ATIP not stated in this comment; not borrowed from the PR body. Poster is still working out photography; image not inspected. Small differences between fitted radii do not prove a reader-bias cause.",
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/pull/298#issuecomment-6836324517",
+   "author": "ManaOnTap",
+   "posted": "2026-11-12",
+   "language": "en",
+   "confidence": "medium",
+   "confidence_why": "Full numbers with drive, product, write speed and interleaving state; success is the poster's visual report."
+  },
+  {
+   "id": "I327-1",
+   "media": "dvd",
+   "disc": {
+    "mid": null,
+    "brand": "Verbatim",
+    "type": "DVD+RW 4.7 GB / 4x, product 94839",
+    "capacity_sectors": 2295104
+   },
+   "drive": {
+    "model": "HL-DT-ST DVDRAM GUE0N",
+    "firmware": "T.02",
+    "connection": "USB"
+   },
+   "burn": {
+    "speed": "4x",
+    "software": "Windows IMAPI2; exported ISO; DVD+RW overwrite enabled"
+   },
+   "parameters": {
+    "innerRadiusMm": 23.98021495351053,
+    "outerRadiusMm": 57.99222803078272,
+    "sectors": 2295104,
+    "usableSectors": 2295104,
+    "channelBitLengthNm": 133.3,
+    "pitchLinear": -3.9256854319227684e-05,
+    "pitchQuadratic": 6.964795915429256e-05,
+    "pitchCubic": -4.670918950137523e-05
+   },
+   "parameters_as_posted": "innerRadiusMm=23.98021495351053; outerRadiusMm=57.99222803078272; sectors=2295104; usableSectors=2295104; channelBitLengthNm=133.3; pitchLinear=-3.9256854319227684e-05; pitchQuadratic=6.964795915429256e-05; pitchCubic=-4.670918950137523e-05",
+   "result": "unknown",
+   "result_notes": "MID explicitly unconfirmed. The three pitch coefficients were unchanged from the starting preset, not independently measured for 94839. Poster gives current settings and cautions that burn completion is not full readback or proof of image alignment; no explicit final alignment success is claimed. Other batches and drives unverified.",
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/327",
+   "author": "tonyp2121",
+   "posted": "2026-11-13",
+   "language": "en",
+   "confidence": "medium",
+   "confidence_why": "Complete numeric JSON and hardware details, but inherited pitch terms and no explicit final image validation."
   }
  ],
  "skipped": [
@@ -6207,6 +6358,26 @@
   {
    "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/49",
    "why": "calibration tutorial; no calibration parameter sets"
+  },
+  {
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/270",
+   "why": "New comments are contrast observations and a reuse report, not new numeric calibration sets. Darker unburned dye giving better contrast is SODIUMWATER's observation, not a measured universal rule."
+  },
+  {
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/316",
+   "why": "SODIUMWATER suggests reducing outer radius by 0.01 to 0.02, explicitly a visual guess. No final outer radius or successful parameter set; do not invent one."
+  },
+  {
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/322",
+   "why": "MCC-004-00 Newman DVD+R: new calibration and nearly perfect result claimed, but numeric values are only in an attached ZIP (not downloaded)."
+  },
+  {
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/326",
+   "why": "Radius sweep 58.040 / 58.008 / 57.800 mm with remaining spirals; experimental settings, not a validated calibration. Latest comment revises the initial no-pattern interpretation; no complete successful pitch profile."
+  },
+  {
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19565119",
+   "why": "Optiarc BD-5750H / Victor VHR12JP50SJ1 success report: geo parameters only in result.zip (not downloaded); timing output is not a complete calibration set."
   }
  ],
  "updates": [
@@ -6231,6 +6402,17 @@
     "I86-2"
    ],
    "checked_through": "2026-11-12T11:41Z"
+  },
+  {
+   "date": "2026-11-13",
+   "added": [
+    "I311-1",
+    "PR298-1",
+    "PR298-2",
+    "I327-1"
+   ],
+   "checked_through": "2026-11-13T00:46:21Z",
+   "note": "2026-11-12 Toronto evening pass. 174 to 178 entries. I311 and PR298 body are earlier posts newly catalogued; PR298 comment and I327 are new sets. D323-1 and I86-2 already present: checked without duplicating. D270 and D316 contain no new complete numeric set. I232 reuse report has no new values or confirmed drive model. Attachments not downloaded."
   }
  ]
 }
