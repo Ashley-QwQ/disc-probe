@@ -269,7 +269,7 @@ function pictureRange() {
 // ---------------------------------------------------------------- history (undo / redo)
 // A snapshot is the layer list with each layer's properties; pixels are immutable ImageData, so a
 // snapshot only holds references to them.
-const PROPS = ["name", "x", "y", "width", "height", "rot", "opacity", "visible", "locked", "px", "colour", "y1", "y2", "fxKind"];
+const PROPS = ["name", "x", "y", "width", "height", "rot", "opacity", "visible", "locked", "px", "colour", "y1", "y2", "fxKind", "tone"];
 function snapshot() {
   return { editor: structuredClone({selections:S.selections, assignments:S.assignments, activeMask:S.activeMask, maskGrid:S.maskGrid, materials:S.materials, cell:S.cell}), layers: S.layers.map((L) => ({ obj: L, props: Object.fromEntries(PROPS.map((k) => [k, L[k]])) })), selected: S.selected };
 }
@@ -1587,7 +1587,7 @@ async function openProject(file, handle = null) {
       else if(bmp){g.drawImage(bmp,0,0);bmp.close?.();}
       else {const im=g.createImageData(c.width,c.height);for(let j=0;j<c.height;j++)for(let i=0;i<c.width;i++)if(EditorOps.shapeHit(e.shape,(i+.5)/c.width-.5,(j+.5)/c.height-.5))im.data.set([30,30,30,255],4*(j*c.width+i));g.putImageData(im,0,0);}
       const L = { ...base, w: c.width, h: c.height, colour: e.colour ?? "none", alphaEdited: !!e.alphaEdited, px: g.getImageData(0, 0, c.width, c.height), src: c, version: 1 };
-      Object.assign(L,{sourceKind:e.sourceKind,shape:e.shape,svg:e.svg});
+      Object.assign(L,{sourceKind:e.sourceKind,shape:e.shape,svg:e.svg,tone:e.tone});
       if (typeof e.original === "string" && e.original.startsWith("data:image/")) L.file = await (await fetch(e.original)).blob();
       layers.push(L);
     } catch { lost.push(e); }               // one unreadable picture: open the rest and say which
@@ -1765,6 +1765,8 @@ export const projectGeo = (state, plan = S) => planGeo(state, plan).path;
 function viewNote(){
   const lamp=S.view==='lamp',zh=api.lang()==='zh';
   const phase=editor?.lamp?.phase,note=W.cv.querySelector('.ed-view-note');
+  const exact=!lamp&&editor?.exact?.phase;
+  if(exact&&exact!=='off'){note.textContent=exact==='computing'?(zh?'正在算刻录格子…':'Working out the burn cells…'):exact==='error'?(zh?'刻录格子没算出来：':'Burn cells failed: ')+(editor.exact.error??''):(zh?'刻录格子 · 这里就是刻进去的格子':'Burn cells · these are the cells that are burned');note.setAttribute('aria-busy',String(exact==='computing'));return;}
   note.textContent=lamp?(phase==='ready'?(zh?'核心模拟 · 待照片验证':'Core simulation · awaiting photo validation'):phase==='error'?(zh?'预览未完成 · 再点“灯下”重试':'Preview failed · click Under the lamp to retry'):phase==='refining'?(zh?'低清预览 · 正在计算细采样…':'Quick preview · rendering fine samples…'):(zh?'正在计算灯下预览…':'Rendering under the lamp…')):(zh?'材质分区 · 纹理表示材质身份':'Material map · texture identifies the material');
   note.setAttribute('aria-busy',String(lamp&&!['ready','error'].includes(phase)));
 }

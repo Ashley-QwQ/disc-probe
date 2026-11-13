@@ -53,6 +53,54 @@ def test_compose_parity(tmp_path):
     d['layers'].reverse();d['layers'][0]['opacity']=.49;d['layers'][1]['visible']=False
     assert E.compose(d,g).tobytes()==js(tmp_path,dict(action='compose',document=d,grid=g))
 
+def grey_document(mode, **tone):
+    """A grey ramp with a band of half-transparent pixels and one template-coloured stripe, turned 23 degrees."""
+    w, h = 96, 40
+    px = np.zeros((h, w, 4), np.uint8)
+    px[:, :, :3] = np.linspace(0, 255, w).astype(np.uint8)[None, :, None]
+    px[:, :, 3] = 255
+    px[5:9, :, 3] = 0                        # transparent: skipped by the diffusion
+    px[20:23, 10:80, :3] = [190, 20, 20]     # the template colour: wins over the dither
+    d = document()
+    d['layers'] = [dict(id=1, kind='image', x=-6, y=4, width=70, height=70 * h / w, rot=23, opacity=.8, w=w, h=h,
+                        raster=dict(width=w, height=h, rgba=base64.b64encode(px.tobytes()).decode()),
+                        tone=dict(dither=mode, **tone))]
+    d['assignments'] = [a for a in d['assignments'] if 'selection' in a]
+    d['materials'][2]['template_name'] = 'DP-16 test'        # a downloaded template's colour
+    return d
+
+def test_only_template_colours_are_matched(tmp_path):
+    d = grey_document('threshold')
+    d['materials'][2].pop('template_name')                   # a palette swatch's import colour: no match
+    d['assignments'] = []                                    # (the ring's pattern fill uses that material too)
+    py = E.compose(d, E.grid(300))
+    assert not (py == 2).any()
+    assert py.tobytes() == js(tmp_path, dict(action='compose', document=d, grid=E.grid(300)))
+
+@pytest.mark.parametrize('mode', ['floyd-steinberg', 'blue-noise', 'ordered', 'clustered', 'threshold'])
+def test_tone_dither_parity(tmp_path, mode):
+    from discprobe import editor_tone as T
+    for tone in (dict(), dict(brightness=-30, contrast=40, highlights=25, shadows=-60, strength=70)):
+        d = grey_document(mode, **tone); g = E.grid(300)
+        py = E.compose(d, g)
+        assert py.tobytes() == js(tmp_path, dict(action='compose', document=d, grid=g))
+        dark = py == 1
+        assert 0.15 < dark[(py == 0) | dark].mean() < 0.85 if mode != 'threshold' else True
+        assert (py == 2).any()                                   # the template colour survived the dither
+    assert T.table(T.DEFAULT_TONE) == list(range(256))
+
+def test_tone_tables_and_tiles(tmp_path):
+    from discprobe import editor_tone as T
+    import random
+    rng = random.Random(5)
+    tones = [dict(brightness=rng.randint(-100, 100), contrast=rng.randint(-100, 100), highlights=rng.randint(-100, 100),
+                  shadows=rng.randint(-100, 100)) for _ in range(40)]
+    page = json.loads(js(tmp_path, dict(action='tone', tones=tones)))
+    assert page['tables'] == [T.table(t) for t in tones]
+    assert page['tiles'] == {k: v[1] for k, v in T.TILES.items()}
+    with pytest.raises(ValueError):
+        E.validate({**grey_document('nope')})
+
 @pytest.mark.parametrize('kind',['rectangle','ellipse','polygon','line','stroke'])
 def test_shape_compose(tmp_path,kind):
     d=document();d['assignments']=[];d['layers']=d['layers'][1:]

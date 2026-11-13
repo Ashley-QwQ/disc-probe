@@ -28,7 +28,7 @@
 
 打包的 `swatches.json` 与模板任务同名字段一致：`schema_version,source,pose,swatches`，swatches 为名字到记录的对象；记录使用 `kind,spec,periods_um,periods_T,srgb,hex,id,source,risk,period_conflict`。网页加载时把 srgb/periods_um 转成项目内部 rgb/period_um。全部 255 个 single 来自合并色板，预测色沿用现有 `tools/lut_scatter.py` 的一阶色谱，默认机位在 3 点钟方向 r=40 mm 取样。模板已导出的 16 个 single 保留其确切 RGB 和 ID；不把五个灰阶混合配方冒充单材质。
 
-这些颜色是模型占位，尚未经照片验证，不保证盘面各处或 CD/BD 的颜色。按导入图的精确 RGB 自动映射；有同色冲突时优先模板命名材质，再按项目槽顺序。其余颜色以亮度 128 阈值映射 A5/B9，可用选区重新指定。
+这些颜色是模型占位，尚未经照片验证，不保证盘面各处或 CD/BD 的颜色。只有带 `template_name` 的材质（下载的模板色）按导入图的精确 RGB 自动映射，同色时按项目槽顺序；色板其余条目的导入 RGB 大量重复（145 条是 50,50,50），不再用来匹配。其余像素按图层的影调和抖动变成深（dark 槽）或浅（背景）两种，见下节；图层填充和选区填充仍然覆盖它。
 
 `assignments` 每项有 ID，以及 `layer` 或 `selection` 二选一的目标；填充为以下三选一：
 
@@ -37,6 +37,18 @@
 - `effect:{kind:flow|ox|merge|sync,y1,y2,wavelength_um?}`。沿用旧页面已有的目标机位场，核心根据一阶光栅式在本项目材料中选最近周期；光学预测仍待实盘验证。选区效果以整盘为区域，图层效果以图层框为区域。
 
 先按图层顺序合成，层内填充按记录顺序覆盖；然后按记录顺序应用选区填充。隐藏层不输出其层内填充，锁定层仍输出。选区填充独立于图层。最后裁切 `annulus_mm`；默认 DVD/BD 24–58 mm，CD 26–58 mm（保留文件系统）。示意范围不是几何测量。
+
+## 影调与抖动（2026-11-12）
+
+位图图层可带 `tone:{brightness,contrast,highlights,shadows,dither,strength}`：前四个是 -100…100 的整数，`strength` 0…100，`dither` 为 `floyd-steinberg`（默认）、`blue-noise`、`ordered`、`clustered`、`threshold`。没有 `tone` 就用默认（误差扩散、强度 100、其余 0）。核心 `discprobe/editor_tone.py` 与网页 `design/tone.mjs` 是同一规则，全用整数运算，`tests/test_editor_ops.py` 逐格对比：
+
+- 灰度：最近邻取到的源像素 `floor((2126 R + 7152 G + 722 B) / 10000)`。
+- 影调表（每个灰度 u）：`v = floor((floor((2u−255)(100+contrast)/100) + 255 + floor(255·brightness/100)) / 2)`，夹到 0…255；再加 `floor(2·shadows·v·(255−v)² / 6502500) + floor(2·highlights·v²·(255−v) / 6502500)`，再夹到 0…255。全零时是恒等。
+- 参与抖动的格：落在图片内、alpha>0、没有命中模板色的格。命中模板色的格用那个材质；透明格不参与。
+- `threshold`：v < 128 为深。`ordered`（8×8 Bayer）、`clustered`（8×8 网点）、`blue-noise`（页面原有的 32×32 秩表）：按全局格 (i mod N, j mod N) 取秩 r，`200·N²·v < 25500·N² + 255·strength·(2r+1−N²)` 为深。
+- `floyd-steinberg`：每个图层一份误差，单位 1/1600 灰度；偶数行从左到右、奇数行从右到左（全局行号）；`v' = v + floor((误差+左邻进位)/1600)`，`v' < 128` 为深，`e = (深 ? v' : v'−255)·strength`，下一格进位 7e，下一行 (x−方向) 3e、x 5e、(x+方向) e；遇到不参与的格，行内进位清零。每行只走第一个到最后一个参与格之间。
+
+抖动在**正在合成的格子**上做：`compose` 和网页导出用作品的刻录格子（20/10/5 µm），画布在放大到 1 格 ≥ 1 像素时由 worker 用同一合成器算出屏幕上的那一片刻录格子（`design/exact-view.mjs`），所以画布、核心 `compose` 和 ISO 是同一批格子。缩小看时画布在 420 格预览网格上抖动，只代表观感。预览页的"设计稿"用 1200 格网格，同样只代表观感。
 
 ## 迁移与 CLI
 
