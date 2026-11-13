@@ -115,13 +115,16 @@ function sampleWorks() {
   return fakePlans.map((p, i) => {
     const day = 11 - Math.floor(i / 2), at = (h) => `2026-11-${String(day).padStart(2, '0')}T${String(h).padStart(2, '0')}:${String(i * 4 % 60).padStart(2, '0')}:00+08:00`;
     const status = STATES[i], burned = ['burned', 'done', 'failed'].includes(status);
-    const discs = burned ? Array.from({ length: 1 + i % 3 }, (_, k) => ({ code: `KOI-A ${1 + i % 2}-${String(3 + k).padStart(2, '0')}`,
-      burned_at: at(15 + k), drive: 'ASUS DRW-24D5MT', speed: p.media === 'cd' ? '8x' : '4x', result: k === 0 && status === 'failed' ? '内圈没刻上' : '', iso: `C:\\Users\\me\\disc-probe\\iso\\${p.name}-${k + 1}.iso` })) : [];
-    const history = [{ at: at(9), type: 'created' }, { at: at(10), type: 'saved' }, { at: at(11), type: 'saved' }];
-    if (status !== 'draft') history.push({ at: at(14), type: 'iso', iso: `C:\\Users\\me\\disc-probe\\iso\\${p.name}.iso` });
-    for (const d of discs) history.push({ at: d.burned_at, type: 'burned', disc: { code: d.code }, drive: d.drive, speed: d.speed });
-    if (status === 'done') history.push({ at: at(20), type: 'photo', result: '彩色清楚', L: 0.42, source: 'IMG_7012.HEIC' }, { at: at(21), type: 'marked', status: 'done' });
-    if (status === 'failed') history.push({ at: at(20), type: 'marked', status: 'failed', note: '内圈一圈没刻上，换一批盘再试' });
+    // records shaped as the core writes them (works.py: discs[] of {type, iso_path, iso_sha256, time, drive, speed, disc_code, result})
+    const isoPath = `C:\\Users\\me\\disc-probe\\iso\\${p.name}.iso`;
+    const isoRecord = status !== 'draft' ? [{ type: 'iso', iso_path: isoPath, iso_sha256: '0'.repeat(64), time: at(14), drive: null, speed: null, disc_code: null, result: 'completed' }] : [];
+    const burns = burned ? Array.from({ length: 1 + i % 3 }, (_, k) => ({ type: 'burn', iso_path: isoPath, iso_sha256: '0'.repeat(64), time: at(15 + k),
+      drive: 'E:', speed: p.media === 'cd' ? 8 : 4, disc_code: `KOI-A ${1 + i % 2}-${String(3 + k).padStart(2, '0')}`, result: 'completed' })) : [];
+    const discs = [...isoRecord, ...burns];
+    const history = [{ time: at(9), type: 'created' }, { time: at(10), type: 'saved' }, { time: at(11), type: 'saved' }];
+    for (const d of discs) history.push({ time: d.time, type: d.type, record: d });
+    if (status === 'done') history.push({ time: at(20), type: 'photo', result: '彩色清楚', L: 0.42, source: 'IMG_7012.HEIC' }, { time: at(21), type: 'marked', changes: { status: 'done' } });
+    if (status === 'failed') history.push({ time: at(20), type: 'marked', changes: { status: 'failed', note: '内圈一圈没刻上，换一批盘再试' } });
     return { name: p.name, media: p.media, disc_type: p.media === 'cd' ? '-R' : i % 4 ? '-R' : '+R', status, discs, history,
       note: status === 'failed' ? '内圈一圈没刻上，换一批盘再试' : null, cell_um: 20,
       batch: { mid: p.media === 'cd' ? 'CMC MAG. AM3' : 'MCC 004', name: `KOI-A ${1 + i % 2}` },

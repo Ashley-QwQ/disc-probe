@@ -24,7 +24,8 @@ export function createMockWorks({ now = () => Date.now(), works: seed = [], late
   let serial = 0, last = 0;
   // every write gets a strictly later stamp, so If-Match always tells two saves apart
   const tick = () => { last = Math.max(now(), last + 1); return last; };
-  const log = (id, e) => { const at = iso(tick()); (history.get(id) ?? history.set(id, []).get(id)).push({ at, ...e }); return at; };
+  // events as the core writes them (works.py _event): {type, time, ...}; renames and marks carry `changes`, ISOs and burns `record`
+  const log = (id, e) => { const time = iso(tick()); (history.get(id) ?? history.set(id, []).get(id)).push({ type: e.type, time, ...e }); return time; };
   // eslint-disable-next-line no-unused-vars
   function make({ name, media = "dvd", disc_type = "-R", id: _i, created_at: _c, updated_at: _u, opened_at: _o, thumb_url: _t, history: _h, ...rest }) {
     const t = tick(), id = idFor(t, ++serial), at = iso(t);
@@ -47,7 +48,7 @@ export function createMockWorks({ now = () => Date.now(), works: seed = [], late
     const c = make({ ...w, name, id: undefined, created_at: undefined, discs: [], status: "draft" });
     if (designs.has(w.id)) designs.set(c.id, designs.get(w.id));
     if (thumbs.has(w.id)) thumbs.set(c.id, thumbs.get(w.id));
-    log(c.id, { type: "duplicated", from: w.id, from_name: w.name });
+    log(c.id, { type: "duplicated", source: w.id });
     return c;
   }
 
@@ -80,11 +81,14 @@ export function createMockWorks({ now = () => Date.now(), works: seed = [], late
       const text = await asText(init.body), file = decodeURIComponent(h.get("X-Filename") ?? "");
       if (text.startsWith(MARK)) {
         const b = JSON.parse(text.slice(MARK.length));
-        const w = make({ ...b.work, id: undefined, source_file: file || null });
+        // as the core: a zip keeps its id, metadata and record; an id already here (or in the bin) is a conflict
+        if (works.has(b.work.id) || trash.has(b.work.id)) return fail(409, "work id already exists");
+        const w = { ...b.work, discs: (b.work.discs ?? []).map((d) => ({ ...d })) };
+        works.set(w.id, w);
         if (b.design != null) designs.set(w.id, b.design);
         if (b.thumb) thumbs.set(w.id, await (await fetch(b.thumb)).blob());
-        history.set(w.id, [...(b.history ?? []), { at: iso(tick()), type: "imported", source: file }]);
-        return reply(201, view(w));
+        history.set(w.id, [...(b.history ?? [])]);
+        return reply(200, view(w));
       }
       let d; try { d = JSON.parse(text); } catch { return fail(400, "not a .zip or .discdesign"); }
       if (d?.format !== "disc-probe design" || !Array.isArray(d.layers)) return fail(400, "not a .discdesign");
@@ -114,11 +118,11 @@ export function createMockWorks({ now = () => Date.now(), works: seed = [], late
         if ("name" in b) {
           const name = String(b.name).trim();
           if (!name) return fail(400, "name required");
-          if (name !== w.name) { w.name = name.slice(0, 200); log(id, { type: "renamed", name: w.name }); }
+          w.name = name.slice(0, 200);
         }
-        if ("status" in b) { w.status = b.status; w.note = b.note ?? null; log(id, { type: "marked", status: b.status, note: b.note ?? "" }); }
-        else if ("note" in b) w.note = b.note;
-        w.updated_at = iso(tick());
+        if ("status" in b) w.status = b.status;
+        if ("note" in b) w.note = b.note;
+        w.updated_at = log(id, { type: Object.keys(b).join() === "name" ? "renamed" : "marked", changes: b });
         return reply(200, view(w));
       }
       if (method === "DELETE") { works.delete(id); trash.set(id, w); return reply(200, { ok: true, id }); }
@@ -145,7 +149,8 @@ export function createMockWorks({ now = () => Date.now(), works: seed = [], late
       if (method === "GET") return thumbs.has(id) ? new Response(thumbs.get(id), { status: 200, headers: { "Content-Type": "image/png" } }) : fail(404, "no thumbnail");
       if (method === "PUT") {
         const body = init.body instanceof Blob ? init.body : new Blob([init.body ?? ""], { type: "image/png" });
-        thumbs.set(id, body);                     // the picture only: updated_at stays, so If-Match still holds
+        thumbs.set(id, body);                     // as in the core, a picture moves updated_at too
+        w.updated_at = log(id, { type: "thumb" });
         return reply(200, view(w));
       }
     }
@@ -157,7 +162,7 @@ export function createMockWorks({ now = () => Date.now(), works: seed = [], late
       const t = thumbs.get(id);
       const bundle = { work: w, design: designs.get(id) ?? null, history: history.get(id) ?? [], thumb: t ? await dataURL(t) : null };
       return new Response(MARK + JSON.stringify(bundle), { status: 200, headers: { "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(w.name)}.zip` } });
+        "Content-Disposition": `attachment; filename="${w.id}.zip"` } });
     }
     return fail(404, "not found");
   }
@@ -171,6 +176,12 @@ export function createMockWorks({ now = () => Date.now(), works: seed = [], late
     },
     // what another window would do: save the design behind this page's back
     touch(id) { const w = works.get(id); w.updated_at = log(id, { type: "saved" }); return w.updated_at; },
-    addDisc(id, disc) { const w = works.get(id); w.discs.push(disc); w.status = "burned"; w.updated_at = log(id, { type: "burned", ...disc }); },
+    // what `image --work` / `burn --work` append (works.py link): a discs[] record and its history event
+    link(id, { type = "burn", ...fields }) {
+      const w = works.get(id), record = { type, time: iso(tick()), result: "completed", ...fields };
+      w.discs.push(record); w.status = type === "burn" ? "burned" : "iso_ready";
+      w.updated_at = log(id, { type, record });
+      return record;
+    },
   };
 }

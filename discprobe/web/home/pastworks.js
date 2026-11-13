@@ -3,7 +3,7 @@
 // The archive lists the core's works library (/api/works, pastworks/works.mjs); a core without one
 // leaves the page its old in-memory list of this session's plans, and says so.
 import { hasCapability } from "./handshake.mjs";
-import { mediaLabel, discCount, discCode, workTime, sortWorks, filterWorks, statusWord, timeline, dateText as libDate,
+import { mediaLabel, discCount, discCode, burnedDiscs, discTime, discISO, workTime, sortWorks, filterWorks, statusWord, timeline, dateText as libDate,
   words as libWords, STATUSES, MEDIA } from "./pastworks/works.mjs";
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const ease = (x) => { x = clamp(x); return x * x * (3 - 2 * x); };
@@ -102,6 +102,7 @@ const SAY = {
     noMatch: "没有符合的作品。", clear: "清除筛选",
     renamed: (n) => `已改名为“${n}”`, copied: (n) => `已复制为“${n}”`, binned: (n) => `已把“${n}”移到回收站`, undo: "撤销", restored: (n) => `已恢复“${n}”`,
     marked: (s) => `已标成${s}`, exported: (n) => `已导出 ${n}`, imported: (n) => `已导入“${n}”`, importFailed: (f, m) => `没能导入 ${f}：${m}`,
+    importExists: (f) => `${f} 里的作品已经在库里或回收站里，没有重复导入。要另一份，在库里复制它。`,
     failed: (m) => `没做成：${m}`, emptyName: "名字不能是空的。", openFailed: "没能打开作品，请重试。",
   },
   en: {
@@ -121,6 +122,7 @@ const SAY = {
     noMatch: "No works match.", clear: "Clear filters",
     renamed: (n) => `Renamed to “${n}”`, copied: (n) => `Duplicated as “${n}”`, binned: (n) => `Moved “${n}” to the bin`, undo: "Undo", restored: (n) => `Restored “${n}”`,
     marked: (s) => `Marked ${s.toLowerCase()}`, exported: (n) => `Exported ${n}`, imported: (n) => `Imported “${n}”`, importFailed: (f, m) => `Could not import ${f}: ${m}`,
+    importExists: (f) => `The work in ${f} is already in the library or the bin, so it was not imported again. To have another copy, duplicate it.`,
     failed: (m) => `That did not work: ${m}`, emptyName: "A name cannot be empty.", openFailed: "Could not open the work. Please try again.",
   },
 };
@@ -518,17 +520,18 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     fact(s.photoL, typeof w.photo_l === "object" && w.photo_l ? [w.photo_l.L ?? w.photo_l.value, w.photo_l.source].filter((v) => v != null && v !== "").join(" · ") : w.photo_l, true);
     fact(s.source, w.source_file, true);
     if (facts.children.length) details.append(facts);
-    const discs = Array.isArray(w.discs) ? w.discs : [];
+    const discs = burnedDiscs(w);
     details.append(el("h3", null, s.discsTitle(discs.length)));
     if (!discs.length) details.append(el("p", "pw-d-quiet", s.noDiscs));
     else {
       const list = el("ul", "pw-d-discs");
       for (const d of discs) {
-        const li = el("li"), at = Date.parse(d.burned_at ?? d.at ?? "");
+        const li = el("li"), at = Date.parse(discTime(d) ?? "");
         li.append(el("b", "pw-code", discCode(d) ?? "—"));
-        const rest = [Number.isFinite(at) ? libDate(at, lang()) : "", d.drive, d.speed, d.result].filter(Boolean).join(" · ");
+        const speed = d.speed == null || d.speed === "" ? "" : /x$/i.test(String(d.speed)) ? String(d.speed) : `${d.speed}x`;
+        const rest = [Number.isFinite(at) ? libDate(at, lang()) : "", d.drive, speed, d.result && d.result !== "completed" ? d.result : ""].filter(Boolean).join(" · ");
         if (rest) li.append(" ", el("span", null, rest));
-        if (d.iso) li.append(el("span", "pw-mono pw-d-iso", String(d.iso).split(/[\\/]/).pop()));
+        if (discISO(d)) li.append(el("span", "pw-mono pw-d-iso", String(discISO(d)).split(/[\\/]/).pop()));
         list.append(li);
       }
       details.append(list);
@@ -600,7 +603,8 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     paintDetails();
   }
   async function duplicate(w) {
-    const copy = await act(() => works.duplicate(w.id));
+    // the core keeps the name on a copy; two works with one name cannot be told apart
+    const copy = await act(() => works.duplicate(w.id, lang() === "en" ? `${w.name} (copy)` : `${w.name} 副本`));
     if (!copy) return;
     notice(say().copied(copy.name));
     if (selected) unfocus();
@@ -644,7 +648,7 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     let last = null;
     for (const f of files) {
       try { last = await works.importFile(f); notice(say().imported(last?.name ?? f.name)); }
-      catch (e) { error(say().importFailed(f.name, e?.message ?? String(e))); }
+      catch (e) { error(e?.status === 409 ? say().importExists(f.name) : say().importFailed(f.name, e?.message ?? String(e))); }
     }
     if (last) await load({ focusId: last.id });
   }

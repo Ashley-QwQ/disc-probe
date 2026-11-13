@@ -10,14 +10,14 @@ const WORDS = {
     discs: (n) => `刻过 ${n} 张`, noDiscs: "还没刻", unknownDate: "日期未知",
     created: "创建", saved: "保存", iso: "出 ISO", burnedOn: (d) => `刻进 ${d}`, burnedEvent: "刻录", photo: "照片结果",
     renamed: (n) => `改名为“${n}”`, duplicated: (n) => n ? `从“${n}”复制` : "复制", imported: (n) => n ? `导入自 ${n}` : "导入",
-    markedDone: "标成成品", markedFailed: "标成失败", restored: "从回收站恢复", deleted: "移到回收站", thumb: "更新缩略图",
+    markedDone: "标成成品", markedFailed: "标成失败", restored: "从回收站恢复", deleted: "移到回收站", thumb: "更新缩略图", changed: "改了作品信息",
   },
   en: {
     draft: "Draft", iso_ready: "ISO ready", burned: "Burned", done: "Finished", failed: "Failed", unsaved: "Not in the library",
     discs: (n) => `${n} disc${n === 1 ? "" : "s"} burned`, noDiscs: "Not burned yet", unknownDate: "Date unknown",
     created: "Created", saved: "Saved", iso: "ISO written", burnedOn: (d) => `Burned onto ${d}`, burnedEvent: "Burned", photo: "Photo result",
     renamed: (n) => `Renamed to “${n}”`, duplicated: (n) => n ? `Copied from “${n}”` : "Copied", imported: (n) => n ? `Imported from ${n}` : "Imported",
-    markedDone: "Marked finished", markedFailed: "Marked failed", restored: "Restored from the bin", deleted: "Moved to the bin", thumb: "Picture updated",
+    markedDone: "Marked finished", markedFailed: "Marked failed", restored: "Restored from the bin", deleted: "Moved to the bin", thumb: "Picture updated", changed: "Details changed",
   },
 };
 export const words = (lang) => WORDS[lang === "en" ? "en" : "zh"];
@@ -30,8 +30,12 @@ export function mediaLabel(work) {
   const t = String(work?.disc_type ?? "").trim();
   return t ? m + (/^[-+]/.test(t) ? t : "-" + t) : m;
 }
-export const discCount = (work) => Array.isArray(work?.discs) ? work.discs.length : Number(work?.disc_count) || 0;
-export const discCode = (d) => d?.code ?? d?.disc ?? d?.label ?? d?.id ?? null;
+// discs[] holds ISOs written ({type: "iso"}) and discs burned ({type: "burn"}); only burns are discs
+export const burnedDiscs = (work) => (Array.isArray(work?.discs) ? work.discs : []).filter((d) => (d?.type ?? "burn") === "burn");
+export const discCount = (work) => Array.isArray(work?.discs) ? burnedDiscs(work).length : Number(work?.disc_count) || 0;
+export const discCode = (d) => d?.disc_code ?? d?.code ?? (typeof d?.disc === "string" ? d.disc : d?.disc?.code) ?? d?.label ?? null;
+export const discTime = (d) => d?.time ?? d?.burned_at ?? d?.at ?? null;
+export const discISO = (d) => d?.iso_path ?? d?.iso ?? null;
 
 const stamp = (v) => {
   if (v == null || v === "") return null;
@@ -69,46 +73,50 @@ export function dateText(t, lang, { time = true } = {}) {
   return new Intl.DateTimeFormat(lang === "en" ? "en-CA" : "zh-CN", opts).format(t);
 }
 
-// The record of one work, oldest first: history events, with the discs list filling in burns
-// a history might not carry. Each line: { at, kind, text, detail }.
+// The record of one work, oldest first: history events ({type, time, changes | record, ...}: the core's
+// history.jsonl), with discs[] filling in ISOs and burns a short history no longer carries. Each line:
+// { at, kind, text, detail }. Picture uploads are left out: every save makes one.
 const base = (p) => String(p ?? "").split(/[\\/]/).pop();
+const where = (r) => [r?.drive, r?.speed != null && r.speed !== "" ? (/x$/i.test(String(r.speed)) ? r.speed : `${r.speed}x`) : "", r?.result && r.result !== "completed" ? r.result : ""].filter(Boolean).join(" · ");
 export function timeline(work, lang = "zh") {
-  const t = words(lang), out = [];
+  const t = words(lang), out = [], seen = new Set();
   const history = Array.isArray(work?.history) ? work.history : [];
-  const seenDiscs = new Set();
+  const linked = (r, kind) => {
+    const code = discCode(r) ?? "";
+    return kind === "iso" ? { text: t.iso, detail: [base(discISO(r)), code].filter(Boolean).join(" · ") }
+      : { text: code ? t.burnedOn(code) : t.burnedEvent, detail: where(r) };
+  };
   for (const e of history) {
-    const kind = String(e.type ?? e.event ?? e.kind ?? "");
-    const at = stamp(e.at ?? e.time ?? e.ts);
+    const kind = String(e.type ?? e.event ?? e.kind ?? ""), c = e.changes ?? {}, r = e.record ?? e;
+    const at = stamp(e.time ?? e.at ?? e.ts);
     let text = kind, detail = "";
     switch (kind) {
       case "create": case "created": case "new": text = t.created; break;
       case "save": case "saved": text = t.saved; break;
-      case "iso": case "iso_ready": case "image": text = t.iso; detail = base(e.iso ?? e.path ?? ""); break;
-      case "burn": case "burned": {
-        const code = discCode(e.disc ?? e) ?? "";
-        if (code) seenDiscs.add(code);
-        text = code ? t.burnedOn(code) : t.burnedEvent;
-        detail = [e.drive ?? e.disc?.drive, e.speed ?? e.disc?.speed, e.result ?? e.disc?.result].filter(Boolean).join(" · ");
-        break;
+      case "iso": case "iso_ready": case "image": case "burn": case "burned": {
+        const iso = /^iso|^image/.test(kind);
+        if (e.record) seen.add(discTime(e.record) ?? "");
+        ({ text, detail } = linked(r, iso ? "iso" : "burn")); break;
       }
       case "photo": text = t.photo; detail = [e.result, e.L != null ? `L ${e.L}` : "", e.source ?? ""].filter(Boolean).join(" · "); break;
-      case "rename": case "renamed": text = t.renamed(e.name ?? e.to ?? ""); break;
-      case "duplicate": case "duplicated": text = t.duplicated(e.from_name ?? e.from ?? ""); break;
+      case "rename": case "renamed": text = t.renamed(c.name ?? e.name ?? e.to ?? ""); break;
+      case "duplicate": case "duplicated": text = t.duplicated(e.from_name ?? ""); break;
       case "import": case "imported": text = t.imported(base(e.source ?? e.file ?? "")); break;
-      case "mark": case "marked": case "status":
-        text = e.status === "failed" ? t.markedFailed : e.status === "done" ? t.markedDone : statusWord(e.status, lang);
-        detail = e.note ?? ""; break;
+      case "mark": case "marked": case "status": {
+        const st = c.status ?? e.status;
+        text = st === "failed" ? t.markedFailed : st === "done" ? t.markedDone : st ? statusWord(st, lang) : t.changed;
+        detail = c.note ?? e.note ?? ""; break;
+      }
       case "restore": case "restored": text = t.restored; break;
       case "delete": case "deleted": text = t.deleted; break;
-      case "thumb": text = t.thumb; break;
+      case "thumb": case "thumbnail": continue;
     }
     out.push({ at, kind, text, detail });
   }
   for (const d of Array.isArray(work?.discs) ? work.discs : []) {
-    const code = discCode(d);
-    if (code && seenDiscs.has(code)) continue;
-    out.push({ at: stamp(d.burned_at ?? d.at ?? d.time), kind: "burned", text: code ? t.burnedOn(code) : t.burnedEvent,
-      detail: [d.drive, d.speed, d.result].filter(Boolean).join(" · ") });
+    if (seen.has(discTime(d) ?? "") && discTime(d)) continue;
+    const kind = d.type === "iso" ? "iso" : "burned";
+    out.push({ at: stamp(discTime(d)), kind, ...linked(d, kind === "iso" ? "iso" : "burn") });
   }
   return out.map((e, i) => ({ e, i })).sort((a, b) => (a.e.at ?? Infinity) - (b.e.at ?? Infinity) || a.i - b.i).map(({ e }) => e);
 }
@@ -172,15 +180,25 @@ export function createWorksClient({ fetch: fetcher = globalThis.fetch?.bind(glob
       const r = await call(path(id, "/export"), { as: "response" });
       const cd = r.headers.get("Content-Disposition") ?? "";
       const m = /filename\*=UTF-8''([^;]+)/i.exec(cd) ?? /filename="?([^";]+)"?/i.exec(cd);
-      let name = m ? m[1] : `${fallbackName}.zip`;
+      let name = m ? m[1] : `${id}.zip`;
       try { name = decodeURIComponent(name); } catch {}
+      // the core names the zip after the id; the person knows the work by its name
+      if (fallbackName && fallbackName !== id) name = `${String(fallbackName).replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "_").trim() || id}.zip`;
       return { blob: await r.blob(), name };
     },
-    // the file's bytes as the body; its name in X-Filename (percent-encoded: headers are Latin-1)
+    // A zip goes to /import as it is (it keeps its own name and record). A .discdesign is made as a new work
+    // named after the file, then saved: a Chinese file name cannot travel in a header (X-Filename is Latin-1).
     async importFile(file) {
-      const zip = /\.zip$/i.test(file.name);
-      return unwrapWork(await call("/api/works/import", { method: "POST", body: file,
-        type: file.type || (zip ? "application/zip" : "application/json"), extra: { "X-Filename": encodeURIComponent(file.name) } }));
+      if (/\.zip$/i.test(file.name)) {
+        return unwrapWork(await call("/api/works/import", { method: "POST", body: file, type: "application/zip",
+          extra: { "X-Filename": encodeURIComponent(file.name) } }));
+      }
+      const text = await file.text();
+      let doc; try { doc = JSON.parse(text); } catch { doc = null; }
+      if (doc?.format !== "disc-probe design" || !Array.isArray(doc.layers)) throw new WorksError(`${file.name}: not a .discdesign`, 400, null);
+      const made = await this.create({ name: file.name.replace(/\.(discdesign|json)$/i, "") || file.name, media: MEDIA.includes(doc.media) ? doc.media : "dvd" });
+      try { return await this.saveDesign(made.id, text, made.updated_at); }
+      catch (e) { await this.remove(made.id).catch(() => {}); throw e; }
     },
     // The thumbnail as an object URL (an <img> cannot send the token header). Cached per save.
     async thumbURL(work) {

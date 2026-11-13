@@ -2,7 +2,7 @@
 // If-Match / 409, and the archive's pure list helpers. Plain Node: no DOM, no server.
 import assert from 'node:assert/strict';
 import { createWorksClient, worksFor, setWorksForTest, mediaLabel, discCount, sortWorks, filterWorks, timeline, statusWord,
-  unwrapWork, STATUSES } from '../discprobe/web/home/pastworks/works.mjs';
+  unwrapWork, STATUSES, burnedDiscs, discCode } from '../discprobe/web/home/pastworks/works.mjs';
 import { createMockWorks } from '../discprobe/web/home/pastworks/mock-works.mjs';
 import { saveToLibrary } from '../discprobe/web/home/pastworks/save.mjs';
 import { arrange, gridStep } from '../discprobe/web/home/pastworks.js';
@@ -36,21 +36,36 @@ assert.deepEqual(filterWorks(ws, { q: 'atlas', media: 'cd' }).map(w => w.id), ['
 assert.deepEqual(unwrapWork({ work: { id: 'x' }, history: [1] }), { id: 'x', history: [1] });
 assert.deepEqual(unwrapWork({ id: 'y' }), { id: 'y' });
 
-// the record: history first, discs not in the history added, oldest first
-const tl = timeline({
-  history: [
-    { at: '2026-11-10T09:00:00Z', type: 'created' },
-    { at: '2026-11-10T11:00:00Z', type: 'burned', disc: { code: 'KOI-A 2-03' }, drive: 'GH24', speed: '8x' },
-    { at: '2026-11-10T10:00:00Z', type: 'iso', iso: 'C:\\out\\koi.iso' },
-    { at: '2026-11-10T12:00:00Z', type: 'marked', status: 'failed', note: '内圈没刻上' },
-    { at: '2026-11-10T12:30:00Z', type: 'something-new' },
+// the record, in the core's shapes (works.py): events {type, time, changes | record}; discs[] holds ISOs and burns
+const iso = { type: 'iso', iso_path: 'C:\\out\\koi.iso', iso_sha256: 'ab', time: '2026-11-10T10:00:00+00:00', drive: null, speed: null, disc_code: null, result: 'completed' };
+const burn3 = { ...iso, type: 'burn', time: '2026-11-10T11:00:00+00:00', drive: 'E:', speed: 8, disc_code: 'KOI-A 2-03' };
+const burn4 = { ...burn3, time: '2026-11-10T11:30:00+00:00', disc_code: 'KOI-A 2-04', result: 'verify failed' };
+const real = {
+  discs: [iso, burn3, burn4],
+  history: [   // the last 50 only: burn4's event has dropped off, discs[] still has it
+    { type: 'created', time: '2026-11-10T09:00:00+00:00' },
+    { type: 'thumb', time: '2026-11-10T09:01:00+00:00' },
+    { type: 'burn', time: '2026-11-10T11:00:01+00:00', record: burn3 },
+    { type: 'iso', time: '2026-11-10T10:00:01+00:00', record: iso },
+    { type: 'renamed', time: '2026-11-10T11:50:00+00:00', changes: { name: '锦鲤' } },
+    { type: 'marked', time: '2026-11-10T12:00:00+00:00', changes: { status: 'failed', note: '内圈没刻上' } },
+    { type: 'marked', time: '2026-11-10T12:10:00+00:00', changes: { batch: 'KOI-A' } },
+    { type: 'something-new', time: '2026-11-10T12:30:00+00:00' },
   ],
-  discs: [{ code: 'KOI-A 2-03', burned_at: '2026-11-10T11:00:00Z' }, { code: 'KOI-A 2-04', burned_at: '2026-11-10T11:30:00Z', drive: 'GH24' }],
-}, 'zh');
-assert.deepEqual(tl.map(e => e.text), ['创建', '出 ISO', '刻进 KOI-A 2-03', '刻进 KOI-A 2-04', '标成失败', 'something-new']);
+};
+assert.equal(discCount(real), 2, 'an ISO written is not a disc burned');
+assert.deepEqual(burnedDiscs(real).map(discCode), ['KOI-A 2-03', 'KOI-A 2-04']);
+const tl = timeline(real, 'zh');
+assert.deepEqual(tl.map(e => e.text), ['创建', '出 ISO', '刻进 KOI-A 2-03', '刻进 KOI-A 2-04', '改名为“锦鲤”', '标成失败', '改了作品信息', 'something-new'],
+  'picture uploads left out; a burn missing from the short history comes from discs[]; no doubles');
 assert.equal(tl[1].detail, 'koi.iso');
-assert.equal(tl[2].detail, 'GH24 · 8x');
-assert.equal(tl[4].detail, '内圈没刻上');
+assert.equal(tl[2].detail, 'E: · 8x');
+assert.equal(tl[3].detail, 'E: · 8x · verify failed');
+assert.equal(tl[5].detail, '内圈没刻上');
+// older or looser shapes still read
+const loose = timeline({ history: [{ at: '2026-11-10T11:00:00Z', type: 'burned', disc: { code: 'X-1' }, drive: 'GH24', speed: '8x' },
+  { at: '2026-11-10T12:00:00Z', type: 'marked', status: 'done' }] }, 'en');
+assert.deepEqual(loose.map(e => [e.text, e.detail]), [['Burned onto X-1', 'GH24 · 8x'], ['Marked finished', '']]);
 assert.deepEqual(timeline({}, 'en'), []);
 
 // the grid: unsaved session plans first, filtered and searched alongside the works
@@ -87,7 +102,7 @@ await assert.rejects(client.saveDesign(w1.id, design({ x: 1 }), w1.updated_at), 
 await assert.rejects(client.saveDesign(w1.id, '{"format":"nope"}', s1.updated_at), e => e.status === 400);
 const png = new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' });
 const t1 = await client.putThumb(w1.id, png);
-assert.equal(t1.updated_at, s1.updated_at, 'a picture alone leaves the save stamp');
+assert.ok(Date.parse(t1.updated_at) > Date.parse(s1.updated_at), 'a picture moves updated_at, as in the core');
 const listed = (await client.list())[0];
 assert.ok(listed.thumb_url, 'list gives thumb_url once a picture exists');
 const url = await client.thumbURL(listed);
@@ -102,7 +117,7 @@ assert.equal(m1.status, 'failed'); assert.equal(m1.note, '外圈发白');
 await client.mark(w1.id, 'done');
 const full = await client.get(w1.id);
 assert.ok(Array.isArray(full.history));
-assert.deepEqual(full.history.map(e => e.type), ['created', 'saved', 'renamed', 'marked', 'marked']);
+assert.deepEqual(full.history.map(e => e.type), ['created', 'saved', 'thumb', 'renamed', 'marked', 'marked']);
 const d1 = await client.duplicate(w1.id);
 assert.notEqual(d1.id, w1.id); assert.equal(d1.status, 'draft');
 assert.equal(await client.design(d1.id), design(), 'duplicate carries the design');
@@ -119,11 +134,13 @@ const other = createMockWorks();
 const otherClient = createWorksClient({ fetch: other.fetch });
 const imported = await otherClient.importFile(new File([blob], name, { type: 'application/zip' }));
 assert.equal(imported.name, '锦鲤'); assert.equal(imported.status, 'done');
+assert.equal(imported.id, w1.id, 'a zip keeps its id');
+await assert.rejects(otherClient.importFile(new File([blob], name, { type: 'application/zip' })), e => e.status === 409, 'the same zip twice is a conflict');
 assert.equal(await otherClient.design(imported.id), design());
 assert.equal(other.calls.at(-2).headers['x-filename'], encodeURIComponent('锦鲤.zip'), 'file name sent percent-encoded');
 const fromFile = await otherClient.importFile(new File([design({ media: 'cd', cell: 0.01 })], '月亮.discdesign'));
 assert.equal(fromFile.name, '月亮'); assert.equal(fromFile.media, 'cd'); assert.equal(fromFile.cell_um, 10);
-assert.equal(fromFile.source_file, '月亮.discdesign');
+assert.equal(other.calls.at(-1).url.includes('/import') || other.calls.at(-2).url.includes('/import'), false,'a .discdesign is made and saved, not sent through /import with its name in a header');
 await assert.rejects(otherClient.importFile(new File(['hello'], 'x.discdesign')), e => e.status === 400);
 // list shape: bare arrays are read too
 const bare = createWorksClient({ fetch: async () => new Response(JSON.stringify([{ id: 'w', name: 'n' }]), { status: 200 }) });
