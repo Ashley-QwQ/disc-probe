@@ -426,12 +426,15 @@ PHOTO_REFUSALS = ("same_pose", "duplicate_photo", "unknown_spread_or_pose", "unk
 
 
 def photo_adoption(record):
-    """The read's state for the pages: adopted, provisional, disagree, refused or none.
+    """The read's state for the pages: adopted, provisional, disagree, split, refused or none.
 
-    It follows the core's two-pose rule (photo.json ``application_agreement``, photo.photo_agreement):
-    two or more ok photos with distinct originals, at least 10 degrees apart, that all agree. One ok photo
-    is provisional, with its value only as ``provisional_mm``. Older records without the rule fall back to
-    the reader's group vote. Whether L is then applied to a picture is a further gate: photo_application().
+    It follows the core's majority rule (photo.json ``application_agreement``, photo.photo_agreement): a
+    unique largest set of ok photos sharing a common point, at least two-thirds of all ok photos, with two
+    distinct originals at least 10 degrees apart. One ok photo is provisional (``provisional_mm`` only).
+    Two equally large sets that do not overlap are a "split": no photo is named an outlier then.
+    ``outliers`` are the ok photos outside a unique largest set, as the core lists them. Older records
+    without the rule fall back to the reader's group vote. Whether L is then applied to a picture is a
+    further gate: photo_application().
     """
     if not isinstance(record, dict):
         return dict(state="none", source="none")
@@ -445,6 +448,8 @@ def photo_adoption(record):
             state = "provisional"
         elif reason == "photos_disagree":
             state = "disagree"
+        elif reason == "ambiguous_majority":
+            state = "split"
         elif reason in PHOTO_REFUSALS:
             state = "refused"
         elif agreement.get("written"):
@@ -458,6 +463,15 @@ def photo_adoption(record):
             out["spread_mm"] = max(values) - min(values)
         if state == "adopted":
             out["n_agree"] = len(agreement.get("photo_ids") or [])
+        for key in ("agreeing_count", "ok_count", "required_count"):
+            if isinstance(agreement.get(key), int):
+                out[key] = agreement[key]
+        interval = agreement.get("common_interval_mm")
+        if isinstance(interval, list) and len(interval) == 2:
+            out["common_interval_mm"] = interval
+        # A tie names nobody: the core lists no outliers then, and neither does the page.
+        listed = [] if state == "split" else record.get("outliers") or agreement.get("outliers") or []
+        out["outliers"] = [{k: o.get(k) for k in ("id", "name", "L_mm", "reason")} for o in listed if isinstance(o, dict)]
         if state == "provisional" and isinstance(record.get("provisional_mm"), (int, float)):
             out["provisional_mm"] = record["provisional_mm"]
         return out

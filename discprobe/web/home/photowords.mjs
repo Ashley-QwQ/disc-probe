@@ -49,7 +49,8 @@ export const seconds = s => {
 };
 
 // One photo's stage. `listing` is the /api/photos answer; its times are the computer's own clock.
-// Stages: waiting (received, no read yet), queued (a read of other photos is running), reading, ok, retake, failed.
+// Stages: waiting (received, no read yet), queued (a read of other photos is running), reading, ok, outlier
+// (read fine but outside the majority; the core named it), retake, failed.
 export function photoStage(photo = {}, listing = {}) {
   const a = listing.analysis, inRead = !!a && (a.photos || []).includes(photo.id);
   const now = Number.isFinite(listing.now) ? listing.now : Date.now() / 1000;
@@ -59,6 +60,10 @@ export function photoStage(photo = {}, listing = {}) {
     const r = reasonOf(photo), ok = photo.verdict === 'ok';
     const after = took !== null && took >= 0 ? seconds(took) : null;
     const own = a?.state === 'done' && inRead && Number.isFinite(a.seconds) ? seconds(a.seconds) : null;
+    const outlier = ok && outliersOf(listing).some(o => o.id === photo.id);
+    if (outlier) return {stage: 'outlier', act: pair('和多数不一致', 'Outside the majority'),
+      why: pair('这张自己读得出来，但读数和多数照片对不上，没参与取值。建议转一下盘重拍这张。', 'This photo reads fine on its own, but its value does not match the majority, so it was left out. Turn the disc and retake it.'),
+      seconds: took, when: after ? pair(`收到后 ${after.zh} 读完`, `read ${after.en} after it arrived`) : pair('', '')};
     return {stage: ok ? 'ok' : 'retake', act: r.act, why: r.why, seconds: took,
       when: after ? pair(`收到后 ${after.zh} 读完${own ? `（读取本身 ${own.zh}）` : ''}`, `read ${after.en} after it arrived${own ? ` (the read itself took ${own.en})` : ''}`) : pair('', '')};
   }
@@ -87,6 +92,21 @@ export function deskWords(listing = {}) {
   return {state: 'open', words: pair('', '')};
 }
 
+// The ok photos the core put outside a unique majority. A tie between two camps names nobody, so none here.
+export function outliersOf(listing = {}) {
+  const a = listing.adoption || {};
+  if (a.state === 'split') return [];
+  const list = Array.isArray(a.outliers) ? a.outliers : Array.isArray(listing.outliers) ? listing.outliers : [];
+  return list.filter(o => o && o.id);
+}
+// "These few disagree with the majority; retake them", naming at most three by their file names.
+export function outlierWords(outliers = []) {
+  if (!outliers.length) return null;
+  const names = outliers.slice(0, 3).map(o => o.name || o.id).join('、'), more = outliers.length > 3 ? ` 等 ${outliers.length} 张` : '';
+  const namesEn = outliers.slice(0, 3).map(o => o.name || o.id).join(', '), moreEn = outliers.length > 3 ? ` and ${outliers.length - 3} more` : '';
+  return pair(`这几张和多数不一致，没参与取值，建议转盘重拍：${names}${more}。`, `These disagree with the majority and were left out; turn the disc and retake them: ${namesEn}${moreEn}.`);
+}
+
 // L in plain numbers: always signed, never "0" for a value that does not exist.
 const mm = v => Number.isFinite(v) ? `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(3)} mm` : '';
 
@@ -97,30 +117,47 @@ export const agreementReasons = {
   duplicate_photo: pair('有两张其实是同一张原图。转一下盘，拍一张新的。', 'Two of them are the same original picture. Turn the disc and take a new one.'),
   unknown_spread_or_pose: pair('读数缺少一致性范围或盘面转角，不能判断。再拍一张不同角度的。', 'A reading lacks its spread or disc angle, so agreement cannot be checked. Take another from a different angle.'),
   unknown_photo_input: pair('有照片的原图记录不完整。重新发送原图再读一次。', 'A photo’s original is not recorded. Send the original again and reread.'),
+  ambiguous_majority: pair('读数分成了两派，各占一样多，没有多数。请再拍几张不同角度的。', 'The readings split into two equal camps with no majority. Take a few more from different angles.'),
   group_not_ok: pair('两张一致，但读取器的整组检查没有通过。再拍一张不同角度的。', 'The photos agree, but the reader’s group check did not pass. Take another from a different angle.'),
 };
 
-// Whether the along-track constant (L) is adopted from this read. States follow the core's two-pose rule:
-// two or more ok photos with distinct originals, at least 10 degrees apart, that all agree. One alone is provisional.
+// Whether the along-track constant (L) is adopted from this read. States follow the core's majority rule:
+// a unique largest set of ok photos that share a common value, at least two-thirds of all ok photos, with two
+// distinct originals at least 10 degrees apart; L is their median. One alone is provisional. Two equal camps
+// that do not overlap are a split: nobody is named an outlier.
 export function adoptionWords(adoption = {}, photos = []) {
   const spread = Number.isFinite(adoption.spread_mm) ? ` ${adoption.spread_mm.toFixed(3)} mm` : '';
-  const n = Number.isFinite(adoption.n_agree) && adoption.n_agree > 0 ? adoption.n_agree : null;
+  const agree = Number.isFinite(adoption.agreeing_count) ? adoption.agreeing_count : Number.isFinite(adoption.n_agree) && adoption.n_agree > 0 ? adoption.n_agree : null;
+  const okCount = Number.isFinite(adoption.ok_count) ? adoption.ok_count : Number.isFinite(adoption.n_ok) ? adoption.n_ok : null;
+  const need = Number.isFinite(adoption.required_count) ? adoption.required_count : null;
+  const out = outlierWords(adoption.state === 'split' ? [] : adoption.outliers || []);
+  const plus = (base, extra) => extra ? pair(base.zh + extra.zh, base.en + ' ' + extra.en) : base;
   switch (adoption.state) {
     case 'adopted': return {state: 'adopted', title: pair('已采用', 'Adopted'),
-      body: pair(`${n ? n + ' 张' : '几张'}不同角度的照片读数一致${spread ? `（相差${spread}）` : ''}，这一组的沿轨常数被采用。`,
-        `${n ? n : 'Several'} photos from different angles agree${spread ? ` (within${spread})` : ''}; this group’s along-track constant is adopted.`)};
+      body: plus(agree && okCount ? pair(`${okCount} 张可用照片里 ${agree} 张读数一致，是多数（至少要 ${need ?? '三分之二'}${need ? ' 张' : ''}），采用它们的中位数。`,
+          `${agree} of ${okCount} usable photos agree, a majority (at least ${need ?? 'two-thirds'} needed); their median is adopted.`)
+        : pair(`${agree ? agree + ' 张' : '几张'}不同角度的照片读数一致，采用它们的中位数。`, `${agree || 'Several'} photos from different angles agree; their median is adopted.`), out)};
     case 'provisional': {
       const v = mm(adoption.provisional_mm);
       return {state: 'provisional', title: pair('暂定', 'Provisional'),
         body: pair(`临时 L${v ? ' ' + v : ''}，尚未采用。只有一张照片读出来；转一下盘，再拍一张不同角度的，两张一致才采用。用同一张盘，不用重刻。`,
           `Provisional L${v ? ' ' + v : ''}, not adopted. Only one photo was read; turn the disc and take another from a different angle. Two that agree are adopted. Same disc, no new burn.`)};
     }
-    case 'disagree': return {state: 'disagree', title: pair('两张不一致', 'Photos disagree'),
-      body: pair(`几张照片读出的值对不上${spread ? `（相差${spread}）` : ''}，这组不采用。确认拍的都是这次刻的同一张标靶盘，转一下盘再拍；用同一张盘，不用重刻。`,
-        `The photos give different values${spread ? ` (${spread.trim()} apart)` : ''}, so the group is not adopted. Check they all show this run’s target disc, turn it and take more. Same disc, no new burn.`)};
+    case 'disagree': {
+      const two = okCount === 2;
+      const base = two ? pair(`两张读出的值对不上${spread ? `（相差${spread}）` : ''}，不采用。转一下盘再拍一张，看哪张和它一致；用同一张盘，不用重刻。`,
+          `The two photos give different values${spread ? ` (${spread.trim()} apart)` : ''}, so neither is adopted. Turn the disc and take another to see which it agrees with. Same disc, no new burn.`)
+        : agree && okCount ? pair(`最多 ${agree} 张读数一致，没到 ${okCount} 张可用照片的三分之二（${need ?? Math.ceil(okCount * 2 / 3)} 张），不采用。转一下盘再拍几张；用同一张盘，不用重刻。`,
+          `At most ${agree} photos agree, short of two-thirds of the ${okCount} usable ones (${need ?? Math.ceil(okCount * 2 / 3)}), so nothing is adopted. Turn the disc and take a few more. Same disc, no new burn.`)
+        : pair(`照片读出的值对不上${spread ? `（相差${spread}）` : ''}，不采用。转一下盘再拍几张；用同一张盘，不用重刻。`, `The photos disagree${spread ? ` (${spread.trim()} apart)` : ''}, so nothing is adopted. Turn the disc and take a few more. Same disc, no new burn.`);
+      return {state: 'disagree', title: two ? pair('两张不一致', 'Two photos disagree') : pair('读数不一致', 'Readings disagree'), body: plus(base, out)};
+    }
+    case 'split': return {state: 'split', title: pair('分成两派', 'Split into two camps'),
+      body: pair(`两组读数分成了两派${agree ? `（各 ${agree} 张）` : ''}，一样多又互不重叠，没法判断哪组对，这次不采用。请再拍几张不同角度的；用同一张盘，不用重刻。`,
+        `The readings split into two camps${agree ? ` of ${agree} each` : ''} that do not overlap, so neither can be preferred and nothing is adopted. Take a few more from different angles. Same disc, no new burn.`)};
     case 'refused': {
       const why = agreementReasons[adoption.reason] || pair('这组照片没有通过采用检查。再拍一张不同角度的。', 'This group did not pass the adoption check. Take another from a different angle.');
-      return {state: 'refused', title: pair('不采用', 'Not adopted'), body: why};
+      return {state: 'refused', title: pair('不采用', 'Not adopted'), body: plus(why, out)};
     }
     default: {
       const any = photos.length, read = photos.filter(p => p.verdict).length;

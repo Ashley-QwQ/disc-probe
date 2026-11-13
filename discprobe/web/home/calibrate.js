@@ -1117,7 +1117,7 @@ const photoLive = u => photoUI === u && flow === u.flow && isCal() && flow.realP
 // The along-track constant's state for this read: the core's own decision when it gives one, else the group vote.
 const photoAdoption = result => result?.adoption?.state ? result.adoption
   : result?.verdict === 'ok' ? {state:'adopted'} : {state:'none'};
-const PHOTO_HELD = ['provisional','disagree','refused'];
+const PHOTO_HELD = ['provisional','disagree','split','refused'];
 function photoStamp(result, saved = null) {
   const esc = api.backend.escapeHTML, adoption = photoAdoption(result);
   // Only an adopted group is usable: a provisional single photo, a disagreement or a refusal never is.
@@ -1125,6 +1125,8 @@ function photoStamp(result, saved = null) {
   const held = PHOTO_HELD.includes(adoption.state) ? adoptionWords(adoption) : null;
   // Whether pictures will use it is the core's further gate (disc number, burn path, same drive and run).
   const applied = ok && result.application ? applicationWords(result.application, flow?.detected?.media) : null;
+  // Adopted by a majority: say how many agreed, and which photos were left out as outliers (never on a tie).
+  const majority = ok && adoption.source === 'core' ? adoptionWords(adoption, result.per_photo || []) : null;
   // One line per kind of problem, with how many photos it applies to; the same advice is not repeated.
   const kinds = new Map();
   for (const p of result.per_photo || []) if (p.verdict !== 'ok') { const w = photoReasonWords(p)[api.lang()]; if (w) kinds.set(w, (kinds.get(w) || 0) + 1); }
@@ -1136,6 +1138,7 @@ function photoStamp(result, saved = null) {
     row('意思','Means', reasons || (ok ? liveText('照片读完了。','Photo read.') : liveText('照片还不能给出可信的结果。','The photo cannot give a trusted result yet.'))) +
     row('对你的图','For the picture', ok ? liveText('已保留照片结果；现有几何的覆盖限制仍按测量结果判断。','Photo result retained; the measured geometry still determines its coverage limits.') : liveText('保留现有测量，不用这次照片改它。','Keep the existing measurement; this photo does not change it.')) +
     (held ? row('沿轨常数','Along-track constant', held.body[api.lang()], true) : '') +
+    (majority ? row('沿轨常数','Along-track constant', majority.body[api.lang()], !!adoption.outliers?.length) : '') +
     (applied ? row('出图','Pictures', applied.words[api.lang()], !applied.applied) : '') +
     row('现在','Now', saved ? photoSaveWords(saved)[api.lang()] : ok ? (value ? `${value} · ${liveText('已保留，尚未写入预设','retained, not yet written into the preset')}` : liveText('保存现有测量和照片结果。','Save the existing measurement and retain the photo result.')) : liveText('再拍一张，或跳过，就用现在的结果。','Take another photo, or skip and keep the current result.'), !ok) + '</dl></div>';
 }
