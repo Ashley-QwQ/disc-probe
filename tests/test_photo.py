@@ -322,7 +322,7 @@ def test_photo_web_job_result_and_validation(tmp_path):
         job = s.backend.get_job(started["job"])
         assert job.finished.wait(45)
         assert job.exit == 0 and job.media == "dvd" and job.result["verdict"] == "unsure"
-        assert set(job.result) == {"verdict", "per_photo", "rings_mm", "offset_mm", "L_frames", "confidence", "path",
+        assert set(job.result) == {"verdict", "per_photo", "rings_mm", "offset_mm", "L_frames", "confidence", "path", "provisional_mm",
                                    "group", "adoption", "seconds"}
         assert job.result["adoption"]["state"] == "none" and job.result["seconds"] >= 0
         assert job.result["per_photo"][0]["id"] == row["id"]
@@ -351,6 +351,7 @@ def test_provisional_value_is_not_published(tmp_path):
     with patch.object(pcal, "read_photo", return_value=dict(status="ok", L_mm=1.2)):
         result = photo.analyze(folder, "cd", [("one", image)])
     assert result["verdict"] == "unsure" and result["offset_mm"] is None and result["L_frames"] is None
+    assert result["provisional_mm"] == 1.2
 
 
 def test_duplicate_image_cannot_be_two_independent_photos(tmp_path):

@@ -42,7 +42,8 @@ OPTIONS = {
     "random": {"sectors": "sectors", "seed": "seed", "output": "path"},
     "image": {"geo": "geo", "picture": "path", "design": "path", "design_npy": "path", "output": "path",
               "diameter_mm": "diameter", "r_max": "radius", "along_track_frames": "frames",
-              "dark": "texture", "light": "texture", "textures": "texture_list"},
+              "dark": "texture", "light": "texture", "textures": "texture_list",
+              "no_photo_l": "flag", "reading_drive": "device_id"},
     "disexport": {"geo": "geo", "sectors": "sectors", "output": "path", "r_min": "radius", "r_max": "radius",
                   "photo": "path", "reading_drive": "device_id", "completion_sectors": "completion_sectors"},
     "cdprobe": {"sectors": "sectors", "output": "path", "size": "size"},
@@ -51,7 +52,7 @@ OPTIONS = {
     "calibrate": {"iso": "path", "burn_speed": "burn_speed", "speed": "speed", "mid": "mid", "preset": "path",
                   "sectors": "sectors", "avoid_mm": "radius_bands", "completion_sectors": "completion_sectors"},
     "photo": {"run": "photo", "media": "photo", "photos": "photo", "rings_mm": "photo",
-              "burner": "photo", "burn_path": "photo", "burn_mode": "photo"},
+              "burner": "photo", "burn_path": "photo", "burn_mode": "photo", "disc_id": "photo"},
 }
 DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell (checked in the tests)
 # a design upload by its length: one bit per cell, at 20, 10 or 5 um (imagedisc.CELL_SIDES)
@@ -198,6 +199,8 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
         argv[start] = "calibrate"
         for index in range(start + 1, len(argv), 2):
             argv[index] = {"--output": "--preset", "--reading-drive": "--drive"}.get(argv[index], argv[index])
+    if action == "image" and drive is not None and not args.get("reading_drive"):
+        argv += ["--reading-drive", drive]
     return argv, drive
 
 
@@ -727,6 +730,12 @@ class Backend:
                 # Save only an actual engine result, with the batch known before the write.
                 identity = dict(job.batch_identity)
                 record = dict(burn, time=burn.get('time', time.time()), media=job.media, identity=identity)
+                if job.args.get('iso'):
+                    try:
+                        spec = Path(local_path(self.root, job.args['iso'])).with_suffix('.image.json')
+                        record['photo_l'] = record.get('photo_l') or json.loads(spec.read_text(encoding='utf-8')).get('photo_l')
+                    except (OSError, ValueError, AttributeError):
+                        record['photo_l'] = None
                 try:
                     (job.folder / 'burn.json').write_text(json.dumps(record, ensure_ascii=False), encoding='utf-8')
                 except OSError:
@@ -749,7 +758,7 @@ class Backend:
             elif job.action == "photo":
                 done = next((e for e in reversed(job.history) if e.get("type") == "result" and e.get("step") == "photo"), None)
                 if done:
-                    job.result = {k: done[k] for k in ("verdict", "per_photo", "rings_mm", "offset_mm", "L_frames", "confidence", "path")}
+                    job.result = {k: done.get(k) for k in ("verdict", "per_photo", "rings_mm", "offset_mm", "L_frames", "confidence", "path", "provisional_mm")}
                     try:
                         record = json.loads((Path(done["path"]) / "photo.json").read_text(encoding="utf-8"))
                     except (OSError, ValueError, TypeError, KeyError):
@@ -777,10 +786,16 @@ class Backend:
                     result["path"] = (result.get("geo") or {}).get("path")
                     job.result = result
                     job.history.append(dict(type="result", job=job.id, step="calibrate", **result))
-            elif job.action in {"random", "disexport"} and code == 0:
+            elif job.action in {"random", "disexport", "image"} and code == 0:
                 output = job.args.get("output")
                 if output and Path(local_path(self.root, output)).is_file():
                     job.result = dict(path=output, verdict="unknown")
+                    if job.action == "image":
+                        try:
+                            spec = Path(local_path(self.root, output)).with_suffix('.image.json')
+                            job.result['photo_l'] = json.loads(spec.read_text(encoding='utf-8'))['photo_l']
+                        except (OSError, ValueError, KeyError, TypeError):
+                            job.result['photo_l'] = dict(written=False, reason='missing_image_record')
                     if job.action == "disexport":
                         try:
                             document = json.loads(Path(local_path(self.root, output)).read_text(encoding="utf-8"))
