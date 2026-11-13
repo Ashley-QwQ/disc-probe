@@ -9,7 +9,8 @@ are blurred.
 | File | Disc |
 |---|---|
 | `qingming_full.jpg`, `qingming_title.jpg`, `qingming_inner_ring.jpg` | 清明上河图 (Along the River During the Qingming Festival) on two conformal rings, A5 ink on 92 silk |
-| `qingming5um_wide.jpg`, `qingming5um_figures.jpg`, `qingming5um_street.jpg`, `qingming5um_trees.jpg`, `qingming5um_houses.jpg`, `qingming5um_roof.jpg` | The outer ring of the Qingming disc, drawn with cells of about 4 to 6 µm. Phone photos through a reversed SLR lens, each about 24 mm of the disc at about 10 µm per pixel; resized to 2000 px, metadata stripped |
+| `qingming5um_wide.jpg`, `qingming5um_figures.jpg`, `qingming5um_street.jpg`, `qingming5um_trees.jpg`, `qingming5um_houses.jpg`, `qingming5um_roof.jpg` | A second Qingming disc (`qmsht5.iso`), drawn with cells of about 4 to 6 µm. Phone photos through a reversed SLR lens; resized to 2000 px, metadata stripped. Magnification differs per shot: the lens field is about 5 to 23 mm across (about 3.8 to 17 µm per pixel of these files) |
+| `qingming5um_overview.jpg`, `qingming5um_<n>_<name>_where.jpg`, `qingming5um_<n>_<name>_scale.jpg` | Where each close-up was taken, drawn on a render of `qmsht5.iso` itself (regenerated from its recipe, SHA-256 identical to the burned image; light is `92`, dark is `A5`), with a generic 550 ml bottle (about 212 × 65 mm) at the same scale; and each close-up with a scale bar in inverted colours. Position and scale come from matching each photo to the design (SIFT, similarity transform), checked by overlaying the design on every photo |
 | `dense_motifs.jpg` | Dense tiling of small motifs with an outer resolution band |
 | `grid_lines_zoom.jpg` | Part of a 600 dpi flatbed scan of the timing-only grid disc (`iso/grid3.iso`), high-pass filtered, about 38 mm across. A scan, not a phone photo |
 | `palette_target.jpg` | Self-locating texture palette target (`python -m discprobe tiles`) |

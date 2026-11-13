@@ -42,9 +42,33 @@ disc-probe 让光驱来量。盘匀速转动时，一个扇区读完的时刻，
 
 密铺盘的微距照片，也是只刻一次。不可能三角形宽 4.2 mm，小人高 6.8 mm，最上方是测线宽用的三线组。肉眼能看清最小的 1 mm 三角形，它每条边约 0.15 mm 宽。600 dpi 扫描能分开 0.12 mm 的线，0.08 mm 勉强，再细就到扫描仪的极限了。
 
-<img src="docs/showcase/qingming5um_wide.jpg" width="32%" alt="清明上河图盘外圈 5 µm 环：虹桥和人群"> <img src="docs/showcase/qingming5um_trees.jpg" width="32%" alt="柳树，每根枝条都画出来了"> <img src="docs/showcase/qingming5um_houses.jpg" width="32%" alt="靠近外缘的房屋和屋瓦">
+<img src="docs/showcase/qingming5um_overview.jpg" width="60%" alt="每张特写的拍摄位置，画在刻盘所用 ISO 的渲染图上，旁边是同比例的 550 ml 矿泉水瓶">
 
-还可以更细：清明上河图盘的外圈用约 4–6 µm 的格子画。我们没有显微镜，这几张是手机加一只倒装的单反镜头拍的，每张约 24 mm 宽，约 10 µm 一像素，所以单个格子还在手机分辨不出的尺度以下。颜色只是光盘本身的衍射。更多照片在 [`docs/showcase/`](docs/showcase/)（`qingming5um_*.jpg`）。
+还可以更细：第二张清明上河图盘用约 4–6 µm 的格子画。上图是下面每张特写的拍摄位置，画在刻这张盘所用 ISO 的渲染图上（亮的是 `92` 纹理，暗的是 `A5`），旁边是同比例的 550 ml 矿泉水瓶。我们没有显微镜，特写是手机加一只倒装的单反镜头拍的。每张的放大倍率不一样，镜头里那块圆形视野约 5–23 mm 宽。每张的比例和位置是把照片和设计图逐张匹配算出来的，都加了比例尺。单个格子仍在手机能分辨的尺度附近或以下。颜色只是光盘本身的衍射。
+
+<img src="docs/showcase/qingming5um_1_wide_where.jpg" width="28%" alt="位置 1"> <img src="docs/showcase/qingming5um_1_wide_scale.jpg" width="48%" alt="虹桥和人群">
+
+1 · 虹桥和人群 · 视野约 23 mm
+
+<img src="docs/showcase/qingming5um_2_houses_where.jpg" width="28%" alt="位置 2"> <img src="docs/showcase/qingming5um_2_houses_scale.jpg" width="48%" alt="牛车和房屋，旁边是两圈之间的空隙">
+
+2 · 牛车和房屋，旁边是两圈之间的空隙 · 视野约 12 mm
+
+<img src="docs/showcase/qingming5um_3_roof_where.jpg" width="28%" alt="位置 3"> <img src="docs/showcase/qingming5um_3_roof_scale.jpg" width="48%" alt="屋顶和两圈之间的空隙">
+
+3 · 屋顶和两圈之间的空隙 · 视野约 5 mm
+
+<img src="docs/showcase/qingming5um_4_street_where.jpg" width="28%" alt="位置 4"> <img src="docs/showcase/qingming5um_4_street_scale.jpg" width="48%" alt="街道和城门">
+
+4 · 街道和城门 · 视野约 6 mm
+
+<img src="docs/showcase/qingming5um_5_figures_where.jpg" width="28%" alt="位置 5"> <img src="docs/showcase/qingming5um_5_figures_scale.jpg" width="48%" alt="街上的人和瓦屋顶">
+
+5 · 街上的人和瓦屋顶 · 视野约 6 mm
+
+<img src="docs/showcase/qingming5um_6_trees_where.jpg" width="28%" alt="位置 6"> <img src="docs/showcase/qingming5um_6_trees_scale.jpg" width="48%" alt="老柳树，每根枝条都画出来了">
+
+6 · 老柳树，每根枝条都画出来了 · 视野约 12 mm
 
 ### 颜色（实验中）
 
