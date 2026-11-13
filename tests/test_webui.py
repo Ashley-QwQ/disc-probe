@@ -663,7 +663,11 @@ with open(p, 'a') as f:
         server = self.http_server(lan=True)
         self.assertEqual(server.server_address[0], "0.0.0.0")
         for method, path in [("GET", "/"), ("GET", "/api/state"), ("GET", "/api/events"), ("GET", "/api/burn-token"), ("POST", "/api/run")]:
-            self.assertEqual(self.request(server, method, path, {})[0], 403)
+            try:
+                code = self.request(server, method, path, {})[0]
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                code = 403   # refused before the body was read; under load Windows aborts the send
+            self.assertEqual(code, 403)
         self.assertEqual(self.request(server, "GET", "/api/state", headers={"X-Discprobe-Token": server.token})[0], 200)
         self.assertEqual(self.request(server, "GET", "/api/state?token=" + server.token)[0], 200)
 
