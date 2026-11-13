@@ -5,15 +5,108 @@ from __future__ import annotations
 from . import mmc
 from .scsi import DATA_IN, DATA_NONE, ScsiResult
 
+import queue
+import threading
+import time
+
+COMMAND_TIMEOUT_S = 3
+INFO_BUDGET_S = 25
+NEXT_ACTION = "Close other drive software, reload this same disc and retry info; share diagnostics if it repeats."
+
+
+class InfoDevice:
+    """Wall-clock and native bounds for info, including optional identity reads."""
+    def __init__(self, dev=None, budget_s=INFO_BUDGET_S, *, opener=None):
+        self.dev = dev
+        self.deadline = time.monotonic() + budget_s
+        self.failed = False
+        self.errors = []
+        self.requests = queue.Queue()
+        self.closed = False
+        # Opening, executing and closing share one thread: IMAPI COM objects and
+        # CoUninitialize must stay on their creating thread as well.
+        def worker():
+            while True:
+                request = self.requests.get()
+                if request is None:
+                    return
+                call, result = request
+                try:
+                    result.put((call(), None))
+                except BaseException as exc:
+                    result.put((None, exc))
+        threading.Thread(target=worker, daemon=True).start()
+        if opener is not None:
+            def open_device():
+                self.dev = opener()
+                return self.dev
+            try:
+                self._call(open_device, 5, 'open drive')
+            except BaseException:
+                self.failed = True
+                self.close()
+                raise
+
+    def _call(self, call, seconds, step):
+        result = queue.Queue(1)
+        self.requests.put((call, result))
+        try:
+            value, error = result.get(timeout=max(.001, seconds))
+        except queue.Empty:
+            raise TimeoutError(f'{step} timed out after {seconds:g}s. {NEXT_ACTION}') from None
+        if error is not None:
+            raise error
+        return value
+
+    def __getattr__(self, name):
+        return getattr(self.dev, name)
+
+    def execute(self, cdb, data_len=0, direction=DATA_IN, timeout_s=COMMAND_TIMEOUT_S):
+        from .scsi import check_allowed
+        step = check_allowed(cdb)
+        remaining = self.deadline - time.monotonic()
+        if self.failed or remaining <= 0:
+            message = f"{step} skipped after info timeout. {NEXT_ACTION}"
+            if not self.failed:
+                self.failed = True
+                self.errors.append(message)
+            raise TimeoutError(message)
+        try:
+            return self._call(lambda: self.dev.execute(cdb, data_len, direction,
+                                timeout_s=min(timeout_s, COMMAND_TIMEOUT_S)),
+                                min(COMMAND_TIMEOUT_S + 1, remaining), step)
+        except OSError as exc:
+            self.failed = True
+            message = f"{step}: {exc}. {NEXT_ACTION}"
+            self.errors.append(message)
+            raise TimeoutError(message) from exc
+
+    def close(self):
+        if self.closed:
+            return
+        self.closed = True
+        close = lambda: self.dev.close() if hasattr(self.dev, 'close') else None
+        try:
+            if self.failed:
+                # Queue cleanup behind the outstanding ioctl, never underneath it.
+                self.requests.put((close, queue.Queue(1)))
+            else:
+                self._call(close, 1, 'close drive')
+        finally:
+            self.requests.put(None)
+
 
 def _run(dev, name: str, cdb: bytes, alloc: int, parser=None) -> dict:
     entry = {"cdb": cdb.hex(" ")}
     try:
-        res: ScsiResult = dev.execute(cdb, alloc, DATA_IN if alloc else DATA_NONE)
+        res: ScsiResult = dev.execute(cdb, alloc, DATA_IN if alloc else DATA_NONE,
+                                      timeout_s=COMMAND_TIMEOUT_S)
     except OSError as e:
-        entry["error"] = str(e)
+        entry["error"] = f"{name}: {e}. {NEXT_ACTION}"
         return entry
     entry["status"] = res.status
+    if not res.ok:
+        entry['error'] = f"{name} unavailable (status {res.status}, sense {res.sense}). Check that the disc is ready; this command may be unsupported."
     entry["duration_us"] = round(res.duration_us, 1)
     if res.sense:
         entry["sense"] = str(res.sense)
@@ -107,15 +200,22 @@ def disc_id(mid: dict, adip: dict, atip: dict) -> str | None:
 
 def identify(dev, family: str | None = None) -> dict:
     """Which drive and disc a measurement used, so results can be told apart later. Reads only, before any timing."""
-    inq = _run(dev, "INQUIRY", mmc.inquiry(), 96, mmc.parse_inquiry).get("parsed") or {}
+    errors = []
+    def read(*args):
+        entry = _run(dev, *args)
+        if 'error' in entry and 'status' not in entry:
+            errors.append(entry['error'])
+        return entry.get('parsed') or {}
+    inq = read("INQUIRY", mmc.inquiry(), 96, mmc.parse_inquiry)
     mid, adip, atip = {}, {}, {}
     if family == "cd":
-        atip = _run(dev, "READ ATIP", mmc.read_toc(4, msf=True), 2048, mmc.parse_atip).get("parsed") or {}
+        atip = read("READ ATIP", mmc.read_toc(4, msf=True), 2048, mmc.parse_atip)
     elif family != "bd":
-        mid = _run(dev, "DVD-R pre-recorded info", mmc.read_disc_structure(0, 0x0E), 2052, mmc.parse_dvd_r_prerecorded).get("parsed") or {}
+        mid = read("DVD-R pre-recorded info", mmc.read_disc_structure(0, 0x0E), 2052, mmc.parse_dvd_r_prerecorded)
         if not mid.get("manufacturer_id"):
-            adip = _run(dev, "DVD+R ADIP", mmc.read_disc_structure(0, 0x11), 2052, mmc.parse_dvd_plus_adip).get("parsed") or {}
-    return {"drive": f"{inq.get('vendor', '')} {inq.get('product', '')}".strip() or None, "firmware": inq.get("revision"), "disc": disc_id(mid, adip, atip)}
+            adip = read("DVD+R ADIP", mmc.read_disc_structure(0, 0x11), 2052, mmc.parse_dvd_plus_adip)
+    return {"drive": f"{inq.get('vendor', '')} {inq.get('product', '')}".strip() or None, "firmware": inq.get("revision"), "disc": disc_id(mid, adip, atip),
+            **({'probe_errors': errors} if errors else {})}
 
 
 def summarize(r: dict) -> list[str]:
@@ -123,10 +223,22 @@ def summarize(r: dict) -> list[str]:
         return r.get(key, {}).get("parsed") or {}
 
     lines = []
+    from .capacity import capacity_words
+    words = capacity_words(r)
+    geometric = words['geometric_total_sectors'] if words['geometric_total_sectors'] is not None else 'unknown'
+    writable = words['blank_writable_sectors'] if words['blank_writable_sectors'] is not None else 'unknown'
+    lines += [f"Geometric total: {geometric} sectors (whole medium; unknown is not zero)",
+              f"Writable capacity of this blank: {writable} sectors (burn limit; unknown is not zero)",
+              'Random-mirror length: not measured by info; random --sectors chooses the file length (DVD default 2295104).',
+              'disexport --sectors chooses the mapping total to match DiscImageStudio; timing / geo use the readable recorded area.']
+    lines.append('A blank DVD-R writable count such as 2297888 and a DVD+R random/preset length such as 2295104 can both be correct; they describe different limits.')
     from .capacity import recordable_capacity
     recordable = recordable_capacity(r)
     if recordable:
-        lines.append(f"Recordable capacity: {recordable[0]} sectors ({recordable[1]})")
+        meaning = 'confirmed blank free space' if words['blank_writable_sectors'] is not None else 'whole-medium reference; writable free space is unconfirmed'
+        lines.append(f"Recordable capacity: {recordable[0]} sectors ({recordable[1]}; {meaning})")
+    if mmc.not_ready(r.get('test_unit_ready', {}).get('sense')):
+        lines.clear()  # an open/empty tray has no capacity to compare
     inq = parsed("inquiry")
     if inq:
         lines.append(f"Drive: {inq['vendor']} {inq['product']} rev {inq['revision']}")

@@ -7,6 +7,22 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    'save sanitized run diagnostics without photos or drive access': '保存脱敏的运行诊断，不含照片，也不访问光驱',
+    'run folder or summary.json': '运行结果文件夹或其中的 summary.json',
+    "DVD mapping end in sectors; default is the random image length, not the blank's writable capacity": 'DVD 映射终点的扇区数；默认采用随机镜像长度，不是空盘的可写容量',
+    'Reading drive information (3s per command, 25s command budget)...': '正在读取光驱信息（每条命令 3 秒，总查询预算 25 秒）……',
+    'Geometric total: {a} sectors (whole medium; unknown is not zero)': '几何总量：{a} 扇区（整张介质；未知不等于零）',
+    'Writable capacity of this blank: {a} sectors (burn limit; unknown is not zero)': '这张空盘的可写容量：{a} 扇区（刻录上限；未知不等于零）',
+    'Random-mirror length: not measured by info; random --sectors chooses the file length (DVD default 2295104).': '随机镜像长度：info 不测这个数；由 random --sectors 选择文件长度（DVD 默认 2295104）。',
+    'disexport --sectors chooses the mapping total to match DiscImageStudio; timing / geo use the readable recorded area.': 'disexport --sectors 选择与 DiscImageStudio 一致的映射总量；timing / geo 使用已写入的可读区域。',
+    'Random-mirror length: {a} sectors; random --sectors controls this file, not the geometric total or blank writable capacity.': '随机镜像长度：{a} 扇区；random --sectors 控制此文件长度，与几何总量、空盘可写容量分别记录。',
+    'Diagnostics: {a}': '诊断包：{a}',
+    'Stopped: {a}': '已停止：{a}',
+    'Contains: {a}': '内容：{a}',
+    'Next: {a}': '下一步：{a}',
+    'A blank DVD-R writable count such as 2297888 and a DVD+R random/preset length such as 2295104 can both be correct; they describe different limits.': '空白 DVD-R 可写 2297888 扇区，与 DVD+R 随机镜像或预设的 2295104 可以同时正确；它们表示不同的边界。',
+    'An existing recorded plain-data disc can be measured without a new burn.': '已有的普通数据盘可直接测量，不必新刻一张。',
+    'An existing recorded plain-data disc can be measured without a new burn. If none is available, nothing is recorded on this blank for timing; make a random-data disc:': '已有的普通数据盘可直接测量，不必新刻一张。如果没有现成数据盘，这张空盘还没有可计时的数据，需要先生成随机数据盘：',
     # calibrate, photo and presets help
     "selected drive identity; required for measuring, checked when saving photo L": "所选光驱的身份；测量时必填，保存照片测得的 L 时会核对",
     "read speed for timing and geo, in kB/s or a multiple like 4x (default: 4x of the disc's kind)": "timing 和 geo 的读取速度，写 kB/s 或 4x 这样的倍速（默认：该盘种的 4x）",

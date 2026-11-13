@@ -436,6 +436,11 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
     spec = {"kind": "dvd-picture", "media": media, "u": u, "v": v, "bit_nm": bit_nm,
             "total_sectors": total_sectors,
             "first_lba": first_lba, "lead_lba": lead_lba, "textures": texs, "cell_mm": cell_mm(design), **(meta or {})}
+    spec['capacity_words'] = dict(image_length_sectors=total_sectors - first_lba,
+                                   mapping_end_lba_exclusive=total_sectors,
+                                   geometric_total_sectors=None, blank_writable_sectors=None,
+                                   random_mirror_sectors=None,
+                                   uses='image file length; burn checks this blank writable capacity separately')
     if identity is not None:
         spec["disc_identity_layout"] = discid.layout(total_sectors, media)
     if design.dtype == bool:

@@ -77,3 +77,18 @@ class ScsiCommandError(Exception):
         super().__init__(f"{name} failed: status 0x{result.status:02X}, sense {result.sense}")
         self.name = name
         self.result = result
+
+
+PROBE_TIMEOUT_S = 5
+
+
+def execute_probe(dev, cdb, alloc=0):
+    """Bound a probe command without changing its CDB, payload or timestamps."""
+    name = check_allowed(cdb)
+    try:
+        return dev.execute(cdb, alloc, DATA_IN if alloc else DATA_NONE,
+                           timeout_s=PROBE_TIMEOUT_S)
+    except OSError as exc:
+        raise TimeoutError(f"{name} failed (limit {PROBE_TIMEOUT_S}s): {exc}. "
+                           "Close other drive software, reload this same disc and retry; "
+                           "save diagnostics before changing the disc.") from exc

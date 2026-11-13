@@ -135,7 +135,7 @@ class SptiDevice:
 
     def execute(self, cdb: bytes, data_len: int = 0, direction: int = DATA_IN,
                 timeout_s: int = 30) -> ScsiResult:
-        check_allowed(cdb)
+        name = check_allowed(cdb)
         if direction == DATA_OUT:
             raise PermissionError("data-out commands are not used by this probe")
         if data_len > BUFFER_BYTES:
@@ -160,7 +160,8 @@ class SptiDevice:
         t1 = time.perf_counter_ns()
         if not ok:
             err = ctypes.get_last_error()
-            raise OSError(err, f"DeviceIoControl failed: {ctypes.FormatError(err)}")
+            raise OSError(err, f"{name}: DeviceIoControl failed (limit {timeout_s}s): {ctypes.FormatError(err)}. "
+                          "Reload this same disc and retry; save diagnostics if it repeats.")
         data = ctypes.string_at(self._buf, min(sptd.DataTransferLength, data_len)) if data_len else b""
         sense = parse_sense(bytes(req.sense)) if sptd.ScsiStatus else None
         return ScsiResult(sptd.ScsiStatus, data, sense, t0, t1)
