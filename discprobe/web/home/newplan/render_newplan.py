@@ -78,6 +78,16 @@ STYLE = {
         shadow_tint=(0.62, 0.66, 0.66), shadow_rgb="#050807", drop_alpha=0.40, bg="#161d1c",
     ),
 }
+# The scenes with a protagonist (top: the drive; desk: the presets desk) are lit by a warm spotlight in both themes.
+# On paper, multiplying near-white by a small gain clips to white and the spot vanishes, so the light comes from a
+# dimmer room instead: lower ambient, larger warm gain (2026-11-12, the person's rule: every page's protagonist sits
+# in a warm spotlight; paper was the weak theme). The sheets and envelopes (forms, not protagonists) keep the old,
+# barely-there light. --pool-paper amb,r,g,b overrides it for trials.
+if MODE in ("top", "desk"):
+    STYLE["paper"].update(amb=(0.82, 0.82, 0.82), gain=(0.24, 0.19, 0.08))
+if "--pool-paper" in argv:
+    _a, _r, _g, _b = (float(x) for x in arg("--pool-paper", "").split(","))
+    STYLE["paper"].update(amb=(_a, _a, _a), gain=(_r, _g, _b))
 LINE_PX = 0.8
 CREASE_DEG = 30.0
 DEPTH_STEP_M = 0.0004
@@ -502,6 +512,11 @@ elif MODE == "desk":
     DOC_TEXT_ENV = (DOC_X - EV_W / 2 + 0.026, B2[1] - 0.026, DOC_X + EV_W / 2 - 0.026, -0.248 + 0.020)
     POOL = dict(center=(0.07, 0.08), sigma=0.36)          # the lamp up right shines on the middle of the desk
     SHADOW = dict(dx_m=-0.016, dy_m=-0.021, blur_m=0.018)
+
+# the lamp's pool centred on the page's protagonist (the disc in the top view; the lamp is up and to the right, so
+# a little up-right of the disc), not on the form beside it
+if MODE == "top":
+    POOL = dict(center=(DCX + 0.03, DCY + 0.02), sigma=float(arg("--pool-sigma", "0.17")))
 
 # --tumble rx,ry,rz (degrees, envelope mode): the bag turned in 3D, for the past-works page's falling background; one
 # layer, a square canvas round the bag's bounding sphere, no shadow (it floats)

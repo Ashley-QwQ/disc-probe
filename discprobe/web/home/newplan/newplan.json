@@ -32,11 +32,12 @@
   ],
   "rect_note": "[left, top, right, bottom] in px",
   "pool_centre_px": [
-   1210.9,
-   650.9
+   615.65,
+   563.49
   ],
-  "pool_sigma_px": 829.2,
-  "free_area_note": "right of x = 833 px is plain lit desk (the form floats there)"
+  "pool_sigma_px": 587.4,
+  "free_area_note": "right of x = 833 px is plain lit desk (the form floats there)",
+  "pool_note": "2026-11-12: the lamp's pool sits on the drive (the protagonist), not on the form"
  },
  "paper": {
   "mode": "paper",
