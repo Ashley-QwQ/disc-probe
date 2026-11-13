@@ -37,6 +37,9 @@ def arg(name, default):
 
 
 MODE = arg("--mode", "top")
+# top view turned round (2026-11-12, the designer's review): the body runs off the BOTTOM edge, the tray reaches up,
+# the disc sits left of centre at mid height, so nothing collides with the header; the camera turns 180 degrees
+FLIP = MODE == "top" and "--no-flip" not in sys.argv
 OUTDIR = os.path.abspath(arg("--outdir", "out"))
 VARIANTS = arg("--variants", "paper,dark").split(",")
 SAMPLES = int(arg("--samples", "16"))
@@ -257,6 +260,8 @@ if MODE == "top":
     for L_, sp in SPLIT.items():
         w_, s_ = sp["width_h"] * MARK_H, sp["centre_h"] * MARK_H * MARK_TRACK   # width, arc offset of the centre
         th_ = math.pi / 2 - s_ / R_MID                                    # its angle on the ring
+        if FLIP:                                                          # the upper half of the turned picture
+            th_ = -math.pi / 2 - s_ / R_MID
         rot_ = th_ - math.pi / 2                                          # up = radial
         cx_, cy_ = DCX + R_MID * math.cos(th_), DCY + R_MID * math.sin(th_)
         ca, sa = math.cos(rot_), math.sin(rot_)
@@ -278,6 +283,8 @@ if MODE == "top":
     tray_front = 0.0805 - TRAY_OPEN - 0.0035
     CX = 0.0 + (W / 2 - 0.20 * W) / PPM
     CY = tray_front + (0.78 * H - H / 2) / PPM
+    if FLIP:                                          # turned: the disc at 20 % across, 50 % down
+        CX, CY = DCX - (0.5 - 0.20) * W / PPM, DCY
     POOL = dict(center=(CX - 0.02, CY + 0.02), sigma=0.24)
     SHADOW = dict(dx_m=-0.016, dy_m=-0.021, blur_m=0.018)       # lamp up and to the right -> shadow down-left
 elif MODE == "paper":
@@ -516,7 +523,8 @@ elif MODE == "desk":
 # the lamp's pool centred on the page's protagonist (the disc in the top view; the lamp is up and to the right, so
 # a little up-right of the disc), not on the form beside it
 if MODE == "top":
-    POOL = dict(center=(DCX + 0.03, DCY + 0.02), sigma=float(arg("--pool-sigma", "0.17")))
+    k_ = -1 if FLIP else 1                            # the lamp is up-right in the PICTURE either way
+    POOL = dict(center=(DCX + k_ * 0.03, DCY + k_ * 0.02), sigma=float(arg("--pool-sigma", "0.17")))
 
 # --tumble rx,ry,rz (degrees, envelope mode): the bag turned in 3D, for the past-works page's falling background; one
 # layer, a square canvas round the bag's bounding sphere, no shadow (it floats)
@@ -552,6 +560,8 @@ scene.collection.objects.link(cam)
 cam.location = (CX, CY, 5.0)
 cam.rotation_euler = (0, 0, 0)
 scene.camera = cam
+if FLIP:
+    cam.rotation_euler = (0.0, 0.0, math.pi)
 if MODE == "desk":
     cam.location = (CX, CY - 5.0 * math.sin(TILT), 5.0 * math.cos(TILT))
     cam.rotation_euler = (TILT, 0.0, 0.0)
@@ -574,6 +584,8 @@ if MODE == "tray":
 
 
 def to_px(x, y, z=0.0):
+    if FLIP:                                             # the camera turned 180 degrees
+        return [round(float(W / 2 - (x - CX) * PPM), 2), round(float(H / 2 + (y - CY) * PPM), 2)]
     if MODE == "desk":                                   # the tilted orthographic camera: up = (0, cos t, sin t)
         yy = (y - CY) * math.cos(TILT) + z * math.sin(TILT)
         return [round(float(W / 2 + (x - CX) * PPM), 2), round(float(H / 2 - yy * PPM), 2)]
@@ -1013,6 +1025,9 @@ for lname, names in layers.items():
     shadow = None
     if MODE == "top":                           # drive + disc shadow on the desk only
         desk_id = [o.pass_index for o in render_meshes if o.name == "desk"][0]
+        dm = (oid == desk_id).astype(np.float32)        # desk_mask.png: white where the desk shows (grain goes there)
+        save_png(np.concatenate([np.ones(dm.shape + (3,), np.float32) * dm[..., None], dm[..., None]], axis=2),
+                 os.path.join(OUTDIR, "desk_mask.png"))
         occ = (alpha & (oid != desk_id)).astype(np.float32)
         sh_ = box_blur(shift(occ, SHADOW["dx_m"] * PPM * SS, -SHADOW["dy_m"] * PPM * SS), SHADOW["blur_m"] * PPM * SS / 2)
         shadow = sh_ * (oid == desk_id)
@@ -1045,7 +1060,8 @@ if MODE == "top":
                     "note": "printable disc, label side up; a low-key DP mark is printed along the upper half of "
                             "the label ring (mark_letters, mark_rect_px)"}
     _mv = np.array([o.matrix_world @ v.co for o in render_meshes if o.name.startswith("disc_mark_") for v in o.data.vertices])
-    META["mark_rect_px"] = to_px(_mv[:, 0].min(), _mv[:, 1].max()) + to_px(_mv[:, 0].max(), _mv[:, 1].min())
+    _a, _b = to_px(_mv[:, 0].min(), _mv[:, 1].max()), to_px(_mv[:, 0].max(), _mv[:, 1].min())
+    META["mark_rect_px"] = [min(_a[0], _b[0]), min(_a[1], _b[1]), max(_a[0], _b[0]), max(_a[1], _b[1])]
     META["mark_letters"] = {L_: {"centre_px": to_px(*d_["centre"]), "rotation_deg_clockwise": round(-d_["rot_deg"], 1),
                                  "width_px": round(d_["w"] * PPM, 1), "height_px": round(MARK_H * PPM, 1)}
                             for L_, d_ in MARK_LETTERS.items()}
@@ -1059,7 +1075,8 @@ if MODE == "top":
         for o in objs:
             P += [o.matrix_world @ v.co for v in o.data.vertices]
         P = np.array(P)
-        return to_px(P[:, 0].min(), P[:, 1].max()) + to_px(P[:, 0].max(), P[:, 1].min())
+        a_, b_ = to_px(P[:, 0].min(), P[:, 1].max()), to_px(P[:, 0].max(), P[:, 1].min())
+        return [min(a_[0], b_[0]), min(a_[1], b_[1]), max(a_[0], b_[0]), max(a_[1], b_[1])]   # turned or not
     META["drive_body_rect_px"] = bbox(sh)
     META["tray_rect_px"] = bbox(tr)
     META["rect_note"] = "[left, top, right, bottom] in px"

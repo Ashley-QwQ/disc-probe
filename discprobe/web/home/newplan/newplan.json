@@ -10,34 +10,59 @@
   "disc": {
    "centre_px": [
     512.0,
-    632.59
+    720.0
    ],
    "radius_px": 207.3,
    "label_radius_px": 202.12,
    "label_inner_radius_px": 79.47,
    "hole_radius_px": 25.91,
-   "note": "blank printable disc, label side up: put the DP mark (HTML/SVG) inside the label ring (between label_inner_radius_px and label_radius_px)"
+   "note": "printable disc, label side up; a low-key DP mark is printed along the upper half of the label ring (mark_letters, mark_rect_px)"
   },
   "drive_body_rect_px": [
    231.11,
-   -304.75,
+   931.45,
    792.89,
-   421.14
+   1657.34
   ],
   "tray_rect_px": [
    283.28,
-   399.29,
+   241.48,
    740.72,
-   1111.11
+   953.3
   ],
   "rect_note": "[left, top, right, bottom] in px",
   "pool_centre_px": [
    615.65,
-   563.49
+   650.9
   ],
   "pool_sigma_px": 587.4,
-  "free_area_note": "right of x = 833 px is plain lit desk (the form floats there)",
-  "pool_note": "2026-11-12: the lamp's pool sits on the drive (the protagonist), not on the form"
+  "free_area_note": "turned round (2026-11-12): the body runs off the bottom edge, the tray reaches up; the disc at 20 % across, 50 % down; right of x = 833 px is plain lit desk",
+  "mark_rect_px": [
+   446.14,
+   530.26,
+   582.47,
+   599.16
+  ],
+  "mark_letters": {
+   "D": {
+    "centre_px": [
+     484.94,
+     563.39
+    ],
+    "rotation_deg_clockwise": 170.2,
+    "width_px": 69.2,
+    "height_px": 55.3
+   },
+   "P": {
+    "centre_px": [
+     553.71,
+     566.64
+    ],
+    "rotation_deg_clockwise": 195.2,
+    "width_px": 44.6,
+    "height_px": 55.3
+   }
+  }
  },
  "paper": {
   "mode": "paper",

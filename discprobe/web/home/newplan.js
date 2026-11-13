@@ -17,8 +17,8 @@ const STR = {
     title: "新作品", name: "作品名", nameHelp: "这件作品叫什么", tab: "Tab 采用",
     disc: "所使用的光盘", discHelp: "光盘的型号与批次", later: "先不填", inDrive: (n) => `驱内：${n}`,
     left: (l, o) => `还剩 ${l} / ${o} 张`, newPack: "新开一包 · 登记", kinds: "盘的种类", subs: "盘的类型",
-    next: "下一步：放进图片", none: (k) => `还没有登记过 ${k}`,
-    calOk: (d) => `已标定 · ${d}`, calNone: "这批盘还没标定。刻录前要先标定，也可以先画，刻录前再标。", calGo: "先去标定",
+    next: "下一步：放进图片", nextCal: "下一步：先标定", auto: "自动认出", manual: "手动选择", library: "去盘库看这批盘", none: (k) => `还没有登记过 ${k}`,
+    calOk: (d) => `已标定 · ${d}`, calNone: "这批盘第一次用，要先测一次。", calGo: "先去标定",
     calUnknown: (cd) => cd ? "要刻图，先用这批盘标定（至少 3 张同批空白盘，精细标定还要在 DIS 里做）；也可以先画，回头再标。" : "要刻图，先用这批盘标定一次（约一小时，至少两张同批空白盘，可能三张）；也可以先画，回头再标。",
     calEmpty: (k) => `还没有标定过的 ${k}。要刻图，先放一张这种空白盘进光驱，标定一次；也可以先画，回头再标。`,
     months: ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"],
@@ -30,10 +30,10 @@ const STR = {
     title: "New work", name: "Name", nameHelp: "What is this work called?", tab: "Tab to use",
     disc: "Discs", discHelp: "Disc model and batch", later: "Decide later", inDrive: (n) => `In the drive: ${n}`,
     left: (l, o) => `${l} / ${o} left`, newPack: "Opened a new pack? Register it", kinds: "Disc kind", subs: "Disc type",
-    next: "Next: add a picture", none: (k) => `No ${k} registered yet`,
+    next: "Next: add a picture", nextCal: "Next: calibrate first", auto: "auto", manual: "choose kind", library: "View this batch in the library", none: (k) => `No ${k} registered yet`,
     reading: "Reading the disc in the drive…", readFail: "Couldn't read the drive; choose by hand.", trayOpen: "The drive's tray is open.",
     noDisc: "No disc in the drive.", unknownBatch: (k, m) => `The drive holds a ${k}${m ? ` (${m})` : ""}; this batch isn't in the library yet.`,
-    calOk: (d) => `Calibrated · ${d}`, calNone: "This batch isn't calibrated yet. It must be before burning; you can draw first and calibrate then.", calGo: "Calibrate first",
+    calOk: (d) => `Calibrated · ${d}`, calNone: "This is the first use of this batch; measure it first.", calGo: "Calibrate first",
     calUnknown: (cd) => cd ? "To burn a picture, calibrate this batch first (at least 3 blanks from it; fine calibration is still done in DIS); or draw first and calibrate later." : "To burn a picture, calibrate this batch once (about an hour; at least two blanks from it, maybe three); or draw first and calibrate later.",
     calEmpty: (k) => `No ${k} has been calibrated yet. To burn a picture, put a blank of this kind in the drive and calibrate once; or draw first and calibrate later.`,
     months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
@@ -58,6 +58,25 @@ const shortKind = (k) => String(k ?? "").split(" ")[0];
 let api, $, W = null, state = null, words = null, cssReady = Promise.resolve();
 const T = () => STR[api.lang() === "en" ? "en" : "zh"];
 const root = document.documentElement;
+const motionOff = () => root.dataset.motion === "off" || (root.dataset.motion !== "on" && api.reduce);
+const calibrated = (it) => !!it && ["good", "usable"].includes(it.s);
+const needsCalibration = () => !!chosen() && !calibrated(chosen()) || !!unlisted() || !chosen() && !state.list.some(calibrated);
+function calibrationNotice() {
+  const zh = api.lang() !== "en";
+  if (state.kind === "bd") return zh ? "这批盘第一次用，要先测一次。BD 仍在试验中：耗盘数量和总时间未知；分区测量约 2 分钟。" : "Measure this batch first. BD is experimental: disc budget and total time unknown; zone measurement takes about 2 minutes.";
+  return state.kind === "cd"
+    ? zh ? "这批盘第一次用，要先测一次，至少准备 3 张同批空白盘；精细标定还要在 DIS 里做，总时间尚不确定。" : "Measure this batch first. Have at least 3 blanks from this batch; fine calibration still needs DIS, and total time is unknown."
+    : zh ? "这批盘第一次用，要先测一次，约一小时，至少准备 2 张同批空白盘，可能用到 3 张。" : "Measure this batch first: about an hour, at least 2 blanks from the batch, possibly 3.";
+}
+function paintStamp() {
+  const stamp = W.q(".np-stamp"), t = T();
+  stamp.innerHTML = `<b>${sub().label}</b><small>${state.recognised && !state.touched ? t.auto : t.manual}</small>`;
+}
+function expandDial(open, focus = false) {
+  W.q(".np-dial").hidden = !open;
+  W.q(".np-stamp").setAttribute("aria-expanded", String(open));
+  if (focus) (open ? W.dial.querySelector(".np-key.on") : W.q(".np-stamp"))?.focus({ preventScroll: true });
+}
 
 async function loadWords() {
   if (words) return words;
@@ -120,6 +139,7 @@ function paintDial(turn = 0) {
     k.setAttribute("aria-label", k.dataset.kind ? KIND_KEY[k.dataset.kind] : SUBS[state.kind].find((s) => s.key === k.dataset.sub).label);
   }
   svg.querySelector(".np-face-text").textContent = sub().label;
+  paintStamp();
   if (turn) {
     const face = svg.querySelector(".np-face");
     face.classList.remove("turn-up", "turn-down"); void face.getBBox();
@@ -167,13 +187,17 @@ function build() {
     <div class="np-env-back" aria-hidden="true"></div>
     <form class="np-sheet" autocomplete="off" novalidate>
       <div class="np-head"></div>
-      <div class="np-dial">${dialMarkup()}</div>
       <label class="np-field np-first"><span class="np-label np-name-label"></span>
         <span class="np-input"><input class="np-name" name="name" spellcheck="false"><kbd class="np-tab">Tab</kbd></span>
         <small class="np-help np-name-help"></small></label>
-      <label class="np-field"><span class="np-label np-disc-label"></span>
-        <select class="np-batch" name="batch"></select>
-        <small class="np-help"><span class="np-disc-help"></span><span class="np-left"></span></small></label>
+      <div class="np-field"><label class="np-label np-disc-label" for="np-batch"></label>
+        <div class="np-disc-controls">
+          <button type="button" class="np-stamp" aria-expanded="false" aria-controls="np-dial"></button>
+          <span class="np-select"><select id="np-batch" class="np-batch" name="batch"></select><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 6 5 5 5-5"/></svg></span>
+        </div>
+        <div class="np-dial" id="np-dial" hidden>${dialMarkup()}</div>
+        <button type="button" class="np-library"></button>
+        <small class="np-help"><span class="np-disc-help"></span><span class="np-left"></span></small></div>
       <p class="np-cal" hidden><span class="np-cal-text"></span><button type="button" class="np-cal-go"></button></p>
       <button type="button" class="np-pack"></button>
     </form>
@@ -190,6 +214,20 @@ function build() {
   W.querySelector(".np-head").append(mark, ver);
   const q = (s) => W.querySelector(s);
   Object.assign(W, { q, sheet: q(".np-sheet"), name: q(".np-name"), batch: q(".np-batch"), dial: q(".np-dial-svg"), toast: q(".np-toast") });
+  q(".np-stamp").addEventListener("click", () => expandDial(q(".np-dial").hidden, true));
+  W.dial.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); expandDial(false, true); }
+  });
+  q(".np-library").addEventListener("click", () => {
+    const it = chosen();
+    if (!it || !api.inspectBatch) return;
+    W.hidden = true; root.dataset.mode = "";
+    api.inspectBatch(state.kind, it, (kind, item) => {
+      if (item) { state.kind = kind; state.sub = subOf(kind, item); state.picked = item; }
+      reopen();
+    });
+  });
+  addEventListener("dp-lang", () => { if (isOn()) { paintDial(); fillBatches(); words_(); } });
   W.name.addEventListener("keydown", (e) => {
     if (e.key === "Tab" && !e.shiftKey && !W.name.value) { e.preventDefault(); W.name.value = suggestion(); W.name.select(); }
     if (e.key === "Enter") { e.preventDefault(); next(); }
@@ -230,8 +268,11 @@ function words_() {
   q(".np-pack").textContent = t.newPack + " ↗";
   q(".np-cal-go").textContent = t.calGo + " ↗";
   q(".np-tab").title = t.tab;
+  q(".np-library").textContent = t.library;
+  q(".np-stamp").setAttribute("aria-label", t.kinds);
+  paintStamp();
   W.name.placeholder = suggestion();
-  $("next-text").textContent = t.next;
+  $("next-text").textContent = needsCalibration() ? t.nextCal : t.next;
 }
 const held = () => api.heldDisc?.() ?? "";
 const isHeld = (it) => { const h = held(); return !!h && (it.name === h || it.name?.startsWith(h + " ")); };
@@ -241,7 +282,7 @@ function fillBatches() {
   W.batch.replaceChildren();
   const add = (value, text) => { const o = document.createElement("option"); o.value = value; o.textContent = text; W.batch.append(o); };
   add("", state.list.length ? t.later : `${t.later}（${t.none(sub().label)}）`);   // always on top: the drive may hold no disc yet
-  state.list.forEach((it, i) => add(String(i), isHeld(it) ? t.inDrive(brand(it.name)) : brand(it.name)));
+  state.list.forEach((it, i) => add(String(i), brand(it.name)));
   // what was picked here stays picked (coming back from calibrating); else the disc in the drive, else the last batch
   const picked = state.list.indexOf(state.picked), inDrive = state.list.findIndex(isHeld), last = state.list.indexOf(state.item);
   W.batch.value = String([picked, inDrive, last].find((i) => i >= 0) ?? "");
@@ -260,6 +301,8 @@ function unlisted() {
 }
 function paintLeft() {
   const it = chosen(), t = T();
+  $("next-text").textContent = needsCalibration() ? t.nextCal : t.next;
+  W.q(".np-library").hidden = !it || !api.inspectBatch;
   W.q(".np-left").textContent = it && Number.isFinite(it.left) && Number.isFinite(it.of) ? t.left(it.left, it.of) : "";
   // calibrated or not: a batch with a measurement has its date; one without offers the detour
   const cal = W.q(".np-cal");
@@ -267,14 +310,14 @@ function paintLeft() {
     const u = unlisted(), measured = state.list.some((x) => ["good", "usable"].includes(x.s));
     cal.hidden = !u && measured;
     cal.classList.remove("ok");
-    W.q(".np-cal-text").textContent = u ? t.calUnknown(state.kind === "cd") : t.calEmpty(sub().label);
+    W.q(".np-cal-text").textContent = calibrationNotice();
     W.q(".np-cal-go").hidden = false;
     return;
   }
   cal.hidden = false;
-  cal.classList.toggle("ok", !!it.last);
-  W.q(".np-cal-text").textContent = it.last ? t.calOk(it.last) : t.calNone;
-  W.q(".np-cal-go").hidden = !!it.last;
+  cal.classList.toggle("ok", calibrated(it));
+  W.q(".np-cal-text").textContent = calibrated(it) ? t.calOk(it.last || "—") : calibrationNotice();
+  W.q(".np-cal-go").hidden = calibrated(it);
 }
 // the detour: calibrate this batch, then come back to the form as it was.
 // The sheet goes into the envelope as on "next"; then the camera moves right along the desk: this page (drive,
@@ -286,9 +329,9 @@ async function calibrateFirst() {
   if (going) return;
   going = true;
   state.picked = item;
-  const pan = !api.reduce;
+  const pan = !motionOff();
   const calibrating = import("./calibrate.js");
-  if (pan) { W.resetPull?.(); fileInto(); W.classList.add("filing"); await wait(1000); }
+  if (pan) await bagging(false);
   const cal = await calibrating;
   api.useForPlan(state.kind, item);
   if (pan) root.classList.add("pan-in");                      // its layers wait off to the right
@@ -418,6 +461,8 @@ async function readDrive() {
   try { disc = await api.readDisc(); }
   catch { disc = undefined; }
   if (!isOn()) return;
+  state.recognised = !!disc?.present && KINDS.includes(disc.media) && !!held() && api.catalogue(disc.media).some(isHeld);
+  if (!state.touched) expandDial(!state.recognised);
   state.discLine = (t) => disc === undefined ? t.readFail : !disc ? t.discHelp : disc.tray === "open" ? t.trayOpen
     : !disc.present ? t.noDisc : held() && state.list.some(isHeld) ? t.discHelp : t.unknownBatch(shortKind(disc.kind) || KIND_KEY[disc.media] || "?", disc.mid);
   if (disc?.present && KINDS.includes(disc.media) && !state.touched) {
@@ -426,6 +471,7 @@ async function readDrive() {
     paintDial(Math.sign(turn)); fillBatches();
   }
   help.textContent = state.discLine(T());
+  paintStamp();
 }
 // the type the page opens on: that of the disc in the drive, else of the last batch used, else -R
 function firstSub(kind, item) {
@@ -525,10 +571,10 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   await cssReady;
   const [col, item] = api.lastBatch();
   const kind = KINDS.includes(col) ? col : "dvd";
-  state = { kind, sub: firstSub(kind, item), item, picked: null, file, list: [], seed: Math.floor(Math.random() * 1e6) };
+  state = { kind, sub: firstSub(kind, item), item, picked: null, file, list: [], recognised: !!held(), seed: Math.floor(Math.random() * 1e6) };
   W.name.value = "";
   paintDial(); fillBatches(); words_();
-  readDrive();
+  expandDial(!state.recognised);
   // the camera flies at the drive: the lobby pushes in with the drive coming to the middle of the window;
   // the top view fades in over it with its disc in the middle and close, then settles (the disc moving
   // left, the sheet coming in)
@@ -539,6 +585,7 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   sceneScale();
   $("back").hidden = false; $("next").disabled = false;
   W.hidden = false;
+  readDrive();
   W.classList.remove("leaving", "filing");
   if (push) {
     const [tx, ty] = discPoint();
@@ -548,10 +595,11 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   }
   setTimeout(() => W.name.focus({ preventScroll: true }), api.reduce ? 0 : 700);
 }
-// where the top view has the blank disc (top.json: centre 512, 632.6 of 2560 x 1440), the picture covering the window
+// where the top view has the blank disc (newplan.json top.disc: centre 512, 720 of 2560 x 1440 since the drive was
+// turned round), the picture covering the window
 function discPoint() {
   const vw = innerWidth, vh = innerHeight, sw = Math.max(vw, vh * 16 / 9), sh = sw * 9 / 16;
-  return [(vw - sw) / 2 + sw * 512 / 2560, (vh - sh) / 2 + sh * 632.59 / 1440];
+  return [(vw - sw) / 2 + sw * 512 / 2560, (vh - sh) / 2 + sh * 720 / 1440];
 }
 const LOBBY_PUSH = 2.6, TOP_START = 1.5;    // how close the lobby camera gets; how close the top view starts
 const mid = () => [innerWidth / 2, innerHeight / 2];
@@ -612,18 +660,41 @@ function fileInto() {
   W.style.setProperty("--file-s", s.toFixed(4));
 }
 let going = false;
+let bagged = false;
+try { bagged = sessionStorage.getItem("dp-bagged") === "1"; } catch {}
+async function bagging(drop = true) {
+  W.resetPull?.(); fileInto();
+  const total = motionOff() ? 0 : bagged ? 400 : 1000;
+  if (total) { bagged = true; try { sessionStorage.setItem("dp-bagged", "1"); } catch {} }
+  const filing = Math.round(total * .64), leaving = total - filing;
+  W.style.setProperty("--bag-file", `${filing}ms`); W.style.setProperty("--bag-drop", `${leaving}ms`);
+  let skipped = !total, timer, wake;
+  const skip = (e) => {
+    if (e && e.type === "keydown" && e.key !== "Enter") return;
+    e?.preventDefault(); e?.stopImmediatePropagation();
+    skipped = true; W.classList.add("instant"); clearTimeout(timer); wake?.();
+  };
+  const pause = ms => skipped ? Promise.resolve() : new Promise(r => { wake = r; timer = setTimeout(r, ms); });
+  const changed = new MutationObserver(() => { if (motionOff()) skip(); });
+  addEventListener("click", skip, true); addEventListener("keydown", skip, true);
+  changed.observe(root, { attributes: true, attributeFilter: ["data-motion"] });
+  try {
+    W.classList.add("filing"); await pause(filing);
+    if (drop) { W.classList.add("leaving"); await pause(leaving); }
+  } finally {
+    clearTimeout(timer); changed.disconnect();
+    removeEventListener("click", skip, true); removeEventListener("keydown", skip, true);
+    W.classList.remove("instant");
+  }
+}
 async function next() {
   if (going) return;
+  if (needsCalibration()) return calibrateFirst();
   going = true;
   const name = W.name.value.trim() || suggestion(), item = chosen();
   // the envelope rises, the sheet slides in, both drop out of the frame
-  W.resetPull?.();
-  fileInto();
-  W.classList.add("filing");
   const designing = import("./design.js");       // fetched and parsed while the envelope animates
-  await wait(1000);
-  W.classList.add("leaving");
-  await wait(600);
+  await bagging();
   const design = await designing;
   api.useForPlan(state.kind, item);
   leave();
