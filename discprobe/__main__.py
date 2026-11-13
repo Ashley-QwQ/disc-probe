@@ -653,10 +653,25 @@ def cmd_rings(args):
     from .rings import RingLayout, describe, verify_iso, write_iso
     if args.media == "cd":
         from .cdrings import RingLayout, verify_iso, write_iso
+    photo_decision = None
+    if getattr(args, "geo", None):
+        from .photo import image_photo_l, shifted_u
+        fit = _geo_fit(args, args.media)
+        _require_fit_media(args, fit)
+        _refuse_audio_fit(fit)
+        photo_decision = image_photo_l(args.geo, args.output, media=args.media,
+                                      disabled=getattr(args, "no_photo_l", False), suffix=".rings.json")
+        u = shifted_u(fit, photo_decision)
+        args.bit_nm = fit['bit_nm_assumed']
+        args.r0_mm = u * args.bit_nm * 1e-6
+        args.pitch_um = fit['v'] * args.bit_nm * 1e-3
+        _say_photo_l(photo_decision)
     layout = RingLayout(textures=tuple(t.strip().upper() for t in args.textures.split(",")),
                         groups=args.groups, ring_width_mm=args.ring_width_mm, start_mm=args.start_mm,
                         r0_mm=args.r0_mm, pitch_um=args.pitch_um, bit_nm=args.bit_nm,
                         filler=args.filler.upper()).build()
+    if photo_decision is not None:
+        layout.photo_l = photo_decision
     for line in describe(layout):
         print(line)
     if args.describe:
@@ -1046,11 +1061,19 @@ def cmd_image(args):
     _refuse_audio_fit(fit)
     _warn_other_run(args, fit)
     u, v, bit = fit['u'], fit['v'], fit['bit_nm_assumed']
+    from .photo import image_photo_l, shifted_u
+    photo_decision = image_photo_l(args.geo, args.output, media=args.media,
+                                  disabled=getattr(args, "no_photo_l", False),
+                                  device_id=getattr(args, "reading_drive", None))
     if args.along_track_frames:
         from .cd import FRAME_BITS
         if args.media != 'cd':
             sys.exit('--along-track-frames is for CD')
         u = math.sqrt(u * u - v * args.along_track_frames * FRAME_BITS / math.pi)
+        photo_decision = dict(written=False, reason="manual_along_track_frames")
+    else:
+        u = shifted_u(fit, photo_decision)
+    _say_photo_l(photo_decision)
     total = writer.sectors_to_radius(u, v, bit, args.r_max + 0.6)
     if fit.get('model') == 'dis_import' and fit.get('capacity_sectors'):
         total = min(total, fit['capacity_sectors'])
@@ -1110,7 +1133,11 @@ def cmd_image(args):
         with ui.writing(args.output, total - first) as log:
             spec = writer.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
                                     meta={"geometry_from": os.path.abspath(args.geo), "design": kind,
-                                          "along_track_frames": args.along_track_frames,
+                                          # Keep the legacy manual option unchanged when no photo qualifies,
+                                          # including identity-enabled ISO bytes. Photo unknown is in photo_l.
+                                          "along_track_frames": (photo_decision.get("frames") if photo_decision.get("written")
+                                                                 else args.along_track_frames),
+                                          "photo_l": photo_decision,
                                           "correction": os.path.abspath(args.correction) if args.correction else None,
                                           **identity_meta},
                                     correction=corr, textures=args.textures, log=log, **extra, **discid.options(args))
@@ -1133,6 +1160,15 @@ def cmd_image(args):
             sys.exit(1)
         return
     _image_ready(args, prev, design, files)
+
+
+def _say_photo_l(decision):
+    if decision.get("written"):
+        source = decision["provenance"]
+        print(f"Photo L used: {decision['L_mm']:+.6f} mm from {source['photo_json']} "
+              f"(reader {decision['reader_version']}, provenance {decision['provenance_sha256']})")
+    else:
+        print(f"Photo L not applied: {decision['reason']}; the photo constant remains unknown.")
 
 
 def cmd_gridscan(args):
@@ -2090,6 +2126,8 @@ def _build_parser():
     sp.set_defaults(func=cmd_scan)
 
     sp = sub.add_parser("rings", help="write the DVD texture-ring test ISO (one recorded byte per ring)")
+    sp.add_argument("--geo", help="geo run for measured ring geometry and its accepted photo L")
+    sp.add_argument("--no-photo-l", action="store_true", help="do not apply the run's photo L")
     sp.add_argument("--output", default="rings.iso")
     sp.add_argument("--textures", default="A5,B9,66,64,E4,92,RND",
                     help="scrambled-domain bytes in hex, or RND; must include A5 and 92")
@@ -2224,6 +2262,8 @@ def _build_parser():
     sp.set_defaults(func=cmd_compose)
 
     sp = sub.add_parser("image", help="write a picture ISO placed with a measured geometry (grid test by default)")
+    sp.add_argument("--no-photo-l", action="store_true", help="do not apply the run's photo L")
+    sp.add_argument("--reading-drive", help="check the photo against this specific drive identity (no drive access)")
     sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose")
     sp.add_argument("--output", default="iso/grid.iso")
     sp.add_argument("--picture", help="greyscale picture to threshold instead of the grid test")

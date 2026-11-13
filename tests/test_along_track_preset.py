@@ -12,7 +12,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from discprobe import cd, disexport, photo, webui, webui_catalog
+from discprobe import cd, disexport, photo, pcal, webui, webui_catalog
 
 
 def test_reader_ok_with_burn_provenance_can_be_saved(tmp_path):
@@ -30,7 +30,7 @@ def test_reader_ok_with_burn_provenance_can_be_saved(tmp_path):
     # evidence that synthetic images or real phone captures passed the reader.
     with patch.object(pcal, "read_photo", side_effect=readings):
         result = photo.analyze(summary.parent, "cd", inputs, burner="H:", burn_path="IMAPI",
-                               burn_mode="mode2form1; physical interleave unknown")
+                               burn_mode="mode2form1; physical interleave unknown", disc_id="target-1")
     assert result["verdict"] == "ok"
     decision = photo.photo_shift(summary, target, device_id="H:")
     assert decision["written"] is True
@@ -64,12 +64,17 @@ def run_files(root, name="geo-H-20261111-010101", **fit_changes):
     summary.write_text(json.dumps(geo), encoding="utf-8")
     (folder / "targets.csv").write_text("header\n" + "point\n" * 10)
     record = dict(path=str(folder), media="cd", verdict="ok", L_frames=-105.25,
+                  offset_mm=-105.25 * pcal.CD_FRAME_MM, disc_id="target-1",
+                  reader_version="v1", reader_sha256=photo.READER_SHA256,
                   per_photo=[dict(id="photo-one"), dict(id="photo-two")],
                   burn_path=dict(burner="specific burner H:", path="DIS", mode="audio; delayed interleave on"),
                   source_geo=dict(run_id=folder.name,
                                   sha256=hashlib.sha256(summary.read_bytes()).hexdigest(),
                                   identity=geo["identity"], setup=geo["setup"],
                                   drive_identity=photo.drive_identity(geo, folder)))
+    record['photos'] = [dict(id=p['id'], disc_id=record['disc_id'], status='ok', L_mm=record['offset_mm'],
+                             zone_spread_mm=.2, c_deg=i * 30, input_sha256=str(i + 1) * 64)
+                        for i, p in enumerate(record['per_photo'])]
     target = folder / "photo.json"
     target.write_text(json.dumps(record), encoding="utf-8")
     return summary, target, record
@@ -157,6 +162,9 @@ def test_missing_photo_never_becomes_zero_and_measured_zero_is_valid(tmp_path):
     assert "along_track_frames" not in saved["source"]
     assert saved["source"]["photo_shift"]["reason"] == "no_photo"
     record["L_frames"] = 0
+    record["offset_mm"] = 0
+    for p in record['photos']:
+        p['L_mm'] = 0
     write_record(target, record)
     assert export(summary)["source"]["along_track_frames"] == 0
 
