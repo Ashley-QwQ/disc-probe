@@ -84,7 +84,9 @@ def test_variable_pitch_end_to_end():
 def test_partial_run_has_task_scoped_trust():
     ladder = PhaseOracle(readable=[(850000, 1200000)])
     fit = ladder.run()
-    assert len(ladder.targets) == 17
+    # The 1%-98% default moves the reference and candidate grid; this readable
+    # island now supplies 16 rungs (the former 3%-85% grid supplied 17).
+    assert len(ladder.targets) == 16
     assert fit['completion_status'] == 'candidates_exhausted'
     lo, hi = fit['measured_span_mm']
     local = [lo + .01, hi - .01]

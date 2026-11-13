@@ -446,6 +446,8 @@ class Ladder:
             self.ranges = [(max(0, a), min(b, last + 1)) for a, b in self.ranges_arg]
         elif self.audio:
             self.ranges = [(int(last * CD_AUDIO_RANGE[0]), int(last * CD_AUDIO_RANGE[1]))]
+        elif self.media in ("dvd", "cd"):
+            self.ranges = [(int(last * 0.01), int(last * 0.98))]
         else:
             self.ranges = [(int(last * 0.03), int(last * 0.85))]
         if getattr(tp, 'reserved_lba', []) or tp.summary.get('random_label'):

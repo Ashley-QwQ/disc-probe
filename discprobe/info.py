@@ -5,6 +5,7 @@ from __future__ import annotations
 from . import mmc
 from .scsi import DATA_IN, DATA_NONE, ScsiResult
 
+import errno
 import queue
 import threading
 import time
@@ -14,6 +15,20 @@ INFO_BUDGET_S = 25
 NEXT_ACTION = "Close other drive software, reload this same disc and retry info; share diagnostics if it repeats."
 
 
+# Errors that mean the drive or bus is stuck rather than refusing one command:
+# our own worker deadline, Linux SG host timeout, Windows ERROR_SEM_TIMEOUT
+# and ERROR_TIMEOUT.
+_TIMEOUT_ERRNOS = {errno.ETIMEDOUT, 121, 1460}
+
+
+def _timed_out(exc: OSError) -> bool:
+    return isinstance(exc, TimeoutError) or exc.errno in _TIMEOUT_ERRNOS or getattr(exc, 'winerror', None) in _TIMEOUT_ERRNOS
+
+
+class Unsupported(OSError):
+    """The drive refused one command quickly; info carries on."""
+
+
 class InfoDevice:
     """Wall-clock and native bounds for info, including optional identity reads."""
     def __init__(self, dev=None, budget_s=INFO_BUDGET_S, *, opener=None):
@@ -21,6 +36,8 @@ class InfoDevice:
         self.deadline = time.monotonic() + budget_s
         self.failed = False
         self.errors = []
+        self.unsupported = []  # commands the drive refused quickly; not a stop
+        self.answered = 0
         self.requests = queue.Queue()
         self.closed = False
         # Opening, executing and closing share one thread: IMAPI COM objects and
@@ -72,14 +89,22 @@ class InfoDevice:
                 self.errors.append(message)
             raise TimeoutError(message)
         try:
-            return self._call(lambda: self.dev.execute(cdb, data_len, direction,
+            result = self._call(lambda: self.dev.execute(cdb, data_len, direction,
                                 timeout_s=min(timeout_s, COMMAND_TIMEOUT_S)),
                                 min(COMMAND_TIMEOUT_S + 1, remaining), step)
         except OSError as exc:
+            if not _timed_out(exc):
+                # The drive answered with an error (blank DVD-R: READ DISC
+                # STRUCTURE gives ERROR_IO_DEVICE). It is not stuck, so note the
+                # command as unavailable and keep asking the rest.
+                self.unsupported.append(f"{step}: {exc}")
+                raise Unsupported(f"{step} unavailable: {exc}. This command may be unsupported for this disc.") from exc
             self.failed = True
             message = f"{step}: {exc}. {NEXT_ACTION}"
             self.errors.append(message)
             raise TimeoutError(message) from exc
+        self.answered += 1
+        return result
 
     def close(self):
         if self.closed:
@@ -101,6 +126,10 @@ def _run(dev, name: str, cdb: bytes, alloc: int, parser=None) -> dict:
     try:
         res: ScsiResult = dev.execute(cdb, alloc, DATA_IN if alloc else DATA_NONE,
                                       timeout_s=COMMAND_TIMEOUT_S)
+    except Unsupported as e:
+        entry["error"] = f"{name}: {e}"
+        entry["unsupported"] = True
+        return entry
     except OSError as e:
         entry["error"] = f"{name}: {e}. {NEXT_ACTION}"
         return entry

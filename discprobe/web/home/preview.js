@@ -30,7 +30,7 @@ const STR = {
     v: { design: "设计稿", off: "几何偏一点会怎样", look: "灯下的样子" },
     say: { design: "设计稿：刻进盘的黑白图。压暗的内圈和外圈不刻图。", off: "几何偏一点会怎样：标定差一点时，图会一圈一圈拧开，离中间越远拧得越多。",
       look: "灯下的样子：模拟一盏灯照在盘上，颜色随角度变。这是模型，不是照片。" },
-    checkH: "刻之前", nextMake: "下一步：生成并去刻录", nextCal: "下一步：先标定这批盘", making2: (p) => `正在生成${p == null ? "…" : ` ${p}%`}`,
+    checkH: "刻之前", checkDiscH: "先刻一张检查盘", checkDiscNote: "第一次用这台光驱配这批盘时：先刻一张检查盘，用手机拍 3 张以上，程序读出沿轨方向的偏差。之后再生成的刻录文件会自动修正它。已经拍过这批盘的检查盘，可以跳过。检查盘的纹理是按 RITEKF1 DVD-R 挑的，别的盘还没试过。", checkDiscGo: "生成检查盘并去刻录", checkDiscMaking: "正在生成检查盘…", nextMake: "下一步：生成并去刻录", nextCal: "下一步：先标定这批盘", making2: (p) => `正在生成${p == null ? "…" : ` ${p}%`}`,
     whyMaking: "生成中，可以在右边取消", whyLevels: "灰阶要选 2 级才能刻", whyEmpty: "先放一张图",
     ck: { imported_corrected: "从 DIS 导入，换算成 DP 修正（未经 DP 实测）", imported: "从 DIS 导入，换算成 DP 几何（未经 DP 实测）", batch: "这批盘标定过了", latest: "没选批次：用这种盘最近一次的测量", saved: "没选批次：用这件作品上次用的测量", none: "还没有可用的测量：先标定这批盘",
       of: (n, w) => `（${[n, w].filter(Boolean).join("，")}）`,
@@ -40,7 +40,7 @@ const STR = {
       fxTry: "改按实验纹理刻（只限 DVD，不保证颜色）",
       fxMore: "研究盘只在 GH70N 光驱、RITEKF1 DVD-R、iPhone 17 Pro 的设计机位实刻看到过红、蓝、紫和流光、O/X、合环，那些盘不是用网页这条导出路径刻的。特效按默认机位（手机在盘上方 330 mm）挑纹理，不跟着灯下视图里改的机位走。",
       cell: (u) => `格子 ${u} µm`,
-      inRange: "图都在可刻区内", outRange: "有一部分在可刻区外，会被裁掉", lv2: "刻成深浅两种纹理，灰度靠抖动", lv4: "灰阶是 4 级，只能预览",
+      inRange: "图都在可刻区内", outRange: "有一部分在可刻区外，会被裁掉", measured: (r) => `（这批盘实测到 ${r[0].toFixed(1)}–${r[1].toFixed(1)} mm，圈外没测过，位置不可信，所以不刻图）`, lv2: "刻成深浅两种纹理，灰度靠抖动", lv4: "灰阶是 4 级，只能预览",
       blank: (n) => `光驱里是空白盘${n ? `（${n}）` : ""}`, written: "光驱里的盘刻过了：刻录页会请你换盘", other: (n) => `光驱里是别的批次（${n}）：刻录页会请你换盘`,
       kind: "光驱里是另一种盘：刻录页会请你换盘", nodisc: "光驱里还没放盘：刻录页会等你放",
       time: (m) => `刻录约 ${m} 分钟`, timeLater: "刻录时间：生成后知道", size: (b) => `文件 ${b}` },
@@ -63,7 +63,7 @@ const STR = {
     say: { design: "Design: the black and white picture that is burned. The dimmed inner and outer rings are not drawn.",
       off: "If the geometry is a little off: the picture twists ring by ring, more the further from the middle.",
       look: "Under a lamp: one light on the disc; the colours change with the angle. A model, not a photo." },
-    checkH: "Before burning", nextMake: "Next: make the file and burn", nextCal: "Next: calibrate this batch first", making2: (p) => `Making the file${p == null ? "…" : ` ${p}%`}`,
+    checkH: "Before burning", checkDiscH: "Burn a check disc first", checkDiscNote: "The first time with this drive and this batch: burn a check disc and take 3 or more phone photos of it; the program reads the offset along the track from them, and every burn file made afterwards corrects it. Skip this if this batch's check disc was photographed already. Its textures were chosen for RITEKF1 DVD-R; other discs are untried.", checkDiscGo: "Make the check disc and burn it", checkDiscMaking: "Making the check disc…", nextMake: "Next: make the file and burn", nextCal: "Next: calibrate this batch first", making2: (p) => `Making the file${p == null ? "…" : ` ${p}%`}`,
     whyMaking: "Making it; cancel on the right", whyLevels: "Choose 2 grey levels to burn", whyEmpty: "Add a picture first",
     ck: { imported_corrected: "Imported from DIS, converted to DP correction (not measured by DP)", imported: "Imported from DIS, converted to DP geometry (not measured by DP)", batch: "This batch is calibrated", latest: "No batch chosen: uses the latest measurement of this kind", saved: "No batch chosen: uses the measurement this work used before", none: "No usable measurement yet: calibrate this batch first",
       of: (n, w) => ` (${[n, w].filter(Boolean).join(", ")})`,
@@ -73,7 +73,7 @@ const STR = {
       fxTry: "Burn the experimental textures instead (DVD only, colours not guaranteed)",
       fxMore: "Research discs showed red, blue, purple and the flowing band, O/X and ring effects only with a GH70N drive, RITEKF1 DVD-R and an iPhone 17 Pro at the design position, and they were not made through this web export. Effects pick textures for the default position (phone 330 mm above the disc), not the one moved in the lamp view.",
       cell: (u) => `${u} µm grid`,
-      inRange: "The picture is inside the burnable range", outRange: "Part of it is outside the range and will be cut", lv2: "Burned as two textures; greys come from dithering", lv4: "4 grey levels: preview only",
+      inRange: "The picture is inside the burnable range", outRange: "Part of it is outside the range and will be cut", measured: (r) => ` (this batch was measured from ${r[0].toFixed(1)} to ${r[1].toFixed(1)} mm; outside that the positions are a guess, so no picture goes there)`, lv2: "Burned as two textures; greys come from dithering", lv4: "4 grey levels: preview only",
       blank: (n) => `A blank disc is in the drive${n ? ` (${n})` : ""}`, written: "The disc in the drive is written: the burn page will ask for a blank", other: (n) => `Another batch is in the drive (${n}): the burn page will ask for a blank`,
       kind: "Another kind of disc is in the drive: the burn page will ask for a blank", nodisc: "No disc in the drive yet: the burn page will wait for one",
       time: (m) => `Burning takes about ${m} min`, timeLater: "Burn time: known once the file is made", size: (b) => `File ${b}` },
@@ -128,14 +128,17 @@ function buildRight() {
   const minutes = ready ? Math.max(1, Math.round((s.iso.bytes / ((ctx.media === "cd" ? 176400 : 1385000) * 8) + 90) / 60)) : null;
   const checkSec = !c ? "" : `<section class="pv-list"><h3>${t.checkH}</h3><ul>` +
     row(c.geo === "batch" ? true : c.geo === "none" ? false : null, t.ck[c.geo] + (c.geoName && c.geo !== "batch" && c.geo !== "none" ? t.ck.of(c.geoName, c.geoWhen) : "")) +
-    row(c.inRange, c.inRange ? t.ck.inRange : t.ck.outRange) +
+    row(c.inRange, (c.inRange ? t.ck.inRange : t.ck.outRange) + (c.ring ? t.ck.measured(c.ring) : "")) +
     row(c.levels === 2, c.levels === 2 ? t.ck.lv2 : t.ck.lv4) +
     (c.effects && c.effects !== "none" ? row(false, !c.canExperiment ? t.ck.fxCd : c.effects === "experimental" ? t.ck.fxExp : t.ck.fxBw) : "") +
     row(c.disc === "blank" ? true : c.disc === "none" ? null : false, c.disc === "blank" ? t.ck.blank(c.discName) : c.disc === "other" ? t.ck.other(c.discName) : c.disc === "none" ? t.ck.nodisc : t.ck[c.disc]) +
     `</ul>` + (c.effects && c.effects !== "none" && c.canExperiment ? `<label class="chk pv-exp"><input type="checkbox" data-a="experimental" ${c.effects === "experimental" ? "checked" : ""} ${busy ? "disabled" : ""}>${t.ck.fxTry}</label>` +
       `<details class="pv-more"><summary>${t.details}</summary><p class="note">${t.ck.fxMore}</p></details>` : "") +
     `<p class="note mono">${[ready ? `${t.ck.time(minutes)} · ${t.ck.size(fmtBytes(s.iso.bytes))}` : t.ck.timeLater, c.cellUm ? t.ck.cell(c.cellUm) : ""].filter(Boolean).join(" · ")}</p></section>`;
-  const fileSec = checkSec + (s.phase === "idle" ? "" : `<section><h3>${t.file}</h3>` +
+  const checkDiscSec = ctx.exportCheck && c && c.geo !== "none" && !busy
+    ? `<section class="pv-check"><h3>${t.checkDiscH}</h3><p class="note">${t.checkDiscNote}</p>` +
+      `<button class="sbtn wide" type="button" data-a="checkdisc">${t.checkDiscGo}</button></section>` : "";
+  const fileSec = checkSec + checkDiscSec + (s.phase === "idle" ? "" : `<section><h3>${t.file}</h3>` +
     (ready ? `<p class="note">${s.iso.experimental ? t.madeExp : t.made}</p>` +
       `<div class="pv-file"><b>${esc(s.iso.path.split(/[\\/]/).pop())}</b><span class="mono">${fmtBytes(s.iso.bytes)} · ${s.iso.sectors.toLocaleString()} ${t.sectors}</span></div>` +
       `<details class="pv-more"><summary>${t.details}</summary><p class="note mono">${esc(s.iso.path)}</p>${s.iso.geo ? `<p class="note mono">${t.geoUsed}: ${esc(s.iso.geo)}</p>` : ""}</details>` +
@@ -247,6 +250,29 @@ async function make() {
   ctx.state = state;
   buildRight();
 }
+// The check disc: made like the burn file (same progress and cancel), then straight to the burn page; after the
+// burn, the burn page offers the photos (design.js photograph), and they come back here.
+async function makeCheck() {
+  if (state.phase === "making" || !ctx.exportCheck) return;
+  const job = state = { phase: "making", fraction: null, stage: T().checkDiscMaking, ctl: new AbortController(), check: true };
+  buildRight();
+  try {
+    const iso = await ctx.exportCheck((p) => {
+      if (state !== job) return;
+      const f = typeof p === "number" ? p : p?.fraction;
+      job.fraction = Number.isFinite(f) ? Math.max(job.fraction ?? 0, Math.min(1, f)) : job.fraction;
+      buildRight();
+    }, { signal: job.ctl.signal });
+    if (state !== job) return;
+    state = ctx.state = { phase: "idle" };          // the picture's own file is still to be made, after the photos
+    leave(false); ctx.next?.(iso);
+  } catch (e) {
+    if (state !== job) return;
+    state = { phase: e?.name === "AbortError" ? "cancelled" : "failed", error: e?.message, code: e?.code };
+    if (state.phase === "failed") sfx.problem();
+    ctx.state = state; buildRight();
+  }
+}
 function cancel() {
   if (state.phase !== "making") return;
   state.ctl.abort();
@@ -353,6 +379,7 @@ function bind(signal) {
     const a = e.target.closest("[data-a]")?.dataset.a;
     if (a === "reset-look") { Object.assign(look, DEFAULT_POSE, PHOTO_DEFAULTS); buildRight(); draw(); }
     if (a === "make") make();
+    if (a === "checkdisc") makeCheck();
     if (a === "calibrate") { state = ctx.state = { phase: "idle" }; leave(false); ctx.calibrate(); }
     if (a === "cancel") cancel();
     if (a === "folder") ctx.showInFolder?.(state.iso.path);

@@ -30,7 +30,7 @@ def version():
     """The installed release identity, also available outside a checkout."""
     return "v" + api.version_payload()["core_version"]
 
-ACTIONS = {"info", "timing", "geo", "random", "image", "disexport", "cdprobe", "burn", "swap", "calibrate", "photo"}
+ACTIONS = {"info", "timing", "geo", "random", "image", "checkdisc", "disexport", "cdprobe", "burn", "swap", "calibrate", "photo"}
 DRIVE_ACTIONS = {"info", "timing", "geo", "burn", "swap", "calibrate"}
 # Deliberately exclude force/install/replace, raw transport commands and arbitrary flags.
 OPTIONS = {
@@ -40,6 +40,7 @@ OPTIONS = {
     "geo": {"speed": "speed", "reps": "count", "max_targets": "count", "bd_zones": "count",
             "completion_sectors": "completion_sectors"},
     "random": {"sectors": "sectors", "seed": "seed", "output": "path"},
+    "checkdisc": {"geo": "geo", "output": "path", "sectors": "sectors"},
     "image": {"geo": "geo", "picture": "path", "design": "path", "design_npy": "path", "output": "path",
               "diameter_mm": "diameter", "r_max": "radius", "along_track_frames": "frames",
               "dark": "texture", "light": "texture", "textures": "texture_list",
@@ -56,7 +57,7 @@ OPTIONS = {
 }
 DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell (checked in the tests)
 # Works completion links for the existing image and burn-file jobs.
-for _work_action in ("image", "burn", "calibrate"):
+for _work_action in ("image", "burn", "calibrate", "checkdisc"):
     OPTIONS[_work_action].update(work="work", disc_code="disc_code")
 # a design upload by its length: one bit per cell, at 20, 10 or 5 um (imagedisc.CELL_SIDES)
 DESIGN_SIDES = {side * side // 8: side for side in (6000, 12000, 24000)}
@@ -96,6 +97,8 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
         raise APIError("action is not allowed")
     if media not in ("dvd", "cd", "bd"):
         raise APIError("invalid media")
+    if action == "checkdisc" and media != "dvd":
+        raise APIError("The check disc is for DVD only; CD and Blu-ray are not supported yet.")
     if action in ("image", "cdprobe") and media == "bd":
         raise APIError("this action has no Blu-ray path")
     if action == "cdprobe" and media != "cd":
@@ -209,7 +212,7 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
     if action == "disexport" and args.get("r_min") is not None and args.get("r_max") is not None:
         if args["r_min"] >= args["r_max"]:
             raise APIError("r_min must be less than r_max")
-    for name in {"image": ("geo",), "disexport": ("geo", "sectors"), "cdprobe": ("sectors",)}.get(action, ()):
+    for name in {"image": ("geo",), "checkdisc": ("geo",), "disexport": ("geo", "sectors"), "cdprobe": ("sectors",)}.get(action, ()):
         if args.get(name) is None:
             raise APIError(name + " is required")
     if sum(bool(args.get(name)) for name in ("picture", "design", "design_npy")) > 1:

@@ -7,6 +7,13 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    "write the experimental DVD photo check disc using measured geometry": "用实测几何生成试验性的 DVD 拍照检查盘",
+    "DVD geo run folder or summary.json": "DVD 的 geo 测量文件夹或 summary.json",
+    "ISO output (default: iso/check-<stamp>.iso)": "ISO 输出路径（默认 iso/check-<时间>.iso）",
+    "sector count (default: geo setup.last_lba + 1)": "扇区数（默认 geo 记录的 setup.last_lba + 1）",
+    "disc code for the work ISO record": "作品 ISO 记录中的光盘代号",
+    "cell size of the drawing in um (default 20). At 10 / 5 um, DVD and BD are finer both along the track and radially; CD stays about 80 um along the track and is finer only radially. Coloured textures need broad areas: a single 5 um cell cannot show colour. With --design-npy it must match the array, which sets it anyway":
+        "图案单元大小，单位 µm（默认 20）。10 / 5 µm 时 DVD、BD 的沿轨和径向都更细；CD 沿轨仍约 80 µm，只细化径向。彩色纹理需要足够宽的区域，单个 5 µm 单元不能显示颜色。配 --design-npy 时须与数组一致，由数组决定大小。",
     "physical target disc identifier shared by these photos": "这一组照片所属的实体标靶盘号",
     "geo run for measured ring geometry and its accepted photo L": "放置纹理环所用的 geo 结果，同时读取该次测量通过检查的照片 L",
     "do not apply the run's photo L": "不应用该次测量的照片 L",

@@ -139,10 +139,10 @@ def _ladder(c):
         sim = SimDrive(media="cd", seed=7, reread_delay_ms=35, cd_u=u, cd_v=v)
         lad = Ladder(sim, media="cd", speed_kbs=None, log=lambda *_: None)
         rep = lad.run()
-        n = np.linspace(0, 0.85 * cd.CAPACITY * cd.SECTOR_BITS, 400)
+        n = np.linspace(0, 0.98 * cd.CAPACITY * cd.SECTOR_BITS, 400)
         error = np.degrees(theta(n, lad.u, lad.v) - theta(n, u, v))
         span = float(np.ptp(error))
-        c.check(span < 1.5, f"u {su:+.0%}, v {sv:+.0%}: {len(lad.targets)} rungs, 0-85% error {span:.3f} deg")
+        c.check(span < 1.5, f"u {su:+.0%}, v {sv:+.0%}: {len(lad.targets)} rungs, 0-98% error {span:.3f} deg")
         c.check(rep["media"] == "cd" and lad.tp.summary["setup"]["read_method"] == "read12"
                 and lad.tp.strategy == "fua", "CD data READ(12)+FUA and media-tagged fit")
 

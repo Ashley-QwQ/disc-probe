@@ -87,7 +87,11 @@ def test_calibrate_simulator_events(tmp_path):
         cwd=Path(__file__).resolve().parents[1], env=env,
         capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=90,
     )
-    assert result.returncode == 0, result.stdout + result.stderr
+    # At the wider 1%-98% default this fixed noisy seed completes all reads but
+    # exceeds the unchanged angle-sigma gate. Progress must still reach 100%,
+    # and calibration must report the refusal rather than a successful fit.
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert 'too_noisy' in result.stderr
     rows = list(map(json.loads, events.read_text(encoding='utf-8').splitlines()))
     assert [e['name'] for e in rows if e['type'] == 'step'] == ['check', 'timing', 'geo']
     geo_start = next(i for i, e in enumerate(rows) if e['type'] == 'step' and e['name'] == 'geo')
@@ -97,7 +101,8 @@ def test_calibrate_simulator_events(tmp_path):
     assert all(e['eta_s'] is None or e['eta_s'] >= 0 for e in progress)
     assert progress[-1]['fraction'] == 1
     assert progress[-1]['eta_s'] == 0
-    assert next(e for e in rows if e['type'] == 'calibrated')['ok']
+    calibrated = next(e for e in rows if e['type'] == 'calibrated')
+    assert not calibrated['ok'] and calibrated['geo']['verdict'] == 'too_noisy'
 
 
 def test_web_progress_bounds():

@@ -13,7 +13,7 @@ import * as EditorOps from "./design/editor-ops.mjs";
 import { processingWorker } from "./design/worker-client.mjs";
 import { downloadTemplate } from "./design/template-download.mjs";
 import { hasCapability } from "./handshake.mjs";
-import { CELLS, COST, geoChoice, burnDocument, checkTextures, experimentalContent, pictureSampling } from "./design/export-rules.mjs";
+import { CELLS, COST, geoChoice, measuredRing, burnDocument, checkTextures, experimentalContent, pictureSampling } from "./design/export-rules.mjs";
 
 let api, $;
 const root = document.documentElement;
@@ -248,7 +248,15 @@ function newProject(item, media) {
 }
 const imageLayers = () => S.layers.filter((L) => L.kind === "image");
 const sel = () => S.layers.find((L) => L.id === S.selected) ?? null;
-const range = () => RANGE[S.media] ?? RANGE.dvd;
+// The ring a picture may use: the disc kind's burnable ring, cut to what this plan's geometry measured
+// (S.ring, set by useMeasured). Outside it the core refuses to place a picture: an unmeasured radius is a guess.
+const range = () => S?.ring ?? RANGE[S.media] ?? RANGE.dvd;
+function useMeasured(geo) {
+  if (!S) return;
+  const ring = measuredRing(geo?.measured, RANGE[S.media] ?? RANGE.dvd);
+  if (String(ring) === String(S.ring ?? null)) return;
+  S.ring = ring; comp = null; editor?.invalidate(); draw();
+}
 const lampPos = () => S.scene.follows ? [S.scene.cam[0] + FLASH[0], S.scene.cam[1] - FLASH[1], S.scene.cam[2]] : S.scene.lamp;
 const heightOf = (L) => L.kind === "image" ? L.width * L.h / L.w : L.height;
 
@@ -1735,6 +1743,7 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects = "b
   catch (e) { if (e?.name === "AbortError") throw e; throw new Error(t.noBackend); }
   const geo = planGeo(state), geoPath = geo.path;
   if (!geoPath) throw Object.assign(new Error(t.noGeo), { code: "nogeo" });
+  useMeasured(geo);                                    // the burn file keeps the picture inside the measured ring
   const um = Math.round(S.cell * 1000);
   if (!CELLS[um]) throw new Error(t2.exp2.noCell);
   let saved, rMax, burn = null;
@@ -1782,7 +1791,14 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects = "b
     es.addEventListener("log", (e) => { const d = mine(e); if (d?.text && !/^\s*$/.test(d.text)) lastLine = d.text; });
     es.addEventListener("done", (e) => { const d = mine(e); if (d) { es.close(); resolve(d.exit); } });
   });
-  if (exit !== 0) throw new Error([t.failed, why || lastLine || (await jobWords(job.job)).why].filter(Boolean).join(" "));
+  if (exit !== 0) {
+    const said = why || lastLine || (await jobWords(job.job)).why;
+    // the core's coverage gate, said in the page's words (it should not happen: the ring is cut to the measurement)
+    if (/EXTRAPOLATION|outside measured intervals|外推/.test(said ?? "")) throw new Error(api.lang() === "zh"
+      ? "图有一部分超出这批盘实测到的范围，那里的位置不可信。把图缩进圈内，或者重测这张盘、把范围测宽；不用重刻。"
+      : "Part of the picture is outside the range this batch was measured over, where positions are a guess. Shrink it inside the ring, or measure this disc again over a wider range; no new burn is needed.");
+    throw new Error([t.failed, said].filter(Boolean).join(" "));
+  }
   stop();
   const info = await (await fetch(`/api/iso?path=${encodeURIComponent(output)}`)).json().catch(() => ({}));
   if (!(info.bytes > 0) || !(info.sectors > 0)) throw new Error(t.failed);
@@ -1791,6 +1807,41 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects = "b
   return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job, geo: geoPath,
     geoSource: geo.source, geoName: geo.name, cellUm: um, effects: burn?.mode ?? "bw", experimental: burn?.mode === "experimental",
     textures: saved.textures_used ?? null };
+}
+// The check disc (checkdisc.py): the photo target, laid out with this plan's measured geometry and without any
+// photo correction, since its photos are what measure it. Burned, photographed, then the picture's own file is
+// made again and the core applies the along-track correction from those photos.
+async function makeCheckFile(onProgress, { signal } = {}) {
+  const t = T();
+  const state = await api.backend.state().catch(() => null);
+  const geo = planGeo(state), geoPath = geo.path;
+  if (!geoPath) throw Object.assign(new Error(t.noGeo), { code: "nogeo" });
+  const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
+  const output = `iso/check-${stamp}.iso`;
+  onProgress({ stage: t.making, fraction: 0 });
+  const run = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "checkdisc", media: S.media, args: { geo: geoPath, output } }) });
+  const job = await run.json().catch(() => ({}));
+  if (!run.ok) throw new Error(job.error ?? t.failed);
+  let why = "", lastLine = "";
+  const exit = await new Promise((resolve, reject) => {
+    const es = new EventSource("/api/events");
+    signal?.addEventListener("abort", () => {
+      es.close();
+      fetch(`/api/jobs/${job.job}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+      reject(new DOMException("cancelled", "AbortError"));
+    }, { once: true });
+    const mine = (e) => { const d = JSON.parse(e.data); return d.job === job.job ? d : null; };
+    es.addEventListener("progress", (e) => { const d = mine(e); if (d) onProgress({ stage: t.making, fraction: d.fraction ?? null }); });
+    es.addEventListener("error", (e) => { if (!e.data) return; const d = mine(e); if (d?.message) why = d.message; });
+    es.addEventListener("log", (e) => { const d = mine(e); if (d?.text && !/^\s*$/.test(d.text)) lastLine = d.text; });
+    es.addEventListener("done", (e) => { const d = mine(e); if (d) { es.close(); resolve(d.exit); } });
+  });
+  if (exit !== 0) throw new Error([t.failed, why || lastLine || (await jobWords(job.job)).why].filter(Boolean).join(" "));
+  const info = await (await fetch(`/api/iso?path=${encodeURIComponent(output)}`)).json().catch(() => ({}));
+  if (!(info.bytes > 0) || !(info.sectors > 0)) throw new Error(t.failed);
+  return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job, geo: geoPath,
+    geoSource: geo.source, geoName: geo.name, target: true, effects: "bw" };
 }
 const COMPOSE_LIMIT = 384 * 2 ** 20;                   // webui.COMPOSE_BYTES
 // Which measured geometry this plan's burn file is made from (export-rules.geoChoice): its batch's own
@@ -2057,6 +2108,7 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
   }
   plans.splice(0, plans.length, S, ...plans.filter((P) => P !== S));
   api.rememberBatch?.(S.item);
+  useMeasured(geoChoice(S, api.catalogue?.(S.media) ?? [], null));
   if (!W) build();
   const from = api.focusDisc()?.getBoundingClientRect();
   root.dataset.mode = "design";
@@ -2140,16 +2192,20 @@ async function openPreview() {
     // colours and effects burn in black and white unless the person asks for the experiment (DVD only)
     effects: "bw",
     setEffects(mode) { ctx.effects = mode === "experimental" && P.media === "dvd" ? "experimental" : "bw"; },
+    // the check disc for the phone photos: DVD only for now (checkdisc.py)
+    exportCheck: P.media === "dvd" ? (onProgress, opts) => makeCheckFile(onProgress, opts) : null,
     exportIso: (onProgress, opts) => makeBurnFile((p) => onProgress({ fraction: p.fraction, stage: p.stage }),
       { ...opts, effects: experimentalNow(P).any ? ctx.effects : "bw" }),
     // what the preview's checklist reads before burning; each answer is what is known now, never a guess
     checks: () => {
       const [p0, p1] = pictureRange(), d = api.driveDisc?.();
       const geo = geoChoice(P, api.catalogue?.(P.media) ?? served?.catalogue?.[P.media] ?? [], latestGeo(served));
+      if (S === P) useMeasured(geo);
       const exp = experimentalNow(P);
       return {
         geo: geo.source, geoName: geo.name, geoWhen: geo.when ?? "",
-        inRange: !imageLayers().some((L) => L.visible && cornersOutside(L, p0, p1)),
+        inRange: !imageLayers().some((L) => L.visible && cornersOutside(L, ...pictureRange())),
+        ring: P.ring ?? null,
         levels: 2,                                    // the editor burns two textures; tone levels no longer apply
         disc: !d?.present ? "none" : d.media !== P.media ? "kind" : P.item?.mid && d.mid && d.mid !== P.item.mid ? "other" : d.blank === true ? "blank" : "written",
         discName: d?.mid || d?.kind || "",
@@ -2252,6 +2308,14 @@ async function toBurn(iso, back) {
       }
       return null;
     },
+    // the check disc is burned: photograph it with the phone against the geometry it was made from; the
+    // result stays with that geometry, so the next burn file made here applies it. Then back to the preview.
+    // only a check (target) disc: the photo reader reads the target's rings and code, not a picture
+    photograph: mock || !iso.target ? null : async () => {
+      const cal = await import("./calibrate.js");
+      cal.photograph(api, { item: S.item, media: S.media, geo: iso.geo ?? S.geo, burnCheck: iso.burnResult ?? null,
+        returnTo: async () => { await api.syncState?.(); back?.(); } });
+    },
     // the work is done: back to the desk (the plan stays in its recent list)
     done: () => { root.dataset.mode = ""; $("back").hidden = true; $("next").disabled = false; api.toLobby ? api.toLobby() : api.goTo(...api.locate(S.item)); },
   };
@@ -2328,7 +2392,7 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
         const d = mine(e); if (d) onProgress({ verifying: true });
       });
       es.addEventListener("burn_result", (e) => {
-        const d = mine(e); if (d) { burnResult = d; onProgress({ burnResult: d }); }
+        const d = mine(e); if (d) { burnResult = d; iso.burnResult = d; onProgress({ burnResult: d }); }
       });
       es.addEventListener("done", async (e) => {
         const d = mine(e); if (!d || closed) return;

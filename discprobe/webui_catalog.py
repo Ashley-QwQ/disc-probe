@@ -127,6 +127,19 @@ def disc_report(report):
     return disc
 
 
+def measured_ring(summary):
+    """The widest radius interval this geometry was actually measured over, mm; None if unknown.
+
+    The image command refuses to place a picture outside the measured intervals, so the page keeps
+    the picture inside this one (see coverage.range_warning)."""
+    fit = (summary or {}).get('fit') or {}
+    intervals = (fit.get('coverage') or {}).get('measured_intervals_mm')
+    if not intervals and fit.get('measured_span_mm'):
+        intervals = [fit['measured_span_mm']]
+    good = [[float(a), float(z)] for a, z in intervals or [] if isinstance(a, (int, float)) and isinstance(z, (int, float)) and z > a]
+    return max(good, key=lambda iv: iv[1] - iv[0]) if good else None
+
+
 def catalogue(root, out):
     root, out = Path(root).resolve(), Path(out).resolve()
     groups = {media: [] for media in ('dvd', 'cd', 'bd')}
@@ -158,7 +171,7 @@ def catalogue(root, out):
         saved = {**(run.summary.get('counter') or {}), **metadata.get(ident, {})}
         sectors = (run.summary.get('setup') or {}).get('last_lba')
         groups[run.media].append(dict(id=ident, row=run.media, name=saved.get('name') or mid or Path(run.path).name,
-            mid=mid, sectors=sectors + 1 if isinstance(sectors, int) else None,
+            mid=mid, sectors=sectors + 1 if isinstance(sectors, int) else None, measured_mm=measured_ring(run.summary),
             s=guide.result_verdict(run, run.media), last=run.when.date().isoformat(),
             drive=who.get('drive'), left=saved.get('left'), of=saved.get('of'),
             geo=str(Path(run.path).relative_to(root)).replace('\\', '/'), inferred=who.get('inferred', False),

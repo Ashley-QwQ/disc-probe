@@ -136,8 +136,8 @@ class LabelSessionTests(unittest.TestCase):
         ladder = Ladder(dev, max_targets=8, state_check=False, log=lambda *_: None)
         ladder.run()
         self.assertEqual(ladder.tp.last_lba, L.STOP_SECTORS - 1)
-        self.assertEqual(ladder.ranges, [((int((L.STOP_SECTORS - 1)*.03)+15)//16*16,
-                                         int((L.STOP_SECTORS - 1)*.85)//16*16)])
+        self.assertEqual(ladder.ranges, [((int((L.STOP_SECTORS - 1)*.01)+15)//16*16,
+                                         int((L.STOP_SECTORS - 1)*.98)//16*16)])
         self.assertTrue(reads)
 
     def test_appended_layout_supersedes_pending_and_skips_session_border(self):

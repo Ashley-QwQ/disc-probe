@@ -519,6 +519,8 @@ def cmd_info(args):
             dev.close()
         except OSError as exc:
             dev.errors.append(str(exc))
+    if dev.answered == 0 and not dev.errors:
+        dev.errors.append('The drive answered no info command. ' + info.NEXT_ACTION)
     out = _outdir(args, "info", dev)
     from .capacity import capacity_words
     report['capacity_words'] = capacity_words(report)
@@ -1065,6 +1067,11 @@ def cmd_compose(args):
         sys.exit(str(exc))
     print(f"{args.out}: uint8 material labels; {len(doc['materials'])} textures")
     print(f"Texture order: {os.path.splitext(args.out)[0]}.textures.json")
+
+
+def cmd_checkdisc(args):
+    from .checkdisc import command
+    command(args)
 
 
 def cmd_image(args):
@@ -1935,7 +1942,7 @@ COMMAND_GROUPS = (
     ("Start here", ("menu", "guide", "webui", "version", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "whois", "timing", "geo", "results", "diagnose")),
     ("Make a disc image", ("random", "label", "compose", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
-                           "calibdisc")),
+                           "calibdisc", "checkdisc")),
     ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("template", "disexport", "cdprobe", "works")),
 )
@@ -2497,6 +2504,13 @@ def _build_parser():
     sp.add_argument('--start-lba', type=int, help='explicit NWA for offline construction')
     sp.add_argument('--sectors', type=int, default=2295104, help="DVD mapping end in sectors; default is the random image length, not the blank's writable capacity")
     sp.set_defaults(func=cmd_label)
+
+    sp = sub.add_parser("checkdisc", help="write the experimental DVD photo check disc using measured geometry")
+    sp.add_argument("--geo", required=True, help="DVD geo run folder or summary.json")
+    sp.add_argument("--output", help="ISO output (default: iso/check-<stamp>.iso)")
+    sp.add_argument("--sectors", type=int, help="sector count (default: geo setup.last_lba + 1)")
+    sp.add_argument("--disc-code", dest="disc_id_code", help="disc code for the work ISO record")
+    sp.set_defaults(func=cmd_checkdisc)
 
     sp = sub.add_parser("calibdisc", help="write one Blu-ray that both times itself and shows its own twist")
     sp.add_argument("--output", default="iso/bd-calib.iso")

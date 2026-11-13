@@ -3,7 +3,7 @@ from . import i18n, works
 
 
 def add_options(sub):
-    for name in ("image", "burn", "calibrate"):
+    for name in ("image", "burn", "calibrate", "checkdisc"):
         sub.choices[name].add_argument("--work", help="append successful image or burn records to this work")
     # calibrate forwards these to its burn child, alongside --work.
     sub.choices["calibrate"].add_argument("--disc-code", dest="disc_id_code", help="disc code for the work burn record")

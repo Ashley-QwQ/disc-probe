@@ -18,9 +18,11 @@ export class Editor {
     if(!s.materials&&this.palette)s.materials=[{id:'background',spec:'B9',rgb:[205,200,190]},...this.palette.swatches];
     s.activeMask??=null;this.material??=this.palette?.swatches.find(m=>m.rgb[1]>200&&m.rgb[0]<100)?.id??s.materials?.[1]?.id;
   }
+  // the ring a picture may use: the burnable ring, or the measured part of it once a geometry is known (design.js)
+  ring(){const s=this.s;return s?.ring??(s?.media==='cd'?[26,58]:[24,58]);}
   invalidate(){this.revision++;this.previewCache=null;this.overlayCache=null;}
   mutate(fn){this.h.checkpoint();fn();this.invalidate();this.h.changed();this.panels();}
-  document(){this.init();const s=this.s;return O.migrate({format:'disc-probe design',version:2,media:s.media,cell:s.cell,annulus_mm:s.media==='cd'?[26,58]:[24,58],maskGrid:s.maskGrid,selections:s.selections,activeMask:s.activeMask,assignments:s.assignments,materials:s.materials,
+  document(){this.init();const s=this.s;return O.migrate({format:'disc-probe design',version:2,media:s.media,cell:s.cell,annulus_mm:this.ring(),maskGrid:s.maskGrid,selections:s.selections,activeMask:s.activeMask,assignments:s.assignments,materials:s.materials,
       layers:s.layers.map(l=>({id:l.id,kind:l.kind,name:l.name,visible:l.visible,locked:l.locked,opacity:l.opacity,x:l.x,y:l.y,width:l.width,height:l.kind==='fx'?l.height:l.width*l.h/l.w,rot:l.rot,w:l.w,h:l.h,sourceKind:l.sourceKind??(l.kind==='fx'?'shape':'bitmap'),fxKind:l.fxKind,y1:l.y1,y2:l.y2,shape:l.shape,svg:l.svg,raster:l.px&&!l.shape?{width:l.px.width,height:l.px.height,rgba:O.base64(l.px.data)}:undefined,tone:l.px&&!l.shape&&l.tone?l.tone:undefined}))});}
   panels(){if(!this.s)return;this.init();this.left();this.right();}
   n(key,label,min,max,step=1){return `<label>${label}<input data-ed="${key}" type="number" min="${min}" max="${max}" step="${step}" value="${this.options[key]}" class="num"></label>`;}
@@ -113,7 +115,7 @@ export class Editor {
   }
   paint(ctx){const s=this.s,v=this.h.view(),g=s.maskGrid;if(!g)return;
     this.requestLights(materialPose(s.scene,s.lookY));
-    if(s.layers.length||s.assignments.length||s.view==='lamp'){ctx.save();this.h.annulus(ctx,...(s.media==='cd'?[26,58]:[24,58]));ctx.clip('evenodd');const size=s.view==='lamp'?Math.max(200,Math.min(2048,Math.round(120*v.s*v.dpr))):420;ctx.drawImage(this.preview(size),v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);
+    if(s.layers.length||s.assignments.length||s.view==='lamp'){ctx.save();this.h.annulus(ctx,...this.ring());ctx.clip('evenodd');const size=s.view==='lamp'?Math.max(200,Math.min(2048,Math.round(120*v.s*v.dpr))):420;ctx.drawImage(this.preview(size),v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);
       const exact=s.view!=='lamp'&&s.layers.length?this.exactCells(v):null;if(exact){ctx.imageSmoothingEnabled=false;ctx.drawImage(exact.canvas,v.cx+(exact.cols[0]*s.cell-60)*v.s,v.cy+(exact.rows[0]*s.cell-60)*v.s,(exact.cols[1]-exact.cols[0])*s.cell*v.s,(exact.rows[1]-exact.rows[0])*s.cell*v.s);}
       ctx.restore();}else this.lamp?.pause();
     const m=s.selections.find(mask=>mask.id===s.activeMask);if(m){if(this.overlayCache?.id!==m.id){const b=O.bytes(m.bits),canvas=document.createElement('canvas');canvas.width=g.width;canvas.height=g.height;const c=canvas.getContext('2d'),im=c.createImageData(g.width,g.height);

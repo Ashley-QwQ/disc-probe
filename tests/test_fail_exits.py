@@ -401,3 +401,72 @@ def test_sg_timeout_header_and_error_without_opening_device(monkeypatch):
     libc.ioctl.side_effect = ioctl
     with pytest.raises(OSError, match='INQUIRY.*limit 5s'):
         dev.execute(cdb, timeout_s=5)
+
+
+class Refusing(Fake):
+    """A blank DVD-R: READ DISC STRUCTURE comes back at once with an I/O error."""
+
+    def __init__(self, err):
+        super().__init__()
+        self.err = err
+
+    def execute(self, cdb, data_len=0, direction=1, timeout_s=None):
+        self.calls.append((cdb, data_len, direction, timeout_s))
+        if cdb[0] == 0xAD:
+            raise OSError(self.err, 'READ DISC STRUCTURE: DeviceIoControl failed (limit 3s): I/O device error')
+        return ScsiResult(0, b'', None, 0, 100)
+
+
+def test_info_quick_drive_error_is_unsupported_not_a_stop():
+    raw = Refusing(1117)
+    dev = info.InfoDevice(raw)
+    try:
+        report = info.collect(dev)
+    finally:
+        dev.close()
+    assert not dev.failed and not dev.errors
+    refused = [e for e in report.values() if isinstance(e, dict) and e.get('unsupported')]
+    assert refused and all('same disc' not in e['error'] for e in refused)
+    assert dev.unsupported and all('READ DISC STRUCTURE' in u for u in dev.unsupported)
+    # The commands after the refused READ DISC STRUCTURE still reach the drive.
+    assert {0xAC, 0x5A} <= {cdb[0] for cdb, *_ in raw.calls}
+    assert not any('skipped' in str(e.get('error', '')) for e in report.values() if isinstance(e, dict))
+
+
+@pytest.mark.parametrize('err', [121, 1460])
+def test_info_native_timeout_still_stops(err):
+    raw = Refusing(err)
+    dev = info.InfoDevice(raw)
+    try:
+        report = info.collect(dev)
+    finally:
+        dev.close()
+    assert dev.failed and dev.errors
+    assert any('skipped after info timeout' in str(e.get('error', '')) for e in report.values() if isinstance(e, dict))
+
+
+def test_info_cli_blank_dvd_r_exits_cleanly(tmp_path, monkeypatch):
+    from discprobe import __main__ as cli
+    monkeypatch.setattr(cli, '_open', lambda args: Refusing(1117))
+    args = cli._build_parser()[0].parse_args(['info', '--sim', 'cav', '--out', str(tmp_path)])
+    try:
+        cli.cmd_info(args)
+    except SystemExit as stop:
+        assert stop.code in (None, 0)
+    run, = list(tmp_path.iterdir())
+    saved = json.loads((run / 'info.json').read_text(encoding='utf-8'))
+    assert any(isinstance(e, dict) and e.get('unsupported') for e in saved.values())
+    assert not (run / 'failure.json').exists()
+
+
+def test_info_cli_drive_answering_nothing_still_fails(tmp_path, monkeypatch):
+    from discprobe import __main__ as cli
+
+    class Dead(Fake):
+        def execute(self, cdb, data_len=0, direction=1, timeout_s=None):
+            raise OSError(1117, 'I/O device error')
+    monkeypatch.setattr(cli, '_open', lambda args: Dead())
+    args = cli._build_parser()[0].parse_args(['info', '--sim', 'cav', '--out', str(tmp_path)])
+    with pytest.raises(SystemExit) as stop:
+        cli.cmd_info(args)
+    assert stop.value.code == 1

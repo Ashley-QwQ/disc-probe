@@ -35,6 +35,15 @@ export function hasBatch(item) {
 // plan has no batch at all, and then the record is named.
 //   catalogue: the library's entries for this disc kind; latest: the newest finished geo run's path (or null).
 // Returns { path, source, name }: source is batch | imported | imported_corrected | saved | latest | none.
+// The radii the picture may use with this geometry: the burnable ring cut to the measured interval, a
+// little inside it (the core refuses any drawn radius outside, coverage.range_warning). None: no limit known.
+export function measuredRing(measured, ring) {
+  if (!Array.isArray(measured) || measured.length !== 2) return null;
+  const lo = Math.max(ring[0], measured[0] + 0.05), hi = Math.min(ring[1], measured[1] - 0.05);
+  return hi > lo ? [lo, hi] : null;
+}
+// only when known: a geometry choice without it keeps its old shape
+const measuredOf = (x) => Array.isArray(x?.measured_mm) ? { measured: x.measured_mm } : {};
 export function geoChoice(plan, catalogue = [], latest = null) {
   const item = plan?.item;
   const known = catalogue.filter(good);
@@ -46,17 +55,17 @@ export function geoChoice(plan, catalogue = [], latest = null) {
   if (hasBatch(item)) {
     // the batch's own measurement, and nothing else: a geometry kept in the plan from before counts only if it is
     // this batch's
-    if (good(item) && item.geo) return { path: item.geo, source: "batch", name: item.name ?? item.mid ?? "" };
+    if (good(item) && item.geo) return { path: item.geo, source: "batch", name: item.name ?? item.mid ?? "", ...measuredOf(item.measured_mm ? item : known.find((x) => x.geo === item.geo)) };
     const entry = known.find((x) => (item.id && x.id === item.id) || (item.mid && x.mid === item.mid));
-    if (entry?.geo) return { path: entry.geo, source: "batch", name: entry.name ?? entry.mid ?? "" };
+    if (entry?.geo) return { path: entry.geo, source: "batch", name: entry.name ?? entry.mid ?? "", ...measuredOf(entry) };
     return { path: null, source: "none", name: item.name ?? item.mid ?? "" };
   }
   // no batch: the plan's own earlier geometry, else the newest finished one, said by name
   const saved = plan?.geo && known.find((x) => x.geo === plan.geo);
-  if (saved) return { path: saved.geo, source: "saved", name: saved.name ?? saved.mid ?? "", when: saved.last ?? "" };
+  if (saved) return { path: saved.geo, source: "saved", name: saved.name ?? saved.mid ?? "", when: saved.last ?? "", ...measuredOf(saved) };
   if (latest) {
     const entry = catalogue.find((x) => same(latest, x.geo));
-    return { path: latest, source: "latest", name: entry?.name ?? entry?.mid ?? "", when: entry?.last ?? "" };
+    return { path: latest, source: "latest", name: entry?.name ?? entry?.mid ?? "", when: entry?.last ?? "", ...measuredOf(entry) };
   }
   return { path: null, source: "none", name: "" };
 }

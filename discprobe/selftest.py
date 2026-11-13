@@ -370,7 +370,7 @@ def _ladder(c: Checker):
     lad = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None, state_check=False)
     res = lad.run()
     b = 133.6e-6  # the simulator's off-nominal geometry
-    n = np.linspace(0, 0.85 * sim.capacity * SECTOR_BITS, 400)
+    n = np.linspace(0, 0.98 * sim.capacity * SECTOR_BITS, 400)
     e = np.degrees(theta(n, lad.u, lad.v) - theta(n, 23.93 / b, 0.735e-3 / b))
     span = float(e.max() - e.min())
     from .geo import _dtheta
@@ -378,7 +378,7 @@ def _ladder(c: Checker):
     full = float(np.degrees(np.sqrt(g_end @ lad.cov[:2, :2] @ g_end)))
     c.check(abs(res["angle_sigma_full_disc_deg"] - full) < 1e-9 * max(1.0, full),
             f"the full-disc sigma counts DVD sectors in DVD channel bits ({res['angle_sigma_full_disc_deg']:.4f} deg)")
-    c.check(span < 1.5, f"{len(lad.targets)} rungs, angle error over 0-85 % of the disc {span:.3f} deg "
+    c.check(span < 1.5, f"{len(lad.targets)} rungs, angle error over 0-98 % of the disc {span:.3f} deg "
                         f"(reported 1 sigma {res['angle_sigma_measured_span_deg']:.3f}, "
                         f"chi2/dof {res['chi2_per_dof']:.2f})")
     # Check points read at the start and again at the end: a drive that changes state partway through

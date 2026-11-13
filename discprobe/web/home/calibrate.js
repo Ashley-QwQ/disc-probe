@@ -173,16 +173,32 @@ function giveBack(done) {
   r({ done, id: done ? flow?.savedId : undefined });     // the library entry just saved, for the opener to pick
   return true;
 }
-export function start(homeApi, { returnTo: back = null, returnAnim: anim = null } = {}) {
+export function start(homeApi, { returnTo: back = null, returnAnim: anim = null, keep = false } = {}) {
   api = homeApi; $ = api.$;
   returnTo = back; returnAnim = back ? anim : null;
   const item = api.current().item;
   // a job still running belongs to its disc: come back to it; otherwise start over for this disc
-  if (!flow || (flow.item !== item && !flow.job)) {
+  // keep: the note "see the result" brings the person back to a run that ended while another page was open
+  if (!flow || (!keep && flow.item !== item && !flow.job)) {
     flow = newFlow(item);
     if (!ui) build();
   }
   if (!api.backend.mock) { flow.realPhase ??= "inspect"; flow.disc = "waiting"; }
+  return open();
+}
+
+// Straight to the photos of a disc just burned with this geometry (the burn page's "Photograph the disc"):
+// the photo page reads them against that geometry's run, the core keeps the result next to it (photo.json),
+// and the next burn file made from that geometry applies the along-track correction. Back or done: returnTo.
+export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck = null, returnTo: back = null } = {}) {
+  api = homeApi; $ = api.$;
+  returnTo = back; returnAnim = null;
+  if (flow?.job) return open();                // a measurement still running comes first
+  flow = newFlow(item ?? { kind: "new", row: media, name: "", mid: "", s: "new" });
+  if (!ui) build();
+  flow.detected = { media, mid: item?.mid ?? null, capacity_sectors: item?.sectors ?? null };
+  // the burn page's own record of this write: the photo result names how the disc was burned (photo.photo_l)
+  flow.geo = { path: geo }; flow.burnCheck = burnCheck; flow.photoOnly = true; flow.realPhase = "photo";
   return open();
 }
 
@@ -1131,6 +1147,7 @@ function closePhoto() {
   document.documentElement.classList.remove('cal-photo');
 }
 function photoReview() {
+  if (flow.photoOnly) { closePhoto(); flow.error = null; leave(); return; }   // came from the burn page: back there
   closePhoto(); flow.realPhase = 'review'; flow.error = null; paint();
 }
 const photoLive = u => photoUI === u && flow === u.flow && isCal() && flow.realPhase === 'photo';
@@ -1769,7 +1786,7 @@ function callBack() {
   n.innerHTML = `<span>${ok ? liveText("标定测好了。", "Calibration measured.") : liveText("标定停下了，要你看一下。", "Calibration stopped; it needs you.")}</span>` +
     `<button type="button">${liveText("去看结果", "See the result")}</button>`;
   n.hidden = false;
-  n.querySelector("button").onclick = () => { n.hidden = true; start(api); };
+  n.querySelector("button").onclick = () => { n.hidden = true; start(api, { keep: true }); };
 }
 function finishCalibrate(result) {
   if (!result?.ok && !result?.geo && !result?.timing) throw new Error(result?.reason ? stopText(result.reason) : liveText('标定没有完成。', 'The calibration did not finish.'));
