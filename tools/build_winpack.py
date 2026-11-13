@@ -26,18 +26,16 @@ import zipfile
 PYTHON = "3.13.14"
 PACKAGES = ("numpy", "pillow", "scipy", "opencv-python")
 SELFTEST_DATA = "tests/data/bd_discussion_samples/local_uj272_bd_zones.csv"
-SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_backend.py", "docs/API_VERSIONING.md", "docs/MANUAL.md", "docs/MANUAL.en.md", "README.md", "README.en.md", "LICENSE", SELFTEST_DATA)
+SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_backend.py", "INSTALL-linux.md", "docs/API_VERSIONING.md", "docs/MANUAL.md", "docs/MANUAL.en.md", "README.md", "README.en.md", "LICENSE", SELFTEST_DATA)
 LEAVE_OUT = ("__pycache__", "tests", "test", "*.pyi", "*.pdb")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 START = """@echo off
-rem Double-click this. It opens a window ready for disc-probe, and installs nothing.
-where wt >nul 2>nul
-if %errorlevel%==0 (
-    start "" wt -d "%~dp0." cmd /k "%~dp0python\\shell.cmd"
-    exit /b
-)
-cmd /k "%~dp0python\\shell.cmd"
+rem Double-click to open the web lobby. Close this window to stop the server.
+chcp 65001 >nul
+cd /d "%~dp0"
+"%~dp0python\\python.exe" -X utf8 -B "%~dp0tools\\launch_web.py" %*
+if errorlevel 1 pause
 """
 
 # The window's own PATH finds this Python, so the commands disc-probe prints work as written.
@@ -46,7 +44,7 @@ chcp 65001 >nul
 cd /d "%~dp0.."
 set "PATH=%~dp0;%PATH%"
 title disc-probe
-python -m discprobe menu
+python -m discprobe webui
 echo.
 echo This window is ready for disc-probe. Type a command here if you like; close it when you are done.
 echo 这个窗口已经准备好。也可以直接输入命令；用完关闭即可。
@@ -87,6 +85,18 @@ def allowed(path):
 
 
 def copy_source(a, root):
+    if getattr(a, 'source_root', None):
+        for name in (*SOURCE, 'release-build.json'):
+            source = os.path.join(a.source_root, name)
+            target = os.path.join(root, name)
+            if not os.path.exists(source):
+                raise FileNotFoundError(source)
+            if os.path.isdir(source):
+                shutil.copytree(source, target, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '*b[l]ind*'))
+            else:
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                shutil.copy2(source, target)
+        return
     if not a.worktree:
         return unpack_source(a.ref, root)
     files = subprocess.run(["git", "-C", HERE, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", *SOURCE,
@@ -245,6 +255,7 @@ def build_core(a, commit: str) -> None:
 
 
 def main() -> None:
+    global HERE
     if os.name == "nt":
         import ctypes
         ctypes.windll.kernel32.SetPriorityClass(ctypes.windll.kernel32.GetCurrentProcess(), 0x4000)
@@ -253,11 +264,17 @@ def main() -> None:
     ap.add_argument("--label", default="main")
     ap.add_argument("--out", required=True)
     ap.add_argument("--cache", help="existing offline cache (default OUT/cache)")
+    ap.add_argument("--source-root", help="prepared release snapshot, paired with --commit")
+    ap.add_argument("--commit", help="full provenance commit for a prepared snapshot")
     ap.add_argument("--worktree", action="store_true", help="include current uncommitted source")
     ap.add_argument("--audit-tests", action="store_true", help="trace the entire pytest suite as well")
     ap.add_argument("--test-deps", help="external directory containing locally copied pytest dependencies")
     ap.add_argument("--no-trim", action="store_true", help="measure an untrimmed pack with photo dependencies")
     a = ap.parse_args()
+    if bool(a.source_root) != bool(a.commit) or (a.source_root and a.worktree):
+        ap.error('--source-root and --commit must be paired, without --worktree')
+    if a.source_root:
+        HERE = os.path.abspath(a.source_root)
     a.audit_id = str(time.time_ns())
     if ".".join(map(str, sys.version_info[:2])) != ".".join(PYTHON.split(".")[:2]):
         sys.exit(f"run this with Python {PYTHON}, not {sys.version.split()[0]}")
@@ -280,7 +297,7 @@ def main() -> None:
         raise FileNotFoundError(f"offline cache missing: {wheels}")
     versions = {d.metadata['Name'].lower(): d.version for d in importlib.metadata.distributions(path=[wheels])}
     pins = [f"{p}=={versions[p]}" for p in PACKAGES]
-    commit = subprocess.run(["git", "-C", HERE, "rev-parse", "--short", a.ref], check=True, capture_output=True, text=True).stdout.strip()
+    commit = a.commit or subprocess.run(["git", "-C", HERE, "rev-parse", a.ref], check=True, capture_output=True, text=True).stdout.strip()
     core = build_core(a, commit)
     root = fresh(a, f"disc-probe-{a.label}-full-win64")
     py = os.path.join(root, "python")
