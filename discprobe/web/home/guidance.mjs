@@ -139,6 +139,15 @@ export function recoveryCommands(result, {drive, media, sectors}) {
 export const cdPhoto = pair(
   '照片还没有给出可保存的沿轨常数。计时测不出沿轨道的绝对位置，标定还未完成。可以继续拍不同角度的照片；也可以保留测量、导出 DIS 预设，在 DiscImageStudio 用另一张同批空盘做精细标定，再刻成品。',
   'The photos have not supplied an along-track constant that can be saved. Timing cannot determine the absolute along-track position, so calibration is incomplete. Take more photos from different angles, or keep the measurement, export a DIS preset and fine-calibrate in DiscImageStudio on another blank from this batch before burning the picture.');
+// One statement of how many discs, used by the start guide, the calibration page, the new-work form and the
+// preview. 3 is the goal, 4 when the error is large; it is never a promise, and a bad photo costs no disc.
+export const discGoal = pair('目标是第 3 张盘出成品；误差大时第 4 张。这是目标，不是保证。', 'The goal is the finished picture on disc 3, or disc 4 if the error is large. A goal, not a promise.');
+export const discRoute = [
+  pair('第 1 张：测量盘。刻随机数据，用来测转速和盘面几何。', 'Disc 1: the measurement disc. Random data, to measure speed and geometry.'),
+  pair('第 2 张：检查盘。刻标靶或第一张图，用手机拍照，看实际偏了多少。', 'Disc 2: the check disc. A target or your first picture, photographed to see how far off it is.'),
+  pair('第 3 张：成品，用修正后的结果刻。', 'Disc 3: the finished picture, burned with the corrected result.'),
+  pair('误差大时：第 3 张再检查一次，第 4 张才是成品。', 'If the error is large, disc 3 is a second check and disc 4 is the finished picture.')];
+export const retakeNote = pair('照片拍坏了（太暗、没拍全、有反光）只要重拍，不用重刻。', 'A bad photo (too dark, not the whole disc, glare) is retaken, not re-burned.');
 export function calibrationBudget(media) {
   const cd = media === 'cd';
   if (media === 'bd') return {
@@ -147,13 +156,14 @@ export function calibrationBudget(media) {
     details:pair('两个半径仍需其他依据，不能套用 DVD 的预算。', 'The two radii still need other evidence. The DVD budget does not apply.')};
   return {
     items:[
-      cd ? pair('至少 3 张同批空白盘：测量、精细标定、成品各一张。', 'At least 3 blanks from one batch: one to measure, one to fine-calibrate, one for the picture.') : pair('至少 2 张同批空白盘，可能 3 张：一张测量，一张刻图；图偏了就拍这张来精修，再刻第三张。', 'At least 2 blanks from one batch, maybe 3: one to measure, one for the picture; if the picture is off, photograph it to refine and burn a third.'),
+      discGoal,
       pair('生成测量文件：几十秒。', 'Make the measurement file: tens of seconds.'),
       cd ? pair('刻测量盘：约 11 分钟，依光驱而异。', 'Burn the measurement disc: about 11 minutes, depending on the drive.') : pair('刻测量盘：约 14 分钟。', 'Burn the measurement disc: about 14 minutes.'),
       pair('检查转速：1–3 分钟；测量盘面：约 5 分钟。', 'Check rotation: 1–3 minutes; measure the disc: about 5 minutes.'),
-      cd ? pair('精细标定和刻成品：时间尚不确定，见详情。', 'Fine calibration and picture burn: time unknown; see Details.') : pair('刻成品：约 14 分钟，依速度和内容而异。', 'Burn the picture: about 14 minutes, depending on speed and content.')],
+      cd ? pair('拍照检查和刻成品：时间尚不确定，见详情。', 'Photo check and the picture burn: time unknown; see Details.') : pair('刻成品：约 14 分钟，依速度和内容而异。', 'Burn the picture: about 14 minutes, depending on speed and content.')],
     note:pair('刻好测量盘后才能检查光驱；约一小时是目标，不是保证。', 'The drive can only be checked after the measurement burn; about an hour is a goal, not a promise.'),
-    details:pair('以上为 README 与现有流程的估时，不是新测试。失败可能多耗盘。保留测量盘，同批盘可复用。' + (cd ? ' CD 的 11 分钟来自 GH70N、8 倍速。页面会自动合读不同角度的照片，读取沿轨常数；读不准时会说明重拍原因。也可以导出 DIS 预设，在 DiscImageStudio 用另一张同批空盘精细标定。' : ''), 'These estimates come from the README and existing workflow, not new benchmarks. Failures may cost more discs. Keep the measurement disc for this batch.' + (cd ? ' The CD observation was 11 minutes at 8× on GH70N. The page automatically reads photos from different angles together for the along-track constant, with retake advice when needed. Alternatively, export a DIS preset and fine-calibrate in DiscImageStudio with another blank.' : ''))};
+    details:{zh:[...discRoute.map(x => x.zh), retakeNote.zh].join(' ') + ' 以上为 README 与现有流程的估时，不是新测试。失败可能多耗盘。保留测量盘，同批盘可复用。' + (cd ? ' CD 的 11 分钟来自 GH70N、8 倍速。页面会自动合读不同角度的照片，读取沿轨常数；读不准时会说明重拍原因。也可以导出 DIS 预设，在 DiscImageStudio 用另一张同批空盘精细标定。' : ''),
+      en:[...discRoute.map(x => x.en), retakeNote.en].join(' ') + ' These estimates come from the README and existing workflow, not new benchmarks. Failures may cost more discs. Keep the measurement disc for this batch.' + (cd ? ' The CD observation was 11 minutes at 8× on GH70N. The page automatically reads photos from different angles together for the along-track constant, with retake advice when needed. Alternatively, export a DIS preset and fine-calibrate in DiscImageStudio with another blank.' : '')}};
 }
 export function budgetHTML(media, lang) {
   const b = calibrationBudget(media);
@@ -161,7 +171,7 @@ export function budgetHTML(media, lang) {
 }
 export const afterBurn = [
   pair('关掉房间的灯，把手机手电等小光源放在眼睛旁边。盘拿到约一米外，轻轻倾斜，避开灯和自己的倒影，慢慢转动；盘面暗下来时能看到图。彩虹扇面是沟槽，不是图片。看的是数据面，与预览相同。', 'Turn off the room lights and hold a small light, such as a phone torch, beside your eyes. Hold the disc about a metre away, tilt it away from reflections of the light and yourself, and turn it slowly. The picture shows when the surface goes dark. The rainbow fan is the grooves, not your picture. Look at the data side, as in the preview.'),
-  pair('图案位置正确就完成了，以后同批盘可以复用这次测量。看不见图：先调整灯光，最常见的原因是光线。线条扭曲或断开：核对是否同批盘、同一台刻录机；若是，几何可能不准。用另一张空白盘刻网格测试，看看线是否笔直（在终端用 image --geo 加这次的测量路径，--output iso/grid.iso）。', 'If the picture is in the right place, you are done; reuse the measurement for later discs from this batch. No picture: adjust the light first; lighting is the most likely cause. Twisted or broken lines: check the batch and burner match the measurement. If they do, geometry may be off. Burn a grid on another blank to check for straight lines (in Terminal, use image --geo with this measurement’s path and --output iso/grid.iso).'),
+  pair('图案位置正确就完成了，以后同批盘可以复用这次测量。看不见图：先别再刻，按顺序查三样：光照（最常见）、刻录报告（写入、关盘、回读）、几何。线条扭曲或断开：核对是否同批盘、同一台刻录机；若是，几何可能不准。只有光照和刻录报告都没问题、线条仍然扭曲时，才用另一张空白盘刻网格测试：直线能分清是几何不准还是图本身的问题。', 'If the picture is in the right place, you are done; reuse the measurement for later discs from this batch. No picture: do not burn again yet. Check three things in order: the light (the most likely cause), the burn report (written, closed, read back), then the geometry. Twisted or broken lines: check the batch and burner match the measurement; if they do, geometry may be off. Only if the light and the burn report are fine and the lines are still twisted, burn a grid on another blank: straight lines tell a wrong geometry from a wrong picture.'),
   pair('刻录失败或中断：DVD+R、DVD-R、CD-R 不能再用，换一张空白盘；再次失败时换一个刻录速度，慢不一定更好。', 'If the burn failed or stopped, a DVD+R, DVD-R or CD-R cannot be reused; take a fresh blank. If it fails again, try another burn speed; slower is not always better.'),
 ];
 // Why `calibrate` stopped (calibrate.py Stopped reasons), in words, with what to do next. burnStarted: the
@@ -184,4 +194,154 @@ export function stopReason(reason = '', {burnStarted = false} = {}) {
   if (/the preset was not written/.test(r)) return pair('测量完成，但预设没写出来。测量数据还在，可以点保存再试。', 'Measured, but the preset was not written. The measurement is kept; save again.');
   if (/cancelled/.test(r)) return pair('已取消。已经测出的数据保留着。', 'Cancelled. What was measured so far is kept.');
   return pair(r, r);
+}
+
+// ---------------------------------------------------------------- the start guide (guide.js)
+// The same four things, in the same order, as guide.py tutorial_lines. Nothing here is measured: it is what
+// the tool is for and how it is meant to be used, so each line says "goal" or "needs" and never "done".
+export const introCards = [
+  {id: 'how', title: pair('图案是怎么出来的', 'How the picture forms'),
+    body: pair('盘的数据面是一条很密的螺旋轨道，像衍射光栅：光照上去，会按角度散成彩虹。disc-probe 决定每一处写什么，让图在合适的角度显出来。所以要在暗处，用一个小光源，倾斜着看；彩虹扇面是轨道本身，不是你的图。',
+      'The data side is a tight spiral of tracks, like a diffraction grating: light on it spreads into a rainbow by angle. disc-probe decides what is written where, so the picture shows at the right angle. Look in the dark, under one small light, tilting the disc. The rainbow fan is the tracks themselves, not your picture.')},
+  {id: 'need', title: pair('要什么盘和光驱', 'What discs and drive you need'),
+    body: pair('一台既能刻又能读盘的光驱（Windows 或 Linux，DVD 试得最多；CD 在 Windows 上要用另一条刻录命令，BD 仍在试验），同一盒的几张空白 DVD-R、DVD+R 或 CD-R（刻了就不能擦），再加一部手机拍照。',
+      'A drive that can both burn and read discs (Windows or Linux; DVD is the most tried, CD on Windows needs a separate burn command, BD is experimental), a few blank DVD-R, DVD+R or CD-R from one box (they cannot be erased once burned), and a phone for the photos.')},
+  {id: 'discs', title: pair('要几张盘', 'How many discs'), body: discGoal, list: discRoute},
+  {id: 'retake', title: pair('照片拍坏了怎么办', 'If a photo goes wrong'),
+    body: pair('照片拍坏了只要重拍，同一张盘可以拍很多次，不用重刻。页面会说是哪里不行：没拍全、条纹太弱、光线不对。只有盘本身没刻好，才需要换盘。',
+      'A bad photo only needs retaking. The same disc can be photographed as often as you like. The page says what was wrong: not the whole disc, a faint pattern, the light. Only a disc that was not burned properly needs replacing.')},
+];
+export const disShortcut = {
+  title: pair('已经在用 DiscImageStudio（DIS）？', 'Already use DiscImageStudio (DIS)?'),
+  body: pair('导入 DIS 预设，直接做图，跳过前面的测量盘。导入的几何是从 DIS 转换来的，不是 disc-probe 自己测的：刻出来的位置准不准，要看第一张盘。',
+    'Import a DIS preset and make your picture straight away, skipping the measurement disc. The geometry is converted from DIS, not measured by disc-probe: how accurate the first disc comes out is for the first disc to show.'),
+  button: pair('导入 DIS 预设', 'Import a DIS preset'),
+  missing: pair('这个版本的核心没有提供预设导入。', 'This core does not offer preset import.')};
+// The teaching animation: four scenes, each with its caption. The captions are also the plain list shown
+// when motion is off, the page is in the background or the animation is skipped.
+export const lightScenes = [
+  pair('盘面是一圈圈很密的轨道，像一把梳子。', 'The disc surface is a spiral of very fine tracks, like a comb.'),
+  pair('一束光照到轨道上。', 'A beam of light lands on the tracks.'),
+  pair('轨道把光按波长折向不同方向，散成彩虹。', 'The tracks bend each colour of the light in a different direction, spreading a rainbow.'),
+  pair('倾斜盘，让进入眼睛的那束光落在图案所在的位置，图就显出来。', 'Tilt the disc until the beam that reaches your eye comes from where the picture is, and it shows.')];
+
+// Where the person is, from what is on disk. Programs can only check files and drive answers: a burn that
+// ended, a disc in the drive and a picture seen under a lamp are the person's, so those rows say "unknown"
+// instead of "done". `state` is /api/state; `intro` is whether this browser has been through the four things
+// (a convenience kept locally, never a measurement).
+export const statusWords = {
+  done: pair('已完成', 'Done'), now: pair('现在', 'Now'), todo: pair('还没到', 'Not yet'),
+  unknown: pair('还不知道', 'Not known'), problem: pair('要处理', 'Needs attention')};
+export function journey(state = {}, {intro = false, media, withIntro = true} = {}) {
+  media = media || state.media || 'dvd';
+  const cd = media === 'cd', bd = media === 'bd';
+  const steps = Object.fromEntries((state.steps || []).map(s => [s.id, s]));
+  const offline = !(state.steps || []).length;
+  const rows = [];
+  const add = (id, status, zh, en, known, unknown, next, extra = {}) => rows.push({id, status, title: pair(zh, en), known, unknown, next, ...extra});
+  if (withIntro) add('intro', intro ? 'done' : 'todo', '读完开始之前的四件事', 'Read the four things first',
+    intro ? pair('你在这个浏览器里读过了。这只是个提醒，不代表盘和光驱已经准备好。', 'You have read them in this browser. That is only a reminder; it says nothing about the discs or the drive.')
+      : pair('图案怎么出来、要什么盘、要几张、拍坏了怎么办。', 'How the picture forms, what you need, how many discs, what to do about a bad photo.'),
+    null, {kind: 'read', label: pair('读开始之前的四件事', 'Read the four things')});
+  if (offline) {
+    const gone = pair('读不到电脑上的进度：本机服务没有回应。', 'Cannot read progress: the local service did not answer.');
+    const gonest = pair('这一步是否完成还不知道。启动 webui 后再看。', 'Whether this step is done is not known. Start webui and look again.');
+    for (const [id, zh, en] of [['ready', '软件和光驱', 'Software and drive'], ['disc1', '第 1 张：测量盘', 'Disc 1: measurement disc'], ['timing', '测转速', 'Check the speed'],
+      ['geo', '测盘面几何', 'Measure the geometry'], ['check', '第 2 张：检查盘', 'Disc 2: check disc'], ['picture', '做出第一张成品的文件', 'Make the file for the first picture'], ['burn', '刻成品，看盘', 'Burn it and look']])
+      add(id, 'unknown', zh, en, gone, gonest, {kind: 'refresh', label: pair('重新读取进度', 'Read the progress again')});
+    return {rows, current: rows[0]?.id || null, offline,
+      milestone: {reached: false, words: pair('读不到进度，不知道能不能刻第一张成品。', 'Progress cannot be read, so it is not known whether you can burn the first picture.')}};
+  }
+  const ready = !!(steps.packages?.done && steps.drive?.done);
+  add('ready', ready ? 'done' : 'problem', '软件和光驱', 'Software and drive',
+    ready ? pair('需要的 Python 包齐了，光驱可见。', 'The Python packages are there and a drive is visible.') : pair('缺软件，或看不到光驱。', 'Missing packages, or no drive visible.'),
+    ready ? null : steps.packages?.done ? pair('没有找到光驱：接好、放进盘，再读一次。', 'No drive found: connect it, put a disc in, and read again.')
+      : pair('缺 Python 包：' + (steps.packages?.detail || ''), 'Missing Python packages: ' + (steps.packages?.detail || '')),
+    {kind: 'refresh', label: pair('重新检查光驱', 'Check the drive again')}, {data: steps.drive?.detail});
+  const d1 = steps.random_disc || {}, fileMade = /burn it/.test(d1.detail || '');
+  add('disc1', d1.done ? 'done' : fileMade ? 'unknown' : 'todo', '第 1 张：测量盘', 'Disc 1: measurement disc',
+    d1.done ? pair('测量盘已经测过。', 'The measurement disc has been measured.') : fileMade ? pair('测量文件已经生成。', 'The measurement file is made.') : pair('还没有测量盘。', 'There is no measurement disc yet.'),
+    fileMade && !d1.done ? pair('盘有没有刻好、是不是在光驱里，程序还不知道，要放进去测了才知道。', 'Whether the disc was burned and is in the drive is not known until it is measured.') : null,
+    {kind: 'newwork', label: pair('去标定这批盘', 'Calibrate this batch')});
+  const trouble = (step, part) => {
+    const kind = recoveryKind({[part]: {verdict: step.verdict}});
+    return !step.done && step.verdict && ['too_noisy', 'drive_changed', 'narrow_span', 'stopped_early', 'unknown'].includes(kind) ? measurementRecovery({[part]: {verdict: step.verdict}}) : null;
+  };
+  for (const [id, zhName, enName] of [['timing', '测转速', 'Check the speed'], ['geo', '测盘面几何', 'Measure the geometry']]) {
+    const step = steps[id] || {}, words = trouble(step, id);
+    add(id, step.done ? 'done' : words ? 'problem' : 'todo', zhName, enName,
+      step.done ? (id === 'timing' ? pair('转速稳定，结果可用。', 'The speed is steady and the result is usable.') : pair('盘面几何测好了。', 'The geometry is measured.'))
+        : words ? pair('做过一次，结果不能用。', 'It ran once, but the result cannot be used.') : pair('还没测。', 'Not measured yet.'),
+      words, {kind: 'newwork', label: pair('去标定这批盘', 'Calibrate this batch')}, {data: step.done ? step.detail : null});
+  }
+  add('check', 'unknown', '第 2 张：检查盘', 'Disc 2: check disc',
+    pair('这一步程序读不到进度。', 'The program cannot read progress for this step.'),
+    cd ? pair('CD 还缺一个沿轨常数，要靠检查盘的照片读出来；没有它，径向线可能扭。', 'A CD still needs an along-track constant, read from photos of the check disc. Without it, radial lines may twist.')
+      : pair('偏了多少，要刻检查盘、拍照才知道。DVD 也可以先做图，但图歪了就没有依据判断原因。', 'How far off it is is not known until you burn a check disc and photograph it. A DVD can go ahead and make the picture, but if it comes out off you will have nothing to tell why.'),
+    {kind: 'newwork', label: pair('去标定，拍照检查', 'Calibrate and photograph')}, {optional: !cd && !bd, human: true});
+  const pic = steps.picture_iso || {};
+  add('picture', pic.done ? 'done' : 'todo', '做出第一张成品的文件', 'Make the file for the first picture',
+    pic.done ? pair('成品的刻录文件已生成。', 'The burn file for the picture is made.') : pair('还没有成品的刻录文件。', 'There is no burn file for the picture yet.'),
+    pic.done ? pair('文件做好了不等于盘刻好了。', 'A finished file is not a burned disc.') : null,
+    {kind: 'newwork', label: pair('开始新作品', 'Start a new work')}, {data: pic.done ? pic.detail : null});
+  add('burn', 'unknown', '刻成品，看盘', 'Burn it and look',
+    pair('刻录和看盘都在电脑之外，程序只知道刻录页给出的报告。', 'Burning and looking happen outside the program; it only knows what the burn page reports.'),
+    pair('图在不在盘上，只有你在暗处看了才知道。没出图先查光照、刻录报告和几何。', 'Whether the picture is on the disc is only known when you look in the dark. If it does not show, check the light, the burn report and the geometry.'),
+    {kind: 'trouble', label: pair('看没出图先查什么', 'See what to check if nothing shows')}, {human: true});
+  // The row to do now: the first not done and not merely optional. A row the program cannot confirm stays
+  // "unknown" until it is; it is never skipped as if it were done.
+  const now = rows.find(r => r.status !== 'done' && !r.optional);
+  if (now) now.now = true;
+  const reached = !!pic.done && ['ready', 'disc1', 'timing', 'geo'].every(id => rows.find(r => r.id === id)?.status === 'done');
+  return {rows, current: now?.id || null, offline: false,
+    milestone: {reached, words: reached
+      ? (cd ? pair('可以刻第一张成品了，但 CD 的沿轨常数还没确认，径向线可能扭。', 'You can burn the first picture, but the CD along-track constant is not confirmed and radial lines may twist.')
+        : pair('可以刻第一张成品了。刻完之后，图在不在盘上要你自己看。', 'You can burn the first picture. Whether it shows on the disc is for you to see after burning.'))
+      : pair('还不能刻第一张成品：上面还有没做完的步骤。', 'Not ready to burn the first picture: steps above are not finished.')}};
+}
+// What to check when no picture shows, in the order that costs least. Another disc is only suggested with
+// its reason stated (`reburn`); nothing here starts a burn.
+export const troubleChecks = [
+  {id: 'light', title: pair('先查光照', 'First, the light'),
+    body: pair('关灯，小光源放在眼睛旁边，盘离眼睛约一米，倾斜避开灯和自己的倒影，慢慢转。换一个光源、换几个角度，再看一遍。多数“没出图”到这里就解决了。',
+      'Lights off, a small light beside your eyes, the disc about a metre away, tilted away from the light and your reflection, turning slowly. Try another light and a few angles. Most "no picture" ends here.'),
+    reburn: null},
+  {id: 'burn', title: pair('再看读写结果', 'Then the burn report'),
+    body: pair('刻录页给出四项：写入、关盘、回读、图案。写入或关盘没成功，或回读有很多坏块，说明数据没有写对。回读只有零星坏块时，先看图，图不对再说。',
+      'The burn page reports four things: written, closed, read back, picture. If writing or closing failed, or many blocks did not read back, the data was not written properly. With only a few bad blocks, look at the disc first.'),
+    reburn: pair('只有写入或关盘失败，这张盘才作废，要换空白盘并换个速度（慢不一定更好）。原因：盘上的数据不对，光照再好也看不到。', 'Only if writing or closing failed is this disc spoiled: use a fresh blank at another speed (slower is not always better). Why: the data on the disc is wrong, and no light will show it.')},
+  {id: 'geo', title: pair('最后查几何', 'Last, the geometry'),
+    body: pair('线条扭曲或断开：核对是不是同一批盘、同一台刻录机、同一个光驱的测量。都是的话，几何可能不准，回到测量，看覆盖范围和检查结果，并拍检查盘的照片看偏差。',
+      'Twisted or broken lines: check it was the same batch, the same burner and a measurement from the same drive. If so, the geometry may be off: go back to the measurement, look at its coverage and checks, and photograph the check disc to see the error.'),
+    reburn: pair('只有光照和刻录报告都没问题、线条仍然扭曲时，才刻一张网格盘。原因：直线能分清是几何不准还是图本身的问题。', 'Only when the light and the burn report are fine and lines still twist, burn a grid disc. Why: straight lines tell a wrong geometry from a wrong picture.')},
+];
+export const troubleNote = pair('disc-probe 不会自动让你再刻一张。要再刻，页面会先写明原因。', 'disc-probe never asks you to burn again on its own. If another disc is needed, the page says why first.');
+
+// What each calibration phase can say besides its own progress: what is not known yet, and what to do
+// next. The progress itself is the page's (a job's real percent and time); a wait that has no measure of its
+// own says so rather than counting up. `ctx.good` is whether the measurement reviewed is usable.
+export function stepAdvice(phase, ctx = {}) {
+  const t = {
+    inspect: [pair('光驱里是哪种盘，还不知道。', 'Which disc is in the drive is not known yet.'), pair('检测之后，页面会告诉你：是先刻一张测量盘，还是这张已经是测量盘，可以直接测量。', 'After the check, the page says whether to burn a measurement disc first, or whether this one already is one and can be measured.')],
+    prepare: [pair('这张盘刻不刻得成功，刻完才知道。', 'Whether this disc will burn properly is only known after it has burned.'), pair('空白盘：生成测量镜像，再刻。已刻好的测量盘：勾选后直接测转速。', 'A blank: make the measurement image, then burn it. An already burned measurement disc: tick the box and measure the speed.')],
+    random: [pair('这是在生成文件，没有进度可量；几十秒。', 'This is a file being made, with no measure of progress; a few tens of seconds.'), pair('等它完成，不用操作。', 'Wait for it; nothing to do.')],
+    burn: [pair('刻得成不成功，刻完并回读后才知道。', 'Whether the burn succeeds is only known after it has finished and been read back.'), pair('确认盘是这批的空白盘，再按住确认条。刻的时候不要动光驱。', 'Check it is a blank from this batch, then hold the confirmation. Leave the drive alone while it burns.')],
+    burning: [pair('盘有没有刻完整，要等刻完后的抽样回读；抽样不是整盘校验。', 'Whether the disc was burned completely is only known from the read-back after it ends; a sample is not a whole-disc check.'), pair('等它刻完，不要动光驱。', 'Wait for it to finish and leave the drive alone.')],
+    checking: [pair('这是不是这批的盘、刻满了没有，读完才知道。', 'Whether this is the right batch and fully burned is known once the read finishes.'), pair('等几秒。', 'Wait a few seconds.')],
+    timing: [pair('光驱转得稳不稳，测完才知道。', 'Whether the drive spins steadily is known once this ends.'), pair('稳了才会接着测几何。不稳就换读取速度或光驱，不用急着再刻盘。', 'Geometry follows only if it is steady. If not, try another reading speed or drive; no need to burn another disc.')],
+    geo: [pair('测到的半径范围和误差，测完才知道。进度条是实际读到的位置，不是预估。', 'The radii covered and the error are known once this ends. The bar is where the head has actually read, not an estimate.'), pair('等它测完，约 5 分钟。', 'Wait for it to end; about 5 minutes.')],
+    saving: [pair('预设写好了没有，写完才知道。', 'Whether the preset was written is known once it is.'), pair('等一下。', 'Wait a moment.')],
+    review: ctx.good === false
+      ? [pair('这次结果不能依赖。', 'This result cannot be relied on.'), pair('按下面的提示重测。这不需要再刻一张盘。', 'Measure again as the notes below say. This does not need another disc.')]
+      : [pair('预设里的位置准不准，刻出图、拍照检查之后才知道；CD 的沿轨常数还要靠照片。', 'How accurate the preset is is known only after a disc is burned and photographed; a CD also needs photos for its along-track constant.'), pair('保存测量。', 'Save the measurement.')],
+    saved: [pair('保存的是测量，不是成品：位置准不准，要刻出来才知道。', 'What is saved is a measurement, not a picture: how accurate it is, a burned disc will show.'), pair('做图并刻第 2 张检查盘，拍照看偏差，再刻成品。', 'Make the picture, burn disc 2 as the check disc, photograph it to see the error, then burn the finished picture.')],
+  }[phase];
+  return t ? {unknown: t[0], next: t[1]} : null;
+}
+export function adviceHTML(phase, lang, ctx = {}) {
+  const a = stepAdvice(phase, ctx);
+  if (!a) return '';
+  const l = lang === 'en' ? 'en' : 'zh', head = l === 'zh' ? ['还不知道：', '下一步：'] : ['Not known yet: ', 'Next: '];
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return `<div class="cal-guide"><p><b>${head[0]}</b>${esc(a.unknown[l])}</p><p><b>${head[1]}</b>${esc(a.next[l])}</p></div>`;
 }

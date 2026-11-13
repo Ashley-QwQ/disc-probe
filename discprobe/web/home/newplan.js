@@ -12,6 +12,8 @@
 // the drive from above on the lit desk, the paper sheet and its shadow, the envelope's back and front.
 // All motion is transform / opacity only.
 
+import { discGoal } from "./guidance.mjs";
+
 const STR = {
   zh: {
     title: "新作品", name: "作品名", nameHelp: "这件作品叫什么", tab: "Tab 采用",
@@ -19,7 +21,7 @@ const STR = {
     left: (l, o) => `还剩 ${l} / ${o} 张`, newPack: "新开一包 · 登记", kinds: "盘的种类", subs: "盘的类型",
     next: "下一步：放进图片", none: (k) => `还没有登记过 ${k}`,
     calOk: (d) => `已标定 · ${d}`, calNone: "这批盘还没标定。刻录前要先标定，也可以先画，刻录前再标。", calGo: "先去标定",
-    calUnknown: (cd) => cd ? "要刻图，先用这批盘标定（至少 3 张同批空白盘，精细标定还要在 DIS 里做）；也可以先画，回头再标。" : "要刻图，先用这批盘标定一次（约一小时，至少两张同批空白盘，可能三张）；也可以先画，回头再标。",
+    calUnknown: (cd) => `要刻图，先用这批盘标定一次${cd ? "（CD 还要拍照读出沿轨常数）" : ""}。${discGoal.zh}也可以先画，回头再标。`,
     calEmpty: (k) => `还没有标定过的 ${k}。要刻图，先放一张这种空白盘进光驱，标定一次；也可以先画，回头再标。`,
     months: ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"],
     suggest: (m, d, w) => `${m}${d} 的 ${w}`, soon: "这一项以后接上",
@@ -34,7 +36,7 @@ const STR = {
     reading: "Reading the disc in the drive…", readFail: "Couldn't read the drive; choose by hand.", trayOpen: "The drive's tray is open.",
     noDisc: "No disc in the drive.", unknownBatch: (k, m) => `The drive holds a ${k}${m ? ` (${m})` : ""}; this batch isn't in the library yet.`,
     calOk: (d) => `Calibrated · ${d}`, calNone: "This batch isn't calibrated yet. It must be before burning; you can draw first and calibrate then.", calGo: "Calibrate first",
-    calUnknown: (cd) => cd ? "To burn a picture, calibrate this batch first (at least 3 blanks from it; fine calibration is still done in DIS); or draw first and calibrate later." : "To burn a picture, calibrate this batch once (about an hour; at least two blanks from it, maybe three); or draw first and calibrate later.",
+    calUnknown: (cd) => `To burn a picture, calibrate this batch once${cd ? " (a CD also needs photos to read its along-track constant)" : ""}. ${discGoal.en} Or draw first and calibrate later.`,
     calEmpty: (k) => `No ${k} has been calibrated yet. To burn a picture, put a blank of this kind in the drive and calibrate once; or draw first and calibrate later.`,
     months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     suggest: (m, d, w) => `${m}${d}'s ${w}`, soon: "Not connected yet",

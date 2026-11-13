@@ -26,7 +26,7 @@ const moduleSource=`import {nextConfirm} from '/kit/nextconfirm.js';
 import {ringButton} from '/kit/ringbutton.js';
 import {flipValue} from '/kit/flipnum.js';
 import {photoPage} from '/photocal.js';
-import {budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason,photoSaveWords,photoReasonWords} from '/guidance.mjs';
+import {adviceHTML,budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason,photoSaveWords,photoReasonWords} from '/guidance.mjs';
 let clockNow=Date.now(); Date.now=()=>clockNow;
 const realTimeout=window.setTimeout.bind(window);
 window.setTimeout=(fn,ms,...args)=>{if(ms===25000){window.helpTimer=fn;window.helpBorn=Date.now();}return realTimeout(fn,ms,...args);};
