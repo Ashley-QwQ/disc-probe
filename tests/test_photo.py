@@ -184,7 +184,7 @@ def test_phone_tokens_are_scoped_and_do_not_grant_main_session(tmp_path):
         token = path.rsplit("/", 1)[1]
         assert len(token) >= 43 and token != s.token
         code, html, headers = request(s, "GET", path)
-        assert code == 200 and '拍摄标靶'.encode() in html and b"/home/photowords.mjs" in html
+        assert code == 200 and '拍标靶盘'.encode() in html and b"/home/photowords.mjs" in html
         assert b'capture="environment"' in html and b'__PHOTO_CONFIG__' not in html
         assert b'"run": "geo-test"' in html and 'discprobe_session=' not in headers.get('Set-Cookie', '')
         assert request(s, "GET", "/phone/wrong")[0] == 403
@@ -194,6 +194,8 @@ def test_phone_tokens_are_scoped_and_do_not_grant_main_session(tmp_path):
         assert json_request(s, "GET", "/api/photos?run=geo-test", headers=auth)[1]["photos"] == [listed(row)]
         assert request(s, "GET", "/home/guidance.mjs", headers=auth)[0] == 200
         assert request(s, "GET", "/home/photowords.mjs", headers=auth)[0] == 200
+        assert request(s, "GET", "/fonts/Archivo-VF-latin.woff2")[0] == 200
+        assert request(s, "GET", "/fonts/MonaSans-VF.ttf")[0] == 403
         assert request(s, "GET", "/home/", headers=auth)[0] == 403
         assert request(s, "GET", row["url"] + "?token=" + token)[1] == png()
         assert request(s, "GET", "/api/photos?run=geo-other", headers=auth)[0] == 403

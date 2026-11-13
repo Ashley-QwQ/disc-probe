@@ -1059,9 +1059,9 @@ class Handler(BaseHTTPRequestHandler):
             raise APIError("cross-site request refused", 403)
         url = urlsplit(self.path)
         path, query = unquote(url.path), parse_qs(url.query)
-        # Shared display words contain no session data. Phones need this one static
-        # module without gaining access to the computer page or any main API.
-        if self.command == "GET" and path in ("/home/guidance.mjs", "/home/photowords.mjs"):
+        # Shared display words and the bundled font contain no session data. Phones need these
+        # static files without gaining access to the computer page or any main API.
+        if self.command == "GET" and path in ("/home/guidance.mjs", "/home/photowords.mjs", "/fonts/Archivo-VF-latin.woff2"):
             return
         if path.startswith("/phone/"):
             if self.command != "GET":
