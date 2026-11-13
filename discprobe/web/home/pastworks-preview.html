@@ -83,12 +83,15 @@ button { font: inherit; cursor: pointer; } button:focus-visible { outline: 2px s
   <img src="./lobby/filebox_paper.webp" alt=""><span>往期作品 / Past works</span></button></div></section>
 <section class="preview-result" hidden><h1></h1><p>这是演示数据；正式入口会打开新作品表单或设计页。<br>This preview uses sample plans. The real entry opens the new-work form or the design page.</p>
   <button id="return" type="button">返回往期作品 / Return to past works</button></section>
-<details class="preview-controls"><summary>演示控制 / Demo controls</summary><p>以下作品均为示例。 / All works shown here are samples.</p>
+<details class="preview-controls"><summary>演示控制 / Demo controls</summary><p>以下作品均为示例，作品库是页面里的假接口。 / All works are samples; the library is an in-page mock.</p>
   <div><button id="replay" type="button">重播首次下落 / Replay first fall</button><button id="again" type="button">再次进入（0.6 秒） / Re-enter (0.6 s)</button>
-    <button id="empty" type="button">只看空档案 / Show empty archive</button></div></details>
+    <button id="empty" type="button">只看空档案 / Show empty archive</button><button id="nocore" type="button">核心没有作品库 / Core without works</button>
+    <button id="lang" type="button">English</button></div></details>
 <script type="module">
 import { createPastWorks } from './pastworks.js';
 import { planThumbnail } from './design.js';
+import { createMockWorks } from './pastworks/mock-works.mjs';
+import { createWorksClient } from './pastworks/works.mjs';
 const $ = (id) => document.getElementById(id), root = document.documentElement;
 const names = ['岸边', '玻璃花', '长夜', '山和太阳', '竹影', '纸上的潮汐', 'Atlas 2', 'Atlas 10', 'Moon study', '雨后', 'Window light', '最后一班船'];
 const fakePlans = names.map((name, i) => {
@@ -106,17 +109,49 @@ const fakePlans = names.map((name, i) => {
     tone: { dither: 100, bright: 0, levels: 2, lin: false, inv: false, contrast: 0, hi: 0, sh: 0, mode: 'floyd-steinberg', auto: null },
     layers: [{ kind: 'image', src: c, w: 240, h: 240, width: 116, x: 0, y: 0, rot: i * 8, opacity: 1, visible: true }], past: [], future: [] };
 });
-let empty = false, demo;
+// sample library: the same pictures, with states, discs and records a real library would hold
+const STATES = ['burned', 'draft', 'done', 'iso_ready', 'failed', 'draft', 'burned', 'done', 'draft', 'iso_ready', 'draft', 'done'];
+function sampleWorks() {
+  return fakePlans.map((p, i) => {
+    const day = 11 - Math.floor(i / 2), at = (h) => `2026-11-${String(day).padStart(2, '0')}T${String(h).padStart(2, '0')}:${String(i * 4 % 60).padStart(2, '0')}:00+08:00`;
+    const status = STATES[i], burned = ['burned', 'done', 'failed'].includes(status);
+    const discs = burned ? Array.from({ length: 1 + i % 3 }, (_, k) => ({ code: `KOI-A ${1 + i % 2}-${String(3 + k).padStart(2, '0')}`,
+      burned_at: at(15 + k), drive: 'ASUS DRW-24D5MT', speed: p.media === 'cd' ? '8x' : '4x', result: k === 0 && status === 'failed' ? '内圈没刻上' : '', iso: `C:\\Users\\me\\disc-probe\\iso\\${p.name}-${k + 1}.iso` })) : [];
+    const history = [{ at: at(9), type: 'created' }, { at: at(10), type: 'saved' }, { at: at(11), type: 'saved' }];
+    if (status !== 'draft') history.push({ at: at(14), type: 'iso', iso: `C:\\Users\\me\\disc-probe\\iso\\${p.name}.iso` });
+    for (const d of discs) history.push({ at: d.burned_at, type: 'burned', disc: { code: d.code }, drive: d.drive, speed: d.speed });
+    if (status === 'done') history.push({ at: at(20), type: 'photo', result: '彩色清楚', L: 0.42, source: 'IMG_7012.HEIC' }, { at: at(21), type: 'marked', status: 'done' });
+    if (status === 'failed') history.push({ at: at(20), type: 'marked', status: 'failed', note: '内圈一圈没刻上，换一批盘再试' });
+    return { name: p.name, media: p.media, disc_type: p.media === 'cd' ? '-R' : i % 4 ? '-R' : '+R', status, discs, history,
+      note: status === 'failed' ? '内圈一圈没刻上，换一批盘再试' : null, cell_um: 20,
+      batch: { mid: p.media === 'cd' ? 'CMC MAG. AM3' : 'MCC 004', name: `KOI-A ${1 + i % 2}` },
+      geo_run: burned ? `geo/2026-11-${String(day).padStart(2, '0')}_KOI-A` : null,
+      photo_l: status === 'done' ? { L: 0.42, source: 'IMG_7012.HEIC' } : null,
+      created_at: at(9), updated_at: at(status === 'draft' ? 11 : 21), opened_at: at(22),
+      design: { format: 'disc-probe design', version: 2, media: p.media, layers: [] } };
+  });
+}
+async function library(empty) {
+  const mock = createMockWorks({ works: empty ? [] : sampleWorks() });
+  let i = 0;
+  for (const w of mock.works.values()) mock.thumbs.set(w.id, await (await fetch(planThumbnail(fakePlans[i++], 512))).blob());
+  return Object.assign(createWorksClient({ fetch: mock.fetch }), { mock });
+}
+let empty = false, noCore = false, lang = 'zh', demo, works;
 const result = document.querySelector('.preview-result');
 function showResult(title) { result.querySelector('h1').textContent = title; result.hidden = false; root.dataset.mode = 'preview-demo'; $('back').hidden = false; }
-const api = { $, lang: () => 'zh', get reduce() { return root.dataset.motion === 'off'; },
+const api = { $, lang: () => lang, get reduce() { return root.dataset.motion === 'off'; },
   toLobby() { root.dataset.mode = ''; $('back').hidden = true; } };
-function build() {
-  demo = createPastWorks(api, { thumbnail: planThumbnail,
-    openPlan: (plan) => showResult(`打开作品 / Open work：${plan.name}`), newWork: () => showResult('新作品 / New work') });
+async function build() {
+  works = noCore ? null : await library(empty);
+  demo = createPastWorks(api, { thumbnail: planThumbnail, works, mock: !!works,
+    openPlan: (plan) => showResult(`打开作品 / Open work：${plan.name}`),
+    openWork: (work, text) => showResult(`打开作品 / Open work：${work.name}${text ? '' : '（还没有设计 / no design yet）'}`),
+    newWork: () => showResult('新作品 / New work') });
 }
-async function enter() { result.hidden = true; await demo.show(empty ? [] : fakePlans); }
+async function enter() { result.hidden = true; await demo.show(noCore && !empty ? fakePlans : []); }
 function close() { if (demo.state.phase !== 'closed') { if (demo.state.focused) demo.back(); demo.back(); demo.skip(); } }
+async function rebuild() { close(); demo.destroy(); await build(); document.querySelector('.preview-controls').open = false; await enter(); }
 $('lobby-open').onclick = enter;
 $('theme').onclick = () => {
   root.dataset.theme = root.dataset.theme === 'dark' ? 'paper' : 'dark';
@@ -124,14 +159,17 @@ $('theme').onclick = () => {
   $('lobby-open').querySelector('img').src = `./lobby/filebox_${root.dataset.theme}.webp`;
 };
 $('motion').onclick = () => { root.dataset.motion = root.dataset.motion === 'on' ? 'off' : 'on'; $('motion').textContent = root.dataset.motion === 'off' ? '动效：关 / Motion off' : '动效：开 / Motion on'; };
-$('replay').onclick = async () => { close(); demo.destroy(); build(); document.querySelector('.preview-controls').open = false; await enter(); };
+$('replay').onclick = rebuild;
 $('again').onclick = async () => { close(); document.querySelector('.preview-controls').open = false; await enter(); };
-$('empty').onclick = async () => { close(); empty = !empty; $('empty').textContent = empty ? '查看示例作品 / Show sample works' : '只看空档案 / Show empty archive'; document.querySelector('.preview-controls').open = false; await enter(); };
+$('empty').onclick = async () => { empty = !empty; $('empty').textContent = empty ? '查看示例作品 / Show sample works' : '只看空档案 / Show empty archive'; await rebuild(); };
+$('nocore').onclick = async () => { noCore = !noCore; $('nocore').textContent = noCore ? '核心有作品库 / Core with works' : '核心没有作品库 / Core without works'; await rebuild(); };
+$('lang').onclick = () => { lang = lang === 'zh' ? 'en' : 'zh'; $('lang').textContent = lang === 'zh' ? 'English' : '中文'; dispatchEvent(new Event('dp-lang')); };
 $('return').onclick = () => { result.hidden = true; root.dataset.mode = ''; enter(); };
 $('back').addEventListener('click', () => { if (root.dataset.mode === 'preview-demo') $('return').click(); });
 root.dataset.motion = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : 'on';
-build();
-window.pastworksPreview = { get page() { return demo; }, fakePlans, thumbnail: planThumbnail };
+await build();
+window.pastworksPreview = { get page() { return demo; }, get works() { return works; }, fakePlans, thumbnail: planThumbnail,
+  async setMode({ empty: e = false, noCore: n = false } = {}) { empty = e; noCore = n; await rebuild(); } };
 await enter();
 </script>
 </body></html>

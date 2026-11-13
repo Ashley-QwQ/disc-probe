@@ -1498,9 +1498,27 @@ async function projectText() {
   });
 }
 const baseName = (n) => n.replace(/\.discdesign$/i, "").replace(/\.json$/i, "");
+// Ctrl+S files the design in the core's works library (pastworks/save.mjs: made on the first save, a 409
+// asks overwrite or keep both). Undefined when this core keeps no works: the file picker below saves it.
+async function saveToWorks() {
+  const client = await (await import("./pastworks/works.mjs")).worksFor(api, { capable: hasCapability("works") });
+  if (!client) return undefined;
+  const { saveToLibrary, sayings } = await import("./pastworks/save.mjs");
+  const plan = S, name = S.name ?? T().untitled;
+  try {
+    const r = await saveToLibrary({ client, plan, name, lang: api.lang(), text: await projectText(),
+      thumb: async () => (await fetch(planThumbnail(plan, 512))).blob() });
+    if (!r) return false;
+    plan.name = r.work.name ?? name; plan.dirty = false;
+    if (plan === S) { W.dirty.classList.remove("on"); W.pname.textContent = S.name; }
+    toast(r.note);
+    return true;
+  } catch (e) { toast(sayings(api.lang()).failed + (e?.message ?? e)); return false; }
+}
 async function saveProject(as = false) {
   const t = T();
   if (!S.layers.length && !S.assignments?.length) { toast(t.exp.empty); return false; }
+  if (!as) { const saved = await saveToWorks(); if (saved !== undefined) return saved; }
   const text = await projectText();
   let name = (S.name ?? t.untitled) + FILE_EXT;
   if (window.showSaveFilePicker) {
@@ -1519,7 +1537,8 @@ async function saveProject(as = false) {
   toast(t.saved(name));
   return true;
 }
-async function openProject(file, handle = null) {
+// work: { id, updated_at } when the text came from the works library; a file opened from disk is no library work
+async function openProject(file, handle = null, work = null) {
   const t = T();
   let data;
   try { data = JSON.parse(await file.text()); } catch { toast(t.notProject(file.name)); return; }
@@ -1564,13 +1583,13 @@ async function openProject(file, handle = null) {
   if ([0.02, 0.01, 0.005].includes(data.cell)) S.cell = data.cell;
   if (typeof data.geo === "string" && data.media === S.media) S.geo = data.geo;      // checked against the catalogue at export
   if (Number.isFinite(data.lookY)) S.lookY = data.lookY;
-  S.name = baseName(file.name); S.handle = handle;
+  S.name = baseName(file.name); S.handle = handle; S.work = work;
   changed();
   S.dirty = false; W.dirty.classList.remove("on");
   W.ws.classList.toggle("pro-on", S.pro);
   W.pname.textContent = S.name;
   buildLeft(); buildRight(); updateTilt();
-  toast(data.media && data.media !== S.media ? t.otherMedia(data.media.toUpperCase(), S.media.toUpperCase()) : t.opened(file.name));
+  toast(data.media && data.media !== S.media ? t.otherMedia(data.media.toUpperCase(), S.media.toUpperCase()) : t.opened(work ? S.name : file.name));
 }
 async function pickProject() {
   if (window.showOpenFilePicker) {
@@ -1929,12 +1948,25 @@ function flight(fromRect, toCircle, back, done) {
 // start(api): the shelf's way in (the disc in focus, its plan). Options:
 //   plan: open this plan; newPlan: a new plan on the disc in focus, then
 //   file: a picture to put in it, projectFile: a .discdesign to load into it, pick: ask for a .discdesign.
+//   work: a work from the library ({ id, name, media, updated_at, text }: its .discdesign, null if never saved).
 export function start(homeApi, { fly = true, plan = null, newPlan = false, file = null, projectFile = null, pick = false,
-                                  name = null, noDisc = false, dropIn = false } = {}) {
+                                  name = null, noDisc = false, dropIn = false, work = null } = {}) {
   composeRevision++;
   api = homeApi; $ = api.$;
   const { col, item } = api.current();
+  let fromWork = null;
   if (plan) S = plan;
+  else if (work) {
+    // the plan already open for this work, unless the library has a newer save and this one has no edits
+    const open = plans.find((P) => P.work?.id === work.id);
+    if (open && (open.dirty || open.work.updated_at === work.updated_at)) { S = open; S.name = work.name; }
+    else {
+      const media = work.media in RANGE ? work.media : col, [c, last] = api.lastBatch?.() ?? [];
+      S = newProject(c === media ? last : col === media ? item : { kind: "unset", name: T().noDiscYet, mid: "", s: "none" }, media);
+      S.selTol = 18; S.selFeather = 1; S.name = work.name; S.work = { id: work.id, updated_at: work.updated_at };
+      if (work.text != null) fromWork = new File([work.text], `${work.name}.discdesign`, { type: "application/json" });
+    }
+  }
   else if (newPlan) {
     // "decide later" in the form: a plan with no disc batch yet (the kind still sets the drawable range)
     const it = noDisc ? { kind: "unset", name: T().noDiscYet, mid: "", s: "none" } : item;
@@ -1966,6 +1998,7 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
     { duration: 420, easing: "cubic-bezier(.2, .8, .2, 1)" });       // the next sheet comes down from above
   if (file) importFiles([file]);
   if (projectFile) openProject(projectFile);
+  if (fromWork) openProject(fromWork, null, S.work);
   if (pick) pickProject();
 }
 // The library handed back a batch for this plan: switch its discs (the disc kind too, if it changed).
