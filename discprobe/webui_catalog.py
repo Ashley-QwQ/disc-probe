@@ -194,7 +194,7 @@ def catalogue(root, out):
                         compatible = False
                 groups[media].append(dict(id='preset:' + str(preset['id']), row=media,
                     name=preset['displayName'], mid=None, sectors=preset.get('totalSectors', preset.get('sectors')),
-                    s='unknown', last=None, drive=None, left=None, of=None, preset=str(path.relative_to(root)), history=[],
+                    s='imported' if compatible else 'unknown', last=None, drive=None, left=None, of=None, preset=str(path.relative_to(root)), history=[],
                     image_compatible=bool(compatible), imported=imported,
                     correction_required=bool(fit.get('correction_required')) if imported else False,
                     import_status=source.get('status') if isinstance(source, dict) else None,

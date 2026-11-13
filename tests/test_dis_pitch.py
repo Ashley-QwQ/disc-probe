@@ -62,7 +62,7 @@ def test_image_and_page_geometry_use_link_automatically(tmp_path):
     saved = Path(result['written'][0]['path'])
     groups = webui_catalog.catalogue(tmp_path, tmp_path/'results')
     entry = groups['dvd'][0]
-    assert entry['image_compatible'] and entry['imported'] and entry['s'] == 'unknown'
+    assert entry['image_compatible'] and entry['imported'] and entry['s'] == 'imported'
     assert entry['geo'] == str(saved.relative_to(tmp_path))
     # This is the path the page hands to its image job. Run the actual image handler,
     # stopping at the writer so this test never creates a disc-sized file.
