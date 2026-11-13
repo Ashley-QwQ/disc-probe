@@ -1020,15 +1020,23 @@ AFTER_BURN = ("How to look at it, not straight on, which only shows your own ref
               "  The preview shows the data side, the side you are looking at.",
               "What you may see:",
               "  The picture, in the right place: done. More pictures from this batch start at `image`, with no new measurement.",
-              "  No picture: most likely the light, not the burn. Step 5 in README.md has more on this.",
+              "  No picture: check three things in this order before burning anything: the light (the most likely cause), then the burn report (written, closed, read back), then the geometry.",
               "  Twisted or broken lines: check it was the same batch and the same burner. If so, the geometry may be off.",
-              "  Burn the grid test on another blank and see if its lines come out straight:",
+              "  Burn the grid test on another blank only if the light and the burn report are fine and the lines are still twisted. Its straight lines tell a wrong geometry from a wrong picture:",
               f"  {PROG} image --geo latest --output iso/grid.iso",
               "  The burn failed or stopped: a DVD+R, DVD-R or CD-R can't be used again, so take a new blank. Failing again? Try another burn speed; slower is not always better.")
 
 
+# The web page's start-here guide (web/home/guidance.mjs) says the same four things in the same order.
 def tutorial_lines() -> list[str]:
-    return ["What you need: a burner on Windows or Linux, and a few blank discs from one box. DVD-R has worked best.",
+    return ["Before you start, four things:",
+            "  How the picture forms: the data side is a tight spiral of tracks, like a diffraction grating. Light on it spreads into a rainbow by angle,",
+            "  and disc-probe decides what is written where, so that at the right angle the picture shows. It shows in the dark, under a small light.",
+            "  What you need: a burner on Windows or Linux that can also read the disc, and blank discs from one box. DVD-R has worked best.",
+            "  How many discs: the goal is the finished picture on disc 3, or on disc 4 if the error is large. It is a goal, not a promise.",
+            "  Disc 1 measures, disc 2 is a check you photograph, disc 3 is the picture.",
+            "  A bad photo (too dark, not the whole disc, glare) is retaken, not re-burned.",
+            "Already use DiscImageStudio? Run the web page (python -m discprobe webui) and use Import / Export on the desk to bring its preset in.",
             "",
             "1. Burn a random-data disc. It is not your picture yet: it is how the program learns this kind of disc.",
             f"  {PROG} random --output iso/random.iso",
@@ -1040,7 +1048,9 @@ def tutorial_lines() -> list[str]:
             f"  {PROG} geo {drive_flag()}",
             "4. Turn your picture into an ISO, check the preview, and burn it on another blank from the same box.",
             f"  {PROG} image --geo latest --picture my_picture.png --output iso/picture.iso",
+            "  This is disc 2. Photograph it (the web page reads the photos) to see how far off it is; the finished picture is disc 3.",
             "5. Look at the disc in the dark. It takes a knack, and `guide` explains it when you get there.",
+            "  No picture? Check the light, then the burn report, then the geometry. disc-probe says why before it suggests another burn.",
             "",
             "On a Blu-ray (experimental) the same shape comes out of read timing instead of a picture:",
             f"  {PROG} random --media bd --output iso/bd-random.iso",

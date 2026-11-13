@@ -5,7 +5,7 @@ import { flipValue } from "./kit/flipnum.js";
 // becomes the step panel, the bar shows the job, the back button takes the top-left corner.
 // Live jobs use the local API. Simulated readings and timers are limited to ?mock / ?demo=N.
 
-import { budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason, photoSaveWords, photoReasonWords } from "./guidance.mjs";
+import { adviceHTML, budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason, photoSaveWords, photoReasonWords } from "./guidance.mjs";
 import { cutaway } from "./drive-scene.js";
 import { floorLog } from "./floor-log.js";
 import * as sfx from "./sfx.js";
@@ -1057,7 +1057,9 @@ function realPaint() {
   paintRuler(); paintStage();
   sideButton(flow.job && ["burning", "checking", "timing", "geo"].includes(phase) ? liveText("先去放图，测好了叫我", "Place the picture; call me when done") : null);
   const previousAlert = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]')?.textContent;
-  $("cal").innerHTML = `<h2>${esc(title)}</h2><p class="lede">${esc(text)}</p>${html}`;
+  // what is not known yet and what to do next, for the phase on screen (an error panel has its own words)
+  const advice = flow.error ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined });
+  $("cal").innerHTML = `<h2>${esc(title)}</h2><p class="lede">${esc(text)}</p>${advice}${html}`;
   const alertNote = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]');
   if (alertNote && alertNote.textContent !== previousAlert) alertNote.classList.add('flash');
   flow.warnEl.classList.toggle('on', !!flow.error || (phase === 'review' && recoveryKind(flow) !== 'good'));
@@ -1471,7 +1473,8 @@ const STEP_WORDS = {
   preset: ["保存预设", "Saving the preset"], calibrate: ["标定", "Calibrating"], photo: ["读照片", "Reading photo"],
 };
 const stepWords = (name) => STEP_WORDS[name] ? liveText(...STEP_WORDS[name]) : name;
-const CHECK_MS = 5000;                     // how long the disc check's bar takes to fill (the check itself: a second or two)
+// The disc check reports no progress of its own and takes a second or two: its bar stays empty and says it is
+// reading, then fills when the answer comes. A bar that filled over a guessed time would look like a measurement.
 async function realJob(action, args = {}, extra = {}, following = null) {
   const f = flow;
   const current = {kind:action, id:following, p:0}; f.job = current;
@@ -1479,24 +1482,12 @@ async function realJob(action, args = {}, extra = {}, following = null) {
   const drive = ["info","timing","geo","burn","calibrate"].includes(action) ? api.selectedDrive() : undefined;
   placeLog(); flog.start(commandLine(action, drive));
   let why = "", lastLine = "";            // what the core said last: a failed job is told by it, not by its exit code
-  // checking the disc takes a few seconds and reports no progress of its own: the bar simply runs for a fixed
-  // CHECK_MS (a guessed time left would only be wrong): a quick answer waits for the bar to finish, a slow drive
-  // keeps the bar full until it answers
-  let checkTimer = 0;
-  const t0 = performance.now();
+  // checking the disc reports no progress of its own: the bar stays empty and the words say it is reading
+  // (a guessed percentage or time left would only be wrong); it fills when the answer is in
   if (action === "info") {
-    const media = f.detected?.media || f.item?.row || "dvd";
-    const tick = () => {
-      if (flow !== f) return;
-      const ms = performance.now() - t0;
-      current.p = Math.min(1, ms / CHECK_MS);
-      api.jobProgress(current.p, media);
-      const left = Math.ceil((CHECK_MS - ms) / 1000);       // a countdown, not an estimate: no "about"
-      $("job-time").textContent = left > 0 ? liveText(`${left} 秒`, `${left} s`) : "";
-      paintStage();
-    };
-    tick();
-    checkTimer = setInterval(tick, 100);
+    api.jobProgress(0, f.detected?.media || f.item?.row || "dvd");
+    $("job-time").textContent = liveText("读取中", "Reading");
+    paintStage();
   }
   const onEvent = event => {
       if (flow !== f) return;
@@ -1545,16 +1536,13 @@ async function realJob(action, args = {}, extra = {}, following = null) {
   try {
     const result = following ? await api.backend.follow(following, onEvent)
       : await api.backend.job({action, media:f.detected?.media || f.item.row || "dvd", drive, args, ...extra}, onEvent);
-    if (action === "info") {
-      await new Promise((r) => setTimeout(r, Math.max(0, CHECK_MS - (performance.now() - t0))));
-      current.p = 1; api.jobProgress(1, f.detected?.media || f.item?.row || "dvd");      // the bar ends full
-    }
+    if (action === "info") { current.p = 1; api.jobProgress(1, f.detected?.media || f.item?.row || "dvd"); }      // the answer is in: the bar ends full
     if (action === "random") imageRing?.done();
     return result;
   } catch (error) {
     if (error.status === 422 && (why || lastLine)) error.message = why || lastLine;
     throw error;
-  } finally { clearInterval(checkTimer); if (flow === f) {endJob(); f.ask = null; showInterior(false);} }
+  } finally { if (flow === f) {endJob(); f.ask = null; showInterior(false);} }
 }
 async function realNext(forceMeasure = false) {
   if (flow.job) return;

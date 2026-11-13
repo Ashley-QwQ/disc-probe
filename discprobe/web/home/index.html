@@ -736,6 +736,7 @@
   <p class="set-row"><span id="set-motion-label"></span><span class="set-seg" role="radiogroup" aria-labelledby="set-motion-label">
     <button type="button" role="radio" data-motion="auto"></button><button type="button" role="radio" data-motion="on"></button><button type="button" role="radio" data-motion="off"></button></span></p>
   <small class="set-note" id="set-motion-note"></small>
+  <p class="set-row set-guide" id="set-guide"><span></span><button type="button"></button></p>
   <p class="set-row"><span id="set-sound-label"></span><span class="set-seg" role="radiogroup" aria-labelledby="set-sound-label">
     <button type="button" role="radio" data-sound="on"></button><button type="button" role="radio" data-sound="off"></button></span></p>
 </div>
@@ -745,7 +746,7 @@
   <!-- the hit areas of "new work" (the drive) and "past works" (the file box); lobby.js puts them on the objects -->
   <button class="lb-hit" id="lobby-new" type="button"></button>
   <button class="lb-hit" id="lobby-open" type="button"></button>
-  <div class="lobby-greet"><p id="lobby-hello" role="status" aria-live="polite" aria-atomic="true"></p><p id="lobby-recent" hidden></p></div>
+  <div class="lobby-greet"><p id="lobby-hello" role="status" aria-live="polite" aria-atomic="true"></p><p id="lobby-recent" hidden></p><p id="lobby-guide"></p></div>
 </section>
 
 <header class="top">
@@ -1740,6 +1741,7 @@
   new MutationObserver(() => { if ($("next-why").dataset.mode !== (root.dataset.mode ?? "")) $("next-why").textContent = ""; }).observe(root, { attributes: true, attributeFilter: ["data-mode"] });
   root.dataset.home = "lobby";
   (await import("./keys.js")).install({ $ });   // Esc back, Enter next, W A S D, O settings, ? the list
+  try { (await import("./guide.js")).init(api); } catch (e) { console.error("guide", e); }   // before the lobby's art is fetched: its line and the settings row need none
   try { await (await import("./lobby.js")).init(api); } catch (e) { console.error("lobby", e); }
   // a calibration still running (this page was reloaded or reopened meanwhile): back to it
   const running = backend.mock ? null : (backendState?.jobs || []).find((j) => j.exit === null && j.action === "calibrate");
