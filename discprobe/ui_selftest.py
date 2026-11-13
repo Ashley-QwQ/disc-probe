@@ -386,10 +386,10 @@ def _first_steps(c) -> None:
             sys.platform = "win32"
 
             lines = guide.guide_lines("dvd")
-            c.check(sum(x.startswith(("  [x]", "  [ ]")) for x in lines) == 5 and not any("you are here" in x for x in lines), "scripts keep the five steps they always saw")
+            c.check(sum(x.startswith(("  [x]", "  [ ]")) for x in lines) == 6 and not any("you are here" in x for x in lines), "scripts get the six default steps")
             lines = guide.guide_lines("dvd", notes=True)
             steps = [x for x in lines if x.startswith(("  [x]", "  [ ]"))]
-            c.check(len(steps) == 7 and "Burn it on a blank" in steps[-1], "a person sees the steps to the end")
+            c.check(len(steps) == 8 and "Burn it on a blank" in steps[-1], "a person sees the steps to the end")
             c.check(sum("you are here" in x for x in steps) == 1 and "you are here" in next(x for x in steps if x.startswith("  [ ]")), "the first step not done says so")
             c.check(not any(x.startswith("How to look") for x in lines), "no talk of looking at a disc before one exists")
             progress = guide.progress_lines("dvd")
@@ -453,7 +453,7 @@ def _first_steps(c) -> None:
                 try:
                     with contextlib.redirect_stdout(s):
                         cli.cmd_guide(Namespace())
-                    c.check(len(asked) == 1 and "1. Burn a random-data disc" in ANSI.sub("", s.getvalue()), "the first start asks, and yes walks through the steps")
+                    c.check(len(asked) == 1 and "1. Put a blank disc in the drive" in ANSI.sub("", s.getvalue()), "the first start asks, and yes walks through the steps")
                     with contextlib.redirect_stdout(s):
                         cli.cmd_guide(Namespace())
                     c.check(len(asked) == 1, "the next start does not ask again")
@@ -463,7 +463,7 @@ def _first_steps(c) -> None:
                     s.truncate()
                     with contextlib.redirect_stdout(s):
                         cli.cmd_guide(Namespace())
-                    c.check(len(asked) == 2 and "1. Burn a random-data disc" not in ANSI.sub("", s.getvalue()) and guide.tutorial_offered(), "no skips it, and is remembered too")
+                    c.check(len(asked) == 2 and "1. Put a blank disc in the drive" not in ANSI.sub("", s.getvalue()) and guide.tutorial_offered(), "no skips it, and is remembered too")
                     os.remove(guide._tutorial_mark())
                     guide.scan = lambda out="results": [Namespace(simulated=False, kind="geo", media="dvd")]
                     asked.clear()
@@ -482,7 +482,7 @@ def _first_steps(c) -> None:
                 for key, value in saved.items():
                     os.environ.pop(key, None) if value is None else os.environ.update({key: value})
             lines = guide.tutorial_lines()
-            c.check(sum(x[:1].isdigit() for x in lines) == 5 and any("--drive H:" in x for x in lines), "the tutorial has five steps and the real drive")
+            c.check(sum(x[:1].isdigit() for x in lines) == 6 and any("--drive H:" in x for x in lines), "the tutorial has six steps and the real drive")
             i18n.use("zh")
             try:
                 missing = [x.strip() for x in (*lines, *guide.AFTER_BURN) if x.strip() and not x.lstrip().startswith("python ") and i18n.tr(x) == x]
@@ -2160,7 +2160,8 @@ def _image_cut_short(c) -> None:
                     f.write(b"part")
                 open(random_path + iso9660.UNFINISHED, "w").close()
                 lines = guide.guide_lines("dvd", notes=True)
-                c.check(not any("written; burn it" in x for x in lines) and any("random --output" in x for x in lines), "a marker left by a killed run: guide says make it again")
+                c.check(not any("written; burn it" in x for x in lines) and any("info --drive" in x for x in lines),
+                        "a marker left by a killed run: guide asks for the blank-disc info first")
                 with ui.writing(random_path, 10):
                     c.check(not os.path.exists(random_path), "and the next write starts clean")
                     with open(random_path, "wb") as f:
