@@ -22,10 +22,11 @@ assert.match(disShortcut.body.zh, /不是 disc-probe 自己测的/);          //
 assert.equal(lightScenes.length, 4);
 
 // 2. no stale or contradictory disc counts anywhere in the page files this guide covers
+//    ("至少两张不同角度" is the two-photo rule for photo L, not a disc count)
 const home = new URL('../discprobe/web/home/', import.meta.url);
 for (const f of ['guidance.mjs', 'newplan.js', 'preview.js', 'calibrate.js', 'guide.js']) {
   const text = readFileSync(new URL(f, home), 'utf8');
-  assert.doesNotMatch(text, /至少 ?[23] 张同批|至少两张|at least [23] blanks|at least two blanks|maybe three|可能三张|可能 3 张/, f);
+  assert.doesNotMatch(text, /至少 ?[23] 张同批|至少两张(?!不同角度)|at least [23] blanks|at least two blanks|maybe three|可能三张|可能 3 张/, f);
   assert.doesNotMatch(text, /网页拍照标定还没做好|Web photo calibration is not ready|CD photo calibration is not ready/, f);
 }
 for (const media of ['dvd', 'cd']) for (const l of ['zh', 'en']) {
