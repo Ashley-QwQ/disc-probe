@@ -1554,6 +1554,23 @@ async function saveToWorks() {
     return true;
   } catch (e) { toast(sayings(api.lang()).failed + (e?.message ?? e)); return false; }
 }
+// An ISO belongs to a library work: the plan is saved first (made on its first save; unsaved edits filed) so
+// the work's design is what the disc carries; the image job then takes its id and the core records the ISO
+// and sets iso_ready when the job succeeds. Null when this core keeps no works.
+async function workForISO() {
+  const client = await (await import("./pastworks/works.mjs")).worksFor(api, { capable: hasCapability("works") });
+  if (!client || client.mock) return null;                  // the demo's library cannot hear the core's job
+  const plan = S;
+  if (!plan.work?.id || plan.dirty) await saveToWorks();
+  return plan.work?.id ? { id: plan.work.id, before: plan.work.updated_at, plan } : null;
+}
+// after a successful ISO: the geometry it was made with, and the stamps the core moved (pastworks/save.mjs)
+async function afterWorkISO(link, geo) {
+  try {
+    const client = await (await import("./pastworks/works.mjs")).worksFor(api, { capable: hasCapability("works") });
+    await (await import("./pastworks/save.mjs")).afterISO({ client, plan: link.plan, before: link.before, geo });
+  } catch { /* the ISO is made; the record is the core's */ }
+}
 async function saveProject(as = false) {
   const t = T();
   if (!S.layers.length && !S.assignments?.length) { toast(t.exp.empty); return false; }
@@ -1742,10 +1759,11 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects = "b
   stop();
   const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
   const output = `iso/${isoStem(S.name)}-${um}um-${stamp}${burn?.mode === "experimental" ? "-exp" : ""}.iso`;
+  const link = await workForISO();
   onProgress({ stage: t.making, fraction: 0 });
   const run = await fetch("/api/run", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "image", media: S.media, args: { geo: geoPath, design_npy: saved.design_npy, ...(saved.textures?{textures:saved.textures}:{}), output, r_max: rMax } }),
+    body: JSON.stringify({ action: "image", media: S.media, ...(link ? { work: link.id } : {}), args: { geo: geoPath, design_npy: saved.design_npy, ...(saved.textures?{textures:saved.textures}:{}), output, r_max: rMax } }),
   });
   const job = await run.json().catch(() => ({}));
   if (!run.ok) throw new Error(job.error ?? t.failed);
@@ -1769,6 +1787,7 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects = "b
   const info = await (await fetch(`/api/iso?path=${encodeURIComponent(output)}`)).json().catch(() => ({}));
   if (!(info.bytes > 0) || !(info.sectors > 0)) throw new Error(t.failed);
   S.geo = geoPath;                                     // the project keeps the geometry it was made with
+  if (link) await afterWorkISO(link, geoPath);
   return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job, geo: geoPath,
     geoSource: geo.source, geoName: geo.name, cellUm: um, effects: burn?.mode ?? "bw", experimental: burn?.mode === "experimental",
     textures: saved.textures_used ?? null };

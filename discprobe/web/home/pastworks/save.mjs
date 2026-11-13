@@ -56,6 +56,27 @@ export async function saveToLibrary({ client, plan, text, thumb, name, lang = "z
   return { work: { ...work, updated_at: plan.work.updated_at }, note };
 }
 
+// After an ISO was made for the plan's work (the image job ran with `work`, so the core has recorded it and
+// set iso_ready): note the geometry it was really made with, and follow the stamps the core moved, unless
+// someone else saved the work meanwhile (then the next Ctrl+S rightly asks). Only called on success.
+const OURS = new Set(["iso", "burn", "thumbnail", "thumb"]);
+export function relativeGeo(geo) {
+  if (typeof geo !== "string" || !geo) return null;
+  const g = geo.replace(/\\/g, "/");
+  return /:/.test(g) || g.startsWith("/") || g.split("/").includes("..") ? null : g;   // the core takes only data-root paths
+}
+export async function afterISO({ client, plan, before, geo }) {
+  const id = plan.work?.id;
+  if (!id) return null;
+  let work = await client.get(id);
+  const since = Date.parse(before ?? "");
+  const others = (work.history ?? []).some((e) => Date.parse(e.time ?? e.at ?? "") > since && !OURS.has(e.type));
+  const geoRun = relativeGeo(geo);
+  if (geoRun && work.geo_run !== geoRun) work = { ...work, ...(await client.patch(id, { geo_run: geoRun }).catch(() => ({}))) };
+  if (!others && plan.work.updated_at === before) plan.work.updated_at = work.updated_at;
+  return work;
+}
+
 // The overwrite-or-copy question, as a modal dialog on the glass. Esc or the backdrop cancels.
 let styled = false;
 export function askConflict({ name, lang = "zh", doc = document } = {}) {

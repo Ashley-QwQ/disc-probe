@@ -10,14 +10,14 @@ const WORDS = {
     discs: (n) => `刻过 ${n} 张`, noDiscs: "还没刻", unknownDate: "日期未知",
     created: "创建", saved: "保存", iso: "出 ISO", burnedOn: (d) => `刻进 ${d}`, burnedEvent: "刻录", photo: "照片结果",
     renamed: (n) => `改名为“${n}”`, duplicated: (n) => n ? `从“${n}”复制` : "复制", imported: (n) => n ? `导入自 ${n}` : "导入",
-    markedDone: "标成成品", markedFailed: "标成失败", restored: "从回收站恢复", deleted: "移到回收站", thumb: "更新缩略图", changed: "改了作品信息",
+    markedDone: "标成成品", markedFailed: "标成失败", restored: "从回收站恢复", deleted: "移到回收站", thumb: "更新缩略图", changed: "改了作品信息", geoNoted: "记下所用几何",
   },
   en: {
     draft: "Draft", iso_ready: "ISO ready", burned: "Burned", done: "Finished", failed: "Failed", unsaved: "Not in the library",
     discs: (n) => `${n} disc${n === 1 ? "" : "s"} burned`, noDiscs: "Not burned yet", unknownDate: "Date unknown",
     created: "Created", saved: "Saved", iso: "ISO written", burnedOn: (d) => `Burned onto ${d}`, burnedEvent: "Burned", photo: "Photo result",
     renamed: (n) => `Renamed to “${n}”`, duplicated: (n) => n ? `Copied from “${n}”` : "Copied", imported: (n) => n ? `Imported from ${n}` : "Imported",
-    markedDone: "Marked finished", markedFailed: "Marked failed", restored: "Restored from the bin", deleted: "Moved to the bin", thumb: "Picture updated", changed: "Details changed",
+    markedDone: "Marked finished", markedFailed: "Marked failed", restored: "Restored from the bin", deleted: "Moved to the bin", thumb: "Picture updated", changed: "Details changed", geoNoted: "Geometry noted",
   },
 };
 export const words = (lang) => WORDS[lang === "en" ? "en" : "zh"];
@@ -104,8 +104,9 @@ export function timeline(work, lang = "zh") {
       case "import": case "imported": text = t.imported(base(e.source ?? e.file ?? "")); break;
       case "mark": case "marked": case "status": {
         const st = c.status ?? e.status;
-        text = st === "failed" ? t.markedFailed : st === "done" ? t.markedDone : st ? statusWord(st, lang) : t.changed;
-        detail = c.note ?? e.note ?? ""; break;
+        const geoOnly = !st && c.geo_run && Object.keys(c).length === 1;
+        text = st === "failed" ? t.markedFailed : st === "done" ? t.markedDone : st ? statusWord(st, lang) : geoOnly ? t.geoNoted : t.changed;
+        detail = geoOnly ? c.geo_run : c.note ?? e.note ?? ""; break;
       }
       case "restore": case "restored": text = t.restored; break;
       case "delete": case "deleted": text = t.deleted; break;

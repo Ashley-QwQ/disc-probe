@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createWorksClient, worksFor, setWorksForTest, mediaLabel, discCount, sortWorks, filterWorks, timeline, statusWord,
   unwrapWork, STATUSES, burnedDiscs, discCode } from '../discprobe/web/home/pastworks/works.mjs';
 import { createMockWorks } from '../discprobe/web/home/pastworks/mock-works.mjs';
-import { saveToLibrary } from '../discprobe/web/home/pastworks/save.mjs';
+import { saveToLibrary, afterISO, relativeGeo } from '../discprobe/web/home/pastworks/save.mjs';
 import { arrange, gridStep } from '../discprobe/web/home/pastworks.js';
 
 const design = (extra = {}) => JSON.stringify({ format: 'disc-probe design', version: 2, media: 'dvd', cell: 0.02, layers: [], ...extra });
@@ -179,6 +179,30 @@ assert.ok(moved.work.id !== copy.work.id && lib.works.has(moved.work.id), 'a wor
 const noThumb = await saveToLibrary({ client: c2, plan, text: design({ n: 7 }), thumb: async () => { throw Error('no canvas'); }, name: '海' });
 assert.match(noThumb.note, /缩略图没有传上去/);
 console.log('Design page saving: first save, reuse, 409 cancel / overwrite / keep both, binned work, picture failure passed');
+
+// ---------------------------------------------------------------- after an ISO for the work
+{
+  const lib2 = createMockWorks({ now: () => (clock += 1000) });
+  const c3 = createWorksClient({ fetch: lib2.fetch });
+  const p = { media: 'dvd' };
+  await saveToLibrary({ client: c3, plan: p, text: design(), thumb, name: '光' });
+  let before = p.work.updated_at;
+  lib2.link(p.work.id, { type: 'iso', iso_path: 'iso/光.iso' });          // the core's image --work, on success
+  const w = await afterISO({ client: c3, plan: p, before, geo: 'results\\geo-E-20261112' });
+  assert.equal(w.status, 'iso_ready');
+  assert.equal(w.geo_run, 'results/geo-E-20261112', 'the geometry really used, as a data-root path');
+  assert.equal(p.work.updated_at, lib2.works.get(p.work.id).updated_at, 'the page follows the stamps its own ISO moved');
+  await saveToLibrary({ client: c3, plan: p, text: design({ n: 1 }), thumb, name: '光', ask: async () => { throw Error('false conflict'); } });
+  assert.equal(timeline(await c3.get(p.work.id), 'zh').find(e => e.text === '记下所用几何')?.detail, 'results/geo-E-20261112');
+  before = p.work.updated_at;
+  lib2.touch(p.work.id);                                                    // another window saves meanwhile
+  lib2.link(p.work.id, { type: 'iso', iso_path: 'iso/光2.iso' });
+  await afterISO({ client: c3, plan: p, before, geo: 'D:/elsewhere/geo' });
+  assert.equal(p.work.updated_at, before, 'someone else saved: keep the old stamp so the next save asks');
+  assert.equal(relativeGeo('D:/elsewhere/geo'), null); assert.equal(relativeGeo('a/../b'), null); assert.equal(relativeGeo('/abs'), null);
+  assert.equal(await afterISO({ client: c3, plan: {}, before, geo: 'x' }), null, 'a plan outside the library: nothing to note');
+  console.log('After an ISO: geometry noted, stamps followed, another window still caught passed');
+}
 
 // ---------------------------------------------------------------- which library a page gets
 setWorksForTest(null);

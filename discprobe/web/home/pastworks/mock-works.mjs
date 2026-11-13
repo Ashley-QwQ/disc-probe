@@ -120,8 +120,10 @@ export function createMockWorks({ now = () => Date.now(), works: seed = [], late
           if (!name) return fail(400, "name required");
           w.name = name.slice(0, 200);
         }
+        if ("geo_run" in b && b.geo_run != null && (/[:\\]/.test(b.geo_run) || b.geo_run.startsWith("/") || b.geo_run.split("/").includes(".."))) return fail(400, "geo run must be relative to the data directory");
         if ("status" in b) w.status = b.status;
         if ("note" in b) w.note = b.note;
+        for (const k of ["disc_type", "batch", "geo_run", "photo_l", "cell_um"]) if (k in b) w[k] = b[k];
         w.updated_at = log(id, { type: Object.keys(b).join() === "name" ? "renamed" : "marked", changes: b });
         return reply(200, view(w));
       }
