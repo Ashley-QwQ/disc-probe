@@ -211,15 +211,18 @@ try {
   await check('getComputedStyle(document.querySelector(".np")).getPropertyValue("--bag-file").trim()==="640ms" && getComputedStyle(document.querySelector(".np")).getPropertyValue("--bag-drop").trim()==="360ms"','first bag is one second even with system reduced motion');
   await until('document.documentElement.dataset.mode==="design"','first bag finishes');
   await check('performance.now()-bagStart>=950 && document.querySelector(".ws-title .work-bag + .pname") && document.querySelector(".work-bag title").textContent.includes("Saved in past works")','full first animation and bag icon');
+  await until('document.querySelector(".np").hidden','design entrance has taken over the desk');
   await evaluate('await review.newplan.start(review.api);window.bagStart=performance.now();document.getElementById("next").click()');
   await check('getComputedStyle(document.querySelector(".np")).getPropertyValue("--bag-file").trim()==="256ms"','repeat bag shortened');
   await until('document.documentElement.dataset.mode==="design"','repeat finishes');
+  await until('document.querySelector(".np").hidden','repeat design entrance complete');
   for(const event of ['enter','click','off']) {
     await evaluate('await review.newplan.start(review.api);document.querySelector("[data-motion=on]").click();window.bagStart=performance.now();document.getElementById("next").click()');
     await delay(50);
     await evaluate(event==='enter'?'dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",bubbles:true}))':event==='click'?'document.querySelector(".np-sheet").click()':'document.documentElement.dataset.motion="off"');
     await until('document.documentElement.dataset.mode==="design"',event+' skips bag');
     await check('performance.now()-bagStart<380','skip is immediate: '+event);
+    await until('document.querySelector(".np").hidden','design handoff completes after skip: '+event);
   }
   await evaluate('await review.newplan.start(review.api);document.documentElement.dataset.motion="off";window.bagStart=performance.now();document.getElementById("next").click()');
   await until('document.documentElement.dataset.mode==="design"','motion off finishes');

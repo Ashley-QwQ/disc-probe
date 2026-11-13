@@ -362,11 +362,11 @@ function release() {
 
 let leaving = false;
 function leave() {
+  if (leaving) return;                         // the opener already owns the return pan/card hand-off
   // a disc that was in the air goes back to waiting; detection starts over next time
   if (!flow.job && ["detecting", "identify", "flying", "hover", "falling", "checking"].includes(flow.disc)) flow.disc = "detect";
   if (!flow.job && flow.disc === "remove") flow.disc = "detect";
   if (returnTo && returnAnim && !api.reduce) {          // the opener takes the camera back first, then the page closes
-    if (leaving) return;
     leaving = true;
     const anim = returnAnim; returnAnim = null;
     anim(() => { release(); giveBack(flow.realPhase === "saved"); }).finally(() => { leaving = false; });

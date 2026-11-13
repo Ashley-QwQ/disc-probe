@@ -2072,12 +2072,13 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
     const r = W.cv.getBoundingClientRect();
     if (fly) flight(from, { x: r.left + V.cx, y: r.top + V.cy, d: 120 * V.s }, false);
   }, 30);
-  if (dropIn && !api.reduce) W.ws.animate([{ transform: "translateY(-40px)", opacity: 0 }, { transform: "none", opacity: 1 }],
-    { duration: 420, easing: "cubic-bezier(.2, .8, .2, 1)" });       // the next sheet comes down from above
+  const entrance = dropIn && !api.reduce ? W.ws.animate([{ transform: "translateY(-40px)", opacity: 0 }, { transform: "none", opacity: 1 }],
+    { duration: 420, easing: "cubic-bezier(.2, .8, .2, 1)" }) : null;       // the next sheet comes down from above
   if (file) importFiles([file]);
   if (projectFile) openProject(projectFile);
   if (fromWork) openProject(fromWork, null, S.work);
   if (pick) pickProject();
+  return entrance?.finished.catch(() => {});       // the opener keeps its desk until this sheet has arrived
 }
 // The library handed back a batch for this plan: switch its discs (the disc kind too, if it changed).
 export function useBatch(homeApi, plan, item, col) {

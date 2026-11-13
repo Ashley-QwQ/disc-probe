@@ -168,7 +168,7 @@ function build() {
   cssReady = new Promise((ok) => { css.onload = ok; css.onerror = ok; });    // shown only once styled
   document.head.append(css);
   // the page's own back and next buttons (top left, bottom right) belong to this page while it is up
-  $("back").addEventListener("click", (e) => { if (!isOn()) return; e.stopImmediatePropagation(); back(); }, { capture: true });
+  $("back").addEventListener("click", (e) => { if (!isOn() || going) return; e.stopImmediatePropagation(); back(); }, { capture: true });
   $("next").addEventListener("click", (e) => { if (!isOn()) return; e.stopImmediatePropagation(); next(); }, { capture: true });
   W = document.createElement("section");
   W.className = "np"; W.hidden = true;
@@ -423,6 +423,7 @@ function paintLeft() {
 // envelope) leaves to the left while the calibration page (its desk, drive and paper) comes in from the right.
 const PAN_IN = ".cal-stage, .ld";                // the calibration page's scene; its card comes out of the envelope after
 const LAID = "#cal-ruler";                       // on the glass: does not travel with the scene; laid down after
+let panFlight = null, cardFlight = null;
 async function calibrateFirst() {
   const item = chosen();          // none: the batch to calibrate is the one in the drive (the new-disc place)
   if (going) return;
@@ -434,6 +435,8 @@ async function calibrateFirst() {
   const cal = await calibrating;
   api.useForPlan(state.kind, isLibrary(item) ? item : null);
   if (pan) root.classList.add("pan-in");                      // its layers wait off to the right
+  const flight = pan ? (panFlight = { anims: [], reversing: false }) : null;
+  const stillCal = () => root.dataset.mode === "cal" && !flight?.reversing;
   let panned = false;
   const shown = cal.start(withInitialItem(item ? { ...item } : api.current().item), { returnTo: ({ id } = {}) => {
     // the batch just calibrated, by its library entry (its name may not match the disc in the drive)
@@ -443,18 +446,23 @@ async function calibrateFirst() {
   }, returnAnim: pan ? (finish) => { panned = true; return panBack(finish); } : null });
   if (pan) {
     await Promise.race([shown, wait(1500)]);
+    if (!stillCal()) return;
     const opt = { duration: 760, easing: "cubic-bezier(.65, 0, .35, 1)" };
     const coming = [...document.querySelectorAll(PAN_IN)].map((el) => el.animate([{ translate: "100vw 0" }, { translate: "0 0" }], { ...opt, fill: "forwards" }));
     const going_ = W.animate([{ transform: "none" }, { transform: "translateX(-100vw)" }], { ...opt, fill: "forwards" });
+    flight.anims = [going_, ...coming];
     await Promise.all([going_.finished, ...coming.map((a) => a.finished)]).catch(() => {});
+    if (!stillCal()) return;
     root.classList.remove("pan-in");
     W.hidden = true; going_.cancel(); coming.forEach((a) => a.cancel());
+    panFlight = null;
     // the ruler comes down onto the glass (its shadow grows from nothing as it settles); the card comes out of
     // the envelope, the filing played backwards with the calibration's words on the sheet
     for (const el of document.querySelectorAll(LAID))
       el.animate([{ opacity: 0, transform: "translate(10px, -14px)" }, { opacity: 1, transform: "translate(0, 0)" }],
         { duration: 320, easing: "cubic-bezier(.2, .8, .2, 1)", composite: "add" });     // on top of the element's own placing
     await cardOut($("cal"));
+    if (!stillCal() || cardFlight?.reversing) return;
   } else W.hidden = true;
   W.classList.remove("filing", "leaving");
   going = false;
@@ -495,14 +503,26 @@ async function cardOut(card) {
     { transform: "translateY(120vh)" }];
   const sheet = [{ transform: `translateY(calc(${px(dy)} + 110vh))`, easing: rise }, { transform: `translateY(${px(dy)})`, offset: .4 },
     { transform: `translateY(${px(dy)})`, offset: .46, easing: slide }, { transform: "translateY(0)", offset: .8 }, { transform: "translateY(0)" }];
-  const anims = [back.animate(env, { duration: T }), front.animate(env, { duration: T }),
-    card.animate(sheet, { duration: T, composite: "add" })];
+  const anims = [back.animate(env, { duration: T, fill: "both" }), front.animate(env, { duration: T, fill: "both" }),
+    card.animate(sheet, { duration: T, composite: "add", fill: "both" })];
+  const flight = cardFlight = { card, parts: [back, front], anims, reversing: false };
   await Promise.all(anims.map((a) => a.finished)).catch(() => {});
+  if (flight.reversing) return;                 // cardIn owns the reversed animations and their parts now
+  anims.forEach((a) => a.cancel());
   back.remove(); front.remove();
+  if (cardFlight === flight) cardFlight = null;
 }
 // ... and back in: the envelope rises under the card, the card slides down into the pocket; both stay (they leave
 // with the scene). Returns what to move and to clean up.
 async function cardIn(card) {
+  if (cardFlight?.card === card) {
+    const flight = cardFlight;
+    flight.reversing = true;
+    flight.anims.forEach((a) => a.reverse());
+    await Promise.all(flight.anims.map((a) => a.finished)).catch(() => {});
+    // The reversed envelope has left below the screen. Keep the card tucked away for the pan.
+    return flight;
+  }
   const { back, front, dy, px } = envelopeFor(card);
   const T = 1000;
   const env = [{ transform: "translateY(110vh)", easing: RISE }, { transform: "none", offset: .5 }, { transform: "none" }];
@@ -517,6 +537,18 @@ async function cardIn(card) {
 // its envelope), and the sheet comes out while the envelope drops away. finish(): calibrate.js closes its page and
 // hands back (reopen).
 async function panBack(finish) {
+  going = true;
+  if (panFlight) {
+    const flight = panFlight;
+    flight.reversing = true;
+    flight.anims.forEach((a) => a.reverse());
+    await Promise.all(flight.anims.map((a) => a.finished)).catch(() => {});
+    finish();
+    flight.anims.forEach((a) => a.cancel());
+    root.classList.remove("pan-in");
+    panFlight = null; going = false;
+    return;
+  }
   const card = $("cal"), ruler = document.getElementById("cal-ruler");
   ruler?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: "forwards" });
   const inEnv = card && !card.hidden ? await cardIn(card) : { parts: [], anims: [] };
@@ -534,6 +566,8 @@ async function panBack(finish) {
   finish();                                               // calibration closes; reopen() takes the sheet out
   coming.cancel(); leaving.forEach((a) => a.cancel()); inEnv.anims.forEach((a) => a.cancel());
   inEnv.parts.forEach((p) => p.remove()); ruler?.getAnimations().forEach((a) => a.cancel());
+  if (cardFlight === inEnv) cardFlight = null;
+  going = false;
 }
 function reopen({ unfile = false } = {}) {
   root.dataset.mode = "newplan";
@@ -678,7 +712,10 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   // the top view fades in over it with its disc in the middle and close, then settles (the disc moving
   // left, the sheet coming in)
   const fly = from?.getBoundingClientRect?.().width > 0 && !api.reduce;
-  const push = fly ? pushLobby(from) : null;
+  leavingBack = false;
+  pushOrigin = fly ? pushTransform(from) : null;       // measure before the lobby acquires a transform
+  const push = fly ? pushLobby(pushOrigin) : null;
+  pushFlight = push;
   if (push) await wait(300);
   root.dataset.mode = "newplan";
   sceneScale();
@@ -689,8 +726,15 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   if (push) {
     const [tx, ty] = discPoint();
     W.style.transformOrigin = `${tx}px ${ty}px`;
-    W.animate([{ transform: topStart(), opacity: 0 }, { opacity: 1, offset: .45 }, { transform: "none", opacity: 1 }], { duration: 760, easing: "cubic-bezier(.2, .8, .2, 1)" })
-      .finished.finally(() => { push.done(); W.style.transformOrigin = ""; });
+    const transform = W.animate([{ transform: topStart() }, { transform: "none" }],
+      { duration: 760, easing: "cubic-bezier(.2, .8, .2, 1)", fill: "both" });
+    const opacity = W.animate([{ opacity: 0 }, { opacity: 1, offset: .65 }, { opacity: 1 }],
+      { duration: 760, easing: "linear", fill: "both" });
+    push.anims.push(transform, opacity);
+    Promise.all(push.anims.map((a) => a.finished)).catch(() => {}).then(() => {
+      if (pushFlight !== push || leavingBack) return;
+      push.done(); pushFlight = null; W.style.transformOrigin = "";
+    });
   }
   setTimeout(() => W.name.focus({ preventScroll: true }), api.reduce ? 0 : 700);
 }
@@ -709,15 +753,16 @@ const pushTransform = (from) => {
 // the top view with its disc in the middle of the window, close (origin: the disc)
 const topStart = () => { const [tx, ty] = discPoint(), [cx, cy] = mid(); return `translate(${cx - tx}px, ${cy - ty}px) scale(${TOP_START})`; };
 // the lobby flying in (or, reversed, back out); it stays drawn under this page until done() (lobby.css .leaving)
-function pushLobby(from, reverse = false) {
+let pushFlight = null, pushOrigin = null, leavingBack = false;
+function pushLobby(p, reverse = false) {
   const lobby = $("lobby"), art = $("lobby-art"), greet = lobby.querySelector(".lobby-greet");
   lobby.classList.add("leaving");
-  const p = pushTransform(from);
   art.style.transformOrigin = p.origin;
   const frames = [{ transform: "none" }, { transform: p.to }], fade = [{ opacity: 1 }, { opacity: 0 }];
   const a = art.animate(reverse ? frames.reverse() : frames, { duration: 560, easing: reverse ? "cubic-bezier(.2, .8, .2, 1)" : "cubic-bezier(.5, 0, .6, 1)", fill: "forwards" });
   const g = greet?.animate(reverse ? fade.reverse() : fade, { duration: reverse ? 400 : 200, fill: "forwards" });
-  return { finished: a.finished, done() { a.cancel(); g?.cancel(); art.style.transformOrigin = ""; lobby.classList.remove("leaving"); } };
+  const anims = [a, g].filter(Boolean);
+  return { anims, finished: a.finished, done() { anims.forEach((anim) => anim.cancel()); art.style.transformOrigin = ""; lobby.classList.remove("leaving"); } };
 }
 function leave() {
   W.hidden = true;
@@ -725,18 +770,28 @@ function leave() {
   $("back").hidden = true;
 }
 // back: the same flight backwards, the top view lifting off while the lobby camera pulls back out
-export function back() {
-  if (!W || W.hidden) return;
+export async function back() {
+  if (!W || W.hidden || leavingBack) return;
+  leavingBack = true;
   if (api.reduce) { leave(); api.toLobby(); return; }
-  const pull = pushLobby($("lobby-new"), true), [tx, ty] = discPoint();
+  if (pushFlight) {
+    const push = pushFlight;
+    push.anims.forEach((a) => a.reverse());
+    await Promise.all(push.anims.map((a) => a.finished)).catch(() => {});
+    leave(); api.toLobby(); push.done(); pushFlight = null;
+    W.style.transformOrigin = "";
+    return;
+  }
+  const pull = pushLobby(pushOrigin ?? pushTransform($("lobby-new")), true), [tx, ty] = discPoint();
   W.style.transformOrigin = `${tx}px ${ty}px`;
-  W.animate([{ transform: "none", opacity: 1 }, { opacity: 1, offset: .55 }, { transform: topStart(), opacity: 0 }], { duration: 520, easing: "cubic-bezier(.5, 0, .9, .5)", fill: "forwards" })
-    .finished.then(async () => {
-      leave(); api.toLobby();
-      W.getAnimations().forEach((a) => a.cancel()); W.style.transformOrigin = "";
-      await pull.finished.catch(() => {});
-      pull.done();
-    });
+  const transform = W.animate([{ transform: "none" }, { transform: topStart() }],
+    { duration: 520, easing: "cubic-bezier(.5, 0, .9, .5)", fill: "both" });
+  const opacity = W.animate([{ opacity: 1 }, { opacity: 1, offset: .35 }, { opacity: 0 }],
+    { duration: 520, easing: "linear", fill: "both" });
+  await Promise.all([transform.finished, opacity.finished, pull.finished]).catch(() => {});
+  leave(); api.toLobby();
+  transform.cancel(); opacity.cancel(); W.style.transformOrigin = "";
+  pull.done();
 }
 // Where the envelope stops and how the sheet goes in, measured from the page as it is laid out.
 // Envelope picture (envelope.json): 1600 x 2494, pocket top 16.9 % down, its front ends 3.4 % above the
@@ -796,11 +851,12 @@ async function next() {
   await bagging();
   const design = await designing;
   api.useForPlan(state.kind, item);
-  leave();
-  W.classList.remove("filing", "leaving");
   // useForPlan locates only library objects. Supply the form's exact item for the editor's first read,
   // then delegate subsequent reads (e.g. calibration) to the home API as usual.
-  design.start(withInitialItem(item), { newPlan: true, fly: false, file: state.file, name, dropIn: true, noDisc: !item });
+  // The desk remains under the arriving design sheet; the envelope stays dropped out of frame.
+  await design.start(withInitialItem(item), { newPlan: true, fly: false, file: state.file, name, dropIn: true, noDisc: !item });
+  W.hidden = true;
+  W.classList.remove("filing", "leaving");
   going = false;
 }
 function withInitialItem(item) {

@@ -162,7 +162,9 @@
   .pc-local { max-width: 38%; }
   .pc-wordmark { display: none; }
 }
-@media (prefers-reduced-motion: reduce) { .pc-page *, .pc-page *::before, .pc-page *::after { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion]) .pc-page *, :root:not([data-motion]) .pc-page *::before, :root:not([data-motion]) .pc-page *::after { animation: none !important; transition: none !important; }
+}
 
 /* Embedded in calibration: the host owns the paper, ruler and fixed-corner buttons. */
 .cal-photo-host { position: fixed; z-index: 2; left: var(--edge); top: calc(var(--edge) + var(--row) + 16px); bottom: calc(var(--foot) + 16px); right: calc(var(--edge) + min(600px, 40vw) + 40px); }

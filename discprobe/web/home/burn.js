@@ -156,7 +156,7 @@ function paint() {
 }
 // the drive scene: the home page's drive flipped, a disc that drops in, the cutaway while it burns
 function sceneOf(){return scene??={cut:cutaway(api,{mirrored:false,textLeft:()=>W.q('.burn-panel').getBoundingClientRect().left}),fly:flyer(api,{mirrored:false})};}
-function waitForDisc(){api.setTray(true,false);setTimeout(()=>{if(visible&&!task)sceneOf().fly.hover(ctx.item?.name||'');},900);}
+function waitForDisc(){api.setTray(true,false,undefined,true);setTimeout(()=>{if(visible&&!task)sceneOf().fly.hover(ctx.item?.name||'');},900);}
 function fillSpeeds(){
   const speeds=[...new Set((ctx.drive?.speeds||[]).filter(x=>Number.isFinite(x)&&x>0))].sort((a,b)=>a-b);
   if(!speeds.includes(speed))speed=ctx.media==='cd'?speeds[0]:speeds.reduce((best,s)=>Math.abs(s-8)<Math.abs(best-8)?s:best,speeds[0]);W.select.replaceChildren(...speeds.map(s=>{const o=el('option','',X(s));o.value=s;return o;}));W.select.value=speed;

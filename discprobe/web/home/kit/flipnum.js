@@ -112,8 +112,6 @@ export function flipNumber(el, { lang = 'zh' } = {}) {
   }
   const observer = new doc.defaultView.MutationObserver(refreshMotion);
   observer.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-motion'] });
-  const media = doc.defaultView.matchMedia?.('(prefers-reduced-motion: reduce)');
-  media?.addEventListener('change', refreshMotion);
   const api = { set, watch() {
     if (textObserver) return;
     textObserver = new doc.defaultView.MutationObserver(records => {
@@ -125,7 +123,7 @@ export function flipNumber(el, { lang = 'zh' } = {}) {
     observeText();
   }, destroy() {
     textObserver?.disconnect();
-    observer.disconnect(); media?.removeEventListener('change', refreshMotion); mounted.delete(el);
+    observer.disconnect(); mounted.delete(el);
   } };
   mounted.set(el, api);
   set(value);
