@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {compatibility, compareAPI, hideOptional, showSheet} from '../discprobe/web/home/handshake.mjs';
+import {compatibility, compareAPI, handshake, hideOptional, showSheet} from '../discprobe/web/home/handshake.mjs';
 const manifest = JSON.parse(readFileSync(new URL('../discprobe/web/gui.json', import.meta.url)));
 const core = {api_version:'1.0', capabilities:[...manifest.required_capabilities, ...manifest.optional_capabilities]};
 
@@ -28,6 +28,20 @@ function documentStub(lang='en') {
     head:{append(style){this.style=style;}}, querySelectorAll:()=>entries,
     body:{replaceChildren(sheet){this.sheet=sheet;}}};
 }
+test('four-part public core version completes the GUI handshake', async () => {
+  const doc=documentStub();
+  const publicCore={...core,core_version:'1.0.0.0-alpha'};
+  const calls=[];
+  const fetcher=async path=>{
+    calls.push(path);
+    return {ok:true,json:async()=>path==='/gui.json'?manifest:publicCore};
+  };
+  await handshake(doc,fetcher,{protocol:'http:',search:''});
+  assert.equal(doc.documentElement.dataset.handshake,'ready');
+  assert.deepEqual(calls.sort(),['/api/version','/gui.json']);
+  assert.equal(compatibility(manifest,publicCore).update,null);
+  assert.throws(()=>compareAPI(publicCore.core_version,manifest.required_api));
+});
 test('optional entry is hidden and CSS covers entries mounted later', () => {
   const doc=documentStub(); hideOptional(doc,['templates']);
   assert.equal(doc.entries[0].hidden,true); assert.equal(doc.entries[1].hidden,undefined);
