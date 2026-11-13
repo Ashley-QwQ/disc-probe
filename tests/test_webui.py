@@ -30,6 +30,10 @@ def eventually(check, timeout=8):
     raise AssertionError("timed out")
 
 
+def step(state, ident):
+    return next(s for s in state["steps"] if s["id"] == ident)
+
+
 class BackendTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(dir=ROOT)
@@ -62,28 +66,28 @@ class BackendTests(unittest.TestCase):
                     self.assertEqual(len(marked), 1)
                     self.assertIn(row["label"], marked[0])
             self.assertEqual([s["id"] for s in state["steps"]],
-                             ["packages", "drive", "random_disc", "timing", "geo", "photo_l", "picture_iso", "burn"])
+                             ["packages", "drive", "info", "random_disc", "timing", "geo", "photo_l", "picture_iso", "burn"])
             json.dumps(state)
             return state
-        check("random_disc")
+        check("info")             # a new user reads a blank first (PR #34)
         self.result("timing", {"period": {"rotation": {"mode": "CAV"}, "zones": [{"jitter_deg": 0.5}]}})
         state = check("geo")
-        self.assertEqual(state["steps"][3]["verdict"], "good")
+        self.assertEqual(step(state, "timing")["verdict"], "good")
         self.result("geo", {"fit": {"u": 180000, "v": 5.5, "chi2_per_dof": 1,
                                    "measured_span_mm": [25, 56], "angle_sigma_measured_span_deg": .1}})
         state = check("picture_iso")
-        self.assertEqual(state["steps"][4]["verdict"], "good")
+        self.assertEqual(step(state, "geo")["verdict"], "good")
         # A later stopped attempt must not displace a completed calibration.
         self.result("geo", {"stopped": "tray open"}, stamp="20261108-101500")
-        self.assertEqual(check("picture_iso")["steps"][4]["verdict"], "good")
+        self.assertEqual(step(check("picture_iso"), "geo")["verdict"], "good")
 
     def test_partial_and_simulated_results(self):
         self.result("geo", {"stopped": "interrupted"})
         state = guide.guide_state("dvd", str(self.root / "results"))
-        self.assertEqual(state["steps"][4]["verdict"], "stopped_early")
+        self.assertEqual(step(state, "geo")["verdict"], "stopped_early")
         self.result("timing", {"simulated": True, "period": {"rotation": {"mode": "CAV"}}})
-        self.assertEqual(guide.guide_state("dvd", str(self.root / "results"))["current"], "random_disc")
-        self.assertTrue(guide.guide_state("cd", str(self.root / "results"))["steps"][5]["needed"])
+        self.assertEqual(guide.guide_state("dvd", str(self.root / "results"))["current"], "info")
+        self.assertTrue(step(guide.guide_state("cd", str(self.root / "results")), "photo_l")["needed"])
 
     def test_event_opt_in_and_terminal_bytes(self):
         # Frozen bytes captured from the original module, before this change.

@@ -1156,6 +1156,30 @@ def result_verdict(run, media="dvd"):
     return "good" if jitter and max(jitter) <= GOOD_JITTER_DEG else "usable"
 
 
+def blank_info(results, media):
+    """The newest blank-disc `info` run for this media and the available sector count it reports."""
+    info_runs = [r for r in results if r.kind == "info" and not r.simulated and r.media == media]
+    info_run = info_runs[0] if info_runs else None
+    info_sectors = None
+    for report_run in info_runs:
+        report = _load(os.path.join(report_run.path, "info.json")) or {}
+        track = _parsed(report, "track_1")
+        atip = _parsed(report, "atip")
+        disc = _parsed(report, "disc_information")
+        capacity = _parsed(report, "capacity")
+        profile = _parsed(report, "configuration").get("current_profile")
+        # A count off a disc that has been burned already can be larger than the blank's capacity.
+        # A CD's ATIP lead-out is fixed by the blank itself, so it stays a blank-disc count.  Some
+        # blank Blu-rays do not report track free blocks; an empty disc's capacity is the blank size.
+        if (track.get("blank") and track.get("free_blocks")) or \
+                (mmc.media_family(profile) == "cd" and atip.get("last_leadout_start_lba")) or \
+                (disc.get("disc_status") == "empty" and capacity.get("last_lba")):
+            info_sectors = sectors_from_info(report)
+            if info_sectors:
+                break
+    return info_run, info_sectors
+
+
 def guide_state(media: str = "dvd", out: str = "results", *, drives=None) -> dict:
     """Disk-derived workflow, shared by the CLI and HTTP service. No drive is opened."""
     if media not in ("dvd", "cd", "bd"):
@@ -1173,6 +1197,7 @@ def guide_state(media: str = "dvd", out: str = "results", *, drives=None) -> dic
     geo = next((r for r in results if r.geo_complete()), None)
     has_iso = os.path.exists(random_iso) and not os.path.exists(random_iso + iso9660.UNFINISHED)
 
+    info_run, info_sectors = blank_info(results, media)
     picture = picture_iso()
     latest_timing = timing or next((r for r in results if r.kind == "timing"), None)
     latest_geometry = geo or next((r for r in results if r.kind == "geo"), None)
@@ -1183,6 +1208,11 @@ def guide_state(media: str = "dvd", out: str = "results", *, drives=None) -> dic
              detail=", ".join(missing) + " missing" if missing else "numpy, pillow"),
         dict(id="drive", done=bool(drives), label="Optical drive",
              detail=" ".join(drives) if drives else "none found"),
+        # Reading a blank first only matters before the random-data disc; it never pulls a later user back.
+        dict(id="info", needed=not has_iso and timing is None, done=info_sectors is not None,
+             label="Blank disc (info)",
+             detail=f"{info_sectors[0]:,} sectors available" if info_sectors else
+             ("no blank-disc count; use a blank disc" if info_run is not None else "not run yet")),
         dict(id="random_disc", done=timing is not None, label="Random-data disc",
              detail="measured" if timing else f"{random_iso} written; burn it" if has_iso else "not made yet"),
         dict(id="timing", done=timing_good, label="Drive check (timing)",
@@ -1197,7 +1227,7 @@ def guide_state(media: str = "dvd", out: str = "results", *, drives=None) -> dic
              detail=short(picture) if picture else "not made yet"),
         dict(id="burn", done=False, label="Burn it on a blank", detail="from the batch you measured")]
     current = next(s["id"] for s in steps if not s["done"] and s.get("needed", True))
-    action = {"packages": None, "drive": "info", "random_disc": "timing" if has_iso else "random",
+    action = {"packages": None, "drive": "info", "info": "info", "random_disc": "timing" if has_iso else "random",
               "timing": "timing", "geo": "geo", "photo_l": None, "picture_iso": "image", "burn": "burn"}[current]
     return dict(media=media, drives=[dict(id=d, name=d, disc=None) for d in drives], steps=steps,
                 current=current, next=dict(action=action, label=i18n.tr(next(s["label"] for s in steps if s["id"] == current)),
@@ -1265,25 +1295,7 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, dr
     drives = optical_drives() if drives is None else drives
     drive = f"--drive {drives[0]}" if drives else ("--drive /dev/sr0" if sys.platform == "linux" else "--drive E:")
 
-    info_runs = [r for r in results if r.kind == "info" and not r.simulated and r.media == media]
-    info_run = info_runs[0] if info_runs else None
-    info_sectors = None
-    for report_run in info_runs:
-        report = _load(os.path.join(report_run.path, "info.json")) or {}
-        track = _parsed(report, "track_1")
-        atip = _parsed(report, "atip")
-        disc = _parsed(report, "disc_information")
-        capacity = _parsed(report, "capacity")
-        profile = _parsed(report, "configuration").get("current_profile")
-        # A count off a disc that has been burned already can be larger than the blank's capacity.
-        # A CD's ATIP lead-out is fixed by the blank itself, so it stays a blank-disc count.  Some
-        # blank Blu-rays do not report track free blocks; an empty disc's capacity is the blank size.
-        if (track.get("blank") and track.get("free_blocks")) or \
-                (mmc.media_family(profile) == "cd" and atip.get("last_leadout_start_lba")) or \
-                (disc.get("disc_status") == "empty" and capacity.get("last_lba")):
-            info_sectors = sectors_from_info(report)
-            if info_sectors:
-                break
+    info_run, info_sectors = blank_info(results, media)
     timing = next((r for r in results if r.kind == "timing" and r.rotation() and not r.stopped), None)
     # A Blu-ray is read at a constant linear speed, so CLV is the good answer there, not CAV: the run
     # that counts is the one that finished, and its own verdict says whether the disc is usable.
