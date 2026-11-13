@@ -197,7 +197,7 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .toast { position: fixed; left: 50%; bottom: calc(var(--foot) + 16px); transform: translateX(-50%); z-index: 5; padding: 10px 16px; border-radius: 8px; background: var(--ink); color: var(--paper); font-size: 15px; opacity: 0; transition: opacity 200ms; pointer-events: none; }
 .toast.on { opacity: 1; }
 
-:root[data-motion="off"] .ws, :root[data-motion="off"] .dflyer, :root[data-motion="off"] .stage { transition: none; }
+:root[data-motion="off"] .ws, :root[data-motion="off"] .ws-title .dirty, :root[data-motion="off"] .dflyer, :root[data-motion="off"] .stage { transition: none; }
 
 /* Editor round 2: compact lists and canvas-owned tools; existing glass plane. */
 .ws .col { background:var(--sheet,var(--paper)); }

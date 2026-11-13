@@ -1,0 +1,126 @@
+﻿[
+    {
+        "file":  "test_along_track_stamp.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_burn_page.cjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_calchart.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_design_export.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_editor.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_editor_lamp.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_editor_materials.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_geo_progress.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_geo_unsteady.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_gui_handshake.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_gui_handshake_browser.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_kit_browser.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_kit_pure.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_lobby_state.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_lobby_weekday.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_motion_browser.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_pastworks.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_pastworks_browser.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_pastworks_works.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_perf2_processing.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_phone_page.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_photo_wire.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_photo_wire_browser.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_photocal.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_preset_geometry.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_presetio.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_presetio_browser.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_review_library_newwork.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_start_guide.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_template_download.mjs",
+        "exit_code":  0
+    },
+    {
+        "file":  "test_web_guidance.mjs",
+        "exit_code":  0
+    }
+]

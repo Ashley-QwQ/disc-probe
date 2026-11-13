@@ -92,14 +92,14 @@ const STR = {
       10: "显微镜下线条和棋盘格都清楚。",
       5: "线条能分开但带颗粒，棋盘格是临界失败。",
     },
-    precCost: (n) => `整盘 ${n} × ${n} 格，由后端导出。支持 20、10、5 µm；格子更小会多用内存和时间。`,
+    precCost: (n) => `整盘 ${n} × ${n} 格，由后端导出。10 / 5 µm：DVD 和 BD 沿轨、半径两个方向都更细；CD 沿轨最细约 80 µm，只有半径方向更细。格子更小会多用内存和时间。彩色材质需要成片的区域，单个 5 µm 小格看不出颜色。`,
     loupe: "放大镜", loupeHint: (c, f) => `1 格 = ${c} µm · 视野 ${f} mm`,
     sampleName: "示例：山和太阳",
     fit: "适应", hundred: "100%",
     grid: "刻录格子",
-    cellCost: (um, c) => um === 20 ? `默认。生成约 ${c.minutes} 分钟。` : `生成约 ${c.minutes} 分钟，要 ${c.gb} GB 左右内存。${um === 5 ? "显微镜下 5 µm 棋盘格是临界失败。" : ""}`,
+    cellCost: (um, c) => (um === 20 ? `默认。生成约 ${c.minutes} 分钟。` : `生成约 ${c.minutes} 分钟，要 ${c.gb} GB 左右内存。10 / 5 µm：DVD 和 BD 沿轨、半径两个方向都更细；CD 沿轨最细约 80 µm，只有半径方向更细。${um === 5 ? "显微镜下 5 µm 棋盘格是临界失败。" : ""}`) + "彩色材质需要成片的区域，单个 5 µm 小格看不出颜色。",
     coarse: (um) => `图片本身每像素约 ${um} µm，比格子粗：格子再细，图也不会更清楚。`,
-    limits: "随盘文件和音乐还不能一起刻。颜色、彩色图案和特效只是预览实验，默认按黑白刻。",
+    limits: "这一版网页还没有“随盘文件 / 音乐”这一步。黑白图本身能顺带存数据，已在一张盘上实测读回无误，但要用专门程序读出，还没接进网页。颜色、彩色图案和特效只是预览实验，默认按黑白刻。",
     cdLimit: "CD 只刻深浅两级，四级灰度和颜色都还不能刻。",
     lost: (names) => `这些图层没能读出来，已跳过：${names}。其余照原样打开；再保存就不带它们了。`,
     tooLarge: (n, mb) => `${n} 有 ${mb} MB，超过这一版能打开的 400 MB。`,
@@ -177,14 +177,14 @@ const STR = {
       10: "Lines and checkerboards both clear under the microscope.",
       5: "Lines separate but grainy; the checkerboard is a borderline fail.",
     },
-    precCost: (n) => `${n} × ${n} cells for the whole disc; the back end exports it. 20, 10 and 5 µm are supported; finer grids need more memory and time.`,
+    precCost: (n) => `${n} × ${n} cells for the whole disc; the back end exports it. At 10 / 5 µm, DVD and BD are finer both along the track and radially; CD stays about 80 µm along the track and is finer only radially. Finer grids need more memory and time. Coloured textures need broad areas: a single 5 µm cell cannot show colour.`,
     loupe: "Loupe", loupeHint: (c, f) => `1 cell = ${c} µm · ${f} mm across`,
     sampleName: "Sample: hills and sun",
     fit: "Fit", hundred: "100%",
     grid: "Burn grid",
-    cellCost: (um, c) => um === 20 ? `Default. Takes about ${c.minutes} min to make.` : `Takes about ${c.minutes} min and ${c.gb} GB of memory to make.${um === 5 ? " A 5 µm checkerboard is a borderline fail under the microscope." : ""}`,
+    cellCost: (um, c) => (um === 20 ? `Default. Takes about ${c.minutes} min to make.` : `Takes about ${c.minutes} min and ${c.gb} GB of memory to make. At 10 / 5 µm, DVD and BD are finer both along the track and radially; CD stays about 80 µm along the track and is finer only radially.${um === 5 ? " A 5 µm checkerboard is a borderline fail under the microscope." : ""}`) + " Coloured textures need broad areas: a single 5 µm cell cannot show colour.",
     coarse: (um) => `The picture itself has about ${um} µm per pixel, coarser than the grid: a finer grid won't make it sharper.`,
-    limits: "Files and music can't be burned with it yet. Colours, coloured patterns and effects are a preview experiment; they burn in black and white by default.",
+    limits: "This version of the page has no \"files / music\" step. A black-and-white picture can carry data itself; one disc read back without errors, but reading it needs our own program, which the page does not use yet. Colours, coloured patterns and effects are a preview experiment; they burn in black and white by default.",
     cdLimit: "A CD burns two levels, dark and light; four grey levels and colours can't be burned yet.",
     lost: (names) => `These layers couldn't be read and were left out: ${names}. The rest opened as saved; saving again drops them.`,
     tooLarge: (n, mb) => `${n} is ${mb} MB, more than the 400 MB this version can open.`,
@@ -1815,7 +1815,7 @@ function build() {
   document.head.append(css);
   const ws = document.createElement("div");
   ws.className = "ws";
-  ws.innerHTML = `<div class="ws-title"><b class="pname"></b><button class="sub" type="button"></button><span class="dirty" aria-hidden="true"></span>` +
+  ws.innerHTML = `<div class="ws-title"><svg class="work-bag" viewBox="0 0 20 24" width="16" height="20" style="flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.3" role="img" aria-label="作品存在往期作品里 / Saved in past works"><title>作品存在往期作品里 / Saved in past works</title><path d="M3 5h14v17H3zM3 5l3-3h8l3 3M7 9h6M7 12h6"/></svg><b class="pname"></b><button class="sub" type="button"></button><span class="dirty" aria-hidden="true"></span>` +
     `<span class="filebtns"><button class="sbtn" type="button" data-a="open"></button><button class="sbtn" type="button" data-a="save"></button></span></div>` +
     `<aside class="col col-l"></aside><aside class="col col-r"></aside>` +
     `<div class="cv"><canvas class="main"></canvas>` +
@@ -2072,12 +2072,13 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
     const r = W.cv.getBoundingClientRect();
     if (fly) flight(from, { x: r.left + V.cx, y: r.top + V.cy, d: 120 * V.s }, false);
   }, 30);
-  if (dropIn && !api.reduce) W.ws.animate([{ transform: "translateY(-40px)", opacity: 0 }, { transform: "none", opacity: 1 }],
-    { duration: 420, easing: "cubic-bezier(.2, .8, .2, 1)" });       // the next sheet comes down from above
+  const entrance = dropIn && !api.reduce ? W.ws.animate([{ transform: "translateY(-40px)", opacity: 0 }, { transform: "none", opacity: 1 }],
+    { duration: 420, easing: "cubic-bezier(.2, .8, .2, 1)" }) : null;       // the next sheet comes down from above
   if (file) importFiles([file]);
   if (projectFile) openProject(projectFile);
   if (fromWork) openProject(fromWork, null, S.work);
   if (pick) pickProject();
+  return entrance?.finished.catch(() => {});       // the opener keeps its desk until this sheet has arrived
 }
 // The library handed back a batch for this plan: switch its discs (the disc kind too, if it changed).
 export function useBatch(homeApi, plan, item, col) {
@@ -2121,11 +2122,18 @@ function hideDesign() {
   W.ws.classList.remove("on");
   W.loupe.classList.remove("on");
 }
+let previewOpening = false;
 async function toPreview() {
-  hideDesign();
+  if (previewOpening) return;
+  previewOpening = true;
+  try { await openPreview(); }
+  finally { previewOpening = false; }
+}
+async function openPreview() {
   const P = S, preview = await import("./preview.js");
   // the newest finished geo run, for a plan with no batch (named in the checklist, never used silently)
   const served = await fetch(`/api/state?media=${P.media}`).then((r) => r.ok ? r.json() : null).catch(() => null);
+  if (!isOn() || S !== P) return;
   const ctx = {
     media: P.media, item: P.item, alongTrackMeasured: false,
     project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection },
@@ -2169,6 +2177,13 @@ async function toPreview() {
     },
   };
   preview.start(api, ctx);
+  // Keep the design underneath until the new sheet is opaque, including its first module load.
+  const sheet = document.querySelector(".ws.pv");
+  if (sheet) {
+    getComputedStyle(sheet).opacity;
+    await Promise.all(sheet.getAnimations().map(a => a.finished.catch(() => {})));
+  }
+  if (root.dataset.mode === "preview" && S === P) hideDesign();
 }
 function mockBurn(onProgress) {
   const total = 40, t0 = performance.now();

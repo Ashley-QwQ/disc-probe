@@ -36,7 +36,7 @@ os.makedirs(OUTA, exist_ok=True)
 V = ["dark", "paper"]
 # the desk: the new-plan page's (art/newplan/render_newplan.py STYLE: desk tone, amb, pool gain / add), so that a
 # camera pan from that page lands on the same desk; DESK_FAR is its tone away from any pool (the page's ground)
-DESK = {"paper": ("#ddd6cb", 0.975, (0.075, 0.055, 0.02), (0.0, 0.0, 0.0)),
+DESK = {"paper": ("#ddd6cb", 0.82, (0.24, 0.19, 0.08), (0.0, 0.0, 0.0)),        # 2026-11-12: the spotlight shows on paper
         "dark": ("#1f2726", 0.9, (1.6, 1.4, 1.1), (0.035, 0.018, 0.004))}
 INK = {"paper": "#1d1b18", "dark": "#ecebe4"}
 SHADOW = {"dark": ("#050807", 0.42, 0.55), "paper": ("#3a2f22", 0.24, 0.34)}   # render_caltop.py VARIANT_STYLE

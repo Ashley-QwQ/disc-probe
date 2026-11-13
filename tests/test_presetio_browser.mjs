@@ -21,7 +21,7 @@ const html = `<!doctype html><html data-home="library" data-motion="off"><meta c
 <style>${style}</style><link rel="stylesheet" href="${new URL('presetio.css', home)}">
 <body><button id="entry">预设导入导出 / Presets</button><pre id="result" hidden>PENDING</pre>
 <script type="module">
-import {init} from '${new URL('presetio.js', home)}';
+import {init,open} from '${new URL('presetio.js', home)}';
 const art = ${JSON.stringify(metadata)};
 const params = new URL(location.href).searchParams;
 const root = document.documentElement;
@@ -44,6 +44,12 @@ const api=async(url,opts)=>{
   check(url==='/api/presets','only the existing API route');
   const p=opts?.body?JSON.parse(opts.body):null;calls.push(p);
   if(failExport&&p?.operation==='export')return{ok:false,status:400,json:async()=>({error:'Mock export failed'})};
+  if(p?.filename==='manual-dis-preset.json'){
+    const preset=JSON.parse(p.text), valid=(preset.sectors??preset.totalSectors)>0;
+    const entry={...row,preset,media:p.media,valid,image_compatible:valid,comparison:null,
+      issues:valid?[]:['sectors must be a positive integer <= 9223372036854775807']};
+    return {ok:true,json:async()=>({entries:[entry],written:valid&&p.operation==='import'?[{index:0,path:'presets/manual.json'}]:[],duplicates:[]})};
+  }
   const data=!p?{version:1,presets:[{path:'presets/cd.json',name:'CD · 保存的预设 / Saved preset'}]}:
     p.operation==='preview'?{entries:[row,{...row,index:1,valid:false,preset:{displayName:'无效参数 / Invalid values'},issues:['sectors must be positive'],issues_zh:['扇区数必须为正数'],comparison:null}]}:
     p.operation==='import'?{written:[{index:0,path:'presets/cd.json'}],duplicates:[]}:
@@ -124,32 +130,35 @@ try {
       root.dataset.motion='on';await flush();choose('export');
       let animations=sheet.getAnimations({subtree:true});check(animations.length>=6,'motion uses WAAPI');
       const animationFor=el=>animations.find(a=>a.effect.target===el);
-      near(animationFor(part('bag')).effect.getTiming().duration,520,'tray flight duration');
-      near(animationFor(part('bag')).effect.getTiming().delay,220,'tray starts after snap');
-      near(animationFor(part('doc_envelope')).effect.getTiming().delay,360,'document starts 140ms later');
-      near(animationFor(part('doc_envelope')).effect.getTiming().duration,760,'document flight duration');
-      near(animationFor($('#presetio-export')).effect.getTiming().delay,1120,'content waits for landing');
-      near(animationFor($('#presetio-export')).effect.getTiming().duration,180,'content fade duration');
-      check(animationFor($('[data-art=doc_envelope_shadow]')).effect.getKeyframes()[0].transform.includes('-18px'),'shadow lifted in flight');
+      near(animationFor(part('bag')).effect.getTiming().duration,360,'tray flight: 360 ms out');
+      near(animationFor(part('bag')).effect.getTiming().delay,0,'tray lifts as the lever moves');
+      near(animationFor(part('doc_envelope')).effect.getTiming().delay,360,'document waits until the tray paper is out');
+      near(animationFor(part('doc_envelope')).effect.getTiming().duration,440,'document flight: 440 ms in (800 ms in all)');
+      near(animationFor($('#presetio-export')).effect.getTiming().delay,720,'content waits for landing');
+      near(animationFor($('#presetio-export')).effect.getTiming().duration,160,'content fade duration');
+      check(animationFor($('[data-art=doc_envelope_shadow]')).effect.getKeyframes()[0].transform.includes('-26px'),'shadow lifted in flight');
+      check(animationFor(part('bag')).effect.getKeyframes()[1].transform.includes('scale(1.06)'),'the tray paper lifts (grows) before it flies');
       for(const a of animations){a.pause();a.currentTime=300}
-      check(y(part('bag'))>0,'tray moves before document');near(y(part('doc_envelope')),1440,'document still waiting');
+      check(y(part('bag'))>0,'tray moves before document');check(y(part('doc_envelope'))>1300,'document still waiting below the frame');
       check(Number(getComputedStyle($('[data-led=export]')).opacity)>0,'LED fades after knob arrives');
       let finished=0;for(const a of animations){const native=a.finish.bind(a);a.finish=()=>{finished++;native()}}
-      choose('import');check(finished===animations.length,'new request finishes every previous animation');
+      const beforeSwitch=Object.fromEntries(['bag','sheets','doc_envelope','doc_paper','knob'].map(name=>[name,getComputedStyle(part(name)).transform]));
+      choose('import');check(finished===0,'new request does not finish the previous flight');
+      for(const [name,transform] of Object.entries(beforeSwitch))check(getComputedStyle(part(name)).transform===transform,'interrupted flight continues from displayed '+name);
       animations=sheet.getAnimations({subtree:true});
       const outgoing=animations.find(a=>a.effect.target===part('doc_envelope'));
       const incoming=animations.find(a=>a.effect.target===part('doc_paper'));
       check(outgoing&&incoming&&incoming.effect.getTiming().delay>outgoing.effect.getTiming().delay+outgoing.effect.getTiming().duration,'cross-mode routes through idle');
-      near(animations.find(a=>a.effect.target===part('bag')).effect.getTiming().delay,780,'reverse document precedes returning bag');
-      check(outgoing.effect.getTiming().easing==='cubic-bezier(0.7, 0, 0.84, 0)','document reverses landing curve');
-      check(animations.find(a=>a.effect.target===part('bag')).effect.getTiming().easing==='cubic-bezier(0.2, 0.8, 0.45, 1)','source reverses acceleration curve');
+      near(animations.find(a=>a.effect.target===part('bag')).effect.getTiming().delay,420,'the document leaves before the bag returns');
+      check(outgoing.effect.getKeyframes()[1].transform.includes('scale(1.06)'),'the leaving document lifts first');
+      check(animations.find(a=>a.effect.target===part('bag')).effect.getKeyframes().at(-1).transform.includes('scale(1)'),'the returning bag lands back at rest');
       for(const a of animations)a.finish();await flush();endState('import');
       key('ArrowUp');for(const a of sheet.getAnimations({subtree:true}))a.finish();await flush();endState('idle');
       // The snap starts exactly where a small drag was released.
       pointer('pointerdown',300);pointer('pointermove',300+art.knob.travel_px*k*.2);pointer('pointerup',300);
       animations=sheet.getAnimations({subtree:true});near(new DOMMatrix(animations[0].effect.getKeyframes()[0].transform).m42,art.knob.travel_px*.2,'snap starts at release point');
       for(const a of animations)a.finish();await flush();endState('idle');
-      choose('export');reduce=true;preferenceChanged();endState('export');check(!sheet.getAnimations({subtree:true}).length,'reduced motion finishes flight');
+      choose('export');root.dataset.motion='off';await flush();endState('export');check(!sheet.getAnimations({subtree:true}).length,'motion turned off (the page setting, which follows the system on auto) finishes the flight');
       choose('import');endState('import');reduce=false;
       choose('export');root.dataset.motion='off';await flush();endState('export');check(!sheet.getAnimations({subtree:true}).length,'motion off finishes flight');
       key('ArrowDown');endState('idle');choose('import');endState('import');
@@ -176,6 +185,32 @@ try {
     check(calls.some(p=>p?.operation==='import'&&p.selected.join()==='0'),'only valid selected row imported');
     boxes[0].checked=false;boxes[0].dispatchEvent(new Event('change'));check($('[data-import]').disabled,'empty selection disabled');
     boxes[0].checked=true;boxes[0].dispatchEvent(new Event('change'));
+    // Entry options, the shared core preview/import path, field errors and stale-preview refusal.
+    ui.close();let imported=null,closed=0;
+    root.dataset.mode='newplan';
+    open(document.getElementById('entry'),{state:1,manual:true,media:'cd',onImported:r=>{imported=r},onClose:()=>closed++});
+    await waitFor(()=>!$('input[type=file]').disabled,'manual desk ready');endState('import');
+    check($('.presetio-manual').open&&$('[data-manual]').elements.media.value==='cd','manual opens on current kind');
+    const form=$('[data-manual]'), fields=form.elements;
+    const fill=(key,value)=>{fields.namedItem(key).value=value;fields.namedItem(key).dispatchEvent(new Event('input',{bubbles:true}))};
+    for(const [key,value] of Object.entries({displayName:'我的 CD',innerRadiusMm:'25',outerRadiusMm:'58',sectors:'-2',pitchLinear:'',pitchQuadratic:'',pitchCubic:''}))fill(key,value);
+    form.requestSubmit();await waitFor(()=>!fields.displayName.disabled,'invalid preview returns');
+    check($('[data-import]').disabled&&$('[data-error="sectors"]').textContent.includes('positive integer')&&fields.sectors.getAttribute('aria-invalid')==='true','core reason next to bad field');
+    fill('sectors','359849');form.requestSubmit();await waitFor(()=>!fields.displayName.disabled,'manual preview returns');
+    const payload=calls.filter(p=>p?.operation==='preview'&&p.filename==='manual-dis-preset.json').at(-1),p=JSON.parse(payload.text);
+    check(p.displayName==='我的 CD'&&p.description==='我的 CD'&&p.id.startsWith('user-custom-')&&p.innerRadiusMm===25&&p.outerRadiusMm===58&&p.sectors===359849&&!('totalSectors'in p)&&p.pitchLinear===0&&p.pitchQuadratic===0&&p.pitchCubic===0,'DIS standalone JSON and optional zero terms');
+    check(!$('[data-import]').disabled&&$('[data-rows] strong').textContent==='我的 CD','preview visible before importing');
+    $('[data-import]').click();await waitFor(()=>imported&&!fields.displayName.disabled,'manual import callback');
+    check(calls.some(p=>p?.operation==='import'&&p.text===payload.text&&p.media==='cd'),'import uses reviewed JSON');
+    fill('media','dvd');check($('[data-import]').disabled,'editing invalidates reviewed JSON');
+    fill('sectors','2295104');fill('pitchLinear','.001');form.requestSubmit();await waitFor(()=>!fields.displayName.disabled,'DVD preview');
+    const dvd=JSON.parse(calls.filter(p=>p?.operation==='preview'&&p.filename==='manual-dis-preset.json').at(-1).text);
+    check(dvd.totalSectors===2295104&&!('sectors'in dvd)&&dvd.pitchLinear===.001,'DVD DIS field names and pitch');
+    fill('media','cd');fill('sectors','9007199254740993');form.requestSubmit();await waitFor(()=>!fields.displayName.disabled,'64-bit count preview');
+    check(calls.filter(p=>p?.operation==='preview'&&p.filename==='manual-dis-preset.json').at(-1).text.includes('"sectors":9007199254740993'),'CD sector count reaches core without JS rounding');
+    sheet.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    check(sheet.hidden&&root.dataset.mode==='newplan'&&closed===1,'Esc restores originating page once');
+    open(document.getElementById('entry'),{state:-1});await waitFor(()=>!$('input[type=file]').disabled,'reopened for export');
     // Export from the envelope, including error recovery and the actual download contents.
     choose('export');check($('#presetio-export').contains($('.presetio-status')),'status follows the active document');
     $('[data-install]').click();await waitFor(()=>$('.presetio-status').textContent.includes('backup.bak')&&!$('[data-install]').disabled,'install backup feedback');

@@ -1,6 +1,6 @@
 """Burnable DVD image of a picture, placed with a measured geometry (u = r0/b, v = p/b).
 
-Every 16-byte group of every sector gets the picture's value at its position on the
+Every byte group of every sector gets the picture's value at its position on the
 disc: dark groups are recorded as one texture (A5), light ones as another. Positions
 come from the same model the `geo` ladder fits,
 
@@ -23,7 +23,7 @@ import re
 import numpy as np
 
 from . import dvd, iso9660
-from .calib import GROUP_BITS, GROUP_BYTES, SECTOR_BITS, sector_bits, theta
+from .calib import GROUP_BYTES, SECTOR_BITS, SECTOR_BITS_BD, sector_bits
 
 CELL_MM = 0.02
 HALF_MM = 60.0
@@ -37,6 +37,25 @@ CELL_SIDES = {20: 6000, 10: 12000, 5: 24000}
 def cell_mm(design) -> float:
     """The cell size of a design, from its side: the array always spans the 120 mm disc."""
     return 2 * HALF_MM / design.shape[0]
+
+
+def group_bytes(design, media: str = "dvd") -> int:
+    """Sampling step from this design's grid, never from the default CELL_MM.
+
+    20 um keeps the legacy 16 bytes on DVD and BD. A finer grid takes the
+    largest power-of-two step whose track length stays below half a cell:
+    DVD 2 bytes at 10 um (16 channel bits a byte, 4.27 um; a pair that straddles
+    a sync code spans 48 bits, each byte still within 3.2 um of the sample) and
+    1 byte at 5 um; BD 4 / 2 bytes (its sector's track in equal slices).
+    """
+    cell = cell_mm(design)
+    if cell > .010 + 1e-12:
+        return GROUP_BYTES
+    byte_mm = SECTOR_BITS_BD / dvd.SECTOR_BYTES * .0000745 if media == "bd" else 16 * .00013333
+    step = GROUP_BYTES
+    while step > 1 and step * byte_mm >= cell / 2:
+        step //= 2
+    return step
 
 
 def check_cells(design, cell_um: int | None = None) -> int:
@@ -256,8 +275,8 @@ def texture_bytes(spec: str, lbas: np.ndarray) -> np.ndarray:
 
 
 def _sample(design, u, v, bit_mm, lba0, count, correction=None, media="dvd"):
-    """Design value at every 16-byte group of the given sectors (False / 0 outside)."""
-    bits, group_bits = sector_bits(media)
+    """Design value at every grid-selected byte group (False / 0 outside)."""
+    bits, group_bits = sector_bits(media, group_bytes(design, media))
     lbas = np.arange(lba0, lba0 + count)
     n = lbas[:, None].astype(np.float64) * bits + group_bits[None, :]
     s = np.sqrt(u * u + v * n / math.pi)
@@ -267,7 +286,7 @@ def _sample(design, u, v, bit_mm, lba0, count, correction=None, media="dvd"):
         # A byte at model angle th shows up at th + phi(r): give it the design there.
         th = th + np.radians(correction(r))
     size = design.shape[0]
-    cell = 2 * HALF_MM / size
+    cell = cell_mm(design)
     ix = np.floor((r * np.cos(th) + HALF_MM) / cell).astype(np.int64)
     iy = np.floor((HALF_MM - r * np.sin(th)) / cell).astype(np.int64)
     ok = (ix >= 0) & (ix < size) & (iy >= 0) & (iy < size)
@@ -285,16 +304,19 @@ def _textures(design: np.ndarray, dark: str, light: str, textures):
 
 def _sector_q(design, texs, u, v, bit_mm, lba0, count, correction, media="dvd"):
     lbas = np.arange(lba0, lba0 + count)
+    step = group_bytes(design, media)
     samples = _sample(design, u, v, bit_mm, lba0, count, correction, media)
     if all(len(t) == 2 for t in texs):
         # A single-byte texture has no phase: gather once per group, then
         # expand bytes, rather than expanding int64 labels and texture stacks.
         palette = np.array([bytes.fromhex(t)[0] for t in texs], dtype=np.uint8)
-        indices = samples.astype(np.uint8) if samples.dtype == bool else samples.astype(np.int64, copy=False)
+        indices = samples.astype(np.uint8) if samples.dtype == bool else samples
         groups = palette[indices]
-        return np.broadcast_to(groups[:, :, None], (*groups.shape, GROUP_BYTES)).copy().reshape(count, dvd.SECTOR_BYTES)
+        if step == 1:
+            return groups
+        return np.broadcast_to(groups[:, :, None], (*groups.shape, step)).copy().reshape(count, dvd.SECTOR_BYTES)
     labels = np.repeat(samples.astype(np.int64),
-                       GROUP_BYTES, axis=1)
+                       step, axis=1)
     stack = np.stack([texture_bytes(t, lbas) for t in texs])
     return np.take_along_axis(stack, labels[None], 0)[0]
 
@@ -424,7 +446,10 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     job = {"design": design, "texs": texs, "u": u, "v": v, "bit_mm": bit_nm * 1e-6, "correction": correction,
            "media": media, "lead_lba": lead_lba}
-    spans = [(a, min(CHUNK, total_sectors - a)) for a in range(first_lba, total_sectors, CHUNK)]
+    # Bound coordinate/label arrays to the old number of sample points per
+    # chunk, even at per-byte resolution (DVD: 128 sectors at 10/5 um).
+    chunk = max(1, CHUNK * group_bytes(design, media) // GROUP_BYTES)
+    spans = [(a, min(chunk, total_sectors - a)) for a in range(first_lba, total_sectors, chunk)]
     next_report, count, written = 0.0, total_sectors - first_lba, 0
     for a, n in _write_chunks(path, job, spans, first_lba):
         written += n
@@ -435,7 +460,8 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
         iso9660.add(path, total_sectors, "DISCPROBE_IMAGE", identity)
     spec = {"kind": "dvd-picture", "media": media, "u": u, "v": v, "bit_nm": bit_nm,
             "total_sectors": total_sectors,
-            "first_lba": first_lba, "lead_lba": lead_lba, "textures": texs, "cell_mm": cell_mm(design), **(meta or {})}
+            "first_lba": first_lba, "lead_lba": lead_lba, "textures": texs, "cell_mm": cell_mm(design),
+            "group_bytes": group_bytes(design, media), **(meta or {})}
     spec['capacity_words'] = dict(image_length_sectors=total_sectors - first_lba,
                                    mapping_end_lba_exclusive=total_sectors,
                                    geometric_total_sectors=None, blank_writable_sectors=None,

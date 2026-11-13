@@ -2353,7 +2353,10 @@ def _build_parser():
     sp.add_argument("--design-npy", help="prepared boolean design (True = dark), data-side view, spanning the 120 mm disc: "
                     "6000 x 6000 (20 um cells), 12000 x 12000 (10 um) or 24000 x 24000 (5 um)")
     sp.add_argument("--cell-um", type=int, choices=(20, 10, 5), help="cell size of the drawing in um "
-                    "(default 20; 10 and 5 are finer). With --design-npy it must match the array, which sets it anyway")
+                    "(default 20). At 10 / 5 um, DVD and BD are finer both along the track and radially; "
+                    "CD stays about 80 um along the track and is finer only radially. "
+                    "Coloured textures need broad areas: a single 5 um cell cannot show colour. "
+                    "With --design-npy it must match the array, which sets it anyway")
     sp.add_argument("--diameter-mm", type=float, default=116.0, help="the picture's longer side on the disc, in mm; it keeps its shape")
     sp.add_argument("--r-max", type=float, default=56.0, help="outer radius of the drawing")
     sp.add_argument("--start-lba", type=int, default=0,

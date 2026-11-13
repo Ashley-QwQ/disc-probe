@@ -1,0 +1,242 @@
+{
+  "grid": "caltop.json pixels (top-left of the stage image, y down); sprite boxes [x0, y0, x1, y1] in that grid",
+  "image_size": [
+    1249,
+    1400
+  ],
+  "px_per_mm": 5.12246,
+  "sprites": {
+    "discstart": {
+      "box": [
+        0,
+        0,
+        1249,
+        1400
+      ]
+    },
+    "under": {
+      "box": [
+        0,
+        0,
+        1249,
+        1400
+      ]
+    },
+    "overbody": {
+      "box": [
+        0,
+        0,
+        1249,
+        1400
+      ]
+    },
+    "overclamp": {
+      "box": [
+        0,
+        0,
+        1249,
+        1400
+      ]
+    },
+    "shadowbody": {
+      "box": [
+        0,
+        0,
+        1249,
+        1400
+      ]
+    },
+    "trayin": {
+      "box": [
+        81,
+        901,
+        1315,
+        2420
+      ]
+    },
+    "tray": {
+      "box": [
+        81,
+        901,
+        1315,
+        2420
+      ]
+    },
+    "trayshadow": {
+      "box": [
+        81,
+        901,
+        1315,
+        2420
+      ]
+    },
+    "prop_pen": {
+      "box": [
+        -32,
+        2011,
+        426,
+        2774
+      ]
+    },
+    "prop_pen_shadow": {
+      "box": [
+        -32,
+        2011,
+        426,
+        2774
+      ]
+    },
+    "prop_square": {
+      "box": [
+        1108,
+        2000,
+        1703,
+        2757
+      ]
+    },
+    "prop_square_shadow": {
+      "box": [
+        1108,
+        2000,
+        1703,
+        2757
+      ]
+    },
+    "prop_penrose": {
+      "box": [
+        -75,
+        696,
+        317,
+        1053
+      ]
+    },
+    "prop_penrose_shadow": {
+      "box": [
+        -75,
+        696,
+        317,
+        1053
+      ]
+    }
+  },
+  "variants": [
+    "dark",
+    "paper"
+  ],
+  "tray": {
+    "travel_mm": 200.0,
+    "travel_px": [
+      0.0,
+      -1024.49255
+    ],
+    "note": "tray / trayshadow are rendered OPEN; add travel_px * t (t 0 open .. 1 closed) to close"
+  },
+  "disc": {
+    "clamped_px": [
+      800.2,
+      397.52
+    ],
+    "recess_closed_px": [
+      800.2,
+      405.07
+    ],
+    "recess_open_px": [
+      800.2,
+      1429.57
+    ],
+    "start_px": [
+      800.2,
+      2530.89
+    ],
+    "radius_px": 307.35,
+    "note": "start: lying on the desk; recess_open: in the open tray; recess_closed then clamped: the stage"
+  },
+  "shadow": {
+    "offset_mm": [
+      -40.0,
+      -22.0
+    ],
+    "blur_mm": 11.0,
+    "per_mm_height": [
+      -0.5609,
+      -0.3085
+    ],
+    "drive_height_mm": 71.32,
+    "note": "an object h mm above the desk throws its shadow per_mm_height * h mm away (props: h = their height)"
+  },
+  "pool": {
+    "centre_px": [
+      912.89,
+      254.09
+    ],
+    "sigma_px": 717.14,
+    "style": {
+      "dark": {
+        "amb": [
+          0.8,
+          0.8,
+          0.8
+        ],
+        "gain": [
+          2.0,
+          1.75,
+          1.35
+        ],
+        "add": [
+          0.05,
+          0.028,
+          0.006
+        ],
+        "vert_w": 0.55
+      },
+      "paper": {
+        "amb": [
+          0.82,
+          0.82,
+          0.82
+        ],
+        "gain": [
+          0.24,
+          0.19,
+          0.08
+        ],
+        "add": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "vert_w": 0.5
+      }
+    },
+    "note": "moving parts come in two lightings: discstart (at start_px) / stage disc (clamped), tray (open) / trayin (closed); crossfade by the pool strength f = exp(-d^2 / 2 sigma^2) at their place"
+  },
+  "props": [
+    {
+      "name": "pen",
+      "height_mm": 13.0,
+      "at_mm_from_start": [
+        -112.0,
+        30.0
+      ],
+      "rot_deg": 64.0
+    },
+    {
+      "name": "square",
+      "height_mm": 2.2,
+      "at_mm_from_start": [
+        112.0,
+        18.0
+      ],
+      "rot_deg": -17.0
+    },
+    {
+      "name": "penrose",
+      "height_mm": 6.0,
+      "at_mm_from_start": [
+        -133.3,
+        325.67
+      ],
+      "rot_deg": 6.0
+    }
+  ]
+}

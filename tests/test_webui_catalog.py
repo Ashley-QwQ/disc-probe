@@ -33,6 +33,28 @@ def test_empty_and_presets():
         assert rows['dvd'][0]['left'] is None
 
 
+def test_dis_import_status_is_geometry_not_a_measurement(tmp_path):
+    from discprobe import presets
+    for media in ('cd', 'dvd'):
+        preset = dict(id=media, displayName=media.upper(), description='From DIS',
+                      innerRadiusMm=25, outerRadiusMm=58,
+                      **({'sectors': 359849} if media == 'cd' else {'totalSectors': 2295104}))
+        presets.import_file(json.dumps(preset), 'manual-dis-preset.json', tmp_path / 'presets', media=media)
+        row = catalog.catalogue(tmp_path, tmp_path / 'results')[media][0]
+        assert row['s'] == 'imported'
+        assert row['imported'] and row['image_compatible'] and row['geo']
+        assert row['last'] is None and row['drive'] is None
+        saved = json.loads((tmp_path / row['geo']).read_text())
+        assert saved['fit']['calibrated'] is False
+        assert saved['source']['along_track_frames'] is None
+    # Unknown future fields keep an otherwise valid preset archive-only.
+    preset.update(id='archive', futureField=True)
+    presets.import_file(json.dumps(preset), 'archive.json', tmp_path / 'presets', media='dvd')
+    archive = next(row for row in catalog.catalogue(tmp_path, tmp_path / 'results')['dvd'] if row['id'] == 'preset:archive')
+    assert archive['s'] == 'unknown' and archive['imported']
+    assert not archive['image_compatible'] and archive['geo'] is None
+
+
 def test_results_identity_verdict_and_counter():
     with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as tmp:
         root=Path(tmp)

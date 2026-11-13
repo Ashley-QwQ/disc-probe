@@ -94,9 +94,9 @@
 :root[data-motion="off"] :is(.kit-flip-current, .kit-flip-previous) { animation: none !important; }
 :root[data-motion="off"] .kit-flip-previous { display: none; }
 @media (prefers-reduced-motion: reduce) {
-  .kit-slide-knob, .kit-ring-meter { animation: none !important; transition: none !important; }
-  .kit-flip-current, .kit-flip-previous { animation: none !important; }
-  .kit-flip-previous { display: none; }
+  :root:not([data-motion]) :is(.kit-slide-knob, .kit-ring-meter) { animation: none !important; transition: none !important; }
+  :root:not([data-motion]) :is(.kit-flip-current, .kit-flip-previous) { animation: none !important; }
+  :root:not([data-motion]) .kit-flip-previous { display: none; }
 }
 @media (pointer: coarse) {
   .kit-status-event { flex-basis: 44px; }

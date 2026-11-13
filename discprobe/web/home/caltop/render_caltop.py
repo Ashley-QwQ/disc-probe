@@ -97,7 +97,8 @@ VARIANT_STYLE = {
 # is up and to the right: the pool sits right of and behind the disc centre, the shadows fall lower left.
 POOL_STYLE = {
     "dark": dict(amb=(0.8, 0.8, 0.8), gain=(2.0, 1.75, 1.35), add=(0.05, 0.028, 0.006), vert_w=0.55),
-    "paper": dict(amb=(0.975, 0.975, 0.975), gain=(0.10, 0.07, 0.025), add=(0.0, 0.0, 0.0), vert_w=0.5),
+    # paper: a dimmer room so the spot shows (near-white times a small gain only clips): 2026-11-12
+    "paper": dict(amb=(0.82, 0.82, 0.82), gain=(0.24, 0.19, 0.08), add=(0.0, 0.0, 0.0), vert_w=0.5),
 }
 CUR_POOL = None                          # set per variant before materials are built; None = no pool
 POOL_C = None                            # pool centre (x, y) in metres; the animation shifts it for moving parts

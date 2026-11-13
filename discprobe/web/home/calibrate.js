@@ -304,6 +304,7 @@ function build() {
   ui = { plateEl: plate, canvas: plate.querySelector("canvas"), flyerEl: flyer, warnEl: warn, ledEl: led,
     parcelEl: parcel, parcelCanvas: parcel.querySelector("canvas") };
   Object.assign(flow, ui);
+  addEventListener("resize", () => { if (flyer.dataset.x) placeFlyer(flyer); });
   noise();
 
   $("back").addEventListener("click", back);
@@ -318,6 +319,14 @@ function build() {
 
 let st = null;                             // the stage (calstage.js), live pages only
 let discWentIn = false;                    // the "disc goes into the drive" animation played on this visit
+let pendingNext = null;
+function nextWords(text) {
+  pendingNext = text;
+  if (!document.documentElement.classList.contains("pan-in")) $("next-text").textContent = text;
+}
+export function arrived() {
+  if (isCal() && pendingNext !== null) $("next-text").textContent = pendingNext;
+}
 function open() {
   document.documentElement.dataset.mode = "cal";
   // the disc goes in once on a visit, when the drive is seen to hold it; a job running or a result on the
@@ -362,14 +371,20 @@ function release() {
 
 let leaving = false;
 function leave() {
+  if (leaving) return;                         // the opener already owns the return pan/card hand-off
   // a disc that was in the air goes back to waiting; detection starts over next time
   if (!flow.job && ["detecting", "identify", "flying", "hover", "falling", "checking"].includes(flow.disc)) flow.disc = "detect";
   if (!flow.job && flow.disc === "remove") flow.disc = "detect";
   if (returnTo && returnAnim && !api.reduce) {          // the opener takes the camera back first, then the page closes
-    if (leaving) return;
     leaving = true;
     const anim = returnAnim; returnAnim = null;
-    anim(() => { release(); giveBack(flow.realPhase === "saved"); }).finally(() => { leaving = false; });
+    anim(() => { release(); giveBack(flow.realPhase === "saved"); }, async (signal) => {
+      if (!st || !discWentIn) return;
+      st.hold(true);
+      try { await loadDisc.play(st.art(), { reverse: true, signal }); }
+      catch (e) { console.error("reverse disc animation", e); }
+      finally { if (!leaving) st.hold(false); }
+    }).finally(() => { leaving = false; });
     return;
   }
   release();
@@ -412,6 +427,11 @@ async function detect() {
   await liftOut();
 }
 
+// Percent positions belong to the camera's box; convert only at a target change or resize.
+function placeFlyer(f, x = f.dataset.x, y = f.dataset.y) {
+  f.dataset.x = x; f.dataset.y = y;
+  f.style.transform = `translate(${parseFloat(x) / 100 * api.cam.clientWidth}px, ${parseFloat(y) / 100 * api.cam.clientHeight}px) translate(-50%, -50%)`;
+}
 async function liftOut() {
   // the tray opens with the disc; the disc rises above it with an arrow pointing up
   const fl = flow;
@@ -422,13 +442,13 @@ async function liftOut() {
   f.querySelector(".print textPath").textContent = "DVD-R · 4.7 GB";
   const [tx, ty] = pct(...trayPoint());
   f.style.transition = "none";
-  f.style.left = tx; f.style.top = ty;
+  placeFlyer(f, tx, ty);
   f.classList.add("on", "up");
   api.placeDisc(false);
   void f.offsetWidth;
   f.style.transition = "";
   const [hx, hy] = pct(...hoverPoint());
-  f.style.left = hx; f.style.top = hy;
+  placeFlyer(f, hx, hy);
   await wait(1400);
   if (stale(fl)) return;
   f.classList.add("hover");
@@ -437,7 +457,7 @@ async function liftOut() {
 async function takenOut() {
   const f = flow.flyerEl;
   f.classList.remove("hover");
-  f.style.top = "-30%";                      // gone, up and away
+  placeFlyer(f, f.dataset.x, "-30%");         // gone, up and away
   const fl = flow;
   await wait(1300);
   f.classList.remove("on", "up");
@@ -454,11 +474,11 @@ async function flyIn() {
   f.classList.remove("up");
   const [x, y] = pct(...hoverPoint());
   f.style.transition = "none";
-  f.style.left = x; f.style.top = "-30%";
+  placeFlyer(f, x, "-30%");
   f.classList.add("on");
   void f.offsetWidth;
   f.style.transition = "";
-  f.style.top = y;
+  placeFlyer(f, x, y);
   await wait(1400);
   if (flow.disc !== "flying") return;
   flow.disc = "hover";
@@ -470,7 +490,7 @@ async function dropIn(wrong = false) {
   f.classList.remove("hover");
   const [x, y] = pct(...trayPoint());
   f.classList.add("drop");
-  f.style.left = x; f.style.top = y;
+  placeFlyer(f, x, y);
   flow.disc = "falling";
   paint();
   await wait(950);
@@ -892,7 +912,7 @@ function paint() {
   const alertNote = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]');
   if (alertNote && alertNote.textContent !== before) alertNote.classList.add("flash");
   const nb = $("next");
-  $("next-text").textContent = nextText;
+  nextWords(nextText);
   nb.disabled = !nextOn;
 
   nextKit(hold, !nextOn, flow.job?.kind === "gen");
@@ -1069,7 +1089,7 @@ function realPaint() {
   $("cal").classList.toggle("floor-titled", !!flow.job && !st);     // with the stage, the title stays on the paper
   // The burn step requires the kit slider; all other steps use Next.
   const hold = phase === "burn" && !cdHere();
-  $("next-text").textContent = button; $("next").disabled = disabled; nextKit(hold, disabled, phase === "random" && !!flow.job);
+  nextWords(button); $("next").disabled = disabled; nextKit(hold, disabled, phase === "random" && !!flow.job);
   // why it is grey, beside it: running, waiting for an answer, a problem to put right, a box to tick
   api.nextWhy?.(flow.error ? liveText('先处理上面的问题', 'Put the problem above right first')
     : flow.ask ? liveText('先回答上面的问题', 'Answer the question above first')
@@ -1478,7 +1498,7 @@ function soFar(points) {
 }
 // ---------------------------------------------------------------- the stage: what the disc shows now
 function paintStage() {
-  if (!st || !flow || api.backend.mock) return;
+  if (!st || !flow || api.backend.mock || leaving) return;
   const phase = flow.realPhase, d = flow.detected, job = flow.job, p = Math.max(0, Math.min(1, job?.p ?? 0));
   const disc = (phase === "inspect" && !d) || d?.present === false ? "none" : d?.blank === true ? "blank" : "in";
   let read = null, head = null, band = null;
@@ -1497,7 +1517,7 @@ function paintStage() {
   // the moment the drive holds a disc on this visit: it goes in, seen from above (loaddisc.js); then the stage
   if (disc !== "none" && !discWentIn) {
     discWentIn = true; st.hold(true);
-    loadDisc.play(st.art()).catch((e) => console.error("disc animation", e)).finally(() => st.hold(false));
+    loadDisc.play(st.art()).catch((e) => console.error("disc animation", e)).finally(() => { if (!leaving) st.hold(false); });
   }
   // the browser tab says it too, so a person in another tab sees it going ("62% · 测几何")
   document.title = job ? `${Math.round(p * 100)}% · ${$("job-name").textContent}` : "disc-probe";

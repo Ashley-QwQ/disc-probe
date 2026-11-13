@@ -11,8 +11,7 @@ export function node(doc, tag, className, text) {
 
 export function motionOff(el) {
   const doc = el.ownerDocument;
-  return doc.documentElement.dataset.motion === 'off' ||
-    !!doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  return doc.documentElement.dataset.motion === 'off';
 }
 
 // Authored line drawings, in a 24 px viewBox; styling lives in kit.css.

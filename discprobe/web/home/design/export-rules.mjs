@@ -14,10 +14,12 @@ export const DEFAULT_CELL_UM = 20;
 // photos (one turned 30°, one at 60 % opacity) and a pattern ring, `compose` + `image` for a full DVD.
 //   20 µm: 25 s + 60 s, peak 0.55 GB   10 µm: 82 s + 53 s, peak 1.2 GB   5 µm: 277 s + 88 s, peak 4.4 GB
 // (the peak is `image` loading the whole label array and copying it). Rounded up, so the page never promises less.
+// Image recheck 2026-11-13 (finer along the track: DVD 2-byte steps at 10 µm, 1 byte at 5 µm): 24 / 89 / 167–209 s
+// at 20 / 10 / 5 µm; peaks 0.58 / 1.27 / 4.67 GB. Busy shared machine, so rounded up generously.
 export const COST = {
   20: { minutes: 2, gb: 1 },
   10: { minutes: 4, gb: 2 },
-  5: { minutes: 8, gb: 5 },
+  5: { minutes: 10, gb: 5 },
 };
 
 const good = (x) => ["good", "usable"].includes(x?.s) || x?.image_compatible === true;
