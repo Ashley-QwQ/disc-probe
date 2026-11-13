@@ -1398,9 +1398,15 @@ def _results(c) -> None:
         with contextlib.redirect_stdout(io.StringIO()) as printed:
             main(["results", "geo", "--latest", "--out", d])
         c.check(printed.getvalue().strip() == cd_run, "results --latest prints the newest complete real folder")
-    report = {"track_1": {"parsed": {"blank": True, "track_start": 0, "free_blocks": 2298496}},
+    report = {"configuration": {"parsed": {"current_profile": 0x11}},
+              "track_1": {"parsed": {"blank": True, "track_start": 0, "free_blocks": 2298496}},
               "atip": {"parsed": {"last_leadout_start_lba": 359849}}, "capacity": {"parsed": {"last_lba": 100}}}
     c.check(guide.sectors_from_info(report)[0] == 2298496, "--sectors from a blank DVD's free space")
+    cd_blank = {"configuration": {"parsed": {"current_profile": 0x09}},
+                "track_1": {"parsed": {"blank": True, "track_start": 0, "free_blocks": 359847}},
+                "atip": {"parsed": {"last_leadout_start_lba": 359849}}}
+    c.check(guide.sectors_from_info(cd_blank)[0] == 359849, "a blank CD uses the ATIP count, matching a burned CD")
+    c.check("same count" in guide.sectors_from_info(cd_blank)[1], "the CD count says it does not change when burned")
     del report["track_1"]
     c.check(guide.sectors_from_info(report)[0] == 359849, "--sectors from a CD's ATIP")
     c.check("closer count" in guide.sectors_from_info(report)[1], "the ATIP count says a blank disc gives a closer one")
