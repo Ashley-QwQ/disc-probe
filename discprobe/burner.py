@@ -434,13 +434,25 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
             raise BurnError(str(exc)) from exc
         discid.notice()
     log_path = Path(str(image) + ".burn.jsonl")
+    # Capture the generated geometry's evidence once. Re-burning this ISO never
+    # consults a newer photo.json or changes its sector map.
+    photo_l = None
+    for suffix in (".image.json", ".rings.json"):
+        try:
+            photo_l = json.loads(image.with_suffix(suffix).read_text(encoding="utf-8")).get("photo_l")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if photo_l is not None:
+            break
     # Open the durable log before any write. Append to preserve earlier burns of this image.
     def record(kind, **fields):
         stamp = time.time()
         with log_path.open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(dict(type=kind, time=stamp, drive=drive, media=media,
-                                         image=str(image), **fields), ensure_ascii=False, allow_nan=False) + "\n")
-        ui.event(kind, time=stamp, **dict(fields, log_path=str(log_path)))
+                                         image=str(image), **({"photo_l": photo_l} if photo_l is not None else {}),
+                                         **fields), ensure_ascii=False, allow_nan=False) + "\n")
+        ui.event(kind, time=stamp, **dict(fields, log_path=str(log_path),
+                                       **({"photo_l": photo_l} if photo_l is not None else {})))
     record("burn_speed", requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=None)
     if identity:
         record("disc_identity", id=identity["body"]["id"], identity=identity)

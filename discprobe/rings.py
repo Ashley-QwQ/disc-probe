@@ -80,17 +80,25 @@ class RingLayout:
 
     def save(self, path: str) -> None:
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(asdict(self), f, indent=2)
+            data = asdict(self)
+            if hasattr(self, "photo_l"):
+                data["photo_l"] = self.photo_l
+            json.dump(data, f, indent=2)
 
     @classmethod
     def load(cls, path: str) -> "RingLayout":
         with open(path, encoding="utf-8") as f:
             d = json.load(f)
         d["textures"] = tuple(d["textures"])
+        decision = d.pop("photo_l", None)
         if d.get("kind") == "cd-texture-rings":
             from .cdrings import RingLayout as CdRingLayout
-            return CdRingLayout(**d)
-        return cls(**d)
+            layout = CdRingLayout(**d)
+        else:
+            layout = cls(**d)
+        if decision is not None:
+            layout.photo_l = decision
+        return layout
 
 
 def _q(texture: str) -> int | None:

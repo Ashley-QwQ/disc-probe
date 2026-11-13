@@ -16,6 +16,7 @@ from urllib.parse import unquote
 from . import ui
 
 READER_SHA256 = "d6375faed8fe489e01854dc09afcbaf057d7042968c5157f5ae56dc8ed4a9f6f"
+PHOTO_L_POLICY = "two-poses-v1"
 PHOTO_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/heic": "heic", "image/webp": "webp"}
 REASONS = {
     "ok": "The photo passed the reader's checks.",
@@ -54,6 +55,7 @@ def add_parser(sub):
     sp.add_argument("--burner", help="specific burner identity used for this target (unknown if omitted)")
     sp.add_argument("--burn-path", help="target burn program/path, e.g. DIS or IMAPI (never inferred)")
     sp.add_argument("--burn-mode", help="target burn mode, including sector layout/interleave (never inferred)")
+    sp.add_argument("--disc-id", help="physical target disc identifier shared by these photos")
     sp.set_defaults(func=run)
 
 
@@ -73,8 +75,8 @@ def drive_identity(geo, folder):
                 machine=socket.gethostname())
 
 
-def photo_shift(geo_summary, photo_path=None, *, device_id=None):
-    """One provenance gate shared by web and CLI exports. Refusals retain no L.
+def photo_l(geo_summary, photo_path=None, *, device_id=None, media=None, frozen=None):
+    """The application gate for picture ISOs and presets. Refusals retain no L.
 
     No batch/MID participates in the drive comparison. Missing burn details stay
     unknown, scoped to this exact run; they are never guessed from its read method.
@@ -85,19 +87,55 @@ def photo_shift(geo_summary, photo_path=None, *, device_id=None):
     path = Path(photo_path).resolve() if photo_path else summary.parent / "photo.json"
     def refused(reason):
         return dict(written=False, reason=reason)
-    if not path.is_file():
-        return refused("no_photo")
     try:
-        record = json.loads(path.read_text(encoding="utf-8"))
         raw = summary.read_bytes()
         geo = json.loads(raw)
+        fit = geo.get("fit") or {}
+        wanted = media or fit.get("media", "dvd")
+        if wanted not in ("cd", "dvd") or fit.get("media") == "bd":
+            return refused("unsupported_media: photo L supports CD and DVD only")
+        if fit.get("model") == "clv":
+            return refused("unsupported_model: CLV has no calibrated angle map")
+        if frozen is None and not path.is_file():
+            return refused("no_photo")
+        if frozen is not None:
+            if not isinstance(frozen, dict) or frozen.get("written") is not True:
+                return refused("invalid_saved_photo_L")
+            provenance = frozen["provenance"]
+            digest = hashlib.sha256(json.dumps(provenance, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+            if (digest != frozen.get("provenance_sha256") or provenance.get("policy") != PHOTO_L_POLICY
+                    or provenance.get("L_mm") != frozen.get("L_mm")):
+                return refused("invalid_saved_photo_L")
+            path = Path(provenance["photo_json"]).resolve()
+            record = dict(path=str(Path(provenance["geo_summary"]).parent), media=provenance["media"],
+                          verdict=provenance["verdict"], offset_mm=provenance["L_mm"],
+                          L_frames=frozen.get("frames"), photos=provenance["photos"],
+                          reader_version=provenance["reader_version"], reader_sha256=provenance["reader_sha256"],
+                          disc_id=provenance["disc_id"], burn_path=provenance["burn_path"],
+                          source_geo=dict(run_id=provenance["geo_run_id"], sha256=provenance["geo_sha256"],
+                                          drive_identity=provenance["drive_identity"]))
+            photo_hash = provenance["photo_sha256"]
+        else:
+            photo_raw = path.read_bytes()
+            record = json.loads(photo_raw)
+            photo_hash = hashlib.sha256(photo_raw).hexdigest()
         if not isinstance(record, dict):
             return refused("invalid_photo")
+        if record.get("media") != wanted or fit.get("media", "dvd") != wanted:
+            return refused("different_media")
         if record.get("verdict") != "ok":
             return refused("verdict_not_ok")
-        frames = record.get("L_frames")
-        if type(frames) not in (int, float) or not math.isfinite(frames):
+        if record.get("group", {}).get("status") not in (None, "ok"):
+            return refused("verdict_not_ok")
+        offset = record.get("offset_mm")
+        if not _finite(offset):
             return refused("missing_L")
+        if wanted == "cd":
+            from .pcal import CD_FRAME_MM
+            if not _finite(record.get("L_frames")):
+                return refused("missing_L")
+            if not math.isclose(record["L_frames"] * CD_FRAME_MM, offset, abs_tol=1e-9):
+                return refused("inconsistent_L")
         source = record.get("source_geo") or {}
         run = source.get("run_id")
         # The original contract's path is the photo run, not just its basename.
@@ -117,20 +155,136 @@ def photo_shift(geo_summary, photo_path=None, *, device_id=None):
             return refused("different_drive")
         if source.get("sha256") != hashlib.sha256(raw).hexdigest():
             return refused("different_run")
-        if record.get("media") != "cd" or geo.get("fit", {}).get("media") != "cd":
-            return refused("not_cd")
+        burn = record.get("burn_path") or {}
+        if not all(isinstance(burn.get(k), str) and burn[k].strip() for k in ("burner", "path", "mode")):
+            return refused("unknown_burn_path")
+        if not isinstance(record.get("disc_id"), str) or not record["disc_id"].strip():
+            return refused("unknown_disc")
+        for shot in record.get("photos", []):
+            if shot.get("status") == "ok":
+                if not shot.get("disc_id"):
+                    return refused("unknown_disc")
+                if shot["disc_id"] != record["disc_id"]:
+                    return refused("different_disc")
+        agreement = photo_agreement(record.get("photos", []))
+        if not agreement["written"]:
+            return agreement
+        if not math.isclose(offset, agreement["L_mm"], abs_tol=1e-9):
+            return refused("inconsistent_L")
         provenance = dict(geo_run_id=summary.parent.name, geo_summary=str(summary),
                           geo_sha256=source["sha256"], photo_json=str(path),
-                          drive_identity=current, burn_path=record.get("burn_path") or
-                          dict(burner=None, path=None, mode=None), verdict="ok",
-                          photo_ids=[p["id"] for p in record.get("per_photo", []) if p.get("id")],
+                          photo_sha256=photo_hash, media=wanted,
+                          reader_version=record.get("reader_version", "v1"),
+                          reader_sha256=record.get("reader_sha256"), policy=PHOTO_L_POLICY, L_mm=offset,
+                          disc_id=record["disc_id"], drive_identity=current, burn_path=burn, verdict="ok",
+                          photo_ids=agreement["photo_ids"],
+                          input_sha256=agreement["input_sha256"],
+                          photos=[{k: p.get(k) for k in ("id", "disc_id", "status", "L_mm", "zone_spread_mm", "c_deg", "input_sha256")}
+                                  for p in record["photos"] if p.get("status") == "ok"],
                           scope="this geometry run and burn path; independent of disc batch")
-        return dict(written=True, frames=frames, provenance=provenance)
+        if provenance["reader_version"] != "v1" or provenance["reader_sha256"] != READER_SHA256:
+            return refused("unknown_reader")
+        digest = hashlib.sha256(json.dumps(provenance, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        result = dict(written=True, L_mm=offset, provenance=provenance, provenance_sha256=digest,
+                      reader_version=provenance["reader_version"])
+        if wanted == "cd":
+            from .pcal import CD_FRAME_MM
+            result["frames"] = offset / CD_FRAME_MM
+            from .cd import FRAME_BITS, SECTOR_BITS
+            result["channel_bits"] = result["frames"] * FRAME_BITS
+        else:
+            from .calib import SECTOR_BITS
+            bit = fit.get("bit_nm_assumed")
+            if not _finite(bit) or bit <= 0:
+                return refused("unknown_channel_bit_length")
+            result["channel_bits"] = offset / (bit * 1e-6)
+        result["sectors"] = result["channel_bits"] / SECTOR_BITS
+        return result
     except (OSError, ValueError, TypeError, KeyError, AttributeError, OverflowError):
         return refused("invalid_photo")
 
 
-def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=None, burn_mode=None):
+def _finite(value):
+    return type(value) in (int, float) and math.isfinite(value)
+
+
+def photo_agreement(photos):
+    """No pooling or outlier selection: every individually accepted shot must agree.
+
+    The stated spread is the full radial-zone spread (not a probability). Each
+    interval has half that width. Require overlap for every pair and at least
+    10 degrees of measured disc rotation, plus distinct original input hashes.
+    """
+    use = [p for p in photos if p.get("status") == "ok"]
+    def no(reason):
+        return dict(written=False, reason=reason)
+    if len(use) < 2:
+        return no("one_photo_provisional" if use else "no_accepted_photos")
+    if any(not all(_finite(p.get(k)) for k in ("L_mm", "zone_spread_mm", "c_deg"))
+           or p["zone_spread_mm"] < 0 for p in use):
+        return no("unknown_spread_or_pose")
+    hashes = [p.get("input_sha256") for p in use]
+    if any(not isinstance(h, str) or not re.fullmatch(r"[0-9a-f]{64}", h) for h in hashes):
+        return no("unknown_photo_input")
+    if len(set(hashes)) != len(use):
+        return no("duplicate_photo")
+    different = False
+    for i, a in enumerate(use):
+        for b in use[i + 1:]:
+            if abs(a["L_mm"] - b["L_mm"]) > (a["zone_spread_mm"] + b["zone_spread_mm"]) / 2:
+                return no("photos_disagree")
+            different |= abs((a["c_deg"] - b["c_deg"] + 180) % 360 - 180) >= 10
+    if not different:
+        return no("same_pose")
+    lo = max(p["L_mm"] - p["zone_spread_mm"] / 2 for p in use)
+    hi = min(p["L_mm"] + p["zone_spread_mm"] / 2 for p in use)
+    # The mean may fall outside a narrow member's interval; use the intersection.
+    value = min(hi, max(lo, sum(p["L_mm"] for p in use) / len(use)))
+    return dict(written=True, L_mm=value, photo_ids=[p.get("id") for p in use], input_sha256=hashes)
+
+
+def photo_shift(geo_summary, photo_path=None, *, device_id=None):
+    """CD frame adapter for DIS; eligibility is decided only by photo_l."""
+    decision = photo_l(geo_summary, photo_path, device_id=device_id)
+    if decision["written"] and "frames" not in decision:
+        return dict(written=False, reason="not_cd")
+    return decision
+
+
+def shifted_u(fit, decision):
+    """theta(n-d), modulo a free rotation; d is channel bits, never CD frames on DVD."""
+    if not decision.get("written"):
+        return fit["u"]
+    if fit.get("model") == "clv" or fit.get("media", "dvd") not in ("cd", "dvd"):
+        raise ValueError("Photo L needs a CD or DVD constant-pitch angle map")
+    if fit.get("media") == "cd":
+        from .pcal import CD_FRAME_MM
+        from .cd import FRAME_BITS
+        d = decision["L_mm"] / CD_FRAME_MM * FRAME_BITS
+    else:
+        d = decision["L_mm"] / (fit["bit_nm_assumed"] * 1e-6)
+    squared = fit["u"] ** 2 - fit["v"] * d / math.pi
+    if not math.isfinite(squared) or squared <= 0:
+        raise ValueError("Photo L moves the geometry origin outside the supported spiral")
+    return math.sqrt(squared)
+
+
+def image_photo_l(geo_summary, output, *, media, device_id=None, disabled=False, suffix=".image.json"):
+    """Reuse this output's immutable accepted evidence when reopening the same run."""
+    if disabled:
+        return dict(written=False, reason="opted_out")
+    saved = Path(output).with_suffix(suffix)
+    if saved.is_file():
+        try:
+            decision = json.loads(saved.read_text(encoding="utf-8")).get("photo_l")
+            if decision and decision.get("written"):
+                return photo_l(geo_summary, device_id=device_id, media=media, frozen=decision)
+        except (OSError, ValueError, TypeError, AttributeError):
+            return dict(written=False, reason="invalid_saved_photo_L")
+    return photo_l(geo_summary, device_id=device_id, media=media)
+
+
+def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=None, burn_mode=None, disc_id=None):
     """Return and persist both the contract result and the original reader diagnostics.
 
     Geometry is inferred from rings by the frozen reader; geo's fit is not fed back into it.
@@ -154,6 +308,7 @@ def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=Non
         raise ValueError("at least one photo is required")
     readings, per_photo, seen = [], [], set()
     for i, (ident, filename) in enumerate(inputs, 1):
+        digest = None
         stage = f"reading photo {i}/{len(inputs)}"
         ui.event("progress", stage=stage, fraction=(i - 1) / len(inputs))
         print(stage, flush=True)
@@ -180,20 +335,26 @@ def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=Non
             reading = ({"status": "duplicate_photo"} if duplicate else
                        pcal.read_photo(image, design, focal_px=focal, log=lambda *p: log(" ".join(map(str, p)))))
         reading["id"] = ident
+        reading["disc_id"] = disc_id
+        reading["input_sha256"] = digest
         readings.append(reading)
         status = reading["status"]
         per_photo.append(dict(id=ident, verdict="ok" if status == "ok" else "unsure", status=status,
                               reason=REASONS.get(status, "The reader cannot determine a reliable alignment.")))
         log(f"{ident}: {status}")
     group = pcal.combine(readings)
-    accepted = group["status"] == "ok"
-    offset = group.get("L_mm") if accepted else None
+    agreement = photo_agreement(readings)
+    accepted = agreement["written"] and group["status"] == "ok"
+    offset = agreement.get("L_mm") if accepted else None
     result = dict(verdict="ok" if accepted else "unsure", per_photo=per_photo,
                   rings_mm=[r for r, _, _ in design.rings] if any(p.get("H") for p in readings) else None,
                   offset_mm=offset, L_frames=offset / pcal.CD_FRAME_MM if accepted and media == "cd" else None,
                   confidence=None, path=str(folder))
+    single = [p for p in readings if p.get("status") == "ok"]
+    result["provisional_mm"] = single[0].get("L_mm") if len(single) == 1 else None
     # No calibrated probability was established by the research; keep confidence unknown.
-    record = dict(**result, media=media, reader_sha256=READER_SHA256, photos=readings, group=group,
+    record = dict(**result, media=media, reader_version="v1", reader_sha256=READER_SHA256,
+                  photos=readings, group=group, application_agreement=agreement, disc_id=disc_id,
                   burn_path=dict(burner=burner, path=burn_path, mode=burn_mode),
                   source_geo=dict(sha256=hashlib.sha256(source).hexdigest() if source else None,
                                   run_id=folder.name, drive_identity=drive_identity(geo, folder),
@@ -208,7 +369,9 @@ def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=Non
     ui.event("progress", stage=f"reading photo {len(inputs)}/{len(inputs)}", fraction=1.0)
     ui.event("result", step="photo", **result)
     log(f"Photo verdict: {result['verdict']}" + (f", offset {offset:+.6f} mm" if offset is not None else
-                                              ": " + group.get("why", "take another photo")))
+                                              ": " + agreement.get("reason", group.get("why", "take another photo"))))
+    if result["provisional_mm"] is not None:
+        log(f"Provisional photo L: {result['provisional_mm']:+.6f} mm; take another pose before applying it.")
     return result
 
 
@@ -220,7 +383,8 @@ def log(message):
 def run(args):
     try:
         analyze(args.run, args.media, [(Path(p).stem, p) for p in args.photos], args.rings_mm,
-                burner=args.burner, burn_path=args.burn_path, burn_mode=args.burn_mode)
+                burner=args.burner, burn_path=args.burn_path, burn_mode=args.burn_mode,
+                disc_id=getattr(args, "disc_id", None))
     except Exception as exc:
         ui.event("error", message=str(exc))
         raise
@@ -416,7 +580,7 @@ class PhotoStore:
             return {k: row[k] for k in ("id", "name", "url", "time")}
 
     def argv(self, args):
-        if not isinstance(args, dict) or set(args) - {"run", "media", "photos", "rings_mm", "burner", "burn_path", "burn_mode"}:
+        if not isinstance(args, dict) or set(args) - {"run", "media", "photos", "rings_mm", "burner", "burn_path", "burn_mode", "disc_id"}:
             raise ValueError("invalid photo arguments")
         folder = self.run_dir(args.get("run"))
         if args.get("media") not in ("cd", "dvd"):
@@ -431,7 +595,7 @@ class PhotoStore:
         argv = ["--run", str(folder), "--media", args["media"], "--photos", *paths]
         if rings is not None:
             argv += ["--rings-mm", *map(str, rings)]
-        for key in ("burner", "burn_path", "burn_mode"):
+        for key in ("burner", "burn_path", "burn_mode", "disc_id"):
             value = args.get(key)
             if value is not None:
                 if (not isinstance(value, str) or not 1 <= len(value) <= 500

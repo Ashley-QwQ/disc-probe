@@ -7,6 +7,13 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    "physical target disc identifier shared by these photos": "这一组照片所属的实体标靶盘号",
+    "geo run for measured ring geometry and its accepted photo L": "放置纹理环所用的 geo 结果，同时读取该次测量通过检查的照片 L",
+    "do not apply the run's photo L": "不应用该次测量的照片 L",
+    "check the photo against this specific drive identity (no drive access)": "核对照片是否来自这台光驱的测量，不访问光驱",
+    "Photo L used: {value} mm from {path} (reader {reader}, provenance {hash})": "已应用照片 L：{value} 毫米，来自 {path}（读取器 {reader}，来源哈希 {hash}）",
+    "Photo L not applied: {reason}; the photo constant remains unknown.": "未应用照片 L：{reason}；照片常数仍为未知。",
+    "Provisional photo L: {value} mm; take another pose before applying it.": "照片 L 临时值：{value} 毫米；请转盘换姿态重拍，暂不应用。",
     # calibrate, photo and presets help
     "selected drive identity; required for measuring, checked when saving photo L": "所选光驱的身份；测量时必填，保存照片测得的 L 时会核对",
     "read speed for timing and geo, in kB/s or a multiple like 4x (default: 4x of the disc's kind)": "timing 和 geo 的读取速度，写 kB/s 或 4x 这样的倍速（默认：该盘种的 4x）",
