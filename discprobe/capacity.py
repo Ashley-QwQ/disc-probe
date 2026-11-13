@@ -9,6 +9,29 @@ def positive_sectors(value) -> bool:
     return type(value) is int and 0 < value < 0xFFFFFFFF
 
 
+def capacity_words(report):
+    """Explicit meanings; a written/readable length is never blank free space."""
+    def parsed(key):
+        entry = report.get(key) or {}
+        return (entry.get('parsed') or {}) if entry.get('status', 0) == 0 and not entry.get('error') else {}
+    track = parsed('track_1')
+    writable = (track.get('free_blocks') if track.get('blank') is True
+                and track.get('track_start') == 0 else None)
+    if not positive_sectors(writable):
+        writable = None
+    whole = recordable_capacity({k: v for k, v in report.items() if k != 'track_1'})
+    readable = parsed('capacity')
+    return dict(geometric_total_sectors=whole[0] if whole else None,
+                geometric_source=whole[1] if whole else 'unknown; do not substitute readable length',
+                blank_writable_sectors=writable,
+                readable_sectors=readable['last_lba'] + 1 if 'last_lba' in readable else None,
+                random_mirror_sectors=None,
+                uses={'disexport --sectors': 'explicit mapping total; match DiscImageStudio; verify against blank writable capacity before writing',
+                      'random --sectors': 'random-mirror file length (DVD default 2295104), not blank capacity',
+                      'timing / geo': 'readable recorded area; --sectors here means sectors per read',
+                      'burn': 'image sector count must fit this blank writable capacity'})
+
+
 def recordable_capacity(report: dict) -> tuple[int, str] | None:
     """Use only fields describing the whole medium, never a written track's size.
 

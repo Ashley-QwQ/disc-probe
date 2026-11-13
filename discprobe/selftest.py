@@ -290,9 +290,13 @@ def _timer_tick(c: Checker):
                     probe = timing.TimingProbe(SimDrive(), log=logs.append)
                     probe.strategy = strategy
                     probe.summary = {"period": {}}
-                    probe._check_period([{"period_ms": period}])
-                    c.check(bool(logs) == (platform == "win32" and period != 10.0),
-                            f"{platform} {strategy} period {period:.4f} ms")
+                    stopped = False
+                    try:
+                        probe._check_period([{"period_ms": period}])
+                    except timing.NoReadableDisc as exc:
+                        stopped = 'not proof of CLV' in str(exc) and 'Reuse this disc' in str(exc)
+                    c.check(stopped == (platform == "win32" and period != 10.0),
+                            f"{platform} {strategy} period {period:.4f} ms stops before an unreliable fit")
     finally:
         sys.platform = real_platform
 

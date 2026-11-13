@@ -197,6 +197,9 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
     out = {"preset": preset_json(fit, total_sectors, bit, preset_id, name, desc, media), "fit": fit,
            "source": {"geo": geo_summary.replace("\\", "/").split("/")[-1],
                       "correction": correction_path.replace("\\", "/").split("/")[-1] if correction_path else None}}
+    out['source']['capacity_words'] = dict(mapping_total_sectors=total_sectors,
+                                           blank_writable_sectors=None, random_mirror_sectors=None,
+                                           uses='disexport --sectors maps this total in DiscImageStudio; verify the blank writable capacity separately')
     if geo.get('completion_sectors') or geo.get('completion_adjustment'):
         out['source']['completion_sectors'] = geo.get('completion_sectors', 0)
         out['source']['completion_method'] = completion_method

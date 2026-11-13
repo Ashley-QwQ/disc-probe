@@ -77,6 +77,11 @@ def write_iso(path: str, sectors: int = DEFAULT_SECTORS, seed: int = 1, log=prin
                 log(f"  {100 * done / sectors:5.1f} %")
                 next_report += getattr(log, "every", 0.2)
     iso9660.add(path, sectors, "DISCPROBE_RANDOM", identity)
+    import json
+    with open(os.path.splitext(path)[0] + '.capacity.json', 'w', encoding='utf-8') as f:
+        json.dump(dict(random_mirror_sectors=sectors, geometric_total_sectors=None,
+                       blank_writable_sectors=None,
+                       uses='random --sectors is this file length; burn checks blank writable capacity'), f, indent=2)
     if spec and spec.get('state') == 'pending':
         from .randomlabel import PENDING_LBA, marker
         with open(path, 'r+b') as f:

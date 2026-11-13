@@ -2087,7 +2087,9 @@ def _stopped_part_way(c) -> None:
                 cli._open = lambda args: Goes(tray, 1100, 1, thrown)   # rung 5 or so
                 code, text = run("geo", "--sim", "cav", "--out", out)
                 result = guide.scan(out)[0]
-                c.check(code != 0 and result.stopped == "interrupted" and not result.geo_complete(), f"{name} during geo is not complete either")
+                reason_kept = (result.stopped == 'interrupted' if isinstance(thrown, KeyboardInterrupt) else
+                               bool(result.stopped and 'gone' in result.stopped and 'READ' in result.stopped))
+                c.check(code != 0 and reason_kept and not result.geo_complete(), f"{name} during geo is not complete either")
             out = os.path.join(d, "geo-whole")
             cli._open = real_open
             code, text = run("geo", "--sim", "cav", "--out", out)

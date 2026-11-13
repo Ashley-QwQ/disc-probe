@@ -122,7 +122,11 @@ class TimingProbe:
     # ------------------------------------------------------------ plumbing
 
     def _cmd(self, cdb: bytes, alloc: int):
-        return self.dev.execute(cdb, alloc, DATA_IN if alloc else DATA_NONE)
+        from .scsi import execute_probe
+        try:
+            return execute_probe(self.dev, cdb, alloc)
+        except OSError as exc:
+            raise NoReadableDisc(f'{self._experiment or "drive probe"}: {exc}') from exc
 
     def _read(self, lba: int, count: int = 1, fua: bool = False, label: str = ""):
         if label not in ('disc-identity', 'layout') and (self.reserved_lba or self.summary.get('random_label')) and count:
@@ -353,6 +357,7 @@ class TimingProbe:
                                  "profile_name": mmc.PROFILES.get(profile), "family": self.family,
                                  "block_sectors": self.block, "sectors_per_read": self.sectors, "last_lba": self.last_lba,
                                  "capacity_source": capacity_source,
+                                 "capacity_meaning": "readable recorded length; not geometric total or blank writable capacity",
                                  "first_track_audio": audio, "read_method": self.method}
         self.log(f"Disc: {self.summary['setup']['profile_name']}, last LBA {self.last_lba}, "
                  f"reading with {self.method}")
@@ -595,23 +600,32 @@ class TimingProbe:
         """Catch a period that is not the spindle. A re-read from the disc takes whole turns on every
         drive so far. Reads served from cache follow the host instead: with a coarse sleep their
         completion times lock to the Windows timer tick (15.625 ms) and its harmonics."""
-        import sys
         periods = [z["period_ms"] for z in zones if "period_ms" in z]
         if not periods:
             return
         T = statistics.median(periods)
-        if sys.platform == "win32" and self.strategy in ("plain", "evict") and any(abs(15.625 / k - T) < 0.15 for k in (1, 2, 3)):
-            self.log("Warning: this period looks like the Windows timer tick (15.625 ms), not the spindle")
+        self.reject_fake_period(T)
         # The cache test runs before the spindle settles, so its FUA time can span two speeds.
         settle = self.summary.get("settle", {})
         fua = settle["read"]["p50_us"] if self.strategy == "fua" and "read" in settle else None
-        if not fua:
+        if not fua or (self.summary.get('period', {}).get('rotation') or {}).get('mode') != 'CAV':
             return
         turns = fua / 1e3 / T
         self.summary["period"]["fua_read_turns"] = round(turns, 3)
         if abs(turns - round(turns)) > 0.1:
-            self.log(f"Warning: a FUA read takes {turns:.2f} turns of this period, not a whole number, "
-                     "so this period may not be the spindle")
+            reason = (f"cache/false period: a FUA read takes {turns:.2f} turns of this period, not a whole number; "
+                      "stop before fitting angles. Reuse this disc and compare cache eviction or another read speed.")
+            self.summary['period']['rejected_reason'] = reason
+            raise NoReadableDisc(reason)
+
+    def reject_fake_period(self, period_ms):
+        import sys
+        if sys.platform == 'win32' and self.strategy in ('plain', 'evict') and any(
+                abs(15.625 / k - period_ms) < .15 for k in (1, 2, 3)):
+            reason = ('cache/host timer period near 15.625 ms or a harmonic; this is not proof of CLV. '
+                      'Stop before fitting angles. Reuse this disc and compare FUA or cache eviction.')
+            self.summary['period_rejected'] = reason
+            raise NoReadableDisc(reason)
 
     def _nominal_key(self) -> str:
         return self.family if self.family in NOMINAL else "dvd"

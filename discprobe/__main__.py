@@ -191,12 +191,12 @@ def _check_disc(dev, args) -> None:
     """At a terminal, catch an empty tray or the wrong media settings before minutes of measuring."""
     if not ui.term().interactive:
         return
-    from .scsi import DATA_IN, DATA_NONE
-    ready = dev.execute(mmc.test_unit_ready(), 0, DATA_NONE)
+    from .scsi import execute_probe
+    ready = execute_probe(dev, mmc.test_unit_ready())
     reason = mmc.not_ready(ready.sense)
     if reason:
         sys.exit(reason)
-    cfg = dev.execute(mmc.get_configuration(), 4096, DATA_IN)
+    cfg = execute_probe(dev, mmc.get_configuration(), 4096)
     family = mmc.media_family(mmc.parse_configuration(cfg.data).get("current_profile") if cfg.ok else None)
     if family == "cd" and args.media == "dvd":
         if ui.ask("This is a CD, but the command has DVD settings. Add --media cd?"):
@@ -213,11 +213,28 @@ def _blu_ray_speed(dev, args) -> None:
     multiple = getattr(args.speed, "multiple", None)
     if multiple is None or args.sim:
         return
-    from .scsi import DATA_IN
-    cfg = dev.execute(mmc.get_configuration(), 4096, DATA_IN)
+    from .scsi import execute_probe
+    cfg = execute_probe(dev, mmc.get_configuration(), 4096)
     if cfg.ok and mmc.media_family(mmc.parse_configuration(cfg.data).get("current_profile")) == "bd":
         args.speed = round(multiple * mmc.BD_1X_KBPS)
         print(f"This is a Blu-ray disc, so {multiple:g}x is {args.speed} kB/s")
+
+
+def _measurement_setup(dev, args, kind):
+    """Keep preflight timeouts as a run even before the instrument is constructed."""
+    out = _outdir(args, kind, dev)
+    try:
+        _check_disc(dev, args)
+        _blu_ray_speed(dev, args)
+    except (OSError, RuntimeError, SystemExit) as exc:
+        try:
+            dev.close() if hasattr(dev, 'close') else None
+        except OSError:
+            pass
+        from .diagnostics import save_failure
+        save_failure(out, str(exc), args)
+        sys.exit(str(exc))
+    return out
 
 
 def _measuring(dev, args):
@@ -234,7 +251,10 @@ def _identity(args, dev) -> dict | None:
     if getattr(args, "sim", None):
         return None
     try:
-        return info.identify(dev, getattr(args, "media", None))
+        identity = info.identify(dev, getattr(args, "media", None))
+        for error in identity.get('probe_errors', []):
+            print(error, file=sys.stderr, flush=True)
+        return identity
     except Exception:       # a label, never worth stopping a measurement
         return None
 
@@ -262,12 +282,12 @@ def _geo_clv(args):
     if args.sectors != 1:
         sys.exit("--sectors 1 only: a CLV fit uses the time to turn once, which one sector gives")
     if not args.sim:
-        _need_windows()
-        from .spti import raise_priority
+        _need_hardware_platform()
+        from .device import raise_priority
         raise_priority()
     dev = _open(args)
-    _check_disc(dev, args)
-    _blu_ray_speed(dev, args)
+    out = _measurement_setup(dev, args, 'geo')
+
     reader = _measuring(dev, args)
     zones = DEFAULT_ZONES
     if args.bd_zones:
@@ -297,7 +317,7 @@ def _geo_clv(args):
         progress = reader.progress = ui.Progress(status, keys=ui.open_keys(), pulse=reader.read_times,
                                                  wait_s=GEO_WAIT_S)
         log = ladder.log = ladder.tp.log = progress.log
-    out = _outdir(args, "geo", dev)
+    # The folder also covers failures before the first CLV fit.
     stopped, res, hand_off = None, None, None
     try:
         res = ladder.run()
@@ -317,6 +337,13 @@ def _geo_clv(args):
         dev.close() if hasattr(dev, "close") else None
         if (ladder.summary or {}).get("period") and hand_off is None:
             write_outputs(ladder, out, None if res else stopped or "interrupted")
+        if hand_off is None and (not res or args.media == 'cd'):
+            from .diagnostics import save_failure
+            if not os.path.isfile(os.path.join(out, 'summary.json')):
+                _write_json(os.path.join(out, 'summary.json'), dict(ladder.summary or {},
+                            stopped=stopped or 'interrupted',
+                            args={k: v for k, v in vars(args).items() if k != 'func'}))
+            save_failure(out, (stopped or 'interrupted') if not res else guide.CD_CLV_LIMIT, args)
     if hand_off is not None:
         print(i18n.tr("This disc turns at a constant angular velocity, so its period carries no radius. "
                       "Measuring the spiral from sector addresses instead."))
@@ -383,7 +410,7 @@ def _geo_clv(args):
         if args.media == "cd":
             print(i18n.tr(guide.CD_CLV_LIMIT))
     else:
-        print("no results written: it stopped before the fit.")
+        print("Stopped before the fit; diagnostics were saved. Reuse this same disc for the next check.")
     if res is None:
         sys.exit(1)
 
@@ -467,7 +494,16 @@ def cmd_list(args):
 def cmd_info(args):
     if getattr(args, "image", None):
         return cmd_whois(args)
-    dev = _open(args)
+    if not args.sim:
+        _choose_drive(args)  # a person's drive selection is outside the I/O deadline
+    print('Reading drive information (3s per command, 25s command budget)...', flush=True)
+    try:
+        dev = info.InfoDevice(opener=lambda: _open(args))
+    except OSError as exc:
+        out = _outdir(args, 'info', type('Unavailable', (), {'name': 'unavailable'})())
+        from .diagnostics import save_failure
+        save_failure(out, str(exc), args)
+        sys.exit(str(exc))
     try:
         report = info.collect(dev)
         from . import discid
@@ -479,13 +515,22 @@ def cmd_info(args):
         except (OSError, ValueError) as exc:
             report["disc_identity"] = dict(status="unavailable_or_invalid", error=str(exc), hash_verified=False)
     finally:
-        dev.close() if hasattr(dev, "close") else None
+        try:
+            dev.close()
+        except OSError as exc:
+            dev.errors.append(str(exc))
     out = _outdir(args, "info", dev)
+    from .capacity import capacity_words
+    report['capacity_words'] = capacity_words(report)
     _write_json(os.path.join(out, "info.json"), report)
     for line in info.summarize(report):
         print(line)
     print(json.dumps(report["disc_identity"], ensure_ascii=False, indent=2))
     print(f"\nFull dump: {os.path.abspath(out)}")
+    if dev.errors:
+        from .diagnostics import save_failure
+        save_failure(out, '; '.join(dev.errors), args)
+        sys.exit(1)
     _next(guide.after_info(args, report))
 
 
@@ -579,8 +624,7 @@ def cmd_timing(args):
         if not raise_priority():
             print("note: could not raise process priority")
     dev = _open(args)
-    _check_disc(dev, args)
-    _blu_ray_speed(dev, args)
+    out = _measurement_setup(dev, args, 'timing')
     targets = [float(x) for x in args.targets.split(",")] if args.targets else timing.DEFAULT_TARGETS
     reader = _measuring(dev, args)
     probe = timing.TimingProbe(
@@ -598,13 +642,12 @@ def cmd_timing(args):
     try:
         summary = probe.run()
         finished = True
-    except timing.NoReadableDisc as e:
+    except (timing.NoReadableDisc, OSError) as e:
         stopped = str(e)
     finally:
         if progress:
             progress.close()
         dev.close() if hasattr(dev, "close") else None
-        out = _outdir(args, "timing", dev)
         rows = probe.events_as_rows()
         if rows:
             with open(os.path.join(out, "events.csv"), "w", newline="", encoding="utf-8") as f:
@@ -620,8 +663,13 @@ def cmd_timing(args):
         _write_json(os.path.join(out, "summary.json"), summary)
         ui.result_event("timing", out, summary.get("stopped"))
         print(f"\nRaw events and summary: {os.path.abspath(out)}")
+        rotation = ((summary.get('period') or {}).get('rotation') or {}).get('mode')
+        if not finished or rotation not in (None, 'CAV'):
+            from .diagnostics import save_failure
+            save_failure(out, summary.get('stopped') or f'rotation is {rotation}, not CAV', args)
     if stopped:
-        _fail(stopped, guide.after_timing_stop(args, stopped))
+        _next(guide.after_timing_stop(args, stopped))
+        _fail(stopped)
     if progress:
         ui.say(f"Finished in {ui.clock(ui.time.monotonic() - progress.started)}", "dim")
     _next(guide.after_timing(args, summary), args)
@@ -822,8 +870,7 @@ def cmd_geo(args):
         from .device import raise_priority
         raise_priority()
     dev = _open(args)
-    _check_disc(dev, args)
-    _blu_ray_speed(dev, args)
+    out = _measurement_setup(dev, args, 'geo')
     reader = _measuring(dev, args)
     ladder = Ladder(reader, ranges=ranges, r0_mm=args.r0_mm, pitch_um=args.pitch_um, bit_nm=args.bit_nm,
                     reps=args.reps, max_targets=args.max_targets, ref_lba=args.ref_lba,
@@ -847,12 +894,11 @@ def cmd_geo(args):
     if reader is not dev:
         progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys(), pulse=reader.read_times, wait_s=GEO_WAIT_S)
         log = ladder.log = progress.log
-    out = _outdir(args, "geo", dev)
     stopped = None
     res = None
     try:
         res = ladder.run()
-    except RuntimeError as e:
+    except (RuntimeError, OSError) as e:
         log(f"stopped: {e}")
         stopped = str(e)
     finally:
@@ -861,6 +907,18 @@ def cmd_geo(args):
         dev.close() if hasattr(dev, "close") else None
         if ladder.targets and ladder.cov is not None:
             write_outputs(ladder, out, None if res else stopped or "interrupted")   # also for Ctrl+C or a drive that vanished
+        else:
+            summary = dict(ladder.tp.summary, stopped=stopped or 'interrupted')
+            _write_json(os.path.join(out, 'summary.json'), summary)
+            rows = ladder.tp.events_as_rows()
+            if rows:
+                with open(os.path.join(out, 'events.csv'), 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+                    writer.writeheader()
+                    writer.writerows(rows)
+        if not res or res.get('completion_status') != 'target_reached':
+            from .diagnostics import save_failure
+            save_failure(out, stopped or (res or {}).get('completion_status', 'interrupted'), args)
     at_terminal = ui.term().interactive
     detail = (lambda text: ui.say(text, "dim")) if at_terminal else print    # at a terminal the plain summary comes first
     if res:
@@ -886,7 +944,7 @@ def cmd_geo(args):
         if not res:
             print("It stopped early, so `--geo latest` won't use these. Don't burn from them.")
     elif stopped not in mmc.NOT_READY:
-        print("no results written: it stopped before the first fit. Run `timing` to see how noisy this drive is.")
+        print("Stopped before the first fit; summary and command events were saved. Check timing on this same disc.")
     if progress and res:
         ui.say(f"Finished in {ui.clock(ui.time.monotonic() - progress.started)}", "dim")
     if res:
@@ -1124,7 +1182,9 @@ def cmd_image(args):
         if span[1] > span[0]:
             warning = range_warning(fit, span)
             if warning:
-                print(f'Warning: {warning}')
+                from .diagnostics import save_failure
+                save_failure(os.path.dirname(os.path.abspath(args.geo)), warning, args)
+                sys.exit(f'{warning} Shrink the artwork to the measured intervals or re-read this same disc; no new burn is needed.')
     tex = f"textures {' '.join(args.textures)}" if args.textures else f"dark {args.dark}, light {args.light}"
     print(f"{kind}, {imagedisc.cell_mm(design) * 1000:g} um cells, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
           f"({total * 2048 / 1e9:.2f} GB), {tex}")
@@ -1524,6 +1584,14 @@ def cmd_tiles(args):
            "scale_mm": tuple(args.scale) if args.scale else None, "gap_mm": args.gap_mm,
            "shuffle_seed": args.shuffle}
     labels, textures, layout = tiledisc.design(args.palette, **geo)
+    from .coverage import range_warning
+    requested = imagedisc.drawing_span(labels != 0)
+    if requested:
+        warning = range_warning(fit, requested)
+        if warning:
+            from .diagnostics import save_failure
+            save_failure(os.path.dirname(os.path.abspath(args.geo)), warning, args)
+            sys.exit(f'{warning} Shrink the artwork or re-read this same disc; no new burn is needed.')
     if args.media == "cd":
         textures = [{"A5": "0D", "92": "AA"}.get(t, t) for t in textures]
         layout.update(media="cd", id_dark="0D", id_light="AA")
@@ -1609,6 +1677,7 @@ def cmd_random(args):
         from .randomlabel import STOP_SECTORS
         written_sectors = STOP_SECTORS
     print(f"Writing {os.path.abspath(args.output)}: {written_sectors} sectors of seeded random data")
+    print(f'Random-mirror length: {written_sectors} sectors; random --sectors controls this file, not the geometric total or blank writable capacity.')
     try:
         with ui.writing(args.output, written_sectors) as log:
             write_iso(args.output, args.sectors, args.seed, media=args.media, log=log,
@@ -1860,7 +1929,7 @@ def cmd_template(args):
 
 COMMAND_GROUPS = (
     ("Start here", ("menu", "guide", "webui", "version", "tutorial", "selftest", "list")),
-    ("Measure a disc", ("info", "whois", "timing", "geo", "results")),
+    ("Measure a disc", ("info", "whois", "timing", "geo", "results", "diagnose")),
     ("Make a disc image", ("random", "label", "compose", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc")),
     ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
@@ -2067,6 +2136,11 @@ def _build_parser():
     sp.add_argument("--image", help="read disc identity from an ISO without drive access")
     sp.add_argument("--register", help="match identity against a local register JSON (read-only)")
     sp.set_defaults(func=cmd_info)
+
+    sp = sub.add_parser('diagnose', help='save sanitized run diagnostics without photos or drive access')
+    sp.add_argument('run', metavar='RUN', help='run folder or summary.json')
+    from .diagnostics import run as diagnose_run
+    sp.set_defaults(func=diagnose_run)
 
     sp = sub.add_parser("whois", help="read and check a public disc identity record")
     common(sp)
@@ -2410,7 +2484,7 @@ def _build_parser():
     sp.add_argument('--output', default='iso/label.iso', help='appended session ISO output')
     sp.add_argument('--drive', help='read current DVD NWA from this drive (no writing)')
     sp.add_argument('--start-lba', type=int, help='explicit NWA for offline construction')
-    sp.add_argument('--sectors', type=int, default=2295104, help='absolute DVD capacity in sectors')
+    sp.add_argument('--sectors', type=int, default=2295104, help="DVD mapping end in sectors; default is the random image length, not the blank's writable capacity")
     sp.set_defaults(func=cmd_label)
 
     sp = sub.add_parser("calibdisc", help="write one Blu-ray that both times itself and shows its own twist")
@@ -2555,7 +2629,13 @@ def _main(argv=None):
         ui.say(f"Note: --speed is in kB/s, so {args.speed} is very slow. For a multiple, write {args.speed}x.", "yellow")
     if raw_args[0] in {"image", "random", "rings", "calib", "tiles", "beacons", "calibdisc", "disexport", "cdprobe", "spokes"}:
         print(i18n.tr("Preparing the design and image data; this may take a few seconds..."), flush=True)
-    args.func(args)
+    try:
+        args.func(args)
+    except SystemExit as exc:
+        if exc.code and raw_args[0] in ('image', 'tiles', 'disexport') and os.path.isfile(str(getattr(args, 'geo', ''))):
+            from .diagnostics import save_failure
+            save_failure(os.path.dirname(os.path.abspath(args.geo)), str(exc.code), args)
+        raise
 
 
 def cmd_version(args):
