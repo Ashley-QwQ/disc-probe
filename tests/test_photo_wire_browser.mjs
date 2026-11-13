@@ -26,7 +26,8 @@ const moduleSource=`import {nextConfirm} from '/kit/nextconfirm.js';
 import {ringButton} from '/kit/ringbutton.js';
 import {flipValue} from '/kit/flipnum.js';
 import {photoPage} from '/photocal.js';
-import {budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason,photoSaveWords,photoReasonWords} from '/guidance.mjs';
+import {adviceHTML,budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason,photoSaveWords} from '/guidance.mjs';
+import {photoReasonWords,adoptionWords,applicationWords,seconds as photoSeconds} from '/photowords.mjs';
 let clockNow=Date.now(); Date.now=()=>clockNow;
 const realTimeout=window.setTimeout.bind(window);
 window.setTimeout=(fn,ms,...args)=>{if(ms===25000){window.helpTimer=fn;window.helpBorn=Date.now();}return realTimeout(fn,ms,...args);};
@@ -66,7 +67,7 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
       const r=await send('Runtime.evaluate',{expression:`(async()=>{${code}})()`,awaitPromise:true,returnByValue:true});
       if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception.description);return r.result.value;
     };
-    const waitFor=async code=>{for(let i=0;i<100;i++){if(await run(`return !!(${code});`))return;await new Promise(r=>setTimeout(r,30));}throw new Error('Timeout: '+code+' '+JSON.stringify(exceptions));};
+    const waitFor=async(code,tries=100)=>{for(let i=0;i<tries;i++){if(await run(`return !!(${code});`))return;await new Promise(r=>setTimeout(r,30));}throw new Error('Timeout: '+code+' '+JSON.stringify(exceptions));};
     await send('Runtime.enable');
     await send('Page.enable');
     await send('Page.stopLoading');
@@ -74,7 +75,7 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
       const path=new URL(request.url).pathname;let body,type='text/plain',status=200;
       if(path==='/'){body=html;type='text/html';}
       else if(path==='/phone/fixture'){body=readFileSync(new URL('../discprobe/web/phone/index.html',import.meta.url),'utf8').replace('__PHOTO_CONFIG__',JSON.stringify({run:'run-one',token:'fixture-token'}));type='text/html';}
-      else if(path==='/home/guidance.mjs'){body=await readFile(new URL('guidance.mjs',home));type='text/javascript';}
+      else if(path==='/home/guidance.mjs'||path==='/home/photowords.mjs'){body=await readFile(new URL(path.slice(6),home));type='text/javascript';}
       else if(path==='/api/photos'&&request.method==='GET'){type='application/json';body=JSON.stringify({verdict:'unsure',photos:[{id:'mine',name:'相片-'+ 'long-name-'.repeat(20)+'.jpg',url:'/disc.svg',verdict:'unsure',status:'no_rim'}]});}
       else if(path==='/wire.js'){body=moduleSource;type='text/javascript';}
       else if(path==='/disc.svg'){type='image/svg+xml';body='<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><rect width="600" height="600" fill="#555"/><circle cx="300" cy="300" r="255" fill="#aaa" stroke="#222"/><circle cx="300" cy="300" r="32" fill="#555"/></svg>';}
@@ -126,7 +127,7 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     // Geometry stays unchanged on an unsure result; reasons appear under thumbnails and stamp.
     await run(`wire.enter();`);await waitFor("wire.page()?.state().photos.length===1");
     await run(`window.photoResult={verdict:'unsure',per_photo:[{id:'p1',verdict:'unsure',reason:'反光强'}],rings_mm:null,offset_mm:null,L_frames:null};await wire.next();`);
-    assert.equal(await run(`return document.querySelector('.pc-photo-reason').textContent;`),'反光强');
+    assert.equal(await run(`return document.querySelector('.pc-photo-reason').textContent;`),'重拍：反光强');
     assert.equal(await run(`return document.querySelector('#cal').textContent.includes('再拍一张') && document.querySelector('#cal').textContent.includes('跳过，就用现在的结果');`),true);
     await run(`wire.back();wire.enter();`);await waitFor("wire.page()?.state().photos.length===1");
     await run(`await wire.next();`);
@@ -134,7 +135,8 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     // A successful auto-align has a signed offset and Next uses it without another photo job.
     await run(`wire.init({media:'cd',verdict:'good',phone:'http://lan/phone/token'});await wire.next();`);await waitFor("wire.ui()?.status==='ready'");
     await run(`window.photoResult={verdict:'ok',per_photo:[{id:'p1',verdict:'ok',status:'ok'},{id:'p2',verdict:'ok',status:'ok'}],rings_mm:[30,38,47,55],offset_mm:-0.12,L_frames:2.5};window.photos=[wire.photo(),wire.photo('p2')];`);
-    await waitFor("wire.page()?.state().offsetMm===-0.12");
+    // New photos arrive with the next 2 s listing poll, then the 1.5 s read debounce: allow for both under load.
+    await waitFor("wire.page()?.state().offsetMm===-0.12",300);
     assert.deepEqual(await run(`return window.jobs.find(j=>j.action==='photo').args.photos;`),['p1','p2']);
     await run(`await wire.next();`);
     assert.equal(await run(`return wire.state().realPhase;`),'saved');
@@ -146,7 +148,7 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     await run(`const canvas=document.createElement('canvas');canvas.width=canvas.height=600;const img=await new Promise(r=>canvas.toBlob(r,'image/png'));await wire.page().addPhotos([new File([img],'上传.png',{type:'image/png'})]);window.photoResult={verdict:'rejected',per_photo:[{id:'uploaded',verdict:'rejected',reason:'不是照片'}]};await wire.next();`);
     assert.equal(upload.token,'session-test');assert.equal(upload.filename,encodeURIComponent('上传.png'));
     assert.equal(await run(`return window.jobs[0].args.photos[0];`),'uploaded');
-    assert.equal(await run(`return document.querySelector('.pc-photo-reason').textContent;`),'不是照片');
+    assert.equal(await run(`return document.querySelector('.pc-photo-reason').textContent;`),'重拍：不是照片');
     // Check both themes and desktop/narrow layouts without a production server.
     for(const [width,theme,lang] of [[1440,'light','zh'],[760,'dark','en'],[390,'light','zh']]){
       await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});
@@ -180,12 +182,12 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     }
     await run(`wire.ui()&&wire.back();`);
     // The real phone HTML, with token-scoped listing fixtures and no backend/server.
-    await run(`sessionStorage.setItem('discprobe-phone-fixture-token','["mine"]');`);
+    await run(`sessionStorage.setItem('discprobe-phone-run-one','["mine"]');`);
     await send('Page.navigate',{url:'http://photo.test/phone/fixture'});
     await waitFor("document.querySelector('#sent button')");
     for(const [width,height] of [[375,812],[812,375],[820,1180],[1180,820]]){
       await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
-      const layout=await run(`return {scroll:document.documentElement.scrollWidth,width:innerWidth,targets:[...document.querySelectorAll('input,button,a')].filter(n=>n.getBoundingClientRect().width).map(n=>{const b=n.getBoundingClientRect();return {tag:n.tagName,w:b.width,h:b.height};})};`);
+      const layout=await run(`return {scroll:document.documentElement.scrollWidth,width:innerWidth,targets:[...document.querySelectorAll('input,button,a,summary')].filter(n=>n.getBoundingClientRect().width).map(n=>{const b=n.getBoundingClientRect();return {tag:n.tagName,w:b.width,h:b.height};})};`);
       assert.ok(layout.scroll<=width,JSON.stringify(layout));
       assert.ok(layout.targets.length>=4);for(const target of layout.targets)assert.ok(target.w>=44&&target.h>=44,JSON.stringify({width,height,target}));
       if(process.env.PHOTO_TEST_SHOTS){const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(resolve(process.env.PHOTO_TEST_SHOTS),`phone-${width}x${height}.png`),Buffer.from(shot.data,'base64'));}

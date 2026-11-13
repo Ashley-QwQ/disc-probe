@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import secrets
 import socket
+import statistics
 import threading
 import time
 from urllib.parse import unquote
@@ -16,7 +17,7 @@ from urllib.parse import unquote
 from . import ui
 
 READER_SHA256 = "d6375faed8fe489e01854dc09afcbaf057d7042968c5157f5ae56dc8ed4a9f6f"
-PHOTO_L_POLICY = "two-poses-v1"
+PHOTO_L_POLICY = "majority-poses-v1"
 PHOTO_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/heic": "heic", "image/webp": "webp"}
 REASONS = {
     "ok": "The photo passed the reader's checks.",
@@ -103,7 +104,8 @@ def photo_l(geo_summary, photo_path=None, *, device_id=None, media=None, frozen=
                 return refused("invalid_saved_photo_L")
             provenance = frozen["provenance"]
             digest = hashlib.sha256(json.dumps(provenance, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-            if (digest != frozen.get("provenance_sha256") or provenance.get("policy") != PHOTO_L_POLICY
+            if (digest != frozen.get("provenance_sha256")
+                    or provenance.get("policy") not in (PHOTO_L_POLICY, "two-poses-v1")
                     or provenance.get("L_mm") != frozen.get("L_mm")):
                 return refused("invalid_saved_photo_L")
             path = Path(provenance["photo_json"]).resolve()
@@ -125,7 +127,8 @@ def photo_l(geo_summary, photo_path=None, *, device_id=None, media=None, frozen=
             return refused("different_media")
         if record.get("verdict") != "ok":
             return refused("verdict_not_ok")
-        if record.get("group", {}).get("status") not in (None, "ok"):
+        if (record.get("application_agreement") is None
+                and record.get("group", {}).get("status") not in (None, "ok")):
             return refused("verdict_not_ok")
         offset = record.get("offset_mm")
         if not _finite(offset):
@@ -166,7 +169,8 @@ def photo_l(geo_summary, photo_path=None, *, device_id=None, media=None, frozen=
                     return refused("unknown_disc")
                 if shot["disc_id"] != record["disc_id"]:
                     return refused("different_disc")
-        agreement = photo_agreement(record.get("photos", []))
+        legacy = frozen is not None and provenance["policy"] == "two-poses-v1"
+        agreement = (_all_photo_agreement if legacy else photo_agreement)(record.get("photos", []))
         if not agreement["written"]:
             return agreement
         if not math.isclose(offset, agreement["L_mm"], abs_tol=1e-9):
@@ -175,18 +179,26 @@ def photo_l(geo_summary, photo_path=None, *, device_id=None, media=None, frozen=
                           geo_sha256=source["sha256"], photo_json=str(path),
                           photo_sha256=photo_hash, media=wanted,
                           reader_version=record.get("reader_version", "v1"),
-                          reader_sha256=record.get("reader_sha256"), policy=PHOTO_L_POLICY, L_mm=offset,
+                          reader_sha256=record.get("reader_sha256"),
+                          policy="two-poses-v1" if legacy else PHOTO_L_POLICY, L_mm=offset,
                           disc_id=record["disc_id"], drive_identity=current, burn_path=burn, verdict="ok",
                           photo_ids=agreement["photo_ids"],
                           input_sha256=agreement["input_sha256"],
                           photos=[{k: p.get(k) for k in ("id", "disc_id", "status", "L_mm", "zone_spread_mm", "c_deg", "input_sha256")}
                                   for p in record["photos"] if p.get("status") == "ok"],
                           scope="this geometry run and burn path; independent of disc batch")
+        if not legacy:
+            for saved, original in zip(provenance["photos"], (p for p in record["photos"] if p.get("status") == "ok")):
+                saved["name"] = original.get("name")
+            provenance["outliers"] = agreement["outliers"]
+            provenance["common_interval_mm"] = agreement["common_interval_mm"]
         if provenance["reader_version"] != "v1" or provenance["reader_sha256"] != READER_SHA256:
             return refused("unknown_reader")
         digest = hashlib.sha256(json.dumps(provenance, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         result = dict(written=True, L_mm=offset, provenance=provenance, provenance_sha256=digest,
                       reader_version=provenance["reader_version"])
+        if not legacy:
+            result["outliers"] = agreement["outliers"]
         if wanted == "cd":
             from .pcal import CD_FRAME_MM
             result["frames"] = offset / CD_FRAME_MM
@@ -208,8 +220,8 @@ def _finite(value):
     return type(value) in (int, float) and math.isfinite(value)
 
 
-def photo_agreement(photos):
-    """No pooling or outlier selection: every individually accepted shot must agree.
+def _all_photo_agreement(photos):
+    """Validate evidence saved under the original all-photo policy only.
 
     The stated spread is the full radial-zone spread (not a probability). Each
     interval has half that width. Require overlap for every pair and at least
@@ -241,6 +253,65 @@ def photo_agreement(photos):
     # The mean may fall outside a narrow member's interval; use the intersection.
     value = min(hi, max(lo, sum(p["L_mm"] for p in use) / len(use)))
     return dict(written=True, L_mm=value, photo_ids=[p.get("id") for p in use], input_sha256=hashes)
+
+
+def photo_agreement(photos):
+    """Use a unique largest common-point set containing ceil(2*n/3) ok shots.
+
+    Closed intervals use zone_spread_mm as full width. Distinct maximum sets
+    occupy separate common-point regions, even when a broad shot bridges them;
+    do not break such a tie by input order, pose, hashes, or proximity to zero.
+    """
+    use = [p for p in photos if p.get("status") == "ok"]
+    def no(reason, *, outliers=None, **details):
+        return dict(written=False, reason=reason, outliers=outliers or [], **details)
+    if len(use) < 2:
+        return no("one_photo_provisional" if use else "no_accepted_photos")
+    if any(not all(_finite(p.get(k)) for k in ("L_mm", "zone_spread_mm", "c_deg"))
+           or p["zone_spread_mm"] < 0 for p in use):
+        return no("unknown_spread_or_pose")
+    hashes = [p.get("input_sha256") for p in use]
+    if any(not isinstance(h, str) or not re.fullmatch(r"[0-9a-f]{64}", h) for h in hashes):
+        return no("unknown_photo_input")
+    events = {}
+    for i, p in enumerate(use):
+        lo = p["L_mm"] - p["zone_spread_mm"] / 2
+        hi = p["L_mm"] + p["zone_spread_mm"] / 2
+        events.setdefault(lo, [set(), set()])[0].add(i)
+        events.setdefault(hi, [set(), set()])[1].add(i)
+    active, largest, sets = set(), 0, set()
+    for point in sorted(events):
+        starts, ends = events[point]
+        active.update(starts)  # Touching endpoints count, including zero-width intervals.
+        if len(active) > largest:
+            largest, sets = len(active), {frozenset(active)}
+        elif len(active) == largest:
+            sets.add(frozenset(active))
+        active.difference_update(ends)
+    required = (2 * len(use) + 2) // 3
+    chosen = next(iter(sets)) if len(sets) == 1 else None
+    members = [p for i, p in enumerate(use) if chosen is not None and i in chosen]
+    outliers = [dict(id=p.get("id"), name=p.get("name") or p.get("id"),
+                     L_mm=p["L_mm"], reason="outside_common_interval",
+                     suggestion="Turn the disc and reshoot this photo.")
+                for i, p in enumerate(use) if chosen is not None and i not in chosen]
+    if largest < max(2, required):
+        return no("photos_disagree", outliers=outliers,
+                  agreeing_count=largest, ok_count=len(use), required_count=required)
+    if len(sets) != 1:
+        return no("ambiguous_majority", agreeing_count=largest, ok_count=len(use), required_count=required)
+    if len({p["input_sha256"] for p in members}) < 2:
+        return no("duplicate_photo", outliers=outliers)
+    if not any(abs((a["c_deg"] - b["c_deg"] + 180) % 360 - 180) >= 10
+               for i, a in enumerate(members) for b in members[i + 1:]):
+        return no("same_pose", outliers=outliers)
+    lo = max(p["L_mm"] - p["zone_spread_mm"] / 2 for p in members)
+    hi = min(p["L_mm"] + p["zone_spread_mm"] / 2 for p in members)
+    value = min(hi, max(lo, statistics.median(p["L_mm"] for p in members)))
+    return dict(written=True, L_mm=value, photo_ids=[p.get("id") for p in members],
+                input_sha256=[p["input_sha256"] for p in members], outliers=outliers,
+                common_interval_mm=[lo, hi], agreeing_count=largest,
+                ok_count=len(use), required_count=required)
 
 
 def photo_shift(geo_summary, photo_path=None, *, device_id=None):
@@ -335,6 +406,15 @@ def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=Non
             reading = ({"status": "duplicate_photo"} if duplicate else
                        pcal.read_photo(image, design, focal_px=focal, log=lambda *p: log(" ".join(map(str, p)))))
         reading["id"] = ident
+        reading["name"] = Path(filename).name
+        if Path(filename).resolve().parent == folder / "photos":
+            # Preserve uploaded display names in the saved evidence, even after deletion.
+            try:
+                meta = json.loads(Path(filename).with_suffix(".json").read_bytes())
+                if meta.get("id") == ident and isinstance(meta.get("name"), str) and meta["name"]:
+                    reading["name"] = meta["name"]
+            except (OSError, ValueError, AttributeError):
+                pass
         reading["disc_id"] = disc_id
         reading["input_sha256"] = digest
         readings.append(reading)
@@ -344,12 +424,12 @@ def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=Non
         log(f"{ident}: {status}")
     group = pcal.combine(readings)
     agreement = photo_agreement(readings)
-    accepted = agreement["written"] and group["status"] == "ok"
+    accepted = agreement["written"]
     offset = agreement.get("L_mm") if accepted else None
     result = dict(verdict="ok" if accepted else "unsure", per_photo=per_photo,
                   rings_mm=[r for r, _, _ in design.rings] if any(p.get("H") for p in readings) else None,
                   offset_mm=offset, L_frames=offset / pcal.CD_FRAME_MM if accepted and media == "cd" else None,
-                  confidence=None, path=str(folder))
+                  confidence=None, path=str(folder), outliers=agreement["outliers"])
     single = [p for p in readings if p.get("status") == "ok"]
     result["provisional_mm"] = single[0].get("L_mm") if len(single) == 1 else None
     # No calibrated probability was established by the research; keep confidence unknown.
@@ -372,6 +452,8 @@ def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=Non
                                               ": " + agreement.get("reason", group.get("why", "take another photo"))))
     if result["provisional_mm"] is not None:
         log(f"Provisional photo L: {result['provisional_mm']:+.6f} mm; take another pose before applying it.")
+    for outlier in result["outliers"]:
+        log(f"{outlier['name']}: L={outlier['L_mm']:+.6f} mm; {outlier['reason']}. {outlier['suggestion']}")
     return result
 
 
@@ -552,6 +634,7 @@ class PhotoStore:
             result = dict(photos=sorted(rows, key=lambda p: (p["time"], p["id"])))
             if record.get("verdict"):
                 result["verdict"] = record["verdict"]
+            result["outliers"] = record.get("outliers", [])
             return result
 
     def upload(self, run_id, data, kind, name, *, token=None, device_id=None):

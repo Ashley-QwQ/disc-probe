@@ -97,13 +97,143 @@ def test_application_rules(tmp_path, media, change, reason):
         assert photo.shifted_u(fit, decision) == fit['u']
 
 
-def test_all_shots_must_agree_no_majority_rescue():
+def test_majority_excludes_outlier_and_refused_shots():
     shots = [dict(status='ok', L_mm=x, zone_spread_mm=.1, c_deg=i * 30,
                   id=str(i), input_sha256=str(i + 1) * 64) for i, x in enumerate([1, 1.02, 1.4])]
-    assert photo.photo_agreement(shots)['reason'] == 'photos_disagree'
+    decision = photo.photo_agreement(shots)
+    assert decision['written'] and decision['L_mm'] == 1.01
+    assert decision['photo_ids'] == ['0', '1']
+    assert decision['outliers'] == [dict(id='2', name='2', L_mm=1.4, reason='outside_common_interval',
+                                        suggestion='Turn the disc and reshoot this photo.')]
     # Refused shots, however, cannot supply a second acceptable input.
     shots[1]['status'] = shots[2]['status'] = 'poor_angle_coverage'
     assert photo.photo_agreement(shots)['reason'] == 'one_photo_provisional'
+
+
+def shots_at(values, spreads=None, poses=None):
+    return [dict(status='ok', id=str(i), L_mm=x,
+                 zone_spread_mm=spreads[i] if spreads else .1,
+                 c_deg=poses[i] if poses else i * 30,
+                 input_sha256=hashlib.sha256(str(i).encode()).hexdigest())
+            for i, x in enumerate(values)]
+
+
+@pytest.mark.parametrize('total,required', [(2, 2), (3, 2), (4, 3), (5, 4), (6, 4)])
+def test_two_thirds_ceiling(total, required):
+    shots = shots_at([1.] * required + [10. + i for i in range(total - required)])
+    decision = photo.photo_agreement(shots)
+    assert decision['written'] and decision['agreeing_count'] == required
+    assert decision['ok_count'] == total and decision['required_count'] == required
+    shots[0]['L_mm'] = -10
+    assert not photo.photo_agreement(shots)['written']
+
+
+def test_touching_closed_endpoints_and_zero_width():
+    decision = photo.photo_agreement(shots_at([0., 2., 1.], [2., 2., 0.]))
+    assert decision['written'] and decision['L_mm'] == 1.
+    assert decision['common_interval_mm'] == [1., 1.]
+
+
+def test_median_then_clip_uses_only_members():
+    decision = photo.photo_agreement(shots_at([0., 0., 3., 20.], [8., 8., 2., .1]))
+    assert decision['written'] and decision['L_mm'] == 2.
+    assert decision['common_interval_mm'] == [2., 4.]
+    # Within the overlap, the median differs from the former mean.
+    decision = photo.photo_agreement(shots_at([0., 1., 3.], [10., 10., 10.]))
+    assert decision['L_mm'] == 1.
+
+
+def test_tied_majorities_with_bridge_refuse_in_every_order():
+    import itertools
+    shots = shots_at([0., 1., 2.], [.2, 3., .2])
+    for order in itertools.permutations(shots):
+        decision = photo.photo_agreement(order)
+        assert not decision['written'] and decision['reason'] == 'ambiguous_majority'
+        assert 'L_mm' not in decision
+    # Equal disconnected groups also cannot be chosen arbitrarily.
+    assert not photo.photo_agreement(shots_at([0., 0., 3., 3.]))['written']
+
+
+def test_outlier_pose_cannot_satisfy_member_pose_gate():
+    assert photo.photo_agreement(shots_at([0., 0., 5.], poses=[0., 9., 90.]))['reason'] == 'same_pose'
+    assert photo.photo_agreement(shots_at([0., 0.], poses=[355., 5.]))['written']
+    assert photo.photo_agreement(shots_at([0., 0.], poses=[355., 4.]))['reason'] == 'same_pose'
+
+
+def test_two_distinct_hashes_are_required_inside_chosen_set():
+    shots = shots_at([0., 0., 8.])
+    shots[1]['input_sha256'] = shots[0]['input_sha256']
+    assert photo.photo_agreement(shots)['reason'] == 'duplicate_photo'
+    shots = shots_at([0., 0., 0., 8.])
+    shots[2]['input_sha256'] = shots[0]['input_sha256']
+    assert photo.photo_agreement(shots)['written']
+
+
+def test_unique_set_reports_outliers_even_when_below_two_thirds():
+    result = photo.photo_agreement(shots_at([0., 0., 2., 4.]))
+    assert not result['written'] and result['reason'] == 'photos_disagree'
+    assert [p['id'] for p in result['outliers']] == ['2', '3']
+    assert 'L_mm' not in result
+
+
+def test_sweep_matches_exhaustive_subsets():
+    import itertools
+    import random
+    rng = random.Random(419)
+    for _ in range(100):
+        shots = shots_at([rng.randrange(7) for _ in range(6)], [rng.randrange(5) for _ in range(6)])
+        subsets = []
+        for n in range(1, 7):
+            for indices in itertools.combinations(range(6), n):
+                lo = max(shots[i]['L_mm'] - shots[i]['zone_spread_mm'] / 2 for i in indices)
+                hi = min(shots[i]['L_mm'] + shots[i]['zone_spread_mm'] / 2 for i in indices)
+                if lo <= hi:
+                    subsets.append(indices)
+        size = max(map(len, subsets))
+        winners = [s for s in subsets if len(s) == size]
+        result = photo.photo_agreement(shots)
+        assert result['written'] == (size >= 4 and len(winners) == 1)
+        if result['written']:
+            assert result['photo_ids'] == [str(i) for i in winners[0]]
+
+
+@pytest.mark.parametrize('media', ['cd', 'dvd'])
+def test_majority_provenance_and_saved_evidence(tmp_path, media):
+    summary, target, record, fit = run_files(tmp_path, media)
+    record['photos'].append(dict(record['photos'][0], id='stray', L_mm=40., input_sha256='a' * 64))
+    record['application_agreement'] = photo.photo_agreement(record['photos'])
+    record['group'] = dict(status='photos_disagree')  # Raw reader diagnostic is retained.
+    target.write_text(json.dumps(record))
+    decision = photo.photo_l(summary, media=media)
+    assert decision['written'] and decision['L_mm'] == 20.
+    assert decision['provenance']['photo_ids'] == ['0', '1']
+    assert len(decision['provenance']['photos']) == 3
+    assert decision['outliers'][0]['id'] == 'stray'
+    assert decision['provenance']['outliers'] == decision['outliers']
+    target.unlink()
+    assert photo.photo_l(summary, media=media, frozen=decision) == decision
+
+
+def test_original_saved_policy_keeps_its_mean(tmp_path):
+    summary, target, record, fit = run_files(tmp_path)
+    record['photos'] = [dict(p, disc_id=record['disc_id']) for p in shots_at([0., 1., 3.], [10.] * 3)]
+    record['offset_mm'] = 4 / 3
+    target.write_text(json.dumps(record))
+    with patch.object(photo, 'PHOTO_L_POLICY', 'two-poses-v1'), \
+         patch.object(photo, 'photo_agreement', lambda p: dict(
+             **photo._all_photo_agreement(p), outliers=[], common_interval_mm=[-2., 5.])):
+        # Build exactly the schema emitted by the former policy.
+        legacy = photo.photo_l(summary)
+    assert legacy['written']
+    legacy['provenance'].pop('outliers', None)
+    legacy['provenance'].pop('common_interval_mm', None)
+    for shot in legacy['provenance']['photos']:
+        shot.pop('name', None)
+    legacy.pop('outliers', None)
+    legacy['provenance_sha256'] = hashlib.sha256(json.dumps(
+        legacy['provenance'], sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    target.unlink()
+    assert photo.photo_l(summary, frozen=legacy) == legacy
 
 
 @pytest.mark.parametrize("media", ["cd", "dvd"])

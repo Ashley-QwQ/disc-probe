@@ -1,0 +1,87 @@
+/* The start guide (guide.js). Paper and ink from the page's own variables, so both themes follow. Body copy
+   is never under 16 px. The rainbow appears only where light meets the disc, in the figure. */
+.startguide[hidden] { display: none; }
+.startguide { position: fixed; inset: 0; z-index: 80; display: grid; grid-template-rows: auto 1fr auto; color: var(--ink); background: var(--paper);
+  font: 400 16px / 1.6 var(--font); }
+.startguide *, .startguide *::before, .startguide *::after { box-sizing: border-box; }
+.sg-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: var(--edge) var(--edge) 0; min-height: calc(var(--edge) + var(--row)); }
+.sg-bar h2 { margin: 0; font: 800 clamp(22px, 3vw, 32px) / 1.2 var(--font); font-stretch: 112%; }
+.sg-bar h2:focus { outline: none; }
+.sg-scroll { overflow: auto; overscroll-behavior: contain; padding: 8px var(--edge) 24px; scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent; }
+.sg-col { max-width: 760px; margin: 0 auto; }
+.startguide h3 { margin: 32px 0 8px; font: 800 20px / 1.3 var(--font); font-stretch: 108%; }
+.startguide h4 { margin: 0 0 4px; font: 700 16px / 1.4 var(--font); }
+.startguide p { margin: 0 0 8px; }
+.startguide ul, .startguide ol { margin: 0; padding-left: 22px; }
+.sg-note { color: var(--ink-2); }
+.sg-btn { min-height: 44px; padding: 8px 16px; font: 600 16px / 1.3 var(--font); color: var(--ink); background: transparent;
+  border: 1.5px solid var(--rule-strong); border-radius: 4px; cursor: pointer; }
+.sg-btn:hover:not(:disabled) { border-color: var(--copper); color: var(--copper); }
+.sg-btn:disabled { opacity: .45; cursor: default; }
+.sg-btn[aria-pressed="true"] { border-color: var(--ink); background: var(--paper-2); }
+.sg-primary { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+.sg-primary:hover:not(:disabled) { background: var(--copper); border-color: var(--copper); color: var(--paper); }
+.startguide :focus-visible { outline: 3px solid var(--copper); outline-offset: 3px; }
+
+/* the animation: scenes appear in order; without motion every change is immediate */
+.sg-anim { margin: 8px 0 20px; }
+.sg-fig { display: block; width: 100%; height: auto; max-height: 300px; }
+.sg-tracks { stroke: var(--ink-2); stroke-width: 2; fill: none; }
+.sg-surface { stroke: var(--ink); stroke-width: 3; fill: none; }
+.sg-lamp { fill: var(--copper); }
+.sg-beam { stroke: var(--copper); stroke-width: 4; stroke-linecap: round; }
+.sg-ray { stroke-width: 4; stroke-linecap: round; }
+.sg-eye, .sg-pic rect { fill: none; stroke: var(--ink); stroke-width: 2.5; }
+.sg-pupil { fill: var(--ink); }
+.sg-pic text { fill: var(--ink-2); font: 600 22px var(--font); }
+.sg-pic rect { fill: color-mix(in srgb, var(--copper) 22%, transparent); stroke: var(--copper); }
+.sg-beamg, .sg-raysg, .sg-eyeg, .sg-pic { opacity: 0; }
+.startguide[data-scene="2"] .sg-beamg, .startguide[data-scene="3"] .sg-beamg, .startguide[data-scene="4"] .sg-beamg { opacity: 1; }
+.startguide[data-scene="3"] .sg-raysg, .startguide[data-scene="4"] .sg-raysg { opacity: 1; }
+.startguide[data-scene="4"] .sg-eyeg, .startguide[data-scene="4"] .sg-pic { opacity: 1; }
+.startguide[data-scene="4"] .sg-ray:not([data-i="3"]) { opacity: .25; }
+:root[data-motion="on"] .startguide :is(.sg-beamg, .sg-raysg, .sg-eyeg, .sg-pic, .sg-ray) { transition: opacity 500ms var(--ease); }
+.sg-caption { margin: 8px 0; font-weight: 600; min-height: 3.2em; }
+.sg-controls, .sg-media { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 12px; }
+.sg-scenes { color: var(--ink-2); }
+.sg-scenes li[data-on="true"] { color: var(--ink); font-weight: 700; }
+
+.sg-card, .sg-dis { margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--rule); }
+.sg-card ul { margin-top: 4px; }
+.sg-miss { color: var(--warn); }
+
+/* where you are: a tick for done, an open ring otherwise; "now" is copper, and the words always say it too */
+.sg-steps { list-style: none; padding: 0; display: grid; gap: 14px; margin-top: 12px; }
+.sg-steps li { display: grid; grid-template-columns: 22px 1fr; gap: 12px; }
+.sg-tick { width: 20px; height: 20px; margin-top: 4px; border: 2px solid var(--ink-3); border-radius: 50%; position: relative; }
+.sg-steps li[data-status="done"] .sg-tick { border-color: var(--ink); }
+.sg-steps li[data-status="done"] .sg-tick::after { content: ""; position: absolute; left: 5px; top: 1px; width: 5px; height: 10px; border: solid var(--ink); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.sg-steps li[data-status="unknown"] .sg-tick { border-style: dashed; }
+.sg-steps li[data-status="problem"] .sg-tick, .sg-steps li[data-now="true"] .sg-tick { border-color: var(--copper); }
+.sg-steps li[data-now="true"] h4, .sg-steps li[data-status="problem"] h4 { color: var(--copper); }
+.sg-state { margin-left: 10px; font-weight: 500; color: var(--ink-2); }
+.sg-unk b, .sg-why b { font-weight: 700; }
+.sg-data { font: 400 16px / 1.5 var(--mono, ui-monospace, "Cascadia Mono", Consolas, monospace); color: var(--ink-2); overflow-wrap: anywhere; }
+.sg-checks { display: grid; gap: 14px; margin: 12px 0; }
+
+.sg-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px var(--edge) var(--edge); min-height: var(--foot); border-top: 1px solid var(--rule); background: var(--paper); }
+.sg-foot-say { margin: 0; font-weight: 600; }
+.sg-foot .sg-primary { margin-left: auto; flex: none; }
+.startguide[data-reached="true"] .sg-foot-say { color: var(--copper); }
+
+/* the lobby's line under the greeting, and the settings row */
+#lobby-guide { margin-top: .6em; font-size: 16px; color: var(--ink-2); pointer-events: auto; }
+#lobby-guide button { background: none; border: 0; padding: 0; font: 700 1em var(--font); color: var(--ink); cursor: pointer; text-decoration: underline; text-underline-offset: .25em; }
+#lobby-guide button:hover, #lobby-guide button:focus-visible { color: var(--copper); }
+.set-row.set-guide { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.set-row.set-guide button { min-height: 36px; padding: 4px 10px; font: 600 16px var(--font); color: var(--ink); background: transparent; border: 1.5px solid var(--rule-strong); border-radius: 4px; cursor: pointer; }
+
+@media (max-width: 560px) {
+  .sg-foot { flex-direction: column; align-items: stretch; }
+  .sg-foot .sg-primary { margin-left: 0; }
+}
+
+/* calibrate.js: what is not known yet and what to do next, under each phase's title */
+.cal .cal-guide { margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: var(--ink); }
+.cal .cal-guide p { margin: 0 0 4px; }
+.cal .cal-guide b { font-weight: 700; }

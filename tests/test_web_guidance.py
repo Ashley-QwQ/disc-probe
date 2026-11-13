@@ -13,6 +13,13 @@ def test_web_guidance():
     subprocess.run([node, str(Path(__file__).with_suffix('.mjs'))], check=True)
 
 
+def test_start_guide():
+    node = shutil.which('node')
+    if not node:
+        pytest.skip('Node is not installed')
+    subprocess.run([node, str(Path(__file__).with_name('test_start_guide.mjs'))], check=True)
+
+
 def test_no_dead_capability_copy():
     home = Path(__file__).resolve().parents[1] / 'discprobe/web/home'
     design = (home / 'design.js').read_text(encoding='utf-8')

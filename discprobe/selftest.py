@@ -778,6 +778,14 @@ def _incomplete_folder(c: Checker):
         os.mkdir(folder)
         for name in ("__main__.py", "guide.py", "mmc.py"):     # as in a real half-deleted copy: no __init__.py, no i18n.py
             shutil.copy(os.path.join(here, name), folder)
+        # An installed copy (pip/pipx) is a regular package, and Python prefers it to a folder without __init__.py,
+        # so the child would run the complete installed copy, not the half-deleted one: nothing to test there.
+        found = subprocess.run([sys.executable, "-c", "import importlib.util as u; s = u.find_spec('discprobe'); "
+                                "print((s.submodule_search_locations or [''])[0])"], cwd=d, capture_output=True,
+                               encoding="utf-8", env=env).stdout.strip()
+        if os.path.normcase(os.path.realpath(found or d)) != os.path.normcase(os.path.realpath(folder)):
+            print("  (skipped: an installed discprobe takes precedence over a loose folder)")
+            return
         # The check runs on import, before any command, and --help can't start anything if it isn't reached.
         got = subprocess.run([sys.executable, "-m", "discprobe", "--help"], cwd=d, capture_output=True, encoding="utf-8",
                              env=env)

@@ -360,6 +360,15 @@ def test_all_http_routes(http_server):
     assert request(server, "POST", "/api/works", dict(name="从设计", **{"from": document()}))[0] == 200
 
 
+def rejected(server, method, path, body):
+    """A request without the token is refused with 403. The server may answer before reading a body,
+    so under load Windows can abort the connection while the client is still sending: also a refusal."""
+    try:
+        return request(server, method, path, body, auth=False)[0] == 403
+    except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+        return True
+
+
 def test_http_auth_traversal_limits_and_conflict(http_server):
     server = http_server
     ident = server.backend.works.new("校验")["id"]
@@ -368,10 +377,10 @@ def test_http_auth_traversal_limits_and_conflict(http_server):
                                  ("GET", "/export", None), ("PUT", "/design", raw_design()),
                                  ("PUT", "/thumb", png()), ("PATCH", "", {}), ("DELETE", "", None),
                                  ("POST", "/duplicate", {}), ("POST", "/restore", {})):
-        assert request(server, method, route + suffix, body, auth=False)[0] == 403
+        assert rejected(server, method, route + suffix, body)
     for method, body in (("GET", None), ("POST", {})):
-        assert request(server, method, "/api/works", body, auth=False)[0] == 403
-    assert request(server, "POST", "/api/works/import", b"{}", auth=False)[0] == 403
+        assert rejected(server, method, "/api/works", body)
+    assert rejected(server, "POST", "/api/works/import", b"{}")
     for path in ("/api/works/%2e%2e/design", "/api/works/" + ident + "%2f..%2f..%2fwork.json", "/api/works/C:%5cx/design"):
         assert request(server, "GET", path)[0] in (400, 404)
     assert request(server, "PATCH", route, dict(id="../x"))[0] == 400

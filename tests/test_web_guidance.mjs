@@ -9,8 +9,10 @@ for (const lang of ['zh','en']) {
     assert.doesNotMatch(body, /--|timing|geo|disexport/);
     assert.equal(recoveryAction(result).id, ({good:'save',usable:'save'})[verdict] || 'measure');
   }
-  assert.match(budgetHTML('cd',lang), /<ul>.*3/s);
-  assert.match(budgetHTML('dvd',lang), /<ul>.*2/s);
+  // one statement of the disc count for both: disc 3 is the goal, disc 4 when the error is large
+  for (const media of ['cd','dvd']) assert.match(budgetHTML(media,lang), lang === 'zh' ? /<ul><li>目标是第 3 张盘出成品；误差大时第 4 张。这是目标，不是保证。/ : /<ul><li>The goal is the finished picture on disc 3, or disc 4 if the error is large\. A goal, not a promise\./);
+  assert.doesNotMatch(budgetHTML('dvd',lang), /至少 ?[23] 张|至少两张|at least [23] blanks|at least two/i);
+  assert.doesNotMatch(budgetHTML('cd',lang), /至少 ?[23] 张|at least [23] blanks/i);
   assert.match(budgetHTML('dvd',lang), /<details><summary>/);
   assert.doesNotMatch(budgetHTML('dvd',lang), /<details open/);
   assert.match(cdPhoto[lang], /DIS|DiscImageStudio/);

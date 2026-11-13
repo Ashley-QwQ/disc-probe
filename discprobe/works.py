@@ -17,9 +17,9 @@ import threading
 import time
 import zipfile
 
-DESIGN_LIMIT = 64 * 1024 * 1024
+DESIGN_LIMIT = 400 * 1024 * 1024   # the design page opens works up to 400 MiB (several photos)
 THUMB_LIMIT = 4 * 1024 * 1024
-ARCHIVE_LIMIT = 256 * 1024 * 1024
+ARCHIVE_LIMIT = 1024 * 1024 * 1024  # a 400 MiB design plus its de-duplicated assets
 ID = re.compile(r"w-[0-9]{8}-[0-9]{6}-[0-9a-f]{4}", re.ASCII)
 ASSET = re.compile(r"assets/[0-9a-f]{64}", re.ASCII)
 STATUSES = ("draft", "iso_ready", "burned", "done", "failed")
