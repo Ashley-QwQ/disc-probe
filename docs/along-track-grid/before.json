@@ -1,0 +1,110 @@
+{
+  "phase": "before",
+  "platform": "Windows-2025Server-10.0.26100-SP0",
+  "python": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]",
+  "cpu_count": 12,
+  "total_ram_bytes": 34164097024,
+  "workers": "auto (up to 6)",
+  "sectors": 2295104,
+  "runs": [
+    {
+      "cell_um": 20,
+      "seconds": 26.585858699982055,
+      "peak_tree_rss_bytes": 584781824,
+      "peak_tree_private_bytes": 3106181120,
+      "available_ram_at_start": 3002597376,
+      "returncode": 0,
+      "sector_hashes": {
+        "32": "0d7ffa2a71a8d39f28b2efaf9cc1342192f8afcac1f9e7786f0df28a842ef1a9",
+        "500003": "6d9b6dac4a4b0e4eb9ca8bbaf9d2998374264b9b4f8af4585456bfdaa91214c6",
+        "2145149": "5895a7da3b622aba8e7a327847e22d790427621f1241c860972d242406db787c"
+      },
+      "command": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "-B",
+        "-m",
+        "discprobe",
+        "image",
+        "--geo",
+        "D:\\disc-probe\\.claude\\worktrees\\along-grid\\tests\\.along-grid-bench\\summary.json",
+        "--design-npy",
+        "D:\\disc-probe\\.claude\\worktrees\\along-grid\\tests\\.along-grid-bench\\design.npy",
+        "--textures",
+        "B9",
+        "A5",
+        "--cell-um",
+        "20",
+        "--r-max",
+        "58",
+        "--output",
+        "D:\\disc-probe\\.claude\\worktrees\\along-grid\\tests\\.along-grid-bench\\full.iso"
+      ]
+    },
+    {
+      "cell_um": 10,
+      "seconds": 26.691061899997294,
+      "peak_tree_rss_bytes": 1233702912,
+      "peak_tree_private_bytes": 3003662336,
+      "available_ram_at_start": 3476615168,
+      "returncode": 0,
+      "sector_hashes": {
+        "32": "0d7ffa2a71a8d39f28b2efaf9cc1342192f8afcac1f9e7786f0df28a842ef1a9",
+        "500003": "6d9b6dac4a4b0e4eb9ca8bbaf9d2998374264b9b4f8af4585456bfdaa91214c6",
+        "2145149": "5895a7da3b622aba8e7a327847e22d790427621f1241c860972d242406db787c"
+      },
+      "command": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "-B",
+        "-m",
+        "discprobe",
+        "image",
+        "--geo",
+        "D:\\disc-probe\\.claude\\worktrees\\along-grid\\tests\\.along-grid-bench\\summary.json",
+        "--design-npy",
+        "D:\\disc-probe\\.claude\\worktrees\\along-grid\\tests\\.along-grid-bench\\design.npy",
+        "--textures",
+        "B9",
+        "A5",
+        "--cell-um",
+        "10",
+        "--r-max",
+        "58",
+        "--output",
+        "D:\\disc-probe\\.claude\\worktrees\\along-grid\\tests\\.along-grid-bench\\full.iso"
+      ]
+    },
+    {
+      "cell_um": 5,
+      "seconds": 46.195114200003445,
+      "peak_tree_rss_bytes": 4656488448,
+      "peak_tree_private_bytes": 5022019584,
+      "available_ram_at_start": 5071650816,
+      "returncode": 0,
+      "sector_hashes": {
+        "32": "0d7ffa2a71a8d39f28b2efaf9cc1342192f8afcac1f9e7786f0df28a842ef1a9",
+        "500003": "6d9b6dac4a4b0e4eb9ca8bbaf9d2998374264b9b4f8af4585456bfdaa91214c6",
+        "2145149": "5895a7da3b622aba8e7a327847e22d790427621f1241c860972d242406db787c"
+      },
+      "command": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "-B",
+        "-m",
+        "discprobe",
+        "image",
+        "--geo",
+        "D:\\disc-probe\\.claude\\worktrees\\along-grid\\tests\\.along-grid-bench\\summary.json",
+        "--design-npy",
+        "D:\\disc-probe\\.claude\\worktrees\\along-grid\\tests\\.along-grid-bench\\design.npy",
+        "--textures",
+        "B9",
+        "A5",
+        "--cell-um",
+        "5",
+        "--r-max",
+        "58",
+        "--output",
+        "D:\\disc-probe\\.claude\\worktrees\\along-grid\\tests\\.along-grid-bench\\full.iso"
+      ]
+    }
+  ]
+}

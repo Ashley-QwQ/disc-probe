@@ -1,0 +1,13 @@
+Preparing the design and image data; this may take a few seconds...
+Photo L not applied: no_photo; the photo constant remains unknown.
+design design.npy, 10 um cells, geometry u 180045.011, v 5.5513878 from D:\disc-probe\.claude\worktrees\along-grid\tests\.along-grid-bench\summary.json; 2295104 sectors (4.70 GB), textures B9 A5
+Starting 6 worker processes (DISCPROBE_WORKERS=auto); preparing image chunks...
+    0.0 %
+   20.0 %
+   40.0 %
+   60.0 %
+   80.0 %
+  100.0 %
+Verified: sampled sectors match the design
+Spec: D:\disc-probe\.claude\worktrees\along-grid\tests\.along-grid-bench\full.image.json
+Preview (data-side view): D:\disc-probe\.claude\worktrees\along-grid\tests\.along-grid-bench\full.preview.png
