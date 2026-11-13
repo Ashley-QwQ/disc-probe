@@ -112,6 +112,11 @@ class Result:
             media = self.fit.get("media")
             if media in ("cd", "dvd", "bd"):
                 return media
+        if self.kind == "info":
+            report = _load(os.path.join(self.path, "info.json")) or {}
+            family = mmc.media_family(_parsed(report, "configuration").get("current_profile"))
+            if family in ("cd", "dvd", "bd"):
+                return family
         family = (self.summary.get("setup") or {}).get("family")
         media = family if family in ("cd", "dvd", "bd") else (self.summary.get("args") or {}).get("media")
         return media if media in ("cd", "dvd", "bd") else "dvd"
@@ -652,7 +657,8 @@ def after_list(drives: list[str]) -> list[str]:
         return [("Plug the drive in and check that it shows up in Explorer," if sys.platform == "win32" else
                  "Plug the drive in and check that its device path appears under /dev,"),
                 f"or try the flow on the simulated drive: {PROG} timing --sim cav"]
-    lines = ["Next, see what the drive and disc report:", f"  {PROG} info --drive {drives[0]}"]
+    lines = ["Next, put a blank disc in the drive and read its available sectors (a few seconds):",
+             f"  {PROG} info --drive {drives[0]}"]
     if len(drives) > 1:
         lines.append("With several drives, use the letter of the one holding your disc." if sys.platform == "win32" else
                      "With several drives, use the device path of the one holding your disc.")
@@ -1043,18 +1049,21 @@ def tutorial_lines() -> list[str]:
             "  A bad photo (too dark, not the whole disc, glare) is retaken, not re-burned.",
             "Already use DiscImageStudio? Run the web page (python -m discprobe webui) and use Import / Export on the desk to bring its preset in.",
             "",
-            "1. Burn a random-data disc. It is not your picture yet: it is how the program learns this kind of disc.",
+            "1. Put a blank disc in the drive and read its available sectors (a few seconds).",
+            f"  {PROG} info {drive_flag()}",
+            "  That count is what calibration and --sectors use; a blank disc reports it most accurately.",
+            "2. Burn a random-data disc. It is not your picture yet: it is how the program learns this kind of disc.",
             f"  {PROG} random --output iso/random.iso",
             "  This uses up the disc: a DVD+R, DVD-R or CD-R can't be erased.",
             *burn_steps("iso/random.iso"),
-            "2. Check the drive with that disc, 1 to 3 minutes. You want CAV and low jitter.",
+            "3. Check the drive with that disc, 1 to 3 minutes. You want CAV and low jitter.",
             f"  {PROG} timing {drive_flag()}",
-            "3. Measure the disc's spiral, about 5 minutes.",
+            "4. Measure the disc's spiral, about 5 minutes.",
             f"  {PROG} geo {drive_flag()}",
-            "4. Turn your picture into an ISO, check the preview, and burn it on another blank from the same box.",
+            "5. Turn your picture into an ISO, check the preview, and burn it on another blank from the same box.",
             f"  {PROG} image --geo latest --picture my_picture.png --output iso/picture.iso",
             "  This is disc 2. Photograph it (the web page reads the photos) to see how far off it is; the finished picture is disc 3.",
-            "5. Look at the disc in the dark. It takes a knack, and `guide` explains it when you get there.",
+            "6. Look at the disc in the dark. It takes a knack, and `guide` explains it when you get there.",
             "  No picture? Check the light, then the burn report, then the geometry. disc-probe says why before it suggests another burn.",
             "",
             "On a Blu-ray (experimental) the same shape comes out of read timing instead of a picture:",
@@ -1230,8 +1239,20 @@ class Plan:
         self.timing, self.random_iso = timing, random_iso
 
     def current(self) -> "Task | None":
-        """The first step still open: where a person would start."""
-        return next((task for task in self.tasks if not task.done), None)
+        """The first step still open that actually blocks the rest of the flow.
+
+        The blank-disc `info` run is only a prerequisite before the random-data disc and `timing`.
+        Someone who already has those results should move on to the picture instead of being pulled
+        back to read a blank.
+        """
+        info_blocks = not self.has_iso and self.timing is None
+        for task in self.tasks:
+            if task.done:
+                continue
+            if task.key == "info" and not info_blocks:
+                continue
+            return task
+        return None
 
 
 def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, drives=None) -> Plan:
@@ -1244,6 +1265,25 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, dr
     drives = optical_drives() if drives is None else drives
     drive = f"--drive {drives[0]}" if drives else ("--drive /dev/sr0" if sys.platform == "linux" else "--drive E:")
 
+    info_runs = [r for r in results if r.kind == "info" and not r.simulated and r.media == media]
+    info_run = info_runs[0] if info_runs else None
+    info_sectors = None
+    for report_run in info_runs:
+        report = _load(os.path.join(report_run.path, "info.json")) or {}
+        track = _parsed(report, "track_1")
+        atip = _parsed(report, "atip")
+        disc = _parsed(report, "disc_information")
+        capacity = _parsed(report, "capacity")
+        profile = _parsed(report, "configuration").get("current_profile")
+        # A count off a disc that has been burned already can be larger than the blank's capacity.
+        # A CD's ATIP lead-out is fixed by the blank itself, so it stays a blank-disc count.  Some
+        # blank Blu-rays do not report track free blocks; an empty disc's capacity is the blank size.
+        if (track.get("blank") and track.get("free_blocks")) or \
+                (mmc.media_family(profile) == "cd" and atip.get("last_leadout_start_lba")) or \
+                (disc.get("disc_status") == "empty" and capacity.get("last_lba")):
+            info_sectors = sectors_from_info(report)
+            if info_sectors:
+                break
     timing = next((r for r in results if r.kind == "timing" and r.rotation() and not r.stopped), None)
     # A Blu-ray is read at a constant linear speed, so CLV is the good answer there, not CAV: the run
     # that counts is the one that finished, and its own verdict says whether the disc is usable.
@@ -1265,6 +1305,12 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, dr
              argv=["list"],
              why="Shows the optical drives this computer can see, and the name each one uses.",
              takes="a second"),
+        Task("info", "Blank disc (info)", info_sectors is not None,
+             f"{info_sectors[0]:,} sectors available" if info_sectors else
+             ("no blank-disc count; use a blank disc" if info_run is not None else "not run yet"),
+             argv=["info", *(["--drive", drives[0]] if drives else [])],
+             why="Put a blank disc of the kind you plan to use in the drive. Its info report gives the available sector count that calibration and disexport --sectors need; a count read back from a burned disc can be too high.",
+             takes="a few seconds"),
         Task("disc", "Random-data disc", disc_done,
              f"{random_iso} written; burn it" if has_iso and timing is None else
              "measured" if timing else "not made yet",
@@ -1285,7 +1331,7 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, dr
              takes="about 5 minutes"),
     ]
     picture = picture_iso() if notes else None
-    if notes:       # scripts keep the steps they always saw. The burn is the person's own, so nothing here can tick it.
+    if notes:       # People also see the picture and burn; scripts get the six default steps.
         tasks += [
             Task("picture", "Picture ISO (image)", picture is not None,
                  short(picture) if picture else "not made yet",
@@ -1298,9 +1344,6 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, dr
                  why="Burn the ISO on a blank from the batch you measured, then look at the data side in the dark.",
                  takes="as long as your burner takes"),
         ]
-        current = next((task for task in tasks if not task.done), None)
-        if current is not None:
-            current.current = True
 
     if media == "bd" and geo is not None:
         sectors = _sectors_for(geo.summary, out)[0]
@@ -1314,8 +1357,13 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, dr
         commands = [("Install the Python packages disc-probe uses:", INSTALL)]
     elif sys.platform not in ("win32", "linux"):
         commands = [("Try the flow on the simulated drive:", f"{PROG} timing --sim cav{flag}"), (None, PORTS)]
+    elif info_sectors is None and not has_iso and timing is None:
+        commands = [("Put a blank disc of the kind you plan to use in the drive, then read its available sectors (a few seconds):",
+                     f"{PROG} info {drive}".rstrip())]
     elif not has_iso and timing is None:
-        commands = [("Make the random-data disc: write this file, then burn it:", f"{PROG} random{flag} --output {random_iso}")]
+        note = (f"The blank reports {info_sectors[0]:,} sectors available. Make the random-data disc: write this file, then burn it:"
+                if info_sectors else "Make the random-data disc: write this file, then burn it:")
+        commands = [(note, f"{PROG} random{flag} --output {random_iso}")]
     elif timing is None:
         commands = [(f"Burn {random_iso} to a disc and load it, then check this drive (1 to 3 minutes):", f"{PROG} timing {drive}{flag}")]
     elif not timing_good:
@@ -1342,6 +1390,9 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, dr
 def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -> list[str]:
     """The workflow with what is already done ticked off, and the next command; `notes` says what each does."""
     plan = workflow(media, out, notes)
+    current = plan.current() if notes else None
+    if current is not None:
+        current.current = True
     other = "cd" if media == "dvd" else "dvd"
     lines = [f"Where you are, for {media.upper()} ({other.upper()}: {PROG} guide --media {other}):", ""]
     for task in plan.tasks:

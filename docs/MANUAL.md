@@ -93,7 +93,9 @@ python -m discprobe menu
 python -m discprobe tutorial
 ```
 
-**下一步跑什么。**`guide` 读 `results` 文件夹，列出做过的步骤，打印下一条命令，不碰光驱。不带参数运行 `python -m discprobe` 也是它。`guide --media cd` 看 CD 的步骤；不写时跟随最近一次测量的盘型。
+**下一步跑什么。**`guide` 读 `results` 文件夹，列出做过的步骤，打印下一条命令，不碰光驱。不带参数运行 `python -m discprobe` 打开上面的引导控制台。`guide --media cd` 看 CD 的步骤；不写时跟随最近一次测量的盘型。
+
+**先读空盘。**刻随机盘之前，放一张同批的空盘运行 `python -m discprobe info --drive H:`，记下可用扇区数。`guide` 和引导控制台把它放在 `list` 之后、刻盘之前；`disexport --sectors` 和 DiscImageStudio 里的扇区数都填这个值，并以空白盘上 `info` 的数为准（原因见下面 `--sectors`）。
 
 ```bash
 python -m discprobe guide

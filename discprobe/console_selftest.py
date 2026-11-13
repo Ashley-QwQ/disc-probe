@@ -7,6 +7,7 @@ in, screens and actions come out. Only the escape-sequence wrapper needs a fake 
 from __future__ import annotations
 
 import io
+import json
 import os
 import tempfile
 
@@ -109,21 +110,21 @@ def _lines(c):
 def _workflow(c, folder):
     plan = guide.workflow("cd", folder, notes=True)
     c.check([task.key for task in plan.tasks] ==
-            ["packages", "drive", "disc", "timing", "geo", "picture", "burn"],
-            "workflow: the seven steps, in order")
+            ["packages", "drive", "info", "disc", "timing", "geo", "picture", "burn"],
+            "workflow: the eight steps, in order")
     c.check(plan.tasks[0].action == "shell" and plan.tasks[0].shell == guide.INSTALL,
             "workflow: packages install in a shell")
     c.check(plan.tasks[1].action == "run" and plan.tasks[1].argv == ["list"],
             "workflow: the drive step lists drives")
-    c.check(plan.tasks[5].action == "form" and plan.tasks[5].form == "image",
+    c.check(plan.tasks[6].action == "form" and plan.tasks[6].form == "image",
             "workflow: the picture step opens the form")
-    c.check(plan.tasks[6].action == "burn", "workflow: the last step is a burn")
+    c.check(plan.tasks[7].action == "burn", "workflow: the last step is a burn")
     c.check(plan.tasks[3].argv is not None and "--media" in plan.tasks[3].argv and
             "cd" in plan.tasks[3].argv, "workflow: a CD plan passes --media cd")
     bd_plan = guide.workflow("bd", folder, notes=True)
     c.check(bd_plan.tasks[3].argv is not None and "bd" in bd_plan.tasks[3].argv,
             "workflow: a Blu-ray plan passes --media bd")
-    c.check(bd_plan.tasks[4].argv is not None and "--bd-zones" in bd_plan.tasks[4].argv,
+    c.check(bd_plan.tasks[5].argv is not None and "--bd-zones" in bd_plan.tasks[5].argv,
             "workflow: the Blu-ray geometry step asks for zones")
     c.check(plan.current() is not None and not plan.current().done, "workflow: the current step is the first undone")
 
@@ -322,6 +323,109 @@ def _language(c):
         os.environ.pop("DISCPROBE_LANG", None)
 
 
+def _info(c, folder):
+    """The blank-disc step runs `info`, and its sector count is what the checklist shows."""
+    plan = guide.workflow("dvd", folder, notes=True)
+    task = plan.tasks[2]
+    c.check(task.key == "info" and task.action == "run" and "info" in (task.argv or []),
+            "info: the blank-disc step reads the drive")
+    c.check(task.argv is not None and "--media" not in task.argv,
+            "info: the report does not take a --media flag")
+    c.check(not task.done and task.detail == "not run yet", "info: a new plan has not read a disc")
+    lines = guide.guide_lines("dvd", folder)
+    c.check(any("Blank disc (info)" in line for line in lines) and
+            any("info --drive" in line for line in lines), "info: guide asks for it before random")
+
+    path = os.path.join(folder, "info-H-20260101-100000")
+    os.makedirs(path)
+    with open(os.path.join(path, "info.json"), "w", encoding="utf-8") as f:
+        json.dump({"configuration": {"parsed": {"current_profile": 0x11}},
+                   "track_1": {"parsed": {"blank": True, "track_start": 0, "free_blocks": 2295104}},
+                   "capacity": {"parsed": {"last_lba": 2295103}}}, f)
+    plan = guide.workflow("dvd", folder, notes=True)
+    task = plan.tasks[2]
+    c.check(task.done and task.detail == "2,295,104 sectors available",
+            "info: the blank's free sector count is shown")
+    c.check(any("2,295,104 sectors available" in line for line in guide.guide_lines("dvd", folder)),
+            "info: the checklist keeps the count visible")
+    c.check(any("random --output" in line for line in guide.guide_lines("dvd", folder, notes=True)),
+            "info: once the count is known, guide moves on to the random disc")
+
+    bd = os.path.join(folder, "info-H-20260101-100001")
+    os.makedirs(bd)
+    with open(os.path.join(bd, "info.json"), "w", encoding="utf-8") as f:
+        json.dump({"configuration": {"parsed": {"current_profile": 0x41}},
+                   "track_1": {"parsed": {"blank": True, "track_start": 0, "free_blocks": 12219392}}}, f)
+    c.check(next(r for r in guide.scan(folder) if r.path == bd).media == "bd",
+            "info: a Blu-ray report is recognised as a Blu-ray")
+    c.check(guide.workflow("bd", folder).tasks[2].done,
+            "info: the Blu-ray checklist uses its own report")
+
+    with tempfile.TemporaryDirectory() as capacity_only:
+        report = os.path.join(capacity_only, "info-H-20260101-100003")
+        os.makedirs(report)
+        with open(os.path.join(report, "info.json"), "w", encoding="utf-8") as f:
+            json.dump({"configuration": {"parsed": {"current_profile": 0x41}},
+                       "disc_information": {"parsed": {"disc_status": "empty"}},
+                       "capacity": {"parsed": {"last_lba": 12219391}}}, f)
+        task = guide.workflow("bd", capacity_only).tasks[2]
+        c.check(task.done and task.detail == "12,219,392 sectors available",
+                "info: an empty Blu-ray uses its capacity when track free blocks are missing")
+
+    with tempfile.TemporaryDirectory() as only_dvd:
+        dvd = os.path.join(only_dvd, "info-H-20260101-100004")
+        os.makedirs(dvd)
+        with open(os.path.join(dvd, "info.json"), "w", encoding="utf-8") as f:
+            json.dump({"configuration": {"parsed": {"current_profile": 0x11}},
+                       "track_1": {"parsed": {"blank": True, "track_start": 0, "free_blocks": 2295104}}}, f)
+        task = guide.workflow("bd", only_dvd).tasks[2]
+        c.check(not task.done, "info: a DVD report does not tick the Blu-ray blank-disc step")
+
+    with tempfile.TemporaryDirectory() as incomplete:
+        report = os.path.join(incomplete, "info-H-20260101-100005")
+        os.makedirs(report)
+        with open(os.path.join(report, "info.json"), "w", encoding="utf-8") as f:
+            json.dump({"configuration": {"parsed": {"current_profile": 0x41}},
+                       "disc_information": {"parsed": {"disc_status": "incomplete"}},
+                       "capacity": {"parsed": {"last_lba": 12219391}}}, f)
+        task = guide.workflow("bd", incomplete).tasks[2]
+        c.check(not task.done, "info: a partly written disc is not a blank disc")
+
+    with tempfile.TemporaryDirectory() as late:
+        geo = os.path.join(late, "geo-H-20260101-100000")
+        os.makedirs(geo)
+        with open(os.path.join(geo, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump({"fit": {"u": 180000.0, "v": 5.5, "chi2_per_dof": 1.0,
+                               "measured_span_mm": [26.0, 54.0]}, "setup": {"last_lba": 2295103}}, f)
+        with open(os.path.join(geo, "targets.csv"), "w", encoding="utf-8") as f:
+            f.write("header\n" + "row\n" * 22)
+        timing = os.path.join(late, "timing-H-20260101-100000")
+        os.makedirs(timing)
+        with open(os.path.join(timing, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump({"period": {"rotation": {"mode": "CAV"}}, "args": {"media": "dvd"}}, f)
+        plan = guide.workflow("dvd", late, notes=True)
+        c.check(plan.tasks[2].key == "info" and not plan.tasks[2].done,
+                "info: a later user still sees the blank-disc step marked undone")
+        c.check(plan.current() is not None and plan.current().key != "info",
+                "info: a later user is not pulled back to read a blank")
+        lines = guide.guide_lines("dvd", late, notes=True)
+        info_line = next(line for line in lines if "Blank disc (info)" in line)
+        c.check("you are here" not in info_line, "info: a later user's checklist does not point at the blank disc")
+        c.check(any("image --geo latest" in line for line in lines),
+                "info: a later user's next command is the picture ISO")
+
+    with tempfile.TemporaryDirectory() as only_burned:
+        burned = os.path.join(only_burned, "info-H-20260101-100002")
+        os.makedirs(burned)
+        with open(os.path.join(burned, "info.json"), "w", encoding="utf-8") as f:
+            json.dump({"configuration": {"parsed": {"current_profile": 0x11}},
+                       "track_1": {"parsed": {"blank": False}},
+                       "capacity": {"parsed": {"last_lba": 100000}}}, f)
+        task = guide.workflow("dvd", only_burned).tasks[2]
+        c.check(not task.done and "use a blank disc" in task.detail,
+                "info: a count from a burned disc does not tick the blank-disc step")
+
+
 def _opening(c):
     """The console keeps the opening disc animation that a bare `discprobe` used to draw."""
     term = FakeTerm()
@@ -461,6 +565,7 @@ def run(c) -> None:
     _opening(c)
     with tempfile.TemporaryDirectory() as folder:
         _workflow(c, folder)
+        _info(c, folder)
         _console(c, folder)
         _form(c, folder)
         _step_notes(c, folder)
