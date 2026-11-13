@@ -1,8 +1,27 @@
-# disc-probe
+<div align="center">
 
-[English](README.en.md) | 简体中文
+[English](README.en.md) | **简体中文**
 
-让普通光驱自己测出一张盘的螺旋几何，再把图片刻到 DVD-R 或 CD-R 的数据面上。整个过程不用拍照描点。
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/showcase/banner_dark.png">
+<img src="docs/showcase/banner_light.png" width="100%" alt="disc-probe">
+</picture>
+
+<h3>让普通光驱自己测出一张盘的螺旋几何，再把图片刻到 DVD-R 或 CD-R 的数据面上。整个过程不用拍照描点。</h3>
+
+[![最新版本](https://img.shields.io/github/v/release/Ashley-QwQ/disc-probe?style=flat-square&color=a8693c&label=%E7%89%88%E6%9C%AC)](https://github.com/Ashley-QwQ/disc-probe/releases/latest)
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab?style=flat-square)
+![运行平台](https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-Windows%20%7C%20Linux-0078d6?style=flat-square)
+![光盘](https://img.shields.io/badge/%E5%85%89%E7%9B%98-DVD%C2%B1R%20%7C%20CD--R-7262c6?style=flat-square)
+[![许可证](https://img.shields.io/badge/%E8%AE%B8%E5%8F%AF%E8%AF%81-GPL--3.0--or--later-blue?style=flat-square)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/Ashley-QwQ/disc-probe?style=flat-square&color=5d5850)](https://github.com/Ashley-QwQ/disc-probe/stargazers)
+[![实测征集](https://img.shields.io/badge/%E5%AE%9E%E6%B5%8B%E5%BE%81%E9%9B%86-DIS%20%23107-ba4765?style=flat-square)](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107)
+
+</div>
+
+---
+
+## 效果预览
 
 <p>
 <img src="docs/showcase/qingming_title.jpg" width="42%" alt="刻在 DVD-R 数据面上的《清明上河图》题字和局部">
@@ -23,82 +42,6 @@ disc-probe 让光驱来量。盘匀速转动时，一个扇区读完的时刻，
 </picture>
 
 这套测量只发读取类命令。测完可以直接生成 ISO，也可以导出 [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio) 预设。
-
-## 效果
-
-### 几何精度
-
-<img src="docs/showcase/grid_lines_zoom.jpg" width="60%" alt="网格盘扫描的局部，线条笔直">
-
-这是网格测试盘的局部，600 dpi 平板扫描，高通处理后约 38 mm 见方。这张盘同样只用计时结果、只刻一次（HL-DT-ST GH70N，Ritek F1 DVD-R）。8 张扫描量得 25–54 mm 内的转角峰峰值 0.11°，rms 0.03°。在 50 mm 半径处，0.03° 大约是 0.03 mm。
-
-<img src="evidence/figures/bending_before_after.png" width="75%" alt="三张网格盘的转角随半径的变化">
-
-图中绿线是这张盘。测量方案是[刻录前预先登记](docs/PREREG_remeasure.md)的。
-
-### 细节
-
-<img src="docs/showcase/dense_motifs.jpg" width="75%" alt="微距照片：不可能三角形、小人和最上方的三线组">
-
-密铺盘的微距照片，也是只刻一次。不可能三角形宽 4.2 mm，小人高 6.8 mm，最上方是测线宽用的三线组。肉眼能看清最小的 1 mm 三角形，它每条边约 0.15 mm 宽。600 dpi 扫描能分开 0.12 mm 的线，0.08 mm 勉强，再细就到扫描仪的极限了。
-
-<img src="docs/showcase/qingming5um_overview.jpg" width="60%" alt="每张特写的拍摄位置，画在刻盘所用 ISO 的渲染图上，旁边是同比例的 550 ml 矿泉水瓶">
-
-还可以更细：第二张清明上河图盘用约 4–6 µm 的格子画。上图是下面每张特写的拍摄位置，画在刻这张盘所用 ISO 的渲染图上（亮的是 `92` 纹理，暗的是 `A5`），旁边是同比例的 550 ml 矿泉水瓶。我们没有显微镜，特写是手机加一只倒装的单反镜头拍的。每张的放大倍率不一样，镜头里那块圆形视野约 5–23 mm 宽。每张的比例和位置是把照片和设计图逐张匹配算出来的，都加了比例尺。单个格子仍在手机能分辨的尺度附近或以下。颜色只是光盘本身的衍射。
-
-<img src="docs/showcase/qingming5um_1_wide_where.jpg" width="28%" alt="位置 1"> <img src="docs/showcase/qingming5um_1_wide_scale.jpg" width="48%" alt="虹桥和人群">
-
-1 · 虹桥和人群 · 视野约 23 mm
-
-<img src="docs/showcase/qingming5um_2_houses_where.jpg" width="28%" alt="位置 2"> <img src="docs/showcase/qingming5um_2_houses_scale.jpg" width="48%" alt="牛车和房屋，旁边是两圈之间的空隙">
-
-2 · 牛车和房屋，旁边是两圈之间的空隙 · 视野约 12 mm
-
-<img src="docs/showcase/qingming5um_3_roof_where.jpg" width="28%" alt="位置 3"> <img src="docs/showcase/qingming5um_3_roof_scale.jpg" width="48%" alt="屋顶和两圈之间的空隙">
-
-3 · 屋顶和两圈之间的空隙 · 视野约 5 mm
-
-<img src="docs/showcase/qingming5um_4_street_where.jpg" width="28%" alt="位置 4"> <img src="docs/showcase/qingming5um_4_street_scale.jpg" width="48%" alt="街道和城门">
-
-4 · 街道和城门 · 视野约 6 mm
-
-<img src="docs/showcase/qingming5um_5_figures_where.jpg" width="28%" alt="位置 5"> <img src="docs/showcase/qingming5um_5_figures_scale.jpg" width="48%" alt="街上的人和瓦屋顶">
-
-5 · 街上的人和瓦屋顶 · 视野约 6 mm
-
-<img src="docs/showcase/qingming5um_6_trees_where.jpg" width="28%" alt="位置 6"> <img src="docs/showcase/qingming5um_6_trees_scale.jpg" width="48%" alt="老柳树，每根枝条都画出来了">
-
-6 · 老柳树，每根枝条都画出来了 · 视野约 12 mm
-
-### 颜色（实验中）
-
-反复写同一段数据，这一小块盘面就像一块光栅，把白光分开。重复的间距不同，同一个方向上看到的颜色就不同，换个角度颜色也会变。这部分还在实验，进展在 [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)。
-
-<img src="docs/showcase/roses_source.jpg" width="42%" alt="GPT Image 生成的玫瑰原图"> <img src="docs/showcase/roses_7185.jpg" width="42%" alt="刻好的玫瑰 DVD-R 数据面的照片，部分花瓣显紫色">
-
-左边是 GPT Image 生成的原图，右边是刻好的 DVD-R 的照片，背景已遮掉。这张盘按紫色设计，找对角度时，部分花瓣接近原图的紫色，只是暗一些。它只在一个角度看起来对，手机一动花瓣就变色，也不能任意指定颜色，目前只做过紫色。详情见 [#168](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/168)。同一张盘还存了 1.38 GB 数据，整盘读回零错误，见 [#170](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/170)。这些都是一张盘的早期结果，玫瑰盘的工具还没公开。
-
-<img src="docs/showcase/rosettes_closeup.jpg" width="75%" alt="闪光灯下同一朵花上显出多种颜色的花瓣">
-
-能自己刻的是这张花盘，同一朵花上有 3 到 4 种颜色，我们只在 RITEKF1 DVD-R 上刻过。先按[快速开始](#快速开始)测盘，再生成图案。这一步不碰光驱：
-
-```bash
-python tools/compose_rosettes.py
-```
-
-它会打印下一条命令，填好就能生成镜像：
-
-```bash
-python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --textures "MIX:92,87,83,8D,60" A5 92 66 ED00 2AE304 --r-max 57.6 --output iso/rosettes.iso
-```
-
-预览图的颜色只用来区分纹理，和盘上的颜色对不上是正常的。拍的时候关灯，只开手机闪光灯，手机往旁边偏开一点，步骤见 [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)。
-
-### 其他光驱和盘
-
-- 同一种 RITEKF1 盘上，我们的计时结果和 bczhc 独立的拍照标定（[DiscImageStudio #53](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/53)）相差约 ±0.05°。
-- 一台约 15 年前的笔记本光驱（PLDS DS8A8SH，SATA 转 USB）测出的几何，和我们的 GH70N 相差约 0.05° rms。
-- CMC CD-R 需要多做一步：计时测不出数据沿轨道的绝对位置，要刻一张网格盘来定这个常数。在 GH70N 上它约为 206 帧，用第二张盘验证后只剩 +0.6 帧。这批盘的轨距还有波浪，第二张盘残余 0.16° rms。
 
 ## 快速开始
 
@@ -263,6 +206,82 @@ CD 还有一个计时测不到的常数，所以要多刻一张标定盘。下�
 
 <a name="光驱兼容表"></a>
 
+## 效果
+
+### 几何精度
+
+<img src="docs/showcase/grid_lines_zoom.jpg" width="60%" alt="网格盘扫描的局部，线条笔直">
+
+这是网格测试盘的局部，600 dpi 平板扫描，高通处理后约 38 mm 见方。这张盘同样只用计时结果、只刻一次（HL-DT-ST GH70N，Ritek F1 DVD-R）。8 张扫描量得 25–54 mm 内的转角峰峰值 0.11°，rms 0.03°。在 50 mm 半径处，0.03° 大约是 0.03 mm。
+
+<img src="evidence/figures/bending_before_after.png" width="75%" alt="三张网格盘的转角随半径的变化">
+
+图中绿线是这张盘。测量方案是[刻录前预先登记](docs/PREREG_remeasure.md)的。
+
+### 细节
+
+<img src="docs/showcase/dense_motifs.jpg" width="75%" alt="微距照片：不可能三角形、小人和最上方的三线组">
+
+密铺盘的微距照片，也是只刻一次。不可能三角形宽 4.2 mm，小人高 6.8 mm，最上方是测线宽用的三线组。肉眼能看清最小的 1 mm 三角形，它每条边约 0.15 mm 宽。600 dpi 扫描能分开 0.12 mm 的线，0.08 mm 勉强，再细就到扫描仪的极限了。
+
+<img src="docs/showcase/qingming5um_overview.jpg" width="75%" alt="每张特写的拍摄位置，画在刻盘所用 ISO 的渲染图上，旁边是同比例的 550 ml 矿泉水瓶">
+
+还可以更细：第二张清明上河图盘用约 4–6 µm 的格子画。上图是下面每张特写的拍摄位置，画在刻这张盘所用 ISO 的渲染图上（亮的是 `92` 纹理，暗的是 `A5`），旁边是同比例的 550 ml 矿泉水瓶。我们没有显微镜，特写是手机加一只倒装的单反镜头拍的。每张的放大倍率不一样，镜头里那块圆形视野约 5–23 mm 宽。每张的比例和位置是把照片和设计图逐张匹配算出来的，都加了比例尺。单个格子仍在手机能分辨的尺度附近或以下。颜色只是光盘本身的衍射。
+
+<img src="docs/showcase/qingming5um_1_wide_pair.jpg" width="85%" alt="虹桥和人群">
+
+1 · 虹桥和人群 · 视野约 23 mm
+
+<img src="docs/showcase/qingming5um_2_houses_pair.jpg" width="85%" alt="牛车和房屋，旁边是两圈之间的空隙">
+
+2 · 牛车和房屋，旁边是两圈之间的空隙 · 视野约 12 mm
+
+<img src="docs/showcase/qingming5um_3_roof_pair.jpg" width="85%" alt="屋顶和两圈之间的空隙">
+
+3 · 屋顶和两圈之间的空隙 · 视野约 5 mm
+
+<img src="docs/showcase/qingming5um_4_street_pair.jpg" width="85%" alt="街道和城门">
+
+4 · 街道和城门 · 视野约 6 mm
+
+<img src="docs/showcase/qingming5um_5_figures_pair.jpg" width="85%" alt="街上的人和瓦屋顶">
+
+5 · 街上的人和瓦屋顶 · 视野约 6 mm
+
+<img src="docs/showcase/qingming5um_6_trees_pair.jpg" width="85%" alt="老柳树，每根枝条都画出来了">
+
+6 · 老柳树，每根枝条都画出来了 · 视野约 12 mm
+
+### 颜色（实验中）
+
+反复写同一段数据，这一小块盘面就像一块光栅，把白光分开。重复的间距不同，同一个方向上看到的颜色就不同，换个角度颜色也会变。这部分还在实验，进展在 [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)。
+
+<img src="docs/showcase/roses_source.jpg" width="42%" alt="GPT Image 生成的玫瑰原图"> <img src="docs/showcase/roses_7185.jpg" width="42%" alt="刻好的玫瑰 DVD-R 数据面的照片，部分花瓣显紫色">
+
+左边是 GPT Image 生成的原图，右边是刻好的 DVD-R 的照片，背景已遮掉。这张盘按紫色设计，找对角度时，部分花瓣接近原图的紫色，只是暗一些。它只在一个角度看起来对，手机一动花瓣就变色，也不能任意指定颜色，目前只做过紫色。详情见 [#168](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/168)。同一张盘还存了 1.38 GB 数据，整盘读回零错误，见 [#170](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/170)。这些都是一张盘的早期结果，玫瑰盘的工具还没公开。
+
+<img src="docs/showcase/rosettes_closeup.jpg" width="75%" alt="闪光灯下同一朵花上显出多种颜色的花瓣">
+
+能自己刻的是这张花盘，同一朵花上有 3 到 4 种颜色，我们只在 RITEKF1 DVD-R 上刻过。先按[快速开始](#快速开始)测盘，再生成图案。这一步不碰光驱：
+
+```bash
+python tools/compose_rosettes.py
+```
+
+它会打印下一条命令，填好就能生成镜像：
+
+```bash
+python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --textures "MIX:92,87,83,8D,60" A5 92 66 ED00 2AE304 --r-max 57.6 --output iso/rosettes.iso
+```
+
+预览图的颜色只用来区分纹理，和盘上的颜色对不上是正常的。拍的时候关灯，只开手机闪光灯，手机往旁边偏开一点，步骤见 [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)。
+
+### 其他光驱和盘
+
+- 同一种 RITEKF1 盘上，我们的计时结果和 bczhc 独立的拍照标定（[DiscImageStudio #53](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/53)）相差约 ±0.05°。
+- 一台约 15 年前的笔记本光驱（PLDS DS8A8SH，SATA 转 USB）测出的几何，和我们的 GH70N 相差约 0.05° rms。
+- CMC CD-R 需要多做一步：计时测不出数据沿轨道的绝对位置，要刻一张网格盘来定这个常数。在 GH70N 上它约为 206 帧，用第二张盘验证后只剩 +0.6 帧。这批盘的轨距还有波浪，第二张盘残余 0.16° rms。
+
 ## 有实践报告的光驱
 
 这里只列已经有人测过的光驱，没列出的也可能能用，先跑一次 `timing` 就知道。数据大多来自 `timing`。欢迎在 [DiscImageStudio discussion #107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) 补充。
@@ -289,6 +308,9 @@ CD 还有一个计时测不到的常数，所以要多刻一张标定盘。下�
 | ASUS SDRW-08D2S-U | Verbatim CD-R | 用 `--speed 4234`；预设不做精细标定，最低速刻图，轮廓和原图一致 | moodyos，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19424471) |
 | ASUS SDRW-08D2S-U（B911，Linux） | Verbatim DVD+R | `geo` 加网格扫描修正后导出预设，刻图成功 | NO-ob，[disc-probe #6](https://github.com/Ashley-QwQ/disc-probe/issues/6) |
 | Sony Optiarc AD-7201S | Memorex CD-R | `geo` 后再用 DIS 图像法精修才出图（之前试约 15 张未成） | pugod124，[disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2) |
+
+<details>
+<summary>展开：能测、但刻图结果不完整或还没有报告的光驱，以及目前不建议用的组合</summary>
 
 ### 能测，刻图结果不完整或还没有报告
 
@@ -351,6 +373,8 @@ CD 还有一个计时测不到的常数，所以要多刻一张标定盘。下�
 </details>
 
 Linux 支持最初由 bczhc 移植（[bczhc/disc-probe](https://github.com/bczhc/disc-probe)），现已合入本仓库。macOS 版由 NaiveTomcat 移植：[NaiveTomcat/discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos)（GPL-3.0-or-later），发布包里带签名、公证过的通用 helper，不需要编译。
+
+</details>
 
 ## 手动使用
 
