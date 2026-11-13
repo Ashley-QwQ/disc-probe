@@ -180,6 +180,17 @@ const noThumb = await saveToLibrary({ client: c2, plan, text: design({ n: 7 }), 
 assert.match(noThumb.note, /缩略图没有传上去/);
 console.log('Design page saving: first save, reuse, 409 cancel / overwrite / keep both, binned work, picture failure passed');
 
+// two Ctrl+S at once: one after the other, one work, no false conflict
+{
+  const lib3 = createMockWorks({ now: () => (clock += 1000) }), c4 = createWorksClient({ fetch: lib3.fetch }), p = { media: 'cd' };
+  const ask = async () => { throw Error('false conflict'); };
+  const [a, b] = await Promise.all([saveToLibrary({ client: c4, plan: p, text: design({ n: 1 }), thumb, name: '双', ask }),
+    saveToLibrary({ client: c4, plan: p, text: design({ n: 2 }), thumb, name: '双', ask })]);
+  assert.equal(lib3.works.size, 1, 'one work, not two'); assert.equal(a.work.id, b.work.id);
+  assert.match(lib3.designs.get(p.work.id), /"n":2/, 'the later save lands last');
+  console.log('Overlapping saves: queued, one work, no false conflict passed');
+}
+
 // ---------------------------------------------------------------- after an ISO for the work
 {
   const lib2 = createMockWorks({ now: () => (clock += 1000) });

@@ -21,7 +21,17 @@ export const sayings = (lang) => SAY[lang === "en" ? "en" : "zh"];
 
 // plan.work: { id, updated_at } once the plan lives in the library.
 // Returns { work, note } after a save, or null when the person cancelled a conflict.
-export async function saveToLibrary({ client, plan, text, thumb, name, lang = "zh", ask = askConflict }) {
+// Saves of one plan run one after another: a second Ctrl+S while the first is on its way would otherwise send
+// the stamp the first is about to replace and meet its own save as a conflict (or make the work twice).
+const inflight = new WeakMap();
+export function saveToLibrary(options) {
+  const { plan } = options, before = inflight.get(plan) ?? Promise.resolve();
+  const run = before.catch(() => {}).then(() => saveOnce(options));
+  inflight.set(plan, run);
+  run.finally(() => { if (inflight.get(plan) === run) inflight.delete(plan); }).catch(() => {});
+  return run;
+}
+async function saveOnce({ client, plan, text, thumb, name, lang = "zh", ask = askConflict }) {
   const s = sayings(lang);
   let note = s.saved(name), work;
   const fresh = async (n = name) => client.create({ name: n, media: plan.media });
