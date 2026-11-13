@@ -168,6 +168,30 @@ function hover(key, on) {
   if (key === "lamp") L.root.classList.toggle("lamp-hot", on);
   L.root.querySelectorAll(`[data-target="${key}"]`).forEach((n) => n.classList.toggle("hot", on));
 }
+// Disc coordinates are absent from the current lobby.json. These source-image measurements are the
+// tray disc's centre and visible diameter, not the label on the drive's top. Follow drift/hover too.
+export function driveTarget(from) {
+  const box = M?.layers.find(l => l.name === "newplan")?.box;
+  const img = L?.layer.newplan.querySelector("img"), r = img?.getBoundingClientRect();
+  if (box && r?.width) {
+    const disc = M.targets.newplan.disc ?? { centre_px: [918, 990], diameter_px: 250 };
+    const k = r.width / (box[2] - box[0]);
+    return { x: r.left + (disc.centre_px[0] - box[0]) * k, y: r.top + (disc.centre_px[1] - box[1]) * k,
+      diameter: (disc.diameter_px ?? disc.radius_px * 2) * k };
+  }
+  const r0 = from.getBoundingClientRect(), k = r0.width / (1329 - 633.9);
+  return { x: r0.left + r0.width / 2 - 63.5 * k, y: r0.top + r0.height / 2 + 31.5 * k, diameter: 250 * k };
+}
+// Shared by the drive and letter-tray entrances. The origin is measured before anything moves.
+export function pushLobby(p, reverse = false) {
+  const lobby = document.getElementById("lobby"), art = document.getElementById("lobby-art"), greet = lobby.querySelector(".lobby-greet");
+  lobby.classList.add("leaving"); art.style.transformOrigin = p.origin;
+  const frames = [{ transform: "none" }, { transform: p.to }], fade = [{ opacity: 1 }, { opacity: 0 }];
+  const a = art.animate(reverse ? frames.reverse() : frames, { duration: 560, easing: reverse ? "cubic-bezier(.2, .8, .2, 1)" : "cubic-bezier(.5, 0, .6, 1)", fill: "forwards" });
+  const g = greet?.animate(reverse ? fade.reverse() : fade, { duration: reverse ? 400 : 200, fill: "forwards" });
+  const anims = [a, g].filter(Boolean);
+  return { anims, finished: a.finished, done() { anims.forEach(anim => anim.cancel()); art.style.transformOrigin = ""; lobby.classList.remove("leaving"); } };
+}
 function act(key) {
   if (key === "lamp") { $("theme").click(); return; }
   if (key === "screen") { openTerminal(); return; }
@@ -314,5 +338,14 @@ export async function init(homeApi) {
   new ResizeObserver(() => { const now = sec.offsetWidth > 0; if (now && !shown) words(); shown = now; }).observe(sec);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) paintRug(); });
   drift();
+  const prepareNew = () => { if (!root.dataset.mode) import("./newplan.js").then(m => m.prepare(api)).catch(() => {}); };
+  $("next")?.addEventListener("pointerenter", prepareNew);
+  $("next")?.addEventListener("focus", prepareNew);
+  const preload = () => {
+    prepareNew();
+    import("./pastworks.js").then(m => m.prepare(api)).catch(() => {});
+  };
+  if (window.requestIdleCallback) requestIdleCallback(preload, { timeout: 1200 });
+  else setTimeout(preload, 200);
 }
 export const relabel = () => words();

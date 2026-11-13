@@ -15,7 +15,7 @@
 .pw-background, .pw-depth { position: absolute; inset: 0; pointer-events: none; }
 .pw-background { overflow: hidden; }
 /* the rabbit hole: the file box's dark carried into the fall, a warm light far below where the paper waits */
-.pw-hole { position: absolute; inset: 0; opacity: calc(var(--pw-hole, 0) * .92); pointer-events: none;
+.pw-hole { position: absolute; inset: 0; opacity: 0; pointer-events: none;
   background: radial-gradient(120% 70% at 50% 118%, #6b5638 0, #2a241b 38%, #0d100f 72%); }
 .pw-depth { will-change: transform; }
 .pw-depth img { position: absolute; object-fit: contain; user-select: none; }

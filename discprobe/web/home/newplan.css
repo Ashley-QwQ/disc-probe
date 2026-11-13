@@ -122,7 +122,7 @@
 .np.filing .np-sheet { transform: translate(var(--file-x), var(--file-y)) scale(var(--file-s)); transition-duration: var(--bag-file, 1000ms); }
 .np.instant, .np.instant * { transition: none !important; }          /* newplan.js panBack: set the filed state at once */
 .np.unfiling .np-sheet { transition-duration: 760ms; transition-timing-function: cubic-bezier(.45, 0, .25, 1); }
-.np.unfiling :is(.np-env-back, .np-env-front) { transition: transform 600ms cubic-bezier(.5, 0, .9, .5) 420ms; }   /* drops once the sheet is out */
+.np.unfiling :is(.np-env-back, .np-env-front) { transition: transform 600ms cubic-bezier(.5, 0, .9, .5) 150ms; }   /* vacate the opening before the sheet clears it */
 .np.leaving :is(.np-env-back, .np-env-front) { transform: translateY(120vh); transition-duration: var(--bag-drop, 600ms); transition-timing-function: cubic-bezier(.5, 0, .9, .5); }
 .np.leaving .np-sheet { transform: translate(var(--file-x), calc(var(--file-y) + 120vh)) scale(var(--file-s)); transition-duration: var(--bag-drop, 600ms); transition-timing-function: cubic-bezier(.5, 0, .9, .5); }
 

@@ -1,7 +1,7 @@
 // Real home DOM/assets with a mock backend; no server, hardware or burn confirmation.
 // WAAPI timelines are paused and scrubbed. Polling below is only for module/asset readiness.
 import assert from 'node:assert/strict';
-import {readFileSync, writeFileSync, mkdtempSync, existsSync} from 'node:fs';
+import {readFileSync, writeFileSync, mkdtempSync, mkdirSync, existsSync} from 'node:fs';
 import {rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -36,7 +36,7 @@ window.testHandshake=async path=>({ok:true,json:async()=>path==='/gui.json'?${JS
 const animate=Element.prototype.animate;
 Element.prototype.animate=function(frames,options){
   const a=animate.call(this,frames,options);
-  if(window.scrub && [560,760,1300,1000,420].includes(options?.duration)) {a.pause();a.currentTime=0;}
+  if(window.scrub && [560,760,1300,1000,420,1900,600].includes(options?.duration)) {a.pause();a.currentTime=0;}
   flights.push({el:this,a,frames,options});return a;
 };
 window.finishFlights=()=>flights.filter(f=>f.a.playState!=='idle').forEach(f=>f.a.finish());
@@ -51,6 +51,13 @@ writeFileSync(fixture, html);
 const pause = ms=>new Promise(r=>setTimeout(r,ms));
 let browser, socket, seq=0;
 const pending=new Map();
+const screenshots=process.env.MOTION_SCREENSHOTS;
+if(screenshots)mkdirSync(screenshots,{recursive:true});
+async function screenshot(name) {
+  if(!screenshots)return;
+  const {data}=await cdp('Page.captureScreenshot',{format:'png'});
+  writeFileSync(join(screenshots,name+'.png'),Buffer.from(data,'base64'));
+}
 async function cdp(method,params={}) {
   const id=++seq;
   const result=new Promise((resolve,reject)=>{
@@ -178,6 +185,133 @@ try {
   await evaluate('finishFlights();');await until('document.querySelector(".np").hidden','desk hides after entrance');
   await check('+getComputedStyle(document.querySelector(".ws")).opacity===1 && document.documentElement.dataset.mode==="design"','5: design visible when desk hides');
 
+  // 9: Escape and the actual Back button cancel bagging; neither may advance to design/calibration.
+  for(const calibration of [false,true]) for(const escape of [false,true]) {
+    await open();await newWork();
+    await evaluate(`setMotion('on');
+      ${calibration ? `document.querySelector('.np-batch').value='Bag cancellation';document.querySelector('.np-batch').dispatchEvent(new Event('input'));document.querySelector('.np-cal-go').click();` : `document.getElementById('next').click();`}
+      ${escape ? 'esc();' : 'document.getElementById("back").click();'}`);
+    await check('document.documentElement.dataset.mode==="newplan" && !document.querySelector(".np").hidden && !document.querySelector(".np").classList.contains("filing") && !document.querySelector(".np").classList.contains("leaving")','9: Back undoes the bag and stays in new work');
+    await evaluate('await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);');
+    await check('document.documentElement.dataset.mode==="newplan" && document.getElementById("cal").hidden','9: cancelled continuation stays cancelled');
+    // Prove the form accepts the next action after cancelling.
+    await evaluate('setMotion("off");document.getElementById("next").click();');
+    await until('document.documentElement.dataset.mode==="design"','9: cancelled form is usable');
+  }
+
+  // 10: independent source-art disc marker follows the actual lobby image, including hover lift.
+  // At the push's last frame it must meet the incoming top-view disc, in centre and visible width.
+  for(const [width,height] of [[1440,900],[1600,900],[390,844]]) {
+    await cdp('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
+    await open();
+    await evaluate(`const img=document.querySelector('.lb-layer[data-name="newplan"] img');
+      window.discMarker=document.createElement('i');Object.assign(discMarker.style,{position:'absolute',left:img.style.left,top:img.style.top,width:img.style.width,height:img.style.height,pointerEvents:'none'});img.after(discMarker);
+      window.sourceDisc=()=>{const r=discMarker.getBoundingClientRect(),s=r.width/703;return {x:r.left+288*s,y:r.top+275*s,d:250*s};};`);
+    await newWork(true);
+    const alignment=await evaluate(`flights.filter(f=>f.el.id==='lobby-art').forEach(f=>{f.a.pause();f.a.currentTime=f.options.duration;});
+      flights.filter(f=>f.el.classList.contains('np')).forEach(f=>{f.a.pause();f.a.currentTime=0;});
+      const lobby=sourceDisc(),np=document.querySelector('.np'),s=Math.max(innerWidth,innerHeight*16/9)/2560;
+      const x=(innerWidth-2560*s)/2+512*s,y=(innerHeight-1440*s)/2+720*s;
+      const m=new DOMMatrix(getComputedStyle(np).transform),o=getComputedStyle(np).transformOrigin.split(' ').map(parseFloat);
+      return {distance:Math.hypot(lobby.x-(o[0]+(x-o[0])*m.a+m.e),lobby.y-(o[1]+(y-o[1])*m.d+m.f)),ratio:lobby.d/(414.6*s*m.a)};`);
+    assert.ok(alignment.distance<10 && Math.abs(alignment.ratio-1)<.05,'10: aligned disc at '+width+'x'+height+': '+JSON.stringify(alignment));
+    await screenshot('drive-push-'+width);
+    await evaluate('finishFlights();');
+  }
+  await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+
+  // 11: idle preparation covers both pages, with no drive hover. A warm click starts in this turn.
+  await open();
+  await until('!!document.querySelector(".pw")','11: lobby idle preloads past works');
+  await evaluate(`setMotion('on');flights=[];window.warmStart=motionTest.newplan.start(motionTest.api,{from:document.getElementById('lobby-new')});
+    for(let i=0;i<12;i++)await Promise.resolve();window.warmPush=flights.some(f=>f.el.id==='lobby-art');`);
+  await check('warmPush','11: prepared push starts without waiting for the 600ms fallback');
+  await evaluate('await warmStart;finishFlights();');
+
+  // 12: click/Enter skips each return leg, including extraction after the camera has arrived.
+  for(const leg of ['card','pan','sheet']) {
+    await open();await calibrate();await evaluate('finishFlights();');
+    await until('flights.some(f=>f.options.duration===1300)','return setup cardOut');
+    await evaluate('finishFlights();');
+    await until('!document.querySelector(".np").classList.contains("filing")','calibration settled');
+    await evaluate('flights=[];esc();');
+    await until('flights.some(f=>f.options.duration===1000)','12: card return ready');
+    if(leg!=='card') {
+      await evaluate('finishFlights();');
+      await until('flights.some(f=>f.options.duration===760)','12: camera return ready');
+    }
+    if(leg==='sheet') {
+      await evaluate('finishFlights();');
+      await until('document.documentElement.dataset.mode==="newplan"','12: extracting');
+      await evaluate('document.querySelector(".np").getAnimations({subtree:true}).forEach(a=>{a.pause();a.currentTime=100;});');
+    }
+    await evaluate(leg==='pan' ? `dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));` : `document.body.click();`);
+    await until('document.documentElement.dataset.mode==="newplan" && !document.querySelector(".np").classList.contains("unfiling")','12: skip reopens form at once');
+    await check('document.getElementById("cal").hidden && !document.documentElement.classList.contains("cal-staged") && !document.querySelector(".np").classList.contains("filing") && !document.querySelector(".np").getAnimations({subtree:true}).length','12: all return legs and envelope parts cleaned');
+  }
+
+  // 13: the envelope leaves at 150 ms, before extraction has finished; no front crossing the cleared sheet.
+  await open();await calibrate();await evaluate('finishFlights();');
+  await until('flights.some(f=>f.options.duration===1300)','13: calibration card');
+  await evaluate('finishFlights();');await until('!document.querySelector(".np").classList.contains("filing")','13: settled');
+  await evaluate('flights=[];esc();');await until('flights.some(f=>f.options.duration===1000)','13: tuck');
+  await evaluate('finishFlights();');await until('flights.some(f=>f.options.duration===760)','13: pan');
+  await evaluate('finishFlights();');await until('document.documentElement.dataset.mode==="newplan"','13: extraction');
+  await evaluate(`window.extraction=document.querySelector('.np').getAnimations({subtree:true});extraction.forEach(a=>a.pause());`);
+  for(const t of [150,300,500,650,759]) {
+    const clear=await evaluate(`extraction.forEach(a=>a.currentTime=${t});
+      const np=document.querySelector('.np'),sheet=np.querySelector('.np-sheet').getBoundingClientRect(),front=np.querySelector('.np-env-front').getBoundingClientRect();
+      const slot=front.top+front.height*(421.21/2494);return {cleared:sheet.bottom<=slot,frontBelow:front.top>sheet.bottom,delay:extraction.find(a=>a.effect.target.classList.contains('np-env-front'))?.effect.getTiming().delay};`);
+    assert.equal(clear.delay,150,'13: envelope drops early');
+    assert.ok(!clear.cleared||clear.frontBelow,'13: front cannot cover the cleared sheet at '+t+'ms');
+    if(t===500)await screenshot('sheet-return-500');
+  }
+  await evaluate('document.body.click();');
+
+  // 14: presets fly from the lobby tray; a mid-entry close reverses the same frames.
+  await open();await until('!!document.querySelector(".presetio")','presets ready');
+  await evaluate(`setMotion('on');flights=[];window.presets=await import('./presetio.js');
+    presets.open(document.querySelector('.lb-hit[data-target="fax"]'));`);
+  await check('flights.some(f=>f.el.id==="lobby-art" && f.options.duration===560) && flights.some(f=>f.el.classList.contains("presetio") && f.options.duration===760 && f.frames[0].transform.includes("scale(.18)"))','14: lobby push and tray entrance');
+  await evaluate(`window.deskFlight=flights.filter(f=>f.el.id==='lobby-art'||f.el.classList.contains('presetio')||f.el.classList.contains('lobby-greet'));
+    deskFlight.forEach(f=>{f.a.pause();f.a.currentTime=f.options.duration/2;});window.deskBefore=getComputedStyle(document.querySelector('.presetio')).transform;
+    document.querySelector('.presetio [data-close]').click();window.deskAfter=getComputedStyle(document.querySelector('.presetio')).transform;
+    await Promise.all(deskFlight.map(f=>f.a.ready));deskFlight.forEach(f=>f.a.pause());`);
+  await check('deskBefore===deskAfter && deskFlight.every(f=>f.a.playbackRate===-1)','14: mid-entry close reverses without a snap');
+  await screenshot('presets-mid-reversal');
+  await evaluate('finishFlights();');await until('document.querySelector(".presetio").hidden','14: close restores lobby');
+  await evaluate(`flights=[];presets.open();finishFlights();`);
+  await until('!document.getElementById("lobby").classList.contains("leaving")','14: full entrance complete');
+  await evaluate('flights=[];document.querySelector(".presetio [data-close]").click();');
+  await check('flights.some(f=>f.el.classList.contains("presetio")&&f.frames.at(-1).transform.includes("scale(.18)"))','14: settled desk reverses toward tray');
+  await evaluate('finishFlights();');await until('document.querySelector(".presetio").hidden','14: ordinary close');
+  await evaluate('setMotion("off");flights=[];presets.open();document.querySelector(".presetio [data-close]").click();');
+  await check('document.querySelector(".presetio").hidden && !flights.length && !document.documentElement.dataset.mode','14: motion off cuts to clean end states');
+
+  // 16: every moving layer (including the knob, shadow and content) holds its displayed frame on retarget.
+  await evaluate(`presets.open();setMotion('on');document.querySelector('.presetio [data-move="-1"]').click();
+    const sheet=document.querySelector('.presetio');window.lever=sheet.getAnimations({subtree:true});lever.forEach(a=>{a.pause();a.currentTime=300;});
+    window.leverBefore=lever.map(a=>({el:a.effect.target,transform:getComputedStyle(a.effect.target).transform,opacity:getComputedStyle(a.effect.target).opacity}));
+    document.querySelector('.presetio [data-move="1"]').click();
+    window.leverHeld=leverBefore.every(s=>s.transform===getComputedStyle(s.el).transform && s.opacity===getComputedStyle(s.el).opacity);
+    sheet.getAnimations({subtree:true}).forEach(a=>{a.pause();a.currentTime=0;});`);
+  await check('leverHeld && lever.every(a=>a.playState==="idle")','16: second lever move starts from displayed transforms and opacity');
+  await evaluate('document.querySelector(".presetio").getAnimations({subtree:true}).forEach(a=>a.finish());setMotion("off");document.querySelector(".presetio [data-close]").click();');
+
+  // 15,17: the lobby push runs on WAAPI at 4.5x; off never waits for the slow works list.
+  await open();
+  await evaluate(`window.pw=await import('./pastworks.js');await pw.prepare(motionTest.api);
+    window.slowList=null;window.archive=pw.createPastWorks(motionTest.api,{works:{list:()=>new Promise(r=>slowList=r)}});
+    window.loadStarted=performance.now();await archive.show();window.loadElapsed=performance.now()-loadStarted;`);
+  await check('loadElapsed<300 && document.documentElement.dataset.mode==="pastworks" && archive.state.phase==="idle"','17: motion off opens within 300ms despite pending list');
+  await evaluate('slowList([]);archive.back();setMotion("on");flights=[];window.showArchive=archive.show();');
+  await until('flights.some(f=>f.el.id==="lobby-art" && f.options.duration===600)','15: composited archive push');
+  await evaluate(`window.archivePush=flights.find(f=>f.el.id==='lobby-art');archivePush.a.pause();archivePush.a.currentTime=120;
+    window.archiveScale=new DOMMatrix(getComputedStyle(archivePush.el).transform).a;`);
+  await check('archiveScale<=4.5 && archiveScale>=4 && document.getElementById("lobby-art").style.willChange==="transform" && !archive.page.style.getPropertyValue("--pw-lift") && !archive.page.style.getPropertyValue("--pw-hole")','15: bounded push with direct layer opacity');
+  await evaluate('archive.skip();archive.back();archive.skip();archive.destroy();');
+  await check('!document.getElementById("lobby-art").style.willChange && !document.querySelector(".pw-box-shade") && errors.length===0','15: promotion and shade cleaned after exit');
+
   // 8: actual setTray implementation with a non-mock backend, plus the real burn-page arrival.
   // It has no hardware API. Any unexpected backend request above fails the test.
   const setTraySource=source.slice(source.indexOf('  function setTray('),source.indexOf('  // ---- Settings:'));
@@ -188,7 +322,7 @@ try {
     window.burn=await import('./burn.js');burn.start(api,{media:'dvd',item:{name:'Test'},iso:{path:'mock.iso',bytes:32768,sectors:16},drive:{id:'FAKE',speeds:[4,8]}});`);
   await until('visualTray.read() && motionTest.api.burnerLayer.classList.contains("open")','8: pictured tray opens for non-mock backend');
   await check('calls.every(c=>c.path==="/api/presets" && c.method==="GET") && errors.length===0','8: no drive calls or browser errors');
-  console.log('PASS: motion audit 1–8, paused/scrubbed WAAPI, Back/Esc, forced motion and visual-only tray');
+  console.log('PASS: motion audit 1–17, paused/scrubbed WAAPI, cancellation, alignment, preloading, return/desk/lever transitions and archive latency');
 } finally {
   if(socket?.readyState===WebSocket.OPEN){await cdp('Browser.close').catch(()=>{});socket.close();}
   if(browser?.exitCode===null){await Promise.race([new Promise(r=>browser.once('close',r)),pause(2000)]);if(browser.exitCode===null)browser.kill();}

@@ -13,6 +13,7 @@
 // All motion is transform / opacity only.
 
 import * as presets from "./presetio.js";
+import { driveTarget, pushLobby } from "./lobby.js";
 
 const STR = {
   zh: {
@@ -168,7 +169,12 @@ function build() {
   cssReady = new Promise((ok) => { css.onload = ok; css.onerror = ok; });    // shown only once styled
   document.head.append(css);
   // the page's own back and next buttons (top left, bottom right) belong to this page while it is up
-  $("back").addEventListener("click", (e) => { if (!isOn() || going) return; e.stopImmediatePropagation(); back(); }, { capture: true });
+  $("back").addEventListener("click", (e) => {
+    if (!isOn()) return;
+    if (bagFlight) { e.stopImmediatePropagation(); bagFlight.cancel(); return; }
+    if (going) return;
+    e.stopImmediatePropagation(); back();
+  }, { capture: true });
   $("next").addEventListener("click", (e) => { if (!isOn()) return; e.stopImmediatePropagation(); next(); }, { capture: true });
   W = document.createElement("section");
   W.className = "np"; W.hidden = true;
@@ -431,7 +437,7 @@ async function calibrateFirst() {
   state.picked = item;
   const pan = !motionOff();
   const calibrating = import("./calibrate.js");
-  if (pan) await bagging(false);
+  if (pan && !await bagging(false)) { going = false; return; }
   const cal = await calibrating;
   api.useForPlan(state.kind, isLibrary(item) ? item : null);
   if (pan) root.classList.add("pan-in");                      // its layers wait off to the right
@@ -514,11 +520,12 @@ async function cardOut(card) {
 }
 // ... and back in: the envelope rises under the card, the card slides down into the pocket; both stay (they leave
 // with the scene). Returns what to move and to clean up.
-async function cardIn(card) {
+async function cardIn(card, track) {
   if (cardFlight?.card === card) {
     const flight = cardFlight;
     flight.reversing = true;
     flight.anims.forEach((a) => a.reverse());
+    track(flight.anims);
     await Promise.all(flight.anims.map((a) => a.finished)).catch(() => {});
     // The reversed envelope has left below the screen. Keep the card tucked away for the pan.
     return flight;
@@ -529,6 +536,7 @@ async function cardIn(card) {
   const sheet = [{ transform: "translateY(0)" }, { transform: "translateY(0)", offset: .42, easing: SLIDE }, { transform: `translateY(${px(dy)})` }];
   const anims = [back.animate(env, { duration: T, fill: "forwards" }), front.animate(env, { duration: T, fill: "forwards" }),
     card.animate(sheet, { duration: T, composite: "add", fill: "forwards" })];
+  track(anims);
   await Promise.all(anims.map((a) => a.finished)).catch(() => {});
   return { parts: [back, front], anims };
 }
@@ -536,51 +544,78 @@ async function cardIn(card) {
 // (the calibration desk with the envelope leaves to the right, this page comes in from the left with its sheet in
 // its envelope), and the sheet comes out while the envelope drops away. finish(): calibrate.js closes its page and
 // hands back (reopen).
+let returnFlight = null;
 async function panBack(finish) {
   going = true;
-  if (panFlight) {
-    const flight = panFlight;
-    flight.reversing = true;
-    flight.anims.forEach((a) => a.reverse());
-    await Promise.all(flight.anims.map((a) => a.finished)).catch(() => {});
-    finish();
-    flight.anims.forEach((a) => a.cancel());
-    root.classList.remove("pan-in");
-    panFlight = null; going = false;
-    return;
+  const returning = returnFlight = { skipped: false, anims: new Set() };
+  const track = anims => {
+    for (const a of anims) { returning.anims.add(a); if (returning.skipped) a.finish(); }
+  };
+  const skip = e => {
+    if (e?.type === "keydown" && e.key !== "Enter") return;
+    if (e?.target?.closest?.("#back")) return;
+    e?.preventDefault(); e?.stopImmediatePropagation();
+    returning.skipped = true;
+    returning.anims.forEach(a => { if (a.playState !== "idle") a.finish(); });
+    W.classList.add("instant"); W.classList.remove("unfiling");
+  };
+  const changed = new MutationObserver(() => { if (motionOff()) skip(); });
+  addEventListener("click", skip, true); addEventListener("keydown", skip, true);
+  changed.observe(root, { attributes: true, attributeFilter: ["data-motion"] });
+  try {
+    if (panFlight) {
+      const flight = panFlight;
+      flight.reversing = true;
+      flight.anims.forEach((a) => a.reverse());
+      track(flight.anims);
+      await Promise.all(flight.anims.map((a) => a.finished)).catch(() => {});
+      finish();
+      flight.anims.forEach((a) => a.cancel());
+      root.classList.remove("pan-in");
+      panFlight = null;
+    } else {
+      const card = $("cal"), ruler = document.getElementById("cal-ruler");
+      if (ruler) track([ruler.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: "forwards" })]);
+      const inEnv = card && !card.hidden ? await cardIn(card, track) : { parts: [], anims: [] };
+      // this page, filed, waiting off to the left (measured where it stands, then moved)
+      W.hidden = false;
+      W.classList.add("instant");
+      fileInto(); W.classList.add("filing");
+      W.getBoundingClientRect();
+      W.classList.remove("instant");
+      const opt = { duration: 760, easing: "cubic-bezier(.65, 0, .35, 1)", fill: "forwards" };
+      const leaving = returning.skipped ? [] : [...document.querySelectorAll(PAN_IN), card, ...inEnv.parts].filter(Boolean)
+        .map((el) => el.animate([{ translate: "0 0" }, { translate: "100vw 0" }], opt));
+      const coming = returning.skipped ? null : W.animate([{ transform: "translateX(-100vw)" }, { transform: "none" }], opt);
+      track([coming, ...leaving].filter(Boolean));
+      await Promise.all([coming, ...leaving].filter(Boolean).map(a => a.finished)).catch(() => {});
+      finish();                                               // calibration closes; reopen() takes the sheet out
+      coming?.cancel(); leaving.forEach((a) => a.cancel()); inEnv.anims.forEach((a) => a.cancel());
+      inEnv.parts.forEach((p) => p.remove()); ruler?.getAnimations().forEach((a) => a.cancel());
+      if (cardFlight === inEnv) cardFlight = null;
+    }
+    // Keep the skip active for the final extraction as well as the card and camera legs.
+    W.getBoundingClientRect();
+    const extraction = W.getAnimations({ subtree: true }); track(extraction);
+    await Promise.all(extraction.map(a => a.finished)).catch(() => {});
+  } finally {
+    changed.disconnect(); removeEventListener("click", skip, true); removeEventListener("keydown", skip, true);
+    returning.anims.forEach(a => a.cancel());
+    W.classList.remove("instant", "unfiling"); returnFlight = null;
+    going = false;
   }
-  const card = $("cal"), ruler = document.getElementById("cal-ruler");
-  ruler?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: "forwards" });
-  const inEnv = card && !card.hidden ? await cardIn(card) : { parts: [], anims: [] };
-  // this page, filed, waiting off to the left (measured where it stands, then moved)
-  W.hidden = false;
-  W.classList.add("instant");
-  fileInto(); W.classList.add("filing");
-  W.getBoundingClientRect();
-  W.classList.remove("instant");
-  const opt = { duration: 760, easing: "cubic-bezier(.65, 0, .35, 1)", fill: "forwards" };
-  const leaving = [...document.querySelectorAll(PAN_IN), card, ...inEnv.parts].filter(Boolean)
-    .map((el) => el.animate([{ translate: "0 0" }, { translate: "100vw 0" }], opt));
-  const coming = W.animate([{ transform: "translateX(-100vw)" }, { transform: "none" }], opt);
-  await Promise.all([coming.finished, ...leaving.map((a) => a.finished)]).catch(() => {});
-  finish();                                               // calibration closes; reopen() takes the sheet out
-  coming.cancel(); leaving.forEach((a) => a.cancel()); inEnv.anims.forEach((a) => a.cancel());
-  inEnv.parts.forEach((p) => p.remove()); ruler?.getAnimations().forEach((a) => a.cancel());
-  if (cardFlight === inEnv) cardFlight = null;
-  going = false;
 }
 function reopen({ unfile = false } = {}) {
   root.dataset.mode = "newplan";
   sceneScale();
   $("back").hidden = false; $("next").disabled = false;
-  if (unfile) {                        // came back panning, filed: the sheet comes out, then the envelope drops
+  if (unfile && !returnFlight?.skipped) { // came back panning, filed: the sheet comes out, then the envelope drops
     W.classList.add("unfiling");
-    setTimeout(() => W.classList.remove("unfiling"), 1200);
   }
   W.classList.remove("leaving", "filing");
   W.hidden = false;
   paintDial(); fillBatches(); words_();
-  if (!motionOff() && !unfile) W.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
+  if (!motionOff() && !unfile && !returnFlight?.skipped) W.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
   W.q(".np-cal-go:not([hidden])")?.focus({ preventScroll: true });
 }
 // The disc in the drive, read when the form opens (read-only, a second or two): the dial and the batch follow
@@ -744,26 +779,18 @@ function discPoint() {
   const vw = innerWidth, vh = innerHeight, sw = Math.max(vw, vh * 16 / 9), sh = sw * 9 / 16;
   return [(vw - sw) / 2 + sw * 512 / 2560, (vh - sh) / 2 + sh * 720 / 1440];
 }
-const LOBBY_PUSH = 2.6, TOP_START = 1.5;    // how close the lobby camera gets; how close the top view starts
+const TOP_START = 1.5;
 const mid = () => [innerWidth / 2, innerHeight / 2];
 const pushTransform = (from) => {
-  const r = from.getBoundingClientRect(), [sx, sy] = [r.left + r.width / 2, r.top + r.height / 2], [cx, cy] = mid();
-  return { origin: `${sx}px ${sy}px`, to: `translate(${cx - sx}px, ${cy - sy}px) scale(${LOBBY_PUSH})` };
+  const { x: sx, y: sy, diameter } = driveTarget(from), [cx, cy] = mid();
+  const topDiameter = Math.max(innerWidth, innerHeight * 16 / 9) / 2560 * 414.6;
+  const lobbyPush = topDiameter * TOP_START / diameter;
+  return { origin: `${sx}px ${sy}px`, to: `translate(${cx - sx}px, ${cy - sy}px) scale(${lobbyPush})` };
 };
 // the top view with its disc in the middle of the window, close (origin: the disc)
 const topStart = () => { const [tx, ty] = discPoint(), [cx, cy] = mid(); return `translate(${cx - tx}px, ${cy - ty}px) scale(${TOP_START})`; };
 // the lobby flying in (or, reversed, back out); it stays drawn under this page until done() (lobby.css .leaving)
 let pushFlight = null, pushOrigin = null, leavingBack = false;
-function pushLobby(p, reverse = false) {
-  const lobby = $("lobby"), art = $("lobby-art"), greet = lobby.querySelector(".lobby-greet");
-  lobby.classList.add("leaving");
-  art.style.transformOrigin = p.origin;
-  const frames = [{ transform: "none" }, { transform: p.to }], fade = [{ opacity: 1 }, { opacity: 0 }];
-  const a = art.animate(reverse ? frames.reverse() : frames, { duration: 560, easing: reverse ? "cubic-bezier(.2, .8, .2, 1)" : "cubic-bezier(.5, 0, .6, 1)", fill: "forwards" });
-  const g = greet?.animate(reverse ? fade.reverse() : fade, { duration: reverse ? 400 : 200, fill: "forwards" });
-  const anims = [a, g].filter(Boolean);
-  return { anims, finished: a.finished, done() { anims.forEach((anim) => anim.cancel()); art.style.transformOrigin = ""; lobby.classList.remove("leaving"); } };
-}
 function leave() {
   W.hidden = true;
   root.dataset.mode = "";
@@ -814,6 +841,7 @@ function fileInto() {
   W.style.setProperty("--file-s", s.toFixed(4));
 }
 let going = false;
+let bagFlight = null;
 let bagged = false;
 try { bagged = sessionStorage.getItem("dp-bagged") === "1"; } catch {}
 async function bagging(drop = true) {
@@ -822,24 +850,31 @@ async function bagging(drop = true) {
   if (total) { bagged = true; try { sessionStorage.setItem("dp-bagged", "1"); } catch {} }
   const filing = Math.round(total * .64), leaving = total - filing;
   W.style.setProperty("--bag-file", `${filing}ms`); W.style.setProperty("--bag-drop", `${leaving}ms`);
-  let skipped = !total, timer, wake;
+  let skipped = !total, cancelled = false, timer, wake;
+  bagFlight = { cancel() {
+    cancelled = true; clearTimeout(timer); wake?.();
+    W.classList.remove("filing", "leaving");
+  } };
   const skip = (e) => {
     if (e && e.type === "keydown" && e.key !== "Enter") return;
+    if (e?.target?.closest?.("#back")) return;
     e?.preventDefault(); e?.stopImmediatePropagation();
     skipped = true; W.classList.add("instant"); clearTimeout(timer); wake?.();
   };
-  const pause = ms => skipped ? Promise.resolve() : new Promise(r => { wake = r; timer = setTimeout(r, ms); });
+  const pause = ms => skipped || cancelled ? Promise.resolve() : new Promise(r => { wake = r; timer = setTimeout(r, ms); });
   const changed = new MutationObserver(() => { if (motionOff()) skip(); });
   addEventListener("click", skip, true); addEventListener("keydown", skip, true);
   changed.observe(root, { attributes: true, attributeFilter: ["data-motion"] });
   try {
     W.classList.add("filing"); await pause(filing);
-    if (drop) { W.classList.add("leaving"); await pause(leaving); }
+    if (drop && !cancelled) { W.classList.add("leaving"); await pause(leaving); }
   } finally {
     clearTimeout(timer); changed.disconnect();
     removeEventListener("click", skip, true); removeEventListener("keydown", skip, true);
     W.classList.remove("instant");
+    bagFlight = null;
   }
+  return !cancelled;
 }
 async function next() {
   if (going) return;
@@ -848,7 +883,7 @@ async function next() {
   hideMatches(); remember(item);
   // the envelope rises, the sheet slides in, both drop out of the frame
   const designing = import("./design.js");       // fetched and parsed while the envelope animates
-  await bagging();
+  if (!await bagging()) { going = false; return; }
   const design = await designing;
   api.useForPlan(state.kind, item);
   // useForPlan locates only library objects. Supply the form's exact item for the editor's first read,

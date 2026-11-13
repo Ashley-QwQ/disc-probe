@@ -142,7 +142,9 @@ try {
       check(y(part('bag'))>0,'tray moves before document');check(y(part('doc_envelope'))>1300,'document still waiting below the frame');
       check(Number(getComputedStyle($('[data-led=export]')).opacity)>0,'LED fades after knob arrives');
       let finished=0;for(const a of animations){const native=a.finish.bind(a);a.finish=()=>{finished++;native()}}
-      choose('import');check(finished===animations.length,'new request finishes every previous animation');
+      const beforeSwitch=Object.fromEntries(['bag','sheets','doc_envelope','doc_paper','knob'].map(name=>[name,getComputedStyle(part(name)).transform]));
+      choose('import');check(finished===0,'new request does not finish the previous flight');
+      for(const [name,transform] of Object.entries(beforeSwitch))check(getComputedStyle(part(name)).transform===transform,'interrupted flight continues from displayed '+name);
       animations=sheet.getAnimations({subtree:true});
       const outgoing=animations.find(a=>a.effect.target===part('doc_envelope'));
       const incoming=animations.find(a=>a.effect.target===part('doc_paper'));

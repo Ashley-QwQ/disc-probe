@@ -186,7 +186,7 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
   const thumbPlans = new Map();
   const layers = DEPTHS.map((d, depth) => {
     const layer = document.createElement("div"); layer.className = `pw-depth pw-${d.name}`;
-    layer.style.opacity = `calc(${d.opacity} * var(--pw-lift, 1))`;     // brighter while falling (paintFlight) layer.style.filter = d.blur ? `blur(${d.blur}px)` : "";
+    layer.style.opacity = String(d.opacity); // brighter while falling (paintFlight)
     const images = [];
     // Two identical periods. At the wrap the next copy occupies exactly the old one's pixels.
     for (let copy = 0; copy < 2; copy++) for (let i = 0; i < 6; i++) {
@@ -202,13 +202,17 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     q(".pw-background").append(layer);
     return { layer, images };
   });
+  let paintedCamera = null;
   function paintBackground() {
+    if (paintedCamera === camera) return;
+    paintedCamera = camera;
     layers.forEach(({ layer, images }, depth) => {
       layer.style.transform = `translate3d(0, ${layerOffset(camera, depth, dimensions.period).toFixed(3)}px, 0)`;
       for (const { img, base, turn } of images) img.style.transform = `rotate(${(base + camera * turn).toFixed(3)}deg)`;
     });
   }
   function resize() {
+    paintedCamera = null;
     dimensions = { w: innerWidth, h: innerHeight, period: innerHeight + 520 };
     for (const { images } of layers) for (const { img, i, copy } of images)
       img.style.top = `${(copy + i / 6) * dimensions.period - 260}px`;
@@ -289,11 +293,13 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
   const error = (message) => notice(message, { time: 0 });
   function restoreFlight() {
     const lobby = entry?.lobby, art = entry?.art;
-    if (art) { art.style.transform = entry.transform; art.style.transformOrigin = entry.origin; }
+    if (art) { art.style.transform = entry.transform; art.style.transformOrigin = entry.origin; art.style.willChange = entry.willChange; }
+    entry?.shade?.remove(); if (entry) entry.shade = null;
     lobby?.classList.remove("leaving", "pw-box-flight");
-    if (lobby) { lobby.style.setProperty("--pw-shade", "0"); lobby.inert = entry.inert; }
+    if (lobby) lobby.inert = entry.inert;
   }
   function release() {
+    flight?.anims?.forEach(a => a.cancel());
     page.hidden = true; page.inert = false; phase = "closed";
     cancelAnimationFrame(frameId); cancelAnimationFrame(flightId); frameId = flightId = 0; flight = null;
     restoreFlight();
@@ -668,20 +674,14 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
   function paintFlight() {
     const f = transitionFrame(elapsed, timing), distance = dimensions.h * 7;
     camera = scrollAt - distance * (1 - f.travel); paintBackground();
-    page.style.opacity = String(f.opacity);
-    page.style.setProperty("--pw-lift", (1 + 1.2 * (1 - f.paper)).toFixed(3));     // the fall shows its envelopes, the landing fades them back
-    page.style.setProperty("--pw-hole", (1 - f.paper).toFixed(3));                 // dark while falling, gone when the paper is down
+    if (!flight?.anims) page.style.opacity = String(f.opacity);
+    layers.forEach(({layer}, i) => { layer.style.opacity = String(DEPTHS[i].opacity * (1 + 1.2 * (1 - f.paper))); });
+    q(".pw-hole").style.opacity = String((1 - f.paper) * .92);
     scroll.style.transform = `translate3d(0, ${(1 - f.paper) * dimensions.h * 1.15}px, 0) rotate(${-(1 - f.paper) * f.paper * 2}deg)`;
-    if (entry?.art) {
-      const { x, y, width, height } = entry.box;
-      const zoom = Math.max(dimensions.w / width, dimensions.h / height);
-      entry.art.style.transformOrigin = `${x}px ${y}px`;
-      entry.art.style.transform = `translate(${(dimensions.w / 2 - x) * f.push}px, ${(dimensions.h / 2 - y) * f.push}px) scale(${1 + (zoom - 1) * f.push})`;
-      entry.lobby.style.setProperty("--pw-shade", String(f.push * .88));
-    }
   }
   function finishFlight() {
-    const out = flight?.out; flight = null; cancelAnimationFrame(flightId); flightId = 0;
+    const out = flight?.out, anims = flight?.anims ?? []; flight = null; cancelAnimationFrame(flightId); flightId = 0;
+    anims.forEach(a => a.cancel());
     if (out) {
       release(); api.toLobby?.(); onClose?.(); entry?.from?.focus?.({ preventScroll: true });
     } else {
@@ -694,13 +694,40 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     cancelAnimationFrame(flightId);
     phase = out ? "exiting" : "entering"; scroll.inert = true;
     if (entry?.lobby) { entry.lobby.classList.add("leaving", "pw-box-flight"); entry.lobby.inert = true; }
-    flight = { out, last: null };
+    if (flight?.anims) {
+      flight.out = out;
+      flight.anims.forEach(a => a.reverse());
+      return runFlight(flight);
+    }
+    flight = { out };
     if (motionOff() || !timing.total) { finishFlight(); return; }
+    const anims = [], options = {duration: timing.total, fill: "both"};
+    // smoothstep is exactly this cubic Bezier. Hold the landing frame for the fall; no main-thread
+    // style writes to the large lobby image. A 4.5x push is enough before the archive covers it.
+    const frames = (key, a, b) => [{[key]: a, easing: "cubic-bezier(.333333,0,.666667,1)"},
+      {[key]: b, offset: timing.push / timing.total}, {[key]: b}];
+    if (entry?.art) {
+      const {x, y, width, height} = entry.box;
+      const zoom = Math.min(4.5, Math.max(dimensions.w / width, dimensions.h / height));
+      entry.art.style.transformOrigin = `${x}px ${y}px`; entry.art.style.willChange = "transform";
+      anims.push(entry.art.animate(frames("transform", entry.transform || "none",
+        `translate(${dimensions.w / 2 - x}px, ${dimensions.h / 2 - y}px) scale(${zoom})`), options));
+      entry.shade = document.createElement("div"); entry.shade.className = "pw-box-shade"; entry.shade.setAttribute("aria-hidden", "true");
+      entry.lobby.append(entry.shade);
+      anims.push(entry.shade.animate(frames("opacity", 0, .88), options));
+    }
+    const fade = page.animate([{opacity: 0}, {opacity: 0, offset: timing.push / timing.total / 2, easing: "cubic-bezier(.333333,0,.666667,1)"},
+      {opacity: 1, offset: timing.push / timing.total}, {opacity: 1}], options);
+    anims.push(fade); flight.anims = anims; flight.clock = fade;
+    anims.forEach(a => { a.currentTime = elapsed; if (out) a.reverse(); });
+    runFlight(flight);
+  }
+  function runFlight(current) {
+    Promise.all(current.anims.map(a => a.finished)).then(() => { if (flight === current) finishFlight(); }).catch(() => {});
     const step = (now) => {
-      if (!flight) return;
-      const dt = flight.last == null ? 0 : now - flight.last; flight.last = now;
-      elapsed = clamp(elapsed + (out ? -dt : dt), 0, timing.total); paintFlight();
-      if (out ? elapsed <= 0 : elapsed >= timing.total) finishFlight();
+      if (flight !== current) return;
+      elapsed = clamp(Number(current.clock.currentTime), 0, timing.total); paintFlight();
+      if (current.out ? elapsed <= 0 : elapsed >= timing.total) finishFlight();
       else flightId = requestAnimationFrame(step);
     };
     paintFlight(); flightId = requestAnimationFrame(step);
@@ -866,12 +893,12 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
       previous = { mode: root.dataset.mode || "", backHidden: $("back")?.hidden ?? true };
       plans = [...nextPlans]; selected = null; focus.hidden = true; page.classList.remove("pw-focused");
       status.hidden = true; words(); paintTheme();
-      await Promise.race([listed, new Promise((r) => setTimeout(r, motionOff() ? 1500 : 250))]);
+      await Promise.race([listed, new Promise((r) => setTimeout(r, 250))]);
       render();
       if (works && !library && !loadError) listed.then(() => { if (phase !== "closed" && !selected) render(); });
       const lobby = $("lobby"), art = $("lobby-art"), rect = from?.getBoundingClientRect();
       entry = art && rect?.width ? { lobby, art, from,
-        transform: art.style.transform, origin: art.style.transformOrigin, inert: lobby.inert,
+        transform: art.style.transform, origin: art.style.transformOrigin, willChange: art.style.willChange, inert: lobby.inert,
         // The hotspot bounds the standing envelopes; the opening is its upper quarter.
         box: box || { x: rect.left + rect.width / 2, y: rect.top + rect.height / 4, width: rect.width * .7, height: rect.height * .28 } } : { from };
       timing = transitionTiming(visits, motionOff()); visits++; elapsed = 0;

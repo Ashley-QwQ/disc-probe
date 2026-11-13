@@ -42,6 +42,7 @@ export async function init(entry, fetcher = fetch) {
   entry.hidden = true;
   try { catalogue = await request(fetcher); } catch { return null; } // old server: no dead entry
   if (catalogue.version !== 1) return null;
+  const { pushLobby } = await import('./lobby.js');
   entry.hidden = false;
   const sheet = document.createElement('section');
   sheet.className = 'presetio'; sheet.hidden = true;
@@ -122,7 +123,7 @@ export async function init(entry, fetcher = fetch) {
   };
   paintDesk();
 
-  let value = 0, scale = 1, compact = false, playing = [], generation = 0, drag = null;
+  let value = 0, scale = 1, compact = false, playing = [], generation = 0, drag = null, frozen = new Map();
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   // The page's own setting decides: index.html resolves "auto" from the system into data-motion, and a person who
   // forced motion on while their system asks for less still gets it (the system flag alone must not win).
@@ -160,11 +161,28 @@ export async function init(entry, fetcher = fetch) {
     settle();
     for (const animation of playing) animation.cancel();
     playing = [];
+    frozen.clear();
+  }
+  function freeze() {
+    ++generation;
+    // Commit the displayed frame before cancelling, including delayed legs and their shadows.
+    const sampled = new Map(frozen);
+    const targets = playing.length || frozen.size ? new Set([
+      ...Object.values(parts), ...Object.values(contents), ...Object.values(leds),
+      ...sheet.querySelectorAll('[data-art$="_shadow"]')]) : new Set();
+    for (const el of targets) {
+      const style = getComputedStyle(el);
+      sampled.set(el, {transform: style.transform, opacity: style.opacity});
+    }
+    for (const [el, style] of sampled) Object.assign(el.style, style);
+    playing.forEach(a => a.cancel()); playing = [];
+    frozen = sampled; return sampled;
   }
   function move(next, releasePoint = null) {
+    if (next === value && playing.length && releasePoint === null) return;
     const from = value;
     // A drag already moved the knob's underlying style; preserve that release point.
-    finish(); value = next; announce();
+    const sampled = freeze(); frozen = new Map(); value = next; announce();
     if (instant()) { settle(); return; }
     const release = releasePoint ?? parts.knob.style.transform;
     parts.knob.style.transform = release;
@@ -174,8 +192,14 @@ export async function init(entry, fetcher = fetch) {
     }
     sheet.dataset.playing = 'true';
     const token = generation;
+    const animated = new Set();
     const animate = (el, frames, delay, duration, easing = 'linear') => {
-      const animation = el.animate(frames, {delay, duration, easing, fill: 'both'});
+      const first = !animated.has(el); animated.add(el);
+      if (first && sampled.has(el)) {
+        frames = frames.map((frame, i) => i ? frame : {...frame,
+          ...Object.fromEntries(Object.keys(frame).filter(key => key in sampled.get(el)).map(key => [key, sampled.get(el)[key]]))});
+      }
+      const animation = el.animate(frames, {delay, duration, easing, fill: first ? 'both' : 'forwards'});
       playing.push(animation);
     };
     const fade = (el, a, b, delay, duration) => animate(el, [{opacity: a}, {opacity: b}], delay, duration, 'ease-out');
@@ -259,8 +283,9 @@ export async function init(entry, fetcher = fetch) {
   });
   knob.addEventListener('pointerdown', event => {
     if (event.button !== 0 || drag) return;
-    finish(); knob.setPointerCapture(event.pointerId); knob.focus({preventScroll: true});
-    drag = {id: event.pointerId, y: event.clientY, start: value * desk.travel, offset: value * desk.travel};
+    freeze(); knob.setPointerCapture(event.pointerId); knob.focus({preventScroll: true});
+    const start = new DOMMatrix(getComputedStyle(parts.knob).transform).m42;
+    drag = {id: event.pointerId, y: event.clientY, start, offset: start};
     event.preventDefault();
   });
   knob.addEventListener('pointermove', event => {
@@ -423,8 +448,13 @@ export async function init(entry, fetcher = fetch) {
   // above the sheet while it is open, and given back as it was on close.
   const back = document.getElementById('back');
   let backWasHidden = true, modeBefore = '';
-  function close() {
-    if (sheet.hidden) return;
+  let pageFlight = null, entrance = null, closing = false;
+  function endPageFlight() {
+    pageFlight?.push?.done(); pageFlight?.anims.forEach(a => a.cancel()); pageFlight = null;
+    sheet.style.willChange = '';
+  }
+  function closed() {
+    endPageFlight(); closing = false;
     finish(); drag = null; sheet.hidden = true;
     delete document.documentElement.dataset.presetio;
     document.documentElement.dataset.mode = modeBefore;
@@ -433,6 +463,28 @@ export async function init(entry, fetcher = fetch) {
     onClose?.();
     (opener?.isConnected ? opener : entry).focus();
   }
+  function watchPageFlight(flight, done) {
+    Promise.all(flight.anims.map(a => a.finished)).catch(() => {}).then(() => { if (pageFlight === flight) done(); });
+  }
+  function close() {
+    if (sheet.hidden || closing) return;
+    closing = true;
+    if (document.documentElement.dataset.motion === 'off' || !entrance) { closed(); return; }
+    if (pageFlight) {
+      pageFlight.anims.forEach(a => a.reverse());
+      watchPageFlight(pageFlight, closed); return;
+    }
+    const push = entrance.lobby ? pushLobby(entrance.lobby, true) : null;
+    sheet.style.willChange = 'transform, opacity';
+    const a = sheet.animate([...entrance.frames].reverse(), {duration: entrance.duration, easing: 'cubic-bezier(.5,0,.9,.5)', fill: 'both'});
+    pageFlight = {push, anims: [a, ...(push?.anims ?? [])]};
+    watchPageFlight(pageFlight, closed);
+  }
+  new MutationObserver(() => {
+    if (document.documentElement.dataset.motion !== 'off' || !pageFlight) return;
+    pageFlight.anims.forEach(a => a.finish());
+    if (closing) closed(); else endPageFlight();
+  }).observe(document.documentElement, {attributes: true, attributeFilter: ['data-motion']});
   back?.addEventListener('click', event => {
     if (sheet.hidden) return;
     event.preventDefault(); event.stopImmediatePropagation(); close();
@@ -442,7 +494,16 @@ export async function init(entry, fetcher = fetch) {
   let opener = entry;
   function open(from = entry, options = {}) {
     if (!sheet.hidden) return;
-    callbacks = options;
+    callbacks = options; closing = false;
+    const tray = document.querySelector('#lobby-art [data-target="fax"].lb-hit');
+    const r = !document.documentElement.dataset.mode ? tray?.getBoundingClientRect() : null;
+    const x = r?.width ? r.left + r.width / 2 : innerWidth / 2, y = r?.width ? r.top + r.height / 2 : innerHeight / 2;
+    const lobby = r?.width ? {origin: `${x}px ${y}px`, to: `translate(${innerWidth / 2 - x}px, ${innerHeight / 2 - y}px) scale(3.5)`} : null;
+    entrance = document.documentElement.dataset.motion === 'off' ? null : {
+      lobby, duration: lobby ? 760 : 220,
+      frames: lobby ? [{transform: `translate(${x - innerWidth / 2}px, ${y - innerHeight / 2}px) scale(.18)`, opacity: 0}, {transform: 'none', opacity: 1}]
+        : [{opacity: 0}, {opacity: 1}]
+    };
     finish(); value = [-1, 1].includes(options.state) ? options.state : 0; opener = from; sheet.hidden = false;
     $('.presetio-manual').open = !!options.manual;
     if (options.state === 1 || options.manual) { clearPreview(); clearFieldErrors(); }
@@ -453,6 +514,13 @@ export async function init(entry, fetcher = fetch) {
     modeBefore = document.documentElement.dataset.mode || ''; document.documentElement.dataset.mode = 'presets';
     if (back) { backWasHidden = back.hidden; back.hidden = false; }
     layout(); $('#presetio-title').focus();
+    if (entrance) {
+      const push = entrance.lobby ? pushLobby(entrance.lobby) : null;
+      sheet.style.willChange = 'transform, opacity';
+      const a = sheet.animate(entrance.frames, {duration: entrance.duration, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'both'});
+      pageFlight = {push, anims: [a, ...(push?.anims ?? [])]};
+      watchPageFlight(pageFlight, () => { if (!closing) endPageFlight(); });
+    }
     if (options.manual) $('.presetio-manual').scrollIntoView({block: 'start'});
     run(async () => { renderCatalogue(await request(fetcher)); message('选择文件或预设。/ Choose a file or preset.'); });
   }
