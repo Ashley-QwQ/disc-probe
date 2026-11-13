@@ -8,6 +8,10 @@
 :root[data-mode="pastworks"] :is(.stage, .counter, .detail, .gallery, .lobby:not(.leaving)) { visibility: hidden; }
 :root[data-mode="pastworks"] :is(#next, #next-why, .next-side) { display: none; }
 :root[data-mode="pastworks"] .top > * { filter: var(--glass-desk-drop); }
+/* the footer row lies over this page (z-index 2) and its drive line stretches across it: let clicks through to
+   "Open work" in the corner; a running job keeps its cancel button */
+:root[data-mode="pastworks"] .bar { pointer-events: none; }
+:root[data-mode="pastworks"] .bar > .job { pointer-events: auto; }
 .pw-background, .pw-depth { position: absolute; inset: 0; pointer-events: none; }
 .pw-background { overflow: hidden; }
 /* the rabbit hole: the file box's dark carried into the fall, a warm light far below where the paper waits */
@@ -63,7 +67,88 @@
 .pw-cell-name small { font-weight: 500; color: var(--ink-3); }
 .pw-no { font: 400 12px var(--mono); font-style: normal; color: var(--ink-3); }
 .pw-cell:hover .pw-cell-name, .pw-cell:focus-visible .pw-cell-name { color: var(--copper); }
-.pw-cell time { display: block; margin: 3px 0 0 32px; font: 12px var(--mono); color: var(--ink-3); }
+.pw-cell time { display: block; margin: 1px 0 0 32px; font: 12px var(--mono); color: var(--ink-3); }
+.pw-label { font-weight: inherit; min-width: 0; }
+/* the second catalogue line: kind and type, state, discs */
+.pw-meta { display: block; margin: 4px 0 0 32px; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.pw-meta:empty { display: none; }
+.pw-state { white-space: nowrap; }
+.pw-state svg { width: 1.05em; height: 1.05em; margin-right: 2px; vertical-align: -.17em; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.pw-state-done { color: var(--ink); font-weight: 700; }
+.pw-state-failed { color: var(--copper); font-weight: 700; }
+.pw-state-unsaved { color: var(--ink-3); font-style: italic; }
+/* finished and failed are stamped on the bag, the way a person would mark the sleeve */
+.pw-stamp { position: absolute; left: 8%; top: 30%; padding: 1px 7px; border: 2px solid currentColor; border-radius: 4px; rotate: -8deg;
+  font: 800 clamp(11px, 1vw, 14px) / 1.3 var(--font); font-stretch: 115%; letter-spacing: .04em; color: var(--ink); background: rgb(255 255 255 / .2); }
+.pw-stamp-failed { color: var(--copper); }
+:root[data-theme="dark"] .pw-stamp { background: rgb(0 0 0 / .25); }
+/* search, filters and import: words on the form, like the sort */
+.pw-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 26px; margin-top: 18px; }
+.pw-search { display: flex; align-items: center; gap: 8px; flex: 0 1 260px; min-width: 180px; min-height: 44px; padding: 0 10px;
+  border-bottom: 1.5px solid var(--rule-strong); color: var(--ink-3); }
+.pw-search:focus-within { border-bottom-color: var(--copper); color: var(--ink); }
+.pw-search svg, .pw-import svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.pw-search input { flex: 1; min-width: 0; height: 40px; border: 0; background: none; color: var(--ink); font: 16px var(--font); outline: none; }
+.pw-search input::placeholder { color: var(--ink-3); }
+.pw-filter { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.pw-filter button { min-height: 36px; padding: 4px 0; border: 0; border-bottom: 1.5px solid transparent; background: none; color: var(--ink-3);
+  font: 600 14px var(--font); font-stretch: 105%; cursor: pointer; }
+.pw-filter button small { margin-left: 4px; font: 12px var(--mono); color: var(--ink-3); }
+.pw-filter button[aria-checked="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.pw-filter button:hover { color: var(--ink); }
+.pw-import { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-left: auto; padding: 0 14px; border: 1.5px solid var(--ink);
+  border-radius: 4px; background: none; color: var(--ink); font: 700 15px var(--font); font-stretch: 108%; cursor: pointer; }
+.pw-import:hover { border-color: var(--copper); color: var(--copper); }
+.pw-import:active { translate: 0 1px; }
+.pw-note { margin: 16px 0 0; max-width: 72ch; color: var(--ink-2); font-size: 15px; line-height: 1.6; }
+.pw-note.pw-warn { padding-left: 12px; border-left: 2px solid var(--copper); }
+.pw-link { min-height: 32px; padding: 0 2px; border: 0; background: none; color: var(--ink); font: 700 15px var(--font);
+  text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.pw-link:hover { color: var(--copper); }
+/* the detail sheet */
+.pw-d-name { margin: 0; font-size: clamp(22px, 2.3vw, 32px); font-weight: 800; font-stretch: 112%; line-height: 1.25; }
+.pw-rename { display: block; width: 100%; padding: 2px 0; border: 0; border-bottom: 1.5px dashed transparent; background: none; color: inherit;
+  font: inherit; font-stretch: inherit; text-align: left; cursor: text; overflow-wrap: anywhere; }
+.pw-rename:hover { border-bottom-color: var(--rule-strong); }
+.pw-rename-input { display: block; width: 100%; padding: 2px 0; border: 0; border-bottom: 1.5px solid var(--copper); border-radius: 0; background: none;
+  color: var(--ink); font: 800 clamp(22px, 2.3vw, 32px) / 1.25 var(--font); font-stretch: 112%; outline: none; }
+.pw-d-meta { margin: 6px 0 0; color: var(--ink-2); font-size: 15px; }
+.pw-d-note, .pw-d-reason { margin: 12px 0 0; max-width: 60ch; color: var(--ink-2); }
+.pw-d-reason { padding-left: 12px; border-left: 2px solid var(--copper); color: var(--ink); }
+.pw-d-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.pw-act { min-height: 40px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: 4px; background: none; color: var(--ink);
+  font: 600 14px var(--font); cursor: pointer; }
+.pw-act:hover { border-color: var(--copper); color: var(--copper); }
+.pw-act:active { translate: 0 1px; }
+.pw-act:disabled { opacity: .5; cursor: wait; }
+.pw-act-strong { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.pw-act-strong:hover { background: var(--copper); border-color: var(--copper); color: var(--paper); }
+:root[data-theme="dark"] .pw-act-strong { color: #161d1c; }
+.pw-fail { margin-top: 14px; }
+.pw-fail label { display: block; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.pw-fail textarea { display: block; width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px solid var(--rule-strong); border-radius: 4px;
+  background: rgb(255 255 255 / .35); color: var(--ink); font: 16px / 1.5 var(--font); resize: vertical; }
+:root[data-theme="dark"] .pw-fail textarea { background: rgb(0 0 0 / .25); }
+.pw-fail textarea:focus { outline: none; border-color: var(--copper); }
+.pw-d-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 18px; margin: 22px 0 0; font-size: 15px; }
+.pw-d-facts dt { color: var(--ink-3); }
+.pw-d-facts dd { margin: 0; min-width: 0; }
+.pw-mono { font-family: var(--mono); font-size: .92em; }
+.pw-details h3 { margin: 24px 0 6px; padding-top: 10px; border-top: .75px solid var(--rule); font-size: 15px; font-weight: 800; font-stretch: 110%; }
+.pw-d-quiet { margin: 0; color: var(--ink-3); font-size: 15px; }
+.pw-d-discs, .pw-d-log { margin: 0; padding: 0; list-style: none; }
+.pw-d-discs li { padding: 5px 0; font-size: 15px; }
+.pw-d-discs span { color: var(--ink-2); }
+.pw-code { font-weight: 800; font-stretch: 112%; }
+.pw-d-iso { display: block; color: var(--ink-3); overflow-wrap: anywhere; }
+.pw-d-log li { display: grid; grid-template-columns: 11.5em 1fr; gap: 0 12px; padding: 4px 0; font-size: 15px; }
+.pw-d-log time { font: 12.5px / 1.9 var(--mono); color: var(--ink-3); }
+.pw-d-log small { grid-column: 2; color: var(--ink-2); font-size: 13px; overflow-wrap: anywhere; }
+/* a file held over the page */
+.pw-drop { position: absolute; inset: calc(var(--edge) + var(--row) + 16px) var(--edge) calc(var(--foot) + 16px); z-index: 3; display: grid; place-items: center;
+  border: 2px dashed var(--copper); border-radius: 8px; background: rgb(235 231 224 / .72); pointer-events: none; }
+:root[data-theme="dark"] .pw-drop { background: rgb(22 29 28 / .72); }
+.pw-drop p { margin: 0; font: 800 clamp(20px, 2.4vw, 30px) var(--font); font-stretch: 112%; color: var(--ink); }
 .pw-empty { margin: 24px 0 0; color: var(--ink-2); font-size: 15px; line-height: 1.6; }
 .pw button:focus-visible { outline: none; }
 .pw ::selection { color: var(--paper); background: var(--ink); }
@@ -72,8 +157,10 @@
 .pw-focus-paper { position: absolute; inset: 0; }
 .pw-focus-art { position: absolute; left: 4%; top: 6%; width: 42%; height: 86%; display: grid; place-items: center; }
 .pw-focus-art .pw-envelope { width: min(100%, 34vh); }
-.pw-details { position: absolute; left: 53%; right: 5%; top: 21%; margin: 0; font-size: clamp(17px, 1.8vw, 26px); line-height: 1.7;
-  overflow-wrap: anywhere; font-weight: 600; }
+/* one work up close: its name, what it is, what to do with it, then its discs and its record; scrolls on its own */
+.pw-details { position: absolute; left: 50%; right: 4%; top: 7%; bottom: 5%; margin: 0; padding: 0 12px 24px 0; overflow-y: auto;
+  overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent; overflow-wrap: anywhere;
+  font-size: 16px; line-height: 1.55; }
 .pw-details:focus { outline: none; }
 .pw-glass { position: fixed; right: var(--edge); bottom: var(--edge); min-height: var(--row); padding: 0 22px;
   border: 0; border-radius: 4px; background: var(--ink); color: var(--paper); box-shadow: var(--glass-edge), var(--glass-desk);
@@ -81,7 +168,8 @@
 .pw-glass:hover { background: var(--copper); }
 .pw-glass:active { translate: 0 1px; }
 .pw-glass:disabled { cursor: wait; opacity: .6; }
-.pw-status { position: absolute; bottom: calc(var(--foot) + 16px); left: var(--edge); right: var(--edge); margin: 0; padding: 12px 16px;
+.pw-status { position: absolute; z-index: 4; bottom: calc(var(--foot) + 16px); left: var(--edge); max-width: min(640px, calc(100vw - 2 * var(--edge)));
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin: 0; padding: 10px 16px; border-radius: 8px;
   background: var(--paper); color: var(--ink); font: 600 16px / 1.5 var(--font); box-shadow: var(--paper-desk); }
 .pw-thumbnail-missing::after { content: "缩略图不可用 / Preview unavailable"; position: absolute; inset: 62% 8% auto 40%; font-size: 12px; text-align: center; color: var(--ink-3); }
 @media (max-width: 1000px) {
@@ -94,10 +182,18 @@
   .pw-cell { font-size: 15px; }
   .pw-cell time { font-size: 12px; }
   .pw-paper { padding: 22px 14px; }
-  .pw-focus-art { left: 6%; top: 4%; width: 88%; height: 58%; }
-  .pw-focus-art .pw-envelope { width: min(80%, 25vh); }
-  .pw-details { left: 9%; right: 9%; top: 68%; font-size: 17px; }
-  .pw-glass { font-size: 16px; }
+  .pw-focus-art { left: 6%; top: 3%; width: 88%; height: 30%; }
+  .pw-focus-art .pw-envelope { width: min(62%, 22vh); }
+  .pw-details { left: 7%; right: 5%; top: 35%; bottom: 3%; }
+.pw-glass { font-size: 16px; }
+  .pw-tools { gap: 10px 18px; }
+  .pw-search { flex: 1 1 100%; }
+  .pw-import { margin-left: 0; }
+  .pw-meta, .pw-cell time { margin-left: 0; }
+  .pw-d-log li { grid-template-columns: 1fr; }
+  .pw-d-log small { grid-column: 1; }
+  .pw-d-facts { grid-template-columns: 1fr; gap: 0; }
+  .pw-d-facts dd { margin-bottom: 6px; }
 }
 :root[data-motion="off"] .pw *, :root[data-motion="off"] .pw *::after { transition: none; }
 /* the system setting only when the page has no setting of its own (a forced "on" keeps the motion) */

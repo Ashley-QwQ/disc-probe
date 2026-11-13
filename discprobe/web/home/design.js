@@ -1537,9 +1537,44 @@ async function projectText() {
   });
 }
 const baseName = (n) => n.replace(/\.discdesign$/i, "").replace(/\.json$/i, "");
+// Ctrl+S files the design in the core's works library (pastworks/save.mjs: made on the first save, a 409
+// asks overwrite or keep both). Undefined when this core keeps no works: the file picker below saves it.
+async function saveToWorks() {
+  const client = await (await import("./pastworks/works.mjs")).worksFor(api, { capable: hasCapability("works") });
+  if (!client) return undefined;
+  const { saveToLibrary, sayings } = await import("./pastworks/save.mjs");
+  const plan = S, name = S.name ?? T().untitled;
+  try {
+    const r = await saveToLibrary({ client, plan, name, lang: api.lang(), text: await projectText(),
+      thumb: async () => (await fetch(planThumbnail(plan, 512))).blob() });
+    if (!r) return false;
+    plan.name = r.work.name ?? name; plan.dirty = false;
+    if (plan === S) { W.dirty.classList.remove("on"); W.pname.textContent = S.name; }
+    toast(r.note);
+    return true;
+  } catch (e) { toast(sayings(api.lang()).failed + (e?.message ?? e)); return false; }
+}
+// An ISO belongs to a library work: the plan is saved first (made on its first save; unsaved edits filed) so
+// the work's design is what the disc carries; the image job then takes its id and the core records the ISO
+// and sets iso_ready when the job succeeds. Null when this core keeps no works.
+async function workForISO() {
+  const client = await (await import("./pastworks/works.mjs")).worksFor(api, { capable: hasCapability("works") });
+  if (!client || client.mock) return null;                  // the demo's library cannot hear the core's job
+  const plan = S;
+  if (!plan.work?.id || plan.dirty) await saveToWorks();
+  return plan.work?.id ? { id: plan.work.id, before: plan.work.updated_at, plan } : null;
+}
+// after a successful ISO: the geometry it was made with, and the stamps the core moved (pastworks/save.mjs)
+async function afterWorkISO(link, geo) {
+  try {
+    const client = await (await import("./pastworks/works.mjs")).worksFor(api, { capable: hasCapability("works") });
+    await (await import("./pastworks/save.mjs")).afterISO({ client, plan: link.plan, before: link.before, geo });
+  } catch { /* the ISO is made; the record is the core's */ }
+}
 async function saveProject(as = false) {
   const t = T();
   if (!S.layers.length && !S.assignments?.length) { toast(t.exp.empty); return false; }
+  if (!as) { const saved = await saveToWorks(); if (saved !== undefined) return saved; }
   const text = await projectText();
   let name = (S.name ?? t.untitled) + FILE_EXT;
   if (window.showSaveFilePicker) {
@@ -1558,7 +1593,8 @@ async function saveProject(as = false) {
   toast(t.saved(name));
   return true;
 }
-async function openProject(file, handle = null) {
+// work: { id, updated_at } when the text came from the works library; a file opened from disk is no library work
+async function openProject(file, handle = null, work = null) {
   const t = T();
   let data;
   // a work with a few photos is tens of MB (each layer keeps its pixels, its PNG and the original file)
@@ -1609,14 +1645,14 @@ async function openProject(file, handle = null) {
   S.cell = [0.02, 0.01, 0.005].includes(data.cell) ? data.cell : 0.02;      // the work's grid, else the default
   if (typeof data.geo === "string" && data.media === S.media) S.geo = data.geo;      // checked against the catalogue at export
   if (Number.isFinite(data.lookY)) S.lookY = data.lookY;
-  S.name = baseName(file.name); S.handle = handle;
+  S.name = baseName(file.name); S.handle = handle; S.work = work;
   changed();
   S.dirty = false; W.dirty.classList.remove("on");
   W.ws.classList.toggle("pro-on", S.pro);
   W.pname.textContent = S.name;
   buildLeft(); buildRight(); updateTilt();
   if (lost.length) { S.dirty = true; W.dirty.classList.add("on"); }
-  toast([data.media && data.media !== S.media ? t.otherMedia(data.media.toUpperCase(), S.media.toUpperCase()) : t.opened(file.name),
+  toast([data.media && data.media !== S.media ? t.otherMedia(data.media.toUpperCase(), S.media.toUpperCase()) : t.opened(work ? S.name : file.name),
     lost.length ? t.lost(lost.map((e) => `“${String(e.name ?? "?")}”`).join(api.lang() === "en" ? ", " : "、")) : ""].filter(Boolean).join(" "), lost.length ? 12000 : 2600);
 }
 const OPEN_LIMIT = 400 * 2 ** 20;
@@ -1723,10 +1759,11 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects = "b
   stop();
   const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
   const output = `iso/${isoStem(S.name)}-${um}um-${stamp}${burn?.mode === "experimental" ? "-exp" : ""}.iso`;
+  const link = await workForISO();
   onProgress({ stage: t.making, fraction: 0 });
   const run = await fetch("/api/run", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "image", media: S.media, args: { geo: geoPath, design_npy: saved.design_npy, ...(saved.textures?{textures:saved.textures}:{}), output, r_max: rMax } }),
+    body: JSON.stringify({ action: "image", media: S.media, ...(link ? { work: link.id } : {}), args: { geo: geoPath, design_npy: saved.design_npy, ...(saved.textures?{textures:saved.textures}:{}), output, r_max: rMax } }),
   });
   const job = await run.json().catch(() => ({}));
   if (!run.ok) throw new Error(job.error ?? t.failed);
@@ -1750,6 +1787,7 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects = "b
   const info = await (await fetch(`/api/iso?path=${encodeURIComponent(output)}`)).json().catch(() => ({}));
   if (!(info.bytes > 0) || !(info.sectors > 0)) throw new Error(t.failed);
   S.geo = geoPath;                                     // the project keeps the geometry it was made with
+  if (link) await afterWorkISO(link, geoPath);
   return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job, geo: geoPath,
     geoSource: geo.source, geoName: geo.name, cellUm: um, effects: burn?.mode ?? "bw", experimental: burn?.mode === "experimental",
     textures: saved.textures_used ?? null };
@@ -1986,12 +2024,25 @@ function flight(fromRect, toCircle, back, done) {
 // start(api): the shelf's way in (the disc in focus, its plan). Options:
 //   plan: open this plan; newPlan: a new plan on the disc in focus, then
 //   file: a picture to put in it, projectFile: a .discdesign to load into it, pick: ask for a .discdesign.
+//   work: a work from the library ({ id, name, media, updated_at, text }: its .discdesign, null if never saved).
 export function start(homeApi, { fly = true, plan = null, newPlan = false, file = null, projectFile = null, pick = false,
-                                  name = null, noDisc = false, dropIn = false } = {}) {
+                                  name = null, noDisc = false, dropIn = false, work = null } = {}) {
   composeRevision++;
   api = homeApi; $ = api.$;
   const { col, item } = api.current();
+  let fromWork = null;
   if (plan) S = plan;
+  else if (work) {
+    // the plan already open for this work, unless the library has a newer save and this one has no edits
+    const open = plans.find((P) => P.work?.id === work.id);
+    if (open && (open.dirty || open.work.updated_at === work.updated_at)) { S = open; S.name = work.name; }
+    else {
+      const media = work.media in RANGE ? work.media : col, [c, last] = api.lastBatch?.() ?? [];
+      S = newProject(c === media ? last : col === media ? item : { kind: "unset", name: T().noDiscYet, mid: "", s: "none" }, media);
+      S.selTol = 18; S.selFeather = 1; S.name = work.name; S.work = { id: work.id, updated_at: work.updated_at };
+      if (work.text != null) fromWork = new File([work.text], `${work.name}.discdesign`, { type: "application/json" });
+    }
+  }
   else if (newPlan) {
     // "decide later" in the form: a plan with no disc batch yet (the kind still sets the drawable range)
     const it = noDisc ? { kind: "unset", name: T().noDiscYet, mid: "", s: "none" } : item;
@@ -2023,6 +2074,7 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
     { duration: 420, easing: "cubic-bezier(.2, .8, .2, 1)" });       // the next sheet comes down from above
   if (file) importFiles([file]);
   if (projectFile) openProject(projectFile);
+  if (fromWork) openProject(fromWork, null, S.work);
   if (pick) pickProject();
 }
 // The library handed back a batch for this plan: switch its discs (the disc kind too, if it changed).
@@ -2234,9 +2286,11 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
       const seen = await look.json().catch(() => ({}));
       if (!look.ok || seen.blank !== true) { fail(look.ok ? T().burnNotBlank : T().burnNoDisc(seen.error ?? ""), false); return; }
       const tok = await (await fetch("/api/burn-token")).json();
+      // the plan's library work: the core records the burn in it (status burned) when the burn succeeds
+      const link = S.work?.id ? { id: S.work.id, before: S.work.updated_at, plan: S } : null;
       const r = await fetch("/api/run", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "burn", drive: drive.id, media: S.media, args: { iso: iso.path, ...(speed ? { speed } : {}) }, burn_token: tok.token }),
+        body: JSON.stringify({ action: "burn", drive: drive.id, media: S.media, ...(link ? { work: link.id } : {}), args: { iso: iso.path, ...(speed ? { speed } : {}) }, burn_token: tok.token }),
       });
       const out = await r.json().catch(() => ({}));
       if (!r.ok) { fail(out.error ?? T().exp.failed); return; }
@@ -2264,6 +2318,7 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
         closed = true; es.close();
         if (d.exit !== 0) { const said = await jobWords(job); why ||= said.why; wrote ||= said.wrote; }
         const started = wrote || !!burnResult;
+        if (d.exit === 0 && link) await afterWorkISO(link, null);     // follow the stamp the core's burn record moved
         onProgress(d.exit === 0 ? { status: "success", progress: 1, burnResult } : cancelled ? { status: "cancelled" }
           : { status: "failed", error: [started ? T().burnFailed : T().burnNotStarted, why].filter(Boolean).join(" "), started });
       });

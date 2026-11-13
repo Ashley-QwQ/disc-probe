@@ -32,7 +32,8 @@ try {
   check([...page.querySelectorAll('[data-tumble]')].every(img => img.complete && img.naturalWidth === 640), 'all real tumble assets load');
   await Promise.all([...page.querySelectorAll('[data-envelope]')].map(img => img.decode()));
   check([...page.querySelectorAll('[data-envelope]')].every(img => img.naturalWidth === 1600 && img.getBoundingClientRect().width > 0 && w.getComputedStyle(img).visibility === 'visible'), 'cell envelope pictures load and occupy the cells');
-  check([...page.querySelectorAll('.pw-disc:not([data-blank])')].every(img => img.src.startsWith('data:image/png')), 'per-plan thumbnails render');   // the new work's blank disc is a picture
+  for (let i = 0; i < 80 && page.querySelectorAll('.pw-cell:not(.pw-new) .pw-disc[data-blank]').length; i++) await wait(25);
+  check([...page.querySelectorAll('.pw-cell:not(.pw-new) .pw-disc')].every(img => img.src.startsWith('blob:')), 'library thumbnails come from the works routes');   // the new work's blank disc is a picture
   const thumbPlan = demo.fakePlans[1], cached = demo.thumbnail(thumbPlan, 128);
   check(demo.thumbnail(thumbPlan, 128) === cached, 'thumbnail cache reuses image');
   const brightness = thumbPlan.tone.bright; thumbPlan.tone.bright = 60;
@@ -68,7 +69,7 @@ try {
   check(new Set(transforms).size === 3, 'depth groups move at distinct speeds');
   d.getElementById('back').click(); check(demo.page.state.phase === 'exiting', 'Back reverses fall');
   demo.page.skip(); check(demo.page.state.phase === 'closed' && !root.dataset.mode, 'skip reverse returns to lobby');
-  await demo.page.show(demo.fakePlans); check(demo.page.state.visits === 2 && demo.page.state.phase === 'entering', 'second entry starts');
+  await demo.page.show([]); check(demo.page.state.visits === 2 && demo.page.state.phase === 'entering', 'second entry starts');
   w.dispatchEvent(new w.KeyboardEvent('keydown', { key:'Enter', bubbles:true, cancelable:true }));
   check(demo.page.state.phase === 'idle' && !demo.page.state.focused, 'Enter skips without opening a work');
   root.dataset.motion = 'off'; await wait(0);
@@ -84,11 +85,65 @@ try {
   check(d.querySelector('.preview-result h1').textContent.includes('新作品'), 'new-work action is connected');
   d.getElementById('return').click(); await wait(50); demo.page.back();
   check(demo.page.state.phase === 'closed', 'motion-off reverse is a straight cut');
-  await demo.page.show([]); check(page.querySelectorAll('.pw-cell').length === 1 && !page.querySelector('.pw-empty').hidden, 'empty archive keeps new work and quiet line');
+
   demo.page.back(); root.dataset.motion='on';
-  await demo.page.show(demo.fakePlans); demo.page.back(); demo.page.skip();
+  await demo.page.show([]); demo.page.back(); demo.page.skip();
   check(demo.page.state.phase === 'closed', 'Esc/Back during entry reverses without stranding the page');
-  report.textContent='PASS: archive DOM, assets, focus, callbacks, motion and keyboard';
+  // the library: filters, search, rename, failure with a reason, bin and undo, keyboard on cards
+  root.dataset.motion = 'off';
+  await demo.page.show([]); demo.page.skip(); await wait(30);
+  check(demo.page.state.library && demo.page.state.phase === 'idle', 'library mode with a works client');
+  const cells = () => [...page.querySelectorAll('.pw-cell')];
+  const until = async (ok, msg) => { for (let i = 0; i < 80 && !ok(); i++) await wait(25); check(ok(), msg); };
+  const key = (target, k, extra = {}) => target.dispatchEvent(new w.KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...extra }));
+  page.querySelector('[data-filter="status"] [data-value="failed"]').click();
+  check(cells().length === 2 && cells()[1].querySelector('.pw-state-failed'), 'status filter');
+  page.querySelector('[data-filter="status"] [data-value=""]').click();
+  page.querySelector('[data-filter="media"] [data-value="cd"]').click();
+  check(cells().length > 1 && cells().slice(1).every(c => c.querySelector('.pw-meta').textContent.startsWith('CD')), 'media filter');
+  page.querySelector('[data-filter="media"] [data-value=""]').click();
+  const search = page.querySelector('.pw-search input'); search.value = 'ＡＴＬＡＳ'; search.dispatchEvent(new w.Event('input'));
+  check(cells().length === 3, 'search by name, width-folded');
+  search.value = 'nothing like it'; search.dispatchEvent(new w.Event('input'));
+  check(!page.querySelector('.pw-empty').hidden && page.querySelector('.pw-empty button:not([hidden])'), 'no match offers to clear filters');
+  search.focus(); key(search, 'Escape');
+  check(search.value === '' && cells().length === 13 && demo.page.state.phase === 'idle', 'Esc clears the search before leaving');
+  cells()[0].focus(); key(cells()[0], 'ArrowRight'); check(d.activeElement === cells()[1], 'arrow keys move across the grid');
+  const first = cells()[1], id = first.dataset.id, mock = demo.works.mock;
+  key(first, 'F2');
+  const input = page.querySelector('.pw-rename-input'); check(input && d.activeElement === input, 'F2 opens the name for editing');
+  input.value = '新名字'; key(input, 'Enter');
+  await until(() => mock.works.get(id).name === '新名字' && page.querySelector('.pw-rename')?.textContent === '新名字', 'rename reaches the library and the sheet');
+  page.querySelector('.pw-act-failed').click();
+  const form = page.querySelector('.pw-fail'); check(!form.hidden && d.activeElement === form.querySelector('textarea'), 'failure asks for a reason');
+  form.requestSubmit(); await wait(40); check(mock.works.get(id).status !== 'failed', 'no reason, no failure mark');
+  form.querySelector('textarea').value = '内圈没刻上'; form.requestSubmit();
+  await until(() => mock.works.get(id).status === 'failed' && page.querySelector('.pw-d-reason'), 'marked failed with its reason');
+  check(page.querySelector('.pw-d-reason').textContent.includes('内圈没刻上'), 'reason shown');
+  check(page.querySelector('.pw-focus-art .pw-stamp-failed'), 'the bag up close is re-stamped');
+  check(page.querySelector('.pw-d-log').textContent.includes('标成失败') && page.querySelector('.pw-d-log').textContent.includes('改名为'), 'record shows rename and mark');
+  page.querySelector('.pw-act-bin').click();
+  await until(() => !demo.page.state.focused && cells().length === 12 && mock.trash.has(id), 'bin leaves the grid');
+  check(d.activeElement?.classList.contains('pw-cell'), 'focus stays on the grid after the bin');
+  key(w, 'z', { ctrlKey: true });
+  await until(() => cells().length === 13 && !mock.trash.has(id), 'Ctrl+Z restores from the bin');
+  const victim = cells()[2], victimId = victim.dataset.id; victim.focus(); key(victim, 'Delete');
+  await until(() => mock.trash.has(victimId) && !page.querySelector('.pw-status .pw-link').hidden, 'Delete on a card bins it, with an undo');
+  page.querySelector('.pw-status .pw-link').click();
+  await until(() => !mock.trash.has(victimId), 'the undo button restores it');
+  const size = mock.works.size; cells()[1].click(); page.querySelector('.pw-d-actions .pw-act').click();
+  await until(() => mock.works.size === size + 1 && !demo.page.state.focused, 'duplicate adds a work');
+  // a core without works: this session's plans, said plainly; an empty library: the first step
+  await demo.setMode({ noCore: true });
+  let p2 = demo.page.page;
+  check(!demo.page.state.library && p2.querySelectorAll('.pw-cell').length === 13, 'no works capability: in-memory plans');
+  check(!p2.querySelector('.pw-note').hidden && p2.querySelector('.pw-note').textContent.includes('不保存作品'), 'says this core keeps no works');
+  check(p2.querySelector('[data-filter="status"]').hidden && p2.querySelector('.pw-import').hidden, 'no library tools without a library');
+  await demo.setMode({ empty: true });
+  p2 = demo.page.page;
+  check(p2.querySelectorAll('.pw-cell').length === 1 && p2.querySelector('.pw-empty').textContent.includes('第一步'), 'empty library says the first step');
+  await demo.setMode({});
+  report.textContent='PASS: archive DOM, assets, focus, callbacks, motion, keyboard and library management';
 } catch (e) { report.textContent='FAIL: '+e.stack; }
 </script>`;
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -173,17 +228,22 @@ try {
   console.log(lobbyReport);
   if (screenshots) {
     // Caller supplies an existing allowed directory, only PNGs are written there.
-    for (const [width, theme] of [[1440, 'paper'], [390, 'dark']]) {
-      await cdp('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+    // list and detail at desktop and phone width, both themes; the empty library and a core without works
+    for (const [width, theme, view] of [[1440, 'paper', 'list'], [1440, 'paper', 'detail'], [1440, 'dark', 'list'], [390, 'dark', 'list'],
+      [390, 'dark', 'detail'], [390, 'paper', 'list'], [1440, 'paper', 'empty'], [1440, 'paper', 'nocore']]) {
+      await cdp('Emulation.setDeviceMetricsOverride', { width, height: width < 600 ? 844 : 900, deviceScaleFactor: 1, mobile: false });
       await cdp('Page.navigate', { url: preview.href });
       let ready = false;
       for (let i = 0; i < 100 && !ready; i++) { await delay(50); ready = await evaluate("!!window.pastworksPreview && pastworksPreview.page.state.phase !== 'loading'"); }
       assert.ok(ready, 'preview ready for visual capture');
       await evaluate(`(async () => { document.documentElement.dataset.theme='${theme}'; pastworksPreview.page.skip();
-        await new Promise(r=>setTimeout(r,100)); await Promise.all([...document.querySelectorAll('.pw img')].map(i=>i.decode().catch(()=>{})));
+        if ('${view}' === 'empty' || '${view}' === 'nocore') { await pastworksPreview.setMode({ ${view === 'empty' ? 'empty' : 'noCore'}: true }); pastworksPreview.page.skip(); }
+        await new Promise(r=>setTimeout(r,300));
+        if ('${view}' === 'detail') { document.querySelectorAll('.pw-cell')[3].click(); await new Promise(r=>setTimeout(r,700)); }
+        await Promise.all([...document.querySelectorAll('.pw img')].map(i=>i.decode().catch(()=>{})));
         await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))); })()`);
       const shot = await cdp('Page.captureScreenshot', { format: 'png' });
-      writeFileSync(resolve(screenshots, `pastworks-${width}-${theme}.png`), Buffer.from(shot.data, 'base64'));
+      writeFileSync(resolve(screenshots, `pastworks-${width}-${theme}-${view}.png`), Buffer.from(shot.data, 'base64'));
     }
   }
 } finally {
