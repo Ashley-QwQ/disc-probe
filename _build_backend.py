@@ -101,6 +101,9 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
         # The installed selftest resolves this recorded fixture beside discprobe.
         fixture = 'tests/data/bd_discussion_samples/local_uj272_bd_zones.csv'
         write(fixture, (ROOT / fixture).read_bytes())
+        # WindowsDVD still resolves this helper beside the installed package.
+        # Preserve that runtime path without changing the product adapter.
+        write('tools/burn_imapi.ps1', (ROOT / 'tools/burn_imapi.ps1').read_bytes())
         if (ROOT / 'release-build.json').is_file():
             write('discprobe/_release.json', (ROOT / 'release-build.json').read_bytes())
         for relative, data in metadata_files().items():

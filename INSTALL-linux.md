@@ -30,12 +30,13 @@ dp-venv/bin/disc-probe selftest
 
 | 介质／用途 | 外部工具 |
 | --- | --- |
-| DVD / BD 写入 | `growisofs`（通常来自 `dvd+rw-tools`） |
+| DVD 内置写入；BD 的外部手动写入 | `growisofs`（通常来自 `dvd+rw-tools`） |
 | DVD / BD 介质检查 | `dvd+rw-mediainfo`（同一工具包） |
-| CD DAO RAW16/RAW96 数据布局 | `cdrdao`，需支持对应布局的驱动和设备 |
-| CD 普通模式／替代写入路径 | `wodim`，必须核对其支持的布局；不能用不支持的模式代替 RAW DAO |
+| CD DAO 写入 | `cdrdao`，使用程序生成的 TOC，保持预扰码所用的 Mode 1 / Mode 2 布局 |
+| CD 介质和速度检查 | `wodim`（内置 CD 路径也需要它，不能只装 `cdrdao`） |
 
-BD 的具体写入支持以程序实际接受的命令和设备为准，本次未验证实盘。
+当前内置 `burn` 只接受 DVD / CD；BD 需走生成镜像后的外部刻录步骤，
+本次没有验证这些实盘路径。
 Linux 用户需有 `/dev/sr*` 的读写权限，通常加入 `cdrom` 组后重新登录：
 
 ```sh
@@ -43,5 +44,6 @@ sudo usermod -aG cdrom "$USER"
 ```
 
 无设备、权限不足或缺工具时先解决相应条件，不以 root 运行整个网页服务。
-本次演练没有访问光驱或执行刻录。Windows CD DAO 也仍依赖外部刻录工具，
-Windows 全量 ZIP 带齐 Python 照片依赖并不代表带齐所有介质的刻录程序。
+本次演练没有访问光驱或执行刻录。Windows 内置 CD DAO 尚未实现，
+后端会明确拒绝；可转到 Linux 的 `cdrdao` 路径。Windows 全量 ZIP 带齐
+Python 照片依赖并不代表带齐所有介质的刻录程序。

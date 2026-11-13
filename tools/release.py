@@ -104,6 +104,8 @@ def main():
     node = shutil.which('node')
     if not node:
         parser.error('Node is required, never downloaded')
+    # The render regression deliberately compares against the previous release.
+    git('cat-file', '-e', 'v0.1.2.1:discprobe/simulate.py')
     out.mkdir(parents=True, exist_ok=True)
     logs = out / 'logs'; logs.mkdir()
     snapshot = out / 'build-copy'; snapshot.mkdir()
@@ -138,6 +140,8 @@ def main():
         run_check([*python, '-m', 'discprobe', 'selftest'], snapshot, logs / 'selftest.log', env, checks)
         run_check([*python, '-c', 'import _build_backend as b; print(b.build_wheel("../assets")); print(b.build_sdist("../assets"))'],
                   snapshot, logs / 'source-build.log', env, checks)
+        run_check([*python, str(snapshot/'tools/verify_source.py'), '--assets', str(out/'assets'),
+                   '--out', str(out/'from-sdist')], snapshot, logs/'sdist-equivalence.log', env, checks)
         run_check([*python, str(snapshot / 'tools/build_winpack.py'), '--source-root', str(snapshot),
                    '--commit', commit, '--ref', commit, '--label', args.version, '--cache', str(cache), '--out', str(out / 'winpack')],
                   snapshot, logs / 'winpack-build.log', env, checks)
