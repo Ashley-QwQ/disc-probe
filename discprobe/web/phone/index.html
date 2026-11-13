@@ -2,80 +2,274 @@
 <html lang="zh-CN">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
 <title>拍摄标靶 · disc-probe</title>
 <style>
-  :root { color-scheme: light; --paper: #ebe7e0; --ink: #1d1b18; --muted: #5d5850; --rule: #cfc9bf; --copper: #a8693c;
+  :root { color-scheme: light; --paper: #ebe7e0; --paper-2: #e4dfd7; --ink: #1d1b18; --muted: #5d5850; --faint: #8a847a; --rule: #cfc9bf;
+    --rule-strong: #a9a297; --copper: #a8693c; --good: #3f7d55; --warn: #9a6a14; --ease: cubic-bezier(.2, .8, .2, 1);
     background: var(--paper); color: var(--ink); font: 16px/1.55 system-ui, "Microsoft YaHei UI", "PingFang SC", sans-serif; }
-  * { box-sizing: border-box; }
-  body { margin: 0; padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(32px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left)); }
-  main { max-width: 480px; margin-inline: auto; }
-  h1 { font-size: clamp(28px, 7vw, 36px); line-height: 1.2; margin: 20px 0 16px; text-wrap: balance; }
-  h2 { font-size: 20px; margin: 32px 0 12px; }
-  p { margin: 12px 0; text-wrap: pretty; }
-  .en { display: block; font-size: 14px; color: var(--muted); font-weight: 400; }
-  .frame { width: min(68vw, 260px); aspect-ratio: 1; border: 1px solid var(--rule); border-radius: 50%; margin: 28px auto; display: grid; place-items: center; text-align: center; padding: 32px; }
-  .frame p { max-width: 12em; }
-  .actions { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-  .pick { position: relative; display: grid; place-items: center; cursor: pointer; }
-  .shutter { width: 104px; height: 104px; border: 4px solid var(--copper); border-radius: 50%; background: var(--paper); font-weight: 600; }
-  .gallery { min-height: 48px; padding: 8px 20px; border: 1px solid var(--rule); border-radius: 4px; }
-  .pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-  .pick:focus-within { outline: 2px solid var(--ink); outline-offset: 5px; }
-  .pick:hover { background: #e4dfd7; }
-  .pick:active { transform: translateY(1px); }
-  .pick.disabled { opacity: .5; cursor: wait; }
-  .pick input:disabled { cursor: wait; }
-  #status, #error { min-height: 3em; margin: 16px 0; }
-  #error:empty { display: none; }
-  #error { border: 1px solid var(--ink); border-radius: 4px; padding: 12px; }
-  #sent { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(136px, 100%), 1fr)); gap: 16px; padding: 0; }
-  #sent li { min-width: 0; }
-  #sent img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; }
-  #sent a { color: var(--ink); display: block; min-height: 44px; min-width: 44px; text-underline-offset: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
-  #sent p { overflow-wrap: anywhere; }
-  button { min-height: 44px; min-width: 44px; padding: 8px 12px; font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--rule); border-radius: 4px; cursor: pointer; }
-  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-  button:hover { background: #e4dfd7; }
-  button:disabled { opacity: .5; cursor: wait; }
-  a:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-  ::selection { background: var(--ink); color: var(--paper); }
-  footer { margin-top: 32px; border-top: 1px solid var(--rule); padding-top: 16px; color: var(--muted); }
-  @media (max-height: 500px) and (min-width: 600px) {
-    main { max-width: 720px; display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 12px 24px; }
-    main > :is(h1,h2,p,ul,footer) { grid-column: 1 / -1; margin: 0; min-width: 0; }
-    .frame { grid-column: 1; width: 160px; padding: 12px; margin: 0; }
-    .actions { grid-column: 2; align-self: center; }
+  @media (prefers-color-scheme: dark) {
+    :root { color-scheme: dark; --paper: #161d1c; --paper-2: #1f2827; --ink: #ecebe4; --muted: #aeb3ab; --faint: #7f8780; --rule: #2c3634;
+      --rule-strong: #46514e; --copper: #d9a75c; --good: #8fca9a; --warn: #e2b866; }
   }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left)); }
+  main { max-width: 480px; margin-inline: auto; padding-bottom: calc(132px + env(safe-area-inset-bottom)); }
+  h1 { font-size: clamp(26px, 7vw, 34px); line-height: 1.2; margin: 12px 0 4px; text-wrap: balance; }
+  h2 { font-size: 18px; margin: 28px 0 8px; }
+  p { margin: 8px 0; text-wrap: pretty; }
+  .en { display: block; font-size: 14px; color: var(--muted); font-weight: 400; }
+  .run { color: var(--muted); font-size: 14px; margin: 0 0 16px; overflow-wrap: anywhere; }
+  .run code { font: 13px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  /* the overall state: what is known now, and what to do */
+  #overall { border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule); padding: 12px 0; margin: 16px 0; }
+  #overall b { font-size: 20px; display: block; }
+  #overall[data-state="adopted"] b { color: var(--good); }
+  #overall[data-state="provisional"] b, #overall[data-state="disagree"] b { color: var(--warn); }
+  #overall .sub { color: var(--muted); font-size: 14px; }
+  /* a problem the person can fix: a thin line on the left, then the fix */
+  .banner { border-left: 3px solid var(--warn); padding: 8px 0 8px 12px; margin: 12px 0; }
+  .banner[hidden] { display: none; }
+  .banner ul { margin: 6px 0; padding-left: 20px; }
+  .banner button { margin-top: 6px; }
+  details.tips { border-bottom: 1px solid var(--rule); padding-bottom: 8px; }
+  details.tips summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+  details.tips ol { margin: 4px 0 8px; padding-left: 22px; }
+  details.tips li { margin: 6px 0; }
+  .diagram { display: block; width: 100%; max-width: 360px; height: auto; margin: 8px auto 4px; color: var(--ink); }
+  .diagram .thin { stroke: var(--faint); }
+  .diagram text { fill: var(--muted); font-size: 12px; font-family: inherit; }
+  /* photos, newest first */
+  #sent { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+  #sent li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--rule); transition: background-color 200ms var(--ease); }
+  #sent li.fresh { background: var(--paper-2); }
+  #sent li > :not(.thumb) { grid-column: 2; min-width: 0; }
+  #sent .thumb { grid-column: 1; grid-row: 1 / span 4; width: 76px; height: 76px; border-radius: 2px; object-fit: cover; background: var(--paper-2); display: block; }
+  #sent .name { font-size: 13px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #sent .act { font-weight: 600; }
+  #sent [data-stage="ok"] .act { color: var(--good); }
+  #sent [data-stage="retake"] .act, #sent [data-stage="failed"] .act, #sent [data-stage="error"] .act { color: var(--warn); }
+  #sent .why { margin: 0; font-size: 15px; }
+  #sent .when { margin: 0; font-size: 13px; color: var(--muted); }
+  #sent .row { display: flex; flex-wrap: wrap; gap: 8px; grid-column: 2; }
+  progress { width: 100%; height: 6px; accent-color: var(--copper); }
+  .empty { color: var(--muted); }
+  /* one hand: the two picks sit at the bottom, in thumb reach */
+  .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; background: var(--paper); border-top: 1px solid var(--rule);
+    padding: 12px max(20px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
+  .dock-inner { max-width: 480px; margin-inline: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+  .pick { position: relative; display: grid; place-items: center; text-align: center; min-height: 56px; border-radius: 4px; cursor: pointer;
+    border: 1px solid var(--rule-strong); padding: 6px 16px; transition: background-color 150ms var(--ease), transform 150ms var(--ease); }
+  .pick.shutter { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 600; font-size: 18px; }
+  .pick.shutter .en { color: inherit; opacity: .75; }
+  .pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .pick:focus-within { outline: 2px solid var(--copper); outline-offset: 3px; }
+  .pick:hover { background: var(--paper-2); }
+  .pick.shutter:hover { background: var(--muted); }
+  .pick:active { transform: translateY(1px); }
+  .pick.disabled { opacity: .45; cursor: not-allowed; }
+  .pick input:disabled { cursor: not-allowed; }
+  button { min-height: 44px; min-width: 44px; padding: 8px 12px; font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--rule-strong); border-radius: 4px; cursor: pointer; transition: background-color 150ms var(--ease); }
+  button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--copper); outline-offset: 3px; }
+  button:hover { background: var(--paper-2); }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  ::selection { background: var(--ink); color: var(--paper); }
+  footer { margin-top: 28px; border-top: 1px solid var(--rule); padding-top: 12px; color: var(--muted); font-size: 14px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+  @media (max-height: 500px) and (min-width: 600px) { main { max-width: 720px; } .dock-inner { max-width: 720px; } }
 </style>
 <main>
   <h1>拍摄标靶<span class="en" lang="en">Photograph the target</span></h1>
-  <p>把盘放平，拍 3 张。每张之间转动一下盘，让反光换个位置。<span class="en" lang="en">Lay the disc flat. Take 3 photos, turning it between shots to move the reflections.</span></p>
-  <div class="frame"><p>把整张盘放进圈里<span class="en" lang="en">Keep the whole disc in the frame</span></p></div>
-  <div class="actions">
-    <label class="pick shutter"><span>拍照<span class="en" lang="en">Take photo</span></span><input id="camera" type="file" accept="image/*" capture="environment" aria-label="拍照 / Take photo"></label>
-    <label class="pick gallery"><span>从相册选 <span lang="en">/ From photos</span></span><input id="gallery" type="file" accept="image/*" multiple aria-label="从相册选 / From photos"></label>
-  </div>
-  <p id="status" role="status" aria-live="polite">拍一张照片，发送到电脑。<span class="en" lang="en">Take a photo to send it to the computer.</span></p>
-  <p id="error" role="alert"></p>
-  <h2>已发送<span class="en" lang="en">Sent photos</span></h2>
-  <ul id="sent"></ul>
-  <footer>照片只留在家庭局域网内，保存在电脑的这次标定里。<span class="en" lang="en">Photos stay on your home network, saved with this calibration on your computer.</span></footer>
+  <p class="run" id="run"></p>
+  <div class="banner" id="problem" role="alert" hidden></div>
+  <section id="overall" role="status" aria-live="polite" data-state="none"><b></b><span class="sub"></span></section>
+  <details class="tips" id="tips" open>
+    <summary>这样拍 <span lang="en">&nbsp;/ How to shoot</span></summary>
+    <svg class="diagram" viewBox="0 0 360 150" role="img" aria-label="吸顶灯在身后，手机拍整张盘，盘朝你倾斜 20 到 30 度 / Ceiling lamp behind you, phone on the whole disc, disc tilted 20–30° towards you">
+      <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <path class="thin" d="M10 18h340M10 136h340"/>
+        <path d="M40 18v10M28 28h24l-4 8H32z"/>
+        <path class="thin" d="M40 40l14 14M40 40l0 18M40 40l-14 14" stroke-dasharray="3 4"/>
+        <rect x="118" y="56" width="14" height="26" rx="2"/>
+        <path class="thin" d="M134 66 L238 92M134 72 L300 112" stroke-dasharray="2 5"/>
+        <path d="M232 120 L306 94" stroke-width="3"/>
+        <path class="thin" d="M232 120h80M290 120a22 22 0 0 0-3-14"/>
+      </g>
+      <text x="14" y="76">吸顶灯在身后</text><text x="102" y="102">手机</text><text x="232" y="146">盘朝你转 20–30°</text>
+    </svg>
+    <ol id="tip-list"></ol>
+  </details>
+  <h2>照片<span class="en" lang="en">Photos</span></h2>
+  <p class="empty" id="empty">还没有照片。<span class="en" lang="en">No photos yet.</span></p>
+  <ul id="sent" aria-live="polite"></ul>
+  <footer>照片只在家里的局域网内传给电脑，保存在这次标定里。能不能用，要等电脑收到后读完才知道，不是拍照时当场判断的。<span class="en" lang="en">Photos travel only over your home network and are saved with this calibration. Whether one is usable is known only after the computer has read it, not while you shoot.</span></footer>
 </main>
+<div class="dock">
+  <div class="dock-inner">
+    <label class="pick shutter"><span>拍照<span class="en" lang="en">Take photo</span></span><input id="camera" type="file" accept="image/*" capture="environment" aria-label="拍照 / Take photo"></label>
+    <label class="pick gallery"><span>相册<span class="en" lang="en">Photos</span></span><input id="gallery" type="file" accept="image/*" multiple aria-label="从相册选 / Choose from photos"></label>
+  </div>
+</div>
 <script type="application/json" id="config">__PHOTO_CONFIG__</script>
 <script type="module">
-  import { photoStateWords, photoOverallWords } from '/home/guidance.mjs';
+  import { photoStage, adoptionWords, deskWords, shootingTips, seconds } from '/home/photowords.mjs';
   'use strict';
   const config = JSON.parse(document.getElementById('config').textContent);
-  const status = document.getElementById('status'), error = document.getElementById('error');
-  const sent = document.getElementById('sent'), inputs = [...document.querySelectorAll('input')];
+  const $ = id => document.getElementById(id);
+  const inputs = [...document.querySelectorAll('.pick input')];
   const endpoint = '/api/photos?run=' + encodeURIComponent(config.run);
-  const headers = { 'X-Photo-Token': config.token };
-  let busy = false, last = '', refreshing = false, uploadError = '';
-  // Remember this browser's successful sends, across reloads and other phones.
-  const storageKey = 'discprobe-phone-' + config.token;
-  let sentIds;
-  try { sentIds = new Set(JSON.parse(sessionStorage.getItem(storageKey) || '[]')); }
-  catch { sentIds = new Set(); }
+  const both = (p, tag = 'span') => { const z = document.createElement(tag); z.textContent = p.zh; if (p.en && p.en !== p.zh) { const e = document.createElement('span'); e.className = 'en'; e.lang = 'en'; e.textContent = p.en; z.append(e); } return z; };
+  const line = p => p.en && p.en !== p.zh ? p.zh + ' / ' + p.en : p.zh;
+  $('run').append('这些照片只算到这次标定 / Photos count only for this run: ', Object.assign(document.createElement('code'), {textContent: config.run}));
+  for (const tip of shootingTips) $('tip-list').append(both(tip, 'li'));
+  // This browser's sends, across reloads. The listing has every phone's photos; this page shows them all.
+  // Keyed by run, not link: a rotated link (rescan) still knows which photos this phone sent.
+  const storageKey = 'discprobe-phone-' + config.run;
+  let mine;
+  try { mine = new Set(JSON.parse(sessionStorage.getItem(storageKey) || '[]')); } catch { mine = new Set(); }
+  if (mine.size) $('tips').open = false;
+  const remember = () => { try { sessionStorage.setItem(storageKey, JSON.stringify([...mine])); } catch { /* private mode */ } };
+  const thumbs = new Map();
+  let listing = {photos: []}, pending = [], blocked = null, link = 'ok', polling = false, failures = 0, timer, lastSig = '', freshId = null;
+
+  // ---- problems the person can recover from -------------------------------------------------------
+  const PROBLEMS = {
+    offline: {words: {zh: '手机没连上网络（Wi-Fi 断了或在用流量）。', en: 'The phone is off the network (Wi-Fi dropped, or on mobile data).'},
+      steps: [{zh: '连回和电脑相同的 Wi-Fi。', en: 'Reconnect to the same Wi-Fi as the computer.'}, {zh: '没发出去的照片留在下面，连上后点“重新发送”。', en: 'Unsent photos stay below; tap “Send again” once connected.'}]},
+    unreachable: {words: {zh: '连不上电脑。', en: 'Cannot reach the computer.'},
+      steps: [{zh: '电脑上的 disc-probe 还开着吗？关了就重新打开，再扫新码。', en: 'Is disc-probe still running on the computer? If it was closed, start it and scan the new code.'},
+        {zh: '手机和电脑连同一个 Wi-Fi，不要用访客网络。', en: 'Phone and computer on the same Wi-Fi, not a guest network.'},
+        {zh: '电脑上有两个地址时，在电脑页面换另一个地址再扫。', en: 'If the computer page lists two addresses, pick the other one and scan again.'},
+        {zh: '第一次用：Windows 防火墙可能拦住了，允许 Python 使用专用网络。', en: 'First time: Windows Firewall may block it; allow Python on private networks.'}]},
+    expired: {words: {zh: '这个链接已经失效：电脑换了二维码、重新测量了，或程序重启过。', en: 'This link has expired: the computer made a new code, remeasured, or restarted.'},
+      steps: [{zh: '在电脑的拍照页重新扫码。已发的照片还在电脑上。', en: 'Scan the code on the computer’s photo page again. Photos already sent are still there.'}]},
+    gone: {words: {zh: '这次标定在电脑上找不到了（被删除或换了文件夹）。', en: 'This calibration is no longer on the computer (deleted or moved).'},
+      steps: [{zh: '在电脑上重新打开标定，扫新的二维码。', en: 'Open the calibration on the computer again and scan the new code.'}]},
+  };
+  function showProblem(kind) {
+    const box = $('problem');
+    if (!kind) { box.hidden = true; box.replaceChildren(); return; }
+    const p = PROBLEMS[kind];
+    box.replaceChildren(both(p.words, 'p'));
+    const list = document.createElement('ul'); for (const s of p.steps) list.append(both(s, 'li')); box.append(list);
+    if (kind === 'offline' || kind === 'unreachable') {
+      const retry = document.createElement('button'); retry.type = 'button'; retry.textContent = '重试 / Retry';
+      retry.onclick = () => { failures = 0; poll(); }; box.append(retry);
+    }
+    box.hidden = false;
+  }
+  function problemFor(error) {
+    if (!navigator.onLine) return 'offline';
+    if (error.status === 403) return 'expired';
+    if (error.status === 404) return 'gone';
+    return 'unreachable';
+  }
+
+  // ---- reading the computer's state ----------------------------------------------------------------
+  async function getJSON(url) {
+    let res;
+    try { res = await fetch(url, {headers: {'X-Photo-Token': config.token}, cache: 'no-store'}); }
+    catch (e) { throw Object.assign(new Error('network'), {status: 0}); }
+    let data = {};
+    try { data = await res.json(); } catch { /* not JSON */ }
+    if (!res.ok) throw Object.assign(new Error(data.error || res.statusText), {status: res.status});
+    return data;
+  }
+  let leaving = false;
+  async function poll() {
+    clearTimeout(timer);
+    if (polling || leaving) return;
+    polling = true;
+    try {
+      listing = await getJSON(endpoint);
+      failures = 0; blocked = null; link = 'ok';
+      render();
+    } catch (error) {
+      failures++;
+      link = problemFor(error);
+      if (link === 'expired' || link === 'gone') blocked = link;
+      render();
+    } finally {
+      polling = false;
+      // Back off while the computer cannot be reached; stop asking once the link is dead.
+      if (!blocked && !leaving) timer = setTimeout(() => { if (!document.hidden) poll(); else timer = setTimeout(poll, 4000); }, failures ? Math.min(15000, 2000 * 2 ** Math.min(failures, 3)) : 2000);
+    }
+  }
+  // Leaving the page (or the phone freezing it) stops polling; coming back from the back/forward cache resumes it.
+  addEventListener('pagehide', () => { leaving = true; clearTimeout(timer); });
+  addEventListener('pageshow', event => { if (event.persisted) { leaving = false; poll(); } });
+  addEventListener('online', () => { failures = 0; poll(); });
+  addEventListener('offline', () => { link = 'offline'; render(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && !blocked) poll(); });
+
+  // ---- drawing --------------------------------------------------------------------------------------
+  function render() {
+    showProblem(link === 'ok' ? null : link);
+    for (const input of inputs) { input.disabled = !!blocked; input.closest('.pick').classList.toggle('disabled', !!blocked); }
+    const photos = listing.photos || [];
+    const adoption = adoptionWords(listing.adoption || {}, photos);
+    const desk = deskWords(listing);
+    const overall = $('overall');
+    overall.dataset.state = adoption.state;
+    overall.hidden = !!blocked;
+    const sub = desk.state !== 'open' ? desk.words : adoption.body;
+    const sig = JSON.stringify([adoption.title, sub, link]);
+    if (sig !== lastSig) { lastSig = sig; const detail = both(sub, 'span'); detail.className = 'sub'; overall.replaceChildren(both(adoption.title, 'b'), detail); }
+    const list = $('sent'), items = [];
+    for (const p of pending) items.push(pendingItem(p));
+    for (const photo of [...photos].reverse()) items.push(photoItem(photo));
+    list.replaceChildren(...items);
+    $('empty').hidden = items.length > 0;
+  }
+  function photoItem(photo) {
+    const s = photoStage(photo, listing), li = document.createElement('li');
+    li.dataset.stage = s.stage; li.dataset.id = photo.id;
+    if (photo.id === freshId) li.classList.add('fresh');
+    // One image element per photo for the page's life: polls redraw the words, never reload the picture.
+    let img = thumbs.get(photo.id);
+    if (!img) {
+      img = document.createElement('img'); img.className = 'thumb'; img.alt = '';
+      img.src = photo.url + '?token=' + encodeURIComponent(config.token);
+      img.addEventListener('error', () => { img.style.visibility = 'hidden'; }, {once: true});
+      thumbs.set(photo.id, img);
+    }
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = (mine.has(photo.id) ? '' : '另一台设备 · ') + photo.name;
+    li.append(img, name, both(s.act, 'span'), both(s.why, 'p'));
+    li.children[2].className = 'act'; li.children[3].className = 'why';
+    if (s.when.zh) { const w = document.createElement('p'); w.className = 'when'; w.textContent = line(s.when); li.append(w); }
+    if (s.stage === 'retake' || s.stage === 'failed') {
+      const row = document.createElement('div'); row.className = 'row';
+      const retake = document.createElement('button'); retake.type = 'button'; retake.textContent = '重拍 / Retake'; retake.disabled = !!blocked;
+      retake.onclick = () => $('camera').click(); row.append(retake); li.append(row);
+    }
+    return li;
+  }
+  function pendingItem(p) {
+    const li = document.createElement('li'); li.dataset.stage = p.state === 'failed' ? 'error' : p.state;
+    const img = document.createElement('img'); img.className = 'thumb'; img.alt = ''; if (p.preview) img.src = p.preview;
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = p.name;
+    const words = {
+      preparing: [{zh: '准备中', en: 'Preparing'}, {zh: '正在把照片转成 JPEG。', en: 'Converting the photo to JPEG.'}],
+      uploading: [{zh: '上传中', en: 'Uploading'}, {zh: `已发送 ${Math.round(p.progress * 100)}%${p.started ? '，用时 ' + seconds((Date.now() - p.started) / 1000).zh : ''}。`, en: `${Math.round(p.progress * 100)}% sent${p.started ? ', ' + seconds((Date.now() - p.started) / 1000).en : ''}.`}],
+      failed: [{zh: '没发出去', en: 'Not sent'}, p.error],
+      duplicate: [{zh: '已经发过', en: 'Already sent'}, {zh: '这张和之前发的一模一样，不用再发。转一下盘，拍一张新的。', en: 'This is identical to one already sent. Turn the disc and take a new one.'}],
+    }[p.state];
+    li.append(img, name, both(words[0], 'span'), both(words[1], 'p'));
+    li.children[2].className = 'act'; li.children[3].className = 'why';
+    if (p.state === 'uploading') { const bar = document.createElement('progress'); bar.max = 1; bar.value = p.progress; bar.setAttribute('aria-label', '上传进度 / Upload progress'); bar.style.gridColumn = '2'; li.append(bar); }
+    if (p.state === 'failed' || p.state === 'duplicate') {
+      const row = document.createElement('div'); row.className = 'row';
+      if (p.state === 'failed') { const again = document.createElement('button'); again.type = 'button'; again.textContent = '重新发送 / Send again'; again.disabled = !!blocked || busy; again.onclick = () => send([p]); row.append(again); }
+      const drop = document.createElement('button'); drop.type = 'button'; drop.textContent = p.state === 'failed' ? '不发了 / Discard' : '知道了 / OK';
+      drop.onclick = () => { forget(p); render(); }; row.append(drop); li.append(row);
+    }
+    return li;
+  }
+  function forget(p) { pending = pending.filter(x => x !== p); if (p.preview) URL.revokeObjectURL(p.preview); }
+
+  // ---- sending --------------------------------------------------------------------------------------
   async function jpegPhoto(file) {
     let decoded, url, canvas;
     try {
@@ -117,58 +311,70 @@
       if (canvas) { canvas.width = 1; canvas.height = 1; }
     }
   }
-  async function response(res) {
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Request failed');
-    return data;
+  // XMLHttpRequest, not fetch: only it reports upload progress on every phone browser.
+  function upload(p) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', endpoint);
+      xhr.setRequestHeader('X-Photo-Token', config.token);
+      xhr.setRequestHeader('Content-Type', p.type);
+      xhr.setRequestHeader('X-Filename', encodeURIComponent(p.name));
+      xhr.timeout = 120000;
+      xhr.upload.onprogress = e => { if (e.lengthComputable) { p.progress = e.loaded / e.total; render(); } };
+      xhr.onload = () => {
+        let data = {}; try { data = JSON.parse(xhr.responseText); } catch { /* not JSON */ }
+        if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+        else reject(Object.assign(new Error(data.error || xhr.statusText), {status: xhr.status, data}));
+      };
+      xhr.onerror = xhr.ontimeout = () => reject(Object.assign(new Error('network'), {status: 0}));
+      xhr.send(p.body);
+    });
   }
-  async function refresh() {
-    if (refreshing) return;
-    refreshing = true;
+  function sendError(error) {
+    if (error.status === 0) return navigator.onLine ? {zh: '连不上电脑，照片留在这里。连上后点“重新发送”。', en: 'Could not reach the computer; the photo is kept here. Tap “Send again” once connected.'}
+      : {zh: '手机没联网，照片留在这里。连回 Wi-Fi 后点“重新发送”。', en: 'The phone is offline; the photo is kept here. Reconnect to Wi-Fi and tap “Send again”.'};
+    if (error.status === 413) return {zh: '照片太大，电脑不收。在相册里导出较小的 JPEG 再发。', en: 'The photo is too large. Export a smaller JPEG and send that.'};
+    if (error.status === 415) return {zh: '这种格式电脑读不了。请发 JPEG、PNG 或 WebP。', en: 'The computer cannot read this format. Send JPEG, PNG or WebP.'};
+    if (error.status === 403) return {zh: '链接已失效。在电脑上重新扫码后再发。', en: 'The link has expired. Scan the computer’s code again, then send.'};
+    return {zh: '电脑没收下这张：' + error.message, en: 'The computer did not accept it: ' + error.message};
+  }
+  let busy = false;
+  async function send(items) {
+    if (busy) return;
+    busy = true;
     try {
-    const data = await response(await fetch(endpoint, { headers }));
-    const signature = JSON.stringify([data.photos, data.verdict, [...sentIds]]);
-    if (signature === last) return;
-    last = signature;
-    sent.replaceChildren();
-    for (const photo of data.photos.filter(p => sentIds.has(p.id))) {
-      const item = document.createElement('li'), link = document.createElement('a'), img = document.createElement('img');
-      link.href = photo.url + '?token=' + encodeURIComponent(config.token); link.title = photo.name;
-      img.src = link.href; img.alt = photo.name; img.loading = 'lazy';
-      img.addEventListener('error', () => { img.hidden = true; }, { once: true });
-      const state = photoStateWords(photo), line = document.createElement('p');
-      line.textContent = state.zh + ' / ' + state.en;
-      link.append(img, document.createTextNode(photo.name)); item.append(link, line);
-      if (photo.verdict && photo.verdict !== 'ok') {
-        const retake = document.createElement('button'); retake.type = 'button'; retake.textContent = '重拍 / Retake'; retake.disabled = busy;
-        retake.onclick = () => document.getElementById('camera').click(); item.append(retake);
+      for (const p of items) {
+        if (p.state === 'duplicate') continue;
+        p.state = 'uploading'; p.progress = 0; p.started = Date.now(); render();
+        try {
+          const uploaded = await upload(p);
+          mine.add(uploaded.id); remember(); forget(p); freshId = uploaded.id;
+          setTimeout(() => { if (freshId === uploaded.id) { freshId = null; render(); } }, 2600);
+          $('tips').open = false;
+          await poll();
+        } catch (error) {
+          if (error.status === 409 && error.data?.code === 'duplicate_photo') { p.state = 'duplicate'; }
+          else { p.state = 'failed'; p.error = sendError(error); if (error.status === 403) { blocked = link = 'expired'; } else if (error.status === 0) link = problemFor(error); }
+          render();
+        }
       }
-      sent.append(item);
-    }
-    const overall = photoOverallWords(data.photos, data.verdict);
-    if (!busy) status.textContent = overall.zh + ' / ' + overall.en;
-    error.textContent = uploadError;
-    } finally { refreshing = false; }
+    } finally { busy = false; render(); }
   }
   for (const input of inputs) input.addEventListener('change', async () => {
-    const files = [...input.files];
-    if (!files.length || busy) return;
-    busy = true; uploadError = ''; error.textContent = ''; inputs.forEach(i => { i.disabled = true; i.parentElement.classList.add('disabled'); });
-    try {
-      for (const [i, file] of files.entries()) {
-        const prepared = await jpegPhoto(file), {type, name, body} = prepared;
-        if (!['image/jpeg', 'image/png', 'image/heic', 'image/webp'].includes(type)) throw new Error('请选择 JPEG、PNG、HEIC 或 WebP / Choose JPEG, PNG, HEIC or WebP');
-        status.textContent = `正在发送 ${i + 1}/${files.length} / Sending ${i + 1}/${files.length}`;
-        const uploaded = await response(await fetch(endpoint, { method: 'POST', headers: { ...headers, 'Content-Type': type, 'X-Filename': encodeURIComponent(name) }, body }));
-        sentIds.add(uploaded.id);
-        try { sessionStorage.setItem(storageKey, JSON.stringify([...sentIds])); } catch { /* Private browsing may deny storage. */ }
-        await refresh();
-      }
-    } catch (e) { uploadError = error.textContent = `发送未完成，请重新选择未发送的照片。/ Sending failed; select the unsent photos again. ${e.message}`; }
-    finally { busy = false; last = ''; inputs.forEach(i => { i.disabled = false; i.parentElement.classList.remove('disabled'); }); input.value = ''; refresh().catch(() => {}); }
+    const files = [...input.files]; input.value = '';
+    if (!files.length || blocked) return;
+    const batch = files.map(file => ({name: file.name || 'photo.jpg', state: 'preparing', progress: 0}));
+    pending.unshift(...batch.slice().reverse()); render();
+    for (const [i, file] of files.entries()) {
+      const prepared = await jpegPhoto(file), p = batch[i];
+      Object.assign(p, prepared);
+      try { p.preview = URL.createObjectURL(prepared.body); } catch { /* no preview */ }
+      if (!['image/jpeg', 'image/png', 'image/heic', 'image/webp'].includes(p.type)) { p.state = 'failed'; p.error = sendError({status: 415}); }
+    }
+    render();
+    await send(batch.filter(p => p.state === 'preparing'));
   });
-  refresh().catch(e => { error.textContent = '无法连接电脑，请重新扫描二维码。/ Cannot reach the computer; scan the QR code again. ' + e.message; });
-  // The computer page's independent poll uses the same listing contract every two seconds.
-  setInterval(() => { if (!busy && !document.hidden) refresh().catch(e => { error.textContent = '无法连接电脑 / Cannot reach the computer. ' + e.message; }); }, 2000);
+  setInterval(() => { if (pending.some(p => p.state === 'uploading')) render(); }, 1000);
+  poll();
 </script>
 </html>

@@ -299,6 +299,8 @@ class Job:
         self.before = set()
         self.progress = None
         self.asks = {}
+        self.started_at = time.time()
+        self.finished_at = None
 
     def read(self):
         # Only consume complete lines; the child may still be appending one. A job folder that is gone
@@ -393,6 +395,38 @@ def read_disc_child(root: Path, drive: str) -> dict:
     raise APIError("could not read the drive: " + (done.stderr or done.stdout).strip()[-300:], 502)
 
 
+def photo_adoption(record):
+    """Whether the along-track constant from this read is used, in four states the pages put into words.
+
+    The core's own decision wins when photo.json carries one (``adoption``: state, photos, spread_mm, L_mm).
+    Until then it is read from the reader's group vote: two or more photos that agree is "adopted", one
+    accepted photo is "provisional", photos that disagree is "disagree", anything else "none".
+    """
+    if not isinstance(record, dict):
+        return dict(state="none", source="none")
+    own = record.get("adoption")
+    if isinstance(own, dict) and own.get("state") in ("adopted", "provisional", "disagree", "none"):
+        keep = {k: own.get(k) for k in ("state", "photos", "spread_mm", "L_mm", "reason") if k in own}
+        return dict(keep, source="core")
+    group = record.get("group") if isinstance(record.get("group"), dict) else {}
+    status, why = group.get("status"), str(group.get("why") or "")
+    spread = group.get("spread_mm") if isinstance(group.get("spread_mm"), (int, float)) else None
+    if record.get("verdict") == "ok" and status == "ok":
+        state = "adopted"
+    elif status == "provisional":
+        state = "provisional"
+    elif "disagree" in why:
+        state = "disagree"
+    else:
+        state = "none"
+    out = dict(state=state, source="group", n_ok=group.get("n_ok"), n_agree=group.get("n_agree"))
+    if spread is not None:
+        out["spread_mm"] = spread
+    if why:
+        out["why"] = why
+    return out
+
+
 class Backend:
     def __init__(self, root=None, *, media="dvd", out="results", runner=Child, drive_provider=None, disc_reader=None):
         self.root = Path(root or Path.cwd()).resolve()
@@ -406,6 +440,9 @@ class Backend:
         self.tokens = {}
         from .photo import PhotoStore
         self.photos = PhotoStore(self.out)
+        self.photo_hashes = {}               # photo file -> (size, mtime_ns, sha256): duplicate uploads are refused
+        self.desk_seen = {}                  # run -> when the computer's page last listed its photos
+        self.desk_run = None                 # (run, when): the run the computer's page listed most recently
         # drive -> (expiry, media): a read-only inspection just found a blank disc there
         self.verified_blank = {}
         # drive -> what the last read of its disc found (`discprobe disc`, or an `info` job), with when. Only
@@ -542,6 +579,71 @@ class Backend:
             threading.Thread(target=self._watch, args=(job,), daemon=True).start()
             return dict(job=ident)
 
+    def photo_listing(self, run, *, desk):
+        """The run's photos, plus what happened to them: the last read and the one running now, with times.
+
+        ``desk`` is true when the computer's own page asks. The phone learns from it whether that page is
+        open on this run, since only that page starts a read; it never learns anything about other runs.
+        """
+        listing = self.photos.listing(run)
+        now = time.time()
+        with self.lock:
+            if desk:
+                self.desk_seen[run] = now
+                self.desk_run = (run, now)
+            jobs = [j for j in self.jobs.values() if j.action == "photo" and j.args.get("run") == run]
+            seen = self.desk_seen.get(run)
+            elsewhere = bool(self.desk_run and self.desk_run[0] != run and (seen is None or self.desk_run[1] > seen))
+        latest = max(jobs, key=lambda j: j.started_at, default=None)
+        analysis = None
+        if latest:
+            state = "reading" if latest.exit is None else "done" if latest.exit == 0 or latest.result else "failed"
+            analysis = dict(job=latest.id, state=state, photos=list(latest.args.get("photos") or []),
+                            started_at=latest.started_at, finished_at=latest.finished_at,
+                            seconds=round((latest.finished_at or now) - latest.started_at, 1))
+            progress = latest.progress or {}
+            if latest.exit is None and isinstance(progress.get("fraction"), (int, float)):
+                analysis["fraction"] = progress["fraction"]
+        record = None
+        try:
+            path = self.photos.run_dir(run) / "photo.json"
+            record = json.loads(path.read_text(encoding="utf-8"))
+            listing["read_at"] = path.stat().st_mtime
+        except (OSError, ValueError):
+            pass
+        if isinstance(record, dict):
+            group = record.get("group") if isinstance(record.get("group"), dict) else {}
+            listing["group"] = {k: group[k] for k in ("status", "why", "n_ok", "n_agree", "spread_mm") if k in group}
+            listing["read_photos"] = [p.get("id") for p in record.get("per_photo", []) if isinstance(p, dict)]
+            listing["media"] = record.get("media")
+        listing["adoption"] = photo_adoption(record)
+        listing.update(analysis=analysis, now=now, desk_elsewhere=elsewhere,
+                       desk_age=None if seen is None else round(now - seen, 1))
+        return listing
+
+    def duplicate_photo(self, run, data):
+        """The id of a photo of this run with exactly these bytes, or None. Hashes are cached per file."""
+        import hashlib
+        digest = hashlib.sha256(data).hexdigest()
+        folder = self.photos.run_dir(run) / "photos"
+        if not folder.is_dir():
+            return None
+        for meta in sorted(folder.glob("*.json")):
+            try:
+                image = self.photos.get(run, meta.stem)[0]
+                stat = image.stat()
+                if stat.st_size != len(data):
+                    continue
+                cached = self.photo_hashes.get(str(image))
+                if not cached or cached[:2] != (stat.st_size, stat.st_mtime_ns):
+                    cached = (stat.st_size, stat.st_mtime_ns, hashlib.sha256(image.read_bytes()).hexdigest())
+                    self.photo_hashes[str(image)] = cached
+                if cached[2] == digest:
+                    return meta.stem
+            except (OSError, ValueError):
+                continue
+        return None
+
     def iso_file(self, value: str) -> dict:
         """Size of a finished ISO under iso/, for the page to show; nothing is read from it."""
         path = Path(local_path(self.root, value))
@@ -615,6 +717,7 @@ class Backend:
                 self.verified_blank.pop(job.drive, None)
             job.read()
             job.exit = code
+            job.finished_at = time.time()
             burn = next((e for e in reversed(job.history) if e.get('type') == 'burn_result'), None)
             started_burn = next((e for e in job.history if e.get('type') == 'burn_speed'), None)
             if burn is None and started_burn and code != 0:
@@ -647,6 +750,14 @@ class Backend:
                 done = next((e for e in reversed(job.history) if e.get("type") == "result" and e.get("step") == "photo"), None)
                 if done:
                     job.result = {k: done[k] for k in ("verdict", "per_photo", "rings_mm", "offset_mm", "L_frames", "confidence", "path")}
+                    try:
+                        record = json.loads((Path(done["path"]) / "photo.json").read_text(encoding="utf-8"))
+                    except (OSError, ValueError, TypeError, KeyError):
+                        record = None
+                    group = record.get("group") if isinstance(record, dict) and isinstance(record.get("group"), dict) else {}
+                    job.result["group"] = {k: group[k] for k in ("status", "why", "n_ok", "n_agree", "spread_mm") if k in group}
+                    job.result["adoption"] = photo_adoption(record)
+                    job.result["seconds"] = round(job.finished_at - job.started_at, 1)
             elif job.action == "calibrate":
                 # what the core found, from its last `calibrated` event: the measured folders, their
                 # verdicts and the geometry's points for the page's chart
@@ -820,7 +931,7 @@ class Handler(BaseHTTPRequestHandler):
         path, query = unquote(url.path), parse_qs(url.query)
         # Shared display words contain no session data. Phones need this one static
         # module without gaining access to the computer page or any main API.
-        if self.command == "GET" and path == "/home/guidance.mjs":
+        if self.command == "GET" and path in ("/home/guidance.mjs", "/home/photowords.mjs"):
             return
         if path.startswith("/phone/"):
             if self.command != "GET":
@@ -923,7 +1034,9 @@ class Handler(BaseHTTPRequestHandler):
                 except ValueError as exc:
                     raise APIError(str(exc), 404) from exc
             elif path == "/api/photos":
-                self._json(200, backend.photos.listing(parse_qs(url.query).get("run", [""])[0]))
+                # The phone's own polls carry its photo token; only the computer's page counts as "open".
+                self._json(200, backend.photo_listing(parse_qs(url.query).get("run", [""])[0],
+                                                      desk=self._photo_token is None))
             elif path.startswith("/api/photos/"):
                 parts = path.split("/")
                 if len(parts) != 5:
@@ -1086,6 +1199,11 @@ class Handler(BaseHTTPRequestHandler):
                     self.server.backend.photos.run_dir(run)
                     data = self._body(max(DESIGN_SIDES))
                     self._photo_body_read = True
+                    same = self.server.backend.duplicate_photo(run, data)
+                    if same:
+                        # The reader would mark a copy as duplicate_photo anyway; say so before it is stored.
+                        self._json(409, dict(error="this photo was already sent", code="duplicate_photo", duplicate_of=same))
+                        return
                     result = self.server.backend.photos.upload(run, data, kind,
                                                               self.headers.get("X-Filename", "photo"),
                                                               token=self._photo_token, device_id=self._photo_device)

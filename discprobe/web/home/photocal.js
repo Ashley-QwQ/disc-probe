@@ -7,7 +7,7 @@
  * image, never inserted as markup. All callbacks receive independent arrays.
  */
 import { deviceList } from './kit/devices.js';
-import { photoReasonWords } from './guidance.mjs';
+import { photoReasonWords, photoStage, shootingTips } from './photowords.mjs';
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 export const DEFAULT_RINGS = Object.freeze([30, 38, 47, 55]);
 export function ringHandles(radius) {
@@ -80,8 +80,8 @@ const words = {
     phoneOffline: '手机上传尚未接入，请从这台电脑添加照片。', openPhone: '打开手机拍照链接',
     phoneSteps: ['手机和电脑连同一个 Wi-Fi', '扫码，在手机上按“拍照”', '拍好后回到这里继续'],
     local: '照片只在这台电脑的浏览器里打开，不会上传。', shoot: '这样拍',
-    shootNotes: ['关掉其他灯，只留一盏。', '整张盘都在画面里，四周留一点边。', '看得见彩色条纹就行，不用拍得好看。'],
-    phoneAbove: '手机在正上方，放平', lamp: '一盏灯，在侧前方', avoidLight: '别在灯正下方', disc: '盘，数据面朝上',
+    shootNotes: shootingTips.map(tip => tip.zh),
+    phoneAbove: '手机拍整张盘', lamp: '吸顶灯在身后', avoidLight: '盘上别有灯的白斑', disc: '盘朝你转 20–30°',
     drop: '没有手机，或者照片已经在电脑里：把文件拖到这里。', add: '从电脑添加照片', addMore: '再加一张照片',
     photos: '照片', count: n => `${n} 张`, current: '正在对', alignment: '对齐', manual: '手动调整',
     rings: '圆环', ringCount: n => `${n} 条参考圆`, offset: '平均偏差', unknown: '尚未测量',
@@ -106,8 +106,8 @@ const words = {
     phoneOffline: 'Phone upload is not connected yet. Add a photo from this computer.', openPhone: 'Open the phone camera link',
     phoneSteps: ['Connect phone and computer to the same Wi-Fi', 'Scan, then tap “Take photo” on your phone', 'Return here after taking the photo'],
     local: 'Photos open only in this computer’s browser. Nothing is uploaded.', shoot: 'How to shoot',
-    shootNotes: ['Turn off other lights; leave just one.', 'Keep the whole disc in frame, with a little margin.', 'The coloured bands should be visible. It needn’t look pretty.'],
-    phoneAbove: 'Phone directly above, held level', lamp: 'One light, to the side', avoidLight: 'Avoid directly under the light', disc: 'Disc, data side up',
+    shootNotes: shootingTips.map(tip => tip.en),
+    phoneAbove: 'Phone on the whole disc', lamp: 'Ceiling lamp behind you', avoidLight: 'No white lamp glare on the disc', disc: 'Disc tilted 20–30° to you',
     drop: 'No phone, or the photo is already on your computer? Drop the file here.', add: 'Add a photo from this computer', addMore: 'Add another photo',
     photos: 'Photos', count: n => `${n} photo${n === 1 ? '' : 's'}`, current: 'Aligning', alignment: 'Alignment', manual: 'Manual adjustment',
     rings: 'Rings', ringCount: n => `${n} reference rings`, offset: 'Mean offset', unknown: 'Not measured',
@@ -169,9 +169,9 @@ export function photoPage(host, opts = {}) {
         <div class="pc-empty">
           <div class="pc-empty-columns"><section class="pc-phone-empty"></section><section class="pc-shoot"><h2>${t.shoot}</h2>
             <svg viewBox="0 0 380 235" class="pc-shoot-diagram" role="img" aria-label="${t.phoneAbove}; ${t.lamp}; ${t.disc}">
-              <g class="pc-detail"><path d="M190 74v134M166 76l-22 132m70-132 24 132M236 206l78-116"/><path d="m56 72 28 25m0-25L56 97"/></g>
-              <g class="pc-structure"><path d="M35 211h315M145 207h91l5 4H140zM304 89l32 24v98"/><rect x="163" y="62" width="55" height="12" rx="3"/><path d="m296 76 18 13-13 16-18-13z"/></g>
-              <text x="112" y="45">${t.phoneAbove}</text><text x="245" y="61">${t.lamp}</text><text x="34" y="118">${t.avoidLight}</text><text x="128" y="232">${t.disc}</text>
+              <g class="pc-detail"><path d="M66 46l18 18M66 46v24M66 46 48 64" stroke-dasharray="3 4"/><path d="M174 100 300 150M174 108l122 66" stroke-dasharray="2 5"/><path d="M258 196h96M332 196a26 26 0 0 0-4-17"/></g>
+              <g class="pc-structure"><path d="M20 26h345M20 214h345M66 26v12M52 38h28l-5 9H57z"/><rect x="156" y="84" width="16" height="32" rx="3"/><path d="M258 196 345 165" stroke-width="3"/></g>
+              <text x="20" y="96">${t.lamp}</text><text x="128" y="138">${t.phoneAbove}</text><text x="196" y="60">${t.avoidLight}</text><text x="214" y="232">${t.disc}</text>
             </svg><ul>${t.shootNotes.map(note => `<li>${note}</li>`).join('')}</ul></section></div>
           <div class="pc-drop"><p>${t.drop}</p>${button('add', t.add, 'upload')}</div>
         </div>
@@ -438,7 +438,14 @@ export function photoPage(host, opts = {}) {
       b.setAttribute('aria-pressed',String(index === active)); b.title = p.name;
       const img = doc.createElement('img'); img.src = p.src; img.alt = p.name;
       const label = doc.createElement('span'); label.textContent = index === active ? t.current : p.label || p.name; b.append(img,label); strip.append(b);
-      if (p.reason) { const reason = doc.createElement('small'); reason.className = 'pc-photo-reason'; reason.textContent = p.reason; b.append(reason); }
+      if (p.stage) {
+        const act = doc.createElement('small'); act.className = 'pc-photo-act'; act.dataset.stage = p.stage.stage; act.textContent = p.stage.act[en ? 'en' : 'zh'];
+        b.append(act); b.title = `${p.name}\n${p.stage.why[en ? 'en' : 'zh']}`;
+      }
+      // The stage's own words (the core's status, in this page's language) win over the server's English reason.
+      // A fresh read's reason (setReasons) is newer than a listing that has not caught up with it yet.
+      const reasonText = p.stage?.stage === 'ok' ? '' : p.stage?.stage === 'retake' || !p.reason ? p.stage?.why[en ? 'en' : 'zh'] || '' : p.reason;
+      if (reasonText) { const reason = doc.createElement('small'); reason.className = 'pc-photo-reason'; reason.textContent = reasonText; b.append(reason); }
     });
     strip.insertAdjacentHTML('beforeend',button('add',t.addMore,'plus','pc-thumb-add pc-icon-only'));
     $('.pc-photo-count').textContent = t.count(photos.length);
@@ -596,7 +603,19 @@ export function photoPage(host, opts = {}) {
     setPhoneLink,
     addPhotos,
     setPhotoId(photo, id) { const p = photos.find(p => photo.file ? p.file === photo.file : p.src === photo.src); if (p) p.id = id; },
-    setReasons(perPhoto) { for (const p of photos) { const result = perPhoto.find(r => r.id === p.id); if (result) { const reason = photoReasonWords(result); p.reason = reason.zh === reason.en ? reason.en : reason.zh + ' / ' + reason.en; } } paintStrip(); },
+    setReasons(perPhoto) { for (const p of photos) { const result = perPhoto.find(r => r.id === p.id); if (result) { const reason = photoReasonWords(result); p.reason = reason.zh === reason.en ? reason.en : reason[en ? 'en' : 'zh']; } } paintStrip(); },
+    // The server's listing: each photo's stage (received, queued, reading, read) with times, never a camera-time guess.
+    setListing(listing) {
+      let changed = false;
+      for (const p of photos) {
+        const row = (listing?.photos || []).find(r => r.id === p.id);
+        const stage = row ? photoStage(row, listing) : null;
+        const key = stage ? stage.stage + stage.act.zh : '';
+        if (key !== (p.stage ? p.stage.stage + p.stage.act.zh : '')) changed = true;
+        p.stage = stage;
+      }
+      if (changed && !destroyed) paintStrip();
+    },
     setReadResult(result) { if (result.verdict !== 'ok') return; for (const p of photos) { p.offsetMm = result.offset_mm; if (result.rings_mm) p.rings = [...result.rings_mm]; } if (selected()) { radiusEditor(); paint(); } },
     back() { if (focus) setFocus(false); else callHost(opts.onBack); },
     use() { if (selected() && !busy) return callHost(opts.onUse,descriptor(selected()),[...selected().rings]); },

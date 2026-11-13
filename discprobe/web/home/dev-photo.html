@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="cal" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>disc-probe · 照片标定样稿</title>
+<link rel="stylesheet" href="./kit/kit.css">
+<link rel="stylesheet" href="./photocal.css">
+<style id="index-style"></style>
+</head>
+<!-- Developer page: the calibration's photo step for an existing run, on the real local server (photo
+     listing, phone link and the photo job). No drive is used: the photo job never touches one.
+     Open /home/dev-photo.html?token=SESSION&run=RUN_FOLDER&media=cd|dvd[&lang=en][&theme=dark] -->
+<body><div class="top"><button id="back" type="button">上一步</button></div><main id="cal" class="cal"></main>
+<div class="bar"><div id="job" hidden><span id="job-name"></span><span id="job-time"></span></div><button id="next" class="next"><span id="next-text"></span></button></div>
+<script type="module">
+  const params = new URLSearchParams(location.search), root = document.documentElement;
+  root.dataset.theme = params.get('theme') === 'dark' ? 'dark' : 'light';
+  // The live page's own styles, so this step looks as it does in the app.
+  const index = await (await fetch('./index.html')).text();
+  document.getElementById('index-style').textContent = index.match(/<style>([\s\S]*?)<\/style>/)[1];
+  const backend = await import('./api.js');
+  const source = (await (await fetch('./calibrate.js')).text()).replace(/^import .*;.*$/gm, '');
+  const at = name => new URL(name, location.href).href;
+  const head = `import {nextConfirm} from '${at('./kit/nextconfirm.js')}';
+import {ringButton} from '${at('./kit/ringbutton.js')}';
+import {flipValue} from '${at('./kit/flipnum.js')}';
+import {photoPage} from '${at('./photocal.js')}';
+import {budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason,photoSaveWords} from '${at('./guidance.mjs')}';
+import {photoReasonWords,adoptionWords,seconds as photoSeconds} from '${at('./photowords.mjs')}';
+const loadDisc={desk(){}}; const calchart={resultChart:()=>''}; const sfx={done(){},problem(){},failure(){}};
+const floorLog=()=>({mount(){},start(){},end(){},title(){},progress(){},log(){}});
+const cutaway=()=>({}); const stage=()=>null;`;
+  const tail = `
+export function openPhotoStep(homeApi, {run, media}) {
+  api = homeApi; $ = id => document.getElementById(id);
+  flow = {realPhase:'review', geo:{path:'results/' + run, verdict:'narrow_span', measurement:{span_mm:[24,52]}}, timing:{verdict:'good'},
+    detected:{media, kind:media, mid:'DEV', capacity_sectors:300000}, item:{row:media}, warnEl:document.createElement('div')};
+  discWentIn = true; st = {show(){}, set(){}};
+  document.getElementById('back').onclick = back; document.getElementById('next').onclick = () => realNext();
+  enterPhoto();
+  return () => flow;
+}`;
+  const url = URL.createObjectURL(new Blob([head + source + tail], {type: 'text/javascript'}));
+  const cal = await import(url);
+  const lang = params.get('lang') === 'en' ? 'en' : 'zh';
+  root.lang = lang === 'en' ? 'en' : 'zh-CN';
+  cal.openPhotoStep({lang: () => lang, selectedDrive: () => null, burnerLayer: document.body, nextWhy(text) { document.getElementById('next').title = text || ''; },
+    jobProgress() {}, platform: () => 'win32', backend}, {run: params.get('run'), media: params.get('media') === 'dvd' ? 'dvd' : 'cd'});
+</script>
+</body>
+</html>
