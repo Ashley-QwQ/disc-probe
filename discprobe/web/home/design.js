@@ -2286,9 +2286,11 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
       const seen = await look.json().catch(() => ({}));
       if (!look.ok || seen.blank !== true) { fail(look.ok ? T().burnNotBlank : T().burnNoDisc(seen.error ?? ""), false); return; }
       const tok = await (await fetch("/api/burn-token")).json();
+      // the plan's library work: the core records the burn in it (status burned) when the burn succeeds
+      const link = S.work?.id ? { id: S.work.id, before: S.work.updated_at, plan: S } : null;
       const r = await fetch("/api/run", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "burn", drive: drive.id, media: S.media, args: { iso: iso.path, ...(speed ? { speed } : {}) }, burn_token: tok.token }),
+        body: JSON.stringify({ action: "burn", drive: drive.id, media: S.media, ...(link ? { work: link.id } : {}), args: { iso: iso.path, ...(speed ? { speed } : {}) }, burn_token: tok.token }),
       });
       const out = await r.json().catch(() => ({}));
       if (!r.ok) { fail(out.error ?? T().exp.failed); return; }
@@ -2316,6 +2318,7 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
         closed = true; es.close();
         if (d.exit !== 0) { const said = await jobWords(job); why ||= said.why; wrote ||= said.wrote; }
         const started = wrote || !!burnResult;
+        if (d.exit === 0 && link) await afterWorkISO(link, null);     // follow the stamp the core's burn record moved
         onProgress(d.exit === 0 ? { status: "success", progress: 1, burnResult } : cancelled ? { status: "cancelled" }
           : { status: "failed", error: [started ? T().burnFailed : T().burnNotStarted, why].filter(Boolean).join(" "), started });
       });

@@ -210,6 +210,13 @@ console.log('Design page saving: first save, reuse, 409 cancel / overwrite / kee
   lib2.link(p.work.id, { type: 'iso', iso_path: 'iso/光2.iso' });
   await afterISO({ client: c3, plan: p, before, geo: 'D:/elsewhere/geo' });
   assert.equal(p.work.updated_at, before, 'someone else saved: keep the old stamp so the next save asks');
+  const q = { media: 'dvd' };
+  await saveToLibrary({ client: c3, plan: q, text: design(), thumb, name: '刻' });
+  const qBefore = q.work.updated_at;
+  lib2.link(q.work.id, { type: 'burn', iso_path: 'iso/刻.iso', drive: 'E:', speed: 4, disc_code: 'KOI-A 2-05' });   // burn --work, on success
+  const burnt = await afterISO({ client: c3, plan: q, before: qBefore, geo: null });
+  assert.equal(burnt.status, 'burned'); assert.equal(discCount(burnt), 1);
+  assert.equal(q.work.updated_at, lib2.works.get(q.work.id).updated_at, 'after a burn the page follows the stamp too');
   assert.equal(relativeGeo('D:/elsewhere/geo'), null); assert.equal(relativeGeo('a/../b'), null); assert.equal(relativeGeo('/abs'), null);
   assert.equal(await afterISO({ client: c3, plan: {}, before, geo: 'x' }), null, 'a plan outside the library: nothing to note');
   console.log('After an ISO: geometry noted, stamps followed, another window still caught passed');
