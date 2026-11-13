@@ -123,52 +123,75 @@ class Element {
   closest(){return this.parent||new Element('label');}
   get innerText(){return [this.textContent,...this.children.map(c=>typeof c==='string'?c:c.innerText)].join(' ');}
 }
-const ids=['config','run','disc','overall','problem','tips','tip-list','empty','sent','camera','gallery'];
-const nodes=Object.fromEntries(ids.map(id=>[id,new Element('div')]));
-nodes.camera.parent=new Element('label');nodes.gallery.parent=new Element('label');
-nodes.config.textContent=JSON.stringify({run:'run-one',token:'phone-token'});
-let answer={status:200,body:{photos:[],adoption:{state:'none'},now:1000,desk_age:1}};
-const requests=[], timers=[];
-const context=vm.createContext({...words,Blob,Uint8Array,atob,URLSearchParams,Set,Map,JSON,Math,Number,Date,console,
-  document:{hidden:false,getElementById:id=>nodes[id],querySelectorAll:()=>[nodes.camera,nodes.gallery],createElement:t=>new Element(t),addEventListener(){}},
-  navigator:{onLine:true},addEventListener(){},
-  sessionStorage:{getItem:()=> '[]',setItem(){}},URL:{createObjectURL:()=> 'blob:x',revokeObjectURL(){}},
-  fetch:async(path,opts)=>{requests.push({path,opts});if(answer.status===0)throw new TypeError('Failed to fetch');return {ok:answer.status<300,status:answer.status,statusText:'x',json:async()=>answer.body};},
-  setTimeout:(fn,ms)=>{timers.push({fn,ms});return timers.length;},clearTimeout(){},setInterval(){},
-});
-vm.runInContext(source+';globalThis.poll=poll;globalThis.render=render;',context);
-const flush=async()=>{for(let i=0;i<20;i++)await Promise.resolve();};await flush();
-assert.equal(requests[0].opts.headers['X-Photo-Token'],'phone-token');
-assert.equal(requests[0].path,'/api/photos?run=run-one');
-assert.match(nodes.run.innerText,/run-one/,'the page names the run the photos belong to');
-assert.equal(nodes.disc.hidden,true,'no disc number declared yet');
-assert.equal(nodes['tip-list'].children.length,words.shootingTips.length);
-assert.match(nodes.overall.innerText,/还没有照片/);
-// Photos from every device of this run are listed; their stage and time are shown.
-answer.body={photos:[{id:'a',name:'a.jpg',url:'/api/photos/run-one/a',time:990,verdict:'unsure',status:'too_few_votes'},{id:'b',name:'b.jpg',url:'/api/photos/run-one/b',time:995}],
-  adoption:{state:'none'},now:1000,read_at:999,read_photos:['a'],analysis:{state:'reading',photos:['a','b'],seconds:4},desk_age:1};
-answer.body.disc_id='T1';
-await context.poll();
-assert.equal(nodes.disc.hidden,false);assert.match(nodes.disc.textContent,/T1/);
-assert.equal(nodes.sent.children.length,2);
-const [newest,older]=nodes.sent.children;
-assert.equal(newest.dataset.stage,'reading');assert.equal(older.dataset.stage,'retake');
-assert.match(older.innerText,/换光照/);assert.match(older.innerText,/重拍 \/ Retake/);
-assert.equal(nodes.empty.hidden,true);
-// The computer's photo step is closed: say so instead of "reading".
-answer.body={...answer.body,analysis:null,desk_age:60};await context.poll();
-assert.match(nodes.overall.innerText,/拍照”这一步没打开/);
-// The run moved on: the old link never joins the new run.
-answer.body={...answer.body,desk_elsewhere:true};await context.poll();
-assert.match(nodes.overall.innerText,/另一次标定/);
-// Server not reachable: a fix list and a retry; uploads stay possible once it is back.
-answer={status:0};await context.poll();
-assert.equal(nodes.problem.hidden,false);assert.match(nodes.problem.innerText,/连不上电脑/);assert.match(nodes.problem.innerText,/重试/);
-assert.equal(nodes.camera.disabled,false);
-// Expired link: blocks uploads with the way back.
-answer={status:403,body:{error:'invalid or expired photo token'}};await context.poll();
-assert.match(nodes.problem.innerText,/链接已经失效/);assert.equal(nodes.camera.disabled,true);assert.equal(nodes.overall.hidden,true);
+const ids=['config','link','title','lede','chip','gallery-text','shutter-text','tips-title','diagram','d-lamp','d-phone','d-disc','photos-title','count','foot',
+  'run','disc','overall','problem','tips','tip-list','empty','sent','camera','gallery'];
+// The page in a small DOM, for a phone set to `language`. `answer` is what the computer replies next.
+function mount(language) {
+  const nodes=Object.fromEntries(ids.map(id=>[id,new Element('div')]));
+  nodes.camera.parent=new Element('label');nodes.gallery.parent=new Element('label');
+  nodes.config.textContent=JSON.stringify({run:'run-one',token:'phone-token'});
+  const state={answer:{status:200,body:{photos:[],adoption:{state:'none'},now:1000,desk_age:1}}}, requests=[];
+  const context=vm.createContext({...words,Blob,Uint8Array,atob,URLSearchParams,Set,Map,JSON,Math,Number,Date,console,
+    document:{hidden:false,documentElement:{},getElementById:id=>nodes[id],querySelectorAll:()=>[nodes.camera,nodes.gallery],createElement:t=>new Element(t),addEventListener(){}},
+    navigator:{onLine:true,language},addEventListener(){},
+    sessionStorage:{getItem:()=> '[]',setItem(){}},URL:{createObjectURL:()=> 'blob:x',revokeObjectURL(){}},
+    fetch:async(path,opts)=>{requests.push({path,opts});const a=state.answer;if(a.status===0)throw new TypeError('Failed to fetch');return {ok:a.status<300,status:a.status,statusText:'x',json:async()=>a.body};},
+    setTimeout:()=>0,clearTimeout(){},setInterval(){},
+  });
+  vm.runInContext(source+';globalThis.poll=poll;globalThis.render=render;',context);
+  return {nodes,context,state,requests};
+}
+const flush=async()=>{for(let i=0;i<20;i++)await Promise.resolve();};
+{
+  const {nodes,context,state,requests}=mount('zh-CN');await flush();
+  assert.equal(requests[0].opts.headers['X-Photo-Token'],'phone-token');
+  assert.equal(requests[0].path,'/api/photos?run=run-one');
+  assert.equal(nodes.title.textContent,'拍标靶盘');assert.equal(nodes.chip.textContent,'把整张盘放进圈里');assert.equal(nodes['shutter-text'].textContent,'拍照并发送');
+  assert.equal(nodes.link.textContent,'已连上你的电脑');assert.equal(nodes.link.dataset.state,'ok');
+  assert.match(nodes.run.innerText,/run-one/,'the page names the run the photos belong to');
+  assert.equal(nodes.disc.hidden,true,'no disc number declared yet');
+  assert.equal(nodes['tip-list'].children.length,words.shootingTips.length);
+  assert.doesNotMatch(nodes['tip-list'].innerText,/ceiling/,'one language at a time');
+  assert.match(nodes.overall.innerText,/还没有照片/);
+  // Photos from every device of this run are listed; their stage and time are shown.
+  state.answer.body={photos:[{id:'a',name:'a.jpg',url:'/api/photos/run-one/a',time:990,verdict:'unsure',status:'too_few_votes'},{id:'b',name:'b.jpg',url:'/api/photos/run-one/b',time:995}],
+    adoption:{state:'none'},now:1000,read_at:999,read_photos:['a'],analysis:{state:'reading',photos:['a','b'],seconds:4},desk_age:1,disc_id:'T1'};
+  await context.poll();
+  assert.equal(nodes.disc.hidden,false);assert.match(nodes.disc.textContent,/标靶盘：T1/);
+  assert.equal(nodes.count.textContent,'电脑已收到 2 张');
+  assert.equal(nodes.sent.children.length,2);
+  const [newest,older]=nodes.sent.children;
+  assert.equal(newest.dataset.stage,'reading');assert.equal(older.dataset.stage,'retake');
+  assert.match(older.innerText,/换光照/);assert.match(older.innerText,/重拍/);assert.doesNotMatch(older.innerText,/Retake/);
+  assert.equal(nodes.empty.hidden,true);
+  // The computer's photo step is closed: say so instead of "reading".
+  state.answer.body={...state.answer.body,analysis:null,desk_age:60};await context.poll();
+  assert.match(nodes.overall.innerText,/拍照”这一步没打开/);
+  // The run moved on: the old link never joins the new run.
+  state.answer.body={...state.answer.body,desk_elsewhere:true};await context.poll();
+  assert.match(nodes.overall.innerText,/另一次标定/);
+  // Server not reachable: a fix list and a retry; uploads stay possible once it is back.
+  state.answer={status:0};await context.poll();
+  assert.equal(nodes.problem.hidden,false);assert.match(nodes.problem.innerText,/连不上电脑/);assert.match(nodes.problem.innerText,/重试/);
+  assert.equal(nodes.link.textContent,'连不上电脑');assert.equal(nodes.link.dataset.state,'bad');
+  assert.equal(nodes.camera.disabled,false);
+  // Expired link: blocks uploads with the way back.
+  state.answer={status:403,body:{error:'invalid or expired photo token'}};await context.poll();
+  assert.match(nodes.problem.innerText,/链接已经失效/);assert.equal(nodes.camera.disabled,true);assert.equal(nodes.overall.hidden,true);
+  assert.equal(nodes.link.textContent,'链接已失效');
+}
+{
+  // A phone set to English reads English only.
+  const {nodes,context,state}=mount('en-GB');await flush();
+  assert.equal(nodes.title.textContent,'Photograph the target disc');assert.equal(nodes['shutter-text'].textContent,'Take and send');
+  assert.equal(nodes.link.textContent,'Connected to your computer');
+  assert.match(nodes['tip-list'].innerText,/ceiling lamp/);assert.doesNotMatch(nodes['tip-list'].innerText,/吸顶灯/);
+  state.answer.body={photos:[{id:'a',name:'a.jpg',url:'/x',time:990,verdict:'unsure',status:'no_rim'}],adoption:{state:'none'},now:1000,desk_age:1};
+  await context.poll();
+  assert.match(nodes.sent.children[0].innerText,/Show the whole disc/);assert.match(nodes.sent.children[0].innerText,/Retake/);
+  assert.doesNotMatch(nodes.sent.children[0].innerText,/拍全盘/);
+}
 assert.match(html,/capture="environment"/);assert.doesNotMatch(html,/:has\(|structuredClone|user-scalable=no|\bdvh\b/);
 assert.match(html,/id="gallery"[^>]*type="file"[^>]*accept="image\/\*"[^>]*multiple/);
 assert.match(html,/prefers-color-scheme: dark/);assert.match(html,/prefers-reduced-motion/);
-console.log('Phone JPEG paths, reasons as actions, stages with times, adoption states and recovery exits passed');
+console.log('Phone JPEG paths, reasons as actions, stages with times, adoption states, recovery exits and one language passed');

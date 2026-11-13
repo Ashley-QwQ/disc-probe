@@ -3,92 +3,138 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>拍摄标靶 · disc-probe</title>
+<title>拍标靶盘 · disc-probe</title>
 <style>
-  :root { color-scheme: light; --paper: #ebe7e0; --paper-2: #e4dfd7; --ink: #1d1b18; --muted: #5d5850; --faint: #8a847a; --rule: #cfc9bf;
+  /* Values follow the design reference "手机端：扫码后" (390 x 844): 24 px gutters, 26/34 title, 76 px shutter. */
+  @font-face { font-family: "Archivo"; src: url(/fonts/Archivo-VF-latin.woff2) format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
+  :root { color-scheme: light; --paper: #ebe7e0; --paper-2: #e4dfd7; --chip: #fbf9f3; --ink: #1a1a18; --muted: #625d55; --faint: #8a847a; --rule: #cfc8bc;
     --rule-strong: #a9a297; --copper: #a8693c; --good: #3f7d55; --warn: #9a6a14; --ease: cubic-bezier(.2, .8, .2, 1);
-    background: var(--paper); color: var(--ink); font: 16px/1.55 system-ui, "Microsoft YaHei UI", "PingFang SC", sans-serif; }
+    --font: Archivo, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: var(--paper); color: var(--ink); font: 16px/1.5 var(--font); }
   @media (prefers-color-scheme: dark) {
-    :root { color-scheme: dark; --paper: #161d1c; --paper-2: #1f2827; --ink: #ecebe4; --muted: #aeb3ab; --faint: #7f8780; --rule: #2c3634;
+    :root { color-scheme: dark; --paper: #161d1c; --paper-2: #1f2827; --chip: #ecebe4; --ink: #ecebe4; --muted: #aeb3ab; --faint: #7f8780; --rule: #2c3634;
       --rule-strong: #46514e; --copper: #d9a75c; --good: #8fca9a; --warn: #e2b866; }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--paper); padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left)); }
-  main { max-width: 480px; margin-inline: auto; padding-bottom: calc(132px + env(safe-area-inset-bottom)); }
-  h1 { font-size: clamp(26px, 7vw, 34px); line-height: 1.2; margin: 12px 0 4px; text-wrap: balance; }
-  h2 { font-size: 18px; margin: 28px 0 8px; }
+  body { margin: 0; background: var(--paper); padding: max(20px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) 0 max(24px, env(safe-area-inset-left)); }
+  main { max-width: 480px; margin-inline: auto; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
   p { margin: 8px 0; text-wrap: pretty; }
-  .en { display: block; font-size: 14px; color: var(--muted); font-weight: 400; }
-  .run { color: var(--muted); font-size: 14px; margin: 0 0 16px; overflow-wrap: anywhere; }
+  /* top row: the collapsed wordmark, and whether this phone reaches the computer */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 26px; }
+  .mark { font-style: italic; font-weight: 800; font-stretch: 125%; font-size: 26px; line-height: 1; letter-spacing: -1px; }
+  .mark i { font-style: inherit; padding-right: 3px; background: linear-gradient(135deg, #7a5cff 10%, #e06bb0 90%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .link { display: flex; align-items: center; gap: 8px; font-size: 15px; text-align: right; }
+  .link::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); flex: none; transition: background-color 200ms var(--ease); }
+  .link[data-state="wait"]::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--faint); }
+  .link[data-state="bad"] { color: var(--warn); }
+  .link[data-state="bad"]::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--warn); }
+  h1 { margin: 16px 0 0; font-size: 26px; line-height: 34px; font-weight: 800; font-stretch: 118%; text-wrap: balance; }
+  .lede { margin: 4px 0 0; color: var(--muted); }
+  .run { margin: 4px 0 0; color: var(--faint); font-size: 14px; overflow-wrap: anywhere; }
   .run code { font: 13px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  /* a problem the person can fix: a thin line on the left, then the fix */
+  .banner { border-left: 3px solid var(--warn); padding: 8px 0 8px 12px; margin: 16px 0 0; }
+  .banner[hidden] { display: none; }
+  .banner p { margin: 0; font-weight: 600; }
+  .banner ul { margin: 6px 0; padding-left: 20px; color: var(--muted); }
+  .banner button { margin-top: 6px; }
+  /* the viewfinder: where the disc goes. Only the disc carries colour. */
+  .finder { position: relative; margin: 16px 0 0; height: min(400px, 46vh); min-height: 240px; border-radius: 8px; overflow: hidden;
+    background: radial-gradient(110% 90% at 26% 12%, #57514a 0%, #37332f 42%, #1f1d1b 100%); }
+  .finder .guide { position: absolute; left: 50%; top: 47%; width: 78%; aspect-ratio: 1; max-height: 92%; transform: translate(-50%, -50%);
+    border-radius: 50%; border: 2px dashed rgba(255, 255, 255, .85); }
+  .finder .disc { position: absolute; left: 50%; top: 47%; width: 66%; aspect-ratio: 1; max-height: 78%; border-radius: 50%;
+    transform: translate(-50%, -50%) rotate(-12deg) scaleY(.96); box-shadow: 0 10px 22px rgba(0, 0, 0, .5);
+    background: radial-gradient(circle, rgba(255,255,255,.18) 0%, rgba(255,255,255,0) 40%, rgba(20,16,40,.10) 100%),
+      conic-gradient(from 28deg, #c9c2d2 0%, #e7dbf0 6%, #a9cdea 11%, #b7e2c6 15%, #efe2a6 19%, #ecb9c6 24%, #cbc4d4 31%, #b6afc0 44%, #c9c2d2 52%,
+        #d9d2e2 57%, #a6c3ec 62%, #bfe5cf 66%, #f1dfae 70%, #e7b8cf 75%, #c9c2d2 83%, #bdb6c7 92%, #c9c2d2 100%);
+    -webkit-mask: radial-gradient(circle at center, transparent 0 6.4%, #000 6.7%); mask: radial-gradient(circle at center, transparent 0 6.4%, #000 6.7%); }
+  .finder .hub { position: absolute; left: 50%; top: 47%; width: 22%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, .35); box-shadow: inset 0 0 0 9px rgba(255, 255, 255, .08); }
+  /* Sized from the panel's shorter side, so the disc stays round when the phone is held sideways. */
+  @supports (width: 1cqh) {
+    .finder { container-type: size; }
+    .finder .guide { width: min(78cqw, 86cqh); max-height: none; }
+    .finder .disc { width: min(66cqw, 72cqh); max-height: none; }
+    .finder .hub { width: min(22cqw, 24cqh); }
+  }
+  .finder .chip { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 6px 12px; border-radius: 8px;
+    background: var(--chip); color: #1a1a18; font-size: 15px; white-space: nowrap; }
+  /* one hand: album, shutter, what the shutter does. It stays at the bottom while the list scrolls. */
+  .controls { position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 28px;
+    margin: 0 -24px; padding: 20px 24px max(16px, env(safe-area-inset-bottom)); background: var(--paper); }
+  .pick { position: relative; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color 150ms var(--ease), transform 150ms var(--ease), opacity 150ms var(--ease); }
+  .pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .pick.gallery { height: 48px; padding: 0 14px; gap: 8px; border: 1px solid var(--ink); border-radius: 4px; }
+  .pick.gallery svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+  .pick.gallery:hover { background: var(--paper-2); }
+  .pick.shutter { width: 76px; height: 76px; border-radius: 50%; border: 3px solid var(--ink); }
+  .pick.shutter::after { content: ""; width: 58px; height: 58px; border-radius: 50%; background: var(--ink); transition: transform 150ms var(--ease); }
+  .pick.shutter:hover::after { transform: scale(.94); }
+  .pick:active { transform: translateY(1px); }
+  .pick:focus-within { outline: 2px solid var(--copper); outline-offset: 4px; }
+  .pick.disabled { opacity: .4; cursor: not-allowed; }
+  .pick input:disabled { cursor: not-allowed; }
+  .shutter-label { width: 92px; font-size: 15px; line-height: 20px; color: var(--muted); }
   /* the overall state: what is known now, and what to do */
-  #overall { border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule); padding: 12px 0; margin: 16px 0; }
-  #overall b { font-size: 20px; display: block; }
+  #overall { border-top: 1px solid var(--rule); padding: 16px 0 0; margin: 4px 0 0; }
+  #overall[hidden] { display: none; }
+  #overall b { font-size: 20px; line-height: 28px; display: block; }
   #overall[data-state="adopted"] b { color: var(--good); }
   #overall[data-state="provisional"] b, #overall[data-state="disagree"] b, #overall[data-state="refused"] b, #overall[data-state="split"] b { color: var(--warn); }
-  #overall .sub { color: var(--muted); font-size: 14px; }
-  /* a problem the person can fix: a thin line on the left, then the fix */
-  .banner { border-left: 3px solid var(--warn); padding: 8px 0 8px 12px; margin: 12px 0; }
-  .banner[hidden] { display: none; }
-  .banner ul { margin: 6px 0; padding-left: 20px; }
-  .banner button { margin-top: 6px; }
-  details.tips { border-bottom: 1px solid var(--rule); padding-bottom: 8px; }
-  details.tips summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
-  details.tips ol { margin: 4px 0 8px; padding-left: 22px; }
+  #overall .sub { display: block; color: var(--muted); margin-top: 4px; }
+  details.tips { border-top: 1px solid var(--rule); margin-top: 16px; }
+  details.tips summary { min-height: 48px; display: flex; align-items: center; cursor: pointer; font-weight: 700; }
+  details.tips ol { margin: 0 0 12px; padding-left: 22px; }
   details.tips li { margin: 6px 0; }
-  .diagram { display: block; width: 100%; max-width: 360px; height: auto; margin: 8px auto 4px; color: var(--ink); }
+  .diagram { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 auto 8px; color: var(--ink); }
   .diagram .thin { stroke: var(--faint); }
   .diagram text { fill: var(--muted); font-size: 12px; font-family: inherit; }
   /* photos, newest first */
-  #sent { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
-  #sent li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--rule); transition: background-color 200ms var(--ease); }
+  .photos-head { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--rule); margin-top: 16px; padding-top: 16px; }
+  .photos-head h2 { margin: 0; font-size: 18px; }
+  .photos-head span { color: var(--muted); font-size: 15px; }
+  #sent { list-style: none; padding: 0; margin: 4px 0 0; display: grid; }
+  #sent li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 2px 12px; padding: 12px 0; border-bottom: 1px solid var(--rule); transition: background-color 200ms var(--ease); }
   #sent li.fresh { background: var(--paper-2); }
   #sent li > :not(.thumb) { grid-column: 2; min-width: 0; }
-  #sent .thumb { grid-column: 1; grid-row: 1 / span 4; width: 76px; height: 76px; border-radius: 2px; object-fit: cover; background: var(--paper-2); display: block; }
+  #sent .thumb { grid-column: 1; grid-row: 1 / span 4; width: 64px; height: 64px; border-radius: 2px; object-fit: cover; background: #37332f; display: block; }
   #sent .name { font-size: 13px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #sent .act { font-weight: 600; }
+  #sent .act { font-weight: 700; }
   #sent [data-stage="ok"] .act { color: var(--good); }
   #sent [data-stage="retake"] .act, #sent [data-stage="failed"] .act, #sent [data-stage="outlier"] .act, #sent [data-stage="error"] .act { color: var(--warn); }
   #sent .why { margin: 0; font-size: 15px; }
   #sent .when { margin: 0; font-size: 13px; color: var(--muted); }
-  #sent .row { display: flex; flex-wrap: wrap; gap: 8px; grid-column: 2; }
+  #sent .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   progress { width: 100%; height: 6px; accent-color: var(--copper); }
-  .empty { color: var(--muted); }
-  /* one hand: the two picks sit at the bottom, in thumb reach */
-  .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; background: var(--paper); border-top: 1px solid var(--rule);
-    padding: 12px max(20px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
-  .dock-inner { max-width: 480px; margin-inline: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
-  .pick { position: relative; display: grid; place-items: center; text-align: center; min-height: 56px; border-radius: 4px; cursor: pointer;
-    border: 1px solid var(--rule-strong); padding: 6px 16px; transition: background-color 150ms var(--ease), transform 150ms var(--ease); }
-  .pick.shutter { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 600; font-size: 18px; }
-  .pick.shutter .en { color: inherit; opacity: .75; }
-  .pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-  .pick:focus-within { outline: 2px solid var(--copper); outline-offset: 3px; }
-  .pick:hover { background: var(--paper-2); }
-  .pick.shutter:hover { background: var(--muted); }
-  .pick:active { transform: translateY(1px); }
-  .pick.disabled { opacity: .45; cursor: not-allowed; }
-  .pick input:disabled { cursor: not-allowed; }
-  button { min-height: 44px; min-width: 44px; padding: 8px 12px; font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--rule-strong); border-radius: 4px; cursor: pointer; transition: background-color 150ms var(--ease); }
-  button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--copper); outline-offset: 3px; }
+  .empty { color: var(--muted); margin: 8px 0 0; }
+  button { min-height: 44px; min-width: 44px; padding: 8px 14px; font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--ink); border-radius: 4px; cursor: pointer; transition: background-color 150ms var(--ease); }
+  button:focus-visible, summary:focus-visible { outline: 2px solid var(--copper); outline-offset: 3px; }
   button:hover { background: var(--paper-2); }
   button:active { transform: translateY(1px); }
-  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
   ::selection { background: var(--ink); color: var(--paper); }
-  footer { margin-top: 28px; border-top: 1px solid var(--rule); padding-top: 12px; color: var(--muted); font-size: 14px; }
-  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  footer { margin-top: 14px; color: var(--muted); font-size: 14px; line-height: 20px; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
-  @media (max-height: 500px) and (min-width: 600px) { main { max-width: 720px; } .dock-inner { max-width: 720px; } }
+  @media (max-height: 500px) and (min-width: 600px) { main { max-width: 720px; } .finder { height: 60vh; } }
 </style>
 <main>
-  <h1>拍摄标靶<span class="en" lang="en">Photograph the target</span></h1>
+  <div class="top"><span class="mark" role="img" aria-label="DP">D<i>P</i></span><span class="link" id="link" data-state="wait" role="status"></span></div>
+  <h1 id="title"></h1>
+  <p class="lede" id="lede"></p>
   <p class="run" id="run"></p>
   <p class="run" id="disc" hidden></p>
   <div class="banner" id="problem" role="alert" hidden></div>
+  <div class="finder" aria-hidden="true"><span class="guide"></span><span class="disc"></span><span class="hub"></span><span class="chip" id="chip"></span></div>
+  <div class="controls">
+    <label class="pick gallery"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="1.5"/><path d="m3.5 16 5-5 4 4 3-3 5 5"/><circle cx="15.5" cy="9" r="1.4"/></svg><span id="gallery-text"></span><input id="gallery" type="file" accept="image/*" multiple></label>
+    <label class="pick shutter"><input id="camera" type="file" accept="image/*" capture="environment"></label>
+    <span class="shutter-label" id="shutter-text" aria-hidden="true"></span>
+  </div>
   <section id="overall" role="status" aria-live="polite" data-state="none"><b></b><span class="sub"></span></section>
   <details class="tips" id="tips" open>
-    <summary>这样拍 <span lang="en">&nbsp;/ How to shoot</span></summary>
-    <svg class="diagram" viewBox="0 0 360 150" role="img" aria-label="吸顶灯在身后，手机拍整张盘，盘朝你倾斜 20 到 30 度 / Ceiling lamp behind you, phone on the whole disc, disc tilted 20–30° towards you">
+    <summary id="tips-title"></summary>
+    <svg class="diagram" viewBox="0 0 360 150" role="img" id="diagram">
       <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
         <path class="thin" d="M10 18h340M10 136h340"/>
         <path d="M40 18v10M28 28h24l-4 8H32z"/>
@@ -98,21 +144,15 @@
         <path d="M232 120 L306 94" stroke-width="3"/>
         <path class="thin" d="M232 120h80M290 120a22 22 0 0 0-3-14"/>
       </g>
-      <text x="14" y="76">吸顶灯在身后</text><text x="102" y="102">手机</text><text x="232" y="146">盘朝你转 20–30°</text>
+      <text x="14" y="76" id="d-lamp"></text><text x="102" y="102" id="d-phone"></text><text x="222" y="146" id="d-disc"></text>
     </svg>
     <ol id="tip-list"></ol>
   </details>
-  <h2>照片<span class="en" lang="en">Photos</span></h2>
-  <p class="empty" id="empty">还没有照片。<span class="en" lang="en">No photos yet.</span></p>
+  <div class="photos-head"><h2 id="photos-title"></h2><span id="count"></span></div>
+  <p class="empty" id="empty"></p>
   <ul id="sent" aria-live="polite"></ul>
-  <footer>照片只在家里的局域网内传给电脑，保存在这次标定里。能不能用，要等电脑收到后读完才知道，不是拍照时当场判断的。<span class="en" lang="en">Photos travel only over your home network and are saved with this calibration. Whether one is usable is known only after the computer has read it, not while you shoot.</span></footer>
+  <footer id="foot"></footer>
 </main>
-<div class="dock">
-  <div class="dock-inner">
-    <label class="pick shutter"><span>拍照<span class="en" lang="en">Take photo</span></span><input id="camera" type="file" accept="image/*" capture="environment" aria-label="拍照 / Take photo"></label>
-    <label class="pick gallery"><span>相册<span class="en" lang="en">Photos</span></span><input id="gallery" type="file" accept="image/*" multiple aria-label="从相册选 / Choose from photos"></label>
-  </div>
-</div>
 <script type="application/json" id="config">__PHOTO_CONFIG__</script>
 <script type="module">
   import { photoStage, adoptionWords, deskWords, shootingTips, seconds } from '/home/photowords.mjs';
@@ -121,9 +161,28 @@
   const $ = id => document.getElementById(id);
   const inputs = [...document.querySelectorAll('.pick input')];
   const endpoint = '/api/photos?run=' + encodeURIComponent(config.run);
-  const both = (p, tag = 'span') => { const z = document.createElement(tag); z.textContent = p.zh; if (p.en && p.en !== p.zh) { const e = document.createElement('span'); e.className = 'en'; e.lang = 'en'; e.textContent = p.en; z.append(e); } return z; };
-  const line = p => p.en && p.en !== p.zh ? p.zh + ' / ' + p.en : p.zh;
-  $('run').append('这些照片只算到这次标定 / Photos count only for this run: ', Object.assign(document.createElement('code'), {textContent: config.run}));
+  // One language, the phone's own: Chinese when it is set to Chinese, English otherwise.
+  const lang = /^zh/i.test(navigator.language || 'zh') ? 'zh' : 'en';
+  if (document.documentElement) document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  const w = p => (p && (p[lang] || p.zh)) || '';
+  const both = (p, tag = 'span') => { const z = document.createElement(tag); z.textContent = w(p); return z; };
+  const line = w;
+  const say = (id, zh, en) => { const node = $(id); if (node) node.textContent = lang === 'zh' ? zh : en; };
+  say('title', '拍标靶盘', 'Photograph the target disc');
+  say('lede', '拍完自动发到电脑上的网页。', 'Each photo goes straight to the page on your computer.');
+  say('chip', '把整张盘放进圈里', 'Fit the whole disc in the circle');
+  say('gallery-text', '相册', 'Photos');
+  say('shutter-text', '拍照并发送', 'Take and send');
+  say('tips-title', '这样拍', 'How to shoot');
+  say('d-lamp', '吸顶灯在身后', 'Lamp behind you'); say('d-phone', '手机', 'Phone'); say('d-disc', '盘朝你转 20–30°', 'Disc tilted 20–30°');
+  say('photos-title', '照片', 'Photos');
+  say('empty', '还没有照片。拍第一张吧。', 'No photos yet. Take the first one.');
+  say('foot', '照片只发到你的电脑，不经过互联网。能不能用，要等电脑收到后读完才知道，不是拍照时当场判断的。拍完可以直接关掉这一页。',
+    'Photos go only to your computer, never over the Internet. Whether one is usable is known after the computer reads it, not while you shoot. You can close this page when you are done.');
+  $('camera').setAttribute('aria-label', lang === 'zh' ? '拍照并发送' : 'Take and send a photo');
+  $('gallery').setAttribute('aria-label', lang === 'zh' ? '从相册选' : 'Choose from photos');
+  $('diagram')?.setAttribute('aria-label', lang === 'zh' ? '吸顶灯在身后，手机拍整张盘，盘朝你倾斜 20 到 30 度' : 'Ceiling lamp behind you, phone on the whole disc, disc tilted 20–30° towards you');
+  $('run').append(lang === 'zh' ? '这些照片只算到这次标定：' : 'These photos count only for this run: ', Object.assign(document.createElement('code'), {textContent: config.run}));
   for (const tip of shootingTips) $('tip-list').append(both(tip, 'li'));
   // This browser's sends, across reloads. The listing has every phone's photos; this page shows them all.
   // Keyed by run, not link: a rotated link (rescan) still knows which photos this phone sent.
@@ -156,7 +215,7 @@
     box.replaceChildren(both(p.words, 'p'));
     const list = document.createElement('ul'); for (const s of p.steps) list.append(both(s, 'li')); box.append(list);
     if (kind === 'offline' || kind === 'unreachable') {
-      const retry = document.createElement('button'); retry.type = 'button'; retry.textContent = '重试 / Retry';
+      const retry = document.createElement('button'); retry.type = 'button'; retry.textContent = lang === 'zh' ? '重试' : 'Retry';
       retry.onclick = () => { failures = 0; poll(); }; box.append(retry);
     }
     box.hidden = false;
@@ -185,7 +244,7 @@
     polling = true;
     try {
       listing = await getJSON(endpoint);
-      failures = 0; blocked = null; link = 'ok';
+      failures = 0; blocked = null; link = 'ok'; connected = true;
       render();
     } catch (error) {
       failures++;
@@ -206,15 +265,27 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden && !blocked) poll(); });
 
   // ---- drawing --------------------------------------------------------------------------------------
+  // The top row's dot: whether this phone reaches the computer, said plainly.
+  const LINK = {ok: ['已连上你的电脑', 'Connected to your computer'], offline: ['手机没联网', 'Phone is offline'],
+    unreachable: ['连不上电脑', 'Cannot reach the computer'], expired: ['链接已失效', 'Link expired'], gone: ['标定已不在', 'Calibration gone']};
+  let connected = false;
   function render() {
     showProblem(link === 'ok' ? null : link);
+    const state = $('link');
+    if (state) {
+      const words = link === 'ok' ? (connected ? LINK.ok : ['正在连接电脑…', 'Connecting…']) : LINK[link];
+      state.dataset.state = link === 'ok' ? (connected ? 'ok' : 'wait') : 'bad';
+      state.textContent = lang === 'zh' ? words[0] : words[1];
+    }
+    const count = $('count');
+    if (count) count.textContent = (listing.photos || []).length ? (lang === 'zh' ? `电脑已收到 ${listing.photos.length} 张` : `${listing.photos.length} on the computer`) : '';
     for (const input of inputs) { input.disabled = !!blocked; input.closest('.pick').classList.toggle('disabled', !!blocked); }
     const photos = listing.photos || [];
     const adoption = adoptionWords(listing.adoption || {}, photos);
     const desk = deskWords(listing);
     // The target disc the computer declared for these photos (photo --disc-id); set on the computer, shown here.
     const disc = $('disc'); disc.hidden = !listing.disc_id;
-    if (listing.disc_id && disc.dataset.value !== listing.disc_id) { disc.dataset.value = listing.disc_id; disc.textContent = '标靶盘 / Target disc: ' + listing.disc_id; }
+    if (listing.disc_id && disc.dataset.value !== listing.disc_id) { disc.dataset.value = listing.disc_id; disc.textContent = (lang === 'zh' ? '标靶盘：' : 'Target disc: ') + listing.disc_id; }
     const overall = $('overall');
     overall.dataset.state = adoption.state;
     overall.hidden = !!blocked;
@@ -239,13 +310,13 @@
       img.addEventListener('error', () => { img.style.visibility = 'hidden'; }, {once: true});
       thumbs.set(photo.id, img);
     }
-    const name = document.createElement('span'); name.className = 'name'; name.textContent = (mine.has(photo.id) ? '' : '另一台设备 · ') + photo.name;
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = (mine.has(photo.id) ? '' : lang === 'zh' ? '另一台设备 · ' : 'Another device · ') + photo.name;
     li.append(img, name, both(s.act, 'span'), both(s.why, 'p'));
     li.children[2].className = 'act'; li.children[3].className = 'why';
     if (s.when.zh) { const w = document.createElement('p'); w.className = 'when'; w.textContent = line(s.when); li.append(w); }
     if (s.stage === 'retake' || s.stage === 'failed' || s.stage === 'outlier') {
       const row = document.createElement('div'); row.className = 'row';
-      const retake = document.createElement('button'); retake.type = 'button'; retake.textContent = '重拍 / Retake'; retake.disabled = !!blocked;
+      const retake = document.createElement('button'); retake.type = 'button'; retake.textContent = lang === 'zh' ? '重拍' : 'Retake'; retake.disabled = !!blocked;
       retake.onclick = () => $('camera').click(); row.append(retake); li.append(row);
     }
     return li;
@@ -262,11 +333,11 @@
     }[p.state];
     li.append(img, name, both(words[0], 'span'), both(words[1], 'p'));
     li.children[2].className = 'act'; li.children[3].className = 'why';
-    if (p.state === 'uploading') { const bar = document.createElement('progress'); bar.max = 1; bar.value = p.progress; bar.setAttribute('aria-label', '上传进度 / Upload progress'); bar.style.gridColumn = '2'; li.append(bar); }
+    if (p.state === 'uploading') { const bar = document.createElement('progress'); bar.max = 1; bar.value = p.progress; bar.setAttribute('aria-label', lang === 'zh' ? '上传进度' : 'Upload progress'); bar.style.gridColumn = '2'; li.append(bar); }
     if (p.state === 'failed' || p.state === 'duplicate') {
       const row = document.createElement('div'); row.className = 'row';
-      if (p.state === 'failed') { const again = document.createElement('button'); again.type = 'button'; again.textContent = '重新发送 / Send again'; again.disabled = !!blocked || busy; again.onclick = () => send([p]); row.append(again); }
-      const drop = document.createElement('button'); drop.type = 'button'; drop.textContent = p.state === 'failed' ? '不发了 / Discard' : '知道了 / OK';
+      if (p.state === 'failed') { const again = document.createElement('button'); again.type = 'button'; again.textContent = lang === 'zh' ? '重新发送' : 'Send again'; again.disabled = !!blocked || busy; again.onclick = () => send([p]); row.append(again); }
+      const drop = document.createElement('button'); drop.type = 'button'; drop.textContent = lang === 'zh' ? (p.state === 'failed' ? '不发了' : '知道了') : (p.state === 'failed' ? 'Discard' : 'OK');
       drop.onclick = () => { forget(p); render(); }; row.append(drop); li.append(row);
     }
     return li;
