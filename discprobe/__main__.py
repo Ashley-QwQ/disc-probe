@@ -995,6 +995,9 @@ def cmd_compose(args):
 
 
 def cmd_image(args):
+    # Resolve the library link before doing image work; completion is recorded only after verification.
+    from .works_link import check_work, image_completed
+    check_work(args)
     from . import imagedisc
     writer = imagedisc
     if args.media == "cd":
@@ -1132,6 +1135,7 @@ def cmd_image(args):
         if args.media == "cd":
             sys.exit(1)
         return
+    image_completed(args)
     _image_ready(args, prev, design, files)
 
 
@@ -1828,7 +1832,7 @@ COMMAND_GROUPS = (
     ("Make a disc image", ("random", "label", "compose", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc")),
     ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
-    ("Use elsewhere", ("template", "disexport", "cdprobe")),
+    ("Use elsewhere", ("template", "disexport", "cdprobe", "works")),
 )
 LANG_NOTE = ("Language: --lang zh or --lang en, or DISCPROBE_LANG; at a terminal it follows the system. "
              "Scripts and pipes stay English unless --lang is given. --no-animation keeps the screen still.\n"
@@ -1977,6 +1981,10 @@ def _build_parser():
     calibrate.add_parser(sub)
     from . import presets
     presets.add_parser(sub)
+
+    # Works library adapters are separate to keep this shared parser easy to merge.
+    from . import works_cli
+    works_cli.add_parser(sub)
 
     from . import photo
     photo.add_parser(sub)
@@ -2439,6 +2447,8 @@ def _build_parser():
             help="CD only: sector layout the burner writes; IMAPI2 data burns are Mode 2 Form 1 "
                  "(user data from byte 24), so textures are pre-scrambled for that unless you burn Mode 1")
     # Each command's help names what it does, and the top level lists the commands in workflow order.
+    from .works_link import add_options as add_work_options
+    add_work_options(sub)
     tr = i18n.tr
     for name in ("image", "random", "calib", "calibdisc", "burn"):
         sub.choices[name].add_argument("--disc-id", action="store_true",

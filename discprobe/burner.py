@@ -513,6 +513,8 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
 
 
 def run(args):
+    from .works_link import check_work, burn_completed
+    check_work(args)
     if args.media == "cd":
         from . import cd
         cd.set_sector_layout(args.cd_sector)
@@ -527,9 +529,10 @@ def run(args):
     watcher = threading.Thread(target=watch, daemon=True)
     watcher.start()
     try:
-        burn(args.drive, args.iso, media=args.media, speed=args.speed, yes_write=args.yes_write,
+        result = burn(args.drive, args.iso, media=args.media, speed=args.speed, yes_write=args.yes_write,
              cancel=cancel, no_verify=args.no_verify, keep_open=args.keep_open,
              append=args.append, expect_start=args.expect_start, **discid.options(args))
+        burn_completed(args, result)
     except BurnError as exc:
         ui.event("error", message=str(exc))
         raise SystemExit(str(exc)) from None

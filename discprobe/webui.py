@@ -54,6 +54,9 @@ OPTIONS = {
               "burner": "photo", "burn_path": "photo", "burn_mode": "photo"},
 }
 DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell (checked in the tests)
+# Works completion links for the existing image and burn-file jobs.
+for _work_action in ("image", "burn", "calibrate"):
+    OPTIONS[_work_action].update(work="work", disc_code="disc_code")
 # a design upload by its length: one bit per cell, at 20, 10 or 5 um (imagedisc.CELL_SIDES)
 DESIGN_SIDES = {side * side // 8: side for side in (6000, 12000, 24000)}
 LIMITS = {"count": (1, 1000), "sectors": (1, 25_000_000), "seed": (0, 2**32 - 1),
@@ -82,7 +85,7 @@ def local_path(root: Path, value: str) -> str:
 
 
 def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
-    if not isinstance(payload, dict) or set(payload) - {"action", "drive", "media", "args", "burn_token"}:
+    if not isinstance(payload, dict) or set(payload) - {"action", "drive", "media", "args", "burn_token", "work"}:
         raise APIError("invalid run request")
     action, media = payload.get("action"), payload.get("media", "dvd")
     if not isinstance(action, str) or action not in ACTIONS:
@@ -101,6 +104,11 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
     if action in DRIVE_ACTIONS and not drive:
         raise APIError("drive is required")
     args = payload.get("args", {})
+    # Work links are IDs, never paths or arbitrary command flags.
+    if payload.get("work") is not None:
+        if not isinstance(args, dict) or ("work" in args and args["work"] != payload["work"]):
+            raise APIError("invalid work id")
+        args = dict(args, work=payload["work"])
     if not isinstance(args, dict) or set(args) - OPTIONS[action].keys():
         raise APIError("argument is not allowed")
     # -P: the workspace (the child's cwd) is not put in front of the import path, so a checkout of
@@ -119,7 +127,20 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
         if value is None:
             continue
         rule = OPTIONS[action][name]
-        if rule == "radius_bands":
+        if rule == "work":
+            from .works import valid_id, WorkError
+            try:
+                value = valid_id(value)
+            except WorkError as exc:
+                raise APIError(str(exc)) from exc
+            argv += ["--work", value]
+            continue
+        elif rule == "disc_code":
+            if not isinstance(value, str) or not 1 <= len(value) <= 128 or any(ord(c) < 32 for c in value):
+                raise APIError("invalid disc code")
+            argv += ["--disc-code", value]
+            continue
+        elif rule == "radius_bands":
             from .calibrate import _avoid_band
             import argparse
             if not isinstance(value, list) or len(value) > 1000:
@@ -406,6 +427,8 @@ class Backend:
         self.tokens = {}
         from .photo import PhotoStore
         self.photos = PhotoStore(self.out)
+        from .works import Store
+        self.works = Store(self.out)
         # drive -> (expiry, media): a read-only inspection just found a blank disc there
         self.verified_blank = {}
         # drive -> what the last read of its disc found (`discprobe disc`, or an `info` job), with when. Only
@@ -476,6 +499,12 @@ class Backend:
         is_photo = isinstance(payload, dict) and payload.get("action") == "photo"
         drives = [] if is_photo else self.drive_provider()
         argv, drive = command(payload, self.root, drives)
+        work_id = payload.get("work") or payload.get("args", {}).get("work")
+        if work_id:
+            try:
+                self.works.show(work_id)
+            except ValueError as exc:
+                raise APIError(str(exc), getattr(exc, "status", 400)) from exc
         if is_photo:
             try:
                 argv += self.photos.argv(payload.get("args", {}))
@@ -525,6 +554,7 @@ class Backend:
             env.update(DISCPROBE_EVENTS=str(job.events), DISCPROBE_ANSWERS=str(job.answers), DISCPROBE_JOB=ident)
             # Force plain child output; events have their own progress outlet.
             env["DISCPROBE_PLAIN"] = "1"
+            env["DISCPROBE_HOME"] = str(self.works.root.parent)
             env["PYTHONUNBUFFERED"] = "1"     # each line reaches output.log, and so the page, as it is printed
             env["FORCE_COLOR"] = "3"          # the core's colours (true colour) in its lines, for the page's terminal
             # The child runs `-m discprobe` from the workspace, which may hold another copy of the package (an
@@ -893,9 +923,35 @@ class Handler(BaseHTTPRequestHandler):
             self._json(exc.status if isinstance(exc, APIError) else 400, dict(error=str(exc)))
         return True
 
+    # Works route adapters are kept together for parallel branch integration.
+    def _works(self, method):
+        from .works_http import handle
+        return handle(self, method)
+
+    def _works_mutation(self, method):
+        try:
+            self._allowed()
+            if not self._works(method):
+                raise APIError("not found", 404)
+        except APIError as exc:
+            self._json(exc.status, dict(error=i18n.tr(str(exc))))
+        except (ConnectionError, TimeoutError):
+            pass
+
+    def do_PUT(self):
+        self._works_mutation("PUT")
+
+    def do_PATCH(self):
+        self._works_mutation("PATCH")
+
+    def do_DELETE(self):
+        self._works_mutation("DELETE")
+
     def do_GET(self):
         try:
             self._allowed()
+            if self._works("GET"):
+                return
             if self._presetio("GET"):
                 return
             url = urlsplit(self.path)
@@ -1054,6 +1110,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             self._allowed()
+            if self._works("POST"):
+                return
             if urlsplit(self.path).path in ("/api/editor-preview", "/api/editor-swatches"):
                 if self.headers.get_content_type() != "application/json":
                     raise APIError("application/json required", 415)
