@@ -1,0 +1,70 @@
+{
+  "version": "wave-v3-real-row-phase-ecc-random-context-20261112b",
+  "T_um": 0.13333,
+  "W_um": 0.35,
+  "edge_sigma_um": 0.03,
+  "dl_um": 0.0,
+  "samples": 8,
+  "df": 0.0005,
+  "starts": [
+    [
+      1,
+      0,
+      true
+    ],
+    [
+      2,
+      60,
+      false
+    ],
+    [
+      3,
+      -60,
+      true
+    ],
+    [
+      4,
+      30,
+      false
+    ]
+  ],
+  "source_hashes": {
+    "D:/disc-probe/discprobe/efmplus.py": "71efa0de18e7691fd72e65d822bbff35f0649a04bc3e9cfd330ca86e358297fe",
+    "D:/disc-probe/discprobe/efmplus_tables.py": "fd44123c5690783be953b14d626879192a1402b1a6b0661412135819a0c93a04",
+    "D:/disc-probe/discprobe/dvd.py": "34e91adb16931a1c221a326d8fea5ae7c0ec1ff6f501806cde810a9fe7d0b53b",
+    "D:/disc-probe/tools/dsv_block.py": "2740191fc63acaf640370a13630225835412d30daa51b62642977e0842a92f30",
+    "D:/disc-probe/discprobe/imagedisc.py": "f8c2a45dafc8a6a6299ff9928114d2c25020abc081ed628a56fb8007a8ce92b2",
+    "D:/disc-probe/docs/goals/colour-sim/report.md": "a15a31f99e916732e0242e92c59788cae64d82a7c071fb29dcb5f8c32f3d0c27",
+    "D:/disc-probe/docs/goals/colour-sim/prereg.md": "407e397cfe5fae273b486e76f68579dad921097c06c84c7efd5a02dea506b2ce",
+    "D:/disc-probe/docs/goals/colour-sim/spectra.py": "b54b8d282ac0e955c2e9770edd5c6c7a8b0e63146bbb49591c613cf42246e175",
+    "D:/disc-probe/docs/goals/colour-sim/spectra_iso.py": "fd7c7abbc357d2ca069448e15bafcc466d92b85d7bc8ee50ec4d570a20fb459d",
+    "D:/disc-probe/docs/goals/colour-sim/check_2d.py": "e12f6304f467882fe70e5673d5b041e3f4a6740163bd20d444453218fe7f3157",
+    "D:/disc-probe/docs/goals/colour-sim/model.py": "74107e7a7c8616da1ee14ae1154cf49e44e81ccacda05288f0555fba9cac5afb",
+    "D:/disc-probe/docs/goals/colour-sim/common.py": "bb0b08efb538112b3dbe499dd570cedd71e8dfce214b583bc297adc0e35ca5fc",
+    "D:/disc-probe/docs/goals/night/palette/a3card/colour_tables.py": "4713c752802c224957391f1d4b5d878fd87371f319442a8645edd51cd04835e7",
+    "D:/disc-probe/docs/goals/night/palette/a3card/wave_model.py": "e7aff4c180d0fff91e1450b423162b0af3b530ac47833b18cf7110f0f2f3c60c"
+  },
+  "signature": "38a6f94ff89746325cb350b79600a6c94e9ca5b28dcab176587502f583644a99",
+  "context": "8 contiguous texture sectors + 8 random-fill sectors; all real ECC parity",
+  "power": "coherent across the selected full 8-sector interval; independent blocks/tracks averaged in power",
+  "mark_model": "uniform rectangular W=.35 um, length LT+dl, dl=0; Gaussian edge sigma=.03 um",
+  "amplitude_correction": "T*sinc(fT)*W*exp(-2*pi^2*sigma_e^2*f^2)",
+  "unknowns": [
+    "actual mark dimensions and write strategy",
+    "complex dye/land contrast versus wavelength",
+    "polarization and multilayer vector diffraction",
+    "actual lamp SPD",
+    "actual neighbouring image content"
+  ],
+  "no_camera_or_purity_scaling": true,
+  "spectral_range_nm": [
+    380,
+    780
+  ],
+  "runtime": {
+    "python": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]",
+    "numpy": "2.5.1",
+    "Pillow": "12.3.0",
+    "GPU_used": false
+  }
+}
