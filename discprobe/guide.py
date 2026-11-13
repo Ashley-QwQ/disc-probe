@@ -604,11 +604,16 @@ def _clv_next(args, advice: dict) -> list[str]:
 
 def sectors_from_info(report: dict) -> tuple[int, str] | None:
     """The sector count `disexport --sectors` wants, from an `info` report, with where it came from."""
+    profile = _parsed(report, "configuration").get("current_profile")
+    atip = _parsed(report, "atip")
     track = _parsed(report, "track_1")
+    # A blank disc reports what this drive can really write.  On a CD the ATIP lead-out can be
+    # two sectors further out, so it is only the fallback once the disc has been burned.
     if track.get("blank") and track.get("free_blocks"):
         return track["track_start"] + track["free_blocks"], "free space of this blank disc"
-    atip = _parsed(report, "atip")
     if atip.get("last_leadout_start_lba"):
+        if mmc.media_family(profile) == "cd":
+            return atip["last_leadout_start_lba"], "lead-out in the ATIP; it can be two sectors more than a blank disc can hold"
         return atip["last_leadout_start_lba"], "lead-out in the ATIP; `info` on a blank disc gives a closer count"
     cap = _parsed(report, "capacity")
     if cap.get("last_lba"):
@@ -1071,7 +1076,7 @@ def tutorial_lines() -> list[str]:
             "",
             "1. Put a blank disc in the drive and read its available sectors (a few seconds).",
             f"  {PROG} info {drive_flag()}",
-            "  That count is what calibration and --sectors use; a blank disc reports it most accurately.",
+            "  That count is what `disexport --sectors` uses; `random --sectors` is the length of the random disc, chosen separately.",
             "2. Burn a random-data disc. It is not your picture yet: it is how the program learns this kind of disc.",
             f"  {PROG} random --output iso/random.iso",
             "  This uses up the disc: a DVD+R, DVD-R or CD-R can't be erased.",
@@ -1352,7 +1357,7 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, dr
              f"{info_sectors[0]:,} sectors available" if info_sectors else
              ("no blank-disc count; use a blank disc" if info_run is not None else "not run yet"),
              argv=["info", *(["--drive", drives[0]] if drives else [])],
-             why="Put a blank disc of the kind you plan to use in the drive. Its info report gives the available sector count that calibration and disexport --sectors need; a count read back from a burned disc can be too high.",
+             why="Put a blank disc of the kind you plan to use in the drive. Its info report gives the available sector count that `disexport --sectors` needs; a count read back from a burned disc can be too high.",
              takes="a few seconds"),
         Task("disc", "Random-data disc", disc_done,
              f"{random_iso} written; burn it" if has_iso and timing is None else
