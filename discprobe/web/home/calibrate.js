@@ -5,7 +5,8 @@ import { flipValue } from "./kit/flipnum.js";
 // becomes the step panel, the bar shows the job, the back button takes the top-left corner.
 // Live jobs use the local API. Simulated readings and timers are limited to ?mock / ?demo=N.
 
-import { adviceHTML, budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason, photoSaveWords, photoReasonWords } from "./guidance.mjs";
+import { adviceHTML, budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason, photoSaveWords } from "./guidance.mjs";
+import { photoReasonWords, adoptionWords, applicationWords, seconds as photoSeconds } from "./photowords.mjs";
 import { cutaway } from "./drive-scene.js";
 import { floorLog } from "./floor-log.js";
 import * as sfx from "./sfx.js";
@@ -1113,14 +1114,29 @@ function photoReview() {
   closePhoto(); flow.realPhase = 'review'; flow.error = null; paint();
 }
 const photoLive = u => photoUI === u && flow === u.flow && isCal() && flow.realPhase === 'photo';
+// The along-track constant's state for this read: the core's own decision when it gives one, else the group vote.
+const photoAdoption = result => result?.adoption?.state ? result.adoption
+  : result?.verdict === 'ok' ? {state:'adopted'} : {state:'none'};
+const PHOTO_HELD = ['provisional','disagree','refused'];
 function photoStamp(result, saved = null) {
-  const esc = api.backend.escapeHTML, ok = result.verdict === 'ok';
-  const reasons = (result.per_photo || []).map(p => photoReasonWords(p)[api.lang()]).filter(Boolean).join('；');
+  const esc = api.backend.escapeHTML, adoption = photoAdoption(result);
+  // Only an adopted group is usable: a provisional single photo, a disagreement or a refusal never is.
+  const ok = result.verdict === 'ok' && !PHOTO_HELD.includes(adoption.state);
+  const held = PHOTO_HELD.includes(adoption.state) ? adoptionWords(adoption) : null;
+  // Whether pictures will use it is the core's further gate (disc number, burn path, same drive and run).
+  const applied = ok && result.application ? applicationWords(result.application, flow?.detected?.media) : null;
+  // One line per kind of problem, with how many photos it applies to; the same advice is not repeated.
+  const kinds = new Map();
+  for (const p of result.per_photo || []) if (p.verdict !== 'ok') { const w = photoReasonWords(p)[api.lang()]; if (w) kinds.set(w, (kinds.get(w) || 0) + 1); }
+  const reasons = [...kinds].map(([w, n]) => (n > 1 ? liveText(`${n} 张 · `, `${n} photos · `) : '') + w).join('\n');
   const value = Number.isFinite(result.L_frames) ? `L = ${result.L_frames} frames` : '';
   const row = (zh, en, text, act = false) => `<div><dt>${liveText(zh,en)}</dt><dd${act ? ' class="act"' : ''}>${esc(text)}</dd></div>`;
-  return `<div class="cal-stamp" role="status"><b>${ok ? liveText('照片可用','Photo usable') : result.verdict === 'rejected' ? liveText('照片读不出','Photo unreadable') : liveText('不知道','Not sure')}</b><dl>` +
+  const head = held ? held.title[api.lang()] : ok ? liveText('已采用','Adopted') : result.verdict === 'rejected' ? liveText('照片读不出','Photo unreadable') : adoptionWords(adoption, result.per_photo || []).title[api.lang()];
+  return `<div class="cal-stamp" role="status" data-adoption="${esc(adoption.state)}"><b>${esc(head)}</b><dl>` +
     row('意思','Means', reasons || (ok ? liveText('照片读完了。','Photo read.') : liveText('照片还不能给出可信的结果。','The photo cannot give a trusted result yet.'))) +
     row('对你的图','For the picture', ok ? liveText('已保留照片结果；现有几何的覆盖限制仍按测量结果判断。','Photo result retained; the measured geometry still determines its coverage limits.') : liveText('保留现有测量，不用这次照片改它。','Keep the existing measurement; this photo does not change it.')) +
+    (held ? row('沿轨常数','Along-track constant', held.body[api.lang()], true) : '') +
+    (applied ? row('出图','Pictures', applied.words[api.lang()], !applied.applied) : '') +
     row('现在','Now', saved ? photoSaveWords(saved)[api.lang()] : ok ? (value ? `${value} · ${liveText('已保留，尚未写入预设','retained, not yet written into the preset')}` : liveText('保存现有测量和照片结果。','Save the existing measurement and retain the photo result.')) : liveText('再拍一张，或跳过，就用现在的结果。','Take another photo, or skip and keep the current result.'), !ok) + '</dl></div>';
 }
 function photoNavigation(u) {
@@ -1128,8 +1144,9 @@ function photoNavigation(u) {
   const unavailable = u.status === 'unavailable', cd = flow.detected.media === 'cd';
   nextKit(false, false);
   $('next-text').textContent = unavailable ? (cd ? liveText('导出 DIS 预设','Export DIS preset') : liveText('返回测量结果','Back to measurement result')) : liveText('下一步：保存照片结果','Next: save photo result');
-  $('next').disabled = !!flow.job || !!u.reading || !!u.readTimer || (!unavailable && (u.status !== 'ready' || u.flow.photoResult?.verdict !== 'ok'));
-  api.nextWhy?.(unavailable ? '' : flow.job || u.reading ? liveText('正在读取照片…','Reading photos…') : u.status === 'loading' ? liveText('正在连接照片服务…','Connecting to the photo service…') : u.flow.photoResult?.verdict !== 'ok' ? liveText('照片会自动读取；请拍不同角度的照片。','Photos are read automatically; take different views.') : '');
+  const usable = u.flow.photoResult?.verdict === 'ok' && !PHOTO_HELD.includes(photoAdoption(u.flow.photoResult).state);
+  $('next').disabled = !!flow.job || !!u.reading || !!u.readTimer || (!unavailable && (u.status !== 'ready' || !usable));
+  api.nextWhy?.(unavailable ? '' : flow.job || u.reading ? liveText('正在读取照片…','Reading photos…') : u.status === 'loading' ? liveText('正在连接照片服务…','Connecting to the photo service…') : !usable ? liveText('照片收到后自动读取；至少两张不同角度、读数一致才采用。','Photos are read after they arrive; two from different angles that agree are needed.') : '');
 }
 function photoFallback(u, error) {
   if (!photoLive(u)) return;
@@ -1153,6 +1170,7 @@ async function pollPhotos(u) {
     for (const p of fresh) u.seen.add(p.id);
     await u.page.addPhotos(fresh, {preserveSelection:true});
     if (!photoLive(u)) return;
+    u.listing = result; u.page.setListing?.(result); paintReadState(u);
     u.page.setReasons(u.flow.photoResult?.per_photo || []);
     if (fresh.length) queuePhotoRead(u);
     u.notice.textContent = u.flow.photoNotice || '';
@@ -1163,6 +1181,23 @@ async function pollPhotos(u) {
     u.notice.textContent = api.backend.errorText(error,api.lang());
   }
   if (photoLive(u) && u.status === 'ready') u.timer = setTimeout(() => pollPhotos(u), 2000);
+}
+// What the computer is doing with the photos, with real times: received, reading (so far), read (how long).
+// It is said as what happened after they arrived, never as a judgement made while shooting.
+function paintReadState(u) {
+  if (!photoLive(u) || !u.readState) return;
+  const l = u.listing || {}, photos = l.photos || [], a = l.analysis, n = photos.length;
+  let text = '';
+  if (a?.state === 'reading') {
+    const s = photoSeconds(a.seconds);
+    text = liveText(`收到 ${n} 张。正在读其中 ${a.photos.length} 张，已 ${s.zh}。`, `${n} received. Reading ${a.photos.length} of them: ${s.en} so far.`);
+  } else if (photos.some(p => !p.verdict)) {
+    text = liveText(`收到 ${n} 张，${photos.filter(p => !p.verdict).length} 张等待读取。`, `${n} received, ${photos.filter(p => !p.verdict).length} waiting to be read.`);
+  } else if (a && Number.isFinite(a.seconds)) {
+    const s = photoSeconds(a.seconds);
+    text = liveText(`收到 ${n} 张。上次读取 ${a.photos.length} 张用了 ${s.zh}。`, `${n} received. The last read of ${a.photos.length} took ${s.en}.`);
+  } else if (n) text = liveText(`收到 ${n} 张。`, `${n} received.`);
+  u.readState.textContent = text;
 }
 async function phoneLink(u, address) {
   if (address === undefined) { try { address = sessionStorage.getItem('discprobe-phone-address'); } catch { /* storage unavailable */ } }
@@ -1260,6 +1295,7 @@ async function readPhoto(u, photo = null, rings = null) {
         if (!id) {
           const token = new URLSearchParams(location.search).get('token');
           const response = await fetch(`/api/photos?run=${encodeURIComponent(u.run)}`, {method:'POST', headers:{'Content-Type':photo.file.type || 'image/jpeg', 'X-Filename':encodeURIComponent(photo.name), ...(token ? {'X-Discprobe-Token':token} : {})}, body:photo.file});
+          if (response.status === 409) throw new Error(liveText('这张照片已经加过了。转一下盘，拍一张新的。','This photo was already added. Turn the disc and take a new one.'));
           if (!response.ok) throw Object.assign(new Error(response.statusText),{status:response.status});
           const uploaded = await response.json(); id = uploaded.id;
           f.photoUploads.set(photo.file,id); u.seen.add(id);
@@ -1271,20 +1307,27 @@ async function readPhoto(u, photo = null, rings = null) {
     }
     const ids = [...u.rows.keys()].sort();
     if (!ids.length) return null;
-    const key = JSON.stringify([ids,rings]);
-    if ((f.photoReadKey === key || rings === null && f.photoReadIds === JSON.stringify(ids)) && f.photoResult) { showPhotoResult(u,f.photoResult); return f.photoResult; }
+    const key = JSON.stringify([ids,rings,photoDiscId(f, u.run)]);
+    if ((f.photoReadKey === key || rings === null && f.photoReadIds === JSON.stringify([ids, photoDiscId(f, u.run)])) && f.photoResult) { showPhotoResult(u,f.photoResult); return f.photoResult; }
+    // Another page (or an earlier visit) is reading this run now: wait for it instead of a second read.
+    if (u.listing?.analysis?.state === 'reading') { u.readAgain = true; await new Promise(r => setTimeout(r, 3000)); return null; }
+    // ...and when that read covered exactly these photos, it is this read.
+    const earlier = rings === null && readFromListing(u.listing, ids);
+    if (earlier) { f.photoResult = earlier; f.photoReadKey = key; f.photoReadIds = JSON.stringify([ids, photoDiscId(f, u.run)]); showPhotoResult(u,earlier); return earlier; }
     let result;
-    try { result = await realJob('photo', {run:u.run, media:f.detected.media, photos:ids, rings_mm:rings, ...photoBurnArgs(f)}); }
+    const disc = photoDiscId(f, u.run);
+    try { result = await realJob('photo', {run:u.run, media:f.detected.media, photos:ids, rings_mm:rings, ...photoBurnArgs(f), ...(disc ? {disc_id:disc} : {})}); }
     catch (error) { if (!error.result?.verdict) throw error; result = error.result; }
     if (!['ok','unsure','rejected'].includes(result?.verdict)) throw new Error(liveText('照片服务没有返回判断。','The photo service returned no verdict.'));
     // A job may finish after Back. Keep its evidence with its own flow, but never navigate that page.
-    f.photoResult = result; f.photoReadKey = key; f.photoReadIds = JSON.stringify(ids);
+    f.photoResult = result; f.photoReadKey = key; f.photoReadIds = JSON.stringify([ids, photoDiscId(f, u.run)]);
     showPhotoResult(u,result);
     return result;
   } catch (error) {
     if (photoLive(u)) {
       if (photoUnavailable(error)) photoFallback(u);
-      else u.notice.textContent = api.backend.errorText(error,api.lang());
+      // Kept in the flow: the 2-second poll repaints the notice from it, and must not wipe a read's failure.
+      else u.notice.textContent = f.photoNotice = api.backend.errorText(error,api.lang());
     }
     return null;
   } finally {
@@ -1292,6 +1335,41 @@ async function readPhoto(u, photo = null, rings = null) {
     if (photoLive(u)) { if (u.readAgain) { u.readAgain = false; queuePhotoRead(u); } photoNavigation(u); }
     if (flow === f && isCal() && f.realPhase === 'review') paint();
   }
+}
+// The run's last read, as the listing reports it, when it covered exactly `ids`; else null.
+// It has the verdict, per-photo statuses and the L state; the value itself stays in the run's photo.json.
+function readFromListing(list, ids) {
+  const read = list?.read_photos || [];
+  if (!list?.verdict || !ids.length || read.length !== ids.length || !ids.every(id => read.includes(id))) return null;
+  // A read made under another disc number is not this read.
+  if ((list.disc_id || '') !== (photoDiscId(flow, photoUI?.run) || '')) return null;
+  return {verdict:list.verdict, per_photo:(list.photos || []).filter(p => ids.includes(p.id)).map(p => ({id:p.id, verdict:p.verdict, status:p.status, reason:p.reason})),
+    adoption:list.adoption, application:list.application, group:list.group, provisional_mm:list.provisional_mm ?? null,
+    rings_mm:null, offset_mm:null, L_frames:null, confidence:null};
+}
+// The physical target disc these photos are of (photo --disc-id). Typed by the person, kept per run in this browser.
+function photoDiscId(f, run) {
+  if (f && typeof f.photoDiscId === 'string') return f.photoDiscId.trim();
+  try { return (sessionStorage.getItem('discprobe-disc-id-' + run) || '').trim(); } catch { return ''; }
+}
+function discField(u) {
+  const label = document.createElement('label'); label.className = 'pc-disc-id';
+  const title = document.createElement('span'); title.textContent = liveText('标靶盘号','Target disc number');
+  const input = document.createElement('input'); input.type = 'text'; input.maxLength = 40; input.autocomplete = 'off'; input.spellcheck = false;
+  input.placeholder = liveText('例如 T1','e.g. T1'); input.value = photoDiscId(u.flow, u.run);
+  const hint = document.createElement('small');
+  hint.textContent = liveText('用记号笔在这张标靶盘的内圈写个编号，这里填同样的。照片只和这张盘一起采用；空着就不会用到出图上。',
+    'Write a number on this target disc\u2019s inner ring with a marker and type the same here. Photos are adopted only with this disc; left empty, they are not used for pictures.');
+  input.addEventListener('change', () => {
+    const value = input.value.trim().slice(0, 40); input.value = value;
+    u.flow.photoDiscId = value;
+    try { sessionStorage.setItem('discprobe-disc-id-' + u.run, value); } catch { /* storage unavailable */ }
+    // The disc number is part of the read: read again under the new one.
+    u.flow.photoResult = null; u.flow.photoReadKey = null; u.flow.photoReadIds = null;
+    u.result.hidden = true; if (u.rows.size) queuePhotoRead(u); photoNavigation(u);
+  });
+  label.append(title, input, hint);
+  return label;
 }
 function paintPhoto() {
   st?.show(false); loadDisc.desk(false); sideButton(null);
@@ -1317,6 +1395,9 @@ function paintPhoto() {
       for (const p of list.photos || []) if (!photos.some(x => x.id === p.id)) photos.push(p);
       photos.forEach(p => { if (p.id) u.seen.add(p.id); });
       for (const p of list.photos || []) u.rows.set(p.id,p);
+      // Every photo was read already (a reload, or Back and in again): show that read, do not read again.
+      const listed = (list.photos || []).map(p => p.id).sort(), earlier = readFromListing(list, listed);
+      if (!u.flow.photoResult && earlier) { u.flow.photoResult = earlier; u.flow.photoReadIds = JSON.stringify([listed, photoDiscId(u.flow, u.run)]); }
       u.status = 'ready';
       u.page = photoPage(host, {
         lang:u.lang, media:u.flow.detected.media, paperHost:$('cal'), photos, ringsMm:u.flow.photoSnapshot?.ringsMm, activePhoto:u.flow.photoSnapshot?.activePhoto,
@@ -1339,11 +1420,13 @@ function paintPhoto() {
       u.notice = document.createElement('p'); u.notice.setAttribute('role','status');
       u.notice.textContent = u.flow.photoNotice || '';
       u.result = document.createElement('div'); u.result.hidden = true;
+      u.readState = document.createElement('p'); u.readState.className = 'pc-read-state'; u.readState.setAttribute('aria-live','polite');
+      u.listing = list;
       const action = (text,fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'pc-button pc-wide'; b.textContent = text; b.hidden = true; b.onclick = fn; paper.append(b); return b; };
-      paper.append(u.notice,u.result);
+      paper.append(discField(u),u.readState,u.notice,u.result);
       u.retry = action(liveText('再拍一张','Take another photo'), () => { u.result.hidden = u.retry.hidden = u.skip.hidden = true; host.querySelector('[data-pc="add"]').click(); });
       u.skip = action(liveText('跳过，就用现在的结果','Skip and keep the current result'),photoReview);
-      u.page.ready?.then(() => { if (photoLive(u) && u.flow.photoResult) showPhotoResult(u,u.flow.photoResult); });
+      u.page.ready?.then(() => { if (!photoLive(u)) return; u.page.setListing?.(u.listing); paintReadState(u); if (u.flow.photoResult) showPhotoResult(u,u.flow.photoResult); });
       if (photos.length) queuePhotoRead(u);
       pollPhotos(u);
     } catch (error) { photoFallback(u,photoUnavailable(error) ? null : error); }

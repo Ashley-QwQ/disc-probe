@@ -92,10 +92,15 @@ def tmp_path():
         yield Path(directory)
 
 
-def png():
+def png(grey=110):
     stream = io.BytesIO()
-    Image.new("RGB", (48, 48), (110, 110, 110)).save(stream, format="PNG")
+    Image.new("RGB", (48, 48), (grey, grey, grey)).save(stream, format="PNG")
     return stream.getvalue()
+
+
+def photos_of(listing):
+    """The photo rows of a listing; the rest (analysis, adoption, times) has its own tests."""
+    return listing["photos"]
 
 
 def make_run(root, name="geo-test", out="results"):
@@ -141,11 +146,11 @@ def json_request(server, method, path, data=None, headers=None):
     return code, json.loads(body)
 
 
-def upload(server, run="geo-test", *, token=None, name="first.png"):
+def upload(server, run="geo-test", *, token=None, name="first.png", grey=110):
     headers = {"Content-Type": "image/png", "X-Filename": name}
     if token:
         headers["X-Photo-Token"] = token
-    return json_request(server, "POST", "/api/photos?run=" + run, png(), headers)
+    return json_request(server, "POST", "/api/photos?run=" + run, png(grey), headers)
 
 
 def test_upload_list_serve_roundtrip_and_local_phone_link(tmp_path):
@@ -154,13 +159,14 @@ def test_upload_list_serve_roundtrip_and_local_phone_link(tmp_path):
         code, first = upload(s, name="..%2F..%2F%E7%85%A7%E7%89%87.png")
         assert code == 200 and first["name"] == "照片.png"
         assert set(first) == {"id", "name", "url", "time"}
-        code, second = upload(s, name="second.png")
+        code, second = upload(s, name="second.png", grey=120)
         assert code == 200
-        assert json_request(s, "GET", "/api/photos?run=geo-test") == (200, dict(photos=[listed(first), listed(second)]))
+        code, listing = json_request(s, "GET", "/api/photos?run=geo-test")
+        assert code == 200 and photos_of(listing) == [listed(first), listed(second)]
         code, body, headers = request(s, "GET", first["url"])
         assert code == 200 and body == png() and headers["Content-Type"] == "image/png"
         assert (tmp_path / "results/geo-test/photos" / (first["id"] + ".png")).read_bytes() == png()
-        assert json_request(s, "GET", "/api/photos?run=geo-other") == (200, dict(photos=[]))
+        assert photos_of(json_request(s, "GET", "/api/photos?run=geo-other")[1]) == []
         assert request(s, "GET", first["url"].replace("geo-test", "geo-other"))[0] == 404
         assert request(s, "GET", "/api/photos?run=..%2Foutside")[0] == 404
         assert request(s, "GET", "/api/photos/geo-test/..%2Fsummary.json")[0] == 404
@@ -177,7 +183,7 @@ def test_phone_tokens_are_scoped_and_do_not_grant_main_session(tmp_path):
         token = path.rsplit("/", 1)[1]
         assert len(token) >= 43 and token != s.token
         code, html, headers = request(s, "GET", path)
-        assert code == 200 and '把整张盘放进圈里'.encode() in html
+        assert code == 200 and '拍摄标靶'.encode() in html and b"/home/photowords.mjs" in html
         assert b'capture="environment"' in html and b'__PHOTO_CONFIG__' not in html
         assert b'"run": "geo-test"' in html and 'discprobe_session=' not in headers.get('Set-Cookie', '')
         assert request(s, "GET", "/phone/wrong")[0] == 403
@@ -186,6 +192,7 @@ def test_phone_tokens_are_scoped_and_do_not_grant_main_session(tmp_path):
         auth = {"X-Photo-Token": token}
         assert json_request(s, "GET", "/api/photos?run=geo-test", headers=auth)[1]["photos"] == [listed(row)]
         assert request(s, "GET", "/home/guidance.mjs", headers=auth)[0] == 200
+        assert request(s, "GET", "/home/photowords.mjs", headers=auth)[0] == 200
         assert request(s, "GET", "/home/", headers=auth)[0] == 403
         assert request(s, "GET", row["url"] + "?token=" + token)[1] == png()
         assert request(s, "GET", "/api/photos?run=geo-other", headers=auth)[0] == 403
@@ -214,11 +221,12 @@ def test_upload_body_limit_content_type_and_auth_before_body(tmp_path):
         # Only the declared length is sent: a refused request must not read the oversized body.
         headers = {"Content-Type": "image/png", "Content-Length": str(max(webui.DESIGN_SIDES) + 1)}
         assert request(s, "POST", "/api/photos?run=geo-test", headers=headers)[0] == 413
-        assert json_request(s, "GET", "/api/photos?run=geo-test")[1] == dict(photos=[])
+        assert photos_of(json_request(s, "GET", "/api/photos?run=geo-test")[1]) == []
         for kind, extension in photo.PHOTO_TYPES.items():
-            code, row = json_request(s, "POST", "/api/photos?run=geo-test", b"original bytes", {"Content-Type": kind})
+            body = b"original bytes " + kind.encode()
+            code, row = json_request(s, "POST", "/api/photos?run=geo-test", body, {"Content-Type": kind})
             assert code == 200
-            assert (tmp_path / "results/geo-test/photos" / (row["id"] + "." + extension)).read_bytes() == b"original bytes"
+            assert (tmp_path / "results/geo-test/photos" / (row["id"] + "." + extension)).read_bytes() == body
     assert not s.backend.photos.tokens
 
 
@@ -314,13 +322,18 @@ def test_photo_web_job_result_and_validation(tmp_path):
         job = s.backend.get_job(started["job"])
         assert job.finished.wait(45)
         assert job.exit == 0 and job.media == "dvd" and job.result["verdict"] == "unsure"
-        assert set(job.result) == {"verdict", "per_photo", "rings_mm", "offset_mm", "L_frames", "confidence", "path", "provisional_mm"}
+        assert set(job.result) == {"verdict", "per_photo", "rings_mm", "offset_mm", "L_frames", "confidence", "path", "provisional_mm",
+                                   "group", "adoption", "application", "seconds"}
+        assert job.result["adoption"]["state"] == "none" and job.result["seconds"] >= 0
         assert job.result["per_photo"][0]["id"] == row["id"]
         assert job.result["per_photo"][0]["status"] == "no_rim"
         record = json.loads((tmp_path / "results/geo-test/photo.json").read_text(encoding="utf-8"))
         assert record["burn_path"] == dict(burner="TEST:", path="IMAPI", mode="2048-byte data sectors")
         listing = json_request(s, "GET", "/api/photos?run=geo-test")[1]
-        assert listing["verdict"] == "unsure"
+        assert listing["verdict"] == "unsure" and listing["read_photos"] == [row["id"]]
+        assert listing["analysis"]["state"] == "done" and listing["analysis"]["photos"] == [row["id"]]
+        assert listing["analysis"]["seconds"] == pytest.approx(job.finished_at - job.started_at, abs=0.1)
+        assert listing["read_at"] >= row["time"] and listing["adoption"]["state"] == "none"
         assert listing["photos"][0] == {**row, **job.result["per_photo"][0]}
         assert any(e["type"] == "result" and e.get("step") == "photo" for e in job.history)
         for change in (dict(run="geo-other"), dict(photos=["../x"]), dict(photos=[]), dict(photos=[row["id"], row["id"]]),
@@ -414,3 +427,82 @@ def test_sealed_blind_photos_through_command(tmp_path):
     assert result["verdict"] == recorded["group"]["status"] == "ok"
     assert result["offset_mm"] == pytest.approx(recorded["group"]["L_mm"], abs=.33)
     assert abs(result["offset_mm"] + 2.291) <= .33
+
+
+def test_duplicate_upload_is_refused_before_it_is_stored(tmp_path):
+    with serving(tmp_path) as s:
+        first = upload(s)[1]
+        code, body = upload(s, name="again.png")
+        assert code == 409 and body["code"] == "duplicate_photo" and body["duplicate_of"] == first["id"]
+        assert [p["id"] for p in photos_of(json_request(s, "GET", "/api/photos?run=geo-test")[1])] == [first["id"]]
+        # The same bytes in another run are that run's own first photo.
+        assert upload(s, "geo-other")[0] == 200
+        assert upload(s, grey=90)[0] == 200
+
+
+def test_listing_says_whether_the_computer_page_is_open_and_on_which_run(tmp_path):
+    with serving(tmp_path, lan=True) as s, patch.object(photo, "lan_ips", return_value=["192.168.1.10"]):
+        session = {"X-Discprobe-Token": s.token}
+        token = urlsplit(json_request(s, "GET", "/api/phone-link?run=geo-test", headers=session)[1]["url"]).path.rsplit("/", 1)[1]
+        phone = {"X-Photo-Token": token}
+        listing = json_request(s, "GET", "/api/photos?run=geo-test", headers=phone)[1]
+        assert listing["desk_age"] is None and listing["desk_elsewhere"] is False and listing["analysis"] is None
+        # The phone's own polls never count as the computer's page.
+        assert json_request(s, "GET", "/api/photos?run=geo-test", headers=phone)[1]["desk_age"] is None
+        json_request(s, "GET", "/api/photos?run=geo-test", headers=session)
+        listing = json_request(s, "GET", "/api/photos?run=geo-test", headers=phone)[1]
+        assert 0 <= listing["desk_age"] < 5 and listing["desk_elsewhere"] is False
+        # The computer moved to another run: the old phone is told, and still only sees its own run.
+        json_request(s, "GET", "/api/photos?run=geo-other", headers=session)
+        listing = json_request(s, "GET", "/api/photos?run=geo-test", headers=phone)[1]
+        assert listing["desk_elsewhere"] is True and "geo-other" not in json.dumps(listing)
+
+
+@pytest.mark.parametrize("record, state", [
+    (None, "none"),
+    (dict(verdict="ok", group=dict(status="ok", n_ok=2, n_agree=2, spread_mm=.01)), "adopted"),
+    (dict(verdict="unsure", group=dict(status="provisional", why="only one photo passed", n_ok=1)), "provisional"),
+    (dict(verdict="unsure", group=dict(status="unknown", why="photos disagree", n_ok=2, spread_mm=.4)), "disagree"),
+    (dict(verdict="unsure", group=dict(status="unknown", why="the photos' L scans disagree", n_ok=0)), "disagree"),
+    (dict(verdict="unsure", group=dict(status="unknown", why="fewer than two photos with a clear peak")), "none"),
+])
+def test_photo_adoption_of_records_before_the_two_pose_rule(record, state):
+    result = webui.photo_adoption(record)
+    assert result["state"] == state
+
+
+@pytest.mark.parametrize("agreement, extra, state, reason", [
+    (dict(written=True, L_mm=1.0, photo_ids=["a", "b"]), dict(verdict="ok"), "adopted", None),
+    (dict(written=False, reason="one_photo_provisional"), dict(verdict="unsure", provisional_mm=1.2), "provisional", "one_photo_provisional"),
+    (dict(written=False, reason="photos_disagree"), dict(verdict="unsure"), "disagree", "photos_disagree"),
+    (dict(written=False, reason="same_pose"), dict(verdict="unsure"), "refused", "same_pose"),
+    (dict(written=False, reason="duplicate_photo"), dict(verdict="unsure"), "refused", "duplicate_photo"),
+    (dict(written=True, L_mm=1.0, photo_ids=["a", "b"]), dict(verdict="unsure"), "refused", "group_not_ok"),
+    (dict(written=False, reason="no_accepted_photos"), dict(verdict="unsure"), "none", "no_accepted_photos"),
+])
+def test_photo_adoption_follows_the_core_two_pose_rule(agreement, extra, state, reason):
+    photos = [dict(status="ok", L_mm=1.0), dict(status="ok", L_mm=1.4), dict(status="no_rim")]
+    result = webui.photo_adoption(dict(application_agreement=agreement, photos=photos, disc_id="T1", **extra))
+    assert result["state"] == state and result["reason"] == reason and result["source"] == "core"
+    assert result["n_ok"] == 2 and result["disc_id"] == "T1"
+    if state == "provisional":
+        assert result["provisional_mm"] == 1.2
+    if state == "disagree":
+        assert result["spread_mm"] == pytest.approx(.4)
+    if state == "adopted":
+        assert result["n_agree"] == 2
+
+
+def test_listing_carries_the_application_gate_and_the_disc_number(tmp_path):
+    with serving(tmp_path) as s:
+        upload(s)
+        listing = json_request(s, "GET", "/api/photos?run=geo-test")[1]
+        assert listing["application"] == dict(written=False, reason="no_photo")
+        folder = tmp_path / "results/geo-test"
+        (folder / "photo.json").write_text(json.dumps(dict(verdict="unsure", media="cd", per_photo=[], photos=[], disc_id="T1",
+            provisional_mm=None, application_agreement=dict(written=False, reason="no_accepted_photos"))), encoding="utf-8")
+        listing = json_request(s, "GET", "/api/photos?run=geo-test")[1]
+        assert listing["disc_id"] == "T1" and listing["adoption"]["state"] == "none"
+        assert listing["application"]["written"] is False and listing["application"]["reason"]
+        # The gate's reason is a code the pages translate, never a sentence with a colon.
+        assert ":" not in listing["application"]["reason"]
