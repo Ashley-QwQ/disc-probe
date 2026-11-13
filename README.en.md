@@ -23,12 +23,40 @@
 
 ## Preview
 
+<img src="docs/showcase/qingming5um_overview.jpg" width="75%" alt="Where each close-up was taken, on a render of the burned ISO, next to a 550 ml bottle at the same scale">
+
+This Qingming disc was drawn with cells of about 4 to 6 µm. Above is where each close-up below was taken, drawn on a render of the ISO that was burned (light is texture `92`, dark is `A5`), next to a 550 ml bottle at the same scale. We have no microscope, so the close-ups are phone photos through a reversed SLR lens. Their magnification differs from shot to shot: the round field seen through the lens is about 5 to 23 mm across. The scale and position of each were worked out by matching the photo to the design, and each has a scale bar. A single cell is still at or below what the phone resolves. The colours are just the disc's diffraction.
+
+<img src="docs/showcase/qingming5um_1_wide_pair.jpg" width="85%" alt="The bridge and the crowd">
+
+1 · The bridge and the crowd · field about 23 mm
+
+<img src="docs/showcase/qingming5um_2_houses_pair.jpg" width="85%" alt="Ox carts and houses by the ring edge">
+
+2 · Ox carts and houses by the ring edge · field about 12 mm
+
+<img src="docs/showcase/qingming5um_3_roof_pair.jpg" width="85%" alt="A roof and the gap between the rings">
+
+3 · A roof and the gap between the rings · field about 5 mm
+
+<img src="docs/showcase/qingming5um_4_street_pair.jpg" width="85%" alt="A street with a gate">
+
+4 · A street with a gate · field about 6 mm
+
+<img src="docs/showcase/qingming5um_5_figures_pair.jpg" width="85%" alt="People on the street and a tiled roof">
+
+5 · People on the street and a tiled roof · field about 6 mm
+
+<img src="docs/showcase/qingming5um_6_trees_pair.jpg" width="85%" alt="Old willows, every branch drawn">
+
+6 · Old willows, every branch drawn · field about 12 mm
+
 <p>
 <img src="docs/showcase/qingming_title.jpg" width="42%" alt="Title and part of Along the River During the Qingming Festival on the data side of a DVD-R">
 <img src="docs/showcase/qingming_full.jpg" width="55%" alt="The whole disc, with the painting laid out in two rings">
 </p>
 
-*Along the River During the Qingming Festival* on a Ritek F1 DVD-R, straight from the burner. The geometry came entirely from read timing, and the disc was burned once, with no test burn, photo calibration or scan correction. These are phone photos, cropped to the disc and downsized, with the background blurred.
+Above, an earlier *Along the River During the Qingming Festival* disc, drawn with 20 µm cells, on a Ritek F1 DVD-R, straight from the burner. The geometry came entirely from read timing, and the disc was burned once, with no test burn, photo calibration or scan correction. These are phone photos, cropped to the disc and downsized, with the background blurred.
 
 ## How it works
 
@@ -223,34 +251,6 @@ The green line in this plot is that disc. The measurement plan was [registered b
 <img src="docs/showcase/dense_motifs.jpg" width="75%" alt="Macro photo of impossible triangles, small figures and line groups along the top">
 
 A macro photo of the dense tiling disc, also burned once. The impossible triangles are 4.2 mm wide and the small figures are 6.8 mm tall. Along the top are groups of three lines for testing line width. The smallest triangle, 1 mm wide with edges of about 0.15 mm, is clearly visible to the naked eye. A 600 dpi scan separates 0.12 mm lines and barely resolves 0.08 mm, which is the scanner's limit.
-
-<img src="docs/showcase/qingming5um_overview.jpg" width="75%" alt="Where each close-up was taken, on a render of the burned ISO, next to a 550 ml bottle at the same scale">
-
-Finer still: a second Qingming disc was drawn with cells of about 4 to 6 µm. Above is where each close-up below was taken, drawn on a render of the ISO that was burned (light is texture `92`, dark is `A5`), next to a 550 ml bottle at the same scale. We have no microscope, so the close-ups are phone photos through a reversed SLR lens. Their magnification differs from shot to shot: the round field seen through the lens is about 5 to 23 mm across. The scale and position of each were worked out by matching the photo to the design, and each has a scale bar. A single cell is still at or below what the phone resolves. The colours are just the disc's diffraction.
-
-<img src="docs/showcase/qingming5um_1_wide_pair.jpg" width="85%" alt="The bridge and the crowd">
-
-1 · The bridge and the crowd · field about 23 mm
-
-<img src="docs/showcase/qingming5um_2_houses_pair.jpg" width="85%" alt="Ox carts and houses by the ring edge">
-
-2 · Ox carts and houses by the ring edge · field about 12 mm
-
-<img src="docs/showcase/qingming5um_3_roof_pair.jpg" width="85%" alt="A roof and the gap between the rings">
-
-3 · A roof and the gap between the rings · field about 5 mm
-
-<img src="docs/showcase/qingming5um_4_street_pair.jpg" width="85%" alt="A street with a gate">
-
-4 · A street with a gate · field about 6 mm
-
-<img src="docs/showcase/qingming5um_5_figures_pair.jpg" width="85%" alt="People on the street and a tiled roof">
-
-5 · People on the street and a tiled roof · field about 6 mm
-
-<img src="docs/showcase/qingming5um_6_trees_pair.jpg" width="85%" alt="Old willows, every branch drawn">
-
-6 · Old willows, every branch drawn · field about 12 mm
 
 ### Colour (experimental)
 
