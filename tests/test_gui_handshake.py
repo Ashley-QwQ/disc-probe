@@ -132,7 +132,7 @@ class HandshakeTests(unittest.TestCase):
                          'discprobe/web/home/handshake.mjs', 'discprobe/web/fonts/MonaSans-VF.ttf',
                          'discprobe/web/home/sim/textures.bin', 'discprobe/_presets/catalogue.json',
                          'discprobe/_data/community-calibrations/dis-github.json',
-                         'discprobe/_tools/burn_imapi.ps1', 'tools/burn_imapi.ps1',
+                         'discprobe/_tools/burn_imapi.ps1', 'tools/burn_imapi.ps1', 'tools/geo_polyfit.py',
                          'tests/data/bd_discussion_samples/local_uj272_bd_zones.csv', 'discprobe/simulate_lut.npz'):
                 self.assertIn(name, names)
             metadata = wheel.read(next(n for n in names if n.endswith('.dist-info/METADATA'))).decode()

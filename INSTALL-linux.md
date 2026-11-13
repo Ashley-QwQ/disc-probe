@@ -26,6 +26,16 @@ dp-venv/bin/disc-probe selftest
 构建后端仅使用 Python 标准库，不需要联网获取构建依赖。依赖 wheel
 需提前备好，`pipx` 本身也需预先安装；发行包并未发布到 PyPI。
 
+若 Ubuntu 缺少 ensurepip，又不能联网装 `python3.12-venv`，可由已有的
+pip（22.3 或更新版）仅充当安装器，目标仍是全新隔离环境：
+
+```sh
+python3 -m venv --without-pip dp-new-venv
+~/dp-venv/bin/python -m pip --python dp-new-venv install --no-index --find-links=wheelhouse ./disc_probe-1.0.0a0-py3-none-any.whl
+```
+
+上例不会把旧 venv 的 NumPy 等已安装依赖复用到新环境，仍需全部依赖 wheel。
+
 网页、设计和自检无需光驱。光盘测量和写入需要另行安装发行版提供的工具：
 
 | 介质／用途 | 外部工具 |

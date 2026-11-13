@@ -130,6 +130,30 @@ def main():
         info = dict(commit=commit, public_version=args.version, source_archive_sha256=hashlib.sha256(archive).hexdigest())
         write_json(snapshot / 'release-build.json', info)
         python = [sys.executable, '-X', 'utf8', '-B']
+        # Test installable candidates before the expensive source suite. They
+        # become public assets only after every gate passes; copy their exact
+        # bytes so the recorded wheel verification hash remains authoritative.
+        candidates = out / 'candidate-assets'
+        run_check([*python, '-c', 'import _build_backend as b; print(b.build_wheel("../candidate-assets")); print(b.build_sdist("../candidate-assets"))'],
+                  snapshot, logs / 'source-build.log', env, checks)
+        run_check([*python, str(snapshot/'tools/verify_source.py'), '--assets', str(candidates),
+                   '--out', str(out/'from-sdist')], snapshot, logs/'sdist-equivalence.log', env, checks)
+        venv = out / 'wheel-venv'
+        run_check([*python, '-m', 'venv', str(venv)], out, logs/'wheel-venv.log', env, checks)
+        copy_code = ("import importlib.util,shutil; "
+                     f"s=importlib.util.spec_from_file_location('winpack_deps',{str(snapshot/'tools/build_winpack.py')!r}); "
+                     "b=importlib.util.module_from_spec(s); s.loader.exec_module(b); "
+                     f"b.copy_packages({str(deps)!r},{str(out/'wheel-dependencies')!r}); "
+                     f"shutil.copytree({str(out/'wheel-dependencies')!r},{str(venv/'Lib/site-packages')!r},dirs_exist_ok=True)")
+        run_check([*python, '-c', copy_code], out, logs/'wheel-dependencies.log', env, checks)
+        wheel_python = str(venv/'Scripts/python.exe')
+        wheel, = candidates.glob('*.whl')
+        run_check([wheel_python, '-B', '-m', 'pip', 'install', '--no-index', '--no-deps', str(wheel)],
+                  out, logs/'wheel-install.log', env, checks)
+        run_check([wheel_python, '-B', '-m', 'pip', 'check'], out, logs/'wheel-pip-check.log', env, checks)
+        run_check([wheel_python, '-X', 'utf8', '-B', str(snapshot/'tools/verify_package.py'),
+                   '--artifact', str(wheel), '--expected-root', str(venv), '--version', args.version,
+                   '--out', str(out/'wheel-proof')], out, logs/'wheel-verify.log', env, checks)
         run_check([*python, '-m', 'pytest', '-q', 'tests', 'tests/scipy_oracle_checks.py',
                    '-p', 'no:cacheprovider', '--ignore-glob=*b[l]ind*'], snapshot, logs / 'pytest.log', env, checks)
         scripts = sorted(p for p in (snapshot / 'tests').iterdir() if allowed(p.name)
@@ -139,14 +163,13 @@ def main():
         for script in scripts:
             run_check([node, str(script)], snapshot, logs / (script.name + '.log'), env, checks, 180)
         run_check([*python, '-m', 'discprobe', 'selftest'], snapshot, logs / 'selftest.log', env, checks)
-        run_check([*python, '-c', 'import _build_backend as b; print(b.build_wheel("../assets")); print(b.build_sdist("../assets"))'],
-                  snapshot, logs / 'source-build.log', env, checks)
-        run_check([*python, str(snapshot/'tools/verify_source.py'), '--assets', str(out/'assets'),
-                   '--out', str(out/'from-sdist')], snapshot, logs/'sdist-equivalence.log', env, checks)
         run_check([*python, str(snapshot / 'tools/build_winpack.py'), '--source-root', str(snapshot),
                    '--commit', commit, '--ref', commit, '--label', args.version, '--cache', str(cache), '--out', str(out / 'winpack')],
                   snapshot, logs / 'winpack-build.log', env, checks)
         assets = out / 'assets'
+        assets.mkdir()
+        for path in candidates.iterdir():
+            shutil.copy2(path, assets/path.name)
         for path in (out / 'winpack').glob('*.zip'):
             shutil.copy2(path, assets / path.name)
         shutil.copy2(snapshot / 'INSTALL-linux.md', assets / 'INSTALL-linux.md')
