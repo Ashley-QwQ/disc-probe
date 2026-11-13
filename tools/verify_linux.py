@@ -62,7 +62,7 @@ print(json.dumps(dict(root=str(root),affinity=sorted(os.sched_getaffinity(0)),ni
         remote('verify', """for item in cfg['inputs']:
  p=root/'wheelhouse'/item['file']
  with p.open('rb') as f: assert hashlib.file_digest(f,'sha256').hexdigest()==item['sha256']
-env=dict(os.environ,PYTHONUTF8='1',PYTHONDONTWRITEBYTECODE='1',PIP_NO_INDEX='1',PIP_DISABLE_PIP_VERSION_CHECK='1',OPENBLAS_NUM_THREADS='1',OMP_NUM_THREADS='1',MKL_NUM_THREADS='1',NUMEXPR_NUM_THREADS='1')
+env=dict(os.environ,PYTHONUTF8='1',PYTHONDONTWRITEBYTECODE='1',PIP_NO_INDEX='1',PIP_DISABLE_PIP_VERSION_CHECK='1',OPENBLAS_NUM_THREADS='1',OMP_NUM_THREADS='1',MKL_NUM_THREADS='1',NUMEXPR_NUM_THREADS='1',DISCPROBE_WORKERS='1')
 def call(name,cmd):
  with (root/(name+'.log')).open('w') as log: subprocess.run(cmd,env=env,cwd=root,stdout=log,stderr=subprocess.STDOUT,check=True)
 call('venv',['python3','-m','venv',str(root/'venv')])

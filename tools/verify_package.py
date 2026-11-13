@@ -36,7 +36,8 @@ def main():
     out = a.out.resolve(); out.mkdir(parents=True, exist_ok=True)
     os.chdir(out)
     env = dict(os.environ, PYTHONUTF8='1', PYTHONDONTWRITEBYTECODE='1',
-               OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1', MKL_NUM_THREADS='1', NUMEXPR_NUM_THREADS='1')
+               OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1', MKL_NUM_THREADS='1', NUMEXPR_NUM_THREADS='1',
+               DISCPROBE_WORKERS='1')
     python = [sys.executable, '-X', 'utf8', '-B']
     result = dict(status='RUNNING', platform=platform.platform(), python=sys.version,
                   executable=sys.executable, artifact=dict(file=a.artifact.name, size=a.artifact.stat().st_size,

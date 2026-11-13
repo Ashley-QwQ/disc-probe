@@ -111,7 +111,8 @@ def main():
     snapshot = out / 'build-copy'; snapshot.mkdir()
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', PYTHONUTF8='1', PIP_NO_INDEX='1',
                PIP_DISABLE_PIP_VERSION_CHECK='1', PYTEST_DISABLE_PLUGIN_AUTOLOAD='1',
-               OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1', MKL_NUM_THREADS='1', NUMEXPR_NUM_THREADS='1')
+               OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1', MKL_NUM_THREADS='1', NUMEXPR_NUM_THREADS='1',
+               DISCPROBE_WORKERS='1')  # Parent + one image worker: at most two heavy processes.
     checks = []
     original_version = (ROOT / 'discprobe/version.py').read_bytes()
     try:
@@ -157,6 +158,7 @@ def main():
                         if d.metadata['Name'].lower() in {p.lower() for p in PACKAGES}}
         inventory = [dict(file=p.name, size=p.stat().st_size, sha256=sha256(p)) for p in sorted(assets.iterdir())]
         manifest = dict(schema=1, status='PASS', **info, pep440_version=canonical, gui_version=gui['gui_version'],
+                        resource_limits=dict(image_workers=1, math_threads=1),
                         python=sys.version, node=subprocess.check_output([node, '--version'], text=True).strip(),
                         check_dependencies={n: importlib.metadata.version(n) for n in (*PACKAGES, 'pytest')},
                         windows=dict(python='3.13.14', dependencies=dependencies, embed_sha256=sha256(embed)),
