@@ -12,8 +12,9 @@
 | [`texture_cards_v3_d65.pdf`](texture_cards_v3_d65.pdf) | 同样四页，D65 日光 |
 | `data/palette_merged.json` | 输入：637 种纹理的 ID、spec、周期、实测块纯度，按页分组 |
 | `data/<页>_<led\|d65>_manifest.json` | 每行一条记录（ID、spec、周期 µm、空间频率、在页面上的位置），以及该页的固定曝光 |
-| `scripts/` | 生成脚本，按我们实际运行时的样子发布（见下） |
+| `scripts/` | 生成脚本（见下） |
 | `checks/` | 复现对照、物理自检、模型和源文件哈希 |
+| `research/` | 早先颜色模型的参考输入，`verify_v3.py` 要用 |
 
 | 页 | 内容 | 条数 |
 |---|---|---:|
@@ -38,14 +39,19 @@ LED 光谱是名义上的解析白光 LED（450 nm 和 560 nm 两个高斯峰）
 
 ## 运行脚本
 
-脚本按我们实际运行时的样子发布。它们会导入本仓库的 `discprobe.efmplus`、`discprobe.dvd` 和 `tools/dsv_block.py`；`scripts/wave_model.py` 开头的 `ROOT` 和 `scripts/make_cards.py` 开头的源文件、字体路径指向我们自己的目录，运行前要改。需要 Python 3.13、NumPy、Pillow，不用 GPU 和网络。637 条全部重算，两个进程约 20–30 分钟。
+在本仓库的克隆里运行，所有路径都相对于仓库。脚本会导入仓库里的 `discprobe.efmplus`、`discprobe.dvd` 和 `tools/dsv_block.py`，读取 `data/` 里的输入，产出全部写到本说明旁边的 `build/`。`research/` 里是早先颜色模型的参考输入（`spectra.npz`，以及 `verify_v3.py` 复用其中函数的两个源文件）。
+
+需要 Python 3.13、NumPy、Pillow，不用 GPU 和网络。页面字体用仓库里的 `discprobe/web/fonts`（MonaSans、Archivo），加上 Windows 系统字体（中文微软雅黑、数字 Consolas）；找不到时退回 Arial，所以在其他系统上排版会不一样。在 `docs/texture-cards/` 里运行：
 
 ```
-python render_all.py --estimate          # 只估时间
-python render_all.py --layout-check      # 只查排版，不算颜色
-python render_all.py --sheets 1          # 第 1 页，两种灯
-python render_all.py --sheets all --lamps LED
+python scripts/render_all.py --estimate          # 只估时间
+python scripts/render_all.py --layout-check      # 只查排版，不算颜色
+python scripts/verify_v3.py                      # 复现对照，完整渲染前必须先跑
+python scripts/render_all.py --sheets 1          # 第 1 页，两种灯
+python scripts/render_all.py --sheets all --lamps LED
 ```
+
+637 条全部重算，两个进程约 20–30 分钟。`checks/` 里是我们自己那次运行的结果。
 
 ## 局限
 

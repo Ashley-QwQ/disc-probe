@@ -15,8 +15,9 @@ only sheet 1 has had a full-size visual check by hand.**
 | [`texture_cards_v3_d65.pdf`](texture_cards_v3_d65.pdf) | The same under D65 daylight |
 | `data/palette_merged.json` | Input: the 637 textures (id, spec, periods, measured block purity), grouped by sheet |
 | `data/<sheet>_<led\|d65>_manifest.json` | One record per row (id, spec, periods in µm, spatial frequency, position on the page) and the sheet's fixed exposure |
-| `scripts/` | The generator, as we ran it (see below) |
+| `scripts/` | The generator (see below) |
 | `checks/` | Reproduction checks, physics self-checks, model and source hashes |
+| `research/` | Reference inputs from the earlier colour model, used by `verify_v3.py` |
 
 | Sheet | Content | Rows |
 |---|---|---:|
@@ -49,17 +50,24 @@ The LED spectrum is a nominal analytic white LED (Gaussians at 450 and 560 nm), 
 
 ## Running the scripts
 
-The scripts are published as we ran them. They import `discprobe.efmplus`, `discprobe.dvd` and `tools/dsv_block.py`
-from this repository, and a few paths at the top of `scripts/wave_model.py` (`ROOT`) and `scripts/make_cards.py`
-(source, fonts) point to our own checkout. Adjust those before running. Python 3.13, NumPy and Pillow; no GPU or
-network. A full run of all 637 rows took about 20–30 minutes with two processes.
+Run them from a clone of this repository; every path is relative to it. They import `discprobe.efmplus`,
+`discprobe.dvd` and `tools/dsv_block.py` from the repository, read the inputs in `data/`, and write everything they
+produce to `build/` next to this README. `research/` holds the reference inputs from our earlier colour model
+(`spectra.npz` and the two source files whose functions `verify_v3.py` reuses).
+
+Python 3.13, NumPy and Pillow; no GPU or network. The page fonts are the repository's `discprobe/web/fonts`
+(MonaSans, Archivo) plus Windows system fonts (Microsoft YaHei for Chinese, Consolas); if one is missing the scripts
+fall back to Arial, so on other systems the layout will differ. Run in `docs/texture-cards/`:
 
 ```
-python render_all.py --estimate          # time estimate only
-python render_all.py --layout-check      # layout only, no colours
-python render_all.py --sheets 1          # sheet 1, both lamps
-python render_all.py --sheets all --lamps LED
+python scripts/render_all.py --estimate          # time estimate only
+python scripts/render_all.py --layout-check      # layout only, no colours
+python scripts/verify_v3.py                      # reproduction checks, needed before a full render
+python scripts/render_all.py --sheets 1          # sheet 1, both lamps
+python scripts/render_all.py --sheets all --lamps LED
 ```
+
+A full run of all 637 rows took about 20–30 minutes with two processes. `checks/` holds the results from our own run.
 
 ## Limits
 

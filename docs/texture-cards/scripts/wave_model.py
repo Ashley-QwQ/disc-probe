@@ -18,12 +18,12 @@ import numpy as np
 from colour_tables import responses, observer, illuminant, XYZ_TO_SRGB
 
 HERE = Path(__file__).resolve().parent
-ROOT = Path('D:/disc-probe')
-RESEARCH = ROOT / 'docs/goals/colour-sim'
-OUT = HERE / 'v3'
+ROOT = HERE.parents[2]                 # repository root (scripts -> texture-cards -> docs -> root)
+RESEARCH = HERE.parent / 'research'    # reference inputs from the earlier colour model
+OUT = HERE.parent / 'build'
 CACHE = OUT / 'checkpoints'
 for p in (OUT,CACHE):
-    p.mkdir(exist_ok=True)
+    p.mkdir(parents=True,exist_ok=True)
 sys.path.insert(0,str(ROOT))
 sys.path.insert(0,str(ROOT/'tools'))
 from discprobe import efmplus as E, dvd
@@ -44,9 +44,7 @@ VERSION = 'wave-v3-real-row-phase-ecc-random-context-20261112b'
 SOURCE_PATHS = [ROOT/'discprobe/efmplus.py',ROOT/'discprobe/efmplus_tables.py',
                 ROOT/'discprobe/dvd.py',ROOT/'tools/dsv_block.py',
                 ROOT/'discprobe/imagedisc.py',
-                RESEARCH/'report.md',RESEARCH/'prereg.md',RESEARCH/'spectra.py',
-                RESEARCH/'spectra_iso.py',RESEARCH/'check_2d.py',
-                RESEARCH/'model.py',RESEARCH/'common.py',
+                RESEARCH/'spectra.py',RESEARCH/'check_2d.py',
                 HERE/'colour_tables.py',HERE/'wave_model.py']
 
 
@@ -75,7 +73,7 @@ def sha(p):
 
 def atomic_json(path, value):
     path = Path(path).resolve()
-    assert path.is_relative_to(HERE)
+    assert path.is_relative_to(HERE.parent)   # only inside docs/texture-cards
     tmp=path.with_suffix(path.suffix+'.tmp')
     tmp.write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     tmp.replace(path)
@@ -84,7 +82,7 @@ def atomic_json(path, value):
 def signature():
     d={'version':VERSION,'T_um':T_UM,'W_um':WIDTH_UM,'edge_sigma_um':EDGE_SIGMA_UM,
        'dl_um':LENGTH_OFFSET_UM,'samples':SAMPLES,'df':DF,'starts':STARTS,
-       'source_hashes':{p.as_posix():sha(p) for p in SOURCE_PATHS}}
+       'source_hashes':{p.relative_to(ROOT).as_posix():sha(p) for p in SOURCE_PATHS}}
     return hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest(), d
 
 
@@ -167,7 +165,7 @@ def texture_mass(spec, progress=None):
         if progress:
             progress(seed+1,elapsed)
     return np.mean(masses,axis=0), {'spec':spec,'samples':len(masses),'seconds':elapsed,
-                                   'checkpoint':path.relative_to(HERE).as_posix(),
+                                   'checkpoint':path.relative_to(HERE.parent).as_posix(),
                                    'power_sample_CV':float(np.std(np.sum(masses,axis=1))/np.mean(np.sum(masses,axis=1)))}
 
 

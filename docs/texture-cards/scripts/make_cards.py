@@ -19,10 +19,13 @@ import numpy as np
 from PIL import Image, ImageCms, ImageDraw, ImageFont
 
 HERE = Path(__file__).resolve().parent
-PALETTE = HERE.parent / 'palette_merged.json'
-SOURCE = Path('D:/disc-probe/.claude/worktrees/editor-template/discprobe/first_order.py')
-SCATTER = Path('D:/disc-probe/tools/lut_scatter.py')
-FONTS = Path('D:/disc-probe/.claude/worktrees/editor-ui/discprobe/web/fonts')
+PALETTE = HERE.parent / 'data' / 'palette_merged.json'
+ROOT = HERE.parents[2]                 # repository root
+# wavelength_rgb was first read from an editor branch's first_order.py; tools/lut_scatter.py holds the same
+# executable body (colour_source() checks this), so the repository copy is used.
+SOURCE = ROOT / 'tools' / 'lut_scatter.py'
+SCATTER = ROOT / 'tools' / 'lut_scatter.py'
+FONTS = ROOT / 'discprobe' / 'web' / 'fonts'   # MonaSans / Archivo; missing fonts fall back to Arial
 DATE = '2026-11-11'
 W, H, DPI = 3508, 4961, 300
 MARGIN = 142
@@ -68,11 +71,12 @@ def font(kind, size):
         'note': FONTS / 'Archivo-VF.ttf',
     }
     p = paths[kind]
-    if not p.exists():
+    fallback = not p.exists()
+    if fallback:
         p = Path('C:/Windows/Fonts/arial.ttf')
     FONT_LOG[kind] = str(p)
     f = ImageFont.truetype(str(p), size)
-    if kind == 'note':
+    if kind == 'note' and not fallback:   # Archivo's width/weight axes; a fallback font has none
         f.set_variation_by_axes([500, 75])
     return f
 
@@ -98,7 +102,7 @@ def colour_source():
     # The two docstrings differ; executable statements must be identical.
     assert ast.dump(ast.Module(body=fn.body[1:], type_ignores=[])) == ast.dump(ast.Module(body=peer.body[1:], type_ignores=[]))
     segment = ast.get_source_segment(original, fn)
-    note = f'"""Verbatim DP function. Source: {SOURCE.as_posix()}\nSHA-256 (whole source file): {sha(SOURCE)}\nNo transfer function is present in the original.\n"""\n\n'
+    note = f'"""Verbatim DP function. Source: {SOURCE.relative_to(ROOT).as_posix()}\nSHA-256 (whole source file): {sha(SOURCE)}\nNo transfer function is present in the original.\n"""\n\n'
     write_text('dp_colour.py', note + segment + '\n')
     ns = {}
     exec(compile(ast.Module(body=[fn], type_ignores=[]), str(SOURCE), 'exec'), ns)
@@ -580,7 +584,7 @@ def write_report(data, manifest, pages):
 
 ## 颜色计算与来源
 
-原文件：`{SOURCE.as_posix()}`，SHA-256 `{manifest['source_sha256']['first_order']}`。
+原文件：`{SOURCE.relative_to(ROOT).as_posix()}`，SHA-256 `{manifest['source_sha256']['first_order']}`。
 输入 JSON SHA-256：`{manifest['source_sha256']['palette']}`。
 
 仅提取 `wavelength_rgb`；已用 AST 比较确认它与 `tools/lut_scatter.py` 的可执行函数体相同。它返回粗略的显示 RGB，本身没有 gamma 或 sRGB 转换。因此不能声称沿用了源中不存在的编码逻辑：本脚本采用标准 sRGB 逆变换将其解码为线性光，每条线以 λ = 1000 P δ（P 单位 µm）查询原函数，在 400–700 nm 内按实测块纯度 q 加权相加；裁剪到 [0,1] 后做标准 sRGB 编码。单线 q=1 的原函数 RGB 保持不变。没有更换波长色相模型，没有逐行归一化、曝光提升、灰色底光或再乘目标 share。

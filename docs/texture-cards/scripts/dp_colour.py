@@ -1,4 +1,4 @@
-"""Verbatim DP function. Source: D:/disc-probe/.claude/worktrees/editor-template/discprobe/first_order.py
+"""Verbatim DP function. Source: tools/lut_scatter.py (first read from discprobe/first_order.py on an editor branch; same executable body)
 SHA-256 (whole source file): 8722aa2a074ee1876502a629587536c3a6c522e24fd97e3476c489d4450c9a7e
 No transfer function is present in the original.
 """

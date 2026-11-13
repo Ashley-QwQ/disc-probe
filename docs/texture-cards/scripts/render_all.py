@@ -35,7 +35,7 @@ HERE=M.HERE
 OUT=M.OUT
 PAGE_W,PAGE_H=3508,4961
 PLAIN='颜色由波动光学模型计算（LED 照明、CIE 1931 观察者），待实拍验证 / Colours from a wave-optics model (LED light, CIE 1931 observer), awaiting photos'
-PALETTE_PATH=HERE.parent/'palette_merged.json'
+PALETTE_PATH=HERE.parent/'data'/'palette_merged.json'
 MANIFEST_ROWS=[]
 ANNOTATIONS=[]
 _LOCK_HANDLE=None
@@ -412,8 +412,8 @@ def main():
         flags=0x08000000|0x00000008 if os.name=='nt' else 0
         proc=subprocess.Popen(command,cwd=str(HERE),stdin=subprocess.DEVNULL,stdout=log,stderr=log,
                               creationflags=flags,start_new_session=os.name!='nt')
-        M.atomic_json(OUT/'background.json',{'pid':proc.pid,'command':command,'log':'v3/render.log'})
-        print('Started background renderer PID',proc.pid,'log: v3/render.log');return
+        M.atomic_json(OUT/'background.json',{'pid':proc.pid,'command':command,'log':'build/render.log'})
+        print('Started background renderer PID',proc.pid,'log: build/render.log');return
     validation=OUT/'validation.json'
     if not validation.exists() or 'angular_quadrature_convergence' not in json.loads(validation.read_text(encoding='utf-8')):
         raise RuntimeError('Run verify_v3.py before a complete render')
@@ -456,7 +456,8 @@ def main():
                            'model_signature':manifest['model_signature'],'render_seconds_including_other_lamp':time.perf_counter()-t}
             page_status[key+'_'+lamp]=manifest_info
             print('PAGE',key,lamp,'count',len(sheet['rows']),'exposure',exposure,flush=True)
-            if key=='1' and lamp=='LED':
+            # The v2 sheet and manifest are not published; skip the before/after crop without them.
+            if key=='1' and lamp=='LED' and (HERE/'manifest.json').exists() and (HERE/'sheet_1_singles.png').exists():
                 compare_v2(sheet,xyz[:,:,li,:],exposure)
         write_status({'pages':page_status,'last_requested_sheets':keys,
                       'elapsed_wall_seconds':time.perf_counter()-start,'encode_wall_seconds':encode_seconds,
@@ -475,8 +476,10 @@ def main():
             pdf.write_bytes(L.pdf_bytes(ims))
             L.verify_pdf(pdf,ims)
     try:
-        from update_v3_report import update
+        from update_v3_report import update   # our internal report writer; not published
         update()
+    except ModuleNotFoundError:
+        pass
     except Exception as exc:
         print('Cards completed; report update needs attention:',repr(exc),flush=True)
     print('COMPLETE',keys,'wall_seconds',time.perf_counter()-start,flush=True)

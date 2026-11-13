@@ -14,7 +14,7 @@ import make_cards as L
 
 
 def main():
-    data=json.loads((M.HERE.parent/'palette_merged.json').read_text(encoding='utf-8'))
+    data=json.loads((M.HERE.parent/'data'/'palette_merged.json').read_text(encoding='utf-8'))
     rows=sorted(data['singles'],key=lambda r:(r['periods_um'][0],r['spec']))
     expected=[r['id'] for r in rows]
     result={'model_signature':M.signature()[0],'sheet_1':{},'source_files_unchanged_since_validation':False}
