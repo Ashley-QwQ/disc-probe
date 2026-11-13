@@ -42,9 +42,33 @@ The green line in this plot is that disc. The measurement plan was [registered b
 
 A macro photo of the dense tiling disc, also burned once. The impossible triangles are 4.2 mm wide and the small figures are 6.8 mm tall. Along the top are groups of three lines for testing line width. The smallest triangle, 1 mm wide with edges of about 0.15 mm, is clearly visible to the naked eye. A 600 dpi scan separates 0.12 mm lines and barely resolves 0.08 mm, which is the scanner's limit.
 
-<img src="docs/showcase/qingming5um_wide.jpg" width="32%" alt="The bridge and the crowd, from the 5 µm ring of the Qingming disc"> <img src="docs/showcase/qingming5um_trees.jpg" width="32%" alt="Willow trees with every branch drawn"> <img src="docs/showcase/qingming5um_houses.jpg" width="32%" alt="Houses and roof tiles near the outer edge">
+<img src="docs/showcase/qingming5um_overview.jpg" width="60%" alt="Where each close-up was taken, on a render of the burned ISO, next to a 550 ml bottle at the same scale">
 
-Finer still: the outer ring of the Qingming disc was drawn with cells of about 4 to 6 µm. We have no microscope, so these are phone photos through a reversed SLR lens. Each shows a patch about 24 mm across at about 10 µm per pixel, so a single cell is still below what the phone resolves. The colours are just the disc's diffraction. More photos in [`docs/showcase/`](docs/showcase/) (`qingming5um_*.jpg`).
+Finer still: a second Qingming disc was drawn with cells of about 4 to 6 µm. Above is where each close-up below was taken, drawn on a render of the ISO that was burned (light is texture `92`, dark is `A5`), next to a 550 ml bottle at the same scale. We have no microscope, so the close-ups are phone photos through a reversed SLR lens. Their magnification differs from shot to shot: the round field seen through the lens is about 5 to 23 mm across. The scale and position of each were worked out by matching the photo to the design, and each has a scale bar. A single cell is still at or below what the phone resolves. The colours are just the disc's diffraction.
+
+<img src="docs/showcase/qingming5um_1_wide_where.jpg" width="28%" alt="Position 1"> <img src="docs/showcase/qingming5um_1_wide_scale.jpg" width="48%" alt="The bridge and the crowd">
+
+1 · The bridge and the crowd · field about 23 mm
+
+<img src="docs/showcase/qingming5um_2_houses_where.jpg" width="28%" alt="Position 2"> <img src="docs/showcase/qingming5um_2_houses_scale.jpg" width="48%" alt="Ox carts and houses by the ring edge">
+
+2 · Ox carts and houses by the ring edge · field about 12 mm
+
+<img src="docs/showcase/qingming5um_3_roof_where.jpg" width="28%" alt="Position 3"> <img src="docs/showcase/qingming5um_3_roof_scale.jpg" width="48%" alt="A roof and the gap between the rings">
+
+3 · A roof and the gap between the rings · field about 5 mm
+
+<img src="docs/showcase/qingming5um_4_street_where.jpg" width="28%" alt="Position 4"> <img src="docs/showcase/qingming5um_4_street_scale.jpg" width="48%" alt="A street with a gate">
+
+4 · A street with a gate · field about 6 mm
+
+<img src="docs/showcase/qingming5um_5_figures_where.jpg" width="28%" alt="Position 5"> <img src="docs/showcase/qingming5um_5_figures_scale.jpg" width="48%" alt="People on the street and a tiled roof">
+
+5 · People on the street and a tiled roof · field about 6 mm
+
+<img src="docs/showcase/qingming5um_6_trees_where.jpg" width="28%" alt="Position 6"> <img src="docs/showcase/qingming5um_6_trees_scale.jpg" width="48%" alt="Old willows, every branch drawn">
+
+6 · Old willows, every branch drawn · field about 12 mm
 
 ### Colour (experimental)
 
