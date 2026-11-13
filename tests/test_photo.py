@@ -167,6 +167,7 @@ def test_upload_list_serve_roundtrip_and_local_phone_link(tmp_path):
         assert code == 200 and body == png() and headers["Content-Type"] == "image/png"
         assert (tmp_path / "results/geo-test/photos" / (first["id"] + ".png")).read_bytes() == png()
         assert photos_of(json_request(s, "GET", "/api/photos?run=geo-other")[1]) == []
+        assert listing.get("outliers") == []
         assert request(s, "GET", first["url"].replace("geo-test", "geo-other"))[0] == 404
         assert request(s, "GET", "/api/photos?run=..%2Foutside")[0] == 404
         assert request(s, "GET", "/api/photos/geo-test/..%2Fsummary.json")[0] == 404
@@ -272,7 +273,7 @@ def test_upload_rechecks_token_after_disconnect(tmp_path):
     store.disconnect(device)
     with pytest.raises(ValueError, match='expired'):
         store.upload('geo-test', png(), 'image/png', 'late.png', token=token, device_id=device)
-    assert store.listing('geo-test') == {'photos': []}
+    assert store.listing('geo-test') == {'photos': [], 'outliers': []}
 
 
 @pytest.mark.parametrize("text", ["", "hello", "a" * 25, "a" * 42, "a" * 62, "a" * 84, "a" * 106,
@@ -323,8 +324,9 @@ def test_photo_web_job_result_and_validation(tmp_path):
         assert job.finished.wait(45)
         assert job.exit == 0 and job.media == "dvd" and job.result["verdict"] == "unsure"
         assert set(job.result) == {"verdict", "per_photo", "rings_mm", "offset_mm", "L_frames", "confidence", "path", "provisional_mm",
-                                   "group", "adoption", "application", "seconds"}
+                                   "group", "adoption", "application", "seconds", "outliers"}
         assert job.result["adoption"]["state"] == "none" and job.result["seconds"] >= 0
+        assert job.result["outliers"] == []
         assert job.result["per_photo"][0]["id"] == row["id"]
         assert job.result["per_photo"][0]["status"] == "no_rim"
         record = json.loads((tmp_path / "results/geo-test/photo.json").read_text(encoding="utf-8"))
@@ -365,6 +367,29 @@ def test_duplicate_image_cannot_be_two_independent_photos(tmp_path):
     assert reader.call_count == 1
     assert result["verdict"] == "unsure" and result["offset_mm"] is None
     assert result["per_photo"][1]["verdict"] == "unsure"
+
+
+def test_majority_result_survives_raw_group_refusal(tmp_path):
+    from discprobe import pcal
+    folder = make_run(tmp_path)
+    inputs, readings = [], []
+    (folder / 'photos').mkdir()
+    for i, value in enumerate([1., 1.02, 8.]):
+        image = folder / 'photos' / f"shot-{i}.png"
+        Image.new('RGB', (48, 48), (100 + i, 100, 100)).save(image)
+        image.with_suffix('.json').write_text(json.dumps(dict(id=image.stem, name=f'照片 {i}.png')), encoding='utf-8')
+        inputs.append((image.stem, image))
+        readings.append(dict(status='ok', L_mm=value, zone_spread_mm=.1, c_deg=i * 30))
+    diagnostic = dict(status='unknown', why='raw group disagrees')
+    with patch.object(pcal, 'read_photo', side_effect=readings), \
+         patch.object(pcal, 'combine', return_value=diagnostic):
+        result = photo.analyze(folder, 'dvd', inputs)
+    assert result['verdict'] == 'ok' and result['offset_mm'] == 1.01
+    assert result['outliers'][0]['id'] == 'shot-2'
+    assert result['outliers'][0]['name'] == '照片 2.png'
+    saved = json.loads((folder / 'photo.json').read_bytes())
+    assert saved['group'] == diagnostic and saved['outliers'] == result['outliers']
+    assert saved['application_agreement']['photo_ids'] == ['shot-0', 'shot-1']
 
 
 @pytest.mark.parametrize("media", ["cd", "dvd"])

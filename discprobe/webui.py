@@ -867,6 +867,7 @@ class Backend:
                     job.result["adoption"] = photo_adoption(record)
                     job.result["application"] = photo_application(done.get("path") or "")
                     job.result["seconds"] = round(job.finished_at - job.started_at, 1)
+                    job.result["outliers"] = done.get("outliers", [])
             elif job.action == "calibrate":
                 # what the core found, from its last `calibrated` event: the measured folders, their
                 # verdicts and the geometry's points for the page's chart
