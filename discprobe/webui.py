@@ -656,6 +656,7 @@ class Backend:
                 done = next((e for e in reversed(job.history) if e.get("type") == "result" and e.get("step") == "photo"), None)
                 if done:
                     job.result = {k: done[k] for k in ("verdict", "per_photo", "rings_mm", "offset_mm", "L_frames", "confidence", "path", "provisional_mm")}
+                    job.result["outliers"] = done.get("outliers", [])
             elif job.action == "calibrate":
                 # what the core found, from its last `calibrated` event: the measured folders, their
                 # verdicts and the geometry's points for the page's chart

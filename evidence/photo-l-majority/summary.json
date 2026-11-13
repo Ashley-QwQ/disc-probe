@@ -1,0 +1,4412 @@
+{
+  "policy": "majority-poses-v1",
+  "reader_version": "v1",
+  "reader_sha256": "d6375faed8fe489e01854dc09afcbaf057d7042968c5157f5ae56dc8ed4a9f6f",
+  "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+  "policy_source_sha256": "3674ffd0dbfb3c2291f601f0278aaf4de0ffef580b00f2f4cc25c917f0183d80",
+  "check_script_sha256": "bbb9b3e33eb968d0784de73d9784820f794e14a330bda65590748811afdd1c86",
+  "plan": {
+    "rule": "complete case ids 00000..01024; smallest id per positive family/condition; no replacement",
+    "rate_rotations_deg": [
+      0,
+      120,
+      240
+    ],
+    "counterexample_rotations_deg": [
+      0,
+      90,
+      45,
+      180
+    ],
+    "wrong_threshold_mm": 0.326,
+    "available_prefix_cases": 1025,
+    "rate_sources": [
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00000.json",
+        "sha256": "13d1b1ba2040e68abc3413c13e2d27c710be04325c387c953733eb30deacbdca"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00026.json",
+        "sha256": "ecbd4cf7824feb344ca8b2351bb7e00a26d75abec0db9c1976560578e3b18606"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00237.json",
+        "sha256": "e85e0a970130aa09507700f06c7a309296bef19cf9fcdafe94fd489611a64411"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00227.json",
+        "sha256": "f129de38b903b242170dbb1ab21ee6a3bb052a0a406523fc9cd7757337fb0b38"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00050.json",
+        "sha256": "644bf5c71b7683f6e2f0861dd2a6e13afbfefc3874829d18e660728658a507c4"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00055.json",
+        "sha256": "0e4ffe3c5df196c713dcd2c597be092b8fefe86d2e1670c47bddd63a72204a3e"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00250.json",
+        "sha256": "67fd192298a9bb47e3a259b31f1dabab6dced44b57ef31785827e8c8ed473e65"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00001.json",
+        "sha256": "b45303249b756dc601d1bd351a24647f8fefe944c0d26616e14d63304356ffcd"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00348.json",
+        "sha256": "f695f63ac64003063cd4816677b45dff9a01de4b3099e6e9e2e3a1f9c849d2b5"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00024.json",
+        "sha256": "b5057d5da984d236663e3b288f24948e62222b1d8a75e8ab6e90069de467e5b9"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00018.json",
+        "sha256": "b3222fe250052354ace97117a3fff83af89b5660f015089d59b7c1c1f9d39a6e"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00009.json",
+        "sha256": "f6922ba866682df17c4db1e0d82988e59a6c271e27c642edd0e26b1badb3336a"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00010.json",
+        "sha256": "7bbe78647bf7fa2706b88265aabc4c119e7baf5221aab0180dcd90748693c28d"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00075.json",
+        "sha256": "38b5f8fb0d98a4243326b5850061a3292bf7734fdb8805dd20f1eebd566b66bc"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00029.json",
+        "sha256": "ed5b1b04ca1d0fec7979901e6fe7dc06e1b7e03953a9f1858a957d324451030e"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00019.json",
+        "sha256": "ae917c9f3723d977245efc6c8dee5c3be98f3f0904568802916b68a495396599"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00002.json",
+        "sha256": "92f1899bdaa54181f6705a33b14a9c69e85d092fc29293a35e42bedc0d321383"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00164.json",
+        "sha256": "8a58fee3d3eab11774f850083c3fa77fccd6ff1eede2e212923d2e44b55848af"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00054.json",
+        "sha256": "d75f5c4af0cb4179d2c6ccd829379d69967844d89ff4c1160d246f6bf75931fb"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00014.json",
+        "sha256": "20763e013096def507651c84938a98edb8e7de685699534055f1ce34d0f7b18e"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00280.json",
+        "sha256": "0be095aeb645e57c9b11c2648faf2d479e958cd4ba8fc15eb92d59cc01e7f446"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00015.json",
+        "sha256": "674fa566473621426548030b79123d6fc376cf5e73a388b82ca66cdf92e2cf5e"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00047.json",
+        "sha256": "8e8f00708404f947d3a7abdecd7ccbc00e51a84042b48cbc091f267cfc28bc5b"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00035.json",
+        "sha256": "52333f7cc41694c7d8a4abfcc4d5bfe16469062080184be404b5e3bbac6648dc"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00070.json",
+        "sha256": "34743e345e061f16286663c4fd4601c6a7996e0bdc8c34b14c0c966cee85a434"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00016.json",
+        "sha256": "88dc41ea9153846e3028f602f4be71806525af40c1dd4f8698269f214a5d112e"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00056.json",
+        "sha256": "4ee4a482c8892b19199055cf68c92f98ffef23daa4214eeb095f4a15f70138d9"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00036.json",
+        "sha256": "d3eca6d21722640b5ce1beb29b5157229197d19a4b5af1033b4b4a2c4b1af800"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00040.json",
+        "sha256": "a1482512eb36a73ed5b04534cfef5ee4991dc25a695ba4c98de1384b1121dfb3"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00109.json",
+        "sha256": "12903236f7f236b94162c2d5ff34a19b2ae2d7902dcc6d21fcc9533b711ac987"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00025.json",
+        "sha256": "49dad7b88d92b199c52f3b5f6b7c1fcb9e051e3c597924e0d9b0aee42f98a47d"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00220.json",
+        "sha256": "b52ddd51760b1eac2c8bb0f609ace0e8ac2129f10adc3f9be1ea83f3189d6751"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00181.json",
+        "sha256": "7f99d3fac8a180c5c098c4c1d0f4cef2932e13c42af95c9bb15d0fe74944f9b6"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00258.json",
+        "sha256": "a140e0341730cb367f6297e28e7e3b762c73d5bc95485c16f3dc99f97ef51831"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00192.json",
+        "sha256": "ddb05ed5d2ace07a08be94b9b922ca25cf1d8f044ff7034e493011c9c97131ef"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00210.json",
+        "sha256": "823a1e1c5e7ff982eefeccb6377c8b602d6d23bb6f4e5923b6df2cd5c948ec12"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00030.json",
+        "sha256": "8881311c8db65175bff82a0073aaeba0591806b39d630d13367ccb766c598c9d"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00008.json",
+        "sha256": "1d4e724780e96c43e9388505afaf80b128590121271c6eb30311d505a0647bcf"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00081.json",
+        "sha256": "e34369734c26988a4d4701c06407a5d4fdca0a05a9cd4cc7a7529b9130adb25e"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00062.json",
+        "sha256": "26f6754b769bdb7968d04b4c293f71faae7c11d4c83cbc015d03d2deef7e3d5b"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00112.json",
+        "sha256": "02d1d739b5ce95b6750ad2ac990995612854a3350d2ab8f06fd93ec2ffe577e2"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00372.json",
+        "sha256": "fb85637905bebaa5efe6a9bd667714f84a2671ba96cb442a1f04003e4d0d268c"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00127.json",
+        "sha256": "4e7b65ec613ca3ccecf811e2863ad63202669730ade48d1fa28c7209c0b15836"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00340.json",
+        "sha256": "b4cc10123ef005900428d4a1aa141e3cac9c552138bf079625c561517126212f"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00045.json",
+        "sha256": "43d4f7cda3b2b3639f72b676541940845cb31a3d34022d3223cfcce84552e83b"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00013.json",
+        "sha256": "efb08ca37c28a7f8bb22d241359f3ca6df16e9872bc77dea02ed58b83d6b1d4f"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00121.json",
+        "sha256": "21921e67b51d231bdb5ade007502306030e6f701003f65972a247d2eeed14451"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00106.json",
+        "sha256": "dad0a45d7f72663c15eb63bf2a930460f1508cc3092a718ba4768080f8f41c05"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00032.json",
+        "sha256": "917b39e198a4608eeeb74166a3364295f30c9a3fe38267bd3eaedeb0a7d46585"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00177.json",
+        "sha256": "79a49b5e23b95c314cbbff5b3018e03777329a0cdc1bf241136f7fc4038cdf76"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00063.json",
+        "sha256": "0782711c3617e3bccb3e4e410de40292536fc235ec740d8cf951d3b855885eb6"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00007.json",
+        "sha256": "d1e005ae8ab607bbe62b53bae9c2b1e55614025db5cab1de94c79eba6276bce2"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00267.json",
+        "sha256": "0efd5130cd6b631969e624aa2b17b5c4fe4274ddc7679baa9259c19cc2c96d79"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00041.json",
+        "sha256": "d8cf1792f5833e0ab40f051b0a0703bc6257d3453bd5ba410cc61a99d65cccd7"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00006.json",
+        "sha256": "2c75fd1e59e267984999183ee30dfb56692b3a7c4c905ec7bf41efb8e63f4d7e"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00003.json",
+        "sha256": "f60e62e47b84961e05b2c4f83f5b7252e2a02cfcc329dabbdc8384c99be031f6"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00093.json",
+        "sha256": "61c81b68b4c40a7dd631692af1e978bf0a7c8036260592a48cdfad58e3fd0b3f"
+      }
+    ],
+    "counterexample_sources": [
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-lottery\\heldout\\case_00703.json",
+        "sha256": "4d97d0ba8f8c6e3f9dbfd1f7704ef610e98a66830e34191e080c2d8deab2b51b"
+      },
+      {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00929.json",
+        "sha256": "a511a8e9d407583c17d1e409e33b6d12d7bfc354f3366fa0132dedee95df7ab6"
+      }
+    ],
+    "old_poses": {
+      "path": "C:\\disc-probe-scratch\\photo-l\\poses\\summary.json",
+      "sha256": "6720116f1bc4b280a66e5517238ff1cd2224b56575a192c0450a25d79000ec44"
+    },
+    "note": "Stratified sample, not a full-set population rate; each triple shares truth/camera/seed. A failed render-hash check is NOT_RUN, never replaced. Original reads are saved v1 diagnostics."
+  },
+  "rate": {
+    "planned": 57,
+    "run": 57,
+    "not_run": 0,
+    "applications": 19,
+    "wrong_applications": 0
+  },
+  "real_decision": {
+    "written": false,
+    "reason": "photos_disagree",
+    "outliers": [],
+    "agreeing_count": 3,
+    "ok_count": 6,
+    "required_count": 4
+  },
+  "real_photos": [
+    {
+      "id": "IMG_7909.jpeg",
+      "status": "ok",
+      "L_mm": 0.21143897358570804,
+      "zone_spread_mm": 0.12735822581066647,
+      "c_deg": 247.4444363147215,
+      "input_sha256": "5af38b7e434f8e33d4f2885f931a1add66e5d2fc681e3e593de206abd6ea8039"
+    },
+    {
+      "id": "IMG_7910.jpeg",
+      "status": "too_few_votes",
+      "L_mm": null,
+      "zone_spread_mm": null,
+      "c_deg": null,
+      "input_sha256": "edad13d108ec1023d79b5f0a179cb68b6dfed9bddcf39f80c35ecfe309fdac97"
+    },
+    {
+      "id": "IMG_7911.jpeg",
+      "status": "ok",
+      "L_mm": 0.12622871365030955,
+      "zone_spread_mm": 0.09099232244774803,
+      "c_deg": 27.491033042043757,
+      "input_sha256": "5748f8e2aa61c80f54c0e0a12bdb1954e2045159d9a10223bda433b995994990"
+    },
+    {
+      "id": "IMG_7912.jpeg",
+      "status": "ok",
+      "L_mm": 0.31751139586744653,
+      "zone_spread_mm": 0.13841972452892515,
+      "c_deg": 40.720256552710474,
+      "input_sha256": "3edd2bc3c033b5d3dee69ff419b3901fae85383906fd27e7ef46437d74d655eb"
+    },
+    {
+      "id": "IMG_7913.jpeg",
+      "status": "too_few_votes",
+      "L_mm": null,
+      "zone_spread_mm": null,
+      "c_deg": null,
+      "input_sha256": "ad869d782e381713746037f34cc4f508098e41eeb795c32ad92d417b5acc674a"
+    },
+    {
+      "id": "IMG_7914.jpeg",
+      "status": "ok",
+      "L_mm": 0.27003670555769416,
+      "zone_spread_mm": 0.1198747781026161,
+      "c_deg": 242.92697019922397,
+      "input_sha256": "0de591c3019ca81d6aec7ea767ee9d7be8337efb97158e12102a651b806b62a8"
+    },
+    {
+      "id": "IMG_7915.jpeg",
+      "status": "too_few_votes",
+      "L_mm": null,
+      "zone_spread_mm": null,
+      "c_deg": null,
+      "input_sha256": "e5164b2c9cafaa7994221c30904e9aaacc1fac37ffe20144e1a1bc59ec1ee658"
+    },
+    {
+      "id": "IMG_7916.jpeg",
+      "status": "too_few_votes",
+      "L_mm": null,
+      "zone_spread_mm": null,
+      "c_deg": null,
+      "input_sha256": "8d5655c0d8470d2c1e36317006b46431706e75564819ebb882ea7d5d9fe5f5e3"
+    },
+    {
+      "id": "IMG_7917.jpeg",
+      "status": "ok",
+      "L_mm": -0.01745507735976541,
+      "zone_spread_mm": 0.2707204053367753,
+      "c_deg": 251.98585370311415,
+      "input_sha256": "f030150e0396a3aae550492c2cde4a8f6c1dab9219f94afee5a49206357c8fa6"
+    },
+    {
+      "id": "IMG_7918.jpeg",
+      "status": "poor_angle_coverage",
+      "L_mm": 0.2031662885577814,
+      "zone_spread_mm": 0.3514103968153053,
+      "c_deg": 253.11601885815617,
+      "input_sha256": "56a0882f48bca1712e268a4c4367889bcf2c38e1b098ede456a2d379b06f1349"
+    },
+    {
+      "id": "IMG_7919.jpeg",
+      "status": "ok",
+      "L_mm": 0.07183176123271034,
+      "zone_spread_mm": 0.11799581922599447,
+      "c_deg": 249.7115153266565,
+      "input_sha256": "defdf26200e99032a5c1197c7c88e8de727a863e017ad528c2b117b776f1c77d"
+    }
+  ],
+  "real_sources": [
+    {
+      "diagnostic": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\real\\case_00000.json",
+        "sha256": "12614c275b3815a898359a28e15a66a5990511b88ec4d778efdf4f984bbb0ac5"
+      },
+      "original": {
+        "path": "D:\\disc-probe\\docs\\goals\\pcal-2026-11-12\\photos\\IMG_7909.jpeg",
+        "sha256": "5af38b7e434f8e33d4f2885f931a1add66e5d2fc681e3e593de206abd6ea8039"
+      },
+      "pixel_sha256": "50d47fb2b88079ce8e0576a30a7510bb2bc82a0a6a4fbe8f9ebed44e080518d0",
+      "reader_hash_scope": "study freeze; real JSON has no per-record source hash"
+    },
+    {
+      "diagnostic": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\real\\case_00001.json",
+        "sha256": "249dc2d327e3712e689cf209a767e5265e548ec6c92f8e8fa53896410e796e14"
+      },
+      "original": {
+        "path": "D:\\disc-probe\\docs\\goals\\pcal-2026-11-12\\photos\\IMG_7910.jpeg",
+        "sha256": "edad13d108ec1023d79b5f0a179cb68b6dfed9bddcf39f80c35ecfe309fdac97"
+      },
+      "pixel_sha256": "43ec5b148ba98f0d8923ba449697192a6be866c0329c70cc85d9f0c9990f02a3",
+      "reader_hash_scope": "study freeze; real JSON has no per-record source hash"
+    },
+    {
+      "diagnostic": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\real\\case_00002.json",
+        "sha256": "bafae1dda60e9fc707aa0331266392e7777bc7c802c3567b3edbee0ce4f61919"
+      },
+      "original": {
+        "path": "D:\\disc-probe\\docs\\goals\\pcal-2026-11-12\\photos\\IMG_7911.jpeg",
+        "sha256": "5748f8e2aa61c80f54c0e0a12bdb1954e2045159d9a10223bda433b995994990"
+      },
+      "pixel_sha256": "be935364edc3ccfca9bdf5e02297340df4da5a9afdaf53a30b39d779bbbb9fe7",
+      "reader_hash_scope": "study freeze; real JSON has no per-record source hash"
+    },
+    {
+      "diagnostic": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\real\\case_00003.json",
+        "sha256": "542219ae36fc5a5dab514c9e46e2551c4d814fa7e24426ece0cb0916b8bc6b7b"
+      },
+      "original": {
+        "path": "D:\\disc-probe\\docs\\goals\\pcal-2026-11-12\\photos\\IMG_7912.jpeg",
+        "sha256": "3edd2bc3c033b5d3dee69ff419b3901fae85383906fd27e7ef46437d74d655eb"
+      },
+      "pixel_sha256": "339f47db8b3c4de0111cfe3b6fb0898aa814e82d064fa2a2375613d71c6b011c",
+      "reader_hash_scope": "study freeze; real JSON has no per-record source hash"
+    },
+    {
+      "diagnostic": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\real\\case_00004.json",
+        "sha256": "9a561a5e3dcb19f60030d5fc981295418eb0464345fc319d4e8964e75af3e8bc"
+      },
+      "original": {
+        "path": "D:\\disc-probe\\docs\\goals\\pcal-2026-11-12\\photos\\IMG_7913.jpeg",
+        "sha256": "ad869d782e381713746037f34cc4f508098e41eeb795c32ad92d417b5acc674a"
+      },
+      "pixel_sha256": "4c9589ec6db218a4265a945dc98c1c81b8d70786f3cea9f39bfcfe3717c420d2",
+      "reader_hash_scope": "study freeze; real JSON has no per-record source hash"
+    },
+    {
+      "diagnostic": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\real\\case_00005.json",
+        "sha256": "2f8f8cfff2018fa85e2c632570234848c9c844aeaa485be83596bda668d14c02"
+      },
+      "original": {
+        "path": "D:\\disc-probe\\docs\\goals\\pcal-2026-11-12\\photos\\IMG_7914.jpeg",
+        "sha256": "0de591c3019ca81d6aec7ea767ee9d7be8337efb97158e12102a651b806b62a8"
+      },
+      "pixel_sha256": "2107a2eec281951e6de93b1951b6e6db5ea1afd8f7952ce6969a027b9097d476",
+      "reader_hash_scope": "study freeze; real JSON has no per-record source hash"
+    },
+    {
+      "diagnostic": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\real\\case_00006.json",
+        "sha256": "0d8544709993e17aa8ac8916d133513cc753c989d1ba281c54c9c4ba2ba6a6ca"
+      },
+      "original": {
+        "path": "D:\\disc-probe\\docs\\goals\\pcal-2026-11-12\\photos\\IMG_7915.jpeg",
+        "sha256": "e5164b2c9cafaa7994221c30904e9aaacc1fac37ffe20144e1a1bc59ec1ee658"
+      },
+      "pixel_sha256": "e6e7e889732dd1f70df6cc87a453da89894b90ebd6b4a70d439a7b800de9dd72",
+      "reader_hash_scope": "study freeze; real JSON has no per-record source hash"
+    },
+    {
+      "diagnostic": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\real\\case_00007.json",
+        "sha256": "c2f7d7ecab68d3ebe3e8b480ffdadccc344f56a2f967a0752f4d492ee7ddea9a"
+      },
+      "original": {
+        "path": "D:\\disc-probe\\docs\\goals\\pcal-2026-11-12\\photos\\IMG_7916.jpeg",
+        "sha256": "8d5655c0d8470d2c1e36317006b46431706e75564819ebb882ea7d5d9fe5f5e3"
+      },
+      "pixel_sha256": "059fbae370b72acb45e0915d9334daff402358c8f3c9e701c35b008bd434e89e",
+      "reader_hash_scope": "study freeze; real JSON has no per-record source hash"
+    },
+    {
+      "diagnostic": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\real\\case_00008.json",
+        "sha256": "10a167a3c5743ddecc06ff4c20475abf4a87d217a30233ffe8d58408bc0ba4b7"
+      },
+      "original": {
+        "path": "D:\\disc-probe\\docs\\goals\\pcal-2026-11-12\\photos\\IMG_7917.jpeg",
+        "sha256": "f030150e0396a3aae550492c2cde4a8f6c1dab9219f94afee5a49206357c8fa6"
+      },
+      "pixel_sha256": "9b90a7e234480861da736b9cb274184b899da6482f2667eb724ddaacb2a6e7c9",
+      "reader_hash_scope": "study freeze; real JSON has no per-record source hash"
+    },
+    {
+      "diagnostic": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\real\\case_00009.json",
+        "sha256": "c9a51a9256f860b2a502e28537b7c3955e73f8a4626dc7d940d8f46ef89f8b91"
+      },
+      "original": {
+        "path": "D:\\disc-probe\\docs\\goals\\pcal-2026-11-12\\photos\\IMG_7918.jpeg",
+        "sha256": "56a0882f48bca1712e268a4c4367889bcf2c38e1b098ede456a2d379b06f1349"
+      },
+      "pixel_sha256": "6f2f76aaca1c6eeae6039d7849cff5830759ea8de6224f3859466ba9bd2823bb",
+      "reader_hash_scope": "study freeze; real JSON has no per-record source hash"
+    },
+    {
+      "diagnostic": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\real\\case_00010.json",
+        "sha256": "ac5009d08e2ecdf11e8fa13bb252f5e956c62fc7b1a0ffb5b4064ecbb304d3fb"
+      },
+      "original": {
+        "path": "D:\\disc-probe\\docs\\goals\\pcal-2026-11-12\\photos\\IMG_7919.jpeg",
+        "sha256": "defdf26200e99032a5c1197c7c88e8de727a863e017ad528c2b117b776f1c77d"
+      },
+      "pixel_sha256": "80b2914e5e49d8486dce7d7679fce0e8da8acf294b68b16ceda159d276ccb801",
+      "reader_hash_scope": "study freeze; real JSON has no per-record source hash"
+    }
+  ],
+  "real_study_freeze": {
+    "path": "C:\\disc-probe-scratch\\pcal-blur\\frozen.json",
+    "sha256": "f777537aa5fa9e5a48473b9682b5bc4ab800c90f95749e4540b9c0387490e5b4"
+  },
+  "counterexamples": [
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-lottery\\heldout\\case_00703.json",
+        "sha256": "4d97d0ba8f8c6e3f9dbfd1f7704ef610e98a66830e34191e080c2d8deab2b51b"
+      },
+      "truth_mm": -21.034776233848824,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        90,
+        45,
+        180
+      ],
+      "original_pixel_sha256": "b91cfb0a0018ee26cbcc1b167b11a2927b892db06499ad38557b796ba0ee8c91",
+      "expected_pixel_sha256": "b91cfb0a0018ee26cbcc1b167b11a2927b892db06499ad38557b796ba0ee8c91",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\known-0.json",
+        "sha256": "485bea8cef553e478fada088094196df8627df0cbdd04422c2f8282468d4f0ef"
+      },
+      "photos": [
+        {
+          "id": "known-0-turn0",
+          "status": "ok",
+          "L_mm": -21.453710310013133,
+          "zone_spread_mm": 0.18851681391009123,
+          "c_deg": 43.94925209455612,
+          "input_sha256": "b91cfb0a0018ee26cbcc1b167b11a2927b892db06499ad38557b796ba0ee8c91"
+        },
+        {
+          "id": "known-0-turn90",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "122b2035969e4e5247f5b2c58751a9196ae9c4a8cd9b26ac44de11f4ff918f8b"
+        },
+        {
+          "id": "known-0-turn45",
+          "status": "poor_angle_coverage",
+          "L_mm": -22.075894926540954,
+          "zone_spread_mm": 0.8691891534700744,
+          "c_deg": 126.19815283230056,
+          "input_sha256": "4f52570644123584f0339d338e44b0463c067014c4496c4e32fce14d917764f5"
+        },
+        {
+          "id": "known-0-turn180",
+          "status": "poor_angle_coverage",
+          "L_mm": -21.805244427191496,
+          "zone_spread_mm": 0.6573540376403635,
+          "c_deg": 225.06024256511498,
+          "input_sha256": "52469b3ac4cca780f4dff927437e43852bb5fc5f66ccc5b0eabfe4f34d1e4b39"
+        }
+      ],
+      "groups": [
+        {
+          "size": 2,
+          "decision": {
+            "written": false,
+            "reason": "one_photo_provisional",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        },
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "one_photo_provisional",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        },
+        {
+          "size": 4,
+          "decision": {
+            "written": false,
+            "reason": "one_photo_provisional",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00929.json",
+        "sha256": "a511a8e9d407583c17d1e409e33b6d12d7bfc354f3366fa0132dedee95df7ab6"
+      },
+      "truth_mm": -18.018974564800942,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        90,
+        45,
+        180
+      ],
+      "original_pixel_sha256": "6be4c2cfaf6b13c9a8236dc89765cd616d74135426752998f35789c1d2199f95",
+      "expected_pixel_sha256": "6be4c2cfaf6b13c9a8236dc89765cd616d74135426752998f35789c1d2199f95",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\known-1.json",
+        "sha256": "271b1736c5e6f0898a74d3e22bb092270c72f40437a65dcf78c559b474cf1190"
+      },
+      "photos": [
+        {
+          "id": "known-1-turn0",
+          "status": "ok",
+          "L_mm": -18.67173121296176,
+          "zone_spread_mm": 0.2683775508478341,
+          "c_deg": 249.72867740380812,
+          "input_sha256": "6be4c2cfaf6b13c9a8236dc89765cd616d74135426752998f35789c1d2199f95"
+        },
+        {
+          "id": "known-1-turn90",
+          "status": "ok",
+          "L_mm": -18.01585122330838,
+          "zone_spread_mm": 0.31642284877630544,
+          "c_deg": 148.46398511392198,
+          "input_sha256": "10c0eea8967d90c11beef0404d4d8b9e737608938ce5ec78e11e0deb94ccb5de"
+        },
+        {
+          "id": "known-1-turn45",
+          "status": "ok",
+          "L_mm": -18.104510675177416,
+          "zone_spread_mm": 0.12148521248764155,
+          "c_deg": 110.39269016139124,
+          "input_sha256": "49d0e6e9220b6ff0f31b645c5ce360fa19f83803ad94a40bde8cea65d58b8e4a"
+        },
+        {
+          "id": "known-1-turn180",
+          "status": "ok",
+          "L_mm": -18.062004177348687,
+          "zone_spread_mm": 0.032697818211339325,
+          "c_deg": 83.5519855893331,
+          "input_sha256": "fcc7567f0793ffced7d65c1d48657df4a5635fbfbcb275f4f4a2062e8a08e87d"
+        }
+      ],
+      "groups": [
+        {
+          "size": 2,
+          "decision": {
+            "written": false,
+            "reason": "photos_disagree",
+            "outliers": [],
+            "agreeing_count": 1,
+            "ok_count": 2,
+            "required_count": 2
+          },
+          "error_mm": null,
+          "wrong": false
+        },
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": -18.0601809492429,
+            "photo_ids": [
+              "known-1-turn90",
+              "known-1-turn45"
+            ],
+            "input_sha256": [
+              "10c0eea8967d90c11beef0404d4d8b9e737608938ce5ec78e11e0deb94ccb5de",
+              "49d0e6e9220b6ff0f31b645c5ce360fa19f83803ad94a40bde8cea65d58b8e4a"
+            ],
+            "outliers": [
+              {
+                "id": "known-1-turn0",
+                "name": "known-1-turn0",
+                "L_mm": -18.67173121296176,
+                "reason": "outside_common_interval",
+                "suggestion": "Turn the disc and reshoot this photo."
+              }
+            ],
+            "common_interval_mm": [
+              -18.165253281421236,
+              -18.043768068933595
+            ],
+            "agreeing_count": 2,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.041206384441956345,
+          "wrong": false
+        },
+        {
+          "size": 4,
+          "decision": {
+            "written": true,
+            "L_mm": -18.062004177348687,
+            "photo_ids": [
+              "known-1-turn90",
+              "known-1-turn45",
+              "known-1-turn180"
+            ],
+            "input_sha256": [
+              "10c0eea8967d90c11beef0404d4d8b9e737608938ce5ec78e11e0deb94ccb5de",
+              "49d0e6e9220b6ff0f31b645c5ce360fa19f83803ad94a40bde8cea65d58b8e4a",
+              "fcc7567f0793ffced7d65c1d48657df4a5635fbfbcb275f4f4a2062e8a08e87d"
+            ],
+            "outliers": [
+              {
+                "id": "known-1-turn0",
+                "name": "known-1-turn0",
+                "L_mm": -18.67173121296176,
+                "reason": "outside_common_interval",
+                "suggestion": "Turn the disc and reshoot this photo."
+              }
+            ],
+            "common_interval_mm": [
+              -18.078353086454356,
+              -18.045655268243017
+            ],
+            "agreeing_count": 3,
+            "ok_count": 4,
+            "required_count": 3
+          },
+          "error_mm": -0.04302961254774473,
+          "wrong": false
+        }
+      ]
+    }
+  ],
+  "rate_groups": [
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00000.json",
+        "sha256": "13d1b1ba2040e68abc3413c13e2d27c710be04325c387c953733eb30deacbdca"
+      },
+      "truth_mm": 34.80511039252177,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "28c7098fb34ca9a6736ededdf909d3f98416fbc4b5aa8443082f9b0d89314c66",
+      "expected_pixel_sha256": "28c7098fb34ca9a6736ededdf909d3f98416fbc4b5aa8443082f9b0d89314c66",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-000.json",
+        "sha256": "12fc992326567b5d854e005879be8c9f5a39f077928cbaea6c3dc82f82a7e397"
+      },
+      "photos": [
+        {
+          "id": "rate-000-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "28c7098fb34ca9a6736ededdf909d3f98416fbc4b5aa8443082f9b0d89314c66"
+        },
+        {
+          "id": "rate-000-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "1b747cd4860c7c0d439e1c19f5a76015442d9ec7b92c4f151677e434c95f1432"
+        },
+        {
+          "id": "rate-000-turn240",
+          "status": "no_rim",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "848cea00f1b238da1229d5bcafe36e85788d657b85af496e2a0513a672f1958d"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00026.json",
+        "sha256": "ecbd4cf7824feb344ca8b2351bb7e00a26d75abec0db9c1976560578e3b18606"
+      },
+      "truth_mm": -20.995601472945822,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "e80a646f57c7231172082e25548352f2627b1fc15826ce36950b64c169abef6c",
+      "expected_pixel_sha256": "e80a646f57c7231172082e25548352f2627b1fc15826ce36950b64c169abef6c",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-001.json",
+        "sha256": "b4a45045aefec54d4c52e9e89b4eb865f194040b3ba8e7b090a438065489714e"
+      },
+      "photos": [
+        {
+          "id": "rate-001-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "e80a646f57c7231172082e25548352f2627b1fc15826ce36950b64c169abef6c"
+        },
+        {
+          "id": "rate-001-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "a93a4914e5335c144016e2260901197477a54aba94a47acc000cdb85a23619a7"
+        },
+        {
+          "id": "rate-001-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "9f2e19e815d1955f97bbdf5aa2dce51857a9297ceb455d26649d6117268a223a"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00237.json",
+        "sha256": "e85e0a970130aa09507700f06c7a309296bef19cf9fcdafe94fd489611a64411"
+      },
+      "truth_mm": 4.3495454263225355,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "3099a2230637386b39433b2c55eb411a4d536e9b1ca0ee9f6a5ba9c5a02aee79",
+      "expected_pixel_sha256": "3099a2230637386b39433b2c55eb411a4d536e9b1ca0ee9f6a5ba9c5a02aee79",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-002.json",
+        "sha256": "6e2bcbeb4aee8b1f27957dbad56f174a35f88362be41e8dc313ff00ae6563ba5"
+      },
+      "photos": [
+        {
+          "id": "rate-002-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "3099a2230637386b39433b2c55eb411a4d536e9b1ca0ee9f6a5ba9c5a02aee79"
+        },
+        {
+          "id": "rate-002-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "a2758c95f628c9f4fbb3dc353a33b3e684b8282a7aac82fc46fa8642b8cd697d"
+        },
+        {
+          "id": "rate-002-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "0ebfac1649af8113a4a5a0af63510080df5923e58d41adb1bef2de3323161859"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00227.json",
+        "sha256": "f129de38b903b242170dbb1ab21ee6a3bb052a0a406523fc9cd7757337fb0b38"
+      },
+      "truth_mm": 33.74161516023199,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "f53a527fb83ddf33941622236a55f13e792265f4130b541042697cb268f7464a",
+      "expected_pixel_sha256": "f53a527fb83ddf33941622236a55f13e792265f4130b541042697cb268f7464a",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-003.json",
+        "sha256": "ec6718fac69e4492815c23366f7f14e22dbeb9586a34ab25f187b57f9d8a1750"
+      },
+      "photos": [
+        {
+          "id": "rate-003-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "f53a527fb83ddf33941622236a55f13e792265f4130b541042697cb268f7464a"
+        },
+        {
+          "id": "rate-003-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "d7be3e29ee59ed340a264dc9810e9200fb3a3f695aa39c86dfd961bdde5de896"
+        },
+        {
+          "id": "rate-003-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "21d0c9ebda0ad1076a32ba697d91b73d46ff8d5c5d23bc5a9323bf3f3053663f"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00050.json",
+        "sha256": "644bf5c71b7683f6e2f0861dd2a6e13afbfefc3874829d18e660728658a507c4"
+      },
+      "truth_mm": 22.56582909439974,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "efddbf0d61dec9ead5b17ad700c9f02692210b1e2a563e408d097a9b132ce58b",
+      "expected_pixel_sha256": "efddbf0d61dec9ead5b17ad700c9f02692210b1e2a563e408d097a9b132ce58b",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-004.json",
+        "sha256": "979e1257c661022dcb464579a08998f6c281f36992cb612d497d776d6969f88c"
+      },
+      "photos": [
+        {
+          "id": "rate-004-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "efddbf0d61dec9ead5b17ad700c9f02692210b1e2a563e408d097a9b132ce58b"
+        },
+        {
+          "id": "rate-004-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "e725e3ce1619fd0036dd81dc387fa92ae756f2f575c12f32cdbf96586ddedfa8"
+        },
+        {
+          "id": "rate-004-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "5be1cb1e192ce698baf7a13a82b140f2154b188f96c3278832fca69ddc4ffd1c"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00055.json",
+        "sha256": "0e4ffe3c5df196c713dcd2c597be092b8fefe86d2e1670c47bddd63a72204a3e"
+      },
+      "truth_mm": 39.125765655956684,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "24aea0428909b4e5621c43f979f43e5a3a7870f343f3eef6efbe603561cc22e6",
+      "expected_pixel_sha256": "24aea0428909b4e5621c43f979f43e5a3a7870f343f3eef6efbe603561cc22e6",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-005.json",
+        "sha256": "83332b6ac43f9d9c45587d7a31f3ae20966aa438e3da21947b75a50e39bf7aec"
+      },
+      "photos": [
+        {
+          "id": "rate-005-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "24aea0428909b4e5621c43f979f43e5a3a7870f343f3eef6efbe603561cc22e6"
+        },
+        {
+          "id": "rate-005-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "0bb9c850a5d5ec631a8c74f1ebecfd6a40954a41aa5c0f67f8a1ea2820d358d1"
+        },
+        {
+          "id": "rate-005-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "cf8ca026dc7a7706beba5d962c893c3cdb84d28ed9238224f910693d5812e1ed"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00250.json",
+        "sha256": "67fd192298a9bb47e3a259b31f1dabab6dced44b57ef31785827e8c8ed473e65"
+      },
+      "truth_mm": -13.89695898473148,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "fe7759a570c28a3f7e1a8b3c66a2b19577ba192fc6726bf13c055fc8c3484c22",
+      "expected_pixel_sha256": "fe7759a570c28a3f7e1a8b3c66a2b19577ba192fc6726bf13c055fc8c3484c22",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-006.json",
+        "sha256": "f4e6a01453996ddc41fbcb0d713e12e0db468bfb1554f83c59dfeb7aa236f59f"
+      },
+      "photos": [
+        {
+          "id": "rate-006-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "fe7759a570c28a3f7e1a8b3c66a2b19577ba192fc6726bf13c055fc8c3484c22"
+        },
+        {
+          "id": "rate-006-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "6659f15e4686d7f698ce390e65d21d796421eaf70e6ee900099035cc937a02c6"
+        },
+        {
+          "id": "rate-006-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "78cc704ab3fa9da8da63da17298db83e78df4dab0aad4b20dcf2a80e82eb71d5"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00001.json",
+        "sha256": "b45303249b756dc601d1bd351a24647f8fefe944c0d26616e14d63304356ffcd"
+      },
+      "truth_mm": -11.425596043701248,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "c6af6324e65663e5e1c6e3f445b103bd82ab158d61e807fcfda6eba128abcb1e",
+      "expected_pixel_sha256": "c6af6324e65663e5e1c6e3f445b103bd82ab158d61e807fcfda6eba128abcb1e",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-007.json",
+        "sha256": "70970c728f218b58ee2c839103dbdf30dcc89bf95403806f095dbfd16ec6abdd"
+      },
+      "photos": [
+        {
+          "id": "rate-007-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "c6af6324e65663e5e1c6e3f445b103bd82ab158d61e807fcfda6eba128abcb1e"
+        },
+        {
+          "id": "rate-007-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "c7178f2f8a18a3f2861ff1949883de7187633a07e7d14513fa291eea52d5c0f4"
+        },
+        {
+          "id": "rate-007-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "70f49c2861ce4d5b9c6d31a8a31b9b4853898864f2848e2128f4133f6706acb0"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00348.json",
+        "sha256": "f695f63ac64003063cd4816677b45dff9a01de4b3099e6e9e2e3a1f9c849d2b5"
+      },
+      "truth_mm": 30.67594190478779,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "83530b5894c147d4e27a308120a3779cfa5e498985e821527cac524d749caef5",
+      "expected_pixel_sha256": "83530b5894c147d4e27a308120a3779cfa5e498985e821527cac524d749caef5",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-008.json",
+        "sha256": "3da185707b65c976f6aa82751fdbca77892acb9939785a7664604a584c64c381"
+      },
+      "photos": [
+        {
+          "id": "rate-008-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "83530b5894c147d4e27a308120a3779cfa5e498985e821527cac524d749caef5"
+        },
+        {
+          "id": "rate-008-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "21c94ec00cbd53a0731ba06369b1968431a5dbd3df85b6bb5fb8c1c8acab679b"
+        },
+        {
+          "id": "rate-008-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "3286228c5ea18561b753eb1e101cd54ed2f39802496ff3da09a6a4c4ba0045a8"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00024.json",
+        "sha256": "b5057d5da984d236663e3b288f24948e62222b1d8a75e8ab6e90069de467e5b9"
+      },
+      "truth_mm": -0.9709843911501821,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "b489a2bb9a42deed71c3516bbaae231fc7df9ef1e902a22aa19b427abe5bb98c",
+      "expected_pixel_sha256": "b489a2bb9a42deed71c3516bbaae231fc7df9ef1e902a22aa19b427abe5bb98c",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-009.json",
+        "sha256": "e631ac468d50189d7c7719c413b3f0b90967920a79597ecd99d6bd27ea6d8d99"
+      },
+      "photos": [
+        {
+          "id": "rate-009-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "b489a2bb9a42deed71c3516bbaae231fc7df9ef1e902a22aa19b427abe5bb98c"
+        },
+        {
+          "id": "rate-009-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "a73177641e5b723fb423285ea11beef7dcb57b9a8d4bc4763ee03c24f335eafd"
+        },
+        {
+          "id": "rate-009-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "c99edbceaf8a13f8348277b6a587e1a24ebfb113ae0f1ed7320292e654ab86f5"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00018.json",
+        "sha256": "b3222fe250052354ace97117a3fff83af89b5660f015089d59b7c1c1f9d39a6e"
+      },
+      "truth_mm": 19.429475311101655,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "d26737f54a171f3f31c475f442637d526e6cd21c471607b4699bf1f9e4ca4929",
+      "expected_pixel_sha256": "d26737f54a171f3f31c475f442637d526e6cd21c471607b4699bf1f9e4ca4929",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-010.json",
+        "sha256": "4fc2aea205d4459b33a08c48f550d668b41eda07899af2440ab5d9d702949d4e"
+      },
+      "photos": [
+        {
+          "id": "rate-010-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "d26737f54a171f3f31c475f442637d526e6cd21c471607b4699bf1f9e4ca4929"
+        },
+        {
+          "id": "rate-010-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "67e02891aad83dd1627274edc7458624cec21a11e62709fffdab5718d04064f8"
+        },
+        {
+          "id": "rate-010-turn240",
+          "status": "poor_angle_coverage",
+          "L_mm": 19.534813787245817,
+          "zone_spread_mm": 0.2119198744535815,
+          "c_deg": 21.324677703280614,
+          "input_sha256": "97eba52130c9da05fbbe6fed8ca00e30c0c215dea5fb8e2905d4416bc3e20322"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00009.json",
+        "sha256": "f6922ba866682df17c4db1e0d82988e59a6c271e27c642edd0e26b1badb3336a"
+      },
+      "truth_mm": 33.72702926068979,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "5eb320c030f90e10ee9c087de8b67e33be3756b6742f33b4e7329b9ba8d60abd",
+      "expected_pixel_sha256": "5eb320c030f90e10ee9c087de8b67e33be3756b6742f33b4e7329b9ba8d60abd",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-011.json",
+        "sha256": "68dfec9101c70092302013378d79cd013b5c9c0fa117dc76555a55ff5ccd221e"
+      },
+      "photos": [
+        {
+          "id": "rate-011-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "5eb320c030f90e10ee9c087de8b67e33be3756b6742f33b4e7329b9ba8d60abd"
+        },
+        {
+          "id": "rate-011-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "7a32379f505b35b2549bfa83b4b0661847a622c687bea12db1d1beb2494ad0e9"
+        },
+        {
+          "id": "rate-011-turn240",
+          "status": "no_rim",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "f7112887df9f0da0359bb80a8e2107d69355be998868bdebfc1c94ab30a39016"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00010.json",
+        "sha256": "7bbe78647bf7fa2706b88265aabc4c119e7baf5221aab0180dcd90748693c28d"
+      },
+      "truth_mm": -31.808893060860115,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "04106f69c3eaf89bf762b83f0bd997566cf5d410bfc43d2f5bad486e3f749abd",
+      "expected_pixel_sha256": "04106f69c3eaf89bf762b83f0bd997566cf5d410bfc43d2f5bad486e3f749abd",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-012.json",
+        "sha256": "eaa6c7587b99a3b46928ccee08d97db7a9febcb17c36ef1ff9b59862021302bc"
+      },
+      "photos": [
+        {
+          "id": "rate-012-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "04106f69c3eaf89bf762b83f0bd997566cf5d410bfc43d2f5bad486e3f749abd"
+        },
+        {
+          "id": "rate-012-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "04d41d614e7c97694f1113c8c3c20a60f33b14982c3dd61fb7027ee9205c692e"
+        },
+        {
+          "id": "rate-012-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "9fd77f74e8e75fb7e63f655bc0f88e6f24c499a50912a42e46919da31494768f"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00075.json",
+        "sha256": "38b5f8fb0d98a4243326b5850061a3292bf7734fdb8805dd20f1eebd566b66bc"
+      },
+      "truth_mm": 17.598886326876276,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "18e886a56cfe9358f8630a015a4f3e1571a3fcf4ebd3be84128d0d5a799d41cd",
+      "expected_pixel_sha256": "18e886a56cfe9358f8630a015a4f3e1571a3fcf4ebd3be84128d0d5a799d41cd",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-013.json",
+        "sha256": "0f407d6f46f5a21006d655a58f57cb3d7b820c5a66a58a2109282726b0b356df"
+      },
+      "photos": [
+        {
+          "id": "rate-013-turn0",
+          "status": "poor_angle_coverage",
+          "L_mm": 17.838364645630747,
+          "zone_spread_mm": 0.2400707816503136,
+          "c_deg": 307.9673045466249,
+          "input_sha256": "18e886a56cfe9358f8630a015a4f3e1571a3fcf4ebd3be84128d0d5a799d41cd"
+        },
+        {
+          "id": "rate-013-turn120",
+          "status": "poor_angle_coverage",
+          "L_mm": 17.968404648323173,
+          "zone_spread_mm": 0.5906123008926727,
+          "c_deg": 67.92560953180234,
+          "input_sha256": "92345cca614dd0dda4d47256d88f3dc21f3c23b856b868eaa696d2ecbf7071a4"
+        },
+        {
+          "id": "rate-013-turn240",
+          "status": "poor_angle_coverage",
+          "L_mm": 17.5835472677982,
+          "zone_spread_mm": 0.1244637085153606,
+          "c_deg": 182.1457028551274,
+          "input_sha256": "d455c9de9b52a38b1acf38ca37c59dd83b4de5c5242c87bf4feffdc46830b227"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00029.json",
+        "sha256": "ed5b1b04ca1d0fec7979901e6fe7dc06e1b7e03953a9f1858a957d324451030e"
+      },
+      "truth_mm": -33.000914330120494,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "2912e59e079efa532e2e583d91f1f87fe66f1d90f995d410f33e83b517e78fca",
+      "expected_pixel_sha256": "2912e59e079efa532e2e583d91f1f87fe66f1d90f995d410f33e83b517e78fca",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-014.json",
+        "sha256": "29632338a349f0c9620227d555f52180fd0241cbf7330051c672e021877d615b"
+      },
+      "photos": [
+        {
+          "id": "rate-014-turn0",
+          "status": "ok",
+          "L_mm": -33.08510417417322,
+          "zone_spread_mm": 0.09932559071289404,
+          "c_deg": 94.74447440009634,
+          "input_sha256": "2912e59e079efa532e2e583d91f1f87fe66f1d90f995d410f33e83b517e78fca"
+        },
+        {
+          "id": "rate-014-turn120",
+          "status": "ok",
+          "L_mm": -33.03468217550584,
+          "zone_spread_mm": 0.07652364092243857,
+          "c_deg": 215.5877533215203,
+          "input_sha256": "b6140d3b0b4fd5d1c80ca4aff184aa14d64f6c4f9645d3bbb52342f90762d594"
+        },
+        {
+          "id": "rate-014-turn240",
+          "status": "ok",
+          "L_mm": -32.99937471771387,
+          "zone_spread_mm": 0.053783988716375575,
+          "c_deg": 341.69058688516935,
+          "input_sha256": "a5e092ccf08eb91e89ca725a0e41ab4100030b970a0a853d6e400222bd7f6ded"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "ambiguous_majority",
+            "outliers": [],
+            "agreeing_count": 2,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00019.json",
+        "sha256": "ae917c9f3723d977245efc6c8dee5c3be98f3f0904568802916b68a495396599"
+      },
+      "truth_mm": -9.283687582957807,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "a09b2ed6edac71c30075452597aa90861240055e6c13f1221bd9b21998e25739",
+      "expected_pixel_sha256": "a09b2ed6edac71c30075452597aa90861240055e6c13f1221bd9b21998e25739",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-015.json",
+        "sha256": "9d34675eb2bea42c29745d75adf8d0c96a648dad29ba1012086aa3706dc955a3"
+      },
+      "photos": [
+        {
+          "id": "rate-015-turn0",
+          "status": "ok",
+          "L_mm": -9.309270462351588,
+          "zone_spread_mm": 0.08139339136655543,
+          "c_deg": 151.49947019367667,
+          "input_sha256": "a09b2ed6edac71c30075452597aa90861240055e6c13f1221bd9b21998e25739"
+        },
+        {
+          "id": "rate-015-turn120",
+          "status": "ok",
+          "L_mm": -9.276165165284386,
+          "zone_spread_mm": 0.097016118994528,
+          "c_deg": 289.0601266875034,
+          "input_sha256": "5a820ff2304253b1b207cdcfd5cef2a478dea885994b16f7a2cbd47644b23aff"
+        },
+        {
+          "id": "rate-015-turn240",
+          "status": "ok",
+          "L_mm": -9.276355847953866,
+          "zone_spread_mm": 0.0495963316367547,
+          "c_deg": 36.63327909783623,
+          "input_sha256": "59dff48e424b62af1a6ca176b898bcf541ebbdf9fe1da808700afed3c6da1228"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": -9.276355847953866,
+            "photo_ids": [
+              "rate-015-turn0",
+              "rate-015-turn120",
+              "rate-015-turn240"
+            ],
+            "input_sha256": [
+              "a09b2ed6edac71c30075452597aa90861240055e6c13f1221bd9b21998e25739",
+              "5a820ff2304253b1b207cdcfd5cef2a478dea885994b16f7a2cbd47644b23aff",
+              "59dff48e424b62af1a6ca176b898bcf541ebbdf9fe1da808700afed3c6da1228"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              -9.301154013772244,
+              -9.268573766668311
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": 0.00733173500394102,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00002.json",
+        "sha256": "92f1899bdaa54181f6705a33b14a9c69e85d092fc29293a35e42bedc0d321383"
+      },
+      "truth_mm": 36.01212208951412,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "6ad1a35d71c8e4d64f2dc5d499b8ec6a0b49c6b6eba6b0ef17f24baf376240f8",
+      "expected_pixel_sha256": "6ad1a35d71c8e4d64f2dc5d499b8ec6a0b49c6b6eba6b0ef17f24baf376240f8",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-016.json",
+        "sha256": "3072d4cb3569f193fe7d8408564c6d00c78de8ac4c5f65d953bca5fb74c58b9f"
+      },
+      "photos": [
+        {
+          "id": "rate-016-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "6ad1a35d71c8e4d64f2dc5d499b8ec6a0b49c6b6eba6b0ef17f24baf376240f8"
+        },
+        {
+          "id": "rate-016-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "39e82b4462ef99ef91de754d8aed0ac4ab5dbc94bc15fc187098b6a09d31dbef"
+        },
+        {
+          "id": "rate-016-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "a8ee206114c545fb9e8fda4c09a9c13af15486bbb32a2cb1b40b67d83b58dc9a"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00164.json",
+        "sha256": "8a58fee3d3eab11774f850083c3fa77fccd6ff1eede2e212923d2e44b55848af"
+      },
+      "truth_mm": -12.008023623905384,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "4b656625110a28fb014839e5d93a79f3c7cf75b4d5231080564f470cab4769c7",
+      "expected_pixel_sha256": "4b656625110a28fb014839e5d93a79f3c7cf75b4d5231080564f470cab4769c7",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-017.json",
+        "sha256": "d73521ef6944e211312a5bf71bfa807777fc522b3b1c3d5f37f93f56fe47c95f"
+      },
+      "photos": [
+        {
+          "id": "rate-017-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "4b656625110a28fb014839e5d93a79f3c7cf75b4d5231080564f470cab4769c7"
+        },
+        {
+          "id": "rate-017-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "3abce1702390b9fa1fb803123a587045fbff138e574130732e1c34b77f735958"
+        },
+        {
+          "id": "rate-017-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "9df1e69df517bdcf69a023a908fc52d5ef667bf0dd04c0c4e198c92df813e833"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00054.json",
+        "sha256": "d75f5c4af0cb4179d2c6ccd829379d69967844d89ff4c1160d246f6bf75931fb"
+      },
+      "truth_mm": -0.26375944786819616,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "689e1a844ae19d2499ae6f7a550857398d802c043678b41045626126932b7ab3",
+      "expected_pixel_sha256": "689e1a844ae19d2499ae6f7a550857398d802c043678b41045626126932b7ab3",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-018.json",
+        "sha256": "ab116b07bb974b2670181091fc84caeca7d72e6ee8a31aec78dfa9c9874938d1"
+      },
+      "photos": [
+        {
+          "id": "rate-018-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "689e1a844ae19d2499ae6f7a550857398d802c043678b41045626126932b7ab3"
+        },
+        {
+          "id": "rate-018-turn120",
+          "status": "poor_angle_coverage",
+          "L_mm": -0.3827513265966557,
+          "zone_spread_mm": 0.4474186355202638,
+          "c_deg": 305.3889786023984,
+          "input_sha256": "ff6826a78c1033a55ac14ff24816df4853164db7875c7b26af966c36846ddcf4"
+        },
+        {
+          "id": "rate-018-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "ebf3503129cb8b5737050cee7c804e729b44517484b3cca3dde9013e41c6e02f"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00014.json",
+        "sha256": "20763e013096def507651c84938a98edb8e7de685699534055f1ce34d0f7b18e"
+      },
+      "truth_mm": -23.82628241698182,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "2f4234f329e502d13f8b784a54439f6b525de425d313812adf95560611346421",
+      "expected_pixel_sha256": "2f4234f329e502d13f8b784a54439f6b525de425d313812adf95560611346421",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-019.json",
+        "sha256": "4e669863e9007c779ac0569c31560c450a722bffa52335a6085d3fbc5d52a106"
+      },
+      "photos": [
+        {
+          "id": "rate-019-turn0",
+          "status": "ok",
+          "L_mm": -23.822111231305115,
+          "zone_spread_mm": 0.14533617077040972,
+          "c_deg": 298.9452302771326,
+          "input_sha256": "2f4234f329e502d13f8b784a54439f6b525de425d313812adf95560611346421"
+        },
+        {
+          "id": "rate-019-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "fbbdfac9c4490437c7d8162ffe97b561d30972d95c28abad4862906a9543fbc7"
+        },
+        {
+          "id": "rate-019-turn240",
+          "status": "ok",
+          "L_mm": -23.831405505878738,
+          "zone_spread_mm": 0.035168029248183075,
+          "c_deg": 184.01492082730917,
+          "input_sha256": "ad7ded412e79674c978e3bfe9c3b2d96157c077360a16d6171918a3aa4ef00aa"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": -23.826758368591925,
+            "photo_ids": [
+              "rate-019-turn0",
+              "rate-019-turn240"
+            ],
+            "input_sha256": [
+              "2f4234f329e502d13f8b784a54439f6b525de425d313812adf95560611346421",
+              "ad7ded412e79674c978e3bfe9c3b2d96157c077360a16d6171918a3aa4ef00aa"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              -23.84898952050283,
+              -23.813821491254647
+            ],
+            "agreeing_count": 2,
+            "ok_count": 2,
+            "required_count": 2
+          },
+          "error_mm": -0.00047595161010605125,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00280.json",
+        "sha256": "0be095aeb645e57c9b11c2648faf2d479e958cd4ba8fc15eb92d59cc01e7f446"
+      },
+      "truth_mm": 0.49480120180705,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "d21166196a289047d53d2241137a0fc3339b0c3a85b06ec8ff0d32aee21b04a9",
+      "expected_pixel_sha256": "d21166196a289047d53d2241137a0fc3339b0c3a85b06ec8ff0d32aee21b04a9",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-020.json",
+        "sha256": "1e3022c34f2994496552d1bfdb8f278f86c35298b241756b5dc5deda22ec8789"
+      },
+      "photos": [
+        {
+          "id": "rate-020-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "d21166196a289047d53d2241137a0fc3339b0c3a85b06ec8ff0d32aee21b04a9"
+        },
+        {
+          "id": "rate-020-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "84de0b49094d98e37a482bfe392aae55c41ed92ce198eb6d813361bff91f0a83"
+        },
+        {
+          "id": "rate-020-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "fac07a644d341d9eb30e3fa2509a2a8769d40ecbb4ee5fba4a3cf7cd72f58ff6"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00015.json",
+        "sha256": "674fa566473621426548030b79123d6fc376cf5e73a388b82ca66cdf92e2cf5e"
+      },
+      "truth_mm": -31.411052912744097,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "a30f5dd3d59dfc1fb304de1803e3cd6d86cb1880677f936f9da0a80cc26bdba3",
+      "expected_pixel_sha256": "a30f5dd3d59dfc1fb304de1803e3cd6d86cb1880677f936f9da0a80cc26bdba3",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-021.json",
+        "sha256": "368862e17401f15af777a58840c7fa2011fe22059cb1f7634e7cd004a902a32e"
+      },
+      "photos": [
+        {
+          "id": "rate-021-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "a30f5dd3d59dfc1fb304de1803e3cd6d86cb1880677f936f9da0a80cc26bdba3"
+        },
+        {
+          "id": "rate-021-turn120",
+          "status": "ok",
+          "L_mm": -31.498934342902423,
+          "zone_spread_mm": 0.05346863231874366,
+          "c_deg": 31.71094693984179,
+          "input_sha256": "08c5b6613b19c54051011f52c99de6f4da14ee7405de4d5bcca15b38d20e84ac"
+        },
+        {
+          "id": "rate-021-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "1c9a184f871854532f3d771d51d6d650696fbcba96a05559d32700c61ef9fa6f"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "one_photo_provisional",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00047.json",
+        "sha256": "8e8f00708404f947d3a7abdecd7ccbc00e51a84042b48cbc091f267cfc28bc5b"
+      },
+      "truth_mm": -19.298311447556067,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "056df81d8be5b98f1e24b1dde73dcdba28b91466771502918fc6228a9caf99e4",
+      "expected_pixel_sha256": "056df81d8be5b98f1e24b1dde73dcdba28b91466771502918fc6228a9caf99e4",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-022.json",
+        "sha256": "cfa8664b5d474e69333ebb346b9a7089c45c17a7744e2311450e863dc7fcfc6c"
+      },
+      "photos": [
+        {
+          "id": "rate-022-turn0",
+          "status": "ok",
+          "L_mm": -19.324389897467373,
+          "zone_spread_mm": 0.06457807940666171,
+          "c_deg": 252.94680815773836,
+          "input_sha256": "056df81d8be5b98f1e24b1dde73dcdba28b91466771502918fc6228a9caf99e4"
+        },
+        {
+          "id": "rate-022-turn120",
+          "status": "poor_angle_coverage",
+          "L_mm": -19.381203200844553,
+          "zone_spread_mm": 0.06702857722802236,
+          "c_deg": 344.8637243147843,
+          "input_sha256": "7bcde200a1fec91aed08cd75457e0d1896d85f64c63a9320f5ac303ce38069db"
+        },
+        {
+          "id": "rate-022-turn240",
+          "status": "ok",
+          "L_mm": -19.352963799248975,
+          "zone_spread_mm": 0.06509311318302125,
+          "c_deg": 134.82056097793338,
+          "input_sha256": "ef99186c9b3fb2c99f5e8c839c3c39b813b7c733ca831fff4c96b6ecb1b82ae0"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": -19.338676848358176,
+            "photo_ids": [
+              "rate-022-turn0",
+              "rate-022-turn240"
+            ],
+            "input_sha256": [
+              "056df81d8be5b98f1e24b1dde73dcdba28b91466771502918fc6228a9caf99e4",
+              "ef99186c9b3fb2c99f5e8c839c3c39b813b7c733ca831fff4c96b6ecb1b82ae0"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              -19.356678937170706,
+              -19.320417242657463
+            ],
+            "agreeing_count": 2,
+            "ok_count": 2,
+            "required_count": 2
+          },
+          "error_mm": -0.040365400802109264,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00035.json",
+        "sha256": "52333f7cc41694c7d8a4abfcc4d5bfe16469062080184be404b5e3bbac6648dc"
+      },
+      "truth_mm": -15.999567259975265,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "03b6fe27ee70e0c910c7591a62a9dcfa62aef5b18589fc14a12edf46d2b94095",
+      "expected_pixel_sha256": "03b6fe27ee70e0c910c7591a62a9dcfa62aef5b18589fc14a12edf46d2b94095",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-023.json",
+        "sha256": "ad61f297631cc0fbb843a90a13f88956178f4e29e85927bb94ac2925dfad5f7c"
+      },
+      "photos": [
+        {
+          "id": "rate-023-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "03b6fe27ee70e0c910c7591a62a9dcfa62aef5b18589fc14a12edf46d2b94095"
+        },
+        {
+          "id": "rate-023-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "ddb803269d9e6a80ec2072417b5149be20a5ab7ecbcd7c4a617b95deb4f11670"
+        },
+        {
+          "id": "rate-023-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "3a5df6a23b06949fcf060b61ea32a96fc7f6084d2d6bf306e501014857fc5bb7"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00070.json",
+        "sha256": "34743e345e061f16286663c4fd4601c6a7996e0bdc8c34b14c0c966cee85a434"
+      },
+      "truth_mm": 5.9979024859088526,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "6db2487f8a3a32aaa49c5315de8a373fce24843c8c2a4903f66bb71628706e93",
+      "expected_pixel_sha256": "6db2487f8a3a32aaa49c5315de8a373fce24843c8c2a4903f66bb71628706e93",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-024.json",
+        "sha256": "fac8dd1dae678d7a7298b4195ba0ec4621807829eb70be25394ac8ef31257c38"
+      },
+      "photos": [
+        {
+          "id": "rate-024-turn0",
+          "status": "ok",
+          "L_mm": 6.265580378893574,
+          "zone_spread_mm": 0.23457812951300028,
+          "c_deg": 309.52001534897613,
+          "input_sha256": "6db2487f8a3a32aaa49c5315de8a373fce24843c8c2a4903f66bb71628706e93"
+        },
+        {
+          "id": "rate-024-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "266d6d0292c278d8c4b12b807e64218b7bc80830e37686b53462c25cd2886a53"
+        },
+        {
+          "id": "rate-024-turn240",
+          "status": "no_rim",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "c70ecc4b2ff95aeb706d3bea4a843810967a6eab33432330d4a3f1f8b8d02275"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "one_photo_provisional",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00016.json",
+        "sha256": "88dc41ea9153846e3028f602f4be71806525af40c1dd4f8698269f214a5d112e"
+      },
+      "truth_mm": 16.419014674015138,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "c35fafe6e4c94f70ebb084c9d9f4979a914c30ba6c5df9c7003adefb22900dd7",
+      "expected_pixel_sha256": "c35fafe6e4c94f70ebb084c9d9f4979a914c30ba6c5df9c7003adefb22900dd7",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-025.json",
+        "sha256": "7d0643038b17174241a9ff1261e1ed16ac0449e8e7e1786c712ff27db9240706"
+      },
+      "photos": [
+        {
+          "id": "rate-025-turn0",
+          "status": "no_rim",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "c35fafe6e4c94f70ebb084c9d9f4979a914c30ba6c5df9c7003adefb22900dd7"
+        },
+        {
+          "id": "rate-025-turn120",
+          "status": "no_rim",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "2be16a718bd71f658e121d3dfb55f45c97ffa4a8f28ba889796097ee1861a199"
+        },
+        {
+          "id": "rate-025-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "1312c971f50f0e38966ae317ace00d10be95d82bddb893c05178976958128332"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00056.json",
+        "sha256": "4ee4a482c8892b19199055cf68c92f98ffef23daa4214eeb095f4a15f70138d9"
+      },
+      "truth_mm": 17.911786580537772,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "9dc1d3e03e5cfa2746b38c7d423dddc8321fe1b050c39a626678032fca255a20",
+      "expected_pixel_sha256": "9dc1d3e03e5cfa2746b38c7d423dddc8321fe1b050c39a626678032fca255a20",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-026.json",
+        "sha256": "04f1aba40a9a22b7a54c32ce97a6673da8aaaa6cc05f5556d2d3f8ef9f6f1638"
+      },
+      "photos": [
+        {
+          "id": "rate-026-turn0",
+          "status": "poor_angle_coverage",
+          "L_mm": 17.609402201280705,
+          "zone_spread_mm": 0.6065961766656862,
+          "c_deg": 289.6787868634978,
+          "input_sha256": "9dc1d3e03e5cfa2746b38c7d423dddc8321fe1b050c39a626678032fca255a20"
+        },
+        {
+          "id": "rate-026-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "cc1072331740ae967215b302e4335d66964a35b8e48b2f36b348e2e5c4eae851"
+        },
+        {
+          "id": "rate-026-turn240",
+          "status": "no_rim",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "2045cbb8c763b01cd16a43a2e332034f21a717bdbca79b37cdbc231549a8f8f8"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00036.json",
+        "sha256": "d3eca6d21722640b5ce1beb29b5157229197d19a4b5af1033b4b4a2c4b1af800"
+      },
+      "truth_mm": -32.10294476229504,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "0ea12580caeebe9f9cdb3661d5846dc56c7c9344783be9230fe8db28bb32316a",
+      "expected_pixel_sha256": "0ea12580caeebe9f9cdb3661d5846dc56c7c9344783be9230fe8db28bb32316a",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-027.json",
+        "sha256": "0593969a20beaf535570174dd2d0503633d6f9636a8dbaa954488618ce2d7713"
+      },
+      "photos": [
+        {
+          "id": "rate-027-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "0ea12580caeebe9f9cdb3661d5846dc56c7c9344783be9230fe8db28bb32316a"
+        },
+        {
+          "id": "rate-027-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "9d5d7c06b513f92b44b21d6ad7848a19b1a46c3385a5de27f42129518abcf7e9"
+        },
+        {
+          "id": "rate-027-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "c82bef16d422f562e76967d73cff418eac824d81596056f51d92cf52f6a2b2a9"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00040.json",
+        "sha256": "a1482512eb36a73ed5b04534cfef5ee4991dc25a695ba4c98de1384b1121dfb3"
+      },
+      "truth_mm": -28.40377680142246,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "8bb0fbeaac44c99696366029eee7b627a4e9ee95c0d5602f5a7e45639150f94c",
+      "expected_pixel_sha256": "8bb0fbeaac44c99696366029eee7b627a4e9ee95c0d5602f5a7e45639150f94c",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-028.json",
+        "sha256": "6c975ccb1428dbc8f3d1a4084696532da52fdfc1c3d5373ea7d3c4550123153e"
+      },
+      "photos": [
+        {
+          "id": "rate-028-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "8bb0fbeaac44c99696366029eee7b627a4e9ee95c0d5602f5a7e45639150f94c"
+        },
+        {
+          "id": "rate-028-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "091d72f7d4b569d0c1b49afc9e080930161f48a21b4115f7b6469602fd851eb7"
+        },
+        {
+          "id": "rate-028-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "0f78a5ee8c5c49c25eb321be7b79d63e3e8cd1abdf3f21f11585039ee20225b8"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00109.json",
+        "sha256": "12903236f7f236b94162c2d5ff34a19b2ae2d7902dcc6d21fcc9533b711ac987"
+      },
+      "truth_mm": 28.883993575045082,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "ca0b5217a016d9b35e4e125624e373dcda6b8fc00c7de6937fde3646e2a0c92e",
+      "expected_pixel_sha256": "ca0b5217a016d9b35e4e125624e373dcda6b8fc00c7de6937fde3646e2a0c92e",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-029.json",
+        "sha256": "9788b5dbc1fe5cd3832b8b5d58ff52ec175364645e6410cb0bb259df6f7fb901"
+      },
+      "photos": [
+        {
+          "id": "rate-029-turn0",
+          "status": "poor_angle_coverage",
+          "L_mm": 29.018802641320598,
+          "zone_spread_mm": 0.1005346059863399,
+          "c_deg": 303.4174425246192,
+          "input_sha256": "ca0b5217a016d9b35e4e125624e373dcda6b8fc00c7de6937fde3646e2a0c92e"
+        },
+        {
+          "id": "rate-029-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "25e0517b8e87d7d15ffb3d808e30ccf0f02882805ddf3ef039fc93a579c3883f"
+        },
+        {
+          "id": "rate-029-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "e6c40237e9b6b1538f9faedfa17f7ad9b9935a41f5f0af69204e43e29cd536be"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00025.json",
+        "sha256": "49dad7b88d92b199c52f3b5f6b7c1fcb9e051e3c597924e0d9b0aee42f98a47d"
+      },
+      "truth_mm": -7.766446844818893,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "0ba0c2f58a319568a905786ce296b21ce298e79d187cf69f6c70880ec3ae6d63",
+      "expected_pixel_sha256": "0ba0c2f58a319568a905786ce296b21ce298e79d187cf69f6c70880ec3ae6d63",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-030.json",
+        "sha256": "35c5c58d7efe449f9ada9a16809ad2a79510af1de919039fd12d81ec39073c21"
+      },
+      "photos": [
+        {
+          "id": "rate-030-turn0",
+          "status": "ok",
+          "L_mm": -7.753799895276259,
+          "zone_spread_mm": 0.09217163554385976,
+          "c_deg": 209.74377236971856,
+          "input_sha256": "0ba0c2f58a319568a905786ce296b21ce298e79d187cf69f6c70880ec3ae6d63"
+        },
+        {
+          "id": "rate-030-turn120",
+          "status": "ok",
+          "L_mm": -7.78118319893426,
+          "zone_spread_mm": 0.04317615106493555,
+          "c_deg": 21.727452410702398,
+          "input_sha256": "0fce56696ebf8ef68ed22ff7a3c85679386da86ece0d51765d0046004cbb2bd2"
+        },
+        {
+          "id": "rate-030-turn240",
+          "status": "ok",
+          "L_mm": -7.77974043191452,
+          "zone_spread_mm": 0.029047059570567413,
+          "c_deg": 222.33002125613535,
+          "input_sha256": "543fa27af745c3c1b1d98ea9e3736e8a8e8e36ec5b758ba9c8d0918fead2c402"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": -7.77974043191452,
+            "photo_ids": [
+              "rate-030-turn0",
+              "rate-030-turn120",
+              "rate-030-turn240"
+            ],
+            "input_sha256": [
+              "0ba0c2f58a319568a905786ce296b21ce298e79d187cf69f6c70880ec3ae6d63",
+              "0fce56696ebf8ef68ed22ff7a3c85679386da86ece0d51765d0046004cbb2bd2",
+              "543fa27af745c3c1b1d98ea9e3736e8a8e8e36ec5b758ba9c8d0918fead2c402"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              -7.794263961699803,
+              -7.765216902129236
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.013293587095626336,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00220.json",
+        "sha256": "b52ddd51760b1eac2c8bb0f609ace0e8ac2129f10adc3f9be1ea83f3189d6751"
+      },
+      "truth_mm": -1.7134749549725328,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "1a3cfef4a6038ec2f13fa17e67424eb0a45c44331d329b87e01247ef60a8e1b3",
+      "expected_pixel_sha256": "1a3cfef4a6038ec2f13fa17e67424eb0a45c44331d329b87e01247ef60a8e1b3",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-031.json",
+        "sha256": "0897717ca34f9bbf53c69c7aa6d5e342e7b312cdcc56cb8f51569930f5b306f3"
+      },
+      "photos": [
+        {
+          "id": "rate-031-turn0",
+          "status": "ok",
+          "L_mm": -1.7768900872068736,
+          "zone_spread_mm": 0.00900753075529992,
+          "c_deg": 58.85599213107089,
+          "input_sha256": "1a3cfef4a6038ec2f13fa17e67424eb0a45c44331d329b87e01247ef60a8e1b3"
+        },
+        {
+          "id": "rate-031-turn120",
+          "status": "ok",
+          "L_mm": -1.766446337287606,
+          "zone_spread_mm": 0.05136147539377589,
+          "c_deg": 178.85816177523523,
+          "input_sha256": "2824cb1e26b038237e49623b79b92b423770565d25a9c8e1febb5b553e34d0ff"
+        },
+        {
+          "id": "rate-031-turn240",
+          "status": "ok",
+          "L_mm": -1.7949037290471443,
+          "zone_spread_mm": 0.07112932381141279,
+          "c_deg": 292.8898833798122,
+          "input_sha256": "d6d27c83e6928b72e60330a1d378ecb39e30ea8c15aab964624c16c26e7768d8"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": -1.7768900872068736,
+            "photo_ids": [
+              "rate-031-turn0",
+              "rate-031-turn120",
+              "rate-031-turn240"
+            ],
+            "input_sha256": [
+              "1a3cfef4a6038ec2f13fa17e67424eb0a45c44331d329b87e01247ef60a8e1b3",
+              "2824cb1e26b038237e49623b79b92b423770565d25a9c8e1febb5b553e34d0ff",
+              "d6d27c83e6928b72e60330a1d378ecb39e30ea8c15aab964624c16c26e7768d8"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              -1.7813938525845234,
+              -1.7723863218292237
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.06341513223434081,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00181.json",
+        "sha256": "7f99d3fac8a180c5c098c4c1d0f4cef2932e13c42af95c9bb15d0fe74944f9b6"
+      },
+      "truth_mm": -5.205501690660048,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "882a1fb03d681d7d9dce84b5a9c576558c1c58d27345c547251840aec62f8462",
+      "expected_pixel_sha256": "882a1fb03d681d7d9dce84b5a9c576558c1c58d27345c547251840aec62f8462",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-032.json",
+        "sha256": "38f1d592f9e550df3d65d963c2fa66be320525bdcce2f3bd26da4fbc8e207b8f"
+      },
+      "photos": [
+        {
+          "id": "rate-032-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "882a1fb03d681d7d9dce84b5a9c576558c1c58d27345c547251840aec62f8462"
+        },
+        {
+          "id": "rate-032-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "2ed9751b7faac07dbab3fd8ae1ca130db7fd7b908ebcb1637f2e18224b452027"
+        },
+        {
+          "id": "rate-032-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "ace1cb15a116547b54040141501d6f0ea08d464d0070962c7be86d5ff4ebb93d"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00258.json",
+        "sha256": "a140e0341730cb367f6297e28e7e3b762c73d5bc95485c16f3dc99f97ef51831"
+      },
+      "truth_mm": -9.815557319260758,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "f5532ecc1909d55582bbce536b65ffc0eaa3945b1fd8f85ad2cb6743b3eb666b",
+      "expected_pixel_sha256": "f5532ecc1909d55582bbce536b65ffc0eaa3945b1fd8f85ad2cb6743b3eb666b",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-033.json",
+        "sha256": "f3b8d035f528744bc90cdffcbcf1b38e878207652a21009b8ed39e51747d1ed1"
+      },
+      "photos": [
+        {
+          "id": "rate-033-turn0",
+          "status": "ok",
+          "L_mm": -9.81943912779423,
+          "zone_spread_mm": 0.1268507049962846,
+          "c_deg": 281.0770221059711,
+          "input_sha256": "f5532ecc1909d55582bbce536b65ffc0eaa3945b1fd8f85ad2cb6743b3eb666b"
+        },
+        {
+          "id": "rate-033-turn120",
+          "status": "ok",
+          "L_mm": -9.81288360024846,
+          "zone_spread_mm": 0.042994646317565,
+          "c_deg": 60.69488590067976,
+          "input_sha256": "007aa41ad56fa200c4c15fc32143a79a5d12075e84390740aeb23ae58f32f332"
+        },
+        {
+          "id": "rate-033-turn240",
+          "status": "ok",
+          "L_mm": -9.822688845428155,
+          "zone_spread_mm": 0.08513511617021585,
+          "c_deg": 113.38926666504409,
+          "input_sha256": "ec3c1a4c4e574301ffa9e98c3f4f1260d4f1311dd6fc5010d8012c4a8498bf7f"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": -9.81943912779423,
+            "photo_ids": [
+              "rate-033-turn0",
+              "rate-033-turn120",
+              "rate-033-turn240"
+            ],
+            "input_sha256": [
+              "f5532ecc1909d55582bbce536b65ffc0eaa3945b1fd8f85ad2cb6743b3eb666b",
+              "007aa41ad56fa200c4c15fc32143a79a5d12075e84390740aeb23ae58f32f332",
+              "ec3c1a4c4e574301ffa9e98c3f4f1260d4f1311dd6fc5010d8012c4a8498bf7f"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              -9.834380923407242,
+              -9.791386277089678
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.0038818085334710872,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00192.json",
+        "sha256": "ddb05ed5d2ace07a08be94b9b922ca25cf1d8f044ff7034e493011c9c97131ef"
+      },
+      "truth_mm": -5.249503864294497,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "c0fce6ddd2ceed0bd4b28b1c8bd8b5652bb7c95ec4403e32583ca94cf8d4de43",
+      "expected_pixel_sha256": "c0fce6ddd2ceed0bd4b28b1c8bd8b5652bb7c95ec4403e32583ca94cf8d4de43",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-034.json",
+        "sha256": "4c8744f89980532943485bd6119603e3f1fefd8f123684feda46319309e81fd4"
+      },
+      "photos": [
+        {
+          "id": "rate-034-turn0",
+          "status": "ok",
+          "L_mm": -5.28535172067721,
+          "zone_spread_mm": 0.08031744101778493,
+          "c_deg": 60.854863542034366,
+          "input_sha256": "c0fce6ddd2ceed0bd4b28b1c8bd8b5652bb7c95ec4403e32583ca94cf8d4de43"
+        },
+        {
+          "id": "rate-034-turn120",
+          "status": "ok",
+          "L_mm": -5.2231500093322065,
+          "zone_spread_mm": 0.13689544658827657,
+          "c_deg": 196.8472676626406,
+          "input_sha256": "26ced0df197b99d786b3a9953609c136f0989360e9bad21ff9178bd809a9989d"
+        },
+        {
+          "id": "rate-034-turn240",
+          "status": "ok",
+          "L_mm": -5.281115067384684,
+          "zone_spread_mm": 0.041434524745240786,
+          "c_deg": 319.56526115394786,
+          "input_sha256": "da1d602d465efa8cf9cb29510223b5a9f2b4c4b14d414a612f9fb89241453f94"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": -5.281115067384684,
+            "photo_ids": [
+              "rate-034-turn0",
+              "rate-034-turn120",
+              "rate-034-turn240"
+            ],
+            "input_sha256": [
+              "c0fce6ddd2ceed0bd4b28b1c8bd8b5652bb7c95ec4403e32583ca94cf8d4de43",
+              "26ced0df197b99d786b3a9953609c136f0989360e9bad21ff9178bd809a9989d",
+              "da1d602d465efa8cf9cb29510223b5a9f2b4c4b14d414a612f9fb89241453f94"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              -5.291597732626345,
+              -5.260397805012063
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.03161120309018717,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00210.json",
+        "sha256": "823a1e1c5e7ff982eefeccb6377c8b602d6d23bb6f4e5923b6df2cd5c948ec12"
+      },
+      "truth_mm": -5.816932230067127,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "eb6f74f99a5f64ee9729a3b609f11e60aab241b110f138a1b5b2f2ece39fdb85",
+      "expected_pixel_sha256": "eb6f74f99a5f64ee9729a3b609f11e60aab241b110f138a1b5b2f2ece39fdb85",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-035.json",
+        "sha256": "40152b80452ae6bd2e36d3d0501e0f8493ac43fae1c50011852fb33bb31b39ea"
+      },
+      "photos": [
+        {
+          "id": "rate-035-turn0",
+          "status": "ok",
+          "L_mm": -5.827152229222636,
+          "zone_spread_mm": 0.10982408702226198,
+          "c_deg": 12.844838610234108,
+          "input_sha256": "eb6f74f99a5f64ee9729a3b609f11e60aab241b110f138a1b5b2f2ece39fdb85"
+        },
+        {
+          "id": "rate-035-turn120",
+          "status": "ok",
+          "L_mm": -5.82908339836781,
+          "zone_spread_mm": 0.05208502546539151,
+          "c_deg": 310.1110045923342,
+          "input_sha256": "566e8517c457f7eb44b2d3cb485913e344eab691316d20fe250e90a9b1c10b38"
+        },
+        {
+          "id": "rate-035-turn240",
+          "status": "ok",
+          "L_mm": -5.792994200245085,
+          "zone_spread_mm": 0.08188690144078414,
+          "c_deg": 265.6531925264865,
+          "input_sha256": "382485e8d3b94682d3890f98d2bfea2b0e8b2ed8719bfeb2bb4a95f8e2bd1131"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": -5.827152229222636,
+            "photo_ids": [
+              "rate-035-turn0",
+              "rate-035-turn120",
+              "rate-035-turn240"
+            ],
+            "input_sha256": [
+              "eb6f74f99a5f64ee9729a3b609f11e60aab241b110f138a1b5b2f2ece39fdb85",
+              "566e8517c457f7eb44b2d3cb485913e344eab691316d20fe250e90a9b1c10b38",
+              "382485e8d3b94682d3890f98d2bfea2b0e8b2ed8719bfeb2bb4a95f8e2bd1131"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              -5.833937650965477,
+              -5.803040885635114
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.01021999915550964,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00030.json",
+        "sha256": "8881311c8db65175bff82a0073aaeba0591806b39d630d13367ccb766c598c9d"
+      },
+      "truth_mm": 2.2480379560149046,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "806fe88645e322098581428ccbca6ac00e6f13e043f5974909b690faf86707e7",
+      "expected_pixel_sha256": "806fe88645e322098581428ccbca6ac00e6f13e043f5974909b690faf86707e7",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-036.json",
+        "sha256": "adaf2316bc31ad9eeee7adb9705010a9271feed267ca51e35f5d735fe01f36df"
+      },
+      "photos": [
+        {
+          "id": "rate-036-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "806fe88645e322098581428ccbca6ac00e6f13e043f5974909b690faf86707e7"
+        },
+        {
+          "id": "rate-036-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "806fe88645e322098581428ccbca6ac00e6f13e043f5974909b690faf86707e7"
+        },
+        {
+          "id": "rate-036-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "806fe88645e322098581428ccbca6ac00e6f13e043f5974909b690faf86707e7"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00008.json",
+        "sha256": "1d4e724780e96c43e9388505afaf80b128590121271c6eb30311d505a0647bcf"
+      },
+      "truth_mm": -11.347359884341387,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "a7ca49db0f36c628d9cf9c215aea2a729dadd7fc0f7d83dff682aa98de039ef0",
+      "expected_pixel_sha256": "a7ca49db0f36c628d9cf9c215aea2a729dadd7fc0f7d83dff682aa98de039ef0",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-037.json",
+        "sha256": "11ba0cac473ddff994fa9a9f395fb0a0618fd7769ac996b47a8c1479aed4b43d"
+      },
+      "photos": [
+        {
+          "id": "rate-037-turn0",
+          "status": "poor_angle_coverage",
+          "L_mm": -11.466956064161401,
+          "zone_spread_mm": 0.18224595386933373,
+          "c_deg": 160.39586167579375,
+          "input_sha256": "a7ca49db0f36c628d9cf9c215aea2a729dadd7fc0f7d83dff682aa98de039ef0"
+        },
+        {
+          "id": "rate-037-turn120",
+          "status": "poor_angle_coverage",
+          "L_mm": -11.3136206352954,
+          "zone_spread_mm": 0.2874390485907803,
+          "c_deg": 90.49674655480825,
+          "input_sha256": "a8dbbd8fa204c3f9834442fd35e7269547f0620ce9c2ea6ee972a017a23d0bf2"
+        },
+        {
+          "id": "rate-037-turn240",
+          "status": "poor_angle_coverage",
+          "L_mm": -11.451719073532127,
+          "zone_spread_mm": 0.2956702284729076,
+          "c_deg": 40.34588742850804,
+          "input_sha256": "ea9573e2eda8796c4829b642f0b78f762cab615b6124c41b4195985233ebfb5a"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00081.json",
+        "sha256": "e34369734c26988a4d4701c06407a5d4fdca0a05a9cd4cc7a7529b9130adb25e"
+      },
+      "truth_mm": 5.300542496678762,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "dc5672e0b47e7f46a35f673d6428ff39a1cd6220720fd842cd314872bf5c1526",
+      "expected_pixel_sha256": "dc5672e0b47e7f46a35f673d6428ff39a1cd6220720fd842cd314872bf5c1526",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-038.json",
+        "sha256": "5468572c0921028845172a81c8dd8094c6a39ca75de57c32813fcf0f64a0007a"
+      },
+      "photos": [
+        {
+          "id": "rate-038-turn0",
+          "status": "ok",
+          "L_mm": 5.288914680492744,
+          "zone_spread_mm": 0.04663340588449216,
+          "c_deg": 145.3363047699512,
+          "input_sha256": "dc5672e0b47e7f46a35f673d6428ff39a1cd6220720fd842cd314872bf5c1526"
+        },
+        {
+          "id": "rate-038-turn120",
+          "status": "ok",
+          "L_mm": 5.2921645645191795,
+          "zone_spread_mm": 0.04700804363704947,
+          "c_deg": 262.22935562303365,
+          "input_sha256": "693ccca9f4fddae81e951c1e6606375ff4e96549a92ca6288f608d209cfe08f1"
+        },
+        {
+          "id": "rate-038-turn240",
+          "status": "ok",
+          "L_mm": 5.269377503162763,
+          "zone_spread_mm": 0.03402404809922022,
+          "c_deg": 5.932675704151792,
+          "input_sha256": "2029f733ed831992bb8fa01cf41e05476815d6f4d1349cd333954d727613406f"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": 5.286389527212373,
+            "photo_ids": [
+              "rate-038-turn0",
+              "rate-038-turn120",
+              "rate-038-turn240"
+            ],
+            "input_sha256": [
+              "dc5672e0b47e7f46a35f673d6428ff39a1cd6220720fd842cd314872bf5c1526",
+              "693ccca9f4fddae81e951c1e6606375ff4e96549a92ca6288f608d209cfe08f1",
+              "2029f733ed831992bb8fa01cf41e05476815d6f4d1349cd333954d727613406f"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              5.268660542700655,
+              5.286389527212373
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.01415296946638911,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00062.json",
+        "sha256": "26f6754b769bdb7968d04b4c293f71faae7c11d4c83cbc015d03d2deef7e3d5b"
+      },
+      "truth_mm": 1.2766167366528727,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "9460e7e3227287792c7e6e168cefb92edc97c29158f7fcfa07489deb7e7e569c",
+      "expected_pixel_sha256": "9460e7e3227287792c7e6e168cefb92edc97c29158f7fcfa07489deb7e7e569c",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-039.json",
+        "sha256": "411675686013fd5caf4e56ddce6da029db79cf90b748edfc7882cd2eab8fdb2a"
+      },
+      "photos": [
+        {
+          "id": "rate-039-turn0",
+          "status": "ok",
+          "L_mm": 1.2070773738039289,
+          "zone_spread_mm": 0.027027734508696,
+          "c_deg": 42.12319526825253,
+          "input_sha256": "9460e7e3227287792c7e6e168cefb92edc97c29158f7fcfa07489deb7e7e569c"
+        },
+        {
+          "id": "rate-039-turn120",
+          "status": "ok",
+          "L_mm": 1.2017271126408873,
+          "zone_spread_mm": 0.04525018791113489,
+          "c_deg": 174.55160333089879,
+          "input_sha256": "e12dfd817940b7d4e7bb0cb7c59853f6dfab1d87e1bf8cea489af150b0ca0da4"
+        },
+        {
+          "id": "rate-039-turn240",
+          "status": "ok",
+          "L_mm": 1.231398067757706,
+          "zone_spread_mm": 0.0744687980900629,
+          "c_deg": 18.75807908954972,
+          "input_sha256": "362f2574b9ccb1cacca29fea490de4a6882320519a8976a2b05d2222d4ca4cd6"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": 1.2070773738039289,
+            "photo_ids": [
+              "rate-039-turn0",
+              "rate-039-turn120",
+              "rate-039-turn240"
+            ],
+            "input_sha256": [
+              "9460e7e3227287792c7e6e168cefb92edc97c29158f7fcfa07489deb7e7e569c",
+              "e12dfd817940b7d4e7bb0cb7c59853f6dfab1d87e1bf8cea489af150b0ca0da4",
+              "362f2574b9ccb1cacca29fea490de4a6882320519a8976a2b05d2222d4ca4cd6"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              1.1941636687126747,
+              1.2205912410582769
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.0695393628489438,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00112.json",
+        "sha256": "02d1d739b5ce95b6750ad2ac990995612854a3350d2ab8f06fd93ec2ffe577e2"
+      },
+      "truth_mm": -10.597072746590893,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "1f2ce6b377f4f1ee15d43a2721bec0e935a43cb9f486c864bf4a5ca3045a9e35",
+      "expected_pixel_sha256": "1f2ce6b377f4f1ee15d43a2721bec0e935a43cb9f486c864bf4a5ca3045a9e35",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-040.json",
+        "sha256": "4bae9a4f5d125ce746d5148b69ef8d6c8eb481d0121546322e4cfc0f2953f203"
+      },
+      "photos": [
+        {
+          "id": "rate-040-turn0",
+          "status": "ok",
+          "L_mm": -10.683607817467538,
+          "zone_spread_mm": 0.13309887787081998,
+          "c_deg": 51.5075103861053,
+          "input_sha256": "1f2ce6b377f4f1ee15d43a2721bec0e935a43cb9f486c864bf4a5ca3045a9e35"
+        },
+        {
+          "id": "rate-040-turn120",
+          "status": "poor_angle_coverage",
+          "L_mm": -10.551902779489147,
+          "zone_spread_mm": 0.05307299794371012,
+          "c_deg": 30.887242799080948,
+          "input_sha256": "18b2fb6b8cb6668bbde0286c6205262b65d24e043b7630bc841f4cd6539f5976"
+        },
+        {
+          "id": "rate-040-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "c34dfbf09ddaf5069b41ebe451143d9b1970633bddfb45cbae7469ae403a399b"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "one_photo_provisional",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00372.json",
+        "sha256": "fb85637905bebaa5efe6a9bd667714f84a2671ba96cb442a1f04003e4d0d268c"
+      },
+      "truth_mm": -11.30792643437935,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "59acaa98d5cbea10af035f59217d4d8ddd25ee7040ce0ba1220b9091c51c3db2",
+      "expected_pixel_sha256": "59acaa98d5cbea10af035f59217d4d8ddd25ee7040ce0ba1220b9091c51c3db2",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-041.json",
+        "sha256": "e162ef822f4b776ddbf77d478ae04ec7405ae94e22117e88379a9c60367c270f"
+      },
+      "photos": [
+        {
+          "id": "rate-041-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "59acaa98d5cbea10af035f59217d4d8ddd25ee7040ce0ba1220b9091c51c3db2"
+        },
+        {
+          "id": "rate-041-turn120",
+          "status": "few_inliers",
+          "L_mm": -11.327743246582981,
+          "zone_spread_mm": null,
+          "c_deg": 14.763071385486317,
+          "input_sha256": "9478e234e9298d74a9bf54c74e6190a4d238c35d0e3c8d16641f2605970da49f"
+        },
+        {
+          "id": "rate-041-turn240",
+          "status": "poor_angle_coverage",
+          "L_mm": -11.073552027888397,
+          "zone_spread_mm": 0.5804137682406498,
+          "c_deg": 166.39129299932773,
+          "input_sha256": "3ea07df6286c9f2f7ed836a2955637472806b9e772d15c9e1e252146ef19cb85"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00127.json",
+        "sha256": "4e7b65ec613ca3ccecf811e2863ad63202669730ade48d1fa28c7209c0b15836"
+      },
+      "truth_mm": -10.51886917190065,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "cc6274c99921b485731ebbd029bb82123e2e49f6fdd872eaa1dbf39e70a47bf1",
+      "expected_pixel_sha256": "cc6274c99921b485731ebbd029bb82123e2e49f6fdd872eaa1dbf39e70a47bf1",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-042.json",
+        "sha256": "b92d7375880cc0afa64b6f0a6871b7419336c2184b95e755dc02c76451df5e49"
+      },
+      "photos": [
+        {
+          "id": "rate-042-turn0",
+          "status": "ok",
+          "L_mm": -10.631818002298965,
+          "zone_spread_mm": 0.19971687633024615,
+          "c_deg": 249.34181299498422,
+          "input_sha256": "cc6274c99921b485731ebbd029bb82123e2e49f6fdd872eaa1dbf39e70a47bf1"
+        },
+        {
+          "id": "rate-042-turn120",
+          "status": "ok",
+          "L_mm": -10.66116806952873,
+          "zone_spread_mm": 0.1708507939146795,
+          "c_deg": 250.54726081549748,
+          "input_sha256": "74511b102b0034edc52b6b8dce41fd612cf438a69e53c3aa8656fc771e5bf365"
+        },
+        {
+          "id": "rate-042-turn240",
+          "status": "ok",
+          "L_mm": -10.569261465734405,
+          "zone_spread_mm": 0.0611443077326399,
+          "c_deg": 180.5149053696382,
+          "input_sha256": "04188592adac4dc8b729ed1f5e6c83ecee692296d0c3c6bc4c290fd1b8d33cee"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": -10.599833619600725,
+            "photo_ids": [
+              "rate-042-turn0",
+              "rate-042-turn120",
+              "rate-042-turn240"
+            ],
+            "input_sha256": [
+              "cc6274c99921b485731ebbd029bb82123e2e49f6fdd872eaa1dbf39e70a47bf1",
+              "74511b102b0034edc52b6b8dce41fd612cf438a69e53c3aa8656fc771e5bf365",
+              "04188592adac4dc8b729ed1f5e6c83ecee692296d0c3c6bc4c290fd1b8d33cee"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              -10.599833619600725,
+              -10.57574267257139
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.08096444770007416,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00340.json",
+        "sha256": "b4cc10123ef005900428d4a1aa141e3cac9c552138bf079625c561517126212f"
+      },
+      "truth_mm": 9.581468657018139,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "8c3c6ed33dec32a31aba12b91863d06559be8785b296a2370880b459fe50fc38",
+      "expected_pixel_sha256": "8c3c6ed33dec32a31aba12b91863d06559be8785b296a2370880b459fe50fc38",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-043.json",
+        "sha256": "f2c2eed1e3d912b0a57a4c577545373be3e0b8c69ee678b6b350e57e248c2618"
+      },
+      "photos": [
+        {
+          "id": "rate-043-turn0",
+          "status": "ok",
+          "L_mm": 9.502113510621985,
+          "zone_spread_mm": 0.07508212409741155,
+          "c_deg": 306.80552532888447,
+          "input_sha256": "8c3c6ed33dec32a31aba12b91863d06559be8785b296a2370880b459fe50fc38"
+        },
+        {
+          "id": "rate-043-turn120",
+          "status": "ok",
+          "L_mm": 9.53495835336339,
+          "zone_spread_mm": 0.1148694070110583,
+          "c_deg": 33.071284175152655,
+          "input_sha256": "cee13c30caf67f98a5d917fb0f22a0ba193d88bb2bc5e8e52105bda07fcce693"
+        },
+        {
+          "id": "rate-043-turn240",
+          "status": "ok",
+          "L_mm": 9.519096711657783,
+          "zone_spread_mm": 0.08541394153079196,
+          "c_deg": 199.29085487842792,
+          "input_sha256": "5e29ea25c647925ee09cff297a74079b3eb902562b14662b454de306c94cf588"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": 9.519096711657783,
+            "photo_ids": [
+              "rate-043-turn0",
+              "rate-043-turn120",
+              "rate-043-turn240"
+            ],
+            "input_sha256": [
+              "8c3c6ed33dec32a31aba12b91863d06559be8785b296a2370880b459fe50fc38",
+              "cee13c30caf67f98a5d917fb0f22a0ba193d88bb2bc5e8e52105bda07fcce693",
+              "5e29ea25c647925ee09cff297a74079b3eb902562b14662b454de306c94cf588"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              9.477523649857861,
+              9.539654572670692
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.06237194536035595,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00045.json",
+        "sha256": "43d4f7cda3b2b3639f72b676541940845cb31a3d34022d3223cfcce84552e83b"
+      },
+      "truth_mm": 10.399153633435063,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "b9bfafa01c0390f7c95f43dcd6b464b7390dd1c7e899f3504a95c139f9617574",
+      "expected_pixel_sha256": "b9bfafa01c0390f7c95f43dcd6b464b7390dd1c7e899f3504a95c139f9617574",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-044.json",
+        "sha256": "bb18129746f52dfa23f39a3e7d6a1a628b4626649407a8bf83494ce8368ec3bb"
+      },
+      "photos": [
+        {
+          "id": "rate-044-turn0",
+          "status": "ok",
+          "L_mm": 10.400880809177584,
+          "zone_spread_mm": 0.11695718961230028,
+          "c_deg": 59.649880821814165,
+          "input_sha256": "b9bfafa01c0390f7c95f43dcd6b464b7390dd1c7e899f3504a95c139f9617574"
+        },
+        {
+          "id": "rate-044-turn120",
+          "status": "ok",
+          "L_mm": 10.311249995629874,
+          "zone_spread_mm": 0.040080090909221155,
+          "c_deg": 121.93868538935156,
+          "input_sha256": "fb1657917873c3c005c720837fdcd1c6e9dcb91ce073dd3f572ede00de9196c4"
+        },
+        {
+          "id": "rate-044-turn240",
+          "status": "ok",
+          "L_mm": 10.378342332368314,
+          "zone_spread_mm": 0.04631931079053331,
+          "c_deg": 299.70510714029405,
+          "input_sha256": "a89187d056b6853d7fe8bbcd868aa07c8639ef2567cbac41b651fcdaf50c51d9"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": 10.38961157077295,
+            "photo_ids": [
+              "rate-044-turn0",
+              "rate-044-turn240"
+            ],
+            "input_sha256": [
+              "b9bfafa01c0390f7c95f43dcd6b464b7390dd1c7e899f3504a95c139f9617574",
+              "a89187d056b6853d7fe8bbcd868aa07c8639ef2567cbac41b651fcdaf50c51d9"
+            ],
+            "outliers": [
+              {
+                "id": "rate-044-turn120",
+                "name": "rate-044-turn120",
+                "L_mm": 10.311249995629874,
+                "reason": "outside_common_interval",
+                "suggestion": "Turn the disc and reshoot this photo."
+              }
+            ],
+            "common_interval_mm": [
+              10.355182676973048,
+              10.40150198776358
+            ],
+            "agreeing_count": 2,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.009542062662113437,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00013.json",
+        "sha256": "efb08ca37c28a7f8bb22d241359f3ca6df16e9872bc77dea02ed58b83d6b1d4f"
+      },
+      "truth_mm": -11.92770245228014,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "6249e83242ce0608a08a4c8dbf28cc018f9b5b2f2c4ac526ef3b536fd588b9bf",
+      "expected_pixel_sha256": "6249e83242ce0608a08a4c8dbf28cc018f9b5b2f2c4ac526ef3b536fd588b9bf",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-045.json",
+        "sha256": "3ad5359ba958efdce944e47006edf3e2c239ff9a9cba4b1d4eba9b8ce1d3517b"
+      },
+      "photos": [
+        {
+          "id": "rate-045-turn0",
+          "status": "poor_angle_coverage",
+          "L_mm": -12.091008969461436,
+          "zone_spread_mm": 0.13911220108807498,
+          "c_deg": 127.86694362386703,
+          "input_sha256": "6249e83242ce0608a08a4c8dbf28cc018f9b5b2f2c4ac526ef3b536fd588b9bf"
+        },
+        {
+          "id": "rate-045-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "4fdceb0c285e64ab92716e72549889746f400ce8ea799f932f8cda26419cb5da"
+        },
+        {
+          "id": "rate-045-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "db9b2b59cbba4adf9f3ae1ade9a97d7f89962b6fd37a3f30223f99a4c4162469"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00121.json",
+        "sha256": "21921e67b51d231bdb5ade007502306030e6f701003f65972a247d2eeed14451"
+      },
+      "truth_mm": -11.795515840134735,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "c3f0baec0bdee959518530ec9db2769f816d31e0550d8a4d5c4c3514564eec07",
+      "expected_pixel_sha256": "c3f0baec0bdee959518530ec9db2769f816d31e0550d8a4d5c4c3514564eec07",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-046.json",
+        "sha256": "07be45b67f3f6e647375f59fb03a8b931f1addfd97e7568f70bb0ca3d7201674"
+      },
+      "photos": [
+        {
+          "id": "rate-046-turn0",
+          "status": "ok",
+          "L_mm": -11.902569206241573,
+          "zone_spread_mm": 0.041793574995690363,
+          "c_deg": 337.17527278610726,
+          "input_sha256": "c3f0baec0bdee959518530ec9db2769f816d31e0550d8a4d5c4c3514564eec07"
+        },
+        {
+          "id": "rate-046-turn120",
+          "status": "ok",
+          "L_mm": -11.87898931245861,
+          "zone_spread_mm": 0.07452844348279442,
+          "c_deg": 97.12824310844447,
+          "input_sha256": "bc4824c78734672cb40b857d534f2879919198645edb87fc20272d61f0b412a9"
+        },
+        {
+          "id": "rate-046-turn240",
+          "status": "ok",
+          "L_mm": -11.869471199289677,
+          "zone_spread_mm": 0.04372188570421365,
+          "c_deg": 217.11937770422966,
+          "input_sha256": "897db6937a7cfc5a22c2f737fa8b01045d8c0ae4c36f5d144d95d02cf1bed066"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": -11.881672418743728,
+            "photo_ids": [
+              "rate-046-turn0",
+              "rate-046-turn120",
+              "rate-046-turn240"
+            ],
+            "input_sha256": [
+              "c3f0baec0bdee959518530ec9db2769f816d31e0550d8a4d5c4c3514564eec07",
+              "bc4824c78734672cb40b857d534f2879919198645edb87fc20272d61f0b412a9",
+              "897db6937a7cfc5a22c2f737fa8b01045d8c0ae4c36f5d144d95d02cf1bed066"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              -11.891332142141785,
+              -11.881672418743728
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.08615657860899262,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00106.json",
+        "sha256": "dad0a45d7f72663c15eb63bf2a930460f1508cc3092a718ba4768080f8f41c05"
+      },
+      "truth_mm": 7.515050415451945,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "f950b6155cd533a0b3458d96592d18b0e1e8f0187245542afbc23cc349bdb460",
+      "expected_pixel_sha256": "f950b6155cd533a0b3458d96592d18b0e1e8f0187245542afbc23cc349bdb460",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-047.json",
+        "sha256": "f368c9fac914eef6be5655724d92ca49bcf2d830f55b4e013c9e3d44d65c5cbc"
+      },
+      "photos": [
+        {
+          "id": "rate-047-turn0",
+          "status": "ok",
+          "L_mm": 7.508560457738335,
+          "zone_spread_mm": 0.07062843255503903,
+          "c_deg": 113.4123864099799,
+          "input_sha256": "f950b6155cd533a0b3458d96592d18b0e1e8f0187245542afbc23cc349bdb460"
+        },
+        {
+          "id": "rate-047-turn120",
+          "status": "ok",
+          "L_mm": 7.5094599359246095,
+          "zone_spread_mm": 0.06397207876215472,
+          "c_deg": 257.50828270639727,
+          "input_sha256": "79762ca70c4ac57ab858f2c0309715ccafd6bc30682e48d4a0212a58207421f9"
+        },
+        {
+          "id": "rate-047-turn240",
+          "status": "ok",
+          "L_mm": 7.472283992307428,
+          "zone_spread_mm": 0.08599113361175892,
+          "c_deg": 339.1286680888418,
+          "input_sha256": "5227c11c4c8f7a4bca78bcf3e4c8ebaa6763db0e7a0275c9cef543d97deddf2c"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": 7.508560457738335,
+            "photo_ids": [
+              "rate-047-turn0",
+              "rate-047-turn120",
+              "rate-047-turn240"
+            ],
+            "input_sha256": [
+              "f950b6155cd533a0b3458d96592d18b0e1e8f0187245542afbc23cc349bdb460",
+              "79762ca70c4ac57ab858f2c0309715ccafd6bc30682e48d4a0212a58207421f9",
+              "5227c11c4c8f7a4bca78bcf3e4c8ebaa6763db0e7a0275c9cef543d97deddf2c"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              7.477473896543533,
+              7.515279559113308
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.0064899577136099396,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00032.json",
+        "sha256": "917b39e198a4608eeeb74166a3364295f30c9a3fe38267bd3eaedeb0a7d46585"
+      },
+      "truth_mm": 6.449921614324257,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "cbcda24520e18c8c0b78be35f1b2bf861d03e5762f1f3c8e823804d1a4f2a940",
+      "expected_pixel_sha256": "cbcda24520e18c8c0b78be35f1b2bf861d03e5762f1f3c8e823804d1a4f2a940",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-048.json",
+        "sha256": "2a99cde7eba422febcf9b9978c5184a6ee5672f3642a5cfcc676a20a10ae23d8"
+      },
+      "photos": [
+        {
+          "id": "rate-048-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "cbcda24520e18c8c0b78be35f1b2bf861d03e5762f1f3c8e823804d1a4f2a940"
+        },
+        {
+          "id": "rate-048-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "2e2c78acb7bc83c57aaac605658670b74b3d86b319e04404e36d976de5f11903"
+        },
+        {
+          "id": "rate-048-turn240",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "139566eb8f882e8e86e5c0ea792e9fd03c83264624b33e7a0d906cf24e1d95ca"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00177.json",
+        "sha256": "79a49b5e23b95c314cbbff5b3018e03777329a0cdc1bf241136f7fc4038cdf76"
+      },
+      "truth_mm": 5.260987578622739,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "c13188de4209dfa79d83acc2154a275fa3b8dddc5998061c0135d45ece4159f2",
+      "expected_pixel_sha256": "c13188de4209dfa79d83acc2154a275fa3b8dddc5998061c0135d45ece4159f2",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-049.json",
+        "sha256": "ddcd702b6f0108e41d6dcd682ae008836ec6dfbe699ea2569469e0d8ca52a0f8"
+      },
+      "photos": [
+        {
+          "id": "rate-049-turn0",
+          "status": "ok",
+          "L_mm": 5.237137571498364,
+          "zone_spread_mm": 0.02948955253409835,
+          "c_deg": 134.78985414240472,
+          "input_sha256": "c13188de4209dfa79d83acc2154a275fa3b8dddc5998061c0135d45ece4159f2"
+        },
+        {
+          "id": "rate-049-turn120",
+          "status": "ok",
+          "L_mm": 5.206833044657721,
+          "zone_spread_mm": 0.018537655109452267,
+          "c_deg": 16.97084949457242,
+          "input_sha256": "8a73003efd7023e8e3337ef41ecbc52a1f85867d859edccb27619c4381fd553e"
+        },
+        {
+          "id": "rate-049-turn240",
+          "status": "ok",
+          "L_mm": 5.235221072195013,
+          "zone_spread_mm": 0.04619923801271053,
+          "c_deg": 42.602998287030786,
+          "input_sha256": "88e99a444edb24a2574ede24067ab58fd964f9094ac80473adb9b59b6a8ec3ba"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "ambiguous_majority",
+            "outliers": [],
+            "agreeing_count": 2,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00063.json",
+        "sha256": "0782711c3617e3bccb3e4e410de40292536fc235ec740d8cf951d3b855885eb6"
+      },
+      "truth_mm": -8.031825170343396,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "eedb0f1ed91df19a6fbb9c7cdef51f0159f1e18718ee6d9d65c11f23f0bb8a65",
+      "expected_pixel_sha256": "eedb0f1ed91df19a6fbb9c7cdef51f0159f1e18718ee6d9d65c11f23f0bb8a65",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-050.json",
+        "sha256": "153f5713daf7f0966e48b75a7f0eae06c895e0c8f0255f466de7a5697729c172"
+      },
+      "photos": [
+        {
+          "id": "rate-050-turn0",
+          "status": "ok",
+          "L_mm": -8.005902019196851,
+          "zone_spread_mm": 0.10519297469482325,
+          "c_deg": 39.764943528111864,
+          "input_sha256": "eedb0f1ed91df19a6fbb9c7cdef51f0159f1e18718ee6d9d65c11f23f0bb8a65"
+        },
+        {
+          "id": "rate-050-turn120",
+          "status": "ok",
+          "L_mm": -8.071631821605942,
+          "zone_spread_mm": 0.08779373275407565,
+          "c_deg": 191.89719728664068,
+          "input_sha256": "d22ee982d7a26b585a8f7fe78aa9e47530c5012953f1b63479f8c448fdae5072"
+        },
+        {
+          "id": "rate-050-turn240",
+          "status": "ok",
+          "L_mm": -8.052292039845586,
+          "zone_spread_mm": 0.07280694644206598,
+          "c_deg": 323.6417554628714,
+          "input_sha256": "139fd338f7790ee13116b7bf05dc34f46513804e50c2a9c710878413e04dca97"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": -8.052292039845586,
+            "photo_ids": [
+              "rate-050-turn0",
+              "rate-050-turn120",
+              "rate-050-turn240"
+            ],
+            "input_sha256": [
+              "eedb0f1ed91df19a6fbb9c7cdef51f0159f1e18718ee6d9d65c11f23f0bb8a65",
+              "d22ee982d7a26b585a8f7fe78aa9e47530c5012953f1b63479f8c448fdae5072",
+              "139fd338f7790ee13116b7bf05dc34f46513804e50c2a9c710878413e04dca97"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              -8.058498506544263,
+              -8.027734955228905
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.02046686950219012,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00007.json",
+        "sha256": "d1e005ae8ab607bbe62b53bae9c2b1e55614025db5cab1de94c79eba6276bce2"
+      },
+      "truth_mm": -8.669766077976028,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "11fe45faa5c5499ba2566a7ccc562122c4217c3fd3608f898c47a76eb7cfc709",
+      "expected_pixel_sha256": "11fe45faa5c5499ba2566a7ccc562122c4217c3fd3608f898c47a76eb7cfc709",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-051.json",
+        "sha256": "4d42a4463be4150a62a7024b56469b019b6e434671468cb34149737a8b4e5ac9"
+      },
+      "photos": [
+        {
+          "id": "rate-051-turn0",
+          "status": "ok",
+          "L_mm": -8.673900625244915,
+          "zone_spread_mm": 0.022066793380151495,
+          "c_deg": 254.28724505699833,
+          "input_sha256": "11fe45faa5c5499ba2566a7ccc562122c4217c3fd3608f898c47a76eb7cfc709"
+        },
+        {
+          "id": "rate-051-turn120",
+          "status": "poor_angle_coverage",
+          "L_mm": -8.744031486287149,
+          "zone_spread_mm": 0.10101151184340296,
+          "c_deg": 317.14123470448953,
+          "input_sha256": "edf825cfb5b30c51b7a07ae52ff33d36e9941dbdee727bd1703d5dc5979e2f1b"
+        },
+        {
+          "id": "rate-051-turn240",
+          "status": "poor_angle_coverage",
+          "L_mm": -8.689658272370202,
+          "zone_spread_mm": 0.20523677690461462,
+          "c_deg": 64.83241557218034,
+          "input_sha256": "247ecfb5bd44917b2563b28e45feefa2363972c8219307d38b7887c2efb0402f"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "one_photo_provisional",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00267.json",
+        "sha256": "0efd5130cd6b631969e624aa2b17b5c4fe4274ddc7679baa9259c19cc2c96d79"
+      },
+      "truth_mm": 11.783151032505486,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "c655e7d842d9970acd7bc07dc5897c29c45ff07b422f368049155fbae9ad17cd",
+      "expected_pixel_sha256": "c655e7d842d9970acd7bc07dc5897c29c45ff07b422f368049155fbae9ad17cd",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-052.json",
+        "sha256": "ddefc2666e633281d50e07264cb370f8600cb5e017e6a0d70c200e75d639c667"
+      },
+      "photos": [
+        {
+          "id": "rate-052-turn0",
+          "status": "ok",
+          "L_mm": 11.753643534387113,
+          "zone_spread_mm": 0.11040257018978927,
+          "c_deg": 308.57863487274693,
+          "input_sha256": "c655e7d842d9970acd7bc07dc5897c29c45ff07b422f368049155fbae9ad17cd"
+        },
+        {
+          "id": "rate-052-turn120",
+          "status": "unstable_L",
+          "L_mm": 11.660524701941217,
+          "zone_spread_mm": 0.156293424155157,
+          "c_deg": 64.6299124220573,
+          "input_sha256": "911bc30ccfe361c9b915aa1ccdc9e6479e251bd12e63e2a8c24d0a46d9eb6f88"
+        },
+        {
+          "id": "rate-052-turn240",
+          "status": "poor_angle_coverage",
+          "L_mm": 11.7924848776079,
+          "zone_spread_mm": 0.10973296178800496,
+          "c_deg": 184.43290042713093,
+          "input_sha256": "f7a97183af9cc12fa79215edb477967b719c57cef4ccb0f6d62f30eb6b7f43bf"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "one_photo_provisional",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00041.json",
+        "sha256": "d8cf1792f5833e0ab40f051b0a0703bc6257d3453bd5ba410cc61a99d65cccd7"
+      },
+      "truth_mm": 11.625405317850024,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "cfd45efddeb1fd38c0e61645cd0c5d4e06b0688000691bd20bc9d00f4c6447ab",
+      "expected_pixel_sha256": "cfd45efddeb1fd38c0e61645cd0c5d4e06b0688000691bd20bc9d00f4c6447ab",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-053.json",
+        "sha256": "37f973f99a06d7135f2295ed6d5f936eeadded3043f4d7cccbb63153cffc31f8"
+      },
+      "photos": [
+        {
+          "id": "rate-053-turn0",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "cfd45efddeb1fd38c0e61645cd0c5d4e06b0688000691bd20bc9d00f4c6447ab"
+        },
+        {
+          "id": "rate-053-turn120",
+          "status": "too_few_votes",
+          "L_mm": null,
+          "zone_spread_mm": null,
+          "c_deg": null,
+          "input_sha256": "41502239baa7e5b43e5b7c2c9e1be886532514c8fb9fa2bebe500ecfc0e68ec0"
+        },
+        {
+          "id": "rate-053-turn240",
+          "status": "poor_angle_coverage",
+          "L_mm": 11.577919614728863,
+          "zone_spread_mm": 0.06640296801914047,
+          "c_deg": 76.96800404721924,
+          "input_sha256": "bd6c8343709cd4acdfcfd03c52a7251a9a85298a9a12578e2ee94f7bcd5ed277"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": false,
+            "reason": "no_accepted_photos",
+            "outliers": []
+          },
+          "error_mm": null,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00006.json",
+        "sha256": "2c75fd1e59e267984999183ee30dfb56692b3a7c4c905ec7bf41efb8e63f4d7e"
+      },
+      "truth_mm": 9.398657743063556,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "61f0f6c884721b99e218971ce104a52766bedeafe0917980ba81fabc6bf06c7a",
+      "expected_pixel_sha256": "61f0f6c884721b99e218971ce104a52766bedeafe0917980ba81fabc6bf06c7a",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-054.json",
+        "sha256": "674d054d1344595f5af76c778dad6d1b844e721a9a371b508d5b5ad257379236"
+      },
+      "photos": [
+        {
+          "id": "rate-054-turn0",
+          "status": "ok",
+          "L_mm": 9.353707608919356,
+          "zone_spread_mm": 0.05264837732990202,
+          "c_deg": 194.02053743754652,
+          "input_sha256": "61f0f6c884721b99e218971ce104a52766bedeafe0917980ba81fabc6bf06c7a"
+        },
+        {
+          "id": "rate-054-turn120",
+          "status": "ok",
+          "L_mm": 9.34738540350859,
+          "zone_spread_mm": 0.03981526590590434,
+          "c_deg": 85.39711176019568,
+          "input_sha256": "a0c649d101d6e82b91c8ceb7322dc1e292904a764f6badc11957705f1410bbd7"
+        },
+        {
+          "id": "rate-054-turn240",
+          "status": "ok",
+          "L_mm": 9.378688362586281,
+          "zone_spread_mm": 0.031093977817949536,
+          "c_deg": 45.27747127992363,
+          "input_sha256": "9c416d5cf4e0776890878e38b518d67c0d2267b65c3d144ecf95ca83eeacef01"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": 9.363141373677307,
+            "photo_ids": [
+              "rate-054-turn0",
+              "rate-054-turn120",
+              "rate-054-turn240"
+            ],
+            "input_sha256": [
+              "61f0f6c884721b99e218971ce104a52766bedeafe0917980ba81fabc6bf06c7a",
+              "a0c649d101d6e82b91c8ceb7322dc1e292904a764f6badc11957705f1410bbd7",
+              "9c416d5cf4e0776890878e38b518d67c0d2267b65c3d144ecf95ca83eeacef01"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              9.363141373677307,
+              9.367293036461541
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.035516369386249025,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00003.json",
+        "sha256": "f60e62e47b84961e05b2c4f83f5b7252e2a02cfcc329dabbdc8384c99be031f6"
+      },
+      "truth_mm": -0.585237044829638,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "737b7723f60b762958653610bc619dc2e3cc9375eb48e6b246e1077edb6e7c0b",
+      "expected_pixel_sha256": "737b7723f60b762958653610bc619dc2e3cc9375eb48e6b246e1077edb6e7c0b",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-055.json",
+        "sha256": "533546ef62bfa71ea790a5bb69259ae550a84007b453aa53a44c5e34f0881dd0"
+      },
+      "photos": [
+        {
+          "id": "rate-055-turn0",
+          "status": "ok",
+          "L_mm": -0.5998110728966978,
+          "zone_spread_mm": 0.03876239009689475,
+          "c_deg": 56.449672820021604,
+          "input_sha256": "737b7723f60b762958653610bc619dc2e3cc9375eb48e6b246e1077edb6e7c0b"
+        },
+        {
+          "id": "rate-055-turn120",
+          "status": "ok",
+          "L_mm": -0.5876995400764498,
+          "zone_spread_mm": 0.07556452883990461,
+          "c_deg": 76.05410071777517,
+          "input_sha256": "d77f9b245c9f3d84b508b6b67a91e19c9fe1efebb63d8a7a5ff7a6af574ca229"
+        },
+        {
+          "id": "rate-055-turn240",
+          "status": "ok",
+          "L_mm": -0.6510061568700145,
+          "zone_spread_mm": 0.07825331710117567,
+          "c_deg": 209.3519343983875,
+          "input_sha256": "cd845ad320da84aa5995d11b2f3e7226beb0c21d67f4fdf11342194f12febcb8"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": -0.6118794983194267,
+            "photo_ids": [
+              "rate-055-turn0",
+              "rate-055-turn120",
+              "rate-055-turn240"
+            ],
+            "input_sha256": [
+              "737b7723f60b762958653610bc619dc2e3cc9375eb48e6b246e1077edb6e7c0b",
+              "d77f9b245c9f3d84b508b6b67a91e19c9fe1efebb63d8a7a5ff7a6af574ca229",
+              "cd845ad320da84aa5995d11b2f3e7226beb0c21d67f4fdf11342194f12febcb8"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              -0.6191922679451451,
+              -0.6118794983194267
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.026642453489788664,
+          "wrong": false
+        }
+      ]
+    },
+    {
+      "status": "RUN",
+      "source": {
+        "path": "C:\\disc-probe-scratch\\pcal-blur\\heldout\\case_00093.json",
+        "sha256": "61c81b68b4c40a7dd631692af1e978bf0a7c8036260592a48cdfad58e3fd0b3f"
+      },
+      "truth_mm": 4.576830733118847,
+      "reader_source_sha256": "b90e15db056a6886d6b3f390f8ae6826263ab68ad9394f108d61ad6c7e76ceff",
+      "rotations_deg": [
+        0,
+        120,
+        240
+      ],
+      "original_pixel_sha256": "14e384d66bc31b761175c2ad614b4a3fb06a34cdb4d5c70cc4984e14890fba13",
+      "expected_pixel_sha256": "14e384d66bc31b761175c2ad614b4a3fb06a34cdb4d5c70cc4984e14890fba13",
+      "raw_evidence": {
+        "path": "C:\\disc-probe-scratch\\photo-l\\majority\\rate-056.json",
+        "sha256": "e05bd03df7080fc36208c241ebd44760d65bca700922983944d0f04da9ca5660"
+      },
+      "photos": [
+        {
+          "id": "rate-056-turn0",
+          "status": "ok",
+          "L_mm": 4.581846569512795,
+          "zone_spread_mm": 0.06123259234356748,
+          "c_deg": 173.10034293754703,
+          "input_sha256": "14e384d66bc31b761175c2ad614b4a3fb06a34cdb4d5c70cc4984e14890fba13"
+        },
+        {
+          "id": "rate-056-turn120",
+          "status": "ok",
+          "L_mm": 4.563928657769414,
+          "zone_spread_mm": 0.04077859324398769,
+          "c_deg": 49.5033705325327,
+          "input_sha256": "0ef39902eaf6adfbbed1ce75bdd0ac5e8a57cb26a1670177468e76b615091f1e"
+        },
+        {
+          "id": "rate-056-turn240",
+          "status": "ok",
+          "L_mm": 4.54350849611288,
+          "zone_spread_mm": 0.0365585225179359,
+          "c_deg": 71.66825513045771,
+          "input_sha256": "4147bcc9b5589b326b0e78ef8db6fe9a5806e60559517829b545b2e825bc925c"
+        }
+      ],
+      "groups": [
+        {
+          "size": 3,
+          "decision": {
+            "written": true,
+            "L_mm": 4.561787757371848,
+            "photo_ids": [
+              "rate-056-turn0",
+              "rate-056-turn120",
+              "rate-056-turn240"
+            ],
+            "input_sha256": [
+              "14e384d66bc31b761175c2ad614b4a3fb06a34cdb4d5c70cc4984e14890fba13",
+              "0ef39902eaf6adfbbed1ce75bdd0ac5e8a57cb26a1670177468e76b615091f1e",
+              "4147bcc9b5589b326b0e78ef8db6fe9a5806e60559517829b545b2e825bc925c"
+            ],
+            "outliers": [],
+            "common_interval_mm": [
+              4.551230273341011,
+              4.561787757371848
+            ],
+            "agreeing_count": 3,
+            "ok_count": 3,
+            "required_count": 2
+          },
+          "error_mm": -0.015042975746998977,
+          "wrong": false
+        }
+      ]
+    }
+  ],
+  "raw_summary": {
+    "path": "C:\\disc-probe-scratch\\photo-l\\majority\\summary.json",
+    "sha256": "8214b06368cf77e9492f3d1afc461a58fc258a91dc41cf5b292926cbde658866"
+  },
+  "plan_sha256": "bd6d4d45bdda2e253308ce37928f8836a43a127a209646cb6dcc30066c510938",
+  "validation": {
+    "full_pytest": {
+      "path": "C:\\disc-probe-scratch\\photo-l\\majority-pytest.log",
+      "sha256": "76d11fd4c7c8ed5a6f23b68411fe857bf4d14610db53a9dd6cc43a4d92eeadea",
+      "result": "608 passed, 1 skipped"
+    },
+    "final_photo_pytest": {
+      "path": "C:\\disc-probe-scratch\\photo-l\\majority-final-tests.log",
+      "sha256": "24b93905dffc4ee967a063df84775f48f82eac5b567fe1636bc0bee24e9f559e",
+      "result": "97 passed, 1 skipped"
+    },
+    "node": {
+      "path": "C:\\disc-probe-scratch\\photo-l\\majority-node.log",
+      "sha256": "e2ecbf332e2d688111fc5195ea0537f9b42f135fe81a4f4ebbec08648839e7b7",
+      "result": "fail 0"
+    },
+    "selftest": {
+      "path": "C:\\disc-probe-scratch\\photo-l\\majority-selftest.log",
+      "sha256": "38402b375d9b54308f1cca028e2e2b2362cf4c1e37e8151235e9c0deaa9a27bd",
+      "result": "all checks passed"
+    }
+  },
+  "changed_source_sha256": {
+    "discprobe/photo.py": "3674ffd0dbfb3c2291f601f0278aaf4de0ffef580b00f2f4cc25c917f0183d80",
+    "discprobe/webui.py": "0c6e45c32931a9ca1af881e5cfc1853cb181b95a4a26e1d01cc12bc75cc5de84",
+    "tools/photo_l_majority_check.py": "bbb9b3e33eb968d0784de73d9784820f794e14a330bda65590748811afdd1c86",
+    "tests/test_photo.py": "28808508e83900490b7c8040a17a774f9e77830d1a94399f88785c5d5d9ea8d4",
+    "tests/test_photo_l_image.py": "a0cadd84158226bfc67e973e972032e96f7580239fac93a4960e62afaf972f1d"
+  }
+}
