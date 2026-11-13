@@ -203,5 +203,10 @@ def test_image_reports_actual_drawing_extrapolation():
                  patch.object(imagedisc, 'preview'), \
                  patch('discprobe.coverage.range_warning', side_effect=warning), \
                  patch.object(cli, '_image_ready'), contextlib.redirect_stdout(output):
-                cli.cmd_image(args)
+                if expect_warning:
+                    import pytest
+                    with pytest.raises(SystemExit, match='EXTRAPOLATION'):
+                        cli.cmd_image(args)
+                else:
+                    cli.cmd_image(args)
             assert ('EXTRAPOLATION' in output.getvalue()) == expect_warning

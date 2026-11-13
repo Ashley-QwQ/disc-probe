@@ -99,7 +99,13 @@ def tool(name):
 class WindowsDVD:
     def __init__(self, drive, media, *, popen=subprocess.Popen, run=subprocess.run):
         if media != "dvd":
-            raise BurnError("Windows CD DAO burning is not yet implemented; use cdrdao on Linux.")
+            raise BurnError("Windows CD DAO burning is not yet implemented; use cdrdao on Linux. "
+                            "For the supported external Windows data-CD path, use tools/burn_imapi.ps1 "
+                            "with a DP --cd-sector mode2form1 ISO; it writes Mode 2 Form 1, not DAO. "
+                            "Never send a Mode 1 image through that path. For DAO use DiscImageStudio or Linux cdrdao.\n"
+                            "Windows 集成刻录尚不支持 CD DAO，已在写入前拒绝。外部数据 CD 可使用 tools/burn_imapi.ps1，"
+                            "且 DP 镜像必须用 --cd-sector mode2form1 生成；该路径写 Mode 2 Form 1，不是 DAO。"
+                            "不要把 Mode 1 镜像交给它。DAO 请用 DiscImageStudio 或 Linux cdrdao。")
         if not re.fullmatch(r"[A-Za-z]:", drive):
             raise BurnError("Windows drive must be a letter followed by a colon.")
         self.drive, self.popen, self.run = drive, popen, run
@@ -434,13 +440,25 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
             raise BurnError(str(exc)) from exc
         discid.notice()
     log_path = Path(str(image) + ".burn.jsonl")
+    # Capture the generated geometry's evidence once. Re-burning this ISO never
+    # consults a newer photo.json or changes its sector map.
+    photo_l = None
+    for suffix in (".image.json", ".rings.json"):
+        try:
+            photo_l = json.loads(image.with_suffix(suffix).read_text(encoding="utf-8")).get("photo_l")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if photo_l is not None:
+            break
     # Open the durable log before any write. Append to preserve earlier burns of this image.
     def record(kind, **fields):
         stamp = time.time()
         with log_path.open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(dict(type=kind, time=stamp, drive=drive, media=media,
-                                         image=str(image), **fields), ensure_ascii=False, allow_nan=False) + "\n")
-        ui.event(kind, time=stamp, **dict(fields, log_path=str(log_path)))
+                                         image=str(image), **({"photo_l": photo_l} if photo_l is not None else {}),
+                                         **fields), ensure_ascii=False, allow_nan=False) + "\n")
+        ui.event(kind, time=stamp, **dict(fields, log_path=str(log_path),
+                                       **({"photo_l": photo_l} if photo_l is not None else {})))
     record("burn_speed", requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=None)
     if identity:
         record("disc_identity", id=identity["body"]["id"], identity=identity)
@@ -498,7 +516,9 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
                   f"{failure['kind']}: {failure['error']}", flush=True)
         if verification["status"] != "completed" or verification["differing"] or verification["unreadable"]:
             print("The write completed. Reading back failed or could not finish; the picture may still look fine. "
-                  "Try burning another blank disc at another speed.", flush=True)
+                  "First retry reading this same disc after closing other drive software, or use another available drive. "
+                  "Only replace it if the saved write/read logs establish incomplete or unreadable recorded data; "
+                  "inspect those logs before another burn.", flush=True)
     else:
         print("Read-back verification skipped (--no-verify).", flush=True)
     result = dict(result="completed", actual_speed_x=actual, requested_speed_x=speed,
@@ -513,6 +533,8 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
 
 
 def run(args):
+    from .works_link import check_work, burn_completed
+    check_work(args)
     if args.media == "cd":
         from . import cd
         cd.set_sector_layout(args.cd_sector)
@@ -527,10 +549,21 @@ def run(args):
     watcher = threading.Thread(target=watch, daemon=True)
     watcher.start()
     try:
-        burn(args.drive, args.iso, media=args.media, speed=args.speed, yes_write=args.yes_write,
+        result = burn(args.drive, args.iso, media=args.media, speed=args.speed, yes_write=args.yes_write,
              cancel=cancel, no_verify=args.no_verify, keep_open=args.keep_open,
              append=args.append, expect_start=args.expect_start, **discid.options(args))
+        burn_completed(args, result)
     except BurnError as exc:
+        from .diagnostics import save_failure
+        folder = Path(str(args.iso) + '.diagnostics')
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+            source = Path(str(args.iso) + '.burn.jsonl')
+            if source.is_file() and not source.is_symlink() and source.stat().st_size <= 8 * 1024 * 1024:
+                (folder / 'burn.log').write_text(source.read_text(encoding='utf-8'), encoding='utf-8')
+            save_failure(folder, str(exc), args)
+        except OSError as error:
+            print(f'Could not save burn diagnostics: {error}', file=sys.stderr)
         ui.event("error", message=str(exc))
         raise SystemExit(str(exc)) from None
     finally:

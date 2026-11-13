@@ -526,9 +526,12 @@ def speed_advice(args, family: str | None = None, summary: dict | None = None) -
         old = run.summary.get("args") or {}
         mode = (run.rotation() if run.kind == "timing" else
                 ((run.summary.get("rotation_measured") or run.summary.get("rotation_check") or {}).get("mode")))
+        reason = str(run.summary.get('stopped') or '')
+        if not mode and any(word in reason for word in ('never settled', 'speed is not steady', 'constant speed', 'no clear period')):
+            mode = 'unstable'
         if run.kind not in ("timing", "geo") or run.media != media or not mode:
             continue
-        if run.kind == "timing" and run.stopped:
+        if run.kind == "timing" and run.stopped and mode != 'unstable':
             continue
         if sim:
             if old.get("sim") != sim:
@@ -630,7 +633,8 @@ def _random_for_blank(report: dict) -> list[str]:
         sectors = int(found[0] * BURN_FILL) // 16 * 16
         return ["Nothing is recorded on this disc, so timing cannot use it. The usual random disc would not fit, so make a smaller one:",
                 f"  {PROG} random{flag} --sectors {sectors} --output {iso}"]
-    return ["Nothing is recorded on this disc, so timing cannot use it. Burn a random-data disc first:",
+    return ['An existing recorded plain-data disc can be measured without a new burn. '
+            'If none is available, nothing is recorded on this blank for timing; make a random-data disc:',
             f"  {PROG} random{flag} --output {iso}"]
 
 
@@ -712,9 +716,9 @@ def after_timing_stop(args, reason: str) -> list[str]:
     flag = {"cd": " --media cd", "bd": " --media bd"}.get(media, "")
     iso = {"cd": "iso/cd-random.iso", "bd": "iso/bd-random.iso"}.get(media, "iso/random.iso")
     if "cannot read" in reason or "recorded area" in reason or "fails on" in reason or "time limit" in reason:
-        return [f"Make a plain data disc: {PROG} random{flag} --output {iso}",
-                *burn_steps(iso, media),
-                "Then run timing on it."]
+        return ['First reuse an existing recorded data disc; close other drive software, reload and check the saved command errors.',
+                'Retry reading at an untried speed or with another available drive. Do not burn to fix a timeout.',
+                f'Only if no usable recorded data remains and no existing data disc is available, make one: {PROG} random{flag} --output {iso}']
     return []
 
 
@@ -912,7 +916,8 @@ def after_geo_stop(args, reason: str, unreadable=()) -> list[str]:
                 "If this disc holds anything else (texture rings, a picture, a second session), measure only its random part:",
                 f"  {PROG} geo {again}{f' --speed {args.speed}' if getattr(args, 'speed', None) else ''} --ranges a-b,c-d",
                 "For a texture-ring disc, --rings-layout with its .rings.json file does that for you.",
-                f"If it is random data throughout, it may be damaged. Burn a new one: {PROG} random{flag} --output iso/random.iso"]
+                'First retry the failed reads on this same disc with another available drive or read speed.',
+                f"Only if recorded data is unreadable and no existing data disc is available, replace it: {PROG} random{flag} --output iso/random.iso"]
     if "never settled" in reason or "near the reference" in reason:
         return [f"The drive would not hold one speed. Check it with timing, then try geo at {word}:",
                 f"  {PROG} timing {carry}", f"  {PROG} geo {again} --speed {other}",
@@ -926,8 +931,8 @@ def after_geo_stop(args, reason: str, unreadable=()) -> list[str]:
         return ["--ranges has to overlap the recorded area. See the last LBA with:", f"  {PROG} info {carry}"]
     if "recorded area" in reason or "medium" in reason or "fails on" in reason:
         flag = " --media cd" if getattr(args, "media", "dvd") == "cd" else ""
-        return ["geo needs a burned disc of plain data. Make one, burn it and run geo again:",
-                f"  {PROG} random{flag} --output iso/random.iso"]
+        return ['geo needs readable plain data. Check an existing recorded disc and its saved info first; retry the read on the same disc.',
+                f"Only if no usable recorded data remains and no existing data disc is available, make one: {PROG} random{flag} --output iso/random.iso"]
     return [f"See how noisy this drive is: {PROG} timing {carry}"]
 
 

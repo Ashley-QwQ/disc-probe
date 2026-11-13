@@ -31,7 +31,7 @@ class Responses:
         self.responses = responses
         self.calls = []
 
-    def execute(self, cdb, alloc, direction):
+    def execute(self, cdb, alloc, direction, timeout_s=30):
         check_allowed(cdb)
         assert direction == DATA_IN or alloc == 0
         self.calls.append(cdb)

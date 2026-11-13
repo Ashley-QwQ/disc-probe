@@ -17,7 +17,9 @@ test('missing required capability stops startup; optional capability does not', 
   const result = compatibility(manifest,{...core,capabilities:core.capabilities.filter(c => c !== 'geo')});
   assert.equal(result.update,'core'); assert.deepEqual(result.missing,['geo']);
   const optional = compatibility(manifest,{...core,capabilities:manifest.required_capabilities});
-  assert.equal(optional.update,null); assert.deepEqual(optional.optional,['templates','presets-io']);
+  assert.equal(optional.update,null); assert.deepEqual(optional.optional,['templates','presets-io','works']);
+  const withoutWorks = compatibility(manifest,{...core,capabilities:core.capabilities.filter(c => c !== 'works')});
+  assert.equal(withoutWorks.update,null); assert.deepEqual(withoutWorks.optional,['works']);
 });
 function documentStub(lang='en') {
   const entries = [{dataset:{capability:'templates'}},{dataset:{capability:'geo'}}];

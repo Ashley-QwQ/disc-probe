@@ -1,0 +1,60 @@
+{
+ "started_at_utc": "2026-11-13T00:44:53.285275+00:00",
+ "completed_at_utc": "2026-11-13T00:46:21.815253+00:00",
+ "comparison_baseline": "D:\\disc-probe\\docs\\goals\\dis-community\\data-20261112",
+ "baseline_file_mtime_utc": {
+  "discussions.json": "2026-11-12T06:59:09.287543+00:00",
+  "issues.json": "2026-11-12T06:59:16.678160+00:00"
+ },
+ "collector_source": "D:\\disc-probe\\docs\\goals\\dis-community\\fetch.py",
+ "collector_sha256": "308c55c596b02af64e1b865f1a4a5cf462e9c1ce9a12c27de07ba72b620a8067",
+ "method": "Original fetch.py reused in memory, with additive IDs, URLs, updatedAt and pageInfo; all comment/reply/review connections paginated. All repository threads fetched to detect edits even when parent timestamps do not change. gh api graphql queries only.",
+ "pagination_repairs": [
+  {
+   "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107",
+   "field": "comments",
+   "initial": 60,
+   "complete": 62
+  },
+  {
+   "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19463096",
+   "field": "replies",
+   "initial": 60,
+   "complete": 116
+  }
+ ],
+ "files": {
+  "discussions.json": {
+   "sha256": "1bbe76d478a5202a5cb5c2583e4b6d74ce7f3c48911edd7d7008e328dee1cde3",
+   "threads": 101
+  },
+  "dp_issues.json": {
+   "sha256": "12cac486333d8f95bbb250d0fab6de56db23a58cee11442e0f792e26fb451c3b",
+   "threads": 17
+  },
+  "dp_pull_requests.json": {
+   "sha256": "ca60f5c7c9ca124e9fae4fa79a701973b2d1b73c83509026d71235c7889ddd06",
+   "threads": 17
+  },
+  "issues.json": {
+   "sha256": "03d602870bcbd3f4027dedc844e1a893e500cb50b020189cec39cb665999d496",
+   "threads": 170
+  },
+  "pull_requests.json": {
+   "sha256": "b7984554155538605f2e18e4be097e2e0ed49122173ce27f4d0a3058096b7b7b",
+   "threads": 53
+  }
+ },
+ "baseline_sha256": {
+  "discussions.json": "79ea8da52f2d0c9c2769527905c074ecc4e9cc3557e698d47b9a5361bbaa2cae",
+  "issues.json": "ca72634e43dc520a5b2a93ea9c0f3e67744cc0301a5be76bce5c740035c8db06"
+ },
+ "scratch_collector": "C:/disc-probe-scratch/dis-incremental/collect.py",
+ "scratch_collector_sha256": "8c96107ec86555e028ad99960567b94ad15767784b725ecc8f184054172b3072",
+ "status_source_sha256": {
+  "D:\\disc-probe\\docs\\goals\\alpha-value\\TODO_ALPHA.md": "76053a4b8781309bff7d7d4afce5d0830c4a3a4b744f4ad798b6e6612731b70d",
+  "D:\\disc-probe\\docs\\goals\\CODEX_TRACKER.md": "3d3f1db19979af91c7e0fbe77c98f6190f9e1722ae2180dfe3fab59e826bff9a",
+  "D:\\disc-probe\\docs\\goals\\d107-failures\\REPORT.md": "d36fb085e5173434d66defacb96f4e41284c4b23e3ed8f4e58e3127ca4f8ef1e"
+ },
+ "sha256_format": "Snapshot file hashes use UTF-8 JSON with LF outer file line endings. Normalize CRLF outer line endings to LF when verifying a checkout; escaped line endings inside body strings are unchanged. Baseline hashes are original bytes from the main checkout."
+}

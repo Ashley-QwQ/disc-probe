@@ -93,6 +93,8 @@ class Stopped(Exception):
 
 
 def run(args) -> None:
+    from .works_link import check_work
+    check_work(args)
     if args.media != 'dvd' and getattr(args, 'completion_sectors', None) is not None:
         raise SystemExit('--completion-sectors is for DVD')
     if getattr(args, "geo", None):
@@ -180,7 +182,9 @@ def run(args) -> None:
                 capacity = blank.get("capacity_sectors") if blank.get("blank") is True else None
                 capacity_source = 'blank disc before burning' if capacity else None
             code = child("burn", "--drive", args.drive, "--iso", args.iso, "--media", args.media, "--yes-write",
-                         *(["--speed", args.burn_speed] if args.burn_speed else []))
+                         *(["--speed", args.burn_speed] if args.burn_speed else []),
+                         *(["--work", args.work] if getattr(args, "work", None) else []),
+                         *(["--disc-code", args.disc_id_code] if getattr(args, "disc_id_code", None) else []))
             if code:
                 raise Stopped("the burn did not finish")
 

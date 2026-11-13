@@ -7,5 +7,5 @@
     "editor", "burn", "photo-calibration", "phone-link", "presets",
     "catalogue", "results-history", "greetings"
   ],
-  "optional_capabilities": ["templates", "presets-io"]
+  "optional_capabilities": ["templates", "presets-io", "works"]
 }

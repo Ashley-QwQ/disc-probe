@@ -131,6 +131,10 @@ def write_iso(path, design, u, v, bit_nm, total_sectors, dark="0D", light="AA", 
             "total_sectors": total_sectors, "textures": texs, "cell_mm": I.cell_mm(design),
             "sampling": "physical 12-data-symbol half-frame", "origin": "ECMA-130 fig C.4, sector byte 0 at F1 slot 1",
             "physical_origin_measured": False, **(meta or {})}
+    spec['capacity_words'] = dict(image_length_sectors=total_sectors,
+                                   geometric_total_sectors=None, blank_writable_sectors=None,
+                                   random_mirror_sectors=None,
+                                   uses='image file length; CD sector layout and blank writable capacity must match the burner')
     if design.dtype == bool:
         spec.update(dark=dark, light=light)
     if identity is not None:
