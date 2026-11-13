@@ -32,13 +32,20 @@ const STR = {
       look: "灯下的样子：模拟一盏灯照在盘上，颜色随角度变。这是模型，不是照片。" },
     checkH: "刻之前", nextMake: "下一步：生成并去刻录", nextCal: "下一步：先标定这批盘", making2: (p) => `正在生成${p == null ? "…" : ` ${p}%`}`,
     whyMaking: "生成中，可以在右边取消", whyLevels: "灰阶要选 2 级才能刻", whyEmpty: "先放一张图",
-    ck: { imported_corrected: "从 DIS 导入，换算成 DP 修正（未经 DP 实测）", imported: "从 DIS 导入，换算成 DP 几何（未经 DP 实测）", batch: "这批盘标定过了", latest: "没选批次：用这种盘最近一次的测量", none: "这种盘还没标定",
+    ck: { imported_corrected: "从 DIS 导入，换算成 DP 修正（未经 DP 实测）", imported: "从 DIS 导入，换算成 DP 几何（未经 DP 实测）", batch: "这批盘标定过了", latest: "没选批次：用这种盘最近一次的测量", saved: "没选批次：用这件作品上次用的测量", none: "还没有可用的测量：先标定这批盘",
+      of: (n, w) => `（${[n, w].filter(Boolean).join("，")}）`,
+      fxBw: "颜色、彩色图案和特效只是预览实验：这次按黑白刻，这些地方刻成深色。",
+      fxExp: "按实验纹理刻：颜色是模型预测，网页这条路还没有实刻验证。",
+      fxCd: "CD 刻不了颜色和特效：这些地方刻成深色。",
+      fxTry: "改按实验纹理刻（只限 DVD，不保证颜色）",
+      fxMore: "研究盘只在 GH70N 光驱、RITEKF1 DVD-R、iPhone 17 Pro 的设计机位实刻看到过红、蓝、紫和流光、O/X、合环，那些盘不是用网页这条导出路径刻的。特效按默认机位（手机在盘上方 330 mm）挑纹理，不跟着灯下视图里改的机位走。",
+      cell: (u) => `格子 ${u} µm`,
       inRange: "图都在可刻区内", outRange: "有一部分在可刻区外，会被裁掉", lv2: "灰阶是 2 级", lv4: "灰阶是 4 级，只能预览",
       blank: (n) => `光驱里是空白盘${n ? `（${n}）` : ""}`, written: "光驱里的盘刻过了：刻录页会请你换盘", other: (n) => `光驱里是别的批次（${n}）：刻录页会请你换盘`,
       kind: "光驱里是另一种盘：刻录页会请你换盘", nodisc: "光驱里还没放盘：刻录页会等你放",
       time: (m) => `刻录约 ${m} 分钟`, timeLater: "刻录时间：生成后知道", size: (b) => `文件 ${b}` },
     file: "刻录文件", fileNote: "把设计变成可以刻录的文件。生成以后才能去刻录。",
-    make: "生成刻录文件", again: "重新生成", calibrate: "先标定这批盘", cancel: "取消", making: "正在生成…", made: "刻录文件已生成",
+    make: "生成刻录文件", again: "重新生成", calibrate: "先标定这批盘", cancel: "取消", making: "正在生成…", made: "刻录文件已生成", madeExp: "实验纹理的刻录文件已生成：颜色没有验证过。", geoUsed: "几何",
     cancelled: "已取消，可以重新生成。", failed: "没有生成出来。", sectors: "扇区", where: "保存位置", folder: "在文件夹里显示",
     details: "详细信息",
     cd: "这张 CD 的沿轨常数还没确认，径向线可能扭曲。回到标定页，用手机拍照读出它；读不出来时，也可以导出 DIS 预设，在 DIS 里精细标定。",
@@ -58,13 +65,20 @@ const STR = {
       look: "Under a lamp: one light on the disc; the colours change with the angle. A model, not a photo." },
     checkH: "Before burning", nextMake: "Next: make the file and burn", nextCal: "Next: calibrate this batch first", making2: (p) => `Making the file${p == null ? "…" : ` ${p}%`}`,
     whyMaking: "Making it; cancel on the right", whyLevels: "Choose 2 grey levels to burn", whyEmpty: "Add a picture first",
-    ck: { imported_corrected: "Imported from DIS, converted to DP correction (not measured by DP)", imported: "Imported from DIS, converted to DP geometry (not measured by DP)", batch: "This batch is calibrated", latest: "No batch chosen: uses the latest measurement of this kind", none: "This kind of disc is not calibrated yet",
+    ck: { imported_corrected: "Imported from DIS, converted to DP correction (not measured by DP)", imported: "Imported from DIS, converted to DP geometry (not measured by DP)", batch: "This batch is calibrated", latest: "No batch chosen: uses the latest measurement of this kind", saved: "No batch chosen: uses the measurement this work used before", none: "No usable measurement yet: calibrate this batch first",
+      of: (n, w) => ` (${[n, w].filter(Boolean).join(", ")})`,
+      fxBw: "Colours, coloured patterns and effects are a preview experiment: this burn is black and white, and those areas burn dark.",
+      fxExp: "Burning the experimental textures: the colours are a model prediction; this web route hasn't been checked on a burned disc.",
+      fxCd: "A CD can't burn colours or effects: those areas burn dark.",
+      fxTry: "Burn the experimental textures instead (DVD only, colours not guaranteed)",
+      fxMore: "Research discs showed red, blue, purple and the flowing band, O/X and ring effects only with a GH70N drive, RITEKF1 DVD-R and an iPhone 17 Pro at the design position, and they were not made through this web export. Effects pick textures for the default position (phone 330 mm above the disc), not the one moved in the lamp view.",
+      cell: (u) => `${u} µm grid`,
       inRange: "The picture is inside the burnable range", outRange: "Part of it is outside the range and will be cut", lv2: "2 grey levels", lv4: "4 grey levels: preview only",
       blank: (n) => `A blank disc is in the drive${n ? ` (${n})` : ""}`, written: "The disc in the drive is written: the burn page will ask for a blank", other: (n) => `Another batch is in the drive (${n}): the burn page will ask for a blank`,
       kind: "Another kind of disc is in the drive: the burn page will ask for a blank", nodisc: "No disc in the drive yet: the burn page will wait for one",
       time: (m) => `Burning takes about ${m} min`, timeLater: "Burn time: known once the file is made", size: (b) => `File ${b}` },
     file: "Burn file", fileNote: "Turn the design into a file to burn. Make it before going on to burn.",
-    make: "Make the burn file", again: "Make it again", calibrate: "Calibrate this batch first", cancel: "Cancel", making: "Making…", made: "Burn file ready",
+    make: "Make the burn file", again: "Make it again", calibrate: "Calibrate this batch first", cancel: "Cancel", making: "Making…", made: "Burn file ready", madeExp: "Experimental-texture burn file ready: the colours are unverified.", geoUsed: "Geometry",
     cancelled: "Cancelled. You can make it again.", failed: "The file wasn't made.", sectors: "sectors", where: "Saved at", folder: "Show in folder",
     details: "Details",
     cd: "This CD’s along-track constant is not confirmed; radial lines may twist. Go back to calibration and read it from phone photos; if they cannot be read, export a DIS preset and fine-calibrate in DIS.",
@@ -113,15 +127,18 @@ function buildRight() {
   const c = ctx.checks?.(), row = (ok, text) => `<li data-s="${ok === true ? "good" : ok === false ? "warn" : "unknown"}">${esc(text)}</li>`;
   const minutes = ready ? Math.max(1, Math.round((s.iso.bytes / ((ctx.media === "cd" ? 176400 : 1385000) * 8) + 90) / 60)) : null;
   const checkSec = !c ? "" : `<section class="pv-list"><h3>${t.checkH}</h3><ul>` +
-    row(c.geo === "batch" ? true : c.geo === "none" ? false : null, t.ck[c.geo]) +
+    row(c.geo === "batch" ? true : c.geo === "none" ? false : null, t.ck[c.geo] + (c.geoName && c.geo !== "batch" && c.geo !== "none" ? t.ck.of(c.geoName, c.geoWhen) : "")) +
     row(c.inRange, c.inRange ? t.ck.inRange : t.ck.outRange) +
     row(c.levels === 2, c.levels === 2 ? t.ck.lv2 : t.ck.lv4) +
+    (c.effects && c.effects !== "none" ? row(false, !c.canExperiment ? t.ck.fxCd : c.effects === "experimental" ? t.ck.fxExp : t.ck.fxBw) : "") +
     row(c.disc === "blank" ? true : c.disc === "none" ? null : false, c.disc === "blank" ? t.ck.blank(c.discName) : c.disc === "other" ? t.ck.other(c.discName) : c.disc === "none" ? t.ck.nodisc : t.ck[c.disc]) +
-    `</ul><p class="note mono">${ready ? `${t.ck.time(minutes)} · ${t.ck.size(fmtBytes(s.iso.bytes))}` : t.ck.timeLater}</p></section>`;
+    `</ul>` + (c.effects && c.effects !== "none" && c.canExperiment ? `<label class="chk pv-exp"><input type="checkbox" data-a="experimental" ${c.effects === "experimental" ? "checked" : ""} ${busy ? "disabled" : ""}>${t.ck.fxTry}</label>` +
+      `<details class="pv-more"><summary>${t.details}</summary><p class="note">${t.ck.fxMore}</p></details>` : "") +
+    `<p class="note mono">${[ready ? `${t.ck.time(minutes)} · ${t.ck.size(fmtBytes(s.iso.bytes))}` : t.ck.timeLater, c.cellUm ? t.ck.cell(c.cellUm) : ""].filter(Boolean).join(" · ")}</p></section>`;
   const fileSec = checkSec + (s.phase === "idle" ? "" : `<section><h3>${t.file}</h3>` +
-    (ready ? `<p class="note">${t.made}</p>` +
+    (ready ? `<p class="note">${s.iso.experimental ? t.madeExp : t.made}</p>` +
       `<div class="pv-file"><b>${esc(s.iso.path.split(/[\\/]/).pop())}</b><span class="mono">${fmtBytes(s.iso.bytes)} · ${s.iso.sectors.toLocaleString()} ${t.sectors}</span></div>` +
-      `<details class="pv-more"><summary>${t.details}</summary><p class="note mono">${esc(s.iso.path)}</p></details>` +
+      `<details class="pv-more"><summary>${t.details}</summary><p class="note mono">${esc(s.iso.path)}</p>${s.iso.geo ? `<p class="note mono">${t.geoUsed}: ${esc(s.iso.geo)}</p>` : ""}</details>` +
       `<div class="row2">${ctx.showInFolder ? `<button class="sbtn" type="button" data-a="folder">${t.folder}</button>` : ''}<button class="sbtn" type="button" data-a="make">${t.again}</button></div>`
     : busy ? `<div class="pv-gen" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round((s.fraction ?? 0) * 100)}"></div>` +
       `<p class="note">${esc(s.stage || t.making)}${s.fraction ? ` <span class="mono">${Math.floor(s.fraction * 100)}%</span>` : ""}</p>` +
@@ -341,6 +358,12 @@ function bind(signal) {
     if (a === "folder") ctx.showInFolder?.(state.iso.path);
   });
   on(W.right, "change", (e) => {
+    if (e.target.dataset.a === "experimental") {
+      if (state.phase === "making") return;
+      ctx.setEffects?.(e.target.checked ? "experimental" : "bw");
+      if (state.phase !== "idle") state = ctx.state = { phase: "idle" };
+      buildRight(); return;
+    }
     const k = e.target.dataset.photo;
     if (!k) return;
     look[k] = (k === "background" || k === "wear") ? Number(e.target.value) : Number(e.target.checked);
