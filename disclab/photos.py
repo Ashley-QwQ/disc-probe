@@ -437,6 +437,7 @@ def shoot(lab: Lab, disc_id: str, n: int, out_dir, *, seed=0, style="handheld", 
     answers = lab.answers()
     answers.setdefault("photos", {}).update(recs)
     atomic_json(lab.answers_path, answers)
+    lab.step("photos", status="ok", disc=disc_id, paths=[str(p) for p in paths])
     return paths
 
 
@@ -451,5 +452,9 @@ def add_parser(sub):
     s.add_argument("--flash-mm", type=float, nargs=2, default=Pose.flash_mm, metavar=("X", "Y"),
                    help="flash offset in camera x/y millimetres (default: -43.66 19.79, Apple drawing)")
     s.add_argument("--illuminant", choices=("LED", "D65"), default="LED")
-    s.set_defaults(func=lambda a: shoot(Lab(a.lab), a.disc, a.n, a.out, seed=a.seed, style=a.style,
-                                        fixed=dict(flash_mm=tuple(a.flash_mm), illuminant=a.illuminant)))
+    s.add_argument("--width", type=int, default=4032, help="render width in pixels")
+    s.add_argument("--height", type=int, default=3024, help="render height in pixels")
+    s.set_defaults(func=lambda a: dict(paths=[str(p) for p in
+        shoot(Lab(a.lab), a.disc, a.n, a.out, seed=a.seed, style=a.style,
+              fixed=dict(flash_mm=tuple(a.flash_mm), illuminant=a.illuminant,
+                         width=a.width, height=a.height))]))

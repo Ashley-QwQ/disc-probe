@@ -36,7 +36,8 @@ def serve(lab: Lab, port=8853, media="dvd", lan=False):
     argv = [sys.executable, "-B", "-m", "discprobe", "webui", *([] if lan else ["--local-only"]),
             "--port", str(port), "--out", "results", "--media", media]
     print(f"http://127.0.0.1:{port}/home/", flush=True)
-    child = subprocess.Popen(argv, cwd=lab.root, env=lab_env(lab),
+    lab.step("web", status="started", paths=[str(lab.root / "results")], url=f"http://127.0.0.1:{port}/home/")
+    child = subprocess.Popen(argv, cwd=lab.root, env=lab_env(lab), stdout=sys.stdout, stderr=sys.stderr,
                              creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0)
     # Windows background launchers receive CTRL_BREAK (SIGBREAK), rather than SIGINT.
     previous_break = signal.signal(signal.SIGBREAK, signal.default_int_handler) if os.name == "nt" else None
@@ -52,10 +53,12 @@ def serve(lab: Lab, port=8853, media="dvd", lan=False):
             if child.poll() is None:
                 child.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT)
             try:
-                return child.wait(timeout=5)
+                child.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 child.terminate()
-                return child.wait(timeout=5)
+                child.wait(timeout=5)
+            # A requested stop is successful even when Windows reports its console-control exit status.
+            return 0
     finally:
         try:
             if child.poll() is None:
@@ -64,9 +67,10 @@ def serve(lab: Lab, port=8853, media="dvd", lan=False):
         finally:
             if os.name == "nt":
                 signal.signal(signal.SIGBREAK, previous_break)
+            lab.step("web", status="stopped")
 
 
-def upload(url, run, photos):
+def upload(url, run, photos, *, details=None):
     """Use the phone's raw-body upload protocol, then poll as the computer page."""
     parsed = urlsplit(url)
     if parsed.scheme not in ("http", "https") or not parsed.netloc or parsed.username or parsed.password:
@@ -97,6 +101,7 @@ def upload(url, run, photos):
     with phone.open(origin + phone_path, timeout=30) as reply:
         reply.read()
     failed = False
+    replies = details if details is not None else []
     for path in paths:
         headers = {"X-Photo-Token": token, "Content-Type": PHOTO_TYPES[path.suffix.lower()],
                    "X-Filename": quote(path.name, safe="-_.!~*'()")}
@@ -107,18 +112,23 @@ def upload(url, run, photos):
             reply = exc
             failed = True
         with reply:
-            print(f"{path.name}: HTTP {reply.code} {reply.read().decode('utf-8')}", flush=True)
+            body = reply.read().decode('utf-8')
+            replies.append(dict(path=str(path.resolve()), status=reply.code, body=body))
+            print(f"{path.name}: HTTP {reply.code} {body}", flush=True)
     with desk.open(Request(origin + "/api/photos" + query, headers=desk_headers), timeout=30) as reply:
-        print("Computer photos: " + reply.read().decode("utf-8"), flush=True)
+        body = reply.read().decode("utf-8")
+        replies.append(dict(listing=json.loads(body)))
+        print("Computer photos: " + body, flush=True)
     return 1 if failed else 0
 
 
 def _upload_command(args):
+    replies = []
     try:
-        code = upload(args.url, args.run, args.photos)
+        code = upload(args.url, args.run, args.photos, details=replies)
     except (ValueError, OSError, URLError) as exc:
         raise SystemExit(str(exc)) from exc
-    raise SystemExit(code)
+    return dict(replies=replies, run=args.run, paths=[str(Path(p).resolve()) for p in args.photos], exit_code=code)
 
 def add_parser(sub):
     parser = sub.add_parser("web", help="serve disc-probe's unchanged page against a lab (development only)")
@@ -127,10 +137,13 @@ def add_parser(sub):
     parser.add_argument("--media", choices=("dvd", "cd", "bd"), default="dvd")
     parser.add_argument("--lan", action="store_true",
                         help="listen on the LAN like the product does (token-guarded), so phone links work")
-    parser.set_defaults(func=lambda a: sys.exit(serve(Lab(a.lab), a.port, a.media, a.lan)))
+    parser.set_defaults(func=lambda a: dict(exit_code=serve(Lab(a.lab), a.port, a.media, a.lan),
+                                          url=f"http://127.0.0.1:{a.port}/home/",
+                                          paths=[str(Lab(a.lab).root / "results")]))
 
     parser = sub.add_parser("upload", help="send lab photos using the phone upload protocol")
     parser.add_argument("--url", required=True, help="computer page URL, including its session token if needed")
+    parser.add_argument("--lab", help="optional lab whose progress should record this upload")
     parser.add_argument("--run", required=True)
     parser.add_argument("--photos", nargs="+", required=True)
     parser.set_defaults(func=_upload_command)

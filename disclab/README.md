@@ -48,7 +48,45 @@ The quick example uses a 256 MiB random image, 8 read pairs per rung and at most
 
 `LAB/box.json` is the public box label, `answers.json` holds truth, and `state.json` records virtual drives and virtual writes. Results go to `results/`, rendered photos to `photos/`, and scores to `scores/geo-wide.json` (or `geo-default.json`). Intermediate ISOs live under `LAB/iso/` and are deleted after use, including failed loop steps. Burn maps and small retained headers remain; the full ISO's byte contents cannot be read again after deletion. Create a new lab for a different experiment.
 
-## Photo loop
+## Numbered TUI
+
+```bash
+python -m disclab tui --plain
+python -m disclab tui --lab LAB
+python -m disclab tui --plain --quick
+```
+
+Choose an existing box or create one by media, disc count, seed and reader profile. Numbered actions cover tray insertion, measurement ISO and virtual burn, timing, geo, a bundled sailboat picture ISO, the lab's simplified A5/B9 target and virtual burn, rendered photos, photo L, a picture with accepted L, and scores against truth. Action 11 walks those steps in order. Measurement, photo target and corrected picture use separate virtual discs; create at least three for the whole path. The sample ISO is a preview before the calibration target is burned. No physical discs are used up. `--plain` disables colour and works with redirected stdin; EOF exits. Resume by selecting the same lab: progress and settings are in `state.json`.
+
+The **checkdisc target cannot be rendered yet**: its multi-byte textures are not supported by the lab renderer. The photo path uses the lab's own simplified two-texture target. A refused photo L remains refused; a corrected picture is offered only when the reader applies L. Scores preserve the original formulas and compare geo, photo L and picture placement with truth. `score --lab LAB --progress --json` retrieves the same saved-flow scores without menus.
+
+Quick mode uses a 65,536-sector inner-band measurement and fewer reads. Artwork is restricted to a measured island using the existing image options, while full-disc scores still include extrapolation. It is for the short geo/picture/score practice path; the full 26.2–57.2 mm photo target needs a full measurement. TUI ISOs are retained because subsequent timing and info reads need their bytes; full practice can retain several GB per image. Existing `loop` cleanup is unchanged.
+
+## Practice in the existing web page
+
+```bash
+python -m disclab practice --media dvd-r --lab LAB-practice --port 8853
+```
+
+This makes a three-disc practice box with the default reader, inserts its first disc, starts the existing `disclab web` launcher and prints a short Chinese/English guide. Omit `--lab` for a new retained temporary folder. A supplied folder must be new or empty, so existing results are preserved. The default is local-only; `--lan` enables the existing token-guarded LAN mode. Stop with Ctrl+C; the results path is printed on exit. All writes use the virtual drive; no physical discs are used up.
+
+## Structured commands
+
+Every subcommand accepts `--json`, returning one object with `status`, `lab`, `outputs`, `scores` and `errors`. Logs and subprocess text go to stderr. Put the option before `dp`'s `--` separator. Server commands return their final JSON after stopping. `state.json` gains timestamped `steps` while preserving its existing keys. See the bilingual [API contract](API.md) and [scripted TUI report](TUI_REPORT.md).
+
+```bash
+python -m disclab box --lab LAB-json --count 3 --json
+python -m disclab dp --lab LAB-json --json -- info --drive X: --out LAB-json/results
+```
+
+## Next steps
+
+- Rewritable discs and erase operations.
+- More faults: timeouts, whole-turn aliasing, photo pose and exposure.
+- Multi-byte texture rendering, so checkdisc can be photographed in practice.
+- A web shell over the same JSON API.
+
+## Photo loop (existing commands)
 
 Use a separate, full-size lab. This path can take much longer and temporarily needs several GB of free space:
 

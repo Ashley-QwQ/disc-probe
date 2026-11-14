@@ -99,11 +99,58 @@ def geo_score(lab: Lab, disc_id: str, geo_dir, *, target_disc=None, reader=None)
     return out
 
 
+def progress_score(lab):
+    from .loop import picture_score, truth_L
+    from .jsonout import geo_folder, last_step
+    folder = geo_folder(lab)
+    disc = last_step(lab, "geo")["disc"]
+    result = dict(geo=geo_score(lab, disc, folder), photos=[], pictures={})
+    steps = lab.state().get("steps", {})
+    for row in steps.get("photo_L", []):
+        if row.get("status") != "ok":
+            continue
+        rec = lab.read(row["paths"][0])
+        truth = truth_L(lab, Path(row["paths"][0]).parent, row["disc"])
+        measured = rec.get("offset_mm")
+        result["photos"].append(dict(disc=row["disc"], truth_L_mm=truth["L_mm"],
+                                     measured_L_mm=measured, verdict=rec.get("verdict"),
+                                     reason=rec.get("application_agreement"),
+                                     error_mm=measured - truth["L_mm"] if measured is not None else None,
+                                     photos=[dict(name=p.get("name"), status=p.get("status"),
+                                                  L_mm=p.get("L_mm"), truth_L_mm=truth["L_mm"],
+                                                  error_mm=p["L_mm"] - truth["L_mm"] if p.get("L_mm") is not None else None)
+                                             for p in rec.get("photos", [])]))
+    for kind in ("sample_picture", "picture_L"):
+        for row in steps.get(kind, [])[-1:]:
+            sidecar = next(Path(p) for p in row["paths"] if p.endswith(".image.json"))
+            target = row.get("disc") or next((d for d in lab.box()["discs"] if d != disc), disc)
+            result["pictures"][kind] = dict(target=target, **picture_score(lab, sidecar, target))
+    path = lab.root / "scores" / "tui.json"
+    atomic_json(path, result)
+    lab.step("scores", status="ok", paths=[str(path)])
+    print("Measured / truth / error — 测量值 / 真值 / 误差")
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return result
+
+
 def add_parser(sub):
     s = sub.add_parser("score", help="compare measurements with the answers")
     s.add_argument("--lab", required=True)
-    s.add_argument("--disc", required=True)
-    s.add_argument("--geo", required=True, help="geo result folder")
+    s.add_argument("--disc")
+    s.add_argument("--geo", help="geo result folder")
+    s.add_argument("--progress", action="store_true", help="geo, photo L and picture scores from state.json")
     s.add_argument("--target", help="the disc a picture made from this geo is burned on")
-    s.set_defaults(func=lambda a: print(json.dumps(geo_score(Lab(a.lab), a.disc, a.geo, target_disc=a.target),
-                                                   indent=2, ensure_ascii=False)))
+    def go(a):
+        lab = Lab(a.lab)
+        if a.progress:
+            result = progress_score(lab)
+            return dict(result=result, paths=[str(lab.root / "scores" / "tui.json")])
+        if not a.disc or not a.geo:
+            raise ValueError("score requires --disc and --geo, or --progress")
+        result = geo_score(lab, a.disc, a.geo, target_disc=a.target)
+        path = lab.root / "scores" / "score.json"
+        atomic_json(path, result)
+        lab.step("scores", status="ok", paths=[str(path)])
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        return dict(result=result, paths=[str(path)])
+    s.set_defaults(func=go)

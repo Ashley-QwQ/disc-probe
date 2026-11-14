@@ -16,7 +16,7 @@ def build(output):
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for source in sorted(set(roots)):
             if (source.is_file() and "__pycache__" not in source.parts
-                    and (source.name == "LICENSE" or source.suffix in {".py", ".md", ".npz", ".json", ".ps1", ".sh"})):
+                    and (source.name == "LICENSE" or source.suffix in {".py", ".md", ".npz", ".pgm", ".json", ".ps1", ".sh"})):
                 archive.write(source, source.relative_to(package.parent).as_posix())
     return output
 
