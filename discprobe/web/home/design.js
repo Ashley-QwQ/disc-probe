@@ -802,7 +802,8 @@ function ruler(g, r0, r1, ink) {
   for (const mm of [r0, r1]) { g.moveTo(px(mm), y - 7); g.lineTo(px(mm), y + 7); }
   g.stroke();
   g.globalAlpha = 0.7; g.font = `11px ${cssVar("--mono")}`; g.textAlign = "center"; g.textBaseline = "top";
-  for (const mm of [r0, r1]) g.fillText(String(mm), px(mm), y + 9);
+  // the ring's ends may be measured radii (S.ring): one decimal, never the raw float
+  for (const mm of [r0, r1]) g.fillText(String(Math.round(mm * 10) / 10), px(mm), y + 9);
   g.restore();
 }
 function paintCanvas() {
