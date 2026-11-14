@@ -286,3 +286,22 @@ def test_upload_reports_unavailable_phone_link(tmp_path, monkeypatch):
     monkeypatch.setattr(web, "build_opener", Mock(return_value=desk))
     with pytest.raises(ValueError, match="local-only"):
         web.upload("http://localhost:8853", "geo-X-1", [photo])
+
+
+def test_open_handle_follows_tray_changes(tmp_path):
+    # disc-probe's swap keeps one handle and polls TEST UNIT READY while the person changes the disc.
+    from disclab.__main__ import main
+    lab = Lab(tmp_path / "swap")
+    main(["box", "--lab", str(lab.root), "--count", "2", "--seed", "3"])
+    first, second = lab.box()["discs"]
+    main(["tray", "--lab", str(lab.root), "--drive", "X:", "--disc", first])
+    tur = bytes(6)
+    with LabDrive(lab, "X:") as drive:
+        assert drive.execute(tur).ok and drive.disc_id == first
+        main(["tray", "--lab", str(lab.root), "--drive", "X:", "--open"])
+        opened = drive.execute(tur)
+        assert (opened.sense.key, opened.sense.asc, opened.sense.ascq) == (2, 0x3A, 0x02)
+        main(["tray", "--lab", str(lab.root), "--drive", "X:", "--disc", second])
+        changed = drive.execute(tur)
+        assert (changed.sense.key, changed.sense.asc) == (6, 0x28)
+        assert drive.execute(tur).ok and drive.disc_id == second
