@@ -88,6 +88,14 @@ export class Editor {
     if(e.key==='Enter'){this.pointer(this.drag?'up':'down',e,this.cursor);this.h.draw();return true;}
     if(e.key==='Escape'&&this.drag){this.drag=null;this.h.draw();return true;}return false;
   }
+  // What was painted on the pictures (fills on selections, shapes, effects) without the pictures themselves:
+  // the same composer on a document whose image layers are left out, the background transparent.
+  fillsOverlay(size){const s=this.s;if(!s.assignments?.length&&!s.layers.some(l=>l.kind!=='image'))return null;
+    const dark=document.documentElement.dataset.theme==='dark',key=JSON.stringify([size,this.revision,dark]);if(this.fillsCache?.key===key)return this.fillsCache.canvas;
+    const d=this.document(),doc={...d,layers:d.layers.filter(l=>l.kind!=='image')},labels=O.compose(doc,O.grid(size)),canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+    const ctx=canvas.getContext('2d'),im=ctx.createImageData(size,size);
+    for(let i=0;i<labels.length;i++){if(!labels[i])continue;const m=doc.materials[labels[i]]??doc.materials[0],rgb=identityRGB(m,i%size,Math.floor(i/size),dark);im.data.set([...rgb,235],i*4);}
+    ctx.putImageData(im,0,0);this.fillsCache={key,canvas};return canvas;}
   preview(size=420,identityOnly=false){const pose=materialPose(this.s.scene,this.s.lookY),lamp=!identityOnly&&this.s.view==='lamp',dark=document.documentElement.dataset.theme==='dark',key=JSON.stringify([size,this.revision,dark]);
     this.lamp??=new LampPreview({onChange:()=>{if(this.h.active?.()===false)return;this.h.status?.();this.h.draw();}});
     if(lamp){const lampKey=JSON.stringify([size,this.revision,pose]),result=this.lamp.key===lampKey?this.lamp.image:this.lamp.schedule(lampKey,{document:this.document(),pose,size});this.h.status?.();if(result)return result;}else if(!identityOnly)this.lamp.pause();
@@ -115,8 +123,13 @@ export class Editor {
   }
   paint(ctx){const s=this.s,v=this.h.view(),g=s.maskGrid;if(!g)return;
     this.requestLights(materialPose(s.scene,s.lookY));
-    if(s.layers.length||s.assignments.length||s.view==='lamp'){ctx.save();this.h.annulus(ctx,...this.ring());ctx.clip('evenodd');const size=s.view==='lamp'?Math.max(200,Math.min(2048,Math.round(120*v.s*v.dpr))):420;ctx.drawImage(this.preview(size),v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);
-      const exact=s.view!=='lamp'&&s.layers.length?this.exactCells(v):null;if(exact){ctx.imageSmoothingEnabled=false;ctx.drawImage(exact.canvas,v.cx+(exact.cols[0]*s.cell-60)*v.s,v.cy+(exact.rows[0]*s.cell-60)*v.s,(exact.cols[1]-exact.cols[0])*s.cell*v.s,(exact.rows[1]-exact.rows[0])*s.cell*v.s);}
+    // Design: the pictures themselves are drawn under this by design.js; only what was painted on them (fills,
+    // shapes, effects) is laid over, so an imported picture is never replaced by its burned two-texture form.
+    // As burned / under the lamp: the composed disc at screen resolution.
+    const screen=Math.max(200,Math.min(2048,Math.round(120*v.s*v.dpr)));
+    if(s.view==='proj'){const over=this.fillsOverlay(Math.min(1024,screen));if(over){ctx.save();this.h.annulus(ctx,...this.ring());ctx.clip('evenodd');ctx.drawImage(over,v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);ctx.restore();}this.lamp?.pause();}
+    else if(s.layers.length||s.assignments.length||s.view==='lamp'){ctx.save();this.h.annulus(ctx,...this.ring());ctx.clip('evenodd');ctx.drawImage(this.preview(screen),v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);
+      const exact=s.view==='burn'&&s.layers.length?this.exactCells(v):null;if(exact){ctx.imageSmoothingEnabled=false;ctx.drawImage(exact.canvas,v.cx+(exact.cols[0]*s.cell-60)*v.s,v.cy+(exact.rows[0]*s.cell-60)*v.s,(exact.cols[1]-exact.cols[0])*s.cell*v.s,(exact.rows[1]-exact.rows[0])*s.cell*v.s);}
       ctx.restore();}else this.lamp?.pause();
     const m=s.selections.find(mask=>mask.id===s.activeMask);if(m){if(this.overlayCache?.id!==m.id){const b=O.bytes(m.bits),canvas=document.createElement('canvas');canvas.width=g.width;canvas.height=g.height;const c=canvas.getContext('2d'),im=c.createImageData(g.width,g.height);
         for(let j=0;j<g.height;j++)for(let i=0;i<g.width;i++)if(b[j*g.width+i]){const edge=!b[j*g.width+i-1]||!b[j*g.width+i+1]||!b[(j-1)*g.width+i]||!b[(j+1)*g.width+i],stripe=(i+j)%20;if(edge||stripe<2)im.data.set(edge?(Math.floor((i+j)/7)%2?[255,255,255,255]:[18,18,18,255]):stripe===0?[255,255,255,36]:[18,18,18,36],4*(j*g.width+i));}c.putImageData(im,0,0);this.overlayCache={id:m.id,canvas};}
