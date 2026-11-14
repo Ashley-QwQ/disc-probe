@@ -126,7 +126,7 @@ At a terminal, `timing` and `geo` end with a one-line verdict, and each command 
 
 ### Step 1: read the blank disc's available sectors
 
-Put a blank disc (from the same batch you will burn) in the drive and read its available sector count. `disexport --sectors`, the DiscImageStudio preset and the later `image` step all need this number; a count read back from a burned disc can be too high. After `list` and before the random-data disc, both `guide` and the guided console ask for this step first.
+Put a blank disc (from the same batch you will burn) in the drive and read its available sector count. `disexport --sectors` and the DiscImageStudio preset need this number; `random --sectors` sets the length of the random image itself, chosen separately. A count read back from a burned disc can be too high. After `list` and before the random-data disc, both `guide` and the guided console ask for this step first.
 
 ```bash
 python -m discprobe info --drive D:      # Linux: --drive /dev/sr0
