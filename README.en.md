@@ -2,7 +2,7 @@
 
 English | [简体中文](README.md)
 
-disc-probe uses an ordinary optical drive to measure the spiral geometry of a disc, then burns pictures onto the data side of DVD-R or CD-R. You don't need to take photos or mark points by hand.
+disc-probe uses an ordinary optical drive to measure the spiral geometry of a disc, then burns pictures onto the data side of DVD-R or CD-R. The measurement comes from the drive's read timing alone, with no photos to mark by hand. Since 1.0.0.0-alpha there is also a local web page that walks you through measuring, designing, making the image and checking the result with phone photos; see [Web page](#web-page).
 
 <p>
 <img src="docs/showcase/qingming_title.jpg" width="42%" alt="Title and part of Along the River During the Qingming Festival on the data side of a DVD-R">
@@ -72,13 +72,29 @@ The preview's colours only tell the textures apart, so it won't match the disc. 
 - A laptop drive about 15 years old (PLDS DS8A8SH, through a SATA-to-USB adapter) measured a geometry about 0.05° rms from our GH70N.
 - CMC CD-R takes an extra step, because timing can't tell where the data sits along the track in absolute terms. A burned grid disc sets this constant. On the GH70N it is about 206 frames, and a second disc checked it to within +0.6 frames. The pitch on this batch also has a wave, which left 0.16° rms on the second disc.
 
+## Web page
+
+Since 1.0.0.0-alpha most steps can be done in a local web page, with no commands to remember.
+
+- **Open it**: unpack the Windows full package and double-click `开始 Start.bat`; the browser opens the lobby, and closing the black window stops it. With Python already installed, run `python -m discprobe webui` in the repository folder and open http://localhost:8765 .
+- **Beginner's guide**: in the lobby, open the guide. It looks at the steps you have already done and tells you what to do next.
+- **Design**: import a picture, place it, use layers, adjust light and dark, and see roughly how it will look once burned. Works are kept in a library on your computer and survive closing the page.
+- **Checking with phone photos (DVD)**: burn a check disc, scan the code with a phone on the same local network, and the photos go straight to the computer. The program says which photos it cannot use and why, for example the whole disc is not in the frame or the lighting is wrong. Only when several photos agree is their reading used to correct the image.
+- **Works with DiscImageStudio**: import and export its presets and keep designing and burning there.
+
+This is an alpha. The check disc's pattern has only been chosen for RITEKF1 DVD-R so far; which phones, systems and steps were actually tested is in this release's notes. Colours and effects in the lamp view are a preview, not the colours you will get on the disc.
+
+The same release has two separate packages. **Disc Lab** is a practice bench with a virtual drive, so you can walk through the whole process without a drive. **Disc Neo** is preview data for textures and colour cards; unpack it and double-click `index.html` to browse offline. Its colours are model predictions, not photographs.
+
 ## Quick start
+
+The steps below use the command line.
 
 > If you exported a preset with `--correction` before 2026-11-06, the correction may not be in it. Update and export again; you don't need to measure again.
 
-You need blank discs from the same batch: at least 2 for DVD (measuring, picture) and at least 3 for CD (measuring, calibration, picture). The measuring disc can't take a picture afterwards, but keep it: other discs of that batch don't need a new one. You also need Windows or Linux, Python 3.10 or later and a drive that can burn. For macOS, see the port listed under the [table of reports](#drives-with-hands-on-reports). The steps below are for DVD. For CD, see the [CD route](#cd-route) further down.
+You need blank discs from the same batch: at least 2 for DVD (measuring, picture) and at least 3 for CD (measuring, calibration, picture). For DVD the web page can add a check disc between measuring and the picture, to check against phone photos. The measuring disc can't take a picture afterwards, but keep it: other discs of that batch don't need a new one. You also need Windows or Linux, Python 3.10 or later and a drive that can burn. For macOS, see the port listed under the [table of reports](#drives-with-hands-on-reports). The steps below are for DVD. For CD, see the [CD route](#cd-route) further down.
 
-You can also skip git and download a package from [Releases](https://github.com/Ashley-QwQ/disc-probe/releases/latest):
+You can also skip git and download a package from [Releases](https://github.com/Ashley-QwQ/disc-probe/releases) (1.0.0.0-alpha is a pre-release, so it is not marked Latest):
 
 - `full-win64`: for Windows, with its own Python and dependencies. Unpack it and double-click `开始 Start.bat`, nothing to install. You can skip the install steps below.
 - `core`: disc-probe alone, for a machine that has Python. Unpack it, run `python -m pip install -r requirements.txt` in the folder, then the `selftest` below.
