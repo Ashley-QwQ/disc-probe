@@ -13,7 +13,7 @@ import urllib.request
 
 import numpy as np
 from PIL import Image
-from discprobe import editor_ops as E, simulate, webui
+from discprobe import editor_ops as E, simulate, simulate_a3, webui
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -31,7 +31,7 @@ def test_release_renderer_unchanged():
 
 def test_document_preview_http_cli():
     palette=json.loads((ROOT/'discprobe/web/home/design/swatches.json').read_text(encoding='utf8'))
-    assert palette['display_colours']==simulate.material_swatches(list(palette['swatches'].values()))
+    assert palette['display_colours']==simulate_a3.swatches(list(palette['swatches'].values()))
     material=next(dict(m,period_um=m['periods_um'][0]) for m in palette['swatches'].values() if 1.5<m['periods_um'][0]<1.7)
     grid=E.grid(60)
     mask=E.selection(dict(tool='ring',inner=32,outer=46),grid)
@@ -79,7 +79,7 @@ def test_document_preview_http_cli():
                 assert changed_headers['X-Editor-Document']!=headers['X-Editor-Document'] and changed_bytes!=draft
                 colours,_=post('/api/editor-swatches',dict(pose=pose))
                 colours=json.loads(colours)['colours']
-                assert colours[material['id']]==simulate.material_swatches([material],pose['camera'],pose['flash'])[material['id']]
+                assert colours[material['id']]==simulate_a3.swatches(list(palette['swatches'].values()),pose['camera'],pose['flash'])[material['id']]
                 for bad in [None,dict(payload,document=None),dict(payload,pose=[]),dict(payload,size=True),dict(payload,quality='other'),dict(payload,pose=dict(camera=[0,0,0]))]:
                     try:post('/api/editor-preview',bad)
                     except urllib.error.HTTPError as exc:assert exc.code==400
@@ -90,6 +90,6 @@ def test_document_preview_http_cli():
                 evidence=ROOT/'evidence/editor/round4';evidence.mkdir(parents=True,exist_ok=True)
                 (evidence/'render-parity.json').write_text(json.dumps(dict(size=200,pose=pose,
                     http_png_sha256=hashlib.sha256(api).hexdigest(),cli_png_sha256=hashlib.sha256(out.read_bytes()).hexdigest(),
-                    png_bytes_identical=True,cache_hit=True,model='discprobe.simulate.render',fine_samples=simulate.FINE_SAMPLES),indent=2),encoding='utf8')
+                    png_bytes_identical=True,cache_hit=True,model='discprobe.simulate_a3.render',fine_samples=simulate.FINE_SAMPLES),indent=2),encoding='utf8')
             finally:
                 server.shutdown();thread.join(timeout=5)
