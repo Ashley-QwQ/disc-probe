@@ -113,7 +113,7 @@ def record_dp(lab, args, code):
     return outputs
 
 
-def invoke(a):
+def invoke(a, *, echo=True):
     """The CLI and TUI dispatch through this function; no front-end state."""
     structured = getattr(a, "json", False)
     lab = Lab(a.lab) if getattr(a, "lab", None) else None
@@ -134,7 +134,7 @@ def invoke(a):
             code = (exc.code if isinstance(exc, SystemExit) and isinstance(exc.code, int) else
                     130 if isinstance(exc, KeyboardInterrupt) else 1)
             result.update(status="error", errors=[dict(type=type(exc).__name__, message=str(exc))])
-            if not structured:
+            if not structured and echo:
                 print(str(exc), file=sys.stderr)
     finally:
         _structured.reset(token)

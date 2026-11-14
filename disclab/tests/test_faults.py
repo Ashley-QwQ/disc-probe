@@ -214,7 +214,13 @@ def test_classifier_synthetic_outcomes(outcome, expected):
 
 def test_small_end_to_end_scenario(tmp_path):
     lab, _ = make_lab(tmp_path, "burn_interrupt", dict(fraction=0.4, report_success=True), initial="blank")
-    before = [p.read_bytes() for p in (lab.answers_path, lab.state_path)]
+    def unchanged():
+        # The scorer works on copies: truth and the lab's drive/burn state stay as they were. The command
+        # record under "steps" (written for every command, for front ends) is the only addition.
+        state = json.loads(lab.state_path.read_text(encoding="utf-8"))
+        state.pop("steps", None)
+        return [lab.answers_path.read_bytes(), state]
+    before = unchanged()
     completed = subprocess.run([sys.executable, "-B", "-m", "disclab", "faults", "--lab", str(lab.root), "--fault", "test"],
                                cwd=ROOT, text=True, capture_output=True, encoding="utf-8", timeout=90)
     assert completed.returncode == 0, completed.stdout + completed.stderr
@@ -223,7 +229,7 @@ def test_small_end_to_end_scenario(tmp_path):
     for row in scores["rows"]:
         assert row["observed"]["actual_written_sectors"] < row["observed"]["expected_written_sectors"]
         assert all(Path(p).is_file() for p in row["evidence_paths"])
-    assert before == [p.read_bytes() for p in (lab.answers_path, lab.state_path)]
+    assert before == unchanged()
     with pytest.raises(ValueError, match="no fault"):
         score_faults(lab, "missing")
 

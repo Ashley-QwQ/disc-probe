@@ -55,6 +55,7 @@ def dp(lab: Lab, args, *, check=True, capture=False, timeout=None):
 
 def cmd_box(a):
     from .scenario import create_from_args
+    lab = Lab(a.lab)
     try:
         box = create_from_args(a)
     except (ValueError, OSError) as exc:
@@ -164,10 +165,16 @@ def main(argv=None, *, return_response=False):
     practice.add_parser(sub)
     jsonout.configure(p, sub)
     a = p.parse_args(argv)
-    result, code = jsonout.invoke(a)
+    structured = getattr(a, "json", False)
+    result, code = jsonout.invoke(a, echo=structured or return_response)
     if return_response:
         return result
     if code:
+        # On the command line a failure keeps its own words (SystemExit prints them once); JSON mode
+        # has already emitted them in the response object.
+        message = (result.get("errors") or [{}])[-1].get("message")
+        if not structured and code == 1 and message and message != "1":
+            raise SystemExit(message)
         raise SystemExit(code)
 
 

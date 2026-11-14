@@ -44,7 +44,7 @@ python -m disclab loop geo --lab LAB
 python -m disclab score --lab LAB --disc "LAB-A 1-01" --geo GEO_DIR
 ```
 
-The quick example uses a 256 MiB random image, 8 read pairs per rung and at most 8 ladder targets. It measures only the recorded inner part of the disc; full-disc placement scores therefore include extrapolation and can be much worse. It is a working example, not a precision benchmark. Omitting the three quick options preserves the existing full-image and measurement defaults. Do not reuse the quick-example lab for the full photo loop: its geometry covers a smaller span.
+These steps burn the whole disc and measure with the default reads, like a real measurement. The `--iso-sectors`, `--reps` and `--max-targets` options exist for quick checks, but a part-filled disc only measures an inner band: its whole-disc placement scores are extrapolations and say nothing about the algorithms.
 
 `LAB/box.json` is the public box label, `answers.json` holds truth, and `state.json` records virtual drives and virtual writes. Results go to `results/`, rendered photos to `photos/`, and scores to `scores/geo-wide.json` (or `geo-default.json`). Intermediate ISOs live under `LAB/iso/` and are deleted after use, including failed loop steps. Burn maps and small retained headers remain; the full ISO's byte contents cannot be read again after deletion. Create a new lab for a different experiment.
 
@@ -53,8 +53,9 @@ The quick example uses a 256 MiB random image, 8 read pairs per rung and at most
 ```bash
 python -m disclab tui --plain
 python -m disclab tui --lab LAB
-python -m disclab tui --plain --quick
 ```
+
+`--quick` is an option for a short check: an inner 65,536-sector band and fewer reads. Its whole-disc scores include extrapolation, and the photo target needs a full measurement, so use it only to try the menus.
 
 Choose an existing box or create one by media, disc count, seed and reader profile. Numbered actions cover tray insertion, measurement ISO and virtual burn, timing, geo, a bundled sailboat picture ISO, the lab's simplified A5/B9 target and virtual burn, rendered photos, photo L, a picture with accepted L, and scores against truth. Action 11 walks those steps in order. Measurement, photo target and corrected picture use separate virtual discs; create at least three for the whole path. The sample ISO is a preview before the calibration target is burned. No physical discs are used up. `--plain` disables colour and works with redirected stdin; EOF exits. Resume by selecting the same lab: progress and settings are in `state.json`.
 
