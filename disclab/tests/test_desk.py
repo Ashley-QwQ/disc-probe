@@ -180,3 +180,19 @@ def test_photos_add_up_until_the_reader_gives_L(lab, monkeypatch):
     assert rec["offset_mm"] == 0.2 and rec["photos"] == 3
     assert seen[1] == ["a/IMG_1.jpg", "a/IMG_2.jpg", "b/IMG_3.jpg"]
     assert next(s for s in flow.plan(lab) if s["current"])["key"] == "final"
+
+
+def test_console_names_follow_disc_probes_guide():
+    """The TUI names every step in the guided console's words; the ones the console has match it exactly."""
+    import re
+    from disclab import flow, tui
+    assert set(tui.CONSOLE) == set(flow.KEYS)
+    zh = (Path(ROOT) / "discprobe" / "zh.py")
+    if not zh.exists():
+        pytest.skip("no discprobe beside this disclab")
+    text = zh.read_text(encoding="utf-8")
+    for key, english in (("blank", "Blank disc (info)"), ("measure_image", "Random-data disc"),
+                         ("timing", "Drive check (timing)"), ("geo", "Geometry (geo)"), ("picture", "Picture ISO (image)")):
+        found = re.search(r'"%s": "([^"]+)"' % re.escape(english), text)
+        assert found, english
+        assert tui.CONSOLE[key][0].startswith(found.group(1)), (key, found.group(1))

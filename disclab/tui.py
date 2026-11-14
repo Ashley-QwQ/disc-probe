@@ -27,6 +27,27 @@ KEYS = ("Enter 运行这一步 · 数字 运行某一步 · s 换空白盘 · t 
         "Enter run this step · number run a step · s swap in a blank · t put a disc in · o open/close the tray · "
         "r reader · f faults · p photo settings · i picture · a run the rest · b new basket · q quit")
 LANG = "zh"
+# Step names in the words of disc-probe's guided console (`python -m discprobe guide`, zh.py); the desk page uses
+# the web page's words for the same steps. Steps the console has no line for are named like its neighbours.
+CONSOLE = {
+    "blank": ("空盘 (info)", "Blank disc (info)"),
+    "measure_image": ("随机数据盘 (random)", "Random-data disc (random)"),
+    "measure_burn": ("刻到同批空盘：随机数据盘 (burn)", "Burn it on a blank: random-data disc (burn)"),
+    "timing": ("光驱检查 (timing)", "Drive check (timing)"),
+    "geo": ("盘面几何 (geo)", "Geometry (geo)"),
+    "picture": ("图片镜像 (image)", "Picture ISO (image)"),
+    "checkdisc": ("拍照检查盘镜像 (checkdisc)", "Photo check disc ISO (checkdisc)"),
+    "check_burn": ("刻到同批空盘：检查盘 (burn)", "Burn it on a blank: check disc (burn)"),
+    "photos": ("拍检查盘 (Lab 渲染照片)", "Photos of the check disc (Lab render)"),
+    "photo": ("拍照测 L (photo)", "Photograph L (photo)"),
+    "final": ("图片镜像，带 L (image)", "Picture ISO with L (image)"),
+    "final_burn": ("刻到同批空盘：图片 (burn)", "Burn it on a blank: picture (burn)"),
+    "score": ("对照真值 (Lab)", "Compare with the truth (Lab)"),
+}
+
+
+def step_name(step):
+    return T(*CONSOLE[step["key"]])
 
 
 def T(zh, en):
@@ -117,18 +138,13 @@ def where(lab, colour=False):
     if st["quick"]:
         lines.append(T("快练：只测内圈，不能拍照。", "Quick practice: inner band only, no photos."))
     lines += ["", T(f"{b['family'].upper()} 的进度：", f"Where you are, for {b['family'].upper()}:")]
-    stage = None
-    width = max(sum(2 if ord(ch) > 0x2E7F else 1 for ch in f"{T(s['zh'], s['en'])} ({s['runs']})") for s in st["flow"]) + 2
+    width = max(sum(2 if ord(ch) > 0x2E7F else 1 for ch in step_name(s)) for s in st["flow"]) + 2
     for i, s in enumerate(st["flow"], 1):
-        if s["stage"] != stage:
-            stage = s["stage"]
-            lines.append("  " + T(*[st["stages"][stage]["zh"], st["stages"][stage]["en"]]))
         mark = "x" if s["done"] else "-" if s.get("skip") else " "
-        label = f"{T(s['zh'], s['en'])} ({s['runs']})"
         detail = (T(s["skip"]["zh"], s["skip"]["en"]) if s.get("skip") else pick(s.get("detail")))
         if s["current"]:
             detail = (detail + "  " if detail else "") + T("<- 现在到这里", "<- you are here")
-        line = f"  {i:>2} [{mark}] {pad(label, width)} {detail}".rstrip()
+        line = f"  {i:>2} [{mark}] {pad(step_name(s), width)} {detail}".rstrip()
         if s["current"] and colour:
             line = "\033[1m" + line + "\033[0m"
         lines.append(line)
@@ -137,8 +153,8 @@ def where(lab, colour=False):
     c = next((s for s in st["flow"] if s["current"]), None)
     lines.append("")
     if c:
-        lines.append(T("下一步：", "Next: ") + T(c["zh"], c["en"]) + " —— " + T(c["why"]["zh"], c["why"]["en"])
-                     if LANG == "zh" else "Next: " + c["en"] + " — " + c["why"]["en"])
+        lines.append(T("下一步：", "Next:"))
+        lines.append("  " + step_name(c) + T("：", ": ") + T(c["why"]["zh"], c["why"]["en"]))
         lines.append("  " + f"{PROG} step {c['key']} --lab \"{lab.root}\"")
     else:
         lines.append(T("这一轮练完了。b 建一箩新的再练，或在桌面上看对照真值。", "This round is done. b makes a new basket."))
@@ -172,14 +188,14 @@ def run_step(lab, key, opts):
         if not yes(T(f"刻到 {disc}。刻录不能撤销。现在刻？", f"Burn onto {disc}. A burn cannot be undone. Burn now?"), default=False):
             print(T("没有刻。", "Not burned."))
             return False
-    print(T(f"== {s['zh']}（{s['runs']}）", f"== {s['en']} ({s['runs']})"), flush=True)
+    print(f"== {step_name(s)}", flush=True)
     args = ["step", key]
     if opts.get("picture") and key in ("picture", "final"):
         args += ["--picture", opts["picture"]]
     if key == "photos":
         args += ["--photos", str(opts["photos"]), "--style", opts["style"]]
     rec = command(lab, *args)["outputs"]["step"]
-    print(T("好了：", "Done: ") + (pick(rec.get("detail")) or T(s["zh"], s["en"])))
+    print(T("好了：", "Done: ") + (pick(rec.get("detail")) or step_name(s)))
     if key == "photo":
         photo = flow.latest_photo(lab) or {}
         truth = (rec.get("truth") or {})

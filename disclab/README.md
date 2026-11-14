@@ -70,7 +70,7 @@ python -m disclab tui --lab LAB
 python -m disclab tui --lab LAB --quick --lang en
 ```
 
-Written after `python -m discprobe guide` and disc-probe's guided console: where you are ([x] done, `<- you are here`), what the next step does and its command; Enter runs it, a number runs a given step. It offers to swap in a blank when the tray holds a written disc, and asks before a burn. Keys: `s` swap, `t` tray, `o` open/close, `r` reader, `f` faults, `p` photo settings, `i` picture, `a` run the rest, `b` new basket.
+Written after `python -m discprobe guide` and disc-probe's guided console, in the console's own step names (Blank disc (info), Random-data disc (random), Drive check (timing), Geometry (geo), Picture ISO (image), Burn it on a blank, ...; the desk page uses the web page's names): where you are ([x] done, `<- you are here`), what the next step does and its command; Enter runs it, a number runs a given step. It offers to swap in a blank when the tray holds a written disc, and asks before a burn. Keys: `s` swap, `t` tray, `o` open/close, `r` reader, `f` faults, `p` photo settings, `i` picture, `a` run the rest, `b` new basket.
 
 ## The practice flow (shared by all three)
 

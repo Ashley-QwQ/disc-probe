@@ -196,7 +196,9 @@ def test_scripted_tui_box_geo_picture_score(tmp_path):
     result = cli("tui", "--plain", "--quick", "--lang", "en", "--json", input=script)
     envelope(result)
     assert "did not work" not in result.stderr, result.stdout + result.stderr
-    assert "Measure geometry (geo)" in result.stderr and "<- you are here" in result.stderr
+    # the console's own words for the steps (disc-probe's guide), not the web page's
+    assert "Geometry (geo)" in result.stderr and "Drive check (timing)" in result.stderr
+    assert "<- you are here" in result.stderr
     assert "\x1b[" not in result.stderr
     state = Lab(lab).state()
     assert {"box", "burn", "timing", "geo", "sample_picture", "scores"} <= state["steps"].keys()
@@ -205,7 +207,7 @@ def test_scripted_tui_box_geo_picture_score(tmp_path):
     assert "sample_picture" in scores["pictures"]
     assert Path(next(iter(state["burns"].values()))["sessions"][0]["iso"]).exists()
     resumed = cli("tui", "--lab", lab, "--plain", "--lang", "zh", input="13\nq\n")
-    assert "没有成功" not in resumed.stdout and "测几何 (geo)" in resumed.stdout
+    assert "没有成功" not in resumed.stdout and "盘面几何 (geo)" in resumed.stdout and "空盘 (info)" in resumed.stdout
 
 
 def test_image_must_confirm_applied_L(measured, monkeypatch):
