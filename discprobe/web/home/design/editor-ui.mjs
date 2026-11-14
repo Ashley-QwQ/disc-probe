@@ -103,9 +103,11 @@ export class Editor {
     const labelKey=`${size}:${this.revision}`;if(this.labelCache?.key!==labelKey){const d=this.document(),share=new Float32Array(size*size).fill(NaN);this.labelCache={key:labelKey,materials:d.materials,labels:O.compose(d,O.grid(size),{share}),share};}
     const {labels,materials,share}=this.labelCache,canvas=document.createElement('canvas');canvas.width=canvas.height=size;const ctx=canvas.getContext('2d'),im=ctx.createImageData(size,size);
     // As burned: the eye cannot see 20 um cells, so a dithered picture is the share of the two textures in each
-    // screen pixel, mixed in linear light; flat colours per texture, the same ones the zoomed-in cells use.
+    // screen pixel, mixed in linear light. A map, not the look: light/ink for the black-and-white burn, and for
+    // colour textures the colour each shows when it lights up (A3 v3, as on the Disc Neo card). The look is the
+    // lamp view's.
     const lin=v=>(v/255)**2.2,enc=v=>Math.round(255*v**(1/2.2));
-    const light=dark?[58,64,62]:[218,214,205],ink=dark?[200,198,190]:[62,60,56],burnColour=m=>m.id==='background'?light:m.spec==='A5'||m.id==='dark'?ink:identityRGB(m,1,0,dark);
+    const light=dark?[58,64,62]:[218,214,205],ink=dark?[200,198,190]:[62,60,56],burnColour=m=>m.id==='background'?light:m.spec==='A5'||m.id==='dark'?ink:this.burnLights?.[m.id]??this.burnLights?.[String(m.spec).toUpperCase()]??identityRGB(m,1,0,dark);
     // also what the lamp view shows until its render arrives
     const burn=!identityOnly&&this.s.view!=='proj',colours=materials.map(burnColour),L=lin;
     for(let i=0;i<labels.length;i++){let rgb;
@@ -129,7 +131,7 @@ export class Editor {
     return this.exact.request(JSON.stringify([this.revision,side,rows,cols,dark]),()=>this.document(),{side,rows,cols},paint);
   }
   requestLights(pose){const key=JSON.stringify(pose);if(this.lightPose===key)return;this.lightPose=key;clearTimeout(this.lightTimer);this.lightTimer=setTimeout(async()=>{
-    try{const r=await fetch('/api/editor-swatches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pose})});if(!r.ok)return;const result=await r.json();if(this.lightPose===key){this.poseLights=result.colours;this.swatches();}}catch{}},220);
+    try{const r=await fetch('/api/editor-swatches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pose})});if(!r.ok)return;const result=await r.json();if(this.lightPose===key){this.poseLights=result.colours;if(result.burn){this.burnLights=result.burn;this.previewCache=null;this.h.draw();}this.swatches();}}catch{}},220);
   }
   paint(ctx){const s=this.s,v=this.h.view(),g=s.maskGrid;if(!g)return;
     this.requestLights(materialPose(s.scene,s.lookY));

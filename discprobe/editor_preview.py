@@ -1,7 +1,7 @@
 """Document-to-PNG adapter for both simulate CLI and the local editor API.
 
-No optical model here: all light, spectra, fine sampling and tone mapping are in
-simulate.render(), the release's own renderer. Requests are serialized to bound
+No optical model here: the light, spectra, fine sampling and tone mapping of a work
+document are in simulate_a3.render() (A3 v3 textures, Disc Lab's optics). Requests are serialized to bound
 CPU/memory while HTTP and the editor remain responsive.
 """
 from collections import OrderedDict
@@ -12,7 +12,7 @@ import math
 from pathlib import Path
 import threading
 
-from . import editor_ops, simulate
+from . import editor_ops, simulate, simulate_a3
 
 _RENDER_LOCK=threading.Lock()
 
@@ -75,7 +75,7 @@ class Renderer:
                         self.designs.popitem(last=False)
             else:
                 self.designs.move_to_end(digest)
-            image=simulate.render(design,size,materials=document['materials'],fine=quality=='full',**pose)
+            image=simulate_a3.render(design,size,materials=document['materials'],fine=quality=='full',annulus_mm=document['annulus_mm'],**pose)
             data=png_bytes(image)
             self.images[key]=data
             while len(self.images)>12 or sum(map(len,self.images.values()))>32*1024*1024:
@@ -88,7 +88,8 @@ class Renderer:
         with _RENDER_LOCK:
             if key not in self.palettes:
                 palette=json.loads((Path(__file__).parent/'web/home/design/swatches.json').read_text(encoding='utf8'))
-                colours=simulate.material_swatches(list(palette['swatches'].values()),pose['camera'],pose['flash'])
-                self.palettes[key]=dict(pose=pose,colours=colours,model='discprobe.simulate',sample_mm=[40,0])
+                colours=simulate_a3.swatches(list(palette['swatches'].values()),pose['camera'],pose['flash'])
+                self.palettes[key]=dict(pose=pose,colours=colours,model='discprobe.simulate_a3 (A3 v3)',sample_mm=[40,0],
+                                       burn=simulate_a3.burn_colours(list(palette['swatches'].values())))
                 if len(self.palettes)>8:self.palettes.popitem(last=False)
             return self.palettes[key]

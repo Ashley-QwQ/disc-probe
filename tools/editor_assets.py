@@ -64,9 +64,10 @@ def main():
             encoded=np.where(linear<=.0031308,12.92*linear,1.055*linear**(1/2.4)-.055)
             checks.append(dict(spec=code,rgb=np.uint8(np.clip(encoded*255,0,255)).tolist()))
         data['preview_checks']=checks
-    data['display_colours']=simulate.material_swatches(list(swatches.values()))
-    data['display_model']=dict(module='discprobe.simulate',entry='material_swatches',sample_mm=[40,0],
-                               policy='same spectra, linear-light averaging and encode_photo as render; multi-byte periods use A5 response warp')
+    from discprobe import simulate_a3
+    data['display_colours']=simulate_a3.swatches(list(swatches.values()))
+    data['display_model']=dict(module='discprobe.simulate_a3',entry='swatches',sample_mm=[40,0],
+                               policy='A3 v3 texture table (LED), mirror and exposure as the lamp view render; specs outside the table use A5 stretched to their period')
     target=ROOT/'discprobe/web/home/design/swatches.json'
     target.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n',encoding='utf8')
     print(f'{len(swatches)} single materials -> {target.relative_to(ROOT)}')
