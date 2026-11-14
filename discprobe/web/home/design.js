@@ -2399,9 +2399,12 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
         closed = true; es.close();
         if (d.exit !== 0) { const said = await jobWords(job); why ||= said.why; wrote ||= said.wrote; }
         const started = wrote || !!burnResult;
-        if (d.exit === 0 && link) await afterWorkISO(link, null);     // follow the stamp the core's burn record moved
-        onProgress(d.exit === 0 ? { status: "success", progress: 1, burnResult } : cancelled ? { status: "cancelled" }
-          : { status: "failed", error: [started ? T().burnFailed : T().burnNotStarted, why].filter(Boolean).join(" "), started });
+        const v = burnResult?.verification;
+        const checked = (!burnResult?.result || burnResult.result === "completed") && burnResult?.disc_state?.status !== "failed" &&
+          (!v || v.status === "skipped" || (v.status === "completed" && !v.differing && !v.unreadable && !v.untested));
+        if (d.exit === 0 && checked && link) await afterWorkISO(link, null);     // follow the stamp the core's burn record moved
+        onProgress(d.exit === 0 && checked ? { status: "success", progress: 1, burnResult } : cancelled ? { status: "cancelled" }
+          : { status: "failed", burnResult, error: [started ? T().burnFailed : T().burnNotStarted, burnResult?.reason || why].filter(Boolean).join(" "), started });
       });
     } catch { fail(T().exp.noBackend); }
   })();

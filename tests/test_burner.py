@@ -28,7 +28,8 @@ class BurnerTests(unittest.TestCase):
         self.recorder.write.return_value = 4.01
 
     def burn(self, **kw):
-        return burner.burn("H:", self.iso, recorder=self.recorder, **{"no_verify": True, **kw})
+        return burner.burn("H:", self.iso, recorder=self.recorder,
+                           **{"no_verify": True, "state_checker": lambda *a, **k: dict(status='completed'), **kw})
 
     def test_confirmation_precedes_all_hardware(self):
         with patch.object(burner, "adapter") as factory:
@@ -113,31 +114,37 @@ class BurnerTests(unittest.TestCase):
         verifier = lambda drive, image, media, cancel: burner.verify_image(drive, image, media, cancel, device_factory=lambda _: dev)
         self.recorder.inspect.return_value["free_sectors"] = 1600
         with patch("sys.stdout", new_callable=io.StringIO) as output, patch.object(burner.ui, "event") as event:
-            result = self.burn(yes_write=True, no_verify=False, verifier=verifier)
+            with self.assertRaisesRegex(burner.BurnError, 'Read-back failed'):
+                self.burn(yes_write=True, no_verify=False, verifier=verifier)
+        result = json.loads(Path(str(self.iso) + '.burn.jsonl').read_text(encoding='utf-8').splitlines()[-1])
         summary = result["verification"]
         self.assertEqual((summary["ok"], summary["differing"], summary["unreadable"]), (92, 1, 3))
         self.assertEqual(dev.execute.call_count, 96)
         self.assertEqual([f["lba"] for f in summary["failures"]], [lbas[i] for i in (10, 20, 30, 40)])
         self.assertTrue(all(f["radius_mm"] >= 24 for f in summary["failures"]))
-        self.assertEqual(result["result"], "completed")
+        self.assertEqual(result["result"], "failed")
         self.assertFalse(result["verified"])
         self.assertEqual(event.call_args_list[-1].kwargs["verification"], summary)
-        self.assertIn("picture may still look fine", output.getvalue())
+        self.assertIn("this burn did not check out", output.getvalue())
         self.recorder.write.assert_called_once()
 
     def test_verify_open_failure_and_cancel_preserve_write(self):
         def unavailable(*args):
             return burner.verify_image(*args, device_factory=Mock(side_effect=OSError("access denied")))
-        result = self.burn(yes_write=True, no_verify=False, verifier=unavailable)
-        self.assertEqual(result["result"], "completed")
+        with self.assertRaisesRegex(burner.BurnError, 'Read-back failed'):
+            self.burn(yes_write=True, no_verify=False, verifier=unavailable)
+        result = json.loads(Path(str(self.iso) + '.burn.jsonl').read_text(encoding='utf-8').splitlines()[-1])
+        self.assertEqual(result["result"], "failed")
         self.assertEqual(result["verification"]["status"], "unavailable")
         self.assertEqual(result["verification"]["untested"], 1)
         self.assertFalse(result["verified"])
 
-    def test_no_verify_does_not_open_device(self):
+    def test_no_verify_skips_samples_but_checks_state(self):
+        state = Mock(return_value=dict(status='completed'))
         with patch.object(burner, "verify_image") as verify:
-            result = self.burn(yes_write=True)
+            result = self.burn(yes_write=True, state_checker=state)
         verify.assert_not_called()
+        state.assert_called_once_with('H:', 2, keep_open=False, start_lba=0)
         self.assertFalse(result["verified"])
         self.assertEqual(result["verification"], {"status": "skipped"})
 

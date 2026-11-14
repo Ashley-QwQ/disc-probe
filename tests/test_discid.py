@@ -206,7 +206,7 @@ def _check_burn_stream_hash_log_and_readback(tmp_path):
         assert all((x//16*16,16) in dev.reads for x in discid.positions(discid.MIN_SECTORS))
         return result
     result = burner.burn('FAKE', image, yes_write=True, recorder=recorder, verifier=verify,
-                         speed=8, disc_id_code='KOI-A 3-05')
+                         speed=8, disc_id_code='KOI-A 3-05', state_checker=lambda *a, **k: dict(status='completed'))
     assert result['verified']
     assert result['identity'] == captured['record']
     assert result['identity']['body']['id'] != template_id
@@ -243,7 +243,7 @@ def _check_consent_no_flag_and_missing_slot(tmp_path, capsys):
     before = image.read_bytes()
     rec.inspect.return_value = dict(blank=True, media='dvd', free_sectors=discid.MIN_SECTORS, speeds_x=[8])
     rec.write.return_value = 8
-    result = burner.burn('FAKE', image, recorder=rec, yes_write=True, no_verify=True)
+    result = burner.burn('FAKE', image, recorder=rec, yes_write=True, no_verify=True, state_checker=lambda *a, **k: dict(status='completed'))
     assert rec.write.call_args.args[0] == image.resolve()
     assert image.read_bytes() == before
     assert result['identity'] == discid.read_image(image)

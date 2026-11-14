@@ -373,7 +373,7 @@ def verify_image(drive, image, media, cancel, *, device_factory=None, start_lba=
 
 def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None, cancel=None,
          no_verify=False, verifier=None, keep_open=False, append=False, expect_start=None,
-         disc_id=False, disc_id_code=None):
+         disc_id=False, disc_id_code=None, state_checker=None):
     if yes_write is not True:
         raise BurnError("Writing requires explicit --yes-write confirmation.")
     if media not in ("dvd", "cd"):
@@ -491,6 +491,15 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
     print(f"Write completed in {elapsed:.1f}s; drive/utility reports: "
           f"{str(actual) + 'x' if actual else 'speed not reported'}.", flush=True)
     verification = dict(status="skipped")
+    from .recorded import burn_state
+    try:
+        state = (state_checker or burn_state)(drive, size // 2048, keep_open=keep_open,
+                                             start_lba=expect_start or 0)
+    except (OSError, ValueError) as exc:
+        state = dict(status='unknown', reason=None, unconfirmed=[f'disc state could not be read: {exc}'])
+    if state.get('unconfirmed'):
+        print('Warning: after the write, ' + '; '.join(state['unconfirmed']) + '. The read-back below is the check that remains.',
+              flush=True)
     if not no_verify:
         print("Reading back up to 96 evenly spaced 16-sector blocks plus the identity block; drive retries may take time..."
               if isinstance(source, discid.PatchedImage) else
@@ -515,7 +524,7 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
             print(f"  LBA {failure['lba']} (~{failure['radius_mm']:.2f} mm, nominal): "
                   f"{failure['kind']}: {failure['error']}", flush=True)
         if verification["status"] != "completed" or verification["differing"] or verification["unreadable"]:
-            print("The write completed. Reading back failed or could not finish; the picture may still look fine. "
+            print("Read-back failed or could not finish; this burn did not check out. "
                   "First retry reading this same disc after closing other drive software, or use another available drive. "
                   "Only replace it if the saved write/read logs establish incomplete or unreadable recorded data; "
                   "inspect those logs before another burn.", flush=True)
@@ -528,7 +537,19 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
                   (verification["differing"] or verification["unreadable"]), log_path=str(log_path))
     if identity:
         result["identity"] = identity
+    reasons = []
+    if state['status'] == 'failed':
+        reasons.append(state['reason'])
+    if not no_verify and (not result['verified'] or verification.get('untested')):
+        reasons.append('Read-back failed or could not finish: '
+                       f"{verification.get('differing', 0)} differing / {verification.get('unreadable', 0)} unreadable / "
+                       f"{verification.get('untested', 0)} untested blocks ({verification['status']}). "
+                       'Re-read this same disc and inspect the saved logs before another burn.')
+    if reasons:
+        result.update(result='failed', reason=' '.join(reasons), disc_state=state)
     record("burn_result", **result)
+    if reasons:
+        raise BurnError(result['reason'])
     return result
 
 

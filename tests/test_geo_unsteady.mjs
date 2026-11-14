@@ -21,3 +21,13 @@ for (const failures of [undefined, [], [{radius_mm:43.2}, {radius_mm:45}, {radiu
   assert.equal(flow.burnCheck, null);
 }
 console.log('Fixed calibration speed and merged avoided-radius arguments passed');
+
+// The calibration wrapper preserves the core's detailed burn failure sentence.
+{
+  const flow = {detected:{mid:'MID'}};
+  const reason = 'Write interrupted: the disc holds only 1638 of 4096 sectors / is not closed';
+  const run = new Function('flow', 'realJob', 'finishCalibrate', 'stopText', `${body}; return realCalibrate;`)(
+    flow, async () => {flow.burnCheck={result:'failed',reason};throw {result:{reason:'the burn did not finish'}};},
+    () => assert.fail('failed burn must not finish calibration'), x=>x);
+  await assert.rejects(run(), e=>e.message===reason && e.failure===true);
+}

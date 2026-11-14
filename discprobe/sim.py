@@ -169,6 +169,16 @@ class SimDrive:
     def true_phase_deg(self, ref_lba: int, target_lba: int) -> float:
         return math.degrees((self.block_end_angle(target_lba) - self.block_end_angle(ref_lba)) % TWO_PI)
 
+    def diagnostic_snapshot(self):
+        """Independent synthetic clock/noise/cache for untimed metadata checks.
+
+        Replies and fault rules stay identical. Extra diagnostic commands must
+        not change an otherwise identical seeded measurement experiment.
+        Real transports have no such method and are read directly.
+        """
+        import copy
+        return copy.deepcopy(self)
+
     def idle(self, seconds: float) -> None:
         """Host-side pause between commands, on the simulated clock."""
         self._clock += seconds

@@ -32,7 +32,7 @@ class LabelSessionTests(unittest.TestCase):
         rec.inspect.return_value = dict(media='dvd', blank=True, closed=False,
                                        next_writable=0, free_sectors=100, speeds_x=[4, 8, 16])
         rec.write.return_value = 8
-        options = dict(recorder=rec, yes_write=True, no_verify=True)
+        options = dict(recorder=rec, yes_write=True, no_verify=True, state_checker=lambda *a, **k: dict(status='completed'))
         result = burner.burn('fake', self.iso, keep_open=True, **options)
         self.assertTrue(result['keep_open'])
         self.assertEqual(rec.write.call_args.kwargs['keep_open'], True)

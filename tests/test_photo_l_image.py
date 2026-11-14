@@ -401,7 +401,7 @@ def test_burn_log_reuses_iso_evidence_without_reading_new_photo(tmp_path):
     with patch.object(burner, 'adapter', side_effect=AssertionError('no drive access')), \
          patch.object(burner.ui, 'event') as event:
         for _ in range(2):
-            burner.burn('H:', image, yes_write=True, no_verify=True, recorder=recorder)
+            burner.burn('H:', image, yes_write=True, no_verify=True, recorder=recorder, state_checker=lambda *a, **k: dict(status='completed'))
     rows = [json.loads(line) for line in Path(str(image) + '.burn.jsonl').read_text().splitlines()]
     assert len(rows) == 6 and all(row['photo_l'] == decision for row in rows)
     assert event.call_args.kwargs['photo_l'] == decision

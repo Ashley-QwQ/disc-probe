@@ -61,11 +61,28 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
       o.paperHost.paper=new Element(); o.onStateChange({canUse:true}); pages.push(p); return p;
     },
   });
-  vm.runInContext(strip+`; globalThis.wire={set(a,f){api=a;$=id=>document.getElementById(id);flow=f;discWentIn=true;st={show:v=>globalThis.shows.push(v),set(){}};},paint:realPaint,next:realNext,save:realSave,back,enterPhoto,closePhoto,photoRun,photoStamp,pollPhotos,queuePhotoRead,readPhoto,getUI:()=>photoUI};`,context);
+  vm.runInContext(strip+`; globalThis.wire={set(a,f){api=a;$=id=>document.getElementById(id);flow=f;discWentIn=true;st={show:v=>globalThis.shows.push(v),set(){}};},job:realJob,paint:realPaint,next:realNext,save:realSave,back,enterPhoto,closePhoto,photoRun,photoStamp,pollPhotos,queuePhotoRead,readPhoto,getUI:()=>photoUI};`,context);
   context.shows=show; context.wire.set(api,f);
   return {wire:context.wire,f,geo,nodes,calls,timers,pages,show,opts:()=>opts};
 }
 const flush=async()=>{for(let i=0;i<20;i++) await Promise.resolve();};
+
+// Even an old core's exit-0 result cannot advance calibration after bad read-back.
+for (const burn of [
+  {result:'failed',reason:'Write interrupted: disc is not closed',verification:{status:'skipped'}},
+  {result:'completed',verification:{status:'completed',unreadable:1}},
+  {result:'completed',verification:{status:'completed',differing:1}},
+  {result:'completed',verification:{status:'unavailable',untested:96}},
+]) {
+  const x=fixture();x.f.burnCheck=burn;
+  await assert.rejects(x.wire.job('burn'),e=>e.failure===true);
+  assert.equal(x.f.realPhase,'review');
+  assert.equal(x.pages.length,0,'failed burn must not open photography');
+  x.wire.paint();
+  assert.equal(x.nodes.get('next').disabled,true);
+  assert.doesNotMatch(x.nodes.get('cal').innerHTML,/id="real-photo"/);
+  assert.match(x.nodes.get('cal').innerHTML,/刻录检查未通过/);
+}
 
 {
   const x=fixture();x.wire.enterPhoto();await flush();
