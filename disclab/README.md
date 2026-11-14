@@ -48,28 +48,41 @@ These steps burn the whole disc and measure with the default reads, like a real 
 
 `LAB/box.json` is the public box label, `answers.json` holds truth, and `state.json` records virtual drives and virtual writes. Results go to `results/`, rendered photos to `photos/`, and scores to `scores/geo-wide.json` (or `geo-default.json`). Intermediate ISOs live under `LAB/iso/` and are deleted after use, including failed loop steps. Burn maps and small retained headers remain; the full ISO's byte contents cannot be read again after deletion. Create a new lab for a different experiment.
 
-## Numbered TUI
+## The Lab's desk (web page)
 
 ```bash
-python -m disclab tui --plain
-python -m disclab tui --lab LAB
+python -m disclab box --lab LAB --count 3
+python -m disclab desk --lab LAB --port 8857      # open http://127.0.0.1:8857/
 ```
 
-`--quick` is an option for a short check: an inner 65,536-sector band and fewer reads. Its whole-disc scores include extrapolation, and the photo target needs a full measurement, so use it only to try the menus.
+Drawn like disc-probe's own lobby (the same desk, paper and ink themes, the floor lamp switches them), with three things on the desk:
 
-Choose an existing box or create one by media, disc count, seed and reader profile. Numbered actions cover tray insertion, measurement ISO and virtual burn, timing, geo, a bundled sailboat picture ISO, the lab's simplified A5/B9 target and virtual burn, rendered photos, photo L, a picture with accepted L, and scores against truth. Action 11 walks those steps in order. Measurement, photo target and corrected picture use separate virtual discs; create at least three for the whole path. The sample ISO is a preview before the calibration target is burned. No physical discs are used up. `--plain` disables colour and works with redirected stdin; EOF exits. Resume by selecting the same lab: progress and settings are in `state.json`.
+- **Disc basket**: every virtual disc's state (blank, written, open session, partly written) and use (measurement, check, final), which one goes into the drive, and a new basket with media, batch, eccentricity, warp, start radius, a scratch and the first disc's initial state. The comparison with the truth is here too.
+- **Burner**: the practice steps (disc-probe's names and order), the reader profile, the tray (swap in a blank, open, put the measurement disc back) and injected faults. A burn is confirmed by holding for about a second, as in disc-probe.
+- **Phone**: photographs a written disc (how many, flash or handheld), shows the reader's verdict per photo, reads the along-track constant L and states the truth and the error, which only the Lab knows.
 
-The **checkdisc target cannot be rendered yet**: its multi-byte textures are not supported by the lab renderer. The photo path uses the lab's own simplified two-texture target. A refused photo L remains refused; a corrected picture is offered only when the reader applies L. Scores preserve the original formulas and compare geo, photo L and picture placement with truth. `score --lab LAB --progress --json` retrieves the same saved-flow scores without menus.
+The page is a translator: each button runs one `python -m disclab <command> --lab LAB --json`; what it shows comes from `status --json`. Closing it stops nothing; all state is in `LAB/state.json`.
 
-Quick mode uses a 65,536-sector inner-band measurement and fewer reads. Artwork is restricted to a measured island using the existing image options, while full-disc scores still include extrapolation. It is for the short geo/picture/score practice path; the full 26.2–57.2 mm photo target needs a full measurement. TUI ISOs are retained because subsequent timing and info reads need their bytes; full practice can retain several GB per image. Existing `loop` cleanup is unchanged.
+## Guided console (TUI)
 
-## Practice in the existing web page
+```bash
+python -m disclab tui --lab LAB
+python -m disclab tui --lab LAB --quick --lang en
+```
+
+Written after `python -m discprobe guide` and disc-probe's guided console: where you are ([x] done, `<- you are here`), what the next step does and its command; Enter runs it, a number runs a given step. It offers to swap in a blank when the tray holds a written disc, and asks before a burn. Keys: `s` swap, `t` tray, `o` open/close, `r` reader, `f` faults, `p` photo settings, `i` picture, `a` run the rest, `b` new basket.
+
+## The practice flow (shared by all three)
+
+Check the blank disc (info) → make the measurement image (random) → burn the measurement disc → measure rotation (timing) → measure geometry (geo) → put in a picture (image) → make the check disc (checkdisc) → burn it → photograph the disc (Lab photos) → read the along-track constant (photo) → make the final file (image with L) → burn it → compare with the truth (Lab only). From a shell: `status --json`, `step <name>` or `step next`, `swap`, `drive --reader R --fault KIND:{params}`. One disc each for measurement, check and final. A whole-disc image is about 4.7 GB and a round holds at most about 14 GB at once: the measurement image goes once the check disc is burned, the picture preview image once the final file is made, and the check image once the final disc is burned (the virtual recorder keeps each one's first sectors); `--keep-iso` keeps them all. A disc whose image is gone cannot be measured again. `--quick` measures a 65,536-sector inner band only: quick, but no check disc or photos.
+
+## Practice on disc-probe's own page
 
 ```bash
 python -m disclab practice --media dvd-r --lab LAB-practice --port 8853
 ```
 
-This makes a three-disc practice box with the default reader, inserts its first disc, starts the existing `disclab web` launcher and prints a short Chinese/English guide. Omit `--lab` for a new retained temporary folder. A supplied folder must be new or empty, so existing results are preserved. The default is local-only; `--lan` enables the existing token-guarded LAN mode. Stop with Ctrl+C; the results path is printed on exit. All writes use the virtual drive; no physical discs are used up.
+Opens disc-probe's own page with the virtual drive X:. Omit `--lab` for a new retained temporary folder; `--lab` may be new, empty, or an existing lab to carry on with. Output is UTF-8 throughout, so redirected logs keep their Chinese. Local-only by default; `--lan` enables the existing token-guarded LAN mode.
 
 ## Structured commands
 
@@ -84,8 +97,6 @@ python -m disclab dp --lab LAB-json --json -- info --drive X: --out LAB-json/res
 
 - Rewritable discs and erase operations.
 - More faults: timeouts, whole-turn aliasing, photo pose and exposure.
-- Multi-byte texture rendering, so checkdisc can be photographed in practice.
-- A web shell over the same JSON API.
 
 ## Photo loop (existing commands)
 

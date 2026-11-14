@@ -7,7 +7,11 @@
     loop    the whole path for some discs: random -> geo -> target -> photos -> photo L -> picture -> score
     photos  render phone photos of a burned disc
     score   compare what disc-probe measured with the answers
-    web     serve the web page against the lab (development only)
+    web     serve disc-probe's own web page against the lab (practice on the real page)
+    desk    the Lab's desk page: disc basket, burner and phone (a shell over the --json commands)
+    status  the box, drive, discs and practice flow as one object
+    step    run one practice step by disc-probe's name, or 'next'
+    swap    put a blank from the basket into the tray
 """
 from __future__ import annotations
 
@@ -163,10 +167,13 @@ def main(argv=None, *, return_response=False):
     from . import tui, practice
     tui.add_parser(sub)
     practice.add_parser(sub)
+    from . import flow, desk
+    flow.add_parser(sub)
+    desk.add_parser(sub)
     jsonout.configure(p, sub)
     a = p.parse_args(argv)
     structured = getattr(a, "json", False)
-    result, code = jsonout.invoke(a, echo=structured or return_response)
+    result, code = jsonout.invoke(a, echo=structured)
     if return_response:
         return result
     if code:

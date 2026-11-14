@@ -123,22 +123,37 @@ def test_json_compatibility_error(monkeypatch, capsys):
     assert value["errors"][0]["type"] == "CompatibilityError"
 
 
+def _flow_done(lab, *keys, **last):
+    """Record practice steps as done (oldest first), the last one with extra fields."""
+    for k in keys[:-1]:
+        lab.step("flow", key=k, status="ok")
+        time.sleep(0.002)
+    lab.step("flow", key=keys[-1], status="ok", **last)
+
+
+PRE_PHOTO = ("blank", "measure_image", "measure_burn", "timing", "geo", "picture", "checkdisc", "check_burn", "photos")
+
+
 def test_global_json_and_photo_refusal(tmp_path, monkeypatch):
-    from disclab import tui
+    from disclab import flow
     from disclab.lab import atomic_json
     lab = Lab(tmp_path / "refused lab")
     envelope(cli("--json", "box", "--lab", lab.root, "--count", "3"))
     rec = lab.root / "runs" / "refused" / "photo.json"
     atomic_json(rec, dict(offset_mm=None, verdict="rejected", photos=[]))
-    lab.step("photo_L", status="ok", disc=lab.box()["discs"][1], paths=[str(rec)])
+    _flow_done(lab, *PRE_PHOTO, "photo", disc=lab.box()["discs"][1], paths=[str(rec)], run=str(rec.parent),
+               offset_mm=None, verdict="rejected")
     before = lab.answers_path.read_bytes()
     dispatch = Mock()
-    monkeypatch.setattr(tui, "dp", dispatch)
-    with pytest.raises(ValueError, match="refusal preserved"):
-        tui.action(lab, "9")
+    monkeypatch.setattr(flow, "_dp", dispatch)
+    # a reading without L does not count as done: the final file waits, and the flow goes back to more photos
+    with pytest.raises(flow.StepError, match="Read the along-track constant"):
+        flow.run_step(lab, "final")
+    assert next(s for s in flow.plan(lab) if s["current"])["key"] == "photos"
     dispatch.assert_not_called()
     assert lab.answers_path.read_bytes() == before
     assert not lab.state()["burns"]
+    assert flow.records(lab, "final")[-1]["status"] == "error"
 
 
 def test_packaged_sample(tmp_path):
@@ -149,6 +164,9 @@ def test_packaged_sample(tmp_path):
     with zipfile.ZipFile(package) as archive:
         sample = archive.read("disclab/data/sample.pgm")
         assert "disclab/API.md" in archive.namelist()
+        names = set(archive.namelist())
+        assert {"disclab/web/index.html", "disclab/web/lab.js", "disclab/web/lobby/lobby.json",
+                "disclab/web/lobby/phone_dark.webp", "disclab/web/fonts/OFL-Archivo.txt"} <= names
     with Image.open(io.BytesIO(sample)) as image:
         assert image.size == (64, 64)
         assert image.getextrema() == (0, 255)
@@ -172,11 +190,13 @@ def test_steps_preserve_existing_keys(measured):
 
 def test_scripted_tui_box_geo_picture_score(tmp_path):
     lab = tmp_path / "tui lab \u6d4b\u8bd5"
-    script = "\n".join(["1", str(lab), "dvd-r", "3", "1", "gh70n", "2", "1",
-                         "3", "4", "5", "6", "10", "0"]) + "\n"
-    result = cli("tui", "--plain", "--quick", "--json", input=script)
+    # disc-probe's steps in its order: Enter runs the step "you are here"; the burn asks first (y)
+    script = "\n".join([str(lab), "dvd-r", "3", "1", "gh70n",
+                        "", "", "", "y", "", "", "", "13", "q"]) + "\n"
+    result = cli("tui", "--plain", "--quick", "--lang", "en", "--json", input=script)
     envelope(result)
-    assert "Action failed" not in result.stderr, result.stdout + result.stderr
+    assert "did not work" not in result.stderr, result.stdout + result.stderr
+    assert "Measure geometry (geo)" in result.stderr and "<- you are here" in result.stderr
     assert "\x1b[" not in result.stderr
     state = Lab(lab).state()
     assert {"box", "burn", "timing", "geo", "sample_picture", "scores"} <= state["steps"].keys()
@@ -184,18 +204,19 @@ def test_scripted_tui_box_geo_picture_score(tmp_path):
     assert scores["geo"]["true_u"] > 0
     assert "sample_picture" in scores["pictures"]
     assert Path(next(iter(state["burns"].values()))["sessions"][0]["iso"]).exists()
-    resumed = cli("tui", "--lab", lab, "--plain", input="10\n0\n")
-    assert "Action failed" not in resumed.stdout
+    resumed = cli("tui", "--lab", lab, "--plain", "--lang", "zh", input="13\nq\n")
+    assert "没有成功" not in resumed.stdout and "测几何 (geo)" in resumed.stdout
 
 
 def test_image_must_confirm_applied_L(measured, monkeypatch):
-    from disclab import tui
+    from disclab import flow
     from disclab.lab import atomic_json
     lab, row = measured
     folder = Path(row["geo"])
     photo = folder / "photo.json"
     atomic_json(photo, dict(offset_mm=0.19, verdict="ok"))
-    lab.step("photo_L", status="ok", disc=row["disc"], paths=[str(photo)])
+    _flow_done(lab, *PRE_PHOTO, "photo", disc=row["disc"], paths=[str(photo)], run=str(folder),
+               offset_mm=0.19, verdict="ok")
     before = lab.state()["burns"]
 
     def image_without_L(lab, *args):
@@ -203,10 +224,9 @@ def test_image_must_confirm_applied_L(measured, monkeypatch):
         image = Path(args[args.index("--output") + 1])
         atomic_json(image.with_suffix(".image.json"), dict(photo_l=dict(written=False, reason="identity_mismatch")))
 
-    monkeypatch.setattr(tui, "fresh", lambda lab: "unused virtual disc")
-    monkeypatch.setattr(tui, "dp", image_without_L)
-    with pytest.raises(ValueError, match="image did not apply photo L"):
-        tui.action(lab, "9")
+    monkeypatch.setattr(flow, "_dp", image_without_L)
+    with pytest.raises(flow.StepError, match="identity_mismatch"):
+        flow.run_step(lab, "final")
     assert lab.state()["burns"] == before
 
 
@@ -281,6 +301,8 @@ def test_server_start_stop_json(tmp_path, command):
         assert Lab(lab).box()["count"] == 3
         assert "No physical discs are used up" in result.stderr
         assert "Practice results:" in result.stderr
-        before = Lab(lab).box_path.read_bytes()
-        envelope(cli("practice", "--json", "--lab", lab, "--port", free_port()), "error")
-        assert Lab(lab).box_path.read_bytes() == before
+        other = tmp_path / "other files"
+        other.mkdir()
+        (other / "notes.txt").write_text("keep", encoding="utf-8")
+        envelope(cli("practice", "--json", "--lab", other, "--port", free_port()), "error")
+        assert [p.name for p in other.iterdir()] == ["notes.txt"]

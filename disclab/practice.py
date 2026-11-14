@@ -8,20 +8,26 @@ from .web import port_number, serve
 
 
 GUIDE = """练习模式 / Practice mode — 不消耗真实光盘 / No physical discs are used up.
-1. 查看虚拟光驱和盘片 / Inspect the virtual drive and inserted disc.
-2. 生成测量 ISO、虚拟刻录，运行 timing 和 geo / Generate, virtually burn, then timing and geo.
-3. 用图片生成 ISO；换一张虚拟盘刻录 / Make a picture ISO and burn another virtual disc.
-4. 可用 disclab tui 生成实验盒的双纹理靶照片、读取 L、比较分数。
-   Use disclab tui for the lab's simplified two-texture photos, photo L and truth scores.
-   checkdisc 的多字节纹理目前不能拍照渲染 / The checkdisc target cannot be rendered yet.
-Ctrl+C 退出；保留结果供检查 / Stop with Ctrl+C; results remain for inspection.
+这里开的是 disc-probe 自己的网页，光驱是虚拟的 X:，照网页一步步走即可：
+This is disc-probe's own page; the drive is the virtual X:. Follow the page step by step:
+  检测空白盘 → 生成测量镜像 → 刻录 → 测转速 → 测几何 → 放进图片 → 预览
+  → 生成检查盘 → 换盘 → 刻检查盘 → 拍摄光盘 → 生成成品
+拍照这一步用 Lab 渲染的照片：python -m disclab photos --lab LAB --disc <检查盘> --out LAB/photos，
+再从网页的手机链接上传（或 python -m disclab upload）。
+For the photo step, render photos with `disclab photos` and send them through the page's phone link (or `disclab upload`).
+Lab 自己的桌面（光盘箩、刻录机、手机）/ The Lab's own desk: python -m disclab desk --lab LAB
+引导式控制台 / Guided console: python -m disclab tui --lab LAB
+Ctrl+C 退出；结果留着，下次用同一个 --lab 接着练。/ Ctrl+C stops; results stay, and the same --lab resumes.
 """
 
 
 def prepare(root=None, media="dvd-r"):
     lab = Lab(root or tempfile.mkdtemp(prefix="disc-lab-practice-"))
+    if lab.box_path.exists():
+        return lab                     # an existing lab: carry on where it stopped
     if lab.root.exists() and any(lab.root.iterdir()):
-        raise ValueError("practice needs a new or empty lab folder; existing results are preserved")
+        raise ValueError("practice needs a new or empty folder, or an existing lab; this folder holds other files "
+                         "/ 练习要用新的或空的文件夹，或者已有的实验盒；这个文件夹里有别的文件")
     from .jsonout import run
     result = run(["box", "--lab", lab.root, "--media", media, "--count", "3", "--seed", "1"])
     if result["status"] != "ok":
@@ -31,12 +37,16 @@ def prepare(root=None, media="dvd-r"):
 
 
 def practice(a):
+    from .tui import utf8_console
+    utf8_console()
+    resumed = bool(a.lab) and Lab(a.lab).box_path.exists()
     lab = prepare(a.lab, a.media)
     # Let the outer API dispatcher report the generated path too.
     a.lab = str(lab.root)
     print(GUIDE, flush=True)
-    print(f"Lab: {lab.root}", flush=True)
-    family = "cd" if a.media.startswith("cd") else "bd" if a.media.startswith("bd") else "dvd"
+    print(("接着练 / Resuming: " if resumed else "Lab: ") + str(lab.root), flush=True)
+    media = lab.box()["media"]
+    family = "cd" if media.startswith("cd") else "bd" if media.startswith("bd") else "dvd"
     lab.step("practice", status="started", paths=[str(lab.root)], port=a.port)
     try:
         code = serve(lab, a.port, family, a.lan)
@@ -51,7 +61,7 @@ def practice(a):
 def add_parser(sub):
     p = sub.add_parser("practice", help="practice on three virtual discs using disc-probe's web page")
     p.add_argument("--media", default="dvd-r")
-    p.add_argument("--lab", help="new or empty folder; omitted creates a retained temporary lab")
+    p.add_argument("--lab", help="new or empty folder, or an existing lab to resume; omitted creates a retained temporary lab")
     p.add_argument("--port", type=port_number, default=8853)
     p.add_argument("--lan", action="store_true")
     p.set_defaults(func=practice)
