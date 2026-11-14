@@ -1,0 +1,15 @@
+{
+  "media": "dvd-r",
+  "count": 3,
+  "seed": 1,
+  "batch": 1,
+  "stampers": 1,
+  "reader": "gh70n",
+  "drives": [
+    "X:"
+  ],
+  "uv_noise": [
+    0.0,
+    0.0
+  ]
+}
