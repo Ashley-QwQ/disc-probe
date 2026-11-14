@@ -36,6 +36,8 @@
 .lb-label.hot { color: var(--ink); }
 .lb-label.hot > i { border-color: currentColor; }
 .lb-label[data-target="screen"].hot { color: var(--lb-screen-ink); }
+/* the news fax's label is on its dark display, like the monitor's */
+.lb-label[data-target="faxnews"], .lb-label[data-target="faxnews"].hot { color: var(--lb-screen-ink); }
 .lb-lamp-glow, .lb-layer.lift > .lb-lamp-glow { opacity: 0; filter: brightness(1.22); }
 .lobby.lamp-hot .lb-lamp-glow { opacity: .65; }
 .lb-lamp-hint { position: absolute; padding: 8px 12px; font: 600 28px / 1.2 var(--font); color: var(--ink-2);

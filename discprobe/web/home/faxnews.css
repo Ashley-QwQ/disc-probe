@@ -1,0 +1,155 @@
+/* The news fax page (faxnews.js): the fax from above on the desk at the left, the paper on the right. */
+.fx { position: fixed; inset: 0; z-index: 1; overflow: hidden; background: var(--paper);
+  --fx-sheet: #f6f4ee; --fx-ink: #24211c; --fx-ink-2: #5d5850; --fx-rule: #c9c2b6; --fx-lcd: #e9ece2; }
+:root[data-theme="dark"] .fx { --fx-sheet: #3f4645; --fx-ink: #ecebe4; --fx-ink-2: #b4b8b0; --fx-rule: #5a6361; --fx-lcd: #e3e8dc; }
+.fx[hidden] { display: none; }
+:root[data-mode="faxnews"] :is(#next, #next-why, .next-side) { display: none; }
+:root[data-mode="faxnews"] :is(.stage, .counter, .detail, .gallery, .lobby:not(.leaving)) { visibility: hidden; }
+:root[data-mode="faxnews"] .bar { pointer-events: none; }
+:root[data-mode="faxnews"] .bar > .job { pointer-events: auto; }
+
+.fx-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.fx-stage > img { position: absolute; user-select: none; pointer-events: none; }
+.fx-handset, .fx-hs-shadow { will-change: transform; }
+/* the display: page-drawn words on the baked screen face */
+.fx-lcd { position: absolute; display: flex; align-items: center; padding: 0 .7em; box-sizing: border-box; overflow: hidden;
+  color: var(--fx-lcd); font-family: var(--mono); letter-spacing: .08em; white-space: nowrap; opacity: .86; pointer-events: none; }
+.fx-lcd[data-state="dead"], .fx-lcd[data-state="bad"], .fx-lcd[data-state="missing"] { animation: fx-blink 1s steps(2, start) 3; }
+@keyframes fx-blink { to { opacity: .25; } }
+/* key legends, and a key held down (darker, a little smaller: its 3 mm travel can't be seen from above) */
+.fx-keys { position: absolute; inset: 0; pointer-events: none; }
+.fx-key { position: absolute; display: grid; place-items: center; border-radius: 6px; font: 700 22px/1 var(--font); font-style: normal;
+  color: var(--ink-3); transition: background-color 60ms, transform 60ms; }
+.fx-key.down { background: rgb(0 0 0 / .2); transform: scale(.93); color: var(--ink-2); }
+.fx-key.start.down { border-radius: 50%; }
+:root[data-theme="dark"] .fx-key { color: rgb(16 22 21 / .62); }
+:root[data-theme="dark"] .fx-key.down { background: rgb(0 0 0 / .4); color: rgb(16 22 21 / .8); }
+/* the printout: clipped at the slot's lip until it is pulled out */
+.fx-feed { position: absolute; overflow: hidden; pointer-events: none; }
+.fx-feed.free { overflow: visible; }
+.fx-feed.gone { visibility: hidden; }
+.fx-print { position: absolute; left: 0; top: 0; width: 100%; box-sizing: border-box; padding: 26px 28px; background: var(--fx-sheet);
+  box-shadow: 0 2px 0 rgb(0 0 0 / .08); display: flex; flex-direction: column; gap: 14px;
+  background-image: repeating-linear-gradient(0deg, transparent 0 5px, rgb(0 0 0 / .025) 5px 6px); }
+.fx-print > b { font: 800 46px/1 var(--font); font-stretch: 120%; color: var(--fx-ink); text-align: center; border-bottom: 4px double var(--fx-ink); padding-bottom: 12px; }
+.fx-print > i { display: block; height: 14px; background: var(--fx-ink); opacity: .18; }
+.fx-print > i:nth-child(2) { height: 30px; opacity: .45; width: 86%; }
+.fx-print > i:nth-child(4) { width: 70%; }
+.fx-print > i:nth-child(6) { height: 120px; opacity: .1; }
+
+/* ---- the paper: right half, from under the header to the bottom, scrolling inside */
+.fx-paper, .fx-notice { position: absolute; top: calc(var(--edge) + var(--row) + 16px); right: var(--edge); bottom: 0;
+  width: min(820px, 58vw); box-sizing: border-box; overflow: auto; overscroll-behavior: contain;
+  background: var(--fx-sheet); color: var(--fx-ink); padding: clamp(18px, 2.4vw, 36px) clamp(18px, 2.6vw, 40px) calc(var(--foot) + 24px);
+  box-shadow: -14px 18px 40px rgb(40 30 15 / .16); outline: none; scrollbar-width: thin; scrollbar-color: var(--fx-rule) transparent;
+  background-image: repeating-linear-gradient(0deg, transparent 0 3px, rgb(0 0 0 / .018) 3px 4px); }
+:root[data-theme="dark"] :is(.fx-paper, .fx-notice) { box-shadow: -14px 18px 40px rgb(0 0 0 / .4); }
+.fx-paper[hidden], .fx-notice[hidden] { display: none; }
+.fx-mast { position: relative; text-align: center; border-bottom: 5px double var(--fx-ink); padding-bottom: 8px; }
+.fx-mast h1 { margin: 0; font: 800 clamp(40px, 5.4vw, 76px)/1 var(--font); font-stretch: 125%; letter-spacing: .02em; }
+.fx-dateline { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; margin: 10px 0 0; padding-top: 6px; border-top: 1px solid var(--fx-ink);
+  font-size: 13px; color: var(--fx-ink-2); }
+.fx-stamp { position: absolute; right: 0; top: 4px; padding: 2px 10px; border: 2px solid var(--copper); border-radius: 4px; color: var(--copper);
+  font: 800 15px/1.3 var(--font); font-stretch: 120%; transform: rotate(8deg); }
+.fx-lead { padding: 18px 0 16px; border-bottom: 1px solid var(--fx-ink); }
+.fx-lead h2 { margin: 4px 0 8px; font: 800 clamp(28px, 3.4vw, 46px)/1.08 var(--font); font-stretch: 112%; }
+.fx-kicker { margin: 0; font: 600 13px/1.4 var(--mono); color: var(--fx-ink-2); }
+.fx-deck { margin: 0 0 12px; font-size: 18px; line-height: 1.5; }
+.fx-note { margin: 8px 0 0; font-size: 14px; color: var(--fx-ink-2); }
+.fx-cols { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 0; }
+.fx-col { padding: 14px 16px 8px; min-width: 0; }
+.fx-col + .fx-col { border-left: 1px solid var(--fx-rule); }
+.fx-col:first-child { padding-left: 0; }
+.fx-col:last-child { padding-right: 0; }
+.fx-sect { margin: 0 0 8px; padding-bottom: 3px; border-bottom: 2px solid var(--fx-ink); font: 800 14px/1.3 var(--font); font-stretch: 118%; letter-spacing: .06em; }
+.fx-col > .fx-sect:not(:first-child) { margin-top: 20px; }
+.fx-story + .fx-story { border-top: 1px solid var(--fx-rule); margin-top: 12px; padding-top: 10px; }
+.fx-story h4 { margin: 0; font: 750 18px/1.25 var(--font); font-stretch: 105%; }
+.fx-story p { margin: 6px 0 0; font-size: 15px; line-height: 1.6; }
+.fx-byline { font: 500 12px/1.4 var(--mono) !important; color: var(--fx-ink-2); }
+/* a retro ad: a double frame, a starburst word, the colours as ink dots, the price and the order button */
+.fx-ad { position: relative; margin: 0 0 14px; padding: 14px 14px 12px; border: 3px double var(--fx-ink); text-align: center; }
+.fx-ad h4 { margin: 2px 0 8px; font: 800 22px/1.1 var(--font); font-stretch: 122%; letter-spacing: .02em; }
+.fx-ad > p { margin: 6px 0; font-size: 14px; line-height: 1.5; }
+.fx-ad-new { position: absolute; left: -10px; top: -12px; margin: 0 !important; padding: 4px 8px; background: var(--fx-ink); color: var(--fx-sheet);
+  font: 800 12px/1 var(--font) !important; font-stretch: 120%; transform: rotate(-9deg); border-radius: 2px; }
+.fx-swatches { display: flex; justify-content: center; gap: 8px; margin: 4px 0 6px; }
+.fx-swatches > i { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--fx-ink); }
+.fx-ad-price { font: 700 14px/1.3 var(--font) !important; font-stretch: 112%; }
+.fx-ad-act { display: grid; justify-items: center; gap: 4px; margin-top: 8px; min-height: 40px; }
+.fx-ordered { display: inline-block; padding: 4px 14px; border: 2.5px solid var(--copper); border-radius: 4px; color: var(--copper);
+  font: 800 18px/1.2 var(--font); font-stretch: 120%; transform: rotate(-6deg); }
+:root[data-motion="on"] .fx-ordered { animation: fx-stamp 260ms var(--ease); }
+@keyframes fx-stamp { from { transform: rotate(-6deg) scale(1.6); opacity: 0; } }
+.fx-ad-state { margin: 2px 0 0 !important; font-size: 13px !important; color: var(--fx-ink-2); }
+.fx-ad-state.warn { color: var(--copper); }
+.fx-ad[data-state="shipping"] .fx-ad-state::after { content: ""; display: inline-block; width: 1em; }
+/* the disc of the day: a printed photo with a fine dot screen over it */
+.fx-art { margin: 0 0 4px; }
+.fx-halftone { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: 2px; background: var(--fx-rule); }
+.fx-halftone img { width: 100%; height: 100%; object-fit: cover; display: block; filter: contrast(1.05) saturate(.9); }
+.fx-halftone::after { content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply; opacity: .32;
+  background: radial-gradient(circle at 50% 50%, transparent 0 .9px, var(--fx-sheet) 1.4px) 0 0 / 3px 3px; }
+.fx-art figcaption, .fx-bg figcaption { margin-top: 6px; font-size: 13px; line-height: 1.5; color: var(--fx-ink-2); }
+.fx-art figcaption b { color: var(--fx-ink); }
+.fx-art figcaption span { display: block; }
+.fx-bg { margin: 0; display: grid; justify-items: center; }
+.fx-bg canvas { width: 132px; height: 132px; image-rendering: auto; }
+.fx-joke { margin-top: 18px; padding: 10px 12px; border: 1px dashed var(--fx-ink-2); }
+.fx-joke .fx-sect { border: 0; margin: 0 0 4px !important; padding: 0; }
+.fx-joke p { margin: 0; font-size: 15px; line-height: 1.55; }
+.fx-coming { margin: 0; padding: 0 0 0 1.1em; font-size: 14px; line-height: 1.55; }
+.fx-coming li + li { margin-top: 6px; }
+.fx-foot { margin-top: 18px; padding-top: 10px; border-top: 5px double var(--fx-ink); font-size: 13px; color: var(--fx-ink-2); overflow-wrap: anywhere; }
+.fx-foot p { margin: 0 0 10px; }
+
+/* buttons on the paper: the house style (4 px corners); the copper one is the one action that matters */
+.fx-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 16px; border-radius: 4px;
+  border: 1px solid var(--fx-ink-2); background: transparent; color: var(--fx-ink); font: 600 15px/1 var(--font); text-decoration: none; cursor: pointer;
+  transition: background-color 150ms var(--ease), border-color 150ms var(--ease); }
+.fx-btn:hover { border-color: var(--copper); }
+.fx-btn:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }
+.fx-btn.primary { background: var(--copper); border-color: var(--copper); color: #fffaf2; }
+:root[data-theme="dark"] .fx-btn.primary { color: #1b1712; }
+.fx-btn.primary:hover { filter: brightness(1.06); }
+.fx-btn:active { transform: translateY(1px); }
+.fx-slip-row { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* the receipt for a call without a paper: a narrow slip, same place */
+.fx-slip { width: min(460px, 58vw); bottom: auto; max-height: calc(100vh - var(--edge) - var(--row) - 16px - var(--foot) - 16px); padding-bottom: 24px; }
+.fx-slip-kicker { margin: 0; padding-bottom: 6px; border-bottom: 3px double var(--fx-ink); font: 800 14px/1.3 var(--font); font-stretch: 118%; letter-spacing: .08em; }
+.fx-slip h2 { margin: 14px 0 6px; font: 800 30px/1.15 var(--font); font-stretch: 112%; }
+.fx-slip p { margin: 0 0 10px; line-height: 1.55; }
+.fx-slip-detail { margin: 0 0 10px; padding: 8px 10px; background: rgb(0 0 0 / .05); font: 13px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.fx-slip-src { font: 13px/1.4 var(--mono); color: var(--fx-ink-2); overflow-wrap: anywhere; }
+
+/* the first-visit note */
+.fx-notice { width: min(520px, 58vw); bottom: auto; max-height: calc(100vh - var(--edge) - var(--row) - 16px - 16px); padding-bottom: 26px; }
+.fx-notice h2 { margin: 0 0 6px; padding-bottom: 6px; border-bottom: 3px double var(--fx-ink); font: 800 28px/1.15 var(--font); font-stretch: 115%; }
+.fx-notice h3 { margin: 14px 0 2px; font: 750 15px/1.3 var(--font); font-stretch: 110%; }
+.fx-notice p { margin: 0; line-height: 1.6; }
+.fx-src { display: grid; gap: 4px; margin: 16px 0 14px; font-size: 14px; }
+.fx-src > span { font-weight: 650; }
+.fx-src input { min-height: 38px; padding: 0 10px; border: 1px solid var(--fx-ink-2); border-radius: 4px; background: transparent; color: var(--fx-ink); font: 14px var(--mono); }
+.fx-src input:focus-visible { outline: 2px solid var(--copper); outline-offset: 1px; }
+.fx-src small { color: var(--fx-ink-2); line-height: 1.5; }
+.fx-src-err { color: var(--copper) !important; }
+.fx-src-err[hidden] { display: none; }
+
+/* the parcel's slip, over the lobby */
+.fx-parcel { position: fixed; z-index: 5; width: min(320px, calc(100vw - 32px)); box-sizing: border-box; padding: 14px 16px;
+  background: var(--paper); color: var(--ink); border: 1px solid var(--rule-strong); border-radius: 8px; }
+.fx-parcel h3 { margin: 0 0 4px; font: 800 17px/1.2 var(--font); font-stretch: 115%; }
+.fx-parcel p { margin: 0 0 12px; line-height: 1.55; font-size: 15px; }
+.fx-parcel .fx-btn { --fx-ink: var(--ink); --fx-ink-2: var(--ink-2); }
+
+@media (max-width: 760px) {
+  .fx-paper, .fx-notice, .fx-slip { left: 12px; right: 12px; width: auto; }
+  .fx-cols { grid-template-columns: 1fr; }
+  .fx-col { padding: 12px 0; }
+  .fx-col + .fx-col { border-left: 0; border-top: 1px solid var(--fx-rule); }
+}
+@media (max-width: 1180px) and (min-width: 761px) {
+  .fx-cols { grid-template-columns: 1fr 1fr; }
+  .fx-col:last-child { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--fx-rule); padding-left: 0; }
+}

@@ -1,0 +1,4 @@
+{"format": "dp-skin", "version": 1, "id": "night-blueprint", "sample": true,
+ "name": {"zh": "夜班蓝图", "en": "Night Blueprint"},
+ "tokens": {"paper": {"bg": "#e8eef2", "bg-2": "#dce5ec", "accent": "#2f5f8a"},
+            "dark": {"bg": "#16222e", "bg-2": "#1d2b3a", "accent": "#d9a75c"}}}

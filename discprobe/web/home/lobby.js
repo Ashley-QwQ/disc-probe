@@ -20,9 +20,9 @@ import { rugGreeting, nextLocalDayDelay } from "./lobby-weekday.js";
 const ART = "./lobby/lobby.json";
 const DRIFT = 7;                      // screen px the nearest layer moves at the window's edge (the farthest: a third)
 const STR = {
-  zh: { newplan: "新作品", filebox: "往期作品", screen: "终端", fax: "导入导出", lamp: "开灯 / 关灯",
+  zh: { newplan: "新作品", filebox: "往期作品", screen: "终端", fax: "导入导出", faxnews: "新闻", parcel: "包裹", lamp: "开灯 / 关灯",
         soon: "这一项以后接上", last: "上次：" },
-  en: { newplan: "New work", filebox: "Past works", screen: "Terminal", fax: "Import / Export", lamp: "Lamp: light / dark",
+  en: { newplan: "New work", filebox: "Past works", screen: "Terminal", fax: "Import / Export", faxnews: "News", parcel: "Parcel", lamp: "Lamp: light / dark",
         soon: "Not connected yet", last: "Last: " },
 };
 let api, $, M = null, base = "", L = null;
@@ -113,6 +113,7 @@ function build(meta, dir) {
       glow.style.clipPath = `ellipse(75px 75px at ${x - lx}px ${y - ly}px)`;
       layer.lamp.append(glow);
     }
+    if (t.optional) g.hidden = true;           // shown on demand (the parcel, when a skin has been delivered)
     overs.push(g);
     btn.addEventListener("pointerenter", () => hover(key, true));
     btn.addEventListener("pointerleave", () => hover(key, false));
@@ -134,7 +135,7 @@ function build(meta, dir) {
   }
   L.art.replaceChildren(world);
   L.world = world; L.layer = layer;
-  paintTheme(); words(); fit();
+  paintTheme(); words(); fit(); paintParcel(false);
   document.fonts?.ready.then(words);
 }
 // Longer words (English) shrink to fit their face, with a margin. A label that would shrink below
@@ -164,6 +165,7 @@ function hover(key, on) {
   on ||= L.root.querySelector(`.lb-hit[data-target="${key}"]`) === document.activeElement;
   if (on && key === "newplan") import("./newplan.js").then((m) => m.prepare(api)).catch(() => {});   // ready before the click
   if (on && key === "filebox") import("./pastworks.js").then((m) => m.prepare(api)).catch(() => {});
+  if (on && key === "faxnews") import("./faxnews.js").then((m) => m.prepare(api)).catch(() => {});
   if (t.layer !== "base") L.layer[t.layer]?.classList.toggle("lift", on);
   if (key === "lamp") L.root.classList.toggle("lamp-hot", on);
   L.root.querySelectorAll(`[data-target="${key}"]`).forEach((n) => n.classList.toggle("hot", on));
@@ -195,11 +197,31 @@ export function pushLobby(p, reverse = false) {
 function act(key) {
   if (key === "lamp") { $("theme").click(); return; }
   if (key === "screen") { openTerminal(); return; }
+  const hit = L.root.querySelector(`.lb-hit[data-target="${key}"]`);
+  if (key === "faxnews") {                 // the news fax (faxnews.js, prototype)
+    import("./faxnews.js").then((m) => m.start(api, { from: hit })).catch((e) => { console.error("fax", e); toast(T().soon); });
+    return;
+  }
+  if (key === "parcel") { import("./faxnews.js").then((m) => m.openParcel(api, hit)).catch(() => {}); return; }
   if (key === "fax") {                     // the letter tray: DIS presets in and out (presetio.js; hidden on an old server)
     import("./presetio.js").then((m) => { if (!m.open(document.activeElement)) toast(T().soon); }).catch(() => toast(T().soon));
     return;
   }
   toast(T().soon);
+}
+// The parcel box: on the desk while delivered skins wait in it (faxnews.js writes dp-fax-parcels). It drops in
+// when a delivery lands while the lobby is on screen.
+function paintParcel(arrived = true) {
+  const g = L?.layer?.parcel, over = L?.root.querySelector('.lb-over[data-over="parcel"]');
+  if (!g) return;
+  let n = 0;
+  try { n = JSON.parse(localStorage.getItem("dp-fax-parcels") || "[]").length; } catch {}
+  const was = g.classList.contains("lit");
+  g.classList.toggle("lit", n > 0);
+  if (over) over.hidden = n === 0;
+  if (n > 0 && !was && arrived && !api.reduce && !document.hidden)
+    g.querySelector("img")?.animate([{ transform: "translateY(-60px)", opacity: 0 }, { opacity: 1, offset: .4 }, { transform: "none", opacity: 1 }],
+      { duration: 520, easing: "cubic-bezier(.3, 1.4, .5, 1)" });
 }
 // the monitor: its screen lights up (the baked screen_on layer, when the art has it), then the terminal
 // slides down; closing it turns the screen off again
@@ -332,6 +354,8 @@ export async function init(homeApi) {
   addEventListener("resize", fit);
   new MutationObserver(paintTheme).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
   addEventListener("dp-lang", words);
+  addEventListener("dp-fax-parcel", () => paintParcel(true));
+  addEventListener("storage", (e) => { if (e.key === "dp-fax-parcels") paintParcel(true); });
   // the labels are measured against their faces: words changed (language, fonts) while the lobby was hidden could not
   // be, so fit them again whenever the lobby comes back on screen
   let shown = false;
