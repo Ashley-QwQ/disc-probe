@@ -252,6 +252,10 @@ The green line in this plot is that disc. The measurement plan was [registered b
 
 A macro photo of the dense tiling disc, also burned once. The impossible triangles are 4.2 mm wide and the small figures are 6.8 mm tall. Along the top are groups of three lines for testing line width. The smallest triangle, 1 mm wide with edges of about 0.15 mm, is clearly visible to the naked eye. A 600 dpi scan separates 0.12 mm lines and barely resolves 0.08 mm, which is the scanner's limit.
 
+<img src="docs/showcase/ltva1_microscope_1px.jpg" width="32%" alt="Microscope photo of the 1 px (5 µm) checkerboard"> <img src="docs/showcase/ltva1_microscope_2px.jpg" width="32%" alt="Microscope photo of the 2 px (10 µm) checkerboard"> <img src="docs/showcase/ltva1_microscope_3px.jpg" width="32%" alt="Microscope photo of the 3 px (15 µm) checkerboard">
+
+How fine can it go? LTVA1 burned a test pattern at 23,200 × 23,200 px, 5 µm per pixel, on a Ritek DVD+R in an LG GU70N and looked at it under a microscope (10× objective, 16× eyepiece, 2× Barlow). The digit beside each patch is its pixel size; the "2" in the middle photo is upside down and mirrored. Checkerboards at 2 px (10 µm) and 3 px (15 µm) separate cleanly. At 1 px (5 µm), lines still separate but look grainy, and the checkerboard is borderline. For comparison, DiscImageStudio's 8192 px canvas is about 14 µm per pixel. This used a one-off patched build (5 µm cells, one byte per sample); cells that fine are not an option in a release yet. Photos by LTVA1, from [DiscImageStudio #108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19463898) ([details](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19464147)), used at their request.
+
 ### Colour (experimental)
 
 Write the same data over and over and that patch of disc acts as a grating, splitting white light. The repeat length decides which colour goes in a given direction, and the colour changes with the angle. This is still an experiment, followed in [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108).
