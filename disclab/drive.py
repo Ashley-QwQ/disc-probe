@@ -197,6 +197,21 @@ class LabDrive(SimDrive):
             self._clock = t0 + dt
             return ScsiResult(status, bytes(data)[:data_len], sense, int(t0 * 1e9), int(self._clock * 1e9))
 
+        # The tray is the lab's, not this handle's: a person (or `disclab tray`) may open it and change
+        # the disc while a program keeps the drive open, as disc-probe's swap does. Like a real drive:
+        # an open tray answers "medium not present, tray open"; a different disc after closing answers
+        # UNIT ATTENTION once ("medium may have changed") and the handle then serves the new disc.
+        if op != 0x12:
+            st = self.lab.state()["drives"].get(self.drive_name, {})
+            if st.get("open"):
+                return reply(2, sense=Sense(2, 0x3A, 0x02), dt=300e-6)
+            if st.get("tray") != self.disc_id:
+                clock = self._clock
+                LabDrive.__init__(self, self.lab, self.drive_name)
+                self._clock = max(self._clock, clock)
+                t0 = self._clock + 20e-6
+                return reply(2, sense=Sense(6, 0x28, 0x00), dt=300e-6)
+
         if op == 0x12:
             d = bytearray(96)
             d[0] = 0x05
