@@ -750,6 +750,11 @@ function toast(text) { const t = $("toast"); t.textContent = text; t.classList.a
   await refresh().catch((e) => toast(e.message));
   const m = location.hash.slice(1);
   if (["basket", "burner", "phone"].includes(m)) go(m);
-  // another tab or the terminal may change the lab: look again now and then (cheap: one status call)
-  setInterval(() => { if (!job && document.visibilityState === "visible") refresh().catch(() => {}); }, 8000);
+  // another tab or the terminal may change the lab: look again now and then. The next look waits for the last
+  // answer, so a slow status never has several asks in flight.
+  const look = async () => {
+    if (!job && document.visibilityState === "visible") await refresh().catch(() => {});
+    setTimeout(look, 8000);
+  };
+  setTimeout(look, 8000);
 })();

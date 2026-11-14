@@ -290,3 +290,43 @@ def test_plain_commands_print_for_a_person(lab):
     out = cli("status", "--lab", lab.root)
     assert "<- 现在到这里" in out.stdout and "检测空白盘" in out.stdout
     assert envelope(cli("status", "--json", "--lab", lab.root))["outputs"]["status"]["current"] == "blank"
+
+
+def test_status_is_not_recorded_and_old_copies_are_dropped(lab):
+    """status only reads; recording its reply each time grew one lab's state.json to 95 MB (5302 copies)."""
+    before = lab.state().get("steps", {}).get("status", [])
+    status(lab)
+    status(lab)
+    assert lab.state().get("steps", {}).get("status", []) == before
+    with lab.locked_state() as st:                      # a lab from before the fix
+        st.setdefault("steps", {})["status"] = [dict(t=0, outputs={})] * 3
+    lab.step("tray", drive="X:")                        # any later write clears them
+    assert "status" not in lab.state()["steps"]
+
+
+def test_desk_runs_one_status_at_a_time(lab, monkeypatch):
+    import threading
+    from disclab import desk as D
+    calls, running, peak = [], [0], [0]
+
+    def slow(argv, root):
+        running[0] += 1
+        peak[0] = max(peak[0], running[0])
+        time.sleep(0.4)
+        running[0] -= 1
+        calls.append(time.time())
+        return dict(status="ok", outputs={})
+    monkeypatch.setattr(D, "run_quick", slow)
+    desk = D.Desk(lab)
+    first = threading.Thread(target=desk.status)
+    first.start()
+    time.sleep(0.05)
+    late = [threading.Thread(target=desk.status) for _ in range(6)]
+    for t in late:
+        t.start()
+    for t in [first, *late]:
+        t.join()
+    assert peak[0] == 1                 # never two status processes together
+    assert len(calls) == 1              # the six that came while it ran share its reply
+    desk.status()
+    assert len(calls) == 2              # a later ask runs it again

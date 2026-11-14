@@ -147,6 +147,21 @@ class Desk:
         self.lab = lab
         self.jobs = Jobs()
         self.thumbs = {}
+        self.status_lock = threading.Lock()
+        self.status_cache = None        # (finished at, lab root, reply)
+
+    def status(self):
+        """One `status` process at a time. A request that arrives while one runs waits for it and shares its reply
+        (it finished after the request came), so a page polling faster than status answers cannot pile them up."""
+        asked = time.time()
+        with self.status_lock:
+            cached = self.status_cache
+            if cached and cached[0] >= asked and cached[1] == self.lab.root:
+                return cached[2]
+            root = self.lab.root
+            reply = run_quick(["status"], root)
+            self.status_cache = (time.time(), root, reply)
+            return reply
 
     def switch(self, root):
         root = Path(root).resolve()
@@ -193,7 +208,7 @@ def handler_for(desk: Desk):
             if url.path in ("/", "/index.html"):
                 return self.static("index.html")
             if url.path == "/api/status":
-                return self.send(200, run_quick(["status"], desk.lab.root) | dict(busy=self.busy()))
+                return self.send(200, desk.status() | dict(busy=self.busy()))
             if url.path.startswith("/api/job/"):
                 job = desk.jobs.view(url.path.rsplit("/", 1)[-1])
                 return self.send(200 if job else 404, job or dict(error="no such job"))

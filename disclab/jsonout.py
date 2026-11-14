@@ -11,6 +11,8 @@ import sys
 
 from .lab import Lab
 
+READ_ONLY = {"status"}      # commands that look and change nothing; not recorded as steps
+
 
 _structured = ContextVar("disclab_structured", default=False)
 
@@ -143,8 +145,11 @@ def invoke(a, *, echo=True):
     if lab and lab.state_path.exists():
         try:
             result["scores"] = {p.stem: lab.read(p) for p in sorted((lab.root / "scores").glob("*.json"))}
-            lab.step(a.command, status=result["status"], disc=getattr(a, "disc", None),
-                     outputs=result["outputs"], errors=result["errors"])
+            # status only reads: recording its whole reply each time made state.json grow without end, and
+            # every later status slower (a desk page polling it piled up minute-long status processes)
+            if a.command not in READ_ONLY:
+                lab.step(a.command, status=result["status"], disc=getattr(a, "disc", None),
+                         outputs=result["outputs"], errors=result["errors"])
         except Exception as exc:
             code = code or 1
             result.update(status="error", errors=result["errors"] + [dict(type=type(exc).__name__, message=str(exc))])
