@@ -228,7 +228,7 @@ function build() {
     <div class="np-env-front" aria-hidden="true"></div>
     <div class="np-toast" role="status"></div>`;
   document.body.append(W);
-  // the letterhead: the folded wordmark (the header's own markup, so the half-disc P is the same one)
+  // the letterhead: the folded wordmark (the header's own markup, so the drawn D is the same one)
   // and the release after it
   const mark = document.createElement("div");
   mark.className = "wordmark np-wm"; mark.setAttribute("aria-hidden", "true");
