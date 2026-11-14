@@ -5,13 +5,13 @@ part replaced by optics:
 
 * Each pixel's ray meets the warped top surface (dish + saddle from the disc's truth), refracts into the
   polycarbonate (n 1.58, 0.6 mm on DVD) and lands on the recording layer at (r, alpha).
-* The burn map says which recorded byte is there; A5, B9 and random data have along-track spectra from the A3
-  wave model (disclab/data/wave_xyz.npz).
+* The burn map records texture identities. A5/B9/RND retain the original
+  wave_xyz.npz; check-disc recipes use shipped A3 v3 textures_v3.npz.
 * delta_t = (c + l) . t (c, l: unit vectors to camera and lamp, t: track tangent) picks the colour each texture
   diffracts toward the camera; delta_t < 0.1 shows nothing. delta_r = (c + l) . r with delta_t ~ 0 is the groove's
   rainbow (lambda = pitch * delta_r); both ~ 0 is the lamp's mirror glare. So the visible part of the pattern,
   the rainbow arms and the glare all move with the pose, as on a real disc.
-* Flash (fixed to the phone, 34 mm from the lens on an iPhone 17 Pro, the person's measurement) or a room lamp.
+* Flash (pose parameter, Apple drawing lens offset (-43.66, 19.79) mm) or a room lamp.
 
 Not modelled: polarisation, multilayer dye optics, the true diffraction efficiency against the mirror reflection
 (one constant, `tex_gain`), phone tone mapping/HDR/denoise, rolling shutter, the label side, fingers' shadows.
@@ -28,7 +28,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from .burnmap import BLANK, MIXED, load_map
+from .burnmap import BLANK, MIXED, load_map, texture_registry
 from .lab import Lab, atomic_json
 from .physics import Disc
 
@@ -47,7 +47,8 @@ class Pose:
     height: int = 3024
     shift_frac: float = 0.0         # disc centre moved towards the frame edge
     light: str = "flash"            # flash (on the phone) or lamp (fixed in the room)
-    flash_mm: tuple = (34.0, 0.0)   # flash position in the camera's x/y, mm from the lens
+    flash_mm: tuple = (-43.66, 19.79)  # Apple drawing, camera x/y, lens to flash (~47.9 mm)
+    illuminant: str = "LED"         # A3 lamp spectrum; D65 is also available for new textures
     lamp_mm: tuple = (0.0, -900.0, 1500.0)   # room lamp, disc frame
     lamp_radius_mm: float = 40.0
     disc_tilt_deg: tuple = (0.0, 0.0)        # disc not flat on the table (only matters for a room lamp)
@@ -74,6 +75,7 @@ class Pose:
 def _tables():
     z = np.load(DATA)
     return dict(delta=z["delta"], textures=[str(t) for t in z["textures"]], xyz=z["xyz"][:, :, 0, :],
+                xyz_lamps=z["xyz"],
                 cmf_nm=z["cmf_nm"], cmf=z["cmf"], m=z["xyz_to_srgb"])
 
 
@@ -116,6 +118,68 @@ def _height(disc_t, x, y):
     return disc_t["dish_mm"] * r2 + disc_t["saddle_mm"] * r2 * np.cos(2 * (th - sd))
 
 
+def delta_t(sv, alpha):
+    """Along-track component; identical to simulate.along_track on a flat disc."""
+    return np.abs(-sv[..., 0] * np.sin(alpha) + sv[..., 1] * np.cos(alpha))
+
+
+def interpolate_xyz(delta, xyz, values):
+    """Linear XYZ interpolation; no light outside the model's delta domain."""
+    return np.stack([np.interp(values, delta, xyz[:, k], left=0, right=0) for k in range(3)], -1)
+
+
+def _texture_mix(bmap, r0, dr, da, x, y, d_t, registry, tables, pose):
+    """Four equal-area subpixels, using the recording-layer pixel Jacobian.
+
+    This approximates the projected footprint, including refraction/warp. It
+    cannot recover features finer than the retained polar burn-map grid.
+    Sum texture XYZ before converting to RGB or applying image exposure.
+    """
+    from .tables import lookup, OUT
+    if pose.illuminant not in ("LED", "D65"):
+        raise ValueError("illuminant must be LED or D65")
+    lamp = 0 if pose.illuminant == "LED" else 1
+    source = json.loads(OUT.with_suffix(".json").read_text(encoding="utf-8"))
+    anchors = source["mark_density_anchors"]
+    dy_x, dx_x = np.gradient(x)
+    dy_y, dx_y = np.gradient(y)
+    colours, darkening = {}, {BLANK: 0.0}
+    for code in np.unique(bmap):
+        code = int(code)
+        if code == BLANK:
+            continue
+        name = registry.get(code, TEXTURE_BYTES.get(code, "RND"))
+        if name in ("A5", "B9", "RND"):
+            i = tables["textures"].index(name)
+            xyz = tables["xyz_lamps"][i, :, lamp] if "xyz_lamps" in tables else tables["xyz"][i]
+            colours[code] = (tables["delta"], xyz)
+            darkening[code] = 1.0 if name == "A5" else .4
+        else:
+            row = lookup(name)
+            colours[code] = (row["delta"], row["xyz"][:, lamp])
+            # Extend the ordinary recorded-surface (B9/RND) coefficient .4
+            # in proportion to encoded mark area. The exceptional empirical
+            # A5 coefficient stays 1. DSV makes both anchors almost 50%, so
+            # density cannot explain their measured/assumed difference.
+            darkening[code] = float(np.clip(.4 * row["mark_density"] / anchors["B9"], 0, 2))
+    tex = np.zeros(x.shape + (3,), np.float32)
+    attenuation = np.zeros(x.shape, np.float32)
+    for ox, oy in ((-.25, -.25), (.25, -.25), (-.25, .25), (.25, .25)):
+        px, py = x + ox * dx_x + oy * dy_x, y + ox * dx_y + oy * dy_y
+        radius = np.hypot(px, py)
+        ir = np.clip(np.round((radius - r0) / dr).astype(np.int64), 0, bmap.shape[0] - 1)
+        ia = np.round(np.degrees(np.arctan2(py, px) % (2 * np.pi)) / da).astype(np.int64) % bmap.shape[1]
+        codes = bmap[ir, ia]
+        codes = np.where((radius < r0) | (radius > r0 + dr * (bmap.shape[0] - 1)), BLANK, codes)
+        for code in np.unique(codes):
+            m = codes == code
+            if code != BLANK:
+                delta, xyz = colours[int(code)]
+                tex[m] += .25 * interpolate_xyz(delta, xyz, d_t[m]).astype(np.float32)
+            attenuation[m] += .25 * darkening[int(code)]
+    return tex, attenuation
+
+
 def render(lab: Lab, disc_id: str, pose: Pose, tables=None):
     """Returns (uint8 RGB image, focal px, record of what was drawn)."""
     tables = tables or _tables()
@@ -125,6 +189,9 @@ def render(lab: Lab, disc_id: str, pose: Pose, tables=None):
     burn = lab.state()["burns"].get(disc_id)
     disc = Disc(truth, burn)
     bmap, r0, dr, da = load_map(lab, disc_id)
+    registry = texture_registry(lab, disc_id)
+    extended = (pose.illuminant != "LED" or
+                any(name not in ("A5", "B9", "RND") for name in registry.values()))
     nr, na = bmap.shape
     W, H = pose.width, pose.height
     K, R, C, f = _camera(pose, rng)
@@ -199,7 +266,7 @@ def render(lab: Lab, disc_id: str, pose: Pose, tables=None):
     lvec /= ldist[..., None]
     sv = cvec + lvec
     ca, sa = np.cos(alpha), np.sin(alpha)
-    d_t = np.abs(-sv[..., 0] * sa + sv[..., 1] * ca)
+    d_t = delta_t(sv, alpha)
     d_r = sv[..., 0] * ca + sv[..., 1] * sa
     irr = (np.linalg.norm(lamp) / ldist) ** 2                            # 1 at the disc centre
 
@@ -226,6 +293,9 @@ def render(lab: Lab, disc_id: str, pose: Pose, tables=None):
     if m.any():
         tab = xyz_tab["RND"]
         tex[m] = tab[lo[m]] * (1 - fr[m]) + tab[hi[m]] * fr[m]
+    attenuation = None
+    if extended:
+        tex, attenuation = _texture_mix(bmap, r0, dr, da, x, y, d_t, registry, tables, pose)
     tex *= (inside * irr)[..., None] * (pose.tex_gain * truth.get("contrast_gain", 1.0) / ref)
 
     # Groove rainbow (first radial order, delta_t ~ 0) and the lamp's mirror glare (both ~ 0).
@@ -247,6 +317,8 @@ def render(lab: Lab, disc_id: str, pose: Pose, tables=None):
     # dark chips darker on the purple room reflection, so a per-disc fraction (answers: zero_order_dark) is used.
     dark = float(truth.get("zero_order_dark", 0.15))
     z0 = np.where(code == 0xA5, 1 - dark, np.where(code == BLANK, 1.0, 1 - 0.4 * dark)).astype(np.float32)
+    if extended:
+        z0 = np.clip(1 - dark * attenuation, 0, 1).astype(np.float32)
     trgb = np.clip(tex @ tables["m"].T, 0, None)
     grey = trgb.mean(-1, keepdims=True)
     trgb = grey + (1 - pose.desaturate) * (trgb - grey)      # phone colour processing, not modelled
@@ -298,6 +370,7 @@ def render(lab: Lab, disc_id: str, pose: Pose, tables=None):
     enc = enc + rng.normal(0, pose.noise, enc.shape).astype(np.float32) * np.sqrt(np.clip(enc / 80.0, 0.2, 4.0))
     img8 = np.clip(enc, 0, 255).astype(np.uint8)
     rec = dict(disc=disc_id, pose=asdict(pose), camera_mm=C.tolist(), lamp_mm=lamp.tolist(),
+               texture_model="A3 v3 + legacy A5/B9/RND" if extended else "legacy A5/B9/RND",
                focal_px=f, visible_fraction=float(np.mean((d_t[disc_px] > 0.1))) if disc_px.any() else 0.0,
                glare_fraction=float(np.mean(w_g[(r > 24) & (r < 58)] > 0.01)))
     return img8, f, rec
@@ -375,4 +448,8 @@ def add_parser(sub):
     s.add_argument("--out", required=True)
     s.add_argument("--seed", type=int, default=0)
     s.add_argument("--style", default="handheld", choices=sorted(STYLES))
-    s.set_defaults(func=lambda a: shoot(Lab(a.lab), a.disc, a.n, a.out, seed=a.seed, style=a.style))
+    s.add_argument("--flash-mm", type=float, nargs=2, default=Pose.flash_mm, metavar=("X", "Y"),
+                   help="flash offset in camera x/y millimetres (default: -43.66 19.79, Apple drawing)")
+    s.add_argument("--illuminant", choices=("LED", "D65"), default="LED")
+    s.set_defaults(func=lambda a: shoot(Lab(a.lab), a.disc, a.n, a.out, seed=a.seed, style=a.style,
+                                        fixed=dict(flash_mm=tuple(a.flash_mm), illuminant=a.illuminant)))
