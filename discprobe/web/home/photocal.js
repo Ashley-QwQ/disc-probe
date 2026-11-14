@@ -140,7 +140,7 @@ export function photoPage(host, opts = {}) {
     t.phoneOffline = en ? 'This computer is not reachable from your phone. Add a photo from this computer.' : '手机暂时连不到这台电脑，请从电脑添加照片。';
     t.local = en ? 'Photos are sent to this computer on your local network.' : '照片通过局域网发到这台电脑。';
     if (typeof opts.autoAlign === 'function') t.reader = en ? 'Auto-align reads the photo. If it is unclear, the reason is shown below.' : '自动对齐会读取照片；读不准时，会在下面说明原因。';
-    if (opts.media === 'cd') {
+    if (opts.media === 'cd' || opts.purpose === 'check') {
       t.title = en ? 'Read the along-track constant from a photo' : '拍照，读出沿轨常数';
       t.why = () => en ? 'This drive and disc batch need a photo to read the along-track constant. Keep the whole target disc in frame.' : '这台光驱和这批盘还需要靠照片读出沿轨常数。把整张标靶盘拍进画面。';
     }

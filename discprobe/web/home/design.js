@@ -2312,6 +2312,9 @@ async function toBurn(iso, back) {
     // result stays with that geometry, so the next burn file made here applies it. Then back to the preview.
     // only a check (target) disc: the photo reader reads the target's rings and code, not a picture
     photograph: mock || !iso.target ? null : async () => {
+      // the burn page steps aside first: its panel and its Next ("done: back to the desk") must not stay
+      // under the photo page
+      burn.leave();
       const cal = await import("./calibrate.js");
       cal.photograph(api, { item: S.item, media: S.media, geo: iso.geo ?? S.geo, burnCheck: iso.burnResult ?? null,
         returnTo: async () => { await api.syncState?.(); back?.(); } });

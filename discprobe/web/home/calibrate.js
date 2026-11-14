@@ -1453,7 +1453,7 @@ function paintPhoto() {
       if (!u.flow.photoResult && earlier) { u.flow.photoResult = earlier; u.flow.photoReadIds = JSON.stringify([listed, photoDiscId(u.flow, u.run)]); }
       u.status = 'ready';
       u.page = photoPage(host, {
-        lang:u.lang, media:u.flow.detected.media, paperHost:$('cal'), photos, ringsMm:u.flow.photoSnapshot?.ringsMm, activePhoto:u.flow.photoSnapshot?.activePhoto,
+        lang:u.lang, media:u.flow.detected.media, purpose:u.flow.photoOnly ? 'check' : null, paperHost:$('cal'), photos, ringsMm:u.flow.photoSnapshot?.ringsMm, activePhoto:u.flow.photoSnapshot?.activePhoto,
         measuredMm:u.flow.geo?.measurement?.span_mm,
         phoneUrl:phone.url, phoneQrSvg:phone.qr_svg, addresses:phone.addresses, address:phone.address,
         onAddress:address => choosePhoneAddress(u,address), automaticRead:true, onPhotos:() => queuePhotoRead(u),
