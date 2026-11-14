@@ -22,6 +22,7 @@ from discprobe.sim import SimDrive
 from .box import MEDIA
 from .lab import Lab
 from .physics import Disc
+from .faultmodel import active_faults, burn_failure, reported_sectors
 
 FAMILY_PROFILE = {"dvd": 0x10, "cd": 0x08, "bd": 0x40}
 BLANK = 0
@@ -42,6 +43,7 @@ class LabDrive(SimDrive):
         self.lab = lab
         self.drive_name, dstate = lab.drive_for(name)
         answers = lab.answers()
+        self.answers = answers
         self.reader_id = dstate["reader"]
         self.reader = answers["readers"][self.reader_id]
         with lab.locked_state() as state:
@@ -67,7 +69,7 @@ class LabDrive(SimDrive):
             media=family)
         self.name = self.drive_name
         self.profile = mspec["profile"]
-        self.mid = mspec["mid"]
+        self.mid = self.truth.get("mid", mspec["mid"]) if self.truth else mspec["mid"]
         self.disc = Disc(self.truth, burn) if self.truth else None
         if self.disc is not None:
             b = self.disc.b_mm
@@ -81,6 +83,10 @@ class LabDrive(SimDrive):
         self._iso = []                 # (start, end, memmap)
         self._flaw_cache = {}
         self.closed = False
+        self._spindle_base_w = self._w
+        self._spindle_factor = 1.0
+        self._spindle_activated = set()
+        self._fault_epoch = self._clock
 
     # ------------------------------------------------------------ state
     def _written_sectors(self) -> int:
@@ -91,13 +97,15 @@ class LabDrive(SimDrive):
     def _sessions(self):
         if not self._iso and self.burn:
             for s in self.burn["sessions"]:
+                if not s["sectors"]:
+                    continue
                 path = Path(s["iso"])
-                ok = path.is_file() and path.stat().st_size == s["sectors"] * 2048 and \
+                ok = path.is_file() and path.stat().st_size == s.get("iso_size", s["sectors"] * 2048) and \
                     abs(path.stat().st_mtime - s.get("iso_mtime", path.stat().st_mtime)) < 2
                 mm = np.memmap(path, np.uint8, "r") if ok else None
                 if mm is None and s.get("head") and Path(s["head"]).is_file():
                     # The ISO was deleted to save space: the first sectors were kept at burn time.
-                    head = np.fromfile(s["head"], np.uint8)
+                    head = np.fromfile(s["head"], np.uint8)[:s["sectors"] * 2048]
                     self._iso.append((s["start_lba"], s["start_lba"] + len(head) // 2048, head, s))
                     self._iso.append((s["start_lba"] + len(head) // 2048, s["start_lba"] + s["sectors"], None, s))
                     continue
@@ -105,6 +113,30 @@ class LabDrive(SimDrive):
         return self._iso
 
     # ------------------------------------------------------------ truth hooks for SimDrive
+    def _read(self, t, lba, count, fua):
+        faults = list(active_faults(self.answers, self.disc_id, "spindle_unsteady"))
+        if faults:
+            factor = 1.0
+            elapsed = t - self._fault_epoch
+            for f in faults:
+                p = f["params"]
+                if elapsed >= p["time_s"] and lba >= p["lba"]:
+                    self._spindle_activated.add(f["id"])
+                if f["id"] in self._spindle_activated:
+                    wave = 1.0 if p["mode"] == "jump" else math.sin(2 * math.pi * p["rate_hz"] * (elapsed - p["time_s"]))
+                    factor *= 1 + p["amplitude"] * wave
+            phase = self._phase(t)
+            self._phi, self._t_s = phase, t
+            self._w = self._spindle_base_w * factor
+            self._alpha = 0.0
+            self._spindle_factor = factor
+        return super()._read(t, lba, count, fua)
+
+    def _relock(self, t, radius):
+        super()._relock(t, radius)
+        if self.mode == "clv":
+            self._w *= getattr(self, "_spindle_factor", 1.0)
+
     def track_angle(self, sector: float) -> float:
         if self.disc is None:
             return super().track_angle(sector)
@@ -127,15 +159,27 @@ class LabDrive(SimDrive):
         """A flaw arc, or a textured sector written too slowly (outer part of a low-speed texture burn)."""
         if self.disc is None:
             return False
+        for fault in active_faults(self.answers, self.disc_id, "read_error"):
+            p = fault["params"]
+            if "lba" in p and lba < p["lba"][1] and lba + count > p["lba"][0]:
+                return True
+            if "r_mm" in p:
+                # Monotonic radius: test the whole command span, including narrow bands.
+                r0 = float(self.disc.data_radius(lba * self.disc.bps))
+                r1 = float(self.disc.data_radius((lba + count) * self.disc.bps))
+                if r0 <= p["r_mm"][1] and r1 >= p["r_mm"][0]:
+                    return True
         flaw = self.truth.get("flaw")
+        flaws = ([flaw] if flaw else []) + self.truth.get("defect_arcs", [])
         for k in range(lba, lba + count, max(1, count // 4)):
             n = (k + 0.5) * self.disc.bps
             r = float(self.disc.data_radius(n))
-            if flaw and flaw["r_mm"][0] <= r <= flaw["r_mm"][1]:
-                a = math.degrees(float(self.disc.alpha(n))) % 360
-                lo, hi = flaw["deg"][0] % 360, flaw["deg"][1] % 360
-                if (lo <= a <= hi) if lo <= hi else (a >= lo or a <= hi):
-                    return True
+            for flaw in flaws:
+                if flaw["r_mm"][0] <= r <= flaw["r_mm"][1]:
+                    a = math.degrees(float(self.disc.alpha(n))) % 360
+                    lo, hi = flaw["deg"][0] % 360, flaw["deg"][1] % 360
+                    if flaw["deg"][1] - flaw["deg"][0] >= 360 or ((lo <= a <= hi) if lo <= hi else (a >= lo or a <= hi)):
+                        return True
             for a_, e_, mm, s in self._sessions():
                 if a_ <= k < e_ and s.get("low_speed_fail_mm") and r > s["low_speed_fail_mm"] and mm is not None:
                     q = mm[(k - a_) * 2048:(k - a_) * 2048 + 256]
@@ -170,7 +214,8 @@ class LabDrive(SimDrive):
         if op == 0x25:
             if not written:
                 return reply(2, sense=Sense(5, 0x24, 0))
-            return reply(data=(written - 1).to_bytes(4, "big") + (2048).to_bytes(4, "big"))
+            reported = reported_sectors(self.answers, self.disc_id, written)
+            return reply(data=(reported - 1).to_bytes(4, "big") + (2048).to_bytes(4, "big"))
         if op == 0x51:
             return reply(data=self._disc_information(written))
         if op == 0x52:
@@ -229,9 +274,9 @@ class LabDrive(SimDrive):
         d[6] = sessions + (0 if closed or not written else 1)
         d[7] = 0x20
         d[8] = 0x00 if self.family != "cd" else 0x20
-        cap = self.truth["capacity"]
+        cap = reported_sectors(self.answers, self.disc_id, self.truth["capacity"])
         if self.family == "cd":
-            f = cap + 150
+            f = min(cap, 1151849) + 150
             d[21:24] = bytes([f // 4500, (f // 75) % 60, f % 75])
         else:
             d[20:24] = cap.to_bytes(4, "big")
@@ -240,7 +285,8 @@ class LabDrive(SimDrive):
     def _track_information(self, written):
         d = bytearray(48)
         d[0:2] = (46).to_bytes(2, "big")
-        cap = self.truth["capacity"]
+        cap = reported_sectors(self.answers, self.disc_id, self.truth["capacity"])
+        written = reported_sectors(self.answers, self.disc_id, written) if written else 0
         closed = bool(self.burn and self.burn.get("closed", True))
         d[2], d[3] = 1, 1
         d[5] = 0x04 if self.family != "cd" else 0x04
@@ -304,7 +350,7 @@ class LabDrive(SimDrive):
         a[0] = 0x45
         a[1] = 0x00
         a[2] = 0x80
-        a[4:7] = bytes([97, 26, 66])
+        a[4:7] = bytes(map(int, self.mid[5:].split(":"))) if self.truth.get("mid") else bytes([97, 26, 66])
         cap = self.truth["capacity"] + 150
         a[8:11] = bytes([cap // 4500, (cap // 75) % 60, cap % 75])
         d[4:] = a
@@ -387,13 +433,19 @@ class LabRecorder:
         writer = answers["writers"]["imapi"]
         size = path.stat().st_size
         sectors = size // 2048
+        behaviour = burn_failure(answers, disc, d["reader"])
+        interrupted = behaviour["kind"] == "stop_at"
+        fail_close = behaviour["kind"] == "fail_close" and not keep_open
+        intended_sectors = sectors
+        if interrupted:
+            sectors = int(sectors * behaviour["fraction"])
         rng = np.random.default_rng(int(time.time() * 1e6) % (2 ** 32))
         start = expect_start or 0
         total = 20
         for i in range(total):                                # a lab burn takes a few seconds, with progress
             if cancel.is_set():
                 raise OSError("disclab: burn cancelled")
-            progress(stage="write", fraction=(i + 1) / total)
+            progress(stage="write", fraction=(i + 1) / total * (behaviour["fraction"] if interrupted else 1))
             time.sleep(0.05)
         progress(stage="speed", actual_speed_x=float(speed))
         mode = "dvd" if truth["family"] == "dvd" else "mode2form1"
@@ -405,7 +457,7 @@ class LabRecorder:
         head = self.lab.root / "media" / (disc.replace(" ", "_") + f".s{expect_start or 0}.head.bin")
         head.parent.mkdir(parents=True, exist_ok=True)
         with path.open("rb") as src:
-            head.write_bytes(src.read(1024 * 2048))
+            head.write_bytes(src.read(min(1024, sectors) * 2048))
         session["head"] = str(head)
         with self.lab.locked_state() as state:
             burns = state.setdefault("burns", {})
@@ -415,11 +467,17 @@ class LabRecorder:
             if prev:
                 session["write_offset_bits"] = prev["sessions"][0]["write_offset_bits"]
                 prev["sessions"].append(session)
-                prev["closed"] = not keep_open
+                prev["closed"] = not (keep_open or interrupted or fail_close)
             else:
-                burns[disc] = dict(sessions=[session], closed=not keep_open)
+                burns[disc] = dict(sessions=[session], closed=not (keep_open or interrupted or fail_close))
+            if interrupted or fail_close:
+                burns[disc]["failure"] = dict(behaviour, intended_sectors=intended_sectors, written_sectors=sectors)
             self.lab.event(state, "burn", disc=disc, drive=self.drive, iso=str(path), sectors=sectors, speed_x=speed)
         # Keep what was written, independent of the ISO file (which may be deleted to save space).
         if truth["family"] == "dvd":
             extract_map(self.lab, disc)
+        if interrupted and not behaviour.get("report_success", False):
+            raise OSError(f"write interrupted after {sectors} of {intended_sectors} sectors")
+        if fail_close:
+            raise OSError("session close failed; recorded data remains open")
         return float(speed)

@@ -142,3 +142,7 @@ python -m disclab upload --url "http://127.0.0.1:8853/home/?token=YOUR_SESSION_T
 本机验证环境为 **Windows、Python 3.13.14**：原有 20 项测试、新增便携性测试、两张盘的小闭环，以及 Windows PowerShell 和 Git Bash 中完整 12 张盘的示例。还从含空格和中文的解包路径，检查了旁放 `discprobe/` 与安装本地配套 wheel 两种方式。网页和上传只做了替身子进程、模拟 HTTP 的单元测试，本任务没有启动真实服务器或做真实上传。没有运行完整照片循环，也没有重建 A3 表。
 
 **本机没有运行 Linux。** Git Bash 仍运行在 Windows 上，不能算 Linux 验证。具体测试数量、耗时和打印分数见 [PACKAGE_REPORT.md](PACKAGE_REPORT.md)。
+
+## 场景与故障实验
+
+`python -m disclab box --lab LAB --scenario FILE` 可以设置光盘、初始已写状态、光驱和故障；`python -m disclab faults --lab LAB [--fault ID]` 输出逐命令分类并保存 `LAB/scores/faults.json`。参见[双语格式说明](SCENARIO.md)、[场景样例](examples/scenarios/)和[本机故障报告](FAULTS_REPORT.md)。
