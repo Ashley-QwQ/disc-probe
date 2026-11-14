@@ -53,7 +53,7 @@ class IdentitySessionTests(unittest.TestCase):
         self.assertEqual(self.spec['disc_identity_layout']['total_sectors'],32768)
         rec=Mock();rec.inspect.return_value=dict(media='dvd',blank=True,closed=False,free_sectors=2295104,speeds_x=[8])
         rec.write.return_value=8
-        result=burner.burn('SIM',self.image,yes_write=True,disc_id=True,keep_open=True,recorder=rec,no_verify=True)
+        result=burner.burn('SIM',self.image,yes_write=True,disc_id=True,keep_open=True,recorder=rec,no_verify=True, state_checker=lambda *a, **k: dict(status='completed'))
         stream=rec.write.call_args.args[0]
         self.assertIsInstance(stream,discid.PatchedImage)
         self.assertTrue(rec.write.call_args.kwargs['keep_open'])

@@ -299,6 +299,17 @@ class TimingProbe:
         tracks = mmc.parse_toc(toc.data)["tracks"] if toc.ok else []
         audio = bool(tracks) and not tracks[0]["data"]
         self.audio = audio
+        from .recorded import metadata, check
+        metadata_read = self._cmd
+        if hasattr(self.dev, 'diagnostic_snapshot'):
+            from .scsi import execute_probe
+            snapshot = self.dev.diagnostic_snapshot()
+            metadata_read = lambda cdb, size: execute_probe(snapshot, cdb, size)
+        capacity_report = metadata(metadata_read, capacity=cap, toc=toc)
+        capacity_check = check(capacity_report, metadata_read, audio=audio)
+        if capacity_check['warnings']:
+            self.summary['capacity_check'] = capacity_check
+            raise NoReadableDisc(' '.join(capacity_check['warnings']))
         if self.media == "cd" and self.cd_audio and self.family == "cd" and audio:
             if self.read_method not in ("auto", "readcd"):
                 raise NoReadableDisc("an audio track can only be read with READ CD")
@@ -307,6 +318,15 @@ class TimingProbe:
         if self.last_lba is None and tracks and tracks[-1]["track"] == 0xAA:
             self.last_lba = tracks[-1]["start_lba"] - 1
         capacity_source = "read capacity" if self.last_lba else None
+        confirmed = capacity_check.get('confirmed_recorded_sectors')
+        if capacity_check.get('open_recorded_sectors') and not confirmed:
+            self.summary['capacity_check'] = capacity_check
+            raise NoReadableDisc('The recorded length of this open disc could not be confirmed: '
+                                 f"{capacity_check.get('end_read')}. Re-read this same disc or try another drive before measuring geometry.")
+        if confirmed and self.last_lba is not None and confirmed < self.last_lba + 1:
+            self.last_lba = confirmed - 1
+            capacity_source = 'confirmed track recorded end'
+            self.log(f'Warning: READ CAPACITY describes the open medium; using the confirmed recorded length of {confirmed} sectors.')
         if self.family == 'dvd' and self.last_lba:
             # READ CAPACITY can describe the whole medium on an open DVD.
             # Our pending marker supplies the actual first session's burned end.

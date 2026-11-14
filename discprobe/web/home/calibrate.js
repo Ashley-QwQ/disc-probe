@@ -199,6 +199,7 @@ export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck
   flow.detected = { media, mid: item?.mid ?? null, capacity_sectors: item?.sectors ?? null };
   // the burn page's own record of this write: the photo result names how the disc was burned (photo.photo_l)
   flow.geo = { path: geo }; flow.burnCheck = burnCheck; flow.photoOnly = true; flow.realPhase = "photo";
+  if (burnCheckFailed(burnCheck)) { flow.photoOnly = false; flow.realPhase = "review"; }
   return open();
 }
 
@@ -984,6 +985,11 @@ function bindNext(btn) {
 
 // Live workflow: phases describe the visible panel; measurements and verdicts come from disk.
 const liveText = (zh, en) => api.lang() === "zh" ? zh : en;
+function burnCheckFailed(burn) {
+  const v = burn?.verification;
+  return !!burn && ((burn.result && burn.result !== "completed") || burn.disc_state?.status === "failed" ||
+    (v && v.status !== "skipped" && (v.status !== "completed" || v.differing || v.unreadable || v.untested)));
+}
 function realError(error) {
   setTimeout(callBack, 0);
   if (error?.failure) sfx.failure(); else sfx.problem();      // a disc lost, or something to put right
@@ -1091,11 +1097,18 @@ function realPaint() {
     if (!flow.job && ["timing", "geo", "random", "saving", "burning", "checking"].includes(phase)) { title = liveText('这一步没有完成', 'This step did not finish'); text = ""; }
     html += `<div role="alert">${note("error", [esc(flow.error), ""])}</div><button id="real-retry">${liveText('重新检测', 'Check again')}</button>`; disabled = true;
   }
+  const badBurn = burnCheckFailed(flow.burnCheck);
+  if (badBurn && !flow.job && !['inspect', 'prepare', 'random', 'burn'].includes(phase)) {
+    title = liveText('刻录检查未通过', 'Burn check failed');
+    text = flow.burnCheck.reason || liveText('请重新读取这张盘，查看保存的日志，再决定是否重刻。', 'Re-read this disc and inspect the saved logs before another burn.');
+    html = `<button id="real-retry">${liveText('重新检测', 'Check again')}</button>`;
+    disabled = true;
+  }
   paintRuler(); paintStage();
   sideButton(flow.job && ["burning", "checking", "timing", "geo"].includes(phase) ? liveText("先去放图，测好了叫我", "Place the picture; call me when done") : null);
   const previousAlert = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]')?.textContent;
   // what is not known yet and what to do next, for the phase on screen (an error panel has its own words)
-  const advice = flow.error ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined });
+  const advice = flow.error || badBurn ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined });
   $("cal").innerHTML = `<h2>${esc(title)}</h2><p class="lede">${esc(text)}</p>${advice}${html}`;
   const alertNote = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]');
   if (alertNote && alertNote.textContent !== previousAlert) alertNote.classList.add('flash');
@@ -1661,6 +1674,9 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       : await api.backend.job({action, media:f.detected?.media || f.item.row || "dvd", drive, args, ...extra}, onEvent);
     if (action === "info") { current.p = 1; api.jobProgress(1, f.detected?.media || f.item?.row || "dvd"); }      // the answer is in: the bar ends full
     if (action === "random") imageRing?.done();
+    const burn = f.burnCheck;
+    if (["burn", "calibrate"].includes(action) && burnCheckFailed(burn))
+      throw Object.assign(new Error(burn.reason || liveText('刻录没有通过检查。请重新读取这张盘，查看保存的日志，再决定是否重刻。', 'The burn did not check out. Re-read this disc and inspect the saved logs before another burn.')), {failure:true});
     return result;
   } catch (error) {
     if (error.status === 422 && (why || lastLine)) error.message = why || lastLine;
@@ -1761,6 +1777,8 @@ async function realCalibrate(args = {}, extra = {}) {
   flow.burnCheck = null;
   try { result = await realJob("calibrate", { ...args, speed: "4x", avoid_mm: bands.map(([a, b]) => `${a}-${b}`), mid: flow.detected?.mid || undefined, preset, sectors: flow.blankSectors || undefined }, extra); }
   catch (error) {
+    if (flow.burnCheck?.result === "failed" && flow.burnCheck.reason)
+      throw Object.assign(new Error(flow.burnCheck.reason), {failure:true});
     if (!error.result?.timing && !error.result?.geo) {
       // the core said why it stopped: in words, with the next step (a half-written disc is not used again)
       if (error.result?.reason) throw Object.assign(new Error(stopText(error.result.reason)),

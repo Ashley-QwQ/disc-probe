@@ -26,17 +26,17 @@ vm.runInContext(String.raw`
   task={status:'success',burnResult:{selected_speed_x:8,actual_speed_x:8.01,verification:{status:'completed',ok:94,differing:1,unreadable:1,untested:0,failures:[{lba:772000,radius_mm:39.2}]}}};
   paint();
   assert.match(q('.burn-result p').textContent,/94 blocks ok \/ 1 differing \/ 1 unreadable/);
-  assert.match(q('.burn-result p').textContent,/picture may still look fine/);
-  assert.match(q('.burn-result p').textContent,/another speed/);
+  assert.match(q('.burn-result p').textContent,/did not check out/);
+  assert.equal(task.status,'failed');
+  assert.equal(q('[data-a="photo"]').hidden,true);
   assert.match(q('.burn-result p').textContent,/LBA 772000/);
   assert.match(q('.burn-result p').textContent,/39.20 mm/);
   assert.match(q('.burn-result p').textContent,/reports: 8×/);
   // IMAPI's speeds on a real GH70N (2026-11-11) read as people say them
   assert.deepEqual([4.00740740740741,8.01481481481481,16.0296296296296].map(X),['4×','8×','16×']);
   api.lang=()=> 'zh'; paint();
-  assert.match(q('.burn-result p').textContent,/图案仍可能看起来正常/);
-  assert.match(q('.burn-result p').textContent,/另一速度刻录/);
-  task.burnResult.verification={status:'skipped'}; paint();
+  assert.match(q('.burn-result p').textContent,/没有通过检查/);
+  task.status='success';task.burnResult.verification={status:'skipped'}; paint();
   assert.match(q('.burn-result p').textContent,/已跳过回读/);
   // after a write: written, closed, read back and picture are four separate answers
   const rows=(job,en)=>afterChecks(job,en).map(([label,s])=>label+':'+s).join(' ');
@@ -84,7 +84,7 @@ setImmediate(()=>{
   send('done',{exit:0});
   assert.equal(updates[0].speedReport.actual_speed_x,8.01);
   assert.equal(updates[1].verifying,true);
-  assert.equal(updates.at(-1).status,'success');
+  assert.equal(updates.at(-1).status,'failed');
   assert.equal(updates.at(-1).burnResult.verification.unreadable,1);
   console.log('Burn page recorded-event checks passed');
 });

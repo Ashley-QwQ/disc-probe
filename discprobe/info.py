@@ -186,6 +186,11 @@ def collect(dev) -> dict:
     r["perf_write_speeds"] = _run(dev, "GET PERFORMANCE write speeds", mmc.get_performance(0, 0x03),
                                   8 + 16 * 16, lambda d: mmc.parse_get_performance(d, 0x03))
     r["mode_page_2a"] = _run(dev, "MODE SENSE 2A", mmc.mode_sense10(0x2A), 256, mmc.parse_mode_page_2a)
+    from .recorded import check
+    audio = any(not t['data'] and t['track'] != 0xAA for t in (r['toc'].get('parsed') or {}).get('tracks', []))
+    capacity_check = check(r, lambda cdb, size: dev.execute(cdb, size, DATA_IN, timeout_s=COMMAND_TIMEOUT_S), audio=audio)
+    if capacity_check['warnings']:
+        r['capacity_check'] = capacity_check
     return r
 
 
@@ -286,6 +291,7 @@ def summarize(r: dict) -> list[str]:
     if di and di.get("disc_status") in ("empty", "incomplete") and track.get("nwa_valid"):
         lines.append(f"Next writable address: LBA {track['next_writable']} ({track['free_blocks']} sectors free)")
     cap = parsed("capacity")
+    lines.extend('Warning: ' + warning for warning in r.get('capacity_check', {}).get('warnings', []))
     if cap.get("last_lba") is not None:
         lines.append(f"Readable capacity: last LBA {cap['last_lba']} x {cap['block_length']} B")
     atip = parsed("atip")
@@ -319,7 +325,7 @@ def summarize(r: dict) -> list[str]:
     if page:
         lines.append(f"Page 2A: buffer {page['buffer_kB']} kB, rotation {page['rotation_control_selected']}, "
                      f"write speeds {[(w['kBps'], w['rotation']) for w in page['write_speeds']]}")
-    failed = [k for k, v in r.items() if v.get("status") not in (0, None) or "error" in v]
+    failed = [k for k, v in r.items() if k != 'capacity_check' and (v.get("status") not in (0, None) or "error" in v)]
     if failed and not reason:
         lines.append("Not available on this drive/disc: " + ", ".join(
             f"{k} ({r[k].get('sense') or r[k].get('error')})" for k in failed))

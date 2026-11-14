@@ -347,6 +347,30 @@ def test_burn_cli_refusal_saves_bundle_without_writing(tmp_path, monkeypatch):
     assert Path(str(image) + '.diagnostics/diagnostics.zip').is_file()
 
 
+@pytest.mark.parametrize('verify', [False, True])
+def test_burn_post_write_fault_exits_nonzero_and_preserves_reason(tmp_path, monkeypatch, verify):
+    from discprobe import burner, recorded, __main__ as cli
+    image = tmp_path / 'small.iso'
+    image.write_bytes(bytes(32 * 2048))
+    rec = Mock()
+    rec.inspect.return_value = dict(media='dvd', blank=True, free_sectors=4096, speeds_x=[8])
+    rec.write.return_value = 8
+    monkeypatch.setattr(burner, 'adapter', lambda *a: rec)
+    monkeypatch.setattr(recorded, 'burn_state', lambda *a, **k: dict(status='completed') if verify else
+                        dict(status='failed', reason='Write interrupted: disc holds only 12 of 32 sectors / is not closed'))
+    monkeypatch.setattr(burner, 'verify_image', lambda *a: dict(status='completed', sampled_blocks=2,
+                        ok=1, differing=0, unreadable=1, untested=0, failures=[]))
+    args = cli._build_parser()[0].parse_args(['burn', '--drive', 'FAKE', '--iso', str(image), '--yes-write',
+                                            *([] if verify else ['--no-verify'])])
+    with pytest.raises(SystemExit, match='Read-back failed' if verify else 'Write interrupted'):
+        burner.run(args)
+    final = json.loads(Path(str(image) + '.burn.jsonl').read_text().splitlines()[-1])
+    assert final['result'] == 'failed' and final['verified'] is False
+    failure = json.loads(Path(str(image) + '.diagnostics/failure.json').read_text())
+    assert final['reason'] in failure['reason']
+    rec.write.assert_called_once()
+
+
 def test_three_capacity_meanings_from_saved_blank():
     from discprobe.capacity import capacity_words
     path = Path(__file__).resolve().parents[1] / 'evidence/drive/info_blank_ritekf1.json'

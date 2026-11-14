@@ -19,6 +19,11 @@ import { nextConfirm } from "./kit/nextconfirm.js";
 import { afterBurn } from "./guidance.mjs";
 import { cutaway, flyer } from "./drive-scene.js";
 import * as sfx from "./sfx.js";
+function burnFailed(r) {
+  const v=r?.verification;
+  return !!r && (r.result && r.result!=='completed' || r.disc_state?.status==='failed' ||
+    v && v.status!=='skipped' && (v.status!=='completed' || v.differing || v.unreadable || v.untested));
+}
 const root = document.documentElement;
 const STR = {
   zh: {
@@ -93,6 +98,10 @@ export function afterChecks(job, en=api?.lang()==='en'){
   return rows;
 }
 function paint() {
+  if(task?.status==='success' && burnFailed(task.burnResult)) {
+    task.status='failed';
+    task.error=task.burnResult.reason || (api.lang()==='en'?'This burn did not check out. Re-read this disc and inspect the saved logs before another burn.':'这次刻录没有通过检查。请重新读取这张盘，查看保存的日志，再决定是否重刻。');
+  }
   if(!W)return;const t=T(),q=W.q, status=task?.status||'ready', active=status==='burning', hasInput=valid();
   W.page.dataset.state=status;W.page.classList.toggle('burn-reduce',!!api.reduce);q('.burn-speed').hidden=status!=='ready'||!!ctx.otherOnly;q('.burn-consent').hidden=status!=='ready'||!hasInput;q('.burn-warning').hidden=status!=='ready'||!hasInput;
   q('.warn-sign').classList.toggle('on', ['failed','cancelled'].includes(status));
@@ -111,19 +120,20 @@ function paint() {
     const en=api.lang()==='en', actual=report.actual_speed_x;
     let note=en?`Requested: ${X(report.selected_speed_x)}; drive/utility reports: ${actual==null?'not reported':X(actual)}. `:`请求速度：${X(report.selected_speed_x)}；光驱/工具报告：${actual==null?'未报告':X(actual)}。`;
     const v=report.verification;
-    if(status==='success'&&v){
+    if((status==='success'||status==='failed')&&v){
+      if(status==='failed')note=(task.error||report.reason||'')+' '+note;
       if(v.status==='skipped')note+=en?'Read-back skipped.':'已跳过回读验证。';
       else {
         note+=en?`Sample: ${v.ok} blocks ok / ${v.differing} differing / ${v.unreadable} unreadable; ${v.untested} untested. `:`抽样：${v.ok} 块一致 / ${v.differing} 块不同 / ${v.unreadable} 块无法读取；${v.untested} 块未检查。`;
-        if(v.status!=='completed'||v.differing||v.unreadable){
-          note+=en?'The write completed. Some sampled blocks did not read back; picture discs often do this, and the picture may still look fine. Look at it first; only if it is wrong, try another blank disc at another speed. ':'写入已完成。有抽样块读不回来；图案盘常这样，图案仍可能看起来正常。先看图，图不对再换一张空白盘、以另一速度刻录。';
-          q('.burn-result h2').textContent=en?'Write completed; check read-back results':'写入完成，请检查回读结果';
+        if(v.status!=='completed'||v.differing||v.unreadable||v.untested){
+          note+=en?'This burn did not check out. Re-read this same disc and inspect the saved logs before another burn. ':'这次刻录没有通过检查。请重新读取这张盘，查看保存的日志，再决定是否重刻。';
+          q('.burn-result h2').textContent=en?'Burn check failed':'刻录检查未通过';
         }
         else note+=en?'Only a sample was checked, not the whole disc. ':'仅检查了样本，并非整盘验证。';
         note+=(v.failures||[]).map(f=>`LBA ${f.lba} (~${f.radius_mm.toFixed(2)} mm, ${en?'nominal':'标称'})`).join('; ');
       }
       // a clean sample is said once, in the checks below; the paragraph stays for problems and their places
-      if(v.status==='completed'&&!v.differing&&!v.unreadable)note='';
+      if(status==='success'&&v.status==='completed'&&!v.differing&&!v.unreadable)note='';
       q('.burn-result p').textContent=note;
     }else if(active)q('.burn-result p').textContent+=' '+note;
   }
