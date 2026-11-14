@@ -252,6 +252,10 @@ CD 还有一个计时测不到的常数，所以要多刻一张标定盘。下�
 
 密铺盘的微距照片，也是只刻一次。不可能三角形宽 4.2 mm，小人高 6.8 mm，最上方是测线宽用的三线组。肉眼能看清最小的 1 mm 三角形，它每条边约 0.15 mm 宽。600 dpi 扫描能分开 0.12 mm 的线，0.08 mm 勉强，再细就到扫描仪的极限了。
 
+<img src="docs/showcase/ltva1_microscope_1px.jpg" width="32%" alt="显微镜照片：1 像素（5 µm）棋盘格"> <img src="docs/showcase/ltva1_microscope_2px.jpg" width="32%" alt="显微镜照片：2 像素（10 µm）棋盘格"> <img src="docs/showcase/ltva1_microscope_3px.jpg" width="32%" alt="显微镜照片：3 像素（15 µm）棋盘格">
+
+能刻多细？LTVA1 把一张 23,200 × 23,200 像素（每像素 5 µm）的测试图刻在 Ritek DVD+R 上（LG GU70N），再用显微镜看（10 倍物镜、16 倍目镜、2 倍增倍镜）。每块图案旁边的数字是它的像素大小，中间那张的"2"是上下颠倒、左右镜像的。2 像素（10 µm）和 3 像素（15 µm）的棋盘格分得很清楚；1 像素（5 µm）的线条还能分开，但带颗粒，棋盘格处在临界。作为对比，DiscImageStudio 的 8192 像素画布约 14 µm 一像素。这次用的是临时改过的版本（5 µm 格子、每字节采样一次），正式版里还没有这么细的选项。照片来自 LTVA1 在 [DiscImageStudio #108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19463898) 的分享（[说明](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19464147)），应本人要求放在这里。
+
 ### 颜色（实验中）
 
 反复写同一段数据，这一小块盘面就像一块光栅，把白光分开。重复的间距不同，同一个方向上看到的颜色就不同，换个角度颜色也会变。这部分还在实验，进展在 [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)。
