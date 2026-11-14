@@ -84,6 +84,13 @@ python -m disclab practice --media dvd-r --lab LAB-practice --port 8853
 
 Opens disc-probe's own page with the virtual drive X:. Omit `--lab` for a new retained temporary folder; `--lab` may be new, empty, or an existing lab to carry on with. Output is UTF-8 throughout, so redirected logs keep their Chinese. Local-only by default; `--lan` enables the existing token-guarded LAN mode.
 
+The banner prints the commands with this lab's paths filled in:
+
+- **Changing discs**: the virtual drive has no eject button. When the page asks for another disc, run `python -m disclab swap --lab LAB` (next blank; `--disc ID` puts a given disc back). The page notices the new disc.
+- **Photos**: render them with `python -m disclab photos --lab LAB --disc ID -n 3 --out LAB/photos1`, then press "Add a photo from this computer" on the page. One or two retakes are normal (a new `--seed` and `--out` each time; pick old and new together). The phone link and `disclab upload` need `--lan`.
+- **CD**: the page shows a PowerShell command for a real burner; do not run it. Burn on the virtual drive with `python -m disclab dp --lab LAB -- burn --drive X: --iso ISO --media cd --yes-write`.
+- **Progress**: `status` and `score --progress` read what the page did (the virtual drive's burns, `results/`, the image sidecars, the rendered photos), so the progress and the error against the truth show without the Lab's own front ends.
+
 ## Structured commands
 
 Every subcommand accepts `--json`, returning one object with `status`, `lab`, `outputs`, `scores` and `errors`. Logs and subprocess text go to stderr. Put the option before `dp`'s `--` separator. Server commands return their final JSON after stopping. `state.json` gains timestamped `steps` while preserving its existing keys. See the bilingual [API contract](API.md) and [scripted TUI report](TUI_REPORT.md).

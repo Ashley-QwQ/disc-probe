@@ -72,8 +72,10 @@ def cmd_drive(a):
         atomic_json(lab.answers_path, answers)
         lab.step("drive_faults", status="ok", faults=[f["id"] for f in faults], paths=[str(lab.answers_path)])
     st = lab.state()
-    return dict(drive=name, reader=st["drives"][name].get("reader"), faults=faults, kinds=list(FAULT_KINDS),
-                readers=sorted(READERS))
+    reader = st["drives"][name].get("reader")
+    listed = "；".join(f"{f['id']} {f['kind']} {json.dumps(f.get('params', {}), ensure_ascii=False)}" for f in faults)
+    print(f"{name} 读盘 / reader: {reader}；故障 / faults: {listed or '无 / none'}")
+    return dict(drive=name, reader=reader, faults=faults, kinds=list(FAULT_KINDS), readers=sorted(READERS))
 
 
 # ------------------------------------------------------------------ jobs

@@ -72,8 +72,121 @@ def info(key):
 # ------------------------------------------------------------------ state
 
 def records(lab: Lab, key=None):
+    """The flow's own records, plus what disc-probe's own page did on this lab (`practice`), oldest first."""
     rows = lab.state().get("steps", {}).get("flow", [])
+    web = web_records(lab)
+    if web:
+        rows = sorted(rows + web, key=lambda r: r.get("t", 0))
     return [r for r in rows if key is None or r.get("key") == key]
+
+
+def _mtime(path):
+    try:
+        return Path(path).stat().st_mtime
+    except OSError:
+        return None
+
+
+def web_records(lab: Lab):
+    """disc-probe's page (`disclab practice`) keeps its own progress; read the same steps back from what it
+    leaves in the lab: the virtual drive's burns, the results folders, the image sidecars and the lab photos.
+    Only for a lab that disc-probe's page has served; a lab driven by `step` alone reads its own records."""
+    st = lab.state()
+    steps = st.get("steps", {})
+    if not steps.get("web") or not lab.root.exists():
+        return []
+    # the sidecars and geo summaries are large: read them again only when something in the lab changed
+    files = [lab.state_path, *(lab.root / "iso").glob("*.image.json"), *(lab.root / "iso").glob("*measurement*.iso"),
+             *(lab.root / "results").glob("*/*.json")]
+    stamp = (str(lab.root), tuple(sorted((str(f), _mtime(f)) for f in files)))
+    if _WEB_CACHE.get("stamp") == stamp:
+        return [dict(r) for r in _WEB_CACHE["rows"]]
+    rows = _web_records(lab, st, steps)
+    _WEB_CACHE.update(stamp=stamp, rows=rows)
+    return [dict(r) for r in rows]
+
+
+_WEB_CACHE = {}
+
+
+def _web_records(lab, st, steps):
+    out = []
+
+    def add(key, t, **fields):
+        if t is not None:
+            row = dict(key=key, t=t, status="ok", source="web", detail="")
+            row.update(fields)
+            out.append(row)
+
+    def tray_at(t, key):
+        """The disc a step happened on: the newest burn of that kind before it."""
+        rows = [r for r in out if r["key"] == key and r["t"] <= t]
+        return rows[-1]["disc"] if rows else None
+
+    sessions = sorted(((disc, s) for disc, b in st.get("burns", {}).items() for s in b.get("sessions", [])),
+                      key=lambda x: x[1].get("when", 0))
+    for disc, s in sessions:
+        iso = Path(s["iso"])
+        kind = "measure" if "measurement" in iso.name else "check" if iso.name.startswith("check") else "final"
+        if kind == "measure":
+            add("measure_image", s.get("iso_mtime") or s.get("when"), iso=str(iso), paths=[str(iso)], detail=iso.name)
+        add(f"{kind}_burn", s.get("when"), disc=disc, iso=str(iso), paths=[str(iso)], detail=f"{iso.name} → {disc}")
+    iso_dir = lab.root / "iso"
+    for iso in sorted(iso_dir.glob("*measurement*.iso")):
+        add("measure_image", _mtime(iso), iso=str(iso), paths=[str(iso)], detail=iso.name)
+    for side in sorted(iso_dir.glob("*.image.json")):
+        try:
+            meta = lab.read(side)
+        except (OSError, ValueError):
+            continue
+        iso = side.with_name(side.name[:-len(".image.json")] + ".iso")
+        key = ("checkdisc" if meta.get("check_disc") else
+               "final" if (meta.get("photo_l") or {}).get("written") else "picture")
+        add(key, _mtime(side), iso=str(iso), paths=[str(iso), str(side)], detail=iso.name)
+    results = lab.root / "results"
+    infos = sorted((t, info) for info in results.glob("info-*/info.json") if (t := _mtime(info)) is not None)
+    if infos:       # the page checks every disc it is given; the first check is the one the flow starts from
+        add("blank", infos[0][0], paths=[str(infos[0][1].parent)])
+    for summary in sorted(results.glob("timing-*/summary.json")):
+        add("timing", _mtime(summary), paths=[str(summary.parent)])
+    out.sort(key=lambda r: r["t"])          # tray_at reads the burns in time order
+    for summary in sorted(results.glob("geo-*/summary.json")):
+        try:
+            fit = lab.read(summary).get("fit") or {}
+        except (OSError, ValueError):
+            continue
+        if not fit:
+            continue
+        t = _mtime(summary)
+        span = fit.get("measured_span_mm")
+        add("geo", t, disc=tray_at(t, "measure_burn"), paths=[str(summary.parent)],
+            detail=f"{span[0]:.1f}–{span[1]:.1f} mm" if span else "")
+        photo = summary.parent / "photo.json"
+        if photo.exists():
+            try:
+                rec = lab.read(photo)
+            except (OSError, ValueError):
+                rec = {}
+            t = _mtime(photo)
+            est = rec.get("offset_mm")
+            add("photo", t, disc=tray_at(t, "check_burn"), paths=[str(photo)], run=str(summary.parent),
+                verdict=rec.get("verdict"), offset_mm=est,
+                detail=(f"L = {est:+.3f} mm" if est is not None
+                        else f"没有给出 L：{rec.get('verdict')} / no L: {rec.get('verdict')}"))
+    out.sort(key=lambda r: r["t"])
+    seen, taken = set(), {}
+    for row in steps.get("photos", []):     # `disclab photos`: the photos handed to the page
+        jpgs = tuple(_jpegs(row))
+        if row.get("status") == "ok" and jpgs and jpgs not in seen and row.get("t") is not None:
+            seen.add(jpgs)
+            disc = row.get("disc") or tray_at(row["t"], "check_burn")
+            taken[disc] = taken.get(disc, 0) + len(jpgs)
+            add("photos", row["t"], disc=disc, paths=list(jpgs),
+                detail=f"这张盘共 {taken[disc]} 张 / {taken[disc]} photos of this disc")
+    for row in steps.get("score", []):
+        if row.get("status") == "ok":
+            add("score", row.get("t"), paths=row.get("paths", []))
+    return sorted(out, key=lambda r: r["t"])
 
 
 def last_ok(lab: Lab, key):
@@ -331,16 +444,17 @@ def _measure_image(lab, drive, fam, quick, o):
     return dict(disc=disc, paths=[str(iso)], iso=str(iso), detail=iso.name)
 
 
-def _burn(lab, drive, iso, key):
+def _burn(lab, drive, iso, key, fam):
     disc = _need_tray_blank(lab, drive)
-    _dp(lab, "burn", "--drive", drive, "--iso", iso, "--yes-write")
+    # disc-probe's burn expects a DVD unless told otherwise ("Wrong disc kind: expected dvd" on a CD)
+    _dp(lab, "burn", "--drive", drive, "--iso", iso, "--yes-write", *(["--media", fam] if fam != "dvd" else []))
     if disc_state(lab, disc) == "blank":
         raise StepError("光驱没有写进去。 / The drive wrote nothing.")
     return dict(disc=disc, paths=[str(iso)], iso=str(iso), detail=f"{Path(iso).name} → {disc}")
 
 
 def _measure_burn(lab, drive, fam, quick, o):
-    return _burn(lab, drive, last_ok(lab, "measure_image")["iso"], "measure_burn")
+    return _burn(lab, drive, last_ok(lab, "measure_image")["iso"], "measure_burn", fam)
 
 
 def _timing(lab, drive, fam, quick, o):
@@ -392,7 +506,7 @@ def _checkdisc(lab, drive, fam, quick, o):
 
 
 def _check_burn(lab, drive, fam, quick, o):
-    rec = _burn(lab, drive, last_ok(lab, "checkdisc")["iso"], "check_burn")
+    rec = _burn(lab, drive, last_ok(lab, "checkdisc")["iso"], "check_burn", fam)
     if not o["keep_iso"]:
         # the measurement disc's bytes are read only for measuring (a re-measure needs them); once the check
         # disc is burned the measurement is settled, and the 4.7 GB image goes
@@ -408,7 +522,7 @@ def _photos(lab, drive, fam, quick, o):
     r = _cmd(lab, "photos", "--disc", disc, "-n", str(o["photos"]), "--style", o["style"], "--seed", str(seed),
              "--out", out)
     paths = r["outputs"].get("paths", [])
-    total = len(paths) + sum(len(_jpegs(r)) for r in taken if r["t"] > last_ok(lab, "check_burn")["t"])
+    total = len(set(paths).union(*(_jpegs(r) for r in taken if r["t"] > last_ok(lab, "check_burn")["t"])))
     return dict(disc=disc, paths=paths, seed=seed, detail=f"这张盘共 {total} 张 / {total} photos of this disc", style=o["style"])
 
 
@@ -420,8 +534,8 @@ def _photo(lab, drive, fam, quick, o):
     shots = last_ok(lab, "photos")
     disc = shots["disc"]
     since = last_ok(lab, "check_burn")["t"]
-    photos = [p for r in records(lab, "photos") if r.get("status") == "ok" and r.get("disc") == disc
-              and r["t"] > since for p in _jpegs(r)]
+    photos = list(dict.fromkeys(p for r in records(lab, "photos") if r.get("status") == "ok" and r.get("disc") == disc
+                                and r["t"] > since for p in _jpegs(r)))
     from .loop import copy_run
     run_dir = copy_run(_geo_folder(lab), lab.root / "runs" / disc.replace(" ", "_") / time.strftime("%Y%m%d-%H%M%S"))
     _dp(lab, "photo", "--run", run_dir, "--media", fam, "--photos", *photos, "--disc-id", disc,
@@ -479,7 +593,7 @@ def _final(lab, drive, fam, quick, o):
 
 
 def _final_burn(lab, drive, fam, quick, o):
-    rec = _burn(lab, drive, last_ok(lab, "final")["iso"], "final_burn")
+    rec = _burn(lab, drive, last_ok(lab, "final")["iso"], "final_burn", fam)
     if not o["keep_iso"]:
         free_iso(lab, last_ok(lab, "checkdisc")["iso"])
     return rec
@@ -501,7 +615,29 @@ def cmd_status(a):
     lab = Lab(a.lab)
     if not lab.box_path.exists():
         raise SystemExit("这里还没有实验盒。先建一箩光盘：python -m disclab box --lab LAB")
-    return dict(status=status(lab))
+    st = status(lab)
+    print(summary(st))              # for a person; with --json this goes to stderr and stdout stays one object
+    return dict(status=st)
+
+
+DISC_STATE = {"blank": "空白盘 / blank", "burned": "已刻 / burned", "open": "没封盘 / open",
+              "partial": "刻了一部分 / partly written"}
+
+
+def summary(st):
+    """A few lines a person can read: the tray, the basket and where the practice is."""
+    lines = []
+    for name, d in st["drives"].items():
+        tray = f"{d['tray']}（{DISC_STATE.get(d['tray_state'], d['tray_state'])}）" if d.get("tray") else "空 / empty"
+        faults = "、".join(f["kind"] for f in d["faults"]) or "无 / none"
+        lines.append(f"{name} 托盘 / tray: {tray}；读盘 / reader: {d['reader']}；故障 / faults: {faults}")
+    lines.append(f"光盘箩 / basket: {st['box']['blanks']}/{st['box']['count']} 张空白 / blank")
+    for i, step in enumerate(st["flow"], 1):
+        mark = "-" if step.get("skip") else "x" if step["done"] else " "
+        here = "  <- 现在到这里 / you are here" if step["current"] else ""
+        detail = f"  {step['detail']}" if step.get("detail") else ""
+        lines.append(f"  {i:2} [{mark}] {step['zh']} / {step['en']}{detail}{here}")
+    return "\n".join(lines)
 
 
 def cmd_step(a):
@@ -528,10 +664,15 @@ def cmd_swap(a):
     disc = a.disc or next(iter(blank_discs(lab)), None)
     if disc is None:
         raise SystemExit("箩里没有空白盘了。建一箩新的。 / No blank left in the basket: make a new one.")
+    import contextlib
+    import io
     from .jsonout import run
-    r = run(["tray", "--lab", lab.root, "--drive", drive, "--disc", disc])
+    with contextlib.redirect_stdout(io.StringIO()):       # the tray command's own JSON is not for a person
+        r = run(["tray", "--lab", lab.root, "--drive", drive, "--disc", disc])
     if r["status"] != "ok":
         raise SystemExit(r["errors"][-1]["message"])
+    state = disc_state(lab, disc)
+    print(f"{drive} 托盘里现在是 {disc}（{DISC_STATE.get(state, state)}） / {disc} is now in {drive}")
     return dict(disc=disc, drive=drive, status=status(lab))
 
 

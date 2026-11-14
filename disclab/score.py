@@ -102,13 +102,22 @@ def geo_score(lab: Lab, disc_id: str, geo_dir, *, target_disc=None, reader=None)
 def progress_score(lab):
     from .loop import picture_score, truth_L
     from .jsonout import geo_folder, last_step
-    folder = geo_folder(lab)
-    disc = last_step(lab, "geo")["disc"]
-    result = dict(geo=geo_score(lab, disc, folder), photos=[], pictures={})
+    from . import flow
     steps = lab.state().get("steps", {})
-    for row in steps.get("photo_L", []):
-        if row.get("status") != "ok":
-            continue
+    web = flow.web_records(lab)          # what disc-probe's own page did on this lab (`practice`)
+    try:
+        folder = geo_folder(lab)
+        disc = last_step(lab, "geo")["disc"]
+    except ValueError:
+        row = next((r for r in reversed(web) if r["key"] == "geo" and r.get("disc")), None)
+        if row is None:
+            raise
+        folder, disc = Path(row["paths"][0]), row["disc"]
+    result = dict(geo=geo_score(lab, disc, folder), photos=[], pictures={})
+    photo_rows = [r for r in steps.get("photo_L", []) if r.get("status") == "ok"]
+    if not photo_rows:
+        photo_rows = [r for r in web if r["key"] == "photo" and r.get("disc")][-1:]
+    for row in photo_rows:
         rec = lab.read(row["paths"][0])
         truth = truth_L(lab, Path(row["paths"][0]).parent, row["disc"])
         measured = rec.get("offset_mm")
@@ -120,10 +129,13 @@ def progress_score(lab):
                                                   L_mm=p.get("L_mm"), truth_L_mm=truth["L_mm"],
                                                   error_mm=p["L_mm"] - truth["L_mm"] if p.get("L_mm") is not None else None)
                                              for p in rec.get("photos", [])]))
-    for kind in ("sample_picture", "picture_L"):
-        for row in steps.get(kind, [])[-1:]:
+    final_disc = next((r["disc"] for r in reversed(web) if r["key"] == "final_burn"), None)
+    for kind, key in (("sample_picture", "picture"), ("picture_L", "final")):
+        rows = steps.get(kind, [])[-1:] or [r for r in web if r["key"] == key][-1:]
+        for row in rows:
             sidecar = next(Path(p) for p in row["paths"] if p.endswith(".image.json"))
-            target = row.get("disc") or next((d for d in lab.box()["discs"] if d != disc), disc)
+            target = (row.get("disc") or (final_disc if row.get("source") == "web" else None)
+                      or next((d for d in lab.box()["discs"] if d != disc), disc))
             result["pictures"][kind] = dict(target=target, **picture_score(lab, sidecar, target))
     path = lab.root / "scores" / "tui.json"
     atomic_json(path, result)

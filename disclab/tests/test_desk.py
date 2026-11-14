@@ -196,3 +196,97 @@ def test_console_names_follow_disc_probes_guide():
         found = re.search(r'"%s": "([^"]+)"' % re.escape(english), text)
         assert found, english
         assert tui.CONSOLE[key][0].startswith(found.group(1)), (key, found.group(1))
+
+
+def test_cd_burns_through_the_flow(tmp_path):
+    """disc-probe's burn expects a DVD unless told; the flow says which disc it is."""
+    root = tmp_path / "cd lab"
+    envelope(cli("box", "--json", "--lab", root, "--media", "cd-r", "--count", "2"))
+    envelope(cli("swap", "--json", "--lab", root))
+    for key in ("blank", "measure_image", "measure_burn"):
+        envelope(cli("step", key, "--quick", "--json", "--lab", root))
+    st = status(Lab(root))
+    assert st["current"] == "timing" and st["box"]["discs"][0]["state"] == "burned"
+
+
+def _web_lab(lab):
+    """What disc-probe's own page leaves in a lab after a whole DVD round, without running it."""
+    from disclab.lab import atomic_json
+    t0 = time.time() - 1000
+    clock = iter(range(0, 1000, 10))
+
+    def stamp(path):
+        t = t0 + next(clock)
+        os.utime(path, (t, t))
+        return t
+    lab.step("web", status="started")
+    results, iso = lab.root / "results", lab.root / "iso"
+    discs = lab.box()["discs"]
+    atomic_json(results / "info-X-1" / "info.json", {})
+    stamp(results / "info-X-1" / "info.json")
+    burns = {}
+    for disc, name, extra in ((discs[0], "dvd-measurement-1.iso", None), (discs[1], "check-1.iso", "check"),
+                              (discs[2], "my-picture-2.iso", "final")):
+        if extra == "check":
+            atomic_json(iso / "my-picture-1.image.json", dict(photo_l=dict(written=False)))
+            stamp(iso / "my-picture-1.image.json")
+            atomic_json(iso / "check-1.image.json", dict(check_disc=True))
+            stamp(iso / "check-1.image.json")
+        if extra == "final":
+            photo = results / "geo-X-1" / "photo.json"
+            atomic_json(photo, dict(verdict="ok", offset_mm=0.18))
+            stamp(photo)
+            atomic_json(iso / "my-picture-2.image.json", dict(photo_l=dict(written=True, L_mm=0.18)))
+            stamp(iso / "my-picture-2.image.json")
+        when = t0 + next(clock)
+        burns[disc] = dict(sessions=[dict(iso=str(iso / name), iso_mtime=when - 5, when=when)], closed=True)
+        if extra is None:
+            for kind in ("timing", "geo"):
+                path = results / f"{kind}-X-1" / "summary.json"
+                atomic_json(path, dict(fit=dict(measured_span_mm=[25.0, 57.0])) if kind == "geo" else {})
+                stamp(path)
+        if extra == "check":         # `disclab photos`, twice (a retake), between the check burn and the reading
+            shots = [dict(t=t0 + next(clock), status="ok", disc=disc, paths=paths)
+                     for paths in (["p/IMG_1.jpg", "p/IMG_2.jpg"], ["q/IMG_3.jpg"])]
+    with lab.locked_state() as st:
+        st["burns"] = burns
+        st.setdefault("steps", {}).setdefault("photos", []).extend(shots)
+    return discs
+
+
+def test_progress_on_disc_probes_own_page_shows_in_the_lab(lab):
+    """`practice` runs disc-probe's page, which keeps its own progress; status reads it back from the lab."""
+    from disclab import flow
+    discs = _web_lab(lab)
+    rows = {s["key"]: s for s in flow.plan(lab)}
+    assert all(rows[k]["done"] for k in flow.KEYS if k != "score"), [(k, v["done"]) for k, v in rows.items()]
+    assert rows["score"]["current"]
+    assert rows["geo"]["disc"] == discs[0] and rows["photo"]["disc"] == discs[1]
+    assert rows["photos"]["detail"].startswith("这张盘共 3 张")
+    assert rows["final_burn"]["disc"] == discs[2]
+    st = status(lab)
+    assert [d["used_for"] for d in st["box"]["discs"]] == ["measure_burn", "check_burn", "final_burn"]
+    # a lab disc-probe's page never served reads only its own records
+    with lab.locked_state() as raw:
+        raw["steps"].pop("web")
+    assert flow.web_records(lab) == [] and flow.plan(lab)[0]["current"]
+
+
+def test_practice_banner_says_how(tmp_path):
+    from disclab.practice import guide
+    lab = Lab(tmp_path / "banner")
+    dvd, cd = guide(lab, "dvd-r"), guide(lab, "cd-r")
+    for text in (dvd, cd):
+        assert "从电脑添加照片" in text and "Add a photo from this computer" in text
+        assert f'swap --lab "{lab.root}"' in text and "--seed" in text and "status --lab" in text
+    assert "--media cd" in cd and "--media cd" not in dvd
+
+
+def test_plain_commands_print_for_a_person(lab):
+    out = cli("drive", "--lab", lab.root, "--reader", "noisy", "--fault", 'read_error:{"r_mm":[40,41]}')
+    assert "noisy" in out.stdout and "read_error" in out.stdout
+    out = cli("swap", "--lab", lab.root)
+    assert lab.box()["discs"][0] in out.stdout and "{" not in out.stdout
+    out = cli("status", "--lab", lab.root)
+    assert "<- 现在到这里" in out.stdout and "检测空白盘" in out.stdout
+    assert envelope(cli("status", "--json", "--lab", lab.root))["outputs"]["status"]["current"] == "blank"

@@ -53,6 +53,13 @@ python -m disclab practice --media dvd-r --lab LAB-practice --port 8853
 
 开的是 disc-probe 本体的网页，光驱是虚拟的 X:。省略 `--lab` 会自动建立并保留临时目录；`--lab` 可以是新的或空的文件夹，也可以是已有的实验盒（接着练）。输出统一用 UTF-8，重定向到文件时中文不再乱码。默认只监听本机，`--lan` 使用产品已有的带令牌局域网模式。
 
+启动横幅里的命令已经填好这个实验盒的路径：
+
+- **换盘**：虚拟光驱没有弹出键。网页让你换盘时运行 `python -m disclab swap --lab LAB`（换上下一张空白盘；`--disc 盘号` 放回指定的盘），网页会自己认出新盘。
+- **拍照**：用 `python -m disclab photos --lab LAB --disc 盘号 -n 3 --out LAB/photos1` 渲染照片，再点网页上的“从电脑添加照片”。补拍一两轮是常事（每轮换个 `--seed` 和 `--out`，新旧照片一起选）。手机链接和 `disclab upload` 要 `--lan` 才能用。
+- **CD**：网页给的是真刻录机的 PowerShell 命令，别运行；用虚拟光驱刻：`python -m disclab dp --lab LAB -- burn --drive X: --iso 镜像 --media cd --yes-write`。
+- **进度**：`status` 和 `score --progress` 会读网页留下的东西（虚拟光驱的刻录记录、`results/`、镜像旁的 `.image.json`、渲染的照片），不用 Lab 自己的前端也能看到做到哪一步、和真值差多少。
+
 ## JSON 及进度接口
 
 所有子命令支持 `--json`：stdout 只有一个含 `status`、`lab`、`outputs`、`scores`、`errors` 的对象；日志及子进程文本写 stderr。该选项应放在 `dp` 的 `--` 分隔符之前。服务器命令在停止后返回最终 JSON。`state.json` 保留原有键，新增带时间戳的 `steps`，前端无需解析日志。详见双语 [API 文档](API.md) 及 [本机 TUI 实测报告](TUI_REPORT.md)。
