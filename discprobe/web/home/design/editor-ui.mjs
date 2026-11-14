@@ -96,13 +96,23 @@ export class Editor {
     const ctx=canvas.getContext('2d'),im=ctx.createImageData(size,size);
     for(let i=0;i<labels.length;i++){if(!labels[i])continue;const m=doc.materials[labels[i]]??doc.materials[0],rgb=identityRGB(m,i%size,Math.floor(i/size),dark);im.data.set([...rgb,235],i*4);}
     ctx.putImageData(im,0,0);this.fillsCache={key,canvas};return canvas;}
-  preview(size=420,identityOnly=false){const pose=materialPose(this.s.scene,this.s.lookY),lamp=!identityOnly&&this.s.view==='lamp',dark=document.documentElement.dataset.theme==='dark',key=JSON.stringify([size,this.revision,dark]);
+  preview(size=420,identityOnly=false){const pose=materialPose(this.s.scene,this.s.lookY),lamp=!identityOnly&&this.s.view==='lamp',dark=document.documentElement.dataset.theme==='dark',key=JSON.stringify([size,this.revision,dark,this.s.view!=='proj'&&!identityOnly]);
     this.lamp??=new LampPreview({onChange:()=>{if(this.h.active?.()===false)return;this.h.status?.();this.h.draw();}});
     if(lamp){const lampKey=JSON.stringify([size,this.revision,pose]),result=this.lamp.key===lampKey?this.lamp.image:this.lamp.schedule(lampKey,{document:this.document(),pose,size});this.h.status?.();if(result)return result;}else if(!identityOnly)this.lamp.pause();
     if(this.previewCache?.key===key)return this.previewCache.canvas;
-    const labelKey=`${size}:${this.revision}`;if(this.labelCache?.key!==labelKey){const d=this.document();this.labelCache={key:labelKey,materials:d.materials,labels:O.compose(d,O.grid(size))};}
-    const {labels,materials}=this.labelCache,canvas=document.createElement('canvas');canvas.width=canvas.height=size;const ctx=canvas.getContext('2d'),im=ctx.createImageData(size,size);
-    for(let i=0;i<labels.length;i++){const m=materials[labels[i]]??materials[0],rgb=identityRGB(m,i%size,Math.floor(i/size),dark);im.data.set([...rgb,255],i*4);}ctx.putImageData(im,0,0);this.previewCache={key,canvas};return canvas;
+    const labelKey=`${size}:${this.revision}`;if(this.labelCache?.key!==labelKey){const d=this.document(),share=new Float32Array(size*size).fill(NaN);this.labelCache={key:labelKey,materials:d.materials,labels:O.compose(d,O.grid(size),{share}),share};}
+    const {labels,materials,share}=this.labelCache,canvas=document.createElement('canvas');canvas.width=canvas.height=size;const ctx=canvas.getContext('2d'),im=ctx.createImageData(size,size);
+    // As burned: the eye cannot see 20 um cells, so a dithered picture is the share of the two textures in each
+    // screen pixel, mixed in linear light; flat colours per texture, the same ones the zoomed-in cells use.
+    const lin=v=>(v/255)**2.2,enc=v=>Math.round(255*v**(1/2.2));
+    const light=dark?[58,64,62]:[218,214,205],ink=dark?[200,198,190]:[62,60,56],burnColour=m=>m.id==='background'?light:m.spec==='A5'||m.id==='dark'?ink:identityRGB(m,1,0,dark);
+    // also what the lamp view shows until its render arrives
+    const burn=!identityOnly&&this.s.view!=='proj',colours=materials.map(burnColour),L=lin;
+    for(let i=0;i<labels.length;i++){let rgb;
+      if(burn){const t=share[i];rgb=t===t?light.map((v,c)=>enc(L(v)*(1-t)+L(ink[c])*t)):colours[labels[i]]??light;}
+      else{const m=materials[labels[i]]??materials[0];rgb=identityRGB(m,i%size,Math.floor(i/size),dark);}
+      im.data.set([...rgb,255],i*4);}
+    ctx.putImageData(im,0,0);this.previewCache={key,canvas};return canvas;
   }
   // At a cell a pixel or more, the burn cells on screen, from the composer the core uses (exact-view.mjs).
   exactCells(v){const s=this.s,cell=s.cell||.02;

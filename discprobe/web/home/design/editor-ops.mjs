@@ -72,7 +72,13 @@ export function effectPose(e,u,v,parity){
 export function delta(x,y,phone=70){const cam=[0,-phone,330],lamp=[-43.66,-phone-19.79,330],r=Math.max(Math.hypot(x,y),1e-9);let v=0;for(const p of [cam,lamp]){const n=Math.hypot(p[0]-x,p[1]-y,p[2]);v+=(-(p[0]-x)*y+(p[1]-y)*x)/n/r;}return Math.abs(v);}
 // rows: [r0, r1) of the grid only (the canvas's exact view of a window); the result then holds those rows. Error
 // diffusion still starts at each picture's first row, so the cells are the ones the whole grid has.
-export function compose(input,g=grid(600),{rows=null}={}) {
+// share: a Float32Array of the result's size, filled here with the dark texture's share of each picture cell whose
+// grey is dithered (what the eye sees of the fine burn cells there), NaN elsewhere. The labels are unchanged.
+export function darkShare(mode,strength,grey){
+  if(mode==='threshold'||strength===0)return grey<128?1:0;
+  return Math.max(0,Math.min(1,(127.5+1.275*strength-grey)/(2.55*strength)));
+}
+export function compose(input,g=grid(600),{rows=null,share=null}={}) {
   const d=migrate(input),w=g.width,h=g.height,[r0,r1]=rows??[0,h],out=new Uint8Array(w*(r1-r0)),mats=new Map(d.materials.map((m,i)=>[m.id,i]));
   if(d.materials.length>256)throw Error('at most 256 material slots');
   const masks=new Map(d.selections.map(s=>[s.id,bytes(s.bits)]));
@@ -111,9 +117,9 @@ export function compose(input,g=grid(600),{rows=null}={}) {
         if(j<r0)continue;
         for(let i=i0;i<=i1;i++){if(P[i]<0)continue;
           if(px[P[i]+3]*l.opacity<=255*(COVERAGE[(j%4)*4+i%4]+.5)/16)continue;
-          let slot=M[i]>=0?M[i]:D[i]?(dark>=0?dark:1):0;
-          if(assign.length){const x=cx(i);for(const a of assign){const s=shade(a,j,i,x,y,U[i],V[i]);if(s>=0)slot=s;}}
-          out[(j-r0)*w+i]=slot;}
+          let slot=M[i]>=0?M[i]:D[i]?(dark>=0?dark:1):0,mixed=share&&M[i]<0;
+          if(assign.length){const x=cx(i);for(const a of assign){const s=shade(a,j,i,x,y,U[i],V[i]);if(s>=0){slot=s;mixed=false;}}}
+          out[(j-r0)*w+i]=slot;if(share)share[(j-r0)*w+i]=mixed?darkShare(tn.dither,tn.strength,G[i]):NaN;}
       }
       continue;
     }
@@ -121,13 +127,13 @@ export function compose(input,g=grid(600),{rows=null}={}) {
       const x=cx(i),y=cy(j),[u,v]=local(l,x,y);let slot=dark>=0?dark:1;
       if(!shapeHit(l.shape,u,v))continue;
       if(255*l.opacity<=255*(COVERAGE[(j%4)*4+i%4]+.5)/16)continue;
-      for(const a of assign){const s=shade(a,j,i,x,y,u,v);if(s>=0)slot=s;}out[(j-r0)*w+i]=slot;
+      for(const a of assign){const s=shade(a,j,i,x,y,u,v);if(s>=0)slot=s;}out[(j-r0)*w+i]=slot;if(share)share[(j-r0)*w+i]=NaN;
     }
   }
   for(const a of d.assignments.filter(a=>a.selection)){
     const m=masks.get(a.selection);if(!m)throw Error('unknown selection');
-    for(let j=r0;j<r1;j++)for(let i=0;i<w;i++){const x=cx(i),y=cy(j);if(sampleMask(m,d.maskGrid,x,y)){const s=shade(a,j,i,x,y,x/120,y/120);if(s>=0)out[(j-r0)*w+i]=s;}}
+    for(let j=r0;j<r1;j++)for(let i=0;i<w;i++){const x=cx(i),y=cy(j);if(sampleMask(m,d.maskGrid,x,y)){const s=shade(a,j,i,x,y,x/120,y/120);if(s>=0){out[(j-r0)*w+i]=s;if(share)share[(j-r0)*w+i]=NaN;}}}
   }
-  for(let j=r0;j<r1;j++)for(let i=0;i<w;i++){const rr=q(Math.hypot(cx(i),cy(j)));if(rr<d.annulus_mm[0]||rr>=d.annulus_mm[1])out[(j-r0)*w+i]=0;}
+  for(let j=r0;j<r1;j++)for(let i=0;i<w;i++){const rr=q(Math.hypot(cx(i),cy(j)));if(rr<d.annulus_mm[0]||rr>=d.annulus_mm[1]){out[(j-r0)*w+i]=0;if(share)share[(j-r0)*w+i]=NaN;}}
   return out;
 }

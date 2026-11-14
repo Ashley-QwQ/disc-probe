@@ -111,6 +111,27 @@ def sampled(design, size, rotate=0):
     return design[iy, ix], x, y, dx, dy
 
 
+def coverage(design, samples, dx, dy, strip=512):
+    """(slot, share) for every label in design: share is the fraction of the burn cells in each sample's square
+    (about 120 / samples mm wide) that carry that label, looked up at the sample positions dx, dy (disc mm)."""
+    n = design.shape[0]
+    f = max(1, n // samples)
+    c = n // f
+    slots = [int(s) for s in np.flatnonzero(np.bincount(design.ravel()))]
+    ix = np.clip(np.floor((dx + 60) * c / 120).astype(int), 0, c - 1)
+    iy = np.clip(np.floor((60 - dy) * c / 120).astype(int), 0, c - 1)
+    if len(slots) == 1:
+        return [(slots[0], np.ones(dx.shape))]
+    out = []
+    for s in slots:
+        share = np.empty((c, c), np.float32)
+        for j in range(0, c, strip):
+            rows = design[j * f:min(c, j + strip) * f, :c * f] == s
+            share[j:j + rows.shape[0] // f] = rows.reshape(-1, f, c, f).mean((1, 3))
+        out.append((s, share[iy, ix]))
+    return out
+
+
 def unit(p, x, y):
     vx, vy = p[0] - x, p[1] - y
     n = np.sqrt(vx * vx + vy * vy + p[2] * p[2])
@@ -198,12 +219,14 @@ def render(design, size=800, dark="A5", light="B9", camera=CAMERA, flash=FLASH, 
     across = np.clip(np.rint(dr / .005).astype(int), 0, 260)
     # The grooves' own rainbow. It leaves out the along-track part of the view, so its place is only roughly right.
     if materials is not None:
-        if design.dtype != np.uint8 or not materials or int(labels.max()) >= len(materials):
+        if design.dtype != np.uint8 or not materials or int(design.max()) >= len(materials):
             raise ValueError("material labels must index the document's material table")
+        # Each sample is the share of every material over its own little square of burn cells, as the eye (and a
+        # phone) sees them, not one cell picked at the sample's centre: a 20 um dither read every 0.06 mm that way
+        # comes out as grain the disc does not show.
         signal = np.zeros((*dt.shape, 3))
-        for slot in np.unique(labels):
-            hit = labels == slot
-            signal[hit] = material_response(materials[slot], dt[hit], single)
+        for slot, share in coverage(design, size * k, dx, dy):
+            signal += share[..., None] * material_response(materials[slot], dt, single)
     else:
         if isinstance(light, str) and light.lower() == BANDS:
             zone = np.clip(np.searchsorted(edges, along_track(dx, dy, CAMERA, FLASH)) - 1, 0, len(pairs) - 1)
