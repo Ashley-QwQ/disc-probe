@@ -57,7 +57,7 @@ const STR = {
     modes: { "floyd-steinberg": "误差扩散", "blue-noise": "蓝噪声", ordered: "有序", clustered: "网点", threshold: "不抖动" },
     reset: "恢复默认",
     tools: { move: "选择（V）", wand: "选区（W）", pan: "平移（H，或按住空格）" },
-    proj: "设计", orig: "灯下", viewAria: "画布显示", zoomAria: "在适应盘面和 100% 之间切换",
+    proj: "设计", burnView: "刻出来", orig: "灯下", viewAria: "画布显示", zoomAria: "在适应盘面和 100% 之间切换",
     empty: "把图片拖到这里，或者按导入图片", sample: "用示例图试试", drop: "松手，放到盘上",
     outside: "有一部分在可刻范围外，压暗的地方会被裁掉。",
     tooBig: (n) => `${n} 太大了：单张最多 3600 万像素、24 MiB。先缩小再导入。`, badType: (n) => `${n} 不是能读的图片（PNG、JPEG、WebP、BMP）。`,
@@ -142,7 +142,7 @@ const STR = {
     modes: { "floyd-steinberg": "Error diffusion", "blue-noise": "Blue noise", ordered: "Ordered", clustered: "Halftone", threshold: "No dither" },
     reset: "Reset",
     tools: { move: "Select (V)", wand: "Selection (W)", pan: "Pan (H, or hold Space)" },
-    proj: "Design", orig: "Under the lamp", viewAria: "Canvas shows", zoomAria: "Switch between fit and 100%",
+    proj: "Design", burnView: "As burned", orig: "Under the lamp", viewAria: "Canvas shows", zoomAria: "Switch between fit and 100%",
     empty: "Drop a picture here, or use Import picture", sample: "Try a sample picture", drop: "Let go to put it on the disc",
     outside: "Part of it is outside the burnable range; the dimmed part will be cut off.",
     tooBig: (n) => `${n} is too large: at most 36 megapixels and 24 MiB. Shrink it first.`, badType: (n) => `${n} isn't a picture this can read (PNG, JPEG, WebP, BMP).`,
@@ -221,7 +221,7 @@ const FILES_READY = false;
 const RANGE = { dvd: [24, 58], cd: [23, 58], bd: [24, 58] };          // burnable radii, mm
 const CAPACITY = { dvd: 4.7e9, cd: 0.7e9, bd: 25e9 };
 const DEFAULT_TONE = { dither: 100, bright: 0, levels: 2, lin: false, inv: false, contrast: 0, hi: 0, sh: 0, mode: "floyd-steinberg", auto: null };
-const MAX_SIDE = 2048;                       // the mock keeps a working copy; export would use the original
+const MAX_SIDE = 4096;                       // the working copy a picture is edited and exported from (export-rules pictureSampling)
 const COLOURS = { red: 0.62, green: 0.53, blue: 0.46 };   // target wavelengths, µm
 const FLASH = [-43.66, 19.79];               // iPhone 17 Pro flash relative to the lens (drawing values)
 const FWHM = 0.08;                           // measured peak width in δ (the model said 0.04)
@@ -1854,9 +1854,9 @@ export const projectGeo = (state, plan = S) => planGeo(state, plan).path;
 function viewNote(){
   const lamp=S.view==='lamp',zh=api.lang()==='zh';
   const phase=editor?.lamp?.phase,note=W.cv.querySelector('.ed-view-note');
-  const exact=!lamp&&editor?.exact?.phase;
+  const exact=S.view==='burn'&&editor?.exact?.phase;
   if(exact&&exact!=='off'){note.textContent=exact==='computing'?(zh?'正在算刻录格子…':'Working out the burn cells…'):exact==='error'?(zh?'刻录格子没算出来：':'Burn cells failed: ')+(editor.exact.error??''):(zh?'刻录格子 · 这里就是刻进去的格子':'Burn cells · these are the cells that are burned');note.setAttribute('aria-busy',String(exact==='computing'));return;}
-  note.textContent=lamp?(phase==='ready'?(zh?'核心模拟 · 待照片验证':'Core simulation · awaiting photo validation'):phase==='error'?(zh?'预览未完成 · 再点“灯下”重试':'Preview failed · click Under the lamp to retry'):phase==='refining'?(zh?'低清预览 · 正在计算细采样…':'Quick preview · rendering fine samples…'):(zh?'正在计算灯下预览…':'Rendering under the lamp…')):(zh?'材质分区 · 纹理表示材质身份':'Material map · texture identifies the material');
+  note.textContent=lamp?(phase==='ready'?(zh?'核心模拟 · 待照片验证':'Core simulation · awaiting photo validation'):phase==='error'?(zh?'预览未完成 · 再点“灯下”重试':'Preview failed · click Under the lamp to retry'):phase==='refining'?(zh?'低清预览 · 正在计算细采样…':'Quick preview · rendering fine samples…'):(zh?'正在计算灯下预览…':'Rendering under the lamp…')):S.view==='burn'?(zh?'刻出来 · 灰度抖动成深浅两种纹理，放大看刻录格子':'As burned · greys dithered into two textures; zoom in for the burn cells'):(zh?'设计 · 原图（灰度），刻录区外压暗；看刻出来的样子点“刻出来”':'Design · the picture itself (grey); outside the burnable ring dimmed. See the burned result under As burned');
   note.setAttribute('aria-busy',String(lamp&&!['ready','error'].includes(phase)));
 }
 function build() {
@@ -1871,7 +1871,7 @@ function build() {
     `<aside class="col col-l"></aside><aside class="col col-r"></aside>` +
     `<div class="cv"><canvas class="main"></canvas>` +
     `<div class="tools-v" role="toolbar"></div>` +
-    `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="lamp"></button></div><p class="ed-view-note" aria-live="polite"></p>` +
+    `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="burn"></button><button type="button" data-v="lamp"></button></div><p class="ed-view-note" aria-live="polite"></p>` +
     `<p class="cv-note warn" hidden></p>` +
     `<div class="empty-c"><p></p><div class="row"><button class="sbtn" type="button" data-a="sample"></button><button class="sbtn" type="button" data-a="import"></button></div></div>` +
     `<div class="fbar" hidden></div>` +
@@ -2003,9 +2003,9 @@ function words() {
   W.sub.title = t.changeDiscs;
   W.sub.onclick = chooseBatch;
   editor?.toolbar();editor?.optionsBar();
-  const [p, o] = W.view.children;
-  if(!['proj','lamp'].includes(S.view))S.view='proj';
-  p.textContent = t.proj; o.textContent = t.orig;
+  const [p, b, o] = W.view.children;
+  if(!['proj','burn','lamp'].includes(S.view))S.view='proj';
+  p.textContent = t.proj; b.textContent = t.burnView; o.textContent = t.orig;
   viewNote();
   W.view.setAttribute("aria-label", t.viewAria);
   for (const x of W.view.children) x.setAttribute("aria-pressed", String(x.dataset.v === S.view));

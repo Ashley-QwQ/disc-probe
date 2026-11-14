@@ -108,7 +108,7 @@ export function checkTextures(used, media, mode) {
 }
 
 // How finely the pictures themselves are sampled: µm of disc per source pixel, finest visible picture layer.
-// The export samples the working copy (≤ 2048 px a side), never the original file.
+// The export samples the working copy (≤ 4096 px a side, design.js MAX_SIDE), never the original file.
 export function pictureSampling(layers = []) {
   let finest = Infinity;
   for (const l of layers) {
