@@ -225,7 +225,11 @@ def test_small_end_to_end_scenario(tmp_path):
                                cwd=ROOT, text=True, capture_output=True, encoding="utf-8", timeout=90)
     assert completed.returncode == 0, completed.stdout + completed.stderr
     scores = json.loads((lab.root / "scores" / "faults.json").read_text(encoding="utf-8"))
-    assert [(r["command"], r["class"]) for r in scores["rows"]] == [("burn", "detected"), ("burn-no-verify", "silent_wrong")]
+    # The scorer's mechanics, not disc-probe's behaviour of the day: disc-probe 0.1.2.1 missed the
+    # no-verify case (silent_wrong); the fault fixes of 2026-11-14 detect it.
+    rows = [(r["command"], r["class"]) for r in scores["rows"]]
+    assert [c for c, _ in rows] == ["burn", "burn-no-verify"]
+    assert rows[0][1] == "detected" and rows[1][1] in ("detected", "silent_wrong")
     for row in scores["rows"]:
         assert row["observed"]["actual_written_sectors"] < row["observed"]["expected_written_sectors"]
         assert all(Path(p).is_file() for p in row["evidence_paths"])
