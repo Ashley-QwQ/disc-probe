@@ -26,7 +26,7 @@ Tag: `v[VERSION]` · GitHub pre-release · Commit: `[COMMIT]` · Date: `[DATE]`
 
 - **是什么 / 给谁用：** 独立的 atlas、纹理卡与来源说明，面向数据检查、可视化和实验用户。本包数据为模型预测，非实拍（**predicted, not photographed**）。
 - **下载：** `disc-neo-[VERSION]-preview.zip`。仅在发布时提供合格暂存目录才生成；本次状态 `[NEO_STATUS]`，文件数 `[NEO_FILE_COUNT]`。
-- **安装：** 解压得到 `disc-neo/`；先读 `README.md`、`README.zh.md`、`SCHEMA.md`、`PROVENANCE.json` 和 `LICENSE`。数据包无需运行安装器。
+- **安装：** 解压得到 `disc-neo/`，双击里面的 `index.html` 就能离线浏览，不用联网，也不用装任何东西。字段说明和来源见 `README.zh.md`、`SCHEMA.md`、`PROVENANCE.json`，许可见 `LICENSE`。
 - **状态 / 已知限制：** preview data；不代表实测颜色、光盘照片或刻录效果验证。模型、覆盖范围与使用限制见来源说明及 `[NEO_KNOWN_LIMITS]`。
 - **校验：** ZIP 使用统一 `SHA256SUMS.txt`，逐文件大小与 SHA-256 见 `manifest.json` 的 `disc_neo.files`；大小 `[NEO_BYTES]`，ZIP SHA-256 `[NEO_SHA256]`。
 
@@ -66,7 +66,7 @@ One GitHub pre-release contains three separate packages. The public version is `
 
 - **What / audience:** A separate atlas, texture cards and provenance bundle for data inspection, visualization and experiments. **Predicted, not photographed.**
 - **Download:** `disc-neo-[VERSION]-preview.zip`, present only when a valid staged folder is supplied. This release: `[NEO_STATUS]`; files `[NEO_FILE_COUNT]`.
-- **Install:** Extract `disc-neo/` and read `README.md`, `README.zh.md`, `SCHEMA.md`, `PROVENANCE.json` and `LICENSE`. No installer is needed for the data bundle.
+- **Install:** Extract `disc-neo/` and double-click `index.html` inside to browse it offline; nothing to install and no network needed. Fields and provenance are in `README.md`, `SCHEMA.md` and `PROVENANCE.json`; the licence is in `LICENSE`.
 - **Status / limits:** Preview data. It does not establish measured colours, disc photographs or verified burn outcomes. Model, coverage and usage limits: provenance documentation and `[NEO_KNOWN_LIMITS]`.
 - **Checksums:** Shared `SHA256SUMS.txt` for the ZIP; `manifest.json` → `disc_neo.files` for every file's size and SHA-256. ZIP size `[NEO_BYTES]`; ZIP SHA-256 `[NEO_SHA256]`.
 
