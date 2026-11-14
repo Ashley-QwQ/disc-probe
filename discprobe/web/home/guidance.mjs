@@ -51,10 +51,15 @@ export function photoSaveWords(decision = {}) {
     verdict_not_ok: pair('照片没有通过检查。', 'The photo verdict is not ok.'),
     missing_L: pair('照片没有给出可信的 L，数值未知。', 'The photo has no usable L; its value is unknown.'),
     no_photo: pair('没有照片结果，数值未知。', 'No photo result; its value is unknown.'),
-    not_cd: pair('照片没有给出适用于 CD 的帧数。', 'The photo has no applicable CD frame value.'),
+    not_cd: null,
     invalid_photo: pair('照片记录无法读取或不完整。', 'The photo record is unreadable or incomplete.'),
     invalid_preset: pair('无法核对已保存的预设。', 'The saved preset could not be verified.'),
   };
+  // A DVD photo result: DIS presets carry the along-track constant only as CD frames, so the exported preset
+  // has none; disc-probe's own burn files read it from the photos directly. Not a failure.
+  if (decision.reason === 'not_cd') return pair(
+    '导出给 DIS 的预设里没有这项：DIS 的预设只记 CD 的帧数。disc-probe 自己生成刻录文件时，会直接用上照片读出的沿轨偏差。',
+    'The preset exported for DIS does not carry it: DIS presets only record CD frames. disc-probe applies the along-track offset from the photos when it makes its own burn files.');
   const reason = reasons[decision.reason] || pair('没有已确认写入的 L，数值未知。', 'No confirmed saved L; its value is unknown.');
   return pair('沿轨常数没写进去：' + reason.zh, 'Along-track constant not written: ' + reason.en);
 }
@@ -334,7 +339,10 @@ export function stepAdvice(phase, ctx = {}) {
     review: ctx.good === false
       ? [pair('这次结果不能依赖。', 'This result cannot be relied on.'), pair('按下面的提示重测。这不需要再刻一张盘。', 'Measure again as the notes below say. This does not need another disc.')]
       : [pair('预设里的位置准不准，刻出图、拍照检查之后才知道；CD 的沿轨常数还要靠照片。', 'How accurate the preset is is known only after a disc is burned and photographed; a CD also needs photos for its along-track constant.'), pair('保存测量。', 'Save the measurement.')],
-    saved: [pair('保存的是测量，不是成品：位置准不准，要刻出来才知道。', 'What is saved is a measurement, not a picture: how accurate it is, a burned disc will show.'), pair('做图并刻第 2 张检查盘，拍照看偏差，再刻成品。', 'Make the picture, burn disc 2 as the check disc, photograph it to see the error, then burn the finished picture.')],
+    saved: ctx.photoTaken
+      // the check disc was just burned and photographed: what is left is the finished picture
+      ? [pair('成品位置准不准，刻出来才知道。', 'How accurate the finished picture is, the burned disc will show.'), pair('回到上一步，生成成品的刻录文件，再刻第 3 张盘。生成时会自动用上照片读出的沿轨偏差。', 'Go back a step, make the burn file for the finished picture and burn disc 3. The along-track offset read from the photos is applied when the file is made.')]
+      : [pair('保存的是测量，不是成品：位置准不准，要刻出来才知道。', 'What is saved is a measurement, not a picture: how accurate it is, a burned disc will show.'), pair('做图并刻第 2 张检查盘，拍照看偏差，再刻成品。', 'Make the picture, burn disc 2 as the check disc, photograph it to see the error, then burn the finished picture.')],
   }[phase];
   return t ? {unknown: t[0], next: t[1]} : null;
 }
