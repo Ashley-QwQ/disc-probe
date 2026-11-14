@@ -93,6 +93,8 @@ class Lab:
                 time.sleep(0.05)
         try:
             state = self.state()
+            # labs from before status stopped recording itself: drop those copies of its reply (5000+ seen)
+            state.get("steps", {}).pop("status", None)
             yield state
             atomic_json(self.state_path, state)
         finally:

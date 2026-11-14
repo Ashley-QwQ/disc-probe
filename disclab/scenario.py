@@ -330,6 +330,17 @@ def make_scenario_box(lab, scenario):
 
 def create_from_args(a):
     values = {k: getattr(a, k, None) for k in DEFAULTS}
+    if getattr(a, "scenario_json", None):
+        if a.scenario:
+            raise ValueError("give --scenario or --scenario-json, not both")
+        try:
+            raw = json.loads(a.scenario_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"--scenario-json is not JSON: {exc}") from None
+        lab = Lab(a.lab)
+        lab.root.mkdir(parents=True, exist_ok=True)
+        a.scenario = lab.root / "scenario.json"
+        a.scenario.write_text(json.dumps(raw, ensure_ascii=False, indent=1), encoding="utf-8")
     if not a.scenario:
         values = {k: DEFAULTS[k] if v is None else v for k, v in values.items()}
         values["uv_noise"] = tuple(values["uv_noise"])
@@ -340,4 +351,5 @@ def create_from_args(a):
 
 def configure_box(parser):
     parser.add_argument("--scenario", type=Path, help="version 1 scenario JSON; conflicting flags are refused")
+    parser.add_argument("--scenario-json", help="the same scenario given inline (saved as LAB/scenario.json)")
     parser.set_defaults(**{k: None for k in DEFAULTS})

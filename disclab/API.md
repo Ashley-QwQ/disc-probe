@@ -40,7 +40,12 @@ TUI 的带 L 图片动作在虚拟刻录前还会检查生成的图片旁车文�
 | `web` | `url`, `exit_code`, `paths`: server address, exit and results folder, returned when stopped / 停止后返回地址、退出码、结果目录。 |
 | `upload` | `replies`, `run`, `paths`, `exit_code`: per-file HTTP replies and final computer listing / 逐文件 HTTP 回复及电脑端列表。 Optional `--lab` records progress; otherwise `lab` is null. / 可选实验盒参数用于记录进度。 |
 | `tui` | `paths`: selected lab state file; menus and prompts use stderr in JSON mode / 当前实验盒状态路径；JSON 模式下菜单、提示走 stderr。 EOF exits cleanly. / 输入结束可正常退出。 |
-| `practice` | `url`, `guide`, `paths`, `exit_code`: bilingual guide, retained lab and server exit / 双语指导、保留的实验盒目录及服务退出码。 New/empty folder only; default creates a retained temporary folder with three virtual discs. / 只接受新目录或空目录；默认自动创建并保留三盘实验盒。 |
+| `status` | `status`: the box (public labels, each disc's state blank/burned/open/partial and use), the drive (reader, tray, faults), `flow` (disc-probe's steps in order, each with `done`, `current`, `detail`, `error`, `why`), latest photos and photo reading / 公开的盘与光驱状态及按 disc-probe 顺序的练手步骤，不含真值。 |
+| `step KEY` | `step`: the flow record written to `steps.flow`; `status` as above. KEY is a step name or `next`; a refused step says why in disc-probe's words / 运行一步；不满足前提时用本体的话说明原因。 |
+| `swap` | `disc`, `drive`, `status`: a blank from the basket put into the tray / 换一张空白盘。 |
+| `drive` | `reader`, `faults`, `kinds`, `readers`: reader profile and injected faults (validated as scenario faults) / 读盘配置和注入故障。 |
+| `desk` | `url`, `paths`: the Lab's desk page; every button runs one of these commands with `--json` / Lab 自己的桌面网页，只调用这些命令。 |
+| `practice` | `url`, `guide`, `paths`, `exit_code`: bilingual guide, retained lab and server exit / 双语指导、保留的实验盒目录及服务退出码。 A new or empty folder, or an existing lab to resume; default creates a retained temporary folder with three virtual discs. / 新目录、空目录或已有实验盒（接着练）；默认自动创建并保留三盘实验盒。 |
 
 `web` and `practice` run until Ctrl+C. They emit their JSON response after shutdown; read the local URL from stderr or the `web` progress record while running. The default binds only locally; `--lan` uses the existing product's token-guarded LAN mode. Do not infer readiness solely from a `started` progress record: it records the launch attempt, not an HTTP health check.
 
@@ -61,6 +66,8 @@ python -m disclab box --lab LAB --count 3 --json
 python -m disclab tray --lab LAB --disc "LAB-A 1-01" --json
 python -m disclab dp --lab LAB --json -- timing --drive X: --out LAB/results
 python -m disclab score --lab LAB --progress --json
+python -m disclab status --lab LAB --json
+python -m disclab step next --lab LAB --json
 python -m disclab practice --lab LAB-practice --port 8853 --json
 ```
 
