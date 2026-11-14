@@ -69,7 +69,7 @@ class Lab:
 
     def state(self):
         if not self.state_path.exists():
-            return {"drives": {}, "burns": {}, "events": []}
+            return {"drives": {}, "burns": {}, "events": [], "steps": {}}
         return self.read(self.state_path)
 
     @contextlib.contextmanager
@@ -101,7 +101,20 @@ class Lab:
                 lock.unlink()
 
     def event(self, state, kind, **fields):
-        state.setdefault("events", []).append(dict(t=round(time.time(), 3), kind=kind, **fields))
+        record = dict(t=round(time.time(), 3), kind=kind, **fields)
+        state.setdefault("events", []).append(record)
+        paths = [str(self.box_path), str(self.answers_path)] if kind == "box" else []
+        if fields.get("iso"):
+            paths.append(fields["iso"])
+        state.setdefault("steps", {}).setdefault(kind, []).append(
+            dict(record, status="ok", paths=paths))
+
+    def step(self, kind, **fields):
+        """Append progress without replacing drive, burn, event or extension keys."""
+        fields.setdefault("paths", fields.get("outputs", {}).get("paths", [str(self.state_path)]))
+        with self.locked_state() as state:
+            state.setdefault("steps", {}).setdefault(kind, []).append(
+                dict(t=round(time.time(), 3), **fields))
 
     # ------------------------------------------------------------ lookups
     def drive_for(self, name: str):

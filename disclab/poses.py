@@ -121,4 +121,5 @@ def add_parser(sub):
                   + (f"{r['L_mm']:+.3f} (err {r['err_mm']:+.3f})" if r["L_mm"] is not None else "   -  ")
                   + (f"  turned {r['turn']:.0f}" if r.get("turn") is not None else ""))
         print(json.dumps(res["summary"], indent=2))
+        return dict(result=res, paths=[str(Path(a.out).resolve())])
     s.set_defaults(func=go)

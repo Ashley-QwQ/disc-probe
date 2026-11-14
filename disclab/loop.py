@@ -40,6 +40,8 @@ def dp(lab, args, *, log=None, check=True):
     res = subprocess.run(argv, cwd=ROOT, env=_env(lab), text=True, encoding="utf-8", errors="replace",
                          stdin=subprocess.DEVNULL, capture_output=True,
                          creationflags=BELOW_NORMAL if os.name == "nt" else 0)
+    from .jsonout import record_dp
+    record_dp(lab, args, res.returncode)
     if log:
         log.write(f"$ discprobe {' '.join(map(str, args))}  ({time.time() - t:.1f}s, exit {res.returncode})\n")
         log.write(res.stdout[-6000:] + res.stderr[-3000:] + "\n")
@@ -119,6 +121,7 @@ def loop_geo(lab: Lab, drive="X:", ranges="wide", discs=None, *, iso_sectors=Non
         finally:
             iso.unlink(missing_ok=True)
     atomic_json(lab.root / "scores" / f"geo-{ranges}.json", rows)
+    lab.step("scores", status="ok", paths=[str(lab.root / "scores" / f"geo-{ranges}.json")])
     return rows
 
 
@@ -257,6 +260,7 @@ def loop_photo(lab: Lab, drive="X:", geo_disc=None, targets=None, n_photos=6, st
     summary = summarise(rows)
     summary["pictures"] = pictures
     atomic_json(lab.root / "scores" / f"{tag}.json", dict(summary=summary, rows=rows))
+    lab.step("scores", status="ok", paths=[str(lab.root / "scores" / f"{tag}.json")])
     print(json.dumps(summary, indent=2), flush=True)
     return rows
 
@@ -298,9 +302,10 @@ def add_parser(sub):
     def go(a):
         lab = Lab(a.lab)
         if a.what == "geo":
-            loop_geo(lab, a.drive, a.ranges, iso_sectors=a.iso_sectors, reps=a.reps, max_targets=a.max_targets)
+            rows = loop_geo(lab, a.drive, a.ranges, iso_sectors=a.iso_sectors, reps=a.reps, max_targets=a.max_targets)
         else:
             discs = lab.box()["discs"]
-            loop_photo(lab, a.drive, discs[0], discs[1:1 + a.targets], a.photos, a.style, a.seed,
+            rows = loop_photo(lab, a.drive, discs[0], discs[1:1 + a.targets], a.photos, a.style, a.seed,
                        workers=a.workers, tag=a.tag)
+        return dict(rows=rows, paths=[str(lab.root / "scores" / (f"geo-{a.ranges}.json" if a.what == "geo" else f"{a.tag}.json"))])
     s.set_defaults(func=go)

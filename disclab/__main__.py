@@ -37,10 +37,15 @@ def lab_env(lab: Lab, base=None) -> dict:
 
 def dp(lab: Lab, args, *, check=True, capture=False, timeout=None):
     """Run `python -m discprobe ARGS` against the lab, from the unpacked package root."""
+    from .jsonout import diagnostics_active, record_dp
+    relay = diagnostics_active() and not capture
     argv = [sys.executable, "-B", "-m", "discprobe", *map(str, args)]
     print("$ discprobe " + " ".join(map(str, args)), flush=True)
     res = subprocess.run(argv, cwd=ROOT, env=lab_env(lab), text=True, encoding="utf-8", errors="replace",
-                         stdin=subprocess.DEVNULL, capture_output=capture, timeout=timeout)
+                         stdin=subprocess.DEVNULL, capture_output=capture or relay, timeout=timeout)
+    if relay:
+        sys.stderr.write(res.stdout + res.stderr)
+    record_dp(lab, args, res.returncode)
     if check and res.returncode:
         if capture:
             sys.stdout.write(res.stdout[-4000:] + res.stderr[-4000:])
@@ -54,6 +59,7 @@ def cmd_box(a):
     box = make_box(lab, a.media, a.count, a.seed, batch=a.batch, stampers=a.stampers, reader=a.reader,
                    drives=a.drives, uv_noise=(a.uv_noise[0], a.uv_noise[1]))
     print(json.dumps(box, ensure_ascii=False, indent=2))
+    return dict(box=box, paths=[str(lab.box_path), str(lab.answers_path), str(lab.state_path)])
 
 
 def cmd_tray(a):
@@ -70,12 +76,17 @@ def cmd_tray(a):
             d["tray"], d["open"] = a.disc, False
         lab.event(st, "tray", drive=a.drive, disc=d["tray"], open=d["open"])
     print(json.dumps(lab.state()["drives"], ensure_ascii=False))
+    return dict(drives=lab.state()["drives"])
 
 
 def cmd_dp(a):
     lab = Lab(a.lab)
     rest = a.rest[1:] if a.rest and a.rest[0] == "--" else a.rest
-    sys.exit(dp(lab, rest, check=False).returncode)
+    res = dp(lab, rest, check=False, capture=getattr(a, "json", False))
+    if getattr(a, "json", False):
+        sys.stderr.write(res.stdout + res.stderr)
+    from .jsonout import artifacts
+    return dict(argv=rest, paths=artifacts(rest), exit_code=res.returncode)
 
 
 def cmd_env(a):
@@ -83,12 +94,23 @@ def cmd_env(a):
     env = lab_env(lab, {})
     for k in (ENV, "DISCLAB_ROOT", "PYTHONPATH", "DISCPROBE_WORKERS"):
         print(f'$env:{k} = "{env[k]}"' if a.powershell else f'export {k}="{env[k]}"')
+    return dict(environment={k: env[k] for k in (ENV, "DISCLAB_ROOT", "PYTHONPATH", "DISCPROBE_WORKERS")})
 
 
-def main(argv=None):
+def main(argv=None, *, return_response=False):
     from .compat import require_discprobe
-    require_discprobe()
-    p = argparse.ArgumentParser(prog="python -m disclab", description=__doc__,
+    from . import jsonout
+    argv = list(sys.argv[1:] if argv is None else argv)
+    outer_args = argv[:argv.index("--")] if "--" in argv else argv
+    jsonout.Parser.json_mode = "--json" in outer_args
+    try:
+        require_discprobe()
+    except SystemExit as exc:
+        if jsonout.Parser.json_mode:
+            jsonout.emit(jsonout.response(errors=[dict(type="CompatibilityError", message=str(exc))]))
+            raise SystemExit(1) from None
+        raise
+    p = jsonout.Parser(prog="python -m disclab", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(required=True)
 
@@ -130,8 +152,17 @@ def main(argv=None):
     score.add_parser(sub)
     web.add_parser(sub)
 
+    # TUI/API registration stays together for the parallel scenario branch merge.
+    from . import tui, practice
+    tui.add_parser(sub)
+    practice.add_parser(sub)
+    jsonout.configure(p, sub)
     a = p.parse_args(argv)
-    a.func(a)
+    result, code = jsonout.invoke(a)
+    if return_response:
+        return result
+    if code:
+        raise SystemExit(code)
 
 
 if __name__ == "__main__":

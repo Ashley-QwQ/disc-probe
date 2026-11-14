@@ -4,7 +4,45 @@
 
 不用接光驱，也不用准备空盘。Disc Lab 提供一台虚拟光驱、一盒有隐藏真值的虚构光盘、程序画出的手机照片，以及和真值对照的分数。它适合开发者，以及想检查几何测量和照片校准流程的人。disc-probe 只拿到虚拟光驱的回复和图像；实验光驱、照片生成器和评分程序才读取 `answers.json`。
 
-## 安装
+## 编号菜单 TUI
+
+```bash
+python -m disclab tui --plain
+python -m disclab tui --lab LAB
+python -m disclab tui --plain --quick
+```
+
+可选已有实验盒，也可输入盘种、数量、种子和读盘配置创建新盒。菜单依次提供：放入虚拟盘、生成测量 ISO 并虚拟刻录、timing、geo、用内置帆船图片生成 ISO、实验盒 A5/B9 双纹理靶及虚拟刻录、照片、照片 L、带已接受 L 的图片刻录、对照真值评分。菜单 11 依次执行完整流程。测量盘、照片靶盘、最终图片盘使用不同虚拟盘，完整流程至少三张；示例图片 ISO 是刻录校准靶之前的预览。不会消耗真实光盘。`--plain` 关闭颜色，可重定向标准输入；输入结束正常退出。进度及设置保存在 `state.json`，下次选择同一目录即可继续。
+
+**目前不能渲染 checkdisc 靶**：实验盒照片渲染器尚不支持其多字节纹理。这里使用实验盒自己的简化双纹理靶。照片 L 被拒绝时保留拒绝结果，只有读取器接受并应用 L 才制作带 L 的图片。评分公式和阈值不变，展示几何、照片 L、图片落点与真值的误差；可用 `score --lab LAB --progress --json` 在无菜单情况下取得同样的流程评分。
+
+`--quick` 使用 65,536 扇区的内圈测量及更少读取。图片通过既有 image 参数限制在实测区间内；全盘评分仍包含外推，不能用来证明全盘精度。此模式适合 geo、图片、评分的短流程，26.2–57.2 mm 的完整照片靶需要完整测量。TUI 保留 ISO，因为后续 timing、info 读取需要原始字节；完整练习每个镜像可能占数 GB。原有 `loop` 的清理行为保持不变。
+
+## 网页练习模式
+
+```bash
+python -m disclab practice --media dvd-r --lab LAB-practice --port 8853
+```
+
+创建默认读盘配置、三张虚拟盘的小盒，放入第一张，复用 `disclab web` 启动现有网页，并输出中英文操作指导。省略 `--lab` 则自动建立并保留临时目录；指定目录必须为新目录或空目录，避免覆盖结果。默认只监听本机，`--lan` 使用产品已有的带令牌局域网模式。Ctrl+C 停止，退出时打印练习结果目录。全部写入虚拟光驱，不消耗真实光盘。
+
+## JSON 及进度接口
+
+所有子命令支持 `--json`：stdout 只有一个含 `status`、`lab`、`outputs`、`scores`、`errors` 的对象；日志及子进程文本写 stderr。该选项应放在 `dp` 的 `--` 分隔符之前。服务器命令在停止后返回最终 JSON。`state.json` 保留原有键，新增带时间戳的 `steps`，前端无需解析日志。详见双语 [API 文档](API.md) 及 [本机 TUI 实测报告](TUI_REPORT.md)。
+
+```bash
+python -m disclab box --lab LAB-json --count 3 --json
+python -m disclab dp --lab LAB-json --json -- info --drive X: --out LAB-json/results
+```
+
+## 后续工作
+
+- 可擦写光盘及擦除操作。
+- 更多故障：超时、整圈混叠、照片姿态与曝光。
+- 支持多字节纹理渲染，使 checkdisc 可在练习中拍照。
+- 基于同一 JSON API 的网页外壳。
+
+## 安装与兼容性
 
 需要 Python 3.11 或更新版本。这个源码快照要求 **disc-probe 0.1.2.1**，按 `discprobe.version.__version__` 判断。版本字符串必须完全相同，包括预发布后缀；缺少依赖或版本不符时，用一句话说明并退出。
 
