@@ -49,10 +49,11 @@ def dp(lab: Lab, args, *, check=True, capture=False, timeout=None):
 
 
 def cmd_box(a):
-    from .box import make_box
-    lab = Lab(a.lab)
-    box = make_box(lab, a.media, a.count, a.seed, batch=a.batch, stampers=a.stampers, reader=a.reader,
-                   drives=a.drives, uv_noise=(a.uv_noise[0], a.uv_noise[1]))
+    from .scenario import create_from_args
+    try:
+        box = create_from_args(a)
+    except (ValueError, OSError) as exc:
+        raise SystemExit(str(exc)) from None
     print(json.dumps(box, ensure_ascii=False, indent=2))
 
 
@@ -104,6 +105,11 @@ def main(argv=None):
     s.add_argument("--uv-noise", type=float, nargs=2, default=[0.0, 0.0], metavar=("U_BITS", "V_REL"),
                    help="per-disc spread of u (bits) and v (relative) within a stamper; default none")
     s.set_defaults(func=cmd_box)
+
+    # Scenario/fault extension: keep registration together for sibling CLI work.
+    from . import scenario, faults
+    scenario.configure_box(s)
+    faults.add_parser(sub)
 
     s = sub.add_parser("tray")
     s.add_argument("--lab", required=True)
