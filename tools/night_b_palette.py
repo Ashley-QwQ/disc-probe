@@ -110,6 +110,7 @@ SCRIPTS = [
     ("discprobe/web/home/caltop/render_caltop.py", r'^    "dark": dict\('),
     ("discprobe/web/home/caltop/render_caltop_anim.py", r'^    "dark": dict\('),
     ("discprobe/web/home/newplan/render_newplan.py", r'^    "dark": dict\('),
+    ("discprobe/web/home/faxnews/render_faxnews.py", r'^    "dark": dict\('),
 ]
 SKIP_ROLES = ("pcb=", "lens=", "glow_", "line=", "sign_text=")
 
