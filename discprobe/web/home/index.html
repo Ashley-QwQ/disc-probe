@@ -54,6 +54,7 @@
     --envelope-desk-drop: drop-shadow(calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(1.6 * var(--mm)) var(--glass-ink));   /* a bag with a sheet in it */
     /* the TUI's DVD title colours (banner.TITLE_HUES dvd: OKLCH hue .80 to 1.02 turns), darker on paper */
     --dvd: linear-gradient(90deg, #7262c6, #8d58b7, #a150a1, #b04985, #ba4765);
+    --dvd-disc: linear-gradient(180deg, #7262c6, #8d58b7, #a150a1, #b04985, #ba4765);   /* the wordmark's disc: the same colours, top to bottom */
     /* the other two kinds' bars: CD in its cyan, BD in copper */
     --cd: linear-gradient(90deg, #2f7f95, #2f9396, #3c9f88, #57a874);
     --bd: linear-gradient(90deg, #8a5a2e, #a8693c, #bf8448, #c99a52);
@@ -77,6 +78,7 @@
     --glass-ink: rgb(0 0 0 / .66);
     --glass-edge: inset -1px 1px 0 rgb(255 255 255 / .1); --glass-edge-drop: drop-shadow(1px -1px 0 rgb(255 255 255 / .12));
     --dvd: linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a);
+    --dvd-disc: linear-gradient(180deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a);
     --cd: linear-gradient(90deg, #6cc6dc, #6fd3cf, #82dbb7, #a3e29b);
     --bd: linear-gradient(90deg, #c98b4f, #d9a75c, #e4bb72, #ecca86);
   }
@@ -247,62 +249,52 @@
   .bl { top: calc(100vh - 80px - var(--edge) - 236px); left: calc(var(--edge) + 120px); transform-origin: 0 0; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0); }
 
   .wordmark { margin: 0; font-weight: 800; font-stretch: 125%; font-size: 34px; letter-spacing: .01em; line-height: 1; display: flex; align-items: center; }
-  .pro { display: inline-flex; align-items: center; }
-  /* one gradient across "PRO", painted per letter (a text clip on .pro itself would ignore the
-     letters' own clipping and fading below): sized to the whole of .pro (P .871 + R .942 + disc
-     .90em) and shifted by each letter's offset */
-  .pro .wm-p > span, .pro .wm-cut > span { background: var(--dvd) 0 0 / 2.713em 100% no-repeat; -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .pro .wm-cut > span { background-position: -.871em 0; }
-  .o-disc { /* the o of "pro" is a small disc in the same DVD colours, turning when pointed at */
-    position: relative; display: inline-block; clip-path: inset(0 0 0 0); width: .78em; height: .78em; margin: 0 .07em 0 .05em; border-radius: 50%;
-    background: conic-gradient(from 210deg, #b4abff, #d4a0ed, #f396bd, #f896aa, #e19bdf, #c5a5f8, #b4abff);
-    -webkit-mask: radial-gradient(circle, transparent 0 15%, #000 16% 100%); mask: radial-gradient(circle, transparent 0 15%, #000 16% 100%);
-    box-shadow: inset 0 0 0 .07em color-mix(in srgb, var(--ink) 18%, transparent);
+  /* The D is drawn, the same one as the app icon (art/brand/build_marks.py): an ink stem with a disc standing in
+     it, like a disc half out of a drive's slot. The disc's data area has the DVD colours and its clear hub is
+     the D's counter; nothing else in the mark has colour. In em of Archivo 800 / 125: the baseline lies .834
+     down the line, caps are .6875 high, a stem is .2036 wide after a .0845 side bearing; the disc's centre is
+     .125 cap heights right of the stem and its edge passes through the stem's two right corners. */
+  .wm-d { position: relative; flex: none; width: .772em; height: 1em; }
+  .wm-d::before { content: ""; position: absolute; left: .0845em; top: .1465em; width: .2036em; height: .6875em; background: currentColor; }
+  .wm-slot { position: absolute; left: .283em; top: 0; right: 0; bottom: 0; overflow: hidden; }   /* the stem's right edge: the disc shows only past it */
+  .o-disc { /* turning when pointed at */
+    position: absolute; left: -.2627em; top: .1367em; width: .7072em; height: .7072em; border-radius: 50%;
+    background: var(--dvd-disc);
+    -webkit-mask: radial-gradient(circle closest-side, transparent 38.5%, #000 41.5%); mask: radial-gradient(circle closest-side, transparent 38.5%, #000 41.5%);
     transition: transform 1200ms var(--ease);
   }
-  .o-disc::after { content: ""; position: absolute; inset: 30%; border-radius: 50%; box-shadow: 0 0 0 .04em color-mix(in srgb, var(--ink) 30%, transparent); }
   .wordmark:hover .o-disc { transform: rotate(1turn); }
 
-  /* Off the home page the wordmark folds to an italic "DP" (after anthropic.com's header mark):
-     nothing is cut and no letter is squeezed. First ISC-, R, BE and the bowl of the P fade where they
-     stand; then the P (its stem) and the disc slide left together, the disc shrinking onto the stem's
-     top as the P's bowl, and the slant comes in. Unfolding plays it the other way round: the pieces
-     slide back first, then the letters fade in. The distances are measured from the font once
-     (index.html, "wordmark: fold distances") into --wm-* on :root, in em. */
-  .wordmark { position: relative; transform-origin: 0 .835em; width: var(--wm-w0, auto); }   /* the slant pivots on the baseline */
+  /* Off the home page the wordmark folds to "DP", the app icon's pair: nothing is cut and no letter is
+     squeezed. First ISC and ROBE fade where they stand; then the P slides left to stand beside the D.
+     Unfolding plays it the other way round: the P slides back first, then the letters fade in. The
+     distances are measured from the font once (index.html, "wordmark: fold distances") into --wm-* on
+     :root, in em. */
+  .wordmark { position: relative; width: var(--wm-w0, auto); }
   .wm-cut > span { white-space: pre; }
-  .wm-p { display: inline-grid; position: relative; z-index: 1; }      /* the stem stays in front of the landing disc */
-  .wm-p > span { grid-area: 1 / 1; }
-  .wm-pstem { clip-path: inset(0 calc(100% - .29em) 0 0); }          /* a still copy of the P cut to its stem (.09-.29em) */
-  .pro { position: relative; }
-  :root[data-mode]:not([data-mode=""]) .top > .wordmark { display: flex; transform: skewX(-11deg); }
+  :root[data-mode]:not([data-mode=""]) .top > .wordmark { display: flex; }
   :root[data-mode]:not([data-mode=""]) .wordmark { width: var(--wm-w1, auto); }
-  :root[data-mode]:not([data-mode=""]) :is(.wm-cut > span, .wm-pfull) { opacity: 0; }
-  :root[data-mode]:not([data-mode=""]) .pro { translate: var(--wm-pro, 0) 0; }
-  /* folded, the disc is the P's bowl: only its right half shows, the cut edge standing on the P's stem */
-  :root[data-mode]:not([data-mode=""]) .o-disc { translate: var(--wm-disc, 0) -.105em; scale: var(--wm-disc-s, .64); clip-path: inset(0 0 0 50%); }
+  :root[data-mode]:not([data-mode=""]) .wm-cut > span { opacity: 0; }
+  :root[data-mode]:not([data-mode=""]) .wm-p { translate: var(--wm-p, 0) 0; }
   /* beside the back button, not pushed to the middle by the two auto margins */
   :root[data-mode]:not([data-mode=""]) .top > .back:not([hidden]) { margin-right: 0; }
   :root[data-mode]:not([data-mode=""]) .top > .back:not([hidden]) + .wordmark { margin-left: 10px; }
   :root[data-mode]:not([data-mode=""]) .top > .back { flex-shrink: 0; }     /* the mark never squeezes the back button */
-  /* folded, the release follows the mark, upright and quiet */
+  /* folded, the release follows the mark, quiet */
   .wm-ver { position: absolute; left: 100%; top: 50%; margin-left: .6em; font-size: .4em; font-weight: 600; font-stretch: 100%; white-space: nowrap;
-    letter-spacing: .02em; color: var(--ink-3); transform: translateY(-50%) skewX(11deg); translate: 0 .12em; opacity: 0; pointer-events: none; }
+    letter-spacing: .02em; color: var(--ink-3); transform: translateY(-50%); translate: 0 .12em; opacity: 0; pointer-events: none; }
   .wm-ver:empty { display: none; }
   :root[data-mode]:not([data-mode=""]) .top .wm-ver { opacity: 1; }
   @media (max-width: 480px) { :root[data-mode]:not([data-mode=""]) .top > .wordmark { display: none; } }   /* no room beside back and the tools */
-  /* timing. Folding: the letters go (0-200 ms), then the slide and slant (120-500), the disc's left half
-     tucks behind the stem (380-540), the version comes in (420-620). Unfolding: version and half-disc
-     first, the slide back (60-420), then the letters (300-560). */
-  :root[data-motion="on"] .wordmark { transition: transform 360ms var(--ease) 60ms, width 360ms var(--ease) 60ms; }
-  :root[data-motion="on"] .pro { transition: translate 360ms var(--ease) 60ms; }
-  :root[data-motion="on"] .o-disc { transition: transform 1200ms var(--ease), translate 360ms var(--ease) 60ms, scale 360ms var(--ease) 60ms, clip-path 120ms linear; }
-  :root[data-motion="on"] :is(.wm-cut > span, .wm-pfull) { transition: opacity 260ms ease-out 300ms; }
+  /* timing. Folding: the letters go (0-200 ms), then the P slides (120-500), the version comes in
+     (420-620). Unfolding: the version first, the slide back (60-420), then the letters (300-560). */
+  :root[data-motion="on"] .wordmark { transition: width 360ms var(--ease) 60ms; }
+  :root[data-motion="on"] .wm-p { transition: translate 360ms var(--ease) 60ms; }
+  :root[data-motion="on"] .wm-cut > span { transition: opacity 260ms ease-out 300ms; }
   :root[data-motion="on"] .wm-ver { transition: opacity 120ms ease-in; }
-  :root[data-motion="on"][data-mode]:not([data-mode=""]) .wordmark { transition: transform 380ms var(--ease) 120ms, width 380ms var(--ease) 120ms; }
-  :root[data-motion="on"][data-mode]:not([data-mode=""]) .pro { transition: translate 380ms var(--ease) 120ms; }
-  :root[data-motion="on"][data-mode]:not([data-mode=""]) .o-disc { transition: transform 1200ms var(--ease), translate 380ms var(--ease) 120ms, scale 380ms var(--ease) 120ms, clip-path 160ms ease-out 380ms; }
-  :root[data-motion="on"][data-mode]:not([data-mode=""]) :is(.wm-cut > span, .wm-pfull) { transition: opacity 200ms ease-out; }
+  :root[data-motion="on"][data-mode]:not([data-mode=""]) .wordmark { transition: width 380ms var(--ease) 120ms; }
+  :root[data-motion="on"][data-mode]:not([data-mode=""]) .wm-p { transition: translate 380ms var(--ease) 120ms; }
+  :root[data-motion="on"][data-mode]:not([data-mode=""]) .wm-cut > span { transition: opacity 200ms ease-out; }
   :root[data-motion="on"][data-mode]:not([data-mode=""]) .wm-ver { transition: opacity 200ms ease-out 420ms; }
 
   .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
@@ -799,7 +791,7 @@
 
 <header class="top">
   <button class="btn back" id="back" type="button" aria-keyshortcuts="Escape" hidden><svg class="icon"><use href="#i-back"/></svg><span data-i18n="back"></span><kbd class="key-cap" aria-hidden="true">Esc</kbd></button>
-  <h1 class="wordmark" id="wordmark" aria-label="disc-probe"><span aria-hidden="true">D</span><span class="wm-cut" aria-hidden="true"><span>ISC-</span></span><span class="pro" aria-hidden="true"><span class="wm-p"><span class="wm-pfull">P</span><span class="wm-pstem">P</span></span><span class="wm-cut"><span>R</span></span><span class="o-disc"></span></span><span class="wm-cut" aria-hidden="true"><span>BE</span></span><small class="wm-ver" id="wm-ver"></small></h1>
+  <h1 class="wordmark" id="wordmark" aria-label="disc-probe"><span class="wm-d" aria-hidden="true"><span class="wm-slot"><span class="o-disc"></span></span></span><span class="wm-cut" aria-hidden="true"><span>ISC </span></span><span class="wm-p" aria-hidden="true">P</span><span class="wm-cut" aria-hidden="true"><span>ROBE</span></span><small class="wm-ver" id="wm-ver"></small></h1>
   <nav class="tools" data-i18n-aria="tools">
     <button class="btn" type="button" id="library" data-i18n-title="libraryTitle"><svg class="icon"><use href="#i-drive"/></svg><span class="label" data-i18n="library"></span></button>
     <button class="kind drive-entry" type="button" data-col="drive" data-i18n="driveTab"></button>
@@ -1510,22 +1502,19 @@
     wake();
   }
 
-  // ---- wordmark: fold distances. The folded "DP" is the unfolded mark with pieces moved, so the
+  // ---- wordmark: fold distances. The folded "DP" is the unfolded mark with the P moved, so the
   // distances come from the unfolded layout (measured while unfolded, so nothing is moved yet), in em, once the font is in:
-  // the P closes up to the D (less ISC-, and .05em more: the italic D and P sit loose), and the disc
-  // lands with its centre on the stem's right edge (.29em into the P) at .5em across.
+  // the P closes up to the D, its ink .072em (the app icon's gap, .105 cap heights) right of the disc's edge.
   function foldDistances() {
     const mark = $("wordmark"), fs = parseFloat(getComputedStyle(mark).fontSize), em = (px) => px / fs;
     const box = (el) => { const r = el.getBoundingClientRect(), m = mark.getBoundingClientRect(); return { l: em(r.left - m.left), w: em(r.width) }; };
-    const isc = box(mark.children[1]), p = box(mark.querySelector(".wm-p")), disc = box(mark.querySelector(".o-disc")), end = box(mark.querySelector(".pro + .wm-cut"));
-    if (!isc.w || !end.w) return;
-    const pro = -isc.w - .05, pLeft = p.l + pro;
+    const p = box(mark.querySelector(".wm-p")), end = box(mark.querySelector(".wm-p + .wm-cut"));
+    if (!p.w || !end.w) return;
+    const pLeft = .715;   // the D's ink ends at .7275em; less the P's own side bearing (.0845em), plus the gap
     const r = root.style;
-    r.setProperty("--wm-pro", `${pro.toFixed(4)}em`);
-    r.setProperty("--wm-disc", `${(pLeft + .295 - (disc.l + disc.w / 2) - pro).toFixed(4)}em`);
-    r.setProperty("--wm-disc-s", (.5 / disc.w).toFixed(4));
+    r.setProperty("--wm-p", `${(pLeft - p.l).toFixed(4)}em`);
     r.setProperty("--wm-w0", `${(end.l + end.w).toFixed(4)}em`);
-    r.setProperty("--wm-w1", `${(pLeft + .545).toFixed(4)}em`);
+    r.setProperty("--wm-w1", `${(pLeft + p.w).toFixed(4)}em`);
   }
   if (!root.dataset.mode) foldDistances();
   document.fonts?.ready.then(() => { if (!root.dataset.mode) foldDistances(); });

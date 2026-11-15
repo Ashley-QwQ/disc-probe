@@ -46,7 +46,7 @@
   --key-on: #22231f; --key-on-fill: rgba(255,255,255,.6); --key-blank: #ddd4c2; --warn-f: #a8692e; --note-f: rgba(168,105,46,.09); }
 /* the letterhead: the folded wordmark, large, and the release after it (the header hides its own here) */
 .np-head { display: flex; align-items: flex-end; gap: .9em; }
-.np-wm { font-size: 3em; transform: skewX(-11deg); color: var(--ink-f); }
+.np-wm { font-size: 3em; color: var(--ink-f); }
 .np-ver { font: 600 .95em var(--font); letter-spacing: .02em; color: var(--soft-f); padding-bottom: .35em; }
 :root[data-mode="newplan"] .top .wm-ver:not(:empty) { display: none; }
 .np-field { position: relative; display: grid; gap: .45em; margin-top: 1.25em; }
