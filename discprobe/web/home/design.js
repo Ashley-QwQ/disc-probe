@@ -257,7 +257,8 @@ function useMeasured(geo) {
   if (String(ring) === String(S.ring ?? null)) return;
   S.ring = ring; comp = null; editor?.invalidate(); draw();
 }
-const lampPos = () => S.scene.follows ? [S.scene.cam[0] + FLASH[0], S.scene.cam[1] - FLASH[1], S.scene.cam[2]] : S.scene.lamp;
+const flashOff = (scene) => scene.flashOffset ?? FLASH;   // the chosen phone (editor-rig.mjs), else iPhone 17 Pro turned as before
+const lampPos = () => S.scene.follows ? [S.scene.cam[0] + flashOff(S.scene)[0], S.scene.cam[1] - flashOff(S.scene)[1], S.scene.cam[2]] : S.scene.lamp;
 const heightOf = (L) => L.kind === "image" ? L.width * L.h / L.w : L.height;
 
 // the part of the disc that holds files, if any: [from, to] radius in mm
@@ -677,7 +678,7 @@ function delta(x, y, cam, lamp) {
 // the camera (and a lamp that rides on the phone) moved so the phone's offset toward the top is y
 function poseAt(y, plan = S) {
   const cam = [plan.scene.cam[0], -y, plan.scene.cam[2]];
-  const lamp = plan.scene.follows ? [cam[0] + FLASH[0], cam[1] - FLASH[1], cam[2]] : plan.scene.lamp;
+  const lamp = plan.scene.follows ? [cam[0] + flashOff(plan.scene)[0], cam[1] - flashOff(plan.scene)[1], cam[2]] : plan.scene.lamp;
   return [cam, lamp];
 }
 function wavelengthRGB(nm) {
@@ -1857,7 +1858,7 @@ function viewNote(){
   const phase=editor?.lamp?.phase,note=W.cv.querySelector('.ed-view-note');
   const exact=S.view==='burn'&&editor?.exact?.phase;
   if(exact&&exact!=='off'){note.textContent=exact==='computing'?(zh?'正在算刻录格子…':'Working out the burn cells…'):exact==='error'?(zh?'刻录格子没算出来：':'Burn cells failed: ')+(editor.exact.error??''):(zh?'刻录格子 · 这里就是刻进去的格子':'Burn cells · these are the cells that are burned');note.setAttribute('aria-busy',String(exact==='computing'));return;}
-  note.textContent=lamp?(phase==='ready'?(zh?'A3 v3 纹理模型 · 待照片验证':'A3 v3 texture model · awaiting photo validation'):phase==='error'?(zh?'预览未完成 · 再点“灯下”重试':'Preview failed · click Under the lamp to retry'):phase==='refining'?(zh?'低清预览 · 正在计算细采样…':'Quick preview · rendering fine samples…'):(zh?'正在计算灯下预览…':'Rendering under the lamp…')):S.view==='burn'?(zh?'刻出来 · 哪里刻哪种纹理，细格子按肉眼混合；放大看刻录格子，真实颜色看“灯下”':'As burned · which texture goes where, fine cells mixed as the eye sees them; zoom in for the cells, Under the lamp for the colours'):(zh?'设计 · 原图（灰度），刻录区外压暗；看刻出来的样子点“刻出来”':'Design · the picture itself (grey); outside the burnable ring dimmed. See the burned result under As burned');
+  note.textContent=lamp?(phase==='ready'?(editor?.poseNote?.()??(zh?'模型预测':'Model prediction')):phase==='error'?(zh?'预览未完成 · 再点“灯下”重试':'Preview failed · click Under the lamp to retry'):phase==='refining'?(zh?'低清预览 · 正在计算细采样…':'Quick preview · rendering fine samples…'):(zh?'正在计算灯下预览…':'Rendering under the lamp…')):S.view==='burn'?(zh?'刻出来 · 哪里刻哪种纹理，细格子按肉眼混合；放大看刻录格子，真实颜色看“灯下”':'As burned · which texture goes where, fine cells mixed as the eye sees them; zoom in for the cells, Under the lamp for the colours'):(zh?'设计 · 原图（灰度），刻录区外压暗；看刻出来的样子点“刻出来”':'Design · the picture itself (grey); outside the burnable ring dimmed. See the burned result under As burned');
   note.setAttribute('aria-busy',String(lamp&&!['ready','error'].includes(phase)));
 }
 function build() {

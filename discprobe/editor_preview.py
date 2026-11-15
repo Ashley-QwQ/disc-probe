@@ -31,6 +31,11 @@ def pose_options(pose=None):
     if type(rotation) not in (int,float) or not math.isfinite(rotation):
         raise ValueError('rotation must be finite')
     result['rotate']=float(rotation)%360
+    # the practice discs' fitted scale of the along-track factor (design/pose-swatches.json); 1 = the plain model
+    scale=pose.get('delta_scale',1.)
+    if type(scale) not in (int,float) or not .5<=scale<=1.5:
+        raise ValueError('delta_scale must be between 0.5 and 1.5')
+    result['delta_scale']=float(scale)
     return result
 
 
@@ -88,7 +93,7 @@ class Renderer:
         with _RENDER_LOCK:
             if key not in self.palettes:
                 palette=json.loads((Path(__file__).parent/'web/home/design/swatches.json').read_text(encoding='utf8'))
-                colours=simulate_a3.swatches(list(palette['swatches'].values()),pose['camera'],pose['flash'])
+                colours=simulate_a3.swatches(list(palette['swatches'].values()),pose['camera'],pose['flash'],delta_scale=pose['delta_scale'])
                 self.palettes[key]=dict(pose=pose,colours=colours,model='discprobe.simulate_a3 (A3 v3)',sample_mm=[40,0],
                                        burn=simulate_a3.burn_colours(list(palette['swatches'].values())))
                 if len(self.palettes)>8:self.palettes.popitem(last=False)
