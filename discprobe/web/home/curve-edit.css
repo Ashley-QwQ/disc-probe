@@ -1,17 +1,31 @@
-.curve-edit-body { padding-block: 16px; }
-.curve-edit svg { display: block; width: 100%; height: auto; overflow: visible; }
-.curve-edit svg text { fill: var(--ink-2); font: 14px var(--mono); }
+.curve-edit-body { padding-block: 16px; min-width: 0; }
+.curve-edit svg { display: block; width: 100%; height: auto; }
+.curve-edit svg text { fill: var(--ink-2); font: 14px var(--font); font-variant-numeric: tabular-nums; }
+.curve-edit svg .curve-axis-title { font-size: 13px; }
 .curve-axis { fill: none; stroke: var(--rule-strong); }
+.curve-zero { fill: none; stroke: var(--rule); stroke-width: 1; }
 .curve-auto, .curve-candidate { fill: none; stroke: var(--ink); stroke-width: 2; }
-.curve-candidate { stroke: var(--ink-2); stroke-dasharray: 7 4; }
-.curve-edit .curve-legend { color: var(--ink-2); }
-.curve-controls { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.curve-controls th, .curve-controls td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--rule); }
-.curve-controls input { box-sizing: border-box; width: 100%; min-height: 44px; padding: 8px; border: 1px solid var(--rule-strong); border-radius: 4px; background: var(--paper); color: var(--ink); font: 16px var(--mono); caret-color: var(--ink); }
+.curve-candidate { stroke: var(--copper); stroke-width: 3; stroke-dasharray: 7 5; }
+.curve-controls { width: auto; max-width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.curve-controls th, .curve-controls td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--rule); }
+.curve-controls td:first-child { border-left: 1px solid var(--rule); }
+.curve-controls tr[data-modified="true"] td:first-child { border-left-color: var(--copper); }
+.curve-controls input { box-sizing: border-box; width: 7em; min-height: 44px; padding: 8px; text-align: right; border: 1px solid var(--rule-strong); border-radius: 4px; background: var(--paper); color: var(--ink); font: inherit; font-variant-numeric: tabular-nums; caret-color: var(--ink); }
+.curve-unit { margin-left: 6px; color: var(--ink-2); }
 .curve-controls input:focus-visible, .curve-edit button:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }
 .curve-edit button:disabled { opacity: .5; cursor: default; }
 .curve-edit button:active:not(:disabled) { background: var(--paper-2); }
-.curve-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 16px; }
+.curve-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; margin-block: 16px; }
+.curve-actions button { box-shadow: none; }
+.curve-edit .curve-primary { background: var(--ink); color: var(--paper); font-weight: 600; }
+.curve-edit .curve-primary:hover:enabled, .curve-edit .curve-primary:active:enabled { background: var(--ink-2); }
+.curve-save { display: grid; justify-items: start; gap: 6px; }
+.curve-save-help { color: var(--ink-2); font-size: .875rem; }
 .curve-status { overflow-wrap: anywhere; }
 .curve-status[data-passed="true"] { color: var(--good); }
+.curve-status[data-failed="true"] { color: var(--warn); }
 .curve-edit pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 14px var(--mono); }
+@media (max-width: 480px) {
+  .curve-edit svg text { font-size: 20px; }
+  .curve-edit svg .curve-axis-title, .curve-edit svg .curve-legend text { font-size: 18px; }
+}
