@@ -78,7 +78,10 @@ def known(material):
 
 
 def render(design, size=800, *, materials, camera=CAMERA, flash=FLASH, rotate=0, fine=True, annulus_mm=None,
-           paper=False, edge_mm=EDGE_MM):
+           paper=False, edge_mm=EDGE_MM, delta_scale=1.):
+    """delta_scale multiplies the along-track factor the textures are read at (not the grooves' rainbow or the glare):
+    the practice discs' fitted scale (about .93 with the pose numbers of the 3126 px focal length) makes the
+    prediction match what those discs showed."""
     if size < 200 or size > 4096:
         raise ValueError("size must be between 200 and 4096 pixels")
     if design.dtype != np.uint8 or not materials or int(design.max()) >= len(materials):
@@ -111,7 +114,7 @@ def render(design, size=800, *, materials, camera=CAMERA, flash=FLASH, rotate=0,
     # shares over each output pixel's square (what the eye or a phone pixel mixes), read at its fine samples
     for slot, share in coverage(design, size, dx, dy):
         m = materials[slot]
-        tex += share[..., None] * material_xyz(m, d_t)
+        tex += share[..., None] * material_xyz(m, d_t * delta_scale)
         attenuation += share * (1. if canonical(m["spec"]) == "A5" else OTHER_DARK)
     tex *= (irr * TEX_GAIN / ref)[..., None]
     blank = np.zeros(r.shape, bool) if annulus_mm is None else (r < annulus_mm[0]) | (r >= annulus_mm[1])
@@ -144,9 +147,8 @@ def render(design, size=800, *, materials, camera=CAMERA, flash=FLASH, rotate=0,
     return Image.fromarray(np.uint8(np.clip(np.rint(enc * 255), 0, 255)))
 
 
-def swatches(materials, camera=CAMERA, flash=FLASH, at=(40., 0.)):
-    """Display colour of each material on its own at one point of the disc (default r = 40 mm), with the mirror
-    and the exposure of a render of that pose: what the lamp view shows for a patch of it there."""
+def _patch_light(materials, camera, flash, at, delta_scale):
+    """Each material's own light (XYZ) at one point, relative to the brightest of A5 and B9 at their best angle."""
     t = tables()
     cam, fl = np.asarray(camera, float), np.asarray(flash, float)
     x, y = np.array([[at[0]]]), np.array([[at[1]]])
@@ -157,10 +159,23 @@ def swatches(materials, camera=CAMERA, flash=FLASH, at=(40., 0.)):
     ldist = np.sqrt((fl[0] - x) ** 2 + (fl[1] - y) ** 2 + fl[2] ** 2)
     irr = (np.linalg.norm(fl) / ldist) ** 2
     ref = max(float(t["xyz"][t["specs"][s]][:, 1].max()) for s in ("A5", "B9"))
+    return [material_xyz(mat, d_t * delta_scale)[0, 0] * irr[0, 0] * TEX_GAIN / ref for mat in materials]
+
+
+def swatch_signal(materials, camera=CAMERA, flash=FLASH, at=(40., 0.), delta_scale=1.):
+    """How bright each material's own light is at that point (Y, relative to a bright texture at its best angle).
+    Below VEIL it is fainter than the room seen in the mirror, so the patch shows the mirror, not a colour."""
+    return {mat["id"]: float(xyz[1]) for mat, xyz in zip(materials, _patch_light(materials, camera, flash, at, delta_scale))}
+
+
+def swatches(materials, camera=CAMERA, flash=FLASH, at=(40., 0.), delta_scale=1.):
+    """Display colour of each material on its own at one point of the disc (default r = 40 mm), with the mirror
+    and the exposure of a render of that pose: what the lamp view shows for a patch of it there. delta_scale as
+    render()."""
+    t = tables()
     m = t["m"]
     linear = {}
-    for mat in materials:
-        tex = material_xyz(mat, d_t)[0, 0] * irr[0, 0] * TEX_GAIN / ref
+    for mat, tex in zip(materials, _patch_light(materials, camera, flash, at, delta_scale)):
         rgb = np.clip(tex @ m.T, 0, None)
         rgb = rgb.mean() + (1 - DESATURATE) * (rgb - rgb.mean())
         att = 1. if canonical(mat["spec"]) == "A5" else OTHER_DARK

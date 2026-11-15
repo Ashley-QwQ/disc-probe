@@ -1,6 +1,7 @@
 import * as O from './editor-ops.mjs';
 import {colourWord} from './editor-materials.mjs';
 import {tone as toneOf} from './tone.mjs';
+import {rigSteps,rigWords,rigLabel} from './editor-rig.mjs';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const paths={
   move:'<path d="M5 3l13 8-6 1-3 6z"/>',rectangle:'<rect x="4" y="5" width="16" height="14" rx="1" stroke-dasharray="3 2"/>',
@@ -66,10 +67,24 @@ export const controls={
     const finish=ok=>{if(done)return;done=true;if(ok&&input.value.trim()!==m.name)this.mutate(()=>{m.name=input.value.trim()||m.name;});else this.left();};input.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')finish(true);if(e.key==='Escape')finish(false);};input.onblur=()=>finish(true);
   },
   listKey(e){if(e.target.closest('input'))return;const row=e.target.closest('[data-mask-id]');if(row){if(e.key==='Enter'){e.preventDefault();e.stopPropagation();this.maskClick(e);}if(e.key==='F2'){e.preventDefault();e.stopPropagation();this.maskRename(e);}if(e.key==='Delete'){e.preventDefault();e.stopPropagation();row.querySelector('button').click();}return;}this.layerKey(e);},
-  right(){const w=this.h.dom(),t=this.t;if(!w)return;this.init();const s=this.s,scroll=w.right.querySelector('.ed-material-scroll')?.scrollTop??0;
-    w.right.innerHTML=`<section class="ed-materials"><div class="ed-material-scroll">${this.toneSection()}<h3>${t.materials}</h3><p class="ed-model-note">${t.model}</p><label>${t.target}<select data-ed="target"><option value="layer" ${this.options.target==='layer'?'selected':''}>${t.layer}</option><option value="mask" ${this.options.target==='mask'?'selected':''}>${t.mask}</option></select></label><input data-ed-search type="search" aria-label="${this.h.lang()==='zh'?'查找材质':'Find a material'}" placeholder="${this.h.lang()==='zh'?'查找材质':'Find a material'}" value="${esc(this.search??'')}"><div class="ed-swatches" role="group" aria-label="${t.materials}"></div><details class="ed-dark"><summary>${this.h.lang()==='zh'?'此视角下不显色':'Dark at this pose'} <span></span></summary><div class="ed-dark-swatches ed-swatches"></div></details><output class="ed-colour-name" aria-live="polite"></output><details class="ed-material-detail"><summary>${t.details}</summary><p class="note"></p></details><label>${t.pattern}<select data-ed="fillKind">${['material','pattern','effect'].map(k=>`<option value="${k}" ${this.options.fillKind===k?'selected':''}>${t[k]}</option>`).join('')}</select></label><div class="ed-pattern-options" ${this.options.fillKind==='pattern'?'':'hidden'}><select data-ed="pattern" aria-label="${t.pattern}">${['diamond','dots','stripes'].map(k=>`<option value="${k}" ${this.options.pattern===k?'selected':''}>${t[k]}</option>`).join('')}</select><select data-ed="coordinates" aria-label="${t.pattern}">${['cartesian','polar'].map(k=>`<option value="${k}" ${this.options.coordinates===k?'selected':''}>${t[k]}</option>`).join('')}</select><div class="ed-values">${this.n('pitch_mm',t.pitch,.001,50,.1)}${this.n('size_mm',t.size,.001,25,.1)}${this.n('angle_deg',t.angle,-360,360)}</div></div><div class="ed-effect-options" ${this.options.fillKind==='effect'?'':'hidden'}><select data-ed="effect" aria-label="${t.effect}">${['flow','ox','merge','sync'].map(k=>`<option value="${k}" ${this.options.effect===k?'selected':''}>${t[k]}</option>`).join('')}</select><div class="ed-values">${this.n('y1',t.y1,0,150)}${this.n('y2',t.y2,0,150)}</div></div></div><footer class="ed-fill-footer"><button class="sbtn ed-apply" data-ed-action="fill" ${s.activeMask||s.selected?'':'disabled'}>${t.fill}</button></footer></section>`;
-    this.swatches();w.right.querySelector('.ed-material-scroll').scrollTop=scroll;
-    if(!w.right.dataset.edBound){w.right.dataset.edBound='yes';w.right.addEventListener('click',e=>this.click(e));w.right.addEventListener('input',e=>this.input(e));w.right.addEventListener('change',e=>{if(e.target.tagName==='SELECT')this.input(e);});}
+  right(){const w=this.h.dom();if(!w)return;this.init();this.rigSync?.();const scroll=w.right.querySelector('.ed-material-scroll')?.scrollTop??0;
+    w.right.innerHTML=this.materialsHTML();
+    if(this.rigOpen?.())this.swatches();w.right.querySelector('.ed-material-scroll').scrollTop=scroll;
+    if(!w.right.dataset.edBound){w.right.dataset.edBound='yes';w.right.addEventListener('click',e=>this.click(e));w.right.addEventListener('input',e=>this.input(e));w.right.addEventListener('change',e=>{if(e.target.tagName==='SELECT'||e.target.matches('[data-ed-rig-mm]'))this.input(e);});}
+  },
+  // The right column: the picture's tone, then colour. Colour starts with the phone and the height (editor-rig.mjs);
+  // until both are chosen there are no swatches and nothing to fill with (walk W3).
+  materialsHTML(){const s=this.s,t=this.t,lang=this.h.lang(),w=rigWords(lang),open=!!this.rigOpen?.(),zh=lang==='zh';
+    let colour=rigSteps(this.rig?.()??{},this.rigData,lang,{ex:this.rigExample?.(),state:this.rigState??'ready',error:this.rigError});
+    if(open)colour+=`<div class="ed-rig-colours"><p class="ed-model-note">${esc(w.pose(rigLabel(this.rig(),this.rigData,lang)))}</p><p class="note quiet">${esc(w.model)}</p>`+
+      `<input data-ed-search type="search" aria-label="${zh?'查找颜色':'Find a colour'}" placeholder="${zh?'查找颜色，如“红”':'Find a colour, e.g. red'}" value="${esc(this.search??'')}">`+
+      `<div class="ed-swatches ed-shown" role="group" aria-label="${w.title}"></div><p class="note quiet ed-hidden-note"></p>`+
+      `<details class="ed-all"><summary>${w.all} <span></span></summary><div class="ed-all-swatches ed-swatches"></div></details>`+
+      `<output class="ed-colour-name" aria-live="polite"></output><details class="ed-material-detail"><summary>${t.details}</summary><p class="note"></p></details>`+
+      `<label>${t.target}<select data-ed="target"><option value="layer" ${this.options.target==='layer'?'selected':''}>${t.layer}</option><option value="mask" ${this.options.target==='mask'?'selected':''}>${t.mask}</option></select></label>`+
+      `<label>${t.pattern}<select data-ed="fillKind">${['material','pattern','effect'].map(k=>`<option value="${k}" ${this.options.fillKind===k?'selected':''}>${t[k]}</option>`).join('')}</select></label><div class="ed-pattern-options" ${this.options.fillKind==='pattern'?'':'hidden'}><select data-ed="pattern" aria-label="${t.pattern}">${['diamond','dots','stripes'].map(k=>`<option value="${k}" ${this.options.pattern===k?'selected':''}>${t[k]}</option>`).join('')}</select><select data-ed="coordinates" aria-label="${t.pattern}">${['cartesian','polar'].map(k=>`<option value="${k}" ${this.options.coordinates===k?'selected':''}>${t[k]}</option>`).join('')}</select><div class="ed-values">${this.n('pitch_mm',t.pitch,.001,50,.1)}${this.n('size_mm',t.size,.001,25,.1)}${this.n('angle_deg',t.angle,-360,360)}</div></div><div class="ed-effect-options" ${this.options.fillKind==='effect'?'':'hidden'}><select data-ed="effect" aria-label="${t.effect}">${['flow','ox','merge','sync'].map(k=>`<option value="${k}" ${this.options.effect===k?'selected':''}>${t[k]}</option>`).join('')}</select><div class="ed-values">${this.n('y1',t.y1,0,150)}${this.n('y2',t.y2,0,150)}</div></div></div>`;
+    const canFill=open&&(s.activeMask||s.selected);
+    return `<section class="ed-materials"><div class="ed-material-scroll">${this.toneSection()}<section class="ed-rig" aria-label="${w.title}">${colour}</section></div><footer class="ed-fill-footer"><button class="sbtn ed-apply" data-ed-action="fill" ${canFill?'':'disabled'} ${open?'':`title="${w.locked}"`}>${open?t.fill:w.locked}</button></footer></section>`;
   },
   // The selected picture's tone and dither (tone.mjs): what its greys become on the burn grid.
   pictureLayer(){const l=this.s.layers.find(l=>l.id===this.s.selected);return l&&l.kind==='image'&&l.px&&!l.shape?l:null;},
@@ -82,13 +97,16 @@ export const controls={
     this.h.checkpoint(`tone-${k}-${l.id}`);l.tone={...toneOf(l.tone),[k]:value};
     const o=el.nextElementSibling;if(o?.tagName==='OUTPUT')o.textContent=value;
     this.invalidate();this.h.changed();},
-  light(m){return this.poseLights?.[m.id]??this.palette?.display_colours?.[m.id]??{rgb:[105,105,105],hue:0,dark:true};
+  light(m){return this.rigLights?.()?.[m.id]??this.poseLights?.[m.id]??this.palette?.display_colours?.[m.id]??{rgb:[105,105,105],hue:0,dark:true};
   },
-  swatches(){const w=this.h.dom();if(!w?.right.querySelector('.ed-swatches'))return;
-    const list=(this.palette?.swatches??this.s.materials??[]).filter(m=>!this.search||(m.name+' '+m.spec+' '+colourWord(this.light(m),this.h.lang())).toLowerCase().includes(this.search.toLowerCase())).map(m=>({m,light:this.light(m)})).sort((a,b)=>a.light.hue-b.light.hue||a.m.id.localeCompare(b.m.id));
+  swatches(){const w=this.h.dom();if(!w?.right.querySelector('.ed-shown'))return;const zh=this.h.lang()==='zh',rw=rigWords(this.h.lang());
+    const all=(this.palette?.swatches??this.s.materials??[]).map(m=>({m,light:this.light(m)})).sort((a,b)=>a.light.dark-b.light.dark||a.light.hue-b.light.hue||a.m.id.localeCompare(b.m.id));
+    const list=all.filter(({m,light})=>!this.search||(m.name+' '+m.spec+' '+colourWord(light,this.h.lang())).toLowerCase().includes(this.search.toLowerCase()));
     const button=({m,light})=>`<button type="button" data-ed-material="${m.id}" aria-label="${colourWord(light,this.h.lang())}" title="${colourWord(light,this.h.lang())}" aria-pressed="${m.id===this.material}"><svg viewBox="0 0 64 48" aria-hidden="true"><path fill="rgb(${light.rgb})" d="M5 40 A38 38 0 0 1 59 40 L45 47 A19 19 0 0 0 19 47 Z"/><path d="M8 39 A34 34 0 0 1 56 39 M11 41 A30 30 0 0 1 53 41 M14 43 A26 26 0 0 1 50 43" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width=".65"/></svg></button>`;
-    w.right.querySelector('.ed-material-scroll > .ed-swatches').innerHTML=list.filter(v=>!v.light.dark).map(button).join('')||`<p class="note">${this.t.empty}</p>`;
-    w.right.querySelector('.ed-dark-swatches').innerHTML=list.filter(v=>v.light.dark).map(button).join('');w.right.querySelector('.ed-dark summary span').textContent=list.filter(v=>v.light.dark).length;
-    const m=(this.palette?.swatches??this.s.materials??[]).find(m=>m.id===this.material);if(m){w.right.querySelector('.ed-colour-name').textContent=colourWord(this.light(m),this.h.lang());w.right.querySelector('.ed-material-detail p').textContent=`${m.period_um??m.periods_um?.[0]} µm · ${m.spec} · ${m.risk??''}${m.period_conflict?' · period conflict':''}`;}
+    const shown=list.filter(v=>!v.light.dark),hidden=all.filter(v=>v.light.dark).length;
+    w.right.querySelector('.ed-shown').innerHTML=shown.map(button).join('')||`<p class="note">${all.some(v=>!v.light.dark)?this.t.empty:rw.none}</p>`;
+    w.right.querySelector('.ed-hidden-note').textContent=hidden?rw.hidden(hidden):'';
+    w.right.querySelector('.ed-all-swatches').innerHTML=list.map(button).join('');w.right.querySelector('.ed-all summary span').textContent=all.length;
+    const m=(this.palette?.swatches??this.s.materials??[]).find(m=>m.id===this.material);if(m){const light=this.light(m);w.right.querySelector('.ed-colour-name').textContent=colourWord(light,this.h.lang());w.right.querySelector('.ed-material-detail p').textContent=`${m.period_um??m.periods_um?.[0]} µm · ${m.spec} · ${m.risk??''}${m.period_conflict?' · period conflict':''}${light.dark?(zh?' · 这个机位下看不出颜色':' · no colour at this position'):''}`;}
   }
 };

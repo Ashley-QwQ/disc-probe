@@ -6,8 +6,13 @@ export function colourWord(light,lang='en'){
   const h=light.hue;return words[h<20||h>=340?0:h<45?1:h<75?2:h<165?3:h<200?4:h<265?5:6];
 }
 export function materialPose(scene,lookY){
-  const base=scene?.cam??[0,-70,330],cam=[base[0],Number.isFinite(lookY)?-lookY:base[1],base[2]],lamp=scene?.follows?[cam[0]-43.66,cam[1]-19.79,cam[2]]:scene?.lamp??[-43.66,-89.79,330];
-  return {camera:[cam[0],-cam[1],cam[2]],flash:[lamp[0],-lamp[1],lamp[2]]};
+  // follows: the flash rides on the phone; scene.flashOffset (x right, y toward 12 o'clock) is the chosen rig's
+  // phone (editor-rig.mjs), else the old default iPhone 17 Pro orientation
+  const base=scene?.cam??[0,-70,330],cam=[base[0],Number.isFinite(lookY)?-lookY:base[1],base[2]],off=scene?.flashOffset??[-43.66,19.79];
+  const lamp=scene?.follows?[cam[0]+off[0],cam[1]-off[1],cam[2]]:scene?.lamp??[-43.66,-89.79,330];
+  const pose={camera:[cam[0],-cam[1],cam[2]],flash:[lamp[0],-lamp[1],lamp[2]]};
+  if(Number.isFinite(scene?.deltaScale))pose.delta_scale=scene.deltaScale;
+  return pose;
 }
 export function identityRGB(material,x,y,dark=false){
   if(material.id==='background')return dark?[58,64,62]:[218,214,205];

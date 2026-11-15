@@ -3,6 +3,7 @@ import {controls,TOOL_KEYS} from './editor-controls.mjs';
 import {materialPose,identityRGB} from './editor-materials.mjs';
 import {LampPreview} from './editor-lamp.mjs';
 import {ExactView} from './exact-view.mjs';
+import {decodeSet,setKey,rigReady,rigScene,rigLabel,rigWords,needsCustom,customMM,example} from './editor-rig.mjs';
 
 const WORDS={
   zh:{selection:'选区',rectangle:'矩形选区',lasso:'套索',ring:'圆环',sector:'扇形',colour:'按颜色',shape:'简单形状',rectangleShape:'矩形',ellipse:'椭圆',polygon:'多边形',line:'直线',pen:'手绘',materials:'材质',model:'仅预览实验：颜色是模型预测，没有照片验证。刻录默认按黑白刻，上了颜色、彩色图案和特效的地方刻成深色。',target:'填充对象',layer:'当前图层',mask:'当前选区',material:'单材质',pattern:'图案填充',effect:'特效',diamond:'菱格',dots:'点阵',stripes:'条纹',cartesian:'直角坐标',polar:'绕盘心',inner:'内半径',outer:'外半径',start:'起始角',end:'结束角',tolerance:'颜色容差',contiguous:'只选相连部分',apply:'建立选区',clear:'取消选区',name:'选区名称',saveMask:'保存命名选区',restore:'恢复选区',removeMask:'删除选区',hint:'Shift 加 · Alt 减 · Shift+Alt 交',snap:'吸附盘心和半径尺',rename:'重命名图层',up:'上移图层',down:'下移图层',remove:'删除图层',pitch:'间距 mm',size:'线宽 / 点径 mm',angle:'旋转 °',fill:'应用填充',flow:'流光',ox:'O/X 切换',merge:'两点合成环',sync:'整片同时亮',y1:'手机起点 mm',y2:'手机终点 mm',history:'选区和填充均可撤销',none:'先选图层或建立选区',swatch:'筛选材质：周期或纹理',details:'材质详情',empty:'没有匹配的材质',draw:'拖动绘制，多边形松手闭合。画布上用方向键移动、空格起笔、Enter 完成。',operation:'选区运算',replace:'替换',add:'相加',subtract:'相减',intersect:'相交',radiusNote:'选区蒙版 0.2 mm；刻录格子 20 / 10 / 5 µm。',gesture:'拖动选取；也可填写数值',choose:'选区记录',layerName:'图层名称',opacity:'不透明度',busy:'正在合成…',toneH:'影调',dither:'抖动方式',modes:{'floyd-steinberg':'误差扩散','blue-noise':'蓝噪声',ordered:'有序',clustered:'网点',threshold:'不抖动'},strength:'抖动强度',brightness:'亮度',contrast:'对比度',highlights:'高光',shadows:'阴影',toneReset:'恢复默认',toneNote:um=>`灰度在 ${um} µm 刻录格子上抖动成深浅两种纹理。放大到 100% 以上，画布上就是刻进去的那些格子。`},
@@ -12,7 +13,27 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 export class Editor {
   constructor(host){this.h=host;this.palette=null;this.tool='move';this.options={inner:30,outer:46,start:15,end:120,tolerance:18,contiguous:true,operation:'replace',snap:true,fillKind:'material',pattern:'diamond',coordinates:'cartesian',pitch_mm:5,size_mm:.75,angle_deg:0,effect:'flow',y1:55,y2:100,target:'layer'};this.revision=0;
     fetch(new URL('./swatches.json',import.meta.url)).then(r=>r.json()).then(p=>{p.swatches=Object.entries(p.swatches).map(([name,m])=>({...m,name:name.split(' ')[0],rgb:m.srgb,period_um:m.periods_um[0]}));this.palette=p;this.lightCache=new Map();this.init();this.panels();this.invalidate();this.h.draw();}).catch(e=>this.h.error(String(e)));
+    this.rigState='loading';this.rigData=null;this.rigSets={};
+    fetch(new URL('./pose-swatches.json',import.meta.url)).then(r=>{if(!r.ok)throw Error(r.status);return r.json();}).then(d=>{this.rigData=d;this.rigState='ready';this.addSets(d);this.rigSync();this.panels();})
+      .catch(e=>{this.rigState='error';this.rigError=String(e.message??e);this.panels();});
   }
+  // Pose first, colour second (editor-rig.mjs): the chosen phone and height, kept in the work's scene.
+  rig(){return this.s?.scene?.rig??{};}
+  addSets(d){for(const [k,v] of Object.entries(d.sets))this.rigSets[k]=v;this.rigDecoded=null;}
+  loadCustom(){if(this.customLoad)return;this.customLoad=fetch(new URL('./'+this.rigData.custom.file,import.meta.url)).then(r=>{if(!r.ok)throw Error(r.status);return r.json();})
+    .then(d=>{this.addSets(d);this.rigSync();this.panels();this.h.draw();}).catch(e=>{this.customLoad=null;this.rigState='error';this.rigError=String(e.message??e);this.panels();});}
+  // the chosen set, once the pose is complete and its file is here
+  rigSet(){const k=setKey(this.rig(),this.rigData);return k?this.rigSets[k]??null:null;}
+  rigOpen(){return !!this.rigSet();}
+  rigLights(){const k=setKey(this.rig(),this.rigData);if(!k||!this.rigSets[k])return null;if(this.rigDecoded?.key!==k)this.rigDecoded={key:k,lights:decodeSet(this.rigData.order,this.rigSets[k])};return this.rigDecoded.lights;}
+  // the scene follows the rig: the lamp view and the swatches then speak of the same pose
+  rigSync(){const s=this.s,rig=this.rig();if(!s?.scene||!this.rigData)return;if(needsCustom(rig)&&customMM(rig.flash_mm,this.rigData)!=null&&!this.rigSet())this.loadCustom();
+    const set=this.rigSet();if(!set)return;const next=rigScene(s.scene,rig,this.rigData,set);
+    if(JSON.stringify(next)!==JSON.stringify(s.scene)){s.scene=next;s.lookY=set.camera[1];}}
+  setRig(patch){const s=this.s;if(!s)return;this.h.checkpoint();s.scene={...(s.scene??{}),rig:{...this.rig(),...patch}};this.rigSync();this.invalidate();this.h.changed();this.right();this.h.status?.();this.h.draw();}
+  rigExample(){if(!this.rigData)return null;if(this.rigExampleCache===undefined){const sets={};for(const k of ['iphone17pro@21','iphone17pro@40'])if(this.rigSets[k])sets[k]=decodeSet(this.rigData.order,this.rigSets[k]);this.rigExampleCache=example(this.rigData,sets);}return this.rigExampleCache;}
+  // the lamp view's note
+  poseNote(){const w=rigWords(this.h.lang());return this.rigOpen()?w.lampNote(rigLabel(this.rig(),this.rigData,this.h.lang())):w.lampNone;}
   get s(){return this.h.state();} get t(){return WORDS[this.h.lang()]??WORDS.zh;}
   init(){const s=this.s;if(!s)return;s.maskGrid??=O.grid();s.selections??=[];s.assignments??=[];
     if(!s.materials&&this.palette)s.materials=[{id:'background',spec:'B9',rgb:[205,200,190]},...this.palette.swatches];
@@ -30,15 +51,17 @@ export class Editor {
     if(el.matches('[data-tone]')){this.toneInput(el);return;}
     if(el.matches('[data-ed-shape]')){this.options.shape=el.value;this.h.tool(el.value);return;}
     if(el.matches('[data-ed-search]')){this.search=el.value;this.swatches();return;}
+    if(el.matches('[data-ed-rig-mm]')){if(e.type==='change')this.setRig({flash_mm:el.value===''?null:+el.value});return;}
     if(el.matches('[data-ed-name]')){this.maskName=el.value;return;}
     if(el.matches('[data-ed-layer-name]')){const l=this.s.layers.find(l=>l.id===this.s.selected);if(l&&!l.locked)this.mutate(()=>{l.name=el.value.trim()||l.name;this.h.rebuild();});return;}
     if(!el.dataset.ed)return;
     this.options[el.dataset.ed]=el.type==='checkbox'?el.checked:el.type==='number'?+el.value:el.value;
     if(['fillKind','target'].includes(el.dataset.ed))this.right();
   }
-  click(e){const b=e.target.closest('[data-ed-tool],[data-ed-action],[data-ed-material]');if(!b)return;e.preventDefault();e.stopPropagation();
+  click(e){const b=e.target.closest('[data-ed-tool],[data-ed-action],[data-ed-material],[data-ed-rig]');if(!b)return;e.preventDefault();e.stopPropagation();
     if(b.dataset.edTool){this.tool=b.dataset.edTool;this.h.tool(this.tool);this.left();this.h.dom().canvas.focus();return;}
     if(b.dataset.edMaterial){this.material=b.dataset.edMaterial;this.swatches();return;}
+    if(b.dataset.edRig){if(b.disabled)return;const v=b.dataset.value;this.setRig(b.dataset.edRig==='phone'?{phone:v}:{height:v});return;}
     const a=b.dataset.edAction,l=this.s.layers.find(l=>l.id===this.s.selected);
     if(a==='fill')return this.fill();
     if(a==='tone-reset'){const l=this.pictureLayer();if(l&&!l.locked)this.mutate(()=>{l.tone=undefined;});return;}
@@ -56,7 +79,7 @@ export class Editor {
     if(e.altKey&&['ArrowUp','ArrowDown'].includes(e.key)&&!l.locked){e.preventDefault();e.stopPropagation();this.s.selected=l.id;const action=e.key==='ArrowUp'?'up':'down';this.click({target:{closest:()=>({dataset:{edAction:action}})},preventDefault(){},stopPropagation(){}});this.h.dom().left.querySelector(`[data-id="${l.id}"]`)?.focus();}
   }
   select(def,op='replace',rgba=null){this.init();this.selectionOptions(def);const mask=O.selection(def,this.s.maskGrid,rgba),prior=this.s.selections.find(s=>s.id===this.s.activeMask);this.mutate(()=>{const bits=O.booleanMask(prior?O.bytes(prior.bits):new Uint8Array(mask.length),mask,op),id=crypto.randomUUID();this.s.selections.push({id,name:this.maskName?.trim()||this.t[def.tool],bits:O.base64(bits),named:false,definition:def});this.s.activeMask=id;this.options.target='mask';});}
-  fill(){this.init();const o=this.options,target=o.target==='mask'&&this.s.activeMask?{selection:this.s.activeMask}:{layer:this.s.selected},l=this.s.layers.find(l=>l.id===target.layer);if(!target.selection&&(!l||l.locked)){this.h.error(this.t.none);return;}
+  fill(){this.init();if(!this.rigOpen()){this.h.error(rigWords(this.h.lang()).locked);return;}const o=this.options,target=o.target==='mask'&&this.s.activeMask?{selection:this.s.activeMask}:{layer:this.s.selected},l=this.s.layers.find(l=>l.id===target.layer);if(!target.selection&&(!l||l.locked)){this.h.error(this.t.none);return;}
     if(!this.s.materials.some(m=>m.id===this.material)){const m=this.palette?.swatches.find(m=>m.id===this.material);if(!m||this.s.materials.length>=256){this.h.error('Material slot limit: 256');return;}this.s.materials.push(m);}
     const a={id:crypto.randomUUID(),...target};
     if(o.fillKind==='pattern'){if(!(o.size_mm>0&&o.size_mm<=o.pitch_mm/2)){this.h.error('0 < size ≤ pitch / 2');return;}a.pattern={version:1,pattern:o.pattern,coordinates:o.coordinates,pitch_mm:o.pitch_mm,size_mm:o.size_mm,angle_deg:o.angle_deg,origin_mm:[0,0],phase_mm:[0,0],reference_radius_mm:40,materials:[this.material,'background']};}

@@ -266,8 +266,30 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws .ed-swatches svg { width:100%;height:40px; }
 .ws .ed-swatches [aria-pressed=true] { border-color:var(--copper);background:var(--paper-2); }
 .ws .ed-swatches button:hover { border-color:var(--rule-strong); }
-.ws .ed-dark summary,.ws .ed-material-detail summary { color:var(--ink-2);font-size:13px;cursor:pointer; }
-.ws .ed-dark summary span { float:right;font-variant-numeric:tabular-nums; }
+.ws .ed-all summary,.ws .ed-material-detail summary,.ws .ed-rig-why summary { color:var(--ink-2);font-size:13px;cursor:pointer; }
+.ws .ed-all summary span { float:right;font-variant-numeric:tabular-nums; }
+.ws .ed-all[open] .ed-swatches { margin-top:6px; }
+/* colour: the phone and the height first (editor-rig.mjs) */
+.ws .ed-rig { display:grid;gap:10px; }
+.ws .ed-rig h3 { margin:0; }
+.ws .ed-rig h4 { margin:0;font-size:14px;font-weight:600;color:var(--ink); }
+.ws .ed-rig-figure { width:100%;height:auto;max-height:150px;font-size:12px; }
+.ws .ed-rig-figure text { fill:var(--ink-2); }
+.ws .ed-rig-why[open] { display:grid;gap:8px; }
+.ws .ed-rig-why[open] summary { margin-bottom:2px; }
+.ws .ed-rig-step { display:grid;gap:6px;padding-top:10px;border-top:1px solid var(--rule); }
+.ws .ed-rig-opt { display:grid;gap:2px;width:100%;padding:8px 10px;border:1px solid var(--rule-strong);border-radius:4px;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:border-color .15s var(--ease),background-color .15s var(--ease); }
+.ws .ed-rig-opt b { font-size:15px;font-weight:600; }
+.ws .ed-rig-opt span { font-size:13px;color:var(--ink-2); }
+.ws .ed-rig-opt:hover { border-color:var(--ink-3); }
+.ws .ed-rig-opt[aria-checked=true] { border-color:var(--copper);background:var(--paper-2); }
+.ws .ed-rig-heights { display:grid;grid-template-columns:repeat(5,minmax(0,1fr)); }
+.ws .ed-rig-heights button { padding:0 4px;font-size:14px;font-variant-numeric:tabular-nums; }
+.ws .ed-rig-heights button:not(:disabled):not([aria-pressed=true]):hover { color:var(--ink);background:var(--paper-2); }
+.ws .ed-rig-step .note { margin:0;font-size:13px;line-height:1.4; }
+.ws .ed-rig-bad { color:var(--warn); }
+.ws .ed-rig-colours { display:grid;gap:10px;padding-top:10px;border-top:1px solid var(--rule); }
+.ws .ed-hidden-note:empty { display:none; }
 .ws .ed-colour-name { font-size:16px;color:var(--ink);min-height:22px; }
 .ws .ed-material-detail p { overflow-wrap:anywhere;font-size:13px; }
 .ws .ed-fill-footer { flex:none;padding-top:12px;margin-top:12px;border-top:1px solid var(--rule);background:var(--paper); }
