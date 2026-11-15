@@ -767,7 +767,7 @@ export function prepare(homeApi) {
   })();
   return ready;
 }
-export async function start(homeApi, { from = null, file = null } = {}) {
+export async function start(homeApi, { from = null, file = null, resume = null } = {}) {
   api = homeApi; $ = api.$;
   await Promise.race([prepare(homeApi), wait(600)]);     // pictures still loading after 0.6 s come in late
   if (!W) build();
@@ -782,6 +782,11 @@ export async function start(homeApi, { from = null, file = null } = {}) {
             detected: inDrive, seed: Math.floor(Math.random() * 1e6) };
   state.sub = !inDrive?.present && saved[0] === kind && SUBS[kind].some((s) => s.key === saved[1]) ? saved[1] : firstSub(kind, item);
   W.name.value = "";
+  if (resume) {
+    Object.assign(state, resume.state, {newItems: new Map(resume.newItems || []), file: resume.file || null});
+    W.name.value = resume.name || '';
+    W.batch.value = resume.batch || '';
+  }
   paintDial(); fillBatches(); words_();
   // the camera flies at the drive: the lobby pushes in with the drive coming to the middle of the window;
   // the top view fades in over it with its disc in the middle and close, then settles (the disc moving
@@ -797,7 +802,7 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   $("back").hidden = false; $("next").disabled = false;
   W.hidden = false;
   if (!push) { nextPending = false; $("next-text").textContent = T().next; }
-  readDrive();
+  if (!resume) readDrive();
   W.classList.remove("leaving", "filing");
   if (push) {
     const [tx, ty] = discPoint();
@@ -817,6 +822,12 @@ export async function start(homeApi, { from = null, file = null } = {}) {
   }
   setTimeout(() => W.name.focus({ preventScroll: true }), api.reduce ? 0 : 700);
 }
+export function navigationState() {
+  if (!state || !W) return null;
+  const {newItems, file, ...fields} = state;
+  return {state: fields, newItems: [...newItems], name: W.name.value, batch: W.batch.value, file};
+}
+export function suspendNavigation() { if (W) leave(); }
 // where the top view has the blank disc (newplan.json top.disc: centre 512, 720 of 2560 x 1440 since the drive was
 // turned round), the picture covering the window
 function discPoint() {

@@ -21,6 +21,15 @@ def diagnostics_active():
     return _structured.get()
 
 
+def error_reason(output):
+    """Keep the last diagnostic, ignoring traceback frames and generic exit summaries."""
+    import re
+    lines = [re.sub(r"\x1b\[[0-9;]*m", "", line).strip() for line in output.splitlines()]
+    lines = [line for line in lines if line and not re.fullmatch(r"(?:.*failed with )?exit code \d+", line)
+             and not line.startswith(('File "', 'Traceback (', '^'))]
+    return lines[-1] if lines else ""
+
+
 def response(lab=None, *, outputs=None, scores=None, errors=None):
     return dict(status="error" if errors else "ok", lab=str(Lab(lab).root) if lab else None,
                 outputs=outputs or {}, scores=scores or {}, errors=errors or [])
@@ -128,7 +137,9 @@ def invoke(a, *, echo=True):
         result["outputs"] = value if isinstance(value, dict) else dict(result=value) if value is not None else {}
         code = result["outputs"].get("exit_code", 0)
         if code:
-            result.update(status="error", errors=[dict(type="CommandError", message=f"exit code {code}")])
+            diagnostic = result["outputs"].get("diagnostic", "")
+            message = error_reason(diagnostic) or f"exit code {code}"
+            result.update(status="error", errors=[dict(type="CommandError", message=message)])
     except (Exception, SystemExit, KeyboardInterrupt) as exc:
         if isinstance(exc, SystemExit) and (exc.code is None or exc.code == 0):
             pass

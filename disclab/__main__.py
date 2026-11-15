@@ -92,7 +92,8 @@ def cmd_dp(a):
     if getattr(a, "json", False):
         sys.stderr.write(res.stdout + res.stderr)
     from .jsonout import artifacts
-    return dict(argv=rest, paths=artifacts(rest), exit_code=res.returncode)
+    return dict(argv=rest, paths=artifacts(rest), exit_code=res.returncode,
+                diagnostic=(res.stdout + res.stderr)[-8000:] if res.returncode else "")
 
 
 def cmd_env(a):

@@ -272,6 +272,57 @@ def test_progress_on_disc_probes_own_page_shows_in_the_lab(lab):
     assert flow.web_records(lab) == [] and flow.plan(lab)[0]["current"]
 
 
+def test_web_direct_final_burn_skips_check_branch(lab):
+    from disclab import flow
+    _web_lab(lab)
+    # The user's supported DP branch made a final without taking check-disc photos.
+    (lab.root / 'results/geo-X-1/photo.json').unlink()
+    with lab.locked_state() as state:
+        state['steps'].pop('photos')
+        state['burns'] = {d: b for d, b in state['burns'].items()
+                          if not Path(b['sessions'][0]['iso']).name.startswith('check')}
+    rows = {s['key']: s for s in flow.plan(lab)}
+    assert all(rows[k].get('skip') for k in ('checkdisc', 'check_burn', 'photos', 'photo'))
+    assert rows['final']['done'] and rows['final_burn']['done'] and rows['score']['current']
+    assert '未知' in rows['photo']['skip']['zh']
+
+
+def test_skip_check_requires_geometry_and_expires_after_new_geometry(lab):
+    from disclab import flow
+    envelope(cli('step', 'skip-check', '--json', '--lab', lab.root), 'error')
+    _web_lab(lab)
+    value = envelope(cli('step', 'skip-check', '--json', '--lab', lab.root))
+    assert value['outputs']['step'] == 'skip_check' and flow.skips_check(lab)
+    # New measurement invalidates the decision for the old geometry.
+    with lab.locked_state() as state:
+        state['steps']['flow'].append(dict(key='geo', status='ok', paths=['new-geo'], t=time.time()+10))
+    assert not flow.skips_check(lab)
+
+
+def test_direct_final_branch_runs_without_photo_correction(lab):
+    envelope(cli('swap', '--json', '--lab', lab.root))
+    for key in ('blank', 'measure_image', 'measure_burn', 'timing', 'geo', 'picture', 'skip-check', 'final'):
+        envelope(cli('step', key, '--quick', '--json', '--lab', lab.root))
+    sidecar = lab.read(lab.root / 'iso/final.image.json')
+    assert not sidecar['photo_l']['written']
+    envelope(cli('swap', '--json', '--lab', lab.root))
+    envelope(cli('step', 'final_burn', '--json', '--lab', lab.root))
+    from disclab import flow
+    rows = {s['key']: s for s in flow.plan(lab)}
+    assert rows['final_burn']['done'] and rows['score']['current']
+    assert all(rows[k].get('skip') for k in ('checkdisc', 'check_burn', 'photos', 'photo'))
+
+
+def test_dp_error_preserves_subcommand_reason(lab, monkeypatch):
+    from disclab import __main__ as mainmod, jsonout
+    monkeypatch.setattr(mainmod.subprocess, 'run', lambda *a, **k: subprocess.CompletedProcess(a, 1, '',
+                        'Traceback (most recent call last):\nOSError: [Errno 28] No space left on device\n'))
+    value = jsonout.run(['dp', '--json', '--lab', lab.root, '--', 'checkdisc'])
+    assert value['status'] == 'error'
+    assert value['errors'][0]['message'] == 'OSError: [Errno 28] No space left on device'
+    assert value['outputs']['exit_code'] == 1
+
+
 def test_practice_banner_says_how(tmp_path):
     from disclab.practice import guide
     lab = Lab(tmp_path / "banner")
