@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import {coverPoint, topStart, pushLobby, pageFlight, LOBBY_PUSH, TOP_START} from '../discprobe/web/home/flight.mjs';
+globalThis.innerWidth = 1440; globalThis.innerHeight = 900;
+assert.equal(LOBBY_PUSH, 2.6); assert.equal(TOP_START, 1.5);
+const point = () => coverPoint([512, 632.59]);
+assert.deepEqual(point(), [240, 395.36875]);
+assert.equal(topStart(point), 'translate(480px, 54.63125000000002px) scale(1.5)');
+const calls = [], make = () => ({style: {}, animate(frames, options) {
+  const a = {finished: Promise.resolve(), cancel() {this.cancelled = true;}};
+  calls.push({frames, options, a}); return a;
+}});
+const art = make(), greet = make(), classes = new Set();
+const lobby = {classList: {add: n => classes.add(n), remove: n => classes.delete(n)}, querySelector: () => greet};
+globalThis.document = {getElementById: id => id === 'lobby' ? lobby : art};
+const from = {getBoundingClientRect: () => ({left: 100, top: 200, width: 80, height: 60})};
+const push = pushLobby(from);
+assert.equal(art.style.transformOrigin, '140px 230px');
+assert.deepEqual(calls[0].frames, [{transform: 'none'}, {transform: 'translate(580px, 220px) scale(2.6)'}]);
+assert.deepEqual(calls.map(c => c.options.duration), [560, 200]);
+const page = make(); pageFlight(page, point);
+assert.equal(page.style.transformOrigin, '240px 395.36875px');
+assert.equal(calls[2].frames[1].offset, .45); assert.equal(calls[2].options.duration, 760);
+pageFlight(page, point, true);
+assert.equal(calls[3].frames[1].offset, .55); assert.equal(calls[3].options.duration, 520);
+assert.equal(calls[3].options.easing, 'cubic-bezier(.5, 0, .9, .5)');
+push.done(); assert.equal(classes.has('leaving'), false); assert.equal(art.style.transformOrigin, '');
+assert.ok(calls[0].a.cancelled && calls[1].a.cancelled);
+console.log('shared flight timing, coordinates and cleanup passed');

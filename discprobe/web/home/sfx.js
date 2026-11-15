@@ -23,6 +23,8 @@ export function setSound(on) {
   dispatchEvent(new CustomEvent("dp-sound", { detail: on }));
 }
 const enabled = () => memory ?? soundOn();
+// for pages that make their own sounds (the news fax synthesises its tones): may a sound play now?
+export const allowed = () => used && enabled();
 
 function play(name) {
   if (!used || !enabled()) return;

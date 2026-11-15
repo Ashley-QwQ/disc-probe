@@ -1,0 +1,20 @@
+--- /d/disc-probe/art/desk/review-20261111/round5/render_round5.py	2026-11-11 20:21:27.294977200 -0500
++++ /d/fax-news-scratch/lobby/render_fax.py	2026-11-13 20:45:06.598864000 -0500
+@@ -629,7 +629,7 @@
+     prefs.get_devices()
+     for d in prefs.devices:
+         d.use = d.type == DEVICE
+-    cyc.device = "GPU"
++    cyc.device = "CPU" if DEVICE == "CPU" else "GPU"
+ except Exception as e:
+     print("[desk] GPU setup failed, using CPU:", e)
+     cyc.device = "CPU"
+@@ -940,7 +940,7 @@
+             set_shadow(ld, True)
+             lit = render_exr("%s_lit_%s" % (layer, v), SHADOW_SAMPLES, 1.5, channels=1)
+             if layer == 'base':
+-                set_visibility(objs, casters=[o for o in meshes if o.get('layer')=='fax' or o.name.startswith('rug_')])
++                set_visibility(objs, casters=[o for o in meshes if o.get('layer') in ('faxnews', 'filebox', 'parcel')])
+                 changed_lit = render_exr('%s_changed_casters_%s' % (layer,v), SHADOW_SAMPLES, 1.5, channels=1)
+             set_shadow(ld, False)
+             unlit = render_exr("%s_unlit_%s" % (layer, v), SHADOW_SAMPLES, 1.5, channels=1)
