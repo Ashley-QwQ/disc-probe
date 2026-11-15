@@ -1,6 +1,6 @@
 {
  "note": "Night palette 深青 B. Every dark picture below was re-rendered from its own script with the dark block remapped by tools/night_b_palette.py, then encoded like the committed file by tools/night_b_export.py. paper_check compares the same run's paper render with the committed paper picture (unchanged): it shows the job matches what made the original art. Paper pictures were not written.",
- "blender": "5.2.2 LTS, Cycles on CPU (the originals were made with the same version)",
+ "blender": "5.2.2 LTS, Cycles on CPU except the lobby lamp (G_lamp, OptiX on glassbox, like the original); the originals were made with the same version",
  "jobs": {
   "F_lobby_a": {
    "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
@@ -214,9 +214,19 @@
    "script": "art/desk/night-b/render_round5_nightb.py (gitignored art folder; the lobby script art/desk/render_desk.py with its dark block remapped by tools/night_b_palette.py)",
    "scene": "art/desk/room_lobby3_final.blend",
    "args": "--layers lamp,newplan --ss 4 --no-mist --force",
+   "used_for": "newplan only; its CPU lamp had speckles on the rod and was replaced by G_lamp",
    "blender": "5.2.2 LTS",
    "machine": "x79 (Linux, CPU, 16 threads)",
    "device": "CPU"
+  },
+  "G_lamp": {
+   "script": "art/desk/night-b/render_round5_nightb.py (gitignored art folder; the lobby script art/desk/render_desk.py with its dark block remapped by tools/night_b_palette.py)",
+   "scene": "art/desk/room_lobby3_final.blend",
+   "args": "--layers lamp --ss 4 --no-mist --force --device OPTIX (default)",
+   "note": "Exception to CPU-only, at the main session's direction: on CPU the lamp's colour pass leaves speckles on the rod; the committed lamp was an OptiX render on glassbox, and this run's paper picture is pixel-identical to it (art/desk/lobby3_final/desk_lamp_paper.png).",
+   "blender": "5.2.2 LTS",
+   "machine": "glassbox (Windows, RTX 2080 Ti 22 GB, OptiX)",
+   "device": "GPU (OptiX)"
   }
  },
  "pictures": {
@@ -646,9 +656,9 @@
    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
   },
   "discprobe/web/home/lobby/lamp_dark.webp": {
-   "job": "L_lobby3",
+   "job": "G_lamp",
    "encoding": "lossless",
-   "paper_check": "mean 6.42, alpha mean 0.00, px >8: 18.388%"
+   "paper_check": "mean 1.32, alpha mean 0.00, px >8: 2.831%"
   },
   "discprobe/web/home/lobby/newplan_dark.webp": {
    "job": "L_lobby3",

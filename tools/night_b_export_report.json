@@ -261,55 +261,55 @@
   "file": "lobby\\base_dark.webp",
   "encoding": "(92, 6)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 10.22, alpha mean 0.00, px >8: 98.283%"
+  "old_dark": "mean 0.47, alpha mean 0.00, px >8: 0.022%"
  },
  {
   "file": "lobby\\fax_dark.webp",
   "encoding": "lossless",
   "paper_check": "mean 0.91, alpha mean 0.00, px >8: 2.964%",
-  "old_dark": "mean 5.97, alpha mean 0.00, px >8: 29.269%"
+  "old_dark": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
  },
  {
   "file": "lobby\\faxnews_dark.webp",
   "encoding": "(92, 6)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 6.89, alpha mean 0.00, px >8: 60.811%"
+  "old_dark": "mean 1.38, alpha mean 0.00, px >8: 0.211%"
  },
  {
   "file": "lobby\\filebox_dark.webp",
   "encoding": "(92, 6)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 3.91, alpha mean 0.00, px >8: 29.506%"
+  "old_dark": "mean 0.79, alpha mean 0.00, px >8: 0.083%"
  },
  {
   "file": "lobby\\lamp_dark.webp",
   "encoding": "lossless",
-  "paper_check": "mean 6.42, alpha mean 0.00, px >8: 18.388%",
-  "old_dark": "mean 10.23, alpha mean 0.00, px >8: 42.372%"
+  "paper_check": "mean 1.32, alpha mean 0.00, px >8: 2.831%",
+  "old_dark": "mean 7.62, alpha mean 0.00, px >8: 16.043%"
  },
  {
   "file": "lobby\\newplan_dark.webp",
   "encoding": "lossless",
   "paper_check": "mean 1.22, alpha mean 0.00, px >8: 1.391%",
-  "old_dark": "mean 8.38, alpha mean 0.00, px >8: 94.829%"
+  "old_dark": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
  },
  {
   "file": "lobby\\parcel_dark.webp",
   "encoding": "(92, 6)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 1.39, alpha mean 0.00, px >8: 1.837%"
+  "old_dark": "mean 0.76, alpha mean 0.00, px >8: 0.341%"
  },
  {
   "file": "lobby\\screen_dark.webp",
   "encoding": "lossless",
   "paper_check": "mean 0.06, alpha mean 0.00, px >8: 0.194%",
-  "old_dark": "mean 6.27, alpha mean 0.00, px >8: 15.659%"
+  "old_dark": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
  },
  {
   "file": "lobby\\screen_on_dark.webp",
   "encoding": "lossless",
   "paper_check": "mean 0.06, alpha mean 0.00, px >8: 0.194%",
-  "old_dark": "mean 6.46, alpha mean 0.00, px >8: 67.667%"
+  "old_dark": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
  },
  {
   "file": "newplan\\envelope_back_dark.webp",
