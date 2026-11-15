@@ -108,6 +108,13 @@ class Layout:
                  for e in self.entries if not e.directory]
         occupied = [[0, self.metadata_end]] + [[f['start_lba'], f['end_lba_exclusive']]
                      for f in files if f['bytes']] + self.identity_spans
+        merged = []
+        for start,end in sorted(occupied):
+            if merged and start <= merged[-1][1]:
+                merged[-1][1] = max(merged[-1][1],end)
+            else:
+                merged.append([start,end])
+        occupied = merged
         return dict(version=1, layout_sha256=self.fingerprint(), media='dvd', filesystem='ISO 9660 + Joliet', files_at=self.files_at,
                     writable_sectors=self.writable_sectors, total_sectors=self.total_sectors,
                     files_margin=self.margin, margin_sectors=self.writable_sectors-self.total_sectors,

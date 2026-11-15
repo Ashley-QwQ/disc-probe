@@ -40,6 +40,7 @@ def folder(tmp_path):
 @pytest.mark.parametrize('where', ['inner','outer'])
 def test_filesystem_and_pattern_never_overlap(folder,tmp_path,where,monkeypatch):
     layout=F.plan(folder,where,4096,margin=0)
+    assert len(layout.as_dict()['occupied_lba'])==(1 if where=='inner' else 2)
     called=[]
     original=imagedisc._sector_q
     def guarded(*args,**kwargs):
