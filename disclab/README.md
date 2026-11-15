@@ -82,6 +82,8 @@ Check the blank disc (info) → make the measurement image (random) → burn the
 python -m disclab practice --media dvd-r --lab LAB-practice --port 8853
 ```
 
+A virtual burn takes about a second by default. Add `--burn-time real` to take the time the data needs at the speed chosen on the page (about 7 minutes for a full DVD-R at 8x; constant speed, no lead-in or closing), or a scale such as `--burn-time 0.1` for a tenth of that. The environment variable `DISCLAB_BURN_TIME` does the same.
+
 Opens disc-probe's own page with the virtual drive X:. Omit `--lab` for a new retained temporary folder; `--lab` may be new, empty, or an existing lab to carry on with. Output is UTF-8 throughout, so redirected logs keep their Chinese. Local-only by default; `--lan` enables the existing token-guarded LAN mode.
 
 The banner prints the commands with this lab's paths filled in:

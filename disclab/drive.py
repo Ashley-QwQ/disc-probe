@@ -28,6 +28,23 @@ FAMILY_PROFILE = {"dvd": 0x10, "cd": 0x08, "bd": 0x40}
 BLANK = 0
 
 
+ONE_X_KB_S = {"dvd": 1385, "cd": 176.4, "bd": 4495}       # 1x data rate in kB/s (the mode page uses the same table)
+
+
+def burn_seconds(sectors, speed_x, family, setting=None):
+    """How long a lab burn takes. DISCLAB_BURN_TIME: "quick" (default, about a second), "real" (the time the data
+    takes at the chosen speed, constant speed, no lead-in), or a number that scales the real time (0.1 = ten times
+    faster than real)."""
+    setting = (os.environ.get("DISCLAB_BURN_TIME", "quick") if setting is None else str(setting)).strip().lower()
+    if setting in ("", "quick"):
+        return 1.0
+    scale = 1.0 if setting == "real" else float(setting)
+    if not scale > 0:
+        raise ValueError("DISCLAB_BURN_TIME must be quick, real or a positive number")
+    real = sectors * 2048 / 1000 / (max(speed_x, 0.1) * ONE_X_KB_S.get(family, 1385))
+    return max(1.0, real * scale)
+
+
 class NoDisc(Exception):
     pass
 
@@ -456,12 +473,13 @@ class LabRecorder:
             sectors = int(sectors * behaviour["fraction"])
         rng = np.random.default_rng(int(time.time() * 1e6) % (2 ** 32))
         start = expect_start or 0
-        total = 20
-        for i in range(total):                                # a lab burn takes a few seconds, with progress
+        seconds = burn_seconds(sectors, float(speed), truth["family"])
+        total = max(20, int(seconds / 0.25))                  # progress about four times a second on a long burn
+        for i in range(total):
             if cancel.is_set():
                 raise OSError("disclab: burn cancelled")
             progress(stage="write", fraction=(i + 1) / total * (behaviour["fraction"] if interrupted else 1))
-            time.sleep(0.05)
+            time.sleep(seconds / total)
         progress(stage="speed", actual_speed_x=float(speed))
         mode = "dvd" if truth["family"] == "dvd" else "mode2form1"
         session = dict(iso=str(path), iso_size=size, iso_mtime=path.stat().st_mtime, start_lba=start, sectors=sectors,

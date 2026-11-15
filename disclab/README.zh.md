@@ -51,6 +51,8 @@ python -m disclab tui --lab LAB --quick --lang en
 python -m disclab practice --media dvd-r --lab LAB-practice --port 8853
 ```
 
+虚拟刻录默认约一秒完成。想按真实时间走，加 `--burn-time real`：按网页选的速度算数据写完要多久，8x 刻满一张 DVD-R 约 7 分钟（只按恒定速度算，不含引入区和封盘）。也可以给比例，例如 `--burn-time 0.1` 是真实时间的十分之一。也可以用环境变量 `DISCLAB_BURN_TIME` 设置。
+
 开的是 disc-probe 本体的网页，光驱是虚拟的 X:。省略 `--lab` 会自动建立并保留临时目录；`--lab` 可以是新的或空的文件夹，也可以是已有的实验盒（接着练）。输出统一用 UTF-8，重定向到文件时中文不再乱码。默认只监听本机，`--lan` 使用产品已有的带令牌局域网模式。
 
 启动横幅里的命令已经填好这个实验盒的路径：

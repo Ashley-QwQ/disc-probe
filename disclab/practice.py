@@ -1,6 +1,7 @@
 """Disposable virtual practice workspace and the existing web launcher."""
 from __future__ import annotations
 
+import os
 import tempfile
 
 from .lab import Lab
@@ -70,6 +71,10 @@ def practice(a):
     from .tui import utf8_console
     utf8_console()
     resumed = bool(a.lab) and Lab(a.lab).box_path.exists()
+    if getattr(a, "burn_time", None) is not None:
+        from .drive import burn_seconds
+        burn_seconds(1, 1.0, "dvd", a.burn_time)          # reject a bad value before the page starts
+        os.environ["DISCLAB_BURN_TIME"] = str(a.burn_time)
     lab = prepare(a.lab, a.media)
     # Let the outer API dispatcher report the generated path too.
     a.lab = str(lab.root)
@@ -95,4 +100,7 @@ def add_parser(sub):
     p.add_argument("--lab", help="new or empty folder, or an existing lab to resume; omitted creates a retained temporary lab")
     p.add_argument("--port", type=port_number, default=8853)
     p.add_argument("--lan", action="store_true")
+    p.add_argument("--burn-time", default=None, metavar="quick|real|SCALE",
+                   help="how long a virtual burn takes: quick (about a second), real (the time at the chosen speed), "
+                        "or a number scaling the real time, e.g. 0.1 / 虚拟刻录用多久：quick 约一秒，real 按所选速度的真实时间，或按比例缩放")
     p.set_defaults(func=practice)
