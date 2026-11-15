@@ -30,10 +30,11 @@ def version():
     """The installed release identity, also available outside a checkout."""
     return "v" + api.version_payload()["core_version"]
 
-ACTIONS = {"info", "timing", "geo", "random", "image", "checkdisc", "disexport", "cdprobe", "burn", "swap", "calibrate", "photo"}
+ACTIONS = {"info", "timing", "geo", "random", "image", "checkdisc", "disexport", "cdprobe", "burn", "swap", "calibrate", "photo", "curve-edit"}
 DRIVE_ACTIONS = {"info", "timing", "geo", "burn", "swap", "calibrate"}
 # Deliberately exclude force/install/replace, raw transport commands and arbitrary flags.
 OPTIONS = {
+    "curve-edit": {"run": "path", "edit_json": "curve_document", "save": "flag"},
     "info": {},
     "swap": {"minutes": "minutes"},       # read-only: TEST UNIT READY while the disc is changed
     "timing": {"speed": "speed", "reps": "count", "period_reads": "count", "max_minutes": "minutes"},
@@ -126,6 +127,8 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
         if drive is not None:
             raise APIError("photo does not use a drive")
         return argv, None
+    if action == "curve-edit" and (drive is not None or not args.get("run") or args.get("save") and not args.get("edit_json")):
+        raise APIError("curve-edit needs a run, no drive, and an edit when saving")
     if action in DRIVE_ACTIONS:
         argv += ["--drive", drive]
     if action in {"timing", "geo", "random", "image", "disexport", "calibrate"}:
@@ -134,6 +137,17 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
         if value is None:
             continue
         rule = OPTIONS[action][name]
+        if rule == "curve_document":
+            if not isinstance(value, dict):
+                raise APIError("edit_json must be a curve-edit object")
+            try:
+                value = json.dumps(value, ensure_ascii=True, allow_nan=False, separators=(",", ":"))
+            except (ValueError, TypeError):
+                raise APIError("invalid curve-edit JSON") from None
+            if len(value) > 24000:
+                raise APIError("curve-edit document is too large")
+            argv += ["--edit-json", value]
+            continue
         if rule == "work":
             from .works import valid_id, WorkError
             try:
@@ -608,7 +622,7 @@ class Backend:
 
     def start(self, payload):
         is_photo = isinstance(payload, dict) and payload.get("action") == "photo"
-        drives = [] if is_photo else self.drive_provider()
+        drives = [] if is_photo or isinstance(payload, dict) and payload.get("action") == "curve-edit" else self.drive_provider()
         argv, drive = command(payload, self.root, drives)
         work_id = payload.get("work") or payload.get("args", {}).get("work")
         if work_id:
@@ -871,6 +885,10 @@ class Backend:
                     job.result["disc"] = webui_catalog.disc_report(guide._load(str(Path(run.path) / "info.json")) or {})
                     self.discs[job.drive] = dict(job.result["disc"], tray="ready", read_at=round(time.time()))
                 job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
+            elif job.action == "curve-edit":
+                done = next((e for e in reversed(job.history) if e.get("type") == "result" and e.get("step") == "curve-edit"), None)
+                if done:
+                    job.result = {k: v for k, v in done.items() if k not in {"type", "job", "step", "time"}}
             elif job.action == "photo":
                 done = next((e for e in reversed(job.history) if e.get("type") == "result" and e.get("step") == "photo"), None)
                 if done:

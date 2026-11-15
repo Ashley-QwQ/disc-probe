@@ -14,6 +14,7 @@ import { stage } from "./calstage.js";
 import * as loadDisc from "./loaddisc.js";
 import * as calchart from "./calchart.js";      // the measurement charts as engineering drawings (the designer's review)
 import { photoPage } from "./photocal.js";
+import { curveEditor } from "./curve-edit.js";
 const DEMO = Number(new URLSearchParams(location.search).get("demo")) || 40;   // simulated jobs run this many times faster (?demo=N)
 const R0 = 22, R1 = 58.5;             // data area, mm: the radius the head sweeps while burning
 
@@ -1118,6 +1119,12 @@ function realPaint() {
   const advice = flow.error || badBurn ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined, photoTaken: !!flow.photoOnly,
     external: phase === "burn" && cdHere() });
   $("cal").innerHTML = `<h2>${esc(title)}</h2><p class="lede">${esc(text)}</p>${advice}${html}`;
+  if (phase === 'review' && flow.geo?.path && !badBurn) {
+    const f = flow;
+    curveEditor($("cal"), {run:f.geo.path, lang:api.lang(), state:f.curveState ||= {},
+      job:payload => api.backend.job(payload), onSaved:() => { f.preset = null; },
+      onBusy:busy => { f.curvePending = busy; if (flow === f && f.realPhase === 'review') $("next").disabled = busy || disabled; }});
+  }
   const alertNote = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]');
   if (alertNote && alertNote.textContent !== previousAlert) alertNote.classList.add('flash');
   flow.warnEl.classList.toggle('on', !!flow.error || (phase === 'review' && recoveryKind(flow) !== 'good'));
@@ -1126,6 +1133,7 @@ function realPaint() {
   $("cal").classList.toggle("floor-titled", !!flow.job && !st);     // with the stage, the title stays on the paper
   // The burn step requires the kit slider; all other steps use Next.
   const hold = phase === "burn" && !cdHere();
+  disabled ||= !!flow.curvePending;
   nextWords(button); $("next").disabled = disabled; nextKit(hold, disabled, phase === "random" && !!flow.job);
   // why it is grey, beside it: running, waiting for an answer, a problem to put right, a box to tick
   api.nextWhy?.(flow.error ? liveText('先处理上面的问题', 'Put the problem above right first')
@@ -1698,7 +1706,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
   } finally { if (flow === f) {endJob(); f.ask = null; showInterior(false);} }
 }
 async function realNext(forceMeasure = false) {
-  if (flow.job) return;
+  if (flow.job || flow.curvePending) return;
   flow.error = null;
   try {
     const phase = flow.realPhase;
@@ -1824,6 +1832,7 @@ function callBack() {
 function finishCalibrate(result) {
   if (!result?.ok && !result?.geo && !result?.timing) throw new Error(result?.reason ? stopText(result.reason) : liveText('标定没有完成。', 'The calibration did not finish.'));
   flow.timing = result.timing; flow.geo = result.geo; flow.preset = result.preset;
+  flow.curveState = null; flow.curvePending = false;
   flow.photoResult = null; flow.photoReadKey = null; flow.photoSnapshot = null; flow.photoUploads = null; flow.photoNotice = null;
   if (result.ok) sfx.done(); else sfx.problem();          // measured and usable / measured, but not usable yet
   if (result.disc) flow.detected = { ...flow.detected, ...result.disc };

@@ -53,6 +53,7 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
     setTimeout:(fn,ms)=>{const id=timers.size+1;timers.set(id,{fn,ms});return id;},clearTimeout:id=>timers.delete(id),clearInterval(){},performance,
     loadDisc:{desk(){}},calchart:{resultChart:()=>''},sfx:{done(){},problem(){},failure(){}},
     floorLog:()=>({mount(){},start(){},end(){},title(){}}),
+    curveEditor:(host,options)=>{f.curveOptions=options;return {};},
     photoPage:(host,o)=>{
       opts=o;
       const visible=[...o.photos];
@@ -66,6 +67,16 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
   return {wire:context.wire,f,geo,nodes,calls,timers,pages,show,opts:()=>opts};
 }
 const flush=async()=>{for(let i=0;i<20;i++) await Promise.resolve();};
+
+// Saving an assisted curve invalidates the cached preset; concurrent Next waits.
+{
+  const x=fixture({verdict:'good'});x.wire.paint();
+  assert.equal(x.f.curveOptions.run,x.geo.path);
+  x.f.preset='presets/old.json';x.f.curveOptions.onSaved();assert.equal(x.f.preset,null);
+  x.f.curveOptions.onBusy(true);assert.equal(x.nodes.get('next').disabled,true);
+  await x.wire.next();assert.equal(x.calls.length,0,'Next cannot export during a curve job');
+  x.f.curveOptions.onBusy(false);assert.equal(x.nodes.get('next').disabled,false);
+}
 
 // Even an old core's exit-0 result cannot advance calibration after bad read-back.
 for (const burn of [
