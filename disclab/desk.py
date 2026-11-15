@@ -191,6 +191,9 @@ def handler_for(desk: Desk):
                 body = json.dumps(body, ensure_ascii=False).encode("utf-8")
             self.send_response(code)
             self.send_header("Content-Type", ctype)
+            if ctype.split(';', 1)[0] == 'text/html':
+                from discprobe.web_security import content_security_policy
+                self.send_header('Content-Security-Policy', content_security_policy(body))
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             for k, v in (extra or {}).items():
@@ -226,6 +229,9 @@ def handler_for(desk: Desk):
             return job if job and job["state"] == "running" else None
 
         def static(self, rel):
+            if rel == 'shared.js':
+                shared = Path(__file__).resolve().parents[1] / 'discprobe/web/home/kit/shared.js'
+                return self.send(200, shared.read_bytes(), 'text/javascript; charset=utf-8')
             path = (WEB / rel).resolve()
             if not path.is_relative_to(WEB.resolve()) or not path.is_file():
                 return self.send(404, dict(error="not found"))

@@ -28,12 +28,14 @@ const STEP = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRig
 
 const WORDS = {
   en: { title: "Keys", close: "Close", rows: [
+    // ime-enter-exempt: Shortcut help text only, no event handling.
     ["Esc", "Back one step"], ["Enter", "Next"], ["→ / End", "Focus the burn slider and hold for 1 second"],
     ["W A S D", "Move the choice (as the arrow keys)"], ["O", "Settings"], ["T", "Light or dark"], ["L", "中文"], ["M", "Sound on or off"],
     ["?", "This list"],
     ["Tab", "Move between buttons"]],
     note: "In the design view: V move, W wand, H pan, 0 fit, Space drag the view." },
   zh: { title: "快捷键", close: "关闭", rows: [
+    // ime-enter-exempt: Shortcut help text only, no event handling.
     ["Esc", "返回上一步"], ["Enter", "下一步"], ["→ / End", "聚焦刻录滑块，按住 1 秒确认"],
     ["W A S D", "移动选择（同方向键）"], ["O", "设置"], ["T", "浅色或深色"], ["L", "English"], ["M", "声音开或关"],
     ["?", "打开这张表"],
@@ -116,6 +118,7 @@ function pressNext(next, e) {
   if (!shown(next) || next.disabled) return false;
   if (next.dataset.hold || next.classList.contains("burn-primary")) {
     next.focus();
+    // ime-enter-exempt: Synthesizes a button event after the global typing/composition guard.
     next.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true, repeat: e.repeat }));
   } else if (!e.repeat) next.click();
   return true;
@@ -165,6 +168,7 @@ export function install({ $ }) {
       return;
     }
     if (typing(e.target)) return;
+    // ime-enter-exempt: Existing composition guard; typing targets excluded above, native controls below.
     if (k === "Enter") {
       // a focused button or link answers Enter itself
       if (e.target instanceof Element && e.target.closest("button, a[href], summary, [role=button]")) return;
@@ -185,7 +189,9 @@ export function install({ $ }) {
   // the release of a held Enter that began here, if the focus was not on Next when it went down
   addEventListener("keyup", (e) => {
     const next = $("next");
+    // ime-enter-exempt: Keyup only releases the hold forwarded to Next.
     if (e.key === "Enter" && document.activeElement !== next && (next?.dataset.hold || next?.classList.contains("burn-primary")))
+      // ime-enter-exempt: Synthesizes button release only.
       next.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true, cancelable: true }));
   });
 }

@@ -2,6 +2,36 @@
 export const language = lang => lang === 'en' ? 'en' : 'zh';
 export const words = (lang, zh, en) => language(lang) === 'en' ? en : zh;
 
+// Safari can deliver compositionend before the confirming Enter keydown.
+export const isActionEnter = event => event.key === 'Enter' && !event.isComposing && event.keyCode !== 229;
+
+// Visibility is conjunctive: a foreground tab can still have an off-screen component.
+// No layout/paint containment is added, so the existing visual treatment stays intact.
+export function observeActivity(element, changed) {
+  const doc = element.ownerDocument;
+  let intersecting = true, active;
+  const update = () => {
+    const next = !doc.hidden && intersecting;
+    if (next !== active) { active = next; changed(next); }
+  };
+  const Observer = doc.defaultView?.IntersectionObserver;
+  const observer = Observer ? new Observer(entries => {
+    intersecting = entries[entries.length - 1].isIntersecting; update();
+  }) : null;
+  doc.addEventListener('visibilitychange', update);
+  observer?.observe(element);
+  update();
+  return () => { observer?.disconnect(); doc.removeEventListener('visibilitychange', update); };
+}
+
+// Decode our embedded project images locally; fetch(data:) would needlessly widen connect-src.
+export function dataURLBlob(value) {
+  const comma = value.indexOf(','), header = value.slice(5, comma);
+  const bytes = /;base64$/i.test(header) ? Uint8Array.from(atob(value.slice(comma + 1)), c => c.charCodeAt(0))
+    : new TextEncoder().encode(decodeURIComponent(value.slice(comma + 1)));
+  return new Blob([bytes], { type: header.split(';')[0] || 'text/plain' });
+}
+
 export function node(doc, tag, className, text) {
   const el = doc.createElement(tag);
   if (className) el.className = className;

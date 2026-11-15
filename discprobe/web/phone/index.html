@@ -252,7 +252,7 @@
   let leaving = false;
   async function poll() {
     clearTimeout(timer);
-    if (polling || leaving) return;
+    if (polling || leaving || document.hidden) return;
     polling = true;
     try {
       listing = await getJSON(endpoint);
@@ -266,7 +266,7 @@
     } finally {
       polling = false;
       // Back off while the computer cannot be reached; stop asking once the link is dead.
-      if (!blocked && !leaving) timer = setTimeout(() => { if (!document.hidden) poll(); else timer = setTimeout(poll, 4000); }, failures ? Math.min(15000, 2000 * 2 ** Math.min(failures, 3)) : 2000);
+      if (!blocked && !leaving && !document.hidden) timer = setTimeout(poll, failures ? Math.min(15000, 2000 * 2 ** Math.min(failures, 3)) : 2000);
     }
   }
   // Leaving the page (or the phone freezing it) stops polling; coming back from the back/forward cache resumes it.
@@ -274,7 +274,7 @@
   addEventListener('pageshow', event => { if (event.persisted) { leaving = false; poll(); } });
   addEventListener('online', () => { failures = 0; poll(); });
   addEventListener('offline', () => { link = 'offline'; render(); });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && !blocked) poll(); });
+  document.addEventListener('visibilitychange', () => { clearTimeout(timer); if (!document.hidden && !blocked) poll(); });
 
   // ---- drawing --------------------------------------------------------------------------------------
   // The top row's dot: whether this phone reaches the computer, said plainly.
@@ -461,7 +461,13 @@
     render();
     await send(batch.filter(p => p.state === 'preparing'));
   });
-  setInterval(() => { if (pending.some(p => p.state === 'uploading')) render(); }, 1000);
+  let uploadTimer;
+  function syncUploadTimer() {
+    clearInterval(uploadTimer);
+    if (!document.hidden) uploadTimer = setInterval(() => { if (pending.some(p => p.state === 'uploading')) render(); }, 1000);
+  }
+  document.addEventListener('visibilitychange', syncUploadTimer);
+  syncUploadTimer();
   poll();
 </script>
 </html>

@@ -23,8 +23,9 @@ export class LampPreview {
   }
   start() {
     if (this.worker) return;
+    const generation = this.generation = (this.generation ?? 0) + 1;
     this.worker = this.makeWorker();
-    this.worker.onmessage = ({ data }) => this.message(data);
+    this.worker.onmessage = ({ data }) => { if (generation === this.generation) this.message(data); };
     this.worker.onerror = event => this.fail(event.message || "Lamp worker failed");
   }
   // rev: the work's revision; document(): the work (called once per revision); pose: { camera, flash, rotate,
@@ -70,6 +71,7 @@ export class LampPreview {
     if (!this.inflight && this.queued && this.worker) this.request(this.queued);
   }
   async message(data) {
+    const generation = this.generation;
     if (data.type === "error") { if (data.rev === this.rev || data.rev === undefined) this.fail(data.error); return; }
     if (data.type === "doc") { this.composeMs = data.ms; return; }
     if (data.type === "dropped") { this.settled(data.id); return; }
@@ -78,7 +80,7 @@ export class LampPreview {
     if (data.rev !== this.rev) return;
     const key = JSON.stringify([data.rev, JSON.stringify(data.pose), data.size, data.k, data.n, data.paper ?? false, data.exposure ?? 0]);
     const image = await this.bitmap(data.image);
-    if (data.rev !== this.rev) { image.close?.(); return; }
+    if (data.rev !== this.rev || generation !== this.generation) { image.close?.(); return; }
     const frame = { image, key, rev: data.rev, size: data.size, k: data.k, ms: data.ms };
     this.stats.push({ rev: data.rev, size: data.size, k: data.k, fine: data.fine, ms: Math.round(data.ms), at: Math.round(this.now()) });
     if (this.stats.length > 200) this.stats.shift();
@@ -96,7 +98,13 @@ export class LampPreview {
   }
   fail(error) { this.phase = "error"; this.error = String(error); this.worker?.terminate(); this.worker = null; this.inflight = this.queued = null; this.onChange(); }
   // leaving the lamp view: nothing more is rendered; the cache stays for coming back
-  pause() { clearTimeout(this.timer); this.sentKey = null; this.queued = null; if (this.phase !== "error") this.phase = "paused"; }
+  pause() {
+    clearTimeout(this.timer);
+    this.generation = (this.generation ?? 0) + 1;
+    this.worker?.terminate(); this.worker = null;
+    this.sentKey = null; this.inflight = this.queued = null; this.rev = undefined;
+    if (this.phase !== "error") this.phase = "paused";
+  }
   retry() { this.worker?.terminate(); this.worker = null; this.inflight = this.queued = null; this.error = null; this.phase = "idle"; this.rev = undefined; this.onChange(); }
   dispose() { this.pause(); this.worker?.terminate(); this.worker = null; this.inflight = null; for (const f of this.cache.values()) f.image.close?.(); this.cache.clear(); this.shown = null; this.rev = undefined; }
 }

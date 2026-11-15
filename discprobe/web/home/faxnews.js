@@ -1,3 +1,4 @@
+import { isActionEnter } from "./kit/shared.js";
 // The news fax (prototype): a fax on the lobby desk that, when clicked, phones the person's own news source,
 // downloads today's paper and prints it. The call hides the download: the handset lifts, the keys dial with
 // their tones, the line rings until the data is in, then the paper prints, is pulled out and drops into focus.
@@ -166,6 +167,7 @@ function build() {
   addEventListener("keydown", (e) => {
     if (root.dataset.mode !== "faxnews" || e.defaultPrevented || e.isComposing) return;
     if (document.querySelector('.term:not([hidden]), .keys-help:not([hidden]), #set-menu:not([hidden])')) return;
+    // ime-enter-exempt: Existing composition guard and input/button/link exclusion above; keep unchanged.
     if (e.key === "Enter" && A?.running && !e.target.closest?.("input, button, a")) { e.preventDefault(); e.stopImmediatePropagation(); skip(); }
   }, { capture: true });
   $("back")?.addEventListener("click", (e) => { if (root.dataset.mode === "faxnews") { e.preventDefault(); e.stopImmediatePropagation(); back(); } }, { capture: true });
@@ -603,7 +605,7 @@ function showNotice(then) {
     N.hidden = true; then?.();
   };
   dial.addEventListener("click", go);
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+  input.addEventListener("keydown", (e) => { if (isActionEnter(e)) { e.preventDefault(); go(); } });
   row.append(dial, reset);
   N.append(lab, row);
   F.paper.hidden = true;

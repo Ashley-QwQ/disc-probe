@@ -107,6 +107,7 @@ export function askConflict({ name, lang = "zh", doc = document } = {}) {
     doc.head.append(css);
   }
   const d = doc.createElement("dialog");
+  d.setAttribute("closedby", "any");
   d.className = "pw-conflict"; d.setAttribute("aria-labelledby", "pw-conflict-title");
   const h = doc.createElement("h2"), p = doc.createElement("p"), row = doc.createElement("div");
   h.id = "pw-conflict-title"; h.textContent = s.title; p.textContent = s.body(name);
@@ -120,7 +121,9 @@ export function askConflict({ name, lang = "zh", doc = document } = {}) {
   d.append(h, p, row); doc.body.append(d);
   return new Promise((resolve) => {
     d.addEventListener("close", () => { resolve(d.returnValue || null); d.remove(); }, { once: true });
-    d.addEventListener("click", (e) => { if (e.target === d) d.close(""); });
+    if (!("closedBy" in (doc.defaultView?.HTMLDialogElement?.prototype ?? {}))) {
+      d.addEventListener("click", (e) => { if (e.target === d) d.close(""); });
+    }
     d.showModal(); row.firstElementChild.focus();
   });
 }

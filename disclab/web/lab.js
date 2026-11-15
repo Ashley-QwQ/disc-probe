@@ -1,3 +1,4 @@
+import { observeActivity } from "./shared.js";
 // Disc Lab desk page: a translator between a person and `python -m disclab ... --json`.
 //
 // Everything shown comes from the server's /api/status (that is `disclab status --json`) and from the
@@ -100,22 +101,29 @@ async function run(argv, { quiet = false } = {}) {
 }
 function errText(r) { return (r?.errors || []).map((e) => pick(e.message)).filter(Boolean).join(" ") || tr("没有成功。", "It did not work."); }
 let lastJob = null;
+let jobTimer = 0, resumeJob = null, jobPolling = false;
 function watch(id) {
   lastJob = id;
   job = { id, state: "running", argv: [], log: "", t0: Date.now() / 1000 };
   paintJob();
   const tick = async () => {
-    try { job = await api(`/api/job/${id}`); } catch { setTimeout(tick, 1500); return; }
-    paintJob();
-    if (job.state === "running") { setTimeout(tick, 700); return; }
-    const done = job;
-    if (done.state === "failed") toast(errText(done.result));
-    else if (done.argv[0] === "box") toast(tr("新的一箩建好了，第一张已经放进光驱。", "New basket made; its first disc is in the drive."));
-    // read the new state before the next button comes back, or it would offer the step just run again
-    await refresh().catch(() => {});
-    job = null; paintJob(); paint();
+    clearTimeout(jobTimer);
+    if (!pageActive || jobPolling) return;
+    jobPolling = true;
+    try {
+      try { job = await api(`/api/job/${id}`); } catch { if (pageActive) jobTimer = setTimeout(tick, 1500); return; }
+      paintJob();
+      if (job.state === "running") { if (pageActive) jobTimer = setTimeout(tick, 700); return; }
+      const done = job;
+      if (done.state === "failed") toast(errText(done.result));
+      else if (done.argv[0] === "box") toast(tr("新的一箩建好了，第一张已经放进光驱。", "New basket made; its first disc is in the drive."));
+      // read the new state before the next button comes back, or it would offer the step just run again
+      await refresh().catch(() => {});
+      job = null; resumeJob = null; paintJob(); paint();
+    } finally { jobPolling = false; }
   };
-  setTimeout(tick, 400);
+  resumeJob = tick;
+  if (pageActive) jobTimer = setTimeout(tick, 400);
 }
 
 // ------------------------------------------------------------------ the flow
@@ -206,6 +214,28 @@ function paintJob() {
   paintNext();
 }
 let holdT = null;
+let pageActive = !document.hidden, lookTimer = 0, resumeLook = null;
+observeActivity(document.body, active => {
+  pageActive = active;
+  if (!active) {
+    clearTimeout(jobTimer); clearTimeout(lookTimer);
+    if (holdT) { clearInterval(holdT); holdT = null; $('next').querySelector('.hold-ring')?.style.setProperty('--p', 0); }
+  } else { resumeJob?.(); resumeLook?.(); }
+});
+let pausedAnimations = [];
+observeActivity($('lobby'), active => {
+  if (!active) {
+    pausedAnimations = document.getAnimations().filter(a => $('lobby').contains(a.effect?.target) && a.playState === 'running');
+    pausedAnimations.forEach(a => a.pause());
+  } else { pausedAnimations.forEach(a => a.play()); pausedAnimations = []; }
+});
+let pausedJobAnimations = [];
+observeActivity($('job'), active => {
+  if (!active) {
+    pausedJobAnimations = document.getAnimations().filter(a => $('job').contains(a.effect?.target) && a.playState === 'running');
+    pausedJobAnimations.forEach(a => a.pause());
+  } else { pausedJobAnimations.forEach(a => a.play()); pausedJobAnimations = []; }
+});
 function paintNext() {
   const n = nextAction(), b = $("next");
   b.disabled = !!n.disabled;
@@ -216,9 +246,9 @@ function paintNext() {
   if (n.disabled) return;
   if (n.hold) {
     const ring = b.querySelector(".hold-ring");
-    // a timer, not animation frames: frames stop in a background tab, and the hold must still end
+    // Cancel a hold when hidden; returning never confirms an unattended action.
     const start = () => {
-      if (holdT) return;
+      if (holdT || !pageActive) return;
       const t0 = performance.now();
       holdT = setInterval(() => {
         const p = Math.min(1, (performance.now() - t0) / 1000);
@@ -228,7 +258,9 @@ function paintNext() {
     };
     const stop = () => { if (holdT) clearInterval(holdT); holdT = null; ring.style.setProperty("--p", 0); };
     b.onpointerdown = start; b.onpointerup = stop; b.onpointerleave = stop;
+    // ime-enter-exempt: A button hold, never a text field.
     b.onkeydown = (e) => { if ((e.key === "Enter" || e.key === " ") && !e.repeat) { e.preventDefault(); start(); } };
+    // ime-enter-exempt: Release cancels a button hold, never submits text.
     b.onkeyup = (e) => { if (e.key === "Enter" || e.key === " ") stop(); };
     b.onclick = () => { if (!holdT) toast(tr("按住约 1 秒，等彩虹转满一圈。", "Hold for about a second, until the rainbow goes round.")); };
     return;
@@ -710,6 +742,7 @@ $("job-log").addEventListener("click", () => { if (!mode) go(job?.argv?.[0] === 
 $("lang").addEventListener("click", () => { lang = lang === "en" ? "zh" : "en"; try { localStorage.setItem("disclab-lang", lang); } catch {} paint(); if (mode) paintPage(); });
 function toggleTheme() {
   root.dataset.theme = theme() === "dark" ? "paper" : "dark";
+  document.querySelector('meta[name="color-scheme"]').content = theme() === 'dark' ? 'dark' : 'light';
   try { localStorage.setItem("disclab-theme", root.dataset.theme); } catch {}
   paintTheme(); paintLobby();
 }
@@ -752,9 +785,15 @@ function toast(text) { const t = $("toast"); t.textContent = text; t.classList.a
   if (["basket", "burner", "phone"].includes(m)) go(m);
   // another tab or the terminal may change the lab: look again now and then. The next look waits for the last
   // answer, so a slow status never has several asks in flight.
+  let looking = false;
   const look = async () => {
-    if (!job && document.visibilityState === "visible") await refresh().catch(() => {});
-    setTimeout(look, 8000);
+    clearTimeout(lookTimer);
+    if (!pageActive || looking) return;
+    looking = true;
+    try { if (!job) await refresh().catch(() => {}); }
+    finally { looking = false; }
+    if (pageActive) lookTimer = setTimeout(look, 8000);
   };
-  setTimeout(look, 8000);
+  resumeLook = look;
+  if (pageActive) lookTimer = setTimeout(look, 8000);
 })();

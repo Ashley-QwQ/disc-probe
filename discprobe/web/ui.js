@@ -93,7 +93,9 @@ export function holdToConfirm(button, { ms = 1000, onConfirm, label } = {}) {
   };
   button.addEventListener("pointerdown", begin);
   for (const ev of ["pointerup", "pointerleave", "pointercancel"]) button.addEventListener(ev, stop);
+  // ime-enter-exempt: A button hold, never a text field.
   button.addEventListener("keydown", (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) begin(e); });
+  // ime-enter-exempt: Release cancels a button hold, never submits text.
   button.addEventListener("keyup", (e) => { if (e.key === " " || e.key === "Enter") stop(); });
   button.addEventListener("click", (e) => e.preventDefault());
   if (label) button.setAttribute("aria-label", label);

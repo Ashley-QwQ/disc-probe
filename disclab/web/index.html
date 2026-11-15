@@ -12,6 +12,11 @@
 <script>
   // the theme before the first paint: the viewer's own choice, else the system's (lamp and header switch it)
   try { const t = localStorage.getItem("disclab-theme"); document.documentElement.dataset.theme = t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "paper"); } catch { document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "paper"; }
+  document.querySelector('meta[name="color-scheme"]').content = localStorageTheme();
+  function localStorageTheme() {
+    try { const t = localStorage.getItem('disclab-theme'); return t === 'dark' ? 'dark' : t === 'paper' ? 'light' : 'light dark'; }
+    catch { return 'light dark'; }
+  }
   // motion, as disc-probe: this page's own setting, else the system's; ?motion forces it on
   (function () { var m = null; try { m = localStorage.getItem("disclab-motion"); } catch (e) {}
     var on = /[?&]motion(\b|=)/.test(location.search) || m === "on" || (m !== "off" && !matchMedia("(prefers-reduced-motion: reduce)").matches);

@@ -131,17 +131,27 @@ function mount(language) {
   nodes.camera.parent=new Element('label');nodes.gallery.parent=new Element('label');
   nodes.config.textContent=JSON.stringify({run:'run-one',token:'phone-token'});
   const state={answer:{status:200,body:{photos:[],adoption:{state:'none'},now:1000,desk_age:1}}}, requests=[];
+  const listeners=[],timers=new Map();let timerId=0;
   const context=vm.createContext({...words,Blob,Uint8Array,atob,URLSearchParams,Set,Map,JSON,Math,Number,Date,console,
-    document:{hidden:false,documentElement:{},getElementById:id=>nodes[id],querySelectorAll:()=>[nodes.camera,nodes.gallery],createElement:t=>new Element(t),addEventListener(){}},
+    document:{hidden:false,documentElement:{},getElementById:id=>nodes[id],querySelectorAll:()=>[nodes.camera,nodes.gallery],createElement:t=>new Element(t),addEventListener(name,fn){if(name==='visibilitychange')listeners.push(fn)}},
     navigator:{onLine:true,language},addEventListener(){},
     sessionStorage:{getItem:()=> '[]',setItem(){}},URL:{createObjectURL:()=> 'blob:x',revokeObjectURL(){}},
     fetch:async(path,opts)=>{requests.push({path,opts});const a=state.answer;if(a.status===0)throw new TypeError('Failed to fetch');return {ok:a.status<300,status:a.status,statusText:'x',json:async()=>a.body};},
-    setTimeout:()=>0,clearTimeout(){},setInterval(){},
+    setTimeout:fn=>{timers.set(++timerId,fn);return timerId},clearTimeout:id=>timers.delete(id),setInterval:fn=>{timers.set(++timerId,fn);return timerId},clearInterval:id=>timers.delete(id),
   });
   vm.runInContext(source+';globalThis.poll=poll;globalThis.render=render;',context);
-  return {nodes,context,state,requests};
+  return {nodes,context,state,requests,timers,visibility:()=>listeners.forEach(fn=>fn())};
 }
 const flush=async()=>{for(let i=0;i<20;i++)await Promise.resolve();};
+{
+  const {context,requests,timers,visibility}=mount('zh-CN');await flush();
+  assert.equal(timers.size,2,'one poll and one upload clock while visible');
+  context.document.hidden=true;visibility();await flush();
+  assert.equal(timers.size,0,'hidden phone cancels both clocks');
+  const before=requests.length;await context.poll();assert.equal(requests.length,before,'a stale timer cannot poll hidden');
+  context.document.hidden=false;visibility();await flush();
+  assert.equal(requests.length,before+1,'foreground resumes exactly one poll');assert.equal(timers.size,2);
+}
 {
   const {nodes,context,state,requests}=mount('zh-CN');await flush();
   assert.equal(requests[0].opts.headers['X-Photo-Token'],'phone-token');

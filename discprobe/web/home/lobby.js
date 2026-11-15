@@ -1,3 +1,4 @@
+import { observeActivity } from "./kit/shared.js";
 import { lobbyStatus } from "./lobby-state.js";
 import { rugGreeting, nextLocalDayDelay } from "./lobby-weekday.js";
 
@@ -308,9 +309,10 @@ export function paintRecent(plans, open) {
 function drift() {
   const fine = matchMedia("(pointer: fine)").matches;
   if (!DRIFT || !fine) return;
-  let tx = 0, ty = 0, x = 0, y = 0, raf = 0;
+  let tx = 0, ty = 0, x = 0, y = 0, raf = 0, active = true;
   L.drifters = [...L.world.querySelectorAll(".lb-layer")].map((g) => [g, Number(g.style.getPropertyValue("--reach")) || 0]);
   const step = () => {
+    if (!active) { raf = 0; return; }
     x += (tx - x) * 0.08; y += (ty - y) * 0.08;
     // in canvas px: the world is scaled by k
     // Each layer's own offset (its reach times the world's): a variable on the world would make every
@@ -319,12 +321,18 @@ function drift() {
     for (const [g, r] of L.drifters) g.style.translate = `${(dx * r).toFixed(2)}px ${(dy * r).toFixed(2)}px`;
     raf = Math.abs(tx - x) + Math.abs(ty - y) > 0.002 ? requestAnimationFrame(step) : 0;
   };
+  observeActivity(L.root, visible => {
+    active = visible;
+    if (!active) { cancelAnimationFrame(raf); raf = 0; }
+    else if (!raf) raf = requestAnimationFrame(step);
+  });
   L.root.addEventListener("pointermove", (e) => {
+    if (!active) return;
     if (api.reduce) { tx = ty = 0; if (!raf) raf = requestAnimationFrame(step); return; }
     tx = (e.clientX / innerWidth) * 2 - 1; ty = (e.clientY / innerHeight) * 2 - 1;
     if (!raf) raf = requestAnimationFrame(step);
   });
-  L.root.addEventListener("pointerleave", () => { tx = ty = 0; if (!raf) raf = requestAnimationFrame(step); });
+  L.root.addEventListener("pointerleave", () => { if (!active) return; tx = ty = 0; if (!raf) raf = requestAnimationFrame(step); });
 }
 
 // ---------------------------------------------------------------- set up
@@ -362,6 +370,16 @@ export async function init(homeApi) {
   new ResizeObserver(() => { const now = sec.offsetWidth > 0; if (now && !shown) words(); shown = now; }).observe(sec);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) paintRug(); });
   drift();
+  let paused = [];
+  observeActivity(sec, active => {
+    if (!active) {
+      paused = document.getAnimations().filter(a => sec.contains(a.effect?.target) && a.playState === 'running');
+      paused.forEach(a => a.pause());
+    } else {
+      if (!root.classList.contains('idle')) paused.forEach(a => a.play());
+      paused = [];
+    }
+  });
   const prepareNew = () => { if (!root.dataset.mode) import("./newplan.js").then(m => m.prepare(api)).catch(() => {}); };
   $("next")?.addEventListener("pointerenter", prepareNew);
   $("next")?.addEventListener("focus", prepareNew);
