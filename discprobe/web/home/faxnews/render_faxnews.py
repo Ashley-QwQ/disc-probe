@@ -626,6 +626,8 @@ cyc.use_denoising = False
 cyc.max_bounces = cyc.diffuse_bounces = cyc.glossy_bounces = cyc.transmission_bounces = 0
 cyc.transparent_max_bounces = 4
 try:
+    if DEVICE == "CPU":  # asked for CPU on purpose: no GPU probe, no fax-mode refusal
+        raise LookupError("CPU requested")
     prefs = bpy.context.preferences.addons["cycles"].preferences
     prefs.compute_device_type = DEVICE
     prefs.get_devices()
@@ -636,7 +638,7 @@ try:
     cyc.device = "GPU"
 except Exception as e:  # noqa: BLE001
     print("[newplan] GPU setup failed, CPU:", e)
-    if MODE == "fax":
+    if MODE == "fax" and DEVICE != "CPU":
         raise
     cyc.device = "CPU"
 if scene.world is None:
