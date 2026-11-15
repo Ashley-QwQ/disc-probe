@@ -1,3 +1,4 @@
+import { isActionEnter } from "../kit/shared.js";
 import * as O from './editor-ops.mjs';
 import {controls,TOOL_KEYS} from './editor-controls.mjs';
 import {materialPose,identityRGB} from './editor-materials.mjs';
@@ -78,7 +79,7 @@ export class Editor {
     if(l&&!l.locked&&['up','down','remove'].includes(a))this.mutate(()=>{const i=this.s.layers.indexOf(l);if(a==='remove'){this.s.layers.splice(i,1);this.s.assignments=this.s.assignments.filter(a=>a.layer!==l.id);this.s.selected=null;}else{const j=Math.max(0,Math.min(this.s.layers.length-1,i+(a==='up'?1:-1)));this.s.layers.splice(i,1);this.s.layers.splice(j,0,l);}this.h.rebuild();});
   }
   layerKey(e){const li=e.target.closest('.lay');if(!li||e.target.closest('button,input'))return;const l=this.s.layers.find(l=>String(l.id)===li.dataset.id);
-    if(e.key==='Enter'||e.key===' '){e.preventDefault();li.click();return;}
+    if(isActionEnter(e)||e.key===' '){e.preventDefault();li.click();return;}
     if(e.key==='F2'){e.preventDefault();this.s.selected=l.id;this.h.rebuild();this.h.rename(l.id);return;}
     if(e.altKey&&['ArrowUp','ArrowDown'].includes(e.key)&&!l.locked){e.preventDefault();e.stopPropagation();this.s.selected=l.id;const action=e.key==='ArrowUp'?'up':'down';this.click({target:{closest:()=>({dataset:{edAction:action}})},preventDefault(){},stopPropagation(){}});this.h.dom().left.querySelector(`[data-id="${l.id}"]`)?.focus();}
   }
@@ -112,7 +113,7 @@ export class Editor {
     this.cursor??=[-40,-20];
     if(e.key.startsWith('Arrow')){const n=e.shiftKey?5:1;if(e.key==='ArrowLeft')this.cursor[0]-=n;if(e.key==='ArrowRight')this.cursor[0]+=n;if(e.key==='ArrowUp')this.cursor[1]-=n;if(e.key==='ArrowDown')this.cursor[1]+=n;this.cursor=this.cursor.map(v=>Math.max(-60,Math.min(60,v)));if(this.drag)this.pointer('move',e,this.cursor);this.h.draw();return true;}
     
-    if(e.key==='Enter'){this.pointer(this.drag?'up':'down',e,this.cursor);this.h.draw();return true;}
+    if(isActionEnter(e)){this.pointer(this.drag?'up':'down',e,this.cursor);this.h.draw();return true;}
     if(e.key==='Escape'&&this.drag){this.drag=null;this.h.draw();return true;}return false;
   }
   // What was painted on the pictures (fills on selections, shapes, effects) without the pictures themselves:

@@ -1,3 +1,4 @@
+import { isActionEnter } from "./kit/shared.js";
 import { nextConfirm } from "./kit/nextconfirm.js";
 import { ringButton } from "./kit/ringbutton.js";
 import { flipValue } from "./kit/flipnum.js";
@@ -956,7 +957,7 @@ function paint() {
   });
   $("removed")?.addEventListener("click", takenOut);
   $("newname")?.addEventListener("input", (e) => { flow.newName = e.target.value; });
-  $("newname")?.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") next(); });
+  $("newname")?.addEventListener("keydown", (e) => { e.stopPropagation(); if (isActionEnter(e)) { e.preventDefault(); next(); } });
   $("photo")?.addEventListener("click", () => { flow.photos += 1; paint(); });
   // first look at what is in the drive; once it is empty and open, bring a disc down to it
   if (flow.step === 0 && !flow.state && flow.disc === "detect") { detect(); return; }

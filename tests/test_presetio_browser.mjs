@@ -217,12 +217,15 @@ try {
     check(calls.some(p=>p?.operation==='export'&&p.install===true),'install delegates to the API');
     failExport=true;$('[data-install]').click();await waitFor(()=>$('.presetio-status').dataset.error==='true'&&!$('[data-install]').disabled,'export failure recovers controls');
     failExport=false;
+    const downloadedBlobs=new Map(),createURL=URL.createObjectURL.bind(URL);
+    URL.createObjectURL=blob=>{const url=createURL(blob);downloadedBlobs.set(url,blob);return url;};
     const nativeClick=HTMLAnchorElement.prototype.click;
     HTMLAnchorElement.prototype.click=function(){downloads.push({href:this.href,name:this.download})};
     $('[data-save]').click();await waitFor(()=>downloads.length===1&&!$('[data-save]').disabled,'save finishes');
     HTMLAnchorElement.prototype.click=nativeClick;
     check(downloads[0].name==='dis-preset.json','download filename');
-    const saved=await(await fetch(downloads[0].href)).json();check(saved.id===row.preset.id,'download contains exported preset');
+    const saved=JSON.parse(await downloadedBlobs.get(downloads[0].href).text());check(saved.id===row.preset.id,'download contains exported preset');
+    URL.createObjectURL=createURL;
     check(calls.some(p=>p?.operation==='export'&&p.install===false),'save delegates without install');
     choose('import');check(boxes[0].checked&&$('#presetio-import').contains($('.presetio-status')),'selection and status survive switching');
     ui.close();check(sheet.hidden&&document.activeElement.id==='entry','close restores opener focus');

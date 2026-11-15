@@ -2,6 +2,7 @@
 <html lang="zh-CN" data-handshake="pending">
 <head>
 <meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>disc-probe</title>
 <script>
@@ -9,6 +10,7 @@
   (function () {
     var t = null;
     try { t = localStorage.getItem("dp-theme"); } catch (e) {}
+    document.querySelector('meta[name="color-scheme"]').content = t === "dark" ? "dark" : t === "light" ? "light" : "light dark";
     document.documentElement.dataset.theme = t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     // motion: this page's own setting (Settings), else the system's; ?motion forces it on
     var m = null;
@@ -1207,6 +1209,7 @@
   function swapTheme() {
     const to = root.dataset.theme === "dark" ? "light" : "dark";
     root.dataset.theme = to;
+    document.querySelector('meta[name="color-scheme"]').content = to;
     try { localStorage.setItem("dp-theme", to); } catch {}
     for (const img of burnerLayer.querySelectorAll("img[data-src]")) { img.src = img.dataset.src; img.removeAttribute("data-src"); }
   }
@@ -1496,7 +1499,7 @@
     };
     for (const ev of ["pointermove", "pointerdown", "keydown", "wheel", "touchstart"]) addEventListener(ev, wake, { passive: true });
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden) { clearTimeout(timer); idle = true; for (const a of loops()) a.pause(); root.classList.add("idle"); }
+      if (document.hidden) { clearTimeout(timer); clearInterval(raf); idle = true; for (const a of loops()) a.pause(); root.classList.add("idle"); }
       else wake();
     });
     wake();

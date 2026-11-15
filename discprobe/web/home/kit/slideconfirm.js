@@ -111,6 +111,7 @@ export function slideConfirm(el, { label, done = () => {}, lang = 'zh', disabled
   }
   knob.addEventListener('keydown', event => {
     if (isDisabled() || confirmed || pointer !== null) return;
+    // ime-enter-exempt: Slider keyboard suppression only; Enter never submits text or confirms the slider.
     if (['ArrowRight', 'End', 'Enter', ' ', 'Escape'].includes(event.key)) event.preventDefault();
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return cancel();
     const previous = state;

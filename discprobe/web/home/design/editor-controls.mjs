@@ -1,3 +1,4 @@
+import { isActionEnter } from "../kit/shared.js";
 import * as O from './editor-ops.mjs';
 import {colourWord} from './editor-materials.mjs';
 import {tone as toneOf} from './tone.mjs';
@@ -64,9 +65,9 @@ export const controls={
   },
   maskRename(e){const row=e.target.closest('[data-mask-id]');if(!row||e.target.closest('button,input'))return;
     const m=this.s.selections.find(s=>s.id===row.dataset.maskId),input=document.createElement('input');input.value=m.name;input.className='num';row.querySelector('.mask-name').replaceWith(input);input.focus();input.select();let done=false;
-    const finish=ok=>{if(done)return;done=true;if(ok&&input.value.trim()!==m.name)this.mutate(()=>{m.name=input.value.trim()||m.name;});else this.left();};input.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')finish(true);if(e.key==='Escape')finish(false);};input.onblur=()=>finish(true);
+    const finish=ok=>{if(done)return;done=true;if(ok&&input.value.trim()!==m.name)this.mutate(()=>{m.name=input.value.trim()||m.name;});else this.left();};input.onkeydown=e=>{e.stopPropagation();if(isActionEnter(e)){e.preventDefault();finish(true);}if(e.key==='Escape')finish(false);};input.onblur=()=>finish(true);
   },
-  listKey(e){if(e.target.closest('input'))return;const row=e.target.closest('[data-mask-id]');if(row){if(e.key==='Enter'){e.preventDefault();e.stopPropagation();this.maskClick(e);}if(e.key==='F2'){e.preventDefault();e.stopPropagation();this.maskRename(e);}if(e.key==='Delete'){e.preventDefault();e.stopPropagation();row.querySelector('button').click();}return;}this.layerKey(e);},
+  listKey(e){if(e.target.closest('input'))return;const row=e.target.closest('[data-mask-id]');if(row){if(isActionEnter(e)){e.preventDefault();e.stopPropagation();this.maskClick(e);}if(e.key==='F2'){e.preventDefault();e.stopPropagation();this.maskRename(e);}if(e.key==='Delete'){e.preventDefault();e.stopPropagation();row.querySelector('button').click();}return;}this.layerKey(e);},
   right(){const w=this.h.dom();if(!w)return;this.init();this.rigSync?.();const scroll=w.right.querySelector('.ed-material-scroll')?.scrollTop??0;
     w.right.innerHTML=this.materialsHTML();
     if(this.rigOpen?.())this.swatches();w.right.querySelector('.ed-material-scroll').scrollTop=scroll;

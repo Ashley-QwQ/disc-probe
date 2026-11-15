@@ -1,3 +1,4 @@
+import { dataURLBlob } from "../kit/shared.js";
 // A stand-in for the core's works library: the /api/works routes of docs/goals/pastworks/SPEC.md,
 // kept in memory, answering through a fetch-shaped function. For tests, file previews and ?mock demos
 // only; the real store is the core's (works/<id>/ beside the results). Its "zip" is a JSON bundle
@@ -86,7 +87,7 @@ export function createMockWorks({ now = () => Date.now(), works: seed = [], late
         const w = { ...b.work, discs: (b.work.discs ?? []).map((d) => ({ ...d })) };
         works.set(w.id, w);
         if (b.design != null) designs.set(w.id, b.design);
-        if (b.thumb) thumbs.set(w.id, await (await fetch(b.thumb)).blob());
+        if (b.thumb) thumbs.set(w.id, dataURLBlob(b.thumb));
         history.set(w.id, [...(b.history ?? [])]);
         return reply(200, view(w));
       }

@@ -21,7 +21,8 @@
   const backend = await import('./api.js');
   const source = (await (await fetch('./calibrate.js')).text()).replace(/^import .*;.*$/gm, '');
   const at = name => new URL(name, location.href).href;
-  const head = `import {nextConfirm} from '${at('./kit/nextconfirm.js')}';
+  const head = `import {isActionEnter} from '${at('./kit/shared.js')}';
+import {nextConfirm} from '${at('./kit/nextconfirm.js')}';
 import {ringButton} from '${at('./kit/ringbutton.js')}';
 import {flipValue} from '${at('./kit/flipnum.js')}';
 import {photoPage} from '${at('./photocal.js')}';

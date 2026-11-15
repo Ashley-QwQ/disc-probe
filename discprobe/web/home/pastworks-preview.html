@@ -88,6 +88,7 @@ button { font: inherit; cursor: pointer; } button:focus-visible { outline: 2px s
     <button id="empty" type="button">只看空档案 / Show empty archive</button><button id="nocore" type="button">核心没有作品库 / Core without works</button>
     <button id="lang" type="button">English</button></div></details>
 <script type="module">
+import { dataURLBlob } from "./kit/shared.js";
 import { createPastWorks } from './pastworks.js';
 import { planThumbnail } from './design.js';
 import { createMockWorks } from './pastworks/mock-works.mjs';
@@ -137,7 +138,7 @@ function sampleWorks() {
 async function library(empty) {
   const mock = createMockWorks({ works: empty ? [] : sampleWorks() });
   let i = 0;
-  for (const w of mock.works.values()) mock.thumbs.set(w.id, await (await fetch(planThumbnail(fakePlans[i++], 512))).blob());
+  for (const w of mock.works.values()) mock.thumbs.set(w.id, dataURLBlob(planThumbnail(fakePlans[i++], 512)));
   return Object.assign(createWorksClient({ fetch: mock.fetch }), { mock });
 }
 let empty = false, noCore = false, lang = 'zh', demo, works;

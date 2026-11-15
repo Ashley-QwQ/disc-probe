@@ -1,3 +1,4 @@
+import { isActionEnter } from "./kit/shared.js";
 // The archive and the fall share one background, one camera coordinate, and one clock.
 // Pure helpers stay importable by plain Node; no DOM or design module is loaded here.
 // The archive lists the core's works library (/api/works, pastworks/works.mjs); a core without one
@@ -514,6 +515,7 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     const row = el("div", "pw-d-actions"), ok = el("button", "pw-act pw-act-strong", s.confirmFailed), no = el("button", "pw-act", s.cancel);
     ok.type = "submit"; no.type = "button";
     no.addEventListener("click", () => { form.hidden = true; acts.querySelector(".pw-act-failed")?.focus(); });
+    // ime-enter-exempt: Ctrl/Cmd+Enter is an explicit modified shortcut, not IME confirmation.
     area.addEventListener("keydown", (k) => { if (k.key === "Escape") { k.preventDefault(); no.click(); } else if (k.key === "Enter" && (k.ctrlKey || k.metaKey)) { k.preventDefault(); form.requestSubmit(); } });
     form.addEventListener("submit", (k) => { k.preventDefault(); const why = area.value.trim(); if (!why) { area.focus(); return; } mark(w, "failed", why); });
     row.append(ok, no); form.append(label, area, row); details.append(form);
@@ -592,7 +594,7 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     };
     input.addEventListener("keydown", (k) => {
       k.stopPropagation();
-      if (k.key === "Enter") { k.preventDefault(); finish(true); }
+      if (isActionEnter(k)) { k.preventDefault(); finish(true); }
       else if (k.key === "Escape") { k.preventDefault(); finish(false); }
     });
     input.addEventListener("blur", () => finish(true));
@@ -756,7 +758,7 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     }
     if (e.key === "Escape" && e.target === search && search.value) { e.preventDefault(); e.stopImmediatePropagation(); search.value = ""; filter.q = ""; render(); return; }
     if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); back(); }
-    else if (e.key === "Enter" && (flight || phase === "loading")) { e.preventDefault(); e.stopImmediatePropagation(); skip(); }
+    else if (isActionEnter(e) && (flight || phase === "loading")) { e.preventDefault(); e.stopImmediatePropagation(); skip(); }
     else if (phase === "idle" && !selected && e.key === "/" && e.target !== search) { e.preventDefault(); search.focus(); }
   }
   window.addEventListener("keydown", keydown, { capture: true, signal });

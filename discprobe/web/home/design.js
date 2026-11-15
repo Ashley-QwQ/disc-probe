@@ -1,3 +1,4 @@
+import { isActionEnter, observeActivity, dataURLBlob } from "./kit/shared.js";
 // The design page: put pictures on the disc and set the tone. A mode of the home page, like
 // calibrate.js. Brief: docs/goals/gui-pages/design.md.
 //
@@ -769,11 +770,11 @@ function lookOverlay(plan = S) {
 }
 
 // ---------------------------------------------------------------- drawing the canvas
-let drawQueued = false;
+let drawQueued = false, canvasActive = true;
 function draw() {
-  if (drawQueued) return;
+  if (drawQueued || !canvasActive || document.hidden || !isOn()) return;
   drawQueued = true;
-  const run = () => { if (!drawQueued) return; drawQueued = false; paintCanvas(); };
+  const run = () => { if (!drawQueued) return; drawQueued = false; if (canvasActive && !document.hidden && isOn()) paintCanvas(); };
   requestAnimationFrame(run);
   setTimeout(run, 60);                      // a hidden page gets no animation frames
 }
@@ -1291,7 +1292,7 @@ function leftDbl(e) {
   nm.replaceWith(inp); inp.focus(); inp.select();
   let finished=false;
   const done = (ok) => { if(finished)return;finished=true;if (ok && inp.value.trim() && inp.value !== L.name) { checkpoint(); L.name = inp.value.trim(); } buildLeft(); };
-  inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") done(true); if (ev.key === "Escape") done(false); ev.stopPropagation(); });
+  inp.addEventListener("keydown", (ev) => { if (isActionEnter(ev)) { ev.preventDefault(); done(true); } if (ev.key === "Escape") done(false); ev.stopPropagation(); });
   inp.addEventListener("blur", () => done(true));
 }
 // drag a row to change the stacking order (top of the list is drawn on top)
@@ -1510,16 +1511,17 @@ function updateTilt() {
   o.textContent = t.phoneY(Math.round(S.lookY)) + (Math.round(S.lookY) === Math.round(-S.scene.cam[1]) ? t.design : "");
   b.textContent = S.playing ? t.stop : t.play;
 }
-function stopPlay() { clearInterval(S?.playing); if (S) S.playing = 0; }
+function stopPlay() { clearInterval(S?.playing); if (S) { S.playing = 0; S.playPaused = false; S.playTick = null; } }
 function togglePlay() {
-  if (S.playing) { stopPlay(); updateTilt(); return; }
+  if (S.playing || S.playPaused) { stopPlay(); updateTilt(); return; }
   let dir = 1, n = 0;
-  S.playing = setInterval(() => {
+  S.playTick = () => {
     S.lookY += dir * 1.5;
     if (S.lookY > 115 || S.lookY < 45) { dir = -dir; n++; }
     if (n >= 6) stopPlay();
     updateTilt(); draw();
-  }, 60);
+  };
+  S.playing = setInterval(S.playTick, 60);
   updateTilt();
 }
 
@@ -1556,7 +1558,7 @@ async function saveToWorks() {
   const plan = S, name = S.name ?? T().untitled;
   try {
     const r = await saveToLibrary({ client, plan, name, lang: api.lang(), text: await projectText(),
-      thumb: async () => (await fetch(planThumbnail(plan, 512))).blob() });
+      thumb: async () => dataURLBlob(planThumbnail(plan, 512)) });
     if (!r) return false;
     plan.name = r.work.name ?? name; plan.dirty = false;
     if (plan === S) { W.dirty.classList.remove("on"); W.pname.textContent = S.name; }
@@ -1627,14 +1629,14 @@ async function openProject(file, handle = null, work = null) {
       let bmp;
       if(e.raster){c.width=e.raster.width;c.height=e.raster.height;}
       else if(e.shape&&!e.picture){c.width=512;c.height=Math.max(1,Math.round(512*(e.height??e.width)/e.width));}
-      else {bmp=await createImageBitmap(await (await fetch(e.picture)).blob());c.width=bmp.width;c.height=bmp.height;}
+      else {bmp=await createImageBitmap(dataURLBlob(e.picture));c.width=bmp.width;c.height=bmp.height;}
       const g = c.getContext("2d", { willReadFrequently: true });
       if(e.raster)g.putImageData(new ImageData(new Uint8ClampedArray(EditorOps.bytes(e.raster.rgba)),c.width,c.height),0,0);
       else if(bmp){g.drawImage(bmp,0,0);bmp.close?.();}
       else {const im=g.createImageData(c.width,c.height);for(let j=0;j<c.height;j++)for(let i=0;i<c.width;i++)if(EditorOps.shapeHit(e.shape,(i+.5)/c.width-.5,(j+.5)/c.height-.5))im.data.set([30,30,30,255],4*(j*c.width+i));g.putImageData(im,0,0);}
       const L = { ...base, w: c.width, h: c.height, colour: e.colour ?? "none", alphaEdited: !!e.alphaEdited, px: g.getImageData(0, 0, c.width, c.height), src: c, version: 1 };
       Object.assign(L,{sourceKind:e.sourceKind,shape:e.shape,svg:e.svg,tone:e.tone});
-      if (typeof e.original === "string" && e.original.startsWith("data:image/")) L.file = await (await fetch(e.original)).blob();
+      if (typeof e.original === "string" && e.original.startsWith("data:image/")) L.file = dataURLBlob(e.original);
       layers.push(L);
     } catch { lost.push(e); }               // one unreadable picture: open the rest and say which
   }
@@ -1894,6 +1896,16 @@ function build() {
   ws.append(W.filebtns);
   // canvas input
   const cvs = W.canvas;
+  observeActivity(cvs, active => {
+    canvasActive = active;
+    if (!active) {
+      editor?.lamp?.pause();
+      if (S?.playing) { clearInterval(S.playing); S.playing = 0; S.playPaused = true; }
+    } else {
+      if (S?.playPaused && S.playTick) { S.playPaused = false; S.playing = setInterval(S.playTick, 60); }
+      draw();
+    }
+  });
   cvs.addEventListener("pointerdown", onDown);
   cvs.addEventListener("pointermove", onMove);
   cvs.addEventListener("pointerup", onUp);
@@ -2171,6 +2183,7 @@ function experimentalNow(P = S) {
   return value;
 }
 function hideDesign() {
+  editor?.lamp?.pause();
   composeRevision++;
   stopPlay();
   W.ws.classList.remove("on");

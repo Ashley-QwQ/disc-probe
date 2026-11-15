@@ -1,3 +1,4 @@
+import { isActionEnter } from "./kit/shared.js";
 // The new-plan page: what opens when "new work" is clicked in the lobby.
 //
 // The lobby flies to high above the drive and zooms in; the page is that view: the drive seen from above
@@ -274,7 +275,7 @@ function build() {
   addEventListener("dp-lang", () => { if (isOn()) { paintDial(); fillBatches(); words_(); } });
   W.name.addEventListener("keydown", (e) => {
     if (e.key === "Tab" && !e.shiftKey && !W.name.value) { e.preventDefault(); W.name.value = suggestion(); W.name.select(); }
-    if (e.key === "Enter") { e.preventDefault(); next(); }
+    if (isActionEnter(e)) { e.preventDefault(); next(); }
   });
   W.dial.addEventListener("click", (e) => {
     const k = e.target.closest(".np-key:not(.blank)");
@@ -317,7 +318,7 @@ function build() {
           : (state.active + (e.key === "ArrowDown" ? 1 : n - 1)) % n;
         paintMatches();
       }
-    } else if (e.key === "Enter") {
+    } else if (isActionEnter(e)) {
       e.preventDefault();
       if (!W.q(".np-matches").hidden && state.active >= 0) pickBatch(state.matches[state.active]);
       else hideMatches();
@@ -583,7 +584,7 @@ async function panBack(finish, reverseDisc) {
     for (const a of anims) { returning.anims.add(a); if (returning.skipped) a.finish(); }
   };
   const skip = e => {
-    if (e?.type === "keydown" && e.key !== "Enter") return;
+    if (e?.type === "keydown" && !isActionEnter(e)) return;
     if (e?.target?.closest?.("#back")) return;
     e?.preventDefault(); e?.stopImmediatePropagation();
     returning.skipped = true;
@@ -905,7 +906,7 @@ async function bagging(drop = true) {
     W.classList.remove("filing", "leaving");
   } };
   const skip = (e) => {
-    if (e && e.type === "keydown" && e.key !== "Enter") return;
+    if (e && e.type === "keydown" && !isActionEnter(e)) return;
     if (e?.target?.closest?.("#back")) return;
     e?.preventDefault(); e?.stopImmediatePropagation();
     skipped = true; W.classList.add("instant"); clearTimeout(timer); wake?.();

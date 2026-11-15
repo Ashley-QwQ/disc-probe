@@ -1,3 +1,4 @@
+import { observeActivity } from "./kit/shared.js";
 import { ringButton } from "./kit/ringbutton.js";
 ﻿// The preview page: look at the disc as it will be written, then make the burn file. A mode of the
 // home page like design.js, and laid out like it: title at the top left, the disc in the middle with
@@ -16,7 +17,7 @@ import { SimView } from "./sim/view.mjs";
 import { LampPreview } from "./design/editor-lamp.mjs";
 import * as sfx from "./sfx.js";
 
-let simulation = null, makeRing = null;
+let simulation = null, makeRing = null, canvasActive = true;
 // The lamp view of a work from the design page: the design page's own renderer (design/lamp-*.mjs, the A3 v3 model of
 // simulate_a3) on the work's document, so both pages show the same disc. sim/ (the older A5/B9 model with a photo
 // stage) stays only for a project without a document (dev-preview.html).
@@ -352,6 +353,7 @@ function resize() {
 }
 const css = (n) => getComputedStyle(root).getPropertyValue(n).trim();
 function draw() {
+  if (!canvasActive || document.hidden || !isOn()) return;
   if (!W || !isOn()) return;
   const t = T(), g = W.canvas.getContext("2d"), [r0, r1] = RANGE[ctx.media] ?? RANGE.dvd;
   g.setTransform(V.dpr, 0, 0, V.dpr, 0, 0);
@@ -435,6 +437,12 @@ function words() {
   buildRight(); draw();          // buildRight words Next (paintNext)
 }
 function bind(signal) {
+  const unobserve = observeActivity(W.canvas, active => {
+    canvasActive = active;
+    if (!active) { simulation?.stop(); simulation = null; lampView?.pause(); }
+    else draw();
+  });
+  signal.addEventListener('abort', unobserve, { once: true });
   const on = (el, ev, fn, o = {}) => el.addEventListener(ev, fn, { ...o, signal });
   on(W.view, "click", (e) => {
     const b = e.target.closest("[data-v]"); if (!b) return;

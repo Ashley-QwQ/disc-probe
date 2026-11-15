@@ -1,3 +1,4 @@
+import { isActionEnter } from "./kit/shared.js";
 // The terminal: what opens when the monitor in the lobby is clicked. The screen lights up (a baked layer,
 // lobby.js), then a console slides down from the top, dressed as the shell of the machine the core runs
 // on (PowerShell on Windows, bash elsewhere), with an optional worn-screen look.
@@ -113,7 +114,7 @@ function progress(e) {
 
 // ---------------------------------------------------------------- input
 function key(e) {
-  if (e.key === "Enter") { e.preventDefault(); const line = W.input.value; W.input.value = ""; enter(line); return; }
+  if (isActionEnter(e)) { e.preventDefault(); const line = W.input.value; W.input.value = ""; enter(line); return; }
   if (e.key === "ArrowUp" || e.key === "ArrowDown") {
     if (!history.length) return;
     e.preventDefault();
