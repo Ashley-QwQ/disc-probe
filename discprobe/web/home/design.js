@@ -8,6 +8,7 @@ import { isActionEnter, observeActivity, dataURLBlob } from "./kit/shared.js";
 // Tone, dither and export bit packing run in a module worker.
 import { processRGBA, renderOutput, autoLevels } from "./design/processing.mjs";
 
+import { selectionPixels, uniqueLayerName } from "./design/selection-edit.mjs";
 import { Editor } from "./design/editor-ui.mjs";
 import * as EditorOps from "./design/editor-ops.mjs";
 
@@ -279,7 +280,7 @@ function pictureRange() {
 // ---------------------------------------------------------------- history (undo / redo)
 // A snapshot is the layer list with each layer's properties; pixels are immutable ImageData, so a
 // snapshot only holds references to them.
-const PROPS = ["name", "x", "y", "width", "height", "rot", "opacity", "visible", "locked", "px", "colour", "y1", "y2", "fxKind", "tone"];
+const PROPS = ["name", "x", "y", "width", "height", "rot", "opacity", "visible", "locked", "px", "colour", "y1", "y2", "fxKind", "tone", "alphaEdited", "shape", "sourceKind"];
 function snapshot() {
   return { editor: structuredClone({selections:S.selections, assignments:S.assignments, activeMask:S.activeMask, maskGrid:S.maskGrid, materials:S.materials, cell:S.cell}), layers: S.layers.map((L) => ({ obj: L, props: Object.fromEntries(PROPS.map((k) => [k, L[k]])) })), selected: S.selected };
 }
@@ -304,12 +305,11 @@ function restore(snap) {
   editor?.invalidate();
   editor?.selectionOptions(S.selections?.find(m=>m.id===S.activeMask)?.definition);
   S.selected = snap.selected;
-  for (const L of S.layers) clearSelection(L);
   changed();
   buildLeft();
   editor?.panels();
 }
-function undo() { if (!S.past.length) return; S.future.push(snapshot()); restore(S.past.pop()); }
+function undo() { if(editor?.drag){editor.cancelGesture();return;}if (!S.past.length) return; S.future.push(snapshot()); restore(S.past.pop()); }
 function redo() { if (!S.future.length) return; S.past.push(snapshot()); restore(S.future.pop()); }
 
 // ---------------------------------------------------------------- layers
@@ -333,7 +333,7 @@ function addImageLayer(name, source, w, h) {
   const width = 2 * r1 * 0.98 / Math.sqrt(1 + (c.height / c.width) ** 2);
   checkpoint();
   const L = {
-    id: nextId++, kind: "image", name: name.replace(/\.[a-z0-9]+$/i, ""), w: c.width, h: c.height,
+    id: nextId++, kind: "image", name: uniqueLayerName(S.layers, name, api.lang()==="zh"?"图片":"Image"), w: c.width, h: c.height,
     x: 0, y: 0, width, rot: 0, opacity: 1, visible: true, locked: false, colour: "none",
     px: g.getImageData(0, 0, c.width, c.height), src: c, version: 1,
   };
@@ -400,105 +400,20 @@ function sampleLayer() {
   addImageLayer(T().sampleName, c, w, h);
 }
 
-// ---------------------------------------------------------------- the selection tool
-// Click a spot: everything of a similar colour that touches it is selected (tolerance in % of the
-// RGB cube's diagonal). Shift adds, Alt removes. Selected pixels are drawn inverted on the canvas.
-function flood(px, sx, sy, tol) {
-  const { width: w, height: h, data: d } = px, out = new Uint8Array(w * h);
-  const i0 = (sy * w + sx) * 4;
-  if (!d[i0 + 3]) return out;
-  const r0 = d[i0], g0 = d[i0 + 1], b0 = d[i0 + 2], lim = (tol / 100 * 441.673) ** 2;
-  const ok = (i) => {
-    if (out[i]) return false;
-    const j = i * 4;
-    if (!d[j + 3]) return false;
-    const dr = d[j] - r0, dg = d[j + 1] - g0, db = d[j + 2] - b0;
-    return dr * dr + dg * dg + db * db <= lim;
-  };
-  const stack = [sx, sy];
-  while (stack.length) {
-    const y = stack.pop(), x = stack.pop();
-    if (!ok(y * w + x)) continue;
-    let l = x, r = x;
-    while (l > 0 && ok(y * w + l - 1)) l--;
-    while (r < w - 1 && ok(y * w + r + 1)) r++;
-    for (let k = l; k <= r; k++) out[y * w + k] = 1;
-    for (const ny of [y - 1, y + 1]) {
-      if (ny < 0 || ny >= h) continue;
-      let open = false;
-      for (let k = l; k <= r; k++) {
-        const c = ok(ny * w + k);
-        if (c && !open) { stack.push(k, ny); open = true; } else if (!c) open = false;
-      }
-    }
-  }
-  return out;
-}
-function runSelection(L) {
-  const n = L.w * L.h;
-  let mask = new Uint8Array(n);
-  for (const s of L.seeds) {
-    const f = flood(L.px, s.x, s.y, S.selTol);
-    if (s.mode === "sub") for (let i = 0; i < n; i++) mask[i] &= 1 - f[i];
-    else for (let i = 0; i < n; i++) mask[i] |= f[i];
-  }
-  L.sel = mask;
-  // the inverted view of the selected pixels
-  const img = new ImageData(L.w, L.h), d = L.px.data, o = img.data;
-  const grey = S.view !== "orig";
-  for (let i = 0; i < n; i++) {
-    if (!mask[i]) continue;
-    const j = i * 4;
-    if (grey) { const v = 255 - Math.round(d[j] * 0.299 + d[j + 1] * 0.587 + d[j + 2] * 0.114); o[j] = o[j + 1] = o[j + 2] = v; }
-    else { o[j] = 255 - d[j]; o[j + 1] = 255 - d[j + 1]; o[j + 2] = 255 - d[j + 2]; }
-    o[j + 3] = 255;
-  }
-  const c = L.selCanvas ?? document.createElement("canvas");
-  c.width = L.w; c.height = L.h;
-  c.getContext("2d").putImageData(img, 0, 0);
-  L.selCanvas = c;
-  L.selCount = mask.reduce((a, b) => a + b, 0);
-  draw();
-  placeBar();
-}
-function clearSelection(L) { if (!L) return; L.sel = null; L.seeds = []; L.selCanvas = null; L.selCount = 0; }
-function wandAt(L, mm, mode) {
-  const [u, v] = toLocal(L, mm);
-  const px = Math.floor((u / L.width + 0.5) * L.w), py = Math.floor((v / heightOf(L) + 0.5) * L.h);
-  if (px < 0 || py < 0 || px >= L.w || py >= L.h) return;
-  if (mode === "new" || !L.seeds?.length) L.seeds = [];
-  L.seeds.push({ x: px, y: py, mode: mode === "sub" ? "sub" : "add" });
-  runSelection(L);
-}
-function boxBlur(src, w, h, r) {
-  const a = Float32Array.from(src), b = new Float32Array(w * h);
-  if (r < 1) return a;
-  const pass = (from, to, len, count, step, lineStep) => {
-    for (let line = 0; line < count; line++) {
-      const base = line * lineStep;
-      let sum = 0;
-      for (let k = -r; k <= r; k++) sum += from[base + Math.min(len - 1, Math.max(0, k)) * step];
-      for (let i = 0; i < len; i++) {
-        to[base + i * step] = sum / (2 * r + 1);
-        sum += from[base + Math.min(len - 1, i + r + 1) * step] - from[base + Math.max(0, i - r) * step];
-      }
-    }
-  };
-  pass(a, b, w, h, 1, w);
-  pass(b, a, h, w, w, 1);
-  return a;
-}
-function applySelection(L, keep) {
-  if (!L?.sel) return;
+// Current selections live in the document; source pixels are immutable for history.
+function selectionEdit(action) {
+  const L=sel(),m=S.selections?.find(m=>m.id===S.activeMask);
+  if(!L?.px||L.locked||!m)return null;
+  const split=action==='copy'||action==='cut';
+  if(split&&S.layers.length>=16){toast(T().tooMany);return null;}
+  const {selected,remaining}=selectionPixels(L,EditorOps.bytes(m.bits),S.maskGrid,editor.options.feather??0);
   checkpoint();
-  const m = boxBlur(L.sel, L.w, L.h, Math.round(S.selFeather ?? 0));
-  const out = new ImageData(new Uint8ClampedArray(L.px.data), L.w, L.h);
-  for (let i = 0; i < m.length; i++) out.data[i * 4 + 3] = Math.round(out.data[i * 4 + 3] * (keep ? m[i] : 1 - m[i]));
-  L.px = out;
-  L.alphaEdited = true;
-  pixelsChanged(L);
-  clearSelection(L);
-  changed(); buildLeft();
+  let next=null;
+  if(split){next={...L,id:nextId++,name:uniqueLayerName(S.layers,L.name,api.lang()==='zh'?'图片':'Image',false),px:new ImageData(selected,L.w,L.h),alphaEdited:true,shape:undefined,sourceKind:'bitmap',thumb:null,src:null};
+    pixelsChanged(next);S.layers.splice(S.layers.indexOf(L)+1,0,next);S.selected=next.id;
+    S.assignments.push(...S.assignments.filter(a=>a.layer===L.id).map(a=>({...structuredClone(a),id:crypto.randomUUID(),layer:next.id})));}
+  if(action!=='copy'){L.px=new ImageData(action==='keep'?selected:remaining,L.w,L.h);L.alphaEdited=true;L.shape=undefined;L.sourceKind='bitmap';pixelsChanged(L);}
+  S.activeMask=null;changed();buildLeft();buildRight();return next;
 }
 
 // ---------------------------------------------------------------- geometry helpers
@@ -531,14 +446,22 @@ const DOCK = 96;                             // the canvas's bottom strip, where
 function fit() {
   V.s = Math.min(V.w - 64, V.h - TOP_DOCK - DOCK) * 0.92 / 120;
   V.cx = V.w / 2 + 20; V.cy = TOP_DOCK + (V.h - TOP_DOCK - DOCK) / 2;
-  editor?.invalidate();
+  settleView();editor?.invalidate();
   draw(); queueCompose();
 }
+let motion=null,motionTimer;
+function settleView(){clearTimeout(motionTimer);if(!motion)return;motion=null;W.canvas.style.transform='';W.canvas.style.willChange='';draw();queueCompose();}
+function viewChanged(){
+  if(S.view!=='burn'||!paintedView){draw();queueCompose();return;}
+  motion??={...paintedView};clearTimeout(motionTimer);motionTimer=setTimeout(settleView,150);
+  draw();
+}
+let paintedView=null;
 function zoomAt(f, sx, sy) {
   const s = Math.min(Math.max(V.s * f, Math.min(V.w, V.h) * 0.2 / 120), 4 / S.cell);
   const k = s / V.s;
   V.cx = sx - (sx - V.cx) * k; V.cy = sy - (sy - V.cy) * k; V.s = s;
-  draw(); queueCompose();
+  viewChanged();
 }
 const zoomPct = () => Math.round(V.s * S.cell * 100);
 
@@ -811,6 +734,12 @@ function ruler(g, r0, r1, ink) {
 function paintCanvas() {
   if (!W || !S) return;
   const cv = W.canvas, g = cv.getContext("2d");
+  if(motion&&S.view==='burn'){
+    const k=V.s/motion.s;cv.style.transformOrigin='0 0';cv.style.willChange='transform';
+    cv.style.transform=`translate(${V.cx-motion.cx*k}px,${V.cy-motion.cy*k}px) scale(${k})`;return;
+  }
+  if(motion)settleView();
+  paintedView={...V};
   g.setTransform(V.dpr, 0, 0, V.dpr, 0, 0);
   g.clearRect(0, 0, V.w, V.h);
   const face = cssVar("--face"), face2 = cssVar("--face-2"), dim = cssVar("--dim"), paper = cssVar("--paper");
@@ -851,14 +780,7 @@ function paintCanvas() {
     g.restore();
   }
   editor?.paint(g);
-  // selected pixels, inverted
   const L = sel();
-  if (L?.selCanvas) {
-    g.save(); g.translate(V.cx + L.x * V.s, V.cy + L.y * V.s); g.rotate(L.rot * Math.PI / 180);
-    const hh = heightOf(L) * V.s;
-    g.drawImage(L.selCanvas, -L.width * V.s / 2, -hh / 2, L.width * V.s, hh);
-    g.restore();
-  }
   // everything outside the burnable ring stays in sight at about a quarter, with its outline (as DIS does)
   g.fillStyle = dim;                                         // the page around the disc
   g.beginPath(); g.rect(0, 0, V.w, V.h); g.arc(V.cx, V.cy, 60 * V.s, 0, Math.PI * 2, true); g.fill();
@@ -936,8 +858,8 @@ function cornersOutside(L, p0, p1) {
 function placeBar() {
   const L = sel(), bar = W?.bar;
   if (!bar) return;
-  if (!L || !L.visible || S.tool !== "move" || spaceDown) { bar.hidden = true; return; }
-  const mode = L.sel && L.selCount ? "sel" : "props";
+  if (S.activeMask || !L || !L.visible || S.tool !== "move" || spaceDown) { bar.hidden = true; return; }
+  const mode = "props";
   if (bar.dataset.mode !== mode || bar.dataset.id !== String(L.id) || bar.dataset.lang !== api.lang()) fillBar(L, mode);
   else syncBar(L);
   bar.hidden = false;
@@ -951,26 +873,19 @@ function placeBar() {
 function fillBar(L, mode) {
   const t = T(), bar = W.bar;
   bar.dataset.mode = mode; bar.dataset.id = String(L.id); bar.dataset.lang = api.lang();
-  if (mode === "sel") {
-    bar.innerHTML = `<label>${t.sel.tol}<input class="rng" type="range" min="0" max="60" step="1" data-k="tol"></label>` +
-      `<label>${t.sel.feather}<input class="short" type="number" min="0" max="20" step="1" data-k="feather"></label><span class="sep"></span>` +
-      `<button class="sbtn" type="button" data-a="cut">${t.sel.cut}</button><button class="sbtn" type="button" data-a="keep">${t.sel.keep}</button>` +
-      `<button class="sbtn" type="button" data-a="cancel">${t.sel.cancel}</button><span class="k">${t.sel.hint}</span>`;
-  } else {
     const f = t.fb, fx = L.kind === "fx";
     bar.innerHTML = `<label>${f.x}<input type="number" step="0.1" data-k="x"></label><label>${f.y}<input type="number" step="0.1" data-k="y"></label>` +
       `<label>${f.w}<input type="number" step="0.5" min="1" data-k="width"></label>` + (fx ? `<label>${f.h}<input type="number" step="0.5" min="1" data-k="height"></label>` : "") +
       `<label>${f.rot}<input class="short" type="number" step="1" data-k="rot"></label>` + (fx ? "" : `<label>${f.op}<input class="short" type="number" step="5" min="0" max="100" data-k="opacity"></label>`) +
       `<span class="sep"></span><button class="ib" type="button" data-a="lock" aria-label="${L.locked ? t.unlock : t.lock}" title="${L.locked ? t.unlock : t.lock}" aria-pressed="${L.locked}">${L.locked ? I.lock : I.unlock}</button>` +
       `<button class="ib" type="button" data-a="del" aria-label="${t.remove}" title="${t.remove}">${I.trash}</button>`;
-  }
   syncBar(L);
 }
 function syncBar(L) {
   for (const inp of W.bar.querySelectorAll("input[data-k]")) {
     if (document.activeElement === inp) continue;
     const k = inp.dataset.k;
-    const v = k === "tol" ? S.selTol : k === "feather" ? S.selFeather : k === "opacity" ? Math.round(L.opacity * 100) : L[k];
+    const v = k === "opacity" ? Math.round(L.opacity * 100) : L[k];
     inp.value = typeof v === "number" ? String(Math.round(v * 10) / 10) : v;
   }
 }
@@ -979,8 +894,6 @@ function barInput(e) {
   if (!L || !inp) return;
   const k = inp.dataset.k, v = Number(inp.value);
   if (!Number.isFinite(v)) return;
-  if (k === "tol") { S.selTol = v; runSelection(L); return; }
-  if (k === "feather") { S.selFeather = Math.max(0, Math.min(20, v)); return; }
   checkpoint(`bar-${k}-${L.id}`);
   if (k === "opacity") L.opacity = Math.max(0, Math.min(1, v / 100));
   else if (k === "width" || k === "height") L[k] = Math.max(1, v);
@@ -991,10 +904,7 @@ function barClick(e) {
   const b = e.target.closest("button[data-a]"), L = sel();
   if (!b || !L) return;
   const a = b.dataset.a;
-  if (a === "cut") applySelection(L, false);
-  else if (a === "keep") applySelection(L, true);
-  else if (a === "cancel") { clearSelection(L); draw(); }
-  else if (a === "lock") { checkpoint(); L.locked = !L.locked; W.bar.dataset.mode = ""; changed(); buildLeft(); }
+  if (a === "lock") { checkpoint(); L.locked = !L.locked; W.bar.dataset.mode = ""; changed(); buildLeft(); }
   else if (a === "del") removeLayer(L);
 }
 function removeLayer(L) {
@@ -1008,6 +918,8 @@ function removeLayer(L) {
 
 // a change to the project: redraw, recompute the projection, mark unsaved
 function changed() {
+  settleView();
+  if(S.view==='burn'&&(drag&&['move','scale','rot'].includes(drag.kind)||editor?.drag?.kind==='pixels'))editor?.deferPreview();
   S.dirty = true;
   W?.dirty.classList.toggle("on", S.dirty);
   if (W) W.dirty.title = T().unsaved;
@@ -1040,13 +952,6 @@ function onDown(e) {
   }
   if (e.button !== 0) return;
   const mm = toMm(...p);
-  if (S.tool === "wand") {
-    const L = hitLayer(mm, ["image"]);
-    if (!L) return;
-    if (S.selected !== L.id) { for (const x of S.layers) clearSelection(x); S.selected = L.id; buildLeft(); }
-    wandAt(L, mm, e.shiftKey ? "add" : e.altKey ? "sub" : "new");
-    return;
-  }
   const L = sel();
   if (L && !L.locked) {
     const rh = rotHandle(L);
@@ -1066,7 +971,7 @@ function onDown(e) {
   }
   const hit = hitLayer(mm);
   if (hit) {
-    if (S.selected !== hit.id) { for (const x of S.layers) clearSelection(x); S.selected = hit.id; buildLeft(); buildRight(); }
+    if (S.selected !== hit.id) { S.selected = hit.id; buildLeft(); buildRight(); }
     checkpoint();
     drag = { kind: "move", L: hit, m0: mm, x0: hit.x, y0: hit.y };
   } else {
@@ -1086,10 +991,10 @@ function onMove(e) {
     const [a, b] = [...pointers.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     const s = Math.min(Math.max(drag.s0 * d / drag.d0, Math.min(V.w, V.h) * 0.2 / 120), 4 / S.cell), k = s / drag.s0;
     V.s = s; V.cx = c[0] - (drag.c0[0] - drag.cx) * k; V.cy = c[1] - (drag.c0[1] - drag.cy) * k;
-    draw(); queueCompose();
+    viewChanged();
   } else if (drag.kind === "pan") {
     V.cx = drag.cx + p[0] - drag.p0[0]; V.cy = drag.cy + p[1] - drag.p0[1];
-    draw(); queueCompose();
+    viewChanged();
   } else if (drag.kind === "move") {
     const mm = toMm(...p);
     let dx = mm[0] - drag.m0[0], dy = mm[1] - drag.m0[1];
@@ -1123,14 +1028,14 @@ function onWheel(e) {
   const mouse = e.deltaMode === 1 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
   if (e.ctrlKey) zoomAt(Math.exp(-e.deltaY * 0.01), ...p);
   else if (mouse) zoomAt(e.deltaY < 0 ? 1.18 : 1 / 1.18, ...p);
-  else { V.cx -= e.deltaX; V.cy -= e.deltaY; draw(); queueCompose(); }
+  else { V.cx -= e.deltaX; V.cy -= e.deltaY; viewChanged(); }
 }
 function onKey(e) {
   if (!isOn() || !S) return;
   if (e.target.closest?.("input, select, textarea")) return;
   if(!spaceDown&&editor?.key(e)){e.preventDefault();return;}
   const L = sel(), k = e.key;
-  if (k === "Escape" && editor?.drag) {editor.drag=null;draw();return;}
+  if (k === "Escape" && editor?.drag) {editor.cancelGesture();return;}
   if (k === "Escape" && S.activeMask) {checkpoint();S.activeMask=null;editor.invalidate();changed();editor.panels();return;}
   if (k === "F2" && L) {e.preventDefault();editor.h.rename(L.id);return;}
   if (e.altKey && ["ArrowUp","ArrowDown"].includes(k) && L && !L.locked) {e.preventDefault();editor.click({target:{closest:()=>({dataset:{edAction:k==="ArrowUp"?"up":"down"}})},preventDefault(){},stopPropagation(){}});return;}
@@ -1140,6 +1045,7 @@ function onKey(e) {
   if ((e.ctrlKey || e.metaKey) && (k === "y")) { e.preventDefault(); redo(); return; }
   if ((e.ctrlKey || e.metaKey) && (k === "s" || k === "S")) { e.preventDefault(); saveProject(e.shiftKey); return; }
   if ((e.ctrlKey || e.metaKey) && (k === "o" || k === "O")) { e.preventDefault(); pickProject(); return; }
+  if ((e.ctrlKey || e.metaKey) && k.toLowerCase()==="j") {e.preventDefault();selectionEdit(e.shiftKey?"cut":"copy");return;}
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (k === "0") { fit(); return; }
   if (k === "1") { zoomAt(1 / S.cell / V.s, V.w / 2, V.h / 2); return; }
@@ -1147,11 +1053,10 @@ function onKey(e) {
   else if (k === "w" || k === "W") setTool("wand");
   else if (k === "h" || k === "H") setTool("pan");
   else if (k === "Escape") {
-    if (L?.sel) { clearSelection(L); draw(); }
-    else if (L) { S.selected = null; buildLeft(); buildRight(); draw(); }
+    if (L) { S.selected = null; buildLeft(); buildRight(); draw(); }
     else leave();
   } else if ((k === "Delete" || k === "Backspace") && L) {
-    if (L.sel && L.selCount) applySelection(L, false); else removeLayer(L);
+    e.preventDefault();if(S.activeMask)selectionEdit("delete");else removeLayer(L);
   } else if (k.startsWith("Arrow") && L && !L.locked) {
     e.preventDefault();
     const step = e.shiftKey ? 1 : 0.1;
@@ -1164,6 +1069,7 @@ function onKey(e) {
 function onKeyUp(e) { if (e.key === " ") { spaceDown = false; W?.cv.classList.remove("pan"); } }
 function setTool(t) {
   t=t==="shape"?(editor?.options.shape??"rectangleShape"):t==="wand"?"colour":t;
+  if(editor?.drag&&editor.tool!==t)editor.cancelGesture();
   S.tool = t;
   if(editor){editor.tool=t;editor.toolbar();editor.optionsBar();}
   W.cv.dataset.tool = t;
@@ -1207,8 +1113,7 @@ function buildLeft() {
   const t = T();
   const rows = [...S.layers].reverse();
   W.left.innerHTML = `<section><h3><span class="grow">${t.layers}</span>` +
-    `<button class="ib" type="button" data-a="undo" aria-label="${t.undo}" title="${t.undo}" ${S.past.length ? "" : "disabled"}>${I.undo}</button>` +
-    `<button class="ib" type="button" data-a="redo" aria-label="${t.redo}" title="${t.redo}" ${S.future.length ? "" : "disabled"}>${I.redo}</button></h3>` +
+    `</h3>` +
     (rows.length ? `<ul class="lays" role="listbox" aria-label="${t.layers}">${rows.map((L) => `<li class="lay${L.visible ? "" : " hid"}" role="option" draggable="true" data-id="${L.id}" aria-selected="${L.id === S.selected}">` +
       (L.kind === "fx" ? `<span class="fxmark">${I.fx}</span>` : `<span class="th"></span>`) +
       `<span class="nm">${esc(L.name)}${L.kind === "fx" ? `<small>${t.fxY(L.y1, L.y2)}</small>` : ""}</span>` +
@@ -1259,7 +1164,7 @@ function refreshLayerRows() {
   }
   const burn = W?.left.querySelector(".burnset");
   if (burn && burn.dataset.key !== burnKey()) burn.outerHTML = burnSection();      // the picture's sampling follows its size
-  const u = W?.left.querySelector('[data-a="undo"]'), r = W?.left.querySelector('[data-a="redo"]');
+  const u = W?.tools.querySelector('[data-history="undo"]'), r = W?.tools.querySelector('[data-history="redo"]');
   if (u) u.disabled = !S.past.length;
   if (r) r.disabled = !S.future.length;
 }
@@ -1916,9 +1821,9 @@ function build() {
   let temporaryTool=null;
   addEventListener("keydown",e=>{
     if(!isOn()||!S||e.isComposing||e.ctrlKey||e.metaKey||e.altKey||e.target.closest?.("input,select,textarea,[contenteditable=true]"))return;
-    if(e.key===" "){if(!e.repeat&&temporaryTool===null){temporaryTool=S.tool;editor.drag=null;spaceDown=true;setTool("pan");}e.preventDefault();e.stopPropagation();return;}
+    if(e.key===" "){if(!e.repeat&&temporaryTool===null){temporaryTool=S.tool;editor.cancelGesture();spaceDown=true;setTool("pan");}e.preventDefault();e.stopPropagation();return;}
     const t=({v:"move",r:"rectangle",f:"lasso",c:"ring",g:"sector",w:"colour",y:"shape",n:"pen",h:"pan"})[e.key.toLowerCase()];
-    if(t&&!e.shiftKey){if(!e.repeat){editor.drag=null;setTool(t);}e.preventDefault();e.stopPropagation();}
+    if(t&&!e.shiftKey){if(!e.repeat){editor.cancelGesture();setTool(t);}e.preventDefault();e.stopPropagation();}
   },true);
   addEventListener("keyup",e=>{if(e.key===" "&&temporaryTool!==null){const t=temporaryTool;temporaryTool=null;spaceDown=false;setTool(t);e.preventDefault();e.stopPropagation();}},true);
   addEventListener("blur",()=>{if(temporaryTool!==null){const t=temporaryTool;temporaryTool=null;spaceDown=false;setTool(t);}});
@@ -1932,7 +1837,6 @@ function build() {
     if(S.view==='lamp'&&editor?.lamp?.phase==='error')editor.lamp.retry();
     for (const x of W.view.children) x.setAttribute("aria-pressed", String(x.dataset.v === S.view));
     viewNote();
-    const L = sel(); if (L?.seeds?.length) runSelection(L);
     draw();
   });
   W.empty.addEventListener("click", (e) => {
@@ -1951,6 +1855,7 @@ function build() {
   W.right.addEventListener("click", rightClick);
   W.tilt.querySelector("input").addEventListener("input", (e) => { S.lookY = Number(e.target.value); updateTilt(); draw(); });
   W.tilt.querySelector("button").addEventListener("click", togglePlay);
+  addEventListener("paste",e=>{if(!isOn()||e.target.closest?.('input,textarea,[contenteditable=true]'))return;const files=[...(e.clipboardData?.items??[])].filter(i=>i.kind==='file'&&i.type.startsWith('image/')).map(i=>i.getAsFile()).filter(Boolean);if(files.length){e.preventDefault();importFiles(files.map(f=>new File([f],'',{type:f.type})));}});
   W.file.addEventListener("change", () => { importFiles([...W.file.files]); W.file.value = ""; });
   W.proj.addEventListener("change", () => { const f = W.proj.files[0]; if (f) openProject(f); W.proj.value = ""; });
   W.filebtns.addEventListener("click", (e) => {
@@ -1977,7 +1882,7 @@ function build() {
     if (proj) openProject(proj); else importFiles(files);
   });
   editor = new Editor({state:()=>S,dom:()=>W,lang:()=>api.lang(),view:()=>V,colour:cssVar,active:isOn,
-    checkpoint, changed, draw, status:viewNote, annulus, fit, rename:id=>{const row=W.left.querySelector(`[data-id="${id}"]`);if(row)leftDbl({target:row.querySelector(".nm")});}, error:toast,tool:setTool,rebuild:()=>{buildLeft();buildRight();},
+    checkpoint, changed, draw, status:viewNote, annulus, fit, undo, redo, selectionEdit, rollback:history=>{const snap=S.past.pop();if(snap)restore(snap);Object.assign(S,history);W.dirty.classList.toggle('on',S.dirty);refreshLayerRows();}, rename:id=>{const row=W.left.querySelector(`[data-id="${id}"]`);if(row)leftDbl({target:row.querySelector(".nm")});}, error:toast,tool:setTool,rebuild:()=>{buildLeft();buildRight();},
     raster:g=>rasterise(-60,-60,60,60,g.width/120,false),
     shape:(kind,points)=>{
       const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),x0=Math.min(...xs),y0=Math.min(...ys),width=Math.max(.5,Math.max(...xs)-x0),height=Math.max(.5,Math.max(...ys)-y0);
@@ -2106,7 +2011,7 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
     else {
       const media = work.media in RANGE ? work.media : col, [c, last] = api.lastBatch?.() ?? [];
       S = newProject(c === media ? last : col === media ? item : { kind: "unset", name: T().noDiscYet, mid: "", s: "none" }, media);
-      S.selTol = 18; S.selFeather = 1; S.name = work.name; S.work = { id: work.id, updated_at: work.updated_at };
+      S.name = work.name; S.work = { id: work.id, updated_at: work.updated_at };
       if (work.text != null) fromWork = new File([work.text], `${work.name}.discdesign`, { type: "application/json" });
     }
   }
@@ -2118,7 +2023,7 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
   }
   else {
     S = projects.get(item);
-    if (!S) { S = newProject(item, col); S.selTol = 18; S.selFeather = 1; projects.set(item, S); }
+    if (!S) { S = newProject(item, col); projects.set(item, S); }
   }
   plans.splice(0, plans.length, S, ...plans.filter((P) => P !== S));
   api.rememberBatch?.(S.item);
@@ -2437,7 +2342,7 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
 }
 
 function leave() {
-  editor?.lamp?.pause();
+  settleView();editor?.lamp?.pause();
   clearTimeout(editor?.lightTimer);
   composeRevision++;
   stopPlay();

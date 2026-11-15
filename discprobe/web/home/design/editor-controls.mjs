@@ -5,6 +5,7 @@ import {tone as toneOf} from './tone.mjs';
 import {rigSteps,rigWords,rigLabel} from './editor-rig.mjs';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const paths={
+  undo:'<path d="M9 5L4 10l5 5M4 10h10a5 5 0 0 1 0 10"/>',redo:'<path d="M15 5l5 5-5 5M20 10H10a5 5 0 0 0 0 10"/>',
   move:'<path d="M5 3l13 8-6 1-3 6z"/>',rectangle:'<rect x="4" y="5" width="16" height="14" rx="1" stroke-dasharray="3 2"/>',
   lasso:'<path d="M8 18C-1 14 3 4 12 4c10 0 12 11 3 14-6 3-11-1-8-4 2-2 5 2 2 7"/>',
   ring:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/>',
@@ -26,10 +27,16 @@ export const TOOL_KEYS={v:'move',r:'rectangle',f:'lasso',c:'ring',g:'sector',w:'
 export const controls={
   selectionOptions(def){if(!def)return;for(const k of ['inner','outer','start','end','tolerance'])if(Number.isFinite(def[k]))this.options[k]=def[k];if(typeof def.contiguous==='boolean')this.options.contiguous=def.contiguous;},
   toolName(k){return ({move:this.h.lang()==='zh'?'选择':'Select',pan:this.h.lang()==='zh'?'手形':'Hand',shape:this.t.shape})[k]??this.t[k];},
-  toolbar(){const w=this.h.dom();if(!w)return;w.tools.innerHTML=Object.entries(TOOL_KEYS).map(([key,k])=>{
+  toolHint(k){const zh=this.h.lang()==='zh',name=this.toolName(k);
+    if(k==='colour')return zh?'按颜色选区：点一下选中相近的颜色；按住左右拖调范围':'Select similar colours; hold and drag sideways to change tolerance';
+    if(['rectangle','lasso','ring','sector'].includes(k))return zh?`${name}：拖动建立选区；选完可拷贝、剪切或拖动里面的内容`:`${name}: drag to select, then copy, cut or drag the contents`;
+    return zh?({move:'选择：移动、缩放或旋转图层；在选区内拖动可移动内容',pan:'手形：拖动画面；用滚轮缩放',shape:'简单形状：拖动绘制；建立选区后可裁剪',pen:'手绘：拖动绘制；建立选区后可裁剪'})[k]:({move:'Select: move, scale or rotate layers; drag inside a selection to move its contents',pan:'Hand: drag the view; wheel to zoom',shape:'Shapes: drag to draw, then select to crop',pen:'Freehand: drag to draw, then select to crop'})[k];
+  },
+  toolbar(){const w=this.h.dom();if(!w)return;const mod=/Mac|iPhone|iPad/.test(navigator.platform)?'⌘':'Ctrl',zh=this.h.lang()==='zh';
+    w.tools.innerHTML=['undo','redo'].map(a=>{const title=(a==='undo'?(zh?'撤销':'Undo')+` ${mod}+Z`:(zh?'重做':'Redo')+` ${mod}+Shift+Z / ${mod}+Y`);return `<button class="tb" type="button" data-history="${a}" title="${title}" aria-label="${title}" ${this.s[a==='undo'?'past':'future'].length?'':'disabled'}>${icon(a)}<span class="ed-tip">${title}</span></button>`;}).join('')+'<span class="ed-tool-separator" role="separator"></span>'+Object.entries(TOOL_KEYS).map(([key,k])=>{
       const active=k==='shape'?['rectangleShape','ellipse','polygon','line'].includes(this.tool):this.tool===k;
-      return `<button class="tb" type="button" data-ed-tool="${k}" title="${this.toolName(k)} (${key.toUpperCase()})" aria-label="${this.toolName(k)}" aria-keyshortcuts="${key.toUpperCase()}" aria-pressed="${active}">${icon(k)}<span class="ed-tip">${this.toolName(k)} <kbd>${key.toUpperCase()}</kbd></span></button>`;}).join('');
-    w.tools.onclick=e=>this.click(e);
+      return `<button class="tb" type="button" data-ed-tool="${k}" title="${this.toolHint(k)} (${key.toUpperCase()})" aria-label="${this.toolName(k)}" aria-keyshortcuts="${key.toUpperCase()}" aria-pressed="${active}">${icon(k)}<span class="ed-tip">${this.toolHint(k)} <kbd>${key.toUpperCase()}</kbd></span></button>`;}).join('');
+    w.tools.onclick=e=>{const a=e.target.closest('[data-history]')?.dataset.history;if(a){this.h[a]();return;}this.click(e);};
   },
   optionsBar(){const w=this.h.dom(),t=this.t;if(!w)return;
     let bar=w.cv.querySelector('.ed-options');if(!bar){bar=document.createElement('div');bar.className='ed-options';bar.setAttribute('role','toolbar');w.cv.append(bar);bar.addEventListener('input',e=>this.input(e));bar.addEventListener('change',e=>{if(e.target.tagName==='SELECT')this.input(e);});bar.addEventListener('click',e=>this.optionClick(e));}
@@ -44,7 +51,11 @@ export const controls={
     if(tool==='pen')options+=`<span class="ed-option-hint">${this.h.lang()==='zh'?'拖动绘制 · Enter 完成 · Esc 取消':'Drag to draw · Enter finishes · Esc cancels'}</span>`;
     if(tool==='pan')options+=`<button class="sbtn" data-ed-fit>${this.h.lang()==='zh'?'适应整盘':'Fit disc'}</button>`;
     if(['ring','sector'].includes(tool))options+=`<button class="ib" data-ed-action="select" aria-label="${t.apply}" title="${t.apply}">${icon('save')}</button>`;
-    bar.innerHTML=options;bar.hidden=tool==='move';bar.setAttribute('aria-label',this.toolName(['rectangleShape','ellipse','polygon','line'].includes(tool)?'shape':tool));
+    if(this.s.activeMask){const zh=this.h.lang()==='zh',l=this.s.layers.find(l=>l.id===this.s.selected),off=!l?.px||l.locked;
+      const actions=[['copy',zh?'拷贝到新图层':'Copy to new layer','Ctrl+J'],['cut',zh?'剪切到新图层':'Cut to new layer','Ctrl+Shift+J'],['delete',zh?'删掉选区里的内容':'Delete selected contents','Delete'],['keep',zh?'只留选区里的内容':'Keep selected contents','']];
+      options=`<div class="ed-selection-actions">${actions.map(([a,label,key])=>`<button class="sbtn" type="button" data-ed-action="${a}" title="${label}${key?' ('+key+')':''}" ${off||(['copy','cut'].includes(a)&&this.s.layers.length>=16)?'disabled':''}>${label}</button>`).join('')}<button class="sbtn" data-ed-action="clear">${t.clear}</button></div>`+options+this.n('feather',zh?'柔化 mm':'Feather mm',0,4,.2)+`<span class="ed-option-hint">${t.hint}</span>`;
+    }
+    bar.innerHTML=options;bar.hidden=tool==='move'&&!this.s.activeMask;bar.setAttribute('aria-label',this.toolName(['rectangleShape','ellipse','polygon','line'].includes(tool)?'shape':tool));
   },
   optionClick(e){const b=e.target.closest('button');if(!b)return;
     if(b.dataset.edOp){this.options.operation=b.dataset.edOp;this.optionsBar();return;}

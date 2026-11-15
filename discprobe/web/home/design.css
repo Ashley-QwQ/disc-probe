@@ -306,3 +306,10 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws .ed-tone .ed-tone-ctl input { min-height: 0; padding: 0; border: 0; background: none; }
 .ws .ed-tone output { font: 13px var(--mono); text-align: right; color: var(--ink-2); }
 
+
+/* W245: global history first; selection actions occupy the first row of the existing dock. */
+.ws .ed-tool-separator { height:1px; background:var(--rule); margin:4px 0; }
+.ws .ed-options { flex-wrap:wrap; }
+.ws .ed-selection-actions { display:flex; flex-wrap:wrap; gap:6px; flex-basis:100%; }
+.ws .ed-selection-actions .sbtn { font-size:12px; padding:6px; }
+.ws .tools-v .tb:disabled { opacity:.35; cursor:default; }
