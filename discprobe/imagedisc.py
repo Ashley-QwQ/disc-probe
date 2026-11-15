@@ -362,6 +362,16 @@ def _job_chunk(span):
     lead_lba, seeded by the chunk start), scrambled as the drive will scramble it."""
     a, n = span
     j = _JOB
+    if 'picture_lba' in j:
+        # Reserved sectors are initialized to zero, never sent through the pattern
+        # encoder. The planned filesystem is copied only after workers finish.
+        data = np.zeros((n, dvd.SECTOR_BYTES), dtype=np.uint8)
+        for low, high in j['picture_lba']:
+            lo, hi = max(a, low), min(a+n, high)
+            if lo < hi:
+                q = _sector_q(j['design'], j['texs'], j['u'], j['v'], j['bit_mm'], lo, hi-lo, j['correction'], j['media'])
+                data[lo-a:hi-a] = q ^ _scramble_masks(j['media'], np.arange(lo, hi))
+        return a, n, data.tobytes()
     q = _sector_q(j["design"], j["texs"], j["u"], j["v"], j["bit_mm"], a, n, j["correction"], j["media"])
     if a < j["lead_lba"]:
         k = min(n, j["lead_lba"] - a)
@@ -423,13 +433,23 @@ def _write_chunks(path: str, job: dict, spans, first_lba: int):
 def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, total_sectors: int,
               dark: str = "A5", light: str = "B9", log=print, meta: dict | None = None, correction=None,
               textures=None, first_lba: int = 0, lead_lba: int = 0, media: str = "dvd",
-              disc_id=False, disc_id_code=None) -> str:
+              disc_id=False, disc_id_code=None, file_layout=None) -> str:
     """With first_lba, the file holds only sectors first_lba.. for appending to a disc already written up to
     there; it then has no file system of its own. Sectors below lead_lba hold random data instead of the design:
     a GU70N in a USB case failed to write a picture from the first sector on, yet wrote textures after random data."""
     texs = _textures(design, dark, light, textures)
     identity = None
     from . import discid
+    if file_layout is not None:
+        if media != 'dvd' or first_lba or lead_lba:
+            raise ValueError('随盘文件只支持完整单层 DVD，不支持追加或随机内圈')
+        if total_sectors != file_layout.total_sectors:
+            raise ValueError('File layout capacity differs from the image')
+        if bool(file_layout.identity_spans) != discid.requested(disc_id, disc_id_code):
+            raise ValueError('File layout and disc identity options differ')
+        from pathlib import Path
+        if Path(path).resolve().is_relative_to(file_layout.folder.resolve()):
+            raise ValueError('Output ISO must be outside the source folder')
     if discid.requested(disc_id, disc_id_code):
         if first_lba:
             raise ValueError("Disc identity needs a complete ISO, not --start-lba")
@@ -437,7 +457,7 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
         # DVD ECC covers 16 sectors; BD clusters cover 32. Keep the entire
         # containing block/cluster clear, including parity beyond the ID file.
         labels = _sample(design, u, v, bit_nm * 1e-6, 0, 32, correction, media)
-        if np.any(labels[min(32, max(0, lead_lba)):] != 0):
+        if file_layout is None and np.any(labels[min(32, max(0, lead_lba)):] != 0):
             raise ValueError("Disc identity overlaps the drawing; leave an inner background margin")
         identity = discid.create(code=disc_id_code, design=design, u=u, v=v, bit_nm=bit_nm,
                                  textures=texs, meta=meta, command=(meta or {}).get("identity_command", "image"))
@@ -446,6 +466,8 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     job = {"design": design, "texs": texs, "u": u, "v": v, "bit_mm": bit_nm * 1e-6, "correction": correction,
            "media": media, "lead_lba": lead_lba}
+    if file_layout is not None:
+        job['picture_lba'] = file_layout.picture_lba
     # Bound coordinate/label arrays to the old number of sample points per
     # chunk, even at per-byte resolution (DVD: 128 sectors at 10/5 um).
     chunk = max(1, CHUNK * group_bytes(design, media) // GROUP_BYTES)
@@ -456,12 +478,19 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
         if written / count >= next_report - 1e-9:   # (steps of 0.01 add up to a hair over 1)
             log(f"  {100 * written / count:5.1f} %")
             next_report += getattr(log, "every", 0.2)
-    if not first_lba:
+    file_hashes = None
+    if file_layout is not None:
+        from .discfiles import write_files
+        file_hashes = write_files(path, file_layout, identity)
+    elif not first_lba:
         iso9660.add(path, total_sectors, "DISCPROBE_IMAGE", identity)
     spec = {"kind": "dvd-picture", "media": media, "u": u, "v": v, "bit_nm": bit_nm,
             "total_sectors": total_sectors,
             "first_lba": first_lba, "lead_lba": lead_lba, "textures": texs, "cell_mm": cell_mm(design),
             "group_bytes": group_bytes(design, media), **(meta or {})}
+    if file_layout is not None:
+        spec['disc_files'] = file_layout.as_dict()
+        spec['disc_files']['sha256'] = file_hashes
     spec['capacity_words'] = dict(image_length_sectors=total_sectors - first_lba,
                                    mapping_end_lba_exclusive=total_sectors,
                                    geometric_total_sectors=None, blank_writable_sectors=None,
@@ -479,7 +508,7 @@ def write_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, 
 
 def verify_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float, total_sectors: int,
                dark: str = "A5", light: str = "B9", samples: int = 300, seed: int = 3, correction=None,
-               textures=None, first_lba: int = 0, lead_lba: int = 0, media: str = "dvd") -> list[str]:
+               textures=None, first_lba: int = 0, lead_lba: int = 0, media: str = "dvd", file_layout=None) -> list[str]:
     """Descramble random sectors and compare every byte with a recomputation from the design (past lead_lba)."""
     problems = []
     if os.path.getsize(path) != (total_sectors - first_lba) * dvd.SECTOR_BYTES:
@@ -490,6 +519,8 @@ def verify_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float,
     rng = np.random.default_rng(seed)
     with open(path, "rb") as f:
         for lba in rng.integers(max(32, first_lba, lead_lba), total_sectors, samples):
+            if file_layout is not None and not file_layout.is_picture(int(lba)):
+                continue
             if lba in reserved:
                 continue
             f.seek((int(lba) - first_lba) * dvd.SECTOR_BYTES)
@@ -497,6 +528,16 @@ def verify_iso(path: str, design: np.ndarray, u: float, v: float, bit_nm: float,
             want = _sector_q(design, texs, u, v, bit_nm * 1e-6, int(lba), 1, correction, media)[0]
             if not np.array_equal(rec, want):
                 problems.append(f"LBA {lba} differs from the design")
+    if file_layout is not None:
+        from .iso_read import read_tree
+        from .discid import file_sha256
+        actual = read_tree(path, hashes=True)
+        expected = {e.relative: e for e in file_layout.entries if not e.directory and e.source is not None}
+        if set(actual) - {'DISCPROBE.ID'} != set(expected):
+            problems.append('ISO file tree differs from source')
+        for name, entry in expected.items():
+            if name not in actual or actual[name]['sha256'] != file_sha256(entry.source):
+                problems.append(f'ISO file differs: {name}')
     return problems
 
 

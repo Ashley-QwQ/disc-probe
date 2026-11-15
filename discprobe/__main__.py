@@ -1079,6 +1079,8 @@ def cmd_image(args):
     from .works_link import check_work, image_completed
     check_work(args)
     from . import imagedisc
+    if getattr(args, 'files', None) and (args.media != 'dvd' or args.start_lba or args.random_below_mm):
+        sys.exit('随盘文件只支持完整单层 DVD，不支持 CD、BD、追加或随机内圈')
     writer = imagedisc
     if args.media == "cd":
         from . import cdimage as writer
@@ -1174,6 +1176,21 @@ def cmd_image(args):
         print(f"Random data up to {args.random_below_mm:g} mm (LBA {lead}); the picture starts there.")
     extra = {**({"first_lba": first} if first else {}), **({"lead_lba": lead} if lead else {})}
     from . import discid
+    file_layout = None
+    if getattr(args, 'files', None):
+        from . import discfiles
+        writable = args.writable_sectors or fit.get('capacity_sectors') or total
+        try:
+            file_layout = discfiles.plan(args.files, args.files_at, int(writable), margin=args.files_margin,
+                                         geometry={**fit, 'u': u}, identity=discid.requested(**discid.options(args)))
+            if args.files_plan_sha256 and file_layout.fingerprint() != args.files_plan_sha256:
+                raise ValueError('文件或几何已改变，请重新检查随盘文件布局 / files layout changed; check the layout again')
+        except (ValueError, OSError) as e:
+            sys.exit(str(e))
+        total = file_layout.total_sectors
+        extra['file_layout'] = file_layout
+        design = discfiles.clip_design(design, file_layout)
+        args._radius_range = imagedisc.drawing_span(design)
     identity_meta = {}
     if discid.requested(**discid.options(args)):
         origin = fit.get("completion_source") or {"origin": "legacy_default"}
@@ -1946,7 +1963,7 @@ def cmd_template(args):
 COMMAND_GROUPS = (
     ("Start here", ("menu", "guide", "webui", "version", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "whois", "timing", "geo", "results", "diagnose")),
-    ("Make a disc image", ("random", "label", "compose", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
+    ("Make a disc image", ("random", "label", "compose", "files-layout", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc", "checkdisc")),
     ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("template", "disexport", "cdprobe", "works")),
@@ -2355,7 +2372,14 @@ def _build_parser():
     sp.add_argument("--out", required=True, help="output uint8 design.npy; texture order saved beside it")
     sp.set_defaults(func=cmd_compose)
 
+    from . import discfiles
+    sp = sub.add_parser('files-layout', help='plan DVD files and picture annuli as JSON (no drive access)')
+    discfiles.add_arguments(sp, layout_only=True)
+    sp.add_argument('--geo', help='measured DVD geometry; omit for a nominal-radius guide')
+    sp.set_defaults(func=discfiles.command)
+
     sp = sub.add_parser("image", help="write a picture ISO placed with a measured geometry (grid test by default)")
+    discfiles.add_arguments(sp)
     sp.add_argument("--no-photo-l", action="store_true", help="do not apply the run's photo L")
     sp.add_argument("--reading-drive", help="check the photo against this specific drive identity (no drive access)")
     sp.add_argument("--geo", required=True, help="summary.json of a geo run, its folder, latest, or pick to choose")
@@ -2594,7 +2618,7 @@ def _build_parser():
     from .works_link import add_options as add_work_options
     add_work_options(sub)
     tr = i18n.tr
-    for name in ("image", "random", "calib", "calibdisc", "burn"):
+    for name in ("image", "random", "calib", "calibdisc", "burn", "files-layout"):
         sub.choices[name].add_argument("--disc-id", action="store_true",
             help="write a public disc identity record (default: off)")
         sub.choices[name].add_argument("--disc-id-code", "--disc-code", dest="disc_id_code",

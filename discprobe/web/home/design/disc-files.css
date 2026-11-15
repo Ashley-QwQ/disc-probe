@@ -1,0 +1,10 @@
+.disc-files-step label { display: grid; gap: 6px; font-size: 15px; color: var(--ink-2); min-width: 0; }
+.disc-files-step input, .disc-files-step select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 8px; border: 1px solid var(--rule-strong); border-radius: 4px; background: var(--paper-2); color: var(--ink); font: inherit; }
+.disc-files-step input[type="text"] { font-family: var(--mono); }
+.disc-files-step input:focus-visible, .disc-files-step select:focus-visible, .disc-files-step summary:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }
+.disc-files-step input::placeholder { color: var(--ink-2); opacity: 1; }
+.disc-files-step summary { min-height: 44px; cursor: pointer; align-content: center; color: var(--ink-2); }
+.disc-files-step details[open] { display: grid; gap: 12px; }
+.disc-files-step details > label, .disc-files-step details > p { margin-top: 12px; }
+.disc-files-step .sbtn { min-height: 44px; }
+.disc-files-step [data-files="status"] { overflow-wrap: anywhere; color: var(--ink-2); }
