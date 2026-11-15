@@ -18,9 +18,10 @@
 /* Both documents use the paper ink palette of the current theme. */
 :root[data-theme="dark"] .presetio .presetio-document {
   --ink: #ece6d6; --ink-2: #ece6d6; --ink-3: #ece6d6; --rule: rgb(236 230 214 / .28); --rule-strong: rgb(236 230 214 / .5); }
-/* These supplied grey paper rasters need white to clear 4.5:1 at their brightest pixels. */
+/* Night B: the sheet (and the compact page's paper) lies under the lamp and is light, so its words are ink; the
+   kraft envelope stays dark with light words. */
 :root[data-theme="dark"] .presetio [data-layer="doc_paper"],
-:root[data-theme="dark"] .presetio[data-compact="true"] .presetio-document { --ink: #fff; --ink-2: #fff; --ink-3: #fff; }
+:root[data-theme="dark"] .presetio[data-compact="true"] .presetio-document { --ink: var(--lit-ink); --ink-2: var(--lit-ink-2); --ink-3: var(--lit-ink-3); --rule: rgb(34 35 31 / .22); --copper: var(--lit-copper); --rule-strong: rgb(34 35 31 / .45); }
 .presetio button { font: 600 30px / 1.35 var(--font); color: var(--ink); min-height: 76px; padding: 14px 24px; max-width: 100%;
   border: 1.5px solid var(--rule-strong); border-radius: 4px; background: transparent; cursor: pointer; }
 .presetio button:hover { border-color: var(--copper); color: var(--copper); }

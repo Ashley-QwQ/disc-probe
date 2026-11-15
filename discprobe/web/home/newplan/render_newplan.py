@@ -68,17 +68,20 @@ STYLE = {
         shadow_tint=(0.80, 0.77, 0.72), shadow_rgb="#3a2f22", drop_alpha=0.22, bg="#ebe7e0",
     ),
     "dark": dict(
-        body="#222b2a", body_side="#1d2625", tray_mul=0.93, cavity="#111716", led="#d9a75c",
-        desk="#1f2726", disc="#4a504e", disc_hub="#353b3a", disc_rim="#3f4543", disc_hole="#101514",
+        body="#182227", body_side="#0f191e", tray_mul=0.93, cavity="#070d10", led="#d9a75c",
+        desk="#111a1e", disc="#42494d", disc_hub="#2d3437", disc_rim="#373e41", disc_hole="#070c0e",
         kraft="#3b352c", kraft_in="#2e2922", kraft_flap_in="#433d33", kraft_edge="#312c25",
-        button="#5b625f", grommet="#2f3433", string="#6e736f",
-        sheet="#454c4b", sheet_edge="#343a39", fax="#3d4442", fax_edge="#2c3231",
-        pen="#1b2221", pen_edge="#141a19", metal="#465150", metal_edge="#323b3a",
-        penrose_light="#5c6865", penrose_mid="#3e4947", penrose_dark="#252e2d",
-        notebook="#2a3231", notebook_edge="#3e4544", band="#121817", led_off="#141a19",
+        button="#545e62", grommet="#272c2f", string="#697175",
+        sheet="#f9f8f4", sheet_edge="#dfdbd3", fax="#343d41", fax_edge="#232a2d",
+        pen="#0e1619", pen_edge="#090f12", metal="#3e4a50", metal_edge="#293338",
+        penrose_light="#56646b", penrose_mid="#354248", penrose_dark="#1b252a",
+        notebook="#212a2e", notebook_edge="#363e42", band="#070e11", led_off="#090f12",
         line="#d5d9d2", line_alpha=0.55,
         amb=(0.9, 0.9, 0.9), gain=(1.6, 1.4, 1.1), add=(0.035, 0.018, 0.004),
-        shadow_tint=(0.62, 0.66, 0.66), shadow_rgb="#050807", drop_alpha=0.40, bg="#161d1c",
+        shadow_tint=(0.62, 0.66, 0.66), shadow_rgb="#020405", drop_alpha=0.40, bg="#0a1114",
+        # night B (2026-11-14): paper the lamp falls on is light, about #ece6d8 at its brightest, falling off away
+        # from the pool; it gets its own light instead of the desk's (amb 0.9, gain 1.6 would clip it to white)
+        sheet_light=dict(amb=(0.55, 0.55, 0.55), gain=(0.33, 0.29, 0.21), add=(0.0, 0.0, 0.0)),
     ),
 }
 # The scenes with a protagonist (top: the drive; desk: the presets desk) are lit by a warm spotlight in both themes.
@@ -778,7 +781,8 @@ def apply_variant(v):
             continue
         if r_ not in cache:
             top, side = palette(r_, st)
-            cache[r_] = toon_pooled("toon_%s_%s" % (r_, v), top, side, st, grain=0.035 if r_ == "sheet" else
+            st_r = dict(st, **st["sheet_light"]) if r_ == "sheet" and "sheet_light" in st else st
+            cache[r_] = toon_pooled("toon_%s_%s" % (r_, v), top, side, st_r, grain=0.035 if r_ == "sheet" else
                                     0.02 if r_.startswith("kraft") else 0.0)
         assign(o, cache[r_])
 

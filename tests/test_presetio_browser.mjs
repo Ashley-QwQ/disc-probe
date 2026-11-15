@@ -268,12 +268,13 @@ try {
       const [left,top,right,bottom]=bounds.map(Math.round);canvas.width=right-left;canvas.height=bottom-top;
       context.drawImage(image,left,top,canvas.width,canvas.height,0,0,canvas.width,canvas.height);
       const pixels=context.getImageData(0,0,canvas.width,canvas.height).data;
-      let brightest=0;
-      for(let i=0;i<pixels.length;i+=4)brightest=Math.max(brightest,luminance([pixels[i],pixels[i+1],pixels[i+2]]));
+      let brightest=0,darkest=1;
+      for(let i=0;i<pixels.length;i+=4){const l=luminance([pixels[i],pixels[i+1],pixels[i+2]]);brightest=Math.max(brightest,l);darkest=Math.min(darkest,l);}
       const content=$('#presetio-'+mode);
       for(const text of [content,content.querySelector('label'),content.querySelector('h3 small')]){
         const ink=getComputedStyle(text).color.match(/[\\d.]+/g).slice(0,3).map(Number);
-        const ratio=(luminance(ink)+.05)/(brightest+.05);
+        // light ink on dark paper: against the brightest paper; dark ink on lamp-lit paper: against the darkest
+        const li=luminance(ink),ratio=li>=darkest?(li+.05)/(brightest+.05):(darkest+.05)/(li+.05);
         check(ratio>=4.5,'dark '+mode+' paper contrast '+ratio);
       }
     }

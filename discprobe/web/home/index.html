@@ -69,9 +69,11 @@
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --paper: #161d1c; --paper-2: #1f2827; --ink: #ecebe4; --ink-2: #aeb3ab; --ink-3: #7f8780;
-    --rule: #2c3634; --rule-strong: #46514e; --copper: #d9a75c;
-    --good: var(--ink); --warn: var(--copper); --unknown: #aeb3ab;
+    --paper: #0a1114; --paper-2: #121a1e; --ink: #eef0ee; --ink-2: #a6b0b3; --ink-3: #7b868a;
+    --rule: #202d33; --rule-strong: #3a4a51; --copper: #e0ab5c;
+    --good: var(--ink); --warn: var(--copper); --unknown: #a6b0b3;
+    /* night B, deep teal (2026-11-14, for 1.0.0): paper under the lamp is light; on it, ink and a darker copper */
+    --lit-paper: #ece6d8; --lit-ink: #22231f; --lit-ink-2: #55554c; --lit-ink-3: #7b796d; --lit-copper: #8f5628;
     --glass-ink: rgb(0 0 0 / .66);
     --glass-edge: inset -1px 1px 0 rgb(255 255 255 / .1); --glass-edge-drop: drop-shadow(1px -1px 0 rgb(255 255 255 / .12));
     --dvd: linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a);
@@ -85,7 +87,7 @@
   html, body { margin: 0; height: 100%; }
   body { background: var(--paper); color: var(--ink); font: 400 16px/1.55 var(--font); overflow: hidden; transition: background-color var(--t) var(--ease), color var(--t) var(--ease); }
   ::selection { background: #d6cfc3; }
-  :root[data-theme="dark"] ::selection { background: #3a4542; }
+  :root[data-theme="dark"] ::selection { background: #303e44; }
   :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   button { font: inherit; color: inherit; }
 
@@ -127,18 +129,23 @@
   #state.is-new .facts { display: none; }
   .layer.burner .rig { position: absolute; isolation: isolate; }
   /* The protagonist's warm spotlight (the person's rule: every page's main object sits in the lamp's pool; the
-     isometric renders have no desk, so the pool is painted here). The floor: a warm glow around the drive
-     under the pictures, fading out well inside its box (no corners). The drive: warmed toward the lamp (up right) by
-     a soft-light wash over it. */
+     isometric renders have no desk, so the pool is painted here). The lamp is up right: the pool's centre sits up
+     right of the drive, so the drive stands in its lower-left part and throws its baked shadow (burner_shadow_*)
+     away from the light; fading out well inside its box (no corners). The drive: warmed toward the lamp (up right)
+     by a soft-light wash over it. (W11, 2026-11-14: the old pool was centred on the drive, as if lit from above.) */
   .layer.burner .rig::before { content: ""; position: absolute; inset: -70% -60%; z-index: -1; pointer-events: none;
-    background: radial-gradient(closest-side at 54% 56%, rgb(255 236 200 / .85), rgb(255 236 200 / .35) 45%, rgb(255 236 200 / 0) 100%); }
+    background: radial-gradient(closest-side at 60% 46%, rgb(255 236 200 / .85), rgb(255 236 200 / .35) 45%, rgb(255 236 200 / 0) 100%); }
   .layer.burner .rig::after { content: ""; position: absolute; inset: -10%; pointer-events: none; mix-blend-mode: soft-light;
     background: radial-gradient(closest-side at 62% 34%, rgb(255 196 120 / .7), rgb(255 196 120 / .15) 60%, transparent 85%); }
   :root[data-theme="dark"] .layer.burner .rig::before {
-    background: radial-gradient(closest-side at 54% 56%, rgb(150 118 70 / .42), rgb(150 118 70 / .14) 45%, rgb(150 118 70 / 0) 100%); }
+    background: radial-gradient(closest-side at 60% 46%, rgb(150 118 70 / .42), rgb(150 118 70 / .14) 45%, rgb(150 118 70 / 0) 100%); }
   :root[data-theme="dark"] .layer.burner .rig::after {
     background: radial-gradient(closest-side at 62% 34%, rgb(255 190 110 / .55), rgb(255 190 110 / .12) 60%, transparent 85%); }
-  .layer.burner .rig > img, .layer.burner .slot { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .layer.burner .rig > img, .layer.burner .slot, .layer.burner .shadows { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .layer.burner .shadows { isolation: isolate; pointer-events: none; }
+  .layer.burner .shadows img { position: absolute; }
+  .layer.burner .shadows .tray { mix-blend-mode: darken; transform: translate(var(--slide)); transition: transform 900ms cubic-bezier(.45, 0, .2, 1); }
+  .layer.burner.open .shadows .tray { transform: translate(var(--open, 0, 0)); }
   .layer.burner .slot img { position: absolute; inset: 0; width: 100%; height: 100%; transform: translate(var(--slide)); transition: transform 900ms cubic-bezier(.45, 0, .2, 1); }
   .layer.burner.open .slot img { transform: translate(var(--open, 0, 0)); }
   .layer.burner .tray.full, .layer.burner.has-disc .tray.empty { visibility: hidden; }
@@ -185,7 +192,7 @@
   .layer.solid .paper .blk-shelf { --shelf-top: var(--paper); --shelf-side: var(--paper-2); }
   .layer.solid .paper .blk-copper { --copper-top: var(--ink-2); --copper-side: var(--ink-3); }
   .layer.solid .paper :is(.iso-face-text, .label) { fill: var(--ink); }
-  :root[data-theme="dark"] .paper.iso { --anatomy-hi: #d5d9d2; --anatomy-mid: #7d8781; --anatomy-lo: #56615c; --anatomy-faint: #36413e; --anatomy-halo: #000; --anatomy-halo-opacity: .6; }
+  :root[data-theme="dark"] .paper.iso { --anatomy-hi: #d5d9d2; --anatomy-mid: #78878e; --anatomy-lo: #4e5c63; --anatomy-faint: #2c3940; --anatomy-halo: #000; --anatomy-halo-opacity: .6; }
   :root[data-theme="dark"] .paper .iso-line[data-tone="hi"] { stroke-opacity: .55; }
   :root[data-theme="dark"] .paper .disc.is-on .aura { opacity: 1; }
   :root[data-theme="dark"] .paper .disc.is-on .iso-line[data-tone="lo"] { stroke: var(--ink); }
@@ -490,7 +497,8 @@
     border-image: url(newplan/paper_paper.webp) 120 fill / 46px / 23px stretch;
     bottom: auto; max-height: calc(100vh - var(--edge) - var(--row) - var(--foot) - 32px); box-sizing: border-box; }
   :root[data-theme="dark"].cal-staged .cal { border-image-source: url(newplan/paper_dark.webp);
-    --ink: #ece6d6; --ink-2: #d6d0c1; --ink-3: #b9b3a3; --rule: rgb(236 230 214 / .28); }   /* the words of the dark paper (newplan.css .np-sheet) */
+    --ink: var(--lit-ink); --ink-2: var(--lit-ink-2); --ink-3: var(--lit-ink-3); --rule: rgb(34 35 31 / .22); --copper: var(--lit-copper);
+    color: var(--ink); }   /* lit paper: ink words (night B; newplan.css .np-sheet) */
   .cs-art { position: relative; height: 100%; max-width: 100%; }
   .cs-art > img, .cs-art > canvas { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; }
   .cs-art .cs-disc { opacity: .62; }                         /* the pickup shows through the disc */
@@ -1109,7 +1117,15 @@
       box(rig);
       // the other theme's pictures load on the first switch (the theme button sets their data-src)
       const src = (root.dataset.theme === "dark") === (theme === "dark") ? "src" : "data-src";
-      rig.innerHTML = `<img class="body" alt="" decoding="async" ${src}="burner_body_${t}.webp">` +
+      // its shadows on the floor (lamp up right: they fall lower left), on a canvas grown by pad_px each side;
+      // the tray's slides with the tray and darkens only where the body's does not already
+      const sh = burner.shadows, pad = sh?.pad_px ?? 0;
+      const shadowBox = sh ? `style="left:${(-pad / bw * 100).toFixed(3)}%;top:${(-pad / bh * 100).toFixed(3)}%;` +
+        `width:${((bw + 2 * pad) / bw * 100).toFixed(3)}%;height:${((bh + 2 * pad) / bh * 100).toFixed(3)}%"` : "";
+      rig.innerHTML = (sh ? `<div class="shadows"><img class="floor" alt="" decoding="async" ${shadowBox} ${src}="burner_shadow_${t}.webp">` +
+        `<img class="tray empty" alt="" decoding="async" ${shadowBox} ${src}="burner_trayshadow_${t}.webp">` +
+        `<img class="tray full" alt="" decoding="async" ${shadowBox} ${src}="burner_traydiscshadow_${t}.webp"></div>` : "") +
+        `<img class="body" alt="" decoding="async" ${src}="burner_body_${t}.webp">` +
         `<div class="slot" style="clip-path: polygon(${poly})">` +
         `<img class="tray empty" alt="" decoding="async" ${src}="burner_tray_${t}.webp">` +
         `<img class="tray full" alt="" decoding="async" ${src}="burner_traydisc_${t}.webp"></div>`;

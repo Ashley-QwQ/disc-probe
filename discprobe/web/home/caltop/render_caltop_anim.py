@@ -313,9 +313,9 @@ bpy.context.view_layer.update()
 deps = bpy.context.evaluated_depsgraph_get()
 
 PROP_STYLE = {
-    "dark": dict(pen=("#1b2221", "#141a19", "#171d1c"), metal=("#6d7a77", "#4f5a58", "#57625f"),
-                 square=("#55615f", "#3e4846", "#454f4d"), tick="#a9b2ad",
-                 penrose_light="#5c6865", penrose_mid="#3e4947", penrose_dark="#252e2d"),
+    "dark": dict(pen=("#0e1619", "#090f12", "#0a1114"), metal=("#697880", "#47545a", "#505d64"),
+                 square=("#4e5c63", "#354146", "#3c484e"), tick="#a9b2ad",
+                 penrose_light="#56646b", penrose_mid="#354248", penrose_dark="#1b252a"),
     "paper": dict(pen=("#4a4741", "#36342f", "#3c3a35"), metal=("#f3f1ec", "#d6d1c8", "#cdc7bd"),
                   square=("#e4e1db", "#c8c3ba", "#bfb9af"), tick="#6b665d",
                   penrose_light="#f7f4ee", penrose_mid="#d4cec4", penrose_dark="#a39c91"),

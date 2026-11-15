@@ -56,6 +56,14 @@ TRAY_OPEN = float(arg("--open", "0.14"))   # metres the tray slides out (-Y)
 VARIANTS = arg("--variants", "paper,dark").split(",")
 DEVICE = arg("--device", "OPTIX")
 SAMPLES = int(arg("--samples", "16"))
+# shadows on the floor (2026-11-14, walk W10/W11: the drive floated, no shadow): lamp up right, so the drive casts a
+# short soft shadow to the lower left plus a tight contact shadow, as the other scenes do (render_caltop.py). The
+# drop shadow of the drive's top edge lands SHADOW_MM (screen mm, x right / y down) from it, the page's own rule for
+# a drive on the desk (index.html: 40 x 22 mm); blur as the calibration stage's (11 mm).
+SHADOWS = arg("--shadows", "1") == "1"
+SHADOW_MM = [float(v) for v in arg("--shadow-mm", "-40,22").split(",")]
+SHADOW_BLUR_MM = float(arg("--shadow-blur", "11"))
+SHADOW_PAD = int(arg("--shadow-pad", "320"))     # px of extra canvas round the shadow pictures (the tray opens further)
 LAYERS = arg("--layers", "full,body,tray,traydisc").split(",")
 DISC_DIAMETER = float(arg("--disc", "0.120"))
 os.makedirs(OUTDIR, exist_ok=True)
@@ -67,12 +75,14 @@ VARIANT_STYLE = {
         tray_mul=0.94, cavity="#bfb8ac", led="#b3ab9e",
         line="#2b2924", line_alpha=1.0,
         disc_top="#f7f7f4", disc_front="#e0dfda", disc_side="#d8d7d2",
+        shadow_rgb="#3a2f22", shadow_alpha=0.24, contact_alpha=0.34,
     ),
     "dark": dict(
-        top="#222b2a", front="#1a2221", side="#1d2625",
-        tray_mul=0.93, cavity="#111716", led="#d9a75c",
+        top="#182227", front="#0d161a", side="#0f191e",
+        tray_mul=0.93, cavity="#070d10", led="#d9a75c",
         line="#d5d9d2", line_alpha=0.55,
-        disc_top="#323a39", disc_front="#262d2c", disc_side="#29302f",
+        disc_top="#293237", disc_front="#1d2528", disc_side="#20282c",
+        shadow_rgb="#020405", shadow_alpha=0.42, contact_alpha=0.55,
     ),
 }
 LINE_PX = 0.8
@@ -624,6 +634,104 @@ for layer in LAYERS:
         del col
     del mask
 
+# ---------------------------------------------------------------- shadows on the floor
+SHADOW_FILES = {"shadow": "burner_shadow_%s.png", "trayshadow": "burner_trayshadow_%s.png",
+                "traydiscshadow": "burner_traydiscshadow_%s.png"}
+SHADOW_INFO = None
+
+
+def gauss_blur(a, sigma):
+    if sigma <= 0.3:
+        return a
+    r_ = int(math.ceil(3 * sigma))
+    k = np.exp(-0.5 * (np.arange(-r_, r_ + 1) / sigma) ** 2)
+    k /= k.sum()
+    out = a
+    for axis in (0, 1):
+        out = np.apply_along_axis(lambda v: np.convolve(v, k, mode="same"), axis, out)
+    return out
+
+
+def cast_mask(objs, shear, ss):
+    """Coverage (top-down rows, final px of the padded canvas) of the objects flattened onto the floor along the
+    light: every vertex moves by shear * (its height above the floor), then the flat copy is rendered white."""
+    co_all, tri_all, n0 = [], [], 0
+    for o in objs:
+        co, polys = world_mesh(o)
+        h_ = co[:, 2] - FLOOR_Z
+        co = np.c_[co[:, 0] + shear[0] * h_, co[:, 1] + shear[1] * h_, np.full(len(co), FLOOR_Z)]
+        co_all.append(co)
+        tri_all += [tuple(i + n0 for i in pl) for pl in polys]
+        n0 += len(co)
+    me = bpy.data.meshes.new("shadow_cast")
+    me.from_pydata(np.concatenate(co_all).tolist(), [], tri_all)
+    ob = bpy.data.objects.new("shadow_cast", me)
+    scene.collection.objects.link(ob)
+    m, nt, emi = new_mat("shadow_white")
+    emi.inputs["Color"].default_value = (1, 1, 1, 1)
+    ob.data.materials.append(m)
+    for o in ALL_OBJS:
+        o.hide_render = True
+    r.resolution_x, r.resolution_y = (W + 2 * SHADOW_PAD) * ss, (H + 2 * SHADOW_PAD) * ss
+    cam_data.ortho_scale = max(wext, hext) * (W + 2 * SHADOW_PAD) / W      # width fit: same px per metre
+    px = render_exr("shadow_cast", 4, 1.5)
+    r.resolution_x, r.resolution_y = W * SS, H * SS
+    cam_data.ortho_scale = max(wext, hext)
+    bpy.data.objects.remove(ob)
+    a = px[..., 3]
+    h_, w_ = a.shape
+    return a[: h_ // ss * ss, : w_ // ss * ss].reshape(h_ // ss, ss, w_ // ss, ss).mean(axis=(1, 3))[::-1]
+
+
+def save_rgba(rgba, dst):
+    oi = bpy.data.images.new("out", rgba.shape[1], rgba.shape[0], alpha=True, float_buffer=False)
+    oi.colorspace_settings.name = "Non-Color"
+    oi.alpha_mode = "STRAIGHT"
+    oi.pixels.foreach_set(rgba[::-1].astype(np.float32).ravel())
+    oi.filepath_raw = dst
+    oi.file_format = "PNG"
+    oi.save()
+    bpy.data.images.remove(oi)
+    print("[layers] wrote", dst)
+
+
+if SHADOWS:
+    body_objs = LAYER_OBJS["body"]
+    Bv = world_verts(body_objs)
+    FLOOR_Z = float(Bv[:, 2].min())
+    DRIVE_H = float(Bv[:, 2].max()) - FLOOR_Z
+    del Bv
+    # floor step (x, y per metre of height) whose screen offset, for the drive's height, is SHADOW_MM
+    ax_x, ax_y = dir_px((1, 0, 0), 1.0), dir_px((0, 1, 0), 1.0)          # px per mm along +X, +Y
+    tgt = np.array(SHADOW_MM) * ppu / 1000.0                              # px
+    sol = np.linalg.solve(np.array([ax_x, ax_y]).T, tgt) / (DRIVE_H * 1000.0)   # mm of floor per mm of height
+    shear = (float(sol[0]), float(sol[1]))
+    pxmm = ppu / 1000.0
+    sets = {"shadow": body_objs, "trayshadow": LAYER_OBJS["tray"], "traydiscshadow": LAYER_OBJS["traydisc"]}
+    for name, objs in sets.items():
+        full = cast_mask(objs, shear, 2)
+        near = cast_mask(objs, (0.12 * shear[0], 0.12 * shear[1]), 2)     # the contact shadow: a short cast
+        drop = gauss_blur(full, SHADOW_BLUR_MM * pxmm)
+        contact = gauss_blur(near, 1.6 * pxmm)
+        for v in VARIANTS:
+            st = VARIANT_STYLE[v]
+            al = np.clip(np.maximum(st["shadow_alpha"] * drop, st["contact_alpha"] * contact), 0, 1)
+            rgb = np.broadcast_to(np.array(hex_srgb(st["shadow_rgb"]), dtype=np.float32), al.shape + (3,))
+            save_rgba(np.concatenate([rgb, al[..., None]], axis=2), os.path.join(OUTDIR, SHADOW_FILES[name] % v))
+    show_layer("full")
+    SHADOW_INFO = {
+        "files": [SHADOW_FILES[k] % v for k in SHADOW_FILES for v in VARIANTS],
+        "image_size": [W + 2 * SHADOW_PAD, H + 2 * SHADOW_PAD],
+        "pad_px": SHADOW_PAD,
+        "offset_mm_screen": SHADOW_MM, "blur_mm": SHADOW_BLUR_MM, "drive_height_mm": round(DRIVE_H * 1000, 2),
+        "floor_shear_per_mm_height": [round(shear[0], 4), round(shear[1], 4)],
+        "note": "the lamp is up right: soft drop shadow to the lower left + a tight contact shadow, on the floor "
+                "under the drive. Each picture is the layers' canvas grown by pad_px on every side: draw it at "
+                "-pad_px. shadow = the drive body; trayshadow / traydiscshadow slide with the tray (same "
+                "tray_slide_px) and are drawn under the body; overlapping the body's shadow they should not "
+                "darken it twice (CSS mix-blend-mode: darken).",
+    }
+
 # ---------------------------------------------------------------- placement json
 show_layer("full")
 shell = [o for o in render_meshes if o.name.startswith(BODY_PREFIX) and o.name not in TRAY_OBJECTS]
@@ -739,7 +847,9 @@ info["layers_note"] = ("transparent PNGs on the same %dx%d pixel grid as burner_
                        "open tray with one disc" % (W, H))
 # Blender has no Pillow: the .webp copies are made afterwards on the workstation with
 # Image.save(path, "WEBP", lossless=True, method=6)
-info["layers_webp"] = [n.replace(".png", ".webp") for n in info["layers"]]
+if SHADOW_INFO:
+    info["shadows"] = SHADOW_INFO
+info["layers_webp"] = [n.replace(".png", ".webp") for n in info["layers"] + (SHADOW_INFO or {}).get("files", [])]
 info["layers_webp_note"] = ("lossless WebP copies of the layer PNGs (Pillow, lossless=True, method=6), "
                             "pixel-identical where alpha > 0")
 with open(os.path.join(OUTDIR, "burner.json"), "w") as fh:

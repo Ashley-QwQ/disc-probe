@@ -6,7 +6,7 @@
    paper-coloured, never pure white). --face-dim covers the disc where nothing is burned, --dim the page around
    it; both leave a picture there at about a quarter. */
 :root { --face: #d6d1c8; --face-2: #c9c3b9; --face-ink: #1d1b18; --face-dim: rgb(214 209 200 / .75); --dim: rgb(235 231 224 / .75); }
-:root[data-theme="dark"] { --face: #ebe7e0; --face-2: #e4dfd7; --face-ink: #1d1b18; --face-dim: rgb(235 231 224 / .75); --dim: rgb(22 29 28 / .75); }
+:root[data-theme="dark"] { --face: #ebe7e0; --face-2: #e4dfd7; --face-ink: #1d1b18; --face-dim: rgb(235 231 224 / .75); --dim: rgb(10 17 20 / .75); }
 
 :root[data-mode="design"] .stage { opacity: 0; pointer-events: none; transition: opacity 420ms var(--ease); }
 .stage { transition: opacity 420ms var(--ease); }

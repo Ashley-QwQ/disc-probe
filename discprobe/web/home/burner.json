@@ -178,13 +178,45 @@
     "burner_traydisc_dark.png"
   ],
   "layers_note": "transparent PNGs on the same 1600x1062 pixel grid as burner_<theme>.png. body = drive without tray/front plate; tray = tray + front plate, open; traydisc = open tray with one disc",
+  "shadows": {
+    "files": [
+      "burner_shadow_paper.png",
+      "burner_shadow_dark.png",
+      "burner_trayshadow_paper.png",
+      "burner_trayshadow_dark.png",
+      "burner_traydiscshadow_paper.png",
+      "burner_traydiscshadow_dark.png"
+    ],
+    "image_size": [
+      2240,
+      1702
+    ],
+    "pad_px": 320,
+    "offset_mm_screen": [
+      -40.0,
+      22.0
+    ],
+    "blur_mm": 11.0,
+    "drive_height_mm": 71.32,
+    "floor_shear_per_mm_height": [
+      -0.0188,
+      -0.7744
+    ],
+    "note": "the lamp is up right: soft drop shadow to the lower left + a tight contact shadow, on the floor under the drive. Each picture is the layers' canvas grown by pad_px on every side: draw it at -pad_px. shadow = the drive body; trayshadow / traydiscshadow slide with the tray (same tray_slide_px) and are drawn under the body; overlapping the body's shadow they should not darken it twice (CSS mix-blend-mode: darken)."
+  },
   "layers_webp": [
     "burner_body_paper.webp",
     "burner_body_dark.webp",
     "burner_tray_paper.webp",
     "burner_tray_dark.webp",
     "burner_traydisc_paper.webp",
-    "burner_traydisc_dark.webp"
+    "burner_traydisc_dark.webp",
+    "burner_shadow_paper.webp",
+    "burner_shadow_dark.webp",
+    "burner_trayshadow_paper.webp",
+    "burner_trayshadow_dark.webp",
+    "burner_traydiscshadow_paper.webp",
+    "burner_traydiscshadow_dark.webp"
   ],
   "layers_webp_note": "lossless WebP copies of the layer PNGs (Pillow, lossless=True, method=6), pixel-identical where alpha > 0"
 }

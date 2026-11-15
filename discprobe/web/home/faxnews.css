@@ -1,7 +1,8 @@
 /* The news fax page (faxnews.js): the fax from above on the desk at the left, the paper on the right. */
 .fx { position: fixed; inset: 0; z-index: 1; overflow: hidden; background: var(--paper);
   --fx-sheet: #f6f4ee; --fx-ink: #24211c; --fx-ink-2: #5d5850; --fx-rule: #c9c2b6; --fx-lcd: #e9ece2; }
-:root[data-theme="dark"] .fx { --fx-sheet: #3f4645; --fx-ink: #ecebe4; --fx-ink-2: #b4b8b0; --fx-rule: #5a6361; --fx-lcd: #e3e8dc; }
+/* night B: the printout lies under the lamp, so it is light paper with ink words, as on the paper theme */
+:root[data-theme="dark"] .fx { --fx-sheet: #ece6d8; --fx-ink: #22231f; --fx-ink-2: #55554c; --fx-rule: #c9c2b6; --fx-lcd: #e3e8dc; }
 .fx[hidden] { display: none; }
 :root[data-mode="faxnews"] :is(#next, #next-why, .next-side) { display: none; }
 :root[data-mode="faxnews"] :is(.stage, .counter, .detail, .gallery, .lobby:not(.leaving)) { visibility: hidden; }
@@ -22,8 +23,8 @@
   color: var(--ink-3); transition: background-color 60ms, transform 60ms; }
 .fx-key.down { background: rgb(0 0 0 / .2); transform: scale(.93); color: var(--ink-2); }
 .fx-key.start.down { border-radius: 50%; }
-:root[data-theme="dark"] .fx-key { color: rgb(16 22 21 / .62); }
-:root[data-theme="dark"] .fx-key.down { background: rgb(0 0 0 / .4); color: rgb(16 22 21 / .8); }
+:root[data-theme="dark"] .fx-key { color: rgb(7 12 14 / .62); }
+:root[data-theme="dark"] .fx-key.down { background: rgb(0 0 0 / .4); color: rgb(7 12 14 / .8); }
 /* the printout: clipped at the slot's lip until it is pulled out */
 .fx-feed { position: absolute; overflow: hidden; pointer-events: none; }
 .fx-feed.free { overflow: visible; }
