@@ -14,6 +14,7 @@ import numpy as np
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from discprobe import focal as F
+from discprobe.hashing import file_sha256 as sha
 
 DATA=ROOT/'data/focal'
 FIXTURES=ROOT/'tools/focal_data'
@@ -23,16 +24,13 @@ RECIPE=Path('D:/disc-probe/docs/goals/iso-cleanup/recipes/IMG2654-1x21-H.json')
 LABELS=Path('C:/disc-probe-scratch/showcase-iso/img2654I.npy')
 
 
-def sha(p):
-    return hashlib.sha256(p.read_bytes()).hexdigest()
-
-
 def capture():
     FIXTURES.mkdir(parents=True,exist_ok=True)
     recipe=json.loads(RECIPE.read_text(encoding='utf-8'))
-    assert sha(LABELS)==recipe['inputs'][str(LABELS)]
+    # The frozen external recipe records exact original bytes, not portable hashes.
+    assert hashlib.sha256(LABELS.read_bytes()).hexdigest()==recipe['inputs'][str(LABELS)]
     textures=LABELS.with_suffix('.textures.txt')
-    assert sha(textures)==recipe['inputs'][str(textures)]
+    assert hashlib.sha256(textures.read_bytes()).hexdigest()==recipe['inputs'][str(textures)]
     specs=textures.read_text(encoding='ascii').split()
     assert specs==recipe['params']['textures']
     report=json.loads(LABELS.with_suffix('.json').read_text(encoding='utf-8'))

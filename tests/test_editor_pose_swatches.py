@@ -1,6 +1,5 @@
 """The design page's per-pose palettes (design/pose-swatches*.json): where they come from, that they are what the
 generator makes from today's inputs, and that the lamp view can be asked for the same pose and scale."""
-import hashlib
 import importlib.util
 import json
 import shutil
@@ -10,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from discprobe import editor_preview, simulate_a3, focal
+from discprobe.hashing import file_sha256
 
 ROOT = Path(__file__).resolve().parents[1]
 DESIGN = ROOT / "discprobe/web/home/design"
@@ -25,15 +25,15 @@ def load(name):
 @pytest.mark.parametrize("name", ["pose-swatches.json", "pose-swatches-custom.json"])
 def test_sources_and_hashes_are_recorded_and_current(name):
     d = load(name)
-    assert d["source"]["palette_sha256"] == hashlib.sha256((DESIGN / "swatches.json").read_bytes()).hexdigest()
-    assert d["source"]["generator_sha256"] == hashlib.sha256((ROOT / "tools/editor_pose_swatches.py").read_bytes()).hexdigest()
-    assert d["model"]["table_sha256"] == hashlib.sha256(simulate_a3.TABLE.read_bytes()).hexdigest()
+    assert d["source"]["palette_sha256"] == file_sha256(DESIGN / "swatches.json")
+    assert d["source"]["generator_sha256"] == file_sha256(ROOT / "tools/editor_pose_swatches.py")
+    assert d["model"]["table_sha256"] == file_sha256(simulate_a3.TABLE)
     assert d["model"]["table_signature"] == simulate_a3.tables()["signature"]
     assert d["model"]["module"] == "discprobe.simulate_a3" and d["model"]["entry"] == "swatches"
     assert d["model"]["delta_scale"] == 1. and d["model"]["focal_px"] == focal.VIDEO_FOCAL_PX
     assert d["source"]["pose"].endswith("pose_1x.json") and d["source"]["pose_sha256"]
-    assert d["source"]["pose_sha256"] == hashlib.sha256((ROOT / "data/focal/pose_1x.json").read_bytes()).hexdigest()
-    assert d["source"]["geometry_sha256"] == hashlib.sha256((ROOT / "discprobe/focal.py").read_bytes()).hexdigest()
+    assert d["source"]["pose_sha256"] == file_sha256(ROOT / "data/focal/pose_1x.json")
+    assert d["source"]["geometry_sha256"] == file_sha256(ROOT / "discprobe/focal.py")
     assert d["sets_sha256"] == G.sets_sha(d["sets"])
     assert d["order"] == [m["id"] for m in load("swatches.json")["swatches"].values()]
 
