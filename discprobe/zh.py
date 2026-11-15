@@ -390,8 +390,12 @@ TEXT = {
         "读取一直报介质错误（{s}）：光驱读不稳这张盘。刻了图案、标定图或纹理的盘经常这样。测量需要普通数据盘：用同一批盘刻一张随机数据盘（python -m discprobe random），再测那张。",
     "stopped after the {m} minute time limit (--max-minutes); reads are far slower than expected":
         "到了 {m} 分钟的时间上限（--max-minutes）后停止；读取比预期慢很多",
-    "--media cd requires a CD-ROM Mode 1 data track and READ(12)/READ(10), not READ CD":
-        "--media cd 需要 CD-ROM Mode 1 数据轨，并能用 READ(12)/READ(10) 读取，不支持 READ CD",
+    "--media cd was given, but the disc in the drive is not a CD. Leave out --media cd, or put a CD in the drive.":
+        "指定了 --media cd，但光驱里的不是 CD。去掉 --media cd，或者放一张 CD 进去。",
+    "this CD holds music (an audio track), and only data CDs can be measured. Burn the random-data CD from the same batch (python -m discprobe random --media cd) and measure that.":
+        "这张 CD 是音乐盘（音轨），只能测数据 CD。用同一批盘刻一张随机数据 CD（python -m discprobe random --media cd），测那张。",
+    "a data CD is measured with ordinary data reads; leave out --read-method readcd.":
+        "数据 CD 用普通的数据读取来测；去掉 --read-method readcd。",
     "no readable recorded area; burn a test disc first (blank media has nothing to read)":
         "没有可读的已刻录区域；请先刻一张测试盘（空白盘没有东西可读）",
     "{m} fails on this disc ({s})": "{m} 读不了这张盘（{s}）",

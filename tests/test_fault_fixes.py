@@ -171,7 +171,8 @@ def test_default_burn_state_reopens_fake_device_with_no_verify(tmp_path, monkeyp
     if good:
         result = burner.burn('FAKE', iso, yes_write=True, recorder=rec, no_verify=True)
         assert result['result'] == 'completed' and result['verified'] is False
-        assert 'disc_state' not in result  # preserve the healthy result schema
+        # a healthy burn now also reports the closed-disc state (the after-burn review reads it); the old fields stay
+        assert result['disc_state']['status'] in ('completed', 'unknown')
     else:
         with pytest.raises(burner.BurnError, match='only 12 of 32 sectors.*not closed'):
             burner.burn('FAKE', iso, yes_write=True, recorder=rec, no_verify=True)

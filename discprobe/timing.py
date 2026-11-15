@@ -313,8 +313,12 @@ class TimingProbe:
         if self.media == "cd" and self.cd_audio and self.family == "cd" and audio:
             if self.read_method not in ("auto", "readcd"):
                 raise NoReadableDisc("an audio track can only be read with READ CD")
-        elif self.media == "cd" and (self.family != "cd" or audio or self.read_method == "readcd"):
-            raise NoReadableDisc("--media cd requires a CD-ROM Mode 1 data track and READ(12)/READ(10), not READ CD")
+        elif self.media == "cd" and self.family != "cd":
+            raise NoReadableDisc("--media cd was given, but the disc in the drive is not a CD. Leave out --media cd, or put a CD in the drive.")
+        elif self.media == "cd" and audio:
+            raise NoReadableDisc("this CD holds music (an audio track), and only data CDs can be measured. Burn the random-data CD from the same batch (python -m discprobe random --media cd) and measure that.")
+        elif self.media == "cd" and self.read_method == "readcd":
+            raise NoReadableDisc("a data CD is measured with ordinary data reads; leave out --read-method readcd.")
         if self.last_lba is None and tracks and tracks[-1]["track"] == 0xAA:
             self.last_lba = tracks[-1]["start_lba"] - 1
         capacity_source = "read capacity" if self.last_lba else None
