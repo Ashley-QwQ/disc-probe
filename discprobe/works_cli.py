@@ -27,6 +27,7 @@ def add_parser(sub):
         ("export", "export a work with its assets and records"),
         ("import", "import a discdesign file or work archive"),
         ("mark", "mark a work as done or failed"),
+        ("after-burn", "查看刻后状态，记录实物结果 / review a burn and record what you saw"),
     )
     children = {}
     for name, help_text in definitions:
@@ -35,7 +36,7 @@ def add_parser(sub):
                            help="print works information as JSON")
         child.set_defaults(func=run)
         children[name] = child
-    for name in ("show", "save", "rename", "duplicate", "delete", "restore", "export", "mark"):
+    for name in ("show", "save", "rename", "duplicate", "delete", "restore", "export", "mark", "after-burn"):
         children[name].add_argument("id", help="saved work id")
     for name in ("new", "rename"):
         children[name].add_argument("name", help="work name, including Chinese")
@@ -51,6 +52,9 @@ def add_parser(sub):
     children["export"].add_argument("out", help="destination ZIP file")
     children["mark"].add_argument("status", choices=("done", "failed"), help="confirmed work result")
     children["mark"].add_argument("--note", default="", help="result note; required for failed works")
+    children["after-burn"].add_argument("--choice", choices=works.AFTER_BURN_CHOICES,
+        help="correct=位置对 invisible=看不见 distorted=歪了 gaps=断开或缺块")
+    children["after-burn"].add_argument("--burn", help="刻录记录编号，默认最近一次 / burn id; defaults to the latest burn")
     for child in children.values():
         i18n.localize_parser(child)
     return parser
@@ -82,6 +86,8 @@ def run(args):
             result = dict(id=args.id, path=str(Path(args.out).resolve()))
         elif op == "import":
             result = store.import_bytes(file_bytes(args.file, works.ARCHIVE_LIMIT), str(Path(args.file).resolve()))
+        elif op == "after-burn":
+            result = store.after_burn(args.id, args.choice, burn_id=args.burn)
         else:
             result = store.patch(args.id, dict(status=args.status, note=args.note))
     except (works.WorkError, OSError) as exc:
@@ -90,6 +96,8 @@ def run(args):
         raise SystemExit(1) from None
     if args.json:
         print(json.dumps(result, ensure_ascii=False, allow_nan=False))
+    elif op == "after-burn":
+        print(json.dumps(result, ensure_ascii=False, indent=2))
     elif op == "show":
         labels = (("id", "Work id"), ("name", "Work name"), ("created_at", "Created at"),
                   ("updated_at", "Updated at"), ("opened_at", "Last opened at"),

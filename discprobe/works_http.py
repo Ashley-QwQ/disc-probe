@@ -78,6 +78,7 @@ def handle(handler, method):
             parts = path.removeprefix("/api/works/").split("/")
             ident = works.valid_id(parts[0])
             suffix = "/".join(parts[1:])
+            burn_id = parse_qs(url.query).get("burn", [None])[0]
             if not suffix and method == "GET":
                 answer(store.show(ident, opened=True))
             elif not suffix and method == "PATCH":
@@ -86,6 +87,34 @@ def handle(handler, method):
                 answer(store.delete(ident))
             elif suffix == "design" and method == "GET":
                 handler._send(200, store.content(ident, "design.discdesign"), "application/json; charset=utf-8")
+            elif suffix == "after-burn" and method == "GET":
+                answer(store.after_burn(ident, burn_id=burn_id))
+            elif suffix == "after-burn" and method == "PUT":
+                data = obj()
+                if (set(data) != {"choice", "burn_id"} or not isinstance(data["burn_id"], str)
+                        or not data["burn_id"] or data["choice"] not in works.AFTER_BURN_CHOICES):
+                    raise works.WorkError("choice and burn_id required")
+                answer(store.after_burn(ident, data["choice"], burn_id=data["burn_id"]))
+            elif suffix in ("after-burn/design", "after-burn/thumb") and method == "GET":
+                kind = suffix.rsplit("/", 1)[1]
+                handler._send(200, store.burn_content(ident, kind, burn_id=burn_id),
+                              "image/png" if kind == "thumb" else "application/json; charset=utf-8")
+            elif suffix == "after-burn/measurement" and method == "GET":
+                from . import guide, webui_catalog
+                from .webui import local_path
+                record = store.after_burn(ident, burn_id=burn_id)["record"]
+                geo = record.get("geo_run")
+                if not geo:
+                    raise works.WorkError("no measurement linked to this burn", 404)
+                source = Path(local_path(handler.server.backend.root, geo))
+                if source.name == "summary.json":
+                    source = source.parent
+                run = next((r for r in guide.scan(handler.server.backend.out)
+                            if Path(r.path).resolve() == source.resolve()), None)
+                if run is None:
+                    raise works.WorkError("saved measurement not found", 404)
+                answer(dict(path=geo, measurement=webui_catalog.measurement(run),
+                            verdict=guide.result_verdict(run, run.media)))
             elif suffix == "design" and method == "PUT":
                 raw = body(works.DESIGN_LIMIT)
                 if handler.headers.get_content_type() != "application/json":

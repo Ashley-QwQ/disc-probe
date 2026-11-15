@@ -158,6 +158,10 @@ export function createWorksClient({ fetch: fetcher = globalThis.fetch?.bind(glob
       return unwrapList(await call(`/api/works?${q}`));
     },
     async get(id) { return unwrapWork(await call(path(id))); },
+    afterBurn: (id, burn) => call(path(id, "/after-burn") + (burn ? `?burn=${encodeURIComponent(burn)}` : "")),
+    observeBurn: (id, burn_id, choice) => call(path(id, "/after-burn"),
+      { method: "PUT", type: "application/json", body: json({ burn_id, choice }) }),
+    burnThumb: (id, burn) => call(path(id, `/after-burn/thumb?burn=${encodeURIComponent(burn)}`), { as: "blob" }),
     design: (id) => call(path(id, "/design"), { as: "text" }),
     async create({ name, media, from } = {}) {
       return unwrapWork(await call("/api/works", { method: "POST", type: "application/json", body: json({ name, media, ...(from ? { from } : {}) }) }));

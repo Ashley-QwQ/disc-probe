@@ -26,8 +26,10 @@ from discprobe.scsi import DATA_IN, Sense
 
 
 @pytest.fixture
-def lab(tmp_path):
+def lab(tmp_path, monkeypatch):
     lab = Lab(tmp_path / "lab with spaces")
+    # Burn commands now file an unsaved result too; keep that library inside this isolated lab.
+    monkeypatch.setenv("DISCPROBE_HOME", str(lab.root))
     make_box(lab, "dvd-r", 3, seed=17)
     with lab.locked_state() as state:
         state["drives"]["X:"]["tray"] = lab.box()["discs"][0]

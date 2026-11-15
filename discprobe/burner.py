@@ -533,7 +533,7 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
     result = dict(result="completed", actual_speed_x=actual, requested_speed_x=speed,
                   selected_speed_x=selected, elapsed_s=elapsed, verification=verification,
                   keep_open=keep_open, append=append, first_lba=expect_start or 0,
-                  verified=verification["status"] == "completed" and not
+                  disc_state=state, verified=verification["status"] == "completed" and not
                   (verification["differing"] or verification["unreadable"]), log_path=str(log_path))
     if identity:
         result["identity"] = identity
@@ -569,12 +569,25 @@ def run(args):
                 cancel.set()
     watcher = threading.Thread(target=watch, daemon=True)
     watcher.start()
+    log_file = Path(str(Path(args.iso).resolve()) + '.burn.jsonl')
+    log_offset = log_file.stat().st_size if log_file.is_file() else 0
     try:
         result = burn(args.drive, args.iso, media=args.media, speed=args.speed, yes_write=args.yes_write,
              cancel=cancel, no_verify=args.no_verify, keep_open=args.keep_open,
              append=args.append, expect_start=args.expect_start, **discid.options(args))
         burn_completed(args, result)
     except BurnError as exc:
+        # A failed attempt may still have written data. File that attempt's report too, without
+        # borrowing a previous burn from this image's append-only log.
+        try:
+            with log_file.open('rb') as stream:
+                stream.seek(log_offset)
+                rows = [json.loads(line) for line in stream.read().splitlines() if line]
+            last = next((r for r in reversed(rows) if r.get('type') == 'burn_result'), None)
+            if last:
+                burn_completed(args, last)
+        except (OSError, ValueError) as error:
+            print(f'Could not save failed burn record: {error}', file=sys.stderr)
         from .diagnostics import save_failure
         folder = Path(str(args.iso) + '.diagnostics')
         try:
