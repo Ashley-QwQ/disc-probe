@@ -1513,10 +1513,14 @@
   // ---- wordmark: fold distances. The folded "DP" is the unfolded mark with the P moved, so the
   // distances come from the unfolded layout (measured while unfolded, so nothing is moved yet), in em, once the font is in:
   // the P closes up to the D, its ink .072em (the app icon's gap, .105 cap heights) right of the disc's edge.
+  // Also on a page opened straight into a mode (a refresh, a deep link): the P's slide is switched off while measuring.
   function foldDistances() {
     const mark = $("wordmark"), fs = parseFloat(getComputedStyle(mark).fontSize), em = (px) => px / fs;
+    const pEl = mark.querySelector(".wm-p"), keep = [pEl.style.transition, pEl.style.translate];
+    pEl.style.transition = "none"; pEl.style.translate = "0px 0px";
     const box = (el) => { const r = el.getBoundingClientRect(), m = mark.getBoundingClientRect(); return { l: em(r.left - m.left), w: em(r.width) }; };
-    const p = box(mark.querySelector(".wm-p")), end = box(mark.querySelector(".wm-p + .wm-cut"));
+    const p = box(pEl), end = box(mark.querySelector(".wm-p + .wm-cut"));
+    [pEl.style.transition, pEl.style.translate] = keep;
     if (!p.w || !end.w) return;
     const pLeft = .715;   // the D's ink ends at .7275em; less the P's own side bearing (.0845em), plus the gap
     const r = root.style;
@@ -1524,8 +1528,8 @@
     r.setProperty("--wm-w0", `${(end.l + end.w).toFixed(4)}em`);
     r.setProperty("--wm-w1", `${(pLeft + p.w).toFixed(4)}em`);
   }
-  if (!root.dataset.mode) foldDistances();
-  document.fonts?.ready.then(() => { if (!root.dataset.mode) foldDistances(); });
+  foldDistances();
+  document.fonts?.ready.then(foldDistances);
 
   // ---- wordmark: the folding itself is CSS keyed on root.dataset.mode. Here only the slide that
   // carries the mark past the back button (which shows and hides at once, shifting the layout:
