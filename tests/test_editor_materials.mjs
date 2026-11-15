@@ -12,7 +12,7 @@ for(const old of frozen){const m=entries.find(m=>m.id===old.id);assert.equal(m.s
 }
 const lights=Object.values(palette.display_colours);assert(lights.some(v=>v.dark));assert(lights.some(v=>!v.dark));
 assert(lights.filter(v=>!v.dark).every(v=>Math.max(...v.rgb)>=85&&Math.max(...v.rgb)-Math.min(...v.rgb)>=12),'near-black fans stay collapsed');
-assert.equal(palette.display_model.module,'discprobe.simulate');assert.equal(palette.display_model.entry,'material_swatches');
+assert.equal(palette.display_model.module,'discprobe.simulate_a3');assert.equal(palette.display_model.entry,'swatches');   // A3 v3 texture model since a794dfc
 assert.equal(colourWord({dark:false,hue:0},'zh'),'偏红');
 assert.equal(materialPose({cam:[0,-70,330],follows:true},100).camera[1],100);
 assert.equal(materialPose({cam:[0,-70,330],follows:false,lamp:[10,-50,400]},100).flash[1],50);
