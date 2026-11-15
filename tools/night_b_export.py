@@ -209,7 +209,7 @@ if want("lobby"):
     # each layer from the room that made the committed one: base, faxnews, filebox, screen (+ on) and the parcel from
     # the news-fax room; the fax layer (letter tray, 328a829) from the round-5 room (L_round5); the lamp and new-work
     # layers (0d17dd6) from the lobby3_final room (L_lobby3), whose renders they match
-    src = {"base": "F_lobby_a", "faxnews": "F_lobby_a", "filebox": "F_lobby_a", "fax": "L_round5", "lamp": "L_lobby3",
+    src = {"base": "F_lobby_a", "faxnews": "F_lobby_a", "filebox": "F_lobby_a", "fax": "L_round5", "lamp": "G_lamp",
            "newplan": "L_lobby3", "screen": "F_lobby_c", "screen_on": "F_lobby_d"}
     for name, job in src.items():
         fn = "desk_screen_%s.png" if name == "screen_on" else "desk_%s_%%s.png" % name
