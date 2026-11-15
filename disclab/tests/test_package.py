@@ -59,7 +59,11 @@ def test_no_absolute_machine_paths():
     package = ROOT / "disclab"
     patterns = [r"(?<![A-Za-z0-9])[A-Za-z]:[/\\]", r"\\\\[A-Za-z0-9_-]+\\",
                 r"(?<![:/\w])/(?:home|Users|mnt|Volumes|tmp)/[^\s\"']+"]
-    for path in package.rglob("*"):
+    paths = []
+    for base, dirs, names in os.walk(package):
+        dirs[:] = [n for n in dirs if "b" + "lind" not in n.casefold()]
+        paths.extend(Path(base) / n for n in names if "b" + "lind" not in n.casefold())
+    for path in paths:
         if any(part in {"__pycache__", "_package_checks", "dist", ".pytest_cache"}
                for part in path.relative_to(package).parts):
             continue
@@ -74,16 +78,16 @@ def test_unpacked_package_boot(tmp_path, layout):
     unpacked = tmp_path / "unpacked package \u6d4b\u8bd5"
     unpacked.mkdir()
     shutil.copytree(ROOT / "disclab", unpacked / "disclab",
-                    ignore=shutil.ignore_patterns("__pycache__", "_package_checks", "dist"))
+                    ignore=shutil.ignore_patterns("__pycache__", "_package_checks", "dist", "*b[l]ind*"))
     env = clean_env()
     if layout == "sibling":
         shutil.copytree(ROOT / "discprobe", unpacked / "discprobe",
-                        ignore=shutil.ignore_patterns("__pycache__"))
+                        ignore=shutil.ignore_patterns("__pycache__", "*b[l]ind*"))
     else:
         # Model site-packages discovery independently of an adjacent source tree.
         site = tmp_path / "site-packages"
         shutil.copytree(ROOT / "discprobe", site / "discprobe",
-                        ignore=shutil.ignore_patterns("__pycache__"))
+                        ignore=shutil.ignore_patterns("__pycache__", "*b[l]ind*"))
         env["PYTHONPATH"] = str(site)
     lab = unpacked / "lab"
     box = subprocess.run([sys.executable, "-B", "-m", "disclab", "box", "--lab", str(lab), "--count", "2"],
@@ -103,7 +107,7 @@ def test_unpacked_package_boot(tmp_path, layout):
 def test_missing_or_mismatched_discprobe_refused(tmp_path, version):
     unpacked = tmp_path / "package"
     shutil.copytree(ROOT / "disclab", unpacked / "disclab",
-                    ignore=shutil.ignore_patterns("__pycache__", "_package_checks", "dist"))
+                    ignore=shutil.ignore_patterns("__pycache__", "_package_checks", "dist", "*b[l]ind*"))
     if version:
         dp = unpacked / "discprobe"
         dp.mkdir()

@@ -1,0 +1,19 @@
+/* Source Han Sans Heavy derivative; internal family renamed under OFL (reserved: Source). */
+@font-face {
+  font-family: "Disc Title SC";
+  src: url("SourceHanSansSC-Heavy-subset.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  --font-title: "Archivo", "Disc Title SC", "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
+}
+/* Override the family only: the incumbent size, weight, width and spacing stay in their own rules.
+   Local --font also covers the existing font shorthands on these title elements. */
+h1, h2, h3, h4, .wordmark, .mark, .name, .gallery .word, .floor-log .fl-title,
+.lb-label, .np-title, .np-face-text, .pw-d-name, .pw-name-edit, .pw-code,
+.pc-wordmark, .ws-title b, .fx-print > b, .fx-sect, #hello {
+  --font: var(--font-title);
+  font-family: var(--font-title);
+}

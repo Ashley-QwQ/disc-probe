@@ -93,7 +93,7 @@ def test_built_metadata_and_public_payload(tmp_path, monkeypatch, public, canoni
     """Build small real archives, then import the exported API in isolation."""
     backend = load(ROOT / '_build_backend.py')
     monkeypatch.setattr(backend, 'ROOT', tmp_path)
-    for name in ('pyproject.toml', 'LICENSE', 'docs/API_VERSIONING.md', 'INSTALL-linux.md',
+    for name in ('pyproject.toml', 'LICENSE', 'STYLE.md', 'DESIGN.md', 'docs/API_VERSIONING.md', 'INSTALL-linux.md',
                  '_build_backend.py', 'discprobe/api.py'):
         target = tmp_path / name
         target.parent.mkdir(parents=True, exist_ok=True)

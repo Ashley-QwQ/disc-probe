@@ -125,7 +125,7 @@ def build_sdist(sdist_directory, config_settings=None):
         for folder in ('discprobe', 'presets', 'tools', 'data'):
             for source, relative in files(folder):
                 archive.add(source, arcname=f'{name}/{relative}', recursive=False)
-        for relative in ('pyproject.toml', '_build_backend.py', 'README.md', 'README.en.md', 'LICENSE', 'docs/API_VERSIONING.md',
+        for relative in ('pyproject.toml', '_build_backend.py', 'README.md', 'README.en.md', 'LICENSE', 'STYLE.md', 'DESIGN.md', 'docs/API_VERSIONING.md',
                          'INSTALL-linux.md', 'tests/data/bd_discussion_samples/local_uj272_bd_zones.csv'):
             archive.add(ROOT / relative, arcname=f'{name}/{relative}', recursive=False)
         if (ROOT / 'release-build.json').is_file():

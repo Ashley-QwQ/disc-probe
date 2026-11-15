@@ -1064,7 +1064,11 @@ class Handler(BaseHTTPRequestHandler):
         path, query = unquote(url.path), parse_qs(url.query)
         # Shared display words and the bundled font contain no session data. Phones need these
         # static files without gaining access to the computer page or any main API.
-        if self.command == "GET" and path in ("/home/guidance.mjs", "/home/photowords.mjs", "/fonts/Archivo-VF-latin.woff2"):
+        if self.command == "GET" and path in (
+            "/home/guidance.mjs", "/home/photowords.mjs", "/fonts/Archivo-VF-latin.woff2",
+            "/fonts/titles.css", "/fonts/SourceHanSansSC-Heavy-subset.woff2",
+            "/brand/probe/favicon.ico", "/brand/probe/apple-touch-icon.png",
+        ):
             return
         if path.startswith("/phone/"):
             if self.command != "GET":

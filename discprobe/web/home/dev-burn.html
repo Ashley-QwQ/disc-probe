@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>disc-probe · 刻录样稿</title>
+<link rel="icon" type="image/x-icon" href="../brand/probe/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="../brand/probe/apple-touch-icon.png">
+
 <style>
 @font-face{font-family:Archivo;src:url(../fonts/Archivo-VF-latin.woff2) format('woff2');font-weight:100 900;font-stretch:62% 125%;font-display:swap}
 :root{color-scheme:light;--paper:#ebe7e0;--paper-2:#e4dfd7;--ink:#1d1b18;--ink-2:#5d5850;--ink-3:#8a847a;--rule:#cfc9bf;--rule-strong:#a9a297;--copper:#a8693c;--warn:#9a6a14;--font:Archivo,system-ui,'Microsoft YaHei UI',sans-serif;--mono:ui-monospace,'Cascadia Mono',Consolas,monospace;--edge:clamp(20px,3.2vw,56px);--ease:cubic-bezier(.2,.8,.2,1)}
@@ -13,6 +16,7 @@ header{position:fixed;left:var(--edge);right:var(--edge);top:20px;display:flex;a
 @media(max-width:600px){header{top:12px;align-items:flex-start;gap:8px}header p{max-width:145px;font-size:16px}.dev-tools{gap:4px;flex-wrap:wrap;justify-content:flex-end}.dev-tools button{padding:6px 10px}.dev-tools select{max-width:140px}footer{padding:12px var(--edge);gap:8px}#next{max-width:64%;padding:8px 12px;font-size:16px}#back{padding:8px;font-size:16px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
+<link rel="stylesheet" href="../fonts/titles.css">
 </head>
 <body>
 <header><p id="mock-note">交互样稿 · 不会操作光驱</p><div class="dev-tools"><label for="scenario" id="scenario-label" hidden>样稿状态</label><select id="scenario" aria-label="样稿状态"><option value="success">模拟成功</option><option value="failed">模拟失败</option><option value="missing">缺少刻录文件</option><option value="cd">CD · 长文件名</option></select><button id="theme" type="button">切换深色</button><button id="lang" type="button">English</button></div></header>
