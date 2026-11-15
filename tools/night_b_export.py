@@ -206,10 +206,11 @@ if want("faxnews"):
 if want("lobby"):
     lob = json.loads((HOME / "lobby/lobby.json").read_text(encoding="utf-8"))
     box = {l["name"]: l["box"] for l in lob["layers"]}
-    # the fax (letter tray), lamp and new-work layers were last made in the round-5 room (0d17dd6, 328a829), not in
-    # the news-fax room: L_round5 renders them from room_round5.blend with render_round5_nightb.py
-    src = {"base": "F_lobby_a", "faxnews": "F_lobby_a", "filebox": "F_lobby_a", "fax": "L_round5", "lamp": "L_round5",
-           "newplan": "L_round5", "screen": "F_lobby_c", "screen_on": "F_lobby_d"}
+    # each layer from the room that made the committed one: base, faxnews, filebox, screen (+ on) and the parcel from
+    # the news-fax room; the fax layer (letter tray, 328a829) from the round-5 room (L_round5); the lamp and new-work
+    # layers (0d17dd6) from the lobby3_final room (L_lobby3), whose renders they match
+    src = {"base": "F_lobby_a", "faxnews": "F_lobby_a", "filebox": "F_lobby_a", "fax": "L_round5", "lamp": "L_lobby3",
+           "newplan": "L_lobby3", "screen": "F_lobby_c", "screen_on": "F_lobby_d"}
     for name, job in src.items():
         fn = "desk_screen_%s.png" if name == "screen_on" else "desk_%s_%%s.png" % name
         d, p = ld(REN / job / (fn % "dark")), ld(REN / job / (fn % "paper"))
