@@ -500,6 +500,10 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     meta.append(mediaLabel(w), " · ", st);
     if (w.cell_um) meta.append(" · ", s.cell(w.cell_um));
     details.append(meta);
+    if ((w.discs ?? []).some(d => d.type === 'burn')) {
+      details.append(action(lang() === 'en' ? 'Review burn and preview' : '查看刻后结果和预览', () =>
+        leaveFor(async () => (await import('./afterburn.js')).open(api, w.id))));
+    }
     if (w.status === "failed" && w.note) details.append(el("p", "pw-d-reason", `${s.reason}：${w.note}`));
     const acts = el("div", "pw-d-actions");
     acts.append(

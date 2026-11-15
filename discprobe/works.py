@@ -23,6 +23,7 @@ ARCHIVE_LIMIT = 1024 * 1024 * 1024  # a 400 MiB design plus its de-duplicated as
 ID = re.compile(r"w-[0-9]{8}-[0-9]{6}-[0-9a-f]{4}", re.ASCII)
 ASSET = re.compile(r"assets/[0-9a-f]{64}", re.ASCII)
 STATUSES = ("draft", "iso_ready", "burned", "done", "failed")
+AFTER_BURN_CHOICES = ("correct", "invisible", "distorted", "gaps")
 _locks = {}
 _locks_guard = threading.Lock()
 
@@ -335,7 +336,7 @@ class Store:
             if folder.exists():
                 shutil.rmtree(folder)
 
-    def new(self, name, media="dvd", raw=None, source_file=None):
+    def new(self, name, media="dvd", raw=None, source_file=None, *, source_design_missing=False):
         self._name(name)
         if media not in ("cd", "dvd", "bd"):
             raise WorkError("invalid work media")
@@ -348,7 +349,7 @@ class Store:
             work = dict(id=ident, name=name, created_at=now, updated_at=now, opened_at=now,
                         media=doc.get("media", media), disc_type="-R", batch=None,
                         geo_run=self._geo_ref(doc), photo_l=None, cell_um=round(doc.get("cell", .02) * 1000),
-                        status="draft", discs=[], source_file=source_file)
+                        status="draft", discs=[], source_file=source_file, source_design_missing=source_design_missing)
             self._validate_meta(work)
             first_event = json.dumps(self._event("created"), ensure_ascii=False).encode("utf-8") + b"\n"
             files.update({"work.json": encoded(work), "history.jsonl": first_event})
@@ -388,7 +389,7 @@ class Store:
             if if_match is not None and if_match.strip('"') != work["updated_at"]:
                 raise WorkError("another window changed this work", 409)
             work.update(media=doc.get("media", work["media"]), geo_run=self._geo_ref(doc),
-                        cell_um=round(doc.get("cell", .02) * 1000))
+                        cell_um=round(doc.get("cell", .02) * 1000), source_design_missing=False)
             self._validate_meta(work)
             return self._update(folder, work, "saved", files)
 
@@ -566,12 +567,79 @@ class Store:
                 digest.update(block)
         record = dict(iso_path=str(path), iso_sha256=digest.hexdigest(), time=stamp(),
                       drive=drive, speed=speed, disc_code=disc_code, result=result, type=kind, **details)
+        image_geo = None
+        try:
+            spec = json.loads(path.with_suffix('.image.json').read_text(encoding='utf-8'))
+            source_geo = Path(spec['geometry_from'])
+            if not source_geo.is_absolute():
+                source_geo = self.root.parent / source_geo
+            image_geo = source_geo.resolve().relative_to(self.root.parent).as_posix()
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
         with self._locked():
             # A queued job may finish after the user sends its work to the trash.
             folder = self._safe(self.root / valid_id(ident))
             if not folder.is_dir():
                 folder = self._folder(ident, trash=True)
             work = self._read(folder)
+            files = {}
+            if kind in ("iso", "burn"):
+                # Keep the actual design and thumbnail from this write, even if the work is edited later.
+                source = next((r for r in reversed(work["discs"]) if r.get("type") == "iso"
+                               and r.get("iso_sha256") == record["iso_sha256"]), {}) if kind == "burn" else {}
+                for key, name in (("design_asset", "design.discdesign"), ("thumb_asset", "thumb.png")):
+                    saved_asset = source.get(key, "")
+                    raw = self._safe(folder / (saved_asset if ASSET.fullmatch(saved_asset) else name)).read_bytes()
+                    asset = "assets/" + hashlib.sha256(raw).hexdigest()
+                    files[asset] = raw
+                    record[key] = asset
+                record["geo_run"] = image_geo or source.get("geo_run") or work.get("geo_run")
+            if kind == "burn":
+                record.update(burn_id=secrets.token_hex(16), observation=None)
+                record.setdefault("preview_available", True)
+                if work.get("source_design_missing"):
+                    record["preview_available"] = False
             work["discs"].append(record)
             work["status"] = "burned" if kind == "burn" else "iso_ready"
-            return self._update(folder, work, kind, record=record)
+            return self._update(folder, work, kind, files, record=record)
+
+    @staticmethod
+    def _burn_record(work, burn_id=None):
+        records = [r for r in work["discs"] if r.get("type") == "burn"]
+        for index, record in enumerate(records):
+            # Older libraries lack ids and snapshots. Give their reports a stable review identity,
+            # without claiming that a preview was saved or reconstructing missing drive evidence.
+            if not record.get("burn_id"):
+                key = f"{index}:{record.get('time')}:{record.get('iso_sha256')}"
+                record["burn_id"] = hashlib.sha256(key.encode("utf-8")).hexdigest()[:32]
+        record = next((r for r in reversed(records) if burn_id is None or r.get("burn_id") == burn_id), None)
+        if record is None:
+            raise WorkError("burn record not found", 404)
+        return record
+
+    def after_burn(self, ident, choice=None, *, burn_id=None):
+        """Drive-free review shared by the CLI and web. Observations never overwrite drive reports."""
+        if choice is not None and choice not in AFTER_BURN_CHOICES:
+            raise WorkError("invalid after-burn choice")
+        with self._locked():
+            folder = self._folder(ident)
+            work = self._read(folder)
+            record = self._burn_record(work, burn_id)
+            if choice is not None:
+                record["observation"] = dict(choice=choice, time=stamp(), source="user")
+                latest = self._burn_record(work)
+                if record is latest:
+                    work["status"] = "done" if choice == "correct" else "burned"
+                self._update(folder, work, "after_burn", burn_id=record.get("burn_id"), choice=choice)
+            return dict(work_id=ident, name=work["name"], media=work["media"], record=record)
+
+    def burn_content(self, ident, kind, *, burn_id=None):
+        if kind not in ("design", "thumb"):
+            raise WorkError("unsafe work path")
+        with self._locked():
+            folder = self._folder(ident)
+            record = self._burn_record(self._read(folder), burn_id)
+            asset = record.get(kind + "_asset", "")
+            if not ASSET.fullmatch(asset):
+                raise WorkError("saved burn preview not available", 404)
+            return self._safe(folder / asset).read_bytes()

@@ -1751,7 +1751,17 @@
   // the greeting's second line: the last plan
   async function paintRecent() {
     const design = await import("./design.js");
-    (await import("./lobby.js")).paintRecent(design.recentPlans(), (plan) => design.start(api, { plan, fly: false }));
+    const lobby = await import("./lobby.js");
+    try {
+      const lib = await import('./pastworks/works.mjs'), client = await lib.worksFor(api);
+      const latest = (await import('./afterburn.js')).latestBurn(await client.list());
+      if (latest) {
+        lobby.paintRecent([{name:(lang === 'en' ? 'Burn report and preview: ' : '刻录报告和预览：') + latest.name}],
+          () => import('./afterburn.js').then(m => m.open(api, latest.id)));
+        return;
+      }
+    } catch (e) { console.warn('recent burn', e); }
+    lobby.paintRecent(design.recentPlans(), (plan) => design.start(api, { plan, fly: false }));
   }
   $("lobby-new").addEventListener("click", () => newPlan());
   $("lobby-open").addEventListener("click", () => openPlan());

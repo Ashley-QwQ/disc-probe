@@ -83,7 +83,7 @@ function words() {
 export function afterChecks(job, en=api?.lang()==='en'){
   const r=job?.burnResult||job?.speedReport||{}, v=r.verification, actual=r.actual_speed_x, sel=r.selected_speed_x;
   const L=(zh,e)=>en?e:zh, rows=[];
-  rows.push([L('写入','Written'),'good',sel?L(`光驱报告写完了（请求 ${X(sel)}，光驱报告 ${actual==null?'没报':X(actual)}）。`,`The drive reports the write finished (asked ${X(sel)}, drive reports ${actual==null?'nothing':X(actual)}).`):L('光驱报告写完了。','The drive reports the write finished.')]);
+  rows.push([L('写入','Written'),r.result && r.result!=='completed'?'warn':'good',sel?L(`光驱报告写完了（请求 ${X(sel)}，光驱报告 ${actual==null?'没报':X(actual)}）。`,`The drive reports the write finished (asked ${X(sel)}, drive reports ${actual==null?'nothing':X(actual)}).`):L('光驱报告写完了。','The drive reports the write finished.')]);
   const c=job?.closed;
   rows.push([L('关盘','Closed'),c===true?'good':c===false?'warn':'unknown',
     c===true?L('已关盘，别的光驱和电脑也能读。','Finalized: other drives and computers can read it.')
@@ -92,9 +92,11 @@ export function afterChecks(job, en=api?.lang()==='en'){
     :L('没读到，不知道。刻录时已要求关盘；可以在盘库里点光驱重新读一次。','Not read, so not known. The burn asked for it; read the drive again from the library to check.')]);
   if(!v)rows.push([L('回读','Read back'),'unknown',L('这次没有回读结果。','No read-back result for this burn.')]);
   else if(v.status==='skipped')rows.push([L('回读','Read back'),'unknown',L('跳过了（--no-verify）。','Skipped (--no-verify).')]);
-  else if(v.status==='completed'&&!v.differing&&!v.unreadable)rows.push([L('回读','Read back'),'good',L(`抽样 ${v.ok} 块都对得上。只是抽样，不是整盘检查。`,`All ${v.ok} sampled blocks match. A sample, not a whole-disc check.`)]);
+  else if(v.status==='completed'&&!v.differing&&!v.unreadable&&!v.untested)rows.push([L('回读','Read back'),'good',L(`抽样 ${v.ok} 块都对得上。只是抽样，不是整盘检查。`,`All ${v.ok} sampled blocks match. A sample, not a whole-disc check.`)]);
   else rows.push([L('回读','Read back'),'warn',L(`抽样里 ${v.unreadable} 块读不出、${v.differing} 块不对${v.untested?`、${v.untested} 块没查到`:''}。图案仍可能看得见；先看一眼，再决定要不要换速度重刻。`,`In the sample, ${v.unreadable} blocks unreadable, ${v.differing} differing${v.untested?`, ${v.untested} not checked`:''}. The picture may still show; look first, then decide whether to burn again at another speed.`)]);
-  rows.push([L('图案','Picture'),'unknown',L('还没看。程序看不到图案，按下面的方法拿盘看一眼。','Not looked at yet. The program cannot see it; look at the disc as below.')]);
+  rows.push([L('图案','Picture'),'unknown',job?.observation?.choice === 'correct'
+    ? L('你记录了：看到了，位置对。这是实物观察，不是程序验证。','You recorded: visible and aligned. This is your observation, not a software check.')
+    : L('还没确认位置对。程序看不到图案，按下面的方法拿盘看一眼。','Not confirmed aligned. The program cannot see it; look at the disc as below.')]);
   return rows;
 }
 function paint() {
@@ -166,7 +168,7 @@ function paint() {
   W.mini.hidden=visible||!task; if(!visible||!W.next)return;
   W.next.disabled=!ctx.otherOnly && status!=='success' && (status!=='ready'||!hasInput||!W.consent.checked);
   api.nextWhy?.(status==='burning'?t.whyBurning:status==='failed'||status==='cancelled'?t.whyAgain:!hasInput?(swapping||ctx.needSwap?t.whySwap:t.whyMissing):t.whyConsent);
-  const text=api.$('next-text');if(text)text.textContent=ctx.otherOnly?(ctx.done?t.finish:t.back):status==='success'?(ctx.readBack?t.read:ctx.done?t.finish:t.back):status==='burning'?t.writing:t.hold;
+  const text=api.$('next-text');if(text)text.textContent=ctx.otherOnly?(ctx.done?t.finish:t.back):status==='success'&&!ctx.iso?.target?(api.lang()==='en'?'Next: how did it look?':'下一步：结果怎么样？'):status==='success'?(ctx.readBack?t.read:ctx.done?t.finish:t.back):status==='burning'?t.writing:t.hold;
   nextConfirm(W.next, {active:status==='ready' && !ctx.otherOnly, disabled:W.next.disabled,
     lang:api.lang(), done:beginBurn});
 }
@@ -262,7 +264,12 @@ export function start(homeApi,context) {
   W.next=api.$('next');W.nextLabel=api.$('next-text')?.textContent;
   W.back=api.$('back');W.backHidden=W.back.hidden;W.back.hidden=false;W.backLabel=W.back.innerHTML;W.back.replaceChildren(T().back,...W.back.querySelectorAll('.key-cap'));
   W.events=new AbortController();const signal=W.events.signal, on=(node,event,fn)=>node.addEventListener(event,fn,{signal,capture:true});
-  on(W.next,'click',e=>{e.preventDefault();e.stopImmediatePropagation();if(task?.status==='success'||ctx.otherOnly){if(ctx.readBack&&!ctx.otherOnly)ctx.readBack();else{leave();(ctx.done||ctx.back)?.();}}});
+  on(W.next,'click',async e=>{e.preventDefault();e.stopImmediatePropagation();if(task?.status==='success'&&!ctx.iso?.target){
+    W.next.disabled=true;
+    try { const review=await import('./afterburn.js'); await review.fromBurn(api,ctx); }
+    catch(e){toast(e?.message||String(e));paint();}
+    return;
+  }if(task?.status==='success'||ctx.otherOnly){if(ctx.readBack&&!ctx.otherOnly)ctx.readBack();else{leave();(ctx.done||ctx.back)?.();}}});
   on(W.back,'click',e=>{e.preventDefault();e.stopImmediatePropagation();leave();ctx.back?.();});
   words();
   // Arrival is visual only: the tray in the picture opens, the real drive is not touched before confirmation.

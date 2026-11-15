@@ -152,6 +152,11 @@ function build() {
 function fmtBytes(n) { return n >= 1e9 ? `${(n / 1e9).toFixed(2)} GB` : `${(n / 1e6).toFixed(1)} MB`; }
 function buildRight() {
   const t = T(), s = state;
+  if(ctx.reviewSaved){
+    W.right.replaceChildren();
+    const p=document.createElement('p');p.textContent=api.lang()==='en'?'Saved design thumbnail · 512 pixels, not a physical photograph. Return to the burn report to record what you saw.':'本次刻录保存的设计缩略图 · 512 像素，不是实物照片。返回刻录报告，记录你看到的结果。';
+    W.right.append(p);paintNext();return;
+  }
   const busy = s.phase === "making", ready = s.phase === "ready";
   const c = ctx.checks?.(), row = (ok, text) => `<li data-s="${ok === true ? "good" : ok === false ? "warn" : "unknown"}">${esc(text)}</li>`;
   const minutes = ready ? Math.max(1, Math.round((s.iso.bytes / ((ctx.media === "cd" ? 176400 : 1385000) * 8) + 90) / 60)) : null;
@@ -212,6 +217,7 @@ function buildRight() {
 // The one Next: with no file yet it makes it and goes on to burn; without a calibrated disc kind it goes to
 // calibrate; it says why when it cannot go on (making, 4 grey levels, no picture).
 function nextStep() {
+  if(ctx.reviewSaved)return 'review';
   const c = ctx.checks?.();
   if (state.phase === "ready") return "burn";
   if (!src || state.phase === "making" || c?.levels === 4) return null;
@@ -222,6 +228,7 @@ function paintNext() {                                // only from buildRight, w
   const t = T(), step = nextStep(), s = state;
   $("next-text").textContent = step === "burn" ? t.next : step === "calibrate" ? t.nextCal
     : s.phase === "making" ? t.making2(s.fraction == null ? null : Math.floor(s.fraction * 100)) : t.nextMake;
+  if(ctx.reviewSaved)$("next-text").textContent=api.lang()==='en'?'Back to the burn report':'返回刻录报告';
   $("next").disabled = !step;
   makeRing ||= ringButton($("next"), {lang:api.lang()});
   if (s.phase === 'making') makeRing.progress(s.fraction ?? null);
@@ -427,10 +434,11 @@ function draw() {
 // ---------------------------------------------------------------- words, start, leave
 function words() {
   const t = T();
+  if(ctx.reviewSaved)$("back").replaceChildren(api.lang()==='en'?'Back to the burn report':'返回刻录报告');
   W.pname.textContent = t.title;
   W.sub.textContent = ctx.project?.name ?? ctx.item?.name ?? "";
   W.view.setAttribute("aria-label", t.views);
-  for (const b of W.view.children) { b.textContent = t.v[b.dataset.v]; b.setAttribute("aria-pressed", String(b.dataset.v === view)); }
+  for (const b of W.view.children) { b.textContent = t.v[b.dataset.v]; b.setAttribute("aria-pressed", String(b.dataset.v === view)); b.disabled=!!ctx.reviewSaved && b.dataset.v==='look'; }
   W.sun.setAttribute("aria-label", t.light); W.sun.title = t.light;
   W.phone.setAttribute("aria-label", t.camera); W.phone.title = t.camera;
   W.zoom.title = `${t.fit} (0)`;
@@ -446,6 +454,7 @@ function bind(signal) {
   const on = (el, ev, fn, o = {}) => el.addEventListener(ev, fn, { ...o, signal });
   on(W.view, "click", (e) => {
     const b = e.target.closest("[data-v]"); if (!b) return;
+    if(ctx.reviewSaved && b.dataset.v==='look')return;
     view = b.dataset.v; if (view !== "look") { simulation?.stop(); simulation = null; lampView?.pause(); fit(); } words();
   });
   on(W.right, "click", (e) => {
@@ -524,6 +533,7 @@ function bind(signal) {
     if (!isOn()) return;
     e.stopImmediatePropagation();
     const step = nextStep();
+    if(step === 'review'){leave(false);ctx.next?.();return;}
     if (step === "calibrate") { state = ctx.state = { phase: "idle" }; leave(false); ctx.calibrate(); return; }
     if (step === "make") { const c = ctx; make().then(() => { if (isOn() && ctx === c && state.phase === "ready") { const iso = state.iso; leave(false); ctx.next?.(iso); } }); return; }
     if (step !== "burn") return;
@@ -548,11 +558,12 @@ export function start(homeApi, context = {}) {
   if (!W) build();
   state = same && ctx.state ? ctx.state : (ctx.state = carried(ctx) ?? { phase: "idle" });
   if (!same) {
-    view = ctx.media === "dvd" ? "look" : "design"; src = null; try { src = ctx.project?.render(12) ?? null; } catch { src = null; }
+    view = ctx.media === "dvd" && !ctx.reviewSaved ? "look" : "design"; src = null; try { src = ctx.project?.render(12) ?? null; } catch { src = null; }
     lampView?.dispose(); lampView = null; Object.assign(look, lookFromDesign());
   }
   life = new AbortController();
   root.dataset.mode = "preview";
+  root.classList.toggle('saved-burn-preview',!!ctx.reviewSaved);
   $("back").hidden = false;
   W.ws.classList.add("on");
   bind(life.signal);
@@ -561,6 +572,7 @@ export function start(homeApi, context = {}) {
   return { leave };
 }
 export function leave(goBack = true) {
+  root.classList.remove('saved-burn-preview');
   // a file being made carries on (it belongs to the work, see `jobs`); only the Cancel button stops it
   makeRing?.destroy(); makeRing = null;
   life?.abort(); life = null;

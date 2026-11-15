@@ -1,0 +1,23 @@
+/* Reuse the burn page's controls and the preview's disc + right-hand sheet. */
+:root[data-mode="afterburn"] :is(.wordmark,.detail,.counter,.gallery){display:none}
+:root[data-mode="afterburn"] .stage{display:none}
+:root[data-mode="afterburn"] .burn-mini,:root.saved-burn-preview .burn-mini{display:none}
+.after-burn{overflow:hidden}
+.after-burn .burn-layout{height:100%;align-items:stretch}
+.after-burn .ab-hero{display:flex;flex-direction:column;justify-content:center;align-self:stretch;text-align:center;min-width:0;min-height:0}
+.ab-disc{display:block;width:min(100%,512px);height:auto;margin:auto}
+.ab-preview-note{color:var(--ink-2);max-width:45ch;margin:16px auto}
+.ab-sheet{background:var(--paper);color:var(--ink);padding:clamp(20px,3vw,40px);max-width:none;min-width:0;overflow:auto;box-shadow:var(--paper-desk)}
+:root[data-theme="dark"] .ab-sheet{--paper:var(--lit-paper);--paper-2:var(--lit-paper);--ink:var(--lit-ink);--ink-2:var(--lit-ink-2);--ink-3:var(--lit-ink-3);--copper:var(--lit-copper)}
+.ab-name{color:var(--ink-2);overflow-wrap:anywhere;margin:0 0 24px}
+.ab-choices{display:flex;flex-direction:column;gap:8px}
+.ab-choices button{text-align:left}
+.ab-choices button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.ab-branch{margin-top:28px}
+.ab-branch h2,.ab-measurement h2{font-size:21px;line-height:1.3;margin:0 0 12px}
+.ab-branch button{display:block;margin:12px 0}
+.ab-report{margin:24px 0;border-top:1px solid var(--rule)}
+.ab-report pre,.ab-measurement pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}
+.ab-message:not(:empty){font-weight:600;color:var(--copper);margin-top:16px}
+@media(max-width:850px){.after-burn{overflow:auto}.after-burn .burn-layout{height:auto}.ab-disc{max-width:260px}.after-burn .ab-hero{min-height:0}.ab-sheet{padding:20px;overflow:visible}}
+@media(prefers-reduced-motion:reduce){.after-burn *{animation:none!important;transition:none!important}}

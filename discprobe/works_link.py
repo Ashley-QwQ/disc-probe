@@ -1,4 +1,6 @@
 """Completion hooks for image and burn commands; no drive access here."""
+import os
+from pathlib import Path
 from . import i18n, works
 
 
@@ -31,7 +33,22 @@ def image_completed(args):
 
 
 def burn_completed(args, result):
-    if result.get("result") == "completed":
+    if result:
+        if not getattr(args, "work", None):
+            # CLI and unsaved web jobs must remain reviewable after their process exits too.
+            store = works.Store()
+            iso = str(Path(args.iso).resolve())
+            existing = next((w for w in store.list() if any(r.get("iso_path") == iso for r in w["discs"])), None)
+            if existing:
+                args.work = existing["id"]
+            else:
+                made = store.new(Path(args.iso).stem, getattr(args, "media", "dvd"), source_design_missing=True)
+                args.work = made["id"]
+                store.patch(args.work, {"note": "刻录记录；未提供设计稿 / Burn record; no source design supplied"})
+                result = dict(result, source_design_missing=True)
         _completed(args, args.iso, kind="burn", drive=args.drive,
                    speed=result.get("selected_speed_x", args.speed),
+                   result=result.get("result", "unknown"), report=result,
+                   preview_available=not result.get("source_design_missing", False),
+                   job_id=os.environ.get("DISCPROBE_JOB"),
                    actual_speed_x=result.get("actual_speed_x"), verification=result.get("verification"))
