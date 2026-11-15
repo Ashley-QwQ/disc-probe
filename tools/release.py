@@ -187,6 +187,21 @@ def build_disc_lab(snapshot, candidates, version, python, logs, env, checks):
     return dict(status='PASS', asset=target.name, core_source='frozen snapshot')
 
 
+def brand_inventory(snapshot):
+    """Hashes for bundled brand assets; both static roots are independently shipped."""
+    inventory = []
+    for package in ('discprobe', 'disclab'):
+        web = snapshot / package / 'web'
+        if (web / 'brand').is_dir():
+            paths = package_files(web / 'brand')
+            paths += [web / 'fonts' / name for name in (
+                'SourceHanSansSC-Heavy-subset.woff2', 'OFL-SourceHanSans.txt', 'titles.css')]
+            for path in sorted(paths):
+                inventory.append(dict(file=path.relative_to(snapshot).as_posix(),
+                                      size=path.stat().st_size, sha256=sha256(path)))
+    return inventory
+
+
 def finalize_assets(out, sources, manifest):
     """Expose assets only as one completed directory, after the caller's gates."""
     ready = out / 'verified-assets'
@@ -321,7 +336,8 @@ def main(argv=None):
                         python=sys.version, node=subprocess.check_output([node, '--version'], text=True).strip(),
                         check_dependencies={n: importlib.metadata.version(n) for n in (*PACKAGES, 'pytest')},
                         windows=dict(python='3.13.14', dependencies=dependencies, embed_sha256=sha256(embed)),
-                        checks=checks, disc_lab=disc_lab, disc_neo=disc_neo)
+                        checks=checks, disc_lab=disc_lab, disc_neo=disc_neo,
+                        brand_assets=brand_inventory(snapshot))
         if (ROOT / 'discprobe/version.py').read_bytes() != original_version or clean_commit() != commit:
             raise RuntimeError('checkout changed during release')
         assets = finalize_assets(out, sources, manifest)

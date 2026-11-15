@@ -4,6 +4,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>拍标靶盘 · disc-probe</title>
+<link rel="icon" type="image/x-icon" href="/brand/probe/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/brand/probe/apple-touch-icon.png">
+
 <style>
   /* Values follow the design reference "手机端：扫码后" (390 x 844): 24 px gutters, 26/34 title, 76 px shutter. */
   @font-face { font-family: "Archivo"; src: url(/fonts/Archivo-VF-latin.woff2) format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
@@ -125,6 +128,8 @@
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
   @media (max-height: 500px) and (min-width: 600px) { main { max-width: 720px; } .finder { height: 60vh; } }
 </style>
+<link rel="stylesheet" href="/fonts/titles.css">
+
 <main>
   <div class="top"><span class="mark" role="img" aria-label="DP"><span class="wm-d"><span class="wm-slot"><span class="o-disc"></span></span></span>P</span><span class="link" id="link" data-state="wait" role="status"></span></div>
   <h1 id="title"></h1>

@@ -1,3 +1,4 @@
+以 [STYLE.md](STYLE.md) 为准；DESIGN.md 只写它没管的部分。
 ---
 name: disc-probe
 description: 让普通光驱自己量盘、把图片刻到光盘数据面上的工具界面
