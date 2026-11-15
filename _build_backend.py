@@ -21,7 +21,8 @@ ROOT = Path(__file__).resolve().parent
 
 
 def allowed(path):
-    return not any('b' + 'lind' in p.casefold() or p in ('.git', '__pycache__') for p in Path(path).parts)
+    return not any('b' + 'lind' in p.casefold() or p in ('.git', '__pycache__', 'delta_map_1x.npy')
+                   for p in Path(path).parts)
 
 
 def files(folder):

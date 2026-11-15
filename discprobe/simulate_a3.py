@@ -79,9 +79,8 @@ def known(material):
 
 def render(design, size=800, *, materials, camera=CAMERA, flash=FLASH, rotate=0, fine=True, annulus_mm=None,
            paper=False, edge_mm=EDGE_MM, delta_scale=1.):
-    """delta_scale multiplies the along-track factor the textures are read at (not the grooves' rainbow or the glare):
-    the practice discs' fitted scale (about .93 with the pose numbers of the 3126 px focal length) makes the
-    prediction match what those discs showed."""
+    """Physical geometry uses scale=1. delta_scale is retained for explicit legacy-work replay;
+    it affects texture lookup only, not the grooves' rainbow or mirror glare."""
     if size < 200 or size > 4096:
         raise ValueError("size must be between 200 and 4096 pixels")
     if design.dtype != np.uint8 or not materials or int(design.max()) >= len(materials):

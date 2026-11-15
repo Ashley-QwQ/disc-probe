@@ -32,7 +32,7 @@ def pose_options(pose=None):
         raise ValueError('rotation must be finite')
     result['rotate']=float(rotation)%360
     # the practice discs' fitted scale of the along-track factor (design/pose-swatches.json); 1 = the plain model
-    scale=pose.get('delta_scale',1.)
+    scale=pose.get('delta_scale',1.)  # explicit legacy-work compatibility; new geometry uses 1
     if type(scale) not in (int,float) or not .5<=scale<=1.5:
         raise ValueError('delta_scale must be between 0.5 and 1.5')
     result['delta_scale']=float(scale)

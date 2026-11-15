@@ -10,10 +10,9 @@ the A3 v3 texture table (LED), one patch of each material at r = 40 mm, 3 o'cloc
   the flash sits further toward 12 o'clock (docs/goals/showcase/pose/pose_1x.json, make_rulers.py);
 * the flash is D mm from the lens along that line: 47.9 mm on iPhone 17 Pro (Apple's drawing, (-43.66, 19.79)),
   any whole mm from 10 to 60 for a phone the person measures themself (unverified);
-* the height is the lens above the disc's top face: 206.5 mm at the design height (pose_1x, the printed 21 cm
-  ruler), and for the other heights the ruler mark above the table less disc and sheet (1.3 mm);
-* the along-track factor is scaled by 0.93 as the release's labels are (pose numbers of the 3126 px focal length,
-  --delta-scale 0.93), so a swatch is what the practice discs showed. The 3355 px refocus is not done here.
+* the design height comes from discprobe.focal: keep the original video framing, change the height;
+  other heights are the ruler mark above the table less disc and sheet (1.3 mm);
+* new palettes use physical geometry, scale=1. Saved works may still explicitly read their old scale.
 
 The first file holds the measured phone; the second (fetched only when someone types their own distance) the grid.
 Each file records its inputs' hashes and the sha256 of its own `sets`.
@@ -29,25 +28,26 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from discprobe import simulate_a3  # noqa: E402
+from discprobe import focal  # noqa: E402
 
 DESIGN = ROOT / "discprobe/web/home/design"
 PALETTE = DESIGN / "swatches.json"
 OUT = DESIGN / "pose-swatches.json"
 OUT_CUSTOM = DESIGN / "pose-swatches-custom.json"
-POSE_1X = Path("D:/disc-probe/docs/goals/showcase/pose/pose_1x.json")   # not in the repo; hash recorded when present
+POSE_1X = ROOT / "data/focal/pose_1x.json"
 
-LENS_OFFSET_MM = 28.45          # pose_1x chosen.camera[1]
-DESIGN_Z_MM = 206.5             # pose_1x chosen.camera[2]
-DISC_AND_SHEET_MM = 1.3         # make_rulers.py: 1.2 mm disc + 0.1 mm sheet under it
-DELTA_SCALE = .93
+LENS_OFFSET_MM = focal.LENS_Y_MM
+DESIGN_Z_MM = focal.DESIGN_Z_MM
+DISC_AND_SHEET_MM = focal.DISC_AND_SHEET_MM
+DELTA_SCALE = 1.
 DELTA_OFFSET = 0.
-FOCAL_PX = 3126
+FOCAL_PX = focal.VIDEO_FOCAL_PX
 SAMPLE_MM = (40., 0.)
-PHONES = [dict(id="iphone17pro", name="iPhone 17 Pro", flash_mm=47.9, verified=True,
+PHONES = [dict(id="iphone17pro", name="iPhone 17 Pro", flash_mm=focal.FLASH_Y_MM-focal.LENS_Y_MM, verified=True,
                source="Apple dimensional drawing: flash (-43.66, 19.79) mm from the 1x lens")]
 HEIGHTS = [
-    dict(id="21", ruler_cm=21, camera_z_mm=DESIGN_Z_MM, status="photo-checked",
-         evidence="design height of the placement sheet; SHOW-D and SHOW-E photographed and compared"),
+    dict(id="21", ruler_cm=focal.DESIGN_RULER_CM, camera_z_mm=DESIGN_Z_MM, status="geometry-updated",
+         evidence="same video framing as photographed SHOW-E; provisional focal length, updated height not rephotographed"),
     *[dict(id=str(h), ruler_cm=h, camera_z_mm=round(h * 10 - DISC_AND_SHEET_MM, 1), status="photographed-model",
            evidence="photographed; the palette is the model's prediction, not yet compared swatch by swatch")
       for h in (30, 40, 50, 70)],
@@ -64,13 +64,13 @@ def sets_sha(sets: dict) -> str:
 
 
 def pose(flash_mm: float, z: float):
-    return [0., LENS_OFFSET_MM, z], [0., round(LENS_OFFSET_MM + flash_mm, 3), z]
+    return [0., LENS_OFFSET_MM, z], [0., LENS_OFFSET_MM + flash_mm, z]
 
 
 def one_set(materials, flash_mm, z):
     camera, flash = pose(flash_mm, z)
-    lights = simulate_a3.swatches(materials, camera, flash, at=SAMPLE_MM, delta_scale=DELTA_SCALE)
-    signal = simulate_a3.swatch_signal(materials, camera, flash, at=SAMPLE_MM, delta_scale=DELTA_SCALE)
+    lights = simulate_a3.swatches(materials, camera, flash, at=SAMPLE_MM)
+    signal = simulate_a3.swatch_signal(materials, camera, flash, at=SAMPLE_MM)
     rgb = "".join("%02x%02x%02x" % tuple(lights[m["id"]]["rgb"]) for m in materials)
     # swatches()' own rule judges colour after the palette is brought to a common brightness; when hardly anything
     # diffracts (70 cm) that lifts the mirror's purple into "colour". So also: the texture's own light must be at
@@ -90,9 +90,9 @@ def header(materials, palette_raw):
                    note="A3 v3 wave model (docs/goals/night/palette/a3card); same entry as swatches.json display_colours"),
         source=dict(palette="discprobe/web/home/design/swatches.json", palette_sha256=hashlib.sha256(palette_raw).hexdigest(),
                     generator="tools/editor_pose_swatches.py", generator_sha256=sha(Path(__file__)),
-                    pose="docs/goals/showcase/pose/pose_1x.json",
-                    pose_sha256=sha(POSE_1X) if POSE_1X.exists() else None,
-                    rulers="docs/goals/showcase/template/make_rulers.py"),
+                    pose="data/focal/pose_1x.json", pose_sha256=sha(POSE_1X),
+                    geometry="discprobe/focal.py", geometry_sha256=sha(ROOT/"discprobe/focal.py"),
+                    rulers="tools/make_rulers.py"),
         rig=dict(lens_offset_mm=LENS_OFFSET_MM, disc_and_sheet_mm=DISC_AND_SHEET_MM,
                  axes="mm; x right, y toward 12 o'clock, z up from the disc's top face; flash on the lens's 12 o'clock side"),
         encoding=dict(order="materials in swatches.json order", rgb="6 hex digits per material (sRGB)",
@@ -136,7 +136,7 @@ def main():
     for path, data in out:
         text = dump(data)
         if a.check:
-            same = path.exists() and json.loads(path.read_text(encoding="utf8"))["sets"] == data["sets"]
+            same = path.exists() and json.loads(path.read_text(encoding="utf8")) == data
             print(path.name, "matches" if same else "DIFFERS")
             bad += not same
         else:

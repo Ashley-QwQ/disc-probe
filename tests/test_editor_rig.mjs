@@ -1,6 +1,7 @@
 // Pose first, colour second (walk W3): the colour panel stays locked until a phone and a height are chosen; every
 // phone x height (and every custom distance x height) has a palette; the swatches follow the chosen pose.
 import assert from 'node:assert/strict';
+import {DESIGN_Z_MM,DESIGN_RULER_CM} from '../discprobe/web/home/design/focal-geometry.mjs';
 import fs from 'node:fs';
 import {Editor} from '../discprobe/web/home/design/editor-ui.mjs';
 import {materialPose} from '../discprobe/web/home/design/editor-materials.mjs';
@@ -12,10 +13,10 @@ const ids=Object.values(palette.swatches).map(m=>m.id);
 
 // the data: same material order as the palette; the agreed heights; the measured phone; the custom grid
 assert.deepEqual(data.order,ids);assert.deepEqual(custom.order,ids);
-assert.deepEqual(data.heights.map(h=>h.ruler_cm),[21,30,40,50,70]);
-assert.equal(data.heights[0].camera_z_mm,206.5);assert.equal(data.heights[0].status,'photo-checked');
-assert.deepEqual(data.phones.map(p=>[p.id,p.flash_mm,p.verified]),[['iphone17pro',47.9,true]]);
-assert.equal(data.model.delta_scale,.93);assert.equal(data.model.focal_px,3126);
+assert.deepEqual(data.heights.map(h=>h.ruler_cm),[DESIGN_RULER_CM,30,40,50,70]);
+assert.equal(data.heights[0].camera_z_mm,DESIGN_Z_MM);assert.equal(data.heights[0].status,'geometry-updated');
+assert.deepEqual(data.phones.map(p=>[p.id,p.flash_mm,p.verified]),[['iphone17pro',76.3857872575386-28.45,true]]);
+assert.equal(data.model.delta_scale,1);assert.equal(data.model.focal_px,3355);
 for(const d of [data,custom]){assert.match(d.sets_sha256,/^[0-9a-f]{64}$/);assert.match(d.source.palette_sha256,/^[0-9a-f]{64}$/);assert.match(d.model.table_sha256,/^[0-9a-f]{64}$/);}
 
 // every pose loads a full palette with some colour in it, and the palette changes with the pose
@@ -32,7 +33,7 @@ for(const [rig,file] of keys){const k=setKey(rig,data);assert(k,`no key for ${JS
 // neighbours can round to the same 8-bit colours (iPhone's 47.9 mm next to the 48 mm grid point); heights never do
 assert(seen.size>=keys.length*.95,'the palette changes with the pose');
 assert.equal(new Set(data.heights.map(h=>data.sets['iphone17pro@'+h.id].rgb)).size,data.heights.length);
-assert.deepEqual(data.sets['iphone17pro@21'].flash,[0,76.35,206.5]);
+assert.deepEqual(data.sets['iphone17pro@21'].flash,[0,76.3857872575386,DESIGN_Z_MM]);
 
 // hue as colorsys; custom distances round to the whole-mm grid; partial poses are not ready
 assert.equal(Math.round(hueOf([255,0,0])),0);assert.equal(Math.round(hueOf([0,0,255])),240);assert.equal(Math.round(hueOf([255,0,255])),300);
@@ -41,11 +42,13 @@ for(const rig of [{},{phone:'iphone17pro'},{height:'21'},{phone:'custom',height:
   assert.equal(rigReady(rig,data),false,JSON.stringify(rig));
 
 // the scene follows the rig, and the lamp view gets that pose with the practice discs' scale
-const scene=rigScene({preset:'design',cam:[0,-70,330],follows:true},{phone:'iphone17pro',height:'40'},data,data.sets['iphone17pro@40']);
+const scene=rigScene({preset:'design',cam:[0,-70,330],follows:true,deltaScale:.93},{phone:'iphone17pro',height:'40'},data,data.sets['iphone17pro@40']);
 assert.deepEqual(scene.cam,[0,-28.45,398.7]);assert.equal(scene.follows,true);
 const pose=materialPose(scene,28.45);
-assert.deepEqual(pose.camera,[0,28.45,398.7]);assert.deepEqual(pose.flash.map(v=>+v.toFixed(2)),[0,76.35,398.7]);assert.equal(pose.delta_scale,.93);
+assert.deepEqual(pose.camera,[0,28.45,398.7]);assert.deepEqual(pose.flash.map(v=>+v.toFixed(2)),[0,76.39,398.7]);assert.equal(pose.delta_scale,undefined);
 assert.equal(materialPose({cam:[0,-70,330],follows:true},70).delta_scale,undefined,'old works keep the plain model');
+assert.equal(materialPose({cam:[0,-28.45,206.5],follows:true,flashOffset:[0,47.9],deltaScale:.93},28.45).delta_scale,.93,'explicit arbitrary legacy poses remain readable');
+assert.equal(scene.deltaScale,undefined,'standard rig adopts new physical geometry without a legacy multiplier');
 
 // the panel: an Editor without its constructor (no fetch, no DOM), as the page has it
 function editor(rig,{loaded=true,selected=1}={}){const ed=Object.create(Editor.prototype);
@@ -64,7 +67,7 @@ locked(editor({phone:'iphone17pro',height:'21'},{loaded:false}).materialsHTML())
 {const ed=editor({phone:'custom',flash_mm:31.6,height:'30'});assert.equal(ed.rigOpen(),false,'custom grid not fetched yet');locked(ed.materialsHTML());
   ed.addSets(custom);assert.equal(ed.rigOpen(),true);assert.equal(ed.light({id:ids[0]}).rgb.join(),decodeSet(data.order,custom.sets['32@30'])[ids[0]].rgb.join());}
 {const ed=editor({phone:'iphone17pro',height:'21'});assert.equal(ed.rigOpen(),true);const html=ed.materialsHTML();
-  assert(html.includes('ed-shown')&&html.includes('全部材质')&&html.includes('iPhone 17 Pro · 21 cm'));assert.doesNotMatch(html,/data-ed-action="fill" disabled/);
+  assert(html.includes('ed-shown')&&html.includes('全部材质')&&html.includes(`iPhone 17 Pro · ${DESIGN_RULER_CM} cm`));assert.doesNotMatch(html,/data-ed-action="fill" disabled/);
   assert(html.includes('<details class="ed-rig-why">'),'the explanation folds away once chosen');
   const a=ed.light({id:ids[0]});ed.s.scene.rig.height='70';ed.rigDecoded=null;const b=ed.light({id:ids[0]});
   const at=k=>decodeSet(data.order,data.sets[k])[ids[0]];assert.deepEqual(a,at('iphone17pro@21'));assert.deepEqual(b,at('iphone17pro@70'));

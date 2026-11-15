@@ -72,7 +72,8 @@ def sha256(path: str) -> str:
 
 def unpack_source(ref: str, root: str) -> None:
     source = subprocess.run(["git", "-C", HERE, "archive", "--format=tar", ref, *SOURCE,
-                             ":(exclude,icase,glob)**/*b[l]ind*", ":(exclude,icase,glob)**/*b[l]ind*/**"], check=True, capture_output=True).stdout
+                             ":(exclude,icase,glob)**/*b[l]ind*", ":(exclude,icase,glob)**/*b[l]ind*/**",
+                             ":(exclude,glob)**/delta_map_1x.npy"], check=True, capture_output=True).stdout
     with tarfile.open(fileobj=io.BytesIO(source)) as t:
         for member in t:
             if not allowed(member.name):
@@ -81,7 +82,8 @@ def unpack_source(ref: str, root: str) -> None:
 
 
 def allowed(path):
-    return not any("b" + "lind" in part.casefold() for part in os.path.normpath(path).replace("\\", "/").split("/"))
+    return not any("b" + "lind" in part.casefold() or part == 'delta_map_1x.npy'
+                   for part in os.path.normpath(path).replace("\\", "/").split("/"))
 
 
 def copy_source(a, root):
@@ -92,7 +94,7 @@ def copy_source(a, root):
             if not os.path.exists(source):
                 raise FileNotFoundError(source)
             if os.path.isdir(source):
-                shutil.copytree(source, target, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '*b[l]ind*'))
+                shutil.copytree(source, target, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '*b[l]ind*', 'delta_map_1x.npy'))
             else:
                 os.makedirs(os.path.dirname(target), exist_ok=True)
                 shutil.copy2(source, target)
@@ -100,7 +102,8 @@ def copy_source(a, root):
     if not a.worktree:
         return unpack_source(a.ref, root)
     files = subprocess.run(["git", "-C", HERE, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", *SOURCE,
-                            ":(exclude,icase,glob)**/*b[l]ind*", ":(exclude,icase,glob)**/*b[l]ind*/**"],
+                            ":(exclude,icase,glob)**/*b[l]ind*", ":(exclude,icase,glob)**/*b[l]ind*/**",
+                            ":(exclude,glob)**/delta_map_1x.npy"],
                            check=True, capture_output=True).stdout.decode("utf-8").split("\0")
     # Worktree packaging mirrors git archive's file selection. Ignored local
     # renders/downloads are not source, while new uncommitted source is included.

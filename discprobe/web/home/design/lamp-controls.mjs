@@ -2,7 +2,7 @@
 // on the placement sheet's ruler (lamp-pose.mjs). Dragging follows the hand: each move sets the value and asks for a
 // redraw; the lamp worker answers with quick frames until the hand stops (editor-lamp.mjs). Keys: arrows (Shift: in
 // bigger steps), Home resets. Double-click resets too.
-import { HEIGHT_MARKS_CM, HEIGHT_RANGE_CM, DESIGN_Z_MM, zOfCm, cmOfZ, snapCm } from "./lamp-pose.mjs";
+import { HEIGHT_MARKS_CM, HEIGHT_RANGE_CM, DESIGN_Z_MM, DESIGN_RULER_CM, zOfCm, cmOfZ, snapCm } from "./lamp-pose.mjs";
 
 const WORDS = {
   zh: { rotate: "转盘", height: "高度", design: "设计高度", deg: d => `${d}°`, cm: c => `${c} cm`, rotateAria: "光盘旋转角度", heightAria: "手机镜头离盘面的高度（放置纸上的刻度）", hint: "拖动；方向键微调，Home 复位" },
@@ -49,7 +49,7 @@ export class LampControls {
     }
     let marks = "";
     for (let cm = 15; cm <= 80; cm += 5) if (!HEIGHT_MARKS_CM.includes(cm)) marks += `<line class="tick" x1="-5" x2="5" y1="${yOfCm(cm).toFixed(1)}" y2="${yOfCm(cm).toFixed(1)}"/>`;
-    for (const cm of HEIGHT_MARKS_CM) { const y = yOfCm(cm).toFixed(1); marks += `<line class="tick mark" x1="-8" x2="8" y1="${y}" y2="${y}"/><text class="tl${cm === 21 ? " mark" : ""}" x="12" y="${y}" dy="3.5">${cm}</text>`; }
+    for (const cm of HEIGHT_MARKS_CM) { const y = yOfCm(cm).toFixed(1); marks += `<line class="tick mark" x1="-8" x2="8" y1="${y}" y2="${y}"/><text class="tl${cm === DESIGN_RULER_CM ? " mark" : ""}" x="12" y="${y}" dy="3.5">${cm}</text>`; }
     el.innerHTML =
       `<div class="lc" data-c="rotate" tabindex="0" role="slider" aria-valuemin="0" aria-valuemax="359"><span class="lbl"></span>` +
       `<svg width="${2 * DIAL + 8}" height="${2 * DIAL + 8}" viewBox="${-DIAL - 4} ${-DIAL - 4} ${2 * DIAL + 8} ${2 * DIAL + 8}"><circle class="ring" r="${DIAL}"/>${ticks}<line class="stick" x1="0" y1="0" x2="0" y2="0"/><circle class="knob" r="6"/></svg><output></output></div>` +
@@ -77,7 +77,7 @@ export class LampControls {
   set(c, value) {
     const l = this.lamp;
     if (c === this.dial) l.rotate = Math.round(((value % 360) + 360) % 360 * 10) / 10;
-    else l.z = Math.round(zOfCm(value) * 10) / 10;
+    else l.z = value === DESIGN_RULER_CM ? DESIGN_Z_MM : Math.round(zOfCm(value) * 10) / 10;
     this.sync(); this.h.changed();
   }
   reset(c) { if (c === this.dial) this.set(c, 0); else { this.lamp.z = null; this.sync(); this.h.changed(); } }
@@ -102,7 +102,7 @@ export class LampControls {
   // the lever let go on a mark: that is the work's height (the palettes exist for the marks only); between marks the
   // height stays the lamp view's own
   commit() {
-    const cm = Math.round(this.cm * 10) / 10;
+    const cm = HEIGHT_MARKS_CM.find(m => Math.abs(this.cm-m)<.01);
     if (HEIGHT_MARKS_CM.includes(cm) && this.lamp.z != null && this.h.mark?.(cm)) { this.lamp.z = null; this.sync(); this.h.changed(); }
   }
   key(e, c) {
@@ -129,7 +129,7 @@ export class LampControls {
     d.querySelector(".knob").setAttribute("cx", kx.toFixed(1)); d.querySelector(".knob").setAttribute("cy", ky.toFixed(1));
     d.querySelector(".stick").setAttribute("x2", kx.toFixed(1)); d.querySelector(".stick").setAttribute("y2", ky.toFixed(1));
     v.querySelector(".knob").setAttribute("cy", yOfCm(Math.max(HEIGHT_RANGE_CM[0], Math.min(HEIGHT_RANGE_CM[1], cm))).toFixed(1));
-    const deg = Math.round(rot), cmText = Math.round(cm * 10) / 10, design = Math.abs(cm - 21) < .05;
+    const deg = Math.round(rot), cmText = Math.round(cm * 10) / 10, design = Math.abs(cm - DESIGN_RULER_CM) < .05;
     d.querySelector("output").textContent = t.deg(deg);
     v.querySelector("output").textContent = t.cm(cmText);
     d.setAttribute("aria-label", t.rotateAria); d.setAttribute("aria-valuenow", String(deg)); d.setAttribute("aria-valuetext", t.deg(deg));
