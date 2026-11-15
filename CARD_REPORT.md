@@ -1,79 +1,76 @@
-# F1 曲线辅助编辑交付报告
+# D2：F1 曲线辅助编辑界面打磨报告
 
-分支：`dev/f1-curve-edit`；worktree：`D:/dp-dev/f1`。按 COMMON 和 f1 卡执行。未推送、未合并、未切换分支，未连接光驱、刻盘或上传。没有修改 `evidence/atlas/*.py`。
+分支：`dev/f1-polish`；worktree：`D:/dp-dev/f1polish`；基点：`b380563`。已先读 COMMON、D2 卡和 F1 交付报告。仅改 `curve-edit.js`、`curve-edit.css`、对应浏览器测试及本报告。没有推送、合并、切换分支或修改其他 worktree；没有接光驱、刻盘、上传或下载，没有修改 `evidence/atlas/*.py`。
 
 ## 做了什么（按提交）
 
-1. `3f9977b` — `docs: plan F1 curve editing contract and validation`
-   - 先提交 `F1_PLAN.md`，梳理 geo spline、gridscan 多项式、pcal / photo 的 L-only 边界、网页参考环与测量结果页，以及 A2/A6 当前源码交付和未验收部分。
-   - 冻结坐标、符号、有效范围、来源哈希、格式版本、独立验证规则和实现范围。
-2. `79178b6` — `feat: add independently validated assisted curve editing`
-   - `discprobe/curve_edit.py`：实际自动结果初始化；完整 JSON 值无损往返；控制点平滑偏移重拟合；在原多项式或原 spline 空间叠加；独立检查、失败拒绝、陈旧来源拒绝、并发锁、原始自动结果备份、历史与单文件原子替换。
-   - `curve-edit --run ... [--edit ... | --edit-json ...] [--save]`：JSON 返回、明确失败退出码、保存时重新验证。CLI 是引擎；网页通过已有作业后端运行同一命令。修正操作不枚举光驱；关闭网页不终止子进程。
-   - 结果页新增“辅助修正”，复用 kit DOM helper、既有 placed 按钮、主题和详情控件；显示自动 / 候选曲线、数值偏移、独立验收和拒绝原因。改动或重读即清除通过状态；保存仅在验证通过后可用；保存时核心仍复验。
-   - 修正作业期间阻止“下一步”，保存修正后使旧缓存预设失效，继续保存测量时重新导出。新一次测量清空前次编辑状态。
-   - `docs/CURVE_EDIT.md`：CLI、格式、显式照片留出协议、保存与恢复说明。计划追加实现补充，明确轻量网页请求、跨 JSON 运行时数值哈希和事务边界。
-   - 新增 30 项 Python 案例和真实 CLI / HTTP / Chromium 集成测试；更新原照片流程测试的模块依赖和缓存预设回归。
-3. 本报告提交 — `docs: record F1 acceptance results and limitations`
-   - 记录最终命令、通过数字、证据位置及未测范围。
+1. 本提交 `fix: polish assisted curve editor presentation`
+   - y 轴使用 1、2、5 × 10ⁿ 的步长，显示 3–5 个刻度，覆盖曲线并包含零；零处使用 rule 细参考线。x 轴在范围不超过 40 mm 时每 5 mm 一格，更宽时每 10 mm 一格。数字小数位随步长变化。
+   - 图右上角改为线样与文字图例；自动曲线为墨色实线，候选为上层、稍粗的铜色虚线，重合时两者仍可辨。轴标题为“φ 偏转 / °”“半径 / mm”，使用页面正文字体和 muted 色。
+   - 控制点表格随内容宽度排列，输入约 7em、右对齐、等宽数字，单位 ° 放在输入后；半径也右对齐。偏移不为零的行显示 1px 铜色左线，恢复零后取消。
+   - 修改中显示非零偏移点数；验证通过显示 RMS、最大误差及可以保存；超限失败显示 RMS、最大误差和各自上限，并使用已有 warn 色。所有误差及上限直接取后端 validation，仅作最多三位小数的显示格式化；没有重算指标或改变阈值。缺少数值的证据错误继续显示原有原因。
+   - 重拟合、保存复用 kit-ring-button，主操作用现有墨/纸色突出；重读复用 kit-text-button。禁用保存下方显示“先通过验证才能保存”。沿用结果页平面控件，不带入 kit 的场景大阴影。没有改变事件动作、请求参数、导出 API、CLI、拟合、验证和保存门槛。
+   - 增加数值刻度不变量与真实 Edge/HTTP/CLI 验收：16 个状态/主题/宽度组合，检查图例、零线、RMS 文案、点数、回零标记、5/10 mm 刻度、无数值拒绝原因、控件高度、图表文字边界、表格宽度及拒绝不回写、通过后保存、编辑后撤销通过状态。
 
 ## 验收命令与数字
 
-所有测试临时目录通过 `TEMP` / `TMP` 指向 `D:/dp-dev/tmp/f1`；pytest 使用两个 worker，没有运行完整 Python 套件。
+临时目录均在 D 盘；没有运行完整 Python 套件。
 
 ```powershell
-$env:TEMP='D:\dp-dev\tmp\f1'
+$env:TEMP='D:/dp-dev/tmp/f1polish'
 $env:TMP=$env:TEMP
-python -B -m pytest -n 2 tests/test_curve_edit.py tests/test_webui.py tests/test_webui_recovery.py tests/test_geo_varpitch.py tests/test_geo_integration.py tests/test_dis_pitch.py -q --basetemp D:/dp-dev/tmp/f1/pytest-final
+python -B -m pytest -n 2 tests/test_curve_edit.py tests/test_webui.py tests/test_webui_recovery.py -q --basetemp D:/dp-dev/tmp/f1polish/pytest-final
 ```
 
-结果：**81 passed, 42 subtests passed，28.67 秒**。日志：`D:/dp-dev/tmp/f1/python-final.log`。
+结果：**67 passed，42 subtests passed，14.60 秒**。日志：`D:/dp-dev/tmp/f1polish/python-final.log`。
 
 ```powershell
-$env:F1_TEST_SHOTS='D:\dp-dev\tmp\f1\shots'
-$f1NodeTests = @(rg --files tests -g 'test_*.mjs' -g '!**/*[bB][lL][iI][nN][dD]*/**' -g '!**/*[bB][lL][iI][nN][dD]*')
-node --test --test-concurrency=2 $f1NodeTests
+$env:F1_TEST_SHOTS='D:/dp-dev/tmp/f1polish/shots'
+node --test tests/test_curve_edit_browser.mjs
 ```
 
-结果：全部 **36 个 test_*.mjs 文件，40 tests / 40 pass / 0 fail / 0 skipped，71.21 秒**。日志：`D:/dp-dev/tmp/f1/node-final.log`。新增浏览器测试使用发货的编辑组件、真实本地 HTTP 后端与真实 CLI 子进程，后端设备列表固定为空，验收自动初值、修改、拒绝不回写、通过后保存、390/1000 px 布局及可聚焦数值控件。全部可见输入/按钮/summary 高度至少 44 px，未见横向溢出。
+定向最终结果：**2 tests / 2 pass / 0 fail / 0 skipped，21.11 秒**。日志：`D:/dp-dev/tmp/f1polish/browser-final.log`。同一曲线用例在全体最终回归中也再次通过。
 
 ```powershell
-python -B -X utf8 D:/dp-dev/tmp/f1/verify_acceptance.py
+$f1Tests=@(rg --files tests -g 'test_*.mjs' -g '!**/*[bB][lL][iI][nN][dD]*' -g '!**/*[bB][lL][iI][nN][dD]*/**')
+node --test --test-concurrency=1 $f1Tests
+```
+
+最终结果：**36 个文件，41 tests / 41 pass / 0 fail / 0 skipped，88.52 秒**。日志：`D:/dp-dev/tmp/f1polish/node-final.log`。
+
+首轮全体 Node（并发 2）为 39 pass / 2 fail：新增线宽断言把带 px 的字符串用 Number 转换，已改为 parseFloat；另一个既有预设导入导出浏览器用例返回 PENDING。未改该用例或产品实现，最终串行全体回归通过。首轮日志保留在 `D:/dp-dev/tmp/f1polish/node-first.log`，没有把首轮失败记成通过。
+
+```powershell
+python -B -X utf8 D:/dp-dev/tmp/f1polish/make_review.py
+python -B -X utf8 D:/dp-dev/tmp/f1polish/verify_artifacts.py
 git diff --check
 ```
 
-另存具体数值的合成验收：`D:/dp-dev/tmp/f1/acceptance/RESULT.json`。两个模型各用 15 个独立检查点；真值相对自动结果增加 `+1.25°`：
+16 张要求截图逐一检查实际像素宽度为 1000 或 390，高度至少 1250；页面与表格均无横向溢出，可见输入/按钮/summary 高度均 ≥44px，SVG 文字在 viewBox 内。已查看 16 态联系表、390 失败态、390 夜色通过态及并排对比图。`git diff --check` 通过；JS、测试及报告检查非 ASCII 字符数 >0、连续双问号数为 0。
 
-| 自动表示 | 找回偏移 | 验证 RMS | 故意设为 −5° 后 RMS | 拒绝后原文件字节 |
+机械检查运行一次：`impeccable.cmd detect --json discprobe/web/home/curve-edit.js discprobe/web/home/curve-edit.css`，结果 **0 条提示（[]）**；原始结果：`D:/dp-dev/tmp/f1polish/ui-detector.json`。
+
+## 截图路径
+
+以下均由 Edge 无头截图，使用发货编辑组件、真实本地 HTTP 后端和 CLI，合成 spline 数据、15 个独立检查点、5 个控制点，设备列表固定为空。截图页面明确标注“合成数据验收 · 无光驱、无实盘”。
+
+| 状态 | 纸色 1000 | 纸色 390 | 夜色 1000 | 夜色 390 |
 | --- | --- | --- | --- | --- |
-| 多项式 | +1.25° | 1.282e-16° | 6.25° | 不变 |
-| 三次 B-spline | +1.25° | 2.979e-16° | 6.25° | 不变 |
+| 自动 | `D:/dp-dev/tmp/f1polish/shots/automatic-paper-1000.png` | `D:/dp-dev/tmp/f1polish/shots/automatic-paper-390.png` | `D:/dp-dev/tmp/f1polish/shots/automatic-dark-1000.png` | `D:/dp-dev/tmp/f1polish/shots/automatic-dark-390.png` |
+| 修改中 | `D:/dp-dev/tmp/f1polish/shots/editing-paper-1000.png` | `D:/dp-dev/tmp/f1polish/shots/editing-paper-390.png` | `D:/dp-dev/tmp/f1polish/shots/editing-dark-1000.png` | `D:/dp-dev/tmp/f1polish/shots/editing-dark-390.png` |
+| 验证通过 | `D:/dp-dev/tmp/f1polish/shots/validation-passed-paper-1000.png` | `D:/dp-dev/tmp/f1polish/shots/validation-passed-paper-390.png` | `D:/dp-dev/tmp/f1polish/shots/validation-passed-dark-1000.png` | `D:/dp-dev/tmp/f1polish/shots/validation-passed-dark-390.png` |
+| 验证失败 | `D:/dp-dev/tmp/f1polish/shots/validation-failed-paper-1000.png` | `D:/dp-dev/tmp/f1polish/shots/validation-failed-paper-390.png` | `D:/dp-dev/tmp/f1polish/shots/validation-failed-dark-1000.png` | `D:/dp-dev/tmp/f1polish/shots/validation-failed-dark-390.png` |
 
-固定验收门为 RMS ≤0.5°、最大绝对误差 ≤1°；不会随噪声或人工编辑放宽。测试另覆盖三次非恒定偏移、低阶 spline、完整元数据往返、错坐标/版本/范围、NaN/Inf、留出缺失/重复/重叠/分布不足、来源改变、重复保存后仍锚定原始独立读数、CLI 与网页拒绝契约、现有 loader 及 `disexport.target_angle` 消费。
-
-末轮 `git diff --check` 通过。中文文件检查：`F1_PLAN.md` 1335、使用文档 1285、编辑器 JS 433 个非 ASCII 字符，均无 `??` 连续问号；测试文件中中文也通过检查。报告本身在提交前同样检查。
-
-## 截图与证据
-
-三张要求的截图均放在指定目录，另附窄屏失败态：
-
-- [自动初值](../tmp/f1/shots/automatic.png)
-- [修改中](../tmp/f1/shots/editing.png)
-- [验证失败](../tmp/f1/shots/validation-failed.png)
-- [窄屏验证失败](../tmp/f1/shots/validation-failed-mobile.png)
-
-这些是复用既有结果页样式的组件集成 fixture 截图，运行真实编辑组件与 CLI 后端，页面明确写“合成数据验收 · 无光驱、无实盘”；不是从插盘到标定结束的实盘截图。已实际查看四张图，确认自动/修改中/失败态及禁用保存可读。
-
-`D:/dp-dev/tmp/f1/ARTIFACTS.json` 保存最终日志、合成数值结果、四张截图的字节数和 SHA-256。验收脚本、模型目录、原自动结果备份及历史记录保留在同目录。现有 Node 回归默认生成的额外截图已移到 `D:/dp-dev/tmp/f1/regression-shots/`，没有把临时文件提交到工作树。
-
-界面机械检查：`impeccable.cmd detect --json` 对改动页面运行一次，结果在 `D:/dp-dev/tmp/f1/ui-detector.json`。49 个提示均落在 `index.html` 的既有视觉样式（3 warning、46 advisory），该文件本次仅增加样式表引用；没有借此更换原配色、字体或版式。新编辑器 JS/CSS 未报告提示。
+- 改前/改后并排：`D:/dp-dev/tmp/f1polish/shots/validation-failed-paper-1000-comparison.png`。
+- 改前原图副本：`D:/dp-dev/tmp/f1polish/shots/validation-failed-paper-1000-before.png`，来自卡指定的 `D:/dp-dev/tmp/f1/shots/validation-failed.png`，没有重新运行旧实现；左右均为同一 F1 合成 fixture、纸色、1000 宽失败态。
+- 16 态联系表：`D:/dp-dev/tmp/f1polish/shots/review-contact-sheet.png`。
+- 图像及日志的字节数、SHA-256：`D:/dp-dev/tmp/f1polish/ARTIFACTS.json`。
+- 其他既有 Node 回归生成的图片移至 `D:/dp-dev/tmp/f1polish/regression-shots/`，没有提交到仓库。
 
 ## 没做到、拿不准及需要人决定的事
 
-- **仅合成验证，没有实盘。** 未接光驱、未刻盘、未测真实变轨距盘、真实读取耗时、实体成品或新照片的准确率。原有实盘和 A2 reader 放行结论没有因此升级。
-- 自动曲线的范围、符号及原始模型保持一致；本版控制点只拟合最高三次的平滑增量（低阶 spline 会降阶），不是任意局部高频描线。是否下一版扩展为局部控制基函数，留给审查者决定；本次没有把拖参考环说成曲线编辑。
-- 当前 pcal / photo 的沿轨 L 不产生可独立验收的完整 φ，不会伪造初值。已有照片多项式可提供显式 `curve-evidence.json`；该协议和来源转换只用合成照片点测过，真实照片适配未测。协议中的来源、输入哈希与划分是调用者声明，核心不重新读取原图证明其真实性。
-- 独立检查未参与自动/偏移拟合，且与所有记录的拟合 ID 分离；反复看同一验证集调参后，不能再宣称新封存留出通过。固定阈值和对检查点间的未知高频误差不作额外保证，真实硬件适用性仍需审查和新数据。
-- 锁和替换前哈希检查保护本功能的并发/陈旧写入；不是跨多个文件的事务，也不与正在写同目录的 geo 作业共用锁。磁盘故障、进程强杀、保存恰遇外部写入的极窄竞态未注入测试。可能留下备份/历史或残锁，恢复步骤已写文档。
-- 没做整套标定主线的真实浏览器/硬件验收，也没做人工读屏器、完整英文视觉或低配机器性能验收，均为**未测**。现有页面文字/风格未作审美重设计，没有待决定的新配色或版式。
-- 开发过程中首轮核心测试有 1 项断言大小写错误，浏览器发现 JSON 数值哈希问题，首轮全部 Node 有 1 项旧测试缺少新增模块替身；均修复后执行上面的最终回归。最终没有失败被改记为通过或跳过。
+- **实盘、光驱、完整真实标定主线均未测。** 本次只证明组件的显示与合成 CLI 集成，没有升级 F1 原有硬件/准确率结论。完整英文视觉、读屏器、浏览器缩放和其他浏览器均未测。
+- kit 没有单独命名的“primary”变体或通用数字输入组件。本次复用 kit 的按钮基样式与次要文字按钮，并在曲线区用已有墨/纸变量表达主按钮；数字输入保留原有边框/焦点方式，换用页面字体。是否要把该主按钮变体提炼到 kit，留给后续审查，本卡没有扩展共享组件。
+- “改了 N 个点”按相对自动曲线的非零偏移计数；清空而尚未填有效数字的点也算一个待处理点，既有有效数字检查仍会拒绝提交。恢复为零后行标记消失，仍需重新验证才能保存。
+- 指标显示最多三位小数并去掉尾零；极小误差会显示 0°，完整原始值仍在“验证详情 / CLI”。当前失败样本 RMS 和最大值都为 6.25°，因此如实显示 6.25°，没有照抄卡中文字示例里的 6.3°。
+- 保留原图表约 0.1° 的范围余量，再向整洁刻度扩展；为包含零，单侧曲线可能留白较多。没有新增配色、修改其他页面的审美或替审查者决定进一步压缩图表。
