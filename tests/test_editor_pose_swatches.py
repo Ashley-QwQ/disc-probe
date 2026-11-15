@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from discprobe import editor_preview, simulate_a3
+from discprobe import editor_preview, simulate_a3, focal
 
 ROOT = Path(__file__).resolve().parents[1]
 DESIGN = ROOT / "discprobe/web/home/design"
@@ -30,20 +30,22 @@ def test_sources_and_hashes_are_recorded_and_current(name):
     assert d["model"]["table_sha256"] == hashlib.sha256(simulate_a3.TABLE.read_bytes()).hexdigest()
     assert d["model"]["table_signature"] == simulate_a3.tables()["signature"]
     assert d["model"]["module"] == "discprobe.simulate_a3" and d["model"]["entry"] == "swatches"
-    assert d["model"]["delta_scale"] == .93 and d["model"]["focal_px"] == 3126
+    assert d["model"]["delta_scale"] == 1. and d["model"]["focal_px"] == focal.VIDEO_FOCAL_PX
     assert d["source"]["pose"].endswith("pose_1x.json") and d["source"]["pose_sha256"]
+    assert d["source"]["pose_sha256"] == hashlib.sha256((ROOT / "data/focal/pose_1x.json").read_bytes()).hexdigest()
+    assert d["source"]["geometry_sha256"] == hashlib.sha256((ROOT / "discprobe/focal.py").read_bytes()).hexdigest()
     assert d["sets_sha256"] == G.sets_sha(d["sets"])
     assert d["order"] == [m["id"] for m in load("swatches.json")["swatches"].values()]
 
 
 def test_every_phone_and_height_has_a_palette():
     d, c = load("pose-swatches.json"), load("pose-swatches-custom.json")
-    assert [h["ruler_cm"] for h in d["heights"]] == [21, 30, 40, 50, 70]
-    assert d["heights"][0]["camera_z_mm"] == 206.5 and d["rig"]["lens_offset_mm"] == 28.45
+    assert [h["ruler_cm"] for h in d["heights"]] == [focal.DESIGN_RULER_CM, 30, 40, 50, 70]
+    assert d["heights"][0]["camera_z_mm"] == focal.DESIGN_Z_MM and d["rig"]["lens_offset_mm"] == 28.45
     assert set(d["sets"]) == {f"{p['id']}@{h['id']}" for p in d["phones"] for h in d["heights"]}
     assert set(c["sets"]) == {f"{mm}@{h['id']}" for mm in d["custom"]["flash_mm"] for h in d["heights"]}
-    assert d["sets"]["iphone17pro@21"]["camera"] == [0., 28.45, 206.5]
-    assert d["sets"]["iphone17pro@21"]["flash"] == [0., 76.35, 206.5]
+    assert d["sets"]["iphone17pro@21"]["camera"] == list(focal.CAMERA)
+    assert d["sets"]["iphone17pro@21"]["flash"] == list(focal.FLASH)
 
 
 @pytest.mark.parametrize("key", ["iphone17pro@21", "iphone17pro@70", "custom:32@30", "custom:10@70"])
@@ -54,7 +56,7 @@ def test_sets_are_what_the_generator_makes_today(key):
         stored, flash = load("pose-swatches-custom.json")["sets"][key[7:]], float(mm)
     else:
         h = key.split("@")[1]
-        stored, flash = load("pose-swatches.json")["sets"][key], 47.9
+        stored, flash = load("pose-swatches.json")["sets"][key], focal.FLASH_Y_MM-focal.LENS_Y_MM
     z = next(x["camera_z_mm"] for x in G.HEIGHTS if x["id"] == h)
     assert G.one_set(materials, flash, z) == stored
 

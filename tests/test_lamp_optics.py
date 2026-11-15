@@ -10,7 +10,7 @@ import tempfile
 import numpy as np
 import pytest
 
-from discprobe import simulate_a3
+from discprobe import simulate_a3, focal
 
 ROOT = Path(__file__).resolve().parents[1]
 pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
@@ -64,6 +64,8 @@ def job(labels, mats, pose, size, k, share=None, annulus=(24, 58)):
     dict(camera=[0., 70., 330.], flash=[-43.66, 89.79, 330.], rotate=0),
     dict(camera=[20., 85., 330.], flash=[-23.66, 104.79, 330.], rotate=17),
     dict(camera=[0., 28.45, 206.5], flash=[0., 76.35, 206.5], rotate=200),
+    dict(camera=list(focal.CAMERA), flash=list(focal.FLASH), rotate=200),
+    dict(camera=[0., 28.45, 206.5], flash=[0., 76.35, 206.5], rotate=200, delta_scale=.93),
 ])
 def test_matches_python_render(pose):
     labels, mats = blocks(), materials()

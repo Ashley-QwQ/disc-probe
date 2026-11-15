@@ -3,7 +3,8 @@
 // Also the pose controls' height scale (design/lamp-pose.mjs). Run: node tests/test_editor_lamp.mjs
 import assert from "node:assert/strict";
 import { LampPreview, target, DRAG_SIZE } from "../discprobe/web/home/design/editor-lamp.mjs";
-import { zOfCm, cmOfZ, snapCm, lampPose, DESIGN_Z_MM } from "../discprobe/web/home/design/lamp-pose.mjs";
+import { zOfCm, cmOfZ, snapCm, lampPose, DESIGN_Z_MM, DESIGN_RULER_CM } from "../discprobe/web/home/design/lamp-pose.mjs";
+import { LampControls } from "../discprobe/web/home/design/lamp-controls.mjs";
 
 let clock = 0;
 const sent = [], worker = { postMessage: m => sent.push(m), terminate() { this.dead = true; } };
@@ -81,9 +82,16 @@ assert.equal(target(2000, false).k, 1); assert.equal(target(2000, false).n, 2048
 assert(target(473, false).k * target(473, false).size >= 2000);
 
 // the height scale: 21 cm is the design height; marks round trip; the lever snaps onto marks
-assert.equal(zOfCm(21), DESIGN_Z_MM); assert.equal(Math.round(zOfCm(30) * 10) / 10, 298.7); assert.equal(Math.round(zOfCm(70) * 10) / 10, 698.7);
-for (const cm of [12, 21, 25.5, 30, 44, 70, 80]) assert(Math.abs(cmOfZ(zOfCm(cm)) - cm) < 1e-9);
-assert.equal(snapCm(21.6), 21); assert.equal(snapCm(25.3), 25.5); assert.equal(snapCm(200), 80);
+assert.equal(zOfCm(DESIGN_RULER_CM), DESIGN_Z_MM); assert.equal(Math.round(zOfCm(30) * 10) / 10, 298.7); assert.equal(Math.round(zOfCm(70) * 10) / 10, 698.7);
+for (const cm of [12, DESIGN_RULER_CM, 25.5, 30, 44, 70, 80]) assert(Math.abs(cmOfZ(zOfCm(cm)) - cm) < 1e-9);
+assert.equal(snapCm(DESIGN_RULER_CM+.6), DESIGN_RULER_CM); assert.equal(snapCm(25.3), 25.5); assert.equal(snapCm(200), 80);
+// The non-integer mark must not trap keyboard stepping through a rounded z, even with no selected phone.
+const controls=Object.create(LampControls.prototype), controlState={};
+controls.h={state:()=>controlState,changed(){},mark:()=>false};controls.dial={};controls.lever={};controls.sync=()=>{};
+controls.set(controls.lever,DESIGN_RULER_CM);
+assert.equal(controls.lamp.z,DESIGN_Z_MM);assert.equal(controls.cm,DESIGN_RULER_CM);
+controls.key({key:'ArrowUp',preventDefault(){},stopPropagation(){}},controls.lever);
+assert(controls.cm>DESIGN_RULER_CM,'the key can leave the design mark before choosing a phone');
 // the pose: the scene's phone, the lever's height (the flash rides with the phone), the dial's turn
 const scene = { cam: [0, -70, 330], follows: true };
 const r6 = o => JSON.parse(JSON.stringify(o, (k, v) => typeof v === "number" ? Math.round(v * 1e6) / 1e6 : v));

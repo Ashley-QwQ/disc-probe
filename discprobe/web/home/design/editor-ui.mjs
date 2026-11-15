@@ -34,7 +34,7 @@ export class Editor {
   rigSync(){const s=this.s,rig=this.rig();if(!s?.scene||!this.rigData)return;if(needsCustom(rig)&&customMM(rig.flash_mm,this.rigData)!=null&&!this.rigSet())this.loadCustom();
     const set=this.rigSet();if(!set)return;const next=rigScene(s.scene,rig,this.rigData,set);
     if(JSON.stringify(next)!==JSON.stringify(s.scene)){s.scene=next;s.lookY=set.camera[1];}}
-  setRig(patch){const s=this.s;if(!s)return;this.h.checkpoint();s.scene={...(s.scene??{}),rig:{...this.rig(),...patch}};this.rigSync();this.invalidate();this.h.changed();this.right();this.h.status?.();this.h.draw();}
+  setRig(patch){const s=this.s;if(!s)return;this.h.checkpoint();s.scene={...(s.scene??{}),rig:{...this.rig(),...patch}};delete s.scene.deltaScale;this.rigSync();this.invalidate();this.h.changed();this.right();this.h.status?.();this.h.draw();}
   rigExample(){if(!this.rigData)return null;if(this.rigExampleCache===undefined){const sets={};for(const k of ['iphone17pro@21','iphone17pro@40'])if(this.rigSets[k])sets[k]=decodeSet(this.rigData.order,this.rigSets[k]);this.rigExampleCache=example(this.rigData,sets);}return this.rigExampleCache;}
   // the lamp view's note
   poseNote(){const w=rigWords(this.h.lang());return this.rigOpen()?w.lampNote(rigLabel(this.rig(),this.rigData,this.h.lang())):w.lampNone;}
@@ -170,7 +170,7 @@ export class Editor {
     // shapes, effects) is laid over, so an imported picture is never replaced by its burned two-texture form.
     // As burned / under the lamp: the composed disc at screen resolution.
     const screen=Math.max(200,Math.min(2048,Math.round(120*v.s*v.dpr)));
-    if(s.view==='lamp')(this.lampControls??=new LampControls({parent:this.h.dom().canvas.parentElement,state:()=>this.s,lang:()=>this.h.lang(),changed:()=>this.h.draw(),z:()=>lampPose({...this.s,lampLook:null}).camera[2],mark:cm=>typeof this.setRig==='function'?(this.setRig({height:String(cm)}),true):false})).show(true);else this.lampControls?.show(false);
+    if(s.view==='lamp')(this.lampControls??=new LampControls({parent:this.h.dom().canvas.parentElement,state:()=>this.s,lang:()=>this.h.lang(),changed:()=>this.h.draw(),z:()=>lampPose({...this.s,lampLook:null}).camera[2],mark:cm=>{const h=this.rigData?.heights.find(h=>Math.abs(h.ruler_cm-cm)<.01);if(!h||!this.rigOpen())return false;this.setRig({height:h.id});return true;}})).show(true);else this.lampControls?.show(false);
     if(s.view==='proj'){const over=this.fillsOverlay(Math.min(1024,screen));if(over){ctx.save();this.h.annulus(ctx,...this.ring());ctx.clip('evenodd');ctx.drawImage(over,v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);ctx.restore();}this.lamp?.pause();}
     else if(s.layers.length||s.assignments.length||s.view==='lamp'){ctx.save();this.h.annulus(ctx,...this.ring());ctx.clip('evenodd');const shown=this.preview(screen);if(shown)ctx.drawImage(shown,v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);
       const exact=s.view==='burn'&&s.layers.length?this.exactCells(v):null;if(exact){ctx.imageSmoothingEnabled=false;ctx.drawImage(exact.canvas,v.cx+(exact.cols[0]*s.cell-60)*v.s,v.cy+(exact.rows[0]*s.cell-60)*v.s,(exact.cols[1]-exact.cols[0])*s.cell*v.s,(exact.rows[1]-exact.rows[0])*s.cell*v.s);}

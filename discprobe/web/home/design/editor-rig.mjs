@@ -2,6 +2,7 @@
 // only, so the colour panel opens after both are chosen. The palettes are precomputed per phone x height by
 // tools/editor_pose_swatches.py (pose-swatches.json; pose-swatches-custom.json for a distance the person measured);
 // nothing here models light. The rig lives in the work's scene (scene.rig), so a saved work keeps its pose.
+import { DESIGN_RULER_CM } from './focal-geometry.mjs';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 export const RIG_WORDS={
@@ -12,10 +13,10 @@ export const RIG_WORDS={
     phone:'你的手机',iphoneSub:'闪光灯离 1× 镜头 47.9 mm · 实测过',custom:'其他手机',customSub:'自己量闪光灯到 1× 镜头的距离 · 未验证',
     distance:'闪光灯中心到 1× 镜头中心（mm）',distanceNote:d=>`按 ${d} mm 算。没在这款手机上验证过，颜色可能对不上。`,distanceBad:'填 10 到 60 之间的毫米数。',
     height:'拍摄高度',heightPick:'先选手机，再选高度。',
-    heightNote:'1× 镜头离桌面的高度。21 cm 是摆放纸的设计高度，实拍对照过，用打印的高度尺；30–70 cm 也拍过，但色板是模型预测，还没逐块对照。',
+    heightNote:'1× 镜头离桌面的高度。'+DESIGN_RULER_CM+' cm 是摆放纸的新设计高度，焦距待两高度复测，用新版高度尺；30–70 cm 也拍过，但色板是模型预测，还没逐块对照。',
     heightNoteCustom:'1× 镜头离桌面的高度。你的手机没验证过，每一档的颜色都只是模型预测。',
     pose:label=>`下面是用 ${label} 拍时，盘面右侧（3 点钟方向、离圆心 4 cm）的颜色。盘上别处颜色不同，点画布下面的“灯下”看整张盘。`,
-    model:'颜色是模型预测，比例按 6 张实践盘的录像校过。刻录默认仍按黑白刻，上了颜色、彩色图案和特效的地方刻成深色。',
+    model:'颜色是模型预测，机位已按实测焦距更新，待复拍对照。刻录默认仍按黑白刻，上了颜色、彩色图案和特效的地方刻成深色。',
     hidden:n=>`另有 ${n} 种在这个机位下看不出颜色，收在“全部材质”里。`,none:'这个机位下预测哪种材质都看不出颜色。换低一点的高度试试。',all:'全部材质',
     locked:'先选手机和拍摄高度',loading:'正在载入色板…',failed:'色板没载入：',
     lampNote:label=>`${label} · 模型预测`,lampNone:'还没选手机和高度 · 按旧的默认机位（33 cm）'},
@@ -26,10 +27,10 @@ export const RIG_WORDS={
     phone:'Your phone',iphoneSub:'Flash 47.9 mm from the 1× lens · measured',custom:'Another phone',customSub:'Measure the flash to the 1× lens yourself · unverified',
     distance:'Flash centre to 1× lens centre (mm)',distanceNote:d=>`Using ${d} mm. Not checked on this phone; the colours may be off.`,distanceBad:'Enter a whole number of mm from 10 to 60.',
     height:'Shooting height',heightPick:'Choose the phone first, then the height.',
-    heightNote:'Height of the 1× lens above the table. 21 cm is the placement sheet\'s design height, checked against photos; use the printed height ruler. 30–70 cm were photographed too, but their palettes are the model\'s prediction, not yet compared swatch by swatch.',
+    heightNote:'Height of the 1× lens above the table. '+DESIGN_RULER_CM+' cm is the updated placement height; focal length awaits two-height measurement; use the new ruler. 30–70 cm were photographed too, but their palettes are the model\'s prediction, not yet compared swatch by swatch.',
     heightNoteCustom:'Height of the 1× lens above the table. Your phone is not verified; every height is the model\'s prediction only.',
     pose:label=>`Below: the colours at the disc's right side (3 o'clock, 4 cm from the centre) shot with ${label}. Elsewhere on the disc they differ; use Under the lamp under the canvas to see the whole disc.`,
-    model:'The colours are a model prediction, scaled from videos of 6 practice discs. The burn is still black and white by default; coloured, colour-patterned and effect areas burn dark.',
+    model:'The colours are a model prediction with updated focal geometry, awaiting new photo comparison. The burn is still black and white by default; coloured, colour-patterned and effect areas burn dark.',
     hidden:n=>`${n} more show no colour at this position; they are under All materials.`,none:'At this position no material is predicted to show colour. Try a lower height.',all:'All materials',
     locked:'Choose the phone and the shooting height first',loading:'Loading the palette…',failed:'The palette did not load: ',
     lampNote:label=>`${label} · model prediction`,lampNone:'No phone and height chosen · old default position (33 cm)'}
@@ -64,10 +65,11 @@ export function rigLabel(rig,data,lang='zh'){const w=rigWords(lang),h=data?.heig
   return h?`${phone} · ${h.ruler_cm} cm`:phone;}
 
 // The work's scene for this rig: design.js's frame (y down on screen; the phone's offset toward 12 o'clock is -y),
-// the flash riding on the phone at its own offset, and the practice discs' scale for the lamp view.
-export function rigScene(scene,rig,data,set){const base={...(scene??{}),rig:{...rig}};if(!set)return base;
+// the flash riding on the phone at its own offset. Standard rigs follow the current calibration;
+// arbitrary saved poses without a rig still read their explicit legacy scale via materialPose.
+export function rigScene(scene,rig,data,set){const base={...(scene??{}),rig:{...rig}};if(!set)return base;delete base.deltaScale;
   const [,lensY,z]=set.camera,flash=set.flash;
-  return {...base,preset:'rig',cam:[set.camera[0],-lensY,z],follows:true,flashOffset:[flash[0]-set.camera[0],flash[1]-lensY],deltaScale:data.model.delta_scale};}
+  return {...base,preset:'rig',cam:[set.camera[0],-lensY,z],follows:true,flashOffset:[flash[0]-set.camera[0],flash[1]-lensY]};}
 
 // a material that changes most between the design height and 40 cm, for the figure (both colours from the data)
 export function example(data,sets){const a=sets?.['iphone17pro@21'],b=sets?.['iphone17pro@40'];if(!a||!b)return null;let best=null;
