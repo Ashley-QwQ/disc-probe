@@ -147,7 +147,7 @@ export class Editor {
     // shapes, effects) is laid over, so an imported picture is never replaced by its burned two-texture form.
     // As burned / under the lamp: the composed disc at screen resolution.
     const screen=Math.max(200,Math.min(2048,Math.round(120*v.s*v.dpr)));
-    if(s.view==='lamp')(this.lampControls??=new LampControls({parent:this.h.dom().canvas.parentElement,state:()=>this.s,lang:()=>this.h.lang(),changed:()=>this.h.draw(),z:()=>lampPose({...this.s,lamp:null}).camera[2]})).show(true);else this.lampControls?.show(false);
+    if(s.view==='lamp')(this.lampControls??=new LampControls({parent:this.h.dom().canvas.parentElement,state:()=>this.s,lang:()=>this.h.lang(),changed:()=>this.h.draw(),z:()=>lampPose({...this.s,lampLook:null}).camera[2],mark:cm=>typeof this.setRig==='function'?(this.setRig({height:String(cm)}),true):false})).show(true);else this.lampControls?.show(false);
     if(s.view==='proj'){const over=this.fillsOverlay(Math.min(1024,screen));if(over){ctx.save();this.h.annulus(ctx,...this.ring());ctx.clip('evenodd');ctx.drawImage(over,v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);ctx.restore();}this.lamp?.pause();}
     else if(s.layers.length||s.assignments.length||s.view==='lamp'){ctx.save();this.h.annulus(ctx,...this.ring());ctx.clip('evenodd');const shown=this.preview(screen);if(shown)ctx.drawImage(shown,v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);
       const exact=s.view==='burn'&&s.layers.length?this.exactCells(v):null;if(exact){ctx.imageSmoothingEnabled=false;ctx.drawImage(exact.canvas,v.cx+(exact.cols[0]*s.cell-60)*v.s,v.cy+(exact.rows[0]*s.cell-60)*v.s,(exact.cols[1]-exact.cols[0])*s.cell*v.s,(exact.rows[1]-exact.rows[0])*s.cell*v.s);}

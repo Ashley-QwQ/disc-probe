@@ -33,8 +33,9 @@ const DIAL = 30, LEVER = 150;
 const yOfCm = cm => LEVER * (1 - (Math.log(cm) - Math.log(HEIGHT_RANGE_CM[0])) / (Math.log(HEIGHT_RANGE_CM[1]) - Math.log(HEIGHT_RANGE_CM[0])));
 const cmOfY = y => Math.exp(Math.log(HEIGHT_RANGE_CM[0]) + (1 - y / LEVER) * (Math.log(HEIGHT_RANGE_CM[1]) - Math.log(HEIGHT_RANGE_CM[0])));
 
-// host: { parent, state() -> the design state (its .lamp is written), lang() -> "zh"|"en", changed() (redraw), z() -> the
-// pose's own lens height (mm) when state.lamp.z is unset }
+// host: { parent, state() -> the design state (its .lampLook is written), lang() -> "zh"|"en", changed() (redraw), z() -> the
+// pose's own lens height (mm) when state.lampLook.z is unset, mark(cm) -> true when it made that mark the work's height
+// (the colour panel's scene.rig; then state.lampLook.z goes back to null) }
 export class LampControls {
   constructor(host) {
     this.h = host;
@@ -66,7 +67,7 @@ export class LampControls {
     }
     this.sync();
   }
-  get lamp() { const s = this.h.state(); return (s.lamp ??= { rotate: 0, z: null }); }
+  get lamp() { const s = this.h.state(); return (s.lampLook ??= { rotate: 0, z: null }); }
   get cm() { const z = this.lamp.z ?? this.h.z?.() ?? DESIGN_Z_MM; return cmOfZ(z); }
   show(on) {
     if (on && this.lang !== this.h.lang()) { this.lang = this.h.lang(); this.sync(); }
@@ -97,7 +98,13 @@ export class LampControls {
     if (c === this.dial) { let da = this.at(e, c) - d.a0; da -= 360 * Math.round(da / 360); d.a0 += da; d.v0 += da; this.set(c, d.v0); }
     else this.set(c, snapCm(this.at(e, c), e.shiftKey ? 0 : .8));
   }
-  up(e, c) { if (this.drag?.id === e.pointerId) this.drag = null; }
+  up(e, c) { if (this.drag?.id === e.pointerId) { this.drag = null; if (c === this.lever) this.commit(); } }
+  // the lever let go on a mark: that is the work's height (the palettes exist for the marks only); between marks the
+  // height stays the lamp view's own
+  commit() {
+    const cm = Math.round(this.cm * 10) / 10;
+    if (HEIGHT_MARKS_CM.includes(cm) && this.lamp.z != null && this.h.mark?.(cm)) { this.lamp.z = null; this.sync(); this.h.changed(); }
+  }
   key(e, c) {
     const big = e.shiftKey, k = e.key;
     let v = c === this.dial ? this.lamp.rotate : this.cm;
@@ -112,6 +119,7 @@ export class LampControls {
       v = Math.max(HEIGHT_RANGE_CM[0], Math.min(HEIGHT_RANGE_CM[1], mark ?? next));
     } else v += sign * step;
     this.set(c, v);
+    if (c === this.lever) this.commit();
   }
   sync() {
     const t = WORDS[this.h.lang()] ?? WORDS.zh, l = this.lamp, rot = l.rotate ?? 0, cm = this.cm;

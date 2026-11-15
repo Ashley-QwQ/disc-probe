@@ -88,9 +88,9 @@ assert.equal(snapCm(21.6), 21); assert.equal(snapCm(25.3), 25.5); assert.equal(s
 const scene = { cam: [0, -70, 330], follows: true };
 const r6 = o => JSON.parse(JSON.stringify(o, (k, v) => typeof v === "number" ? Math.round(v * 1e6) / 1e6 : v));
 assert.deepEqual(r6(lampPose({ scene, lookY: 70 })), { camera: [0, 70, 330], flash: [-43.66, 89.79, 330], rotate: 0 });
-const p = lampPose({ scene, lookY: 70, lamp: { rotate: -30, z: DESIGN_Z_MM } });
+const p = lampPose({ scene, lookY: 70, lampLook: { rotate: -30, z: DESIGN_Z_MM } });
 assert.deepEqual(p.camera, [0, 70, DESIGN_Z_MM]); assert.equal(p.flash[2], DESIGN_Z_MM); assert.equal(p.rotate, 330);
-const desk = lampPose({ scene: { cam: [0, -70, 330], follows: false, lamp: [-260, -220, 420] }, lookY: 70, lamp: { z: 250 } });
+const desk = lampPose({ scene: { cam: [0, -70, 330], follows: false, lamp: [-260, -220, 420] }, lookY: 70, lampLook: { z: 250 } });
 assert.equal(desk.camera[2], 250); assert.equal(desk.flash[2], 420, "a desk lamp stays where it is");
-assert.equal(lampPose({ pose: { camera: [0, 28.45, 206.5], flash: [0, 76.35, 206.5], delta_scale: .93 } }).delta_scale, .93);
+
 console.log("editor lamp: one render at a time, newest pose only, quick then still frames, cache, revisions, errors/retry; lamp pose and height scale");

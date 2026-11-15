@@ -21,12 +21,13 @@ export function snapCm(cm, snap = .8) {
   return near ?? Math.round(cm * 2) / 2;
 }
 
-// state.lamp = { rotate: degrees counterclockwise, z: lens height in mm or null (the scene's own) }; the rest as the
-// colour panel's pose (materialPose), so the lamp view and the swatches are the same phone. delta_scale passes through.
+// state.lampLook = { rotate: degrees counterclockwise, z: lens height in mm or null }: the lamp view's own, never saved with
+// the work. z is only a height between the palette's marks while the lever is there; at a mark the lever writes the
+// colour panel's scene.rig instead (editor.setRig) and z is null. The rest is the colour panel's pose (materialPose:
+// scene.rig's phone and height, or the scene's camera), so the lamp view and the swatches are the same phone.
 export function lampPose(state) {
-  const base = state.pose?.camera && state.pose?.flash ? { camera: [...state.pose.camera], flash: [...state.pose.flash], delta_scale: state.pose.delta_scale }
-    : materialPose(state.scene, state.lookY);
-  const view = state.lamp ?? {}, follows = state.pose?.camera ? true : state.scene?.follows !== false;
+  const base = materialPose(state.scene, state.lookY);
+  const view = state.lampLook ?? {}, follows = state.scene?.follows !== false;
   if (Number.isFinite(view.z) && view.z > 0) {
     if (follows) base.flash[2] += view.z - base.camera[2];
     base.camera[2] = view.z;
