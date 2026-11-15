@@ -79,7 +79,7 @@ async function loadWords() {
 }
 function suggestion() {
   const t = T(), now = new Date(), list = words?.[api.lang() === "en" ? "en" : "zh"] ?? [];
-  const word = list.length ? list[state.seed % list.length] : (api.lang() === "en" ? "haiku" : "奇思妙想");
+  const word = list.length ? list[(state?.seed ?? 0) % list.length] : (api.lang() === "en" ? "haiku" : "奇思妙想");
   return t.suggest(t.months[now.getMonth()], now.getDate(), word);
 }
 
@@ -506,6 +506,11 @@ function sceneScale() {
 addEventListener("resize", sceneScale);
 // The envelope rises from below the window with the card in its pocket (only its top peeking out), the card slides
 // up out of it to its place, and the envelope drops away. The tall envelope's bottom stays below the window.
+// The card envelopes are fixed above the page: none may outlive the hand-off between this page and calibration.
+function clearEnvelopes() {
+  for (const e of document.querySelectorAll(".np-card-env")) { e.getAnimations().forEach((a) => a.cancel()); e.remove(); }
+  cardFlight = null;
+}
 function envelopeFor(card) {
   const r = card.getBoundingClientRect(), v = root.dataset.theme === "dark" ? "dark" : "paper";
   const we = r.width * 1.12, eh = we * ENV_H, peek = Math.min(56, r.height * .14);
@@ -518,6 +523,7 @@ function envelopeFor(card) {
       width: px(we), height: px(eh), pointerEvents: "none", filter: "var(--envelope-desk-drop)",
       background: `url(${new URL(`./newplan/envelope_${name}_${v}.webp`, import.meta.url).href}) 0 0 / 100% 100% no-repeat` });
     e.setAttribute("aria-hidden", "true");
+    e.className = "np-card-env";                          // clearEnvelopes() finds any a broken path left behind
     return e;
   };
   const back = part("back"), front = part("front");
@@ -616,10 +622,12 @@ async function panBack(finish, reverseDisc) {
       const coming = returning.skipped ? null : W.animate([{ transform: "translateX(-100vw)" }, { transform: "none" }], opt);
       track([coming, ...leaving].filter(Boolean));
       await Promise.all([coming, ...leaving].filter(Boolean).map(a => a.finished)).catch(() => {});
-      finish();                                               // calibration closes; reopen() takes the sheet out
-      coming?.cancel(); leaving.forEach((a) => a.cancel()); inEnv.anims.forEach((a) => a.cancel());
-      inEnv.parts.forEach((p) => p.remove()); ruler?.getAnimations().forEach((a) => a.cancel());
-      if (cardFlight === inEnv) cardFlight = null;
+      try { finish(); }                                       // calibration closes; reopen() takes the sheet out
+      finally {
+        coming?.cancel(); leaving.forEach((a) => a.cancel()); inEnv.anims.forEach((a) => a.cancel());
+        inEnv.parts.forEach((p) => p.remove()); ruler?.getAnimations().forEach((a) => a.cancel());
+        if (cardFlight === inEnv) cardFlight = null;
+      }
     }
     // Keep the skip active for the final extraction as well as the card and camera legs.
     W.getBoundingClientRect();
@@ -629,11 +637,13 @@ async function panBack(finish, reverseDisc) {
     returning.disc.abort();
     changed.disconnect(); removeEventListener("click", skip, true); removeEventListener("keydown", skip, true);
     returning.anims.forEach(a => a.cancel());
+    clearEnvelopes();
     W.classList.remove("instant", "unfiling"); returnFlight = null;
     going = false;
   }
 }
 function reopen({ unfile = false } = {}) {
+  clearEnvelopes();
   root.dataset.mode = "newplan";
   sceneScale();
   $("back").hidden = false; $("next").disabled = false;
@@ -918,6 +928,7 @@ async function bagging(drop = true) {
 async function next() {
   if (going) return;
   going = true;
+  clearEnvelopes();                               // nothing from the calibration hand-off may follow into design
   const name = W.name.value.trim() || suggestion(), item = chosen();
   hideMatches(); remember(item);
   // the envelope rises, the sheet slides in, both drop out of the frame

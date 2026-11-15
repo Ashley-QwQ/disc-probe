@@ -6,6 +6,10 @@
 :root[data-mode="preview"] .gallery { display: none; }
 
 .ws.pv { --colL: 0px; }
+/* design.css gives the editor's right column a row flex with hidden overflow (its panel fills it). The preview's
+   column is a document: its sections stack and scroll, so the cancel button and the check-disc block stay whole. */
+.ws.pv .col-r { display: grid; align-content: start; overflow-y: auto; overflow-x: hidden; }
+.ws.pv .col-r > * { min-width: 0; }
 .ws.pv .cv { left: calc(var(--edge) + 20px); }
 /* what the view shows, in one line, at the same place under the disc for every view */
 .ws.pv .cv-note { top: auto; bottom: 8px; left: 50%; transform: translateX(-50%); max-width: min(90%, 40em); white-space: normal; text-align: center; }

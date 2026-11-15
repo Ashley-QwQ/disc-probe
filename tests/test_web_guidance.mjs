@@ -86,3 +86,12 @@ assert.equal(unsteady.en, 'The time per turn near the centre and near the edge d
 for (const r of ['the burn did not finish','no disc is ready in the drive','cancelled during geo','the preset was not written'])
   for (const lang of ['zh','en']) assert.ok(!/[a-z_]{4,} [a-z]{3,} [a-z]{3,}/.test(stopReason(r)[lang]) || lang === 'en', r);
 console.log('Bilingual recovery, budget and failed-job tests passed');
+
+// N08: a CD burned by a command outside the page has no confirmation bar to hold
+{
+  const { adviceHTML: advice } = await import('../discprobe/web/home/guidance.mjs');
+  assert.match(advice('burn', 'en', {}), /hold the confirmation/);
+  assert.doesNotMatch(advice('burn', 'en', {external: true}), /hold the confirmation/);
+  assert.match(advice('burn', 'en', {external: true}), /PowerShell/);
+  assert.match(advice('burn', 'zh', {external: true}), /检测刻好的盘/);
+}

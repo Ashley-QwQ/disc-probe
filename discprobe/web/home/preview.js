@@ -136,7 +136,7 @@ function buildRight() {
       `<details class="pv-more"><summary>${t.details}</summary><p class="note">${t.ck.fxMore}</p></details>` : "") +
     `<p class="note mono">${[ready ? `${t.ck.time(minutes)} · ${t.ck.size(fmtBytes(s.iso.bytes))}` : t.ck.timeLater, c.cellUm ? t.ck.cell(c.cellUm) : ""].filter(Boolean).join(" · ")}</p></section>`;
   const checkDiscSec = ctx.exportCheck && c && c.geo !== "none" && !busy
-    ? `<section class="pv-check"><h3>${t.checkDiscH}</h3><p class="note">${t.checkDiscNote}</p>` +
+    ? `<section class="pv-checkdisc"><h3>${t.checkDiscH}</h3><p class="note">${t.checkDiscNote}</p>` +
       `<button class="sbtn wide" type="button" data-a="checkdisc">${t.checkDiscGo}</button></section>` : "";
   const fileSec = checkSec + checkDiscSec + (s.phase === "idle" ? "" : `<section><h3>${t.file}</h3>` +
     (ready ? `<p class="note">${s.iso.experimental ? t.madeExp : t.made}</p>` +

@@ -232,6 +232,9 @@
   .tools { display: flex; align-items: center; gap: 4px; margin-right: -14px; }
   .tools #presetio-entry { position: static; font-size: 16px; padding-inline: 10px; }
   .drive-entry { display: none; }
+  /* the library is reached from the lobby; on a page (design, preview, calibration...) the button did nothing, so it
+     is not shown there. The batch name in a work's title still opens the library with a way back. */
+  :root[data-mode]:not([data-mode=""]) #library { display: none; }
   :root[data-home="library"]:is(:not([data-mode]), [data-mode=""]) .drive-entry { display: inline-flex; }
   :root[data-home="library"]:is(:not([data-mode]), [data-mode=""]) .top > .wordmark { font-size: 26px; left: 35%; }
   .bl { top: calc(100vh - 80px - var(--edge) - 236px); left: calc(var(--edge) + 120px); transform-origin: 0 0; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0); }
@@ -920,11 +923,11 @@
       langButton: "EN", langAria: "Switch to English", kinds: "盘的种类", driveTab: "光驱", inDrive: "就是光驱里这张",
       sectors: "扇区数", left: "这一桶还剩", last: "上次标定", usedDrive: "标定用的光驱",
       leftVal: (l, o) => `${l} / ${o} 张`, inserted: (d) => `已插入 ${d}`, trayOpenShort: "托盘开着", noDiscShort: "没有盘", blankTag: "（空白）", rw: "可擦写", sep: "、",
-      nextOpen: "下一步：打开作品", nextCal: "下一步：开始标定", nextDrive: "下一步：认一下光驱里的盘", nextNew: "下一步：标定新盘",
+      nextOpen: "下一步：打开作品", nextCal: "下一步：开始标定", nextMeasureImported: "下一步：用 DP 实测这批", nextDrive: "下一步：认一下光驱里的盘", nextNew: "下一步：标定新盘",
       newName: "标定新盘", newState: ["没列出来的盘", "把它放进光驱，先读出盘的类型和厂商编号，再刻一张测量盘。"],
       reading: "正在读光驱里的盘……", foundKnown: (d) => `光驱里是 ${d}，已经在架子上。`, foundNew: (k) => `光驱里是一种没列出来的 ${k}，可以标定它。`, driveNone: "光驱里没有盘。",
       good: ["几何测好了", "可以直接设计、刻录。"],
-      imported: ["参数来自 DIS", "从 DIS 导入，换算成 DP 的修正，可以直接设计、刻录；没有经过 DP 实测。"],
+      imported: ["参数来自 DIS", "从 DIS 导入，换算成 DP 的修正，新作品里可以直接选它设计、刻录；没有经过 DP 实测。这里的下一步是用 DP 实测这批。"],
       narrow: ["测到的范围偏窄", "外圈没测到，超出 41 mm 的图会偏。再测一次外圈。"],
       none: ["还没标定", "先刻一张测量盘，测一次就能用。"],
       noneRw: ["还没标定", "可擦写盘可以反复用来测量，一张就够。"],
@@ -942,11 +945,11 @@
       langButton: "中文", langAria: "切换到中文", kinds: "Disc kinds", driveTab: "Drive", inDrive: "This is the disc in the drive",
       sectors: "Sectors", left: "Left in this spindle", last: "Last calibrated", usedDrive: "Calibrated on",
       leftVal: (l, o) => `${l} / ${o}`, inserted: (d) => `${d} inserted`, trayOpenShort: "tray open", noDiscShort: "no disc", blankTag: " (blank)", rw: "rewritable", sep: ", ",
-      nextOpen: "Next: open a work", nextCal: "Next: calibrate", nextDrive: "Next: identify the disc in the drive", nextNew: "Next: calibrate a new disc",
+      nextOpen: "Next: open a work", nextCal: "Next: calibrate", nextMeasureImported: "Next: measure this batch with DP", nextDrive: "Next: identify the disc in the drive", nextNew: "Next: calibrate a new disc",
       newName: "Calibrate a new disc", newState: ["A disc that isn't listed", "Put it in the drive: its type and maker code are read first, then one measurement disc is burned."],
       reading: "Reading the disc in the drive…", foundKnown: (d) => `The drive holds ${d}; it's already on the shelf.`, foundNew: (k) => `The drive holds a ${k} that isn't listed; you can calibrate it.`, driveNone: "The drive is empty.",
       good: ["Geometry measured", "Ready to design and burn."],
-      imported: ["Parameters from DIS", "Imported from DIS and converted to a DP correction; ready to design and burn, not measured by DP."],
+      imported: ["Parameters from DIS", "Imported from DIS and converted to a DP correction; a new work can use it to design and burn. Not measured by DP: the next step here measures this batch with DP."],
       narrow: ["Measured range is narrow", "The outer area wasn't measured, so artwork beyond 41 mm will be off. Measure it again."],
       none: ["Not calibrated yet", "Burn one measurement disc; one run is enough."],
       noneRw: ["Not calibrated yet", "A rewritable disc can be reused for measuring; one is enough."],
@@ -1377,7 +1380,10 @@
       if (!root.dataset.mode)       // inside the flow the button belongs to the flow
         $("next-text").textContent = root.dataset.home === "lobby" ? t.nextNewPlan
           : (choosingFor || inspectingBatch) && item.kind !== "drive" && item.kind !== "new" ? t.nextUseBatch
-          : item.kind === "drive" ? t.nextDrive : item.kind === "new" ? t.nextNew : !["good", "usable", "imported"].includes(item.s) ? t.nextCal : t.nextOpen;
+          // the label says what Next does below: a measured batch opens its work; anything else (an imported DIS
+          // preset too) goes to calibration
+          : item.kind === "drive" ? t.nextDrive : item.kind === "new" ? t.nextNew : item.s === "imported" ? t.nextMeasureImported
+          : !["good", "usable"].includes(item.s) ? t.nextCal : t.nextOpen;
       paintDriveLine();
     };
     if (initial || reduce) { fill(); return; }

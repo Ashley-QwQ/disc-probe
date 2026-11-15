@@ -392,10 +392,13 @@ function leave() {
   // a disc that was in the air goes back to waiting; detection starts over next time
   if (!flow.job && ["detecting", "identify", "flying", "hover", "falling", "checking"].includes(flow.disc)) flow.disc = "detect";
   if (!flow.job && flow.disc === "remove") flow.disc = "detect";
+  // read now: the "saved" step clears flow right after calling leave(), before the pan below finishes (that
+  // finish() then threw, the opener never removed the card's envelope and the page stayed in mode "cal")
+  const done = flow?.realPhase === "saved";
   if (returnTo && returnAnim && !api.reduce) {          // the opener takes the camera back first, then the page closes
     leaving = true;
     const anim = returnAnim; returnAnim = null;
-    anim(() => { release(); giveBack(flow.realPhase === "saved"); }, async (signal) => {
+    anim(() => { release(); giveBack(done); }, async (signal) => {
       if (!st || !discWentIn) return;
       st.hold(true);
       try { await loadDisc.play(st.art(), { reverse: true, signal }); }
@@ -405,7 +408,7 @@ function leave() {
     return;
   }
   release();
-  if (giveBack(flow.realPhase === "saved")) return;
+  if (giveBack(done)) return;
   api.goTo(...api.locate(flow.item));     // back to where the disc stands on the shelf
 }
 
@@ -1075,7 +1078,11 @@ function realPaint() {
       html += note("warn", [liveText(`刻好的测量盘抽样回读：${v.unreadable} 块读不出、${v.differing} 块不对。测量结果照上面的判断用；若几何停在这些地方，换一张同批空白盘、换个速度再刻测量盘。`,
         `Read-back of the measurement disc burned here: ${v.unreadable} sampled blocks unreadable, ${v.differing} differing. Use the result as judged above; if measuring stops there, burn another measurement disc from this batch at another speed.`), ""]);
     const ok = recovery.id === 'save';
-    button = ok ? (flow.detected.media === "cd" ? liveText('查看 CD 标定下一步', 'CD calibration: next step') : returnTo ? liveText('保存测量', 'Save the measurement') : T().save) : recovery.label[api.lang()];
+    const skipped = flow.detected.media === "cd" && flow.photoSkipped;
+    button = ok ? (skipped ? liveText('保存测量（不含照片修正）', 'Save without the photo correction')
+      : flow.detected.media === "cd" ? liveText('查看 CD 标定下一步', 'CD calibration: next step') : returnTo ? liveText('保存测量', 'Save the measurement') : T().save) : recovery.label[api.lang()];
+    if (ok && skipped) html += note("info", [liveText('这一轮跳过了拍照：保存的预设只有计时测得的几何，沿轨常数 L 未知，外圈可能偏。保存后可以导出给 DIS，或之后再拍照补上。',
+      'You skipped the photo for this measurement: the saved preset has the timing geometry only, the along-track constant L is unknown and the outer rings may be off. After saving you can export it to DIS, or take the photo later.'), ""]);
     html += `<details class="cal-details"><summary>${liveText('详情', 'Details')}</summary><p>${liveText('导出的预设仍覆盖整盘；半径参数只限定拟合区域，不能裁掉未测区域。更换读取速度、选择测量区域和比较模型须在电脑命令行操作。将 START-END 换成实际的数据扇区范围，SPEED 换成光驱支持的读取速度（如 4x）；先确认恒速，再执行下一条。光驱保持恒速检查通过后，页面才会继续测量。', 'Use the computer terminal to change reading speed, select measurement areas or compare models. An exported preset covers the full disc; radius options limit fitting and do not remove unmeasured areas. Replace START-END with actual data-sector limits and SPEED with a supported reading speed (such as 4x); confirm steady rotation before the next command. The page continues measuring only after a steady-rotation check passes.')}</p><pre>${esc(recoveryCommands(flow, {drive:api.selectedDrive(), media:flow.detected.media, sectors:flow.blankSectors ?? flow.detected.sectors}))}</pre><p><code>${esc(part?.path || '')}</code></p>${calchart.resultChart(flow.geo?.measurement, { zh: api.lang() === "zh" })}</details>`;
     if (part?.verdict === 'usable') html += `<button id="real-remeasure" class="placed" type="button">${liveText('检查转速并重测', 'Check rotation and remeasure')}</button>`;
     if (kind === 'narrow_span') html += `<button id="real-photo" class="placed" type="button">${liveText('拍一张照，补上外圈', 'Take a photo to fill in the outer rings')}</button>`;
@@ -1108,7 +1115,8 @@ function realPaint() {
   sideButton(flow.job && ["burning", "checking", "timing", "geo"].includes(phase) ? liveText("先去放图，测好了叫我", "Place the picture; call me when done") : null);
   const previousAlert = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]')?.textContent;
   // what is not known yet and what to do next, for the phase on screen (an error panel has its own words)
-  const advice = flow.error || badBurn ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined, photoTaken: !!flow.photoOnly });
+  const advice = flow.error || badBurn ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined, photoTaken: !!flow.photoOnly,
+    external: phase === "burn" && cdHere() });
   $("cal").innerHTML = `<h2>${esc(title)}</h2><p class="lede">${esc(text)}</p>${advice}${html}`;
   const alertNote = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]');
   if (alertNote && alertNote.textContent !== previousAlert) alertNote.classList.add('flash');
@@ -1162,6 +1170,12 @@ function closePhoto() {
 function photoReview() {
   if (flow.photoOnly) { closePhoto(); flow.error = null; leave(); return; }   // came from the burn page: back there
   closePhoto(); flow.realPhase = 'review'; flow.error = null; paint();
+}
+// "Skip, use the current results": remembered for this measurement, so the review's next step saves without the
+// photo's correction instead of sending the person back to the photo page (CD went round in that circle).
+function photoSkip() {
+  if (!flow.photoOnly) flow.photoSkipped = true;
+  photoReview();
 }
 const photoLive = u => photoUI === u && flow === u.flow && isCal() && flow.realPhase === 'photo';
 // The along-track constant's state for this read: the core's own decision when it gives one, else the group vote.
@@ -1459,7 +1473,7 @@ function paintPhoto() {
         onAddress:address => choosePhoneAddress(u,address), automaticRead:true, onPhotos:() => queuePhotoRead(u),
         onDisconnect:id => disconnectPhone(u, id),
         onStateChange:state => { u.canUse = state.canUse; photoNavigation(u); },
-        onBack:photoReview, onSkip:photoReview,
+        onBack:photoReview, onSkip:photoSkip,
         autoAlign:async (photo,rings) => {
           const result = await readPhoto(u,photo,rings);
           if (result?.verdict === 'ok') {
@@ -1478,7 +1492,7 @@ function paintPhoto() {
       const action = (text,fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'pc-button pc-wide'; b.textContent = text; b.hidden = true; b.onclick = fn; paper.append(b); return b; };
       paper.append(discField(u),u.readState,u.notice,u.result);
       u.retry = action(liveText('再拍一张','Take another photo'), () => { u.result.hidden = u.retry.hidden = u.skip.hidden = true; host.querySelector('[data-pc="add"]').click(); });
-      u.skip = action(liveText('跳过，就用现在的结果','Skip and keep the current result'),photoReview);
+      u.skip = action(liveText('跳过，就用现在的结果','Skip and keep the current result'),photoSkip);
       u.page.ready?.then(() => { if (!photoLive(u)) return; u.page.setListing?.(u.listing); paintReadState(u); if (u.flow.photoResult) showPhotoResult(u,u.flow.photoResult); });
       if (photos.length) queuePhotoRead(u);
       pollPhotos(u);
@@ -1726,6 +1740,7 @@ async function realNext(forceMeasure = false) {
       } else if (recovery.id === 'measure') {
         const previous = {timing:flow.timing};
         flow.photoResult = null; flow.photoReadKey = null; flow.photoSnapshot = null; flow.photoUploads = null; flow.photoNotice = null;
+        flow.photoSkipped = false;                // a new measurement asks for its own photo
         flow.preset = null; flow.geo = null; flow.timing = null;
         try {
           const result = await remeasure(async (action, args) => {
@@ -1741,7 +1756,7 @@ async function realNext(forceMeasure = false) {
           flow[flow.realPhase] = part;
         }
         flow.realPhase = 'review';
-      } else if (flow.detected.media === "cd") enterPhoto();
+      } else if (flow.detected.media === "cd" && !flow.photoSkipped) enterPhoto();
       else await realSave();
     } else if (phase === "photo") {
       if (photoUI?.status === 'unavailable') { if (flow.detected.media === 'cd') await realSave(); else photoReview(); }
