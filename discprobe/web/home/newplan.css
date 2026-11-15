@@ -40,9 +40,10 @@
   color: var(--ink-f); transform-origin: 0 0; transition: transform 520ms var(--ease);
   translate: 0 var(--pull, 0px); touch-action: none; }   /* the whole sheet can be pulled (newplan.js "the pull") */
 :root[data-theme="dark"] .np-sheet { background-image: url(newplan/paper_dark.webp), url(newplan/paper_shadow_dark.webp);
-  --ink-f: #ece6d6; --soft-f: #b9b3a3; --line-f: #9a9484; --well-f: rgba(0,0,0,.16); --left-f: var(--ink-f); --link-f: #d9a75c;
-  --disc-f: #8b897c; --hub-f: #7b796d; --hole-f: #6a6b60; --key-fill: rgba(0,0,0,.08); --key-line: #8f8b7d; --key-ink: #b4ae9f;
-  --key-on: #f1ebdc; --key-on-fill: rgba(255,255,255,.1); --key-blank: #7a786d; --warn-f: #e0b066; --note-f: rgba(224,176,102,.1); }
+  /* night B: the lamp lights the sheet, so it reads like the paper theme's sheet: ink words, a darker copper */
+  --ink-f: #22231f; --soft-f: #67655a; --line-f: #8b8576; --well-f: rgba(255,255,255,.35); --left-f: var(--ink-f); --link-f: #8f5628;
+  --disc-f: #eee4cd; --hub-f: #e2d5ba; --hole-f: #f7f3ea; --key-fill: rgba(255,255,255,.25); --key-line: #bdb4a0; --key-ink: #8b8576;
+  --key-on: #22231f; --key-on-fill: rgba(255,255,255,.6); --key-blank: #ddd4c2; --warn-f: #a8692e; --note-f: rgba(168,105,46,.09); }
 /* the letterhead: the folded wordmark, large, and the release after it (the header hides its own here) */
 .np-head { display: flex; align-items: flex-end; gap: .9em; }
 .np-wm { font-size: 3em; transform: skewX(-11deg); color: var(--ink-f); }

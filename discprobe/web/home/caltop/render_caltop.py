@@ -68,16 +68,16 @@ os.makedirs(OUTDIR, exist_ok=True)
 # slot showed the inside).
 VARIANT_STYLE = {
     "dark": dict(
-        body=("#222b2a", "#1a2221", "#1d2625"),
-        mech=("#2c3735", "#222b2a", "#263030"),
-        tray=("#1b2221", "#151b1a", "#181e1d"),
+        body=("#182227", "#0d161a", "#0f191e"),
+        mech=("#222f35", "#182227", "#1c282d"),
+        tray=("#0e1619", "#091013", "#0b1215"),
         pcb=("#1d2b25", "#16221d", "#19261f"),
-        sled=("#4b5856", "#36413f", "#3d4846"),
-        disc=("#323a39", "#262d2c", "#29302f"),
+        sled=("#435259", "#2d393f", "#344147"),
+        disc=("#293237", "#1d2528", "#20282c"),
         lens="#8fb6c9", led="#d9a75c",
         line="#d5d9d2", line_alpha=0.55,
         glow_core="#fff3ea", glow_halo="#ff5a3c", glow_bloom="#ff3b30",
-        shadow_rgb="#050807", shadow_alpha=0.42, contact_alpha=0.55,
+        shadow_rgb="#020405", shadow_alpha=0.42, contact_alpha=0.55,
     ),
     "paper": dict(
         body=("#f1eee8", "#d9d4cb", "#d0cac0"),

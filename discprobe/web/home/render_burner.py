@@ -61,8 +61,8 @@ VARIANT_STYLE = {
         line="#2b2924", line_alpha=1.0,
     ),
     "dark": dict(
-        top="#222b2a", front="#1a2221", side="#1d2625",
-        tray_mul=0.93, cavity="#111716", led="#d9a75c",
+        top="#182227", front="#0d161a", side="#0f191e",
+        tray_mul=0.93, cavity="#070d10", led="#d9a75c",
         line="#d5d9d2", line_alpha=0.55,
     ),
 }

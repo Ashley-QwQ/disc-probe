@@ -3,7 +3,7 @@
   background: url(caltop/anim/desk_paper.webp) 0 0 / 384px repeat,
               radial-gradient(70% 55% at 62% 18%, rgb(255 244 222 / .55), transparent 70%), #dbd4c9; }
 :root[data-theme="dark"] .pw { background: url(caltop/anim/desk_dark.webp) 0 0 / 384px repeat,
-              radial-gradient(65% 50% at 62% 16%, rgb(120 98 62 / .32), transparent 72%), #1d2524; }
+              radial-gradient(65% 50% at 62% 16%, rgb(120 98 62 / .32), transparent 72%), #0f181c; }
 .pw[hidden], .pw [hidden] { display: none; }
 :root[data-mode="pastworks"] :is(.stage, .counter, .detail, .gallery, .lobby:not(.leaving)) { visibility: hidden; }
 :root[data-mode="pastworks"] :is(#next, #next-why, .next-side) { display: none; }
@@ -16,7 +16,7 @@
 .pw-background { overflow: hidden; }
 /* the rabbit hole: the file box's dark carried into the fall, a warm light far below where the paper waits */
 .pw-hole { position: absolute; inset: 0; opacity: 0; pointer-events: none;
-  background: radial-gradient(120% 70% at 50% 118%, #6b5638 0, #2a241b 38%, #0d100f 72%); }
+  background: radial-gradient(120% 70% at 50% 118%, #6b5638 0, #2a241b 38%, #05080a 72%); }
 .pw-depth { will-change: transform; }
 .pw-depth img { position: absolute; object-fit: contain; user-select: none; }
 .pw-scroll { position: absolute; inset: calc(var(--edge) + var(--row) + 16px) 0 0; overflow-y: auto; overflow-x: hidden;
@@ -29,9 +29,8 @@
 .pw-paper::before { content: ""; position: absolute; inset: 0; z-index: -1; opacity: .72; pointer-events: none; }
 :root[data-theme="dark"] .pw-focus-paper, :root[data-theme="dark"] .pw-paper::before { border-image-source: url(newplan/paper_dark.webp); }
 :root[data-theme="dark"] .pw-paper::before { opacity: .8; }
-/* The supplied dark paper reaches RGB 119,119,108. White ink keeps even the small
-   dates above 4.5:1 across that texture; hierarchy comes from size and weight. */
-:root[data-theme="dark"] :is(.pw-paper, .pw-focus) { --ink: #ece6d6; --ink-2: #d6d0c1; --ink-3: #b9b3a3; --rule: rgb(236 230 214 / .28); }
+/* Night B: the dark theme's paper lies under the lamp and is light (about #ece6d8), so its words are ink. */
+:root[data-theme="dark"] :is(.pw-paper, .pw-focus) { --ink: var(--lit-ink); --ink-2: var(--lit-ink-2); --ink-3: var(--lit-ink-3); --rule: rgb(34 35 31 / .22); --copper: var(--lit-copper); }
 .pw-heading { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 6px 24px; padding-bottom: 18px;
   border-bottom: 1.5px solid var(--ink); box-shadow: 0 4px 0 -3.25px var(--ink-3); }
 .pw-count { grid-column: 1; margin: 0; font: 13px var(--mono); color: var(--ink-3); }
@@ -123,7 +122,7 @@
 .pw-act:disabled { opacity: .5; cursor: wait; }
 .pw-act-strong { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .pw-act-strong:hover { background: var(--copper); border-color: var(--copper); color: var(--paper); }
-:root[data-theme="dark"] .pw-act-strong { color: #161d1c; }
+:root[data-theme="dark"] .pw-act-strong { color: #0a1114; }
 .pw-fail { margin-top: 14px; }
 .pw-fail label { display: block; font-size: 14px; font-weight: 600; color: var(--ink-2); }
 .pw-fail textarea { display: block; width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px solid var(--rule-strong); border-radius: 4px;
@@ -147,7 +146,7 @@
 /* a file held over the page */
 .pw-drop { position: absolute; inset: calc(var(--edge) + var(--row) + 16px) var(--edge) calc(var(--foot) + 16px); z-index: 3; display: grid; place-items: center;
   border: 2px dashed var(--copper); border-radius: 8px; background: rgb(235 231 224 / .72); pointer-events: none; }
-:root[data-theme="dark"] .pw-drop { background: rgb(22 29 28 / .72); }
+:root[data-theme="dark"] .pw-drop { background: rgb(10 17 20 / .72); }
 .pw-drop p { margin: 0; font: 800 clamp(20px, 2.4vw, 30px) var(--font); font-stretch: 112%; color: var(--ink); }
 .pw-empty { margin: 24px 0 0; color: var(--ink-2); font-size: 15px; line-height: 1.6; }
 .pw button:focus-visible { outline: none; }

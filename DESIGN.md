@@ -14,18 +14,21 @@ colors:
     good: "#3f7d55"
     warn: "#9a6a14"
     unknown: "#6f6a62"
-  dark:
-    bg: "#161d1c"
-    bg-2: "#1f2827"
-    ink: "#ecebe4"
-    ink-2: "#aeb3ab"
-    ink-3: "#7f8780"
-    rule: "#2c3634"
-    rule-strong: "#46514e"
-    accent: "#d9a75c"
+  dark:                  # night B, deep teal (2026-11-14, for 1.0.0); was #161d1c olive-teal
+    bg: "#0a1114"
+    bg-2: "#121a1e"
+    ink: "#eef0ee"
+    ink-2: "#a6b0b3"
+    ink-3: "#7b868a"
+    rule: "#202d33"
+    rule-strong: "#3a4a51"
+    accent: "#e0ab5c"
     good: "#8fca9a"
     warn: "#e2b866"
-    unknown: "#aeb3ab"
+    unknown: "#a6b0b3"
+    lit-paper: "#ece6d8"   # paper under the lamp; on it ink #22231f, copper #8f5628
+    lit-ink: "#22231f"
+    lit-copper: "#8f5628"
   disc:
     dvd-paper: "linear-gradient(90deg, #7262c6, #8d58b7, #a150a1, #b04985, #ba4765)"
     dvd-dark: "linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a)"
@@ -71,7 +74,7 @@ motion:
 
 ## Colors
 
-颜色全部走变量（`index.html` 的 `:root` 和 `:root[data-theme="dark"]`），页面和组件不写死色值；烤图里的颜色和变量对得上（纸色底 `#ebe7e0`、墨色底 `#161d1c`）。
+颜色全部走变量（`index.html` 的 `:root` 和 `:root[data-theme="dark"]`），页面和组件不写死色值；烤图里的颜色和变量对得上（纸色底 `#ebe7e0`、墨色底 `#0a1114`；夜里灯下的纸是亮的，约 `#ece6d8`，纸上用墨色字）。
 
 - **底和墨：** `bg`、`bg-2`（稍深的一层，用在凹下去的区域）、`ink` / `ink-2` / `ink-3`（正文、次要、弱），都过 WCAG AA。
 - **线：** `rule`、`rule-strong`。
