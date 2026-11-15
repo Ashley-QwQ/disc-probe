@@ -2192,7 +2192,7 @@ async function openPreview() {
     media: P.media, item: P.item, alongTrackMeasured: false,
     // what a file being made belongs to (preview.js jobs): this plan while open, and its saved work once it has one
     keys: () => [P, P.work?.id ? `work:${P.work.id}` : null].filter(Boolean),
-    project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection },
+    project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection, lamp: editor?.lampProject() ?? null },
     // colours and effects burn in black and white unless the person asks for the experiment (DVD only)
     effects: "bw",
     setEffects(mode) { ctx.effects = mode === "experimental" && P.media === "dvd" ? "experimental" : "bw"; },
