@@ -197,8 +197,7 @@ function nextStep() {
   if ((c?.geo === "none" || state.code === "nogeo") && ctx.calibrate) return "calibrate";
   return "make";
 }
-function paintNext() {
-  if (!isOn()) return;
+function paintNext() {                                // only from buildRight, which returns first when the page is not on
   const t = T(), step = nextStep(), s = state;
   $("next-text").textContent = step === "burn" ? t.next : step === "calibrate" ? t.nextCal
     : s.phase === "making" ? t.making2(s.fraction == null ? null : Math.floor(s.fraction * 100)) : t.nextMake;
