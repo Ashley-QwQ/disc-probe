@@ -1,7 +1,7 @@
 // The lamp view's worker: the work's coverage once per revision (editor-ops.compose at a coarse grid, off the
 // page's thread), then any number of renders of it (lamp-optics.mjs) as the pose changes. Messages:
 //   { type: "doc", rev, document, n }            -> { type: "doc", rev, n, ms } | { type: "error", rev, error }
-//   { type: "render", id, rev, pose, size, k, paper } -> { type: "frame", id, rev, n, size, k, image, level, ms }
+//   { type: "render", id, rev, pose, size, k, paper, exposure } -> { type: "frame", id, rev, n, size, k, image, level, ms }
 // A render is done in bands of rows; between bands the worker reads its messages, and a newer render request makes
 // the one in progress stop (its result would be stale). One coverage is kept per grid size, for the latest revision.
 import { compose, grid } from "./editor-ops.mjs";
@@ -41,7 +41,7 @@ async function render(job) {
   if (!doc || job.rev !== doc.rev) return dropped(job);     // a newer work is on its way
   const t0 = performance.now(), d = doc.document;
   const cov = coverage(job.n);
-  const f = new LampFrame(T, cov, d.materials, job.pose, { size: job.size, k: job.k, annulus: d.annulus_mm, paper: job.paper });
+  const f = new LampFrame(T, cov, d.materials, job.pose, { size: job.size, k: job.k, annulus: d.annulus_mm, paper: job.paper, exposure: job.exposure });
   const band = Math.max(8, Math.floor(160000 / (job.size * job.k * job.k)));
   for (let y = 0; y < job.size; y += band) {
     f.rows(y, Math.min(job.size, y + band));
@@ -49,7 +49,7 @@ async function render(job) {
   }
   const rgba = f.finish();
   const image = new ImageData(rgba, job.size, job.size);
-  self.postMessage({ type: "frame", id: job.id, rev: job.rev, n: job.n, size: job.size, k: job.k, pose: job.pose, paper: job.paper ?? false, fine: !!job.fine, image,
+  self.postMessage({ type: "frame", id: job.id, rev: job.rev, n: job.n, size: job.size, k: job.k, pose: job.pose, paper: job.paper ?? false, exposure: job.exposure ?? 0, fine: !!job.fine, image,
     level: f.level, unknown: f.unknown, ms: performance.now() - t0 }, [rgba.buffer]);
 }
 

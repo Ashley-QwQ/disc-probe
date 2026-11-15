@@ -78,10 +78,11 @@ function select(v, k, from = 0) {
 }
 
 // One render: new LampFrame(...), rows(y0, y1) for every band (in any order), then finish() for RGBA bytes.
-// pose: { camera, flash, rotate (deg), delta_scale }; opts: { size, k (samples per pixel side), annulus, edge, paper }.
+// pose: { camera, flash, rotate (deg), delta_scale }; opts: { size, k (samples per pixel side), annulus, edge, paper,
+// exposure (stops over the model's own) }.
 export class LampFrame {
-  constructor(T, cov, materials, pose, { size = 400, k = 1, annulus = null, edge = null, paper = false } = {}) {
-    Object.assign(this, { T, cov, size, k, annulus, paper, edge: edge ?? T.c.EDGE_MM });
+  constructor(T, cov, materials, pose, { size = 400, k = 1, annulus = null, edge = null, paper = false, exposure = 0 } = {}) {
+    Object.assign(this, { T, cov, size, k, annulus, paper, exposure, edge: edge ?? T.c.EDGE_MM });
     this.mats = materials.map(m => materialCurve(T, m));
     this.unknown = materials.filter((m, i) => !this.mats[i].known).map(m => m.id);
     const cam = pose.camera, fl = pose.flash;
@@ -197,7 +198,7 @@ export class LampFrame {
       const a = select(v, lo), b = lo + 1 < count ? select(v, lo + 1, lo + 1) : a;
       level = a * (1 - t) + b * t;
     }
-    const gain = .85 / Math.max(level, 1e-6), fill = paper ? 255 : 0;
+    const gain = .85 / Math.max(level, 1e-6) * 2 ** (this.exposure || 0), fill = paper ? 255 : 0;   // exposure: stops
     for (let i = 0; i < size * size; i++) {
       const r = rs[i];
       if (r >= 60 || r < 7.5) { out[i * 4 + 3] = 0; continue; }

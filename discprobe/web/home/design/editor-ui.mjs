@@ -3,6 +3,7 @@ import {controls,TOOL_KEYS} from './editor-controls.mjs';
 import {materialPose,identityRGB} from './editor-materials.mjs';
 import {LampPreview} from './editor-lamp.mjs';
 import {lampPose} from './lamp-pose.mjs';
+import {LampControls} from './lamp-controls.mjs';
 import {ExactView} from './exact-view.mjs';
 
 const WORDS={
@@ -99,6 +100,8 @@ export class Editor {
     const ctx=canvas.getContext('2d'),im=ctx.createImageData(size,size);
     for(let i=0;i<labels.length;i++){if(!labels[i])continue;const m=doc.materials[labels[i]]??doc.materials[0],rgb=identityRGB(m,i%size,Math.floor(i/size),dark);im.data.set([...rgb,235],i*4);}
     ctx.putImageData(im,0,0);this.fillsCache={key,canvas};return canvas;}
+  // what the preview page needs for its lamp view: the same work, revision and pose as this page's
+  lampProject(){return {document:()=>this.document(),revision:()=>this.revision,pose:()=>lampPose(this.s)};}
   // the lamp view: frames from the lamp worker (editor-lamp.mjs), null until the first one; never composed here
   lampFrame(size){this.lamp??=new LampPreview({onChange:()=>{if(this.h.active?.()===false)return;this.h.status?.();this.h.draw();}});
     const image=this.lamp.view({rev:this.revision,document:()=>this.document(),pose:lampPose(this.s),screen:size});this.h.status?.();return image;}
@@ -144,6 +147,7 @@ export class Editor {
     // shapes, effects) is laid over, so an imported picture is never replaced by its burned two-texture form.
     // As burned / under the lamp: the composed disc at screen resolution.
     const screen=Math.max(200,Math.min(2048,Math.round(120*v.s*v.dpr)));
+    if(s.view==='lamp')(this.lampControls??=new LampControls({parent:this.h.dom().canvas.parentElement,state:()=>this.s,lang:()=>this.h.lang(),changed:()=>this.h.draw(),z:()=>lampPose({...this.s,lamp:null}).camera[2]})).show(true);else this.lampControls?.show(false);
     if(s.view==='proj'){const over=this.fillsOverlay(Math.min(1024,screen));if(over){ctx.save();this.h.annulus(ctx,...this.ring());ctx.clip('evenodd');ctx.drawImage(over,v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);ctx.restore();}this.lamp?.pause();}
     else if(s.layers.length||s.assignments.length||s.view==='lamp'){ctx.save();this.h.annulus(ctx,...this.ring());ctx.clip('evenodd');const shown=this.preview(screen);if(shown)ctx.drawImage(shown,v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);
       const exact=s.view==='burn'&&s.layers.length?this.exactCells(v):null;if(exact){ctx.imageSmoothingEnabled=false;ctx.drawImage(exact.canvas,v.cx+(exact.cols[0]*s.cell-60)*v.s,v.cy+(exact.rows[0]*s.cell-60)*v.s,(exact.cols[1]-exact.cols[0])*s.cell*v.s,(exact.rows[1]-exact.rows[0])*s.cell*v.s);}

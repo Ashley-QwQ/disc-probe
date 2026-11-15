@@ -58,7 +58,11 @@ def main():
     data, meta = build()
     targets = [(OUT / "lamp-a3v3.bin", data), (OUT / "lamp-a3v3.json", meta.encode("utf8"))]
     if a.check:
-        stale = [str(path.relative_to(ROOT)) for path, content in targets if not path.exists() or path.read_bytes() != content]
+        # a checkout may turn the .json's line ends into CRLF (core.autocrlf); the bytes that matter are the same
+        def same(path, content):
+            data = path.read_bytes() if path.exists() else None
+            return data is not None and (data if path.suffix == ".bin" else data.replace(b"\r\n", b"\n")) == content
+        stale = [str(path.relative_to(ROOT)) for path, content in targets if not same(path, content)]
         print("stale: " + ", ".join(stale) if stale else "lamp tables up to date")
         return 1 if stale else 0
     for path, content in targets:

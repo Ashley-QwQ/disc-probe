@@ -13,9 +13,29 @@ import { ringButton } from "./kit/ringbutton.js";
 
 import { DEFAULT_POSE } from "./sim/model.mjs";
 import { SimView } from "./sim/view.mjs";
+import { LampPreview } from "./design/editor-lamp.mjs";
 import * as sfx from "./sfx.js";
 
 let simulation = null, makeRing = null;
+// The lamp view of a work from the design page: the design page's own renderer (design/lamp-*.mjs, the A3 v3 model of
+// simulate_a3) on the work's document, so both pages show the same disc. sim/ (the older A5/B9 model with a photo
+// stage) stays only for a project without a document (dev-preview.html).
+let lampView = null;
+const lampOf = () => ctx?.project?.lamp ?? null;
+// the pose the design page was looking from (its phone, height and turn), in this page's terms
+function lookFromDesign() {
+  const p = lampOf()?.pose?.();
+  if (!p) return { ...DEFAULT_POSE };
+  const r = ((p.rotate ?? 0) + 180) % 360 - 180;
+  return { ...DEFAULT_POSE, rotate: Math.round(r), cx: p.camera[0], cy: p.camera[1], cz: p.camera[2], lx: p.flash[0], ly: p.flash[1], lz: p.flash[2], deltaScale: p.delta_scale ?? 1 };
+}
+// tilt as sim/model.mjs: camera and light turned about x into the disc's frame; the drawing is squashed by cos(tilt)
+function lookPose() {
+  const t = look.tilt * Math.PI / 180, ct = Math.cos(t), st = Math.sin(t), turn = (x, y, z) => [x, y * ct + z * st, -y * st + z * ct];
+  const pose = { camera: turn(look.cx, look.cy, look.cz), flash: turn(look.lx, look.ly, look.lz), rotate: ((look.rotate % 360) + 360) % 360 };
+  if (look.deltaScale && look.deltaScale !== 1) pose.delta_scale = look.deltaScale;
+  return pose;
+}
 let api, $, ctx = null, W = null, life = null, state = null, src = null, view = "design";
 const root = document.documentElement;
 const isOn = () => root.dataset.mode === "preview";
@@ -156,11 +176,11 @@ function buildRight() {
     `<label class="pv-ctl"><span>${t.offAt}</span><input class="rng" type="range" min="0" max="2" step="0.05" value="${twist}" data-k="twist"><output class="mono">${twist.toFixed(2)}°</output></label></section>`;
   if (view === "look") viewSec = `<section><h3>${t.lookH}</h3><p class="note">${t.lookNote}</p>` +
     (ctx.media === "cd" ? `<p class="note">${t.cdModel}</p>` :
-      `<div class="pv-photo-controls">` +
+      (lampOf() ? "" : `<div class="pv-photo-controls">` +
       ["photoLook", "flash"].map(k => `<label class="pv-check"><span>${t[k]}</span><input type="checkbox" data-photo="${k}" ${look[k] ? "checked" : ""} ${k !== "photoLook" && !look.photoLook ? "disabled" : ""}></label>`).join("") +
       `<label class="pv-backing"><span>${t.wear}</span><select data-photo="wear" ${!look.photoLook ? "disabled" : ""}>${[0, 45, 100].map(v => `<option value="${v}" ${look.wear === v ? "selected" : ""}>${v}%</option>`).join("")}</select></label>` +
       `<label class="pv-backing"><span>${t.background}</span><select data-photo="background" ${!look.photoLook ? "disabled" : ""}><option value="0" ${!look.background ? "selected" : ""}>${t.hand}</option><option value="1" ${look.background ? "selected" : ""}>${t.table}</option></select></label></div>` +
-      `<p class="note pv-rough-note" ${!look.photoLook ? "hidden" : ""}>${t.roughNote}</p>` +
+      `<p class="note pv-rough-note" ${!look.photoLook ? "hidden" : ""}>${t.roughNote}</p>`) +
       [["rotate", t.rotate, -180, 180, 1], ["tilt", t.tilt, -30, 30, 1], ["exposure", t.exposure, -3, 3, .1],
        ["cz", t.height, 150, 650, 10], ["lz", t.lightHeight, 150, 650, 10]].map(([key, label, min, max, step]) =>
         `<label class="pv-ctl"><span>${label}</span><input class="rng" type="range" min="${min}" max="${max}" step="${step}" value="${look[key]}" data-k="${key}"><output class="mono">${lookValue(key, look[key])}</output></label>`).join("") +
@@ -311,14 +331,22 @@ function draw() {
   if (view === "look") {
     g.fillStyle = "#000"; g.fillRect(0, 0, V.w, V.h);
     if (ctx.media === "cd") { W.note.textContent = t.cdModel; return; }
-    try {
-      if (!simulation) simulation = new SimView(ctx.project, draw);
-      simulation.request(look);
-    } catch { if (simulation) simulation.status = "error"; W.note.textContent = t.simError; return; }
-    const side = Math.min(V.w, V.h) * .88, squash = Math.cos(look.tilt * Math.PI / 180);
-    if (simulation.canvas.width && simulation.status !== "loading") g.drawImage(simulation.canvas,
-      (V.w - side) / 2, (V.h - side * squash) / 2, side, side * squash);
-    const status = simulation.status;
+    const side = Math.min(V.w, V.h) * .88, squash = Math.cos(look.tilt * Math.PI / 180), lamp = lampOf();
+    let status;
+    if (lamp) {
+      lampView ??= new LampPreview({ onChange: draw });
+      const image = lampView.view({ rev: lamp.revision(), document: lamp.document, pose: lookPose(), screen: side * V.dpr, exposure: look.exposure });
+      if (image) g.drawImage(image, (V.w - side) / 2, (V.h - side * squash) / 2, side, side * squash);
+      status = { waiting: "loading", refining: "refining", error: "error" }[lampView.phase] ?? "ready";
+    } else {
+      try {
+        if (!simulation) simulation = new SimView(ctx.project, draw);
+        simulation.request(look);
+      } catch { if (simulation) simulation.status = "error"; W.note.textContent = t.simError; return; }
+      if (simulation.canvas.width && simulation.status !== "loading") g.drawImage(simulation.canvas,
+        (V.w - side) / 2, (V.h - side * squash) / 2, side, side * squash);
+      status = simulation.status;
+    }
     W.note.textContent += status === "error" ? ` · ${t.simError}` : status === "loading" ? ` · ${t.loading}` : status === "refining" ? ` · ${t.refining}` : "";
     const scale = (Math.min(V.w, V.h) / 2 - 26) / 150;
     for (const [el, x, y] of [[W.sun, look.lx, look.ly], [W.phone, look.cx, look.cy]]) {
@@ -373,11 +401,11 @@ function bind(signal) {
   const on = (el, ev, fn, o = {}) => el.addEventListener(ev, fn, { ...o, signal });
   on(W.view, "click", (e) => {
     const b = e.target.closest("[data-v]"); if (!b) return;
-    view = b.dataset.v; if (view !== "look") { simulation?.stop(); simulation = null; fit(); } words();
+    view = b.dataset.v; if (view !== "look") { simulation?.stop(); simulation = null; lampView?.pause(); fit(); } words();
   });
   on(W.right, "click", (e) => {
     const a = e.target.closest("[data-a]")?.dataset.a;
-    if (a === "reset-look") { Object.assign(look, DEFAULT_POSE, PHOTO_DEFAULTS); buildRight(); draw(); }
+    if (a === "reset-look") { Object.assign(look, lookFromDesign(), PHOTO_DEFAULTS); buildRight(); draw(); }
     if (a === "make") make();
     if (a === "checkdisc") makeCheck();
     if (a === "calibrate") { state = ctx.state = { phase: "idle" }; leave(false); ctx.calibrate(); }
@@ -473,7 +501,10 @@ export function start(homeApi, context = {}) {
   ctx = context;
   if (!W) build();
   state = same && ctx.state ? ctx.state : (ctx.state = { phase: "idle" });
-  if (!same) { view = ctx.media === "dvd" ? "look" : "design"; src = null; try { src = ctx.project?.render(12) ?? null; } catch { src = null; } }
+  if (!same) {
+    view = ctx.media === "dvd" ? "look" : "design"; src = null; try { src = ctx.project?.render(12) ?? null; } catch { src = null; }
+    lampView?.dispose(); lampView = null; Object.assign(look, lookFromDesign());
+  }
   life = new AbortController();
   root.dataset.mode = "preview";
   $("back").hidden = false;
@@ -488,6 +519,7 @@ export function leave(goBack = true) {
   makeRing?.destroy(); makeRing = null;
   life?.abort(); life = null;
   simulation?.stop(); simulation = null;
+  lampView?.pause();
   W?.ws.classList.remove("on");
   if (isOn()) root.dataset.mode = "";
   if (api) { $("next").disabled = false; $("back").hidden = true; }

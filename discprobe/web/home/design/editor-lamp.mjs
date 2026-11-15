@@ -30,7 +30,7 @@ export class LampPreview {
   // rev: the work's revision; document(): the work (called once per revision); pose: { camera, flash, rotate,
   // delta_scale }; screen: px across the disc on screen. Returns the frame to draw (an ImageBitmap of the whole
   // 120 mm square) or null while there is none yet.
-  view({ rev, document, pose, screen, paper = false }) {
+  view({ rev, document, pose, screen, paper = false, exposure = 0 }) {
     if (this.phase === "error") return this.shown?.image ?? null;
     this.start();
     const now = this.now();
@@ -40,15 +40,16 @@ export class LampPreview {
       this.cache.clear();      // the last frame stays up until the new work's first one arrives
       this.post({ type: "doc", rev, document: document(), n: 0 });
     }
-    const poseKey = JSON.stringify(pose);
-    if (poseKey !== this.poseKey) { this.poseKey = poseKey; this.moved = now; }
+    const poseKey = JSON.stringify(pose), moveKey = poseKey + exposure;
+    if (moveKey !== this.moveKey) { this.moveKey = moveKey; this.moved = now; }
     const interacting = now - (this.moved ?? -1e9) < this.settle;
-    const quick = interacting || !this.shown || this.shown.rev !== rev, t = target(screen, quick), key = JSON.stringify([rev, poseKey, t.size, t.k, t.n, paper]);
-    const done = this.cache.get(key);
-    if (done) { this.cache.delete(key); this.cache.set(key, done); this.shown = done; this.phase = "ready"; return done.image; }
+    const quick = interacting || !this.shown || this.shown.rev !== rev, t = target(screen, quick), key = JSON.stringify([rev, poseKey, t.size, t.k, t.n, paper, exposure]);
+    // a still frame of this very pose, even mid-drag (back to where the hand was), beats any quick one
+    const still = target(screen, false), done = this.cache.get(key) ?? this.cache.get(JSON.stringify([rev, poseKey, still.size, still.k, still.n, paper, exposure]));
+    if (done) { this.cache.delete(done.key); this.cache.set(done.key, done); this.shown = done; this.phase = "ready"; this.sentKey = null; return done.image; }
     if (key !== this.sentKey) {
       this.sentKey = key;
-      this.request({ type: "render", id: ++this.id, rev, pose, paper, ...t, fine: !quick });
+      this.request({ type: "render", id: ++this.id, rev, pose, paper, exposure, ...t, fine: !quick });
     }
     clearTimeout(this.timer);
     if (interacting) this.timer = setTimeout(() => this.onChange(), this.settle - (now - this.moved) + 5);
@@ -75,7 +76,7 @@ export class LampPreview {
     if (data.type !== "frame") return;
     this.settled(data.id);
     if (data.rev !== this.rev) return;
-    const key = JSON.stringify([data.rev, JSON.stringify(data.pose), data.size, data.k, data.n, data.paper ?? false]);
+    const key = JSON.stringify([data.rev, JSON.stringify(data.pose), data.size, data.k, data.n, data.paper ?? false, data.exposure ?? 0]);
     const image = await this.bitmap(data.image);
     if (data.rev !== this.rev) { image.close?.(); return; }
     const frame = { image, key, rev: data.rev, size: data.size, k: data.k, ms: data.ms };

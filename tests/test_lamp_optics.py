@@ -97,3 +97,52 @@ def test_dither_share_mixes_like_the_burn_cells():
 
 def test_tables_are_the_npz():
     assert subprocess.run([sys.executable, str(ROOT / "tools/lamp_tables.py"), "--check"], cwd=ROOT).returncode == 0
+
+
+def test_scheduling():
+    subprocess.run(["node", str(ROOT / "tests/test_editor_lamp.mjs")], check=True, timeout=120)
+
+
+def test_document_end_to_end():
+    """A work with a dithered picture and a coloured ring: the browser path (the editor's composer at a 512 grid, the
+    dark share of dithered cells) against the core's (every 20 um burn cell composed, then simulate_a3.render)."""
+    from discprobe import editor_ops as E
+    y, x = np.indices((96, 96))
+    grey = np.clip(40 + 2.2 * x + 30 * np.sin(y / 9), 0, 255).astype(np.uint8)
+    rgba = np.dstack([grey, grey, grey, np.full_like(grey, 255)])
+    mat = dict(materials()[2], rgb=[90, 200, 120])
+    grid = E.grid(60)
+    mask = E.selection(dict(tool="ring", inner=47, outer=55), grid)
+    document = E.migrate(dict(version=2, media="dvd", cell=.02, maskGrid=grid,
+        materials=[dict(id="background", spec="B9", rgb=[205, 200, 190]), dict(id="dark", spec="A5", rgb=[40, 40, 40]), mat],
+        layers=[dict(id=1, kind="image", name="p", x=0, y=0, width=80, w=96, h=96, height=80,
+                     raster=dict(width=96, height=96, rgba=base64.b64encode(rgba.tobytes()).decode()))],
+        selections=[dict(id="ring", name="Ring", bits=base64.b64encode(mask).decode())],
+        assignments=[dict(selection="ring", material=mat["id"])]))
+    pose = dict(camera=[0., 28.45, 206.5], flash=[0., 76.35, 206.5], rotate=30)
+    design = E.compose(E.validate(document))
+    py = np.asarray(simulate_a3.render(design, 256, materials=document["materials"], fine=False, annulus_mm=(24, 58), **pose)).astype(int)
+    with tempfile.TemporaryDirectory(prefix="dp-lamp-doc-") as folder:
+        src, out = Path(folder) / "doc.json", Path(folder) / "out.bin"
+        src.write_text(json.dumps(dict(document=document, n=512, pose=pose, size=256, k=1)))
+        subprocess.run(["node", str(ROOT / "tests/lamp_runner.mjs"), "--document", str(src), str(out)], check=True,
+                       capture_output=True, timeout=240)
+        js = np.frombuffer(out.read_bytes(), np.uint8).reshape(256, 256, 4)[..., :3].astype(int)
+    r = np.hypot(*np.indices((256, 256)) - 127.5) * 120 / 256
+    disc = (r > 26) & (r < 56)
+    diff = np.abs(js - py)[disc].mean(-1)
+    # the same picture, the same light. Away from edges only the dither's grain differs (cells counted against the
+    # share they were dithered at); an edge (of the picture, of the 2 mm selection cells) may fall a pixel apart
+    edge = np.zeros(py.shape[:2], bool)
+    for image in (py, js):
+        for axis in (0, 1):
+            step = np.abs(np.diff(image, axis=axis)).max(-1) > 20
+            edge |= np.pad(step, [(0, 1), (0, 0)] if axis == 0 else [(0, 0), (0, 1)])
+    for _ in range(2):                                       # two pixels either side
+        edge = edge | np.roll(edge, 1, 0) | np.roll(edge, -1, 0) | np.roll(edge, 1, 1) | np.roll(edge, -1, 1)
+    inner = disc & ~edge
+    assert inner.mean() > .5 * disc.mean()
+    assert diff.mean() < 3, diff.mean()
+    assert np.abs(js - py)[inner].mean(-1).max() <= 12
+    assert np.abs(js - py)[inner].mean() < 1
+    assert abs(js[disc].mean() - py[disc].mean()) < 1
