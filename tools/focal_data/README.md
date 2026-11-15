@@ -10,7 +10,19 @@ These files support tools/tests; the application does not load them.
 - `show_e_preview.npz`: the unchanged compressed 600-square label sample.
 - `regression.json`: generated numerical evidence, retained for review. Rebuild
   with `python -B -X utf8 tools/focal_regression.py --out tools/focal_data`.
-  `fixture_sha256` refers to the decompressed JSON, preserving the original hash.
+  `fixture_sha256` refers to the decompressed JSON after CRLF-to-LF normalization:
+  `b6cdc031d5370f8c76017c72c9eb98b5c2033bbd998aa71aa320e137beb200de`.
+  The frozen compressed file and the original-byte hash above are unchanged.
+
+Focal generators use `discprobe.hashing`: the explicit, case-insensitive
+`TEXT_SUFFIXES` allowlist normalizes CRLF to LF before SHA256. Other bytes are
+unchanged, including lone CR, whitespace and BOMs. Binary/unknown extensions
+(including `.npz`, `.npy`, `.bin`, `.gz` and `.pdf`) use exact original bytes.
+The decompressed fixture uses its logical `.json` extension. Existing hashes
+inside frozen historical fixtures/recipes retain their original meaning;
+`focal_capture.py` checks those recipe inputs byte for byte before recording new
+portable provenance. Palette `sets_sha256` hashes canonical JSON content rather
+than a file and is unchanged.
 
 The 4096-square delta map is not a fixture or a runtime dependency. Generate it
 with `python -B -X utf8 tools/focal_geometry.py`; it goes to

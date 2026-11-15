@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -14,19 +13,12 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from discprobe import focal as F
+from discprobe.hashing import file_sha256 as sha
 
 DATA = ROOT / 'data/focal'
 WEB = ROOT / 'discprobe/web/home/design/focal-geometry.mjs'
 CACHE_ENV = 'DISC_PROBE_FOCAL_CACHE_DIR'
 DEFAULT_CACHE = Path('D:/dp-dev/tmp/focal/cache')
-
-
-def sha(path):
-    digest = hashlib.sha256()
-    with path.open('rb') as stream:
-        for chunk in iter(lambda: stream.read(1 << 20), b''):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def cache_dir():

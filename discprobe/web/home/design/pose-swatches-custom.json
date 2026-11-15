@@ -18,11 +18,11 @@
  },
  "source": {
   "palette": "discprobe/web/home/design/swatches.json",
-  "palette_sha256": "a13cf8ca900daae3eacf21605dcc15ca456dbea5867d2a3a4e15e8e7370d8e6b",
+  "palette_sha256": "e70dbcbdb72ad1a205ad7e20c7cc7312689d10fd498c90de14d1c47554075615",
   "generator": "tools/editor_pose_swatches.py",
-  "generator_sha256": "03fc81361832ad23522b7aec4528550ac40f287e7d011ae44ee2426e0d71d269",
+  "generator_sha256": "3c21e75d76ac256b64ad3442abfd0f7ccd7382ffdc3277a847961e96297618c2",
   "pose": "data/focal/pose_1x.json",
-  "pose_sha256": "c459a83b69d21b1210a3ed330846d81177e614df9ce8c2d7cddb4332256e6e29",
+  "pose_sha256": "f285ec0217a48dfe2065c751665739a6fd970325a4984b97463e3191e63d0083",
   "geometry": "discprobe/focal.py",
   "geometry_sha256": "644347d7d0c3583d14fdca3c2cf9547507e2ba84814d1980ed6f7347dda0d6e7",
   "rulers": "tools/make_rulers.py"

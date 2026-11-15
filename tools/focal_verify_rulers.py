@@ -4,7 +4,6 @@ PyMuPDF is used when this Windows host has no pdftoppm. The original document is
 an optional one-time reference; future checks can use --reference with the old PDF.
 """
 import argparse
-import hashlib
 import json
 from pathlib import Path
 import sys
@@ -16,6 +15,7 @@ from PIL import Image, ImageDraw
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from discprobe import focal as F
+from discprobe.hashing import file_sha256
 
 
 def main():
@@ -51,7 +51,7 @@ def main():
     assert f'{F.TABLE_HEIGHT_MM:.1f}' in text and f'{F.DESIGN_Z_MM:.1f}' in text
     result=dict(renderer='PyMuPDF (pdftoppm unavailable on this host)',pages=differences,
                 paper='US Letter 612 x 792 pt, 100 percent',
-                reference=str(args.reference),reference_sha256=hashlib.sha256(args.reference.read_bytes()).hexdigest())
+                reference=str(args.reference),reference_sha256=file_sha256(args.reference))
     (out/'rulers_verification.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
     print(json.dumps(result))
 

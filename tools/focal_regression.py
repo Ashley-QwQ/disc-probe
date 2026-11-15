@@ -5,7 +5,6 @@ are numerical prediction checks, not new observations of the burned disc.
 """
 import argparse
 import gzip
-import hashlib
 import json
 from pathlib import Path
 import sys
@@ -15,6 +14,7 @@ import numpy as np
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from discprobe import focal as F, simulate_a3
+from discprobe.hashing import content_sha256, file_sha256
 
 DATA=ROOT/'tools/focal_data'
 
@@ -59,8 +59,8 @@ def calculate():
     return dict(schema_version=1,name=fixture['name'],old=dict(focal_px=F.LEGACY_VIDEO_FOCAL_PX,
                 camera_z_mm=F.LEGACY_DISC_HEIGHT_MM,delta_scale=.93),
                 new=dict(focal_px=F.VIDEO_FOCAL_PX,camera_z_mm=F.DESIGN_Z_MM,table_height_mm=F.TABLE_HEIGHT_MM,delta_scale=1),
-                fixture_sha256=hashlib.sha256(raw).hexdigest(),
-                geometry_sha256=hashlib.sha256((ROOT/'discprobe/focal.py').read_bytes()).hexdigest(),
+                fixture_sha256=content_sha256(raw, '.json'),
+                geometry_sha256=file_sha256(ROOT/'discprobe/focal.py'),
                 materials=rows,ruler_patches=patches,
                 max_abs_delta=max(r.get('abs_max',0) for r in rows),
                 interpretation='nonzero spatial residual: changing height is not a scalar; no parameters fitted',

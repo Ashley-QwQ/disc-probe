@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from discprobe import simulate_a3  # noqa: E402
 from discprobe import focal  # noqa: E402
+from discprobe.hashing import content_sha256, file_sha256 as sha  # noqa: E402
 
 DESIGN = ROOT / "discprobe/web/home/design"
 PALETTE = DESIGN / "swatches.json"
@@ -53,10 +54,6 @@ HEIGHTS = [
       for h in (30, 40, 50, 70)],
 ]
 CUSTOM_FLASH_MM = list(range(10, 61))
-
-
-def sha(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def sets_sha(sets: dict) -> str:
@@ -88,7 +85,7 @@ def header(materials, palette_raw):
                    table_sha256=sha(simulate_a3.TABLE), table_signature=simulate_a3.tables()["signature"],
                    delta_scale=DELTA_SCALE, dark_rule="swatches() dark, or own light < simulate_a3.VEIL (swatch_signal)", delta_offset=DELTA_OFFSET, focal_px=FOCAL_PX, sample_mm=list(SAMPLE_MM),
                    note="A3 v3 wave model (docs/goals/night/palette/a3card); same entry as swatches.json display_colours"),
-        source=dict(palette="discprobe/web/home/design/swatches.json", palette_sha256=hashlib.sha256(palette_raw).hexdigest(),
+        source=dict(palette="discprobe/web/home/design/swatches.json", palette_sha256=content_sha256(palette_raw, PALETTE.suffix),
                     generator="tools/editor_pose_swatches.py", generator_sha256=sha(Path(__file__)),
                     pose="data/focal/pose_1x.json", pose_sha256=sha(POSE_1X),
                     geometry="discprobe/focal.py", geometry_sha256=sha(ROOT/"discprobe/focal.py"),

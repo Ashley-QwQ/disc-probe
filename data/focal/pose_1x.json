@@ -23,7 +23,7 @@
     "calibration": "discprobe/focal.py",
     "calibration_sha256": "644347d7d0c3583d14fdca3c2cf9547507e2ba84814d1980ed6f7347dda0d6e7",
     "legacy": "data/focal/legacy.json",
-    "legacy_sha256": "e2465e5a972340277af58a311f7def41d86b9372b1494d7e623bf581d79689ee"
+    "legacy_sha256": "c6b73619894cbb74ec5a6c812bef1b63eed294e841692956d58e93af333f85f4"
   },
   "delta_map": {
     "file": "delta_map_1x.npy",
