@@ -79,10 +79,17 @@ def test_empty_and_exact_capacity(tmp_path,where):
     source.mkdir()
     plan=F.plan(source,where,1000,margin=0)
     assert plan.as_dict()['file_count']==0
+    image=tmp_path/f'{where}.iso'
+    design=np.zeros((32,32),bool)
+    imagedisc.write_iso(str(image),design,180000,5.5,133.3,1000,file_layout=plan,log=lambda _:None)
+    assert iso_read.read_tree(image,hashes=True)=={}
     capacity=1000-plan.metadata_end
     (source/'fit.bin').write_bytes(b'x'*(capacity*2048))
     plan=F.plan(source,where,1000,margin=0)
     assert plan.picture_lba==[]
+    imagedisc.write_iso(str(image),design,180000,5.5,133.3,1000,file_layout=plan,log=lambda _:None)
+    assert not imagedisc.verify_iso(image,design,180000,5.5,133.3,1000,file_layout=plan)
+    assert iso_read.read_tree(image,hashes=True)['fit.bin']['sha256']==hashlib.sha256((source/'fit.bin').read_bytes()).hexdigest()
     with (source/'fit.bin').open('ab') as stream:
         stream.write(b'x')
     with pytest.raises(ValueError,match='files do not fit'):
