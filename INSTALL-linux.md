@@ -1,21 +1,21 @@
-# Linux 安装（1.0.0-alpha）
+# Linux 安装（1.0.0.0-alpha）
 
 这是源码和通用 wheel，需要系统 Python 3.11 或更新版本；本次验证使用
 Ubuntu x86_64、Python 3.12。NumPy、Pillow、SciPy、OpenCV 的二进制 wheel
 必须与机器架构、Python ABI 和 glibc 兼容。没有打包 Linux Python 运行时。
-公开版本写作 `1.0.0-alpha`，pip 按 PEP 440 将其规范成 `1.0.0a0`。
+公开版本写作 `1.0.0.0-alpha`，pip 按 PEP 440 将其规范成 `1.0.0.0a0`。
 
 把发行 wheel 和匹配的依赖 wheel 放进 `wheelhouse/`，可离线安装：
 
 ```sh
-pipx install --pip-args='--no-index --find-links=wheelhouse' ./disc_probe-1.0.0a0-py3-none-any.whl
+pipx install --pip-args='--no-index --find-links=wheelhouse' ./disc_probe-1.0.0.0a0-py3-none-any.whl
 ```
 
 也可以用全新虚拟环境（系统需要提供 `python3-venv`）：
 
 ```sh
 python3 -m venv dp-venv
-dp-venv/bin/python -m pip install --no-index --find-links=wheelhouse ./disc_probe-1.0.0a0-py3-none-any.whl
+dp-venv/bin/python -m pip install --no-index --find-links=wheelhouse ./disc_probe-1.0.0.0a0-py3-none-any.whl
 dp-venv/bin/disc-probe version --json
 dp-venv/bin/disc-probe webui --local-only --port 8765
 # 浏览器打开 http://127.0.0.1:8765/home/
@@ -31,7 +31,7 @@ pip（22.3 或更新版）仅充当安装器，目标仍是全新隔离环境：
 
 ```sh
 python3 -m venv --without-pip dp-new-venv
-~/dp-venv/bin/python -m pip --python dp-new-venv install --no-index --find-links=wheelhouse ./disc_probe-1.0.0a0-py3-none-any.whl
+~/dp-venv/bin/python -m pip --python dp-new-venv install --no-index --find-links=wheelhouse ./disc_probe-1.0.0.0a0-py3-none-any.whl
 ```
 
 上例不会把旧 venv 的 NumPy 等已安装依赖复用到新环境，仍需全部依赖 wheel。

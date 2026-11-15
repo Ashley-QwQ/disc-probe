@@ -731,6 +731,7 @@ def _snake(c) -> None:
         c.check(not p.playing, "no game until g is pressed")
         p.play()
         c.check(p.playing and "best 0" in s.getvalue(), "g opens the game below the progress line")
+        p.game.food = (0, 0)        # out of reach of the next steps: food placed at random was eaten now and then (score 1, no "best 0")
         p.last_step = 0.0
         p.play()
         c.check(p.game.heading == (1, 0) and p.game.body[0][0] == 4, "the game steps during a pause")
