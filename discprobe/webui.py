@@ -45,7 +45,9 @@ OPTIONS = {
     "image": {"geo": "geo", "picture": "path", "design": "path", "design_npy": "path", "output": "path",
               "diameter_mm": "diameter", "r_max": "radius", "along_track_frames": "frames",
               "dark": "texture", "light": "texture", "textures": "texture_list",
-              "no_photo_l": "flag", "reading_drive": "device_id"},
+              "no_photo_l": "flag", "reading_drive": "device_id",
+              "files": "source_folder", "files_at": "files_at", "files_margin": "files_margin", "writable_sectors": "sectors",
+              "files_plan_sha256": "files_plan_sha256"},
     "disexport": {"geo": "geo", "sectors": "sectors", "output": "path", "r_min": "radius", "r_max": "radius",
                   "photo": "path", "reading_drive": "device_id", "completion_sectors": "completion_sectors"},
     "cdprobe": {"sectors": "sectors", "output": "path", "size": "size"},
@@ -188,7 +190,24 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
             if value:
                 argv += ["--" + name.replace("_", "-")]
             continue
-        if rule in ("path", "geo"):
+        if rule == 'source_folder':
+            from .discfiles_api import source_folder
+            if media != 'dvd':
+                raise APIError('随盘文件目前只支持 DVD±R 单层')
+            try:
+                value = source_folder(value)
+            except ValueError as exc:
+                raise APIError(str(exc)) from exc
+        elif rule == 'files_plan_sha256':
+            if not isinstance(value, str) or not re.fullmatch('[0-9a-f]{64}',value):
+                raise APIError('invalid files layout hash')
+        elif rule == 'files_at':
+            if value not in ('inner', 'outer'):
+                raise APIError('invalid file placement')
+        elif rule == 'files_margin':
+            if type(value) not in (int, float) or not math.isfinite(value) or not 0 <= value < 1:
+                raise APIError('invalid files margin')
+        elif rule in ("path", "geo"):
             value = "latest" if rule == "geo" and value == "latest" else local_path(root, value)
         elif rule == "cd_layout":
             if value not in ("mode2form1", "mode1"):
@@ -1037,6 +1056,12 @@ class Server(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
+    def _local_files_only(self):
+        import ipaddress
+        host = self.headers.get('Host', '').split(':', 1)[0]
+        if not ipaddress.ip_address(self.client_address[0]).is_loopback or host not in ('localhost', '127.0.0.1'):
+            raise APIError('随盘文件只能在运行核心的电脑通过 localhost 使用；手机和局域网无法选择这台电脑的文件夹。', 403)
+
     server_version = "discprobe-webui"
 
     def log_message(self, *args):
@@ -1423,6 +1448,16 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(body)
             path = urlsplit(self.path).path
             backend = self.server.backend
+            if path == '/api/files-layout':
+                self._local_files_only()
+                from .discfiles_api import request
+                try:
+                    self._json(200, request(backend.root, payload))
+                except (ValueError, OSError, KeyError) as exc:
+                    raise APIError(str(exc)) from exc
+                return
+            if path == '/api/run' and isinstance(payload, dict) and isinstance(payload.get('args'), dict) and payload['args'].get('files'):
+                self._local_files_only()
             if path == "/api/template":
                 self._send(200, backend.template_zip(payload), "application/zip", filename="disc-template.zip")
                 return

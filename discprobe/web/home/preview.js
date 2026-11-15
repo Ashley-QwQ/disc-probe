@@ -1,5 +1,6 @@
 import { observeActivity } from "./kit/shared.js";
 import { ringButton } from "./kit/ringbutton.js";
+import { drawFileGuides } from "./design/disc-files.mjs";
 ﻿// The preview page: look at the disc as it will be written, then make the burn file. A mode of the
 // home page like design.js, and laid out like it: title at the top left, the disc in the middle with
 // the view switch at its top right, the burn file in the right column.
@@ -394,6 +395,8 @@ function draw() {
       status = simulation.status;
     }
     W.note.textContent += status === "error" ? ` · ${t.simError}` : status === "loading" ? ` · ${t.loading}` : status === "refining" ? ` · ${t.refining}` : "";
+    g.save();g.translate(V.w/2,V.h/2);g.scale(1,squash);
+    drawFileGuides(g,{cx:0,cy:0,s:side/120},ctx.project?.fileRegions?.()??[],css);g.restore();
     const scale = (Math.min(V.w, V.h) / 2 - 26) / 150;
     for (const [el, x, y] of [[W.sun, look.lx, look.ly], [W.phone, look.cx, look.cy]]) {
       el.style.left = `${V.w / 2 + x * scale}px`;
@@ -427,6 +430,7 @@ function draw() {
   g.beginPath(); g.arc(0, 0, 7.5 * R, 0, Math.PI * 2); g.fill();
   g.restore();
   g.strokeStyle = css("--rule-strong"); g.lineWidth = 1;
+  drawFileGuides(g,V,ctx.project?.fileRegions?.()??[],css);
   g.beginPath(); g.arc(cx, cy, 60 * R, 0, Math.PI * 2); g.stroke();
   W.zoom.textContent = `${Math.round(V.s * (ctx.project?.cellMm ?? 0.02) * 100)}%`;
 }

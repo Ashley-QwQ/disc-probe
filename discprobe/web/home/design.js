@@ -14,6 +14,7 @@ import * as EditorOps from "./design/editor-ops.mjs";
 
 import { processingWorker } from "./design/worker-client.mjs";
 import { downloadTemplate } from "./design/template-download.mjs";
+import { mountFilesStep, occupiedRings, filePictureRange, fileArguments, refreshFiles, drawFileGuides } from "./design/disc-files.mjs";
 import { hasCapability } from "./handshake.mjs";
 import { CELLS, COST, geoChoice, measuredRing, burnDocument, checkTextures, experimentalContent, pictureSampling } from "./design/export-rules.mjs";
 
@@ -101,7 +102,7 @@ const STR = {
     grid: "刻录格子",
     cellCost: (um, c) => (um === 20 ? `默认。生成约 ${c.minutes} 分钟。` : `生成约 ${c.minutes} 分钟，要 ${c.gb} GB 左右内存。10 / 5 µm：DVD 和 BD 沿轨、半径两个方向都更细；CD 沿轨最细约 80 µm，只有半径方向更细。${um === 5 ? "显微镜下 5 µm 棋盘格是临界失败。" : ""}`) + "彩色材质需要成片的区域，单个 5 µm 小格看不出颜色。",
     coarse: (um) => `图片本身每像素约 ${um} µm，比格子粗：格子再细，图也不会更清楚。`,
-    limits: "这一版网页还没有“随盘文件 / 音乐”这一步。黑白图本身能顺带存数据，已在一张盘上实测读回无误，但要用专门程序读出，还没接进网页。颜色、彩色图案和特效只是预览实验，默认按黑白刻。",
+    limits: "随盘文件目前支持 DVD±R 单层。颜色、彩色图案和特效只是预览实验，默认按黑白刻。",
     cdLimit: "CD 只刻深浅两级，四级灰度和颜色都还不能刻。",
     lost: (names) => `这些图层没能读出来，已跳过：${names}。其余照原样打开；再保存就不带它们了。`,
     tooLarge: (n, mb) => `${n} 有 ${mb} MB，超过这一版能打开的 400 MB。`,
@@ -186,7 +187,7 @@ const STR = {
     grid: "Burn grid",
     cellCost: (um, c) => (um === 20 ? `Default. Takes about ${c.minutes} min to make.` : `Takes about ${c.minutes} min and ${c.gb} GB of memory to make. At 10 / 5 µm, DVD and BD are finer both along the track and radially; CD stays about 80 µm along the track and is finer only radially.${um === 5 ? " A 5 µm checkerboard is a borderline fail under the microscope." : ""}`) + " Coloured textures need broad areas: a single 5 µm cell cannot show colour.",
     coarse: (um) => `The picture itself has about ${um} µm per pixel, coarser than the grid: a finer grid won't make it sharper.`,
-    limits: "This version of the page has no \"files / music\" step. A black-and-white picture can carry data itself; one disc read back without errors, but reading it needs our own program, which the page does not use yet. Colours, coloured patterns and effects are a preview experiment; they burn in black and white by default.",
+    limits: "Files on the disc currently support single-layer DVD±R. Colours, coloured patterns and effects are a preview experiment; they burn in black and white by default.",
     cdLimit: "A CD burns two levels, dark and light; four grey levels and colours can't be burned yet.",
     lost: (names) => `These layers couldn't be read and were left out: ${names}. The rest opened as saved; saving again drops them.`,
     tooLarge: (n, mb) => `${n} is ${mb} MB, more than the 400 MB this version can open.`,
@@ -265,16 +266,11 @@ const heightOf = (L) => L.kind === "image" ? L.width * L.h / L.w : L.height;
 
 // the part of the disc that holds files, if any: [from, to] radius in mm
 function filesRing() {
-  if (!FILES_READY || !S.files?.bytes) return null;
-  const [r0, r1] = range(), f = Math.min(0.95, S.files.bytes / CAPACITY[S.media] + 0.002);
-  if (S.files.where === "outer") return [Math.sqrt(r1 * r1 - (r1 * r1 - r0 * r0) * f), r1];
-  return [r0, Math.sqrt(r0 * r0 + (r1 * r1 - r0 * r0) * f)];
+  return occupiedRings(S.files)[0] ?? null;
 }
 // where the picture may go: [inner, outer]
 function pictureRange() {
-  const [r0, r1] = range(), fr = filesRing();
-  if (!fr) return [r0, r1];
-  return S.files.where === "outer" ? [r0, fr[0]] : [fr[1], r1];
+  return filePictureRange(S.files, range());
 }
 
 // ---------------------------------------------------------------- history (undo / redo)
@@ -806,6 +802,7 @@ function paintCanvas() {
     for (let k = -2 * R; k < 2 * R; k += 9) { g.beginPath(); g.moveTo(V.cx + k - R, V.cy + R); g.lineTo(V.cx + k + R, V.cy - R); g.stroke(); }
     g.restore();
   }
+  drawFileGuides(g, V, occupiedRings(S.files).slice(1), cssVar);
   g.fillStyle = paper; g.beginPath(); g.arc(V.cx, V.cy, 7.5 * V.s, 0, Math.PI * 2); g.fill();
   // lines by the drawing rule (DESIGN.md): the disc's outline 1.5 px ink, its structure 1 px at 70 %
   g.save(); g.strokeStyle = ink;
@@ -1138,6 +1135,9 @@ function buildLeft() {
     if (L.kind === "image") li.querySelector(".th").replaceWith(thumb(L));
   }
   editor?.left();
+  mountFilesStep(W.left, {getFiles:()=>S.files, setFiles:value=>{S.files=value;},
+    context:async()=>{const state=await api.backend.state();return {media:S.media,geo:planGeo(state).path,r_max:range()[1]};},
+    onChange:changed, lang:api.lang(), media:S.media});
 }
 // What the burn file will be: the grid (20 µm unless chosen), what a finer one costs, whether the pictures are
 // fine enough for it, and what can't be burned yet. Said where the work is made, not only at the burn.
@@ -1653,6 +1653,10 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects = "b
   const geo = planGeo(state), geoPath = geo.path;
   if (!geoPath) throw Object.assign(new Error(t.noGeo), { code: "nogeo" });
   useMeasured(geo);                                    // the burn file keeps the picture inside the measured ring
+  if (S.files) {
+    S.files=await refreshFiles(S.files,{media:S.media,geo:geoPath,r_max:range()[1]});
+    buildLeft(); draw();
+  }
   const um = Math.round(S.cell * 1000);
   if (!CELLS[um]) throw new Error(t2.exp2.noCell);
   let saved, rMax, burn = null;
@@ -1681,7 +1685,7 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects = "b
   onProgress({ stage: t.making, fraction: 0 });
   const run = await fetch("/api/run", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "image", media: S.media, ...(link ? { work: link.id } : {}), args: { geo: geoPath, design_npy: saved.design_npy, ...(saved.textures?{textures:saved.textures}:{}), output, r_max: rMax } }),
+    body: JSON.stringify({ action: "image", media: S.media, ...(link ? { work: link.id } : {}), args: { geo: geoPath, design_npy: saved.design_npy, ...(saved.textures?{textures:saved.textures}:{}), ...fileArguments(S.files), output, r_max: rMax } }),
   });
   const job = await run.json().catch(() => ({}));
   if (!run.ok) throw new Error(job.error ?? t.failed);
@@ -2110,7 +2114,8 @@ async function openPreview() {
     media: P.media, item: P.item, alongTrackMeasured: false,
     // what a file being made belongs to (preview.js jobs): this plan while open, and its saved work once it has one
     keys: () => [P, P.work?.id ? `work:${P.work.id}` : null].filter(Boolean),
-    project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection, lamp: editor?.lampProject() ?? null },
+    project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection, lamp: editor?.lampProject() ?? null,
+      fileRegions:()=>occupiedRings(P.files) },
     // colours and effects burn in black and white unless the person asks for the experiment (DVD only)
     effects: "bw",
     setEffects(mode) { ctx.effects = mode === "experimental" && P.media === "dvd" ? "experimental" : "bw"; },
@@ -2127,7 +2132,7 @@ async function openPreview() {
       return {
         geo: geo.source, geoName: geo.name, geoWhen: geo.when ?? "",
         inRange: !imageLayers().some((L) => L.visible && cornersOutside(L, ...pictureRange())),
-        ring: P.ring ?? null,
+        ring: P.files?.layout ? pictureRange() : P.ring ?? null,
         levels: 2,                                    // the editor burns two textures; tone levels no longer apply
         disc: !d?.present ? "none" : d.media !== P.media ? "kind" : P.item?.mid && d.mid && d.mid !== P.item.mid ? "other" : d.blank === true ? "blank" : "written",
         discName: d?.mid || d?.kind || "",
