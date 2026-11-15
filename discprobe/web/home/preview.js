@@ -31,7 +31,11 @@ const STR = {
     say: { design: "设计稿：刻进盘的黑白图。压暗的内圈和外圈不刻图。", off: "几何偏一点会怎样：标定差一点时，图会一圈一圈拧开，离中间越远拧得越多。",
       look: "灯下的样子：模拟一盏灯照在盘上，颜色随角度变。这是模型，不是照片。" },
     checkH: "刻之前", checkDiscH: "先刻一张检查盘", checkDiscNote: "第一次用这台光驱配这批盘时：先刻一张检查盘，用手机拍 3 张以上，程序读出沿轨方向的偏差。之后再生成的刻录文件会自动修正它。已经拍过这批盘的检查盘，可以跳过。检查盘的纹理是按 RITEKF1 DVD-R 挑的，别的盘还没试过。", checkDiscGo: "生成检查盘并去刻录", checkDiscMaking: "正在生成检查盘…", nextMake: "下一步：生成并去刻录", nextCal: "下一步：先标定这批盘", making2: (p) => `正在生成${p == null ? "…" : ` ${p}%`}`,
-    whyMaking: "生成中，可以在右边取消", whyLevels: "灰阶要选 2 级才能刻", whyEmpty: "先放一张图",
+    whyMaking: "生成中：可以先回大厅，不会中断",
+    carryOn: "生成在后台继续：可以先回大厅做别的，回到这件作品的预览就能看到进度。别关掉这个网页：这一版关掉以后接不回进度。",
+    eta: (s) => s >= 90 ? `约还要 ${Math.round(s / 60)} 分钟` : `约还要 ${Math.max(5, Math.round(s / 5) * 5)} 秒`,
+    checkSummary: (n, warn) => warn ? `刻之前：${n} 项里 ${warn} 项要看` : `刻之前：${n} 项都好`,
+    doneAway: "刻录文件生成好了：回到这件作品的预览就能去刻。", checkReady: "检查盘的刻录文件已生成。", checkBurn: "去刻检查盘", whyLevels: "灰阶要选 2 级才能刻", whyEmpty: "先放一张图",
     ck: { imported_corrected: "从 DIS 导入，换算成 DP 修正（未经 DP 实测）", imported: "从 DIS 导入，换算成 DP 几何（未经 DP 实测）", batch: "这批盘标定过了", latest: "没选批次：用这种盘最近一次的测量", saved: "没选批次：用这件作品上次用的测量", none: "还没有可用的测量：先标定这批盘",
       of: (n, w) => `（${[n, w].filter(Boolean).join("，")}）`,
       fxBw: "颜色、彩色图案和特效只是预览实验：这次按黑白刻，这些地方刻成深色。",
@@ -64,7 +68,11 @@ const STR = {
       off: "If the geometry is a little off: the picture twists ring by ring, more the further from the middle.",
       look: "Under a lamp: one light on the disc; the colours change with the angle. A model, not a photo." },
     checkH: "Before burning", checkDiscH: "Burn a check disc first", checkDiscNote: "The first time with this drive and this batch: burn a check disc and take 3 or more phone photos of it; the program reads the offset along the track from them, and every burn file made afterwards corrects it. Skip this if this batch's check disc was photographed already. Its textures were chosen for RITEKF1 DVD-R; other discs are untried.", checkDiscGo: "Make the check disc and burn it", checkDiscMaking: "Making the check disc…", nextMake: "Next: make the file and burn", nextCal: "Next: calibrate this batch first", making2: (p) => `Making the file${p == null ? "…" : ` ${p}%`}`,
-    whyMaking: "Making it; cancel on the right", whyLevels: "Choose 2 grey levels to burn", whyEmpty: "Add a picture first",
+    whyMaking: "Making it: you can go back to the lobby, it carries on",
+    carryOn: "It carries on in the background: go back to the lobby if you like; open this work's preview again to see the progress. Keep this page open: this version cannot pick the progress up again after the page is closed.",
+    eta: (s) => s >= 90 ? `about ${Math.round(s / 60)} min left` : `about ${Math.max(5, Math.round(s / 5) * 5)} s left`,
+    checkSummary: (n, warn) => warn ? `Before burning: ${warn} of ${n} need a look` : `Before burning: all ${n} fine`,
+    doneAway: "The burn file is ready: open this work's preview to burn it.", checkReady: "The check disc's burn file is ready.", checkBurn: "Burn the check disc", whyLevels: "Choose 2 grey levels to burn", whyEmpty: "Add a picture first",
     ck: { imported_corrected: "Imported from DIS, converted to DP correction (not measured by DP)", imported: "Imported from DIS, converted to DP geometry (not measured by DP)", batch: "This batch is calibrated", latest: "No batch chosen: uses the latest measurement of this kind", saved: "No batch chosen: uses the measurement this work used before", none: "No usable measurement yet: calibrate this batch first",
       of: (n, w) => ` (${[n, w].filter(Boolean).join(", ")})`,
       fxBw: "Colours, coloured patterns and effects are a preview experiment: this burn is black and white, and those areas burn dark.",
@@ -126,7 +134,8 @@ function buildRight() {
   const busy = s.phase === "making", ready = s.phase === "ready";
   const c = ctx.checks?.(), row = (ok, text) => `<li data-s="${ok === true ? "good" : ok === false ? "warn" : "unknown"}">${esc(text)}</li>`;
   const minutes = ready ? Math.max(1, Math.round((s.iso.bytes / ((ctx.media === "cd" ? 176400 : 1385000) * 8) + 90) / 60)) : null;
-  const checkSec = !c ? "" : `<section class="pv-list"><h3>${t.checkH}</h3><ul>` +
+  const rows = !c ? [] : [c.geo === "batch", c.inRange, c.levels === 2, c.disc === "blank"];
+  const checkSec = !c ? "" : `<section class="pv-list"><details class="pv-fold"${busy ? "" : " open"}><summary><h3>${busy ? t.checkSummary(rows.length, rows.filter((x) => !x).length) : t.checkH}</h3></summary><ul>` +
     row(c.geo === "batch" ? true : c.geo === "none" ? false : null, t.ck[c.geo] + (c.geoName && c.geo !== "batch" && c.geo !== "none" ? t.ck.of(c.geoName, c.geoWhen) : "")) +
     row(c.inRange, (c.inRange ? t.ck.inRange : t.ck.outRange) + (c.ring ? t.ck.measured(c.ring) : "")) +
     row(c.levels === 2, c.levels === 2 ? t.ck.lv2 : t.ck.lv4) +
@@ -134,22 +143,30 @@ function buildRight() {
     row(c.disc === "blank" ? true : c.disc === "none" ? null : false, c.disc === "blank" ? t.ck.blank(c.discName) : c.disc === "other" ? t.ck.other(c.discName) : c.disc === "none" ? t.ck.nodisc : t.ck[c.disc]) +
     `</ul>` + (c.effects && c.effects !== "none" && c.canExperiment ? `<label class="chk pv-exp"><input type="checkbox" data-a="experimental" ${c.effects === "experimental" ? "checked" : ""} ${busy ? "disabled" : ""}>${t.ck.fxTry}</label>` +
       `<details class="pv-more"><summary>${t.details}</summary><p class="note">${t.ck.fxMore}</p></details>` : "") +
-    `<p class="note mono">${[ready ? `${t.ck.time(minutes)} · ${t.ck.size(fmtBytes(s.iso.bytes))}` : t.ck.timeLater, c.cellUm ? t.ck.cell(c.cellUm) : ""].filter(Boolean).join(" · ")}</p></section>`;
+    `<p class="note mono">${[ready ? `${t.ck.time(minutes)} · ${t.ck.size(fmtBytes(s.iso.bytes))}` : t.ck.timeLater, c.cellUm ? t.ck.cell(c.cellUm) : ""].filter(Boolean).join(" · ")}</p></details></section>`;
   const checkDiscSec = ctx.exportCheck && c && c.geo !== "none" && !busy
     ? `<section class="pv-checkdisc"><h3>${t.checkDiscH}</h3><p class="note">${t.checkDiscNote}</p>` +
       `<button class="sbtn wide" type="button" data-a="checkdisc">${t.checkDiscGo}</button></section>` : "";
-  const fileSec = checkSec + checkDiscSec + (s.phase === "idle" ? "" : `<section><h3>${t.file}</h3>` +
+  const pct = s.fraction ? Math.floor(s.fraction * 100) : null;
+  const eta = busy && s.fraction > .03 && s.t0 ? (Date.now() - s.t0) / 1000 * (1 - s.fraction) / s.fraction : null;
+  const fileBody = s.phase === "idle" && !s.checkIso ? "" : (`<section class="${busy ? "pv-now" : ""}"><h3>${t.file}</h3>` +
     (ready ? `<p class="note">${s.iso.experimental ? t.madeExp : t.made}</p>` +
       `<div class="pv-file"><b>${esc(s.iso.path.split(/[\\/]/).pop())}</b><span class="mono">${fmtBytes(s.iso.bytes)} · ${s.iso.sectors.toLocaleString()} ${t.sectors}</span></div>` +
       `<details class="pv-more"><summary>${t.details}</summary><p class="note mono">${esc(s.iso.path)}</p>${s.iso.geo ? `<p class="note mono">${t.geoUsed}: ${esc(s.iso.geo)}</p>` : ""}</details>` +
       `<div class="row2">${ctx.showInFolder ? `<button class="sbtn" type="button" data-a="folder">${t.folder}</button>` : ''}<button class="sbtn" type="button" data-a="make">${t.again}</button></div>`
-    : busy ? `<div class="pv-gen" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round((s.fraction ?? 0) * 100)}"></div>` +
-      `<p class="note">${esc(s.stage || t.making)}${s.fraction ? ` <span class="mono">${Math.floor(s.fraction * 100)}%</span>` : ""}</p>` +
+    : busy ? `<div class="pv-gen" aria-hidden="true"></div>` +
+      // the bar the page had before the filling disc (64f6884): percent and time left when the core reports progress
+      `<div class="pv-bar live" role="progressbar" aria-valuemin="0" aria-valuemax="100" ${pct == null ? "" : `aria-valuenow="${pct}"`} aria-label="${esc(s.stage || t.making)}"><i style="--f:${s.fraction ?? 0}" class="${s.fraction ? "" : "indet"}"></i></div>` +
+      `<p class="note pv-prog"><b>${esc(s.stage || t.making)}</b>${pct == null ? "" : ` <span class="mono">${pct}%</span>`}${eta == null ? "" : ` · <span>${t.eta(eta)}</span>`}</p>` +
+      `<p class="note">${t.carryOn}</p>` +
       `<button class="sbtn wide" type="button" data-a="cancel">${t.cancel}</button>`
+    : s.checkIso ? `<p class="note">${t.checkReady}</p><button class="sbtn wide" type="button" data-a="checkburn">${t.checkBurn}</button>`
     : `<p class="note">${s.phase === "failed" ? `<span class="pv-err">${esc(s.error || t.failed)}</span>` : s.phase === "cancelled" ? t.cancelled : t.fileNote}</p>` +
       // no geometry yet: the way on is calibrating, not making the file again
       (s.code === "nogeo" && ctx.calibrate ? `<button class="sbtn wide pv-make" type="button" data-a="calibrate">${t.calibrate}</button>`
-        : "")) + "</section>") +
+        : "")) + "</section>");
+  // while making, the file is the one thing that matters: it comes first, the checklist folds to a line
+  const fileSec = (busy ? fileBody + checkSec : checkSec + checkDiscSec + fileBody) +
     (ctx.media === "cd" && !ctx.alongTrackMeasured ? `<section><p class="note pv-warn">${t.cd}</p></section>` : "");
   let viewSec = "";
   if (view === "off") viewSec = `<section><h3>${t.offH}</h3><p class="note">${t.offNote}</p>` +
@@ -165,6 +182,7 @@ function buildRight() {
        ["cz", t.height, 150, 650, 10], ["lz", t.lightHeight, 150, 650, 10]].map(([key, label, min, max, step]) =>
         `<label class="pv-ctl"><span>${label}</span><input class="rng" type="range" min="${min}" max="${max}" step="${step}" value="${look[key]}" data-k="${key}"><output class="mono">${lookValue(key, look[key])}</output></label>`).join("") +
       `<button class="sbtn" type="button" data-a="reset-look">${t.resetLook}</button>`) + `</section>`;
+  if (!W || !isOn() || state !== s) return;           // a job finishing in the background: shown when the page is back
   W.right.innerHTML = fileSec + viewSec;
   if (busy && s.thumb) { W.right.querySelector(".pv-gen").append(s.thumb); paintThumb(s); }
   paintNext();
@@ -180,6 +198,7 @@ function nextStep() {
   return "make";
 }
 function paintNext() {
+  if (!isOn()) return;
   const t = T(), step = nextStep(), s = state;
   $("next-text").textContent = step === "burn" ? t.next : step === "calibrate" ? t.nextCal
     : s.phase === "making" ? t.making2(s.fraction == null ? null : Math.floor(s.fraction * 100)) : t.nextMake;
@@ -229,48 +248,63 @@ async function make() {
   const thumb = document.createElement("canvas");
   thumb.width = thumb.height = Math.round(240 * Math.min(2, devicePixelRatio || 1));
   thumb.setAttribute("aria-hidden", "true");
-  const job = state = { phase: "making", fraction: null, stage: "", ctl: new AbortController(), thumb };
+  const job = state = { phase: "making", fraction: null, stage: "", ctl: new AbortController(), thumb, t0: Date.now() };
+  const jobCtx = ctx; remember(jobCtx, job);
   buildRight();
   try {
-    const iso = await ctx.exportIso((p) => {
-      if (state !== job) return;
+    const iso = await jobCtx.exportIso((p) => {
+      if (job.phase !== "making") return;
       const f = typeof p === "number" ? p : p?.fraction;
       job.fraction = Number.isFinite(f) ? Math.max(job.fraction ?? 0, Math.min(1, f)) : job.fraction;
       if (p?.stage) job.stage = p.stage;
-      buildRight();
+      remember(jobCtx, job);                           // the work is saved while its file is made: its id now finds it too
+      if (state === job) buildRight();
     }, { signal: job.ctl.signal });
-    if (state !== job) return;
     if (!iso?.path || !(iso.bytes > 0) || !(iso.sectors > 0)) throw new Error(T().failed);
-    state = { phase: "ready", iso };
+    finish(jobCtx, job, { phase: "ready", iso });
+    if (!isOn()) toast(T().doneAway);
   } catch (e) {
-    if (state !== job) return;
-    state = { phase: e?.name === "AbortError" ? "cancelled" : "failed", error: e?.message, code: e?.code };
-    if (state.phase === "failed") sfx.problem();
+    const end = { phase: e?.name === "AbortError" ? "cancelled" : "failed", error: e?.message, code: e?.code };
+    finish(jobCtx, job, end);
+    if (end.phase === "failed") sfx.problem();
   }
-  ctx.state = state;
-  buildRight();
+}
+// A file being made belongs to its work, not to the page: leaving the preview does not stop it, and opening the
+// same work's preview again (design.js ctx.keys: the plan, then its saved work id) shows it, running or finished.
+const jobs = new Map();
+function remember(c, job) { for (const k of c.keys?.() ?? []) jobs.set(k, { job, ctx: c }); }
+function finish(c, job, end) {
+  job.phase = end.phase;                               // late progress from a finished job is ignored
+  for (const [k, v] of jobs) if (v.job === job) jobs.set(k, { job: end, ctx: c });
+  for (const k of c.keys?.() ?? []) jobs.set(k, { job: end, ctx: c });    // the work may have been saved meanwhile
+  if (c.state === job) c.state = end;
+  if (state === job) { state = end; if (ctx === c) ctx.state = end; buildRight(); }
+}
+function carried(c) {
+  for (const k of c.keys?.() ?? []) { const v = jobs.get(k); if (v) return v.job; }
+  return null;
 }
 // The check disc: made like the burn file (same progress and cancel), then straight to the burn page; after the
 // burn, the burn page offers the photos (design.js photograph), and they come back here.
 async function makeCheck() {
   if (state.phase === "making" || !ctx.exportCheck) return;
-  const job = state = { phase: "making", fraction: null, stage: T().checkDiscMaking, ctl: new AbortController(), check: true };
+  const job = state = { phase: "making", fraction: null, stage: T().checkDiscMaking, ctl: new AbortController(), check: true, t0: Date.now() };
+  const jobCtx = ctx; remember(jobCtx, job);
   buildRight();
   try {
-    const iso = await ctx.exportCheck((p) => {
-      if (state !== job) return;
+    const iso = await jobCtx.exportCheck((p) => {
+      if (job.phase !== "making") return;
       const f = typeof p === "number" ? p : p?.fraction;
       job.fraction = Number.isFinite(f) ? Math.max(job.fraction ?? 0, Math.min(1, f)) : job.fraction;
-      buildRight();
+      if (state === job) buildRight();
     }, { signal: job.ctl.signal });
-    if (state !== job) return;
-    state = ctx.state = { phase: "idle" };          // the picture's own file is still to be made, after the photos
-    leave(false); ctx.next?.(iso);
+    // the picture's own file is still to be made, after the photos
+    if (state === job && isOn()) { finish(jobCtx, job, { phase: "idle" }); leave(false); jobCtx.next?.(iso); }
+    else { finish(jobCtx, job, { phase: "idle", checkIso: iso }); toast(T().checkReady); }     // made while away
   } catch (e) {
-    if (state !== job) return;
-    state = { phase: e?.name === "AbortError" ? "cancelled" : "failed", error: e?.message, code: e?.code };
-    if (state.phase === "failed") sfx.problem();
-    ctx.state = state; buildRight();
+    const end = { phase: e?.name === "AbortError" ? "cancelled" : "failed", error: e?.message, code: e?.code };
+    finish(jobCtx, job, end);
+    if (end.phase === "failed") sfx.problem();
   }
 }
 function cancel() {
@@ -281,17 +315,21 @@ function cancel() {
 }
 
 // ---------------------------------------------------------------- the canvas
-function fit() { V.s = Math.min(V.w, V.h) * 0.92 / 120; V.cx = V.w / 2; V.cy = V.h / 2; V.moved = false; draw(); }
+const fitScale = () => Math.min(V.w, V.h) * 0.92 / 120;
+function fit() { V.s = fitScale(); V.cx = V.w / 2; V.cy = V.h / 2; V.moved = false; draw(); }
+// W8: the disc lies on the desk; at the whole-disc size or smaller nothing is to be panned, so it stays centred and
+// whole (a pan or a window change at 8% left it off-centre and cut by the frame). Panning is for a closer look.
+function settle() { if (V.s <= fitScale() + 1e-9) { V.cx = V.w / 2; V.cy = V.h / 2; } }
 function zoomAt(f, sx, sy) {
   const s = Math.min(Math.max(V.s * f, Math.min(V.w, V.h) * 0.2 / 120), 60), k = s / V.s;
   V.moved = true;
-  V.cx = sx - (sx - V.cx) * k; V.cy = sy - (sy - V.cy) * k; V.s = s; draw();
+  V.cx = sx - (sx - V.cx) * k; V.cy = sy - (sy - V.cy) * k; V.s = s; settle(); draw();
 }
 function resize() {
   const r = W.cv.getBoundingClientRect();
   V.w = r.width; V.h = r.height; V.dpr = devicePixelRatio || 1;
   W.canvas.width = Math.round(V.w * V.dpr); W.canvas.height = Math.round(V.h * V.dpr);
-  if (!V.moved) fit(); else draw();
+  if (!V.moved) fit(); else { settle(); draw(); }
 }
 const css = (n) => getComputedStyle(root).getPropertyValue(n).trim();
 function draw() {
@@ -382,6 +420,7 @@ function bind(signal) {
     if (a === "checkdisc") makeCheck();
     if (a === "calibrate") { state = ctx.state = { phase: "idle" }; leave(false); ctx.calibrate(); }
     if (a === "cancel") cancel();
+    if (a === "checkburn") { const iso = state.checkIso; finish(ctx, state, { phase: "idle" }); leave(false); ctx.next?.(iso); }
     if (a === "folder") ctx.showInFolder?.(state.iso.path);
   });
   on(W.right, "change", (e) => {
@@ -411,7 +450,7 @@ function bind(signal) {
   // pan and zoom like the design page; in the simulated view, drag the sun
   let drag = null;
   on(W.canvas, "pointerdown", (e) => { if (view === "look") return; W.canvas.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY, cx: V.cx, cy: V.cy }; });
-  on(W.canvas, "pointermove", (e) => { if (!drag) return; V.moved = true; V.cx = drag.cx + e.clientX - drag.x; V.cy = drag.cy + e.clientY - drag.y; draw(); });
+  on(W.canvas, "pointermove", (e) => { if (!drag) return; V.moved = true; V.cx = drag.cx + e.clientX - drag.x; V.cy = drag.cy + e.clientY - drag.y; settle(); draw(); });
   on(W.canvas, "pointerup", () => { drag = null; });
   on(W.canvas, "wheel", (e) => {
     if (view === "look") return;
@@ -420,7 +459,7 @@ function bind(signal) {
     const mouse = e.deltaMode === 1 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
     if (e.ctrlKey) zoomAt(Math.exp(-e.deltaY * 0.01), ...p);
     else if (mouse) zoomAt(e.deltaY < 0 ? 1.18 : 1 / 1.18, ...p);
-    else { V.cx -= e.deltaX; V.cy -= e.deltaY; V.moved = true; draw(); }
+    else { V.cx -= e.deltaX; V.cy -= e.deltaY; V.moved = true; settle(); draw(); }
   }, { passive: false });
   for (const [el, x, y] of [[W.sun, "lx", "ly"], [W.phone, "cx", "cy"]]) {
     let active = false;
@@ -451,7 +490,7 @@ function bind(signal) {
     e.stopImmediatePropagation();
     const step = nextStep();
     if (step === "calibrate") { state = ctx.state = { phase: "idle" }; leave(false); ctx.calibrate(); return; }
-    if (step === "make") { make().then(() => { if (isOn() && state.phase === "ready") { const iso = state.iso; leave(false); ctx.next?.(iso); } }); return; }
+    if (step === "make") { const c = ctx; make().then(() => { if (isOn() && ctx === c && state.phase === "ready") { const iso = state.iso; leave(false); ctx.next?.(iso); } }); return; }
     if (step !== "burn") return;
     const iso = state.iso;
     leave(false); ctx.next?.(iso);
@@ -472,7 +511,7 @@ export function start(homeApi, context = {}) {
   const same = context === ctx;
   ctx = context;
   if (!W) build();
-  state = same && ctx.state ? ctx.state : (ctx.state = { phase: "idle" });
+  state = same && ctx.state ? ctx.state : (ctx.state = carried(ctx) ?? { phase: "idle" });
   if (!same) { view = ctx.media === "dvd" ? "look" : "design"; src = null; try { src = ctx.project?.render(12) ?? null; } catch { src = null; } }
   life = new AbortController();
   root.dataset.mode = "preview";
@@ -484,7 +523,7 @@ export function start(homeApi, context = {}) {
   return { leave };
 }
 export function leave(goBack = true) {
-  if (state?.phase === "making") cancel();
+  // a file being made carries on (it belongs to the work, see `jobs`); only the Cancel button stops it
   makeRing?.destroy(); makeRing = null;
   life?.abort(); life = null;
   simulation?.stop(); simulation = null;

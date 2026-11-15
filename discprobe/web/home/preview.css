@@ -83,3 +83,15 @@
 .pv-gen[aria-valuenow="0"] canvas { animation: pv-wait 1.6s ease-in-out infinite; }
 @keyframes pv-wait { 50% { opacity: .55; } }
 :root[data-motion="off"] .pv-gen canvas { animation: none !important; }
+
+/* W9: while the file is made the column says one thing: the file, with a bar, its stage and time left. The
+   checklist folds to a line under it (a details summary; open when nothing is being made). */
+.pv-fold > summary { list-style: none; cursor: pointer; }
+.pv-fold > summary::-webkit-details-marker { display: none; }
+.pv-fold > summary h3 { pointer-events: none; }
+.pv-fold:not([open]) > summary h3 { font-size: 15px; font-weight: 500; color: var(--ink-2); min-height: 28px; }
+.pv-fold:not([open]) > summary h3::after { content: "▸"; margin-left: 6px; color: var(--ink-3); }
+.pv-now h3 { font-size: 19px; }
+.pv-now .pv-gen canvas { width: min(180px, 70%); }
+.pv-now .pv-bar { height: 8px; margin-top: 2px; }
+.pv-prog b { font-weight: 650; color: var(--ink); }

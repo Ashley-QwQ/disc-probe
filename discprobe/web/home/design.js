@@ -2189,6 +2189,8 @@ async function openPreview() {
   if (!isOn() || S !== P) return;
   const ctx = {
     media: P.media, item: P.item, alongTrackMeasured: false,
+    // what a file being made belongs to (preview.js jobs): this plan while open, and its saved work once it has one
+    keys: () => [P, P.work?.id ? `work:${P.work.id}` : null].filter(Boolean),
     project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection },
     // colours and effects burn in black and white unless the person asks for the experiment (DVD only)
     effects: "bw",
