@@ -27,11 +27,11 @@ function burnFailed(r) {
 const root = document.documentElement;
 const STR = {
   zh: {
-    title:'刻录光盘', intro:'核对文件和光盘，再滑动右下角确认刻录。', disc:'光盘', file:'刻录文件', speed:'刻录速度', reason:'DVD 默认选最接近 8x 的支持速度；CD 保持最低速度。较慢不一定更可靠。', estimate:'预计用时', unknown:'暂时无法估算', drive:'光驱', sectors:'扇区',
+    title:'刻录光盘', intro:'核对文件和光盘，再滑动右下角确认刻录。', disc:'光盘', file:'刻录文件', speed:'刻录速度', speedUnknown:'放进空白盘后读出', recheckClosed:'再读一次光驱里的盘', reason:'DVD 默认选最接近 8x 的支持速度；CD 保持最低速度。较慢不一定更可靠。', estimate:'预计用时', unknown:'暂时无法估算', drive:'光驱', sectors:'扇区',
     consent:'光驱里是空白盘；我知道托盘会关闭，光驱会开始写入。', warning:'开始后托盘会关闭。请先放好空白盘，不要移动光驱。', hold:'滑动确认刻录', holding:'继续按住…', ready:'等待确认', writing:'正在刻录光盘', running:'请让光驱保持连接，等到写入完成。', elapsed:'已用时', remaining:'剩余时间', cancel:'取消刻录', cancelWarn:'取消会让光盘只写入一部分，这张盘将无法再用。', confirmCancel:'确认取消刻录', keep:'继续刻录', stopping:'正在停止写入…', done:'写入完成', doneNote:'光驱报告写入完成；还没有检查实物图案。', read:'下一步：读回光盘', photo:'拍摄光盘', failed:'这次没有刻好', notStarted:'还没有开始刻，盘没有动过', failedNote:'请检查光驱连接，换一张空白盘，再重新确认刻录。', cancelled:'刻录已取消', cancelledNote:'这张盘已经写入了一部分。请换一张空白盘后再试。', retry:'准备另一张空白盘', other:'用别的软件刻录', copy:'复制文件路径', copied:'已复制文件路径', copyFail:'无法自动复制，请选中路径后复制。', back:'返回预览', mini:'查看刻录进度', missing:'先准备刻录文件和光驱', missingNote:'返回预览生成刻录文件，再选择可用的光驱和速度。', details:'查看文件详情', waiting:'等待光驱报告进度', percent:'完成', swapping:'换一张空白盘', finish:'完成，回到桌面', recheck:'重新检查光驱里的盘', whyConsent:'先勾选上面的确认', whySwap:'先换一张这批的空白盘', whyMissing:'先准备刻录文件和光驱', whyBurning:'正在刻，可以关掉网页', whyAgain:'先换盘或重新检查，再刻', copyCommand:'复制刻录命令', copiedCommand:'已复制刻录命令', otherCommandTitle:'刻录命令', otherOnly:'用刻录命令刻这张 CD', swapStopped:'等了一阵，没看到换盘。放好这批的空白盘、推上托盘，再点“重新检查光驱里的盘”。',
   },
   en: {
-    title:'Burn the disc', intro:'Check the file and disc, then slide the confirmation at the bottom right.', disc:'Disc', file:'Burn file', speed:'Write speed', reason:'DVD defaults to the supported speed nearest 8x; CD keeps the lowest. Slower is not always more reliable.', estimate:'Estimated time', unknown:'Not enough information yet', drive:'Drive', sectors:'sectors',
+    title:'Burn the disc', intro:'Check the file and disc, then slide the confirmation at the bottom right.', disc:'Disc', file:'Burn file', speedUnknown:'Read once a blank is in', recheckClosed:'Read the disc in the drive again', speed:'Write speed', reason:'DVD defaults to the supported speed nearest 8x; CD keeps the lowest. Slower is not always more reliable.', estimate:'Estimated time', unknown:'Not enough information yet', drive:'Drive', sectors:'sectors',
     consent:'The disc in the drive is blank. I understand the tray will close and the drive will write to it.', warning:'The tray will close when you start. Place the blank disc first and keep the drive still.', hold:'Slide to burn', holding:'Keep holding…', ready:'Waiting for confirmation', writing:'Burning the disc', running:'Keep the drive connected until writing is complete.', elapsed:'Elapsed', remaining:'Remaining', cancel:'Cancel burning', cancelWarn:'Cancelling leaves the disc partly written and unusable.', confirmCancel:'Confirm cancellation', keep:'Continue burning', stopping:'Stopping the write…', done:'Written', doneNote:'The drive reports writing is complete. The physical picture has not been checked.', read:'Next: read back the disc', photo:'Photograph the disc', failed:'The write did not finish', notStarted:'Nothing was written; the disc is untouched', failedNote:'Check the drive connection, replace the disc with a blank one, then confirm again.', cancelled:'Burning cancelled', cancelledNote:'This disc is partly written. Replace it with a blank disc before trying again.', retry:'Prepare another blank disc', other:'Burn with another program', copy:'Copy file path', copied:'File path copied', copyFail:'Automatic copy is unavailable. Select and copy the path.', back:'Back to preview', mini:'View burn progress', missing:'Prepare a burn file and drive first', missingNote:'Go back to preview to make the burn file, then choose an available drive and speed.', details:'View file details', waiting:'Waiting for progress from the drive', percent:'complete', swapping:'Change the disc', finish:'Done: back to the desk', recheck:'Check the disc in the drive again', whyConsent:'Tick the confirmation above first', whySwap:'Put in a blank from this batch first', whyMissing:'Prepare the burn file and drive first', whyBurning:'Burning; the page can be closed', whyAgain:'Change the disc or check again first', copyCommand:'Copy the burn command', copiedCommand:'Burn command copied', otherCommandTitle:'Burn command', otherOnly:'Burn this CD with a command', swapStopped:'No disc change was seen for a while. Put a blank from this batch in, close the tray, then press Check the disc in the drive again.',
   }
 };
@@ -141,8 +141,14 @@ function paint() {
   let checks=q('.burn-checks');if(!checks){checks=el('dl','burn-checks');q('.burn-result').after(checks);}
   checks.hidden=status!=='success';
   if(status==='success'){
-    if(task.closed===undefined&&ctx.checkDisc){task.closed='checking';ctx.checkDisc().then(d=>{task.closed=d?.present?d.closed??null:null;},()=>{task.closed=null;}).finally(()=>{if(W)paint();});}
+    // whether the disc was closed: read once, at most 20 s; a read that does not answer ends as "not read" with a
+    // button to read again, never a row that stays "reading" (W11)
+    if(task.closed===undefined&&ctx.checkDisc){const mine=task;mine.closed='checking';
+      Promise.race([ctx.checkDisc(),new Promise(r=>setTimeout(()=>r('late'),20000))])
+        .then(d=>{if(mine.closed==='checking')mine.closed=d==='late'?null:d?.present?d.closed??null:null;},()=>{if(mine.closed==='checking')mine.closed=null;})
+        .finally(()=>{if(W)paint();});}
     checks.replaceChildren(...afterChecks(task).flatMap(([label,s,text])=>{const dd=el('dd','',text);dd.dataset.s=s;return [el('dt','',label),dd];}));
+    if(task.closed===null&&ctx.checkDisc){const b=el('button','sbtn',T().recheckClosed);b.type='button';b.dataset.a='recheckClosed';checks.append(el('dt','',''),b);}
   }
   let advice=q('.burn-advice');if(!advice){advice=el('div','burn-advice');checks.after(advice);}
   // how to look and what each symptom means after a write; what to do next after a failed one
@@ -169,6 +175,9 @@ function sceneOf(){return scene??={cut:cutaway(api,{mirrored:false,textLeft:()=>
 function waitForDisc(){api.setTray(true,false,undefined,true);setTimeout(()=>{if(visible&&!task)sceneOf().fly.hover(ctx.item?.name||'');},900);}
 function fillSpeeds(){
   const speeds=[...new Set((ctx.drive?.speeds||[]).filter(x=>Number.isFinite(x)&&x>0))].sort((a,b)=>a-b);
+  // the drive reports its write speeds only for a blank disc: until one is in, say so instead of an empty list
+  if(!speeds.length){speed=undefined;W.select.replaceChildren(el('option','',T().speedUnknown));W.select.disabled=true;return;}
+  W.select.disabled=false;
   if(!speeds.includes(speed))speed=ctx.media==='cd'?speeds[0]:speeds.reduce((best,s)=>Math.abs(s-8)<Math.abs(best-8)?s:best,speeds[0]);W.select.replaceChildren(...speeds.map(s=>{const o=el('option','',X(s));o.value=s;return o;}));W.select.value=speed;
 }
 // The disc in the drive is not a blank of this batch. As on the calibration page: it rises out of the tray
@@ -230,6 +239,7 @@ async function beginBurn() {
 }
 function toast(message){W.toast.textContent=message;W.toast.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>W.toast.classList.remove('on'),2600);}
 async function action(a) {
+  if(a==='recheckClosed'&&task){task.closed=undefined;paint();return;}
   if(a==='cancel')W.q('.burn-cancel-check').hidden=false;
   if(a==='keep')W.q('.burn-cancel-check').hidden=true;
   if(a==='confirmCancel'&&task?.status==='burning'&&!task.stopping){task.stopping=true;W.q('.burn-cancel-check').hidden=true;paint();try{task.handle.cancel();}catch{task.stopping=false;toast(T().failedNote);paint();}}
