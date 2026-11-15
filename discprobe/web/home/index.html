@@ -1707,6 +1707,11 @@
     globalThis.dispatchEvent?.(new Event("dp-drive-state"));
   }
   api.syncState = backend.mock ? async () => {} : syncState;
+  let libraryDirty = false;
+  addEventListener('dp-catalogue-changed', () => { libraryDirty = true; if (!root.dataset.mode) { libraryDirty = false; api.syncState(); } });
+  new MutationObserver(() => {
+    if (!root.dataset.mode && libraryDirty) { libraryDirty = false; api.syncState(); }
+  }).observe(root, {attributes: true, attributeFilter: ['data-mode']});
   if (!backend.mock) backend.events(async event => {
     await refreshFinishedDisc(event);
     // A terminal job can start while the lobby is open. Its first event identifies it;
@@ -1717,7 +1722,8 @@
         globalThis.dispatchEvent?.(new Event("dp-drive-state"));
       } catch {}
     }
-    if (event.type !== "state" || root.dataset.mode) return;
+    if (event.type !== "state") return;
+    if (root.dataset.mode) { libraryDirty = true; return; }
     await syncState();
   });
   // ---- the lobby and the library (docs/goals/gui-outline.md 3.0) ----
@@ -1742,6 +1748,7 @@
     $("back").hidden = where !== "library";
     if (where === "lobby") paintRecent();
     render(1, true);
+    if (libraryDirty) { libraryDirty = false; api.syncState(); }
   }
   // new plan: the form page first (name, disc kind and batch), then the design page
   async function newPlan(file = null) {
@@ -1858,6 +1865,7 @@
   else if (!backend.mock && !driveDisc()) readDisc().catch(() => {});
   paintRecent();
   render(1, true);
+  await (await import('./flow-navigation.js')).install(api, {setHome});
 </script>
 </body>
 </html>

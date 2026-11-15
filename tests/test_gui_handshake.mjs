@@ -57,3 +57,28 @@ test('one translated sheet replaces the workflow, without technical errors', () 
     assert.match(doc.body.sheet.children[1].textContent,lang==='zh'?/更新 GUI 包/:/Update the GUI pack/);
   }
 });
+
+test('transient connection failure retries and restores the original page only after negotiation', async () => {
+  const doc = documentStub('zh'), original = {tag:'workflow'};
+  doc.body.childNodes = [original];
+  doc.body.replaceChildren = (...nodes) => {doc.body.childNodes = nodes;};
+  let versions = 0;
+  await handshake(doc, async path => {
+    if(path === '/api/version' && ++versions < 3) throw Error('offline');
+    return {ok:true,json:async()=>path==='/gui.json'?manifest:core};
+  }, {protocol:'http:',search:''}, {delays:[0,0,0]});
+  assert.equal(versions,3); assert.equal(doc.documentElement.dataset.handshake,'ready');
+  assert.deepEqual(doc.body.childNodes,[original]);
+});
+
+test('required capability failure needs manual retry and cannot initialise early', async () => {
+  const doc = documentStub('zh'); let retry, started = false, fixed = false, calls = 0;
+  const create = doc.createElement;
+  doc.createElement = tag => ({...create(tag),addEventListener(type,cb){if(tag==='button')retry=cb;}});
+  const ready = handshake(doc,async path=>{
+    calls++;return {ok:true,json:async()=>path==='/gui.json'?manifest:{...core,capabilities:fixed?core.capabilities:[]}};
+  },{protocol:'http:',search:''},{delays:[0]}).then(()=>{started=true;});
+  for(let n=0;n<20;n++)await Promise.resolve();
+  assert.equal(started,false);assert.equal(calls,2);assert.equal(doc.documentElement.dataset.handshake,'failed');
+  fixed=true;retry();await ready;assert.equal(started,true);assert.equal(calls,4);
+});

@@ -34,4 +34,4 @@ def test_no_dead_capability_copy():
     assert 'error.result' in calibrate
     preview = (home / 'preview.js').read_text(encoding='utf-8')
     assert 'readNote:' not in preview and 'folderLater:' not in preview
-    assert 'ctx.showInFolder ?' in preview
+    assert 'showInFolder' not in preview

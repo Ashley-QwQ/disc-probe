@@ -373,6 +373,7 @@ function open() {
 }
 
 function release() {
+  globalThis.dispatchEvent(new Event('dp-catalogue-changed'));
   closePhoto();
   nextKit(false, false);
   document.documentElement.dataset.mode = "";
@@ -389,6 +390,7 @@ function release() {
 }
 
 let leaving = false;
+export function suspendNavigation() { if (flow) release(); }
 function leave() {
   if (leaving) return;                         // the opener already owns the return pan/card hand-off
   // a disc that was in the air goes back to waiting; detection starts over next time

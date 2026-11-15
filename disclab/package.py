@@ -21,7 +21,7 @@ def build(output):
             if (not any("b" + "lind" in p.casefold() for p in source.parts)
                     and source.is_file() and "__pycache__" not in source.parts
                     and (source.name == "LICENSE" or source.suffix in {".py", ".md", ".npz", ".pgm", ".json", ".ps1", ".sh",
-                                                                     ".html", ".css", ".js", ".webp", ".woff2", ".txt", ".ico", ".png"})):
+                                                                     ".html", ".css", ".js", ".mjs", ".webp", ".woff2", ".txt", ".ico", ".png"})):
                 archive.write(source, source.relative_to(package.parent).as_posix())
     return output
 

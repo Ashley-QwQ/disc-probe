@@ -430,6 +430,7 @@ export async function init(entry, fetcher = fetch) {
     const onImported = callbacks.onImported;
     const selected = selectedIndexes(preview.entries, new Set([...checkboxes].filter(([, box]) => box.checked).map(([i]) => i)));
     const result = await request(fetcher, {...upload, operation: 'import', selected});
+    globalThis.dispatchEvent(new Event('dp-catalogue-changed'));
     await onImported?.(result);
     renderCatalogue(await request(fetcher));
     message(`已导入 / Imported: ${result.written.length}；重复项保留 / Duplicates kept: ${result.duplicates.length}`);

@@ -1,4 +1,5 @@
 import { observeActivity } from "./shared.js";
+import { commandError } from "./errors.mjs";
 // Disc Lab desk page: a translator between a person and `python -m disclab ... --json`.
 //
 // Everything shown comes from the server's /api/status (that is `disclab status --json`) and from the
@@ -92,15 +93,16 @@ async function run(argv, { quiet = false } = {}) {
   try {
     const r = await api("/api/run", { argv });
     if (r.job) { watch(r.job); return; }
-    if (r.status !== "ok") toast(errText(r));
+    if (r.status !== "ok") toast(errText(r), true);
     else if (!quiet) toast(tr("好了。", "Done."));
     await refresh();
     return r;
-  } catch (e) { toast(e.message); }
+  } catch (e) { toast(e.message, true); }
   finally { pending = false; paintNext(); }
 }
-function errText(r) { return (r?.errors || []).map((e) => pick(e.message)).filter(Boolean).join(" ") || tr("没有成功。", "It did not work."); }
+function errText(r, log = '') { return commandError(r, log, lang); }
 let lastJob = null;
+let lastLog = '';
 let jobTimer = 0, resumeJob = null, jobPolling = false;
 function watch(id) {
   lastJob = id;
@@ -115,7 +117,8 @@ function watch(id) {
       paintJob();
       if (job.state === "running") { if (pageActive) jobTimer = setTimeout(tick, 700); return; }
       const done = job;
-      if (done.state === "failed") toast(errText(done.result));
+      lastLog = done.log || '';
+      if (done.state === "failed") toast(errText(done.result, done.log), true);
       else if (done.argv[0] === "box") toast(tr("新的一箩建好了，第一张已经放进光驱。", "New basket made; its first disc is in the drive."));
       // read the new state before the next button comes back, or it would offer the step just run again
       await refresh().catch(() => {});
@@ -530,13 +533,15 @@ function stepList(filter) {
     const cls = s.done ? "done" : s.current ? "here" : s.skip ? "skip" : "";
     const place = s.place !== mode ? `<span class="place">${esc(w(W[s.place]))}</span>` : `<span class="cmd">${esc(s.runs)}</span>`;
     const detail = s.skip ? tr(s.skip.zh, s.skip.en) : s.current ? tr(s.why.zh, s.why.en) + (s.detail ? ` · ${pick(s.detail)}` : "") : pick(s.detail);
+    const skipCheck = stepBy('geo')?.done && s.current && ['checkdisc', 'check_burn', 'photos', 'photo'].includes(s.key)
+      ? `<button class="sbtn quiet" data-a="skip-check" ${job || pending ? 'disabled' : ''}>${tr('跳过检查盘、继续生成成品（L 未知）', 'Skip the check disc; make the final file (L unknown)')}</button>` : '';
     html += `<li class="step ${cls}"><span class="mk"></span><span class="nm">${esc(tr(s.zh, s.en))}${s.current ? ` <span class="note">← ${tr("现在到这里", "you are here")}</span>` : ""}</span>${place}` +
-      `<span class="dt">${esc(detail || "")}</span>${s.error ? `<span class="err">${esc(tr("上次没成功：", "Last try failed: ") + pick(s.error))}</span>` : ""}</li>`;
+      `<span class="dt">${esc(detail || "")}${skipCheck}</span>${s.error ? `<span class="err">${esc(tr("上次没成功：", "Last try failed: ") + pick(s.error))}</span>` : ""}</li>`;
   }
   return `<ul class="steps">${html}</ul>`;
 }
 function logBlock() {
-  return `<details class="log" id="log"><summary>${tr("日志（命令的原始输出）", "Log (the commands' own output)")}</summary><pre>${esc(job?.log || "")}</pre></details>`;
+  return `<details class="log" id="log"><summary>${tr("日志（命令的原始输出）", "Log (the commands' own output)")}</summary><pre>${esc(job?.log || lastLog)}</pre></details>`;
 }
 
 function burnerSheet() {
@@ -701,6 +706,7 @@ document.addEventListener("click", async (e) => {
   const el = e.target.closest("[data-a]"); if (!el || el.tagName === "SELECT" || el.tagName === "INPUT") return;
   const a = el.dataset.a, d = drive();
   if (a === "swap") run(["swap"], { quiet: true });
+  else if (a === "skip-check") run(["step", "skip-check"]);
   else if (a === "eject") run(["tray", "--drive", d.name, "--open"], { quiet: true });
   else if (a === "close") run(["tray", "--drive", d.name, "--disc", d.tray || ""].filter(Boolean), { quiet: true });
   else if (a === "measured") run(["tray", "--disc", measureDisc()], { quiet: true });
@@ -775,7 +781,7 @@ document.addEventListener("click", () => { if (!$("set-menu").hidden) { $("set-m
 addEventListener("keydown", (e) => { if (e.key === "Escape" && mode) { if (!$("zoom").hidden) $("zoom").hidden = true; else go(""); } });
 addEventListener("resize", fit);
 let toastT;
-function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 4200); }
+function toast(text, error = false) { const t = $("toast"); t.textContent = text; t.setAttribute('role', error ? 'alert' : 'status'); t.classList.add("on"); clearTimeout(toastT); if (!error) toastT = setTimeout(() => t.classList.remove("on"), 4200); }
 
 // ------------------------------------------------------------------ start
 (async () => {

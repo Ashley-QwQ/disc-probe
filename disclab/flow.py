@@ -131,6 +131,8 @@ def _web_records(lab, st, steps):
         if kind == "measure":
             add("measure_image", s.get("iso_mtime") or s.get("when"), iso=str(iso), paths=[str(iso)], detail=iso.name)
         add(f"{kind}_burn", s.get("when"), disc=disc, iso=str(iso), paths=[str(iso)], detail=f"{iso.name} → {disc}")
+        if kind == "final":
+            add("final", s.get("iso_mtime") or s.get("when"), iso=str(iso), paths=[str(iso)], detail=iso.name)
     iso_dir = lab.root / "iso"
     for iso in sorted(iso_dir.glob("*measurement*.iso")):
         add("measure_image", _mtime(iso), iso=str(iso), paths=[str(iso)], detail=iso.name)
@@ -233,8 +235,11 @@ def plan(lab: Lab):
     """Every step with done / current / detail; `current` is the first one still open."""
     done_at = {}
     out = []
+    bypass = skips_check(lab)
     for s in STEPS:
         key, needs = s[0], s[6]
+        if key == "final" and bypass:
+            needs = ("picture",)
         row = last_ok(lab, key)
         # a step counts only if it was done after what it needs (a new geo makes the old picture stale)
         ok = row is not None and all(n in done_at and row["t"] >= done_at[n] for n in needs)
@@ -247,6 +252,10 @@ def plan(lab: Lab):
         if ok:
             done_at[key] = row["t"]
         step = info(key)
+        step["needs"] = list(needs)
+        if bypass and key == "final":
+            step["why"] = dict(zh="跳过检查盘生成成品；沿轨常数 L 未知，不作照片修正。",
+                               en="Make the final file without a check disc; L is unknown, with no photo correction.")
         step.update(done=ok, detail=(row or {}).get("detail", ""), disc=(row or {}).get("disc"),
                     error=None, current=False)
         last = (records(lab, key) or [None])[-1]
@@ -255,12 +264,28 @@ def plan(lab: Lab):
         out.append(step)
     fam = family(lab) if lab.box_path.exists() else "dvd"
     for step in out:
+        if bypass and step["key"] in ("checkdisc", "check_burn", "photos", "photo"):
+            step["skip"] = dict(zh="已跳过检查盘和拍照；L 未知。", en="Check disc and photos skipped; L is unknown.")
         if fam != "dvd" and step["key"] in ("checkdisc", "check_burn", "photos", "photo", "final", "final_burn"):
             step["skip"] = dict(zh="检查盘和拍照目前只用于 DVD。", en="The check disc and photos are DVD only for now.")
     current = next((s for s in out if not s["done"] and not s.get("skip")), None)
     if current:
         current["current"] = True
     return out
+
+
+def skips_check(lab):
+    geo = last_ok(lab, "geo")
+    if not geo:
+        return False
+    chosen = last_ok(lab, "skip_check")
+    if chosen and chosen["t"] >= geo["t"]:
+        return True
+    # A finished web burn is also evidence of DP's supported direct-final branch.
+    final = last_ok(lab, "final_burn")
+    photo = last_ok(lab, "photo")
+    return bool(final and final["t"] >= geo["t"] and
+                not (photo and photo["t"] >= geo["t"] and photo.get("offset_mm") is not None))
 
 
 def status(lab: Lab):
@@ -395,7 +420,7 @@ def run_step(lab: Lab, key: str, *, drive=None, picture=None, photos=3, style="f
     st = plan(lab)
     me = next(s for s in st if s["key"] == key)
     refusal = me["skip"]["zh"] + " / " + me["skip"]["en"] if me.get("skip") else None
-    for need in step["needs"]:
+    for need in me["needs"]:
         prev = next(s for s in st if s["key"] == need)
         if not prev["done"] and refusal is None:
             refusal = f"先完成“{prev['zh']}”。 / Do “{prev['en']}” first."
@@ -571,6 +596,14 @@ class _Refused(StepError):
 
 
 def _final(lab, drive, fam, quick, o):
+    if skips_check(lab):
+        folder = _geo_folder(lab)
+        src = Path(o["picture"]) if o.get("picture") else Path(last_ok(lab, "picture").get("picture") or SAMPLE)
+        image = lab.root / "iso" / "final.iso"
+        _dp(lab, "image", "--geo", folder / "summary.json", "--picture", src, "--output", image,
+            "--media", fam, "--no-photo-l", *picture_range(lab, folder))
+        return dict(paths=[str(image), str(image.with_suffix('.image.json'))], iso=str(image), picture=str(src),
+                    detail="未用照片修正；L 未知 / No photo correction; L unknown")
     row = last_ok(lab, "photo")
     if row.get("offset_mm") is None:
         raise StepError(f"照片没有给出可信的 L（{row.get('verdict')}），回手机再拍几张。 / The photos gave no usable L: take more.")
@@ -595,7 +628,9 @@ def _final(lab, drive, fam, quick, o):
 def _final_burn(lab, drive, fam, quick, o):
     rec = _burn(lab, drive, last_ok(lab, "final")["iso"], "final_burn", fam)
     if not o["keep_iso"]:
-        free_iso(lab, last_ok(lab, "checkdisc")["iso"])
+        check = last_ok(lab, "checkdisc")
+        if check:
+            free_iso(lab, check["iso"])
     return rec
 
 
@@ -645,6 +680,11 @@ def cmd_step(a):
     if a.quick is not None:
         lab.step("flow_config", status="ok", quick=bool(a.quick))
     key = a.key
+    if key == "skip-check":
+        if not next(s for s in plan(lab) if s["key"] == "geo")["done"]:
+            raise SystemExit("先测几何。 / Measure geometry first.")
+        lab.step("flow", key="skip_check", status="ok", detail="L 未知 / L unknown")
+        return dict(step="skip_check", status=status(lab))
     if key == "next":
         key = next((s["key"] for s in plan(lab) if s["current"]), None)
         if key is None:
@@ -682,7 +722,7 @@ def add_parser(sub):
     p.set_defaults(func=cmd_status)
 
     p = sub.add_parser("step", help="run one practice step by name (disc-probe's order), or 'next'")
-    p.add_argument("key", choices=KEYS + ["next"])
+    p.add_argument("key", choices=KEYS + ["next", "skip-check"])
     p.add_argument("--lab", required=True)
     p.add_argument("--drive")
     p.add_argument("--picture", help="picture file for 放进图片 / 生成成品 (default: the lab's sample)")

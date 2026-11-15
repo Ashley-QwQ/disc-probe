@@ -37,7 +37,7 @@ export function hideOptional(doc, missing) {
     if (missing.includes(entry.dataset.capability)) entry.hidden = true;
   }
 }
-export function showSheet(doc, update, missing = []) {
+export function showSheet(doc, update, missing = [], retry = () => {}) {
   const zh = doc.documentElement.dataset.lang === 'zh';
   const sheet = doc.createElement('main'); sheet.id = 'gui-compatibility'; sheet.setAttribute('role', 'alert');
   const heading = doc.createElement('h1'), text = doc.createElement('p');
@@ -49,13 +49,26 @@ export function showSheet(doc, update, missing = []) {
       : (zh ? '无法核对页面与核心版本。请确认本机服务正在运行，再重新打开页面。' : 'Cannot check the GUI and core versions. Check that the local server is running, then reopen this page.');
   sheet.append(heading, text);
   if (missing.length) { const detail = doc.createElement('p'); detail.textContent = (zh ? '缺少能力：' : 'Missing capabilities: ') + missing.join(', '); sheet.append(detail); }
+  const button = doc.createElement('button'); button.type = 'button'; button.className = 'btn';
+  button.textContent = zh ? '重试' : 'Retry'; button.addEventListener?.('click', retry);
+  const help = doc.createElement('p');
+  help.textContent = zh
+    ? '在启动 disc-probe 的终端确认服务仍在运行，并使用终端显示的本机网址（含口令）打开页面。服务关闭了就重新启动；仍打不开时检查核心和 GUI 包是否配套。'
+    : 'Check the terminal that started disc-probe: the server must still be running. Open its local URL, including the token. Restart a stopped server; check that the core and GUI pack match.';
+  const status = doc.createElement('p'); status.setAttribute('role', 'status');
+  sheet.append(button, status, help);
   doc.body.replaceChildren(sheet);
   doc.documentElement.dataset.handshake = 'failed';
+  return {button, status};
 }
-export async function handshake(doc = document, fetcher = fetch, address = location) {
+export async function handshake(doc = document, fetcher = fetch, address = location, {delays = [1000, 2000, 4000]} = {}) {
   // File-based design previews are deliberately standalone; served GUIs always negotiate.
   if (address.protocol === 'file:') { doc.documentElement.dataset.handshake = 'ready'; return; }
-  try {
+  const original = [...(doc.body.childNodes || [])];
+  let attempt = 0, failed = false;
+  for (;;) {
+    let result;
+    try {
     const token = new URLSearchParams(address.search).get('token');
     const get = async path => {
       const response = await fetcher(path, {headers: token ? {'X-Discprobe-Token':token} : {}, cache:'no-store', signal:AbortSignal.timeout(10000)});
@@ -63,13 +76,26 @@ export async function handshake(doc = document, fetcher = fetch, address = locat
       return response.json();
     };
     const [manifest, core] = await Promise.all([get('/gui.json'), get('/api/version')]);
-    const result = compatibility(manifest, core);
-    if (result.update) { showSheet(doc, result.update, result.missing); return new Promise(() => {}); }
-    available = new Set(core.capabilities);
-    hideOptional(doc, result.optional);
-    doc.documentElement.dataset.handshake = 'ready';
-  } catch {
-    showSheet(doc, null);
-    return new Promise(() => {});
+      result = compatibility(manifest, core);
+      if (!result.update) {
+        available = new Set(core.capabilities);
+        if (failed) doc.body.replaceChildren(...original);
+        hideOptional(doc, result.optional);
+        doc.documentElement.dataset.handshake = 'ready';
+        return;
+      }
+    } catch { result = {update: null, missing: []}; }
+    failed = true;
+    await new Promise(resolve => {
+      let timer;
+      const retry = () => { clearTimeout(timer); resolve(); };
+      const ui = showSheet(doc, result.update, result.missing, retry);
+      if (!result.update && attempt < delays.length) {
+        const delay = delays[attempt++];
+        ui.status.textContent = doc.documentElement.dataset.lang === 'zh'
+          ? `${delay / 1000} 秒后自动重试（${attempt}/${delays.length}）。` : `Retrying in ${delay / 1000}s (${attempt}/${delays.length}).`;
+        timer = setTimeout(retry, delay);
+      }
+    });
   }
 }

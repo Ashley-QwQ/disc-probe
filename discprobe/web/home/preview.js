@@ -8,7 +8,7 @@ import { ringButton } from "./kit/ringbutton.js";
 //   { media: "dvd"|"cd", item, alongTrackMeasured?,
 //     project: { name?, cellMm?, render(ppm) -> canvas of the toned design, 120 mm square, centre in the middle },
 //     exportIso(onProgress, { signal }) -> Promise<{ path, sectors, bytes }>,
-//     back(), next?(iso), showInFolder?(path) }
+//     back(), next?(iso) }
 // Starting again with the same ctx keeps the file already made. Nothing here touches a drive.
 // The first layout and words came from a Codex draft (2026-11-10); rewritten to the design page's style.
 
@@ -71,7 +71,7 @@ const STR = {
       time: (m) => `刻录约 ${m} 分钟`, timeLater: "刻录时间：生成后知道", size: (b) => `文件 ${b}` },
     file: "刻录文件", fileNote: "把设计变成可以刻录的文件。生成以后才能去刻录。",
     make: "生成刻录文件", again: "重新生成", calibrate: "先标定这批盘", cancel: "取消", making: "正在生成…", made: "刻录文件已生成", madeExp: "实验纹理的刻录文件已生成：颜色没有验证过。", geoUsed: "几何",
-    cancelled: "已取消，可以重新生成。", failed: "没有生成出来。", sectors: "扇区", where: "保存位置", folder: "在文件夹里显示",
+    cancelled: "已取消，可以重新生成。", failed: "没有生成出来。", sectors: "扇区", where: "保存位置",
     details: "详细信息",
     cd: "这张 CD 的沿轨常数还没确认，径向线可能扭曲。回到标定页，用手机拍照读出它；读不出来时，也可以导出 DIS 预设，在 DIS 里精细标定。",
     offH: "差一点会怎样", offNote: "标定差一点时，图会一圈一圈地拧开，离中间那一圈越远拧得越多。这就是要先标定的原因。",
@@ -108,7 +108,7 @@ const STR = {
       time: (m) => `Burning takes about ${m} min`, timeLater: "Burn time: known once the file is made", size: (b) => `File ${b}` },
     file: "Burn file", fileNote: "Turn the design into a file to burn. Make it before going on to burn.",
     make: "Make the burn file", again: "Make it again", calibrate: "Calibrate this batch first", cancel: "Cancel", making: "Making…", made: "Burn file ready", madeExp: "Experimental-texture burn file ready: the colours are unverified.", geoUsed: "Geometry",
-    cancelled: "Cancelled. You can make it again.", failed: "The file wasn't made.", sectors: "sectors", where: "Saved at", folder: "Show in folder",
+    cancelled: "Cancelled. You can make it again.", failed: "The file wasn't made.", sectors: "sectors", where: "Saved at",
     details: "Details",
     cd: "This CD’s along-track constant is not confirmed; radial lines may twist. Go back to calibration and read it from phone photos; if they cannot be read, export a DIS preset and fine-calibrate in DIS.",
     offH: "What a small error does", offNote: "When calibration is a little off, the picture twists ring by ring, more the further from the middle ring. That is why calibration comes first.",
@@ -179,7 +179,7 @@ function buildRight() {
     (ready ? `<p class="note">${s.iso.experimental ? t.madeExp : t.made}</p>` +
       `<div class="pv-file"><b>${esc(s.iso.path.split(/[\\/]/).pop())}</b><span class="mono">${fmtBytes(s.iso.bytes)} · ${s.iso.sectors.toLocaleString()} ${t.sectors}</span></div>` +
       `<details class="pv-more"><summary>${t.details}</summary><p class="note mono">${esc(s.iso.path)}</p>${s.iso.geo ? `<p class="note mono">${t.geoUsed}: ${esc(s.iso.geo)}</p>` : ""}</details>` +
-      `<div class="row2">${ctx.showInFolder ? `<button class="sbtn" type="button" data-a="folder">${t.folder}</button>` : ''}<button class="sbtn" type="button" data-a="make">${t.again}</button></div>`
+      `<div class="row2"><button class="sbtn" type="button" data-a="make">${t.again}</button></div>`
     : busy ? `<div class="pv-gen" aria-hidden="true"></div>` +
       // the bar the page had before the filling disc (64f6884): percent and time left when the core reports progress
       `<div class="pv-bar live" role="progressbar" aria-valuemin="0" aria-valuemax="100" ${pct == null ? "" : `aria-valuenow="${pct}"`} aria-label="${esc(s.stage || t.making)}"><i style="--f:${s.fraction ?? 0}" class="${s.fraction ? "" : "indet"}"></i></div>` +
@@ -465,7 +465,6 @@ function bind(signal) {
     if (a === "calibrate") { state = ctx.state = { phase: "idle" }; leave(false); ctx.calibrate(); }
     if (a === "cancel") cancel();
     if (a === "checkburn") { const iso = state.checkIso; finish(ctx, state, { phase: "idle" }); leave(false); ctx.next?.(iso); }
-    if (a === "folder") ctx.showInFolder?.(state.iso.path);
   });
   on(W.right, "change", (e) => {
     if (e.target.dataset.a === "experimental") {
@@ -582,4 +581,9 @@ export function leave(goBack = true) {
   if (isOn()) root.dataset.mode = "";
   if (api) { $("next").disabled = false; $("back").hidden = true; }
   if (goBack) ctx?.back?.();
+}
+export function navigationState() { return {context: ctx, state: ctx?.state}; }
+export function resumeNavigation(homeApi, saved) {
+  if (saved?.context) return start(homeApi, saved.context);
+  if (ctx && saved?.state) { state = ctx.state = saved.state; words(); }
 }
