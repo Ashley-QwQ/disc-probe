@@ -179,7 +179,10 @@ def build_disc_lab(snapshot, candidates, version, python, logs, env, checks):
     with zipfile.ZipFile(target) as archive:
         archive.extractall(extracted)
     lab_env = dict(env, PYTHONPATH=str(snapshot))
-    run_check([*python, '-m', 'pytest', 'disclab/tests', '-q', '-p', 'no:cacheprovider'],
+    # test_package.py checks the repository layout itself (it clears PYTHONPATH and expects discprobe/ beside
+    # disclab/); it runs in the full suite on the frozen commit, so the unpacked copy skips it.
+    run_check([*python, '-m', 'pytest', 'disclab/tests', '-q', '-p', 'no:cacheprovider',
+               '--ignore=disclab/tests/test_package.py'],
               extracted, logs / 'disc-lab-pytest.log', lab_env, checks)
     return dict(status='PASS', asset=target.name, core_source='frozen snapshot')
 
