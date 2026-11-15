@@ -1254,6 +1254,11 @@ def cmd_gridscan(args):
         print(f"  phi.csv and summary.json: {os.path.abspath(out)}")
 
 
+def cmd_curve_edit(args):
+    from .curve_edit import cli
+    cli(args)
+
+
 def cmd_correction(args):
     from .gridscan import fit_correction
     c = fit_correction(args.phi, args.output, degree=args.degree, geometry=args.geo, base=args.base)
@@ -2419,6 +2424,14 @@ def _build_parser():
     sp.add_argument("--auto-mirror", action="store_true", help="let the (weak) mirror test decide orientation")
     sp.add_argument("--out", default="results")
     sp.set_defaults(func=cmd_gridscan)
+
+    sp = sub.add_parser("curve-edit", help="refit assisted phi(r) edits and independently validate before saving")
+    sp.add_argument("--run", required=True, help="geo run folder with correction.json and probes.json")
+    edits = sp.add_mutually_exclusive_group()
+    edits.add_argument("--edit", help="curve-edit v1 JSON file; omit to get the automatic initial document")
+    edits.add_argument("--edit-json", help="inline curve-edit v1 JSON, for API clients")
+    sp.add_argument("--save", action="store_true", help="save only after fresh independent validation")
+    sp.set_defaults(func=cmd_curve_edit)
 
     sp = sub.add_parser("correction", help="fit an angle-correction curve from gridscan phi.csv files")
     sp.add_argument("phi", nargs="+", help="phi.csv files written by gridscan")
