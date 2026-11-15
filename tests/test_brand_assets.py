@@ -20,6 +20,29 @@ def load(name):
     return module
 
 
+@pytest.mark.skipif(not Path('C:/Windows/Fonts/ariblk.ttf').is_file(), reason='Windows local fallback calibration')
+def test_title_metric_css_rebuild_and_title_only_scope():
+    import re
+    script = load('tools/align_title_fonts.py')
+    css, report = script.generate()
+    for product in ('discprobe', 'disclab'):
+        assert (ROOT / product / 'web/fonts/titles.css').read_text(encoding='utf-8') == css
+    # Existing selector scope is the contract: no body/layout/color declarations.
+    old = (ROOT / 'tests/fixtures/title-fonts-before.css').read_text(encoding='utf-8')
+    strip_comments = lambda text: re.sub(r'/\*.*?\*/', '', text, flags=re.S)
+    old_rule = re.findall(r'([^{}]+)\{([^{}]*)\}', strip_comments(old))[-1]
+    new_rule = re.findall(r'([^{}]+)\{([^{}]*)\}', strip_comments(css))[-1]
+    assert tuple(part.strip() for part in new_rule) == tuple(part.strip() for part in old_rule)
+    # Override percentages must account for size-adjust; effective metrics are
+    # the original Archivo metrics for every declared fallback width.
+    for block in re.findall(r'@font-face\s*\{([^}]+)\}', css):
+        values = dict(re.findall(r'([\w-]+):\s*([\d.]+)%;', block))
+        scale = float(values['size-adjust']) / 100
+        for metric, expected in report['target_em'].items():
+            effective = float(values[metric + '-override']) / 100 * scale
+            assert effective == pytest.approx(expected, abs=1e-7)
+
+
 def test_title_font_covers_all_interface_chinese_and_level_one():
     from fontTools.ttLib import TTFont
     script = load('tools/subset_title_font.py')

@@ -13,3 +13,22 @@ under discprobe/web and disclab/web (excluded paths pruned), plus GB2312 level 1
 No Latin letters or digits. titles.css applies only to headings/title labels;
 Archivo remains first for Latin/digits, body text keeps the existing system face.
 The independent Lab static root carries an identical font/CSS/license copy.
+
+Title metric alignment (A2):
+Rebuild both titles.css copies: python -X utf8 -B tools/align_title_fonts.py
+Verify without writing: python -X utf8 -B tools/align_title_fonts.py --check
+Requires fontTools[woff], the bundled fonts, and Windows Arial Black / Microsoft
+YaHei UI Bold in the Windows Fonts directory (override with --windows-fonts).
+--report path/to/metrics.json records input hashes, head/hhea/OS2 values and ratios.
+Archivo Title is a title-only alias; body Archivo declarations remain untouched.
+SC size-adjust = (Archivo sxHeight / UPM) / (SC sxHeight / UPM) = 526 / 543.
+All effective ascents/descents/gaps use Archivo's typo metrics: .878/.210/0 em.
+Descriptor overrides divide those metrics by size-adjust (CSS scales both).
+Han fallback matches one-em ideograph advances; local Latin matches aggregate
+hmtx advances for the fixed corpus at weight 800, separately for title widths.
+The system fonts are local() references only, never bundled or downloaded.
+Static fallback glyph shapes, kerning and arbitrary variable instances differ;
+missing local faces use the existing platform stack without calibration.
+No font-size-adjust is layered onto this: it would cancel advance calibration.
+Offline Edge comparison: node tests/test_title_font_alignment.mjs
+Set BRAND_MIXED_OUTPUT to keep screenshots and measurements outside the checkout.
