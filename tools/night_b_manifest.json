@@ -1,0 +1,819 @@
+{
+ "note": "Night palette 深青 B. Every dark picture below was re-rendered from its own script with the dark block remapped by tools/night_b_palette.py, then encoded like the committed file by tools/night_b_export.py. paper_check compares the same run's paper render with the committed paper picture (unchanged): it shows the job matches what made the original art. Paper pictures were not written.",
+ "blender": "5.2.2 LTS, Cycles on CPU (the originals were made with the same version)",
+ "jobs": {
+  "F_lobby_a": {
+   "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+   "scene": "room_fax.blend",
+   "args": "--layers base,faxnews,filebox --ss 4 --no-mist --force",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_lobby_b": {
+   "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+   "scene": "room_fax_parcel.blend",
+   "args": "--layers base,parcel --ss 4 --no-mist --force",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_lobby_c": {
+   "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+   "scene": "room_fax.blend",
+   "args": "--layers fax,lamp,newplan,screen --ss 4 --no-mist --force",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_lobby_d": {
+   "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+   "scene": "room_fax.blend",
+   "args": "--layers screen --ss 4 --no-mist --force --glow glow_review.json",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_burner": {
+   "script": "discprobe/web/home/render_burner.py",
+   "scene": "disc_explode_render.blend",
+   "args": "",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_burner_layers": {
+   "script": "discprobe/web/home/render_burner_layers.py",
+   "scene": "disc_explode_render.blend",
+   "args": "",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_interior": {
+   "script": "discprobe/web/home/interior/render_interior.py",
+   "scene": "disc_explode_render.blend",
+   "args": "",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_caltop": {
+   "script": "discprobe/web/home/caltop/render_caltop.py",
+   "scene": "disc_explode_render.blend",
+   "args": "",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_caltop_anim": {
+   "script": "discprobe/web/home/caltop/render_caltop.py",
+   "scene": "disc_explode_render.blend",
+   "args": "--anim 1",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_np_top": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "disc_explode_render.blend",
+   "args": "--mode top",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_np_paper": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode paper",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_np_env": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode envelope",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_np_desk": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode desk --blend lobby_tray.blend --penrose props/penrose.json",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_pw_env": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode envelope --env-h 0.240",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_fax_top": {
+   "script": "discprobe/web/home/faxnews/render_faxnews.py",
+   "scene": "factory startup",
+   "args": "--mode fax --blend fax_news.blend",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_tumble0": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode envelope --env-h 0.300 --tumble 35,10,15 --tag 0 --size 640",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_tumble1": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode envelope --env-h 0.300 --tumble -40,20,330 --tag 1 --size 640",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_tumble2": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode envelope --env-h 0.300 --tumble 60,-15,70 --tag 2 --size 640",
+   "blender": "5.2.2 LTS",
+   "machine": "lab1280p (Windows, CPU, P cores only: affinity 0xFFF, -t 12)",
+   "device": "CPU"
+  },
+  "F_tumble3": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode envelope --env-h 0.300 --tumble 20,45,300 --tag 3 --size 640",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_tumble4": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode envelope --env-h 0.300 --tumble -55,-30,120 --tag 4 --size 640",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_tumble5": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode envelope --env-h 0.300 --tumble 75,5,345 --tag 5 --size 640",
+   "blender": "5.2.2 LTS",
+   "machine": "lab1280p (Windows, CPU, P cores only: affinity 0xFFF, -t 12)",
+   "device": "CPU"
+  },
+  "F_tumble6": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode envelope --env-h 0.300 --tumble 10,-50,160 --tag 6 --size 640",
+   "blender": "5.2.2 LTS",
+   "machine": "lab1280p (Windows, CPU, P cores only: affinity 0xFFF, -t 12)",
+   "device": "CPU"
+  },
+  "F_tumble7": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode envelope --env-h 0.300 --tumble -25,60,45 --tag 7 --size 640",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_tumble8": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode envelope --env-h 0.300 --tumble 45,35,250 --tag 8 --size 640",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "F_tumble9": {
+   "script": "discprobe/web/home/newplan/render_newplan.py",
+   "scene": "factory startup",
+   "args": "--mode envelope --env-h 0.300 --tumble -70,-10,25 --tag 9 --size 640",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  },
+  "L_round5": {
+   "script": "art/desk/night-b/render_round5_nightb.py (gitignored art folder; the lobby script art/desk/render_desk.py with its dark block remapped by tools/night_b_palette.py)",
+   "scene": "art/desk/review-20261111/round5/room_round5.blend",
+   "args": "--layers fax --ss 4 --no-mist",
+   "blender": "5.2.2 LTS",
+   "machine": "lab1280p (Windows, CPU, P cores only: affinity 0xFFF, -t 12)",
+   "device": "CPU"
+  },
+  "L_lobby3": {
+   "script": "art/desk/night-b/render_round5_nightb.py (gitignored art folder; the lobby script art/desk/render_desk.py with its dark block remapped by tools/night_b_palette.py)",
+   "scene": "art/desk/room_lobby3_final.blend",
+   "args": "--layers lamp,newplan --ss 4 --no-mist --force",
+   "blender": "5.2.2 LTS",
+   "machine": "x79 (Linux, CPU, 16 threads)",
+   "device": "CPU"
+  }
+ },
+ "pictures": {
+  "discprobe/web/home/burner_body_dark.png": {
+   "job": "F_burner_layers",
+   "encoding": "png copy of the webp next to it",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/burner_body_dark.webp": {
+   "job": "F_burner_layers",
+   "encoding": "lossless",
+   "paper_check": "mean 0.07, alpha mean 0.00, px >8: 0.442%"
+  },
+  "discprobe/web/home/burner_dark.png": {
+   "job": "F_burner",
+   "encoding": "png copy of the webp next to it",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/burner_dark.webp": {
+   "job": "F_burner",
+   "encoding": "lossless",
+   "paper_check": "mean 0.06, alpha mean 0.00, px >8: 0.405%"
+  },
+  "discprobe/web/home/burner_shadow_dark.webp": {
+   "job": "F_burner_layers",
+   "encoding": "lossless",
+   "paper_check": "new picture"
+  },
+  "discprobe/web/home/burner_shadow_paper.webp": {
+   "job": "F_burner_layers",
+   "encoding": "lossless",
+   "paper_check": "new picture"
+  },
+  "discprobe/web/home/burner_tray_dark.png": {
+   "job": "F_burner_layers",
+   "encoding": "png copy of the webp next to it",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/burner_tray_dark.webp": {
+   "job": "F_burner_layers",
+   "encoding": "lossless",
+   "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.330%"
+  },
+  "discprobe/web/home/burner_traydisc_dark.png": {
+   "job": "F_burner_layers",
+   "encoding": "png copy of the webp next to it",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/burner_traydisc_dark.webp": {
+   "job": "F_burner_layers",
+   "encoding": "lossless",
+   "paper_check": "mean 0.03, alpha mean 0.00, px >8: 0.275%"
+  },
+  "discprobe/web/home/burner_traydiscshadow_dark.webp": {
+   "job": "F_burner_layers",
+   "encoding": "lossless",
+   "paper_check": "new picture"
+  },
+  "discprobe/web/home/burner_traydiscshadow_paper.webp": {
+   "job": "F_burner_layers",
+   "encoding": "lossless",
+   "paper_check": "new picture"
+  },
+  "discprobe/web/home/burner_trayshadow_dark.webp": {
+   "job": "F_burner_layers",
+   "encoding": "lossless",
+   "paper_check": "new picture"
+  },
+  "discprobe/web/home/burner_trayshadow_paper.webp": {
+   "job": "F_burner_layers",
+   "encoding": "lossless",
+   "paper_check": "new picture"
+  },
+  "discprobe/web/home/caltop/*_paper.webp": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "compose_anim",
+   "paper_check": "changed: none"
+  },
+  "discprobe/web/home/caltop/anim/desk_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/disc_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/discshadow_far_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/discshadow_near_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/discstart_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/final_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/overbody_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/overclamp_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/pool_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/prop_pen_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/prop_pen_shadow_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/prop_penrose_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/prop_penrose_shadow_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/prop_square_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/prop_square_shadow_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/shadowbody_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/tray_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/trayin_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/trayshadow_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/anim/under_dark.webp": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/bg_dark.webp": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/disc_dark.webp": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/lid_dark.webp": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/mid_dark.webp": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/occluders_dark.webp": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/out_anim/discstart_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%"
+  },
+  "discprobe/web/home/caltop/out_anim/overbody_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.002%"
+  },
+  "discprobe/web/home/caltop/out_anim/overclamp_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%"
+  },
+  "discprobe/web/home/caltop/out_anim/prop_pen_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/caltop/out_anim/prop_pen_shadow_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/caltop/out_anim/prop_penrose_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.007%"
+  },
+  "discprobe/web/home/caltop/out_anim/prop_penrose_shadow_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/caltop/out_anim/prop_square_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%"
+  },
+  "discprobe/web/home/caltop/out_anim/prop_square_shadow_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/caltop/out_anim/shadowbody_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/caltop/out_anim/tray_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%"
+  },
+  "discprobe/web/home/caltop/out_anim/trayin_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%"
+  },
+  "discprobe/web/home/caltop/out_anim/trayshadow_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/caltop/out_anim/under_dark.png": {
+   "job": "F_caltop_anim + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.01, alpha mean 0.00, px >8: 0.013%"
+  },
+  "discprobe/web/home/caltop/out_pool/bg_dark.png": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/caltop/out_pool/disc_dark.png": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%"
+  },
+  "discprobe/web/home/caltop/out_pool/glow_dark.png": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/caltop/out_pool/lid_dark.png": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/caltop/out_pool/mid_dark.png": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/caltop/out_pool/occluders_dark.png": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.001%"
+  },
+  "discprobe/web/home/caltop/out_pool/shadow_dark.png": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/caltop/out_pool/sled_dark.png": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "png",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/caltop/shadow_dark.webp": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/caltop/sled_dark.webp": {
+   "job": "F_caltop + caltop/compose_anim.py",
+   "encoding": "written by the job's own compose step",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/faxnews/handset_dark.webp": {
+   "job": "F_fax_top",
+   "encoding": "(92, 6)",
+   "paper_check": "mean 0.14, alpha mean 0.00, px >8: 0.010%"
+  },
+  "discprobe/web/home/faxnews/handset_shadow_dark.webp": {
+   "job": "F_fax_top",
+   "encoding": "(80, 6)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/faxnews/top_dark.webp": {
+   "job": "F_fax_top",
+   "encoding": "(92, 6)",
+   "paper_check": "mean 0.01, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/interior/bg_dark.png": {
+   "job": "F_interior",
+   "encoding": "png copy of the webp next to it",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/interior/bg_dark.webp": {
+   "job": "F_interior",
+   "encoding": "lossless",
+   "paper_check": "mean 0.08, alpha mean 0.00, px >8: 0.547%"
+  },
+  "discprobe/web/home/interior/disc_cut_dark.png": {
+   "job": "F_interior",
+   "encoding": "png copy of the webp next to it",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/interior/disc_cut_dark.webp": {
+   "job": "F_interior",
+   "encoding": "lossless",
+   "paper_check": "mean 0.03, alpha mean 0.00, px >8: 0.255%"
+  },
+  "discprobe/web/home/interior/disc_dark.png": {
+   "job": "F_interior",
+   "encoding": "png copy of the webp next to it",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/interior/disc_dark.webp": {
+   "job": "F_interior",
+   "encoding": "lossless",
+   "paper_check": "mean 0.01, alpha mean 0.00, px >8: 0.045%"
+  },
+  "discprobe/web/home/interior/glow_dark.png": {
+   "job": "F_interior",
+   "encoding": "png copy of the webp next to it",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/interior/glow_dark.webp": {
+   "job": "F_interior",
+   "encoding": "lossless",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/interior/mid_dark.png": {
+   "job": "F_interior",
+   "encoding": "png copy of the webp next to it",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/interior/mid_dark.webp": {
+   "job": "F_interior",
+   "encoding": "lossless",
+   "paper_check": "mean 0.01, alpha mean 0.00, px >8: 0.133%"
+  },
+  "discprobe/web/home/interior/occluders_dark.png": {
+   "job": "F_interior",
+   "encoding": "png copy of the webp next to it",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/interior/occluders_dark.webp": {
+   "job": "F_interior",
+   "encoding": "lossless",
+   "paper_check": "mean 0.17, alpha mean 0.00, px >8: 1.219%"
+  },
+  "discprobe/web/home/interior/sled_dark.png": {
+   "job": "F_interior",
+   "encoding": "png copy of the webp next to it",
+   "paper_check": "see the row of the same picture / compose check"
+  },
+  "discprobe/web/home/interior/sled_dark.webp": {
+   "job": "F_interior",
+   "encoding": "lossless",
+   "paper_check": "mean 2.91, alpha mean 0.00, px >8: 3.823%"
+  },
+  "discprobe/web/home/lobby/base_dark.webp": {
+   "job": "F_lobby_a",
+   "encoding": "(92, 6)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/lobby/fax_dark.webp": {
+   "job": "L_round5",
+   "encoding": "lossless",
+   "paper_check": "mean 0.91, alpha mean 0.00, px >8: 2.964%"
+  },
+  "discprobe/web/home/lobby/faxnews_dark.webp": {
+   "job": "F_lobby_a",
+   "encoding": "(92, 6)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/lobby/filebox_dark.webp": {
+   "job": "F_lobby_a",
+   "encoding": "(92, 6)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/lobby/lamp_dark.webp": {
+   "job": "L_lobby3",
+   "encoding": "lossless",
+   "paper_check": "mean 6.42, alpha mean 0.00, px >8: 18.388%"
+  },
+  "discprobe/web/home/lobby/newplan_dark.webp": {
+   "job": "L_lobby3",
+   "encoding": "lossless",
+   "paper_check": "mean 1.22, alpha mean 0.00, px >8: 1.391%"
+  },
+  "discprobe/web/home/lobby/parcel_dark.webp": {
+   "job": "F_lobby_b (minus F_lobby_a base)",
+   "encoding": "(92, 6)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/lobby/screen_dark.webp": {
+   "job": "F_lobby_c",
+   "encoding": "lossless",
+   "paper_check": "mean 0.06, alpha mean 0.00, px >8: 0.194%"
+  },
+  "discprobe/web/home/lobby/screen_on_dark.webp": {
+   "job": "F_lobby_d",
+   "encoding": "lossless",
+   "paper_check": "mean 0.06, alpha mean 0.00, px >8: 0.194%"
+  },
+  "discprobe/web/home/newplan/envelope_back_dark.webp": {
+   "job": "F_np_env",
+   "encoding": "(90, 4)",
+   "paper_check": "mean 0.09, alpha mean 0.00, px >8: 0.001%"
+  },
+  "discprobe/web/home/newplan/envelope_front_dark.webp": {
+   "job": "F_np_env",
+   "encoding": "(90, 6)",
+   "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.016%"
+  },
+  "discprobe/web/home/newplan/paper_dark.webp": {
+   "job": "F_np_paper",
+   "encoding": "(90, 4)",
+   "paper_check": "mean 0.09, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/newplan/paper_shadow_dark.webp": {
+   "job": "F_np_paper",
+   "encoding": "(91, 6)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/newplan/top_dark.webp": {
+   "job": "F_np_top",
+   "encoding": "(90, 4)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/pastworks/envelope_back_dark.webp": {
+   "job": "F_pw_env",
+   "encoding": "(90, 6)",
+   "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.002%"
+  },
+  "discprobe/web/home/pastworks/envelope_front_dark.webp": {
+   "job": "F_pw_env",
+   "encoding": "(89, 6)",
+   "paper_check": "mean 0.12, alpha mean 0.00, px >8: 0.065%"
+  },
+  "discprobe/web/home/pastworks/tumble_0_dark.webp": {
+   "job": "F_tumble0",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.40, alpha mean 0.11, px >8: 3.859%"
+  },
+  "discprobe/web/home/pastworks/tumble_1_dark.webp": {
+   "job": "F_tumble1",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.43, alpha mean 0.11, px >8: 4.403%"
+  },
+  "discprobe/web/home/pastworks/tumble_2_dark.webp": {
+   "job": "F_tumble2",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.91, alpha mean 0.09, px >8: 5.685%"
+  },
+  "discprobe/web/home/pastworks/tumble_3_dark.webp": {
+   "job": "F_tumble3",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.62, alpha mean 0.10, px >8: 4.729%"
+  },
+  "discprobe/web/home/pastworks/tumble_4_dark.webp": {
+   "job": "F_tumble4",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 2.01, alpha mean 0.10, px >8: 6.410%"
+  },
+  "discprobe/web/home/pastworks/tumble_5_dark.webp": {
+   "job": "F_tumble5",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 3.33, alpha mean 0.08, px >8: 10.492%"
+  },
+  "discprobe/web/home/pastworks/tumble_6_dark.webp": {
+   "job": "F_tumble6",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.70, alpha mean 0.10, px >8: 4.776%"
+  },
+  "discprobe/web/home/pastworks/tumble_7_dark.webp": {
+   "job": "F_tumble7",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.73, alpha mean 0.10, px >8: 6.052%"
+  },
+  "discprobe/web/home/pastworks/tumble_8_dark.webp": {
+   "job": "F_tumble8",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 1.72, alpha mean 0.10, px >8: 5.313%"
+  },
+  "discprobe/web/home/pastworks/tumble_9_dark.webp": {
+   "job": "F_tumble9",
+   "encoding": "(89, 4)",
+   "paper_check": "mean 2.99, alpha mean 0.08, px >8: 8.369%"
+  },
+  "discprobe/web/home/presetio/desk/desk_bag_dark.webp": {
+   "job": "F_np_desk",
+   "encoding": "(88, 6)",
+   "paper_check": "mean 0.26, alpha mean 0.00, px >8: 0.085%"
+  },
+  "discprobe/web/home/presetio/desk/desk_bag_shadow_dark.webp": {
+   "job": "F_np_desk",
+   "encoding": "(93, 4)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/presetio/desk/desk_base_dark.webp": {
+   "job": "F_np_desk",
+   "encoding": "(90, 4)",
+   "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.005%"
+  },
+  "discprobe/web/home/presetio/desk/desk_doc_envelope_dark.webp": {
+   "job": "F_np_desk",
+   "encoding": "(90, 4)",
+   "paper_check": "mean 0.12, alpha mean 0.00, px >8: 0.025%"
+  },
+  "discprobe/web/home/presetio/desk/desk_doc_envelope_shadow_dark.webp": {
+   "job": "F_np_desk",
+   "encoding": "(92, 4)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/presetio/desk/desk_doc_paper_dark.webp": {
+   "job": "F_np_desk",
+   "encoding": "(90, 4)",
+   "paper_check": "mean 0.06, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/presetio/desk/desk_doc_paper_shadow_dark.webp": {
+   "job": "F_np_desk",
+   "encoding": "(86, 4)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/presetio/desk/desk_knob_dark.webp": {
+   "job": "F_np_desk",
+   "encoding": "(91, 6)",
+   "paper_check": "mean 1.49, alpha mean 0.00, px >8: 1.474%"
+  },
+  "discprobe/web/home/presetio/desk/desk_knob_shadow_dark.webp": {
+   "job": "F_np_desk",
+   "encoding": "(85, 6)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/presetio/desk/desk_sheets_dark.webp": {
+   "job": "F_np_desk",
+   "encoding": "(91, 4)",
+   "paper_check": "mean 0.13, alpha mean 0.00, px >8: 0.002%"
+  },
+  "discprobe/web/home/presetio/desk/desk_sheets_shadow_dark.webp": {
+   "job": "F_np_desk",
+   "encoding": "(84, 4)",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+  },
+  "discprobe/web/home/presetio/desk/desk_upper_dark.webp": {
+   "job": "F_np_desk",
+   "encoding": "(91, 6)",
+   "paper_check": "mean 0.11, alpha mean 0.00, px >8: 0.009%"
+  }
+ }
+}
