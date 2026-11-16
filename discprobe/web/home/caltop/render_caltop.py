@@ -75,7 +75,7 @@ VARIANT_STYLE = {
         sled=("#435259", "#2d393f", "#344147"),
         disc=("#293237", "#1d2528", "#20282c"),
         lens="#8fb6c9", led="#d9a75c",
-        line="#d5d9d2", line_alpha=0.55,
+        line="#d5d9d2", line_alpha=0.88, line_alpha_far=0.35, line_alpha_outline=0.6,   # 2026-11-16: the lines catch the light (pool centre .88, outside .35)
         glow_core="#fff3ea", glow_halo="#ff5a3c", glow_bloom="#ff3b30",
         shadow_rgb="#020405", shadow_alpha=0.42, contact_alpha=0.55,
     ),
@@ -96,7 +96,8 @@ VARIANT_STYLE = {
 # f = gaussian of the distance to the pool centre on the desk, weighted vert_w on walls, 1 on top faces). The lamp
 # is up and to the right: the pool sits right of and behind the disc centre, the shadows fall lower left.
 POOL_STYLE = {
-    "dark": dict(amb=(0.8, 0.8, 0.8), gain=(2.0, 1.75, 1.35), add=(0.05, 0.028, 0.006), vert_w=0.55),
+    # night 2026-11-16: the pool is not warm; it lifts the deep-teal tones a step in their own hue (was gain 2.0/1.75/1.35, add .05/.028/.006)
+    "dark": dict(amb=(1.0, 1.0, 1.0), gain=(4.9, 4.9, 4.9), add=(0.006, 0.006, 0.006), vert_w=0.55, sigma_mm=78.0),   # neutral add: the brightest faces lose a little saturation, no hue shift
     # paper: a dimmer room so the spot shows (near-white times a small gain only clips): 2026-11-12
     "paper": dict(amb=(0.82, 0.82, 0.82), gain=(0.24, 0.19, 0.08), add=(0.0, 0.0, 0.0), vert_w=0.5),
 }
@@ -357,7 +358,7 @@ def pooled(nt, color, is_top):
     nt.links.new(m0.outputs[0], dot.inputs[1])
     k = nt.nodes.new("ShaderNodeMath")
     k.operation = "MULTIPLY"
-    k.inputs[1].default_value = -1.0 / (2.0 * (POOL_SIGMA_MM / 1000.0) ** 2)
+    k.inputs[1].default_value = -1.0 / (2.0 * (st.get("sigma_mm", POOL_SIGMA_MM) / 1000.0) ** 2)   # night: a tighter pool
     nt.links.new(dot.outputs["Value"], k.inputs[0])
     ex = nt.nodes.new("ShaderNodeMath")
     ex.operation = "EXPONENT"
@@ -648,7 +649,26 @@ def compose_and_save(color_px, mask, st, dst, keep=None):
     straight = np.where(a > 1e-6, color_px[..., :3] / np.maximum(a, 1e-6), 0.0)
     pm = lin_to_srgb(straight) * a
     line = np.array(hex_srgb(st["line"]), dtype=np.float32)
-    c = (mask.astype(np.float32) * np.float32(st["line_alpha"]))[..., None]
+    la = np.float32(st["line_alpha"])
+    if "line_alpha_far" in st and POOL_C is not None:
+        # line opacity follows the pool: f on the desk plane at each supersampled pixel (rows are bottom-up)
+        hh, ww = mask.shape[:2]
+        pc = to_px((POOL_C[0], POOL_C[1], 0.0))
+        sig = (CUR_POOL or {}).get("sigma_mm", POOL_SIGMA_MM) * ppu / 1000.0
+        xs = (np.arange(ww, dtype=np.float32) + 0.5) / SS - pc[0]
+        ys = (H - (np.arange(hh, dtype=np.float32) + 0.5) / SS) - pc[1]
+        fpx = np.exp(-(ys[:, None] ** 2 + xs[None, :] ** 2) / (2.0 * sig * sig)).astype(np.float32)
+        la = np.float32(st["line_alpha_far"]) + (la - np.float32(st["line_alpha_far"])) * fpx
+        if "line_alpha_outline" in st:
+            # the silhouette (lines next to empty pixels) keeps a floor, so the object's shape stays whole outside the pool
+            empty = color_px[..., 3] < 0.5
+            near = empty.copy()
+            for _ in range(2 * SS):
+                near[1:, :] |= empty[:-1, :]; near[:-1, :] |= empty[1:, :]
+                near[:, 1:] |= empty[:, :-1]; near[:, :-1] |= empty[:, 1:]
+                empty = near.copy()
+            la = np.where(near, np.maximum(la, np.float32(st["line_alpha_outline"])), la).astype(np.float32)
+    c = (mask.astype(np.float32) * la)[..., None]
     pm = line * c + pm * (1.0 - c)
     al = c + a * (1.0 - c)
     rgba = np.concatenate([pm, al], axis=2)
