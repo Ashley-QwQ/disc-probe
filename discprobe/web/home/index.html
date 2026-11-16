@@ -51,10 +51,11 @@
        desk (a drive's height below) as far as the drive's own shadow, 40 x 22 mm. --mm is the
        scene's px per mm, set by the page (newplan.js, calstage.js). Words printed on things in the scene belong
        to the scene and throw none. Ink theme: deeper shadows and a thin highlight on the edges facing the lamp. */
-    --mm: 2.4px; --glass-ink: rgb(58 47 34 / .3);
-    --glass-desk: calc(-40 * var(--mm)) calc(22 * var(--mm)) calc(8 * var(--mm)) var(--glass-ink);
+    --mm: 2.4px; --glass-ink: rgb(29 27 24 / .14);   /* paper: shadows are ink, faint (2026-11-16, STYLE.md two layers) */
+    /* the glass sits low over the desk: its shadow falls about 12 mm away, the penumbra narrower than the offset so it keeps its shape */
+    --glass-desk: calc(-12 * var(--mm)) calc(6.6 * var(--mm)) calc(4 * var(--mm)) var(--glass-ink);
     --glass-drive: calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(2.4 * var(--mm)) var(--glass-ink);
-    --glass-desk-drop: drop-shadow(calc(-40 * var(--mm)) calc(22 * var(--mm)) calc(3.5 * var(--mm)) var(--glass-ink));   /* small things: a crisper penumbra, still readable */
+    --glass-desk-drop: drop-shadow(calc(-12 * var(--mm)) calc(6.6 * var(--mm)) calc(1.5 * var(--mm)) var(--glass-ink));   /* small things: a crisper penumbra, still readable */
     --glass-drive-drop: drop-shadow(calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(1.2 * var(--mm)) var(--glass-ink));
     --glass-edge: 0 0 0 transparent; --glass-edge-drop: drop-shadow(0 0 0 transparent);
     /* paper lying on the desk (scene, not glass): its short shadow */
@@ -83,7 +84,7 @@
     --good: var(--ink); --warn: var(--copper); --unknown: #a6b0b3;
     /* night B, deep teal (2026-11-14, for 1.0.0): paper under the lamp is light; on it, ink and a darker copper */
     --lit-paper: #ece6d8; --lit-ink: #22231f; --lit-ink-2: #55554c; --lit-ink-3: #7b796d; --lit-copper: #8f5628;
-    --glass-ink: rgb(0 0 0 / .66);
+    --glass-ink: rgb(10 17 20 / .85);   /* night: a shadow is the ground the lamp misses, never darker than it */
     --glass-edge: inset -1px 1px 0 rgb(255 255 255 / .1); --glass-edge-drop: drop-shadow(1px -1px 0 rgb(255 255 255 / .12));
     --dvd: linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a);
     --dvd-disc: linear-gradient(180deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a);
@@ -482,13 +483,9 @@
   :root.pan-in :is(.cal-stage, .ld) { translate: 100vw 0; }
   :root.pan-in :is(#cal, #cal-ruler) { opacity: 0; }
   /* the glass (see --glass-*): new-work and calibration pages first */
-  :root:is([data-mode="newplan"], [data-mode="cal"], [data-mode="presets"], [data-mode="faxnews"]) .top > * { filter: var(--glass-desk-drop); }
-  :root[data-mode="newplan"] .top > :is(.back, .wordmark) { filter: var(--glass-drive-drop); }      /* over the drive */
-  :root[data-mode="presets"] .top > :is(.back, .wordmark) { filter: var(--glass-drive-drop); }      /* over the letter tray */
+  /* Only solid panels and buttons on the glass cast a shadow; thin words and lines do not (a real lamp blurs a
+     stroke's shadow away, and offset copies of small text read as ghosts). */
   :root:is([data-mode="newplan"], [data-mode="cal"]) :is(.next, .next-side) { box-shadow: var(--glass-edge), var(--glass-desk); }
-  :root[data-mode="cal"] .cal-ruler { filter: var(--glass-desk-drop); }
-  :root:is([data-mode="newplan"], [data-mode="cal"], [data-mode="presets"], [data-mode="faxnews"]) .bar > :is(.job, .drive, .next-why) { filter: var(--glass-desk-drop); }   /* the bottom bar's words are on the glass too */
-  :root[data-mode="cal"] .cs-big { filter: var(--glass-desk-drop); }                                    /* so are the big percent and its time */
   /* the calibration card: the new-work page's paper (newplan/paper_*), lying on the desk, as long as what is on it;
      it comes out of the archive envelope (newplan.js cardOut) */
   :root.cal-staged .cal { padding: 30px 32px; box-shadow: var(--paper-desk); background: none;

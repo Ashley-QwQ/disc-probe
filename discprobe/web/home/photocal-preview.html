@@ -22,10 +22,10 @@
        desk (a drive's height below) as far as the drive's own shadow, 40 x 22 mm. --mm is the
        scene's px per mm, set by the page (newplan.js, calstage.js). Words printed on things in the scene belong
        to the scene and throw none. Ink theme: deeper shadows and a thin highlight on the edges facing the lamp. */
-    --mm: 2.4px; --glass-ink: rgb(58 47 34 / .3);
-    --glass-desk: calc(-40 * var(--mm)) calc(22 * var(--mm)) calc(8 * var(--mm)) var(--glass-ink);
+    --mm: 2.4px; --glass-ink: rgb(29 27 24 / .14);
+    --glass-desk: calc(-12 * var(--mm)) calc(6.6 * var(--mm)) calc(4 * var(--mm)) var(--glass-ink);
     --glass-drive: calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(2.4 * var(--mm)) var(--glass-ink);
-    --glass-desk-drop: drop-shadow(calc(-40 * var(--mm)) calc(22 * var(--mm)) calc(3.5 * var(--mm)) var(--glass-ink));   /* small things: a crisper penumbra, still readable */
+    --glass-desk-drop: drop-shadow(calc(-12 * var(--mm)) calc(6.6 * var(--mm)) calc(1.5 * var(--mm)) var(--glass-ink));   /* small things: a crisper penumbra, still readable */
     --glass-drive-drop: drop-shadow(calc(-4 * var(--mm)) calc(2.2 * var(--mm)) calc(1.2 * var(--mm)) var(--glass-ink));
     --glass-edge: 0 0 0 transparent; --glass-edge-drop: drop-shadow(0 0 0 transparent);
     /* paper lying on the desk (scene, not glass): its short shadow */
@@ -51,7 +51,7 @@
     --paper: #0a1114; --paper-2: #121a1e; --ink: #eef0ee; --ink-2: #a6b0b3; --ink-3: #7b868a;
     --rule: #202d33; --rule-strong: #3a4a51; --copper: #e0ab5c;
     --good: var(--ink); --warn: var(--copper); --unknown: #a6b0b3;
-    --glass-ink: rgb(0 0 0 / .66);
+    --glass-ink: rgb(10 17 20 / .85);
     --glass-edge: inset -1px 1px 0 rgb(255 255 255 / .1); --glass-edge-drop: drop-shadow(1px -1px 0 rgb(255 255 255 / .12));
     --dvd: linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a);
     --cd: linear-gradient(90deg, #6cc6dc, #6fd3cf, #82dbb7, #a3e29b);
