@@ -1,0 +1,43 @@
+{
+  "job": "G_lamp",
+  "command": [
+    "F:\\dp-archive\\tools\\blender-5.2.2-windows-x64\\blender.exe",
+    "-b",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\room_lobby3_final.blend",
+    "--disable-autoexec",
+    "-t",
+    "8",
+    "--python-exit-code",
+    "1",
+    "--python",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\render_round5_nightb.py",
+    "--",
+    "--layers",
+    "lamp",
+    "--ss",
+    "4",
+    "--no-mist",
+    "--force",
+    "--device",
+    "CPU",
+    "--variants",
+    "paper,dark",
+    "--night-gain",
+    "5.8",
+    "--night-sigma-scale",
+    "1.0",
+    "--outdir",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\G_lamp"
+  ],
+  "exit": 0,
+  "seconds": 202.594,
+  "manifest_args": "--layers lamp --ss 4 --no-mist --force --device OPTIX (default)",
+  "rendered_layers": [
+    "lamp"
+  ],
+  "reused_layers": [],
+  "device": "CPU",
+  "threads": 8,
+  "scene_sha256": "5f5da970146f53f3d29c3d0e28148b588c8d742c43f3c8fa7104c5dda508a03f",
+  "script_sha256": "b02541c55ba5dbe41ae74e1d05df37fe6a06f09b894b8f1d0ff6c0415ee9f18e"
+}

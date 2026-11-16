@@ -1,0 +1,38 @@
+{
+  "layer": "base",
+  "variants": {
+    "dark": {
+      "file": "desk_base_dark.png",
+      "bbox_px": [
+        0,
+        0,
+        2560,
+        1791
+      ]
+    }
+  },
+  "times_s": {
+    "base_normal": 0.6,
+    "base_id": 0.5,
+    "outline_mask": 0.5,
+    "base_color_dark": 5.2,
+    "base_nopool_dark": 3.8,
+    "base_lit_dark": 6.6,
+    "base_changed_casters_dark": 5.9,
+    "base_unlit_dark": 6.3,
+    "compose_dark": 1.8
+  },
+  "layer_total_s": 31.8,
+  "ss": 1,
+  "samples": 16,
+  "night_pool_trial": {
+    "amb": 0.64,
+    "gain": 4.0,
+    "add": 0,
+    "sigma_scale_dark": 1.0,
+    "sigma_original": 0.42,
+    "sigma_dark": 0.42,
+    "paper_and_lines_unchanged": true,
+    "device": "CPU"
+  }
+}

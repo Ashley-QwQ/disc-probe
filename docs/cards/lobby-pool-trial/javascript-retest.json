@@ -1,0 +1,13 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=1",
+    "tests\\test_csp_browser.mjs",
+    "tests\\test_flow_navigation_browser.mjs",
+    "tests\\test_review_library_newwork.mjs",
+    "tests\\test_rw_discs_browser.mjs"
+  ],
+  "exit": 1,
+  "seconds": 198.124
+}

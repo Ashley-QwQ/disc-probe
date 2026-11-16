@@ -1,0 +1,23 @@
+{
+  "gain": 5.8,
+  "amb": 0.64,
+  "add": 0,
+  "sigma": 0.42,
+  "sigma_scale": 1.0,
+  "candidate_labels": [
+    "candidate-g4-r1",
+    "candidate-g5_5"
+  ],
+  "target_center": [
+    15.5,
+    17
+  ],
+  "target_corners_max": 7,
+  "fitted_gain_for_L16_1": 5.781668370676859,
+  "reason": "Two SS1 CPU base candidates; linear luminance fit then round to 5.8 for margin above lower bound; SS4 output must independently pass",
+  "formal_ss": 4,
+  "formal_variants": [
+    "paper",
+    "dark"
+  ]
+}

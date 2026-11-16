@@ -1,0 +1,26 @@
+{
+  "sources": [
+    {
+      "path": "F:\\dp-archive\\tmp\\lobbypool\\x79stage\\stage\\render_fax_nightb.py",
+      "sha256": "ae7aaffada85bda8f4f545c0a7551ee3aeb5591e6b1c747c24f79146e3b9ab65"
+    },
+    {
+      "path": "D:\\disc-probe\\art\\desk\\render_desk.py",
+      "sha256": "4a3ee4a5f328a3cc56d9a98acfc8b124b54310f535f405fe5450a7b78c8170d1"
+    }
+  ],
+  "paper_style_equal": true,
+  "constants_equal": {
+    "LINE_PX": true,
+    "CREASE_DEG": true,
+    "TOP_NZ": true,
+    "THIN_FAR": true,
+    "DEPTH_STEP_M": true
+  },
+  "functions_equal": {
+    "outline_mask": true,
+    "compose_and_save": true,
+    "pooled_lamp": true
+  },
+  "conclusion": "Paper source style matches inspected original; root cause of failed reproduction checks not established"
+}

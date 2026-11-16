@@ -1,0 +1,7 @@
+{
+  "note": "Neutral screen light, screen layer only; no spill onto other objects.",
+  "pos_mm": [1620, -720, 1010],
+  "sigma_mm": 380,
+  "paper": {"face": "#59605d", "gain": [0, 0, 0], "add": [0, 0, 0]},
+  "dark": {"face": "#263136", "gain": [0, 0, 0], "add": [0, 0, 0]}
+}

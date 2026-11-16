@@ -1,0 +1,21 @@
+{
+  "desktop_warm": {
+    "mask": "desk_top object ID=1, full SS coverage, eroded, visible foreground alpha excluded; no kraft/shade/LED",
+    "pixels": 553037,
+    "warm_pixels": 0,
+    "ratio": 0.0,
+    "threshold": "H in [30,90], C > .02"
+  },
+  "kraft_hue": {
+    "mask": "semantic kraft-family filebox IDs, full coverage, eroded 3px, alpha=255, 7x7 RGB range<=6, C>.005 in both images",
+    "pixels": 36291,
+    "old_hue_deg": 67.16311476674797,
+    "new_hue_deg": 67.16311476674797,
+    "mean_hue_shift_deg": 0.0,
+    "median_abs_paired_delta_deg": 0.0,
+    "p95_abs_paired_delta_deg": 0.0,
+    "max_abs_paired_delta_deg": 0.0,
+    "fraction_over_3deg": 0.0,
+    "material_hue_within_3deg": true
+  }
+}

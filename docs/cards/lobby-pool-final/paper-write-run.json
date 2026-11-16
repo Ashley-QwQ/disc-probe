@@ -1,0 +1,20 @@
+{
+  "command": [
+    "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+    "-X",
+    "utf8",
+    "-B",
+    "tools/night_b_export.py",
+    "F:\\dp-archive\\tmp\\lobbypool\\final",
+    "--only",
+    "lobby",
+    "--paper-gate",
+    "night-b-recorded",
+    "--check-report",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\paper-write.json",
+    "--lobby-layers",
+    "base,fax,screen,screen_on,parcel",
+    "--write"
+  ],
+  "exit": 0
+}

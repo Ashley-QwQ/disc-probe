@@ -1,0 +1,14 @@
+{
+  "desk_base_paper.png": {
+    "source": "F:\\dp-archive\\tmp\\lobbypool\\trial2\\F_lobby_a\\desk_base_paper.png",
+    "sha256": "15df39cc0c3542eb0a70a5c776e63e6ec291f5e0bea78e4c35e448ae9a143eee"
+  },
+  "desk_base_dark.png": {
+    "source": "F:\\dp-archive\\tmp\\lobbypool\\trial2\\F_lobby_a\\desk_base_dark.png",
+    "sha256": "7794908ce634db30f24c21953e9be89de0b5f7c13a50aa764c69e168d4d35a23"
+  },
+  "render_base.json": {
+    "source": "F:\\dp-archive\\tmp\\lobbypool\\trial2\\F_lobby_a\\render_base.json",
+    "sha256": "b97fa742c54777510cc5f895b7e29d952b29ad359ef8d6519fc14c113618aa71"
+  }
+}

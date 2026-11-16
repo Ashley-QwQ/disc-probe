@@ -1,0 +1,116 @@
+{
+  "written_layers": [
+    "base",
+    "fax",
+    "parcel",
+    "screen",
+    "screen_on"
+  ],
+  "kept_layers": [
+    "faxnews",
+    "filebox",
+    "lamp",
+    "newplan"
+  ],
+  "protected_count": 121,
+  "paper_count": 116,
+  "changed_protected": [],
+  "non_lobby_manifest_unchanged": true,
+  "non_lobby_export_report_unchanged": true,
+  "scripts_and_scenes_unchanged": true,
+  "reused_base_exact": true,
+  "jobs": [
+    {
+      "job": "F_lobby_a",
+      "seconds": 438.527,
+      "rendered_layers": [
+        "faxnews",
+        "filebox"
+      ],
+      "reused_layers": [
+        "base"
+      ]
+    },
+    {
+      "job": "F_lobby_b",
+      "seconds": 1100.133,
+      "rendered_layers": [
+        "base",
+        "parcel"
+      ],
+      "reused_layers": []
+    },
+    {
+      "job": "F_lobby_c",
+      "seconds": 925.015,
+      "rendered_layers": [
+        "fax",
+        "lamp",
+        "newplan",
+        "screen"
+      ],
+      "reused_layers": []
+    },
+    {
+      "job": "F_lobby_d",
+      "seconds": 208.151,
+      "rendered_layers": [
+        "screen"
+      ],
+      "reused_layers": []
+    },
+    {
+      "job": "L_round5",
+      "seconds": 200.904,
+      "rendered_layers": [
+        "fax"
+      ],
+      "reused_layers": []
+    },
+    {
+      "job": "L_lobby3",
+      "seconds": 480.628,
+      "rendered_layers": [
+        "lamp",
+        "newplan"
+      ],
+      "reused_layers": []
+    },
+    {
+      "job": "G_lamp",
+      "seconds": 202.594,
+      "rendered_layers": [
+        "lamp"
+      ],
+      "reused_layers": []
+    }
+  ],
+  "hero_override": false,
+  "drive_min_contrast": 13.761431191875602,
+  "published_drive_min_contrast": 9.57091538061723,
+  "desktop_warm": {
+    "mask": "desk_top object ID=1, full SS coverage, eroded, visible foreground alpha excluded; no kraft/shade/LED",
+    "pixels": 553037,
+    "warm_pixels": 0,
+    "ratio": 0.0,
+    "threshold": "H in [30,90], C > .02"
+  },
+  "kraft_hue": {
+    "mask": "semantic kraft-family filebox IDs, full coverage, eroded 3px, alpha=255, 7x7 RGB range<=6, C>.005 in both images",
+    "pixels": 36291,
+    "old_hue_deg": 67.16311476674797,
+    "new_hue_deg": 67.16311476674797,
+    "mean_hue_shift_deg": 0.0,
+    "median_abs_paired_delta_deg": 0.0,
+    "p95_abs_paired_delta_deg": 0.0,
+    "max_abs_paired_delta_deg": 0.0,
+    "fraction_over_3deg": 0.0,
+    "material_hue_within_3deg": true
+  },
+  "screenshots": 4,
+  "errors": [],
+  "free_bytes": {
+    "D": 41338859520,
+    "F": 20720074752
+  }
+}

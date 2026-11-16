@@ -1,0 +1,29 @@
+{
+  "source": "D:\\dp-dev\\lobbypool\\discprobe\\web\\home\\lobby\\newplan_dark.webp",
+  "surface": "top-cover upward faces, 3px edge and internal-line guard",
+  "pixels": 68018,
+  "desktop": {
+    "xy": [
+      842,
+      1074
+    ],
+    "L_star": 16.076486219061117
+  },
+  "brightest": {
+    "xy": [
+      1059,
+      858
+    ],
+    "L_star": 30.155217931241936
+  },
+  "darkest": {
+    "xy": [
+      1316,
+      855
+    ],
+    "L_star": 25.647401599678346
+  },
+  "min_contrast": 9.57091538061723,
+  "required_contrast": 6.0,
+  "hero_override_required": false
+}

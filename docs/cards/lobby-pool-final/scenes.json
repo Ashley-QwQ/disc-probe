@@ -1,0 +1,20 @@
+{
+  "room_fax_parcel.blend": {
+    "remote": "x79:/home/knappy/nightb/stage/room_fax_parcel.blend",
+    "bytes": 18392511,
+    "sha256": "682b70a13f04ccfb0434ec9ae74e36520bece372cf64cb3b7d03e32ff7711381"
+  },
+  "room_round5.blend": {
+    "remote": "x79:/home/knappy/nightb/stage/room_round5.blend",
+    "bytes": 18372538,
+    "sha256": "c9f1117a82101980ae024dd738bd56106685f2193b081f0cdcea828d3ddaba2f"
+  },
+  "room_fax.blend": {
+    "bytes": 18389936,
+    "sha256": "913c2af0b7ba10affc64a315c46f4c9d4ea72896185e410ad2d6ddf2fbb801ac"
+  },
+  "room_lobby3_final.blend": {
+    "bytes": 21131264,
+    "sha256": "5f5da970146f53f3d29c3d0e28148b588c8d742c43f3c8fa7104c5dda508a03f"
+  }
+}

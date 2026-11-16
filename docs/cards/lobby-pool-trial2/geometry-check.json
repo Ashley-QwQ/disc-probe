@@ -1,0 +1,9 @@
+{
+  "decoded_coverage_changed_pixels": 0,
+  "shape": [
+    1791,
+    2560
+  ],
+  "max_difference": 0.0,
+  "note": "Compare decoded desktop-ID coverage, not EXR container hashes; camera/scene byte hashes separately protected"
+}

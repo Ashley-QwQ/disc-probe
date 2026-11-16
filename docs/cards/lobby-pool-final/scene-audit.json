@@ -1,0 +1,110 @@
+{
+  "room_fax.blend": {
+    "pool": {
+      "mode": "segment",
+      "a": [
+        1.08,
+        -1.77,
+        0.75
+      ],
+      "b": [
+        1.08,
+        -1.33,
+        0.75
+      ],
+      "center": [
+        1.08,
+        -1.77,
+        0.75
+      ],
+      "sigma": 0.42,
+      "z": 0.75
+    },
+    "camera": "IsoCam",
+    "image_size": [
+      2560,
+      1791
+    ]
+  },
+  "room_fax_parcel.blend": {
+    "pool": {
+      "mode": "segment",
+      "a": [
+        1.08,
+        -1.77,
+        0.75
+      ],
+      "b": [
+        1.08,
+        -1.33,
+        0.75
+      ],
+      "center": [
+        1.08,
+        -1.77,
+        0.75
+      ],
+      "sigma": 0.42,
+      "z": 0.75
+    },
+    "camera": "IsoCam",
+    "image_size": [
+      2560,
+      1791
+    ]
+  },
+  "room_round5.blend": {
+    "pool": {
+      "mode": "segment",
+      "a": [
+        1.08,
+        -1.77,
+        0.75
+      ],
+      "b": [
+        1.08,
+        -1.33,
+        0.75
+      ],
+      "center": [
+        1.08,
+        -1.77,
+        0.75
+      ],
+      "sigma": 0.42,
+      "z": 0.75
+    },
+    "camera": "IsoCam",
+    "image_size": [
+      2560,
+      1791
+    ]
+  },
+  "room_lobby3_final.blend": {
+    "pool": {
+      "mode": "segment",
+      "a": [
+        1.08,
+        -1.77,
+        0.75
+      ],
+      "b": [
+        1.08,
+        -1.33,
+        0.75
+      ],
+      "center": [
+        1.08,
+        -1.77,
+        0.75
+      ],
+      "sigma": 0.42,
+      "z": 0.75
+    },
+    "camera": "IsoCam",
+    "image_size": [
+      2560,
+      1791
+    ]
+  }
+}

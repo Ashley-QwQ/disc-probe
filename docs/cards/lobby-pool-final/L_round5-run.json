@@ -1,0 +1,42 @@
+{
+  "job": "L_round5",
+  "command": [
+    "F:\\dp-archive\\tools\\blender-5.2.2-windows-x64\\blender.exe",
+    "-b",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\room_round5.blend",
+    "--disable-autoexec",
+    "-t",
+    "8",
+    "--python-exit-code",
+    "1",
+    "--python",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\render_round5_nightb.py",
+    "--",
+    "--layers",
+    "fax",
+    "--ss",
+    "4",
+    "--no-mist",
+    "--device",
+    "CPU",
+    "--variants",
+    "paper,dark",
+    "--night-gain",
+    "5.8",
+    "--night-sigma-scale",
+    "1.0",
+    "--outdir",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\L_round5"
+  ],
+  "exit": 0,
+  "seconds": 200.904,
+  "manifest_args": "--layers fax --ss 4 --no-mist",
+  "rendered_layers": [
+    "fax"
+  ],
+  "reused_layers": [],
+  "device": "CPU",
+  "threads": 8,
+  "scene_sha256": "c9f1117a82101980ae024dd738bd56106685f2193b081f0cdcea828d3ddaba2f",
+  "script_sha256": "b02541c55ba5dbe41ae74e1d05df37fe6a06f09b894b8f1d0ff6c0415ee9f18e"
+}

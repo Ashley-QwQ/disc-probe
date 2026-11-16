@@ -1,0 +1,37 @@
+{
+  "command": [
+    "F:/dp-archive/tools/blender-5.2.2-windows-x64/blender.exe",
+    "-b",
+    "F:\\dp-archive\\tmp\\lobbypool\\trial\\stage\\room_fax.blend",
+    "--disable-autoexec",
+    "-t",
+    "8",
+    "--python-exit-code",
+    "1",
+    "--python",
+    "F:\\dp-archive\\tmp\\lobbypool\\trial\\stage\\render_fax_nightb.py",
+    "--",
+    "--layers",
+    "base",
+    "--ss",
+    "4",
+    "--no-mist",
+    "--force",
+    "--device",
+    "CPU",
+    "--variants",
+    "paper,dark",
+    "--outdir",
+    "F:\\dp-archive\\tmp\\lobbypool\\trial\\F_lobby_a"
+  ],
+  "exit": 0,
+  "seconds": 1027.416,
+  "machine": "local CPU, 8 threads",
+  "layers": [
+    "base"
+  ],
+  "variants": [
+    "paper",
+    "dark"
+  ]
+}
