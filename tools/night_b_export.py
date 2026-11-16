@@ -1,6 +1,12 @@
 """Night B: copy the re-rendered dark pictures into the web folder, encoded the way each committed picture was.
 
     python tools/night_b_export.py RENDERS [--write] [--only lobby,caltop,...]
+    python tools/night_b_export.py RENDERS --only newplan --jobs F_np_env --require-paper-unchanged
+
+--jobs selects individual jobs in the newplan/presetio/pastworks/faxnews groups. With
+--require-paper-unchanged, compare every decoded RGBA pixel (including transparent ones),
+and defer all picture writes until the entire selection passes. A mismatch exits 2.
+--check-report PATH saves the check rows even when the strict gate fails.
 
 RENDERS holds one folder per render job (the names in tools/night_b_manifest.json "jobs"). Without --write it only
 checks. For every picture it also runs the PAPER render of the same job through the same crop and encoding and
@@ -31,7 +37,11 @@ HOME = ROOT / "discprobe" / "web" / "home"
 REN = Path(sys.argv[1])
 WRITE = "--write" in sys.argv
 ONLY = set(sys.argv[sys.argv.index("--only") + 1].split(",")) if "--only" in sys.argv else None
+JOBS = set(sys.argv[sys.argv.index("--jobs") + 1].split(",")) if "--jobs" in sys.argv else None
+STRICT_PAPER = "--require-paper-unchanged" in sys.argv
+CHECK_REPORT = Path(sys.argv[sys.argv.index("--check-report") + 1]) if "--check-report" in sys.argv else None
 REPORT = []
+PENDING = []
 
 
 def kind(p: Path) -> str:
@@ -96,17 +106,38 @@ def put(dst: Path, dark: Image.Image, paper: Image.Image, also_png=False):
         if how == "lossy":
             how = match_lossy(paper, pdst) if pdst.exists() else (90, 4)
         enc = how
-    check = diff(Image.open(io.BytesIO(encode(paper, enc))) if enc else paper, Image.open(pdst)) if pdst.exists() else "no paper file"
+    check = "no paper file"
+    exact = False
+    changed_pixels = None
+    if pdst.exists():
+        actual = (Image.open(io.BytesIO(encode(paper, enc))) if enc else paper).convert("RGBA")
+        expected = Image.open(pdst).convert("RGBA")
+        exact = actual.size == expected.size and np.array_equal(np.asarray(actual), np.asarray(expected))
+        if actual.size == expected.size:
+            changed_pixels = int(np.any(np.asarray(actual) != np.asarray(expected), axis=2).sum())
+        check = "unchanged" if exact else diff(actual, expected)
     REPORT.append(dict(file=str(dst.relative_to(HOME)), encoding=str(enc or "png"), paper_check=check,
+                       paper_exact=exact, paper_changed_pixels=changed_pixels,
                        old_dark=diff(dark, Image.open(dst)) if dst.exists() else "new"))
     print("%-48s %-14s paper: %s" % (dst.relative_to(HOME), enc or "png", check))
     if WRITE:
         if enc:
-            dst.write_bytes(encode(dark, enc))
+            data = encode(dark, enc)
         else:
-            dark.save(dst, optimize=True)
+            buf = io.BytesIO()
+            dark.save(buf, "PNG", optimize=True)
+            data = buf.getvalue()
+        if STRICT_PAPER:
+            PENDING.append((dst, data))
+        else:
+            dst.write_bytes(data)
         if also_png:
-            dark.save(dst.with_suffix(".png"), optimize=True)
+            buf = io.BytesIO()
+            dark.save(buf, "PNG", optimize=True)
+            if STRICT_PAPER:
+                PENDING.append((dst.with_suffix(".png"), buf.getvalue()))
+            else:
+                dst.with_suffix(".png").write_bytes(buf.getvalue())
 
 
 def new_file(dst: Path, im: Image.Image):
@@ -122,6 +153,16 @@ def ld(p) -> Image.Image:
 
 def want(group):
     return ONLY is None or group in ONLY
+
+
+def job(name):
+    return JOBS is None or name in JOBS
+
+
+if JOBS is not None and (ONLY is None or not ONLY <= {"newplan", "presetio", "pastworks", "faxnews"}):
+    raise SystemExit("--jobs requires --only newplan,presetio,pastworks,faxnews (or a subset)")
+if STRICT_PAPER and (ONLY is None or not ONLY <= {"newplan", "presetio", "pastworks", "faxnews"}):
+    raise SystemExit("Strict paper gate is supported for newplan,presetio,pastworks,faxnews")
 
 
 # ---------------------------------------------------------------- library / burn page drive
@@ -175,26 +216,32 @@ if want("caltop"):
 # ---------------------------------------------------------------- new work, presets desk, past works
 if want("newplan"):
     T, P, E = REN / "F_np_top", REN / "F_np_paper", REN / "F_np_env"
-    put(HOME / "newplan/top_dark.webp", ld(T / "top_dark.png").convert("RGB"), ld(T / "top_paper.png").convert("RGB"))
-    for n in ("paper", "paper_shadow"):
-        put(HOME / f"newplan/{n}_dark.webp", ld(P / f"{n}_dark.png"), ld(P / f"{n}_paper.png"))
-    for n in ("envelope_back", "envelope_front"):
-        put(HOME / f"newplan/{n}_dark.webp", ld(E / f"{n}_dark.png"), ld(E / f"{n}_paper.png"))
-if want("presetio"):
+    if job("F_np_top"):
+        put(HOME / "newplan/top_dark.webp", ld(T / "top_dark.png").convert("RGB"), ld(T / "top_paper.png").convert("RGB"))
+    if job("F_np_paper"):
+        for n in ("paper", "paper_shadow"):
+            put(HOME / f"newplan/{n}_dark.webp", ld(P / f"{n}_dark.png"), ld(P / f"{n}_paper.png"))
+    if job("F_np_env"):
+        for n in ("envelope_back", "envelope_front"):
+            put(HOME / f"newplan/{n}_dark.webp", ld(E / f"{n}_dark.png"), ld(E / f"{n}_paper.png"))
+if want("presetio") and job("F_np_desk"):
     D = REN / "F_np_desk"
     for f in sorted((HOME / "presetio/desk").glob("desk_*_dark.webp")):
         n = f.name.replace(".webp", ".png")
         put(f, ld(D / n), ld(D / n.replace("_dark", "_paper")))
 if want("pastworks"):
     E = REN / "F_pw_env"
-    for n in ("envelope_back", "envelope_front"):
-        put(HOME / f"pastworks/{n}_dark.webp", ld(E / f"{n}_dark.png"), ld(E / f"{n}_paper.png"))
+    if job("F_pw_env"):
+        for n in ("envelope_back", "envelope_front"):
+            put(HOME / f"pastworks/{n}_dark.webp", ld(E / f"{n}_dark.png"), ld(E / f"{n}_paper.png"))
     for i in range(10):
+        if not job(f"F_tumble{i}"):
+            continue
         J = REN / f"F_tumble{i}"
         put(HOME / f"pastworks/tumble_{i}_dark.webp", ld(J / f"tumble_{i}_dark.png"), ld(J / f"tumble_{i}_paper.png"))
 
 # ---------------------------------------------------------------- the news fax's own page
-if want("faxnews"):
+if want("faxnews") and job("F_fax_top"):
     X = REN / "F_fax_top"
     meta = json.loads((HOME / "faxnews/fax.json").read_text(encoding="utf-8"))
     put(HOME / "faxnews/top_dark.webp", ld(X / "top_dark.png").convert("RGB"), ld(X / "top_paper.png").convert("RGB"))
@@ -233,6 +280,17 @@ if want("lobby"):
         im.alpha_composite(ld(REN / "F_lobby_b" / f"desk_parcel_{t}.png"))
         ims[t] = im.crop(pb)
     put(HOME / "lobby/parcel_dark.webp", ims["dark"], ims["paper"])
+
+if CHECK_REPORT:
+    CHECK_REPORT.parent.mkdir(parents=True, exist_ok=True)
+    CHECK_REPORT.write_text(json.dumps(REPORT, indent=1, ensure_ascii=False), encoding="utf-8")
+if STRICT_PAPER:
+    failed = [r["file"] for r in REPORT if not r.get("paper_exact", False)]
+    if failed or not REPORT:
+        print("Paper gate FAILED; no pictures written:", failed or "no selected pictures")
+        raise SystemExit(2)
+    for dst, data in PENDING:
+        dst.write_bytes(data)
 
 out = ROOT / "tools" / "night_b_export_report.json"
 if WRITE:  # merge: a run with --only replaces its own pictures' rows and keeps the others

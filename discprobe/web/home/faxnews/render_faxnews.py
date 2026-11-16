@@ -71,8 +71,9 @@ STYLE = {
         pen="#0e1619", pen_edge="#090f12", metal="#3e4a50", metal_edge="#293338",
         penrose_light="#56646b", penrose_mid="#354248", penrose_dark="#1b252a",
         notebook="#212a2e", notebook_edge="#363e42", band="#070e11", led_off="#090f12",
-        line="#d5d9d2", line_alpha=0.55,
-        amb=(0.9, 0.9, 0.9), gain=(1.6, 1.4, 1.1), add=(0.035, 0.018, 0.004),
+        line="#d5d9d2", line_alpha=0.88, line_alpha_far=0.35, line_alpha_outline=0.6,
+        amb=(0.64,)*3, gain=(2.4,)*3, add=(0.0,)*3, pool_scale=0.557,
+        hero_light=dict(amb=(1.0,)*3, gain=(4.9,)*3, add=(0.006,)*3),
         shadow_tint=(0.62, 0.66, 0.66), shadow_rgb="#020405", drop_alpha=0.40, bg="#0a1114",
         # night B (2026-11-14): paper the lamp falls on is light (render_newplan.py)
         sheet_light=dict(amb=(0.55, 0.55, 0.55), gain=(0.33, 0.29, 0.21), add=(0.0, 0.0, 0.0)),
@@ -489,7 +490,8 @@ def toon_pooled(name, top, side, st, grain=0.0, tex_path=None):
     nt.links.new(c2.outputs[0], dot.inputs[1])
     k = nt.nodes.new("ShaderNodeMath")
     k.operation = "MULTIPLY"
-    k.inputs[1].default_value = -1.0 / (2.0 * POOL["sigma"] ** 2)
+    sigma = POOL["sigma"] * st.get("pool_scale", 1.0)
+    k.inputs[1].default_value = -1.0 / (2.0 * sigma ** 2)
     nt.links.new(dot.outputs["Value"], k.inputs[0])
     ex = nt.nodes.new("ShaderNodeMath")
     ex.operation = "EXPONENT"
@@ -588,17 +590,27 @@ def decal_mat(v, st, letter):
     return m
 
 
+def object_light(o, st):
+    """The fax and its handset catch the hero light; the desk keeps its own light."""
+    role = ROLE[o.name]
+    if role == "sheet" and "sheet_light" in st:
+        return dict(st, **st["sheet_light"])
+    if MODE in ("top", "fax") and role != "desk" and "hero_light" in st:
+        return dict(st, **st["hero_light"])
+    return st
+
+
 def apply_variant(v):
     st = STYLE[v]
     cache = {}
     for o in render_meshes:
         r_ = ROLE[o.name]
+        st_r = object_light(o, st)
         if r_.startswith("decal_"):
-            assign(o, decal_mat(v, st, r_[6:]))
+            assign(o, decal_mat(v, st_r, r_[6:]))
             continue
         if r_ not in cache:
             top, side = palette(r_, st)
-            st_r = dict(st, **st["sheet_light"]) if r_ == "sheet" and "sheet_light" in st else st
             cache[r_] = toon_pooled("toon_%s_%s" % (r_, v), top, side, st_r, grain=0.035 if r_ == "sheet" else
                                     0.02 if r_.startswith("kraft") else 0.0)
         assign(o, cache[r_])
@@ -768,7 +780,23 @@ def compose(col, mask, st, shadow=None, opaque=False):
         tint = np.array(st["shadow_tint"], dtype=np.float32)
         pm = pm * (1.0 - s * (1.0 - tint))
     line = np.array(hex_srgb(st["line"]), dtype=np.float32)
-    c = (mask.astype(np.float32) * np.float32(st["line_alpha"]))[..., None]
+    la = np.float32(st["line_alpha"])
+    if "line_alpha_far" in st:
+        hh, ww = mask.shape
+        pc = to_px(*POOL["center"])
+        sigma = POOL["sigma"] * st["pool_scale"] * PPM
+        xs = (np.arange(ww, dtype=np.float32) + 0.5) / SS - pc[0]
+        ys = (np.arange(hh, dtype=np.float32) + 0.5) / SS - pc[1]
+        fpx = np.exp(-(ys[:, None]**2 + xs[None, :]**2) / (2.0 * sigma**2)).astype(np.float32)
+        la = np.float32(st["line_alpha_far"]) + (la - np.float32(st["line_alpha_far"])) * fpx
+        empty = col[..., 3] < 0.5
+        near = empty.copy()
+        for _ in range(2 * SS):
+            near[1:, :] |= empty[:-1, :]; near[:-1, :] |= empty[1:, :]
+            near[:, 1:] |= empty[:, :-1]; near[:, :-1] |= empty[:, 1:]
+            empty = near.copy()
+        la = np.where(near, np.maximum(la, np.float32(st["line_alpha_outline"])), la).astype(np.float32)
+    c = (mask.astype(np.float32) * la)[..., None]
     pm = line * c + pm * (1.0 - c)
     al = c + a * (1.0 - c)
     if opaque:
@@ -873,6 +901,7 @@ if MODE == "fax":
                  'key_note':'Start is circular: quad bounds its actual top face; top_face_polygon gives its 16-sided contour. Centres refer to visible top faces.',
                  'handset_centre_note':'Centre of projected handset and children bounds, suitable for CSS transform-origin.',
                  'pool_centre_px':to_px(*POOL['center']),'pool_sigma_px':POOL['sigma']*PPM,
+                 'pool_sigma_px_by_theme':{v:round(POOL['sigma']*PPM*STYLE[v].get('pool_scale',1.0),3) for v in VARIANTS},
                  'shadow':{'offset_px':[SHADOW['dx_m']*PPM,-SHADOW['dy_m']*PPM],
                            'blur_px':SHADOW['blur_m']*PPM,'method':'unchanged branch three-pass separable box blur; radius blur_px * SS / 2',
                            'handset_receivers':['fax_pod','desk'],'handset_alpha':'branch drop_alpha; branch shadow_rgb, straight-alpha PNG'},
