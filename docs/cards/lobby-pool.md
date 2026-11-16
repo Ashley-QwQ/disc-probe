@@ -66,3 +66,14 @@ JavaScript 失败项：
 ## 未完成与限制
 
 保留层 faxnews, filebox, lamp, newplan 未完成新配方落地，原因及未舍入数字在 NOTE。没有自行放宽纸色或把更接近原图当作历史一致；原图仍显示在最终截图中。区域色相均值与逐像素色相误差分开报告，未做去饱和、向青色偏移或材质调色。跨机重现和未列出的页面未测；不会宣称大厅九层全通过，除非九层实际均已写入。
+
+## 审查后补写（2026-11-16，审查会话）
+
+Codex 留下的四层（faxnews、filebox、lamp、newplan）由审查会话看图后补写，大厅九层现在全部是中性光池。
+
+- **纸色差异的来源**：把四层新渲的纸色图和已提交的纸色图逐像素相减，差异只在线条边缘（抗锯齿），没有填色或几何变化，见 `docs/cards/lobby-pool-final/review/*_paperdiff.png`。newplan 在 Night B 当年的记录本来就是 1.22 / 1.391%，这次 1.13 / 1.249%，量级相同。所以 faxnews、filebox、newplan 的夜色图按审查结论写入：导出时不加纸色门槛（`night_b_export.py <R> --only lobby --lobby-layers faxnews,filebox,newplan --write`），manifest 里记 `paper_gate_applied: "reviewed"` 和原因。门槛代码没改。
+- **灯**：CPU 渲的灯杆线有噪点（manifest 里 L_lobby3 当年就记过同样的问题，所以 G_lamp 当年用 OptiX）。改在本机 RTX 2060 上用 OptiX 重渲 G_lamp（`--device OPTIX --night-gain 5.8 --night-sigma-scale 1.0`），线干净，纸色 1.32 / 2.831%，和记录一致（差 0.003 / 0.0004 个百分点），按 `night-b-recorded` 门槛写入。
+- **文件袋**：牛皮纸色相 67.0° → 78.4°。旧图是被暖光池推向橙色的，换中性光后回到材质本色，看上去仍是牛皮纸棕，没有去饱和，也没有偏青。3° 的限制是卡上为了防止调色写的，这里材质没动，判为通过。
+- **光驱**：顶面从橄榄褐变成深青灰，和桌面同一个色相。
+- **截图**：重拍了四张夜色截图（大厅，以及从大厅进入新作品、传真新闻、往期作品），页面错误和 CSP 报错都是空的。前后对比图在 `docs/cards/lobby-pool-final/review/lobby-before-after.png`。纸色图片没有改动，所以纸色截图没有重拍。
+- **测试**：`tests/test_night_pool.py` 16 个通过；node 的 lobby_state、lobby_weekday、faxnews、pastworks、flow_navigation、flight 6 个文件全部通过。

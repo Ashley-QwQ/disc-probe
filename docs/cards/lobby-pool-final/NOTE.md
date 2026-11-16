@@ -45,3 +45,7 @@
 四张 1440×1000 实际网页夜色截图：lobby-dark.png、lobby-to-newplan-dark.png、lobby-to-faxnews-dark.png、lobby-to-pastworks-dark.png。通过真实大厅按钮依次进入目的页，使用与前轮相同的本地虚拟练习后端和无头 Edge；无图像请求替换，页面错误与 CSP 均为空。保留项仍显示原图。
 
 完整场景、EXR、PNG、日志和核对记录在 `F:/dp-archive/tmp/lobbypool/final/`，审查副本在 `docs/cards/lobby-pool-final/`，原始日志以 gzip 保留原字节。没有推送或合并。
+
+## 补写
+
+审查后四个保留层也已写入，大厅九层现在全部换成新配方。过程见 `docs/cards/lobby-pool.md` 末节。上面的表记录的是 Codex 那一轮的门槛结果。

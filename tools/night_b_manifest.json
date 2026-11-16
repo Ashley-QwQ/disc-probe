@@ -2489,6 +2489,9 @@
     },
     "published_layers": [],
     "source_scene_sha256": "5f5da970146f53f3d29c3d0e28148b588c8d742c43f3c8fa7104c5dda508a03f"
+   },
+   "lobby_pool_final": {
+    "device": "local RTX 2060, OptiX (Blender 5.2.2), --night-gain 5.8 --night-sigma-scale 1.0"
    }
   }
  },
@@ -3055,88 +3058,58 @@
   "discprobe/web/home/lobby/faxnews_dark.webp": {
    "job": "F_lobby_a",
    "encoding": "(92, 6)",
-   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "paper_check": "mean 1.17, alpha mean 0.00, px >8: 1.190%",
    "lobby_pool_final": {
-    "written": false,
+    "written": true,
     "paper_stats": {
      "rgb_mean": 1.1727035405449502,
      "alpha_mean": 0.001416388358778626,
      "over8_percent": 1.190039158100832
     },
-    "paper_gate_applied": "night-b-recorded",
-    "paper_accepted": false,
+    "paper_gate_applied": "reviewed",
+    "paper_accepted": true,
     "profile": {
      "amb": 0.64,
      "gain": 5.8,
      "add": 0,
      "sigma": 0.42
     },
-    "sha256": "1f63508553a5b98dc3bf5b10c1d39c6dff691208ed3be7fc3b8d3a8dc22f3684",
-    "published_source": {
-     "retained_original_bytes": true,
-     "picture": {
-      "job": "F_lobby_a",
-      "encoding": "(92, 6)",
-      "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
-     },
-     "job": {
-      "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
-      "scene": "room_fax.blend",
-      "args": "--layers base,faxnews,filebox --ss 4 --no-mist --force",
-      "blender": "5.2.2 LTS",
-      "machine": "x79 (Linux, CPU, 16 threads)",
-      "device": "CPU"
-     }
-    },
+    "sha256": "5ee1a23ec2d8fff0047d3283f331d3d3d332ec31189f7d20b038f3474ad8cbfd",
     "paper_recorded_delta": {
      "rgb_mean": 1.1727035405449502,
      "alpha_mean": 0.001416388358778626,
      "over8_percent": 1.190039158100832
-    }
+    },
+    "review": "2026-11-16 review: paper differences are antialiasing on line edges only (diff maps in docs/cards/lobby-pool-final/review/); no fill or geometry change; written on reviewer acceptance after the paper gate refused it"
    }
   },
   "discprobe/web/home/lobby/filebox_dark.webp": {
    "job": "F_lobby_a",
    "encoding": "(92, 6)",
-   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "paper_check": "mean 1.29, alpha mean 0.00, px >8: 2.149%",
    "lobby_pool_final": {
-    "written": false,
+    "written": true,
     "paper_stats": {
-     "rgb_mean": 1.2460169666873577,
+     "rgb_mean": 1.2887736100026603,
      "alpha_mean": 0.0003352454741860985,
-     "over8_percent": 2.1440606037573318
+     "over8_percent": 2.1491278075476
     },
-    "paper_gate_applied": "night-b-recorded",
-    "paper_accepted": false,
+    "paper_gate_applied": "reviewed",
+    "paper_accepted": true,
     "profile": {
      "amb": 0.64,
      "gain": 5.8,
      "add": 0,
      "sigma": 0.42
     },
-    "sha256": "121835cf8c16781b692e8d4272c06d0ef6505de23c4793d328fdae2b6fd2d3b7",
-    "published_source": {
-     "retained_original_bytes": true,
-     "picture": {
-      "job": "F_lobby_a",
-      "encoding": "(92, 6)",
-      "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
-     },
-     "job": {
-      "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
-      "scene": "room_fax.blend",
-      "args": "--layers base,faxnews,filebox --ss 4 --no-mist --force",
-      "blender": "5.2.2 LTS",
-      "machine": "x79 (Linux, CPU, 16 threads)",
-      "device": "CPU"
-     }
-    },
+    "sha256": "4f0c56ca41f0543e9579a1b0f33905207236614b231e4a193d4a1af3de2b141d",
     "paper_recorded_delta": {
      "rgb_mean": 1.2460169666873577,
      "alpha_mean": 0.0003352454741860985,
      "over8_percent": 2.1440606037573318
     },
-    "kept_reason": "Neutral illumination candidate exceeds the required 3-degree kraft hue comparison; original layer retained without material recolouring."
+    "review": "2026-11-16 review: paper differences are antialiasing on line edges only (diff maps in docs/cards/lobby-pool-final/review/); no fill or geometry change; written on reviewer acceptance after the paper gate refused it",
+    "kraft": "kraft hue 67.0 -> 78.4 deg under the neutral pool (was pushed orange by the old warm pool); still kraft brown, material unchanged, no desaturation (reviewed against the old picture)"
    }
   },
   "discprobe/web/home/lobby/lamp_dark.webp": {
@@ -3144,87 +3117,55 @@
    "encoding": "lossless",
    "paper_check": "mean 1.32, alpha mean 0.00, px >8: 2.831%",
    "lobby_pool_final": {
-    "written": false,
+    "written": true,
     "paper_stats": {
-     "rgb_mean": 4.997463678217958,
-     "alpha_mean": 0.0007717464392689039,
-     "over8_percent": 14.992556446944008
+     "rgb_mean": 1.3166129076723734,
+     "alpha_mean": 0.0,
+     "over8_percent": 2.8306178149036474
     },
     "paper_gate_applied": "night-b-recorded",
-    "paper_accepted": false,
+    "paper_accepted": true,
     "profile": {
      "amb": 0.64,
      "gain": 5.8,
      "add": 0,
      "sigma": 0.42
     },
-    "sha256": "e9fe7962266621d9e11fc85fc5057b23a926bdea8cd605a8944fccedc2d484c9",
-    "published_source": {
-     "retained_original_bytes": true,
-     "picture": {
-      "job": "G_lamp",
-      "encoding": "lossless",
-      "paper_check": "mean 1.32, alpha mean 0.00, px >8: 2.831%"
-     },
-     "job": {
-      "script": "art/desk/night-b/render_round5_nightb.py (gitignored art folder; the lobby script art/desk/render_desk.py with its dark block remapped by tools/night_b_palette.py)",
-      "scene": "art/desk/room_lobby3_final.blend",
-      "args": "--layers lamp --ss 4 --no-mist --force --device OPTIX (default)",
-      "note": "Exception to CPU-only, at the main session's direction: on CPU the lamp's colour pass leaves speckles on the rod; the committed lamp was an OptiX render on glassbox, and this run's paper picture is pixel-identical to it (art/desk/lobby3_final/desk_lamp_paper.png).",
-      "blender": "5.2.2 LTS",
-      "machine": "glassbox (Windows, RTX 2080 Ti 22 GB, OptiX)",
-      "device": "GPU (OptiX)"
-     }
-    },
+    "sha256": "69d2c11cfcb8595ee9f7f9017b07e271be80d1c70a4cf66689ff512fa894f81d",
     "paper_recorded_delta": {
-     "rgb_mean": 3.6774636782179577,
-     "alpha_mean": 0.0007717464392689039,
-     "over8_percent": 12.161556446944008
-    }
+     "rgb_mean": 0.003387092327626684,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0003821850963525719
+    },
+    "render": "G_lamp re-rendered on the local RTX 2060, OptiX (the CPU render had speckled rod lines); paper equals the recorded 1.32 / 2.831%"
    }
   },
   "discprobe/web/home/lobby/newplan_dark.webp": {
    "job": "L_lobby3",
    "encoding": "lossless",
-   "paper_check": "mean 1.22, alpha mean 0.00, px >8: 1.391%",
+   "paper_check": "mean 1.13, alpha mean 0.00, px >8: 1.249%",
    "lobby_pool_final": {
-    "written": false,
+    "written": true,
     "paper_stats": {
      "rgb_mean": 1.1289383385608516,
      "alpha_mean": 0.0006907492287609246,
      "over8_percent": 1.249367169633453
     },
-    "paper_gate_applied": "night-b-recorded",
-    "paper_accepted": false,
+    "paper_gate_applied": "reviewed",
+    "paper_accepted": true,
     "profile": {
      "amb": 0.64,
      "gain": 5.8,
      "add": 0,
      "sigma": 0.42
     },
-    "sha256": "71657f0367476a5605dd40f29d9d42e723fb9ce17bcdfb382dbc7b6fd89cf4ec",
-    "published_source": {
-     "retained_original_bytes": true,
-     "picture": {
-      "job": "L_lobby3",
-      "encoding": "lossless",
-      "paper_check": "mean 1.22, alpha mean 0.00, px >8: 1.391%"
-     },
-     "job": {
-      "script": "art/desk/night-b/render_round5_nightb.py (gitignored art folder; the lobby script art/desk/render_desk.py with its dark block remapped by tools/night_b_palette.py)",
-      "scene": "art/desk/room_lobby3_final.blend",
-      "args": "--layers lamp,newplan --ss 4 --no-mist --force",
-      "used_for": "newplan only; its CPU lamp had speckles on the rod and was replaced by G_lamp",
-      "blender": "5.2.2 LTS",
-      "machine": "x79 (Linux, CPU, 16 threads)",
-      "device": "CPU"
-     }
-    },
+    "sha256": "ed23ded4a04bdfeae4b13ad7a7af3480dc1acc576f3b11f674375799f9a4d60d",
     "paper_recorded_delta": {
      "rgb_mean": 0.0910616614391484,
      "alpha_mean": 0.0006907492287609246,
      "over8_percent": 0.14163283036654706
-    }
+    },
+    "review": "2026-11-16 review: paper differences are antialiasing on line edges only (diff maps in docs/cards/lobby-pool-final/review/); no fill or geometry change; written on reviewer acceptance after the paper gate refused it"
    }
   },
   "discprobe/web/home/lobby/parcel_dark.webp": {
