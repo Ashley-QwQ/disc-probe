@@ -1,38 +1,303 @@
 {
  "note": "Night palette 深青 B. Every dark picture below was re-rendered from its own script with the dark block remapped by tools/night_b_palette.py, then encoded like the committed file by tools/night_b_export.py. paper_check compares the same run's paper render with the committed paper picture (unchanged): it shows the job matches what made the original art. Paper pictures were not written.",
- "blender": "5.2.2 LTS, Cycles on CPU except the lobby lamp (G_lamp, OptiX on glassbox, like the original); the originals were made with the same version",
+ "blender": "5.2.2 LTS. This lobby attempt uses local CPU, 8 threads, including lamp; retained images keep their original provenance. Non-lobby provenance is unchanged.",
  "jobs": {
   "F_lobby_a": {
-   "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+   "script": "tools/night_lobby/render_fax_nightb.py",
    "scene": "room_fax.blend",
-   "args": "--layers base,faxnews,filebox --ss 4 --no-mist --force",
+   "args": "--layers base,faxnews,filebox --ss 4 --no-mist --force --device CPU --variants paper,dark --night-gain 5.8 --night-sigma-scale 1.0",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
-   "device": "CPU"
+   "machine": "local Windows CPU, 8 threads",
+   "device": "CPU",
+   "lobby_pool_final_attempt": {
+    "amb": 0.64,
+    "gain": 5.8,
+    "add": 0,
+    "sigma": 0.42,
+    "device": "CPU",
+    "threads": 8,
+    "render": {
+     "job": "F_lobby_a",
+     "command": [
+      "F:\\dp-archive\\tools\\blender-5.2.2-windows-x64\\blender.exe",
+      "-b",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\room_fax.blend",
+      "--disable-autoexec",
+      "-t",
+      "8",
+      "--python-exit-code",
+      "1",
+      "--python",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\render_fax_nightb.py",
+      "--",
+      "--layers",
+      "faxnews,filebox",
+      "--ss",
+      "4",
+      "--no-mist",
+      "--force",
+      "--device",
+      "CPU",
+      "--variants",
+      "paper,dark",
+      "--night-gain",
+      "5.8",
+      "--night-sigma-scale",
+      "1.0",
+      "--outdir",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\F_lobby_a"
+     ],
+     "exit": 0,
+     "seconds": 438.527,
+     "manifest_args": "--layers base,faxnews,filebox --ss 4 --no-mist --force",
+     "rendered_layers": [
+      "faxnews",
+      "filebox"
+     ],
+     "reused_layers": [
+      "base"
+     ],
+     "device": "CPU",
+     "threads": 8,
+     "scene_sha256": "913c2af0b7ba10affc64a315c46f4c9d4ea72896185e410ad2d6ddf2fbb801ac",
+     "script_sha256": "346603763a4759ca9dd017146604184be60c927b092baa0f8d294f89c3109db2"
+    },
+    "published_layers": [
+     "base"
+    ],
+    "source_scene_sha256": "913c2af0b7ba10affc64a315c46f4c9d4ea72896185e410ad2d6ddf2fbb801ac"
+   },
+   "previous_night_b_job": {
+    "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+    "scene": "room_fax.blend",
+    "args": "--layers base,faxnews,filebox --ss 4 --no-mist --force",
+    "blender": "5.2.2 LTS",
+    "machine": "x79 (Linux, CPU, 16 threads)",
+    "device": "CPU"
+   },
+   "used_for": "Published lobby layers: base"
   },
   "F_lobby_b": {
-   "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+   "script": "tools/night_lobby/render_fax_nightb.py",
    "scene": "room_fax_parcel.blend",
-   "args": "--layers base,parcel --ss 4 --no-mist --force",
+   "args": "--layers base,parcel --ss 4 --no-mist --force --device CPU --variants paper,dark --night-gain 5.8 --night-sigma-scale 1.0",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
-   "device": "CPU"
+   "machine": "local Windows CPU, 8 threads",
+   "device": "CPU",
+   "lobby_pool_final_attempt": {
+    "amb": 0.64,
+    "gain": 5.8,
+    "add": 0,
+    "sigma": 0.42,
+    "device": "CPU",
+    "threads": 8,
+    "render": {
+     "job": "F_lobby_b",
+     "command": [
+      "F:\\dp-archive\\tools\\blender-5.2.2-windows-x64\\blender.exe",
+      "-b",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\room_fax_parcel.blend",
+      "--disable-autoexec",
+      "-t",
+      "8",
+      "--python-exit-code",
+      "1",
+      "--python",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\render_fax_nightb.py",
+      "--",
+      "--layers",
+      "base,parcel",
+      "--ss",
+      "4",
+      "--no-mist",
+      "--force",
+      "--device",
+      "CPU",
+      "--variants",
+      "paper,dark",
+      "--night-gain",
+      "5.8",
+      "--night-sigma-scale",
+      "1.0",
+      "--outdir",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\F_lobby_b"
+     ],
+     "exit": 0,
+     "seconds": 1100.133,
+     "manifest_args": "--layers base,parcel --ss 4 --no-mist --force",
+     "rendered_layers": [
+      "base",
+      "parcel"
+     ],
+     "reused_layers": [],
+     "device": "CPU",
+     "threads": 8,
+     "scene_sha256": "682b70a13f04ccfb0434ec9ae74e36520bece372cf64cb3b7d03e32ff7711381",
+     "script_sha256": "346603763a4759ca9dd017146604184be60c927b092baa0f8d294f89c3109db2"
+    },
+    "published_layers": [
+     "parcel"
+    ],
+    "source_scene_sha256": "682b70a13f04ccfb0434ec9ae74e36520bece372cf64cb3b7d03e32ff7711381"
+   },
+   "previous_night_b_job": {
+    "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+    "scene": "room_fax_parcel.blend",
+    "args": "--layers base,parcel --ss 4 --no-mist --force",
+    "blender": "5.2.2 LTS",
+    "machine": "x79 (Linux, CPU, 16 threads)",
+    "device": "CPU"
+   },
+   "used_for": "Published lobby layers: parcel"
   },
   "F_lobby_c": {
-   "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+   "script": "tools/night_lobby/render_fax_nightb.py",
    "scene": "room_fax.blend",
-   "args": "--layers fax,lamp,newplan,screen --ss 4 --no-mist --force",
+   "args": "--layers fax,lamp,newplan,screen --ss 4 --no-mist --force --device CPU --variants paper,dark --night-gain 5.8 --night-sigma-scale 1.0",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
-   "device": "CPU"
+   "machine": "local Windows CPU, 8 threads",
+   "device": "CPU",
+   "lobby_pool_final_attempt": {
+    "amb": 0.64,
+    "gain": 5.8,
+    "add": 0,
+    "sigma": 0.42,
+    "device": "CPU",
+    "threads": 8,
+    "render": {
+     "job": "F_lobby_c",
+     "command": [
+      "F:\\dp-archive\\tools\\blender-5.2.2-windows-x64\\blender.exe",
+      "-b",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\room_fax.blend",
+      "--disable-autoexec",
+      "-t",
+      "8",
+      "--python-exit-code",
+      "1",
+      "--python",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\render_fax_nightb.py",
+      "--",
+      "--layers",
+      "fax,lamp,newplan,screen",
+      "--ss",
+      "4",
+      "--no-mist",
+      "--force",
+      "--device",
+      "CPU",
+      "--variants",
+      "paper,dark",
+      "--night-gain",
+      "5.8",
+      "--night-sigma-scale",
+      "1.0",
+      "--outdir",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\F_lobby_c"
+     ],
+     "exit": 0,
+     "seconds": 925.015,
+     "manifest_args": "--layers fax,lamp,newplan,screen --ss 4 --no-mist --force",
+     "rendered_layers": [
+      "fax",
+      "lamp",
+      "newplan",
+      "screen"
+     ],
+     "reused_layers": [],
+     "device": "CPU",
+     "threads": 8,
+     "scene_sha256": "913c2af0b7ba10affc64a315c46f4c9d4ea72896185e410ad2d6ddf2fbb801ac",
+     "script_sha256": "346603763a4759ca9dd017146604184be60c927b092baa0f8d294f89c3109db2"
+    },
+    "published_layers": [
+     "screen"
+    ],
+    "source_scene_sha256": "913c2af0b7ba10affc64a315c46f4c9d4ea72896185e410ad2d6ddf2fbb801ac"
+   },
+   "previous_night_b_job": {
+    "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+    "scene": "room_fax.blend",
+    "args": "--layers fax,lamp,newplan,screen --ss 4 --no-mist --force",
+    "blender": "5.2.2 LTS",
+    "machine": "x79 (Linux, CPU, 16 threads)",
+    "device": "CPU"
+   },
+   "used_for": "Published lobby layers: screen"
   },
   "F_lobby_d": {
-   "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+   "script": "tools/night_lobby/render_fax_nightb.py",
    "scene": "room_fax.blend",
-   "args": "--layers screen --ss 4 --no-mist --force --glow glow_review.json",
+   "args": "--layers screen --ss 4 --no-mist --force --glow glow_review.json --device CPU --variants paper,dark --night-gain 5.8 --night-sigma-scale 1.0",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
-   "device": "CPU"
+   "machine": "local Windows CPU, 8 threads",
+   "device": "CPU",
+   "lobby_pool_final_attempt": {
+    "amb": 0.64,
+    "gain": 5.8,
+    "add": 0,
+    "sigma": 0.42,
+    "device": "CPU",
+    "threads": 8,
+    "render": {
+     "job": "F_lobby_d",
+     "command": [
+      "F:\\dp-archive\\tools\\blender-5.2.2-windows-x64\\blender.exe",
+      "-b",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\room_fax.blend",
+      "--disable-autoexec",
+      "-t",
+      "8",
+      "--python-exit-code",
+      "1",
+      "--python",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\render_fax_nightb.py",
+      "--",
+      "--layers",
+      "screen",
+      "--ss",
+      "4",
+      "--no-mist",
+      "--force",
+      "--glow",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\glow_review.json",
+      "--device",
+      "CPU",
+      "--variants",
+      "paper,dark",
+      "--night-gain",
+      "5.8",
+      "--night-sigma-scale",
+      "1.0",
+      "--outdir",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\F_lobby_d"
+     ],
+     "exit": 0,
+     "seconds": 208.151,
+     "manifest_args": "--layers screen --ss 4 --no-mist --force --glow glow_review.json",
+     "rendered_layers": [
+      "screen"
+     ],
+     "reused_layers": [],
+     "device": "CPU",
+     "threads": 8,
+     "scene_sha256": "913c2af0b7ba10affc64a315c46f4c9d4ea72896185e410ad2d6ddf2fbb801ac",
+     "script_sha256": "346603763a4759ca9dd017146604184be60c927b092baa0f8d294f89c3109db2"
+    },
+    "published_layers": [
+     "screen_on"
+    ],
+    "source_scene_sha256": "913c2af0b7ba10affc64a315c46f4c9d4ea72896185e410ad2d6ddf2fbb801ac"
+   },
+   "previous_night_b_job": {
+    "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+    "scene": "room_fax.blend",
+    "args": "--layers screen --ss 4 --no-mist --force --glow glow_review.json",
+    "blender": "5.2.2 LTS",
+    "machine": "x79 (Linux, CPU, 16 threads)",
+    "device": "CPU"
+   },
+   "used_for": "Published lobby layers: screen_on"
   },
   "F_burner": {
    "script": "discprobe/web/home/render_burner.py",
@@ -2031,12 +2296,75 @@
    }
   },
   "L_round5": {
-   "script": "art/desk/night-b/render_round5_nightb.py (gitignored art folder; the lobby script art/desk/render_desk.py with its dark block remapped by tools/night_b_palette.py)",
+   "script": "tools/night_lobby/render_round5_nightb.py",
    "scene": "art/desk/review-20261111/round5/room_round5.blend",
-   "args": "--layers fax --ss 4 --no-mist",
+   "args": "--layers fax --ss 4 --no-mist --device CPU --variants paper,dark --night-gain 5.8 --night-sigma-scale 1.0",
    "blender": "5.2.2 LTS",
-   "machine": "lab1280p (Windows, CPU, P cores only: affinity 0xFFF, -t 12)",
-   "device": "CPU"
+   "machine": "local Windows CPU, 8 threads",
+   "device": "CPU",
+   "lobby_pool_final_attempt": {
+    "amb": 0.64,
+    "gain": 5.8,
+    "add": 0,
+    "sigma": 0.42,
+    "device": "CPU",
+    "threads": 8,
+    "render": {
+     "job": "L_round5",
+     "command": [
+      "F:\\dp-archive\\tools\\blender-5.2.2-windows-x64\\blender.exe",
+      "-b",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\room_round5.blend",
+      "--disable-autoexec",
+      "-t",
+      "8",
+      "--python-exit-code",
+      "1",
+      "--python",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\render_round5_nightb.py",
+      "--",
+      "--layers",
+      "fax",
+      "--ss",
+      "4",
+      "--no-mist",
+      "--device",
+      "CPU",
+      "--variants",
+      "paper,dark",
+      "--night-gain",
+      "5.8",
+      "--night-sigma-scale",
+      "1.0",
+      "--outdir",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\L_round5"
+     ],
+     "exit": 0,
+     "seconds": 200.904,
+     "manifest_args": "--layers fax --ss 4 --no-mist",
+     "rendered_layers": [
+      "fax"
+     ],
+     "reused_layers": [],
+     "device": "CPU",
+     "threads": 8,
+     "scene_sha256": "c9f1117a82101980ae024dd738bd56106685f2193b081f0cdcea828d3ddaba2f",
+     "script_sha256": "b02541c55ba5dbe41ae74e1d05df37fe6a06f09b894b8f1d0ff6c0415ee9f18e"
+    },
+    "published_layers": [
+     "fax"
+    ],
+    "source_scene_sha256": "c9f1117a82101980ae024dd738bd56106685f2193b081f0cdcea828d3ddaba2f"
+   },
+   "previous_night_b_job": {
+    "script": "art/desk/night-b/render_round5_nightb.py (gitignored art folder; the lobby script art/desk/render_desk.py with its dark block remapped by tools/night_b_palette.py)",
+    "scene": "art/desk/review-20261111/round5/room_round5.blend",
+    "args": "--layers fax --ss 4 --no-mist",
+    "blender": "5.2.2 LTS",
+    "machine": "lab1280p (Windows, CPU, P cores only: affinity 0xFFF, -t 12)",
+    "device": "CPU"
+   },
+   "used_for": "Published lobby layers: fax"
   },
   "L_lobby3": {
    "script": "art/desk/night-b/render_round5_nightb.py (gitignored art folder; the lobby script art/desk/render_desk.py with its dark block remapped by tools/night_b_palette.py)",
@@ -2045,7 +2373,61 @@
    "used_for": "newplan only; its CPU lamp had speckles on the rod and was replaced by G_lamp",
    "blender": "5.2.2 LTS",
    "machine": "x79 (Linux, CPU, 16 threads)",
-   "device": "CPU"
+   "device": "CPU",
+   "lobby_pool_final_attempt": {
+    "amb": 0.64,
+    "gain": 5.8,
+    "add": 0,
+    "sigma": 0.42,
+    "device": "CPU",
+    "threads": 8,
+    "render": {
+     "job": "L_lobby3",
+     "command": [
+      "F:\\dp-archive\\tools\\blender-5.2.2-windows-x64\\blender.exe",
+      "-b",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\room_lobby3_final.blend",
+      "--disable-autoexec",
+      "-t",
+      "8",
+      "--python-exit-code",
+      "1",
+      "--python",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\render_round5_nightb.py",
+      "--",
+      "--layers",
+      "lamp,newplan",
+      "--ss",
+      "4",
+      "--no-mist",
+      "--force",
+      "--device",
+      "CPU",
+      "--variants",
+      "paper,dark",
+      "--night-gain",
+      "5.8",
+      "--night-sigma-scale",
+      "1.0",
+      "--outdir",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\L_lobby3"
+     ],
+     "exit": 0,
+     "seconds": 480.628,
+     "manifest_args": "--layers lamp,newplan --ss 4 --no-mist --force",
+     "rendered_layers": [
+      "lamp",
+      "newplan"
+     ],
+     "reused_layers": [],
+     "device": "CPU",
+     "threads": 8,
+     "scene_sha256": "5f5da970146f53f3d29c3d0e28148b588c8d742c43f3c8fa7104c5dda508a03f",
+     "script_sha256": "b02541c55ba5dbe41ae74e1d05df37fe6a06f09b894b8f1d0ff6c0415ee9f18e"
+    },
+    "published_layers": [],
+    "source_scene_sha256": "5f5da970146f53f3d29c3d0e28148b588c8d742c43f3c8fa7104c5dda508a03f"
+   }
   },
   "G_lamp": {
    "script": "art/desk/night-b/render_round5_nightb.py (gitignored art folder; the lobby script art/desk/render_desk.py with its dark block remapped by tools/night_b_palette.py)",
@@ -2054,7 +2436,60 @@
    "note": "Exception to CPU-only, at the main session's direction: on CPU the lamp's colour pass leaves speckles on the rod; the committed lamp was an OptiX render on glassbox, and this run's paper picture is pixel-identical to it (art/desk/lobby3_final/desk_lamp_paper.png).",
    "blender": "5.2.2 LTS",
    "machine": "glassbox (Windows, RTX 2080 Ti 22 GB, OptiX)",
-   "device": "GPU (OptiX)"
+   "device": "GPU (OptiX)",
+   "lobby_pool_final_attempt": {
+    "amb": 0.64,
+    "gain": 5.8,
+    "add": 0,
+    "sigma": 0.42,
+    "device": "CPU",
+    "threads": 8,
+    "render": {
+     "job": "G_lamp",
+     "command": [
+      "F:\\dp-archive\\tools\\blender-5.2.2-windows-x64\\blender.exe",
+      "-b",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\room_lobby3_final.blend",
+      "--disable-autoexec",
+      "-t",
+      "8",
+      "--python-exit-code",
+      "1",
+      "--python",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\render_round5_nightb.py",
+      "--",
+      "--layers",
+      "lamp",
+      "--ss",
+      "4",
+      "--no-mist",
+      "--force",
+      "--device",
+      "CPU",
+      "--variants",
+      "paper,dark",
+      "--night-gain",
+      "5.8",
+      "--night-sigma-scale",
+      "1.0",
+      "--outdir",
+      "F:\\dp-archive\\tmp\\lobbypool\\final\\G_lamp"
+     ],
+     "exit": 0,
+     "seconds": 202.594,
+     "manifest_args": "--layers lamp --ss 4 --no-mist --force --device OPTIX (default)",
+     "rendered_layers": [
+      "lamp"
+     ],
+     "reused_layers": [],
+     "device": "CPU",
+     "threads": 8,
+     "scene_sha256": "5f5da970146f53f3d29c3d0e28148b588c8d742c43f3c8fa7104c5dda508a03f",
+     "script_sha256": "b02541c55ba5dbe41ae74e1d05df37fe6a06f09b894b8f1d0ff6c0415ee9f18e"
+    },
+    "published_layers": [],
+    "source_scene_sha256": "5f5da970146f53f3d29c3d0e28148b588c8d742c43f3c8fa7104c5dda508a03f"
+   }
   }
  },
  "pictures": {
@@ -2571,47 +3006,302 @@
   "discprobe/web/home/lobby/base_dark.webp": {
    "job": "F_lobby_a",
    "encoding": "(92, 6)",
-   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+   "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.026%",
+   "lobby_pool_final": {
+    "written": true,
+    "paper_stats": {
+     "rgb_mean": 0.023598097547924808,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.026368823283082075
+    },
+    "paper_gate_applied": "night-b",
+    "paper_accepted": true,
+    "profile": {
+     "amb": 0.64,
+     "gain": 5.8,
+     "add": 0,
+     "sigma": 0.42
+    },
+    "sha256": "c8f1307e222c6ee0113f7d8527f29638fe82b84983c6fc7871f98fed402439fa"
+   }
   },
   "discprobe/web/home/lobby/fax_dark.webp": {
    "job": "L_round5",
    "encoding": "lossless",
-   "paper_check": "mean 0.91, alpha mean 0.00, px >8: 2.964%"
+   "paper_check": "mean 0.91, alpha mean 0.00, px >8: 2.964%",
+   "lobby_pool_final": {
+    "written": true,
+    "paper_stats": {
+     "rgb_mean": 0.9071873617940113,
+     "alpha_mean": 0.00046583105220189216,
+     "over8_percent": 2.963786779052525
+    },
+    "paper_gate_applied": "night-b-recorded",
+    "paper_accepted": true,
+    "profile": {
+     "amb": 0.64,
+     "gain": 5.8,
+     "add": 0,
+     "sigma": 0.42
+    },
+    "sha256": "b450b91d58ea975b2f29c4d5a76d14898b19e85f4d8683f8cfa8a974dafd9528",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.00281263820598876,
+     "alpha_mean": 0.00046583105220189216,
+     "over8_percent": 0.0002132209474750013
+    }
+   }
   },
   "discprobe/web/home/lobby/faxnews_dark.webp": {
    "job": "F_lobby_a",
    "encoding": "(92, 6)",
-   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "lobby_pool_final": {
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 1.1727035405449502,
+     "alpha_mean": 0.001416388358778626,
+     "over8_percent": 1.190039158100832
+    },
+    "paper_gate_applied": "night-b-recorded",
+    "paper_accepted": false,
+    "profile": {
+     "amb": 0.64,
+     "gain": 5.8,
+     "add": 0,
+     "sigma": 0.42
+    },
+    "sha256": "1f63508553a5b98dc3bf5b10c1d39c6dff691208ed3be7fc3b8d3a8dc22f3684",
+    "published_source": {
+     "retained_original_bytes": true,
+     "picture": {
+      "job": "F_lobby_a",
+      "encoding": "(92, 6)",
+      "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+     },
+     "job": {
+      "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+      "scene": "room_fax.blend",
+      "args": "--layers base,faxnews,filebox --ss 4 --no-mist --force",
+      "blender": "5.2.2 LTS",
+      "machine": "x79 (Linux, CPU, 16 threads)",
+      "device": "CPU"
+     }
+    },
+    "paper_recorded_delta": {
+     "rgb_mean": 1.1727035405449502,
+     "alpha_mean": 0.001416388358778626,
+     "over8_percent": 1.190039158100832
+    }
+   }
   },
   "discprobe/web/home/lobby/filebox_dark.webp": {
    "job": "F_lobby_a",
    "encoding": "(92, 6)",
-   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "lobby_pool_final": {
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 1.2460169666873577,
+     "alpha_mean": 0.0003352454741860985,
+     "over8_percent": 2.1440606037573318
+    },
+    "paper_gate_applied": "night-b-recorded",
+    "paper_accepted": false,
+    "profile": {
+     "amb": 0.64,
+     "gain": 5.8,
+     "add": 0,
+     "sigma": 0.42
+    },
+    "sha256": "121835cf8c16781b692e8d4272c06d0ef6505de23c4793d328fdae2b6fd2d3b7",
+    "published_source": {
+     "retained_original_bytes": true,
+     "picture": {
+      "job": "F_lobby_a",
+      "encoding": "(92, 6)",
+      "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+     },
+     "job": {
+      "script": "art/desk/night-b/render_fax_nightb.py (gitignored art folder; dark block from the lobby fax script, remapped with tools/night_b_palette.py)",
+      "scene": "room_fax.blend",
+      "args": "--layers base,faxnews,filebox --ss 4 --no-mist --force",
+      "blender": "5.2.2 LTS",
+      "machine": "x79 (Linux, CPU, 16 threads)",
+      "device": "CPU"
+     }
+    },
+    "paper_recorded_delta": {
+     "rgb_mean": 1.2460169666873577,
+     "alpha_mean": 0.0003352454741860985,
+     "over8_percent": 2.1440606037573318
+    },
+    "kept_reason": "Neutral illumination candidate exceeds the required 3-degree kraft hue comparison; original layer retained without material recolouring."
+   }
   },
   "discprobe/web/home/lobby/lamp_dark.webp": {
    "job": "G_lamp",
    "encoding": "lossless",
-   "paper_check": "mean 1.32, alpha mean 0.00, px >8: 2.831%"
+   "paper_check": "mean 1.32, alpha mean 0.00, px >8: 2.831%",
+   "lobby_pool_final": {
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 4.997463678217958,
+     "alpha_mean": 0.0007717464392689039,
+     "over8_percent": 14.992556446944008
+    },
+    "paper_gate_applied": "night-b-recorded",
+    "paper_accepted": false,
+    "profile": {
+     "amb": 0.64,
+     "gain": 5.8,
+     "add": 0,
+     "sigma": 0.42
+    },
+    "sha256": "e9fe7962266621d9e11fc85fc5057b23a926bdea8cd605a8944fccedc2d484c9",
+    "published_source": {
+     "retained_original_bytes": true,
+     "picture": {
+      "job": "G_lamp",
+      "encoding": "lossless",
+      "paper_check": "mean 1.32, alpha mean 0.00, px >8: 2.831%"
+     },
+     "job": {
+      "script": "art/desk/night-b/render_round5_nightb.py (gitignored art folder; the lobby script art/desk/render_desk.py with its dark block remapped by tools/night_b_palette.py)",
+      "scene": "art/desk/room_lobby3_final.blend",
+      "args": "--layers lamp --ss 4 --no-mist --force --device OPTIX (default)",
+      "note": "Exception to CPU-only, at the main session's direction: on CPU the lamp's colour pass leaves speckles on the rod; the committed lamp was an OptiX render on glassbox, and this run's paper picture is pixel-identical to it (art/desk/lobby3_final/desk_lamp_paper.png).",
+      "blender": "5.2.2 LTS",
+      "machine": "glassbox (Windows, RTX 2080 Ti 22 GB, OptiX)",
+      "device": "GPU (OptiX)"
+     }
+    },
+    "paper_recorded_delta": {
+     "rgb_mean": 3.6774636782179577,
+     "alpha_mean": 0.0007717464392689039,
+     "over8_percent": 12.161556446944008
+    }
+   }
   },
   "discprobe/web/home/lobby/newplan_dark.webp": {
    "job": "L_lobby3",
    "encoding": "lossless",
-   "paper_check": "mean 1.22, alpha mean 0.00, px >8: 1.391%"
+   "paper_check": "mean 1.22, alpha mean 0.00, px >8: 1.391%",
+   "lobby_pool_final": {
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 1.1289383385608516,
+     "alpha_mean": 0.0006907492287609246,
+     "over8_percent": 1.249367169633453
+    },
+    "paper_gate_applied": "night-b-recorded",
+    "paper_accepted": false,
+    "profile": {
+     "amb": 0.64,
+     "gain": 5.8,
+     "add": 0,
+     "sigma": 0.42
+    },
+    "sha256": "71657f0367476a5605dd40f29d9d42e723fb9ce17bcdfb382dbc7b6fd89cf4ec",
+    "published_source": {
+     "retained_original_bytes": true,
+     "picture": {
+      "job": "L_lobby3",
+      "encoding": "lossless",
+      "paper_check": "mean 1.22, alpha mean 0.00, px >8: 1.391%"
+     },
+     "job": {
+      "script": "art/desk/night-b/render_round5_nightb.py (gitignored art folder; the lobby script art/desk/render_desk.py with its dark block remapped by tools/night_b_palette.py)",
+      "scene": "art/desk/room_lobby3_final.blend",
+      "args": "--layers lamp,newplan --ss 4 --no-mist --force",
+      "used_for": "newplan only; its CPU lamp had speckles on the rod and was replaced by G_lamp",
+      "blender": "5.2.2 LTS",
+      "machine": "x79 (Linux, CPU, 16 threads)",
+      "device": "CPU"
+     }
+    },
+    "paper_recorded_delta": {
+     "rgb_mean": 0.0910616614391484,
+     "alpha_mean": 0.0006907492287609246,
+     "over8_percent": 0.14163283036654706
+    }
+   }
   },
   "discprobe/web/home/lobby/parcel_dark.webp": {
    "job": "F_lobby_b (minus F_lobby_a base)",
    "encoding": "(92, 6)",
-   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%"
+   "paper_check": "mean 0.23, alpha mean 0.00, px >8: 0.090%",
+   "lobby_pool_final": {
+    "written": true,
+    "paper_stats": {
+     "rgb_mean": 0.2262716888310815,
+     "alpha_mean": 0.0005315791222299744,
+     "over8_percent": 0.09025031189446023
+    },
+    "paper_gate_applied": "night-b",
+    "paper_accepted": true,
+    "profile": {
+     "amb": 0.64,
+     "gain": 5.8,
+     "add": 0,
+     "sigma": 0.42
+    },
+    "sha256": "40b15f146e82d0421a9014583634fbdda77925a772f1f3a90782b114cb7f2156"
+   }
   },
   "discprobe/web/home/lobby/screen_dark.webp": {
    "job": "F_lobby_c",
    "encoding": "lossless",
-   "paper_check": "mean 0.06, alpha mean 0.00, px >8: 0.194%"
+   "paper_check": "mean 0.05, alpha mean 0.00, px >8: 0.129%",
+   "lobby_pool_final": {
+    "written": true,
+    "paper_stats": {
+     "rgb_mean": 0.04601078445775725,
+     "alpha_mean": 0.0003264620837608432,
+     "over8_percent": 0.12895643231419662
+    },
+    "paper_gate_applied": "night-b-recorded",
+    "paper_accepted": true,
+    "profile": {
+     "amb": 0.64,
+     "gain": 5.8,
+     "add": 0,
+     "sigma": 0.42
+    },
+    "sha256": "2ab020ebb838fcfea04fc54732303bb95efb17d3472afd76c8ccc05411bafc60",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.01398921554224275,
+     "alpha_mean": 0.0003264620837608432,
+     "over8_percent": 0.06504356768580338
+    }
+   }
   },
   "discprobe/web/home/lobby/screen_on_dark.webp": {
    "job": "F_lobby_d",
    "encoding": "lossless",
-   "paper_check": "mean 0.06, alpha mean 0.00, px >8: 0.194%"
+   "paper_check": "mean 0.05, alpha mean 0.00, px >8: 0.129%",
+   "lobby_pool_final": {
+    "written": true,
+    "paper_stats": {
+     "rgb_mean": 0.04684056740830218,
+     "alpha_mean": 0.0003264620837608432,
+     "over8_percent": 0.12895643231419662
+    },
+    "paper_gate_applied": "night-b-recorded",
+    "paper_accepted": true,
+    "profile": {
+     "amb": 0.64,
+     "gain": 5.8,
+     "add": 0,
+     "sigma": 0.42
+    },
+    "sha256": "dc64ab1edeab47a5cce89fb922e77ea0e27fc14fe554a115f73c5ac04f42f6fd",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.013159432591697814,
+     "alpha_mean": 0.0003264620837608432,
+     "over8_percent": 0.06504356768580338
+    }
+   }
   },
   "discprobe/web/home/newplan/envelope_back_dark.webp": {
    "job": "F_np_env",
@@ -4000,5 +4690,53 @@
    "over8_percentage_points": 0.1
   },
   "note": "Recorded deltas apply only to tumble_0..9 and desk_knob. Earlier night_pool_attempt/night_pool_cpu fields are historical attempts."
+ },
+ "previous_blender_note": "5.2.2 LTS, Cycles on CPU except the lobby lamp (G_lamp, OptiX on glassbox, like the original); the originals were made with the same version",
+ "lobby_pool_final": {
+  "render_root": "F:\\dp-archive\\tmp\\lobbypool\\final",
+  "written_layers": [
+   "base",
+   "fax",
+   "screen",
+   "screen_on",
+   "parcel"
+  ],
+  "kept_layers": [
+   "faxnews",
+   "filebox",
+   "lamp",
+   "newplan"
+  ],
+  "paper_gate": "absolute Night B, otherwise frozen 3c3f66a deltas <= .05 / .01 / .1 percentage points",
+  "drive_hero_override": false,
+  "drive_prewrite": {
+   "source": "F:\\dp-archive\\tmp\\lobbypool\\final\\L_lobby3\\desk_newplan_dark.png",
+   "surface": "top-cover upward faces, 3px edge and internal-line guard",
+   "pixels": 67926,
+   "desktop": {
+    "xy": [
+     842,
+     1074
+    ],
+    "L_star": 16.116784936095094
+   },
+   "brightest": {
+    "xy": [
+     1063,
+     868
+    ],
+    "L_star": 35.28658863127351
+   },
+   "darkest": {
+    "xy": [
+     1102,
+     724
+    ],
+    "L_star": 29.878216127970695
+   },
+   "min_contrast": 13.761431191875602,
+   "required_contrast": 6.0,
+   "hero_override_required": false
+  }
  }
 }

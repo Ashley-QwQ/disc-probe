@@ -1,0 +1,46 @@
+{
+  "job": "F_lobby_a",
+  "command": [
+    "F:\\dp-archive\\tools\\blender-5.2.2-windows-x64\\blender.exe",
+    "-b",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\room_fax.blend",
+    "--disable-autoexec",
+    "-t",
+    "8",
+    "--python-exit-code",
+    "1",
+    "--python",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\stage\\render_fax_nightb.py",
+    "--",
+    "--layers",
+    "faxnews,filebox",
+    "--ss",
+    "4",
+    "--no-mist",
+    "--force",
+    "--device",
+    "CPU",
+    "--variants",
+    "paper,dark",
+    "--night-gain",
+    "5.8",
+    "--night-sigma-scale",
+    "1.0",
+    "--outdir",
+    "F:\\dp-archive\\tmp\\lobbypool\\final\\F_lobby_a"
+  ],
+  "exit": 0,
+  "seconds": 438.527,
+  "manifest_args": "--layers base,faxnews,filebox --ss 4 --no-mist --force",
+  "rendered_layers": [
+    "faxnews",
+    "filebox"
+  ],
+  "reused_layers": [
+    "base"
+  ],
+  "device": "CPU",
+  "threads": 8,
+  "scene_sha256": "913c2af0b7ba10affc64a315c46f4c9d4ea72896185e410ad2d6ddf2fbb801ac",
+  "script_sha256": "346603763a4759ca9dd017146604184be60c927b092baa0f8d294f89c3109db2"
+}

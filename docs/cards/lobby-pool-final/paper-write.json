@@ -1,0 +1,125 @@
+[
+ {
+  "file": "lobby\\base_dark.webp",
+  "encoding": "(92, 6)",
+  "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.026%",
+  "paper_exact": false,
+  "paper_changed_pixels": 49618,
+  "paper_stats": {
+   "rgb_mean": 0.023598097547924808,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.026368823283082075
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 2.09, alpha mean 0.00, px >8: 9.503%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "lobby\\fax_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.91, alpha mean 0.00, px >8: 2.964%",
+  "paper_exact": false,
+  "paper_changed_pixels": 3100,
+  "paper_stats": {
+   "rgb_mean": 0.9071873617940113,
+   "alpha_mean": 0.00046583105220189216,
+   "over8_percent": 2.963786779052525
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 4.87, alpha mean 0.00, px >8: 0.132%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 0.91,
+   "alpha_mean": 0.0,
+   "over8_percent": 2.964
+  },
+  "paper_recorded_text": "mean 0.91, alpha mean 0.00, px >8: 2.964%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.00281263820598876,
+   "alpha_mean": 0.00046583105220189216,
+   "over8_percent": 0.0002132209474750013
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "lobby\\screen_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.05, alpha mean 0.00, px >8: 0.129%",
+  "paper_exact": false,
+  "paper_changed_pixels": 1138,
+  "paper_stats": {
+   "rgb_mean": 0.04601078445775725,
+   "alpha_mean": 0.0003264620837608432,
+   "over8_percent": 0.12895643231419662
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 4.22, alpha mean 0.00, px >8: 32.035%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 0.06,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.194
+  },
+  "paper_recorded_text": "mean 0.06, alpha mean 0.00, px >8: 0.194%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.01398921554224275,
+   "alpha_mean": 0.0003264620837608432,
+   "over8_percent": 0.06504356768580338
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "lobby\\screen_on_dark.webp",
+  "encoding": "lossless",
+  "paper_check": "mean 0.05, alpha mean 0.00, px >8: 0.129%",
+  "paper_exact": false,
+  "paper_changed_pixels": 1137,
+  "paper_stats": {
+   "rgb_mean": 0.04684056740830218,
+   "alpha_mean": 0.0003264620837608432,
+   "over8_percent": 0.12895643231419662
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 2.28, alpha mean 0.00, px >8: 16.431%",
+  "paper_gate_applied": "night-b-recorded",
+  "paper_recorded_baseline": {
+   "rgb_mean": 0.06,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.194
+  },
+  "paper_recorded_text": "mean 0.06, alpha mean 0.00, px >8: 0.194%",
+  "paper_recorded_delta": {
+   "rgb_mean": 0.013159432591697814,
+   "alpha_mean": 0.0003264620837608432,
+   "over8_percent": 0.06504356768580338
+  },
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ },
+ {
+  "file": "lobby\\parcel_dark.webp",
+  "encoding": "(92, 6)",
+  "paper_check": "mean 0.23, alpha mean 0.00, px >8: 0.090%",
+  "paper_exact": false,
+  "paper_changed_pixels": 5702,
+  "paper_stats": {
+   "rgb_mean": 0.2262716888310815,
+   "alpha_mean": 0.0005315791222299744,
+   "over8_percent": 0.09025031189446023
+  },
+  "paper_gate": "night-b-recorded",
+  "paper_accepted": true,
+  "old_dark": "mean 5.28, alpha mean 0.00, px >8: 14.135%",
+  "paper_gate_applied": "night-b",
+  "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+  "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+ }
+]

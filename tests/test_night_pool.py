@@ -163,7 +163,7 @@ def test_recorded_gate_delta_boundaries_and_scope(metric,limit):
     nodes=[n for n in ast.parse(source.read_text(encoding='utf-8')).body if isinstance(n,ast.FunctionDef)
            and n.name in {'night_b_matches','recorded_paper_match'}]
     path='discprobe/web/home/pastworks/tumble_0_dark.webp'
-    ns={'math':math,'RECORDED_ONLY':{path}}
+    ns={'math':math,'RECORDED_ONLY':{path},'LOBBY_RECORDED':set()}
     exec(compile(ast.Module(body=nodes,type_ignores=[]),str(source),'exec'),ns)
     baseline={'rgb_mean':1.4,'alpha_mean':.11,'over8_percent':3.859}
     records={path:{'paper_check':'mean 1.40, alpha mean 0.11, px >8: 3.859%'}}
@@ -197,3 +197,44 @@ def test_recorded_gate_reads_frozen_git_recipe_not_mutable_manifest(tmp_path):
     assert row['paper_gate_applied']=='night-b'
     assert row['paper_gate_reference']=='3c3f66a:tools/night_b_manifest.json'
     assert len(row['paper_gate_reference_blob'])==40
+
+
+@pytest.mark.parametrize('metric,limit',[('rgb_mean',.05),('alpha_mean',.01),('over8_percent',.1)])
+def test_lobby_recorded_gate_is_bounded_and_missing_records_fail(metric,limit):
+    source=ROOT/'tools/night_b_export.py'
+    nodes=[n for n in ast.parse(source.read_text(encoding='utf-8')).body if isinstance(n,ast.FunctionDef)
+           and n.name in {'night_b_matches','recorded_paper_match'}]
+    path='discprobe/web/home/lobby/lamp_dark.webp'
+    ns={'math':math,'RECORDED_ONLY':set(),'LOBBY_RECORDED':{path}}
+    exec(compile(ast.Module(body=nodes,type_ignores=[]),str(source),'exec'),ns)
+    base={'rgb_mean':1.32,'alpha_mean':0.,'over8_percent':2.831}
+    records={path:{'paper_check':'mean 1.32, alpha mean 0.00, px >8: 2.831%'}}
+    at_limit=dict(base);at_limit[metric]+=limit
+    assert ns['recorded_paper_match'](at_limit,path,records)['paper_accepted']
+    at_limit[metric]+=1e-6
+    assert not ns['recorded_paper_match'](at_limit,path,records)['paper_accepted']
+    assert not ns['recorded_paper_match'](base,path,{})['paper_accepted']
+    assert not ns['recorded_paper_match'](base,'discprobe/web/home/lobby/unapproved_dark.webp',records)['paper_accepted']
+    assert ns['recorded_paper_match']({'rgb_mean':.25,'alpha_mean':0.,'over8_percent':0.},path,{})['paper_accepted']
+
+
+def test_lobby_layer_selection_writes_only_selected_dark_and_does_not_read_missing_layers(tmp_path):
+    tools=tmp_path/'tools';tools.mkdir()
+    export=tools/'night_b_export.py';export.write_bytes((ROOT/'tools/night_b_export.py').read_bytes())
+    home=tmp_path/'discprobe/web/home/lobby';home.mkdir(parents=True)
+    (home/'lobby.json').write_text(json.dumps({'layers':[{'name':'base','box':[0,0,8,8]}]}),encoding='utf-8')
+    renders=tmp_path/'renders/F_lobby_a';renders.mkdir(parents=True)
+    Image.new('RGB',(8,8),(100,100,100)).save(home/'base_paper.webp',lossless=True)
+    Image.new('RGB',(8,8),(10,20,30)).save(home/'base_dark.webp',lossless=True)
+    Image.new('RGBA',(8,8),(40,50,60,255)).save(home/'lamp_dark.webp',lossless=True)
+    paper_before=(home/'base_paper.webp').read_bytes();lamp_before=(home/'lamp_dark.webp').read_bytes()
+    Image.new('RGB',(8,8),(100,100,100)).save(renders/'desk_base_paper.png')
+    Image.new('RGB',(8,8),(30,40,50)).save(renders/'desk_base_dark.png')
+    command=[sys.executable,'-B',str(export),str(renders.parent),'--only','lobby','--lobby-layers','base',
+             '--paper-gate','night-b','--write']
+    result=subprocess.run(command,capture_output=True,text=True)
+    assert result.returncode==0,result.stdout+result.stderr
+    assert Image.open(home/'base_dark.webp').getpixel((0,0))[:3]==(30,40,50)
+    assert (home/'base_paper.webp').read_bytes()==paper_before and (home/'lamp_dark.webp').read_bytes()==lamp_before
+    invalid=subprocess.run([*command[:command.index('--lobby-layers')+1],'unknown',*command[command.index('--paper-gate'):]],capture_output=True,text=True)
+    assert invalid.returncode!=0 and 'known, nonempty layer names' in invalid.stdout+invalid.stderr
