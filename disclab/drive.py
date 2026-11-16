@@ -14,6 +14,7 @@ import struct
 import time
 
 import numpy as np
+from discprobe import mmc
 
 from discprobe.geometry import Spiral
 from discprobe.scsi import ScsiResult, Sense, check_allowed
@@ -47,6 +48,12 @@ def burn_seconds(sectors, speed_x, family, setting=None):
 
 class NoDisc(Exception):
     pass
+
+
+def erase_seconds(sectors, family, full=False, setting=None):
+    """Quick erase ~60s; full erase ~one full disc at 1x, using the burn time scale."""
+    effective = sectors if full else 60 * ONE_X_KB_S[family] * 1000 / 2048
+    return burn_seconds(effective, 1, family, setting)
 
 
 def _burn_mode(burn: dict | None) -> str | None:
@@ -299,6 +306,8 @@ class LabDrive(SimDrive):
         status = 0 if not written else (2 if closed else 1)
         last_state = 0 if not written else (3 if closed else 0)
         d[2] = (last_state << 2) | status
+        if MEDIA[self.truth['media']].get('rewritable'):
+            d[2] |= 0x10
         d[3] = 1
         sessions = len(self.burn["sessions"]) if self.burn else 1
         d[4] = sessions
@@ -450,7 +459,32 @@ class LabRecorder:
             # IMAPI burned 359600 sectors on an 80-minute CD-R (ATIP 359849) and refused 359800 (KNOWLEDGE, 2026-11-04).
             free, blank = truth["capacity"] - (249 if family == "cd" else 0), True
         return dict(media=media, blank=blank, free_sectors=free,
+                    capacity_sectors=truth['capacity'],
+                    **mmc.rewritable(MEDIA[truth['media']]['profile'], MEDIA[truth['media']].get('rewritable', False)),
                     speeds_x=sorted(float(x) for x in reader["write_speeds_x"].get(family, [8])))
+
+    def erase(self, full, cancel, progress):
+        from discprobe.burner import BurnError
+        st, d, disc = self._tray()
+        if not disc or not self.inspect().get('rewritable'):
+            raise BurnError('This disc is not rewritable; erasing is refused.')
+        truth = self.lab.answers()['discs'][disc]
+        seconds = erase_seconds(truth['capacity'], truth['family'], full)
+        started = time.monotonic()
+        while True:
+            elapsed = time.monotonic() - started
+            if cancel.is_set():
+                raise BurnError('Erase was stopped; disc state is uncertain. Inspect it and erase again before burning.')
+            if elapsed >= seconds:
+                break
+            progress(fraction=elapsed/seconds, elapsed_s=elapsed, eta_s=seconds-elapsed)
+            time.sleep(min(.1, seconds-elapsed))
+        with self.lab.locked_state() as state:
+            if state['drives'][self.drive].get('tray') != disc or state['drives'][self.drive].get('open'):
+                raise BurnError('Disc changed during erase; inspect it before burning.')
+            state.get('burns', {}).pop(disc, None)
+            self.lab.event(state, 'erase', disc=disc, drive=self.drive, full=full)
+        return {}
 
     def write(self, image, speed, cancel, progress, *, keep_open=False, append=False, expect_start=None):
         from .burnmap import extract_map
@@ -475,9 +509,15 @@ class LabRecorder:
         start = expect_start or 0
         seconds = burn_seconds(sectors, float(speed), truth["family"])
         total = max(20, int(seconds / 0.25))                  # progress about four times a second on a long burn
+        user_cancelled = False
         for i in range(total):
             if cancel.is_set():
-                raise OSError("disclab: burn cancelled")
+                if i == 0:
+                    raise OSError('disclab: burn cancelled before writing')
+                user_cancelled = True
+                sectors = max(1, int(sectors * i / total))
+                interrupted = True
+                break
             progress(stage="write", fraction=(i + 1) / total * (behaviour["fraction"] if interrupted else 1))
             time.sleep(seconds / total)
         progress(stage="speed", actual_speed_x=float(speed))
@@ -507,8 +547,10 @@ class LabRecorder:
                 burns[disc]["failure"] = dict(behaviour, intended_sectors=intended_sectors, written_sectors=sectors)
             self.lab.event(state, "burn", disc=disc, drive=self.drive, iso=str(path), sectors=sectors, speed_x=speed)
         # Keep what was written, independent of the ISO file (which may be deleted to save space).
-        if truth["family"] == "dvd":
+        if truth["family"] == "dvd" and not user_cancelled:
             extract_map(self.lab, disc)
+        if user_cancelled:
+            raise OSError('disclab: burn cancelled; partial recording remains')
         if interrupted and not behaviour.get("report_success", False):
             raise OSError(f"write interrupted after {sectors} of {intended_sectors} sectors")
         if fail_close:

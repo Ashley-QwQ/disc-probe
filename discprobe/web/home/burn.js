@@ -37,7 +37,19 @@ const STR = {
   }
 };
 let scene = null, api, ctx, W, task = null, visible = false, speed, toastTimer, swapping = null;
-const T = () => STR[api?.lang() === 'en' ? 'en' : 'zh'];
+const T = () => {
+  const t=STR[api?.lang() === 'en' ? 'en' : 'zh'];
+  if(!ctx?.drive?.rewritable)return t;
+  const en=api.lang()==='en';
+  return {...t,retry:en?'Erase and burn again':'擦除后重新刻',
+    cancelledNote:en?'This recording cannot be used. Erase this rewritable disc before burning again.':'这次刻录不能使用，擦除这张可擦写盘后重新刻。',
+    failedNote:en?'Check the drive, then erase this rewritable disc before burning again.':'请检查光驱连接，擦除这张可擦写盘后重新刻。',
+    ...(ctx.drive.eraseRequired?{
+      hold:en?'Slide to erase and burn again':'滑动确认擦除后重刻',
+      warning:en?'The disc contents will be cleared. Erasing completes before burning starts.':'盘上的内容会被清掉。擦除完成后才开始刻录。',
+      consent:en?'I understand this rewritable disc will be erased and recorded again.':'我知道盘上的内容会被清掉，然后重新刻录。',
+    }:{})};
+};
 const X = v => `${+(+v).toFixed(1)}×`;   // a write speed as people say it (IMAPI reports 8x as 8.0148…)
 const el = (tag, cls, text) => { const e = document.createElement(tag); if(cls)e.className=cls; if(text)e.textContent=text; return e; };
 const time = s => Number.isFinite(s) ? `${Math.floor(Math.max(0,s)/60)}:${String(Math.floor(Math.max(0,s)%60)).padStart(2,'0')}` : T().unknown;
@@ -109,17 +121,19 @@ function paint() {
   W.page.dataset.state=status;W.page.classList.toggle('burn-reduce',!!api.reduce);q('.burn-speed').hidden=status!=='ready'||!!ctx.otherOnly;q('.burn-consent').hidden=status!=='ready'||!hasInput;q('.burn-warning').hidden=status!=='ready'||!hasInput;
   q('.warn-sign').classList.toggle('on', ['failed','cancelled'].includes(status));
   W.select.disabled=active; q('[data-a="cancel"]').hidden=!active||q('[data-a="cancel"]').getAttribute('aria-expanded')==='true';q('[data-a="cancel"]').disabled=!!task?.stopping;q('[data-a="retry"]').hidden=!['failed','cancelled'].includes(status)||!!task?.notStarted;q('[data-a="recheck"]').hidden=!((status==='failed'&&task?.notStarted)||(!hasInput&&!task&&!swapping&&ctx.recheck&&ctx.drive?.id));q('[data-a="photo"]').hidden=status!=='success'||!ctx.photograph;
-  q('[data-a="cancel"]').textContent=stopWords(api.lang()).stop;
+  q('[data-a="cancel"]').textContent=task?.erasing?(api.lang()==='en'?'Stop erasing':'停止擦除'):stopWords(api.lang()).stop;
   q('.burn-timing').hidden=!active;const times=q('.burn-timing').children;times[0].textContent=`${t.elapsed} ${time(task?.elapsed)}`;times[1].textContent=`${t.remaining} ${time(task?.remaining)}`;
   const key=ctx.otherOnly?'otherOnly':!hasInput?((swapping||ctx.needSwap)?'swapping':'missing'):status==='success'?'done':status==='ready'?'ready':status==='burning'?'writing':status;
   if(ctx.otherOnly)q('.burn-other').open=true;
   q('.burn-result h2').textContent=key==='failed'&&task?.notStarted?t.notStarted:t[key];q('.burn-result p').textContent=!hasInput?(ctx.driveProblem||t.missingNote):active?(task.stopping?t.stopping:t.running):(key==='failed'&&task?.error)||t[`${key}Note`]||'';
+  if(active&&task?.erasing){q('.burn-result h2').textContent=api.lang()==='en'?'Erasing the disc':'正在擦除光盘';q('.burn-result p').textContent=api.lang()==='en'?'The disc contents are being cleared. Keep the drive connected. Stopping waits for the drive to finish; inspect and erase again before burning.':'正在清掉盘上的内容，请保持光驱连接。停止后需等待光驱收尾，重新检测并擦除后才能刻录。';}
   if(active&&task?.verifying)q('.burn-result p').textContent=api.lang()==='en'?'Write complete. Reading back a sample; drive retries may take time…':'写入完成，正在抽样回读；光驱重试可能需要一些时间…';
   if(active&&task?.verifying){
     q('[data-a="cancel"]').textContent=api.lang()==='en'?'Stop read-back':'停止回读';
   }
-  if(status==='cancelled'&&task?.userStopped&&!task.verifying)
-    q('.burn-result p').textContent=interruptedBurn({cancelledByUser:{phase:'burn',fraction:task.progress}},api.lang());
+  if(status==='cancelled'&&task?.userStopped&&task.cancelPhase==='erase')q('.burn-result p').textContent=api.lang()==='en'?'Erasing stopped. Disc state is uncertain; inspect and erase again before burning.':'擦除已停止，盘的状态未知。重新检测并擦除后才能刻录。';
+  else if(status==='cancelled'&&task?.userStopped&&!task.verifying)
+    q('.burn-result p').textContent=interruptedBurn({rewritable:ctx.drive?.rewritable,cancelledByUser:{phase:'burn',fraction:task.progress}},api.lang());
   const report=task?.burnResult||task?.speedReport;
   if(report){
     const en=api.lang()==='en', actual=report.actual_speed_x;
@@ -173,7 +187,7 @@ function paint() {
   api.nextWhy?.(status==='burning'?t.whyBurning:status==='failed'||status==='cancelled'?t.whyAgain:!hasInput?(swapping||ctx.needSwap?t.whySwap:t.whyMissing):t.whyConsent);
   const text=api.$('next-text');if(text)text.textContent=ctx.otherOnly?(ctx.done?t.finish:t.back):status==='success'&&!ctx.iso?.target?(api.lang()==='en'?'Next: how did it look?':'下一步：结果怎么样？'):status==='success'?(ctx.readBack?t.read:ctx.done?t.finish:t.back):status==='burning'?t.writing:t.hold;
   nextConfirm(W.next, {active:status==='ready' && !ctx.otherOnly, disabled:W.next.disabled,
-    lang:api.lang(), done:beginBurn});
+    lang:api.lang(), label:t.hold, done:beginBurn});
 }
 // the drive scene: the home page's drive flipped, a disc that drops in, the cutaway while it burns
 function sceneOf(){return scene??={cut:cutaway(api,{mirrored:false,textLeft:()=>W.q('.burn-panel').getBoundingClientRect().left}),fly:flyer(api,{mirrored:false})};}
@@ -238,7 +252,7 @@ async function beginBurn() {
   closeBurnStop();paint();
   const sc=sceneOf(); if(!ctx.discIn)await sc.fly.drop(); if(task!==current)return;
   api.placeDisc(true);api.setTray(false,true);
-  try { const handle=ctx.burn(p=>{if(task!==current||current.status!=='burning')return; if(p.burnResult)current.burnResult=p.burnResult;if(p.speedReport)current.speedReport=p.speedReport;if(p.verifying&&!current.verifying){current.verifying=true;closeBurnStop();sfx.step(1);} current.progress=Number.isFinite(p.progress)?Math.max(current.progress,Math.min(1,p.progress)):current.progress;current.elapsed=p.elapsed;current.remaining=p.remaining;sc.cut.update(current.progress,current.remaining);if(['success','failed','cancelled'].includes(p.status)){current.status=p.status;chime(p);if(p.error)current.error=p.error;if(p.started===false)current.notStarted=true;if(p.status==='success')current.progress=1;closeBurnStop();setTimeout(()=>sc.cut.show(false),1200);}paint();},{speed});current.handle=handle;
+  try { const handle=ctx.burn(p=>{if(task!==current||current.status!=='burning')return;if(p.erasing!==undefined){if(current.erasing&&!p.erasing)current.progress=0;current.erasing=p.erasing;} if(p.burnResult)current.burnResult=p.burnResult;if(p.speedReport)current.speedReport=p.speedReport;if(p.verifying&&!current.verifying){current.verifying=true;closeBurnStop();sfx.step(1);} current.progress=Number.isFinite(p.progress)?Math.max(current.progress,Math.min(1,p.progress)):current.progress;current.elapsed=p.elapsed;current.remaining=p.remaining;sc.cut.update(current.progress,current.remaining);if(['success','failed','cancelled'].includes(p.status)){current.status=p.status;chime(p);if(p.error)current.error=p.error;if(p.started===false)current.notStarted=true;if(p.status==='success')current.progress=1;closeBurnStop();setTimeout(()=>sc.cut.show(false),1200);}paint();},{speed,erase:!!ctx.drive.eraseRequired});current.handle=handle;
     setTimeout(()=>{if(task===current&&current.status==='burning'&&visible){sc.cut.update(current.progress,current.remaining);sc.cut.show(true);}},900); }
   catch (e) {current.status='failed';current.error=e?.message||'';current.notStarted=true;paint();}
 }
@@ -249,13 +263,14 @@ async function action(a) {
     const current=task;
     const stop=async()=>{
       if(task!==current||current.status!=='burning'||current.stopping)return;
-      current.stopping=true;paint();
+      current.cancelPhase=current.erasing?'erase':current.verifying?'read-back':'burn';current.stopping=true;paint();
       try{await current.handle.cancel();current.userStopped=true;}
       catch{current.stopping=false;toast(T().failedNote);}paint();
     };
-    if(current.verifying)await stop();
-    else expandBurnStop(W.q('[data-a="cancel"]'),{lang:api.lang(),valid:()=>task===current&&current.status==='burning'&&!current.verifying&&!current.stopping,done:stop});
+    if(current.verifying||current.erasing)await stop();
+    else expandBurnStop(W.q('[data-a="cancel"]'),{lang:api.lang(),rewritable:!!ctx.drive?.rewritable,valid:()=>task===current&&current.status==='burning'&&!current.verifying&&!current.stopping,done:stop});
   }
+  if(a==='retry'&&ctx.drive?.rewritable){task=null;ctx.drive.eraseRequired=true;ctx.driveProblem='';ctx.needSwap=false;W.consent.checked=false;closeBurnStop();words();return;}
   if(a==='retry'){task=null;W.consent.checked=false;closeBurnStop();words();if(ctx.swap){ctx.discIn=false;ctx.needSwap=true;ctx.drive.speeds=[];fillSpeeds();swapFlow();}else waitForDisc();}
   if(a==='recheck'){task=null;W.consent.checked=false;ctx.driveProblem='';words();
     if(ctx.recheck){try{swapping={};ctx.driveProblem=ctx.swapWords?.checking||'';paint();await ctx.recheck();}catch(e){ctx.driveProblem=e?.message||'';}finally{swapping=null;}

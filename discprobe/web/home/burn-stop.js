@@ -1,17 +1,17 @@
 // The existing burn slider, with a three-second reading lock before destructive cancellation.
 import { slideConfirm } from './kit/slideconfirm.js';
 let active = null;
-export const stopWords = lang => lang === 'en' ? {
-  stop:'Stop burn', risk:'Stopping makes this disc unusable: it cannot be burned again or measured.',
+export const stopWords = (lang, rewritable=false) => lang === 'en' ? {
+  stop:'Stop burn', risk:rewritable?'Stopping invalidates this recording; erase the disc before burning again.':'Stopping makes this disc unusable: it cannot be burned again or measured.',
   keep:'Continue burning', slide:'Slide to stop burning', ready:'Unlocked. Slide to stop burning.',
 } : {
-  stop:'停止刻录', risk:'停止后这张盘作废：不能再刻，也不能拿来测。',
+  stop:'停止刻录', risk:rewritable?'停止后这次刻录作废，要擦掉才能重新刻。':'停止后这张盘作废：不能再刻，也不能拿来测。',
   keep:'继续刻录', slide:'滑动停止刻录', ready:'倒计时结束，可以滑动停止刻录。',
 };
 export function closeBurnStop() { active?.close(); }
-export function expandBurnStop(button, {lang='zh', valid=()=>true, done=()=>{}}={}) {
+export function expandBurnStop(button, {lang='zh', rewritable=false, valid=()=>true, done=()=>{}}={}) {
   closeBurnStop();
-  const t=stopWords(lang), doc=button.ownerDocument;
+  const t=stopWords(lang,rewritable), doc=button.ownerDocument;
   const panel=doc.createElement('div'); panel.className='burn-stop';
   panel.innerHTML='<p class="burn-stop-risk" role="status" aria-live="assertive"></p><div class="burn-stop-slider"></div><p class="kit-sr" role="status" aria-live="polite"></p><button type="button" class="btn burn-stop-keep"></button>';
   button.after(panel); button.hidden=true;button.setAttribute('aria-expanded','true');
@@ -40,16 +40,20 @@ export function expandBurnStop(button, {lang='zh', valid=()=>true, done=()=>{}}=
   doc.addEventListener('keydown',key,true); doc.addEventListener('pointerdown',outside,true);
   active={close};tick();timer=setInterval(tick,100);keep.focus();
 }
-export function paintStopButton(button, burning, lang) {
-  const text=burning?stopWords(lang).stop:(lang==='en'?'Cancel':'取消');
-  button.classList.toggle('btn-icon',!burning);button.setAttribute('aria-label',text);
-  if(burning)button.textContent=text;
+export function paintStopButton(button, burning, lang, erasing=false) {
+  // erasing: a plain text button, one click (the contents are being cleared anyway; it just needs erasing again)
+  const worded=burning||erasing;
+  const text=burning?stopWords(lang).stop:erasing?(lang==='en'?'Stop erasing':'停止擦除'):(lang==='en'?'Cancel':'取消');
+  button.classList.toggle('btn-icon',!worded);button.setAttribute('aria-label',text);
+  if(worded)button.textContent=text;
   else button.innerHTML='<svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>';
 }
 export function shortDiscWords(disc, lang='zh') {
   const n=disc?.sectors, capacity=disc?.capacity_sectors;
   if(disc?.closed!==true||disc?.blank!==false||!Number.isInteger(n)||n<=0||n>(Number.isInteger(capacity)&&capacity>0?capacity*.01:4096))return null;
   const mb=Math.round(n*2048/1048576);
+  if(disc.rewritable)return lang==='en'?`This disc has only the beginning recorded (${n} sectors, about ${mb} MB). Burning probably stopped partway; it cannot be used for measurement. Erase this rewritable disc and burn again.`
+    :`这张盘只刻了开头一点（${n} 扇区，约 ${mb} MB），多半是刻录中途停了，不能用来测。擦除这张可擦写盘后重新刻。`;
   return lang==='en'?`This disc has only the beginning recorded (${n} sectors, about ${mb} MB). Burning probably stopped partway; it cannot be used for measurement. Replace it with a blank disc and burn again.`
     :`这张盘只刻了开头一点（${n} 扇区，约 ${mb} MB），多半是刻录中途停了，不能用来测。换一张空白盘重新刻。`;
 }
@@ -58,6 +62,12 @@ export function interruptedBurn(flow, lang='zh') {
   if(!cancelled&&!['cancelled','failed','stopped'].includes(burn?.result)&&!flow.burnInterrupted)return null;
   const p=flow.cancelledByUser?.fraction ?? flow.burnP;
   const percent=Number.isFinite(p)?`${Math.round(Math.max(0,Math.min(1,p))*100)}%`:(lang==='en'?'unknown progress':'进度未知');
+  if(flow.detected?.rewritable || flow.rewritable){
+    if(cancelled)return lang==='en'?`You stopped the burn at about ${percent}. This recording cannot be measured; erase this rewritable disc before burning again.`
+      :`你在刻录时点了停止。刻到约 ${percent} 停下，这次刻录不能拿来测。擦除这张可擦写盘后重新刻。`;
+    return lang==='en'?`The burn did not finish: ${burn?.reason||flow.error||burn?.result||'cause unknown'}. Erase this rewritable disc before burning again.`
+      :`刻录没有完成：${burn?.reason||flow.error||burn?.result||'原因未知'}。擦除这张可擦写盘后重新刻。`;
+  }
   if(cancelled)return lang==='en'?`You stopped the burn. It stopped at about ${percent}. This disc is unusable: it cannot be burned again or measured. Start again with a blank disc from the same batch.`
     :`你在刻录时点了停止。刻到约 ${percent} 停下，这张盘已经作废，不能再刻也测不了。换一张同批的空白盘，重新开始。`;
   return lang==='en'?`The burn did not finish: ${burn?.reason||flow.error||burn?.result||'cause unknown'}. Replace it with a blank disc from the same batch and burn again.`

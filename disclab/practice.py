@@ -101,6 +101,6 @@ def add_parser(sub):
     p.add_argument("--port", type=port_number, default=8853)
     p.add_argument("--lan", action="store_true")
     p.add_argument("--burn-time", default=None, metavar="quick|real|SCALE",
-                   help="how long a virtual burn takes: quick (about a second), real (the time at the chosen speed), "
+                   help="virtual burn and erase duration: quick (about a second), real (burn at chosen speed; quick erase ~60s, full erase at 1x), "
                         "or a number scaling the real time, e.g. 0.1 / 虚拟刻录用多久：quick 约一秒，real 按所选速度的真实时间，或按比例缩放")
     p.set_defaults(func=practice)

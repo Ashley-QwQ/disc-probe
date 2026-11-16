@@ -248,7 +248,9 @@ class BurnerTests(unittest.TestCase):
         process = Mock(stdout=iter(["50.0% done @ 4.1x\n"]), wait=Mock(return_value=0))
         with patch.object(burner, "tool", side_effect=lambda name: name):
             rec = burner.LinuxBurner("/dev/fake", "dvd", run=run, popen=Mock(return_value=process))
-        self.assertEqual(rec.inspect(), dict(media="dvd", blank=True, free_sectors=100, speeds_x=[4]))
+        report = rec.inspect()
+        self.assertEqual({k:report[k] for k in ('media','blank','free_sectors','speeds_x')}, dict(media="dvd", blank=True, free_sectors=100, speeds_x=[4]))
+        self.assertFalse(report['rewritable'])
         self.assertEqual(rec.write(self.iso, 4, threading.Event(), Mock()), 4.1)
         self.assertEqual(rec.popen.call_args.args[0][-1], "/dev/fake=" + str(self.iso))
         self.assertIn("-dvd-compat", rec.popen.call_args.args[0])
@@ -280,7 +282,9 @@ class BurnerTests(unittest.TestCase):
         process.stdout = lines()
         with patch.object(burner, "tool", side_effect=lambda n: n):
             rec = burner.LinuxBurner("/dev/fake", "cd", run=Mock(side_effect=answers), popen=Mock(return_value=process))
-        self.assertEqual(rec.inspect(), dict(media="cd", blank=True, free_sectors=359549, speeds_x=[4]))
+        report = rec.inspect()
+        self.assertEqual({k:report[k] for k in ('media','blank','free_sectors','speeds_x')}, dict(media="cd", blank=True, free_sectors=359549, speeds_x=[4]))
+        self.assertFalse(report['rewritable'])
         with self.assertRaisesRegex(burner.BurnError, "unusable"):
             rec.write(self.iso, 4, cancel, Mock())
         toc = Path(cd.toc_path(str(self.iso)))

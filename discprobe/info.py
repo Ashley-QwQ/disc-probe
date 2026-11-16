@@ -325,7 +325,7 @@ def summarize(r: dict) -> list[str]:
     if page:
         lines.append(f"Page 2A: buffer {page['buffer_kB']} kB, rotation {page['rotation_control_selected']}, "
                      f"write speeds {[(w['kBps'], w['rotation']) for w in page['write_speeds']]}")
-    failed = [k for k, v in r.items() if k != 'capacity_check' and (v.get("status") not in (0, None) or "error" in v)]
+    failed = [k for k, v in r.items() if k != 'capacity_check' and isinstance(v, dict) and (v.get("status") not in (0, None) or "error" in v)]
     if failed and not reason:
         lines.append("Not available on this drive/disc: " + ", ".join(
             f"{k} ({r[k].get('sense') or r[k].get('error')})" for k in failed))

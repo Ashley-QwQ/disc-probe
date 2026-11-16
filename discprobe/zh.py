@@ -7,6 +7,21 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    'full erase (default: quick)': '完全擦除（默认快速擦除）',
+    'erase a rewritable disc (quick by default)': '擦除可擦写盘（默认快速擦除）',
+    'erase recorded rewritable media before burning': '擦除已有内容的可擦写盘，然后刻录',
+    'Erase cancelled before starting; nothing was changed.': '擦除开始前已取消，盘没有改变。',
+    'The drive did not confirm blank or overwrite-ready media.': '光驱没有确认光盘已空白或可覆写，请重新检测并擦除。',
+    'No erase tool is known for this current profile; nothing was changed.': '没有适用于当前光盘类型的擦除工具，盘没有改变。',
+    'This recording did not finish. Erase this rewritable disc before burning again.': '这次刻录没有完成，擦除这张可擦写盘后才能重新刻。',
+    'This disc is not rewritable; erasing is refused.': '这张盘不是可擦写盘，已拒绝擦除。',
+    'Recorded rewritable disc: add --erase to erase its contents before burning.': '这张可擦写盘已有内容；需明确加 --erase，才会擦除后刻录。',
+    'Erasing the rewritable disc. Its contents will be cleared; keep the drive connected.': '正在擦除可擦写盘，盘上的内容会被清掉。请保持光驱连接。',
+    'Erase did not finish. Disc state is uncertain; inspect it and erase again before burning.': '擦除没有完成，盘的状态未知。请重新检测并擦除，再开始刻录。',
+    'Erase completed. The disc can be recorded again. Quick erase is not secure data removal.': '擦除完成，可以重新刻录。快速擦除不是安全销毁数据。',
+    'Erase was stopped; disc state is uncertain. Inspect it and erase again before burning.': '擦除已停止，盘的状态未知。请重新检测并擦除，再开始刻录。',
+    'This disc has only the beginning recorded ({sectors} sectors, about {mb} MB). Burning probably stopped partway; it cannot be used for measurement. Erase this rewritable disc and burn again.':
+        '这张盘只刻了开头一点（{sectors} 扇区，约 {mb} MB），多半是刻录中途停了，不能用来测。擦除这张可擦写盘后重新刻。',
     'This disc has only the beginning recorded ({sectors} sectors, about {mb} MB). Burning probably stopped partway; it cannot be used for measurement. Replace it with a blank disc and burn again.':
         '这张盘只刻了开头一点（{sectors} 扇区，约 {mb} MB），多半是刻录中途停了，不能用来测。换一张空白盘重新刻。',
     "write the experimental DVD photo check disc using measured geometry": "用实测几何生成试验性的 DVD 拍照检查盘",

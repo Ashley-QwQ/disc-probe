@@ -148,6 +148,17 @@ def media_family(profile: int | None) -> str:
     return "unknown"
 
 
+RW_PROFILES = {0x0A, 0x13, 0x14, 0x1A, 0x2A, 0x43}
+
+
+def rewritable(profile, erasable=None):
+    """Current medium evidence, never the drive's supported-profile list."""
+    return dict(rewritable=profile in RW_PROFILES or erasable is True,
+                rewritable_sources=dict(current_profile=profile,
+                                        profile_rewritable=profile in RW_PROFILES,
+                                        erasable=erasable))
+
+
 def block_sectors(family: str) -> int:
     """Sectors per error-correction block: the smallest unit a drive reads from media."""
     return {"dvd": 16, "bd": 32}.get(family, 1)

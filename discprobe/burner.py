@@ -18,7 +18,7 @@ import tempfile
 import threading
 import time
 
-from . import ui, iso9660, discid
+from . import ui, iso9660, discid, mmc
 
 
 class BurnError(ValueError):
@@ -118,7 +118,16 @@ class WindowsDVD:
         if result.returncode:
             raise BurnError("Could not inspect inserted disc.\nDetails: " + result.stdout + result.stderr)
         try:
-            return json.loads(result.stdout.strip())
+            report = json.loads(result.stdout.strip())
+            if 'current_profile' in report:
+                report.update(mmc.rewritable(report['current_profile'], report.get('erasable')))
+                from .eraser import inspect
+                try:
+                    disc = inspect(self.drive)
+                    report.update({k:v for k,v in disc.items() if k.startswith('rewritable') or k=='capacity_sectors'})
+                except OSError:
+                    pass  # MMC erasable evidence stays null if the read is unavailable.
+            return report
         except ValueError as exc:
             raise BurnError("IMAPI returned an invalid media report.") from exc
 
@@ -212,9 +221,15 @@ class LinuxBurner:
             speeds = re.findall(r"Write speed #.*?\bCD\s+([\d.]+)x", caps.stdout + caps.stderr, re.I)
         # Leave space for CD DAO closing, as the legacy burn notes require.
         free = max(0, int(capacity[1]) - (300 if self.media == "cd" else 0)) if capacity else 0
-        return dict(media=self.media if kind else "unknown", blank=blank,
+        report = dict(media=self.media if kind else "unknown", blank=blank,
+                    **mmc.rewritable(
+                        0x0A if re.search(r'CD-RW\b', text) else
+                        0x14 if re.search(r'DVD-RW\b', text) else
+                        0x1A if re.search(r'DVD\+RW\b', text) else None),
                     free_sectors=free,
                     speeds_x=sorted(set(map(float, speeds))))
+        # ATIP/media-tool text identifies the current profile; no supported-profile inference.
+        return report
 
     def write(self, image, speed, cancel, progress):
         # cdrdao requires a seekable on-disk data file. Use a private spool of
@@ -373,7 +388,7 @@ def verify_image(drive, image, media, cancel, *, device_factory=None, start_lba=
 
 def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None, cancel=None,
          no_verify=False, verifier=None, keep_open=False, append=False, expect_start=None,
-         disc_id=False, disc_id_code=None, state_checker=None):
+         disc_id=False, disc_id_code=None, state_checker=None, erase=False):
     if yes_write is not True:
         raise BurnError("Writing requires explicit --yes-write confirmation.")
     if media not in ("dvd", "cd"):
@@ -417,6 +432,29 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
     if (keep_open or append) and isinstance(recorder, LinuxBurner):
         raise BurnError('Session options currently require the Windows DVD IMAPI path.')
     info = recorder.inspect()
+    if erase and append:
+        raise BurnError('--erase cannot be combined with --append.')
+    cancel = cancel or threading.Event()
+    if info.get('blank') is not True and not append:
+        if not erase:
+            if info.get('rewritable'):
+                raise BurnError('Recorded rewritable disc: add --erase to erase its contents before burning.')
+        else:
+            from . import eraser
+            # Check kind, space and speed before destroying existing contents.
+            erase_recorder = recorder if hasattr(recorder, 'erase') else eraser.adapter(drive)
+            target = erase_recorder.inspect()
+            if target.get('media') != media:
+                raise BurnError(f'Wrong disc kind: expected {media}.')
+            capacity = target.get('capacity_sectors') or info.get('capacity_sectors')
+            if not capacity or size // 2048 > capacity:
+                raise BurnError('The image does not fit, or rewritable capacity is unknown; erasing was refused.')
+            choose_speed(speed, info['speeds_x'], media)
+            erased = eraser.erase(drive, cancel=cancel, recorder=erase_recorder)
+            info = recorder.inspect()
+            if erased.get('overwrite_ready') and info.get('rewritable'):
+                info['blank'] = True
+                info['free_sectors'] = erased['disc'].get('capacity_sectors') or info.get('free_sectors', 0)
     validate_media(info, media, size // 2048, append=append, expect_start=expect_start)
     selected = choose_speed(speed, info["speeds_x"], media)
     cancel = cancel or threading.Event()
@@ -482,10 +520,14 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
         actual = recorder.write(source, selected, cancel, progress, **options)
     except (BurnError, OSError) as exc:
         elapsed = time.monotonic() - started
-        record("burn_result", result="cancelled" if cancel.is_set() else "failed",
+        message = str(exc)
+        if info.get('rewritable'):
+            message = ('This recording did not finish. Erase this rewritable disc before burning again.\n' +
+                       message.replace('The cancelled disc is unusable; do not retry it.', ''))
+        record("burn_result", result="cancelled" if cancel.is_set() else "failed", reason=message,
                requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=reported,
                elapsed_s=elapsed, verified=False)
-        raise BurnError(f"{exc}\nElapsed: {elapsed:.1f}s.") from exc
+        raise BurnError(f"{message}\nElapsed: {elapsed:.1f}s.") from exc
     elapsed = time.monotonic() - started
     record("burn_speed", requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=actual)
     print(f"Write completed in {elapsed:.1f}s; drive/utility reports: "
@@ -574,7 +616,7 @@ def run(args):
     try:
         result = burn(args.drive, args.iso, media=args.media, speed=args.speed, yes_write=args.yes_write,
              cancel=cancel, no_verify=args.no_verify, keep_open=args.keep_open,
-             append=args.append, expect_start=args.expect_start, **discid.options(args))
+             append=args.append, expect_start=args.expect_start, erase=getattr(args, 'erase', False), **discid.options(args))
         burn_completed(args, result)
     except BurnError as exc:
         # A failed attempt may still have written data. File that attempt's report too, without

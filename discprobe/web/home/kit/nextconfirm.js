@@ -1,9 +1,9 @@
 // Put the kit's deliberate confirmation in the shared Next area for one step.
 import { slideConfirm } from './slideconfirm.js';
 const mounted = new WeakMap();
-export function nextConfirm(button, { active = false, disabled = false, lang = 'zh', done } = {}) {
+export function nextConfirm(button, { active = false, disabled = false, lang = 'zh', label, done } = {}) {
   let current = mounted.get(button);
-  if (!active || current?.lang !== lang) {
+  if (!active || current?.lang !== lang || current?.label !== label) {
     if (current) { current.slider.destroy(); current.host.remove(); mounted.delete(button); }
     current = null;
     button.hidden = false;
@@ -14,9 +14,9 @@ export function nextConfirm(button, { active = false, disabled = false, lang = '
     host.className = 'next-confirm';
     host.setAttribute('aria-describedby', 'next-why');
     button.after(host);
-    current = { host, lang, done };
+    current = { host, lang, label, done };
     current.slider = slideConfirm(host, { lang, disabled, holdPress:true,
-      label: lang === 'en' ? 'Slide to burn' : '滑动确认刻录', done: () => current.done?.() });
+      label: label || (lang === 'en' ? 'Slide to burn' : '滑动确认刻录'), done: () => current.done?.() });
     mounted.set(button, current);
   }
   current.done = done;

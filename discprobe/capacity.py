@@ -49,6 +49,12 @@ def recordable_capacity(report: dict) -> tuple[int, str] | None:
     track = parsed('track_1')
     if track.get('blank') is True and track.get('track_start') == 0 and positive_sectors(track.get('free_blocks')):
         return track['free_blocks'], 'free space of this blank disc'
+    if profile in (0x13, 0x1A, 0x2A, 0x43):
+        # Random-access overwrite media expose the formatted logical address space,
+        # unlike sequential -R/-RW where READ CAPACITY can end at a short recording.
+        last = parsed('capacity').get('last_lba')
+        if type(last) is int and positive_sectors(last + 1):
+            return last + 1, 'formatted rewritable address space (READ CAPACITY)'
     pre = parsed('dvd_prerecorded_0e')
     # Single-layer DVD-R/RW sequential. A finalized DVD-R reads back as DVD-ROM (0x10) on the GH70N, but still answers
     # format 0Eh with its MID, which a pressed DVD-ROM cannot.

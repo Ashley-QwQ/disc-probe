@@ -24,7 +24,8 @@ if '--short' in sys.argv:
     raise SystemExit(0)
 
 from disclab.practice import prepare
-prepare(root,'dvd-r')
+media=os.environ.get('RW_DISC_TEST_MEDIA','dvd-r')
+prepare(root,media)
 iso=root/'iso/stop.iso';iso.parent.mkdir(exist_ok=True)
 iso.touch()
 if sys.platform=='win32':
@@ -51,4 +52,4 @@ with socket.socket() as sock:
 (root/'ready.json').write_text(json.dumps(dict(port=port)),encoding='utf-8')
 env=dict(os.environ,TEMP=str(root.parent),TMP=str(root.parent),DISCPROBE_HOME=str(root))
 raise SystemExit(subprocess.call([sys.executable,'-X','utf8','-B','-m','disclab','practice',
-    '--media','dvd-r','--burn-time','0.3','--lab',str(root),'--port',str(port)],cwd=ROOT,env=env))
+    '--media',media,'--burn-time','0.3','--lab',str(root),'--port',str(port)],cwd=ROOT,env=env))

@@ -40,6 +40,16 @@ def patch(module):
                 # Only lab drives: a lab process never touches a real optical drive.
                 return lab_drives()
             module.list_optical_drives = list_optical_drives
+    elif name == 'discprobe.eraser':
+        def erase_adapter(drive):
+            if is_lab_drive(drive):
+                from .drive import LabRecorder
+                lab = _lab()
+                _, state = lab.drive_for(drive)
+                disc = lab.answers()['discs'].get(state.get('tray'), {})
+                return LabRecorder(lab, drive, disc.get('family', 'dvd'))
+            raise OSError('disclab: real drives are off in a lab process')
+        module.adapter = erase_adapter
     elif name == "discprobe.burner":
         real_adapter = module.adapter
 

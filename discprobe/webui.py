@@ -30,8 +30,8 @@ def version():
     """The installed release identity, also available outside a checkout."""
     return "v" + api.version_payload()["core_version"]
 
-ACTIONS = {"info", "timing", "geo", "random", "image", "checkdisc", "disexport", "cdprobe", "burn", "swap", "calibrate", "photo", "curve-edit"}
-DRIVE_ACTIONS = {"info", "timing", "geo", "burn", "swap", "calibrate"}
+ACTIONS = {"info", "timing", "geo", "random", "image", "checkdisc", "disexport", "cdprobe", "burn", "erase", "swap", "calibrate", "photo", "curve-edit"}
+DRIVE_ACTIONS = {"info", "timing", "geo", "burn", "erase", "swap", "calibrate"}
 # Deliberately exclude force/install/replace, raw transport commands and arbitrary flags.
 OPTIONS = {
     "curve-edit": {"run": "path", "edit_json": "curve_document", "save": "flag"},
@@ -51,10 +51,11 @@ OPTIONS = {
     "disexport": {"geo": "geo", "sectors": "sectors", "output": "path", "r_min": "radius", "r_max": "radius",
                   "photo": "path", "reading_drive": "device_id", "completion_sectors": "completion_sectors"},
     "cdprobe": {"sectors": "sectors", "output": "path", "size": "size"},
-    "burn": {"iso": "path", "speed": "burn_speed", "cd_sector": "cd_layout", "no_verify": "flag"},
+    "erase": {"full": "flag"},
+    "burn": {"iso": "path", "speed": "burn_speed", "cd_sector": "cd_layout", "no_verify": "flag", "erase": "flag"},
     # the whole calibration in one job (calibrate.py); with `iso` it burns first, under the burn's rules
     "calibrate": {"iso": "path", "burn_speed": "burn_speed", "speed": "speed", "mid": "mid", "preset": "path",
-                  "sectors": "sectors", "avoid_mm": "radius_bands", "completion_sectors": "completion_sectors"},
+                  "sectors": "sectors", "avoid_mm": "radius_bands", "completion_sectors": "completion_sectors", "erase": "flag"},
     "photo": {"run": "photo", "media": "photo", "photos": "photo", "rings_mm": "photo",
               "burner": "photo", "burn_path": "photo", "burn_mode": "photo", "disc_id": "photo"},
 }
@@ -357,6 +358,7 @@ class Job:
         self.history = []
         self.action = None
         self.args = {}
+        self.disc = {}
         self.media = "dvd"
         self.result = None
         self.before = set()
@@ -603,7 +605,7 @@ class Backend:
         with self.lock:
             state["drives"] = [dict(d, disc=d.get("disc") or self.discs.get(d["id"])) for d in drives]
         with self.lock:
-            state["jobs"] = [dict(id=j.id, drive=j.drive, action=j.action, media=j.media, exit=j.exit, result=j.result,
+            state["jobs"] = [dict(id=j.id, drive=j.drive, action=j.action, media=j.media, args=j.args, disc=j.disc, exit=j.exit, result=j.result,
                                   cancellation=j.cancellation) for j in self.jobs.values()]
         state["catalogue"] = webui_catalog.catalogue(self.root, self.out)
         state["version"] = version()
@@ -636,7 +638,7 @@ class Backend:
         with self.lock:
             job = self.get_job(ident)
             job.read()
-            return dict(job=ident, action=job.action, media=job.media, exit=job.exit,
+            return dict(job=ident, action=job.action, media=job.media, args=job.args, exit=job.exit,
                         events=list(job.history), result=job.result, cancellation=job.cancellation)
 
     def burn_token(self):
@@ -665,7 +667,7 @@ class Backend:
         if payload["action"] in {"info", "timing", "geo", "calibrate"}:
             argv += ["--out", self.out]
         # what writes to a disc: a burn, or a calibration that starts with one
-        writes = payload["action"] == "burn" or (payload["action"] == "calibrate" and bool(payload.get("args", {}).get("iso")))
+        writes = payload["action"] in {"burn", "erase"} or (payload["action"] == "calibrate" and bool(payload.get("args", {}).get("iso")))
         with self.lock:
             if self.closed:
                 raise APIError("service is closing", 503)
@@ -676,18 +678,23 @@ class Backend:
                 if not isinstance(token, str) or self.tokens.pop(token, 0) <= time.monotonic():
                     raise APIError("valid burn token required", 403)
                 disc = next(d.get("disc") for d in drives if d["id"] == drive)
+                erase_disc = self.discs.get(drive) or disc
+                erasing = payload['action'] == 'erase' or payload.get('args', {}).get('erase') is True
+                if erasing and (not erase_disc or not erase_disc.get('rewritable')):
+                    raise APIError('a verified rewritable disc is required', 409)
                 fresh = self.verified_blank.get(drive)
                 fresh_ok = fresh is not None and fresh[0] > time.monotonic() and fresh[1] == payload.get("media", "dvd")
-                if not fresh_ok and (not disc or disc.get("blank") is not True):
+                if not erasing and not fresh_ok and (not disc or disc.get("blank") is not True):
                     raise APIError("a verified blank disc is required", 409)
                 from . import burner
-                if payload.get("media", "dvd") not in ("dvd", "cd"):
+                if payload['action'] != 'erase' and payload.get("media", "dvd") not in ("dvd", "cd"):
                     raise APIError("burn requires dvd or cd media")
                 image = payload.get("args", {}).get("iso")
-                if not image:
+                if not image and payload['action'] != 'erase':
                     raise APIError("burn is not implemented without an ISO; iso is required")
-                self.iso_file(image)
-                argv += (["--media", payload.get("media", "dvd")] if payload["action"] == "burn" else []) + ["--yes-write"]
+                if payload['action'] != 'erase':
+                    self.iso_file(image)
+                    argv += (["--media", payload.get("media", "dvd")] if payload["action"] == "burn" else []) + ["--yes-write"]
             if not self.folder.resolve().is_relative_to(self.root):
                 raise APIError("job directory must stay inside the workspace")
             self.folder.mkdir(exist_ok=True)
@@ -696,6 +703,7 @@ class Backend:
             job = Job(ident, drive, folder)
             job.action, job.media, job.args = payload["action"], payload.get("media", "dvd"), payload.get("args", {})
             known_disc = self.discs.get(drive) or next((d.get('disc') for d in drives if d['id'] == drive), None) or {}
+            job.disc = dict(known_disc)
             job.batch_identity = dict(disc=known_disc.get('mid'), drive=known_disc.get('drive_name'))
             if is_photo:
                 job.media = job.args["media"]
@@ -872,7 +880,7 @@ class Backend:
         with self.lock:
             # Even a failed write may have changed the disc. Invalidate before publishing
             # completion or interpreting reports, which can themselves be incomplete.
-            if job.action in {"burn", "swap", "calibrate"}:
+            if job.action in {"burn", "erase", "swap", "calibrate"}:
                 self.discs.pop(job.drive, None)
                 self.verified_blank.pop(job.drive, None)
             job.read()
@@ -951,6 +959,10 @@ class Backend:
                     result["path"] = (result.get("geo") or {}).get("path")
                     job.result = result
                     job.history.append(dict(type="result", job=job.id, step="calibrate", **result))
+            elif job.action == 'erase':
+                done = next((e for e in reversed(job.history) if e['type']=='erase_result'), None)
+                if done:
+                    job.result = {k:v for k,v in done.items() if k not in ('type','job')}
             elif job.action in {"random", "disexport", "image"} and code == 0:
                 output = job.args.get("output")
                 if output and Path(local_path(self.root, output)).is_file():
@@ -988,6 +1000,9 @@ class Backend:
                     step = next((e.get('name') for e in reversed(job.history) if e['type'] == 'step'), job.action)
                     verifying = any(e['type'] == 'verify_progress' for e in job.history)
                     phase = 'read-back' if verifying else step
+                    erase_start = next((i for i,e in enumerate(job.history) if e['type']=='erase_started'), None)
+                    if erase_start is not None and not any(e['type']=='erase_result' for e in job.history[erase_start:]):
+                        phase = 'erase'
                     event = dict(type='cancelled', by='user', job=ident, phase=phase,
                                  fraction=(job.progress or {}).get('fraction'), time=time.time())
                     # Separate from the child's append-only stream: no concurrent JSONL writes.
@@ -1315,6 +1330,8 @@ class Handler(BaseHTTPRequestHandler):
                         if media not in ("dvd", "cd"):
                             raise APIError("invalid media")
                         report = burner.adapter(drive, media).inspect()
+                        if isinstance(report, dict):
+                            backend.discs[drive] = dict(backend.discs.get(drive) or {}, **report)
                         # A blank disc found by this read-only, user-requested check authorizes a burn
                         # on this drive for two minutes; the burner checks the disc again before writing.
                         if isinstance(report, dict) and report.get("blank") is True:

@@ -966,6 +966,7 @@ function withInitialItem(item) {
   };
   return handoff;
 }
-export const isOn = () => !!W && !W.hidden;
+// Prewarming briefly unhides the form for rasterization, even while calibration owns Next.
+export const isOn = () => root.dataset.mode === 'newplan' && !!state && !!W && !W.hidden;
 // the plan's disc as the form stands (tests check it against design/export-rules.mjs)
 export const currentItem = () => (W && state ? chosen() ?? null : null);

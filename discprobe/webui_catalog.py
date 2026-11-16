@@ -122,6 +122,7 @@ def disc_report(report):
                 blank=blank, sectors=count[0] if count else None, closed=closed)
     capacity = recordable_capacity(report)
     disc['capacity_sectors'] = capacity[0] if capacity else None
+    disc.update(mmc.rewritable(cfg.get('current_profile'), parsed('disc_information').get('erasable')))
     disc['capacity_source'] = capacity[1] if capacity else None
     disc['drive_name'] = f"{inquiry.get('vendor', '')} {inquiry.get('product', '')}".strip() or None
     from .measurement_disc import short_recording
