@@ -54,6 +54,8 @@ SAMPLES = int(arg("--samples", "16"))
 SHADOW_SAMPLES = int(arg("--shadow-samples", "8"))
 DEVICE = arg("--device", "OPTIX")
 FORCE = "--force" in argv
+NIGHT_GAIN = float(arg("--night-gain", "5.8"))
+NIGHT_SIGMA_SCALE = float(arg("--night-sigma-scale", "1.0"))
 os.makedirs(OUTDIR, exist_ok=True)
 T0 = time.time()
 
@@ -112,7 +114,7 @@ VARIANT_STYLE = {
         lamp_metal=("#333b3e", "#22292c", "#272e32"),
         prop_tint="#353f43",
         line="#d5d9d2", line_alpha=0.55,
-        amb=(0.64, 0.64, 0.64), gain=(2.4, 2.4, 2.4), add=(0.0, 0.0, 0.0), vert_w=0.55,
+        amb=(0.64, 0.64, 0.64), gain=(NIGHT_GAIN,) * 3, add=(0.0, 0.0, 0.0), vert_w=0.55,
         shadow_mul=0.86, shadow_keep=0.3,
         shadow_light_height_mm=900,   # fake: shadows cast from above the bulb, so they stay short
         light_dir=None,            # bands toward the bulb
@@ -155,7 +157,7 @@ FADE = json.loads(scene["fade"]) if "fade" in scene else None     # baked aerial
 CAM_OFF = float(scene.get("cam_view_offset", 0.0))
 ROOM = "room" in scene.get("desk_meta", "") and "fade" in scene
 if ROOM:                                   # v2 room scene: the room is dimmer away from the lamp at night
-    VARIANT_STYLE["dark"].update(amb=(0.64, 0.64, 0.64), gain=(2.4, 2.4, 2.4), add=(0.0, 0.0, 0.0),
+    VARIANT_STYLE["dark"].update(amb=(0.64, 0.64, 0.64), gain=(NIGHT_GAIN,) * 3, add=(0.0, 0.0, 0.0),
                                  shadow_light_height_mm=None)
     VARIANT_STYLE["paper"].update(gain=(0.02, 0.015, 0.005))      # lamp off in the paper theme
     if any(o.get("mat") == "stage" for o in scene.objects):        # lobby v3 (desk on a stage floor): the paper
@@ -481,8 +483,8 @@ def pooled_lamp(nt, color, is_top, st, v):
     nt.links.new(dvec, dot.inputs[1])
     k = nt.nodes.new("ShaderNodeMath")
     k.operation = "MULTIPLY"
-    # Card T: narrow only the night pool, including segment distance. Paper and lines stay unchanged.
-    sigma = POOL["sigma"] * (0.557 if v == "dark" else 1.0)
+    # Card T review 2: original width by default; paper and lines stay unchanged.
+    sigma = POOL["sigma"] * (NIGHT_SIGMA_SCALE if v == "dark" else 1.0)
     k.inputs[1].default_value = -1.0 / (2.0 * sigma ** 2)
     nt.links.new(dot.outputs["Value"], k.inputs[0])
     ex = nt.nodes.new("ShaderNodeMath")
@@ -977,9 +979,9 @@ for layer in LAYERS:
     info["times_s"] = dict(TIMES)
     info["layer_total_s"] = round(time.time() - t_layer, 1)
     info["ss"], info["samples"] = SS, SAMPLES
-    info["night_pool_trial"] = {"amb": 0.64, "gain": 2.4, "add": 0,
-                                "sigma_scale_dark": 0.557, "sigma_original": POOL["sigma"],
-                                "sigma_dark": POOL["sigma"] * 0.557,
+    info["night_pool_trial"] = {"amb": 0.64, "gain": NIGHT_GAIN, "add": 0,
+                                "sigma_scale_dark": NIGHT_SIGMA_SCALE, "sigma_original": POOL["sigma"],
+                                "sigma_dark": POOL["sigma"] * NIGHT_SIGMA_SCALE,
                                 "paper_and_lines_unchanged": True, "device": cyc.device}
     with open(os.path.join(OUTDIR, "render_%s.json" % layer), "w") as fh:
         json.dump(info, fh, indent=2)

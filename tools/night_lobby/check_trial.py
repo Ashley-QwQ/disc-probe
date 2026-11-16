@@ -5,11 +5,12 @@ import json
 from pathlib import Path
 import shutil
 import sys
+import os
 import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
-TRIAL = Path('F:/dp-archive/tmp/lobbypool/trial')
+TRIAL = Path(os.environ.get('LOBBY_TRIAL', 'F:/dp-archive/tmp/lobbypool/trial'))
 HOME = ROOT / 'discprobe/web/home'
 source = ROOT / 'tools/night_b_export.py'
 tree = ast.parse(source.read_text(encoding='utf-8'))

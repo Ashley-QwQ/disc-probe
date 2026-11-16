@@ -7,7 +7,7 @@ import {rm} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const trial = 'F:/dp-archive/tmp/lobbypool/trial';
+const trial = process.env.LOBBY_TRIAL || 'F:/dp-archive/tmp/lobbypool/trial';
 const profile = join(trial, 'edge-profile');
 const fixture = join(trial, 'capture-fixture');
 assert(!existsSync(profile) && !existsSync(fixture), 'Use fresh disposable capture folders');

@@ -1,12 +1,13 @@
 """CIELAB L* on fixed semantic masks; distinguish new base from unchanged drive."""
 import json
+import os
 from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 from scipy.ndimage import binary_erosion, binary_dilation, maximum_filter, minimum_filter
 
 ROOT = Path(__file__).resolve().parents[2]
-TRIAL = Path('F:/dp-archive/tmp/lobbypool/trial')
+TRIAL = Path(os.environ.get('LOBBY_TRIAL', 'F:/dp-archive/tmp/lobbypool/trial'))
 HOME = ROOT / 'discprobe/web/home/lobby'
 inspection = json.loads((TRIAL / 'scene-inspection.json').read_text(encoding='utf-8'))
 metadata = json.loads((HOME / 'lobby.json').read_text(encoding='utf-8'))
@@ -45,8 +46,10 @@ def point(rgb, x, y):
 corners = {'top_left':[0,0,5,5], 'top_right':[w-5,0,w,5],
            'bottom_left':[0,h-5,5,h], 'bottom_right':[w-5,h-5,w,h]}
 rows = {}
-for name, path in [('old',TRIAL/'base_old_dark.webp'),('trial_png',TRIAL/'base_trial_dark.png'),
-                   ('trial_webp',TRIAL/'base_trial_dark.webp')]:
+images=[('old',TRIAL/'base_old_dark.webp'),('trial_png',TRIAL/'base_trial_dark.png'),
+        ('trial_webp',TRIAL/'base_trial_dark.webp')]
+if (TRIAL/'base_trial1_dark.png').exists():images.append(('trial1_png',TRIAL/'base_trial1_dark.png'))
+for name, path in images:
     rgb = np.asarray(Image.open(path).convert('RGB'))
     l = lightness(rgb)
     rows[name] = dict(center_target_px=center, nearest_visible_desktop=point(rgb,cx,cy),

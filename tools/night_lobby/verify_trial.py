@@ -62,6 +62,27 @@ for p in (ROOT/'tools/night_lobby').glob('*.py'):
 metrics=json.loads((TRIAL/'measurements.json').read_text(encoding='utf-8'))
 assert metrics['drive_top']['status'].startswith('UNCHANGED_OVERLAY')
 assert sha(Path('D:/disc-probe/art/desk/room_lobby3_final.blend')) == metrics['drive_top']['roi_scene_sha256']
+target=None
+if TRIAL.name=='trial2':
+    selection=json.loads((TRIAL/'selection.json').read_text(encoding='utf-8'))
+    metadata=json.loads((TRIAL/'F_lobby_a/render_base.json').read_text(encoding='utf-8'))['night_pool_trial']
+    assert metadata['amb']==.64 and metadata['add']==0 and metadata['sigma_dark']==.42
+    assert metadata['sigma_scale_dark']==1 and metadata['gain']==selection['gain']
+    assert render['ss']==4 and render['threads']==8 and render['device']=='CPU'
+    assert all(sha(ROOT/path)==digest for path,digest in before['previous_bundle'].items())
+    reused=json.loads((TRIAL/'reused-geometry.json').read_text(encoding='utf-8'))
+    assert all(sha(TRIAL/name)==row['sha256'] and sha(Path(row['source']))==row['sha256'] for name,row in reused.items())
+    assert json.loads((TRIAL/'geometry-check.json').read_text(encoding='utf-8'))['decoded_coverage_changed_pixels']==0
+    repeat=json.loads((TRIAL/'paper-repeat.json').read_text(encoding='utf-8'))
+    assert repeat['same_png_bytes'] and sha(TRIAL/'F_lobby_a/desk_base_paper.png')==repeat['trial1_paper_png_sha256']
+    target={}
+    for name in ('trial_png','trial_webp'):
+        row=metrics['base'][name]
+        assert [row['nearest_visible_desktop']['x'],row['nearest_visible_desktop']['y']]==[842,1074]
+        center=row['nearest_visible_desktop']['L_star']
+        corners=[r['median_L_star'] for r in row['corners'].values()]
+        target[name]=dict(center_L_star=center,corners_L_star=corners,passed=15.5<=center<=17 and max(corners)<=7)
+    assert all(row['passed'] for row in target.values()),target
 write_json(TRIAL/'verification.json',dict(
     status='PASS' if paper[0]['paper_accepted'] else 'PAPER_GATE_FAILED; review only',
     protected_count=len(before['protected']),paper_count=sum('_paper.' in p for p in before['protected']),
@@ -70,6 +91,7 @@ write_json(TRIAL/'verification.json',dict(
     base_only_render=True,paper_gate_accepted=paper[0]['paper_accepted'],
     screenshots_1440x1000=True,screenshot_changed_pixels=shot_changed_pixels,
     trial_png_is_raw_output=True,errors=[],csp=[],fixed_layout_equal=True,
-    visual_approval='PENDING_REVIEW',drive_layer='UNCHANGED_OVERLAY',
+    visual_approval='PENDING_REVIEW',drive_layer='UNCHANGED_OVERLAY',luminance_target=target,
+    previous_bundle_unchanged=True if TRIAL.name=='trial2' else None,
     free_bytes={d:shutil.disk_usage(d+':/').free for d in ('D','F')}))
 print('Verified',len(before['protected']),'protected files; paper gate',paper[0]['paper_accepted'])

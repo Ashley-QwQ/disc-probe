@@ -1,0 +1,156 @@
+[
+  {
+    "name": "lobby_old_dark",
+    "base_replaced_only": false,
+    "substitutions": [],
+    "theme": "dark",
+    "mode": "lobby",
+    "url": "http://127.0.0.1:61428/home/?mock#/lobby",
+    "errors": [],
+    "csp": [],
+    "width": 1440,
+    "height": 1000,
+    "base": [
+      2560,
+      1791
+    ],
+    "layerTransforms": [
+      {
+        "name": "base",
+        "translate": "0px"
+      },
+      {
+        "name": "fax",
+        "translate": "0px"
+      },
+      {
+        "name": "lamp",
+        "translate": "0px"
+      },
+      {
+        "name": "filebox",
+        "translate": "0px"
+      },
+      {
+        "name": "newplan",
+        "translate": "0px"
+      },
+      {
+        "name": "screen",
+        "translate": "0px"
+      },
+      {
+        "name": "screen_on",
+        "translate": "0px"
+      },
+      {
+        "name": "faxnews",
+        "translate": "0px"
+      },
+      {
+        "name": "parcel",
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      }
+    ],
+    "worldTransform": "matrix(0.55835, 0, 0, 0.55835, 5.3, 0)"
+  },
+  {
+    "name": "lobby_trial_dark",
+    "base_replaced_only": true,
+    "substitutions": [
+      "http://127.0.0.1:61428/home/lobby/base_dark.webp"
+    ],
+    "theme": "dark",
+    "mode": "lobby",
+    "url": "http://127.0.0.1:61428/home/?mock#/lobby",
+    "errors": [],
+    "csp": [],
+    "width": 1440,
+    "height": 1000,
+    "base": [
+      2560,
+      1791
+    ],
+    "layerTransforms": [
+      {
+        "name": "base",
+        "translate": "0px"
+      },
+      {
+        "name": "fax",
+        "translate": "0px"
+      },
+      {
+        "name": "lamp",
+        "translate": "0px"
+      },
+      {
+        "name": "filebox",
+        "translate": "0px"
+      },
+      {
+        "name": "newplan",
+        "translate": "0px"
+      },
+      {
+        "name": "screen",
+        "translate": "0px"
+      },
+      {
+        "name": "screen_on",
+        "translate": "0px"
+      },
+      {
+        "name": "faxnews",
+        "translate": "0px"
+      },
+      {
+        "name": "parcel",
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      },
+      {
+        "translate": "0px"
+      }
+    ],
+    "worldTransform": "matrix(0.55835, 0, 0, 0.55835, 5.3, 0)"
+  }
+]

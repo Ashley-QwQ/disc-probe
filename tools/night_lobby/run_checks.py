@@ -8,7 +8,7 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
-TRIAL = Path('F:/dp-archive/tmp/lobbypool/trial')
+TRIAL = Path(os.environ.get('LOBBY_TRIAL', 'F:/dp-archive/tmp/lobbypool/trial'))
 temp = TRIAL / 'tests-temp'
 temp.mkdir(exist_ok=True)
 free = {d: shutil.disk_usage(d + ':/').free for d in ('D', 'F')}

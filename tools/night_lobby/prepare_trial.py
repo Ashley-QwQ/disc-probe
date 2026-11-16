@@ -10,7 +10,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
-TRIAL = Path('F:/dp-archive/tmp/lobbypool/trial')
+TRIAL = Path(os.environ.get('LOBBY_TRIAL', 'F:/dp-archive/tmp/lobbypool/trial'))
 SOURCE = Path('F:/dp-archive/tmp/lobbypool/x79stage/stage')
 BLENDER = Path('F:/dp-archive/tools/blender-5.2.2-windows-x64/blender.exe')
 EXCLUDED = ''.join(('b', 'l', 'i', 'n', 'd'))

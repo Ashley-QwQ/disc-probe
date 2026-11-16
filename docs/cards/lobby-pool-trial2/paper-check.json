@@ -1,0 +1,35 @@
+[
+  {
+    "file": "lobby/base_dark.webp",
+    "job": "F_lobby_a",
+    "layers": [
+      "base"
+    ],
+    "box": [
+      0,
+      0,
+      2560,
+      1791
+    ],
+    "encoding": [
+      92,
+      6
+    ],
+    "paper_gate": "night-b",
+    "paper_stats": {
+      "rgb_mean": 0.023598097547924808,
+      "alpha_mean": 0.0,
+      "over8_percent": 0.026368823283082075
+    },
+    "paper_accepted": true,
+    "paper_exact": false,
+    "paper_changed_pixels": 49618,
+    "thresholds": {
+      "rgb_mean": 0.3,
+      "alpha_mean": 0.02,
+      "over8_percent": 0.1
+    },
+    "functions_from": "tools/night_b_export.py (AST extracted, unchanged)",
+    "writes": "trial candidates only; no committed image, paper or manifest writes"
+  }
+]

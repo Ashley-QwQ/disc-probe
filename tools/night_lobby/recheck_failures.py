@@ -8,7 +8,7 @@ import sys
 import time
 
 ROOT=Path(__file__).resolve().parents[2]
-TRIAL=Path('F:/dp-archive/tmp/lobbypool/trial')
+TRIAL=Path(os.environ.get('LOBBY_TRIAL', 'F:/dp-archive/tmp/lobbypool/trial'))
 log=(TRIAL/'javascript-tests.log').read_text(encoding='utf-8',errors='replace')
 names=sorted(set(re.findall(r'^✖ (tests[\\/][^\r\n]+?\.mjs)',log,re.M)))
 assert names and all(''.join(('b','l','i','n','d')) not in s.lower() for s in names)

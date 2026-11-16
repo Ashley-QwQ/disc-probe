@@ -5,10 +5,12 @@ from pathlib import Path
 import shutil
 
 ROOT=Path(__file__).resolve().parents[2]
-TRIAL=Path('F:/dp-archive/tmp/lobbypool/trial').resolve()
+TRIAL=Path(os.environ.get('LOBBY_TRIAL', 'F:/dp-archive/tmp/lobbypool/trial')).resolve()
 BAD=''.join(('b','l','i','n','d'))
-assert (TRIAL/'tests.json').exists() and (TRIAL/'javascript-retest.json').exists()
+assert (TRIAL/'tests.json').exists()
 record=dict(moved_screenshots=[],removed_passing_files=0,removed_passing_bytes=0,retained_failure_roots=[])
+if (TRIAL/'cleanup.json').exists():
+    record=json.loads((TRIAL/'cleanup.json').read_text(encoding='utf-8'))
 
 
 def entries(root):
@@ -46,13 +48,22 @@ if source.exists():
 temp=TRIAL/'tests-temp'
 assert temp.resolve().is_relative_to(TRIAL)
 passing=('brand','discprobe-afterburn','discprobe-brand-mixed','discprobe-burncancel','discprobe-editor','pytest')
+test_log=(TRIAL/'javascript-tests.log').read_text(encoding='utf-8',errors='replace')
+if '✖ tests\\test_rw_discs_browser.mjs' not in test_log and '✖ tests/test_rw_discs_browser.mjs' not in test_log:
+    passing+=('discprobe-rwdiscs',)
 for name in passing:
     directory=temp/name
     assert directory.resolve().is_relative_to(temp.resolve())
     if not directory.exists():continue
     for p in entries(directory):
         assert p.resolve().is_relative_to(directory.resolve())
-        record['removed_passing_bytes']+=p.stat().st_size
+        if 'shots' in p.relative_to(directory).parts and p.suffix in ('.png','.jpg'):
+            target=TRIAL/'test-screenshots'/name/p.relative_to(directory)
+            assert target.resolve().is_relative_to(TRIAL)
+            target.parent.mkdir(parents=True,exist_ok=True)
+            shutil.copyfile(p,target)
+            record['moved_screenshots'].append(str(target.relative_to(TRIAL)))
+        record['removed_passing_bytes']+=p.lstat().st_size
         p.unlink()
         record['removed_passing_files']+=1
     remove_empty(directory)
