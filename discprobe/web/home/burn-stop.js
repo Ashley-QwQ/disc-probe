@@ -10,18 +10,20 @@ export const stopWords = (lang, rewritable=false) => lang === 'en' ? {
 };
 export function closeBurnStop() { active?.close(); }
 export function expandBurnStop(button, {lang='zh', rewritable=false, valid=()=>true, done=()=>{}}={}) {
+  // The stop button stays as the panel's anchor: pressing it again folds the panel away.
+  if(active?.button===button){closeBurnStop();button.focus();return;}
   closeBurnStop();
   const t=stopWords(lang,rewritable), doc=button.ownerDocument;
   const panel=doc.createElement('div'); panel.className='burn-stop';
   panel.innerHTML='<p class="burn-stop-risk" role="status" aria-live="assertive"></p><div class="burn-stop-slider"></div><p class="kit-sr" role="status" aria-live="polite"></p><button type="button" class="btn burn-stop-keep"></button>';
-  button.after(panel); button.hidden=true;button.setAttribute('aria-expanded','true');
+  button.after(panel); button.setAttribute('aria-expanded','true');
   const risk=panel.querySelector('.burn-stop-risk'), host=panel.querySelector('.burn-stop-slider');
   risk.textContent=t.risk;
   const keep=panel.querySelector('button'); keep.textContent=t.keep;
   let closed=false, timer;
   const close=()=>{
     if(closed)return; closed=true; clearInterval(timer); slider.destroy(); panel.remove();
-    button.hidden=false;button.setAttribute('aria-expanded','false'); doc.removeEventListener('keydown',key,true); doc.removeEventListener('pointerdown',outside,true);
+    button.setAttribute('aria-expanded','false'); doc.removeEventListener('keydown',key,true); doc.removeEventListener('pointerdown',outside,true);
     if(active?.close===close)active=null;
   };
   const key=e=>{if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();button.focus();}};
@@ -29,16 +31,20 @@ export function expandBurnStop(button, {lang='zh', rewritable=false, valid=()=>t
   const slider=slideConfirm(host,{lang,holdPress:true,disabled:true,label:t.slide,done:()=>{
     if(!valid()){close();return;} close();done();
   }});
-  const caption=host.querySelector('.kit-slide-label'), until=performance.now()+3000;
+  // The lock counts down on the knob itself, in large digits; the arrow comes back when it unlocks.
+  const knob=host.querySelector('.kit-slide-knob'), arrow=[...knob.childNodes], until=performance.now()+3000;
+  const count=doc.createElement('span'); count.className='burn-stop-count'; count.setAttribute('aria-hidden','true');
+  host.classList.add('burn-stop-locked'); knob.replaceChildren(count);
   const tick=()=>{
     if(!valid()){close();return;}
     const left=Math.max(0,Math.ceil((until-performance.now())/1000));
-    caption.textContent=left ? `${t.slide} · ${left}` : t.slide;
-    if(!left){clearInterval(timer);slider.setDisabled(false);panel.querySelector('.kit-sr[role="status"]').textContent=t.ready;}
+    if(left){if(count.textContent!==String(left))count.textContent=String(left);return;}
+    clearInterval(timer);host.classList.remove('burn-stop-locked');knob.replaceChildren(...arrow);
+    slider.setDisabled(false);panel.querySelector('.kit-sr[role="status"]').textContent=t.ready;
   };
   keep.onclick=()=>{close();button.focus();};
   doc.addEventListener('keydown',key,true); doc.addEventListener('pointerdown',outside,true);
-  active={close};tick();timer=setInterval(tick,100);keep.focus();
+  active={close,button};tick();timer=setInterval(tick,100);keep.focus();
 }
 export function paintStopButton(button, burning, lang, erasing=false) {
   // erasing: a plain text button, one click (the contents are being cleared anyway; it just needs erasing again)

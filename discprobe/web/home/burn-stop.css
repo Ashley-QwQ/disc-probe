@@ -1,8 +1,13 @@
 .burn-stop { width:min(420px,80vw); padding:16px; background:var(--paper); border:1px solid var(--rule-strong); border-radius:4px; }
 .job:has(.burn-stop) { position:relative; }
-.job > .burn-stop { position:absolute; bottom:0; right:0; z-index:20; }
+.job > .burn-stop { position:absolute; bottom:calc(100% + 16px); right:0; z-index:20; }   /* above the bar: the progress stays in view */
 .burn-stop-risk { margin:0 0 16px; color:var(--burn-danger); font-weight:700; animation:burn-stop-risk 1.2s ease-in-out infinite; }
 .burn-stop-keep { margin-top:12px; }
+/* Locked: the countdown sits on the knob in large digits; only the caption fades, not the number. */
+.burn-stop-locked .kit-slide-track[data-disabled="true"] { opacity:1; }
+.burn-stop-locked .kit-slide-track[data-disabled="true"] .kit-slide-label { opacity:.45; }
+.burn-stop-locked .kit-slide-knob { border-color:var(--burn-danger); }
+.burn-stop-count { font:800 28px/1 var(--font); font-stretch:112%; font-variant-numeric:tabular-nums; color:var(--burn-danger); }
 .job-cancel:not(.btn-icon) { width:auto; white-space:nowrap; padding-inline:16px; }
 @keyframes burn-stop-risk { 50% { opacity:.6; } }
 @media (prefers-reduced-motion:reduce) { .burn-stop-risk { animation:none; } }
