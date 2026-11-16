@@ -1071,7 +1071,7 @@ function realPaint() {
     title = liveText('刻测量盘', 'Burn the measurement disc');
     text = liveText('光驱里放着同批次的空白盘。滑动右下角确认刻录：托盘会关上，刻录不能撤销，DVD 约 14 分钟。刻完会自己检查这张盘，接着开始测量。',
       'The drive holds a blank from this batch. Slide the confirmation at the bottom right to burn: the tray closes, burning cannot be undone, about 14 minutes for a DVD. When it is done the disc is checked and measuring starts on its own.');
-    html = `<p class="cal-aside">${liveText('也可以用别的刻录程序把', 'Or burn')} <code>${esc(flow.iso)}</code> ${liveText('刻到同批次的空白盘上，放进光驱后', 'to a blank from this batch with another program, put it in, and')} <button id="real-have" type="button" class="btn">${liveText('检测刻好的盘', 'check the burned disc')}</button></p>`;
+    html = `<p class="cal-aside">${liveText('也可以用别的刻录程序把', 'Or burn')} <code>${esc(flow.iso)}</code> ${flow.eraseRequested ? liveText('擦除后刻到这张盘上，放进光驱后', 'to this disc with another program after erasing it, put it in, and') : liveText('刻到同批次的空白盘上，放进光驱后', 'to a blank from this batch with another program, put it in, and')} <button id="real-have" type="button" class="btn">${liveText('检测刻好的盘', 'check the burned disc')}</button></p>`;
     button = flow.eraseRequested?liveText('滑动确认擦除后重刻','Slide to erase and burn again'):liveText('滑动确认刻测量盘', 'Slide to burn the measurement disc');
     if(flow.eraseRequested)text=liveText('盘上的内容会被清掉。滑动右下角确认擦除后重刻；擦除完成后才开始刻录。','The disc contents will be cleared. Slide to confirm erasing and burning again; burning starts only after erasing succeeds.');
   } else if (["timing", "geo", "random", "saving", "burning", "erasing", "checking"].includes(phase)) {
@@ -1079,8 +1079,8 @@ function realPaint() {
       checking:liveText('正在检查刻好的盘', 'Checking the burned disc')}[phase];
     // the core's stage words, in the page's language where they are known ("rung 4/22")
     const rung = /^rung (\d+)\/(\d+)$/.exec(flow.stage || "");
-    const stage = rung ? liveText(`第 ${rung[1]} 处，共 ${rung[2]} 处。`, `Place ${rung[1]} of ${rung[2]}.`) : flow.stage ? flow.stage + " " : "";
-    text = stage + liveText('可以关掉这个网页，测量在后台继续。', 'You can close this page; the work goes on.');
+    const stage = rung ? liveText(`第 ${rung[1]} 处，共 ${rung[2]} 处。`, `Place ${rung[1]} of ${rung[2]}.`) : flow.stage ? flow.stage + (api.lang() === "en" ? " " : "") : "";
+    text = stage + (phase === 'erasing' ? liveText('可以关掉这个网页，擦除和之后的刻录在后台继续。', 'You can close this page; erasing and the burn after it go on.') : liveText('可以关掉这个网页，测量在后台继续。', 'You can close this page; the work goes on.'));
     disabled = true;
     if (flow.job) {
       html += runningPaper(phase);                       // what is happening: only while it happens
@@ -1180,7 +1180,7 @@ function realPaint() {
   const hold = phase === "burn" && !cdHere();
   disabled ||= !!flow.curvePending;
   if(flow.job){
-    paintStopButton($("job-cancel"),phase==='burning'&&!flow.job.verifying,api.lang());
+    paintStopButton($("job-cancel"),phase==='burning'&&!flow.job.verifying,api.lang(),phase==='erasing');
     $("job-cancel").disabled=!!flow.job.stopping||!flow.job.id;
   }
   nextWords(button); $("next").disabled = disabled; nextKit(hold, disabled, phase === "random" && !!flow.job);
@@ -1714,7 +1714,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       // where the head is: only a radius the core worked out from its own fit, never a guess
       if (event.type === "progress" && Number.isFinite(event.radius_mm)) f.head = event.radius_mm;
       if (event.type === 'erase_started') {f.realPhase='erasing';$("job-name").textContent=liveText('擦除光盘','Erasing');f.stage=liveText('正在擦除光盘，盘上的内容会被清掉。','Erasing the disc; its contents will be cleared.');closeBurnStop();paint();}
-      if (event.type === 'erase_progress') {current.p=event.fraction;api.jobProgress(current.p,f.detected?.media||'dvd');f.etaS=event.eta_s;$("job-time").textContent=Number.isFinite(event.eta_s)?T().leftSec(Math.max(0,event.eta_s)):'?';f.stage=liveText(`正在擦除光盘 ${Math.round(current.p*100)}%`,`Erasing the disc ${Math.round(current.p*100)}%`);paint();}
+      if (event.type === 'erase_progress') {current.p=event.fraction;api.jobProgress(current.p,f.detected?.media||'dvd');f.etaS=event.eta_s;$("job-time").textContent=Number.isFinite(event.eta_s)?T().leftSec(Math.max(0,event.eta_s)):'?';f.stage=liveText('盘上的内容正在清掉。','The disc contents are being cleared.');paint();}
       if (event.type === 'erase_result') {f.eraseResult=event;if(event.result!=='completed'){f.burnStarted=false;f.realPhase='burn';}}
       if (event.type === 'burn_speed') {f.realPhase='burning';$("job-name").textContent=stepWords('burn');f.burnStarted=true;f.stage=null;paint();}
       if (event.type === "burn_result") { f.burnCheck = event; if(event.result==='completed')f.burnStarted=false; }

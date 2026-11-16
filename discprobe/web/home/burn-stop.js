@@ -40,10 +40,12 @@ export function expandBurnStop(button, {lang='zh', rewritable=false, valid=()=>t
   doc.addEventListener('keydown',key,true); doc.addEventListener('pointerdown',outside,true);
   active={close};tick();timer=setInterval(tick,100);keep.focus();
 }
-export function paintStopButton(button, burning, lang) {
-  const text=burning?stopWords(lang).stop:(lang==='en'?'Cancel':'取消');
-  button.classList.toggle('btn-icon',!burning);button.setAttribute('aria-label',text);
-  if(burning)button.textContent=text;
+export function paintStopButton(button, burning, lang, erasing=false) {
+  // erasing: a plain text button, one click (the contents are being cleared anyway; it just needs erasing again)
+  const worded=burning||erasing;
+  const text=burning?stopWords(lang).stop:erasing?(lang==='en'?'Stop erasing':'停止擦除'):(lang==='en'?'Cancel':'取消');
+  button.classList.toggle('btn-icon',!worded);button.setAttribute('aria-label',text);
+  if(worded)button.textContent=text;
   else button.innerHTML='<svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>';
 }
 export function shortDiscWords(disc, lang='zh') {
