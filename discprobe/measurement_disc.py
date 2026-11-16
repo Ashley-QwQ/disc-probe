@@ -16,6 +16,8 @@ def short_recording(disc, expected=None):
     limit = capacity * .01 if type(capacity) is int and capacity > 0 else 4096
     if sectors > limit:
         return None
+    ending = ('Erase this rewritable disc and burn again.' if disc.get('rewritable') else
+              'Replace it with a blank disc and burn again.')
     return (f'This disc has only the beginning recorded ({sectors} sectors, about '
             f'{sectors * 2048 / 1048576:.0f} MB). Burning probably stopped partway; '
-            'it cannot be used for measurement. Replace it with a blank disc and burn again.')
+            f'it cannot be used for measurement. {ending}')

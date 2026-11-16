@@ -27,7 +27,6 @@ const STR = {
     prepareLede: (d) => `测量要用一张刻满随机数据的 ${d}。刻一次，测量就能开始。`,
     optBurn: "刻一张测量盘", optBurnSub: "放入一张同批次的空白盘；耗盘和时间见上面的预算。",
     optHave: "用已刻好的数据盘", optHaveSub: "同批次、刻满随机数据的盘也可以，省一张盘。",
-    optRw: "擦写这张可擦写盘再刻", optRwSub: "可擦写盘可以反复用来测量。",
     putBlank: (d) => `把一张空白 ${d} 放到托盘上。`, putData: "把刻好的测量盘放到托盘上。",
     placed: "我放好了", placedAgain: "我换好了", wrongDemo: "（样稿）放一张不对的盘",
     checking: "正在看托盘里的盘……",
@@ -80,7 +79,6 @@ const STR = {
     prepareLede: (d) => `Measuring needs a ${d} filled with random data. Burn it once and measuring can start.`,
     optBurn: "Burn a measurement disc", optBurnSub: "Put in a blank from the same batch; see the disc and time budget above.",
     optHave: "Use a data disc you already burned", optHaveSub: "A disc from the same batch filled with random data works too, and saves a blank.",
-    optRw: "Erase this rewritable and burn it", optRwSub: "A rewritable can be measured again and again.",
     putBlank: (d) => `Put a blank ${d} on the tray.`, putData: "Put the burned measurement disc on the tray.",
     placed: "It's in", placedAgain: "Swapped it", wrongDemo: "(mock) Put in the wrong disc",
     checking: "Looking at the disc in the tray…",
@@ -154,7 +152,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, api.reduce ? 0 : ms));
 let ui = null;                              // the scene pieces, built once
 function newFlow(item) {
   return {
-    item, step: 0, choice: item.rw ? "rw" : "burn",
+    item, step: 0, choice: "burn",
     // detect → (identify → ok | remove → out) | out → flying → hover → falling → checking → ok | wrong
     disc: "detect",
     // mock: what the drive holds when the flow starts (the home page's drive has a disc in it,
@@ -214,7 +212,8 @@ export function attach(homeApi, job) {
   if (!flow?.job) {
     flow = newFlow({ kind: "new", row: job.media || "dvd", name: "", mid: "", s: "new" });
     if (!ui) build();
-    flow.realPhase = "checking"; flow.detected = { media: job.media || "dvd" };
+    flow.realPhase = "checking"; flow.detected = { ...job.disc, media: job.media || "dvd" };
+    flow.iso=job.args?.iso;flow.eraseRequested=!!job.args?.erase;
   }
   open();
   if (flow.job) return;
@@ -586,7 +585,7 @@ function cancelJob(confirmed = false) {
   const burning=api.backend.mock ? current.kind==='burn' : flow.realPhase==='burning' && !current.verifying;
   // click listeners pass an Event, so only the slider's literal true can authorize a write stop.
   if(burning && confirmed!==true){
-    expandBurnStop($("job-cancel"),{lang:api.lang(),valid:()=>flow?.job===current && (api.backend.mock||flow.realPhase==='burning') && !current.verifying,
+    expandBurnStop($("job-cancel"),{lang:api.lang(),rewritable:!!flow.detected?.rewritable,valid:()=>flow?.job===current && (api.backend.mock||flow.realPhase==='burning') && !current.verifying,
       done:()=>cancelJob(true)});return;
   }
   if (!api.backend.mock) { if (current.id && !current.stopping) {
@@ -902,7 +901,7 @@ function paint() {
     h = t.prepare; lede = t.prepareLede(discWord);
     const free = ["out", "flying", "hover", "remove"].includes(flow.disc);
     const opt = (v, a, b) => `<label class="choice"><input type="radio" name="src" value="${v}"${flow.choice === v ? " checked" : ""}${free ? "" : " disabled"}><b>${a}</b><span>${b}</span></label>`;
-    body = `<div class="choices">${it.rw ? opt("rw", t.optRw, t.optRwSub) : opt("burn", t.optBurn, t.optBurnSub)}${opt("have", t.optHave, t.optHaveSub)}</div>`;
+    body = `<div class="choices">${opt("burn", t.optBurn, t.optBurnSub)}${opt("have", t.optHave, t.optHaveSub)}</div>`;
     const put = flow.choice === "have" ? t.putData : t.putBlank(discWord);
     if (flow.disc === "detect" || flow.disc === "detecting" || flow.disc === "identify") {
       body += note("info", [flow.disc === "identify" ? t.identify : t.detect, ""]); nextOn = false;
@@ -1001,7 +1000,7 @@ function paint() {
 // The irreversible step owns a slider; other steps keep the normal Next button.
 let imageRing = null;
 function nextKit(slide, disabled, making = false) {
-  nextConfirm($("next"), {active:slide, disabled, lang:api.lang(), done:() => {
+  nextConfirm($("next"), {active:slide, disabled, lang:api.lang(), label:flow?.eraseRequested?liveText('滑动确认擦除后重刻','Slide to erase and burn again'):undefined, done:() => {
     if (isCal() && !$("next").disabled) next();
   }});
   if (making) {
@@ -1050,6 +1049,9 @@ function realPaint() {
     text = `${flow.detected.mid || liveText('厂商编号未知', 'Unknown maker code')} · ${flow.detected.sectors ?? "—"} sectors`;
     html = `<label class="name-field">${liveText('盘的名称', 'Disc name')}<input id="real-name" maxlength="120" value="${esc(flow.realName || flow.detected.mid || flow.detected.kind)}"></label>`;
     html += `<p>${esc(T().identified(flow.detected.kind, flow.detected.mid || '—')[1])}</p>`;
+    if (flow.detected.rewritable && flow.detected.blank === false) {
+      html += `<p>${liveText('这张可擦写盘已有内容。擦除后重刻会清掉盘上的内容。','This rewritable disc has data. Erasing before burning clears its contents.')}</p><button id="real-erase" type="button" class="btn">${liveText('擦除后重刻','Erase and burn again')}</button>`;
+    }
     if (flow.detected.blank === true) button = liveText('生成测量镜像', 'Make measurement image');
     else if (flow.detected.blank === false) {
       html += `<label><input id="measurement-confirm" type="checkbox" ${flow.measureConfirmed ? "checked" : ""}>${liveText('这是同批次、刻满随机数据的测量盘', 'This is a full random-data measurement disc from this batch')}</label>`;
@@ -1070,9 +1072,10 @@ function realPaint() {
     text = liveText('光驱里放着同批次的空白盘。滑动右下角确认刻录：托盘会关上，刻录不能撤销，DVD 约 14 分钟。刻完会自己检查这张盘，接着开始测量。',
       'The drive holds a blank from this batch. Slide the confirmation at the bottom right to burn: the tray closes, burning cannot be undone, about 14 minutes for a DVD. When it is done the disc is checked and measuring starts on its own.');
     html = `<p class="cal-aside">${liveText('也可以用别的刻录程序把', 'Or burn')} <code>${esc(flow.iso)}</code> ${liveText('刻到同批次的空白盘上，放进光驱后', 'to a blank from this batch with another program, put it in, and')} <button id="real-have" type="button" class="btn">${liveText('检测刻好的盘', 'check the burned disc')}</button></p>`;
-    button = liveText('滑动确认刻测量盘', 'Slide to burn the measurement disc');
-  } else if (["timing", "geo", "random", "saving", "burning", "checking"].includes(phase)) {
-    title = {timing:T().timing, geo:T().geo, random:T().generate, saving:liveText('正在保存预设', 'Saving preset'), burning:T().burning,
+    button = flow.eraseRequested?liveText('滑动确认擦除后重刻','Slide to erase and burn again'):liveText('滑动确认刻测量盘', 'Slide to burn the measurement disc');
+    if(flow.eraseRequested)text=liveText('盘上的内容会被清掉。滑动右下角确认擦除后重刻；擦除完成后才开始刻录。','The disc contents will be cleared. Slide to confirm erasing and burning again; burning starts only after erasing succeeds.');
+  } else if (["timing", "geo", "random", "saving", "burning", "erasing", "checking"].includes(phase)) {
+    title = {erasing:liveText('正在擦除光盘','Erasing the disc'),timing:T().timing, geo:T().geo, random:T().generate, saving:liveText('正在保存预设', 'Saving preset'), burning:T().burning,
       checking:liveText('正在检查刻好的盘', 'Checking the burned disc')}[phase];
     // the core's stage words, in the page's language where they are known ("rung 4/22")
     const rung = /^rung (\d+)\/(\d+)$/.exec(flow.stage || "");
@@ -1128,13 +1131,15 @@ function realPaint() {
     if (flow.photoResult) html += photoStamp(flow.photoResult, flow.savedPhotoShift || {});
     button = returnTo ? liveText('回到刚才那一步', 'Back to where you were') : liveText('回到首页', 'Return home');
   }
-  if (["prepare", "burn"].includes(phase)) html = budgetHTML(flow.detected.media, api.lang()) + html;
+  if (["prepare", "burn"].includes(phase)) html = (flow.detected.rewritable
+    ? `<p class="cal-aside">${liveText('可擦写盘可以重复使用。快速擦除约 1 分钟；完全擦除约为 1× 刻满一张盘的时间。擦除完成后才会开始重刻。','Rewritable discs can be reused. Quick erase takes about a minute; full erase takes about as long as filling a disc at 1x. Burning starts after erasing completes.')}</p>`
+    : budgetHTML(flow.detected.media, api.lang())) + html;
   if (flow.ask) {
     html += `<p role="status">${esc(flow.ask.question)}</p><button id="real-yes">${liveText('继续', 'Continue')}</button><button id="real-no">${liveText('取消这一步', 'Decline')}</button>`;
     disabled = true;
   }
   if (flow.error) {
-    if (!flow.job && ["timing", "geo", "random", "saving", "burning", "checking"].includes(phase)) { title = liveText('这一步没有完成', 'This step did not finish'); text = ""; }
+    if (!flow.job && ["timing", "geo", "random", "saving", "burning", "erasing", "checking"].includes(phase)) { title = liveText('这一步没有完成', 'This step did not finish'); text = ""; }
     html += `<div role="alert">${note("error", [esc(flow.error), ""])}</div><button id="real-retry">${liveText('重新检测', 'Check again')}</button>`; disabled = true;
   }
   const badBurn = burnCheckFailed(flow.burnCheck);
@@ -1147,16 +1152,16 @@ function realPaint() {
   const burnStop=!flow.job && interruptedBurn(flow,api.lang());
   if(burnStop){
     title=liveText(flow.cancelledByUser?.phase==='burn'?'刻录已停止':'刻录没有完成',flow.cancelledByUser?.phase==='burn'?'Burn stopped':'Burn did not finish');
-    text=burnStop;html='';button=liveText('换一张空白盘重新刻','Replace with a blank and burn again');disabled=false;
+    text=burnStop;html='';button=flow.detected?.rewritable?liveText('擦除后重新刻','Erase and burn again'):liveText('换一张空白盘重新刻','Replace with a blank and burn again');disabled=false;
   } else if(phase==='discRejected'){
     title=liveText('这张盘不能用来测','This disc cannot be measured');text=flow.discIssue;html='';
-    button=liveText('换一张空白盘重新刻','Replace with a blank and burn again');disabled=false;
+    button=flow.detected?.rewritable?liveText('擦除后重新刻','Erase and burn again'):liveText('换一张空白盘重新刻','Replace with a blank and burn again');disabled=false;
   }
   paintRuler(); paintStage();
   sideButton(flow.job && ["burning", "checking", "timing", "geo"].includes(phase) ? liveText("先去放图，测好了叫我", "Place the picture; call me when done") : null);
   const previousAlert = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]')?.textContent;
   // what is not known yet and what to do next, for the phase on screen (an error panel has its own words)
-  const advice = flow.error || badBurn ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined, photoTaken: !!flow.photoOnly,
+  const advice = flow.error || badBurn || (phase==='burn' && flow.eraseRequested) ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined, photoTaken: !!flow.photoOnly,
     external: phase === "burn" && cdHere() });
   $("cal").innerHTML = `<h2>${esc(title)}</h2><p class="lede">${esc(text)}</p>${advice}${html}`;
   if (phase === 'review' && flow.geo?.path && !badBurn) {
@@ -1179,6 +1184,7 @@ function realPaint() {
     $("job-cancel").disabled=!!flow.job.stopping||!flow.job.id;
   }
   nextWords(button); $("next").disabled = disabled; nextKit(hold, disabled, phase === "random" && !!flow.job);
+  if(phase==='erasing')$("next-text").textContent=liveText('擦除中','Erasing');
   // why it is grey, beside it: running, waiting for an answer, a problem to put right, a box to tick
   api.nextWhy?.(flow.error ? liveText('先处理上面的问题', 'Put the problem above right first')
     : flow.ask ? liveText('先回答上面的问题', 'Answer the question above first')
@@ -1186,6 +1192,7 @@ function realPaint() {
     : phase === "prepare" && flow.detected?.blank === false && !flow.measureConfirmed ? liveText('先勾选上面：这是测量盘', 'Tick the box above first: this is the measurement disc')
     : "");
 
+  $("real-erase")?.addEventListener('click',()=>{flow.eraseRequested=true;flow.measureConfirmed=false;realNext();});
   $("real-name")?.addEventListener("input", e => {flow.realName = e.target.value;});
   $("measurement-confirm")?.addEventListener("change", e => {flow.measureConfirmed = e.target.checked; paint();});
   $("left-input")?.addEventListener("input", e => { flow.left = e.target.value === "" ? null : Number(e.target.value); });
@@ -1706,6 +1713,10 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       }
       // where the head is: only a radius the core worked out from its own fit, never a guess
       if (event.type === "progress" && Number.isFinite(event.radius_mm)) f.head = event.radius_mm;
+      if (event.type === 'erase_started') {f.realPhase='erasing';$("job-name").textContent=liveText('擦除光盘','Erasing');f.stage=liveText('正在擦除光盘，盘上的内容会被清掉。','Erasing the disc; its contents will be cleared.');closeBurnStop();paint();}
+      if (event.type === 'erase_progress') {current.p=event.fraction;api.jobProgress(current.p,f.detected?.media||'dvd');f.etaS=event.eta_s;$("job-time").textContent=Number.isFinite(event.eta_s)?T().leftSec(Math.max(0,event.eta_s)):'?';f.stage=liveText(`正在擦除光盘 ${Math.round(current.p*100)}%`,`Erasing the disc ${Math.round(current.p*100)}%`);paint();}
+      if (event.type === 'erase_result') {f.eraseResult=event;if(event.result!=='completed'){f.burnStarted=false;f.realPhase='burn';}}
+      if (event.type === 'burn_speed') {f.realPhase='burning';$("job-name").textContent=stepWords('burn');f.burnStarted=true;f.stage=null;paint();}
       if (event.type === "burn_result") { f.burnCheck = event; if(event.result==='completed')f.burnStarted=false; }
       if (event.type === "cancelled" && event.by==='user') f.cancelledByUser=event;
       if (event.type === "verify_progress") {current.verifying=true;closeBurnStop();paint();}
@@ -1721,7 +1732,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
         if (event.name !== "geo") showInterior(false);
         paint();
       }
-      if (event.type === "disc" && event.present) f.detected = { ...f.detected, ...event };
+      if (event.type === "disc" && event.present) {f.detected = { ...f.detected, ...event };f.blankSectors=event.capacity_sectors||f.blankSectors;paint();}
       if (event.type === "log") flog.log(event.text, event.level, event.ansi);
       if (event.type === "progress") flog.progress(event.fraction, event.stage, event.eta_s);
       if (event.type === "ask") { f.ask = event; paint(); }
@@ -1760,6 +1771,11 @@ async function realNext(forceMeasure = false) {
   try {
     const phase = flow.realPhase;
     if(phase==='burnStopped'||phase==='discRejected'||interruptedBurn(flow,api.lang())){
+      if(flow.detected?.rewritable){
+        flow.eraseRequested=true;flow.burnCheck=null;flow.cancelledByUser=null;flow.burnInterrupted=false;flow.burnStarted=false;
+        flow.requireBlank=false;flow.measureConfirmed=false;flow.realPhase='prepare';
+        await realNext();return;
+      }
       flow.requireBlank=true;flow.burnCheck=null;flow.cancelledByUser=null;flow.burnInterrupted=false;flow.burnStarted=false;
       flow.geo=null;flow.timing=null;flow.preset=null;flow.measureConfirmed=false;flow.discIssue=null;
       flow.realPhase='inspect';paint();return;
@@ -1777,17 +1793,17 @@ async function realNext(forceMeasure = false) {
       if (expectedMid && result.disc.mid !== expectedMid) throw new Error(liveText('厂商编号已改变，请放回同批次光盘。', 'The maker code changed. Insert a disc from the same batch.'));
       flow.detected = result.disc; flow.realPhase = "prepare"; flow.measureConfirmed = false;
       const issue=shortDiscWords(result.disc,api.lang());
-      if(issue || flow.requireBlank && result.disc.blank!==true){
+      if(issue || flow.requireBlank && result.disc.blank!==true && !result.disc.rewritable){
         flow.discIssue=issue||liveText('上次的刻录没有完成。请换一张同批的空白盘，不能继续测这张盘。','The previous burn did not finish. Insert a blank from the same batch; this disc cannot be measured.');
         flow.realPhase='discRejected';paint();return;
       }
       if(result.disc.blank===true)flow.requireBlank=false;
       if (result.disc.blank === true) flow.blankSectors = result.disc.sectors;     // the capacity a preset needs
     } else if (phase === "prepare") {
-      if (flow.detected.blank === true && flow.iso) flow.realPhase = "burn";     // the image made before, kept for a retry
-      else if (flow.detected.blank === true) {
+      if ((flow.detected.blank === true || flow.eraseRequested) && flow.iso) flow.realPhase = "burn";     // the image made before, kept for a retry
+      else if (flow.detected.blank === true || flow.eraseRequested) {
         const media = flow.detected.media;
-        const capacity = flow.detected.sectors;
+        const capacity = flow.detected.capacity_sectors || flow.detected.sectors;
         if (!Number.isInteger(capacity)) throw new Error(liveText('容量未知。请重新检测空白盘。', 'Capacity is unknown. Check the blank disc again.'));
         flow.iso = `iso/${media}-measurement-${Date.now()}.iso`;
         flow.realPhase = "random";
@@ -1907,10 +1923,10 @@ async function realBurn() {
   flow.burnCheck=null;flow.cancelledByUser=null;flow.burnInterrupted=false;flow.burnStarted=false;
   flow.realPhase = "burning"; flow.burnP = 0; flow.stage = liveText('检查托盘里还是空白盘…', 'Checking the tray still holds the blank…'); paint();
   const report = await api.backend.request(`/api/burn-speeds?drive=${encodeURIComponent(drive)}&media=${media}`);
-  if (report?.blank !== true) { flow.realPhase = "burn"; throw new Error(liveText('光驱里不是空白盘。放回这批的空白盘再刻。', 'The drive does not hold a blank. Put a blank from this batch back and burn again.')); }
+  if (report?.blank !== true && !(flow.eraseRequested && report?.rewritable)) { flow.realPhase = "burn"; throw new Error(liveText('光驱里不是空白盘。放回这批的空白盘再刻。', 'The drive does not hold a blank. Put a blank from this batch back and burn again.')); }
   const { token } = await api.backend.request("/api/burn-token");
   flow.stage = null;
-  await realCalibrate({ iso: flow.iso }, { burn_token: token });
+  await realCalibrate({ iso: flow.iso, ...(flow.eraseRequested?{erase:true}:{}) }, { burn_token: token });
 }
 async function realSave() {
   flow.realPhase = "saving";

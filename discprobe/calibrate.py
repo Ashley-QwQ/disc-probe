@@ -177,11 +177,13 @@ def run(args) -> None:
             step("burn")
             if not args.yes_write:
                 raise Stopped("burning needs --yes-write")
+            blank = read_disc()
+            ui.event('disc', **blank)
             if capacity is None:
-                blank = read_disc()
-                capacity = blank.get("capacity_sectors") if blank.get("blank") is True else None
+                capacity = blank.get('capacity_sectors') if blank.get('blank') is True or getattr(args, 'erase', False) and blank.get('rewritable') else None
                 capacity_source = 'blank disc before burning' if capacity else None
             code = child("burn", "--drive", args.drive, "--iso", args.iso, "--media", args.media, "--yes-write",
+                         *(['--erase'] if getattr(args, 'erase', False) else []),
                          *(["--speed", args.burn_speed] if args.burn_speed else []),
                          *(["--work", args.work] if getattr(args, "work", None) else []),
                          *(["--disc-code", args.disc_id_code] if getattr(args, "disc_id_code", None) else []))
@@ -319,6 +321,7 @@ def add_parser(sub) -> None:
     from .__main__ import _speed
 
     sp = sub.add_parser("calibrate", help="calibrate a disc batch end to end: (burn,) check, timing, geo(, preset)")
+    sp.add_argument('--erase', action='store_true', help='erase recorded rewritable media before burning')
     from .read_completion import HELP, argument
     sp.add_argument('--completion-sectors', type=argument, help=HELP)
     sp.add_argument("--drive", help="selected drive identity; required for measuring, checked when saving photo L")

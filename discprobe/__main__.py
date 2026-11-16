@@ -524,9 +524,13 @@ def cmd_info(args):
     out = _outdir(args, "info", dev)
     from .capacity import capacity_words
     report['capacity_words'] = capacity_words(report)
+    cfg = (report.get('configuration') or {}).get('parsed') or {}
+    di = (report.get('disc_information') or {}).get('parsed') or {}
+    report.update(mmc.rewritable(cfg.get('current_profile'), di.get('erasable')))
     _write_json(os.path.join(out, "info.json"), report)
     for line in info.summarize(report):
         print(line)
+    print('Rewritable: ' + json.dumps({k: report[k] for k in ('rewritable', 'rewritable_sources')}))
     print(json.dumps(report["disc_identity"], ensure_ascii=False, indent=2))
     print(f"\nFull dump: {os.path.abspath(out)}")
     if dev.errors:
@@ -2091,6 +2095,11 @@ def _build_parser():
     sub = p.add_subparsers(required=True, metavar="<command>", help=argparse.SUPPRESS, prog=guide.PROG)
 
     from . import burner
+    from . import eraser
+    sp = sub.add_parser('erase', help='erase a rewritable disc (quick by default)')
+    sp.add_argument('--drive', required=True)
+    sp.add_argument('--full', action='store_true', help='full erase (default: quick)')
+    sp.set_defaults(func=eraser.run)
     burn_zh = i18n.active() == "zh"
     sp = sub.add_parser("burn", help="刻录 ISO（独立写入路径，必须明确确认）" if burn_zh else
                         "write an ISO (separate, explicitly confirmed write path)")
@@ -2104,6 +2113,7 @@ def _build_parser():
     sp.add_argument("--yes-write", action="store_true", help="确认不可逆的刻录操作" if burn_zh else
                     "confirm irreversible writing")
     sp.add_argument('--keep-open', action='store_true', help='DVD：本次刻录后保持光盘开放' if burn_zh else 'DVD: leave disc open after this session')
+    sp.add_argument('--erase', action='store_true', help='erase recorded rewritable media before burning')
     sp.add_argument('--append', action='store_true', help='DVD：追加会话并封盘，需要 --expect-start' if burn_zh else 'DVD: append and close; requires --expect-start')
     sp.add_argument('--expect-start', type=int, help='必须与当前 NWA 相等的起始 LBA' if burn_zh else 'required NWA for appended image')
     sp.add_argument("--cd-sector", choices=("mode2form1", "mode1"), default="mode2form1",

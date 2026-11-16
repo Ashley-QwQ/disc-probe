@@ -2260,13 +2260,14 @@ async function inspectDisc(drive, iso) {
   try { disc = (await api.backend.job({ action: "info", drive: drive.id, media: S.media }))?.disc; }
   catch (e) { return { problem: t.burnNoDisc(e?.message ?? ""), swap: true }; }
   if (!disc?.present) return { problem: t.burnPutBlank(S.item?.mid || S.item?.name || ""), swap: true };
-  if (disc.blank !== true) return { problem: t.burnNotBlankSwap(disc.mid || disc.kind || ""), swap: true };
+  drive.rewritable=!!disc.rewritable;drive.eraseRequired=disc.rewritable && disc.blank===false;
+  if (disc.blank !== true && !drive.eraseRequired) return { problem: t.burnNotBlankSwap(disc.mid || disc.kind || ""), swap: true };
   const want = S.item?.mid;
   if (want && disc.mid && disc.mid !== want) return { problem: t.burnOtherBatch(disc.mid, want), swap: true };
   const r = await fetch(`/api/burn-speeds?drive=${encodeURIComponent(drive.id)}&media=${S.media}`);
   const m = await r.json().catch(() => ({}));
   if (!r.ok) return { problem: t.burnNoDisc(m.error ?? ""), swap: true };
-  if (m.blank !== true) return { problem: t.burnNotBlankSwap(disc.mid || ""), swap: true };
+  if (m.blank !== true && !(drive.eraseRequired && m.rewritable)) return { problem: t.burnNotBlankSwap(disc.mid || ""), swap: true };
   if (iso.sectors && m.free_sectors && iso.sectors > m.free_sectors) return { problem: t.burnTooBig, swap: false };
   drive.speeds = m.speeds_x ?? [];
   return { problem: "", swap: false };
@@ -2284,7 +2285,7 @@ async function jobWords(id) {
 }
 // Burn through the back end: a one-time token, the `burn` job, its progress over the event stream.
 // Returns a handle at once; failures arrive as a "failed" status with the reason.
-function realBurn(iso, drive, onProgress, { speed } = {}) {
+function realBurn(iso, drive, onProgress, { speed, erase=false } = {}) {
   // wrote: the drive reported progress, or the core logged a burn result (it does once writing began); without
   // either, a failed job never wrote, and the disc is still good
   let job = null, es = null, closed = false, cancelled = false, burnResult = null, wrote = false, why = "";
@@ -2303,13 +2304,13 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
       // accepts a burn within two minutes of such a look, however long the person stayed on this page
       const look = await fetch(`/api/burn-speeds?drive=${encodeURIComponent(drive.id)}&media=${S.media}`);
       const seen = await look.json().catch(() => ({}));
-      if (!look.ok || seen.blank !== true) { fail(look.ok ? T().burnNotBlank : T().burnNoDisc(seen.error ?? ""), false); return; }
+      if (!look.ok || (seen.blank !== true && !(erase && seen.rewritable))) { fail(look.ok ? T().burnNotBlank : T().burnNoDisc(seen.error ?? ""), false); return; }
       const tok = await (await fetch("/api/burn-token")).json();
       // the plan's library work: the core records the burn in it (status burned) when the burn succeeds
       const link = S.work?.id ? { id: S.work.id, before: S.work.updated_at, plan: S } : null;
       const r = await fetch("/api/run", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "burn", drive: drive.id, media: S.media, ...(link ? { work: link.id } : {}), args: { iso: iso.path, ...(speed ? { speed } : {}) }, burn_token: tok.token }),
+        body: JSON.stringify({ action: "burn", drive: drive.id, media: S.media, ...(link ? { work: link.id } : {}), args: { iso: iso.path, ...(speed ? { speed } : {}), ...(erase?{erase:true}:{}) }, burn_token: tok.token }),
       });
       const out = await r.json().catch(() => ({}));
       if (!r.ok) { fail(out.error ?? T().exp.failed); return; }
@@ -2318,6 +2319,8 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
       es = new EventSource("/api/events");
       const mine = (e) => { const d = JSON.parse(e.data); return d.job === job ? d : null; };
       es.addEventListener('cancelled',e=>{const d=mine(e);if(d?.by==='user')cancelled=true;});
+      es.addEventListener('erase_progress',e=>{const d=mine(e);if(d)onProgress({erasing:true,progress:d.fraction,elapsed:d.elapsed_s,remaining:d.eta_s});});
+      es.addEventListener('erase_result',e=>{const d=mine(e);if(d)onProgress({erasing:false,progress:0});});
       es.addEventListener("progress", (e) => {
         const d = mine(e); if (!d) return;
         if (d.fraction > 0) wrote = true;

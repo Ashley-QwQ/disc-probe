@@ -32,6 +32,14 @@ MEDIA = {
                  capacity=12219392, mid="DLABBD-R01", varpitch_rms_deg=0.05),
 }
 
+for _rw, _base, _profile, _mid in (
+    ('dvd-rw', 'dvd-r', 0x14, 'DLABRW01'),
+    ('cd-rw', 'cd-r', 0x0A, 'ATIP 97:26:65'),
+    ('dvd+rw', 'dvd+r', 0x1A, 'DLAB/RW1/001'),
+    ('bd-re', 'bd-r', 0x43, 'DLABBD-RE01'),
+):
+    MEDIA[_rw] = dict(MEDIA[_base], profile=_profile, mid=_mid, rewritable=True)
+
 # Reading drives. completion_mm/head_mm add up to the path's along-track constant (per family and burn mode).
 # The GH70N DVD value (+0.19 mm in total) is the centre of the person's two photo groups (+0.08..+0.12 and
 # +0.25..+0.28 mm) and of the sealed blind test (0.19 mm off a +2.291 mm injection). The split between

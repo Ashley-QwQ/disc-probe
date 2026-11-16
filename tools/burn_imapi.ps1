@@ -226,7 +226,8 @@ public static class MachineBurn {
                     (physical == 13 && v == 0x2A)) profile = v;
             }
             if (profile == 0) throw new InvalidOperationException("Inserted medium is not a supported writable DVD.");
-            bool blank = (bool)fmt.MediaPhysicallyBlank && (((int)fmt.CurrentMediaStatus & 2) != 0);
+            bool rewritable = profile == 0x13 || profile == 0x14 || profile == 0x1A || profile == 0x2A;
+            bool blank = ((bool)fmt.MediaPhysicallyBlank || (rewritable && (bool)fmt.MediaHeuristicallyBlank)) && (((int)fmt.CurrentMediaStatus & 2) != 0);
             long free = (long)fmt.FreeSectorsOnMedia;
             bool closed = (((int)fmt.CurrentMediaStatus & (1 << 14)) != 0) || free <= 0;
             long nwa = (long)fmt.NextWritableAddress;
@@ -241,6 +242,7 @@ public static class MachineBurn {
             if (!burn) {
                 var values = speeds.ConvertAll(s => Number(s / 675.0));
                 Emit("{\"media\":\"dvd\",\"blank\":" + (blank ? "true" : "false") +
+                     ",\"current_profile\":" + profile +
                      ",\"vendor\":" + Quote((string)recorder.VendorId) + ",\"product\":" + Quote((string)recorder.ProductId) +
                      ",\"firmware\":" + Quote((string)recorder.ProductRevision) +
                      ",\"free_sectors\":" + free + ",\"closed\":" + (closed ? "true" : "false") +
