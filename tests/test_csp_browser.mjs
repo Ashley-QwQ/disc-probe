@@ -127,7 +127,7 @@ addEventListener('error',e=>runtimeErrors.push(e.message));addEventListener('unh
     assert.deepEqual(await evaluate('violations'),[],path);
   }
   const {writeFileSync}=await import('node:fs');
-  writeFileSync('D:/dp-dev/tmp/webguide/csp-headers.json',JSON.stringify(policies,null,2));
+  writeFileSync(join(process.env.CSP_EVIDENCE_DIR??dir,'csp-headers.json'),JSON.stringify(policies,null,2));
   console.log(`CSP HTTP: ${all.length-1} static HTML routes + token phone + Lab, zero policy violations; desktop theme/design/lamp, dialog native/fallback, mobile viewport, off-screen worker stop/resume passed`);
 } finally {
   socket?.close();browser?.kill();
