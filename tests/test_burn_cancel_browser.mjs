@@ -41,6 +41,8 @@ try{
   await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject;});
   socket.onmessage=({data})=>{const m=JSON.parse(data),p=pending.get(m.id);if(p){pending.delete(m.id);m.error?p.reject(Error(JSON.stringify(m.error))):p.resolve(m.result);}};
   await cdp('Page.enable');await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  // Windows Server turns animation effects off, which headless Edge reports as reduced motion; start from no preference.
+  await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
   await cdp('Page.addScriptToEvaluateOnNewDocument',{source:`localStorage.setItem('dp-lang','zh');window.bcErrors=[];addEventListener('error',e=>bcErrors.push(e.message));addEventListener('unhandledrejection',e=>bcErrors.push(String(e.reason)));`});
   await cdp('Page.navigate',{url:origin+'/home/'});
   await until(`document.documentElement.dataset.mode==='cal' && document.querySelector('#job-cancel').textContent==='停止刻录'`,'live calibration attached in burn phase');
@@ -48,7 +50,8 @@ try{
   // Reopening is independent: Esc, external click and Continue never send cancellation.
   for(const method of ['escape','outside','keep']){
     await click('#job-cancel');await until(`!!document.querySelector('.burn-stop')`,'stop expanded');
-    await check(`document.querySelector('.burn-stop .kit-slide-label').textContent.includes('3')`,'fresh three-second lock '+method);
+    await check(`document.querySelector('.burn-stop .burn-stop-count')?.textContent==='3'`,'fresh three-second lock, counted on the knob '+method);
+    await check(`(()=>{const p=document.querySelector('.burn-stop').getBoundingClientRect(),b=document.querySelector('.job-bar').getBoundingClientRect();return p.bottom<=b.top;})()`,'panel opens above the progress bar '+method);
     await drag();
     await evaluate(`document.querySelector('.burn-stop .kit-slide-knob').focus()`);
     const held=method==='outside'?' ':'Enter';
@@ -69,10 +72,15 @@ try{
     await check(`getComputedStyle(document.querySelector('.burn-stop-risk')).animationName==='none'`,'reduced motion keeps red without flashing '+theme);
     await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
     await until(`document.querySelector('.burn-stop .kit-slide-knob').getAttribute('aria-disabled')==='false'`,'three-second lock elapsed');
+    await check(`!document.querySelector('.burn-stop .burn-stop-count') && !!document.querySelector('.burn-stop .kit-slide-knob svg')`,'unlocked knob shows the arrow again '+theme);
     await check(`document.querySelector('.burn-stop [role="status"]').getAttribute('aria-live')==='assertive'`,'risk announced '+theme);
     await shot('slider-ready-'+theme);
     if(theme==='paper')await click('.burn-stop-keep');
   }
+  // The stop button stays visible as the anchor; pressing it again folds the panel without cancelling.
+  await click('#job-cancel');await until(`!document.querySelector('.burn-stop')`,'stop button folds the panel');
+  assert.equal((await request('/api/jobs/'+job.job)).cancellation,null);checks.push('stop button toggles the panel closed');
+  await click('#job-cancel');await until(`document.querySelector('.burn-stop .kit-slide-knob')?.getAttribute('aria-disabled')==='false'`,'reopened lock elapsed');
   await drag(false);assert.equal((await request('/api/jobs/'+job.job)).cancellation,null);checks.push('partial drag never cancels');
   await delay(350); // Allow the existing slider's reset transition to return the knob home.
   await drag();
