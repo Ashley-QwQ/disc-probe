@@ -7,6 +7,8 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    'This disc has only the beginning recorded ({sectors} sectors, about {mb} MB). Burning probably stopped partway; it cannot be used for measurement. Replace it with a blank disc and burn again.':
+        '这张盘只刻了开头一点（{sectors} 扇区，约 {mb} MB），多半是刻录中途停了，不能用来测。换一张空白盘重新刻。',
     "write the experimental DVD photo check disc using measured geometry": "用实测几何生成试验性的 DVD 拍照检查盘",
     "DVD geo run folder or summary.json": "DVD 的 geo 测量文件夹或 summary.json",
     "ISO output (default: iso/check-<stamp>.iso)": "ISO 输出路径（默认 iso/check-<时间>.iso）",

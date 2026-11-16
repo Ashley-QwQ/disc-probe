@@ -15,7 +15,7 @@ export function nextConfirm(button, { active = false, disabled = false, lang = '
     host.setAttribute('aria-describedby', 'next-why');
     button.after(host);
     current = { host, lang, done };
-    current.slider = slideConfirm(host, { lang, disabled,
+    current.slider = slideConfirm(host, { lang, disabled, holdPress:true,
       label: lang === 'en' ? 'Slide to burn' : '滑动确认刻录', done: () => current.done?.() });
     mounted.set(button, current);
   }

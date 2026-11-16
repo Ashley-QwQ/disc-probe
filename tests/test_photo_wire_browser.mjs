@@ -17,12 +17,13 @@ const index=readFileSync(new URL('index.html',home),'utf8');
 const html=`<!doctype html><html data-mode="cal" data-motion="off" class="cal-staged"><head><meta charset="utf-8"><base href="http://photo.test/">
 <link rel="stylesheet" href="/kit/kit.css"><style>${index.match(/<style>([\s\S]*?)<\/style>/)[1]}</style><link rel="stylesheet" href="/photocal.css"></head>
 <body><div class="top"><button id="back">Back</button></div><main id="cal" class="cal"></main>
-<div class="bar"><div id="job" hidden><span id="job-name"></span><span id="job-time"></span></div><button id="next" class="next"><span id="next-text"></span></button></div>
+<div class="bar"><div id="job" hidden><span id="job-name"></span><span id="job-time"></span><button id="job-cancel" type="button"></button></div><button id="next" class="next"><span id="next-text"></span></button></div>
 <script type="module">
 import {wire} from '/wire.js';
 window.wire=wire; window.ready=true;
 </script></body></html>`;
 const moduleSource=`import {nextConfirm} from '/kit/nextconfirm.js';
+import {expandBurnStop,closeBurnStop,paintStopButton,shortDiscWords,interruptedBurn} from '/burn-stop.js';
 import {ringButton} from '/kit/ringbutton.js';
 import {flipValue} from '/kit/flipnum.js';
 import {photoPage} from '/photocal.js';

@@ -1,0 +1,9 @@
+.burn-stop { width:min(420px,80vw); padding:16px; background:var(--paper); border:1px solid var(--rule-strong); border-radius:4px; }
+.job:has(.burn-stop) { position:relative; }
+.job > .burn-stop { position:absolute; bottom:0; right:0; z-index:20; }
+.burn-stop-risk { margin:0 0 16px; color:var(--burn-danger); font-weight:700; animation:burn-stop-risk 1.2s ease-in-out infinite; }
+.burn-stop-keep { margin-top:12px; }
+.job-cancel:not(.btn-icon) { width:auto; white-space:nowrap; padding-inline:16px; }
+@keyframes burn-stop-risk { 50% { opacity:.6; } }
+@media (prefers-reduced-motion:reduce) { .burn-stop-risk { animation:none; } }
+:root[data-motion="off"] .burn-stop-risk { animation:none; }

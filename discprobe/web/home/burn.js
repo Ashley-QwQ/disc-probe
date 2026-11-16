@@ -1,4 +1,5 @@
 import { nextConfirm } from "./kit/nextconfirm.js";
+import { expandBurnStop, closeBurnStop, stopWords, interruptedBurn } from './burn-stop.js';
 /**
  * BURN · Operate. Arrive with a finished ISO; review, consent, slide, then read back.
  * States: missing input, ready, writing, success, cancelled, failure. Long names wrap;
@@ -44,7 +45,7 @@ const ring = cls => { const n=el('span', `burn-ring live ${cls||''}`); n.innerHT
 function build() {
   const css=el('link'); css.rel='stylesheet'; css.href=new URL('./burn.css',import.meta.url); document.head.append(css);
   const page=el('main','burn-page'); page.id='burn-page'; page.hidden=true;
-  page.innerHTML=`<h1></h1><div class="burn-layout"><section class="burn-scene" aria-label=""><div class="burn-art"></div><div class="warn-sign" aria-hidden="true" style="left:50%;top:55%"><div class="flat"><span>!</span></div></div><div class="burn-disc live"><div class="burn-face"></div></div><p class="burn-scene-caption" aria-live="polite"></p></section><section class="burn-panel"><p class="burn-intro"></p><dl class="burn-facts"></dl><div class="burn-speed"><label for="burn-speed"></label><select id="burn-speed"></select><p></p></div><p class="burn-warning"></p><label class="burn-consent"><input type="checkbox"><span></span></label><div class="burn-result" role="status"><h2></h2><p></p></div><div class="burn-timing"><span></span><span></span></div><div class="burn-actions"><button type="button" data-a="cancel"></button><button type="button" data-a="retry"></button><button type="button" data-a="recheck"></button><button type="button" data-a="photo"></button></div><div class="burn-cancel-check" hidden><p></p><button type="button" data-a="confirmCancel"></button><button type="button" data-a="keep"></button></div><details class="burn-other"><summary></summary><p class="burn-path" tabindex="0"></p><button type="button" data-a="copy"></button></details></section></div>`;
+  page.innerHTML=`<h1></h1><div class="burn-layout"><section class="burn-scene" aria-label=""><div class="burn-art"></div><div class="warn-sign" aria-hidden="true" style="left:50%;top:55%"><div class="flat"><span>!</span></div></div><div class="burn-disc live"><div class="burn-face"></div></div><p class="burn-scene-caption" aria-live="polite"></p></section><section class="burn-panel"><p class="burn-intro"></p><dl class="burn-facts"></dl><div class="burn-speed"><label for="burn-speed"></label><select id="burn-speed"></select><p></p></div><p class="burn-warning"></p><label class="burn-consent"><input type="checkbox"><span></span></label><div class="burn-result" role="status"><h2></h2><p></p></div><div class="burn-timing"><span></span><span></span></div><div class="burn-actions"><button type="button" data-a="cancel"></button><button type="button" data-a="retry"></button><button type="button" data-a="recheck"></button><button type="button" data-a="photo"></button></div><details class="burn-other"><summary></summary><p class="burn-path" tabindex="0"></p><button type="button" data-a="copy"></button></details></section></div>`;
   document.body.append(page);
   page.querySelector('.burn-panel').prepend(page.querySelector('h1'));   // the title heads the right column, as in calibration
   const q=s=>page.querySelector(s), mini=el('button','burn-mini live'); mini.type='button'; mini.hidden=true; const miniRing=ring(); mini.append(miniRing,el('span'));
@@ -71,8 +72,8 @@ function words() {
   if(!W||!ctx)return; const t=T(),q=W.q;
   q('h1').textContent=t.title;q('.burn-intro').textContent=t.intro;q('.burn-scene').setAttribute('aria-label',t.drive);q('.burn-speed label').textContent=t.speed;q('.burn-speed p').textContent=t.reason;q('.burn-warning').textContent=t.warning;q('.burn-consent span').textContent=t.consent;
   q('.burn-other summary').textContent=t.other;q('.burn-path').textContent=ctx.otherCommand||ctx.iso?.path||'—';q('[data-a="copy"]').disabled=!(ctx.otherCommand||ctx.iso?.path);
-  for(const a of ['cancel','retry','recheck','photo','copy','confirmCancel','keep'])q(`[data-a="${a}"]`).textContent=t[a];
-  q('.burn-cancel-check p').textContent=t.cancelWarn; W.mini.setAttribute('aria-label',t.mini);
+  for(const a of ['cancel','retry','recheck','photo','copy'])q(`[data-a="${a}"]`).textContent=t[a];
+  W.mini.setAttribute('aria-label',t.mini);
   if(ctx.otherCommand){q('.burn-other summary').textContent=t.otherCommandTitle;q('[data-a="copy"]').textContent=t.copyCommand;}
   if(visible&&W.back)W.back.replaceChildren(t.back,...W.back.querySelectorAll('.key-cap'));
   if(W.help)W.help.textContent=api.lang()==='en'?'Hold Space or Enter for one second. Release to cancel.':'按住空格或回车一秒；松开即可取消。';
@@ -107,7 +108,8 @@ function paint() {
   if(!W)return;const t=T(),q=W.q, status=task?.status||'ready', active=status==='burning', hasInput=valid();
   W.page.dataset.state=status;W.page.classList.toggle('burn-reduce',!!api.reduce);q('.burn-speed').hidden=status!=='ready'||!!ctx.otherOnly;q('.burn-consent').hidden=status!=='ready'||!hasInput;q('.burn-warning').hidden=status!=='ready'||!hasInput;
   q('.warn-sign').classList.toggle('on', ['failed','cancelled'].includes(status));
-  W.select.disabled=active; q('[data-a="cancel"]').hidden=!active;q('[data-a="cancel"]').disabled=!!task?.stopping;q('[data-a="retry"]').hidden=!['failed','cancelled'].includes(status)||!!task?.notStarted;q('[data-a="recheck"]').hidden=!((status==='failed'&&task?.notStarted)||(!hasInput&&!task&&!swapping&&ctx.recheck&&ctx.drive?.id));q('[data-a="photo"]').hidden=status!=='success'||!ctx.photograph;
+  W.select.disabled=active; q('[data-a="cancel"]').hidden=!active||q('[data-a="cancel"]').getAttribute('aria-expanded')==='true';q('[data-a="cancel"]').disabled=!!task?.stopping;q('[data-a="retry"]').hidden=!['failed','cancelled'].includes(status)||!!task?.notStarted;q('[data-a="recheck"]').hidden=!((status==='failed'&&task?.notStarted)||(!hasInput&&!task&&!swapping&&ctx.recheck&&ctx.drive?.id));q('[data-a="photo"]').hidden=status!=='success'||!ctx.photograph;
+  q('[data-a="cancel"]').textContent=stopWords(api.lang()).stop;
   q('.burn-timing').hidden=!active;const times=q('.burn-timing').children;times[0].textContent=`${t.elapsed} ${time(task?.elapsed)}`;times[1].textContent=`${t.remaining} ${time(task?.remaining)}`;
   const key=ctx.otherOnly?'otherOnly':!hasInput?((swapping||ctx.needSwap)?'swapping':'missing'):status==='success'?'done':status==='ready'?'ready':status==='burning'?'writing':status;
   if(ctx.otherOnly)q('.burn-other').open=true;
@@ -115,8 +117,9 @@ function paint() {
   if(active&&task?.verifying)q('.burn-result p').textContent=api.lang()==='en'?'Write complete. Reading back a sample; drive retries may take time…':'写入完成，正在抽样回读；光驱重试可能需要一些时间…';
   if(active&&task?.verifying){
     q('[data-a="cancel"]').textContent=api.lang()==='en'?'Stop read-back':'停止回读';
-    q('.burn-cancel-check p').textContent=api.lang()==='en'?'The write is complete. Stopping now leaves the read-back check unfinished.':'写入已完成。现在停止会留下未检查的回读样本。';
   }
+  if(status==='cancelled'&&task?.userStopped&&!task.verifying)
+    q('.burn-result p').textContent=interruptedBurn({cancelledByUser:{phase:'burn',fraction:task.progress}},api.lang());
   const report=task?.burnResult||task?.speedReport;
   if(report){
     const en=api.lang()==='en', actual=report.actual_speed_x;
@@ -232,20 +235,28 @@ async function beginBurn() {
   if(!visible||!valid()||!W.consent.checked||task?.status==='burning')return;
   task={status:'burning',progress:0,elapsed:0,remaining:undefined,handle:null,stopping:false}; const current=task;
   sfx.step(0);
-  W.q('.burn-cancel-check').hidden=true;paint();
+  closeBurnStop();paint();
   const sc=sceneOf(); if(!ctx.discIn)await sc.fly.drop(); if(task!==current)return;
   api.placeDisc(true);api.setTray(false,true);
-  try { const handle=ctx.burn(p=>{if(task!==current||current.status!=='burning')return; if(p.burnResult)current.burnResult=p.burnResult;if(p.speedReport)current.speedReport=p.speedReport;if(p.verifying&&!current.verifying){current.verifying=true;sfx.step(1);} current.progress=Number.isFinite(p.progress)?Math.max(current.progress,Math.min(1,p.progress)):current.progress;current.elapsed=p.elapsed;current.remaining=p.remaining;sc.cut.update(current.progress,current.remaining);if(['success','failed','cancelled'].includes(p.status)){current.status=p.status;chime(p);if(p.error)current.error=p.error;if(p.started===false)current.notStarted=true;if(p.status==='success')current.progress=1;W.q('.burn-cancel-check').hidden=true;setTimeout(()=>sc.cut.show(false),1200);}paint();},{speed});current.handle=handle;
+  try { const handle=ctx.burn(p=>{if(task!==current||current.status!=='burning')return; if(p.burnResult)current.burnResult=p.burnResult;if(p.speedReport)current.speedReport=p.speedReport;if(p.verifying&&!current.verifying){current.verifying=true;closeBurnStop();sfx.step(1);} current.progress=Number.isFinite(p.progress)?Math.max(current.progress,Math.min(1,p.progress)):current.progress;current.elapsed=p.elapsed;current.remaining=p.remaining;sc.cut.update(current.progress,current.remaining);if(['success','failed','cancelled'].includes(p.status)){current.status=p.status;chime(p);if(p.error)current.error=p.error;if(p.started===false)current.notStarted=true;if(p.status==='success')current.progress=1;closeBurnStop();setTimeout(()=>sc.cut.show(false),1200);}paint();},{speed});current.handle=handle;
     setTimeout(()=>{if(task===current&&current.status==='burning'&&visible){sc.cut.update(current.progress,current.remaining);sc.cut.show(true);}},900); }
   catch (e) {current.status='failed';current.error=e?.message||'';current.notStarted=true;paint();}
 }
 function toast(message){W.toast.textContent=message;W.toast.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>W.toast.classList.remove('on'),2600);}
 async function action(a) {
   if(a==='recheckClosed'&&task){task.closed=undefined;paint();return;}
-  if(a==='cancel')W.q('.burn-cancel-check').hidden=false;
-  if(a==='keep')W.q('.burn-cancel-check').hidden=true;
-  if(a==='confirmCancel'&&task?.status==='burning'&&!task.stopping){task.stopping=true;W.q('.burn-cancel-check').hidden=true;paint();try{task.handle.cancel();}catch{task.stopping=false;toast(T().failedNote);paint();}}
-  if(a==='retry'){task=null;W.consent.checked=false;W.q('.burn-cancel-check').hidden=true;words();if(ctx.swap){ctx.discIn=false;ctx.needSwap=true;ctx.drive.speeds=[];fillSpeeds();swapFlow();}else waitForDisc();}
+  if(a==='cancel'&&task?.status==='burning'&&!task.stopping){
+    const current=task;
+    const stop=async()=>{
+      if(task!==current||current.status!=='burning'||current.stopping)return;
+      current.stopping=true;paint();
+      try{await current.handle.cancel();current.userStopped=true;}
+      catch{current.stopping=false;toast(T().failedNote);}paint();
+    };
+    if(current.verifying)await stop();
+    else expandBurnStop(W.q('[data-a="cancel"]'),{lang:api.lang(),valid:()=>task===current&&current.status==='burning'&&!current.verifying&&!current.stopping,done:stop});
+  }
+  if(a==='retry'){task=null;W.consent.checked=false;closeBurnStop();words();if(ctx.swap){ctx.discIn=false;ctx.needSwap=true;ctx.drive.speeds=[];fillSpeeds();swapFlow();}else waitForDisc();}
   if(a==='recheck'){task=null;W.consent.checked=false;ctx.driveProblem='';words();
     if(ctx.recheck){try{swapping={};ctx.driveProblem=ctx.swapWords?.checking||'';paint();await ctx.recheck();}catch(e){ctx.driveProblem=e?.message||'';}finally{swapping=null;}
       if(!visible)return;fillSpeeds();words();if(ctx.needSwap)swapFlow();}else waitForDisc();}
@@ -277,6 +288,7 @@ export function start(homeApi,context) {
 }
 export function leave() {
   if(!W||!visible)return;
+  closeBurnStop();
   const from=W.q('.burn-disc').getBoundingClientRect();
   nextConfirm(W.next);visible=false;W.events.abort();if(swapping){swapping=null;ctx.stopSwap?.();}scene?.fly.hide();scene?.cut.show(false);W.page.hidden=true;W.next.disabled=false;W.back.innerHTML=W.backLabel;W.back.hidden=W.backHidden;if(api.$('next-text'))api.$('next-text').textContent=W.nextLabel;root.dataset.mode='';paint();
   if(task&&!api.reduce){const to=W.miniRing.getBoundingClientRect();W.mini.animate([{transform:`translate(${from.left-to.left}px,${from.top-to.top}px) scale(${from.width/to.width})`,opacity:.5},{transform:'none',opacity:1}],{duration:420,easing:'cubic-bezier(.2,.8,.2,1)'});}

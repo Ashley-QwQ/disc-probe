@@ -1,0 +1,3 @@
+/* Bright danger text is limited to the destructive stop disclosure (card P). */
+:root { --burn-danger: #c52020; }
+:root[data-theme="dark"] { --burn-danger: #ff6b6b; }

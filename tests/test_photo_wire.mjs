@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import * as guidance from '../discprobe/web/home/guidance.mjs';
 import * as photowords from '../discprobe/web/home/photowords.mjs';
+import * as burnStop from '../discprobe/web/home/burn-stop.js';
 
 // Execute the actual flow with a small host and a photo-page adapter. No drive, server or timers run.
 const source = readFileSync(new URL('../discprobe/web/home/calibrate.js',import.meta.url),'utf8');
@@ -23,7 +24,7 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
     addEventListener(k,fn) { this.events[k]=fn; }
     querySelector(s) { if(s==='.pc-paper') return this.paper ||= new Element(); return null; }
   }
-  for(const id of ['cal','next','next-text','job','job-name','job-time','back']) nodes.set(id,new Element());
+  for(const id of ['cal','next','next-text','job','job-name','job-time','job-cancel','back']) nodes.set(id,new Element());
   const root = new Element(); root.dataset.mode='cal';
   const document = {documentElement:root,body:new Element(),createElement:()=>new Element(),getElementById:id=>nodes.get(id)||null};
   const geo = {path:'results/run-one',verdict,measurement:{span_mm:[28,48]}};
@@ -48,7 +49,7 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
       state:async()=>({catalogue:{[media]:[{id:'saved',geo:geo.path,name:'MID'}]}}),
     }};
   let opts;
-  const context = vm.createContext({...guidance,...photowords,photoSeconds:photowords.seconds,document,location:{search:''},URLSearchParams,console,
+  const context = vm.createContext({...guidance,...photowords,...burnStop,photoSeconds:photowords.seconds,document,location:{search:''},URLSearchParams,console,
     flipValue:el=>el.textContent,nextConfirm:(btn,options={})=>{btn.hidden=!!options.active;btn.confirmOptions=options;},ringButton:()=>({progress(){},done(){},destroy(){}}),
     setTimeout:(fn,ms)=>{const id=timers.size+1;timers.set(id,{fn,ms});return id;},clearTimeout:id=>timers.delete(id),clearInterval(){},performance,
     loadDisc:{desk(){}},calchart:{resultChart:()=>''},sfx:{done(){},problem(){},failure(){}},
@@ -90,9 +91,15 @@ for (const burn of [
   assert.equal(x.f.realPhase,'review');
   assert.equal(x.pages.length,0,'failed burn must not open photography');
   x.wire.paint();
-  assert.equal(x.nodes.get('next').disabled,true);
   assert.doesNotMatch(x.nodes.get('cal').innerHTML,/id="real-photo"/);
-  assert.match(x.nodes.get('cal').innerHTML,/刻录检查未通过/);
+  if(burn.result==='failed'){
+    assert.equal(x.nodes.get('next').disabled,false,'unfinished burn offers safe blank-disc recovery');
+    assert.equal(x.nodes.get('next-text').textContent,'换一张空白盘重新刻');
+    assert.match(x.nodes.get('cal').innerHTML,/Write interrupted: disc is not closed/);
+  } else {
+    assert.equal(x.nodes.get('next').disabled,true);
+    assert.match(x.nodes.get('cal').innerHTML,/刻录检查未通过/);
+  }
 }
 
 {

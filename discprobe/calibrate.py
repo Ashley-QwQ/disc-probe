@@ -200,6 +200,11 @@ def run(args) -> None:
         if args.mid and disc.get("mid") != args.mid:
             raise Stopped(f"the disc's maker code is {disc.get('mid')}, not {args.mid}")
         found["disc"] = disc
+        from .measurement_disc import short_recording
+        issue = short_recording(disc, capacity)
+        if issue:
+            ui.event('measurement_disc_rejected', reason='short_recording', sectors=disc['sectors'])
+            raise Stopped(issue)
         if capacity is None and positive_sectors(disc.get('capacity_sectors')):
             capacity, capacity_source = disc['capacity_sectors'], disc.get('capacity_source')
         if capacity is None:
