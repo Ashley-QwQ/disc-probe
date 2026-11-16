@@ -6,7 +6,7 @@ import {join, resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 
 const dir = mkdtempSync(join(tmpdir(), 'flow-nav-'));
-const shots = 'D:/dp-dev/tmp/flownav/shots'; mkdirSync(shots, {recursive:true});
+const shots = process.env.FLOWNAV_SHOTS ?? join(tmpdir(), 'discprobe-flownav-shots'); mkdirSync(shots, {recursive:true});
 const server = spawn(process.env.PYTHON || 'python', ['-B', '-X', 'utf8', 'tests/webguide_http_fixture.py', join(dir, 'data')],
   {stdio:['pipe','pipe','pipe'], windowsHide:true});
 let out = '', err = '', browser, socket, seq = 0;

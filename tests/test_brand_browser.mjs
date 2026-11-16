@@ -1,5 +1,6 @@
 // Real Edge glyph selection and requested screenshots; local synthetic data, no drives.
 import assert from 'node:assert/strict';
+import {tmpdir} from 'node:os';
 import {spawn} from 'node:child_process';
 import {createServer} from 'node:http';
 import {existsSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync} from 'node:fs';
@@ -9,7 +10,7 @@ import {fileURLToPath} from 'node:url';
 
 const root = fileURLToPath(new URL('../discprobe/web/', import.meta.url));
 const edge = process.env.BRAND_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-const tempRoot = process.env.BRAND_TEST_TEMP || 'D:/dp-dev/tmp/brand/browser';
+const tempRoot = process.env.BRAND_TEST_TEMP || join(tmpdir(), 'discprobe-brand-browser');
 const shots = process.env.BRAND_SCREENSHOTS;
 mkdirSync(tempRoot, {recursive:true});
 if (shots) mkdirSync(shots, {recursive:true});

@@ -1,10 +1,11 @@
 // Real HTTP, real Disc Lab practice and shipped UI. All output and Edge profiles stay on D:.
 import assert from 'node:assert/strict';
+import {tmpdir} from 'node:os';
 import {existsSync,mkdirSync,mkdtempSync,readFileSync,writeFileSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {spawn,spawnSync} from 'node:child_process';
 
-const base=process.env.BURN_CANCEL_TEST_ROOT??'D:/dp-dev/tmp/burncancel';mkdirSync(base,{recursive:true});
+const base=process.env.BURN_CANCEL_TEST_ROOT??join(tmpdir(),'discprobe-burncancel');mkdirSync(base,{recursive:true});
 const dir=mkdtempSync(join(base,'browser-')),lab=join(dir,'lab'),shots=join(base,'shots');mkdirSync(shots,{recursive:true});
 const edge=process.env.PASTWORKS_TEST_BROWSER??'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 assert.ok(existsSync(edge));
