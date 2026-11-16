@@ -16,7 +16,8 @@ export function keyboardReducer(state, action) {
   if (action.type === 'disable') return { ...initialHold(), phase: 'disabled' };
   if (state.phase === 'disabled' || state.phase === 'confirmed') return state;
   if (action.type === 'cancel' || (action.type === 'down' && action.key === 'Escape')) return initialHold();
-  if (action.type === 'down' && ['ArrowRight', 'End'].includes(action.key)) {
+  // ime-enter-exempt: Optional deliberate one-second press, guarded against IME in the DOM handler.
+  if (action.type === 'down' && (['ArrowRight', 'End'].includes(action.key) || action.holdPress && ['Enter', ' '].includes(action.key))) {
     if (state.phase !== 'idle' || action.repeat || !Number.isFinite(action.now)) return state;
     return { phase: 'holding', started: action.now, key: action.key, progress: 0 };
   }
@@ -30,7 +31,7 @@ export function keyboardReducer(state, action) {
 
 const mounted = new WeakMap();
 let uid = 0;
-export function slideConfirm(el, { label, done = () => {}, lang = 'zh', disabled = false } = {}) {
+export function slideConfirm(el, { label, done = () => {}, lang = 'zh', disabled = false, holdPress = false } = {}) {
   mounted.get(el)?.destroy();
   lang = language(lang);
   const doc = el.ownerDocument, win = doc.defaultView;
@@ -47,8 +48,8 @@ export function slideConfirm(el, { label, done = () => {}, lang = 'zh', disabled
   knob.setAttribute('aria-orientation', 'horizontal');
   knob.append(icon(doc, 'arrow'));
   const help = node(doc, 'p', 'kit-slide-help', words(lang,
-    '拖到最右端后松开，或聚焦后按住 → / End 1 秒。',
-    'Drag to the end and release, or focus and hold Right / End for 1 second.'));
+    holdPress ? '拖到最右端后松开，或聚焦后按住空格或回车 1 秒。' : '拖到最右端后松开，或聚焦后按住 → / End 1 秒。',
+    holdPress ? 'Drag to the end and release, or focus and hold Space or Enter for 1 second.' : 'Drag to the end and release, or focus and hold Right / End for 1 second.'));
   help.id = `kit-slide-help-${++uid}`;
   knob.setAttribute('aria-describedby', help.id);
   const announcement = node(doc, 'span', 'kit-sr');
@@ -111,11 +112,12 @@ export function slideConfirm(el, { label, done = () => {}, lang = 'zh', disabled
   }
   knob.addEventListener('keydown', event => {
     if (isDisabled() || confirmed || pointer !== null) return;
-    // ime-enter-exempt: Slider keyboard suppression only; Enter never submits text or confirms the slider.
+    if (event.isComposing || event.keyCode === 229) return cancel();
+    // ime-enter-exempt: Prevent submission; optional Space/Enter requires a full held second, never a tap.
     if (['ArrowRight', 'End', 'Enter', ' ', 'Escape'].includes(event.key)) event.preventDefault();
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return cancel();
     const previous = state;
-    state = keyboardReducer(state, { type: 'down', key: event.key, repeat: event.repeat, now: win.performance.now() });
+    state = keyboardReducer(state, { type: 'down', key: event.key, holdPress, repeat: event.repeat, now: win.performance.now() });
     if (state.phase === 'idle') cancel();
     else if (state.phase === 'holding' && previous.phase !== 'holding') frame = win.requestAnimationFrame(tick);
   }, { signal });

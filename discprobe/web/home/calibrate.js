@@ -1,4 +1,5 @@
 import { isActionEnter } from "./kit/shared.js";
+import { expandBurnStop, closeBurnStop, paintStopButton, shortDiscWords, interruptedBurn } from './burn-stop.js';
 import { nextConfirm } from "./kit/nextconfirm.js";
 import { ringButton } from "./kit/ringbutton.js";
 import { flipValue } from "./kit/flipnum.js";
@@ -393,6 +394,7 @@ let leaving = false;
 export function suspendNavigation() { if (flow) release(); }
 function leave() {
   if (leaving) return;                         // the opener already owns the return pan/card hand-off
+  closeBurnStop();
   // a disc that was in the air goes back to waiting; detection starts over next time
   if (!flow.job && ["detecting", "identify", "flying", "hover", "falling", "checking"].includes(flow.disc)) flow.disc = "detect";
   if (!flow.job && flow.disc === "remove") flow.disc = "detect";
@@ -539,6 +541,8 @@ function runJob(kind, seconds, onTick, onDone) {
   $("job").hidden = false;
   $("job-name").textContent = { gen: t.genJob, burn: t.burnJob, timing: t.timingJob, geo: t.geoJob }[kind];
   $("job-cancel").setAttribute("aria-label", `${t.cancel} ${$("job-name").textContent}`);
+  paintStopButton($("job-cancel"),kind==='burn',api.lang());
+  $("job-cancel").disabled=false;
   const disc = kind === "burn" || kind === "geo";
   const demo = DEMO_LOG[kind] ?? [];
   let printed = 0;
@@ -569,15 +573,32 @@ function runJob(kind, seconds, onTick, onDone) {
 
 function endJob() {
   if (!flow.job) return;
+  closeBurnStop();
   clearInterval(flow.job.timer);
   flow.job = null;
   $("job").hidden = true;
   flog.end();
 }
 
-function cancelJob() {
-  if (!api.backend.mock) { if (flow.job?.id) api.backend.cancel(flow.job.id).catch(realError); return; }
+function cancelJob(confirmed = false) {
+  if (!flow?.job) return;
+  const current=flow.job;
+  const burning=api.backend.mock ? current.kind==='burn' : flow.realPhase==='burning' && !current.verifying;
+  // click listeners pass an Event, so only the slider's literal true can authorize a write stop.
+  if(burning && confirmed!==true){
+    expandBurnStop($("job-cancel"),{lang:api.lang(),valid:()=>flow?.job===current && (api.backend.mock||flow.realPhase==='burning') && !current.verifying,
+      done:()=>cancelJob(true)});return;
+  }
+  if (!api.backend.mock) { if (current.id && !current.stopping) {
+    current.stopping=true;$("job-cancel").disabled=true;
+    api.backend.cancel(current.id).catch(error=>{current.stopping=false;$("job-cancel").disabled=false;
+      flow.error=api.backend.errorText(error,api.lang());paint();});
+  } return; }
   const kind = flow.job?.kind;
+  if(kind==='burn'){
+    flow.burnP=current.p;flow.burnInterrupted=true;flow.burnCheck={result:'cancelled'};
+    flow.cancelledByUser={phase:'burn',fraction:current.p};
+  }
   endJob();
   showInterior(false);
   if (kind === "burn" || kind === "gen") { flow.step = 0; flow.disc = "ok"; setPlate("off"); }
@@ -713,6 +734,10 @@ function drawPlate() {
 function next() {
   if (!api.backend.mock) { realNext(); return; }
   const st = flow.state;
+  if(flow.burnInterrupted){
+    flow.state=null;flow.burnInterrupted=false;flow.burnCheck=null;flow.cancelledByUser=null;
+    flow.step=0;flow.disc='out';setPlate('off');paint();return;
+  }
   if (st === "stopped" || st === "changed" || st === "unknown" || st === "narrow") { flow.state = null; flow.step = 1; startTiming(); return; }
   if (st === "tray") { flow.state = null; api.setTray(true, false); paint(); return; }
   if (st) return;
@@ -852,6 +877,7 @@ function paint() {
     h = map[1][0];                                   // the problem itself is the title
     body = note(map[0], [map[1][1], ""]);
     nextText = map[2]; nextOn = map[3];
+    if(flow.burnInterrupted){h=liveText('刻录已停止','Burn stopped');body=note('error',[interruptedBurn(flow,api.lang()),'']);nextText=liveText('换一张空白盘重新刻','Replace with a blank and burn again');}
   } else if (flow.step === 0 && flow.naming) {
     h = t.nameH; lede = t.newPut(discWord);
     if (flow.disc === "detect" || flow.disc === "detecting" || flow.disc === "identify") {
@@ -1001,6 +1027,9 @@ function realError(error) {
   setTimeout(callBack, 0);
   if (error?.failure) sfx.failure(); else sfx.problem();      // a disc lost, or something to put right
   flow.error = api.backend.errorText(error, api.lang());
+  if(interruptedBurn(flow,api.lang()) || flow.burnStarted && flow.realPhase==='burning'){
+    flow.burnInterrupted=true;flow.realPhase='burnStopped';
+  }
   flow.ask = null;
   if (flow.job) endJob();
   showInterior(false);
@@ -1115,6 +1144,14 @@ function realPaint() {
     html = `<button id="real-retry">${liveText('重新检测', 'Check again')}</button>`;
     disabled = true;
   }
+  const burnStop=!flow.job && interruptedBurn(flow,api.lang());
+  if(burnStop){
+    title=liveText(flow.cancelledByUser?.phase==='burn'?'刻录已停止':'刻录没有完成',flow.cancelledByUser?.phase==='burn'?'Burn stopped':'Burn did not finish');
+    text=burnStop;html='';button=liveText('换一张空白盘重新刻','Replace with a blank and burn again');disabled=false;
+  } else if(phase==='discRejected'){
+    title=liveText('这张盘不能用来测','This disc cannot be measured');text=flow.discIssue;html='';
+    button=liveText('换一张空白盘重新刻','Replace with a blank and burn again');disabled=false;
+  }
   paintRuler(); paintStage();
   sideButton(flow.job && ["burning", "checking", "timing", "geo"].includes(phase) ? liveText("先去放图，测好了叫我", "Place the picture; call me when done") : null);
   const previousAlert = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]')?.textContent;
@@ -1137,6 +1174,10 @@ function realPaint() {
   // The burn step requires the kit slider; all other steps use Next.
   const hold = phase === "burn" && !cdHere();
   disabled ||= !!flow.curvePending;
+  if(flow.job){
+    paintStopButton($("job-cancel"),phase==='burning'&&!flow.job.verifying,api.lang());
+    $("job-cancel").disabled=!!flow.job.stopping||!flow.job.id;
+  }
   nextWords(button); $("next").disabled = disabled; nextKit(hold, disabled, phase === "random" && !!flow.job);
   // why it is grey, beside it: running, waiting for an answer, a problem to put right, a box to tick
   api.nextWhy?.(flow.error ? liveText('先处理上面的问题', 'Put the problem above right first')
@@ -1559,7 +1600,7 @@ function paintStage() {
   let read = null, head = null, band = null;
   if (phase === "burning") read = [R0, radiusAt(p)];                       // the measurement image going on
   // a burn that stopped part way: what was written, and a copper band where it stopped (that disc is spent)
-  if (phase === "burning" && !job && flow.error && flow.burnP > 0) {
+  if (["burning","burnStopped"].includes(phase) && !job && flow.error && flow.burnP > 0) {
     const r = radiusAt(flow.burnP);
     read = [R0, r]; band = [r, Math.min(58, r + 2)];
   }
@@ -1615,6 +1656,7 @@ function paintRuler() {
   if (at === 0 && flow.realPhase === "prepare" && flow.detected?.blank === false) at = 1;
   const usable = flow.realPhase === "review" && ["good", "usable"].includes(recoveryKind(flow));
   if (usable) at = 3;
+  if(interruptedBurn(flow,api.lang()) || flow.realPhase==='discRejected')at=0;
   const total = RULER.reduce((a, r) => a + r.min, 0), lang = api.lang() === "zh" ? "zh" : "en";
   nav.setAttribute("aria-label", liveText("标定的步骤和用时", "Calibration steps and their times"));
   nav.innerHTML = RULER.map((r, i) => {
@@ -1664,9 +1706,13 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       }
       // where the head is: only a radius the core worked out from its own fit, never a guess
       if (event.type === "progress" && Number.isFinite(event.radius_mm)) f.head = event.radius_mm;
-      if (event.type === "burn_result") f.burnCheck = event;
-      if (event.type === "started") current.id = event.job;
+      if (event.type === "burn_result") { f.burnCheck = event; if(event.result==='completed')f.burnStarted=false; }
+      if (event.type === "cancelled" && event.by==='user') f.cancelledByUser=event;
+      if (event.type === "verify_progress") {current.verifying=true;closeBurnStop();paint();}
+      if (event.type === "started") {current.id = event.job;paint();}
       if (event.type === "step") {
+        closeBurnStop();current.verifying=false;
+        if(event.name==='burn')f.burnStarted=true;
         f.realPhase = STEP_PHASE[event.name] ?? f.realPhase; f.stage = null; current.p = 0; f.head = null;
         if (event.name === "geo") { f.points = []; f.tape = []; }
         sfx.step(event.index ?? 0);
@@ -1713,6 +1759,11 @@ async function realNext(forceMeasure = false) {
   flow.error = null;
   try {
     const phase = flow.realPhase;
+    if(phase==='burnStopped'||phase==='discRejected'||interruptedBurn(flow,api.lang())){
+      flow.requireBlank=true;flow.burnCheck=null;flow.cancelledByUser=null;flow.burnInterrupted=false;flow.burnStarted=false;
+      flow.geo=null;flow.timing=null;flow.preset=null;flow.measureConfirmed=false;flow.discIssue=null;
+      flow.realPhase='inspect';paint();return;
+    }
     if (phase === "burn" && cdHere()) { flow.realPhase = "inspect"; return realNext(); }   // burned elsewhere: read it
     if (phase === "burn") await realBurn();
     else if (phase === "inspect" || (phase === "prepare" && flow.detected.blank == null)) {
@@ -1725,6 +1776,12 @@ async function realNext(forceMeasure = false) {
       const expectedMid = flow.detected?.mid || flow.item.mid;
       if (expectedMid && result.disc.mid !== expectedMid) throw new Error(liveText('厂商编号已改变，请放回同批次光盘。', 'The maker code changed. Insert a disc from the same batch.'));
       flow.detected = result.disc; flow.realPhase = "prepare"; flow.measureConfirmed = false;
+      const issue=shortDiscWords(result.disc,api.lang());
+      if(issue || flow.requireBlank && result.disc.blank!==true){
+        flow.discIssue=issue||liveText('上次的刻录没有完成。请换一张同批的空白盘，不能继续测这张盘。','The previous burn did not finish. Insert a blank from the same batch; this disc cannot be measured.');
+        flow.realPhase='discRejected';paint();return;
+      }
+      if(result.disc.blank===true)flow.requireBlank=false;
       if (result.disc.blank === true) flow.blankSectors = result.disc.sectors;     // the capacity a preset needs
     } else if (phase === "prepare") {
       if (flow.detected.blank === true && flow.iso) flow.realPhase = "burn";     // the image made before, kept for a retry
@@ -1847,6 +1904,7 @@ function finishCalibrate(result) {
 // now, same maker code) and measuring starts.
 async function realBurn() {
   const media = flow.detected.media, drive = api.selectedDrive();
+  flow.burnCheck=null;flow.cancelledByUser=null;flow.burnInterrupted=false;flow.burnStarted=false;
   flow.realPhase = "burning"; flow.burnP = 0; flow.stage = liveText('检查托盘里还是空白盘…', 'Checking the tray still holds the blank…'); paint();
   const report = await api.backend.request(`/api/burn-speeds?drive=${encodeURIComponent(drive)}&media=${media}`);
   if (report?.blank !== true) { flow.realPhase = "burn"; throw new Error(liveText('光驱里不是空白盘。放回这批的空白盘再刻。', 'The drive does not hold a blank. Put a blank from this batch back and burn again.')); }

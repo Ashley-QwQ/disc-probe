@@ -28,6 +28,8 @@
   })();
 </script>
 <link rel="stylesheet" href="./kit/kit.css">
+<link rel="stylesheet" href="./burn-stop-tokens.css">
+<link rel="stylesheet" href="./burn-stop.css">
 <link rel="stylesheet" href="./curve-edit.css">
 <link rel="stylesheet" href="./presetio.css">
 <style>
@@ -1856,7 +1858,10 @@
   try { (await import("./guide.js")).init(api); } catch (e) { console.error("guide", e); }   // before the lobby's art is fetched: its line and the settings row need none
   try { await (await import("./lobby.js")).init(api); } catch (e) { console.error("lobby", e); }
   // a calibration still running (this page was reloaded or reopened meanwhile): back to it
-  const running = backend.mock ? null : (backendState?.jobs || []).find((j) => j.exit === null && j.action === "calibrate");
+  const calibrations=(backendState?.jobs||[]).filter(j=>j.action==='calibrate');
+  const lastCalibration=calibrations.at(-1);
+  const running = backend.mock ? null : calibrations.find(j=>j.exit===null) ||
+    (lastCalibration?.cancellation?.phase==='burn' ? lastCalibration : null);
   if (running) {
     chosenDrive = running.drive ?? chosenDrive;
     (await import("./calibrate.js")).attach(api, running);

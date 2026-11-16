@@ -6,7 +6,7 @@ const path = require('node:path');
 const home = path.join(__dirname, '../discprobe/web/home');
 const source = fs.readFileSync(path.join(home, 'burn.js'), 'utf8')
   .replace(/^import .*;$/mg, '').replace(/export /g, '').replace(/import\.meta\.url/g, '"file:///test"');
-const node = () => ({textContent:'', dataset:{}, style:{setProperty(){}}, classList:{toggle(){}}, setAttribute(){}, replaceChildren(){}, after(){}, children:[{},{}], lastChild:{}});
+const node = () => ({textContent:'', dataset:{}, style:{setProperty(){}}, classList:{toggle(){}}, setAttribute(){}, getAttribute(){}, replaceChildren(){}, after(){}, children:[{},{}], lastChild:{}});
 const nodes = new Map();
 const q = key => { if(!nodes.has(key))nodes.set(key,node());return nodes.get(key); };
 const heard = [];
@@ -14,6 +14,7 @@ const sfx = {step:i=>heard.push('step'+i), done:()=>heard.push('done'), problem:
 let confirmOptions;
 const sandbox = vm.createContext({document:{documentElement:node(),createElement:node}, console, q, node, assert, afterBurn:[], sfx, heard,
   nextConfirm:(button,options)=>{confirmOptions=options;},getConfirmation:()=>confirmOptions});
+vm.runInContext(fs.readFileSync(path.join(home,'burn-stop.js'),'utf8').replace(/^import .*;$/mg,'').replace(/export /g,''),sandbox);
 vm.runInContext(source, sandbox);
 vm.runInContext(String.raw`
   api={lang:()=> 'en'};

@@ -364,8 +364,15 @@ class Job:
         self.asks = {}
         self.started_at = time.time()
         self.finished_at = None
+        self.cancellation = None
 
     def read(self):
+        if self.cancellation is None:
+            try:
+                self.cancellation = json.loads((self.folder / 'user-cancel.json').read_text(encoding='utf-8'))
+                self.history.append(self.cancellation)
+            except FileNotFoundError:
+                pass
         # Only consume complete lines; the child may still be appending one. A job folder that is gone
         # (cleaned up by hand) has nothing more to say; it must not stop the event stream for every page.
         try:
@@ -596,7 +603,8 @@ class Backend:
         with self.lock:
             state["drives"] = [dict(d, disc=d.get("disc") or self.discs.get(d["id"])) for d in drives]
         with self.lock:
-            state["jobs"] = [dict(id=j.id, drive=j.drive, action=j.action, media=j.media, exit=j.exit, result=j.result) for j in self.jobs.values()]
+            state["jobs"] = [dict(id=j.id, drive=j.drive, action=j.action, media=j.media, exit=j.exit, result=j.result,
+                                  cancellation=j.cancellation) for j in self.jobs.values()]
         state["catalogue"] = webui_catalog.catalogue(self.root, self.out)
         state["version"] = version()
         state["platform"] = sys.platform          # which shell the terminal page looks like (win32: PowerShell)
@@ -629,7 +637,7 @@ class Backend:
             job = self.get_job(ident)
             job.read()
             return dict(job=ident, action=job.action, media=job.media, exit=job.exit,
-                        events=list(job.history), result=job.result)
+                        events=list(job.history), result=job.result, cancellation=job.cancellation)
 
     def burn_token(self):
         with self.lock:
@@ -879,6 +887,8 @@ class Backend:
                 # Save only an actual engine result, with the batch known before the write.
                 identity = dict(job.batch_identity)
                 record = dict(burn, time=burn.get('time', time.time()), media=job.media, identity=identity)
+                if job.cancellation:
+                    record['cancellation'] = job.cancellation
                 if job.args.get('iso'):
                     try:
                         spec = Path(local_path(self.root, job.args['iso'])).with_suffix('.image.json')
@@ -973,7 +983,18 @@ class Backend:
         with self.lock:
             job = self.get_job(ident)
             if job.exit is None:
-                job.child.cancel()
+                job.read()
+                if job.cancellation is None:
+                    step = next((e.get('name') for e in reversed(job.history) if e['type'] == 'step'), job.action)
+                    verifying = any(e['type'] == 'verify_progress' for e in job.history)
+                    phase = 'read-back' if verifying else step
+                    event = dict(type='cancelled', by='user', job=ident, phase=phase,
+                                 fraction=(job.progress or {}).get('fraction'), time=time.time())
+                    # Separate from the child's append-only stream: no concurrent JSONL writes.
+                    (job.folder / 'user-cancel.json').write_text(json.dumps(event), encoding='utf-8')
+                    job.cancellation = event
+                    job.history.append(event)
+                    job.child.cancel()
             return dict(job=ident, cancelled=True)
 
     def answer(self, ident, payload):
@@ -1016,6 +1037,8 @@ class Backend:
             for job in self.jobs.values():
                 job.read()
                 if reconnect:
+                    if job.cancellation:
+                        result.append(job.cancellation)
                     result += ([job.progress] if job.progress else []) + list(job.asks.values())
                     if job.exit is not None:
                         result.append(dict(type="done", job=job.id, exit=job.exit))

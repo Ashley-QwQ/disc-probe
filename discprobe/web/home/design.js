@@ -2278,6 +2278,7 @@ async function jobWords(id) {
     const events = (await (await fetch(`/api/jobs/${id}`)).json()).events ?? [];
     const last = (type, key) => [...events].reverse().find((e) => e.type === type && String(e[key] ?? "").trim())?.[key] ?? "";
     return { why: last("error", "message") || last("log", "text"),
+      cancelled:events.some(e=>e.type==='cancelled'&&e.by==='user'),
       wrote: events.some((e) => e.type === "burn_result" || (e.type === "progress" && e.fraction > 0)) };
   } catch { return { why: "", wrote: false }; }
 }
@@ -2287,6 +2288,13 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
   // wrote: the drive reported progress, or the core logged a burn result (it does once writing began); without
   // either, a failed job never wrote, and the disc is still good
   let job = null, es = null, closed = false, cancelled = false, burnResult = null, wrote = false, why = "";
+  let stopRequested=false;
+  const sendStop=async()=>{
+    if(!job||closed)return;
+    const response=await fetch(`/api/jobs/${job}/cancel`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    if(!response.ok)throw new Error('Could not stop the burn.');
+    cancelled=true;
+  };
   // started: whether the drive may have begun writing (after the job was accepted)
   const fail = (error, started = !!job) => { if (closed) return; closed = true; es?.close(); onProgress({ status: "failed", error, started }); };
   (async () => {
@@ -2306,8 +2314,10 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
       const out = await r.json().catch(() => ({}));
       if (!r.ok) { fail(out.error ?? T().exp.failed); return; }
       job = out.job;
+      if(stopRequested)await sendStop();
       es = new EventSource("/api/events");
       const mine = (e) => { const d = JSON.parse(e.data); return d.job === job ? d : null; };
+      es.addEventListener('cancelled',e=>{const d=mine(e);if(d?.by==='user')cancelled=true;});
       es.addEventListener("progress", (e) => {
         const d = mine(e); if (!d) return;
         if (d.fraction > 0) wrote = true;
@@ -2327,7 +2337,7 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
       es.addEventListener("done", async (e) => {
         const d = mine(e); if (!d || closed) return;
         closed = true; es.close();
-        if (d.exit !== 0) { const said = await jobWords(job); why ||= said.why; wrote ||= said.wrote; }
+        if (d.exit !== 0) { const said = await jobWords(job); why ||= said.why; wrote ||= said.wrote; cancelled ||= said.cancelled; }
         const started = wrote || !!burnResult;
         const v = burnResult?.verification;
         const checked = (!burnResult?.result || burnResult.result === "completed") && burnResult?.disc_state?.status !== "failed" &&
@@ -2339,9 +2349,12 @@ function realBurn(iso, drive, onProgress, { speed } = {}) {
     } catch { fail(T().exp.noBackend); }
   })();
   return {
-    cancel() {
-      cancelled = true;
-      if (job) fetch(`/api/jobs/${job}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+    async cancel() {
+      // The burn component calls this only after the locked stop slider completes.
+      // The two preview-render /cancel calls above are read-only and stay immediate.
+      if(closed)return;
+      stopRequested=true;
+      await sendStop();
     },
   };
 }

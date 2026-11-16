@@ -115,7 +115,7 @@ def disc_report(report):
         blank = status in (0, 'empty') if status in (0, 1, 2, 'empty', 'incomplete', 'complete') else None
     # closed: the disc was finalized (READ DISC INFORMATION says complete); False while a session is open
     status = parsed('disc_information').get('disc_status')
-    closed = True if status == 'complete' else False if status == 'incomplete' else None
+    closed = True if status in (2, 'complete') else False if status in (1, 'incomplete') else None
     disc = dict(present=family != 'unknown', media=family,
                 kind=cfg.get('current_profile_name') or 'unknown',
                 mid=disc_id(parsed('dvd_prerecorded_0e'), parsed('dvd_plus_adip_11'), parsed('atip')),
@@ -124,6 +124,10 @@ def disc_report(report):
     disc['capacity_sectors'] = capacity[0] if capacity else None
     disc['capacity_source'] = capacity[1] if capacity else None
     disc['drive_name'] = f"{inquiry.get('vendor', '')} {inquiry.get('product', '')}".strip() or None
+    from .measurement_disc import short_recording
+    issue = short_recording(disc)
+    if issue:
+        disc['measurement_issue'] = dict(reason='short_recording', message=issue)
     return disc
 
 
