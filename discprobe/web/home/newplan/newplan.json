@@ -62,6 +62,10 @@
     "width_px": 44.6,
     "height_px": 55.3
    }
+  },
+  "pool_sigma_px_by_theme": {
+   "paper": 587.35,
+   "dark": 327.154
   }
  },
  "paper": {
@@ -117,6 +121,10 @@
    800.0,
    648.07
   ],
-  "layer_note": "draw envelope_back, then the sliding sheet, then envelope_front; a sheet clipped at pocket_top_y_px looks inside the pocket"
+  "layer_note": "draw envelope_back, then the sliding sheet, then envelope_front; a sheet clipped at pocket_top_y_px looks inside the pocket",
+  "pool_sigma_px_by_theme": {
+   "paper": 1451.94,
+   "dark": 808.731
+  }
  }
 }

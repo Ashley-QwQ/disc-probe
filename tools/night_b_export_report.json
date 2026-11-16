@@ -200,35 +200,83 @@
  {
   "file": "faxnews\\handset_dark.webp",
   "encoding": "(92, 6)",
-  "paper_check": "mean 0.14, alpha mean 0.00, px >8: 0.010%",
-  "old_dark": "mean 7.12, alpha mean 0.00, px >8: 69.970%",
-  "night_pool_attempt": {
-   "machine": "local RTX 2060, OptiX",
-   "status": "blocked_missing_input",
-   "written": false
-  }
+  "paper_check": "unchanged",
+  "paper_exact": true,
+  "paper_changed_pixels": 0,
+  "paper_stats": {
+   "rgb_mean": 0.0,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.0
+  },
+  "paper_gate": "night-b",
+  "paper_accepted": true,
+  "old_dark": "mean 12.39, alpha mean 0.01, px >8: 96.841%",
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "written",
+   "written": true,
+   "paper_stats": {
+    "rgb_mean": 0.0,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.0
+   },
+   "paper_accepted": true
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
  },
  {
   "file": "faxnews\\handset_shadow_dark.webp",
   "encoding": "(80, 6)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%",
-  "night_pool_attempt": {
-   "machine": "local RTX 2060, OptiX",
-   "status": "blocked_missing_input",
-   "written": false
-  }
+  "paper_exact": false,
+  "paper_changed_pixels": 288,
+  "paper_stats": {
+   "rgb_mean": 0.0,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.0
+  },
+  "paper_gate": "night-b",
+  "paper_accepted": true,
+  "old_dark": "mean 0.33, alpha mean 0.00, px >8: 0.000%",
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "written",
+   "written": true,
+   "paper_stats": {
+    "rgb_mean": 0.0,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.0
+   },
+   "paper_accepted": true
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
  },
  {
   "file": "faxnews\\top_dark.webp",
   "encoding": "(92, 6)",
-  "paper_check": "mean 0.01, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 10.89, alpha mean 0.00, px >8: 98.463%",
-  "night_pool_attempt": {
-   "machine": "local RTX 2060, OptiX",
-   "status": "blocked_missing_input",
-   "written": false
-  }
+  "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+  "paper_exact": false,
+  "paper_changed_pixels": 4007,
+  "paper_stats": {
+   "rgb_mean": 0.001466019241898148,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.00013563368055555556
+  },
+  "paper_gate": "night-b",
+  "paper_accepted": true,
+  "old_dark": "mean 17.39, alpha mean 0.00, px >8: 99.940%",
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "written",
+   "written": true,
+   "paper_stats": {
+    "rgb_mean": 0.001466019241898148,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.00013563368055555556
+   },
+   "paper_accepted": true
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
  },
  {
   "file": "interior\\bg_dark.webp",
@@ -329,30 +377,56 @@
  {
   "file": "newplan\\envelope_back_dark.webp",
   "encoding": "(90, 4)",
-  "paper_check": "mean 0.09, alpha mean 0.00, px >8: 0.001%",
-  "old_dark": "mean 0.47, alpha mean 0.00, px >8: 0.008%",
-  "night_pool_attempt": {
-   "machine": "local RTX 2060, OptiX",
-   "status": "blocked_paper_mismatch",
-   "written": false,
-   "paper_check": "mean 0.07, alpha mean 0.00, px >8: 0.001%",
-   "paper_exact": false,
-   "paper_changed_pixels": 279412
-  }
+  "paper_check": "mean 0.08, alpha mean 0.00, px >8: 0.001%",
+  "paper_exact": false,
+  "paper_changed_pixels": 314598,
+  "paper_stats": {
+   "rgb_mean": 0.0828672899996255,
+   "alpha_mean": 4.00962309542903e-06,
+   "over8_percent": 0.0012483303581459799
+  },
+  "paper_gate": "night-b",
+  "paper_accepted": true,
+  "old_dark": "mean 15.32, alpha mean 0.01, px >8: 99.781%",
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "written",
+   "written": true,
+   "paper_stats": {
+    "rgb_mean": 0.0828672899996255,
+    "alpha_mean": 4.00962309542903e-06,
+    "over8_percent": 0.0012483303581459799
+   },
+   "paper_accepted": true
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
  },
  {
   "file": "newplan\\envelope_front_dark.webp",
   "encoding": "(90, 6)",
   "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.016%",
-  "old_dark": "mean 0.50, alpha mean 0.00, px >8: 0.312%",
-  "night_pool_attempt": {
-   "machine": "local RTX 2060, OptiX",
-   "status": "blocked_paper_mismatch",
-   "written": false,
-   "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.015%",
-   "paper_exact": false,
-   "paper_changed_pixels": 144468
-  }
+  "paper_exact": false,
+  "paper_changed_pixels": 144752,
+  "paper_stats": {
+   "rgb_mean": 0.044468301846985796,
+   "alpha_mean": 1.3281876503608662e-05,
+   "over8_percent": 0.015640508718338348
+  },
+  "paper_gate": "night-b",
+  "paper_accepted": true,
+  "old_dark": "mean 17.16, alpha mean 0.01, px >8: 99.479%",
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "written",
+   "written": true,
+   "paper_stats": {
+    "rgb_mean": 0.044468301846985796,
+    "alpha_mean": 1.3281876503608662e-05,
+    "over8_percent": 0.015640508718338348
+   },
+   "paper_accepted": true
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
  },
  {
   "file": "newplan\\paper_dark.webp",
@@ -366,6 +440,17 @@
    "paper_check": "mean 0.08, alpha mean 0.00, px >8: 0.000%",
    "paper_exact": false,
    "paper_changed_pixels": 134713
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_contrast",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 0.08684969962161172,
+    "alpha_mean": 2.7310924369747898e-05,
+    "over8_percent": 0.0
+   },
+   "paper_accepted": true
   }
  },
  {
@@ -380,46 +465,99 @@
    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
    "paper_exact": false,
    "paper_changed_pixels": 108739
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_contrast",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 0.0,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.0
+   },
+   "paper_accepted": true
   }
  },
  {
   "file": "newplan\\top_dark.webp",
   "encoding": "(90, 4)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 10.43, alpha mean 0.00, px >8: 99.015%",
-  "night_pool_attempt": {
-   "machine": "local RTX 2060, OptiX",
-   "status": "blocked_missing_input",
-   "written": false
-  }
+  "paper_exact": false,
+  "paper_changed_pixels": 1343,
+  "paper_stats": {
+   "rgb_mean": 0.0007061993634259259,
+   "alpha_mean": 0.0,
+   "over8_percent": 0.00035264756944444444
+  },
+  "paper_gate": "night-b",
+  "paper_accepted": true,
+  "old_dark": "mean 14.48, alpha mean 0.00, px >8: 79.518%",
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "written",
+   "written": true,
+   "paper_stats": {
+    "rgb_mean": 0.0007061993634259259,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.00035264756944444444
+   },
+   "paper_accepted": true
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
  },
  {
   "file": "pastworks\\envelope_back_dark.webp",
   "encoding": "(90, 6)",
-  "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.002%",
-  "old_dark": "mean 0.46, alpha mean 0.00, px >8: 0.004%",
-  "night_pool_attempt": {
-   "machine": "local RTX 2060, OptiX",
-   "status": "blocked_paper_mismatch",
-   "written": false,
-   "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.002%",
-   "paper_exact": false,
-   "paper_changed_pixels": 62079
-  }
+  "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.002%",
+  "paper_exact": false,
+  "paper_changed_pixels": 89215,
+  "paper_stats": {
+   "rgb_mean": 0.03673043452549967,
+   "alpha_mean": 5.678131083711875e-06,
+   "over8_percent": 0.0016390700302312004
+  },
+  "paper_gate": "night-b",
+  "paper_accepted": true,
+  "old_dark": "mean 12.36, alpha mean 0.01, px >8: 99.680%",
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "written",
+   "written": true,
+   "paper_stats": {
+    "rgb_mean": 0.03673043452549967,
+    "alpha_mean": 5.678131083711875e-06,
+    "over8_percent": 0.0016390700302312004
+   },
+   "paper_accepted": true
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
  },
  {
   "file": "pastworks\\envelope_front_dark.webp",
   "encoding": "(89, 6)",
   "paper_check": "mean 0.12, alpha mean 0.00, px >8: 0.065%",
-  "old_dark": "mean 0.54, alpha mean 0.00, px >8: 0.596%",
-  "night_pool_attempt": {
-   "machine": "local RTX 2060, OptiX",
-   "status": "blocked_paper_mismatch",
-   "written": false,
-   "paper_check": "mean 0.12, alpha mean 0.00, px >8: 0.065%",
-   "paper_exact": false,
-   "paper_changed_pixels": 153286
-  }
+  "paper_exact": false,
+  "paper_changed_pixels": 153090,
+  "paper_stats": {
+   "rgb_mean": 0.12048541624494251,
+   "alpha_mean": 4.8669695003244645e-06,
+   "over8_percent": 0.06521243366652744
+  },
+  "paper_gate": "night-b",
+  "paper_accepted": true,
+  "old_dark": "mean 13.17, alpha mean 0.01, px >8: 99.002%",
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "written",
+   "written": true,
+   "paper_stats": {
+    "rgb_mean": 0.12048541624494251,
+    "alpha_mean": 4.8669695003244645e-06,
+    "over8_percent": 0.06521243366652744
+   },
+   "paper_accepted": true
+  },
+  "machine": "local i5-12400F, CPU, 8 threads"
  },
  {
   "file": "pastworks\\tumble_0_dark.webp",
@@ -433,6 +571,17 @@
    "paper_check": "mean 1.40, alpha mean 0.11, px >8: 3.857%",
    "paper_exact": false,
    "paper_changed_pixels": 41363
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 1.4027877256725139,
+    "alpha_mean": 0.112607421875,
+    "over8_percent": 3.8762062274544533
+   },
+   "paper_accepted": false
   }
  },
  {
@@ -447,6 +596,17 @@
    "paper_check": "mean 1.44, alpha mean 0.11, px >8: 4.408%",
    "paper_exact": false,
    "paper_changed_pixels": 40242
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 1.4378014251735212,
+    "alpha_mean": 0.108515625,
+    "over8_percent": 4.399681563552173
+   },
+   "paper_accepted": false
   }
  },
  {
@@ -461,6 +621,17 @@
    "paper_check": "mean 1.91, alpha mean 0.09, px >8: 5.680%",
    "paper_exact": false,
    "paper_changed_pixels": 36414
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 1.913332904093517,
+    "alpha_mean": 0.08845947265625,
+    "over8_percent": 5.685281366699575
+   },
+   "paper_accepted": false
   }
  },
  {
@@ -475,6 +646,17 @@
    "paper_check": "mean 1.62, alpha mean 0.10, px >8: 4.736%",
    "paper_exact": false,
    "paper_changed_pixels": 37037
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 1.6162103330710726,
+    "alpha_mean": 0.1005810546875,
+    "over8_percent": 4.706530291109363
+   },
+   "paper_accepted": false
   }
  },
  {
@@ -489,6 +671,17 @@
    "paper_check": "mean 2.01, alpha mean 0.10, px >8: 6.448%",
    "paper_exact": false,
    "paper_changed_pixels": 37237
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 2.008139131895945,
+    "alpha_mean": 0.1049951171875,
+    "over8_percent": 6.422037618542517
+   },
+   "paper_accepted": false
   }
  },
  {
@@ -503,6 +696,17 @@
    "paper_check": "mean 3.33, alpha mean 0.08, px >8: 10.490%",
    "paper_exact": false,
    "paper_changed_pixels": 31267
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 3.329248269430324,
+    "alpha_mean": 0.07739013671875,
+    "over8_percent": 10.491783898806005
+   },
+   "paper_accepted": false
   }
  },
  {
@@ -517,6 +721,17 @@
    "paper_check": "mean 1.71, alpha mean 0.10, px >8: 4.785%",
    "paper_exact": false,
    "paper_changed_pixels": 34792
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 1.7038101768096068,
+    "alpha_mean": 0.10126708984375,
+    "over8_percent": 4.776420245677513
+   },
+   "paper_accepted": false
   }
  },
  {
@@ -531,6 +746,17 @@
    "paper_check": "mean 1.73, alpha mean 0.10, px >8: 5.998%",
    "paper_exact": false,
    "paper_changed_pixels": 37498
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 1.7272230689601167,
+    "alpha_mean": 0.09586181640625,
+    "over8_percent": 6.010565760975442
+   },
+   "paper_accepted": false
   }
  },
  {
@@ -545,6 +771,17 @@
    "paper_check": "mean 1.72, alpha mean 0.10, px >8: 5.281%",
    "paper_exact": false,
    "paper_changed_pixels": 38181
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 1.721215547956885,
+    "alpha_mean": 0.101943359375,
+    "over8_percent": 5.276289455498416
+   },
+   "paper_accepted": false
   }
  },
  {
@@ -559,6 +796,17 @@
    "paper_check": "mean 2.99, alpha mean 0.08, px >8: 8.380%",
    "paper_exact": false,
    "paper_changed_pixels": 31411
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 2.991353768942614,
+    "alpha_mean": 0.07754150390625,
+    "over8_percent": 8.392202933947534
+   },
+   "paper_accepted": false
   }
  },
  {
@@ -573,6 +821,17 @@
    "paper_check": "mean 0.26, alpha mean 0.00, px >8: 0.083%",
    "paper_exact": false,
    "paper_changed_pixels": 142220
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 0.2570810707635312,
+    "alpha_mean": 3.2552083333333335e-06,
+    "over8_percent": 0.08735769805145156
+   },
+   "paper_accepted": true
   }
  },
  {
@@ -587,6 +846,17 @@
    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
    "paper_exact": false,
    "paper_changed_pixels": 1738515
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 0.0,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.0
+   },
+   "paper_accepted": true
   }
  },
  {
@@ -601,6 +871,17 @@
    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
    "paper_exact": false,
    "paper_changed_pixels": 16
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 0.020940031828703704,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.003824869791666667
+   },
+   "paper_accepted": true
   }
  },
  {
@@ -615,6 +896,17 @@
    "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.007%",
    "paper_exact": false,
    "paper_changed_pixels": 35510
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 0.06074663556558115,
+    "alpha_mean": 1.0850694444444444e-06,
+    "over8_percent": 0.009340801318537038
+   },
+   "paper_accepted": true
   }
  },
  {
@@ -629,6 +921,17 @@
    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
    "paper_exact": false,
    "paper_changed_pixels": 931818
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 3.391169733131898e-06,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.0
+   },
+   "paper_accepted": true
   }
  },
  {
@@ -643,6 +946,17 @@
    "paper_check": "mean 0.03, alpha mean 0.00, px >8: 0.000%",
    "paper_exact": false,
    "paper_changed_pixels": 28620
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 0.03973775112493936,
+    "alpha_mean": 1.0850694444444445e-05,
+    "over8_percent": 0.00020909653568859673
+   },
+   "paper_accepted": true
   }
  },
  {
@@ -657,6 +971,17 @@
    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
    "paper_exact": false,
    "paper_changed_pixels": 843811
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 0.0,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.0
+   },
+   "paper_accepted": true
   }
  },
  {
@@ -671,6 +996,17 @@
    "paper_check": "mean 1.48, alpha mean 0.00, px >8: 1.342%",
    "paper_exact": false,
    "paper_changed_pixels": 4350
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 1.4938027136046939,
+    "alpha_mean": 8.192274305555555e-05,
+    "over8_percent": 1.3641364136413643
+   },
+   "paper_accepted": false
   }
  },
  {
@@ -685,6 +1021,17 @@
    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
    "paper_exact": false,
    "paper_changed_pixels": 73967
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 0.0,
+    "alpha_mean": 4.0147569444444445e-05,
+    "over8_percent": 0.0
+   },
+   "paper_accepted": true
   }
  },
  {
@@ -699,6 +1046,17 @@
    "paper_check": "mean 0.13, alpha mean 0.00, px >8: 0.002%",
    "paper_exact": false,
    "paper_changed_pixels": 67763
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 0.12897003723832143,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.0021034998412813757
+   },
+   "paper_accepted": true
   }
  },
  {
@@ -713,6 +1071,17 @@
    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
    "paper_exact": false,
    "paper_changed_pixels": 1641460
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 0.0,
+    "alpha_mean": 0.0,
+    "over8_percent": 0.0
+   },
+   "paper_accepted": true
   }
  },
  {
@@ -727,6 +1096,17 @@
    "paper_check": "mean 0.11, alpha mean 0.00, px >8: 0.009%",
    "paper_exact": false,
    "paper_changed_pixels": 77922
+  },
+  "night_pool_cpu": {
+   "machine": "local i5-12400F, CPU, 8 threads",
+   "status": "blocked_paper_gate",
+   "written": false,
+   "paper_stats": {
+    "rgb_mean": 0.10899268852520856,
+    "alpha_mean": 1.0850694444444444e-06,
+    "over8_percent": 0.008684816177970305
+   },
+   "paper_accepted": true
   }
  }
 ]

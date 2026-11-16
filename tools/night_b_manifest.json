@@ -79,7 +79,7 @@
    "scene": "disc_explode_render.blend",
    "args": "--mode top",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -91,6 +91,35 @@
     "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\F_np_top",
     "render_log": "F:\\dp-archive\\tmp\\nightpool\\F_np_top.log",
     "error": "FileNotFoundError: [Errno 2] No such file or directory: 'D:\\\\dp-dev\\\\nightpool\\\\discprobe\\\\web\\\\home\\\\newplan\\\\mark_split.json'"
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_np_top",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_np_top.log",
+    "paper_checks": [
+     {
+      "file": "newplan\\top_dark.webp",
+      "encoding": "(90, 4)",
+      "paper_stats": {
+       "rgb_mean": 0.0007061993634259259,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.00035264756944444444
+      },
+      "paper_accepted": true
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 587.35,
+     "dark": 327.154
+    }
    }
   },
   "F_np_paper": {
@@ -116,6 +145,46 @@
      "paper": 1181.538,
      "dark": 658.117
     }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "blocked_contrast",
+    "written": false,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_np_paper",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_np_paper.log",
+    "paper_checks": [
+     {
+      "file": "newplan\\paper_dark.webp",
+      "encoding": "(90, 4)",
+      "paper_stats": {
+       "rgb_mean": 0.08684969962161172,
+       "alpha_mean": 2.7310924369747898e-05,
+       "over8_percent": 0.0
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "newplan\\paper_shadow_dark.webp",
+      "encoding": "(91, 6)",
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_accepted": true
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 1181.538,
+     "dark": 658.117
+    },
+    "rollback_reason": "390px presetio dark import paper contrast 4.187508857430125 < 4.5; restored accepted images from 3f7cff2"
    }
   },
   "F_np_env": {
@@ -123,7 +192,7 @@
    "scene": "factory startup",
    "args": "--mode envelope",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -137,6 +206,45 @@
     },
     "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\F_np_env",
     "render_log": "F:\\dp-archive\\tmp\\nightpool\\F_np_env.log",
+    "pool_sigma_px_by_theme": {
+     "paper": 1451.94,
+     "dark": 808.731
+    }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_np_env",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_np_env.log",
+    "paper_checks": [
+     {
+      "file": "newplan\\envelope_back_dark.webp",
+      "encoding": "(90, 4)",
+      "paper_stats": {
+       "rgb_mean": 0.0828672899996255,
+       "alpha_mean": 4.00962309542903e-06,
+       "over8_percent": 0.0012483303581459799
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "newplan\\envelope_front_dark.webp",
+      "encoding": "(90, 6)",
+      "paper_stats": {
+       "rgb_mean": 0.044468301846985796,
+       "alpha_mean": 1.3281876503608662e-05,
+       "over8_percent": 0.015640508718338348
+      },
+      "paper_accepted": true
+     }
+    ],
     "pool_sigma_px_by_theme": {
      "paper": 1451.94,
      "dark": 808.731
@@ -176,6 +284,145 @@
      "paper": 1044.0,
      "dark": 581.508
     }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_np_desk",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_np_desk.log",
+    "paper_checks": [
+     {
+      "file": "presetio\\desk\\desk_bag_dark.webp",
+      "encoding": "(88, 6)",
+      "paper_stats": {
+       "rgb_mean": 0.2570810707635312,
+       "alpha_mean": 3.2552083333333335e-06,
+       "over8_percent": 0.08735769805145156
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "presetio\\desk\\desk_bag_shadow_dark.webp",
+      "encoding": "(93, 4)",
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "presetio\\desk\\desk_base_dark.webp",
+      "encoding": "(90, 4)",
+      "paper_stats": {
+       "rgb_mean": 0.020940031828703704,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.003824869791666667
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "presetio\\desk\\desk_doc_envelope_dark.webp",
+      "encoding": "(90, 4)",
+      "paper_stats": {
+       "rgb_mean": 0.06074663556558115,
+       "alpha_mean": 1.0850694444444444e-06,
+       "over8_percent": 0.009340801318537038
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "presetio\\desk\\desk_doc_envelope_shadow_dark.webp",
+      "encoding": "(92, 4)",
+      "paper_stats": {
+       "rgb_mean": 3.391169733131898e-06,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "presetio\\desk\\desk_doc_paper_dark.webp",
+      "encoding": "(90, 4)",
+      "paper_stats": {
+       "rgb_mean": 0.03973775112493936,
+       "alpha_mean": 1.0850694444444445e-05,
+       "over8_percent": 0.00020909653568859673
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "presetio\\desk\\desk_doc_paper_shadow_dark.webp",
+      "encoding": "(86, 4)",
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "presetio\\desk\\desk_knob_dark.webp",
+      "encoding": "(91, 6)",
+      "paper_stats": {
+       "rgb_mean": 1.4938027136046939,
+       "alpha_mean": 8.192274305555555e-05,
+       "over8_percent": 1.3641364136413643
+      },
+      "paper_accepted": false
+     },
+     {
+      "file": "presetio\\desk\\desk_knob_shadow_dark.webp",
+      "encoding": "(85, 6)",
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 4.0147569444444445e-05,
+       "over8_percent": 0.0
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "presetio\\desk\\desk_sheets_dark.webp",
+      "encoding": "(91, 4)",
+      "paper_stats": {
+       "rgb_mean": 0.12897003723832143,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0021034998412813757
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "presetio\\desk\\desk_sheets_shadow_dark.webp",
+      "encoding": "(84, 4)",
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "presetio\\desk\\desk_upper_dark.webp",
+      "encoding": "(91, 6)",
+      "paper_stats": {
+       "rgb_mean": 0.10899268852520856,
+       "alpha_mean": 1.0850694444444444e-06,
+       "over8_percent": 0.008684816177970305
+      },
+      "paper_accepted": true
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 1044.0,
+     "dark": 581.508
+    }
    }
   },
   "F_pw_env": {
@@ -183,7 +430,7 @@
    "scene": "factory startup",
    "args": "--mode envelope --env-h 0.240",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -201,6 +448,45 @@
      "paper": 1451.94,
      "dark": 808.731
     }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_pw_env",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_pw_env.log",
+    "paper_checks": [
+     {
+      "file": "pastworks\\envelope_back_dark.webp",
+      "encoding": "(90, 6)",
+      "paper_stats": {
+       "rgb_mean": 0.03673043452549967,
+       "alpha_mean": 5.678131083711875e-06,
+       "over8_percent": 0.0016390700302312004
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "pastworks\\envelope_front_dark.webp",
+      "encoding": "(89, 6)",
+      "paper_stats": {
+       "rgb_mean": 0.12048541624494251,
+       "alpha_mean": 4.8669695003244645e-06,
+       "over8_percent": 0.06521243366652744
+      },
+      "paper_accepted": true
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 1451.94,
+     "dark": 808.731
+    }
    }
   },
   "F_fax_top": {
@@ -208,7 +494,7 @@
    "scene": "factory startup",
    "args": "--mode fax --blend fax_news.blend",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -220,6 +506,55 @@
     "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\F_fax_top",
     "render_log": "F:\\dp-archive\\tmp\\nightpool\\F_fax_top.log",
     "error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\dp-archive\\\\tmp\\\\nightpool\\\\fax\\\\extra_palette.json'"
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_fax_top",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_fax_top.log",
+    "paper_checks": [
+     {
+      "file": "faxnews\\top_dark.webp",
+      "encoding": "(92, 6)",
+      "paper_stats": {
+       "rgb_mean": 0.001466019241898148,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.00013563368055555556
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "faxnews\\handset_dark.webp",
+      "encoding": "(92, 6)",
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_accepted": true
+     },
+     {
+      "file": "faxnews\\handset_shadow_dark.webp",
+      "encoding": "(80, 6)",
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_accepted": true
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 829.2,
+     "dark": 461.864
+    }
    }
   },
   "F_tumble0": {
@@ -240,6 +575,35 @@
     },
     "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\F_tumble0",
     "render_log": "F:\\dp-archive\\tmp\\nightpool\\F_tumble0.log",
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble0",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble0.log",
+    "paper_checks": [
+     {
+      "file": "pastworks\\tumble_0_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_stats": {
+       "rgb_mean": 1.4027877256725139,
+       "alpha_mean": 0.112607421875,
+       "over8_percent": 3.8762062274544533
+      },
+      "paper_accepted": false
+     }
+    ],
     "pool_sigma_px_by_theme": {
      "paper": 399.047,
      "dark": 222.269
@@ -268,6 +632,35 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble1",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble1.log",
+    "paper_checks": [
+     {
+      "file": "pastworks\\tumble_1_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_stats": {
+       "rgb_mean": 1.4378014251735212,
+       "alpha_mean": 0.108515625,
+       "over8_percent": 4.399681563552173
+      },
+      "paper_accepted": false
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    }
    }
   },
   "F_tumble2": {
@@ -288,6 +681,35 @@
     },
     "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\F_tumble2",
     "render_log": "F:\\dp-archive\\tmp\\nightpool\\F_tumble2.log",
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble2",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble2.log",
+    "paper_checks": [
+     {
+      "file": "pastworks\\tumble_2_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_stats": {
+       "rgb_mean": 1.913332904093517,
+       "alpha_mean": 0.08845947265625,
+       "over8_percent": 5.685281366699575
+      },
+      "paper_accepted": false
+     }
+    ],
     "pool_sigma_px_by_theme": {
      "paper": 399.047,
      "dark": 222.269
@@ -316,6 +738,35 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble3",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble3.log",
+    "paper_checks": [
+     {
+      "file": "pastworks\\tumble_3_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_stats": {
+       "rgb_mean": 1.6162103330710726,
+       "alpha_mean": 0.1005810546875,
+       "over8_percent": 4.706530291109363
+      },
+      "paper_accepted": false
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    }
    }
   },
   "F_tumble4": {
@@ -336,6 +787,35 @@
     },
     "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\F_tumble4",
     "render_log": "F:\\dp-archive\\tmp\\nightpool\\F_tumble4.log",
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble4",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble4.log",
+    "paper_checks": [
+     {
+      "file": "pastworks\\tumble_4_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_stats": {
+       "rgb_mean": 2.008139131895945,
+       "alpha_mean": 0.1049951171875,
+       "over8_percent": 6.422037618542517
+      },
+      "paper_accepted": false
+     }
+    ],
     "pool_sigma_px_by_theme": {
      "paper": 399.047,
      "dark": 222.269
@@ -364,6 +844,35 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble5",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble5.log",
+    "paper_checks": [
+     {
+      "file": "pastworks\\tumble_5_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_stats": {
+       "rgb_mean": 3.329248269430324,
+       "alpha_mean": 0.07739013671875,
+       "over8_percent": 10.491783898806005
+      },
+      "paper_accepted": false
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    }
    }
   },
   "F_tumble6": {
@@ -384,6 +893,35 @@
     },
     "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\F_tumble6",
     "render_log": "F:\\dp-archive\\tmp\\nightpool\\F_tumble6.log",
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble6",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble6.log",
+    "paper_checks": [
+     {
+      "file": "pastworks\\tumble_6_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_stats": {
+       "rgb_mean": 1.7038101768096068,
+       "alpha_mean": 0.10126708984375,
+       "over8_percent": 4.776420245677513
+      },
+      "paper_accepted": false
+     }
+    ],
     "pool_sigma_px_by_theme": {
      "paper": 399.047,
      "dark": 222.269
@@ -412,6 +950,35 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble7",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble7.log",
+    "paper_checks": [
+     {
+      "file": "pastworks\\tumble_7_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_stats": {
+       "rgb_mean": 1.7272230689601167,
+       "alpha_mean": 0.09586181640625,
+       "over8_percent": 6.010565760975442
+      },
+      "paper_accepted": false
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    }
    }
   },
   "F_tumble8": {
@@ -436,6 +1003,35 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble8",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble8.log",
+    "paper_checks": [
+     {
+      "file": "pastworks\\tumble_8_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_stats": {
+       "rgb_mean": 1.721215547956885,
+       "alpha_mean": 0.101943359375,
+       "over8_percent": 5.276289455498416
+      },
+      "paper_accepted": false
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    }
    }
   },
   "F_tumble9": {
@@ -456,6 +1052,35 @@
     },
     "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\F_tumble9",
     "render_log": "F:\\dp-archive\\tmp\\nightpool\\F_tumble9.log",
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    }
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_gate_limits": {
+     "rgb_mean": 0.3,
+     "alpha_mean": 0.02,
+     "over8_percent": 0.1
+    },
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble9",
+    "render_log": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble9.log",
+    "paper_checks": [
+     {
+      "file": "pastworks\\tumble_9_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_stats": {
+       "rgb_mean": 2.991353768942614,
+       "alpha_mean": 0.07754150390625,
+       "over8_percent": 8.392202933947534
+      },
+      "paper_accepted": false
+     }
+    ],
     "pool_sigma_px_by_theme": {
      "paper": 399.047,
      "dark": 222.269
@@ -813,11 +1438,22 @@
   "discprobe/web/home/faxnews/handset_dark.webp": {
    "job": "F_fax_top",
    "encoding": "(92, 6)",
-   "paper_check": "mean 0.14, alpha mean 0.00, px >8: 0.010%",
+   "paper_check": "unchanged",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
     "status": "blocked_missing_input",
     "written": false
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "written",
+    "written": true,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/faxnews/handset_shadow_dark.webp": {
@@ -828,16 +1464,38 @@
     "machine": "local RTX 2060, OptiX",
     "status": "blocked_missing_input",
     "written": false
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "written",
+    "written": true,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/faxnews/top_dark.webp": {
    "job": "F_fax_top",
    "encoding": "(92, 6)",
-   "paper_check": "mean 0.01, alpha mean 0.00, px >8: 0.000%",
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
     "status": "blocked_missing_input",
     "written": false
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "written",
+    "written": true,
+    "paper_stats": {
+     "rgb_mean": 0.001466019241898148,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.00013563368055555556
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/interior/bg_dark.png": {
@@ -958,7 +1616,7 @@
   "discprobe/web/home/newplan/envelope_back_dark.webp": {
    "job": "F_np_env",
    "encoding": "(90, 4)",
-   "paper_check": "mean 0.09, alpha mean 0.00, px >8: 0.001%",
+   "paper_check": "mean 0.08, alpha mean 0.00, px >8: 0.001%",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
     "status": "blocked_paper_mismatch",
@@ -966,6 +1624,17 @@
     "paper_check": "mean 0.07, alpha mean 0.00, px >8: 0.001%",
     "paper_exact": false,
     "paper_changed_pixels": 279412
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "written",
+    "written": true,
+    "paper_stats": {
+     "rgb_mean": 0.0828672899996255,
+     "alpha_mean": 4.00962309542903e-06,
+     "over8_percent": 0.0012483303581459799
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/newplan/envelope_front_dark.webp": {
@@ -979,6 +1648,17 @@
     "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.015%",
     "paper_exact": false,
     "paper_changed_pixels": 144468
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "written",
+    "written": true,
+    "paper_stats": {
+     "rgb_mean": 0.044468301846985796,
+     "alpha_mean": 1.3281876503608662e-05,
+     "over8_percent": 0.015640508718338348
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/newplan/paper_dark.webp": {
@@ -992,6 +1672,17 @@
     "paper_check": "mean 0.08, alpha mean 0.00, px >8: 0.000%",
     "paper_exact": false,
     "paper_changed_pixels": 134713
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_contrast",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 0.08684969962161172,
+     "alpha_mean": 2.7310924369747898e-05,
+     "over8_percent": 0.0
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/newplan/paper_shadow_dark.webp": {
@@ -1005,6 +1696,17 @@
     "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
     "paper_exact": false,
     "paper_changed_pixels": 108739
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_contrast",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/newplan/top_dark.webp": {
@@ -1015,12 +1717,23 @@
     "machine": "local RTX 2060, OptiX",
     "status": "blocked_missing_input",
     "written": false
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "written",
+    "written": true,
+    "paper_stats": {
+     "rgb_mean": 0.0007061993634259259,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.00035264756944444444
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/pastworks/envelope_back_dark.webp": {
    "job": "F_pw_env",
    "encoding": "(90, 6)",
-   "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.002%",
+   "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.002%",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
     "status": "blocked_paper_mismatch",
@@ -1028,6 +1741,17 @@
     "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.002%",
     "paper_exact": false,
     "paper_changed_pixels": 62079
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "written",
+    "written": true,
+    "paper_stats": {
+     "rgb_mean": 0.03673043452549967,
+     "alpha_mean": 5.678131083711875e-06,
+     "over8_percent": 0.0016390700302312004
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/pastworks/envelope_front_dark.webp": {
@@ -1041,6 +1765,17 @@
     "paper_check": "mean 0.12, alpha mean 0.00, px >8: 0.065%",
     "paper_exact": false,
     "paper_changed_pixels": 153286
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "written",
+    "written": true,
+    "paper_stats": {
+     "rgb_mean": 0.12048541624494251,
+     "alpha_mean": 4.8669695003244645e-06,
+     "over8_percent": 0.06521243366652744
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/pastworks/tumble_0_dark.webp": {
@@ -1054,6 +1789,17 @@
     "paper_check": "mean 1.40, alpha mean 0.11, px >8: 3.857%",
     "paper_exact": false,
     "paper_changed_pixels": 41363
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 1.4027877256725139,
+     "alpha_mean": 0.112607421875,
+     "over8_percent": 3.8762062274544533
+    },
+    "paper_accepted": false
    }
   },
   "discprobe/web/home/pastworks/tumble_1_dark.webp": {
@@ -1067,6 +1813,17 @@
     "paper_check": "mean 1.44, alpha mean 0.11, px >8: 4.408%",
     "paper_exact": false,
     "paper_changed_pixels": 40242
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 1.4378014251735212,
+     "alpha_mean": 0.108515625,
+     "over8_percent": 4.399681563552173
+    },
+    "paper_accepted": false
    }
   },
   "discprobe/web/home/pastworks/tumble_2_dark.webp": {
@@ -1080,6 +1837,17 @@
     "paper_check": "mean 1.91, alpha mean 0.09, px >8: 5.680%",
     "paper_exact": false,
     "paper_changed_pixels": 36414
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 1.913332904093517,
+     "alpha_mean": 0.08845947265625,
+     "over8_percent": 5.685281366699575
+    },
+    "paper_accepted": false
    }
   },
   "discprobe/web/home/pastworks/tumble_3_dark.webp": {
@@ -1093,6 +1861,17 @@
     "paper_check": "mean 1.62, alpha mean 0.10, px >8: 4.736%",
     "paper_exact": false,
     "paper_changed_pixels": 37037
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 1.6162103330710726,
+     "alpha_mean": 0.1005810546875,
+     "over8_percent": 4.706530291109363
+    },
+    "paper_accepted": false
    }
   },
   "discprobe/web/home/pastworks/tumble_4_dark.webp": {
@@ -1106,6 +1885,17 @@
     "paper_check": "mean 2.01, alpha mean 0.10, px >8: 6.448%",
     "paper_exact": false,
     "paper_changed_pixels": 37237
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 2.008139131895945,
+     "alpha_mean": 0.1049951171875,
+     "over8_percent": 6.422037618542517
+    },
+    "paper_accepted": false
    }
   },
   "discprobe/web/home/pastworks/tumble_5_dark.webp": {
@@ -1119,6 +1909,17 @@
     "paper_check": "mean 3.33, alpha mean 0.08, px >8: 10.490%",
     "paper_exact": false,
     "paper_changed_pixels": 31267
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 3.329248269430324,
+     "alpha_mean": 0.07739013671875,
+     "over8_percent": 10.491783898806005
+    },
+    "paper_accepted": false
    }
   },
   "discprobe/web/home/pastworks/tumble_6_dark.webp": {
@@ -1132,6 +1933,17 @@
     "paper_check": "mean 1.71, alpha mean 0.10, px >8: 4.785%",
     "paper_exact": false,
     "paper_changed_pixels": 34792
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 1.7038101768096068,
+     "alpha_mean": 0.10126708984375,
+     "over8_percent": 4.776420245677513
+    },
+    "paper_accepted": false
    }
   },
   "discprobe/web/home/pastworks/tumble_7_dark.webp": {
@@ -1145,6 +1957,17 @@
     "paper_check": "mean 1.73, alpha mean 0.10, px >8: 5.998%",
     "paper_exact": false,
     "paper_changed_pixels": 37498
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 1.7272230689601167,
+     "alpha_mean": 0.09586181640625,
+     "over8_percent": 6.010565760975442
+    },
+    "paper_accepted": false
    }
   },
   "discprobe/web/home/pastworks/tumble_8_dark.webp": {
@@ -1158,6 +1981,17 @@
     "paper_check": "mean 1.72, alpha mean 0.10, px >8: 5.281%",
     "paper_exact": false,
     "paper_changed_pixels": 38181
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 1.721215547956885,
+     "alpha_mean": 0.101943359375,
+     "over8_percent": 5.276289455498416
+    },
+    "paper_accepted": false
    }
   },
   "discprobe/web/home/pastworks/tumble_9_dark.webp": {
@@ -1171,6 +2005,17 @@
     "paper_check": "mean 2.99, alpha mean 0.08, px >8: 8.380%",
     "paper_exact": false,
     "paper_changed_pixels": 31411
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 2.991353768942614,
+     "alpha_mean": 0.07754150390625,
+     "over8_percent": 8.392202933947534
+    },
+    "paper_accepted": false
    }
   },
   "discprobe/web/home/presetio/desk/desk_bag_dark.webp": {
@@ -1184,6 +2029,17 @@
     "paper_check": "mean 0.26, alpha mean 0.00, px >8: 0.083%",
     "paper_exact": false,
     "paper_changed_pixels": 142220
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 0.2570810707635312,
+     "alpha_mean": 3.2552083333333335e-06,
+     "over8_percent": 0.08735769805145156
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/presetio/desk/desk_bag_shadow_dark.webp": {
@@ -1197,6 +2053,17 @@
     "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
     "paper_exact": false,
     "paper_changed_pixels": 1738515
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/presetio/desk/desk_base_dark.webp": {
@@ -1210,6 +2077,17 @@
     "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
     "paper_exact": false,
     "paper_changed_pixels": 16
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 0.020940031828703704,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.003824869791666667
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/presetio/desk/desk_doc_envelope_dark.webp": {
@@ -1223,6 +2101,17 @@
     "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.007%",
     "paper_exact": false,
     "paper_changed_pixels": 35510
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 0.06074663556558115,
+     "alpha_mean": 1.0850694444444444e-06,
+     "over8_percent": 0.009340801318537038
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/presetio/desk/desk_doc_envelope_shadow_dark.webp": {
@@ -1236,6 +2125,17 @@
     "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
     "paper_exact": false,
     "paper_changed_pixels": 931818
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 3.391169733131898e-06,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/presetio/desk/desk_doc_paper_dark.webp": {
@@ -1249,6 +2149,17 @@
     "paper_check": "mean 0.03, alpha mean 0.00, px >8: 0.000%",
     "paper_exact": false,
     "paper_changed_pixels": 28620
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 0.03973775112493936,
+     "alpha_mean": 1.0850694444444445e-05,
+     "over8_percent": 0.00020909653568859673
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/presetio/desk/desk_doc_paper_shadow_dark.webp": {
@@ -1262,6 +2173,17 @@
     "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
     "paper_exact": false,
     "paper_changed_pixels": 843811
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/presetio/desk/desk_knob_dark.webp": {
@@ -1275,6 +2197,17 @@
     "paper_check": "mean 1.48, alpha mean 0.00, px >8: 1.342%",
     "paper_exact": false,
     "paper_changed_pixels": 4350
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 1.4938027136046939,
+     "alpha_mean": 8.192274305555555e-05,
+     "over8_percent": 1.3641364136413643
+    },
+    "paper_accepted": false
    }
   },
   "discprobe/web/home/presetio/desk/desk_knob_shadow_dark.webp": {
@@ -1288,6 +2221,17 @@
     "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
     "paper_exact": false,
     "paper_changed_pixels": 73967
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 4.0147569444444445e-05,
+     "over8_percent": 0.0
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/presetio/desk/desk_sheets_dark.webp": {
@@ -1301,6 +2245,17 @@
     "paper_check": "mean 0.13, alpha mean 0.00, px >8: 0.002%",
     "paper_exact": false,
     "paper_changed_pixels": 67763
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 0.12897003723832143,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0021034998412813757
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/presetio/desk/desk_sheets_shadow_dark.webp": {
@@ -1314,6 +2269,17 @@
     "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
     "paper_exact": false,
     "paper_changed_pixels": 1641460
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_accepted": true
    }
   },
   "discprobe/web/home/presetio/desk/desk_upper_dark.webp": {
@@ -1327,14 +2293,33 @@
     "paper_check": "mean 0.11, alpha mean 0.00, px >8: 0.009%",
     "paper_exact": false,
     "paper_changed_pixels": 77922
+   },
+   "night_pool_cpu": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "paper_stats": {
+     "rgb_mean": 0.10899268852520856,
+     "alpha_mean": 1.0850694444444444e-06,
+     "over8_percent": 0.008684816177970305
+    },
+    "paper_accepted": true
    }
   }
  },
  "night_pool_run": {
   "date": "2026-11-16",
-  "machine": "local RTX 2060, OptiX",
-  "status": "incomplete",
-  "published_jobs": 0,
-  "note": "Attempt metadata describes candidates. Existing machine, encoding and paper_check fields retain the provenance of assets that were not replaced."
+  "machine": "local i5-12400F, CPU, 8 threads",
+  "device": "CPU",
+  "published_jobs": 4,
+  "published_pictures": 8,
+  "blocked_jobs": 12,
+  "paper_gate_limits": {
+   "rgb_mean": 0.3,
+   "alpha_mean": 0.02,
+   "over8_percent": 0.1
+  },
+  "current_attempt_field": "night_pool_cpu",
+  "note": "night_pool_attempt records the earlier OptiX/exact-gate attempt. night_pool_cpu is the current run. Unwritten assets retain their original machine and encoding provenance."
  }
 }
