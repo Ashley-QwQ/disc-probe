@@ -56,8 +56,9 @@ try{
  results.questions=await run(`(()=>{const s=A.state(),e=A.editor;e.h.tool('rectangle');e.select({tool:'rectangle',a:[-50,-20],b:[-20,20]});const old=s.layers.length;e.h.dom().canvas.focus();e.h.dom().canvas.dispatchEvent(new KeyboardEvent('keydown',{key:'Delete',bubbles:true}));const removed=s.layers.length<old;A.undo();return {deleteRemovedLayer:removed,legacySelectionBarVisible:!!document.querySelector('.fbar[data-mode="sel"]:not([hidden])'),tool:e.tool,stateTool:s.tool};})()`);
  await writeFile(join(out,phase+'.json'),JSON.stringify(results,null,2),'utf8');
  if(phase==='after'){
-  // Frozen from 731b199's preview() on this fixture, both themes and burn grids.
-  for(const [key,hash] of Object.entries(results.restingHashes))assert.equal(hash,key.startsWith('light')?'f0fe1afe07f50976046a0ef3ef00cf517abdcfcc9cd741b21e899cdaf5e0cc36':'00f4a7292cab532e5d70928e6d080259a2f233291b437145088a71095816e9f1','resting RGBA equals 731b199: '+key);
+  // Frozen from 731b199's light-theme preview() on this fixture and burn grids. Since 2026-11-16 the disc is drawn
+  // the same in both themes (the dark theme used to swap light and dark, which read as an inverted picture).
+  for(const [key,hash] of Object.entries(results.restingHashes))assert.equal(hash,'f0fe1afe07f50976046a0ef3ef00cf517abdcfcc9cd741b21e899cdaf5e0cc36','resting RGBA equals 731b199 light: '+key);
   const {verify}=await import('./editor_w245_verify.mjs');results.acceptance=await verify({run,shot,pause,send});
  }
  await writeFile(join(out,phase+'.json'),JSON.stringify(results,null,2),'utf8');console.log(JSON.stringify({...results,frames:results.frames.map(({frames,...r})=>r)}));assert.equal(errors.length,0,JSON.stringify(errors));
