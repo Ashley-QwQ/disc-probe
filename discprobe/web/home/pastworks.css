@@ -7,6 +7,7 @@
 .pw[hidden], .pw [hidden] { display: none; }
 :root[data-mode="pastworks"] :is(.stage, .counter, .detail, .gallery, .lobby:not(.leaving)) { visibility: hidden; }
 :root[data-mode="pastworks"] :is(#next, #next-why, .next-side) { display: none; }
+:root[data-mode="pastworks"] .top > * { filter: var(--glass-desk-drop); }
 /* the footer row lies over this page (z-index 2) and its drive line stretches across it: let clicks through to
    "Open work" in the corner; a running job keeps its cancel button */
 :root[data-mode="pastworks"] .bar { pointer-events: none; }

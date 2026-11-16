@@ -483,9 +483,13 @@
   :root.pan-in :is(.cal-stage, .ld) { translate: 100vw 0; }
   :root.pan-in :is(#cal, #cal-ruler) { opacity: 0; }
   /* the glass (see --glass-*): new-work and calibration pages first */
-  /* Only solid panels and buttons on the glass cast a shadow; thin words and lines do not (a real lamp blurs a
-     stroke's shadow away, and offset copies of small text read as ghosts). */
+  :root:is([data-mode="newplan"], [data-mode="cal"], [data-mode="presets"], [data-mode="faxnews"]) .top > * { filter: var(--glass-desk-drop); }
+  :root[data-mode="newplan"] .top > :is(.back, .wordmark) { filter: var(--glass-drive-drop); }      /* over the drive */
+  :root[data-mode="presets"] .top > :is(.back, .wordmark) { filter: var(--glass-drive-drop); }      /* over the letter tray */
   :root:is([data-mode="newplan"], [data-mode="cal"]) :is(.next, .next-side) { box-shadow: var(--glass-edge), var(--glass-desk); }
+  :root[data-mode="cal"] .cal-ruler { filter: var(--glass-desk-drop); }
+  :root:is([data-mode="newplan"], [data-mode="cal"], [data-mode="presets"], [data-mode="faxnews"]) .bar > :is(.job, .drive, .next-why) { filter: var(--glass-desk-drop); }   /* the bottom bar's words are on the glass too */
+  :root[data-mode="cal"] .cs-big { filter: var(--glass-desk-drop); }                                    /* so are the big percent and its time */
   /* the calibration card: the new-work page's paper (newplan/paper_*), lying on the desk, as long as what is on it;
      it comes out of the archive envelope (newplan.js cardOut) */
   :root.cal-staged .cal { padding: 30px 32px; box-shadow: var(--paper-desk); background: none;
