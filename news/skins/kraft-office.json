@@ -1,0 +1,4 @@
+{"format": "dp-skin", "version": 1, "id": "kraft-office", "sample": true,
+ "name": {"zh": "牛皮纸办公室", "en": "Kraft Office"},
+ "tokens": {"paper": {"bg": "#e6dcc8", "bg-2": "#ddd1b8", "accent": "#9a5a2c"},
+            "dark": {"bg": "#2a241c", "bg-2": "#332c22", "accent": "#e0a868"}}}

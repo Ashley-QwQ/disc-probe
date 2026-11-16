@@ -1,7 +1,7 @@
 // The news fax's data rules (faxnews-data.mjs): what counts as a paper, how a day's paper is laid out, versions.
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {readPaper, readSkin, layOut, compareVersions, parseVersion, pick, safeRef, resolveRef, PaperError, dayNumber}
+import {DEFAULT_SOURCE, readPaper, readSkin, layOut, compareVersions, parseVersion, pick, safeRef, resolveRef, PaperError, dayNumber}
   from '../discprobe/web/home/faxnews-data.mjs';
 
 const home = new URL('../discprobe/web/home/', import.meta.url);
@@ -78,6 +78,7 @@ assert.equal(dayNumber('2026-11-15') - dayNumber('2026-11-14'), 1);
 assert.equal(pick({zh: '中', en: 'en'}, 'en'), 'en');
 assert.equal(pick({zh: '中'}, 'en'), '中');
 assert.equal(pick('plain', 'zh'), 'plain');
-assert.equal(resolveRef('art/a.webp', 'https://news.example/dp/today.json', 'http://127.0.0.1/home/'), 'https://news.example/dp/art/a.webp');
-assert.equal(resolveRef('art/a.webp', './faxnews/news.json', 'http://127.0.0.1:8765/home/'), 'http://127.0.0.1:8765/home/faxnews/art/a.webp');
+assert.equal(DEFAULT_SOURCE, '/api/news');
+assert.equal(resolveRef('art/a.webp', 'https://news.example/dp/today.json'), '/api/news/asset?path=art%2Fa.webp&source=https%3A%2F%2Fnews.example%2Fdp%2Ftoday.json');
+assert.equal(resolveRef('skins/a.json', DEFAULT_SOURCE), '/api/news/asset?path=skins%2Fa.json');
 console.log('fax news data: sample paper and parcels, refusals, versions, layout and the day\'s picks passed');

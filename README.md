@@ -4,6 +4,8 @@
 
 让普通光驱自己测出一张盘的螺旋几何，再把图片刻到 DVD-R 或 CD-R 的数据面上。测量只靠光驱的读取时间，不用拍照描点。从 1.0.0.0-alpha 起还有一个本地网页：测盘、设计、出图，到用手机拍照核对，都能在页面里一步步走完，见[网页](#网页)。
 
+大厅传真机会联网，从 [GitHub Raw](https://raw.githubusercontent.com/Ashley-QwQ/disc-probe/main/news/news.json) 或 [jsDelivr](https://cdn.jsdelivr.net/gh/Ashley-QwQ/disc-probe@main/news/news.json) 只下载报纸和附件、不上传；命令行也可用 `python -m discprobe news`，见[数据来源](docs/fax-news.md)。
+
 <p>
 <img src="docs/showcase/qingming_title.jpg" width="42%" alt="刻在 DVD-R 数据面上的《清明上河图》题字和局部">
 <img src="docs/showcase/qingming_full.jpg" width="55%" alt="整张盘上的《清明上河图》，排成内外两圈">

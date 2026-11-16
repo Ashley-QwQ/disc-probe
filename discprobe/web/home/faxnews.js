@@ -3,9 +3,9 @@ import { isActionEnter } from "./kit/shared.js";
 // downloads today's paper and prints it. The call hides the download: the handset lifts, the keys dial with
 // their tones, the line rings until the data is in, then the paper prints, is pulled out and drops into focus.
 //
-// Download only. One GET of the source address (the bundled sample unless the person set another), no query,
-// no cookies, no referrer, nothing sent about this machine; a skin "order" is one more GET of the parcel the
-// paper names. Nothing is uploaded and nothing is counted. The first visit shows a note that says so.
+// Download only. The page asks the local news API; Python tries the repository mirrors and falls back to
+// its cache or sample. The core sends plain GETs, with no cookies, referrer or machine details. A skin
+// "order" asks the same core for a parcel. Nothing is uploaded or counted. The first visit explains this.
 //
 // Every way out ends somewhere readable: no line (offline, refused, timed out) prints a receipt with redial
 // and yesterday's paper; a reply that is not a paper prints what was wrong with it. Reduced motion skips the
@@ -22,7 +22,7 @@ import * as sfx from "./faxsfx.mjs";
 import { DEFAULT_SOURCE, PaperError, readPaper, readSkin, layOut, pick, resolveRef, compareVersions } from "./faxnews-data.mjs";
 
 const KEY = { seen: "dp-fax-seen", source: "dp-fax-source", last: "dp-fax-last", parcels: "dp-fax-parcels" };
-const TIMEOUT_MS = 10000, MAX_BYTES = 512 * 1024, SHIP_MS = 3500;   // SHIP_MS: prototype only, so the delivery is seen
+const TIMEOUT_MS = 120000, MAX_BYTES = 2 * 1024 * 1024, SHIP_MS = 3500;   // core retries each mirror for at most 8 seconds
 const STR = {
   zh: {
     title: "新闻传真机", mast: "DP 日报", edition: "传真版", issue: (n) => `第 ${n} 期`, free: "免费",
@@ -35,10 +35,10 @@ const STR = {
            dead: "线路不通", bad: "收到的不是报纸", missing: (s) => `号码不存在 ${s}`, wait: "接收中……" },
     noticeTitle: "这台传真机", noticeWhat: "它是什么",
     noticeWhatText: "一台只收不发的传真机。点一下，它去你设定的地址取今天的“报纸”：DP 的新版本和更新日志、盘面背景预设、盘面作品、笑话和以后要做的功能。",
-    noticeDo: "它会做什么", noticeDoText: "每次拨号只做一次下载：从下面这个地址取一份 JSON。点报纸上的“订购”时，再下载那件皮肤包裹。",
+    noticeDo: "它会做什么", noticeDoText: "由 disc-probe 程序下载报纸，每个地址只发一个普通请求。没接通就试下一个，最后看上次的报纸或自带样张。点“订购”时，再下载那件皮肤包裹。",
     noticeNever: "它永远不做什么", noticeNeverText: "不上传任何东西，不带你的任何信息，不计数，不追踪，不在后台自己拨号。",
-    source: "数据源地址", sourceHelp: "默认是程序自带的示例报纸。可以换成你自己的地址（http/https 或相对路径）。",
-    reset: "用默认", dial: "拨号", sourceBad: "地址要是 http/https 或相对路径",
+    source: "数据源地址", sourceHelp: "默认取 GitHub 仓库里的报纸，也可以填自己的 HTTPS 地址。由 disc-probe 程序下载，只发一个普通请求，不上传任何东西。",
+    reset: "用默认", dial: "拨号", sourceBad: "地址要是 HTTPS，不能带查询参数或片段",
     slipTitle: "传真回执", deadTitle: "没接通", deadText: "线路不通：可能没联网，或者对方没开机。", badTitle: "收到的不是报纸",
     badText: "对方有回应，但传来的内容看不懂：", missingTitle: "号码不存在", missingText: (s) => `对方说没有这份报纸（${s}）。`,
     lastPaper: (d) => `看上次的报纸（${d}）`, old: "旧报", changeSource: "换数据源地址",
@@ -55,10 +55,10 @@ const STR = {
            dead: "NO LINE", bad: "NOT A PAPER", missing: (s) => `NO SUCH NUMBER ${s}`, wait: "RECEIVING…" },
     noticeTitle: "This fax", noticeWhat: "What it is",
     noticeWhatText: "A fax that only receives. Press it and it fetches today's \"paper\" from the address you set: new DP versions and the changelog, disc background presets, disc artworks, jokes and what is planned.",
-    noticeDo: "What it does", noticeDoText: "Each call is one download: one JSON file from the address below. Ordering a skin from the paper downloads that skin's parcel too.",
+    noticeDo: "What it does", noticeDoText: "The disc-probe program downloads the paper, with one plain request per address. If the line is dead, it tries the next address, then the last paper or the bundled sample. Ordering a skin downloads its parcel too.",
     noticeNever: "What it never does", noticeNeverText: "It uploads nothing, sends nothing about you, counts nothing, tracks nothing, and never dials by itself.",
-    source: "Source address", sourceHelp: "The default is the sample paper that comes with the program. Use your own address instead (http/https or a relative path).",
-    reset: "Default", dial: "Dial", sourceBad: "Use an http/https address or a relative path",
+    source: "Source address", sourceHelp: "The default paper lives in the GitHub repository. You can use your own HTTPS address. The disc-probe program downloads it with one plain request and uploads nothing.",
+    reset: "Default", dial: "Dial", sourceBad: "Use HTTPS without a query or fragment",
     slipTitle: "Fax receipt", deadTitle: "No line", deadText: "The line is dead: no network, or nobody answering.", badTitle: "That was not a paper",
     badText: "Somebody answered, but what came through cannot be read:", missingTitle: "No such number", missingText: (s) => `The other end has no such paper (${s}).`,
     lastPaper: (d) => `Read the last paper (${d})`, old: "Old paper", changeSource: "Change the source address",
@@ -86,17 +86,15 @@ export function sourceOf() { return store.get(KEY.source) || DEFAULT_SOURCE; }
 export function validSource(s) {
   if (typeof s !== "string" || !s.trim() || s.length > 400) return false;
   s = s.trim();
-  if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return /^https?:\/\/[^\s]+$/i.test(s);
-  return !s.startsWith("//") && !/\s/.test(s);
+  return s === DEFAULT_SOURCE || /^https:\/\/[^\s?#]+$/i.test(s);
 }
-const sourceURL = (s) => new URL(s, new URL(".", import.meta.url)).href;
+const sourceURL = (s) => s === DEFAULT_SOURCE ? DEFAULT_SOURCE : `${DEFAULT_SOURCE}?source=${encodeURIComponent(s)}`;
 // One GET with nothing of ours in it. Resolves {paper} or rejects with {kind: "dead" | "missing" | "bad", detail}.
 export async function download(source, { signal, fetcher = fetch } = {}) {
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
   signal?.addEventListener("abort", () => ctl.abort(), { once: true });
   let res, text;
   try {
-    if (navigator.onLine === false && !sameOrigin(source)) throw new TypeError("offline");
     res = await fetcher(sourceURL(source), { method: "GET", cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer", redirect: "follow", signal: ctl.signal });
     if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { kind: "missing", detail: `HTTP ${res.status}` });
     text = await res.text();
@@ -107,12 +105,11 @@ export async function download(source, { signal, fetcher = fetch } = {}) {
   if (text.length > MAX_BYTES) throw { kind: "bad", detail: `too large (${Math.round(text.length / 1024)} KB)` };
   let data;
   try { data = JSON.parse(text); } catch { throw { kind: "bad", detail: "not JSON" }; }
-  try { return { paper: readPaper(data), raw: data }; } catch (e) {
+  try { return { paper: readPaper(data?.paper), raw: data?.paper, from: data?.from, source: data?.source }; } catch (e) {
     if (e instanceof PaperError) throw { kind: "bad", detail: e.problems.slice(0, 4).join("; ") };
     throw e;
   }
 }
-const sameOrigin = (s) => { try { return new URL(sourceURL(s)).origin === location.origin; } catch { return false; } };
 function remember(source, raw) {
   try { store.set(KEY.last, JSON.stringify({ source, at: Date.now(), paper: raw })); } catch {}
 }
@@ -370,7 +367,7 @@ async function call() {
   if (!result.ok) return hangUp(run, result, source);
   setLCD("ok");
   sound(sfx.connect);
-  remember(source, result.raw);
+  remember(result.source, result.raw);
   // press start, put the handset back
   const start_ = F.keyEls.start;
   if (!run.skipped && start_) { await wait(700); start_.classList.add("down"); await wait(160); start_.classList.remove("down"); }
@@ -393,7 +390,7 @@ async function call() {
   F.feed.classList.add("gone");
   if (!alive()) return;
   setLCD("done", shortDate(result.paper.date));
-  showPaper(lay, source, false);
+  showPaper(lay, result.source, false, result.from);
   if (!run.skipped) {
     const p = F.paper.getBoundingClientRect(), mid = () => [p.left + p.width / 2, p.top + Math.min(p.height, innerHeight) * .4];
     F.paper.style.transformOrigin = `${mid()[0]}px ${mid()[1]}px`;
@@ -449,8 +446,8 @@ function showSlip(result, source) {
 
 // ---------------------------------------------------------------- the paper
 let current = null;
-function showPaper(lay, source, old) {
-  current = { lay, source, old };
+function showPaper(lay, source, old, from = "network") {
+  current = { lay, source, old, from };
   const t = T(), L = lang(), P = F.paper;
   P.replaceChildren(); P.className = "fx-paper";
   // masthead
@@ -463,6 +460,12 @@ function showPaper(lay, source, old) {
   mast.append(line);
   if (lay.sample || old) { const s = el("span", "fx-stamp", old ? t.old : t.sample); mast.append(s); }
   P.append(mast);
+  if (from === "cache" || from === "bundled") {
+    const note = lang() === "zh"
+      ? (from === "cache" ? `没连上，显示的是上次的报纸（${shortDate(lay.date)}）` : "没连上，先看看程序自带的样张。")
+      : (from === "cache" ? `No line; showing the last paper (${shortDate(lay.date)}).` : "No line; showing the sample that comes with the program.");
+    P.append(el("p", "fx-note", note));
+  }
   // the lead: a newer version, else the newest story
   if (lay.lead) {
     const lead = el("section", "fx-lead");
@@ -531,7 +534,7 @@ function showPaper(lay, source, old) {
   row.append(redial, about); foot.append(row);
   P.append(foot);
   P.hidden = false; P.scrollTop = 0;
-  if (A) A.shown = () => showPaper(lay, source, old);
+  if (A) A.shown = () => showPaper(lay, source, old, from);
   P.focus({ preventScroll: true });
 }
 function adFor(s, source) {

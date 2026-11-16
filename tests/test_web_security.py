@@ -44,7 +44,8 @@ def test_fax_allowlist_rejects_non_origins(monkeypatch, value):
 
 def test_only_explicit_fax_origins_are_allowed(monkeypatch):
     monkeypatch.setenv('DISCPROBE_FAX_ORIGINS', 'https://news.example https://skins.example:8443/')
-    assert "connect-src 'self' https://news.example https://skins.example:8443;" in content_security_policy(b'', fax=True)
+    assert fax_origins() == ['https://news.example', 'https://skins.example:8443']
+    assert "connect-src 'self';" in content_security_policy(b'', fax=True)
     assert "connect-src 'self';" in content_security_policy(b'')
 
 

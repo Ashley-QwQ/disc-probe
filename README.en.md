@@ -4,6 +4,8 @@ English | [简体中文](README.md)
 
 disc-probe uses an ordinary optical drive to measure the spiral geometry of a disc, then burns pictures onto the data side of DVD-R or CD-R. The measurement comes from the drive's read timing alone, with no photos to mark by hand. Since 1.0.0.0-alpha there is also a local web page that walks you through measuring, designing, making the image and checking the result with phone photos; see [Web page](#web-page).
 
+The lobby news fax goes online to [GitHub Raw](https://raw.githubusercontent.com/Ashley-QwQ/disc-probe/main/news/news.json) or [jsDelivr](https://cdn.jsdelivr.net/gh/Ashley-QwQ/disc-probe@main/news/news.json), downloading papers and assets only, with no uploads; the CLI also supports `python -m discprobe news`. See [news sources](docs/fax-news.md).
+
 <p>
 <img src="docs/showcase/qingming_title.jpg" width="42%" alt="Title and part of Along the River During the Qingming Festival on the data side of a DVD-R">
 <img src="docs/showcase/qingming_full.jpg" width="55%" alt="The whole disc, with the painting laid out in two rings">
