@@ -13,6 +13,11 @@ otherwise it falls back to size matching. Pixel equality is required in either c
 --paper-gate night-b uses the original diff's visible RGB mean <= .3, whole-image
 alpha mean <= .02, and visible pixels with any channel difference >8 <= .1 percent.
 It also defers writes until the entire selection passes, and never writes paper.
+--paper-gate night-b-recorded compares ONLY tumble_0..9 and desk_knob against the
+paper_check recorded in 3c3f66a (mean delta <= .05, alpha delta <= .01, >8 delta
+<= .1 percentage points). All other pictures still use the absolute night-b gate.
+Missing/malformed historical records fail closed. The reference is read from Git,
+never from the current mutable manifest.
 
 RENDERS holds one folder per render job (the names in tools/night_b_manifest.json "jobs"). Without --write it only
 checks. For every picture it also runs the PAPER render of the same job through the same crop and encoding and
@@ -30,6 +35,7 @@ from __future__ import annotations
 import io
 import ast
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -47,14 +53,23 @@ ONLY = set(sys.argv[sys.argv.index("--only") + 1].split(",")) if "--only" in sys
 JOBS = set(sys.argv[sys.argv.index("--jobs") + 1].split(",")) if "--jobs" in sys.argv else None
 STRICT_PAPER = "--require-paper-unchanged" in sys.argv
 PAPER_GATE = sys.argv[sys.argv.index("--paper-gate") + 1] if "--paper-gate" in sys.argv else None
-if PAPER_GATE not in (None, "night-b") or (PAPER_GATE and STRICT_PAPER):
-    raise SystemExit("Use --paper-gate night-b OR --require-paper-unchanged")
-GATED_PAPER = STRICT_PAPER or PAPER_GATE == "night-b"
+if PAPER_GATE not in (None, "night-b", "night-b-recorded") or (PAPER_GATE and STRICT_PAPER):
+    raise SystemExit("Use --paper-gate night-b|night-b-recorded OR --require-paper-unchanged")
+GATED_PAPER = STRICT_PAPER or PAPER_GATE is not None
 CHECK_REPORT = Path(sys.argv[sys.argv.index("--check-report") + 1]) if "--check-report" in sys.argv else None
 REPORT = []
 PENDING = []
-RECIPES = json.loads((ROOT / "tools/night_b_manifest.json").read_text(encoding="utf-8")).get("pictures", {}) \
-    if GATED_PAPER and (ROOT / "tools/night_b_manifest.json").exists() else {}
+RECORDED_REFERENCE = "3c3f66a:tools/night_b_manifest.json"
+RECORDED_ONLY = {"discprobe/web/home/pastworks/tumble_%d_dark.webp" % i for i in range(10)} | {
+    "discprobe/web/home/presetio/desk/desk_knob_dark.webp"}
+RECORDED_BLOB = None
+if PAPER_GATE == "night-b-recorded":
+    frozen = json.loads(subprocess.check_output(["git", "show", RECORDED_REFERENCE], cwd=ROOT).decode("utf-8"))
+    RECORDED_BLOB = subprocess.check_output(["git", "rev-parse", RECORDED_REFERENCE], cwd=ROOT).decode("ascii").strip()
+    RECIPES = frozen["pictures"]
+else:
+    RECIPES = json.loads((ROOT / "tools/night_b_manifest.json").read_text(encoding="utf-8")).get("pictures", {}) \
+        if GATED_PAPER and (ROOT / "tools/night_b_manifest.json").exists() else {}
 
 
 def kind(p: Path) -> str:
@@ -122,6 +137,24 @@ def night_b_matches(stats):
     return stats is not None and stats["rgb_mean"] <= 0.3 and stats["alpha_mean"] <= 0.02 and stats["over8_percent"] <= 0.1
 
 
+def recorded_paper_match(stats, path, records):
+    """Return an auditable decision; only the eleven explicitly authorized pictures use deltas."""
+    import re
+    if path not in RECORDED_ONLY:
+        return dict(paper_accepted=night_b_matches(stats), paper_gate_applied="night-b")
+    text = records.get(path, {}).get("paper_check", "")
+    match = re.fullmatch(r"mean ([0-9]+(?:\.[0-9]+)?), alpha mean ([0-9]+(?:\.[0-9]+)?), px >8: ([0-9]+(?:\.[0-9]+)?)%", text)
+    if match is None or stats is None or not all(math.isfinite(v) for v in stats.values()):
+        return dict(paper_accepted=False, paper_gate_applied="night-b-recorded", paper_recorded_error="missing/invalid baseline or statistics")
+    keys = ("rgb_mean", "alpha_mean", "over8_percent")
+    reference = dict(zip(keys, map(float, match.groups())))
+    delta = {k: abs(stats[k] - reference[k]) for k in keys}
+    limits = dict(zip(keys, (.05, .01, .1)))
+    return dict(paper_accepted=all(delta[k] <= limits[k] + 1e-12 for k in keys),
+                paper_gate_applied="night-b-recorded", paper_recorded_baseline=reference,
+                paper_recorded_text=text, paper_recorded_delta=delta)
+
+
 def diff(a: Image.Image, b: Image.Image):
     stats = paper_stats(a, b)
     if stats is None:
@@ -156,6 +189,9 @@ def put(dst: Path, dark: Image.Image, paper: Image.Image, also_png=False):
                        paper_stats=stats, paper_gate="exact" if STRICT_PAPER else PAPER_GATE,
                        paper_accepted=exact if STRICT_PAPER else night_b_matches(stats) if PAPER_GATE else None,
                        old_dark=diff(dark, Image.open(dst)) if dst.exists() else "new"))
+    if PAPER_GATE == "night-b-recorded":
+        REPORT[-1].update(recorded_paper_match(stats, dst.relative_to(ROOT).as_posix(), RECIPES),
+                          paper_gate_reference=RECORDED_REFERENCE, paper_gate_reference_blob=RECORDED_BLOB)
     print("%-48s %-14s paper: %s" % (dst.relative_to(HOME), enc or "png", check))
     if WRITE:
         if enc:

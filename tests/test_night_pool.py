@@ -2,6 +2,7 @@
 import ast
 import json
 import math
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -41,6 +42,15 @@ def test_line_pool_direction_and_silhouette(page, mode):
     assert ns['object_light'](obj('desk'), st)['gain'] == (2.4,)*3
     assert ns['object_light'](obj('hero'), st)['gain'] == (4.9,)*3
     assert ns['object_light'](obj('paper'), st)['gain'] == (.33,.29,.21)
+    assert ns['object_light'](obj('paper'), st)['pool_scale'] == 1.0
+    assert ns['object_light'](obj('desk'), st)['pool_scale'] == .557
+    sheet=type('Object',(),{'name':'paper','pass_index':3})()
+    ns['render_meshes']=[sheet]
+    col[...,3]=1
+    oid=np.zeros(mask.shape,dtype=np.int32);oid[:,:50]=3
+    mixed=ns['compose'](col,mask,st,oid=oid)
+    assert mixed[10,0,0]>out[10,0,0]  # paper lines follow the original wide pool
+    assert mixed[10,60,0]==pytest.approx(out[10,60,0])
 
 
 def test_strict_export_checks_whole_job_before_writing(tmp_path):
@@ -145,3 +155,45 @@ def test_night_b_export_blocks_failed_job_and_never_writes_paper(tmp_path):
     assert passed.returncode==0,passed.stdout+passed.stderr
     assert all(p.read_bytes()!=v for p,v in darks.items())
     assert all(p.read_bytes()==v for p,v in papers.items())
+
+
+@pytest.mark.parametrize('metric,limit',[('rgb_mean',.05),('alpha_mean',.01),('over8_percent',.1)])
+def test_recorded_gate_delta_boundaries_and_scope(metric,limit):
+    source=ROOT/'tools/night_b_export.py'
+    nodes=[n for n in ast.parse(source.read_text(encoding='utf-8')).body if isinstance(n,ast.FunctionDef)
+           and n.name in {'night_b_matches','recorded_paper_match'}]
+    path='discprobe/web/home/pastworks/tumble_0_dark.webp'
+    ns={'math':math,'RECORDED_ONLY':{path}}
+    exec(compile(ast.Module(body=nodes,type_ignores=[]),str(source),'exec'),ns)
+    baseline={'rgb_mean':1.4,'alpha_mean':.11,'over8_percent':3.859}
+    records={path:{'paper_check':'mean 1.40, alpha mean 0.11, px >8: 3.859%'}}
+    measured=dict(baseline);measured[metric]+=limit
+    assert ns['recorded_paper_match'](measured,path,records)['paper_accepted']
+    measured[metric]+=1e-6
+    assert not ns['recorded_paper_match'](measured,path,records)['paper_accepted']
+    assert not ns['recorded_paper_match'](baseline,path,{})['paper_accepted']
+    assert not ns['recorded_paper_match'](baseline,path,{path:{'paper_check':'unchanged'}})['paper_accepted']
+    assert not ns['recorded_paper_match'](baseline,'discprobe/web/home/newplan/top_dark.webp',records)['paper_accepted']
+
+
+def test_recorded_gate_reads_frozen_git_recipe_not_mutable_manifest(tmp_path):
+    tools=tmp_path/'tools';tools.mkdir()
+    export=tools/'night_b_export.py';export.write_bytes((ROOT/'tools/night_b_export.py').read_bytes())
+    home=tmp_path/'discprobe/web/home/newplan';home.mkdir(parents=True)
+    renders=tmp_path/'renders/F_np_top';renders.mkdir(parents=True)
+    paper=Image.fromarray(np.random.default_rng(9).integers(0,256,(24,24,3),dtype=np.uint8))
+    for name in ('paper','dark'):
+        paper.save(home/f'top_{name}.webp',quality=90,method=4,exact=True)
+        paper.save(renders/f'top_{name}.png')
+    (tools/'night_b_manifest.json').write_text(json.dumps({'pictures':{
+        'discprobe/web/home/newplan/top_dark.webp':{'encoding':'(1, 0)','paper_check':'mean 999, alpha mean 999, px >8: 999%'}}}),encoding='utf-8')
+    git_dir=subprocess.check_output(['git','rev-parse','--absolute-git-dir'],cwd=ROOT,text=True).strip()
+    report=tmp_path/'check.json'
+    run=subprocess.run([sys.executable,'-B',str(export),str(renders.parent),'--only','newplan','--jobs','F_np_top',
+                        '--paper-gate','night-b-recorded','--check-report',str(report)],env={**os.environ,'GIT_DIR':git_dir},capture_output=True,text=True)
+    assert run.returncode==0,run.stdout+run.stderr
+    row=json.loads(report.read_text(encoding='utf-8'))[0]
+    assert row['encoding']=='(90, 4)' and row['paper_accepted']
+    assert row['paper_gate_applied']=='night-b'
+    assert row['paper_gate_reference']=='3c3f66a:tools/night_b_manifest.json'
+    assert len(row['paper_gate_reference_blob'])==40

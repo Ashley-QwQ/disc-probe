@@ -594,7 +594,9 @@ def object_light(o, st):
     """The fax and its handset catch the hero light; the desk keeps its own light."""
     role = ROLE[o.name]
     if role == "sheet" and "sheet_light" in st:
-        return dict(st, **st["sheet_light"])
+        light = dict(st, **st["sheet_light"])
+        light["pool_scale"] = 1.0
+        return light
     if MODE in ("top", "fax") and role != "desk" and "hero_light" in st:
         return dict(st, **st["hero_light"])
     return st
@@ -773,7 +775,7 @@ def save_png(rgba_ss, dst):
     print("[newplan] wrote", dst)
 
 
-def compose(col, mask, st, shadow=None, opaque=False):
+def compose(col, mask, st, shadow=None, opaque=False, oid=None):
     a = col[..., 3:4]
     straight = np.where(a > 1e-6, col[..., :3] / np.maximum(a, 1e-6), 0.0)
     pm = lin_to_srgb(straight) * a
@@ -790,6 +792,11 @@ def compose(col, mask, st, shadow=None, opaque=False):
         xs = (np.arange(ww, dtype=np.float32) + 0.5) / SS - pc[0]
         ys = (np.arange(hh, dtype=np.float32) + 0.5) / SS - pc[1]
         fpx = np.exp(-(ys[:, None]**2 + xs[None, :]**2) / (2.0 * sigma**2)).astype(np.float32)
+        sheet_ids = [o.pass_index for o in render_meshes if ROLE[o.name] == "sheet"] if oid is not None else []
+        if sheet_ids:
+            sheet_sigma = POOL["sigma"] * PPM
+            sheet_pool = np.exp(-(ys[:, None]**2 + xs[None, :]**2) / (2.0 * sheet_sigma**2)).astype(np.float32)
+            fpx = np.where(np.isin(oid, sheet_ids), sheet_pool, fpx)
         la = np.float32(st["line_alpha_far"]) + (la - np.float32(st["line_alpha_far"])) * fpx
         empty = col[..., 3] < 0.5
         near = empty.copy()
@@ -926,7 +933,7 @@ if MODE == "fax":
         apply_variant(v)
         for o in render_meshes:o.hide_render=o.name not in body_names
         col=render_exr('color_body_'+v,SAMPLES,1.5)
-        save_png(compose(col,mask,STYLE[v],shadow=body_shadow,opaque=True),os.path.join(OUTDIR,'top_'+v+'.png'))
+        save_png(compose(col,mask,STYLE[v],shadow=body_shadow,opaque=True,oid=oid),os.path.join(OUTDIR,'top_'+v+'.png'))
         del col
     # Keep compact data for independent local verification.
     np.savez_compressed(os.path.join(OUTDIR,'body_data.npz'),oid=oid[::SS,::SS],line=mask[::SS,::SS])
@@ -957,7 +964,7 @@ if MODE == "fax":
             o.hide_render=False
             o.is_holdout=o.name not in HANDSET
         col=render_exr('color_handset_'+v,SAMPLES,1.5)
-        save_png(compose(col,mask,st),os.path.join(OUTDIR,'handset_'+v+'.png'))
+        save_png(compose(col,mask,st,oid=oid),os.path.join(OUTDIR,'handset_'+v+'.png'))
         del col
     for o in render_meshes:o.is_holdout=False
     np.savez_compressed(os.path.join(OUTDIR,'handset_data.npz'),oid=isolated_hand_oid,line=mask[::SS,::SS])
@@ -1010,7 +1017,7 @@ for lname, names in layers.items():
         for o in render_meshes:
             o.hide_render = o.name not in names
         col = render_exr("color_%s_%s" % (lname, v), SAMPLES, 1.5)
-        out = compose(col, mask, STYLE[v], shadow=shadow, opaque=(MODE in ("top", "fax")))
+        out = compose(col, mask, STYLE[v], shadow=shadow, opaque=(MODE in ("top", "fax")), oid=oid)
         dst = ("tumble_%s_%%s.png" % arg("--tag", "0") if lname == "tumble" else
                {"top": "top_%s.png", "paper": "paper_%s.png", "fax": "top_%s.png"}.get(MODE, "envelope_%s_%%s.png" % lname)) % v
         save_png(out, os.path.join(OUTDIR, dst))

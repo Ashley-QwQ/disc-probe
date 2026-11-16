@@ -777,7 +777,9 @@ def object_light(o, st):
     """Keep the desk/props neutral; only the top-view drive gets the hero light."""
     role = ROLE[o.name]
     if role == "sheet" and "sheet_light" in st:
-        return dict(st, **st["sheet_light"])
+        light = dict(st, **st["sheet_light"])
+        light["pool_scale"] = 1.0  # accepted lamp-lit paper keeps the original pool width
+        return light
     if MODE == "top" and role != "desk" and "hero_light" in st:
         return dict(st, **st["hero_light"])
     return st
@@ -952,7 +954,7 @@ def save_png(rgba_ss, dst):
     print("[newplan] wrote", dst)
 
 
-def compose(col, mask, st, shadow=None, opaque=False):
+def compose(col, mask, st, shadow=None, opaque=False, oid=None):
     a = col[..., 3:4]
     straight = np.where(a > 1e-6, col[..., :3] / np.maximum(a, 1e-6), 0.0)
     pm = lin_to_srgb(straight) * a
@@ -972,6 +974,11 @@ def compose(col, mask, st, shadow=None, opaque=False):
         if MODE == "desk":
             ys /= math.cos(TILT)
         fpx = np.exp(-(ys[:, None]**2 + xs[None, :]**2) / (2.0 * sigma**2)).astype(np.float32)
+        sheet_ids = [o.pass_index for o in render_meshes if ROLE[o.name] == "sheet"] if oid is not None else []
+        if sheet_ids:
+            sheet_sigma = POOL["sigma"] * PPM
+            sheet_pool = np.exp(-(ys[:, None]**2 + xs[None, :]**2) / (2.0 * sheet_sigma**2)).astype(np.float32)
+            fpx = np.where(np.isin(oid, sheet_ids), sheet_pool, fpx)
         la = np.float32(st["line_alpha_far"]) + (la - np.float32(st["line_alpha_far"])) * fpx
         empty = col[..., 3] < 0.5
         near = empty.copy()
@@ -1048,7 +1055,7 @@ if MODE == "desk":
             for o in render_meshes:
                 o.hide_render = o.name not in names
             col = render_exr("color_%s_%s" % (lname, v), SAMPLES, 1.5)
-            out = compose(col, mask, STYLE[v], shadow=base_shadow if lname == "base" else None, opaque=(lname == "base"))
+            out = compose(col, mask, STYLE[v], shadow=base_shadow if lname == "base" else None, opaque=(lname == "base"), oid=oid)
             save_png(out, os.path.join(OUTDIR, "desk_%s_%s.png" % (lname, v)))
             del col, out
         del mask, oid, alpha
@@ -1089,7 +1096,7 @@ for lname, names in layers.items():
         for o in render_meshes:
             o.hide_render = o.name not in names
         col = render_exr("color_%s_%s" % (lname, v), SAMPLES, 1.5)
-        out = compose(col, mask, STYLE[v], shadow=shadow, opaque=(MODE == "top"))
+        out = compose(col, mask, STYLE[v], shadow=shadow, opaque=(MODE == "top"), oid=oid)
         dst = ("tumble_%s_%%s.png" % arg("--tag", "0") if lname == "tumble" else
                {"top": "top_%s.png", "paper": "paper_%s.png", "tray": "tray_%s.png"}.get(MODE, "envelope_%s_%%s.png" % lname)) % v
         save_png(out, os.path.join(OUTDIR, dst))
@@ -1100,6 +1107,8 @@ for lname, names in layers.items():
 META.update({"image_size": [W, H], "px_per_mm": round(PPM / 1000.0, 4), "pixel_origin": "top-left, y down"})
 META["pool_sigma_px_by_theme"] = {v: round(POOL["sigma"] * PPM * STYLE[v].get("pool_scale", 1.0), 3)
                                     for v in VARIANTS}
+if any(ROLE[o.name] == "sheet" for o in render_meshes):
+    META["sheet_pool_sigma_px_by_theme"] = {v: round(POOL["sigma"] * PPM, 3) for v in VARIANTS}
 if MODE == "top":
     META["disc"] = {"centre_px": to_px(DCX, DCY), "radius_px": round(0.060 * PPM, 2),
                     "label_radius_px": round(0.0585 * PPM, 2), "label_inner_radius_px": round(0.023 * PPM, 2),
