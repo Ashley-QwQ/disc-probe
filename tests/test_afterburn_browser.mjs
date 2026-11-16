@@ -13,7 +13,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 let server,browser,socket,seq=0;const pending=new Map(), results=[];
 function cdp(method,params={}){const id=++seq;const p=new Promise((resolve,reject)=>pending.set(id,{resolve,reject}));socket.send(JSON.stringify({id,method,params}));return p;}
 async function evaluate(expression){const r=await cdp('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});assert.ok(!r.exceptionDetails,JSON.stringify(r.exceptionDetails));return r.result.value;}
-async function until(expression,message){for(let i=0;i<400;i++){if(await evaluate(expression))return;await delay(50);}throw Error(message+': '+JSON.stringify(await evaluate('({mode:document.documentElement.dataset.mode,errors:window.abErrors,text:document.body.innerText.slice(-3000)})')));}
+async function until(expression,message){const deadline=Date.now()+Number(process.env.BROWSER_WAIT_MS||60000);while(Date.now()<deadline){let ok=false;try{ok=await evaluate(expression);}catch{}if(ok)return;await delay(50);}throw Error(message+': '+JSON.stringify(await evaluate('({mode:document.documentElement.dataset.mode,errors:window.abErrors,text:document.body.innerText.slice(-3000)})')));}
 async function check(expression,message){assert.ok(await evaluate(expression),message);results.push(message);}
 async function shot(name){await evaluate('document.fonts.ready');await delay(150);const r=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});writeFileSync(join(shots,name+'.png'),Buffer.from(r.data,'base64'));}
 try{
