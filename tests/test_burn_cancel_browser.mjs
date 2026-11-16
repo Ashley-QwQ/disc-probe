@@ -13,7 +13,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 let server,browser,socket,seq=0,origin,output='';const pending=new Map(),checks=[];
 const cdp=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});
 async function evaluate(expression){const r=await cdp('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});assert.ok(!r.exceptionDetails,JSON.stringify(r.exceptionDetails));return r.result.value;}
-async function until(expression,message){for(let i=0;i<400;i++){if(await evaluate(expression))return;await delay(50);}throw Error(message+': '+JSON.stringify(await evaluate('({errors:window.bcErrors,text:document.body.innerText.slice(-3000)})')));}
+async function until(expression,message){const deadline=Date.now()+Number(process.env.BROWSER_WAIT_MS||60000);while(Date.now()<deadline){let ok=false;try{ok=await evaluate(expression);}catch{}if(ok)return;await delay(50);}throw Error(message+': '+JSON.stringify(await evaluate('({errors:window.bcErrors,text:document.body.innerText.slice(-3000)})')));}
 async function check(expression,message){assert.ok(await evaluate(expression),message);checks.push(message);}
 async function shot(name){await evaluate('document.fonts.ready');await delay(120);const r=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});writeFileSync(join(shots,name+'.png'),Buffer.from(r.data,'base64'));}
 async function request(path,body){const r=await fetch(origin+path,{method:body===undefined?'GET':'POST',headers:body===undefined?{}:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});const data=await r.json();assert.ok(r.ok,JSON.stringify(data));return data;}

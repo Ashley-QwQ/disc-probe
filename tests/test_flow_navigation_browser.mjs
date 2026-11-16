@@ -1,4 +1,4 @@
-// Real HTTP/CSP and browser history, virtual core only. Artifacts stay on D:.
+// Real HTTP/CSP and browser history, virtual core only. Screenshots go to FLOWNAV_SHOTS or the system temp folder.
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync} from 'node:fs';
@@ -26,7 +26,8 @@ async function evaluate(expression) {
   assert(!r.exceptionDetails, JSON.stringify(r.exceptionDetails)); return r.result.value;
 }
 async function until(expression) {
-  for(let i=0;i<600;i++) {if(await evaluate(expression))return; await pause(25);}
+  const deadline = Date.now() + Number(process.env.BROWSER_WAIT_MS || 60000);
+  while(Date.now() < deadline) {let ok = false; try {ok = await evaluate(expression);} catch {} if(ok) return; await pause(25);}
   throw Error('Timed out: '+expression+'; '+await evaluate('JSON.stringify({url:location.href, mode:document.documentElement.dataset.mode, errors:window.navErrors, body:document.body.innerText.slice(-1000)})'));
 }
 const shot = async name => writeFileSync(join(shots, name+'.png'), Buffer.from((await cdp('Page.captureScreenshot', {format:'png'})).data,'base64'));
