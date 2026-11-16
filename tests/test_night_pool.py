@@ -77,3 +77,22 @@ def test_strict_export_checks_whole_job_before_writing(tmp_path):
     passed = subprocess.run(cmd, capture_output=True, text=True)
     assert passed.returncode == 0, passed.stdout + passed.stderr
     assert all(p.read_bytes() != data for p,data in originals.items())
+
+
+def test_strict_export_reproduces_recorded_lossy_recipe(tmp_path):
+    tools=tmp_path/'tools';tools.mkdir()
+    export=tools/'night_b_export.py';export.write_bytes((ROOT/'tools/night_b_export.py').read_bytes())
+    home=tmp_path/'discprobe/web/home/newplan';home.mkdir(parents=True)
+    renders=tmp_path/'renders/F_np_top';renders.mkdir(parents=True)
+    pixels=np.random.default_rng(4).integers(0,256,(24,24,3),dtype=np.uint8)
+    paper=Image.fromarray(pixels)
+    paper.save(home/'top_paper.webp',quality=83,method=3,exact=True)
+    paper.save(renders/'top_paper.png')
+    paper.save(home/'top_dark.webp',quality=83,method=3,exact=True)
+    paper.save(renders/'top_dark.png')
+    (tools/'night_b_manifest.json').write_text(json.dumps({'pictures':{
+        'discprobe/web/home/newplan/top_dark.webp':{'encoding':'(83, 3)'}}}),encoding='utf-8')
+    run=subprocess.run([sys.executable,'-B',str(export),str(renders.parent),'--only','newplan',
+                        '--jobs','F_np_top','--require-paper-unchanged'],capture_output=True,text=True)
+    assert run.returncode==0,run.stdout+run.stderr
+    assert 'paper: unchanged' in run.stdout

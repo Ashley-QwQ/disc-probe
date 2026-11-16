@@ -6,6 +6,8 @@
 --jobs selects individual jobs in the newplan/presetio/pastworks/faxnews groups. With
 --require-paper-unchanged, compare every decoded RGBA pixel (including transparent ones),
 and defer all picture writes until the entire selection passes. A mismatch exits 2.
+Strict mode uses the committed manifest's encoding recipe when one is recorded;
+otherwise it falls back to size matching. Pixel equality is required in either case.
 --check-report PATH saves the check rows even when the strict gate fails.
 
 RENDERS holds one folder per render job (the names in tools/night_b_manifest.json "jobs"). Without --write it only
@@ -22,6 +24,7 @@ outputs are checked to be unchanged).
 from __future__ import annotations
 
 import io
+import ast
 import json
 import os
 import shutil
@@ -42,6 +45,8 @@ STRICT_PAPER = "--require-paper-unchanged" in sys.argv
 CHECK_REPORT = Path(sys.argv[sys.argv.index("--check-report") + 1]) if "--check-report" in sys.argv else None
 REPORT = []
 PENDING = []
+RECIPES = json.loads((ROOT / "tools/night_b_manifest.json").read_text(encoding="utf-8")).get("pictures", {}) \
+    if STRICT_PAPER and (ROOT / "tools/night_b_manifest.json").exists() else {}
 
 
 def kind(p: Path) -> str:
@@ -70,6 +75,14 @@ _LOSSY = {}
 def match_lossy(paper: Image.Image, committed: Path):
     """quality / method of a committed lossy picture: the paper re-encode closest in size (once per family of names)"""
     import re
+    recipe = RECIPES.get(committed.relative_to(ROOT).as_posix().replace("_paper.", "_dark."), {}).get("encoding")
+    if recipe and recipe.startswith("("):
+        how = ast.literal_eval(recipe)
+        if not (isinstance(how, tuple) and len(how) == 2 and all(type(n) is int for n in how)
+                and 0 <= how[0] <= 100 and 0 <= how[1] <= 6):
+            raise ValueError("Invalid recorded encoding: %r" % (recipe,))
+        print("  recorded encoding %s: quality %d method %d" % (committed.name, *how))
+        return how
     key = (committed.parent, re.sub(r"\d+", "#", committed.name))
     if key in _LOSSY:
         return _LOSSY[key]
