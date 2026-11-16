@@ -1,10 +1,11 @@
 // Real Disc Lab burn and HTTP persistence; a small ISO keeps the run bounded. No physical devices.
 import assert from 'node:assert/strict';
+import {tmpdir} from 'node:os';
 import {existsSync,readFileSync,writeFileSync,mkdirSync,mkdtempSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {spawn,spawnSync} from 'node:child_process';
 
-const base=process.env.AFTERBURN_TEST_ROOT ?? 'D:/dp-dev/tmp/afterburn';mkdirSync(base,{recursive:true});
+const base=process.env.AFTERBURN_TEST_ROOT ?? join(tmpdir(),'discprobe-afterburn');mkdirSync(base,{recursive:true});
 const dir=mkdtempSync(join(base,'browser-')), shots=join(base,'shots');mkdirSync(shots,{recursive:true});
 const edge=process.env.PASTWORKS_TEST_BROWSER ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 assert.ok(existsSync(edge));
@@ -12,7 +13,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 let server,browser,socket,seq=0;const pending=new Map(), results=[];
 function cdp(method,params={}){const id=++seq;const p=new Promise((resolve,reject)=>pending.set(id,{resolve,reject}));socket.send(JSON.stringify({id,method,params}));return p;}
 async function evaluate(expression){const r=await cdp('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});assert.ok(!r.exceptionDetails,JSON.stringify(r.exceptionDetails));return r.result.value;}
-async function until(expression,message){for(let i=0;i<400;i++){if(await evaluate(expression))return;await delay(50);}throw Error(message+': '+JSON.stringify(await evaluate('({mode:document.documentElement.dataset.mode,errors:window.abErrors,text:document.body.innerText.slice(-3000)})')));}
+async function until(expression,message){const deadline=Date.now()+Number(process.env.BROWSER_WAIT_MS||60000);while(Date.now()<deadline){let ok=false;try{ok=await evaluate(expression);}catch{}if(ok)return;await delay(50);}throw Error(message+': '+JSON.stringify(await evaluate('({mode:document.documentElement.dataset.mode,errors:window.abErrors,text:document.body.innerText.slice(-3000)})')));}
 async function check(expression,message){assert.ok(await evaluate(expression),message);results.push(message);}
 async function shot(name){await evaluate('document.fonts.ready');await delay(150);const r=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});writeFileSync(join(shots,name+'.png'),Buffer.from(r.data,'base64'));}
 try{

@@ -1,6 +1,7 @@
 // Offline Edge evidence for A2. All artifacts/profiles stay outside the checkout.
 // No application backend or optical device is used by this fixture.
 import assert from 'node:assert/strict';
+import {tmpdir} from 'node:os';
 import {createServer} from 'node:http';
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
@@ -9,7 +10,7 @@ import {rm} from 'node:fs/promises';
 import {join, resolve, sep} from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
-const out = process.env.BRAND_MIXED_OUTPUT || 'D:/dp-dev/tmp/brand/mixed';
+const out = process.env.BRAND_MIXED_OUTPUT || join(tmpdir(), 'discprobe-brand-mixed');
 mkdirSync(out, {recursive:true});
 const profile = mkdtempSync(join(out, 'edge-'));
 const edge = process.env.EDGE || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';

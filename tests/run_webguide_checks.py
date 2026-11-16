@@ -1,12 +1,13 @@
-"""Card E's bounded Node suite. Logs and browser profiles live on D:."""
+"""Card E's bounded Node suite. Logs and browser profiles go to WEBGUIDE_OUT, or the system temp folder."""
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = Path('D:/dp-dev/tmp/webguide')
+OUT = Path(os.environ.get('WEBGUIDE_OUT') or Path(tempfile.gettempdir()) / 'discprobe-webguide')
 OUT.mkdir(parents=True, exist_ok=True)
 env = dict(os.environ, TEMP=str(OUT), TMP=str(OUT),
            NODE_OPTIONS='--require=./tests/csp-fixtures.cjs')
