@@ -383,5 +383,9 @@
   "camera": "orthographic, straight down; screen up +Y",
   "samples": 16,
   "supersampling": 2
+ },
+ "pool_sigma_px_by_theme": {
+  "paper": 829.2,
+  "dark": 461.864
  }
 }
