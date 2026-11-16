@@ -821,6 +821,8 @@ cyc.use_denoising = False
 cyc.max_bounces = cyc.diffuse_bounces = cyc.glossy_bounces = cyc.transmission_bounces = 0
 cyc.transparent_max_bounces = 4
 try:
+    if DEVICE == "CPU":
+        raise LookupError("CPU requested")
     prefs = bpy.context.preferences.addons["cycles"].preferences
     prefs.compute_device_type = DEVICE
     prefs.get_devices()
@@ -828,8 +830,10 @@ try:
         d.use = d.type == DEVICE
     cyc.device = "GPU"
 except Exception as e:  # noqa: BLE001
-    print("[newplan] GPU setup failed, CPU:", e)
+    if DEVICE != "CPU":
+        print("[newplan] GPU setup failed, CPU:", e)
     cyc.device = "CPU"
+print("[newplan] render device:", cyc.device, "requested:", DEVICE, "threads:", r.threads)
 if scene.world is None:
     scene.world = bpy.data.worlds.new("w")
 scene.world.use_nodes = True
@@ -1030,6 +1034,8 @@ if MODE == "desk":
     tray_ids = {o.pass_index for o in render_meshes if o.name.startswith("fax_")}
     occ = al_all & (oid_all != desk_id)
     is_tray = np.isin(oid_all, list(tray_ids))
+    if "--audit-data" in argv:
+        np.savez_compressed(os.path.join(OUTDIR, "desk_data.npz"), oid=oid_all[::SS, ::SS], desk_id=desk_id)
     base_shadow = np.maximum(shadow_of(occ & is_tray, 1.0), shadow_of(occ & ~is_tray, 0.42)) * (oid_all == desk_id)
     del oid_all, al_all, occ, is_tray
     for lname in ("base", "bag", "upper", "sheets", "knob", "doc_paper", "doc_envelope"):
@@ -1064,6 +1070,10 @@ for lname, names in layers.items():
         save_png(np.concatenate([np.ones(dm.shape + (3,), np.float32) * dm[..., None], dm[..., None]], axis=2),
                  os.path.join(OUTDIR, "desk_mask.png"))
         occ = (alpha & (oid != desk_id)).astype(np.float32)
+        if "--audit-data" in argv:
+            np.savez_compressed(os.path.join(OUTDIR, "top_data.npz"), oid=oid[::SS, ::SS], line=mask[::SS, ::SS])
+            with open(os.path.join(OUTDIR, "object_roles.json"), "w", encoding="utf-8") as fh:
+                json.dump({o.pass_index: dict(name=o.name, role=ROLE[o.name]) for o in render_meshes}, fh)
         sh_ = box_blur(shift(occ, SHADOW["dx_m"] * PPM * SS, -SHADOW["dy_m"] * PPM * SS), SHADOW["blur_m"] * PPM * SS / 2)
         shadow = sh_ * (oid == desk_id)
     if MODE in ("paper", "tray"):               # its own layer: a soft drop shadow

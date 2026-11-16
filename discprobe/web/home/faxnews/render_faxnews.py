@@ -649,10 +649,12 @@ try:
         raise RuntimeError("Requested GPU device unavailable")
     cyc.device = "GPU"
 except Exception as e:  # noqa: BLE001
-    print("[newplan] GPU setup failed, CPU:", e)
+    if DEVICE != "CPU":
+        print("[newplan] GPU setup failed, CPU:", e)
     if MODE == "fax" and DEVICE != "CPU":
         raise
     cyc.device = "CPU"
+print("[faxnews] render device:", cyc.device, "requested:", DEVICE, "threads:", r.threads)
 if scene.world is None:
     scene.world = bpy.data.worlds.new("w")
 scene.world.use_nodes = True
@@ -970,6 +972,7 @@ if MODE == "fax":
                 'occlusion_treatment':'Cycles holdout of body/desk; full-scene line ownership clipped to handset IDs',
                 'body_bounds':bbox(body),'handset_bounds':hand_rect,
                 'body_object_ids':{o.name:o.pass_index for o in render_meshes},
+                'body_object_roles':{o.name:ROLE[o.name] for o in render_meshes},
                 'seconds':time.time()-T0,'device':DEVICE,'samples':SAMPLES,'supersampling':SS}
     with open(os.path.join(OUTDIR,'scene_validation.json'),'w') as f:json.dump(validation,f,indent=2)
     print('[faxnews] finished in %.1fs'%(time.time()-T0))

@@ -96,3 +96,52 @@ def test_strict_export_reproduces_recorded_lossy_recipe(tmp_path):
                         '--jobs','F_np_top','--require-paper-unchanged'],capture_output=True,text=True)
     assert run.returncode==0,run.stdout+run.stderr
     assert 'paper: unchanged' in run.stdout
+
+
+@pytest.mark.parametrize('metric', ['rgb', 'alpha', 'over8'])
+def test_night_b_gate_uses_unrounded_inclusive_limits(metric):
+    source=ROOT/'tools/night_b_export.py'
+    nodes=[n for n in ast.parse(source.read_text(encoding='utf-8')).body
+           if isinstance(n,ast.FunctionDef) and n.name in {'paper_stats','night_b_matches'}]
+    ns={'Image':Image,'np':np}
+    exec(compile(ast.Module(body=nodes,type_ignores=[]),str(source),'exec'),ns)
+    base=np.full((1000,1,4),100,dtype=np.uint8);base[...,3]=235
+    actual=base.copy()
+    if metric=='rgb':actual[:300,0,:3]+=1
+    elif metric=='alpha':actual[0,0,3]=255
+    else:actual[0,0,0]+=9
+    stats=ns['paper_stats'](Image.fromarray(actual),Image.fromarray(base))
+    assert ns['night_b_matches'](stats)
+    if metric=='rgb':actual[300,0,0]+=1
+    elif metric=='alpha':actual[1,0,3]+=1
+    else:actual[1,0,0]+=9
+    stats=ns['paper_stats'](Image.fromarray(actual),Image.fromarray(base))
+    assert not ns['night_b_matches'](stats)
+
+
+def test_night_b_export_blocks_failed_job_and_never_writes_paper(tmp_path):
+    tools=tmp_path/'tools';tools.mkdir()
+    export=tools/'night_b_export.py';export.write_bytes((ROOT/'tools/night_b_export.py').read_bytes())
+    home=tmp_path/'discprobe/web/home/newplan';home.mkdir(parents=True)
+    renders=tmp_path/'renders/F_np_paper';renders.mkdir(parents=True)
+    papers={};darks={}
+    for n in ('paper','paper_shadow'):
+        p=home/f'{n}_paper.webp';d=home/f'{n}_dark.webp'
+        Image.new('RGBA',(1000,1),(100,100,100,255)).save(p,lossless=True)
+        Image.new('RGBA',(1000,1),(10,20,30,255)).save(d,lossless=True)
+        papers[p]=p.read_bytes();darks[d]=d.read_bytes()
+        Image.new('RGBA',(1000,1),(100,100,100,255)).save(renders/f'{n}_paper.png')
+        Image.new('RGBA',(1000,1),(30,40,50,255)).save(renders/f'{n}_dark.png')
+    paper=Image.open(renders/'paper_shadow_paper.png')
+    paper.putpixel((0,0),(109,100,100,255));paper.putpixel((1,0),(109,100,100,255))
+    paper.save(renders/'paper_shadow_paper.png')
+    cmd=[sys.executable,'-B',str(export),str(renders.parent),'--only','newplan','--jobs','F_np_paper','--paper-gate','night-b','--write']
+    failed=subprocess.run(cmd,capture_output=True,text=True)
+    assert failed.returncode==2,failed.stdout+failed.stderr
+    assert all(p.read_bytes()==v for p,v in darks.items())
+    # One of 1000 visible pixels may differ by >8: exactly .1 percent is accepted.
+    paper.putpixel((1,0),(100,100,100,255));paper.save(renders/'paper_shadow_paper.png')
+    passed=subprocess.run(cmd,capture_output=True,text=True)
+    assert passed.returncode==0,passed.stdout+passed.stderr
+    assert all(p.read_bytes()!=v for p,v in darks.items())
+    assert all(p.read_bytes()==v for p,v in papers.items())
