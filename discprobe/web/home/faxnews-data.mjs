@@ -1,11 +1,10 @@
-// The news fax's data: read, check and lay out one day's paper. No DOM, no network: faxnews.js fetches,
+// The news fax's data: read, check and lay out one day's paper. No DOM, no network: faxnews.js asks the core,
 // this file decides what the bytes mean. Format: docs/fax-news.md ("dp-fax-news", version 1).
 //
-// Download only. Nothing here builds a URL from anything about this machine; the request the page makes is
-// a plain GET of the address the person set (or the bundled sample), with no query, cookies or referrer.
+// Download only. Paper and asset requests stay on the local API; the Python core checks and downloads sources.
 
 export const FORMAT = "dp-fax-news", FORMAT_VERSION = 1, SKIN_FORMAT = "dp-skin";
-export const DEFAULT_SOURCE = "./faxnews/news.json";
+export const DEFAULT_SOURCE = "/api/news";
 const MAX_ITEMS = 40, MAX_TEXT = 600;
 
 // A text is a plain string or {zh, en}; either language may be missing (the other stands in).
@@ -149,7 +148,10 @@ export function layOut(paper, { local = "", day = "" } = {}) {
     coming: paper.coming.slice(0, 3),
   };
 }
-// A relative reference in the paper is relative to the paper's own address.
+// References go through the core, which confines assets to the paper's directory prefix.
 export function resolveRef(ref, source, base) {
-  try { return new URL(ref, new URL(source, base)).href; } catch { return ""; }
+  if (!safeRef(ref)) return "";
+  const query = new URLSearchParams({ path: ref });
+  if (source && source !== DEFAULT_SOURCE) query.set("source", source);
+  return "/api/news/asset?" + query;
 }

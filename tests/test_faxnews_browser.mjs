@@ -15,7 +15,7 @@ const home = new URL('../discprobe/web/home/', import.meta.url);
 const index = readFileSync(new URL('index.html', home), 'utf8');
 const style = index.match(/<style>([\s\S]*?)<\/style>/)[1];
 const sample = readFileSync(new URL('faxnews/news.json', home), 'utf8');
-const screenshotDir = resolve('.impeccable/review'); mkdirSync(screenshotDir, {recursive: true});
+const screenshotDir = resolve(process.env.FAX_SHOTS_DIR || join(tmpdir(), 'faxnews-shots')); mkdirSync(screenshotDir, {recursive: true});
 const fixture = join(dir, 'fax.html');
 const html = `<!doctype html><html data-theme="paper"><meta charset="utf-8"><base href="${home.href}">
 <style>${style}</style>
@@ -37,14 +37,15 @@ const calls=[]; let answer='ok'; const SAMPLE=${JSON.stringify(sample)};
 const nativeFetch=window.fetch.bind(window);
 window.fetch=async(url,opts={})=>{
   const u=new URL(String(url),document.baseURI);
-  if(u.pathname.endsWith('/faxnews/fax.json')||u.pathname.includes('/faxnews/skins/'))
+  if(u.pathname.endsWith('/api/news/asset')) { calls.push({url:u.href,opts}); return nativeFetch(new URL('faxnews/'+u.searchParams.get('path'),document.baseURI),opts); }
+  if(u.pathname.endsWith('/faxnews/fax.json'))
     {if(u.pathname.includes('/skins/'))calls.push({url:u.href,opts});return nativeFetch(url,opts);}
   calls.push({url:u.href,opts});
   if(answer==='offline')throw new TypeError('Failed to fetch');
   if(answer==='404')return new Response('no',{status:404});
-  if(answer==='bad')return new Response(JSON.stringify({format:'rss',version:1}),{status:200});
+  if(answer==='bad')return new Response(JSON.stringify({paper:{format:'rss',version:1}}),{status:200});
   if(answer==='notjson')return new Response('<html>',{status:200});
-  return new Response(SAMPLE,{status:200});
+  return new Response(JSON.stringify({paper:JSON.parse(SAMPLE),from:answer==='cache'?'cache':answer==='bundled'?'bundled':'network',source:'https://news.example/news/news.json'}),{status:200});
 };
 window.AudioContext=class{constructor(){throw Error('no audio in the test')}};
 try{
@@ -59,10 +60,10 @@ try{
   check(qa('.fx-notice h3').length===3,'three parts');
   check(/永远不做/.test(notice.textContent)&&/不上传/.test(notice.textContent),'says it never uploads');
   check(calls.length===0,'nothing fetched before the note is answered');
-  const input=q('.fx-src input'); check(input.value==='./faxnews/news.json','default source');
+  const input=q('.fx-src input'); check(input.value==='/api/news','default source');
   input.value='javascript:alert(1)'; q('.fx-notice .fx-btn.primary').click();
   check(!q('.fx-src-err').hidden&&!notice.hidden,'a bad address is refused');
-  input.value='./faxnews/news.json'; q('.fx-notice .fx-btn.primary').click();
+  input.value='/api/news'; q('.fx-notice .fx-btn.primary').click();
   check(notice.hidden,'note closes');
   await waitFor(()=>!q('.fx-paper').hidden&&q('.fx-mast'),'paper');
   check(localStorage.getItem('dp-fax-seen')==='1','seen remembered');
@@ -77,12 +78,18 @@ try{
   check(qa('.fx-ad').length===2,'two ads');
   check(qa('.fx-story').length===3,'three stories');
   check(q('.fx-art img')?.getAttribute('src'),'artwork');
+  check(q('.fx-art img').getAttribute('src').startsWith('/api/news/asset?path='),'artwork stays on local API');
   check(q('.fx-bg canvas'),'background preset');
   check(q('.fx-joke p')?.textContent.length>4,'joke');
   check(qa('.fx-coming li').length===3,'coming');
   check(/只下载/.test(q('.fx-foot').textContent),'footer says download only');
   check(q('.fx-lcd').textContent.startsWith('已收到'),'display: received');
   const pr=P.getBoundingClientRect(); check(pr.right<=innerWidth&&pr.left>=0,'paper inside the window');
+  const customSource='https://news.example/custom/news.json';
+  await fax.download(customSource);
+  const forwarded=new URL(calls.at(-1).url);
+  check(forwarded.pathname.endsWith('/api/news')&&forwarded.searchParams.get('source')===customSource,'custom source goes to the core');
+  check(!fax.validSource('http://127.0.0.1/news.json'),'browser cannot enable the test exception');
   // 3. order a skin: ordered at once, a parcel after the delivery, the lobby told
   let parcelEvents=0; addEventListener('dp-fax-parcel',()=>parcelEvents++);
   const ad=q('.fx-ad'); ad.querySelector('.fx-btn.primary').click();
@@ -90,7 +97,7 @@ try{
   await waitFor(()=>q('.fx-ad').dataset.state==='delivered','delivered',800);
   check(parcelEvents===1,'lobby told once');
   const parcels=JSON.parse(localStorage.getItem('dp-fax-parcels')); check(parcels.length===1&&parcels[0].id==='kraft-office','parcel kept');
-  const skinCall=calls.find(c=>c.url.includes('/skins/kraft-office.json')); check(skinCall&&skinCall.opts.credentials==='omit','the parcel is one more plain GET');
+  const skinCall=calls.find(c=>new URL(c.url).searchParams.get('path')==='skins/kraft-office.json'); check(skinCall&&skinCall.opts.credentials==='omit','the parcel is one more plain GET');
   // 4. no line: a receipt with redial, the last paper and the source
   answer='offline'; q('.fx-foot .fx-btn').click();
   await waitFor(()=>q('.fx-slip'),'offline receipt');
@@ -128,6 +135,15 @@ try{
   await fax.openParcel(api,from); check(/牛皮纸/.test(q('.fx-parcel').textContent),'parcel slip');
   const sr=q('.fx-parcel').getBoundingClientRect(); check(sr.width<=340&&sr.right<=innerWidth,'parcel slip has its own width');
   qa('.fx-parcel .fx-btn')[0].click(); check(!JSON.parse(localStorage.getItem('dp-fax-parcels')).length,'parcel put away');
+  // Core fallback is still a readable paper, with a small provenance note.
+  await fax.start(api,{from}); await waitFor(()=>q('.fx-mast'),'paper before fallback');
+  answer='cache'; q('.fx-foot .fx-btn').click();
+  await waitFor(()=>q('.fx-note')?.textContent.includes('上次的报纸'),'cached paper note');
+  dispatchEvent(new Event('dp-lang'));
+  check(q('.fx-note')?.textContent.includes('上次的报纸'),'note survives repaint');
+  answer='bundled'; q('.fx-foot .fx-btn').click();
+  await waitFor(()=>q('.fx-note')?.textContent.includes('自带的样张'),'bundled paper note');
+  answer='ok';
   // the screenshot: the paper again
   await fax.start(api,{from}); await waitFor(()=>q('.fx-mast'),'final paper');
   if(params.get('slip')) { answer='offline'; q('.fx-foot .fx-btn').click(); await waitFor(()=>q('.fx-slip'),'final slip'); }

@@ -2094,6 +2094,9 @@ def _build_parser():
                             "Drive commands only read.", formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(required=True, metavar="<command>", help=argparse.SUPPRESS, prog=guide.PROG)
 
+    from . import news
+    news.add_parser(sub)
+
     from . import burner
     from . import eraser
     sp = sub.add_parser('erase', help='erase a rewritable disc (quick by default)')

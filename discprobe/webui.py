@@ -1259,7 +1259,21 @@ class Handler(BaseHTTPRequestHandler):
             url = urlsplit(self.path)
             path = unquote(url.path)
             backend = self.server.backend
-            if path == "/api/version":
+            if path == "/api/news":
+                from . import news
+                # Server is a ThreadingHTTPServer: network I/O stays in this
+                # request's worker, leaving state and other requests responsive.
+                query = parse_qs(url.query, keep_blank_values=True)
+                self._json(200, news.get_news(query.get("source")))
+            elif path == "/api/news/asset":
+                from . import news
+                query = parse_qs(url.query, keep_blank_values=True)
+                try:
+                    raw, kind = news.get_asset(query.get("path", [""])[0], query.get("source", [None])[0])
+                except (ValueError, OSError) as exc:
+                    raise APIError(str(exc), 400) from exc
+                self._send(200, raw, kind)
+            elif path == "/api/version":
                 self._json(200, api.version_payload())
             elif path == "/gui.json":
                 self._json(200, self.server.gui_manifest)

@@ -45,7 +45,9 @@ def content_security_policy(body, *, fax=False):
     html = body.decode('utf-8').replace('\r\n', '\n').replace('\r', '\n')
     scripts = _Scripts()
     scripts.feed(html)
-    sources = "'self'" + ''.join(' ' + origin for origin in fax_origins()) if fax else "'self'"
+    # Keep the legacy origin parser callable for compatibility. News now goes
+    # through the core, so deployments no longer need external CSP exceptions.
+    sources = "'self'"
     # dev-photo builds an isolated preview module from the installed calibration code.
     blob_script = ' blob:' if 'URL.createObjectURL(new Blob([head + source + tail]' in html else ''
     return '; '.join([
