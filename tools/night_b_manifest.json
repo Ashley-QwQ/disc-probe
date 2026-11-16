@@ -120,6 +120,40 @@
      "paper": 587.35,
      "dark": 327.154
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_np_top",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "newplan\\top_dark.webp",
+      "encoding": "(90, 4)",
+      "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+      "paper_exact": false,
+      "paper_changed_pixels": 1343,
+      "paper_stats": {
+       "rgb_mean": 0.0007061993634259259,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.00035264756944444444
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 587.35,
+     "dark": 327.154
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_np_top"
    }
   },
   "F_np_paper": {
@@ -127,7 +161,7 @@
    "scene": "factory startup",
    "args": "--mode paper",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -185,6 +219,60 @@
      "dark": 658.117
     },
     "rollback_reason": "390px presetio dark import paper contrast 4.187508857430125 < 4.5; restored accepted images from 3f7cff2"
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": true,
+    "render_code_commit": "a73c213",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_np_paper",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "newplan\\paper_dark.webp",
+      "encoding": "(90, 4)",
+      "paper_check": "mean 0.09, alpha mean 0.00, px >8: 0.000%",
+      "paper_exact": false,
+      "paper_changed_pixels": 167217,
+      "paper_stats": {
+       "rgb_mean": 0.08684969962161172,
+       "alpha_mean": 2.7310924369747898e-05,
+       "over8_percent": 0.0
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "newplan\\paper_shadow_dark.webp",
+      "encoding": "(91, 6)",
+      "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+      "paper_exact": false,
+      "paper_changed_pixels": 108739,
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 1181.538,
+     "dark": 658.117
+    },
+    "sheet_pool_sigma_px_by_theme": {
+     "paper": 1181.538,
+     "dark": 1181.538
+    }
    }
   },
   "F_np_env": {
@@ -249,6 +337,57 @@
      "paper": 1451.94,
      "dark": 808.731
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_np_env",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "newplan\\envelope_back_dark.webp",
+      "encoding": "(90, 4)",
+      "paper_check": "mean 0.08, alpha mean 0.00, px >8: 0.001%",
+      "paper_exact": false,
+      "paper_changed_pixels": 314598,
+      "paper_stats": {
+       "rgb_mean": 0.0828672899996255,
+       "alpha_mean": 4.00962309542903e-06,
+       "over8_percent": 0.0012483303581459799
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "newplan\\envelope_front_dark.webp",
+      "encoding": "(90, 6)",
+      "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.016%",
+      "paper_exact": false,
+      "paper_changed_pixels": 144752,
+      "paper_stats": {
+       "rgb_mean": 0.044468301846985796,
+       "alpha_mean": 1.3281876503608662e-05,
+       "over8_percent": 0.015640508718338348
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 1451.94,
+     "dark": 808.731
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_np_env"
    }
   },
   "F_np_desk": {
@@ -423,6 +562,241 @@
      "paper": 1044.0,
      "dark": 581.508
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "blocked_paper_gate",
+    "written": false,
+    "rendered_this_round": true,
+    "render_code_commit": "a73c213",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_np_desk",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "presetio\\desk\\desk_bag_dark.webp",
+      "encoding": "(88, 6)",
+      "paper_check": "mean 0.26, alpha mean 0.00, px >8: 0.087%",
+      "paper_exact": false,
+      "paper_changed_pixels": 143837,
+      "paper_stats": {
+       "rgb_mean": 0.2570810707635312,
+       "alpha_mean": 3.2552083333333335e-06,
+       "over8_percent": 0.08735769805145156
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "presetio\\desk\\desk_bag_shadow_dark.webp",
+      "encoding": "(93, 4)",
+      "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+      "paper_exact": false,
+      "paper_changed_pixels": 1738515,
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "presetio\\desk\\desk_base_dark.webp",
+      "encoding": "(90, 4)",
+      "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.004%",
+      "paper_exact": false,
+      "paper_changed_pixels": 53602,
+      "paper_stats": {
+       "rgb_mean": 0.020940031828703704,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.003824869791666667
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "presetio\\desk\\desk_doc_envelope_dark.webp",
+      "encoding": "(90, 4)",
+      "paper_check": "mean 0.06, alpha mean 0.00, px >8: 0.009%",
+      "paper_exact": false,
+      "paper_changed_pixels": 69084,
+      "paper_stats": {
+       "rgb_mean": 0.06074663556558115,
+       "alpha_mean": 1.0850694444444444e-06,
+       "over8_percent": 0.009340801318537038
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "presetio\\desk\\desk_doc_envelope_shadow_dark.webp",
+      "encoding": "(92, 4)",
+      "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+      "paper_exact": false,
+      "paper_changed_pixels": 931818,
+      "paper_stats": {
+       "rgb_mean": 3.391169733131898e-06,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "presetio\\desk\\desk_doc_paper_dark.webp",
+      "encoding": "(90, 4)",
+      "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.000%",
+      "paper_exact": false,
+      "paper_changed_pixels": 40070,
+      "paper_stats": {
+       "rgb_mean": 0.03973775112493936,
+       "alpha_mean": 1.0850694444444445e-05,
+       "over8_percent": 0.00020909653568859673
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "presetio\\desk\\desk_doc_paper_shadow_dark.webp",
+      "encoding": "(86, 4)",
+      "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+      "paper_exact": false,
+      "paper_changed_pixels": 843811,
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "presetio\\desk\\desk_knob_dark.webp",
+      "encoding": "(91, 6)",
+      "paper_check": "mean 1.49, alpha mean 0.00, px >8: 1.364%",
+      "paper_exact": false,
+      "paper_changed_pixels": 4336,
+      "paper_stats": {
+       "rgb_mean": 1.4938027136046939,
+       "alpha_mean": 8.192274305555555e-05,
+       "over8_percent": 1.3641364136413643
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": false,
+      "paper_gate_applied": "night-b-recorded",
+      "paper_recorded_baseline": {
+       "rgb_mean": 1.49,
+       "alpha_mean": 0.0,
+       "over8_percent": 1.474
+      },
+      "paper_recorded_text": "mean 1.49, alpha mean 0.00, px >8: 1.474%",
+      "paper_recorded_delta": {
+       "rgb_mean": 0.0038027136046938637,
+       "alpha_mean": 8.192274305555555e-05,
+       "over8_percent": 0.10986358635863569
+      },
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "presetio\\desk\\desk_knob_shadow_dark.webp",
+      "encoding": "(85, 6)",
+      "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+      "paper_exact": false,
+      "paper_changed_pixels": 74056,
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 4.0147569444444445e-05,
+       "over8_percent": 0.0
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "presetio\\desk\\desk_sheets_dark.webp",
+      "encoding": "(91, 4)",
+      "paper_check": "mean 0.13, alpha mean 0.00, px >8: 0.002%",
+      "paper_exact": false,
+      "paper_changed_pixels": 67807,
+      "paper_stats": {
+       "rgb_mean": 0.12897003723832143,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0021034998412813757
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "presetio\\desk\\desk_sheets_shadow_dark.webp",
+      "encoding": "(84, 4)",
+      "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+      "paper_exact": false,
+      "paper_changed_pixels": 1641460,
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "presetio\\desk\\desk_upper_dark.webp",
+      "encoding": "(91, 6)",
+      "paper_check": "mean 0.11, alpha mean 0.00, px >8: 0.009%",
+      "paper_exact": false,
+      "paper_changed_pixels": 77878,
+      "paper_stats": {
+       "rgb_mean": 0.10899268852520856,
+       "alpha_mean": 1.0850694444444444e-06,
+       "over8_percent": 0.008684816177970305
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 1044.0,
+     "dark": 581.508
+    },
+    "sheet_pool_sigma_px_by_theme": {
+     "paper": 1044.0,
+     "dark": 1044.0
+    }
    }
   },
   "F_pw_env": {
@@ -487,6 +861,57 @@
      "paper": 1451.94,
      "dark": 808.731
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_pw_env",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "pastworks\\envelope_back_dark.webp",
+      "encoding": "(90, 6)",
+      "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.002%",
+      "paper_exact": false,
+      "paper_changed_pixels": 89215,
+      "paper_stats": {
+       "rgb_mean": 0.03673043452549967,
+       "alpha_mean": 5.678131083711875e-06,
+       "over8_percent": 0.0016390700302312004
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "pastworks\\envelope_front_dark.webp",
+      "encoding": "(89, 6)",
+      "paper_check": "mean 0.12, alpha mean 0.00, px >8: 0.065%",
+      "paper_exact": false,
+      "paper_changed_pixels": 153090,
+      "paper_stats": {
+       "rgb_mean": 0.12048541624494251,
+       "alpha_mean": 4.8669695003244645e-06,
+       "over8_percent": 0.06521243366652744
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 1451.94,
+     "dark": 808.731
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_pw_env"
    }
   },
   "F_fax_top": {
@@ -555,6 +980,74 @@
      "paper": 829.2,
      "dark": 461.864
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_fax_top",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "faxnews\\top_dark.webp",
+      "encoding": "(92, 6)",
+      "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+      "paper_exact": false,
+      "paper_changed_pixels": 4007,
+      "paper_stats": {
+       "rgb_mean": 0.001466019241898148,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.00013563368055555556
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "faxnews\\handset_dark.webp",
+      "encoding": "(92, 6)",
+      "paper_check": "unchanged",
+      "paper_exact": true,
+      "paper_changed_pixels": 0,
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     },
+     {
+      "file": "faxnews\\handset_shadow_dark.webp",
+      "encoding": "(80, 6)",
+      "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+      "paper_exact": false,
+      "paper_changed_pixels": 288,
+      "paper_stats": {
+       "rgb_mean": 0.0,
+       "alpha_mean": 0.0,
+       "over8_percent": 0.0
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b",
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 829.2,
+     "dark": 461.864
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_fax_top"
    }
   },
   "F_tumble0": {
@@ -562,7 +1055,7 @@
    "scene": "factory startup",
    "args": "--mode envelope --env-h 0.300 --tumble 35,10,15 --tag 0 --size 640",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -608,6 +1101,51 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_tumble0",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "pastworks\\tumble_0_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_check": "mean 1.40, alpha mean 0.11, px >8: 3.876%",
+      "paper_exact": false,
+      "paper_changed_pixels": 42300,
+      "paper_stats": {
+       "rgb_mean": 1.4027877256725139,
+       "alpha_mean": 0.112607421875,
+       "over8_percent": 3.8762062274544533
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b-recorded",
+      "paper_recorded_baseline": {
+       "rgb_mean": 1.4,
+       "alpha_mean": 0.11,
+       "over8_percent": 3.859
+      },
+      "paper_recorded_text": "mean 1.40, alpha mean 0.11, px >8: 3.859%",
+      "paper_recorded_delta": {
+       "rgb_mean": 0.002787725672513952,
+       "alpha_mean": 0.0026074218750000017,
+       "over8_percent": 0.017206227454453327
+      },
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble0"
    }
   },
   "F_tumble1": {
@@ -615,7 +1153,7 @@
    "scene": "factory startup",
    "args": "--mode envelope --env-h 0.300 --tumble -40,20,330 --tag 1 --size 640",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -661,6 +1199,51 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_tumble1",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "pastworks\\tumble_1_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_check": "mean 1.44, alpha mean 0.11, px >8: 4.400%",
+      "paper_exact": false,
+      "paper_changed_pixels": 40533,
+      "paper_stats": {
+       "rgb_mean": 1.4378014251735212,
+       "alpha_mean": 0.108515625,
+       "over8_percent": 4.399681563552173
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b-recorded",
+      "paper_recorded_baseline": {
+       "rgb_mean": 1.43,
+       "alpha_mean": 0.11,
+       "over8_percent": 4.403
+      },
+      "paper_recorded_text": "mean 1.43, alpha mean 0.11, px >8: 4.403%",
+      "paper_recorded_delta": {
+       "rgb_mean": 0.007801425173521226,
+       "alpha_mean": 0.0014843749999999961,
+       "over8_percent": 0.0033184364478264783
+      },
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble1"
    }
   },
   "F_tumble2": {
@@ -668,7 +1251,7 @@
    "scene": "factory startup",
    "args": "--mode envelope --env-h 0.300 --tumble 60,-15,70 --tag 2 --size 640",
    "blender": "5.2.2 LTS",
-   "machine": "lab1280p (Windows, CPU, P cores only: affinity 0xFFF, -t 12)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -714,6 +1297,51 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_tumble2",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "pastworks\\tumble_2_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_check": "mean 1.91, alpha mean 0.09, px >8: 5.685%",
+      "paper_exact": false,
+      "paper_changed_pixels": 36492,
+      "paper_stats": {
+       "rgb_mean": 1.913332904093517,
+       "alpha_mean": 0.08845947265625,
+       "over8_percent": 5.685281366699575
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b-recorded",
+      "paper_recorded_baseline": {
+       "rgb_mean": 1.91,
+       "alpha_mean": 0.09,
+       "over8_percent": 5.685
+      },
+      "paper_recorded_text": "mean 1.91, alpha mean 0.09, px >8: 5.685%",
+      "paper_recorded_delta": {
+       "rgb_mean": 0.003332904093517053,
+       "alpha_mean": 0.0015405273437500006,
+       "over8_percent": 0.0002813666995757913
+      },
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble2"
    }
   },
   "F_tumble3": {
@@ -721,7 +1349,7 @@
    "scene": "factory startup",
    "args": "--mode envelope --env-h 0.300 --tumble 20,45,300 --tag 3 --size 640",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -767,6 +1395,51 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_tumble3",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "pastworks\\tumble_3_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_check": "mean 1.62, alpha mean 0.10, px >8: 4.707%",
+      "paper_exact": false,
+      "paper_changed_pixels": 36840,
+      "paper_stats": {
+       "rgb_mean": 1.6162103330710726,
+       "alpha_mean": 0.1005810546875,
+       "over8_percent": 4.706530291109363
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b-recorded",
+      "paper_recorded_baseline": {
+       "rgb_mean": 1.62,
+       "alpha_mean": 0.1,
+       "over8_percent": 4.729
+      },
+      "paper_recorded_text": "mean 1.62, alpha mean 0.10, px >8: 4.729%",
+      "paper_recorded_delta": {
+       "rgb_mean": 0.00378966692892746,
+       "alpha_mean": 0.0005810546874999989,
+       "over8_percent": 0.02246970889063693
+      },
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble3"
    }
   },
   "F_tumble4": {
@@ -774,7 +1447,7 @@
    "scene": "factory startup",
    "args": "--mode envelope --env-h 0.300 --tumble -55,-30,120 --tag 4 --size 640",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -820,6 +1493,51 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_tumble4",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "pastworks\\tumble_4_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_check": "mean 2.01, alpha mean 0.10, px >8: 6.422%",
+      "paper_exact": false,
+      "paper_changed_pixels": 36986,
+      "paper_stats": {
+       "rgb_mean": 2.008139131895945,
+       "alpha_mean": 0.1049951171875,
+       "over8_percent": 6.422037618542517
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b-recorded",
+      "paper_recorded_baseline": {
+       "rgb_mean": 2.01,
+       "alpha_mean": 0.1,
+       "over8_percent": 6.41
+      },
+      "paper_recorded_text": "mean 2.01, alpha mean 0.10, px >8: 6.410%",
+      "paper_recorded_delta": {
+       "rgb_mean": 0.0018608681040546138,
+       "alpha_mean": 0.004995117187499995,
+       "over8_percent": 0.012037618542517059
+      },
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble4"
    }
   },
   "F_tumble5": {
@@ -827,7 +1545,7 @@
    "scene": "factory startup",
    "args": "--mode envelope --env-h 0.300 --tumble 75,5,345 --tag 5 --size 640",
    "blender": "5.2.2 LTS",
-   "machine": "lab1280p (Windows, CPU, P cores only: affinity 0xFFF, -t 12)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -873,6 +1591,51 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_tumble5",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "pastworks\\tumble_5_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_check": "mean 3.33, alpha mean 0.08, px >8: 10.492%",
+      "paper_exact": false,
+      "paper_changed_pixels": 31145,
+      "paper_stats": {
+       "rgb_mean": 3.329248269430324,
+       "alpha_mean": 0.07739013671875,
+       "over8_percent": 10.491783898806005
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b-recorded",
+      "paper_recorded_baseline": {
+       "rgb_mean": 3.33,
+       "alpha_mean": 0.08,
+       "over8_percent": 10.492
+      },
+      "paper_recorded_text": "mean 3.33, alpha mean 0.08, px >8: 10.492%",
+      "paper_recorded_delta": {
+       "rgb_mean": 0.0007517305696760346,
+       "alpha_mean": 0.0026098632812499994,
+       "over8_percent": 0.0002161011939953994
+      },
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble5"
    }
   },
   "F_tumble6": {
@@ -880,7 +1643,7 @@
    "scene": "factory startup",
    "args": "--mode envelope --env-h 0.300 --tumble 10,-50,160 --tag 6 --size 640",
    "blender": "5.2.2 LTS",
-   "machine": "lab1280p (Windows, CPU, P cores only: affinity 0xFFF, -t 12)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -926,6 +1689,51 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_tumble6",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "pastworks\\tumble_6_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_check": "mean 1.70, alpha mean 0.10, px >8: 4.776%",
+      "paper_exact": false,
+      "paper_changed_pixels": 34127,
+      "paper_stats": {
+       "rgb_mean": 1.7038101768096068,
+       "alpha_mean": 0.10126708984375,
+       "over8_percent": 4.776420245677513
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b-recorded",
+      "paper_recorded_baseline": {
+       "rgb_mean": 1.7,
+       "alpha_mean": 0.1,
+       "over8_percent": 4.776
+      },
+      "paper_recorded_text": "mean 1.70, alpha mean 0.10, px >8: 4.776%",
+      "paper_recorded_delta": {
+       "rgb_mean": 0.0038101768096068245,
+       "alpha_mean": 0.0012670898437499994,
+       "over8_percent": 0.00042024567751308695
+      },
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble6"
    }
   },
   "F_tumble7": {
@@ -933,7 +1741,7 @@
    "scene": "factory startup",
    "args": "--mode envelope --env-h 0.300 --tumble -25,60,45 --tag 7 --size 640",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -979,6 +1787,51 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_tumble7",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "pastworks\\tumble_7_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_check": "mean 1.73, alpha mean 0.10, px >8: 6.011%",
+      "paper_exact": false,
+      "paper_changed_pixels": 37702,
+      "paper_stats": {
+       "rgb_mean": 1.7272230689601167,
+       "alpha_mean": 0.09586181640625,
+       "over8_percent": 6.010565760975442
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b-recorded",
+      "paper_recorded_baseline": {
+       "rgb_mean": 1.73,
+       "alpha_mean": 0.1,
+       "over8_percent": 6.052
+      },
+      "paper_recorded_text": "mean 1.73, alpha mean 0.10, px >8: 6.052%",
+      "paper_recorded_delta": {
+       "rgb_mean": 0.0027769310398833014,
+       "alpha_mean": 0.004138183593750011,
+       "over8_percent": 0.04143423902455723
+      },
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble7"
    }
   },
   "F_tumble8": {
@@ -986,7 +1839,7 @@
    "scene": "factory startup",
    "args": "--mode envelope --env-h 0.300 --tumble 45,35,250 --tag 8 --size 640",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -1032,6 +1885,51 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_tumble8",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "pastworks\\tumble_8_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_check": "mean 1.72, alpha mean 0.10, px >8: 5.276%",
+      "paper_exact": false,
+      "paper_changed_pixels": 38079,
+      "paper_stats": {
+       "rgb_mean": 1.721215547956885,
+       "alpha_mean": 0.101943359375,
+       "over8_percent": 5.276289455498416
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b-recorded",
+      "paper_recorded_baseline": {
+       "rgb_mean": 1.72,
+       "alpha_mean": 0.1,
+       "over8_percent": 5.313
+      },
+      "paper_recorded_text": "mean 1.72, alpha mean 0.10, px >8: 5.313%",
+      "paper_recorded_delta": {
+       "rgb_mean": 0.0012155479568849437,
+       "alpha_mean": 0.001943359374999995,
+       "over8_percent": 0.03671054450158362
+      },
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble8"
    }
   },
   "F_tumble9": {
@@ -1039,7 +1937,7 @@
    "scene": "factory startup",
    "args": "--mode envelope --env-h 0.300 --tumble -70,-10,25 --tag 9 --size 640",
    "blender": "5.2.2 LTS",
-   "machine": "x79 (Linux, CPU, 16 threads)",
+   "machine": "local i5-12400F, CPU, 8 threads",
    "device": "CPU",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
@@ -1085,6 +1983,51 @@
      "paper": 399.047,
      "dark": 222.269
     }
+   },
+   "night_pool_recorded": {
+    "machine": "local i5-12400F, CPU, 8 threads",
+    "device": "CPU",
+    "status": "written",
+    "written": true,
+    "rendered_this_round": false,
+    "render_code_commit": "0e47522",
+    "evidence_dir": "F:\\dp-archive\\tmp\\nightpool\\recorded\\F_tumble9",
+    "paper_gate": "night-b-recorded",
+    "checks": [
+     {
+      "file": "pastworks\\tumble_9_dark.webp",
+      "encoding": "(89, 4)",
+      "paper_check": "mean 2.99, alpha mean 0.08, px >8: 8.392%",
+      "paper_exact": false,
+      "paper_changed_pixels": 31306,
+      "paper_stats": {
+       "rgb_mean": 2.991353768942614,
+       "alpha_mean": 0.07754150390625,
+       "over8_percent": 8.392202933947534
+      },
+      "paper_gate": "night-b-recorded",
+      "paper_accepted": true,
+      "paper_gate_applied": "night-b-recorded",
+      "paper_recorded_baseline": {
+       "rgb_mean": 2.99,
+       "alpha_mean": 0.08,
+       "over8_percent": 8.369
+      },
+      "paper_recorded_text": "mean 2.99, alpha mean 0.08, px >8: 8.369%",
+      "paper_recorded_delta": {
+       "rgb_mean": 0.0013537689426139643,
+       "alpha_mean": 0.0024584960937499983,
+       "over8_percent": 0.02320293394753392
+      },
+      "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+      "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1"
+     }
+    ],
+    "pool_sigma_px_by_theme": {
+     "paper": 399.047,
+     "dark": 222.269
+    },
+    "reused_from": "F:\\dp-archive\\tmp\\nightpool\\cpu8\\F_tumble9"
    }
   },
   "L_round5": {
@@ -1454,6 +2397,25 @@
      "over8_percent": 0.0
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "faxnews\\handset_dark.webp",
+    "encoding": "(92, 6)",
+    "paper_check": "unchanged",
+    "paper_exact": true,
+    "paper_changed_pixels": 0,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/faxnews/handset_shadow_dark.webp": {
@@ -1475,6 +2437,25 @@
      "over8_percent": 0.0
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "faxnews\\handset_shadow_dark.webp",
+    "encoding": "(80, 6)",
+    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+    "paper_exact": false,
+    "paper_changed_pixels": 288,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/faxnews/top_dark.webp": {
@@ -1496,6 +2477,25 @@
      "over8_percent": 0.00013563368055555556
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "faxnews\\top_dark.webp",
+    "encoding": "(92, 6)",
+    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+    "paper_exact": false,
+    "paper_changed_pixels": 4007,
+    "paper_stats": {
+     "rgb_mean": 0.001466019241898148,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.00013563368055555556
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/interior/bg_dark.png": {
@@ -1635,6 +2635,25 @@
      "over8_percent": 0.0012483303581459799
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "newplan\\envelope_back_dark.webp",
+    "encoding": "(90, 4)",
+    "paper_check": "mean 0.08, alpha mean 0.00, px >8: 0.001%",
+    "paper_exact": false,
+    "paper_changed_pixels": 314598,
+    "paper_stats": {
+     "rgb_mean": 0.0828672899996255,
+     "alpha_mean": 4.00962309542903e-06,
+     "over8_percent": 0.0012483303581459799
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/newplan/envelope_front_dark.webp": {
@@ -1659,6 +2678,25 @@
      "over8_percent": 0.015640508718338348
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "newplan\\envelope_front_dark.webp",
+    "encoding": "(90, 6)",
+    "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.016%",
+    "paper_exact": false,
+    "paper_changed_pixels": 144752,
+    "paper_stats": {
+     "rgb_mean": 0.044468301846985796,
+     "alpha_mean": 1.3281876503608662e-05,
+     "over8_percent": 0.015640508718338348
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/newplan/paper_dark.webp": {
@@ -1683,6 +2721,25 @@
      "over8_percent": 0.0
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "newplan\\paper_dark.webp",
+    "encoding": "(90, 4)",
+    "paper_check": "mean 0.09, alpha mean 0.00, px >8: 0.000%",
+    "paper_exact": false,
+    "paper_changed_pixels": 167217,
+    "paper_stats": {
+     "rgb_mean": 0.08684969962161172,
+     "alpha_mean": 2.7310924369747898e-05,
+     "over8_percent": 0.0
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/newplan/paper_shadow_dark.webp": {
@@ -1707,6 +2764,25 @@
      "over8_percent": 0.0
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "newplan\\paper_shadow_dark.webp",
+    "encoding": "(91, 6)",
+    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+    "paper_exact": false,
+    "paper_changed_pixels": 108739,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/newplan/top_dark.webp": {
@@ -1728,6 +2804,25 @@
      "over8_percent": 0.00035264756944444444
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "newplan\\top_dark.webp",
+    "encoding": "(90, 4)",
+    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+    "paper_exact": false,
+    "paper_changed_pixels": 1343,
+    "paper_stats": {
+     "rgb_mean": 0.0007061993634259259,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.00035264756944444444
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/pastworks/envelope_back_dark.webp": {
@@ -1752,6 +2847,25 @@
      "over8_percent": 0.0016390700302312004
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "pastworks\\envelope_back_dark.webp",
+    "encoding": "(90, 6)",
+    "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.002%",
+    "paper_exact": false,
+    "paper_changed_pixels": 89215,
+    "paper_stats": {
+     "rgb_mean": 0.03673043452549967,
+     "alpha_mean": 5.678131083711875e-06,
+     "over8_percent": 0.0016390700302312004
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/pastworks/envelope_front_dark.webp": {
@@ -1776,12 +2890,31 @@
      "over8_percent": 0.06521243366652744
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "pastworks\\envelope_front_dark.webp",
+    "encoding": "(89, 6)",
+    "paper_check": "mean 0.12, alpha mean 0.00, px >8: 0.065%",
+    "paper_exact": false,
+    "paper_changed_pixels": 153090,
+    "paper_stats": {
+     "rgb_mean": 0.12048541624494251,
+     "alpha_mean": 4.8669695003244645e-06,
+     "over8_percent": 0.06521243366652744
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/pastworks/tumble_0_dark.webp": {
    "job": "F_tumble0",
    "encoding": "(89, 4)",
-   "paper_check": "mean 1.40, alpha mean 0.11, px >8: 3.859%",
+   "paper_check": "mean 1.40, alpha mean 0.11, px >8: 3.876%",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
     "status": "blocked_paper_mismatch",
@@ -1800,12 +2933,42 @@
      "over8_percent": 3.8762062274544533
     },
     "paper_accepted": false
+   },
+   "night_pool_recorded": {
+    "file": "pastworks\\tumble_0_dark.webp",
+    "encoding": "(89, 4)",
+    "paper_check": "mean 1.40, alpha mean 0.11, px >8: 3.876%",
+    "paper_exact": false,
+    "paper_changed_pixels": 42300,
+    "paper_stats": {
+     "rgb_mean": 1.4027877256725139,
+     "alpha_mean": 0.112607421875,
+     "over8_percent": 3.8762062274544533
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b-recorded",
+    "paper_recorded_baseline": {
+     "rgb_mean": 1.4,
+     "alpha_mean": 0.11,
+     "over8_percent": 3.859
+    },
+    "paper_recorded_text": "mean 1.40, alpha mean 0.11, px >8: 3.859%",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.002787725672513952,
+     "alpha_mean": 0.0026074218750000017,
+     "over8_percent": 0.017206227454453327
+    },
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/pastworks/tumble_1_dark.webp": {
    "job": "F_tumble1",
    "encoding": "(89, 4)",
-   "paper_check": "mean 1.43, alpha mean 0.11, px >8: 4.403%",
+   "paper_check": "mean 1.44, alpha mean 0.11, px >8: 4.400%",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
     "status": "blocked_paper_mismatch",
@@ -1824,6 +2987,36 @@
      "over8_percent": 4.399681563552173
     },
     "paper_accepted": false
+   },
+   "night_pool_recorded": {
+    "file": "pastworks\\tumble_1_dark.webp",
+    "encoding": "(89, 4)",
+    "paper_check": "mean 1.44, alpha mean 0.11, px >8: 4.400%",
+    "paper_exact": false,
+    "paper_changed_pixels": 40533,
+    "paper_stats": {
+     "rgb_mean": 1.4378014251735212,
+     "alpha_mean": 0.108515625,
+     "over8_percent": 4.399681563552173
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b-recorded",
+    "paper_recorded_baseline": {
+     "rgb_mean": 1.43,
+     "alpha_mean": 0.11,
+     "over8_percent": 4.403
+    },
+    "paper_recorded_text": "mean 1.43, alpha mean 0.11, px >8: 4.403%",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.007801425173521226,
+     "alpha_mean": 0.0014843749999999961,
+     "over8_percent": 0.0033184364478264783
+    },
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/pastworks/tumble_2_dark.webp": {
@@ -1848,12 +3041,42 @@
      "over8_percent": 5.685281366699575
     },
     "paper_accepted": false
+   },
+   "night_pool_recorded": {
+    "file": "pastworks\\tumble_2_dark.webp",
+    "encoding": "(89, 4)",
+    "paper_check": "mean 1.91, alpha mean 0.09, px >8: 5.685%",
+    "paper_exact": false,
+    "paper_changed_pixels": 36492,
+    "paper_stats": {
+     "rgb_mean": 1.913332904093517,
+     "alpha_mean": 0.08845947265625,
+     "over8_percent": 5.685281366699575
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b-recorded",
+    "paper_recorded_baseline": {
+     "rgb_mean": 1.91,
+     "alpha_mean": 0.09,
+     "over8_percent": 5.685
+    },
+    "paper_recorded_text": "mean 1.91, alpha mean 0.09, px >8: 5.685%",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.003332904093517053,
+     "alpha_mean": 0.0015405273437500006,
+     "over8_percent": 0.0002813666995757913
+    },
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/pastworks/tumble_3_dark.webp": {
    "job": "F_tumble3",
    "encoding": "(89, 4)",
-   "paper_check": "mean 1.62, alpha mean 0.10, px >8: 4.729%",
+   "paper_check": "mean 1.62, alpha mean 0.10, px >8: 4.707%",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
     "status": "blocked_paper_mismatch",
@@ -1872,12 +3095,42 @@
      "over8_percent": 4.706530291109363
     },
     "paper_accepted": false
+   },
+   "night_pool_recorded": {
+    "file": "pastworks\\tumble_3_dark.webp",
+    "encoding": "(89, 4)",
+    "paper_check": "mean 1.62, alpha mean 0.10, px >8: 4.707%",
+    "paper_exact": false,
+    "paper_changed_pixels": 36840,
+    "paper_stats": {
+     "rgb_mean": 1.6162103330710726,
+     "alpha_mean": 0.1005810546875,
+     "over8_percent": 4.706530291109363
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b-recorded",
+    "paper_recorded_baseline": {
+     "rgb_mean": 1.62,
+     "alpha_mean": 0.1,
+     "over8_percent": 4.729
+    },
+    "paper_recorded_text": "mean 1.62, alpha mean 0.10, px >8: 4.729%",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.00378966692892746,
+     "alpha_mean": 0.0005810546874999989,
+     "over8_percent": 0.02246970889063693
+    },
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/pastworks/tumble_4_dark.webp": {
    "job": "F_tumble4",
    "encoding": "(89, 4)",
-   "paper_check": "mean 2.01, alpha mean 0.10, px >8: 6.410%",
+   "paper_check": "mean 2.01, alpha mean 0.10, px >8: 6.422%",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
     "status": "blocked_paper_mismatch",
@@ -1896,6 +3149,36 @@
      "over8_percent": 6.422037618542517
     },
     "paper_accepted": false
+   },
+   "night_pool_recorded": {
+    "file": "pastworks\\tumble_4_dark.webp",
+    "encoding": "(89, 4)",
+    "paper_check": "mean 2.01, alpha mean 0.10, px >8: 6.422%",
+    "paper_exact": false,
+    "paper_changed_pixels": 36986,
+    "paper_stats": {
+     "rgb_mean": 2.008139131895945,
+     "alpha_mean": 0.1049951171875,
+     "over8_percent": 6.422037618542517
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b-recorded",
+    "paper_recorded_baseline": {
+     "rgb_mean": 2.01,
+     "alpha_mean": 0.1,
+     "over8_percent": 6.41
+    },
+    "paper_recorded_text": "mean 2.01, alpha mean 0.10, px >8: 6.410%",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.0018608681040546138,
+     "alpha_mean": 0.004995117187499995,
+     "over8_percent": 0.012037618542517059
+    },
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/pastworks/tumble_5_dark.webp": {
@@ -1920,6 +3203,36 @@
      "over8_percent": 10.491783898806005
     },
     "paper_accepted": false
+   },
+   "night_pool_recorded": {
+    "file": "pastworks\\tumble_5_dark.webp",
+    "encoding": "(89, 4)",
+    "paper_check": "mean 3.33, alpha mean 0.08, px >8: 10.492%",
+    "paper_exact": false,
+    "paper_changed_pixels": 31145,
+    "paper_stats": {
+     "rgb_mean": 3.329248269430324,
+     "alpha_mean": 0.07739013671875,
+     "over8_percent": 10.491783898806005
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b-recorded",
+    "paper_recorded_baseline": {
+     "rgb_mean": 3.33,
+     "alpha_mean": 0.08,
+     "over8_percent": 10.492
+    },
+    "paper_recorded_text": "mean 3.33, alpha mean 0.08, px >8: 10.492%",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.0007517305696760346,
+     "alpha_mean": 0.0026098632812499994,
+     "over8_percent": 0.0002161011939953994
+    },
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/pastworks/tumble_6_dark.webp": {
@@ -1944,12 +3257,42 @@
      "over8_percent": 4.776420245677513
     },
     "paper_accepted": false
+   },
+   "night_pool_recorded": {
+    "file": "pastworks\\tumble_6_dark.webp",
+    "encoding": "(89, 4)",
+    "paper_check": "mean 1.70, alpha mean 0.10, px >8: 4.776%",
+    "paper_exact": false,
+    "paper_changed_pixels": 34127,
+    "paper_stats": {
+     "rgb_mean": 1.7038101768096068,
+     "alpha_mean": 0.10126708984375,
+     "over8_percent": 4.776420245677513
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b-recorded",
+    "paper_recorded_baseline": {
+     "rgb_mean": 1.7,
+     "alpha_mean": 0.1,
+     "over8_percent": 4.776
+    },
+    "paper_recorded_text": "mean 1.70, alpha mean 0.10, px >8: 4.776%",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.0038101768096068245,
+     "alpha_mean": 0.0012670898437499994,
+     "over8_percent": 0.00042024567751308695
+    },
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/pastworks/tumble_7_dark.webp": {
    "job": "F_tumble7",
    "encoding": "(89, 4)",
-   "paper_check": "mean 1.73, alpha mean 0.10, px >8: 6.052%",
+   "paper_check": "mean 1.73, alpha mean 0.10, px >8: 6.011%",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
     "status": "blocked_paper_mismatch",
@@ -1968,12 +3311,42 @@
      "over8_percent": 6.010565760975442
     },
     "paper_accepted": false
+   },
+   "night_pool_recorded": {
+    "file": "pastworks\\tumble_7_dark.webp",
+    "encoding": "(89, 4)",
+    "paper_check": "mean 1.73, alpha mean 0.10, px >8: 6.011%",
+    "paper_exact": false,
+    "paper_changed_pixels": 37702,
+    "paper_stats": {
+     "rgb_mean": 1.7272230689601167,
+     "alpha_mean": 0.09586181640625,
+     "over8_percent": 6.010565760975442
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b-recorded",
+    "paper_recorded_baseline": {
+     "rgb_mean": 1.73,
+     "alpha_mean": 0.1,
+     "over8_percent": 6.052
+    },
+    "paper_recorded_text": "mean 1.73, alpha mean 0.10, px >8: 6.052%",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.0027769310398833014,
+     "alpha_mean": 0.004138183593750011,
+     "over8_percent": 0.04143423902455723
+    },
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/pastworks/tumble_8_dark.webp": {
    "job": "F_tumble8",
    "encoding": "(89, 4)",
-   "paper_check": "mean 1.72, alpha mean 0.10, px >8: 5.313%",
+   "paper_check": "mean 1.72, alpha mean 0.10, px >8: 5.276%",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
     "status": "blocked_paper_mismatch",
@@ -1992,12 +3365,42 @@
      "over8_percent": 5.276289455498416
     },
     "paper_accepted": false
+   },
+   "night_pool_recorded": {
+    "file": "pastworks\\tumble_8_dark.webp",
+    "encoding": "(89, 4)",
+    "paper_check": "mean 1.72, alpha mean 0.10, px >8: 5.276%",
+    "paper_exact": false,
+    "paper_changed_pixels": 38079,
+    "paper_stats": {
+     "rgb_mean": 1.721215547956885,
+     "alpha_mean": 0.101943359375,
+     "over8_percent": 5.276289455498416
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b-recorded",
+    "paper_recorded_baseline": {
+     "rgb_mean": 1.72,
+     "alpha_mean": 0.1,
+     "over8_percent": 5.313
+    },
+    "paper_recorded_text": "mean 1.72, alpha mean 0.10, px >8: 5.313%",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.0012155479568849437,
+     "alpha_mean": 0.001943359374999995,
+     "over8_percent": 0.03671054450158362
+    },
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/pastworks/tumble_9_dark.webp": {
    "job": "F_tumble9",
    "encoding": "(89, 4)",
-   "paper_check": "mean 2.99, alpha mean 0.08, px >8: 8.369%",
+   "paper_check": "mean 2.99, alpha mean 0.08, px >8: 8.392%",
    "night_pool_attempt": {
     "machine": "local RTX 2060, OptiX",
     "status": "blocked_paper_mismatch",
@@ -2016,6 +3419,36 @@
      "over8_percent": 8.392202933947534
     },
     "paper_accepted": false
+   },
+   "night_pool_recorded": {
+    "file": "pastworks\\tumble_9_dark.webp",
+    "encoding": "(89, 4)",
+    "paper_check": "mean 2.99, alpha mean 0.08, px >8: 8.392%",
+    "paper_exact": false,
+    "paper_changed_pixels": 31306,
+    "paper_stats": {
+     "rgb_mean": 2.991353768942614,
+     "alpha_mean": 0.07754150390625,
+     "over8_percent": 8.392202933947534
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b-recorded",
+    "paper_recorded_baseline": {
+     "rgb_mean": 2.99,
+     "alpha_mean": 0.08,
+     "over8_percent": 8.369
+    },
+    "paper_recorded_text": "mean 2.99, alpha mean 0.08, px >8: 8.369%",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.0013537689426139643,
+     "alpha_mean": 0.0024584960937499983,
+     "over8_percent": 0.02320293394753392
+    },
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": true,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/presetio/desk/desk_bag_dark.webp": {
@@ -2040,6 +3473,25 @@
      "over8_percent": 0.08735769805145156
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "presetio\\desk\\desk_bag_dark.webp",
+    "encoding": "(88, 6)",
+    "paper_check": "mean 0.26, alpha mean 0.00, px >8: 0.087%",
+    "paper_exact": false,
+    "paper_changed_pixels": 143837,
+    "paper_stats": {
+     "rgb_mean": 0.2570810707635312,
+     "alpha_mean": 3.2552083333333335e-06,
+     "over8_percent": 0.08735769805145156
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": false,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/presetio/desk/desk_bag_shadow_dark.webp": {
@@ -2064,6 +3516,25 @@
      "over8_percent": 0.0
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "presetio\\desk\\desk_bag_shadow_dark.webp",
+    "encoding": "(93, 4)",
+    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+    "paper_exact": false,
+    "paper_changed_pixels": 1738515,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": false,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/presetio/desk/desk_base_dark.webp": {
@@ -2088,6 +3559,25 @@
      "over8_percent": 0.003824869791666667
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "presetio\\desk\\desk_base_dark.webp",
+    "encoding": "(90, 4)",
+    "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.004%",
+    "paper_exact": false,
+    "paper_changed_pixels": 53602,
+    "paper_stats": {
+     "rgb_mean": 0.020940031828703704,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.003824869791666667
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": false,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/presetio/desk/desk_doc_envelope_dark.webp": {
@@ -2112,6 +3602,25 @@
      "over8_percent": 0.009340801318537038
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "presetio\\desk\\desk_doc_envelope_dark.webp",
+    "encoding": "(90, 4)",
+    "paper_check": "mean 0.06, alpha mean 0.00, px >8: 0.009%",
+    "paper_exact": false,
+    "paper_changed_pixels": 69084,
+    "paper_stats": {
+     "rgb_mean": 0.06074663556558115,
+     "alpha_mean": 1.0850694444444444e-06,
+     "over8_percent": 0.009340801318537038
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": false,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/presetio/desk/desk_doc_envelope_shadow_dark.webp": {
@@ -2136,6 +3645,25 @@
      "over8_percent": 0.0
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "presetio\\desk\\desk_doc_envelope_shadow_dark.webp",
+    "encoding": "(92, 4)",
+    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+    "paper_exact": false,
+    "paper_changed_pixels": 931818,
+    "paper_stats": {
+     "rgb_mean": 3.391169733131898e-06,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": false,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/presetio/desk/desk_doc_paper_dark.webp": {
@@ -2160,6 +3688,25 @@
      "over8_percent": 0.00020909653568859673
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "presetio\\desk\\desk_doc_paper_dark.webp",
+    "encoding": "(90, 4)",
+    "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.000%",
+    "paper_exact": false,
+    "paper_changed_pixels": 40070,
+    "paper_stats": {
+     "rgb_mean": 0.03973775112493936,
+     "alpha_mean": 1.0850694444444445e-05,
+     "over8_percent": 0.00020909653568859673
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": false,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/presetio/desk/desk_doc_paper_shadow_dark.webp": {
@@ -2184,6 +3731,25 @@
      "over8_percent": 0.0
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "presetio\\desk\\desk_doc_paper_shadow_dark.webp",
+    "encoding": "(86, 4)",
+    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+    "paper_exact": false,
+    "paper_changed_pixels": 843811,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": false,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/presetio/desk/desk_knob_dark.webp": {
@@ -2208,6 +3774,36 @@
      "over8_percent": 1.3641364136413643
     },
     "paper_accepted": false
+   },
+   "night_pool_recorded": {
+    "file": "presetio\\desk\\desk_knob_dark.webp",
+    "encoding": "(91, 6)",
+    "paper_check": "mean 1.49, alpha mean 0.00, px >8: 1.364%",
+    "paper_exact": false,
+    "paper_changed_pixels": 4336,
+    "paper_stats": {
+     "rgb_mean": 1.4938027136046939,
+     "alpha_mean": 8.192274305555555e-05,
+     "over8_percent": 1.3641364136413643
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": false,
+    "paper_gate_applied": "night-b-recorded",
+    "paper_recorded_baseline": {
+     "rgb_mean": 1.49,
+     "alpha_mean": 0.0,
+     "over8_percent": 1.474
+    },
+    "paper_recorded_text": "mean 1.49, alpha mean 0.00, px >8: 1.474%",
+    "paper_recorded_delta": {
+     "rgb_mean": 0.0038027136046938637,
+     "alpha_mean": 8.192274305555555e-05,
+     "over8_percent": 0.10986358635863569
+    },
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": false,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/presetio/desk/desk_knob_shadow_dark.webp": {
@@ -2232,6 +3828,25 @@
      "over8_percent": 0.0
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "presetio\\desk\\desk_knob_shadow_dark.webp",
+    "encoding": "(85, 6)",
+    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+    "paper_exact": false,
+    "paper_changed_pixels": 74056,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 4.0147569444444445e-05,
+     "over8_percent": 0.0
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": false,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/presetio/desk/desk_sheets_dark.webp": {
@@ -2256,6 +3871,25 @@
      "over8_percent": 0.0021034998412813757
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "presetio\\desk\\desk_sheets_dark.webp",
+    "encoding": "(91, 4)",
+    "paper_check": "mean 0.13, alpha mean 0.00, px >8: 0.002%",
+    "paper_exact": false,
+    "paper_changed_pixels": 67807,
+    "paper_stats": {
+     "rgb_mean": 0.12897003723832143,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0021034998412813757
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": false,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/presetio/desk/desk_sheets_shadow_dark.webp": {
@@ -2280,6 +3914,25 @@
      "over8_percent": 0.0
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "presetio\\desk\\desk_sheets_shadow_dark.webp",
+    "encoding": "(84, 4)",
+    "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+    "paper_exact": false,
+    "paper_changed_pixels": 1641460,
+    "paper_stats": {
+     "rgb_mean": 0.0,
+     "alpha_mean": 0.0,
+     "over8_percent": 0.0
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": false,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   },
   "discprobe/web/home/presetio/desk/desk_upper_dark.webp": {
@@ -2304,6 +3957,25 @@
      "over8_percent": 0.008684816177970305
     },
     "paper_accepted": true
+   },
+   "night_pool_recorded": {
+    "file": "presetio\\desk\\desk_upper_dark.webp",
+    "encoding": "(91, 6)",
+    "paper_check": "mean 0.11, alpha mean 0.00, px >8: 0.009%",
+    "paper_exact": false,
+    "paper_changed_pixels": 77878,
+    "paper_stats": {
+     "rgb_mean": 0.10899268852520856,
+     "alpha_mean": 1.0850694444444444e-06,
+     "over8_percent": 0.008684816177970305
+    },
+    "paper_gate": "night-b-recorded",
+    "paper_accepted": true,
+    "paper_gate_applied": "night-b",
+    "paper_gate_reference": "3c3f66a:tools/night_b_manifest.json",
+    "paper_gate_reference_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+    "written": false,
+    "machine": "local i5-12400F, CPU, 8 threads"
    }
   }
  },
@@ -2311,15 +3983,22 @@
   "date": "2026-11-16",
   "machine": "local i5-12400F, CPU, 8 threads",
   "device": "CPU",
-  "published_jobs": 4,
-  "published_pictures": 8,
-  "blocked_jobs": 12,
-  "paper_gate_limits": {
+  "published_jobs": 15,
+  "published_pictures": 20,
+  "blocked_jobs": 1,
+  "current_attempt_field": "night_pool_recorded",
+  "baseline": "3c3f66a:tools/night_b_manifest.json",
+  "baseline_blob": "74f5b32826511e6390e381d3e94acf45dbe976c1",
+  "absolute_limits": {
    "rgb_mean": 0.3,
    "alpha_mean": 0.02,
    "over8_percent": 0.1
   },
-  "current_attempt_field": "night_pool_cpu",
-  "note": "night_pool_attempt records the earlier OptiX/exact-gate attempt. night_pool_cpu is the current run. Unwritten assets retain their original machine and encoding provenance."
+  "recorded_delta_limits": {
+   "rgb_mean": 0.05,
+   "alpha_mean": 0.01,
+   "over8_percentage_points": 0.1
+  },
+  "note": "Recorded deltas apply only to tumble_0..9 and desk_knob. Earlier night_pool_attempt/night_pool_cpu fields are historical attempts."
  }
 }

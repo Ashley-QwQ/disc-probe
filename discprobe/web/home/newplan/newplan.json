@@ -94,7 +94,15 @@
    "top": 103,
    "bottom": 103
   },
-  "shadow_note": "paper_shadow_<theme>.png has the same canvas; lift the sheet by moving it up-right of the shadow (light from the upper right)"
+  "shadow_note": "paper_shadow_<theme>.png has the same canvas; lift the sheet by moving it up-right of the shadow (light from the upper right)",
+  "pool_sigma_px_by_theme": {
+   "paper": 1181.538,
+   "dark": 1181.538
+  },
+  "sheet_pool_sigma_px_by_theme": {
+   "paper": 1181.538,
+   "dark": 1181.538
+  }
  },
  "envelope": {
   "mode": "envelope",
