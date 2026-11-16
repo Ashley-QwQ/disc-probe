@@ -201,19 +201,34 @@
   "file": "faxnews\\handset_dark.webp",
   "encoding": "(92, 6)",
   "paper_check": "mean 0.14, alpha mean 0.00, px >8: 0.010%",
-  "old_dark": "mean 7.12, alpha mean 0.00, px >8: 69.970%"
+  "old_dark": "mean 7.12, alpha mean 0.00, px >8: 69.970%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_missing_input",
+   "written": false
+  }
  },
  {
   "file": "faxnews\\handset_shadow_dark.webp",
   "encoding": "(80, 6)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%"
+  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_missing_input",
+   "written": false
+  }
  },
  {
   "file": "faxnews\\top_dark.webp",
   "encoding": "(92, 6)",
   "paper_check": "mean 0.01, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 10.89, alpha mean 0.00, px >8: 98.463%"
+  "old_dark": "mean 10.89, alpha mean 0.00, px >8: 98.463%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_missing_input",
+   "written": false
+  }
  },
  {
   "file": "interior\\bg_dark.webp",
@@ -315,174 +330,403 @@
   "file": "newplan\\envelope_back_dark.webp",
   "encoding": "(90, 4)",
   "paper_check": "mean 0.09, alpha mean 0.00, px >8: 0.001%",
-  "old_dark": "mean 0.47, alpha mean 0.00, px >8: 0.008%"
+  "old_dark": "mean 0.47, alpha mean 0.00, px >8: 0.008%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.07, alpha mean 0.00, px >8: 0.001%",
+   "paper_exact": false,
+   "paper_changed_pixels": 279412
+  }
  },
  {
   "file": "newplan\\envelope_front_dark.webp",
   "encoding": "(90, 6)",
   "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.016%",
-  "old_dark": "mean 0.50, alpha mean 0.00, px >8: 0.312%"
+  "old_dark": "mean 0.50, alpha mean 0.00, px >8: 0.312%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.015%",
+   "paper_exact": false,
+   "paper_changed_pixels": 144468
+  }
  },
  {
   "file": "newplan\\paper_dark.webp",
   "encoding": "(90, 4)",
   "paper_check": "mean 0.09, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 112.61, alpha mean 0.00, px >8: 99.909%"
+  "old_dark": "mean 112.61, alpha mean 0.00, px >8: 99.909%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.08, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 134713
+  }
  },
  {
   "file": "newplan\\paper_shadow_dark.webp",
   "encoding": "(91, 6)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%"
+  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 108739
+  }
  },
  {
   "file": "newplan\\top_dark.webp",
   "encoding": "(90, 4)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 10.43, alpha mean 0.00, px >8: 99.015%"
+  "old_dark": "mean 10.43, alpha mean 0.00, px >8: 99.015%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_missing_input",
+   "written": false
+  }
  },
  {
   "file": "pastworks\\envelope_back_dark.webp",
   "encoding": "(90, 6)",
   "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.002%",
-  "old_dark": "mean 0.46, alpha mean 0.00, px >8: 0.004%"
+  "old_dark": "mean 0.46, alpha mean 0.00, px >8: 0.004%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.002%",
+   "paper_exact": false,
+   "paper_changed_pixels": 62079
+  }
  },
  {
   "file": "pastworks\\envelope_front_dark.webp",
   "encoding": "(89, 6)",
   "paper_check": "mean 0.12, alpha mean 0.00, px >8: 0.065%",
-  "old_dark": "mean 0.54, alpha mean 0.00, px >8: 0.596%"
+  "old_dark": "mean 0.54, alpha mean 0.00, px >8: 0.596%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.12, alpha mean 0.00, px >8: 0.065%",
+   "paper_exact": false,
+   "paper_changed_pixels": 153286
+  }
  },
  {
   "file": "pastworks\\tumble_0_dark.webp",
   "encoding": "(89, 4)",
   "paper_check": "mean 1.40, alpha mean 0.11, px >8: 3.859%",
-  "old_dark": "mean 1.20, alpha mean 0.07, px >8: 3.380%"
+  "old_dark": "mean 1.20, alpha mean 0.07, px >8: 3.380%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 1.40, alpha mean 0.11, px >8: 3.857%",
+   "paper_exact": false,
+   "paper_changed_pixels": 41363
+  }
  },
  {
   "file": "pastworks\\tumble_1_dark.webp",
   "encoding": "(89, 4)",
   "paper_check": "mean 1.43, alpha mean 0.11, px >8: 4.403%",
-  "old_dark": "mean 1.23, alpha mean 0.07, px >8: 3.793%"
+  "old_dark": "mean 1.23, alpha mean 0.07, px >8: 3.793%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 1.44, alpha mean 0.11, px >8: 4.408%",
+   "paper_exact": false,
+   "paper_changed_pixels": 40242
+  }
  },
  {
   "file": "pastworks\\tumble_2_dark.webp",
   "encoding": "(89, 4)",
   "paper_check": "mean 1.91, alpha mean 0.09, px >8: 5.685%",
-  "old_dark": "mean 1.61, alpha mean 0.05, px >8: 4.986%"
+  "old_dark": "mean 1.61, alpha mean 0.05, px >8: 4.986%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 1.91, alpha mean 0.09, px >8: 5.680%",
+   "paper_exact": false,
+   "paper_changed_pixels": 36414
+  }
  },
  {
   "file": "pastworks\\tumble_3_dark.webp",
   "encoding": "(89, 4)",
   "paper_check": "mean 1.62, alpha mean 0.10, px >8: 4.729%",
-  "old_dark": "mean 1.37, alpha mean 0.06, px >8: 4.243%"
+  "old_dark": "mean 1.37, alpha mean 0.06, px >8: 4.243%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 1.62, alpha mean 0.10, px >8: 4.736%",
+   "paper_exact": false,
+   "paper_changed_pixels": 37037
+  }
  },
  {
   "file": "pastworks\\tumble_4_dark.webp",
   "encoding": "(89, 4)",
   "paper_check": "mean 2.01, alpha mean 0.10, px >8: 6.410%",
-  "old_dark": "mean 1.72, alpha mean 0.06, px >8: 5.676%"
+  "old_dark": "mean 1.72, alpha mean 0.06, px >8: 5.676%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 2.01, alpha mean 0.10, px >8: 6.448%",
+   "paper_exact": false,
+   "paper_changed_pixels": 37237
+  }
  },
  {
   "file": "pastworks\\tumble_5_dark.webp",
   "encoding": "(89, 4)",
   "paper_check": "mean 3.33, alpha mean 0.08, px >8: 10.492%",
-  "old_dark": "mean 2.47, alpha mean 0.05, px >8: 9.284%"
+  "old_dark": "mean 2.47, alpha mean 0.05, px >8: 9.284%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 3.33, alpha mean 0.08, px >8: 10.490%",
+   "paper_exact": false,
+   "paper_changed_pixels": 31267
+  }
  },
  {
   "file": "pastworks\\tumble_6_dark.webp",
   "encoding": "(89, 4)",
   "paper_check": "mean 1.70, alpha mean 0.10, px >8: 4.776%",
-  "old_dark": "mean 1.43, alpha mean 0.06, px >8: 4.286%"
+  "old_dark": "mean 1.43, alpha mean 0.06, px >8: 4.286%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 1.71, alpha mean 0.10, px >8: 4.785%",
+   "paper_exact": false,
+   "paper_changed_pixels": 34792
+  }
  },
  {
   "file": "pastworks\\tumble_7_dark.webp",
   "encoding": "(89, 4)",
   "paper_check": "mean 1.73, alpha mean 0.10, px >8: 6.052%",
-  "old_dark": "mean 1.56, alpha mean 0.06, px >8: 5.219%"
+  "old_dark": "mean 1.56, alpha mean 0.06, px >8: 5.219%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 1.73, alpha mean 0.10, px >8: 5.998%",
+   "paper_exact": false,
+   "paper_changed_pixels": 37498
+  }
  },
  {
   "file": "pastworks\\tumble_8_dark.webp",
   "encoding": "(89, 4)",
   "paper_check": "mean 1.72, alpha mean 0.10, px >8: 5.313%",
-  "old_dark": "mean 1.41, alpha mean 0.06, px >8: 4.562%"
+  "old_dark": "mean 1.41, alpha mean 0.06, px >8: 4.562%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 1.72, alpha mean 0.10, px >8: 5.281%",
+   "paper_exact": false,
+   "paper_changed_pixels": 38181
+  }
  },
  {
   "file": "pastworks\\tumble_9_dark.webp",
   "encoding": "(89, 4)",
   "paper_check": "mean 2.99, alpha mean 0.08, px >8: 8.369%",
-  "old_dark": "mean 2.31, alpha mean 0.05, px >8: 7.188%"
+  "old_dark": "mean 2.31, alpha mean 0.05, px >8: 7.188%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 2.99, alpha mean 0.08, px >8: 8.380%",
+   "paper_exact": false,
+   "paper_changed_pixels": 31411
+  }
  },
  {
   "file": "presetio\\desk\\desk_bag_dark.webp",
   "encoding": "(88, 6)",
   "paper_check": "mean 0.26, alpha mean 0.00, px >8: 0.085%",
-  "old_dark": "mean 0.55, alpha mean 0.00, px >8: 0.428%"
+  "old_dark": "mean 0.55, alpha mean 0.00, px >8: 0.428%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.26, alpha mean 0.00, px >8: 0.083%",
+   "paper_exact": false,
+   "paper_changed_pixels": 142220
+  }
  },
  {
   "file": "presetio\\desk\\desk_bag_shadow_dark.webp",
   "encoding": "(93, 4)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%"
+  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 1738515
+  }
  },
  {
   "file": "presetio\\desk\\desk_base_dark.webp",
   "encoding": "(90, 4)",
   "paper_check": "mean 0.02, alpha mean 0.00, px >8: 0.005%",
-  "old_dark": "mean 10.21, alpha mean 0.00, px >8: 98.943%"
+  "old_dark": "mean 10.21, alpha mean 0.00, px >8: 98.943%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 16
+  }
  },
  {
   "file": "presetio\\desk\\desk_doc_envelope_dark.webp",
   "encoding": "(90, 4)",
   "paper_check": "mean 0.12, alpha mean 0.00, px >8: 0.025%",
-  "old_dark": "mean 0.52, alpha mean 0.00, px >8: 0.491%"
+  "old_dark": "mean 0.52, alpha mean 0.00, px >8: 0.491%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.04, alpha mean 0.00, px >8: 0.007%",
+   "paper_exact": false,
+   "paper_changed_pixels": 35510
+  }
  },
  {
   "file": "presetio\\desk\\desk_doc_envelope_shadow_dark.webp",
   "encoding": "(92, 4)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%"
+  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 931818
+  }
  },
  {
   "file": "presetio\\desk\\desk_doc_paper_dark.webp",
   "encoding": "(90, 4)",
   "paper_check": "mean 0.06, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 112.20, alpha mean 0.00, px >8: 100.000%"
+  "old_dark": "mean 112.20, alpha mean 0.00, px >8: 100.000%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.03, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 28620
+  }
  },
  {
   "file": "presetio\\desk\\desk_doc_paper_shadow_dark.webp",
   "encoding": "(86, 4)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%"
+  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 843811
+  }
  },
  {
   "file": "presetio\\desk\\desk_knob_dark.webp",
   "encoding": "(91, 6)",
   "paper_check": "mean 1.49, alpha mean 0.00, px >8: 1.474%",
-  "old_dark": "mean 8.31, alpha mean 0.00, px >8: 86.117%"
+  "old_dark": "mean 8.31, alpha mean 0.00, px >8: 86.117%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 1.48, alpha mean 0.00, px >8: 1.342%",
+   "paper_exact": false,
+   "paper_changed_pixels": 4350
+  }
  },
  {
   "file": "presetio\\desk\\desk_knob_shadow_dark.webp",
   "encoding": "(85, 6)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%"
+  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 73967
+  }
  },
  {
   "file": "presetio\\desk\\desk_sheets_dark.webp",
   "encoding": "(91, 4)",
   "paper_check": "mean 0.13, alpha mean 0.00, px >8: 0.002%",
-  "old_dark": "mean 112.59, alpha mean 0.00, px >8: 100.000%"
+  "old_dark": "mean 112.59, alpha mean 0.00, px >8: 100.000%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.13, alpha mean 0.00, px >8: 0.002%",
+   "paper_exact": false,
+   "paper_changed_pixels": 67763
+  }
  },
  {
   "file": "presetio\\desk\\desk_sheets_shadow_dark.webp",
   "encoding": "(84, 4)",
   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
-  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%"
+  "old_dark": "mean 3.00, alpha mean 0.00, px >8: 0.000%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.00, alpha mean 0.00, px >8: 0.000%",
+   "paper_exact": false,
+   "paper_changed_pixels": 1641460
+  }
  },
  {
   "file": "presetio\\desk\\desk_upper_dark.webp",
   "encoding": "(91, 6)",
   "paper_check": "mean 0.11, alpha mean 0.00, px >8: 0.009%",
-  "old_dark": "mean 7.28, alpha mean 0.00, px >8: 98.507%"
+  "old_dark": "mean 7.28, alpha mean 0.00, px >8: 98.507%",
+  "night_pool_attempt": {
+   "machine": "local RTX 2060, OptiX",
+   "status": "blocked_paper_mismatch",
+   "written": false,
+   "paper_check": "mean 0.11, alpha mean 0.00, px >8: 0.009%",
+   "paper_exact": false,
+   "paper_changed_pixels": 77922
+  }
  }
 ]
