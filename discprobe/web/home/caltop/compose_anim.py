@@ -37,7 +37,7 @@ V = ["dark", "paper"]
 # the desk: the new-plan page's (art/newplan/render_newplan.py STYLE: desk tone, amb, pool gain / add), so that a
 # camera pan from that page lands on the same desk; DESK_FAR is its tone away from any pool (the page's ground)
 DESK = {"paper": ("#ddd6cb", 0.82, (0.24, 0.19, 0.08), (0.0, 0.0, 0.0)),        # 2026-11-12: the spotlight shows on paper
-        "dark": ("#111a1e", 0.9, (1.6, 1.4, 1.1), (0.035, 0.018, 0.004))}   # night B 2026-11-14 (was #1f2726)
+        "dark": ("#111a1e", 0.64, (2.4, 2.4, 2.4), (0.0, 0.0, 0.0), 78.0)}   # 2026-11-16: neutral and tighter (sigma 78 mm), centre about #1e2a30   # night B 2026-11-14 (was #1f2726); 2026-11-16 the pool keeps the ground's hue (centre about #18242a)
 INK = {"paper": "#1d1b18", "dark": "#eef0ee"}
 SHADOW = {"dark": ("#020405", 0.42, 0.55), "paper": ("#3a2f22", 0.24, 0.34)}   # render_caltop.py VARIANT_STYLE
 STAGE_OPACITY = {"disc": 0.62, "occluders": 0.45, "lid": 0.2}                 # index.html .cs-art rules
@@ -165,9 +165,11 @@ pc, ps = an["pool"]["centre_px"], an["pool"]["sigma_px"]
 Q = 4
 half = int(math.ceil(3.2 * ps / Q))
 yy, xx = (np.mgrid[0:2 * half, 0:2 * half] + 0.5 - half) * Q
-f = np.exp(-(xx ** 2 + yy ** 2) / (2 * ps ** 2))[..., None]
 for v in V:
-    tone, amb, gain, addc = DESK[v]
+    tone, amb, gain, addc = DESK[v][:4]
+    # the box stays the shared (paper) sigma's; night draws a tighter pool inside it
+    pv = ps * DESK[v][4] / an["pool"].get("sigma_mm", 140.0) if len(DESK[v]) > 4 else ps
+    f = np.exp(-(xx ** 2 + yy ** 2) / (2 * pv ** 2))[..., None]
     desk = lin(hexf(tone))
     tgt = desk * (amb + np.array(gain) * f) + np.array(addc) * f
     tgt_s = srgb(tgt)

@@ -71,8 +71,9 @@ STYLE = {
         pen="#0e1619", pen_edge="#090f12", metal="#3e4a50", metal_edge="#293338",
         penrose_light="#56646b", penrose_mid="#354248", penrose_dark="#1b252a",
         notebook="#212a2e", notebook_edge="#363e42", band="#070e11", led_off="#090f12",
-        line="#d5d9d2", line_alpha=0.55,
-        amb=(0.9, 0.9, 0.9), gain=(1.6, 1.4, 1.1), add=(0.035, 0.018, 0.004),
+        line="#d5d9d2", line_alpha=0.88, line_alpha_far=0.35, line_alpha_outline=0.6,
+        amb=(0.64,)*3, gain=(2.4,)*3, add=(0.0,)*3, pool_scale=0.557,
+        hero_light=dict(amb=(1.0,)*3, gain=(4.9,)*3, add=(0.006,)*3),
         shadow_tint=(0.62, 0.66, 0.66), shadow_rgb="#020405", drop_alpha=0.40, bg="#0a1114",
         # night B (2026-11-14): paper the lamp falls on is light (render_newplan.py)
         sheet_light=dict(amb=(0.55, 0.55, 0.55), gain=(0.33, 0.29, 0.21), add=(0.0, 0.0, 0.0)),
@@ -489,7 +490,8 @@ def toon_pooled(name, top, side, st, grain=0.0, tex_path=None):
     nt.links.new(c2.outputs[0], dot.inputs[1])
     k = nt.nodes.new("ShaderNodeMath")
     k.operation = "MULTIPLY"
-    k.inputs[1].default_value = -1.0 / (2.0 * POOL["sigma"] ** 2)
+    sigma = POOL["sigma"] * st.get("pool_scale", 1.0)
+    k.inputs[1].default_value = -1.0 / (2.0 * sigma ** 2)
     nt.links.new(dot.outputs["Value"], k.inputs[0])
     ex = nt.nodes.new("ShaderNodeMath")
     ex.operation = "EXPONENT"
@@ -588,17 +590,29 @@ def decal_mat(v, st, letter):
     return m
 
 
+def object_light(o, st):
+    """The fax and its handset catch the hero light; the desk keeps its own light."""
+    role = ROLE[o.name]
+    if role == "sheet" and "sheet_light" in st:
+        light = dict(st, **st["sheet_light"])
+        light["pool_scale"] = 1.0
+        return light
+    if MODE in ("top", "fax") and role != "desk" and "hero_light" in st:
+        return dict(st, **st["hero_light"])
+    return st
+
+
 def apply_variant(v):
     st = STYLE[v]
     cache = {}
     for o in render_meshes:
         r_ = ROLE[o.name]
+        st_r = object_light(o, st)
         if r_.startswith("decal_"):
-            assign(o, decal_mat(v, st, r_[6:]))
+            assign(o, decal_mat(v, st_r, r_[6:]))
             continue
         if r_ not in cache:
             top, side = palette(r_, st)
-            st_r = dict(st, **st["sheet_light"]) if r_ == "sheet" and "sheet_light" in st else st
             cache[r_] = toon_pooled("toon_%s_%s" % (r_, v), top, side, st_r, grain=0.035 if r_ == "sheet" else
                                     0.02 if r_.startswith("kraft") else 0.0)
         assign(o, cache[r_])
@@ -637,10 +651,12 @@ try:
         raise RuntimeError("Requested GPU device unavailable")
     cyc.device = "GPU"
 except Exception as e:  # noqa: BLE001
-    print("[newplan] GPU setup failed, CPU:", e)
+    if DEVICE != "CPU":
+        print("[newplan] GPU setup failed, CPU:", e)
     if MODE == "fax" and DEVICE != "CPU":
         raise
     cyc.device = "CPU"
+print("[faxnews] render device:", cyc.device, "requested:", DEVICE, "threads:", r.threads)
 if scene.world is None:
     scene.world = bpy.data.worlds.new("w")
 scene.world.use_nodes = True
@@ -759,7 +775,7 @@ def save_png(rgba_ss, dst):
     print("[newplan] wrote", dst)
 
 
-def compose(col, mask, st, shadow=None, opaque=False):
+def compose(col, mask, st, shadow=None, opaque=False, oid=None):
     a = col[..., 3:4]
     straight = np.where(a > 1e-6, col[..., :3] / np.maximum(a, 1e-6), 0.0)
     pm = lin_to_srgb(straight) * a
@@ -768,7 +784,28 @@ def compose(col, mask, st, shadow=None, opaque=False):
         tint = np.array(st["shadow_tint"], dtype=np.float32)
         pm = pm * (1.0 - s * (1.0 - tint))
     line = np.array(hex_srgb(st["line"]), dtype=np.float32)
-    c = (mask.astype(np.float32) * np.float32(st["line_alpha"]))[..., None]
+    la = np.float32(st["line_alpha"])
+    if "line_alpha_far" in st:
+        hh, ww = mask.shape
+        pc = to_px(*POOL["center"])
+        sigma = POOL["sigma"] * st["pool_scale"] * PPM
+        xs = (np.arange(ww, dtype=np.float32) + 0.5) / SS - pc[0]
+        ys = (np.arange(hh, dtype=np.float32) + 0.5) / SS - pc[1]
+        fpx = np.exp(-(ys[:, None]**2 + xs[None, :]**2) / (2.0 * sigma**2)).astype(np.float32)
+        sheet_ids = [o.pass_index for o in render_meshes if ROLE[o.name] == "sheet"] if oid is not None else []
+        if sheet_ids:
+            sheet_sigma = POOL["sigma"] * PPM
+            sheet_pool = np.exp(-(ys[:, None]**2 + xs[None, :]**2) / (2.0 * sheet_sigma**2)).astype(np.float32)
+            fpx = np.where(np.isin(oid, sheet_ids), sheet_pool, fpx)
+        la = np.float32(st["line_alpha_far"]) + (la - np.float32(st["line_alpha_far"])) * fpx
+        empty = col[..., 3] < 0.5
+        near = empty.copy()
+        for _ in range(2 * SS):
+            near[1:, :] |= empty[:-1, :]; near[:-1, :] |= empty[1:, :]
+            near[:, 1:] |= empty[:, :-1]; near[:, :-1] |= empty[:, 1:]
+            empty = near.copy()
+        la = np.where(near, np.maximum(la, np.float32(st["line_alpha_outline"])), la).astype(np.float32)
+    c = (mask.astype(np.float32) * la)[..., None]
     pm = line * c + pm * (1.0 - c)
     al = c + a * (1.0 - c)
     if opaque:
@@ -873,6 +910,7 @@ if MODE == "fax":
                  'key_note':'Start is circular: quad bounds its actual top face; top_face_polygon gives its 16-sided contour. Centres refer to visible top faces.',
                  'handset_centre_note':'Centre of projected handset and children bounds, suitable for CSS transform-origin.',
                  'pool_centre_px':to_px(*POOL['center']),'pool_sigma_px':POOL['sigma']*PPM,
+                 'pool_sigma_px_by_theme':{v:round(POOL['sigma']*PPM*STYLE[v].get('pool_scale',1.0),3) for v in VARIANTS},
                  'shadow':{'offset_px':[SHADOW['dx_m']*PPM,-SHADOW['dy_m']*PPM],
                            'blur_px':SHADOW['blur_m']*PPM,'method':'unchanged branch three-pass separable box blur; radius blur_px * SS / 2',
                            'handset_receivers':['fax_pod','desk'],'handset_alpha':'branch drop_alpha; branch shadow_rgb, straight-alpha PNG'},
@@ -895,7 +933,7 @@ if MODE == "fax":
         apply_variant(v)
         for o in render_meshes:o.hide_render=o.name not in body_names
         col=render_exr('color_body_'+v,SAMPLES,1.5)
-        save_png(compose(col,mask,STYLE[v],shadow=body_shadow,opaque=True),os.path.join(OUTDIR,'top_'+v+'.png'))
+        save_png(compose(col,mask,STYLE[v],shadow=body_shadow,opaque=True,oid=oid),os.path.join(OUTDIR,'top_'+v+'.png'))
         del col
     # Keep compact data for independent local verification.
     np.savez_compressed(os.path.join(OUTDIR,'body_data.npz'),oid=oid[::SS,::SS],line=mask[::SS,::SS])
@@ -926,7 +964,7 @@ if MODE == "fax":
             o.hide_render=False
             o.is_holdout=o.name not in HANDSET
         col=render_exr('color_handset_'+v,SAMPLES,1.5)
-        save_png(compose(col,mask,st),os.path.join(OUTDIR,'handset_'+v+'.png'))
+        save_png(compose(col,mask,st,oid=oid),os.path.join(OUTDIR,'handset_'+v+'.png'))
         del col
     for o in render_meshes:o.is_holdout=False
     np.savez_compressed(os.path.join(OUTDIR,'handset_data.npz'),oid=isolated_hand_oid,line=mask[::SS,::SS])
@@ -941,6 +979,7 @@ if MODE == "fax":
                 'occlusion_treatment':'Cycles holdout of body/desk; full-scene line ownership clipped to handset IDs',
                 'body_bounds':bbox(body),'handset_bounds':hand_rect,
                 'body_object_ids':{o.name:o.pass_index for o in render_meshes},
+                'body_object_roles':{o.name:ROLE[o.name] for o in render_meshes},
                 'seconds':time.time()-T0,'device':DEVICE,'samples':SAMPLES,'supersampling':SS}
     with open(os.path.join(OUTDIR,'scene_validation.json'),'w') as f:json.dump(validation,f,indent=2)
     print('[faxnews] finished in %.1fs'%(time.time()-T0))
@@ -978,7 +1017,7 @@ for lname, names in layers.items():
         for o in render_meshes:
             o.hide_render = o.name not in names
         col = render_exr("color_%s_%s" % (lname, v), SAMPLES, 1.5)
-        out = compose(col, mask, STYLE[v], shadow=shadow, opaque=(MODE in ("top", "fax")))
+        out = compose(col, mask, STYLE[v], shadow=shadow, opaque=(MODE in ("top", "fax")), oid=oid)
         dst = ("tumble_%s_%%s.png" % arg("--tag", "0") if lname == "tumble" else
                {"top": "top_%s.png", "paper": "paper_%s.png", "fax": "top_%s.png"}.get(MODE, "envelope_%s_%%s.png" % lname)) % v
         save_png(out, os.path.join(OUTDIR, dst))

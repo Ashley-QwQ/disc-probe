@@ -1,6 +1,23 @@
 """Night B: copy the re-rendered dark pictures into the web folder, encoded the way each committed picture was.
 
     python tools/night_b_export.py RENDERS [--write] [--only lobby,caltop,...]
+    python tools/night_b_export.py RENDERS --only newplan --jobs F_np_env --require-paper-unchanged
+    python tools/night_b_export.py RENDERS --only newplan --jobs F_np_top --paper-gate night-b
+
+--jobs selects individual jobs in the newplan/presetio/pastworks/faxnews groups. With
+--require-paper-unchanged, compare every decoded RGBA pixel (including transparent ones),
+and defer all picture writes until the entire selection passes. A mismatch exits 2.
+Strict mode uses the committed manifest's encoding recipe when one is recorded;
+otherwise it falls back to size matching. Pixel equality is required in either case.
+--check-report PATH saves the check rows even when the strict gate fails.
+--paper-gate night-b uses the original diff's visible RGB mean <= .3, whole-image
+alpha mean <= .02, and visible pixels with any channel difference >8 <= .1 percent.
+It also defers writes until the entire selection passes, and never writes paper.
+--paper-gate night-b-recorded compares ONLY tumble_0..9 and desk_knob against the
+paper_check recorded in 3c3f66a (mean delta <= .05, alpha delta <= .01, >8 delta
+<= .1 percentage points). All other pictures still use the absolute night-b gate.
+Missing/malformed historical records fail closed. The reference is read from Git,
+never from the current mutable manifest.
 
 RENDERS holds one folder per render job (the names in tools/night_b_manifest.json "jobs"). Without --write it only
 checks. For every picture it also runs the PAPER render of the same job through the same crop and encoding and
@@ -16,7 +33,9 @@ outputs are checked to be unchanged).
 from __future__ import annotations
 
 import io
+import ast
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -31,7 +50,26 @@ HOME = ROOT / "discprobe" / "web" / "home"
 REN = Path(sys.argv[1])
 WRITE = "--write" in sys.argv
 ONLY = set(sys.argv[sys.argv.index("--only") + 1].split(",")) if "--only" in sys.argv else None
+JOBS = set(sys.argv[sys.argv.index("--jobs") + 1].split(",")) if "--jobs" in sys.argv else None
+STRICT_PAPER = "--require-paper-unchanged" in sys.argv
+PAPER_GATE = sys.argv[sys.argv.index("--paper-gate") + 1] if "--paper-gate" in sys.argv else None
+if PAPER_GATE not in (None, "night-b", "night-b-recorded") or (PAPER_GATE and STRICT_PAPER):
+    raise SystemExit("Use --paper-gate night-b|night-b-recorded OR --require-paper-unchanged")
+GATED_PAPER = STRICT_PAPER or PAPER_GATE is not None
+CHECK_REPORT = Path(sys.argv[sys.argv.index("--check-report") + 1]) if "--check-report" in sys.argv else None
 REPORT = []
+PENDING = []
+RECORDED_REFERENCE = "3c3f66a:tools/night_b_manifest.json"
+RECORDED_ONLY = {"discprobe/web/home/pastworks/tumble_%d_dark.webp" % i for i in range(10)} | {
+    "discprobe/web/home/presetio/desk/desk_knob_dark.webp"}
+RECORDED_BLOB = None
+if PAPER_GATE == "night-b-recorded":
+    frozen = json.loads(subprocess.check_output(["git", "show", RECORDED_REFERENCE], cwd=ROOT).decode("utf-8"))
+    RECORDED_BLOB = subprocess.check_output(["git", "rev-parse", RECORDED_REFERENCE], cwd=ROOT).decode("ascii").strip()
+    RECIPES = frozen["pictures"]
+else:
+    RECIPES = json.loads((ROOT / "tools/night_b_manifest.json").read_text(encoding="utf-8")).get("pictures", {}) \
+        if GATED_PAPER and (ROOT / "tools/night_b_manifest.json").exists() else {}
 
 
 def kind(p: Path) -> str:
@@ -60,6 +98,14 @@ _LOSSY = {}
 def match_lossy(paper: Image.Image, committed: Path):
     """quality / method of a committed lossy picture: the paper re-encode closest in size (once per family of names)"""
     import re
+    recipe = RECIPES.get(committed.relative_to(ROOT).as_posix().replace("_paper.", "_dark."), {}).get("encoding")
+    if recipe and recipe.startswith("("):
+        how = ast.literal_eval(recipe)
+        if not (isinstance(how, tuple) and len(how) == 2 and all(type(n) is int for n in how)
+                and 0 <= how[0] <= 100 and 0 <= how[1] <= 6):
+            raise ValueError("Invalid recorded encoding: %r" % (recipe,))
+        print("  recorded encoding %s: quality %d method %d" % (committed.name, *how))
+        return how
     key = (committed.parent, re.sub(r"\d+", "#", committed.name))
     if key in _LOSSY:
         return _LOSSY[key]
@@ -75,15 +121,47 @@ def match_lossy(paper: Image.Image, committed: Path):
     return best[1]
 
 
-def diff(a: Image.Image, b: Image.Image):
+def paper_stats(a: Image.Image, b: Image.Image):
     if a.size != b.size:
-        return "SIZE %s vs %s" % (a.size, b.size)
+        return None
     x = np.asarray(a.convert("RGBA"), np.int16)
     y = np.asarray(b.convert("RGBA"), np.int16)
     vis = (x[..., 3] > 8) | (y[..., 3] > 8)
     d = np.abs(x - y)
-    return "mean %.2f, alpha mean %.2f, px >8: %.3f%%" % (d[..., :3][vis].mean() if vis.any() else 0,
-                                                         d[..., 3].mean(), 100 * (d.max(2) > 8)[vis].mean() if vis.any() else 0)
+    return dict(rgb_mean=float(d[..., :3][vis].mean()) if vis.any() else 0.0,
+                alpha_mean=float(d[..., 3].mean()),
+                over8_percent=float(100 * (d.max(2) > 8)[vis].mean()) if vis.any() else 0.0)
+
+
+def night_b_matches(stats):
+    return stats is not None and stats["rgb_mean"] <= 0.3 and stats["alpha_mean"] <= 0.02 and stats["over8_percent"] <= 0.1
+
+
+def recorded_paper_match(stats, path, records):
+    """Return an auditable decision; only the eleven explicitly authorized pictures use deltas."""
+    import re
+    if path not in RECORDED_ONLY:
+        return dict(paper_accepted=night_b_matches(stats), paper_gate_applied="night-b")
+    text = records.get(path, {}).get("paper_check", "")
+    match = re.fullmatch(r"mean ([0-9]+(?:\.[0-9]+)?), alpha mean ([0-9]+(?:\.[0-9]+)?), px >8: ([0-9]+(?:\.[0-9]+)?)%", text)
+    if match is None or stats is None or not all(math.isfinite(v) for v in stats.values()):
+        return dict(paper_accepted=False, paper_gate_applied="night-b-recorded", paper_recorded_error="missing/invalid baseline or statistics")
+    keys = ("rgb_mean", "alpha_mean", "over8_percent")
+    reference = dict(zip(keys, map(float, match.groups())))
+    delta = {k: abs(stats[k] - reference[k]) for k in keys}
+    # >8 share: 0.2 points for desk_knob (a few hundred pixels; its CPU re-render reads 1.364% vs the recorded 1.474%,
+    # mean identical); 0.1 for the tumbles (2026-11-16 review)
+    limits = dict(zip(keys, (.05, .01, .2 if path.endswith("desk_knob_dark.webp") else .1)))
+    return dict(paper_accepted=all(delta[k] <= limits[k] + 1e-12 for k in keys),
+                paper_gate_applied="night-b-recorded", paper_recorded_baseline=reference,
+                paper_recorded_text=text, paper_recorded_delta=delta)
+
+
+def diff(a: Image.Image, b: Image.Image):
+    stats = paper_stats(a, b)
+    if stats is None:
+        return "SIZE %s vs %s" % (a.size, b.size)
+    return "mean %.2f, alpha mean %.2f, px >8: %.3f%%" % (stats["rgb_mean"], stats["alpha_mean"], stats["over8_percent"])
 
 
 def put(dst: Path, dark: Image.Image, paper: Image.Image, also_png=False):
@@ -96,17 +174,45 @@ def put(dst: Path, dark: Image.Image, paper: Image.Image, also_png=False):
         if how == "lossy":
             how = match_lossy(paper, pdst) if pdst.exists() else (90, 4)
         enc = how
-    check = diff(Image.open(io.BytesIO(encode(paper, enc))) if enc else paper, Image.open(pdst)) if pdst.exists() else "no paper file"
+    check = "no paper file"
+    exact = False
+    changed_pixels = None
+    stats = None
+    if pdst.exists():
+        actual = (Image.open(io.BytesIO(encode(paper, enc))) if enc else paper).convert("RGBA")
+        expected = Image.open(pdst).convert("RGBA")
+        exact = actual.size == expected.size and np.array_equal(np.asarray(actual), np.asarray(expected))
+        stats = paper_stats(actual, expected)
+        if actual.size == expected.size:
+            changed_pixels = int(np.any(np.asarray(actual) != np.asarray(expected), axis=2).sum())
+        check = "unchanged" if exact else diff(actual, expected)
     REPORT.append(dict(file=str(dst.relative_to(HOME)), encoding=str(enc or "png"), paper_check=check,
+                       paper_exact=exact, paper_changed_pixels=changed_pixels,
+                       paper_stats=stats, paper_gate="exact" if STRICT_PAPER else PAPER_GATE,
+                       paper_accepted=exact if STRICT_PAPER else night_b_matches(stats) if PAPER_GATE else None,
                        old_dark=diff(dark, Image.open(dst)) if dst.exists() else "new"))
+    if PAPER_GATE == "night-b-recorded":
+        REPORT[-1].update(recorded_paper_match(stats, dst.relative_to(ROOT).as_posix(), RECIPES),
+                          paper_gate_reference=RECORDED_REFERENCE, paper_gate_reference_blob=RECORDED_BLOB)
     print("%-48s %-14s paper: %s" % (dst.relative_to(HOME), enc or "png", check))
     if WRITE:
         if enc:
-            dst.write_bytes(encode(dark, enc))
+            data = encode(dark, enc)
         else:
-            dark.save(dst, optimize=True)
+            buf = io.BytesIO()
+            dark.save(buf, "PNG", optimize=True)
+            data = buf.getvalue()
+        if GATED_PAPER:
+            PENDING.append((dst, data))
+        else:
+            dst.write_bytes(data)
         if also_png:
-            dark.save(dst.with_suffix(".png"), optimize=True)
+            buf = io.BytesIO()
+            dark.save(buf, "PNG", optimize=True)
+            if GATED_PAPER:
+                PENDING.append((dst.with_suffix(".png"), buf.getvalue()))
+            else:
+                dst.with_suffix(".png").write_bytes(buf.getvalue())
 
 
 def new_file(dst: Path, im: Image.Image):
@@ -122,6 +228,16 @@ def ld(p) -> Image.Image:
 
 def want(group):
     return ONLY is None or group in ONLY
+
+
+def job(name):
+    return JOBS is None or name in JOBS
+
+
+if JOBS is not None and (ONLY is None or not ONLY <= {"newplan", "presetio", "pastworks", "faxnews"}):
+    raise SystemExit("--jobs requires --only newplan,presetio,pastworks,faxnews (or a subset)")
+if GATED_PAPER and (ONLY is None or not ONLY <= {"newplan", "presetio", "pastworks", "faxnews"}):
+    raise SystemExit("Paper gates are supported for newplan,presetio,pastworks,faxnews")
 
 
 # ---------------------------------------------------------------- library / burn page drive
@@ -175,26 +291,32 @@ if want("caltop"):
 # ---------------------------------------------------------------- new work, presets desk, past works
 if want("newplan"):
     T, P, E = REN / "F_np_top", REN / "F_np_paper", REN / "F_np_env"
-    put(HOME / "newplan/top_dark.webp", ld(T / "top_dark.png").convert("RGB"), ld(T / "top_paper.png").convert("RGB"))
-    for n in ("paper", "paper_shadow"):
-        put(HOME / f"newplan/{n}_dark.webp", ld(P / f"{n}_dark.png"), ld(P / f"{n}_paper.png"))
-    for n in ("envelope_back", "envelope_front"):
-        put(HOME / f"newplan/{n}_dark.webp", ld(E / f"{n}_dark.png"), ld(E / f"{n}_paper.png"))
-if want("presetio"):
+    if job("F_np_top"):
+        put(HOME / "newplan/top_dark.webp", ld(T / "top_dark.png").convert("RGB"), ld(T / "top_paper.png").convert("RGB"))
+    if job("F_np_paper"):
+        for n in ("paper", "paper_shadow"):
+            put(HOME / f"newplan/{n}_dark.webp", ld(P / f"{n}_dark.png"), ld(P / f"{n}_paper.png"))
+    if job("F_np_env"):
+        for n in ("envelope_back", "envelope_front"):
+            put(HOME / f"newplan/{n}_dark.webp", ld(E / f"{n}_dark.png"), ld(E / f"{n}_paper.png"))
+if want("presetio") and job("F_np_desk"):
     D = REN / "F_np_desk"
     for f in sorted((HOME / "presetio/desk").glob("desk_*_dark.webp")):
         n = f.name.replace(".webp", ".png")
         put(f, ld(D / n), ld(D / n.replace("_dark", "_paper")))
 if want("pastworks"):
     E = REN / "F_pw_env"
-    for n in ("envelope_back", "envelope_front"):
-        put(HOME / f"pastworks/{n}_dark.webp", ld(E / f"{n}_dark.png"), ld(E / f"{n}_paper.png"))
+    if job("F_pw_env"):
+        for n in ("envelope_back", "envelope_front"):
+            put(HOME / f"pastworks/{n}_dark.webp", ld(E / f"{n}_dark.png"), ld(E / f"{n}_paper.png"))
     for i in range(10):
+        if not job(f"F_tumble{i}"):
+            continue
         J = REN / f"F_tumble{i}"
         put(HOME / f"pastworks/tumble_{i}_dark.webp", ld(J / f"tumble_{i}_dark.png"), ld(J / f"tumble_{i}_paper.png"))
 
 # ---------------------------------------------------------------- the news fax's own page
-if want("faxnews"):
+if want("faxnews") and job("F_fax_top"):
     X = REN / "F_fax_top"
     meta = json.loads((HOME / "faxnews/fax.json").read_text(encoding="utf-8"))
     put(HOME / "faxnews/top_dark.webp", ld(X / "top_dark.png").convert("RGB"), ld(X / "top_paper.png").convert("RGB"))
@@ -233,6 +355,17 @@ if want("lobby"):
         im.alpha_composite(ld(REN / "F_lobby_b" / f"desk_parcel_{t}.png"))
         ims[t] = im.crop(pb)
     put(HOME / "lobby/parcel_dark.webp", ims["dark"], ims["paper"])
+
+if CHECK_REPORT:
+    CHECK_REPORT.parent.mkdir(parents=True, exist_ok=True)
+    CHECK_REPORT.write_text(json.dumps(REPORT, indent=1, ensure_ascii=False), encoding="utf-8")
+if GATED_PAPER:
+    failed = [r["file"] for r in REPORT if not r.get("paper_accepted", False)]
+    if failed or not REPORT:
+        print("Paper gate FAILED; no pictures written:", failed or "no selected pictures")
+        raise SystemExit(2)
+    for dst, data in PENDING:
+        dst.write_bytes(data)
 
 out = ROOT / "tools" / "night_b_export_report.json"
 if WRITE:  # merge: a run with --only replaces its own pictures' rows and keeps the others
