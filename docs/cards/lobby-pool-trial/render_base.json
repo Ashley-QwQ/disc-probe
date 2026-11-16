@@ -1,0 +1,53 @@
+{
+  "layer": "base",
+  "variants": {
+    "paper": {
+      "file": "desk_base_paper.png",
+      "bbox_px": [
+        0,
+        0,
+        2560,
+        1791
+      ]
+    },
+    "dark": {
+      "file": "desk_base_dark.png",
+      "bbox_px": [
+        0,
+        0,
+        2560,
+        1791
+      ]
+    }
+  },
+  "times_s": {
+    "base_normal": 7.4,
+    "base_id": 7.6,
+    "outline_mask": 9.7,
+    "base_color_paper": 93.9,
+    "base_nopool_paper": 74.5,
+    "base_lit_paper": 141.7,
+    "base_changed_casters_paper": 99.2,
+    "base_unlit_paper": 96.7,
+    "compose_paper": 21.4,
+    "base_color_dark": 99.0,
+    "base_nopool_dark": 60.5,
+    "base_lit_dark": 100.8,
+    "base_changed_casters_dark": 93.7,
+    "base_unlit_dark": 86.3,
+    "compose_dark": 18.1
+  },
+  "layer_total_s": 1026.0,
+  "ss": 4,
+  "samples": 16,
+  "night_pool_trial": {
+    "amb": 0.64,
+    "gain": 2.4,
+    "add": 0,
+    "sigma_scale_dark": 0.557,
+    "sigma_original": 0.42,
+    "sigma_dark": 0.23394,
+    "paper_and_lines_unchanged": true,
+    "device": "CPU"
+  }
+}

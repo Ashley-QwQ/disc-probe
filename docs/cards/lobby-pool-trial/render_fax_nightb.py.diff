@@ -1,0 +1,86 @@
+--- x79-original/render_fax_nightb.py
++++ trial/render_fax_nightb.py
+@@ -112,7 +112,7 @@
+         lamp_metal=("#333b3e", "#22292c", "#272e32"),
+         prop_tint="#353f43",
+         line="#d5d9d2", line_alpha=0.55,
+-        amb=(0.9, 0.9, 0.9), gain=(1.6, 1.4, 1.1), add=(0.035, 0.018, 0.004), vert_w=0.55,
++        amb=(0.64, 0.64, 0.64), gain=(2.4, 2.4, 2.4), add=(0.0, 0.0, 0.0), vert_w=0.55,
+         shadow_mul=0.86, shadow_keep=0.3,
+         shadow_light_height_mm=900,   # fake: shadows cast from above the bulb, so they stay short
+         light_dir=None,            # bands toward the bulb
+@@ -155,7 +155,7 @@
+ CAM_OFF = float(scene.get("cam_view_offset", 0.0))
+ ROOM = "room" in scene.get("desk_meta", "") and "fade" in scene
+ if ROOM:                                   # v2 room scene: the room is dimmer away from the lamp at night
+-    VARIANT_STYLE["dark"].update(amb=(0.8, 0.8, 0.8), gain=(2.0, 1.75, 1.35), add=(0.05, 0.028, 0.006),
++    VARIANT_STYLE["dark"].update(amb=(0.64, 0.64, 0.64), gain=(2.4, 2.4, 2.4), add=(0.0, 0.0, 0.0),
+                                  shadow_light_height_mm=None)
+     VARIANT_STYLE["paper"].update(gain=(0.02, 0.015, 0.005))      # lamp off in the paper theme
+     if any(o.get("mat") == "stage" for o in scene.objects):        # lobby v3 (desk on a stage floor): the paper
+@@ -427,10 +427,10 @@
+     With --glow and v given, the screen's spill on top (also without the pool)."""
+     if not use_pool:
+         return glowed(nt, color, v)
+-    return glowed(nt, pooled_lamp(nt, color, is_top, st), v)
+-
+-
+-def pooled_lamp(nt, color, is_top, st):
++    return glowed(nt, pooled_lamp(nt, color, is_top, st, v), v)
++
++
++def pooled_lamp(nt, color, is_top, st, v):
+     geo = nt.nodes.new("ShaderNodeNewGeometry")
+     sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+     nt.links.new(geo.outputs["Position"], sep.inputs[0])
+@@ -481,7 +481,9 @@
+     nt.links.new(dvec, dot.inputs[1])
+     k = nt.nodes.new("ShaderNodeMath")
+     k.operation = "MULTIPLY"
+-    k.inputs[1].default_value = -1.0 / (2.0 * POOL["sigma"] ** 2)
++    # Card T: narrow only the night pool, including segment distance. Paper and lines stay unchanged.
++    sigma = POOL["sigma"] * (0.557 if v == "dark" else 1.0)
++    k.inputs[1].default_value = -1.0 / (2.0 * sigma ** 2)
+     nt.links.new(dot.outputs["Value"], k.inputs[0])
+     ex = nt.nodes.new("ShaderNodeMath")
+     ex.operation = "EXPONENT"
+@@ -628,16 +630,19 @@
+ cyc.glossy_bounces = 0
+ cyc.transmission_bounces = 0
+ cyc.transparent_max_bounces = 8
+-try:
+-    prefs = bpy.context.preferences.addons["cycles"].preferences
+-    prefs.compute_device_type = DEVICE
+-    prefs.get_devices()
+-    for d in prefs.devices:
+-        d.use = d.type == DEVICE
+-    cyc.device = "CPU" if DEVICE == "CPU" else "GPU"
+-except Exception as e:
+-    print("[desk] GPU setup failed, using CPU:", e)
++if DEVICE == "CPU":
+     cyc.device = "CPU"
++else:
++    try:
++        prefs = bpy.context.preferences.addons["cycles"].preferences
++        prefs.compute_device_type = DEVICE
++        prefs.get_devices()
++        for d in prefs.devices:
++            d.use = d.type == DEVICE
++        cyc.device = "CPU" if DEVICE == "CPU" else "GPU"
++    except Exception as e:
++        print("[desk] GPU setup failed, using CPU:", e)
++        cyc.device = "CPU"
+ if scene.world is None:
+     scene.world = bpy.data.worlds.new("World")
+ scene.world.use_nodes = True
+@@ -972,6 +977,10 @@
+     info["times_s"] = dict(TIMES)
+     info["layer_total_s"] = round(time.time() - t_layer, 1)
+     info["ss"], info["samples"] = SS, SAMPLES
++    info["night_pool_trial"] = {"amb": 0.64, "gain": 2.4, "add": 0,
++                                "sigma_scale_dark": 0.557, "sigma_original": POOL["sigma"],
++                                "sigma_dark": POOL["sigma"] * 0.557,
++                                "paper_and_lines_unchanged": True, "device": cyc.device}
+     with open(os.path.join(OUTDIR, "render_%s.json" % layer), "w") as fh:
+         json.dump(info, fh, indent=2)
+ with open(os.path.join(OUTDIR, "desk_meta.json"), "w", encoding="utf-8") as fh:

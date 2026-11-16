@@ -1,0 +1,213 @@
+{
+  "method": "sRGB inverse transfer -> D65 Y (.2126,.7152,.0722) -> CIELAB L*; raw base desktop ID=1, full SS coverage eroded 3px; visible foreground alpha>0 dilated 3px excluded; corners 5x5 median; drive projected top-cover faces eroded 3px",
+  "base": {
+    "old": {
+      "center_target_px": [
+        856.8186187744141,
+        1117.5211461782455
+      ],
+      "nearest_visible_desktop": {
+        "x": 842,
+        "y": 1074,
+        "rgb": [
+          38,
+          39,
+          34
+        ],
+        "L_star": 15.37453828080076
+      },
+      "distance_px": 45.97479338778624,
+      "center_patch_median_L_star": 15.37453828080076,
+      "center_patch_pixels": 12,
+      "corners": {
+        "top_left": {
+          "box": [
+            0,
+            0,
+            5,
+            5
+          ],
+          "median_L_star": 4.628894367716288
+        },
+        "top_right": {
+          "box": [
+            2555,
+            0,
+            2560,
+            5
+          ],
+          "median_L_star": 4.628894367716288
+        },
+        "bottom_left": {
+          "box": [
+            0,
+            1786,
+            5,
+            1791
+          ],
+          "median_L_star": 5.0700390214710325
+        },
+        "bottom_right": {
+          "box": [
+            2555,
+            1786,
+            2560,
+            1791
+          ],
+          "median_L_star": 5.0700390214710325
+        }
+      }
+    },
+    "trial_png": {
+      "center_target_px": [
+        856.8186187744141,
+        1117.5211461782455
+      ],
+      "nearest_visible_desktop": {
+        "x": 842,
+        "y": 1074,
+        "rgb": [
+          21,
+          31,
+          36
+        ],
+        "L_star": 11.041124524891416
+      },
+      "distance_px": 45.97479338778624,
+      "center_patch_median_L_star": 11.041124524891416,
+      "center_patch_pixels": 12,
+      "corners": {
+        "top_left": {
+          "box": [
+            0,
+            0,
+            5,
+            5
+          ],
+          "median_L_star": 4.660415488417794
+        },
+        "top_right": {
+          "box": [
+            2555,
+            0,
+            2560,
+            5
+          ],
+          "median_L_star": 4.660415488417794
+        },
+        "bottom_left": {
+          "box": [
+            0,
+            1786,
+            5,
+            1791
+          ],
+          "median_L_star": 4.660415488417794
+        },
+        "bottom_right": {
+          "box": [
+            2555,
+            1786,
+            2560,
+            1791
+          ],
+          "median_L_star": 4.660415488417794
+        }
+      }
+    },
+    "trial_webp": {
+      "center_target_px": [
+        856.8186187744141,
+        1117.5211461782455
+      ],
+      "nearest_visible_desktop": {
+        "x": 842,
+        "y": 1074,
+        "rgb": [
+          21,
+          32,
+          37
+        ],
+        "L_star": 11.456290485038991
+      },
+      "distance_px": 45.97479338778624,
+      "center_patch_median_L_star": 11.456290485038991,
+      "center_patch_pixels": 12,
+      "corners": {
+        "top_left": {
+          "box": [
+            0,
+            0,
+            5,
+            5
+          ],
+          "median_L_star": 4.628894367716288
+        },
+        "top_right": {
+          "box": [
+            2555,
+            0,
+            2560,
+            5
+          ],
+          "median_L_star": 4.628894367716288
+        },
+        "bottom_left": {
+          "box": [
+            0,
+            1786,
+            5,
+            1791
+          ],
+          "median_L_star": 4.628894367716288
+        },
+        "bottom_right": {
+          "box": [
+            2555,
+            1786,
+            2560,
+            1791
+          ],
+          "median_L_star": 4.628894367716288
+        }
+      }
+    }
+  },
+  "drive_top": {
+    "status": "UNCHANGED_OVERLAY; no new drive render in base-only trial",
+    "source": "discprobe/web/home/lobby/newplan_dark.webp",
+    "roi_scene": "D:\\disc-probe\\art\\desk\\room_lobby3_final.blend: drv_SHELL_top_cover world normal z > .55",
+    "roi_scene_sha256": "5f5da970146f53f3d29c3d0e28148b588c8d742c43f3c8fa7104c5dda508a03f",
+    "pixels": 68018,
+    "erosion_px": 3,
+    "line_guard": "7x7 local RGB range <=6 in every channel; exclude internal outline/crease neighbourhoods",
+    "brightest": {
+      "x": 429,
+      "y": 143,
+      "rgb": [
+        74,
+        71,
+        61
+      ],
+      "L_star": 30.155217931241936,
+      "global_xy": [
+        1059,
+        858
+      ]
+    },
+    "darkest": {
+      "x": 686,
+      "y": 140,
+      "rgb": [
+        62,
+        61,
+        54
+      ],
+      "L_star": 25.647401599678346,
+      "global_xy": [
+        1316,
+        855
+      ]
+    }
+  }
+}
