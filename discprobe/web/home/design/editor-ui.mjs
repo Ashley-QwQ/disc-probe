@@ -147,7 +147,7 @@ export class Editor {
   // What was painted on the pictures (fills on selections, shapes, effects) without the pictures themselves:
   // the same composer on a document whose image layers are left out, the background transparent.
   fillsOverlay(size){const s=this.s;if(!s.assignments?.length&&!s.layers.some(l=>l.kind!=='image'))return null;
-    const dark=document.documentElement.dataset.theme==='dark',key=JSON.stringify([size,this.revision,dark]);if(this.fillsCache?.key===key)return this.fillsCache.canvas;
+    const dark=false/* the disc is not the interface: the same light face and dark marks in both themes (2026-11-16) */,key=JSON.stringify([size,this.revision,dark]);if(this.fillsCache?.key===key)return this.fillsCache.canvas;
     const d=this.document(),doc={...d,layers:d.layers.filter(l=>l.kind!=='image')},labels=O.compose(doc,O.grid(size)),canvas=document.createElement('canvas');canvas.width=canvas.height=size;
     const ctx=canvas.getContext('2d'),im=ctx.createImageData(size,size);
     for(let i=0;i<labels.length;i++){if(!labels[i])continue;const m=doc.materials[labels[i]]??doc.materials[0],rgb=identityRGB(m,i%size,Math.floor(i/size),dark);im.data.set([...rgb,235],i*4);}
@@ -157,7 +157,7 @@ export class Editor {
   // the lamp view: frames from the lamp worker (editor-lamp.mjs), null until the first one; never composed here
   lampFrame(size){this.lamp??=new LampPreview({onChange:()=>{if(this.h.active?.()===false)return;this.h.status?.();this.h.draw();}});
     const image=this.lamp.view({rev:this.revision,document:()=>this.document(),pose:lampPose(this.s),screen:size});this.h.status?.();return image;}
-  preview(size=420,identityOnly=false){const lamp=!identityOnly&&this.s.view==='lamp',dark=document.documentElement.dataset.theme==='dark',key=JSON.stringify([size,this.revision,dark,this.s.view!=='proj'&&!identityOnly]);
+  preview(size=420,identityOnly=false){const lamp=!identityOnly&&this.s.view==='lamp',dark=false,key=JSON.stringify([size,this.revision,dark,this.s.view!=='proj'&&!identityOnly]);
     if(this.motionPreview&&this.s.view==='burn'&&!identityOnly)return this.motionPreview;
     if(lamp)return this.lampFrame(size);else if(!identityOnly)this.lamp?.pause();
     if(this.previewCache?.key===key)return this.previewCache.canvas;
@@ -184,7 +184,7 @@ export class Editor {
     const cols=[clamp(at(0,v.cx)),clamp(at(v.w,v.cx)+1)],rows=[clamp(at(0,v.cy)),clamp(at(v.h,v.cy)+1)];
     if(cols[1]<=cols[0]||rows[1]<=rows[0])return null;
     this.exact??=new ExactView(()=>{this.h.status?.();this.h.draw();});
-    const dark=document.documentElement.dataset.theme==='dark';
+    const dark=false;   // one look in both themes, as above
     const paint=(labels,w,h)=>{const mats=this.labelCache?.materials??s.materials??[],c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),im=g.createImageData(w,h);
       const light=dark?[58,64,62]:[218,214,205],ink=dark?[200,198,190]:[62,60,56];
       for(let i=0;i<labels.length;i++){const m=mats[labels[i]];im.data.set([...(labels[i]===0?light:m&&m.id!=='background'&&m.spec!=='A5'&&m.id!=='dark'?identityRGB(m,1,0,dark):ink),255],i*4);}
