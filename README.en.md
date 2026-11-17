@@ -94,7 +94,7 @@ The steps below use the command line.
 
 > If you exported a preset with `--correction` before 2026-11-06, the correction may not be in it. Update and export again; you don't need to measure again.
 
-You need blank discs from the same batch: at least 2 for DVD (measuring, picture) and at least 3 for CD (measuring, calibration, picture). For DVD the web page can add a check disc between measuring and the picture, to check against phone photos. The measuring disc can't take a picture afterwards, but keep it: other discs of that batch don't need a new one. You also need Windows or Linux, Python 3.10 or later and a drive that can burn. For macOS, see the port listed under the [table of reports](#drives-with-hands-on-reports). The steps below are for DVD. For CD, see the [CD route](#cd-route) further down.
+You need blank discs from the same batch. The minimum, when everything is right first time, is 2 for DVD (measuring, picture) and 3 for CD (measuring, calibration, picture). The web page plans for 3: the measuring disc, a check disc you photograph to see how far off it is, and the picture; if the error is large, disc 4 is the picture. 3 is a goal, not a promise. A bad photo is retaken, not re-burned. The measuring disc can't take a picture afterwards, but keep it: other discs of that batch don't need a new one. You also need Windows or Linux, Python 3.10 or later and a drive that can burn. For macOS, see the port listed under the [table of reports](#drives-with-hands-on-reports). The steps below are for DVD. For CD, see the [CD route](#cd-route) further down.
 
 You can also skip git and download a package from [Releases](https://github.com/Ashley-QwQ/disc-probe/releases) (1.0.0.0-alpha is a pre-release, so it is not marked Latest):
 

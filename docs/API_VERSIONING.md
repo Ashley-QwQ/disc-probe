@@ -5,7 +5,8 @@ its version need not match the core release. The bundled GUI remains the default
 for 1.0.0 alpha. `webui --gui PATH` selects a different pack.
 
 `discprobe/version.py` owns the core release string (currently unchanged).
-At release it can become `1.0.0-alpha.1`; pip normalizes that to `1.0.0a1`.
+At release `tools/release.py --version` writes the four-part public version into the frozen copy,
+e.g. `1.0.0.0-alpha`; pip normalizes that to `1.0.0.0a0`. API_VERSION below is a separate number.
 `discprobe/api.py` owns API_VERSION, capabilities and supported older majors.
 `GET /api/version` and `disc-probe version --json` return the same payload.
 No git checkout is needed.
