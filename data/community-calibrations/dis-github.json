@@ -67,7 +67,14 @@
      "source_kind": "dis_builtin",
      "source_version": "v1.6.0",
      "builtin_id": "verbatim-azo-43438",
-     "license": "GPL-3.0-or-later"
+     "license": "GPL-3.0-or-later",
+     "parameters": {
+      "sectors": 359848,
+      "usableSectors": 359846,
+      "innerRadiusMm": 24.837775,
+      "outerRadiusMm": 58.020875,
+      "linearVelocityMmPerSecond": 1200
+     }
     },
     {
      "id": "DISmain-verbatim-azo-43438",
@@ -99,7 +106,14 @@
      "source_kind": "dis_builtin",
      "source_version": "28310c8700646808bffa434feb2db68ab2c26a50",
      "builtin_id": "verbatim-azo-43438",
-     "license": "GPL-3.0-or-later"
+     "license": "GPL-3.0-or-later",
+     "parameters": {
+      "sectors": 359848,
+      "usableSectors": 359846,
+      "innerRadiusMm": 24.837775,
+      "outerRadiusMm": 58.020875,
+      "linearVelocityMmPerSecond": 1200
+     }
     }
    ],
    "reports": []
@@ -170,7 +184,17 @@
      "source_kind": "dis_builtin",
      "source_version": "v1.6.0",
      "builtin_id": "verbatim-dvd-r-azo-43523",
-     "license": "GPL-3.0-or-later"
+     "license": "GPL-3.0-or-later",
+     "parameters": {
+      "totalSectors": 2297888,
+      "usableSectors": 2297888,
+      "innerRadiusMm": 23.991460627731737,
+      "outerRadiusMm": 57.964893657925366,
+      "channelBitLengthNm": 133.3,
+      "pitchLinear": -3.9256854319227684e-05,
+      "pitchQuadratic": 6.964795915429256e-05,
+      "pitchCubic": -4.670918950137523e-05
+     }
     },
     {
      "id": "DIS160-verbatim-dvd-r-azo-43533",
@@ -202,7 +226,17 @@
      "source_kind": "dis_builtin",
      "source_version": "v1.6.0",
      "builtin_id": "verbatim-dvd-r-azo-43533",
-     "license": "GPL-3.0-or-later"
+     "license": "GPL-3.0-or-later",
+     "parameters": {
+      "totalSectors": 2297888,
+      "usableSectors": 2297888,
+      "innerRadiusMm": 23.991460627731737,
+      "outerRadiusMm": 57.964893657925366,
+      "channelBitLengthNm": 133.3,
+      "pitchLinear": -3.9256854319227684e-05,
+      "pitchQuadratic": 6.964795915429256e-05,
+      "pitchCubic": -4.670918950137523e-05
+     }
     },
     {
      "id": "DISmain-verbatim-dvd-r-azo-43533",
@@ -234,7 +268,17 @@
      "source_kind": "dis_builtin",
      "source_version": "28310c8700646808bffa434feb2db68ab2c26a50",
      "builtin_id": "verbatim-dvd-r-azo-43533",
-     "license": "GPL-3.0-or-later"
+     "license": "GPL-3.0-or-later",
+     "parameters": {
+      "totalSectors": 2297888,
+      "usableSectors": 2297888,
+      "innerRadiusMm": 23.991460627731737,
+      "outerRadiusMm": 57.964893657925366,
+      "channelBitLengthNm": 133.3,
+      "pitchLinear": -3.9256854319227684e-05,
+      "pitchQuadratic": 6.964795915429256e-05,
+      "pitchCubic": -4.670918950137523e-05
+     }
     }
    ],
    "reports": []
@@ -302,7 +346,14 @@
      "source_kind": "dis_builtin",
      "source_version": "v1.6.0",
      "builtin_id": "bd-r-ritek-12x",
-     "license": "GPL-3.0-or-later"
+     "license": "GPL-3.0-or-later",
+     "parameters": {
+      "totalSectors": 12219392,
+      "usableSectors": 12219392,
+      "innerRadiusMm": 23.98795,
+      "outerRadiusMm": 58.02236,
+      "invertMapping": false
+     }
     }
    ],
    "reports": []
@@ -405,7 +456,17 @@
      "source_kind": "dis_builtin",
      "source_version": "v1.6.0",
      "builtin_id": "philips-dvd-plus-r",
-     "license": "GPL-3.0-or-later"
+     "license": "GPL-3.0-or-later",
+     "parameters": {
+      "totalSectors": 2295104,
+      "usableSectors": 2295104,
+      "innerRadiusMm": 24.157723798864616,
+      "outerRadiusMm": 57.8810391592571,
+      "channelBitLengthNm": 133.3,
+      "pitchLinear": -0.00015487792452410765,
+      "pitchQuadratic": 0.0001962455822194293,
+      "pitchCubic": -8.668360288829188e-05
+     }
     }
    ]
   },
@@ -504,7 +565,16 @@
      "posted": "2026-11-04",
      "language": "zh",
      "confidence": "medium",
-     "confidence_why": "Numbers reposted in full; 'worked' from the poster saying the real test matches #50's parameters."
+     "confidence_why": "Numbers reposted in full; 'worked' from the poster saying the real test matches #50's parameters.",
+     "parameters": {
+      "innerRadiusMm": 24.048201325754512,
+      "outerRadiusMm": 58.02648816120639,
+      "totalSectors": 2295104,
+      "channelBitLengthNm": 133.3,
+      "pitchLinear": 4.448895078187968e-05,
+      "pitchQuadratic": -0.00010130233076827166,
+      "pitchCubic": 6.625808735161595e-05
+     }
     },
     {
      "id": "DIS160-ritek-dvd-plus-r-e-series",
@@ -536,7 +606,17 @@
      "source_kind": "dis_builtin",
      "source_version": "v1.6.0",
      "builtin_id": "ritek-dvd-plus-r-e-series",
-     "license": "GPL-3.0-or-later"
+     "license": "GPL-3.0-or-later",
+     "parameters": {
+      "totalSectors": 2295104,
+      "usableSectors": 2295104,
+      "innerRadiusMm": 24.048201325754512,
+      "outerRadiusMm": 58.02648816120639,
+      "channelBitLengthNm": 133.3,
+      "pitchLinear": 4.448895078187968e-05,
+      "pitchQuadratic": -0.00010130233076827166,
+      "pitchCubic": 6.625808735161595e-05
+     }
     }
    ]
   },
@@ -606,7 +686,17 @@
      "source_kind": "dis_builtin",
      "source_version": "v1.6.0",
      "builtin_id": "ritek-dvd-r-e-series",
-     "license": "GPL-3.0-or-later"
+     "license": "GPL-3.0-or-later",
+     "parameters": {
+      "totalSectors": 2298496,
+      "usableSectors": 2297888,
+      "innerRadiusMm": 24.063109184084034,
+      "outerRadiusMm": 58.23373375457525,
+      "channelBitLengthNm": 133.3,
+      "pitchLinear": -3.2229430281730407e-06,
+      "pitchQuadratic": 1.0507210681810583e-05,
+      "pitchCubic": -8.562064227346657e-06
+     }
     }
    ],
    "reports": []
@@ -1997,7 +2087,15 @@
      "posted": "2026-11-05",
      "language": "zh",
      "confidence": "high",
-     "confidence_why": "Full numeric set with zero terms as posted."
+     "confidence_why": "Full numeric set with zero terms as posted.",
+     "parameters": {
+      "totalSectors": 2295104,
+      "innerRadiusMm": 24.0980229,
+      "outerRadiusMm": 58.0256167,
+      "pitchLinear": 0,
+      "pitchQuadratic": 0,
+      "pitchCubic": 0
+     }
     }
    ],
    "reports": []
@@ -2326,7 +2424,7 @@
    ]
   },
   {
-   "id": "D133-1",
+   "id": "I132-1",
    "media": "dvd",
    "disc": {
     "mid": null,
@@ -2353,16 +2451,16 @@
    },
    "parameters_as_posted": "内半径：24.098016536545153\n外半径：58.025617141670004\n扇区数：2295104\n相对一次项：-8.765561078081203E-06\n相对二次项：1.338070661374073E-05\n相对三次项：-6.097481452980368E-06",
    "result": "unknown",
-   "result_notes": "Disc and result pictures posted (not read). Same numbers cross-posted as issue #132 and in a comment of issue #94, where the poster says the effect is okay.",
-   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/133",
+   "result_notes": "Cross-post of D133-1; maintainer says it will be adopted.",
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/132",
    "author": "zhajial",
    "posted": "2026-11-05",
    "language": "zh",
    "confidence": "high",
-   "confidence_why": "Full set; no result text here.",
+   "confidence_why": "Full labelled set.",
    "additional_sources": [
     {
-     "id": "I132-1",
+     "id": "D133-1",
      "media": "dvd",
      "disc": {
       "mid": null,
@@ -2379,15 +2477,23 @@
       "speed": null,
       "software": null
      },
+     "parameters": {
+      "innerRadiusMm": 24.098016536545153,
+      "outerRadiusMm": 58.025617141670004,
+      "totalSectors": 2295104,
+      "pitchLinear": -8.765561078081203e-06,
+      "pitchQuadratic": 1.338070661374073e-05,
+      "pitchCubic": -6.097481452980368e-06
+     },
      "parameters_as_posted": "内半径：24.098016536545153\n外半径：58.025617141670004\n扇区数：2295104\n相对一次项：-8.765561078081203E-06\n相对二次项：1.338070661374073E-05\n相对三次项：-6.097481452980368E-06",
      "result": "unknown",
-     "result_notes": "Cross-post of D133-1; maintainer says it will be adopted.",
-     "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/132",
+     "result_notes": "Disc and result pictures posted (not read). Same numbers cross-posted as issue #132 and in a comment of issue #94, where the poster says the effect is okay.",
+     "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/133",
      "author": "zhajial",
      "posted": "2026-11-05",
      "language": "zh",
      "confidence": "high",
-     "confidence_why": "Full labelled set."
+     "confidence_why": "Full set; no result text here."
     },
     {
      "id": "I94-1",
@@ -2415,7 +2521,15 @@
      "posted": "2026-11-05",
      "language": "zh",
      "confidence": "high",
-     "confidence_why": "Full labelled set; result 'okay' in text."
+     "confidence_why": "Full labelled set; result 'okay' in text.",
+     "parameters": {
+      "innerRadiusMm": 24.098016536545153,
+      "outerRadiusMm": 58.025617141670004,
+      "totalSectors": 2295104,
+      "pitchLinear": -8.765561078081203e-06,
+      "pitchQuadratic": 1.338070661374073e-05,
+      "pitchCubic": -6.097481452980368e-06
+     }
     }
    ],
    "reports": []
@@ -3449,7 +3563,7 @@
    },
    "parameters_as_posted": "name: Verbatim DVD-R AZO (95101 2201-203) (measured)\nfamily: DVD\ninnerRadiusMm: 23.991460702437305\nouterRadiusMm: 57.93579168028281\nsectors: 2295104\npitchLinear: -2.6724564452606465E-05\npitchQuadratic: 4.0503386747536064E-05\npitchCubic: -2.771840423519746E-05\ninterleave: false",
    "result": "worked",
-   "result_notes": "Five discs burned, with help from disc-probe; the poster calls it perfect and shows grid photos. Another user's burn with these numbers also worked (I171-2).",
+   "result_notes": "Five discs burned, with help from disc-probe; the poster calls it perfect and shows grid photos. Another user's burn with these numbers also worked (I171-2). A new commenter reports first try using ASUS SDRWGD2S-U; attached image not inspected.",
    "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/171",
    "author": "Sliicy",
    "posted": "2026-11-06",
@@ -3486,6 +3600,13 @@
      "language": "en",
      "confidence": "medium",
      "confidence_why": "No numbers reposted; drive from the same user's earlier comment."
+    },
+    {
+     "id": "I171-C6870001421",
+     "url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/171#issuecomment-6870001421",
+     "author": "g3nsvrv",
+     "posted": "2026-11-14T02:13:16Z",
+     "note": "Another first-try reuse report on ASUS SDRWGD2S-U; attached image not inspected."
     }
    ]
   },
@@ -3910,7 +4031,15 @@
      "posted": "2026-11-07",
      "language": "zh",
      "confidence": "medium",
-     "confidence_why": "Numbers complete with three zero terms. The post lists two drives together without separating results, so the entry is duplicated per drive."
+     "confidence_why": "Numbers complete with three zero terms. The post lists two drives together without separating results, so the entry is duplicated per drive.",
+     "parameters": {
+      "innerRadiusMm": 23.906781873880774,
+      "outerRadiusMm": 57.9836253278042,
+      "totalSectors": 2297888,
+      "pitchLinear": 0,
+      "pitchQuadratic": 0,
+      "pitchCubic": 0
+     }
     }
    ],
    "reports": []
@@ -4705,7 +4834,16 @@
      "posted": "2026-11-08",
      "language": "zh",
      "confidence": "high",
-     "confidence_why": "Full set plus JSON."
+     "confidence_why": "Full set plus JSON.",
+     "parameters": {
+      "totalSectors": 2297888,
+      "innerRadiusMm": 24.06311180704415,
+      "outerRadiusMm": 58.22735489530275,
+      "channelBitLengthNm": 133.3,
+      "pitchLinear": 2.8170188978681712e-06,
+      "pitchQuadratic": -6.2859114861504675e-06,
+      "pitchCubic": 5.017999736579008e-06
+     }
     }
    ],
    "reports": []
@@ -5964,12 +6102,12 @@
    "method": "disc-probe CD-DA timing; 36/36 points, angular fit RMS 0.172 deg"
   },
   {
-   "id": "D313-1",
+   "id": "I311-1",
    "media": "dvd",
    "disc": {
     "mid": null,
-    "brand": "RITEK Excellent DVD+RW 4X VW47H-01062",
-    "type": "RITEK Excellent DVD+RW 4X VW47H-01062",
+    "brand": "RiTEK",
+    "type": "Excellent DVD+RW 4X (inner ring VW47H-01062)",
     "capacity_sectors": 2295104
    },
    "drive": {
@@ -5984,31 +6122,31 @@
    "parameters": {
     "innerRadiusMm": 23.9417487816327,
     "outerRadiusMm": 58.14382318029559,
-    "usableSectors": 2295104,
+    "sectors": 2295104,
     "pitchLinear": 2.2357549829061135e-05,
     "pitchQuadratic": -4.5758130304781394e-06,
     "pitchCubic": 2.207847749834821e-06,
-    "totalSectors": 2295104
+    "usableSectors": 2295104
    },
-   "parameters_as_posted": "innerRadiusMm=23.9417487816327; outerRadiusMm=58.14382318029559; usableSectors=2295104; pitchLinear=2.2357549829061135e-05; pitchQuadratic=-4.5758130304781394e-06; pitchCubic=2.207847749834821e-06; totalSectors=2295104",
-   "result": "unknown",
-   "result_notes": "Calibration data posted in text; outcome only in images, not inspected.",
-   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/313",
+   "parameters_as_posted": "innerRadiusMm=23.9417487816327; outerRadiusMm=58.14382318029559; sectors=2295104; pitchLinear=2.2357549829061135e-05; pitchQuadratic=-4.5758130304781394e-06; pitchCubic=2.207847749834821e-06; usableSectors=2295104",
+   "result": "worked",
+   "result_notes": "Original post has result photos (not inspected). SweetSourFox independently says \"Tested and perfectly fitted my disc\" on 2026-11-12: https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/311#issuecomment-6827225180. The same user names Verbatim 66768 in D270 c3; that is the reuse drive, not evidence of the original author's drive. MID, original drive and actual write speed are unknown; 4X is the disc rating.",
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/311",
    "author": "SodiumSulfate",
    "posted": "2026-11-11",
    "language": "zh",
-   "confidence": "high",
-   "confidence_why": "Complete numerical set in public text; confidence concerns transcription, not applicability to another batch.",
+   "confidence": "medium",
+   "confidence_why": "Full numeric text and an explicit independent reuse report. MID is not supplied; do not infer RITEK-004-48 from brand or inner-ring code.",
    "source_kind": "community",
    "measured_span_mm": null,
    "additional_sources": [
     {
-     "id": "I311-1",
+     "id": "D313-1",
      "media": "dvd",
      "disc": {
       "mid": null,
-      "brand": "RiTEK",
-      "type": "Excellent DVD+RW 4X (inner ring VW47H-01062)",
+      "brand": "RITEK Excellent DVD+RW 4X VW47H-01062",
+      "type": "RITEK Excellent DVD+RW 4X VW47H-01062",
       "capacity_sectors": 2295104
      },
      "drive": {
@@ -6020,15 +6158,26 @@
       "speed": null,
       "software": null
      },
-     "parameters_as_posted": "innerRadiusMm=23.9417487816327; outerRadiusMm=58.14382318029559; sectors=2295104; pitchLinear=2.2357549829061135e-05; pitchQuadratic=-4.5758130304781394e-06; pitchCubic=2.207847749834821e-06; usableSectors=2295104",
-     "result": "worked",
-     "result_notes": "Original post has result photos (not inspected). SweetSourFox independently says \"Tested and perfectly fitted my disc\" on 2026-11-12: https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/311#issuecomment-6827225180. The same user names Verbatim 66768 in D270 c3; that is the reuse drive, not evidence of the original author's drive. MID, original drive and actual write speed are unknown; 4X is the disc rating.",
-     "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/311",
+     "parameters": {
+      "innerRadiusMm": 23.9417487816327,
+      "outerRadiusMm": 58.14382318029559,
+      "usableSectors": 2295104,
+      "pitchLinear": 2.2357549829061135e-05,
+      "pitchQuadratic": -4.5758130304781394e-06,
+      "pitchCubic": 2.207847749834821e-06,
+      "totalSectors": 2295104
+     },
+     "parameters_as_posted": "innerRadiusMm=23.9417487816327; outerRadiusMm=58.14382318029559; usableSectors=2295104; pitchLinear=2.2357549829061135e-05; pitchQuadratic=-4.5758130304781394e-06; pitchCubic=2.207847749834821e-06; totalSectors=2295104",
+     "result": "unknown",
+     "result_notes": "Calibration data posted in text; outcome only in images, not inspected.",
+     "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/313",
      "author": "SodiumSulfate",
      "posted": "2026-11-11",
      "language": "zh",
-     "confidence": "medium",
-     "confidence_why": "Full numeric text and an explicit independent reuse report. MID is not supplied; do not infer RITEK-004-48 from brand or inner-ring code."
+     "confidence": "high",
+     "confidence_why": "Complete numerical set in public text; confidence concerns transcription, not applicability to another batch.",
+     "source_kind": "community",
+     "measured_span_mm": null
     }
    ],
    "reports": []
@@ -6229,7 +6378,7 @@
    "measured_span_mm": null
   },
   {
-   "id": "D336-1",
+   "id": "I335-1",
    "media": "dvd",
    "disc": {
     "mid": null,
@@ -6257,8 +6406,8 @@
    },
    "parameters_as_posted": "innerRadiusMm=24.01242204574465; outerRadiusMm=58.07515366169282; usableSectors=2297888; pitchLinear=5.287414241258475e-06; pitchQuadratic=-1.2307702036325509e-05; pitchCubic=6.626926157078717e-06; totalSectors=2297888",
    "result": "worked",
-   "result_notes": "Same author and numbers as earlier I335; no separate calibration.",
-   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/336",
+   "result_notes": "Poster reports calibration completed using three discs.",
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/335",
    "author": "ama-Turbo",
    "posted": "2026-11-13",
    "language": "zh",
@@ -6268,7 +6417,7 @@
    "measured_span_mm": null,
    "additional_sources": [
     {
-     "id": "I335-1",
+     "id": "D336-1",
      "media": "dvd",
      "disc": {
       "mid": null,
@@ -6285,10 +6434,19 @@
       "speed": "8x",
       "software": null
      },
+     "parameters": {
+      "innerRadiusMm": 24.01242204574465,
+      "outerRadiusMm": 58.07515366169282,
+      "usableSectors": 2297888,
+      "pitchLinear": 5.287414241258475e-06,
+      "pitchQuadratic": -1.2307702036325509e-05,
+      "pitchCubic": 6.626926157078717e-06,
+      "totalSectors": 2297888
+     },
      "parameters_as_posted": "innerRadiusMm=24.01242204574465; outerRadiusMm=58.07515366169282; usableSectors=2297888; pitchLinear=5.287414241258475e-06; pitchQuadratic=-1.2307702036325509e-05; pitchCubic=6.626926157078717e-06; totalSectors=2297888",
      "result": "worked",
-     "result_notes": "Poster reports calibration completed using three discs.",
-     "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/335",
+     "result_notes": "Same author and numbers as earlier I335; no separate calibration.",
+     "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/336",
      "author": "ama-Turbo",
      "posted": "2026-11-13",
      "language": "zh",
@@ -6942,7 +7100,14 @@
      "source_kind": "dis_builtin",
      "source_version": "28310c8700646808bffa434feb2db68ab2c26a50",
      "builtin_id": "bd-r-ritek-10x",
-     "license": "GPL-3.0-or-later"
+     "license": "GPL-3.0-or-later",
+     "parameters": {
+      "totalSectors": 12219392,
+      "usableSectors": 12219392,
+      "innerRadiusMm": 23.98822105616562,
+      "outerRadiusMm": 58.023234731100764,
+      "invertMapping": false
+     }
     }
    ],
    "reports": []
@@ -7087,7 +7252,14 @@
      "source_kind": "dis_builtin",
      "source_version": "v1.6.0",
      "builtin_id": "bd-r-verbatim-64293",
-     "license": "GPL-3.0-or-later"
+     "license": "GPL-3.0-or-later",
+     "parameters": {
+      "totalSectors": 12219392,
+      "usableSectors": 12219392,
+      "innerRadiusMm": 23.987042157339335,
+      "outerRadiusMm": 57.987960341783236,
+      "invertMapping": false
+     }
     },
     {
      "id": "DISmain-bd-r-verbatim-64099",
@@ -7119,7 +7291,14 @@
      "source_kind": "dis_builtin",
      "source_version": "28310c8700646808bffa434feb2db68ab2c26a50",
      "builtin_id": "bd-r-verbatim-64099",
-     "license": "GPL-3.0-or-later"
+     "license": "GPL-3.0-or-later",
+     "parameters": {
+      "totalSectors": 12219392,
+      "usableSectors": 12219392,
+      "innerRadiusMm": 23.987042157339335,
+      "outerRadiusMm": 57.987960341783236,
+      "invertMapping": false
+     }
     }
    ]
   },
@@ -7380,7 +7559,14 @@
      "source_kind": "dis_builtin",
      "source_version": "28310c8700646808bffa434feb2db68ab2c26a50",
      "builtin_id": "ritek-medical-aqua",
-     "license": "GPL-3.0-or-later"
+     "license": "GPL-3.0-or-later",
+     "parameters": {
+      "sectors": 359845,
+      "usableSectors": 359843,
+      "innerRadiusMm": 24.911275,
+      "outerRadiusMm": 57.931155,
+      "linearVelocityMmPerSecond": 1200
+     }
     }
    ],
    "reports": []
@@ -8057,6 +8243,10 @@
   {
    "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19627064",
    "why": "Final sector count 2297888 only, no complete final parameters."
+  },
+  {
+   "source_url": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19615713",
+   "why": "GHB0N / MCC 03RG20: one-try calibration line success report, but numerical results only in results2.zip (not downloaded)."
   }
  ],
  "updates": [
@@ -8097,54 +8287,59 @@
    "date": "2026-11-17",
    "checked_through": "2026-11-17T01:38:57Z",
    "added": [
-    "I308-1",
-    "PR368-1",
-    "I332-1",
-    "I341-1",
-    "D336-1",
-    "I339-1",
-    "I329-1",
+    "D328-1",
+    "D337-1",
+    "D340-1",
+    "D344-1",
+    "D352-1",
+    "D360-1",
+    "D362-1",
     "D363-1",
     "D365-1",
-    "D362-1",
-    "D360-1",
-    "D313-1",
-    "D352-1",
-    "D344-1",
-    "D340-1",
-    "D337-1",
-    "D328-1",
-    "PR298-3",
-    "DIS160-cd-80",
-    "DIS160-ritek-medical-aqua",
-    "DIS160-cd-74",
-    "DIS160-dvd-5-120mm",
-    "DIS160-verbatim-dvd-plus-r-azo-43498",
-    "DIS160-dvd-5-80mm",
-    "DIS160-bd-r-sl-25gb",
     "DIS160-bd-r-ritek-10x",
+    "DIS160-bd-r-sl-25gb",
     "DIS160-bd-r-verbatim-64099",
-    "DISmain-verbatim-dvd-plus-rw-94520-95043"
+    "DIS160-cd-74",
+    "DIS160-cd-80",
+    "DIS160-dvd-5-120mm",
+    "DIS160-dvd-5-80mm",
+    "DIS160-ritek-medical-aqua",
+    "DIS160-verbatim-dvd-plus-r-azo-43498",
+    "DISmain-verbatim-dvd-plus-rw-94520-95043",
+    "I308-1",
+    "I329-1",
+    "I332-1",
+    "I335-1",
+    "I339-1",
+    "I341-1",
+    "PR298-3",
+    "PR368-1"
    ],
    "modified": [
+    "D107-22",
     "D109-1",
     "D127-1",
     "D169-1",
     "D191-1",
+    "D208-1",
     "D210-1",
     "D214-1",
     "D216-1",
     "D275-1",
-    "DIS160-bd-r-verbatim-64099",
-    "DIS160-cd-80",
     "I119-1",
+    "I132-1",
     "I144-1",
     "I171-1",
+    "I228-1",
     "I248-1",
+    "I25-1",
+    "I311-1",
     "I327-1",
-    "I329-1",
+    "I35-1",
+    "I36-1",
     "I41-1",
     "I50-1",
+    "I53-1",
     "I58-1",
     "I60-1",
     "I65-1",
@@ -8155,12 +8350,9 @@
    "merged": {
     "I99-1": "I50-1",
     "D163-1": "D107-22",
-    "I132-1": "D133-1",
-    "I94-1": "D133-1",
+    "I94-1": "I132-1",
     "D208-2": "D208-1",
     "D244-1": "I228-1",
-    "I311-1": "D313-1",
-    "I335-1": "D336-1",
     "DIS160-bd-r-ritek-12x": "I36-1",
     "DIS160-bd-r-verbatim-64293": "DIS160-bd-r-verbatim-64099",
     "DIS160-philips-dvd-plus-r": "I41-1",
@@ -8173,7 +8365,10 @@
     "DISmain-bd-r-verbatim-64099": "DIS160-bd-r-verbatim-64099",
     "DISmain-ritek-medical-aqua": "DIS160-ritek-medical-aqua",
     "DISmain-verbatim-azo-43438": "I25-1",
-    "DISmain-verbatim-dvd-r-azo-43533": "I35-1"
+    "DISmain-verbatim-dvd-r-azo-43533": "I35-1",
+    "D336-1": "I335-1",
+    "D133-1": "I132-1",
+    "D313-1": "I311-1"
    },
    "moved_to_skipped": [
     "D172-2",
@@ -8371,7 +8566,47 @@
     "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/285",
     "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/285#discussioncomment-19586674"
    ],
-   "note": "Read-only gh API refresh; all discussion comments/replies paginated; attachments never downloaded. Complete text sets only; result evidence retained separately from transcription confidence. Identical geometry consolidated to earliest catalogued dated source; duplicate product/built-in provenance retained in additional_sources, reuse in reports. Built-in source v1.6.0 4915b7d and main 28310c8; GPL-3.0-or-later. Original raw timing-only records remain hints and may not be importable."
+   "note": "Read-only gh API refresh; all discussion comments/replies paginated; attachments never downloaded. Complete text sets only; result evidence retained separately from transcription confidence. Identical geometry consolidated to earliest catalogued dated source; duplicate product/built-in provenance retained in additional_sources, reuse in reports. Built-in source v1.6.0 4915b7d and main 28310c8; GPL-3.0-or-later. Partial numeric / unresolved timing records are retained in skipped, not selectable hints. Exact duplicate-source parameter dictionaries are retained, including usable-sector metadata; same-day I335 precedes D336 by seven minutes. Relative to the input file: 27 new canonical IDs (17 community, 10 built-in), 30 existing entries modified, 24 empty-parameter reuse records consolidated; 12 partial/unresolved entries moved to skipped. D313 is a later duplicate of already-catalogued I311, not an additional numeric set.",
+   "earliest_source_timestamps": {
+    "I35-1": "2026-11-02T17:09:34Z",
+    "D107-22": "2026-11-05T20:52:38Z",
+    "D163-1": "2026-11-05T21:19:07Z",
+    "I132-1": "2026-11-05T10:33:16Z",
+    "D133-1": "2026-11-05T10:44:14Z",
+    "I94-1": "2026-11-05T10:39:27Z",
+    "D208-1": "2026-11-07T10:12:34Z",
+    "D208-2": "2026-11-07T10:12:34Z",
+    "I311-1": "2026-11-11T11:36:42Z",
+    "D313-1": "2026-11-11T11:54:37Z",
+    "I335-1": "2026-11-13T14:48:46Z",
+    "D336-1": "2026-11-13T14:55:19Z"
+   },
+   "consolidated_reuse": {
+    "I41-2": "I41-1",
+    "I60-2": "I50-1",
+    "I58-2": "I58-1",
+    "I74-2": "I74-1",
+    "D109-2": "D109-1",
+    "D109-3": "D109-1",
+    "D109-4": "D109-1",
+    "I119-2": "I119-1",
+    "I65-2": "I65-1",
+    "I232-2": "I79-1",
+    "I87-2": "I87-1",
+    "I87-3": "I87-1",
+    "D127-2": "D127-1",
+    "I144-2": "I144-1",
+    "D169-2": "D169-1",
+    "D169-3": "D169-1",
+    "D191-2": "D191-1",
+    "I171-2": "I171-1",
+    "D210-2": "D210-1",
+    "D214-3": "D214-1",
+    "D216-2": "D216-1",
+    "I248-2": "I248-1",
+    "I52-1": "DIS160-bd-r-verbatim-64099",
+    "I185-2": "DIS160-cd-80"
+   }
   }
  ]
 }
