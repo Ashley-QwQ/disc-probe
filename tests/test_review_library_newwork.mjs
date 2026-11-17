@@ -14,10 +14,11 @@ const manifest = JSON.parse(readFileSync(new URL('../gui.json', home), 'utf8'));
 const edge = process.env.KIT_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 assert.ok(existsSync(edge), 'Set KIT_TEST_BROWSER to Chromium');
 const dir = mkdtempSync(join(tmpdir(), 'discprobe-review-'));
-const shots = resolve('.impeccable/review-fixes'); mkdirSync(shots, {recursive:true});
-const discShots = resolve('.impeccable/disc-field'); mkdirSync(discShots, {recursive:true});
-const ownShots = resolve('.impeccable/own-params'); mkdirSync(ownShots, {recursive:true});
+const shots = resolve(process.env.REVIEW_SHOTS_DIR || '.impeccable/review-fixes'); mkdirSync(shots, {recursive:true});
+const discShots = resolve(process.env.DISC_FIELD_SHOTS_DIR || '.impeccable/disc-field'); mkdirSync(discShots, {recursive:true});
+const ownShots = resolve(process.env.OWN_PARAMS_SHOTS_DIR || '.impeccable/own-params'); mkdirSync(ownShots, {recursive:true});
 const fixture = join(dir, 'review.html');
+const communityFeed=JSON.parse(readFileSync(new URL('faxnews/community.json',home),'utf8'));
 const bootstrap = `<base href="${home}"><script>
 localStorage.setItem('dp-lang','zh');localStorage.setItem('dp-motion','off');localStorage.setItem('dp-sound','off');
 window.reviewErrors=[];addEventListener('error',e=>reviewErrors.push(e.message));addEventListener('unhandledrejection',e=>reviewErrors.push(String(e.reason)));
@@ -28,6 +29,7 @@ window.fetch=async (path,opts)=>{
  if(url.pathname.includes('/api/')) {
    const payload=opts?.body?JSON.parse(opts.body):null;
    reviewCalls.push({path:String(path),method:opts?.method||'GET',payload});
+   if(String(path)==='/api/community')return {ok:true,text:async()=>JSON.stringify({feed:${JSON.stringify(communityFeed)},date:${JSON.stringify(communityFeed.date)},count:${communityFeed.count},from:'bundled'})};
    if(String(path)==='/api/presets')return {ok:true,json:async()=>!payload?({version:1,presets:[]}):
      ({entries:window.reviewImportRows||[],written:payload.operation==='import'?(window.reviewImportRows||[]).map(r=>({index:r.index,path:'presets/'+r.preset.id+'.json'})):[],duplicates:[]})};
    throw Error('Unexpected core access: '+path);
@@ -122,6 +124,7 @@ try {
     await evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)};await review.newplan.start(review.api);`);
     await check('document.querySelector(".np-batch").value==="" && document.querySelector(".np-batch").placeholder==="Verbatim DVD-R 16x" && document.querySelectorAll(".np-tab").length===2','grey suggested field with Tab cap');
     await check('document.querySelector(".np-cal-text").textContent==="已标定 · 2026-11-07" && document.querySelector(".np-left").textContent==="还剩 37 / 50 张"','measured sentence and counts');
+    await check('document.querySelector(".np-community").hidden','a batch DP has measured gets no community hint');
     await shot('recognised-library-'+theme,'disc');
     await batchKey('Tab');
     await check('document.querySelector(".np-batch").value==="Verbatim DVD-R 16x"','Tab accepts');
@@ -131,6 +134,8 @@ try {
       const cat=[{id:'b-same-mid',mid:it.readMid||'RITEKF1',s:'good',geo:'results/geo-same/summary.json'}];
       return it.id.startsWith('new:') && !('mid' in it) && r.hasBatch(it) && r.geoChoice({item:it},cat,'results/geo-same/summary.json').source==='none';`,'new batch: own id, no mid, geoChoice none despite a same-MID measured batch');
     await check('document.querySelector(".np-cal-text").textContent==="这批还没有参数：可以先画；要刻之前标定一次，或者带上已有参数" && document.querySelector(".np-cal-go").textContent==="标定这批" && !document.querySelector(".np-own").hidden && document.querySelector(".np-library").hidden && document.querySelector(".np-disc-help").textContent.includes("MCC 004 · AZO")','new batch status, links and MID');
+    await until('!document.querySelector(".np-community").hidden','community hint for an unmeasured batch');
+    await check('((n)=>n.textContent.includes("同 MID") && !n.textContent.includes("容量相同") && n.textContent.includes("不是 DP 测的") && n.textContent.includes("这批盘还没确认") && n.querySelector("a").href.startsWith("https://github.com/"))(document.querySelector(".np-community"))','MID hint (not capacity) with provenance and source link');
     await shot('new-batch-typed-'+theme,'disc');
     await typeBatch('');
     await check('document.querySelector(".np-cal-text").textContent==="没选盘：画好后要刻时再选" && document.querySelector(".np-cal-go").hidden && document.querySelector(".np-library").hidden && document.querySelector(".np-batch").placeholder===""','empty field sentence and no batch');
@@ -150,7 +155,7 @@ try {
   await evaluate('document.getElementById("back").click()');
   await check('document.documentElement.dataset.mode==="newplan" && !document.querySelector(".np").hidden','library Back returns to form');
   await evaluate('document.querySelector(".np-library").click();review.api.goTo("dvd",1);document.getElementById("next").click()');
-  await check('document.documentElement.dataset.mode==="newplan" && document.querySelector(".np-batch").value.includes("TDK")','library can return another chosen batch');
+  await until('document.documentElement.dataset.mode==="newplan" && document.querySelector(".np-batch").value.includes("TDK")','library can return another chosen batch');
   await evaluate('document.querySelector(".np-batch").value="TDK DVD-R 16x";document.querySelector(".np-batch").dispatchEvent(new Event("input"));document.getElementById("next").click()');
   await until('document.documentElement.dataset.mode==="design"','an uncalibrated batch still goes on to drawing (calibration is a link, not a gate)');
   await evaluate(`await review.newplan.start(review.api);document.querySelector('.np-name').value='我的作品';
@@ -240,7 +245,7 @@ try {
   await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
   await evaluate('document.getElementById("lang").click()');
   await check('document.querySelector(".np-batch").getBoundingClientRect().right<=innerWidth && document.querySelector(".np-batch").getBoundingClientRect().left>=0','mobile controls stay on paper');
-  await check('reviewCalls.every(c=>c.path==="/api/presets")','only mocked preset requests, no device commands');
+  await check('reviewCalls.every(c=>c.path==="/api/presets" || c.path==="/api/community" && c.method==="GET")','only mocked preset and community reads, no device commands');
   console.log('PASS: library/new-work DOM, suggestions, keyboard, routing, parameters, motion, capability gate; eight disc-field 1440×900 screenshots');
 } finally {
   if(socket?.readyState===WebSocket.OPEN){await cdp('Browser.close').catch(()=>{});socket.close();}

@@ -90,6 +90,9 @@
   overflow: hidden; pointer-events: none; }
 .np-dial { position: absolute; top: 0; right: 1.6em; width: 17.5em; pointer-events: auto; }
 .np-library[hidden] { display: none; }
+.np-community[hidden] { display: none; }
+.np-community a { color: inherit; text-underline-offset: .3em; }
+.np-community a:hover { color: var(--ink-f); }
 .np-dial-svg { display: block; width: 100%; height: auto; overflow: visible; }
 .np-disc { fill: var(--disc-f); stroke: var(--key-line); stroke-width: 1.5; }
 .np-hub { fill: var(--hub-f); }

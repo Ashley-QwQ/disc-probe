@@ -1,5 +1,7 @@
 # Preserve supplied brand and style evidence byte for byte on every checkout.
 /discprobe/web/brand/*.svg -text whitespace=trailing-space,space-before-tab,cr-at-eol
 /STYLE.md -text
+/news/community.json -text
+/discprobe/web/home/faxnews/community.json -text
 /discprobe/web/fonts/OFL-SourceHanSans.txt -text
 /disclab/web/fonts/OFL-SourceHanSans.txt -text
