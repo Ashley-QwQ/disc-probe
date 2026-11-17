@@ -90,9 +90,10 @@ export function figure(lang='zh',ex=null){const w=rigWords(lang),lo=ex?`rgb(${ex
     `<circle cx="218" cy="22" r="6" fill="${hi}"/><text x="230" y="26">${esc(w.figHigh)}</text></svg>`;}
 
 // the steps before the colours (always shown; once the pose is complete the explanation folds away)
-export function rigSteps(rig,data,lang='zh',{ex=null,state='ready',error=''}={}){const w=rigWords(lang),ready=rigReady(rig,data),custom=rig?.phone==='custom';
+export function rigSteps(rig,data,lang='zh',{ex=null,state='ready',error='',expanded=false}={}){const w=rigWords(lang),ready=rigReady(rig,data),custom=rig?.phone==='custom';
   const why=`${figure(lang,ex)}${w.intro.map(p=>`<p class="ed-model-note">${esc(p)}</p>`).join('')}`;
   let html=`<h3>${esc(w.title)}</h3>`+(ready?`<details class="ed-rig-why"><summary>${esc(w.why)}</summary>${why}</details>`:why);
+  if(ready){html=`<div class="ed-rig-summary"><span>${esc(rigLabel(rig,data,lang))}</span><button class="sbtn" type="button" data-ed-action="rig-change" aria-expanded="${expanded}" aria-controls="ed-rig-choices">${lang==='en'?'Change':'更改'}</button></div><div id="ed-rig-choices" ${expanded?'':'hidden'}>`+html;}
   if(state==='loading'||!data)return html+`<p class="note quiet">${esc(state==='error'?w.failed+error:w.loading)}</p>`;
   const opt=(id,name,sub)=>`<button type="button" class="ed-rig-opt" data-ed-rig="phone" data-value="${id}" aria-checked="${rig?.phone===id}" role="radio"><b>${esc(name)}</b><span>${esc(sub)}</span></button>`;
   html+=`<div class="ed-rig-step" role="radiogroup" aria-label="${esc(w.phone)}"><h4>${esc(w.phone)}</h4>`+data.phones.map(p=>opt(p.id,p.name,w.iphoneSub)).join('')+opt('custom',w.custom,w.customSub);
@@ -104,4 +105,4 @@ export function rigSteps(rig,data,lang='zh',{ex=null,state='ready',error=''}={})
   html+=`<div class="ed-rig-step"><h4>${esc(w.height)}</h4><div class="seg ed-rig-heights" role="radiogroup" aria-label="${esc(w.height)}">`+
     data.heights.map(h=>`<button type="button" role="radio" data-ed-rig="height" data-value="${h.id}" aria-checked="${rig?.height===h.id}" aria-pressed="${rig?.height===h.id}" ${phoneOK?'':'disabled'}>${h.ruler_cm} cm</button>`).join('')+
     `</div><p class="note quiet">${esc(phoneOK?(custom?w.heightNoteCustom:w.heightNote):w.heightPick)}</p></div>`;
-  return html;}
+  return html+(ready?'</div>':'');}

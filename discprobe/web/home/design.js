@@ -1029,7 +1029,9 @@ function onWheel(e) {
 }
 function onKey(e) {
   if (!isOn() || !S) return;
+  if (e.key === "Escape" && editor?.closeLayerActions()) { e.preventDefault(); e.stopPropagation(); return; }
   if (e.target.closest?.("input, select, textarea")) return;
+  if (e.target.closest?.(".lay button") && (e.key === " " || isActionEnter(e))) return;
   if(!spaceDown&&editor?.key(e)){e.preventDefault();return;}
   const L = sel(), k = e.key;
   if (k === "Escape" && editor?.drag) {editor.cancelGesture();return;}
@@ -1108,14 +1110,18 @@ function thumb(L) {
 function buildLeft() {
   if (!W) return;
   const t = T();
-  const rows = [...S.layers].reverse();
+  const rows = [...S.layers].reverse(), panel = editor?.panelState();
+  if(panel?.layerActions!=null&&!S.layers.some(L=>L.id===panel.layerActions))panel.layerActions=null;
+  const layerActions = panel?.layerActions;
   W.left.innerHTML = `<section><h3><span class="grow">${t.layers}</span>` +
     `</h3>` +
     (rows.length ? `<ul class="lays" role="listbox" aria-label="${t.layers}">${rows.map((L) => `<li class="lay${L.visible ? "" : " hid"}" role="option" draggable="true" data-id="${L.id}" aria-selected="${L.id === S.selected}">` +
       (L.kind === "fx" ? `<span class="fxmark">${I.fx}</span>` : `<span class="th"></span>`) +
-      `<span class="nm">${esc(L.name)}${L.kind === "fx" ? `<small>${t.fxY(L.y1, L.y2)}</small>` : ""}</span>` +
+      `<span class="nm"><span class="ed-layer-label">${esc(L.name)}${L.kind === "fx" ? `<small>${t.fxY(L.y1, L.y2)}</small>` : ""}</span>${L.locked?`<span class="ed-lock-mark" role="img" aria-label="${api.lang()==="zh"?"已锁定":"Locked"}" title="${api.lang()==="zh"?"已锁定":"Locked"}">${I.lock}</span>`:""}</span>` +
       `<button class="ib" type="button" data-a="vis" aria-label="${L.visible ? t.hide : t.show}" title="${L.visible ? t.hide : t.show}">${L.visible ? I.eye : I.eyeOff}</button>` +
-      `<button class="ib" type="button" data-a="lock" aria-label="${L.locked ? t.unlock : t.lock}" title="${L.locked ? t.unlock : t.lock}">${L.locked ? I.lock : I.unlock}</button><button class="ib row-action" data-a="up" aria-label="${api.lang()==="zh"?"上移图层":"Raise layer"}" title="Alt+↑" ${L.locked?"disabled":""}><svg viewBox="0 0 24 24"><path d="M6 14l6-6 6 6M12 8v12"/></svg></button><button class="ib row-action" data-a="down" aria-label="${api.lang()==="zh"?"下移图层":"Lower layer"}" title="Alt+↓" ${L.locked?"disabled":""}><svg viewBox="0 0 24 24"><path d="M6 10l6 6 6-6M12 4v12"/></svg></button><button class="ib row-action" data-a="del" aria-label="${t.remove}" title="Delete" ${L.locked?"disabled":""}>${I.trash}</button></li>`).join("")}</ul>`
+      `<button class="ib" type="button" data-a="more" aria-label="${api.lang()==="zh"?"图层操作":"Layer actions"}" title="${api.lang()==="zh"?"图层操作":"Layer actions"}" aria-expanded="${layerActions===L.id}" aria-controls="ed-layer-actions-${L.id}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>` +
+      `<div class="ed-layer-more" id="ed-layer-actions-${L.id}" role="group" aria-label="${api.lang()==="zh"?"图层操作":"Layer actions"}" ${layerActions===L.id?"":"hidden"}>` +
+      `<button class="ib" type="button" data-a="lock" aria-label="${L.locked ? t.unlock : t.lock}" title="${L.locked ? t.unlock : t.lock}">${L.locked ? I.lock : I.unlock}</button><button class="ib" data-a="up" aria-label="${api.lang()==="zh"?"上移图层":"Raise layer"}" title="Alt+↑" ${L.locked?"disabled":""}><svg viewBox="0 0 24 24"><path d="M6 14l6-6 6 6M12 8v12"/></svg></button><button class="ib" data-a="down" aria-label="${api.lang()==="zh"?"下移图层":"Lower layer"}" title="Alt+↓" ${L.locked?"disabled":""}><svg viewBox="0 0 24 24"><path d="M6 10l6 6 6-6M12 4v12"/></svg></button><button class="ib" data-a="del" aria-label="${t.remove}" title="Delete" ${L.locked?"disabled":""}>${I.trash}</button></div></li>`).join("")}</ul>`
       : `<p class="empty-l">${t.noLayers}</p>`) +
     `<button class="sbtn wide" type="button" data-a="import">${I.image}${t.import}</button>` +
     `<button class="sbtn wide template-download" type="button" data-a="template" data-capability="templates" ${hasCapability('templates') ? '' : 'hidden'}>${api.lang() === "en" ? "Download template" : "下载模板"}</button></section>` +
@@ -1135,9 +1141,20 @@ function buildLeft() {
     if (L.kind === "image") li.querySelector(".th").replaceWith(thumb(L));
   }
   editor?.left();
-  mountFilesStep(W.left, {getFiles:()=>S.files, setFiles:value=>{S.files=value;},
+  mountFilesStep(W.left, {getFiles:()=>S.files, setFiles:value=>{S.files=value;queueMicrotask(refreshFilesHelp);},
     context:async()=>{const state=await api.backend.state();return {media:S.media,geo:planGeo(state).path,r_max:range()[1]};},
     onChange:changed, lang:api.lang(), media:S.media});
+  refreshFilesHelp();
+}
+// Keep all original file guidance, showing the teaching sentence only while empty.
+function refreshFilesHelp() {
+  const section=W?.left.querySelector('.disc-files-step');if(!section)return;
+  let help=section.querySelector('.ed-files-help');
+  if(!help){help=document.createElement('details');help.className='ed-help ed-files-help';
+    const summary=document.createElement('summary');summary.textContent=api.lang()==='en'?'About':'说明';help.append(summary);
+    const limits=document.createElement('p');limits.className='note quiet';limits.textContent=T().limits+(S.media==='cd'?' '+T().cdLimit:'');help.append(limits);section.append(help);}
+  const teaching=section.querySelector('.ed-files-teaching')??section.querySelector(':scope > p.note:not([data-files])');
+  if(teaching){teaching.classList.add('ed-files-teaching');if(S.files)help.querySelector('summary').after(teaching);else section.querySelector('h3').after(teaching);}
 }
 // What the burn file will be: the grid (20 µm unless chosen), what a finer one costs, whether the pictures are
 // fine enough for it, and what can't be burned yet. Said where the work is made, not only at the burn.
@@ -1150,9 +1167,10 @@ function burnSection() {
   return `<section class="burnset" data-key="${burnKey()}"><h3>${t.grid}</h3>` +
     `<div class="seg" role="group" aria-label="${t.grid}">` +
     Object.keys(CELLS).map(Number).sort((a, b) => b - a).map((u) => `<button type="button" data-um="${u}" aria-pressed="${um === u}">${u} µm</button>`).join("") +
-    `</div><p class="note quiet">${t.cellCost(um, COST[um])}</p>` +
+    `</div><p class="note quiet">${um === 20 ? (api.lang() === "en" ? "Default, about 2 min to make" : "默认，约 2 分钟生成") : t.cellCost(um, COST[um]).split(api.lang() === "en" ? ". " : "。")[0] + (api.lang() === "en" ? "." : "。")}</p>` +
+    `<details class="ed-help"><summary>${api.lang() === "en" ? "About" : "说明"}</summary><p class="note quiet">${t.cellCost(um, COST[um])}</p>` +
     (um < 20 && px && px > um * 1.05 ? `<p class="note quiet">${t.coarse(Math.round(px))}</p>` : "") +
-    `<p class="note quiet">${t.limits}${S.media === "cd" ? ` ${t.cdLimit}` : ""}</p></section>`;
+    `</details></section>`;
 }
 function refreshLayerRows() {
   for (const li of W?.left.querySelectorAll(".lay") ?? []) {
@@ -1179,7 +1197,8 @@ function leftClick(e) {
   if (a === "import") return W.file.click();
   if (a === "template" && hasCapability('templates')) return downloadTemplate(S, b, toast);
   const um = Number(e.target.closest("[data-um]")?.dataset.um);
-  if (CELLS[um] && um !== Math.round(S.cell * 1000)) { checkpoint(); S.cell = um / 1000; changed(); buildLeft(); return; }
+  if (CELLS[um] && um !== Math.round(S.cell * 1000)) { checkpoint(); S.cell = um / 1000; changed(); buildLeft(); buildRight(); return; }
+  if(L && a === "more") { editor.toggleLayerActions(L.id); return; }
   if(L && ["up","down","del"].includes(a)){S.selected=L.id;editor.click({target:{closest:()=>({dataset:{edAction:a==="del"?"remove":a}})},preventDefault(){},stopPropagation(){}});return;}
   if (a === "folder") return W.folder.click();
   if (a === "nofiles") { S.files = null; changed(); buildLeft(); return; }
@@ -1825,6 +1844,7 @@ function build() {
   let temporaryTool=null;
   addEventListener("keydown",e=>{
     if(!isOn()||!S||e.isComposing||e.ctrlKey||e.metaKey||e.altKey||e.target.closest?.("input,select,textarea,[contenteditable=true]"))return;
+    if(e.key===" "&&e.target.closest?.(".lay button"))return;
     if(e.key===" "){if(!e.repeat&&temporaryTool===null){temporaryTool=S.tool;editor.cancelGesture();spaceDown=true;setTool("pan");}e.preventDefault();e.stopPropagation();return;}
     const t=({v:"move",r:"rectangle",f:"lasso",c:"ring",g:"sector",w:"colour",y:"shape",n:"pen",h:"pan"})[e.key.toLowerCase()];
     if(t&&!e.shiftKey){if(!e.repeat){editor.cancelGesture();setTool(t);}e.preventDefault();e.stopPropagation();}
