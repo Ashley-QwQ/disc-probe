@@ -162,6 +162,30 @@ def _harmonics(c: Checker):
     c.check(fit is not None and 30 < fit.residual_std_s * 1e6 < 80, f"jitter {fit.residual_std_s * 1e6:.1f} us")
 
 
+def _phase_tail(c: Checker):
+    print("rung phase with late reads")
+    # Blocks like the BU20N's on CD audio: 32 reference/target pairs, 100 and 140 us of scatter,
+    # and 12 % of the targets returned 4-20 deg late (about the tail it shows).
+    import random
+    rng, period = random.Random(0), 0.04835
+    new, old = [], []
+    for _ in range(20):
+        phase, t, refs, targets = rng.uniform(0, 360), 1.0, [], []
+        for _ in range(32):
+            t += period * rng.randint(2, 4)
+            refs.append(int((t + rng.gauss(0, 100e-6)) * 1e9))
+            t += period * rng.randint(2, 4)
+            late = rng.uniform(4, 20) / 360 * period if rng.random() < 0.12 else 0.0
+            targets.append(int((t + phase / 360 * period + late + rng.gauss(0, 140e-6)) * 1e9))
+        offsets = analysis.phase_offsets(analysis.estimate_period(refs, prior_s=period, prior_window=0.02), targets)
+        for out, ph in ((new, analysis.robust_median_mean(offsets)), (old, analysis.robust_circular_mean(offsets))):
+            out.append(math.degrees(analysis.wrap_pi(math.radians(ph["mean_deg"] - phase))))
+    rms = lambda v: math.sqrt(sum(x * x for x in v) / len(v))
+    c.check(abs(sum(new) / len(new)) < 0.4 and rms(new) < 0.7,
+            f"clipped about the median, 20 rungs: mean error {sum(new) / len(new):+.2f} deg, rms {rms(new):.2f} "
+            f"(about the circular mean: {sum(old) / len(old):+.2f}, {rms(old):.2f})")
+
+
 
 
 def _grid_acceptance(c: Checker):
@@ -1583,6 +1607,7 @@ def _run() -> bool:
     _report(c)
     _incomplete_folder(c)
     _harmonics(c)
+    _phase_tail(c)
     _timer_tick(c)
     _zone_conflict(c)
     _sim_run(c, "cav", True, "fua", "CAV")

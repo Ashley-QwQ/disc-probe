@@ -166,6 +166,26 @@ def robust_circular_mean(angles_rad: list[float]) -> dict:
             "used": len(kept), "total": len(angles_rad)}
 
 
+def robust_median_mean(angles_rad: list[float], clip: float = 4.0, floor_deg: float = 1.5) -> dict:
+    """Circular mean of the angles within clip x 1.4826 MAD (at least floor_deg) of their median.
+
+    Unlike robust_circular_mean, the window is centred on the median. That matters when the outliers
+    are one-sided: a drive that returns some reads late pulls the mean towards them, the MAD about
+    that mean grows, and the wider, shifted window keeps part of the tail."""
+    if not angles_rad:
+        return {"mean_deg": None, "std_deg": None, "sem_deg": None, "used": 0, "total": 0}
+    mean, _, _ = circular_stats(angles_rad)
+    centre = mean + statistics.median(wrap_pi(a - mean) for a in angles_rad)
+    devs = [wrap_pi(a - centre) for a in angles_rad]
+    mad = statistics.median(abs(d) for d in devs) * 1.4826
+    limit = max(clip * mad, math.radians(floor_deg))
+    kept = [a for a, d in zip(angles_rad, devs) if abs(d) <= limit]
+    mean, _, std = circular_stats(kept)
+    return {"mean_deg": round(math.degrees(mean), 3), "std_deg": round(math.degrees(std), 3),
+            "sem_deg": round(math.degrees(std) / math.sqrt(len(kept)), 3),
+            "used": len(kept), "total": len(angles_rad)}
+
+
 def phase_offsets(fit: PeriodFit, target_times_ns: list[int]) -> list[float]:
     """Spindle phase of each target completion relative to the reference sector.
 
