@@ -152,12 +152,21 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws .ed-desk,.cv .ed-surface { position:fixed;inset:0;pointer-events:none; }
 .ws .ed-desk { z-index:-2;background-color:var(--paper-2);background-repeat:repeat; }
 .ws .ed-panel-shadow { position:fixed;top:var(--top);bottom:calc(var(--foot) + 16px);right:var(--edge);width:var(--colR);border-radius:8px;box-shadow:var(--glass-far,var(--glass-desk));z-index:-1;pointer-events:none; }
-.cv .ed-surface { z-index:-1;mask-image:linear-gradient(#000,#000),linear-gradient(rgb(0 0 0 / .35),rgb(0 0 0 / .35));mask-repeat:no-repeat;mask-composite:add; }
+.cv .ed-surface {
+  z-index:-1;
+  /* The central opening stays opaque. Outside it, fade 35% to zero over 48 px
+     before the header/footer rows; the desk itself continues beneath both rows. */
+  mask-image:linear-gradient(#000,#000),linear-gradient(to bottom,
+    transparent calc(var(--top) - 16px),
+    rgb(0 0 0 / .35) calc(var(--top) - 16px + 48px),
+    rgb(0 0 0 / .35) calc(100% - var(--foot) - 48px),
+    transparent calc(100% - var(--foot)));
+  mask-repeat:no-repeat;mask-composite:add;
+}
 .cv .ed-disc-shadow { position:absolute;border-radius:50%;pointer-events:none; }
 .cv .ed-surface canvas.main { pointer-events:auto; }
 .ws:not(.pv) > .col,.ws:not(.pv) > .ws-title { z-index:2; }
-.ws:not(.pv) > .ws-title,.ws:not(.pv) > .filebtns { background:var(--paper); }
-:root[data-mode="design"] header,:root[data-mode="design"] footer { background:var(--paper); }
+.ws:not(.pv) > .filebtns { background:var(--paper); }
 .cv canvas.main { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .cv.pan, .cv.pan * { cursor: grab !important; }
 .cv.panning, .cv.panning * { cursor: grabbing !important; }

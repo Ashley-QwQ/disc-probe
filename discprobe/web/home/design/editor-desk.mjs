@@ -1,6 +1,6 @@
 // Screen furniture only: never used by preview(), the lamp renderer, or export.
-// Both candidates ship for review. Change this one constant to 'B' to compare.
-export const DESK_VARIANT = 'A';
+// Review selected B (wood grain). A remains available by changing this constant.
+export const DESK_VARIANT = 'B';
 const TILE_MM = 80;
 
 export function updateDesk(dom, view, focus) {

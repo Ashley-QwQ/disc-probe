@@ -1,4 +1,4 @@
-// Card X: local-only Edge fixture, fit-follow regression and both desktop candidates.
+// Card X: local-only Edge fixture, fit-follow and edge-fade regression for the selected wood desk.
 import assert from 'node:assert/strict';
 import {readFile, writeFile, mkdir, rm} from 'node:fs/promises';
 import {createServer} from 'node:http';
@@ -8,7 +8,8 @@ import {resolve, extname, join, sep} from 'node:path';
 import {tmpdir} from 'node:os';
 
 const out=resolve(process.env.EDITOR_DESK_OUT??join(tmpdir(),'editor-desk'));
-await mkdir(join(out,'after'),{recursive:true});
+const shots=resolve(process.env.EDITOR_DESK_SHOTS??join(out,'after2'));
+await mkdir(shots,{recursive:true});
 const home=resolve('discprobe/web/home');
 const index=await readFile(join(home,'index.html'),'utf8');
 const fixture=index.replace('data-handshake="pending"','data-handshake="fixture" data-motion="off" data-theme="light"')
@@ -20,7 +21,6 @@ const fixture=index.replace('data-handshake="pending"','data-handshake="fixture"
     d.start(api,{fly:false,newPlan:true,noDisc:true});
     window.A=d.editorActions();window.D=d;window.homeApi=api;window.ready=true;
   </script></body>`);
-let variant='A';
 const server=createServer(async(req,res)=>{try{
   if(req.url==='/fixture'){res.setHeader('Content-Type','text/html;charset=utf-8');res.end(fixture);return;}
   if(req.url.startsWith('/api/')){res.writeHead(404);res.end();return;}
@@ -29,7 +29,7 @@ const server=createServer(async(req,res)=>{try{
   if((!file.startsWith(home+sep)&&!file.startsWith(resolve(home,'../fonts')+sep))||/b[l]ind/i.test(file))throw Error('outside fixture');
   res.setHeader('Content-Type',({'.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.woff2':'font/woff2'})[extname(file)]??'application/octet-stream');
   const body=await readFile(file);
-  res.end(relative==='design/editor-desk.mjs'?body.toString().replace("DESK_VARIANT = 'A'",`DESK_VARIANT = '${variant}'`):body);
+  res.end(body);
 }catch{res.writeHead(404);res.end();}}).listen(0,'127.0.0.1');
 await once(server,'listening');
 const profile=join(out,'edge-desk-'+Date.now());
@@ -49,7 +49,7 @@ try{
   const run=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});assert.ok(!r.exceptionDetails,JSON.stringify(r.exceptionDetails));return r.result?.value;};
   const check=async(name,expression)=>{assert.equal(await run(expression),true,name);checks.push(name);};
   const frame=()=>run('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
-  const shot=async name=>{await frame();await pause(180);const r=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(out,'after',name+'.png'),Buffer.from(r.data,'base64'));};
+  const shot=async name=>{await frame();await pause(180);const r=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(shots,name+'.png'),Buffer.from(r.data,'base64'));};
   const load=async(width,height)=>{
     await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
     await send('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/fixture`});
@@ -111,14 +111,22 @@ try{
   await check('open project resets following',fitEquals);
   await run(`(()=>{const e=A.editor,v=e.h.view(),d=e.h.dom();d.canvas.dispatchEvent(new WheelEvent('wheel',{ctrlKey:true,deltaY:-12,clientX:v.cx,clientY:v.cy,bubbles:true,cancelable:true}));})()`);await frame();
   await check('desk grain follows zoom and pan',`(()=>{const v=A.editor.h.view(),d=A.editor.h.dom().desk;return Math.abs(parseFloat(d.style.backgroundSize)-80*v.s)<.001&&Math.abs(parseFloat(d.style.backgroundPosition)-v.cx)<.001;})()`);
+  await check('wood desk is the shipped default',`getComputedStyle(A.editor.h.dom().desk).backgroundImage.includes('editor-desk-b-')`);
+  await check('header and footer retain transparent backgrounds',`[document.querySelector('header'),document.querySelector('footer'),A.editor.h.dom().ws.querySelector('.ws-title')].every(el=>getComputedStyle(el).backgroundColor==='rgba(0, 0, 0, 0)')`);
   // Measure the composed CSS mask, not just its declared style. Hide chrome in this disposable fixture.
   await run(`(()=>{const d=A.editor.h.dom(),style=document.createElement('style');style.textContent='.cv > :not(.ed-surface),.ed-panel-shadow,.ed-disc-shadow,header,footer,.ws>.col,.ws>.filebtns,.ws>.ws-title{visibility:hidden!important}';document.head.append(style);d.desk.style.backgroundImage='none';d.desk.style.backgroundColor='rgb(200,200,200)';const g=d.canvas.getContext('2d');g.setTransform(1,0,0,1,0,0);g.fillStyle='#000';g.fillRect(0,0,d.canvas.width,d.canvas.height);})()`);
   const masked=await send('Page.captureScreenshot',{format:'png'});
-  const opacity=await run(`(async()=>{const image=new Image();image.src='data:image/png;base64,${masked.data}';await image.decode();const c=document.createElement('canvas');c.width=image.width;c.height=image.height;const g=c.getContext('2d');g.drawImage(image,0,0);const r=A.editor.h.dom().cv.getBoundingClientRect();return {outside:[...g.getImageData(500,10,1,1).data],inside:[...g.getImageData(r.left+100,r.top+80,1,1).data]};})()`);
-  assert.ok(opacity.outside.slice(0,3).every(n=>Math.abs(n-130)<=2)&&opacity.inside.slice(0,3).every(n=>n<=2),JSON.stringify(opacity));
-  checks.push('outside pixels have 35% opacity; inside pixels remain fully opaque');
-  for(const candidate of ['A','B'])for(const [width,height] of [[1440,1000],[1220,750]]){
-    variant=candidate;await load(width,height);
+  const opacity=await run(`(async()=>{const image=new Image();image.src='data:image/png;base64,${masked.data}';await image.decode();const c=document.createElement('canvas');c.width=image.width;c.height=image.height;const g=c.getContext('2d');g.drawImage(image,0,0);const r=A.editor.h.dom().cv.getBoundingClientRect(),pixel=(x,y)=>[...g.getImageData(x,y,1,1).data];return {outside:pixel(20,500),inside:pixel(r.left+100,r.top+80),header:pixel(500,r.top-42),footer:pixel(500,r.bottom+42),topFade:pixel(20,r.top-16+24),bottomFade:pixel(20,r.bottom+16-24)};})()`);
+  const near=(value,expected)=>value.slice(0,3).every(n=>Math.abs(n-expected)<=2);
+  assert.ok(near(opacity.outside,130)&&near(opacity.inside,0),JSON.stringify(opacity));
+  assert.ok(near(opacity.header,200)&&near(opacity.footer,200),JSON.stringify(opacity));
+  assert.ok(near(opacity.topFade,165)&&near(opacity.bottomFade,165),JSON.stringify(opacity));
+  checks.push('outside pixels have 35% opacity; inside pixels remain fully opaque',
+    'canvas pixels are fully transparent under header and footer',
+    'both 48 px fades have half strength at their midpoint');
+  const candidate='B';
+  for(const [width,height] of [[1440,1000],[1220,750]]){
+    await load(width,height);
     for(const theme of ['light','dark']){
       await run(`document.documentElement.dataset.theme='${theme}';A.editor.h.fit();A.editor.h.draw()`);
       await check(candidate+' '+theme+' '+width+' initial fits',fitEquals);
@@ -134,8 +142,8 @@ try{
     }
   }
   assert.equal(errors.length,0,JSON.stringify(errors));
-  await writeFile(join(out,'desk-check.json'),JSON.stringify({checks,measurements,errors},null,2),'utf8');
-  console.log(JSON.stringify({checks:checks.length,screenshots:16,errors:errors.length,out}));
+  await writeFile(join(out,'desk-check.json'),JSON.stringify({checks,opacity,measurements,errors},null,2),'utf8');
+  console.log(JSON.stringify({checks:checks.length,screenshots:8,errors:errors.length,out,shots}));
 }finally{
   ws?.close();edge.kill();server.close();
   await pause(750);
