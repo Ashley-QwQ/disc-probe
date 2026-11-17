@@ -1411,6 +1411,9 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
         detail = f"{i18n.tr(task.detail)}  <- {i18n.tr('you are here')}" if task.current else task.detail
         lines.append(f"  [{'x' if task.done else ' '}] {i18n.pad(i18n.tr(task.name), 22)} {i18n.tr(detail)}")
     lines += ["", "Next:"]
+    if plan.geo is None:
+        lines += ["  Community hints are starting points, not DP measurements of this batch:",
+                  f"  {PROG} community --media {media}"]
     for note, command in plan.commands:
         lines += ([f"  {note}"] if notes and note else []) + ([f"  {command}"] if command else [])
     if media == "bd" and plan.geo is not None:

@@ -2096,6 +2096,8 @@ def _build_parser():
 
     from . import news
     news.add_parser(sub)
+    from . import community
+    community.add_parser(sub)
 
     from . import burner
     from . import eraser

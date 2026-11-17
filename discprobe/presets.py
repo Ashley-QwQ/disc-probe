@@ -217,7 +217,7 @@ def parse(text, filename="disc-presets.json", media=None):
     return dict(file=str(filename), schema=schema, entries=rows)
 
 
-def import_file(text, filename, directory="presets", *, selected=None, dry_run=False, media=None):
+def import_file(text, filename, directory="presets", *, selected=None, dry_run=False, media=None, community_source=None):
     report = parse(text, filename, media)
     rows = report["entries"]
     if selected is None:
@@ -243,6 +243,8 @@ def import_file(text, filename, directory="presets", *, selected=None, dry_run=F
                       schema=report["schema"], media=row["media"], status=row["status"],
                       along_track_frames=None if row["media"] == "cd" else None,
                       issues=row["issues"], comparison=row["comparison"])
+        if community_source is not None:
+            source['community'] = copy.deepcopy(community_source)
         document = dict(preset=preset, fit=row["fit"], source=source)
         correction_path = path.with_name(path.stem + '-correction.json')
         if row['image_compatible'] and row.get('correction'):

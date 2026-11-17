@@ -7,6 +7,16 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    'browse community hints; import only when explicitly requested': '浏览社区提示；只有明确选择才导入',
+    'filter community hints by disc type': '按盘类型筛选社区提示',
+    'find community hints with this exact MID': '查找 MID 完全相同的社区提示（优先显示）',
+    'find community hints with this sector count': '查找扇区数相同的社区提示',
+    'search community disc brands and models': '搜索社区记录中的盘品牌和型号',
+    'include reports where these parameters failed': '也列出有人用这组失败了的记录',
+    'print community hints as JSON': '以 JSON 输出社区提示和数据来源',
+    'explicitly import one community hint into the preset library': '明确选择一条社区提示，导入预设库；不是 DP 测的',
+    'directory for explicitly imported community presets': '主动导入社区预设的保存目录',
+    'Community hints are starting points, not DP measurements of this batch:': '社区提示只当起点，不是 DP 对这批盘的测量：',
     'full erase (default: quick)': '完全擦除（默认快速擦除）',
     'erase a rewritable disc (quick by default)': '擦除可擦写盘（默认快速擦除）',
     'erase recorded rewritable media before burning': '擦除已有内容的可擦写盘，然后刻录',
