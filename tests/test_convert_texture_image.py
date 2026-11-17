@@ -26,7 +26,8 @@ class ConvertTextureImageTests(unittest.TestCase):
     def setUp(self):
         self.work = tempfile.TemporaryDirectory()
         self.addCleanup(self.work.cleanup)
-        self.root = Path(self.work.name)
+        # Resolve: on Windows TEMP can be an 8.3 short path (ADMINI~1) while the converter reports the long one.
+        self.root = Path(self.work.name).resolve()
         self.image = self.root / "design.png"
         self.output = self.image.with_suffix(".npy")
         self.mapping = self.root / "map.json"
