@@ -361,7 +361,7 @@ def ideal(design, size):
     return Image.fromarray(v).convert("RGB")
 
 
-def sheet(design, picture, size, dark, light, camera, flash):
+def sheet(design, picture, size, dark, light, camera, flash, *, materials=None):
     canvas = Image.new("RGB", (3 * size, 4 * size + 24), (24, 24, 24))
     if picture:
         with Image.open(picture) as im:
@@ -373,7 +373,12 @@ def sheet(design, picture, size, dark, light, camera, flash):
         ImageDraw.Draw(tile).text((6, size // 2), "No original picture", fill="white")
     tiles = [("Original", tile), ("Ideal design", ideal(design, size))]
     for angle in range(0, 360, 36):
-        tiles.append((f"{angle} deg", render(design, size, dark, light, camera, flash, angle)))
+        if materials is None:
+            tile=render(design,size,dark,light,camera,flash,angle)
+        else:
+            from .simulate_a3 import render as texture_render
+            tile=texture_render(np.asarray(design,dtype=np.uint8),size,materials=materials,camera=camera,flash=flash,rotate=angle)
+        tiles.append((f"{angle} deg",tile))
     for k, (label, tile) in enumerate(tiles):
         draw = ImageDraw.Draw(tile)
         draw.rectangle((0, 0, min(size - 1, len(label) * 7 + 8), 15), fill=(20, 20, 20))

@@ -1039,6 +1039,18 @@ def cmd_simulate(args):
             design = imagedisc.picture_design(args.picture, args.diameter_mm)
         if not args.output and not args.sheet:
             raise ValueError("give --output or --sheet")
+        from . import simulate_a3, texlib
+        extended = args.light != 'bands' and (texlib.library() is not None or len(args.dark) != 2 or len(args.light) != 2)
+        if extended:
+            import numpy as np
+            mats=[dict(id='light',spec=args.light),dict(id='dark',spec=args.dark)]
+            labels=np.asarray(design,dtype=np.uint8)
+            if args.output:
+                simulate_a3.render(labels,args.size,materials=mats,camera=args.camera,flash=args.flash,rotate=args.rotate).save(args.output)
+            if args.sheet:
+                simulate.sheet(design,args.picture,args.size,args.dark,args.light,args.camera,args.flash,materials=mats).save(args.sheet)
+            print(i18n.tr('Prediction from a model, not a photo; real contrast and brightness may differ.'))
+            return
         if args.output:
             simulate.render(design, args.size, args.dark, args.light, args.camera, args.flash, args.rotate).save(args.output)
         if args.sheet:
@@ -1967,7 +1979,7 @@ def cmd_template(args):
 COMMAND_GROUPS = (
     ("Start here", ("menu", "guide", "webui", "version", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "whois", "timing", "geo", "results", "diagnose")),
-    ("Make a disc image", ("random", "label", "compose", "files-layout", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
+    ("Make a disc image", ("random", "label", "compose", "textures", "files-layout", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc", "checkdisc")),
     ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("template", "disexport", "cdprobe", "works")),
@@ -2594,6 +2606,11 @@ def _build_parser():
     sp = sub.add_parser("selftest", help="parser checks and end-to-end runs on the simulated drive and a synthetic scan")
     sp.set_defaults(func=cmd_selftest)
 
+    from . import texlib
+    texlib.add_parser(sub)
+    for name in ('simulate','image','tiles','compose','rings','webui'):
+        sub.choices[name].add_argument('--texlib', help='read-only texture library directory (otherwise DISCPROBE_TEXLIB)')
+
     # Add media only to commands with an implemented CD path. Existing DVD
     # defaults are retained verbatim; explicit CD options override CD defaults.
     cd_defaults = {
@@ -2709,7 +2726,20 @@ def _main(argv=None):
     if raw_args[0] in {"image", "random", "rings", "calib", "tiles", "beacons", "calibdisc", "disexport", "cdprobe", "spokes"}:
         print(i18n.tr("Preparing the design and image data; this may take a few seconds..."), flush=True)
     try:
+        if getattr(args,'texlib',None):
+            from .texlib import configure
+            configure(args.texlib)
+        if raw_args[0] in ('simulate','image','tiles','rings'):
+            from .texlib import resolve
+            for key in ('dark','light','filler'):
+                if hasattr(args,key):setattr(args,key,resolve(getattr(args,key)))
+            for key in ('textures','palette'):
+                value=getattr(args,key,None)
+                if value:
+                    setattr(args,key,','.join(resolve(v) for v in value.split(',')) if isinstance(value,str) else [resolve(v) for v in value])
         args.func(args)
+    except ValueError as exc:
+        p.error(str(exc))
     except SystemExit as exc:
         if exc.code and raw_args[0] in ('image', 'tiles', 'disexport') and os.path.isfile(str(getattr(args, 'geo', ''))):
             from .diagnostics import save_failure

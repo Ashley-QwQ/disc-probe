@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {curated,held,visible,warning,lab} from '../discprobe/web/home/design/editor-texlib.mjs';
+const entry=(id,rgb,extra={})=>({m:{id,y:.1,stability:5,fades:false,purity:.5,...extra},light:{rgb,hue:40}});
+const a=entry('a',[150,160,170]),b=entry('b',[151,160,170],{stability:3}),c=entry('c',[255,50,50],{stability:50});
+const dark=entry('dark',[10,10,10],{y:.01}),missing=entry('unknown',[70,100,130],{stability:null}),fade=entry('fade',[20,120,90],{fades:true});
+assert(held(a.m));assert(!held(missing.m));assert(!held(fade.m));assert(!visible(dark.m));
+assert.equal(curated([a,b,c,dark,missing,fade]).length,1);
+assert.equal(curated([a,b])[0].m.id,'b');
+assert.equal(curated([a,entry('pure',[150,160,170],{purity:.9})])[0].m.id,'pure');
+assert.equal(curated([a,b,c,dark,missing,fade],'camera').length,4);
+assert.equal(warning(c.m),'手持时会变色');assert.equal(warning(fade.m),'一斜就看不见');
+assert.equal(warning(a.m),'');assert(Math.abs(lab([255,255,255])[0]-100)<.001);
+console.log('texture palette: held/camera, missing metrics, visibility, fades, Lab grouping and representative ranking passed');

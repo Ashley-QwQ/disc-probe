@@ -14,6 +14,12 @@ let running = false;
 
 async function load() {
   if (tables) return tables;
+  // Local backend returns metadata + bytes together; static/offline pages keep the shipped table.
+  try {
+    const r=await fetch('/api/editor-lamp-tables');
+    if(r.ok){const p=await r.json(),raw=atob(p.xyz),bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
+      return (tables=loadTables(p.meta,bytes.buffer));}
+  } catch {}
   const [meta, bin] = await Promise.all([
     fetch(new URL("./lamp-a3v3.json", import.meta.url)).then(r => { if (!r.ok) throw Error("lamp table"); return r.json(); }),
     fetch(new URL("./lamp-a3v3.bin", import.meta.url)).then(r => { if (!r.ok) throw Error("lamp table"); return r.arrayBuffer(); }),

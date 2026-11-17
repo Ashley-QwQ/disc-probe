@@ -35,13 +35,32 @@ ZERO_ORDER_DARK = .15   # how much of the mirror A5's marks take away (Disc Lab'
 OTHER_DARK = .4         # other textures, relative to A5 (Disc Lab: B9 and recorded data)
 
 
-@lru_cache(maxsize=1)
-def tables():
-    with np.load(TABLE, allow_pickle=False) as z:
+@lru_cache(maxsize=2)
+def _tables(path, stamp, signature):
+    with np.load(path, allow_pickle=False) as z:
         specs = [str(s) for s in z["specs"]]
         return dict(specs={s: i for i, s in enumerate(specs)}, delta=z["delta"].astype(float), xyz=z["xyz"].astype(float),
                     cmf_nm=z["cmf_nm"].astype(float), cmf=z["cmf"].astype(float), m=z["xyz_to_srgb"].astype(float),
-                    signature=str(z["signature"]))
+                    signature=str(z["signature"]), source_key=(path, stamp, signature))
+
+
+def tables():
+    from .texlib import library
+    lib = library()
+    if lib:
+        path, stamp, signature = lib['table'], lib['token'][:2], lib['token'][2]
+    else:
+        path = str(TABLE.resolve())
+        stat = TABLE.stat()
+        stamp, signature = (stat.st_size, stat.st_mtime_ns), 'bundled'
+    key=(path,stamp,signature)
+    if getattr(tables,'active_key',None)!=key:
+        tables.cache_clear()
+        tables.active_key=key
+    return _tables(*key)
+
+
+tables.cache_clear = _tables.cache_clear
 
 
 def canonical(spec):
@@ -54,10 +73,10 @@ def canonical(spec):
     return seq.hex().upper()
 
 
-def material_xyz(material, d_t):
+def material_xyz(material, d_t, table=None):
     """XYZ (LED, A3 v3) a material sends to the camera at along-track factor d_t. A spec the table does not hold
     uses A5's curve stretched to the material's period: an approximation, flagged in the render's record."""
-    t = tables()
+    t = tables() if table is None else table
     spec = canonical(material["spec"])
     if spec == "RND":
         # recorded random data: no dominant period, its light spread too thin to show; only the mirror darkens
@@ -113,7 +132,7 @@ def render(design, size=800, *, materials, camera=CAMERA, flash=FLASH, rotate=0,
     # shares over each output pixel's square (what the eye or a phone pixel mixes), read at its fine samples
     for slot, share in coverage(design, size, dx, dy):
         m = materials[slot]
-        tex += share[..., None] * material_xyz(m, d_t * delta_scale)
+        tex += share[..., None] * material_xyz(m, d_t * delta_scale, t)
         attenuation += share * (1. if canonical(m["spec"]) == "A5" else OTHER_DARK)
     tex *= (irr * TEX_GAIN / ref)[..., None]
     blank = np.zeros(r.shape, bool) if annulus_mm is None else (r < annulus_mm[0]) | (r >= annulus_mm[1])
@@ -158,7 +177,7 @@ def _patch_light(materials, camera, flash, at, delta_scale):
     ldist = np.sqrt((fl[0] - x) ** 2 + (fl[1] - y) ** 2 + fl[2] ** 2)
     irr = (np.linalg.norm(fl) / ldist) ** 2
     ref = max(float(t["xyz"][t["specs"][s]][:, 1].max()) for s in ("A5", "B9"))
-    return [material_xyz(mat, d_t * delta_scale)[0, 0] * irr[0, 0] * TEX_GAIN / ref for mat in materials]
+    return [material_xyz(mat, d_t * delta_scale, t)[0, 0] * irr[0, 0] * TEX_GAIN / ref for mat in materials]
 
 
 def swatch_signal(materials, camera=CAMERA, flash=FLASH, at=(40., 0.), delta_scale=1.):
@@ -200,7 +219,7 @@ def burn_colours(materials):
     m = t["m"]
     out = {}
     for mat in materials:
-        curve = material_xyz(mat, t["delta"])
+        curve = material_xyz(mat, t["delta"], t)
         if not curve[:, 1].max() > 0:
             continue
         rgb = np.clip(curve[int(np.argmax(curve[:, 1]))] @ m.T, 0, None)

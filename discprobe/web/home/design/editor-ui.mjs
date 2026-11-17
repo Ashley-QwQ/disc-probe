@@ -2,6 +2,7 @@ import { isActionEnter } from "../kit/shared.js";
 import * as O from './editor-ops.mjs';
 import {controls,TOOL_KEYS} from './editor-controls.mjs';
 import {materialPose,identityRGB} from './editor-materials.mjs';
+import {held} from './editor-texlib.mjs';
 import {LampPreview} from './editor-lamp.mjs';
 import {lampPose} from './lamp-pose.mjs';
 import {LampControls} from './lamp-controls.mjs';
@@ -92,11 +93,13 @@ export class Editor {
   }
   select(def,op='replace',rgba=null){this.init();this.selectionOptions(def);const mask=O.selection(def,this.s.maskGrid,rgba),prior=this.s.selections.find(s=>s.id===this.s.activeMask);this.mutate(()=>{const bits=O.booleanMask(prior?O.bytes(prior.bits):new Uint8Array(mask.length),mask,op),id=crypto.randomUUID();this.s.selections.push({id,name:this.maskName?.trim()||this.t[def.tool],bits:O.base64(bits),named:false,definition:def});this.s.activeMask=id;this.options.target='mask';});}
   fill(){this.init();if(!this.rigOpen()){this.h.error(rigWords(this.h.lang()).locked);return;}const o=this.options,target=o.target==='mask'&&this.s.activeMask?{selection:this.s.activeMask}:{layer:this.s.selected},l=this.s.layers.find(l=>l.id===target.layer);if(!target.selection&&(!l||l.locked)){this.h.error(this.t.none);return;}
-    if(!this.s.materials.some(m=>m.id===this.material)){const m=this.palette?.swatches.find(m=>m.id===this.material);if(!m||this.s.materials.length>=256){this.h.error('Material slot limit: 256');return;}this.s.materials.push(m);}
+    const added=!this.s.materials.some(m=>m.id===this.material)?this.palette?.swatches.find(m=>m.id===this.material):null;
+    if(added&&this.s.materials.length>=256){this.h.error(this.h.lang()==='zh'?'一件作品最多使用 256 种材质，请先减少材质。':'A work can use at most 256 materials. Reduce its materials first.');return;}
+    if(!added&&!this.s.materials.some(m=>m.id===this.material)){this.h.error(this.t.empty);return;}
     const a={id:crypto.randomUUID(),...target};
     if(o.fillKind==='pattern'){if(!(o.size_mm>0&&o.size_mm<=o.pitch_mm/2)){this.h.error('0 < size ≤ pitch / 2');return;}a.pattern={version:1,pattern:o.pattern,coordinates:o.coordinates,pitch_mm:o.pitch_mm,size_mm:o.size_mm,angle_deg:o.angle_deg,origin_mm:[0,0],phase_mm:[0,0],reference_radius_mm:40,materials:[this.material,'background']};}
     else if(o.fillKind==='effect')a.effect={kind:o.effect,y1:o.y1,y2:o.y2,wavelength_um:.53};else a.material=this.material;
-    this.mutate(()=>{this.s.assignments.push(a);});
+    this.mutate(()=>{if(added){const {colour,texture_ids,...m}=added;this.s.materials.push(m);}this.s.assignments.push(a);});
   }
   snap(p){if(!this.options.snap)return p;const v=this.h.view(),tol=7/v.s;let [x,y]=p;if(Math.abs(x)<tol)x=0;if(Math.abs(y)<tol)y=0;const r=Math.hypot(x,y),near=[7.5,17,...(this.s.media==='cd'?[26,58]:[24,58]),30,40,50,60].find(n=>Math.abs(r-n)<tol);if(near&&r){x*=near/r;y*=near/r;}return [O.q(x),O.q(y)];}
   pointer(type,e,mm){if(this.tool==='move'&&!this.drag&&!this.selectionHit(mm))return false;
@@ -196,7 +199,18 @@ export class Editor {
     return this.exact.request(JSON.stringify([this.revision,side,rows,cols,dark]),()=>this.document(),{side,rows,cols},paint);
   }
   requestLights(pose){const key=JSON.stringify(pose);if(this.lightPose===key)return;this.lightPose=key;clearTimeout(this.lightTimer);this.lightTimer=setTimeout(async()=>{
-    try{const r=await fetch('/api/editor-swatches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pose})});if(!r.ok)return;const result=await r.json();if(this.lightPose===key){this.poseLights=result.colours;if(result.burn){this.burnLights=result.burn;this.previewCache=null;this.h.draw();}this.swatches();}}catch{}},220);
+    try{const r=await fetch('/api/editor-swatches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pose})});if(!r.ok)return;const result=await r.json();if(this.lightPose===key){
+      const changed=this.textureSignature!==result.signature;
+      if(result.source==='texlib'){
+        if(!this.legacyPalette)this.legacyPalette=this.palette;
+        this.palette={...this.palette,swatches:result.materials,source:'texlib'};
+        // A new empty work needs slots for the materials it actually uses. Saved works keep their full table.
+        if(!this.textureSignature&&!this.s.layers.length&&!this.s.assignments.length)this.s.materials=this.s.materials.filter(m=>m.id==='background'||m.spec==='A5').slice(0,2);
+        if(!this.s.materials.some(m=>m.id===this.material)&&!result.materials.some(m=>m.id===this.material))this.material=(result.materials.find(m=>held(m))??result.materials[0])?.id;
+      }else if(this.legacyPalette){this.palette=this.legacyPalette;this.legacyPalette=null;}
+      this.textureSignature=result.signature;this.poseLights=result.colours;this.appliedLightPose=key;
+      if(changed){this.lamp?.dispose();this.lamp=null;this.invalidate();this.right();}
+      if(result.burn){this.burnLights=result.burn;this.previewCache=null;this.h.draw();}this.swatches();}}catch{}},220);
   }
   paint(ctx){const s=this.s,v=this.h.view(),g=s.maskGrid;if(!g)return;
     this.requestLights(materialPose(s.scene,s.lookY));

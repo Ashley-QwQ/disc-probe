@@ -12,7 +12,7 @@ import math
 from pathlib import Path
 import threading
 
-from . import editor_ops, simulate, simulate_a3
+from . import editor_ops, simulate, simulate_a3, texlib
 
 _RENDER_LOCK=threading.Lock()
 
@@ -63,7 +63,7 @@ class Renderer:
             raise ValueError('invalid work document')
         document=editor_ops.validate(editor_ops.migrate(payload['document']))
         digest=hashlib.sha256(json.dumps(document,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest()
-        key=json.dumps([digest,pose,size,quality],sort_keys=True,separators=(',',':'))
+        key=json.dumps([digest,pose,size,quality,simulate_a3.tables()['source_key']],sort_keys=True,separators=(',',':'))
         meta=dict(document_hash=digest,size=size,quality=quality,cache_hit=False)
         with _RENDER_LOCK:
             if key in self.images:
@@ -89,12 +89,48 @@ class Renderer:
 
     def swatches(self,pose=None):
         pose=pose_options(pose)
-        key=json.dumps(pose,sort_keys=True)
+        lib=texlib.library()
+        key=json.dumps([pose,simulate_a3.tables()['source_key']],sort_keys=True)
         with _RENDER_LOCK:
             if key not in self.palettes:
+                if lib:
+                    result=self.texture_swatches(lib,pose)
+                    self.palettes[key]=result
+                    while len(self.palettes)>8:self.palettes.popitem(last=False)
+                    return result
                 palette=json.loads((Path(__file__).parent/'web/home/design/swatches.json').read_text(encoding='utf8'))
                 colours=simulate_a3.swatches(list(palette['swatches'].values()),pose['camera'],pose['flash'],delta_scale=pose['delta_scale'])
                 self.palettes[key]=dict(pose=pose,colours=colours,model='discprobe.simulate_a3 (A3 v3)',sample_mm=[40,0],
                                        burn=simulate_a3.burn_colours(list(palette['swatches'].values())))
                 if len(self.palettes)>8:self.palettes.popitem(last=False)
             return self.palettes[key]
+
+    def texture_swatches(self,lib,pose):
+        import numpy as np
+        mats=texlib.materials(lib)
+        x,y=np.array([[40.]]),np.array([[0.]])
+        cx,cy=simulate.unit(np.asarray(pose['camera']),x,y)
+        lx,ly=simulate.unit(np.asarray(pose['flash']),x,y)
+        delta=float(abs(cy[0,0]+ly[0,0])*pose['delta_scale'])
+        for m in mats:
+            m.update(texlib.metrics(m,delta))
+            del m['colour']
+        return dict(pose=pose,source='texlib',signature=str(lib['token']),materials=mats,
+                    colours=simulate_a3.swatches(mats,pose['camera'],pose['flash'],delta_scale=pose['delta_scale']),
+                    burn=simulate_a3.burn_colours(mats),delta=delta,sample_mm=[40,0],
+                    model='discprobe.simulate_a3 (A3 v3)')
+
+
+def lamp_tables():
+    """One atomic response binds browser metadata and curves to the same source."""
+    import base64
+    import numpy as np
+    t=simulate_a3.tables()
+    c=['A5_PERIOD_UM','PITCH_UM','TEX_GAIN','DESATURATE','VEIL','VEIL_RGB','GLARE_GAIN',
+       'RAINBOW_GAIN','ZERO_ORDER_DARK','OTHER_DARK','HUB_MM','EDGE_MM','FINE_SAMPLES']
+    meta=dict(specs=list(t['specs']),signature=t['signature'],source_key=t['source_key'],
+              delta=dict(first=float(t['delta'][0]),last=float(t['delta'][-1]),n=len(t['delta'])),
+              cmf=dict(first_nm=float(t['cmf_nm'][0]),last_nm=float(t['cmf_nm'][-1]),
+                       n=len(t['cmf_nm']),values=t['cmf'].ravel().tolist()),
+              xyz_to_srgb=t['m'].ravel().tolist(),constants={k:getattr(simulate_a3,k) for k in c})
+    return dict(meta=meta,xyz=base64.b64encode(np.asarray(t['xyz'],dtype='<f4').tobytes()).decode('ascii'))
