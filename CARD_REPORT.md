@@ -1,103 +1,95 @@
-# 卡 W：编辑器接入只读纹理库
+# 社区提示卡交付报告
 
-2026-11-17；worktree `D:/dp-dev/editortex`；分支 `web/editor-texlib-20261117`；起点 `7cf2c82`。
+工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
 
-## 本次提交
+## 按提交交付
 
-提交主题：`Support optional texture libraries in core and editor`。实现、测试与本报告一并提交，没有推送、合并、切换分支或修改其他 worktree，没有接光驱、刻盘、上传或下载。
+- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
+- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
+- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
+- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
+- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
+- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
 
-- 新增 `discprobe/texlib.py`：只读目录、查询、引用解析和指标读取。`DISCPROBE_TEXLIB` 或 CLI 的 `--texlib DIR` 指向含 `colour_table.npz`、`textures.jsonl` 的目录；未配置、不可用、损坏或不匹配时回退包内表。读取实际 Unicode dtype，不写死 U190。
-- `simulate_a3.tables()` 换来源时清缓存；键包含解析后的路径、大小、mtime、模型 signature 和目录签名。PNG/色板缓存也包含来源。一次绘制复用同一表，避免逐材质重复访问文件。
-- `/api/editor-swatches` 提供当前机位及盘面右侧 40 mm 的颜色/筛选指标；新 `/api/editor-lamp-tables` 一次返回相配的 metadata 与 XYZ，浏览器 worker 使用同一色表。静态服务没有 API 时继续用包内数据；来源变化后重建 worker。
-- 网页默认“拿在手里看”，可切换“固定机位拍照”。手持阈值常量 15，可见门槛 0.04；拍照只检查可见性。主区按实际显示色的 sRGB/D65 CIELAB ΔE76 < 2 合并，代表先取稳定度好者，再取纯度高者。
-- “全部材质”保留两个收录档次中的每一条记录，包括同 spec 的不同目标；按颜色、目标 ID、spec 搜索，筛掉的仍能选择/填充。格子 title 提示变色或消失，详情显示“实刻过 / 模型预测”和人话稳定度。网页不展示内部质量档名或稳定度字段名。
-- 不改旧色板的 255 个 ID、含义和导入 RGB；不改布局/CSS、木纹桌面、画布外透明度或格子选中样式。空作品只预留底色/深色，实际填充的新增材质随可撤销操作加入；已有作品的材质表不删减，第 257 种明确报错，不截断。
-- DVD/CD 环形靶支持十六进制字节序列，保留原参考纹理约束。CD 按物理 frame/slot 定相，独立反解检查；没有把 DVD 序列相位套到 CD。
+## 数据及出处
 
-未修改 faxnews、newplan、presetio、news、community 模块或 `evidence/atlas/*.py`。全量 JavaScript 验收按公共卡要求包含它们的现有测试，未修补其代码。递归检索预先排除受限路径。`F:/dp-archive/texlib/` 全程只读。
+本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
 
-## 材质身份和 CLI 入口
+原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
 
-查明作品 v2 保存完整 `materials: [{id,spec,rgb,...}]`，填充和图案按 ID 引用；compose 生成的 `.textures.json` 保存槽位顺序对应的 spec。旧身份保持。新身份为 **`tex:<spec_canonical>`**，作品同时保存完整 spec；目标 ID/rev 只用于查询。不同目标的相同冠军字节共用作品身份，但在“全部材质”中各自可查。更换冠军不改已保存作品的字节纹理，测试覆盖改 rev 后重开。
+相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
 
-| 现有入口 | 本轮处理 |
-|---|---|
-| `simulate --dark/--light` | 接受目录目标 ID、旧编辑器 ID、`tex:<spec>` 或原始 spec；扩展纹理走 A3 表，支持单图和 `--sheet`。无库且使用旧字节参数时保留旧渲染路径。 |
-| `simulate --work` | 用作品内固定 spec 和所选色表，不重新绑定目标冠军。 |
-| `image --dark/--light/--textures` | 生成前解析引用，交给既有编码器。 |
-| `tiles --palette` | 同上，保留靶布局。 |
-| `rings --textures/--filler` | 解析引用，DVD/CD 增加序列编码与验证。 |
-| `compose` | 从作品完整材质表生成标签与 spec 顺序；它原本没有独立选择材质的参数。 |
-| `template` | 没有任意材质参数；原模板导入身份保留，未重排模板色。 |
+新增 id：
 
-`simulate/image/tiles/rings/compose/webui` 支持 `--texlib DIR`，也可统一设环境变量。固定校准命令中写死的参考纹理未替换为冠军。没有色表/周期的未知 spec 不能凭空获得光学预测；编码可以使用任意合法字节序列。
-
-```powershell
-$env:DISCPROBE_TEXLIB = 'F:/dp-archive/texlib/latest'
-python -m discprobe textures find --grade best_so_far --kind ladder --delta 0.35 --max-de05 15 --min-y 0.04 --top 10 --json
-python -m discprobe textures find --near '#50a070' --top 5 --json
-python -m discprobe textures show DVD-S-B0000-K96-A8e5716 --json
-python -m discprobe webui --texlib F:/dp-archive/texlib/latest
+```text
+D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
+I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
+DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
+DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
+DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
+DISmain-verbatim-dvd-plus-rw-94520-95043
 ```
 
-新查询当前输出 JSON，支持显式 `--json`；不应用网页的手持/近色合并规则。核心可以查询 approx，网页只收 converged 和 best_so_far。近色查询按指定 δ 最近的颜色采样点比较；指标按下述保守规则读取。
+修改 id（含仅补充来源/复用报告的记录）：
 
-## 真库统计
+```text
+D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
+I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
+I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
+```
 
-源解析到 `F:/dp-archive/texlib/20261116-0441`，3973 条记录、3832 种 canonical spec。脚本/数据在 `F:/dp-archive/tmp/editortex/measure.py`、`measure.mjs`、`real-palette.json`、`statistics.json`。
+新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
 
-使用现有 `iphone17pro@30`：camera `[0,28.45,298.7]`、flash `[0,76.3857872575386,298.7]` mm；盘面 `[40,0]` mm；**δ=0.33968092402234995**。“30 cm”是现有标尺机位名，未把镜头高度强改为 300 mm。
+内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
 
-目录指标只有 18 个采样点。非网格 δ 的 Y 线性插值；稳定度保守取两侧较大值，任一侧未知则保持未知；fades 任一侧为真即按会消失处理。null 不当作 0，不在范围外外推。这里是实际网页策略的统计，未在任意 δ 精确重算窗口稳定度。色块及合并均用 `simulate_a3.swatches()` 的同机位显示色。
+同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
 
-色相分段为红 <20° 或 ≥340°、橙 <45°、黄 <75°、绿 <165°、青 <200°、蓝 <265°、其余紫；HSV 饱和度 <0.12 归近白。以下各项为 **合并前 / 合并后**；前者按目录记录计，仍含同 spec 的目标别名。
+## 下发与程序行为
 
-| 阈值 | 总数 | 红 | 橙 | 黄 | 绿 | 青 | 蓝 | 紫 | 近白 |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 8 | 0 / 0 | 0/0 | 0/0 | 0/0 | 0/0 | 0/0 | 0/0 | 0/0 | 0/0 |
-| 12 | 6 / 5 | 0/0 | 0/0 | 0/0 | 0/0 | 0/0 | 6/5 | 0/0 | 0/0 |
-| **15** | **21 / 12** | 0/0 | 0/0 | 0/0 | 0/0 | 0/0 | 21/12 | 0/0 | 0/0 |
-| 20 | 46 / 26 | 0/0 | 0/0 | 0/0 | 0/0 | 1/1 | 44/24 | 0/0 | 1/1 |
-| 25 | 89 / 51 | 0/0 | 0/0 | 0/0 | 0/0 | 4/3 | 81/44 | 0/0 | 4/4 |
+`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
 
-拍照模式 **3864 / 1659**；全部材质始终 3973 条。先取默认 15：8 没有选项，12 仅 5 格，15 有 12 格且比 20/25 保守；这是待审查方决定的使用策略，不是实拍保证。
+```text
+f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
+```
 
-阈值 8/12/15/20 没有 HSV 饱和度 ≥0.35 的蓝绿代表；25 只有一个偏蓝代表，RGB `[98,111,153]`、稳定指标 22.9、纯度 0.009972，视觉仍偏灰。按饱和度 ≥0.5，五档均没有。没有绿格，不能宣传成“鲜艳且稳定的蓝绿”。
+生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
 
-读取前后下列 SHA-256 一致：
+`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
 
-| 文件 | SHA-256 |
-|---|---|
-| colour_table.npz | `3bb71d2ec71480d3962f6520c9293a7830707828a9b88c02b811401956a509c6` |
-| textures.jsonl | `eee3886c0984d42b30290455c118dc51ee31017ca7498062b2f6dd100eb5e479` |
-| README.md | `bc9f98e51ce38f52873a4ea22179721031c1c9db15b54dc9dfcf65aad91f2287` |
-| MANIFEST.json | `1a22e390844662b500e72c0763f270e92a5318d7c1eb4ee844204b5f698f4dec` |
+CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
 
-## 验收命令和结果
+仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
 
-所有日志在 `F:/dp-archive/tmp/editortex/`。测试设置 `TEMP/TMP` 到该目录、Python 用 `-B -X utf8`；默认回归清除 `DISCPROBE_TEXLIB`。启动前 D 盘约剩 46.38 GB，全量前约 46.37 GB，未触及 5 GB 停止线。pytest 固定 `-n 2`。
+## 网页位置和需要人工审查的选择
 
-1. `python -B -X utf8 -m pytest -n 2 tests/test_editor_ops.py tests/test_editor_preview.py tests/test_editor_pose_swatches.py tests/test_lamp_optics.py tests/test_design_compose_route.py tests/test_editor_texlib.py --basetemp=F:/dp-archive/tmp/editortex/pytest-final -q -p no:cacheprovider`：**109 passed**，`python-final.log`。
-2. 后续环形靶/CLI/光学复核，同样参数运行 `test_editor_texlib.py test_editor_preview.py test_lamp_optics.py`：**20 passed**，`python-sequences.log`。只生成 64 扇区小文件，独立反解成功，没有真实刻盘。
-3. 最后针对拼图路径和坏表回退运行 `test_editor_texlib.py test_editor_preview.py`：**13 passed**（新库测试 11 项），`python-last.log`。这些轮次有重叠，不能相加冒充独立项数。
-4. `node --test --test-concurrency=2 <tests/ 下所有非受限 test_*.mjs，导航另跑>`：**64 passed / 1 failed**，`node-final.log`。卡中指定的编辑器、材质、rig、lamp、design export、W245 均通过；W245 四个主题/格距哈希均仍是 `f0fe1afe07f50976046a0ef3ef00cf517abdcfcc9cd741b21e899cdaf5e0cc36`，18 个浏览器检查通过。
-5. `node --test --test-concurrency=1 tests/test_flow_navigation_browser.mjs`：**1 passed**，`navigation.log`。
-6. 唯一失败是 `test_presetio_browser.mjs:312`，期望 `PASS`，收到 `PENDING`。单独串行复核一次仍失败，`presetio-isolated.log`。不改卡 W 排除的模块；**未证明是基线已有故障，不宣称全套通过**。
-7. 最后 `node --test tests/test_editor.mjs tests/test_editor_materials.mjs tests/test_editor_rig.mjs tests/test_editor_lamp.mjs tests/test_editor_texlib.mjs tests/test_design_export.mjs`：**6 passed**，`editor-last.log`。
-8. 普通新增测试只读临时目录中的 4 行 JSONL / 小 NPZ（含 U192），不读真库。覆盖坏库回退、换表缓存、旧 ID、冠军变更后的固定身份、未知稳定度、筛选、CLI、动态 worker 表、软筛选仍可填充保存和 256 拒绝。
-9. 显式 `EDITOR_TEXLIB_ROOT=F:/dp-archive/texlib/20261116-0441`、`EDITOR_TEXLIB_OUT=F:/dp-archive/tmp/editortex/after` 运行 `node --test tests/test_editor_texlib_browser.mjs`：**1 passed**。3973 条、默认主区 12 格、活动材质有效、筛掉材质仍可用且 spec 固定、256 拒绝、浏览器异常 0。日志 `real-browser.log`，这是单独真库验收，不是默认夹具。
-10. `git diff --check` 通过；中文改动做 UTF-8 字符数及连续问号检查。impeccable detector 对改动 UI 返回 `[]`。独立界面复核 `ship`；活动材质回退修正后的有限范围复核也为 `ship`。
+传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
 
-无头 Edge 的纸色/夜色截图均为 1440×1000，在 `after/`：两套主题各有 `held`、`camera`、`all-warning`、`detail-tested`、`detail-predicted`，共 **10 张**。已逐张核对主题、内容、尺寸，无空白/未加载区域。测试生成到 worktree 的 `evidence/editor` 和 `.impeccable` 已移至 `F:/dp-archive/tmp/editortex/regression-evidence/`，不混入提交。新增浏览器夹具自动删除自己的 Edge profile。
+新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
 
-测试结束清理存在限制：自动审批策略拒绝删除 `pytest-*`、API 夹具目录，以及改用明确路径删除大 `.npy/.raw` 文件的请求，返回原因仅为 `blocked by policy`。没有换工具绕过。其余成功测试夹具因此仍留在指定 F 盘临时目录，未达到“只留日志/截图/失败现场”的完整清理要求；结束前 F 盘约剩 8.8 GB，D 盘约剩 46.3 GB。
+请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
 
-## 待决定与边界
+## 验收
 
-- 默认 **不随包带快照**。优点：包小，数据独立更新，旧版默认行为明确；代价：未配置的机器只有 255 种，跨机器做相同光学预览需要相应色表。随包快照则离线即有扩展色板、预览更容易复现，但约增加 15 MB NPZ + 7 MB JSONL，需要维护版本/来源/更新节奏及外部库优先级。随包方案未实现，留给审查方决定。
-- 阈值 15、可见门槛 0.04、合并距离 2 及非网格的保守取值均待审查。颜色是 LED 模型预测，不保证真实颜色、绝对亮度、手持实拍稳定或可读性。
-- 作品不嵌入光学表。未来表不再含已存 spec 时，预览沿用既有按周期近似；无周期的未知 spec 可能无法预览，但作品编码仍使用保存的字节。
-- 旧作品满 256 槽时保留原表，新增会提示上限；网页尚无专用材质槽清理工具。没有通过自动删槽绕开限制。
-- 浏览器更换机位/刷新/重开时取当前来源，没有新增每小时轮询。静态页面没有后端时只用包内表。
-- 独立文档核对无需新增设计系统文件，PRODUCT/DESIGN/STYLE 保持原样。既有文档在圆角、字标及夜色迁移说明上有漂移，未借本卡修补。
-- 新库作品完整导出链路、实际刻盘/实拍、安装包构建：**未测**。指定旧导出规则测试已通过。全量 JavaScript 的 presetio 失败仍未解决。
+所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
+
+| 命令/检查 | 结果 |
+| --- | --- |
+| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
+| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
+| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
+| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
+| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
+| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
+| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
+| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
+| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
+
+初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
+
+截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
+
+## 未测及边界
+
+没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
+
+附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。

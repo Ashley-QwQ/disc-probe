@@ -52,8 +52,8 @@ try{
   // Wait for the selected pose's response, not the startup pose's catalog.
   await until(()=>run('A.editor.lightPose===JSON.stringify((()=>{const s=A.state(),b=s.scene.cam,c=[b[0],-s.lookY,b[2]],o=s.scene.flashOffset;return {camera:[c[0],-c[1],c[2]],flash:[c[0]+o[0],-c[1]+o[1],c[2]]};})())'));
   await until(()=>run('A.editor.appliedLightPose===A.editor.lightPose'));
-  const counts=await run(`(()=>{const e=A.editor;return {all:e.palette.swatches.length,shown:document.querySelectorAll('.ed-shown button').length,materials:A.state().materials.length,held:document.querySelector('[data-value=held]').getAttribute('aria-pressed')};})()`);
-  assert.equal(counts.held,'true');assert(counts.materials<=256);assert(counts.all>=4);
+  const counts=await run(`(()=>{const e=A.editor;return {all:e.palette.swatches.length,shown:document.querySelectorAll('.ed-shown button').length,materials:A.state().materials.length,camera:document.querySelector('[data-value=camera]').getAttribute('aria-pressed')};})()`);
+  assert.equal(counts.camera,'true');assert(counts.materials<=256);assert(counts.all>=4);
   assert(await run('A.editor.palette.swatches.some(m=>m.id===A.editor.material)||A.state().materials.some(m=>m.id===A.editor.material)'),'active material remains available after changing palette source');
   const results={counts,errors};
   for(const theme of ['light','dark']){

@@ -2,7 +2,7 @@ import { isActionEnter } from "../kit/shared.js";
 import * as O from './editor-ops.mjs';
 import {controls,TOOL_KEYS} from './editor-controls.mjs';
 import {materialPose,identityRGB} from './editor-materials.mjs';
-import {held} from './editor-texlib.mjs';
+import {held,visible} from './editor-texlib.mjs';
 import {LampPreview} from './editor-lamp.mjs';
 import {lampPose} from './lamp-pose.mjs';
 import {LampControls} from './lamp-controls.mjs';
@@ -206,7 +206,7 @@ export class Editor {
         this.palette={...this.palette,swatches:result.materials,source:'texlib'};
         // A new empty work needs slots for the materials it actually uses. Saved works keep their full table.
         if(!this.textureSignature&&!this.s.layers.length&&!this.s.assignments.length)this.s.materials=this.s.materials.filter(m=>m.id==='background'||m.spec==='A5').slice(0,2);
-        if(!this.s.materials.some(m=>m.id===this.material)&&!result.materials.some(m=>m.id===this.material))this.material=(result.materials.find(m=>held(m))??result.materials[0])?.id;
+        if(!this.s.materials.some(m=>m.id===this.material)&&!result.materials.some(m=>m.id===this.material))this.material=(result.materials.find(m=>this.options.viewMode==='held'?held(m):visible(m))??result.materials[0])?.id;
       }else if(this.legacyPalette){this.palette=this.legacyPalette;this.legacyPalette=null;}
       this.textureSignature=result.signature;this.poseLights=result.colours;this.appliedLightPose=key;
       if(changed){this.lamp?.dispose();this.lamp=null;this.invalidate();this.right();}
