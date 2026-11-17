@@ -39,8 +39,8 @@ class RingLayout(DvdRingLayout):
         if self.rings[0]["lba_start"] <= 20:
             raise ValueError("ISO 9660 sectors overlap the first CD ring")
         for t in (*self.textures, self.filler):
-            if t != "RND" and (len(t) != 2 or not 0 <= int(t, 16) <= 255):
-                raise ValueError("CD ring texture must be a hex byte or RND; use tiles for sequences")
+            if t != "RND" and not (t and len(t)%2==0 and all(c in '0123456789abcdefABCDEF' for c in t)):
+                raise ValueError("CD ring texture must be a hex sequence or RND")
         if not {"0D", "AA"} <= set(self.textures):
             raise ValueError("CD rings need 0D and AA references (ringscan --refs 0D,AA)")
         if any(r["lba_end"] <= r["lba_start"] for r in self.rings):
@@ -58,6 +58,10 @@ def write_iso(path, layout, log=print):
                 count = min(8192, end - a)
                 if texture == "RND":
                     data = rng.integers(0, 256, (count, 2048), dtype=np.uint8)
+                elif len(texture)>2:
+                    from .cdimage import texture_bytes
+                    frame,slot=cd.user_to_physical(np.arange(a,a+count)[:,None],np.arange(2048)[None,:])
+                    data=texture_bytes(texture,frame,slot,None)^cd.MASK
                 else:
                     data = np.broadcast_to(cd.payload_for(int(texture, 16)), (count, 2048))
                 fh.write(data.tobytes())
@@ -82,6 +86,11 @@ def verify_iso(path, layout, samples_per_ring=12, seed=5):
                 rec = np.frombuffer(fh.read(2048), np.uint8) ^ cd.MASK
                 if t == "RND":
                     bad = np.bincount(rec, minlength=256).max() > 40
+                elif len(t)>2:
+                    from .cdimage import inverse_positions
+                    _,byte,frame,slot=inverse_positions(lba,1)
+                    seq=np.frombuffer(bytes.fromhex(t),np.uint8)
+                    bad=np.any(rec[byte]!=seq[(frame*32+slot)%len(seq)])
                 else:
                     bad = np.any(rec != int(t, 16))
                 if bad:

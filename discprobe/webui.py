@@ -1303,6 +1303,10 @@ class Handler(BaseHTTPRequestHandler):
             url = urlsplit(self.path)
             path = unquote(url.path)
             backend = self.server.backend
+            if path == '/api/editor-lamp-tables':
+                from .editor_preview import lamp_tables
+                self._json(200,lamp_tables())
+                return
             if path == "/api/news":
                 from . import news
                 # Server is a ThreadingHTTPServer: network I/O stays in this

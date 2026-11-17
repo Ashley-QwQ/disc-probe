@@ -101,14 +101,14 @@ class RingLayout:
         return layout
 
 
-def _q(texture: str) -> int | None:
-    return None if texture.upper() == "RND" else int(texture, 16)
+def _q(texture: str) -> int | str | None:
+    return None if texture.upper() == "RND" else int(texture, 16) if len(texture)==2 else texture
 
 
 def _check(layout: RingLayout) -> None:
     for t in (*layout.textures, layout.filler):
-        if t.upper() != "RND" and not (len(t) == 2 and 0 <= int(t, 16) <= 255):
-            raise ValueError(f"texture {t!r} is neither a hex byte nor RND")
+        if t.upper() != "RND" and not (t and len(t)%2==0 and all(c in '0123456789abcdefABCDEF' for c in t)):
+            raise ValueError(f"texture {t!r} is neither a hex sequence nor RND")
     if "A5" not in layout.textures or "92" not in layout.textures:
         raise ValueError("A5 and 92 must be among the textures; they are the analysis references")
     if layout.groups < 2:
@@ -131,7 +131,7 @@ def write_iso(path: str, layout: RingLayout, log=print) -> str:
     with open(path, "wb") as f:
         for start, end, tex in layout.segments():
             q = _q(tex)
-            if q is not None and q not in cycles:
+            if isinstance(q,int) and q not in cycles:
                 # One ECC block per preset; block b uses preset (b + 0x3000) & 15 = b & 15.
                 cycles[q] = np.concatenate([np.tile(dvd.MASKS[k] ^ np.uint8(q), dvd.BLOCK_SECTORS)
                                             for k in range(16)] * 2)
@@ -142,6 +142,11 @@ def write_iso(path: str, layout: RingLayout, log=print) -> str:
                 if q is None:
                     buf = rng.integers(0, 256, n * dvd.BLOCK_SECTORS * dvd.SECTOR_BYTES, dtype=np.uint8)
                     f.write(buf.tobytes())
+                elif isinstance(q,str):
+                    seq=np.frombuffer(bytes.fromhex(q),np.uint8)
+                    row=seq[np.arange(dvd.SECTOR_BYTES)%len(seq)]
+                    lbas=np.arange(b*dvd.BLOCK_SECTORS,(b+n)*dvd.BLOCK_SECTORS)
+                    f.write((row ^ dvd.MASKS[((lbas+dvd.DATA_START_PSN)>>4)&15]).tobytes())
                 else:
                     block_bytes = dvd.BLOCK_SECTORS * dvd.SECTOR_BYTES
                     k = 0
@@ -182,6 +187,10 @@ def verify_iso(path: str, layout: RingLayout, samples_per_ring: int = 12, seed: 
                 if q is None:
                     if np.bincount(rec, minlength=256).max() > 40:
                         problems.append(f"LBA {lba} ({tex}) does not look random")
+                elif isinstance(q,str):
+                    seq=np.frombuffer(bytes.fromhex(q),np.uint8)
+                    if not np.array_equal(rec,seq[np.arange(dvd.SECTOR_BYTES)%len(seq)]):
+                        problems.append(f'LBA {lba} ({tex}) sequence mismatch')
                 elif not np.all(rec == q):
                     problems.append(f"LBA {lba} ({tex}) records {np.unique(rec)[:4]} instead of {q:02X}")
     return problems
