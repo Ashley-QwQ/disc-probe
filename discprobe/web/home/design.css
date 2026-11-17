@@ -146,6 +146,18 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 
 /* ---- canvas ---- */
 .cv { position: fixed; top: var(--top); bottom: calc(var(--foot) + 16px); left: calc(var(--edge) + var(--colL) + 20px); right: calc(var(--edge) + var(--colR) + 20px); overflow: hidden; touch-action: none; }
+.ws:not(.pv) > .cv { overflow:visible;z-index:0;pointer-events:none; }
+.ws:not(.on) .cv,:root:not([data-mode="design"]) .ws:not(.pv) .cv { visibility:hidden; }
+.ws:not(.pv) .cv > * { pointer-events:auto; }
+.ws .ed-desk,.cv .ed-surface { position:fixed;inset:0;pointer-events:none; }
+.ws .ed-desk { z-index:-2;background-color:var(--paper-2);background-repeat:repeat; }
+.ws .ed-panel-shadow { position:fixed;top:var(--top);bottom:calc(var(--foot) + 16px);right:var(--edge);width:var(--colR);border-radius:8px;box-shadow:var(--glass-far,var(--glass-desk));z-index:-1;pointer-events:none; }
+.cv .ed-surface { z-index:-1;mask-image:linear-gradient(#000,#000),linear-gradient(rgb(0 0 0 / .35),rgb(0 0 0 / .35));mask-repeat:no-repeat;mask-composite:add; }
+.cv .ed-disc-shadow { position:absolute;border-radius:50%;pointer-events:none; }
+.cv .ed-surface canvas.main { pointer-events:auto; }
+.ws:not(.pv) > .col,.ws:not(.pv) > .ws-title { z-index:2; }
+.ws:not(.pv) > .ws-title,.ws:not(.pv) > .filebtns { background:var(--paper); }
+:root[data-mode="design"] header,:root[data-mode="design"] footer { background:var(--paper); }
 .cv canvas.main { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .cv.pan, .cv.pan * { cursor: grab !important; }
 .cv.panning, .cv.panning * { cursor: grabbing !important; }
@@ -202,6 +214,8 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 /* Editor round 2: compact lists and canvas-owned tools; existing glass plane. */
 .ws .col { background:var(--sheet,var(--paper)); }
 .ws .col-r { display:flex; padding:16px 12px; border-radius:8px; overflow:hidden; box-shadow:var(--glass-far,var(--glass-desk)); }
+.ws:not(.pv) .col { background:var(--paper); }
+.ws:not(.pv) .col-r { box-shadow:none; }
 .ws .tools-v,.ws .filebtns { filter:var(--glass-drive-drop); }
 .ws .tools-v { top:64px; gap:3px; overflow:visible; }
 .ws .tb { position:relative; width:44px; height:44px; }

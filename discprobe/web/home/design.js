@@ -11,6 +11,7 @@ import { processRGBA, renderOutput, autoLevels } from "./design/processing.mjs";
 import { selectionPixels, uniqueLayerName } from "./design/selection-edit.mjs";
 import { Editor } from "./design/editor-ui.mjs";
 import * as EditorOps from "./design/editor-ops.mjs";
+import { updateDesk } from "./design/editor-desk.mjs";
 
 import { processingWorker } from "./design/worker-client.mjs";
 import { downloadTemplate } from "./design/template-download.mjs";
@@ -238,6 +239,8 @@ const projects = new Map();                  // the shelf's old way in: one plan
 export const recentPlans = () => plans.filter((P) => P.layers.length || P.name);
 let W = null;                                // the workspace's DOM
 const V = { s: 5, cx: 0, cy: 0, w: 0, h: 0, dpr: 1 };   // canvas view: px per mm and the disc centre
+let followFit = true;
+let focus = { x: 0, y: 0, w: 0, h: 0 };
 let nextId = 1;
 
 function newProject(item, media) {
@@ -440,8 +443,9 @@ function hitLayer(mm, kinds = ["image", "fx"]) {
 const TOP_DOCK = 64;
 const DOCK = 96;                             // the canvas's bottom strip, where the number bar docks
 function fit() {
-  V.s = Math.min(V.w - 64, V.h - TOP_DOCK - DOCK) * 0.92 / 120;
-  V.cx = V.w / 2 + 20; V.cy = TOP_DOCK + (V.h - TOP_DOCK - DOCK) / 2;
+  followFit = true;
+  V.s = Math.max(1, Math.min(focus.w - 64, focus.h - TOP_DOCK - DOCK)) * 0.92 / 120;
+  V.cx = focus.x + focus.w / 2 + 20; V.cy = focus.y + TOP_DOCK + (focus.h - TOP_DOCK - DOCK) / 2;
   settleView();editor?.invalidate();
   draw(); queueCompose();
 }
@@ -454,7 +458,8 @@ function viewChanged(){
 }
 let paintedView=null;
 function zoomAt(f, sx, sy) {
-  const s = Math.min(Math.max(V.s * f, Math.min(V.w, V.h) * 0.2 / 120), 4 / S.cell);
+  followFit = false;
+  const s = Math.min(Math.max(V.s * f, Math.min(focus.w, focus.h) * 0.2 / 120), 4 / S.cell);
   const k = s / V.s;
   V.cx = sx - (sx - V.cx) * k; V.cy = sy - (sy - V.cy) * k; V.s = s;
   viewChanged();
@@ -729,6 +734,7 @@ function ruler(g, r0, r1, ink) {
 }
 function paintCanvas() {
   if (!W || !S) return;
+  updateDesk(W, V, focus);
   const cv = W.canvas, g = cv.getContext("2d");
   if(motion&&S.view==='burn'){
     const k=V.s/motion.s;cv.style.transformOrigin='0 0';cv.style.willChange='transform';
@@ -743,7 +749,6 @@ function paintCanvas() {
   // the disc, data side up
   g.fillStyle = face; g.beginPath(); g.arc(V.cx, V.cy, 60 * V.s, 0, Math.PI * 2); g.fill();
   g.fillStyle = face2; annulus(g, 7.5, 17); g.fill("evenodd");
-  g.fillStyle = paper; g.beginPath(); g.arc(V.cx, V.cy, 7.5 * V.s, 0, Math.PI * 2); g.fill();
   // the pictures as they are (grey in the projection), everywhere, so what falls outside still shows
   const grey = S.view !== "orig";
   for (const L of imageLayers()) {
@@ -778,8 +783,10 @@ function paintCanvas() {
   editor?.paint(g);
   const L = sel();
   // everything outside the burnable ring stays in sight at about a quarter, with its outline (as DIS does)
-  g.fillStyle = dim;                                         // the page around the disc
+  // Reveal the continuous desk under the out-of-disc picture at 25% opacity.
+  g.save(); g.globalCompositeOperation = "destination-out"; g.fillStyle = "rgb(0 0 0 / .75)";
   g.beginPath(); g.rect(0, 0, V.w, V.h); g.arc(V.cx, V.cy, 60 * V.s, 0, Math.PI * 2, true); g.fill();
+  g.restore();
   g.fillStyle = cssVar("--face-dim");                       // the disc where nothing is burned
   annulus(g, r1, 60); g.fill("evenodd");
   g.beginPath(); g.arc(V.cx, V.cy, r0 * V.s, 0, Math.PI * 2); g.fill();
@@ -803,10 +810,11 @@ function paintCanvas() {
     g.restore();
   }
   drawFileGuides(g, V, occupiedRings(S.files).slice(1), cssVar);
-  g.fillStyle = paper; g.beginPath(); g.arc(V.cx, V.cy, 7.5 * V.s, 0, Math.PI * 2); g.fill();
-  // lines by the drawing rule (DESIGN.md): the disc's outline 1.5 px ink, its structure 1 px at 70 %
+  g.save(); g.globalCompositeOperation = "destination-out"; g.fillStyle = "#000";
+  g.beginPath(); g.arc(V.cx, V.cy, 7.5 * V.s, 0, Math.PI * 2); g.fill(); g.restore();
+  // Screen-only thickness: a fine 1 px dark outer edge; structure stays at 70%.
   g.save(); g.strokeStyle = ink;
-  g.lineWidth = 1.5; g.beginPath(); g.arc(V.cx, V.cy, 60 * V.s, 0, Math.PI * 2); g.stroke();
+  g.lineWidth = 1; g.beginPath(); g.arc(V.cx, V.cy, 60 * V.s, 0, Math.PI * 2); g.stroke();
   g.lineWidth = 1; g.globalAlpha = 0.7;
   for (const r of [7.5, r0, r1]) { g.beginPath(); g.arc(V.cx, V.cy, r * V.s, 0, Math.PI * 2); g.stroke(); }
   g.restore();
@@ -929,19 +937,22 @@ function changed() {
 // ---------------------------------------------------------------- canvas input
 const pointers = new Map();
 let drag = null, spaceDown = false;
-function canvasPoint(e) { const r = W.canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+function canvasPoint(e) { const r = W.surface.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+const insideFocus = ([x, y]) => x >= focus.x && y >= focus.y && x <= focus.x + focus.w && y <= focus.y + focus.h;
 function onDown(e) {
   if (!S) return;
-  if (e.button===0 && !spaceDown && editor?.pointer("down",e,toMm(...canvasPoint(e)))) {e.preventDefault();return;}
-  W.canvas.setPointerCapture(e.pointerId);
-  const p = canvasPoint(e);
+  const p = canvasPoint(e), inside = insideFocus(p);
   pointers.set(e.pointerId, p);
-  if (pointers.size === 2) {                // two fingers: pinch and pan
+  if (pointers.size === 2) {                // two fingers take over an unfinished selection/drawing
+    editor?.cancelGesture();
+    W.canvas.setPointerCapture(e.pointerId);
     const [a, b] = [...pointers.values()];
     drag = { kind: "pinch", d0: Math.hypot(a[0] - b[0], a[1] - b[1]), s0: V.s, c0: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], cx: V.cx, cy: V.cy };
     return;
   }
-  if (e.button === 1 || spaceDown || S.tool === "pan") {
+  if (inside && e.button===0 && !spaceDown && editor?.pointer("down",e,toMm(...p))) {e.preventDefault();return;}
+  W.canvas.setPointerCapture(e.pointerId);
+  if (e.button === 1 || spaceDown || S.tool === "pan" || !inside && e.button === 0) {
     drag = { kind: "pan", p0: p, cx: V.cx, cy: V.cy };
     W.cv.classList.add("panning");
     e.preventDefault();
@@ -979,17 +990,19 @@ function onDown(e) {
 }
 function onMove(e) {
   if (!S) return;
-  if(!drag&&!spaceDown&&editor?.pointer("move",e,toMm(...canvasPoint(e))))return;
   const p = canvasPoint(e);
   if (pointers.has(e.pointerId)) pointers.set(e.pointerId, p);
+  if(!drag&&!spaceDown&&editor?.pointer("move",e,toMm(...p)))return;
   if (S.loupe) loupeAt(p);
   if (!drag) return;
   if (drag.kind === "pinch" && pointers.size === 2) {
+    followFit = false;
     const [a, b] = [...pointers.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    const s = Math.min(Math.max(drag.s0 * d / drag.d0, Math.min(V.w, V.h) * 0.2 / 120), 4 / S.cell), k = s / drag.s0;
+    const s = Math.min(Math.max(drag.s0 * d / drag.d0, Math.min(focus.w, focus.h) * 0.2 / 120), 4 / S.cell), k = s / drag.s0;
     V.s = s; V.cx = c[0] - (drag.c0[0] - drag.cx) * k; V.cy = c[1] - (drag.c0[1] - drag.cy) * k;
     viewChanged();
   } else if (drag.kind === "pan") {
+    followFit = false;
     V.cx = drag.cx + p[0] - drag.p0[0]; V.cy = drag.cy + p[1] - drag.p0[1];
     viewChanged();
   } else if (drag.kind === "move") {
@@ -1012,14 +1025,15 @@ function onMove(e) {
   }
 }
 function onUp(e) {
-  if(!drag&&editor?.pointer(e.type==="pointercancel"?"cancel":"up",e,toMm(...canvasPoint(e))))return;
   pointers.delete(e.pointerId);
+  if(!drag&&editor?.pointer(e.type==="pointercancel"?"cancel":"up",e,toMm(...canvasPoint(e))))return;
   if (drag?.kind === "pan") W.cv.classList.remove("panning");
   if (pointers.size < 2 && drag?.kind === "pinch") drag = null;
   if (!pointers.size) drag = null;
 }
 function onWheel(e) {
   e.preventDefault();
+  followFit = false;
   const p = canvasPoint(e);
   // a pinch on a touchpad arrives as a wheel with Ctrl; a mouse wheel moves in whole notches
   const mouse = e.deltaMode === 1 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
@@ -1047,7 +1061,10 @@ function onKey(e) {
   if ((e.ctrlKey || e.metaKey) && k.toLowerCase()==="j") {e.preventDefault();selectionEdit(e.shiftKey?"cut":"copy");return;}
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (k === "0") { fit(); return; }
-  if (k === "1") { zoomAt(1 / S.cell / V.s, V.w / 2, V.h / 2); return; }
+  const zoomCentre = [focus.x + focus.w / 2, focus.y + focus.h / 2];
+  if (k === "1") { zoomAt(1 / S.cell / V.s, ...zoomCentre); return; }
+  if (k === "+" || k === "=") { e.preventDefault(); zoomAt(1.18, ...zoomCentre); return; }
+  if (k === "-" || k === "_") { e.preventDefault(); zoomAt(1 / 1.18, ...zoomCentre); return; }
   if (k === "v" || k === "V") setTool("move");
   else if (k === "w" || k === "W") setTool("wand");
   else if (k === "h" || k === "H") setTool("pan");
@@ -1587,6 +1604,7 @@ async function openProject(file, handle = null, work = null) {
   W.ws.classList.toggle("pro-on", S.pro);
   W.pname.textContent = S.name;
   buildLeft(); buildRight(); updateTilt();
+  fit();
   if (lost.length) { S.dirty = true; W.dirty.classList.add("on"); }
   toast([data.media && data.media !== S.media ? t.otherMedia(data.media.toUpperCase(), S.media.toUpperCase()) : t.opened(work ? S.name : file.name),
     lost.length ? t.lost(lost.map((e) => `“${String(e.name ?? "?")}”`).join(api.lang() === "en" ? ", " : "、")) : ""].filter(Boolean).join(" "), lost.length ? 12000 : 2600);
@@ -1801,7 +1819,7 @@ function build() {
   ws.innerHTML = `<div class="ws-title"><svg class="work-bag" viewBox="0 0 20 24" width="16" height="20" style="flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.3" role="img" aria-label="作品存在往期作品里 / Saved in past works"><title>作品存在往期作品里 / Saved in past works</title><path d="M3 5h14v17H3zM3 5l3-3h8l3 3M7 9h6M7 12h6"/></svg><b class="pname"></b><button class="sub" type="button"></button><span class="dirty" aria-hidden="true"></span>` +
     `<span class="filebtns"><button class="sbtn" type="button" data-a="open"></button><button class="sbtn" type="button" data-a="save"></button></span></div>` +
     `<aside class="col col-l"></aside><aside class="col col-r"></aside>` +
-    `<div class="cv"><canvas class="main"></canvas>` +
+    `<div class="cv"><div class="ed-desk" aria-hidden="true"></div><div class="ed-surface"><div class="ed-disc-shadow" aria-hidden="true"></div><canvas class="main"></canvas></div>` +
     `<div class="tools-v" role="toolbar"></div>` +
     `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="burn"></button><button type="button" data-v="lamp"></button></div><p class="ed-view-note" aria-live="polite"></p>` +
     `<p class="cv-note warn" hidden></p>` +
@@ -1816,12 +1834,19 @@ function build() {
   const q = (s) => ws.querySelector(s);
   W = {
     ws, left: q(".col-l"), right: q(".col-r"), cv: q(".cv"), canvas: q("canvas.main"), tools: q(".tools-v"), view: q(".viewsw"),
+    desk: q(".ed-desk"), surface: q(".ed-surface"), shadow: q(".ed-disc-shadow"),
     note: q(".cv-note"), empty: q(".empty-c"), bar: q(".fbar"), tilt: q(".tilt"), loupe: q(".loupe"), zoom: q(".zoomr"),
     drop: q(".dropzone"), file: q(".f-img"), folder: q(".f-dir"), dirty: q(".dirty"), pname: q(".pname"), sub: q(".ws-title .sub"), proj: q(".f-proj"), filebtns: q(".filebtns"),
   };
   // open and save belong to the work's tools, above the layers, not to its title (the header keeps only the
   // work's name and its discs)
   ws.append(W.filebtns);
+  // Keep the existing glass panel's shadow beneath the picture, as it was before the canvas
+  // extended behind the panels. Its opaque face alone belongs above the picture.
+  ws.prepend(W.desk);
+  const panelShadow = document.createElement("div");
+  panelShadow.className = "ed-panel-shadow"; panelShadow.setAttribute("aria-hidden", "true");
+  ws.prepend(panelShadow);
   // canvas input
   const cvs = W.canvas;
   observeActivity(cvs, active => {
@@ -1853,7 +1878,7 @@ function build() {
   addEventListener("blur",()=>{if(temporaryTool!==null){const t=temporaryTool;temporaryTool=null;spaceDown=false;setTool(t);}});
   addEventListener("keydown", onKey);
   addEventListener("keyup", onKeyUp);
-  W.zoom.addEventListener("click", () => { if (zoomPct() >= 99) fit(); else zoomAt(1 / S.cell / V.s, V.w / 2, V.h / 2); });
+  W.zoom.addEventListener("click", () => { if (!followFit) fit(); else zoomAt(1 / S.cell / V.s, focus.x + focus.w / 2, focus.y + focus.h / 2); });
   W.view.addEventListener("click", (e) => {
     const b = e.target.closest("[data-v]");
     if (!b) return;
@@ -1919,19 +1944,21 @@ function build() {
     }});
   W.canvas.tabIndex=0;W.canvas.setAttribute("aria-label","Disc editor canvas");
   W.canvas.addEventListener("keydown",e=>{if(!spaceDown&&e.key!==" "&&editor.key(e)){e.preventDefault();e.stopPropagation();}});
-  new ResizeObserver(resize).observe(W.cv);
+  const observer = new ResizeObserver(resize); observer.observe(W.cv); observer.observe(W.ws);
   $("back").addEventListener("click", () => { if (isOn()) leave(); });
   $("next").addEventListener("click", () => { if (isOn() && (imageLayers().length || S.assignments?.length)) toPreview(); });
   addEventListener("dp-lang", () => { if (isOn()) words(); });
   new MutationObserver(() => { if (isOn()) { draw(); drawScene(); } }).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
 }
 function resize() {
-  const r = W.cv.getBoundingClientRect(), first = !V.w;
-  const ox = V.cx - V.w / 2, oy = V.cy - V.h / 2;
-  V.w = r.width; V.h = r.height; V.dpr = devicePixelRatio || 1;
+  const r = W.cv.getBoundingClientRect(), stage = W.surface.getBoundingClientRect();
+  const ox = V.cx - focus.x - focus.w / 2, oy = V.cy - focus.y - focus.h / 2;
+  focus = {x: r.left - stage.left, y: r.top - stage.top, w: r.width, h: r.height};
+  V.w = stage.width; V.h = stage.height; V.dpr = devicePixelRatio || 1;
   W.canvas.width = Math.round(V.w * V.dpr); W.canvas.height = Math.round(V.h * V.dpr);
-  if (first) fit();
-  else { V.cx = V.w / 2 + ox; V.cy = V.h / 2 + oy; draw(); queueCompose(); }
+  settleView();
+  if (followFit) fit();
+  else { V.cx = focus.x + focus.w / 2 + ox; V.cy = focus.y + focus.h / 2 + oy; draw(); queueCompose(); }
 }
 // all the words, in the current language
 function words() {
@@ -2059,14 +2086,13 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
   $("next").disabled = !imageLayers().length && !S.assignments?.length; api.nextWhy?.(T().whyNoPicture);
   W.ws.classList.add("on");
   W.ws.classList.toggle("pro-on", S.pro);
+  followFit = true;
   words();
   setTool(S.tool);
-  requestAnimationFrame(() => resize());
-  setTimeout(() => {
+  requestAnimationFrame(() => {
     resize();
-    const r = W.cv.getBoundingClientRect();
-    if (fly) flight(from, { x: r.left + V.cx, y: r.top + V.cy, d: 120 * V.s }, false);
-  }, 30);
+    if (fly) flight(from, { x: V.cx, y: V.cy, d: 120 * V.s }, false);
+  });
   const entrance = dropIn && !api.reduce ? W.ws.animate([{ transform: "translateY(-40px)", opacity: 0 }, { transform: "none", opacity: 1 }],
     { duration: 420, easing: "cubic-bezier(.2, .8, .2, 1)" }) : null;       // the next sheet comes down from above
   if (file) importFiles([file]);
@@ -2387,7 +2413,7 @@ function leave() {
   clearTimeout(editor?.lightTimer);
   composeRevision++;
   stopPlay();
-  const r = W.cv.getBoundingClientRect(), to = { x: r.left + V.cx, y: r.top + V.cy, d: 120 * V.s };
+  const to = { x: V.cx, y: V.cy, d: 120 * V.s };
   root.dataset.mode = "";
   W.ws.classList.remove("on");
   W.loupe.classList.remove("on");
