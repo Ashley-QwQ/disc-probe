@@ -589,6 +589,12 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
                        'Re-read this same disc and inspect the saved logs before another burn.')
     if reasons:
         result.update(result='failed', reason=' '.join(reasons), disc_state=state)
+    elif no_verify:
+        print("Burn finished: data written; read-back skipped, so neither the data nor the look of the disc "
+              "has been checked.", flush=True)
+    else:
+        print("Burn finished: data written, read-back sample OK. This checks the data, not what the disc looks like.",
+              flush=True)
     record("burn_result", **result)
     if reasons:
         raise BurnError(result['reason'])
