@@ -102,6 +102,7 @@ def test_cli_and_chinese_help(monkeypatch,tmp_path,feed,capsys):
     assert args.func(args)==0
     got=json.loads(capsys.readouterr().out)
     assert got['from']=='bundled' and got['entries']
+    assert 'feed' not in got and all(e['media']=='dvd' and e['result']!='failed' for e in got['entries'])
     assert not (tmp_path/'presets').exists()
     args=parser.parse_args(['community','--import','I339-1','--directory',str(tmp_path),'--json'])
     assert args.func(args)==0 and json.loads(capsys.readouterr().out)['import']['written']

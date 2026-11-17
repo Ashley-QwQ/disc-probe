@@ -1,6 +1,7 @@
 import copy
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -29,7 +30,7 @@ def test_generated_data_and_reproducible_bundle():
     lambda d:d.update(version=True),
     lambda d:d.update(count=1),
     lambda d:d.update(date='2026-02-30'),
-    lambda d:d['entries'].append(d['entries'][0]),
+    lambda d:d['entries'].__setitem__(1,d['entries'][0]),
     lambda d:d['entries'][0].update(media='usb'),
     lambda d:d['entries'][0].update(drive=['bad']),
     lambda d:d['entries'][0]['disc'].update(mid='x'*601),
@@ -54,3 +55,11 @@ def test_bad_wire():
 
 def test_unknown_never_becomes_a_measured_span():
     assert any(e['measured_span_mm'] is None for e in sample()['entries'])
+
+
+def test_windows_source_stage_includes_fallback(tmp_path):
+    from tools import build_winpack
+    build_winpack.copy_source(SimpleNamespace(worktree=True),str(tmp_path))
+    assert (tmp_path/'discprobe/web/home/faxnews/community.json').read_bytes()==OUTPUTS[0].read_bytes()
+    assert (tmp_path/'discprobe/community.py').is_file()
+    assert (tmp_path/'discprobe/web/home/community.mjs').is_file()

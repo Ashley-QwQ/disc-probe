@@ -88,8 +88,11 @@ def import_entry(entry, directory='presets'):
         date=entry['source']['date'],result=entry['result'],result_notes=entry['result_notes'],
         confidence=entry['confidence'],source=entry['source'],also=entry['also'],
         measured_span_mm=entry['measured_span_mm'],note=WARNING)
-    return presets.import_file(json.dumps(p,ensure_ascii=False),entry['source']['url'],directory,
+    report=presets.import_file(json.dumps(p,ensure_ascii=False),entry['source']['url'],directory,
                                media=entry['media'],community_source=provenance)
+    if not report['entries'][0]['valid']:
+        raise CommunityError('community import refused: '+'; '.join(report['entries'][0]['issues']))
+    return report
 
 
 def add_parser(sub):
@@ -111,7 +114,8 @@ def run(args):
         row=next((e for e in feed['entries'] if e['id']==args.import_id),None)
         if row is None: raise SystemExit('unknown community ID: '+args.import_id)
         got['import']=import_entry(row,args.directory)
-    got['entries']=search(feed,media=args.media,mid=args.mid,sectors=args.sectors,search=args.search,include_failed=args.include_failed)
+    got['entries']=[row] if args.import_id else search(feed,media=args.media,mid=args.mid,sectors=args.sectors,search=args.search,include_failed=args.include_failed)
+    got.pop('feed')
     if args.json:
         print(json.dumps(got,ensure_ascii=False,allow_nan=False)); return 0
     zh=i18n.active()=='zh'

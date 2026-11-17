@@ -136,6 +136,8 @@ class HandshakeTests(unittest.TestCase):
                          'discprobe/_tools/burn_imapi.ps1', 'tools/burn_imapi.ps1', 'tools/geo_polyfit.py',
                          'tests/data/bd_discussion_samples/local_uj272_bd_zones.csv', 'discprobe/simulate_lut.npz'):
                 self.assertIn(name, names)
+            self.assertEqual(wheel.read('discprobe/web/home/faxnews/community.json'),
+                             (ROOT / 'news/community.json').read_bytes())
             metadata = wheel.read(next(n for n in names if n.endswith('.dist-info/METADATA'))).decode()
             for dependency in ('numpy', 'Pillow', 'scipy', 'opencv-python'):
                 self.assertIn('Requires-Dist: ' + dependency, metadata)
