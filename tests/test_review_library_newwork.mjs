@@ -191,7 +191,7 @@ try {
   await until('document.querySelector(".presetio-status").textContent.includes("Imported: 4")','imports complete');
   await evaluate('document.getElementById("back").click()');
   await check('document.documentElement.dataset.mode==="newplan"&&document.querySelector(".np-batch").value==="DIS DVD 1"&&document.querySelector(".np-name").value==="我的作品"','first imported preset of current kind selected, name kept');
-  await check('document.querySelector(".np-cal-text").textContent==="参数来自 DIS（未经 DP 实测）"&&document.querySelector(".np-cal-go").hidden','import has its own unmeasured status without calibration nag');
+  await check('/^参数来自 DIS 预设“.+”：不是 DP 测的，没有实测范围（DIS 只给标称半径），这批盘还没确认$/.test(document.querySelector(".np-cal-text").textContent)&&document.querySelector(".np-cal-go").hidden','import has its own unmeasured status without calibration nag');
   await check('!document.querySelector(".np-matches").textContent.includes("DIS DVD 3")','archive-only batch not offered as geometry');
   await shot('imported-selected',true);
   await evaluate('document.querySelector(".np-library").click();document.getElementById("back").click()');
