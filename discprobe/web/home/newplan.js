@@ -67,7 +67,8 @@ function calibrationNotice() {
   const it = chosen(), zh = api.lang() !== "en";
   if (!it) return T().noBatch;
   const text = calibrated(it) ? T().calOk((it.last || "—").slice(0, 10))
-    : imported(it) ? (zh ? "参数来自 DIS（未经 DP 实测）" : "Parameters from DIS (not measured by DP)") : T().calNone;
+    : imported(it) ? (zh ? `参数来自 DIS 预设“${it.name}”：不是 DP 测的，没有实测范围（DIS 只给标称半径），这批盘还没确认`
+      : `Parameters from the DIS preset “${it.name}”: not measured by DP, no measured range (DIS gives nominal radii only), this batch not confirmed yet`) : T().calNone;
   return text + (state.kind === "cd" && !it.along_track?.known
     ? (zh ? "；沿轨常数未知" : "; along-track constant unknown") : "");
 }
