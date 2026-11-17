@@ -15,6 +15,7 @@ import { isActionEnter } from "./kit/shared.js";
 
 import * as presets from "./presetio.js";
 import { driveTarget, pushLobby } from "./lobby.js";
+import { receive as receiveCommunity, hint as communityHint, safeGithub } from "./community.mjs";
 
 const STR = {
   zh: {
@@ -224,6 +225,7 @@ function build() {
           <button type="button" class="np-cal-go"></button>
           <span class="np-own"><button type="button" class="np-import"></button><span aria-hidden="true"> · </span><button type="button" class="np-type"></button></span></div>
         <small class="np-help"><span class="np-disc-help" id="np-disc-help"></span><span class="np-left"></span></small>
+        <small class="np-help np-community" role="status" hidden></small>
         <button type="button" class="np-library"></button></div>
     </form>
     <div class="np-env-front" aria-hidden="true"></div>
@@ -448,6 +450,23 @@ function paintLeft() {
   W.q(".np-disc-help").textContent = state.reading ? t.reading : state.readFailed ? t.readFail
     : state.recognised ? (zh ? `光驱里认出的是 ${shortKind(d.kind) || KIND_KEY[d.media]}` : `The drive recognised ${shortKind(d.kind) || KIND_KEY[d.media]}`) + (mid ? ` · ${mid}` : "")
     : !it ? t.discHelp : d?.tray === "open" ? t.trayOpen : d && !d.present ? t.noDisc : t.discHelp;
+  paintCommunity();
+}
+
+function paintCommunity() {
+  const node = W.q('.np-community'), d = driveOfKind(), zh = api.lang() !== 'en';
+  const found = d && state.community && communityHint(state.community.feed.entries, {media: d.media, mid: d.mid, sectors: d.sectors}, zh);
+  node.replaceChildren(); node.hidden = !found;
+  if (!found) return;
+  const line = document.createElement('span');
+  line.append(document.createTextNode(found.text + ' '));
+  for (const row of found.rows.slice(0, 3)) {
+    if (!safeGithub(row.source.url)) continue;
+    const a = document.createElement('a'); a.textContent = row.id; a.href = row.source.url;
+    a.target = '_blank'; a.rel = 'noopener noreferrer'; line.append(a, document.createTextNode(' '));
+  }
+  if (found.rows.length > 3) line.append(document.createTextNode(zh ? '更多见传真机。' : 'More in the fax.'));
+  node.append(line);
 }
 // the detour: calibrate this batch, then come back to the form as it was.
 // The sheet goes into the envelope as on "next"; then the camera moves right along the desk: this page (drive,
@@ -780,6 +799,8 @@ export async function start(homeApi, { from = null, file = null, resume = null }
   const kind = inDrive?.present && KINDS.includes(inDrive.media) ? inDrive.media : KINDS.includes(saved[0]) ? saved[0] : KINDS.includes(col) ? col : "dvd";
   state = { kind, item, picked: null, file, list: [], newItems: new Map(), edited: false, recognised: !!inDrive?.present && KINDS.includes(inDrive.media),
             detected: inDrive, seed: Math.floor(Math.random() * 1e6) };
+  const communityState = state;
+  receiveCommunity().then(got => { if (state === communityState) { state.community = got; paintCommunity(); } }).catch(() => {});
   state.sub = !inDrive?.present && saved[0] === kind && SUBS[kind].some((s) => s.key === saved[1]) ? saved[1] : firstSub(kind, item);
   W.name.value = "";
   if (resume) {

@@ -15,7 +15,7 @@ const home = new URL('../discprobe/web/home/', import.meta.url);
 const index = readFileSync(new URL('index.html', home), 'utf8');
 const style = index.match(/<style>([\s\S]*?)<\/style>/)[1];
 const metadata = JSON.parse(readFileSync(new URL('presetio/desk/desk.json', home), 'utf8'));
-const screenshotDir = resolve('.impeccable/review'); mkdirSync(screenshotDir, {recursive: true});
+const screenshotDir = resolve(process.env.PRESETIO_SHOTS_DIR || '.impeccable/review'); mkdirSync(screenshotDir, {recursive: true});
 const fixture = join(dir, 'sheet.html');
 const html = `<!doctype html><html data-home="library" data-motion="off"><meta charset="utf-8"><base href="${home.href}">
 <style>${style}</style><link rel="stylesheet" href="${new URL('presetio.css', home)}">

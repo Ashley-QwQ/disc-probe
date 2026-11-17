@@ -67,6 +67,9 @@
 .fx-story + .fx-story { border-top: 1px solid var(--fx-rule); margin-top: 12px; padding-top: 10px; }
 .fx-story h4 { margin: 0; font: 750 18px/1.25 var(--font); font-stretch: 105%; }
 .fx-story p { margin: 6px 0 0; font-size: 15px; line-height: 1.6; }
+.fx-community pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.fx-community .fx-btn { max-width: 100%; overflow-wrap: anywhere; line-height: 1.4; }
+.fx-community summary { cursor: pointer; }
 .fx-byline { font: 500 12px/1.4 var(--mono) !important; color: var(--fx-ink-2); }
 /* a retro ad: a double frame, a starburst word, the colours as ink dots, the price and the order button */
 .fx-ad { position: relative; margin: 0 0 14px; padding: 14px 14px 12px; border: 3px double var(--fx-ink); text-align: center; }

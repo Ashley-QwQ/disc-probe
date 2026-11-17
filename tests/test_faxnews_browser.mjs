@@ -15,6 +15,7 @@ const home = new URL('../discprobe/web/home/', import.meta.url);
 const index = readFileSync(new URL('index.html', home), 'utf8');
 const style = index.match(/<style>([\s\S]*?)<\/style>/)[1];
 const sample = readFileSync(new URL('faxnews/news.json', home), 'utf8');
+const communitySample = readFileSync(new URL('faxnews/community.json', home), 'utf8');
 const screenshotDir = resolve(process.env.FAX_SHOTS_DIR || join(tmpdir(), 'faxnews-shots')); mkdirSync(screenshotDir, {recursive: true});
 const fixture = join(dir, 'fax.html');
 const html = `<!doctype html><html data-theme="paper"><meta charset="utf-8"><base href="${home.href}">
@@ -33,7 +34,7 @@ document.documentElement.dataset.theme=params.get('theme')||'paper';
 let reduce=true, lobbyVisits=0;
 const api={$,lang:()=>params.get('lang')||'zh',get reduce(){return reduce},toLobby(){lobbyVisits++}};
 // every request the page makes goes through here; the paper's answer is chosen per step
-const calls=[]; let answer='ok'; const SAMPLE=${JSON.stringify(sample)};
+const calls=[]; let answer='ok'; const SAMPLE=${JSON.stringify(sample)}, COMMUNITY=${communitySample};
 const nativeFetch=window.fetch.bind(window);
 window.fetch=async(url,opts={})=>{
   const u=new URL(String(url),document.baseURI);
@@ -41,6 +42,10 @@ window.fetch=async(url,opts={})=>{
   if(u.pathname.endsWith('/faxnews/fax.json'))
     {if(u.pathname.includes('/skins/'))calls.push({url:u.href,opts});return nativeFetch(url,opts);}
   calls.push({url:u.href,opts});
+  if(u.pathname.endsWith('/api/community')) {
+    if(opts.method==='POST')return new Response(JSON.stringify({written:[{index:0}],duplicates:[]}));
+    return new Response(JSON.stringify({feed:COMMUNITY,date:COMMUNITY.date,count:COMMUNITY.count,from:answer==='cache'?'cache':answer==='bundled'?'bundled':'network'}));
+  }
   if(answer==='offline')throw new TypeError('Failed to fetch');
   if(answer==='404')return new Response('no',{status:404});
   if(answer==='bad')return new Response(JSON.stringify({paper:{format:'rss',version:1}}),{status:200});
@@ -68,15 +73,29 @@ try{
   await waitFor(()=>!q('.fx-paper').hidden&&q('.fx-mast'),'paper');
   check(localStorage.getItem('dp-fax-seen')==='1','seen remembered');
   // the one request: a plain GET with nothing of ours in it
-  check(calls.length===1,'one request per call: '+calls.length);
-  const c0=calls[0]; check(!new URL(c0.url).search,'no query');
+  check(calls.length===2,'paper and community data each fetched once: '+calls.length);
+  const c0=calls.find(c=>new URL(c.url).pathname.endsWith('/api/news')); check(!new URL(c0.url).search,'no query');
+  const cc=calls.find(c=>new URL(c.url).pathname.endsWith('/api/community'));
+  check(new URL(cc.url).searchParams.get('refresh')==='1'&&cc.opts.method==='GET'&&cc.opts.credentials==='omit','community refresh is a plain local GET');
   check(c0.opts.method==='GET'&&c0.opts.credentials==='omit'&&c0.opts.referrerPolicy==='no-referrer'&&!c0.opts.body&&!c0.opts.headers,'GET only, no cookies, no referrer, no body');
   // 2. the paper: the newer release leads; ads, the disc of the day, a background, a joke, what comes
   const P=q('.fx-paper');
   check(/1\\.0\\.0\\.0-alpha/.test(q('.fx-lead').textContent),'release leads');
   check(q('.fx-stamp')?.textContent==='样张','sample stamp');
   check(qa('.fx-ad').length===2,'two ads');
-  check(qa('.fx-story').length===3,'three stories');
+  check(qa('article.fx-story').length===3,'three stories');
+  const community=q('.fx-community'); check(community&&community.textContent.includes(COMMUNITY.date)&&community.textContent.includes(String(COMMUNITY.count)),'community date and count');
+  check(community.textContent.includes('联网')&&community.textContent.includes('不是 DP 测的')&&community.textContent.includes('没有实测范围'),'community provenance and range');
+  const select=community.querySelector('select'); select.value='dvd';select.dispatchEvent(new Event('change'));
+  check(community.querySelector('details a').href.startsWith('https://github.com/'),'GitHub source links');
+  check(![...community.querySelectorAll('summary')].some(e=>e.textContent.includes('有人用这组失败了')),'failed rows hidden by default');
+  const failed=community.querySelector('input');failed.checked=true;failed.dispatchEvent(new Event('change'));
+  check([...community.querySelectorAll('summary')].some(e=>e.textContent.includes('有人用这组失败了')),'failed rows explicit');
+  const importButton=community.querySelector('details button');importButton.click();
+  await waitFor(()=>community.textContent.includes('已进预设库'),'explicit local import');
+  check(calls.filter(c=>c.opts.method==='POST').length===1,'only explicit import writes locally');
+  const detail=community.querySelector('details');detail.open=true;
+  check(detail.scrollWidth<=detail.clientWidth+1,'expanded numeric record stays inside the column');detail.open=false;
   check(q('.fx-art img')?.getAttribute('src'),'artwork');
   check(q('.fx-art img').getAttribute('src').startsWith('/api/news/asset?path='),'artwork stays on local API');
   check(q('.fx-bg canvas'),'background preset');

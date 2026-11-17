@@ -1203,6 +1203,48 @@ class Handler(BaseHTTPRequestHandler):
                                                           device.value if device else None)
 
     # Preset interchange routes stay together; no hardware work runs here.
+    def _community(self, method):
+        url = urlsplit(self.path)
+        if url.path != '/api/community':
+            return False
+        from . import community
+        backend = self.server.backend
+        try:
+            if method == 'GET':
+                query = parse_qs(url.query, keep_blank_values=True)
+                if set(query) - {'refresh','media','mid','sectors','search','include_failed'}:
+                    raise APIError('invalid community query')
+                if any(len(values) != 1 or len(values[0]) > 600 for values in query.values()):
+                    raise APIError('invalid community query')
+                refresh = query.get('refresh', ['0'])[0]
+                failed = query.get('include_failed', ['0'])[0]
+                if refresh not in ('0','1') or failed not in ('0','1'):
+                    raise APIError('invalid community flags')
+                result = community.get_community(None if refresh == '1' else [])
+                result['entries'] = community.search(result['feed'], media=query.get('media',[None])[0],
+                    mid=query.get('mid',[None])[0], sectors=int(query['sectors'][0]) if 'sectors' in query else None,
+                    search=query.get('search',[None])[0], include_failed=failed == '1')
+            else:
+                body = self._body(2048)
+                if self.headers.get_content_type() != 'application/json':
+                    raise APIError('application/json required', 415)
+                payload = json.loads(body)
+                if not isinstance(payload, dict) or set(payload) != {'id'} or not isinstance(payload['id'], str):
+                    raise APIError('choose one community ID')
+                feed = community.get_community([])['feed']
+                entry = next((e for e in feed['entries'] if e['id'] == payload['id']), None)
+                if entry is None:
+                    raise APIError('unknown community ID')
+                folder = (backend.root / 'presets').resolve()
+                if not folder.is_relative_to(backend.root.resolve()):
+                    raise APIError('presets folder must stay inside workspace')
+                with backend.lock:
+                    result = community.import_entry(entry, folder)
+            self._json(200, result)
+        except (ValueError, OSError) as exc:
+            self._json(exc.status if isinstance(exc, APIError) else 400, dict(error=str(exc)))
+        return True
+
     def _presetio(self, method):
         if urlsplit(self.path).path != "/api/presets":
             return False
@@ -1255,6 +1297,8 @@ class Handler(BaseHTTPRequestHandler):
             if self._works("GET"):
                 return
             if self._presetio("GET"):
+                return
+            if self._community('GET'):
                 return
             url = urlsplit(self.path)
             path = unquote(url.path)
@@ -1453,6 +1497,8 @@ class Handler(BaseHTTPRequestHandler):
                     raise APIError(str(exc)) from exc
                 return
             if self._presetio("POST"):
+                return
+            if self._community('POST'):
                 return
             if urlsplit(self.path).path == "/api/photos":
                 from .photo import PHOTO_TYPES

@@ -20,6 +20,9 @@ import { coverPoint, pageFlight, TOP_START } from "./flight.mjs";
 import { pushLobby } from "./lobby.js";
 import * as sfx from "./faxsfx.mjs";
 import { DEFAULT_SOURCE, PaperError, readPaper, readSkin, layOut, pick, resolveRef, compareVersions } from "./faxnews-data.mjs";
+import { receive as receiveCommunity, mountList as mountCommunity } from "./community.mjs";
+
+let communityData = null, communityError = '';
 
 const KEY = { seen: "dp-fax-seen", source: "dp-fax-source", last: "dp-fax-last", parcels: "dp-fax-parcels" };
 const TIMEOUT_MS = 120000, MAX_BYTES = 2 * 1024 * 1024, SHIP_MS = 3500;   // core retries each mirror for at most 8 seconds
@@ -334,7 +337,10 @@ async function call() {
   const source = sourceOf();
   resetStage();
   // the download starts at once; the call is there to cover it
-  const got = download(source, { signal: run.abort.signal }).then((r) => ({ ok: true, ...r }), (e) => ({ ok: false, ...e }));
+  const community = receiveCommunity({ refresh: true, signal: run.abort.signal }).then(r => {
+    if (alive()) { communityData = r; communityError = ''; }
+  }, e => { if (alive()) { communityData = null; communityError = String(e.message || e); } });
+  const got = Promise.all([download(source, { signal: run.abort.signal }).then((r) => ({ ok: true, ...r }), (e) => ({ ok: false, ...e })), community]).then(([r]) => r);
   const wait = (ms) => new Promise((r) => { if (run.skipped) return r(); const t = setTimeout(r, ms); run.wake = () => { clearTimeout(t); r(); }; });
   const anim = (node, frames, opts) => { const a = node.animate(frames, { fill: "forwards", ...opts }); if (run.skipped) a.finish(); return a.finished.catch(() => {}); };
   const sound = (f) => { if (!run.quiet && !run.skipped) f(); };
@@ -482,6 +488,8 @@ function showPaper(lay, source, old, from = "network") {
   const cols = el("div", "fx-cols");
   // column 1: the changelog as news stories
   const c1 = el("section", "fx-col");
+  if (communityData) mountCommunity(c1, communityData, {zh: L === 'zh', onImported: () => api.syncState?.()});
+  else if (communityError) c1.append(el('p','fx-note',(L === 'zh' ? '社区提示未取到：' : 'Community hints unavailable: ') + communityError));
   if (lay.stories.length) {
     c1.append(el("h3", "fx-sect", t.stories));
     for (const s of lay.stories) {
