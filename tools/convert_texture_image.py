@@ -3,6 +3,7 @@
 import sys
 import json
 import argparse
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -58,8 +59,6 @@ def parse_args(args):
     parsed_args.img = img
     
     output_file = parsed_args.image_path.with_suffix(".npy")
-    if output_file.is_file():
-        output_file.unlink()
     parsed_args.output_path = output_file
     
     map_path = Path(parsed_args.map_path).resolve()
@@ -105,7 +104,21 @@ def main(args):
     print()
     print("Saving Numpy array to file...")
     
-    np.save(parsed_args.output_path, mapped_arr)
+    # Publish only a complete array; keep any existing design on failure.
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=parsed_args.output_path.parent,
+            prefix=f".{parsed_args.output_path.name}.", suffix=".tmp", delete=False
+        ) as temp_file:
+            temp_path = Path(temp_file.name)
+            # A file object prevents np.save from appending a .npy suffix.
+            np.save(temp_file, mapped_arr)
+        # Close before replacing, including on Windows.
+        temp_path.replace(parsed_args.output_path)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
     
     design_path = get_relative_path(parsed_args.output_path, command_path)
     print(f"Done! Saved to: \"{design_path}\"")
