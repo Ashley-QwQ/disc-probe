@@ -204,7 +204,7 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws .col-r { display:flex; padding:16px 12px; border-radius:8px; overflow:hidden; box-shadow:var(--glass-far,var(--glass-desk)); }
 .ws .tools-v,.ws .filebtns { filter:var(--glass-drive-drop); }
 .ws .tools-v { top:64px; gap:3px; overflow:visible; }
-.ws .tb { position:relative; }
+.ws .tb { position:relative; width:44px; height:44px; }
 .ws .tb[aria-pressed="true"] { color:var(--copper); background:var(--paper-2); border-color:var(--copper); }
 .ws .ed-tip { pointer-events:none; position:absolute; z-index:6; left:46px; padding:5px 8px; border-radius:4px; background:var(--paper); color:var(--ink); box-shadow:var(--glass-near,var(--glass-drive)); white-space:nowrap; font:14px var(--font); opacity:0; }
 .ws .tb:hover .ed-tip,.ws .tb:focus-visible .ed-tip { opacity:1; }
@@ -261,11 +261,11 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws .ed-materials input,.ws .ed-materials select { width:100%;min-width:0;min-height:34px;padding:5px 8px;border:1px solid var(--rule-strong);border-radius:4px;background:var(--paper);color:var(--ink);font:14px var(--font);font-variant-numeric:tabular-nums; }
 .ws .ed-values { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
 .ws .ed-pattern-options,.ws .ed-effect-options { display:grid;gap:10px; }
-.ws .ed-swatches { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;max-height:204px;overflow-y:auto;scrollbar-width:thin; }
-.ws .ed-swatches button { display:grid;place-items:center;height:48px;min-height:48px;padding:2px;border:1px solid transparent;border-radius:4px;background:none;color:var(--ink);cursor:pointer; }
+.ws .ed-swatches { display:grid;grid-template-columns:repeat(auto-fit,minmax(44px,1fr));gap:4px; }
+.ws .ed-swatches button { display:grid;place-items:center;min-width:44px;height:48px;min-height:48px;padding:2px;border:2px solid transparent;border-radius:4px;background:none;color:var(--ink);cursor:pointer; }
 .ws .ed-swatches svg { width:100%;height:40px; }
-.ws .ed-swatches [aria-pressed=true] { border-color:var(--copper);background:var(--paper-2); }
-.ws .ed-swatches button:hover { border-color:var(--rule-strong); }
+.ws .ed-swatches [aria-pressed=true] { border-color:var(--ink);background:var(--paper-2); }
+.ws .ed-swatches button:hover:not([aria-pressed=true]) { border-color:var(--rule-strong); }
 .ws .ed-all summary,.ws .ed-material-detail summary,.ws .ed-rig-why summary { color:var(--ink-2);font-size:13px;cursor:pointer; }
 .ws .ed-all summary span { float:right;font-variant-numeric:tabular-nums; }
 .ws .ed-all[open] .ed-swatches { margin-top:6px; }
@@ -292,19 +292,48 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws .ed-hidden-note:empty { display:none; }
 .ws .ed-colour-name { font-size:16px;color:var(--ink);min-height:22px; }
 .ws .ed-material-detail p { overflow-wrap:anywhere;font-size:13px; }
-.ws .ed-fill-footer { flex:none;padding-top:12px;margin-top:12px;border-top:1px solid var(--rule);background:var(--paper); }
 .ws .ed-apply { width:100%;min-height:44px;color:var(--paper);background:var(--ink); }
 .ws .ed-apply:hover:not(:disabled) { color:var(--paper);background:var(--copper); }
 .ws [hidden] { display:none!important; }
 .ws .lay:focus-visible,.ws .ed-mask:focus-visible,.ws button:focus-visible,.ws input:focus-visible,.ws select:focus-visible { outline:2px solid var(--copper);outline-offset:2px; }
 /* the burn grid: three equal choices across the column */
 .burnset .seg { display: grid; }
+.burnset .seg button { min-width:44px;min-height:44px; }
 /* a picture's tone and dither, above the materials */
 .ws .ed-tone { display: grid; gap: 8px; padding: 0 0 14px; margin-bottom: 12px; border-bottom: 1px solid var(--rule); }
 .ws .ed-tone h3 { margin: 0; }
 .ws .ed-tone .ed-tone-ctl { display: grid; grid-template-columns: 5.5em 1fr 3ch; align-items: center; gap: 8px; }
 .ws .ed-tone .ed-tone-ctl input { min-height: 0; padding: 0; border: 0; background: none; }
 .ws .ed-tone output { font: 13px var(--mono); text-align: right; color: var(--ink-2); }
+
+/* Card U: one panel scroll, existing segmented controls, native form controls. */
+.ws .ed-panel-tabs { flex:none;margin-bottom:12px; }
+.ws .ed-panel-tabs button,.ws .ed-fill-choice button { min-height:44px;padding:0 6px; }
+.ws .col .ed-rig { border:0;padding:0;gap:10px; }
+.ws .ed-rig-summary { display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px; }
+.ws .ed-rig-summary .sbtn { min-height:44px;padding:0 8px;flex:none; }
+.ws #ed-rig-choices { display:grid;gap:10px; }
+.ws .ed-current { display:flex;align-items:center;gap:8px; }
+.ws .ed-current-chip { width:24px;height:24px;flex:none;border:1px solid var(--rule-strong);border-radius:2px; }
+.ws .ed-fill-choice { display:grid;gap:5px;font-size:14px;color:var(--ink-2); }
+.ws .ed-help { font-size:14px;color:var(--ink-2); }
+.ws .ed-help summary { cursor:pointer; }
+.ws .ed-help p { margin-top:8px; }
+.ws .ed-colour-explanation { display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;color:var(--ink-2);font-size:13px; }
+.ws .ed-colour-explanation .ed-help { display:contents; }
+.ws .ed-colour-explanation summary { display:list-item; }
+.ws .ed-colour-explanation .ed-help:not([open])>p { display:none; }
+.ws .ed-materials select { appearance:none;border-radius:0;padding-right:30px;background-image:linear-gradient(45deg,transparent 50%,var(--ink) 50%),linear-gradient(135deg,var(--ink) 50%,transparent 50%);background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%;background-size:5px 5px;background-repeat:no-repeat; }
+.ws .ed-materials select:disabled { opacity:.4; }
+.ws .ed-tone .ed-tone-ctl input[type=range] { appearance:none;width:100%;height:32px;margin:0;background:transparent;cursor:pointer; }
+.ws .ed-tone input[type=range]::-webkit-slider-runnable-track { height:2px;background:linear-gradient(to right,var(--ink) var(--range-pct),var(--rule-strong) var(--range-pct)); }
+.ws .ed-tone input[type=range]::-webkit-slider-thumb { appearance:none;width:14px;height:14px;margin-top:-6px;background:var(--ink);border-radius:2px; }
+.ws .ed-tone input[type=range]::-moz-range-track { height:2px;background:var(--rule-strong); }
+.ws .ed-tone input[type=range]::-moz-range-progress { height:2px;background:var(--ink); }
+.ws .ed-tone input[type=range]::-moz-range-thumb { width:14px;height:14px;background:var(--ink);border:0;border-radius:2px; }
+.ws .ed-tone input[type=range]:disabled { cursor:default;opacity:.4; }
+/* Short windows keep the last tools reachable at their full hit size. */
+@media (max-height:850px) { .ws .tools-v { max-height:calc(100% - 64px);overflow-y:auto;overflow-x:hidden;padding-right:8px;scrollbar-width:thin; } }
 
 
 /* W245: global history first; selection actions occupy the first row of the existing dock. */

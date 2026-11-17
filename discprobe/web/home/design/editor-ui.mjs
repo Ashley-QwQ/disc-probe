@@ -35,7 +35,7 @@ export class Editor {
   rigSync(){const s=this.s,rig=this.rig();if(!s?.scene||!this.rigData)return;if(needsCustom(rig)&&customMM(rig.flash_mm,this.rigData)!=null&&!this.rigSet())this.loadCustom();
     const set=this.rigSet();if(!set)return;const next=rigScene(s.scene,rig,this.rigData,set);
     if(JSON.stringify(next)!==JSON.stringify(s.scene)){s.scene=next;s.lookY=set.camera[1];}}
-  setRig(patch){const s=this.s;if(!s)return;this.h.checkpoint();s.scene={...(s.scene??{}),rig:{...this.rig(),...patch}};delete s.scene.deltaScale;this.rigSync();this.invalidate();this.h.changed();this.right();this.h.status?.();this.h.draw();}
+  setRig(patch){const s=this.s;if(!s)return;this.h.checkpoint();s.scene={...(s.scene??{}),rig:{...this.rig(),...patch}};delete s.scene.deltaScale;this.panelState().rigExpanded=false;this.rigSync();this.invalidate();this.h.changed();this.right();this.h.status?.();this.h.draw();}
   rigExample(){if(!this.rigData)return null;if(this.rigExampleCache===undefined){const sets={};for(const k of ['iphone17pro@21','iphone17pro@40'])if(this.rigSets[k])sets[k]=decodeSet(this.rigData.order,this.rigSets[k]);this.rigExampleCache=example(this.rigData,sets);}return this.rigExampleCache;}
   // the lamp view's note
   poseNote(){const w=rigWords(this.h.lang());return this.rigOpen()?w.lampNote(rigLabel(this.rig(),this.rigData,this.h.lang())):w.lampNone;}
@@ -65,12 +65,16 @@ export class Editor {
     this.options[el.dataset.ed]=el.type==='checkbox'?el.checked:el.type==='number'?+el.value:el.value;
     if(['fillKind','target'].includes(el.dataset.ed))this.right();
   }
-  click(e){const b=e.target.closest('[data-ed-tool],[data-ed-action],[data-ed-material],[data-ed-rig]');if(!b)return;e.preventDefault();e.stopPropagation();
+  click(e){const b=e.target.closest('[data-ed-tool],[data-ed-action],[data-ed-material],[data-ed-rig],[data-ed-tab],[data-ed-choice]');if(!b)return;e.preventDefault();e.stopPropagation();
+    if(b.disabled)return;
+    if(b.dataset.edTab){this.panelState().tab=b.dataset.edTab;this.right();this.h.dom().right.querySelector(`[data-ed-tab="${b.dataset.edTab}"]`)?.focus();return;}
+    if(b.dataset.edChoice){const key=b.dataset.edChoice;if(key==='target'&&b.dataset.value==='mask'&&!this.hasFillSelection())return;this.options[key]=b.dataset.value;this.right();this.h.dom().right.querySelector(`[data-ed-choice="${key}"][data-value="${b.dataset.value}"]`)?.focus();return;}
     if(b.dataset.edTool){this.h.tool(b.dataset.edTool);this.left();this.h.dom().canvas.focus();return;}
-    if(b.dataset.edMaterial){this.material=b.dataset.edMaterial;this.swatches();return;}
+    if(b.dataset.edMaterial){const all=!!b.closest('.ed-all');this.material=b.dataset.edMaterial;this.swatches();this.h.dom().right.querySelector(`${all?'.ed-all ':'.ed-shown '}[data-ed-material="${this.material}"]`)?.focus({preventScroll:true});return;}
     if(b.dataset.edRig){if(b.disabled)return;const v=b.dataset.value;this.setRig(b.dataset.edRig==='phone'?{phone:v}:{height:v});return;}
     const a=b.dataset.edAction,l=this.s.layers.find(l=>l.id===this.s.selected);
     if(['copy','cut','delete','keep'].includes(a))return this.h.selectionEdit(a);
+    if(a==='rig-change'){this.panelState().rigExpanded=!this.panelState().rigExpanded;this.right();this.h.dom().right.querySelector('[data-ed-action=rig-change]')?.focus();return;}
     if(a==='fill')return this.fill();
     if(a==='tone-reset'){const l=this.pictureLayer();if(l&&!l.locked)this.mutate(()=>{l.tone=undefined;});return;}
     if(a==='select'){const tool=['rectangle','ring','sector'].includes(this.tool)?this.tool:'ring';return this.select({tool,...this.options,a:[-30,-30],b:[30,30]},this.options.operation);}

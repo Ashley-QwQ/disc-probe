@@ -1135,9 +1135,20 @@ function buildLeft() {
     if (L.kind === "image") li.querySelector(".th").replaceWith(thumb(L));
   }
   editor?.left();
-  mountFilesStep(W.left, {getFiles:()=>S.files, setFiles:value=>{S.files=value;},
+  mountFilesStep(W.left, {getFiles:()=>S.files, setFiles:value=>{S.files=value;queueMicrotask(refreshFilesHelp);},
     context:async()=>{const state=await api.backend.state();return {media:S.media,geo:planGeo(state).path,r_max:range()[1]};},
     onChange:changed, lang:api.lang(), media:S.media});
+  refreshFilesHelp();
+}
+// Keep all original file guidance, showing the teaching sentence only while empty.
+function refreshFilesHelp() {
+  const section=W?.left.querySelector('.disc-files-step');if(!section)return;
+  let help=section.querySelector('.ed-files-help');
+  if(!help){help=document.createElement('details');help.className='ed-help ed-files-help';
+    const summary=document.createElement('summary');summary.textContent=api.lang()==='en'?'About':'说明';help.append(summary);
+    const limits=document.createElement('p');limits.className='note quiet';limits.textContent=T().limits+(S.media==='cd'?' '+T().cdLimit:'');help.append(limits);section.append(help);}
+  const teaching=section.querySelector('.ed-files-teaching')??section.querySelector(':scope > p.note:not([data-files])');
+  if(teaching){teaching.classList.add('ed-files-teaching');if(S.files)help.querySelector('summary').after(teaching);else section.querySelector('h3').after(teaching);}
 }
 // What the burn file will be: the grid (20 µm unless chosen), what a finer one costs, whether the pictures are
 // fine enough for it, and what can't be burned yet. Said where the work is made, not only at the burn.
@@ -1150,9 +1161,10 @@ function burnSection() {
   return `<section class="burnset" data-key="${burnKey()}"><h3>${t.grid}</h3>` +
     `<div class="seg" role="group" aria-label="${t.grid}">` +
     Object.keys(CELLS).map(Number).sort((a, b) => b - a).map((u) => `<button type="button" data-um="${u}" aria-pressed="${um === u}">${u} µm</button>`).join("") +
-    `</div><p class="note quiet">${t.cellCost(um, COST[um])}</p>` +
+    `</div><p class="note quiet">${um === 20 ? (api.lang() === "en" ? "Default, about 2 min to make" : "默认，约 2 分钟生成") : t.cellCost(um, COST[um]).split(api.lang() === "en" ? ". " : "。")[0] + (api.lang() === "en" ? "." : "。")}</p>` +
+    `<details class="ed-help"><summary>${api.lang() === "en" ? "About" : "说明"}</summary><p class="note quiet">${t.cellCost(um, COST[um])}</p>` +
     (um < 20 && px && px > um * 1.05 ? `<p class="note quiet">${t.coarse(Math.round(px))}</p>` : "") +
-    `<p class="note quiet">${t.limits}${S.media === "cd" ? ` ${t.cdLimit}` : ""}</p></section>`;
+    `</details></section>`;
 }
 function refreshLayerRows() {
   for (const li of W?.left.querySelectorAll(".lay") ?? []) {
@@ -1179,7 +1191,7 @@ function leftClick(e) {
   if (a === "import") return W.file.click();
   if (a === "template" && hasCapability('templates')) return downloadTemplate(S, b, toast);
   const um = Number(e.target.closest("[data-um]")?.dataset.um);
-  if (CELLS[um] && um !== Math.round(S.cell * 1000)) { checkpoint(); S.cell = um / 1000; changed(); buildLeft(); return; }
+  if (CELLS[um] && um !== Math.round(S.cell * 1000)) { checkpoint(); S.cell = um / 1000; changed(); buildLeft(); buildRight(); return; }
   if(L && ["up","down","del"].includes(a)){S.selected=L.id;editor.click({target:{closest:()=>({dataset:{edAction:a==="del"?"remove":a}})},preventDefault(){},stopPropagation(){}});return;}
   if (a === "folder") return W.folder.click();
   if (a === "nofiles") { S.files = null; changed(); buildLeft(); return; }
