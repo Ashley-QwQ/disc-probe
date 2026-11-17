@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import http.client
 import json
+import re
 from pathlib import Path
 
 from . import i18n, news, presets
@@ -49,6 +50,11 @@ def get_community(sources=None, *, cache=None, _test_http=False):
         return result(feed,'bundled',BUNDLED_SOURCE,None)
 
 
+def mid_code(value):
+    """A MID without the dye note drives and posts add after a middle dot ('MCC 004 · AZO')."""
+    return ' '.join(re.split('[·•]', value or '')[0].split()).casefold()
+
+
 def search(feed, *, media=None, mid=None, sectors=None, search=None, include_failed=False):
     """Identity queries match MID OR capacity OR text; type is a hard filter.
 
@@ -57,12 +63,12 @@ def search(feed, *, media=None, mid=None, sectors=None, search=None, include_fai
     """
     if media is not None and media not in ('cd','dvd','bd'): raise ValueError('media must be cd, dvd or bd')
     if sectors is not None and (type(sectors) is not int or sectors<=0): raise ValueError('sectors must be positive')
-    mid=(mid or '').strip().casefold(); query=(search or '').strip().casefold()
+    mid=mid_code(mid); query=(search or '').strip().casefold()
     rows=[]
     for e in feed['entries']:
         if media and media!=e['media'] or (not include_failed and e['result']=='failed'): continue
         discs=[e['disc'],*[s['disc'] for s in e['also'] if 'disc' in s]]
-        same_mid=bool(mid) and any(mid==(d.get('mid') or '').casefold() for d in discs)
+        same_mid=bool(mid) and any(mid==mid_code(d.get('mid')) for d in discs)
         same_sectors=sectors is not None and any(sectors==d.get('capacity_sectors') for d in discs)
         same_text=bool(query) and any(query in ' '.join(str(d.get(k) or '') for k in ('brand','type','ring_code')).casefold() for d in discs)
         if (mid or sectors is not None or query) and not (same_mid or same_sectors or same_text): continue

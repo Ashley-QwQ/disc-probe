@@ -455,7 +455,8 @@ function paintLeft() {
 
 function paintCommunity() {
   const node = W.q('.np-community'), d = driveOfKind(), zh = api.lang() !== 'en';
-  const found = d && state.community && communityHint(state.community.feed.entries, {media: d.media, mid: d.mid, sectors: d.sectors}, zh);
+  // A batch DP has already measured (or the user imported) needs no community hint.
+  const found = d && state.community && !hasGeometry(chosen()) && communityHint(state.community.feed.entries, {media: d.media, mid: d.mid, sectors: d.sectors}, zh);
   node.replaceChildren(); node.hidden = !found;
   if (!found) return;
   const line = document.createElement('span');

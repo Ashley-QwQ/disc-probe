@@ -15,6 +15,13 @@ assert.match(resultText('failed'),/有人用这组失败了/);
 assert.match(notice(a),/不是 DP 测的.*没有实测范围.*这批盘还没确认/);
 assert.equal(hint([a],{sectors:123}),null);
 assert.equal(hint([a],{sectors:999}).rows.length,1);
+assert.match(hint([a],{sectors:999}).text,/容量相同.*不一定是同一种盘/);
+{ const c=structuredClone(b); c.result='worked'; c.disc.capacity_sectors=999;
+  const both=hint([a,c],{media:'dvd',mid:'exact',sectors:999});
+  assert.deepEqual(both.rows.map(e=>e.id),['MID'],'a MID match hides capacity-only matches');
+  assert.match(both.text,/同 MID/);
+  assert.equal(hint([a,c],{media:'dvd',mid:'other',sectors:999}).rows.length,2,'unknown MID falls back to capacity');
+  assert.doesNotMatch(hint([a,c],{media:'dvd',mid:'other',sectors:999}).text,new RegExp(String(a.source.author||'@@none@@')),'several records name no single author'); }
 let call;
 const got={feed,date:feed.date,count:feed.count,from:'cache'};
 assert.equal((await receive({refresh:true,fetcher:async(url,opts)=>{call={url,opts};return new Response(JSON.stringify(got));}})).from,'cache');

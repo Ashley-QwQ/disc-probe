@@ -108,3 +108,8 @@ def test_cli_and_chinese_help(monkeypatch,tmp_path,feed,capsys):
     assert args.func(args)==0 and json.loads(capsys.readouterr().out)['import']['written']
     for action in parser._subparsers._group_actions[0].choices['community']._actions:
         if action.dest!='help': assert action.help in zh.TEXT
+
+
+def test_mid_ignores_dye_note():
+    from discprobe.community import mid_code
+    assert mid_code('MCC 004 · AZO') == mid_code('mcc  004') == 'mcc 004'

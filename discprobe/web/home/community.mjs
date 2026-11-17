@@ -11,21 +11,23 @@ export function safeGithub(value) {
   try { const u = new URL(value); return u.protocol === 'https:' && u.host === 'github.com' && !u.username && !u.password && !u.search; }
   catch { return false; }
 }
-export function notice(entry, zh = true) {
-  const s = entry.source, from = s.kind === 'dis_builtin' ? `DIS ${s.version}` : `DIS ${zh ? '社区' : 'community'} ${s.author || ''}`;
+export function notice(entry, zh = true, {author = true} = {}) {
+  const s = entry.source, from = s.kind === 'dis_builtin' ? `DIS ${s.version}` : `DIS ${zh ? '社区' : 'community'}${author && s.author ? ' ' + s.author : ''}`;
   const span = entry.measured_span_mm?.join('–');
   return zh ? `来自 ${from}，不是 DP 测的；${span ? `${span} mm` : '没有实测范围'}；这批盘还没确认。`
     : `From ${from}; not measured by DP; ${span ? `${span} mm measured` : 'no measured range'}; this batch is unconfirmed.`;
 }
+// Drives and posts write a MID with a dye note after a middle dot ("MCC 004 · AZO"); compare the code only.
+export const midCode = (value) => String(value || '').split(/[·•]/)[0].trim().replace(/\s+/g, ' ').toLowerCase();
 export function matches(entries, {media, mid, sectors, includeFailed = false} = {}) {
-  const code = String(mid || '').trim().toLowerCase();
+  const code = midCode(mid);
   return entries.filter(e => {
     if (media && e.media !== media || !includeFailed && e.result === 'failed') return false;
     const discs = [e.disc, ...(e.also || []).map(s => s.disc).filter(Boolean)];
-    return discs.some(d => code && String(d.mid || '').toLowerCase() === code || sectors != null && d.capacity_sectors === sectors);
+    return discs.some(d => code && midCode(d.mid) === code || sectors != null && d.capacity_sectors === sectors);
   }).sort((a,b) => {
     const discs = e => [e.disc, ...(e.also || []).map(s => s.disc).filter(Boolean)];
-    const midRank = e => discs(e).some(d => code && String(d.mid || '').toLowerCase() === code) ? 0 : 1;
+    const midRank = e => discs(e).some(d => code && midCode(d.mid) === code) ? 0 : 1;
     const sectorRank = e => discs(e).some(d => sectors != null && d.capacity_sectors === sectors) ? 0 : 1;
     return midRank(a) - midRank(b) || sectorRank(a) - sectorRank(b) || a.id.localeCompare(b.id);
   });
@@ -42,12 +44,19 @@ export async function receive({refresh = false, fetcher = fetch, signal} = {}) {
         || e.also.some(s => !safeGithub(s.url)))) throw Error('invalid community response');
   return value;
 }
+// A MID names the dye maker's product; a sector count is shared by most discs of one standard
+// (nearly every DVD-R has the same one). So a MID match, when there is one, is the only hint; a
+// capacity-only match is offered as weaker evidence and says so.
 export function hint(entries, identity, zh = true) {
-  const rows = matches(entries,identity);
+  const code = String(identity?.mid || '').trim();
+  const byMid = code ? matches(entries, {...identity, sectors: null}) : [];
+  const rows = byMid.length ? byMid : matches(entries, {...identity, mid: null});
   if (!rows.length) return null;
   const counts = [...new Set(rows.map(e => resultText(e.result,zh)))].join('、');
-  return {rows, text: zh ? `社区提示 ${rows.length} 条 · ${counts}。${notice(rows[0],zh)}`
-    : `${rows.length} community hints · ${counts}. ${notice(rows[0],zh)}`};
+  const source = notice(rows[0], zh, {author: rows.length === 1});
+  const what = byMid.length ? (zh ? `同 MID 的社区记录 ${rows.length} 条` : `${rows.length} community records with this MID`)
+    : (zh ? `容量相同的社区记录 ${rows.length} 条（不一定是同一种盘）` : `${rows.length} community records with this capacity (not necessarily the same disc)`);
+  return {rows, byMid: byMid.length > 0, text: zh ? `${what} · ${counts}。${source}` : `${what} · ${counts}. ${source}`};
 }
 export function mountList(parent, got, {zh = true, onImported, fetcher = fetch} = {}) {
   const el = (tag,cls,text) => {const n = document.createElement(tag); n.className = cls; if (text != null) n.textContent = text; return n;};

@@ -117,8 +117,6 @@ try {
     review.api.driveDisc=()=>disc;review.api.readDisc=async()=>({...disc});
     document.documentElement.dataset.motion='off';await review.newplan.start(review.api);`);
   await until('document.querySelector(".np-disc-help").textContent.includes("光驱里认出")','recognised drive');
-  await until('!document.querySelector(".np-community").hidden','community capacity hint');
-  await check('document.querySelector(".np-community").textContent.includes("不是 DP 测的") && document.querySelector(".np-community").textContent.includes("这批盘还没确认") && document.querySelector(".np-community a").href.startsWith("https://github.com/")','community hints preserve provenance and source link');
   await check('!document.querySelector(".np-choice") && !document.querySelector(".np-dial").inert && getComputedStyle(document.querySelector(".np-dial")).visibility==="visible" && document.querySelector(".np-face-text").textContent==="DVD-R"','dial always available, starts from drive');
   const typeBatch=async name=>evaluate(`document.querySelector('.np-batch').value=${JSON.stringify(name)};document.querySelector('.np-batch').dispatchEvent(new Event('input'));`);
   const batchKey=async key=>evaluate(`document.querySelector('.np-batch').dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(key)},bubbles:true,cancelable:true}));`);
@@ -126,6 +124,7 @@ try {
     await evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)};await review.newplan.start(review.api);`);
     await check('document.querySelector(".np-batch").value==="" && document.querySelector(".np-batch").placeholder==="Verbatim DVD-R 16x" && document.querySelectorAll(".np-tab").length===2','grey suggested field with Tab cap');
     await check('document.querySelector(".np-cal-text").textContent==="已标定 · 2026-11-07" && document.querySelector(".np-left").textContent==="还剩 37 / 50 张"','measured sentence and counts');
+    await check('document.querySelector(".np-community").hidden','a batch DP has measured gets no community hint');
     await shot('recognised-library-'+theme,'disc');
     await batchKey('Tab');
     await check('document.querySelector(".np-batch").value==="Verbatim DVD-R 16x"','Tab accepts');
@@ -135,6 +134,8 @@ try {
       const cat=[{id:'b-same-mid',mid:it.readMid||'RITEKF1',s:'good',geo:'results/geo-same/summary.json'}];
       return it.id.startsWith('new:') && !('mid' in it) && r.hasBatch(it) && r.geoChoice({item:it},cat,'results/geo-same/summary.json').source==='none';`,'new batch: own id, no mid, geoChoice none despite a same-MID measured batch');
     await check('document.querySelector(".np-cal-text").textContent==="这批还没有参数：可以先画；要刻之前标定一次，或者带上已有参数" && document.querySelector(".np-cal-go").textContent==="标定这批" && !document.querySelector(".np-own").hidden && document.querySelector(".np-library").hidden && document.querySelector(".np-disc-help").textContent.includes("MCC 004 · AZO")','new batch status, links and MID');
+    await until('!document.querySelector(".np-community").hidden','community hint for an unmeasured batch');
+    await check('((n)=>n.textContent.includes("同 MID") && !n.textContent.includes("容量相同") && n.textContent.includes("不是 DP 测的") && n.textContent.includes("这批盘还没确认") && n.querySelector("a").href.startsWith("https://github.com/"))(document.querySelector(".np-community"))','MID hint (not capacity) with provenance and source link');
     await shot('new-batch-typed-'+theme,'disc');
     await typeBatch('');
     await check('document.querySelector(".np-cal-text").textContent==="没选盘：画好后要刻时再选" && document.querySelector(".np-cal-go").hidden && document.querySelector(".np-library").hidden && document.querySelector(".np-batch").placeholder===""','empty field sentence and no batch');
