@@ -69,6 +69,14 @@ export const controls={
     for(const li of w.left.querySelectorAll('.lay'))li.tabIndex=0;
     this.toolbar();this.optionsBar();
   },
+  toggleLayerActions(id){const state=this.panelState();state.layerActions=state.layerActions===id?null:id;this.syncLayerActions();},
+  syncLayerActions(){const left=this.h.dom()?.left;if(!left)return;
+    for(const row of left.querySelectorAll('.lay')){const open=String(this.panelState().layerActions)===row.dataset.id;
+      row.querySelector('[data-a="more"]')?.setAttribute('aria-expanded',String(open));const panel=row.querySelector('.ed-layer-more');if(panel)panel.hidden=!open;}
+  },
+  closeLayerActions(){const id=this.panelState().layerActions;if(id==null)return false;this.panelState().layerActions=null;this.syncLayerActions();
+    this.h.dom()?.left.querySelector(`[data-id="${id}"] [data-a="more"]`)?.focus({preventScroll:true});return true;
+  },
   maskClick(e){const row=e.target.closest('[data-mask-id]');if(!row||e.target.closest('input'))return;
     const id=row.dataset.maskId;
     if(e.target.closest('[data-delete-mask]')){this.mutate(()=>{this.s.selections=this.s.selections.filter(s=>s.id!==id);this.s.assignments=this.s.assignments.filter(a=>a.selection!==id);if(this.s.activeMask===id)this.s.activeMask=null;});return;}
@@ -89,15 +97,16 @@ export const controls={
   materialsHTML(){const s=this.s,t=this.t,lang=this.h.lang(),w=rigWords(lang),open=!!this.rigOpen?.(),zh=lang==='zh';
     const tab=this.panelState().tab,info=zh?'说明':'About',hasMask=this.hasFillSelection();
     const segments=(key,label,keys,disabled=()=>false)=>`<div class="ed-fill-choice"><span>${label}</span><div class="seg" role="group" aria-label="${label}">${keys.map(k=>`<button type="button" data-ed-choice="${key}" data-value="${k}" aria-pressed="${this.options[key]===k}" ${disabled(k)?'disabled aria-describedby="ed-mask-why"':''}>${t[k]}</button>`).join('')}</div></div>`;
+    const canFill=open&&(this.options.target==='mask'?hasMask:!!s.layers.find(l=>l.id===s.selected&&!l.locked));
+    const fill=`<button class="sbtn ed-apply" data-ed-action="fill" ${canFill?'':'disabled'} ${open?'':`title="${w.locked}"`}>${open?(zh?'填充':'Fill'):w.locked}</button>`;
     let colour=rigSteps(this.rig?.()??{},this.rigData,lang,{ex:this.rigExample?.(),state:this.rigState??'ready',error:this.rigError,expanded:this.panelState().rigExpanded});
-    if(open)colour+=`<div class="ed-current"><span class="ed-current-chip" aria-hidden="true"></span><output class="ed-colour-name" aria-live="polite"></output></div>`+
+    if(open)colour+=`<div class="ed-colour-sticky"><div class="ed-current"><span class="ed-current-chip" aria-hidden="true"></span><output class="ed-colour-name" aria-live="polite"></output></div>${fill}</div>`+
       segments('target',zh?'填到':'Fill to',['layer','mask'],k=>k==='mask'&&!hasMask)+
       (hasMask?'':`<p id="ed-mask-why" class="note quiet">${zh?'还没有选区，先在画布上建立选区。':'No selection yet. Create one on the canvas first.'}</p>`)+
       segments('fillKind',t.pattern,['material','pattern','effect'])+
       `<div class="ed-pattern-options" ${this.options.fillKind==='pattern'?'':'hidden'}><select data-ed="pattern" aria-label="${t.pattern}">${['diamond','dots','stripes'].map(k=>`<option value="${k}" ${this.options.pattern===k?'selected':''}>${t[k]}</option>`).join('')}</select><select data-ed="coordinates" aria-label="${t.pattern}">${['cartesian','polar'].map(k=>`<option value="${k}" ${this.options.coordinates===k?'selected':''}>${t[k]}</option>`).join('')}</select><div class="ed-values">${this.n('pitch_mm',t.pitch,.001,50,.1)}${this.n('size_mm',t.size,.001,25,.1)}${this.n('angle_deg',t.angle,-360,360)}</div></div>`+
       `<div class="ed-effect-options" ${this.options.fillKind==='effect'?'':'hidden'}><select data-ed="effect" aria-label="${t.effect}">${['flow','ox','merge','sync'].map(k=>`<option value="${k}" ${this.options.effect===k?'selected':''}>${t[k]}</option>`).join('')}</select><div class="ed-values">${this.n('y1',t.y1,0,150)}${this.n('y2',t.y2,0,150)}</div></div>`;
-    const canFill=open&&(this.options.target==='mask'?hasMask:!!s.layers.find(l=>l.id===s.selected&&!l.locked));
-    colour+=`<button class="sbtn ed-apply" data-ed-action="fill" ${canFill?'':'disabled'} ${open?'':`title="${w.locked}"`}>${open?(zh?'填充':'Fill'):w.locked}</button>`;
+    if(!open)colour+=fill;
     if(open)colour+=`<div class="ed-rig-colours"><div class="ed-colour-explanation"><span>${zh?'颜色是模型预测，还没逐块对照':'Colours are model predictions, not yet checked swatch by swatch'}</span><details class="ed-help"><summary>${info}</summary><p class="ed-model-note">${esc(w.pose(rigLabel(this.rig(),this.rigData,lang)))}</p><p class="note quiet">${esc(w.model)}</p><p class="note quiet">${esc(t.model)}</p></details></div>`+
       `<input data-ed-search type="search" aria-label="${zh?'查找颜色':'Find a colour'}" placeholder="${zh?'查找颜色，如“红”':'Find a colour, e.g. red'}" value="${esc(this.search??'')}">`+
       `<div class="ed-swatches ed-shown" role="group" aria-label="${w.title}"></div><p class="note quiet ed-hidden-note"></p>`+

@@ -209,14 +209,16 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws .ed-tip { pointer-events:none; position:absolute; z-index:6; left:46px; padding:5px 8px; border-radius:4px; background:var(--paper); color:var(--ink); box-shadow:var(--glass-near,var(--glass-drive)); white-space:nowrap; font:14px var(--font); opacity:0; }
 .ws .tb:hover .ed-tip,.ws .tb:focus-visible .ed-tip { opacity:1; }
 .ws .ed-tip kbd { margin-left:8px; color:var(--ink-2); font:12px var(--mono); }
-.ws .lay { grid-template-columns:32px minmax(0,1fr) repeat(5,24px); gap:3px; min-height:44px; padding:4px; }
+.ws .lay { grid-template-columns:32px minmax(0,1fr) 44px 44px; gap:3px; min-height:44px; padding:4px; }
 .ws .lay canvas,.ws .lay .fxmark { width:32px;height:32px;filter:grayscale(1); }
-.ws .lay .ib { width:24px;height:32px; }
+.ws .lay .ib { width:44px;height:44px; }
 .ws .lay .ib svg { width:16px;height:16px; }
-.ws .lay .nm { font-size:14px; }
+.ws .lay .nm { display:flex;align-items:center;gap:4px;min-width:0;font-size:14px; }
+.ws .ed-layer-label { min-width:0;overflow:hidden;text-overflow:ellipsis; }
+.ws .ed-lock-mark { display:inline-flex;flex:none;color:var(--ink-2); }
+.ws .lay .ed-lock-mark svg { width:14px;height:14px; }
+.ws .ed-layer-more { grid-column:1 / -1;display:flex;justify-content:flex-end;gap:4px;border-top:1px solid var(--rule);padding-top:4px; }
 .ws .lay[aria-selected="true"],.ws .ed-mask[aria-selected="true"] { border-color:var(--copper); background:var(--paper-2); }
-.ws .lay .row-action { opacity:0; }
-.ws .lay:hover .row-action,.ws .lay:focus-within .row-action,.ws .lay[aria-selected="true"] .row-action { opacity:1; }
 .ws .ed-mask-list { list-style:none;margin:0;padding:0;display:grid;gap:2px; }
 .ws .ed-mask { display:grid;grid-template-columns:32px minmax(0,1fr) 28px;gap:8px;align-items:center;min-height:44px;padding:4px;border:1px solid transparent;border-radius:4px;cursor:pointer;font-size:14px; }
 .ws .ed-mask canvas { width:32px;height:32px;border-radius:2px; }
@@ -314,6 +316,10 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws .ed-rig-summary .sbtn { min-height:44px;padding:0 8px;flex:none; }
 .ws #ed-rig-choices { display:grid;gap:10px; }
 .ws .ed-current { display:flex;align-items:center;gap:8px; }
+.ws .ed-colour-sticky { position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;background:var(--paper);padding:4px 0; }
+.ws .ed-colour-sticky .ed-current { flex:1;min-width:0; }
+.ws .ed-colour-sticky .ed-colour-name { min-width:0;overflow-wrap:anywhere; }
+.ws .ed-colour-sticky .ed-apply { flex:none;width:auto;min-width:60px;min-height:44px;padding:0 10px; }
 .ws .ed-current-chip { width:24px;height:24px;flex:none;border:1px solid var(--rule-strong);border-radius:2px; }
 .ws .ed-fill-choice { display:grid;gap:5px;font-size:14px;color:var(--ink-2); }
 .ws .ed-help { font-size:14px;color:var(--ink-2); }

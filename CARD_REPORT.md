@@ -1,4 +1,104 @@
-# 卡 U 交付报告
+# 卡 U 第二轮交付报告
+
+分支：`web/editor-ergo-20261117`。本节是当前结果；下面保留第一轮记录，第一轮的图层尺寸待定与两项失败不代表当前状态。
+
+## 按提交说明
+
+1. `f65e761`：第一轮颜色页、影调、说明折叠和控件调整，详见历史记录。
+2. `16567f1`：按第二轮明确指令执行 `git merge dev/1.0.0`，合入 `c76a92f`。合并只带入审查方修正的 `tests/test_preset_geometry.mjs` 两行变更，无冲突；未自行修改这条断言。
+3. 本报告与第二轮实现同次提交，标题 `Keep colour fill visible and expand accessible layer actions`：
+   - 当前材质的小色块、名字和右侧填充按钮放入同一 sticky 行，`top: 0`，使用不透明 `var(--paper)` 底色；机位摘要、填到及图案填充分段按钮照常滚走。面板仍只有一层滚动，填充按钮仍只有一个，行为不变。
+   - 图层行保留缩略图、名称、44×44 px 隐藏/显示按钮和三点“更多”按钮；更多的 aria-label 为“图层操作” / “Layer actions”。下方展开锁定、上移、下移、删除四个 44×44 px 按钮，同一时间只展开一行。
+   - 再点更多或按 Esc 收起；Esc 把焦点交回原行的更多按钮，优先关闭操作区，不顺带取消选区或退出编辑器。展开状态只存于会话 UI 状态，不进作品文件或撤销栈。
+   - 锁定时名称旁显示不可点击的小锁（“已锁定” / “Locked”），收起后也可见。保留原来的锁定保护、图层顺序、删除、快捷键及撤销/重做。
+   - 图层按钮使用原生 Enter / 空格激活；避免编辑器的空格临时手形快捷键抢走这些按钮的空格事件，画布上的临时手形行为照旧。
+
+本轮实现只修改 `design.js`、`design.css`、`design/editor-controls.mjs` 及本报告。未改画布布局、顶栏、下一步、画布下视图切换、作品格式或材质数据；未推送，未将工作分支合回其他分支。
+
+## 第二轮验收
+
+所有本轮脚本、日志、截图、浏览器配置和测试产物位于 `F:/dp-archive/tmp/editorergo/` 下。以下路径相对此目录。
+
+### 导航单独验收
+
+```text
+node --test --test-concurrency=1 tests/test_flow_navigation_browser.mjs
+```
+
+- 刚合并、尚未修改第二轮界面时：**1 通过、0 失败，34.66 秒**，日志 `round2/flow-merged.log`。
+- 第二轮界面完成后再单独验收：**1 通过、0 失败，40.75 秒**，日志 `round2/flow-final.log`。
+- 覆盖动态载入设计页、重试恢复、浏览器前进/后退、图片及表单保留、刷新、资料库深链接、纸色和夜色，以及 CSP。两次均无断言失败；本轮未复现第一轮的连接被拒绝，不能据此追认第一轮通过，也未把旧失败归因为设计页动态模块错误。
+
+### 新增浏览器验收与截图
+
+```text
+node F:/dp-archive/tmp/editorergo/round2/cap_after.mjs
+```
+
+**22 项检查通过、0 个运行时异常**，无头 Edge **157.0.4341.60**，DPR 1。原本地色条夹具增加第二图层，以验证同一时间只展开一行；不访问后端或光驱。
+
+- 1440×1000 和 1024×768，纸色/夜色共四组；每组各拍颜色页顶部、色板中段 sticky 行、更多展开、锁定后收起四张，共 **16 张**。
+- 位置：`after/round2/shots/{1440-light,1440-dark,1024-light,1024-dark}/`。
+- 重点截图：`02-palette-middle-sticky.png`、`03-layer-more-expanded.png`；完整测量和检查名见 `after/round2/acceptance.json`。
+- 滚动至 `scrollTop=650` 后测量 sticky 行停在滚动区顶部，当前材质和唯一填充按钮同排可见，背景色与面板一致且不透明；机位摘要和填到已滚出视野。
+- 用原生键盘事件验证 Enter / 空格打开更多、Esc 收起并恢复焦点；验证展开不新增撤销记录、仅一行展开、锁定禁用受保护操作、隐藏/显示撤销重做、排序/删除/Alt+方向键撤销，以及 sticky 填充按钮的材质和目标不变。
+- 新增文案仅“图层操作” / “Layer actions”与“已锁定” / “Locked”；更多用三个 SVG 圆点，无新增动画或弹窗。
+
+| 图层按钮（实际点击元素） | 1440×1000 纸色/夜色 | 1024×768 纸色/夜色 |
+| --- | --- | --- |
+| 隐藏/显示、更多（收起时） | 各 44×44 px | 各 44×44 px |
+| 锁定、上移、下移、删除（展开时） | 各 44×44 px | 各 44×44 px |
+| 图层行实际可用宽度 | 262 px | 222 px |
+
+所有测得的按钮均在图层行边界内，无点击区域重叠。第一轮的 24×32 px 不达标项已解决，不再需要选择布局。
+
+### 最终回归
+
+```text
+python -B -X utf8 F:/dp-archive/tmp/editorergo/round2/run_node_checks.py
+```
+
+最终全量 JS 清单共 **51 个 test_*.mjs 文件、62 项测试**，排除受限路径。49 个文件以并发 2 运行；另外两个会向相对 cwd 写截图的原夹具以 F 盘为 cwd 单独运行。原始整批结果 **59 通过、3 失败**，完整命令及退出码在 `round2/node-results.json`，不得记为整批全过。
+
+失败项的单独重验使用 `node --test --test-concurrency=1 <单个测试文件>`：
+
+| 测试 | 整批结果 | 单独重验 / 对照 |
+| --- | --- | --- |
+| test_flow_navigation_browser.mjs | 本地服务连接被拒绝，80.19 秒后在新作品页刷新恢复处超时 | **通过**，35.39 秒；加上先前两次单独通过，本轮共三次单独通过 |
+| test_review_library_newwork.mjs | library can return another chosen batch 断言失败 | **通过**，12.59 秒 |
+| test_presetio_browser.mjs | iframe 结果仍是 PENDING | 单独重验仍失败；换回合并点 16567f1 的三个 UI 文件进行对照，也在同一 PENDING 断言失败 |
+
+单独重验见 `round2/recheck-results.json` 和 `round2/test_*-recheck.log`。导航整批失败时，字体、未改的 flow-navigation.js 和本轮 design.js 等同时出现 `ERR_CONNECTION_REFUSED`；这是资源请求无法建立连接，并非 JavaScript 语法解析错误。多次完整单独通过及编辑器夹具成功载入，未发现本轮引入的动态模块载入缺陷；并发时本地服务连接中断的根因仍未确定，未改卡外服务或前端。
+
+预设页对照过程只临时使用三个已授权 UI 文件的合并点内容，完成后按原始字节恢复，并校验 SHA-256，见 `round2/presetio-base-comparison.json`。合并点对照退出码 1，证据 `round2/presetio-at-merge-point.log`；说明此 PENDING 失败不由第二轮改动引入。未修改 presetio 页面、夹具或断言，也未延长它的 6000 ms 虚拟时间预算来制造通过。
+
+在最后的图层删除展开状态清理完成后，另跑卡内原命令：
+
+```text
+node --test tests/test_editor.mjs tests/test_editor_materials.mjs tests/test_editor_rig.mjs tests/test_editor_lamp.mjs tests/test_design_export.mjs tests/test_editor_w245_browser.mjs
+```
+
+**6/6 通过、0 失败，16.60 秒**，日志 `round2/editor-final.log`；W245 的 **18 项**行为检查通过、0 个运行时异常，四组 20/10 µm 纸色/夜色预览哈希保持第一轮记录中的值。preset_geometry.mjs 在本轮全量 JS 中通过。
+
+Python：
+
+```text
+python -B -X utf8 -m pytest -p redirect_evidence -n 2 -o cache_dir=F:/dp-archive/tmp/editorergo/round2/pytest-cache --basetemp=F:/dp-archive/tmp/editorergo/round2/pytest-run <test_editor_*.py 与 test_design_compose_route.py 的显式清单>
+```
+
+**94 passed，32.22 秒**，日志 `round2/pytest.log`。为遵守临时文件只用 F 盘，外置 `round2/redirect_evidence.py` 仅将两个原测试硬编码的 evidence JSON 写入位置重定向到 `round2/python-evidence/`；不改变断言、被测计算或核心输出，仓库测试文件未改。
+
+`impeccable detect --json` 对三个改动 UI 文件的输出为 `[]`；`git diff --check` 通过。含中文的改动 JS 和报告均经 UTF-8 非 ASCII 及连续问号检查；截图尺寸也检查为 1440×1000 / 1024×768。
+
+开跑前 D / F 可用约 40.65 / 20.24 GB，最后一次全部 JS 回归前 D / F 约 39.63 / 19.35 GB；均未触及 D 盘 5 GB 停止线。成功测试的临时大文件和浏览器配置在结束时清理，只保留日志、截图、JSON 证据及必要失败现场。未接光驱、刻盘、联网下载或上传；搜索排除受限路径，未打开、读取或列出其中的文件/目录。
+
+## 当前限制
+
+实体触屏、Firefox、Safari、真实光驱/刻录及真实照片：**未测**。第一轮 1024×768 的短窗口工具栏滚动方式继续沿用，本轮不改变画布布局。整批 JS 的三项失败、其中两项单独通过及预设夹具合并点对照仍失败，均如实保留；没有把整批结果写成全过。卡内界面要求已完成，没有需要审查人另选方案的布局遗留项。
+
+---
+
+# 第一轮记录（f65e761，历史结果）
 
 分支：`web/editor-ergo-20261117`。起点：`006ec00`（与卡 U 一致；COMMON 中较早的基点未采用）。
 本报告与实现同次提交：`Improve editor colour workflow and fold persistent guidance`。未推送、未合并。
