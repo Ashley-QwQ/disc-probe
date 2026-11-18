@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime
+from functools import wraps
 import json
 import math
 import os
@@ -12,6 +13,7 @@ import sys
 
 try:
     from . import guide, i18n, info, mmc, timing, ui
+    from .drive_lock import DriveBusy, drive_operation
 except ImportError as e:    # half a copy of this folder: i18n may be what is missing, so it says so in both languages
     if (e.name or "").split(".")[0] != __package__:
         raise
@@ -185,6 +187,21 @@ def _open(args):
             print("note: SPTI was refused (not elevated); using the IMAPI2 transport instead")
     from .imapi import ImapiDevice
     return ImapiDevice(args.drive)
+
+
+def _locked_read(action, *, offline=None):
+    def decorate(func):
+        @wraps(func)
+        def run(args, **kwargs):
+            if getattr(args, "sim", None) or (offline and getattr(args, offline, None)):
+                return func(args, **kwargs)
+            _choose_drive(args)
+            if not args.drive:
+                return func(args, **kwargs)  # retain the existing missing-drive diagnostic
+            with drive_operation(args.drive, action):
+                return func(args, **kwargs)
+        return run
+    return decorate
 
 
 def _check_disc(dev, args) -> None:
@@ -504,7 +521,8 @@ def cmd_info(args):
         _choose_drive(args)  # a person's drive selection is outside the I/O deadline
     print('Reading drive information (3s per command, 25s command budget)...', flush=True)
     try:
-        dev = info.InfoDevice(opener=lambda: _open(args))
+        operation = drive_operation(args.drive, "info") if not args.sim and args.drive else None
+        dev = info.InfoDevice(opener=lambda: _open(args), operation=operation)
     except OSError as exc:
         out = _outdir(args, 'info', type('Unavailable', (), {'name': 'unavailable'})())
         from .diagnostics import save_failure
@@ -546,6 +564,7 @@ def cmd_info(args):
     _next(guide.after_info(args, report))
 
 
+@_locked_read("whois", offline="image")
 def cmd_whois(args):
     from . import discid
     if getattr(args, "image", None) and (args.drive or getattr(args, "sim", None)):
@@ -570,6 +589,7 @@ def cmd_whois(args):
         sys.exit(1)
 
 
+@_locked_read("disc")
 def cmd_disc(args):
     """Which disc is in the drive, for the web page: a handful of read-only commands, nothing written to
     disk, one JSON line on stdout ({"tray", "drive", "disc"}). `info` is the full dump."""
@@ -601,6 +621,7 @@ def tray_state(sense, ok: bool) -> str:
     return "loading" if text.startswith("2/04/") else "unknown"
 
 
+@_locked_read("swap")
 def cmd_swap(args):
     """Wait, read-only, while a disc is taken out and another put in: TEST UNIT READY every half second until the
     drive has been without a disc (or reports a new one) and then has one ready. Nothing moves the tray."""
@@ -629,6 +650,7 @@ def cmd_swap(args):
     sys.exit(f"No disc change within {args.minutes:g} minutes")
 
 
+@_locked_read("timing")
 def cmd_timing(args):
     if not args.sim:
         _need_hardware_platform()
@@ -829,6 +851,7 @@ def cmd_calscan(args):
     print(f"\nbands.csv, phase.csv, summary.json and unrolled.png: {os.path.abspath(out)}")
 
 
+@_locked_read("geo", offline="refit")
 def cmd_geo(args, *, speed_check=None):
     media = getattr(args, "media", "dvd")
     from . import geo_speed, read_completion
@@ -2639,14 +2662,30 @@ def _build_parser():
     sp.set_defaults(func=cmd_calibdisc)
 
     sp = sub.add_parser("webui", help="serve the web GUI backend")
+    from . import web_instance
+    sp.add_argument("--open", dest="open_browser", action="store_true", help="open the lobby in the default browser")
     sp.add_argument("--gui", metavar="PATH", help="GUI folder containing gui.json (default: bundled GUI)")
-    sp.add_argument("--port", type=int, default=8765, help="HTTP port (default: 8765)")
+    sp.add_argument("--port", type=int, default=web_instance.DEFAULT_PORT,
+                    help="preferred HTTP port (default: 8765; uses a free port if occupied)")
     sp.add_argument("--lan", action="store_true", help="accepted for compatibility; no-op (LAN is on by default)")
     sp.add_argument("--local-only", action="store_true", help="listen only on 127.0.0.1; disable LAN phone access")
+    sp.add_argument("--no-drives", action="store_true", help="offline design session; do not enumerate drives (or DISC_PROBE_NO_DRIVES=1)")
+    sp.add_argument("--new-instance", action="store_true", help="start a separate service without replacing the existing instance")
     sp.add_argument("--media", choices=("dvd", "cd", "bd"), default="dvd", help="disc type")
     sp.add_argument("--out", default="results", help="results directory (default: results)")
     from .webui import run as run_webui
     sp.set_defaults(func=run_webui)
+    lifecycle = sp.add_subparsers(dest="webui_action", metavar="[status|stop]")
+    status_help = i18n.tr("show the running web service and optical-drive lock holders")
+    control = lifecycle.add_parser("status", help=status_help, description=status_help)
+    control.add_argument("--json", action="store_true", help="print the service and drive status as JSON")
+    control.set_defaults(func=web_instance.status)
+    i18n.localize_parser(control)
+    stop_help = i18n.tr("stop the web service after its tasks finish")
+    control = lifecycle.add_parser("stop", help=stop_help, description=stop_help)
+    control.add_argument("--force", action="store_true", help="stop active tasks only when no disc write is in progress")
+    control.set_defaults(func=web_instance.stop)
+    i18n.localize_parser(control)
 
     sp = sub.add_parser("selftest", help="parser checks and end-to-end runs on the simulated drive and a synthetic scan")
     sp.set_defaults(func=cmd_selftest)
@@ -2774,15 +2813,9 @@ def _main(argv=None):
     if raw_args[0] in {"image", "random", "rings", "calib", "tiles", "beacons", "calibdisc", "disexport", "cdprobe", "spokes"}:
         print(i18n.tr("Preparing the design and image data; this may take a few seconds..."), flush=True)
     try:
-        if getattr(args,'texlib',None):
+        if raw_args[0] != 'webui' and getattr(args,'texlib',None):
             from .texlib import configure
             configure(args.texlib)
-        if raw_args[0] == 'webui':
-            from .texlib import safe
-            for arg, key in (('table','DISCPROBE_COLOUR_TABLE'),('materials','DISCPROBE_COLOUR_MATERIALS')):
-                path = getattr(args,arg)
-                if path:
-                    os.environ[key] = str(safe(path))
         if raw_args[0] in ('simulate','image','tiles','rings'):
             from .texlib import resolve
             for key in ('dark','light','filler'):
@@ -2831,6 +2864,11 @@ def main(argv=None):
         _main(rest)
     except _Rerun as again:
         main(list(sys.argv[1:] if argv is None else argv) + again.extra)
+    except DriveBusy as exc:
+        ui.event("error", code=exc.code, message=str(exc))
+        i18n._prepare(sys.stderr)
+        print(str(exc), file=sys.stderr)
+        sys.exit(exc.exit_code)
     except KeyboardInterrupt:
         kept = f" What was measured so far is in {os.path.abspath(_Parser.last_out)}" if _Parser.last_out else ""
         print(f"\nStopped by Ctrl+C.{kept}", file=sys.stderr)

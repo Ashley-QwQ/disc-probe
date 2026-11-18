@@ -25,6 +25,7 @@ import os
 from pathlib import Path
 import signal
 import subprocess
+from .drive_lock import DriveBusy
 import sys
 import threading
 import time
@@ -165,6 +166,9 @@ def run(args) -> None:
         seen = subprocess.run(_argv("disc", *common()), stdin=subprocess.DEVNULL, capture_output=True,
                               text=True, encoding="utf-8", errors="replace", timeout=120)
         line = next((ln for ln in reversed(seen.stdout.splitlines()) if ln.startswith("{")), None)
+        if line is None and seen.returncode == DriveBusy.exit_code:
+            # The child already emitted the structured error for the web client.
+            raise Stopped(seen.stderr.strip())
         return (json.loads(line) if line else {}).get("disc") or {}
 
     # READ CAPACITY on a written disc is its readable length, never a preset capacity.

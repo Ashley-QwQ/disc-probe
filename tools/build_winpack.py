@@ -30,13 +30,7 @@ SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_bac
 LEAVE_OUT = ("__pycache__", "tests", "test", "*.pyi", "*.pdb")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-START = """@echo off
-rem Double-click to open the web lobby. Close this window to stop the server.
-chcp 65001 >nul
-cd /d "%~dp0"
-"%~dp0python\\python.exe" -X utf8 -B "%~dp0tools\\launch_web.py" %*
-if errorlevel 1 pause
-"""
+START = '@cd /d "%~dp0" && "%~dp0python\\python.exe" -X utf8 -B -m discprobe webui --open %*\n'
 
 # The window's own PATH finds this Python, so the commands disc-probe prints work as written.
 SHELL = """@echo off

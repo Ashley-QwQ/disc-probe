@@ -454,13 +454,13 @@ time.sleep(60)
         for lan in (False, True):
             with self.subTest(lan=lan):
                 output = io.StringIO()
-                args = SimpleNamespace(media="dvd", out="results", port=0, lan=False, local_only=not lan)
+                args = SimpleNamespace(media="dvd", out="results", port=0, lan=False, local_only=not lan,
+                                       new_instance=True)
                 with patch.object(webui, "Backend", return_value=self.backend()), \
-                        patch.object(webui.Server, "serve_forever", side_effect=KeyboardInterrupt), \
+                        patch.object(webui.Server, "serve_forever"), \
                         contextlib.redirect_stdout(output):
                     webui.run(args)
-                suffix = r"\?token=[A-Za-z0-9_-]+" if lan else ""
-                self.assertRegex(output.getvalue(), r"\Ahttp://127\.0\.0\.1:[0-9]+/home/" + suffix + r"\n\Z")
+                self.assertRegex(output.getvalue(), r"\Ahttp://127\.0\.0\.1:[0-9]+/home/\?token=[A-Za-z0-9_-]+\n\Z")
 
     def test_http_endpoints_and_origin(self):
         server = self.http_server()
@@ -689,10 +689,10 @@ def test_home_refreshes_completed_writes_including_replayed_jobs():
         pytest.skip("Node is needed to execute the home page JavaScript")
     home = (ROOT / "discprobe/web/home/index.html").read_text(encoding="utf-8")
     functions = home[home.index("  function paintDriveLine() {"):home.index("  const api = {", home.index("  function paintDriveLine() {"))]
-    refresh = home[home.index("  const refreshedDiscs = new Set();"):home.index("  if (!backend.mock) backend.events(async event => {")]
+    refresh = home[home.index("  const refreshedDiscs = new Set();"):home.index("  let serviceBusy = true, quitting = false;")]
     # The refresh must run before the mode guard (calibration owns the screen while attached).
-    handler_start = home.index("  if (!backend.mock) backend.events(async event => {")
-    handler = home[handler_start:home.index("  // ---- the lobby and the library", handler_start)]
+    handler_start = home.index("  const stopLobbyEvents = backend.mock ? null : backend.events(async event => {")
+    handler = home[handler_start:home.index('  $("quit").addEventListener', handler_start)]
     assert handler.index("await refreshFinishedDisc(event)") < handler.index("root.dataset.mode")
     script = r'''
 const assert = require('node:assert/strict');

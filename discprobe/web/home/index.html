@@ -253,6 +253,9 @@
   :root[data-home="library"]:is(:not([data-mode]), [data-mode=""]) .top > .wordmark { position: absolute; left: 50%; translate: -50% 0; }
   .tools { display: flex; align-items: center; gap: 4px; margin-right: -14px; }
   .tools #presetio-entry { position: static; font-size: 16px; padding-inline: 10px; }
+  #quit:disabled { opacity: .45; cursor: default; }
+  :root[data-exited] body > :not(#quit-status) { display: none !important; }
+  :root[data-exited] #quit-status { margin: 0; padding: var(--edge); }
   .drive-entry { display: none; }
   /* the library is reached from the lobby; on a page (design, preview, calibration...) the button did nothing, so it
      is not shown there. The batch name in a work's title still opens the library with a way back. */
@@ -772,6 +775,7 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></symbol>
   <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v9M6.5 6.5a8 8 0 1 0 11 0"/></symbol>
   <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 10h3l5-4v12l-5-4H4z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5M18 7a7 7 0 0 1 0 10"/></symbol>
   <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 10h3l5-4v12l-5-4H4z"/><path d="M16 10l4 4M20 10l-4 4"/></symbol>
   <symbol id="i-theme" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></symbol>
@@ -817,8 +821,10 @@
     <button class="btn btn-icon" type="button" id="sound" aria-pressed="true" aria-keyshortcuts="M"><svg class="icon on"><use href="#i-sound"/></svg><svg class="icon off"><use href="#i-mute"/></svg><kbd class="key-cap" aria-hidden="true">M</kbd></button>
     <button class="btn btn-icon" type="button" id="theme" data-i18n-aria="theme" aria-keyshortcuts="T"><svg class="icon"><use href="#i-theme"/></svg><kbd class="key-cap" aria-hidden="true">T</kbd></button>
     <button class="btn btn-icon" type="button" id="settings" data-i18n-aria="settings" aria-haspopup="true" aria-expanded="false" aria-keyshortcuts="O"><svg class="icon"><use href="#i-settings"/></svg><kbd class="key-cap" aria-hidden="true">O</kbd></button>
+    <span id="quit-control" hidden><button class="btn btn-icon" type="button" id="quit" disabled><svg class="icon" aria-hidden="true"><use href="#i-power"/></svg></button></span>
   </nav>
 </header>
+<p id="quit-status" role="status" hidden></p>
 
 <div class="corner bl counter">
   <div class="count" aria-live="polite"><span id="idx">01</span><small>/ <span id="total">07</span></small></div>
@@ -935,6 +941,7 @@
       motion: "动画", motionAuto: "跟随系统", motionOn: "开", motionOff: "关",
       motionNote: (sys) => `系统现在${sys ? "关着" : "开着"}动画效果。这里的设置只管这个页面，不改系统。`,
       back: "上一步", tools: "工具", search: "找盘", searchTitle: "找盘（键盘 /）", theme: "切换亮色和暗色", settings: "设置",
+      quit: "退出", quitBusy: "先等任务结束", quitConfirm: "退出 disc-probe？", quitDone: "disc-probe 已退出，可以关掉这个标签页",
       presets: "预设导入导出", library: "盘库", libraryTitle: "盘库：标定过的盘、每桶还剩几张", lobbyNew: "新作品", lobbyNewSub: "拖一张图进来，或点这里选",
       lobbyOpen: "打开作品", lobbyOpenSub: "打开以前存的 .discdesign", nextNewPlan: "下一步：新作品", nextUseBatch: "下一步：用这批盘",
       langButton: "EN", langAria: "Switch to English", kinds: "盘的种类", driveTab: "光驱", inDrive: "就是光驱里这张",
@@ -957,6 +964,7 @@
       motion: "Animation", motionAuto: "As system", motionOn: "On", motionOff: "Off",
       motionNote: (sys) => `The system has animation ${sys ? "off" : "on"}. This only changes this page, not the system.`,
       back: "Back", tools: "Tools", search: "Search", searchTitle: "Search discs (key /)", theme: "Switch light and dark", settings: "Settings",
+      quit: "Quit", quitBusy: "Wait for the current task to finish", quitConfirm: "Quit disc-probe?", quitDone: "disc-probe has exited. You can close this tab.",
       presets: "Presets", library: "Discs", libraryTitle: "Disc library: calibrated discs and how many are left", lobbyNew: "New work", lobbyNewSub: "Drop a picture here, or click to choose",
       lobbyOpen: "Open a work", lobbyOpenSub: "Open a saved .discdesign", nextNewPlan: "Next: new work", nextUseBatch: "Next: use these discs",
       langButton: "中文", langAria: "切换到中文", kinds: "Disc kinds", driveTab: "Drive", inDrive: "This is the disc in the drive",
@@ -1722,7 +1730,21 @@
   new MutationObserver(() => {
     if (!root.dataset.mode && libraryDirty) { libraryDirty = false; api.syncState(); }
   }).observe(root, {attributes: true, attributeFilter: ['data-mode']});
-  if (!backend.mock) backend.events(async event => {
+  let serviceBusy = true, quitting = false;
+  function paintQuit() {
+    const t = T(), button = $("quit");
+    button.disabled = serviceBusy || quitting;
+    button.setAttribute("aria-label", t.quit);
+    $("quit-control").title = serviceBusy ? t.quitBusy : t.quit;
+  }
+  addEventListener("dp-lang", paintQuit);
+  const stopLobbyEvents = backend.mock ? null : backend.events(async event => {
+    if (event.type === "activity") {
+      serviceBusy = event.busy;
+      $("quit-control").hidden = false;
+      paintQuit();
+      return;
+    }
     await refreshFinishedDisc(event);
     // A terminal job can start while the lobby is open. Its first event identifies it;
     // fetch saved job state once so a cached blank disc never reads as ready while busy.
@@ -1735,6 +1757,27 @@
     if (event.type !== "state") return;
     if (root.dataset.mode) { libraryDirty = true; return; }
     await syncState();
+  }, () => {
+    serviceBusy = true;
+    paintQuit();
+  });
+  $("quit").addEventListener("click", async () => {
+    if ($("quit").disabled || !window.confirm(T().quitConfirm)) return;
+    quitting = true;
+    paintQuit();
+    try {
+      await backend.request("/api/quit", {});
+      stopLobbyEvents?.();
+      root.dataset.exited = "true";
+      $("quit-status").hidden = false;
+      $("quit-status").textContent = T().quitDone;
+      document.title = T().quitDone;
+    } catch (error) {
+      if (error.code === "tasks_running") serviceBusy = true;
+      quitting = false;
+      paintQuit();
+      window.alert(backend.errorText(error, lang));
+    }
   });
   // ---- the lobby and the library (docs/goals/gui-outline.md 3.0) ----
   // The page opens on the lobby. "New plan" starts a work at once, on the discs it can guess: the batch used

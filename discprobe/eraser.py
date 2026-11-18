@@ -12,8 +12,10 @@ import time
 
 from . import mmc, ui
 from .burner import BurnError, parse_progress, tool
+from .drive_lock import locked_drive
 
 
+@locked_drive("info")
 def inspect(drive):
     from .device import Device
     from .info import quick
@@ -40,7 +42,7 @@ class PlatformEraser:
                 raise BurnError('Windows drive must be a letter followed by a colon.')
             argv = [tool('powershell.exe'), '-NoProfile', '-NonInteractive', '-File',
                     str(resource_tool('erase_imapi.ps1')),
-                    '-Drive', self.drive, *(['-Full'] if full else [])]
+                    '-Drive', self.drive, '-CoreDriveLock', *(['-Full'] if full else [])]
         elif sys.platform.startswith('linux'):
             if not self.drive.startswith('/dev/') or any(c in self.drive for c in '\r\n\0'):
                 raise BurnError('Linux drive must be a /dev/ device path.')
@@ -104,6 +106,7 @@ def adapter(drive):
     return PlatformEraser(drive)
 
 
+@locked_drive("erase")
 def erase(drive, *, full=False, cancel=None, recorder=None):
     cancel = cancel or threading.Event()
     recorder = recorder or adapter(drive)
