@@ -183,6 +183,8 @@ This takes about 5 minutes. A DVD gets 22 steps, and the progress line at a term
 python -m discprobe geo --drive H:
 ```
 
+Read speed affects read delays, and at a single speed the fit can absorb delays that vary with radius without leaving a trace in the residuals. DVD geo requests 4x (5540 kB/s) by default because a grid disc burned using that geometry from a GH70N (NYA2) showed 0.106° peak-to-peak deviation along its radial lines. To check another drive or speed before burning a picture, measure with those settings, burn a grid disc, and scan it to check that the radial lines are straight.
+
 The pitch on some discs drifts slowly. RITEKF1 is fine with a constant pitch, while `CMC MAG. AM3` and one RITEK DVD+RW needed a quadratic correction (residuals fell from 0.38° and 0.61° to about 0.08°).
 
 When the residual is high, `geo` compares the two models at the end, with no new measurement. If quadratic is clearly better, it asks you to write a correction file and puts `--correction` in the next commands, ready to copy. Otherwise it says this is probably read noise and you can carry on. The command for the correction file looks like this:

@@ -267,6 +267,7 @@ def _geo_clv(args):
     a pressed BD-ROM. Under CLV a turn takes T = 2*pi*r/v, and r^2 grows linearly with the sector,
     so T^2 is a straight line in LBA and carries (r0, pitch) up to one anchor.
     """
+    from . import geo_speed
     from .clv import DEFAULT_ZONES, ClvLadder, ConstantAngularVelocity, write_outputs
     if args.media == "cd":
         if args.linear_mm_s is None and not getattr(args, "cd_clv_pitch_explicit", False):
@@ -304,6 +305,8 @@ def _geo_clv(args):
     ladder.tp.summary["args"] = {k: v for k, v in vars(args).items() if k != "func"}
     if args.sim:
         ladder.tp.summary["simulated"] = True
+    speed_check = ladder.tp.summary["speed_check"] = geo_speed.check_probe(ladder.tp, args.media)
+    geo_speed.print_notice(speed_check)
     progress, log = None, print
     if reader is not dev:
         def status():
@@ -342,14 +345,17 @@ def _geo_clv(args):
             if not os.path.isfile(os.path.join(out, 'summary.json')):
                 _write_json(os.path.join(out, 'summary.json'), dict(ladder.summary or {},
                             stopped=stopped or 'interrupted',
-                            args={k: v for k, v in vars(args).items() if k != 'func'}))
+                            args={k: v for k, v in vars(args).items() if k != 'func'},
+                            **geo_speed.annotations(ladder.tp, args.media, zones=[])))
             save_failure(out, (stopped or 'interrupted') if not res else guide.CD_CLV_LIMIT, args)
+        if hand_off is None:
+            geo_speed.print_notice(speed_check)
     if hand_off is not None:
         print(i18n.tr("This disc turns at a constant angular velocity, so its period carries no radius. "
                       "Measuring the spiral from sector addresses instead."))
         args.bd_angular = True
         args.sectors = 32 if getattr(args, "sectors", 1) == 1 else args.sectors
-        return cmd_geo(args)
+        return cmd_geo(args, speed_check=speed_check)
     if res:
         print()
         print(i18n.tr("r0 {a} mm, pitch {b} um, linear speed {c} m/s  (R^2 {d} over {e} zones, anchor: {f})")
@@ -823,9 +829,9 @@ def cmd_calscan(args):
     print(f"\nbands.csv, phase.csv, summary.json and unrolled.png: {os.path.abspath(out)}")
 
 
-def cmd_geo(args):
+def cmd_geo(args, *, speed_check=None):
     media = getattr(args, "media", "dvd")
-    from . import read_completion
+    from . import geo_speed, read_completion
     if getattr(args, 'refit', None):
         try:
             source = read_completion.summary_path(args.refit)
@@ -896,6 +902,10 @@ def cmd_geo(args):
     ladder.tp.summary["args"] = {k: v for k, v in vars(args).items() if k != "func"}
     if args.sim:
         ladder.tp.summary["simulated"] = True
+    if speed_check is None:
+        speed_check = geo_speed.check_probe(ladder.tp, media)
+        geo_speed.print_notice(speed_check)
+    ladder.tp.summary["speed_check"] = speed_check
     progress, log = None, print
     if reader is not dev:
         progress = reader.progress = ui.Progress(ui.geo_status(ladder, reader), keys=ui.open_keys(), pulse=reader.read_times, wait_s=GEO_WAIT_S)
@@ -915,6 +925,8 @@ def cmd_geo(args):
             write_outputs(ladder, out, None if res else stopped or "interrupted")   # also for Ctrl+C or a drive that vanished
         else:
             summary = dict(ladder.tp.summary, stopped=stopped or 'interrupted')
+            period = getattr(ladder, 'T', None)
+            summary.update(geo_speed.annotations(ladder.tp, media, period_ms=period * 1e3 if period else None))
             _write_json(os.path.join(out, 'summary.json'), summary)
             rows = ladder.tp.events_as_rows()
             if rows:
@@ -925,6 +937,7 @@ def cmd_geo(args):
         if not res or res.get('completion_status') != 'target_reached':
             from .diagnostics import save_failure
             save_failure(out, stopped or (res or {}).get('completion_status', 'interrupted'), args)
+        geo_speed.print_notice(speed_check)
     at_terminal = ui.term().interactive
     detail = (lambda text: ui.say(text, "dim")) if at_terminal else print    # at a terminal the plain summary comes first
     if res:

@@ -28,26 +28,35 @@ def argument(value):
     return sectors(int(value))
 
 
-def drive_entry(identity, root=None):
-    """Exact INQUIRY vendor/product/firmware, ignoring padding. Never match by substring."""
+def inquiry_key(identity):
+    """INQUIRY vendor/product/firmware, ignoring case and padding."""
     identity = identity or {}
     drive = str(identity.get('drive') or '').split(maxsplit=1)
     vendor = identity.get('vendor') or (drive[0] if len(drive) == 2 else '')
     product = identity.get('product') or (drive[1] if len(drive) == 2 else '')
     revision = identity.get('revision') or identity.get('firmware') or ''
     norm = lambda value: ' '.join(str(value).split()).upper()
-    key = tuple(map(norm, (vendor, product, revision)))
+    return tuple(map(norm, (vendor, product, revision)))
+
+
+def drive_registry_paths(root=None):
+    """The workspace registry and the one beside the source package, in lookup order."""
+    source = Path(__file__).resolve().parents[1]
+    roots = [Path(root)] if root is not None else dict.fromkeys([Path.cwd(), source])
+    return [folder / 'presets' / 'drives.json' for folder in roots]
+
+
+def drive_entry(identity, root=None):
+    """Exact INQUIRY match. Never match by substring."""
+    key = inquiry_key(identity)
     if not all(key):
         return None
-    bundled = Path(__file__).resolve().parents[1]
-    roots = [Path(root)] if root is not None else list(dict.fromkeys([Path.cwd(), bundled]))
-    for folder in roots:
-        path = folder / 'presets' / 'drives.json'
+    for path in drive_registry_paths(root):
         if not path.exists():
             continue
         data = json.loads(path.read_text(encoding='utf-8'))
-        for entry in data['dvd_read_completion']:
-            if tuple(norm(entry[k]) for k in ('vendor', 'product', 'firmware')) == key:
+        for entry in data.get('dvd_read_completion', []):
+            if inquiry_key({k: entry[k] for k in ('vendor', 'product', 'firmware')}) == key:
                 sectors(entry['completion_sectors'])
                 return copy.deepcopy(entry)
     return None

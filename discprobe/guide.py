@@ -1401,6 +1401,8 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, dr
 
 def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -> list[str]:
     """The workflow with what is already done ticked off, and the next command; `notes` says what each does."""
+    from .geo_speed import notice
+
     plan = workflow(media, out, notes)
     current = plan.current() if notes else None
     if current is not None:
@@ -1410,6 +1412,10 @@ def guide_lines(media: str = "dvd", out: str = "results", notes: bool = False) -
     for task in plan.tasks:
         detail = f"{i18n.tr(task.detail)}  <- {i18n.tr('you are here')}" if task.current else task.detail
         lines.append(f"  [{'x' if task.done else ' '}] {i18n.pad(i18n.tr(task.name), 22)} {i18n.tr(detail)}")
+        if task.key == "geo" and plan.geo:
+            note = notice(plan.geo.summary.get("speed_check"))
+            if note:
+                lines.append(f"      {note}")
     lines += ["", "Next:"]
     if plan.geo is None:
         lines += ["  Community hints are starting points, not DP measurements of this batch:",

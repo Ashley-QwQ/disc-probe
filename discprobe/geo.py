@@ -41,7 +41,7 @@ import time
 
 import numpy as np
 
-from . import analysis
+from . import analysis, geo_speed
 from .calib import SECTOR_BITS, CalLayout, theta
 
 BD_SECTOR_PER_UNIT = 32           # a Blu-ray recording unit is 32 sectors, the way a DVD block is 16
@@ -956,6 +956,7 @@ def write_outputs(ladder: Ladder, out_dir: str, stopped: str | None = None) -> N
         json.dump({"fit": res, "cache": ladder.tp.summary.get("cache"),
                    "setup": ladder.tp.summary.get("setup"), "identity": ladder.tp.summary.get("identity"),
                    "set_cd_speed": ladder.tp.summary.get("set_cd_speed"),
+                   **geo_speed.annotations(ladder.tp, ladder.media, period_ms=res.get("period_ms")),
                    "rotation_check": ladder.tp.summary.get("rotation_check"),
                    "args": ladder.tp.summary.get("args"),
                    **({"random_label": ladder.tp.summary["random_label"]} if "random_label" in ladder.tp.summary else {}),
