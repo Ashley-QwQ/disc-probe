@@ -1307,6 +1307,13 @@ class Handler(BaseHTTPRequestHandler):
                 from .editor_preview import lamp_tables
                 self._json(200,lamp_tables())
                 return
+            if path == '/api/editor-colour-palette':
+                from .editor_colour import palette
+                try:
+                    self._json(200, palette())
+                except (OSError, ValueError) as exc:
+                    raise APIError(str(exc)) from exc
+                return
             if path == "/api/news":
                 from . import news
                 # Server is a ThreadingHTTPServer: network I/O stays in this
@@ -1483,7 +1490,7 @@ class Handler(BaseHTTPRequestHandler):
             if urlsplit(self.path).path in ("/api/editor-preview", "/api/editor-swatches"):
                 if self.headers.get_content_type() != "application/json":
                     raise APIError("application/json required", 415)
-                payload=json.loads(self._body(64 * 1024 * 1024))
+                payload=json.loads(self._body(COMPOSE_BYTES if urlsplit(self.path).path == '/api/editor-preview' else 64 * 1024 * 1024))
                 if not isinstance(payload,dict):
                     raise APIError("invalid preview request")
                 try:

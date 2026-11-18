@@ -1,5 +1,6 @@
 """Local-only API fixture; no drives or network services are consulted."""
 from pathlib import Path
+import json
 import os
 import sys
 
@@ -12,7 +13,10 @@ folder.mkdir(parents=True,exist_ok=True)
 if not os.environ.get('EDITOR_TEXLIB_ROOT'):
     from test_editor_texlib import make_library
     library=folder/'fixture'
-    make_library(library)
+    textures=make_library(library)
+    candidates=folder/'colour-candidates.json'
+    candidates.write_text(json.dumps([r['spec'] for r in textures]),encoding='utf-8')
+    os.environ['DISCPROBE_COLOUR_MATERIALS']=str(candidates)
 else:
     library=Path(os.environ['EDITOR_TEXLIB_ROOT'])
 os.environ['DISCPROBE_TEXLIB']=str(library)

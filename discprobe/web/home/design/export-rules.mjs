@@ -84,20 +84,32 @@ export function experimentalContent(doc, media, slots = []) {
   const tx = TEXTURES[media] ?? TEXTURES.dvd, plain = new Set([tx.light, tx.dark, TEXTURES.dvd.light, TEXTURES.dvd.dark]);
   const colours = specsUsed(doc, slots).filter((s) => !plain.has(s));
   const shown = new Set((doc.layers ?? []).filter((l) => l.visible !== false).map((l) => l.id));
+  for (const a of (doc.assignments ?? [])) {
+    if (!a.colour || !shown.has(a.layer)) continue;
+    for (const m of doc.materials) {
+      const spec = String(m.spec).toUpperCase();
+      if (a.colour.materials.includes(m.id) && !plain.has(spec) && !colours.includes(spec)) colours.push(spec);
+    }
+  }
   const effects = (doc.assignments ?? []).filter((a) => a.effect && (a.layer === undefined || shown.has(a.layer))).length +
     (doc.layers ?? []).filter((l) => l.kind === "fx" && l.visible !== false).length;
-  return { colours, effects, any: colours.length > 0 || effects > 0 };
+  return { colours, effects, any: colours.length > 0 || effects > 0 || hasColourPicture(doc) };
 }
 
 // The document as it is burned. "bw": every material but the background becomes the disc kind's dark texture and
 // the background its light one, so colours, colour patterns and effects burn as plain dark areas (their shapes
 // stay). "experimental": the materials' own textures (DVD only), as the model chose them. Label slots are not
 // touched either way, so the composed array is the same; only the texture list differs.
-export function burnDocument(doc, media, mode = "bw") {
+export function burnDocument(doc, media, mode = hasColourPicture(doc) ? "experimental" : "bw") {
   const tx = TEXTURES[media] ?? TEXTURES.dvd;
   if (mode === "experimental" && media === "dvd") return { doc, mode, textures: doc.materials.map((m) => m.spec) };
   const materials = doc.materials.map((m, i) => ({ ...m, spec: i === 0 || m.id === "background" ? tx.light : tx.dark }));
-  return { doc: { ...doc, materials }, mode: "bw", textures: materials.map((m) => m.spec) };
+  const assignments = doc.assignments?.some(a => a.colour) ? doc.assignments.filter(a => !a.colour) : doc.assignments;
+  return { doc: { ...doc, materials, ...(assignments ? {assignments} : {}) }, mode: "bw", textures: materials.map((m) => m.spec) };
+}
+
+export function hasColourPicture(doc) {
+  return doc.assignments?.some(a => a.colour && doc.layers?.some(l => l.id === a.layer && l.visible !== false)) ?? false;
 }
 
 // The burn file may only carry what the mode allows: in black and white, the light and dark textures only.
