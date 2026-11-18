@@ -53,3 +53,27 @@ Windows 用 `msvcrt.locking`，POSIX 用 `fcntl.flock`。光驱锁文件第一�
 - 真光驱、POSIX 实机文件锁、实际点击 Windows 控制台的关闭按钮、在另一台设备上走 LAN、最终发布 ZIP 中的 BAT 双击均未测。Windows 标题用 `GetConsoleTitleW` 核对，强杀与网页正常退出分别实测。复用时的系统默认浏览器调用用桩核对。
 - 数值和镜像写入算法的改动范围为入口加锁。相关回归已跑，跨全部媒体、设备和镜像尺寸的独立逐位比对未测。禁用按钮的悬停文案通过页面属性核对。
 - 校准阶段之间会释放设备，物理操作期间持锁。`--new-instance` 不登记，因此只启动过强开实例时，下一次普通启动可以再创建一台服务。这两处属于本卡保留的行为边界。
+
+## 第二轮 · 统一启动、状态和停止
+
+- `8495054` 按指令将 `dev/1.0.0@93e6a71` 合入当前卡分支，带入无头 Edge 的 `--mute-audio`。
+- `4980264` 把启动、复用、查询和停止收进 core 的 `discprobe webui`，同步中英 README、CLI 帮助、Windows 包的 BAT 模板以及回归用例。保留标明弃用的 `tools/launch_web.py` 转调壳。本提交补记验收结果。
+
+### 行为与代码
+
+- [启动和发现](discprobe/web_instance.py#L143) 共用带令牌的健康检查。启动及复用时都打印实际 URL，有 `--open` 才调用默认浏览器。首选 8765，已占用时绑定空闲端口并登记；同一个首选端口再次启动时沿用登记里的实际端口。模式、盘种、端口、工作目录、输出目录、GUI、纹理配置及无光驱设置不一致时，在 stderr 列出冲突并提示先 `webui stop`，stdout 仍打印已有实例的 URL。
+- [状态](discprobe/web_instance.py#L228) 的 JSON 包含 `running`、`pid`、`port`、`token`、`started`、`mode`、`bind`、`url`、`tasks` 和 `drives`。每台盘报告是否持锁、PID 和动作，包含同一实验室或设备命名空间下的独立进程。状态依据实时文件锁，崩溃后遗留的持有者记录不会显示为活锁。旧版登记没有配置快照时只能核对已有的模式。
+- [命令行停止](discprobe/web_instance.py#L264) 和大厅退出进入同一个 [服务端判定](discprobe/webui.py#L1139)。普通停止遇到忙态返回 1 并列出任务。`--force` 可取消非写入任务，保护刻录、擦除和校准的写入阶段，也拒绝有外部写入或活动锁无法判定动作的快照。CLI 等到实例登记清理才报告成功。
+- [开始 Start.bat 模板](tools/build_winpack.py#L33) 只有一行，切到包目录、使用包内 Python 和 UTF-8，然后执行 `-m discprobe webui --open`，透传原参数。BAT 文件按原方式写成 ASCII 和 CRLF。`--no-drives` 及 `DISC_PROBE_NO_DRIVES=1` 都由 core 的启动入口处理。
+
+### 第二轮验收
+
+- `python -B -X utf8 F:/dp-archive/tmp/singleinst/round2/run_regression.py python` 底层使用 `pytest -n 2`，得到 **496 通过、1 跳过**。另以 `pytest -n 2 tests/test_design_compose_route.py` 验证合成入口，**3 通过**。跳过项缺既有的 `calib-simple` 参考夹具。新增生命周期路径验证了实际 BAT 与 CLI 两种启动顺序、同一 PID 和 URL、无 `--open` 时只打印、默认端口被占时登记实际端口、模式及盘种冲突、完整状态 JSON、只读强停和写入拒绝。见 [回归日志](F:/dp-archive/tmp/singleinst/round2/python/pytest.log) 和 [合成回归](F:/dp-archive/tmp/singleinst/round2/pytest-compose.xml)。
+- `tests/test_*.mjs` 共 **55/55 通过**。普通批次 54 个中 53 个首轮通过，预设导入导出的无头用例首轮结果停在 `PENDING`，单独复验通过。导航按要求单独跑，首轮等待盘库切换超时，单独复验通过。见 [普通批次](F:/dp-archive/tmp/singleinst/round2/javascript/results.json)、[预设复验](F:/dp-archive/tmp/singleinst/round2/javascript-target/test_presetio_browser.mjs.log)、[导航复验](F:/dp-archive/tmp/singleinst/round2/navigation-target/test_flow_navigation_browser.mjs.log)。
+- 用合入后的 `8495054` 作基点，在两份隔离目录运行相同模拟输入。`compare_outputs.py` 和 `compare_geo.py` 逐字节比对 **5 份样本**，DVD/CD ISO 各 8,388,608 字节，`info` JSON 6,894 字节，`timing` CSV 22,287 字节，`geo` CSV 2,140 字节，全部一致。未固定时钟的首轮 ISO 差异在日期字段，重验给两端同一创建时钟，不修改生成后的文件或生产代码。见 [镜像与计时哈希](F:/dp-archive/tmp/singleinst/round2/byte-compare.log)、[几何 CSV 哈希](F:/dp-archive/tmp/singleinst/round2/geo-byte-compare.log)。
+- 无头 Edge 实测新增 `--mute-audio`。两服务使用 X: 完成 8× 虚拟刻录、刻中拦截、刻后同一页面重读，以及两次网页正常退出。截图脚本在第一服务的刻后自动读盘结束后再触发第二服务重读。两进程退出码均为 0，登记清除。见 [实测日志](F:/dp-archive/tmp/singleinst/round2/edge-final/capture.log)、[截图目录](F:/dp-archive/tmp/singleinst/round2/edge-final/screenshots)。
+
+### 第二轮边界
+
+- 本轮运行了生成模板的实际 BAT，测试中的 `python` 目录指向本机 Python。正式 full-win64 ZIP 和包内嵌入式 Python 未验收。设备验证只使用 Disc Lab 或测试桩。逐位数据对应上述样本。
+- 除指定的上游合入，提交留在本工作分支，未推送、未合回 `dev/1.0.0`。
