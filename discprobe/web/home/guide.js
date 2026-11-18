@@ -120,7 +120,7 @@ function build() {
     e.stopPropagation();                                   // keys.js (Esc = back, Enter = next) is not for this sheet
     if (e.key === "Escape") { e.preventDefault(); close(); return; }
     if (e.key === "Tab") {
-      const f = [...sheet.querySelectorAll("button:not([disabled]):not([hidden]), summary, a[href]")].filter((n) => n.getClientRects().length);
+      const f = [...sheet.querySelectorAll("button:not([disabled]):not([hidden]), textarea, summary, a[href]")].filter((n) => n.getClientRects().length);
       if (!f.length) return;
       const first = f[0], last = f[f.length - 1];
       if (e.shiftKey && (document.activeElement === first || document.activeElement === sheet.querySelector("#sg-title"))) { e.preventDefault(); last.focus(); }
@@ -140,6 +140,7 @@ function build() {
     else if (a === "go") go(b.dataset.kind);
     else if (b.dataset.media) { media = b.dataset.media; store.set(MEDIA, media); paintMedia(); readState(); }
   });
+  sheet.addEventListener("submit", searchTrouble);
   document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); else tick(); });
   addEventListener("dp-lang", () => { if (sheet && !sheet.hidden) render(); paintOffer(); });
   new MutationObserver(() => { if (!sheet.hidden) { if (!motionOn()) { playing = false; stop(); } } }).observe(root, { attributes: true, attributeFilter: ["data-motion"] });
@@ -164,12 +165,45 @@ function render() {
         <button type="button" class="sg-btn" data-act="refresh">${esc(t.refresh)}</button><span id="sg-read-at" class="sg-note"></span></div>
       <div id="sg-way-body" aria-live="polite"><p class="sg-note">${esc(t.reading)}</p></div></section>
     <section aria-labelledby="sg-trouble" id="sg-trouble-sec"><h3 id="sg-trouble">${esc(t.troubleH)}</h3><p class="sg-note">${esc(t.troubleLead)}</p>
+      <form id="sg-search" class="sg-search">
+        <label for="sg-query">${esc(L({ zh: "说出问题，或粘贴报错", en: "Describe the problem or paste an error" }))}</label>
+        <textarea id="sg-query" name="query" rows="3" required></textarea>
+        <button type="submit" class="sg-btn">${esc(L({ zh: "搜索解法", en: "Search for help" }))}</button>
+        <div class="sg-search-results" role="status"></div>
+      </form>
       <ol class="sg-checks">${troubleChecks.map((c) => `<li><h4>${esc(L(c.title))}</h4><p>${esc(L(c.body))}</p>${c.reburn ? `<p class="sg-why"><b>${esc(t.why)}</b>${esc(L(c.reburn))}</p>` : ""}</li>`).join("")}</ol>
       <p>${esc(L(troubleNote))}</p></section>
   </div></div>
   <footer class="sg-foot"><p class="sg-foot-say" role="status"></p><button type="button" class="sg-btn sg-primary" data-act="go" hidden></button></footer>`;
   paintMedia(); paintScene(); paintImport();
   if (stateNow) paintWay(); else readState();
+}
+async function searchTrouble(event) {
+  event.preventDefault();
+  const form = event.target;
+  const output = form.querySelector(".sg-search-results"), button = form.querySelector("button");
+  const query = form.elements.query.value.trim();
+  if (button.disabled || !query) return;
+  button.disabled = true;
+  output.textContent = L({ zh: "搜索中…", en: "Searching…" });
+  try {
+    const { message, results } = await api.backend.request("/api/troubleshoot", { query, lang: api.lang() });
+    if (message) {
+      output.textContent = message;
+    } else {
+      const confidence = L({ zh: "可信度", en: "Confidence" });
+      const manual = L({ zh: "手册", en: "Manual" });
+      output.innerHTML = `<ol class="sg-checks">${results.map((result) => `<li>
+        <h4>${esc(result.cause)}</h4><p>${confidence} ${Math.round(result.confidence * 100)}%</p>
+        <ul>${result.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ul>
+        ${result.commands.map((command) => `<p><code>${esc(command)}</code></p>`).join("")}
+        <p>${manual} <code>${esc(result.manual)}</code></p></li>`).join("")}</ol>`;
+    }
+  } catch {
+    output.textContent = L({ zh: "搜索失败。请确认本机网页服务已启动，或缩短日志后重试。", en: "Search failed. Check that the local web service is running or try a shorter log." });
+  } finally {
+    button.disabled = false;
+  }
 }
 function paintMedia() { sheet.querySelectorAll("[data-media]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.media === media))); }
 async function paintImport() {
