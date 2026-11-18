@@ -78,6 +78,24 @@ try {
   await until('document.documentElement.dataset.handshake==="ready" && !!document.getElementById("next") && location.hash==="#/lobby"');
   await pause(400);
   assert.deepEqual(await evaluate('navErrors'), []);
+  await until('!!document.querySelector("#lobby-guide button")');
+  await evaluate('document.querySelector("#lobby-guide button").click()');
+  await evaluate(`(() => {
+    const form = document.querySelector('#sg-search');
+    form.elements.query.value = 'Zone 0.91 (LBA 2011055): no period found';
+    form.scrollIntoView();
+    form.requestSubmit();
+  })()`);
+  await until('document.querySelector(".sg-search-results").textContent.includes("--speed 4x")');
+  assert.match(await evaluate('document.querySelector(".sg-search-results").textContent'), /可信度 100%/);
+  await shot('troubleshoot-zh');
+  await evaluate(`(() => {
+    const form = document.querySelector('#sg-search');
+    form.elements.query.value = 'unrelated router firmware setting';
+    form.requestSubmit();
+  })()`);
+  await until('document.querySelector(".sg-search-results").textContent.includes("没找到确定的答案")');
+  await evaluate('document.querySelector(".startguide [data-act=close]").click()');
   for (const theme of ['light','dark']) {
     await evaluate('document.documentElement.dataset.theme='+JSON.stringify(theme));
     await evaluate('document.getElementById("next").click()');await until('location.hash==="#/newplan"');
@@ -168,7 +186,16 @@ try {
   console.error('Network errors:',JSON.stringify(networkErrors));
   throw error;
 } finally {
-  socket?.close();browser?.kill();if(browser&&browser.exitCode===null)await new Promise(r=>browser.once('exit',r));
+  if (browser && browser.exitCode === null) {
+    const exited = new Promise(resolve => browser.once('exit', resolve));
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({id: ++seq, method: 'Browser.close'}));
+      await Promise.race([exited, pause(3000)]);
+    }
+    if (browser.exitCode === null) browser.kill();
+    await exited;
+  }
+  socket?.close();
   server.stdin.end();if(server.exitCode===null)await new Promise(r=>server.once('exit',r));
   assert.equal(resolve(dir,'..'),resolve(tmpdir()));rmSync(dir,{recursive:true,force:true,maxRetries:5,retryDelay:200});
 }
