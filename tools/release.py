@@ -1,6 +1,6 @@
-"""Offline release rehearsal. Never edits the checkout, downloads, tags or publishes.
+"""Release rehearsal. Never edits the checkout, tags or publishes.
 
-python tools/release.py --version 1.0.0.0-alpha --out DIR --cache WINPACK_CACHE [--neo DIR]
+python tools/release.py --version 1.0.0.0-alpha --out DIR --cache DIR [--windows-cache DIR] [--neo DIR]
 The output directory must be new or empty. All checks and build logs are retained.
 """
 from __future__ import annotations
@@ -23,7 +23,6 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 EXCLUDES = [':(exclude,icase,glob)**/*b[l]ind*', ':(exclude,icase,glob)**/*b[l]ind*/**']
-PACKAGES = ('numpy', 'Pillow', 'scipy', 'opencv-python')
 NEO_REQUIRED = ('README.md', 'README.zh.md', 'SCHEMA.md', 'PROVENANCE.json', 'LICENSE')
 
 
@@ -37,8 +36,10 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--version', required=True, type=public_version)
     parser.add_argument('--out', type=Path, required=True)
-    parser.add_argument('--cache', type=Path, default=os.environ.get('DISC_PROBE_WINPACK_CACHE'),
-                        help='offline Python embed ZIP and site-packages; or DISC_PROBE_WINPACK_CACHE')
+    parser.add_argument('--cache', type=Path, default=os.environ.get('DISC_PROBE_PACK_CACHE'),
+                        help='cache for pinned portable runtime downloads')
+    parser.add_argument('--windows-cache', type=Path, default=os.environ.get('DISC_PROBE_WINPACK_CACHE'),
+                        help='read-only Windows embed ZIP and base site-packages; defaults to --cache')
     parser.add_argument('--neo', type=Path, default=os.environ.get('DISC_NEO_DIR'),
                         help='read-only staged Disc Neo folder; or DISC_NEO_DIR; omitted means skipped')
     return parser, parser.parse_args(argv)
@@ -181,7 +182,7 @@ def build_disc_lab(snapshot, candidates, version, python, logs, env, checks):
     lab_env = dict(env, PYTHONPATH=str(snapshot))
     # test_package.py checks the repository layout itself (it clears PYTHONPATH and expects discprobe/ beside
     # disclab/); it runs in the full suite on the frozen commit, so the unpacked copy skips it.
-    run_check([*python, '-m', 'pytest', 'disclab/tests', '-q', '-p', 'no:cacheprovider',
+    run_check([*python, '-m', 'pytest', 'disclab/tests', '-q', '-p', 'xdist', '-n', '2', '-p', 'no:cacheprovider',
                '--ignore=disclab/tests/test_package.py'],
               extracted, logs / 'disc-lab-pytest.log', lab_env, checks)
     return dict(status='PASS', asset=target.name, core_source='frozen snapshot')
@@ -217,7 +218,14 @@ def finalize_assets(out, sources, manifest):
     inventory.sort(key=lambda entry: entry['file'])
     write_json(ready / 'manifest.json', dict(manifest, assets=inventory))
     sums = inventory + [dict(file='manifest.json', sha256=sha256(ready / 'manifest.json'))]
-    (ready / 'SHA256SUMS.txt').write_text(''.join(f'{p["sha256"]}  {p["file"]}\n' for p in sums), encoding='ascii')
+    lines = []
+    for platform in ('windows', 'linux'):
+        if platform in manifest:
+            runtime = manifest[platform]
+            pins = ' '.join(f'{name}=={version}' for name, version in runtime['dependencies'].items())
+            lines.append(f'# {platform}: Python {runtime["python"]} {pins}\n')
+    lines.extend(f'{p["sha256"]}  {p["file"]}\n' for p in sums)
+    (ready / 'SHA256SUMS.txt').write_text(''.join(lines), encoding='ascii')
     assets = out / 'assets'
     ready.rename(assets)
     return assets
@@ -243,14 +251,15 @@ def main(argv=None):
         if out == neo or out in neo.parents or neo in out.parents:
             parser.error('output and the read-only Disc Neo staging folder must not overlap')
     if not args.cache:
-        parser.error('set --cache or DISC_PROBE_WINPACK_CACHE to an existing offline cache')
+        parser.error('set --cache or DISC_PROBE_PACK_CACHE for portable downloads')
     cache = args.cache.resolve()
-    if not allowed(cache):
+    windows_cache = (args.windows_cache or cache).resolve()
+    if not allowed(cache) or not allowed(windows_cache):
         parser.error('excluded cache path')
-    embed = cache / 'python-3.13.14-embed-amd64.zip'
-    deps = cache / 'site-packages'
+    embed = windows_cache / 'python-3.13.14-embed-amd64.zip'
+    deps = windows_cache / 'site-packages'
     if not embed.is_file() or not deps.is_dir():
-        parser.error('cache needs python-3.13.14-embed-amd64.zip and site-packages/')
+        parser.error('Windows cache needs python-3.13.14-embed-amd64.zip and site-packages/')
     node = shutil.which('node')
     if not node:
         parser.error('Node is required, never downloaded')
@@ -293,7 +302,7 @@ def main(argv=None):
         copy_code = ("import importlib.util,shutil; "
                      f"s=importlib.util.spec_from_file_location('winpack_deps',{str(snapshot/'tools/build_winpack.py')!r}); "
                      "b=importlib.util.module_from_spec(s); s.loader.exec_module(b); "
-                     f"b.copy_packages({str(deps)!r},{str(out/'wheel-dependencies')!r}); "
+                     f"b.copy_packages({str(deps)!r},{str(out/'wheel-dependencies')!r},{str(cache)!r}); "
                      f"shutil.copytree({str(out/'wheel-dependencies')!r},{str(venv/'Lib/site-packages')!r},dirs_exist_ok=True)")
         run_check([*python, '-c', copy_code], out, logs/'wheel-dependencies.log', env, checks)
         wheel_python = str(venv/'Scripts/python.exe')
@@ -304,19 +313,21 @@ def main(argv=None):
         run_check([wheel_python, '-X', 'utf8', '-B', str(snapshot/'tools/verify_package.py'),
                    '--artifact', str(wheel), '--expected-root', str(venv), '--version', args.version,
                    '--out', str(out/'wheel-proof')], out, logs/'wheel-verify.log', env, checks)
-        run_check([*python, '-m', 'pytest', '-q', 'tests', 'tests/scipy_oracle_checks.py',
-                   '-p', 'no:cacheprovider', '--ignore-glob=*b[l]ind*'], snapshot, logs / 'pytest.log', env, checks)
+        test_env = dict(env, PYTHONPATH=str(out / 'wheel-dependencies'))
+        run_check([*python, '-m', 'pytest', '-q', '-p', 'xdist', '-n', '2', 'tests', 'tests/scipy_oracle_checks.py',
+                   '-p', 'no:cacheprovider', '--ignore-glob=*b[l]ind*'], snapshot, logs / 'pytest.log', test_env, checks)
         scripts = sorted(p for p in (snapshot / 'tests').iterdir() if allowed(p.name)
                          and p.name.startswith('test_') and p.suffix in ('.js', '.mjs', '.cjs'))
         if not scripts:
             raise RuntimeError('no Node tests found')
         for script in scripts:
-            run_check([node, str(script)], snapshot, logs / (script.name + '.log'), env, checks, 180)
-        run_check([*python, '-m', 'discprobe', 'selftest'], snapshot, logs / 'selftest.log', env, checks)
+            run_check([node, str(script)], snapshot, logs / (script.name + '.log'), test_env, checks, 180)
+        run_check([*python, '-m', 'discprobe', 'selftest'], snapshot, logs / 'selftest.log', test_env, checks)
         run_check([*python, str(snapshot / 'tools/build_winpack.py'), '--source-root', str(snapshot),
-                   '--commit', commit, '--ref', commit, '--label', args.version, '--cache', str(cache), '--out', str(out / 'winpack')],
+                   '--commit', commit, '--ref', commit, '--label', args.version, '--cache', str(cache),
+                   '--windows-cache', str(windows_cache), '--out', str(out / 'winpack')],
                   snapshot, logs / 'winpack-build.log', env, checks)
-        disc_lab = build_disc_lab(snapshot, candidates, args.version, python, logs, env, checks)
+        disc_lab = build_disc_lab(snapshot, candidates, args.version, python, logs, test_env, checks)
         disc_neo = build_disc_neo(neo, candidates, args.version)
         sources = [(p, 'disc-probe') for p in sorted(candidates.iterdir())
                    if p.suffix == '.whl' or p.name.endswith('.tar.gz')]
@@ -329,13 +340,15 @@ def main(argv=None):
         canonical = subprocess.check_output([*python, '-c', 'import _build_backend as b; print(b.project()["version"])'],
                                             cwd=snapshot, env=env, text=True).strip()
         gui = json.loads((snapshot / 'discprobe/web/gui.json').read_text(encoding='utf-8'))
-        dependencies = {d.metadata['Name']: d.version for d in importlib.metadata.distributions(path=[str(deps)])
-                        if d.metadata['Name'].lower() in {p.lower() for p in PACKAGES}}
-        manifest = dict(schema=2, status='PASS', **info, pep440_version=canonical, gui_version=gui['gui_version'],
+        full = f'disc-probe-{args.version}-full'
+        with zipfile.ZipFile(out / 'winpack' / f'{full}.zip') as archive:
+            portable = json.loads(archive.read(f'{full}/release-build.json'))
+        manifest = dict(schema=3, status='PASS', **info, pep440_version=canonical, gui_version=gui['gui_version'],
                         resource_limits=dict(image_workers=1, math_threads=1),
                         python=sys.version, node=subprocess.check_output([node, '--version'], text=True).strip(),
-                        check_dependencies={n: importlib.metadata.version(n) for n in (*PACKAGES, 'pytest')},
-                        windows=dict(python='3.13.14', dependencies=dependencies, embed_sha256=sha256(embed)),
+                        check_dependencies=dict(portable['windows']['dependencies'],
+                                                pytest=importlib.metadata.version('pytest')),
+                        windows=portable['windows'], linux=portable['linux'],
                         checks=checks, disc_lab=disc_lab, disc_neo=disc_neo,
                         brand_assets=brand_inventory(snapshot))
         if (ROOT / 'discprobe/version.py').read_bytes() != original_version or clean_commit() != commit:

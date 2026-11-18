@@ -78,7 +78,7 @@ python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --te
 
 从 1.0.0.0-alpha 起，大多数步骤可以在本地网页里做，不用记命令。
 
-- **打开**：Windows 完整包解压后，双击 `开始 Start.bat`，浏览器会打开大厅；关掉那个黑色窗口就停止。已经装好 Python 的话，在仓库文件夹里运行 `python -m discprobe webui`，再打开 http://localhost:8765 。
+- **打开**：解压完整包后，Windows 双击 `开始 Start (Windows).bat`，Linux 在解压目录运行 `bash start-linux.sh`。浏览器会打开大厅。Windows 关闭启动窗口即可停止，Linux 在终端按 Ctrl+C。已经装好 Python 的话，也可以在仓库文件夹运行 `python -m discprobe webui`，再打开 http://localhost:8765 。
 - **新手引导**：大厅里点"看新手引导"。它按你已经做过的步骤，告诉你下一步做什么。
 - **设计**：导入图片，摆放位置，分图层，调明暗，先看看刻出来大概是什么样。作品存在本机的作品库里，关掉网页也不会丢。
 - **用手机拍照核对（DVD）**：先刻一张检查盘，用同一个局域网里的手机扫码，拍好的照片直接传到电脑上。程序会说明哪张照片不能用、为什么，比如没拍全整张盘、光线不对。几张照片读出的结果互相一致，才会拿来修正出图。
@@ -98,12 +98,14 @@ python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --te
 
 也可以不用 git，到 [Releases](https://github.com/Ashley-QwQ/disc-probe/releases) 下载打包好的版本（1.0.0.0-alpha 是预发布版，不显示为 Latest）：
 
-- `full-win64`：Windows 用，自带 Python 和依赖。解压后双击 `开始 Start.bat`，不用另外安装。下面的安装步骤可以跳过。
+- `full`：同一个 ZIP 支持 Windows x86_64 和 Linux x86_64（glibc 2.28 或更新），内含两套 Python 3.13 和依赖。解压即可启动。
 - `core`：只有 disc-probe，要你已经装好 Python。解压后在文件夹里运行 `python -m pip install -r requirements.txt`，再运行下面的 `selftest`。
 
 Windows 上用管理员身份打开终端，安装依赖，并用模拟驱动器确认环境正常。不方便用管理员身份时，在读盘的命令后加 `--transport imapi`：它经 Windows 自带的 IMAPI2 刻录接口（`IDiscRecorder2Ex`）发同样的命令，普通用户即可；默认的 `auto` 在 SPTI 被拒时会自动改用它。
 
 Linux 上经 `SG_IO` 直接给 `/dev/sr0` 发命令，不需要额外的包，`--drive` 写 `/dev/sr0`（或 `sr0`）。用户要能读写这个设备，通常加入 `cdrom` 组即可。盘被自动挂载也能测，不用先卸载；`/dev/sr0` 被别的程序独占时，程序会改用对应的 `/dev/sgN`。`timing` 和 `geo` 会尝试实时调度（`SCHED_FIFO`），这需要 root 或 `CAP_SYS_NICE`，做不到就退回普通优先级。`--transport` 只在 Windows 上有意义。
+
+本次 Linux 验证使用的机器没有光驱。实盘读取、刻录以及网页发起的刻录均未实测。若程序回退到 `/dev/sgN`，用户也需要读写该设备的权限。
 
 ```bash
 git clone https://github.com/Ashley-QwQ/disc-probe
@@ -114,7 +116,7 @@ cd disc-probe
 ```
 
 ```bash
-python -m pip install numpy pillow scipy opencv-python
+python -m pip install numpy pillow scipy opencv-python-headless
 ```
 
 ```bash

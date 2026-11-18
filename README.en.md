@@ -78,7 +78,7 @@ The preview's colours only tell the textures apart, so it won't match the disc. 
 
 Since 1.0.0.0-alpha most steps can be done in a local web page, with no commands to remember.
 
-- **Open it**: unpack the Windows full package and double-click `开始 Start.bat`; the browser opens the lobby, and closing the black window stops it. With Python already installed, run `python -m discprobe webui` in the repository folder and open http://localhost:8765 .
+- **Open it**: extract the full package. On Windows, double-click `开始 Start (Windows).bat`. On Linux, run `bash start-linux.sh` from the extracted folder. The browser opens the lobby. Close the launch window on Windows or press Ctrl+C in the Linux terminal to stop it. With Python already installed, you can also run `python -m discprobe webui` in the repository folder and open http://localhost:8765 .
 - **Beginner's guide**: in the lobby, open the guide. It looks at the steps you have already done and tells you what to do next.
 - **Design**: import a picture, place it, use layers, adjust light and dark, and see roughly how it will look once burned. Works are kept in a library on your computer and survive closing the page.
 - **Checking with phone photos (DVD)**: burn a check disc, scan the code with a phone on the same local network, and the photos go straight to the computer. The program says which photos it cannot use and why, for example the whole disc is not in the frame or the lighting is wrong. Only when several photos agree is their reading used to correct the image.
@@ -98,12 +98,14 @@ You need blank discs from the same batch. The minimum, when everything is right 
 
 You can also skip git and download a package from [Releases](https://github.com/Ashley-QwQ/disc-probe/releases) (1.0.0.0-alpha is a pre-release, so it is not marked Latest):
 
-- `full-win64`: for Windows, with its own Python and dependencies. Unpack it and double-click `开始 Start.bat`, nothing to install. You can skip the install steps below.
+- `full`: one ZIP for Windows x86_64 and Linux x86_64 (glibc 2.28 or later), each with its own Python 3.13 and dependencies. Extract it and start the launcher for your platform.
 - `core`: disc-probe alone, for a machine that has Python. Unpack it, run `python -m pip install -r requirements.txt` in the folder, then the `selftest` below.
 
 On Windows, open a terminal as administrator, install the dependencies, and check your setup on the simulated drive. If you cannot run as administrator, add `--transport imapi` to the drive commands: it sends the same CDBs through Windows' own IMAPI2 recorder interface (`IDiscRecorder2Ex`), which a standard user may call. The default, `auto`, switches to it when SPTI is refused.
 
 On Linux, commands go straight to `/dev/sr0` through `SG_IO`, with no extra packages; pass `--drive /dev/sr0` (or `sr0`). Your user needs read and write access to the device, usually by joining the `cdrom` group. A disc that was mounted automatically can stay mounted; if another program holds `/dev/sr0` exclusively, the tool falls back to the matching `/dev/sgN`. `timing` and `geo` try real-time scheduling (`SCHED_FIFO`), which needs root or `CAP_SYS_NICE`, and otherwise run at normal priority. `--transport` only applies on Windows.
+
+The Linux test machines have no optical drives. Disc reading, burning, and burning from the web UI await hardware testing. If the program falls back to `/dev/sgN`, your user also needs read and write access to that device.
 
 ```bash
 git clone https://github.com/Ashley-QwQ/disc-probe
@@ -114,7 +116,7 @@ cd disc-probe
 ```
 
 ```bash
-python -m pip install numpy pillow scipy opencv-python
+python -m pip install numpy pillow scipy opencv-python-headless
 ```
 
 ```bash

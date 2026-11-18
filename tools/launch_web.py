@@ -1,4 +1,4 @@
-"""Portable Windows launcher: bind first, then open the bundled lobby."""
+"""Portable launcher: bind first, then open the bundled lobby."""
 from __future__ import annotations
 
 import argparse

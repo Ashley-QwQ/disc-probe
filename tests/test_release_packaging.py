@@ -339,8 +339,11 @@ def rehearsal(tmp_path, monkeypatch):
         if log.name == 'winpack-build.log':
             winpack = out / 'winpack'
             winpack.mkdir()
-            for kind in ('core', 'full-win64'):
-                (winpack / f'disc-probe-1.0.0.0-alpha-{kind}.zip').write_bytes(b'fake Windows package')
+            (winpack / 'disc-probe-1.0.0.0-alpha-core.zip').write_bytes(b'fake core package')
+            full = 'disc-probe-1.0.0.0-alpha-full'
+            runtime = dict(python='3.13.14', dependencies={'opencv-python-headless': '5.0.0.93'})
+            with zipfile.ZipFile(winpack / f'{full}.zip', 'w') as archive:
+                archive.writestr(f'{full}/release-build.json', json.dumps(dict(windows=runtime, linux=runtime)))
 
     monkeypatch.setattr(release, 'clean_commit', clean)
     monkeypatch.setattr(release, 'git', git)
@@ -369,6 +372,10 @@ def test_orchestration_packages_and_gates(rehearsal, tmp_path, with_packages):
     manifest = json.loads((out / 'assets/manifest.json').read_text())
     assert manifest['public_version'] == '1.0.0.0-alpha'
     assert manifest['pep440_version'] == '1.0.0.0a0'
+    for platform in ('windows', 'linux'):
+        assert manifest[platform]['dependencies'] == {'opencv-python-headless': '5.0.0.93'}
+        assert f'# {platform}: Python 3.13.14 opencv-python-headless==5.0.0.93' in (
+            out / 'assets/SHA256SUMS.txt').read_text(encoding='ascii')
     assert {p['package'] for p in manifest['assets']} == (
         {'disc-probe', 'disc-lab', 'disc-neo'} if with_packages else {'disc-probe'})
     assert manifest['disc_lab']['status'] == ('PASS' if with_packages else 'skipped')

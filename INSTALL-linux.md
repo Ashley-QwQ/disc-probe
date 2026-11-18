@@ -1,9 +1,24 @@
-# Linux 安装（1.0.0.0-alpha）
+# Linux 启动与安装
 
-这是源码和通用 wheel，需要系统 Python 3.11 或更新版本；本次验证使用
-Ubuntu x86_64、Python 3.12。NumPy、Pillow、SciPy、OpenCV 的二进制 wheel
-必须与机器架构、Python ABI 和 glibc 兼容。没有打包 Linux Python 运行时。
-公开版本写作 `1.0.0.0-alpha`，pip 按 PEP 440 将其规范成 `1.0.0.0a0`。
+## 完整包
+
+`disc-probe-<版本>-full.zip` 同时带 Windows 和 Linux x86_64 便携 Python 3.13
+及依赖。Linux 需要 glibc 2.28 或更新。将整个 ZIP 解压到可写目录，
+进入解压目录运行：
+
+```sh
+bash start-linux.sh
+```
+
+浏览器会打开大厅。也可以打开终端打印的地址。按 Ctrl+C 停止服务。
+完整包启动时直接用包内的 Python，无需系统 Python、虚拟环境或安装依赖。
+同一个 ZIP 在 Windows 上解压后，双击 `开始 Start (Windows).bat` 即可启动。
+
+## 通用 wheel 或源码
+
+这些安装方式需要 Python 3.11 或更新版本。离线使用时，提前准备与架构、
+Python ABI 和 glibc 兼容的 NumPy、Pillow、SciPy 和 headless OpenCV wheel。
+公开版本 `1.0.0.0-alpha` 在 wheel 文件名中按 PEP 440 写作 `1.0.0.0a0`。
 
 把发行 wheel 和匹配的依赖 wheel 放进 `wheelhouse/`，可离线安装：
 
@@ -46,14 +61,13 @@ python3 -m venv --without-pip dp-new-venv
 | CD 介质和速度检查 | `wodim`（内置 CD 路径也需要它，不能只装 `cdrdao`） |
 
 当前内置 `burn` 只接受 DVD / CD；BD 需走生成镜像后的外部刻录步骤，
-本次没有验证这些实盘路径。
+本次 Linux 验证机器没有光驱，实盘读取、刻录和网页发起刻录均未实测。
 Linux 用户需有 `/dev/sr*` 的读写权限，通常加入 `cdrom` 组后重新登录：
 
 ```sh
 sudo usermod -aG cdrom "$USER"
 ```
 
-无设备、权限不足或缺工具时先解决相应条件，不以 root 运行整个网页服务。
-本次演练没有访问光驱或执行刻录。Windows 内置 CD DAO 尚未实现，
-后端会明确拒绝；可转到 Linux 的 `cdrdao` 路径。Windows 全量 ZIP 带齐
-Python 照片依赖并不代表带齐所有介质的刻录程序。
+若 `/dev/sr*` 被独占，程序会回退到对应的 `/dev/sgN`，该设备也需要读写权限。
+以普通用户运行网页服务。Windows 内置 CD DAO 尚未实现，
+可使用 Linux 的 `cdrdao` 路径。上表中的刻录工具需另外安装。

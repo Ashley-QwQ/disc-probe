@@ -139,7 +139,7 @@ class HandshakeTests(unittest.TestCase):
             self.assertEqual(wheel.read('discprobe/web/home/faxnews/community.json'),
                              (ROOT / 'news/community.json').read_bytes())
             metadata = wheel.read(next(n for n in names if n.endswith('.dist-info/METADATA'))).decode()
-            for dependency in ('numpy', 'Pillow', 'scipy', 'opencv-python'):
+            for dependency in ('numpy', 'Pillow', 'scipy', 'opencv-python-headless'):
                 self.assertIn('Requires-Dist: ' + dependency, metadata)
             entries = wheel.read(next(n for n in names if n.endswith('/entry_points.txt'))).decode()
             self.assertIn('disc-probe = discprobe.__main__:main', entries)

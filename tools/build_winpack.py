@@ -1,34 +1,65 @@
-"""Build the two release packages. The full one is disc-probe with its own Python for Windows, unpacked and double-clicked,
-nothing installed. The core one is only disc-probe, for a machine that has Python and installs the rest itself.
+"""Build the core ZIP and the full ZIP with portable Windows and Linux Python.
 
     python tools/build_winpack.py --ref v0.1.0 --label 0.1.0 --out D:/disc-probe-dist
 
-It uses a local cache only. The full package is checked before and after the
-reviewed trim; a failed selftest never produces a full zip. --worktree includes
+The Windows embed and base dependencies come from a read-only cache.
+Missing pinned Linux inputs and the Windows headless wheel are cached from
+their official sources. The Windows runtime is checked before and after trim.
+--worktree includes
 uncommitted source. --audit-tests also runs the external pytest harness.
 """
 
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import importlib.metadata
 import io
 import json
 import os
+from pathlib import Path, PurePosixPath
+import stat
 import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
+import urllib.request
 import zipfile
 
 PYTHON = "3.13.14"
-PACKAGES = ("numpy", "pillow", "scipy", "opencv-python")
+PACKAGES = ("numpy", "pillow", "scipy", "opencv-python-headless")
+DEPENDENCIES = dict(zip(PACKAGES, ("2.5.1", "12.3.0", "1.18.1", "5.0.0.93"), strict=True))
+PY_MINOR = ".".join(PYTHON.split(".")[:2])
+LINUX_TAG = "20260610"
+LINUX_ARCHIVE = f"cpython-{PYTHON}+{LINUX_TAG}-x86_64-unknown-linux-gnu-install_only.tar.gz"
+LINUX_SHA256 = "31ebbb024fecb446d7f25a5b59ca1d4955597ca3f5b4b76f55b30a8987eb61c9"
+LINUX_URL = ("https://github.com/astral-sh/python-build-standalone/releases/download/"
+             f"{LINUX_TAG}/{LINUX_ARCHIVE}")
+LINUX_PLATFORMS = ("manylinux_2_28_x86_64", "manylinux_2_27_x86_64", "manylinux2014_x86_64")
+LINUX_WHEELS = {
+    "numpy": ("numpy-2.5.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+              "9726558e8db4a5bf7929a70ae50f63abda4daf0efe810e3bfbab95976f75fc1a"),
+    "pillow": ("pillow-12.3.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+               "0847a763afefb695bc912d7c131e7e0632d4edc1d8698f58ddabec8e46b8b6d3"),
+    "scipy": ("scipy-1.18.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+              "fdaf5ea890a6183d0565f51a61799d67081bd5b1cf03c5f4b3fd3732108625c9"),
+    "opencv-python-headless": ("opencv_python_headless-5.0.0.93-cp37-abi3-manylinux_2_28_x86_64.whl",
+                               "ed709fdf9aa0bd1f2ed8549e71d19449b03a675bb581eb292285f6861953be37"),
+}
+WINDOWS_WHEELS = {
+    "opencv-python-headless": ("opencv_python_headless-5.0.0.93-cp37-abi3-win_amd64.whl",
+                              "829717b6a95554f273e49e357cee3b3a2a26b6f4842fbc1bed2b45bdd8f87e0e"),
+}
 SELFTEST_DATA = "tests/data/bd_discussion_samples/local_uj272_bd_zones.csv"
 SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_backend.py", "INSTALL-linux.md", "docs/API_VERSIONING.md", "docs/MANUAL.md", "docs/MANUAL.en.md", "README.md", "README.en.md", "STYLE.md", "DESIGN.md", "LICENSE", SELFTEST_DATA)
 LEAVE_OUT = ("__pycache__", "tests", "test", "*.pyi", "*.pdb")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LINUX_START = "start-linux.sh"
+WINDOWS_START = "开始 Start (Windows).bat"
+READ_FIRST = "先看我 Read me first.txt"
 
 START = """@echo off
 rem Double-click to open the web lobby. Close this window to stop the server.
@@ -52,10 +83,10 @@ echo 这个窗口已经准备好。也可以直接输入命令；用完关闭即
 
 NOTICE = """disc-probe, GPL-3.0-or-later. See LICENSE. Source: https://github.com/Ashley-QwQ/disc-probe
 
-This package also carries, with the removals recorded in winpack-keep-list.json:
-  Python {python} (python\\LICENSE.txt)
-  {packages}
-Their licences are in python\\Lib\\site-packages\\*.dist-info.
+This package carries Python {python} for Windows and Linux, plus {packages}.
+Runtime sources and versions are listed in release-build.json. The trim is
+recorded in winpack-keep-list.json and linuxpack-keep-list.json.
+Dependency licences are in each runtime's site-packages/*.dist-info.
 
 To remove it, delete this folder. Results are in results\\ here, and Merge Sectors keeps its board in
 %LOCALAPPDATA%\\disc-probe.
@@ -86,6 +117,13 @@ def allowed(path):
                    for part in os.path.normpath(path).replace("\\", "/").split("/"))
 
 
+def ignore_files(patterns):
+    def ignored(_directory, names):
+        return [name for name in names if not allowed(name)
+                or any(fnmatch.fnmatch(name, pattern) for pattern in patterns)]
+    return ignored
+
+
 def copy_source(a, root):
     if getattr(a, 'source_root', None):
         for name in (*SOURCE, 'release-build.json'):
@@ -94,7 +132,7 @@ def copy_source(a, root):
             if not os.path.exists(source):
                 raise FileNotFoundError(source)
             if os.path.isdir(source):
-                shutil.copytree(source, target, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '*b[l]ind*', 'delta_map_1x.npy'))
+                shutil.copytree(source, target, ignore=ignore_files(('__pycache__', '*.pyc')))
             else:
                 os.makedirs(os.path.dirname(target), exist_ok=True)
                 shutil.copy2(source, target)
@@ -127,22 +165,152 @@ def fresh(a, name):
     return root
 
 
-def copy_packages(cache, destination):
+def copy_windows_base(cache, destination):
     # The shared cache also contains old distributions and a downloaded wheel.
     # Select distributions explicitly; never copy the whole cache directory.
-    os.makedirs(destination)
     for name in sorted(os.listdir(cache)):
         if not allowed(name):
             continue
         low = name.lower()
-        if not (low in ("numpy", "numpy.libs", "pil", "scipy", "scipy.libs", "cv2", "opencv_python.libs") or
-                low.startswith(("numpy-", "pillow-", "scipy-", "opencv_python-")) and low.endswith(".dist-info")):
+        if not (low in ("numpy", "numpy.libs", "pil", "scipy", "scipy.libs") or
+                low in {f"{p}-{DEPENDENCIES[p]}.dist-info" for p in PACKAGES[:-1]}):
             continue
         shutil.copytree(os.path.join(cache, name), os.path.join(destination, name),
-                        ignore=shutil.ignore_patterns(*LEAVE_OUT, "*b[l]ind*"))
-    for name in ("numpy", "PIL", "scipy", "cv2"):
+                        ignore=ignore_files(LEAVE_OUT))
+    for name in ("numpy", "PIL", "scipy"):
         if not os.path.isdir(os.path.join(destination, name)):
             raise FileNotFoundError(f"cached package missing: {name}")
+
+
+def verify_digest(path, expected):
+    if sha256(path) != expected:
+        raise ValueError(f"SHA-256 mismatch for {path}")
+
+
+def pip_command(command, *platforms):
+    return [sys.executable, "-B", "-m", "pip", "--disable-pip-version-check", command,
+            "--no-cache-dir", "--no-deps", "--only-binary=:all:", "--implementation", "cp",
+            "--python-version", PY_MINOR,
+            *[flag for platform in platforms for flag in ("--platform", platform)]]
+
+
+def install_wheels(cache, destination, wheels, platforms):
+    cache = Path(cache).resolve()
+    cache.mkdir(parents=True, exist_ok=True)
+    # Ignore local pip settings so no other index or transport enters the build.
+    env = {key: value for key, value in os.environ.items() if not key.upper().startswith("PIP_")}
+    env["PIP_CONFIG_FILE"] = os.devnull
+    missing = [name for name, (file, _) in wheels.items() if not (cache / file).is_file()]
+    if missing:
+        # Download in isolation so a failed transfer never poisons the cache.
+        with tempfile.TemporaryDirectory(dir=cache) as stage:
+            subprocess.run([*pip_command("download", *platforms), "--index-url", "https://pypi.org/simple/",
+                            "--dest", stage, *[f"{name}=={DEPENDENCIES[name]}" for name in missing]],
+                           env=env, check=True)
+            for name in missing:
+                file, expected = wheels[name]
+                candidate = Path(stage) / file
+                verify_digest(candidate, expected)
+                candidate.replace(cache / file)
+    for file, expected in wheels.values():
+        verify_digest(cache / file, expected)
+        with zipfile.ZipFile(cache / file) as archive:
+            if any(not allowed(member) for member in archive.namelist()):
+                raise ValueError(f"excluded wheel entry in {file}")
+    subprocess.run([*pip_command("install", *platforms), "--no-index", "--no-compile",
+                    "--target", str(destination), *[str(cache / file) for file, _ in wheels.values()]],
+                   env=env, check=True)
+
+
+def installed_versions(destination):
+    versions = {d.metadata["Name"].lower(): d.version
+                for d in importlib.metadata.distributions(path=[str(destination)])}
+    actual = {name: versions.get(name) for name in PACKAGES}
+    if actual != DEPENDENCIES or "opencv-python" in versions:
+        raise ValueError(f"unexpected dependency set at {destination}: {versions}")
+    return actual
+
+
+def copy_packages(windows_cache, destination, cache):
+    # pip --target writes to a fresh directory; it must never merge two cv2 trees.
+    install_wheels(cache, destination, WINDOWS_WHEELS, ("win_amd64",))
+    copy_windows_base(windows_cache, destination)
+    return installed_versions(destination)
+
+
+def linux_archive(cache):
+    cache = Path(cache)
+    cache.mkdir(parents=True, exist_ok=True)
+    path = cache / LINUX_ARCHIVE
+    if not path.is_file():
+        with tempfile.TemporaryDirectory(dir=cache) as stage:
+            candidate = Path(stage) / path.name
+            with urllib.request.urlopen(LINUX_URL, timeout=60) as source, candidate.open("wb") as output:
+                shutil.copyfileobj(source, output)
+            verify_digest(candidate, LINUX_SHA256)
+            candidate.replace(path)
+    verify_digest(path, LINUX_SHA256)
+    return path
+
+
+def build_linux(cache, root):
+    removed = {
+        "python/include": "Headers for building CPython extensions.",
+        "python/lib/pkgconfig": "Development metadata for linking CPython.",
+        f"python/lib/libpython{PY_MINOR}.so": "Linker alias; keep the versioned runtime library.",
+        f"python/bin/python{PY_MINOR}-config": "Development script for linking CPython.",
+        "python/bin/python3-config": "Alias for the development script.",
+        f"python/lib/python{PY_MINOR}/config-{PY_MINOR}-x86_64-linux-gnu": "Build configuration and static archive.",
+        f"python/lib/python{PY_MINOR}/test": "CPython test suite.",
+        "python/share/terminfo": "Optional terminal database. None of the bundled commands use curses.",
+    }
+    base = Path(root) / "linux"
+    aliases = ("python/bin/python", "python/bin/python3")
+    links = {}
+    with tarfile.open(linux_archive(cache)) as archive:
+        for member in archive:
+            name = member.name
+            parts = PurePosixPath(name).parts
+            if not parts or parts[0] != "python" or ".." in parts or "\\" in name:
+                raise ValueError("unexpected Linux runtime path")
+            if not allowed(name) or any(name == p or name.startswith(p + "/") for p in removed):
+                continue
+            target = base.joinpath(*parts)
+            if member.isdir():
+                target.mkdir(parents=True, exist_ok=True)
+            elif member.isfile():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with archive.extractfile(member) as source, target.open("wb") as output:
+                    shutil.copyfileobj(source, output)
+            elif member.issym() and "/" not in member.linkname and member.linkname not in (".", ".."):
+                if not allowed(member.linkname):
+                    raise ValueError("excluded Linux runtime link")
+                links[name] = member.linkname
+            else:
+                raise ValueError("unexpected Linux runtime archive entry type")
+    for name, link in links.items():
+        target = base / name
+        if name in aliases and link == f"python{PY_MINOR}":
+            # Keep ZIP entries regular for Windows unpackers, without duplicating the ELF.
+            target.write_text(f'#!/bin/sh\nexec "$(dirname -- "$0")/{link}" "$@"\n', encoding="ascii", newline="\n")
+        else:
+            shutil.copyfile(target.with_name(link), target)
+    site = base / f"python/lib/python{PY_MINOR}/site-packages"
+    # An independent target keeps pip from replacing the existing stdlib site-packages.
+    staging = base / "wheel-target"
+    install_wheels(cache, staging, LINUX_WHEELS, LINUX_PLATFORMS)
+    shutil.copytree(staging, site, dirs_exist_ok=True, ignore=ignore_files((*LEAVE_OUT, "bin", "Scripts")))
+    shutil.rmtree(staging)
+    keep = dict(removed=removed, wheel_omit=[*LEAVE_OUT, "bin", "Scripts"],
+                python_aliases=list(aliases), runtime="Keep standard library modules, shared libraries and licences.")
+    write_json(Path(root) / "linuxpack-keep-list.json", keep)
+    return dict(python=PYTHON, dependencies=installed_versions(site), platform="linux-x86_64-glibc-2.28",
+                runtime=dict(file=LINUX_ARCHIVE, sha256=LINUX_SHA256),
+                wheels={name: dict(file=file, sha256=digest) for name, (file, digest) in LINUX_WHEELS.items()})
+
+
+def write_json(path, value):
+    Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def check_pack(a, root, stage):
@@ -240,7 +408,24 @@ def trim_pack(a, root):
 
 
 def pack(root: str, out: str, commit: str) -> None:
-    archive = shutil.make_archive(root, "zip", out, os.path.basename(root))
+    archive = root + ".zip"
+    prefix = Path(root).name
+    with tempfile.TemporaryDirectory(dir=out) as stage:
+        candidate = Path(stage) / Path(archive).name
+        with zipfile.ZipFile(candidate, "w", compression=zipfile.ZIP_DEFLATED) as z:
+            for folder, dirs, names in os.walk(root):
+                dirs[:] = sorted(d for d in dirs if allowed(d))
+                for name in sorted(n for n in names if allowed(n)):
+                    source = Path(folder) / name
+                    relative = source.relative_to(root).as_posix()
+                    entry = zipfile.ZipInfo.from_file(source, f"{prefix}/{relative}")
+                    executable = relative == LINUX_START or relative.startswith("linux/python/bin/")
+                    entry.create_system = 3
+                    entry.external_attr = (stat.S_IFREG | (0o755 if executable else 0o644)) << 16
+                    entry.compress_type = zipfile.ZIP_DEFLATED
+                    with source.open("rb") as stream, z.open(entry, "w") as output:
+                        shutil.copyfileobj(stream, output)
+        candidate.replace(archive)
     digest = sha256(archive)
     with open(archive + ".sha256", "w", encoding="ascii", newline="\n") as f:
         f.write(f"{digest}  {os.path.basename(archive)}\n")
@@ -266,7 +451,8 @@ def main() -> None:
     ap.add_argument("--ref", default="main")
     ap.add_argument("--label", default="main")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--cache", help="existing offline cache (default OUT/cache)")
+    ap.add_argument("--cache", help="pinned runtime and wheel download cache (default OUT/cache)")
+    ap.add_argument("--windows-cache", help="read-only Windows embed ZIP and base site-packages (default --cache)")
     ap.add_argument("--source-root", help="prepared release snapshot, paired with --commit")
     ap.add_argument("--commit", help="full provenance commit for a prepared snapshot")
     ap.add_argument("--worktree", action="store_true", help="include current uncommitted source")
@@ -279,12 +465,12 @@ def main() -> None:
     if a.source_root:
         HERE = os.path.abspath(a.source_root)
     a.audit_id = str(time.time_ns())
-    if ".".join(map(str, sys.version_info[:2])) != ".".join(PYTHON.split(".")[:2]):
+    if ".".join(map(str, sys.version_info[:2])) != PY_MINOR:
         sys.exit(f"run this with Python {PYTHON}, not {sys.version.split()[0]}")
     a.out = os.path.abspath(a.out)
     os.makedirs(a.out, exist_ok=True)
     # A failed rebuild must not leave an older zip looking like its result.
-    for kind in ("core", "full-win64"):
+    for kind in ("core", "full"):
         for suffix in (".zip", ".zip.sha256"):
             old = os.path.abspath(os.path.join(a.out, f"disc-probe-{a.label}-{kind}" + suffix))
             if os.path.dirname(old) != a.out:
@@ -292,35 +478,51 @@ def main() -> None:
             if os.path.isfile(old):
                 os.remove(old)
     cache = os.path.abspath(a.cache or os.path.join(a.out, "cache"))
-    embed = os.path.join(cache, f"python-{PYTHON}-embed-amd64.zip")
+    windows_cache = os.path.abspath(a.windows_cache or cache)
+    if not all(allowed(path) for path in (cache, windows_cache)):
+        raise ValueError("excluded cache path")
+    embed = os.path.join(windows_cache, f"python-{PYTHON}-embed-amd64.zip")
     if not os.path.exists(embed):
         raise FileNotFoundError(f"offline cache missing: {embed}")
-    wheels = os.path.join(cache, "site-packages")
+    wheels = os.path.join(windows_cache, "site-packages")
     if not os.path.isdir(wheels):
         raise FileNotFoundError(f"offline cache missing: {wheels}")
-    versions = {d.metadata['Name'].lower(): d.version for d in importlib.metadata.distributions(path=[wheels])}
-    pins = [f"{p}=={versions[p]}" for p in PACKAGES]
     commit = a.commit or subprocess.run(["git", "-C", HERE, "rev-parse", a.ref], check=True, capture_output=True, text=True).stdout.strip()
     core = build_core(a, commit)
-    root = fresh(a, f"disc-probe-{a.label}-full-win64")
+    root = fresh(a, f"disc-probe-{a.label}-full")
     py = os.path.join(root, "python")
     os.makedirs(py)
     with zipfile.ZipFile(embed) as z:
+        if any(not allowed(member) for member in z.namelist()):
+            raise ValueError("excluded Windows embed entry")
         z.extractall(py)
     tag = "python" + "".join(PYTHON.split(".")[:2])
     # Isolated by this file: nothing from the machine's own Python or environment gets in.
     with open(os.path.join(py, tag + "._pth"), "w", encoding="ascii") as f:
         f.write(f"{tag}.zip\n.\nLib\\site-packages\n..\nimport site\n")
-    copy_packages(wheels, os.path.join(py, "Lib", "site-packages"))
+    versions = copy_packages(wheels, os.path.join(py, "Lib", "site-packages"), cache)
     copy_source(a, root)
-    with open(os.path.join(root, "开始 Start.bat"), "w", encoding="ascii", newline="\r\n") as f:
-        f.write(START)
+    linux = build_linux(cache, root)
+    for name in (LINUX_START, READ_FIRST):
+        shutil.copy2(Path(HERE) / name, Path(root) / name)
+    launcher = Path(HERE) / WINDOWS_START
+    target = Path(root) / WINDOWS_START
+    if launcher.is_file():
+        shutil.copy2(launcher, target)
+    else:
+        target.write_text(START, encoding="ascii", newline="\r\n")
     with open(os.path.join(py, "shell.cmd"), "w", encoding="utf-8", newline="\r\n") as f:
         f.write(SHELL)
     with open(os.path.join(root, "NOTICE.txt"), "w", encoding="utf-8", newline="\r\n") as f:
-        f.write(NOTICE.format(python=PYTHON, packages=", ".join(pins)))
-    with open(os.path.join(root, "package.json"), "w", encoding="utf-8") as f:
-        json.dump(dict(ref=a.ref, commit=commit, worktree=a.worktree, audit_id=a.audit_id, python=PYTHON, packages=pins, embed_sha256=sha256(embed)), f, indent=1)
+        f.write(NOTICE.format(python=PYTHON, packages=", ".join(f"{p}=={v}" for p, v in versions.items())))
+    build_info = Path(root) / "release-build.json"
+    info = json.loads(build_info.read_text(encoding="utf-8")) if build_info.is_file() else dict(commit=commit)
+    windows = dict(python=PYTHON, dependencies=versions, embed_sha256=sha256(embed),
+                   wheels={name: dict(file=file, sha256=digest) for name, (file, digest) in WINDOWS_WHEELS.items()})
+    write_json(build_info, dict(info, windows=windows, linux=linux))
+    write_json(Path(root) / "package.json",
+               dict(ref=a.ref, commit=commit, worktree=a.worktree, audit_id=a.audit_id,
+                    windows=windows, linux=linux))
     check_pack(a, root, "untrimmed")
     if not a.no_trim:
         trim_pack(a, root)

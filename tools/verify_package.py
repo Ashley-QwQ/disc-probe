@@ -65,7 +65,7 @@ def main():
         package = Path(discprobe.__file__).resolve()
         assert package.is_relative_to(a.expected_root.resolve()), str(package)
         result['module'] = str(package)
-        result['dependencies'] = {n:metadata.version(n) for n in ('numpy','Pillow','scipy','opencv-python')}
+        result['dependencies'] = {n:metadata.version(n) for n in ('numpy','Pillow','scipy','opencv-python-headless')}
         result['imports'] = {m.__name__:str(Path(m.__file__).resolve()) for m in (pcal,cv2,scipy,numpy,PIL)}
         candidates = [package.parent/'_release.json', package.parent.parent/'release-build.json']
         source = next(p for p in candidates if p.is_file())
