@@ -106,6 +106,8 @@ try{
   const candidates=await run(`(()=>{const d=A.editor.document(),c=d.assignments.at(-1)?.colour;return c?.materials.every(id=>d.materials.some(m=>m.id===id))?c.materials.length:0;})()`);
   assert.equal(candidates,58);
   assert(await run(`document.querySelector('.ed-colour-estimate + details').textContent.includes('用 6 张色卡盘实拍校准的模型')`));
+  assert(await run(`(()=>{const text=document.querySelector('.ed-colour-estimate + details').textContent;
+    return text.includes('手机角度偏一两度')&&text.includes('正对闪光灯的那条带看不到图');})()`));
   const evidence=process.env.EDITOR_COLOUR_EVIDENCE;
   if(evidence)await mkdir(evidence,{recursive:true});
   const capture=async name=>{
@@ -128,6 +130,7 @@ try{
     return state.phase==='ready';
   },180000);
   const predictSeconds=(Date.now()-started)/1000;
+  assert(await run(`document.querySelector('.ws .ed-view-note').textContent.includes('预览用斜线标出')`));
   const frame=await run(`(()=>{const p=A.editor.colourRenderer.frame;return {w:p.image.width,h:p.image.height,view:p.view};})()`);
   assert.equal(frame.view,'lamp');assert(frame.w>=200&&frame.w===frame.h);
   for(const [theme,name] of [['light','paper'],['dark','night']]){

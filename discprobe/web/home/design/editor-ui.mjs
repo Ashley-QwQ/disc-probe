@@ -19,9 +19,11 @@ const RASTER=new WeakMap(),raster64=px=>{let b=RASTER.get(px);if(b===undefined){
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const COLOUR_WORDS={
   zh:{label:'彩色图',note:'预览是模型估计，混色还没实刻验证。',about:'说明',
+    poseWarning:'预测只代表这一个机位，手机角度偏一两度，颜色就会变。',unseen:'正对闪光灯的那条带看不到图，预览用斜线标出。',
     advice:'插画、平涂、色块分明的图效果最好；大片亮白和饱和的红做不出来。盘面会有一层底光让颜色发灰，拍的时候让盘面倒影的方向保持暗（背对灯，或者用深色东西挡住倒影那边）。',
     calibrated:'用 6 张色卡盘实拍校准的模型；盘面会叠一层随拍法变化的灰，让镜面方向保持暗效果更好。',picture:'先选择一张未锁定的图片。',unavailable:'彩色图的色表或材质集无法加载。',loading:'正在加载彩色材质…'},
   en:{label:'Colour picture',note:'The preview is a model estimate. Colour mixing has yet to be checked on a burned disc.',about:'About',
+    poseWarning:'This prediction is for this shooting position. Tilting the phone by a degree or two changes the colours.',unseen:'The picture is not visible in the band facing the flash. Hatching marks this area.',
     advice:'Illustrations with flat, distinct areas of colour work best. Broad areas of bright white and saturated red are out of reach. Reflected light gives the disc a grey cast. Keep the area reflected in the disc dark when shooting: face away from the light or shade that area with something dark.',
     calibrated:'This model was calibrated with photos of six colour-chart discs. A grey cast varies with how you shoot. Keep the area reflected in the disc dark for better colour.',picture:'Select an unlocked picture first.',unavailable:'The colour table or material set could not be loaded.',loading:'Loading colour materials…'}
 };

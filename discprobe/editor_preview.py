@@ -66,6 +66,26 @@ def burn_map(design, size, materials, table):
     return Image.fromarray(np.uint8(np.rint(np.clip(linear, 0, 1)**(1/2.2)*255)))
 
 
+def mark_unseen_angles(image, pose, table, annulus):
+    """Hatch out-of-table angles on the preview, outside the optical calculation and the burn labels."""
+    import numpy as np
+    from PIL import Image
+
+    w,h = image.size
+    col,row = np.arange(w)[None,:],np.arange(h)[:,None]
+    x = (col+.5)*120/w-60
+    y = 60-(row+.5)*120/h
+    radius = np.hypot(x,y)
+    dt = simulate.along_track(x,y,pose['camera'],pose['flash']) * pose['delta_scale']
+    unseen = ((dt<table['delta'][0]) | (dt>table['delta'][-1])) & (radius>=annulus[0]) & (radius<annulus[1])
+    period = max(6,round(w/60))
+    stripe = (col+row)%period < max(1,period//5)
+    rgb = np.array(image)
+    rgb[unseen] = [18,20,23]
+    rgb[unseen & stripe] = [78,80,84]
+    return Image.fromarray(rgb)
+
+
 class Renderer:
     def __init__(self, colour_table_path=None):
         self.colour_table_path=colour_table_path
@@ -131,8 +151,11 @@ class Renderer:
             if view == 'burn':
                 image = burn_map(design, size, document['materials'], table)
             else:
+                fitted = has_colour and table['fitted']
                 image=simulate_a3.render(design,size,materials=document['materials'],fine=quality=='full',annulus_mm=document['annulus_mm'],table=table,exposure=exposure,
-                                         diffraction_only=has_colour and table['fitted'],**pose)
+                                         diffraction_only=fitted,**pose)
+                if fitted:
+                    image = mark_unseen_angles(image, pose, table, document['annulus_mm'])
             data=png_bytes(image)
             self.images[key]=data
             while len(self.images)>12 or sum(map(len,self.images.values()))>32*1024*1024:

@@ -218,19 +218,6 @@ def compose(data, g=None, out=None, *, colour_table=None):
     w,h=g["width"],g["height"]
     out=np.zeros((h,w),np.uint8) if out is None else out
     ids={m["id"]:i for i,m in enumerate(d["materials"])}
-    colour = {}
-    if any('colour' in a for a in d['assignments']):
-        from . import editor_colour, simulate, simulate_a3
-        pose = editor_colour.work_rig(d)
-        table = editor_colour.active_table(d) if colour_table is None else colour_table
-        for a in d['assignments']:
-            if 'colour' in a:
-                c = a['colour']
-                legacy = editor_colour.legacy_colour(c)
-                layer_table = simulate_a3.tables() if legacy and table.get('fitted') else table
-                matcher = editor_colour.Matcher(d['materials'], [ids[k] for k in c['materials']], c['dither'], layer_table,
-                                                relative=not legacy)
-                colour[a['layer']] = matcher, layer_table.get('delta_scale', 1.)
     layer_fills = {l['id']: [] for l in d['layers']}
     for a in d['assignments']:
         if 'layer' in a:
@@ -240,6 +227,26 @@ def compose(data, g=None, out=None, *, colour_table=None):
             fills.append(a)
     masks={s["id"]:np.frombuffer(base64.b64decode(s["bits"]),np.uint8).reshape(d["maskGrid"]["height"],-1) for s in d["selections"]}
     raster={l["id"]:np.frombuffer(base64.b64decode(l["raster"]["rgba"]),np.uint8).reshape(l["raster"]["height"],l["raster"]["width"],4) for l in d["layers"] if l.get("raster")}
+    colour = {}
+    coloured = [l for l in d['layers'] if l['visible'] and layer_fills[l['id']] and 'colour' in layer_fills[l['id']][0]]
+    if coloured:
+        from . import editor_colour, simulate, simulate_a3
+        pose = editor_colour.work_rig(d)
+        table = editor_colour.active_table(d) if colour_table is None else colour_table
+        for l in coloured:
+            c = layer_fills[l['id']][0]['colour']
+            legacy = editor_colour.legacy_colour(c)
+            layer_table = simulate_a3.tables() if legacy and table.get('fitted') else table
+            args = (d['materials'], [ids[k] for k in c['materials']], c['dither'], layer_table)
+            if layer_table.get('fitted'):
+                rgba = raster[l['id']]
+                height = l.get('height', l['width'] * l.get('h',1)/l.get('w',1))
+                matcher = editor_colour.AngleMatcher(*args, rgba, l['width'], height)
+                codes = matcher.codes
+            else:
+                matcher = editor_colour.Matcher(*args, relative=not legacy)
+                codes = None
+            colour[l['id']] = matcher, layer_table.get('delta_scale', 1.), codes
     dark=ids.get("dark",next((i for i,m in enumerate(d["materials"]) if m["spec"]=="A5"),1))
     # per picture: the template colour each pixel matches (-1: none) and its toned grey (editor_tone)
     source_slots={};greys={};tones={};diffusion={}
@@ -299,9 +306,10 @@ def compose(data, g=None, out=None, *, colour_table=None):
                     if dt is None:
                         # Composition rows run down the canvas; the optical frame runs toward 12 o'clock.
                         dt = simulate.along_track(x, -y, **pose)
-                    slots = np.zeros(w, dtype=int)
-                    matcher, scale = colour[l['id']]
-                    slots[hit] = matcher.row(dt[hit] * scale, editor_colour.picture_lab(px[hit, :3]), j, columns[hit])
+                    slots = np.full(w, -1, dtype=int)
+                    matcher, scale, codes = colour[l['id']]
+                    target = codes[cy[hit],cx[hit]] if codes is not None else editor_colour.picture_lab(px[hit,:3])
+                    slots[hit] = matcher.row(dt[hit] * scale, target, j, columns[hit])
                 else:
                     slots=source_slots[l["id"]][cy,cx].astype(int)
                     # the rest of the picture: its toned grey, dithered on this grid
@@ -317,6 +325,7 @@ def compose(data, g=None, out=None, *, colour_table=None):
             for a in layer_fills[l['id']]:
                 if 'colour' not in a:
                     z=shade(a,x,y,u,v,j);slots=np.where(z>=0,z,slots)
+            hit &= slots >= 0  # A fitted colour with no table support leaves the underlying cells alone.
             row[hit]=slots[hit]
         for a in d["assignments"]:
             if a.get("selection"):

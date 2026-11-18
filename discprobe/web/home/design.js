@@ -1817,6 +1817,7 @@ function viewNote(){
     note.textContent=preview?.phase==='error'?(zh?'预览未完成：':'Preview failed: ')+preview.error:
       ready?(lamp?(editor.panelState().compare?compare.title:editor.poseNote()):(zh?'刻出来 · 纹理分布':'As burned · texture placement')):
         lamp?(zh?'正在按机位预测颜色…':'Predicting colours for this shooting position…'):(zh?'正在合成刻录纹理…':'Composing burn textures…');
+    if(ready&&lamp&&S.assignments.some(a=>a.colour?.table?.fitted))note.textContent+=` · ${editor.colourWords.unseen}`;
     note.setAttribute('aria-busy',String(!ready&&preview?.phase!=='error'));
     return;
   }

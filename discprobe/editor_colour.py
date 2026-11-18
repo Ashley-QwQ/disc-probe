@@ -20,6 +20,17 @@ SRGB_XYZ = np.array([[.4124564, .3575761, .1804375], [.2126729, .7151522, .07217
                      [.0193339, .1191920, .9503041]], dtype=np.float32)
 SRGB_LIGHTNESS = 100.
 SRGB_CHROMA = 134.  # D65 Lab chroma of the most saturated sRGB cube corner, rounded up.
+CHROMA_PRIORITY = .55
+EDGE_RADIUS_MM = .42  # Wide standard deviation; the narrow side of the difference uses one third.
+EDGE_LIGHTNESS = 8.   # Maximum correction in source Lab L* before mapping to the local range.
+EDGE_GAIN = 2.
+EDGE_MAX_SOURCE_SIGMA = 24.  # Bound work for a large bitmap scaled down to a tiny spot on the disc.
+EDGE_LEVELS = 5
+SOURCE_COLOURS = 256
+COST_SIGMA_DELTA = .0125
+BLEND_SIGMA_DELTA = .010
+SWITCH_COST = 1200.   # Squared distance paid once per material change along the delta table.
+BLEND_MATERIALS = 4
 _bayer = np.array([[0, 2], [3, 1]])
 for _ in range(2):
     _bayer = np.block([[4*_bayer, 4*_bayer+2], [4*_bayer+3, 4*_bayer+1]])
@@ -133,6 +144,132 @@ class Matcher:
         return self.slots[np.where(weight > BAYER[j % 8, columns % 8], second, first)]
 
 
+def picture_codes(rgba, width_mm, height_mm):
+    """Bound the source palette, retaining exact flat colours when they fit, and prepare a signed edge band."""
+    from scipy.ndimage import gaussian_filter
+
+    alpha = rgba[..., 3].astype(np.float32) / 255
+    rgb = np.where(alpha[..., None] > 0, rgba[..., :3], np.uint8(0))
+    picture = Image.fromarray(rgb).quantize(SOURCE_COLOURS, dither=Image.Dither.NONE)
+    codes = np.array(picture, dtype=np.uint16)
+    palette = picture_lab(np.array(picture.getpalette(), dtype=np.uint8).reshape(-1, 3))
+    if not EDGE_LIGHTNESS:
+        return codes + SOURCE_COLOURS * (EDGE_LEVELS // 2), palette
+
+    sigma = (min(EDGE_MAX_SOURCE_SIGMA, EDGE_RADIUS_MM * codes.shape[0] / height_mm),
+             min(EDGE_MAX_SOURCE_SIGMA, EDGE_RADIUS_MM * codes.shape[1] / width_mm))
+    light = palette[codes, 0] * alpha
+    opaque = (alpha == 1).all()
+
+    def mean(scale):
+        s = tuple(v*scale for v in sigma)
+        result = gaussian_filter(light, s, mode='nearest')
+        if not opaque:
+            weight = gaussian_filter(alpha, s, mode='nearest')
+            np.divide(result, np.maximum(weight, 1e-5), out=result)
+        return result
+
+    # Opposite signs on the two sides of a step, falling back to zero inside a flat region.
+    edge = np.clip(EDGE_GAIN * (mean(1/3) - mean(1)) / EDGE_LIGHTNESS, -1, 1)
+    middle = EDGE_LEVELS // 2
+    level = np.rint(middle * edge + middle).astype(np.uint16)
+    return codes + SOURCE_COLOURS * level, palette
+
+
+def stable_path(cost):
+    """Minimum-cost sequence along δ, with a fixed charge each time the dominant material changes."""
+    batch, nodes, states = cost.shape
+    score = cost[:, 0].copy()
+    prior = np.empty((batch, nodes, states), dtype=np.uint8)
+    rows, columns = np.arange(batch), np.arange(states)
+    for node in range(1, nodes):
+        best = score.argmin(axis=1)
+        other = score[rows, best, None] + SWITCH_COST
+        prior[:, node] = np.where(other < score, best[:, None], columns)
+        score = cost[:, node] + np.minimum(score, other)
+        score -= score.min(axis=1, keepdims=True)
+    path = np.empty((batch, nodes), dtype=np.uint8)
+    path[:, -1] = score.argmin(axis=1)
+    for node in range(nodes-1, 0, -1):
+        path[:, node-1] = prior[rows, node, path[:, node]]
+    return path
+
+
+class AngleMatcher(Matcher):
+    """Prepare the angular trajectory once per source colour and edge level, then look it up by row."""
+    def __init__(self, materials, slots, dither, table, rgba, width_mm, height_mm):
+        from scipy.ndimage import gaussian_filter1d
+
+        super().__init__(materials, slots, dither, table)
+        self.codes, source = picture_codes(rgba, width_mm, height_mm)
+        # Use a uniform grid for smoothing, including when a caller provides a non-uniform override.
+        self.nodes = np.linspace(self.delta[0], self.delta[-1], len(self.delta))
+        self.step = float(self.nodes[1]-self.nodes[0])
+        hi = np.clip(np.searchsorted(self.delta,self.nodes,side='right'),1,len(self.delta)-1)
+        weight = ((self.nodes-self.delta[hi-1])/(self.delta[hi]-self.delta[hi-1])).astype(np.float32)
+        lab = xyz_lab(self.curves[hi-1] + (self.curves[hi]-self.curves[hi-1])*weight[:, None, None], 1)
+        low = lab[..., 0].min(axis=1)
+        span = lab[..., 0].max(axis=1) - low
+        chroma = np.sqrt(np.square(lab[..., 1:]).sum(axis=2).max(axis=1))
+        squeeze = CHROMA_PRIORITY * (1-np.clip(span/SRGB_LIGHTNESS, 0, 1))
+        chroma_scale = np.minimum(chroma/SRGB_CHROMA*(1+.35*squeeze), 1)
+        luma_weight = 1-.65*squeeze
+        codes = np.unique(self.codes)
+        count = min(BLEND_MATERIALS,len(slots)) if dither=='ordered' else 1
+        self.choices = np.zeros((int(codes[-1])+1,len(self.nodes),count), dtype=np.uint8)
+        self.cdf = np.zeros(self.choices.shape, dtype=np.float32)
+        middle = EDGE_LEVELS // 2
+
+        # Keep temporary cost tensors bounded even for a full-colour photograph.
+        for start in range(0, len(codes), 32):
+            keys = codes[start:start+32]
+            goal = source[keys % SOURCE_COLOURS].copy()
+            goal[:,0] += EDGE_LIGHTNESS * ((keys // SOURCE_COLOURS).astype(np.float32)-middle)/middle
+            target = np.repeat(goal[:,None,:],len(self.nodes),axis=1)
+            target[...,0] = low + span*np.clip(target[...,0]/SRGB_LIGHTNESS,0,1)
+            target[...,1:] *= chroma_scale[None,:,None]
+            difference = lab[None,:,:,:] - target[:,:,None,:]
+            difference[...,0] *= luma_weight[None,:,None]
+            raw = np.einsum('bdki,bdki->bdk',difference,difference)
+            cost = gaussian_filter1d(raw,COST_SIGMA_DELTA/self.step,axis=1,mode='nearest') if COST_SIGMA_DELTA else raw.copy()
+            first = stable_path(cost) if SWITCH_COST else cost.argmin(axis=2)
+            if count == 1:
+                self.choices[keys,:,0] = self.slots[first]
+                continue
+
+            batch, node = np.arange(len(keys))[:,None], np.arange(len(self.nodes))
+            cost[batch,node,first] = np.inf
+            second = cost.argmin(axis=2)
+            a, b = np.sqrt(raw[batch,node,first]), np.sqrt(raw[batch,node,second])
+            mix = np.divide(a,a+b,out=np.zeros_like(a),where=a+b>0)
+            if SWITCH_COST:
+                mix = np.minimum(mix,.5)   # Keep the chosen trajectory dominant.
+            shares = np.zeros_like(raw)
+            shares[batch,node,first] = 1-mix
+            shares[batch,node,second] = mix
+            if BLEND_SIGMA_DELTA:
+                shares = gaussian_filter1d(shares,BLEND_SIGMA_DELTA/self.step,axis=1,mode='nearest')
+            best = np.argpartition(shares,-count,axis=2)[:,:,-count:]
+            best.sort(axis=2)  # Steady slot order keeps the Bayer phase when the ranks cross.
+            weights = np.take_along_axis(shares,best,axis=2)
+            total = weights.sum(axis=2,keepdims=True)
+            self.choices[keys] = self.slots[best]
+            self.cdf[keys] = np.cumsum(weights,axis=2)/total
+
+    def row(self, dt, source_codes, j, columns):
+        valid = (dt >= self.delta[0]) & (dt <= self.delta[-1])
+        result = np.full(len(dt), -1, dtype=int)
+        node = np.rint((dt[valid]-self.nodes[0])/self.step).astype(int).clip(0,len(self.nodes)-1)
+        codes = source_codes[valid]
+        if self.choices.shape[2] == 1:
+            result[valid] = self.choices[codes,node,0]
+        else:
+            phase = BAYER[j%8,columns[valid]%8]
+            which = (phase[:,None] >= self.cdf[codes,node,:-1]).sum(axis=1)
+            result[valid] = self.choices[codes,node,which]
+        return result
+
+
 def material_set(source, table):
     path = texlib.safe(source or os.environ.get('DISCPROBE_COLOUR_MATERIALS') or DEFAULT_MATERIALS)
     try:
@@ -179,7 +316,7 @@ def active_table(document=None, path=None):
 def palette(source=None, table_path=None):
     table = active_table(path=table_path)
     return dict(materials=material_set(source, table),
-                table=dict(signature=table['signature'], fitted=table['fitted'], mapping='relative'))
+                table=dict(signature=table['signature'], fitted=table['fitted'], mapping='perceptual' if table['fitted'] else 'relative'))
 
 
 def design(image, phone, height, materials=None, dither='ordered', fit='disc', flash_mm=None, table_path=None):

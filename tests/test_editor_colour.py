@@ -130,7 +130,47 @@ def test_packed_fitted_palette_without_texlib(monkeypatch):
     monkeypatch.delenv('DISCPROBE_COLOUR_MATERIALS', raising=False)
     palette = C.palette()
     table = C.active_table()
-    assert palette['table']['fitted'] and palette['table']['mapping'] == 'relative'
+    assert palette['table']['fitted'] and palette['table']['mapping'] == 'perceptual'
     assert [m['spec'] for m in palette['materials']] == list(table['specs'])
     assert table['xyz'].shape == (58, 341, 3)
     assert table['delta_scale'] == .93
+
+
+def test_local_contrast_has_opposite_sides_and_ignores_invisible_edges():
+    image = np.full((32,64,4),255,np.uint8)
+    image[:,:32,:3] = 64
+    codes,_ = C.picture_codes(image,6.4,3.2)
+    mid = C.EDGE_LEVELS//2
+    levels = codes[16]//C.SOURCE_COLOURS
+    assert levels[31]<mid<levels[32]
+    assert levels[3]==levels[-4]==mid
+    image[:,:32,3] = 0
+    codes,_ = C.picture_codes(image,6.4,3.2)
+    assert np.all(codes[:,32:]//C.SOURCE_COLOURS == mid)
+
+
+def test_angle_path_ignores_a_short_score_reversal(monkeypatch):
+    monkeypatch.setattr(C,'SWITCH_COST',10.)
+    # The brief reversal at node 1 would cost two switches. The final sustained shift is worth one.
+    costs = np.array([[[0,20],[3,0],[0,20],[0,20],[20,0],[20,0]]],np.float32)
+    np.testing.assert_array_equal(C.stable_path(costs),[[0,0,0,0,1,1]])
+
+
+def test_fitted_unseen_band_leaves_cells_and_is_hatched(table):
+    from discprobe.editor_preview import mark_unseen_angles, pose_options
+
+    doc = work('ordered')
+    fitted = {**table,'fitted':True,'delta':np.array([.09,.6])}
+    size = 240
+    labels = E.compose(doc,E.grid(size),colour_table=fitted)
+    axis=(np.arange(size)+.5)*120/size-60
+    x,y=np.meshgrid(axis,-axis)
+    pose=C.work_rig(doc)
+    r=np.hypot(x,y)
+    dt=C.simulate.along_track(x,y,**pose)
+    unseen=(r>=24)&(r<58)&(dt<.09)
+    assert not labels[unseen].any() and labels.any()
+    draft=Image.new('RGB',(size,size))
+    png=np.asarray(mark_unseen_angles(draft,pose_options(pose),fitted,[24,58]))
+    assert unseen.any() and png[unseen].min() > 0
+    assert not png[~unseen].any()
