@@ -4,15 +4,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
+import stat
 import subprocess
 import time
 import zipfile
 
 
 REMOTE_SETUP = """\
-import hashlib, json, os, pathlib, re, shutil, signal, subprocess, sys, time, urllib.request
+import hashlib, json, os, pathlib, re, shutil, signal, socket, subprocess, time, urllib.request
 root = pathlib.Path.home() / 'dp-linuxpack-test' / cfg['run']
 os.sched_setaffinity(0, set(sorted(os.sched_getaffinity(0))[-2:]))
 os.nice(19)
@@ -123,7 +124,7 @@ with (root / 'web.log').open('w', encoding='utf-8') as log:
         else:
             server.send_signal(signal.SIGINT)
         assert server.wait(timeout=20) == 0, 'webui did not exit cleanly'
-        with __import__('socket').socket() as client:
+        with socket.socket() as client:
             client.settimeout(3)
             port = int(url.group().split(':')[2].split('/')[0])
             assert client.connect_ex(('127.0.0.1', port)) != 0, 'webui still listening'
@@ -136,11 +137,10 @@ print('PASS', flush=True)
 """
 
 REMOTE_CLEANUP = """\
-for name in ('Extracted package',):
-    path = root / name
-    if path.exists():
-        assert path.resolve().parent == root.resolve()
-        shutil.rmtree(path)
+path = root / 'Extracted package'
+if path.exists():
+    assert path.resolve().parent == root.resolve()
+    shutil.rmtree(path)
 (root / cfg['file']).unlink(missing_ok=True)
 print('Removed uploaded and extracted package; retained logs in', root)
 """
@@ -159,7 +159,15 @@ def main():
     if not re.fullmatch(r'disc-probe-[0-9A-Za-z.-]+-full\.zip', artifact.name) or not artifact.is_file():
         parser.error('provide a release disc-probe-<version>-full.zip')
     with zipfile.ZipFile(artifact) as archive:
-        size = sum(member.file_size for member in archive.infolist())
+        size = 0
+        for member in archive.infolist():
+            parts = PurePosixPath(member.filename).parts
+            if (not parts or parts[0] != artifact.stem or '..' in parts
+                    or '\\' in member.filename or ':' in member.filename
+                    or any('b' + 'lind' in part.casefold() for part in parts)
+                    or stat.S_ISLNK(member.external_attr >> 16)):
+                parser.error('ZIP contains a linked or excluded entry')
+            size += member.file_size
         if f'{artifact.stem}/linux/python/bin/python3' not in archive.namelist():
             parser.error('ZIP needs the portable Linux runtime')
     with artifact.open('rb') as source:
@@ -197,6 +205,9 @@ def main():
                 if transcript.is_file():
                     subprocess.run(['scp', '-q', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10',
                                     str(transcript), destination + 'verify.log'], check=True, timeout=30)
+        except (subprocess.SubprocessError, OSError) as exc:
+            result.update(status='FAIL', log_copy_error=str(exc))
+            raise
         finally:
             try:
                 if prepared:

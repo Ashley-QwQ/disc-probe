@@ -313,7 +313,8 @@ def main(argv=None):
         run_check([wheel_python, '-X', 'utf8', '-B', str(snapshot/'tools/verify_package.py'),
                    '--artifact', str(wheel), '--expected-root', str(venv), '--version', args.version,
                    '--out', str(out/'wheel-proof')], out, logs/'wheel-verify.log', env, checks)
-        test_env = dict(env, PYTHONPATH=str(out / 'wheel-dependencies'))
+        test_env = dict(env, PYTHONPATH=str(out / 'wheel-dependencies'),
+                        DISCPROBE_SEALED_PHOTOS=str(snapshot / 'tests/data'))
         run_check([*python, '-m', 'pytest', '-q', '-p', 'xdist', '-n', '2', 'tests', 'tests/scipy_oracle_checks.py',
                    '-p', 'no:cacheprovider', '--ignore-glob=*b[l]ind*'], snapshot, logs / 'pytest.log', test_env, checks)
         scripts = sorted(p for p in (snapshot / 'tests').iterdir() if allowed(p.name)
