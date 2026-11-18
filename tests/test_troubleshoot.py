@@ -8,7 +8,7 @@ import sys
 from threading import Thread
 
 from discprobe import troubleshoot, webui
-from score_troubleshoot import load_queries, passing, score
+from score_troubleshoot import load_queries, score
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_citations_and_bilingual_data():
     index, _ = troubleshoot._index()
-    assert 60 <= len(index) <= 120
+    assert len(index) >= 108
     assert len({entry["id"] for entry, _, _ in index}) == len(index)
     cache = {}
 
@@ -44,7 +44,7 @@ def test_citations_and_bilingual_data():
 
 def test_query_scores():
     result = score(load_queries(), troubleshoot.search)
-    assert passing(result), result
+    assert result["total"] == result["hits"] == {"error": 45, "symptom": 38}, result
 
 
 def test_unknown_and_error_priority():
@@ -75,6 +75,11 @@ def test_cli_and_web(tmp_path):
     assert json.loads(arg) == json.loads(stdin) == expected
     plain = subprocess.check_output([*command, query], cwd=ROOT).decode("utf-8")
     assert expected["results"][0]["cause"] in plain and "可信度" in plain
+    unknown = "unrelated router firmware setting"
+    fallback = troubleshoot.search(unknown, "zh")
+    assert fallback["results"] == [] and fallback["message"]
+    plain_unknown = subprocess.check_output([*command, unknown], cwd=ROOT).decode("utf-8")
+    assert plain_unknown.strip() == fallback["message"]
 
     backend = webui.Backend(root=tmp_path, drive_provider=lambda: [])
     with webui.Server(backend, port=0) as server:
@@ -92,6 +97,7 @@ def test_cli_and_web(tmp_path):
         auth = {"X-Discprobe-Token": server.token}
         try:
             assert request({"query": query, "lang": "zh"}, auth) == (200, expected)
+            assert request({"query": unknown, "lang": "zh"}, auth) == (200, fallback)
             assert request({"query": "blargflox"}, auth) == (200, troubleshoot.search("blargflox"))
             assert request({"query": ["bad"]}, auth)[0] == 400
             assert request({"query": query, "lang": []}, auth)[0] == 400

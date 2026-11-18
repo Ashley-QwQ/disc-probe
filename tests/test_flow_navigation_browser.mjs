@@ -95,6 +95,8 @@ try {
     form.requestSubmit();
   })()`);
   await until('document.querySelector(".sg-search-results").textContent.includes("没找到确定的答案")');
+  const noAnswer = await evaluate('document.querySelector(".sg-search-results").textContent');
+  for (const field of ['光驱型号', '盘的品牌', '刻录速度', '读速', '完整日志']) assert.ok(noAnswer.includes(field), field);
   await evaluate('document.querySelector(".startguide [data-act=close]").click()');
   for (const theme of ['light','dark']) {
     await evaluate('document.documentElement.dataset.theme='+JSON.stringify(theme));
