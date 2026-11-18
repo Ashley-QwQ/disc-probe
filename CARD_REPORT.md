@@ -1,95 +1,183 @@
-# 社区提示卡交付报告
+# HS 卡交付报告
 
-工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
+工作树 `D:/dp-dev/helpsearch`，分支 `dev/help-search-20261118`，基点 `8fa1c4b`。提交均在本分支。
 
 ## 按提交交付
 
-- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
-- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
-- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
-- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
-- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
-- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
+- `8ad9734` 增加 108 条中英双语排错条目、离线检索器、CLI、网页 API 和新手引导搜索框。最终条目库为 141,880 字节。
+- `e119897` 增加 83 道题、计分脚本、来源与入口一致性测试，以及浏览器搜索交互回归。
+- `8bc2159` 将笼统的拍照失败描述指向照片采用说明，提醒先看逐张拒绝原因。
+- 本报告提交记录验收、十次实际 CLI 输出和待审事项。
 
-## 数据及出处
+CLI 接受问题、报错原文或 `-` 读标准输入。已安装的入口是 `disc-probe troubleshoot`，源码入口是 `python -m discprobe troubleshoot`。通过现有 `--lang zh|en` 选择语言。加 `--json` 后，与 `POST /api/troubleshoot` 返回同一 JSON 结构。网页请求发送 `{"query":"…","lang":"zh"}`，复用现有权限检查和 65,536 字节 JSON 请求上限。
 
-本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
-
-原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
-
-相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
-
-新增 id：
-
-```text
-D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
-I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
-DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
-DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
-DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
-DISmain-verbatim-dvd-plus-rw-94520-95043
-```
-
-修改 id（含仅补充来源/复用报告的记录）：
-
-```text
-D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
-I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
-I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
-```
-
-新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
-
-内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
-
-同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
-
-## 下发与程序行为
-
-`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
-
-```text
-f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
-```
-
-生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
-
-`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
-
-CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
-
-仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
-
-## 网页位置和需要人工审查的选择
-
-传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
-
-新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
-
-请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
+日志匹配先归一化数字、LBA、盘符和常见路径。具备明确错误签名时优先展示这些条目。口语按汉字二元组和英文单词检索，最多展示三项。可信度表示与条目匹配的程度。低可信度时提示社区提问所需的五项信息。
 
 ## 验收
 
-所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
+```text
+python -B -X utf8 tests/score_troubleshoot.py
+python -B -X utf8 -m pytest -n 2 -p no:cacheprovider --basetemp D:/dp-dev/tmp/helpsearch/feature-final2 tests/test_troubleshoot.py
+```
 
-| 命令/检查 | 结果 |
+| 题型 | 前三命中 | 首位命中 |
+| --- | ---: | ---: |
+| 报错原文和拟真日志（只计错误签名匹配） | 45/45 | 45/45 |
+| 中英文口语 | 38/38 | 38/38 |
+| 合计 | 83/83（100%） | 83/83（100%） |
+
+首次查找含载入和索引构建为 37.667 ms。题库其余查询中位数 0.326 ms，最大 0.866 ms。追加 Azul-la 原文的 54,538 字节日志耗时 11.122 ms。十次独立 CLI 启动到退出的中位数为 490.940 ms，最大 635.415 ms，包含 Windows 进程启动、Python 导入和终端输出。
+
+来源测试逐条校验仓库相对路径、行号和关键短语，另检查双语症状数量和手册锚点。入口测试比较 CLI 参数、UTF-8 标准输入、JSON 以及同一查询的 HTTP 响应，同时检查请求字段和会话校验。
+
+| 回归范围 | 命令与结果 |
 | --- | --- |
-| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
-| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
-| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
-| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
-| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
-| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
-| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
-| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
-| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
+| 相关 Python | `python -B -X utf8 D:/dp-dev/tmp/helpsearch/suite.py targeted`，160 通过。最终新增测试另验 5 通过。 |
+| 全量 Python | `python -B -X utf8 D:/dp-dev/tmp/helpsearch/suite.py python`，`pytest -n 2` 收集 1180 项，1178 通过、2 跳过、0 失败，约 9 分 11 秒。 |
+| 全量 JavaScript | `python -B -X utf8 D:/dp-dev/tmp/helpsearch/suite.py js`，运行允许路径内全部 55 个 `test_*.mjs`，覆盖 66 项，最终均取得通过。首轮 57 通过、9 失败；修正离线测试配置后定向复跑恢复 8 项，最后一项 `test_afterburn_browser.mjs` 在单独复跑时通过，基点对照也通过。 |
+| 引导页 | Edge 用本机回环服务验证提交日志、显示中文结果及无匹配提示。截图为 `navigation-shots/troubleshoot-zh.png`。 |
 
-初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
+日志在 `D:/dp-dev/tmp/helpsearch/`。相关和全量记录分别是 `targeted.log`、`python.log`、`js.log`，JavaScript 复跑记录是 `js-retry.log`、`js-afterburn-final.log`，基点对照是 `js-base-afterburn.log`。原始计分与性能记录是 `score.json`，十次原始 CLI 输出是 `examples.json`。Python 和浏览器测试只调用本机虚拟夹具和回环服务。开跑前以及全量回归前均确认 D 盘剩余大于 5 GB。Linux 实机与光驱未测。
 
-截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
+## 审查事项
 
-## 未测及边界
+- 任务卡里的 DVD 固定读速例子使用 `--speed 4x`。手册和参数解析将 `--speed 4` 解释为 4 kB/s。先用原盘换读速或光驱重测，再根据回读是否仍不稳决定要不要以另一种受支持的刻录速度重做测量盘。
+- 端口和重复启动依据当前仓库实现。使用固定端口的 `webui` 实例需要可用端口。Windows 全量包启动脚本会为每次启动分配可用端口，并打印当前地址。
+- 记录、标靶和颜色建议来自仓库证据。实盘操作和建议效果未测。命中率只针对本次题库，条目与题库在同一轮迭代。
+- 条目措辞及是否进入 alpha 由维护者审查。
 
-没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
+## 十次实际 CLI 查询
 
-附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
+以下五次中文、五次英文查询的标准输出由测试脚本读取。第 1 次通过标准输入传入三行日志，其余通过参数传入。
+
+### 1. zh · 标准输入
+
+```text
+Zone 0.95 (LBA 2062016): no period found
+Rotation: unknown (zones [0.95] have no clear period; the speed may be changing, try a fixed --speed)
+Rotation is unknown, not CAV, so the phase test would not give disc angles; skipping it. Try another --speed, or pass --force to run it anyway.
+```
+
+```text
+1. 报错所在测区可能变速了或读得不稳定。外圈经常是出现变速的位置，计时无法确定清晰的转动周期。 [timing-no-period, 可信度 100%]
+   - 先用固定低读速重测同一张盘。DVD 可试 4x，并看 timing 报告的实际转速。
+   - 先别加 --force，它只继续诊断采样。换读速或光驱后仍读不稳，且需要重刻测量盘时，试另一个受支持的刻录速度。
+     python -m discprobe timing --drive <drive> --speed 4x
+   手册在 docs/MANUAL.md#timing-做三个实验。
+```
+
+### 2. zh · 参数
+
+```text
+刻完读不出来
+```
+
+```text
+1. 当前盘上的部分扇区可能不可读，刻有图案的盘也可能很难读。 [unreadable-after-burn, 可信度 100%]
+   - 检查刻录报告和保存的读错记录。关闭其他光驱软件，重装盘，先换读速或光驱重读。
+   - 测量优先用已有的普通数据盘；没有可用盘时才重做测量盘。
+     python -m discprobe info --drive <drive>
+     python -m discprobe timing --drive <drive>
+   手册在 docs/MANUAL.md#手动使用。
+```
+
+### 3. zh · 参数
+
+```text
+颜色不对
+```
+
+```text
+1. 结构色随灯光和观察角度变化。纹理预览的颜色用于区分材料，灯下效果是预测。 [colour-wrong, 可信度 100%]
+   - 按拍摄设置对准角度。拍实验花盘时关掉房间灯，只用手机闪光灯并稍稍侧持手机。
+   手册在 docs/MANUAL.md#刻图纹理与颜色。
+```
+
+### 4. zh · 参数
+
+```text
+拍照一直不通过
+```
+
+```text
+1. 当前照片没有得到可用于出图的已采用读数。 [photo-no-adoption, 可信度 100%]
+   - 查看每张照片下的重拍提示。用同一张盘拍不同角度，等至少两张读数一致。
+   手册在 README.md#第-6-步看盘和拍照。
+```
+
+### 5. zh · 参数
+
+```text
+linux 说没权限
+```
+
+```text
+1. 运行用户需要有光驱设备的读写权限。 [linux-permission, 可信度 100%]
+   - 通常将用户加入 cdrom 组后重新登录，再检查 /dev/sr* 权限。网页服务继续用普通用户运行。
+     sudo usermod -aG cdrom "$USER"
+   手册在 INSTALL-linux.md#linux-安装1000-alpha。
+```
+
+### 6. en · 参数
+
+```text
+Rotation is CLV, not CAV, so the phase test would not give disc angles; skipping it. Try another --speed, or pass --force to run it anyway.
+```
+
+```text
+1. This read speed did not give the constant angular velocity needed to measure sector angles. [timing-clv, Confidence 100%]
+   - Try an untried read speed. A higher one may give CAV on CD. Try another drive when the listed speeds are exhausted.
+   - Blu-ray has a separate CLV geometry route.
+     python -m discprobe timing --drive <drive>
+   The manual is docs/MANUAL.en.md#the-three-experiments-in-timing.
+```
+
+### 7. en · 参数
+
+```text
+A preset needs --sectors: the capacity of your disc (`info` prints it)
+```
+
+```text
+1. DIS uses the sector count to define the capacity and outer radius. [dis-sector-count, Confidence 100%]
+   - Run info on a blank from the same batch and use its available sector count in --sectors and DiscImageStudio.
+     python -m discprobe info --drive <drive>
+     python -m discprobe disexport --geo <run> --sectors <count>
+   The manual is docs/MANUAL.en.md#using-it-by-hand.
+```
+
+### 8. en · 参数
+
+```text
+error: [WinError 10048] Only one usage of each socket address (protocol/network address/port) is normally permitted
+```
+
+```text
+1. Another process may already be bound to the requested HTTP port. [web-port, Confidence 100%]
+   - Use the existing local page if it is already serving the session you want. For a separate instance, use --port with an available port and open the printed address.
+     python -m discprobe webui --local-only --port <free-port>
+   The manual is README.en.md#web-page.
+```
+
+### 9. en · 参数
+
+```text
+colour picture needs a phone and shooting height in scene.rig
+```
+
+```text
+1. Colour mapping depends on the phone and shooting height. [colour-pose, Confidence 100%]
+   - Set the phone and shooting height in the design, or read the pose options in colour-design help.
+     python -m discprobe colour-design -h
+   The manual is docs/MANUAL.en.md#burning-pictures-textures-and-colour.
+```
+
+### 10. en · 参数
+
+```text
+What is the Wi-Fi router password?
+```
+
+```text
+No definite answer found. When asking the community, include your drive model, disc brand, write speed, read speed and complete log.
+```
