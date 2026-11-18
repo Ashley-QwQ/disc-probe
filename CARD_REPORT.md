@@ -77,3 +77,23 @@ Windows 用 `msvcrt.locking`，POSIX 用 `fcntl.flock`。光驱锁文件第一�
 
 - 本轮运行了生成模板的实际 BAT，测试中的 `python` 目录指向本机 Python。正式 full-win64 ZIP 和包内嵌入式 Python 未验收。设备验证只使用 Disc Lab 或测试桩。逐位数据对应上述样本。
 - 除指定的上游合入，提交留在本工作分支，未推送、未合回 `dev/1.0.0`。
+
+## 第三轮 · 完整包的跨平台启动
+
+- `198c33b` 按「补充 2 修订」改名 Windows BAT，加入 Linux 启动器和双语首读说明，同步打包、文档和网页提示。本提交记录验收，并将中英 README 的手动安装要求同步为 Python 3.11。
+- [build_winpack](tools/build_winpack.py#L33) 生成 `开始 Start (Windows).bat`。CMD 只执行一行包内 Python 命令。开头另有一行兼容 sh 的提示，Linux 上用 sh 误跑会提示执行 `bash start-linux.sh` 并退出 1。构建目录会带上 `start-linux.sh` 和 `先看我 Read me first.txt`。
+- [start-linux.sh](start-linux.sh) 在 Git Bash、MSYS 和 Cygwin 上提示使用 Windows BAT。它切到包目录，确认 `linux/python/bin/python3` 可执行，然后直接 `exec ./linux/python/bin/python3 -X utf8 -B -m discprobe webui --open "$@"`。Git 确认权限为 `100755`，源码和打包副本为 LF。首读说明也给出 `bash start-linux.sh`。启动不会创建环境或安装依赖。
+- core 负责 Linux [无图形桌面的启动](discprobe/web_instance.py#L103) 和 [/dev/srN 的权限提示](discprobe/webui.py#L1780)。无 DISPLAY 和 WAYLAND_DISPLAY 时终端地址仍可用。光驱提示检查读写权限元数据，提示加入 `cdrom` 组后重新登录。
+
+### 第三轮验收
+
+- 本机 Windows 用 [实际生成的 BAT 测试](tests/test_single_instance.py) 在含中文和空格的目录验证 BAT 先启动及 CLI 先启动。两种顺序都复用同一实例，并通过 Disc Lab 读到了虚拟 X: 的盘片后正常停止。浏览器调用使用测试桩。
+- 本机 Linux 分支验收使用 [Git Bash 模拟布局](tests/test_start_linux.py)。用 `uname` 桩走 Linux、MINGW、MSYS 和 Cygwin 分支。测试包里的 `linux/python/bin/python3` 是转调本机 Python 的脚本，核对了切换目录、包含空格的参数、完整 exec 参数、缺解释器提示和 sh 误跑 BAT。另用实际 Windows Git Bash 直接运行 Linux 脚本，退出 1 并提示 Windows BAT。使用 `python -B -X utf8 F:/dp-archive/tmp/singleinst/round3/check_pack_layout.py` 核对打包目录中的 Linux 脚本和首读文件与源码逐字节相同，以及 Windows 模板只留一条可执行命令。
+- `python -B -X utf8 F:/dp-archive/tmp/singleinst/round3/run_regression.py python` 以 `pytest -n 2` 验证相关用例，**507 通过、1 跳过**。跳过项缺既有的 `calib-simple` 参考夹具。首轮启动器测试有两项因 Git Bash 的模拟 PATH 使用了带冒号的盘符路径而落进 Windows 分支，修正测试夹具后均通过。见 [首轮用例](F:/dp-archive/tmp/singleinst/round3/pytest-focus.xml) 和 [最终 Python 回归](F:/dp-archive/tmp/singleinst/round3/python/pytest.log)。
+- 同一脚本的 `javascript` 批次 **54/54 通过**。导航单独验收，前两次分别遇到本机环回连接被拒和 Edge 的 `ERR_NO_BUFFER_SPACE`。等待本机连接回收后以 `navigation-cooldown` 第三次单独通过，合计 **55/55**。见 [普通批次](F:/dp-archive/tmp/singleinst/round3/javascript/results.json)、[首次导航](F:/dp-archive/tmp/singleinst/round3/navigation/test_flow_navigation_browser.mjs.log)、[第二次导航](F:/dp-archive/tmp/singleinst/round3/navigation-target/test_flow_navigation_browser.mjs.log) 和 [通过的导航复验](F:/dp-archive/tmp/singleinst/round3/navigation-cooldown/test_flow_navigation_browser.mjs.log)。
+- 对 `0d8c9f2` 做等输入逐字节复验。固定两边 ISO 创建时间后，DVD/CD ISO 各 8,388,608 字节、`info` JSON 6,894 字节、`timing` CSV 22,287 字节和 `geo` CSV 2,140 字节全部一致。见 [镜像与计时哈希](F:/dp-archive/tmp/singleinst/round3/byte-compare.log) 和 [几何哈希](F:/dp-archive/tmp/singleinst/round3/geo-byte-compare.log)。
+
+### 第三轮边界
+
+- 真光驱和实际 Linux 包内解释器未测，预装及 Linux 实包验收由 core-release 负责。Windows 用本机 Python 驱动生成的 BAT，正式完整 ZIP 未构建。本轮验收仅在本机，提交不包含 wheel，未推送、未合并。
+- 中文手册的 DVD 读完成章节在基点已有 17 行连续问号，逐行核对与基点相同。本轮改动的中英文字通过 UTF-8 检查。
