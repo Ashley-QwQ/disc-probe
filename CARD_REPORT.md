@@ -1,95 +1,64 @@
-# 社区提示卡交付报告
+# geo 读速检查交付报告
 
-工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
+工作树 `D:/dp-dev/geospeed`，分支 `dev/geo-speed-check`，基点 `e0ddb3c`。
 
-## 按提交交付
+## 提交
 
-- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
-- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
-- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
-- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
-- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
-- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
-
-## 数据及出处
-
-本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
-
-原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
-
-相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
-
-新增 id：
-
-```text
-D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
-I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
-DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
-DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
-DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
-DISmain-verbatim-dvd-plus-rw-94520-95043
-```
-
-修改 id（含仅补充来源/复用报告的记录）：
-
-```text
-D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
-I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
-I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
-```
-
-新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
-
-内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
-
-同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
-
-## 下发与程序行为
-
-`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
-
-```text
-f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
-```
-
-生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
-
-`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
-
-CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
-
-仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
-
-## 网页位置和需要人工审查的选择
-
-传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
-
-新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
-
-请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
+- `89916ca` 为 DVD、CD 和 BD 的 geo 结果增加 `read_speed` 和 `speed_check`。角度阶梯记录参考周期，CLV 记录各测区的周期和 LBA。按驱动器、固件、介质和请求速度查询登记表，在测量开始和结束时提示，并在 `guide` 的 geo 结果下显示同一条提示。补充中文提示、中英文 README、登记格式和回归测试。
+- 本报告另行提交。所有提交只在本分支。
 
 ## 验收
 
-所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
+- 运行前 D 盘余 219,403,960,320 字节，最终验收前余 219,401,265,152 字节。`TEMP`、`TMP` 均指向 `F:/dp-dev-tmp/geospeed`，测试的 HTTP 服务只走本机回环。
+- 相关 Python 测试共 174 项通过，用时 92.77 秒。覆盖包内登记表、工作区覆盖及回退、缺失和损坏的新段、三个状态的终端与 guide 提示，以及 DVD、CD、BD 模拟路径和 BD 的 CLV 至角度阶梯切换。
 
-| 命令/检查 | 结果 |
-| --- | --- |
-| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
-| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
-| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
-| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
-| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
-| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
-| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
-| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
-| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
+```powershell
+python -m pytest -n 2 -p no:cacheprovider --basetemp "$env:TEMP/pytest-accepted" tests/test_geo_speed.py tests/test_geo_integration.py tests/test_geo_progress.py tests/test_geo_unsteady.py tests/test_geo_varpitch.py tests/test_read_completion.py tests/test_cd_clv.py tests/test_bd_clv_solver.py tests/test_fail_exits.py tests/test_web_guidance.py
+```
 
-初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
+- `python -X utf8 -B "$env:TEMP/check-wheel.py"` 离线构建 wheel，并在源树外读取 `discprobe/_presets/drives.json`。针对 GH70N（NYA2）DVD，5540、11080、3324 kB/s 分别得到 `validated`、`known_bias`、`unvalidated`。
+- 登记证据为 4x 的 grid3 径向峰峰值 0.106°，以及 8x 相比 4x 在 54 mm 处增加约 0.3° 的相位滞后。8x 提示建议回到 `--speed 5540`。
+- `python -X utf8 -B "$env:TEMP/run-node-offline.py"` 调用仓库的 `tests/run_webguide_checks.py`，覆盖全部 55 个 `test_*.mjs`。首轮 52 个通过，3 个浏览器测试因离线配置误阻断回环而失败。修正回环规则后，用同一命令附加 `test_afterburn_browser.mjs test_brand_browser.mjs test_burn_cancel_browser.mjs`，复测 3 个全部通过。两轮结果合计 55 个文件通过，日志在临时目录的 `node` 和 `node-recheck` 下。
 
-截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
+## 模拟输出
 
-## 未测及边界
+`python -m discprobe geo --sim cav --seed 7 --out "$env:TEMP/sim-final" --lang en` 完成 22 级，状态 `target_reached`。新增字段实录如下。模拟器未发出速度设置命令，`set_cd_speed` 的原值为 `null`。
 
-没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
+```json
+{
+  "read_speed": {
+    "media": "dvd",
+    "requested_kBps": 5540,
+    "requested_multiple": 4.0,
+    "period_ms": 6.598510337558251,
+    "drive": "SIM-cav",
+    "firmware": null
+  },
+  "speed_check": {
+    "status": "unvalidated",
+    "note": "This read speed has not been grid-validated. At a single read speed, the fit can absorb read delays that vary with radius, leaving no trace in the residuals. Before using this geometry to burn a picture, burn and check a grid disc."
+  }
+}
+```
 
-附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
+## 改前改后逐字节比较
+
+改前和改后在同一工作树用同一条命令运行；只在验收进程内将 `geo` 的耗时计时器换成固定步长时钟，避免 `elapsed_s` 随机器负载变化。模拟光驱照常使用自己的时钟。比较脚本为 `F:/dp-dev-tmp/geospeed/check-parity.py`，两次原始结果在同目录下的 `baseline-fixed` 和 `after-fixed`。
+
+```powershell
+python -c 'import sys; from itertools import count; from types import SimpleNamespace; from discprobe import geo; from discprobe.__main__ import main; ticks=count(); geo.time=SimpleNamespace(monotonic=lambda: next(ticks)/1000); main(sys.argv[1:])' geo --sim cav --seed 7 --out "$env:TEMP/parity-run" --lang en
+```
+
+| 比较项 | 字节数 | 两次相同的 SHA-256 |
+| --- | ---: | --- |
+| `targets.csv`（22 个目标） | 2151 | `ed0ae8cf13ec32773a24a2becec784d197c409e0edea5126e292215cb40fea71` |
+| `fit`（JSON，2 空格缩进） | 5051 | `08f8bf443057f49413b4d6883298d604f6dd57c500e39e3d4e10c1e815081cfa` |
+| `summary.json`（去掉两项新增字段，以同样格式重新序列化） | 7416 | `b12d7730615e13b7ac6a57c6b7e637bfc0e7ca6a9b6400998f10eda10905bb10` |
+
+## 未测及审阅事项
+
+- 本轮未接光驱、未刻盘、未访问外网。实盘证据来自已有 grid3 扫描和 11 月 18 日双速复测。CD、BD 和其他光驱的提示已测数据路径，未测其网格验证结果。
+- `guide` 对已有提示字段采用运行时语言，对旧结果继续显示原有几何信息。已知偏差的来源是卡片指定的 `D:/dp-dev/t1joint/evidence/t1-joint/level4/RESULT.md`，安装包携带证据文字和路径。
+- 新段损坏时查询下一个登记表，找不到匹配则提示未经验证。旧 DVD 完成偏移段仍按原规则解析，整份登记表 JSON 损坏时沿用原有完成偏移读取错误。
+- `python -m discprobe selftest` 的失败项为全局中文帮助的 3 项检查。`python -X utf8 -B "$env:TEMP/check-baseline-help.py"` 对比基点与本分支，两者均有 19 个选项帮助条目及 `colour-design`、`textures` 两个命令描述缺少中文。`geo` 新提示的中英文输出通过专门的测试。完整日志为临时目录下的 `selftest-final.log`。
+- 没有待决定的发布或界面取舍。
