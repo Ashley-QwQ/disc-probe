@@ -24,7 +24,7 @@ const server=createServer(async(req,res)=>{try{
   res.end(original?execFileSync('git',['show',`${process.env.W245_BASE??'731b199'}:discprobe/web/home/${relative}`],{maxBuffer:4e6}):await readFile(file));
 }catch{res.writeHead(404);res.end();}}).listen(0,'127.0.0.1');await once(server,'listening');
 const profile=join(out,'profile-'+phase+'-'+Date.now());
-const edge=spawn('C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',['--headless=new','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',windowsHide:true});
+const edge=spawn('C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',['--headless=new','--mute-audio','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',windowsHide:true});
 const pause=ms=>new Promise(r=>setTimeout(r,ms));let ws;
 try{
  let port;for(let i=0;i<100;i++){try{port=(await readFile(join(profile,'DevToolsActivePort'),'utf8')).split(/\r?\n/)[0];break;}catch{await pause(100);}}

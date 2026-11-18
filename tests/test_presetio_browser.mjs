@@ -303,7 +303,7 @@ try {
     // windows whose top-level width has a larger minimum.
     writeFileSync(wrapper,'<!doctype html><html><meta charset="utf-8"><style>html,body{margin:0;overflow:hidden}iframe{display:block;border:0}</style><body><iframe style="width:'+c.width+'px;height:'+c.height+'px" src="'+url.href+'"></iframe><pre id="result" hidden>PENDING</pre><script>setInterval(()=>{const r=document.querySelector("iframe").contentDocument?.getElementById("result");if(r)document.getElementById("result").textContent=r.textContent},20)<\/script></body></html>');
     const screenshot=join(screenshotDir,'desk-'+c.state+'-'+c.theme+'-'+c.width+'.png');
-    const result=spawnSync(browser,['--headless=new','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check',
+    const result=spawnSync(browser,['--headless=new','--mute-audio','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check',
       '--allow-file-access-from-files','--user-data-dir='+join(dir,'profile-'+i),'--window-size='+Math.max(500,c.width)+','+c.height,
       '--force-device-scale-factor=1','--hide-scrollbars','--virtual-time-budget=6000','--dump-dom','--screenshot='+screenshot,pathToFileURL(wrapper).href],
       {encoding:'utf8',timeout:30000,maxBuffer:4*1024*1024,windowsHide:true});

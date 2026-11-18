@@ -13,7 +13,7 @@ const outputRoot=resolve(outDir);
 const profile = resolve(outputRoot, ".edge-profile");
 if(!profile.startsWith(outputRoot+sep)||profile===outputRoot)throw Error('Profile must stay inside the screenshot output directory');
 const edge = spawn("C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
-  ["--headless=new", `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`, "--no-first-run",
+  ["--headless=new","--mute-audio", `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`, "--no-first-run",
    "--hide-scrollbars", "--window-size=1440,900", "about:blank"], { stdio: "ignore", detached: false });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

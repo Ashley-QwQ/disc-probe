@@ -70,7 +70,7 @@ for (const [product, icons] of Object.entries(sources)) {
 document.getElementById('out').textContent = JSON.stringify(result);
 } catch(e) { document.getElementById('out').textContent = 'ERROR: ' + e.stack; } })();
 </script>'''.replace("SOURCES", json.dumps(sources)).replace("SIZES", json.dumps(SIZES)), encoding="utf-8")
-        result = subprocess.run([str(edge), "--headless=new", "--disable-gpu", "--no-first-run",
+        result = subprocess.run([str(edge), "--headless=new","--mute-audio", "--disable-gpu", "--no-first-run",
                                  "--disable-background-networking", f"--user-data-dir={tmp / 'profile'}",
                                  "--virtual-time-budget=10000", "--dump-dom", page.as_uri()],
                                 capture_output=True, check=True, timeout=90)

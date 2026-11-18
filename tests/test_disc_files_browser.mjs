@@ -20,7 +20,7 @@ test('disc files: inner/outer, themes, invalid path, clearing, keyboard and LAN 
     while(Date.now()<until){try{info=JSON.parse(await readFile(join(dir,'server-info.json'),'utf8'));break;}catch{}if(server.exitCode!==null)throw Error(stderr);await pause(100);}
     assert(info,stderr);
     const profile=join(dir,'profile');
-    browser=spawn(edge,['--headless=new','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',windowsHide:true});
+    browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',windowsHide:true});
     let port;
     while(Date.now()<until){try{port=(await readFile(join(profile,'DevToolsActivePort'),'utf8')).split(/\r?\n/)[0];if(port)break;}catch{}await pause(100);}
     assert(port,'browser startup');

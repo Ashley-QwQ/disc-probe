@@ -35,7 +35,7 @@ try{
   await request('/api/burn-speeds?drive=X%3A&media=dvd');
   const token=await request('/api/burn-token');
   const job=await request('/api/run',{action:'calibrate',media:'dvd',drive:'X:',args:{iso:'iso/stop.iso',speed:'4x',burn_speed:4},burn_token:token.token});
-  browser=spawn(edge,['--headless=new','--disable-gpu','--disable-background-networking','--disable-component-update','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${join(dir,'profile')}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
+  browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--disable-background-networking','--disable-component-update','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${join(dir,'profile')}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
   let port;for(let i=0;i<100&&!port;i++){try{port=readFileSync(join(dir,'profile','DevToolsActivePort'),'utf8').split(/\r?\n/)[0];}catch{}if(!port)await delay(100);}assert.ok(port);
   const targets=await fetch(`http://127.0.0.1:${port}/json/list`).then(r=>r.json());
   socket=new WebSocket(targets.find(t=>t.type==='page').webSocketDebuggerUrl);

@@ -140,7 +140,7 @@ const check=(ok,msg)=>{if(!ok)throw Error(msg)};
 try{${assertions}document.getElementById('result').textContent='PASS: 14 entries x 3 synthetic KeyboardEvents';}
 catch(e){document.getElementById('result').textContent='FAIL: '+e.stack;}
 </script></body></html>`);
-  const r=spawnSync(edge,['--headless=new','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check','--allow-file-access-from-files',
+  const r=spawnSync(edge,['--headless=new','--mute-audio','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check','--allow-file-access-from-files',
     '--user-data-dir='+join(dir,'profile'),'--virtual-time-budget=5000','--dump-dom',pathToFileURL(fixture).href],{encoding:'utf8',timeout:30000,windowsHide:true});
   assert.ifError(r.error);
   const report=r.stdout.match(/<pre id="result">([\s\S]*?)<\/pre>/)?.[1];

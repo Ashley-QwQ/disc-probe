@@ -10,7 +10,7 @@ import { spawn } from 'node:child_process';
 
 async function browserReport(edge, fixture, profile, size) {
   const deadline=Date.now()+30000;
-  const browser=spawn(edge,['--headless=new','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check',
+  const browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check',
     '--allow-file-access-from-files','--remote-debugging-port=0',`--user-data-dir=${profile}`,`--window-size=${size}`,'about:blank'],
     {stdio:['ignore','ignore','pipe'],windowsHide:true});
   let stderr='',spawnError,ws,seq=0;

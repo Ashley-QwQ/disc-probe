@@ -36,7 +36,7 @@ try {
   assert(serverOut.includes('\n'),serverError);const ports=JSON.parse(serverOut.split('\n')[0]);
   const profile=join(dir,'edge');
   browser=spawn(process.env.KIT_TEST_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',[
-    '--headless=new','--disable-gpu','--disable-background-networking','--no-sandbox','--no-first-run','--no-default-browser-check',
+    '--headless=new','--mute-audio','--disable-gpu','--disable-background-networking','--no-sandbox','--no-first-run','--no-default-browser-check',
     '--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{stdio:['ignore','ignore','pipe'],windowsHide:true});
   let port;
   for(let i=0;i<300;i++){try{port=readFileSync(join(profile,'DevToolsActivePort'),'utf8').split('\n')[0];break;}catch{await pause(25);}}

@@ -34,7 +34,7 @@ const server=createServer(async(req,res)=>{try{
 await once(server,'listening');
 const profile=join(out,'edge-desk-'+Date.now());
 const edge=spawn(process.env.KIT_TEST_BROWSER??'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',[
-  '--headless=new','--disable-background-networking','--no-first-run','--no-default-browser-check',
+  '--headless=new','--mute-audio','--disable-background-networking','--no-first-run','--no-default-browser-check',
   '--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',windowsHide:true});
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 let ws,seq=0;const pending=new Map(),errors=[],checks=[],measurements=[];

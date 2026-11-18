@@ -97,7 +97,7 @@ async function calibrate() {
   await until('flights.some(f=>f.el.classList.contains("np")&&f.options.duration===760)','pan ready');
 }
 try {
-  browser=spawn(edge,['--headless=new','--disable-gpu','--disable-background-networking','--no-sandbox','--no-first-run','--no-default-browser-check',
+  browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--disable-background-networking','--no-sandbox','--no-first-run','--no-default-browser-check',
     '--allow-file-access-from-files','--remote-debugging-port=0',`--user-data-dir=${join(dir,'profile')}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
   let port;
   for(let i=0;i<100&&!port;i++) {
