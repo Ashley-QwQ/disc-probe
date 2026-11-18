@@ -16,5 +16,29 @@
       "evidence": "reporter scan: issue #33, 600/1200 DPI, corrected burn upright",
       "source": "https://github.com/Ashley-QwQ/disc-probe/issues/33"
     }
+  ],
+  "geo_read_speed": [
+    {
+      "vendor": "HL-DT-ST",
+      "product": "DVD-RAM GH70N",
+      "firmware": "NYA2",
+      "media": "dvd",
+      "requested_kBps": 5540,
+      "status": "validated",
+      "evidence": "burned grid 2026-11-03 (grid3 radial p2p 0.106°)",
+      "source": "docs/KNOWLEDGE.md"
+    },
+    {
+      "vendor": "HL-DT-ST",
+      "product": "DVD-RAM GH70N",
+      "firmware": "NYA2",
+      "media": "dvd",
+      "requested_kBps": 11080,
+      "status": "known_bias",
+      "bias": "The phase lag grows to about 0.3° at 54 mm compared with 4x",
+      "recommended_kBps": 5540,
+      "evidence": "2026-11-18 two-speed reread: phase lag grows to ~0.3° at 54 mm vs 4x",
+      "source": "D:/dp-dev/t1joint/evidence/t1-joint/level4/RESULT.md"
+    }
   ]
 }

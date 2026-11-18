@@ -590,6 +590,8 @@ class ClvLadder:
 
 def write_outputs(run: "ClvLadder", out_dir: str, stopped: str | None = None) -> None:
     """Same shape as `geo.write_outputs`, so `results` and `guide` can read both."""
+    from . import geo_speed
+
     os.makedirs(out_dir, exist_ok=True)
     zones = (run.summary.get("period") or {}).get("zones") or []
     with open(os.path.join(out_dir, "zones.csv"), "w", newline="", encoding="utf-8") as f:
@@ -602,7 +604,8 @@ def write_outputs(run: "ClvLadder", out_dir: str, stopped: str | None = None) ->
                "cache": run.summary.get("cache"), "settle": run.summary.get("settle"),
                "period": run.summary.get("period"), "rotation_check": run.summary.get("rotation_check"),
                "rotation_measured": run.summary.get("rotation_measured"),
-               "identity": run.summary.get("identity")}
+               "identity": run.summary.get("identity"),
+               **geo_speed.annotations(run.tp, run.media, zones=zones)}
     if run.summary.get("args"):
         payload["args"] = run.summary["args"]
     if run.summary.get("zones_unstable"):
