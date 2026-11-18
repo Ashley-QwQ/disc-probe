@@ -1,95 +1,55 @@
-# 社区提示卡交付报告
+# 卡 AA · 单实例、光驱互斥和退出
 
-工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
+分支 `core/single-instance-20261118`，基点 `e0ddb3c`。所有设备验收均在 Disc Lab 或假设备上进行。回归开始前 D 盘剩余约 204 GiB，临时数据和证据放在 `F:/dp-archive/tmp/singleinst/`。
 
-## 按提交交付
+## 提交
 
-- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
-- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
-- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
-- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
-- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
-- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
+- `f21439a` 接入单实例发现、光驱锁、控制台标题、网页退出和回归用例。随包 BAT 将参数交给 `tools/launch_web.py`。它与 `python -m discprobe webui` 共用 [启动逻辑](discprobe/web_instance.py#L112)。
+- 本提交记录验收结果和证据位置。
+- 基点的社区提示卡报告可用 `git show e0ddb3c:CARD_REPORT.md` 查阅。
 
-## 数据及出处
+## 服务行为
 
-本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
+- `web-instance.json` 写在新闻缓存同级的用户状态根目录，包含端口、令牌、PID、启动时间、模式和绑定地址。启动锁协调同时拉起的进程，临时文件和 `os.replace` 发布登记。带令牌的 `GET /api/ping` 校验 PID 与启动时间。登记残缺、令牌或身份不匹配、进程已死或端口被占时会重新启动服务，端口冲突时改用系统分配的端口。
+- 第二次启动打开已有大厅并退出 0。请求模式不同时，提示已有模式和本次请求的模式。`--new-instance` 启动独立服务，普通服务继续持有原登记。Disc Lab 自带的网页启动器显式使用这一模式。
+- 大厅右上角显示退出电源按钮。服务有任务或正在读盘时禁用，悬停文字为“先等任务结束”。确认后调用带令牌的 `POST /api/quit`，页面收到成功响应后显示退出提示。服务端在同一把任务状态锁内确认空闲并停止接收新任务，正常退出清除自己的登记。
 
-原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
+## 光驱入口清单
 
-相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
+Windows 用 `msvcrt.locking`，POSIX 用 `fcntl.flock`。光驱锁文件第一个字节用于互斥，其后记录 PID 和动作。锁立即返回持有者信息，同一线程内的嵌套调用保留外层动作。Windows 盘符别名归一，Linux 合并设备路径、符号链接和可匹配的 `srN`、`sgN`。Disc Lab 在同一实验室内按虚拟盘符取得同一把 core 锁。参考 [核心锁](discprobe/drive_lock.py#L25)、[设备键](discprobe/drive_lock.py#L74) 和 [Disc Lab 设备接入](disclab/hooks.py#L23)。
 
-新增 id：
+| 实际光驱操作 | 拿锁的入口和覆盖范围 |
+| --- | --- |
+| 刻录、续写、开放会话、刻前擦除 | [burner.burn](discprobe/burner.py#L397) 覆盖介质检查、刻录、写入状态检查和刻后验证。 |
+| 擦除、擦除前后状态检查 | [eraser.erase](discprobe/eraser.py#L109)，可独立调用的检查在 [eraser.inspect](discprobe/eraser.py#L18)。 |
+| 刻后抽样比对、盘面写入状态 | [burner.verify_image](discprobe/burner.py#L349)、[recorded.burn_state](discprobe/recorded.py#L115)。嵌在刻录里时保留“刻录”动作。 |
+| `info` 完整 MMC 信息与盘面身份 | [cmd_info](discprobe/__main__.py#L511) 将锁交给 [InfoDevice 工作线程](discprobe/info.py#L49)，实际设备关闭后释放。 |
+| `disc` 快速检查、`swap` 等待换盘、`whois` 读盘面身份 | [cmd_disc](discprobe/__main__.py#L586)、[cmd_swap](discprobe/__main__.py#L618)、[cmd_whois](discprobe/__main__.py#L561)。 |
+| `timing`、`geo`，含 BD / CD CLV 和角度测量分支 | [cmd_timing](discprobe/__main__.py#L647)、[cmd_geo](discprobe/__main__.py#L848)。 |
+| `calibrate` 自动校准 | [calibrate.run](discprobe/calibrate.py#L96) 的 `disc`、`burn`、`timing`、`geo` 子命令各在 core 端取得锁，忙时终止该阶段并传回错误。 |
+| `label --drive` 读取当前会话的下一可写 LBA | [labelsession.run](discprobe/labelsession.py#L107) 持锁完成会话读，再离线生成镜像。 |
+| 网页驱动读盘、写速探测与光驱任务 | [read_disc](discprobe/webui.py#L645)、[burn_speeds](discprobe/webui.py#L658)、[start](discprobe/webui.py#L694)。请求复用 core 的忙态检查，实际动作在 [读取适配器](discprobe/burner.py#L334) 或 CLI 子进程内拿锁。请求后才出现的冲突通过子进程事件回传。 |
+| 独立 Windows IMAPI 读取、刻录、擦除脚本 | [burn_imapi.ps1](tools/burn_imapi.ps1#L54) 和 [erase_imapi.ps1](tools/erase_imapi.ps1#L4) 用与 core 互通的 [字节锁](tools/drive_lock.ps1#L2)。由 core 启动的 IMAPI 子进程使用外层已持有的锁。 |
+| 直接打开光驱的研究工具 | [bd_holdout.py](tools/bd_holdout.py#L57)、[cd_readcmd_compare.py](tools/cd_readcmd_compare.py#L82)、[geo_probe_points.py](tools/geo_probe_points.py#L52)。 |
 
-```text
-D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
-I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
-DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
-DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
-DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
-DISmain-verbatim-dvd-plus-rw-94520-95043
-```
-
-修改 id（含仅补充来源/复用报告的记录）：
-
-```text
-D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
-I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
-I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
-```
-
-新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
-
-内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
-
-同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
-
-## 下发与程序行为
-
-`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
-
-```text
-f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
-```
-
-生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
-
-`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
-
-CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
-
-仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
-
-## 网页位置和需要人工审查的选择
-
-传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
-
-新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
-
-请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
+`list` 和驱动器列表枚举设备名。`checkdisc` 根据已有测量生成检查用 ISO。`whois --image`、`info --image`、`geo --refit`、`label --start-lba` 和基于已有 `--geo` 的预设导出也只处理文件。这些入口不抢光驱。`--sim` 的进程内软件模型也不需要设备锁。
 
 ## 验收
 
-所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
+- 相关 Python 使用 `python -B -X utf8 -m pytest -n 2 -p no:cacheprovider --basetemp <F 盘测试目录> ...`。首轮 490 项得到 474 通过、1 跳过、14 失败和 1 项夹具错误。修正 Disc Lab 独立实例和独立实验室隔离、校准子进程拒绝传递及既有前端测试的抓取边界后，用相同 `-n 2` 定向复验，33 项通过，再单独复验 1 项通过。合计覆盖 489 项通过、1 项跳过。在这组记录中，本卡新增的 11 个用例均通过。完整命令和各轮结果见 [首轮](F:/dp-archive/tmp/singleinst/python/pytest.log)、[定向复验](F:/dp-archive/tmp/singleinst/python-target/pytest.log)、[页面复验](F:/dp-archive/tmp/singleinst/python-web/pytest.log)。
+- 共 55 个 `tests/test_*.mjs` 脚本。普通批次 54 个中 53 个首轮通过，`test_presetio_browser.mjs` 首轮等待结果超时，单独复验通过。导航 `node tests/test_flow_navigation_browser.mjs` 单独通过。合计 55/55。见 [普通批次](F:/dp-archive/tmp/singleinst/javascript/results.json)、[复验](F:/dp-archive/tmp/singleinst/javascript-target/test_presetio_browser.mjs.log)、[导航](F:/dp-archive/tmp/singleinst/navigation/test_flow_navigation_browser.mjs.log)。
+- [新增用例](tests/test_single_instance.py) 用真实服务进程验证普通和同时启动、浏览器调用桩、LAN 与本机模式冲突、强杀恢复、半写登记、PID 与启动时间不符、错误令牌及端口冲突。设备用例验证双进程拒绝与崩溃释放、另一盘符可用、另一实验室的同盘符可用、嵌套重入、Windows PowerShell 与 core 相互排斥、写入期间拒绝退出以及退出后登记清除。
+- 双窗口 Disc Lab 验收命令为 `python -B -X utf8 F:/dp-archive/tmp/singleinst/capture_lab.py edge-final-proof`。第一服务在 X: 选中并完成 8× 虚拟刻录。第二服务在刻录期间读 X:，大厅显示刻录子进程 PID 和中英提示。刻录完在同一页重读成功，接口返回 HTTP 200、`blank=false`、1024 扇区。两服务经网页确认退出，退出码均为 0，普通实例登记已清理。见 [实测日志](F:/dp-archive/tmp/singleinst/edge-final-proof/capture.log) 和 [控制台标题读取](F:/dp-archive/tmp/singleinst/edge-final-proof/console-title.txt)。
 
-| 命令/检查 | 结果 |
-| --- | --- |
-| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
-| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
-| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
-| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
-| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
-| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
-| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
-| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
-| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
+| 无头 Edge 画面（1440 × 900） | 纸色 | 夜色 |
+| --- | --- | --- |
+| 大厅空闲 | [PNG](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/idle-paper.png) | [PNG](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/idle-dark.png) |
+| 刻录期间，退出按钮禁用 | [PNG](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/busy-paper.png) | [PNG](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/busy-dark.png) |
+| 点退出并确认后 | [PNG](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/exited-paper.png) | [PNG](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/exited-dark.png) |
+| 第二窗口读盘 | [刻录期间拒绝](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/read-refused-paper.png) · [刻后成功](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/read-success-paper.png) | — |
 
-初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
+## 未测和验收边界
 
-截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
-
-## 未测及边界
-
-没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
-
-附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
+- 真光驱、POSIX 实机文件锁、实际点击 Windows 控制台的关闭按钮、在另一台设备上走 LAN、最终发布 ZIP 中的 BAT 双击均未测。Windows 标题用 `GetConsoleTitleW` 核对，强杀与网页正常退出分别实测。复用时的系统默认浏览器调用用桩核对。
+- 数值和镜像写入算法的改动范围为入口加锁。相关回归已跑，跨全部媒体、设备和镜像尺寸的独立逐位比对未测。禁用按钮的悬停文案通过页面属性核对。
+- 校准阶段之间会释放设备，物理操作期间持锁。`--new-instance` 不登记，因此只启动过强开实例时，下一次普通启动可以再创建一台服务。这两处属于本卡保留的行为边界。
