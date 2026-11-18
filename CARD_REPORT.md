@@ -57,3 +57,52 @@ ISO SHA-256 为 `3ea451fd6068be48a94358c01480fe6a741f2d01367e400f7175a092a49b356
 - 色表尚未按色卡校正。预测图的饱和度、底光和在不同位置的条纹变化，均等待实盘照片验证。全盘字节读回只验证虚拟刻录数据。物理刻录、混色观感与颜色误差未测。
 - 网页使用 200–800 px 的 core 预览，彩色图在「刻出来」中显示缩放后的材质分布。彩色图的放大逐格检查和 10/5 µm 整盘耗时未测。
 - 叠加手动彩色填充时，默认彩色烧录选项会一并使用这些填充的作品材质。请审查首版是否采用这一行为、左原图右预测的对照，以及待拟合色表与新材质集是否进入冻结版。
+
+## 第二轮 · 拟合材质和相对映射
+
+- `aa64f05` 添加 `discprobe/colour_print/table.npz`、`materials.json` 和生成脚本 `tools/build_colour_print_table.py`。只取 `material_sets.json` 的 `scenarios["0.000"].materials`，原序保留 `spec`、`id`、`rev`、`texlib_rev`。`0.049` 未入包。58 × 341 × 3 个 XYZ 元素与拟合源表选中行逐元素相同，dtype 仍为 `float32`，`specs` 缩到实际最长的 `U68`。A5/B9 峰值 Y 写成一个标量，未附加这两条曲线。wheel 中两份文件逐字节核对通过，大小分别为 222,342 和 7,953 字节。
+- `7e55b61` 让 `colour-design`、`compose` 和网页彩色图默认使用随包数据。无 `DISCPROBE_TEXLIB` 的 CLI、网页填充、预测与重新打开作品均通过。`--table NPZ` 和 `--materials JSON` 可覆盖，网页也支持 `DISCPROBE_COLOUR_TABLE`、`DISCPROBE_COLOUR_MATERIALS`。第一轮已保存的未拟合分配仍可用原纹理库重放，重新填充可采用新表。拟合预览只渲染已分配纹理的衍射光，保留模型估计提示和六张色卡盘的校准说明。
+- 候选 XYZ 在实际 δ 先插值再转 Lab，每格由候选求 `Lmin`、`Lmax` 和 `Cmax`。原图 `L*` 的 0–100 线性映到 `[Lmin,Lmax]`，`a*`、`b*` 同乘 `min(1,Cmax/134)`。134 是 sRGB 角点在 D65 Lab 中的最大色度向上取整后的常量。映射保留目标色相，候选用 ΔE76 排序，Bayer 8×8 及前两名距离比例照旧。超出色表角度范围时，模型响应为零。
+
+```powershell
+python -B -X utf8 tools/build_colour_print_table.py --table F:/dp-dev-tmp/colour-table-fitted/colour_table_fitted.npz --material-sets D:/disc-probe/docs/goals/colour-table-fitted/material_sets.json
+python -B -X utf8 -m discprobe colour-design illustration.png --phone iphone17pro --height 22.3 -o full-work.json
+python -B -X utf8 -m discprobe compose full-work.json --out full-labels.npy
+```
+
+拟合源表 SHA-256 `2f71fd2daad780ce4f715ae4d2c0074da1b4d2cbf6c47924019f3d9f15b258de`。材质集源 JSON SHA-256 `a9aa62e7b4f7bbcec71b8c768adbfa4e2bd30c508452f4b1fb2b60575233260b`。随包 NPZ SHA-256 `756f7440306509e2f68156e00f2e4ceb9eb46f5eb0623754de663e0568fc4763`。
+
+### 可认度和色块
+
+用第一轮同一张 640 × 640 插画，重新生成的原图 SHA-256 为 `a95b712049044e71cb39ed2267fe63f91eb90f226c6812977bd8a06116f2b2e6`。同一 80.4 mm 居中图层、20 µm 合成格和 600 × 600 预测像素。对原图和预测图的 sRGB 像素取 Rec.709 加权灰度，在图片与可刻环带交集中算 Pearson 相关系数。「有角度数据」一列只计入拟合表有角度数据的共同像素。色块误差是区域内预测线性 RGB 的均值转 Lab 后，与原色块之间的最短色相角差，单位为度。色块边缘剔除两像素。
+
+| 组别 | 灰度 r | 有角度数据的灰度 r | 天空 | 黄 | 绿 | 深蓝 | 红 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 第一轮未拟合表、绝对匹配，22.3 cm | 0.363 | 0.535 | 23.22 | 15.73 | 9.77 | 46.55 | 16.75 |
+| 拟合表、绝对匹配，22.3 cm | 0.425 | 0.546 | 14.21 | 19.90 | 0.07 | 3.93 | 22.74 |
+| 拟合表、相对匹配，22.3 cm | 0.401 | 0.506 | 16.71 | 19.04 | 1.90 | 2.39 | 22.58 |
+| 拟合表、相对匹配，30 cm | 0.465 | 0.610 | 14.40 | 16.51 | 6.74 | 4.45 | 2.76 |
+
+居中构图的肤色落在不可刻盘心。用同一张图右移 23 mm 做补充对照，在 1200 × 1200 标签网格和 600 × 600 预览取到 2,369 个肤色采样像素。肤色色相误差依次为第一轮 34.66°、拟合绝对匹配 7.19°、拟合相对匹配 6.99°。其余指标和每块采样数见 `readability.json`。
+
+新版能分出蓝色天空、黄色太阳和绿色山体，仍看得到放射色带。整图灰度相关从 0.363 到 0.401，改善主要来自本轮拟合表及对应的纯衍射预览。单独比较拟合表两种映射，22.3 cm 相对匹配的灰度相关低于绝对匹配，深蓝误差较小，天空误差较大。22.3 cm 和 30 cm 分别有 88.85% 和 84.85% 的受测图像像素落在拟合色表的 δ 范围。
+
+### δ 与灯下渲染器核对
+
+合成与灯下均使用到相机和灯的单位方向之和在轨道切线上的投影绝对值。合成行向下，光学坐标向上，进入计算前翻转 y。拟合源表的来源记录明确 `delta_scale_applied=false`，两条拟合路径均在纹理查表前应用一次 0.93。
+
+将同一次 `colour` 合成得到的标签交给 `lamp-worker` 实际调用的 `LampFrame`，与 core 的纯衍射 PNG 对比。22.3 cm、600 × 600 个同位置的查表 δ 最大差 `1.14×10^-14`。
+
+| 使用同一份标签 | RGB 全图平均绝对差 | 环带平均绝对差 | 最大通道差 |
+| --- | ---: | ---: | ---: |
+| 6000 × 6000 实际标签，core 面积覆盖、JS 单点取样 | 6.33754 / 255 | 10.41902 / 255 | 255 |
+| 600 × 600 合成标签，两者匹配到同一取样点 | 0.000232 / 255 | 0.000382 / 255 | 1 |
+
+全分辨率差异主要是取样口径。core 对每 10 × 10 个刻录格做面积覆盖，单点 JS 取一个格。取样一致时 1,080,000 个 RGB 通道里有 251 个相差 1。没有发现需更换几何公式的差异。并排原图、`full-grid-*`、`matched-sampling-*` 和 `delta-and-render-parity.json` 一并保留。
+
+### 回归、ISO 和截图
+
+- 全量 Node 用 `node --test --test-concurrency=1` 跑 54 个 `test_*.mjs` 文件，65 项通过。`node --test tests/test_flow_navigation_browser.mjs` 单独跑，1 项通过。社区、faxnews、presetio、新建作品审查、IME 和 CSP 本轮均通过，相关测试文件未改。W245 的 18 项通过，四个旧画布哈希与第一轮相同。Python 相关测试 `-n 2` 共 125 项通过，最后定向重跑包含新增拟合 δ 检查的 17 项，也全通过。旧 Python 测试写到 worktree 的两份临时对比 JSON 已移到 F 盘。
+- 20 µm、整盘默认环带的 `compose` 耗时 **92.95 s**。使用第一轮 Disc Lab 量测范围裁切后 `compose` 耗时 80.68 s。沿用虚拟几何向 `image` 传 60 项材质顺序表，2 worker 生成 4,700,372,992 字节 ISO 耗时 134.87 s，核心扇区抽查通过。另一只同种子的 Disc Lab 虚拟 DVD-R 用 8× 刻录，含抽查的总耗时 22.55 s，96 组通过。再用 128 扇区一组的 `READ(10)` 全读 2,295,104 扇区，17.22 s，读回与 ISO SHA-256 均为 `5355ccf13e75f3b2ff4183f1c572e63d8da7a2f5843ecdcfea87bb2124eff189`。ISO 已清理。
+- 截图和原始数据均在 `F:/dp-archive/tmp/colourprint/round2/`。`before-after.png` 是四组预测与原图并排，`skin-block-control.png` 是肤色补充对照。`after/` 是 22.3 cm 的纸色、夜色截图，`after-30cm/` 用同一张插画重新按 30 cm 选材并截图。两组均为 Edge 1440 × 1000，无纹理库环境，成功生成 600 × 600 预测、切换对照和重新打开 CLI 作品，浏览器异常 0。首张灯下图分别耗时 55.98 s 和 54.01 s。
+- 以上为模型、界面及虚拟刻录验证。第二轮新材质的实盘照片、物理读盘和实际混色仍未测。
