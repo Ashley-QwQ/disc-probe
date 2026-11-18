@@ -4,6 +4,7 @@ Track allocation and blank capacity are not recorded length. An end read proves
 only that sector is readable; it is not a whole-disc verification.
 """
 from . import mmc
+from .drive_lock import locked_drive
 
 # Real drives disagree by a sector or two without anything being wrong: a closed CD reports two run-out
 # sectors more in READ CAPACITY than its track's last recorded address (six saved GH70N records), and two
@@ -111,6 +112,7 @@ def check(report, read=None, *, audio=False):
     return result
 
 
+@locked_drive("verify")
 def burn_state(drive, sectors, *, keep_open=False, start_lba=0, device_factory=None):
     if device_factory is None:
         from .device import Device

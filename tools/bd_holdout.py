@@ -29,6 +29,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from discprobe.drive_lock import DriveBusy, drive_operation
 
 
 def _fractions(text: str) -> list[float]:
@@ -53,8 +54,7 @@ def collect(args) -> int:
 
     fractions = _fractions(args.fractions)
     raise_priority()
-    dev = SptiDevice(args.drive)
-    try:
+    with drive_operation(args.drive, "timing"), SptiDevice(args.drive) as dev:
         probe = TimingProbe(dev, media=args.media, reps=args.reps,
                             speed_kbs=int(args.speed) if args.speed else None,
                             log=lambda s: print(s, flush=True))
@@ -62,8 +62,6 @@ def collect(args) -> int:
         probe.cache_test()
         probe.settle_spindle()
         zones = probe.period_test(zones=tuple(fractions), announce_rotation=False)
-    finally:
-        dev.close()
 
     with open(args.collect, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -175,4 +173,7 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except DriveBusy as exc:
+        raise SystemExit(str(exc)) from None

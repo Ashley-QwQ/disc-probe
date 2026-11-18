@@ -31,7 +31,8 @@ if os.environ.get("DISCPROBE_DISCLAB"):
     import importlib.abc
 
     class _DisclabFinder(importlib.abc.MetaPathFinder):
-        targets = {"discprobe.spti", "discprobe.sg", "discprobe.imapi", "discprobe.burner", "discprobe.eraser"}
+        targets = {"discprobe.spti", "discprobe.sg", "discprobe.imapi", "discprobe.burner", "discprobe.eraser",
+                   "discprobe.drive_lock"}
 
         def find_spec(self, name, path, target=None):
             if name not in self.targets:

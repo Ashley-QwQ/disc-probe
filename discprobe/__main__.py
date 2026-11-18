@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime
+from functools import wraps
 import json
 import math
 import os
@@ -12,6 +13,7 @@ import sys
 
 try:
     from . import guide, i18n, info, mmc, timing, ui
+    from .drive_lock import DriveBusy, drive_operation
 except ImportError as e:    # half a copy of this folder: i18n may be what is missing, so it says so in both languages
     if (e.name or "").split(".")[0] != __package__:
         raise
@@ -185,6 +187,21 @@ def _open(args):
             print("note: SPTI was refused (not elevated); using the IMAPI2 transport instead")
     from .imapi import ImapiDevice
     return ImapiDevice(args.drive)
+
+
+def _locked_read(action, *, offline=None):
+    def decorate(func):
+        @wraps(func)
+        def run(args):
+            if getattr(args, "sim", None) or (offline and getattr(args, offline, None)):
+                return func(args)
+            _choose_drive(args)
+            if not args.drive:
+                return func(args)  # retain the existing missing-drive diagnostic
+            with drive_operation(args.drive, action):
+                return func(args)
+        return run
+    return decorate
 
 
 def _check_disc(dev, args) -> None:
@@ -498,7 +515,8 @@ def cmd_info(args):
         _choose_drive(args)  # a person's drive selection is outside the I/O deadline
     print('Reading drive information (3s per command, 25s command budget)...', flush=True)
     try:
-        dev = info.InfoDevice(opener=lambda: _open(args))
+        operation = drive_operation(args.drive, "info") if not args.sim and args.drive else None
+        dev = info.InfoDevice(opener=lambda: _open(args), operation=operation)
     except OSError as exc:
         out = _outdir(args, 'info', type('Unavailable', (), {'name': 'unavailable'})())
         from .diagnostics import save_failure
@@ -540,6 +558,7 @@ def cmd_info(args):
     _next(guide.after_info(args, report))
 
 
+@_locked_read("whois", offline="image")
 def cmd_whois(args):
     from . import discid
     if getattr(args, "image", None) and (args.drive or getattr(args, "sim", None)):
@@ -564,6 +583,7 @@ def cmd_whois(args):
         sys.exit(1)
 
 
+@_locked_read("disc")
 def cmd_disc(args):
     """Which disc is in the drive, for the web page: a handful of read-only commands, nothing written to
     disk, one JSON line on stdout ({"tray", "drive", "disc"}). `info` is the full dump."""
@@ -595,6 +615,7 @@ def tray_state(sense, ok: bool) -> str:
     return "loading" if text.startswith("2/04/") else "unknown"
 
 
+@_locked_read("swap")
 def cmd_swap(args):
     """Wait, read-only, while a disc is taken out and another put in: TEST UNIT READY every half second until the
     drive has been without a disc (or reports a new one) and then has one ready. Nothing moves the tray."""
@@ -623,6 +644,7 @@ def cmd_swap(args):
     sys.exit(f"No disc change within {args.minutes:g} minutes")
 
 
+@_locked_read("timing")
 def cmd_timing(args):
     if not args.sim:
         _need_hardware_platform()
@@ -823,6 +845,7 @@ def cmd_calscan(args):
     print(f"\nbands.csv, phase.csv, summary.json and unrolled.png: {os.path.abspath(out)}")
 
 
+@_locked_read("geo", offline="refit")
 def cmd_geo(args):
     media = getattr(args, "media", "dvd")
     from . import read_completion
@@ -2630,6 +2653,7 @@ def _build_parser():
     sp.add_argument("--port", type=int, default=8765, help="HTTP port (default: 8765)")
     sp.add_argument("--lan", action="store_true", help="accepted for compatibility; no-op (LAN is on by default)")
     sp.add_argument("--local-only", action="store_true", help="listen only on 127.0.0.1; disable LAN phone access")
+    sp.add_argument("--new-instance", action="store_true", help="start a separate service without replacing the existing instance")
     sp.add_argument("--media", choices=("dvd", "cd", "bd"), default="dvd", help="disc type")
     sp.add_argument("--out", default="results", help="results directory (default: results)")
     from .webui import run as run_webui
@@ -2818,6 +2842,11 @@ def main(argv=None):
         _main(rest)
     except _Rerun as again:
         main(list(sys.argv[1:] if argv is None else argv) + again.extra)
+    except DriveBusy as exc:
+        ui.event("error", code=exc.code, message=str(exc))
+        i18n._prepare(sys.stderr)
+        print(str(exc), file=sys.stderr)
+        sys.exit(exc.exit_code)
     except KeyboardInterrupt:
         kept = f" What was measured so far is in {os.path.abspath(_Parser.last_out)}" if _Parser.last_out else ""
         print(f"\nStopped by Ctrl+C.{kept}", file=sys.stderr)

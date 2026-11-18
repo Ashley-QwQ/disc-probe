@@ -22,7 +22,9 @@ def is_lab_drive(name) -> bool:
 
 def patch(module):
     name = module.__name__
-    if name in ("discprobe.spti", "discprobe.sg", "discprobe.imapi"):
+    if name == "discprobe.drive_lock":
+        module._virtual_root = _lab().root
+    elif name in ("discprobe.spti", "discprobe.sg", "discprobe.imapi"):
         attr = {"discprobe.spti": "SptiDevice", "discprobe.sg": "SgDevice", "discprobe.imapi": "ImapiDevice"}[name]
         real = getattr(module, attr)
 

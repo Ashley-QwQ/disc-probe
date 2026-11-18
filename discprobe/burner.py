@@ -5,6 +5,8 @@ No failed write is retried. Platform adapters are injectable for hardware-free t
 """
 from __future__ import annotations
 
+from .drive_lock import locked_drive
+
 import json
 import math
 import os
@@ -329,6 +331,11 @@ def adapter(drive, media):
     raise BurnError("Burning on macOS/this platform is not yet implemented.")
 
 
+@locked_drive("info")
+def inspect_drive(drive, media):
+    return adapter(drive, media).inspect()
+
+
 def sample_lbas(sectors, samples=96):
     """Up to 96 distinct, evenly spaced 16-sector blocks, including both ends.
 
@@ -339,6 +346,7 @@ def sample_lbas(sectors, samples=96):
     return [16 * (i * (blocks - 1) // max(1, count - 1)) for i in range(count)]
 
 
+@locked_drive("verify")
 def verify_image(drive, image, media, cancel, *, device_factory=None, start_lba=0):
     """Compare user bytes via allowlisted READ(10), without application retries."""
     from . import mmc
@@ -386,6 +394,7 @@ def verify_image(drive, image, media, cancel, *, device_factory=None, start_lba=
     return summary
 
 
+@locked_drive("burn")
 def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None, cancel=None,
          no_verify=False, verifier=None, keep_open=False, append=False, expect_start=None,
          disc_id=False, disc_id_code=None, state_checker=None, erase=False):
