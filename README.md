@@ -78,7 +78,9 @@ python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --te
 
 从 1.0.0.0-alpha 起，大多数步骤可以在本地网页里做，不用记命令。
 
-- **打开**：Windows 完整包解压后，双击 `开始 Start.bat`，浏览器会打开大厅；关掉那个黑色窗口就停止。已经装好 Python 的话，在仓库文件夹里运行 `python -m discprobe webui`，再打开 http://localhost:8765 。
+- **打开**：Windows 完整包解压后双击 `开始 Start (Windows).bat`。Linux 完整包解压后运行 `./start-linux.sh`，也可运行 `bash start-linux.sh`。两种完整包都自带 Python 和依赖。使用源码时，在仓库目录运行 `python -m discprobe webui --open`。服务会打印带令牌的地址，Linux 无图形桌面时可使用该地址。首选端口为 8765，被占用时自动换到空闲端口。
+- **查看和停止**：`python -m discprobe webui status` 查看服务和光驱持锁状态，可加 `--json`。在大厅点“退出”，或运行 `python -m discprobe webui stop`。有任务时会提示正在进行的任务，`stop --force` 仅在没有光驱写入时允许。关掉启动服务的黑色窗口也会停止服务。
+- **启动选项**：`--local-only` 把服务限制在本机，`--no-drives` 或 `DISC_PROBE_NO_DRIVES=1` 用于离线设计。再次启动时如果参数不同，命令会打印已有实例的地址并提示先用 `webui stop`。
 - **新手引导**：大厅里点"看新手引导"。它按你已经做过的步骤，告诉你下一步做什么。
 - **设计**：导入图片，摆放位置，分图层，调明暗，先看看刻出来大概是什么样。作品存在本机的作品库里，关掉网页也不会丢。
 - **用手机拍照核对（DVD）**：先刻一张检查盘，用同一个局域网里的手机扫码，拍好的照片直接传到电脑上。程序会说明哪张照片不能用、为什么，比如没拍全整张盘、光线不对。几张照片读出的结果互相一致，才会拿来修正出图。
@@ -94,11 +96,12 @@ python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --te
 
 > 如果你在 2026-11-06 之前用 `--correction` 导出过预设，修正可能没有生效。更新后重新导出就行，不用重新测盘。
 
-要准备同一批的空盘。最少要几张：DVD 2 张（测量、刻图），CD 3 张（测量、标定、刻图），这是一次就刻对的情况。网页按 3 张来安排：测量盘、检查盘（拍照看偏了多少）、成品；误差大时第 4 张才是成品。3 张是目标，不是保证。照片拍坏了只要重拍，不用重刻。测量盘刻好后不能再刻图，但可以留着，同一批的盘以后不用再刻一张。另外需要 Windows 或 Linux、Python 3.10 以上和一台能刻录的光驱。macOS 见[实践报告表](#有实践报告的光驱)下方的移植版本。下面以 DVD 为例，CD 见后面的 [CD 路线](#cd-路线)。
+要准备同一批的空盘。最少要几张：DVD 2 张（测量、刻图），CD 3 张（测量、标定、刻图），这是一次就刻对的情况。网页按 3 张来安排：测量盘、检查盘（拍照看偏了多少）、成品；误差大时第 4 张才是成品。3 张是目标，不是保证。照片拍坏了只要重拍，不用重刻。测量盘刻好后不能再刻图，但可以留着，同一批的盘以后不用再刻一张。另外需要 Windows 或 Linux 和一台能刻录的光驱。使用源码、core 包或通用 wheel 时，需另外准备 Python 3.11 或更新版本。macOS 见[实践报告表](#有实践报告的光驱)下方的移植版本。下面以 DVD 为例，CD 见后面的 [CD 路线](#cd-路线)。
 
 也可以不用 git，到 [Releases](https://github.com/Ashley-QwQ/disc-probe/releases) 下载打包好的版本（1.0.0.0-alpha 是预发布版，不显示为 Latest）：
 
-- `full-win64`：Windows 用，自带 Python 和依赖。解压后双击 `开始 Start.bat`，不用另外安装。下面的安装步骤可以跳过。
+- `full-win64`：Windows 用，自带 Python 和依赖。解压后双击 `开始 Start (Windows).bat`。
+- Linux 完整包：自带 Python 3.13 和依赖。解压后运行 `./start-linux.sh` 或 `bash start-linux.sh`。
 - `core`：只有 disc-probe，要你已经装好 Python。解压后在文件夹里运行 `python -m pip install -r requirements.txt`，再运行下面的 `selftest`。
 
 Windows 上用管理员身份打开终端，安装依赖，并用模拟驱动器确认环境正常。不方便用管理员身份时，在读盘的命令后加 `--transport imapi`：它经 Windows 自带的 IMAPI2 刻录接口（`IDiscRecorder2Ex`）发同样的命令，普通用户即可；默认的 `auto` 在 SPTI 被拒时会自动改用它。

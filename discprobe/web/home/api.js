@@ -4,6 +4,7 @@ export const mock = query.has('mock') || query.has('demo') || query.has('newdisc
 const token = query.get('token');
 export const escapeHTML = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function errorText(error, lang = 'en') {
+  if (error.code === 'drive_busy' || error.code === 'tasks_running') return error.message;
   if (error.status === 409) return lang === 'zh' ? '光驱正忙或状态已改变。等任务结束，再重新检测。' : 'The drive is busy or its state changed. Wait for the task, then check again.';
   // fetch() rejects with a TypeError when the server is gone; any other status-less error is a
   // message the page wrote for the person (no disc, wrong family, ...) and is shown as it is.
@@ -16,7 +17,7 @@ export async function request(path, payload) {
     headers: {...(token ? {'X-Discprobe-Token': token} : {}), ...(payload === undefined ? {} : {'Content-Type':'application/json'})},
     body: payload === undefined ? undefined : JSON.stringify(payload)});
   const data = await response.json();
-  if (!response.ok) throw Object.assign(new Error(data.error || response.statusText), {status: response.status});
+  if (!response.ok) throw Object.assign(new Error(data.error || response.statusText), {status: response.status, code: data.code});
   return data;
 }
 export const state = () => request('/api/state');
@@ -25,7 +26,7 @@ export const answer = (job, id, yes) => request(`/api/jobs/${job}/answer`, {id, 
 export const cancel = (job) => request(`/api/jobs/${job}/cancel`, {});
 export function events(onEvent, onError) {
   const source = new EventSource('/api/events' + (token ? '?token=' + encodeURIComponent(token) : ''));
-  for (const type of ['progress','ask','answer','result','stopped','done','state','log','tray','cancelled','step','burn_result','verify_progress','burn_speed','erase_started','erase_progress','erase_result']) source.addEventListener(type, event => onEvent(JSON.parse(event.data)));
+  for (const type of ['activity','progress','ask','answer','result','stopped','done','state','log','tray','cancelled','step','burn_result','verify_progress','burn_speed','erase_started','erase_progress','erase_result']) source.addEventListener(type, event => onEvent(JSON.parse(event.data)));
   source.onerror = () => onError?.();
   return () => source.close();
 }
@@ -50,6 +51,8 @@ export async function follow(id, onEvent = () => {}) {
       const snapshot = await request(`/api/jobs/${id}`);
       snapshot.events.forEach(deliver);
       if (snapshot.exit !== null) {
+        const busy = snapshot.events.find(event => event.type === 'error' && event.code === 'drive_busy');
+        if (busy) throw Object.assign(new Error(busy.message), {status:409, code:busy.code});
         if (snapshot.exit !== 0) throw Object.assign(new Error('Job failed (' + snapshot.exit + ').'), {status:422, result:snapshot.result});
         return snapshot.result;
       }

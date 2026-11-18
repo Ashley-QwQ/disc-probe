@@ -5,3 +5,4 @@
 /discprobe/web/home/faxnews/community.json -text
 /discprobe/web/fonts/OFL-SourceHanSans.txt -text
 /disclab/web/fonts/OFL-SourceHanSans.txt -text
+/start-linux.sh text eol=lf

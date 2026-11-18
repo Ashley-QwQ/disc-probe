@@ -219,7 +219,7 @@ def test_web_launch_and_interrupt(lab, monkeypatch, capsys):
     monkeypatch.setattr(web.subprocess, "Popen", popen)
     assert web.serve(lab, 8853, "dvd") == 0
     args, kwargs = popen.call_args
-    assert args[0] == [sys.executable, "-B", "-m", "discprobe", "webui", "--local-only", "--port", "8853",
+    assert args[0] == [sys.executable, "-B", "-m", "discprobe", "webui", "--new-instance", "--local-only", "--port", "8853",
                        "--out", "results", "--media", "dvd"]
     assert kwargs["cwd"] == lab.root
     assert kwargs["env"]["DISCPROBE_DISCLAB"] == str(lab.root)

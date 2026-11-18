@@ -10,7 +10,7 @@ Tag: `v[VERSION]` · GitHub pre-release · Commit: `[COMMIT]` · Date: `[DATE]`
 
 - **是什么 / 给谁用：** 光盘几何测量与图案制作工具，面向需要核心程序、命令行或图形界面的用户。
 - **下载：** Windows 免安装版 `disc-probe-[VERSION]-full-win64.zip`；已有 Python 的用户选 `disc-probe-[VERSION]-core.zip`，或 `disc_probe-[PEP440_VERSION]-py3-none-any.whl`。源码为 `disc_probe-[PEP440_VERSION].tar.gz`；Linux 安装说明为 `INSTALL-linux.md`。
-- **安装：** Windows 完整版解压到可写目录，运行其中的 `开始 Start.bat`。core 版按包内说明准备 Python 和依赖；wheel 使用 `python -m pip install ./disc_probe-[PEP440_VERSION]-py3-none-any.whl`，然后运行 `disc-probe --help`。离线安装需自行预备依赖。
+- **安装：** 解压到可写目录。Windows 完整包双击 `开始 Start (Windows).bat`，Linux 完整包运行 `./start-linux.sh` 或 `bash start-linux.sh`，两者都使用包内 Python。core 版按包内说明准备 Python 和依赖。用 wheel 安装时运行 `python -m pip install ./disc_probe-[PEP440_VERSION]-py3-none-any.whl`，再运行 `disc-probe --help`，离线安装需自行预备依赖。
 - **状态 / 已知限制：** alpha；兼容性与光驱、介质相关。本次适用平台与已知问题为 `[SUPPORTED_PLATFORMS_AND_KNOWN_LIMITS]`。软件包检查不代表真实光驱、刻录或测量精度已经验证。
 - **校验：** 在统一 `SHA256SUMS.txt` 中查找所选附件；大小 `[PROBE_BYTES]`，SHA-256 `[PROBE_SHA256]`。
 
@@ -50,7 +50,7 @@ One GitHub pre-release contains three separate packages. The public version is `
 
 - **What / audience:** Optical-disc geometry measurement and image-design software for users of the core, CLI or GUI.
 - **Download:** `disc-probe-[VERSION]-full-win64.zip` for portable Windows use; `disc-probe-[VERSION]-core.zip` for an existing Python setup; `disc_probe-[PEP440_VERSION]-py3-none-any.whl` for Python installation. Source: `disc_probe-[PEP440_VERSION].tar.gz`. Linux instructions: `INSTALL-linux.md`.
-- **Install:** Extract the Windows full package to a writable directory and run `开始 Start.bat`. For core, prepare Python and dependencies using the included instructions. For the wheel, run `python -m pip install ./disc_probe-[PEP440_VERSION]-py3-none-any.whl`, then `disc-probe --help`. Offline installation requires locally prepared dependencies.
+- **Install:** Extract the full package to a writable directory. Double-click `开始 Start (Windows).bat` on Windows, or run `./start-linux.sh` or `bash start-linux.sh` on Linux. Both full packages use their own Python. For core, prepare Python and dependencies using the included instructions. For the wheel, run `python -m pip install ./disc_probe-[PEP440_VERSION]-py3-none-any.whl`, then `disc-probe --help`. Offline wheel installation requires locally prepared dependencies.
 - **Status / limits:** Alpha. Compatibility depends on drives and media. Supported platforms and known issues: `[SUPPORTED_PLATFORMS_AND_KNOWN_LIMITS]`. Package checks do not establish real-drive, burn or measurement accuracy results.
 - **Checksums:** Find the chosen asset in the shared `SHA256SUMS.txt`. Size `[PROBE_BYTES]`; SHA-256 `[PROBE_SHA256]`.
 

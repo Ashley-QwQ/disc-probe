@@ -44,7 +44,7 @@ const STR = {
     unsaved: "作品还没保存，关掉页面会丢失。",
     exp: {
       drawing: "正在画整张盘的设计图…", sending: "正在交给后端…", making: "正在生成刻录文件…",
-      noBackend: "生成刻录文件要由 disc-probe 打开这个页面：在命令行运行 python -m discprobe webui，再用它给的网址。",
+      noBackend: "生成刻录文件前请启动 disc-probe。Windows 完整包双击“开始 Start (Windows).bat”，Linux 完整包运行 bash start-linux.sh。用源码时运行 python -m discprobe webui --open。",
       noGeo: "这种盘还没有测好的盘面几何，先校准。",
       failed: "生成失败。", empty: "盘上还没有图。", four: "4 级灰阶还不能导出：先用 2 级。",
     },
@@ -129,7 +129,7 @@ const STR = {
     unsaved: "The work isn't saved; closing the page loses it.",
     exp: {
       drawing: "Drawing the whole disc…", sending: "Handing it to the back end…", making: "Making the burn file…",
-      noBackend: "Making the burn file needs disc-probe to serve this page: run python -m discprobe webui and open the address it prints.",
+      noBackend: "Start disc-probe before making a burn file. Double-click “开始 Start (Windows).bat” in the Windows full package or run bash start-linux.sh in the Linux full package. From source, run python -m discprobe webui --open.",
       noGeo: "No measured disc geometry for this disc type yet. Calibrate first.",
       failed: "Making the file failed.", empty: "There's no picture on the disc yet.", four: "4 grey levels can't be exported yet: use 2 for now.",
     },
