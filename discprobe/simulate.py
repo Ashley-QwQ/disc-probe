@@ -112,6 +112,10 @@ def sampled(design, size, rotate=0):
 
 
 def coverage(design, samples, dx, dy, strip=512):
+    return list(coverage_iter(design, samples, dx, dy, strip))
+
+
+def coverage_iter(design, samples, dx, dy, strip=512):
     """(slot, share) for every label in design: share is the fraction of the burn cells in each sample's square
     (about 120 / samples mm wide) that carry that label, looked up at the sample positions dx, dy (disc mm)."""
     n = design.shape[0]
@@ -121,15 +125,14 @@ def coverage(design, samples, dx, dy, strip=512):
     ix = np.clip(np.floor((dx + 60) * c / 120).astype(int), 0, c - 1)
     iy = np.clip(np.floor((60 - dy) * c / 120).astype(int), 0, c - 1)
     if len(slots) == 1:
-        return [(slots[0], np.ones(dx.shape))]
-    out = []
+        yield slots[0], np.ones(dx.shape)
+        return
     for s in slots:
         share = np.empty((c, c), np.float32)
         for j in range(0, c, strip):
             rows = design[j * f:min(c, j + strip) * f, :c * f] == s
             share[j:j + rows.shape[0] // f] = rows.reshape(-1, f, c, f).mean((1, 3))
-        out.append((s, share[iy, ix]))
-    return out
+        yield s, share[iy, ix]
 
 
 def unit(p, x, y):

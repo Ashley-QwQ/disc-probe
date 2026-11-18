@@ -56,13 +56,14 @@ export function flashMM(rig,data){if(!rig?.phone)return null;if(rig.phone==='cus
 export function setKey(rig,data){if(!data||!rig?.phone||!data.heights?.some(h=>h.id===rig.height))return null;
   if(rig.phone==='custom'){const d=customMM(rig.flash_mm,data);return d==null?null:`${d}@${rig.height}`;}
   return data.phones?.some(p=>p.id===rig.phone)?`${rig.phone}@${rig.height}`:null;}
-export const rigReady=(rig,data)=>setKey(rig,data)!=null;
+export const rigReady=(rig,data)=>setKey(rig,data)!=null || (flashMM(rig,data)!=null && Number.isFinite(rig?.height_cm) && rig.height_cm*10>data.rig.disc_and_sheet_mm);
 // which file holds the chosen set
 export const needsCustom=rig=>rig?.phone==='custom';
 
 export function rigLabel(rig,data,lang='zh'){const w=rigWords(lang),h=data?.heights?.find(h=>h.id===rig?.height);
   const phone=rig?.phone==='custom'?`${w.custom}（${flashMM(rig,data)??'?'} mm）`:data?.phones?.find(p=>p.id===rig?.phone)?.name??'';
-  return h?`${phone} · ${h.ruler_cm} cm`:phone;}
+  const cm=h?.ruler_cm??rig?.height_cm;
+  return Number.isFinite(cm)?`${phone} · ${cm} cm`:phone;}
 
 // The work's scene for this rig: design.js's frame (y down on screen; the phone's offset toward 12 o'clock is -y),
 // the flash riding on the phone at its own offset. Standard rigs follow the current calibration;

@@ -85,6 +85,7 @@ export function compose(input,g=grid(600),{rows=null,share=null}={}) {
   const patterns=new Map(),band={...g,height:r1-r0,top_mm:g.top_mm+r0*g.cell_mm,annulus_mm:d.annulus_mm};
   for(const a of d.assignments)if(a.pattern)patterns.set(a,pattern({...a.pattern,materials:a.pattern.materials.map(id=>mats.get(id))},band));
   const shade=(a,j,i,x,y,u,v)=>{
+    if(a.colour)return -1; // Colour pictures are composed by the core, never matched in the browser.
     if(a.pattern)return patterns.get(a)[(j-r0)*w+i];
     if(a.effect){const pose=effectPose(a.effect,u,v,(i+j)%2);if(!Number.isFinite(pose))return -1;const dt=delta(x,y,pose),wave=a.effect.wavelength_um??.53;let best=Infinity,slot=-1;d.materials.forEach((m,k)=>{if(m.period_um){const err=Math.abs(m.period_um*dt-wave);if(err<best){best=err;slot=k;}}});return slot;}
     if(!mats.has(a.material))throw Error('unknown material');return mats.get(a.material);

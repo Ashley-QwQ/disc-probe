@@ -1025,8 +1025,10 @@ def cmd_simulate(args):
             if not args.output or args.sheet:
                 raise ValueError("work simulation requires --output; use --rotate for another view")
             document=json.loads(Path(args.work).read_text(encoding="utf-8-sig"))
-            data,_=Renderer().render(dict(document=document,size=args.size,
-                pose=dict(camera=args.camera,flash=args.flash,rotate=args.rotate)))
+            pose = dict(camera=args.camera,flash=args.flash,rotate=args.rotate)
+            if any('colour' in a for a in document.get('assignments', [])):
+                pose = {k:v for k,v in pose.items() if k=='rotate' or v != getattr(simulate,k.upper())}
+            data,_=Renderer(args.table).render(dict(document=document,size=args.size,pose=pose))
             Path(args.output).write_bytes(data)
             print(i18n.tr("Prediction from a model, not a photo; real contrast and brightness may differ."))
             return
@@ -1078,11 +1080,29 @@ def _require_fit_media(args, fit, tiles: bool = False) -> None:
 def cmd_compose(args):
     from .editor_ops import compose_file
     try:
-        doc = compose_file(args.work, args.out)
+        doc = compose_file(args.work, args.out, table_path=args.table)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         sys.exit(str(exc))
     print(f"{args.out}: uint8 material labels; {len(doc['materials'])} textures")
     print(f"Texture order: {os.path.splitext(args.out)[0]}.textures.json")
+
+
+def cmd_colour_design(args):
+    from pathlib import Path
+    from . import editor_colour, editor_preview, texlib
+    try:
+        doc = editor_colour.design(args.image, args.phone, args.height, args.materials, args.dither, args.fit, args.flash_mm, args.table)
+        if args.preview:
+            png, _ = editor_preview.Renderer(args.table).render(dict(document=doc, size=600))
+            output = texlib.safe(args.preview)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_bytes(png)
+        output = texlib.safe(args.out)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        _write_json(str(output), doc)
+    except (OSError, ValueError) as exc:
+        sys.exit(str(exc))
+    print(f'{Path(args.out)}: DVD colour work; {len(doc["assignments"][0]["colour"]["materials"])} candidate textures')
 
 
 def cmd_checkdisc(args):
@@ -1979,7 +1999,7 @@ def cmd_template(args):
 COMMAND_GROUPS = (
     ("Start here", ("menu", "guide", "webui", "version", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "whois", "timing", "geo", "results", "diagnose")),
-    ("Make a disc image", ("random", "label", "compose", "textures", "files-layout", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
+    ("Make a disc image", ("random", "label", "compose", "colour-design", "textures", "files-layout", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc", "checkdisc")),
     ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("template", "disexport", "cdprobe", "works")),
@@ -2399,6 +2419,18 @@ def _build_parser():
     sp.add_argument("--out", required=True, help="output uint8 design.npy; texture order saved beside it")
     sp.set_defaults(func=cmd_compose)
 
+    sp = sub.add_parser('colour-design', help='map a colour picture to DVD textures for a phone and shooting height')
+    sp.add_argument('image')
+    sp.add_argument('--phone', required=True, help='phone ID, e.g. iphone17pro or custom')
+    sp.add_argument('--height', required=True, type=float, help='lens height above the table, cm')
+    sp.add_argument('--flash-mm', type=float, help='flash-to-lens distance for a custom phone')
+    sp.add_argument('--materials', help='override the bundled material set with a JSON file containing texture specs')
+    sp.add_argument('--dither', choices=('ordered', 'nearest'), default='ordered')
+    sp.add_argument('--fit', choices=('disc', 'ring'), default='disc', help='fill the disc or fit the picture above the hub')
+    sp.add_argument('-o', '--out', required=True, help='work JSON')
+    sp.add_argument('--preview', help='write the model prediction as PNG')
+    sp.set_defaults(func=cmd_colour_design)
+
     from . import discfiles
     sp = sub.add_parser('files-layout', help='plan DVD files and picture annuli as JSON (no drive access)')
     discfiles.add_arguments(sp, layout_only=True)
@@ -2608,8 +2640,11 @@ def _build_parser():
 
     from . import texlib
     texlib.add_parser(sub)
-    for name in ('simulate','image','tiles','compose','rings','webui'):
+    for name in ('simulate','image','tiles','compose','colour-design','rings','webui'):
         sub.choices[name].add_argument('--texlib', help='read-only texture library directory (otherwise DISCPROBE_TEXLIB)')
+    for name in ('simulate','compose','colour-design','webui'):
+        sub.choices[name].add_argument('--table', help='override the bundled colour-picture table with an NPZ file')
+    sub.choices['webui'].add_argument('--materials', help='override the bundled colour-picture material set with JSON')
 
     # Add media only to commands with an implemented CD path. Existing DVD
     # defaults are retained verbatim; explicit CD options override CD defaults.
@@ -2729,6 +2764,12 @@ def _main(argv=None):
         if getattr(args,'texlib',None):
             from .texlib import configure
             configure(args.texlib)
+        if raw_args[0] == 'webui':
+            from .texlib import safe
+            for arg, key in (('table','DISCPROBE_COLOUR_TABLE'),('materials','DISCPROBE_COLOUR_MATERIALS')):
+                path = getattr(args,arg)
+                if path:
+                    os.environ[key] = str(safe(path))
         if raw_args[0] in ('simulate','image','tiles','rings'):
             from .texlib import resolve
             for key in ('dark','light','filler'):

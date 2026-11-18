@@ -30,13 +30,29 @@
 
 这些颜色是模型占位，尚未经照片验证，不保证盘面各处或 CD/BD 的颜色。只有带 `template_name` 的材质（下载的模板色）按导入图的精确 RGB 自动映射，同色时按项目槽顺序；色板其余条目的导入 RGB 大量重复（145 条是 50,50,50），不再用来匹配。其余像素按图层的影调和抖动变成深（dark 槽）或浅（背景）两种，见下节；图层填充和选区填充仍然覆盖它。
 
-`assignments` 每项有 ID，以及 `layer` 或 `selection` 二选一的目标；填充为以下三选一：
+`assignments` 每项有 `layer` 或 `selection` 二选一的目标，网页可附加用于编辑的 ID。填充为以下四选一。
 
 - `material:稳定ID`。
 - `pattern:{version:1,pattern:diamond|dots|stripes,coordinates:cartesian|polar,pitch_mm,size_mm,angle_deg,origin_mm,phase_mm,reference_radius_mm,segments?,materials:[ID,ID]}`。复用原型整数量化规则；图案固定在盘坐标，物体变换只改变覆盖区域。
 - `effect:{kind:flow|ox|merge|sync,y1,y2,wavelength_um?}`。沿用旧页面已有的目标机位场，核心根据一阶光栅式在本项目材料中选最近周期；光学预测仍待实盘验证。选区效果以整盘为区域，图层效果以图层框为区域。
+- `colour:{materials:[ID,…],dither:ordered|nearest,table?}`。只支持 DVD 图片层，需要作品保存 `scene.rig` 中的手机和拍摄高度。`table` 可记录色表签名和是否校正。候选材质的字节纹理保存在作品中，预测使用当前配置的色表。
 
 先按图层顺序合成，层内填充按记录顺序覆盖；然后按记录顺序应用选区填充。隐藏层不输出其层内填充，锁定层仍输出。选区填充独立于图层。最后裁切 `annulus_mm`；默认 DVD/BD 24–58 mm，CD 26–58 mm（保留文件系统）。示意范围不是几何测量。
+
+## DVD 彩色图
+
+核心按 `scene.rig` 逐行计算切向 δ，再乘拟合表的 `0.93` 标定量查表。拟合材质先插值 LED XYZ，再用 A5/B9 峰值 Y 与 D65 色度作为白点转换到 CIELAB。原图的 `L*` 线性压入该 δ 的候选范围，`a*`、`b*` 同比缩放以保留目标色相。可用明暗范围越窄，匹配越侧重色相和色度。图块边缘用两个尺度的局部亮度差增加明暗反差，透明度沿用图层覆盖规则。
+
+拟合图的原图颜色先整理成至多 256 个代表色，再按颜色和边缘亮度等级预先计算随 δ 变化的材质。沿 δ 平滑误差并惩罚短距离内的材质换序。`nearest` 使用平滑后的单材质路径，`ordered` 连续过渡候选占比，每个位置取至多四种材质，仍按整盘对齐的 8×8 Bayer 阈值落到刻录格。拟合色表无数据的角度不写入彩色填充。旧未拟合数据沿用原来的逐格匹配。
+
+```powershell
+python -m discprobe colour-design input.png --phone iphone17pro --height 22.3 -o work.json --preview lamp.png
+python -m discprobe compose work.json --out design.npy
+```
+
+合成后的 `design.npy` 和 `.textures.json` 可交给下节的 `image`。`--fit disc` 填到外缘并由环带裁切。`--fit ring` 把整张图放在盘心上方的环带内。`colour-design` 和网页的彩色图默认使用 `discprobe/colour_print/` 随包分发的 58 种拟合材质。可用 `--table NPZ`、`--materials JSON`，或 `DISCPROBE_COLOUR_TABLE`、`DISCPROBE_COLOUR_MATERIALS` 更换来源。若选择了外部色表，后续 `compose` 和 `simulate --work` 也要指定同一色表。已保存的第一轮未拟合填充沿用原选材方式和纹理库，重新应用彩色图填充即可采用拟合材质。
+
+网页在颜色页选择「彩色图」。灯下预测与刻出来的材质分布使用 `/api/editor-preview` 返回的 PNG。拟合灯下视图只显示已分配纹理的衍射光，alpha 不叠加镜面底光。斜线标出当前机位的模型无数据区域。预览是模型估计，混色还没实刻验证，角度变化也会改变颜色。
 
 ## 影调与抖动（2026-11-12）
 

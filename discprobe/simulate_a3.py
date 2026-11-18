@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from .simulate import CAMERA, FLASH, EDGE_MM, HUB_MM, FINE_SAMPLES, coverage, unit
+from .simulate import CAMERA, FLASH, EDGE_MM, HUB_MM, FINE_SAMPLES, coverage_iter, unit
 
 TABLE = Path(__file__).with_name("simulate_a3v3.npz")
 A5_PERIOD_UM = .8528123052898693
@@ -39,9 +39,28 @@ OTHER_DARK = .4         # other textures, relative to A5 (Disc Lab: B9 and recor
 def _tables(path, stamp, signature):
     with np.load(path, allow_pickle=False) as z:
         specs = [str(s) for s in z["specs"]]
-        return dict(specs={s: i for i, s in enumerate(specs)}, delta=z["delta"].astype(float), xyz=z["xyz"].astype(float),
-                    cmf_nm=z["cmf_nm"].astype(float), cmf=z["cmf"].astype(float), m=z["xyz_to_srgb"].astype(float),
-                    signature=str(z["signature"]), source_key=(path, stamp, signature))
+        result = dict(specs={s: i for i, s in enumerate(specs)}, delta=z["delta"].astype(float), xyz=z["xyz"].astype(float),
+                      cmf_nm=z["cmf_nm"].astype(float), cmf=z["cmf"].astype(float), m=z["xyz_to_srgb"].astype(float),
+                      signature=str(z["signature"]), fitted=bool(z["fitted"]) if "fitted" in z else False,
+                      source_key=(path, stamp, signature))
+        if 'reference_y' in z:
+            result['reference_y'] = float(z['reference_y'])
+        if 'delta_scale' in z:
+            result['delta_scale'] = float(z['delta_scale'])
+        if 'provenance_json' in z:
+            import json
+            provenance = json.loads(z['provenance_json'].item())
+            if provenance.get('model') == 'Card W background-branch diffraction':
+                result['fitted'] = True
+                result['delta_scale'] = 1. if provenance['delta_scale_applied'] else float(provenance['parameters']['delta_scale'])
+        return result
+
+
+def load_table(path):
+    from .texlib import safe
+    path = safe(path)
+    stat = path.stat()
+    return _tables(str(path), (stat.st_size, stat.st_mtime_ns), 'file')
 
 
 def tables():
@@ -81,6 +100,8 @@ def material_xyz(material, d_t, table=None):
     if spec == "RND":
         # recorded random data: no dominant period, its light spread too thin to show; only the mirror darkens
         return np.zeros(np.shape(d_t) + (3,))
+    if spec not in t['specs'] and 'fallback' in t:
+        t = t['fallback']
     if spec in t["specs"]:
         curve, scale = t["xyz"][t["specs"][spec]], 1.
     else:
@@ -96,15 +117,21 @@ def known(material):
     return canonical(material["spec"]) in tables()["specs"]
 
 
+def reference_y(table):
+    if 'reference_y' in table:
+        return table['reference_y']
+    return max(float(table["xyz"][table["specs"][s], :, 1].max()) for s in ("A5", "B9"))
+
+
 def render(design, size=800, *, materials, camera=CAMERA, flash=FLASH, rotate=0, fine=True, annulus_mm=None,
-           paper=False, edge_mm=EDGE_MM, delta_scale=1.):
-    """Physical geometry uses scale=1. delta_scale is retained for explicit legacy-work replay;
-    it affects texture lookup only, not the grooves' rainbow or mirror glare."""
+           paper=False, edge_mm=EDGE_MM, delta_scale=None, table=None, exposure=0, diffraction_only=False):
+    """The table's delta calibration affects texture lookup. The viewing geometry itself stays in mm."""
     if size < 200 or size > 4096:
         raise ValueError("size must be between 200 and 4096 pixels")
     if design.dtype != np.uint8 or not materials or int(design.max()) >= len(materials):
         raise ValueError("material labels must index the document's material table")
-    t = tables()
+    t = tables() if table is None else table
+    scale = t.get('delta_scale', 1.) if delta_scale is None else delta_scale
     cam, fl = np.asarray(camera, float), np.asarray(flash, float)
     k = max(1, math.ceil(FINE_SAMPLES / size)) if fine else 1
     n = size * k
@@ -125,41 +152,44 @@ def render(design, size=800, *, materials, camera=CAMERA, flash=FLASH, rotate=0,
     irr = (np.linalg.norm(fl) / ldist) ** 2
     lamp_ang = max(3. / np.linalg.norm(cam), .004)
 
-    a5 = t["xyz"][t["specs"]["A5"]]
-    ref = max(float(a5[:, 1].max()), float(t["xyz"][t["specs"]["B9"]][:, 1].max()))
+    ref = reference_y(t)
     tex = np.zeros(r.shape + (3,))
     attenuation = np.zeros(r.shape)
     # shares over each output pixel's square (what the eye or a phone pixel mixes), read at its fine samples
-    for slot, share in coverage(design, size, dx, dy):
+    for slot, share in coverage_iter(design, size, dx, dy):
+        if diffraction_only and slot == 0:
+            continue   # Unassigned cells in the colour picture carry no predicted diffraction.
         m = materials[slot]
-        tex += share[..., None] * material_xyz(m, d_t * delta_scale, t)
+        tex += share[..., None] * material_xyz(m, d_t * scale, t)
         attenuation += share * (1. if canonical(m["spec"]) == "A5" else OTHER_DARK)
     tex *= (irr * TEX_GAIN / ref)[..., None]
     blank = np.zeros(r.shape, bool) if annulus_mm is None else (r < annulus_mm[0]) | (r >= annulus_mm[1])
     tex[blank] = 0
     attenuation[blank] = 0
 
-    w_t = np.exp(-.5 * (d_t / lamp_ang) ** 2)
-    lam = PITCH_UM * np.abs(d_r) * 1000.
-    cmf = np.stack([np.interp(lam, t["cmf_nm"], t["cmf"][:, j], left=0, right=0) for j in range(3)], -1)
-    grooved = (r > 22.6) & (r < 58.7)
-    rain = cmf * (w_t * irr * grooved * RAINBOW_GAIN)[..., None]
-    w_g = 1. / (1. + np.exp(np.clip((np.hypot(d_t, d_r) / 2 - lamp_ang) / (.12 * lamp_ang), -60, 60)))
-    glare = (GLARE_GAIN * w_g * irr)[..., None] * np.array([.95, 1., 1.05])
-    veil = VEIL * np.asarray(VEIL_RGB)
-    z0 = np.clip(1 - ZERO_ORDER_DARK * attenuation, 0, 1)
-
     m = t["m"]
-    trgb = np.clip(tex @ m.T, 0, None)
-    grey = trgb.mean(-1, keepdims=True)
-    trgb = grey + (1 - DESATURATE) * (trgb - grey)
-    rgb = trgb + np.clip(rain @ m.T, 0, None) + (glare + veil) * z0[..., None]
+    rgb = np.clip(tex @ m.T, 0, None)
+    if diffraction_only:
+        clear = np.ones((size, size), bool)
+    else:
+        w_t = np.exp(-.5 * (d_t / lamp_ang) ** 2)
+        lam = PITCH_UM * np.abs(d_r) * 1000.
+        cmf = np.stack([np.interp(lam, t["cmf_nm"], t["cmf"][:, j], left=0, right=0) for j in range(3)], -1)
+        grooved = (r > 22.6) & (r < 58.7)
+        rain = cmf * (w_t * irr * grooved * RAINBOW_GAIN)[..., None]
+        w_g = 1. / (1. + np.exp(np.clip((np.hypot(d_t, d_r) / 2 - lamp_ang) / (.12 * lamp_ang), -60, 60)))
+        glare = (GLARE_GAIN * w_g * irr)[..., None] * np.array([.95, 1., 1.05])
+        veil = VEIL * np.asarray(VEIL_RGB)
+        z0 = np.clip(1 - ZERO_ORDER_DARK * attenuation, 0, 1)
+        grey = rgb.mean(-1, keepdims=True)
+        rgb = grey + (1 - DESATURATE) * (rgb - grey)
+        rgb = rgb + np.clip(rain @ m.T, 0, None) + (glare + veil) * z0[..., None]
+        clear = w_g.reshape(size, k, size, k).max((1, 3)) < .01
     rgb = rgb.reshape(size, k, size, k, 3).mean((1, 3))
     rs = r.reshape(size, k, size, k).mean((1, 3))
-    clear = w_g.reshape(size, k, size, k).max((1, 3)) < .01
     disc = (rs > 24) & (rs < 58) & clear
     level = float(np.quantile(rgb[disc].mean(-1), .98)) if disc.any() else 1.
-    rgb = np.clip(rgb * (.85 / max(level, 1e-6)), 0, 1)
+    rgb = np.clip(rgb * ((.85 / max(level, 1e-6)) * 2**exposure), 0, 1)
     rgb[(rs < HUB_MM) | (rs >= edge_mm)] = 1 if paper else 0
     enc = np.where(rgb <= .0031308, 12.92 * rgb, 1.055 * rgb ** (1 / 2.4) - .055)
     return Image.fromarray(np.uint8(np.clip(np.rint(enc * 255), 0, 255)))
@@ -211,11 +241,11 @@ def swatches(materials, camera=CAMERA, flash=FLASH, at=(40., 0.), delta_scale=1.
 
 
 
-def burn_colours(materials):
+def burn_colours(materials, table=None):
     """The colour each material shows when it lights up (its brightest viewing angle in the A3 v3 table), at a
     common display brightness: the colour the Disc Neo card gives it. Keyed by material id and canonical spec.
     RND and textures without light get none."""
-    t = tables()
+    t = tables() if table is None else table
     m = t["m"]
     out = {}
     for mat in materials:

@@ -17,7 +17,7 @@ import { processingWorker } from "./design/worker-client.mjs";
 import { downloadTemplate } from "./design/template-download.mjs";
 import { mountFilesStep, occupiedRings, filePictureRange, fileArguments, refreshFiles, drawFileGuides } from "./design/disc-files.mjs";
 import { hasCapability } from "./handshake.mjs";
-import { CELLS, COST, geoChoice, measuredRing, burnDocument, checkTextures, experimentalContent, pictureSampling } from "./design/export-rules.mjs";
+import { CELLS, COST, geoChoice, measuredRing, burnDocument, checkTextures, experimentalContent, hasColourPicture, pictureSampling } from "./design/export-rules.mjs";
 
 let api, $;
 const root = document.documentElement;
@@ -281,7 +281,7 @@ function pictureRange() {
 // snapshot only holds references to them.
 const PROPS = ["name", "x", "y", "width", "height", "rot", "opacity", "visible", "locked", "px", "colour", "y1", "y2", "fxKind", "tone", "alphaEdited", "shape", "sourceKind"];
 function snapshot() {
-  return { editor: structuredClone({selections:S.selections, assignments:S.assignments, activeMask:S.activeMask, maskGrid:S.maskGrid, materials:S.materials, cell:S.cell}), layers: S.layers.map((L) => ({ obj: L, props: Object.fromEntries(PROPS.map((k) => [k, L[k]])) })), selected: S.selected };
+  return { editor: structuredClone({selections:S.selections, assignments:S.assignments, activeMask:S.activeMask, maskGrid:S.maskGrid, materials:S.materials, cell:S.cell, scene:S.scene, lookY:S.lookY}), layers: S.layers.map((L) => ({ obj: L, props: Object.fromEntries(PROPS.map((k) => [k, L[k]])) })), selected: S.selected };
 }
 let lastMark = { key: "", t: 0 };
 function checkpoint(key = "") {
@@ -756,7 +756,7 @@ function paintCanvas() {
     if (S.view === "lamp") continue;       // this view shows only the core's disc image
     g.save();
     g.globalAlpha = L.opacity;
-    if (grey) g.filter = "grayscale(1)";
+    if (grey && !(S.view === "proj" && S.assignments?.some(a => a.colour && a.layer === L.id))) g.filter = "grayscale(1)";
     g.translate(V.cx + L.x * V.s, V.cy + L.y * V.s); g.rotate(L.rot * Math.PI / 180);
     const hh = heightOf(L) * V.s;
     g.drawImage(L.src, -L.width * V.s / 2, -hh / 2, L.width * V.s, hh);
@@ -1595,9 +1595,12 @@ async function openProject(file, handle = null, work = null) {
   for (const k of ["files", "pro", "lookColour"]) if (k in data) S[k] = data[k];
   if (data.tone) S.tone = { ...DEFAULT_TONE, ...data.tone };
   if (data.scene) S.scene = { ...S.scene, ...data.scene };
+  if (data.media === S.media && Array.isArray(data.annulus_mm) && editor?.hasColour()) S.ring = data.annulus_mm;
   S.cell = [0.02, 0.01, 0.005].includes(data.cell) ? data.cell : 0.02;      // the work's grid, else the default
   if (typeof data.geo === "string" && data.media === S.media) S.geo = data.geo;      // checked against the catalogue at export
   if (Number.isFinite(data.lookY)) S.lookY = data.lookY;
+  else if (editor?.hasColour() && editor.rigSet()) S.lookY = editor.rigSet().camera[1];
+  if (editor?.hasColour()) editor.rigSync();
   S.name = baseName(file.name); S.handle = handle; S.work = work;
   changed();
   S.dirty = false; W.dirty.classList.remove("on");
@@ -1681,7 +1684,7 @@ export function isoStem(name) {
 // onProgress({ stage, fraction }) — fraction is null while unknown.
 // effects: "bw" (default) burns colours, colour patterns and effects as plain dark areas; "experimental" (DVD
 // only) burns the textures the model chose. Either way the result says which, and which geometry it used.
-export async function makeBurnFile(onProgress = () => {}, { signal, effects = "bw" } = {}) {
+export async function makeBurnFile(onProgress = () => {}, { signal, effects } = {}) {
   const t = T().exp, t2 = T();
   const stop = () => { if (signal?.aborted) throw new DOMException("cancelled", "AbortError"); };
   let state;
@@ -1804,7 +1807,25 @@ export const projectGeo = (state, plan = S) => planGeo(state, plan).path;
 function viewNote(){
   const lamp=S.view==='lamp',zh=api.lang()==='zh';
   const phase=editor?.lamp?.phase,note=W.cv.querySelector('.ed-view-note');
+  const colour=editor?.hasColour(),compare=W.view.querySelector('[data-colour-compare]');
+  compare.hidden=!(lamp&&colour);
+  compare.textContent=zh?'对照':'Compare';
+  compare.title=zh?'左边原图，右边预测':'Original on the left, prediction on the right';
+  compare.setAttribute('aria-pressed',String(!!(colour&&editor.panelState().compare)));
+  if(colour&&(lamp||S.view==='burn')){
+    const preview=editor.colourRenderer,ready=preview?.phase==='ready'&&preview.frame?.view===S.view&&preview.frame.rev===editor.revision;
+    note.textContent=preview?.phase==='error'?(zh?'预览未完成：':'Preview failed: ')+preview.error:
+      ready?(lamp?(editor.panelState().compare?compare.title:editor.poseNote()):(zh?'刻出来 · 纹理分布':'As burned · texture placement')):
+        lamp?(zh?'正在按机位预测颜色…':'Predicting colours for this shooting position…'):(zh?'正在合成刻录纹理…':'Composing burn textures…');
+    if(ready&&lamp&&S.assignments.some(a=>a.colour?.table?.fitted))note.textContent+=` · ${editor.colourWords.unseen}`;
+    note.setAttribute('aria-busy',String(!ready&&preview?.phase!=='error'));
+    return;
+  }
   const exact=S.view==='burn'&&editor?.exact?.phase;
+  if(colour&&S.view==='proj'){
+    note.textContent=zh?'设计 · 原图；到“灯下”看机位预测':'Design · original picture. See Under the lamp for the prediction.';
+    note.setAttribute('aria-busy','false');return;
+  }
   if(exact&&exact!=='off'){note.textContent=exact==='computing'?(zh?'正在算刻录格子…':'Working out the burn cells…'):exact==='error'?(zh?'刻录格子没算出来：':'Burn cells failed: ')+(editor.exact.error??''):(zh?'刻录格子 · 这里就是刻进去的格子':'Burn cells · these are the cells that are burned');note.setAttribute('aria-busy',String(exact==='computing'));return;}
   note.textContent=lamp?(phase==='ready'?(editor?.poseNote?.()??(zh?'模型预测':'Model prediction')):phase==='error'?(zh?'预览未完成 · 再点“灯下”重试':'Preview failed · click Under the lamp to retry'):phase==='refining'?(zh?'低清预览 · 正在计算细采样…':'Quick preview · rendering fine samples…'):(zh?'正在计算灯下预览…':'Rendering under the lamp…')):S.view==='burn'?(zh?'刻出来 · 哪里刻哪种纹理，细格子按肉眼混合；放大看刻录格子，真实颜色看“灯下”':'As burned · which texture goes where, fine cells mixed as the eye sees them; zoom in for the cells, Under the lamp for the colours'):(zh?'设计 · 原图（灰度），刻录区外压暗；看刻出来的样子点“刻出来”':'Design · the picture itself (grey); outside the burnable ring dimmed. See the burned result under As burned');
   note.setAttribute('aria-busy',String(lamp&&!['ready','error'].includes(phase)));
@@ -1821,7 +1842,7 @@ function build() {
     `<aside class="col col-l"></aside><aside class="col col-r"></aside>` +
     `<div class="cv"><div class="ed-desk" aria-hidden="true"></div><div class="ed-surface"><div class="ed-disc-shadow" aria-hidden="true"></div><canvas class="main"></canvas></div>` +
     `<div class="tools-v" role="toolbar"></div>` +
-    `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="burn"></button><button type="button" data-v="lamp"></button></div><p class="ed-view-note" aria-live="polite"></p>` +
+    `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="burn"></button><button type="button" data-v="lamp"></button><button type="button" data-colour-compare hidden></button></div><p class="ed-view-note" aria-live="polite"></p>` +
     `<p class="cv-note warn" hidden></p>` +
     `<div class="empty-c"><p></p><div class="row"><button class="sbtn" type="button" data-a="sample"></button><button class="sbtn" type="button" data-a="import"></button></div></div>` +
     `<div class="fbar" hidden></div>` +
@@ -1880,11 +1901,15 @@ function build() {
   addEventListener("keyup", onKeyUp);
   W.zoom.addEventListener("click", () => { if (!followFit) fit(); else zoomAt(1 / S.cell / V.s, focus.x + focus.w / 2, focus.y + focus.h / 2); });
   W.view.addEventListener("click", (e) => {
+    if(e.target.closest('[data-colour-compare]')){
+      const state=editor.panelState();state.compare=!state.compare;viewNote();draw();return;
+    }
     const b = e.target.closest("[data-v]");
     if (!b) return;
     S.view = b.dataset.v;
+    editor?.colourRenderer?.retry();
     if(S.view==='lamp'&&editor?.lamp?.phase==='error')editor.lamp.retry();
-    for (const x of W.view.children) x.setAttribute("aria-pressed", String(x.dataset.v === S.view));
+    for (const x of W.view.querySelectorAll('[data-v]')) x.setAttribute("aria-pressed", String(x.dataset.v === S.view));
     viewNote();
     draw();
   });
@@ -1978,7 +2003,7 @@ function words() {
   p.textContent = t.proj; b.textContent = t.burnView; o.textContent = t.orig;
   viewNote();
   W.view.setAttribute("aria-label", t.viewAria);
-  for (const x of W.view.children) x.setAttribute("aria-pressed", String(x.dataset.v === S.view));
+  for (const x of W.view.querySelectorAll('[data-v]')) x.setAttribute("aria-pressed", String(x.dataset.v === S.view));
   W.zoom.setAttribute("aria-label", t.zoomAria); W.zoom.title = `${t.fit} / ${t.hundred} (0 / 1)`;
   W.empty.querySelector("p").textContent = t.empty;
   W.empty.querySelector('[data-a="import"]').innerHTML = `${I.image}${t.import}`;
@@ -2139,6 +2164,7 @@ function experimentalNow(P = S) {
 }
 function hideDesign() {
   editor?.lamp?.pause();
+  editor?.colourRenderer?.pause();
   composeRevision++;
   stopPlay();
   W.ws.classList.remove("on");
@@ -2163,7 +2189,7 @@ async function openPreview() {
     project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection, lamp: editor?.lampProject() ?? null,
       fileRegions:()=>occupiedRings(P.files) },
     // colours and effects burn in black and white unless the person asks for the experiment (DVD only)
-    effects: "bw",
+    effects: hasColourPicture(P) && P.media === "dvd" ? "experimental" : "bw",
     setEffects(mode) { ctx.effects = mode === "experimental" && P.media === "dvd" ? "experimental" : "bw"; },
     // the check disc for the phone photos: DVD only for now (checkdisc.py)
     exportCheck: P.media === "dvd" ? (onProgress, opts) => makeCheckFile(onProgress, opts) : null,

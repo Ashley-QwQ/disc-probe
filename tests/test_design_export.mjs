@@ -53,6 +53,13 @@ const effect = {...doc, assignments: [{id: 'c', layer: 1, effect: {kind: 'flow',
 assert.equal(R.experimentalContent(effect, 'dvd', []).effects, 1);
 assert.equal(R.experimentalContent({...effect, layers: [{...doc.layers[0], visible: false}]}, 'dvd', []).any, false);
 
+const photo = {...doc, assignments: [{layer: 1, colour: {materials: ['red'], dither: 'ordered'}}]};
+assert.deepEqual(R.experimentalContent(photo, 'dvd', []), {colours: ['66'], effects: 0, any: true});
+assert.equal(R.burnDocument(photo, 'dvd').doc, photo);
+assert.equal(R.burnDocument(photo, 'dvd').mode, 'experimental');
+assert.deepEqual(R.burnDocument(photo, 'dvd', 'bw').doc.assignments, []);
+assert.equal(R.burnDocument({...photo, layers: [{...doc.layers[0], visible: false}]}, 'dvd').mode, 'bw');
+
 // --- grids and sampling
 assert.deepEqual(Object.keys(R.CELLS).map(Number).sort((a, b) => a - b), [5, 10, 20]);
 assert.equal(R.DEFAULT_CELL_UM, 20);
@@ -64,6 +71,6 @@ assert.equal(R.pictureSampling([{kind: 'image', w: 2048, width: 100, visible: fa
 const page = fs.readFileSync(new URL('../discprobe/web/home/design.js', import.meta.url), 'utf8');
 assert.match(page, /burn = burnDocument\(editor\.document\(\), S\.media, effects\);/);
 assert.match(page, /checkTextures\(saved\.textures_used \?\? saved\.textures, S\.media, burn\.mode\)/);
-assert.match(page, /effects: "bw",/);
+assert.match(page, /effects: hasColourPicture\(P\) && P\.media === "dvd" \? "experimental" : "bw",/);
 assert.match(page, /plan\.geo = null;/);
 console.log('design export rules: geometry choice, black-and-white textures, grids passed');

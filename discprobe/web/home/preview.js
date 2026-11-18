@@ -16,6 +16,7 @@ import { drawFileGuides } from "./design/disc-files.mjs";
 import { DEFAULT_POSE } from "./sim/model.mjs";
 import { SimView } from "./sim/view.mjs";
 import { LampPreview } from "./design/editor-lamp.mjs";
+import { ColourPreview } from "./design/colour-preview.mjs";
 import * as sfx from "./sfx.js";
 
 let simulation = null, makeRing = null, canvasActive = true;
@@ -381,7 +382,7 @@ function draw() {
     const side = Math.min(V.w, V.h) * .88, squash = Math.cos(look.tilt * Math.PI / 180), lamp = lampOf();
     let status;
     if (lamp) {
-      lampView ??= new LampPreview({ onChange: draw });
+      lampView ??= lamp.colour ? new ColourPreview(draw) : new LampPreview({ onChange: draw });
       const image = lampView.view({ rev: lamp.revision(), document: lamp.document, pose: lookPose(), screen: side * V.dpr, exposure: look.exposure });
       if (image) g.drawImage(image, (V.w - side) / 2, (V.h - side * squash) / 2, side, side * squash);
       status = { waiting: "loading", refining: "refining", error: "error" }[lampView.phase] ?? "ready";

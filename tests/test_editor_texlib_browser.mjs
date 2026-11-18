@@ -10,6 +10,8 @@ import {tmpdir} from 'node:os';
 const out=resolve(process.env.EDITOR_TEXLIB_OUT??join(tmpdir(),'editor-texlib-'+Date.now()));
 await mkdir(out,{recursive:true});
 const home=resolve('discprobe/web/home'),index=await readFile(join(home,'index.html'),'utf8');
+const colourWork=process.env.EDITOR_COLOUR_WORK && resolve(process.env.EDITOR_COLOUR_WORK);
+if(colourWork && /b[l]ind/i.test(colourWork))throw Error('excluded work path');
 const fixture=index.replace('data-handshake="pending"','data-handshake="fixture" data-motion="off" data-theme="light"')
   .replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace('<head>','<head><base href="/home/">')
   .replace('</body>',`<script type="module">
@@ -26,6 +28,7 @@ try{
   await until(()=>/^\d+/m.test(stdout));const port=Number(stdout.match(/^\d+/m)[0]);
   server=createServer(async(req,res)=>{try{
     if(req.url==='/fixture'){res.setHeader('Content-Type','text/html;charset=utf-8');res.end(fixture);return;}
+    if(req.url==='/fixture-work'&&colourWork){res.setHeader('Content-Type','application/json');res.end(await readFile(colourWork));return;}
     if(req.url.startsWith('/api/editor-')){const chunks=[];for await(const c of req)chunks.push(c);
       const r=await fetch(`http://127.0.0.1:${port}${req.url}`,{method:req.method,headers:{'Content-Type':'application/json'},body:req.method==='POST'?Buffer.concat(chunks):undefined});
       res.writeHead(r.status,{'Content-Type':r.headers.get('content-type')});res.end(Buffer.from(await r.arrayBuffer()));return;}
@@ -36,7 +39,7 @@ try{
     res.setHeader('Content-Type',({'.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'})[extname(file)]??'application/octet-stream');res.end(await readFile(file));
   }catch{res.writeHead(404);res.end();}}).listen(0,'127.0.0.1');await once(server,'listening');
   const profile=join(out,'edge-profile');
-  edge=spawn('C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',['--headless=new','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',windowsHide:true});
+  edge=spawn('C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',['--headless=new','--disable-background-networking','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',windowsHide:true});
   let debug;await until(async()=>{try{debug=(await readFile(join(profile,'DevToolsActivePort'),'utf8')).split(/\r?\n/)[0];return true;}catch{return false;}});
   const pages=await(await fetch(`http://127.0.0.1:${debug}/json/list`)).json();ws=new WebSocket(pages.find(p=>p.type==='page').webSocketDebuggerUrl);await once(ws,'open');
   let seq=0;const pending=new Map(),errors=[];
@@ -46,7 +49,9 @@ try{
   const shot=async name=>{const r=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(out,name+'.png'),Buffer.from(r.data,'base64'));};
   await send('Runtime.enable');await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/fixture`});
-  await until(()=>run('window.ready&&A.editor.palette?.source==="texlib"&&A.editor.rigData'));
+  const colourOnly=process.env.EDITOR_COLOUR_ONLY==='1';
+  await until(()=>run(colourOnly?'window.ready&&A.editor.palette&&A.editor.rigData':'window.ready&&A.editor.palette?.source==="texlib"&&A.editor.rigData'));
+  if(!colourOnly){
   await run(`A.editor.setRig({phone:'iphone17pro',height:'30'});A.editor.panelState().tab='colour';A.editor.right();`);
   await until(()=>run('A.editor.palette.source==="texlib"&&A.editor.poseLights&&document.querySelector("[data-ed-choice=viewMode]")'));
   // Wait for the selected pose's response, not the startup pose's catalog.
@@ -76,6 +81,79 @@ try{
   assert.equal(errors.length,0,JSON.stringify(errors));
   await writeFile(join(out,'browser-results.json'),JSON.stringify(results,null,2),'utf8');console.log(JSON.stringify(results));
   await run('A.editor.lamp?.dispose()');
+  }
+  // Exercise the normal file-input and fill buttons, with the same API that the editor uses.
+  const source=process.env.EDITOR_COLOUR_PICTURE;
+  if(source && /b[l]ind/i.test(resolve(source)))throw Error('excluded picture path');
+  const input=source ? (await readFile(source)).toString('base64') : null;
+  await run(`(async()=>{
+    const s=A.state();s.assignments=[];s.activeMask=null;s.view='proj';s.scene.rig={};A.editor.invalidate();
+    let blob;
+    if (${JSON.stringify(input)}) blob=await (await fetch('data:image/png;base64,'+${JSON.stringify(input)})).blob();
+    else {const c=document.createElement('canvas');c.width=c.height=150;const g=c.getContext('2d');
+      ['#c43d26','#e0a042','#5f8f53','#327a99','#d39e86'].forEach((rgb,i)=>{g.fillStyle=rgb;g.fillRect(i*30,0,30,150);});
+      blob=await new Promise(resolve=>c.toBlob(resolve));}
+    const file=new File([blob],'Illustration.png',{type:'image/png'}),dt=new DataTransfer(),picker=document.querySelector('.f-img');
+    dt.items.add(file);picker.files=dt.files;picker.dispatchEvent(new Event('change',{bubbles:true}));
+  })()`);
+  await until(()=>run('A.state().layers.some(l=>l.name==="Illustration.png"||l.name==="Illustration")'));
+  await run(`document.querySelector('[data-ed-tab=colour]').click();document.querySelector('[data-value=colour]').click();`);
+  assert(await run(`document.querySelector('[data-ed-action=fill]').disabled&&document.querySelector('[data-ed-action=fill]').textContent.includes('先选手机和拍摄高度')`));
+  const height=process.env.EDITOR_COLOUR_HEIGHT??'21';
+  await run(`document.querySelector('[data-ed-rig=phone][data-value=iphone17pro]').click();document.querySelector('[data-ed-rig=height][data-value="'+${JSON.stringify(height)}+'"]').click();`);
+  await until(()=>run('A.editor.colourPalette&&document.querySelector("[data-ed-action=fill]:not(:disabled)")'));
+  await run(`document.querySelector('[data-ed-action=fill]').click();`);
+  const candidates=await run(`(()=>{const d=A.editor.document(),c=d.assignments.at(-1)?.colour;return c?.materials.every(id=>d.materials.some(m=>m.id===id))?c.materials.length:0;})()`);
+  assert.equal(candidates,58);
+  assert(await run(`document.querySelector('.ed-colour-estimate + details').textContent.includes('用 6 张色卡盘实拍校准的模型')`));
+  assert(await run(`(()=>{const text=document.querySelector('.ed-colour-estimate + details').textContent;
+    return text.includes('手机角度偏一两度')&&text.includes('正对闪光灯的那条带看不到图');})()`));
+  const evidence=process.env.EDITOR_COLOUR_EVIDENCE;
+  if(evidence)await mkdir(evidence,{recursive:true});
+  const capture=async name=>{
+    if(!evidence)return;
+    const r=await send('Page.captureScreenshot',{format:'png'});
+    await writeFile(join(evidence,name+'.png'),Buffer.from(r.data,'base64'));
+  };
+  await run(`document.documentElement.dataset.theme='light';document.querySelector('.ed-colour-estimate + details').open=true;`);
+  await pause(200);
+  await capture('paper-colour');
+  await run(`document.documentElement.dataset.theme='dark';`);
+  await capture('night-colour');
+  const started=Date.now();
+  const status=await run(`(()=>{document.querySelector('.ws .viewsw [data-v=lamp]').click();return {note:document.querySelector('.ws .ed-view-note').textContent,view:A.state().view};})()`);
+  assert.match(status.note,/正在按机位预测颜色/,JSON.stringify({status,errors}));
+  await until(async()=>{
+    const state=await run('({phase:A.editor.colourRenderer?.phase,error:A.editor.colourRenderer?.error})');
+    assert.notEqual(state.phase,'error',state.error);
+    assert.equal(errors.length,0,JSON.stringify(errors));
+    return state.phase==='ready';
+  },180000);
+  const predictSeconds=(Date.now()-started)/1000;
+  assert(await run(`document.querySelector('.ws .ed-view-note').textContent.includes('预览用斜线标出')`));
+  const frame=await run(`(()=>{const p=A.editor.colourRenderer.frame;return {w:p.image.width,h:p.image.height,view:p.view};})()`);
+  assert.equal(frame.view,'lamp');assert(frame.w>=200&&frame.w===frame.h);
+  for(const [theme,name] of [['light','paper'],['dark','night']]){
+    await run(`document.documentElement.dataset.theme='${theme}';A.editor.h.draw();`);
+    await pause(150);await capture(name+'-prediction');
+    assert(await run(`(()=>{const b=document.querySelector('[data-colour-compare]');if(b.hidden)return false;b.click();return b.getAttribute('aria-pressed')==='true';})()`));
+    await pause(150);await capture(name+'-comparison');
+    await run(`document.querySelector('[data-colour-compare]').click();`);
+  }
+  await run(`document.querySelector('[data-v=burn]').click();`);
+  await until(()=>run('A.editor.colourRenderer?.phase==="ready"&&A.editor.colourRenderer.frame?.view==="burn"'));
+  const reopened=await run(`(async()=>{
+    document.querySelector('[data-v=proj]').click();
+    const text=${!!colourWork}?await (await fetch('/fixture-work')).text():await A.projectText();
+    await A.openProject(new File([text],'colour-work.json',{type:'application/json'}));
+    const d=A.editor.document();return {candidates:d.assignments.find(a=>a.colour)?.colour.materials.length,
+      rig:d.scene?.rig,lookY:A.state().lookY};
+  })()`);
+  assert.deepEqual(reopened,{candidates,rig:{phone:'iphone17pro',height},lookY:28.45});
+  assert.equal(errors.length,0,JSON.stringify(errors));
+  const result={candidates,frame,predictSeconds,asBurned:true,comparison:true,reopened,errors:errors.length};
+  await writeFile(join(out,'colour-browser-results.json'),JSON.stringify(result,null,2),'utf8');console.log(JSON.stringify(result));
+  await run('A.editor.colourRenderer?.dispose()');
 }finally{
   ws?.close();edge?.kill();backend.kill();server?.close();
   if(edge)await once(edge,'exit').catch(()=>{});

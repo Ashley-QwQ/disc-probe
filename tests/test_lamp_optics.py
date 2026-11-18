@@ -148,3 +148,35 @@ def test_document_end_to_end():
     assert np.abs(js - py)[inner].mean(-1).max() <= 12
     assert np.abs(js - py)[inner].mean() < 1
     assert abs(js[disc].mean() - py[disc].mean()) < 1
+
+
+def test_fitted_colour_labels_and_delta_match_lamp_renderer(tmp_path, monkeypatch):
+    from PIL import Image
+    from discprobe import editor_colour, editor_ops, simulate
+    from discprobe.editor_preview import lamp_tables
+
+    monkeypatch.delenv('DISCPROBE_TEXLIB', raising=False)
+    source = tmp_path / 'art.png'
+    Image.fromarray(np.array([[[120,190,228],[255,198,64]], [[56,151,92],[50,92,171]]], np.uint8)).save(source)
+    table = editor_colour.active_table()
+    document = editor_colour.design(source, 'iphone17pro', 22.3)
+    pose = editor_colour.work_rig(document)
+    size = 200
+    labels = editor_ops.compose(document, editor_ops.grid(size))
+    assert np.unique(labels).size > 2
+    args = job(labels, document['materials'], pose, size, 1)
+    args.update(table=lamp_tables(table), diffractionOnly=True)
+    request, output, delta = (tmp_path / name for name in ('job.json','pixels.bin','delta.bin'))
+    request.write_text(json.dumps(args),encoding='utf-8')
+    subprocess.run(['node',str(ROOT/'tests/lamp_runner.mjs'),str(request),str(output),str(delta)],
+                   check=True,capture_output=True,timeout=60)
+    axis = (np.arange(size)+.5)*(120/size)-60
+    x,y = np.meshgrid(axis,-axis)
+    actual_delta = np.fromfile(delta,'<f8').reshape(size,size)
+    np.testing.assert_allclose(actual_delta,simulate.along_track(x,y,**pose)*table['delta_scale'],atol=1e-13,rtol=0)
+    js = np.fromfile(output,np.uint8).reshape(size,size,4)[...,:3].astype(int)
+    py = np.asarray(simulate_a3.render(labels,size,materials=document['materials'],table=table,
+                   diffraction_only=True,fine=False,annulus_mm=document['annulus_mm'],**pose)).astype(int)
+    diff = np.abs(js-py)
+    assert diff.max() <= 2
+    assert diff.mean() < .05
