@@ -31,7 +31,7 @@ function Open-DiscProbeDriveLock([string]$Drive, [string]$Action) {
         throw "这台光驱正在被另一个窗口或命令使用$zh。等它结束再试。 / This drive is in use by another window or command$en. Wait for it to finish and try again."
     }
     try {
-        $raw = [Text.Encoding]::UTF8.GetBytes((@{pid=$PID;action=$Action} | ConvertTo-Json -Compress))
+        $raw = [Text.Encoding]::UTF8.GetBytes((@{pid=$PID;action=$Action;drive="${letter}:"} | ConvertTo-Json -Compress))
         $file.Position = 1
         $file.Write($raw, 0, $raw.Length)
         $file.SetLength($file.Position)

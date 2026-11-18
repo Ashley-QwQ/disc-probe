@@ -22,10 +22,11 @@ class FileLocked(Exception):
 
 
 @contextmanager
-def file_lock(path, *, wait=False):
+def file_lock(path, *, wait=False, create=True):
     # Keep the file: unlinking it could let a second process lock a different inode.
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
+    if create:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(path, os.O_RDWR | (os.O_CREAT if create else 0) | getattr(os, "O_BINARY", 0), 0o600)
     with os.fdopen(fd, "r+b", buffering=0) as stream:
         if os.name == "nt":
             import msvcrt
@@ -102,12 +103,44 @@ _held = threading.local()
 _virtual_root = None  # Set by Disc Lab's device hook only in virtual-drive processes.
 
 
-def _lock_path(drive):
+def _lock_dir():
     root = user_state() / "drive-locks"
     if _virtual_root is not None:
         lab = os.path.normcase(os.path.realpath(_virtual_root))
         root = root / hashlib.sha256(os.fsencode(lab)).hexdigest()
-    return root / (drive_key(drive) + ".lock")
+    return root
+
+
+def _lock_path(drive):
+    return _lock_dir() / (drive_key(drive) + ".lock")
+
+
+def drive_locks(drives=()):
+    """Snapshot available drives and live holders, including holders outside the web service."""
+    root = _lock_dir()
+    names = {drive_key(drive): drive for drive in drives}
+    rows = {key: dict(drive=drive, locked=False, pid=None, action=None) for key, drive in names.items()}
+    try:
+        paths = list(root.iterdir())
+    except FileNotFoundError:
+        return list(rows.values())
+    for path in sorted(paths):
+        key = path.stem
+        if not re.fullmatch(r"(?:[A-Z]|[a-f\d]{64})\.lock", path.name) or path.is_symlink():
+            continue
+        try:
+            with file_lock(path, create=False):
+                continue  # Stale owner bytes after a crash do not count.
+        except FileNotFoundError:
+            continue
+        except FileLocked:
+            owner = _owner(path)
+            drive = names.get(key) or owner.get("drive") or (key + ":" if len(key) == 1 else key)
+            pid = owner.get("pid")
+            action = owner.get("action")
+            rows[key] = dict(drive=drive, locked=True, pid=pid if type(pid) is int else None,
+                             action=action if isinstance(action, str) and action in _ACTIONS else None)
+    return list(rows.values())
 
 
 @contextmanager
@@ -123,7 +156,7 @@ def drive_operation(drive, action):
             # Byte zero is the exclusion lock. Readers can inspect bytes after it
             # on Windows even while another process holds the lock.
             stream.seek(1)
-            stream.write(json.dumps({"pid": os.getpid(), "action": action}).encode("utf-8"))
+            stream.write(json.dumps({"pid": os.getpid(), "action": action, "drive": os.fspath(drive)}).encode("utf-8"))
             stream.truncate()
             held.add(path)
             try:

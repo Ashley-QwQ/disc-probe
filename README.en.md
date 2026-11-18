@@ -78,7 +78,9 @@ The preview's colours only tell the textures apart, so it won't match the disc. 
 
 Since 1.0.0.0-alpha most steps can be done in a local web page, with no commands to remember.
 
-- **Open it**: unpack the Windows full package and double-click `开始 Start.bat`; the browser opens the lobby, and closing the black window stops it. With Python already installed, run `python -m discprobe webui` in the repository folder and open http://localhost:8765 .
+- **Open it**: unpack the full Windows package and double-click `开始 Start.bat`. With Python already installed, run `python -m discprobe webui --open` from the repository folder. Both open the same lobby. `webui` prints the address with its session token. Add `--open` to open it in your browser. The default port is 8765, and the service picks a free port if that one is occupied.
+- **Check or stop it**: run `python -m discprobe webui status` to see the service and drive lock holders. Add `--json` for JSON. To stop, use Quit in the lobby or run `python -m discprobe webui stop`. The command reports any active tasks. `stop --force` is allowed only when no optical disc is being written. Closing the console that started the service also stops it.
+- **Startup options**: use `--local-only` to keep the service on this computer. For offline design, use `--no-drives` or set `DISC_PROBE_NO_DRIVES=1`. If you start it again with different settings, the command prints the existing address and tells you to run `webui stop` first.
 - **Beginner's guide**: in the lobby, open the guide. It looks at the steps you have already done and tells you what to do next.
 - **Design**: import a picture, place it, use layers, adjust light and dark, and see roughly how it will look once burned. Works are kept in a library on your computer and survive closing the page.
 - **Checking with phone photos (DVD)**: burn a check disc, scan the code with a phone on the same local network, and the photos go straight to the computer. The program says which photos it cannot use and why, for example the whole disc is not in the frame or the lighting is wrong. Only when several photos agree is their reading used to correct the image.

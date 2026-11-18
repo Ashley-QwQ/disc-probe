@@ -1,8 +1,6 @@
-"""Portable Windows launcher: bind first, then open the bundled lobby."""
+"""Deprecated compatibility entry point. Use python -m discprobe webui --open."""
 from __future__ import annotations
 
-import argparse
-import os
 from pathlib import Path
 import sys
 
@@ -11,17 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--local-only', action='store_true')
-    parser.add_argument('--new-instance', action='store_true', help='start a separate service without replacing the existing instance')
-    parser.add_argument('--no-drives', action='store_true', help='offline design session; do not enumerate devices')
-    args = parser.parse_args()
-    from discprobe import api, guide, webui, web_instance
-    if args.no_drives or os.environ.get('DISC_PROBE_NO_DRIVES') == '1':
-        guide.optical_drives = lambda: []
-    lan = not args.local_only
-    web_instance.launch(lambda port: webui.Server(webui.Backend(), port, lan=lan, gui=api.BUNDLED_GUI),
-                        0, lan=lan, new_instance=args.new_instance, open_browser=True)
+    from discprobe.__main__ import main as core_main
+    return core_main(["webui", "--open", *sys.argv[1:]])
 
 
 if __name__ == '__main__':

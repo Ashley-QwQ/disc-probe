@@ -1,6 +1,7 @@
 """Exercise real launcher processes and Disc Lab drives on loopback."""
 from contextlib import contextmanager
 import http.client
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -19,6 +20,7 @@ from discprobe.drive_lock import DriveBusy, drive_operation, require_available
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ("-m", "discprobe", "webui", "--port", "0")
+CONTROL = ("-m", "discprobe", "webui")
 LAUNCHER = (str(ROOT / "tools" / "launch_web.py"),)
 
 
@@ -90,15 +92,21 @@ def process(lab, *args, **env_changes):
         child.communicate(timeout=15)
 
 
-def wait_primary(path, child):
+def control(lab, *args):
+    with process(lab, *CONTROL, *args) as child:
+        out, err = child.communicate(timeout=15)
+        return child.returncode, out, err
+
+
+def wait_primary(path, child, *, child_is_service=True):
     def attempt():
         if child.poll() is not None:
             pytest.fail(f"server exited {child.returncode}: {child.stderr.read()}")
         data = record(path)
-        if not data or data["pid"] != child.pid:
+        if not data or (child_is_service and data["pid"] != child.pid):
             return
         try:
-            if request(address(data), "/api/ping") == (200, {"pid": child.pid, "started": data["started"]}):
+            if request(address(data), "/api/ping") == (200, {"pid": data["pid"], "started": data["started"]}):
                 return data
         except OSError:
             pass
@@ -116,12 +124,15 @@ def test_second_launcher_only_opens_the_existing_browser(lab):
         data = wait_primary(state, first)
         assert data["mode"] == "local-only" and data["bind"] == "127.0.0.1"
         assert request(address(data), "/api/ping", authenticated=False)[0] == 403
-        with process(lab, *LAUNCHER, "--local-only") as second:
+        expected = f"http://127.0.0.1:{data['port']}/home/?token={data['token']}"
+        with process(lab, *CLI, "--local-only") as second:
             out, err = second.communicate(timeout=10)
-            assert second.returncode == 0, err
-        assert "已经在运行，已打开浏览器" in out
-        assert calls.read_text(encoding="utf-8").splitlines() == [
-            f"http://127.0.0.1:{data['port']}/home/?token={data['token']}"]
+            assert (second.returncode, out.strip(), err) == (0, expected, "")
+        assert not calls.exists()
+        with process(lab, *LAUNCHER, "--port", "0", "--local-only") as second:
+            out, err = second.communicate(timeout=10)
+            assert (second.returncode, out.strip(), err) == (0, expected, "")
+        assert calls.read_text(encoding="utf-8").splitlines() == [expected]
         assert record(state) == data
         shutdown(first, address(data))
     assert not state.exists()
@@ -135,11 +146,12 @@ def test_simultaneous_starts_and_mode_mismatch(lab):
         assert second.returncode == 0
         data = wait_primary(state, first)
         assert data["mode"] == "LAN" and data["bind"] == "0.0.0.0"
-        with process(lab, *CLI, "--local-only") as mismatch:
+        with process(lab, *CLI, "--local-only", "--media", "cd", "--open") as mismatch:
             out, err = mismatch.communicate(timeout=10)
             assert mismatch.returncode == 0, err
-        assert "先关掉它再用 local-only 模式启动" in out
-        assert len(calls.read_text(encoding="utf-8").splitlines()) == 2
+        assert "要换请先运行 discprobe webui stop" in err and "--local-only" in err and "--media" in err
+        assert out.strip().startswith(f"http://127.0.0.1:{data['port']}/")
+        assert calls.read_text(encoding="utf-8").splitlines() == [out.strip()]
         shutdown(first, address(data))
 
 
@@ -254,7 +266,7 @@ def test_virtual_burn_blocks_other_instance_and_quit_until_finished(lab):
     iso.parent.mkdir()
     with iso.open("wb") as stream:
         stream.truncate(2 * 1024 * 1024)
-    with process(lab, *CLI, "--local-only", DISCLAB_BURN_TIME="40") as first:
+    with process(lab, *CLI, "--local-only", DISCLAB_BURN_TIME="75") as first:
         primary = wait_primary(state, first)
         a = address(primary)
         with process(lab, *CLI, "--local-only", "--new-instance") as second:
@@ -277,15 +289,154 @@ def test_virtual_burn_blocks_other_instance_and_quit_until_finished(lab):
 
             eventually(active)
             assert request(a, "/api/quit", {})[1]["code"] == "tasks_running"
+            code, _, err = control(lab, "stop")
+            assert code == 1 and f"burn X: {job['job']}" in err
+            code, _, err = control(lab, "stop", "--force")
+            assert code == 1 and "光驱正在写入" in err and "burn X:" in err
             status, refused = request(b, "/api/run", dict(action="info", drive="X:"))
             assert status == 409 and refused["code"] == "drive_busy", refused
             assert "正在：刻录" in refused["error"] and "action: burn" in refused["error"]
             assert request(b, "/api/burn-speeds?drive=X%3A") == (409, refused)
-            done = eventually(lambda: (s if (s := request(a, path)[1])["exit"] is not None else None))
+            done = eventually(lambda: (s if (s := request(a, path)[1])["exit"] is not None else None), seconds=30)
             assert done["exit"] == 0, done
             status, disc = request(b, "/api/disc", {"drive": "X:"})
             assert status == 200 and disc["disc"]["blank"] is False, disc
             shutdown(second, b)
             assert record(state) == primary
-        shutdown(first, a)
+        assert control(lab, "stop")[0] == 0
+        assert first.wait(timeout=10) == 0
     assert not state.exists()
+
+
+def test_default_port_falls_back_and_reuse_keeps_the_registered_port(lab):
+    _, _, state, _ = lab
+    with socket.socket() as occupied:
+        if os.name == "nt":
+            occupied.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        occupied.bind(("127.0.0.1", 8765))
+        occupied.listen()
+        with process(lab, *CONTROL, "--local-only") as child:
+            data = wait_primary(state, child)
+            assert data["port"] != 8765 and data["config"]["port"] == 8765
+            code, out, err = control(lab, "--local-only")
+            assert code == 0 and not err and urlsplit(out.strip()).port == data["port"]
+            assert control(lab, "stop")[0] == 0
+            assert child.wait(timeout=10) == 0
+    assert not state.exists()
+
+
+@pytest.mark.parametrize("option", ["flag", "environment"])
+def test_no_drives_applies_to_core(lab, option):
+    _, _, state, _ = lab
+    args = ["--no-drives"] if option == "flag" else []
+    env = {"DISC_PROBE_NO_DRIVES": "1"} if option == "environment" else {}
+    with process(lab, *CLI, "--local-only", *args, **env) as child:
+        data = wait_primary(state, child)
+        assert data["config"]["no_drives"] is True
+        assert request(address(data), "/api/state", authenticated=False)[1]["drives"] == []
+        status, out, err = control(lab, "status", "--json")
+        assert (status, err) == (0, "") and json.loads(out)["drives"] == []
+        shutdown(child, address(data))
+
+
+def test_status_json_and_force_stop_of_read_only_task(lab):
+    virtual, _, state, _ = lab
+    with virtual.locked_state() as lab_state:
+        lab_state["drives"]["Y:"] = dict(lab_state["drives"]["X:"], tray=None)
+    with process(lab, *CLI, "--local-only") as child:
+        data = wait_primary(state, child)
+        link = address(data)
+        assert request(link, "/api/status", authenticated=False)[0] == 403
+        code, job = request(link, "/api/run", {"action": "swap", "drive": "X:"})
+        assert code == 200, job
+        eventually(lambda: any(
+            row["action"] == "swap" and row["locked"]
+            for row in request(link, "/api/status")[1]["drives"] if row["drive"] == "X:"
+        ))
+        code, out, err = control(lab, "status", "--json")
+        assert (code, err) == (0, "")
+        status = json.loads(out)
+        assert status["running"] is True
+        assert {k: status[k] for k in ("pid", "port", "token", "started", "mode", "bind")} == {
+            k: data[k] for k in ("pid", "port", "token", "started", "mode", "bind")}
+        assert urlsplit(status["url"]).port == data["port"]
+        rows = {r["drive"]: r for r in status["drives"]}
+        assert rows["X:"]["locked"] and rows["X:"]["action"] == "swap" and rows["X:"]["pid"] != child.pid
+        assert rows["Y:"] == dict(drive="Y:", locked=False, pid=None, action=None)
+        assert status["tasks"] == [dict(action="swap", drive="X:", job=job["job"], writes_drive=False)]
+        code, _, err = control(lab, "stop")
+        assert code == 1 and "swap X:" in err
+        code, out, err = control(lab, "stop", "--force")
+        assert (code, err) == (0, "") and "Service stopped." in out
+        assert child.wait(timeout=10) == 0
+    assert not state.exists()
+    code, out, err = control(lab, "status", "--json")
+    assert (code, err) == (0, "")
+    stopped = json.loads(out)
+    assert not stopped["running"] and stopped["token"] is None and not stopped["tasks"]
+    assert {r["drive"] for r in stopped["drives"]} == {"X:", "Y:"}
+    assert not any(r["locked"] for r in stopped["drives"])
+
+
+def test_force_stop_protects_a_writer_running_outside_the_server(lab):
+    _, _, state, _ = lab
+    script = ("from discprobe.drive_lock import drive_operation; import time; "
+              "exec(\"with drive_operation('X:', 'erase'):\\n print('ready', flush=True)\\n time.sleep(60)\")")
+    with process(lab, *CLI, "--local-only") as child:
+        data = wait_primary(state, child)
+        with process(lab, "-c", script) as holder:
+            assert holder.stdout.readline().strip() == "ready"
+            code, out, err = control(lab, "status", "--json")
+            assert (code, err) == (0, "")
+            status = json.loads(out)
+            assert not status["tasks"]
+            assert status["drives"] == [dict(drive="X:", locked=True, pid=holder.pid, action="erase")]
+            code, _, err = control(lab, "stop", "--force")
+            assert code == 1 and "erase X:" in err
+            holder.kill()
+            holder.wait(timeout=5)
+        assert record(state) == data and control(lab, "stop", "--force")[0] == 0
+        assert child.wait(timeout=10) == 0
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows batch file")
+@pytest.mark.parametrize("batch_first", [False, True])
+def test_actual_winpack_batch_and_cli_share_one_server(lab, batch_first):
+    virtual, env, state, calls = lab
+    spec = importlib.util.spec_from_file_location("winpack", ROOT / "tools" / "build_winpack.py")
+    winpack = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(winpack)
+    batch = virtual.root / "开始 Start.bat"
+    batch.write_text(winpack.START, encoding="ascii", newline="\r\n")
+    assert batch.read_bytes().count(b"\r\n") == 1 and b"-m discprobe webui --open" in batch.read_bytes()
+    python = virtual.root / "python"
+    subprocess.run(["cmd.exe", "/d", "/c", "mklink", "/J", str(python), str(Path(sys.executable).parent)],
+                   check=True, capture_output=True)
+    argv = ["cmd.exe", "/d", "/c", "call", str(batch), "--port", "0", "--local-only"]
+    try:
+        options = dict(cwd=virtual.root.parent, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                       text=True, encoding="utf-8")
+        if batch_first:
+            with subprocess.Popen(argv, **options) as bat:
+                try:
+                    data = wait_primary(state, bat, child_is_service=False)
+                    code, out, err = control(lab, "--local-only", "--port", "0")
+                    assert (code, err) == (0, "")
+                    assert record(state) == data
+                    assert control(lab, "stop")[0] == 0 and bat.wait(timeout=10) == 0
+                finally:
+                    if bat.poll() is None:
+                        if record(state):
+                            control(lab, "stop")
+                        bat.kill()
+        else:
+            with process(lab, *CLI, "--local-only") as child:
+                data = wait_primary(state, child)
+                bat = subprocess.run(argv, **options, timeout=15)
+                assert (bat.returncode, bat.stderr) == (0, "")
+                out = bat.stdout
+                assert record(state) == data
+                assert control(lab, "stop")[0] == 0 and child.wait(timeout=10) == 0
+        assert calls.read_text(encoding="utf-8").splitlines() == [out.strip()]
+    finally:
+        python.rmdir()  # Remove the junction itself.

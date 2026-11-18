@@ -2649,15 +2649,30 @@ def _build_parser():
     sp.set_defaults(func=cmd_calibdisc)
 
     sp = sub.add_parser("webui", help="serve the web GUI backend")
+    from . import web_instance
+    sp.add_argument("--open", dest="open_browser", action="store_true", help="open the lobby in the default browser")
     sp.add_argument("--gui", metavar="PATH", help="GUI folder containing gui.json (default: bundled GUI)")
-    sp.add_argument("--port", type=int, default=8765, help="HTTP port (default: 8765)")
+    sp.add_argument("--port", type=int, default=web_instance.DEFAULT_PORT,
+                    help="preferred HTTP port (default: 8765; uses a free port if occupied)")
     sp.add_argument("--lan", action="store_true", help="accepted for compatibility; no-op (LAN is on by default)")
     sp.add_argument("--local-only", action="store_true", help="listen only on 127.0.0.1; disable LAN phone access")
+    sp.add_argument("--no-drives", action="store_true", help="offline design session; do not enumerate drives (or DISC_PROBE_NO_DRIVES=1)")
     sp.add_argument("--new-instance", action="store_true", help="start a separate service without replacing the existing instance")
     sp.add_argument("--media", choices=("dvd", "cd", "bd"), default="dvd", help="disc type")
     sp.add_argument("--out", default="results", help="results directory (default: results)")
     from .webui import run as run_webui
     sp.set_defaults(func=run_webui)
+    lifecycle = sp.add_subparsers(dest="webui_action", metavar="[status|stop]")
+    status_help = i18n.tr("show the running web service and optical-drive lock holders")
+    control = lifecycle.add_parser("status", help=status_help, description=status_help)
+    control.add_argument("--json", action="store_true", help="print the service and drive status as JSON")
+    control.set_defaults(func=web_instance.status)
+    i18n.localize_parser(control)
+    stop_help = i18n.tr("stop the web service after its tasks finish")
+    control = lifecycle.add_parser("stop", help=stop_help, description=stop_help)
+    control.add_argument("--force", action="store_true", help="stop active tasks only when no disc write is in progress")
+    control.set_defaults(func=web_instance.stop)
+    i18n.localize_parser(control)
 
     sp = sub.add_parser("selftest", help="parser checks and end-to-end runs on the simulated drive and a synthetic scan")
     sp.set_defaults(func=cmd_selftest)
@@ -2785,15 +2800,9 @@ def _main(argv=None):
     if raw_args[0] in {"image", "random", "rings", "calib", "tiles", "beacons", "calibdisc", "disexport", "cdprobe", "spokes"}:
         print(i18n.tr("Preparing the design and image data; this may take a few seconds..."), flush=True)
     try:
-        if getattr(args,'texlib',None):
+        if raw_args[0] != 'webui' and getattr(args,'texlib',None):
             from .texlib import configure
             configure(args.texlib)
-        if raw_args[0] == 'webui':
-            from .texlib import safe
-            for arg, key in (('table','DISCPROBE_COLOUR_TABLE'),('materials','DISCPROBE_COLOUR_MATERIALS')):
-                path = getattr(args,arg)
-                if path:
-                    os.environ[key] = str(safe(path))
         if raw_args[0] in ('simulate','image','tiles','rings'):
             from .texlib import resolve
             for key in ('dark','light','filler'):

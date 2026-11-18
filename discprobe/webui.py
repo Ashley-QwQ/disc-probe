@@ -26,7 +26,8 @@ from http.cookies import CookieError, SimpleCookie
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from . import api, guide, i18n, iso9660, webui_catalog
-from .drive_lock import DriveBusy, require_available
+from .drive_lock import DriveBusy, drive_locks, require_available
+from .web_instance import DEFAULT_PORT, _task_text
 
 
 def version():
@@ -368,6 +369,7 @@ class Job:
         self.offset = 0
         self.history = []
         self.action = None
+        self.writes_drive = False
         self.args = {}
         self.disc = {}
         self.media = "dvd"
@@ -600,7 +602,7 @@ class Backend:
         # drive -> what the last read of its disc found (`discprobe disc`, or an `info` job), with when. Only
         # shown to the page; a burn never relies on it (it needs verified_blank or the provider's own disc).
         self.discs = {}
-        self.reading = set()                 # drives being read right now: busy for jobs
+        self.reading = {}                    # drive -> read action: busy for jobs
         self.disc_reader = disc_reader or (lambda drive: read_disc_child(self.root, drive))
         self.closed = False
         self.folder = self.root / ".webui-jobs"
@@ -626,7 +628,7 @@ class Backend:
         return state
 
     @contextmanager
-    def _reading_drive(self, drive, *, unknown_status=400):
+    def _reading_drive(self, drive, action, *, unknown_status=400):
         if not isinstance(drive, str) or drive not in [d["id"] for d in self.drive_provider()]:
             raise APIError("unknown drive", unknown_status)
         with self.lock:
@@ -635,18 +637,18 @@ class Backend:
             drive_available(drive)
             if drive in self.reading or any(j.drive == drive and j.exit is None for j in self.jobs.values()):
                 raise APIError("drive busy", 409)
-            self.reading.add(drive)
+            self.reading[drive] = action
         try:
             yield
         finally:
             with self.lock:
-                self.reading.discard(drive)
+                self.reading.pop(drive)
 
     def read_disc(self, payload) -> dict:
         """Which disc is in a drive, read now (read-only). The answer is kept for /api/state until the drive's
         disc may have changed (a burn or a swap on it)."""
         drive = payload.get("drive") if isinstance(payload, dict) else None
-        with self._reading_drive(drive):
+        with self._reading_drive(drive, "disc"):
             found = self.disc_reader(drive)
             disc = found.get("disc") if isinstance(found, dict) else None
             report = dict(disc or dict(present=False), tray=found.get("tray", "unknown") if isinstance(found, dict) else "unknown",
@@ -659,7 +661,7 @@ class Backend:
         from . import burner
         if media not in ("dvd", "cd"):
             raise APIError("invalid media")
-        with self._reading_drive(drive, unknown_status=404):
+        with self._reading_drive(drive, "info", unknown_status=404):
             try:
                 report = burner.inspect_drive(drive, media)
             except DriveBusy as exc:
@@ -746,6 +748,7 @@ class Backend:
             folder = Path(tempfile.mkdtemp(prefix=ident + "-", dir=self.folder))
             job = Job(ident, drive, folder)
             job.action, job.media, job.args = payload["action"], payload.get("media", "dvd"), payload.get("args", {})
+            job.writes_drive = writes
             known_disc = self.discs.get(drive) or next((d.get('disc') for d in drives if d['id'] == drive), None) or {}
             job.disc = dict(known_disc)
             job.batch_identity = dict(disc=known_disc.get('mid'), drive=known_disc.get('drive_name'))
@@ -1113,10 +1116,45 @@ class Backend:
         with self.lock:
             return self._busy()
 
-    def request_quit(self):
+    def _active_tasks(self):
+        tasks = []
+        for job in self.jobs.values():
+            if job.exit is not None:
+                continue
+            writes = job.writes_drive
+            if writes and job.action == "calibrate":
+                # Its only write is the first phase. Later phases start after the burner exits.
+                job.read()
+                step = next((event.get("name") for event in reversed(job.history) if event["type"] == "step"), None)
+                writes = step not in ("check", "timing", "geo", "preset")
+            tasks.append(dict(action=job.action, drive=job.drive, job=job.id, writes_drive=writes))
+        tasks.extend(dict(action=action, drive=drive, job=None, writes_drive=False)
+                     for drive, action in self.reading.items())
+        return tasks
+
+    def service_status(self):
         with self.lock:
-            if self._busy():
-                raise APIError("先等任务结束。 / Wait for the current task to finish.", 409, code="tasks_running")
+            return dict(tasks=self._active_tasks(), drives=drive_locks(d["id"] for d in self.drive_provider()))
+
+    def request_quit(self, *, force=False):
+        with self.lock:
+            tasks = self._active_tasks()
+            if force:
+                writers = [task for task in tasks if task["writes_drive"]]
+                protected = {task["drive"] for task in writers}
+                writers.extend(dict(action=lock["action"] or "unknown", drive=lock["drive"], job=None)
+                               for lock in drive_locks()
+                               if lock["locked"] and lock["action"] in (None, "burn", "erase")
+                               and lock["drive"] not in protected)
+                if writers:
+                    detail = _task_text(writers)
+                    raise APIError(f"光驱正在写入或写入状态未知，不能强制停止（{detail}）。 / "
+                                   f"Cannot force stop while disc writes are active or possible ({detail}).",
+                                   409, code="drive_writing")
+            elif tasks:
+                detail = _task_text(tasks)
+                raise APIError(f"先等任务结束（{detail}）。 / Wait for the current tasks to finish ({detail}).",
+                               409, code="tasks_running")
             self.closed = True
 
     def close(self):
@@ -1137,7 +1175,7 @@ class Server(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = os.name != "nt"
 
-    def __init__(self, backend, port=8765, *, lan=False, gui=None):
+    def __init__(self, backend, port=DEFAULT_PORT, *, lan=False, gui=None):
         self.gui_root, self.gui_manifest = api.load_manifest(gui if gui is not None else api.BUNDLED_GUI)
         api.check_manifest(self.gui_manifest)
         if type(port) is not int or not 0 <= port <= 65535:
@@ -1239,6 +1277,10 @@ class Handler(BaseHTTPRequestHandler):
         if self.command == "GET" and path == "/api/ping":
             if not self._lifecycle_auth(lifecycle_header):
                 raise APIError("invalid session token", 403)
+            return
+        if self.command == "GET" and path == "/api/status":
+            if self.client_address[0] != "127.0.0.1" or not self._lifecycle_auth(lifecycle_header):
+                raise APIError("local session token required", 403)
             return
         if not self.server.token:
             if self.command == "GET" and path in ("/home/", "/home/index.html"):
@@ -1407,6 +1449,9 @@ class Handler(BaseHTTPRequestHandler):
                 if backend.closed:
                     raise APIError("service is closing", 503)
                 self._json(200, self.server.identity)
+                return
+            if path == "/api/status":
+                self._json(200, backend.service_status())
                 return
             if path == '/api/editor-lamp-tables':
                 from .editor_preview import lamp_tables
@@ -1577,7 +1622,19 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self._allowed()
             if unquote(urlsplit(self.path).path) == "/api/quit":
-                self.server.backend.request_quit()
+                payload = {}
+                if self.headers.get("Content-Length", "0") != "0" or self.headers.get("Transfer-Encoding"):
+                    if self.headers.get_content_type() != "application/json":
+                        raise APIError("application/json required", 415)
+                    payload = json.loads(self._body(1024))
+                if (not isinstance(payload, dict) or set(payload) - {"force"}
+                        or type(payload.get("force", False)) is not bool):
+                    raise APIError("invalid stop request")
+                force = payload.get("force", False)
+                if force and (self.client_address[0] != "127.0.0.1" or
+                              not self._lifecycle_auth(self.headers.get("X-Discprobe-Token", ""))):
+                    raise APIError("local session token required", 403)
+                self.server.backend.request_quit(force=force)
                 try:
                     self._json(200, dict(exited=True))
                 finally:
@@ -1722,8 +1779,30 @@ def guide_drive_tag(drive):
 
 def run(args):
     from .web_instance import launch
+    from . import texlib
 
     lan = not args.local_only
-    launch(lambda port: Server(Backend(media=args.media, out=args.out), port, lan=lan,
-                               gui=getattr(args, "gui", None)),
-           args.port, lan=lan, new_instance=getattr(args, "new_instance", False))
+    root = Path.cwd().resolve()
+    no_drives = getattr(args, "no_drives", False) or os.environ.get("DISC_PROBE_NO_DRIVES") == "1"
+    gui = Path(getattr(args, "gui", None) or api.BUNDLED_GUI).expanduser().resolve()
+    path_options = {"texlib": "DISCPROBE_TEXLIB", "table": "DISCPROBE_COLOUR_TABLE",
+                    "materials": "DISCPROBE_COLOUR_MATERIALS"}
+    asset_paths = {}
+    for option, env in path_options.items():
+        value = getattr(args, option, None) or os.environ.get(env)
+        asset_paths[option] = os.path.normcase(os.path.abspath(value)) if value else None
+    config = dict(mode="LAN" if lan else "local-only", port=args.port, media=args.media,
+                  root=os.path.normcase(root), out=os.path.normcase((root / args.out).resolve()), gui=os.path.normcase(gui),
+                  no_drives=no_drives, **asset_paths)
+
+    def server(port):
+        if getattr(args, "texlib", None):
+            texlib.configure(args.texlib)
+        for option in ("table", "materials"):
+            if value := getattr(args, option, None):
+                os.environ[path_options[option]] = str(texlib.safe(value))
+        return Server(Backend(media=args.media, out=args.out, drive_provider=(lambda: []) if no_drives else None),
+                      port, lan=lan, gui=gui)
+
+    launch(server, config, new_instance=getattr(args, "new_instance", False),
+           open_browser=getattr(args, "open_browser", False))

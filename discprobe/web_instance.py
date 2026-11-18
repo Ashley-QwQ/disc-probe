@@ -12,11 +12,24 @@ import threading
 import time
 import webbrowser
 
-from .drive_lock import file_lock, user_state
+from .drive_lock import drive_locks, file_lock, user_state
 from .i18n import _prepare
 
 TITLE = ("disc-probe 正在运行，关闭此窗口即停止 / "
          "disc-probe is running — close this window to stop")
+DEFAULT_PORT = 8765
+
+
+def _path():
+    return user_state() / "web-instance.json"
+
+
+def _read(path):
+    try:
+        data = json.loads(path.read_bytes())
+        return data if isinstance(data, dict) else None
+    except (FileNotFoundError, ValueError):
+        return None
 
 
 def _console_title():
@@ -50,8 +63,8 @@ def _publish(path, record):
 
 def _existing(path):
     try:
-        data = json.loads(path.read_bytes())
-        if not isinstance(data, dict):
+        data = _read(path)
+        if data is None:
             return None
         pid, started, port, token = (data.get(key) for key in ("pid", "started", "port", "token"))
         if (any(type(value) is not int or value <= 0 for value in (pid, started, port))
@@ -60,18 +73,27 @@ def _existing(path):
                 or (data.get("mode"), data.get("bind")) not in
                 (("LAN", "0.0.0.0"), ("local-only", "127.0.0.1"))):
             return None
-        # The discovery token only goes to loopback. Do not follow redirects or use proxies.
-        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=1)
-        try:
-            conn.request("GET", "/api/ping", headers={"X-Discprobe-Token": token})
-            resp = conn.getresponse()
-            if resp.status == 200 and json.loads(resp.read(1024)) == {"pid": pid, "started": started}:
-                return data
-        finally:
-            conn.close()
+        code, reply = _request(data, "/api/ping", timeout=1, limit=1024)
+        if code == 200 and reply == {"pid": pid, "started": started}:
+            return data
     except (OSError, ValueError, http.client.HTTPException):
         pass
     return None
+
+
+def _request(record, route, payload=None, *, timeout=5, limit=1024 * 1024):
+    # The discovery token only goes to loopback. Do not follow redirects or use proxies.
+    conn = http.client.HTTPConnection("127.0.0.1", record["port"], timeout=timeout)
+    try:
+        headers = {"X-Discprobe-Token": record["token"]}
+        if payload is not None:
+            headers["Content-Type"] = "application/json"
+        conn.request("GET" if payload is None else "POST", route,
+                     body=None if payload is None else json.dumps(payload), headers=headers)
+        response = conn.getresponse()
+        return response.status, json.loads(response.read(limit))
+    finally:
+        conn.close()
 
 
 def _url(port, token):
@@ -109,10 +131,19 @@ def _watch_console(closing, finished):
     return None
 
 
-def launch(factory, port, *, lan, new_instance=False, open_browser=False):
+def _conflicts(previous, config):
+    saved = previous.get("config")
+    if not isinstance(saved, dict):
+        saved = {"mode": previous["mode"]}
+    names = {"root": "工作目录 / working directory", "mode": "--local-only"}
+    return [names.get(key, "--" + key.replace("_", "-")) for key, value in config.items()
+            if key in saved and saved[key] != value]
+
+
+def launch(factory, config, *, new_instance=False, open_browser=False):
     _prepare(sys.stdout)
-    mode = "LAN" if lan else "local-only"
-    path = user_state() / "web-instance.json"
+    mode, port = config["mode"], config["port"]
+    path = _path()
     guard = path.with_suffix(".lock")
     record = None
     worker = None
@@ -136,7 +167,7 @@ def launch(factory, port, *, lan, new_instance=False, open_browser=False):
                     stack.enter_context(server)
                     if not new_instance:
                         record = dict(port=server.server_port, token=server.lifecycle_token, **server.identity,
-                                      mode=mode, bind=server.server_address[0])
+                                      mode=mode, bind=server.server_address[0], config=config)
                         _publish(path, record)
                     # Start serving before another launcher can probe this instance.
                     def serve():
@@ -148,12 +179,16 @@ def launch(factory, port, *, lan, new_instance=False, open_browser=False):
                     worker = threading.Thread(target=serve)
                     worker.start()
             if previous is not None:
-                if previous["mode"] != mode:
-                    print(f"已经有一个 {previous['mode']} 模式的在运行，先关掉它再用 {mode} 模式启动。 / "
-                          f"A {previous['mode']} instance is running. Quit it before starting in {mode} mode.", flush=True)
+                if changed := _conflicts(previous, config):
+                    flags = ", ".join(changed)
+                    _prepare(sys.stderr)
+                    print(f"已有实例在用另一套参数（{flags}），要换请先运行 discprobe webui stop。 / "
+                          f"The running instance uses different settings ({flags}). Run discprobe webui stop before changing them.",
+                          file=sys.stderr, flush=True)
                 url = _url(previous["port"], previous["token"])
-                _open(url)
-                print("已经在运行，已打开浏览器。 / Already running. Opened the browser.", flush=True)
+                print(url, flush=True)
+                if open_browser:
+                    _open(url)
                 return
 
             _console_title()
@@ -178,13 +213,73 @@ def launch(factory, port, *, lan, new_instance=False, open_browser=False):
                 try:
                     if record is not None:
                         with file_lock(guard, wait=True):
-                            try:
-                                current = json.loads(path.read_bytes())
-                            except (FileNotFoundError, ValueError):
-                                current = None
-                            if current == record:
+                            if _read(path) == record:
                                 _update_file(lambda: path.unlink(missing_ok=True))
                 finally:
                     finished.set()
                     if unwatch is not None:
                         unwatch()
+
+
+def _task_text(tasks):
+    return ", ".join(f"{task['action']} {task['drive'] or ''} {task['job'] or ''}".strip() for task in tasks)
+
+
+def status(args):
+    _prepare(sys.stdout)
+    record = _existing(_path())
+    result = dict(running=record is not None, **{
+        key: record[key] if record else None for key in ("pid", "port", "token", "started", "mode", "bind")
+    }, url=_url(record["port"], record["token"]) if record else None, tasks=[])
+    if record:
+        try:
+            code, data = _request(record, "/api/status")
+            if code == 404:
+                # An older service can answer ping but may not yet offer status.
+                data = {"drives": drive_locks(), "tasks": []}
+            elif code != 200:
+                raise ValueError(data.get("error", f"HTTP {code}"))
+        except (OSError, ValueError, http.client.HTTPException) as exc:
+            raise SystemExit(f"无法读取服务状态。 / Could not read service status: {exc}") from None
+        result.update(drives=data["drives"], tasks=data["tasks"])
+    else:
+        from .guide import optical_drives
+        result["drives"] = drive_locks(optical_drives() if os.environ.get("DISC_PROBE_NO_DRIVES") != "1" else ())
+    if args.json:
+        print(json.dumps(result))
+        return
+    if record:
+        print(f"正在运行 / Running: pid {result['pid']}, {result['mode']}, {result['started']} ns")
+        print(result["url"])
+    else:
+        print("服务未运行。 / Service is not running.")
+    if result["tasks"]:
+        print("进行中的任务 / Active tasks: " + _task_text(result["tasks"]))
+    for drive in result["drives"]:
+        owner = (f"pid {drive['pid']}, {drive['action']}" if drive["pid"] is not None
+                 else "持有者未知 / holder unknown")
+        print(f"{drive['drive']}  {owner if drive['locked'] else '空闲 / idle'}")
+
+
+def stop(args):
+    _prepare(sys.stdout)
+    path = _path()
+    record = _existing(path)
+    if record is None:
+        print("服务未运行。 / Service is not running.")
+        return
+    try:
+        code, data = _request(record, "/api/quit", {"force": args.force})
+    except (OSError, ValueError, http.client.HTTPException) as exc:
+        raise SystemExit(f"无法停止服务。 / Could not stop the service: {exc}") from None
+    if code != 200 or data.get("exited") is not True:
+        _prepare(sys.stderr)
+        raise SystemExit(data.get("error") or f"Could not stop the service (HTTP {code}).")
+    # The HTTP response acknowledges the request. Registry cleanup follows child shutdown.
+    deadline = time.monotonic() + 20
+    while _read(path) == record:
+        if time.monotonic() >= deadline:
+            _prepare(sys.stderr)
+            raise SystemExit("服务仍在退出。 / The service is still shutting down.")
+        time.sleep(.05)
+    print("服务已停止。 / Service stopped.")
