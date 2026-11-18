@@ -47,7 +47,7 @@
 {"case":47,"kind":"symptom","expected":"colour-wrong","query":"颜色不对"}
 {"case":48,"kind":"symptom","expected":"web-offline","query":"网页打不开"}
 {"case":49,"kind":"symptom","expected":"web-double-click","query":"双击没反应"}
-{"case":50,"kind":"symptom","expected":"photo-weak-peak","query":"拍照一直不通过"}
+{"case":50,"kind":"symptom","expected":"photo-no-adoption","query":"拍照一直不通过"}
 {"case":51,"kind":"symptom","expected":"linux-permission","query":"linux 说没权限"}
 {"case":52,"kind":"symptom","expected":"geo-speed-keep","query":"我这边不设速度正常，一设读速就变成 CLV，怎么保持？"}
 {"case":53,"kind":"symptom","expected":"geo-outer-range","query":"总在外沿的同一段扇区卡住，怎么跳过？"}

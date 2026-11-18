@@ -701,7 +701,7 @@
   },
   {
     "id": "photo-no-adoption",
-    "symptoms": {"zh": ["还没有能用的照片", "照片修正没有采用", "照片读完没有 L"], "en": ["no accepted calibration photos", "photo l not yet accepted", "all calibration shots rejected"]},
+    "symptoms": {"zh": ["还没有能用的照片", "照片修正没有采用", "照片读完没有 L", "拍照一直不通过"], "en": ["no accepted calibration photos", "photo l not yet accepted", "all calibration shots rejected", "calibration photos keep getting rejected"]},
     "error_patterns": [{"text": "no_accepted_photos"}, {"text": "verdict_not_ok"}, {"text": "no_photo"}, {"text": "The photos are not adopted yet"}],
     "cause": {"zh": "当前照片没有得到可用于出图的已采用读数。", "en": "The current photos have no adopted value for picture generation."},
     "steps": {"zh": ["查看每张照片下的重拍提示。用同一张盘拍不同角度，等至少两张读数一致。"], "en": ["Follow the retake advice under each photo. Take shots of the same disc from distinct angles until at least two readings agree."]},
@@ -851,7 +851,7 @@
   },
   {
     "id": "photo-weak-peak",
-    "symptoms": {"zh": ["照片条纹太淡", "拍照一直不通过", "照片看得见图但读不出来"], "en": ["photo pattern too faint", "calibration photos keep getting rejected", "photo stripes not strong enough"]},
+    "symptoms": {"zh": ["照片条纹太淡", "拍照彩纹没对比", "照片看得见图但读不出来"], "en": ["photo pattern too faint", "faint stripes in calibration shots", "photo stripes not strong enough"]},
     "error_patterns": [{"text": "weak_peak"}, {"text": "条纹太淡，读不准"}, {"text": "The pattern is too faint to read"}],
     "cause": {"zh": "条纹太淡，读不准。", "en": "The pattern is too faint to read."},
     "steps": {"zh": ["背对吸顶灯，避开盘上的白色反光，让彩纹更亮再拍。"], "en": ["Put the ceiling lamp behind you and keep its white glare off the disc before retaking."]},
