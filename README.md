@@ -78,7 +78,7 @@ python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --te
 
 从 1.0.0.0-alpha 起，大多数步骤可以在本地网页里做，不用记命令。
 
-- **打开**：Windows 完整包解压后双击 `开始 Start.bat`。已经装好 Python 的话，在仓库文件夹里运行 `python -m discprobe webui --open`。两种方式会打开同一个大厅。`webui` 会打印带令牌的地址，只有加 `--open` 才会打开浏览器。首选端口为 8765，被占用时自动换到空闲端口。
+- **打开**：Windows 完整包解压后双击 `开始 Start (Windows).bat`。Linux 完整包解压后运行 `./start-linux.sh`，也可运行 `bash start-linux.sh`。两种完整包都自带 Python 和依赖。使用源码时，在仓库目录运行 `python -m discprobe webui --open`。服务会打印带令牌的地址，Linux 无图形桌面时可使用该地址。首选端口为 8765，被占用时自动换到空闲端口。
 - **查看和停止**：`python -m discprobe webui status` 查看服务和光驱持锁状态，可加 `--json`。在大厅点“退出”，或运行 `python -m discprobe webui stop`。有任务时会提示正在进行的任务，`stop --force` 仅在没有光驱写入时允许。关掉启动服务的黑色窗口也会停止服务。
 - **启动选项**：`--local-only` 把服务限制在本机，`--no-drives` 或 `DISC_PROBE_NO_DRIVES=1` 用于离线设计。再次启动时如果参数不同，命令会打印已有实例的地址并提示先用 `webui stop`。
 - **新手引导**：大厅里点"看新手引导"。它按你已经做过的步骤，告诉你下一步做什么。
@@ -100,7 +100,8 @@ python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --te
 
 也可以不用 git，到 [Releases](https://github.com/Ashley-QwQ/disc-probe/releases) 下载打包好的版本（1.0.0.0-alpha 是预发布版，不显示为 Latest）：
 
-- `full-win64`：Windows 用，自带 Python 和依赖。解压后双击 `开始 Start.bat`，不用另外安装。下面的安装步骤可以跳过。
+- `full-win64`：Windows 用，自带 Python 和依赖。解压后双击 `开始 Start (Windows).bat`。
+- Linux 完整包：自带 Python 3.13 和依赖。解压后运行 `./start-linux.sh` 或 `bash start-linux.sh`。
 - `core`：只有 disc-probe，要你已经装好 Python。解压后在文件夹里运行 `python -m pip install -r requirements.txt`，再运行下面的 `selftest`。
 
 Windows 上用管理员身份打开终端，安装依赖，并用模拟驱动器确认环境正常。不方便用管理员身份时，在读盘的命令后加 `--transport imapi`：它经 Windows 自带的 IMAPI2 刻录接口（`IDiscRecorder2Ex`）发同样的命令，普通用户即可；默认的 `auto` 在 SPTI 被拒时会自动改用它。

@@ -1777,6 +1777,17 @@ def guide_drive_tag(drive):
     return (drive or "").replace(":", "")
 
 
+def _warn_linux_drive_permissions(drives):
+    blocked = [drive["id"] for drive in drives
+               if re.fullmatch(r"/dev/sr[0-9]+", drive["id"]) and not os.access(drive["id"], os.R_OK | os.W_OK)]
+    if blocked:
+        i18n._prepare(sys.stderr)
+        devices = ", ".join(blocked)
+        print(f"当前用户无法读写 {devices}。请加入 cdrom 组并重新登录。 / "
+              f"No read/write access to {devices}. Join the cdrom group and sign in again.",
+              file=sys.stderr, flush=True)
+
+
 def run(args):
     from .web_instance import launch
     from . import texlib
@@ -1801,8 +1812,11 @@ def run(args):
         for option in ("table", "materials"):
             if value := getattr(args, option, None):
                 os.environ[path_options[option]] = str(texlib.safe(value))
-        return Server(Backend(media=args.media, out=args.out, drive_provider=(lambda: []) if no_drives else None),
-                      port, lan=lan, gui=gui)
+        backend = Backend(media=args.media, out=args.out, drive_provider=(lambda: []) if no_drives else None)
+        server = Server(backend, port, lan=lan, gui=gui)
+        if sys.platform.startswith("linux") and not no_drives:
+            _warn_linux_drive_permissions(backend.drive_provider())
+        return server
 
     launch(server, config, new_instance=getattr(args, "new_instance", False),
            open_browser=getattr(args, "open_browser", False))

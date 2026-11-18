@@ -1911,7 +1911,7 @@ def cmd_menu(args):
         opened = console.run(media, out, prelude=prelude,
                              intro=greetings.pick(first_time=first_time))
         if opened and ui.term().interactive:
-            # Start.bat leaves this window open after this; leave the checklist visible there.
+            # Leave the checklist visible in the terminal after returning from the walkthrough.
             for line in guide.progress_lines(media, out):
                 print(ui.guide_line(line))
             if not completion.installed():

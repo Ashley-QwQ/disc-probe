@@ -26,11 +26,22 @@ import zipfile
 PYTHON = "3.13.14"
 PACKAGES = ("numpy", "pillow", "scipy", "opencv-python")
 SELFTEST_DATA = "tests/data/bd_discussion_samples/local_uj272_bd_zones.csv"
-SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_backend.py", "INSTALL-linux.md", "docs/API_VERSIONING.md", "docs/MANUAL.md", "docs/MANUAL.en.md", "README.md", "README.en.md", "STYLE.md", "DESIGN.md", "LICENSE", SELFTEST_DATA)
+SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_backend.py", "INSTALL-linux.md", "docs/API_VERSIONING.md", "docs/MANUAL.md", "docs/MANUAL.en.md", "README.md", "README.en.md", "STYLE.md", "DESIGN.md", "LICENSE", "start-linux.sh", "先看我 Read me first.txt", SELFTEST_DATA)
 LEAVE_OUT = ("__pycache__", "tests", "test", "*.pyi", "*.pdb")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-START = '@cd /d "%~dp0" && "%~dp0python\\python.exe" -X utf8 -B -m discprobe webui --open %*\n'
+START_NAME = "开始 Start (Windows).bat"
+# CMD treats the first line as a label. In sh, the trailing comment hides the CR.
+START = (
+    ":; printf '%s\\n' '这是 Windows 启动器。Linux 请运行 bash start-linux.sh。 / "
+    "This is the Windows launcher. On Linux, run bash start-linux.sh.'; exit 1 #\n"
+    '@cd /d "%~dp0" && "%~dp0python\\python.exe" -X utf8 -B -m discprobe webui --open %*\n'
+)
+
+
+def write_start(root):
+    with open(os.path.join(root, START_NAME), "w", encoding="utf-8", newline="\r\n") as f:
+        f.write(START)
 
 # The window's own PATH finds this Python, so the commands disc-probe prints work as written.
 SHELL = """@echo off
@@ -307,8 +318,7 @@ def main() -> None:
         f.write(f"{tag}.zip\n.\nLib\\site-packages\n..\nimport site\n")
     copy_packages(wheels, os.path.join(py, "Lib", "site-packages"))
     copy_source(a, root)
-    with open(os.path.join(root, "开始 Start.bat"), "w", encoding="ascii", newline="\r\n") as f:
-        f.write(START)
+    write_start(root)
     with open(os.path.join(py, "shell.cmd"), "w", encoding="utf-8", newline="\r\n") as f:
         f.write(SHELL)
     with open(os.path.join(root, "NOTICE.txt"), "w", encoding="utf-8", newline="\r\n") as f:

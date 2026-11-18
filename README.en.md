@@ -78,7 +78,7 @@ The preview's colours only tell the textures apart, so it won't match the disc. 
 
 Since 1.0.0.0-alpha most steps can be done in a local web page, with no commands to remember.
 
-- **Open it**: unpack the full Windows package and double-click `开始 Start.bat`. With Python already installed, run `python -m discprobe webui --open` from the repository folder. Both open the same lobby. `webui` prints the address with its session token. Add `--open` to open it in your browser. The default port is 8765, and the service picks a free port if that one is occupied.
+- **Open it**: unpack the Windows full package and double-click `开始 Start (Windows).bat`, or unpack the Linux full package and run `./start-linux.sh` or `bash start-linux.sh`. Both full packages include Python and dependencies. From a source checkout, run `python -m discprobe webui --open`. The service prints an address with a session token, which you can use on headless Linux. It prefers port 8765 and picks a free port if that one is occupied.
 - **Check or stop it**: run `python -m discprobe webui status` to see the service and drive lock holders. Add `--json` for JSON. To stop, use Quit in the lobby or run `python -m discprobe webui stop`. The command reports any active tasks. `stop --force` is allowed only when no optical disc is being written. Closing the console that started the service also stops it.
 - **Startup options**: use `--local-only` to keep the service on this computer. For offline design, use `--no-drives` or set `DISC_PROBE_NO_DRIVES=1`. If you start it again with different settings, the command prints the existing address and tells you to run `webui stop` first.
 - **Beginner's guide**: in the lobby, open the guide. It looks at the steps you have already done and tells you what to do next.
@@ -100,7 +100,8 @@ You need blank discs from the same batch. The minimum, when everything is right 
 
 You can also skip git and download a package from [Releases](https://github.com/Ashley-QwQ/disc-probe/releases) (1.0.0.0-alpha is a pre-release, so it is not marked Latest):
 
-- `full-win64`: for Windows, with its own Python and dependencies. Unpack it and double-click `开始 Start.bat`, nothing to install. You can skip the install steps below.
+- `full-win64`: for Windows, with its own Python and dependencies. Unpack it and double-click `开始 Start (Windows).bat`.
+- Linux full package: includes Python 3.13 and dependencies. Unpack it and run `./start-linux.sh` or `bash start-linux.sh`.
 - `core`: disc-probe alone, for a machine that has Python. Unpack it, run `python -m pip install -r requirements.txt` in the folder, then the `selftest` below.
 
 On Windows, open a terminal as administrator, install the dependencies, and check your setup on the simulated drive. If you cannot run as administrator, add `--transport imapi` to the drive commands: it sends the same CDBs through Windows' own IMAPI2 recorder interface (`IDiscRecorder2Ex`), which a standard user may call. The default, `auto`, switches to it when SPTI is refused.
