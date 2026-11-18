@@ -1085,6 +1085,26 @@ def cmd_compose(args):
     print(f"Texture order: {os.path.splitext(args.out)[0]}.textures.json")
 
 
+def cmd_colour_design(args):
+    from pathlib import Path
+    from . import editor_colour, editor_preview, texlib
+    if not os.environ.get('DISCPROBE_TEXLIB'):
+        texlib.configure(editor_colour.DEFAULT_TEXLIB)
+    try:
+        doc = editor_colour.design(args.image, args.phone, args.height, args.materials, args.dither, args.fit, args.flash_mm)
+        if args.preview:
+            png, _ = editor_preview.Renderer().render(dict(document=doc, size=600))
+            output = texlib.safe(args.preview)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_bytes(png)
+        output = texlib.safe(args.out)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        _write_json(str(output), doc)
+    except (OSError, ValueError) as exc:
+        sys.exit(str(exc))
+    print(f'{Path(args.out)}: DVD colour work; {len(doc["assignments"][0]["colour"]["materials"])} candidate textures')
+
+
 def cmd_checkdisc(args):
     from .checkdisc import command
     command(args)
@@ -1979,7 +1999,7 @@ def cmd_template(args):
 COMMAND_GROUPS = (
     ("Start here", ("menu", "guide", "webui", "version", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "whois", "timing", "geo", "results", "diagnose")),
-    ("Make a disc image", ("random", "label", "compose", "textures", "files-layout", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
+    ("Make a disc image", ("random", "label", "compose", "colour-design", "textures", "files-layout", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc", "checkdisc")),
     ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
     ("Use elsewhere", ("template", "disexport", "cdprobe", "works")),
@@ -2399,6 +2419,18 @@ def _build_parser():
     sp.add_argument("--out", required=True, help="output uint8 design.npy; texture order saved beside it")
     sp.set_defaults(func=cmd_compose)
 
+    sp = sub.add_parser('colour-design', help='map a colour picture to DVD textures for a phone and shooting height')
+    sp.add_argument('image')
+    sp.add_argument('--phone', required=True, help='phone ID, e.g. iphone17pro or custom')
+    sp.add_argument('--height', required=True, type=float, help='lens height above the table, cm')
+    sp.add_argument('--flash-mm', type=float, help='flash-to-lens distance for a custom phone')
+    sp.add_argument('--materials', default='greedy', help='greedy or a JSON file containing texture specs')
+    sp.add_argument('--dither', choices=('ordered', 'nearest'), default='ordered')
+    sp.add_argument('--fit', choices=('disc', 'ring'), default='disc', help='fill the disc or fit the picture above the hub')
+    sp.add_argument('-o', '--out', required=True, help='work JSON')
+    sp.add_argument('--preview', help='write the model prediction as PNG')
+    sp.set_defaults(func=cmd_colour_design)
+
     from . import discfiles
     sp = sub.add_parser('files-layout', help='plan DVD files and picture annuli as JSON (no drive access)')
     discfiles.add_arguments(sp, layout_only=True)
@@ -2608,7 +2640,7 @@ def _build_parser():
 
     from . import texlib
     texlib.add_parser(sub)
-    for name in ('simulate','image','tiles','compose','rings','webui'):
+    for name in ('simulate','image','tiles','compose','colour-design','rings','webui'):
         sub.choices[name].add_argument('--texlib', help='read-only texture library directory (otherwise DISCPROBE_TEXLIB)')
 
     # Add media only to commands with an implemented CD path. Existing DVD

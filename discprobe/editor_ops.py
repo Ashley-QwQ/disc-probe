@@ -146,13 +146,14 @@ def validate(d):
         if len(raw)!=g["width"]*g["height"] or any(v>1 for v in raw):
             raise ValueError("mask bits")
     layer_ids=[l["id"] for l in d["layers"]];mask_ids=[s["id"] for s in d["selections"]]
+    pictures = {l['id'] for l in d['layers'] if l.get('kind') == 'image' and l.get('raster') and not l.get('shape')}
     if len(set(layer_ids))!=len(layer_ids) or len(set(mask_ids))!=len(mask_ids):
         raise ValueError("duplicate layer or selection id")
     for a in d["assignments"]:
         if ("layer" in a)==("selection" in a) or ("layer" in a and a["layer"] not in layer_ids) or ("selection" in a and a["selection"] not in mask_ids):
             raise ValueError("unknown assignment target")
-        if sum(k in a for k in ("material","pattern","effect"))!=1:
-            raise ValueError("choose material, pattern or effect")
+        if sum(k in a for k in ("material","pattern","effect","colour"))!=1:
+            raise ValueError("choose material, pattern, effect or colour")
         if "material" in a and a["material"] not in ids:
             raise ValueError("unknown material")
         if "pattern" in a:
@@ -161,6 +162,18 @@ def validate(d):
             e=a["effect"]
             if e["kind"] not in ("flow","ox","merge","sync") or any(type(e.get(k,55)) not in (int,float) or not math.isfinite(e.get(k,55)) or not 0<=e.get(k,55)<=150 for k in ("y1","y2")):
                 raise ValueError("invalid effect")
+        if 'colour' in a:
+            from .editor_colour import work_rig
+            if d.get('media', 'dvd') != 'dvd' or a.get('layer') not in pictures:
+                raise ValueError('colour fill requires a DVD picture layer')
+            c = a['colour']
+            if not isinstance(c, dict) or c.get('dither') not in ('ordered', 'nearest'):
+                raise ValueError('colour fill needs ordered or nearest dithering')
+            candidates = c.get('materials')
+            if (not isinstance(candidates, list) or not candidates or any(k not in ids for k in candidates)
+                    or len(candidates) != len(set(candidates))):
+                raise ValueError('colour fill needs distinct known material IDs')
+            work_rig(d)
     return d
 
 
@@ -200,18 +213,34 @@ def delta(x,y,phone):
     return np.abs(v)
 
 
-def compose(data, g=None, out=None):
+def compose(data, g=None, out=None, *, colour_table=None):
     d=validate(migrate(data));g=g or grid(round(120/d["cell"]))
     w,h=g["width"],g["height"]
     out=np.zeros((h,w),np.uint8) if out is None else out
     ids={m["id"]:i for i,m in enumerate(d["materials"])}
+    colour = {}
+    if any('colour' in a for a in d['assignments']):
+        from . import editor_colour, simulate, simulate_a3
+        pose = editor_colour.work_rig(d)
+        table = simulate_a3.tables() if colour_table is None else colour_table
+        for a in d['assignments']:
+            if 'colour' in a:
+                c = a['colour']
+                colour[a['layer']] = editor_colour.Matcher(d['materials'], [ids[k] for k in c['materials']], c['dither'], table)
+    layer_fills = {l['id']: [] for l in d['layers']}
+    for a in d['assignments']:
+        if 'layer' in a:
+            fills = layer_fills[a['layer']]
+            if 'colour' in a:
+                fills.clear()  # Colour fully covers the layer wherever its alpha allows a write.
+            fills.append(a)
     masks={s["id"]:np.frombuffer(base64.b64decode(s["bits"]),np.uint8).reshape(d["maskGrid"]["height"],-1) for s in d["selections"]}
     raster={l["id"]:np.frombuffer(base64.b64decode(l["raster"]["rgba"]),np.uint8).reshape(l["raster"]["height"],l["raster"]["width"],4) for l in d["layers"] if l.get("raster")}
     dark=ids.get("dark",next((i for i,m in enumerate(d["materials"]) if m["spec"]=="A5"),1))
     # per picture: the template colour each pixel matches (-1: none) and its toned grey (editor_tone)
     source_slots={};greys={};tones={};diffusion={}
     for l in d["layers"]:
-        if l.get("raster"):
+        if l.get("raster") and l['id'] not in colour:
             px=raster[l["id"]];tones[l["id"]]=editor_tone.tone(l.get("tone"))
             slots=np.full(px.shape[:2],-1,np.int16)
             matched=np.zeros(px.shape[:2],bool)
@@ -244,6 +273,8 @@ def compose(data, g=None, out=None):
     for j in range(h):
         y=float(q(g["top_mm"]+(j+.5)*g["cell_mm"]))
         row=out[j];row[:]=0
+        r=q(np.hypot(x,y));writable=(r>=d['annulus_mm'][0])&(r<d['annulus_mm'][1])
+        dt = None
         for l in d["layers"]:
             if not l["visible"]:continue
             r=l.get("raster");s=l.get("shape")
@@ -257,19 +288,29 @@ def compose(data, g=None, out=None):
                 px=raster[l["id"]][cy,cx]
                 inside=(sx>=0)&(sy>=0)&(sx<r["width"])&(sy<r["height"])
                 hit=inside&(px[:,3]*l["opacity"]>255*(COVERAGE[j%4,columns%4]+.5)/16)
-                slots=source_slots[l["id"]][cy,cx].astype(int)
-                # the rest of the picture: its toned grey, dithered on this grid
-                take=inside&(px[:,3]>0)&(slots<0)
-                grey=greys[l["id"]][cy,cx].astype(np.int32);t=tones[l["id"]]
-                if l["id"] in diffusion:
-                    dark_cells=diffusion[l["id"]].row(j,grey,take)
+                if l['id'] in colour:
+                    hit &= writable
+                    if not hit.any():
+                        continue
+                    if dt is None:
+                        # Composition rows run down the canvas; the optical frame runs toward 12 o'clock.
+                        dt = simulate.along_track(x, -y, **pose)
+                    slots = np.zeros(w, dtype=int)
+                    slots[hit] = colour[l['id']].row(dt[hit], editor_colour.picture_lab(px[hit, :3]), j, columns[hit])
                 else:
-                    dark_cells=editor_tone.matrix_dark(t["dither"],t["strength"],j,columns,grey)&take
-                slots=np.where(slots>=0,slots,np.where(dark_cells,dark,0))
+                    slots=source_slots[l["id"]][cy,cx].astype(int)
+                    # the rest of the picture: its toned grey, dithered on this grid
+                    take=inside&(px[:,3]>0)&(slots<0)
+                    grey=greys[l["id"]][cy,cx].astype(np.int32);t=tones[l["id"]]
+                    if l["id"] in diffusion:
+                        dark_cells=diffusion[l["id"]].row(j,grey,take)
+                    else:
+                        dark_cells=editor_tone.matrix_dark(t["dither"],t["strength"],j,columns,grey)&take
+                    slots=np.where(slots>=0,slots,np.where(dark_cells,dark,0))
             else:
                 hit=shape_hit(s,u,v)&(255*l["opacity"]>255*(COVERAGE[j%4,np.arange(w)%4]+.5)/16);slots=np.full(w,dark)
-            for a in d["assignments"]:
-                if a.get("layer")==l["id"]:
+            for a in layer_fills[l['id']]:
+                if 'colour' not in a:
                     z=shade(a,x,y,u,v,j);slots=np.where(z>=0,z,slots)
             row[hit]=slots[hit]
         for a in d["assignments"]:
@@ -278,7 +319,7 @@ def compose(data, g=None, out=None):
                 if not 0<=sy<mg["height"]:continue
                 hit=(sx>=0)&(sx<mg["width"])&(masks[a["selection"]][sy,np.clip(sx,0,mg["width"]-1)]!=0)
                 z=shade(a,x,y,x/120,np.full(w,y/120),j);hit&=z>=0;row[hit]=z[hit]
-        r=q(np.hypot(x,y));row[(r<d["annulus_mm"][0])|(r>=d["annulus_mm"][1])]=0
+        row[~writable]=0
     return out
 
 

@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from .simulate import CAMERA, FLASH, EDGE_MM, HUB_MM, FINE_SAMPLES, coverage, unit
+from .simulate import CAMERA, FLASH, EDGE_MM, HUB_MM, FINE_SAMPLES, coverage_iter, unit
 
 TABLE = Path(__file__).with_name("simulate_a3v3.npz")
 A5_PERIOD_UM = .8528123052898693
@@ -41,7 +41,8 @@ def _tables(path, stamp, signature):
         specs = [str(s) for s in z["specs"]]
         return dict(specs={s: i for i, s in enumerate(specs)}, delta=z["delta"].astype(float), xyz=z["xyz"].astype(float),
                     cmf_nm=z["cmf_nm"].astype(float), cmf=z["cmf"].astype(float), m=z["xyz_to_srgb"].astype(float),
-                    signature=str(z["signature"]), source_key=(path, stamp, signature))
+                    signature=str(z["signature"]), fitted=bool(z["fitted"]) if "fitted" in z else False,
+                    source_key=(path, stamp, signature))
 
 
 def tables():
@@ -96,15 +97,19 @@ def known(material):
     return canonical(material["spec"]) in tables()["specs"]
 
 
+def reference_y(table):
+    return max(float(table["xyz"][table["specs"][s], :, 1].max()) for s in ("A5", "B9"))
+
+
 def render(design, size=800, *, materials, camera=CAMERA, flash=FLASH, rotate=0, fine=True, annulus_mm=None,
-           paper=False, edge_mm=EDGE_MM, delta_scale=1.):
+           paper=False, edge_mm=EDGE_MM, delta_scale=1., table=None, exposure=0):
     """Physical geometry uses scale=1. delta_scale is retained for explicit legacy-work replay;
     it affects texture lookup only, not the grooves' rainbow or mirror glare."""
     if size < 200 or size > 4096:
         raise ValueError("size must be between 200 and 4096 pixels")
     if design.dtype != np.uint8 or not materials or int(design.max()) >= len(materials):
         raise ValueError("material labels must index the document's material table")
-    t = tables()
+    t = tables() if table is None else table
     cam, fl = np.asarray(camera, float), np.asarray(flash, float)
     k = max(1, math.ceil(FINE_SAMPLES / size)) if fine else 1
     n = size * k
@@ -125,12 +130,11 @@ def render(design, size=800, *, materials, camera=CAMERA, flash=FLASH, rotate=0,
     irr = (np.linalg.norm(fl) / ldist) ** 2
     lamp_ang = max(3. / np.linalg.norm(cam), .004)
 
-    a5 = t["xyz"][t["specs"]["A5"]]
-    ref = max(float(a5[:, 1].max()), float(t["xyz"][t["specs"]["B9"]][:, 1].max()))
+    ref = reference_y(t)
     tex = np.zeros(r.shape + (3,))
     attenuation = np.zeros(r.shape)
     # shares over each output pixel's square (what the eye or a phone pixel mixes), read at its fine samples
-    for slot, share in coverage(design, size, dx, dy):
+    for slot, share in coverage_iter(design, size, dx, dy):
         m = materials[slot]
         tex += share[..., None] * material_xyz(m, d_t * delta_scale, t)
         attenuation += share * (1. if canonical(m["spec"]) == "A5" else OTHER_DARK)
@@ -159,7 +163,7 @@ def render(design, size=800, *, materials, camera=CAMERA, flash=FLASH, rotate=0,
     clear = w_g.reshape(size, k, size, k).max((1, 3)) < .01
     disc = (rs > 24) & (rs < 58) & clear
     level = float(np.quantile(rgb[disc].mean(-1), .98)) if disc.any() else 1.
-    rgb = np.clip(rgb * (.85 / max(level, 1e-6)), 0, 1)
+    rgb = np.clip(rgb * ((.85 / max(level, 1e-6)) * 2**exposure), 0, 1)
     rgb[(rs < HUB_MM) | (rs >= edge_mm)] = 1 if paper else 0
     enc = np.where(rgb <= .0031308, 12.92 * rgb, 1.055 * rgb ** (1 / 2.4) - .055)
     return Image.fromarray(np.uint8(np.clip(np.rint(enc * 255), 0, 255)))
@@ -211,11 +215,11 @@ def swatches(materials, camera=CAMERA, flash=FLASH, at=(40., 0.), delta_scale=1.
 
 
 
-def burn_colours(materials):
+def burn_colours(materials, table=None):
     """The colour each material shows when it lights up (its brightest viewing angle in the A3 v3 table), at a
     common display brightness: the colour the Disc Neo card gives it. Keyed by material id and canonical spec.
     RND and textures without light get none."""
-    t = tables()
+    t = tables() if table is None else table
     m = t["m"]
     out = {}
     for mat in materials:
