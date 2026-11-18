@@ -54,7 +54,7 @@ try {
 } catch(e) {document.getElementById('result').textContent='FAIL: '+e.message;}
 </script>`);
 try {
-  const run = spawnSync(edge, ['--headless=new','--no-sandbox','--disable-gpu','--disable-background-networking','--no-first-run','--no-default-browser-check',
+  const run = spawnSync(edge, ['--headless=new','--mute-audio','--no-sandbox','--disable-gpu','--disable-background-networking','--no-first-run','--no-default-browser-check',
     '--allow-file-access-from-files',`--user-data-dir=${join(dir,'profile')}`,'--virtual-time-budget=5000','--dump-dom',pathToFileURL(fixture).href],
     {encoding:'utf8',timeout:45000,windowsHide:true,maxBuffer:4*1024*1024});
   assert.ifError(run.error);

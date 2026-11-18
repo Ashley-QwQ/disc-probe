@@ -52,7 +52,7 @@ const server = createServer((req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const origin=`http://127.0.0.1:${server.address().port}`;
-const child=spawn(edge,['--headless=new','--remote-debugging-port=0',`--user-data-dir=${profile}`,
+const child=spawn(edge,['--headless=new','--mute-audio','--remote-debugging-port=0',`--user-data-dir=${profile}`,
   '--disable-gpu','--disable-background-networking','--no-first-run','--hide-scrollbars','about:blank'],
   {stdio:'ignore',windowsHide:true});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));

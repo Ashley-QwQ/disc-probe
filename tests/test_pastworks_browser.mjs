@@ -162,7 +162,7 @@ async function evaluate(expression) {
 try {
   // Bounded headless test process. Real time lets image.decode() finish; virtual-time dump-dom
   // can end before the full-size cell envelope textures decode and hide genuine visual defects.
-  browserProcess = spawn(edge, ['--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
+  browserProcess = spawn(edge, ['--headless=new','--mute-audio', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
     '--allow-file-access-from-files', '--remote-debugging-port=0', `--user-data-dir=${join(dir, 'profile')}`, 'about:blank'],
   { windowsHide: true, stdio: 'ignore' });
   browserProcess.on('error', error => { throw error; });

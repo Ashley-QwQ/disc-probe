@@ -57,7 +57,7 @@ test('curve editing: real CLI rejection, save gate, keyboard and responsive layo
     }
     assert.ok(url, serverError);
     const profile = join(dir, 'profile');
-    browser = spawn(edge, ['--headless=new','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check',
+    browser = spawn(edge, ['--headless=new','--mute-audio','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check',
       '--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'], {stdio:'ignore',windowsHide:true});
     let port;
     while (Date.now() < deadline) {

@@ -91,7 +91,7 @@ document.getElementById('result').textContent='PASS '+params.get('case')+' '+par
                     for theme in ("paper", "dark"):
                         name = f"{case}-{theme}"
                         profile = temp / (name + "-profile")
-                        result = subprocess.run([args.browser, "--headless=new", "--disable-gpu", "--no-sandbox",
+                        result = subprocess.run([args.browser, "--headless=new","--mute-audio", "--disable-gpu", "--no-sandbox",
                             "--no-first-run", "--no-default-browser-check", "--user-data-dir=" + str(profile),
                             "--window-size=1440,1000", "--force-device-scale-factor=1", "--hide-scrollbars",
                             "--virtual-time-budget=40000", "--dump-dom", "--screenshot=" + str(args.out / (name + ".png")),

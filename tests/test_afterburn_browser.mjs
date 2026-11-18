@@ -24,7 +24,7 @@ try{
   for(let i=0;i<300&&!ready;i++){try{ready=JSON.parse(readFileSync(join(dir,'lab','ready.json'),'utf8'));}catch{}if(!ready)await delay(100);}
   assert.ok(ready,output);
   const origin=`http://127.0.0.1:${ready.port}`;
-  browser=spawn(edge,['--headless=new','--disable-gpu','--disable-background-networking','--no-first-run','--no-default-browser-check',
+  browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--disable-background-networking','--no-first-run','--no-default-browser-check',
     '--remote-debugging-port=0',`--user-data-dir=${join(dir,'profile')}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
   let port;for(let i=0;i<100&&!port;i++){try{port=readFileSync(join(dir,'profile','DevToolsActivePort'),'utf8').split(/\r?\n/)[0];}catch{}if(!port)await delay(100);}
   assert.ok(port,'browser ready');
