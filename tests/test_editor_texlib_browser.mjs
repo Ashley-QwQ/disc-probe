@@ -49,8 +49,8 @@ try{
   const shot=async name=>{const r=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(out,name+'.png'),Buffer.from(r.data,'base64'));};
   await send('Runtime.enable');await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/fixture`});
-  await until(()=>run('window.ready&&A.editor.palette?.source==="texlib"&&A.editor.rigData'));
   const colourOnly=process.env.EDITOR_COLOUR_ONLY==='1';
+  await until(()=>run(colourOnly?'window.ready&&A.editor.palette&&A.editor.rigData':'window.ready&&A.editor.palette?.source==="texlib"&&A.editor.rigData'));
   if(!colourOnly){
   await run(`A.editor.setRig({phone:'iphone17pro',height:'30'});A.editor.panelState().tab='colour';A.editor.right();`);
   await until(()=>run('A.editor.palette.source==="texlib"&&A.editor.poseLights&&document.querySelector("[data-ed-choice=viewMode]")'));
@@ -99,11 +99,13 @@ try{
   await until(()=>run('A.state().layers.some(l=>l.name==="Illustration.png"||l.name==="Illustration")'));
   await run(`document.querySelector('[data-ed-tab=colour]').click();document.querySelector('[data-value=colour]').click();`);
   assert(await run(`document.querySelector('[data-ed-action=fill]').disabled&&document.querySelector('[data-ed-action=fill]').textContent.includes('先选手机和拍摄高度')`));
-  await run(`document.querySelector('[data-ed-rig=phone][data-value=iphone17pro]').click();document.querySelector('[data-ed-rig=height][data-value="21"]').click();`);
+  const height=process.env.EDITOR_COLOUR_HEIGHT??'21';
+  await run(`document.querySelector('[data-ed-rig=phone][data-value=iphone17pro]').click();document.querySelector('[data-ed-rig=height][data-value="'+${JSON.stringify(height)}+'"]').click();`);
   await until(()=>run('A.editor.colourPalette&&document.querySelector("[data-ed-action=fill]:not(:disabled)")'));
   await run(`document.querySelector('[data-ed-action=fill]').click();`);
   const candidates=await run(`(()=>{const d=A.editor.document(),c=d.assignments.at(-1)?.colour;return c?.materials.every(id=>d.materials.some(m=>m.id===id))?c.materials.length:0;})()`);
-  assert.equal(candidates,process.env.EDITOR_TEXLIB_ROOT?40:4);
+  assert.equal(candidates,58);
+  assert(await run(`document.querySelector('.ed-colour-estimate + details').textContent.includes('用 6 张色卡盘实拍校准的模型')`));
   const evidence=process.env.EDITOR_COLOUR_EVIDENCE;
   if(evidence)await mkdir(evidence,{recursive:true});
   const capture=async name=>{
@@ -144,7 +146,7 @@ try{
     const d=A.editor.document();return {candidates:d.assignments.find(a=>a.colour)?.colour.materials.length,
       rig:d.scene?.rig,lookY:A.state().lookY};
   })()`);
-  assert.deepEqual(reopened,{candidates,rig:{phone:'iphone17pro',height:'21'},lookY:28.45});
+  assert.deepEqual(reopened,{candidates,rig:{phone:'iphone17pro',height},lookY:28.45});
   assert.equal(errors.length,0,JSON.stringify(errors));
   const result={candidates,frame,predictSeconds,asBurned:true,comparison:true,reopened,errors:errors.length};
   await writeFile(join(out,'colour-browser-results.json'),JSON.stringify(result,null,2),'utf8');console.log(JSON.stringify(result));

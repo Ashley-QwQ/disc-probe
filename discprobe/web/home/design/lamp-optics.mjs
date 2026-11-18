@@ -81,12 +81,14 @@ function select(v, k, from = 0) {
 // pose: { camera, flash, rotate (deg), delta_scale }; opts: { size, k (samples per pixel side), annulus, edge, paper,
 // exposure (stops over the model's own) }.
 export class LampFrame {
-  constructor(T, cov, materials, pose, { size = 400, k = 1, annulus = null, edge = null, paper = false, exposure = 0 } = {}) {
-    Object.assign(this, { T, cov, size, k, annulus, paper, exposure, edge: edge ?? T.c.EDGE_MM });
+  constructor(T, cov, materials, pose, { size = 400, k = 1, annulus = null, edge = null, paper = false, exposure = 0,
+    diffractionOnly = false, traceDelta = false } = {}) {
+    Object.assign(this, { T, cov, size, k, annulus, paper, exposure, diffractionOnly, edge: edge ?? T.c.EDGE_MM });
+    this.delta = traceDelta ? new Float64Array((size * k) ** 2) : null;
     this.mats = materials.map(m => materialCurve(T, m));
     this.unknown = materials.filter((m, i) => !this.mats[i].known).map(m => m.id);
     const cam = pose.camera, fl = pose.flash;
-    this.cam = cam; this.fl = fl; this.dscale = pose.delta_scale ?? 1;
+    this.cam = cam; this.fl = fl; this.dscale = pose.delta_scale ?? T.meta.delta_scale ?? 1;
     const a = ((pose.rotate ?? 0) % 360) * Math.PI / 180;
     this.cos = Math.cos(a); this.sin = Math.sin(a);
     this.flNorm = Math.hypot(...fl);
@@ -94,13 +96,13 @@ export class LampFrame {
     const xyz = T.xyz, A5 = T.index.get("A5"), B9 = T.index.get("B9");
     let ref = 0;
     for (const s of [A5, B9]) for (let j = 0; j < T.dn; j++) ref = Math.max(ref, xyz[(s * T.dn + j) * 3 + 1]);
-    this.ref = ref;
+    this.ref = T.meta.reference_y ?? ref;
     this.rgb = new Float32Array(size * size * 3);
     this.rs = new Float32Array(size * size);
     this.clear = new Uint8Array(size * size);
   }
   rows(y0, y1) {
-    const { T, cov, size, k, cam, fl, mats, cos, sin, dscale, lampAng, rgb, rs, clear } = this;
+    const { T, cov, size, k, cam, fl, mats, cos, sin, dscale, lampAng, rgb, rs, clear, diffractionOnly, delta } = this;
     const c = T.c, m = T.m, n = size * k, cn = cov.n, step = 120 / n;
     const [ax, ay, az] = cam, [lx0, ly0, lz] = fl, az2 = az * az, lz2 = lz * lz;
     const irr0 = this.flNorm * this.flNorm, texGain = c.TEX_GAIN / this.ref;
@@ -125,6 +127,7 @@ export class LampFrame {
             nn = 1 / Math.sqrt(ld2);
             svx += vx * nn; svy += vy * nn;
             const dt = Math.abs(-svx * sA + svy * cA), dr = svx * cA + svy * sA;
+            if (delta) delta[(py * k + sy) * n + px * k + sx] = dt * dscale;
             const irr = irr0 / ld2;
             // textures, over the coverage pixel this sample falls in (the disc turned by rotate)
             let tX = 0, tY = 0, tZ = 0, att = 0;
@@ -136,7 +139,9 @@ export class LampFrame {
               for (let q = 0; q < 2; q++) {
                 const share = q ? wb : wa;
                 if (share <= 0) continue;
-                const mt = mats[q ? cb[ci] : ca[ci]];
+                const slot = q ? cb[ci] : ca[ci];
+                if (diffractionOnly && slot === 0) continue;
+                const mt = mats[slot];
                 if (!mt) continue;
                 att += share * mt.dark;
                 if (!mt.curve) continue;
@@ -153,6 +158,10 @@ export class LampFrame {
             // XYZ -> linear sRGB, clipped, then the phone's desaturation
             let r0 = m[0] * tX + m[1] * tY + m[2] * tZ, g0 = m[3] * tX + m[4] * tY + m[5] * tZ, b0 = m[6] * tX + m[7] * tY + m[8] * tZ;
             r0 = r0 > 0 ? r0 : 0; g0 = g0 > 0 ? g0 : 0; b0 = b0 > 0 ? b0 : 0;
+            if (diffractionOnly) {
+              R += r0; G += g0; B += b0;
+              continue;
+            }
             const grey = (r0 + g0 + b0) / 3;
             r0 = grey + desat * (r0 - grey); g0 = grey + desat * (g0 - grey); b0 = grey + desat * (b0 - grey);
             // the grooves' rainbow
@@ -219,5 +228,5 @@ export class LampFrame {
 export function render(T, cov, materials, pose, opts = {}) {
   const f = new LampFrame(T, cov, materials, pose, opts);
   f.rows(0, f.size);
-  return { rgba: f.finish(), level: f.level, unknown: f.unknown };
+  return { rgba: f.finish(), level: f.level, unknown: f.unknown, delta: f.delta };
 }

@@ -1,4 +1,4 @@
-"""Pose-dependent DVD colour matching using the texture library's LED XYZ table."""
+"""Pose-dependent DVD colour matching using the packaged fitted LED XYZ table."""
 from functools import lru_cache
 import base64
 import json
@@ -11,12 +11,15 @@ from PIL import Image, ImageOps
 
 from . import simulate, simulate_a3, texlib
 
-GREEDY_SET = Path('D:/disc-probe-scratch/gamut/greedy_set.json')
-DEFAULT_TEXLIB = Path('F:/dp-archive/texlib/latest')
+ASSETS = Path(__file__).with_name('colour_print')
+DEFAULT_TABLE = ASSETS / 'table.npz'
+DEFAULT_MATERIALS = ASSETS / 'materials.json'
 RIG_DATA = Path(__file__).parent / 'web/home/design/pose-swatches.json'
 WHITE = np.array([.95047, 1, 1.08883], dtype=np.float32)
 SRGB_XYZ = np.array([[.4124564, .3575761, .1804375], [.2126729, .7151522, .0721750],
                      [.0193339, .1191920, .9503041]], dtype=np.float32)
+SRGB_LIGHTNESS = 100.
+SRGB_CHROMA = 134.  # D65 Lab chroma of the most saturated sRGB cube corner, rounded up.
 _bayer = np.array([[0, 2], [3, 1]])
 for _ in range(2):
     _bayer = np.block([[4*_bayer, 4*_bayer+2], [4*_bayer+3, 4*_bayer+1]])
@@ -77,29 +80,46 @@ def picture_lab(rgb):
 
 
 class Matcher:
-    def __init__(self, materials, slots, dither, table):
+    def __init__(self, materials, slots, dither, table, *, relative=True):
         self.slots = np.asarray(slots)
         self.dither = dither
+        self.relative = relative
         specs = [simulate_a3.canonical(materials[i]['spec']) for i in slots]
         missing = [spec for spec in specs if spec not in table['specs']]
         if missing:
-            raise ValueError(f'colour texture {missing[0]} is missing from the active colour table; select --texlib DIR')
+            raise ValueError(f'colour texture {missing[0]} is missing from the active colour table; select --table FILE')
         self.delta = table['delta']
         ref = simulate_a3.reference_y(table)
         if not np.isfinite(ref) or ref <= 0:
             raise ValueError('the active colour table needs a positive A5/B9 reference brightness')
         # Normalize the XYZ curves first. Interpolate XYZ, then convert to Lab.
-        self.curves = (table['xyz'][[table['specs'][s] for s in specs]] / (ref * WHITE)).transpose(1, 0, 2).astype(np.float32)
+        curves = table['xyz'][[table['specs'][s] for s in specs]] / (ref * WHITE)
+        self.curves = np.ascontiguousarray(curves.transpose(1, 0, 2), dtype=np.float32)
 
     def row(self, dt, target, j, columns):
         grid = self.delta
+        valid = (dt >= grid[0]) & (dt <= grid[-1])
+        if self.relative and not valid.all():
+            # Outside the table every curve is zero. Resolve the identical candidates in input order.
+            labels = np.full(len(dt), self.slots[0], dtype=self.slots.dtype)
+            if valid.any():
+                labels[valid] = self.row(dt[valid], target[valid], j, columns[valid])
+            return labels
         hi = np.clip(np.searchsorted(grid, dt, side='right'), 1, len(grid)-1)
         weight = ((dt - grid[hi-1]) / (grid[hi] - grid[hi-1])).astype(np.float32)
-        valid = (dt >= grid[0]) & (dt <= grid[-1])
         a, b = self.curves[hi-1], self.curves[hi]
         a += (b-a) * weight[:, None, None]
-        a[~valid] = 0
-        differences = xyz_lab(a, 1) - target[:, None, :]
+        if not self.relative:
+            a[~valid] = 0
+        differences = xyz_lab(a, 1)
+        if self.relative:
+            light = differences[:, :, 0]
+            low, high = light.min(axis=1), light.max(axis=1)
+            chroma = np.sqrt(np.einsum('ijk,ijk->ij', differences[:, :, 1:], differences[:, :, 1:]).max(axis=1))
+            target = target.copy()
+            target[:, 0] = low + (high-low)*np.clip(target[:, 0]/SRGB_LIGHTNESS, 0, 1)
+            target[:, 1:] *= np.minimum(chroma/SRGB_CHROMA, 1)[:, None]
+        differences -= target[:, None, :]
         errors = np.einsum('ijk,ijk->ij', differences, differences)
         first = errors.argmin(axis=1)
         if self.dither == 'nearest' or len(self.slots) == 1:
@@ -114,36 +134,55 @@ class Matcher:
 
 
 def material_set(source, table):
-    if source == 'greedy':
-        path = texlib.safe(os.environ.get('DISCPROBE_COLOUR_MATERIALS') or GREEDY_SET)
-    else:
-        path = texlib.safe(source)
+    path = texlib.safe(source or os.environ.get('DISCPROBE_COLOUR_MATERIALS') or DEFAULT_MATERIALS)
     try:
         loaded = json.loads(path.read_text(encoding='utf-8-sig'))
     except FileNotFoundError as exc:
         raise ValueError(f'colour materials file not found: {path}; use --materials JSON or DISCPROBE_COLOUR_MATERIALS') from exc
-    specs = loaded.get('greedy_specs') if isinstance(loaded, dict) else loaded
-    if not isinstance(specs, list) or not 1 <= len(specs) <= 254 or any(not isinstance(s, str) for s in specs):
-        raise ValueError('colour materials JSON needs 1–254 texture specs (a list or greedy_specs)')
+    if isinstance(loaded, dict) and 'scenarios' in loaded:
+        loaded = loaded['scenarios'].get('0.000', {})
+    rows = loaded.get('materials', loaded.get('greedy_specs')) if isinstance(loaded, dict) else loaded
+    if not isinstance(rows, list) or not 1 <= len(rows) <= 254:
+        raise ValueError('colour materials JSON needs 1–254 texture specs')
+    specs = [row.get('spec') if isinstance(row, dict) else row for row in rows]
+    if any(not isinstance(s, str) for s in specs):
+        raise ValueError('each colour material needs a hex texture spec')
     specs = list(dict.fromkeys(texlib.canonical(s) for s in specs))
     for spec in specs:
         if spec not in table['specs']:
-            raise ValueError(f'colour texture {spec} is missing from the active colour table; select --texlib DIR')
+            raise ValueError(f'colour texture {spec} is missing from the active colour table; select --table FILE')
     return [dict(id=f'tex:{s}', spec=s) for s in specs]
 
 
-def palette(source='greedy'):
-    table = simulate_a3.tables()
-    lib = texlib.library()
-    if lib is None:
-        raise ValueError('a texture library is required for colour pictures; select --texlib DIR')
-    # Older colour tables have no calibration marker. A replacement can declare it in the NPZ.
-    fitted = table.get('fitted', False)
+def legacy_colour(colour):
+    table = colour.get('table')
+    return isinstance(table, dict) and table.get('fitted') is False and not table.get('mapping')
+
+
+def active_table(document=None, path=None):
+    path = path or os.environ.get('DISCPROBE_COLOUR_TABLE')
+    colours = [a['colour'] for a in document['assignments'] if 'colour' in a] if document else []
+    if not path and colours and all(legacy_colour(c) for c in colours):
+        return simulate_a3.tables()
+    path = path or DEFAULT_TABLE
+    try:
+        table = simulate_a3.load_table(path)
+    except (OSError, KeyError, TypeError) as exc:
+        raise ValueError(f'could not load colour print table: {path}: {exc}') from exc
+    if (table['xyz'].shape != (len(table['specs']), len(table['delta']), 3) or len(table['delta']) < 2
+            or not np.isfinite(table['xyz']).all() or not np.all(np.diff(table['delta']) > 0)
+            or not .5 <= table.get('delta_scale', 1.) <= 1.5):
+        raise ValueError('invalid colour print table')
+    return table
+
+
+def palette(source=None, table_path=None):
+    table = active_table(path=table_path)
     return dict(materials=material_set(source, table),
-                table=dict(signature=table['signature'], fitted=fitted))
+                table=dict(signature=table['signature'], fitted=table['fitted'], mapping='relative'))
 
 
-def design(image, phone, height, materials='greedy', dither='ordered', fit='disc', flash_mm=None):
+def design(image, phone, height, materials=None, dither='ordered', fit='disc', flash_mm=None, table_path=None):
     """Create a portable editor document. Its source texture specs are pinned by ID."""
     from . import editor_ops
 
@@ -153,7 +192,7 @@ def design(image, phone, height, materials='greedy', dither='ordered', fit='disc
         rig['flash_mm'] = flash_mm
     pose = rig_pose(rig)
     cam, flash = pose['camera'], pose['flash']
-    choices = palette(materials)
+    choices = palette(materials, table_path)
     image = texlib.safe(image)
     with Image.open(image) as original:
         picture = ImageOps.exif_transpose(original).convert('RGBA')

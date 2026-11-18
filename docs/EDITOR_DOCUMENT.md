@@ -41,14 +41,16 @@
 
 ## DVD 彩色图
 
-核心按 `scene.rig` 逐行计算切向 δ，在当前 LED XYZ 色表中插值，并用 A5/B9 峰值 Y 与 D65 色度作为白点将结果转换到 CIELAB。原图的 sRGB 像素在相同的相对白点下比较。`nearest` 选 ΔE76 最近的一种材质。`ordered` 取最近两种，按距离比例和整盘对齐的 8×8 Bayer 阈值分配。透明度沿用图层覆盖规则。
+核心按 `scene.rig` 逐行计算切向 δ，再乘拟合表的 `0.93` 标定量查表。先插值 LED XYZ，再用 A5/B9 峰值 Y 与 D65 色度作为白点转换到 CIELAB。原图的 sRGB 像素将 `L*` 从 0–100 线性压入该 δ 的候选范围，`a*`、`b*` 同乘一个按可达色度计算的系数，保留目标色相。`nearest` 选 ΔE76 最近的一种材质。`ordered` 取最近两种，按距离比例和整盘对齐的 8×8 Bayer 阈值分配。透明度沿用图层覆盖规则。
 
 ```powershell
-python -m discprobe colour-design input.png --phone iphone17pro --height 22.3 --texlib TEXLIB -o work.json --preview lamp.png
-python -m discprobe compose work.json --texlib TEXLIB --out design.npy
+python -m discprobe colour-design input.png --phone iphone17pro --height 22.3 -o work.json --preview lamp.png
+python -m discprobe compose work.json --out design.npy
 ```
 
-合成后的 `design.npy` 和 `.textures.json` 可交给下节的 `image`。`--fit disc` 填到外缘并由环带裁切。`--fit ring` 把整张图放在盘心上方的环带内。`--materials greedy` 使用默认材质集，可用 `--materials JSON` 或 `DISCPROBE_COLOUR_MATERIALS` 换成含 `greedy_specs` 或十六进制纹理列表的 JSON。网页以 `python -m discprobe webui --texlib TEXLIB` 启动后在颜色页选择「彩色图」。选中时材质集从核心加载。灯下预测与刻出来的材质分布使用 `/api/editor-preview` 返回的 PNG。预览是模型估计，混色还没实刻验证。
+合成后的 `design.npy` 和 `.textures.json` 可交给下节的 `image`。`--fit disc` 填到外缘并由环带裁切。`--fit ring` 把整张图放在盘心上方的环带内。`colour-design` 和网页的彩色图默认使用 `discprobe/colour_print/` 随包分发的 58 种拟合材质。可用 `--table NPZ`、`--materials JSON`，或 `DISCPROBE_COLOUR_TABLE`、`DISCPROBE_COLOUR_MATERIALS` 更换来源。若选择了外部色表，后续 `compose` 和 `simulate --work` 也要指定同一色表。已保存的第一轮未拟合填充沿用原选材方式和纹理库，重新应用彩色图填充即可采用拟合材质。
+
+网页在颜色页选择「彩色图」。灯下预测与刻出来的材质分布使用 `/api/editor-preview` 返回的 PNG。拟合灯下视图只显示已分配纹理的衍射光，alpha 不叠加镜面底光。预览是模型估计，混色还没实刻验证。
 
 ## 影调与抖动（2026-11-12）
 

@@ -67,7 +67,8 @@ def burn_map(design, size, materials, table):
 
 
 class Renderer:
-    def __init__(self):
+    def __init__(self, colour_table_path=None):
+        self.colour_table_path=colour_table_path
         self.designs=OrderedDict()
         self.images=OrderedDict()
         self.palettes=OrderedDict()
@@ -88,15 +89,28 @@ class Renderer:
         if not isinstance(payload.get('document'),dict):
             raise ValueError('invalid work document')
         document=editor_ops.validate(editor_ops.migrate(payload['document']))
+        has_colour = any('colour' in a for a in document['assignments'])
         requested_pose = payload.get('pose')
-        if requested_pose is None and any('colour' in a for a in document['assignments']):
+        if has_colour:
             from .editor_colour import work_rig
-            requested_pose = work_rig(document)
+            requested_pose = {**work_rig(document), **(requested_pose or {})} if requested_pose is None or isinstance(requested_pose,dict) else requested_pose
         pose=pose_options(requested_pose)
         digest=hashlib.sha256(json.dumps(document,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest()
-        table = simulate_a3.tables()
-        source = table['source_key']
-        design_key = (digest, source) if any('colour' in a for a in document['assignments']) else digest
+        if has_colour:
+            from .editor_colour import active_table
+            table = active_table(document, self.colour_table_path)
+            if 'delta_scale' not in requested_pose:
+                pose['delta_scale'] = table.get('delta_scale', 1.)
+            missing = {simulate_a3.canonical(m['spec']) for m in document['materials']} - table['specs'].keys()
+            if missing:
+                fallback = simulate_a3.load_table(simulate_a3.TABLE)
+                if missing - fallback['specs'].keys():
+                    fallback = simulate_a3.tables()
+                table = {**table, 'fallback': fallback}
+        else:
+            table = simulate_a3.tables()
+        source = (table['source_key'], table.get('fallback', {}).get('source_key'))
+        design_key = (digest, source) if has_colour else digest
         key=json.dumps([digest,pose,size,quality,source,view,exposure],sort_keys=True,separators=(',',':'))
         meta=dict(document_hash=digest,size=size,quality=quality,cache_hit=False)
         with _RENDER_LOCK:
@@ -117,7 +131,8 @@ class Renderer:
             if view == 'burn':
                 image = burn_map(design, size, document['materials'], table)
             else:
-                image=simulate_a3.render(design,size,materials=document['materials'],fine=quality=='full',annulus_mm=document['annulus_mm'],table=table,exposure=exposure,**pose)
+                image=simulate_a3.render(design,size,materials=document['materials'],fine=quality=='full',annulus_mm=document['annulus_mm'],table=table,exposure=exposure,
+                                         diffraction_only=has_colour and table['fitted'],**pose)
             data=png_bytes(image)
             self.images[key]=data
             while len(self.images)>12 or sum(map(len,self.images.values()))>32*1024*1024:
@@ -158,14 +173,15 @@ class Renderer:
                     model='discprobe.simulate_a3 (A3 v3)')
 
 
-def lamp_tables():
+def lamp_tables(table=None):
     """One atomic response binds browser metadata and curves to the same source."""
     import base64
     import numpy as np
-    t=simulate_a3.tables()
+    t=simulate_a3.tables() if table is None else table
     c=['A5_PERIOD_UM','PITCH_UM','TEX_GAIN','DESATURATE','VEIL','VEIL_RGB','GLARE_GAIN',
        'RAINBOW_GAIN','ZERO_ORDER_DARK','OTHER_DARK','HUB_MM','EDGE_MM','FINE_SAMPLES']
     meta=dict(specs=list(t['specs']),signature=t['signature'],source_key=t['source_key'],
+              delta_scale=t.get('delta_scale',1.), reference_y=simulate_a3.reference_y(t),
               delta=dict(first=float(t['delta'][0]),last=float(t['delta'][-1]),n=len(t['delta'])),
               cmf=dict(first_nm=float(t['cmf_nm'][0]),last_nm=float(t['cmf_nm'][-1]),
                        n=len(t['cmf_nm']),values=t['cmf'].ravel().tolist()),

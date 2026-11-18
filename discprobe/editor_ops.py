@@ -222,11 +222,15 @@ def compose(data, g=None, out=None, *, colour_table=None):
     if any('colour' in a for a in d['assignments']):
         from . import editor_colour, simulate, simulate_a3
         pose = editor_colour.work_rig(d)
-        table = simulate_a3.tables() if colour_table is None else colour_table
+        table = editor_colour.active_table(d) if colour_table is None else colour_table
         for a in d['assignments']:
             if 'colour' in a:
                 c = a['colour']
-                colour[a['layer']] = editor_colour.Matcher(d['materials'], [ids[k] for k in c['materials']], c['dither'], table)
+                legacy = editor_colour.legacy_colour(c)
+                layer_table = simulate_a3.tables() if legacy and table.get('fitted') else table
+                matcher = editor_colour.Matcher(d['materials'], [ids[k] for k in c['materials']], c['dither'], layer_table,
+                                                relative=not legacy)
+                colour[a['layer']] = matcher, layer_table.get('delta_scale', 1.)
     layer_fills = {l['id']: [] for l in d['layers']}
     for a in d['assignments']:
         if 'layer' in a:
@@ -296,7 +300,8 @@ def compose(data, g=None, out=None, *, colour_table=None):
                         # Composition rows run down the canvas; the optical frame runs toward 12 o'clock.
                         dt = simulate.along_track(x, -y, **pose)
                     slots = np.zeros(w, dtype=int)
-                    slots[hit] = colour[l['id']].row(dt[hit], editor_colour.picture_lab(px[hit, :3]), j, columns[hit])
+                    matcher, scale = colour[l['id']]
+                    slots[hit] = matcher.row(dt[hit] * scale, editor_colour.picture_lab(px[hit, :3]), j, columns[hit])
                 else:
                     slots=source_slots[l["id"]][cy,cx].astype(int)
                     # the rest of the picture: its toned grey, dithered on this grid
@@ -323,12 +328,16 @@ def compose(data, g=None, out=None, *, colour_table=None):
     return out
 
 
-def compose_file(source, target):
+def compose_file(source, target, *, table_path=None):
     d=validate(migrate(json.loads(Path(source).read_text(encoding="utf-8-sig"))))
     if d["cell"] not in (.02,.01,.005):raise ValueError("choose 20, 10 or 5 um cells")
+    table = None
+    if table_path and any('colour' in a for a in d['assignments']):
+        from .editor_colour import active_table
+        table = active_table(d, table_path)
     n=round(120/d["cell"]);target=Path(target);target.parent.mkdir(parents=True,exist_ok=True)
     out=np.lib.format.open_memmap(target,mode="w+",dtype=np.uint8,shape=(n,n))
-    compose(d,out=out);out.flush()
+    compose(d,out=out,colour_table=table);out.flush()
     manifest=target.with_suffix(".textures.json")
     manifest.write_text(json.dumps(dict(textures=[m["spec"] for m in d["materials"]],document_version=2),indent=2),encoding="utf8")
     return d

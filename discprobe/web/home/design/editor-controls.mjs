@@ -118,7 +118,7 @@ export const controls={
         this.colourPaletteLoading?colourWords.loading:this.colourPaletteError?colourWords.unavailable:'';
       colour+=`<p class="note quiet ed-colour-estimate">${colourWords.note}</p>
         <details class="ed-help"><summary>${info}</summary><p class="note quiet">${colourWords.advice}</p>
-        ${table?.fitted===false?`<p class="note quiet">${colourWords.unfitted}</p>`:''}</details>
+        ${table?.fitted?`<p class="note quiet">${colourWords.calibrated}</p>`:''}</details>
         ${reason?`<p class="note quiet" role="status" title="${esc(this.colourPaletteError??'')}">${reason}</p>`:''}`;
     }
     if(open&&!colourMode)colour+=`<div class="ed-rig-colours"><div class="ed-colour-explanation"><span>${zh?'颜色是模型预测，还没逐块对照':'Colours are model predictions, not yet checked swatch by swatch'}</span><details class="ed-help"><summary>${info}</summary><p class="ed-model-note">${esc(w.pose(rigLabel(this.rig(),this.rigData,lang)))}</p><p class="note quiet">${esc(w.model)}</p><p class="note quiet">${esc(t.model)}</p></details></div>`+

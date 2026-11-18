@@ -20,10 +20,10 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const COLOUR_WORDS={
   zh:{label:'彩色图',note:'预览是模型估计，混色还没实刻验证。',about:'说明',
     advice:'插画、平涂、色块分明的图效果最好；大片亮白和饱和的红做不出来。盘面会有一层底光让颜色发灰，拍的时候让盘面倒影的方向保持暗（背对灯，或者用深色东西挡住倒影那边）。',
-    unfitted:'现在用的是还没按色卡校正的模型，预览会比实际更鲜艳。',picture:'先选择一张未锁定的图片。',unavailable:'彩色图需要纹理库和材质集。',loading:'正在加载彩色材质…'},
+    calibrated:'用 6 张色卡盘实拍校准的模型；盘面会叠一层随拍法变化的灰，让镜面方向保持暗效果更好。',picture:'先选择一张未锁定的图片。',unavailable:'彩色图的色表或材质集无法加载。',loading:'正在加载彩色材质…'},
   en:{label:'Colour picture',note:'The preview is a model estimate. Colour mixing has yet to be checked on a burned disc.',about:'About',
     advice:'Illustrations with flat, distinct areas of colour work best. Broad areas of bright white and saturated red are out of reach. Reflected light gives the disc a grey cast. Keep the area reflected in the disc dark when shooting: face away from the light or shade that area with something dark.',
-    unfitted:'The model has yet to be calibrated against a colour chart. The preview will look more vivid than the disc.',picture:'Select an unlocked picture first.',unavailable:'Colour pictures require a texture library and material set.',loading:'Loading colour materials…'}
+    calibrated:'This model was calibrated with photos of six colour-chart discs. A grey cast varies with how you shoot. Keep the area reflected in the disc dark for better colour.',picture:'Select an unlocked picture first.',unavailable:'The colour table or material set could not be loaded.',loading:'Loading colour materials…'}
 };
 export class Editor {
   constructor(host){this.h=host;this.palette=null;this.tool='move';this.options={inner:30,outer:46,start:15,end:120,tolerance:18,feather:0,contiguous:true,operation:'replace',snap:true,fillKind:'material',pattern:'diamond',coordinates:'cartesian',pitch_mm:5,size_mm:.75,angle_deg:0,effect:'flow',y1:55,y2:100,target:'layer'};this.revision=0;

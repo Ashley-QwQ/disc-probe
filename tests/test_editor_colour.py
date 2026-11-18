@@ -17,7 +17,7 @@ def table(monkeypatch):
     xyz = np.array([[C.WHITE, C.WHITE], [C.WHITE, C.WHITE],
                     [grey_xyz(40), grey_xyz(40)], [grey_xyz(60), grey_xyz(60)]])
     value = dict(specs={'B9': 0, 'A5': 1, '8B00': 2, '92': 3}, delta=np.array([0., 1.5]), xyz=xyz)
-    monkeypatch.setattr(C.simulate_a3, 'tables', lambda: value)
+    monkeypatch.setattr(C, 'active_table', lambda document: value)
     return value
 
 
@@ -69,7 +69,7 @@ def test_xyz_interpolates_before_lab_and_pose_changes_labels(table):
     first = E.compose(doc, g)
     doc['scene']['rig']['height'] = '70'
     assert np.any(first != E.compose(doc, g))
-    matcher = C.Matcher(doc['materials'], [2, 3], 'nearest', table)
+    matcher = C.Matcher(doc['materials'], [2, 3], 'nearest', table, relative=False)
     target = C.xyz_lab((table['xyz'][2, 0]+table['xyz'][2, 1])/2)
     np.testing.assert_array_equal(matcher.row(np.array([.3]), target[None,:], 0, np.array([0])), [2])
 
@@ -80,7 +80,7 @@ def test_colour_design_compose_and_image(tmp_path, monkeypatch):
 
     library = tmp_path / 'texlib'
     make_library(library)
-    monkeypatch.setenv('DISCPROBE_TEXLIB', str(library))
+    monkeypatch.delenv('DISCPROBE_TEXLIB', raising=False)
     monkeypatch.setenv('DISCPROBE_HOME', str(tmp_path))
     monkeypatch.setenv('DISCPROBE_WORKERS', '1')
     picture = tmp_path / 'tiny.png'
@@ -90,7 +90,8 @@ def test_colour_design_compose_and_image(tmp_path, monkeypatch):
     doc, labels, iso = (tmp_path / name for name in ('tiny.json','tiny.npy','tiny.iso'))
     monkeypatch.setitem(imagedisc.CELL_SIDES, 20, 120)
     monkeypatch.setattr(imagedisc, 'sectors_to_radius', lambda *args: 80)
-    cli.main(['colour-design',str(picture),'--phone','iphone17pro','--height','22.3','--materials',str(mats),
+    override = ['--table', str(library / 'colour_table.npz')]
+    cli.main(['colour-design',str(picture),'--phone','iphone17pro','--height','22.3','--materials',str(mats), *override,
               '--fit','ring','--dither','nearest','-o',str(doc)])
     saved = json.loads(doc.read_text(encoding='utf-8'))
     assert saved['scene']['rig'] == {'phone':'iphone17pro','height':'21'}
@@ -98,7 +99,7 @@ def test_colour_design_compose_and_image(tmp_path, monkeypatch):
     with monkeypatch.context() as patch:
         # Override the label grid size only. Keep the real CLI, composer and writer.
         patch.setattr(E, 'round', lambda _: 120, raising=False)
-        cli.main(['compose',str(doc),'--out',str(labels)])
+        cli.main(['compose',str(doc),'--out',str(labels), *override])
     assert np.load(labels).shape == (120,120)
     textures = json.loads(labels.with_suffix('.textures.json').read_text(encoding='utf-8'))['textures']
     assert textures == ['B9','A5','A5','B9','8B00']
@@ -111,3 +112,25 @@ def test_colour_design_compose_and_image(tmp_path, monkeypatch):
         f.seek(16*2048 + 1)
         assert f.read(5) == b'CD001'
     assert iso.stat().st_size == 80*2048
+
+
+def test_relative_lightness_retains_levels_inside_small_range(table):
+    table['xyz'][2, :] = grey_xyz(10)
+    table['xyz'][3, :] = grey_xyz(30)
+    mats = work('nearest')['materials']
+    target = np.array([[25, 0, 0], [75, 0, 0]], dtype=np.float32)
+    for relative, expected in [(False, [3, 3]), (True, [2, 3])]:
+        match = C.Matcher(mats, [2, 3], 'nearest', table, relative=relative)
+        np.testing.assert_array_equal(match.row(np.array([.4,.4]), target, 0, np.arange(2)), expected)
+
+
+def test_packed_fitted_palette_without_texlib(monkeypatch):
+    monkeypatch.delenv('DISCPROBE_TEXLIB', raising=False)
+    monkeypatch.delenv('DISCPROBE_COLOUR_TABLE', raising=False)
+    monkeypatch.delenv('DISCPROBE_COLOUR_MATERIALS', raising=False)
+    palette = C.palette()
+    table = C.active_table()
+    assert palette['table']['fitted'] and palette['table']['mapping'] == 'relative'
+    assert [m['spec'] for m in palette['materials']] == list(table['specs'])
+    assert table['xyz'].shape == (58, 341, 3)
+    assert table['delta_scale'] == .93
