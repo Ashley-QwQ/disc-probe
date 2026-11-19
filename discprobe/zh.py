@@ -49,7 +49,7 @@ TEXT = {
     "Photo L not applied: {reason}; the photo constant remains unknown.": "未应用照片 L：{reason}；照片常数仍为未知。",
     "Provisional photo L: {value} mm; take another pose before applying it.": "照片 L 临时值：{value} 毫米；请转盘换姿态重拍，暂不应用。",
     'save sanitized run diagnostics without photos or drive access': '保存脱敏的运行诊断，不含照片，也不访问光驱',
-    'search offline troubleshooting advice': '离线搜索排错建议',
+    'search offline troubleshooting advice (experimental)': '离线搜索排错建议（实验性）',
     'question, error message or - to read standard input': '问题、报错原文，或用 - 从标准输入读取',
     'write JSON': '以 JSON 输出',
     'Confidence': '可信度',

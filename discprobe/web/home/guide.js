@@ -166,7 +166,7 @@ function render() {
       <div id="sg-way-body" aria-live="polite"><p class="sg-note">${esc(t.reading)}</p></div></section>
     <section aria-labelledby="sg-trouble" id="sg-trouble-sec"><h3 id="sg-trouble">${esc(t.troubleH)}</h3><p class="sg-note">${esc(t.troubleLead)}</p>
       <form id="sg-search" class="sg-search">
-        <label for="sg-query">${esc(L({ zh: "说出问题，或粘贴报错", en: "Describe the problem or paste an error" }))}</label>
+        <label for="sg-query">${esc(L({ zh: "说出问题，或粘贴报错（实验性：只查本机的离线条目，可能答不上来）", en: "Describe the problem or paste an error (experimental: searches an offline list here and may not find an answer)" }))}</label>
         <textarea id="sg-query" name="query" rows="3" required></textarea>
         <button type="submit" class="sg-btn">${esc(L({ zh: "搜索解法", en: "Search for help" }))}</button>
         <div class="sg-search-results" role="status"></div>

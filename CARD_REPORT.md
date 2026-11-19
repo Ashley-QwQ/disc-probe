@@ -1,77 +1,95 @@
-# HS-2 问题检索第二轮交付报告
+# 社区提示卡交付报告
 
-本轮在 `dev/help-search-20261118` 上把第一轮 `ac60b61` rebase 到本地 `dev/1.0.0` 的 `3bd5c5d`。全量回归期间 `dev/1.0.0` 前进到 `07db2e6`，随后再次 rebase，两次均无冲突。基点包含卡 AA 的合并 `746ec65`。提交仅在本分支。
+工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
 
 ## 按提交交付
 
-- `5eccaa2` 更新双语条目和回归断言。条目库从 108 条增至 122 条，核对并更新 69 处漂移的引用行号。按卡 AA 的代码改写 Windows 和 Linux 启动器、本机服务状态和停止、实例复用、自动端口和光驱锁。补上照片整体被拒、实物色差、螺旋与整体错位、刻录中断、关浏览器、彩色斜线与放射色带、启动闪退等条目。关浏览器与实际写入中断有各自的条目。
-- 本报告提交记录留出题结果、回归和未测范围。第一轮报告保留在线性历史中的 `776fd1a`。
+- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
+- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
+- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
+- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
+- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
+- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
+
+## 数据及出处
+
+本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
+
+原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
+
+相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
+
+新增 id：
+
+```text
+D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
+I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
+DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
+DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
+DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
+DISmain-verbatim-dvd-plus-rw-94520-95043
+```
+
+修改 id（含仅补充来源/复用报告的记录）：
+
+```text
+D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
+I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
+I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
+```
+
+新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
+
+内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
+
+同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
+
+## 下发与程序行为
+
+`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
+
+```text
+f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
+```
+
+生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
+
+`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
+
+CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
+
+仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
+
+## 网页位置和需要人工审查的选择
+
+传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
+
+新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
+
+请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
 
 ## 验收
 
-| 检查 | 命令与结果 |
+所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
+
+| 命令/检查 | 结果 |
 | --- | --- |
-| 原有题库 | `python -B -X utf8 tests/score_troubleshoot.py`。报错 45/45、口语 38/38，合计 83/83（100%），全部首位命中。 |
-| 留出题 | `python -B -X utf8 D:/dp-dev/tmp/helpsearch/r2/score_heldout.py`。前 3 27/35（77.14%），首位 27/35（含正确返回“没找到”）。 |
-| 出处及入口 | `python -B -X utf8 -m pytest -n 2 -p no:cacheprovider --basetemp D:/dp-dev/tmp/helpsearch/r2/targeted-pytest tests/test_troubleshoot.py`。5 通过，核对 389 处出处的文件、行号、原文短语及各条目的手册锚点，另验证 JSON、CLI 文本与 HTTP 的社区提示。 |
-| 双语 CLI 冒烟 | `python -B -X utf8 D:/dp-dev/tmp/helpsearch/r2/smoke.py`。13 条正向查询首位命中，并验证中文、英文的无结果提示各一次。 |
-| 全量 Python | 在 `3bd5c5d` 上的本分支运行 `python -B -X utf8 D:/dp-dev/tmp/helpsearch/r2/run_suite.py python`，底层为 `pytest -n 2`。`6 failed, 1202 passed, 2 skipped in 431.69s (0:07:11)`。 |
-| 全量 JavaScript | 在 `3bd5c5d` 上的本分支运行 `python -B -X utf8 D:/dp-dev/tmp/helpsearch/r2/run_suite.py js`，运行 55 个允许路径内的 `test_*.mjs`。65 通过、1 失败、0 跳过，合计 66 项。 |
-| 最新基点上的定向复验 | `python -B -X utf8 -m pytest -n 2 -p no:cacheprovider --basetemp D:/dp-dev/tmp/helpsearch/r2/final-provenance tests/test_troubleshoot.py tests/test_night_pool.py`，21 通过。`python -B -X utf8 D:/dp-dev/tmp/helpsearch/r2/run_suite.py js-final-delta test_pastworks_browser.mjs test_pastworks.mjs test_pastworks_works.mjs test_flow_navigation_browser.mjs test_csp_browser.mjs test_review_library_newwork.mjs`，首跑 5 通过、1 失败，失败项单独复跑通过。 |
+| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
+| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
+| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
+| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
+| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
+| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
+| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
+| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
+| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
 
-Python 全量的 6 个失败在未加检索改动的 `07db2e6` 快照上全部复现，JUnit 的用例名和失败消息相同。4 个是 LAN 启动 mock 未被调用，1 个是无效 GUI 参数测试收到 0 退出码，1 个是本机端口 8765 已被占用。详见 `python-base.log`、`python-junit.xml`、`python-base-junit.xml`。JavaScript 全量首跑唯一失败是 `test_csp_browser.mjs` 的回环连接被拒，当前分支单独复跑和 `3bd5c5d` 快照对照均通过。纳入 `07db2e6` 后，往期作品相关的定向复验首跑发现 `test_review_library_newwork.mjs` 的选盘批断言超时，单独复跑和 `07db2e6` 快照对照均通过。详见 `js-retry-csp.log`、`js-base-csp.log`、`js-final-delta.log`、`js-final-retry.log`、`js-final-base.log`。回归未发现本轮新增的可复现失败。
+初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
 
-网页引导页测试通过实际页面提交一个无匹配查询，并检查“没找到确定的答案”和社区提问需要的五项资料。两种 CLI 语言也确认列出光驱型号、盘的品牌、刻录速度、读速、完整日志。全量回归启动时 D 盘至少剩余 202.82 GiB。浏览器和服务测试用本机回环与模拟夹具。实盘、真实光驱、Linux 实机行为未测。
+截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
 
-可复核记录在 `D:/dp-dev/tmp/helpsearch/r2/`。原题及留出题原始结果为 `score-original.json`、`heldout-score.json`，预期 ID 为 `heldout-expected.json`，出处变更为 `source-line-audit.json`，CLI 实际输出为 `cli-smoke.json`，全量回归为 `python.log`、`js.log`。
+## 未测及边界
 
-## 35 道留出题逐题结果
+没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
 
-先查仓库、逐句登记预期 ID，再运行计分。标签判断和条目编写时看过题目，表中保留首次得分。第二次 rebase 前后核对了条目和检索器，内容一致。原题文件的 SHA-256 为 `22c297b14123a196c8b768ad4ac5e6824cff59223405571681fa4ec50f162c7d`。计分前核对了哈希，并检查 35 句在 Unicode 归一化、去首尾空白和忽略大小写后均未与任何症状原文重合。`none` 只有在返回空结果和无匹配提示时才得分。
-
-| # | 原题 | 预期 ID | 实际返回，按排名 | 判定 |
-| ---: | --- | --- | --- | --- |
-| 1 | 刻完的盘电脑读不出来 | `unreadable-after-burn` | `unreadable-after-burn` | 命中 |
-| 2 | 网页一直转圈打不开 | `web-offline` | `web-offline` | 命中 |
-| 3 | 拍了好多张都说不行 | `photo-no-adoption` | `photo-no-adoption` | 命中 |
-| 4 | 颜色和预览差很多 | `colour-wrong` | `colour-wrong` | 命中 |
-| 5 | my picture came out as a spiral | `picture-twisted-lines` | `picture-twisted-lines` | 命中 |
-| 6 | 双击开始没反应黑窗口一闪就没了 | `web-startup-error` | `web-startup-error` | 命中 |
-| 7 | linux 提示 permission denied /dev/sr0 | `linux-permission` | `linux-permission` | 命中 |
-| 8 | 刻到一半我拔了线 | `burn-interrupted` | 没找到 | 未命中 |
-| 9 | 图案歪了，和中心对不上 | `picture-placement` | `picture-placement` | 命中 |
-| 10 | 图片刻出来整体转了一个角度 | `picture-placement` | 没找到 | 未命中 |
-| 11 | 测量盘要刻几张？ | `measuring-disc-count` | `measuring-disc-count` | 命中 |
-| 12 | can I reuse the measuring disc for the next picture | `measuring-disc-count` | `measuring-disc-count` | 命中 |
-| 13 | 网页上显示光驱正在被另一个窗口使用 | `web-drive-busy` | `web-drive-busy` | 命中 |
-| 14 | 提示光驱里的盘和确认时的不是同一张 | `none` | 没找到 | 命中 |
-| 15 | 擦盘按钮是灰的点不了 | `burn-erase-media` | `burn-erase-media` | 命中 |
-| 16 | 刻录速度选几倍比较好 | `burn-write-speed` | 没找到 | 未命中 |
-| 17 | 外圈的图案看不见 | `picture-outer-cropped` | 没找到 | 未命中 |
-| 18 | 颜色太暗了几乎看不出来 | `no-picture-visible` | `no-picture-visible` | 命中 |
-| 19 | 手机扫码打不开上传页面 | `web-phone-lan` | `web-phone-lan` | 命中 |
-| 20 | phone says it cannot reach the computer | `web-phone-lan` | `web-phone-lan`、`web-offline`、`photo-pending` | 命中 |
-| 21 | timing 跑了很久没反应 | `timing-timeout` | `timing-timeout`、`web-double-click` | 命中 |
-| 22 | geo 说外推超出范围 | `geo-partial-span` | `geo-partial-span`、`web-port-invalid` | 命中 |
-| 23 | DIS 里导入预设之后图还是歪的 | `picture-twisted-lines` | `picture-twisted-lines` | 命中 |
-| 24 | CD 刻出来全是噪点没有图案 | `cd-burn-layout` | `cd-burn-layout` | 命中 |
-| 25 | 蓝光盘能用吗 | `bd-picture-calibrate` | 没找到 | 未命中 |
-| 26 | my drive is not in the list | `drive-missing` | `drive-missing` | 命中 |
-| 27 | burn failed halfway, is the disc dead? | `burn-interrupted` | `burn-interrupted` | 命中 |
-| 28 | 导出 ISO 太大刻不进去 | `iso-capacity` | `disc-close-fails` | 未命中 |
-| 29 | 网页里的退出按钮点了没反应 | `web-stop-busy` | `web-stop-busy` | 命中 |
-| 30 | 预测图上有一块斜线区域是什么 | `colour-hatched-preview` | 没找到 | 未命中 |
-| 31 | 彩色图里有一条一条放射状的条纹 | `colour-radial-bands` | 没找到 | 未命中 |
-| 32 | which phone height should I pick | `colour-pose` | `colour-pose` | 命中 |
-| 33 | 曲线编辑保存不了，说独立检查不够 | `curve-validation` | `curve-validation` | 命中 |
-| 34 | 传真机一直在拨号 | `fax-connection` | `fax-connection` | 命中 |
-| 35 | I accidentally closed the browser while burning | `burn-browser-closed` | `burn-browser-closed` | 命中 |
-
-## 未覆盖和审查事项
-
-- 第 14 题要求的“盘和确认时的不是同一张”在 `07db2e6` 的写入前检查里找不到对应错误。当前写入检查只有令牌、空白盘与可擦写状态等条件，见 `discprobe/webui.py:722–734`。该题标为 `none`，未写对应解法。
-- 第 8、10、16、17、25、28、30、31 题没有命中预期条目，逐题实际返回见上表。彩色斜线、放射细纹和写入中断均已有出处和正向冒烟证据，留出题反映这些问法仍有召回缺口。
-- 卡 AB 和 R1–R6 仍以复核时的本地 `dev/1.0.0` 为准。后续提示如合入，需跟随代码另行更新。本轮条目措辞随代码提交审查。
-- 准备本地基点快照时，首次调用 Windows 上的 tar 把盘符 `D:` 当成远程归档名，报主机名解析失败，随后改用 Python 从本地 Git 归档解包。
-
-STATUS: DONE
+附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。

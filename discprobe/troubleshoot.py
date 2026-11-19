@@ -16,7 +16,7 @@ from . import i18n
 
 RESULT_LIMIT = 3
 MIN_SIMILARITY = 0.38
-HELP = "search offline troubleshooting advice"
+HELP = "search offline troubleshooting advice (experimental)"
 _PATH = re.compile(
     r"""["'](?:[a-z]:[/\\]|\\\\|/|\.{1,2}[/\\])[^"']+["']"""
     r"""|(?<![\w:/])(?:[a-z]:[/\\]|\\\\)[^"'<>|:;,()\[\]]*?\.[a-z0-9]{1,12}(?![\w./\\])"""
