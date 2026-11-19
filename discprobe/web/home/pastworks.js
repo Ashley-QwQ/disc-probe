@@ -154,7 +154,7 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
   page.className = "pw"; page.hidden = true; page.setAttribute("aria-label", "往期作品 / Past works");
   // .pw-hole: the dark of the box carried into the fall (light below, where the paper waits); under the envelopes
   page.innerHTML = `<div class="pw-background" aria-hidden="true"><div class="pw-hole"></div></div>
-    <div class="pw-scroll" tabindex="-1"><article class="pw-paper">
+    <article class="pw-paper"><div class="pw-scroll" tabindex="-1"><div class="pw-content">
       <header class="pw-heading"><h1>往期作品 <small lang="en">Past works</small></h1><p class="pw-count"></p>
         <div class="pw-sort" role="radiogroup">
           <button type="button" role="radio" aria-checked="true" data-sort="time"></button>
@@ -168,13 +168,13 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
       </div>
       <p class="pw-note" hidden><span></span> <button type="button" class="pw-link" hidden></button></p>
       <div class="pw-grid"></div><p class="pw-empty" hidden><span></span> <button type="button" class="pw-link" hidden></button></p>
-    </article></div>
+    </div></div></article>
     <div class="pw-focus" hidden><div class="pw-focus-paper"></div><div class="pw-focus-art"></div>
       <div class="pw-details" tabindex="-1"></div><button class="pw-open pw-glass" type="button"></button></div>
     <div class="pw-drop" hidden><p></p></div>
     <div class="pw-status" role="status" hidden><span></span><button type="button" class="pw-link" hidden></button></div>`;
   host.append(page);
-  const q = (s) => page.querySelector(s), scroll = q(".pw-scroll"), paper = q(".pw-paper"), grid = q(".pw-grid");
+  const q = (s) => page.querySelector(s), scroll = q(".pw-scroll"), paper = q(".pw-paper"), content = q(".pw-content"), grid = q(".pw-grid");
   const focus = q(".pw-focus"), focusArt = q(".pw-focus-art"), details = q(".pw-details"), status = q(".pw-status");
   const search = q(".pw-search input"), fileInput = q(".pw-file"), drop = q(".pw-drop");
   const controller = new AbortController(), signal = controller.signal;
@@ -183,7 +183,6 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
   let camera = 0, scrollAt = 0, frameId = 0, flightId = 0, flight = null, entry = null, previous = null;
   let dimensions = { w: innerWidth, h: innerHeight, period: innerHeight + 520 };
   let timing = transitionTiming(), elapsed = 0, theme = "", thumbSerial = 0;
-  let pull = 0, over = 0, settleId = 0, settleWait = 0, touchY = null;
   const thumbPlans = new Map();
   const layers = DEPTHS.map((d, depth) => {
     const layer = document.createElement("div"); layer.className = `pw-depth pw-${d.name}`;
@@ -683,7 +682,7 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     if (!flight?.anims) page.style.opacity = String(f.opacity);
     layers.forEach(({layer}, i) => { layer.style.opacity = String(DEPTHS[i].opacity * (1 + 1.2 * (1 - f.paper))); });
     q(".pw-hole").style.opacity = String((1 - f.paper) * .92);
-    scroll.style.transform = `translate3d(0, ${(1 - f.paper) * dimensions.h * 1.15}px, 0) rotate(${-(1 - f.paper) * f.paper * 2}deg)`;
+    paper.style.transform = `translate3d(0, ${(1 - f.paper) * dimensions.h * 1.15}px, 0) rotate(${-(1 - f.paper) * f.paper * 2}deg)`;
   }
   function finishFlight() {
     const out = flight?.out, anims = flight?.anims ?? []; flight = null; cancelAnimationFrame(flightId); flightId = 0;
@@ -691,7 +690,7 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     if (out) {
       release(); api.toLobby?.(); onClose?.(); entry?.from?.focus?.({ preventScroll: true });
     } else {
-      elapsed = timing.total; paintFlight(); page.style.opacity = ""; scroll.style.transform = "";
+      elapsed = timing.total; paintFlight(); page.style.opacity = ""; paper.style.transform = "";
       phase = "idle"; scroll.inert = false; restoreFlight();
       grid.querySelector("button")?.focus({ preventScroll: true });
     }
@@ -779,7 +778,7 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     if (/^Arrow|^Home$|^End$/.test(e.key)) {
       const top = cells[0].offsetTop, columns = Math.max(1, cells.filter((c) => c.offsetTop === top).length);
       const to = gridStep(i, e.key, cells.length, columns);
-      if (to !== i) { e.preventDefault(); cells[to].focus(); }
+      if (to !== i) { e.preventDefault(); cells[to].focus({ preventScroll: true }); }
       return;
     }
     const w = cell.dataset.id && findWork(cell.dataset.id);
@@ -788,53 +787,26 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     if (e.key === "F2") { e.preventDefault(); select({ work: w }, cell); const n = details.querySelector(".pw-rename"); if (n) startRename(n, findWork(w.id) ?? w); }
     else if (e.key === "Delete") { e.preventDefault(); binWork(w); }
   }, { signal });
+  grid.addEventListener("focusin", (e) => {
+    const cell = e.target.closest(".pw-cell");
+    // Let focus finish before revealing the card in the paper's scroll area.
+    queueMicrotask(() => {
+      if (cell && document.activeElement === cell) cell.scrollIntoView({ block: "nearest", inline: "nearest", container: "nearest" });
+    });
+  }, { signal });
+  function updateScrollFade() {
+    const top = scroll.scrollTop, max = scroll.scrollHeight - scroll.clientHeight;
+    scroll.toggleAttribute("data-fade-top", top > 0);
+    scroll.toggleAttribute("data-fade-bottom", max - top > 1);
+  }
+  const scrollSize = new ResizeObserver(updateScrollFade);
+  scrollSize.observe(scroll);
+  scrollSize.observe(content);
   scroll.addEventListener("scroll", () => {
+    updateScrollFade();
     if (phase !== "idle" || motionOff() || frameId) return;
     frameId = requestAnimationFrame(() => { frameId = 0; camera = scrollAt = scroll.scrollTop; paintBackground(); });
   }, { passive: true, signal });
-  // Elastic ends: wheel or finger past the top/bottom slides the paper a little (paper.translate, never the scroll box,
-  // which the fall moves); the background stays, as the desk under a sliding sheet would.
-  const paintOver = () => { paper.style.translate = Math.abs(over) < .3 ? "" : `0 ${over.toFixed(2)}px`; };
-  const atEdge = (push) => {
-    const max = scroll.scrollHeight - scroll.clientHeight;
-    return push > 0 ? scroll.scrollTop <= 0 : scroll.scrollTop >= max - 1;
-  };
-  function pullBy(push) {                       // push > 0 pulls the paper down (past the top)
-    if (Math.sign(push) === -Math.sign(pull)) { // easing it back toward rest: no extra drag, stop at zero
-      pull += push * .45; if (Math.sign(pull) === Math.sign(push)) pull = 0;
-    } else pull += push * .45;
-    pull = clamp(pull, -500, 500); over = rubber(pull); paintOver();
-  }
-  function settle() {
-    cancelAnimationFrame(settleId); clearTimeout(settleWait);
-    let last = null;
-    const step = (now) => {
-      const dt = last == null ? 16 : now - last; last = now;
-      over *= Math.exp(-dt / 85);               // a quick, unbouncy return
-      if (Math.abs(over) < .3) over = 0;
-      pull = unrubber(over); paintOver();
-      settleId = over ? requestAnimationFrame(step) : 0;
-    };
-    settleId = requestAnimationFrame(step);
-  }
-  const canPull = () => phase === "idle" && !selected && !motionOff();
-  scroll.addEventListener("wheel", (e) => {
-    if (!canPull() || e.ctrlKey) return;
-    const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? scroll.clientHeight : 1), push = -dy;
-    if (!push || (!pull && !atEdge(push))) return;
-    e.preventDefault(); cancelAnimationFrame(settleId); pullBy(push);
-    clearTimeout(settleWait); settleWait = setTimeout(settle, 130);
-  }, { passive: false, signal });
-  scroll.addEventListener("touchstart", (e) => { touchY = e.touches.length === 1 ? e.touches[0].clientY : null; }, { passive: true, signal });
-  scroll.addEventListener("touchmove", (e) => {
-    if (touchY == null || !canPull()) return;
-    const y = e.touches[0].clientY, push = y - touchY; touchY = y;
-    if (!push || (!pull && !atEdge(push))) return;
-    e.preventDefault(); cancelAnimationFrame(settleId); pullBy(push / .45 * .6);
-  }, { passive: false, signal });
-  const touchEnd = () => { if (touchY != null) { touchY = null; if (pull) settle(); } };
-  scroll.addEventListener("touchend", touchEnd, { signal });
-  scroll.addEventListener("touchcancel", touchEnd, { signal });
   for (const b of page.querySelectorAll(".pw-sort button")) b.addEventListener("click", () => {
     if (sortBy === b.dataset.sort) return;
     sortBy = b.dataset.sort;
@@ -921,7 +893,7 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
       if (phase === "loading") animate();
     },
     back, skip, reload: () => load(),
-    destroy() { if (phase !== "closed") release(); controller.abort(); observer.disconnect(); page.remove(); },
+    destroy() { if (phase !== "closed") release(); controller.abort(); observer.disconnect(); scrollSize.disconnect(); page.remove(); },
   };
 }
 

@@ -5,6 +5,7 @@
 :root[data-theme="dark"] .pw { background: url(caltop/anim/desk_dark.webp) 0 0 / 384px repeat,
               radial-gradient(65% 50% at 62% 16%, rgb(120 98 62 / .32), transparent 72%), #0f181c; }
 .pw[hidden], .pw [hidden] { display: none; }
+:root[data-mode="pastworks"] body { overflow: hidden; }
 :root[data-mode="pastworks"] :is(.stage, .counter, .detail, .gallery, .lobby:not(.leaving)) { visibility: hidden; }
 :root[data-mode="pastworks"] :is(#next, #next-why, .next-side) { display: none; }
 :root[data-mode="pastworks"] .top > * { filter: var(--glass-desk-drop); }
@@ -19,14 +20,26 @@
   background: radial-gradient(120% 70% at 50% 118%, #6b5638 0, #2a241b 38%, #05080a 72%); }
 .pw-depth { will-change: transform; }
 .pw-depth img { position: absolute; object-fit: contain; user-select: none; }
-.pw-scroll { position: absolute; inset: calc(var(--edge) + var(--row) + 16px) 0 0; overflow-y: auto; overflow-x: hidden;
-  overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent;
-  padding: 0 max(var(--edge), calc((100vw - 1180px) / 2)) calc(var(--foot) + 40px); box-sizing: border-box; }
 .pw-focus-paper, .pw-paper::before { border: 0 solid transparent; border-image: url(newplan/paper_paper.webp) 120 fill / 46px / 23px stretch;
   box-shadow: var(--paper-desk); }
 /* the report is thin paper: the sheet alone is see-through (::before), the ink on it is not */
-.pw-paper { position: relative; isolation: isolate; padding: clamp(24px, 3vw, 48px); min-height: calc(100vh - var(--foot) - var(--edge) - var(--row) - 56px); }
+.pw-paper { --pw-pad-block: clamp(24px, 3vw, 48px); --pw-pad-inline: var(--pw-pad-block);
+  --pw-space: min(var(--pw-pad-block), 20%);
+  position: absolute; inset: calc(var(--edge) + var(--row) + 16px) max(var(--edge), calc((100vw - 1180px) / 2)) calc(var(--foot) + 16px);
+  color: var(--ink); isolation: isolate; container-type: inline-size; display: grid; grid-template-rows: var(--pw-space) minmax(0, 1fr) var(--pw-space); }
 .pw-paper::before { content: ""; position: absolute; inset: 0; z-index: -1; opacity: .72; pointer-events: none; }
+.pw-scroll { --pw-fade: 24px;
+  grid-row: 2;
+  overflow: hidden auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent;
+  padding-inline-start: var(--pw-pad-inline); margin-inline-end: calc(var(--pw-pad-inline) / 3);
+  scroll-padding-block: min(calc(var(--pw-fade) + 6px), 20%); }
+/* Size the grid from the paper so a scrollbar in the right margin does not reflow it. */
+.pw-content { display: flow-root; width: min(100%, calc(100cqw - 2 * var(--pw-pad-inline))); }
+.pw-scroll[data-fade-top] { --pw-fade-top: min(var(--pw-fade), 50%); }
+.pw-scroll[data-fade-bottom] { --pw-fade-bottom: min(var(--pw-fade), 50%); }
+.pw-scroll:is([data-fade-top], [data-fade-bottom]) {
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--pw-fade-top, 0px),
+    #000 calc(100% - var(--pw-fade-bottom, 0px)), transparent); }
 :root[data-theme="dark"] .pw-focus-paper, :root[data-theme="dark"] .pw-paper::before { border-image-source: url(newplan/paper_dark.webp); }
 :root[data-theme="dark"] .pw-paper::before { opacity: .8; }
 /* Night B: the dark theme's paper lies under the lamp and is light (about #ece6d8), so its words are ink. */
@@ -151,7 +164,7 @@
 .pw-empty { margin: 24px 0 0; color: var(--ink-2); font-size: 15px; line-height: 1.6; }
 .pw button:focus-visible { outline: none; }
 .pw ::selection { color: var(--paper); background: var(--ink); }
-.pw-focused .pw-scroll { visibility: hidden; }
+.pw-focused .pw-paper { visibility: hidden; }
 .pw-focus { position: absolute; inset: calc(var(--edge) + var(--row) + 16px) var(--edge) calc(var(--foot) + 16px); }
 .pw-focus-paper { position: absolute; inset: 0; }
 .pw-focus-art { position: absolute; left: 4%; top: 6%; width: 42%; height: 86%; display: grid; place-items: center; }
@@ -180,7 +193,7 @@
   .pw-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 20px; }
   .pw-cell { font-size: 15px; }
   .pw-cell time { font-size: 12px; }
-  .pw-paper { padding: 22px 14px; }
+  .pw-paper { --pw-pad-block: 22px; --pw-pad-inline: 14px; }
   .pw-focus-art { left: 6%; top: 3%; width: 88%; height: 30%; }
   .pw-focus-art .pw-envelope { width: min(62%, 22vh); }
   .pw-details { left: 7%; right: 5%; top: 35%; bottom: 3%; }

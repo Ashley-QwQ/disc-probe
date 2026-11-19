@@ -10,7 +10,9 @@ const edge = process.env.PASTWORKS_TEST_BROWSER || 'C:/Program Files (x86)/Micro
 assert.ok(existsSync(edge), 'Set PASTWORKS_TEST_BROWSER to a Chromium executable');
 const dir = mkdtempSync(join(tmpdir(), 'discprobe-pastworks-'));
 const preview = new URL('../discprobe/web/home/pastworks-preview.html', import.meta.url);
+const home = new URL('../discprobe/web/home/index.html?mock', import.meta.url);
 const screenshots = process.env.PASTWORKS_SCREENSHOTS;
+const sheetShots = process.env.PASTWORKS_SHEET_SCREENSHOTS;
 const html = width => `<!doctype html><meta charset="utf-8"><iframe id="view" style="width:${width}px;height:900px;border:0" src="${preview}"></iframe><pre id="result">PENDING</pre>
 <script type="module">
 const frame = document.getElementById('view'), report = document.getElementById('result');
@@ -159,10 +161,168 @@ async function evaluate(expression) {
   const result = await cdp('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
   assert.ok(!result.exceptionDetails, JSON.stringify(result.exceptionDetails)); return result.result.value;
 }
+
+async function until(expression) {
+  for (let i = 0; i < 160; i++) {
+    if (await evaluate(expression)) return;
+    await delay(50);
+  }
+  assert.fail(`Timed out: ${expression}`);
+}
+
+async function sheetLayout() {
+  await cdp('Emulation.setFocusEmulationEnabled', { enabled: true });
+  await cdp('Page.navigate', { url: home.href });
+  await until('location.search === "?mock" && document.documentElement.dataset.navigation === "ready" && !!document.querySelector("#lobby-open[data-target=filebox]")');
+  const lobby = "document.getElementById('lobby-open')";
+  const scroll = "document.querySelector('.pw-scroll')";
+  const ready = `!document.querySelector('.pw')?.hidden && ${scroll} && !${scroll}.inert && !${lobby}.hasAttribute('aria-busy')`;
+  // Enter once so the real page and the fixture use the same initialized mock client.
+  await evaluate(`document.documentElement.dataset.motion = 'off'; ${lobby}.click()`);
+  await until(ready);
+  const workCount = 16;
+  await evaluate(`(async () => {
+    const { worksFor } = await import('./pastworks/works.mjs');
+    const library = await worksFor({ backend: { mock: true } });
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    for (let i = 0; i < ${workCount}; i++) {
+      const work = await library.create({ name: '作品样本 ' + (i + 1), media: i % 3 ? 'dvd' : 'cd' });
+      ctx.fillStyle = '#f5eee1'; ctx.fillRect(0, 0, 128, 128);
+      ctx.fillStyle = ['#a8693c', '#4c6169', '#554a76', '#53715a'][i % 4];
+      ctx.beginPath(); ctx.arc(42 + i * 3, 52, 30, 0, 2 * Math.PI); ctx.fill();
+      library.mock.thumbs.set(work.id, await new Promise(resolve => canvas.toBlob(resolve)));
+    }
+  })()`);
+  await evaluate("document.getElementById('back').click()");
+  await until('location.hash === "#/lobby" && document.querySelector(".pw").hidden && document.documentElement.dataset.navigation === "ready"');
+  await evaluate(`${lobby}.click()`);
+  const settle = 'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))';
+  const rect = selector => evaluate(`document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect().toJSON()`);
+  const readScroll = () => evaluate(`(() => {
+    const el = ${scroll}, style = getComputedStyle(el);
+    return { top: el.scrollTop, max: el.scrollHeight - el.clientHeight,
+      fades: [el.hasAttribute('data-fade-top'), el.hasAttribute('data-fade-bottom')],
+      stops: ['--pw-fade-top', '--pw-fade-bottom'].map(name => !!style.getPropertyValue(name)),
+      mask: style.maskImage, scrollbar: style.scrollbarWidth };
+  })()`);
+  await until(`${ready} && document.querySelectorAll('.pw-cell:not(.pw-new)').length === ${workCount}`);
+  const checkCorner = (paper, control, label) => {
+    assert.ok(control.width > 0 && control.height > 0, `${label}: corner control has a box`);
+    assert.ok(paper.right <= control.left || paper.left >= control.right ||
+      paper.bottom <= control.top || paper.top >= control.bottom, `${label}: paper intersects a corner control`);
+  };
+  for (const [width, height] of [[1873, 901], [1440, 1000], [1024, 768], [390, 844]]) {
+    await cdp('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+    for (const theme of ['paper', 'dark']) {
+      const label = `${width}x${height} ${theme}`;
+      await evaluate(`(async () => {
+        document.documentElement.dataset.theme = ${JSON.stringify(theme === 'paper' ? 'light' : 'dark')};
+        ${scroll}.scrollTop = 0;
+        await ${settle};
+        await document.fonts.ready;
+        await Promise.all([...document.querySelectorAll('.pw img')].map(img => img.decode()));
+        await ${settle};
+      })()`);
+      const paper = await rect('.pw-paper'), top = await rect('.top'), footer = await rect('.bar');
+      assert.deepEqual(await evaluate('[document.documentElement.clientWidth, document.documentElement.clientHeight]'), [width, height],
+        `${label}: page has no outer scrollbars`);
+      assert.ok(await evaluate(`getComputedStyle(document.querySelector('.pw-heading h1')).color ===
+        getComputedStyle(document.querySelector('.pw-cell')).color`), `${label}: heading uses the paper ink`);
+      assert.ok(paper.width > 0 && paper.height > 0 && paper.left >= 0 && paper.top >= 0 &&
+        paper.right <= width && paper.bottom <= height, `${label}: paper is inside viewport (${JSON.stringify(paper)})`);
+      assert.equal(paper.top - top.bottom, 16, `${label}: top clearance`);
+      assert.equal(footer.top - paper.bottom, 16, `${label}: bottom clearance`);
+      for (const corner of ['#back', '.top .tools', '#drivebar']) checkCorner(paper, await rect(corner), `${label} ${corner}`);
+      if (width > 480) checkCorner(paper, await rect('.top .wordmark'), `${label} wordmark`);
+      const port = await rect('.pw-scroll');
+      assert.ok(port.top > paper.top && port.bottom < paper.bottom, `${label}: fixed top and bottom margins`);
+      const right = (await rect('.pw-grid')).right, clientWidth = await evaluate(`${scroll}.clientWidth`);
+      assert.ok(right <= port.left + clientWidth + 0.5 && port.right < paper.right,
+        `${label}: scrollbar sits in the right margin (grid right ${right}, scroll client right ${port.left + clientWidth})`);
+      for (const [position, value, fades] of [['top', 0, [false, true]], ['middle', 0.5, [true, true]], ['bottom', 1, [true, false]]]) {
+        await evaluate(`${scroll}.scrollTop = (${scroll}.scrollHeight - ${scroll}.clientHeight) * ${value}`);
+        await evaluate(settle);
+        const state = await readScroll();
+        assert.ok(state.max > 2 && Math.abs(state.max * value - state.top) <= 1, `${label} ${position}: scroll offset`);
+        assert.deepEqual(state.fades, fades, `${label} ${position}: fade flags`);
+        assert.deepEqual(state.stops, fades, `${label} ${position}: mask stops`);
+        assert.match(state.mask, /^linear-gradient\(/, `${label} ${position}: CSS mask`);
+        assert.equal(state.scrollbar, 'thin', `${label}: thin scrollbar`);
+        assert.deepEqual(await rect('.pw-paper'), paper, `${label} ${position}: stationary paper`);
+        if (sheetShots && (width === 1873 || (width !== 1440 && position === 'top'))) {
+          const shot = await cdp('Page.captureScreenshot', { format: 'png' });
+          writeFileSync(resolve(sheetShots, `pastworks-${width}x${height}-${theme}-${position}.png`), Buffer.from(shot.data, 'base64'));
+        }
+      }
+      await evaluate(`${scroll}.scrollTop = 0; document.querySelector('.pw-new').focus({ preventScroll: true })`);
+      const middle = '.pw-grid .pw-cell:nth-child(10)';
+      assert.ok((await rect(middle)).bottom > port.bottom, `${label}: fixture has an offscreen work`);
+      await evaluate(`document.querySelector('${middle}').focus({ preventScroll: true })`);
+      assert.ok(await evaluate(`document.activeElement === document.querySelector('${middle}')`), `${label}: offscreen work is focused`);
+      await evaluate(settle);
+      const midState = await readScroll(), midWork = await rect(middle);
+      assert.ok(midState.fades[1] && midWork.bottom <= port.bottom - 24,
+        `${label}: focus reveals an offscreen work above an active fade (${midWork.bottom} vs ${port.bottom}, scroll ${midState.top}/${midState.max})`);
+      await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key: 'End', code: 'End', windowsVirtualKeyCode: 35 });
+      await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: 'End', code: 'End', windowsVirtualKeyCode: 35 });
+      const last = '.pw-grid .pw-cell:last-child';
+      assert.ok(await evaluate(`document.activeElement === document.querySelector('${last}')`), `${label}: End focuses last work`);
+      await evaluate(settle);
+      const focused = await rect(last), scrolled = await readScroll();
+      assert.ok(focused.top >= port.top + (scrolled.fades[0] ? 24 : 0) &&
+        focused.bottom <= port.bottom - (scrolled.fades[1] ? 24 : 0) + 1 && scrolled.top > 0,
+        `${label}: focused work is clear of the fades (${focused.top}–${focused.bottom}, scroll ${scrolled.top}/${scrolled.max})`);
+      await evaluate('document.activeElement.click()');
+      // The lower-right action appears on the detail sheet, in the shared footer row.
+      checkCorner(paper, await rect('.pw-open'), `${label} next action`);
+      await evaluate("document.getElementById('back').click()");
+      assert.deepEqual(await rect('.pw-paper'), paper, `${label}: detail returns to same paper`);
+      console.log(`Past works sheet ${label}: ${workCount} works, paper ${paper.width}x${paper.height}, scroll range ${scrolled.max}px, corners/fades/focus passed`);
+    }
+  }
+
+  // With motion on, edge gestures must still leave the paper stationary.
+  await evaluate(`document.documentElement.dataset.motion = 'on'; ${scroll}.scrollTop = 0`);
+  const paper = await rect('.pw-paper'), port = await rect('.pw-scroll');
+  const x = Math.round(port.x + port.width / 2), y = Math.round(port.y + port.height / 2);
+  const wheel = deltaY => cdp('Input.dispatchMouseEvent', { type: 'mouseWheel', x, y, deltaX: 0, deltaY });
+  await wheel(-250);
+  await evaluate(settle);
+  assert.deepEqual(await rect('.pw-paper'), paper, 'wheel past top keeps paper in place');
+  await wheel(250);
+  await until(`${scroll}.scrollTop > 0`);
+  await evaluate(`${scroll}.scrollTop = ${scroll}.scrollHeight`);
+  await wheel(250);
+  await evaluate(settle);
+  assert.deepEqual(await rect('.pw-paper'), paper, 'wheel past bottom keeps paper in place');
+  await evaluate(`${scroll}.scrollTop = 0`);
+  await cdp('Emulation.setTouchEmulationEnabled', { enabled: true });
+  await cdp('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  for (const distance of [35, 75, 125, 180]) {
+    await cdp('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - distance }] });
+  }
+  await cdp('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await until(`${scroll}.scrollTop > 0`);
+  assert.deepEqual(await rect('.pw-paper'), paper, 'touch drag keeps paper in place');
+
+  await evaluate(`(() => {
+    const search = document.querySelector('.pw-search input');
+    search.value = 'no results from this query';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+  })()`);
+  await evaluate(settle);
+  const empty = await readScroll();
+  assert.equal(empty.max, 0, 'short filtered list fits in the scroll area');
+  assert.deepEqual(empty.fades, [false, false], 'filtering away the overflow clears both fades');
+  assert.equal(empty.mask, 'none', 'short filtered list has no mask');
+  console.log('Past works sheet native wheel, touch drag and no-overflow filter passed');
+}
+
 try {
   // Bounded headless test process. Real time lets image.decode() finish; virtual-time dump-dom
   // can end before the full-size cell envelope textures decode and hide genuine visual defects.
-  browserProcess = spawn(edge, ['--headless=new','--mute-audio', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
+  browserProcess = spawn(edge, ['--headless=new','--mute-audio', '--disable-gpu', '--disable-background-networking', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
     '--allow-file-access-from-files', '--remote-debugging-port=0', `--user-data-dir=${join(dir, 'profile')}`, 'about:blank'],
   { windowsHide: true, stdio: 'ignore' });
   browserProcess.on('error', error => { throw error; });
@@ -246,6 +406,7 @@ try {
       writeFileSync(resolve(screenshots, `pastworks-${width}-${theme}-${view}.png`), Buffer.from(shot.data, 'base64'));
     }
   }
+  await sheetLayout();
 } finally {
   if (socket?.readyState === WebSocket.OPEN) { await cdp('Browser.close').catch(() => {}); socket.close(); }
   if (browserProcess) {
