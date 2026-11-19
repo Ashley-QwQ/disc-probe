@@ -102,8 +102,53 @@ try{
   const height=process.env.EDITOR_COLOUR_HEIGHT??'21';
   await run(`document.querySelector('[data-ed-rig=phone][data-value=iphone17pro]').click();document.querySelector('[data-ed-rig=height][data-value="'+${JSON.stringify(height)}+'"]').click();`);
   await until(()=>run('A.editor.colourPalette&&document.querySelector("[data-ed-action=fill]:not(:disabled)")'));
-  await run(`document.querySelector('[data-ed-action=fill]').click();`);
-  const candidates=await run(`(()=>{const d=A.editor.document(),c=d.assignments.at(-1)?.colour;return c?.materials.every(id=>d.materials.some(m=>m.id===id))?c.materials.length:0;})()`);
+  const toggle='document.querySelector("[data-ed=directionArrow]")';
+  const fill='document.querySelector("[data-ed-action=fill]").click()';
+  const snapshot=()=>run(`(()=>{
+    const d=A.editor.document(), arrows=d.layers.filter(l=>l.shape?.directionArrow);
+    const colour=d.assignments.find(a=>a.colour), arrow=arrows[0];
+    const spec=d.materials.find(m=>m.id===d.assignments.find(a=>a.layer===arrow?.id)?.material)?.spec;
+    return {arrows:arrows.length, filled:!!colour, above:!!arrow&&d.layers[d.layers.indexOf(arrow)-1]?.id===colour?.layer,
+      spec:spec??null, name:arrow?.name??null, tip:arrow?-(arrow.y-arrow.height/2):null};
+  })()`);
+  const arrowEvidence=process.env.EDITOR_ARROW_EVIDENCE;
+  async function arrowShots(variant){
+    if(!arrowEvidence)return;
+    await mkdir(arrowEvidence,{recursive:true});
+    for(const [theme,name] of [['light','paper'],['dark','night']]){
+      await run(`document.documentElement.dataset.theme='${theme}';`);
+      await pause(200);
+      const r=await send('Page.captureScreenshot',{format:'png'});
+      await writeFile(join(arrowEvidence,`${name}-${variant}.png`),Buffer.from(r.data,'base64'));
+    }
+  }
+  assert(await run(toggle+'.checked'),'the checkbox defaults to checked');
+  assert.deepEqual(await run(`(()=>{const {width,height}=${toggle}.getBoundingClientRect();return [width,height];})()`),[16,16]);
+  await run(toggle+'.click();'+fill);
+  assert.deepEqual(await snapshot(),{arrows:0,filled:true,above:false,spec:null,name:null,tip:null});
+  await arrowShots('unchecked');
+  await run('A.undo()');
+  assert.equal((await snapshot()).filled,false);
+  await run(toggle+'.click();'+fill);
+  const arrow=await snapshot();
+  assert.deepEqual({...arrow,tip:Math.round(arrow.tip*10)/10},
+    {arrows:1,filled:true,above:true,spec:'RND',name:'方向箭头',tip:52.8});
+  await arrowShots('checked');
+  await run(fill);
+  assert.deepEqual(await snapshot(),arrow,'reapplying colour keeps a single arrow');
+  await run('A.undo()');
+  assert.deepEqual(await snapshot(),arrow);
+  await run('A.undo()');
+  assert.deepEqual(await snapshot(),{arrows:0,filled:false,above:false,spec:null,name:null,tip:null});
+  await run('A.state().ring=[40.21,50];'+fill);
+  assert.equal((await snapshot()).arrows,0,'the arrow is omitted if its tail would cross the hub');
+  assert.equal((await snapshot()).filled,true);
+  assert(await run('document.querySelector(".toast.on")?.textContent.includes("可刻环带太窄")'));
+  await run('A.undo();A.state().ring=[40.2,50];'+fill);
+  assert.equal((await snapshot()).tip,49.5,'the tip moves inside the measured rim');
+  await run('A.undo();delete A.state().ring;'+fill);
+  assert.deepEqual(await snapshot(),arrow);
+  const candidates=await run(`(()=>{const d=A.editor.document(),c=d.assignments.find(a=>a.colour)?.colour;return c?.materials.every(id=>d.materials.some(m=>m.id===id))?c.materials.length:0;})()`);
   assert.equal(candidates,58);
   assert(await run(`document.querySelector('.ed-colour-estimate + details').textContent.includes('用 6 张色卡盘实拍校准的模型')`));
   assert(await run(`(()=>{const text=document.querySelector('.ed-colour-estimate + details').textContent;
@@ -150,8 +195,41 @@ try{
       rig:d.scene?.rig,lookY:A.state().lookY};
   })()`);
   assert.deepEqual(reopened,{candidates,rig:{phone:'iphone17pro',height},lookY:28.45});
+  if(!colourWork){
+    assert.deepEqual(await snapshot(),arrow,'the saved document retains the editable arrow');
+    const refilling=await run(`(()=>{
+      const e=A.editor,s=A.state(),id=s.assignments.find(a=>a.colour).layer;
+      e.h.dom().left.querySelector('.lay[data-id="'+id+'"]').click();
+      return s.selected===id&&!document.querySelector('[data-ed-action=fill]').disabled;
+    })()`);
+    assert(refilling,'the picture can be selected in the reopened layer list');
+    await run(fill);
+    assert.deepEqual(await snapshot(),arrow,'reopening retains the arrow identity');
+    const pixels=await run(`(async()=>{
+      const d=A.editor.document();
+      await A.openProject(new File([JSON.stringify(d)],'portable-work.json',{type:'application/json'}));
+      const layer=A.state().layers.find(l=>l.shape?.directionArrow);
+      const i=layer.px.data.findIndex((v,i)=>i%4===3&&v===255);
+      return [...layer.px.data.slice(i-3,i+1)];
+    })()`);
+    assert.deepEqual(pixels,[128,128,128,255],'opening a shape-only arrow keeps its display colour');
+    assert.deepEqual(await snapshot(),arrow,'opening a shape-only arrow keeps its geometry');
+    const edits=await run(`(()=>{
+      const s=A.state(),l=s.layers.find(l=>l.shape?.directionArrow),{left,bar}=A.editor.h.dom();
+      const row=()=>left.querySelector('.lay[data-id="'+l.id+'"]');
+      row().click();
+      const x=bar.querySelector('[data-k=x]');
+      x.value='1.5';x.dispatchEvent(new Event('input',{bubbles:true}));
+      row().querySelector('[data-a=vis]').click();
+      const hidden=!l.visible;
+      row().querySelector('[data-a=vis]').click();
+      bar.querySelector('[data-a=del]').click();
+      return {moved:l.x,hidden,removed:!s.layers.includes(l)&&!s.assignments.some(a=>a.layer===l.id)};
+    })()`);
+    assert.deepEqual(edits,{moved:1.5,hidden:true,removed:true},'the arrow uses the ordinary layer controls');
+  }
   assert.equal(errors.length,0,JSON.stringify(errors));
-  const result={candidates,frame,predictSeconds,asBurned:true,comparison:true,reopened,errors:errors.length};
+  const result={candidates,frame,predictSeconds,asBurned:true,comparison:true,reopened,arrow,undo:true,duplicate:false,errors:errors.length};
   await writeFile(join(out,'colour-browser-results.json'),JSON.stringify(result,null,2),'utf8');console.log(JSON.stringify(result));
   await run('A.editor.colourRenderer?.dispose()');
 }finally{

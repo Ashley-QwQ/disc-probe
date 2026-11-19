@@ -91,18 +91,22 @@ def test_colour_design_compose_and_image(tmp_path, monkeypatch):
     monkeypatch.setitem(imagedisc.CELL_SIDES, 20, 120)
     monkeypatch.setattr(imagedisc, 'sectors_to_radius', lambda *args: 80)
     override = ['--table', str(library / 'colour_table.npz')]
-    cli.main(['colour-design',str(picture),'--phone','iphone17pro','--height','22.3','--materials',str(mats), *override,
+    cli.main(['--lang','en','colour-design',str(picture),'--phone','iphone17pro','--height','22.3','--materials',str(mats), *override,
               '--fit','ring','--dither','nearest','-o',str(doc)])
     saved = json.loads(doc.read_text(encoding='utf-8'))
     assert saved['scene']['rig'] == {'phone':'iphone17pro','height':'21'}
     assert E.validate(saved)['assignments'][0]['colour']['dither'] == 'nearest'
+    arrow = saved['layers'][1]
+    assert arrow['name'] == 'Direction arrow'
+    assert arrow['shape']['type'] == 'polygon' and arrow['shape']['directionArrow']
+    assert saved['assignments'][1] == {'layer': arrow['id'], 'material': 'tex:RND'}
     with monkeypatch.context() as patch:
         # Override the label grid size only. Keep the real CLI, composer and writer.
         patch.setattr(E, 'round', lambda _: 120, raising=False)
         cli.main(['compose',str(doc),'--out',str(labels), *override])
     assert np.load(labels).shape == (120,120)
     textures = json.loads(labels.with_suffix('.textures.json').read_text(encoding='utf-8'))['textures']
-    assert textures == ['B9','A5','A5','B9','8B00']
+    assert textures == ['B9','A5','A5','B9','8B00','RND']
     geo = tmp_path / 'geo.json'
     geo.write_text(json.dumps(dict(fit=dict(u=180518.44,v=5.591208,bit_nm_assumed=133.3,
                                           measured_span_mm=[24,58]))), encoding='utf-8')
@@ -112,6 +116,42 @@ def test_colour_design_compose_and_image(tmp_path, monkeypatch):
         f.seek(16*2048 + 1)
         assert f.read(5) == b'CD001'
     assert iso.stat().st_size == 80*2048
+
+
+def test_cli_no_arrow(tmp_path):
+    from discprobe import __main__ as cli
+
+    picture = tmp_path / 'tiny.png'
+    out = tmp_path / 'tiny.json'
+    Image.new('RGB', (7, 7)).save(picture)
+    cli.main(['colour-design', str(picture), '--phone', 'iphone17pro', '--height', '21',
+              '--no-arrow', '-o', str(out)])
+    saved = json.loads(out.read_text(encoding='utf-8'))
+    assert len(saved['layers']) == len(saved['assignments']) == 1
+    assert all(m['spec'] != 'RND' for m in saved['materials'])
+    assert saved == C.design(picture, 'iphone17pro', 21)
+
+
+@pytest.mark.parametrize('ring, expected_tail, expected_tip', [
+    ([24, 58], 43.5, 52.8),
+    ([24, 53.3], 43.5, 52.8),
+    ([40.2, 50], 40.2, 49.5),
+    ([40.21, 50], None, None),
+])
+def test_direction_arrow_annulus(ring, expected_tail, expected_tip):
+    doc = work('nearest')
+    doc['annulus_mm'] = ring
+    skipped = C.add_direction_arrow(doc)
+    if expected_tail is None:
+        assert skipped == 'The writable ring is too narrow for the direction arrow.'
+        assert len(doc['layers']) == len(doc['assignments']) == 1
+        assert all(m['spec'] != 'RND' for m in doc['materials'])
+        return
+    assert skipped is None
+    layer = E.validate(doc)['layers'][-1]
+    data_side_y = [-(layer['y'] + v * layer['height']) for _, v in layer['shape']['points']]
+    assert min(data_side_y) == pytest.approx(expected_tail)
+    assert max(data_side_y) == pytest.approx(expected_tip)
 
 
 def test_relative_lightness_retains_levels_inside_small_range(table):

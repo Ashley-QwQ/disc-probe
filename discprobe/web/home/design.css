@@ -254,8 +254,8 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws .ed-options input[type=number] { width:64px;min-height:28px;padding:2px 4px;border:1px solid var(--rule-strong);border-radius:4px;background:var(--paper);color:var(--ink);font:14px var(--font);font-variant-numeric:tabular-nums; }
 .ws .ed-options select { min-width:100px;min-height:28px;background:var(--paper);color:var(--ink);border:1px solid var(--rule-strong);border-radius:4px;font:14px var(--font); }
 .ws .ed-options>label:has(select) { width:130px; }
-.ws .ed-options .ed-inline { display:flex;width:auto;align-items:center;gap:4px; }
-.ws .ed-options input[type=checkbox] { width:16px;height:16px;accent-color:var(--ink); }
+.ws :is(.ed-options,.ed-materials) .ed-inline { display:flex;width:auto;align-items:center;gap:4px; }
+.ws :is(.ed-options,.ed-materials) input[type=checkbox] { width:16px;height:16px;accent-color:var(--ink); }
 .ws .ed-ops { display:flex;gap:2px;border-left:1px solid var(--rule);padding-left:8px; }
 .ws .ed-options .ib { width:28px;height:32px; }
 .ws .ed-options .ib svg { width:18px;height:18px; }
@@ -283,7 +283,7 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws .ed-material-scroll h3 { min-height:28px; }
 .ws .ed-model-note { margin:0;font-size:14px;line-height:1.4;color:var(--ink-2);white-space:normal;max-width:100%; }
 .ws .ed-materials label { display:grid;gap:5px;color:var(--ink-2);font-size:14px; }
-.ws .ed-materials input,.ws .ed-materials select { width:100%;min-width:0;min-height:34px;padding:5px 8px;border:1px solid var(--rule-strong);border-radius:4px;background:var(--paper);color:var(--ink);font:14px var(--font);font-variant-numeric:tabular-nums; }
+.ws .ed-materials input:not([type=checkbox]),.ws .ed-materials select { width:100%;min-width:0;min-height:34px;padding:5px 8px;border:1px solid var(--rule-strong);border-radius:4px;background:var(--paper);color:var(--ink);font:14px var(--font);font-variant-numeric:tabular-nums; }
 .ws .ed-values { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
 .ws .ed-pattern-options,.ws .ed-effect-options { display:grid;gap:10px; }
 .ws .ed-swatches { display:grid;grid-template-columns:repeat(auto-fit,minmax(44px,1fr));gap:4px; }

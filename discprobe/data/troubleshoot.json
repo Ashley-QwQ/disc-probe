@@ -17,7 +17,7 @@
     "steps": {"zh": ["空盘用 info 查容量；计时用已有的可读数据盘。没有可用数据盘时才生成并刻一张随机数据盘。"], "en": ["Use info on the blank to get capacity. Use a readable data disc for timing. Make and burn a random-data disc if no usable one is available."]},
     "commands": ["python -m discprobe info --drive <drive>", "python -m discprobe random --output iso/random.iso"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/timing.py", "line": 357, "keyword": "blank media has nothing to read"}, {"path": "discprobe/guide.py", "line": 727, "keyword": "no existing data disc is available"}, {"path": "discprobe/guide.py", "line": 1324, "keyword": "available sector count"}, {"path": "discprobe/zh.py", "line": 527, "keyword": "这张盘上没有数据"}, {"path": "discprobe/guide.py", "line": 642, "keyword": "nothing is recorded on this blank"}]
+    "sources": [{"path": "discprobe/timing.py", "line": 357, "keyword": "blank media has nothing to read"}, {"path": "discprobe/guide.py", "line": 727, "keyword": "no existing data disc is available"}, {"path": "discprobe/guide.py", "line": 1324, "keyword": "available sector count"}, {"path": "discprobe/zh.py", "line": 531, "keyword": "这张盘上没有数据"}, {"path": "discprobe/guide.py", "line": 642, "keyword": "nothing is recorded on this blank"}]
   },
   {
     "id": "burn-browser-closed",
@@ -117,7 +117,7 @@
     "steps": {"zh": ["把设计移出内侧文件系统区域，半径 26 mm 以内留背景。"], "en": ["Move the design away from the file system area and leave the inner 26 mm radius as background."]},
     "commands": ["python -m discprobe edit my_picture.png"],
     "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
-    "sources": [{"path": "discprobe/zh.py", "line": 532, "keyword": "半径 26 mm 以内留空"}, {"path": "discprobe/guide.py", "line": 897, "keyword": "edit my_picture.png"}, {"path": "docs/MANUAL.en.md", "line": 675, "keyword": "inside a radius of 26 mm"}]
+    "sources": [{"path": "discprobe/zh.py", "line": 536, "keyword": "半径 26 mm 以内留空"}, {"path": "discprobe/guide.py", "line": 897, "keyword": "edit my_picture.png"}, {"path": "docs/MANUAL.en.md", "line": 675, "keyword": "inside a radius of 26 mm"}]
   },
   {
     "id": "cd-speed-after-clv",
@@ -157,7 +157,7 @@
     "steps": {"zh": ["用 --materials 指向有效 JSON 或核对已设的材料环境变量。文件需要 1 到 254 个纹理规格。"], "en": ["Point --materials at a valid JSON file or check the configured environment variable. Use 1 to 254 texture specs."]},
     "commands": ["python -m discprobe colour-design -h"],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "discprobe/editor_colour.py", "line": 278, "keyword": "use --materials JSON"}, {"path": "discprobe/editor_colour.py", "line": 283, "keyword": "needs 1–254 texture specs"}, {"path": "discprobe/editor_colour.py", "line": 286, "keyword": "needs a hex texture spec"}]
+    "sources": [{"path": "discprobe/editor_colour.py", "line": 279, "keyword": "use --materials JSON"}, {"path": "discprobe/editor_colour.py", "line": 284, "keyword": "needs 1–254 texture specs"}, {"path": "discprobe/editor_colour.py", "line": 287, "keyword": "needs a hex texture spec"}]
   },
   {
     "id": "colour-pose",
@@ -167,7 +167,7 @@
     "steps": {"zh": ["在设计页设定手机和拍摄高度；手动走 CLI 时，查看 colour-design 帮助中的机位参数。"], "en": ["Set the phone and shooting height in the design, or read the pose options in colour-design help."]},
     "commands": ["python -m discprobe colour-design -h"],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "discprobe/editor_colour.py", "line": 47, "keyword": "colour picture needs a phone and shooting height"}, {"path": "discprobe/editor_colour.py", "line": 326, "keyword": "rig_data()['heights']"}, {"path": "discprobe/editor_colour.py", "line": 330, "keyword": "rig_pose(rig)"}]
+    "sources": [{"path": "discprobe/editor_colour.py", "line": 48, "keyword": "colour picture needs a phone and shooting height"}, {"path": "discprobe/editor_colour.py", "line": 327, "keyword": "rig_data()['heights']"}, {"path": "discprobe/editor_colour.py", "line": 331, "keyword": "rig_pose(rig)"}]
   },
   {
     "id": "colour-radial-bands",
@@ -187,7 +187,7 @@
     "steps": {"zh": ["检查自选表路径；如果用的是自选表，可改回随包的表，或指定含有效 A5/B9 参考亮度的表。"], "en": ["Check the custom table path. Use the bundled table or choose a valid table with positive A5/B9 reference brightness."]},
     "commands": ["python -m discprobe colour-design -h"],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "discprobe/editor_colour.py", "line": 105, "keyword": "positive A5/B9"}, {"path": "discprobe/editor_colour.py", "line": 304, "keyword": "path or DEFAULT_TABLE"}, {"path": "discprobe/editor_colour.py", "line": 308, "keyword": "could not load"}, {"path": "discprobe/editor_colour.py", "line": 312, "keyword": "invalid colour print table"}]
+    "sources": [{"path": "discprobe/editor_colour.py", "line": 106, "keyword": "positive A5/B9"}, {"path": "discprobe/editor_colour.py", "line": 305, "keyword": "path or DEFAULT_TABLE"}, {"path": "discprobe/editor_colour.py", "line": 309, "keyword": "could not load"}, {"path": "discprobe/editor_colour.py", "line": 313, "keyword": "invalid colour print table"}]
   },
   {
     "id": "colour-texture-table",
@@ -197,7 +197,7 @@
     "steps": {"zh": ["选择含该纹理的颜色表，或用与当前表匹配的材料集。"], "en": ["Select a table containing the texture or a material set that matches the current table."]},
     "commands": ["python -m discprobe colour-design -h"],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "discprobe/editor_colour.py", "line": 101, "keyword": "is missing from the active colour table"}, {"path": "discprobe/editor_colour.py", "line": 289, "keyword": "if spec not in table"}, {"path": "discprobe/editor_colour.py", "line": 332, "keyword": "palette(materials, table_path)"}]
+    "sources": [{"path": "discprobe/editor_colour.py", "line": 102, "keyword": "is missing from the active colour table"}, {"path": "discprobe/editor_colour.py", "line": 290, "keyword": "if spec not in table"}, {"path": "discprobe/editor_colour.py", "line": 333, "keyword": "palette(materials, table_path)"}]
   },
   {
     "id": "colour-wrong",
@@ -447,7 +447,7 @@
     "steps": {"zh": ["选择 DVD 图片层，抖动用 ordered 或 nearest，选择不同且存在的材料。"], "en": ["Use a DVD picture layer with ordered or nearest dithering and choose distinct materials from the available list."]},
     "commands": [],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "discprobe/editor_ops.py", "line": 168, "keyword": "DVD picture layer"}, {"path": "discprobe/editor_ops.py", "line": 171, "keyword": "ordered or nearest dithering"}, {"path": "discprobe/editor_ops.py", "line": 175, "keyword": "distinct known material IDs"}]
+    "sources": [{"path": "discprobe/editor_ops.py", "line": 169, "keyword": "DVD picture layer"}, {"path": "discprobe/editor_ops.py", "line": 172, "keyword": "ordered or nearest dithering"}, {"path": "discprobe/editor_ops.py", "line": 176, "keyword": "distinct known material IDs"}]
   },
   {
     "id": "editor-raster-fallback",
@@ -457,7 +457,7 @@
     "steps": {"zh": ["SVG 保留页面生成的光栅副本；旧的以路径表示图层的 edit 文档走 image --design。"], "en": ["Keep the page’s raster fallback with its SVG. For old path-based edit documents, use image --design."]},
     "commands": ["python -m discprobe image --geo <run> --design <design> --output iso/picture.iso"],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "discprobe/editor_ops.py", "line": 138, "keyword": "SVG requires the page raster fallback"}, {"path": "discprobe/editor_ops.py", "line": 140, "keyword": "use image --design"}]
+    "sources": [{"path": "discprobe/editor_ops.py", "line": 139, "keyword": "SVG requires the page raster fallback"}, {"path": "discprobe/editor_ops.py", "line": 141, "keyword": "use image --design"}]
   },
   {
     "id": "fax-connection",
@@ -947,7 +947,7 @@
     "steps": {"zh": ["检查出图输出是否提示已省略外圈。把图案缩小或向内移，检查预览里的可刻环带，再生成镜像。"], "en": ["Check the image output for an omitted outer ring. Shrink or move the artwork inward, check the writable annulus in the preview, then regenerate the image."]},
     "commands": [],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "discprobe/__main__.py", "line": 1245, "keyword": "a drawing out to the rim stops where the disc does"}, {"path": "discprobe/__main__.py", "line": 1250, "keyword": "outermost ring is left out"}, {"path": "docs/MANUAL.md", "line": 166, "keyword": "灰色部分不能绘制"}]
+    "sources": [{"path": "discprobe/__main__.py", "line": 1249, "keyword": "a drawing out to the rim stops where the disc does"}, {"path": "discprobe/__main__.py", "line": 1254, "keyword": "outermost ring is left out"}, {"path": "docs/MANUAL.md", "line": 166, "keyword": "灰色部分不能绘制"}]
   },
   {
     "id": "picture-path",
@@ -1017,7 +1017,7 @@
     "steps": {"zh": ["先用同一张盘比较 FUA 或挤缓存，再试不同读速。区分真实旋转后再拟合几何。"], "en": ["Reuse the disc and compare FUA or cache eviction, or try another read speed. Wait until you can distinguish real rotation before fitting geometry."]},
     "commands": ["python -m discprobe timing --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/timing.py", "line": 643, "keyword": "cache/false period"}, {"path": "discprobe/timing.py", "line": 652, "keyword": "cache/host timer period"}, {"path": "discprobe/diagnostics.py", "line": 51, "keyword": "Do not fit geometry"}, {"path": "docs/MANUAL.en.md", "line": 221, "keyword": "This selects the strategy"}, {"path": "discprobe/zh.py", "line": 435, "keyword": "一次绕过缓存"}, {"path": "discprobe/zh.py", "line": 436, "keyword": "Windows timer tick"}]
+    "sources": [{"path": "discprobe/timing.py", "line": 643, "keyword": "cache/false period"}, {"path": "discprobe/timing.py", "line": 652, "keyword": "cache/host timer period"}, {"path": "discprobe/diagnostics.py", "line": 51, "keyword": "Do not fit geometry"}, {"path": "docs/MANUAL.en.md", "line": 221, "keyword": "This selects the strategy"}, {"path": "discprobe/zh.py", "line": 439, "keyword": "一次绕过缓存"}, {"path": "discprobe/zh.py", "line": 440, "keyword": "Windows timer tick"}]
   },
   {
     "id": "timing-clv",
@@ -1067,7 +1067,7 @@
     "steps": {"zh": ["查看 timing 的读速和周期，试固定的读速后重测。"], "en": ["Check the speed and periods reported by timing. Repeat with a fixed read speed."]},
     "commands": ["python -m discprobe timing --drive <drive> --speed 4x"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/zh.py", "line": 414, "keyword": "Spindle did not reach a steady speed"}, {"path": "discprobe/timing.py", "line": 672, "keyword": "the speed may be changing"}, {"path": "docs/MANUAL.en.md", "line": 126, "keyword": "check the rotation speed"}]
+    "sources": [{"path": "discprobe/zh.py", "line": 418, "keyword": "Spindle did not reach a steady speed"}, {"path": "discprobe/timing.py", "line": 672, "keyword": "the speed may be changing"}, {"path": "docs/MANUAL.en.md", "line": 126, "keyword": "check the rotation speed"}]
   },
   {
     "id": "timing-timeout",
@@ -1147,7 +1147,7 @@
     "steps": {"zh": ["用 webui status 查看当前地址、运行模式和任务。要换设置，等任务结束后运行 webui stop，再用新参数启动。", "只有明确指定 --new-instance 才会绕过默认实例复用。"], "en": ["Use webui status to see the current address, mode and tasks. To change the settings, wait for the tasks to finish, run webui stop, then start with the new options.", "An explicit --new-instance bypasses the normal instance reuse."]},
     "commands": ["python -m discprobe webui status", "python -m discprobe webui stop"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web_instance.py", "line": 159, "keyword": "previous = None if new_instance else _existing(path)"}, {"path": "discprobe/web_instance.py", "line": 189, "keyword": "Run discprobe webui stop before changing them"}, {"path": "discprobe/web_instance.py", "line": 259, "keyword": "if result[\"tasks\"]:"}, {"path": "discprobe/__main__.py", "line": 2695, "keyword": "without replacing the existing instance"}]
+    "sources": [{"path": "discprobe/web_instance.py", "line": 159, "keyword": "previous = None if new_instance else _existing(path)"}, {"path": "discprobe/web_instance.py", "line": 189, "keyword": "Run discprobe webui stop before changing them"}, {"path": "discprobe/web_instance.py", "line": 259, "keyword": "if result[\"tasks\"]:"}, {"path": "discprobe/__main__.py", "line": 2700, "keyword": "without replacing the existing instance"}]
   },
   {
     "id": "web-offline",
@@ -1177,7 +1177,7 @@
     "steps": {"zh": ["打开当前启动输出里的完整地址，或运行 webui status 查看已登记的 URL。需要更换首选端口时，先等任务结束并停止服务，再用 --port 启动。"], "en": ["Open the full address from the launch output, or use webui status to see the registered URL. To change the preferred port, wait for active tasks and stop the service, then relaunch with --port."]},
     "commands": ["python -m discprobe webui status"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web_instance.py", "line": 166, "keyword": "exc.errno != errno.EADDRINUSE"}, {"path": "discprobe/web_instance.py", "line": 169, "keyword": "server = factory(0)"}, {"path": "discprobe/web_instance.py", "line": 191, "keyword": "previous[\"port\"]"}, {"path": "discprobe/__main__.py", "line": 2691, "keyword": "uses a free port if occupied"}]
+    "sources": [{"path": "discprobe/web_instance.py", "line": 166, "keyword": "exc.errno != errno.EADDRINUSE"}, {"path": "discprobe/web_instance.py", "line": 169, "keyword": "server = factory(0)"}, {"path": "discprobe/web_instance.py", "line": 191, "keyword": "previous[\"port\"]"}, {"path": "discprobe/__main__.py", "line": 2696, "keyword": "uses a free port if occupied"}]
   },
   {
     "id": "web-port-invalid",
@@ -1187,7 +1187,7 @@
     "steps": {"zh": ["使用一个可用的端口，例如手册示例的 8765，打开服务打印的地址。"], "en": ["Use an available port, such as 8765 from the installation guide, and open the address printed by the server."]},
     "commands": ["python -m discprobe webui --port 8765"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1348, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1349, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2691, "keyword": "preferred HTTP port"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1348, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1349, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2696, "keyword": "preferred HTTP port"}]
   },
   {
     "id": "web-startup-error",

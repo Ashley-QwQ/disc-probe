@@ -37,6 +37,13 @@ def test_textures_used_reads_in_bands(tmp_path):
     assert webui.Backend._textures_used(npy, ["b9", "A5", "66", "e4"]) == ["B9", "E4"]
 
 
+def test_rnd_is_preserved_by_the_compose_route(tmp_path):
+    backend = webui.Backend(tmp_path, drive_provider=lambda: [])
+    result = backend.compose_document(ring_work("RND"))
+    assert result["textures"] == ["B9", "A5", "RND"]
+    assert result["textures_used"] == ["B9", "RND"]
+
+
 def test_compose_takes_a_multi_photo_work():
     # three 2048 x 2048 RGBA layers in base64 are already over 64 MiB; sixteen fit
     one = 4 * (2048 * 2048 * 4 + 2) // 3
