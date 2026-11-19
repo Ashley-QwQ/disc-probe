@@ -22,6 +22,8 @@ SRGB_XYZ = np.array([[.4124564, .3575761, .1804375], [.2126729, .7151522, .07217
 SRGB_LIGHTNESS = 100.
 SRGB_CHROMA = 134.  # D65 Lab chroma of the most saturated sRGB cube corner, rounded up.
 CHROMA_PRIORITY = .55
+VIVID_LUMA_COST = 9000.  # Squared Lab error paid per reference Y below the brightest candidate.
+VIVID_SHADOW_LIGHTNESS = 20.  # Fade the brightness preference to zero at source black.
 EDGE_RADIUS_MM = .42  # Wide standard deviation; the narrow side of the difference uses one third.
 EDGE_LIGHTNESS = 8.   # Maximum correction in source Lab L* before mapping to the local range.
 EDGE_GAIN = 2.
@@ -198,7 +200,7 @@ def stable_path(cost):
 
 class AngleMatcher(Matcher):
     """Prepare the angular trajectory once per source colour and edge level, then look it up by row."""
-    def __init__(self, materials, slots, dither, table, rgba, width_mm, height_mm):
+    def __init__(self, materials, slots, dither, table, rgba, width_mm, height_mm, *, vivid=False):
         from scipy.ndimage import gaussian_filter1d
 
         super().__init__(materials, slots, dither, table)
@@ -208,12 +210,16 @@ class AngleMatcher(Matcher):
         self.step = float(self.nodes[1]-self.nodes[0])
         hi = np.clip(np.searchsorted(self.delta,self.nodes,side='right'),1,len(self.delta)-1)
         weight = ((self.nodes-self.delta[hi-1])/(self.delta[hi]-self.delta[hi-1])).astype(np.float32)
-        lab = xyz_lab(self.curves[hi-1] + (self.curves[hi]-self.curves[hi-1])*weight[:, None, None], 1)
+        xyz = self.curves[hi-1] + (self.curves[hi]-self.curves[hi-1])*weight[:, None, None]
+        lab = xyz_lab(xyz, 1)
         low = lab[..., 0].min(axis=1)
         span = lab[..., 0].max(axis=1) - low
         chroma = np.sqrt(np.square(lab[..., 1:]).sum(axis=2).max(axis=1))
         squeeze = CHROMA_PRIORITY * (1-np.clip(span/SRGB_LIGHTNESS, 0, 1))
         chroma_scale = np.minimum(chroma/SRGB_CHROMA*(1+.35*squeeze), 1)
+        if vivid:
+            y = xyz[..., 1]
+            light_shortfall = VIVID_LUMA_COST * (y.max(axis=1, keepdims=True) - y)
         luma_weight = 1-.65*squeeze
         codes = np.unique(self.codes)
         count = min(BLEND_MATERIALS,len(slots)) if dither=='ordered' else 1
@@ -228,10 +234,18 @@ class AngleMatcher(Matcher):
             goal[:,0] += EDGE_LIGHTNESS * ((keys // SOURCE_COLOURS).astype(np.float32)-middle)/middle
             target = np.repeat(goal[:,None,:],len(self.nodes),axis=1)
             target[...,0] = low + span*np.clip(target[...,0]/SRGB_LIGHTNESS,0,1)
-            target[...,1:] *= chroma_scale[None,:,None]
+            if vivid:
+                source_chroma = np.linalg.norm(goal[:, 1:], axis=1)
+                limit = np.minimum(1, chroma[None, :] / np.maximum(source_chroma[:, None], 1e-9))
+                target[..., 1:] *= limit[..., None]
+            else:
+                target[...,1:] *= chroma_scale[None,:,None]
             difference = lab[None,:,:,:] - target[:,:,None,:]
             difference[...,0] *= luma_weight[None,:,None]
             raw = np.einsum('bdki,bdki->bdk',difference,difference)
+            if vivid:
+                preference = np.clip(source[keys % SOURCE_COLOURS, 0] / VIVID_SHADOW_LIGHTNESS, 0, 1)
+                raw += preference[:, None, None] * light_shortfall[None, :, :]
             cost = gaussian_filter1d(raw,COST_SIGMA_DELTA/self.step,axis=1,mode='nearest') if COST_SIGMA_DELTA else raw.copy()
             first = stable_path(cost) if SWITCH_COST else cost.argmin(axis=2)
             if count == 1:
@@ -320,7 +334,8 @@ def palette(source=None, table_path=None):
                 table=dict(signature=table['signature'], fitted=table['fitted'], mapping='perceptual' if table['fitted'] else 'relative'))
 
 
-def design(image, phone, height, materials=None, dither='ordered', fit='disc', flash_mm=None, table_path=None):
+def design(image, phone, height, materials=None, dither='ordered', fit='disc', flash_mm=None, table_path=None,
+           *, mapping='perceptual'):
     """Create a portable editor document. Its source texture specs are pinned by ID."""
     from . import editor_ops
 
@@ -331,6 +346,10 @@ def design(image, phone, height, materials=None, dither='ordered', fit='disc', f
     pose = rig_pose(rig)
     cam, flash = pose['camera'], pose['flash']
     choices = palette(materials, table_path)
+    if mapping not in ('perceptual', 'vivid'):
+        raise ValueError('colour mapping must be perceptual or vivid')
+    if mapping == 'vivid' and not choices['table']['fitted']:
+        raise ValueError('vivid colour mapping requires a fitted colour table')
     image = texlib.safe(image)
     with Image.open(image) as original:
         picture = ImageOps.exif_transpose(original).convert('RGBA')
@@ -352,8 +371,10 @@ def design(image, phone, height, materials=None, dither='ordered', fit='disc', f
     doc = editor_ops.migrate(dict(media='dvd', layers=[layer], lookY=cam[1], scene=dict(rig=rig, preset='rig',
         cam=[cam[0], -cam[1], cam[2]], follows=True, flashOffset=[flash[0]-cam[0], flash[1]-cam[1]])))
     doc['materials'].extend(choices['materials'])
-    doc['assignments'].append(dict(layer=1, colour=dict(materials=[m['id'] for m in choices['materials']],
-                                                       dither=dither, table=choices['table'])))
+    colour = dict(materials=[m['id'] for m in choices['materials']], dither=dither, table=choices['table'])
+    if mapping == 'vivid':
+        colour['mapping'] = mapping
+    doc['assignments'].append(dict(layer=1, colour=colour))
     return doc
 
 

@@ -170,6 +170,8 @@ def validate(d):
             c = a['colour']
             if not isinstance(c, dict) or c.get('dither') not in ('ordered', 'nearest'):
                 raise ValueError('colour fill needs ordered or nearest dithering')
+            if c.get('mapping', 'perceptual') not in ('perceptual', 'vivid'):
+                raise ValueError('colour mapping must be perceptual or vivid')
             candidates = c.get('materials')
             if (not isinstance(candidates, list) or not candidates or any(k not in ids for k in candidates)
                     or len(candidates) != len(set(candidates))):
@@ -238,13 +240,16 @@ def compose(data, g=None, out=None, *, colour_table=None):
             c = layer_fills[l['id']][0]['colour']
             legacy = editor_colour.legacy_colour(c)
             layer_table = simulate_a3.tables() if legacy and table.get('fitted') else table
+            vivid = c.get('mapping') == 'vivid'
             args = (d['materials'], [ids[k] for k in c['materials']], c['dither'], layer_table)
             if layer_table.get('fitted'):
                 rgba = raster[l['id']]
                 height = l.get('height', l['width'] * l.get('h',1)/l.get('w',1))
-                matcher = editor_colour.AngleMatcher(*args, rgba, l['width'], height)
+                matcher = editor_colour.AngleMatcher(*args, rgba, l['width'], height, vivid=vivid)
                 codes = matcher.codes
             else:
+                if vivid:
+                    raise ValueError('vivid colour mapping requires a fitted colour table')
                 matcher = editor_colour.Matcher(*args, relative=not legacy)
                 codes = None
             colour[l['id']] = matcher, layer_table.get('delta_scale', 1.), codes

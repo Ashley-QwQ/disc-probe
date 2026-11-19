@@ -240,6 +240,7 @@ TEXT = {
     "work simulation requires --output; use --rotate for another view": "作品模拟需要 --output；用 --rotate 查看其他角度",
     "compose an editor work document into material labels (no drive access)": "把编辑器作品合成为材质标签图（不操作光驱）",
     "map a colour picture to DVD textures for a phone and shooting height": "按手机机型和拍摄高度，把彩色图映射成 DVD 纹理",
+    "vivid favours brighter textures with a fitted table (default: perceptual)": "鲜艳模式使用拟合色表并优先选择更亮的纹理（默认感知映射）",
     "omit the direction arrow at 12 o'clock (added by default)": "不加默认的 12 点方向箭头",
     "Direction arrow": "方向箭头",
     "The writable ring is too narrow for the direction arrow.": "可刻环带太窄，未加方向箭头。",
