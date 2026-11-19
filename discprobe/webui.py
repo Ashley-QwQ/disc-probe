@@ -2068,6 +2068,11 @@ def run(args):
     root = Path.cwd().resolve()
     no_drives = getattr(args, "no_drives", False) or os.environ.get("DISC_PROBE_NO_DRIVES") == "1"
     gui = Path(getattr(args, "gui", None) or api.BUNDLED_GUI).expanduser().resolve()
+    # check the options before looking for a running instance: a bad --gui must say so, not open the old one
+    try:
+        api.check_manifest(api.load_manifest(gui)[1])
+    except ValueError as exc:
+        sys.exit(str(exc))
     path_options = {"texlib": "DISCPROBE_TEXLIB", "table": "DISCPROBE_COLOUR_TABLE",
                     "materials": "DISCPROBE_COLOUR_MATERIALS"}
     asset_paths = {}
