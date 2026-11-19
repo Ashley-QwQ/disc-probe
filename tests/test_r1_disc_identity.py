@@ -235,3 +235,37 @@ def test_r1_erasing_a_write_once_disc_says_it_cannot_be_erased():
         disc_identity.require_identity(identity, erasing=True)
     assert "only rewritable discs" in str(error.value)
     assert disc_identity.require_identity(identity) is identity      # burning it is still allowed
+
+
+@pytest.mark.parametrize(("sense", "words"), [
+    ("2/3A/00", "No disc in the drive"), ("2/3A/02", "tray is open"), ("2/3A/01", "finds no disc"),
+    ("2/04/01", "not ready yet")])
+def test_r1_empty_or_loading_drive_says_so_instead_of_missing_identity(sense, words):
+    # With no disc the refusal should name the real cause, as info does, not "not enough identity".
+    identity = disc_identity.from_info({"test_unit_ready": {"status": 2, "sense": sense}})
+    with pytest.raises(disc_identity.DiscChanged, match=words) as error:
+        disc_identity.require_identity(identity)
+    assert "Not enough disc identity" not in str(error.value)
+    assert disc_identity.matches(identity, {**identity, "not_ready": None}) is True  # not an identity field
+
+
+def test_r1_other_tur_failures_keep_the_identity_refusal():
+    identity = disc_identity.from_info({"test_unit_ready": {"status": 2, "sense": "3/11/00"}})
+    with pytest.raises(disc_identity.DiscChanged, match="Not enough disc identity"):
+        disc_identity.require_identity(identity)
+
+
+def test_r1_refusal_before_the_burn_log_is_quiet(tmp_path, monkeypatch, capsys):
+    image = write_checked_iso(tmp_path / "sample.iso", bytes(32 * 2048))
+    monkeypatch.setattr(disc_identity, "read_identity", lambda drive: disc_identity.from_info(
+        {"test_unit_ready": {"status": 2, "sense": "2/3A/00"}}))
+    args = SimpleNamespace(drive="X:", iso=str(image), media="dvd", speed=None, yes_write=True, no_verify=False,
+                           keep_open=False, append=False, expect_start=None, erase=False, cd_sector=None,
+                           disc_id=False, disc_id_code=None, work=None)
+    from discprobe import works_link
+    monkeypatch.setattr(works_link, "check_work", lambda args: None)
+    with pytest.raises(SystemExit, match="No disc in the drive"):
+        burner.run(args)
+    assert "Could not save failed burn record" not in capsys.readouterr().err
+    assert not Path(str(image) + ".burn.jsonl").exists()
+    assert (tmp_path / "sample.iso.diagnostics").is_dir()

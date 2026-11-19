@@ -714,15 +714,17 @@ def run(args):
     except (BurnError, disc_identity.DiscChanged) as exc:
         # A failed attempt may still have written data. File that attempt's report too, without
         # borrowing a previous burn from this image's append-only log.
-        try:
-            with log_file.open('rb') as stream:
-                stream.seek(log_offset)
-                rows = [json.loads(line) for line in stream.read().splitlines() if line]
-            last = next((r for r in reversed(rows) if r.get('type') == 'burn_result'), None)
-            if last:
-                burn_completed(args, last)
-        except (OSError, ValueError) as error:
-            print(f'Could not save failed burn record: {error}', file=sys.stderr)
+        # Without a burn log the attempt was refused before anything was written or recorded.
+        if log_file.is_file():
+            try:
+                with log_file.open('rb') as stream:
+                    stream.seek(log_offset)
+                    rows = [json.loads(line) for line in stream.read().splitlines() if line]
+                last = next((r for r in reversed(rows) if r.get('type') == 'burn_result'), None)
+                if last:
+                    burn_completed(args, last)
+            except (OSError, ValueError) as error:
+                print(f'Could not save failed burn record: {error}', file=sys.stderr)
         from .diagnostics import save_failure
         folder = Path(str(args.iso) + '.diagnostics')
         try:

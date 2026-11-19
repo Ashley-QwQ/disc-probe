@@ -37,7 +37,7 @@
     "steps": {"zh": ["核对盘上的类型标记。如果是 RW 盘，把盘放好后重新检查光驱里的盘，确认它被识别成可擦写。"], "en": ["Check the media marking. For an RW disc, insert it and recheck the disc in the drive to confirm it is detected as rewritable."]},
     "commands": [],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/disc_identity.py", "line": 90, "keyword": "if erasing and identity[\"rewritable\"] is not True:"}, {"path": "README.en.md", "line": 169, "keyword": "only RW discs can"}, {"path": "discprobe/web/home/burn.js", "line": 36, "keyword": "Check the disc in the drive again"}]
+    "sources": [{"path": "discprobe/disc_identity.py", "line": 98, "keyword": "if erasing and identity[\"rewritable\"] is not True:"}, {"path": "README.en.md", "line": 169, "keyword": "only RW discs can"}, {"path": "discprobe/web/home/burn.js", "line": 36, "keyword": "Check the disc in the drive again"}]
   },
   {
     "id": "burn-interrupted",
