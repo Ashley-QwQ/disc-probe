@@ -36,7 +36,7 @@ def step(state, ident):
 
 class BackendTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(dir=ROOT)
+        self.temp = tempfile.TemporaryDirectory(dir=os.environ.get("DISCPROBE_TEST_TMP") or ROOT)
         self.root = Path(self.temp.name)
         self.addCleanup(self.temp.cleanup)
         # Never enumerate or open real drives, even indirectly through guide rendering.
@@ -207,7 +207,8 @@ with open(p, 'a') as f:
 time.sleep(60)
 '''
             return webui.Child([sys.executable, "-c", code], **kwargs)
-        b = webui.Backend(self.root, runner=runner, drive_provider=lambda: [dict(id=d, disc={"blank": True}) for d in ("H:", "I:")])
+        b = webui.Backend(self.root, runner=runner, drive_provider=lambda: [
+            dict(id=d, disc=dict(blank=True, media="dvd", profile=0x11, rewritable=False)) for d in ("H:", "I:")])
         self.addCleanup(b.close)
         return b
 
@@ -320,6 +321,7 @@ time.sleep(60)
         self.assertTrue(running())
         b.cancel(ident)
         eventually(lambda: not running())
+        self.assertTrue(b.get_job(ident).finished.wait(8))
 
     def test_external_results_emit_state(self):
         b = self.backend()
@@ -516,7 +518,8 @@ time.sleep(60)
 
     def test_disc_in_the_drive_is_read_on_request_and_kept(self):
         found = dict(tray="ready", drive="HL-DT-ST GH70N",
-                     disc=dict(present=True, media="dvd", kind="DVD-R Sequential", mid="RITEKF1", blank=True, sectors=2298496))
+                     disc=dict(present=True, media="dvd", kind="DVD-R Sequential", mid="RITEKF1", blank=True,
+                               sectors=2298496, profile=0x11, rewritable=False))
         reads = []
         def reader(drive):
             reads.append(drive)
@@ -856,7 +859,7 @@ def workflow_fake_backend(root, out='results', ask=True):
 
 
 def test_catalogue_and_finished_job_http():
-    with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
+    with tempfile.TemporaryDirectory(dir=os.environ.get("DISCPROBE_TEST_TMP") or ROOT) as tmp:
         backend = workflow_fake_backend(tmp, ask=False)
         server = webui.Server(backend, 0)
         thread=threading.Thread(target=server.serve_forever,daemon=True)
@@ -883,7 +886,7 @@ def test_catalogue_and_finished_job_http():
 
 
 def test_fake_workflow_results_answers_and_persistence():
-    with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
+    with tempfile.TemporaryDirectory(dir=os.environ.get("DISCPROBE_TEST_TMP") or ROOT) as tmp:
         backend=workflow_fake_backend(tmp)
         try:
             def run(action, **args):

@@ -532,7 +532,7 @@ def test_web_job_passes_work_and_home_without_recorder(store, tmp_path, monkeypa
         def close(self):
             pass
     backend = webui.Backend(tmp_path, runner=FakeChild,
-        drive_provider=lambda: [dict(id="TEST:", disc=dict(blank=True))])
+        drive_provider=lambda: [dict(id="TEST:", disc=dict(blank=True, media="dvd", profile=0x11, rewritable=False))])
     # The completion hook itself is covered by the CLI test; no burner child runs here.
     monkeypatch.setattr(backend, "_watch", lambda job: job.finished.set())
     payload = dict(action="burn", drive="TEST:", args=dict(iso="iso/mock.iso"))

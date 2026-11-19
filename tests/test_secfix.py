@@ -92,7 +92,8 @@ def test_finding_2_burn_grant_matches_one_job(tmp_path):
     iso.mkdir()
     for name in ("first.iso", "second.iso"):
         (iso / name).write_bytes(bytes(2048))
-    disc = {"blank": True, "rewritable": True, "media": "dvd", "medium_id": "sample-a"}
+    disc = {"blank": True, "rewritable": True, "media": "dvd", "profile": 0x14,
+            "medium_id": "sample-a", "capacity_sectors": 4096}
     runner = Mock(return_value=Mock(wait=Mock(return_value=0)))
     backend = webui.Backend(tmp_path, runner=runner,
                             drive_provider=lambda: [dict(id=drive, disc=disc) for drive in ("X:", "Y:")])

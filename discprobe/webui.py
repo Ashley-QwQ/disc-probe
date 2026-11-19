@@ -28,7 +28,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import CookieError, SimpleCookie
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import api, guide, i18n, iso9660, webui_catalog
+from . import api, disc_identity, guide, i18n, iso9660, webui_catalog
 from .drive_lock import DriveBusy, drive_locks, require_available
 from .web_instance import DEFAULT_PORT, _task_text
 
@@ -82,7 +82,6 @@ HEADER_LOCAL_RESERVE = 8
 BURN_TOKEN_SECONDS = 30
 FILES_TOKEN_SECONDS = 15 * 60
 MAX_PENDING_PERMITS = 128
-BURN_MEDIUM_FIELDS = ("media", "kind", "mid", "blank", "closed", "rewritable", "sectors", "capacity_sectors", "medium_id")
 LIMITS = {"count": (1, 1000), "sectors": (1, 25_000_000), "seed": (0, 2**32 - 1),
           "minutes": (0.1, 120), "diameter": (1, 120), "radius": (1, 58),
           "frames": (-10000, 10000), "size": (64, 8192), "completion_sectors": (-65536, 65536)}
@@ -113,6 +112,10 @@ class BurnTarget:
     media: str
     image: tuple[Path, int, int] | None = None
     full_erase: bool = False
+
+    @property
+    def erasing(self):
+        return self.action == "erase" or self.action.endswith("+erase")
 
 
 def issue_permit(permits, binding, seconds):
@@ -667,6 +670,7 @@ class Backend:
         self.discs = {}
         self.reading = {}                    # drive -> read action: busy for jobs
         self.disc_reader = disc_reader or (lambda drive: read_disc_child(self.root, drive))
+        self._injected_disc_reader = disc_reader
         self.closed = False
         self.folder = self.root / ".webui-jobs"
         from .editor_preview import Renderer
@@ -762,18 +766,26 @@ class Backend:
         return BurnTarget(action, drive, media, (path, info.st_size, info.st_mtime_ns))
 
     def _burn_medium(self, drive, media, drives):
-        # Provider-supplied reports are used by virtual drives. Physical drives
-        # get a fresh read-only inspection even if the desktop recently checked.
         with self._reading_drive(drive, "disc"):
-            supplied = next(d.get("disc") for d in drives if d["id"] == drive)
-            if supplied is None:
-                found = self.disc_reader(drive)
-                supplied = found.get("disc") if found.get("tray") == "ready" else None
+            try:
+                supplied = next(d.get("disc") for d in drives if d["id"] == drive)
+                if supplied is not None:
+                    identity = disc_identity.from_disc_report(supplied)
+                elif self._injected_disc_reader is not None:
+                    found = self._injected_disc_reader(drive)
+                    identity = disc_identity.from_disc_report(found.get("disc") if found.get("tray") == "ready" else None)
+                else:
+                    identity = disc_identity.read_identity(drive)
+                disc_identity.require_identity(identity)
+            except DriveBusy as exc:
+                raise APIError(str(exc), 409, code=exc.code) from exc
+            except disc_identity.DiscChanged as exc:
+                raise APIError("the selected medium is not ready", 409) from exc
             with self.lock:
                 generation = self.drive_changes.get(drive, 0)
-        if not supplied or supplied.get("present") is False or supplied.get("media", media) != media:
+        if identity["media"] != media:
             raise APIError("the selected medium is not ready", 409)
-        return {key: supplied.get(key) for key in BURN_MEDIUM_FIELDS}, generation
+        return identity, generation
 
     def burn_token(self, payload):
         if not isinstance(payload, dict) or set(payload) - {"action", "drive", "media", "args"}:
@@ -784,6 +796,11 @@ class Backend:
             raise APIError("action does not require a burn token")
         target = self._burn_target(payload)
         medium = self._burn_medium(drive, target.media, drives)
+        if target.erasing:
+            try:
+                disc_identity.require_identity(medium[0], erasing=True)
+            except disc_identity.DiscChanged as exc:
+                raise APIError(str(exc), 409) from exc
         with self.lock:
             token = issue_permit(self.tokens, (target, medium), BURN_TOKEN_SECONDS)
         return dict(token=token, expires_in=BURN_TOKEN_SECONDS)
@@ -839,7 +856,8 @@ class Backend:
         writes = burn_action(payload) is not None
         if writes:
             with self.lock:
-                target, medium = take_permit(self.tokens, payload.get("burn_token"), "valid burn token required")
+                target, (expected_identity, expected_generation) = take_permit(
+                    self.tokens, payload.get("burn_token"), "valid burn token required")
             try:
                 actual = self._burn_target(payload)
             except APIError as exc:
@@ -847,12 +865,12 @@ class Backend:
             if target != actual:
                 raise APIError("burn token does not match the action, drive, media or ISO", 403)
             try:
-                current_medium = self._burn_medium(drive, target.media, drives)
+                inspected, generation = self._burn_medium(drive, target.media, drives)
             except APIError as exc:
                 if exc.status == 409 and str(exc) == "the selected medium is not ready":
                     raise APIError("burn token does not match the current medium", 403) from exc
                 raise
-            if medium != current_medium:
+            if expected_generation != generation or not disc_identity.matches(expected_identity, inspected):
                 raise APIError("burn token does not match the current medium", 403)
         with self.lock:
             if self.closed:
@@ -862,16 +880,12 @@ class Backend:
             if drive and (drive in self.reading or any(j.drive == drive and j.exit is None for j in self.jobs.values())):
                 raise APIError("drive busy", 409)
             if writes:
-                inspected, generation = current_medium
                 if self.drive_changes.get(drive, 0) != generation:
                     raise APIError("burn token does not match the current medium", 403)
                 disc = next(d.get("disc") for d in drives if d["id"] == drive)
-                erasing = payload['action'] == 'erase' or payload.get('args', {}).get('erase') is True
-                if erasing and inspected["rewritable"] is not True:
-                    raise APIError('a verified rewritable disc is required', 409)
                 fresh = self.verified_blank.get(drive)
                 fresh_ok = fresh is not None and fresh[0] > time.monotonic() and fresh[1] == payload.get("media", "dvd")
-                if not erasing and (inspected["blank"] is not True or not (fresh_ok or disc and disc.get("blank") is True)):
+                if not target.erasing and (inspected["blank"] is not True or not (fresh_ok or disc and disc.get("blank") is True)):
                     raise APIError("a verified blank disc is required", 409)
                 from . import burner
                 if target.image is not None:
@@ -898,6 +912,10 @@ class Backend:
             if payload["action"] == "disexport" and job.args.get("output"):
                 Path(local_path(self.root, job.args["output"])).parent.mkdir(parents=True, exist_ok=True)
             env = os.environ.copy()
+            if writes:
+                env[disc_identity.EXPECTED_ENV] = disc_identity.encode_expected(drive, expected_identity)
+            else:
+                env.pop(disc_identity.EXPECTED_ENV, None)
             env.update(DISCPROBE_EVENTS=str(job.events), DISCPROBE_ANSWERS=str(job.answers), DISCPROBE_JOB=ident)
             # Force plain child output; events have their own progress outlet.
             env["DISCPROBE_PLAIN"] = "1"

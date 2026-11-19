@@ -20,7 +20,7 @@ import tempfile
 import threading
 import time
 
-from . import ui, iso9660, discid, mmc
+from . import ui, iso9660, discid, disc_identity, mmc
 
 
 class BurnError(ValueError):
@@ -133,7 +133,8 @@ class WindowsDVD:
         except ValueError as exc:
             raise BurnError("IMAPI returned an invalid media report.") from exc
 
-    def write(self, image, speed, cancel, progress, *, keep_open=False, append=False, expect_start=None):
+    def write(self, image, speed, cancel, progress, *, keep_open=False, append=False, expect_start=None,
+              before_write=None):
         with tempfile.TemporaryDirectory(prefix="discprobe-burn-") as folder:
             marker = Path(folder) / "cancel"
             session = (['-KeepOpen'] if keep_open else []) + (['-Append', '-ExpectStart', str(expect_start)] if append else [])
@@ -144,6 +145,8 @@ class WindowsDVD:
                 patch_file = Path(folder) / "identity.bin"
                 patch_file.write_bytes(image.patch_bundle())
                 patch_args = ["-IdentityPatch", str(patch_file), "-IdentityOffset", str(image.patch_offset)]
+            if before_write is not None:
+                before_write()
             process = self.popen(self.base + patch_args + ["-Burn", "-Iso", str(source), "-Speed", str(speed),
                                             "-CancelFile", str(marker)] + session, stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT, text=True, creationflags=0x08000000)
@@ -233,7 +236,7 @@ class LinuxBurner:
         # ATIP/media-tool text identifies the current profile; no supported-profile inference.
         return report
 
-    def write(self, image, speed, cancel, progress):
+    def write(self, image, speed, cancel, progress, *, before_write=None):
         # cdrdao requires a seekable on-disk data file. Use a private spool of
         # the patched stream; never rewrite the user's ISO or its sidecars.
         if isinstance(image, discid.PatchedImage) and self.media == "cd":
@@ -244,7 +247,7 @@ class LinuxBurner:
                         if cancel.is_set():
                             raise BurnError("Cancelled while preparing the stream; nothing was written.")
                         target.write(data)
-                return self.write(spool, speed, cancel, progress)
+                return self.write(spool, speed, cancel, progress, before_write=before_write)
         if self.media == "cd":
             from . import cd
             if '"' in str(image) or "\n" in str(image) or "\r" in str(image):
@@ -258,6 +261,8 @@ class LinuxBurner:
                     self.drive + "=" + ("/dev/fd/0" if isinstance(image, discid.PatchedImage) else str(image))]
             if isinstance(image, discid.PatchedImage):
                 argv.insert(1, "-use-the-force-luke=tracksize:" + str(image.stat().st_size // 2048))
+        if before_write is not None:
+            before_write()
         process = self.popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                              **({"stdin": subprocess.PIPE} if isinstance(image, discid.PatchedImage) else {}),
                              env={**os.environ, "LC_ALL": "C"}, start_new_session=True)
@@ -397,7 +402,7 @@ def verify_image(drive, image, media, cancel, *, device_factory=None, start_lba=
 @locked_drive("burn")
 def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None, cancel=None,
          no_verify=False, verifier=None, keep_open=False, append=False, expect_start=None,
-         disc_id=False, disc_id_code=None, state_checker=None, erase=False):
+         disc_id=False, disc_id_code=None, state_checker=None, erase=False, expected_identity=None):
     if yes_write is not True:
         raise BurnError("Writing requires explicit --yes-write confirmation.")
     if media not in ("dvd", "cd"):
@@ -437,6 +442,10 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
             identity = discid.read_image(image)
         except ValueError:
             pass  # no opt-in: send even an unrecognised old ISO exactly as supplied
+    if expected_identity is None and (recorder is None or isinstance(recorder, (WindowsDVD, LinuxBurner))):
+        expected_identity = disc_identity.expected_for_write(drive, erasing=erase)
+    if expected_identity is not None:
+        disc_identity.require_identity(expected_identity, erasing=erase)
     recorder = recorder or adapter(drive, media)
     if (keep_open or append) and isinstance(recorder, LinuxBurner):
         raise BurnError('Session options currently require the Windows DVD IMAPI path.')
@@ -444,6 +453,7 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
     if erase and append:
         raise BurnError('--erase cannot be combined with --append.')
     cancel = cancel or threading.Event()
+    erased_before_write = False
     if info.get('blank') is not True and not append:
         if not erase:
             if info.get('rewritable'):
@@ -459,7 +469,8 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
             if not capacity or size // 2048 > capacity:
                 raise BurnError('The image does not fit, or rewritable capacity is unknown; erasing was refused.')
             choose_speed(speed, info['speeds_x'], media)
-            erased = eraser.erase(drive, cancel=cancel, recorder=erase_recorder)
+            erased = eraser.erase(drive, cancel=cancel, recorder=erase_recorder, expected_identity=expected_identity)
+            erased_before_write = True
             info = recorder.inspect()
             if erased.get('overwrite_ready') and info.get('rewritable'):
                 info['blank'] = True
@@ -524,8 +535,19 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
                 print(f"Drive/utility reports write speed: {actual:g}x.", flush=True)
         else:
             ui.event("progress", **fields)
+
+    def before_write():
+        if expected_identity is not None:
+            disc_identity.check_identity(drive, expected_identity, after_erase=erased_before_write)
+        if cancel.is_set():
+            raise BurnError("Cancelled before writing; nothing was written.")
+
     try:
         options = dict(keep_open=keep_open, append=append, expect_start=expect_start) if keep_open or append else {}
+        if isinstance(recorder, (WindowsDVD, LinuxBurner)):
+            options["before_write"] = before_write
+        else:
+            before_write()
         actual = recorder.write(source, selected, cancel, progress, **options)
     except (BurnError, OSError) as exc:
         elapsed = time.monotonic() - started
@@ -629,11 +651,14 @@ def run(args):
     log_file = Path(str(Path(args.iso).resolve()) + '.burn.jsonl')
     log_offset = log_file.stat().st_size if log_file.is_file() else 0
     try:
+        erase = getattr(args, 'erase', False)
+        expected = disc_identity.expected_for_write(args.drive, erasing=erase) if args.yes_write else None
         result = burn(args.drive, args.iso, media=args.media, speed=args.speed, yes_write=args.yes_write,
              cancel=cancel, no_verify=args.no_verify, keep_open=args.keep_open,
-             append=args.append, expect_start=args.expect_start, erase=getattr(args, 'erase', False), **discid.options(args))
+             append=args.append, expect_start=args.expect_start, erase=erase,
+             expected_identity=expected, **discid.options(args))
         burn_completed(args, result)
-    except BurnError as exc:
+    except (BurnError, disc_identity.DiscChanged) as exc:
         # A failed attempt may still have written data. File that attempt's report too, without
         # borrowing a previous burn from this image's append-only log.
         try:

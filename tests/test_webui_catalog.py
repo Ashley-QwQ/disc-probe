@@ -1,5 +1,6 @@
 """Catalogue tests use temporary files only, never a drive."""
 import json
+import os
 from pathlib import Path
 import tempfile
 from unittest.mock import Mock
@@ -21,7 +22,7 @@ def write_geo(root, stamp='20261107-101500', **overrides):
 
 
 def test_empty_and_presets():
-    with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as tmp:
+    with tempfile.TemporaryDirectory(dir=os.environ.get("DISCPROBE_TEST_TMP") or Path(__file__).resolve().parents[1]) as tmp:
         root=Path(tmp)
         assert catalog.catalogue(root, root/'results') == dict(dvd=[],cd=[],bd=[])
         (root/'presets').mkdir()
@@ -56,7 +57,7 @@ def test_dis_import_status_is_geometry_not_a_measurement(tmp_path):
 
 
 def test_results_identity_verdict_and_counter():
-    with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as tmp:
+    with tempfile.TemporaryDirectory(dir=os.environ.get("DISCPROBE_TEST_TMP") or Path(__file__).resolve().parents[1]) as tmp:
         root=Path(tmp)
         path=write_geo(root)
         write_geo(root, '20261108-101500', stopped='cancelled')
@@ -90,7 +91,7 @@ def test_results_identity_verdict_and_counter():
 
 
 def test_unidentified_results_stay_separate():
-    with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as tmp:
+    with tempfile.TemporaryDirectory(dir=os.environ.get("DISCPROBE_TEST_TMP") or Path(__file__).resolve().parents[1]) as tmp:
         root=Path(tmp)
         write_geo(root, identity={})
         write_geo(root,'20261108-101500',identity={})
@@ -165,7 +166,8 @@ def test_web_burn_history_survives_server_lifetime(tmp_path):
         Path(kw['env']['DISCPROBE_EVENTS']).write_text(json.dumps(event) + '\n')
         return Mock(wait=Mock(return_value=0), close=Mock())
     backend = webui.Backend(tmp_path, runner=runner,
-        drive_provider=lambda:[dict(id='H:', disc=dict(blank=True, mid='TEST <MID>', drive_name='Fake drive'))])
+        drive_provider=lambda:[dict(id='H:', disc=dict(blank=True, mid='TEST <MID>', drive_name='Fake drive',
+                                                        media='dvd', profile=0x11, rewritable=False))])
     try:
         payload = dict(action='burn', media='dvd', drive='H:', args=dict(iso='iso/image.iso'))
         ident = backend.start(dict(payload, burn_token=backend.burn_token(payload)['token']))['job']

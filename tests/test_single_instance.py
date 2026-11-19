@@ -311,17 +311,19 @@ def test_virtual_burn_blocks_other_instance_and_quit_until_finished(lab):
     assert not state.exists()
 
 
-def test_default_port_falls_back_and_reuse_keeps_the_registered_port(lab):
+def test_busy_port_falls_back_and_reuse_keeps_the_registered_port(lab):
     _, _, state, _ = lab
     with socket.socket() as occupied:
         if os.name == "nt":
             occupied.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
-        occupied.bind(("127.0.0.1", 8765))
+        occupied.bind(("127.0.0.1", 0))
         occupied.listen()
-        with process(lab, *CONTROL, "--local-only") as child:
+        requested = occupied.getsockname()[1]
+        options = ("--local-only", "--port", str(requested))
+        with process(lab, *CONTROL, *options) as child:
             data = wait_primary(state, child)
-            assert data["port"] != 8765 and data["config"]["port"] == 8765
-            code, out, err = control(lab, "--local-only")
+            assert data["port"] != requested and data["config"]["port"] == requested
+            code, out, err = control(lab, *options)
             assert code == 0 and not err and urlsplit(out.strip()).port == data["port"]
             assert control(lab, "stop")[0] == 0
             assert child.wait(timeout=10) == 0

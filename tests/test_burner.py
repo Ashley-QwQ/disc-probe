@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class BurnerTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(dir=ROOT)
+        self.temp = tempfile.TemporaryDirectory(dir=os.environ.get("DISCPROBE_TEST_TMP") or ROOT)
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         (self.root / "iso").mkdir()
@@ -259,7 +259,7 @@ class BurnerTests(unittest.TestCase):
 
     def test_cli_keeps_write_units_separate(self):
         from discprobe import __main__
-        with patch.object(burner, "burn") as write:
+        with patch.object(burner, "burn") as write, patch.object(burner.disc_identity, "expected_for_write"):
             __main__._main(["burn", "--drive", "H:", "--iso", str(self.iso), "--speed", "4", "--yes-write", "--no-verify"])
         self.assertEqual(write.call_args.kwargs["speed"], 4)
         self.assertTrue(write.call_args.kwargs["yes_write"])
@@ -316,8 +316,9 @@ class BurnerTests(unittest.TestCase):
         """A burn needs a blank disc found by a read-only inspection made just now, on that drive and media."""
         drives = lambda: [dict(id="H:", disc=None)]
         started = []
+        inserted = dict(blank=True, media="dvd", profile=0x11, rewritable=False)
         backend = webui.Backend(self.root, drive_provider=drives,
-                                disc_reader=lambda drive: dict(tray="ready", disc=dict(blank=True)),
+                                disc_reader=lambda drive: dict(tray="ready", disc=inserted),
                                 runner=lambda argv, **kw: started.append(argv) or Mock(wait=Mock(return_value=0), close=Mock()))
         self.addCleanup(backend.close)  # join the mock job before TemporaryDirectory cleanup
         (self.root / "iso").mkdir(exist_ok=True)
@@ -341,8 +342,10 @@ class BurnerTests(unittest.TestCase):
         fake.inspect.return_value = dict(media="dvd", blank=True, free_sectors=2295104, speeds_x=[4, 8])
         with patch.object(burner, "adapter", return_value=fake):
             handler.do_GET()
+        inserted.update(media="cd", profile=0x09)
         with self.assertRaisesRegex(webui.APIError, "blank"):
             run("cd")                                              # blank DVD does not authorize a CD burn
+        inserted.update(media="dvd", profile=0x11)
         backend.verified_blank["H:"] = (time.monotonic() - 1, "dvd")
         with self.assertRaisesRegex(webui.APIError, "blank"):
             run()                                                  # expired
@@ -378,7 +381,7 @@ class BurnerTests(unittest.TestCase):
         self.assertTrue(child.closed)
 
     def test_web_token_blank_whitelist_and_job(self):
-        drives = [dict(id="H:", disc=dict(blank=True))]
+        drives = [dict(id="H:", disc=dict(blank=True, media="dvd", profile=0x11, rewritable=False))]
         process = Mock()
         process.wait.side_effect = lambda: process.stopped.wait(3) or 0
         process.stopped = threading.Event()
