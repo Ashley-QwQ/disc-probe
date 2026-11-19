@@ -10,6 +10,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 root=Path(sys.argv[1]).resolve()
 from disclab.lab import Lab
+from discprobe.image_output import mark_checked
 
 if '--short' in sys.argv:
     # A separate, explicit media fixture: Lab's user-cancel path does not retain partial writes.
@@ -47,6 +48,7 @@ with iso.open('r+b') as stream:
             raise ctypes.WinError(ctypes.get_last_error())
     else:
         stream.truncate(size)
+mark_checked(iso, [])
 with socket.socket() as sock:
     sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
 (root/'ready.json').write_text(json.dumps(dict(port=port)),encoding='utf-8')

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from discprobe import calibrate, disc_identity, info, mmc, webui_catalog
+from discprobe import calibrate, info, mmc, webui_catalog
 from discprobe.capacity import catalogue_capacity, recordable_capacity
 from discprobe.scsi import DATA_IN, ScsiResult, Sense, check_allowed
 
@@ -135,7 +135,7 @@ def test_catalogue_is_exact_mid_and_explicit_capacity_only(tmp_path):
 def run_calibration(monkeypatch, tmp_path, *, capacity=None, explicit=None, catalogue=None, burn=False):
     monkeypatch.chdir(tmp_path)
     disc = dict(present=True, blank=False, media='dvd', kind='DVD-R', mid='MID', sectors=1000000,
-                capacity_sectors=capacity, capacity_source='test metadata')
+                capacity_sectors=capacity, capacity_source='test metadata', profile=0x11, rewritable=False)
     if catalogue:
         (tmp_path / 'presets').mkdir()
         (tmp_path / 'presets/catalogue.json').write_text(json.dumps({'MID': {'sectors': catalogue}}))
@@ -147,9 +147,9 @@ def run_calibration(monkeypatch, tmp_path, *, capacity=None, explicit=None, cata
     calls, events = [], []
     reads = [dict(disc, blank=True, sectors=2298496, capacity_sectors=2298496), disc] if burn else [disc]
     if burn:
-        identity = disc_identity.from_disc_report(dict(reads[0], profile=0x0011, rewritable=False))
-        monkeypatch.delenv(disc_identity.EXPECTED_ENV, raising=False)
-        monkeypatch.setattr(disc_identity, 'read_identity', lambda drive: identity)
+        expected = calibrate.disc_identity.from_disc_report(reads[0])
+        monkeypatch.delenv(calibrate.disc_identity.EXPECTED_ENV, raising=False)
+        monkeypatch.setattr(calibrate.disc_identity, 'read_identity', lambda _drive: expected)
 
     def read(*a, **kw):
         return SimpleNamespace(stdout=json.dumps({'disc': reads.pop(0)}))
@@ -158,8 +158,9 @@ def run_calibration(monkeypatch, tmp_path, *, capacity=None, explicit=None, cata
         command = argv[argv.index('discprobe') + 1:]
         calls.append(command)
         if command[0] == 'burn':
-            expected = json.loads(kw['env'][disc_identity.EXPECTED_ENV])
-            assert expected == {'drive': args.drive, 'identity': identity}
+            env = kw['env']
+            assert json.loads(env[calibrate.disc_identity.EXPECTED_ENV]) == dict(drive=args.drive, identity=expected)
+            assert json.loads(env['DISCPROBE_PARENT_DRIVE_LEASE'])['token']
         if command[0] == 'disexport':
             Path(args.preset).write_text('{}')
         return SimpleNamespace(poll=lambda: 0, returncode=0)

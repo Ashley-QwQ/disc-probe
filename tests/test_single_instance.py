@@ -19,6 +19,7 @@ from disclab.__main__ import lab_env
 from disclab.practice import prepare
 from discprobe.drive_lock import DriveBusy, drive_operation, require_available
 from discprobe import web_instance, webui
+from discprobe.image_output import mark_checked
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ("-m", "discprobe", "webui", "--port", "0")
@@ -54,7 +55,7 @@ def request(instance, path, payload=None, *, authenticated=True):
 def record(path):
     try:
         return json.loads(path.read_bytes())
-    except (FileNotFoundError, ValueError):
+    except (FileNotFoundError, PermissionError, ValueError):
         return None
 
 
@@ -269,6 +270,7 @@ def test_virtual_burn_blocks_other_instance_and_quit_until_finished(lab):
     iso.parent.mkdir()
     with iso.open("wb") as stream:
         stream.truncate(2 * 1024 * 1024)
+    mark_checked(iso, [])
     with process(lab, *CLI, "--local-only", DISCLAB_BURN_TIME="75") as first:
         primary = wait_primary(state, first)
         a = address(primary)

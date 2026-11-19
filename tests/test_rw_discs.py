@@ -15,6 +15,7 @@ from disclab.box import make_box
 from disclab.drive import LabRecorder, LabDrive, erase_seconds, burn_seconds
 from disclab.lab import Lab
 from discprobe.info import quick
+from tests.iso_fixture import write_checked_iso
 
 
 @pytest.mark.parametrize('profile', [0x0A, 0x13, 0x14, 0x1A, 0x2A, 0x43])
@@ -47,7 +48,7 @@ def recorder(tmp_path, monkeypatch, media='dvd-rw'):
 @pytest.mark.parametrize('media', ['dvd-rw','cd-rw','dvd+rw','bd-re'])
 def test_lab_burn_erase_burn(tmp_path,monkeypatch,media):
     lab,rec=recorder(tmp_path,monkeypatch,media)
-    image=tmp_path/'data.iso';image.write_bytes(bytes(2048*32))
+    image=write_checked_iso(tmp_path/'data.iso', bytes(2048*32))
     stop=threading.Event()
     rec.write(image,4,stop,lambda **_:None)
     assert rec.inspect()['blank'] is False
@@ -69,7 +70,7 @@ def test_write_once_refuses_before_erase(tmp_path,monkeypatch):
 
 def test_explicit_erase_and_preflight(tmp_path,monkeypatch):
     _,rec=recorder(tmp_path,monkeypatch)
-    image=tmp_path/'data.iso';image.write_bytes(bytes(2048*32))
+    image=write_checked_iso(tmp_path/'data.iso', bytes(2048*32))
     rec.write(image,4,threading.Event(),lambda **_:None)
     with patch.object(rec,'erase',wraps=rec.erase) as action:
         with pytest.raises(burner.BurnError,match='--erase'):
@@ -128,7 +129,7 @@ def test_formatted_random_access_capacity(profile):
 def test_hooked_cli_erase_and_explicit_burn(tmp_path,monkeypatch,media):
     from disclab.__main__ import lab_env
     lab,rec=recorder(tmp_path,monkeypatch,media)
-    image=tmp_path/'data.iso';image.write_bytes(bytes(2048*32))
+    image=write_checked_iso(tmp_path/'data.iso', bytes(2048*32))
     rec.write(image,4,threading.Event(),lambda **_:None)
     env=lab_env(lab)
     def cli(*args):

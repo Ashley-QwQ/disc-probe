@@ -1,10 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$Drive, [switch]$Full, [switch]$CoreDriveLock)
 $ErrorActionPreference = 'Stop'
-$driveLease = $null
-if (-not $CoreDriveLock) {
-    . (Join-Path $PSScriptRoot 'drive_lock.ps1')
-    $driveLease = Open-DiscProbeDriveLock $Drive 'erase'
-}
+. (Join-Path $PSScriptRoot 'drive_lock.ps1')
+$driveLease = Open-DiscProbeDriveLock $Drive 'erase'
 try {
 # Compile only here; -File is an explicit destructive operation. No legacy burn script changes state.
 Add-Type -ReferencedAssemblies System.dll,System.Core.dll,Microsoft.CSharp.dll -TypeDefinition @'

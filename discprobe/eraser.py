@@ -12,7 +12,7 @@ import time
 
 from . import disc_identity, mmc, ui
 from .burner import BurnError, parse_progress, tool
-from .drive_lock import locked_drive
+from .drive_lock import child_env, locked_drive
 
 
 @locked_drive("info")
@@ -42,7 +42,7 @@ class PlatformEraser:
                 raise BurnError('Windows drive must be a letter followed by a colon.')
             argv = [tool('powershell.exe'), '-NoProfile', '-NonInteractive', '-File',
                     str(resource_tool('erase_imapi.ps1')),
-                    '-Drive', self.drive, '-CoreDriveLock', *(['-Full'] if full else [])]
+                    '-Drive', self.drive, *(['-Full'] if full else [])]
         elif sys.platform.startswith('linux'):
             if not self.drive.startswith('/dev/') or any(c in self.drive for c in '\r\n\0'):
                 raise BurnError('Linux drive must be a /dev/ device path.')
@@ -64,7 +64,7 @@ class PlatformEraser:
         if before_write is not None:
             before_write()
         process = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                                   **({'creationflags': 0x08000000} if sys.platform == 'win32' else
+                                   **({'creationflags': 0x08000000, 'env': child_env(self.drive)} if sys.platform == 'win32' else
                                       {'start_new_session': True, 'env': {**os.environ, 'LC_ALL': 'C'}}))
         stop = threading.Event()
         has_progress = threading.Event()

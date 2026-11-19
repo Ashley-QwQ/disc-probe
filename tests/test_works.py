@@ -18,6 +18,7 @@ from PIL import Image
 import pytest
 
 from discprobe import __main__ as cli, api, burner, guide, i18n, imagedisc, webui, works
+from tests.iso_fixture import write_checked_iso
 
 
 @pytest.fixture
@@ -430,7 +431,9 @@ def test_image_work_cli_completion(store, tmp_path, monkeypatch, capsys):
     assert work["discs"][-1]["iso_sha256"] == hashlib.sha256(iso.read_bytes()).hexdigest()
     assert work["discs"][-1]["disc_code"] == "KOI-A 2-03"
     monkeypatch.setattr(imagedisc, "verify_iso", lambda *a, **kw: ["bad sector"])
-    cli._main(["image", "--geo", "fit.json", "--output", str(iso), "--work", ident])
+    with pytest.raises(SystemExit) as rejected:
+        cli._main(["image", "--geo", "fit.json", "--output", str(iso), "--work", ident])
+    assert rejected.value.code == 1
     assert len(store.show(ident)["discs"]) == 1
 
 
@@ -520,7 +523,7 @@ def test_junction_cannot_escape(store, tmp_path):
 def test_web_job_passes_work_and_home_without_recorder(store, tmp_path, monkeypatch):
     ident = store.new("网页任务")["id"]
     (tmp_path / "iso").mkdir()
-    (tmp_path / "iso" / "mock.iso").write_bytes(bytes(2048))
+    write_checked_iso(tmp_path / "iso" / "mock.iso", bytes(2048))
     captured = {}
     class FakeChild:
         def __init__(self, argv, *, env, cwd, stdout):

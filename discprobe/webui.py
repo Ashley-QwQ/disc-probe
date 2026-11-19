@@ -16,7 +16,6 @@ import os
 from pathlib import Path
 import re
 import secrets
-import stat
 import signal
 import socket
 import subprocess
@@ -28,7 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import CookieError, SimpleCookie
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import api, disc_identity, guide, i18n, iso9660, webui_catalog
+from . import api, disc_identity, guide, i18n, image_output, webui_catalog
 from .drive_lock import DriveBusy, drive_locks, require_available
 from .web_instance import DEFAULT_PORT, _task_text
 
@@ -1010,15 +1009,16 @@ class Backend:
         if path.suffix.lower() != ".iso" or not path.is_relative_to((self.root / "iso").resolve()):
             raise APIError("not an ISO in iso/")
         try:
-            info = path.stat()
+            info = image_output.finished_stat(path)
+            image_output.require_checked(path, info)
         except FileNotFoundError:
-            raise APIError("not found", 404) from None
-        if not stat.S_ISREG(info.st_mode) or Path(str(path) + iso9660.UNFINISHED).exists():
             raise APIError("not found", 404)
+        except (OSError, ValueError) as exc:
+            raise APIError(str(exc), 409) from exc
         return path, info
 
     def iso_file(self, value: str) -> dict:
-        """Size of a finished ISO under iso/, for the page to show; nothing is read from it."""
+        """Report a finished, self-checked ISO under iso/ without reading its sectors."""
         path, info = self._iso_stat(value)
         size = info.st_size
         return dict(path=path.relative_to(self.root).as_posix(), bytes=size, sectors=size // 2048)

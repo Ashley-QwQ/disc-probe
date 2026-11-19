@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 import pytest
 
 from discprobe import photo, webui
+from tests.iso_fixture import write_checked_iso
 from tests.test_photo import make_run, png
 
 
@@ -91,7 +92,7 @@ def test_finding_2_burn_grant_matches_one_job(tmp_path):
     iso = tmp_path / "iso"
     iso.mkdir()
     for name in ("first.iso", "second.iso"):
-        (iso / name).write_bytes(bytes(2048))
+        write_checked_iso(iso / name, bytes(2048))
     disc = {"blank": True, "rewritable": True, "media": "dvd", "profile": 0x14,
             "medium_id": "sample-a", "capacity_sectors": 4096}
     runner = Mock(return_value=Mock(wait=Mock(return_value=0)))
@@ -114,7 +115,7 @@ def test_finding_2_burn_grant_matches_one_job(tmp_path):
                           dict(original, args={"iso": "iso/second.iso"})):
             assert run(alternate, permit()) == (403, {"error": mismatch})
         token = permit()
-        (iso / "first.iso").write_bytes(bytes(4096))
+        write_checked_iso(iso / "first.iso", bytes(4096))
         assert run(original, token) == (403, {"error": mismatch})
         token = permit()
         disc["medium_id"] = "sample-b"

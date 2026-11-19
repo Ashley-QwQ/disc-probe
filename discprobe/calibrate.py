@@ -25,7 +25,7 @@ import os
 from pathlib import Path
 import signal
 import subprocess
-from .drive_lock import DriveBusy
+from .drive_lock import DriveBusy, child_env, drive_operation
 import sys
 import threading
 import time
@@ -94,6 +94,13 @@ class Stopped(Exception):
 
 
 def run(args) -> None:
+    if getattr(args, 'geo', None) or getattr(args, 'sim', None) or not args.drive:
+        return _run(args)
+    with drive_operation(args.drive, 'calibrate'):
+        return _run(args)
+
+
+def _run(args) -> None:
     from .works_link import check_work
     check_work(args)
     if args.media != 'dvd' and getattr(args, 'completion_sectors', None) is not None:
@@ -130,8 +137,12 @@ def run(args) -> None:
         child_reason = None
         # A rotation stop precedes geo's first fit, so there may be no summary.json.
         # Relay stdout while retaining its plain stop sentence for the job event.
+        lease_env = child_env(args.drive)
+        if env is not None:
+            lease_env.update(env)
         proc = subprocess.Popen(_argv(*a), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace", env=env)
+                                stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+                                env=lease_env)
 
         def relay():
             nonlocal child_reason
@@ -166,7 +177,8 @@ def run(args) -> None:
 
     def read_disc() -> dict:
         seen = subprocess.run(_argv("disc", *common()), stdin=subprocess.DEVNULL, capture_output=True,
-                              text=True, encoding="utf-8", errors="replace", timeout=120)
+                              text=True, encoding="utf-8", errors="replace", timeout=120,
+                              env=child_env(args.drive))
         line = next((ln for ln in reversed(seen.stdout.splitlines()) if ln.startswith("{")), None)
         if line is None and seen.returncode == DriveBusy.exit_code:
             # The child already emitted the structured error for the web client.
@@ -185,7 +197,7 @@ def run(args) -> None:
                 raise Stopped("burning needs --yes-write")
             erase = getattr(args, "erase", False)
             expected = disc_identity.expected_for_write(args.drive, erasing=erase)
-            burn_env = {**os.environ, disc_identity.EXPECTED_ENV: disc_identity.encode_expected(args.drive, expected)}
+            burn_env = {disc_identity.EXPECTED_ENV: disc_identity.encode_expected(args.drive, expected)}
             blank = read_disc()
             ui.event('disc', **blank)
             if capacity is None:
