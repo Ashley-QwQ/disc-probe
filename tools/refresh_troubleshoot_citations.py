@@ -13,6 +13,7 @@ longer occurs anywhere is reported and left alone: that entry needs a person.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 from pathlib import Path
 
@@ -40,21 +41,22 @@ def main(argv=None):
                 missing.append((entry["id"], source["path"], line, keyword))
                 continue
             new = min(hits, key=lambda n: abs(n - line))
-            moved.append((entry["id"], source["path"], line, new))
+            moved.append((entry["id"], source["path"], line, new, keyword))
             source["line"] = new
-    for item in moved:
-        print("moved   %s %s:%d -> %d" % item)
+    for entry_id, path, old, new, _ in moved:
+        print(f"moved   {entry_id} {path}:{old} -> {new}")
     for item in missing:
         print("MISSING %s %s:%d %r" % item)
     if moved and not args.check:
         # The file is laid out by hand: change only the numbers, never re-serialise it.
-        for entry_id, path, old, new in moved:
-            keyword = next(s["keyword"] for e in entries if e["id"] == entry_id for s in e["sources"]
-                           if s.get("path") == path and s.get("line") == new)
+        edits = Counter((path, old, new, keyword) for _, path, old, new, keyword in moved)
+        for (path, old, new, keyword), count in edits.items():
+            file = json.dumps(path, ensure_ascii=False)
             quoted = json.dumps(keyword, ensure_ascii=False)
-            stale, fresh = f'"line": {old}, "keyword": {quoted}', f'"line": {new}, "keyword": {quoted}'
-            if raw.count(stale) != 1:
-                raise SystemExit(f"cannot place {entry_id} {path}:{old} uniquely; edit it by hand")
+            stale = f'"path": {file}, "line": {old}, "keyword": {quoted}'
+            fresh = f'"path": {file}, "line": {new}, "keyword": {quoted}'
+            if raw.count(stale) != count:
+                raise SystemExit(f"cannot place {path}:{old} uniquely; edit it by hand")
             raw = raw.replace(stale, fresh)
         DATA.write_bytes(raw.encode("utf-8"))
     return 1 if missing or (args.check and moved) else 0

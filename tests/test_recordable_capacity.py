@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from discprobe import calibrate, info, mmc, webui_catalog
+from discprobe import calibrate, disc_identity, info, mmc, webui_catalog
 from discprobe.capacity import catalogue_capacity, recordable_capacity
 from discprobe.scsi import DATA_IN, ScsiResult, Sense, check_allowed
 
@@ -146,6 +146,10 @@ def run_calibration(monkeypatch, tmp_path, *, capacity=None, explicit=None, cata
                               *(['--iso', 'measurement.iso', '--yes-write'] if burn else [])])
     calls, events = [], []
     reads = [dict(disc, blank=True, sectors=2298496, capacity_sectors=2298496), disc] if burn else [disc]
+    if burn:
+        identity = disc_identity.from_disc_report(dict(reads[0], profile=0x0011, rewritable=False))
+        monkeypatch.delenv(disc_identity.EXPECTED_ENV, raising=False)
+        monkeypatch.setattr(disc_identity, 'read_identity', lambda drive: identity)
 
     def read(*a, **kw):
         return SimpleNamespace(stdout=json.dumps({'disc': reads.pop(0)}))
@@ -153,6 +157,9 @@ def run_calibration(monkeypatch, tmp_path, *, capacity=None, explicit=None, cata
     def child(argv, **kw):
         command = argv[argv.index('discprobe') + 1:]
         calls.append(command)
+        if command[0] == 'burn':
+            expected = json.loads(kw['env'][disc_identity.EXPECTED_ENV])
+            assert expected == {'drive': args.drive, 'identity': identity}
         if command[0] == 'disexport':
             Path(args.preset).write_text('{}')
         return SimpleNamespace(poll=lambda: 0, returncode=0)
