@@ -123,6 +123,7 @@ try{
     }
   }
   assert(await run(toggle+'.checked'),'the checkbox defaults to checked');
+  assert.deepEqual(await run(`(()=>{const {width,height}=${toggle}.getBoundingClientRect();return [width,height];})()`),[16,16]);
   await run(toggle+'.click();'+fill);
   assert.deepEqual(await snapshot(),{arrows:0,filled:true,above:false,spec:null,name:null,tip:null});
   await arrowShots('unchecked');
@@ -196,10 +197,36 @@ try{
   assert.deepEqual(reopened,{candidates,rig:{phone:'iphone17pro',height},lookY:28.45});
   if(!colourWork){
     assert.deepEqual(await snapshot(),arrow,'the saved document retains the editable arrow');
-    await run('document.querySelector(`[data-id="${A.state().assignments.find(a=>a.colour).layer}"]`).click()');
-    assert(await run('!document.querySelector("[data-ed-action=fill]").disabled'));
+    const refilling=await run(`(()=>{
+      const e=A.editor,s=A.state(),id=s.assignments.find(a=>a.colour).layer;
+      e.h.dom().left.querySelector('.lay[data-id="'+id+'"]').click();
+      return s.selected===id&&!document.querySelector('[data-ed-action=fill]').disabled;
+    })()`);
+    assert(refilling,'the picture can be selected in the reopened layer list');
     await run(fill);
     assert.deepEqual(await snapshot(),arrow,'reopening retains the arrow identity');
+    const pixels=await run(`(async()=>{
+      const d=A.editor.document();
+      await A.openProject(new File([JSON.stringify(d)],'portable-work.json',{type:'application/json'}));
+      const layer=A.state().layers.find(l=>l.shape?.directionArrow);
+      const i=layer.px.data.findIndex((v,i)=>i%4===3&&v===255);
+      return [...layer.px.data.slice(i-3,i+1)];
+    })()`);
+    assert.deepEqual(pixels,[128,128,128,255],'opening a shape-only arrow keeps its display colour');
+    assert.deepEqual(await snapshot(),arrow,'opening a shape-only arrow keeps its geometry');
+    const edits=await run(`(()=>{
+      const s=A.state(),l=s.layers.find(l=>l.shape?.directionArrow),{left,bar}=A.editor.h.dom();
+      const row=()=>left.querySelector('.lay[data-id="'+l.id+'"]');
+      row().click();
+      const x=bar.querySelector('[data-k=x]');
+      x.value='1.5';x.dispatchEvent(new Event('input',{bubbles:true}));
+      row().querySelector('[data-a=vis]').click();
+      const hidden=!l.visible;
+      row().querySelector('[data-a=vis]').click();
+      bar.querySelector('[data-a=del]').click();
+      return {moved:l.x,hidden,removed:!s.layers.includes(l)&&!s.assignments.some(a=>a.layer===l.id)};
+    })()`);
+    assert.deepEqual(edits,{moved:1.5,hidden:true,removed:true},'the arrow uses the ordinary layer controls');
   }
   assert.equal(errors.length,0,JSON.stringify(errors));
   const result={candidates,frame,predictSeconds,asBurned:true,comparison:true,reopened,arrow,undo:true,duplicate:false,errors:errors.length};

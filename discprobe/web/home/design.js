@@ -18,6 +18,7 @@ import { downloadTemplate } from "./design/template-download.mjs";
 import { mountFilesStep, occupiedRings, filePictureRange, fileArguments, refreshFiles, drawFileGuides, fileDisplay } from "./design/disc-files.mjs";
 import { hasCapability } from "./handshake.mjs";
 import { CELLS, COST, geoChoice, measuredRing, burnDocument, checkTextures, experimentalContent, hasColourPicture, pictureSampling } from "./design/export-rules.mjs";
+import directionArrow from "./design/direction-arrow.json" with {type: "json"};
 
 let api, $;
 const root = document.documentElement;
@@ -1239,7 +1240,7 @@ function leftClick(e) {
   if (a === "inner" || a === "outer") { S.files.where = a; changed(); buildLeft(); return; }
   if (L && a === "vis") { checkpoint(); L.visible = !L.visible; changed(); buildLeft(); return; }
   if (L && a === "lock") { checkpoint(); L.locked = !L.locked; if (W.bar) W.bar.dataset.mode = ""; changed(); buildLeft(); return; }
-  if (L) { for (const x of S.layers) if (x !== L) clearSelection(x); S.selected = L.id; refreshLayerRows(); buildRight(); draw(); }
+  if (L) { S.selected = L.id; refreshLayerRows(); buildRight(); draw(); }
 }
 function leftDbl(e) {
   const li = e.target.closest(".lay");
@@ -1604,7 +1605,7 @@ async function openProject(file, handle = null, work = null) {
       const g = c.getContext("2d", { willReadFrequently: true });
       if(e.raster)g.putImageData(new ImageData(new Uint8ClampedArray(EditorOps.bytes(e.raster.rgba)),c.width,c.height),0,0);
       else if(bmp){g.drawImage(bmp,0,0);bmp.close?.();}
-      else drawShape(g, e.shape);
+      else drawShape(g, e.shape, e.shape.directionArrow === true ? directionArrow.material.rgb : undefined);
       const L = { ...base, w: c.width, h: c.height, colour: e.colour ?? "none", alphaEdited: !!e.alphaEdited, px: g.getImageData(0, 0, c.width, c.height), src: c, version: 1 };
       Object.assign(L,{sourceKind:e.sourceKind,shape:e.shape,svg:e.svg,tone:e.tone});
       if (typeof e.original === "string" && e.original.startsWith("data:image/")) L.file = dataURLBlob(e.original);
