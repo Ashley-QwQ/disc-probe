@@ -18,6 +18,13 @@ async function check(expression,message){assert.ok(await evaluate(expression),me
 async function shot(name){await evaluate('document.fonts.ready');await delay(120);const r=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});writeFileSync(join(shots,name+'.png'),Buffer.from(r.data,'base64'));}
 async function request(path,body){const r=await fetch(origin+path,{method:body===undefined?'GET':'POST',headers:body===undefined?{}:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});const data=await r.json();assert.ok(r.ok,JSON.stringify(data));return data;}
 const click=selector=>evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+async function pointerClick(selector){
+  const point=await evaluate(`(()=>{const el=document.querySelector(${JSON.stringify(selector)}),r=el.getBoundingClientRect();
+    const x=r.x+r.width/2,y=r.y+r.height/2;return el.contains(document.elementFromPoint(x,y))?{x,y}:null;})()`);
+  assert.ok(point,selector+' must receive clicks at its center');
+  await cdp('Input.dispatchMouseEvent',{...point,type:'mousePressed',button:'left',clickCount:1});
+  await cdp('Input.dispatchMouseEvent',{...point,type:'mouseReleased',button:'left',clickCount:1});
+}
 const key=async(type,value)=>cdp('Input.dispatchKeyEvent',{type,key:value,code:value===' '?'Space':value,windowsVirtualKeyCode:value==='Enter'?13:value==='Escape'?27:value===' '?32:35});
 async function drag(complete=true){
   const r=await evaluate(`(()=>{const k=document.querySelector('.burn-stop .kit-slide-knob').getBoundingClientRect(),t=document.querySelector('.burn-stop .kit-slide-track').getBoundingClientRect();return {x:k.x+k.width/2,y:k.y+k.height/2,end:t.right-k.width/2-4};})()`);
@@ -49,6 +56,18 @@ try{
   await cdp('Page.navigate',{url:origin+'/home/'});
   await until(`document.documentElement.dataset.mode==='cal' && document.querySelector('#job-cancel').textContent==='停止刻录'`,'live calibration attached in burn phase');
   await shot('stop-button');
+  await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
+  await pointerClick('#job-cancel');
+  await check(`document.querySelector('.burn-stop-count')?.textContent==='3'`,'390px stop can be clicked and starts the reading lock');
+  await check(`(() => {
+    const nodes = document.querySelectorAll('.burn-stop-risk, .burn-stop-count, .burn-stop .kit-slide-track, .burn-stop-keep');
+    return nodes.length===4 && [...nodes].every(e => {
+      const r=e.getBoundingClientRect();
+      return r.width>0 && r.height>0 && r.left>=0 && r.top>=0 && r.right<=innerWidth && r.bottom<=innerHeight;
+    });
+  })()`,'390px risk, countdown, slider and continue control fit in the viewport');
+  await pointerClick('.burn-stop-keep');
+  await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   // Reopening is independent: Esc, external click and Continue never send cancellation.
   for(const method of ['escape','outside','keep']){
     await click('#job-cancel');await until(`!!document.querySelector('.burn-stop')`,'stop expanded');

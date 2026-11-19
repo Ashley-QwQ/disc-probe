@@ -646,6 +646,15 @@
   :root[data-motion="off"] .job-bar::after { box-shadow: none; }
   .job-time { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .bar:has(.job:not([hidden])) .drive { display: none; }
+  @media (max-width: 760px) {
+    /* The burn job already shows its status. Give its stop control the whole footer row. */
+    :root[data-mode="cal"] .bar:has(.job:not([hidden]) .job-cancel:not(.btn-icon)) > .job {
+      grid-column: 1 / -1; grid-template-columns: auto minmax(16px, 1fr) minmax(0, max-content) auto; gap: 8px;
+    }
+    :root[data-mode="cal"] .bar:has(.job:not([hidden]) .job-cancel:not(.btn-icon)) > .next:disabled { display: none; }
+    :root[data-mode="cal"] .job:has(.job-cancel:not(.btn-icon)) .job-time { overflow: hidden; text-overflow: ellipsis; }
+    :root[data-mode="cal"] .job > .burn-stop { width: min(420px, 100%); max-height: calc(100dvh - var(--foot) - 32px); overflow: auto; }
+  }
 
   /* pieces of the calibration scene, all inside the camera layer so they pan with it */
   .floor { width: 100%; aspect-ratio: 1; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0); }
@@ -1908,14 +1917,16 @@
   (await import("./keys.js")).install({ $ });   // Esc back, Enter next, W A S D, O settings, ? the list
   try { (await import("./guide.js")).init(api); } catch (e) { console.error("guide", e); }   // before the lobby's art is fetched: its line and the settings row need none
   try { await (await import("./lobby.js")).init(api); } catch (e) { console.error("lobby", e); }
-  // a calibration still running (this page was reloaded or reopened meanwhile): back to it
+  // Reopen an active calibration or the latest result that still needs attention.
   const calibrations=(backendState?.jobs||[]).filter(j=>j.action==='calibrate');
   const lastCalibration=calibrations.at(-1);
-  const running = backend.mock ? null : calibrations.find(j=>j.exit===null) ||
-    (lastCalibration?.cancellation?.phase==='burn' ? lastCalibration : null);
-  if (running) {
-    chosenDrive = running.drive ?? chosenDrive;
-    (await import("./calibrate.js")).attach(api, running);
+  const resume = backend.mock ? null : calibrations.find(j=>j.exit===null) ||
+    (lastCalibration?.cancellation?.phase==='burn' ||
+      (lastCalibration?.exit===0 && lastCalibration.result?.ok && !lastCalibration.result_seen && !lastCalibration.cancellation)
+      ? lastCalibration : null);
+  if (resume) {
+    chosenDrive = resume.drive ?? chosenDrive;
+    (await import("./calibrate.js")).attach(api, resume);
   }
   // what the drive holds, read once in the background (read-only, a second or two) so the footer can say it
   else if (!backend.mock && !driveDisc()) readDisc().catch(() => {});

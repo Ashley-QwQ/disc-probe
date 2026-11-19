@@ -371,6 +371,34 @@ time.sleep(60)
                     "drive=H:&media=cd&iso=../webui.py", "drive=H:&media=cd&iso=iso/missing.iso"):
             self.assertNotEqual(self.request(server, "GET", "/api/burn-command?" + bad)[0], 200, bad)
 
+    def test_only_successful_calibration_results_can_be_acknowledged(self):
+        server = self.http_server()
+        backend = server.backend
+        job = webui.Job("j-a1", "H:", self.root)
+        job.action = "calibrate"
+        backend.jobs[job.id] = job
+        self.addCleanup(backend.jobs.pop, job.id)
+        route = f"/api/jobs/{job.id}/result-seen"
+        self.assertEqual(self.request(server, "POST", route, {})[0], 409)
+
+        job.exit, job.result = 1, {"ok": False}
+        self.assertEqual(self.request(server, "POST", route, {})[0], 409)
+        self.assertFalse((job.folder / "result-seen").exists())
+
+        job.exit, job.result = 0, {"ok": True}
+        job.cancellation = {"by": "user", "phase": "burn"}
+        self.assertEqual(self.request(server, "POST", route, {})[0], 409)
+        job.cancellation = None
+        state = lambda: json.loads(self.request(server, "GET", "/api/state")[1])["jobs"][0]
+        self.assertFalse(state()["result_seen"])
+        for _ in range(2):
+            code, body = self.request(server, "POST", route, {})
+            self.assertEqual(code, 200)
+            self.assertEqual(json.loads(body), {"result_seen": True})
+        self.assertTrue(state()["result_seen"])
+        self.assertTrue((job.folder / "result-seen").is_file())
+        self.assertEqual(backend.job_state(job.id)["events"], [])
+
     def test_home_routes_and_traversal(self):
         server = self.http_server()
         for query in ("", "?token=example&view=a%2Fb&view=c"):
@@ -554,7 +582,7 @@ time.sleep(60)
 p = os.environ['DISCPROBE_EVENTS']
 with open(p, 'a') as f:
  f.write(json.dumps(dict(type='step', name='geo', index=2, total=3))+'\\n')
- f.write(json.dumps(dict(type='calibrated', ok=True, disc=dict(mid='RITEKF1'), geo=dict(path={str(geo)!r}, verdict='usable')))+'\\n')
+ f.write(json.dumps(dict(type='calibrated', ok=True, disc=dict(mid='RITEKF1'), sectors=2297888, geo=dict(path={str(geo)!r}, verdict='usable')))+'\\n')
 '''
         b = self.backend(script)
         for bad in (dict(action="calibrate", drive="H:", media="bd"),
@@ -563,13 +591,15 @@ with open(p, 'a') as f:
             with self.assertRaises(webui.APIError):
                 b.start(bad)
         # without an image it only measures: no token asked, nothing written
-        ident = b.start(dict(action="calibrate", drive="H:", args={"mid": "RITEKF1", "preset": "presets/p.json"}))["job"]
+        ident = b.start(dict(action="calibrate", drive="H:", args={"mid": "RITEKF1", "preset": "presets/p.json", "sectors": 2297888}))["job"]
         self.assertNotIn("--yes-write", self.argv)
         self.assertEqual(self.argv.count("--media"), 1)
         self.assertIn("--out", self.argv)
+        self.assertEqual(self.argv[self.argv.index("--sectors") + 1], "2297888")
         eventually(lambda: b.jobs[ident].exit is not None)
         result = b.job_state(ident)["result"]
         self.assertTrue(result["ok"])
+        self.assertEqual(result["sectors"], 2297888)
         self.assertEqual((result["verdict"], result["geo"]["path"]), ("usable", "results/" + geo.name))
         self.assertTrue(any(e["type"] == "step" for e in b.job_state(ident)["events"]))      # the page follows the steps
         # with an image it starts with a burn: the burn's token and blank check apply
