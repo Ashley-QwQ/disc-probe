@@ -8,3 +8,4 @@
 .disc-files-step details > label, .disc-files-step details > p { margin-top: 12px; }
 .disc-files-step .sbtn { min-height: 44px; }
 .disc-files-step [data-files="status"] { overflow-wrap: anywhere; color: var(--ink-2); }
+.disc-files-step [data-files="list"] { max-height: 10rem; overflow: auto; overflow-wrap: anywhere; }

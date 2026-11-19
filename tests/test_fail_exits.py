@@ -341,6 +341,7 @@ def test_burn_cli_refusal_saves_bundle_without_writing(tmp_path, monkeypatch):
     def refuse(*args, **kwargs):
         raise burner.BurnError('CD DAO mode refused before writing')
     monkeypatch.setattr(burner, 'burn', refuse)
+    monkeypatch.setattr(burner.disc_identity, 'expected_for_write', Mock())
     with pytest.raises(SystemExit, match='CD DAO'):
         burner.run(args)
     assert not image.exists()
@@ -355,6 +356,8 @@ def test_burn_post_write_fault_exits_nonzero_and_preserves_reason(tmp_path, monk
     rec = Mock()
     rec.inspect.return_value = dict(media='dvd', blank=True, free_sectors=4096, speeds_x=[8])
     rec.write.return_value = 8
+    identity = burner.disc_identity.from_disc_report(dict(media='dvd', profile=0x11, blank=True, rewritable=False))
+    monkeypatch.setattr(burner.disc_identity, 'read_identity', lambda drive: identity)
     monkeypatch.setattr(burner, 'adapter', lambda *a: rec)
     monkeypatch.setattr(recorded, 'burn_state', lambda *a, **k: dict(status='completed') if verify else
                         dict(status='failed', reason='Write interrupted: disc holds only 12 of 32 sectors / is not closed'))

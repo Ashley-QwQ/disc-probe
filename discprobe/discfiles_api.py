@@ -1,5 +1,6 @@
 """Thin local-service adapter; all allocation stays in discfiles.plan."""
 from pathlib import Path
+import hashlib
 import json
 import math
 
@@ -40,4 +41,7 @@ def request(root, payload):
         raise ValueError('请先选择实测几何，或填写空白盘的可写扇区数 / geometry or writable sectors required')
     layout = discfiles.plan(source_folder(payload.get('folder')), payload.get('files_at', 'inner'), total,
                             margin=payload.get('margin'), geometry=geometry, media=payload.get('media', 'dvd'))
-    return {**layout.as_dict(), 'folder': str(layout.folder), 'radius_source': 'measured' if geometry else 'nominal'}
+    entries = [(entry.relative, entry.size, entry.mtime_ns, entry.directory) for entry in layout.entries]
+    manifest = json.dumps(entries, ensure_ascii=True, separators=(",", ":")).encode("ascii")
+    return {**layout.as_dict(), 'folder': str(layout.folder), 'radius_source': 'measured' if geometry else 'nominal',
+            'source_sha256': hashlib.sha256(manifest).hexdigest()}

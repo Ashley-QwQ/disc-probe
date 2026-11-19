@@ -1924,9 +1924,10 @@ async function realBurn() {
   flow.realPhase = "burning"; flow.burnP = 0; flow.stage = liveText('检查托盘里还是空白盘…', 'Checking the tray still holds the blank…'); paint();
   const report = await api.backend.request(`/api/burn-speeds?drive=${encodeURIComponent(drive)}&media=${media}`);
   if (report?.blank !== true && !(flow.eraseRequested && report?.rewritable)) { flow.realPhase = "burn"; throw new Error(liveText('光驱里不是空白盘。放回这批的空白盘再刻。', 'The drive does not hold a blank. Put a blank from this batch back and burn again.')); }
-  const { token } = await api.backend.request("/api/burn-token");
+  const args = { iso: flow.iso, ...(flow.eraseRequested ? {erase:true} : {}) };
+  const { token } = await api.backend.request("/api/burn-token", {action:"calibrate",drive,media,args});
   flow.stage = null;
-  await realCalibrate({ iso: flow.iso, ...(flow.eraseRequested?{erase:true}:{}) }, { burn_token: token });
+  await realCalibrate(args, { burn_token: token });
 }
 async function realSave() {
   flow.realPhase = "saving";
