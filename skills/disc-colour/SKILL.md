@@ -13,7 +13,7 @@ The colour workflow is DVD-only. Illustrations, flat fills and well-defined colo
 
 ## Check the geometry
 
-From the project folder that contains the relevant `results/`, run:
+Check the geometry from the project folder that contains the relevant `results/`.
 
 ```sh
 python -m discprobe guide --media dvd
@@ -30,7 +30,7 @@ python -m discprobe info --drive X:
 python -m discprobe random --output random.iso --sectors 2295104
 ```
 
-Get explicit permission to burn this calibration ISO onto that blank, then use:
+Run the calibration burn after the user gives explicit permission to write this ISO to that blank.
 
 ```sh
 python -m discprobe burn --drive X: --iso random.iso --yes-write
@@ -58,7 +58,7 @@ Ask only for details you cannot get from the request or local context.
 python -m discprobe colour-design "artwork.png" --phone iphone17pro --height 22.3 --fit disc -o work.json --preview preview.png
 ```
 
-For example, an unlisted phone with a measured 48 mm flash-to-lens distance and artwork above the hub uses:
+This example places the artwork above the hub for an unlisted phone with a measured 48 mm flash-to-lens distance.
 
 ```sh
 python -m discprobe colour-design "artwork.png" --phone custom --flash-mm 48 --height 22.3 --fit ring -o ring-work.json --preview ring-preview.png
@@ -87,7 +87,7 @@ Preview approval covers making the ISO. Burning is irreversible and needs separa
 python -m discprobe info --drive X:
 ```
 
-Tell the user that the default DVD speed is the supported speed closest to 8×. Run this only after they confirm the burn:
+Tell the user that the default DVD speed is the supported speed closest to 8×. Run the burn command only after they confirm.
 
 ```sh
 python -m discprobe burn --drive X: --iso colour.iso --yes-write
