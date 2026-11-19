@@ -238,11 +238,12 @@ def stage_inputs(cache, windows_cache, stage):
             if entry is runtime:
                 expected_platform = "win_amd64" if windows else "x86_64-unknown-linux-gnu"
                 expected_file = (re.escape(f"python-{PYTHON}-embed-amd64.zip") if windows else
-                                 rf"cpython-{re.escape(PYTHON)}\+\d{{8}}-{expected_platform}-install_only\.tar\.gz")
+                                 rf"cpython-{re.escape(PYTHON)}\+\d{{8}}-{expected_platform}"
+                                 r"-install_only_stripped\.tar\.gz")
                 if (entry["name"] != "cpython" or entry["version"] != PYTHON
                         or entry["platform"] != expected_platform or entry["python_tag"] != PY_TAG
                         or entry["abi"] != PY_TAG or not re.fullmatch(expected_file, file)):
-                    raise ValueError(f"runtime version, platform or ABI does not match {platform} lock: {file}")
+                    raise ValueError(f"runtime version, platform, ABI or asset name does not match {platform} lock: {file}")
             source = (windows_cache if windows and entry is runtime else cache) / file
             if not source.is_file():
                 raise FileNotFoundError(f"missing locked {platform} input {entry['name']}: expected {source}")

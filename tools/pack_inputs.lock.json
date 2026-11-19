@@ -70,10 +70,10 @@
       "platform": "x86_64-unknown-linux-gnu",
       "python_tag": "cp313",
       "abi": "cp313",
-      "file": "cpython-3.13.14+20260610-x86_64-unknown-linux-gnu-install_only.tar.gz",
-      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.13.14+20260610-x86_64-unknown-linux-gnu-install_only.tar.gz",
+      "file": "cpython-3.13.14+20260610-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.13.14%2B20260610-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
       "checksum_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/SHA256SUMS",
-      "sha256": "31ebbb024fecb446d7f25a5b59ca1d4955597ca3f5b4b76f55b30a8987eb61c9"
+      "sha256": "d607e18e83227a0527cf3f54a48be973a75358a6885e4be67d4b0359b6f1c880"
     },
     {
       "kind": "wheel",

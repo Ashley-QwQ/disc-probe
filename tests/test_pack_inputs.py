@@ -51,6 +51,8 @@ def inputs(tmp_path):
     ("windows", "numpy", "byte", "SHA-256 mismatch"),
     ("windows", "cpython", "byte", "SHA-256 mismatch"),
     ("linux", "cpython", "byte", "SHA-256 mismatch"),
+    ("linux", "cpython", "unstripped", "asset name does not match linux lock"),
+    ("linux", "cpython", "missing", "missing locked linux input cpython"),
     ("windows", "pillow", "version", "METADATA name or version"),
     ("linux", "numpy", "platform", "WHEEL tag"),
     ("linux", "scipy", "missing", "missing locked linux input scipy"),
@@ -59,6 +61,8 @@ def test_invalid_input_refuses_to_create_archives(tmp_path, inputs, platform, na
     tool, lock_file, lock, cache = inputs
     entry = next(entry for entry in lock[platform] if entry["name"] == name)
     path = cache / entry["file"]
+    if (platform, name) == ("linux", "cpython"):
+        assert path.name.endswith("-install_only_stripped.tar.gz")
     if damage == "byte":
         data = path.read_bytes()
         path.write_bytes(bytes([data[0] ^ 1]) + data[1:])
@@ -68,6 +72,10 @@ def test_invalid_input_refuses_to_create_archives(tmp_path, inputs, platform, na
     elif damage == "platform":
         wheel(path, entry, platform="win_amd64")
         entry["sha256"] = receipt(path)
+    elif damage == "unstripped":
+        entry["file"] = path.name.replace("-install_only_stripped", "-install_only")
+        entry["url"] = entry["url"].replace("-install_only_stripped", "-install_only")
+        path.rename(cache / entry["file"])
     else:
         path.unlink()
     lock_file.write_text(json.dumps(lock), encoding="utf-8")
