@@ -63,6 +63,11 @@
 .sg-unk b, .sg-why b { font-weight: 700; }
 .sg-data { font: 400 16px / 1.5 var(--mono, ui-monospace, "Cascadia Mono", Consolas, monospace); color: var(--ink-2); overflow-wrap: anywhere; }
 .sg-checks { display: grid; gap: 14px; margin: 12px 0; }
+.sg-search { display: grid; gap: 8px; margin: 12px 0; }
+.sg-search textarea { padding: 8px; font: inherit; color: var(--ink); background: var(--paper-2);
+  border: 1px solid var(--rule-strong); border-radius: 4px; resize: vertical; }
+.sg-search button { justify-self: start; }
+.sg-search-results { overflow-wrap: anywhere; }
 
 .sg-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px var(--edge) var(--edge); min-height: var(--foot); border-top: 1px solid var(--rule); background: var(--paper); }
 .sg-foot-say { margin: 0; font-weight: 600; }

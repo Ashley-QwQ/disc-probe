@@ -170,8 +170,9 @@ async function checkDisc() {
       let jobId;
       (async()=>{try {
         await ctx.recheck();if(ctx.needSwap)throw Error(ctx.driveProblem);
-        const token=await api.backend.request('/api/burn-token');
-        await api.backend.job({action:'burn',drive:drive.id,media:'dvd',args:{iso:iso.path,speed},burn_token:token.token},e=>{
+        const request={action:'burn',drive:drive.id,media:'dvd',args:{iso:iso.path,speed}};
+        const token=await api.backend.request('/api/burn-token',request);
+        await api.backend.job({...request,burn_token:token.token},e=>{
           if(e.type==='started')jobId=e.job;
           if(e.type==='progress')onProgress({progress:e.fraction,elapsed:e.elapsed_s,remaining:e.eta_s});
           if(e.type==='burn_result')onProgress({burnResult:e});

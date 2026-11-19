@@ -93,8 +93,9 @@ def test_built_metadata_and_public_payload(tmp_path, monkeypatch, public, canoni
     """Build small real archives, then import the exported API in isolation."""
     backend = load(ROOT / '_build_backend.py')
     monkeypatch.setattr(backend, 'ROOT', tmp_path)
+    troubleshoot = 'discprobe/data/troubleshoot.json'
     for name in ('pyproject.toml', 'LICENSE', 'STYLE.md', 'DESIGN.md', 'docs/API_VERSIONING.md', 'INSTALL-linux.md',
-                 '_build_backend.py', 'discprobe/api.py'):
+                 '_build_backend.py', 'discprobe/api.py', troubleshoot):
         target = tmp_path / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes((ROOT / name).read_bytes())
@@ -113,6 +114,7 @@ def test_built_metadata_and_public_payload(tmp_path, monkeypatch, public, canoni
     installed = tmp_path / 'installed'
     with zipfile.ZipFile(wheel) as archive:
         archive.extractall(installed)
+        assert archive.read(troubleshoot) == (ROOT / troubleshoot).read_bytes()
         metadata = archive.read(f'disc_probe-{canonical}.dist-info/METADATA').decode()
         assert f'\nVersion: {canonical}\n' in metadata
     with tarfile.open(sdist) as archive:

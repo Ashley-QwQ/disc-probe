@@ -1,4 +1,5 @@
 """Core/GUI compatibility and packaging checks; no device enumeration or reads."""
+import os
 import http.client
 import importlib.util
 import json
@@ -116,9 +117,10 @@ class HandshakeTests(unittest.TestCase):
         self.assertEqual(self.get(server, '/../version.py')[0], 404)
 
     def test_gui_option_invalid_stops_before_listening(self):
-        command = subprocess.run([sys.executable, '-B', '-m', 'discprobe', 'webui', '--new-instance',
-                                  '--local-only', '--no-drives', '--port', '0', '--gui', str(self.root)],
-                                 cwd=ROOT, capture_output=True, timeout=20)
+        # its own state folder, so a DP service already running on this machine is not found and reused
+        env = {**os.environ, 'LOCALAPPDATA': str(self.root / 'state')}
+        command = subprocess.run([sys.executable, '-B', '-m', 'discprobe', 'webui', '--gui', str(self.root)],
+                                 cwd=ROOT, capture_output=True, timeout=20, env=env)
         self.assertNotEqual(command.returncode, 0)
         self.assertIn(b'gui.json', command.stderr)
         self.assertNotIn(b'Traceback', command.stderr)
@@ -140,7 +142,7 @@ class HandshakeTests(unittest.TestCase):
             self.assertEqual(wheel.read('discprobe/web/home/faxnews/community.json'),
                              (ROOT / 'news/community.json').read_bytes())
             metadata = wheel.read(next(n for n in names if n.endswith('.dist-info/METADATA'))).decode()
-            for dependency in ('numpy', 'Pillow', 'scipy', 'opencv-python-headless'):
+            for dependency in ('numpy', 'Pillow', 'scipy', 'opencv-python'):
                 self.assertIn('Requires-Dist: ' + dependency, metadata)
             entries = wheel.read(next(n for n in names if n.endswith('/entry_points.txt'))).decode()
             self.assertIn('disc-probe = discprobe.__main__:main', entries)

@@ -30,7 +30,7 @@ import sys
 import threading
 import time
 
-from . import guide, ui
+from . import disc_identity, guide, ui
 from .capacity import catalogue_capacity, positive_sectors
 
 GOOD = ("good", "usable")
@@ -123,7 +123,7 @@ def run(args) -> None:
         ui.event("step", name=name, index=i, total=len(steps))
         ui.say(f"\n[{i + 1}/{len(steps)}] {name}", "bold")
 
-    def child(*a) -> int:
+    def child(*a, env=None) -> int:
         """One step's command, its output on ours; stopped if the run is cancelled (a burn stops itself
         through the same marker, at a point where stopping is safe)."""
         nonlocal child_reason
@@ -131,7 +131,7 @@ def run(args) -> None:
         # A rotation stop precedes geo's first fit, so there may be no summary.json.
         # Relay stdout while retaining its plain stop sentence for the job event.
         proc = subprocess.Popen(_argv(*a), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
+                                stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace", env=env)
 
         def relay():
             nonlocal child_reason
@@ -139,6 +139,8 @@ def run(args) -> None:
                 print(line, end="", flush=True)
                 if line.startswith("stopped: "):
                     child_reason = line[len("stopped: "):].strip()
+                elif a[0] == "burn" and line.strip() == str(disc_identity.DiscChanged()):
+                    child_reason = line.strip()
 
         reader = threading.Thread(target=relay, daemon=True) if getattr(proc, "stdout", None) else None
         if reader:
@@ -181,18 +183,22 @@ def run(args) -> None:
             step("burn")
             if not args.yes_write:
                 raise Stopped("burning needs --yes-write")
+            erase = getattr(args, "erase", False)
+            expected = disc_identity.expected_for_write(args.drive, erasing=erase)
+            burn_env = {**os.environ, disc_identity.EXPECTED_ENV: disc_identity.encode_expected(args.drive, expected)}
             blank = read_disc()
             ui.event('disc', **blank)
             if capacity is None:
-                capacity = blank.get('capacity_sectors') if blank.get('blank') is True or getattr(args, 'erase', False) and blank.get('rewritable') else None
+                capacity = blank.get('capacity_sectors') if blank.get('blank') is True or erase and blank.get('rewritable') else None
                 capacity_source = 'blank disc before burning' if capacity else None
             code = child("burn", "--drive", args.drive, "--iso", args.iso, "--media", args.media, "--yes-write",
-                         *(['--erase'] if getattr(args, 'erase', False) else []),
+                         *(['--erase'] if erase else []),
                          *(["--speed", args.burn_speed] if args.burn_speed else []),
                          *(["--work", args.work] if getattr(args, "work", None) else []),
-                         *(["--disc-code", args.disc_id_code] if getattr(args, "disc_id_code", None) else []))
+                         *(["--disc-code", args.disc_id_code] if getattr(args, "disc_id_code", None) else []),
+                         env=burn_env)
             if code:
-                raise Stopped("the burn did not finish")
+                raise Stopped(child_reason or "the burn did not finish")
 
         step("check")
         disc = read_disc()
@@ -267,7 +273,7 @@ def run(args) -> None:
             found["capacity_source"] = capacity_source
         ui.event("calibrated", ok=True, **found)
         ui.say("\nCalibrated.", "green")
-    except Stopped as why:
+    except (Stopped, disc_identity.DiscChanged) as why:
         ui.event("calibrated", ok=False, reason=str(why), **found)
         ui.event("error", message=str(why))
         raise SystemExit(str(why)) from None

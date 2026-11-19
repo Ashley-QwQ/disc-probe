@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -120,7 +121,8 @@ def test_cli_full_disc(tmp_path):
     page=js(tmp_path,dict(action='compose',document=d,grid=E.grid(6000)))
     assert labels.dtype==np.uint8 and labels.shape==(6000,6000)
     assert labels.tobytes()==page
-    evidence=ROOT/'evidence/editor';evidence.mkdir(exist_ok=True)
+    evidence=Path(os.environ.get("DISCPROBE_EDITOR_TEST_EVIDENCE", ROOT/'evidence/editor'))
+    evidence.mkdir(parents=True, exist_ok=True)
     (evidence/'compose-parity.json').write_text(json.dumps(dict(shape=list(labels.shape),dtype=str(labels.dtype),mismatched_cells=0,python_sha256=hashlib.sha256(labels.tobytes()).hexdigest(),page_js_sha256=hashlib.sha256(page).hexdigest()),indent=2),encoding='utf8')
 
 PATTERNS=sorted((ROOT/'tests/fixtures/editor-patterns').glob('*.json'))

@@ -360,7 +360,11 @@ class Store:
         if status and status not in STATUSES or media and media not in ("cd", "dvd", "bd") or sort not in ("time", "name"):
             raise WorkError("invalid work filter")
         with self._locked():
-            rows = [self._read(p) for p in self.root.iterdir() if ID.fullmatch(p.name) and p.is_dir()]
+            # A folder left without work.json (an interrupted delete on Windows can leave assets/
+            # behind) is not a work: skip it instead of failing every listing, and with it the
+            # bookkeeping after a burn that has already succeeded.
+            rows = [self._read(p) for p in self.root.iterdir()
+                    if ID.fullmatch(p.name) and p.is_dir() and (p / "work.json").is_file()]
             rows = [w for w in rows if (not status or w["status"] == status) and (not media or w["media"] == media)]
             return sorted(rows, key=lambda w: (w["name"].casefold(), w["id"]) if sort == "name" else (w["updated_at"], w["id"]), reverse=sort == "time")
 

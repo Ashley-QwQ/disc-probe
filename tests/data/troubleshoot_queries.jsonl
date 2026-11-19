@@ -1,0 +1,83 @@
+{"case":1,"kind":"error","expected":"timing-no-period","query":"Zone 0.95 (LBA 2062016): no period found\nRotation: unknown (zones [0.95] have no clear period; the speed may be changing, try a fixed --speed)\nRotation is unknown, not CAV, so the phase test would not give disc angles; skipping it. Try another --speed, or pass --force to run it anyway."}
+{"case":2,"kind":"error","expected":"timing-no-period","query":"Zone 0.87 (LBA 1,835,123): no period found"}
+{"case":3,"kind":"error","expected":"timing-no-period","query":"转速方式：unknown（位置 [0.8, 0.93] 没有清晰的周期，转速可能还在变化，试试用 --speed 固定速度）"}
+{"case":4,"kind":"error","expected":"timing-reference-period","query":"Target 0.77: reference has no clear period; try a fixed speed and measure again"}
+{"case":5,"kind":"error","expected":"timing-clv","query":"Rotation is CLV, not CAV, so the phase test would not give disc angles; skipping it. Try another --speed, or pass --force to run it anyway."}
+{"case":6,"kind":"error","expected":"timing-cache","query":"Stopped: cache/host timer period near 15.625 ms or a harmonic; this is not proof of CLV."}
+{"case":7,"kind":"error","expected":"timing-cache","query":"Stopped: cache/false period: a FUA read takes 2.84 turns of this period, not a whole number; stop before fitting angles."}
+{"case":8,"kind":"error","expected":"timing-jitter","query":"Verdict: CAV, but 0.73-7.09 deg jitter is too high: drives reported at this level stopped early"}
+{"case":9,"kind":"error","expected":"speed-units","query":"Note: --speed is in kB/s, so 8 is very slow. For a multiple, write 8x."}
+{"case":10,"kind":"error","expected":"geo-drive-changed","query":"Verdict: not settled. The drive changed during the run: the point at 52.12 mm read +0.75 deg differently at the end."}
+{"case":11,"kind":"error","expected":"geo-medium-error","query":"Reads at LBA 1660, 123041 and 27 failed with a medium error, which plain random data rarely gives."}
+{"case":12,"kind":"error","expected":"geo-medium-error","query":"扇区号 193888, 2080040 读不出来（介质错误），整张随机数据的盘很少这样。"}
+{"case":13,"kind":"error","expected":"geo-range-empty","query":"--ranges has to overlap the recorded area. See the last LBA with:"}
+{"case":14,"kind":"error","expected":"geo-whole-turn","query":"after the rung at LBA 1281489: chi2/dof 23.1, worst residual 91.3 deg; a whole-turn count is probably wrong, so the fit was stopped"}
+{"case":15,"kind":"error","expected":"geo-partial-span","query":"--geo latest: only partial measurements cover radii [[24.9, 51.8]] mm. Use an explicit summary.json within its measured intervals; outside is extrapolation."}
+{"case":16,"kind":"error","expected":"geo-latest-missing","query":"--geo latest: there is no geo result yet in \"D:\\Sample Run\\results\". Run geo first, or give a summary.json path."}
+{"case":17,"kind":"error","expected":"dis-bad-chi2","query":"this run's angle fit leaves chi2/dof 29.2; `results` already treats it as unusable, and a preset is not the place to try it."}
+{"case":18,"kind":"error","expected":"dis-few-points","query":"this run fitted 2 zones, fewer than the 5 a straight T^2 line needs before `results` trusts it (`geo --media bd --bd-zones` sets how many)."}
+{"case":19,"kind":"error","expected":"dis-old-quality","query":"this summary has no angle_sigma_measured_span_deg, so that quality check did not run: it was measured by an older version of geo."}
+{"case":20,"kind":"error","expected":"dis-sector-count","query":"A preset needs --sectors: the capacity of your disc (`info` prints it)"}
+{"case":21,"kind":"error","expected":"dis-bd-break","query":"this run's periods step at sector 4,930,661 instead of rising smoothly: two lines describe it with 62% less residual."}
+{"case":22,"kind":"error","expected":"diagnose-run-folder","query":"diagnose: diagnose RUN needs a run folder or its summary.json"}
+{"case":23,"kind":"error","expected":"diagnose-no-records","query":"diagnose: No recognized run records found; choose the folder containing summary.json or info.json."}
+{"case":24,"kind":"error","expected":"diagnose-symlink","query":"diagnose: Refusing a diagnostics.zip symlink"}
+{"case":25,"kind":"error","expected":"diagnose-summary","query":"{\"status\":\"unknown\",\"note\":\"No parseable summary; see run records.\"}"}
+{"case":26,"kind":"error","expected":"linux-permission","query":"PermissionError: [Errno 13] Permission denied: '/dev/sr2'"}
+{"case":27,"kind":"error","expected":"web-port","query":"error: [WinError 10048] Only one usage of each socket address (protocol/network address/port) is normally permitted"}
+{"case":28,"kind":"error","expected":"drive-required","query":"give --drive J: (see `python -m discprobe list`) or --sim cav|clv|cav-nofua"}
+{"case":29,"kind":"error","expected":"drive-required","query":"give --drive /dev/sr8 (see `python -m discprobe list`) or --sim cav|clv|cav-nofua"}
+{"case":30,"kind":"error","expected":"parser-option","query":"error: unrecognized arguments: --speeed 4x"}
+{"case":31,"kind":"error","expected":"cd-inner-margin","query":"ISO 9660 sectors overlap the drawing; leave an inner background margin"}
+{"case":32,"kind":"error","expected":"photo-weak-peak","query":"{\"status\":\"weak_peak\",\"verdict\":\"retake\"}"}
+{"case":33,"kind":"error","expected":"photo-radius-coverage","query":"{\"status\":\"poor_radius_coverage\",\"verdict\":\"retake\"}"}
+{"case":34,"kind":"error","expected":"photo-rings-not-found","query":"拍全盘：找不到标靶的圆环。拍全盘、对好焦，确认拍的是这次刻的标靶盘。"}
+{"case":35,"kind":"error","expected":"photo-duplicate","query":"{\"error\":\"this photo was already sent\",\"code\":\"duplicate_photo\"}"}
+{"case":36,"kind":"error","expected":"photo-group-check","query":"L moves when one photo is left out"}
+{"case":37,"kind":"error","expected":"photo-same-pose","query":"{\"status\":\"unknown\",\"reason\":\"same_pose\"}"}
+{"case":38,"kind":"error","expected":"curve-lock","query":"curve_edit_busy: retry after the other save"}
+{"case":39,"kind":"error","expected":"curve-controls","query":"{\"ok\":false,\"saved\":false,\"validation\":{\"reason\":\"controls_must_cover_exact_automatic_range\"}}"}
+{"case":40,"kind":"error","expected":"colour-texture-table","query":"ValueError: colour texture 92 is missing from the active colour table; select --table FILE"}
+{"case":41,"kind":"error","expected":"colour-materials-file","query":"colour materials file not found: D:\\Design Work\\custom.json; use --materials JSON or DISCPROBE_COLOUR_MATERIALS"}
+{"case":42,"kind":"error","expected":"colour-pose","query":"colour picture needs a phone and shooting height in scene.rig"}
+{"case":43,"kind":"error","expected":"editor-raster-fallback","query":"SVG requires the page raster fallback beside the original"}
+{"case":44,"kind":"error","expected":"photo-target-id","query":"这张 ISO 没有用照片 L：没填标靶盘号，不会用到出图上。在上面填这张标靶盘的编号，再读一次。"}
+{"case":45,"kind":"error","expected":"web-offline","query":"连接不到后端。启动本机 webui 服务，再点重试。"}
+{"case":46,"kind":"symptom","expected":"unreadable-after-burn","query":"刻完读不出来"}
+{"case":47,"kind":"symptom","expected":"colour-wrong","query":"颜色不对"}
+{"case":48,"kind":"symptom","expected":"web-offline","query":"网页打不开"}
+{"case":49,"kind":"symptom","expected":"web-double-click","query":"双击没反应"}
+{"case":50,"kind":"symptom","expected":"photo-no-adoption","query":"拍照一直不通过"}
+{"case":51,"kind":"symptom","expected":"linux-permission","query":"linux 说没权限"}
+{"case":52,"kind":"symptom","expected":"geo-speed-keep","query":"我这边不设速度正常，一设读速就变成 CLV，怎么保持？"}
+{"case":53,"kind":"symptom","expected":"geo-outer-range","query":"总在外沿的同一段扇区卡住，怎么跳过？"}
+{"case":54,"kind":"symptom","expected":"disc-close-fails","query":"到最后一步就显示封盘失败"}
+{"case":55,"kind":"symptom","expected":"photo-angle-coverage","query":"光盘拍出来只有一小片彩条，有什么办法？"}
+{"case":56,"kind":"symptom","expected":"photo-unstable-l","query":"为什么同一张照片不同位置读数不一致？"}
+{"case":57,"kind":"symptom","expected":"dis-sector-count","query":"在 DIS 导出，空盘扇区到底怎么填？"}
+{"case":58,"kind":"symptom","expected":"burn-iso-mount","query":"我双击了 iso 怎么只挂载没有刻进去"}
+{"case":59,"kind":"symptom","expected":"cd-burn-layout","query":"CD 刻完纹理都是噪声，模式是不是错了"}
+{"case":60,"kind":"symptom","expected":"geo-correction-saved","query":"刚跑完几何，已有自动修正要在出图时手动加吗"}
+{"case":61,"kind":"symptom","expected":"burn-write-speed","query":"低速刻的盘回读错误，换什么刻录速度"}
+{"case":62,"kind":"symptom","expected":"web-disc-type","query":"如何换盘种？我放的是 CD，网页里现在显示 DVD"}
+{"case":63,"kind":"symptom","expected":"texture-92-read","query":"为什么我那张纯 92 的盘读起来一直重试"}
+{"case":64,"kind":"symptom","expected":"no-picture-visible","query":"刻出来转一圈只有彩虹，看不到图案"}
+{"case":65,"kind":"symptom","expected":"curve-validation","query":"能直接用照片 L 当角度修正曲线吗？"}
+{"case":66,"kind":"symptom","expected":"photo-unreadable","query":"手机里照片能开，上传后说图打不开"}
+{"case":67,"kind":"symptom","expected":"photo-radius-coverage","query":"校准拍照时内圈有彩纹但外圈没有"}
+{"case":68,"kind":"symptom","expected":"linux-permission","query":"I can't access the optical device on Linux as a normal user"}
+{"case":69,"kind":"symptom","expected":"web-offline","query":"The page won't open on localhost, did I close something?"}
+{"case":70,"kind":"symptom","expected":"web-double-click","query":"I double click Start and no browser opens"}
+{"case":71,"kind":"symptom","expected":"unreadable-after-burn","query":"My freshly burned disc won't read at all"}
+{"case":72,"kind":"symptom","expected":"colour-wrong","query":"Why don't the preview colors match the real disc?"}
+{"case":73,"kind":"symptom","expected":"timing-clv","query":"My drive is stuck in constant linear velocity, can it measure angles?"}
+{"case":74,"kind":"symptom","expected":"speed-units","query":"What units are used for a read speed of 4?"}
+{"case":75,"kind":"symptom","expected":"geo-whole-turn","query":"What do I do when the whole turn count is ambiguous?"}
+{"case":76,"kind":"symptom","expected":"cd-twisted-lines","query":"The crosshair I burned on CD is curved instead of straight"}
+{"case":77,"kind":"symptom","expected":"photo-too-few-votes","query":"The glare is hiding most of my calibration stripes"}
+{"case":78,"kind":"symptom","expected":"dis-simulated","query":"I tried to install the preset from a simulated drive"}
+{"case":79,"kind":"symptom","expected":"dis-install-replace","query":"How do I update an existing DIS preset rather than adding a new one?"}
+{"case":80,"kind":"symptom","expected":"web-port","query":"Starting a second webui on the same port doesn't work"}
+{"case":81,"kind":"symptom","expected":"photo-pending","query":"The computer hasn't read any of the photos I uploaded"}
+{"case":82,"kind":"symptom","expected":"photo-one-pass","query":"Only one usable photo so far, should I retake it?"}
+{"case":83,"kind":"symptom","expected":"editor-colour-fill","query":"Why does colour fill need a DVD layer?"}

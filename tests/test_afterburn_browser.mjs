@@ -53,8 +53,9 @@ try{
     burn.start(abApi,{media:'dvd',item:{name:'刻后流程 · Disc Lab'},iso:info,drive:{id:'X:',name:'Disc Lab X:',speeds:speeds.speeds_x},discIn:true,
       swap:async()=>{},back(){},done:()=>abApi.toLobby(),
       burn(onProgress,{speed}){let id; (async()=>{try{
-        const token=await backend.request('/api/burn-token');
-        await backend.job({action:'burn',drive:'X:',media:'dvd',work,args:{iso:'iso/review.iso',speed},burn_token:token.token},e=>{
+        const request={action:'burn',drive:'X:',media:'dvd',args:{iso:'iso/review.iso',speed}};
+        const token=await backend.request('/api/burn-token', request);
+        await backend.job({...request,work,burn_token:token.token},e=>{
           if(e.type==='started')id=e.job;if(e.type==='progress')onProgress({progress:e.fraction,elapsed:e.elapsed_s,remaining:e.eta_s});
           if(e.type==='burn_result')onProgress({burnResult:e});});onProgress({status:'success',progress:1});
       }catch(e){onProgress({status:'failed',error:e.message});}})();return {cancel(){if(id)backend.cancel(id)}};}});

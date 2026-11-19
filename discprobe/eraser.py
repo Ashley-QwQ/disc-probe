@@ -10,7 +10,7 @@ import sys
 import threading
 import time
 
-from . import mmc, ui
+from . import disc_identity, mmc, ui
 from .burner import BurnError, parse_progress, tool
 from .drive_lock import locked_drive
 
@@ -31,7 +31,7 @@ class PlatformEraser:
     def inspect(self):
         return inspect(self.drive)
 
-    def erase(self, full, cancel, progress):
+    def erase(self, full, cancel, progress, *, before_write=None):
         disc = self.inspect()  # fresh evidence immediately before the destructive call
         if not disc.get('rewritable'):
             raise BurnError('This disc is not rewritable; erasing is refused.')
@@ -61,6 +61,8 @@ class PlatformEraser:
             raise BurnError('Erasing on this platform is not implemented.')
         if cancel.is_set():
             raise BurnError('Erase cancelled before starting; nothing was changed.')
+        if before_write is not None:
+            before_write()
         process = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                                    **({'creationflags': 0x08000000} if sys.platform == 'win32' else
                                       {'start_new_session': True, 'env': {**os.environ, 'LC_ALL': 'C'}}))
@@ -107,7 +109,11 @@ def adapter(drive):
 
 
 @locked_drive("erase")
-def erase(drive, *, full=False, cancel=None, recorder=None):
+def erase(drive, *, full=False, cancel=None, recorder=None, expected_identity=None):
+    if expected_identity is None and (recorder is None or isinstance(recorder, PlatformEraser)):
+        expected_identity = disc_identity.expected_for_write(drive, erasing=True)
+    if expected_identity is not None:
+        disc_identity.require_identity(expected_identity, erasing=True)
     cancel = cancel or threading.Event()
     recorder = recorder or adapter(drive)
     disc = recorder.inspect()
@@ -115,22 +121,35 @@ def erase(drive, *, full=False, cancel=None, recorder=None):
         raise BurnError('This disc is not rewritable; erasing is refused.')
     if cancel.is_set():
         raise BurnError('Erase cancelled before starting; nothing was changed.')
-    ui.say('Erasing the rewritable disc. Its contents will be cleared; keep the drive connected.')
-    ui.event('erase_started', drive=drive, full=full, **{k:v for k,v in disc.items() if k.startswith('rewritable')})
     started = time.monotonic()
     def progress(**fields):
         fields['stage'] = 'erasing'
         if fields.get('eta_s') == 0 and fields.get('fraction', 0) < 1:
             fields['eta_s'] = None
         ui.event('erase_progress', **fields)
-    progress(fraction=0, elapsed_s=0, eta_s=0)
+    def before_write():
+        if expected_identity is not None:
+            disc_identity.check_identity(drive, expected_identity)
+        if cancel.is_set():
+            raise BurnError('Erase cancelled before starting; nothing was changed.')
+        ui.say('Erasing the rewritable disc. Its contents will be cleared; keep the drive connected.')
+        ui.event('erase_started', drive=drive, full=full, **{k:v for k,v in disc.items() if k.startswith('rewritable')})
+        progress(fraction=0, elapsed_s=0, eta_s=0)
+
     try:
-        result = recorder.erase(full, cancel, progress) or {}
+        options = {}
+        if isinstance(recorder, PlatformEraser):
+            options["before_write"] = before_write
+        else:
+            before_write()
+        result = recorder.erase(full, cancel, progress, **options) or {}
         after = recorder.inspect()
         if cancel.is_set():
             raise BurnError('Erase was stopped; disc state is uncertain. Inspect it and erase again before burning.')
         if after.get('blank') is not True and not (result.get('overwrite_ready') and after.get('rewritable')):
             raise BurnError('The drive did not confirm blank or overwrite-ready media.')
+    except disc_identity.DiscChanged:
+        raise
     except (OSError, ValueError) as exc:
         ui.event('erase_result', result='cancelled' if cancel.is_set() else 'failed', reason=str(exc),
                  disc_state='unknown', next_action='inspect_and_erase_again', elapsed_s=time.monotonic()-started)
@@ -154,8 +173,9 @@ def run(args):
     watcher = threading.Thread(target=watch, daemon=True)
     watcher.start()
     try:
-        erase(args.drive, full=args.full, cancel=cancel)
-    except BurnError as exc:
+        expected = disc_identity.expected_for_write(args.drive, erasing=True)
+        erase(args.drive, full=args.full, cancel=cancel, expected_identity=expected)
+    except (BurnError, disc_identity.DiscChanged) as exc:
         ui.event('error', message=str(exc))
         raise SystemExit(str(exc)) from None
     finally:
