@@ -1,0 +1,27 @@
+Disc Neo data pack: licence notice
+==================================
+
+Everything in this folder is licensed under the GNU General Public License,
+version 3 or (at your option) any later version. SPDX identifier:
+GPL-3.0-or-later. That covers the texture atlas data (atlas/), the CSV
+indexes, the documentation, and the texture cards (texture-cards/: PDFs, data,
+scripts, research inputs and checks). The full licence text follows below.
+
+For this data, the "preferred form of the work for making modifications" is the
+JSON and CSV files shipped here, together with the programs that produced them
+in the disc-probe repository (tools/build_neo.py, the texture atlas under
+evidence/atlas/, and docs/texture-cards/scripts/). PROVENANCE.json records the
+exact versions and file hashes.
+
+If you redistribute this data or something built from it, keep this notice and
+the licence, and offer your changes under the same terms.
+
+The colours in this pack are model predictions and have not been checked
+against photographs. There is NO WARRANTY: see sections 15 and 16 below.
+
+中文说明：本文件夹里的全部内容（纹理图谱数据、CSV 索引、说明文档、色卡 PDF 与脚本）
+都按 GNU 通用公共许可证第 3 版或（由你选择）任何更新版本授权（GPL-3.0-or-later）。
+转发或基于它做的东西也要保留本声明和许可证，并按同样条款提供修改。颜色是模型预测，
+没有实拍验证，不提供任何担保。许可证全文如下（英文原文为准）。
+
+--------------------------------------------------------------------------------
