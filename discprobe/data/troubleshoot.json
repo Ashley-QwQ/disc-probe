@@ -32,12 +32,12 @@
   {
     "id": "burn-erase-media",
     "symptoms": {"zh": ["擦盘按钮灰色不可用", "擦除按钮不能按", "为什么不能擦盘", "显示要用可擦写盘"], "en": ["erase disc button is disabled", "erase option greyed out", "rewritable disc not recognised for erase"]},
-    "error_patterns": [{"text": "a verified rewritable disc is required"}],
+    "error_patterns": [{"text": "This disc cannot be erased: only rewritable discs"}, {"text": "这张盘不能擦除"}, {"text": "a verified rewritable disc is required"}],
     "cause": {"zh": "擦除需要程序确认盘片可擦写。DVD+R、DVD-R 和 CD-R 是一次性盘。", "en": "Erasing requires the app to verify that the disc is rewritable. DVD+R, DVD-R and CD-R are write-once media."},
     "steps": {"zh": ["核对盘上的类型标记。如果是 RW 盘，把盘放好后重新检查光驱里的盘，确认它被识别成可擦写。"], "en": ["Check the media marking. For an RW disc, insert it and recheck the disc in the drive to confirm it is detected as rewritable."]},
     "commands": [],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/disc_identity.py", "line": 88, "keyword": "if erasing and (identity[\"rewritable\"] is not True"}, {"path": "README.en.md", "line": 168, "keyword": "only RW discs can"}, {"path": "discprobe/web/home/burn.js", "line": 36, "keyword": "Check the disc in the drive again"}]
+    "sources": [{"path": "discprobe/disc_identity.py", "line": 90, "keyword": "if erasing and identity[\"rewritable\"] is not True:"}, {"path": "README.en.md", "line": 168, "keyword": "only RW discs can"}, {"path": "discprobe/web/home/burn.js", "line": 36, "keyword": "Check the disc in the drive again"}]
   },
   {
     "id": "burn-interrupted",
