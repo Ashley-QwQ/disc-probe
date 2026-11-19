@@ -1145,7 +1145,8 @@ def cmd_colour_design(args):
     from pathlib import Path
     from . import editor_colour, editor_preview, texlib
     try:
-        doc = editor_colour.design(args.image, args.phone, args.height, args.materials, args.dither, args.fit, args.flash_mm, args.table)
+        doc = editor_colour.design(args.image, args.phone, args.height, args.materials, args.dither, args.fit,
+                                   args.flash_mm, args.table, mapping=args.mapping)
         if not args.no_arrow:
             skipped = editor_colour.add_direction_arrow(doc)
             if skipped:
@@ -2488,6 +2489,8 @@ def _build_parser():
     sp.add_argument('--flash-mm', type=float, help='flash-to-lens distance for a custom phone')
     sp.add_argument('--materials', help='override the bundled material set with a JSON file containing texture specs')
     sp.add_argument('--dither', choices=('ordered', 'nearest'), default='ordered')
+    sp.add_argument('--mapping', choices=('perceptual', 'vivid'), default='perceptual',
+                    help='vivid favours brighter textures with a fitted table (default: perceptual)')
     sp.add_argument('--fit', choices=('disc', 'ring'), default='disc', help='fill the disc or fit the picture above the hub')
     sp.add_argument('--no-arrow', action='store_true', help="omit the direction arrow at 12 o'clock (added by default)")
     sp.add_argument('-o', '--out', required=True, help='work JSON')

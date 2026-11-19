@@ -35,7 +35,7 @@
 - `material:稳定ID`。
 - `pattern:{version:1,pattern:diamond|dots|stripes,coordinates:cartesian|polar,pitch_mm,size_mm,angle_deg,origin_mm,phase_mm,reference_radius_mm,segments?,materials:[ID,ID]}`。复用原型整数量化规则；图案固定在盘坐标，物体变换只改变覆盖区域。
 - `effect:{kind:flow|ox|merge|sync,y1,y2,wavelength_um?}`。沿用旧页面已有的目标机位场，核心根据一阶光栅式在本项目材料中选最近周期；光学预测仍待实盘验证。选区效果以整盘为区域，图层效果以图层框为区域。
-- `colour:{materials:[ID,…],dither:ordered|nearest,table?}`。只支持 DVD 图片层，需要作品保存 `scene.rig` 中的手机和拍摄高度。`table` 可记录色表签名和是否校正。候选材质的字节纹理保存在作品中，预测使用当前配置的色表。
+- `colour:{materials:[ID,…],dither:ordered|nearest,table?,mapping?}`。只支持 DVD 图片层，需要作品保存 `scene.rig` 中的手机和拍摄高度。`table` 可记录色表签名和是否校正。候选材质的字节纹理保存在作品中，预测使用当前配置的色表。
 
 先按图层顺序合成，层内填充按记录顺序覆盖；然后按记录顺序应用选区填充。隐藏层不输出其层内填充，锁定层仍输出。选区填充独立于图层。最后裁切 `annulus_mm`；默认 DVD/BD 24–58 mm，CD 26–58 mm（保留文件系统）。示意范围不是几何测量。
 
@@ -53,6 +53,10 @@ python -m discprobe compose work.json --out design.npy
 合成后的 `design.npy` 和 `.textures.json` 可交给下节的 `image`。`--fit disc` 填到外缘并由环带裁切。`--fit ring` 把整张图放在盘心上方的环带内。`colour-design` 和网页的彩色图默认使用 `discprobe/colour_print/` 随包分发的 58 种拟合材质。可用 `--table NPZ`、`--materials JSON`，或 `DISCPROBE_COLOUR_TABLE`、`DISCPROBE_COLOUR_MATERIALS` 更换来源。若选择了外部色表，后续 `compose` 和 `simulate --work` 也要指定同一色表。已保存的第一轮未拟合填充沿用原选材方式和纹理库，重新应用彩色图填充即可采用拟合材质。
 
 网页在颜色页选择「彩色图」。灯下预测与刻出来的材质分布使用 `/api/editor-preview` 返回的 PNG。拟合灯下视图只显示已分配纹理的衍射光，alpha 不叠加镜面底光。斜线标出当前机位的模型无数据区域。预览是模型估计，混色还没实刻验证，角度变化也会改变颜色。
+
+`colour-design --mapping vivid` 启用鲜艳模式，仅在目标彩度超出当前角度的候选范围时压缩彩度，并优先选择较亮的纹理。它需要拟合色表，写入 `colour.mapping`，默认使用感知映射。
+
+`colour-design --mapping vivid` requires a fitted table, limits chroma to the available range, and favours brighter textures. It saves `colour.mapping` in the work. The default is perceptual mapping.
 
 ## 影调与抖动（2026-11-12）
 

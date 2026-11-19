@@ -130,6 +130,42 @@ def test_cli_no_arrow(tmp_path):
     assert len(saved['layers']) == len(saved['assignments']) == 1
     assert all(m['spec'] != 'RND' for m in saved['materials'])
     assert saved == C.design(picture, 'iphone17pro', 21)
+    assert 'mapping' not in saved['assignments'][0]['colour']
+
+
+def test_cli_saves_vivid_mapping(tmp_path):
+    from discprobe import __main__ as cli
+
+    picture = tmp_path / 'vivid.png'
+    out = tmp_path / 'vivid.json'
+    Image.new('RGB', (2, 2), '#ffbf30').save(picture)
+    cli.main(['colour-design', str(picture), '--phone', 'iphone17pro', '--height', '22.3',
+              '--mapping', 'vivid', '--no-arrow', '-o', str(out)])
+    saved = json.loads(out.read_text(encoding='utf-8'))
+    colour = E.validate(saved)['assignments'][0]['colour']
+    assert colour['mapping'] == 'vivid'
+    assert colour['table']['mapping'] == 'perceptual'
+    labels = E.compose(saved, E.grid(80))
+    del colour['mapping']
+    assert np.any(labels != E.compose(saved, E.grid(80)))
+
+
+@pytest.mark.parametrize('grey, default_slot, vivid_slot', [(89, 2, 3), (0, 2, 2)])
+def test_vivid_favours_light_without_lifting_black(table, grey, default_slot, vivid_slot):
+    doc = work('nearest')
+    doc['layers'][0]['raster']['rgba'] = base64.b64encode(bytes([grey] * 3 + [255] + [0] * 4)).decode()
+    fitted = {**table, 'fitted': True}
+    g = E.grid(32)
+    assert set(np.unique(E.compose(doc, g, colour_table=fitted))) == {0, default_slot}
+
+    colour = doc['assignments'][0]['colour']
+    colour['mapping'] = 'vivid'
+    assert set(np.unique(E.compose(doc, g, colour_table=fitted))) == {0, vivid_slot}
+    with pytest.raises(ValueError, match='requires a fitted colour table'):
+        E.compose(doc, g, colour_table=table)
+    colour['mapping'] = 'unknown'
+    with pytest.raises(ValueError, match='must be perceptual or vivid'):
+        E.compose(doc, g, colour_table=fitted)
 
 
 @pytest.mark.parametrize('ring, expected_tail, expected_tip', [
