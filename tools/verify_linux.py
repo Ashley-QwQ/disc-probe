@@ -42,6 +42,8 @@ REMOTE_VERIFY = """\
 artifact = root / cfg['file']
 unpacked = root / 'Extracted package'
 unpacked.mkdir()
+temporary = root / 'tmp'
+temporary.mkdir()
 package = unpacked / cfg['prefix']
 with artifact.open('rb') as source:
     assert hashlib.file_digest(source, 'sha256').hexdigest() == cfg['sha256'], 'ZIP SHA-256 mismatch'
@@ -54,7 +56,7 @@ print('Modes immediately after unzip:', json.dumps(modes), flush=True)
 assert all(os.access(path, os.X_OK) for path in executables), 'unzip did not restore executable bits'
 env = dict(os.environ, HOME=str(unpacked), XDG_CACHE_HOME=str(unpacked / 'cache'),
            XDG_CONFIG_HOME=str(unpacked / 'config'), XDG_RUNTIME_DIR=str(unpacked / 'runtime'),
-           TMPDIR=str(unpacked), PYTHONNOUSERSITE='1', BROWSER='false',
+           TMPDIR=str(temporary), PYTHONNOUSERSITE='1', BROWSER='false',
            OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1', MKL_NUM_THREADS='1',
            NUMEXPR_NUM_THREADS='1', DISCPROBE_WORKERS='1', DISC_PROBE_NO_DRIVES='1')
 for key in ('PYTHONHOME', 'PYTHONPATH'):
@@ -137,10 +139,11 @@ print('PASS', flush=True)
 """
 
 REMOTE_CLEANUP = """\
-path = root / 'Extracted package'
-if path.exists():
-    assert path.resolve().parent == root.resolve()
-    shutil.rmtree(path)
+for directory in ('Extracted package', 'tmp'):
+    path = root / directory
+    if path.exists():
+        assert path.resolve().parent == root.resolve()
+        shutil.rmtree(path)
 (root / cfg['file']).unlink(missing_ok=True)
 print('Removed uploaded and extracted package; retained logs in', root)
 """
