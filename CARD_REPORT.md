@@ -1,3 +1,34 @@
+# 卡 AD · 彩图方向箭头
+
+**结果：受阻，未实现。** 工作树 `D:/dp-dev/arrow`，分支 `dev/colour-arrow`，基点 `f3d0f2f`。
+
+## 按提交交付
+
+- `Report colour arrow validation blocker` 记录基点复现及未完成的验收。根目录原有的社区提示卡报告保留在下方。
+
+## 阻塞与复现
+
+将卡片的 7 个顶点从数据面坐标换算为编辑器局部坐标，构造一个 DVD 多边形图层，用 `tex:RND` 单材质填充。`migrate()` 保留了 `spec: "RND"`，但 [`editor_ops.validate()`](discprobe/editor_ops.py#L105) 的材质检查只接受长度为 2–256 的偶数位十六进制字符串。CLI 合成和网页导出的合成接口都调用该校验，且 `.textures.json` 直接写出文档材质的 `spec`。要让现有合成入口输出 `RND` 槽位，需要让文档校验接受 `RND`。按任务卡的停止条件，本轮停在这一处。
+
+| 检查 | 结果 |
+| --- | --- |
+| `python -B -X utf8 -m discprobe compose RND.work.json --out RND.npy`（测试目录用绝对路径） | 退出码 1，`material must be a supported hex byte texture`。标签和材质清单均未生成。 |
+| 同一多边形的 `808080` 十六进制对照，执行同样的 `compose` | 退出码 0，生成 6000 × 6000 的标签。材质依次为 `B9`、`A5`、`808080`，槽位 2 有 59,662 格。多边形面积 23.8128 mm²，按 20 µm 格估算 59,532 格，差 130 格（0.22%）。这是对照值。 |
+| `node --input-type=module -e …`，直接调用 `lamp-optics.mjs` 的 `materialCurve()` | 退出码 0，返回 `known: true`、`curve: null`，识别 `RND`。 |
+| `imagedisc.texture_bytes("RND", np.array([16], dtype=np.uint64))` | 1 个扇区，2,048 个 `uint8` 字节。SHA-256 为 `6c68c7cc315a11d98431b0a35d99c6701607225bfdf56a68cfc109ca62296612`。这是镜像写入器的材质字节检查。 |
+| `git diff f3d0f2f --stat`（路径排除按任务卡执行） | 仅报告文件有差异，合成和镜像生成的源码差异为 0。 |
+
+复现日志含完整命令和退出码，保存在 `F:/dp-archive/tmp/colour-arrow/rnd-check-c26a076a/proof.log`。测试前 D 盘剩余约 199.9 GiB。临时标签和夹具已删除，本次未生成 ISO。
+
+## 未完成的验收与待审查决定
+
+- 未测 4-18 和至少 3 份现有夹具的跨版本标签及材质清单 SHA-256，也未测 4-18 ISO 的跨版本 SHA-256。
+- 两个新建入口尚未实现。`--no-arrow` 的旧字节兼容、默认作品的合成与 ISO、RND 槽位计数、两个机位的 B9 覆盖比例与镜面带宽度均未测。
+- 网页勾选、取消勾选、去重、撤销和双主题截图未测。任务卡指定的 pytest 和 Node 回归组未运行。
+- 需要审查者决定是否授权文档材质校验精确接受大写 `RND`。这会影响 CLI 合成、网页导出和预览共用的校验入口。
+
+---
+
 # 社区提示卡交付报告
 
 工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
