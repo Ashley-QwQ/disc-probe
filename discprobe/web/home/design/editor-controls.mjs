@@ -116,7 +116,8 @@ export const controls={
       const table=this.colourPalette?.table??assignment?.colour.table;
       const reason=!open?'':!this.pictureLayer()||this.pictureLayer().locked?colourWords.picture:
         this.colourPaletteLoading?colourWords.loading:this.colourPaletteError?colourWords.unavailable:'';
-      colour+=`<p class="note quiet ed-colour-estimate">${colourWords.note}</p>
+      colour+=`<label class="ed-inline"><input data-ed="directionArrow" type="checkbox" ${this.panelState().directionArrow?'checked':''}>${this.arrowWords.label}</label>
+        <p class="note quiet ed-colour-estimate">${colourWords.note}</p>
         <details class="ed-help"><summary>${info}</summary><p class="note quiet">${colourWords.advice}</p>
         <p class="note quiet">${colourWords.poseWarning}</p>
         ${table?.fitted?`<p class="note quiet">${colourWords.calibrated}</p><p class="note quiet">${colourWords.unseen}</p>`:''}</details>
@@ -131,7 +132,7 @@ export const controls={
     return `<section class="ed-materials"><div class="seg ed-panel-tabs" role="group" aria-label="${zh?'编辑':'Edit'}"><button type="button" data-ed-tab="tone" aria-pressed="${tab==='tone'}" aria-controls="ed-tone-panel">${t.toneH}</button><button type="button" data-ed-tab="colour" aria-pressed="${tab==='colour'}" aria-controls="ed-colour-panel">${w.title}</button></div><div class="ed-material-scroll"><div id="ed-tone-panel" ${tab==='tone'?'':'hidden'}>${this.toneSection()||`<p class="note quiet">${zh?'先选一张图片，再调整影调。':'Select a picture to adjust its tone.'}</p>`}</div><section id="ed-colour-panel" class="ed-rig" aria-label="${w.title}" ${tab==='colour'?'':'hidden'}>${colour}</section></div></section>`;
   },
   // UI preferences belong to a work without changing its saved document or undo history.
-  panelState(){this.panelStates??=new WeakMap();let state=this.panelStates.get(this.s);if(!state){state={tab:'tone',rigExpanded:false};this.panelStates.set(this.s,state);}return state;},
+  panelState(){this.panelStates??=new WeakMap();let state=this.panelStates.get(this.s);if(!state){state={tab:'tone',rigExpanded:false,directionArrow:true};this.panelStates.set(this.s,state);}return state;},
   hasFillSelection(){const mask=this.s.selections.find(m=>m.id===this.s.activeMask);return !!mask&&O.bytes(mask.bits).some(v=>v!==0);},
   // The selected picture's tone and dither (tone.mjs): what its greys become on the burn grid.
   pictureLayer(){const l=this.s.layers.find(l=>l.id===this.s.selected);return l&&l.kind==='image'&&l.px&&!l.shape?l:null;},

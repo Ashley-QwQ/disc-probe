@@ -15,6 +15,7 @@ ASSETS = Path(__file__).with_name('colour_print')
 DEFAULT_TABLE = ASSETS / 'table.npz'
 DEFAULT_MATERIALS = ASSETS / 'materials.json'
 RIG_DATA = Path(__file__).parent / 'web/home/design/pose-swatches.json'
+DIRECTION_ARROW = RIG_DATA.with_name('direction-arrow.json')
 WHITE = np.array([.95047, 1, 1.08883], dtype=np.float32)
 SRGB_XYZ = np.array([[.4124564, .3575761, .1804375], [.2126729, .7151522, .0721750],
                      [.0193339, .1191920, .9503041]], dtype=np.float32)
@@ -354,3 +355,31 @@ def design(image, phone, height, materials=None, dither='ordered', fit='disc', f
     doc['assignments'].append(dict(layer=1, colour=dict(materials=[m['id'] for m in choices['materials']],
                                                        dither=dither, table=choices['table'])))
     return doc
+
+
+def add_direction_arrow(doc):
+    """Add the direction arrow to a newly generated colour work, or return a reason to skip it."""
+    from .i18n import tr
+
+    definition = json.loads(DIRECTION_ARROW.read_text(encoding='utf-8'))
+    points = definition['data_side_mm']
+    xs, ys = zip(*points)
+    left, right, tail, tip = min(xs), max(xs), min(ys), max(ys)
+    inner, outer = doc['annulus_mm']
+    shift = max(0, tip - (outer - definition['rim_margin_mm']))
+    if tail - shift < inner - 1e-9:
+        return 'The writable ring is too narrow for the direction arrow.'
+
+    material = definition['material']
+    if len(doc['materials']) >= 256:
+        return 'The direction arrow needs one more material slot.'
+    width, height = right - left, tip - tail
+    layer = dict(id=2, kind='image', sourceKind='shape', name=tr('Direction arrow'),
+                 x=(left + right) / 2, y=shift - (tip + tail) / 2, width=width, height=height,
+                 w=round(width * 100), h=round(height * 100), rot=0, visible=True, locked=False, opacity=1,
+                 shape=dict(type='polygon', directionArrow=True,
+                            points=[[(x - left) / width - .5, (tip - y) / height - .5] for x, y in points]))
+    doc['materials'].append(material)
+    doc['layers'].append(layer)
+    doc['assignments'].append(dict(layer=layer['id'], material=material['id']))
+    return None

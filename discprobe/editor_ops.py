@@ -119,7 +119,8 @@ def validate(d):
         raise ValueError("at most 256 selections and 1024 assignments")
     for m in d["materials"]:
         spec = m["spec"]
-        if not isinstance(spec,str) or not 2 <= len(spec) <= 256 or len(spec)%2 or any(c not in "0123456789abcdefABCDEF" for c in spec):
+        if not isinstance(spec,str) or (spec != "RND" and (
+                not 2 <= len(spec) <= 256 or len(spec)%2 or any(c not in "0123456789abcdefABCDEF" for c in spec))):
             raise ValueError("material must be a supported hex byte texture")
     for l in d["layers"]:
         if any(type(l[k]) not in (int,float) or not math.isfinite(l[k]) for k in ("x","y","width","rot","opacity")) or not 0 < l["width"] <= 240 or not 0 <= l["opacity"] <= 1:

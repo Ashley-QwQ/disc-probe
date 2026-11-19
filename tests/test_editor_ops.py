@@ -141,6 +141,21 @@ def test_invalid_document():
     d=document();d['selections'][0]['bits']='AA=='
     with pytest.raises(ValueError,match='mask bits'):E.validate(d)
 
+
+@pytest.mark.parametrize('spec', ['B9', 'a50F', '00' * 128, 'RND'])
+def test_validate_texture_spec(spec):
+    d = document()
+    d['materials'][2]['spec'] = spec
+    assert E.validate(d) == d
+
+
+@pytest.mark.parametrize('spec', ['', '0', 'ABC', 'GG', '00' * 129, 'rnd', 'RnD', ' RND', 'RND ', 'MIX:A5,B9', 123])
+def test_validate_rejects_malformed_texture_spec(spec):
+    d = document()
+    d['materials'][2]['spec'] = spec
+    with pytest.raises(ValueError, match='^material must be a supported hex byte texture$'):
+        E.validate(d)
+
 def test_backend_texture_arguments(tmp_path):
     from discprobe import webui
     d=document();d['assignments'][0]['layer']=999

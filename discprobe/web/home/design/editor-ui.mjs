@@ -9,6 +9,7 @@ import {lampPose} from './lamp-pose.mjs';
 import {LampControls} from './lamp-controls.mjs';
 import {ExactView} from './exact-view.mjs';
 import {decodeSet,setKey,rigScene,rigLabel,rigWords,needsCustom,customMM,flashMM,example} from './editor-rig.mjs';
+import directionArrow from './direction-arrow.json' with {type:'json'};
 
 const WORDS={
   zh:{selection:'选区',rectangle:'矩形选区',lasso:'套索',ring:'圆环',sector:'扇形',colour:'按颜色',shape:'简单形状',rectangleShape:'矩形',ellipse:'椭圆',polygon:'多边形',line:'直线',pen:'手绘',materials:'材质',model:'仅预览实验：颜色是模型预测，没有照片验证。刻录默认按黑白刻，上了颜色、彩色图案和特效的地方刻成深色。',target:'填充对象',layer:'当前图层',mask:'当前选区',material:'单材质',pattern:'图案填充',effect:'特效',diamond:'菱格',dots:'点阵',stripes:'条纹',cartesian:'直角坐标',polar:'绕盘心',inner:'内半径',outer:'外半径',start:'起始角',end:'结束角',tolerance:'颜色容差',contiguous:'只选相连部分',apply:'建立选区',clear:'取消选区',name:'选区名称',saveMask:'保存命名选区',restore:'恢复选区',removeMask:'删除选区',hint:'Shift 加 · Alt 减 · Shift+Alt 交',snap:'吸附盘心和半径尺',rename:'重命名图层',up:'上移图层',down:'下移图层',remove:'删除图层',pitch:'间距 mm',size:'线宽 / 点径 mm',angle:'旋转 °',fill:'应用填充',flow:'流光',ox:'O/X 切换',merge:'两点合成环',sync:'整片同时亮',y1:'手机起点 mm',y2:'手机终点 mm',history:'选区和填充均可撤销',none:'先选图层或建立选区',swatch:'筛选材质：周期或纹理',details:'材质详情',empty:'没有匹配的材质',draw:'拖动绘制，多边形松手闭合。画布上用方向键移动、空格起笔、Enter 完成。',operation:'选区运算',replace:'替换',add:'相加',subtract:'相减',intersect:'相交',radiusNote:'选区蒙版 0.2 mm；刻录格子 20 / 10 / 5 µm。',gesture:'拖动选取；也可填写数值',choose:'选区记录',layerName:'图层名称',opacity:'不透明度',busy:'正在合成…',toneH:'影调',dither:'抖动方式',modes:{'floyd-steinberg':'误差扩散','blue-noise':'蓝噪声',ordered:'有序',clustered:'网点',threshold:'不抖动'},strength:'抖动强度',brightness:'亮度',contrast:'对比度',highlights:'高光',shadows:'阴影',toneReset:'恢复默认',toneNote:um=>`灰度在 ${um} µm 刻录格子上抖动成深浅两种纹理。放大到 100% 以上，画布上就是刻进去的那些格子。`},
@@ -27,6 +28,25 @@ const COLOUR_WORDS={
     advice:'Illustrations with flat, distinct areas of colour work best. Broad areas of bright white and saturated red are out of reach. Reflected light gives the disc a grey cast. Keep the area reflected in the disc dark when shooting: face away from the light or shade that area with something dark.',
     calibrated:'This model was calibrated with photos of six colour-chart discs. A grey cast varies with how you shoot. Keep the area reflected in the disc dark for better colour.',picture:'Select an unlocked picture first.',unavailable:'The colour table or material set could not be loaded.',loading:'Loading colour materials…'}
 };
+const ARROW_WORDS={
+  zh:{label:'加方向箭头（12 点）',name:'方向箭头',ring:'可刻环带太窄，未加方向箭头。',
+    slots:'图层或材质填充已达上限，未加方向箭头。'},
+  en:{label:"Add direction arrow (12 o'clock)",name:'Direction arrow',
+    ring:'The writable ring is too narrow for the direction arrow.',
+    slots:'There is no room for another layer or material fill. The direction arrow was skipped.'}
+};
+
+function arrowShape([inner,outer]){
+  const points=directionArrow.data_side_mm;
+  const xs=points.map(([x])=>x),ys=points.map(([,y])=>y);
+  const left=Math.min(...xs),right=Math.max(...xs),tail=Math.min(...ys),tip=Math.max(...ys);
+  const shift=Math.max(0,tip-(outer-directionArrow.rim_margin_mm));
+  if(tail-shift<inner-1e-9)return null;
+  const width=right-left,height=tip-tail;
+  return {x:(left+right)/2,y:shift-(tip+tail)/2,width,w:Math.round(width*100),h:Math.round(height*100),
+    shape:{type:'polygon',directionArrow:true,points:points.map(([x,y])=>[(x-left)/width-.5,(tip-y)/height-.5])}};
+}
+
 export class Editor {
   constructor(host){this.h=host;this.palette=null;this.tool='move';this.options={inner:30,outer:46,start:15,end:120,tolerance:18,feather:0,contiguous:true,operation:'replace',snap:true,fillKind:'material',pattern:'diamond',coordinates:'cartesian',pitch_mm:5,size_mm:.75,angle_deg:0,effect:'flow',y1:55,y2:100,target:'layer'};this.revision=0;
     fetch(new URL('./swatches.json',import.meta.url)).then(r=>r.json()).then(p=>{p.swatches=Object.entries(p.swatches).map(([name,m])=>({...m,name:name.split(' ')[0],rgb:m.srgb,period_um:m.periods_um[0]}));this.palette=p;this.lightCache=new Map();this.init();this.panels();this.invalidate();this.h.draw();}).catch(e=>this.h.error(String(e)));
@@ -56,6 +76,7 @@ export class Editor {
   poseNote(){const w=rigWords(this.h.lang());return this.rigOpen()?w.lampNote(rigLabel(this.rig(),this.rigData,this.h.lang())):w.lampNone;}
   get s(){return this.h.state();} get t(){return WORDS[this.h.lang()]??WORDS.zh;}
   get colourWords(){return COLOUR_WORDS[this.h.lang()]??COLOUR_WORDS.zh;}
+  get arrowWords(){return ARROW_WORDS[this.h.lang()]??ARROW_WORDS.zh;}
   hasColour(){return this.s?.assignments?.some(a=>a.colour)??false;}
   loadColourPalette(){
     if(this.colourPaletteLoading)return;
@@ -86,6 +107,7 @@ export class Editor {
     if(el.matches('[data-ed-name]')){this.maskName=el.value;return;}
     if(el.matches('[data-ed-layer-name]')){const l=this.s.layers.find(l=>l.id===this.s.selected);if(l&&!l.locked)this.mutate(()=>{l.name=el.value.trim()||l.name;this.h.rebuild();});return;}
     if(!el.dataset.ed)return;
+    if(el.dataset.ed==='directionArrow'){this.panelState().directionArrow=el.checked;return;}
     this.options[el.dataset.ed]=el.type==='checkbox'?el.checked:el.type==='number'?+el.value:el.value;
     if(['fillKind','target'].includes(el.dataset.ed))this.right();
   }
@@ -139,8 +161,31 @@ export class Editor {
       materials=materials.filter((m,i)=>i===0||m.id===dark||m.template_name||needed.has(m.id)||m.id===this.material);
     }
     if(materials.length+added.length>256){this.h.error(this.h.lang()==='zh'?'一件作品最多使用 256 种材质，请先减少材质。':'A work can use at most 256 materials. Reduce its materials first.');return;}
-    this.mutate(()=>{s.materials=[...materials,...added];s.assignments=[...assignments,{id:crypto.randomUUID(),layer:l.id,
-      colour:{materials:palette.materials.map(m=>m.id),dither:'ordered',table:palette.table}}];});
+    materials=[...materials,...added];
+    let arrow=null,arrowMaterial,skipped;
+    if(this.panelState().directionArrow&&!s.layers.some(layer=>layer.shape?.directionArrow===true)){
+      const shape=arrowShape(this.ring());
+      const existing=materials.find(m=>m.spec===directionArrow.material.spec);
+      if(!shape)skipped=this.arrowWords.ring;
+      else if(s.layers.length>=16||assignments.length>=1023||(!existing&&materials.length>=256))skipped=this.arrowWords.slots;
+      else {
+        arrow=this.h.shapeLayer(this.arrowWords.name,shape,directionArrow.material.rgb);
+        const id=materials.some(m=>m.id===directionArrow.material.id)?crypto.randomUUID():directionArrow.material.id;
+        arrowMaterial=existing??{...directionArrow.material,id};
+        if(!existing)materials.push(arrowMaterial);
+      }
+    }
+    this.mutate(()=>{
+      s.materials=materials;
+      s.assignments=[...assignments,{id:crypto.randomUUID(),layer:l.id,
+        colour:{materials:palette.materials.map(m=>m.id),dither:'ordered',table:palette.table}}];
+      if(arrow){
+        s.layers.splice(s.layers.indexOf(l)+1,0,arrow);
+        s.assignments.push({id:crypto.randomUUID(),layer:arrow.id,material:arrowMaterial.id});
+        this.h.rebuild();
+      }
+    });
+    if(skipped)this.h.error(skipped);
   }
   snap(p){if(!this.options.snap)return p;const v=this.h.view(),tol=7/v.s;let [x,y]=p;if(Math.abs(x)<tol)x=0;if(Math.abs(y)<tol)y=0;const r=Math.hypot(x,y),near=[7.5,17,...(this.s.media==='cd'?[26,58]:[24,58]),30,40,50,60].find(n=>Math.abs(r-n)<tol);if(near&&r){x*=near/r;y*=near/r;}return [O.q(x),O.q(y)];}
   pointer(type,e,mm){if(this.tool==='move'&&!this.drag&&!this.selectionHit(mm))return false;

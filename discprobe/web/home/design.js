@@ -325,6 +325,15 @@ function pixelsChanged(L) {
   L.version = (L.version ?? 0) + 1;
   L.thumb = null;
 }
+function drawShape(g, shape, rgb = [30, 30, 30]) {
+  const {width, height} = g.canvas;
+  const px = g.createImageData(width, height), rgba = [...rgb, 255];
+  for (let j = 0; j < height; j++) for (let i = 0; i < width; i++) {
+    if (EditorOps.shapeHit(shape, (i + .5) / width - .5, (j + .5) / height - .5)) px.data.set(rgba, 4 * (j * width + i));
+  }
+  g.putImageData(px, 0, 0);
+  return px;
+}
 function addImageLayer(name, source, w, h) {
   if (S.layers.length >= 16) { toast(T().tooMany); return null; }
   const k = Math.min(1, MAX_SIDE / Math.max(w, h));
@@ -1587,12 +1596,15 @@ async function openProject(file, handle = null, work = null) {
       const c = document.createElement("canvas");
       let bmp;
       if(e.raster){c.width=e.raster.width;c.height=e.raster.height;}
-      else if(e.shape&&!e.picture){c.width=512;c.height=Math.max(1,Math.round(512*(e.height??e.width)/e.width));}
+      else if(e.shape&&!e.picture){
+        const exact = e.shape.directionArrow === true && [e.w, e.h].every(n => Number.isInteger(n) && n > 0 && n <= MAX_SIDE);
+        c.width=exact?e.w:512;c.height=exact?e.h:Math.max(1,Math.round(512*(e.height??e.width)/e.width));
+      }
       else {bmp=await createImageBitmap(dataURLBlob(e.picture));c.width=bmp.width;c.height=bmp.height;}
       const g = c.getContext("2d", { willReadFrequently: true });
       if(e.raster)g.putImageData(new ImageData(new Uint8ClampedArray(EditorOps.bytes(e.raster.rgba)),c.width,c.height),0,0);
       else if(bmp){g.drawImage(bmp,0,0);bmp.close?.();}
-      else {const im=g.createImageData(c.width,c.height);for(let j=0;j<c.height;j++)for(let i=0;i<c.width;i++)if(EditorOps.shapeHit(e.shape,(i+.5)/c.width-.5,(j+.5)/c.height-.5))im.data.set([30,30,30,255],4*(j*c.width+i));g.putImageData(im,0,0);}
+      else drawShape(g, e.shape);
       const L = { ...base, w: c.width, h: c.height, colour: e.colour ?? "none", alphaEdited: !!e.alphaEdited, px: g.getImageData(0, 0, c.width, c.height), src: c, version: 1 };
       Object.assign(L,{sourceKind:e.sourceKind,shape:e.shape,svg:e.svg,tone:e.tone});
       if (typeof e.original === "string" && e.original.startsWith("data:image/")) L.file = dataURLBlob(e.original);
@@ -1993,14 +2005,19 @@ function build() {
   editor = new Editor({state:()=>S,dom:()=>W,lang:()=>api.lang(),view:()=>V,colour:cssVar,active:isOn,
     checkpoint, changed, draw, status:viewNote, annulus, fit, undo, redo, selectionEdit, rollback:history=>{const snap=S.past.pop();if(snap)restore(snap);Object.assign(S,history);W.dirty.classList.toggle('on',S.dirty);refreshLayerRows();}, rename:id=>{const row=W.left.querySelector(`[data-id="${id}"]`);if(row)leftDbl({target:row.querySelector(".nm")});}, error:toast,tool:setTool,rebuild:()=>{buildLeft();buildRight();},
     raster:g=>rasterise(-60,-60,60,60,g.width/120,false),
+    shapeLayer:(name, geometry, rgb)=>{
+      const c=document.createElement("canvas");c.width=geometry.w;c.height=geometry.h;
+      const px=drawShape(c.getContext("2d"),geometry.shape,rgb);
+      return {id:newLayerId(),kind:"image",name,sourceKind:"shape",...geometry,rot:0,opacity:1,
+        visible:true,locked:false,colour:"none",px,src:c,version:1};
+    },
     shape:(kind,points)=>{
       const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),x0=Math.min(...xs),y0=Math.min(...ys),width=Math.max(.5,Math.max(...xs)-x0),height=Math.max(.5,Math.max(...ys)-y0);
       const local=points.map(([x,y])=>[(x-x0)/width-.5,(y-y0)/height-.5]);
       const type=kind==="rectangleShape"?"rectangle":kind==="pen"?"stroke":kind;
       const shape={type,points:type==="line"?[local[0],local.at(-1)]:local,stroke:.035};
-      const c=document.createElement("canvas");c.width=Math.max(1,Math.ceil(width*8));c.height=Math.max(1,Math.ceil(height*8));const g=c.getContext("2d");const px=g.createImageData(c.width,c.height);
-      for(let j=0;j<c.height;j++)for(let i=0;i<c.width;i++)if(EditorOps.shapeHit(shape,(i+.5)/c.width-.5,(j+.5)/c.height-.5))px.data.set([30,30,30,255],4*(j*c.width+i));
-      g.putImageData(px,0,0);const l=addImageLayer(editor.t[kind]??kind,c,c.width,c.height);if(l){Object.assign(l,{x:x0+width/2,y:y0+height/2,width,sourceKind:kind==="pen"?"stroke":"shape",shape});changed();}
+      const c=document.createElement("canvas");c.width=Math.max(1,Math.ceil(width*8));c.height=Math.max(1,Math.ceil(height*8));
+      drawShape(c.getContext("2d"),shape);const l=addImageLayer(editor.t[kind]??kind,c,c.width,c.height);if(l){Object.assign(l,{x:x0+width/2,y:y0+height/2,width,sourceKind:kind==="pen"?"stroke":"shape",shape});changed();}
     }});
   W.canvas.tabIndex=0;W.canvas.setAttribute("aria-label","Disc editor canvas");
   W.canvas.addEventListener("keydown",e=>{if(!spaceDown&&e.key!==" "&&editor.key(e)){e.preventDefault();e.stopPropagation();}});

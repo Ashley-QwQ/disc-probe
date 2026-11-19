@@ -1146,6 +1146,10 @@ def cmd_colour_design(args):
     from . import editor_colour, editor_preview, texlib
     try:
         doc = editor_colour.design(args.image, args.phone, args.height, args.materials, args.dither, args.fit, args.flash_mm, args.table)
+        if not args.no_arrow:
+            skipped = editor_colour.add_direction_arrow(doc)
+            if skipped:
+                print(tr(skipped), file=sys.stderr)
         if args.preview:
             png, _ = editor_preview.Renderer(args.table).render(dict(document=doc, size=600))
             output = texlib.safe(args.preview)
@@ -2485,6 +2489,7 @@ def _build_parser():
     sp.add_argument('--materials', help='override the bundled material set with a JSON file containing texture specs')
     sp.add_argument('--dither', choices=('ordered', 'nearest'), default='ordered')
     sp.add_argument('--fit', choices=('disc', 'ring'), default='disc', help='fill the disc or fit the picture above the hub')
+    sp.add_argument('--no-arrow', action='store_true', help="omit the direction arrow at 12 o'clock (added by default)")
     sp.add_argument('-o', '--out', required=True, help='work JSON')
     sp.add_argument('--preview', help='write the model prediction as PNG')
     sp.set_defaults(func=cmd_colour_design)
