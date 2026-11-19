@@ -1,79 +1,32 @@
-# 卡 AA · 单实例、光驱互斥和退出
+# 卡 AB 验收报告
 
-分支 `core/single-instance-20261118`，基点 `e0ddb3c`。所有设备验收均在 Disc Lab 或假设备上进行。回归开始前 D 盘剩余约 204 GiB，临时数据和证据放在 `F:/dp-archive/tmp/singleinst/`。
+工作树为 `D:/dp-dev/secfix`，分支为 `web/sec-fixes-20261118`，基点为合入卡 AA 第二轮的 `ce30590`。
 
-## 提交
+## 代码提交
 
-- `f21439a` 接入单实例发现、光驱锁、控制台标题、网页退出和回归用例。随包 BAT 将参数交给 `tools/launch_web.py`。它与 `python -m discprobe webui` 共用 [启动逻辑](discprobe/web_instance.py#L112)。
-- 本提交记录验收结果和证据位置。
-- 基点的社区提示卡报告可用 `git show e0ddb3c:CARD_REPORT.md` 查阅。
+`698dfdb` · Bind local file exports and disc writes to one-time permits
 
-## 服务行为
-
-- `web-instance.json` 写在新闻缓存同级的用户状态根目录，包含端口、令牌、PID、启动时间、模式和绑定地址。启动锁协调同时拉起的进程，临时文件和 `os.replace` 发布登记。带令牌的 `GET /api/ping` 校验 PID 与启动时间。登记残缺、令牌或身份不匹配、进程已死或端口被占时会重新启动服务，端口冲突时改用系统分配的端口。
-- 第二次启动打开已有大厅并退出 0。请求模式不同时，提示已有模式和本次请求的模式。`--new-instance` 启动独立服务，普通服务继续持有原登记。Disc Lab 自带的网页启动器显式使用这一模式。
-- 大厅右上角显示退出电源按钮。服务有任务或正在读盘时禁用，悬停文字为“先等任务结束”。确认后调用带令牌的 `POST /api/quit`，页面收到成功响应后显示退出提示。服务端在同一把任务状态锁内确认空闲并停止接收新任务，正常退出清除自己的登记。
-
-## 光驱入口清单
-
-Windows 用 `msvcrt.locking`，POSIX 用 `fcntl.flock`。光驱锁文件第一个字节用于互斥，其后记录 PID 和动作。锁立即返回持有者信息，同一线程内的嵌套调用保留外层动作。Windows 盘符别名归一，Linux 合并设备路径、符号链接和可匹配的 `srN`、`sgN`。Disc Lab 在同一实验室内按虚拟盘符取得同一把 core 锁。参考 [核心锁](discprobe/drive_lock.py#L25)、[设备键](discprobe/drive_lock.py#L74) 和 [Disc Lab 设备接入](disclab/hooks.py#L23)。
-
-| 实际光驱操作 | 拿锁的入口和覆盖范围 |
-| --- | --- |
-| 刻录、续写、开放会话、刻前擦除 | [burner.burn](discprobe/burner.py#L397) 覆盖介质检查、刻录、写入状态检查和刻后验证。 |
-| 擦除、擦除前后状态检查 | [eraser.erase](discprobe/eraser.py#L109)，可独立调用的检查在 [eraser.inspect](discprobe/eraser.py#L18)。 |
-| 刻后抽样比对、盘面写入状态 | [burner.verify_image](discprobe/burner.py#L349)、[recorded.burn_state](discprobe/recorded.py#L115)。嵌在刻录里时保留“刻录”动作。 |
-| `info` 完整 MMC 信息与盘面身份 | [cmd_info](discprobe/__main__.py#L511) 将锁交给 [InfoDevice 工作线程](discprobe/info.py#L49)，实际设备关闭后释放。 |
-| `disc` 快速检查、`swap` 等待换盘、`whois` 读盘面身份 | [cmd_disc](discprobe/__main__.py#L586)、[cmd_swap](discprobe/__main__.py#L618)、[cmd_whois](discprobe/__main__.py#L561)。 |
-| `timing`、`geo`，含 BD / CD CLV 和角度测量分支 | [cmd_timing](discprobe/__main__.py#L647)、[cmd_geo](discprobe/__main__.py#L848)。 |
-| `calibrate` 自动校准 | [calibrate.run](discprobe/calibrate.py#L96) 的 `disc`、`burn`、`timing`、`geo` 子命令各在 core 端取得锁，忙时终止该阶段并传回错误。 |
-| `label --drive` 读取当前会话的下一可写 LBA | [labelsession.run](discprobe/labelsession.py#L107) 持锁完成会话读，再离线生成镜像。 |
-| 网页驱动读盘、写速探测与光驱任务 | [read_disc](discprobe/webui.py#L645)、[burn_speeds](discprobe/webui.py#L658)、[start](discprobe/webui.py#L694)。请求复用 core 的忙态检查，实际动作在 [读取适配器](discprobe/burner.py#L334) 或 CLI 子进程内拿锁。请求后才出现的冲突通过子进程事件回传。 |
-| 独立 Windows IMAPI 读取、刻录、擦除脚本 | [burn_imapi.ps1](tools/burn_imapi.ps1#L54) 和 [erase_imapi.ps1](tools/erase_imapi.ps1#L4) 用与 core 互通的 [字节锁](tools/drive_lock.ps1#L2)。由 core 启动的 IMAPI 子进程使用外层已持有的锁。 |
-| 直接打开光驱的研究工具 | [bd_holdout.py](tools/bd_holdout.py#L57)、[cd_readcmd_compare.py](tools/cd_readcmd_compare.py#L82)、[geo_probe_points.py](tools/geo_probe_points.py#L52)。 |
-
-`list` 和驱动器列表枚举设备名。`checkdisc` 根据已有测量生成检查用 ISO。`whois --image`、`info --image`、`geo --refit`、`label --start-lba` 和基于已有 `--geo` 的预设导出也只处理文件。这些入口不抢光驱。`--sim` 的进程内软件模型也不需要设备锁。
-
-## 验收
-
-- 相关 Python 使用 `python -B -X utf8 -m pytest -n 2 -p no:cacheprovider --basetemp <F 盘测试目录> ...`。首轮 490 项得到 474 通过、1 跳过、14 失败和 1 项夹具错误。修正 Disc Lab 独立实例和独立实验室隔离、校准子进程拒绝传递及既有前端测试的抓取边界后，用相同 `-n 2` 定向复验，33 项通过，再单独复验 1 项通过。合计覆盖 489 项通过、1 项跳过。在这组记录中，本卡新增的 11 个用例均通过。完整命令和各轮结果见 [首轮](F:/dp-archive/tmp/singleinst/python/pytest.log)、[定向复验](F:/dp-archive/tmp/singleinst/python-target/pytest.log)、[页面复验](F:/dp-archive/tmp/singleinst/python-web/pytest.log)。
-- 共 55 个 `tests/test_*.mjs` 脚本。普通批次 54 个中 53 个首轮通过，`test_presetio_browser.mjs` 首轮等待结果超时，单独复验通过。导航 `node tests/test_flow_navigation_browser.mjs` 单独通过。合计 55/55。见 [普通批次](F:/dp-archive/tmp/singleinst/javascript/results.json)、[复验](F:/dp-archive/tmp/singleinst/javascript-target/test_presetio_browser.mjs.log)、[导航](F:/dp-archive/tmp/singleinst/navigation/test_flow_navigation_browser.mjs.log)。
-- [新增用例](tests/test_single_instance.py) 用真实服务进程验证普通和同时启动、浏览器调用桩、LAN 与本机模式冲突、强杀恢复、半写登记、PID 与启动时间不符、错误令牌及端口冲突。设备用例验证双进程拒绝与崩溃释放、另一盘符可用、另一实验室的同盘符可用、嵌套重入、Windows PowerShell 与 core 相互排斥、写入期间拒绝退出以及退出后登记清除。
-- 双窗口 Disc Lab 验收命令为 `python -B -X utf8 F:/dp-archive/tmp/singleinst/capture_lab.py edge-final-proof`。第一服务在 X: 选中并完成 8× 虚拟刻录。第二服务在刻录期间读 X:，大厅显示刻录子进程 PID 和中英提示。刻录完在同一页重读成功，接口返回 HTTP 200、`blank=false`、1024 扇区。两服务经网页确认退出，退出码均为 0，普通实例登记已清理。见 [实测日志](F:/dp-archive/tmp/singleinst/edge-final-proof/capture.log) 和 [控制台标题读取](F:/dp-archive/tmp/singleinst/edge-final-proof/console-title.txt)。
-
-| 无头 Edge 画面（1440 × 900） | 纸色 | 夜色 |
+| 审查条目 | 改动与代码位置 | 专门验收 |
 | --- | --- | --- |
-| 大厅空闲 | [PNG](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/idle-paper.png) | [PNG](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/idle-dark.png) |
-| 刻录期间，退出按钮禁用 | [PNG](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/busy-paper.png) | [PNG](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/busy-dark.png) |
-| 点退出并确认后 | [PNG](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/exited-paper.png) | [PNG](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/exited-dark.png) |
-| 第二窗口读盘 | [刻录期间拒绝](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/read-refused-paper.png) · [刻后成功](F:/dp-archive/tmp/singleinst/edge-final-proof/screenshots/read-success-paper.png) | — |
+| #1 随盘目录授权 | [作品导入和 ISO 导出](discprobe/web/home/design.js)、[随盘文件面板](discprobe/web/home/design/disc-files.mjs)、[清单摘要](discprobe/discfiles_api.py)和 [Web 后端](discprobe/webui.py)。导入和保存作品只携带文件数量、大小和放置位置。使用者在本机重新输入目录路径、检查并确认清单后，后端签发有效期 15 分钟的单次授权。授权绑定目录和文件树清单摘要。导出前重新检查文件树和布局指纹，图像子进程沿用原有的布局指纹校验。 | `finding_1_directory_requires_one_export_confirmation` 用浏览器打开带目录绑定的合成作品，扫描直接导出镜像的 ISO 9660 目录树和整个文件，均无夹具。重新选目录、查看清单、确认后导出，Joliet 树和镜像数据均查到夹具，再次导出要求重新确认。`test_finding_1_backend_requires_the_reviewed_directory_for_one_export` 验证无授权、替换目录、修改清单及重复提交都被后端拒绝。 |
+| #2 刻录与擦除许可 | [签发、核验和启动](discprobe/webui.py)，并接入[设计页](discprobe/web/home/design.js)、[校准页](discprobe/web/home/calibrate.js)和[刻后检查页](discprobe/web/home/afterburn.js)现有确认。凭据经本机回环 POST 签发，30 秒内提交且一次消费。签发和启动时核对光驱的介质报告，核对介质类型、配置、批号、空白与可擦写状态等字段。镜像身份采用规范化路径、文件大小和纳秒修改时间。普通刻录、独立擦除、先擦后刻、带镜像校准及擦除后校准的许可分别绑定。 | `test_finding_2_burn_grant_matches_one_job` 用虚拟光驱核对串用动作、换光驱、换镜像、原路径镜像变化、介质报告变化及重放的 HTTP 403 和错误文字。对应动作的正确许可均可启动。模拟流程验证了刻录取消、擦除后重刻和刻后检查。 |
+| #6 作品内容渲染 | [导入、图层列表及旧版影调面板](discprobe/web/home/design.js)、[选区列表](discprobe/web/home/design/editor-controls.mjs)。图层 ID 限定为 ASCII 字母、数字、下划线和连字符，长度 1–64。导入时为不合规或重复 ID 分配新值，并重映射图层填充引用。检查并修复的模板插值包括图层行的 `data-id`、`id`、`aria-controls`，选区行的 `data-mask-id`、`data-delete-mask`，旧版影调数值框及自动色阶文案，以及旧版随盘文件计数。图层名经过转义，文件名单使用 `textContent`。 | `finding_6_layer_id_and_text` 在静音 Edge 中导入含标记字符的 ID 和图层名。重新生成的 ID 符合白名单，填充引用与 DOM 属性一致，原名称完整显示为文本，监视标记节点的 `window` 钩子调用数为 0。 |
+| #3/#4 局域网 | [HTTP 监听与请求校验](discprobe/webui.py)。Host 必须带实际端口，只接受回环地址、`localhost` 和该连接实际到达的本机私有 IPv4。头部阶段最多 24 条连接，局域网来源最多 16 条，给本机桌面预留 8 条。3 秒请求头总期限覆盖分段到达的请求，正常认证完成后释放这部分容量。 | `test_finding_3_only_listener_hosts_before_authorization` 在两种监听模式下检查伪造 Host。`test_finding_4_partial_headers_expire_and_leave_room_for_a_normal_request` 同时打开 6 条未完成头部的本地连接，正常请求在期限内返回 200，随后慢连接到期。`test_finding_4_remote_slots_cannot_take_the_loopback_reserve` 验证限额和本机保留。`test_finding_3_4_phone_page_and_upload_on_the_lan_listener` 用实际局域网地址打开手机页，上传合成 PNG，并在桌面列表读到该照片。 |
 
-## 未测和验收边界
+## 回归验收
 
-- 真光驱、POSIX 实机文件锁、实际点击 Windows 控制台的关闭按钮、在另一台设备上走 LAN、最终发布 ZIP 中的 BAT 双击均未测。Windows 标题用 `GetConsoleTitleW` 核对，强杀与网页正常退出分别实测。复用时的系统默认浏览器调用用桩核对。
-- 数值和镜像写入算法的改动范围为入口加锁。相关回归已跑，跨全部媒体、设备和镜像尺寸的独立逐位比对未测。禁用按钮的悬停文案通过页面属性核对。
-- 校准阶段之间会释放设备，物理操作期间持锁。`--new-instance` 不登记，因此只启动过强开实例时，下一次普通启动可以再创建一台服务。这两处属于本卡保留的行为边界。
+- `python -B -X utf8 -m pytest -n 2` 运行 `test_secfix.py`、`test_webui.py`、`test_burner.py`、`test_photo.py`、`test_single_instance.py`、`test_webui_catalog.py`、`test_works.py`、`test_design_compose_route.py`、`test_editor_ops.py` 和 `test_discfiles.py`，结果为 **256 通过、1 跳过，另有 46 个子测试通过**。后续相关改动单独复验了 Web 后端、刻录、目录和照片路由，结果为 **124 通过、1 跳过，另有 46 个子测试通过**。最终 `python -B -X utf8 -m pytest -n 2 tests/test_secfix.py -q` 为 **7 通过**。[Python 回归日志](<F:/dp-archive/tmp/secfix/pytest-final.log>) · [后端复验](<F:/dp-archive/tmp/secfix/pytest-recheck.log>) · [安全专项](<F:/dp-archive/tmp/secfix/security-final.log>)
+- `node --test --test-concurrency=1` 运行除导航之外的全部 54 个 `tests/test_*.mjs` 文件，**67 通过**。`node --test tests/test_flow_navigation_browser.mjs` 单独运行，**1 通过**。在最终代码上复验随盘文件、刻后检查和刻录取消浏览器测试，共 **5 通过**。[Node 全量](<F:/dp-archive/tmp/secfix/node-final.log>) · [导航](<F:/dp-archive/tmp/secfix/navigation-final.log>) · [浏览器复验](<F:/dp-archive/tmp/secfix/node-recheck.log>)
+- 用 `python -B -X utf8 -m discprobe compose <作品> --out <标签.npy>` 重跑 `F:/dp-archive/tmp/regress/RESULT.md` 的三份作品。先核对输入 SHA-256，再比较标签 `.npy` 和纹理清单 `.textures.json`。三份作品的两种输出都与归档一致。[命令、输入和完整结果](<F:/dp-archive/tmp/secfix/compose-sha256.json>)
 
-## 第二轮 · 统一启动、状态和停止
+| 历史作品 | 标签 `.npy` SHA-256 |
+| --- | --- |
+| `fixture-full-disc` | `5ecb94e2e2d0a82a71cfca85fc8e8bf60bf87b640358c08c2b25d4829567cd2c` |
+| `work-a37427bb99f56e55` | `12448b74f0b1f209ad3a7681b116145bf3d8b260476cf3973b4bd11ea2ad5f9d` |
+| `design-8eb60f75` | `40b9c1eef5d4f3a2ceae2ed7f6a2097ab91f81367b8af47f0783b6f8ce2b6414` |
 
-- `8495054` 按指令将 `dev/1.0.0@93e6a71` 合入当前卡分支，带入无头 Edge 的 `--mute-audio`。
-- `4980264` 把启动、复用、查询和停止收进 core 的 `discprobe webui`，同步中英 README、CLI 帮助、Windows 包的 BAT 模板以及回归用例。保留标明弃用的 `tools/launch_web.py` 转调壳。本提交补记验收结果。
+## 验证边界
 
-### 行为与代码
-
-- [启动和发现](discprobe/web_instance.py#L143) 共用带令牌的健康检查。启动及复用时都打印实际 URL，有 `--open` 才调用默认浏览器。首选 8765，已占用时绑定空闲端口并登记；同一个首选端口再次启动时沿用登记里的实际端口。模式、盘种、端口、工作目录、输出目录、GUI、纹理配置及无光驱设置不一致时，在 stderr 列出冲突并提示先 `webui stop`，stdout 仍打印已有实例的 URL。
-- [状态](discprobe/web_instance.py#L228) 的 JSON 包含 `running`、`pid`、`port`、`token`、`started`、`mode`、`bind`、`url`、`tasks` 和 `drives`。每台盘报告是否持锁、PID 和动作，包含同一实验室或设备命名空间下的独立进程。状态依据实时文件锁，崩溃后遗留的持有者记录不会显示为活锁。旧版登记没有配置快照时只能核对已有的模式。
-- [命令行停止](discprobe/web_instance.py#L264) 和大厅退出进入同一个 [服务端判定](discprobe/webui.py#L1139)。普通停止遇到忙态返回 1 并列出任务。`--force` 可取消非写入任务，保护刻录、擦除和校准的写入阶段，也拒绝有外部写入或活动锁无法判定动作的快照。CLI 等到实例登记清理才报告成功。
-- [开始 Start.bat 模板](tools/build_winpack.py#L33) 只有一行，切到包目录、使用包内 Python 和 UTF-8，然后执行 `-m discprobe webui --open`，透传原参数。BAT 文件按原方式写成 ASCII 和 CRLF。`--no-drives` 及 `DISC_PROBE_NO_DRIVES=1` 都由 core 的启动入口处理。
-
-### 第二轮验收
-
-- `python -B -X utf8 F:/dp-archive/tmp/singleinst/round2/run_regression.py python` 底层使用 `pytest -n 2`，得到 **496 通过、1 跳过**。另以 `pytest -n 2 tests/test_design_compose_route.py` 验证合成入口，**3 通过**。跳过项缺既有的 `calib-simple` 参考夹具。新增生命周期路径验证了实际 BAT 与 CLI 两种启动顺序、同一 PID 和 URL、无 `--open` 时只打印、默认端口被占时登记实际端口、模式及盘种冲突、完整状态 JSON、只读强停和写入拒绝。见 [回归日志](F:/dp-archive/tmp/singleinst/round2/python/pytest.log) 和 [合成回归](F:/dp-archive/tmp/singleinst/round2/pytest-compose.xml)。
-- `tests/test_*.mjs` 共 **55/55 通过**。普通批次 54 个中 53 个首轮通过，预设导入导出的无头用例首轮结果停在 `PENDING`，单独复验通过。导航按要求单独跑，首轮等待盘库切换超时，单独复验通过。见 [普通批次](F:/dp-archive/tmp/singleinst/round2/javascript/results.json)、[预设复验](F:/dp-archive/tmp/singleinst/round2/javascript-target/test_presetio_browser.mjs.log)、[导航复验](F:/dp-archive/tmp/singleinst/round2/navigation-target/test_flow_navigation_browser.mjs.log)。
-- 用合入后的 `8495054` 作基点，在两份隔离目录运行相同模拟输入。`compare_outputs.py` 和 `compare_geo.py` 逐字节比对 **5 份样本**，DVD/CD ISO 各 8,388,608 字节，`info` JSON 6,894 字节，`timing` CSV 22,287 字节，`geo` CSV 2,140 字节，全部一致。未固定时钟的首轮 ISO 差异在日期字段，重验给两端同一创建时钟，不修改生成后的文件或生产代码。见 [镜像与计时哈希](F:/dp-archive/tmp/singleinst/round2/byte-compare.log)、[几何 CSV 哈希](F:/dp-archive/tmp/singleinst/round2/geo-byte-compare.log)。
-- 无头 Edge 实测新增 `--mute-audio`。两服务使用 X: 完成 8× 虚拟刻录、刻中拦截、刻后同一页面重读，以及两次网页正常退出。截图脚本在第一服务的刻后自动读盘结束后再触发第二服务重读。两进程退出码均为 0，登记清除。见 [实测日志](F:/dp-archive/tmp/singleinst/round2/edge-final/capture.log)、[截图目录](F:/dp-archive/tmp/singleinst/round2/edge-final/screenshots)。
-
-### 第二轮边界
-
-- 本轮运行了生成模板的实际 BAT，测试中的 `python` 目录指向本机 Python。正式 full-win64 ZIP 和包内嵌入式 Python 未验收。设备验证只使用 Disc Lab 或测试桩。逐位数据对应上述样本。
-- 除指定的上游合入，提交留在本工作分支，未推送、未合回 `dev/1.0.0`。
+- `test_default_port_falls_back_and_reuse_keeps_the_registered_port` 的夹具需要自行占用 8765。本机已有进程独占此端口，按原夹具执行时得到 `WinError 10013`，因此后续相关回归排除了该用例。使用临时端口的 `test_force_kill_recovery_and_occupied_port` 已通过。照片回归中依赖封存原始 JPG 的可选用例跳过，局域网上传专项使用合成 PNG。
+- 介质检查的精度取决于光驱报告。若两张盘的可读字段完全相同且光驱未提供独立介质 ID，软件无法区分。实机刻录、擦除及实体手机未测。
+- D 盘开跑和全量回归前均通过 5 GB 空间检查。日志及证据归到 `F:/dp-archive/tmp/secfix/`。
