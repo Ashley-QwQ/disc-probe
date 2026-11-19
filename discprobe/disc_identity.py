@@ -8,7 +8,7 @@ import time
 
 from .capacity import positive_sectors
 from .drive_lock import locked_drive
-from .mmc import media_family
+from .mmc import media_family, not_ready
 
 
 EXPECTED_ENV = "DISCPROBE_EXPECTED_DISC"
@@ -40,7 +40,11 @@ def from_info(report):
 
     ready = report.get("test_unit_ready") or {}
     if ready.get("status") != 0 or ready.get("error") or ready.get("sense"):
-        return from_disc_report(None)
+        identity = from_disc_report(None)
+        reason = not_ready(ready.get("sense"))
+        if reason:
+            identity["not_ready"] = reason  # say "no disc" rather than "not enough identity"
+        return identity
 
     disc = disc_report(report)
     # The MMC standard disc-information block marks DiskIdentification valid
@@ -76,6 +80,10 @@ def read_identity(drive) -> dict:
 def require_identity(identity, *, erasing=False):
     if not isinstance(identity, dict):
         raise DiscChanged(_UNAVAILABLE)
+    if identity.get("not_ready"):
+        from .zh import TEXT
+        reason = identity["not_ready"]
+        raise DiscChanged(f"{TEXT.get(reason, reason)} / {reason}.")
     profile = identity.get("profile")
     if (type(profile) is not int or media_family(profile) not in ("cd", "dvd", "bd")
             or media_family(profile) != identity.get("media")
