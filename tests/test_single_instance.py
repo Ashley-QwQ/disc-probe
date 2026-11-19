@@ -10,6 +10,7 @@ import socket
 import subprocess
 import sys
 import time
+from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -17,6 +18,7 @@ import pytest
 from disclab.__main__ import lab_env
 from disclab.practice import prepare
 from discprobe.drive_lock import DriveBusy, drive_operation, require_available
+from discprobe import web_instance, webui
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ("-m", "discprobe", "webui", "--port", "0")
@@ -75,6 +77,7 @@ def lab(tmp_path):
         "    return True\n", encoding="utf-8")
     env = lab_env(virtual, dict(os.environ, LOCALAPPDATA=str(private), DISCPROBE_HOME=str(virtual.root),
                                DP_TEST_BROWSER=str(browser_calls), PYTHONPATH=str(tmp_path)))
+    env.setdefault("DISPLAY", ":0")  # Existing browser-open tests use a stub on headless Linux too.
     return virtual, env, state, browser_calls
 
 
@@ -399,16 +402,46 @@ def test_force_stop_protects_a_writer_running_outside_the_server(lab):
         assert child.wait(timeout=10) == 0
 
 
+def test_linux_browser_open_requires_display(monkeypatch, capsys):
+    monkeypatch.setattr(web_instance, "sys", SimpleNamespace(platform="linux"))
+    monkeypatch.delenv("DISPLAY", raising=False)
+    monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+    calls = []
+    monkeypatch.setattr(web_instance.webbrowser, "open", lambda url: calls.append(url) or True)
+    url = "http://127.0.0.1:8765/home/"
+    web_instance._open(url)
+    assert calls == [] and capsys.readouterr().out == ""
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    web_instance._open(url)
+    assert calls == [url]
+
+
+def test_linux_drive_permission_tip_uses_only_permission_metadata(monkeypatch, capsys):
+    checks = []
+    def access(path, mode):
+        checks.append((path, mode))
+        return path == "/dev/sr1"
+    monkeypatch.setattr(webui, "os", SimpleNamespace(access=access, R_OK=os.R_OK, W_OK=os.W_OK))
+    webui._warn_linux_drive_permissions([{"id": n} for n in ("/dev/sr0", "/dev/sr1", "X:")])
+    assert checks == [("/dev/sr0", os.R_OK | os.W_OK), ("/dev/sr1", os.R_OK | os.W_OK)]
+    err = capsys.readouterr().err
+    assert "加入 cdrom 组" in err and "/dev/sr0" in err and "/dev/sr1" not in err
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Windows batch file")
 @pytest.mark.parametrize("batch_first", [False, True])
 def test_actual_winpack_batch_and_cli_share_one_server(lab, batch_first):
     virtual, env, state, calls = lab
+    virtual = prepare(virtual.root.with_name("验收 Windows 包"))
+    env = lab_env(virtual, dict(env, DISCPROBE_HOME=str(virtual.root)))
+    lab = virtual, env, state, calls
     spec = importlib.util.spec_from_file_location("winpack", ROOT / "tools" / "build_winpack.py")
     winpack = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(winpack)
-    batch = virtual.root / "开始 Start.bat"
-    batch.write_text(winpack.START, encoding="ascii", newline="\r\n")
-    assert batch.read_bytes().count(b"\r\n") == 1 and b"-m discprobe webui --open" in batch.read_bytes()
+    winpack.write_start(virtual.root)
+    batch = virtual.root / "开始 Start (Windows).bat"
+    guard, launch = batch.read_bytes().splitlines()
+    assert guard.startswith(b":; ") and b"-m discprobe webui --open" in launch
     python = virtual.root / "python"
     subprocess.run(["cmd.exe", "/d", "/c", "mklink", "/J", str(python), str(Path(sys.executable).parent)],
                    check=True, capture_output=True)
@@ -423,6 +456,7 @@ def test_actual_winpack_batch_and_cli_share_one_server(lab, batch_first):
                     code, out, err = control(lab, "--local-only", "--port", "0")
                     assert (code, err) == (0, "")
                     assert record(state) == data
+                    assert request(address(data), "/api/disc", {"drive": "X:"})[1]["disc"]["present"]
                     assert control(lab, "stop")[0] == 0 and bat.wait(timeout=10) == 0
                 finally:
                     if bat.poll() is None:
@@ -436,6 +470,7 @@ def test_actual_winpack_batch_and_cli_share_one_server(lab, batch_first):
                 assert (bat.returncode, bat.stderr) == (0, "")
                 out = bat.stdout
                 assert record(state) == data
+                assert request(address(data), "/api/disc", {"drive": "X:"})[1]["disc"]["present"]
                 assert control(lab, "stop")[0] == 0 and child.wait(timeout=10) == 0
         assert calls.read_text(encoding="utf-8").splitlines() == [out.strip()]
     finally:

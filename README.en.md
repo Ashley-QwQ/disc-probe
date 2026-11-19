@@ -1,17 +1,66 @@
-# disc-probe
+<div align="center">
 
-English | [简体中文](README.md)
+**English** | [简体中文](README.md)
 
-disc-probe uses an ordinary optical drive to measure the spiral geometry of a disc, then burns pictures onto the data side of DVD-R or CD-R. The measurement comes from the drive's read timing alone, with no photos to mark by hand. Since 1.0.0.0-alpha there is also a local web page that walks you through measuring, designing, making the image and checking the result with phone photos; see [Web page](#web-page).
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/showcase/banner_dark.png">
+<img src="docs/showcase/banner_light.png" width="100%" alt="disc-probe">
+</picture>
+
+<h3>disc-probe uses an ordinary optical drive to measure the spiral geometry of a disc, then burns pictures onto the data side of DVD-R or CD-R. You don't need to take photos or mark points by hand.</h3>
+
+[![Release](https://img.shields.io/github/v/release/Ashley-QwQ/disc-probe?style=flat-square&color=a8693c&label=Release)](https://github.com/Ashley-QwQ/disc-probe/releases/latest)
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab?style=flat-square)
+![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078d6?style=flat-square)
+![Discs](https://img.shields.io/badge/Discs-DVD%C2%B1R%20%7C%20CD--R-7262c6?style=flat-square)
+[![License](https://img.shields.io/badge/License-GPL--3.0--or--later-blue?style=flat-square)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/Ashley-QwQ/disc-probe?style=flat-square&color=5d5850)](https://github.com/Ashley-QwQ/disc-probe/stargazers)
+[![Reports wanted](https://img.shields.io/badge/Reports%20wanted-DIS%20%23107-ba4765?style=flat-square)](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107)
+
+</div>
+
+---
+
+The measurement comes from the drive's read timing alone. Since 1.0.0.0-alpha there is also a local web page that walks you through measuring, designing, making the image and checking the result with phone photos; see [Web page](#web-page).
 
 The lobby news fax goes online to [GitHub Raw](https://raw.githubusercontent.com/Ashley-QwQ/disc-probe/main/news/news.json) or [jsDelivr](https://cdn.jsdelivr.net/gh/Ashley-QwQ/disc-probe@main/news/news.json), downloading papers and assets only, with no uploads; the CLI also supports `python -m discprobe news`. See [news sources](docs/fax-news.md).
+
+## Preview
+
+<img src="docs/showcase/qingming5um_overview.jpg" width="75%" alt="Where each close-up was taken, on a render of the burned ISO, next to a 550 ml bottle at the same scale">
+
+This Qingming disc was drawn with cells of about 4 to 6 µm. Above is where each close-up below was taken, drawn on a render of the ISO that was burned (light is texture `92`, dark is `A5`), next to a 550 ml bottle at the same scale. We have no microscope, so the close-ups are phone photos through a reversed SLR lens. Their magnification differs from shot to shot: the round field seen through the lens is about 5 to 23 mm across. The scale and position of each were worked out by matching the photo to the design, and each has a scale bar. A single cell is still at or below what the phone resolves. The colours are just the disc's diffraction.
+
+<img src="docs/showcase/qingming5um_1_wide_pair.jpg" width="85%" alt="The bridge and the crowd">
+
+1 · The bridge and the crowd · field about 23 mm
+
+<img src="docs/showcase/qingming5um_2_houses_pair.jpg" width="85%" alt="Ox carts and houses by the ring edge">
+
+2 · Ox carts and houses by the ring edge · field about 12 mm
+
+<img src="docs/showcase/qingming5um_3_roof_pair.jpg" width="85%" alt="A roof and the gap between the rings">
+
+3 · A roof and the gap between the rings · field about 5 mm
+
+<img src="docs/showcase/qingming5um_4_street_pair.jpg" width="85%" alt="A street with a gate">
+
+4 · A street with a gate · field about 6 mm
+
+<img src="docs/showcase/qingming5um_5_figures_pair.jpg" width="85%" alt="People on the street and a tiled roof">
+
+5 · People on the street and a tiled roof · field about 6 mm
+
+<img src="docs/showcase/qingming5um_6_trees_pair.jpg" width="85%" alt="Old willows, every branch drawn">
+
+6 · Old willows, every branch drawn · field about 12 mm
 
 <p>
 <img src="docs/showcase/qingming_title.jpg" width="42%" alt="Title and part of Along the River During the Qingming Festival on the data side of a DVD-R">
 <img src="docs/showcase/qingming_full.jpg" width="55%" alt="The whole disc, with the painting laid out in two rings">
 </p>
 
-*Along the River During the Qingming Festival* on a Ritek F1 DVD-R, straight from the burner. The geometry came entirely from read timing, and the disc was burned once, with no test burn, photo calibration or scan correction. These are phone photos, cropped to the disc and downsized, with the background blurred.
+Above, an earlier *Along the River During the Qingming Festival* disc, drawn with 20 µm cells, on a Ritek F1 DVD-R, straight from the burner. The geometry came entirely from read timing, and the disc was burned once, with no test burn, photo calibration or scan correction. These are phone photos, cropped to the disc and downsized, with the background blurred.
 
 ## How it works
 
@@ -26,59 +75,11 @@ disc-probe has the drive measure this instead. On a disc spinning at constant sp
 
 The measurement only sends read commands. Its result can go straight into a burnable ISO or be exported as a [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio) preset.
 
-## Results
-
-### Geometric accuracy
-
-<img src="docs/showcase/grid_lines_zoom.jpg" width="60%" alt="Part of a grid disc scan with straight lines">
-
-This is part of a test grid disc, from a 600 dpi flatbed scan with a high-pass filter, about 38 mm across. This disc also used timing alone and was burned once (HL-DT-ST GH70N, Ritek F1 DVD-R). Eight scans put the rotation error over 25 to 54 mm at 0.11° peak to peak and 0.03° rms. At a 50 mm radius, 0.03° is about 0.03 mm.
-
-<img src="evidence/figures/bending_before_after.png" width="75%" alt="Rotation against radius for three grid discs">
-
-The green line in this plot is that disc. The measurement plan was [registered before the burn](docs/PREREG_remeasure.md) (in Chinese).
-
-### Fine detail
-
-<img src="docs/showcase/dense_motifs.jpg" width="75%" alt="Macro photo of impossible triangles, small figures and line groups along the top">
-
-A macro photo of the dense tiling disc, also burned once. The impossible triangles are 4.2 mm wide and the small figures are 6.8 mm tall. Along the top are groups of three lines for testing line width. The smallest triangle, 1 mm wide with edges of about 0.15 mm, is clearly visible to the naked eye. A 600 dpi scan separates 0.12 mm lines and barely resolves 0.08 mm, which is the scanner's limit.
-
-### Colour (experimental)
-
-Write the same data over and over and that patch of disc acts as a grating, splitting white light. The repeat length decides which colour goes in a given direction, and the colour changes with the angle. This is still an experiment, followed in [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108).
-
-<img src="docs/showcase/roses_source.jpg" width="42%" alt="The rose picture made with GPT Image"> <img src="docs/showcase/roses_7185.jpg" width="42%" alt="Photo of the burned rose DVD-R, with some petals showing purple">
-
-On the left is the original, made with GPT Image. On the right is a photo of the burned DVD-R, with the background masked. This disc was designed for purple, and from the right angle some petals come close to the original purple, only darker. It only looks right from one angle, the petals change colour when the phone moves, and you can't choose just any colour: purple is the only target so far. Details are in [#168](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/168). The same disc also holds 1.38 GB of data and read back with no errors, see [#170](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/170). These are early results from one disc, and the tool for the rose disc isn't published yet.
-
-<img src="docs/showcase/rosettes_closeup.jpg" width="75%" alt="Petals of one flower showing several colours under a flash">
-
-The one you can burn yourself is this flower disc, with 3 to 4 colours on one flower. We've only burned it on RITEKF1 DVD-R. Measure your disc as in [Quick start](#quick-start), then build the design. This step doesn't touch the drive:
-
-```bash
-python tools/compose_rosettes.py
-```
-
-It prints the next command, which builds the ISO:
-
-```bash
-python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --textures "MIX:92,87,83,8D,60" A5 92 66 ED00 2AE304 --r-max 57.6 --output iso/rosettes.iso
-```
-
-The preview's colours only tell the textures apart, so it won't match the disc. To photograph it, turn off the room lights, use only the phone flash and hold the phone a little to one side. [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108) has the steps.
-
-### Other drives and discs
-
-- On RITEKF1 discs, our timing result is within about ±0.05° of bczhc's independent photo calibration ([DiscImageStudio #53](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/53)).
-- A laptop drive about 15 years old (PLDS DS8A8SH, through a SATA-to-USB adapter) measured a geometry about 0.05° rms from our GH70N.
-- CMC CD-R takes an extra step, because timing can't tell where the data sits along the track in absolute terms. A burned grid disc sets this constant. On the GH70N it is about 206 frames, and a second disc checked it to within +0.6 frames. The pitch on this batch also has a wave, which left 0.16° rms on the second disc.
-
 ## Web page
 
 Since 1.0.0.0-alpha most steps can be done in a local web page, with no commands to remember.
 
-- **Open it**: unpack the full Windows package and double-click `开始 Start.bat`. With Python already installed, run `python -m discprobe webui --open` from the repository folder. Both open the same lobby. `webui` prints the address with its session token. Add `--open` to open it in your browser. The default port is 8765, and the service picks a free port if that one is occupied.
+- **Open it**: unpack the Windows full package and double-click `开始 Start (Windows).bat`, or unpack the Linux full package and run `./start-linux.sh` or `bash start-linux.sh`. Both full packages include Python and dependencies. From a source checkout, run `python -m discprobe webui --open`. The service prints an address with a session token, which you can use on headless Linux. It prefers port 8765 and picks a free port if that one is occupied.
 - **Check or stop it**: run `python -m discprobe webui status` to see the service and drive lock holders. Add `--json` for JSON. To stop, use Quit in the lobby or run `python -m discprobe webui stop`. The command reports any active tasks. `stop --force` is allowed only when no optical disc is being written. Closing the console that started the service also stops it.
 - **Startup options**: use `--local-only` to keep the service on this computer. For offline design, use `--no-drives` or set `DISC_PROBE_NO_DRIVES=1`. If you start it again with different settings, the command prints the existing address and tells you to run `webui stop` first.
 - **Beginner's guide**: in the lobby, open the guide. It looks at the steps you have already done and tells you what to do next.
@@ -96,11 +97,12 @@ The steps below use the command line.
 
 > If you exported a preset with `--correction` before 2026-11-06, the correction may not be in it. Update and export again; you don't need to measure again.
 
-You need blank discs from the same batch. The minimum, when everything is right first time, is 2 for DVD (measuring, picture) and 3 for CD (measuring, calibration, picture). The web page plans for 3: the measuring disc, a check disc you photograph to see how far off it is, and the picture; if the error is large, disc 4 is the picture. 3 is a goal, not a promise. A bad photo is retaken, not re-burned. The measuring disc can't take a picture afterwards, but keep it: other discs of that batch don't need a new one. You also need Windows or Linux, Python 3.10 or later and a drive that can burn. For macOS, see the port listed under the [table of reports](#drives-with-hands-on-reports). The steps below are for DVD. For CD, see the [CD route](#cd-route) further down.
+You need blank discs from the same batch. The minimum, when everything is right first time, is 2 for DVD (measuring, picture) and 3 for CD (measuring, calibration, picture). The web page plans for 3: the measuring disc, a check disc you photograph to see how far off it is, and the picture; if the error is large, disc 4 is the picture. 3 is a goal, not a promise. A bad photo is retaken, not re-burned. The measuring disc can't take a picture afterwards, but keep it: other discs of that batch don't need a new one. You also need Windows or Linux and a drive that can burn. For source, core, or wheel installs, provide Python 3.11 or later. For macOS, see the port listed under the [table of reports](#drives-with-hands-on-reports). The steps below are for DVD. For CD, see the [CD route](#cd-route) further down.
 
 You can also skip git and download a package from [Releases](https://github.com/Ashley-QwQ/disc-probe/releases) (1.0.0.0-alpha is a pre-release, so it is not marked Latest):
 
-- `full-win64`: for Windows, with its own Python and dependencies. Unpack it and double-click `开始 Start.bat`, nothing to install. You can skip the install steps below.
+- `full-win64`: for Windows, with its own Python and dependencies. Unpack it and double-click `开始 Start (Windows).bat`.
+- Linux full package: includes Python 3.13 and dependencies. Unpack it and run `./start-linux.sh` or `bash start-linux.sh`.
 - `core`: disc-probe alone, for a machine that has Python. Unpack it, run `python -m pip install -r requirements.txt` in the folder, then the `selftest` below.
 
 On Windows, open a terminal as administrator, install the dependencies, and check your setup on the simulated drive. If you cannot run as administrator, add `--transport imapi` to the drive commands: it sends the same CDBs through Windows' own IMAPI2 recorder interface (`IDiscRecorder2Ex`), which a standard user may call. The default, `auto`, switches to it when SPTI is refused.
@@ -261,6 +263,58 @@ CD has one more constant that timing can't see, so it takes one more disc for ca
 
 <a name="drive-compatibility"></a>
 
+## Results
+
+### Geometric accuracy
+
+<img src="docs/showcase/grid_lines_zoom.jpg" width="60%" alt="Part of a grid disc scan with straight lines">
+
+This is part of a test grid disc, from a 600 dpi flatbed scan with a high-pass filter, about 38 mm across. This disc also used timing alone and was burned once (HL-DT-ST GH70N, Ritek F1 DVD-R). Eight scans put the rotation error over 25 to 54 mm at 0.11° peak to peak and 0.03° rms. At a 50 mm radius, 0.03° is about 0.03 mm.
+
+<img src="evidence/figures/bending_before_after.png" width="75%" alt="Rotation against radius for three grid discs">
+
+The green line in this plot is that disc. The measurement plan was [registered before the burn](docs/PREREG_remeasure.md) (in Chinese).
+
+### Fine detail
+
+<img src="docs/showcase/dense_motifs.jpg" width="75%" alt="Macro photo of impossible triangles, small figures and line groups along the top">
+
+A macro photo of the dense tiling disc, also burned once. The impossible triangles are 4.2 mm wide and the small figures are 6.8 mm tall. Along the top are groups of three lines for testing line width. The smallest triangle, 1 mm wide with edges of about 0.15 mm, is clearly visible to the naked eye. A 600 dpi scan separates 0.12 mm lines and barely resolves 0.08 mm, which is the scanner's limit.
+
+<img src="docs/showcase/ltva1_microscope_1px.jpg" width="32%" alt="Microscope photo of the 1 px (5 µm) checkerboard"> <img src="docs/showcase/ltva1_microscope_2px.jpg" width="32%" alt="Microscope photo of the 2 px (10 µm) checkerboard"> <img src="docs/showcase/ltva1_microscope_3px.jpg" width="32%" alt="Microscope photo of the 3 px (15 µm) checkerboard">
+
+How fine can it go? LTVA1 burned a test pattern at 23,200 × 23,200 px, 5 µm per pixel, on a Ritek DVD+R in an LG GU70N and looked at it under a microscope (10× objective, 16× eyepiece, 2× Barlow). The digit beside each patch is its pixel size; the "2" in the middle photo is upside down and mirrored. Checkerboards at 2 px (10 µm) and 3 px (15 µm) separate cleanly. At 1 px (5 µm), lines still separate but look grainy, and the checkerboard is borderline. For comparison, DiscImageStudio's 8192 px canvas is about 14 µm per pixel. This used a one-off patched build (5 µm cells, one byte per sample); cells that fine are not an option in a release yet. Photos by LTVA1, from [DiscImageStudio #108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19463898) ([details](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108#discussioncomment-19464147)), used at their request.
+
+### Colour (experimental)
+
+Write the same data over and over and that patch of disc acts as a grating, splitting white light. The repeat length decides which colour goes in a given direction, and the colour changes with the angle. This is still an experiment, followed in [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108).
+
+<img src="docs/showcase/roses_source.jpg" width="42%" alt="The rose picture made with GPT Image"> <img src="docs/showcase/roses_7185.jpg" width="42%" alt="Photo of the burned rose DVD-R, with some petals showing purple">
+
+On the left is the original, made with GPT Image. On the right is a photo of the burned DVD-R, with the background masked. This disc was designed for purple, and from the right angle some petals come close to the original purple, only darker. It only looks right from one angle, the petals change colour when the phone moves, and you can't choose just any colour: purple is the only target so far. Details are in [#168](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/168). The same disc also holds 1.38 GB of data and read back with no errors, see [#170](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/170). These are early results from one disc, and the tool for the rose disc isn't published yet.
+
+<img src="docs/showcase/rosettes_closeup.jpg" width="75%" alt="Petals of one flower showing several colours under a flash">
+
+The one you can burn yourself is this flower disc, with 3 to 4 colours on one flower. We've only burned it on RITEKF1 DVD-R. Measure your disc as in [Quick start](#quick-start), then build the design. This step doesn't touch the drive:
+
+```bash
+python tools/compose_rosettes.py
+```
+
+It prints the next command, which builds the ISO:
+
+```bash
+python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --textures "MIX:92,87,83,8D,60" A5 92 66 ED00 2AE304 --r-max 57.6 --output iso/rosettes.iso
+```
+
+The preview's colours only tell the textures apart, so it won't match the disc. To photograph it, turn off the room lights, use only the phone flash and hold the phone a little to one side. [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108) has the steps.
+
+### Other drives and discs
+
+- On RITEKF1 discs, our timing result is within about ±0.05° of bczhc's independent photo calibration ([DiscImageStudio #53](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/53)).
+- A laptop drive about 15 years old (PLDS DS8A8SH, through a SATA-to-USB adapter) measured a geometry about 0.05° rms from our GH70N.
+- CMC CD-R takes an extra step, because timing can't tell where the data sits along the track in absolute terms. A burned grid disc sets this constant. On the GH70N it is about 206 frames, and a second disc checked it to within +0.6 frames. The pitch on this batch also has a wave, which left 0.16° rms on the second disc.
+
 ## Drives with hands-on reports
 
 This lists drives someone has tested so far, and a drive that isn't listed may still work. Run `timing` to find out. Most of the data comes from `timing`. You can add yours in [DiscImageStudio discussion #107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107).
@@ -287,6 +341,9 @@ Most of these are user reports judged from the finished disc, usually with no me
 | ASUS SDRW-08D2S-U | Verbatim CD-R | Use `--speed 4234`. Preset with no fine calibration, burned at the lowest speed, same outline as the original | moodyos, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19424471) |
 | ASUS SDRW-08D2S-U (B911, Linux) | Verbatim DVD+R | `geo` plus a grid-scan correction, exported as a preset, and pictures burned with it | NO-ob, [disc-probe #6](https://github.com/Ashley-QwQ/disc-probe/issues/6) |
 | Sony Optiarc AD-7201S | Memorex CD-R | Clean images only after `geo` plus fine calibration in DIS (about 15 failed discs before) | pugod124, [disc-probe #2](https://github.com/Ashley-QwQ/disc-probe/issues/2) |
+
+<details>
+<summary>Show drives that measure but have partial or no burn reports, and combinations not recommended for now</summary>
 
 ### Measures, with burning partly shown or not yet reported
 
@@ -349,6 +406,8 @@ This is the result for the reported disc and speed, and other conditions may dif
 </details>
 
 Linux support was first ported by bczhc ([bczhc/disc-probe](https://github.com/bczhc/disc-probe)) and is now part of this repository. NaiveTomcat ported it to macOS: [NaiveTomcat/discprobe-macos](https://github.com/NaiveTomcat/discprobe-macos) (GPL-3.0-or-later). The release includes a signed, notarized universal helper, so you don't need to compile anything.
+
+</details>
 
 ## Using it by hand
 

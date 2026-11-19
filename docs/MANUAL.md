@@ -2,6 +2,8 @@
 
 各命令的原理、参数、输出和自检结果。项目介绍和快速开始见 [README](../README.md)，实验记录见 [KNOWLEDGE.md](KNOWLEDGE.md)。
 
+打开网页大厅时，Windows 完整包双击 `开始 Start (Windows).bat`，Linux 完整包运行 `./start-linux.sh` 或 `bash start-linux.sh`。
+
 ## 安全
 
 - 只发送读类命令。`discprobe/scsi.py` 里有一份白名单，白名单之外的操作码在到达设备前就被拒绝，任何写入、封盘、格式化命令都发不出去。self-test 会验证 WRITE、CLOSE TRACK、FORMAT UNIT 确实被拒。
@@ -79,7 +81,7 @@ python -m discprobe menu
 - `:` 搜索全部命令：输入几个字母过滤，Enter 看参数，`r` 运行，`c` 复制。`?` 看所有按键。
 - `image` 步骤是一个表单：把图片拖进窗口或输入路径，Tab 补全；目标 ISO 和 `--geo` 也可以改。
 - `m` 在 DVD、CD 和蓝光之间切换，`l` 切换中英文；切换后的语言也会传给之后运行的命令。`--media` 指定起始盘型，`--out` 指定结果文件夹。
-- 第一次在终端里运行时，问候显示在控制台首页；只问一次要不要看教程，回答要后会先停一下再进全屏。按 `q` 退出后，步骤清单、进度和补全提示会留在屏幕上，打包的 Start.bat 窗口也不会只剩两行提示。
+- 第一次在终端里运行时，问候显示在控制台首页；只问一次要不要看教程，回答要后会先停一下再进全屏。按 `q` 退出后，步骤清单、进度和补全提示会留在屏幕上。
 - 刻录说明按系统给出：Windows 右键 ISO，Linux 用 `cdrdao`/`growisofs` 和对应的 toc。蓝光的图片和刻录步骤会先重复 `guide` 里关于「形状不等于尺度」的提醒，再给出 `image --media bd`。
 - 终端不支持按键时退回编号菜单；`menu` 在管道、重定向或 `DISCPROBE_PLAIN=1` 下只打印文字步骤。不带参数的非终端调用仍是原来的缺少子命令错误，脚本请显式写 `guide` 或 `menu`。
 

@@ -101,6 +101,9 @@ def _url(port, token):
 
 
 def _open(url):
+    # The launcher already printed the address; on a headless Linux host it is sufficient.
+    if sys.platform.startswith("linux") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        return
     try:
         opened = webbrowser.open(url)
     except (OSError, webbrowser.Error):

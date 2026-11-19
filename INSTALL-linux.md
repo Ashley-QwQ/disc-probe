@@ -1,8 +1,15 @@
 # Linux 安装（1.0.0.0-alpha）
 
-这是源码和通用 wheel，需要系统 Python 3.11 或更新版本；本次验证使用
-Ubuntu x86_64、Python 3.12。NumPy、Pillow、SciPy、OpenCV 的二进制 wheel
-必须与机器架构、Python ABI 和 glibc 兼容。没有打包 Linux Python 运行时。
+## Linux 完整包
+
+解压后运行 `./start-linux.sh`。如果解压工具丢了可执行位，运行 `bash start-linux.sh`。
+包内的 `linux/python/bin/python3` 是预装依赖的 Python 3.13。启动直接使用该解释器，
+无需系统 Python 或另行安装依赖。没有图形桌面时，服务会在终端打印带令牌的地址。
+
+## 源码和通用 wheel
+
+手动安装需要系统 Python 3.11 或更新版本。NumPy、Pillow、SciPy、OpenCV 的二进制 wheel
+必须与机器架构、Python ABI 和 glibc 兼容。
 公开版本写作 `1.0.0.0-alpha`，pip 按 PEP 440 将其规范成 `1.0.0.0a0`。
 
 把发行 wheel 和匹配的依赖 wheel 放进 `wheelhouse/`，可离线安装：
@@ -17,8 +24,8 @@ pipx install --pip-args='--no-index --find-links=wheelhouse' ./disc_probe-1.0.0.
 python3 -m venv dp-venv
 dp-venv/bin/python -m pip install --no-index --find-links=wheelhouse ./disc_probe-1.0.0.0a0-py3-none-any.whl
 dp-venv/bin/disc-probe version --json
-dp-venv/bin/disc-probe webui --local-only --port 8765
-# 浏览器打开 http://127.0.0.1:8765/home/
+dp-venv/bin/disc-probe webui --open --local-only
+# 可用服务打印的地址手动打开
 dp-venv/bin/disc-probe selftest
 ```
 

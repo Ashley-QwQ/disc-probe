@@ -4,6 +4,8 @@ Chinese original: [MANUAL.md](MANUAL.md) (in Chinese).
 
 How each command works, its parameters, outputs and self-test results. For an introduction and quick start, see [README](../README.en.md); for experiment records, see [KNOWLEDGE.md](KNOWLEDGE.md) (in Chinese).
 
+To open the web lobby, double-click `开始 Start (Windows).bat` in the Windows full package, or run `./start-linux.sh` or `bash start-linux.sh` in the Linux full package.
+
 ## Safety
 
 - Only read commands are sent. A whitelist in `discprobe/scsi.py` rejects any other opcode before it reaches the device, so no write, close-disc or format command can be sent. The self-test checks that WRITE, CLOSE TRACK and FORMAT UNIT are refused.
@@ -81,7 +83,7 @@ Running `python -m discprobe` with no arguments at a terminal opens it too. It p
 - `:` searches all commands: type a few letters to filter, Enter shows the options, `r` runs, `c` copies. `?` shows every key.
 - The `image` step is a form: drop a picture into the window or type a path, and Tab completes it; the output ISO and `--geo` can be changed too.
 - `m` switches between DVD, CD and Blu-ray, `l` switches language; the language is passed on to the commands you run next. `--media` picks the starting disc type and `--out` the results folder.
-- The first run greets you on the console home screen and offers the walkthrough once; if you accept, it pauses before the full screen opens. After `q` the checklist, your progress and the completion hint stay on screen, so the packaged Start.bat window is not blank.
+- The first run greets you on the console home screen and offers the walkthrough once; if you accept, it pauses before the full screen opens. After `q` the checklist, your progress and the completion hint stay on screen.
 - Burning follows the operating system: right-click the ISO on Windows, or use `cdrdao`/`growisofs` with the matching toc on Linux. On Blu-ray the picture and burn steps repeat `guide`'s caution about shape versus scale before offering `image --media bd`.
 - A terminal without keys falls back to a numbered menu; `menu` in a pipe, a redirect or with `DISCPROBE_PLAIN=1` prints the text steps. A no-argument non-terminal call still reports the missing command, so scripts should name `guide` or `menu`.
 
