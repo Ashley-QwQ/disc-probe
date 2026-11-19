@@ -543,3 +543,12 @@ def test_web_job_passes_work_and_home_without_recorder(store, tmp_path, monkeypa
     # Prevent backend.close from treating the already finished fake job as live.
     backend.jobs[job["job"]].exit = 0
     backend.close()
+
+
+def test_list_skips_a_folder_left_without_work_json(store):
+    """An interrupted delete can leave w-.../assets/ behind; listing (and the bookkeeping after a
+    successful burn, which lists works) must not fail on it."""
+    made = store.new("kept", "dvd")
+    orphan = store.root / "w-20261119-000045-0b0c"
+    (orphan / "assets").mkdir(parents=True)
+    assert [w["id"] for w in store.list()] == [made["id"]]
