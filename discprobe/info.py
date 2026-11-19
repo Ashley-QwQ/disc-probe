@@ -198,7 +198,40 @@ def collect(dev) -> dict:
     capacity_check = check(r, lambda cdb, size: dev.execute(cdb, size, DATA_IN, timeout_s=COMMAND_TIMEOUT_S), audio=audio)
     if capacity_check['warnings']:
         r['capacity_check'] = capacity_check
+    _collect_dvd_details(dev, r)
     return r
+
+
+def _collect_dvd_details(dev, report: dict) -> None:
+    profile = (report['configuration'].get('parsed') or {}).get('current_profile')
+    capacity_profiles = (0x0015, 0x0016, 0x002B)  # MMC-6 format 20h on DVD±R DL
+    if profile not in (*capacity_profiles, 0x002A, 0x0010):  # +RW DL, DVD-ROM (check PFI)
+        return
+
+    def response(key):
+        entry = report[key]
+        return bytes.fromhex(entry.get('raw', '')) if entry.get('status') == 0 else b''
+
+    pfi = response('dvd_physical')
+    if profile == 0x002B:
+        for data, source in ((response('dvd_plus_adip_11'), '0x11'), (pfi, '0x00')):
+            mid = mmc.parse_dvd_plus_r_dl_mid(data)
+            if mid:
+                report['dvd_plus_mid'] = dict(mid, source=source)
+                break
+
+    start = mmc.DVD_DATA_START_PSN
+    end = mmc.parse_dvd_layer0_end(pfi)
+    if end is not None:
+        report['dvd_layer0'] = dict(start_psn=start, end_psn=end, sectors=end - start + 1, source='0x00')
+    elif profile in capacity_profiles:
+        entry = _run(dev, 'DVD layer capacity', mmc.read_disc_structure(0, 0x20, alloc=12),
+                     12, mmc.parse_dvd_layer_capacity)
+        report['dvd_layer_capacity_20'] = entry
+        capacity = entry.get('parsed') or {}
+        if capacity and (profile == 0x002B or capacity['initialized']):
+            report['dvd_layer0'] = dict(start_psn=start, end_psn=start + capacity['sectors'] - 1,
+                                        sectors=capacity['sectors'], source='0x20')
 
 
 def quick(dev) -> dict:
@@ -317,9 +350,23 @@ def summarize(r: dict) -> list[str]:
         lines.append(f"DVD-R MID: {pre['manufacturer_id']!r}")
     elif pre.get("ascii_runs"):
         lines.append(f"DVD-R pre-recorded text: {' | '.join(pre['ascii_runs'])}")
-    adip = parsed("dvd_plus_adip_11")
-    if adip.get("manufacturer_id"):
-        lines.append(f"DVD+R MID: {adip['manufacturer_id']}/{adip['media_type_id']}/{adip['product_revision']}")
+    if cfg.get('current_profile') == 0x002B:
+        mid = r.get('dvd_plus_mid')
+        if mid:
+            label = f"DVD+R MID: {mid['manufacturer_id']}/{mid['media_type_id']}/{mid['product_revision_byte']:02X}"
+            if mid['source'] == '0x00':
+                adip_entry = r.get('dvd_plus_adip_11', {})
+                outcome = ('ADIP 0x11 refused' if adip_entry.get('unsupported') or adip_entry.get('status') == 2
+                           else 'ADIP 0x11 could not be parsed')
+                label += f" (from physical format info 0x00; {outcome})"
+            lines.append(label)
+    else:
+        adip = parsed("dvd_plus_adip_11")
+        if adip.get("manufacturer_id"):
+            lines.append(f"DVD+R MID: {adip['manufacturer_id']}/{adip['media_type_id']}/{adip['product_revision']}")
+    layer0 = r.get('dvd_layer0')
+    if layer0:
+        lines.append(f"L0: {layer0['sectors']} sectors (PSN 0x{layer0['start_psn']:06X}..0x{layer0['end_psn']:06X})")
     for key, label in (("perf_read_nominal", "Read perf"), ("perf_write_nominal", "Write perf")):
         for desc in parsed(key).get("descriptors", []):
             lines.append(f"{label}: LBA {desc['start_lba']}..{desc['end_lba']}  "
