@@ -1,0 +1,8 @@
+cpython-3.13.14+20260610-x86_64-unknown-linux-gnu-install_only.tar.gz 4514 119009873
+cpython-3.13.14+20260610-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz 4514 34931836
+Paths removed: []
+Paths added: []
+python/bin/python3.13 removed sections: ['.debug_abbrev', '.debug_addr', '.debug_aranges', '.debug_frame', '.debug_info', '.debug_line', '.debug_line_str', '.debug_loc', '.debug_loclists', '.debug_ranges', '.debug_rnglists', '.debug_str']
+python/bin/python3.13 added sections: []
+python/lib/libpython3.13.so.1.0 removed sections: ['.debug_abbrev', '.debug_aranges', '.debug_frame', '.debug_info', '.debug_line', '.debug_line_str', '.debug_loc', '.debug_loclists', '.debug_ranges', '.debug_rnglists', '.debug_str', '.rela.debug_aranges', '.rela.debug_frame', '.rela.debug_info', '.rela.debug_line', '.rela.debug_loc', '.rela.debug_loclists', '.rela.debug_ranges']
+python/lib/libpython3.13.so.1.0 added sections: []

@@ -91,3 +91,63 @@ Windows 新出现的同名 .whl 是官方 SciPy wheel 的 RECORD 中列出的 0 
 | 合计 | **350.684** | **350.707** | **350.706** |
 
 在 350.7 MB 原包中，仅 Linux 的 `libpython3.13.so.1.0` 和 `python3.13` 就占 105.181 MB 压缩空间。两端 OpenCV headless 合计 104.947 MB。本轮沿用已验过的裁剪范围及原有 Windows OpenCV 类型标注。真实光驱、读盘和刻录未测。
+
+## 续轮：使用官方 stripped Linux Python，并合入卡 AB
+
+- `45c6e5e` 将 Linux 便携运行时锁定为 Astral 20260610 的 CPython 3.13.14 `x86_64-unknown-linux-gnu`、`install_only_stripped` 归档。版本、目标和依赖 wheel 沿用上一轮。构建沿用原有裁剪规则，校验后才解包。
+- `9ab455b` 用 `git merge --no-ff dev/1.0.0` 合入 `c4c7ebe`。包含卡 AB、作品列表修复、离线排错搜索与 `webui --gui` 校验。三个冲突均为测试文件。GUI 校验和端口回退用例采用上游实现，LAN 模式用例沿用原有隔离桩。wheel 内容测试新增对 `discprobe/data/troubleshoot.json` 的逐字节检查。
+- `efb011a` 修正合并后失效的排错出处及安装文档锚点，使出处刷新工具能处理重复引用。校准容量用例用模拟介质通过现行身份验证，并校验写入子进程收到的介质身份。
+
+### 归档与负向验收
+
+归档 `cpython-3.13.14+20260610-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz` 大小为 34,931,836 字节。官方 `SHA256SUMS` 对应行、GitHub 发布 API 资产摘要、本机实算和锁定值均为 `d607e18e83227a0527cf3f54a48be973a75358a6885e4be67d4b0359b6f1c880`。`SHA256SUMS` 文件本身与发布 API 记录同为 `698c0a756445f998fe752d220391ef87f8e207aea16dfa329a4bf6f65acd899e`。[官方发布资产](https://github.com/astral-sh/python-build-standalone/releases/expanded_assets/20260610) · [官方 SHA256SUMS](https://github.com/astral-sh/python-build-standalone/releases/download/20260610/SHA256SUMS)
+
+两个官方运行时归档中检查的 4,514 个路径相同。核对 `python3.13` 与 `libpython3.13.so.1.0` 的 ELF 节表时，移除项为调试节和关联的重定位节。[归档对照日志](../../evidence/pack-inputs-pinned/stripped/elf-sections.log)
+
+`tests/test_pack_inputs.py` 八项负向全部通过，包括 stripped 归档字节改动、将锁定资产名改回未剥离版本以及缺少 stripped 归档。失败命令均报告受影响文件，退出码非零且未生成 ZIP。合并相关定向测试为 146 通过、1 跳过、8 个子测试通过。两项合并问题修复后，排错、校准、介质身份及打包定向复验为 104 通过。刷新工具的 `--check` 通过，排错测试覆盖 389 处引用。
+
+### 发布彩排与三机验收
+
+首轮彩排在 Windows pytest 阶段发现两个失败，分别为校准容量的模拟盘缺少身份，以及排错语料引用了上游版文档位置。修复后从 `efb011a` 重跑。
+
+```powershell
+$env:TEMP = 'F:/dp-dev-tmp/linuxpack'
+$env:TMP = $env:TEMP
+python -X utf8 -B tools/release.py --version 1.0.0.0-alpha --out F:/dp-dev-tmp/linuxpack/rehearsal-stripped-final --cache F:/dp-dev-tmp/linuxpack/pinned-cache
+```
+
+最终彩排 68/68 项通过。pytest 为 `1235 passed, 2 skipped, 196 subtests passed`，55/55 个 MJS 和 1/1 个 CJS 通过，Disc Lab 为 `153 passed, 2 skipped`。Disc Neo 本轮跳过。发布目录中 7 项 SHA-256 全部重算一致。[彩排状态](../../evidence/pack-inputs-pinned/stripped/release-status.json)
+
+完整包的 Windows 和 Linux 共用同一份 `discprobe/data/troubleshoot.json`，它与发行 wheel 中的副本及仓库原文件逐字节一致，SHA-256 为 `99c9bc161b3a757763dd72f5fd4102aed66c8a580d6ff8babf9501900f7bae1d`。安装后的 wheel、本机 Windows 解压件及两台 Ubuntu 主机均以各自的解释器查询 *This disc cannot be erased: only rewritable discs*，首位命中 `burn-erase-media`。[已安装 wheel 验证](../../evidence/pack-inputs-pinned/stripped/installed-wheel-help.log)
+
+| 主机 | 系统与解压方式 | 实测结果 | 日志 |
+| --- | --- | --- | --- |
+| x79 | Ubuntu 24.04.4 LTS，BusyBox unzip | Bash 启动、包内自检、WebUI status/stop 通过 | [运行](../../evidence/pack-inputs-pinned/stripped/x79/verify.log) · [清理](../../evidence/pack-inputs-pinned/stripped/x79/cleanup.log) |
+| agentbox | Ubuntu 26.04 LTS，系统 unzip | Bash 启动、包内自检、WebUI status/stop 通过 | [运行](../../evidence/pack-inputs-pinned/stripped/agentbox/verify.log) · [清理](../../evidence/pack-inputs-pinned/stripped/agentbox/cleanup.log) |
+| 本机 | Windows，解压路径含 `中文 空格` | BAT 帮助及 `python/python.exe -m discprobe selftest` 通过 | [运行](../../evidence/pack-inputs-pinned/stripped/windows.log) |
+
+两台 Ubuntu 主机均核对 ZIP SHA-256，解压后保留启动脚本的 0755 权限。通过 `bash start-linux.sh --local-only --no-drives --port 0` 启动，大厅和版本接口均返回 200，停止后状态显示服务未运行，监听端口关闭。远端上传件和解压目录均已清理，日志保留。真实光驱、读盘及刻录未测。
+
+### 完整 ZIP 体积
+
+完整 ZIP 为 **267.953 MB**（267,953,316 字节），比上一轮减少 **82.753 MB**（23.6%）。SHA-256 为 `4a3b5741d6235eb29d6efe0ed5da7f0f2330b39946e05a9828d49c32003d2f21`。产物位于 `F:/dp-dev-tmp/linuxpack/rehearsal-stripped-final/assets`。[精确压缩字节数和 SHA-256](../../evidence/pack-inputs-pinned/stripped/comparison.json)
+
+单位为十进制 MB。各部件按 ZIP 条目的压缩字节计，ZIP 文件头和目录表单列。两列使用各轮实际发布彩排 ZIP。共用源码和资源包含本轮合并的新增文件。
+
+| 部件 | 上轮锁定版 | 本轮 stripped 版 |
+| --- | ---: | ---: |
+| Windows Python | 10.051 | 10.051 |
+| Windows NumPy | 10.471 | 10.471 |
+| Windows Pillow | 7.081 | 7.081 |
+| Windows SciPy | 31.676 | 31.676 |
+| Windows OpenCV headless | 43.820 | 43.820 |
+| Linux Python | 116.555 | 33.743 |
+| Linux NumPy | 14.723 | 14.723 |
+| Linux Pillow | 6.917 | 6.917 |
+| Linux SciPy | 30.394 | 30.394 |
+| Linux OpenCV headless | 61.126 | 61.126 |
+| 共用源码和资源 | 16.720 | 16.779 |
+| ZIP 目录表与文件头 | 1.169 | 1.170 |
+| 合计 | **350.706** | **267.953** |
+
+ZIP 中的 `python3.13` 和 `libpython3.13.so.1.0` 两项合计由 105.181 MB 降至 22.551 MB，归档内保留的 Linux Python 运行时文件路径与上轮相同。

@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "host": "x79",
+  "remote_root": "~/dp-linuxpack-test/run-1795054243229209400",
+  "input": {
+    "run": "run-1795054243229209400",
+    "file": "disc-probe-1.0.0.0-alpha-full.zip",
+    "prefix": "disc-probe-1.0.0.0-alpha-full",
+    "sha256": "4a3b5741d6235eb29d6efe0ed5da7f0f2330b39946e05a9828d49c32003d2f21",
+    "required_bytes": 1522395727
+  }
+}
