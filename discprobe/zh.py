@@ -169,6 +169,7 @@ TEXT = {
     "Enter the same number in DiscImageStudio. A blank disc's `info` is the count to go by: one user found read-from-disc there too high.":
         "DiscImageStudio 里也填这个数。以空白盘上 `info` 的数为准：有用户发现它的“从光盘读取”给的数偏大。",
     "free space of this blank disc": "这张空白盘的剩余空间",
+    "lead-out in the ATIP; it can be two sectors more than a blank disc can hold": "ATIP 里的导出区起点；可能比空盘能写的多两个扇区",
     "lead-out in the ATIP; `info` on a blank disc gives a closer count": "ATIP 里的导出区起点；对空白盘运行 `info` 给的数更准",
     "last LBA + 1, the blank size only if this disc was burned full": "最后扇区号 + 1，只有整张刻满时才等于空白盘容量",
     "Nothing is recorded on this disc, so timing cannot use it. Burn a random-data disc first:": "这张盘上没有数据，timing 用不了。先刻一张随机数据盘：",
@@ -429,8 +430,8 @@ TEXT = {
     "Put a blank disc of the kind you plan to use in the drive, then read its available sectors (a few seconds):": "把准备用的空盘放进光驱，读取可用扇区数（几秒钟）：",
     "Next, put a blank disc in the drive and read its available sectors (a few seconds):": "接下来，把空盘放进光驱，读取可用扇区数（几秒钟）：",
     "Put a blank disc in the drive and read its available sectors (a few seconds).": "把空盘放进光驱，读取可用扇区数（几秒钟）。",
-    "That count is what calibration and --sectors use; a blank disc reports it most accurately.": "这个数就是标定和 --sectors 要用的；空盘报得最准。",
-    "Put a blank disc of the kind you plan to use in the drive. Its info report gives the available sector count that calibration and disexport --sectors need; a count read back from a burned disc can be too high.": "把准备用的空盘放进光驱。它的 info 报告给出可用扇区数，标定和 disexport --sectors 都要用；从刻过的盘上读回来的数可能偏大。",
+    "That count is what `disexport --sectors` uses; `random --sectors` is the length of the random disc, chosen separately.": "这个数是 `disexport --sectors` 要用的；`random --sectors` 是随机盘的镜像长度，另算。",
+    "Put a blank disc of the kind you plan to use in the drive. Its info report gives the available sector count that `disexport --sectors` needs; a count read back from a burned disc can be too high.": "把准备用的空盘放进光驱。它的 info 报告给出 `disexport --sectors` 要用的可用扇区数；从刻过的盘上读回来的数可能偏大。",
     "a few seconds": "几秒钟",
     "Drive check (timing)": "光驱检查 (timing)",
     "Geometry (geo)": "盘面几何 (geo)",
