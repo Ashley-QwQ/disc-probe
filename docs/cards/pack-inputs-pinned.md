@@ -151,3 +151,51 @@ python -X utf8 -B tools/release.py --version 1.0.0.0-alpha --out F:/dp-dev-tmp/l
 | 合计 | **350.706** | **267.953** |
 
 ZIP 中的 `python3.13` 和 `libpython3.13.so.1.0` 两项合计由 105.181 MB 降至 22.551 MB，归档内保留的 Linux Python 运行时文件路径与上轮相同。
+
+## 11-19 补充：Windows、Linux 和双平台包
+
+- `adf274b` 用 `git merge --no-ff dev/1.0.0` 合入 `c2f2033`，包含 R2–R9、issue #49 的说明和排错出处刷新。排错语料冲突先取 dev 的版本，再用 `python tools/refresh_troubleshoot_citations.py` 和本分支现有安装说明校正引用。合并的定向测试为 80 通过、1 跳过。
+- `6a35a3e` 从同一份打包暂存树生成三个 ZIP。Windows 和 Linux 各安装一次已校验的依赖，各变体只取所需运行时和启动器。单平台首读文件只给出本平台的启动命令，并列出另外两种包。
+- `0314cd5` 让合入前已有的光盘镜像用例适配 R2–R9。模拟写入器生成可登记的测试镜像，刻录日志用例使用带自检记录的测试镜像，随机镜像用例校验陈旧边车清理。
+- `dd30917` 给 pytest 用例独立用户状态目录，隔离两个 worker 上使用同一虚拟 `X:` 的用例。
+- `0d3fa1e` 从 Linux 单平台包排除 Linux 标准库随附的两个仅供 Windows 使用的批处理辅助文件 `ctypes/macholib/fetch_macholib.bat` 和 `idlelib/idle.bat`。完整包保留两个文件，Linux 单平台包的其余运行时文件仍复用原暂存树。
+- `76f6a30` 让浏览器测试等盘库可操作后确认实际选中项，再点击下一步。无界面业务代码改动，定向复跑三次均通过。
+- 沿用 CPython 3.13.14（Windows embed、Linux 官方 stripped 归档）和上一轮的八个 wheel。本轮复算十个缓存原件的 SHA-256，均匹配原锁定文件。没有新增下载，也没有改变已有的裁剪规则。
+
+### 下载选择与大小
+
+单位为十进制 MB。完整 ZIP 仍可在两个平台上运行。源码树文档显示约数，包内中英文 README、INSTALL-linux.md 和单独发布的安装指南写入本次实际包名和大小（MB 保留三位小数）。三份包内 `release-build.json`、发布 `manifest.json` 及 `SHA256SUMS.txt` 注释记录精确字节数，发布说明模板为三个大小分别留槽。
+
+| ZIP | 大小（MB） | 字节 | 选择 |
+| --- | ---: | ---: | --- |
+| disc-probe-1.0.0.0-alpha-win64.zip | 120.494 | 120,493,842 | 只用 Windows |
+| disc-probe-1.0.0.0-alpha-linux-x86_64.zip | 164.687 | 164,687,278 | 只用 Linux |
+| disc-probe-1.0.0.0-alpha-full.zip | 268.079 | 268,078,728 | 两个平台都用，或不确定 |
+
+产物位于 `F:/dp-dev-tmp/linuxpack/rehearsal-platforms/assets`。[字节数及 SHA-256](../../evidence/pack-inputs-pinned/platform-variants/comparison.json)
+
+### 校验、同源对照和平台验收
+
+输入负向测试八项全部通过，覆盖原始文件单字节改动、版本或平台标签错误、文件缺失以及将 stripped 资产名退回旧变体。每项均报告受影响输入、以非零退出，并清掉模拟的旧 ZIP 和摘要文件。发行编排也验证缺任一单平台包时不生成通过验收的 assets 目录。最新打包及引用定向检查为 83 项通过。
+
+首轮彩排在 pytest 停止，共有八个旧镜像用例失败，无便携 ZIP 产出。更新测试夹具后，R2–R9 相关定向复验为 123 项通过。第二轮两个模拟驱动用例争用同一把虚拟盘锁。隔离用户状态后定向复验 142 项通过。含标准库批处理排除的最终定向复验 77 项通过。
+
+前两轮原始日志分别保存在 `F:/dp-dev-tmp/linuxpack/rehearsal-platforms-first-failure/logs/pytest.log` 和 `F:/dp-dev-tmp/linuxpack/rehearsal-platforms-second-failure/logs/pytest.log`。确认 BAT 清单后主动重启了一次预检，其临时目录清理被自动审查拦截，现场留在 `F:/dp-dev-tmp/linuxpack/rehearsal-platforms-restarted-preflight`。后续一轮 pytest 通过，盘库选择浏览器用例偶发失败，原始日志见 `F:/dp-dev-tmp/linuxpack/rehearsal-platforms-browser-failure/logs/test_review_library_newwork.mjs.log`。
+
+```powershell
+$env:TEMP = 'F:/dp-dev-tmp/linuxpack'
+$env:TMP = $env:TEMP
+python -X utf8 -B tools/release.py --version 1.0.0.0-alpha --out F:/dp-dev-tmp/linuxpack/rehearsal-platforms --cache F:/dp-dev-tmp/linuxpack/pinned-cache
+```
+
+构建快照为 `76f6a30`。彩排 68/68 项通过，pytest 为 `1272 passed, 2 skipped, 196 subtests passed`，55 个 MJS 和 1 个 CJS 全部通过，Disc Lab 为 `153 passed, 2 skipped`。Disc Neo 本轮跳过。发布目录中的 9 项 SHA-256 均已复算一致。[彩排状态](../../evidence/pack-inputs-pinned/platform-variants/release-status.json)
+
+用上一轮 `f4e7f43` 的旧打包器从同一份冻结源码重建对照 full。三个交付 ZIP、旧打包器对照 ZIP 和冻结源码的 **607 个 `discprobe/` 文件逐字节一致**。发行 wheel 中的排错语料也与三个 ZIP 相同。新 full 与各自单平台包中的 Windows 1,327 个运行时文件和 Linux 2,542 个共有运行时文件均逐字节一致。各平台依赖版本与对照包一致。旧包到新包的运行时变化仅涉及 2 项安装记录（RECORD）。两个 NumPy RECORD 仅有未随包分发的 f2py.exe 和 numpy-config.exe 记录的哈希不同。[同源对照记录](../../evidence/pack-inputs-pinned/platform-variants/comparison.json) · [旧打包器日志](../../evidence/pack-inputs-pinned/platform-variants/legacy-build.log) · [已安装 wheel 查询日志](../../evidence/pack-inputs-pinned/platform-variants/installed-wheel-help.log)
+
+| 包 | 本机 Windows | x79（Ubuntu 24.04） | agentbox（Ubuntu 26.04） |
+| --- | --- | --- | --- |
+| win64 | [通过](../../evidence/pack-inputs-pinned/platform-variants/win64/windows/verify-summary.log) | — | — |
+| linux-x86_64 | — | [通过](../../evidence/pack-inputs-pinned/platform-variants/linux-x86_64/x79/verify-summary.log) | [通过](../../evidence/pack-inputs-pinned/platform-variants/linux-x86_64/agentbox/verify-summary.log) |
+| full | [通过](../../evidence/pack-inputs-pinned/platform-variants/full/windows/verify-summary.log) | [通过](../../evidence/pack-inputs-pinned/platform-variants/full/x79/verify-summary.log) | [通过](../../evidence/pack-inputs-pinned/platform-variants/full/agentbox/verify-summary.log) |
+
+Windows 在 `中文 空格` 路径解压。两个 ZIP 的 BAT 帮助、包内 Python 和 headless OpenCV 校验、排错查询和 selftest 均通过。两台 Ubuntu 对两个 Linux 可用的 ZIP 分别复算发布摘要、解压并核对 0755 权限，以 `bash start-linux.sh --local-only --no-drives --port 0` 启动。包内 selftest 通过，大厅和版本接口返回 200。`webui status` 命中本次服务，`webui stop` 后状态显示服务已关闭，监听端口已释放。两台机器均清理了上传件和解压目录。完整原始日志位于 `F:/dp-dev-tmp/linuxpack/platform-verification`。实际光驱读盘和刻录未测。

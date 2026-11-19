@@ -1,0 +1,22 @@
+Previous builder: f4e7f43; frozen source: 76f6a302b53e43e04851c63f30255deafd1cab18
+Looking in links: f:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\windows
+Processing F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\windows\numpy-2.5.1-cp313-cp313-win_amd64.whl (from -r F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\windows\requirements.txt (line 1))
+Processing F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\windows\pillow-12.3.0-cp313-cp313-win_amd64.whl (from -r F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\windows\requirements.txt (line 2))
+Processing F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\windows\scipy-1.18.1-cp313-cp313-win_amd64.whl (from -r F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\windows\requirements.txt (line 3))
+Processing F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\windows\opencv_python_headless-5.0.0.93-cp37-abi3-win_amd64.whl (from -r F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\windows\requirements.txt (line 4))
+Installing collected packages: scipy, pillow, opencv-python-headless, numpy
+
+Successfully installed numpy-2.5.1 opencv-python-headless-5.0.0.93 pillow-12.3.0 scipy-1.18.1
+Looking in links: f:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\linux
+Processing F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\linux\numpy-2.5.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (from -r F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\linux\requirements.txt (line 1))
+Processing F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\linux\pillow-12.3.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (from -r F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\linux\requirements.txt (line 2))
+Processing F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\linux\scipy-1.18.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (from -r F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\linux\requirements.txt (line 3))
+Processing F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\linux\opencv_python_headless-5.0.0.93-cp37-abi3-manylinux_2_28_x86_64.whl (from -r F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\pack-stage-9gcpuz2u\linux\requirements.txt (line 4))
+Installing collected packages: scipy, pillow, opencv-python-headless, numpy
+
+Successfully installed numpy-2.5.1 opencv-python-headless-5.0.0.93 pillow-12.3.0 scipy-1.18.1
+untrimmed: selftest passed
+trimmed: selftest passed
+F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\disc-probe-1.0.0.0-alpha-core.zip: 16.9 MB, commit 76f6a302b53e43e04851c63f30255deafd1cab18, sha256 8b385c284a49dc2a04a4
+F:\dp-dev-tmp\linuxpack\rehearsal-platforms-baseline\disc-probe-1.0.0.0-alpha-full.zip: 268.0 MB, commit 76f6a302b53e43e04851c63f30255deafd1cab18, sha256 d0d4da4b9916d91a2229
+PASS

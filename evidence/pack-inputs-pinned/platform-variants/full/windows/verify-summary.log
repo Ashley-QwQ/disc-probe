@@ -1,0 +1,6 @@
+Archive SHA-256: f63b3fdddbaaa2967ecc0362f3a0e837c9e47cd44f13e3a82d3c811596624bd7
+{"python": "3.13.14", "dependencies": {"numpy": "2.5.1", "opencv-python-headless": "5.0.0.93", "pillow": "12.3.0", "scipy": "1.18.1"}}
+Offline troubleshooting search: burn-erase-media
+["F:\\dp-dev-tmp\\linuxpack\\platform-verification\\full\\windows\\test-_4sfs40w\\中文 空格\\disc-probe-1.0.0.0-alpha-full\\python\\python.exe", "-X", "utf8", "-B", "-m", "discprobe", "selftest"]
+all checks passed
+PASS
