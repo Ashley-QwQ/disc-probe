@@ -36,7 +36,7 @@ def main():
         a.photo = a.photo.resolve()
     out = a.out.resolve(); out.mkdir(parents=True, exist_ok=True)
     os.chdir(out)
-    env = dict(os.environ, PYTHONUTF8='1', PYTHONDONTWRITEBYTECODE='1',
+    env = dict(os.environ, PYTHONUTF8='1', PYTHONDONTWRITEBYTECODE='1', LOCALAPPDATA=str(out / 'state'),
                OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1', MKL_NUM_THREADS='1', NUMEXPR_NUM_THREADS='1',
                DISCPROBE_WORKERS='1')
     python = [sys.executable, '-X', 'utf8', '-B']
@@ -82,7 +82,8 @@ def main():
         assert version['core_version'] == a.version
         result['version'] = version
         log = (out/'web.log').open('w',encoding='utf-8')
-        server = subprocess.Popen([*cli, 'webui', '--local-only', '--no-drives', '--new-instance', '--port', '0'],
+        server = subprocess.Popen([*python, '-m', 'discprobe', 'webui', '--local-only', '--no-drives',
+                                   '--new-instance', '--port', '0'],
                                   cwd=out, env=env,
                                   stdout=subprocess.PIPE, stderr=log, text=True, encoding='utf-8')
         lines = queue.Queue()

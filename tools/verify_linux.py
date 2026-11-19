@@ -54,7 +54,7 @@ executables = [package / 'start-linux.sh', *sorted((package / 'linux/python/bin'
 modes = {str(path.relative_to(package)): oct(path.stat().st_mode & 0o777) for path in executables}
 print('Modes immediately after unzip:', json.dumps(modes), flush=True)
 assert all(os.access(path, os.X_OK) for path in executables), 'unzip did not restore executable bits'
-env = dict(os.environ, HOME=str(unpacked), XDG_CACHE_HOME=str(unpacked / 'cache'),
+env = dict(os.environ, HOME=str(unpacked), LOCALAPPDATA=str(unpacked / 'state'), XDG_CACHE_HOME=str(unpacked / 'cache'),
            XDG_CONFIG_HOME=str(unpacked / 'config'), XDG_RUNTIME_DIR=str(unpacked / 'runtime'),
            TMPDIR=str(temporary), PYTHONNOUSERSITE='1', BROWSER='false',
            OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1', MKL_NUM_THREADS='1',
