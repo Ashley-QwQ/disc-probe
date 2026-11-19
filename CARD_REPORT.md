@@ -1,95 +1,68 @@
-# 社区提示卡交付报告
+# CF 校准 A1–A3 验收
 
-工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
+工作树 `D:/dp-dev/calfix`，分支 `dev/cal-fix-a`，基点 `f7abffc`。Disc Lab 复验只使用虚拟 X:，界面由脚本驱动无头 Edge 157.0.4341.60。
 
-## 按提交交付
+## 提交
 
-- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
-- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
-- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
-- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
-- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
-- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
+- `94042c3` · A1 让窄屏刻录任务使用整行页脚，停止键可直接点到，展开的确认面板贴在页脚上方。A2 用已完成任务的退出码和结果接回校准页，在结果首次前台显示或成功保存时记录 `result-seen`。A3 给未知容量的已刻测量盘提供同批空盘检测和手填两个入口，扇区数经已有的 `calibrate --sectors` 传给 core。测试覆盖窄屏实际命中、接回标记的后端状态、两种取容量的路径和下发参数。
 
-## 数据及出处
+## 修复前后对照
 
-本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
+### A1 · 停止刻录
 
-原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
+390×844 下的 4 种组合，每组实际用触摸分别点首次进入、刷新后、关闭重开后的停止键，共 12 次。每次核对风险文字、3 秒倒数、滑轨和继续刻录按钮都在视口内。各组在重开后拖动滑块，4 次均停止原来的虚拟任务。1440×1000 的桌面停止、倒数、拖动和取消接回由仓库浏览器测试复验。
 
-相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
+| 组合 | 修复前 | 修复后 |
+| --- | --- | --- |
+| 纸色中文 | [停止键重叠](<D:/dp-dev/tmp/calfix/shots/before-a1-paper-zh.jpg>) | [首次进入](<D:/dp-dev/tmp/calfix/shots/a1-paper-zh-retry/01-active-risk-countdown.jpg>) · [刷新](<D:/dp-dev/tmp/calfix/shots/a1-paper-zh-retry/02-after-reload-risk-countdown.jpg>) · [重开](<D:/dp-dev/tmp/calfix/shots/a1-paper-zh-retry/03-after-close-risk-countdown.jpg>) |
+| 纸色英文 | [停止键重叠](<D:/dp-dev/tmp/calfix/shots/before-a1-paper-en.jpg>) | [首次进入](<D:/dp-dev/tmp/calfix/shots/mx-active-matrix-3-cf-a1/01-active-risk-countdown.jpg>) · [刷新](<D:/dp-dev/tmp/calfix/shots/mx-active-matrix-3-cf-a1/02-after-reload-risk-countdown.jpg>) · [重开](<D:/dp-dev/tmp/calfix/shots/mx-active-matrix-3-cf-a1/03-after-close-risk-countdown.jpg>) |
+| 夜色中文 | [停止键重叠](<D:/dp-dev/tmp/calfix/shots/before-a1-dark-zh.jpg>) | [首次进入](<D:/dp-dev/tmp/calfix/shots/mx-active-matrix-22-cf-a1/01-active-risk-countdown.jpg>) · [刷新](<D:/dp-dev/tmp/calfix/shots/mx-active-matrix-22-cf-a1/02-after-reload-risk-countdown.jpg>) · [重开](<D:/dp-dev/tmp/calfix/shots/mx-active-matrix-22-cf-a1/03-after-close-risk-countdown.jpg>) |
+| 夜色英文 | [停止键重叠](<D:/dp-dev/tmp/calfix/shots/before-a1-dark-en.jpg>) | [首次进入](<D:/dp-dev/tmp/calfix/shots/mx-active-matrix-23-cf-a1/01-active-risk-countdown.jpg>) · [刷新](<D:/dp-dev/tmp/calfix/shots/mx-active-matrix-23-cf-a1/02-after-reload-risk-countdown.jpg>) · [重开](<D:/dp-dev/tmp/calfix/shots/mx-active-matrix-23-cf-a1/03-after-close-risk-countdown.jpg>) |
 
-新增 id：
+### A2 · 关页后接回
 
-```text
-D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
-I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
-DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
-DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
-DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
-DISmain-verbatim-dvd-plus-rw-94520-95043
-```
+同一任务先在运行时重开，随后关页等它以 0 退出。基线回到首页，修复后进入结果页，可以保存。另开新页分别验证了已看未保存、已保存两种状态，均停在首页。任务事件和退出状态沿用原记录，查看确认用新增的小文件及状态字段。刻录取消仍走既有接回流程，由仓库测试及 A1 的停止结果复验。
 
-修改 id（含仅补充来源/复用报告的记录）：
+| 时机 | 修复前 | 修复后 |
+| --- | --- | --- |
+| 任务仍在运行时重开 | [回到任务](<D:/dp-dev/tmp/calfix/shots/before-a2/14-reopen-running.jpg>) | [回到同一任务](<D:/dp-dev/tmp/calfix/shots/after-a2-final/14-reopen-running.jpg>) |
+| 任务在关页期间完成后重开 | [停在首页](<D:/dp-dev/tmp/calfix/shots/before-a2/15-reopen-finished.jpg>) | [回到结果](<D:/dp-dev/tmp/calfix/shots/after-a2-final/15-reopen-finished.jpg>) · [保存成功](<D:/dp-dev/tmp/calfix/shots/after-a2-final/16-saved.jpg>) |
+| 看过或保存后再打开 | — | [看过未保存](<D:/dp-dev/tmp/calfix/shots/after-a2-final/15-seen-before-save-reopen.jpg>) · [已保存](<D:/dp-dev/tmp/calfix/shots/after-a2-final/17-saved-reopen.jpg>) |
 
-```text
-D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
-I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
-I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
-```
+### A3 · 已刻测量盘的容量
 
-新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
+同一批虚拟 DVD-R 的可读长度是 2,252,512 扇区，空白容量是 2,298,496 扇区。推荐路径先检测同批空盘，再检测换回的测量盘。刻好的盘留在空盘步骤、空盘留在测量盘步骤时，两次都提示重试。备用路径输入框起初为空，小数无法提交。两路的任务参数与 core 返回均为 2,298,496，退出码均为 0，两次都保存了预设。
 
-内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
+| 路径 | 修复前 | 修复后 |
+| --- | --- | --- |
+| 读同批空盘 | [只报容量未知](<D:/dp-dev/tmp/calfix/shots/before-a3-zh.jpg>) | [入口](<D:/dp-dev/tmp/calfix/shots/mx-capacity-swap-4-cf-a3-full/10-capacity-paths.jpg>) · [读到容量](<D:/dp-dev/tmp/calfix/shots/mx-capacity-swap-4-cf-a3-full/12-capacity-read.jpg>) · [保存](<D:/dp-dev/tmp/calfix/shots/mx-capacity-swap-4-cf-a3-full/23-saved.jpg>) |
+| 手填空盘扇区数 | [勾选入口](<D:/dp-dev/tmp/calfix/shots/before-a3-prepare-zh.jpg>) · [报错](<D:/dp-dev/tmp/calfix/shots/before-a3-zh.jpg>) | [填入扇区数](<D:/dp-dev/tmp/calfix/shots/mx-capacity-manual-4-cf-a3-full/11-manual-entry.jpg>) · [保存](<D:/dp-dev/tmp/calfix/shots/mx-capacity-manual-4-cf-a3-full/23-saved.jpg>) |
 
-同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
+## 复验命令与结果
 
-## 下发与程序行为
+- `python -X utf8 -m pytest -n 2 -p no:cacheprovider --basetemp D:/dp-dev/tmp/calfix/check-python/pytest`，文件为 `tests/test_{webui,webui_recovery,webui_catalog,burn_cancel,afterburn,recordable_capacity,single_instance}.py`。110 通过，0 失败，99.25 秒。[pytest 日志](<D:/dp-dev/tmp/calfix/pytest.log>)
+- 用 `node <文件>` 逐一跑完 `tests/test_*.mjs` 共 56 个文件。首轮 54 通过，`test_csp_browser.mjs` 和 `test_disc_files_browser.mjs` 在页面导航处等待超时。原文件单跑重试 2 通过，合计 56 个文件都取得通过结果。[全量日志](<D:/dp-dev/tmp/calfix/node-results.txt>) · [两项重试](<D:/dp-dev/tmp/calfix/retry-results.txt>)
+- 在 D 盘复制 CW 的 `walk.mjs`、`cdp.mjs`、`matrix.mjs`，添加点击命中、视口、任务标识与容量的断言。用 `WALK_STRICT_STOP=1 WALK_TOUCH=1 node matrix.mjs active-matrix 2,3,22,23 cf-a1`，纸色中文首次刷新等待超时，单组用 `WALK_ACTIVE_SECTORS=262144 node walk.mjs active-matrix 2 real a1-paper-zh-retry` 通过。用 `WALK_STRICT_REOPEN=1 node walk.mjs finished-reopen 21 0.04 after-a2-final`，并用相同组合在基线重跑。用 `node matrix.mjs capacity-swap,capacity-manual 4 cf-a3-full` 通过两条路。早期容量轮引用了已经清理的旧虚拟镜像，正式轮各自用新虚拟测量盘复验。[脚本](<D:/dp-dev/tmp/calfix/walk.mjs>) · [A2 运行记录](<D:/dp-dev/tmp/calfix/shots/after-a2-final/run.json>) · [空盘路径记录](<D:/dp-dev/tmp/calfix/shots/mx-capacity-swap-4-cf-a3-full/run.json>) · [手填路径记录](<D:/dp-dev/tmp/calfix/shots/mx-capacity-manual-4-cf-a3-full/run.json>)
+- `python -X utf8 D:/dp-dev/tmp/calfix/verify-evidence.py` 校验 62 张 JPEG 的尺寸和可读性，以及运行记录里的关键断言。开工和全量 JavaScript 前均检查 D 盘。开工约 184 GiB，收尾清理后约 167 GiB。
 
-`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
+### 六组走查回归
 
-```text
-f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
-```
+DVD 各组走到保存并返回新作品。CD 各组走到拍照页，再跳过拍照并保存。用 `node matrix.mjs dvd 0,3,28 cf-regression`、`node matrix.mjs cd 5,22,36 cf-regression` 与 `node walk.mjs dvd 28 quick dvd-dark-auto-regression`。
 
-生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
+| 场景 | 组合 | 证据 |
+| --- | --- | --- |
+| DVD · 首次流程、无盘重试 | 纸色，中文，1440×900，动效开 | [返回新作品](<D:/dp-dev/tmp/calfix/shots/mx-dvd-matrix-0-cf-regression/25-return-end.jpg>) |
+| DVD · 首次流程、无盘重试 | 纸色，英文，390×844，动效开 | [返回新作品](<D:/dp-dev/tmp/calfix/shots/mx-dvd-matrix-3-cf-regression/25-return-end.jpg>) |
+| DVD · 首次流程 | 夜色，中文，1440×900，跟随系统减弱动效 | [返回新作品](<D:/dp-dev/tmp/calfix/shots/dvd-dark-auto-regression/25-return-end.jpg>) |
+| CD · 拍照页、跳过并保存 | 纸色，英文，1440×900，动效关 | [保存](<D:/dp-dev/tmp/calfix/shots/mx-cd-matrix-5-cf-regression/27-photo-saved.jpg>) |
+| CD · 拍照页、跳过并保存 | 夜色，中文，390×844，动效开 | [保存](<D:/dp-dev/tmp/calfix/shots/mx-cd-matrix-22-cf-regression/27-photo-saved.jpg>) |
+| CD · 拍照页、跳过并保存 | 夜色，中文，1440×900，系统减弱且动效关 | [保存](<D:/dp-dev/tmp/calfix/shots/mx-cd-matrix-36-cf-regression/27-photo-saved.jpg>) |
 
-`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
+## 待审与未测
 
-CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
+- 请 Claude 转达给审查者核对 A3 中英文文案。当前做法是勾选测量盘后才出现容量选项，先列推荐的同批空盘检测，再列手填。输入框旁的 DVD-R 2,297,888、DVD+R 2,295,104 仅作参考。
+- 本卡按要求使用根目录的 `CARD_REPORT.md`。如合并时需要保留社区卡旧报告，可从 `git show f7abffc:CARD_REPORT.md` 取回。
+- A2 把结果页在前台呈现算作看过，已看未保存的结果随后也不会自动弹出。服务重启后的恢复未测。390×844 的结果来自无头 Edge 的视口和触摸模拟。实体手机、真实光驱和 CD 照片修正未测。
+- CW 的 B3 在 A3 正式轮仍偶发首检 409，按原入口重试后通过。夜色自动减动的 DVD 矩阵首轮等待无盘提示超时，保留现场。该组合的正常 DVD 流程单跑通过。[B3 现场和重试](<D:/dp-dev/tmp/calfix/shots/mx-capacity-swap-4-cf-a3-full/run.json>) · [无盘超时](<D:/dp-dev/tmp/calfix/shots/mx-dvd-matrix-28-cf-regression/run.json>)
 
-仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
-
-## 网页位置和需要人工审查的选择
-
-传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
-
-新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
-
-请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
-
-## 验收
-
-所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
-
-| 命令/检查 | 结果 |
-| --- | --- |
-| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
-| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
-| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
-| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
-| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
-| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
-| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
-| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
-| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
-
-初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
-
-截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
-
-## 未测及边界
-
-没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
-
-附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
+STATUS: DONE
