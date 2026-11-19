@@ -247,7 +247,7 @@
     "steps": {"zh": ["先查看包内已有 summary 和设置；若为读盘故障，关闭其他光驱软件后重读同一张盘。"], "en": ["Check the saved summary and settings first. For a read failure, close other drive software and retry the same disc."]},
     "commands": ["python -m discprobe diagnose <run>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/diagnostics.py", "line": 58, "keyword": "retry the read on this same disc"}, {"path": "discprobe/diagnostics.py", "line": 111, "keyword": "No command log was saved"}, {"path": "discprobe/diagnostics.py", "line": 113, "keyword": "Contains summary"}]
+    "sources": [{"path": "discprobe/diagnostics.py", "line": 62, "keyword": "retry the read on this same disc"}, {"path": "discprobe/diagnostics.py", "line": 115, "keyword": "No command log was saved"}, {"path": "discprobe/diagnostics.py", "line": 117, "keyword": "Contains summary"}]
   },
   {
     "id": "diagnose-no-records",
@@ -257,7 +257,7 @@
     "steps": {"zh": ["选含 summary.json 或 info.json 的那次运行目录。检查打包结果再分享。"], "en": ["Choose the run folder containing summary.json or info.json. Inspect the archive before sharing it."]},
     "commands": ["python -m discprobe diagnose <run>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/diagnostics.py", "line": 92, "keyword": "No recognized run records"}, {"path": "discprobe/diagnostics.py", "line": 115, "keyword": "Inspect the archive before sharing"}]
+    "sources": [{"path": "discprobe/diagnostics.py", "line": 96, "keyword": "No recognized run records"}, {"path": "discprobe/diagnostics.py", "line": 119, "keyword": "Inspect the archive before sharing"}]
   },
   {
     "id": "diagnose-run-folder",
@@ -267,7 +267,7 @@
     "steps": {"zh": ["从 results 选择实际运行目录，或直接给该目录里的 summary.json。"], "en": ["Select the actual run directory under results or give its summary.json directly."]},
     "commands": ["python -m discprobe diagnose <run>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/diagnostics.py", "line": 67, "keyword": "diagnose RUN needs"}, {"path": "discprobe/diagnostics.py", "line": 65, "keyword": "root = root.parent"}, {"path": "README.en.md", "line": 143, "keyword": "results"}]
+    "sources": [{"path": "discprobe/diagnostics.py", "line": 71, "keyword": "diagnose RUN needs"}, {"path": "discprobe/diagnostics.py", "line": 69, "keyword": "root = root.parent"}, {"path": "README.en.md", "line": 143, "keyword": "results"}]
   },
   {
     "id": "diagnose-summary",
@@ -277,7 +277,7 @@
     "steps": {"zh": ["检查 archive 里的运行日志；如果存在 unparsed-summary.txt，查看那份保留的记录。"], "en": ["Inspect the remaining run logs and unparsed-summary.txt if present."]},
     "commands": ["python -m discprobe diagnose <run>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/diagnostics.py", "line": 96, "keyword": "summary must be an object"}, {"path": "discprobe/diagnostics.py", "line": 98, "keyword": "unparsed-summary.txt"}, {"path": "discprobe/diagnostics.py", "line": 100, "keyword": "No parseable summary"}]
+    "sources": [{"path": "discprobe/diagnostics.py", "line": 100, "keyword": "summary must be an object"}, {"path": "discprobe/diagnostics.py", "line": 102, "keyword": "unparsed-summary.txt"}, {"path": "discprobe/diagnostics.py", "line": 104, "keyword": "No parseable summary"}]
   },
   {
     "id": "diagnose-symlink",
@@ -287,7 +287,7 @@
     "steps": {"zh": ["先核对运行目录和同名链接，使用能在运行目录内直接写入诊断文件的目录。"], "en": ["Check the run folder and the link. Use a run folder where the diagnostic archive can be written directly."]},
     "commands": ["python -m discprobe diagnose <run>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/diagnostics.py", "line": 116, "keyword": "target = root / 'diagnostics.zip'"}, {"path": "discprobe/diagnostics.py", "line": 118, "keyword": "Refusing a diagnostics.zip symlink"}]
+    "sources": [{"path": "discprobe/diagnostics.py", "line": 120, "keyword": "target = root / 'diagnostics.zip'"}, {"path": "discprobe/diagnostics.py", "line": 122, "keyword": "Refusing a diagnostics.zip symlink"}]
   },
   {
     "id": "dis-bad-chi2",
@@ -557,7 +557,7 @@
     "steps": {"zh": ["缩小图案，让它落在已测区间；或重读同一张盘上缺的范围。使用部分结果时，应明确指定 summary.json。"], "en": ["Shrink the artwork to the measured intervals or reread the missing part of the same disc. For a partial result, specify its summary.json explicitly."]},
     "commands": ["python -m discprobe results"],
     "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
-    "sources": [{"path": "discprobe/guide.py", "line": 456, "keyword": "only partial measurements"}, {"path": "discprobe/guide.py", "line": 457, "keyword": "Use an explicit summary.json"}, {"path": "discprobe/guide.py", "line": 823, "keyword": "did not pass all coverage"}, {"path": "discprobe/guide.py", "line": 858, "keyword": "candidates ran out"}, {"path": "discprobe/diagnostics.py", "line": 56, "keyword": "re-read the missing range"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 456, "keyword": "only partial measurements"}, {"path": "discprobe/guide.py", "line": 457, "keyword": "Use an explicit summary.json"}, {"path": "discprobe/guide.py", "line": 823, "keyword": "did not pass all coverage"}, {"path": "discprobe/guide.py", "line": 858, "keyword": "candidates ran out"}, {"path": "discprobe/diagnostics.py", "line": 60, "keyword": "re-read the missing range"}]
   },
   {
     "id": "geo-range-empty",
@@ -1017,7 +1017,7 @@
     "steps": {"zh": ["先用同一张盘比较 FUA 或挤缓存，再试不同读速。区分真实旋转后再拟合几何。"], "en": ["Reuse the disc and compare FUA or cache eviction, or try another read speed. Wait until you can distinguish real rotation before fitting geometry."]},
     "commands": ["python -m discprobe timing --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/timing.py", "line": 643, "keyword": "cache/false period"}, {"path": "discprobe/timing.py", "line": 652, "keyword": "cache/host timer period"}, {"path": "discprobe/diagnostics.py", "line": 51, "keyword": "Do not fit geometry"}, {"path": "docs/MANUAL.en.md", "line": 221, "keyword": "This selects the strategy"}, {"path": "discprobe/zh.py", "line": 440, "keyword": "一次绕过缓存"}, {"path": "discprobe/zh.py", "line": 441, "keyword": "Windows timer tick"}]
+    "sources": [{"path": "discprobe/timing.py", "line": 643, "keyword": "cache/false period"}, {"path": "discprobe/timing.py", "line": 652, "keyword": "cache/host timer period"}, {"path": "discprobe/diagnostics.py", "line": 55, "keyword": "Do not fit geometry"}, {"path": "docs/MANUAL.en.md", "line": 221, "keyword": "This selects the strategy"}, {"path": "discprobe/zh.py", "line": 440, "keyword": "一次绕过缓存"}, {"path": "discprobe/zh.py", "line": 441, "keyword": "Windows timer tick"}]
   },
   {
     "id": "timing-clv",
@@ -1027,7 +1027,7 @@
     "steps": {"zh": ["先试没用过的读速，CD 可试更高的读速。用完备选速度就试另一台光驱。", "蓝光有单独的 CLV 测几何路径。"], "en": ["Try an untried read speed. A higher one may give CAV on CD. Try another drive when the listed speeds are exhausted.", "Blu-ray has a separate CLV geometry route."]},
     "commands": ["python -m discprobe timing --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/guide.py", "line": 580, "keyword": "try an untried speed"}, {"path": "discprobe/guide.py", "line": 583, "keyword": "A higher CD speed"}, {"path": "discprobe/guide.py", "line": 589, "keyword": "does not force CAV"}, {"path": "discprobe/guide.py", "line": 592, "keyword": "anchored Blu-ray geometry"}, {"path": "docs/MANUAL.en.md", "line": 226, "keyword": "phase method does not hold"}, {"path": "discprobe/diagnostics.py", "line": 53, "keyword": "Try one untried read speed"}, {"path": "discprobe/guide.py", "line": 585, "keyword": "keep a constant linear speed"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 580, "keyword": "try an untried speed"}, {"path": "discprobe/guide.py", "line": 583, "keyword": "A higher CD speed"}, {"path": "discprobe/guide.py", "line": 589, "keyword": "does not force CAV"}, {"path": "discprobe/guide.py", "line": 592, "keyword": "anchored Blu-ray geometry"}, {"path": "docs/MANUAL.en.md", "line": 226, "keyword": "phase method does not hold"}, {"path": "discprobe/diagnostics.py", "line": 57, "keyword": "Try one untried read speed"}, {"path": "discprobe/guide.py", "line": 585, "keyword": "keep a constant linear speed"}]
   },
   {
     "id": "timing-jitter",

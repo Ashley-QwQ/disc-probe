@@ -45,6 +45,10 @@ def clean(value, root):
 
 
 def advice(reason):
+    from .mmc import NO_DISC, NOT_RECOGNISED, TRAY_OPEN, LOADING
+    if any(words in reason for words in (NO_DISC, TRAY_OPEN, NOT_RECOGNISED, LOADING)):
+        return ('Put the disc in and close the tray, or wait until it has finished loading, '
+                'then run the same command again. No new burn is needed for this stop.')
     text = reason.lower()
     if 'cache' in text or 'host' in text or 'fake' in text:
         return ('Reuse this disc. Compare FUA or cache eviction with timing; a host timer period is not CLV. '

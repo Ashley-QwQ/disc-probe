@@ -269,3 +269,10 @@ def test_r1_refusal_before_the_burn_log_is_quiet(tmp_path, monkeypatch, capsys):
     assert "Could not save failed burn record" not in capsys.readouterr().err
     assert not Path(str(image) + ".burn.jsonl").exists()
     assert (tmp_path / "sample.iso.diagnostics").is_dir()
+
+
+def test_empty_drive_stop_advises_inserting_the_disc():
+    from discprobe import diagnostics, mmc
+    for reason in (mmc.NO_DISC, mmc.TRAY_OPEN, mmc.NOT_RECOGNISED, mmc.LOADING):
+        assert diagnostics.advice(f"x / {reason}.").startswith("Put the disc in")
+    assert "last resort" in diagnostics.advice("Not enough disc identity information to authorize writing.")
