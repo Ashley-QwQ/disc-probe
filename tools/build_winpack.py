@@ -472,7 +472,11 @@ def trim_pack(a, root):
         json.dump(keep, f, ensure_ascii=False, indent=2)
 
 
-def write_payload(root, archive, omit=()):
+def linux_batch_file(path):
+    return path.startswith("linux/") and path.lower().endswith(".bat")
+
+
+def write_payload(root, archive, omit=(), *, skip_linux_batch=False):
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output:
         for folder, dirs, names in os.walk(root):
             at_root = Path(folder) == root
@@ -480,6 +484,8 @@ def write_payload(root, archive, omit=()):
             for name in sorted(n for n in names if allowed(n) and not (at_root and n in omit)):
                 source = Path(folder) / name
                 relative = source.relative_to(root).as_posix()
+                if skip_linux_batch and linux_batch_file(relative):
+                    continue
                 entry = zipfile.ZipInfo.from_file(source, f"{archive.stem}/{relative}")
                 executable = relative == LINUX_START or relative.startswith("linux/python/bin/")
                 entry.create_system = 3
@@ -562,7 +568,9 @@ def verify_portable_archives(archives, inventory):
         raise ValueError("full archive is missing a launcher, bundled interpreter or troubleshooting data")
     for variant, platforms in PORTABLE.items():
         omit = excluded_platform_files(platforms)
-        expected = {path: digest for path, digest in full.items() if path.split("/", 1)[0] not in omit}
+        expected = {path: digest for path, digest in full.items()
+                    if path.split("/", 1)[0] not in omit
+                    and not (variant == "linux-x86_64" and linux_batch_file(path))}
         if (inventories[variant] != expected
                 or (variant == "linux-x86_64" and any(path.lower().endswith(".bat") for path in expected))):
             raise ValueError(f"{variant} payload differs from the shared build")
@@ -576,7 +584,7 @@ def pack_portable(root, directory, label, info, package):
     read_first = (root / READ_FIRST).read_bytes()
     for variant, archive in archives.items():
         omit = excluded_platform_files(PORTABLE[variant]) | set(DOWNLOAD_DOCS) | VARIANT_FILES
-        write_payload(root, archive, omit)
+        write_payload(root, archive, omit, skip_linux_batch=variant == "linux-x86_64")
     payload_bytes = {variant: archive.stat().st_size for variant, archive in archives.items()}
     inventory = {variant: dict(file=archive.name, size=0, platforms=list(PORTABLE[variant]))
                  for variant, archive in archives.items()}

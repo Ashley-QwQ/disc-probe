@@ -291,6 +291,7 @@ def make_portable(tmp_path, output, inputs):
         'discprobe/__main__.py': b'print("same application")\n',
         'python/python.exe': b'Windows runtime', builder.START_NAME: b'Windows launcher',
         'linux/python/bin/python3': b'Linux runtime', builder.LINUX_START: b'Linux launcher',
+        'linux/python/lib/python3.13/idlelib/idle.bat': b'Windows-only stdlib helper',
         'winpack-keep-list.json': b'{}', 'linuxpack-keep-list.json': b'{}',
         builder.READ_FIRST: 'Windows 和 Linux'.encode(),
     }
@@ -322,6 +323,7 @@ def test_portable_archives_sizes_and_launchers(tmp_path):
             assert ('python/python.exe' in names) == (platform != 'linux-x86_64')
             assert ('linux/python/bin/python3' in names) == (platform != 'win64')
             assert (builder.LINUX_START in names) == (platform != 'win64')
+            assert ('linux/python/lib/python3.13/idlelib/idle.bat' in names) == (platform == 'full')
             assert archive.read(prefix + 'discprobe/data/troubleshoot.json') == b'{"shared": true}'
             assert info['variant'] == platform
             assert info['portable_packages'][platform]['size'] == artifact.stat().st_size
