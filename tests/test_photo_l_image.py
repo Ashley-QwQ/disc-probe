@@ -13,6 +13,7 @@ import pytest
 from discprobe import cd, cdimage, imagedisc, pcal, photo, rings, webui
 from discprobe import __main__ as cli
 from discprobe.calib import theta, SECTOR_BITS
+from tests.iso_fixture import write_checked_iso
 
 
 def run_files(root, media="dvd"):
@@ -306,15 +307,23 @@ def test_image_cli_hands_the_shift_to_writer(tmp_path, media, disabled):
                               '--output', str(tmp_path / 'cli.iso')] + (['--no-photo-l'] if disabled else []))
     design = np.zeros((600, 600), bool)
     writer = cdimage if media == 'cd' else imagedisc
+
+    def write_image(path, *args, **kwargs):
+        image = Path(path)
+        image.write_bytes(bytes(4096))
+        return str(image.with_suffix('.image.json'))
+
     with patch.object(imagedisc, 'grid_design', return_value=design), \
          patch.object(writer, 'sectors_to_radius', return_value=128), \
-         patch.object(writer, 'write_iso', return_value=str(tmp_path / 'cli.image.json')) as write, \
+         patch.object(writer, 'write_iso', side_effect=write_image) as write, \
          patch.object(writer, 'verify_iso', return_value=[]), patch.object(imagedisc, 'preview'), \
          patch.object(cli, '_warn_other_run'), patch.object(cli, '_image_ready'):
         cli.cmd_image(args)
     decision = write.call_args.kwargs['meta']['photo_l']
     assert decision['written'] is not disabled
     assert write.call_args.args[2] == photo.shifted_u(fit, decision)
+    receipt = Path(str(write.call_args.args[0]) + '.verification.json')
+    assert json.loads(receipt.read_text(encoding='utf-8'))['status'] == 'passed'
 
 
 @pytest.mark.parametrize('media', ['cd', 'dvd'])
@@ -391,8 +400,7 @@ def test_burn_log_reuses_iso_evidence_without_reading_new_photo(tmp_path):
     from discprobe import burner
     summary, target, record, fit = run_files(tmp_path)
     decision = photo.photo_l(summary, media='dvd')
-    image = tmp_path / 'picture.iso'
-    image.write_bytes(bytes(4096))
+    image = write_checked_iso(tmp_path / 'picture.iso', bytes(4096))
     image.with_suffix('.image.json').write_text(json.dumps(dict(photo_l=decision)))
     target.unlink()
     recorder = Mock()
