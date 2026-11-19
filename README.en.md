@@ -288,8 +288,6 @@ How fine can it go? LTVA1 burned a test pattern at 23,200 × 23,200 px, 5 µm pe
 
 ### Colour (experimental)
 
-To put your own photo or illustration on a colour DVD, ask Claude Code or Codex to follow the [disc-colour skill](skills/disc-colour/SKILL.md). It will show you a predicted image and wait for your approval before making the ISO.
-
 Write the same data over and over and that patch of disc acts as a grating, splitting white light. The repeat length decides which colour goes in a given direction, and the colour changes with the angle. This is still an experiment, followed in [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108).
 
 <img src="docs/showcase/roses_source.jpg" width="42%" alt="The rose picture made with GPT Image"> <img src="docs/showcase/roses_7185.jpg" width="42%" alt="Photo of the burned rose DVD-R, with some petals showing purple">
@@ -484,6 +482,8 @@ The manual, notes and CD model are in Chinese for now.
 | [Showcase](docs/showcase/README.md) | Which disc each photo shows and how it was burned (in English) |
 | [`evidence/`](evidence/README.md) | Raw measurements and figures, reproducible |
 | [dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing) | WindowsNoEditor's C# probe, fitting scripts and raw data (in their fork) |
+
+To put your own photo or illustration on a colour DVD, ask Claude Code or Codex to follow the [disc-colour skill](skills/disc-colour/SKILL.md). It will show you a predicted image and wait for your approval before making the ISO.
 
 ## Prior work and thanks
 

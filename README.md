@@ -284,8 +284,6 @@ CD 还有一个计时测不到的常数，所以要多刻一张标定盘。下�
 
 ### 颜色（实验中）
 
-想把自己的照片或插画刻成彩色 DVD，可以请 Claude Code 或 Codex 照 [彩图技能](skills/disc-colour/SKILL.md) 帮你做。它会先给你看预测图，等你确认后再生成刻录镜像。
-
 反复写同一段数据，这一小块盘面就像一块光栅，把白光分开。重复的间距不同，同一个方向上看到的颜色就不同，换个角度颜色也会变。这部分还在实验，进展在 [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)。
 
 <img src="docs/showcase/roses_source.jpg" width="42%" alt="GPT Image 生成的玫瑰原图"> <img src="docs/showcase/roses_7185.jpg" width="42%" alt="刻好的玫瑰 DVD-R 数据面的照片，部分花瓣显紫色">
@@ -479,6 +477,8 @@ CD 的沿轨道常数要靠网格盘来定，206 帧只对 GH70N 加 IMAPI 刻�
 | [作品照片](docs/showcase/README.md) | 每张照片对应的盘和刻录方式 |
 | [`evidence/`](evidence/README.md) | 原始测量数据和图，可复现 |
 | [dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing) | WindowsNoEditor 的 C# 探测程序、拟合脚本和原始数据（在他们的 fork 里） |
+
+想把自己的照片或插画刻成彩色 DVD，可以请 Claude Code 或 Codex 照 [彩图技能](skills/disc-colour/SKILL.md) 帮你做。它会先给你看预测图，等你确认后再生成刻录镜像。
 
 ## 前人工作与致谢
 
