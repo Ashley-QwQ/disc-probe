@@ -2,9 +2,9 @@
 
     python tools/build_winpack.py --ref v0.1.0 --label 0.1.0 --out D:/disc-probe-dist
 
-The Windows embed and base dependencies come from a read-only cache.
-Missing pinned Linux inputs and the Windows headless wheel are cached from
-their official sources. The Windows runtime is checked before and after trim.
+The original runtime archives and wheels must be in the read-only input cache.
+The lock is verified before installing or unpacking any input. The Windows
+runtime is checked before and after trim.
 --worktree includes
 uncommitted source. --audit-tests also runs the external pytest harness.
 """
@@ -12,6 +12,7 @@ uncommitted source. --audit-tests also runs the external pytest harness.
 from __future__ import annotations
 
 import argparse
+from email.parser import BytesParser
 import fnmatch
 import hashlib
 import importlib.metadata
@@ -19,6 +20,7 @@ import io
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 import stat
 import shutil
 import subprocess
@@ -26,32 +28,17 @@ import sys
 import tarfile
 import tempfile
 import time
-import urllib.request
+from urllib.parse import unquote, urlsplit
 import zipfile
 
 PYTHON = "3.13.14"
 PACKAGES = ("numpy", "pillow", "scipy", "opencv-python-headless")
-DEPENDENCIES = dict(zip(PACKAGES, ("2.5.1", "12.3.0", "1.18.1", "5.0.0.93"), strict=True))
 PY_MINOR = ".".join(PYTHON.split(".")[:2])
-LINUX_TAG = "20260610"
-LINUX_ARCHIVE = f"cpython-{PYTHON}+{LINUX_TAG}-x86_64-unknown-linux-gnu-install_only.tar.gz"
-LINUX_SHA256 = "31ebbb024fecb446d7f25a5b59ca1d4955597ca3f5b4b76f55b30a8987eb61c9"
-LINUX_URL = ("https://github.com/astral-sh/python-build-standalone/releases/download/"
-             f"{LINUX_TAG}/{LINUX_ARCHIVE}")
-LINUX_PLATFORMS = ("manylinux_2_28_x86_64", "manylinux_2_27_x86_64", "manylinux2014_x86_64")
-LINUX_WHEELS = {
-    "numpy": ("numpy-2.5.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
-              "9726558e8db4a5bf7929a70ae50f63abda4daf0efe810e3bfbab95976f75fc1a"),
-    "pillow": ("pillow-12.3.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
-               "0847a763afefb695bc912d7c131e7e0632d4edc1d8698f58ddabec8e46b8b6d3"),
-    "scipy": ("scipy-1.18.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
-              "fdaf5ea890a6183d0565f51a61799d67081bd5b1cf03c5f4b3fd3732108625c9"),
-    "opencv-python-headless": ("opencv_python_headless-5.0.0.93-cp37-abi3-manylinux_2_28_x86_64.whl",
-                               "ed709fdf9aa0bd1f2ed8549e71d19449b03a675bb581eb292285f6861953be37"),
-}
-WINDOWS_WHEELS = {
-    "opencv-python-headless": ("opencv_python_headless-5.0.0.93-cp37-abi3-win_amd64.whl",
-                              "829717b6a95554f273e49e357cee3b3a2a26b6f4842fbc1bed2b45bdd8f87e0e"),
+PY_TAG = "cp" + PY_MINOR.replace(".", "")
+LOCK = Path(__file__).with_name("pack_inputs.lock.json")
+WHEEL_PLATFORMS = {
+    "windows": ("win_amd64",),
+    "linux": ("manylinux_2_28_x86_64", "manylinux_2_27_x86_64", "manylinux2014_x86_64", "manylinux_2_17_x86_64"),
 }
 SELFTEST_DATA = "tests/data/bd_discussion_samples/local_uj272_bd_zones.csv"
 SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_backend.py", "INSTALL-linux.md", "docs/API_VERSIONING.md", "docs/MANUAL.md", "docs/MANUAL.en.md", "README.md", "README.en.md", "STYLE.md", "DESIGN.md", "LICENSE", "start-linux.sh", "先看我 Read me first.txt", SELFTEST_DATA)
@@ -158,105 +145,158 @@ def copy_source(a, root):
 
 
 def fresh(a, name):
-    root = os.path.abspath(os.path.join(a.out, name))
-    out = os.path.abspath(a.out)
+    out = os.path.abspath(a.build_root)
+    root = os.path.abspath(os.path.join(out, name))
     if os.path.dirname(root) != out or not allowed(root):
         raise ValueError("build target must be an immediate, allowed child of output")
-    if os.path.isdir(root):
-        shutil.rmtree(root)
     os.makedirs(root)
     return root
 
 
-def copy_windows_base(cache, destination):
-    # The shared cache also contains old distributions and a downloaded wheel.
-    # Select distributions explicitly; never copy the whole cache directory.
-    for name in sorted(os.listdir(cache)):
-        if not allowed(name):
-            continue
-        low = name.lower()
-        if not (low in ("numpy", "numpy.libs", "pil", "scipy", "scipy.libs") or
-                low in {f"{p}-{DEPENDENCIES[p]}.dist-info" for p in PACKAGES[:-1]}):
-            continue
-        shutil.copytree(os.path.join(cache, name), os.path.join(destination, name),
-                        ignore=ignore_files(LEAVE_OUT))
-    for name in ("numpy", "PIL", "scipy"):
-        if not os.path.isdir(os.path.join(destination, name)):
-            raise FileNotFoundError(f"cached package missing: {name}")
+def verify_wheel(path, entry, platform):
+    from pip._vendor.packaging.specifiers import SpecifierSet
+    from pip._vendor.packaging.tags import Tag, parse_tag
+    from pip._vendor.packaging.utils import canonicalize_name, parse_wheel_filename
+
+    name, version, _, tags = parse_wheel_filename(path.name)
+    wanted = Tag(entry["python_tag"], entry["abi"], entry["platform"])
+    compatible = (wanted.interpreter == PY_TAG and wanted.abi == PY_TAG
+                  or wanted.abi == "abi3" and wanted.interpreter.startswith("cp")
+                  and wanted.interpreter[2:].isdigit() and 32 <= int(wanted.interpreter[2:]) <= int(PY_TAG[2:]))
+    if name != entry["name"] or str(version) != entry["version"]:
+        raise ValueError(f"wheel name or version does not match lock: {path.name}")
+    if wanted not in tags or wanted.platform not in WHEEL_PLATFORMS[platform] or not compatible:
+        raise ValueError(f"wheel platform or ABI does not match {platform} lock: {path.name}")
+    with zipfile.ZipFile(path) as archive:
+        names = archive.namelist()
+        if any(not allowed(member) for member in names):
+            raise ValueError(f"excluded entry in {path.name}")
+        metadata, = (member for member in names if member.endswith(".dist-info/METADATA"))
+        wheel_file, = (member for member in names if member.endswith(".dist-info/WHEEL"))
+        info = BytesParser().parsebytes(archive.read(metadata))
+        wheel = BytesParser().parsebytes(archive.read(wheel_file))
+    if canonicalize_name(info["Name"]) != name or info["Version"] != str(version):
+        raise ValueError(f"wheel METADATA name or version does not match lock: {path.name}")
+    if wanted not in {tag for field in wheel.get_all("Tag", []) for tag in parse_tag(field)}:
+        raise ValueError(f"wheel WHEEL tag does not match lock: {path.name}")
+    if info["Requires-Python"] and PYTHON not in SpecifierSet(info["Requires-Python"]):
+        raise ValueError(f"wheel requires a different Python version: {path.name}")
+    return info.get_all("Requires-Dist", [])
 
 
-def verify_digest(path, expected):
-    if sha256(path) != expected:
-        raise ValueError(f"SHA-256 mismatch for {path}")
+def verify_requirements(platform, versions, requirements):
+    from pip._vendor.packaging.requirements import Requirement
+    from pip._vendor.packaging.utils import canonicalize_name
+
+    windows = platform == "windows"
+    markers = dict(implementation_name="cpython", implementation_version=PYTHON,
+                   python_version=PY_MINOR, python_full_version=PYTHON,
+                   platform_python_implementation="CPython", platform_machine="AMD64" if windows else "x86_64",
+                   os_name="nt" if windows else "posix", sys_platform="win32" if windows else "linux",
+                   platform_system="Windows" if windows else "Linux", extra="")
+    for file, fields in requirements:
+        for field in fields:
+            req = Requirement(field)
+            if req.marker and not req.marker.evaluate(markers):
+                continue
+            version = versions.get(canonicalize_name(req.name))
+            if req.url or req.extras or version is None or version not in req.specifier:
+                raise ValueError(f"{platform} lock does not satisfy dependency {field!r} of {file}")
 
 
-def pip_command(command, *platforms):
-    return [sys.executable, "-B", "-m", "pip", "--disable-pip-version-check", command,
-            "--no-cache-dir", "--no-deps", "--only-binary=:all:", "--implementation", "cp",
-            "--python-version", PY_MINOR,
-            *[flag for platform in platforms for flag in ("--platform", platform)]]
+def stage_inputs(cache, windows_cache, stage):
+    """Verify private copies before opening a wheel or extracting a runtime."""
+    raw = LOCK.read_bytes()
+    lock = json.loads(raw)
+    if lock.get("schema") != 1:
+        raise ValueError("unsupported portable input lock schema")
+    provenance = dict(lock_sha256=hashlib.sha256(raw).hexdigest())
+    for platform in WHEEL_PLATFORMS:
+        entries = lock[platform]
+        if len({entry["name"] for entry in entries}) != len(entries):
+            raise ValueError(f"duplicate {platform} input in lock")
+        runtimes = [entry for entry in entries if entry["kind"] == "runtime"]
+        wheels = [entry for entry in entries if entry["kind"] == "wheel"]
+        if (len(runtimes) != 1 or len(runtimes) + len(wheels) != len(entries)
+                or not set(PACKAGES) <= {entry["name"] for entry in wheels}):
+            raise ValueError(f"incomplete {platform} input lock")
+        windows = platform == "windows"
+        runtime = runtimes[0]
+        wheelhouse = stage / platform
+        wheelhouse.mkdir()
+        requires = []
+        for entry in entries:
+            file = entry["file"]
+            parsed_url = urlsplit(entry["url"])
+            expected_host = "files.pythonhosted.org" if entry["kind"] == "wheel" else (
+                "www.python.org" if windows else "github.com")
+            if (not allowed(file) or Path(file).name != file or "/" in file or "\\" in file
+                    or not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"])
+                    or parsed_url.scheme != "https" or parsed_url.netloc != expected_host
+                    or unquote(parsed_url.path.rsplit("/", 1)[-1]) != file):
+                raise ValueError(f"invalid {platform} input lock record: {entry['name']}")
+            if entry is runtime:
+                expected_platform = "win_amd64" if windows else "x86_64-unknown-linux-gnu"
+                expected_file = (re.escape(f"python-{PYTHON}-embeddable-amd64.zip") if windows else
+                                 rf"cpython-{re.escape(PYTHON)}\+\d{{8}}-{expected_platform}-install_only\.tar\.gz")
+                if (entry["name"] != "cpython" or entry["version"] != PYTHON
+                        or entry["platform"] != expected_platform or entry["python_tag"] != PY_TAG
+                        or entry["abi"] != PY_TAG or not re.fullmatch(expected_file, file)):
+                    raise ValueError(f"runtime version, platform or ABI does not match {platform} lock: {file}")
+            source = (windows_cache if windows and entry is runtime else cache) / file
+            if windows and entry is runtime and not source.is_file():
+                legacy = windows_cache / f"python-{PYTHON}-embed-amd64.zip"
+                if legacy.is_file():
+                    source = legacy
+            if not source.is_file():
+                raise FileNotFoundError(f"missing locked {platform} input {entry['name']}: expected {source}")
+            staged = wheelhouse / file
+            shutil.copyfile(source, staged)
+            if sha256(staged) != entry["sha256"]:
+                raise ValueError(f"SHA-256 mismatch for locked {platform} input {source}")
+            if entry is not runtime:
+                try:
+                    requires.append((file, verify_wheel(staged, entry, platform)))
+                except ValueError as exc:
+                    raise ValueError(f"invalid wheel {file}: {exc}") from exc
+        verify_requirements(platform, {item["name"]: item["version"] for item in wheels}, requires)
+        provenance[platform] = [dict(entry, verified=True) for entry in entries]
+    return provenance
 
 
-def install_wheels(cache, destination, wheels, platforms):
-    cache = Path(cache).resolve()
-    cache.mkdir(parents=True, exist_ok=True)
-    # Ignore local pip settings so no other index or transport enters the build.
+def install_wheels(stage, platform, destination, entries):
+    wheelhouse = stage / platform
+    wheels = {entry["name"]: entry for entry in entries if entry["kind"] == "wheel"}
+    requirements = wheelhouse / "requirements.txt"
+    requirements.write_text("".join(f"{name}=={item['version']} --hash=sha256:{item['sha256']}\n"
+                                    for name, item in wheels.items()), encoding="ascii", newline="\n")
     env = {key: value for key, value in os.environ.items() if not key.upper().startswith("PIP_")}
     env["PIP_CONFIG_FILE"] = os.devnull
-    missing = [name for name, (file, _) in wheels.items() if not (cache / file).is_file()]
-    if missing:
-        # Download in isolation so a failed transfer never poisons the cache.
-        with tempfile.TemporaryDirectory(dir=cache) as stage:
-            subprocess.run([*pip_command("download", *platforms), "--index-url", "https://pypi.org/simple/",
-                            "--dest", stage, *[f"{name}=={DEPENDENCIES[name]}" for name in missing]],
-                           env=env, check=True)
-            for name in missing:
-                file, expected = wheels[name]
-                candidate = Path(stage) / file
-                verify_digest(candidate, expected)
-                candidate.replace(cache / file)
-    for file, expected in wheels.values():
-        verify_digest(cache / file, expected)
-        with zipfile.ZipFile(cache / file) as archive:
-            if any(not allowed(member) for member in archive.namelist()):
-                raise ValueError(f"excluded wheel entry in {file}")
-    subprocess.run([*pip_command("install", *platforms), "--no-index", "--no-compile",
-                    "--target", str(destination), *[str(cache / file) for file, _ in wheels.values()]],
+    if Path(destination).exists():
+        raise FileExistsError(f"wheel target must be new: {destination}")
+    subprocess.run([sys.executable, "-B", "-m", "pip", "--disable-pip-version-check", "install",
+                    "--require-hashes", "--no-index", "--no-deps", "--no-cache-dir", "--no-compile",
+                    "--only-binary=:all:", "--implementation", "cp", "--python-version", PY_MINOR,
+                    *[flag for tag in WHEEL_PLATFORMS[platform] for flag in ("--platform", tag)],
+                    "--find-links", str(wheelhouse), "-r", str(requirements), "--target", str(destination)],
                    env=env, check=True)
+    expected = {name: entry["version"] for name, entry in wheels.items()}
+    versions = {dist.metadata["Name"].lower(): dist.version
+                for dist in importlib.metadata.distributions(path=[str(destination)])}
+    if versions != expected:
+        raise ValueError(f"unexpected installed {platform} dependency set: {versions}")
+    return versions
 
 
-def installed_versions(destination):
-    versions = {d.metadata["Name"].lower(): d.version
-                for d in importlib.metadata.distributions(path=[str(destination)])}
-    actual = {name: versions.get(name) for name in PACKAGES}
-    if actual != DEPENDENCIES or "opencv-python" in versions:
-        raise ValueError(f"unexpected dependency set at {destination}: {versions}")
-    return actual
+def prepare_release_inputs(cache, windows_cache, destination, report):
+    with tempfile.TemporaryDirectory(dir=Path(destination).parent, prefix="pinned-inputs-") as temporary:
+        stage = Path(temporary)
+        provenance = stage_inputs(Path(cache), Path(windows_cache), stage)
+        install_wheels(stage, "windows", destination, provenance["windows"])
+        write_json(report, provenance)
 
 
-def copy_packages(windows_cache, destination, cache):
-    # pip --target writes to a fresh directory; it must never merge two cv2 trees.
-    install_wheels(cache, destination, WINDOWS_WHEELS, ("win_amd64",))
-    copy_windows_base(windows_cache, destination)
-    return installed_versions(destination)
-
-
-def linux_archive(cache):
-    cache = Path(cache)
-    cache.mkdir(parents=True, exist_ok=True)
-    path = cache / LINUX_ARCHIVE
-    if not path.is_file():
-        with tempfile.TemporaryDirectory(dir=cache) as stage:
-            candidate = Path(stage) / path.name
-            with urllib.request.urlopen(LINUX_URL, timeout=60) as source, candidate.open("wb") as output:
-                shutil.copyfileobj(source, output)
-            verify_digest(candidate, LINUX_SHA256)
-            candidate.replace(path)
-    verify_digest(path, LINUX_SHA256)
-    return path
-
-
-def build_linux(cache, root):
+def build_linux(stage, root, entries):
     removed = {
         "python/include": "Headers for building CPython extensions.",
         "python/lib/pkgconfig": "Development metadata for linking CPython.",
@@ -270,7 +310,8 @@ def build_linux(cache, root):
     base = Path(root) / "linux"
     aliases = ("python/bin/python", "python/bin/python3")
     links = {}
-    with tarfile.open(linux_archive(cache)) as archive:
+    runtime, = (entry for entry in entries if entry["kind"] == "runtime")
+    with tarfile.open(stage / "linux" / runtime["file"]) as archive:
         for member in archive:
             name = member.name
             parts = PurePosixPath(name).parts
@@ -300,16 +341,14 @@ def build_linux(cache, root):
             shutil.copyfile(target.with_name(link), target)
     site = base / f"python/lib/python{PY_MINOR}/site-packages"
     # An independent target keeps pip from replacing the existing stdlib site-packages.
-    staging = base / "wheel-target"
-    install_wheels(cache, staging, LINUX_WHEELS, LINUX_PLATFORMS)
+    staging = stage / "linux-installed"
+    versions = install_wheels(stage, "linux", staging, entries)
     shutil.copytree(staging, site, dirs_exist_ok=True, ignore=ignore_files((*LEAVE_OUT, "bin", "Scripts")))
-    shutil.rmtree(staging)
     keep = dict(removed=removed, wheel_omit=[*LEAVE_OUT, "bin", "Scripts"],
                 python_aliases=list(aliases), runtime="Keep standard library modules, shared libraries and licences.")
     write_json(Path(root) / "linuxpack-keep-list.json", keep)
-    return dict(python=PYTHON, dependencies=installed_versions(site), platform="linux-x86_64-glibc-2.28",
-                runtime=dict(file=LINUX_ARCHIVE, sha256=LINUX_SHA256),
-                wheels={name: dict(file=file, sha256=digest) for name, (file, digest) in LINUX_WHEELS.items()})
+    return dict(python=PYTHON, dependencies=versions, platform="linux-x86_64-glibc-2.28",
+                runtime=runtime, wheels={entry["name"]: entry for entry in entries if entry["kind"] == "wheel"})
 
 
 def write_json(path, value):
@@ -411,8 +450,8 @@ def trim_pack(a, root):
 
 
 def pack(root: str, out: str, commit: str) -> None:
-    archive = root + ".zip"
     prefix = Path(root).name
+    archive = os.path.join(out, prefix + ".zip")
     with tempfile.TemporaryDirectory(dir=out) as stage:
         candidate = Path(stage) / Path(archive).name
         with zipfile.ZipFile(candidate, "w", compression=zipfile.ZIP_DEFLATED) as z:
@@ -445,7 +484,7 @@ def build_core(a, commit: str) -> None:
     return root
 
 
-def main() -> None:
+def main(argv=None) -> None:
     global HERE
     if os.name == "nt":
         import ctypes
@@ -454,15 +493,15 @@ def main() -> None:
     ap.add_argument("--ref", default="main")
     ap.add_argument("--label", default="main")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--cache", help="pinned runtime and wheel download cache (default OUT/cache)")
-    ap.add_argument("--windows-cache", help="read-only Windows embed ZIP and base site-packages (default --cache)")
+    ap.add_argument("--cache", help="read-only cache of original pinned archives and wheels (default OUT/cache)")
+    ap.add_argument("--windows-cache", help="separate read-only Windows embed ZIP directory (default --cache)")
     ap.add_argument("--source-root", help="prepared release snapshot, paired with --commit")
     ap.add_argument("--commit", help="full provenance commit for a prepared snapshot")
     ap.add_argument("--worktree", action="store_true", help="include current uncommitted source")
     ap.add_argument("--audit-tests", action="store_true", help="trace the entire pytest suite as well")
     ap.add_argument("--test-deps", help="external directory containing locally copied pytest dependencies")
     ap.add_argument("--no-trim", action="store_true", help="measure an untrimmed pack with photo dependencies")
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     if bool(a.source_root) != bool(a.commit) or (a.source_root and a.worktree):
         ap.error('--source-root and --commit must be paired, without --worktree')
     if a.source_root:
@@ -480,22 +519,25 @@ def main() -> None:
                 raise ValueError("archive path escaped output directory")
             if os.path.isfile(old):
                 os.remove(old)
-    cache = os.path.abspath(a.cache or os.path.join(a.out, "cache"))
-    windows_cache = os.path.abspath(a.windows_cache or cache)
+    cache = Path(a.cache or os.path.join(a.out, "cache")).resolve()
+    windows_cache = Path(a.windows_cache or cache).resolve()
     if not all(allowed(path) for path in (cache, windows_cache)):
         raise ValueError("excluded cache path")
-    embed = os.path.join(windows_cache, f"python-{PYTHON}-embed-amd64.zip")
-    if not os.path.exists(embed):
-        raise FileNotFoundError(f"offline cache missing: {embed}")
-    wheels = os.path.join(windows_cache, "site-packages")
-    if not os.path.isdir(wheels):
-        raise FileNotFoundError(f"offline cache missing: {wheels}")
+    with tempfile.TemporaryDirectory(dir=a.out, prefix="pack-stage-") as directory:
+        a.build_root = directory
+        stage = Path(directory)
+        inputs = stage_inputs(cache, windows_cache, stage)
+        build_bundle(a, stage, inputs)
+
+
+def build_bundle(a, stage, inputs):
     commit = a.commit or subprocess.run(["git", "-C", HERE, "rev-parse", a.ref], check=True, capture_output=True, text=True).stdout.strip()
     core = build_core(a, commit)
     root = fresh(a, f"disc-probe-{a.label}-full")
     py = os.path.join(root, "python")
     os.makedirs(py)
-    with zipfile.ZipFile(embed) as z:
+    runtime, = (entry for entry in inputs["windows"] if entry["kind"] == "runtime")
+    with zipfile.ZipFile(stage / "windows" / runtime["file"]) as z:
         if any(not allowed(member) for member in z.namelist()):
             raise ValueError("excluded Windows embed entry")
         z.extractall(py)
@@ -503,9 +545,18 @@ def main() -> None:
     # Isolated by this file: nothing from the machine's own Python or environment gets in.
     with open(os.path.join(py, tag + "._pth"), "w", encoding="ascii") as f:
         f.write(f"{tag}.zip\n.\nLib\\site-packages\n..\nimport site\n")
-    versions = copy_packages(wheels, os.path.join(py, "Lib", "site-packages"), cache)
+    installed = stage / "windows-installed"
+    versions = install_wheels(stage, "windows", installed, inputs["windows"])
+
+    def windows_omit(directory, names):
+        # Preserve the previous full bundle's OpenCV typing and package files.
+        patterns = () if Path(directory).is_relative_to(installed / "cv2") else (*LEAVE_OUT, "bin", "Scripts")
+        return ignore_files(patterns)(directory, names)
+
+    shutil.copytree(installed, Path(py) / "Lib/site-packages",
+                    ignore=windows_omit)
     copy_source(a, root)
-    linux = build_linux(cache, root)
+    linux = build_linux(stage, root, inputs["linux"])
     write_start(root)
     with open(os.path.join(py, "shell.cmd"), "w", encoding="utf-8", newline="\r\n") as f:
         f.write(SHELL)
@@ -513,9 +564,11 @@ def main() -> None:
         f.write(NOTICE.format(python=PYTHON, packages=", ".join(f"{p}=={v}" for p, v in versions.items())))
     build_info = Path(root) / "release-build.json"
     info = json.loads(build_info.read_text(encoding="utf-8")) if build_info.is_file() else dict(commit=commit)
-    windows = dict(python=PYTHON, dependencies=versions, embed_sha256=sha256(embed),
-                   wheels={name: dict(file=file, sha256=digest) for name, (file, digest) in WINDOWS_WHEELS.items()})
-    write_json(build_info, dict(info, windows=windows, linux=linux))
+    if "pack_inputs" in info and info["pack_inputs"] != inputs:
+        raise ValueError("verified inputs differ from release preflight")
+    windows = dict(python=PYTHON, dependencies=versions, embed_sha256=runtime["sha256"], runtime=runtime,
+                   wheels={entry["name"]: entry for entry in inputs["windows"] if entry["kind"] == "wheel"})
+    write_json(build_info, dict(info, windows=windows, linux=linux, pack_inputs=inputs))
     write_json(Path(root) / "package.json",
                dict(ref=a.ref, commit=commit, worktree=a.worktree, audit_id=a.audit_id,
                     windows=windows, linux=linux))

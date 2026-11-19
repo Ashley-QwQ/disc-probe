@@ -18,6 +18,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import zipfile
 
@@ -37,9 +38,9 @@ def parse_args(argv=None):
     parser.add_argument('--version', required=True, type=public_version)
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--cache', type=Path, default=os.environ.get('DISC_PROBE_PACK_CACHE'),
-                        help='cache for pinned portable runtime downloads')
+                        help='read-only cache of original pinned archives and wheels')
     parser.add_argument('--windows-cache', type=Path, default=os.environ.get('DISC_PROBE_WINPACK_CACHE'),
-                        help='read-only Windows embed ZIP and base site-packages; defaults to --cache')
+                        help='separate read-only Windows embed ZIP directory; defaults to --cache')
     parser.add_argument('--neo', type=Path, default=os.environ.get('DISC_NEO_DIR'),
                         help='read-only staged Disc Neo folder; or DISC_NEO_DIR; omitted means skipped')
     return parser, parser.parse_args(argv)
@@ -256,10 +257,6 @@ def main(argv=None):
     windows_cache = (args.windows_cache or cache).resolve()
     if not allowed(cache) or not allowed(windows_cache):
         parser.error('excluded cache path')
-    embed = windows_cache / 'python-3.13.14-embed-amd64.zip'
-    deps = windows_cache / 'site-packages'
-    if not embed.is_file() or not deps.is_dir():
-        parser.error('Windows cache needs python-3.13.14-embed-amd64.zip and site-packages/')
     node = shutil.which('node')
     if not node:
         parser.error('Node is required, never downloaded')
@@ -274,6 +271,7 @@ def main(argv=None):
                DISCPROBE_WORKERS='1')  # Parent + one image worker: at most two heavy processes.
     checks = []
     original_version = (ROOT / 'discprobe/version.py').read_bytes()
+    wheel_workspace = tempfile.TemporaryDirectory(dir=out, prefix='wheel-stage-')
     try:
         archive = git('archive', '--format=tar', commit, '--', '.', *EXCLUDES)
         with tarfile.open(fileobj=io.BytesIO(archive)) as source:
@@ -286,9 +284,19 @@ def main(argv=None):
         # subprocesses that initialize their own temporary test repositories.
         (snapshot / '.git').write_text('gitdir: ' + git('rev-parse', '--absolute-git-dir').decode().strip() + '\n', encoding='utf-8')
         set_version(snapshot, args.version)
-        info = dict(commit=commit, public_version=args.version, source_archive_sha256=hashlib.sha256(archive).hexdigest())
-        write_json(snapshot / 'release-build.json', info)
         python = [sys.executable, '-X', 'utf8', '-B']
+        wheel_stage = Path(wheel_workspace.name)
+        dependencies = wheel_stage / 'wheel-dependencies'
+        inputs_report = out / 'pack-inputs.json'
+        prepare = ("import importlib.util; "
+                   f"s=importlib.util.spec_from_file_location('winpack_deps',{str(snapshot/'tools/build_winpack.py')!r}); "
+                   "b=importlib.util.module_from_spec(s); s.loader.exec_module(b); "
+                   f"b.prepare_release_inputs({str(cache)!r},{str(windows_cache)!r},"
+                   f"{str(dependencies)!r},{str(inputs_report)!r})")
+        run_check([*python, '-c', prepare], out, logs/'pack-inputs.log', env, checks)
+        info = dict(commit=commit, public_version=args.version, source_archive_sha256=hashlib.sha256(archive).hexdigest(),
+                    pack_inputs=json.loads(inputs_report.read_text(encoding='utf-8')))
+        write_json(snapshot / 'release-build.json', info)
         # Test installable candidates before the expensive source suite. They
         # become public assets only after every gate passes; copy their exact
         # bytes so the recorded wheel verification hash remains authoritative.
@@ -297,13 +305,10 @@ def main(argv=None):
                   snapshot, logs / 'source-build.log', env, checks)
         run_check([*python, str(snapshot/'tools/verify_source.py'), '--assets', str(candidates),
                    '--out', str(out/'from-sdist')], snapshot, logs/'sdist-equivalence.log', env, checks)
-        venv = out / 'wheel-venv'
+        venv = wheel_stage / 'wheel-venv'
         run_check([*python, '-m', 'venv', str(venv)], out, logs/'wheel-venv.log', env, checks)
-        copy_code = ("import importlib.util,shutil; "
-                     f"s=importlib.util.spec_from_file_location('winpack_deps',{str(snapshot/'tools/build_winpack.py')!r}); "
-                     "b=importlib.util.module_from_spec(s); s.loader.exec_module(b); "
-                     f"b.copy_packages({str(deps)!r},{str(out/'wheel-dependencies')!r},{str(cache)!r}); "
-                     f"shutil.copytree({str(out/'wheel-dependencies')!r},{str(venv/'Lib/site-packages')!r},dirs_exist_ok=True)")
+        copy_code = ("import shutil; "
+                     f"shutil.copytree({str(dependencies)!r},{str(venv/'Lib/site-packages')!r},dirs_exist_ok=True)")
         run_check([*python, '-c', copy_code], out, logs/'wheel-dependencies.log', env, checks)
         wheel_python = str(venv/'Scripts/python.exe')
         wheel, = candidates.glob('*.whl')
@@ -313,7 +318,7 @@ def main(argv=None):
         run_check([wheel_python, '-X', 'utf8', '-B', str(snapshot/'tools/verify_package.py'),
                    '--artifact', str(wheel), '--expected-root', str(venv), '--version', args.version,
                    '--out', str(out/'wheel-proof')], out, logs/'wheel-verify.log', env, checks)
-        test_env = dict(env, PYTHONPATH=str(out / 'wheel-dependencies'),
+        test_env = dict(env, PYTHONPATH=str(dependencies),
                         DISCPROBE_SEALED_PHOTOS=str(snapshot / 'tests/data'))
         run_check([*python, '-m', 'pytest', '-q', '-p', 'xdist', '-n', '2', 'tests', 'tests/scipy_oracle_checks.py',
                    '-p', 'no:cacheprovider', '--ignore-glob=*b[l]ind*'], snapshot, logs / 'pytest.log', test_env, checks)
@@ -344,7 +349,9 @@ def main(argv=None):
         full = f'disc-probe-{args.version}-full'
         with zipfile.ZipFile(out / 'winpack' / f'{full}.zip') as archive:
             portable = json.loads(archive.read(f'{full}/release-build.json'))
-        manifest = dict(schema=3, status='PASS', **info, pep440_version=canonical, gui_version=gui['gui_version'],
+        if portable['pack_inputs'] != info['pack_inputs']:
+            raise RuntimeError('portable pack input list differs from release preflight')
+        manifest = dict(schema=4, status='PASS', **info, pep440_version=canonical, gui_version=gui['gui_version'],
                         resource_limits=dict(image_workers=1, math_threads=1),
                         python=sys.version, node=subprocess.check_output([node, '--version'], text=True).strip(),
                         check_dependencies=dict(portable['windows']['dependencies'],
@@ -361,6 +368,8 @@ def main(argv=None):
         # Partial build directories are diagnostic evidence, never a completed release.
         write_json(out / 'status.json', dict(status='FAIL', commit=commit, error=str(exc), checks=checks))
         raise
+    finally:
+        wheel_workspace.cleanup()
 
 
 if __name__ == '__main__':

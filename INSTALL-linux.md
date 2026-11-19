@@ -3,7 +3,8 @@
 ## 完整包
 
 `disc-probe-<版本>-full.zip` 同时带 Windows 和 Linux x86_64 便携 Python 3.13
-及依赖。Linux 需要 glibc 2.28 或更新。将整个 ZIP 解压到可写目录，
+及依赖。Linux 需要 glibc 2.28 或更新。先用发布页的 SHA256SUMS.txt 核对 ZIP，
+再将整个 ZIP 解压到可写目录，
 进入解压目录运行：
 
 ```sh

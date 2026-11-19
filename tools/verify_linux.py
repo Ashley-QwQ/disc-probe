@@ -13,7 +13,7 @@ import zipfile
 
 
 REMOTE_SETUP = """\
-import hashlib, json, os, pathlib, re, shutil, signal, socket, subprocess, time, urllib.request
+import hashlib, json, os, pathlib, re, shutil, socket, subprocess, time, urllib.parse, urllib.request
 root = pathlib.Path.home() / 'dp-linuxpack-test' / cfg['run']
 os.sched_setaffinity(0, set(sorted(os.sched_getaffinity(0))[-2:]))
 os.nice(19)
@@ -59,17 +59,17 @@ env = dict(os.environ, HOME=str(unpacked), XDG_CACHE_HOME=str(unpacked / 'cache'
            TMPDIR=str(temporary), PYTHONNOUSERSITE='1', BROWSER='false',
            OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1', MKL_NUM_THREADS='1',
            NUMEXPR_NUM_THREADS='1', DISCPROBE_WORKERS='1', DISC_PROBE_NO_DRIVES='1')
-for key in ('PYTHONHOME', 'PYTHONPATH'):
+for key in ('PYTHONHOME', 'PYTHONPATH', 'DISPLAY', 'WAYLAND_DISPLAY'):
     env.pop(key, None)
 python = [str(package / 'linux/python/bin/python3'), '-X', 'utf8', '-B']
 
-def call(command, *, cwd=package, check=True, timeout=180):
+def call(command, *, cwd=package, show=True, timeout=180):
     print('$', json.dumps(command), flush=True)
     result = subprocess.run(command, cwd=cwd, env=env, text=True, encoding='utf-8',
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
-    print(result.stdout, end='', flush=True)
-    if check:
-        result.check_returncode()
+    if show or result.returncode:
+        print(result.stdout, end='', flush=True)
+    result.check_returncode()
     return result
 
 call(['bash', str(package / 'start-linux.sh'), '--help'], cwd=unpacked)
@@ -94,20 +94,15 @@ print(json.dumps(dict(python=sys.version.split()[0], executable=sys.executable, 
 '''])
 call([*python, '-m', 'discprobe', 'selftest'], timeout=900)
 web = [*python, '-m', 'discprobe', 'webui']
-status = call([*web, 'status'], check=False, timeout=15)
-lifecycle = not (status.returncode == 2 and 'unrecognized arguments: status' in status.stdout)
-if not lifecycle:
-    stop = call([*web, 'stop'], check=False, timeout=15)
-    assert stop.returncode == 2 and 'unrecognized arguments: stop' in stop.stdout
-    print('CLI status/stop unavailable; verifying foreground startup and SIGINT shutdown.', flush=True)
-launch = [*web, '--local-only', '--port', '0']
+assert not json.loads(call([*web, 'status', '--json'], show=False, timeout=15).stdout)['running']
+launch = ['bash', str(package / 'start-linux.sh'), '--local-only', '--no-drives', '--port', '0']
 print('$', json.dumps(launch), flush=True)
 with (root / 'web.log').open('w', encoding='utf-8') as log:
-    server = subprocess.Popen(launch, cwd=package, env=env, stdout=log, stderr=subprocess.STDOUT)
+    server = subprocess.Popen(launch, cwd=unpacked, env=env, stdout=log, stderr=subprocess.STDOUT)
     try:
         for _ in range(300):
             stdout = (root / 'web.log').read_text(encoding='utf-8')
-            url = re.search(r'http://127\\.0\\.0\\.1:\\d+/home/', stdout)
+            url = re.search(r'http://127\\.0\\.0\\.1:\\d+/home/\\?token=([A-Za-z0-9_-]+)', stdout)
             if url:
                 break
             if server.poll() is not None:
@@ -115,21 +110,25 @@ with (root / 'web.log').open('w', encoding='utf-8') as log:
             time.sleep(0.2)
         else:
             raise RuntimeError('webui startup timed out')
+        target = urllib.parse.urlsplit(url.group())
+        base = f'http://127.0.0.1:{target.port}'
+        headers = {'X-Discprobe-Token': url.group(1)}
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         for suffix in ('/home/', '/api/version'):
-            with urllib.request.urlopen(url.group().removesuffix('/home/') + suffix, timeout=15) as response:
+            with opener.open(urllib.request.Request(base + suffix, headers=headers), timeout=15) as response:
                 payload = response.read()
                 assert response.status == 200 and payload
                 print(f'GET {suffix}: {response.status} ({len(payload)} bytes)', flush=True)
-        if lifecycle:
-            call([*web, 'status'], timeout=15)
-            call([*web, 'stop'], timeout=15)
-        else:
-            server.send_signal(signal.SIGINT)
+        state = json.loads(call([*web, 'status', '--json'], show=False, timeout=15).stdout)
+        assert state['running'] and state['pid'] == server.pid and state['port'] == target.port
+        assert state['mode'] == 'local-only' and state['drives'] == []
+        print('WebUI status verified:', json.dumps(dict(running=True, port=target.port, pid=server.pid)), flush=True)
+        call([*web, 'stop'], timeout=15)
         assert server.wait(timeout=20) == 0, 'webui did not exit cleanly'
+        assert not json.loads(call([*web, 'status', '--json'], show=False, timeout=15).stdout)['running']
         with socket.socket() as client:
             client.settimeout(3)
-            port = int(url.group().split(':')[2].split('/')[0])
-            assert client.connect_ex(('127.0.0.1', port)) != 0, 'webui still listening'
+            assert client.connect_ex(('127.0.0.1', target.port)) != 0, 'webui still listening'
         print('WebUI listener closed.', flush=True)
     finally:
         if server.poll() is None:
@@ -145,6 +144,7 @@ for directory in ('Extracted package', 'tmp'):
         assert path.resolve().parent == root.resolve()
         shutil.rmtree(path)
 (root / cfg['file']).unlink(missing_ok=True)
+(root / 'extractor.json').unlink(missing_ok=True)
 print('Removed uploaded and extracted package; retained logs in', root)
 """
 

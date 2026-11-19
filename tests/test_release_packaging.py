@@ -289,10 +289,10 @@ def rehearsal(tmp_path, monkeypatch):
     (checkout / 'discprobe').mkdir(parents=True)
     (checkout / 'discprobe/version.py').write_text('__version__ = "old"\n', encoding='utf-8')
     cache = tmp_path / 'cache'
-    (cache / 'site-packages').mkdir(parents=True)
-    (cache / 'python-3.13.14-embed-amd64.zip').write_bytes(b'fake offline cache')
+    cache.mkdir()
     out = tmp_path / 'out'
     state = dict(lab=False, failure=None, gates=[], commits=0)
+    inputs = dict(lock_sha256='a'*64, windows=[dict(verified=True)], linux=[dict(verified=True)])
     monkeypatch.setattr(release, 'ROOT', checkout)
     monkeypatch.setattr(release, 'os', SimpleNamespace(name='nt', environ=dict(os.environ), walk=os.walk))
     monkeypatch.setattr(release, 'sys', SimpleNamespace(version_info=(3, 13), executable=sys.executable, version=sys.version))
@@ -333,6 +333,8 @@ def rehearsal(tmp_path, monkeypatch):
         checks.append(dict(log=log.name, exit_code=code, sha256=release.sha256(log)))
         if code:
             raise RuntimeError(f'check failed: {log.name}')
+        if log.name == 'pack-inputs.log':
+            (out / 'pack-inputs.json').write_text(json.dumps(inputs), encoding='utf-8')
         if log.name == 'source-build.log':
             candidates = out / 'candidate-assets'
             candidates.mkdir()
@@ -345,7 +347,8 @@ def rehearsal(tmp_path, monkeypatch):
             full = 'disc-probe-1.0.0.0-alpha-full'
             runtime = dict(python='3.13.14', dependencies={'opencv-python-headless': '5.0.0.93'})
             with zipfile.ZipFile(winpack / f'{full}.zip', 'w') as archive:
-                archive.writestr(f'{full}/release-build.json', json.dumps(dict(windows=runtime, linux=runtime)))
+                archive.writestr(f'{full}/release-build.json',
+                                 json.dumps(dict(windows=runtime, linux=runtime, pack_inputs=inputs)))
 
     monkeypatch.setattr(release, 'clean_commit', clean)
     monkeypatch.setattr(release, 'git', git)
@@ -364,7 +367,7 @@ def test_orchestration_packages_and_gates(rehearsal, tmp_path, with_packages):
         neo = make_neo(tmp_path / 'disc-neo', release)
         argv += ['--neo', str(neo)]
     release.main(argv)
-    expected = ['source-build.log', 'sdist-equivalence.log', 'wheel-venv.log', 'wheel-dependencies.log',
+    expected = ['pack-inputs.log', 'source-build.log', 'sdist-equivalence.log', 'wheel-venv.log', 'wheel-dependencies.log',
                 'wheel-install.log', 'wheel-pip-check.log', 'wheel-verify.log', 'pytest.log',
                 'test_smoke.mjs.log', 'selftest.log', 'winpack-build.log']
     if with_packages:
@@ -374,6 +377,7 @@ def test_orchestration_packages_and_gates(rehearsal, tmp_path, with_packages):
     manifest = json.loads((out / 'assets/manifest.json').read_text())
     assert manifest['public_version'] == '1.0.0.0-alpha'
     assert manifest['pep440_version'] == '1.0.0.0a0'
+    assert manifest['pack_inputs'] == json.loads((out / 'pack-inputs.json').read_text())
     for platform in ('windows', 'linux'):
         assert manifest[platform]['dependencies'] == {'opencv-python-headless': '5.0.0.93'}
         assert f'# {platform}: Python 3.13.14 opencv-python-headless==5.0.0.93' in (
@@ -386,7 +390,7 @@ def test_orchestration_packages_and_gates(rehearsal, tmp_path, with_packages):
     assert (release.ROOT / 'discprobe/version.py').read_text() == '__version__ = "old"\n'
 
 
-@pytest.mark.parametrize('failure', ['source-build.log', 'sdist-equivalence.log', 'wheel-venv.log',
+@pytest.mark.parametrize('failure', ['pack-inputs.log', 'source-build.log', 'sdist-equivalence.log', 'wheel-venv.log',
     'wheel-dependencies.log', 'wheel-install.log', 'wheel-pip-check.log', 'wheel-verify.log',
     'pytest.log', 'test_smoke.mjs.log', 'selftest.log', 'winpack-build.log', 'disc-lab-pytest.log', 'final-clean'])
 def test_failed_gate_never_promotes_assets(rehearsal, failure):
@@ -395,6 +399,8 @@ def test_failed_gate_never_promotes_assets(rehearsal, failure):
     with pytest.raises(RuntimeError):
         release.main(argv)
     assert not (out / 'assets').exists()
+    if failure == 'pack-inputs.log':
+        assert not list(out.rglob('*.zip'))
     assert json.loads((out / 'status.json').read_text())['status'] == 'FAIL'
     if failure != 'final-clean':
         assert state['gates'][-1] == failure

@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "windows": [
+    {
+      "kind": "runtime",
+      "name": "cpython",
+      "version": "3.13.14",
+      "platform": "win_amd64",
+      "python_tag": "cp313",
+      "abi": "cp313",
+      "file": "python-3.13.14-embeddable-amd64.zip",
+      "url": "https://www.python.org/ftp/python/3.13.14/python-3.13.14-embeddable-amd64.zip",
+      "checksum_url": "https://www.python.org/downloads/release/python-31314/",
+      "sha256": "90b4e5b9898b72d744650524bff92377c367f44bd5fbd09e3148656c080ad907"
+    },
+    {
+      "kind": "wheel",
+      "name": "numpy",
+      "version": "2.5.1",
+      "platform": "win_amd64",
+      "python_tag": "cp313",
+      "abi": "cp313",
+      "file": "numpy-2.5.1-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/10/70/800b3fca480af32df9e8ea9f3d4a0c8feb4b32d7f195d174eabbda4829ad/numpy-2.5.1-cp313-cp313-win_amd64.whl",
+      "checksum_url": "https://pypi.org/pypi/numpy/2.5.1/json",
+      "sha256": "6c3fe51bc6a16453d452997053454f309e8e0ed7b42d6b361ce4ac8c32913d74"
+    },
+    {
+      "kind": "wheel",
+      "name": "pillow",
+      "version": "12.3.0",
+      "platform": "win_amd64",
+      "python_tag": "cp313",
+      "abi": "cp313",
+      "file": "pillow-12.3.0-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/a6/9b/7a58e61d62be561da3a356fe2384d4059a6345fc130e23ef1c36a5b81d24/pillow-12.3.0-cp313-cp313-win_amd64.whl",
+      "checksum_url": "https://pypi.org/pypi/pillow/12.3.0/json",
+      "sha256": "1cca606cd25738df4ed873d5ad46bbdb3d83b5cbca291f6b4ff13a4df6b0bbe8"
+    },
+    {
+      "kind": "wheel",
+      "name": "scipy",
+      "version": "1.18.1",
+      "platform": "win_amd64",
+      "python_tag": "cp313",
+      "abi": "cp313",
+      "file": "scipy-1.18.1-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/93/0e/e0348fbc0dbab65c114cf78957e7dfeb49f8e8b556b4d930cc12ff195e18/scipy-1.18.1-cp313-cp313-win_amd64.whl",
+      "checksum_url": "https://pypi.org/pypi/scipy/1.18.1/json",
+      "sha256": "559ed65f60c1af5a03f3912605a1b5114f522c7c32fb23c3376ae8f03219fe28"
+    },
+    {
+      "kind": "wheel",
+      "name": "opencv-python-headless",
+      "version": "5.0.0.93",
+      "platform": "win_amd64",
+      "python_tag": "cp37",
+      "abi": "abi3",
+      "file": "opencv_python_headless-5.0.0.93-cp37-abi3-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/b8/88/763b967f7efd7226b82c9fae16d560cba049b1f0c036647e65c610fd636e/opencv_python_headless-5.0.0.93-cp37-abi3-win_amd64.whl",
+      "checksum_url": "https://pypi.org/pypi/opencv-python-headless/5.0.0.93/json",
+      "sha256": "829717b6a95554f273e49e357cee3b3a2a26b6f4842fbc1bed2b45bdd8f87e0e"
+    }
+  ],
+  "linux": [
+    {
+      "kind": "runtime",
+      "name": "cpython",
+      "version": "3.13.14",
+      "platform": "x86_64-unknown-linux-gnu",
+      "python_tag": "cp313",
+      "abi": "cp313",
+      "file": "cpython-3.13.14+20260610-x86_64-unknown-linux-gnu-install_only.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.13.14+20260610-x86_64-unknown-linux-gnu-install_only.tar.gz",
+      "checksum_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/SHA256SUMS",
+      "sha256": "31ebbb024fecb446d7f25a5b59ca1d4955597ca3f5b4b76f55b30a8987eb61c9"
+    },
+    {
+      "kind": "wheel",
+      "name": "numpy",
+      "version": "2.5.1",
+      "platform": "manylinux_2_28_x86_64",
+      "python_tag": "cp313",
+      "abi": "cp313",
+      "file": "numpy-2.5.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/ed/a7/2bcd3fdbb87804755c35b729bf8709d62025c5f4cfd7d5b2415997097515/numpy-2.5.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "checksum_url": "https://pypi.org/pypi/numpy/2.5.1/json",
+      "sha256": "9726558e8db4a5bf7929a70ae50f63abda4daf0efe810e3bfbab95976f75fc1a"
+    },
+    {
+      "kind": "wheel",
+      "name": "pillow",
+      "version": "12.3.0",
+      "platform": "manylinux_2_28_x86_64",
+      "python_tag": "cp313",
+      "abi": "cp313",
+      "file": "pillow-12.3.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/f7/62/de5bdd77d935331f4f802edc11e4d82950f642caad6cb2f949837b8560e2/pillow-12.3.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "checksum_url": "https://pypi.org/pypi/pillow/12.3.0/json",
+      "sha256": "0847a763afefb695bc912d7c131e7e0632d4edc1d8698f58ddabec8e46b8b6d3"
+    },
+    {
+      "kind": "wheel",
+      "name": "scipy",
+      "version": "1.18.1",
+      "platform": "manylinux_2_28_x86_64",
+      "python_tag": "cp313",
+      "abi": "cp313",
+      "file": "scipy-1.18.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/41/48/6450ed9243315322bbc19ac57b9b70d66a20bf1d38d124c96bc4bf6af9ea/scipy-1.18.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "checksum_url": "https://pypi.org/pypi/scipy/1.18.1/json",
+      "sha256": "fdaf5ea890a6183d0565f51a61799d67081bd5b1cf03c5f4b3fd3732108625c9"
+    },
+    {
+      "kind": "wheel",
+      "name": "opencv-python-headless",
+      "version": "5.0.0.93",
+      "platform": "manylinux_2_28_x86_64",
+      "python_tag": "cp37",
+      "abi": "abi3",
+      "file": "opencv_python_headless-5.0.0.93-cp37-abi3-manylinux_2_28_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/9b/21/f6ef335f6e65724aa78b8d792b48d40a48c381715f1e62f5a5049e09d07e/opencv_python_headless-5.0.0.93-cp37-abi3-manylinux_2_28_x86_64.whl",
+      "checksum_url": "https://pypi.org/pypi/opencv-python-headless/5.0.0.93/json",
+      "sha256": "ed709fdf9aa0bd1f2ed8549e71d19449b03a675bb581eb292285f6861953be37"
+    }
+  ]
+}
