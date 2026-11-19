@@ -483,6 +483,8 @@ The manual, notes and CD model are in Chinese for now.
 | [`evidence/`](evidence/README.md) | Raw measurements and figures, reproducible |
 | [dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing) | WindowsNoEditor's C# probe, fitting scripts and raw data (in their fork) |
 
+To put your own photo or illustration on a colour DVD, ask Claude Code or Codex to follow the [disc-colour skill](skills/disc-colour/SKILL.md). It will show you a predicted image and wait for your approval before making the ISO.
+
 ## Prior work and thanks
 
 Measuring sector angles from read timing didn't start here:

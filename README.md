@@ -478,6 +478,8 @@ CD 的沿轨道常数要靠网格盘来定，206 帧只对 GH70N 加 IMAPI 刻�
 | [`evidence/`](evidence/README.md) | 原始测量数据和图，可复现 |
 | [dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing) | WindowsNoEditor 的 C# 探测程序、拟合脚本和原始数据（在他们的 fork 里） |
 
+想把自己的照片或插画刻成彩色 DVD，可以请 Claude Code 或 Codex 照 [彩图技能](skills/disc-colour/SKILL.md) 帮你做。它会先给你看预测图，等你确认后再生成刻录镜像。
+
 ## 前人工作与致谢
 
 用读取计时测扇区角度，并不是这里首创：

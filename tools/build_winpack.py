@@ -41,7 +41,7 @@ WHEEL_PLATFORMS = {
     "linux": ("manylinux_2_28_x86_64", "manylinux_2_27_x86_64", "manylinux2014_x86_64", "manylinux_2_17_x86_64"),
 }
 SELFTEST_DATA = "tests/data/bd_discussion_samples/local_uj272_bd_zones.csv"
-SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_backend.py", "INSTALL-linux.md", "docs/API_VERSIONING.md", "docs/MANUAL.md", "docs/MANUAL.en.md", "README.md", "README.en.md", "STYLE.md", "DESIGN.md", "LICENSE", "start-linux.sh", "先看我 Read me first.txt", SELFTEST_DATA)
+SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_backend.py", "INSTALL-linux.md", "docs/API_VERSIONING.md", "docs/MANUAL.md", "docs/MANUAL.en.md", "README.md", "README.en.md", "AGENTS.md", "skills", "STYLE.md", "DESIGN.md", "LICENSE", "start-linux.sh", "先看我 Read me first.txt", SELFTEST_DATA)
 LEAVE_OUT = ("__pycache__", "tests", "test", "*.pyi", "*.pdb")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LINUX_START = "start-linux.sh"
