@@ -37,7 +37,7 @@ def step(state, ident):
 
 class BackendTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(dir=ROOT)
+        self.temp = tempfile.TemporaryDirectory(dir=os.environ.get("DISCPROBE_TEST_TMP") or ROOT)
         self.root = Path(self.temp.name)
         self.addCleanup(self.temp.cleanup)
         # Never enumerate or open real drives, even indirectly through guide rendering.
@@ -208,7 +208,8 @@ with open(p, 'a') as f:
 time.sleep(60)
 '''
             return webui.Child([sys.executable, "-c", code], **kwargs)
-        b = webui.Backend(self.root, runner=runner, drive_provider=lambda: [dict(id=d, disc={"blank": True}) for d in ("H:", "I:")])
+        b = webui.Backend(self.root, runner=runner, drive_provider=lambda: [
+            dict(id=d, disc=dict(blank=True, media="dvd", profile=0x11, rewritable=False)) for d in ("H:", "I:")])
         self.addCleanup(b.close)
         return b
 
@@ -259,17 +260,22 @@ time.sleep(60)
 
     def test_burn_fails_closed_tokens_expire_and_consume(self):
         b = self.backend()
+        (self.root / "iso").mkdir()
+        write_checked_iso(self.root / "iso" / "sample.iso", bytes(2048))
+        payload = dict(action="burn", drive="H:", args={"iso": "iso/sample.iso"})
         with self.assertRaisesRegex(webui.APIError, "burn token"):
-            b.start(dict(action="burn", drive="H:"))
-        token = b.burn_token()["token"]
+            b.start(payload)
         with self.assertRaisesRegex(webui.APIError, "not implemented"):
+            b.burn_token(dict(action="burn", drive="H:"))
+        token = b.burn_token(payload)["token"]
+        with self.assertRaisesRegex(webui.APIError, "does not match"):
             b.start(dict(action="burn", drive="H:", burn_token=token))
         with self.assertRaisesRegex(webui.APIError, "burn token"):
-            b.start(dict(action="burn", drive="H:", burn_token=token))
-        token = b.burn_token()["token"]
-        b.tokens[token] = time.monotonic() - 1
+            b.start(dict(payload, burn_token=token))
+        token = b.burn_token(payload)["token"]
+        b.tokens[token] = webui.Permit(time.monotonic() - 1, b.tokens[token].binding)
         with self.assertRaises(webui.APIError):
-            b.start(dict(action="burn", drive="H:", burn_token=token))
+            b.start(dict(payload, burn_token=token))
         self.assertEqual(b.jobs, {})
 
     def test_real_fake_child_done(self):
@@ -316,6 +322,7 @@ time.sleep(60)
         self.assertTrue(running())
         b.cancel(ident)
         eventually(lambda: not running())
+        self.assertTrue(b.get_job(ident).finished.wait(8))
 
     def test_external_results_emit_state(self):
         b = self.backend()
@@ -488,7 +495,7 @@ time.sleep(60)
         c.close()
         self.assertEqual(self.request(server, "POST", f"/api/jobs/{ident}/answer", dict(id="q1", yes=False))[0], 200)
         self.assertEqual(self.request(server, "POST", f"/api/jobs/{ident}/cancel", {})[0], 200)
-        self.assertEqual(self.request(server, "GET", "/api/burn-token")[0], 200)
+        self.assertEqual(self.request(server, "GET", "/api/burn-token")[0], 405)
         self.assertEqual(self.request(server, "POST", "/api/jobs/j-0000/cancel", {})[0], 404)
 
     def test_greetings_are_the_terminal_ones(self):
@@ -512,7 +519,8 @@ time.sleep(60)
 
     def test_disc_in_the_drive_is_read_on_request_and_kept(self):
         found = dict(tray="ready", drive="HL-DT-ST GH70N",
-                     disc=dict(present=True, media="dvd", kind="DVD-R Sequential", mid="RITEKF1", blank=True, sectors=2298496))
+                     disc=dict(present=True, media="dvd", kind="DVD-R Sequential", mid="RITEKF1", blank=True,
+                               sectors=2298496, profile=0x11, rewritable=False))
         reads = []
         def reader(drive):
             reads.append(drive)
@@ -529,9 +537,12 @@ time.sleep(60)
         self.assertEqual(reads, ["H:"])
         self.assertEqual(b.state()["drives"][0]["disc"]["mid"], "RITEKF1")    # kept for the page
         # a blank disc seen this way never authorizes a burn by itself
-        token = b.burn_token()["token"]
+        (self.root / "iso").mkdir()
+        write_checked_iso(self.root / "iso" / "sample.iso", bytes(2048))
+        payload = dict(action="burn", drive="H:", args={"iso": "iso/sample.iso"})
+        token = b.burn_token(payload)["token"]
         with self.assertRaisesRegex(webui.APIError, "verified blank"):
-            b.start(dict(action="burn", drive="H:", burn_token=token))
+            b.start(dict(payload, burn_token=token))
         # no disc: an empty tray is reported, not an error
         found.update(tray="open", disc=None)
         got = b.read_disc(dict(drive="H:"))["disc"]
@@ -566,8 +577,9 @@ with open(p, 'a') as f:
         write_checked_iso(self.root / "iso" / "m.iso", bytes(4096))
         with self.assertRaisesRegex(webui.APIError, "burn token"):
             b.start(dict(action="calibrate", drive="I:", args={"iso": "iso/m.iso"}))
-        token = b.burn_token()["token"]
-        b.start(dict(action="calibrate", drive="I:", args={"iso": "iso/m.iso"}, burn_token=token))
+        payload = dict(action="calibrate", drive="I:", args={"iso": "iso/m.iso"})
+        token = b.burn_token(payload)["token"]
+        b.start(dict(payload, burn_token=token))
         self.assertIn("--yes-write", self.argv)
         self.assertEqual(self.argv.count("--media"), 1)
 
@@ -582,8 +594,8 @@ with open(p, 'a') as f:
                     b.read_disc(dict(drive="H:"))
                     other = b.read_disc(dict(drive="I:"))["disc"]
                     b.verified_blank = {d: (time.monotonic() + 30, "dvd") for d in ("H:", "I:")}
-                    ident = b.start(dict(action=action, drive="H:", args={"iso": "iso/m.iso"},
-                                         burn_token=b.burn_token()["token"]))["job"]
+                    payload = dict(action=action, drive="H:", args={"iso": "iso/m.iso"})
+                    ident = b.start(dict(payload, burn_token=b.burn_token(payload)["token"]))["job"]
                     eventually(lambda: b.get_job(ident).finished.is_set())
                     self.assertEqual(b.job_state(ident)["exit"], code)
                     replay = b.events({}, reconnect=True)
@@ -848,7 +860,7 @@ def workflow_fake_backend(root, out='results', ask=True):
 
 
 def test_catalogue_and_finished_job_http():
-    with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
+    with tempfile.TemporaryDirectory(dir=os.environ.get("DISCPROBE_TEST_TMP") or ROOT) as tmp:
         backend = workflow_fake_backend(tmp, ask=False)
         server = webui.Server(backend, 0)
         thread=threading.Thread(target=server.serve_forever,daemon=True)
@@ -875,7 +887,7 @@ def test_catalogue_and_finished_job_http():
 
 
 def test_fake_workflow_results_answers_and_persistence():
-    with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
+    with tempfile.TemporaryDirectory(dir=os.environ.get("DISCPROBE_TEST_TMP") or ROOT) as tmp:
         backend=workflow_fake_backend(tmp)
         try:
             def run(action, **args):

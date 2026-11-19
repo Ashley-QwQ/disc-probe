@@ -1,4 +1,5 @@
 """Core/GUI compatibility and packaging checks; no device enumeration or reads."""
+import os
 import http.client
 import importlib.util
 import json
@@ -116,8 +117,10 @@ class HandshakeTests(unittest.TestCase):
         self.assertEqual(self.get(server, '/../version.py')[0], 404)
 
     def test_gui_option_invalid_stops_before_listening(self):
+        # its own state folder, so a DP service already running on this machine is not found and reused
+        env = {**os.environ, 'LOCALAPPDATA': str(self.root / 'state')}
         command = subprocess.run([sys.executable, '-B', '-m', 'discprobe', 'webui', '--gui', str(self.root)],
-                                 cwd=ROOT, capture_output=True, timeout=20)
+                                 cwd=ROOT, capture_output=True, timeout=20, env=env)
         self.assertNotEqual(command.returncode, 0)
         self.assertIn(b'gui.json', command.stderr)
         self.assertNotIn(b'Traceback', command.stderr)

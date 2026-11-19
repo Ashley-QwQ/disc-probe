@@ -1,0 +1,1222 @@
+[
+  {
+    "id": "bd-picture-calibrate",
+    "symptoms": {"zh": ["刻蓝光之前还要校准吗", "蓝光预设有几何就能画吗", "蓝光盘上直线绕了好多圈", "蓝光光盘可以刻图吗", "想用蓝光盘出图", "BD 能不能用"], "en": ["bd preset shape but scale unknown", "blu ray picture twists many turns", "calibrate blu ray before picture", "can i burn a picture to blu ray"]},
+    "error_patterns": [{"text": "This preset gives the shape of the spiral, not its scale"}, {"text": "Do not burn a picture with it: on one real BD"}],
+    "cause": {"zh": "蓝光初次计时只能测出受锚点影响的螺旋参数，仍需实盘校准定规模。", "en": "The initial Blu-ray timings depend on the anchor and still need calibration against the disc."},
+    "steps": {"zh": ["先用标定盘检查径向线的扭转，再把实测角度用于导出。"], "en": ["Check the radial line’s twist on a calibration disc and use the measured angle for export."]},
+    "commands": ["python -m discprobe calibdisc --output iso/bd-calib.iso", "python -m discprobe disexport --geo <run> --sectors <count> --twist-deg <degrees>"],
+    "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
+    "sources": [{"path": "discprobe/guide.py", "line": 1364, "keyword": "carries the shape of the spiral"}, {"path": "discprobe/guide.py", "line": 1366, "keyword": "Calibrate against the disc first"}, {"path": "docs/MANUAL.en.md", "line": 551, "keyword": "far end points"}, {"path": "docs/MANUAL.en.md", "line": 554, "keyword": "--twist-deg"}]
+  },
+  {
+    "id": "blank-recorded-area",
+    "symptoms": {"zh": ["空盘不能测几何", "新盘测速说没有可读区", "盘里没数据能测吗"], "en": ["timing sees blank media", "can't time a blank disc", "geometry has no recorded area"]},
+    "error_patterns": [{"text": "no readable recorded area; burn a test disc first"}, {"text": "blank media has nothing to read"}, {"text": "no random data found in the recorded area"}, {"text": "已刻录的部分里没有随机数据"}, {"text": "Nothing is recorded on this disc, so timing cannot use it"}, {"text": "这张盘上没有数据，timing 用不了"}, {"text": "nothing is recorded on this blank for timing"}],
+    "cause": {"zh": "空白介质没有可供计时的已写入数据。", "en": "Blank media has no recorded data to time."},
+    "steps": {"zh": ["空盘用 info 查容量；计时用已有的可读数据盘。没有可用数据盘时才生成并刻一张随机数据盘。"], "en": ["Use info on the blank to get capacity. Use a readable data disc for timing. Make and burn a random-data disc if no usable one is available."]},
+    "commands": ["python -m discprobe info --drive <drive>", "python -m discprobe random --output iso/random.iso"],
+    "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
+    "sources": [{"path": "discprobe/timing.py", "line": 357, "keyword": "blank media has nothing to read"}, {"path": "discprobe/guide.py", "line": 727, "keyword": "no existing data disc is available"}, {"path": "discprobe/guide.py", "line": 1324, "keyword": "available sector count"}, {"path": "discprobe/zh.py", "line": 523, "keyword": "这张盘上没有数据"}, {"path": "discprobe/guide.py", "line": 642, "keyword": "nothing is recorded on this blank"}]
+  },
+  {
+    "id": "burn-browser-closed",
+    "symptoms": {"zh": ["刻录中把网页关掉了", "烧盘时误关浏览器标签页", "关掉刻录页面还在写吗"], "en": ["closed browser during burn", "accidentally shut the browser tab whilst writing", "will burn continue if i close the page"]},
+    "error_patterns": [],
+    "cause": {"zh": "只关浏览器页面时，仍在运行的本机服务可以继续刻录。关掉启动服务的终端会停止服务。", "en": "Closing the browser page leaves a running local service free to continue the burn. Closing the console that started the service stops it."},
+    "steps": {"zh": ["重新打开服务打印的地址，查看已有刻录任务和结果；也可用 webui status 确认服务和活动任务。让光驱保持连接，等写入结束。"], "en": ["Reopen the printed service address and check the existing burn task and result. You can also use webui status to check the service and active tasks. Keep the drive connected until the write finishes."]},
+    "commands": ["python -m discprobe webui status"],
+    "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
+    "sources": [{"path": "discprobe/web/home/burn.js", "line": 36, "keyword": "Burning; the page can be closed"}, {"path": "discprobe/web/home/burn.js", "line": 36, "keyword": "Keep the drive connected"}, {"path": "discprobe/web/home/api.js", "line": 38, "keyword": "A job already running"}, {"path": "README.en.md", "line": 83, "keyword": "Closing the console"}]
+  },
+  {
+    "id": "burn-erase-media",
+    "symptoms": {"zh": ["擦盘按钮灰色不可用", "擦除按钮不能按", "为什么不能擦盘", "显示要用可擦写盘"], "en": ["erase disc button is disabled", "erase option greyed out", "rewritable disc not recognised for erase"]},
+    "error_patterns": [{"text": "a verified rewritable disc is required"}],
+    "cause": {"zh": "擦除需要程序确认盘片可擦写。DVD+R、DVD-R 和 CD-R 是一次性盘。", "en": "Erasing requires the app to verify that the disc is rewritable. DVD+R, DVD-R and CD-R are write-once media."},
+    "steps": {"zh": ["核对盘上的类型标记。如果是 RW 盘，把盘放好后重新检查光驱里的盘，确认它被识别成可擦写。"], "en": ["Check the media marking. For an RW disc, insert it and recheck the disc in the drive to confirm it is detected as rewritable."]},
+    "commands": [],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/disc_identity.py", "line": 90, "keyword": "if erasing and identity[\"rewritable\"] is not True"}, {"path": "README.en.md", "line": 168, "keyword": "only RW discs can"}, {"path": "discprobe/web/home/burn.js", "line": 36, "keyword": "Check the disc in the drive again"}]
+  },
+  {
+    "id": "burn-interrupted",
+    "symptoms": {"zh": ["刻到一半光驱断开连接", "刻录时拔线导致中断", "取消刻录后这张盘还能用吗", "写到一半停了"], "en": ["burn failed halfway can i reuse the disc", "unplugged drive in the middle of burning", "cancelled disc burn part way through", "is a failed burn disc dead"]},
+    "error_patterns": [{"text": "This recording cannot be measured; erase this rewritable disc"}],
+    "cause": {"zh": "如果写入已经开始并中断，这次刻录不能用于测量。一次性盘需要换盘，可擦写盘要擦除后再刻。", "en": "If writing started and was interrupted, the recording cannot be used for measurement. Replace a write-once disc, or erase a rewritable disc before burning again."},
+    "steps": {"zh": ["先看刻录记录，区分“还没有开始刻”和已经写入后失败。若光驱掉线，检查连接。确认已部分写入时，按盘种换同批空白盘或擦除可擦写盘。"], "en": ["Check the burn result to tell whether writing never started or failed after it began. Check the connection if the drive disconnected. If it was partly written, use a blank from the same batch or erase the rewritable disc."]},
+    "commands": [],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/web/home/burn.js", "line": 32, "keyword": "还没有开始刻，盘没有动过"}, {"path": "discprobe/web/home/burn.js", "line": 32, "keyword": "请检查光驱连接"}, {"path": "discprobe/web/home/burn-stop.js", "line": 72, "keyword": "erase this rewritable disc before burning again"}, {"path": "discprobe/web/home/burn-stop.js", "line": 77, "keyword": "blank disc from the same batch"}]
+  },
+  {
+    "id": "burn-iso-mount",
+    "symptoms": {"zh": ["双击 ISO 只挂载了", "刻录软件选成另一个盘", "刻录窗口里找不到正确刻录机"], "en": ["double click iso only mounted it", "burn dialog picked wrong drive", "iso didn't write when opened"]},
+    "error_patterns": [{"text": "In the burn window, check the burner is"}],
+    "cause": {"zh": "双击 ISO 通常只挂载，刻录窗口也可能选错驱动器。", "en": "Double-clicking the ISO mounts it. The burn dialog can also have the wrong drive selected."},
+    "steps": {"zh": ["右键选“刻录光盘映像”，确认刻录目标是要用的光驱。"], "en": ["Right-click and choose Burn disc image, then check the selected burner."]},
+    "commands": [],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "README.en.md", "line": 162, "keyword": "a double-click only mounts it"}, {"path": "discprobe/guide.py", "line": 950, "keyword": "it can point at another drive"}, {"path": "discprobe/guide.py", "line": 963, "keyword": "Burn disc image"}]
+  },
+  {
+    "id": "burn-write-speed",
+    "symptoms": {"zh": ["刻录失败后要换速度吗", "应该用多少倍速刻", "低速刻盘反而读错", "低速刻录后回读错误", "回读失败该换刻录速度吗", "刻盘选几倍速合适", "刻录速度怎么选", "刻录几倍速比较稳"], "en": ["what write speed should i burn", "burn failed try a different write speed", "slow burn unreadable", "which write speed should i choose"]},
+    "error_patterns": [{"text": "The burn failed or stopped"}, {"text": "slower is not always better"}],
+    "cause": {"zh": "特定刻录速度下的读回质量随光驱和盘片而变。写入失败的一次性盘要换新。", "en": "Readback quality at a given write speed depends on the drive and disc. A failed write-once disc needs replacing."},
+    "steps": {"zh": ["失败后换一张新空盘；再失败，试另一个光驱支持的刻录速度。检查刻录报告里的实际速度和回读结果。", "DVD 默认选光驱支持的最接近 8x 的速度，距离相同取较低值。CD 默认取支持的最低倍速。"], "en": ["Use a new blank after a failed write. If it fails again, try another supported write speed and check the reported speed and readback.", "For DVD the default is the supported speed nearest 8x, with ties going lower. For CD the default is the lowest supported speed."]},
+    "commands": ["python -m discprobe info --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/guide.py", "line": 1038, "keyword": "Try another burn speed"}, {"path": "README.en.md", "line": 170, "keyword": "another supported multiple"}, {"path": "README.en.md", "line": 172, "keyword": "drive/utility-reported speeds"}, {"path": "README.en.md", "line": 170, "keyword": "closest to 8x"}]
+  },
+  {
+    "id": "cd-40x-failed",
+    "symptoms": {"zh": ["便宜 CD 刻录失败", "Windows 默认四十倍刻 CD 失败", "这个 CD-R 写入报 IO 错误"], "en": ["windows 40x cd burn failed", "cheap cdr won't burn at 40x", "cd isoburn io failure"]},
+    "error_patterns": [{"text": "Windows' own Burn disc image picks 40x, which failed on a GH70N with cheap CD-R"}, {"text": "0x8007045D"}],
+    "cause": {"zh": "仓库记录的一批低价 CD-R 在 GH70N 上默认 40x 刻录失败。", "en": "One batch of inexpensive CD-Rs failed at the default 40x on the GH70N."},
+    "steps": {"zh": ["遇到相同组合可试 IMAPI 脚本以 8x 刻，记录实际速度并核对回读。"], "en": ["For that combination, try the IMAPI script at 8x and check the reported speed and readback."]},
+    "commands": ["powershell -ExecutionPolicy Bypass -File tools/burn_imapi.ps1 -Drive H: -Iso iso/cd-random.iso -Speed 8 -Burn -Reload"],
+    "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
+    "sources": [{"path": "discprobe/guide.py", "line": 959, "keyword": "Windows' own Burn disc image picks 40x"}, {"path": "README.en.md", "line": 245, "keyword": "-Speed 8"}, {"path": "docs/KNOWLEDGE.md", "line": 692, "keyword": "0x8007045D"}]
+  },
+  {
+    "id": "cd-audio-origin",
+    "symptoms": {"zh": ["音轨几何不能用来出图", "读音轨预设要沿轨常数吗", "CDDA 拟合不适用于数据盘"], "en": ["audio track geometry cannot generate image", "cd audio needs read offset", "cd da geometry data track mismatch"]},
+    "error_patterns": [{"text": "image and tiles do not take this result"}, {"text": "This was measured on the audio track, so no other constant is needed"}],
+    "cause": {"zh": "音轨和数据轨的读完成点使用不同的原点。", "en": "The audio and data tracks use different origins."},
+    "steps": {"zh": ["音轨几何可导出 DIS 预设。用已刻直线检查这台光驱的 --read-offset-bytes；要走 image 或 tiles 则用数据轨测量。"], "en": ["Export an audio-track measurement as a DIS preset. Check its --read-offset-bytes once with a burned straight line. For image or tiles, measure a data track."]},
+    "commands": ["python -m discprobe disexport --geo <run> --sectors <count>"],
+    "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
+    "sources": [{"path": "discprobe/guide.py", "line": 885, "keyword": "measured on the audio track"}, {"path": "discprobe/guide.py", "line": 887, "keyword": "--read-offset-bytes"}, {"path": "discprobe/guide.py", "line": 889, "keyword": "counts from another origin"}, {"path": "docs/MANUAL.en.md", "line": 626, "keyword": "For `--sectors`"}]
+  },
+  {
+    "id": "cd-burn-layout",
+    "symptoms": {"zh": ["CD 纹理刻成噪声", "CD 刻录应该选哪个模式", "为什么需要 toc 文件", "CD 刻完纹理变噪声", "CD 刻录模式不对纹理全是噪点", "CD 刻完全是噪声看不见图", "CD 图像变成一盘噪点"], "en": ["cd burned textures are noise", "cd mode 1 layout looks wrong", "what to do with cd toc file", "cd burn shows noise instead of image"]},
+    "error_patterns": [{"text": "Other burners such as xorriso write Mode 1, and the textures come out as noise"}, {"text": "Burn it with cdrdao and the toc written next to the ISO"}],
+    "cause": {"zh": "用与预扰码不同的扇区布局刻 CD 时，纹理会变成噪声。", "en": "Burning CD sectors in a layout different from the pre-scrambled image turns its textures into noise."},
+    "steps": {"zh": ["用程序生成的 TOC 配合 cdrdao 写入，保持相同扇区布局。"], "en": ["Burn using cdrdao and the generated TOC so the layout matches."]},
+    "commands": ["cdrdao write --device /dev/sr0 <image.toc>"],
+    "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
+    "sources": [{"path": "discprobe/guide.py", "line": 969, "keyword": "Burn it with cdrdao"}, {"path": "discprobe/guide.py", "line": 971, "keyword": "layout the ISO was made for"}, {"path": "discprobe/guide.py", "line": 972, "keyword": "textures come out as noise"}, {"path": "INSTALL-linux.md", "line": 52, "keyword": "保持预扰码所用的 Mode 1 / Mode 2 布局"}]
+  },
+  {
+    "id": "cd-clv-limit",
+    "symptoms": {"zh": ["CD 恒线速怎么做角度图", "光盘是 CLV 能不能出图", "实验 CD 测量要什么锚点"], "en": ["cd clv cannot calibrate angles", "experimental cd clv needs an anchor", "cd angle map needs cav"]},
+    "error_patterns": [{"text": "Experimental CD CLV geometry gives an anchored radius"}, {"text": "CD CLV needs an independently known --linear-mm-s"}],
+    "cause": {"zh": "实验 CD CLV 只能得到有锚点的半径和恒定轨距，无法求扇区角度。", "en": "Experimental CD CLV gives an anchored radius and constant pitch. It cannot determine the sector-angle map."},
+    "steps": {"zh": ["换可得到 CAV 的读速或光驱，先在 DiscImageStudio 做精细标定。实验路径用独立实测的线速度或显式轨距值作锚点。"], "en": ["Find a speed or drive that gives CAV and use DiscImageStudio fine calibration. For research, provide an independently known linear speed or an explicit pitch anchor."]},
+    "commands": ["python -m discprobe timing --media cd --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
+    "sources": [{"path": "discprobe/guide.py", "line": 517, "keyword": "anchored radius and constant pitch"}, {"path": "discprobe/guide.py", "line": 519, "keyword": "Use another drive"}, {"path": "discprobe/guide.py", "line": 595, "keyword": "independently known --linear-mm-s"}]
+  },
+  {
+    "id": "cd-inner-margin",
+    "symptoms": {"zh": ["CD 图片太靠近圆心", "图案和文件系统重叠", "CD 的内圈不让画"], "en": ["cd art overlaps filesystem", "drawing goes too near disc center", "need clear inner radius for cd image"]},
+    "error_patterns": [{"text": "ISO 9660 sectors overlap the drawing"}, {"text": "图案压到了文件系统的扇区上"}],
+    "cause": {"zh": "CD 数据面内侧部分保留给文件系统。", "en": "The inner part of the CD data area is reserved for the file system."},
+    "steps": {"zh": ["把设计移出内侧文件系统区域，半径 26 mm 以内留背景。"], "en": ["Move the design away from the file system area and leave the inner 26 mm radius as background."]},
+    "commands": ["python -m discprobe edit my_picture.png"],
+    "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
+    "sources": [{"path": "discprobe/zh.py", "line": 528, "keyword": "半径 26 mm 以内留空"}, {"path": "discprobe/guide.py", "line": 897, "keyword": "edit my_picture.png"}, {"path": "docs/MANUAL.en.md", "line": 675, "keyword": "inside a radius of 26 mm"}]
+  },
+  {
+    "id": "cd-speed-after-clv",
+    "symptoms": {"zh": ["CD 低速都是恒线速度", "CD 怎么换个速度试恒转速", "CD 八倍速不出角度"], "en": ["cd stays clv at low speed", "try higher cd speed for cav", "no sector angles at default cd speed"]},
+    "error_patterns": [],
+    "cause": {"zh": "有些光驱在低 CD 读速下是 CLV，高速才切到 CAV。", "en": "Some drives use CLV at low CD speeds and switch to CAV at a higher rate."},
+    "steps": {"zh": ["换用尚未测过的 CD 读速。24x 在手册的 CD 速率表中，用 timing 查看实际模式。"], "en": ["Try an untested CD speed. 24x is listed in the manual’s CD speed table. Check the actual mode with timing."]},
+    "commands": ["python -m discprobe timing --media cd --drive <drive> --speed 24x"],
+    "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
+    "sources": [{"path": "discprobe/guide.py", "line": 583, "keyword": "A higher CD speed may allow CAV"}, {"path": "docs/MANUAL.en.md", "line": 131, "keyword": "24x"}, {"path": "README.en.md", "line": 396, "keyword": "CAV, 2090 rpm"}]
+  },
+  {
+    "id": "cd-twisted-lines",
+    "symptoms": {"zh": ["CD 的直线刻成扭的", "径向线在 CD 上变弯", "CD 要怎么补沿轨常数"], "en": ["radial lines twist on cd", "cd crosshair not straight", "missing along track constant for cd"]},
+    "error_patterns": [{"text": "radial lines may come out twisted without that constant"}, {"text": "fine calibration in DiscImageStudio settles that constant"}],
+    "cause": {"zh": "仅靠 CD 数据轨计时仍少一个沿轨常数。", "en": "CD data-track timing leaves the along-track constant undetermined."},
+    "steps": {"zh": ["先导出预设，再走 DiscImageStudio 精细标定。已有独立估值时可用 --along-track-frames。"], "en": ["Export a preset and do fine calibration in DiscImageStudio. Supply --along-track-frames if you have an independent estimate."]},
+    "commands": ["python -m discprobe disexport --geo <run> --sectors <count>"],
+    "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
+    "sources": [{"path": "discprobe/guide.py", "line": 892, "keyword": "one more constant"}, {"path": "discprobe/guide.py", "line": 894, "keyword": "radial lines may come out twisted"}, {"path": "discprobe/guide.py", "line": 1134, "keyword": "fine calibration"}, {"path": "docs/MANUAL.en.md", "line": 648, "keyword": "along-track-frames"}]
+  },
+  {
+    "id": "colour-hatched-preview",
+    "symptoms": {"zh": ["灯下预测的斜线是什么", "彩色预览有斜线缺口", "预览有一块画着斜线", "正对闪光灯的地方被斜线盖住"], "en": ["hatched area in colour prediction", "what do diagonal lines in lamp view mean", "striped gaps in color preview"]},
+    "error_patterns": [],
+    "cause": {"zh": "彩色图灯下预览中的斜线表示当前机位在这些位置的角度超出了拟合色表。斜线仅显示在预览上。", "en": "Hatching in the fitted colour preview marks positions outside the colour table’s angle range for the current pose. The hatching is a preview overlay."},
+    "steps": {"zh": ["试着换拍摄高度或调整构图，再看灯下预览里的覆盖。超出色表的位置会跳过彩色填充，保留下层内容。"], "en": ["Try a different shooting height or adjust the layout, then recheck the lamp preview. The colour fill skips positions outside the table and preserves underlying layers."]},
+    "commands": [],
+    "manual": {"zh": "README.md#颜色实验中", "en": "README.en.md#colour-experimental"},
+    "sources": [{"path": "docs/cards/colour-print.md", "line": 145, "keyword": "拟合的灯下 PNG 以斜线标出"}, {"path": "docs/cards/colour-print.md", "line": 145, "keyword": "保留下层已有标签"}, {"path": "docs/cards/colour-print.md", "line": 145, "keyword": "斜线只在显示端添加"}]
+  },
+  {
+    "id": "colour-materials-file",
+    "symptoms": {"zh": ["彩色材料文件找不到", "材料 JSON 格式不对", "彩色材料没有纹理字节"], "en": ["colour materials file missing", "invalid colour materials json", "material spec must be hex"]},
+    "error_patterns": [{"text": "colour materials file not found"}, {"text": "colour materials JSON needs 1–254 texture specs"}, {"text": "each colour material needs a hex texture spec"}],
+    "cause": {"zh": "材料集文件不存在，或没有提供合规的十六进制纹理列表。", "en": "The material set file is missing or its list of hex texture specs is invalid."},
+    "steps": {"zh": ["用 --materials 指向有效 JSON 或核对已设的材料环境变量。文件需要 1 到 254 个纹理规格。"], "en": ["Point --materials at a valid JSON file or check the configured environment variable. Use 1 to 254 texture specs."]},
+    "commands": ["python -m discprobe colour-design -h"],
+    "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
+    "sources": [{"path": "discprobe/editor_colour.py", "line": 278, "keyword": "use --materials JSON"}, {"path": "discprobe/editor_colour.py", "line": 283, "keyword": "needs 1–254 texture specs"}, {"path": "discprobe/editor_colour.py", "line": 286, "keyword": "needs a hex texture spec"}]
+  },
+  {
+    "id": "colour-pose",
+    "symptoms": {"zh": ["彩色图让先设置手机", "没有拍摄高度无法出图", "机位没设不能彩色填充", "拍彩色盘要选多高的手机机位", "手机高度应该怎么选"], "en": ["colour picture needs shooting height", "phone model missing for colour", "set camera before colour design", "which shooting height should i choose for my phone", "what phone height should i use"]},
+    "error_patterns": [{"text": "colour picture needs a phone and shooting height in scene.rig"}],
+    "cause": {"zh": "彩色图计算依赖手机和拍摄高度。", "en": "Colour mapping depends on the phone and shooting height."},
+    "steps": {"zh": ["在设计页设定手机和拍摄高度；手动走 CLI 时，查看 colour-design 帮助中的机位参数。"], "en": ["Set the phone and shooting height in the design, or read the pose options in colour-design help."]},
+    "commands": ["python -m discprobe colour-design -h"],
+    "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
+    "sources": [{"path": "discprobe/editor_colour.py", "line": 47, "keyword": "colour picture needs a phone and shooting height"}, {"path": "discprobe/editor_colour.py", "line": 326, "keyword": "rig_data()['heights']"}, {"path": "discprobe/editor_colour.py", "line": 330, "keyword": "rig_pose(rig)"}]
+  },
+  {
+    "id": "colour-radial-bands",
+    "symptoms": {"zh": ["彩色图出现很多放射条纹", "为什么有从盘心向外的色带", "颜色细纹沿半径放射"], "en": ["radial bands in a colour picture", "colored streaks radiate from the centre", "color print has spoke-like bands"]},
+    "error_patterns": [],
+    "cause": {"zh": "观察角度沿盘面变化时，纹理的光谱响应及颜色匹配顺序会变，可能出现沿半径放射的色带。", "en": "As the viewing angle varies over the disc, the texture’s spectral response and colour matches can change, producing radial bands."},
+    "steps": {"zh": ["用当前版本的拟合色表重新生成灯下预测，并以实际拍摄机位对照。当前算法减轻细纹，仍可能看到较宽的色带；关闭抖动也可能留下细纹。"], "en": ["Regenerate the lamp prediction with the current fitted table and compare at the actual shooting pose. The current mapping reduces fine streaks but wider bands can remain, and turning off dithering can still leave streaks."]},
+    "commands": [],
+    "manual": {"zh": "README.md#颜色实验中", "en": "README.en.md#colour-experimental"},
+    "sources": [{"path": "docs/cards/colour-print.md", "line": 116, "keyword": "光谱响应及候选排名是主要来源"}, {"path": "docs/cards/colour-print.md", "line": 116, "keyword": "关闭抖动，窄放射纹仍可见"}, {"path": "docs/cards/colour-print.md", "line": 139, "keyword": "阴影和更宽的色带仍可见"}]
+  },
+  {
+    "id": "colour-table-invalid",
+    "symptoms": {"zh": ["颜色打印表无效", "颜色表打开失败", "彩色参考亮度必须大于零"], "en": ["invalid colour print table", "cannot load colour print table", "a5 b9 reference brightness error"]},
+    "error_patterns": [{"text": "invalid colour print table"}, {"text": "could not load colour print table"}, {"text": "the active colour table needs a positive A5/B9 reference brightness"}],
+    "cause": {"zh": "颜色表无法加载、数据结构不合要求，或参考亮度无效。", "en": "The table could not be loaded, its data is invalid, or the reference brightness is invalid."},
+    "steps": {"zh": ["检查自选表路径；如果用的是自选表，可改回随包的表，或指定含有效 A5/B9 参考亮度的表。"], "en": ["Check the custom table path. Use the bundled table or choose a valid table with positive A5/B9 reference brightness."]},
+    "commands": ["python -m discprobe colour-design -h"],
+    "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
+    "sources": [{"path": "discprobe/editor_colour.py", "line": 105, "keyword": "positive A5/B9"}, {"path": "discprobe/editor_colour.py", "line": 304, "keyword": "path or DEFAULT_TABLE"}, {"path": "discprobe/editor_colour.py", "line": 308, "keyword": "could not load"}, {"path": "discprobe/editor_colour.py", "line": 312, "keyword": "invalid colour print table"}]
+  },
+  {
+    "id": "colour-texture-table",
+    "symptoms": {"zh": ["彩色表找不到这个纹理", "换颜色材料后缺条目", "纹理不在当前表中"], "en": ["colour texture missing from table", "materials unsupported by current table", "colour table lacks a texture"]},
+    "error_patterns": [{"regex": "colour texture .* is missing from the active colour table; select --table file"}],
+    "cause": {"zh": "当前颜色表没有所选材料对应的纹理。", "en": "The active colour table lacks a texture used by the chosen material."},
+    "steps": {"zh": ["选择含该纹理的颜色表，或用与当前表匹配的材料集。"], "en": ["Select a table containing the texture or a material set that matches the current table."]},
+    "commands": ["python -m discprobe colour-design -h"],
+    "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
+    "sources": [{"path": "discprobe/editor_colour.py", "line": 101, "keyword": "is missing from the active colour table"}, {"path": "discprobe/editor_colour.py", "line": 289, "keyword": "if spec not in table"}, {"path": "discprobe/editor_colour.py", "line": 332, "keyword": "palette(materials, table_path)"}]
+  },
+  {
+    "id": "colour-wrong",
+    "symptoms": {"zh": ["颜色不对", "预览和实物颜色不同", "手机转一下颜色就变了", "实物颜色和预览差得很远", "出盘之后颜色跟预测差别大"], "en": ["colours look wrong", "preview colors don't match disc", "color changes when i move my phone", "actual disc looks very different from the preview"]},
+    "error_patterns": [{"text": "The preview's colours only tell the textures apart"}, {"text": "Prediction from a model, not a photo"}],
+    "cause": {"zh": "结构色随灯光和观察角度变化。纹理预览的颜色用于区分材料，灯下效果是预测。", "en": "Structural colour changes with light and viewing angle. Texture preview colours identify materials, and the lamp view is a prediction."},
+    "steps": {"zh": ["按拍摄设置对准角度。拍实验花盘时关掉房间灯，只用手机闪光灯并稍稍侧持手机。"], "en": ["Match the intended viewing pose. For the experimental flower disc, turn off the room lights, use the phone flash and hold the phone a little to one side."]},
+    "commands": [],
+    "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
+    "sources": [{"path": "README.en.md", "line": 290, "keyword": "the colour changes with the angle"}, {"path": "README.en.md", "line": 310, "keyword": "use only the phone flash"}, {"path": "README.en.md", "line": 90, "keyword": "Colours and effects in the lamp view are a preview"}]
+  },
+  {
+    "id": "curve-controls",
+    "symptoms": {"zh": ["修正控制点半径不递增", "编辑曲线首尾不能拖", "辅助修正不通过控制点数量"], "en": ["curve control radii out of order", "curve endpoints do not match measured span", "invalid control point count"]},
+    "error_patterns": [{"text": "need_4_to_64_controls"}, {"text": "controls_must_be_finite_and_increasing"}, {"text": "controls_must_cover_exact_automatic_range"}],
+    "cause": {"zh": "控制点的半径须严格递增，首尾必须等于原有效范围。", "en": "Control radii must increase strictly and match the original valid endpoints."},
+    "steps": {"zh": ["从自动初值开始，只改 delta_deg。保留 4 到 64 个控制点及原有首尾。"], "en": ["Start with the automatic curve and change only delta_deg. Keep 4 to 64 controls and preserve the endpoints."]},
+    "commands": ["python -m discprobe curve-edit --run <run>"],
+    "manual": {"zh": "docs/CURVE_EDIT.md#保存及网页", "en": "docs/CURVE_EDIT.md#cli"},
+    "sources": [{"path": "docs/CURVE_EDIT.md", "line": 13, "keyword": "radius_mm"}, {"path": "docs/CURVE_EDIT.md", "line": 8, "keyword": "curve-edit --run"}]
+  },
+  {
+    "id": "curve-lock",
+    "symptoms": {"zh": ["修正文件锁住了", "并发修正保存被拒", "窗口里的曲线过时了"], "en": ["curve edit stale window", "curve edit lock left behind", "correction already being saved"]},
+    "error_patterns": [{"text": "curve_edit_busy"}, {"text": "stale_automatic_result"}, {"text": "stale_run_during_save"}],
+    "cause": {"zh": "并发保存锁或变化后的源文件会阻止旧窗口覆盖当前曲线。", "en": "The save lock or changed source can prevent a stale window from overwriting the current curve."},
+    "steps": {"zh": ["重读曲线再编辑。若进程被强杀留下锁，先确认同目录没有修正作业，再删除该锁重试。"], "en": ["Reload the curve before editing. If a killed process left a lock, verify no correction job uses the folder, then remove that lock and retry."]},
+    "commands": ["python -m discprobe curve-edit --run <run>"],
+    "manual": {"zh": "docs/CURVE_EDIT.md#保存及网页", "en": "docs/CURVE_EDIT.md#cli"},
+    "sources": [{"path": "docs/CURVE_EDIT.md", "line": 51, "keyword": "哈希拒绝陈旧窗口"}]
+  },
+  {
+    "id": "curve-validation",
+    "symptoms": {"zh": ["辅助修正不让我保存", "修正曲线独立检查失败", "照片 L 能直接当曲线吗", "曲线编辑不能保存提示独立检查不足", "独立检查不够所以拒绝保存曲线"], "en": ["curve edit validation failed", "independent evidence missing for curve", "can i use photo l as phi curve", "curve edit will not save because independent checks are missing"]},
+    "error_patterns": [{"text": "no_automatic_curve"}, {"text": "need_4_unique_independent_checks"}, {"text": "validation_overlaps_fit_or_fit_ids_missing"}, {"text": "unvalidated_holes"}, {"text": "independent_checks_do_not_cover_range"}],
+    "cause": {"zh": "保存要求独立检查覆盖内中外段。照片的沿轨 L 尚不提供完整的角度曲线证据。", "en": "Saving requires independent checks spanning the inner, middle and outer regions. Photo L does not provide the full angle-curve evidence."},
+    "steps": {"zh": ["查看 validation.reason，使用已测探针或协议认可的独立证据，重拟合并验证通过后才保存。"], "en": ["Read validation.reason, use measured probes or independent evidence supported by the protocol, and save only after refitting and passing validation."]},
+    "commands": ["python -m discprobe curve-edit --run <run>"],
+    "manual": {"zh": "docs/CURVE_EDIT.md#保存及网页", "en": "docs/CURVE_EDIT.md#cli"},
+    "sources": [{"path": "docs/CURVE_EDIT.md", "line": 19, "keyword": "validation.reason"}, {"path": "docs/CURVE_EDIT.md", "line": 25, "keyword": "训练/验证重叠"}, {"path": "docs/CURVE_EDIT.md", "line": 43, "keyword": "当前 pcal / photo"}, {"path": "docs/CURVE_EDIT.md", "line": 45, "keyword": "至少四个唯一检查半径"}, {"path": "docs/CURVE_EDIT.md", "line": 53, "keyword": "重拟合并验证"}]
+  },
+  {
+    "id": "diagnose-no-log",
+    "symptoms": {"zh": ["诊断包没命令日志", "还没保存日志就停了", "打包只有设置没有日志"], "en": ["no command log was saved", "diagnostics bundle has no command logs", "run stopped before writing a log"]},
+    "error_patterns": [{"text": "No command log was saved before this run stopped"}, {"text": "Save and inspect these logs first. Close other drive software"}],
+    "cause": {"zh": "运行停止前没有保留命令日志。", "en": "The run stopped before any command log was saved."},
+    "steps": {"zh": ["先查看包内已有 summary 和设置；若为读盘故障，关闭其他光驱软件后重读同一张盘。"], "en": ["Check the saved summary and settings first. For a read failure, close other drive software and retry the same disc."]},
+    "commands": ["python -m discprobe diagnose <run>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/diagnostics.py", "line": 58, "keyword": "retry the read on this same disc"}, {"path": "discprobe/diagnostics.py", "line": 111, "keyword": "No command log was saved"}, {"path": "discprobe/diagnostics.py", "line": 113, "keyword": "Contains summary"}]
+  },
+  {
+    "id": "diagnose-no-records",
+    "symptoms": {"zh": ["诊断说找不到运行记录", "选了目录但没有日志", "诊断 zip 无法生成"], "en": ["no recognized run records", "diagnose folder has no logs", "no info or summary for diagnostics"]},
+    "error_patterns": [{"text": "No recognized run records found; choose the folder containing summary.json or info.json"}],
+    "cause": {"zh": "选定目录下没有可打包的受支持记录。", "en": "The selected folder has no supported records to bundle."},
+    "steps": {"zh": ["选含 summary.json 或 info.json 的那次运行目录。检查打包结果再分享。"], "en": ["Choose the run folder containing summary.json or info.json. Inspect the archive before sharing it."]},
+    "commands": ["python -m discprobe diagnose <run>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/diagnostics.py", "line": 92, "keyword": "No recognized run records"}, {"path": "discprobe/diagnostics.py", "line": 115, "keyword": "Inspect the archive before sharing"}]
+  },
+  {
+    "id": "diagnose-run-folder",
+    "symptoms": {"zh": ["诊断该选哪个目录", "打包日志提示要运行目录", "diagnose 不接受这个文件"], "en": ["diagnose needs run folder", "which folder to bundle logs", "diagnose given wrong file"]},
+    "error_patterns": [{"text": "diagnose RUN needs a run folder or its summary.json"}],
+    "cause": {"zh": "诊断参数必须指向一次运行的目录或该目录里的 summary.json。", "en": "Diagnose expects a run folder or its summary.json."},
+    "steps": {"zh": ["从 results 选择实际运行目录，或直接给该目录里的 summary.json。"], "en": ["Select the actual run directory under results or give its summary.json directly."]},
+    "commands": ["python -m discprobe diagnose <run>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/diagnostics.py", "line": 67, "keyword": "diagnose RUN needs"}, {"path": "discprobe/diagnostics.py", "line": 65, "keyword": "root = root.parent"}, {"path": "README.en.md", "line": 142, "keyword": "results"}]
+  },
+  {
+    "id": "diagnose-summary",
+    "symptoms": {"zh": ["诊断说总结不是对象", "summary 解析失败了", "诊断归档里是未知状态"], "en": ["no parseable summary", "diagnose summary must be an object", "summary json was unparsed"]},
+    "error_patterns": [{"text": "summary must be an object"}, {"text": "No parseable summary; see run records"}],
+    "cause": {"zh": "summary.json 缺少可解析的 JSON 对象，无法用它描述运行状态。", "en": "The bundle has no parseable JSON object for summary.json, so it cannot describe the run status from it."},
+    "steps": {"zh": ["检查 archive 里的运行日志；如果存在 unparsed-summary.txt，查看那份保留的记录。"], "en": ["Inspect the remaining run logs and unparsed-summary.txt if present."]},
+    "commands": ["python -m discprobe diagnose <run>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/diagnostics.py", "line": 96, "keyword": "summary must be an object"}, {"path": "discprobe/diagnostics.py", "line": 98, "keyword": "unparsed-summary.txt"}, {"path": "discprobe/diagnostics.py", "line": 100, "keyword": "No parseable summary"}]
+  },
+  {
+    "id": "diagnose-symlink",
+    "symptoms": {"zh": ["诊断压缩包是软链接", "日志打包拒绝符号链接", "diagnostics.zip 指向别处"], "en": ["diagnostics refuses a symlink", "diagnostics zip links to another folder", "bundle target symbolic link"]},
+    "error_patterns": [{"text": "Refusing a diagnostics.zip symlink"}],
+    "cause": {"zh": "此运行目录的 diagnostics.zip 是符号链接，诊断拒绝往里写。", "en": "The run’s diagnostics.zip is a symbolic link, which the bundler refuses to write through."},
+    "steps": {"zh": ["先核对运行目录和同名链接，使用能在运行目录内直接写入诊断文件的目录。"], "en": ["Check the run folder and the link. Use a run folder where the diagnostic archive can be written directly."]},
+    "commands": ["python -m discprobe diagnose <run>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/diagnostics.py", "line": 116, "keyword": "target = root / 'diagnostics.zip'"}, {"path": "discprobe/diagnostics.py", "line": 118, "keyword": "Refusing a diagnostics.zip symlink"}]
+  },
+  {
+    "id": "dis-bad-chi2",
+    "symptoms": {"zh": ["卡方太大预设被拒", "安装说拟合不可用", "拟合残差大不能装预设"], "en": ["chi2 too high for preset", "results calls fit unusable", "angle fit rejected by disexport"]},
+    "error_patterns": [{"regex": "this run's (?:angle )?fit leaves chi2/dof <n>"}],
+    "cause": {"zh": "拟合的误差统计超过了安装检查的门槛。", "en": "The fit error statistic exceeded the installation gate."},
+    "steps": {"zh": ["用 results 查已有测量，或换读速再测。安装时选可用的结果。"], "en": ["Check existing runs with results, or measure again at another speed. Install from a usable result."]},
+    "commands": ["python -m discprobe results", "python -m discprobe timing --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/guide.py", "line": 363, "keyword": "results"}, {"path": "discprobe/guide.py", "line": 383, "keyword": "results"}, {"path": "discprobe/guide.py", "line": 388, "keyword": "too noisy to rely on"}, {"path": "discprobe/guide.py", "line": 389, "keyword": "Another speed usually helps"}]
+  },
+  {
+    "id": "dis-bd-break",
+    "symptoms": {"zh": ["蓝光周期分段跳变", "蓝光说两条直线更合适", "分区转速导致预设被拒"], "en": ["bd periods step at sector", "bluray fit has a break", "zclv preset cannot install"]},
+    "error_patterns": [{"text": "this run's periods step at sector"}, {"text": "the periods do not lie on one line"}],
+    "cause": {"zh": "读盘过程中出现转速分区，周期没有平滑增长。用这样的拟合会放错螺旋位置。", "en": "The periods step between speed zones. A preset based on this fit would place the spiral incorrectly."},
+    "steps": {"zh": ["先用 timing 查看不同盘区的周期，试另一读速或光驱再测。使用通过拟合检查的结果导出。"], "en": ["Review the zone periods with timing and try another read speed or drive. Export from a result that passes the fit checks."]},
+    "commands": ["python -m discprobe timing --media bd --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
+    "sources": [{"path": "discprobe/guide.py", "line": 344, "keyword": "periods step at sector"}, {"path": "discprobe/guide.py", "line": 347, "keyword": "spiral wrongly"}, {"path": "discprobe/guide.py", "line": 580, "keyword": "try an untried speed"}, {"path": "docs/MANUAL.en.md", "line": 547, "keyword": "command names the break and refuses"}]
+  },
+  {
+    "id": "dis-bd-line",
+    "symptoms": {"zh": ["蓝光 T 方直线不够好", "蓝光拟合 R2 太低", "蓝光恒线速拟合失败"], "en": ["blu ray t squared line r2 too low", "bd clv linear fit rejected", "drive speed drift during bd fit"]},
+    "error_patterns": [{"text": "this run's T^2 line only reaches R^2"}],
+    "cause": {"zh": "蓝光分区周期拟合的直线不足够好，光驱可能在过程中变速。", "en": "The Blu-ray period fit is not linear enough. The spindle speed may have moved."},
+    "steps": {"zh": ["重新测量后检查新结果的拟合质量。"], "en": ["Measure again and check the fit quality of the new result."]},
+    "commands": ["python -m discprobe geo --media bd --drive <drive> --bd-zones 25"],
+    "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
+    "sources": [{"path": "discprobe/guide.py", "line": 340, "keyword": "T^2 line only reaches"}, {"path": "discprobe/guide.py", "line": 341, "keyword": "measure it again"}, {"path": "discprobe/guide.py", "line": 713, "keyword": "--bd-zones 25"}]
+  },
+  {
+    "id": "dis-conversion-error",
+    "symptoms": {"zh": ["导出后怎么检查角度差", "要不要拿 DIS 预设刻盘", "变轨距转换误差太大"], "en": ["dis preset conversion error too high", "angle difference when exporting preset", "cubic pitch cannot reproduce correction"]},
+    "error_patterns": [{"text": "A cubic-pitch DIS preset may not reproduce this spline"}, {"text": "Next, check the angle difference above"}],
+    "cause": {"zh": "DIS 的三次轨距模型可能不能贴合自动修正的曲线。", "en": "DiscImageStudio’s cubic-pitch model may not reproduce a correction spline."},
+    "steps": {"zh": ["检查导出报告里的角度差再使用。结果通过时可手填内外半径、扇区数和轨距项，或用 --install。"], "en": ["Review the conversion error before using the preset. If suitable, enter both radii, the sector count and pitch terms by hand, or use --install."]},
+    "commands": ["python -m discprobe disexport --geo <run> --sectors <count>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/guide.py", "line": 820, "keyword": "check its conversion error"}, {"path": "discprobe/guide.py", "line": 1130, "keyword": "check the angle difference above"}, {"path": "discprobe/guide.py", "line": 1131, "keyword": "or run with --install"}, {"path": "README.en.md", "line": 212, "keyword": "prints the conversion error"}]
+  },
+  {
+    "id": "dis-few-points",
+    "symptoms": {"zh": ["测量点太少不能装预设", "蓝光拟合区太少", "几何台阶数量不够"], "en": ["too few rungs for preset", "blu ray not enough zones", "results needs more measured points"]},
+    "error_patterns": [{"regex": "this run fitted <n> (rungs|zones), fewer than the <n>"}, {"regex": "this run measured <n> points, fewer than the <n>"}],
+    "cause": {"zh": "拟合实际使用的测点或分区不足。", "en": "Too few points or zones went into the fit."},
+    "steps": {"zh": ["重测以取得足够测点。蓝光 CLV 可用 --bd-zones 设置尝试测的区数。"], "en": ["Measure again to obtain enough points. For Blu-ray CLV, --bd-zones sets how many zones to try."]},
+    "commands": ["python -m discprobe geo --media bd --drive <drive> --bd-zones 25"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/guide.py", "line": 335, "keyword": "fewer than"}, {"path": "discprobe/guide.py", "line": 336, "keyword": "--bd-zones"}, {"path": "discprobe/guide.py", "line": 359, "keyword": "the angle ladder needs"}, {"path": "discprobe/guide.py", "line": 378, "keyword": "fewer than"}, {"path": "discprobe/guide.py", "line": 379, "keyword": "another run"}, {"path": "discprobe/guide.py", "line": 713, "keyword": "--bd-zones 25"}]
+  },
+  {
+    "id": "dis-install-replace",
+    "symptoms": {"zh": ["同名预设写不进去", "想更新已有预设", "DIS 预设 id 冲突"], "en": ["install same preset id refused", "update existing dis preset", "discimage studio replace preset"]},
+    "error_patterns": [],
+    "cause": {"zh": "预设的 id 是唯一键。同 id 的参数有改变时需要明确替换。", "en": "The preset ID is the key. Changing values under an existing ID requires explicit replacement."},
+    "steps": {"zh": ["只想并列新增时选新 id；确实要更新旧项时才给 --replace。安装后重启 DIS。"], "en": ["Choose a new ID to add a separate preset. Use --replace to update the intended existing entry, then restart DIS."]},
+    "commands": ["python -m discprobe disexport --geo <run> --sectors <count> --install --id <id>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "docs/MANUAL.en.md", "line": 634, "keyword": "pass `--replace` when the values differ"}, {"path": "docs/MANUAL.en.md", "line": 636, "keyword": "restart DiscImageStudio"}]
+  },
+  {
+    "id": "dis-no-fit",
+    "symptoms": {"zh": ["报告里没有几何拟合", "没有内半径轨距不能导出", "summary 里没 fit"], "en": ["no geometry fit in summary", "preset lacks inner radius and pitch", "geometry has no fit to install"]},
+    "error_patterns": [{"text": "this run has no geometry fit in its summary.json"}, {"text": "summary has neither an inner radius nor a pitch"}],
+    "cause": {"zh": "结果文件缺少预设所需的几何拟合值。", "en": "The result does not contain the fit values needed for a preset."},
+    "steps": {"zh": ["用 results 检查结果，选择含几何拟合的运行，或重新测量。"], "en": ["Check runs with results and select one with a geometry fit, or measure again."]},
+    "commands": ["python -m discprobe results", "python -m discprobe geo --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/guide.py", "line": 332, "keyword": "no geometry fit"}, {"path": "discprobe/guide.py", "line": 356, "keyword": "neither an inner radius nor a pitch"}, {"path": "README.en.md", "line": 421, "keyword": "which steps are done"}]
+  },
+  {
+    "id": "dis-old-quality",
+    "symptoms": {"zh": ["旧结果没质量数值", "装预设提示没检查", "以前测的文件没有角度误差"], "en": ["old geo missing quality figures", "preset quality check did not run", "missing chi2 or angle sigma fields"]},
+    "error_patterns": [{"text": "so that quality check did not run: it was measured by an older version of geo"}, {"text": "The preset is still written; judge the run with"}],
+    "cause": {"zh": "旧版本几何结果缺少一项或多项质量数值。", "en": "The older geometry result lacks one or more quality figures."},
+    "steps": {"zh": ["用 results 核对旧测量再决定是否使用；安装仍会写入预设。"], "en": ["Judge the run with results before using it. The preset is still written."]},
+    "commands": ["python -m discprobe results"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/guide.py", "line": 411, "keyword": "that quality check did not run"}, {"path": "discprobe/guide.py", "line": 412, "keyword": "judge the run with"}]
+  },
+  {
+    "id": "dis-sector-count",
+    "symptoms": {"zh": ["DIS 导出扇区数填多少", "空盘扇区怎么看", "disexport 要求容量"], "en": ["which sector count for disexport", "where to find blank disc capacity", "preset needs sectors"]},
+    "error_patterns": [{"text": "A preset needs --sectors"}, {"text": "Sector count for disexport --sectors"}, {"text": "no blank-disc count; use a blank disc"}, {"text": "Run `info` on a blank disc to get the count"}, {"text": "disexport --sectors 要填的扇区数"}],
+    "cause": {"zh": "DIS 的扇区数用于定义盘容量和外半径。", "en": "DIS uses the sector count to define the capacity and outer radius."},
+    "steps": {"zh": ["用同批空盘执行 info，把得到的可用扇区数同时填入 --sectors 和 DiscImageStudio。"], "en": ["Run info on a blank from the same batch and use its available sector count in --sectors and DiscImageStudio."]},
+    "commands": ["python -m discprobe info --drive <drive>", "python -m discprobe disexport --geo <run> --sectors <count>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "docs/MANUAL.en.md", "line": 124, "keyword": "Go by the `info` value from a blank disc"}, {"path": "discprobe/guide.py", "line": 650, "keyword": "Run `info` on a blank disc"}, {"path": "discprobe/guide.py", "line": 674, "keyword": "Sector count for disexport --sectors"}, {"path": "discprobe/guide.py", "line": 1322, "keyword": "no blank-disc count"}]
+  },
+  {
+    "id": "dis-simulated",
+    "symptoms": {"zh": ["模拟盘的预设装不了", "拒绝用假光驱结果", "模拟几何能装进 DIS 吗"], "en": ["simulated preset refused", "dummy drive result won't install", "dis install rejects simulation"]},
+    "error_patterns": [{"text": "this is a simulated run (its summary says so)"}, {"text": "this is a simulated run (the result folder says SIM)"}, {"text": "This was the simulated drive: the verdict and commands below show the flow"}, {"text": "This was the simulated drive, so the verdict below says nothing about your own drive"}, {"text": "This geometry came from the simulated drive, so it only shows the flow"}],
+    "cause": {"zh": "模拟几何描述的是虚拟光驱。", "en": "Simulated geometry describes a virtual drive."},
+    "steps": {"zh": ["测一张真实的盘，再安装其结果。"], "en": ["Measure a real disc and install that result."]},
+    "commands": ["python -m discprobe geo --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/guide.py", "line": 308, "keyword": "this is a simulated run"}, {"path": "discprobe/guide.py", "line": 312, "keyword": "the result folder says SIM"}, {"path": "discprobe/guide.py", "line": 313, "keyword": "Measure a real disc"}, {"path": "discprobe/guide.py", "line": 826, "keyword": "do not burn from them"}, {"path": "discprobe/guide.py", "line": 1020, "keyword": "do not burn this ISO"}]
+  },
+  {
+    "id": "dis-stopped",
+    "symptoms": {"zh": ["几何没测完装不了预设", "DIS 说测量中途停止", "测量提前结束不能导出安装"], "en": ["stopped run preset refused", "cannot install interrupted geometry", "ladder never reached fit"]},
+    "error_patterns": [{"text": "this run stopped before the end"}, {"text": "this run exhausted its candidates before reaching the target"}, {"text": "这次测量在测完目标范围之前就没有可测的位置了"}],
+    "cause": {"zh": "测量在达到目标或拟合之前停下，安装预设被拒。", "en": "The run stopped before the target or fit was reached, so preset installation was refused."},
+    "steps": {"zh": ["先查看停止原因再测，选用完成测量的结果安装。"], "en": ["Check why the run stopped, measure again and install from a completed run."]},
+    "commands": ["python -m discprobe geo --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/guide.py", "line": 318, "keyword": "this run stopped before the end"}, {"path": "discprobe/guide.py", "line": 319, "keyword": "install a run that finished"}, {"path": "discprobe/guide.py", "line": 370, "keyword": "this run exhausted its candidates"}]
+  },
+  {
+    "id": "disc-close-fails",
+    "symptoms": {"zh": ["一直封盘失败", "最后关盘报错", "DIS 读盘容量太大刻不满"], "en": ["cannot finalize the disc", "disc close fails at end", "discimage studio says too many sectors"]},
+    "error_patterns": [],
+    "cause": {"zh": "DIS 读回的容量可能偏大，实际刻录还需要为封盘留空间。", "en": "The count read back by DIS can be too high, leaving too little space for closing the disc."},
+    "steps": {"zh": ["重新用同批空盘的 info 取可用扇区数，按该数重导预设并在 DIS 填相同的数。"], "en": ["Get the available sector count from a blank of the same batch with info, then re-export and use that count in DIS."]},
+    "commands": ["python -m discprobe info --drive <drive>", "python -m discprobe disexport --geo <run> --sectors <count>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "docs/MANUAL.en.md", "line": 124, "keyword": "boundary overhead needed to close the disc"}, {"path": "README.en.md", "line": 212, "keyword": "too high a count can make the close fail"}]
+  },
+  {
+    "id": "disc-not-ready",
+    "symptoms": {"zh": ["托盘弹出来程序说没盘", "放了盘还是没就绪", "测量中光盘换过"], "en": ["tray open after burning", "drive says no disc after inserting", "disc changed during measurement"]},
+    "error_patterns": [{"text": "No disc in the drive, or the tray is open"}, {"text": "The drive says its tray is open"}, {"text": "The drive says its tray is closed, but it finds no disc"}, {"text": "The drive is not ready yet, it may still be loading the disc"}, {"text": "The drive says the disc was changed during the run"}],
+    "cause": {"zh": "读盘时托盘可能开着、盘没被识别或仍在装载；中途换盘会使读数不能合并。", "en": "The tray may be open, the disc unrecognised or still loading. A disc changed during measurement invalidates the combined run."},
+    "steps": {"zh": ["关托盘，确认盘在里面，等几秒后再运行命令。测量期间保持同一张盘。"], "en": ["Close the tray with the disc inserted, wait a few seconds and run the command again. Keep the same disc for the run."]},
+    "commands": ["python -m discprobe info --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
+    "sources": [{"path": "discprobe/mmc.py", "line": 112, "keyword": "No disc in the drive"}, {"path": "discprobe/mmc.py", "line": 116, "keyword": "wait a few seconds"}, {"path": "discprobe/mmc.py", "line": 118, "keyword": "still be loading"}, {"path": "discprobe/mmc.py", "line": 119, "keyword": "can't be combined"}]
+  },
+  {
+    "id": "drive-missing",
+    "symptoms": {"zh": ["找不到光驱", "程序里没有盘符", "光驱列表空的"], "en": ["no optical drives detected", "no drive letter appears", "optical drive missing from list", "my drive is missing from the list", "drive not listed"]},
+    "error_patterns": [{"text": "no optical drive found"}, {"text": "no optical drives found"}, {"text": "Plug the drive in and check that it shows up in Explorer"}, {"text": "Plug the drive in and check that its device path appears under /dev"}],
+    "cause": {"zh": "系统未报告可用的光驱。", "en": "The operating system did not report an available optical drive."},
+    "steps": {"zh": ["确认光驱已连接，Windows 在资源管理器里查看，Linux 在 /dev 查看。只体验流程可用模拟驱动器。"], "en": ["Check that the drive is connected and visible in Explorer on Windows or in /dev on Linux. Use the simulated drive to try the workflow."]},
+    "commands": ["python -m discprobe list", "python -m discprobe timing --sim cav"],
+    "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
+    "sources": [{"path": "discprobe/guide.py", "line": 657, "keyword": "shows up in Explorer"}, {"path": "discprobe/guide.py", "line": 658, "keyword": "appears under /dev"}, {"path": "discprobe/guide.py", "line": 659, "keyword": "timing --sim cav"}]
+  },
+  {
+    "id": "drive-required",
+    "symptoms": {"zh": ["有多个光驱不知道选哪个", "没有输入盘符命令失败", "怎么指定 Linux 光驱路径"], "en": ["drive argument is missing", "which optical drive to use", "command asks for drive letter"]},
+    "error_patterns": [{"regex": "give --drive (?:<drive>|<device>) \\(see"}, {"text": "With several drives, use the letter of the one holding your disc"}, {"text": "With several drives, use the device path of the one holding your disc"}],
+    "cause": {"zh": "命令需要指定实际放盘的光驱。", "en": "The command needs the drive that holds the disc."},
+    "steps": {"zh": ["用 list 找出盘符或设备路径，再把对应值交给 --drive。"], "en": ["Use list to find the drive letter or device path, then pass it with --drive."]},
+    "commands": ["python -m discprobe list", "python -m discprobe info --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
+    "sources": [{"path": "discprobe/__main__.py", "line": 170, "keyword": "give --drive"}, {"path": "discprobe/guide.py", "line": 663, "keyword": "With several drives"}, {"path": "discprobe/guide.py", "line": 664, "keyword": "use the device path"}]
+  },
+  {
+    "id": "editor-colour-fill",
+    "symptoms": {"zh": ["CD 不能彩色填充", "彩色填充要图片图层", "彩色填充选的材料重复"], "en": ["colour fill needs a dvd layer", "colour fill dithering rejected", "colour fill material ids must be distinct"]},
+    "error_patterns": [{"text": "colour fill requires a DVD picture layer"}, {"text": "colour fill needs ordered or nearest dithering"}, {"text": "colour fill needs distinct known material IDs"}],
+    "cause": {"zh": "彩色填充要求 DVD 图片层、受支持的抖动方式和已知且不同的材料。", "en": "Colour fill requires a DVD picture layer, supported dithering and distinct known materials."},
+    "steps": {"zh": ["选择 DVD 图片层，抖动用 ordered 或 nearest，选择不同且存在的材料。"], "en": ["Use a DVD picture layer with ordered or nearest dithering and choose distinct materials from the available list."]},
+    "commands": [],
+    "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
+    "sources": [{"path": "discprobe/editor_ops.py", "line": 168, "keyword": "DVD picture layer"}, {"path": "discprobe/editor_ops.py", "line": 171, "keyword": "ordered or nearest dithering"}, {"path": "discprobe/editor_ops.py", "line": 175, "keyword": "distinct known material IDs"}]
+  },
+  {
+    "id": "editor-raster-fallback",
+    "symptoms": {"zh": ["SVG 缺光栅副本不能导出", "旧版设计图层打不开", "图层需要 RGBA 图像"], "en": ["svg requires raster fallback", "old path based edit fails", "layer needs rgba raster"]},
+    "error_patterns": [{"text": "SVG requires the page raster fallback beside the original"}, {"text": "layer needs an RGBA raster or shape; use image --design for old path-based edit documents"}],
+    "cause": {"zh": "编辑文档的图层缺少可用的光栅或形状数据。", "en": "The editor document lacks raster or shape data for a layer."},
+    "steps": {"zh": ["SVG 保留页面生成的光栅副本；旧的以路径表示图层的 edit 文档走 image --design。"], "en": ["Keep the page’s raster fallback with its SVG. For old path-based edit documents, use image --design."]},
+    "commands": ["python -m discprobe image --geo <run> --design <design> --output iso/picture.iso"],
+    "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
+    "sources": [{"path": "discprobe/editor_ops.py", "line": 138, "keyword": "SVG requires the page raster fallback"}, {"path": "discprobe/editor_ops.py", "line": 140, "keyword": "use image --design"}]
+  },
+  {
+    "id": "fax-connection",
+    "symptoms": {"zh": ["日报传真拨号很久没接通", "传真机卡在拨号动画", "传真一直响铃收不到日报"], "en": ["daily fax keeps dialing", "fax stuck ringing without receiving the paper", "fax dial animation never connects"]},
+    "error_patterns": [],
+    "cause": {"zh": "拨号和响铃动画期间，传真机在等待日报来源的响应。连接失败或超时后会显示回执。", "en": "The dial and ring animation runs while the fax waits for the paper source. A failed or timed-out connection produces a receipt."},
+    "steps": {"zh": ["点画面或按 Enter 可以跳过动画。等到回执后看失败详情，或使用回执上的“重拨”。"], "en": ["Click or press Enter to skip the animation. When the receipt arrives, read the failure details or use its Redial button."]},
+    "commands": [],
+    "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
+    "sources": [{"path": "discprobe/web/home/faxnews.js", "line": 10, "keyword": "timed out"}, {"path": "discprobe/web/home/faxnews.js", "line": 12, "keyword": "a click or Enter skips it"}, {"path": "discprobe/web/home/faxnews.js", "line": 370, "keyword": "while (!result && alive())"}, {"path": "discprobe/web/home/faxnews.js", "line": 437, "keyword": "redial.addEventListener"}]
+  },
+  {
+    "id": "geo-correction-saved",
+    "symptoms": {"zh": ["自动修正怎么关", "已有几何怎么应用修正", "读取用了很多重复点", "出图要手动加自动修正吗", "已有自动修正如何应用到出图"], "en": ["disable auto correction on new run", "using saved angle correction", "geo made automatic correction"]},
+    "error_patterns": [{"text": "The correction is used automatically with this geometry"}, {"text": "Thin radius intervals (mm)"}, {"text": "Extra probing took"}],
+    "cause": {"zh": "检测到轨距变化时，geo 可保存平滑角度修正并标注覆盖薄弱的区间。", "en": "When pitch varies, geo can save a smooth angular correction and mark thin intervals."},
+    "steps": {"zh": ["用该几何运行后续命令会自动加载修正。要关闭新测量上的额外探测，可用 --no-auto-correction。"], "en": ["Use the geometry in later commands to load its correction automatically. Use --no-auto-correction to disable extra probing on a new run."]},
+    "commands": ["python -m discprobe geo --drive <drive> --no-auto-correction"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 815, "keyword": "smooth angle correction was saved"}, {"path": "discprobe/guide.py", "line": 817, "keyword": "Thin radius intervals"}, {"path": "discprobe/guide.py", "line": 819, "keyword": "--no-auto-correction"}]
+  },
+  {
+    "id": "geo-drive-changed",
+    "symptoms": {"zh": ["测量前后检查点变了", "拟合好看但光驱状态变了", "读数过程中转速状态改变"], "en": ["drive changed during geometry run", "start and end check points differ", "good fit but drive state changed"]},
+    "error_patterns": [{"text": "the drive changed during this run"}, {"text": "Verdict: not settled. The drive changed during the run"}],
+    "cause": {"zh": "起点和终点的复查不一致，拟合虽可能好看，几何仍会偏。", "en": "Control points changed between the start and end, so the geometry may be off even if the fit looks clean."},
+    "steps": {"zh": ["让光驱空闲一会儿或弹出并重装盘再测，使用复查点保持一致的结果。"], "en": ["Let the drive idle or eject and reload before measuring again. Use a run whose check points agree."]},
+    "commands": ["python -m discprobe geo --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 289, "keyword": "the drive changed during this run"}, {"path": "discprobe/guide.py", "line": 291, "keyword": "whose check points held"}, {"path": "discprobe/guide.py", "line": 789, "keyword": "after the drive has been idle"}]
+  },
+  {
+    "id": "geo-latest-missing",
+    "symptoms": {"zh": ["没有几何结果怎么继续", "选最新找不到标定", "找不到测量总结文件"], "en": ["no latest geometry found", "latest has no geo result", "which summary file should i use"]},
+    "error_patterns": [{"text": "--geo latest: there is no geo result yet"}, {"text": "--geo latest: only simulated or stopped runs were found"}],
+    "cause": {"zh": "当前结果目录没有可选的完整真实几何结果。", "en": "There is no complete real geometry result eligible in the current results folder."},
+    "steps": {"zh": ["先运行 geo，或明确给出已有测量的 summary.json 路径。"], "en": ["Run geo first or specify the path to an existing measurement’s summary.json."]},
+    "commands": ["python -m discprobe geo --drive <drive>", "python -m discprobe results"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 458, "keyword": "there is no geo result yet"}, {"path": "discprobe/guide.py", "line": 459, "keyword": "Run geo first"}]
+  },
+  {
+    "id": "geo-medium-error",
+    "symptoms": {"zh": ["几何说介质错误", "纹理盘测量读不出某扇区", "混合数据盘怎么选随机部分"], "en": ["geo medium error", "texture ring lba read failed", "measure random part of mixed disc"]},
+    "error_patterns": [{"regex": "reads at lba <n>(?:, <n>)*(?:,? and <n>)? failed with a medium error"}, {"text": "If this disc holds anything else (texture rings, a picture, a second session)"}, {"regex": "扇区号 <n>(?:, <n>)* 读不出来\\(介质错误\\)"}],
+    "cause": {"zh": "图案、纹理环或第二个区段的读取延迟可能和随机数据不同。", "en": "A picture, texture-ring layout or second session can read at a different latency from random data."},
+    "steps": {"zh": ["先用另一台光驱或另一读速重读。若盘上混有其他内容，用 --ranges 限制在随机数据区，纹理环盘可给 --rings-layout。"], "en": ["Retry at another speed or on another drive. If the disc has mixed content, use --ranges for the random area or pass the texture-ring layout with --rings-layout."]},
+    "commands": ["python -m discprobe geo --drive <drive> --ranges a-b,c-d"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 904, "keyword": "another latency"}, {"path": "discprobe/guide.py", "line": 921, "keyword": "failed with a medium error"}, {"path": "discprobe/guide.py", "line": 924, "keyword": "--rings-layout"}, {"path": "discprobe/guide.py", "line": 925, "keyword": "retry the failed reads"}]
+  },
+  {
+    "id": "geo-model-comparison",
+    "symptoms": {"zh": ["恒轨距拟合差怎么办", "比较轨距模型失败", "二次配合比常数好很多"], "en": ["remaining variation beyond noise", "varying pitch fits better", "need quadratic correction"]},
+    "error_patterns": [{"text": "More than noise is left, and the comparison below could not run here"}, {"text": "The fit left more than noise"}, {"text": "A varying track pitch fits clearly better"}, {"text": "拟合后剩下的误差比噪声大"}],
+    "cause": {"zh": "恒定轨距模型可能没有解释完测量中的变化。", "en": "The constant-pitch model may leave systematic variation in the readings."},
+    "steps": {"zh": ["先用已保存测点比较轨距模型。二次模型明显更好时，写出修正文件并在后续命令加 --correction。"], "en": ["Compare pitch models on the saved points. If the quadratic model fits clearly better, write a correction and pass it with --correction."]},
+    "commands": ["python tools/geo_polyfit.py <run>", "python tools/geo_polyfit.py <run> --write-correction correction.json --order quadratic"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 840, "keyword": "More than noise is left"}, {"path": "discprobe/guide.py", "line": 861, "keyword": "Compare pitch models first"}, {"path": "discprobe/guide.py", "line": 864, "keyword": "--write-correction"}, {"path": "discprobe/guide.py", "line": 867, "keyword": "A varying track pitch fits clearly better"}]
+  },
+  {
+    "id": "geo-never-settled",
+    "symptoms": {"zh": ["一直稳不下来", "测量一直找不到接近参考的转速", "笔记本光驱测几何转速不稳"], "en": ["geo speed never settled", "could not hold reference speed", "slim drive won't hold one speed"]},
+    "error_patterns": [{"text": "The drive would not hold one speed"}, {"text": "USB slim drives are often too noisy here"}, {"text": "never settled near the reference"}, {"text": "光驱保持不住一个速度"}],
+    "cause": {"zh": "光驱没有维持一个稳定转速。", "en": "The drive did not hold a steady rotation speed."},
+    "steps": {"zh": ["先用 timing 检查，换一个读速再测；试完可用速度后换光驱。"], "en": ["Check with timing and try another read speed. If the speed options are exhausted, try another drive."]},
+    "commands": ["python -m discprobe timing --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 908, "keyword": "never settled"}, {"path": "discprobe/guide.py", "line": 928, "keyword": "The drive would not hold one speed"}, {"path": "discprobe/guide.py", "line": 930, "keyword": "an internal drive may simply work"}]
+  },
+  {
+    "id": "geo-noisy-fit",
+    "symptoms": {"zh": ["几何拟合太吵了", "拟合误差大换模型也没用", "角度不确定性很大"], "en": ["geometry fit too noisy", "correction still noisy", "varying pitch fails to improve fit"]},
+    "error_patterns": [{"text": "too noisy to rely on"}, {"text": "A varying track pitch does not fit better"}, {"text": "Verdict: usable, but noisy."}, {"text": "a correction helps, but it stays noisy"}],
+    "cause": {"zh": "轨距改用别的模型也可能消不掉读取噪声。", "en": "Read noise can remain even after changing the track-pitch model."},
+    "steps": {"zh": ["用 results 查看已有结果，尝试另一个读速或光驱以获得更干净的测量。"], "en": ["Check existing runs with results and try another read speed or drive for a cleaner run."]},
+    "commands": ["python -m discprobe results", "python -m discprobe timing --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 388, "keyword": "too noisy to rely on"}, {"path": "discprobe/guide.py", "line": 389, "keyword": "Another speed usually helps"}, {"path": "discprobe/guide.py", "line": 848, "keyword": "it stays noisy"}, {"path": "discprobe/guide.py", "line": 873, "keyword": "A varying track pitch does not fit better"}]
+  },
+  {
+    "id": "geo-outer-range",
+    "symptoms": {"zh": ["几何总在一个扇区卡住", "测量跳过外圈怎么做", "外沿读速突然跳变"], "en": ["geo always stops at same lba", "skip bad outer region", "speed jumps near outside edge"]},
+    "error_patterns": [],
+    "cause": {"zh": "某段已刻录区域可能有读错或转速跳变。", "en": "A part of the recorded area may have read errors or a speed change."},
+    "steps": {"zh": ["用 info 查最后的 LBA。若总在同一段停下，用 --ranges 排除该段。外圈稳定可读时再考虑扩大范围。"], "en": ["Find the last LBA with info. If the run keeps stopping in one area, leave it out with --ranges. Widen the range only where reads are clean."]},
+    "commands": ["python -m discprobe info --drive <drive>", "python -m discprobe geo --drive <drive> --ranges a-b"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "docs/MANUAL.en.md", "line": 134, "keyword": "leave out that part"}, {"path": "discprobe/guide.py", "line": 934, "keyword": "leave that area out"}]
+  },
+  {
+    "id": "geo-partial-span",
+    "symptoms": {"zh": ["几何只测到一部分半径", "图超出覆盖范围", "测点耗尽还能用吗", "geo 的外推超出实测范围", "几何报告提示外推范围不够"], "en": ["geo only measured part of radius", "artwork outside coverage", "geometry candidates ran out", "geo extrapolation outside measured span"]},
+    "error_patterns": [{"text": "Partial measurement: candidates ran out"}, {"text": "Partial measurement: the correction did not pass all coverage or independent checks"}, {"text": "only partial measurements cover radii"}, {"text": "Outside measured intervals is extrapolation"}, {"text": "Use the saved measured intervals to shrink the artwork"}],
+    "cause": {"zh": "只测过部分半径，超出实测区间的角度来自外推。", "en": "Only part of the radius was measured. Angles outside the measured intervals are extrapolated."},
+    "steps": {"zh": ["缩小图案，让它落在已测区间；或重读同一张盘上缺的范围。使用部分结果时，应明确指定 summary.json。"], "en": ["Shrink the artwork to the measured intervals or reread the missing part of the same disc. For a partial result, specify its summary.json explicitly."]},
+    "commands": ["python -m discprobe results"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 456, "keyword": "only partial measurements"}, {"path": "discprobe/guide.py", "line": 457, "keyword": "Use an explicit summary.json"}, {"path": "discprobe/guide.py", "line": 823, "keyword": "did not pass all coverage"}, {"path": "discprobe/guide.py", "line": 858, "keyword": "candidates ran out"}, {"path": "discprobe/diagnostics.py", "line": 56, "keyword": "re-read the missing range"}]
+  },
+  {
+    "id": "geo-range-empty",
+    "symptoms": {"zh": ["范围没覆盖已刻区域", "指定扇区范围后测不了", "查最后扇区号设范围"], "en": ["ranges do not overlap recorded area", "requested lba ranges outside disc", "geo ranges invalid for recorded data"]},
+    "error_patterns": [{"text": "--ranges has to overlap the recorded area"}, {"text": "--ranges 要和已刻录区域有重叠"}],
+    "cause": {"zh": "--ranges 没有落在已刻录区域内。", "en": "The supplied ranges do not overlap the recorded area."},
+    "steps": {"zh": ["用 info 看最后的 LBA，然后给出和已刻录区域重叠的范围。"], "en": ["Read the last LBA with info and choose a range that overlaps the recorded area."]},
+    "commands": ["python -m discprobe info --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 937, "keyword": "--ranges has to overlap"}, {"path": "docs/MANUAL.en.md", "line": 134, "keyword": "It accepts LBA ranges"}]
+  },
+  {
+    "id": "geo-speed-keep",
+    "symptoms": {"zh": ["一设读速就变成恒线速", "保持光驱原速怎么测", "弹盘后恢复恒定转速"], "en": ["setting speed breaks cav", "drive loses cav after setting speed", "how to keep drive speed"]},
+    "error_patterns": [{"text": "Setting the speed can take a drive out of constant rotation"}, {"text": "not turning at a constant speed"}, {"text": "This drive isn't holding a constant speed even when left alone"}],
+    "cause": {"zh": "指定速度会让某些光驱退出恒定转速，重新装盘前可能一直维持该状态。", "en": "Requesting a speed can take some drives out of CAV until the disc is reloaded."},
+    "steps": {"zh": ["弹出并重装盘，用 timing 确认 CAV，再用 --speed keep 测 geo。若不设置读速也无法稳定，换光驱。"], "en": ["Eject and reload. Confirm CAV with timing, then run geo with --speed keep. If rotation is unstable even without setting it, try another drive."]},
+    "commands": ["python -m discprobe timing --drive <drive>", "python -m discprobe geo --drive <drive> --speed keep"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 914, "keyword": "Another drive"}, {"path": "discprobe/guide.py", "line": 915, "keyword": "Setting the speed"}, {"path": "discprobe/guide.py", "line": 917, "keyword": "--speed keep"}, {"path": "docs/MANUAL.en.md", "line": 499, "keyword": "reload the disc"}]
+  },
+  {
+    "id": "geo-state-unknown",
+    "symptoms": {"zh": ["复查点读不回来了", "前后复核说不确定", "读太吵无法检查状态变化"], "en": ["check points too noisy to confirm", "unable to read ending check points", "doesn't know if drive stayed steady"]},
+    "error_patterns": [{"text": "Points read at the start and again at the end can't show a change"}, {"text": "The points read at the start could not all be read again at the end"}],
+    "cause": {"zh": "复查点读不全或太吵，不能确定测量期间光驱状态是否稳定。", "en": "Rereads were incomplete or noisy, so the run could not establish that the drive stayed steady."},
+    "steps": {"zh": ["用 timing 检查读噪声，试另一读速或另一台光驱，再看新测量的复查结果。"], "en": ["Check read noise with timing, then try a different speed or drive and inspect the new run’s check points."]},
+    "commands": ["python -m discprobe timing --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 794, "keyword": "can't show a change"}, {"path": "discprobe/guide.py", "line": 797, "keyword": "could not all be read again"}, {"path": "discprobe/guide.py", "line": 838, "keyword": "For a cleaner run"}]
+  },
+  {
+    "id": "geo-unknown-correction",
+    "symptoms": {"zh": ["曲线修正不确定性未知", "需要重新拟合测点", "不确定修正可靠性"], "en": ["correction uncertainty unknown", "refit points before relying on correction", "uncertainty missing after fit"]},
+    "error_patterns": [{"text": "correction uncertainty is unknown. Refit the measured points"}],
+    "cause": {"zh": "这次比较没给出修正后角度的不确定性。", "en": "The comparison did not establish the corrected angle uncertainty."},
+    "steps": {"zh": ["重新拟合已保存的测量点，核对不确定性后再使用。"], "en": ["Refit the saved measured points and check the uncertainty before relying on the correction."]},
+    "commands": ["python tools/geo_polyfit.py <run>"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 845, "keyword": "Refit the measured points"}, {"path": "discprobe/guide.py", "line": 863, "keyword": "tools/geo_polyfit.py"}]
+  },
+  {
+    "id": "geo-whole-turn",
+    "symptoms": {"zh": ["整圈计数算不出", "测到一半说跳圈", "找不到安全的桥接点"], "en": ["whole turn count ambiguous", "geo failed safe bridge", "prediction could not unwrap turns"]},
+    "error_patterns": [{"text": "whole-turn count is ambiguous"}, {"text": "no safe bridge for ambiguous whole-turn prediction"}, {"text": "A whole-turn count went wrong"}, {"text": "a whole-turn count is probably wrong"}, {"text": "整圈数无法确定"}, {"text": "整圈数算错了，或者轨距的变化超出了模型范围"}],
+    "cause": {"zh": "测点不能安全判定整圈数，可能是噪声高或轨距变化大。", "en": "Noise or pitch variation made the whole-turn count ambiguous."},
+    "steps": {"zh": ["换读速并试 --reps 32。若总在同一 LBA 附近停止，可用 --ranges 绕开。保留整圈安全门槛。"], "en": ["Try another speed and --reps 32. If it always stops near one LBA, exclude that area with --ranges. Keep the whole-turn safety limit."]},
+    "commands": ["python -m discprobe geo --drive <drive> --speed <untried-speed> --reps 32"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 932, "keyword": "A whole-turn count went wrong"}, {"path": "discprobe/guide.py", "line": 933, "keyword": "--reps 32"}, {"path": "discprobe/guide.py", "line": 935, "keyword": "Keep the whole-turn safety limit"}]
+  },
+  {
+    "id": "iso-capacity",
+    "symptoms": {"zh": ["图片 ISO 比空盘容量大", "导出的镜像放不进盘", "ISO 太大刻盘提示容量不够"], "en": ["exported picture iso too big to fit on disc", "picture image is larger than blank capacity", "burning exported iso reports insufficient space"]},
+    "error_patterns": [],
+    "cause": {"zh": "镜像所需的扇区数可能超过这批空盘的可写容量。DIS 从已刻盘读出的数值也可能偏大。", "en": "The ISO may need more sectors than a blank from this batch can hold. A value read by DIS from a recorded disc can be too high."},
+    "steps": {"zh": ["先用 info 读同批空盘的可用扇区。DIS 预设和 DIS 工程用相同的容量重新导出。若超限的是随机数据测量镜像，用 random --sectors 生成更小的镜像。"], "en": ["Read the available sectors from a blank of the same batch with info. Use the same capacity in the DIS preset and project before exporting again. For an oversized random-data measuring image, generate a smaller one using random --sectors."]},
+    "commands": ["python -m discprobe info --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "README.en.md", "line": 152, "keyword": "a count read back from a burned disc can be too high"}, {"path": "README.en.md", "line": 212, "keyword": "too high a count can make the close fail"}, {"path": "discprobe/guide.py", "line": 980, "keyword": "make a smaller one with --sectors"}]
+  },
+  {
+    "id": "linux-permission",
+    "symptoms": {"zh": ["linux 说没权限", "打开 sr0 权限不足", "普通用户读不了光驱"], "en": ["linux permission denied for drive", "no access to dev sr0", "linux optical device access denied"]},
+    "error_patterns": [{"regex": "permission denied[^\\n]*<device>"}, {"regex": "<device>[^\\n]*permission denied"}, {"text": "对 /dev/sr0 的访问权限不足"}, {"regex": "permission denied\\. optical drives here: ?(?:<device>|none)"}],
+    "cause": {"zh": "运行用户需要有光驱设备的读写权限。", "en": "The user running the command needs read and write access to the optical device."},
+    "steps": {"zh": ["通常将用户加入 cdrom 组后重新登录，再检查 /dev/sr* 权限。网页服务继续用普通用户运行。"], "en": ["Usually, add the user to the cdrom group and log in again. Check /dev/sr* permissions and run the web service as an ordinary user."]},
+    "commands": ["sudo usermod -aG cdrom \"$USER\""],
+    "manual": {"zh": "INSTALL-linux.md#linux-安装1000-alpha", "en": "INSTALL-linux.md#linux-安装1000-alpha"},
+    "sources": [{"path": "INSTALL-linux.md", "line": 57, "keyword": "读写权限"}, {"path": "INSTALL-linux.md", "line": 60, "keyword": "sudo usermod"}, {"path": "INSTALL-linux.md", "line": 63, "keyword": "不以 root 运行整个网页服务"}, {"path": "README.en.md", "line": 110, "keyword": "joining the `cdrom` group"}]
+  },
+  {
+    "id": "linux-transport",
+    "symptoms": {"zh": ["linux 上 imapi 用不了", "Linux 提示只支持 SG IO", "spti 选项只能 Windows"], "en": ["linux imapi unsupported", "spti windows only", "linux needs transport auto"]},
+    "error_patterns": [{"text": "--transport spti|imapi is Windows-only"}, {"text": "on Linux use --transport auto (SG_IO)"}],
+    "cause": {"zh": "SPTI 与 IMAPI 是 Windows 的光驱接口。", "en": "SPTI and IMAPI are Windows drive interfaces."},
+    "steps": {"zh": ["Linux 使用 --transport auto 和相应设备路径。"], "en": ["Use --transport auto with the Linux device path."]},
+    "commands": ["python -m discprobe info --drive /dev/sr0 --transport auto"],
+    "manual": {"zh": "INSTALL-linux.md#linux-安装1000-alpha", "en": "INSTALL-linux.md#linux-安装1000-alpha"},
+    "sources": [{"path": "discprobe/__main__.py", "line": 166, "keyword": "on Linux use --transport auto"}, {"path": "README.en.md", "line": 110, "keyword": "through `SG_IO`"}]
+  },
+  {
+    "id": "measuring-disc-count",
+    "symptoms": {"zh": ["测量光盘需要准备几张", "测量盘用几张", "同批盘要重新刻测量盘吗", "留着测量盘下次还能用吗"], "en": ["how many measuring discs do i need", "reuse measuring disc for another picture", "do i need a new measuring disc for every burn"]},
+    "error_patterns": [],
+    "cause": {"zh": "同一批盘可以保留并复用一张测量盘。它已经写入数据，下一次刻图要另用同批空白盘。", "en": "Keep and reuse one measuring disc for the same batch. It already holds data, so use another blank from that batch for the picture."},
+    "steps": {"zh": ["首次全流程一次成功时，DVD 至少准备两张、CD 至少三张。网页还安排了一张用于拍照核对的检查盘。"], "en": ["If the first run succeeds on every step, the minimum is two discs for DVD and three for CD. The web workflow also plans a separate check disc to photograph."]},
+    "commands": [],
+    "manual": {"zh": "README.md#快速开始", "en": "README.en.md#quick-start"},
+    "sources": [{"path": "README.en.md", "line": 100, "keyword": "other discs of that batch don't need a new one"}, {"path": "README.md", "line": 100, "keyword": "DVD 2 张（测量、刻图）"}]
+  },
+  {
+    "id": "missing-packages",
+    "symptoms": {"zh": ["提示缺 numpy", "没装 Pillow 怎么办", "照片缺 scipy 或 opencv"], "en": ["missing numpy package", "pillow missing in python", "photo requires opencv scipy"]},
+    "error_patterns": [{"text": "this command needs Pillow"}, {"text": "this command needs numpy"}, {"text": "this command needs scipy"}, {"text": "this command needs cv2"}, {"text": "Install what disc-probe uses with"}, {"text": "Install the Python packages disc-probe uses"}],
+    "cause": {"zh": "当前 Python 环境缺少 DP 依赖。", "en": "The Python environment is missing a Disc Probe dependency."},
+    "steps": {"zh": ["在运行 DP 的同一 Python 环境安装依赖。Windows 全量包已带 Python 和依赖；Linux 可用准备好的 wheel 离线安装。"], "en": ["Install the dependencies in the Python environment that runs Disc Probe. The full Windows package includes them. On Linux, install from prepared wheels if offline."]},
+    "commands": ["python -m pip install numpy pillow scipy opencv-python"],
+    "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
+    "sources": [{"path": "discprobe/guide.py", "line": 54, "keyword": "python -m pip install numpy pillow scipy opencv-python"}, {"path": "discprobe/guide.py", "line": 1312, "keyword": "photo reading also needs"}, {"path": "README.en.md", "line": 104, "keyword": "its own Python and dependencies"}, {"path": "INSTALL-linux.md", "line": 15, "keyword": "可离线安装"}, {"path": "discprobe/guide.py", "line": 1369, "keyword": "Install the Python packages disc-probe uses"}]
+  },
+  {
+    "id": "no-picture-visible",
+    "symptoms": {"zh": ["为什么看不到刻的图", "盘上只有彩虹没有图案", "已经刻了找不到图片", "转动盘片只看到彩虹，看不到图案", "刻完盘面只有彩虹，没有图", "太暗了看不出盘上颜色", "图案太暗几乎看不清", "成品颜色很暗", "刻好的盘只有彩虹，看不到图案"], "en": ["can't see picture on disc", "only rainbow visible after burn", "nothing visible on data side", "burned colours too dim to see"]},
+    "error_patterns": [{"text": "No picture: check three things in this order before burning anything"}, {"text": "The rainbow fan is the grooves, not your picture"}],
+    "cause": {"zh": "光照和观察角度会掩盖数据面的图案。", "en": "The light and viewing angle can hide the image on the data side."},
+    "steps": {"zh": ["关掉室内灯，用靠近眼睛的小灯，缓慢倾斜并转动盘片。仍不可见时，先查刻录报告的写入、封盘与回读，再查几何。"], "en": ["Darken the room, hold a small light near your eyes and gently tilt and turn the disc. If still invisible, check write, close and readback in the burn report, then check geometry."]},
+    "commands": [],
+    "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
+    "sources": [{"path": "discprobe/guide.py", "line": 1027, "keyword": "How to look at it"}, {"path": "discprobe/guide.py", "line": 1028, "keyword": "hold a small light"}, {"path": "discprobe/guide.py", "line": 1034, "keyword": "check three things"}]
+  },
+  {
+    "id": "parser-command",
+    "symptoms": {"zh": ["命令写错了怎么查", "有哪些子命令", "说子命令无效"], "en": ["unrecognized command name", "invalid choice for command", "where to see all commands"]},
+    "error_patterns": [{"text": "See the commands with: python -m discprobe -h"}, {"text": "Not sure where to start? python -m discprobe guide"}],
+    "cause": {"zh": "子命令未知，或尚未选子命令。", "en": "The command name is unknown or missing."},
+    "steps": {"zh": ["查看帮助列出的命令，或用 guide 找下一步。"], "en": ["List commands in the help, or use guide to find the next step."]},
+    "commands": ["python -m discprobe -h", "python -m discprobe guide"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/guide.py", "line": 1443, "keyword": "See the commands"}, {"path": "discprobe/guide.py", "line": 1447, "keyword": "Not sure where to start"}]
+  },
+  {
+    "id": "parser-geo-required",
+    "symptoms": {"zh": ["没写几何参数怎么办", "命令缺 --geo", "如何从最新测量出图"], "en": ["required geo argument missing", "image wants geo flag", "use last measurement for image"]},
+    "error_patterns": [{"text": "the following arguments are required: --geo"}, {"text": "Use your last measurement: python -m discprobe"}],
+    "cause": {"zh": "这条命令需要指定所用的几何测量。", "en": "This command needs a geometry measurement."},
+    "steps": {"zh": ["已有可用测量时加 --geo latest；也可以给出 summary.json 的路径。"], "en": ["Use --geo latest when you have an eligible measurement, or give the path to its summary.json."]},
+    "commands": ["python -m discprobe image --geo latest --picture my_picture.png --output iso/picture.iso"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "discprobe/guide.py", "line": 1445, "keyword": "Use your last measurement"}, {"path": "discprobe/guide.py", "line": 447, "keyword": "takes a summary.json"}, {"path": "discprobe/guide.py", "line": 883, "keyword": "--picture my_picture.png"}]
+  },
+  {
+    "id": "parser-option",
+    "symptoms": {"zh": ["参数写错了怎么查", "提示不认识这个选项", "命令行选项有哪些"], "en": ["unrecognized arguments", "command option unknown", "where do i see flags"]},
+    "error_patterns": [{"text": "unrecognized arguments:"}, {"text": "See the options with: python -m discprobe"}],
+    "cause": {"zh": "当前子命令不认识指定的选项。", "en": "This command does not recognize the given option."},
+    "steps": {"zh": ["查看该子命令的 -h，若输出给出相近选项，核对名称后重试。"], "en": ["Read the command’s -h output and check any suggested option before retrying."]},
+    "commands": ["python -m discprobe <command> -h"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/guide.py", "line": 1448, "keyword": "unrecognized arguments"}, {"path": "discprobe/guide.py", "line": 1452, "keyword": "Did you mean"}, {"path": "discprobe/guide.py", "line": 1453, "keyword": "See the options"}]
+  },
+  {
+    "id": "photo-angle-coverage",
+    "symptoms": {"zh": ["彩纹只在盘的一侧", "照片只看到一小片彩条", "条纹没绕过半张盘"], "en": ["photo stripes only on one side", "colour pattern does not go round disc", "not enough angular coverage in photo"]},
+    "error_patterns": [{"text": "poor_angle_coverage"}, {"text": "彩色条纹只盖住盘的一小块"}, {"text": "The colour pattern covers only a small part of the disc"}],
+    "cause": {"zh": "彩色条纹只盖住盘的一小块。", "en": "The colour pattern covers only a small part of the disc."},
+    "steps": {"zh": ["转盘或换拍摄角度，让条纹绕盘覆盖得更全。"], "en": ["Turn the disc or change the angle so the pattern reaches further around."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 21, "keyword": "poor_angle_coverage"}, {"path": "discprobe/web/home/photowords.mjs", "line": 22, "keyword": "The colour pattern covers only a small part of the disc"}]
+  },
+  {
+    "id": "photo-burn-path",
+    "symptoms": {"zh": ["没记录标靶盘刻录参数", "照片通过但是刻录路径未知", "照片修正不知道用什么刻的"], "en": ["photo l unknown burn path", "target has no burner or mode recorded", "photo accepted but burn details missing"]},
+    "error_patterns": [{"text": "unknown_burn_path"}, {"text": "It is not known which burner, program and mode"}],
+    "cause": {"zh": "记录缺少刻标靶时的光驱、程序或模式。", "en": "The target disc’s burner, program or mode is unknown."},
+    "steps": {"zh": ["使用标定页的刻标靶步骤可记录这些信息。"], "en": ["Use the calibration page to burn a target with those details recorded."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 179, "keyword": "Burn the target from this page"}]
+  },
+  {
+    "id": "photo-disagree",
+    "symptoms": {"zh": ["照片之间读数不一致", "拍了两张但数值差很多", "多张照片分两派"], "en": ["calibration photos disagree", "two photos give different values", "photo readings split into two camps"]},
+    "error_patterns": [{"text": "photos disagree"}, {"text": "photos_disagree"}, {"text": "ambiguous_majority"}, {"text": "the photos' L scans disagree"}],
+    "cause": {"zh": "当前照片没有形成可采用的一致读数。", "en": "The photos did not yield an agreement suitable for adoption."},
+    "steps": {"zh": ["在同一张标靶盘上转不同角度再拍几张，等有一致的读数。"], "en": ["Take more photos of the same target from different angles and look for agreeing readings."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 120, "keyword": "no majority"}, {"path": "discprobe/web/home/photowords.mjs", "line": 152, "keyword": "Same disc, no new burn"}, {"path": "discprobe/pcal.py", "line": 871, "keyword": "L scans disagree"}]
+  },
+  {
+    "id": "photo-duplicate",
+    "symptoms": {"zh": ["同一张照片发了两次", "系统说照片和前一张重复", "一直提示重复照片"], "en": ["sent the same photo twice", "photo upload duplicate", "same picture already sent"]},
+    "error_patterns": [{"text": "duplicate_photo"}, {"text": "这张和另一张是同一张照片"}, {"text": "This is the same picture as another one"}, {"text": "this photo was already sent"}],
+    "cause": {"zh": "这张和另一张是同一张照片。", "en": "This is the same picture as another one."},
+    "steps": {"zh": ["转动盘片，拍一张新的照片。"], "en": ["Turn the disc and take a new photo."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 33, "keyword": "duplicate_photo"}, {"path": "discprobe/web/home/photowords.mjs", "line": 34, "keyword": "This is the same picture as another one"}]
+  },
+  {
+    "id": "photo-few-inliers",
+    "symptoms": {"zh": ["照片条纹只有几点对得上", "标靶匹配的部分不够", "照片说有效匹配太少"], "en": ["too few pattern points match", "photo inlier count too low", "not enough matching stripes in photo"]},
+    "error_patterns": [{"text": "few_inliers"}, {"text": "条纹里对得上的部分太少"}, {"text": "Too few parts of the pattern agree"}],
+    "cause": {"zh": "条纹里对得上的部分太少。", "en": "Too few parts of the pattern agree."},
+    "steps": {"zh": ["把盘转一下，换个角度再拍。"], "en": ["Turn the disc and take another photo from a different angle."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 15, "keyword": "few_inliers"}, {"path": "discprobe/web/home/photowords.mjs", "line": 16, "keyword": "Too few parts of the pattern agree"}]
+  },
+  {
+    "id": "photo-group-check",
+    "symptoms": {"zh": ["单张照片通过但整体不通过", "照片组检查拒绝", "汇总照片说不能去掉一张"], "en": ["individual photos pass but group fails", "reader group check rejected", "l changes when one photo removed"]},
+    "error_patterns": [{"text": "group_not_ok"}, {"text": "few consistent cells"}, {"text": "the photos together do not go round the disc"}, {"text": "cells do not span enough radius"}, {"text": "L moves when one photo is left out"}, {"text": "only two photos, cannot check by leaving one out"}],
+    "cause": {"zh": "照片组的整体一致性、覆盖范围或留一张复核暂未通过。", "en": "The group lacks sufficient agreement, coverage or an independent check with one photo removed."},
+    "steps": {"zh": ["再拍一张不同角度的照片，让条纹覆盖更完整。"], "en": ["Take another photo from a different angle with fuller pattern coverage."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 121, "keyword": "reader’s group check"}, {"path": "discprobe/web/home/photowords.mjs", "line": 22, "keyword": "reaches further round"}, {"path": "discprobe/pcal.py", "line": 923, "keyword": "few consistent cells"}, {"path": "discprobe/pcal.py", "line": 929, "keyword": "cannot check by leaving one out"}, {"path": "discprobe/pcal.py", "line": 931, "keyword": "L moves when one photo is left out"}]
+  },
+  {
+    "id": "photo-large-residual",
+    "symptoms": {"zh": ["照片条纹位置对不上", "拍照时手挡住盘", "照片残差大不能用"], "en": ["photo pattern in unexpected positions", "my hand blocks part of calibration disc", "large photo fit residual"]},
+    "error_patterns": [{"text": "large_residual"}, {"text": "条纹位置和预期对不上"}, {"text": "The pattern does not fit the expected positions"}],
+    "cause": {"zh": "条纹位置和预期对不上。", "en": "The pattern does not fit the expected positions."},
+    "steps": {"zh": ["用本次标靶盘再拍全盘，别让手或物体遮挡。"], "en": ["Retake with the correct target, showing the whole disc without obstructions."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 25, "keyword": "large_residual"}, {"path": "discprobe/web/home/photowords.mjs", "line": 26, "keyword": "The pattern does not fit the expected positions"}]
+  },
+  {
+    "id": "photo-mismatched-target",
+    "symptoms": {"zh": ["照片和测量不是同一盘", "照片传到另外一次测量", "出图说光驱或盘种不一致"], "en": ["photos belong to another run", "photo l different drive or media", "mixed photos of different targets"]},
+    "error_patterns": [{"text": "different_disc"}, {"text": "different_drive"}, {"text": "different_run"}, {"text": "different_media"}, {"text": "The photos belong to another measurement"}, {"text": "The photos and the measurement are for different disc kinds"}],
+    "cause": {"zh": "照片记录的盘、光驱、盘种或测量与当前出图条件不一致。", "en": "The recorded target, drive, media or run does not match the current picture."},
+    "steps": {"zh": ["回到当前测量的拍照步骤，用对应标靶盘取照片。电脑已换到另一次标定时，重新扫当前的码。"], "en": ["Open the photo step for the intended measurement and use its target disc. If the computer moved to another run, scan the new code."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 87, "keyword": "Scan its new code"}, {"path": "discprobe/web/home/photowords.mjs", "line": 178, "keyword": "different target discs"}, {"path": "discprobe/web/home/photowords.mjs", "line": 181, "keyword": "another drive"}, {"path": "discprobe/web/home/photowords.mjs", "line": 182, "keyword": "another measurement"}, {"path": "discprobe/web/home/photowords.mjs", "line": 183, "keyword": "different disc kinds"}]
+  },
+  {
+    "id": "photo-no-adoption",
+    "symptoms": {"zh": ["还没有能用的照片", "照片修正没有采用", "照片读完没有 L", "拍照一直不通过", "拍了很多张都不通过", "拍好多照片还是不行", "怎么拍都说照片不能用", "检查盘的照片全被拒绝"], "en": ["no accepted calibration photos", "photo l not yet accepted", "all calibration shots rejected", "calibration photos keep getting rejected", "all my photos get rejected", "lots of photos but none usable"]},
+    "error_patterns": [{"text": "no_accepted_photos"}, {"text": "verdict_not_ok"}, {"text": "no_photo"}, {"text": "The photos are not adopted yet"}],
+    "cause": {"zh": "当前照片没有得到可用于出图的已采用读数。", "en": "The current photos have no adopted value for picture generation."},
+    "steps": {"zh": ["查看每张照片下的重拍提示。用同一张盘拍不同角度，等至少两张读数一致。"], "en": ["Follow the retake advice under each photo. Take shots of the same disc from distinct angles until at least two readings agree."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 165, "keyword": "Follow the advice under each photo"}, {"path": "discprobe/web/home/photowords.mjs", "line": 176, "keyword": "The photos are not adopted yet"}, {"path": "discprobe/web/home/photowords.mjs", "line": 197, "keyword": "No usable photos yet"}, {"path": "README.en.md", "line": 87, "keyword": "Only when several photos agree"}]
+  },
+  {
+    "id": "photo-no-rim",
+    "symptoms": {"zh": ["拍照盘边出画了", "相机裁掉了盘边", "标靶看不到整个外缘"], "en": ["photo cropped disc edge", "rim not detected in picture", "whole disc not in frame"]},
+    "error_patterns": [{"text": "no_rim"}, {"text": "没找到整张盘的边"}, {"text": "The disc edge was not found"}],
+    "cause": {"zh": "没找到整张盘的边。", "en": "The disc edge was not found."},
+    "steps": {"zh": ["把整张盘拍进画面，四周留一点边。"], "en": ["Get the whole disc in frame with a little margin."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 9, "keyword": "no_rim"}, {"path": "discprobe/web/home/photowords.mjs", "line": 10, "keyword": "The disc edge was not found"}]
+  },
+  {
+    "id": "photo-one-pass",
+    "symptoms": {"zh": ["只有一张照片通过", "拍照有临时 L 但没应用", "照片读出来也不能采用"], "en": ["only one photo passed", "provisional photo l not applied", "camera calibration one usable photo"]},
+    "error_patterns": [{"text": "only one photo passed"}, {"text": "one_photo_provisional"}, {"text": "fewer than two photos with a clear peak"}],
+    "cause": {"zh": "采用需要至少两张不同角度且结果一致的照片，目前的读数是暂定值。", "en": "Adoption requires agreeing readings from distinct angles. The current value is provisional."},
+    "steps": {"zh": ["用同一张盘，转一下再拍不同角度的照片。"], "en": ["Turn the same disc and take another photo from a different angle."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 144, "keyword": "Only one photo was read"}, {"path": "discprobe/web/home/photowords.mjs", "line": 165, "keyword": "At least two photos from different angles"}, {"path": "discprobe/pcal.py", "line": 945, "keyword": "only one photo passed"}, {"path": "discprobe/pcal.py", "line": 867, "keyword": "fewer than two photos"}]
+  },
+  {
+    "id": "photo-pending",
+    "symptoms": {"zh": ["照片已经收到但一直不读", "手机已发送电脑还在等待", "发图后没有开始读取"], "en": ["photo received but never analyzed", "uploaded photo stuck waiting", "computer hasn't read phone upload"]},
+    "error_patterns": [{"text": "Your photos are saved on the computer, but its photo step is not open"}, {"text": "照片已存在电脑上，但电脑上的“拍照”这一步没打开"}],
+    "cause": {"zh": "电脑保存了照片，当前标定的拍照步骤可能没有打开。", "en": "The computer saved the photos. The calibration’s photo step may be closed."},
+    "steps": {"zh": ["回到电脑上本次标定的拍照步骤，等自动开始读取。"], "en": ["Return to this calibration’s photo step on the computer and wait for it to read the photos."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 91, "keyword": "Open the calibration’s photo step"}]
+  },
+  {
+    "id": "photo-radius-coverage",
+    "symptoms": {"zh": ["照片只看得到内圈彩纹", "拍照要补内外圈", "校准条纹没有延伸到边缘", "拍照内圈有彩纹外圈没有", "校准照只显示内侧的彩色纹路"], "en": ["photo lacks outer ring pattern", "calibration photo needs wider radial coverage", "only inner rings show colour"]},
+    "error_patterns": [{"text": "poor_radius_coverage"}, {"text": "条纹没从内圈铺到外圈"}, {"text": "The pattern does not reach from the inner to the outer rings"}],
+    "cause": {"zh": "条纹没从内圈铺到外圈。", "en": "The pattern does not reach from the inner to the outer rings."},
+    "steps": {"zh": ["改变盘片倾斜角度，让内圈和外圈都出现彩纹。"], "en": ["Change the tilt so both inner and outer rings show colour."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 23, "keyword": "poor_radius_coverage"}, {"path": "discprobe/web/home/photowords.mjs", "line": 24, "keyword": "The pattern does not reach from the inner to the outer rings"}]
+  },
+  {
+    "id": "photo-rings-not-found",
+    "symptoms": {"zh": ["标靶圆环找不到", "校准照片看不见圆环", "拍的盘找不到参考环"], "en": ["target rings not found", "calibration rings missing from photo", "reader cannot find ring target"]},
+    "error_patterns": [{"text": "rings_not_found"}, {"text": "找不到标靶的圆环"}, {"text": "The target rings were not found"}],
+    "cause": {"zh": "找不到标靶的圆环。", "en": "The target rings were not found."},
+    "steps": {"zh": ["拍全盘并对好焦，确认是本次刻的标靶盘。"], "en": ["Show the whole disc in focus and check that it is this run’s target disc."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 17, "keyword": "rings_not_found"}, {"path": "discprobe/web/home/photowords.mjs", "line": 18, "keyword": "The target rings were not found"}]
+  },
+  {
+    "id": "photo-same-pose",
+    "symptoms": {"zh": ["照片角度差太小", "多张照片一个机位", "重复角度不能校验"], "en": ["photos angles too close", "calibration images same pose", "disc wasn't rotated enough between shots"]},
+    "error_patterns": [{"text": "same_pose"}, {"text": "The photos are too close in angle"}],
+    "cause": {"zh": "这些照片中的盘面转角太接近，无法互相核验。", "en": "The disc did not rotate far enough between photos for the readings to check each other."},
+    "steps": {"zh": ["把同一张盘转大一点角度再拍一张。"], "en": ["Turn the same disc further and take another photo."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 115, "keyword": "盘面转角相差不到"}, {"path": "discprobe/web/home/photowords.mjs", "line": 116, "keyword": "Turn the disc further"}]
+  },
+  {
+    "id": "photo-shape",
+    "symptoms": {"zh": ["照片内外圈读数对不上", "校准照片形状不合适", "内外圈算出的 L 不一样"], "en": ["inner and outer rings disagree", "photo shape not one over r", "calibration ring results differ"]},
+    "error_patterns": [{"text": "shape_not_1_over_r"}, {"text": "内外圈给出的结果对不上"}, {"text": "Inner and outer rings disagree"}],
+    "cause": {"zh": "内外圈给出的结果对不上。", "en": "Inner and outer rings disagree."},
+    "steps": {"zh": ["确认盘是这次的标靶，再转一下盘重拍。"], "en": ["Check that this is the target from this run, turn it and retake."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 29, "keyword": "shape_not_1_over_r"}, {"path": "discprobe/web/home/photowords.mjs", "line": 30, "keyword": "Inner and outer rings disagree"}]
+  },
+  {
+    "id": "photo-target-id",
+    "symptoms": {"zh": ["缺少标靶盘号", "照片用不到出图上因为盘号", "照片没写标靶编号"], "en": ["photo l missing target disc number", "unknown target disc id", "photo not used because disc id absent"]},
+    "error_patterns": [{"text": "unknown_disc"}, {"text": "没填标靶盘号"}, {"text": "No target disc number"}],
+    "cause": {"zh": "没有能把照片与标靶绑定的盘号。", "en": "There is no target disc number to associate with the photos."},
+    "steps": {"zh": ["在拍照步骤填写这张标靶盘的编号，再读一次。"], "en": ["Enter this target disc’s number in the photo step and read again."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 177, "keyword": "Enter this target disc’s number"}]
+  },
+  {
+    "id": "photo-too-few-votes",
+    "symptoms": {"zh": ["照片彩纹太少", "盘上大团白光挡住条纹", "拍照说能读的条纹不够"], "en": ["photo has too little readable pattern", "glare hides calibration stripes", "not enough visible colour on photo"]},
+    "error_patterns": [{"text": "too_few_votes"}, {"text": "能读的彩色条纹太少"}, {"text": "Too little readable colour pattern"}],
+    "cause": {"zh": "能读的彩色条纹太少。", "en": "Too little readable colour pattern."},
+    "steps": {"zh": ["背对吸顶灯，把盘朝自己倾斜。若出现白色圆反光，微调避开。"], "en": ["Stand with the ceiling lamp behind you and tilt the disc toward you. Adjust to move any round white glare off the disc."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 11, "keyword": "too_few_votes"}, {"path": "discprobe/web/home/photowords.mjs", "line": 12, "keyword": "Too little readable colour pattern"}]
+  },
+  {
+    "id": "photo-two-peaks",
+    "symptoms": {"zh": ["照片两种对法都行", "校准读出两个峰", "条纹有两处可能对齐"], "en": ["photo has two possible alignments", "reader shows two peaks", "ambiguous pattern alignment"]},
+    "error_patterns": [{"text": "two_peaks"}, {"text": "有两种对法都说得通"}, {"text": "Two alignments both look possible"}],
+    "cause": {"zh": "有两种对法都说得通。", "en": "Two alignments both look possible."},
+    "steps": {"zh": ["转一下盘，再拍一张不同角度的照片。"], "en": ["Turn the disc and take another photo from a different angle."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 19, "keyword": "two_peaks"}, {"path": "discprobe/web/home/photowords.mjs", "line": 20, "keyword": "Two alignments both look possible"}]
+  },
+  {
+    "id": "photo-unknown-input",
+    "symptoms": {"zh": ["照片原图记录不完整", "没法判断照片范围或转角", "读取时找不齐照片记录"], "en": ["original photo record missing", "photo spread or angle unknown", "can't confirm photo agreement from saved data"]},
+    "error_patterns": [{"text": "unknown_photo_input"}, {"text": "unknown_spread_or_pose"}, {"text": "A photo’s original is not recorded"}],
+    "cause": {"zh": "有照片缺少原图记录，或读数缺少一致性范围、盘面转角。", "en": "A photo lacks its original record, or a reading is missing its spread or angle."},
+    "steps": {"zh": ["原图记录缺失时重新发送原图再读；范围或角度缺失时拍另一角度。"], "en": ["Resend the original and reread if its record is missing. If spread or angle is missing, take a new photo from another angle."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 118, "keyword": "再拍一张不同角度的"}, {"path": "discprobe/web/home/photowords.mjs", "line": 119, "keyword": "Send the original again"}]
+  },
+  {
+    "id": "photo-unreadable",
+    "symptoms": {"zh": ["手机拍的图片打不开", "上传照片说读不了文件", "照片格式打不开怎么办", "照片上传后说图打不开", "相册照片能开但上传图片读不了"], "en": ["calibration photo file cannot open", "upload image unreadable", "phone picture format won't open"]},
+    "error_patterns": [{"text": "unreadable_image"}, {"text": "这张图片打不开"}, {"text": "The image could not be opened"}],
+    "cause": {"zh": "这张图片打不开。", "en": "The image could not be opened."},
+    "steps": {"zh": ["重新拍，或在相册里导出 JPEG 再发。"], "en": ["Retake it or export a JPEG from your photos and send it."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 31, "keyword": "unreadable_image"}, {"path": "discprobe/web/home/photowords.mjs", "line": 32, "keyword": "The image could not be opened"}]
+  },
+  {
+    "id": "photo-unstable-l",
+    "symptoms": {"zh": ["一张照片读数前后不一致", "照片 L 不稳定", "照片不同位置各算各的"], "en": ["different parts of photo disagree", "photo l unstable across regions", "photo gives inconsistent l"]},
+    "error_patterns": [{"text": "unstable_L"}, {"text": "同一张照片里不同部分读数不一致"}, {"text": "Different parts of this photo disagree"}],
+    "cause": {"zh": "同一张照片里不同部分读数不一致。", "en": "Different parts of this photo disagree."},
+    "steps": {"zh": ["转动同一张盘后重拍。"], "en": ["Turn the same disc and retake the photo."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 27, "keyword": "unstable_L"}, {"path": "discprobe/web/home/photowords.mjs", "line": 28, "keyword": "Different parts of this photo disagree"}]
+  },
+  {
+    "id": "photo-unsupported-map",
+    "symptoms": {"zh": ["CLV 照片不能修正几何", "蓝光照片 L 不支持", "为什么没有可修正角度图"], "en": ["photo l unsupported on bd", "clv has no angle map to apply l", "unsupported media for photo shift"]},
+    "error_patterns": [{"text": "unsupported_model"}, {"text": "unsupported_media"}, {"text": "This measurement model (CLV) has no angle map to correct"}, {"text": "Photo L applies to CD and DVD only"}],
+    "cause": {"zh": "照片 L 需要支持的 CD 或 DVD 角度映射。", "en": "Photo L requires a supported CD or DVD angle map."},
+    "steps": {"zh": ["CD 实验 CLV 路径可换能得到 CAV 的光驱测几何，再精细标定。"], "en": ["For experimental CD CLV, try a drive that gives CAV and use fine calibration before burning a picture."]},
+    "commands": ["python -m discprobe timing --media cd --drive <drive>"],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 184, "keyword": "CD and DVD only"}, {"path": "discprobe/web/home/photowords.mjs", "line": 185, "keyword": "no angle map to correct"}, {"path": "discprobe/guide.py", "line": 519, "keyword": "Use another drive for CAV"}]
+  },
+  {
+    "id": "photo-weak-peak",
+    "symptoms": {"zh": ["照片条纹太淡", "拍照彩纹没对比", "照片看得见图但读不出来"], "en": ["photo pattern too faint", "faint stripes in calibration shots", "photo stripes not strong enough"]},
+    "error_patterns": [{"text": "weak_peak"}, {"text": "条纹太淡，读不准"}, {"text": "The pattern is too faint to read"}],
+    "cause": {"zh": "条纹太淡，读不准。", "en": "The pattern is too faint to read."},
+    "steps": {"zh": ["背对吸顶灯，避开盘上的白色反光，让彩纹更亮再拍。"], "en": ["Put the ceiling lamp behind you and keep its white glare off the disc before retaking."]},
+    "commands": [],
+    "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 13, "keyword": "weak_peak"}, {"path": "discprobe/web/home/photowords.mjs", "line": 14, "keyword": "The pattern is too faint to read"}]
+  },
+  {
+    "id": "picture-outer-cropped",
+    "symptoms": {"zh": ["盘外圈图案被切掉", "外圈看不到刻出来的图", "靠盘边的图案缺一圈"], "en": ["outer edge of the picture is missing", "outer image ring cut off", "disc picture clipped at rim"]},
+    "error_patterns": [{"text": "outermost ring is left out"}],
+    "cause": {"zh": "贴近盘边的内容可能超出可刻区域。CD 还会为封盘保留空间，必要时外圈会被截掉。", "en": "Artwork next to the rim can extend past the writable area. CD also reserves room for closing the disc, which can cut off the outermost ring."},
+    "steps": {"zh": ["检查出图输出是否提示已省略外圈。把图案缩小或向内移，检查预览里的可刻环带，再生成镜像。"], "en": ["Check the image output for an omitted outer ring. Shrink or move the artwork inward, check the writable annulus in the preview, then regenerate the image."]},
+    "commands": [],
+    "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
+    "sources": [{"path": "discprobe/__main__.py", "line": 1245, "keyword": "a drawing out to the rim stops where the disc does"}, {"path": "discprobe/__main__.py", "line": 1250, "keyword": "outermost ring is left out"}, {"path": "docs/MANUAL.md", "line": 166, "keyword": "灰色部分不能绘制"}]
+  },
+  {
+    "id": "picture-path",
+    "symptoms": {"zh": ["程序找不到我的图片", "文件名有空格怎么输", "图片放在哪里才能出 ISO"], "en": ["picture file not found", "image path has spaces", "which folder should i put png in"]},
+    "error_patterns": [{"text": "give its full path (in quotes if it has spaces)"}],
+    "cause": {"zh": "程序按当前目录解析相对的图片路径。", "en": "Relative picture paths are resolved from the current working directory."},
+    "steps": {"zh": ["把图片放进当前目录，或为 --picture 提供完整路径。有空格时加引号。"], "en": ["Put the image in the working directory or give --picture its full path. Quote it if it contains spaces."]},
+    "commands": ["python -m discprobe image --geo latest --picture \"<path>\" --output iso/picture.iso"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/guide.py", "line": 890, "keyword": "give its full path"}, {"path": "discprobe/guide.py", "line": 883, "keyword": "--picture my_picture.png"}]
+  },
+  {
+    "id": "picture-placement",
+    "symptoms": {"zh": ["刻出来的图案歪了没居中", "图案中心对不齐", "整张图转了角度", "成品图整体偏转", "图在盘面上偏心"], "en": ["whole picture rotated on disc", "burned picture is off center", "artwork centre does not line up", "the entire design is tilted"]},
+    "error_patterns": [],
+    "cause": {"zh": "图案整体偏移或转动时，可以先对照预览检查图层的位置和角度。如果内外圈的转角不同，再检查几何。", "en": "For a uniform shift or rotation, compare the preview and check layer position and angle first. If the rotation changes across the radius, check geometry as well."},
+    "steps": {"zh": ["在设计页先检查位置和角度；用终端时可通过 edit 调整后保存，再用 image --design 重新生成镜像。如果预览正常而实物从内到外逐渐扭曲，核对盘批次、刻录机和测量结果。"], "en": ["Check position and angle in the design page. In the terminal, adjust and save with edit, then regenerate with image --design. If the preview looks right but the disc twists from inner to outer radius, check the batch, burner and geometry measurement."]},
+    "commands": ["python -m discprobe edit my_picture.png"],
+    "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
+    "sources": [{"path": "README.md", "line": 200, "keyword": "图片的位置、大小和角度"}, {"path": "docs/MANUAL.md", "line": 166, "keyword": "方向键移动"}, {"path": "docs/MANUAL.en.md", "line": 329, "keyword": "the pattern will rotate"}, {"path": "discprobe/guide.py", "line": 1035, "keyword": "check it was the same batch"}]
+  },
+  {
+    "id": "picture-twisted-lines",
+    "symptoms": {"zh": ["盘面直线弯了", "画出来的线断掉", "图案刻出来扭曲", "刻出来的图被拧成螺旋", "图变成一圈圈螺线", "DIS 导入预设后图案仍然歪"], "en": ["burned image lines twisted", "radial lines broken on disc", "image warped after burning", "picture came out spiral shaped", "burned picture turned into a spiral", "artwork is still warped after importing a dis preset"]},
+    "error_patterns": [{"text": "Twisted or broken lines: check it was the same batch and the same burner"}],
+    "cause": {"zh": "盘批次、刻录机或几何测量可能与预期不同。", "en": "The disc batch, burner or measured geometry may differ from the one expected."},
+    "steps": {"zh": ["确认同批盘和同一台刻录机。光照和刻录报告无异常后，仍扭曲时可用网格测试盘检查几何。", "如果图案沿半径扭成螺旋，先核对预设是否来自相近的实测盘。蓝光仅凭计时的预设还需要实盘校准。"], "en": ["Check that the disc is from the same batch and was burned on the same burner. If lighting and the burn report are fine and lines are still twisted, use a grid test to check geometry.", "If the pattern twists into a spiral across the radius, check that the preset came from a closely matching measured disc. A timing-only Blu-ray preset still needs disc calibration."]},
+    "commands": ["python -m discprobe image --geo latest --output iso/grid.iso"],
+    "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
+    "sources": [{"path": "discprobe/guide.py", "line": 1035, "keyword": "check it was the same batch"}, {"path": "discprobe/guide.py", "line": 1036, "keyword": "only if the light and the burn report are fine"}, {"path": "discprobe/guide.py", "line": 1037, "keyword": "--output iso/grid.iso"}, {"path": "docs/MANUAL.en.md", "line": 329, "keyword": "will show dense spirals"}, {"path": "README.en.md", "line": 466, "keyword": "a spiral of a dozen arms"}]
+  },
+  {
+    "id": "random-too-large",
+    "symptoms": {"zh": ["随机数据镜像太大", "测试 ISO 放不进空盘", "刻录软件说容量不足"], "en": ["random iso too large", "test image won't fit blank disc", "burner says image does not fit"]},
+    "error_patterns": [{"text": "If the burner says it does not fit, make a smaller one with --sectors"}, {"text": "The usual random disc would not fit, so make a smaller one"}, {"text": "默认大小的随机数据盘放不下"}],
+    "cause": {"zh": "随机数据镜像的扇区数超过了空盘可写的部分。", "en": "The random image contains more sectors than the blank can hold."},
+    "steps": {"zh": ["用空盘 info 核对容量，再给 random 较小的 --sectors。"], "en": ["Check blank capacity with info and use a smaller --sectors value for random."]},
+    "commands": ["python -m discprobe info --drive <drive>", "python -m discprobe random --sectors <count> --output iso/random.iso"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "discprobe/guide.py", "line": 980, "keyword": "make a smaller one"}, {"path": "docs/MANUAL.en.md", "line": 124, "keyword": "it is how much to burn"}, {"path": "discprobe/guide.py", "line": 639, "keyword": "The usual random disc would not fit"}]
+  },
+  {
+    "id": "speed-units",
+    "symptoms": {"zh": ["读速填4变得特别慢", "读速的单位怎么看", "四倍速怎么写"], "en": ["speed 4 reads very slowly", "what units is read speed", "how do i specify four times speed"]},
+    "error_patterns": [{"text": "Note: --speed is in kB/s, so 4 is very slow"}, {"text": "is not a speed: give kB/s like 5540"}],
+    "cause": {"zh": "读速里的纯数字按 kB/s 解释，倍速要带 x。", "en": "A bare read speed is in kB/s. An x suffix specifies a multiple."},
+    "steps": {"zh": ["DVD 的 4 倍速可写 4x 或 5540。用 timing 查看光驱有没有采用这个速度。"], "en": ["For DVD 4x, use 4x or 5540. Check timing to see whether the drive adopted that speed."]},
+    "commands": ["python -m discprobe timing --drive <drive> --speed 4x"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "docs/MANUAL.en.md", "line": 126, "keyword": "kB/s or a multiple"}, {"path": "docs/MANUAL.en.md", "line": 130, "keyword": "5540"}]
+  },
+  {
+    "id": "texture-92-read",
+    "symptoms": {"zh": ["92纹理是不是读不了", "纯92盘速度会变", "亮纹理导致重试", "纯92纹理一直重试", "纯 92 的盘读不动"], "en": ["texture 92 unreadable", "pure 92 causes read retries", "single byte texture changes rotation"]},
+    "error_patterns": [],
+    "cause": {"zh": "在手册所测光驱上，纯 92、64、66 等单字节纹理很难读，会重试或变速。", "en": "On the drive tested in the manual, pure single-byte textures such as 92, 64 and 66 caused read retries or speed changes."},
+    "steps": {"zh": ["测几何时用普通随机数据盘，或仅测纹理盘上已写的随机部分。"], "en": ["Measure geometry on a plain random-data disc or restrict the measurement to the random area of a texture-ring disc."]},
+    "commands": ["python -m discprobe geo --drive <drive> --rings-layout <layout.rings.json>"],
+    "manual": {"zh": "docs/MANUAL.md#计时测几何梯子测量geo", "en": "docs/MANUAL.en.md#measuring-geometry-from-timing-the-ladder-geo"},
+    "sources": [{"path": "docs/MANUAL.en.md", "line": 507, "keyword": "Pure single-byte textures"}, {"path": "discprobe/guide.py", "line": 922, "keyword": "measure only its random part"}, {"path": "discprobe/guide.py", "line": 924, "keyword": "--rings-layout"}]
+  },
+  {
+    "id": "timing-cache",
+    "symptoms": {"zh": ["读到十五毫秒假周期", "计时被缓存骗了", "缓存命中测出来的转速不对"], "en": ["cache produces false rotation", "host timer looks like clv", "fua takes fractional turns"]},
+    "error_patterns": [{"text": "cache/false period: a FUA read takes"}, {"text": "cache/host timer period near 15.625 ms"}, {"text": "a host timer period is not CLV"}, {"text": "Reuse this disc. Compare FUA or cache eviction"}, {"text": "this period looks like the Windows timer tick"}, {"text": "一次绕过缓存的读取用了这个周期"}],
+    "cause": {"zh": "读到了缓存或主机计时节拍，得到的周期可能不代表盘片旋转。", "en": "A cache hit or the host timer can produce a period unrelated to disc rotation."},
+    "steps": {"zh": ["先用同一张盘比较 FUA 或挤缓存，再试不同读速。区分真实旋转后再拟合几何。"], "en": ["Reuse the disc and compare FUA or cache eviction, or try another read speed. Wait until you can distinguish real rotation before fitting geometry."]},
+    "commands": ["python -m discprobe timing --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
+    "sources": [{"path": "discprobe/timing.py", "line": 643, "keyword": "cache/false period"}, {"path": "discprobe/timing.py", "line": 652, "keyword": "cache/host timer period"}, {"path": "discprobe/diagnostics.py", "line": 51, "keyword": "Do not fit geometry"}, {"path": "docs/MANUAL.en.md", "line": 221, "keyword": "This selects the strategy"}, {"path": "discprobe/zh.py", "line": 435, "keyword": "一次绕过缓存"}, {"path": "discprobe/zh.py", "line": 436, "keyword": "Windows timer tick"}]
+  },
+  {
+    "id": "timing-clv",
+    "symptoms": {"zh": ["恒线速度怎么办", "为什么不是恒定转速", "转速模式显示 CLV"], "en": ["timing reports constant linear velocity", "drive stuck in clv", "phase skipped because rotation is clv"]},
+    "error_patterns": [{"text": "Rotation is CLV, not CAV"}, {"text": "Verdict: rotation is CLV, not CAV"}, {"text": "sector angles cannot be read at this speed"}, {"text": "timing --force only continues diagnostic sampling"}, {"text": "A higher CD speed may allow CAV"}, {"text": "No untried speed remains; try another drive"}, {"text": "Reuse this disc. Try one untried read speed from timing history"}, {"text": "This drive appears to keep a constant linear speed"}],
+    "cause": {"zh": "在这次读速下，扇区角度测量所需的恒定角速度条件没有成立。", "en": "This read speed did not give the constant angular velocity needed to measure sector angles."},
+    "steps": {"zh": ["先试没用过的读速，CD 可试更高的读速。用完备选速度就试另一台光驱。", "蓝光有单独的 CLV 测几何路径。"], "en": ["Try an untried read speed. A higher one may give CAV on CD. Try another drive when the listed speeds are exhausted.", "Blu-ray has a separate CLV geometry route."]},
+    "commands": ["python -m discprobe timing --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
+    "sources": [{"path": "discprobe/guide.py", "line": 580, "keyword": "try an untried speed"}, {"path": "discprobe/guide.py", "line": 583, "keyword": "A higher CD speed"}, {"path": "discprobe/guide.py", "line": 589, "keyword": "does not force CAV"}, {"path": "discprobe/guide.py", "line": 592, "keyword": "anchored Blu-ray geometry"}, {"path": "docs/MANUAL.en.md", "line": 226, "keyword": "phase method does not hold"}, {"path": "discprobe/diagnostics.py", "line": 53, "keyword": "Try one untried read speed"}, {"path": "discprobe/guide.py", "line": 585, "keyword": "keep a constant linear speed"}]
+  },
+  {
+    "id": "timing-jitter",
+    "symptoms": {"zh": ["读出来抖动太大", "恒定转速但角度很飘", "CAV 噪声大"], "en": ["cav but jitter is high", "timing jitter too noisy", "read angles jumping around"]},
+    "error_patterns": [{"regex": "verdict: cav, but .* jitter is (?:too high|noisy)"}, {"text": "no jitter was measured"}, {"text": "Or read whole ECC blocks, which was cleaner on one drive"}],
+    "cause": {"zh": "恒定转速下，单次读出的角度仍可能有较大抖动。", "en": "Read angles can still be noisy in CAV."},
+    "steps": {"zh": ["试其他读速或光驱。DVD 可比较每次读完整 ECC 块的结果。"], "en": ["Try another speed or drive. On DVD, compare reads of a whole ECC block."]},
+    "commands": ["python -m discprobe timing --drive <drive> --sectors 16"],
+    "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
+    "sources": [{"path": "discprobe/guide.py", "line": 700, "keyword": "no jitter was measured"}, {"path": "discprobe/guide.py", "line": 704, "keyword": "jitter is noisy"}, {"path": "discprobe/guide.py", "line": 710, "keyword": "--sectors 16"}, {"path": "docs/MANUAL.en.md", "line": 233, "keyword": "angle noise"}]
+  },
+  {
+    "id": "timing-no-period",
+    "symptoms": {"zh": ["外圈测不到转动周期", "读到光盘边缘速度不稳", "最外圈没有清晰周期"], "en": ["no period at outer edge", "outer zone failed timing", "rim has no clear rotation period"]},
+    "error_patterns": [{"text": "Rotation is unknown, not CAV, so the phase test would not give disc angles"}, {"text": "位置 0.95（扇区号 2062016）：没找到转动周期"}, {"regex": "位置 \\[<n>(?:, <n>)*\\] 没有清晰的周期"}, {"regex": "zones \\[<n>(?:, <n>)*\\] have no clear period"}, {"regex": "zone <n> \\(lba <n>\\): no period found"}],
+    "cause": {"zh": "报错所在测区可能变速了或读得不稳定。外圈经常是出现变速的位置，计时无法确定清晰的转动周期。", "en": "The drive may have changed speed or read poorly in the reported zone. This can happen near the rim and prevents timing from finding a clear rotation period."},
+    "steps": {"zh": ["先用固定低读速重测同一张盘。DVD 可试 4x，并看 timing 报告的实际转速。", "先别加 --force，它只继续诊断采样。换读速或光驱后仍读不稳，且需要重刻测量盘时，试另一个受支持的刻录速度。"], "en": ["Retest the same disc at a fixed low read speed. For DVD try 4x and check the actual rotation reported by timing.", "Skip --force, which only continues diagnostic sampling. If reads stay unreliable after trying another read speed or drive and the measuring disc needs replacing, try another supported write speed."]},
+    "commands": ["python -m discprobe timing --drive <drive> --speed 4x"],
+    "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
+    "sources": [{"path": "discprobe/timing.py", "line": 592, "keyword": "no period found"}, {"path": "discprobe/timing.py", "line": 672, "keyword": "have no clear period"}, {"path": "discprobe/timing.py", "line": 752, "keyword": "phase test would not give disc angles"}, {"path": "docs/MANUAL.en.md", "line": 126, "keyword": "Lower speed usually means less noise"}, {"path": "docs/MANUAL.en.md", "line": 134, "keyword": "the speed jumps near the outer edge"}, {"path": "discprobe/guide.py", "line": 589, "keyword": "only continues diagnostic sampling"}, {"path": "discprobe/guide.py", "line": 1038, "keyword": "Try another burn speed"}]
+  },
+  {
+    "id": "timing-reference-period",
+    "symptoms": {"zh": ["参考点周期读不出", "目标报参考点不稳", "基准点没有周期"], "en": ["reference point no period", "timing reference unstable", "base sector period missing"]},
+    "error_patterns": [{"text": "reference has no clear period; try a fixed speed and measure again"}, {"text": "参考点没有清晰的周期"}],
+    "cause": {"zh": "计时的参考点没有给出清晰的周期。", "en": "The timing reference did not give a clear period."},
+    "steps": {"zh": ["固定读速，再测一次。"], "en": ["Set a fixed read speed and repeat timing."]},
+    "commands": ["python -m discprobe timing --drive <drive> --speed 4x"],
+    "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
+    "sources": [{"path": "discprobe/timing.py", "line": 720, "keyword": "reference has no clear period"}, {"path": "docs/MANUAL.en.md", "line": 126, "keyword": "a multiple such as"}]
+  },
+  {
+    "id": "timing-spindle-settling",
+    "symptoms": {"zh": ["转速还没稳定", "测速提醒可能噪声大", "光驱还在升降速"], "en": ["spindle never got steady", "timing warned about noisy rotation", "drive still changing rpm"]},
+    "error_patterns": [{"text": "Spindle did not reach a steady speed; expect noisy results"}, {"text": "转速一直没稳定，结果可能噪声较大"}],
+    "cause": {"zh": "光驱还没有达到稳定的转速。", "en": "The drive did not reach a steady rotation speed."},
+    "steps": {"zh": ["查看 timing 的读速和周期，试固定的读速后重测。"], "en": ["Check the speed and periods reported by timing. Repeat with a fixed read speed."]},
+    "commands": ["python -m discprobe timing --drive <drive> --speed 4x"],
+    "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
+    "sources": [{"path": "discprobe/zh.py", "line": 414, "keyword": "Spindle did not reach a steady speed"}, {"path": "discprobe/timing.py", "line": 672, "keyword": "the speed may be changing"}, {"path": "docs/MANUAL.en.md", "line": 126, "keyword": "check the rotation speed"}]
+  },
+  {
+    "id": "timing-timeout",
+    "symptoms": {"zh": ["读盘计时超时", "计时还没结束就停了", "读盘超过时间限制", "timing 测了很久没有反应", "timing 一直跑不完", "测转速卡住很久"], "en": ["timing ran out of time", "timing time limit reached", "drive check timed out", "timing has been running a long time"]},
+    "error_patterns": [{"regex": "timing[^\\n]*time limit"}, {"text": "Do not burn to fix a timeout"}],
+    "cause": {"zh": "计时命令有时限，连续读错也会提前结束。", "en": "Timing has a time limit and can also stop early after consecutive read errors."},
+    "steps": {"zh": ["查看保存的命令错误，关闭其他光驱软件，重装盘并用同一张盘换读速或光驱重试。"], "en": ["Inspect the saved errors. Close other drive software, reload and retry the same disc at an untried speed or with another drive."]},
+    "commands": ["python -m discprobe timing --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
+    "sources": [{"path": "discprobe/guide.py", "line": 724, "keyword": "time limit"}, {"path": "discprobe/guide.py", "line": 726, "keyword": "Do not burn to fix a timeout"}, {"path": "docs/MANUAL.en.md", "line": 235, "keyword": "stops early"}]
+  },
+  {
+    "id": "unreadable-after-burn",
+    "symptoms": {"zh": ["刻完读不出来", "刚烧好的盘读不了", "刻完了回读失败", "刻好以后电脑读不出来光盘", "电脑读不出来刻完的光盘"], "en": ["cannot read disc after burning", "newly burned disc won't read", "burned disc unreadable after writing"]},
+    "error_patterns": [{"text": "First reuse an existing recorded data disc; close other drive software"}, {"text": "geo needs readable plain data"}, {"text": "cannot find a readable sector"}],
+    "cause": {"zh": "当前盘上的部分扇区可能不可读，刻有图案的盘也可能很难读。", "en": "Some sectors may be unreadable. A disc carrying a burned pattern can also be hard to read."},
+    "steps": {"zh": ["检查刻录报告和保存的读错记录。关闭其他光驱软件，重装盘，先换读速或光驱重读。", "测量优先用已有的普通数据盘；没有可用盘时才重做测量盘。"], "en": ["Check the burn report and saved read errors. Close other drive software, reload and retry at another speed or on another drive.", "For measurements, try an existing plain data disc first. Make another measuring disc only when no usable one is available."]},
+    "commands": ["python -m discprobe info --drive <drive>", "python -m discprobe timing --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
+    "sources": [{"path": "README.en.md", "line": 162, "keyword": "discs with burned patterns often can't be read"}, {"path": "README.en.md", "line": 172, "keyword": "matching, differing and unreadable blocks"}, {"path": "discprobe/guide.py", "line": 725, "keyword": "First reuse an existing recorded data disc"}, {"path": "discprobe/guide.py", "line": 940, "keyword": "retry the read on the same disc"}]
+  },
+  {
+    "id": "unsupported-platform",
+    "symptoms": {"zh": ["mac 上不能测光驱", "其他系统能直接访问光驱吗", "不支持这个硬件系统"], "en": ["mac real drive not supported", "hardware needs windows or linux", "what can i do on a mac"]},
+    "error_patterns": [{"text": "real drives need Windows or Linux"}, {"text": "This repository drives real hardware on Windows and Linux"}],
+    "cause": {"zh": "此仓库的实盘后端走 Windows 或 Linux。", "en": "This repository’s real-drive backend uses Windows or Linux."},
+    "steps": {"zh": ["使用受支持系统；README 也列出了独立的 macOS 移植。按 guide 里的模拟命令可体验计时流程。"], "en": ["Use a supported system. The README also lists a separate macOS port. The simulated timing command can demonstrate the workflow."]},
+    "commands": ["python -m discprobe timing --sim cav"],
+    "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
+    "sources": [{"path": "discprobe/guide.py", "line": 55, "keyword": "real hardware on Windows and Linux"}, {"path": "discprobe/guide.py", "line": 1316, "keyword": "real drives need Windows or Linux"}, {"path": "discprobe/guide.py", "line": 659, "keyword": "timing --sim cav"}, {"path": "README.en.md", "line": 408, "keyword": "NaiveTomcat ported it to macOS"}]
+  },
+  {
+    "id": "web-disc-type",
+    "symptoms": {"zh": ["哪里换盘种", "选错光盘类型了", "拿 CD 测却选了 DVD", "网页怎么换盘种", "网页里显示 DVD 可我放的是 CD"], "en": ["selected wrong disc type", "how to choose cd instead of dvd", "media setting mismatch"]},
+    "error_patterns": [{"text": "check disc is for DVD only"}, {"text": "needs one measured on that disc"}, {"text": "This is a CD, but the command has DVD settings"}, {"text": "This geometry was measured on a CD; add --media cd"}, {"text": "This is a Blu-ray disc, which the drive reads at a constant linear speed. Add --media bd?"}],
+    "cause": {"zh": "刻录介质需要和命令或网页所选的 CD、DVD、BD 类型一致。", "en": "The media selected in the command or web page must match the disc in the drive."},
+    "steps": {"zh": ["用 info 确认盘种，网页引导选择相同类型，命令行对 CD 指定 --media cd，对 BD 指定 --media bd。当前网页检查盘图案只支持 DVD。"], "en": ["Use info to identify the disc and select the same family in the guide. Use --media cd or --media bd as appropriate in the CLI. The web check-disc target supports DVD."]},
+    "commands": ["python -m discprobe info --drive <drive>"],
+    "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
+    "sources": [{"path": "README.en.md", "line": 158, "keyword": "disc type (CD/DVD/BD)"}, {"path": "README.en.md", "line": 427, "keyword": "CD and DVD"}, {"path": "README.en.md", "line": 464, "keyword": "--media bd"}, {"path": "discprobe/webui.py", "line": 179, "keyword": "The check disc is for DVD only"}, {"path": "discprobe/__main__.py", "line": 219, "keyword": "but the command has DVD settings"}]
+  },
+  {
+    "id": "web-double-click",
+    "symptoms": {"zh": ["双击没反应", "开始批处理没开浏览器", "启动包点了打不开", "点开始后没弹浏览器", "命令行有地址但网页没弹出", "Linux 没有桌面打不开浏览器"], "en": ["double click does nothing", "start bat did not open browser", "windows launcher no browser", "launcher prints address but no browser opens", "headless linux no browser window"]},
+    "error_patterns": [{"text": "Open this address in your browser"}, {"text": "请在浏览器打开此地址"}],
+    "cause": {"zh": "启动器能打印服务地址时，可以手动打开该地址。Linux 无图形桌面时不会自动打开浏览器。", "en": "If the launcher prints a service address, you can open it manually. Headless Linux skips automatic browser opening."},
+    "steps": {"zh": ["在运行服务的电脑上复制它打印的完整地址，包括令牌。Windows 完整包先解压，再运行“开始 Start (Windows).bat”；Linux 完整包运行 ./start-linux.sh 或 bash start-linux.sh。"], "en": ["On the computer running the service, open the full printed address including the token. Extract the Windows full package before running 开始 Start (Windows).bat. On Linux use ./start-linux.sh or bash start-linux.sh from the full package."]},
+    "commands": ["python -m discprobe webui --open"],
+    "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
+    "sources": [{"path": "README.en.md", "line": 82, "keyword": "Both full packages include Python and dependencies"}, {"path": "discprobe/web_instance.py", "line": 105, "keyword": "WAYLAND_DISPLAY"}, {"path": "discprobe/web_instance.py", "line": 112, "keyword": "Open this address in your browser"}]
+  },
+  {
+    "id": "web-drive-busy",
+    "symptoms": {"zh": ["网页说另一个窗口正在用光驱", "光驱被别的窗口占用", "两个命令抢同一个光驱", "这台光驱正在被另一个窗口或命令使用"], "en": ["drive is locked by another window", "another command is using the optical drive", "webui says drive busy"]},
+    "error_patterns": [{"text": "drive_busy"}, {"text": "This drive is in use by another window or command"}, {"text": "这台光驱正在被另一个窗口或命令使用"}],
+    "cause": {"zh": "同一个光驱正在被另一个窗口或命令使用。跨进程光驱锁会拒绝重叠操作。", "en": "Another window or command is using this drive. The per-drive lock prevents overlapping operations across processes."},
+    "steps": {"zh": ["用 webui status 查持锁者及任务。等该操作结束后再试。"], "en": ["Use webui status to check the lock holder and active tasks. Wait for that operation to finish, then retry."]},
+    "commands": ["python -m discprobe webui status"],
+    "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
+    "sources": [{"path": "discprobe/drive_lock.py", "line": 65, "keyword": "code = \"drive_busy\""}, {"path": "discprobe/drive_lock.py", "line": 74, "keyword": "这台光驱正在被另一个窗口或命令使用"}, {"path": "discprobe/web_instance.py", "line": 261, "keyword": "result[\"drives\"]"}]
+  },
+  {
+    "id": "web-host-invalid",
+    "symptoms": {"zh": ["网页提示 Host 无效", "用内网地址连不上本机模式", "localhost 可以但输电脑名字不行"], "en": ["invalid host with local webui", "local only webui rejects hostname", "can't use lan address in local only mode"]},
+    "error_patterns": [{"text": "invalid Host"}],
+    "cause": {"zh": "本机模式的服务只接受 localhost 或 127.0.0.1 对应的地址。", "en": "The local-only server expects a localhost or 127.0.0.1 address."},
+    "steps": {"zh": ["在运行服务的电脑上打开它打印的本机地址。"], "en": ["Open the printed loopback address on the computer running the server."]},
+    "commands": ["python -m discprobe webui --local-only"],
+    "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
+    "sources": [{"path": "discprobe/webui.py", "line": 1399, "keyword": "localhost:"}, {"path": "discprobe/webui.py", "line": 1520, "keyword": "invalid Host"}, {"path": "README.en.md", "line": 84, "keyword": "keep the service on this computer"}]
+  },
+  {
+    "id": "web-multiple-windows",
+    "symptoms": {"zh": ["双击两次出现两个启动窗口", "同时开了两个大厅用哪一个", "全量包每次启动地址不一样", "重复启动网页服务", "已经有一个实例在用另一套参数", "怎么换网页服务启动参数", "查当前网页服务状态"], "en": ["start launcher opens two windows", "windows launcher uses different port each time", "multiple lobby sessions after opening start twice", "webui already running with different settings", "change settings of running instance", "check webui status"]},
+    "error_patterns": [{"text": "The running instance uses different settings"}, {"text": "已有实例在用另一套参数"}],
+    "cause": {"zh": "默认的 webui 启动会复用已经运行的服务并打印同一个地址。换启动参数需要先停止该服务。", "en": "Normal webui launches reuse the running service and print the same address. Stop it before changing its launch options."},
+    "steps": {"zh": ["用 webui status 查看当前地址、运行模式和任务。要换设置，等任务结束后运行 webui stop，再用新参数启动。", "只有明确指定 --new-instance 才会绕过默认实例复用。"], "en": ["Use webui status to see the current address, mode and tasks. To change the settings, wait for the tasks to finish, run webui stop, then start with the new options.", "An explicit --new-instance bypasses the normal instance reuse."]},
+    "commands": ["python -m discprobe webui status", "python -m discprobe webui stop"],
+    "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
+    "sources": [{"path": "discprobe/web_instance.py", "line": 159, "keyword": "previous = None if new_instance else _existing(path)"}, {"path": "discprobe/web_instance.py", "line": 189, "keyword": "Run discprobe webui stop before changing them"}, {"path": "discprobe/web_instance.py", "line": 259, "keyword": "if result[\"tasks\"]:"}, {"path": "discprobe/__main__.py", "line": 2695, "keyword": "without replacing the existing instance"}]
+  },
+  {
+    "id": "web-offline",
+    "symptoms": {"zh": ["网页打不开", "浏览器连不上本机网页", "黑色窗口没了网页还在", "浏览器一直转圈载不出本机网页", "页面转圈打不开大厅", "网页连接超时"], "en": ["web page won't open", "browser cannot reach localhost", "local web page refused connection", "local web page keeps loading", "lobby never loads", "web page stuck on loading"]},
+    "error_patterns": [{"text": "Cannot reach the backend. Start the local webui service"}, {"text": "连接不到后端。启动本机 webui 服务"}],
+    "cause": {"zh": "本机网页服务可能还没启动、已停止，或浏览器用的是旧地址。", "en": "The service may not be running, or the browser may be using an old address."},
+    "steps": {"zh": ["先用 webui status 查看服务。若未运行，用完整包启动器，或在源码目录运行 webui --open。打开这次打印的地址，并保持服务的终端窗口打开。"], "en": ["Check webui status first. If the service is stopped, use the full-package launcher or run webui --open from the source checkout. Open the newly printed address and leave the service console open."]},
+    "commands": ["python -m discprobe webui status", "python -m discprobe webui --open"],
+    "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
+    "sources": [{"path": "README.en.md", "line": 83, "keyword": "Closing the console that started the service also stops it"}, {"path": "discprobe/web_instance.py", "line": 258, "keyword": "Service is not running"}, {"path": "discprobe/web/home/api.js", "line": 12, "keyword": "Start the local webui service"}]
+  },
+  {
+    "id": "web-phone-lan",
+    "symptoms": {"zh": ["手机扫码打不开链接", "拍照上传页面在手机上连不上", "手机连不到电脑的拍照页"], "en": ["phone cannot reach computer", "photo qr code opens no page", "phone cannot open the upload link", "phone cannot connect to photo page"]},
+    "error_patterns": [],
+    "cause": {"zh": "扫码上传需要手机通过局域网访问运行服务的电脑。本机模式只接受本机连接。", "en": "Photo upload needs the phone to reach the computer on the local network. Local-only mode accepts connections from the host computer only."},
+    "steps": {"zh": ["把手机和电脑接到同一 Wi-Fi，避开访客网络。用 webui status 确认服务在 LAN 模式，重新扫当前页面的码。", "如果页面提供另一个上传地址，可试那个地址。Windows 可在防火墙中检查 Python 是否允许使用专用网络。"], "en": ["Connect the phone and computer to the same Wi-Fi and avoid guest networks. Check for LAN mode with webui status, then scan the code on the current page.", "If another upload address is shown, try it. On Windows, check whether the firewall allows Python on private networks."]},
+    "commands": ["python -m discprobe webui status"],
+    "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
+    "sources": [{"path": "discprobe/web/home/photocal.js", "line": 278, "keyword": "Phone can't open the link?"}, {"path": "discprobe/web/home/photocal.js", "line": 280, "keyword": "not a guest network"}, {"path": "discprobe/web/home/photocal.js", "line": 281, "keyword": "allow Python on private networks"}, {"path": "discprobe/web/home/photocal.js", "line": 283, "keyword": "Try the other address above"}, {"path": "README.en.md", "line": 84, "keyword": "keep the service on this computer"}]
+  },
+  {
+    "id": "web-port",
+    "symptoms": {"zh": ["网页端口被占用", "两个网页服务抢一个端口", "8765已经在用了", "同端口能不能开两个实例", "第二个网页实例启动说端口被占用"], "en": ["port already in use", "second webui instance same port", "address in use starting webui"]},
+    "error_patterns": [{"text": "Address already in use"}, {"text": "[WinError 10048]"}, {"text": "Only one usage of each socket address"}],
+    "cause": {"zh": "新服务的首选端口被占用时，webui 会换到系统分配的空闲端口。重复启动通常沿用已有服务的实际地址。", "en": "If the preferred port is occupied, a new webui service uses a free port assigned by the OS. Launching again normally reuses the running service’s actual address."},
+    "steps": {"zh": ["打开当前启动输出里的完整地址，或运行 webui status 查看已登记的 URL。需要更换首选端口时，先等任务结束并停止服务，再用 --port 启动。"], "en": ["Open the full address from the launch output, or use webui status to see the registered URL. To change the preferred port, wait for active tasks and stop the service, then relaunch with --port."]},
+    "commands": ["python -m discprobe webui status"],
+    "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
+    "sources": [{"path": "discprobe/web_instance.py", "line": 166, "keyword": "exc.errno != errno.EADDRINUSE"}, {"path": "discprobe/web_instance.py", "line": 169, "keyword": "server = factory(0)"}, {"path": "discprobe/web_instance.py", "line": 191, "keyword": "previous[\"port\"]"}, {"path": "discprobe/__main__.py", "line": 2691, "keyword": "uses a free port if occupied"}]
+  },
+  {
+    "id": "web-port-invalid",
+    "symptoms": {"zh": ["端口数字填错了", "webui 端口超出范围", "设置了负数端口"], "en": ["invalid webui port number", "port is out of range", "what port can webui accept"]},
+    "error_patterns": [{"text": "invalid port"}],
+    "cause": {"zh": "端口设置不在服务接受的范围内。", "en": "The port setting is outside the accepted range."},
+    "steps": {"zh": ["使用一个可用的端口，例如手册示例的 8765，打开服务打印的地址。"], "en": ["Use an available port, such as 8765 from the installation guide, and open the address printed by the server."]},
+    "commands": ["python -m discprobe webui --port 8765"],
+    "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
+    "sources": [{"path": "discprobe/webui.py", "line": 1348, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1349, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2691, "keyword": "preferred HTTP port"}]
+  },
+  {
+    "id": "web-startup-error",
+    "symptoms": {"zh": ["双击后黑窗口一闪就关", "开始窗口闪一下就没了", "双击启动报错退出", "启动时命令窗口闪退", "Linux 启动提示找不到包内 Python"], "en": ["start window flashes and disappears", "black console closes immediately on startup", "startup crashes before printing the address", "bundled python missing on launch"]},
+    "error_patterns": [{"text": "Bundled Python is missing or not executable"}],
+    "cause": {"zh": "启动窗口立刻消失时，启动可能在网页打开前就失败了。用已经打开的终端重跑，可以看到报错。", "en": "When the launch window vanishes immediately, startup may have failed before the page could open. Rerun in an already open terminal to read the error."},
+    "steps": {"zh": ["确认已完整解压对应系统的完整包。在 Windows 打开命令提示符，进入解压目录，运行下面的批处理并保留完整报错。Linux 在解压目录运行 bash start-linux.sh。", "用 webui status 核对是否有服务在运行。如果显示正在运行，打开它列出的地址。", "如果系统没有单独安装 Python，在完整包目录用包内的 python\\python.exe（Windows）或 ./linux/python/bin/python3（Linux）运行 webui status。"], "en": ["Fully extract the full package for your OS. On Windows, open Command Prompt, change to the extracted directory, run the batch file below and keep the full error. On Linux, run bash start-linux.sh from the extracted directory.", "Use webui status to check for a running service. If one is running, open the address shown.", "If Python is not installed separately, run webui status from the full-package directory with its bundled python\\python.exe (Windows) or ./linux/python/bin/python3 (Linux)."]},
+    "commands": ["\"开始 Start (Windows).bat\"", "bash start-linux.sh", "python -m discprobe webui status"],
+    "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
+    "sources": [{"path": "tools/build_winpack.py", "line": 38, "keyword": "webui --open %*"}, {"path": "start-linux.sh", "line": 11, "keyword": "Bundled Python is missing or not executable"}, {"path": "discprobe/web_instance.py", "line": 205, "keyword": "if failures:"}, {"path": "discprobe/web_instance.py", "line": 255, "keyword": "正在运行 / Running"}, {"path": "start-linux.sh", "line": 14, "keyword": "./linux/python/bin/python3 -X utf8"}]
+  },
+  {
+    "id": "web-stop-busy",
+    "symptoms": {"zh": ["点大厅退出没有反应", "网页退出按钮按了没退出", "webui stop 不让退出", "怎么停止正在运行的服务"], "en": ["lobby quit button does nothing", "webui stop refuses to quit", "how do i stop the web service"]},
+    "error_patterns": [{"text": "Cannot force stop while disc writes are active or possible"}, {"text": "Wait for the current tasks to finish"}],
+    "cause": {"zh": "有任务进行时，大厅退出和普通 webui stop 会等待你先结束任务。有写入或写入状态未知时，服务拒绝强制停止。", "en": "Lobby Quit and ordinary webui stop require active tasks to finish first. The service refuses a forced stop when a write is active or its state is unknown."},
+    "steps": {"zh": ["用 webui status 查看正在进行的任务和光驱锁。等任务结束后，再点退出或运行 webui stop。"], "en": ["Use webui status to see active tasks and drive locks, wait for the tasks to finish, then use Quit or run webui stop."]},
+    "commands": ["python -m discprobe webui status", "python -m discprobe webui stop"],
+    "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
+    "sources": [{"path": "discprobe/webui.py", "line": 1318, "keyword": "Cannot force stop while disc writes are active or possible"}, {"path": "discprobe/webui.py", "line": 1322, "keyword": "Wait for the current tasks to finish"}, {"path": "discprobe/web_instance.py", "line": 275, "keyword": "\"/api/quit\""}, {"path": "README.en.md", "line": 83, "keyword": "use Quit in the lobby"}]
+  },
+  {
+    "id": "windows-spti",
+    "symptoms": {"zh": ["Windows 打开光驱被拒绝", "SPTI 没有管理员权限", "普通用户怎么在 Windows 读盘"], "en": ["spti refused on windows", "can't access drive as standard user", "windows spti needs elevation"]},
+    "error_patterns": [{"text": "SPTI was refused (not elevated); using the IMAPI2 transport instead"}],
+    "cause": {"zh": "在 Windows 上，SPTI 可能需要管理员权限。", "en": "SPTI can require administrator privileges on Windows."},
+    "steps": {"zh": ["用默认 auto 让工具在 SPTI 被拒时切换，或显式用 --transport imapi。"], "en": ["Use the default auto to fall back when SPTI is refused, or explicitly choose --transport imapi."]},
+    "commands": ["python -m discprobe info --drive <drive> --transport imapi"],
+    "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
+    "sources": [{"path": "discprobe/__main__.py", "line": 187, "keyword": "SPTI was refused"}, {"path": "README.en.md", "line": 108, "keyword": "add `--transport imapi`"}]
+  }
+]

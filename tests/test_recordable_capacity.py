@@ -135,7 +135,7 @@ def test_catalogue_is_exact_mid_and_explicit_capacity_only(tmp_path):
 def run_calibration(monkeypatch, tmp_path, *, capacity=None, explicit=None, catalogue=None, burn=False):
     monkeypatch.chdir(tmp_path)
     disc = dict(present=True, blank=False, media='dvd', kind='DVD-R', mid='MID', sectors=1000000,
-                capacity_sectors=capacity, capacity_source='test metadata')
+                capacity_sectors=capacity, capacity_source='test metadata', profile=0x11, rewritable=False)
     if catalogue:
         (tmp_path / 'presets').mkdir()
         (tmp_path / 'presets/catalogue.json').write_text(json.dumps({'MID': {'sectors': catalogue}}))
@@ -146,6 +146,9 @@ def run_calibration(monkeypatch, tmp_path, *, capacity=None, explicit=None, cata
                               *(['--iso', 'measurement.iso', '--yes-write'] if burn else [])])
     calls, events = [], []
     reads = [dict(disc, blank=True, sectors=2298496, capacity_sectors=2298496), disc] if burn else [disc]
+    if burn:
+        expected = calibrate.disc_identity.from_disc_report(reads[0])
+        monkeypatch.setattr(calibrate.disc_identity, 'read_identity', lambda _drive: expected)
 
     def read(*a, **kw):
         return SimpleNamespace(stdout=json.dumps({'disc': reads.pop(0)}))
@@ -153,6 +156,10 @@ def run_calibration(monkeypatch, tmp_path, *, capacity=None, explicit=None, cata
     def child(argv, **kw):
         command = argv[argv.index('discprobe') + 1:]
         calls.append(command)
+        if command[0] == 'burn':
+            env = kw['env']
+            assert json.loads(env[calibrate.disc_identity.EXPECTED_ENV]) == dict(drive=args.drive, identity=expected)
+            assert json.loads(env['DISCPROBE_PARENT_DRIVE_LEASE'])['token']
         if command[0] == 'disexport':
             Path(args.preset).write_text('{}')
         return SimpleNamespace(poll=lambda: 0, returncode=0)

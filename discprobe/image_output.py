@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
+from stat import S_ISREG
 import tempfile
 
 from . import iso9660
@@ -81,9 +82,13 @@ def require_checked(image, stat):
 
 
 def finished_stat(image):
-    if not image.is_file() or image.suffix.lower() != '.iso' or Path(str(image) + iso9660.UNFINISHED).exists():
-        raise FileNotFoundError('请选择已完成的 ISO 镜像。 / Choose a finished ISO image.')
-    stat = image.stat()
-    if not stat.st_size or stat.st_size % 2048:
+    try:
+        info = image.stat()
+        if (not S_ISREG(info.st_mode) or image.suffix.lower() != '.iso'
+                or Path(str(image) + iso9660.UNFINISHED).exists()):
+            raise FileNotFoundError
+    except FileNotFoundError:
+        raise FileNotFoundError('请选择已完成的 ISO 镜像。 / Choose a finished ISO image.') from None
+    if not info.st_size or info.st_size % 2048:
         raise ValueError('ISO 大小必须是 2048 字节的正整数倍。 / ISO size must be a positive multiple of 2048 bytes.')
-    return stat
+    return info

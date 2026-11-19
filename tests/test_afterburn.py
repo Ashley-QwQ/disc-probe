@@ -132,6 +132,7 @@ def test_failed_cli_attempt_files_only_its_new_log_result(store, tmp_path, monke
             stream.write(json.dumps(dict(type="burn_result", result="failed", reason="virtual interruption")) + "\n")
         raise burner.BurnError("virtual interruption")
     monkeypatch.setattr(burner, "burn", interrupted)
+    monkeypatch.setattr(burner.disc_identity, "expected_for_write", lambda *a, **k: None)
     with pytest.raises(SystemExit):
         cli._main(["burn", "--drive", "X:", "--iso", str(iso), "--work", ident, "--yes-write"])
     assert store.after_burn(ident)["record"]["report"]["reason"] == "virtual interruption"

@@ -535,14 +535,23 @@ def test_web_job_passes_work_and_home_without_recorder(store, tmp_path, monkeypa
         def close(self):
             pass
     backend = webui.Backend(tmp_path, runner=FakeChild,
-        drive_provider=lambda: [dict(id="TEST:", disc=dict(blank=True))])
+        drive_provider=lambda: [dict(id="TEST:", disc=dict(blank=True, media="dvd", profile=0x11, rewritable=False))])
     # The completion hook itself is covered by the CLI test; no burner child runs here.
     monkeypatch.setattr(backend, "_watch", lambda job: job.finished.set())
-    job = backend.start(dict(action="burn", drive="TEST:", work=ident,
-        args=dict(iso="iso/mock.iso"), burn_token=backend.burn_token()["token"]))
+    payload = dict(action="burn", drive="TEST:", args=dict(iso="iso/mock.iso"))
+    job = backend.start(dict(payload, work=ident, burn_token=backend.burn_token(payload)["token"]))
     assert job["job"] in backend.jobs
     assert captured["argv"][captured["argv"].index("--work") + 1] == ident
     assert captured["env"]["DISCPROBE_HOME"] == str(store.root.parent)
     # Prevent backend.close from treating the already finished fake job as live.
     backend.jobs[job["job"]].exit = 0
     backend.close()
+
+
+def test_list_skips_a_folder_left_without_work_json(store):
+    """An interrupted delete can leave w-.../assets/ behind; listing (and the bookkeeping after a
+    successful burn, which lists works) must not fail on it."""
+    made = store.new("kept", "dvd")
+    orphan = store.root / "w-20261119-000045-0b0c"
+    (orphan / "assets").mkdir(parents=True)
+    assert [w["id"] for w in store.list()] == [made["id"]]

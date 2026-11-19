@@ -2052,7 +2052,7 @@ def cmd_template(args):
 
 
 COMMAND_GROUPS = (
-    ("Start here", ("menu", "guide", "webui", "version", "tutorial", "selftest", "list")),
+    ("Start here", ("menu", "guide", "troubleshoot", "webui", "version", "tutorial", "selftest", "list")),
     ("Measure a disc", ("info", "whois", "timing", "geo", "results", "diagnose")),
     ("Make a disc image", ("random", "label", "compose", "colour-design", "textures", "files-layout", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc", "checkdisc")),
@@ -2280,6 +2280,9 @@ def _build_parser():
     sp.add_argument('run', metavar='RUN', help='run folder or summary.json')
     from .diagnostics import run as diagnose_run
     sp.set_defaults(func=diagnose_run)
+
+    from . import troubleshoot
+    troubleshoot.arguments(sub.add_parser("troubleshoot", help=troubleshoot.HELP))
 
     sp = sub.add_parser("whois", help="read and check a public disc identity record")
     common(sp)
@@ -2880,6 +2883,9 @@ def main(argv=None):
         rest = [a for a in rest if a != "--no-animation"]
         ui.term().animate = False
     try:
+        if rest[:1] == ["troubleshoot"]:
+            from . import troubleshoot
+            return troubleshoot.cli(rest[1:], prog=guide.PROG)
         if rest[:1] == ["completion"]:      # not a parser command, so piped help and errors stay as they were
             from . import completion
             return completion.main(rest[1:], _build_parser, ui.term().stream)
