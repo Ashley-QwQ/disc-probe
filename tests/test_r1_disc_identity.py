@@ -185,3 +185,13 @@ def test_r1_gh70n_saved_read_has_mid_but_no_valid_disc_identification():
         "profile": 0x11, "mid": "RITEKF1", "medium_id": None, "capacity_sectors": 2297888,
         "blank": True, "rewritable": False,
     }
+
+
+def test_r1_erasing_a_write_once_disc_says_it_cannot_be_erased():
+    # DVD-R (profile 0x11): a write-once disc gets its own words, not the "not enough identity" refusal
+    identity = dict(media="dvd", profile=0x11, blank=False, rewritable=False, read_at_ns=1,
+                    capacity_sectors=2298496, mid="RITEKF1")
+    with pytest.raises(disc_identity.DiscChanged, match="这张盘不能擦除") as error:
+        disc_identity.require_identity(identity, erasing=True)
+    assert "only rewritable discs" in str(error.value)
+    assert disc_identity.require_identity(identity) is identity      # burning it is still allowed

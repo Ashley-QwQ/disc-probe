@@ -15,6 +15,8 @@ EXPECTED_ENV = "DISCPROBE_EXPECTED_DISC"
 _STABLE = ("media", "profile", "mid", "medium_id", "rewritable")
 _FIELDS = (*_STABLE, "capacity_sectors", "blank", "closed", "sectors")
 _UNAVAILABLE = "无法读取足够的光盘身份信息，已拒绝写入 / Not enough disc identity information to authorize writing."
+_NOT_REWRITABLE = ("这张盘不能擦除：只有 DVD±RW、CD-RW 这类可擦写盘能擦 / "
+                   "This disc cannot be erased: only rewritable discs (DVD±RW, CD-RW) can.")
 
 
 class DiscChanged(ValueError):
@@ -85,7 +87,9 @@ def require_identity(identity, *, erasing=False):
     # reporting its total capacity. Both are compared as identity evidence;
     # the readable extent is never used to decide whether an ISO will fit.
     has_size = any(positive_sectors(identity.get(key)) for key in ("capacity_sectors", "sectors"))
-    if erasing and (identity["rewritable"] is not True or not has_size
+    if erasing and identity["rewritable"] is not True:
+        raise DiscChanged(_NOT_REWRITABLE)
+    if erasing and (not has_size
                     or not any(isinstance(identity.get(key), str) and identity[key].strip()
                                for key in ("mid", "medium_id"))):
         raise DiscChanged(_UNAVAILABLE)
