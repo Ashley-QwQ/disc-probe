@@ -1,4 +1,4 @@
-"""Verify a complete portable release ZIP over SSH on x79 or agentbox."""
+"""Verify a Linux-capable portable release ZIP over SSH on x79 or agentbox."""
 from __future__ import annotations
 
 import argparse
@@ -92,6 +92,10 @@ else:
     raise AssertionError('GUI OpenCV distribution is present')
 print(json.dumps(dict(python=sys.version.split()[0], executable=sys.executable, dependencies=actual)))
 '''])
+search = call([*python, '-m', 'discprobe', 'troubleshoot', '--json',
+               'This disc cannot be erased: only rewritable discs'], show=False)
+assert json.loads(search.stdout)['results'][0]['id'] == 'burn-erase-media'
+print('Offline troubleshooting search: burn-erase-media', flush=True)
 call([*python, '-m', 'discprobe', 'selftest'], timeout=900)
 web = [*python, '-m', 'discprobe', 'webui']
 assert not json.loads(call([*web, 'status', '--json'], show=False, timeout=15).stdout)['running']
@@ -159,8 +163,9 @@ def main():
     out = args.out.resolve()
     if any('b' + 'lind' in part.casefold() for path in (artifact, out) for part in path.parts):
         parser.error('excluded input or output path')
-    if not re.fullmatch(r'disc-probe-[0-9A-Za-z.-]+-full\.zip', artifact.name) or not artifact.is_file():
-        parser.error('provide a release disc-probe-<version>-full.zip')
+    match = re.fullmatch(r'disc-probe-[0-9A-Za-z.-]+-(full|linux-x86_64)\.zip', artifact.name)
+    if not match or not artifact.is_file():
+        parser.error('provide a release disc-probe-<version>-full.zip or -linux-x86_64.zip')
     with zipfile.ZipFile(artifact) as archive:
         size = 0
         for member in archive.infolist():
@@ -170,6 +175,9 @@ def main():
                     or any('b' + 'lind' in part.casefold() for part in parts)
                     or stat.S_ISLNK(member.external_attr >> 16)):
                 parser.error('ZIP contains a linked or excluded entry')
+            if (match[1] == 'linux-x86_64' and len(parts) > 1
+                    and (parts[1] == 'python' or member.filename.lower().endswith('.bat'))):
+                parser.error('Linux-only ZIP contains a Windows interpreter or launcher')
             size += member.file_size
         if f'{artifact.stem}/linux/python/bin/python3' not in archive.namelist():
             parser.error('ZIP needs the portable Linux runtime')

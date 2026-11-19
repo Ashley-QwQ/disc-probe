@@ -2,8 +2,8 @@
 
 ## 完整包
 
-`disc-probe-<版本>-full.zip` 同时带 Windows 和 Linux x86_64 便携 Python 3.13
-及依赖。Linux 需要 glibc 2.28 或更新。先用发布页的 SHA256SUMS.txt 核对 ZIP，
+只用 Linux x86_64 选 `disc-probe-<版本>-linux-x86_64.zip`（<!-- size:linux-x86_64 -->约 165 MB<!-- /size -->），只用 Windows x86_64 选 `disc-probe-<版本>-win64.zip`（<!-- size:win64 -->约 120 MB<!-- /size -->）。
+两个平台都用或不确定时选 `disc-probe-<版本>-full.zip`（<!-- size:full -->约 270 MB<!-- /size -->）。各包自带便携 Python 3.13 及依赖。Linux 需要 glibc 2.28 或更新。先用发布页的 SHA256SUMS.txt 核对 ZIP，
 再将整个 ZIP 解压到可写目录，
 进入解压目录运行：
 
@@ -13,8 +13,8 @@ bash start-linux.sh
 
 浏览器会打开大厅。无图形桌面时，使用终端打印的带令牌地址。
 在大厅点“退出”，或在包目录运行 `./linux/python/bin/python3 -m discprobe webui stop` 停止服务。
-完整包启动时直接用包内的 Python，无需系统 Python、虚拟环境或安装依赖。
-同一个 ZIP 在 Windows 上解压后，双击 `开始 Start (Windows).bat` 即可启动。
+单平台包和完整包都直接用包内的 Python，无需系统 Python、虚拟环境或安装依赖。
+在 Windows 上解压 win64 或 full 后，双击 `开始 Start (Windows).bat` 即可启动。
 
 ## 通用 wheel 或源码
 

@@ -80,6 +80,10 @@ def test_invalid_input_refuses_to_create_archives(tmp_path, inputs, platform, na
         path.unlink()
     lock_file.write_text(json.dumps(lock), encoding="utf-8")
     out = tmp_path / "out"
+    out.mkdir()
+    for variant in ("core", "full", "win64", "linux-x86_64"):
+        (out / f"disc-probe-main-{variant}.zip").write_bytes(b"stale package")
+        (out / f"disc-probe-main-{variant}.zip.sha256").write_bytes(b"stale checksum")
     command = [sys.executable, "-X", "utf8", "-B", str(tool), "--cache", str(cache), "--out", str(out)]
     result = subprocess.run(command, cwd=tmp_path, capture_output=True, encoding="utf-8", timeout=25)
     assert result.returncode != 0

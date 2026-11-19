@@ -217,6 +217,11 @@ def finalize_assets(out, sources, manifest):
         inventory.append(dict(file=target.name, package=package, size=target.stat().st_size,
                               sha256=sha256(target)))
     inventory.sort(key=lambda entry: entry['file'])
+    by_file = {entry['file']: entry for entry in inventory}
+    portable = manifest.get('portable_packages', {})
+    for entry in portable.values():
+        if by_file.get(entry['file'], {}).get('size') != entry['size']:
+            raise RuntimeError(f"portable asset size differs from its build inventory: {entry['file']}")
     write_json(ready / 'manifest.json', dict(manifest, assets=inventory))
     sums = inventory + [dict(file='manifest.json', sha256=sha256(ready / 'manifest.json'))]
     lines = []
@@ -225,11 +230,35 @@ def finalize_assets(out, sources, manifest):
             runtime = manifest[platform]
             pins = ' '.join(f'{name}=={version}' for name, version in runtime['dependencies'].items())
             lines.append(f'# {platform}: Python {runtime["python"]} {pins}\n')
+    if portable:
+        lines.append('# Choose win64 for Windows, linux-x86_64 for Linux, or full for both or if unsure.\n')
+        lines.extend(f'# {entry["file"]}: {entry["size"]} bytes\n' for entry in portable.values())
     lines.extend(f'{p["sha256"]}  {p["file"]}\n' for p in sums)
     (ready / 'SHA256SUMS.txt').write_text(''.join(lines), encoding='ascii', newline='\n')
     assets = out / 'assets'
     ready.rename(assets)
     return assets
+
+
+def read_portable_release(directory, version, inputs, install_guide):
+    variants = {'full': ['windows', 'linux'], 'win64': ['windows'], 'linux-x86_64': ['linux']}
+    expected = {}
+    metadata = {}
+    for variant, platforms in variants.items():
+        artifact = directory / f'disc-probe-{version}-{variant}.zip'
+        expected[variant] = dict(file=artifact.name, size=artifact.stat().st_size, platforms=platforms)
+        with zipfile.ZipFile(artifact) as archive:
+            metadata[variant] = json.loads(archive.read(f'{artifact.stem}/release-build.json'))
+            if variant == 'full':
+                install_guide.write_bytes(archive.read(f'{artifact.stem}/INSTALL-linux.md'))
+    full = metadata['full']
+    for variant, info in metadata.items():
+        included = [p for p in variants['full'] if p in info]
+        if (info['variant'] != variant or info['portable_packages'] != expected
+                or info['pack_inputs'] != inputs or included != variants[variant]
+                or any(info[platform] != full[platform] for platform in included)):
+            raise RuntimeError(f'portable release metadata differs from the shared build: {variant}')
+    return full
 
 
 def main(argv=None):
@@ -335,10 +364,12 @@ def main(argv=None):
                   snapshot, logs / 'winpack-build.log', env, checks)
         disc_lab = build_disc_lab(snapshot, candidates, args.version, python, logs, test_env, checks)
         disc_neo = build_disc_neo(neo, candidates, args.version)
+        install_guide = candidates / 'INSTALL-linux.md'
+        portable = read_portable_release(out / 'winpack', args.version, info['pack_inputs'], install_guide)
         sources = [(p, 'disc-probe') for p in sorted(candidates.iterdir())
                    if p.suffix == '.whl' or p.name.endswith('.tar.gz')]
         sources.extend((p, 'disc-probe') for p in sorted((out / 'winpack').glob('*.zip')))
-        sources.append((snapshot / 'INSTALL-linux.md', 'disc-probe'))
+        sources.append((install_guide, 'disc-probe'))
         for package, result in (('disc-lab', disc_lab), ('disc-neo', disc_neo)):
             if result['status'] == 'PASS':
                 sources.append((candidates / result['asset'], package))
@@ -346,17 +377,13 @@ def main(argv=None):
         canonical = subprocess.check_output([*python, '-c', 'import _build_backend as b; print(b.project()["version"])'],
                                             cwd=snapshot, env=env, text=True).strip()
         gui = json.loads((snapshot / 'discprobe/web/gui.json').read_text(encoding='utf-8'))
-        full = f'disc-probe-{args.version}-full'
-        with zipfile.ZipFile(out / 'winpack' / f'{full}.zip') as archive:
-            portable = json.loads(archive.read(f'{full}/release-build.json'))
-        if portable['pack_inputs'] != info['pack_inputs']:
-            raise RuntimeError('portable pack input list differs from release preflight')
         manifest = dict(schema=4, status='PASS', **info, pep440_version=canonical, gui_version=gui['gui_version'],
                         resource_limits=dict(image_workers=1, math_threads=1),
                         python=sys.version, node=subprocess.check_output([node, '--version'], text=True).strip(),
                         check_dependencies=dict(portable['windows']['dependencies'],
                                                 pytest=importlib.metadata.version('pytest')),
                         windows=portable['windows'], linux=portable['linux'],
+                        portable_packages=portable['portable_packages'],
                         checks=checks, disc_lab=disc_lab, disc_neo=disc_neo,
                         brand_assets=brand_inventory(snapshot))
         if (ROOT / 'discprobe/version.py').read_bytes() != original_version or clean_commit() != commit:

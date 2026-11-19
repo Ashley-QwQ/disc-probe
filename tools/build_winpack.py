@@ -1,4 +1,4 @@
-"""Build the core ZIP and the full ZIP with portable Windows and Linux Python.
+"""Build the core ZIP and three portable ZIPs from one Windows and Linux staging tree.
 
     python tools/build_winpack.py --ref v0.1.0 --label 0.1.0 --out D:/disc-probe-dist
 
@@ -45,8 +45,20 @@ SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_bac
 LEAVE_OUT = ("__pycache__", "tests", "test", "*.pyi", "*.pdb")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LINUX_START = "start-linux.sh"
-
 START_NAME = "开始 Start (Windows).bat"
+READ_FIRST = "先看我 Read me first.txt"
+PORTABLE = {
+    "full": ("windows", "linux"),
+    "win64": ("windows",),
+    "linux-x86_64": ("linux",),
+}
+PLATFORM_FILES = {
+    "windows": {"python", START_NAME, "winpack-keep-list.json"},
+    "linux": {"linux", LINUX_START, "linuxpack-keep-list.json"},
+}
+DOWNLOAD_DOCS = ("README.md", "README.en.md", "INSTALL-linux.md")
+SIZE_MARKER = re.compile(r"<!-- size:([\w-]+) -->[^<\r\n]+<!-- /size -->")
+VARIANT_FILES = {"release-build.json", "package.json", "NOTICE.txt", READ_FIRST}
 # CMD treats the first line as a label. In sh, the trailing comment hides the CR.
 START = (
     ":; printf '%s\\n' '这是 Windows 启动器。Linux 请运行 bash start-linux.sh。 / "
@@ -73,14 +85,28 @@ echo 这个窗口已经准备好。也可以直接输入命令；用完关闭即
 
 NOTICE = """disc-probe, GPL-3.0-or-later. See LICENSE. Source: https://github.com/Ashley-QwQ/disc-probe
 
-This package carries Python {python} for Windows and Linux, plus {packages}.
+This package carries Python {python} for {platforms}, plus {packages}.
 Runtime sources and versions are listed in release-build.json. The trim is
-recorded in winpack-keep-list.json and linuxpack-keep-list.json.
+recorded in {keep_lists}.
 Dependency licences are in each runtime's site-packages/*.dist-info.
 
-To remove it, delete this folder. Results are in results\\ here, and Merge Sectors keeps its board in
-%LOCALAPPDATA%\\disc-probe.
+To remove it, delete this folder. Results are in the results folder here.{windows_state}
 """
+
+SINGLE_READ_FIRST = {
+    "win64": (
+        "解压后双击“开始 Start (Windows).bat”。\n"
+        "After extracting, double-click “开始 Start (Windows).bat”.\n\n"
+        "另有两个平台都能用的 full 包，以及单独的 linux-x86_64 包。\n"
+        "Also available: full for both platforms, and linux-x86_64 for Linux.\n"
+    ),
+    "linux-x86_64": (
+        "解压后运行 bash start-linux.sh。Linux 需要 glibc 2.28 或更新。\n"
+        "After extracting, run bash start-linux.sh. Linux requires glibc 2.28 or later.\n\n"
+        "另有两个平台都能用的 full 包，以及单独的 win64 包。\n"
+        "Also available: full for both platforms, and win64 for Windows.\n"
+    ),
+}
 
 
 def sha256(path: str) -> str:
@@ -446,29 +472,138 @@ def trim_pack(a, root):
         json.dump(keep, f, ensure_ascii=False, indent=2)
 
 
-def pack(root: str, out: str, commit: str) -> None:
-    prefix = Path(root).name
-    archive = os.path.join(out, prefix + ".zip")
-    with tempfile.TemporaryDirectory(dir=out) as stage:
-        candidate = Path(stage) / Path(archive).name
-        with zipfile.ZipFile(candidate, "w", compression=zipfile.ZIP_DEFLATED) as z:
-            for folder, dirs, names in os.walk(root):
-                dirs[:] = sorted(d for d in dirs if allowed(d))
-                for name in sorted(n for n in names if allowed(n)):
-                    source = Path(folder) / name
-                    relative = source.relative_to(root).as_posix()
-                    entry = zipfile.ZipInfo.from_file(source, f"{prefix}/{relative}")
-                    executable = relative == LINUX_START or relative.startswith("linux/python/bin/")
-                    entry.create_system = 3
-                    entry.external_attr = (stat.S_IFREG | (0o755 if executable else 0o644)) << 16
-                    entry.compress_type = zipfile.ZIP_DEFLATED
-                    with source.open("rb") as stream, z.open(entry, "w") as output:
-                        shutil.copyfileobj(stream, output)
-        candidate.replace(archive)
-    digest = sha256(archive)
-    with open(archive + ".sha256", "w", encoding="ascii", newline="\n") as f:
-        f.write(f"{digest}  {os.path.basename(archive)}\n")
-    print(f"{archive}: {os.path.getsize(archive) / 1e6:.1f} MB, commit {commit}, sha256 {digest[:20]}")
+def write_payload(root, archive, omit=()):
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output:
+        for folder, dirs, names in os.walk(root):
+            at_root = Path(folder) == root
+            dirs[:] = sorted(d for d in dirs if allowed(d) and not (at_root and d in omit))
+            for name in sorted(n for n in names if allowed(n) and not (at_root and n in omit)):
+                source = Path(folder) / name
+                relative = source.relative_to(root).as_posix()
+                entry = zipfile.ZipInfo.from_file(source, f"{archive.stem}/{relative}")
+                executable = relative == LINUX_START or relative.startswith("linux/python/bin/")
+                entry.create_system = 3
+                entry.external_attr = (stat.S_IFREG | (0o755 if executable else 0o644)) << 16
+                entry.compress_type = zipfile.ZIP_DEFLATED
+                with source.open("rb") as stream, output.open(entry, "w") as member:
+                    shutil.copyfileobj(stream, member)
+
+
+def excluded_platform_files(platforms):
+    return set().union(*(paths for platform, paths in PLATFORM_FILES.items() if platform not in platforms))
+
+
+def download_doc(text, inventory):
+    if sorted(SIZE_MARKER.findall(text)) != sorted(inventory):
+        raise ValueError("download guide must contain one size marker per portable variant")
+    for variant, entry in inventory.items():
+        for version in ("<version>", "<版本>"):
+            text = text.replace(f"disc-probe-{version}-{variant}.zip", entry["file"])
+    return SIZE_MARKER.sub(lambda match: f"{inventory[match[1]]['size'] / 1e6:.3f} MB", text)
+
+
+def portable_metadata(variant, info, package, docs, read_first, inventory):
+    platforms = PORTABLE[variant]
+    runtimes = {platform: info[platform] for platform in platforms}
+    release = {key: value for key, value in info.items() if key not in PLATFORM_FILES}
+    versions = next(iter(runtimes.values()))["dependencies"]
+    keep_lists = []
+    if "windows" in runtimes and package["trimmed"]:
+        keep_lists.append("winpack-keep-list.json")
+    if "linux" in runtimes:
+        keep_lists.append("linuxpack-keep-list.json")
+    notice = NOTICE.format(
+        python=PYTHON, platforms=" and ".join(platform.title() for platform in platforms),
+        packages=", ".join(f"{name}=={version}" for name, version in versions.items()),
+        keep_lists=" and ".join(keep_lists) or "the build audit",
+        windows_state=("\nOn Windows, Merge Sectors keeps its board in %LOCALAPPDATA%\\disc-probe."
+                       if "windows" in runtimes else ""),
+    )
+    members = {
+        "release-build.json": json.dumps(dict(release, **runtimes, variant=variant, portable_packages=inventory),
+                                         ensure_ascii=False, indent=2) + "\n",
+        "package.json": json.dumps(dict(package, **runtimes, variant=variant), ensure_ascii=False, indent=2) + "\n",
+        "NOTICE.txt": notice,
+        **{name: download_doc(text, inventory) for name, text in docs.items()},
+    }
+    note = SINGLE_READ_FIRST[variant].encode("utf-8") if variant in SINGLE_READ_FIRST else read_first
+    return {**{name: text.encode("utf-8") for name, text in members.items()}, READ_FIRST: note}
+
+
+def store_metadata(archive, prefix, members, mode):
+    with zipfile.ZipFile(archive, mode, compression=zipfile.ZIP_STORED) as output:
+        for name, data in members.items():
+            entry = zipfile.ZipInfo(f"{prefix}/{name}")
+            entry.create_system = 3
+            entry.external_attr = (stat.S_IFREG | 0o644) << 16
+            output.writestr(entry, data)
+
+
+def verify_portable_archives(archives, inventory):
+    inventories = {}
+    for variant, archive in archives.items():
+        prefix = archive.stem + "/"
+        with zipfile.ZipFile(archive) as source:
+            names = source.namelist()
+            info = json.loads(source.read(prefix + "release-build.json"))
+            if (len(set(names)) != len(names) or not all(name.startswith(prefix) for name in names)
+                    or info["variant"] != variant or info["portable_packages"] != inventory):
+                raise ValueError(f"inconsistent portable inventory in {archive.name}")
+            hashes = {}
+            for name in names:
+                relative = name.removeprefix(prefix)
+                if relative not in VARIANT_FILES:
+                    with source.open(name) as data:
+                        hashes[relative] = hashlib.file_digest(data, "sha256").hexdigest()
+        inventories[variant] = hashes
+    full = inventories["full"]
+    if not {START_NAME, LINUX_START, "python/python.exe", "linux/python/bin/python3",
+            "discprobe/data/troubleshoot.json"} <= full.keys():
+        raise ValueError("full archive is missing a launcher, bundled interpreter or troubleshooting data")
+    for variant, platforms in PORTABLE.items():
+        omit = excluded_platform_files(platforms)
+        expected = {path: digest for path, digest in full.items() if path.split("/", 1)[0] not in omit}
+        if (inventories[variant] != expected
+                or (variant == "linux-x86_64" and any(path.lower().endswith(".bat") for path in expected))):
+            raise ValueError(f"{variant} payload differs from the shared build")
+    print(f"Portable payload verified: {sum(path.startswith('discprobe/') for path in full)} application files "
+          "and matching platform files.", flush=True)
+
+
+def pack_portable(root, directory, label, info, package):
+    archives = {variant: directory / f"disc-probe-{label}-{variant}.zip" for variant in PORTABLE}
+    docs = {name: (root / name).read_text(encoding="utf-8") for name in DOWNLOAD_DOCS}
+    read_first = (root / READ_FIRST).read_bytes()
+    for variant, archive in archives.items():
+        omit = excluded_platform_files(PORTABLE[variant]) | set(DOWNLOAD_DOCS) | VARIANT_FILES
+        write_payload(root, archive, omit)
+    payload_bytes = {variant: archive.stat().st_size for variant, archive in archives.items()}
+    inventory = {variant: dict(file=archive.name, size=0, platforms=list(PORTABLE[variant]))
+                 for variant, archive in archives.items()}
+    empty_zip = io.BytesIO()
+    store_metadata(empty_zip, "", {}, "w")
+    # Stored metadata grows only when a size gains a digit. Measure the small
+    # metadata ZIPs to account for filenames and headers without recompressing payloads.
+    for _ in range(10):
+        additions = {variant: portable_metadata(variant, info, package, docs, read_first, inventory)
+                     for variant in archives}
+        sizes = {}
+        for variant, archive in archives.items():
+            probe = io.BytesIO()
+            store_metadata(probe, archive.stem, additions[variant], "w")
+            sizes[variant] = payload_bytes[variant] + probe.tell() - empty_zip.tell()
+        if all(inventory[variant]["size"] == size for variant, size in sizes.items()):
+            break
+        for variant, size in sizes.items():
+            inventory[variant]["size"] = size
+    else:
+        raise ValueError("portable ZIP sizes did not settle")
+    for variant, archive in archives.items():
+        store_metadata(archive, archive.stem, additions[variant], "a")
+        if archive.stat().st_size != inventory[variant]["size"]:
+            raise ValueError(f"portable ZIP size mismatch: {archive.name}")
+    verify_portable_archives(archives, inventory)
+    return archives.values()
 
 
 def build_core(a, commit: str) -> None:
@@ -509,7 +644,7 @@ def main(argv=None) -> None:
     a.out = os.path.abspath(a.out)
     os.makedirs(a.out, exist_ok=True)
     # A failed rebuild must not leave an older zip looking like its result.
-    for kind in ("core", "full"):
+    for kind in ("core", *PORTABLE):
         for suffix in (".zip", ".zip.sha256"):
             old = os.path.abspath(os.path.join(a.out, f"disc-probe-{a.label}-{kind}" + suffix))
             if os.path.dirname(old) != a.out:
@@ -557,24 +692,42 @@ def build_bundle(a, stage, inputs):
     write_start(root)
     with open(os.path.join(py, "shell.cmd"), "w", encoding="utf-8", newline="\r\n") as f:
         f.write(SHELL)
-    with open(os.path.join(root, "NOTICE.txt"), "w", encoding="utf-8", newline="\r\n") as f:
-        f.write(NOTICE.format(python=PYTHON, packages=", ".join(f"{p}=={v}" for p, v in versions.items())))
     build_info = Path(root) / "release-build.json"
     info = json.loads(build_info.read_text(encoding="utf-8")) if build_info.is_file() else dict(commit=commit)
     if "pack_inputs" in info and info["pack_inputs"] != inputs:
         raise ValueError("verified inputs differ from release preflight")
     windows = dict(python=PYTHON, dependencies=versions, embed_sha256=runtime["sha256"], runtime=runtime,
                    wheels={entry["name"]: entry for entry in inputs["windows"] if entry["kind"] == "wheel"})
-    write_json(build_info, dict(info, windows=windows, linux=linux, pack_inputs=inputs))
-    write_json(Path(root) / "package.json",
-               dict(ref=a.ref, commit=commit, worktree=a.worktree, audit_id=a.audit_id,
-                    windows=windows, linux=linux))
+    info = dict(info, windows=windows, linux=linux, pack_inputs=inputs)
+    write_json(build_info, info)
+    package = dict(ref=a.ref, commit=commit, worktree=a.worktree, audit_id=a.audit_id, trimmed=not a.no_trim)
+    write_json(Path(root) / "package.json", dict(package, windows=windows, linux=linux))
     check_pack(a, root, "untrimmed")
     if not a.no_trim:
         trim_pack(a, root)
         check_pack(a, root, "trimmed")
-    pack(core, a.out, commit)
-    pack(root, a.out, commit)
+    candidates = stage / "archives"
+    candidates.mkdir()
+    portable = pack_portable(Path(root), candidates, a.label, info, package)
+    core_archive = candidates / (Path(core).name + ".zip")
+    write_payload(Path(core), core_archive)
+    pending = []
+    for archive in (core_archive, *portable):
+        digest = sha256(archive)
+        checksum = archive.with_suffix(".zip.sha256")
+        checksum.write_text(f"{digest}  {archive.name}\n", encoding="ascii", newline="\n")
+        pending.extend((archive, checksum))
+        print(f"{archive.name}: {archive.stat().st_size / 1e6:.3f} MB, commit {commit}, sha256 {digest[:20]}")
+    published = []
+    try:
+        for candidate in pending:
+            target = Path(a.out) / candidate.name
+            candidate.replace(target)
+            published.append(target)
+    except OSError:
+        for target in published:
+            target.unlink()
+        raise
 
 
 if __name__ == "__main__":
