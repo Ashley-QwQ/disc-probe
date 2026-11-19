@@ -1967,6 +1967,17 @@ class Handler(BaseHTTPRequestHandler):
             self._json_body_read = True
             payload = json.loads(body)
             path = urlsplit(self.path).path
+            if path == "/api/troubleshoot":
+                from .troubleshoot import search
+                if not isinstance(payload, dict) or set(payload) - {"query", "lang"}:
+                    raise APIError("expected query and optional lang")
+                lang = payload.get("lang", "en")
+                try:
+                    result = search(payload.get("query"), lang)
+                except ValueError as exc:
+                    raise APIError(str(exc)) from exc
+                self._json(200, result)
+                return
             backend = self.server.backend
             if path == '/api/files-layout':
                 self._local_files_only()
