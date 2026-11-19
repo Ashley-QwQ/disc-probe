@@ -225,7 +225,7 @@ def finalize_assets(out, sources, manifest):
             pins = ' '.join(f'{name}=={version}' for name, version in runtime['dependencies'].items())
             lines.append(f'# {platform}: Python {runtime["python"]} {pins}\n')
     lines.extend(f'{p["sha256"]}  {p["file"]}\n' for p in sums)
-    (ready / 'SHA256SUMS.txt').write_text(''.join(lines), encoding='ascii')
+    (ready / 'SHA256SUMS.txt').write_text(''.join(lines), encoding='ascii', newline='\n')
     assets = out / 'assets'
     ready.rename(assets)
     return assets

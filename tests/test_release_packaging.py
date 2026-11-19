@@ -261,7 +261,9 @@ def test_shared_manifest_and_sums(tmp_path):
     manifest = json.loads((assets / 'manifest.json').read_text())
     assert {p['package'] for p in manifest['assets']} == {'disc-probe', 'disc-lab', 'disc-neo'}
     assert {p['file'] for p in manifest['assets']} == {p.name for p, _ in sources}
-    sums = dict(line.split('  ', 1)[::-1] for line in (assets / 'SHA256SUMS.txt').read_text().splitlines())
+    checksum_file = assets / 'SHA256SUMS.txt'
+    assert b'\r' not in checksum_file.read_bytes()
+    sums = dict(line.split('  ', 1)[::-1] for line in checksum_file.read_text().splitlines())
     assert set(sums) == {p.name for p in assets.iterdir()} - {'SHA256SUMS.txt'}
     for path in assets.iterdir():
         if path.name != 'SHA256SUMS.txt':
