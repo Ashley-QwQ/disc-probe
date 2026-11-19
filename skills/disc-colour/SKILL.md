@@ -66,6 +66,8 @@ python -m discprobe colour-design "artwork.png" --phone custom --flash-mm 48 --h
 
 The command picks textures for the chosen camera position using the bundled colour data. Show the generated PNG to the user and say, "This is a model prediction. The physical disc will be darker." Wait for the user's approval of that preview before composing or generating the colour ISO. If the design or camera position changes, show a fresh prediction and get approval again.
 
+If the user finds the preview too dim or too washed out, run the same command again with `--mapping vivid`. It uses the same bundled textures but prefers brighter ones when the colour match is close, so most pictures come out brighter and more saturated, while some pale or dark areas lose a little accuracy. It is off by default, and the gain is a model prediction that has not been checked on a burned disc yet. Show the new preview and get approval again.
+
 ## Build the approved ISO
 
 Here `work.json` is the approved colour work. Replace the example geometry folder with the verified matching result. Run both commands in the same directory. The Python one-liner works in PowerShell and POSIX shells. It passes each texture from the generated file as a separate argument in its original order.
