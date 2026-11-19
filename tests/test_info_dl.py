@@ -17,7 +17,7 @@ def structure(payload):
     return (len(payload) + 2).to_bytes(2, 'big') + b'\0\0' + payload
 
 
-def plus_dl_payload(end=0x22D7FF, *, manufacturer=b'RITEK\0\0\0', media_type=b'S04', revision=0x66,
+def plus_dl_payload(end=0x22D7FF, *, manufacturer=b'RITEK\0\0\0', media_type=b'S04', revision=0x42,
                     category=0xE1, geometry=0x32):
     # ECMA-364 §14.4.2.1 and §18.8.1 Table 13, with Layer 0 and Layer 1 blocks.
     l0 = bytearray(256)
@@ -93,7 +93,7 @@ def test_gh40n_cli_writes_mid_and_l0_with_sources(monkeypatch, tmp_path, capsys)
     dump, = tmp_path.glob('*/info.json')
     report = json.loads(dump.read_text(encoding='utf-8'))
     assert report['dvd_plus_mid'] == {'manufacturer_id': 'RITEK', 'media_type_id': 'S04',
-                                      'product_revision': 0x26, 'product_revision_byte': 0x66, 'source': '0x00'}
+                                      'product_revision': 0x02, 'product_revision_byte': 0x42, 'source': '0x00'}
     assert report['dvd_layer0'] == {'start_psn': 0x30000, 'end_psn': 0x22D7FF,
                                     'sectors': L0_SECTORS, 'source': '0x00'}
     assert report['dvd_plus_adip_11']['sense'] == '5/24/00'
@@ -167,3 +167,15 @@ def test_zh_summary_translates_both_lines():
     assert i18n._zh(MID) != MID and i18n._zh(L0) != L0
     assert 'RITEK/S04/66' in i18n._zh(MID)
     assert '0x030000..0x22D7FF' in i18n._zh(L0)
+
+
+# The physical format response the reporter of issue #49 attached (GH40N NX05, blank RITEK-S04-66
+# DVD+R DL; info.json sha256 41b478f2...). Byte 30 is 0x42: ImgBurn shows the revision as 66, its decimal.
+ISSUE49_PFI = bytes.fromhex('08020000e10f32100003000000fcffff0022d7ff000003524954454b000000533034424025253710002c6c'
+                             '002c6c201f0c0c14140201012000201f0c0c141402010120000400337b5c0025693a261c0a')
+
+
+def test_issue49_reporter_bytes_give_imgburn_mid_and_l0():
+    mid = mmc.parse_dvd_plus_r_dl_mid(ISSUE49_PFI)
+    assert (mid['manufacturer_id'], mid['media_type_id'], mid['product_revision_byte']) == ('RITEK', 'S04', 66)
+    assert mmc.parse_dvd_layer0_end(ISSUE49_PFI) - mmc.DVD_DATA_START_PSN + 1 == 2086912

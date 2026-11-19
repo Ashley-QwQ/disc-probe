@@ -353,7 +353,7 @@ def summarize(r: dict) -> list[str]:
     if cfg.get('current_profile') == 0x002B:
         mid = r.get('dvd_plus_mid')
         if mid:
-            label = f"DVD+R MID: {mid['manufacturer_id']}/{mid['media_type_id']}/{mid['product_revision_byte']:02X}"
+            label = f"DVD+R MID: {mid['manufacturer_id']}/{mid['media_type_id']}/{mid['product_revision_byte']:02d}"
             if mid['source'] == '0x00':
                 adip_entry = r.get('dvd_plus_adip_11', {})
                 outcome = ('ADIP 0x11 refused' if adip_entry.get('unsupported') or adip_entry.get('status') == 2
