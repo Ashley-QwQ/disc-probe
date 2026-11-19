@@ -237,17 +237,13 @@ def stage_inputs(cache, windows_cache, stage):
                 raise ValueError(f"invalid {platform} input lock record: {entry['name']}")
             if entry is runtime:
                 expected_platform = "win_amd64" if windows else "x86_64-unknown-linux-gnu"
-                expected_file = (re.escape(f"python-{PYTHON}-embeddable-amd64.zip") if windows else
+                expected_file = (re.escape(f"python-{PYTHON}-embed-amd64.zip") if windows else
                                  rf"cpython-{re.escape(PYTHON)}\+\d{{8}}-{expected_platform}-install_only\.tar\.gz")
                 if (entry["name"] != "cpython" or entry["version"] != PYTHON
                         or entry["platform"] != expected_platform or entry["python_tag"] != PY_TAG
                         or entry["abi"] != PY_TAG or not re.fullmatch(expected_file, file)):
                     raise ValueError(f"runtime version, platform or ABI does not match {platform} lock: {file}")
             source = (windows_cache if windows and entry is runtime else cache) / file
-            if windows and entry is runtime and not source.is_file():
-                legacy = windows_cache / f"python-{PYTHON}-embed-amd64.zip"
-                if legacy.is_file():
-                    source = legacy
             if not source.is_file():
                 raise FileNotFoundError(f"missing locked {platform} input {entry['name']}: expected {source}")
             staged = wheelhouse / file

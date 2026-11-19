@@ -8,8 +8,8 @@
       "platform": "win_amd64",
       "python_tag": "cp313",
       "abi": "cp313",
-      "file": "python-3.13.14-embeddable-amd64.zip",
-      "url": "https://www.python.org/ftp/python/3.13.14/python-3.13.14-embeddable-amd64.zip",
+      "file": "python-3.13.14-embed-amd64.zip",
+      "url": "https://www.python.org/ftp/python/3.13.14/python-3.13.14-embed-amd64.zip",
       "checksum_url": "https://www.python.org/downloads/release/python-31314/",
       "sha256": "90b4e5b9898b72d744650524bff92377c367f44bd5fbd09e3148656c080ad907"
     },
