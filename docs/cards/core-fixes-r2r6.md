@@ -62,3 +62,47 @@ ISO 对照包含 `cd-grid-m2f1`、`cd-grid2-m2f1`、`cd-grid3-m2f1`、`cd-qmsht`
 开跑和各批验收前检查 D、F 盘均高于 5 GB。配对 ISO、随机镜像及复验生成的大标签数组在校验后移除，保留日志和校验记录。中文输出、帮助及报告通过 UTF-8 与乱码检查，`git diff --check` 通过。
 
 历史镜像如缺少有效的自检通过记录，必须重新生成后才能按本分支的 CLI 或网页刻录。自检仍采用原有采样方法，记录不等同于整个文件的内容哈希。根目录原有 `CARD_REPORT.md` 保持原样。
+
+## merge with dev bb76605
+
+执行 `git merge --no-ff dev/1.0.0` 时，本地分支已从 `bb76605` 前进到 `76be1bb`，后者明确拒绝擦除一次性盘并改善中英提示。因此合并父提交采用本地现行的 `76be1bb`，不变性对照仍使用指定的 `bb76605`。合并在 `dev/core-fixes-r2r6` 进行。卡 AB 的身份取证与许可模型见 [卡 AB 报告](sec-fixes.md)。
+
+- `burner.burn()` 持有光驱锁和镜像独占锁。命令或许可传入的身份快照保持原样。第一次与新读数比对在 `_write_preflight()` 内，晚于日志可写检查，早于任何擦除或写入。同一快照交给擦除入口。Windows 和 Linux 适配器在启动工具前仍最终复读，授权擦除后的刻录按卡 AB 规则核对稳定字段。
+- 网页继续一次性消费绑定动作、光驱、介质和镜像版本的许可。签发与启动共用镜像检查，要求完成镜像及当前版本的通过记录。校准的刻录子进程同时收到卡 AB 的介质快照及卡 R2 的光驱锁授权。独立擦除保留卡 AB 的平台复读和卡 R2 的 PowerShell 子进程锁。
+- 使用 `tools/refresh_troubleshoot_citations.py` 更新移动的故障排除引用。一次性盘提示提交改变了条件语句，相应引用关键词随实际条件更新。
+
+合并提交为 `4242dba`，父提交为 `a24b97e` 和 `76be1bb`。验收期间 `dev/1.0.0` 又独立前进到 `c4c7ebe`，加入一次性盘的帮助检索条目。本轮验收的代码固定为 `4242dba`。
+
+### 合并后验收
+
+```text
+python -X utf8 -B -m pytest -p dp_isolate -n 2 -p no:cacheprovider -q -rA tests/test_core_fixes_r2r6.py tests/test_r1_disc_identity.py tests/test_secfix.py tests/test_troubleshoot.py
+35 passed in 20.40s
+python -X utf8 -B tools/refresh_troubleshoot_citations.py --check
+exit 0
+```
+
+其中 R2–R9 11 项、R1 12 项、卡 AB Web 安全 7 项、故障排除 5 项。专项同时验证日志不可写时不进入新读数比对及平台提交前发现换盘时不调用写入工具。初次相关 pytest 的四项失败来自两份缺自检记录的 Web 夹具、一份缺介质身份的校准替身，以及 Windows 读取实例登记时的临时文件共享冲突。夹具现在提供应有的检查结果，实例测试按原超时窗口重试读取。
+
+相关 pytest 覆盖 28 个模块，使用 `-n 2` 与独立 worker 状态目录。JS 在 F 盘镜像中逐个运行。验收后核对镜像与合并提交的应用源码、工具及 JS 测试文件字节一致。
+
+```text
+558 passed, 1 skipped, 54 subtests passed in 237.37s (0:03:57)
+55/55 JavaScript files passed
+```
+
+pytest 跳过的是当前目录没有 PCAL 原稿的可选检查。PCAL-C 原稿在配对合成中另行核对。依赖封存照片递归查找的可选用例排除在验收范围之外。
+
+`python -X utf8 -B -m discprobe selftest` 退出 0，输出 `all checks passed`。沿用文件打开拦截与 Matplotlib 样式发现过滤。设备测试使用替身或虚拟光驱，网络测试限本机回环与本机私有接口。`F:/dp-dev-tmp/corefix/merge-bb76605/` 保留 `pytest-focused.log`、`pytest-acceptance.log`、`js/mjs-results.json` 和 `selftest.log`。
+
+### 与 bb76605 的不变性对照
+
+| 验证项目 | 本轮结果 |
+| --- | --- |
+| 真实 geo/timing 回放 | 82/82。52 份 geo 和 30 份 timing 的回放序列长度及 SHA-256 均一致。 |
+| 卡 Z 旧作品合成 | 26/26 标签和纹理清单哈希一致。另有一个示例两边均拒绝。 |
+| SHOW-A、PCAL-C、CARDB 1–6 | 8/8 配对一致。PCAL-C 和六份 CARDB 也与归档逐字节相同。SHOW-A 的归档旧成品与两次一致的重生成结果仍有不同哈希。 |
+| 卡 Z 可重建的历史 ISO | 9/9。四个 CD、两个 DVD、三份合成作品的镜像均通过抽样自检。逐一校验并只归零五处 ISO 9660 时间字段，配对的大小及 SHA-256 均一致。 |
+| 普通随机盘及待续刻标签 | 2/2。同种子生成，归零 ISO 9660 时间字段后 SHA-256 一致。 |
+
+合计 34/34 标签对一致。历史镜像的逐对日志、原始和归一化 SHA-256 保存在验收临时目录的 `invariance-history.log` 和 `history/images/<case>/raw.json`。历史生成镜像在校验后清理。验收期间 D、F 盘剩余空间均高于 5 GB。没有遇到需要选择一侧安全行为的冲突，配对结果没有发现 ISO 时间字段以外的差异。根目录 `CARD_REPORT.md` 与 `evidence/atlas` 无改动。
