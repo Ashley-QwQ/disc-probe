@@ -1,59 +1,95 @@
-# 卡 AB 验收报告
+# 社区提示卡交付报告
 
-工作树为 `D:/dp-dev/secfix`，分支为 `web/sec-fixes-20261118`，基点为合入卡 AA 第二轮的 `ce30590`。
+工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
 
-## 第二轮 · R1
+## 按提交交付
 
-- 合并提交 `23df931` 将 `dev/1.0.0` 的 `3bd5c5d` 合入本分支。仅 `CARD_REPORT.md` 发生冲突，保留卡 AB 报告。`cmd_geo` 自动合并，保留光驱锁装饰器、`speed_check` 以及装饰器的关键字参数透传。
-- 实现提交 `f9be4d7` 接入 core 盘身份核对，补齐 R1 回归并隔离端口测试。
-- 网页签发时读取介质身份，将它随动作、光驱和镜像身份一起存入一次性许可。启动任务时比较新读数，并将**签发时**的快照交给 core。CLI 刻录、擦除和带镜像校准在命令开始阶段采集快照，`--erase` 沿用该快照。网页带镜像校准会把原快照继续传给实际刻录子进程。[Web 签发](./discprobe/webui.py#L790) · [Web 传递快照](./discprobe/webui.py#L916) · [校准子进程](./discprobe/calibrate.py#L187)
-- R4 集中的写前检查在合并基点尚未落入本分支。R1 的单一核对调用位于 `discprobe/burner.py:541` 和 `discprobe/eraser.py:132`，位于各自的入口光驱锁内。平台适配器在准备参数和临时流后、启动写入或擦除工具前执行回调。Windows 擦除沿用 `erase_imapi.ps1`，由持锁的 Python 在创建 PowerShell 子进程前读盘核对。先擦后刻会在擦除前核对完整身份，刻录前再核对稳定字段，允许授权擦除引起的空白状态和可读长度变化。身份不符抛出 `DiscChanged`，中英提示为“光驱里的盘和确认时的不是同一张 / The disc in the drive is not the one that was confirmed.”。[共用读取与比对模块](./discprobe/disc_identity.py) · [刻录接入点](./discprobe/burner.py#L541) · [擦除接入点](./discprobe/eraser.py#L132)
+- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
+- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
+- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
+- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
+- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
+- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
 
-### 比对字段与 GH70N 证据
+## 数据及出处
 
-| 字段 | 用法及现有依据 |
+本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
+
+原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
+
+相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
+
+新增 id：
+
+```text
+D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
+I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
+DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
+DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
+DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
+DISmain-verbatim-dvd-plus-rw-94520-95043
+```
+
+修改 id（含仅补充来源/复用报告的记录）：
+
+```text
+D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
+I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
+I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
+```
+
+新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
+
+内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
+
+同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
+
+## 下发与程序行为
+
+`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
+
+```text
+f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
+```
+
+生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
+
+`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
+
+CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
+
+仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
+
+## 网页位置和需要人工审查的选择
+
+传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
+
+新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
+
+请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
+
+## 验收
+
+所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
+
+| 命令/检查 | 结果 |
 | --- | --- |
-| 介质家族和当前 profile | 从 MMC `GET CONFIGURATION` 获取。GH70N NYA2 的空白 DVD-R 存档报告为 DVD、`0x0011`。 |
-| MID 或 ATIP | DVD 取格式 0Eh 的 MID 或格式 11h 的 ADIP 厂商、型号及版本。CD 取 ATIP 导入区起始时码。存档里的 GH70N 通过格式 0Eh 读到 `RITEKF1`。该 DVD-R 样本没有有效 ATIP 或 ADIP 响应。 |
-| 可选独立盘 ID | 取 `READ DISC INFORMATION` 中由 DID_V 标为有效的四字节标识。GH70N 存档的标志字节为 `0x20`，DID_V 未置位。 |
-| 容量、可读长度和状态 | 分别比较报告容量、已报告扇区数、空白、关闭和可擦写。该 GH70N 空白盘报告 2,297,888 个可写扇区，状态为空白、不可擦写，关闭状态为空。格式 0Eh 另可推得整盘几何容量为 2,298,496 扇区。对已记录的顺序式盘，整盘容量缺失时可把已报告的可读范围作为大小证据，镜像是否装得下仍由原有可写容量检查判断。 |
-| 最近读取时间 | 软件在生成快照时写入纳秒时间戳，随签发快照传入 core。第二次读盘会产生新时间戳，比较以介质字段为准。 |
+| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
+| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
+| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
+| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
+| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
+| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
+| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
+| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
+| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
 
-擦除许可要求当前 profile、可读的空白状态、可擦写标志、大小证据，以及 MID、ATIP 或有效的独立盘 ID。证据不足时拒绝签发。若光驱未提供独立盘 ID，两张盘的可读身份字段又完全相同，软件仍无法区分。Python 最后一次核对到平台工具实际接管光驱之间仍有物理换盘窗口。GH70N 段落只依据现存的空白 DVD-R 回包。CD-RW、DVD±RW 实盘、实体换盘与 Windows 实际擦除未测。[GH70N 原始 info 存档](./evidence/drive/info_blank_ritekf1.json)
+初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
 
-### 第二轮验收
+截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
 
-- `test_r1_core_checks_web_grant_after_taking_write_lock` 的四个用例均通过。擦除和刻录各验证换盘拒绝、同盘成功。两次网页读数均为 A，换盘只发生在 core 接手前。替身保持相同 profile、MID、容量和状态，仅改变有效盘 ID。拒绝用例确认锁内读到 B，且写入或擦除工具启动次数为零。另五个用例覆盖缺标识、缺大小证据、Windows 启动擦除助手前拒绝、CLI `--erase` 继承命令发起时的身份，以及 GH70N 存档解析。[专项测试](./tests/test_r1_disc_identity.py)
-- `test_busy_port_falls_back_and_reuse_keeps_the_registered_port` 已通过。测试在 `tmp_path` 的临时状态目录运行，由测试套接字用端口 0 取得端口并占用，然后以该端口启动并复用服务。断言覆盖回退到另一端口、同配置复用和正常停止。[端口测试](./tests/test_single_instance.py#L314)
-- `python -B -X utf8 -m pytest -n 2` 运行 R1、Web 后端、刻录和擦除、启动、刻后检查、失败退出、标签会话、盘身份标记、作品、目录、照片、合成与随盘文件相关的 17 个模块。首次为 **408 通过、1 跳过、1 失败，46 个子测试通过**。失败项 `test_cancel_owns_descendants` 的 Windows 输出日志曾遇到文件共享冲突。临时目录移到 F 盘且加上作业结束等待后，复验 Web 后端、刻录、目录、R1、启动共 **99 通过，46 个子测试通过**，包含此前的清理失败项。原始封存照片仍缺失，跳过 1 项。手机打开页面和上传合成 PNG 的本机局域网测试通过。[Python 相关回归](<F:/dp-archive/tmp/secfix/round2/pytest-final.log>) · [隔离复验](<F:/dp-archive/tmp/secfix/round2/pytest-recheck.log>)
-- `node --test --test-concurrency=1` 运行导航之外全部 54 个 `tests/test_*.mjs` 文件，**67 通过**。独立运行 `node --test tests/test_flow_navigation_browser.mjs`，**1 通过**。Disc Lab 浏览器回归覆盖先擦后刻、取消和刻后检查。[Node 全量](<F:/dp-archive/tmp/secfix/round2/node-final.log>) · [导航](<F:/dp-archive/tmp/secfix/round2/navigation-final.log>)
-- 用 `python -B -X utf8 -m discprobe compose <作品> --out <标签.npy>` 重新合成下表三份历史作品，输入 SHA-256 均与归档一致，输出的标签和纹理清单各 **3/3** 与归档逐字节一致。[第二轮合成命令和完整哈希](<F:/dp-archive/tmp/secfix/round2/compose-sha256.json>)
+## 未测及边界
 
-## 第一轮代码提交
+没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
 
-`698dfdb` · Bind local file exports and disc writes to one-time permits
-
-| 审查条目 | 改动与代码位置 | 专门验收 |
-| --- | --- | --- |
-| #1 随盘目录授权 | [作品导入和 ISO 导出](discprobe/web/home/design.js)、[随盘文件面板](discprobe/web/home/design/disc-files.mjs)、[清单摘要](discprobe/discfiles_api.py)和 [Web 后端](discprobe/webui.py)。导入和保存作品只携带文件数量、大小和放置位置。使用者在本机重新输入目录路径、检查并确认清单后，后端签发有效期 15 分钟的单次授权。授权绑定目录和文件树清单摘要。导出前重新检查文件树和布局指纹，图像子进程沿用原有的布局指纹校验。 | `finding_1_directory_requires_one_export_confirmation` 用浏览器打开带目录绑定的合成作品，扫描直接导出镜像的 ISO 9660 目录树和整个文件，均无夹具。重新选目录、查看清单、确认后导出，Joliet 树和镜像数据均查到夹具，再次导出要求重新确认。`test_finding_1_backend_requires_the_reviewed_directory_for_one_export` 验证无授权、替换目录、修改清单及重复提交都被后端拒绝。 |
-| #2 刻录与擦除许可 | [签发、核验和启动](discprobe/webui.py)，并接入[设计页](discprobe/web/home/design.js)、[校准页](discprobe/web/home/calibrate.js)和[刻后检查页](discprobe/web/home/afterburn.js)现有确认。凭据经本机回环 POST 签发，30 秒内提交且一次消费。签发和启动时核对光驱的介质报告，核对介质类型、配置、批号、空白与可擦写状态等字段。镜像身份采用规范化路径、文件大小和纳秒修改时间。普通刻录、独立擦除、先擦后刻、带镜像校准及擦除后校准的许可分别绑定。 | `test_finding_2_burn_grant_matches_one_job` 用虚拟光驱核对串用动作、换光驱、换镜像、原路径镜像变化、介质报告变化及重放的 HTTP 403 和错误文字。对应动作的正确许可均可启动。模拟流程验证了刻录取消、擦除后重刻和刻后检查。 |
-| #6 作品内容渲染 | [导入、图层列表及旧版影调面板](discprobe/web/home/design.js)、[选区列表](discprobe/web/home/design/editor-controls.mjs)。图层 ID 限定为 ASCII 字母、数字、下划线和连字符，长度 1–64。导入时为不合规或重复 ID 分配新值，并重映射图层填充引用。检查并修复的模板插值包括图层行的 `data-id`、`id`、`aria-controls`，选区行的 `data-mask-id`、`data-delete-mask`，旧版影调数值框及自动色阶文案，以及旧版随盘文件计数。图层名经过转义，文件名单使用 `textContent`。 | `finding_6_layer_id_and_text` 在静音 Edge 中导入含标记字符的 ID 和图层名。重新生成的 ID 符合白名单，填充引用与 DOM 属性一致，原名称完整显示为文本，监视标记节点的 `window` 钩子调用数为 0。 |
-| #3/#4 局域网 | [HTTP 监听与请求校验](discprobe/webui.py)。Host 必须带实际端口，只接受回环地址、`localhost` 和该连接实际到达的本机私有 IPv4。头部阶段最多 24 条连接，局域网来源最多 16 条，给本机桌面预留 8 条。3 秒请求头总期限覆盖分段到达的请求，正常认证完成后释放这部分容量。 | `test_finding_3_only_listener_hosts_before_authorization` 在两种监听模式下检查伪造 Host。`test_finding_4_partial_headers_expire_and_leave_room_for_a_normal_request` 同时打开 6 条未完成头部的本地连接，正常请求在期限内返回 200，随后慢连接到期。`test_finding_4_remote_slots_cannot_take_the_loopback_reserve` 验证限额和本机保留。`test_finding_3_4_phone_page_and_upload_on_the_lan_listener` 用实际局域网地址打开手机页，上传合成 PNG，并在桌面列表读到该照片。 |
-
-## 第一轮回归验收
-
-- `python -B -X utf8 -m pytest -n 2` 运行 `test_secfix.py`、`test_webui.py`、`test_burner.py`、`test_photo.py`、`test_single_instance.py`、`test_webui_catalog.py`、`test_works.py`、`test_design_compose_route.py`、`test_editor_ops.py` 和 `test_discfiles.py`，结果为 **256 通过、1 跳过，另有 46 个子测试通过**。后续相关改动单独复验了 Web 后端、刻录、目录和照片路由，结果为 **124 通过、1 跳过，另有 46 个子测试通过**。最终 `python -B -X utf8 -m pytest -n 2 tests/test_secfix.py -q` 为 **7 通过**。[Python 回归日志](<F:/dp-archive/tmp/secfix/pytest-final.log>) · [后端复验](<F:/dp-archive/tmp/secfix/pytest-recheck.log>) · [安全专项](<F:/dp-archive/tmp/secfix/security-final.log>)
-- `node --test --test-concurrency=1` 运行除导航之外的全部 54 个 `tests/test_*.mjs` 文件，**67 通过**。`node --test tests/test_flow_navigation_browser.mjs` 单独运行，**1 通过**。在最终代码上复验随盘文件、刻后检查和刻录取消浏览器测试，共 **5 通过**。[Node 全量](<F:/dp-archive/tmp/secfix/node-final.log>) · [导航](<F:/dp-archive/tmp/secfix/navigation-final.log>) · [浏览器复验](<F:/dp-archive/tmp/secfix/node-recheck.log>)
-- 用 `python -B -X utf8 -m discprobe compose <作品> --out <标签.npy>` 重跑 `F:/dp-archive/tmp/regress/RESULT.md` 的三份作品。先核对输入 SHA-256，再比较标签 `.npy` 和纹理清单 `.textures.json`。三份作品的两种输出都与归档一致。[命令、输入和完整结果](<F:/dp-archive/tmp/secfix/compose-sha256.json>)
-
-| 历史作品 | 标签 `.npy` SHA-256 |
-| --- | --- |
-| `fixture-full-disc` | `5ecb94e2e2d0a82a71cfca85fc8e8bf60bf87b640358c08c2b25d4829567cd2c` |
-| `work-a37427bb99f56e55` | `12448b74f0b1f209ad3a7681b116145bf3d8b260476cf3973b4bd11ea2ad5f9d` |
-| `design-8eb60f75` | `40b9c1eef5d4f3a2ceae2ed7f6a2097ab91f81367b8af47f0783b6f8ce2b6414` |
-
-## 第一轮验证边界
-
-- 第一轮原启动测试因 8765 被已有进程独占而未验收，第二轮已改用动态端口并通过，见上文。照片回归中依赖封存原始 JPG 的可选用例跳过，局域网上传专项使用合成 PNG。
-- 介质检查的精度取决于光驱报告。若两张盘的可读字段完全相同且光驱未提供独立介质 ID，软件无法区分。实机刻录、擦除及实体手机未测。
-- D 盘开跑和全量回归前均通过 5 GB 空间检查。日志及证据归到 `F:/dp-archive/tmp/secfix/`。
+附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
