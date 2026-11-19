@@ -52,16 +52,17 @@ def test_lan_ips_put_the_default_route_first():
 
 @pytest.mark.parametrize("flags, lan", [([], True), (["--lan"], True), (["--local-only"], False),
                                          (["--lan", "--local-only"], False)])
-def test_webui_lan_default_and_local_only(flags, lan, capsys):
+def test_webui_lan_default_and_local_only(flags, lan):
     from discprobe.__main__ import main
-    # Exercise the real parser and run(), but bind no socket and enumerate no drives.
-    with patch.object(webui, "Backend"), patch.object(webui, "Server") as server:
-        instance = server.return_value.__enter__.return_value
-        instance.server_port = 45678
-        instance.token = "session" if lan else None
-        main(["webui", *flags])
+    from discprobe import web_instance
+    # Keep the real argument parsing and server factory while isolating discovery.
+    with (patch.object(web_instance, "launch") as launch, patch.object(webui, "Backend"),
+          patch.object(webui, "Server") as server):
+        main(["webui", "--no-drives", *flags])
+        factory, config = launch.call_args.args
+        factory(45678)
         assert server.call_args.kwargs["lan"] is lan
-        assert "http://127.0.0.1:45678/home/" + ("?token=session" if lan else "") in capsys.readouterr().out
+        assert config["mode"] == ("LAN" if lan else "local-only")
 
 
 def test_chosen_lan_address_validation(tmp_path):
