@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 
 from . import iso9660, randomlabel as L
+from .drive_lock import drive_operation
 
 
 def geometry(path):
@@ -114,7 +115,7 @@ def run(args):
                 from .imapi import ImapiDevice as Device
             else:
                 from .device import Device
-            with Device(args.drive) as dev:
+            with drive_operation(args.drive, "label"), Device(args.drive) as dev:
                 start, available = disc_state(dev)
             capacity = min(capacity, available)
         spec = write_iso(args.output, args.text, args.geo, start, capacity)

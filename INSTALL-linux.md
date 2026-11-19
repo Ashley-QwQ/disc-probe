@@ -10,7 +10,8 @@
 bash start-linux.sh
 ```
 
-浏览器会打开大厅。也可以打开终端打印的地址。按 Ctrl+C 停止服务。
+浏览器会打开大厅。无图形桌面时，使用终端打印的带令牌地址。
+在大厅点“退出”，或在包目录运行 `./linux/python/bin/python3 -m discprobe webui stop` 停止服务。
 完整包启动时直接用包内的 Python，无需系统 Python、虚拟环境或安装依赖。
 同一个 ZIP 在 Windows 上解压后，双击 `开始 Start (Windows).bat` 即可启动。
 
@@ -32,8 +33,8 @@ pipx install --pip-args='--no-index --find-links=wheelhouse' ./disc_probe-1.0.0.
 python3 -m venv dp-venv
 dp-venv/bin/python -m pip install --no-index --find-links=wheelhouse ./disc_probe-1.0.0.0a0-py3-none-any.whl
 dp-venv/bin/disc-probe version --json
-dp-venv/bin/disc-probe webui --local-only --port 8765
-# 浏览器打开 http://127.0.0.1:8765/home/
+dp-venv/bin/disc-probe webui --open --local-only
+# 可用服务打印的地址手动打开
 dp-venv/bin/disc-probe selftest
 ```
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
+
 from . import mmc
 from .scsi import DATA_IN, DATA_NONE, ScsiResult
 
@@ -31,7 +33,7 @@ class Unsupported(OSError):
 
 class InfoDevice:
     """Wall-clock and native bounds for info, including optional identity reads."""
-    def __init__(self, dev=None, budget_s=INFO_BUDGET_S, *, opener=None):
+    def __init__(self, dev=None, budget_s=INFO_BUDGET_S, *, opener=None, operation=None):
         self.dev = dev
         self.deadline = time.monotonic() + budget_s
         self.failed = False
@@ -42,19 +44,24 @@ class InfoDevice:
         self.closed = False
         # Opening, executing and closing share one thread: IMAPI COM objects and
         # CoUninitialize must stay on their creating thread as well.
+        stack = ExitStack()
+
         def worker():
-            while True:
-                request = self.requests.get()
-                if request is None:
-                    return
-                call, result = request
-                try:
-                    result.put((call(), None))
-                except BaseException as exc:
-                    result.put((None, exc))
+            with stack:
+                while True:
+                    request = self.requests.get()
+                    if request is None:
+                        return
+                    call, result = request
+                    try:
+                        result.put((call(), None))
+                    except BaseException as exc:
+                        result.put((None, exc))
         threading.Thread(target=worker, daemon=True).start()
         if opener is not None:
             def open_device():
+                if operation is not None:
+                    stack.enter_context(operation)
                 self.dev = opener()
                 return self.dev
             try:

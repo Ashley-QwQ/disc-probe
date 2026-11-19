@@ -33,7 +33,7 @@ def serve(lab: Lab, port=8853, media="dvd", lan=False):
     port = port_number(port)
     # The page's workspace is its working directory: run it inside the lab, so results/, iso/ and photos stay
     # there. --lan (the product's default, token-guarded) is needed for the phone link.
-    argv = [sys.executable, "-B", "-m", "discprobe", "webui", *([] if lan else ["--local-only"]),
+    argv = [sys.executable, "-B", "-m", "discprobe", "webui", "--new-instance", *([] if lan else ["--local-only"]),
             "--port", str(port), "--out", "results", "--media", media]
     print(f"http://127.0.0.1:{port}/home/", flush=True)
     lab.step("web", status="started", paths=[str(lab.root / "results")], url=f"http://127.0.0.1:{port}/home/")

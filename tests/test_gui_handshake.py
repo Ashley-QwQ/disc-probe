@@ -116,7 +116,8 @@ class HandshakeTests(unittest.TestCase):
         self.assertEqual(self.get(server, '/../version.py')[0], 404)
 
     def test_gui_option_invalid_stops_before_listening(self):
-        command = subprocess.run([sys.executable, '-B', '-m', 'discprobe', 'webui', '--gui', str(self.root)],
+        command = subprocess.run([sys.executable, '-B', '-m', 'discprobe', 'webui', '--new-instance',
+                                  '--local-only', '--no-drives', '--port', '0', '--gui', str(self.root)],
                                  cwd=ROOT, capture_output=True, timeout=20)
         self.assertNotEqual(command.returncode, 0)
         self.assertIn(b'gui.json', command.stderr)

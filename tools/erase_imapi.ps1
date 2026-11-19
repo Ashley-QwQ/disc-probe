@@ -1,5 +1,11 @@
-param([Parameter(Mandatory=$true)][string]$Drive, [switch]$Full)
+param([Parameter(Mandatory=$true)][string]$Drive, [switch]$Full, [switch]$CoreDriveLock)
 $ErrorActionPreference = 'Stop'
+$driveLease = $null
+if (-not $CoreDriveLock) {
+    . (Join-Path $PSScriptRoot 'drive_lock.ps1')
+    $driveLease = Open-DiscProbeDriveLock $Drive 'erase'
+}
+try {
 # Compile only here; -File is an explicit destructive operation. No legacy burn script changes state.
 Add-Type -ReferencedAssemblies System.dll,System.Core.dll,Microsoft.CSharp.dll -TypeDefinition @'
 using System;
@@ -54,3 +60,6 @@ public static class MachineErase {
 }
 '@
 try { [MachineErase]::Run($Drive, [bool]$Full) } catch { [Console]::Error.WriteLine($_.Exception.ToString()); exit 1 }
+} finally {
+    if ($null -ne $driveLease) { Close-DiscProbeDriveLock $driveLease }
+}

@@ -5,6 +5,7 @@ infers that a saved info report proves the disc currently in a drive is blank.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 import hmac
 import json
 import math
@@ -14,6 +15,7 @@ from pathlib import Path
 import re
 import secrets
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
@@ -24,6 +26,8 @@ from http.cookies import CookieError, SimpleCookie
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from . import api, guide, i18n, iso9660, webui_catalog
+from .drive_lock import DriveBusy, drive_locks, require_available
+from .web_instance import DEFAULT_PORT, _task_text
 
 
 def version():
@@ -79,9 +83,17 @@ NOT_SGR = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?]*[A-Za-ln-
 
 
 class APIError(ValueError):
-    def __init__(self, message, status=400):
+    def __init__(self, message, status=400, *, code=None):
         super().__init__(message)
         self.status = status
+        self.code = code
+
+
+def drive_available(drive):
+    try:
+        require_available(drive)
+    except DriveBusy as exc:
+        raise APIError(str(exc), 409, code=exc.code) from exc
 
 
 def local_path(root: Path, value: str) -> str:
@@ -357,6 +369,7 @@ class Job:
         self.offset = 0
         self.history = []
         self.action = None
+        self.writes_drive = False
         self.args = {}
         self.disc = {}
         self.media = "dvd"
@@ -461,6 +474,8 @@ def read_disc_child(root: Path, drive: str) -> dict:
                               creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
     except subprocess.TimeoutExpired:
         raise APIError("the drive did not answer in time", 504) from None
+    if done.returncode == DriveBusy.exit_code:
+        raise APIError(done.stderr.strip(), 409, code=DriveBusy.code)
     for line in reversed(done.stdout.splitlines()):
         if line.startswith("{"):
             return json.loads(line)
@@ -587,7 +602,7 @@ class Backend:
         # drive -> what the last read of its disc found (`discprobe disc`, or an `info` job), with when. Only
         # shown to the page; a burn never relies on it (it needs verified_blank or the provider's own disc).
         self.discs = {}
-        self.reading = set()                 # drives being read right now: busy for jobs
+        self.reading = {}                    # drive -> read action: busy for jobs
         self.disc_reader = disc_reader or (lambda drive: read_disc_child(self.root, drive))
         self.closed = False
         self.folder = self.root / ".webui-jobs"
@@ -612,27 +627,56 @@ class Backend:
         state["platform"] = sys.platform          # which shell the terminal page looks like (win32: PowerShell)
         return state
 
+    @contextmanager
+    def _reading_drive(self, drive, action, *, unknown_status=400):
+        if not isinstance(drive, str) or drive not in [d["id"] for d in self.drive_provider()]:
+            raise APIError("unknown drive", unknown_status)
+        with self.lock:
+            if self.closed:
+                raise APIError("service is closing", 503)
+            drive_available(drive)
+            if drive in self.reading or any(j.drive == drive and j.exit is None for j in self.jobs.values()):
+                raise APIError("drive busy", 409)
+            self.reading[drive] = action
+        try:
+            yield
+        finally:
+            with self.lock:
+                self.reading.pop(drive)
+
     def read_disc(self, payload) -> dict:
         """Which disc is in a drive, read now (read-only). The answer is kept for /api/state until the drive's
         disc may have changed (a burn or a swap on it)."""
         drive = payload.get("drive") if isinstance(payload, dict) else None
-        if not isinstance(drive, str) or drive not in [d["id"] for d in self.drive_provider()]:
-            raise APIError("unknown drive")
-        with self.lock:
-            if drive in self.reading or any(j.drive == drive and j.exit is None for j in self.jobs.values()):
-                raise APIError("drive busy", 409)
-            self.reading.add(drive)
-        try:
+        with self._reading_drive(drive, "disc"):
             found = self.disc_reader(drive)
-        finally:
+            disc = found.get("disc") if isinstance(found, dict) else None
+            report = dict(disc or dict(present=False), tray=found.get("tray", "unknown") if isinstance(found, dict) else "unknown",
+                          read_at=round(time.time()))
             with self.lock:
-                self.reading.discard(drive)
-        disc = found.get("disc") if isinstance(found, dict) else None
-        report = dict(disc or dict(present=False), tray=found.get("tray", "unknown") if isinstance(found, dict) else "unknown",
-                      read_at=round(time.time()))
-        with self.lock:
-            self.discs[drive] = report
-        return dict(drive=drive, disc=report)
+                self.discs[drive] = report
+            return dict(drive=drive, disc=report)
+
+    def burn_speeds(self, drive, media):
+        from . import burner
+        if media not in ("dvd", "cd"):
+            raise APIError("invalid media")
+        with self._reading_drive(drive, "info", unknown_status=404):
+            try:
+                report = burner.inspect_drive(drive, media)
+            except DriveBusy as exc:
+                raise APIError(str(exc), 409, code=exc.code) from exc
+            except burner.BurnError as exc:
+                raise APIError(str(exc), 409) from exc
+            with self.lock:
+                if isinstance(report, dict):
+                    self.discs[drive] = dict(self.discs.get(drive) or {}, **report)
+                # A blank found here authorizes a burn for two minutes. The burner checks it again.
+                if isinstance(report, dict) and report.get("blank") is True:
+                    self.verified_blank[drive] = (time.monotonic() + 120, media)
+                else:
+                    self.verified_blank.pop(drive, None)
+            return report
 
     def job_state(self, ident):
         with self.lock:
@@ -671,6 +715,8 @@ class Backend:
         with self.lock:
             if self.closed:
                 raise APIError("service is closing", 503)
+            if payload["action"] in DRIVE_ACTIONS and drive:
+                drive_available(drive)
             if drive and (drive in self.reading or any(j.drive == drive and j.exit is None for j in self.jobs.values())):
                 raise APIError("drive busy", 409)
             if writes:
@@ -702,6 +748,7 @@ class Backend:
             folder = Path(tempfile.mkdtemp(prefix=ident + "-", dir=self.folder))
             job = Job(ident, drive, folder)
             job.action, job.media, job.args = payload["action"], payload.get("media", "dvd"), payload.get("args", {})
+            job.writes_drive = writes
             known_disc = self.discs.get(drive) or next((d.get('disc') for d in drives if d['id'] == drive), None) or {}
             job.disc = dict(known_disc)
             job.batch_identity = dict(disc=known_disc.get('mid'), drive=known_disc.get('drive_name'))
@@ -1062,6 +1109,54 @@ class Backend:
                 cursors[job.id] = len(job.history)
             return result
 
+    def _busy(self):
+        return bool(self.reading) or any(job.exit is None for job in self.jobs.values())
+
+    def busy(self):
+        with self.lock:
+            return self._busy()
+
+    def _active_tasks(self):
+        tasks = []
+        for job in self.jobs.values():
+            if job.exit is not None:
+                continue
+            writes = job.writes_drive
+            if writes and job.action == "calibrate":
+                # Its only write is the first phase. Later phases start after the burner exits.
+                job.read()
+                step = next((event.get("name") for event in reversed(job.history) if event["type"] == "step"), None)
+                writes = step not in ("check", "timing", "geo", "preset")
+            tasks.append(dict(action=job.action, drive=job.drive, job=job.id, writes_drive=writes))
+        tasks.extend(dict(action=action, drive=drive, job=None, writes_drive=False)
+                     for drive, action in self.reading.items())
+        return tasks
+
+    def service_status(self):
+        with self.lock:
+            return dict(tasks=self._active_tasks(), drives=drive_locks(d["id"] for d in self.drive_provider()))
+
+    def request_quit(self, *, force=False):
+        with self.lock:
+            tasks = self._active_tasks()
+            if force:
+                writers = [task for task in tasks if task["writes_drive"]]
+                protected = {task["drive"] for task in writers}
+                writers.extend(dict(action=lock["action"] or "unknown", drive=lock["drive"], job=None)
+                               for lock in drive_locks()
+                               if lock["locked"] and lock["action"] in (None, "burn", "erase")
+                               and lock["drive"] not in protected)
+                if writers:
+                    detail = _task_text(writers)
+                    raise APIError(f"光驱正在写入或写入状态未知，不能强制停止（{detail}）。 / "
+                                   f"Cannot force stop while disc writes are active or possible ({detail}).",
+                                   409, code="drive_writing")
+            elif tasks:
+                detail = _task_text(tasks)
+                raise APIError(f"先等任务结束（{detail}）。 / Wait for the current tasks to finish ({detail}).",
+                               409, code="tasks_running")
+            self.closed = True
+
     def close(self):
         with self.lock:
             self.closed = True
@@ -1078,19 +1173,27 @@ class Backend:
 
 class Server(ThreadingHTTPServer):
     daemon_threads = True
+    allow_reuse_address = os.name != "nt"
 
-    def __init__(self, backend, port=8765, *, lan=False, gui=None):
+    def __init__(self, backend, port=DEFAULT_PORT, *, lan=False, gui=None):
         self.gui_root, self.gui_manifest = api.load_manifest(gui if gui is not None else api.BUNDLED_GUI)
         api.check_manifest(self.gui_manifest)
         if type(port) is not int or not 0 <= port <= 65535:
             raise ValueError("invalid port")
         self.backend = backend
-        self.token = secrets.token_urlsafe(32) if lan else None
+        self.lifecycle_token = secrets.token_urlsafe(32)
+        self.token = self.lifecycle_token if lan else None
+        self.identity = dict(pid=os.getpid(), started=time.time_ns())
         super().__init__(("0.0.0.0" if lan else "127.0.0.1", port), Handler)
 
+    def server_bind(self):
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
     def server_close(self):
-        self.backend.close()
         super().server_close()
+        self.backend.close()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1109,6 +1212,8 @@ class Handler(BaseHTTPRequestHandler):
         # Share authentication with subresources, redirects and event streams too.
         if getattr(self, "_set_session_cookie", False):
             self.send_header("Set-Cookie", f"discprobe_session={self.server.token}; Path=/; HttpOnly; SameSite=Strict")
+        if getattr(self, "_set_local_cookie", False):
+            self.send_header("Set-Cookie", f"{self._local_cookie}={self.server.lifecycle_token}; Path=/; HttpOnly; SameSite=Strict")
         if getattr(self, '_photo_device', None):
             self.send_header('Set-Cookie', f'discprobe_phone_device={self._photo_device}; Path=/; HttpOnly; SameSite=Strict')
         super().end_headers()
@@ -1133,6 +1238,28 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, code, payload):
         self._send(code, json.dumps(payload, ensure_ascii=False).encode("utf-8"))
 
+    @property
+    def _local_cookie(self):
+        return f"discprobe_lifecycle_{self.server.server_port}"
+
+    def _lifecycle_auth(self, token):
+        return hmac.compare_digest(token.encode("utf-8"), self.server.lifecycle_token.encode("ascii"))
+
+    def _has_local_cookie(self):
+        cookies = SimpleCookie()
+        try:
+            cookies.load(self.headers.get("Cookie", ""))
+        except CookieError:
+            return False
+        cookie = cookies.get(self._local_cookie)
+        return bool(cookie and self._lifecycle_auth(cookie.value))
+
+    def _error(self, exc):
+        data = dict(error=i18n.tr(str(exc)))
+        if exc.code:
+            data["code"] = exc.code
+        self._json(exc.status, data)
+
     def _allowed(self):
         self._set_session_cookie = False
         self._photo_device = self._photo_token = None
@@ -1146,6 +1273,21 @@ class Handler(BaseHTTPRequestHandler):
             raise APIError("cross-site request refused", 403)
         url = urlsplit(self.path)
         path, query = unquote(url.path), parse_qs(url.query)
+        lifecycle_header = self.headers.get("X-Discprobe-Token", "")
+        if self.command == "GET" and path == "/api/ping":
+            if not self._lifecycle_auth(lifecycle_header):
+                raise APIError("invalid session token", 403)
+            return
+        if self.command == "GET" and path == "/api/status":
+            if self.client_address[0] != "127.0.0.1" or not self._lifecycle_auth(lifecycle_header):
+                raise APIError("local session token required", 403)
+            return
+        if not self.server.token:
+            if self.command == "GET" and path in ("/home/", "/home/index.html"):
+                self._set_local_cookie = self._lifecycle_auth(query.get("token", [""])[0])
+            if self.command == "POST" and path == "/api/quit":
+                if not (self._lifecycle_auth(lifecycle_header) or self._has_local_cookie()):
+                    raise APIError("invalid session token", 403)
         # Shared display words and the bundled font contain no session data. Phones need these
         # static files without gaining access to the computer page or any main API.
         if self.command == "GET" and path in (
@@ -1303,6 +1445,14 @@ class Handler(BaseHTTPRequestHandler):
             url = urlsplit(self.path)
             path = unquote(url.path)
             backend = self.server.backend
+            if path == "/api/ping":
+                if backend.closed:
+                    raise APIError("service is closing", 503)
+                self._json(200, self.server.identity)
+                return
+            if path == "/api/status":
+                self._json(200, backend.service_status())
+                return
             if path == '/api/editor-lamp-tables':
                 from .editor_preview import lamp_tables
                 self._json(200,lamp_tables())
@@ -1386,30 +1536,9 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/burn-token":
                 self._json(200, backend.burn_token())
             elif path == "/api/burn-speeds" or re.fullmatch(r"/api/drives/[^/]+/speeds", path):
-                from . import burner
-                drive = (parse_qs(urlsplit(self.path).query).get("drive", [""])[0]
-                         if path == "/api/burn-speeds" else path.split("/")[3])
-                if drive not in [d["id"] for d in backend.drive_provider()]:
-                    raise APIError("unknown drive", 404)
-                with backend.lock:
-                    if drive in backend.reading or any(j.drive == drive and j.exit is None for j in backend.jobs.values()):
-                        raise APIError("drive busy", 409)
-                    try:
-                        media = parse_qs(urlsplit(self.path).query).get("media", ["dvd"])[0]
-                        if media not in ("dvd", "cd"):
-                            raise APIError("invalid media")
-                        report = burner.adapter(drive, media).inspect()
-                        if isinstance(report, dict):
-                            backend.discs[drive] = dict(backend.discs.get(drive) or {}, **report)
-                        # A blank disc found by this read-only, user-requested check authorizes a burn
-                        # on this drive for two minutes; the burner checks the disc again before writing.
-                        if isinstance(report, dict) and report.get("blank") is True:
-                            backend.verified_blank[drive] = (time.monotonic() + 120, media)
-                        else:
-                            backend.verified_blank.pop(drive, None)
-                        self._json(200, report)
-                    except burner.BurnError as exc:
-                        raise APIError(str(exc), 409) from exc
+                query = parse_qs(url.query)
+                drive = query.get("drive", [""])[0] if path == "/api/burn-speeds" else path.split("/")[3]
+                self._json(200, backend.burn_speeds(drive, query.get("media", ["dvd"])[0]))
             elif path == "/api/events":
                 self._events()
             elif path == "/api/iso":
@@ -1439,7 +1568,7 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     self._send(200, target.read_bytes(), mimetypes.guess_type(target.name)[0] or "application/octet-stream")
         except APIError as exc:
-            self._json(exc.status, dict(error=i18n.tr(str(exc))))
+            self._error(exc)
         except ValueError as exc:
             self._json(404, dict(error=str(exc)))
         except (ConnectionError, TimeoutError):
@@ -1456,12 +1585,19 @@ class Handler(BaseHTTPRequestHandler):
         self.connection.settimeout(5)
         cursors = {}
         first = True
+        may_quit = bool(self.server.token) or self._has_local_cookie()
+        last_busy = None
         while not self.server.backend.closed:
             events = self.server.backend.events(cursors, reconnect=first)
             first = False
             for event in events:
                 self.wfile.write(("event: " + event["type"] + "\ndata: " + json.dumps(event, ensure_ascii=False) + "\n\n").encode("utf-8"))
             self.wfile.write(b": heartbeat\n\n")
+            if may_quit:
+                busy = self.server.backend.busy()
+                if busy != last_busy:
+                    self.wfile.write(b"event: activity\ndata: " + json.dumps(dict(type="activity", busy=busy)).encode("ascii") + b"\n\n")
+                    last_busy = busy
             self.wfile.flush()
             time.sleep(0.25)
 
@@ -1485,6 +1621,26 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             self._allowed()
+            if unquote(urlsplit(self.path).path) == "/api/quit":
+                payload = {}
+                if self.headers.get("Content-Length", "0") != "0" or self.headers.get("Transfer-Encoding"):
+                    if self.headers.get_content_type() != "application/json":
+                        raise APIError("application/json required", 415)
+                    payload = json.loads(self._body(1024))
+                if (not isinstance(payload, dict) or set(payload) - {"force"}
+                        or type(payload.get("force", False)) is not bool):
+                    raise APIError("invalid stop request")
+                force = payload.get("force", False)
+                if force and (self.client_address[0] != "127.0.0.1" or
+                              not self._lifecycle_auth(self.headers.get("X-Discprobe-Token", ""))):
+                    raise APIError("local session token required", 403)
+                self.server.backend.request_quit(force=force)
+                try:
+                    self._json(200, dict(exited=True))
+                finally:
+                    # shutdown() must run outside serve_forever's thread.
+                    self.server.shutdown()
+                return
             if self._works("POST"):
                 return
             if urlsplit(self.path).path in ("/api/editor-preview", "/api/editor-swatches"):
@@ -1604,7 +1760,7 @@ class Handler(BaseHTTPRequestHandler):
                         self.rfile.read(int(length))
                     except OSError:
                         pass
-            self._json(exc.status, dict(error=i18n.tr(str(exc))))
+            self._error(exc)
         except (ValueError, UnicodeError, RecursionError):
             self._json(400, dict(error=i18n.tr("invalid JSON request")))
         except OSError:
@@ -1621,19 +1777,46 @@ def guide_drive_tag(drive):
     return (drive or "").replace(":", "")
 
 
+def _warn_linux_drive_permissions(drives):
+    blocked = [drive["id"] for drive in drives
+               if re.fullmatch(r"/dev/sr[0-9]+", drive["id"]) and not os.access(drive["id"], os.R_OK | os.W_OK)]
+    if blocked:
+        i18n._prepare(sys.stderr)
+        devices = ", ".join(blocked)
+        print(f"当前用户无法读写 {devices}。请加入 cdrom 组并重新登录。 / "
+              f"No read/write access to {devices}. Join the cdrom group and sign in again.",
+              file=sys.stderr, flush=True)
+
+
 def run(args):
-    try:
-        gui, manifest = api.load_manifest(getattr(args, "gui", None) or api.BUNDLED_GUI)
-        api.check_manifest(manifest)
-    except ValueError as exc:
-        sys.exit(str(exc))
-    backend = Backend(media=args.media, out=args.out)
-    with Server(backend, args.port, lan=not args.local_only, gui=gui) as server:
-        url = f"http://127.0.0.1:{server.server_port}/home/"
-        if server.token:
-            url += "?token=" + server.token
-        print(url, flush=True)
-        try:
-            server.serve_forever(poll_interval=0.2)
-        except KeyboardInterrupt:
-            pass
+    from .web_instance import launch
+    from . import texlib
+
+    lan = not args.local_only
+    root = Path.cwd().resolve()
+    no_drives = getattr(args, "no_drives", False) or os.environ.get("DISC_PROBE_NO_DRIVES") == "1"
+    gui = Path(getattr(args, "gui", None) or api.BUNDLED_GUI).expanduser().resolve()
+    path_options = {"texlib": "DISCPROBE_TEXLIB", "table": "DISCPROBE_COLOUR_TABLE",
+                    "materials": "DISCPROBE_COLOUR_MATERIALS"}
+    asset_paths = {}
+    for option, env in path_options.items():
+        value = getattr(args, option, None) or os.environ.get(env)
+        asset_paths[option] = os.path.normcase(os.path.abspath(value)) if value else None
+    config = dict(mode="LAN" if lan else "local-only", port=args.port, media=args.media,
+                  root=os.path.normcase(root), out=os.path.normcase((root / args.out).resolve()), gui=os.path.normcase(gui),
+                  no_drives=no_drives, **asset_paths)
+
+    def server(port):
+        if getattr(args, "texlib", None):
+            texlib.configure(args.texlib)
+        for option in ("table", "materials"):
+            if value := getattr(args, option, None):
+                os.environ[path_options[option]] = str(texlib.safe(value))
+        backend = Backend(media=args.media, out=args.out, drive_provider=(lambda: []) if no_drives else None)
+        server = Server(backend, port, lan=lan, gui=gui)
+        if sys.platform.startswith("linux") and not no_drives:
+            _warn_linux_drive_permissions(backend.drive_provider())
+        return server
+
+    launch(server, config, new_instance=getattr(args, "new_instance", False),
+           open_browser=getattr(args, "open_browser", False))

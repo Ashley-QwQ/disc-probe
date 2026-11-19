@@ -1326,7 +1326,9 @@ def _tests_folder(c: Checker):
         c.check(True, "no tests/ folder beside the package, so there is nothing to run")
         return
     import inspect
+    import io
     import sys
+    import unittest
 
     def needs_pytest(fn):
         """A check that takes arguments wants pytest's fixtures or parametrize; pytest runs it, not us."""
@@ -1359,6 +1361,19 @@ def _tests_folder(c: Checker):
                 continue
             found = [(n, f) for n, f in sorted(vars(module).items())
                      if n.startswith("test_") and inspect.isfunction(f)]
+            cases = [v for v in vars(module).values()
+                     if inspect.isclass(v) and issubclass(v, unittest.TestCase) and v.__module__ == module.__name__]
+            if cases and not found:
+                # A unittest-style file: run its TestCase classes the way `python -m unittest` would.
+                suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromTestCase(k) for k in cases)
+                result = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
+                bad = [f"{t.id().rsplit('.', 1)[-1]}: {e.strip().splitlines()[-1]}"
+                       for t, e in result.failures + result.errors]
+                c.check(result.testsRun > 0, f"{name} has checks to run")
+                c.check(not bad, f"{name} passes ({result.testsRun} unittest checks" +
+                        (f", {len(result.skipped)} skipped)" if result.skipped else ")") +
+                        (" -- " + "; ".join(bad[:3]) if bad else ""))
+                continue
             checks = [(n, f) for n, f in found if not needs_pytest(f)]
             left = len(found) - len(checks)
             failed = []

@@ -54,20 +54,23 @@ WINDOWS_WHEELS = {
                               "829717b6a95554f273e49e357cee3b3a2a26b6f4842fbc1bed2b45bdd8f87e0e"),
 }
 SELFTEST_DATA = "tests/data/bd_discussion_samples/local_uj272_bd_zones.csv"
-SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_backend.py", "INSTALL-linux.md", "docs/API_VERSIONING.md", "docs/MANUAL.md", "docs/MANUAL.en.md", "README.md", "README.en.md", "STYLE.md", "DESIGN.md", "LICENSE", SELFTEST_DATA)
+SOURCE = ("discprobe", "tools", "presets", "data", "pyproject.toml", "_build_backend.py", "INSTALL-linux.md", "docs/API_VERSIONING.md", "docs/MANUAL.md", "docs/MANUAL.en.md", "README.md", "README.en.md", "STYLE.md", "DESIGN.md", "LICENSE", "start-linux.sh", "先看我 Read me first.txt", SELFTEST_DATA)
 LEAVE_OUT = ("__pycache__", "tests", "test", "*.pyi", "*.pdb")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LINUX_START = "start-linux.sh"
-WINDOWS_START = "开始 Start (Windows).bat"
-READ_FIRST = "先看我 Read me first.txt"
 
-START = """@echo off
-rem Double-click to open the web lobby. Close this window to stop the server.
-chcp 65001 >nul
-cd /d "%~dp0"
-"%~dp0python\\python.exe" -X utf8 -B "%~dp0tools\\launch_web.py" %*
-if errorlevel 1 pause
-"""
+START_NAME = "开始 Start (Windows).bat"
+# CMD treats the first line as a label. In sh, the trailing comment hides the CR.
+START = (
+    ":; printf '%s\\n' '这是 Windows 启动器。Linux 请运行 bash start-linux.sh。 / "
+    "This is the Windows launcher. On Linux, run bash start-linux.sh.'; exit 1 #\n"
+    '@cd /d "%~dp0" && "%~dp0python\\python.exe" -X utf8 -B -m discprobe webui --open %*\n'
+)
+
+
+def write_start(root):
+    with open(os.path.join(root, START_NAME), "w", encoding="utf-8", newline="\r\n") as f:
+        f.write(START)
 
 # The window's own PATH finds this Python, so the commands disc-probe prints work as written.
 SHELL = """@echo off
@@ -503,14 +506,7 @@ def main() -> None:
     versions = copy_packages(wheels, os.path.join(py, "Lib", "site-packages"), cache)
     copy_source(a, root)
     linux = build_linux(cache, root)
-    for name in (LINUX_START, READ_FIRST):
-        shutil.copy2(Path(HERE) / name, Path(root) / name)
-    launcher = Path(HERE) / WINDOWS_START
-    target = Path(root) / WINDOWS_START
-    if launcher.is_file():
-        shutil.copy2(launcher, target)
-    else:
-        target.write_text(START, encoding="ascii", newline="\r\n")
+    write_start(root)
     with open(os.path.join(py, "shell.cmd"), "w", encoding="utf-8", newline="\r\n") as f:
         f.write(SHELL)
     with open(os.path.join(root, "NOTICE.txt"), "w", encoding="utf-8", newline="\r\n") as f:

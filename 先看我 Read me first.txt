@@ -1,10 +1,2 @@
-把整个 ZIP 解压到可写目录，再启动 disc-probe。
-Windows x86_64：双击「开始 Start (Windows).bat」。
-Linux x86_64：在解压目录运行 bash start-linux.sh。
-完整包自带 Python 和依赖。Linux 光驱权限及实盘验证状态见 INSTALL-linux.md。
-
-Extract the entire ZIP to a writable folder before starting disc-probe.
-Windows x86_64: Double-click “开始 Start (Windows).bat”.
-Linux x86_64: Run bash start-linux.sh in the extracted folder.
-The full package includes Python and its dependencies. See INSTALL-linux.md
-for Linux drive permissions and hardware test status.
+Windows 完整包双击“开始 Start (Windows).bat”。 / In the Windows full package, double-click “开始 Start (Windows).bat”.
+Linux 完整包运行 ./start-linux.sh，也可以运行 bash start-linux.sh。 / In the Linux full package, run ./start-linux.sh or bash start-linux.sh.
