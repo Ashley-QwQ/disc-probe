@@ -39,12 +39,13 @@ def test_r2_machine_powershell_respects_another_process_drive_lock(tmp_path):
     with drive_operation("X:", "timing"):
         result = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True, errors="replace", timeout=15)
     assert result.returncode != 0
-    assert "This drive is in use by another window or command" in result.stderr, result.stderr
+    # PowerShell wraps error records at the console width, so compare with whitespace collapsed.
+    assert "This drive is in use by another window or command" in " ".join(result.stderr.split()), result.stderr
     from discprobe.drive_lock import child_env
     with drive_operation("X:", "burn"):
         delegated = subprocess.run(command, cwd=tmp_path, env=child_env("X:"), capture_output=True,
                                    text=True, errors="replace", timeout=15)
-    assert "Machine mode does not accept legacy session options" in delegated.stderr, delegated.stderr
+    assert "Machine mode does not accept legacy session options" in " ".join(delegated.stderr.split()), delegated.stderr
 
 
 _HOLD_CALIBRATION = """
