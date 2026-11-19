@@ -258,17 +258,22 @@ time.sleep(60)
 
     def test_burn_fails_closed_tokens_expire_and_consume(self):
         b = self.backend()
+        (self.root / "iso").mkdir()
+        (self.root / "iso" / "sample.iso").write_bytes(bytes(2048))
+        payload = dict(action="burn", drive="H:", args={"iso": "iso/sample.iso"})
         with self.assertRaisesRegex(webui.APIError, "burn token"):
-            b.start(dict(action="burn", drive="H:"))
-        token = b.burn_token()["token"]
+            b.start(payload)
         with self.assertRaisesRegex(webui.APIError, "not implemented"):
+            b.burn_token(dict(action="burn", drive="H:"))
+        token = b.burn_token(payload)["token"]
+        with self.assertRaisesRegex(webui.APIError, "does not match"):
             b.start(dict(action="burn", drive="H:", burn_token=token))
         with self.assertRaisesRegex(webui.APIError, "burn token"):
-            b.start(dict(action="burn", drive="H:", burn_token=token))
-        token = b.burn_token()["token"]
-        b.tokens[token] = time.monotonic() - 1
+            b.start(dict(payload, burn_token=token))
+        token = b.burn_token(payload)["token"]
+        b.tokens[token] = webui.Permit(time.monotonic() - 1, b.tokens[token].binding)
         with self.assertRaises(webui.APIError):
-            b.start(dict(action="burn", drive="H:", burn_token=token))
+            b.start(dict(payload, burn_token=token))
         self.assertEqual(b.jobs, {})
 
     def test_real_fake_child_done(self):
@@ -487,7 +492,7 @@ time.sleep(60)
         c.close()
         self.assertEqual(self.request(server, "POST", f"/api/jobs/{ident}/answer", dict(id="q1", yes=False))[0], 200)
         self.assertEqual(self.request(server, "POST", f"/api/jobs/{ident}/cancel", {})[0], 200)
-        self.assertEqual(self.request(server, "GET", "/api/burn-token")[0], 200)
+        self.assertEqual(self.request(server, "GET", "/api/burn-token")[0], 405)
         self.assertEqual(self.request(server, "POST", "/api/jobs/j-0000/cancel", {})[0], 404)
 
     def test_greetings_are_the_terminal_ones(self):
@@ -528,9 +533,12 @@ time.sleep(60)
         self.assertEqual(reads, ["H:"])
         self.assertEqual(b.state()["drives"][0]["disc"]["mid"], "RITEKF1")    # kept for the page
         # a blank disc seen this way never authorizes a burn by itself
-        token = b.burn_token()["token"]
+        (self.root / "iso").mkdir()
+        (self.root / "iso" / "sample.iso").write_bytes(bytes(2048))
+        payload = dict(action="burn", drive="H:", args={"iso": "iso/sample.iso"})
+        token = b.burn_token(payload)["token"]
         with self.assertRaisesRegex(webui.APIError, "verified blank"):
-            b.start(dict(action="burn", drive="H:", burn_token=token))
+            b.start(dict(payload, burn_token=token))
         # no disc: an empty tray is reported, not an error
         found.update(tray="open", disc=None)
         got = b.read_disc(dict(drive="H:"))["disc"]
@@ -565,8 +573,9 @@ with open(p, 'a') as f:
         (self.root / "iso" / "m.iso").write_bytes(b"\0" * 4096)
         with self.assertRaisesRegex(webui.APIError, "burn token"):
             b.start(dict(action="calibrate", drive="I:", args={"iso": "iso/m.iso"}))
-        token = b.burn_token()["token"]
-        b.start(dict(action="calibrate", drive="I:", args={"iso": "iso/m.iso"}, burn_token=token))
+        payload = dict(action="calibrate", drive="I:", args={"iso": "iso/m.iso"})
+        token = b.burn_token(payload)["token"]
+        b.start(dict(payload, burn_token=token))
         self.assertIn("--yes-write", self.argv)
         self.assertEqual(self.argv.count("--media"), 1)
 
@@ -581,8 +590,8 @@ with open(p, 'a') as f:
                     b.read_disc(dict(drive="H:"))
                     other = b.read_disc(dict(drive="I:"))["disc"]
                     b.verified_blank = {d: (time.monotonic() + 30, "dvd") for d in ("H:", "I:")}
-                    ident = b.start(dict(action=action, drive="H:", args={"iso": "iso/m.iso"},
-                                         burn_token=b.burn_token()["token"]))["job"]
+                    payload = dict(action=action, drive="H:", args={"iso": "iso/m.iso"})
+                    ident = b.start(dict(payload, burn_token=b.burn_token(payload)["token"]))["job"]
                     eventually(lambda: b.get_job(ident).finished.is_set())
                     self.assertEqual(b.job_state(ident)["exit"], code)
                     replay = b.events({}, reconnect=True)

@@ -317,6 +317,7 @@ class BurnerTests(unittest.TestCase):
         drives = lambda: [dict(id="H:", disc=None)]
         started = []
         backend = webui.Backend(self.root, drive_provider=drives,
+                                disc_reader=lambda drive: dict(tray="ready", disc=dict(blank=True)),
                                 runner=lambda argv, **kw: started.append(argv) or Mock(wait=Mock(return_value=0), close=Mock()))
         self.addCleanup(backend.close)  # join the mock job before TemporaryDirectory cleanup
         (self.root / "iso").mkdir(exist_ok=True)
@@ -325,8 +326,9 @@ class BurnerTests(unittest.TestCase):
         handler.server = Mock(backend=backend)
         handler._allowed = Mock()
         handler._json = Mock()
-        run = lambda media="dvd": backend.start(dict(action="burn", drive="H:", media=media, args={"iso": "iso/p.iso"},
-                                                      burn_token=backend.burn_token()["token"]))
+        def run(media="dvd"):
+            payload = dict(action="burn", drive="H:", media=media, args={"iso": "iso/p.iso"})
+            return backend.start(dict(payload, burn_token=backend.burn_token(payload)["token"]))
         with self.assertRaisesRegex(webui.APIError, "blank"):
             run()                                                  # nothing inspected yet
         fake = Mock()
@@ -387,21 +389,21 @@ class BurnerTests(unittest.TestCase):
         payload = dict(action="burn", drive="H:", args=dict(iso="iso/" + self.iso.name, speed=4))
         with self.assertRaisesRegex(webui.APIError, "token"):
             backend.start(payload)
-        token = backend.burn_token()["token"]
+        token = backend.burn_token(payload)["token"]
         drives[0]["disc"]["blank"] = False
-        with self.assertRaisesRegex(webui.APIError, "blank"):
+        with self.assertRaisesRegex(webui.APIError, "current medium"):
             backend.start({**payload, "burn_token": token})
         drives[0]["disc"]["blank"] = True
         with self.assertRaisesRegex(webui.APIError, "token"):
             backend.start({**payload, "burn_token": token})
-        token = backend.burn_token()["token"]
-        backend.tokens[token] = 0
+        token = backend.burn_token(payload)["token"]
+        backend.tokens[token] = webui.Permit(0, backend.tokens[token].binding)
         with self.assertRaisesRegex(webui.APIError, "token"):
             backend.start({**payload, "burn_token": token})
         for bad in ({"iso": "../x.iso"}, {"iso": "iso/x.iso", "yes_write": True}, {"iso": "iso/x.iso", "speed": True}):
             with self.assertRaises(webui.APIError):
                 webui.command({**payload, "args": bad}, self.root, drives)
-        ident = backend.start({**payload, "burn_token": backend.burn_token()["token"]})["job"]
+        ident = backend.start({**payload, "burn_token": backend.burn_token(payload)["token"]})["job"]
         argv = runner.call_args.args[0]
         self.assertIn("--yes-write", argv)
         self.assertIn(str(self.iso), argv)

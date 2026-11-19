@@ -15,7 +15,7 @@ import { updateDesk } from "./design/editor-desk.mjs";
 
 import { processingWorker } from "./design/worker-client.mjs";
 import { downloadTemplate } from "./design/template-download.mjs";
-import { mountFilesStep, occupiedRings, filePictureRange, fileArguments, refreshFiles, drawFileGuides } from "./design/disc-files.mjs";
+import { mountFilesStep, occupiedRings, filePictureRange, fileArguments, refreshFiles, drawFileGuides, fileDisplay } from "./design/disc-files.mjs";
 import { hasCapability } from "./handshake.mjs";
 import { CELLS, COST, geoChoice, measuredRing, burnDocument, checkTextures, experimentalContent, hasColourPicture, pictureSampling } from "./design/export-rules.mjs";
 
@@ -254,6 +254,11 @@ function newProject(item, media) {
 }
 const imageLayers = () => S.layers.filter((L) => L.kind === "image");
 const sel = () => S.layers.find((L) => L.id === S.selected) ?? null;
+const layerRow = (row) => S.layers.find((L) => String(L.id) === row.dataset.id);
+function newLayerId() {
+  while (S.layers.some(L => String(L.id) === String(nextId))) nextId++;
+  return nextId++;
+}
 // The ring a picture may use: the disc kind's burnable ring, cut to what this plan's geometry measured
 // (S.ring, set by useMeasured). Outside it the core refuses to place a picture: an unmeasured radius is a guess.
 const range = () => S?.ring ?? RANGE[S.media] ?? RANGE.dvd;
@@ -332,7 +337,7 @@ function addImageLayer(name, source, w, h) {
   const width = 2 * r1 * 0.98 / Math.sqrt(1 + (c.height / c.width) ** 2);
   checkpoint();
   const L = {
-    id: nextId++, kind: "image", name: uniqueLayerName(S.layers, name, api.lang()==="zh"?"图片":"Image"), w: c.width, h: c.height,
+    id: newLayerId(), kind: "image", name: uniqueLayerName(S.layers, name, api.lang()==="zh"?"图片":"Image"), w: c.width, h: c.height,
     x: 0, y: 0, width, rot: 0, opacity: 1, visible: true, locked: false, colour: "none",
     px: g.getImageData(0, 0, c.width, c.height), src: c, version: 1,
   };
@@ -350,7 +355,7 @@ function addEffect(kind) {
   const [p0, p1] = pictureRange(), r = (p0 + p1) / 2;
   const n = S.layers.filter((L) => L.kind === "fx").length, a = [0, 180, -28, 208, 28, 152][n % 6] * Math.PI / 180;
   const L = {
-    id: nextId++, kind: "fx", fxKind: kind, name: T().fxKinds[kind][0],
+    id: newLayerId(), kind: "fx", fxKind: kind, name: T().fxKinds[kind][0],
     x: r * Math.cos(a), y: r * Math.sin(a), width: size[0], height: size[1], rot: 0, opacity: 1,
     visible: true, locked: false, y1: ys[0], y2: ys[1],
   };
@@ -408,7 +413,7 @@ function selectionEdit(action) {
   const {selected,remaining}=selectionPixels(L,EditorOps.bytes(m.bits),S.maskGrid,editor.options.feather??0);
   checkpoint();
   let next=null;
-  if(split){next={...L,id:nextId++,name:uniqueLayerName(S.layers,L.name,api.lang()==='zh'?'图片':'Image',false),px:new ImageData(selected,L.w,L.h),alphaEdited:true,shape:undefined,sourceKind:'bitmap',thumb:null,src:null};
+  if(split){next={...L,id:newLayerId(),name:uniqueLayerName(S.layers,L.name,api.lang()==='zh'?'图片':'Image',false),px:new ImageData(selected,L.w,L.h),alphaEdited:true,shape:undefined,sourceKind:'bitmap',thumb:null,src:null};
     pixelsChanged(next);S.layers.splice(S.layers.indexOf(L)+1,0,next);S.selected=next.id;
     S.assignments.push(...S.assignments.filter(a=>a.layer===L.id).map(a=>({...structuredClone(a),id:crypto.randomUUID(),layer:next.id})));}
   if(action!=='copy'){L.px=new ImageData(action==='keep'?selected:remaining,L.w,L.h);L.alphaEdited=true;L.shape=undefined;L.sourceKind='bitmap';pixelsChanged(L);}
@@ -1132,13 +1137,16 @@ function buildLeft() {
   const layerActions = panel?.layerActions;
   W.left.innerHTML = `<section><h3><span class="grow">${t.layers}</span>` +
     `</h3>` +
-    (rows.length ? `<ul class="lays" role="listbox" aria-label="${t.layers}">${rows.map((L) => `<li class="lay${L.visible ? "" : " hid"}" role="option" draggable="true" data-id="${L.id}" aria-selected="${L.id === S.selected}">` +
+    (rows.length ? `<ul class="lays" role="listbox" aria-label="${t.layers}">${rows.map((L) => {
+      const id = esc(L.id);
+      return `<li class="lay${L.visible ? "" : " hid"}" role="option" draggable="true" data-id="${id}" aria-selected="${L.id === S.selected}">` +
       (L.kind === "fx" ? `<span class="fxmark">${I.fx}</span>` : `<span class="th"></span>`) +
       `<span class="nm"><span class="ed-layer-label">${esc(L.name)}${L.kind === "fx" ? `<small>${t.fxY(L.y1, L.y2)}</small>` : ""}</span>${L.locked?`<span class="ed-lock-mark" role="img" aria-label="${api.lang()==="zh"?"已锁定":"Locked"}" title="${api.lang()==="zh"?"已锁定":"Locked"}">${I.lock}</span>`:""}</span>` +
       `<button class="ib" type="button" data-a="vis" aria-label="${L.visible ? t.hide : t.show}" title="${L.visible ? t.hide : t.show}">${L.visible ? I.eye : I.eyeOff}</button>` +
-      `<button class="ib" type="button" data-a="more" aria-label="${api.lang()==="zh"?"图层操作":"Layer actions"}" title="${api.lang()==="zh"?"图层操作":"Layer actions"}" aria-expanded="${layerActions===L.id}" aria-controls="ed-layer-actions-${L.id}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>` +
-      `<div class="ed-layer-more" id="ed-layer-actions-${L.id}" role="group" aria-label="${api.lang()==="zh"?"图层操作":"Layer actions"}" ${layerActions===L.id?"":"hidden"}>` +
-      `<button class="ib" type="button" data-a="lock" aria-label="${L.locked ? t.unlock : t.lock}" title="${L.locked ? t.unlock : t.lock}">${L.locked ? I.lock : I.unlock}</button><button class="ib" data-a="up" aria-label="${api.lang()==="zh"?"上移图层":"Raise layer"}" title="Alt+↑" ${L.locked?"disabled":""}><svg viewBox="0 0 24 24"><path d="M6 14l6-6 6 6M12 8v12"/></svg></button><button class="ib" data-a="down" aria-label="${api.lang()==="zh"?"下移图层":"Lower layer"}" title="Alt+↓" ${L.locked?"disabled":""}><svg viewBox="0 0 24 24"><path d="M6 10l6 6 6-6M12 4v12"/></svg></button><button class="ib" data-a="del" aria-label="${t.remove}" title="Delete" ${L.locked?"disabled":""}>${I.trash}</button></div></li>`).join("")}</ul>`
+      `<button class="ib" type="button" data-a="more" aria-label="${api.lang()==="zh"?"图层操作":"Layer actions"}" title="${api.lang()==="zh"?"图层操作":"Layer actions"}" aria-expanded="${layerActions===L.id}" aria-controls="ed-layer-actions-${id}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>` +
+      `<div class="ed-layer-more" id="ed-layer-actions-${id}" role="group" aria-label="${api.lang()==="zh"?"图层操作":"Layer actions"}" ${layerActions===L.id?"":"hidden"}>` +
+      `<button class="ib" type="button" data-a="lock" aria-label="${L.locked ? t.unlock : t.lock}" title="${L.locked ? t.unlock : t.lock}">${L.locked ? I.lock : I.unlock}</button><button class="ib" data-a="up" aria-label="${api.lang()==="zh"?"上移图层":"Raise layer"}" title="Alt+↑" ${L.locked?"disabled":""}><svg viewBox="0 0 24 24"><path d="M6 14l6-6 6 6M12 8v12"/></svg></button><button class="ib" data-a="down" aria-label="${api.lang()==="zh"?"下移图层":"Lower layer"}" title="Alt+↓" ${L.locked?"disabled":""}><svg viewBox="0 0 24 24"><path d="M6 10l6 6 6-6M12 4v12"/></svg></button><button class="ib" data-a="del" aria-label="${t.remove}" title="Delete" ${L.locked?"disabled":""}>${I.trash}</button></div></li>`;
+    }).join("")}</ul>`
       : `<p class="empty-l">${t.noLayers}</p>`) +
     `<button class="sbtn wide" type="button" data-a="import">${I.image}${t.import}</button>` +
     `<button class="sbtn wide template-download" type="button" data-a="template" data-capability="templates" ${hasCapability('templates') ? '' : 'hidden'}>${api.lang() === "en" ? "Download template" : "下载模板"}</button></section>` +
@@ -1146,7 +1154,7 @@ function buildLeft() {
     // files on the disc: the core cannot write them yet (`image` has no files, the ISO no entries), so the page
     // does not show them at all until it does (a column explaining a missing feature is noise)
     (!FILES_READY ? "" : `<section><h3>${t.files}</h3>` +
-    (S.files ? `<p class="note">${t.filesN(S.files.count, size(S.files.bytes))}</p>` +
+    (S.files ? `<p class="note">${esc(t.filesN(S.files.count, size(S.files.bytes)))}</p>` +
       `<div class="seg" role="group" aria-label="${t.files}"><button type="button" data-a="inner" aria-pressed="${S.files.where === "inner"}">${t.inner}</button><button type="button" data-a="outer" aria-pressed="${S.files.where === "outer"}">${t.outer}</button></div>` +
       `<p class="note quiet">${t.filesRing(...filesRing().map((r) => r.toFixed(1)))}</p>`
       : `<p class="note quiet">${t.filesNone}</p>`) +
@@ -1154,7 +1162,7 @@ function buildLeft() {
     `<div class="row2"><button class="sbtn" type="button" data-a="folder">${I.folder}${t.pickFolder}</button>` +
     `<button class="sbtn" type="button" data-a="nofiles" ${S.files ? "" : "disabled"}>${t.clear}</button></div></section>`);
   for (const li of W.left.querySelectorAll(".lay")) {
-    const L = S.layers.find((x) => x.id === Number(li.dataset.id));
+    const L = layerRow(li);
     if (L.kind === "image") li.querySelector(".th").replaceWith(thumb(L));
   }
   editor?.left();
@@ -1191,7 +1199,7 @@ function burnSection() {
 }
 function refreshLayerRows() {
   for (const li of W?.left.querySelectorAll(".lay") ?? []) {
-    const L = S.layers.find((x) => x.id === Number(li.dataset.id));
+    const L = layerRow(li);
     if (!L) continue;
     li.setAttribute("aria-selected", String(L.id === S.selected));
     const small = li.querySelector("small");
@@ -1207,7 +1215,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const size = (b) => b > 1e9 ? `${(b / 1e9).toFixed(2)} GB` : b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.ceil(b / 1e3)} KB`;
 function leftClick(e) {
   const b = e.target.closest("[data-a]"), li = e.target.closest(".lay");
-  const L = li ? S.layers.find((x) => x.id === Number(li.dataset.id)) : null;
+  const L = li ? layerRow(li) : null;
   const a = b?.dataset.a;
   if (a === "undo") return undo();
   if (a === "redo") return redo();
@@ -1227,7 +1235,7 @@ function leftClick(e) {
 function leftDbl(e) {
   const li = e.target.closest(".lay");
   if (!li || e.target.closest("button")) return;
-  const L = S.layers.find((x) => x.id === Number(li.dataset.id)), nm = li.querySelector(".nm");
+  const L = layerRow(li), nm = li.querySelector(".nm");
   const inp = document.createElement("input");
   inp.value = L.name; inp.className = "num"; inp.style.textAlign = "left";
   nm.replaceWith(inp); inp.focus(); inp.select();
@@ -1241,11 +1249,11 @@ let dragRow = null;
 function leftDrag(e) {
   const li = e.target.closest?.(".lay");
   if(e.type==="dragstart"&&li&&S.layers.find(l=>String(l.id)===li.dataset.id)?.locked){e.preventDefault();return;}
-  if (e.type === "dragstart" && li) { dragRow = Number(li.dataset.id); li.classList.add("drag"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", li.dataset.id); }
+  if (e.type === "dragstart" && li) { dragRow = layerRow(li); li.classList.add("drag"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", li.dataset.id); }
   else if (e.type === "dragover" && li && dragRow !== null) { e.preventDefault(); for (const x of W.left.querySelectorAll(".over")) x.classList.remove("over"); li.classList.add("over"); }
   else if (e.type === "drop" && li && dragRow !== null) {
     e.preventDefault();
-    const from = S.layers.findIndex((L) => L.id === dragRow), target = S.layers.findIndex((L) => L.id === Number(li.dataset.id));
+    const from = S.layers.indexOf(dragRow), target = S.layers.indexOf(layerRow(li));
     if (from >= 0 && target >= 0 && from !== target) {
       checkpoint();
       const [moved] = S.layers.splice(from, 1);
@@ -1258,8 +1266,8 @@ function leftDrag(e) {
 
 // ---------------------------------------------------------------- the right column: tone, then PRO
 function slider(id, label, min, max, step, value) {
-  return `<div class="ctl"><label for="${id}">${label}</label><input class="num" id="${id}-n" type="number" min="${min}" max="${max}" step="${step}" value="${value}" data-k="${id}">` +
-    `<input class="rng" id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${value}" data-k="${id}"></div>`;
+  return `<div class="ctl"><label for="${id}">${label}</label><input class="num" id="${id}-n" type="number" min="${min}" max="${max}" step="${step}" value="${esc(value)}" data-k="${id}">` +
+    `<input class="rng" id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${esc(value)}" data-k="${id}"></div>`;
 }
 function buildRight() {
   if(editor){editor.right();return;}
@@ -1276,7 +1284,7 @@ function buildRight() {
     `<label class="chk"><input type="checkbox" data-k="lin" ${tone.lin ? "checked" : ""}>${t.lin}</label>` +
     (S.media === "bd" ? `<label class="chk"><input type="checkbox" data-k="inv" ${tone.inv ? "checked" : ""}>${t.inv}</label>` : "") +
     `<details class="more"><summary>${t.more}</summary><div>` +
-    `<div class="ctl-line"><button class="sbtn" type="button" data-a="auto">${tone.auto ? t.autoOff : t.auto}</button><span class="note quiet">${tone.auto ? t.autoOn(...tone.auto) : ""}</span></div>` +
+    `<div class="ctl-line"><button class="sbtn" type="button" data-a="auto">${tone.auto ? t.autoOff : t.auto}</button><span class="note quiet">${Array.isArray(tone.auto) ? esc(t.autoOn(...tone.auto)) : ""}</span></div>` +
     slider("contrast", t.contrast, -100, 100, 1, tone.contrast) + slider("hi", t.hi, -100, 100, 1, tone.hi) + slider("sh", t.sh, -100, 100, 1, tone.sh) +
     `<div class="ctl-line"><label for="dmode">${t.mode}</label><select class="sel" id="dmode" data-k="mode">` +
     Object.entries(t.modes).map(([k, v]) => `<option value="${k}" ${tone.mode === k ? "selected" : ""}>${v}</option>`).join("") + `</select></div>` +
@@ -1486,7 +1494,7 @@ async function projectText() {
   return JSON.stringify({
     ...portable,
     format: FILE_KIND, version: FILE_VERSION, media: S.media, disc: S.item?.name ?? null, geo: S.geo ?? null,
-    tone: S.tone, files: S.files, pro: S.pro, cell: S.cell, scene: S.scene, lookColour: S.lookColour, lookY: S.lookY, layers: layers.map((l,i)=>({...l,...portable?.layers[i]})),
+    tone: S.tone, files: fileDisplay(S.files), pro: S.pro, cell: S.cell, scene: S.scene, lookColour: S.lookColour, lookY: S.lookY, layers: layers.map((l,i)=>({...l,...portable?.layers[i]})),
   });
 }
 const baseName = (n) => n.replace(/\.discdesign$/i, "").replace(/\.json$/i, "");
@@ -1556,13 +1564,23 @@ async function openProject(file, handle = null, work = null) {
   if (data?.format !== FILE_KIND || !Array.isArray(data.layers)) { toast(t.notProject(file.name)); return; }
   if (data.version > FILE_VERSION) { toast(t.newer(file.name)); return; }
   if (data.layers.length > 16) { toast(t.notProject(file.name)); return; }
-  const layers = [], lost = [];
+  const layers = [], lost = [], layerIds = new Map(), usedIds = new Set();
+  const validId = (id) => (typeof id === "string" || Number.isSafeInteger(id)) && /^[A-Za-z0-9_-]{1,64}$/.test(String(id));
+  const reservedIds = new Set(data.layers.map(e => e?.id).filter(validId).map(String));
   for (const e of data.layers) {
-    const base = { id: e.id ?? nextId++, kind: e.kind === "fx" ? "fx" : "image", name: String(e.name ?? ""), x: +e.x || 0, y: +e.y || 0,
+    if (!e || typeof e !== "object") { lost.push({}); continue; }
+    let id = e.id;
+    if (!validId(id) || usedIds.has(String(id))) {
+      while (reservedIds.has(String(nextId)) || usedIds.has(String(nextId))) nextId++;
+      id = nextId++;
+    }
+    usedIds.add(String(id));
+    const base = { id, kind: e.kind === "fx" ? "fx" : "image", name: String(e.name ?? ""), x: +e.x || 0, y: +e.y || 0,
       width: Math.max(1, +e.width || 1), rot: +e.rot || 0, opacity: Math.min(1, Math.max(0, e.opacity ?? 1)), visible: e.visible !== false, locked: !!e.locked };
     if (base.kind === "fx") {
       if (!["flow", "ox", "merge", "sync"].includes(e.fxKind)) continue;
       layers.push({ ...base, fxKind: e.fxKind, height: Math.max(1, +e.height || 1), y1: +e.y1 || 70, y2: +e.y2 || 70 });
+      if (e.id != null && !layerIds.has(e.id)) layerIds.set(e.id, id);
       continue;
     }
     try {
@@ -1579,20 +1597,23 @@ async function openProject(file, handle = null, work = null) {
       Object.assign(L,{sourceKind:e.sourceKind,shape:e.shape,svg:e.svg,tone:e.tone});
       if (typeof e.original === "string" && e.original.startsWith("data:image/")) L.file = dataURLBlob(e.original);
       layers.push(L);
+      if (e.id != null && !layerIds.has(e.id)) layerIds.set(e.id, id);
     } catch { lost.push(e); }               // one unreadable picture: open the rest and say which
   }
   if (data.layers.length && lost.length === data.layers.length) { toast(t.notProject(file.name)); return; }
   checkpoint();
   S.layers = layers.slice(0, 16);
-  nextId=Math.max(nextId,...S.layers.map(l=>Number(l.id)+1));
-  S.selections=structuredClone(data.selections??[]);S.assignments=structuredClone(data.assignments??[]);S.activeMask=data.activeMask??null;
+  S.selections=structuredClone(data.selections??[]);S.activeMask=data.activeMask??null;
   // fills of a layer that is gone would make the export refuse the whole work
   const kept = new Set(S.layers.map((l) => l.id));
-  S.assignments = S.assignments.filter((a) => a.layer === undefined || kept.has(a.layer));
+  S.assignments = (data.assignments ?? []).filter(a => a && typeof a === "object")
+    .map(a => a.layer === undefined ? a : {...a, layer:layerIds.get(a.layer) ?? null})
+    .filter(a => a.layer === undefined || kept.has(a.layer));
   S.maskGrid=structuredClone(data.maskGrid??EditorOps.grid());S.materials=data.materials?structuredClone(data.materials):null;
   editor?.init();editor?.invalidate();
   S.selected = null;
-  for (const k of ["files", "pro", "lookColour"]) if (k in data) S[k] = data[k];
+  S.files = fileDisplay(data.files);
+  for (const k of ["pro", "lookColour"]) if (k in data) S[k] = !!data[k];
   if (data.tone) S.tone = { ...DEFAULT_TONE, ...data.tone };
   if (data.scene) S.scene = { ...S.scene, ...data.scene };
   if (data.media === S.media && Array.isArray(data.annulus_mm) && editor?.hasColour()) S.ring = data.annulus_mm;
@@ -1687,14 +1708,19 @@ export function isoStem(name) {
 export async function makeBurnFile(onProgress = () => {}, { signal, effects } = {}) {
   const t = T().exp, t2 = T();
   const stop = () => { if (signal?.aborted) throw new DOMException("cancelled", "AbortError"); };
+  const plan = S;
+  let files = plan.files;
+  if (files?.folder && !files.token) throw Error(api.lang() === "en" ? "Check and confirm the files list before exporting." : "请先检查并确认随盘文件清单。");
   let state;
   try { const r = await fetch(`/api/state?media=${S.media}`, { signal }); if (!r.ok) throw 0; state = await r.json(); }
   catch (e) { if (e?.name === "AbortError") throw e; throw new Error(t.noBackend); }
   const geo = planGeo(state), geoPath = geo.path;
   if (!geoPath) throw Object.assign(new Error(t.noGeo), { code: "nogeo" });
   useMeasured(geo);                                    // the burn file keeps the picture inside the measured ring
-  if (S.files) {
-    S.files=await refreshFiles(S.files,{media:S.media,geo:geoPath,r_max:range()[1]});
+  if (files?.folder) {
+    const current = await refreshFiles(files,{media:S.media,geo:geoPath,r_max:range()[1]});
+    if (S !== plan || plan.files !== files) throw Error(api.lang() === "en" ? "The files selection changed." : "随盘文件选择已改变。");
+    plan.files=files=current;
     buildLeft(); draw();
   }
   const um = Math.round(S.cell * 1000);
@@ -1722,10 +1748,19 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects } = 
   const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
   const output = `iso/${isoStem(S.name)}-${um}um-${stamp}${burn?.mode === "experimental" ? "-exp" : ""}.iso`;
   const link = await workForISO();
+  stop();
+  if (files?.token && (S !== plan || plan.files !== files))
+    throw Error(api.lang() === "en" ? "The files selection changed." : "随盘文件选择已改变。");
   onProgress({ stage: t.making, fraction: 0 });
+  const filesToken = files?.token;
+  if (filesToken) {
+    delete files.token;
+    delete files.layout.review;
+    buildLeft();
+  }
   const run = await fetch("/api/run", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "image", media: S.media, ...(link ? { work: link.id } : {}), args: { geo: geoPath, design_npy: saved.design_npy, ...(saved.textures?{textures:saved.textures}:{}), ...fileArguments(S.files), output, r_max: rMax } }),
+    body: JSON.stringify({ action: "image", media: S.media, ...(link ? { work: link.id } : {}), ...(filesToken ? {files_token:filesToken} : {}), args: { geo: geoPath, design_npy: saved.design_npy, ...(saved.textures?{textures:saved.textures}:{}), ...fileArguments(files), output, r_max: rMax } }),
   });
   const job = await run.json().catch(() => ({}));
   if (!run.ok) throw new Error(job.error ?? t.failed);
@@ -2377,12 +2412,13 @@ function realBurn(iso, drive, onProgress, { speed, erase=false } = {}) {
       const look = await fetch(`/api/burn-speeds?drive=${encodeURIComponent(drive.id)}&media=${S.media}`);
       const seen = await look.json().catch(() => ({}));
       if (!look.ok || (seen.blank !== true && !(erase && seen.rewritable))) { fail(look.ok ? T().burnNotBlank : T().burnNoDisc(seen.error ?? ""), false); return; }
-      const tok = await (await fetch("/api/burn-token")).json();
+      const request = {action:"burn", drive:drive.id, media:S.media, args:{iso:iso.path, ...(speed ? {speed} : {}), ...(erase ? {erase:true} : {})}};
+      const tok = await api.backend.request("/api/burn-token", request);
       // the plan's library work: the core records the burn in it (status burned) when the burn succeeds
       const link = S.work?.id ? { id: S.work.id, before: S.work.updated_at, plan: S } : null;
       const r = await fetch("/api/run", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "burn", drive: drive.id, media: S.media, ...(link ? { work: link.id } : {}), args: { iso: iso.path, ...(speed ? { speed } : {}), ...(erase?{erase:true}:{}) }, burn_token: tok.token }),
+        body: JSON.stringify({ ...request, ...(link ? { work: link.id } : {}), burn_token: tok.token }),
       });
       const out = await r.json().catch(() => ({}));
       if (!r.ok) { fail(out.error ?? T().exp.failed); return; }

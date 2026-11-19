@@ -6,7 +6,9 @@ infers that a saved info report proves the disc currently in a drive is blank.
 from __future__ import annotations
 
 from contextlib import contextmanager
+from dataclasses import dataclass
 import hmac
+import ipaddress
 import json
 import math
 import mimetypes
@@ -14,6 +16,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import stat
 import signal
 import socket
 import subprocess
@@ -72,6 +75,14 @@ DESIGN_SIDES = {side * side // 8: side for side in (6000, 12000, 24000)}
 # An editor work as the design page sends it to /api/compose: up to 16 layers of RGBA (2048 px a side at most)
 # in base64. Three photos are already over 64 MB; 16 full-size layers are about 360 MB.
 COMPOSE_BYTES = 384 * 1024 * 1024
+# Bound the work done before authentication. Keep loopback slots available to the desktop.
+HEADER_SECONDS = 3
+HEADER_CONNECTIONS = 24
+HEADER_LOCAL_RESERVE = 8
+BURN_TOKEN_SECONDS = 30
+FILES_TOKEN_SECONDS = 15 * 60
+MAX_PENDING_PERMITS = 128
+BURN_MEDIUM_FIELDS = ("media", "kind", "mid", "blank", "closed", "rewritable", "sectors", "capacity_sectors", "medium_id")
 LIMITS = {"count": (1, 1000), "sectors": (1, 25_000_000), "seed": (0, 2**32 - 1),
           "minutes": (0.1, 120), "diameter": (1, 120), "radius": (1, 58),
           "frames": (-10000, 10000), "size": (64, 8192), "completion_sectors": (-65536, 65536)}
@@ -87,6 +98,55 @@ class APIError(ValueError):
         super().__init__(message)
         self.status = status
         self.code = code
+
+
+@dataclass(frozen=True)
+class Permit:
+    expires: float
+    binding: tuple
+
+
+@dataclass(frozen=True)
+class BurnTarget:
+    action: str
+    drive: str
+    media: str
+    image: tuple[Path, int, int] | None = None
+    full_erase: bool = False
+
+
+def issue_permit(permits, binding, seconds):
+    """Called with the backend lock held."""
+    now = time.monotonic()
+    for token in [token for token, permit in permits.items() if permit.expires <= now]:
+        del permits[token]
+    if len(permits) >= MAX_PENDING_PERMITS:
+        del permits[next(iter(permits))]
+    token = secrets.token_urlsafe(32)
+    permits[token] = Permit(now + seconds, binding)
+    return token
+
+
+def take_permit(permits, token, error):
+    permit = permits.pop(token, None) if isinstance(token, str) else None
+    if not permit or permit.expires <= time.monotonic():
+        raise APIError(error, 403)
+    return permit.binding
+
+
+def burn_action(payload):
+    action, args = payload["action"], payload.get("args", {})
+    if action == "erase":
+        return "erase"
+    if action == "calibrate" and args.get("iso"):
+        action = "calibrate+iso"
+    if action in ("burn", "calibrate+iso"):
+        return action + ("+erase" if args.get("erase") is True else "")
+    return None
+
+
+def files_binding(layout):
+    return (layout["folder"], layout["source_sha256"])
 
 
 def drive_available(drive):
@@ -106,7 +166,7 @@ def local_path(root: Path, value: str) -> str:
 
 
 def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
-    if not isinstance(payload, dict) or set(payload) - {"action", "drive", "media", "args", "burn_token", "work"}:
+    if not isinstance(payload, dict) or set(payload) - {"action", "drive", "media", "args", "burn_token", "files_token", "work"}:
         raise APIError("invalid run request")
     action, media = payload.get("action"), payload.get("media", "dvd")
     if not isinstance(action, str) or action not in ACTIONS:
@@ -590,6 +650,8 @@ class Backend:
         self.lock = threading.RLock()
         self.jobs = {}
         self.tokens = {}
+        self.files_reviews = {}
+        self.files_tokens = {}
         from .photo import PhotoStore
         self.photos = PhotoStore(self.out)
         from .works import Store
@@ -599,6 +661,7 @@ class Backend:
         self.desk_run = None                 # (run, when): the run the computer's page listed most recently
         # drive -> (expiry, media): a read-only inspection just found a blank disc there
         self.verified_blank = {}
+        self.drive_changes = {}
         # drive -> what the last read of its disc found (`discprobe disc`, or an `info` job), with when. Only
         # shown to the page; a burn never relies on it (it needs verified_blank or the provider's own disc).
         self.discs = {}
@@ -685,13 +748,73 @@ class Backend:
             return dict(job=ident, action=job.action, media=job.media, args=job.args, exit=job.exit,
                         events=list(job.history), result=job.result, cancellation=job.cancellation)
 
-    def burn_token(self):
+    def _burn_target(self, payload):
+        action = burn_action(payload)
+        drive, media = payload.get("drive"), payload.get("media", "dvd")
+        if action == "erase":
+            return BurnTarget(action, drive, media, full_erase=payload.get("args", {}).get("full") is True)
+        if media not in ("dvd", "cd"):
+            raise APIError("burn requires dvd or cd media")
+        image = payload.get("args", {}).get("iso")
+        if not image:
+            raise APIError("burn is not implemented without an ISO; iso is required")
+        path, info = self._iso_stat(image)
+        return BurnTarget(action, drive, media, (path, info.st_size, info.st_mtime_ns))
+
+    def _burn_medium(self, drive, media, drives):
+        # Provider-supplied reports are used by virtual drives. Physical drives
+        # get a fresh read-only inspection even if the desktop recently checked.
+        with self._reading_drive(drive, "disc"):
+            supplied = next(d.get("disc") for d in drives if d["id"] == drive)
+            if supplied is None:
+                found = self.disc_reader(drive)
+                supplied = found.get("disc") if found.get("tray") == "ready" else None
+            with self.lock:
+                generation = self.drive_changes.get(drive, 0)
+        if not supplied or supplied.get("present") is False or supplied.get("media", media) != media:
+            raise APIError("the selected medium is not ready", 409)
+        return {key: supplied.get(key) for key in BURN_MEDIUM_FIELDS}, generation
+
+    def burn_token(self, payload):
+        if not isinstance(payload, dict) or set(payload) - {"action", "drive", "media", "args"}:
+            raise APIError("invalid burn token request")
+        drives = self.drive_provider()
+        _, drive = command(payload, self.root, drives)
+        if not burn_action(payload):
+            raise APIError("action does not require a burn token")
+        target = self._burn_target(payload)
+        medium = self._burn_medium(drive, target.media, drives)
         with self.lock:
-            now = time.monotonic()
-            self.tokens = {t: expiry for t, expiry in self.tokens.items() if expiry > now}
-            token = secrets.token_urlsafe(32)
-            self.tokens[token] = now + 30
-            return dict(token=token, expires_in=30)
+            token = issue_permit(self.tokens, (target, medium), BURN_TOKEN_SECONDS)
+        return dict(token=token, expires_in=BURN_TOKEN_SECONDS)
+
+    def files_layout(self, payload):
+        from .discfiles_api import request
+        layout = request(self.root, payload)
+        with self.lock:
+            layout["review"] = issue_permit(self.files_reviews, files_binding(layout), FILES_TOKEN_SECONDS)
+        return layout
+
+    def files_authorize(self, payload):
+        if not isinstance(payload, dict) or set(payload) != {"review"}:
+            raise APIError("invalid files confirmation")
+        with self.lock:
+            binding = take_permit(self.files_reviews, payload["review"], "review the files list again")
+            token = issue_permit(self.files_tokens, binding, FILES_TOKEN_SECONDS)
+        return dict(token=token)
+
+    def _check_files_permit(self, args, token):
+        from .discfiles_api import request
+        with self.lock:
+            approved = take_permit(self.files_tokens, token, "confirm the files list before exporting")
+        try:
+            layout = request(self.root, dict(folder=args["files"], files_at=args.get("files_at", "inner"),
+                                             margin=args.get("files_margin"), writable_sectors=args.get("writable_sectors"),
+                                             geo=args["geo"], r_max=args.get("r_max", 56)))
+        except (ValueError, OSError, KeyError) as exc:
+            raise APIError(str(exc)) from exc
+        if files_binding(layout) != approved or args.get("files_plan_sha256") != layout["layout_sha256"]:
+            raise APIError("files changed; review and confirm the files list again", 409)
 
     def start(self, payload):
         is_photo = isinstance(payload, dict) and payload.get("action") == "photo"
@@ -710,8 +833,27 @@ class Backend:
                 raise APIError(str(exc)) from exc
         if payload["action"] in {"info", "timing", "geo", "calibrate"}:
             argv += ["--out", self.out]
-        # what writes to a disc: a burn, or a calibration that starts with one
-        writes = payload["action"] in {"burn", "erase"} or (payload["action"] == "calibrate" and bool(payload.get("args", {}).get("iso")))
+        args = payload.get("args", {})
+        if payload["action"] == "image" and args.get("files"):
+            self._check_files_permit(args, payload.get("files_token"))
+        writes = burn_action(payload) is not None
+        if writes:
+            with self.lock:
+                target, medium = take_permit(self.tokens, payload.get("burn_token"), "valid burn token required")
+            try:
+                actual = self._burn_target(payload)
+            except APIError as exc:
+                raise APIError("burn token does not match the action, drive, media or ISO", 403) from exc
+            if target != actual:
+                raise APIError("burn token does not match the action, drive, media or ISO", 403)
+            try:
+                current_medium = self._burn_medium(drive, target.media, drives)
+            except APIError as exc:
+                if exc.status == 409 and str(exc) == "the selected medium is not ready":
+                    raise APIError("burn token does not match the current medium", 403) from exc
+                raise
+            if medium != current_medium:
+                raise APIError("burn token does not match the current medium", 403)
         with self.lock:
             if self.closed:
                 raise APIError("service is closing", 503)
@@ -720,27 +862,25 @@ class Backend:
             if drive and (drive in self.reading or any(j.drive == drive and j.exit is None for j in self.jobs.values())):
                 raise APIError("drive busy", 409)
             if writes:
-                token = payload.get("burn_token")
-                if not isinstance(token, str) or self.tokens.pop(token, 0) <= time.monotonic():
-                    raise APIError("valid burn token required", 403)
+                inspected, generation = current_medium
+                if self.drive_changes.get(drive, 0) != generation:
+                    raise APIError("burn token does not match the current medium", 403)
                 disc = next(d.get("disc") for d in drives if d["id"] == drive)
-                erase_disc = self.discs.get(drive) or disc
                 erasing = payload['action'] == 'erase' or payload.get('args', {}).get('erase') is True
-                if erasing and (not erase_disc or not erase_disc.get('rewritable')):
+                if erasing and inspected["rewritable"] is not True:
                     raise APIError('a verified rewritable disc is required', 409)
                 fresh = self.verified_blank.get(drive)
                 fresh_ok = fresh is not None and fresh[0] > time.monotonic() and fresh[1] == payload.get("media", "dvd")
-                if not erasing and not fresh_ok and (not disc or disc.get("blank") is not True):
+                if not erasing and (inspected["blank"] is not True or not (fresh_ok or disc and disc.get("blank") is True)):
                     raise APIError("a verified blank disc is required", 409)
                 from . import burner
-                if payload['action'] != 'erase' and payload.get("media", "dvd") not in ("dvd", "cd"):
-                    raise APIError("burn requires dvd or cd media")
-                image = payload.get("args", {}).get("iso")
-                if not image and payload['action'] != 'erase':
-                    raise APIError("burn is not implemented without an ISO; iso is required")
-                if payload['action'] != 'erase':
-                    self.iso_file(image)
+                if target.image is not None:
+                    argv[argv.index("--iso") + 1] = str(target.image[0])
                     argv += (["--media", payload.get("media", "dvd")] if payload["action"] == "burn" else []) + ["--yes-write"]
+            if writes or payload["action"] == "swap":
+                self.drive_changes[drive] = self.drive_changes.get(drive, 0) + 1
+                for token in [token for token, permit in self.tokens.items() if permit.binding[0].drive == drive]:
+                    del self.tokens[token]
             if not self.folder.resolve().is_relative_to(self.root):
                 raise APIError("job directory must stay inside the workspace")
             self.folder.mkdir(exist_ok=True)
@@ -847,14 +987,22 @@ class Backend:
                 continue
         return None
 
-    def iso_file(self, value: str) -> dict:
-        """Size of a finished ISO under iso/, for the page to show; nothing is read from it."""
+    def _iso_stat(self, value: str):
         path = Path(local_path(self.root, value))
         if path.suffix.lower() != ".iso" or not path.is_relative_to((self.root / "iso").resolve()):
             raise APIError("not an ISO in iso/")
-        if not path.is_file() or Path(str(path) + iso9660.UNFINISHED).exists():
+        try:
+            info = path.stat()
+        except FileNotFoundError:
+            raise APIError("not found", 404) from None
+        if not stat.S_ISREG(info.st_mode) or Path(str(path) + iso9660.UNFINISHED).exists():
             raise APIError("not found", 404)
-        size = path.stat().st_size
+        return path, info
+
+    def iso_file(self, value: str) -> dict:
+        """Size of a finished ISO under iso/, for the page to show; nothing is read from it."""
+        path, info = self._iso_stat(value)
+        size = info.st_size
         return dict(path=path.relative_to(self.root).as_posix(), bytes=size, sectors=size // 2048)
 
     def template_zip(self, payload):
@@ -1174,6 +1322,7 @@ class Backend:
 class Server(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = os.name != "nt"
+    request_queue_size = HEADER_CONNECTIONS
 
     def __init__(self, backend, port=DEFAULT_PORT, *, lan=False, gui=None):
         self.gui_root, self.gui_manifest = api.load_manifest(gui if gui is not None else api.BUNDLED_GUI)
@@ -1184,6 +1333,9 @@ class Server(ThreadingHTTPServer):
         self.lifecycle_token = secrets.token_urlsafe(32)
         self.token = self.lifecycle_token if lan else None
         self.identity = dict(pid=os.getpid(), started=time.time_ns())
+        self.header_lock = threading.Lock()
+        self.header_pending = set()
+        self.header_remote = set()
         super().__init__(("0.0.0.0" if lan else "127.0.0.1", port), Handler)
 
     def server_bind(self):
@@ -1195,12 +1347,88 @@ class Server(ThreadingHTTPServer):
         super().server_close()
         self.backend.close()
 
+    def process_request(self, request, client_address):
+        local = ipaddress.ip_address(client_address[0]).is_loopback
+        with self.header_lock:
+            admit = len(self.header_pending) < HEADER_CONNECTIONS and (
+                local or len(self.header_remote) < HEADER_CONNECTIONS - HEADER_LOCAL_RESERVE)
+            if admit:
+                self.header_pending.add(request)
+                if not local:
+                    self.header_remote.add(request)
+        if not admit:
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self.headers_done(request)
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.headers_done(request)
+
+    def headers_done(self, request):
+        with self.header_lock:
+            self.header_pending.discard(request)
+            self.header_remote.discard(request)
+
+    def accepts_host(self, host, connection):
+        port = self.server_port
+        if host.lower() in (f"localhost:{port}", f"127.0.0.1:{port}"):
+            return True
+        # On the wildcard listener getsockname reports the actual local interface
+        # selected for this TCP connection. A Host value cannot select an interface.
+        local = ipaddress.IPv4Address(connection.getsockname()[0])
+        return bool(self.token and local.is_private and not (local.is_loopback or local.is_link_local
+                    or local.is_unspecified or local.is_reserved or local.is_multicast)
+                    and host == f"{local}:{port}")
+
 
 class Handler(BaseHTTPRequestHandler):
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(HEADER_SECONDS)
+        self._header_deadline = time.monotonic() + HEADER_SECONDS
+        self._header_lock = threading.Lock()
+        self._header_complete = False
+        self._header_timer = threading.Timer(HEADER_SECONDS, self._end_header_read)
+        self._header_timer.daemon = True
+        self._header_timer.start()
+
+    def _end_header_read(self):
+        # A wall-clock deadline also covers clients that periodically send a byte.
+        with self._header_lock:
+            if not self._header_complete:
+                try:
+                    self.connection.shutdown(socket.SHUT_RD)
+                except OSError:
+                    pass
+
+    def parse_request(self):
+        try:
+            parsed = super().parse_request()
+            # The HTTP parser can treat EOF as the end of the headers.
+            return parsed and time.monotonic() < self._header_deadline
+        finally:
+            with self._header_lock:
+                self._header_complete = True
+                self._header_timer.cancel()
+            self.connection.settimeout(None)
+
+    def finish(self):
+        self._header_timer.cancel()
+        super().finish()
+
+    def _on_desktop(self):
+        host = self.headers.get('Host', '').split(':', 1)[0].lower()
+        return ipaddress.ip_address(self.client_address[0]).is_loopback and host in ('localhost', '127.0.0.1')
+
     def _local_files_only(self):
-        import ipaddress
-        host = self.headers.get('Host', '').split(':', 1)[0]
-        if not ipaddress.ip_address(self.client_address[0]).is_loopback or host not in ('localhost', '127.0.0.1'):
+        if not self._on_desktop():
             raise APIError('随盘文件只能在运行核心的电脑通过 localhost 使用；手机和局域网无法选择这台电脑的文件夹。', 403)
 
     server_version = "discprobe-webui"
@@ -1261,11 +1489,18 @@ class Handler(BaseHTTPRequestHandler):
         self._json(exc.status, data)
 
     def _allowed(self):
+        try:
+            self._authorize()
+        finally:
+            self.server.headers_done(self.request)
+
+    def _authorize(self):
         self._set_session_cookie = False
         self._photo_device = self._photo_token = None
-        host = self.headers.get("Host", "")
-        if not self.server.token and host not in (f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"):
+        hosts = self.headers.get_all("Host", [])
+        if len(hosts) != 1 or not self.server.accepts_host(hosts[0], self.connection):
             raise APIError("invalid Host", 403)
+        host = hosts[0]
         origin = self.headers.get("Origin")
         if origin and origin != "http://" + host:
             raise APIError("cross-origin request refused", 403)
@@ -1534,7 +1769,7 @@ class Handler(BaseHTTPRequestHandler):
             elif re.fullmatch(r"/api/jobs/j-[0-9a-f]+", path):
                 self._json(200, backend.job_state(path.rsplit("/", 1)[1]))
             elif path == "/api/burn-token":
-                self._json(200, backend.burn_token())
+                raise APIError("burn token requires a POST request", 405)
             elif path == "/api/burn-speeds" or re.fullmatch(r"/api/drives/[^/]+/speeds", path):
                 query = parse_qs(url.query)
                 drive = query.get("drive", [""])[0] if path == "/api/burn-speeds" else path.split("/")[3]
@@ -1717,11 +1952,19 @@ class Handler(BaseHTTPRequestHandler):
             backend = self.server.backend
             if path == '/api/files-layout':
                 self._local_files_only()
-                from .discfiles_api import request
                 try:
-                    self._json(200, request(backend.root, payload))
+                    self._json(200, backend.files_layout(payload))
                 except (ValueError, OSError, KeyError) as exc:
                     raise APIError(str(exc)) from exc
+                return
+            if path == '/api/files-authorize':
+                self._local_files_only()
+                self._json(200, backend.files_authorize(payload))
+                return
+            if path == '/api/burn-token':
+                if not self._on_desktop():
+                    raise APIError("burn tokens can only be requested on the computer running the core", 403)
+                self._json(200, backend.burn_token(payload))
                 return
             if path == '/api/run' and isinstance(payload, dict) and isinstance(payload.get('args'), dict) and payload['args'].get('files'):
                 self._local_files_only()

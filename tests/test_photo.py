@@ -56,9 +56,12 @@ def test_webui_lan_default_and_local_only(flags, lan, capsys):
     from discprobe.__main__ import main
     # Exercise the real parser and run(), but bind no socket and enumerate no drives.
     with patch.object(webui, "Backend"), patch.object(webui, "Server") as server:
-        instance = server.return_value.__enter__.return_value
+        instance = server.return_value
         instance.server_port = 45678
         instance.token = "session" if lan else None
+        instance.lifecycle_token = "session"
+        instance.identity = {"pid": 1, "started": 1}
+        instance.server_address = ("0.0.0.0" if lan else "127.0.0.1", instance.server_port)
         main(["webui", *flags])
         assert server.call_args.kwargs["lan"] is lan
         assert "http://127.0.0.1:45678/home/" + ("?token=session" if lan else "") in capsys.readouterr().out

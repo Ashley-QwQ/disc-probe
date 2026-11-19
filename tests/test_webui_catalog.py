@@ -167,8 +167,8 @@ def test_web_burn_history_survives_server_lifetime(tmp_path):
     backend = webui.Backend(tmp_path, runner=runner,
         drive_provider=lambda:[dict(id='H:', disc=dict(blank=True, mid='TEST <MID>', drive_name='Fake drive'))])
     try:
-        ident = backend.start(dict(action='burn', media='dvd', drive='H:', args=dict(iso='iso/image.iso'),
-                                   burn_token=backend.burn_token()['token']))['job']
+        payload = dict(action='burn', media='dvd', drive='H:', args=dict(iso='iso/image.iso'))
+        ident = backend.start(dict(payload, burn_token=backend.burn_token(payload)['token']))['job']
         assert backend.jobs[ident].finished.wait(3)
     finally:
         backend.close()

@@ -276,9 +276,9 @@ def test_virtual_burn_blocks_other_instance_and_quit_until_finished(lab):
             assert record(state) == primary
             assert request(a, "/api/quit", {}, authenticated=False)[0] == 403
             assert request(a, "/api/burn-speeds?drive=X%3A")[1]["blank"]
-            token = request(a, "/api/burn-token")[1]["token"]
-            status, job = request(a, "/api/run", dict(action="burn", drive="X:", media="dvd",
-                                  args=dict(iso="iso/run.iso", speed=8), burn_token=token))
+            payload = dict(action="burn", drive="X:", media="dvd", args=dict(iso="iso/run.iso", speed=8))
+            token = request(a, "/api/burn-token", payload)[1]["token"]
+            status, job = request(a, "/api/run", dict(payload, burn_token=token))
             assert status == 200, job
             path = "/api/jobs/" + job["job"]
 

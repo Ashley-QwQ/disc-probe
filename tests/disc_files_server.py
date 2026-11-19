@@ -1,11 +1,13 @@
 """Isolated, device-free backend for the shipped design-page browser check."""
 import json
+import os
 from pathlib import Path
 import sys
 from discprobe.webui import Backend, Server
 
 root=Path(sys.argv[1]).resolve()
 root.mkdir(parents=True,exist_ok=True)
+os.environ["DISCPROBE_HOME"] = str(root)
 source=root/'demo files'
 source.mkdir(exist_ok=True)
 from .sparse_fixture import zero_file
