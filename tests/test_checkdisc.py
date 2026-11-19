@@ -95,7 +95,10 @@ def test_verification_failure_does_not_link_work(tmp_path, monkeypatch, target):
     from discprobe import works_link
     path, _ = geo(tmp_path)
     monkeypatch.setattr(checkdisc, 'build_design', lambda: target)
-    monkeypatch.setattr(imagedisc, 'write_iso', lambda *a, **k: 'fake.image.json')
+    def write_iso(path, *_args, **_kwargs):
+        Path(path).write_bytes(bytes(2048))
+        return 'fake.image.json'
+    monkeypatch.setattr(imagedisc, 'write_iso', write_iso)
     monkeypatch.setattr(imagedisc, 'verify_iso', lambda *a, **k: ['LBA 50 differs'])
     monkeypatch.setattr(works_link, 'image_completed', lambda *a: pytest.fail('failed ISO linked'))
     with pytest.raises(SystemExit, match='verification failed'):

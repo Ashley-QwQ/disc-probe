@@ -25,7 +25,7 @@ import sys
 import threading
 import time
 
-from . import i18n, iso9660, snake
+from . import i18n, image_output, iso9660, snake
 from .i18n import display_width, tr
 
 SPINNER_ASCII = ("(|)", "(/)", "(-)", "(\\)")
@@ -940,38 +940,38 @@ def _whole_or_gone(path: str):
 
     If the write fails or is stopped, what it left goes. A file it never touched stays: a check can fail before
     the writer opens anything. A killed process or closed window cleans up nothing, so a marker beside the
-    image says it isn't whole, for `guide` and for the next write.
+    image says it isn't whole. A subsequent job must choose a new path or the interrupted output must be checked.
     """
-    marker = path + iso9660.UNFINISHED
-    if os.path.exists(marker) and _remove(path):
+    with image_output.exclusive(path) as image:
+        path = str(image)
+        marker = path + iso9660.UNFINISHED
+        before = _file_stamp(path)
+        try:
+            with open(marker, "x", encoding="utf-8") as stream:
+                stream.write(f"{os.getpid()}\n")
+        except FileExistsError:
+            raise ValueError('镜像有未完成的任务标记，请先检查该文件或选择另一个路径。 / '
+                             'This image has an unfinished-task marker. Inspect it or choose another path.') from None
+        try:
+            yield
+        except BaseException:
+            if _file_stamp(path) == before:
+                _remove(marker)
+            elif _remove(path):  # A file we cannot remove must keep its unfinished marker.
+                _remove(marker)
+                say("The unfinished image was removed.")
+            raise
         _remove(marker)
-    before = _file_stamp(path)
-    try:
-        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-        with open(marker, "w", encoding="utf-8"):
-            pass
-    except OSError:
-        pass        # the writer will say what is wrong with this folder
-    try:
-        yield
-    except BaseException:
-        if _file_stamp(path) == before:
-            _remove(marker)
-        elif _remove(path):     # if it can't be removed, the marker stays and still says so
-            _remove(marker)
-            say("The unfinished image was removed.")
-        raise
-    _remove(marker)
 
 
 @contextlib.contextmanager
-def writing(path: str, sectors: int):
+def writing(path: str, sectors: int, *, writer_owns_output=False):
     """`log` for the ISO writers. At a terminal their percentage lines become a progress line.
 
     The writers report only every 10 or 20 %, so between reports the bar follows the file's real
     size. Only a report can say 100 %. Pipes get the writers' lines as they always did.
     """
-    with _whole_or_gone(path):
+    with contextlib.nullcontext() if writer_owns_output else _whole_or_gone(path):
         if not term().interactive:
             yield _report_lines() if os.environ.get("DISCPROBE_EVENTS") else print
             return

@@ -62,8 +62,13 @@ try{
   for(const theme of ['paper','dark']){
     await evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)}`);await shot('rw-cancelled-'+theme);
   }
-  const stopped=await request('/api/jobs/'+job.job);
+  let stopped=await request('/api/jobs/'+job.job);
+  for(let i=0;i<150&&stopped.exit===null;i++){
+    await delay(100);
+    stopped=await request('/api/jobs/'+job.job);
+  }
   writeFileSync(join(dir,'cancelled-job.json'),JSON.stringify(stopped,null,2));
+  assert.notEqual(stopped.exit,null,'cancelled job has exited before reloading');
   assert.equal(stopped.cancellation.by,'user');
   assert.ok(stopped.cancellation.fraction>=.4 && stopped.cancellation.fraction<=.75);checks.push('DVD-RW is stopped near halfway');
   await cdp('Page.navigate',{url:origin+'/home/'});

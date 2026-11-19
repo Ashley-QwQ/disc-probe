@@ -14,7 +14,7 @@ import threading
 import time
 from urllib.parse import unquote
 
-from . import ui
+from . import guide, ui
 
 READER_SHA256 = "d6375faed8fe489e01854dc09afcbaf057d7042968c5157f5ae56dc8ed4a9f6f"
 PHOTO_L_POLICY = "majority-poses-v1"
@@ -68,9 +68,10 @@ def drive_identity(geo, folder):
     """
     identity = geo.get("identity") or {}
     device = identity.get("device_id") or identity.get("device")
-    match = re.fullmatch(r"geo-(.+)-\d{8}-\d{6}", Path(folder).name)
-    if not device and match:
-        device = match[1] + ":" if re.fullmatch(r"[A-Za-z]", match[1]) else match[1]
+    match = guide.RESULT_DIR.fullmatch(Path(folder).name)
+    if not device and match and match['kind'] == 'geo' and match['tag']:
+        tag = match['tag']
+        device = tag + ":" if re.fullmatch(r"[A-Za-z]", tag) else tag
     return dict(model=identity.get("drive"), device_id=device,
                 serial=identity.get("serial"), firmware=identity.get("firmware"),
                 machine=socket.gethostname())

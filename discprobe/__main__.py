@@ -495,8 +495,16 @@ def _refuse_audio_fit(fit: dict) -> None:
 def _outdir(args, kind: str, dev) -> str:
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tag = getattr(dev, "name", "drive").replace(":", "")
-    path = os.path.join(args.out, f"{kind}-{tag}-{stamp}")
-    os.makedirs(path, exist_ok=True)
+    base = os.path.join(args.out, f"{kind}-{tag}-{stamp}")
+    path = base
+    suffix = 0
+    while True:
+        try:
+            os.makedirs(path)
+            break
+        except FileExistsError:
+            suffix += 1
+            path = f"{base}_{suffix}"
     _Parser.last_out = path
     return path
 
@@ -732,6 +740,7 @@ def cmd_scan(args):
 
 
 def cmd_rings(args):
+    from . import image_output
     from .rings import RingLayout, describe, verify_iso, write_iso
     if args.media == "cd":
         from .cdrings import RingLayout, verify_iso, write_iso
@@ -762,10 +771,10 @@ def cmd_rings(args):
         print(f"\nWriting {os.path.abspath(args.output)}")
         with ui.writing(args.output, layout.total_sectors) as log:
             spec_path = write_iso(args.output, layout, log=log)
+            with ui.busy("Checking what was written..."):
+                problems = image_output.verify_generated(args.output, verify_iso, layout)
     except ValueError as e:
         sys.exit(str(e))
-    with ui.busy("Checking what was written..."):
-        problems = verify_iso(args.output, layout)
     print("Verified: sampled sectors in every ring record the intended byte" if not problems
           else "VERIFY FAILED:\n  " + "\n  ".join(problems[:10]))
     print(f"Layout: {os.path.abspath(spec_path)}  (needed by ringscan)")
@@ -797,6 +806,7 @@ def cmd_ringscan(args):
 
 
 def cmd_calib(args):
+    from . import image_output
     from .calib import CalLayout, describe, refine_layout, verify_iso, write_iso
     common = dict(start_mm=args.start_mm, end_mm=args.end_mm, guard_mm=args.guard_mm)
     try:
@@ -820,10 +830,10 @@ def cmd_calib(args):
         with ui.writing(args.output, layout.total_sectors) as log:
             from . import discid
             spec_path = write_iso(args.output, layout, log=log, **discid.options(args))
+            with ui.busy("Checking what was written..."):
+                problems = image_output.verify_generated(args.output, verify_iso, layout)
     except ValueError as e:
         sys.exit(str(e))
-    with ui.busy("Checking what was written..."):
-        problems = verify_iso(args.output, layout)
     print("Verified: guards are pure, bands follow their patterns" if not problems
           else "VERIFY FAILED:\n  " + "\n  ".join(problems[:10]))
     print(f"Layout: {os.path.abspath(spec_path)}  (needed by calscan)")
@@ -998,9 +1008,17 @@ def cmd_geo(args, *, speed_check=None):
         sys.exit(1)
 
 
+def _require_validated_correction(args, fit) -> None:
+    if fit.get('completion_status') == 'correction_unvalidated' and not getattr(args, 'allow_unvalidated_correction', False):
+        raise ValueError('此测量的角度修正未通过独立检查。请选用已验证的测量，或明确加上 '
+                         '--allow-unvalidated-correction。 / The angle correction failed independent '
+                         'validation. Choose a validated measurement or explicitly pass --allow-unvalidated-correction.')
+
+
 def _warn_other_run(args, fit) -> None:
     """A correction left over from an earlier run still loads and still gives a tidy result, so nothing else would show it."""
     from . import imagedisc
+    _require_validated_correction(args, fit)
     if not args.correction and fit.get('correction_file'):
         name = fit['correction_file']
         if os.path.basename(name) != name:
@@ -1150,7 +1168,7 @@ def cmd_image(args):
     # Resolve the library link before doing image work; completion is recorded only after verification.
     from .works_link import check_work, image_completed
     check_work(args)
-    from . import imagedisc
+    from . import image_output, imagedisc
     if getattr(args, 'files', None) and (args.media != 'dvd' or args.start_lba or args.random_below_mm):
         sys.exit('随盘文件只支持完整单层 DVD，不支持 CD、BD、追加或随机内圈')
     writer = imagedisc
@@ -1164,6 +1182,7 @@ def cmd_image(args):
         fit = _geo_fit(args, args.media)
         _require_fit_media(args, fit)
         _refuse_audio_fit(fit)
+        _require_validated_correction(args, fit)
     if args.design and (args.design_npy or args.picture):
         sys.exit("--design replaces --picture and --design-npy: give one of them")
     if args.design_npy:
@@ -1300,11 +1319,11 @@ def cmd_image(args):
                                           "correction": os.path.abspath(args.correction) if args.correction else None,
                                           **identity_meta},
                                     correction=corr, textures=args.textures, log=log, **extra, **discid.options(args))
+            with ui.busy("Checking what was written..."):
+                problems = image_output.verify_generated(args.output, writer.verify_iso, design, u, v, bit, total,
+                    args.dark, args.light, correction=corr, textures=args.textures, **extra)
     except ValueError as e:
         sys.exit(str(e))
-    with ui.busy("Checking what was written..."):
-        problems = writer.verify_iso(args.output, design, u, v, bit, total, args.dark, args.light, correction=corr,
-                                     textures=args.textures, **extra)
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     prev = os.path.splitext(args.output)[0] + ".preview.png"
     if design.dtype == bool:
@@ -1315,9 +1334,7 @@ def cmd_image(args):
     files = f"Spec: {os.path.abspath(spec)}\nPreview (data-side view): {os.path.abspath(prev)}"
     if problems:
         print(files)
-        if args.media == "cd":
-            sys.exit(1)
-        return
+        sys.exit(1)
     image_completed(args)
     _image_ready(args, prev, design, files)
 
@@ -1676,7 +1693,7 @@ def cmd_cdprobe(args):
 
 
 def cmd_tiles(args):
-    from . import imagedisc, tiledisc
+    from . import image_output, imagedisc, tiledisc
     writer = imagedisc
     if args.media == "cd":
         from . import cdimage as writer
@@ -1714,22 +1731,22 @@ def cmd_tiles(args):
             "correction": os.path.abspath(args.correction) if args.correction else None}
     with ui.writing(args.output, total) as log:
         spec = writer.write_iso(args.output, labels, u, v, bit, total, meta=meta, correction=corr, textures=textures, log=log)
-    with ui.busy("Checking what was written..."):
-        problems = writer.verify_iso(args.output, labels, u, v, bit, total, correction=corr, textures=textures)
+        with ui.busy("Checking what was written..."):
+            problems = image_output.verify_generated(args.output, writer.verify_iso, labels, u, v, bit, total,
+                                                      correction=corr, textures=textures)
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     base = os.path.splitext(args.output)[0]
     tiledisc.save_layout({**layout, "textures": textures}, base + ".tiles.json")
     tiledisc.preview(labels, textures, base + ".preview.png")
     print(f"Spec: {os.path.abspath(spec)}\nLayout: {os.path.abspath(base + '.tiles.json')}\n"
           f"Preview (data-side view, false colours): {os.path.abspath(base + '.preview.png')}")
-    if args.media == "cd" and problems:
+    if problems:
         sys.exit(1)
-    if not problems:
-        _image_ready(args, base + ".preview.png")
+    _image_ready(args, base + ".preview.png")
 
 
 def cmd_beacons(args):
-    from . import beacondisc, imagedisc
+    from . import beacondisc, image_output, imagedisc
     fit = _geo_fit(args)
     _warn_other_run(args, fit)
     u, v, bit = fit["u"], fit["v"], fit["bit_nm_assumed"]
@@ -1742,8 +1759,9 @@ def cmd_beacons(args):
             "correction": os.path.abspath(args.correction) if args.correction else None}
     with ui.writing(args.output, total) as log:
         spec = imagedisc.write_iso(args.output, labels, u, v, bit, total, meta=meta, correction=corr, textures=textures, log=log)
-    with ui.busy("Checking what was written..."):
-        problems = imagedisc.verify_iso(args.output, labels, u, v, bit, total, correction=corr, textures=textures)
+        with ui.busy("Checking what was written..."):
+            problems = image_output.verify_generated(args.output, imagedisc.verify_iso, labels, u, v, bit, total,
+                                                      correction=corr, textures=textures)
     print("Verified: sampled sectors match the design" if not problems else "VERIFY FAILED: " + "; ".join(problems[:5]))
     base = os.path.splitext(args.output)[0]
     beacondisc.save_layout({**layout, "textures": textures}, base + ".tiles.json")
@@ -1784,7 +1802,7 @@ def cmd_random(args):
     print(f"Writing {os.path.abspath(args.output)}: {written_sectors} sectors of seeded random data")
     print(f'Random-mirror length: {written_sectors} sectors; random --sectors controls this file, not the geometric total or blank writable capacity.')
     try:
-        with ui.writing(args.output, written_sectors) as log:
+        with ui.writing(args.output, written_sectors, writer_owns_output=True) as log:
             write_iso(args.output, args.sectors, args.seed, media=args.media, log=log,
                       label=getattr(args, "label", None), geo=getattr(args, 'geo', None), **discid.options(args))
     except ValueError as e:
@@ -1808,9 +1826,10 @@ def cmd_calibdisc(args):
     from . import calibdisc
     from . import discid
     try:
-        out = calibdisc.write(args.output, sectors=args.sectors, r0_mm=args.r0_mm, pitch_um=args.pitch_um,
-                              rings=args.rings_list, line_deg=90.0, split=args.split, log=print,
-                              preview=args.preview, **discid.options(args))
+        with ui.writing(args.output, args.sectors) as log:
+            out = calibdisc.write(args.output, sectors=args.sectors, r0_mm=args.r0_mm, pitch_um=args.pitch_um,
+                                  rings=args.rings_list, line_deg=90.0, split=args.split, log=log,
+                                  preview=args.preview, **discid.options(args))
     except ValueError as e:
         sys.exit(str(e))
     if args.split:
@@ -2736,6 +2755,9 @@ def _build_parser():
     # Each command's help names what it does, and the top level lists the commands in workflow order.
     from .works_link import add_options as add_work_options
     add_work_options(sub)
+    for name in ('image', 'tiles', 'beacons', 'disexport'):
+        sub.choices[name].add_argument('--allow-unvalidated-correction', action='store_true',
+            help='允许使用未通过独立校验的角度修正 / Allow an angle correction that failed independent validation')
     tr = i18n.tr
     for name in ("image", "random", "calib", "calibdisc", "burn", "files-layout"):
         sub.choices[name].add_argument("--disc-id", action="store_true",

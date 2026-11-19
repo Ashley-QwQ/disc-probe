@@ -11,18 +11,19 @@ import unittest
 from unittest.mock import Mock, patch
 
 from discprobe import burner, scsi, webui
+from tests.iso_fixture import write_checked_iso
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class BurnerTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(dir=ROOT)
+        self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         (self.root / "iso").mkdir()
         self.iso = self.root / "iso" / "测试 image.iso"
-        self.iso.write_bytes(bytes(4096))
+        write_checked_iso(self.iso, bytes(4096))
         self.recorder = Mock()
         self.recorder.inspect.return_value = dict(blank=True, media="dvd", free_sectors=20, speeds_x=[8, 4])
         self.recorder.write.return_value = 4.01
@@ -91,7 +92,7 @@ class BurnerTests(unittest.TestCase):
         self.assertIn("4.01x", output.getvalue())
 
     def test_sample_verification_recorded_reads(self):
-        self.iso.write_bytes(bytes(1600 * 2048))
+        write_checked_iso(self.iso, bytes(1600 * 2048))
         lbas = burner.sample_lbas(1600)
         self.assertEqual((len(lbas), lbas[0], lbas[-1]), (96, 0, 1584))
         self.assertTrue(all(lba % 16 == 0 for lba in lbas))
@@ -150,10 +151,10 @@ class BurnerTests(unittest.TestCase):
 
     def test_short_image_sample(self):
         self.assertEqual(burner.sample_lbas(2), [0])
-        self.assertEqual(burner.sample_lbas(33), [0, 16])
+        self.assertEqual(burner.sample_lbas(33), [0, 16, 32])
 
     def test_sample_match_and_cancellation(self):
-        self.iso.write_bytes(bytes(32 * 2048))
+        write_checked_iso(self.iso, bytes(32 * 2048))
         dev = Mock()
         dev.__enter__ = Mock(return_value=dev)
         dev.__exit__ = Mock(return_value=False)
@@ -320,7 +321,7 @@ class BurnerTests(unittest.TestCase):
                                 runner=lambda argv, **kw: started.append(argv) or Mock(wait=Mock(return_value=0), close=Mock()))
         self.addCleanup(backend.close)  # join the mock job before TemporaryDirectory cleanup
         (self.root / "iso").mkdir(exist_ok=True)
-        (self.root / "iso" / "p.iso").write_bytes(bytes(4096))
+        write_checked_iso(self.root / "iso" / "p.iso", bytes(4096))
         handler = webui.Handler.__new__(webui.Handler)
         handler.server = Mock(backend=backend)
         handler._allowed = Mock()

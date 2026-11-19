@@ -5,7 +5,7 @@ No failed write is retried. Platform adapters are injectable for hardware-free t
 """
 from __future__ import annotations
 
-from .drive_lock import locked_drive
+from .drive_lock import child_env, locked_drive
 
 import json
 import math
@@ -20,7 +20,7 @@ import tempfile
 import threading
 import time
 
-from . import ui, iso9660, discid, mmc
+from . import ui, discid, image_output, mmc
 
 
 class BurnError(ValueError):
@@ -116,7 +116,7 @@ class WindowsDVD:
                      "-Machine", "-Drive", drive]
 
     def inspect(self):
-        result = self.run(self.base, capture_output=True, text=True, check=False)
+        result = self.run(self.base, capture_output=True, text=True, check=False, env=child_env(self.drive))
         if result.returncode:
             raise BurnError("Could not inspect inserted disc.\nDetails: " + result.stdout + result.stderr)
         try:
@@ -146,7 +146,8 @@ class WindowsDVD:
                 patch_args = ["-IdentityPatch", str(patch_file), "-IdentityOffset", str(image.patch_offset)]
             process = self.popen(self.base + patch_args + ["-Burn", "-Iso", str(source), "-Speed", str(speed),
                                             "-CancelFile", str(marker)] + session, stdout=subprocess.PIPE,
-                                 stderr=subprocess.STDOUT, text=True, creationflags=0x08000000)
+                                 stderr=subprocess.STDOUT, text=True, creationflags=0x08000000,
+                                 env=child_env(self.drive))
             stop = threading.Event()
             def watch():
                 while not stop.wait(.1):
@@ -339,9 +340,9 @@ def inspect_drive(drive, media):
 def sample_lbas(sectors, samples=96):
     """Up to 96 distinct, evenly spaced 16-sector blocks, including both ends.
 
-    A short image has one partial block; a non-aligned tail is not sampled.
+    The final block may contain fewer than 16 sectors.
     """
-    blocks = max(1, sectors // 16)
+    blocks = max(1, (sectors + 15) // 16)
     count = min(samples, blocks)
     return [16 * (i * (blocks - 1) // max(1, count - 1)) for i in range(count)]
 
@@ -394,12 +395,9 @@ def verify_image(drive, image, media, cancel, *, device_factory=None, start_lba=
     return summary
 
 
-@locked_drive("burn")
-def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None, cancel=None,
-         no_verify=False, verifier=None, keep_open=False, append=False, expect_start=None,
-         disc_id=False, disc_id_code=None, state_checker=None, erase=False):
-    if yes_write is not True:
-        raise BurnError("Writing requires explicit --yes-write confirmation.")
+def _write_preflight(drive, image, *, media, speed, recorder, cancel, keep_open,
+                     append, expect_start, disc_id, disc_id_code, erase, check_medium_identity):
+    """Plan the write and any erase using read-only evidence."""
     if media not in ("dvd", "cd"):
         raise BurnError("Only DVD and CD burning are supported.")
     if (keep_open or append or expect_start is not None) and media != 'dvd':
@@ -408,19 +406,26 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
         raise BurnError('--append closes the disc; do not combine with --keep-open.')
     if append != (expect_start is not None) or (expect_start is not None and expect_start <= 0):
         raise BurnError('--append requires a positive --expect-start, and vice versa.')
-    image = Path(iso).resolve()
-    if not image.is_file() or image.suffix.lower() != ".iso" or Path(str(image) + iso9660.UNFINISHED).exists():
-        raise BurnError("Choose a finished ISO image.")
-    size = image.stat().st_size
-    if not size or size % 2048:
-        raise BurnError("ISO size must be a positive multiple of 2048 bytes.")
-    sidecar = image.with_suffix('.image.json')
-    if sidecar.exists():
-        spec = json.loads(sidecar.read_text(encoding='utf-8'))
-        if spec.get('state') == 'pending' and not keep_open:
-            raise BurnError('Label pending: burn --keep-open, then geo and label.')
-        if spec.get('first_lba', 0) != (expect_start or 0):
-            raise BurnError('Image first_lba does not match --expect-start.')
+    if erase and append:
+        raise BurnError('--erase cannot be combined with --append.')
+    try:
+        stat = image_output.finished_stat(image)
+        image_output.require_checked(image, stat)
+        with image.open('rb') as stream:
+            stream.read(1)
+    except (OSError, ValueError) as exc:
+        raise BurnError(str(exc)) from exc
+    size = stat.st_size
+    try:
+        spec = json.loads(image.with_suffix('.image.json').read_text(encoding='utf-8'))
+    except FileNotFoundError:
+        spec = {}
+    if not isinstance(spec, dict):
+        raise BurnError('镜像布局记录无效。 / Invalid image layout record.')
+    if spec.get('state') == 'pending' and not keep_open:
+        raise BurnError('Label pending: burn --keep-open, then geo and label.')
+    if spec and spec.get('first_lba', 0) != (expect_start or 0):
+        raise BurnError('Image first_lba does not match --expect-start.')
     enabled = discid.requested(disc_id, disc_id_code)
     identity = None
     if append and enabled:
@@ -441,32 +446,30 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
     if (keep_open or append) and isinstance(recorder, LinuxBurner):
         raise BurnError('Session options currently require the Windows DVD IMAPI path.')
     info = recorder.inspect()
-    if erase and append:
-        raise BurnError('--erase cannot be combined with --append.')
-    cancel = cancel or threading.Event()
-    if info.get('blank') is not True and not append:
-        if not erase:
-            if info.get('rewritable'):
-                raise BurnError('Recorded rewritable disc: add --erase to erase its contents before burning.')
-        else:
-            from . import eraser
-            # Check kind, space and speed before destroying existing contents.
-            erase_recorder = recorder if hasattr(recorder, 'erase') else eraser.adapter(drive)
-            target = erase_recorder.inspect()
-            if target.get('media') != media:
-                raise BurnError(f'Wrong disc kind: expected {media}.')
-            capacity = target.get('capacity_sectors') or info.get('capacity_sectors')
-            if not capacity or size // 2048 > capacity:
-                raise BurnError('The image does not fit, or rewritable capacity is unknown; erasing was refused.')
-            choose_speed(speed, info['speeds_x'], media)
-            erased = eraser.erase(drive, cancel=cancel, recorder=erase_recorder)
-            info = recorder.inspect()
-            if erased.get('overwrite_ready') and info.get('rewritable'):
-                info['blank'] = True
-                info['free_sectors'] = erased['disc'].get('capacity_sectors') or info.get('free_sectors', 0)
-    validate_media(info, media, size // 2048, append=append, expect_start=expect_start)
+    erase_recorder = None
+    if info.get('blank') is not True and not append and erase:
+        from . import eraser
+        erase_recorder = recorder if hasattr(recorder, 'erase') else eraser.adapter(drive)
+        target = erase_recorder.inspect()
+        if target.get('media') != media or info.get('media') != media:
+            raise BurnError(f'Wrong disc kind: expected {media}.')
+        if not target.get('rewritable'):
+            raise BurnError('This disc is not rewritable; erasing is refused.')
+        capacity = target.get('capacity_sectors') or info.get('capacity_sectors')
+        if isinstance(recorder, LinuxBurner) and media == 'cd' and capacity:
+            capacity -= 300  # same closing reserve as LinuxBurner.inspect
+        if not capacity or size // 2048 > capacity:
+            raise BurnError('The image does not fit, or rewritable capacity is unknown; erasing was refused.')
+    else:
+        if info.get('blank') is not True and not append and info.get('rewritable'):
+            raise BurnError('Recorded rewritable disc: add --erase to erase its contents before burning.')
+        validate_media(info, media, size // 2048, append=append, expect_start=expect_start)
     selected = choose_speed(speed, info["speeds_x"], media)
-    cancel = cancel or threading.Event()
+    if isinstance(recorder, LinuxBurner) and media == 'cd':
+        if any(char in str(image) for char in '"\n\r'):
+            raise BurnError('镜像路径不能写入 cdrdao TOC。 / Image path cannot be represented safely in a cdrdao TOC.')
+        if not float(selected).is_integer():
+            raise BurnError('cdrdao 要求整数 CD 刻录倍速。 / cdrdao requires an integer CD speed multiplier.')
     if cancel.is_set():
         raise BurnError("Cancelled before writing; nothing was written.")
     source = image
@@ -486,6 +489,41 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
         except ValueError as exc:
             raise BurnError(str(exc)) from exc
         discid.notice()
+
+    log_path, record = _burn_log(drive, image, media)
+    if erase_recorder is not None:
+        record('burn_preflight', sectors=size // 2048, selected_speed_x=selected)
+    else:
+        with log_path.open('a', encoding='utf-8'):
+            pass
+    # Card AB can compare its confirmation with fresh media evidence here while
+    # the drive lease is held, immediately before the first destructive operation.
+    if check_medium_identity is not None:
+        check_medium_identity(drive)
+    if cancel.is_set():
+        raise BurnError("Cancelled before writing; nothing was written.")
+    return size, recorder, erase_recorder, info, selected, source, identity, log_path, record
+
+
+@locked_drive("burn")
+def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None, cancel=None,
+         no_verify=False, verifier=None, keep_open=False, append=False, expect_start=None,
+         disc_id=False, disc_id_code=None, state_checker=None, erase=False, check_medium_identity=None):
+    if yes_write is not True:
+        raise BurnError("Writing requires explicit --yes-write confirmation.")
+    try:
+        with image_output.exclusive(iso) as image:
+            return _burn_locked(drive, image, media=media, speed=speed, recorder=recorder,
+                cancel=cancel or threading.Event(), no_verify=no_verify, verifier=verifier, keep_open=keep_open,
+                append=append, expect_start=expect_start, disc_id=disc_id, disc_id_code=disc_id_code,
+                state_checker=state_checker, erase=erase, check_medium_identity=check_medium_identity)
+    except ValueError as exc:
+        if isinstance(exc, BurnError):
+            raise
+        raise BurnError(str(exc)) from exc
+
+
+def _burn_log(drive, image, media):
     log_path = Path(str(image) + ".burn.jsonl")
     # Capture the generated geometry's evidence once. Re-burning this ISO never
     # consults a newer photo.json or changes its sector map.
@@ -506,6 +544,24 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
                                          **fields), ensure_ascii=False, allow_nan=False) + "\n")
         ui.event(kind, time=stamp, **dict(fields, log_path=str(log_path),
                                        **({"photo_l": photo_l} if photo_l is not None else {})))
+    return log_path, record
+
+
+def _burn_locked(drive, image, *, media, speed, recorder, cancel, no_verify, verifier, keep_open,
+                 append, expect_start, disc_id, disc_id_code, state_checker, erase, check_medium_identity):
+    size, recorder, erase_recorder, info, selected, source, identity, log_path, record = _write_preflight(
+        drive, image, media=media, speed=speed, recorder=recorder, cancel=cancel,
+        keep_open=keep_open, append=append, expect_start=expect_start, disc_id=disc_id,
+        disc_id_code=disc_id_code, erase=erase, check_medium_identity=check_medium_identity)
+    if erase_recorder is not None:
+        from . import eraser
+        erased = eraser.erase(drive, cancel=cancel, recorder=erase_recorder)
+        # This is a postcondition of erasing, not a prerequisite for starting it.
+        info = recorder.inspect()
+        if erased.get('overwrite_ready') and info.get('rewritable'):
+            info['blank'] = True
+            info['free_sectors'] = erased['disc'].get('capacity_sectors') or info.get('free_sectors', 0)
+        validate_media(info, media, size // 2048)
     record("burn_speed", requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=None)
     if identity:
         record("disc_identity", id=identity["body"]["id"], identity=identity)

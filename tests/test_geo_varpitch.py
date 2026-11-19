@@ -195,12 +195,15 @@ def test_image_reports_actual_drawing_extrapolation():
         def warning(fit, span):
             spans.append(span)
             return real_warning(fit, span)
+        def write_iso(path, *_args, **_kwargs):
+            Path(path).write_bytes(bytes(2048))
+            return str(root / 'out.json')
         for x, expect_warning in [(5100, False), (5750, True)]:
             design[:] = False
             design[3000, x] = True
             output = io.StringIO()
             with patch.object(imagedisc, 'grid_design', return_value=design), \
-                 patch.object(imagedisc, 'write_iso', return_value=str(root/'out.json')), \
+                 patch.object(imagedisc, 'write_iso', side_effect=write_iso), \
                  patch.object(imagedisc, 'verify_iso', return_value=[]), \
                  patch.object(imagedisc, 'preview'), \
                  patch('discprobe.coverage.range_warning', side_effect=warning), \

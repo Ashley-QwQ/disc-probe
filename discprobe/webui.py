@@ -25,7 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import CookieError, SimpleCookie
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import api, guide, i18n, iso9660, webui_catalog
+from . import api, guide, i18n, webui_catalog
 from .drive_lock import DriveBusy, drive_locks, require_available
 from .web_instance import DEFAULT_PORT, _task_text
 
@@ -848,13 +848,19 @@ class Backend:
         return None
 
     def iso_file(self, value: str) -> dict:
-        """Size of a finished ISO under iso/, for the page to show; nothing is read from it."""
+        """Report a finished and self-checked ISO under iso/ without reading its sectors."""
+        from . import image_output
         path = Path(local_path(self.root, value))
         if path.suffix.lower() != ".iso" or not path.is_relative_to((self.root / "iso").resolve()):
             raise APIError("not an ISO in iso/")
-        if not path.is_file() or Path(str(path) + iso9660.UNFINISHED).exists():
+        try:
+            stat = image_output.finished_stat(path)
+            image_output.require_checked(path, stat)
+        except FileNotFoundError:
             raise APIError("not found", 404)
-        size = path.stat().st_size
+        except (OSError, ValueError) as exc:
+            raise APIError(str(exc), 409) from exc
+        size = stat.st_size
         return dict(path=path.relative_to(self.root).as_posix(), bytes=size, sectors=size // 2048)
 
     def template_zip(self, payload):

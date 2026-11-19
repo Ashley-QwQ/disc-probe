@@ -1,5 +1,6 @@
 """Exercise real launcher processes and Disc Lab drives on loopback."""
 from contextlib import contextmanager
+import errno
 import http.client
 import importlib.util
 import json
@@ -19,6 +20,7 @@ from disclab.__main__ import lab_env
 from disclab.practice import prepare
 from discprobe.drive_lock import DriveBusy, drive_operation, require_available
 from discprobe import web_instance, webui
+from discprobe.image_output import mark_checked
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ("-m", "discprobe", "webui", "--port", "0")
@@ -269,6 +271,7 @@ def test_virtual_burn_blocks_other_instance_and_quit_until_finished(lab):
     iso.parent.mkdir()
     with iso.open("wb") as stream:
         stream.truncate(2 * 1024 * 1024)
+    mark_checked(iso, [])
     with process(lab, *CLI, "--local-only", DISCLAB_BURN_TIME="75") as first:
         primary = wait_primary(state, first)
         a = address(primary)
@@ -316,8 +319,12 @@ def test_default_port_falls_back_and_reuse_keeps_the_registered_port(lab):
     with socket.socket() as occupied:
         if os.name == "nt":
             occupied.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
-        occupied.bind(("127.0.0.1", 8765))
-        occupied.listen()
+        try:
+            occupied.bind(("127.0.0.1", 8765))
+            occupied.listen()
+        except OSError as exc:
+            if getattr(exc, 'winerror', None) not in (10013, 10048) and exc.errno != errno.EADDRINUSE:
+                raise
         with process(lab, *CONTROL, "--local-only") as child:
             data = wait_primary(state, child)
             assert data["port"] != 8765 and data["config"]["port"] == 8765

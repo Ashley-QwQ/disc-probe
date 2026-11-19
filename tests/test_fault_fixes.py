@@ -8,6 +8,7 @@ import pytest
 from discprobe import burner, info, mmc, recorded, timing
 from discprobe.scsi import ScsiResult, Sense, check_allowed
 from discprobe.sim import SimDrive
+from tests.iso_fixture import write_checked_iso
 
 
 class Disc(SimDrive):
@@ -133,7 +134,7 @@ def test_burn_state_checks_length_and_requested_session(closed, session_closed, 
 @pytest.mark.parametrize('fault', ['unreadable', 'differing', 'cancelled', 'unavailable', 'untested', 'state', None])
 def test_burn_result_and_log_fail_with_samples_or_state(tmp_path, fault):
     iso = tmp_path / 'small.iso'
-    iso.write_bytes(bytes(32 * 2048))
+    write_checked_iso(iso, bytes(32 * 2048))
     rec = Mock()
     rec.inspect.return_value = dict(blank=True, media='dvd', free_sectors=4096, speeds_x=[8])
     rec.write.return_value = 8
@@ -161,7 +162,7 @@ def test_burn_result_and_log_fail_with_samples_or_state(tmp_path, fault):
 def test_default_burn_state_reopens_fake_device_with_no_verify(tmp_path, monkeypatch, written, closed, good):
     from discprobe import device
     iso = tmp_path / 'state.iso'
-    iso.write_bytes(bytes(32 * 2048))
+    write_checked_iso(iso, bytes(32 * 2048))
     rec = Mock()
     rec.inspect.return_value = dict(blank=True, media='dvd', free_sectors=4096, speeds_x=[8])
     rec.write.return_value = 8

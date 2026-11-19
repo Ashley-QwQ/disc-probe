@@ -14,6 +14,7 @@ from discprobe import burner, labelsession as S, randomlabel as L, randomdisc, m
 from discprobe.geo import Ladder
 from discprobe.scsi import ScsiResult
 from discprobe.sim import SimDrive
+from tests.iso_fixture import write_checked_iso
 
 ROOT = Path(__file__).resolve().parents[1]
 GEO = ROOT / 'evidence/geo/random_disc_summary.json'
@@ -25,7 +26,7 @@ class LabelSessionTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.iso = self.root / 'session.iso'
-        self.iso.write_bytes(bytes(32 * 2048))
+        write_checked_iso(self.iso, bytes(32 * 2048))
 
     def test_keep_open_and_append_preflight(self):
         rec = Mock()

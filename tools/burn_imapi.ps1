@@ -48,13 +48,8 @@ param(
 $ErrorActionPreference = "Stop"
 if ($IdentityPatch -and -not $Machine) { throw "Identity patches require Machine mode" }
 
-$driveLease = $null
-# Machine mode is the core recorder's subprocess. The core holds the lock
-# across inspection, writing and readback.
-if (-not $Machine) {
-    . (Join-Path $PSScriptRoot 'drive_lock.ps1')
-    $driveLease = Open-DiscProbeDriveLock $Drive $(if ($Burn) {'burn'} else {'info'})
-}
+. (Join-Path $PSScriptRoot 'drive_lock.ps1')
+$driveLease = Open-DiscProbeDriveLock $Drive $(if ($Burn) {'burn'} else {'info'})
 try {
 Add-Type -ReferencedAssemblies System.dll,System.Core.dll,Microsoft.CSharp.dll -TypeDefinition @"
 using System;
