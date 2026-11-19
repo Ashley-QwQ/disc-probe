@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import iso9660, randomlabel as L
+from . import image_output, randomlabel as L, ui
 from .drive_lock import drive_operation
 
 
@@ -85,22 +85,24 @@ def write_iso(path, text, geo, start_lba, capacity=2295104, seed=1, log=print):
                       avoid_lba=[[L.STOP_SECTORS, start_lba], [L.PENDING_LBA, L.PENDING_LBA + 1]])
     L.marker(label.spec)
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    unfinished = Path(str(path) + iso9660.UNFINISHED)
-    unfinished.touch()
-    rng = np.random.default_rng(seed)
-    # Generate absolute RNG chunks so filler is the same random stream as random.
-    with path.open('wb') as stream:
-        for first in range(0, end, 8192):
-            count = min(8192, end - first)
-            data = rng.integers(0, 256, count * 2048, dtype=np.uint8).reshape(count, 2048)
-            if first + count <= start_lba:
-                continue
-            label.patch(data, first)
-            stream.write(data[max(0, start_lba - first):].tobytes())
-            log(f'  {100 * (first + count - start_lba) / (end - start_lba):5.1f} %')
-    path.with_suffix('.image.json').write_text(json.dumps(label.spec, indent=2) + '\n', encoding='utf-8')
-    unfinished.unlink()
+    with ui._whole_or_gone(path):
+        rng = np.random.default_rng(seed)
+        samples = []
+        # Generate absolute RNG chunks so filler is the same random stream as random.
+        with path.open('wb') as stream:
+            for first in range(0, end, 8192):
+                count = min(8192, end - first)
+                data = rng.integers(0, 256, count * 2048, dtype=np.uint8).reshape(count, 2048)
+                if first + count <= start_lba:
+                    continue
+                label.patch(data, first)
+                stream.write(data[max(0, start_lba - first):].tobytes())
+                samples.append((first + count - 1 - start_lba, data[-1].tobytes()))
+                log(f'  {100 * (first + count - start_lba) / (end - start_lba):5.1f} %')
+        path.with_suffix('.image.json').write_text(json.dumps(label.spec, indent=2) + '\n', encoding='utf-8')
+        problems = image_output.verify_generated(path, image_output.verify_written_sectors, end - start_lba, samples)
+    if problems:
+        raise ValueError('标签镜像未通过自检。 / Label image failed verification: ' + '; '.join(problems[:5]))
     return label.spec
 
 

@@ -57,7 +57,7 @@ def build_design() -> np.ndarray:
 
 def run(args):
     """Build and verify a target using timing geometry only, before any photo L."""
-    from . import coverage, guide, imagedisc, ui
+    from . import coverage, guide, image_output, imagedisc, ui
     from .works_link import check_work, image_completed
 
     path = Path(args.geo)
@@ -94,8 +94,8 @@ def run(args):
     with ui.writing(args.output, total) as log:
         spec = imagedisc.write_iso(args.output, design, u, v, bit, total,
                                   textures=TEXTURES, lead_lba=0, meta=meta, log=log)
-    problems = imagedisc.verify_iso(args.output, design, u, v, bit, total,
-                                   textures=TEXTURES, lead_lba=0, samples=300)
+        problems = image_output.verify_generated(args.output, imagedisc.verify_iso, design, u, v, bit, total,
+                                                  textures=TEXTURES, lead_lba=0, samples=300)
     if problems:
         raise ValueError('Check-disc verification failed: ' + '; '.join(problems[:5]))
     print(f'Verified: 300 sampled sectors match the design. Spec: {spec}')

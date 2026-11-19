@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import sys
 import threading
+import uuid
 
 from .sectors import state_path
 
@@ -56,6 +57,7 @@ _ACTIONS = {
     "burn": "刻录", "erase": "擦除", "info": "读取光驱信息", "disc": "检查光盘",
     "whois": "读取光盘身份", "swap": "等待换盘", "timing": "计时测量",
     "geo": "几何测量", "label": "读取光盘会话", "verify": "刻后验证",
+    "calibrate": "校准",
 }
 
 
@@ -64,6 +66,7 @@ class DriveBusy(RuntimeError):
     exit_code = 75
 
     def __init__(self, owner):
+        self.owner = owner
         pid, action = owner.get("pid"), owner.get("action")
         known = type(pid) is int and isinstance(action, str) and action in _ACTIONS
         zh = f"（pid {pid}，正在：{_ACTIONS[action]}）" if known else ""
@@ -101,6 +104,7 @@ def _owner(path):
 
 _held = threading.local()
 _virtual_root = None  # Set by Disc Lab's device hook only in virtual-drive processes.
+_PARENT_LEASE = "DISCPROBE_PARENT_DRIVE_LEASE"
 
 
 def _lock_dir():
@@ -113,6 +117,73 @@ def _lock_dir():
 
 def _lock_path(drive):
     return _lock_dir() / (drive_key(drive) + ".lock")
+
+
+def _lane(path, name):
+    return path.with_suffix('.' + name)
+
+
+@contextmanager
+def _acquire(path, *, create=True):
+    try:
+        with file_lock(path, create=create) as stream:
+            yield stream
+    except FileLocked:
+        raise DriveBusy(_owner(path)) from None
+
+
+@contextmanager
+def _gate(path, *, create=True):
+    with _acquire(path, create=create) as stream:
+        # A child can outlive a killed parent. Once we hold the gate, old
+        # children cannot start, and existing children still exclude us.
+        for lane in ('worker', 'native'):
+            try:
+                with _acquire(_lane(path, lane), create=False):
+                    pass
+            except FileNotFoundError:
+                pass
+        yield stream
+
+
+def _save_owner(stream, owner):
+    stream.seek(1)
+    stream.write(json.dumps(owner).encode('utf-8'))
+    stream.truncate()
+
+
+def child_env(drive):
+    """Give a direct child a distinct lease under the operation already held."""
+    path = _lock_path(drive)
+    held = getattr(_held, 'paths', {}).get(path)
+    env = dict(os.environ)
+    env.pop(_PARENT_LEASE, None)
+    if held is not None:
+        lane, token = held
+        env[_PARENT_LEASE] = json.dumps(dict(path=str(path), owner=str(lane), token=token))
+    return env
+
+
+def _parent_lease(path):
+    try:
+        lease = json.loads(os.environ[_PARENT_LEASE])
+        if Path(lease['path']) == path and Path(lease['owner']) == path:
+            return lease['token']
+    except (KeyError, TypeError, ValueError):
+        pass
+    return None
+
+
+def _check_parent(path, token):
+    try:
+        with _acquire(path, create=False):
+            pass
+    except DriveBusy as busy:
+        if busy.owner.get('token') == token and busy.owner.get('pid') == os.getppid():
+            return
+    except FileNotFoundError:
+        pass
+    raise DriveBusy({})
 
 
 def drive_locks(drives=()):
@@ -129,12 +200,12 @@ def drive_locks(drives=()):
         if not re.fullmatch(r"(?:[A-Z]|[a-f\d]{64})\.lock", path.name) or path.is_symlink():
             continue
         try:
-            with file_lock(path, create=False):
+            with _gate(path, create=False):
                 continue  # Stale owner bytes after a crash do not count.
         except FileNotFoundError:
             continue
-        except FileLocked:
-            owner = _owner(path)
+        except DriveBusy as busy:
+            owner = busy.owner
             drive = names.get(key) or owner.get("drive") or (key + ":" if len(key) == 1 else key)
             pid = owner.get("pid")
             action = owner.get("action")
@@ -147,35 +218,37 @@ def drive_locks(drives=()):
 def drive_operation(drive, action):
     """Allow nesting within the operation, while independent threads still compete."""
     path = _lock_path(drive)
-    held = _held.__dict__.setdefault("paths", set())
+    held = _held.__dict__.setdefault("paths", {})
     if path in held:
         yield
         return
-    try:
-        with file_lock(path) as stream:
-            # Byte zero is the exclusion lock. Readers can inspect bytes after it
-            # on Windows even while another process holds the lock.
-            stream.seek(1)
-            stream.write(json.dumps({"pid": os.getpid(), "action": action, "drive": os.fspath(drive)}).encode("utf-8"))
-            stream.truncate()
-            held.add(path)
+    parent = _parent_lease(path)
+    lane = _lane(path, 'worker') if parent else path
+    lock = _acquire(lane) if parent else _gate(path)
+    with lock as stream:
+        if parent:
+            _check_parent(path, parent)
             try:
-                yield
-            finally:
-                held.remove(path)
-                stream.truncate(1)
-    except FileLocked:
-        raise DriveBusy(_owner(path)) from None
+                with _acquire(_lane(path, 'native'), create=False):
+                    pass
+            except FileNotFoundError:
+                pass
+        token = uuid.uuid4().hex
+        # Byte zero is locked. Readers can still inspect the owner bytes after it.
+        _save_owner(stream, dict(pid=os.getpid(), action=action, drive=os.fspath(drive), token=token))
+        held[path] = (lane, token)
+        try:
+            yield
+        finally:
+            del held[path]
+            stream.truncate(1)
 
 
 def require_available(drive):
     """Give an immediate refusal before spawning a child. The child still acquires its own lock."""
     path = _lock_path(drive)
-    try:
-        with file_lock(path):
-            pass
-    except FileLocked:
-        raise DriveBusy(_owner(path)) from None
+    with _gate(path):
+        pass
 
 
 def locked_drive(action):

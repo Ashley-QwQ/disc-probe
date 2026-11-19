@@ -14,6 +14,7 @@ import pytest
 
 from discprobe import diagnostics, info, mmc, timing
 from discprobe.scsi import ScsiResult, execute_probe
+from tests.iso_fixture import write_checked_iso
 
 
 class Fake:
@@ -352,7 +353,7 @@ def test_burn_cli_refusal_saves_bundle_without_writing(tmp_path, monkeypatch):
 def test_burn_post_write_fault_exits_nonzero_and_preserves_reason(tmp_path, monkeypatch, verify):
     from discprobe import burner, recorded, __main__ as cli
     image = tmp_path / 'small.iso'
-    image.write_bytes(bytes(32 * 2048))
+    write_checked_iso(image, bytes(32 * 2048))
     rec = Mock()
     rec.inspect.return_value = dict(media='dvd', blank=True, free_sectors=4096, speeds_x=[8])
     rec.write.return_value = 8

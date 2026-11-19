@@ -6,7 +6,8 @@ from unittest.mock import Mock
 import pytest
 
 from discprobe import burner, device, disc_identity, eraser, info, webui
-from discprobe.drive_lock import drive_locks
+from discprobe.drive_lock import FileLocked, drive_locks, file_lock
+from tests.iso_fixture import write_checked_iso
 
 
 @pytest.fixture
@@ -62,7 +63,7 @@ def test_r1_core_checks_web_grant_after_taking_write_lock(tmp_path, monkeypatch,
     drive = "/dev/r1-fake"
     image = tmp_path / "iso" / "sample.iso"
     image.parent.mkdir()
-    image.write_bytes(bytes(32 * 2048))
+    write_checked_iso(image, bytes(32 * 2048))
     launches = []
     refused = []
     monkeypatch.setattr(eraser, "sys", SimpleNamespace(platform="linux"))
@@ -157,7 +158,7 @@ def test_r1_cli_erase_and_burn_keeps_initial_identity(tmp_path, monkeypatch, r1_
 
     medium, reads = r1_media
     image = tmp_path / "cli.iso"
-    image.write_bytes(bytes(32 * 2048))
+    write_checked_iso(image, bytes(32 * 2048))
     recorder = SimpleNamespace(inspect=Mock(return_value=dict(blank=False, rewritable=True, speeds_x=[4])),
                                write=Mock(), erase=Mock())
     recorder.inspect.return_value.update(media="dvd", capacity_sectors=4096)
@@ -175,6 +176,45 @@ def test_r1_cli_erase_and_burn_keeps_initial_identity(tmp_path, monkeypatch, r1_
     assert reads[-1] == ("burn", "05060708")
     recorder.erase.assert_not_called()
     recorder.write.assert_not_called()
+
+
+@pytest.mark.parametrize("log_blocked", [True, False])
+def test_r1_burn_preflight_and_adapter_check_locked_identity(tmp_path, monkeypatch, r1_media, log_blocked):
+    medium, _ = r1_media
+    medium.blank = True
+    drive = "/dev/r1-fake"
+    expected = disc_identity.read_identity(drive)
+    image = write_checked_iso(tmp_path / "sample.iso", bytes(32 * 2048))
+    log = Path(str(image) + ".burn.jsonl")
+    checks = []
+    launch = Mock()
+    monkeypatch.setattr(burner, "tool", lambda name: name)
+    recorder = burner.LinuxBurner(drive, "dvd", popen=launch, run=lambda *a, **k: SimpleNamespace(
+        returncode=0, stdout="Mounted Media: DVD\nDisc status: blank\nFree Blocks: 4096\nWrite Speed #1: 4x", stderr=""))
+    real_check = disc_identity.check_identity
+    real_write = recorder.write
+
+    def check(drive, identity, **kwargs):
+        assert log.is_file()
+        assert any(row["locked"] and row["action"] == "burn" for row in drive_locks([drive]))
+        with pytest.raises(FileLocked), file_lock(Path(str(image) + ".lock")):
+            pytest.fail("burn preflight released its image lock")
+        checks.append(medium.identifier)
+        real_check(drive, identity, **kwargs)
+
+    def late_swap(*args, **kwargs):
+        medium.identifier = "05060708"
+        return real_write(*args, **kwargs)
+
+    monkeypatch.setattr(disc_identity, "check_identity", check)
+    monkeypatch.setattr(recorder, "write", late_swap)
+    if log_blocked:
+        log.mkdir()
+    error = OSError if log_blocked else disc_identity.DiscChanged
+    with pytest.raises(error):
+        burner.burn(drive, image, yes_write=True, recorder=recorder, expected_identity=expected)
+    assert checks == ([] if log_blocked else ["01020304", "05060708"])
+    launch.assert_not_called()
 
 
 def test_r1_gh70n_saved_read_has_mid_but_no_valid_disc_identification():

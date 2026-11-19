@@ -327,10 +327,13 @@ class TimingProbe:
             self.summary['capacity_check'] = capacity_check
             raise NoReadableDisc('The recorded length of this open disc could not be confirmed: '
                                  f"{capacity_check.get('end_read')}. Re-read this same disc or try another drive before measuring geometry.")
-        if confirmed and self.last_lba is not None and confirmed < self.last_lba + 1:
+        open_disc = capacity_check['sources']['disc_status'] == 'incomplete'
+        if confirmed and ((open_disc and confirmed - 1 != self.last_lba)
+                          or (self.last_lba is not None and confirmed < self.last_lba + 1)):
             self.last_lba = confirmed - 1
             capacity_source = 'confirmed track recorded end'
-            self.log(f'Warning: READ CAPACITY describes the open medium; using the confirmed recorded length of {confirmed} sectors.')
+            self.log(f'开放盘使用已读回确认的记录长度：{confirmed} 扇区。 / '
+                     f'Using the confirmed recorded length of {confirmed} sectors on this open disc.')
         if self.family == 'dvd' and self.last_lba:
             # READ CAPACITY can describe the whole medium on an open DVD.
             # Our pending marker supplies the actual first session's burned end.

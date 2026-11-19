@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 from discprobe import burner, discid, labelsession, randomdisc, randomlabel
 from discprobe.sim import SimDrive
 from discprobe.timing import TimingProbe
+from tests.iso_fixture import write_checked_iso
 
 class IdentitySessionTests(unittest.TestCase):
     def setUp(self):
@@ -89,7 +90,7 @@ class IdentitySessionTests(unittest.TestCase):
 
     def test_append_identity_is_refused_before_device_inspection(self):
         # An actual appended image has no first-session filesystem or identity slots.
-        session=Path(self.temp.name)/'label.iso';session.write_bytes(bytes(32768))
+        session=write_checked_iso(Path(self.temp.name)/'label.iso', bytes(32768))
         rec=Mock()
         with self.assertRaisesRegex(burner.BurnError,'first session'):
             burner.burn('SIM',session,yes_write=True,append=True,expect_start=1630976,disc_id=True,recorder=rec)
@@ -104,7 +105,7 @@ class IdentitySessionTests(unittest.TestCase):
 
     def test_windows_passes_both_patch_and_keep_open(self):
         stream=discid.patch_burn(self.image,{},speed=None,selected=8,media='dvd')
-        rec=object.__new__(burner.WindowsDVD);rec.base=['powershell.exe']
+        rec=object.__new__(burner.WindowsDVD);rec.base=['powershell.exe'];rec.drive='X:'
         process=Mock();process.stdout=io.StringIO('');process.wait.return_value=0
         rec.popen=Mock(return_value=process)
         rec.write(stream,8,threading.Event(),lambda **_:None,keep_open=True)

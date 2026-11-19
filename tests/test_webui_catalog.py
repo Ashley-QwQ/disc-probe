@@ -7,6 +7,7 @@ from unittest.mock import Mock
 from discprobe import webui_catalog as catalog
 from discprobe import guide
 from discprobe import webui
+from tests.iso_fixture import write_checked_iso
 
 
 def write_geo(root, stamp='20261107-101500', **overrides):
@@ -159,7 +160,7 @@ def test_history_unidentified_runs_stay_separate(tmp_path):
 def test_web_burn_history_survives_server_lifetime(tmp_path):
     write_geo(tmp_path)
     (tmp_path / 'iso').mkdir()
-    (tmp_path / 'iso/image.iso').write_bytes(bytes(2048))
+    write_checked_iso(tmp_path / 'iso/image.iso', bytes(2048))
     event = dict(type='burn_result', result='completed', time=1794230000,
                  verification=dict(status='completed', ok=96, differing=0, unreadable=0, untested=0))
     def runner(argv, **kw):

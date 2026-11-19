@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from unittest.mock import patch
 
 from . import cd, filldisc, gameart, guide, i18n, sectors, snake, sudoku, timing, ui
 from .sim import SimDrive
@@ -421,9 +422,17 @@ def _first_steps(c) -> None:
             ui._term = ui.Term(Utf8Tty(), env=env, platform="linux")
             os.makedirs("iso")
             c.check(guide.picture_iso() is None, "no picture ISO yet")
-            for name in ("picture.iso", "picture.preview.png", "blind_x.iso", "blind_x.preview.png", "orphan.preview.png"):
+            for name in ("picture.iso", "picture.preview.png", "orphan.preview.png"):
                 open(os.path.join("iso", name), "w").close()
-            c.check(guide.picture_iso() == os.path.join("iso", "picture.iso"), "a picture ISO is found by its preview, and held-out names stay unread")
+            listing = os.listdir("iso") + ["blind_x.iso", "blind_x.preview.png"]
+            real_exists = os.path.exists
+            def checked_exists(path):
+                if 'blind' in path.casefold():
+                    raise AssertionError('held-out path was accessed')
+                return real_exists(path)
+            with patch.object(os, 'listdir', return_value=listing), patch.object(os.path, 'exists', checked_exists):
+                c.check(guide.picture_iso() == os.path.join("iso", "picture.iso"),
+                        "a picture ISO is found by its preview, and held-out names stay unread")
             cut_short = os.path.join("iso", "picture.iso" + iso9660.UNFINISHED)
             open(cut_short, "w").close()
             c.check(guide.picture_iso() is None, "a rewrite cut short leaves the old preview, but is not taken for a finished ISO")
@@ -1253,8 +1262,9 @@ def _writing(c) -> None:
     real_term = ui._term
     try:
         ui._term = ui.Term(io.StringIO(), env={})
-        with ui.writing("x", 10) as log:
-            c.check(log is print, "a pipe gets the writers' lines as before")
+        with tempfile.TemporaryDirectory() as d:
+            with ui.writing(os.path.join(d, 'x.iso'), 10) as log:
+                c.check(log is print, "a pipe gets the writers' lines as before")
         with ui.busy("x"):
             pass
         c.check(ui._term.stream.getvalue() == "", "a pipe sees nothing of the busy line")
@@ -1279,11 +1289,12 @@ def _writing(c) -> None:
             text = ANSI.sub("", s.getvalue())
             c.check("100%" in text and "a note\n" in text and "20.0 %" not in text and "Finished in" in printed.getvalue(), "percentage lines become the bar; other lines still print")
             c.check("\x1b[?25h" in s.getvalue(), "the cursor comes back")
-        try:
-            with ui.writing("no such file", 10):
-                raise ValueError("stop")
-        except ValueError:
-            c.check(s.getvalue().count("\x1b[?25l") == s.getvalue().count("\x1b[?25h"), "an error mid-write still restores the cursor")
+        with tempfile.TemporaryDirectory() as d:
+            try:
+                with ui.writing(os.path.join(d, 'error.iso'), 10):
+                    raise ValueError("stop")
+            except ValueError:
+                c.check(s.getvalue().count("\x1b[?25l") == s.getvalue().count("\x1b[?25h"), "an error mid-write still restores the cursor")
     finally:
         ui._term = real_term
 
@@ -2154,8 +2165,7 @@ def _image_cut_short(c) -> None:
                     raise KeyboardInterrupt
                 random_path = os.path.join("iso", "random.iso")
                 try:
-                    with ui.writing(random_path, 100000):
-                        randomdisc.write_iso(random_path, 100000, log=stop)
+                    randomdisc.write_iso(random_path, 100000, log=stop)
                 except KeyboardInterrupt:
                     pass
                 c.check(not os.path.exists(random_path), "the real random image, stopped part way, is gone")
@@ -2167,10 +2177,17 @@ def _image_cut_short(c) -> None:
                 lines = guide.guide_lines("dvd", notes=True)
                 c.check(not any("written; burn it" in x for x in lines) and any("info --drive" in x for x in lines),
                         "a marker left by a killed run: guide asks for the blank-disc info first")
-                with ui.writing(random_path, 10):
-                    c.check(not os.path.exists(random_path), "and the next write starts clean")
-                    with open(random_path, "wb") as f:
-                        f.write(b"all of it")
+                marker = random_path + iso9660.UNFINISHED
+                try:
+                    with ui.writing(random_path, 10):
+                        c.check(False, "the next write must refuse another task's marker")
+                except ValueError:
+                    with open(random_path, 'rb') as f:
+                        c.check(f.read() == b'part' and os.path.exists(marker), "a refused write preserves the prior task's files")
+                # Here the test owns the two fixture files and can clear them.
+                os.remove(marker)
+                with ui.writing(random_path, 10), open(random_path, "wb") as f:
+                    f.write(b"all of it")
                 c.check(os.path.exists(random_path) and not os.path.exists(random_path + iso9660.UNFINISHED), "and ends whole")
                 lines = guide.guide_lines("dvd", notes=True)
                 c.check(any("written; burn it" in x for x in lines), "guide then says to burn it")

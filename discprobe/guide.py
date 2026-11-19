@@ -17,7 +17,7 @@ import sys
 
 from . import i18n, iso9660, mmc
 
-RESULT_DIR = re.compile(r"^(?P<kind>[a-z]+)-(?:(?P<tag>.+)-)?(?P<stamp>\d{8}-\d{6})$")
+RESULT_DIR = re.compile(r"^(?P<kind>[a-z]+)-(?:(?P<tag>.+)-)?(?P<stamp>\d{8}-\d{6})(?:_(?P<suffix>\d+))?$")
 PROG = "python -m discprobe"
 # `latest` must not pick these. Results now say when they stopped early; these catch older ones, as far as they can:
 # one stopped after 8 rungs says nothing, and looks complete.
@@ -243,8 +243,8 @@ def scan(out: str = "results") -> list[Result]:
         m = RESULT_DIR.match(name)
         path = os.path.join(out, name)
         if m and "blind" not in name.lower() and os.path.isdir(path):
-            found.append(Result(path, m["kind"], m["tag"], m["stamp"]))
-    return sorted(found, key=lambda r: r.when, reverse=True)
+            found.append((Result(path, m["kind"], m["tag"], m["stamp"]), int(m["suffix"] or 0)))
+    return [run for run, _ in sorted(found, key=lambda entry: (entry[0].when, entry[1]), reverse=True)]
 
 
 def latest_geo(media: str | None = None, out: str = "results", radius_range=None) -> Result | None:

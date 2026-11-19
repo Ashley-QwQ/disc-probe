@@ -16,6 +16,7 @@ import unittest
 from unittest.mock import patch
 
 from discprobe import guide, ui, webui
+from tests.iso_fixture import write_checked_iso
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -260,7 +261,7 @@ time.sleep(60)
     def test_burn_fails_closed_tokens_expire_and_consume(self):
         b = self.backend()
         (self.root / "iso").mkdir()
-        (self.root / "iso" / "sample.iso").write_bytes(bytes(2048))
+        write_checked_iso(self.root / "iso" / "sample.iso", bytes(2048))
         payload = dict(action="burn", drive="H:", args={"iso": "iso/sample.iso"})
         with self.assertRaisesRegex(webui.APIError, "burn token"):
             b.start(payload)
@@ -358,7 +359,7 @@ time.sleep(60)
         # a CD on Windows: the page shows the core's tested command (IMAPI script, 8x), with absolute paths
         server = self.http_server()
         (Path(self.root) / "iso").mkdir(exist_ok=True)
-        (Path(self.root) / "iso" / "cd pic.iso").write_bytes(bytes(4096))
+        write_checked_iso(Path(self.root) / "iso" / "cd pic.iso", bytes(4096))
         status, body = self.request(server, "GET", "/api/burn-command?drive=H:&media=cd&iso=iso/cd%20pic.iso")
         self.assertEqual(status, 200)
         argv = json.loads(body)["argv"]
@@ -537,7 +538,7 @@ time.sleep(60)
         self.assertEqual(b.state()["drives"][0]["disc"]["mid"], "RITEKF1")    # kept for the page
         # a blank disc seen this way never authorizes a burn by itself
         (self.root / "iso").mkdir()
-        (self.root / "iso" / "sample.iso").write_bytes(bytes(2048))
+        write_checked_iso(self.root / "iso" / "sample.iso", bytes(2048))
         payload = dict(action="burn", drive="H:", args={"iso": "iso/sample.iso"})
         token = b.burn_token(payload)["token"]
         with self.assertRaisesRegex(webui.APIError, "verified blank"):
@@ -573,7 +574,7 @@ with open(p, 'a') as f:
         self.assertTrue(any(e["type"] == "step" for e in b.job_state(ident)["events"]))      # the page follows the steps
         # with an image it starts with a burn: the burn's token and blank check apply
         (self.root / "iso").mkdir()
-        (self.root / "iso" / "m.iso").write_bytes(b"\0" * 4096)
+        write_checked_iso(self.root / "iso" / "m.iso", bytes(4096))
         with self.assertRaisesRegex(webui.APIError, "burn token"):
             b.start(dict(action="calibrate", drive="I:", args={"iso": "iso/m.iso"}))
         payload = dict(action="calibrate", drive="I:", args={"iso": "iso/m.iso"})
@@ -584,7 +585,7 @@ with open(p, 'a') as f:
 
     def test_writing_job_completion_invalidates_only_its_drive_even_on_failure(self):
         (self.root / "iso").mkdir()
-        (self.root / "iso" / "m.iso").write_bytes(bytes(4096))
+        write_checked_iso(self.root / "iso" / "m.iso", bytes(4096))
         for action in ("burn", "calibrate"):
             for code in (0, 1):
                 with self.subTest(action=action, exit=code):
@@ -665,7 +666,7 @@ with open(p, 'a') as f:
             with self.subTest(bad=bad), self.assertRaises(webui.APIError):
                 webui.command(dict(action="image", args={"geo": "latest", **bad}), server.backend.root, [])
         (server.backend.root / "iso").mkdir()
-        (server.backend.root / "iso" / "web.iso").write_bytes(bytes(4096))
+        write_checked_iso(server.backend.root / "iso" / "web.iso", bytes(4096))
         code, body = self.request(server, "GET", "/api/iso?path=iso/web.iso")
         self.assertEqual((code, json.loads(body)["sectors"]), (200, 2))
         self.assertEqual(self.request(server, "GET", "/api/iso?path=designs/x.npy")[0], 400)
