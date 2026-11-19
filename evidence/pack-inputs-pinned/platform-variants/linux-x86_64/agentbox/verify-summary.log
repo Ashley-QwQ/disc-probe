@@ -1,0 +1,18 @@
+Archive SHA-256: 2532492e1f56e5cbce631a9dd1e43761d2458ca20a76376f6b1d4a4d40ea9668
+Modes immediately after unzip: {"start-linux.sh": "0o755", "linux/python/bin/idle3": "0o755", "linux/python/bin/idle3.13": "0o755", "linux/python/bin/pip": "0o755", "linux/python/bin/pip3": "0o755", "linux/python/bin/pip3.13": "0o755", "linux/python/bin/pydoc3": "0o755", "linux/python/bin/pydoc3.13": "0o755", "linux/python/bin/python": "0o755", "linux/python/bin/python3": "0o755", "linux/python/bin/python3.13": "0o755"}
+$ ["/home/agent/dp-linuxpack-test/run-1795059838329453500/Extracted package/disc-probe-1.0.0.0-alpha-linux-x86_64/linux/python/bin/python3", "-X", "utf8", "-B", "-c", "\nimport importlib.metadata as metadata, json, pathlib, sys\nimport cv2, numpy, PIL, scipy\nroot = pathlib.Path(sys.prefix)\nassert root == pathlib.Path.cwd() / 'linux/python'\nfor mod in (cv2, numpy, PIL, scipy):\n    assert pathlib.Path(mod.__file__).is_relative_to(root)\nbuild = json.loads(pathlib.Path('release-build.json').read_text(encoding='utf-8'))['linux']\nassert sys.version.split()[0] == build['python']\nactual = {name: metadata.version(name) for name in build['dependencies']}\nassert actual == build['dependencies']\ntry:\n    metadata.version('opencv-python')\nexcept metadata.PackageNotFoundError:\n    pass\nelse:\n    raise AssertionError('GUI OpenCV distribution is present')\nprint(json.dumps(dict(python=sys.version.split()[0], executable=sys.executable, dependencies=actual)))\n"]
+{"python": "3.13.14", "executable": "/home/agent/dp-linuxpack-test/run-1795059838329453500/Extracted package/disc-probe-1.0.0.0-alpha-linux-x86_64/linux/python/bin/python3.13", "dependencies": {"numpy": "2.5.1", "opencv-python-headless": "5.0.0.93", "pillow": "12.3.0", "scipy": "1.18.1"}}
+$ ["/home/agent/dp-linuxpack-test/run-1795059838329453500/Extracted package/disc-probe-1.0.0.0-alpha-linux-x86_64/linux/python/bin/python3", "-X", "utf8", "-B", "-m", "discprobe", "troubleshoot", "--json", "This disc cannot be erased: only rewritable discs"]
+Offline troubleshooting search: burn-erase-media
+$ ["/home/agent/dp-linuxpack-test/run-1795059838329453500/Extracted package/disc-probe-1.0.0.0-alpha-linux-x86_64/linux/python/bin/python3", "-X", "utf8", "-B", "-m", "discprobe", "selftest"]
+all checks passed
+$ ["/home/agent/dp-linuxpack-test/run-1795059838329453500/Extracted package/disc-probe-1.0.0.0-alpha-linux-x86_64/linux/python/bin/python3", "-X", "utf8", "-B", "-m", "discprobe", "webui", "status", "--json"]
+GET /home/: 200 (143976 bytes)
+GET /api/version: 200 (338 bytes)
+$ ["/home/agent/dp-linuxpack-test/run-1795059838329453500/Extracted package/disc-probe-1.0.0.0-alpha-linux-x86_64/linux/python/bin/python3", "-X", "utf8", "-B", "-m", "discprobe", "webui", "status", "--json"]
+WebUI status verified: {"running": true, "port": 40871, "pid": 53730}
+$ ["/home/agent/dp-linuxpack-test/run-1795059838329453500/Extracted package/disc-probe-1.0.0.0-alpha-linux-x86_64/linux/python/bin/python3", "-X", "utf8", "-B", "-m", "discprobe", "webui", "stop"]
+服务已停止。 / Service stopped.
+$ ["/home/agent/dp-linuxpack-test/run-1795059838329453500/Extracted package/disc-probe-1.0.0.0-alpha-linux-x86_64/linux/python/bin/python3", "-X", "utf8", "-B", "-m", "discprobe", "webui", "status", "--json"]
+WebUI listener closed.
+PASS

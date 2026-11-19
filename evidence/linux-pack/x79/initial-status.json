@@ -1,0 +1,13 @@
+{
+  "status": "FAIL",
+  "host": "x79",
+  "remote_root": "~/dp-linuxpack-test/run-1795046482411767000",
+  "input": {
+    "run": "run-1795046482411767000",
+    "file": "disc-probe-1.0.0.0-alpha-full.zip",
+    "prefix": "disc-probe-1.0.0.0-alpha-full",
+    "sha256": "d970b4a4b86cc5871a529119ab58a5f0c675035fb09a39bd439f6255873c20ca",
+    "required_bytes": 1897839758
+  },
+  "error": "Command '['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', 'x79', 'python3', '-']' returned non-zero exit status 1."
+}

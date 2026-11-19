@@ -63,7 +63,7 @@ def test_webui_lan_default_and_local_only(flags, lan, capsys, tmp_path, monkeypa
         instance.lifecycle_token = "session"
         instance.identity = {"pid": 1, "started": 1}
         instance.server_address = ("0.0.0.0" if lan else "127.0.0.1", instance.server_port)
-        main(["webui", *flags])
+        main(["webui", "--no-drives", *flags])
         assert server.call_args.kwargs["lan"] is lan
         assert "http://127.0.0.1:45678/home/?token=session" in capsys.readouterr().out
 

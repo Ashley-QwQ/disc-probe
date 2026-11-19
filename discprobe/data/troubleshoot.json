@@ -37,7 +37,7 @@
     "steps": {"zh": ["核对盘上的类型标记。如果是 RW 盘，把盘放好后重新检查光驱里的盘，确认它被识别成可擦写。"], "en": ["Check the media marking. For an RW disc, insert it and recheck the disc in the drive to confirm it is detected as rewritable."]},
     "commands": [],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/disc_identity.py", "line": 90, "keyword": "if erasing and identity[\"rewritable\"] is not True:"}, {"path": "README.en.md", "line": 168, "keyword": "only RW discs can"}, {"path": "discprobe/web/home/burn.js", "line": 36, "keyword": "Check the disc in the drive again"}]
+    "sources": [{"path": "discprobe/disc_identity.py", "line": 90, "keyword": "if erasing and identity[\"rewritable\"] is not True:"}, {"path": "README.en.md", "line": 169, "keyword": "only RW discs can"}, {"path": "discprobe/web/home/burn.js", "line": 36, "keyword": "Check the disc in the drive again"}]
   },
   {
     "id": "burn-interrupted",
@@ -57,7 +57,7 @@
     "steps": {"zh": ["右键选“刻录光盘映像”，确认刻录目标是要用的光驱。"], "en": ["Right-click and choose Burn disc image, then check the selected burner."]},
     "commands": [],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "README.en.md", "line": 162, "keyword": "a double-click only mounts it"}, {"path": "discprobe/guide.py", "line": 950, "keyword": "it can point at another drive"}, {"path": "discprobe/guide.py", "line": 963, "keyword": "Burn disc image"}]
+    "sources": [{"path": "README.en.md", "line": 163, "keyword": "a double-click only mounts it"}, {"path": "discprobe/guide.py", "line": 950, "keyword": "it can point at another drive"}, {"path": "discprobe/guide.py", "line": 963, "keyword": "Burn disc image"}]
   },
   {
     "id": "burn-write-speed",
@@ -67,7 +67,7 @@
     "steps": {"zh": ["失败后换一张新空盘；再失败，试另一个光驱支持的刻录速度。检查刻录报告里的实际速度和回读结果。", "DVD 默认选光驱支持的最接近 8x 的速度，距离相同取较低值。CD 默认取支持的最低倍速。"], "en": ["Use a new blank after a failed write. If it fails again, try another supported write speed and check the reported speed and readback.", "For DVD the default is the supported speed nearest 8x, with ties going lower. For CD the default is the lowest supported speed."]},
     "commands": ["python -m discprobe info --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/guide.py", "line": 1038, "keyword": "Try another burn speed"}, {"path": "README.en.md", "line": 170, "keyword": "another supported multiple"}, {"path": "README.en.md", "line": 172, "keyword": "drive/utility-reported speeds"}, {"path": "README.en.md", "line": 170, "keyword": "closest to 8x"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 1038, "keyword": "Try another burn speed"}, {"path": "README.en.md", "line": 171, "keyword": "another supported multiple"}, {"path": "README.en.md", "line": 173, "keyword": "drive/utility-reported speeds"}, {"path": "README.en.md", "line": 171, "keyword": "closest to 8x"}]
   },
   {
     "id": "cd-40x-failed",
@@ -77,7 +77,7 @@
     "steps": {"zh": ["遇到相同组合可试 IMAPI 脚本以 8x 刻，记录实际速度并核对回读。"], "en": ["For that combination, try the IMAPI script at 8x and check the reported speed and readback."]},
     "commands": ["powershell -ExecutionPolicy Bypass -File tools/burn_imapi.ps1 -Drive H: -Iso iso/cd-random.iso -Speed 8 -Burn -Reload"],
     "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
-    "sources": [{"path": "discprobe/guide.py", "line": 959, "keyword": "Windows' own Burn disc image picks 40x"}, {"path": "README.en.md", "line": 245, "keyword": "-Speed 8"}, {"path": "docs/KNOWLEDGE.md", "line": 692, "keyword": "0x8007045D"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 959, "keyword": "Windows' own Burn disc image picks 40x"}, {"path": "README.en.md", "line": 246, "keyword": "-Speed 8"}, {"path": "docs/KNOWLEDGE.md", "line": 692, "keyword": "0x8007045D"}]
   },
   {
     "id": "cd-audio-origin",
@@ -97,7 +97,7 @@
     "steps": {"zh": ["用程序生成的 TOC 配合 cdrdao 写入，保持相同扇区布局。"], "en": ["Burn using cdrdao and the generated TOC so the layout matches."]},
     "commands": ["cdrdao write --device /dev/sr0 <image.toc>"],
     "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
-    "sources": [{"path": "discprobe/guide.py", "line": 969, "keyword": "Burn it with cdrdao"}, {"path": "discprobe/guide.py", "line": 971, "keyword": "layout the ISO was made for"}, {"path": "discprobe/guide.py", "line": 972, "keyword": "textures come out as noise"}, {"path": "INSTALL-linux.md", "line": 52, "keyword": "保持预扰码所用的 Mode 1 / Mode 2 布局"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 969, "keyword": "Burn it with cdrdao"}, {"path": "discprobe/guide.py", "line": 971, "keyword": "layout the ISO was made for"}, {"path": "discprobe/guide.py", "line": 972, "keyword": "textures come out as noise"}, {"path": "INSTALL-linux.md", "line": 62, "keyword": "保持预扰码所用的 Mode 1 / Mode 2 布局"}]
   },
   {
     "id": "cd-clv-limit",
@@ -127,7 +127,7 @@
     "steps": {"zh": ["换用尚未测过的 CD 读速。24x 在手册的 CD 速率表中，用 timing 查看实际模式。"], "en": ["Try an untested CD speed. 24x is listed in the manual’s CD speed table. Check the actual mode with timing."]},
     "commands": ["python -m discprobe timing --media cd --drive <drive> --speed 24x"],
     "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
-    "sources": [{"path": "discprobe/guide.py", "line": 583, "keyword": "A higher CD speed may allow CAV"}, {"path": "docs/MANUAL.en.md", "line": 131, "keyword": "24x"}, {"path": "README.en.md", "line": 396, "keyword": "CAV, 2090 rpm"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 583, "keyword": "A higher CD speed may allow CAV"}, {"path": "docs/MANUAL.en.md", "line": 131, "keyword": "24x"}, {"path": "README.en.md", "line": 397, "keyword": "CAV, 2090 rpm"}]
   },
   {
     "id": "cd-twisted-lines",
@@ -207,7 +207,7 @@
     "steps": {"zh": ["按拍摄设置对准角度。拍实验花盘时关掉房间灯，只用手机闪光灯并稍稍侧持手机。"], "en": ["Match the intended viewing pose. For the experimental flower disc, turn off the room lights, use the phone flash and hold the phone a little to one side."]},
     "commands": [],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "README.en.md", "line": 290, "keyword": "the colour changes with the angle"}, {"path": "README.en.md", "line": 310, "keyword": "use only the phone flash"}, {"path": "README.en.md", "line": 90, "keyword": "Colours and effects in the lamp view are a preview"}]
+    "sources": [{"path": "README.en.md", "line": 291, "keyword": "the colour changes with the angle"}, {"path": "README.en.md", "line": 311, "keyword": "use only the phone flash"}, {"path": "README.en.md", "line": 90, "keyword": "Colours and effects in the lamp view are a preview"}]
   },
   {
     "id": "curve-controls",
@@ -267,7 +267,7 @@
     "steps": {"zh": ["从 results 选择实际运行目录，或直接给该目录里的 summary.json。"], "en": ["Select the actual run directory under results or give its summary.json directly."]},
     "commands": ["python -m discprobe diagnose <run>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/diagnostics.py", "line": 67, "keyword": "diagnose RUN needs"}, {"path": "discprobe/diagnostics.py", "line": 65, "keyword": "root = root.parent"}, {"path": "README.en.md", "line": 142, "keyword": "results"}]
+    "sources": [{"path": "discprobe/diagnostics.py", "line": 67, "keyword": "diagnose RUN needs"}, {"path": "discprobe/diagnostics.py", "line": 65, "keyword": "root = root.parent"}, {"path": "README.en.md", "line": 143, "keyword": "results"}]
   },
   {
     "id": "diagnose-summary",
@@ -327,7 +327,7 @@
     "steps": {"zh": ["检查导出报告里的角度差再使用。结果通过时可手填内外半径、扇区数和轨距项，或用 --install。"], "en": ["Review the conversion error before using the preset. If suitable, enter both radii, the sector count and pitch terms by hand, or use --install."]},
     "commands": ["python -m discprobe disexport --geo <run> --sectors <count>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/guide.py", "line": 820, "keyword": "check its conversion error"}, {"path": "discprobe/guide.py", "line": 1130, "keyword": "check the angle difference above"}, {"path": "discprobe/guide.py", "line": 1131, "keyword": "or run with --install"}, {"path": "README.en.md", "line": 212, "keyword": "prints the conversion error"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 820, "keyword": "check its conversion error"}, {"path": "discprobe/guide.py", "line": 1130, "keyword": "check the angle difference above"}, {"path": "discprobe/guide.py", "line": 1131, "keyword": "or run with --install"}, {"path": "README.en.md", "line": 213, "keyword": "prints the conversion error"}]
   },
   {
     "id": "dis-few-points",
@@ -357,7 +357,7 @@
     "steps": {"zh": ["用 results 检查结果，选择含几何拟合的运行，或重新测量。"], "en": ["Check runs with results and select one with a geometry fit, or measure again."]},
     "commands": ["python -m discprobe results", "python -m discprobe geo --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/guide.py", "line": 332, "keyword": "no geometry fit"}, {"path": "discprobe/guide.py", "line": 356, "keyword": "neither an inner radius nor a pitch"}, {"path": "README.en.md", "line": 421, "keyword": "which steps are done"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 332, "keyword": "no geometry fit"}, {"path": "discprobe/guide.py", "line": 356, "keyword": "neither an inner radius nor a pitch"}, {"path": "README.en.md", "line": 422, "keyword": "which steps are done"}]
   },
   {
     "id": "dis-old-quality",
@@ -407,7 +407,7 @@
     "steps": {"zh": ["重新用同批空盘的 info 取可用扇区数，按该数重导预设并在 DIS 填相同的数。"], "en": ["Get the available sector count from a blank of the same batch with info, then re-export and use that count in DIS."]},
     "commands": ["python -m discprobe info --drive <drive>", "python -m discprobe disexport --geo <run> --sectors <count>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "docs/MANUAL.en.md", "line": 124, "keyword": "boundary overhead needed to close the disc"}, {"path": "README.en.md", "line": 212, "keyword": "too high a count can make the close fail"}]
+    "sources": [{"path": "docs/MANUAL.en.md", "line": 124, "keyword": "boundary overhead needed to close the disc"}, {"path": "README.en.md", "line": 213, "keyword": "too high a count can make the close fail"}]
   },
   {
     "id": "disc-not-ready",
@@ -617,7 +617,7 @@
     "steps": {"zh": ["先用 info 读同批空盘的可用扇区。DIS 预设和 DIS 工程用相同的容量重新导出。若超限的是随机数据测量镜像，用 random --sectors 生成更小的镜像。"], "en": ["Read the available sectors from a blank of the same batch with info. Use the same capacity in the DIS preset and project before exporting again. For an oversized random-data measuring image, generate a smaller one using random --sectors."]},
     "commands": ["python -m discprobe info --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "README.en.md", "line": 152, "keyword": "a count read back from a burned disc can be too high"}, {"path": "README.en.md", "line": 212, "keyword": "too high a count can make the close fail"}, {"path": "discprobe/guide.py", "line": 980, "keyword": "make a smaller one with --sectors"}]
+    "sources": [{"path": "README.en.md", "line": 153, "keyword": "a count read back from a burned disc can be too high"}, {"path": "README.en.md", "line": 213, "keyword": "too high a count can make the close fail"}, {"path": "discprobe/guide.py", "line": 980, "keyword": "make a smaller one with --sectors"}]
   },
   {
     "id": "linux-permission",
@@ -626,8 +626,8 @@
     "cause": {"zh": "运行用户需要有光驱设备的读写权限。", "en": "The user running the command needs read and write access to the optical device."},
     "steps": {"zh": ["通常将用户加入 cdrom 组后重新登录，再检查 /dev/sr* 权限。网页服务继续用普通用户运行。"], "en": ["Usually, add the user to the cdrom group and log in again. Check /dev/sr* permissions and run the web service as an ordinary user."]},
     "commands": ["sudo usermod -aG cdrom \"$USER\""],
-    "manual": {"zh": "INSTALL-linux.md#linux-安装1000-alpha", "en": "INSTALL-linux.md#linux-安装1000-alpha"},
-    "sources": [{"path": "INSTALL-linux.md", "line": 57, "keyword": "读写权限"}, {"path": "INSTALL-linux.md", "line": 60, "keyword": "sudo usermod"}, {"path": "INSTALL-linux.md", "line": 63, "keyword": "不以 root 运行整个网页服务"}, {"path": "README.en.md", "line": 110, "keyword": "joining the `cdrom` group"}]
+    "manual": {"zh": "INSTALL-linux.md#linux-启动与安装", "en": "INSTALL-linux.md#linux-启动与安装"},
+    "sources": [{"path": "INSTALL-linux.md", "line": 67, "keyword": "读写权限"}, {"path": "INSTALL-linux.md", "line": 70, "keyword": "sudo usermod"}, {"path": "INSTALL-linux.md", "line": 74, "keyword": "以普通用户运行网页服务"}, {"path": "README.en.md", "line": 109, "keyword": "joining the `cdrom` group"}]
   },
   {
     "id": "linux-transport",
@@ -636,8 +636,8 @@
     "cause": {"zh": "SPTI 与 IMAPI 是 Windows 的光驱接口。", "en": "SPTI and IMAPI are Windows drive interfaces."},
     "steps": {"zh": ["Linux 使用 --transport auto 和相应设备路径。"], "en": ["Use --transport auto with the Linux device path."]},
     "commands": ["python -m discprobe info --drive /dev/sr0 --transport auto"],
-    "manual": {"zh": "INSTALL-linux.md#linux-安装1000-alpha", "en": "INSTALL-linux.md#linux-安装1000-alpha"},
-    "sources": [{"path": "discprobe/__main__.py", "line": 166, "keyword": "on Linux use --transport auto"}, {"path": "README.en.md", "line": 110, "keyword": "through `SG_IO`"}]
+    "manual": {"zh": "INSTALL-linux.md#linux-启动与安装", "en": "INSTALL-linux.md#linux-启动与安装"},
+    "sources": [{"path": "discprobe/__main__.py", "line": 166, "keyword": "on Linux use --transport auto"}, {"path": "README.en.md", "line": 109, "keyword": "through `SG_IO`"}]
   },
   {
     "id": "measuring-disc-count",
@@ -657,7 +657,7 @@
     "steps": {"zh": ["在运行 DP 的同一 Python 环境安装依赖。Windows 全量包已带 Python 和依赖；Linux 可用准备好的 wheel 离线安装。"], "en": ["Install the dependencies in the Python environment that runs Disc Probe. The full Windows package includes them. On Linux, install from prepared wheels if offline."]},
     "commands": ["python -m pip install numpy pillow scipy opencv-python"],
     "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
-    "sources": [{"path": "discprobe/guide.py", "line": 54, "keyword": "python -m pip install numpy pillow scipy opencv-python"}, {"path": "discprobe/guide.py", "line": 1312, "keyword": "photo reading also needs"}, {"path": "README.en.md", "line": 104, "keyword": "its own Python and dependencies"}, {"path": "INSTALL-linux.md", "line": 15, "keyword": "可离线安装"}, {"path": "discprobe/guide.py", "line": 1369, "keyword": "Install the Python packages disc-probe uses"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 54, "keyword": "python -m pip install numpy pillow scipy opencv-python-headless"}, {"path": "discprobe/guide.py", "line": 1312, "keyword": "photo reading also needs"}, {"path": "README.en.md", "line": 104, "keyword": "its own Python 3.13 and dependencies"}, {"path": "INSTALL-linux.md", "line": 25, "keyword": "可离线安装"}, {"path": "discprobe/guide.py", "line": 1369, "keyword": "Install the Python packages disc-probe uses"}]
   },
   {
     "id": "no-picture-visible",
@@ -967,7 +967,7 @@
     "steps": {"zh": ["在设计页先检查位置和角度；用终端时可通过 edit 调整后保存，再用 image --design 重新生成镜像。如果预览正常而实物从内到外逐渐扭曲，核对盘批次、刻录机和测量结果。"], "en": ["Check position and angle in the design page. In the terminal, adjust and save with edit, then regenerate with image --design. If the preview looks right but the disc twists from inner to outer radius, check the batch, burner and geometry measurement."]},
     "commands": ["python -m discprobe edit my_picture.png"],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "README.md", "line": 200, "keyword": "图片的位置、大小和角度"}, {"path": "docs/MANUAL.md", "line": 166, "keyword": "方向键移动"}, {"path": "docs/MANUAL.en.md", "line": 329, "keyword": "the pattern will rotate"}, {"path": "discprobe/guide.py", "line": 1035, "keyword": "check it was the same batch"}]
+    "sources": [{"path": "README.md", "line": 201, "keyword": "图片的位置、大小和角度"}, {"path": "docs/MANUAL.md", "line": 166, "keyword": "方向键移动"}, {"path": "docs/MANUAL.en.md", "line": 329, "keyword": "the pattern will rotate"}, {"path": "discprobe/guide.py", "line": 1035, "keyword": "check it was the same batch"}]
   },
   {
     "id": "picture-twisted-lines",
@@ -977,7 +977,7 @@
     "steps": {"zh": ["确认同批盘和同一台刻录机。光照和刻录报告无异常后，仍扭曲时可用网格测试盘检查几何。", "如果图案沿半径扭成螺旋，先核对预设是否来自相近的实测盘。蓝光仅凭计时的预设还需要实盘校准。"], "en": ["Check that the disc is from the same batch and was burned on the same burner. If lighting and the burn report are fine and lines are still twisted, use a grid test to check geometry.", "If the pattern twists into a spiral across the radius, check that the preset came from a closely matching measured disc. A timing-only Blu-ray preset still needs disc calibration."]},
     "commands": ["python -m discprobe image --geo latest --output iso/grid.iso"],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "discprobe/guide.py", "line": 1035, "keyword": "check it was the same batch"}, {"path": "discprobe/guide.py", "line": 1036, "keyword": "only if the light and the burn report are fine"}, {"path": "discprobe/guide.py", "line": 1037, "keyword": "--output iso/grid.iso"}, {"path": "docs/MANUAL.en.md", "line": 329, "keyword": "will show dense spirals"}, {"path": "README.en.md", "line": 466, "keyword": "a spiral of a dozen arms"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 1035, "keyword": "check it was the same batch"}, {"path": "discprobe/guide.py", "line": 1036, "keyword": "only if the light and the burn report are fine"}, {"path": "discprobe/guide.py", "line": 1037, "keyword": "--output iso/grid.iso"}, {"path": "docs/MANUAL.en.md", "line": 329, "keyword": "will show dense spirals"}, {"path": "README.en.md", "line": 467, "keyword": "a spiral of a dozen arms"}]
   },
   {
     "id": "random-too-large",
@@ -1087,7 +1087,7 @@
     "steps": {"zh": ["检查刻录报告和保存的读错记录。关闭其他光驱软件，重装盘，先换读速或光驱重读。", "测量优先用已有的普通数据盘；没有可用盘时才重做测量盘。"], "en": ["Check the burn report and saved read errors. Close other drive software, reload and retry at another speed or on another drive.", "For measurements, try an existing plain data disc first. Make another measuring disc only when no usable one is available."]},
     "commands": ["python -m discprobe info --drive <drive>", "python -m discprobe timing --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "README.en.md", "line": 162, "keyword": "discs with burned patterns often can't be read"}, {"path": "README.en.md", "line": 172, "keyword": "matching, differing and unreadable blocks"}, {"path": "discprobe/guide.py", "line": 725, "keyword": "First reuse an existing recorded data disc"}, {"path": "discprobe/guide.py", "line": 940, "keyword": "retry the read on the same disc"}]
+    "sources": [{"path": "README.en.md", "line": 163, "keyword": "discs with burned patterns often can't be read"}, {"path": "README.en.md", "line": 173, "keyword": "matching, differing and unreadable blocks"}, {"path": "discprobe/guide.py", "line": 725, "keyword": "First reuse an existing recorded data disc"}, {"path": "discprobe/guide.py", "line": 940, "keyword": "retry the read on the same disc"}]
   },
   {
     "id": "unsupported-platform",
@@ -1097,7 +1097,7 @@
     "steps": {"zh": ["使用受支持系统；README 也列出了独立的 macOS 移植。按 guide 里的模拟命令可体验计时流程。"], "en": ["Use a supported system. The README also lists a separate macOS port. The simulated timing command can demonstrate the workflow."]},
     "commands": ["python -m discprobe timing --sim cav"],
     "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
-    "sources": [{"path": "discprobe/guide.py", "line": 55, "keyword": "real hardware on Windows and Linux"}, {"path": "discprobe/guide.py", "line": 1316, "keyword": "real drives need Windows or Linux"}, {"path": "discprobe/guide.py", "line": 659, "keyword": "timing --sim cav"}, {"path": "README.en.md", "line": 408, "keyword": "NaiveTomcat ported it to macOS"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 55, "keyword": "real hardware on Windows and Linux"}, {"path": "discprobe/guide.py", "line": 1316, "keyword": "real drives need Windows or Linux"}, {"path": "discprobe/guide.py", "line": 659, "keyword": "timing --sim cav"}, {"path": "README.en.md", "line": 409, "keyword": "NaiveTomcat ported it to macOS"}]
   },
   {
     "id": "web-disc-type",
@@ -1107,7 +1107,7 @@
     "steps": {"zh": ["用 info 确认盘种，网页引导选择相同类型，命令行对 CD 指定 --media cd，对 BD 指定 --media bd。当前网页检查盘图案只支持 DVD。"], "en": ["Use info to identify the disc and select the same family in the guide. Use --media cd or --media bd as appropriate in the CLI. The web check-disc target supports DVD."]},
     "commands": ["python -m discprobe info --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
-    "sources": [{"path": "README.en.md", "line": 158, "keyword": "disc type (CD/DVD/BD)"}, {"path": "README.en.md", "line": 427, "keyword": "CD and DVD"}, {"path": "README.en.md", "line": 464, "keyword": "--media bd"}, {"path": "discprobe/webui.py", "line": 179, "keyword": "The check disc is for DVD only"}, {"path": "discprobe/__main__.py", "line": 219, "keyword": "but the command has DVD settings"}]
+    "sources": [{"path": "README.en.md", "line": 159, "keyword": "disc type (CD/DVD/BD)"}, {"path": "README.en.md", "line": 428, "keyword": "CD and DVD"}, {"path": "README.en.md", "line": 465, "keyword": "--media bd"}, {"path": "discprobe/webui.py", "line": 179, "keyword": "The check disc is for DVD only"}, {"path": "discprobe/__main__.py", "line": 219, "keyword": "but the command has DVD settings"}]
   },
   {
     "id": "web-double-click",
@@ -1117,7 +1117,7 @@
     "steps": {"zh": ["在运行服务的电脑上复制它打印的完整地址，包括令牌。Windows 完整包先解压，再运行“开始 Start (Windows).bat”；Linux 完整包运行 ./start-linux.sh 或 bash start-linux.sh。"], "en": ["On the computer running the service, open the full printed address including the token. Extract the Windows full package before running 开始 Start (Windows).bat. On Linux use ./start-linux.sh or bash start-linux.sh from the full package."]},
     "commands": ["python -m discprobe webui --open"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "README.en.md", "line": 82, "keyword": "Both full packages include Python and dependencies"}, {"path": "discprobe/web_instance.py", "line": 105, "keyword": "WAYLAND_DISPLAY"}, {"path": "discprobe/web_instance.py", "line": 112, "keyword": "Open this address in your browser"}]
+    "sources": [{"path": "README.en.md", "line": 82, "keyword": "Both platforms use the bundled Python and dependencies"}, {"path": "discprobe/web_instance.py", "line": 105, "keyword": "WAYLAND_DISPLAY"}, {"path": "discprobe/web_instance.py", "line": 112, "keyword": "Open this address in your browser"}]
   },
   {
     "id": "web-drive-busy",
@@ -1197,7 +1197,7 @@
     "steps": {"zh": ["确认已完整解压对应系统的完整包。在 Windows 打开命令提示符，进入解压目录，运行下面的批处理并保留完整报错。Linux 在解压目录运行 bash start-linux.sh。", "用 webui status 核对是否有服务在运行。如果显示正在运行，打开它列出的地址。", "如果系统没有单独安装 Python，在完整包目录用包内的 python\\python.exe（Windows）或 ./linux/python/bin/python3（Linux）运行 webui status。"], "en": ["Fully extract the full package for your OS. On Windows, open Command Prompt, change to the extracted directory, run the batch file below and keep the full error. On Linux, run bash start-linux.sh from the extracted directory.", "Use webui status to check for a running service. If one is running, open the address shown.", "If Python is not installed separately, run webui status from the full-package directory with its bundled python\\python.exe (Windows) or ./linux/python/bin/python3 (Linux)."]},
     "commands": ["\"开始 Start (Windows).bat\"", "bash start-linux.sh", "python -m discprobe webui status"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "tools/build_winpack.py", "line": 38, "keyword": "webui --open %*"}, {"path": "start-linux.sh", "line": 11, "keyword": "Bundled Python is missing or not executable"}, {"path": "discprobe/web_instance.py", "line": 205, "keyword": "if failures:"}, {"path": "discprobe/web_instance.py", "line": 255, "keyword": "正在运行 / Running"}, {"path": "start-linux.sh", "line": 14, "keyword": "./linux/python/bin/python3 -X utf8"}]
+    "sources": [{"path": "tools/build_winpack.py", "line": 66, "keyword": "webui --open %*"}, {"path": "start-linux.sh", "line": 11, "keyword": "Bundled Python is missing or not executable"}, {"path": "discprobe/web_instance.py", "line": 205, "keyword": "if failures:"}, {"path": "discprobe/web_instance.py", "line": 255, "keyword": "正在运行 / Running"}, {"path": "start-linux.sh", "line": 14, "keyword": "./linux/python/bin/python3 -X utf8"}]
   },
   {
     "id": "web-stop-busy",
@@ -1217,6 +1217,6 @@
     "steps": {"zh": ["用默认 auto 让工具在 SPTI 被拒时切换，或显式用 --transport imapi。"], "en": ["Use the default auto to fall back when SPTI is refused, or explicitly choose --transport imapi."]},
     "commands": ["python -m discprobe info --drive <drive> --transport imapi"],
     "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
-    "sources": [{"path": "discprobe/__main__.py", "line": 187, "keyword": "SPTI was refused"}, {"path": "README.en.md", "line": 108, "keyword": "add `--transport imapi`"}]
+    "sources": [{"path": "discprobe/__main__.py", "line": 187, "keyword": "SPTI was refused"}, {"path": "README.en.md", "line": 107, "keyword": "add `--transport imapi`"}]
   }
 ]

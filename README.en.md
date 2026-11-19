@@ -79,7 +79,7 @@ The measurement only sends read commands. Its result can go straight into a burn
 
 Since 1.0.0.0-alpha most steps can be done in a local web page, with no commands to remember.
 
-- **Open it**: unpack the Windows full package and double-click `开始 Start (Windows).bat`, or unpack the Linux full package and run `./start-linux.sh` or `bash start-linux.sh`. Both full packages include Python and dependencies. From a source checkout, run `python -m discprobe webui --open`. The service prints an address with a session token, which you can use on headless Linux. It prefers port 8765 and picks a free port if that one is occupied.
+- **Open it**: extract your portable package. On Windows, double-click `开始 Start (Windows).bat`. On Linux, run `bash start-linux.sh` from the extracted folder. Both platforms use the bundled Python and dependencies. From a source checkout, run `python -m discprobe webui --open`. The service prints an address with a session token, which you can use on headless Linux. It prefers port 8765 and picks a free port if that one is occupied.
 - **Check or stop it**: run `python -m discprobe webui status` to see the service and drive lock holders. Add `--json` for JSON. To stop, use Quit in the lobby or run `python -m discprobe webui stop`. The command reports any active tasks. `stop --force` is allowed only when no optical disc is being written. Closing the console that started the service also stops it.
 - **Startup options**: use `--local-only` to keep the service on this computer. For offline design, use `--no-drives` or set `DISC_PROBE_NO_DRIVES=1`. If you start it again with different settings, the command prints the existing address and tells you to run `webui stop` first.
 - **Beginner's guide**: in the lobby, open the guide. It looks at the steps you have already done and tells you what to do next.
@@ -101,13 +101,14 @@ You need blank discs from the same batch. The minimum, when everything is right 
 
 You can also skip git and download a package from [Releases](https://github.com/Ashley-QwQ/disc-probe/releases) (1.0.0.0-alpha is a pre-release, so it is not marked Latest):
 
-- `full-win64`: for Windows, with its own Python and dependencies. Unpack it and double-click `开始 Start (Windows).bat`.
-- Linux full package: includes Python 3.13 and dependencies. Unpack it and run `./start-linux.sh` or `bash start-linux.sh`.
+- **Portable downloads**. Choose `disc-probe-<version>-win64.zip` (<!-- size:win64 -->about 120 MB<!-- /size -->) for Windows x86_64, `disc-probe-<version>-linux-x86_64.zip` (<!-- size:linux-x86_64 -->about 165 MB<!-- /size -->) for Linux x86_64, or `disc-probe-<version>-full.zip` (<!-- size:full -->about 270 MB<!-- /size -->) if you use both platforms or are unsure. Each platform comes with its own Python 3.13 and dependencies. Linux requires glibc 2.28 or later.
 - `core`: disc-probe alone, for a machine that has Python. Unpack it, run `python -m pip install -r requirements.txt` in the folder, then the `selftest` below.
 
 On Windows, open a terminal as administrator, install the dependencies, and check your setup on the simulated drive. If you cannot run as administrator, add `--transport imapi` to the drive commands: it sends the same CDBs through Windows' own IMAPI2 recorder interface (`IDiscRecorder2Ex`), which a standard user may call. The default, `auto`, switches to it when SPTI is refused.
 
 On Linux, commands go straight to `/dev/sr0` through `SG_IO`, with no extra packages; pass `--drive /dev/sr0` (or `sr0`). Your user needs read and write access to the device, usually by joining the `cdrom` group. A disc that was mounted automatically can stay mounted; if another program holds `/dev/sr0` exclusively, the tool falls back to the matching `/dev/sgN`. `timing` and `geo` try real-time scheduling (`SCHED_FIFO`), which needs root or `CAP_SYS_NICE`, and otherwise run at normal priority. `--transport` only applies on Windows.
+
+The Linux test machines have no optical drives. Disc reading, burning, and burning from the web UI await hardware testing. If the program falls back to `/dev/sgN`, your user also needs read and write access to that device.
 
 ```bash
 git clone https://github.com/Ashley-QwQ/disc-probe
@@ -118,7 +119,7 @@ cd disc-probe
 ```
 
 ```bash
-python -m pip install numpy pillow scipy opencv-python
+python -m pip install numpy pillow scipy opencv-python-headless
 ```
 
 ```bash

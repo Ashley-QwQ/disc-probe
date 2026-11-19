@@ -148,6 +148,7 @@ def run_calibration(monkeypatch, tmp_path, *, capacity=None, explicit=None, cata
     reads = [dict(disc, blank=True, sectors=2298496, capacity_sectors=2298496), disc] if burn else [disc]
     if burn:
         expected = calibrate.disc_identity.from_disc_report(reads[0])
+        monkeypatch.delenv(calibrate.disc_identity.EXPECTED_ENV, raising=False)
         monkeypatch.setattr(calibrate.disc_identity, 'read_identity', lambda _drive: expected)
 
     def read(*a, **kw):

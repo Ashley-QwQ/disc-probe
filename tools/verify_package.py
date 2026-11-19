@@ -12,6 +12,7 @@ import subprocess
 import sys
 import threading
 import time
+from urllib.parse import parse_qs, urlsplit
 import urllib.request
 
 
@@ -35,7 +36,7 @@ def main():
         a.photo = a.photo.resolve()
     out = a.out.resolve(); out.mkdir(parents=True, exist_ok=True)
     os.chdir(out)
-    env = dict(os.environ, PYTHONUTF8='1', PYTHONDONTWRITEBYTECODE='1',
+    env = dict(os.environ, PYTHONUTF8='1', PYTHONDONTWRITEBYTECODE='1', LOCALAPPDATA=str(out / 'state'),
                OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1', MKL_NUM_THREADS='1', NUMEXPR_NUM_THREADS='1',
                DISCPROBE_WORKERS='1')
     python = [sys.executable, '-X', 'utf8', '-B']
@@ -65,7 +66,7 @@ def main():
         package = Path(discprobe.__file__).resolve()
         assert package.is_relative_to(a.expected_root.resolve()), str(package)
         result['module'] = str(package)
-        result['dependencies'] = {n:metadata.version(n) for n in ('numpy','Pillow','scipy','opencv-python')}
+        result['dependencies'] = {n:metadata.version(n) for n in ('numpy','Pillow','scipy','opencv-python-headless')}
         result['imports'] = {m.__name__:str(Path(m.__file__).resolve()) for m in (pcal,cv2,scipy,numpy,PIL)}
         candidates = [package.parent/'_release.json', package.parent.parent/'release-build.json']
         source = next(p for p in candidates if p.is_file())
@@ -80,11 +81,10 @@ def main():
         version = json.loads(command('version', [*cli, 'version', '--json'], 60))
         assert version['core_version'] == a.version
         result['version'] = version
-        # Exercise the actual CLI parser/service with an explicit empty device
-        # provider. No device names are enumerated and no drive is ever opened.
-        bootstrap = "from discprobe import guide; guide.optical_drives=lambda: []; import sys,runpy; sys.argv=['discprobe','webui','--local-only','--port','0']; runpy.run_module('discprobe',run_name='__main__')"
         log = (out/'web.log').open('w',encoding='utf-8')
-        server = subprocess.Popen([*python, '-u', '-c', bootstrap], cwd=out, env=env,
+        server = subprocess.Popen([*python, '-m', 'discprobe', 'webui', '--local-only', '--no-drives',
+                                   '--new-instance', '--port', '0'],
+                                  cwd=out, env=env,
                                   stdout=subprocess.PIPE, stderr=log, text=True, encoding='utf-8')
         lines = queue.Queue()
         def reader():
@@ -93,11 +93,15 @@ def main():
         thread = threading.Thread(target=reader,daemon=True); thread.start()
         try:
             url = lines.get(timeout=45).strip()
-            assert url.startswith('http://127.0.0.1:') and url.endswith('/home/'), url
-            result['web'] = dict(url=url, localhost_only=True, no_drives='injected empty provider', requests=[])
-            base = url.removesuffix('/home/')
+            target = urlsplit(url)
+            assert target.scheme == 'http' and target.hostname == '127.0.0.1' and target.path == '/home/', url
+            token, = parse_qs(target.query)['token']
+            base = f'http://127.0.0.1:{target.port}'
+            headers = {'X-Discprobe-Token': token}
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            result['web'] = dict(url=base+'/home/', localhost_only=True, no_drives=True, requests=[])
             def get(path):
-                with urllib.request.urlopen(base+path, timeout=30) as response:
+                with opener.open(urllib.request.Request(base+path, headers=headers), timeout=30) as response:
                     body=response.read()
                     assert response.status==200
                     result['web']['requests'].append(dict(path=path,status=response.status,size=len(body),sha256=hashlib.sha256(body).hexdigest()))
@@ -111,8 +115,9 @@ def main():
             # Save and reopen a known design through the packaged backend. The
             # returned .npy is inspected from this verification workspace.
             packed=b'\x55'*(6000*6000//8)
-            req=urllib.request.Request(base+'/api/design',data=packed,headers={'Content-Type':'application/octet-stream'})
-            with urllib.request.urlopen(req, timeout=45) as response:
+            req=urllib.request.Request(base+'/api/design',data=packed,
+                                       headers=dict(headers, **{'Content-Type':'application/octet-stream'}))
+            with opener.open(req, timeout=45) as response:
                 saved=json.loads(response.read()); assert response.status==200
             design_path=(out/saved['design_npy']).resolve()
             assert design_path.is_relative_to(out)

@@ -102,7 +102,7 @@ def bundle(run):
     versions = {'python': platform.python_version(), 'system': platform.system()}
     from .version import __version__
     versions['discprobe'] = __version__
-    for name in ('numpy', 'Pillow', 'scipy', 'opencv-python'):
+    for name in ('numpy', 'Pillow', 'scipy', 'opencv-python-headless'):
         try:
             versions[name] = importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:

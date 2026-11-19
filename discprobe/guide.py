@@ -51,7 +51,7 @@ RANDOM_SECTORS = {"dvd": 2295104, "cd": 359600}
 # image for a smaller disc still leaves room: a 713,936-sector miniDVD refused its full count by 4 KB.
 BURN_ROOM_SECTORS = {"dvd": 0, "cd": 200}
 BURN_FILL = 0.98
-INSTALL = "python -m pip install numpy pillow scipy opencv-python"
+INSTALL = "python -m pip install numpy pillow scipy opencv-python-headless"
 PORTS = ("This repository drives real hardware on Windows and Linux. macOS port: "
          "github.com/NaiveTomcat/discprobe-macos. Anything with --sim works here.")
 

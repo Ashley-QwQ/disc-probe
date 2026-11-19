@@ -93,8 +93,9 @@ def test_built_metadata_and_public_payload(tmp_path, monkeypatch, public, canoni
     """Build small real archives, then import the exported API in isolation."""
     backend = load(ROOT / '_build_backend.py')
     monkeypatch.setattr(backend, 'ROOT', tmp_path)
+    troubleshoot = 'discprobe/data/troubleshoot.json'
     for name in ('pyproject.toml', 'LICENSE', 'STYLE.md', 'DESIGN.md', 'docs/API_VERSIONING.md', 'INSTALL-linux.md',
-                 '_build_backend.py', 'discprobe/api.py'):
+                 '_build_backend.py', 'discprobe/api.py', troubleshoot):
         target = tmp_path / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes((ROOT / name).read_bytes())
@@ -113,6 +114,7 @@ def test_built_metadata_and_public_payload(tmp_path, monkeypatch, public, canoni
     installed = tmp_path / 'installed'
     with zipfile.ZipFile(wheel) as archive:
         archive.extractall(installed)
+        assert archive.read(troubleshoot) == (ROOT / troubleshoot).read_bytes()
         metadata = archive.read(f'disc_probe-{canonical}.dist-info/METADATA').decode()
         assert f'\nVersion: {canonical}\n' in metadata
     with tarfile.open(sdist) as archive:
@@ -261,7 +263,9 @@ def test_shared_manifest_and_sums(tmp_path):
     manifest = json.loads((assets / 'manifest.json').read_text())
     assert {p['package'] for p in manifest['assets']} == {'disc-probe', 'disc-lab', 'disc-neo'}
     assert {p['file'] for p in manifest['assets']} == {p.name for p, _ in sources}
-    sums = dict(line.split('  ', 1)[::-1] for line in (assets / 'SHA256SUMS.txt').read_text().splitlines())
+    checksum_file = assets / 'SHA256SUMS.txt'
+    assert b'\r' not in checksum_file.read_bytes()
+    sums = dict(line.split('  ', 1)[::-1] for line in checksum_file.read_text().splitlines())
     assert set(sums) == {p.name for p in assets.iterdir()} - {'SHA256SUMS.txt'}
     for path in assets.iterdir():
         if path.name != 'SHA256SUMS.txt':
@@ -279,6 +283,57 @@ def test_failed_finalization_exposes_no_assets(tmp_path):
     assert not (tmp_path / 'assets').exists()
 
 
+def make_portable(tmp_path, output, inputs):
+    builder = load(ROOT / 'tools/build_winpack.py')
+    root = tmp_path / 'portable-stage'
+    files = {
+        'discprobe/data/troubleshoot.json': b'{"shared": true}',
+        'discprobe/__main__.py': b'print("same application")\n',
+        'python/python.exe': b'Windows runtime', builder.START_NAME: b'Windows launcher',
+        'linux/python/bin/python3': b'Linux runtime', builder.LINUX_START: b'Linux launcher',
+        'linux/python/lib/python3.13/idlelib/idle.bat': b'Windows-only stdlib helper',
+        'winpack-keep-list.json': b'{}', 'linuxpack-keep-list.json': b'{}',
+        builder.READ_FIRST: 'Windows 和 Linux'.encode(),
+    }
+    files.update({name: (ROOT / name).read_bytes() for name in builder.DOWNLOAD_DOCS})
+    for relative, data in files.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    runtime = dict(python='3.13.14', dependencies={'opencv-python-headless': '5.0.0.93'})
+    info = dict(windows=runtime, linux=runtime, pack_inputs=inputs)
+    return tuple(builder.pack_portable(root, output, '1.0.0.0-alpha', info, {'trimmed': True}))
+
+
+def test_portable_archives_sizes_and_launchers(tmp_path):
+    full, windows, linux = make_portable(tmp_path, tmp_path, {'lock_sha256': '0' * 64})
+    builder = load(ROOT / 'tools/build_winpack.py')
+    for artifact, platform in ((full, 'full'), (windows, 'win64'), (linux, 'linux-x86_64')):
+        with zipfile.ZipFile(artifact) as archive:
+            prefix = artifact.stem + '/'
+            info = json.loads(archive.read(prefix + 'release-build.json'))
+            note = archive.read(prefix + builder.READ_FIRST).decode()
+            for name in builder.DOWNLOAD_DOCS:
+                doc = archive.read(prefix + name).decode()
+                for entry in info['portable_packages'].values():
+                    assert entry['file'] in doc
+                    assert f"{entry['size'] / 1e6:.3f} MB" in doc
+            names = {name.removeprefix(prefix) for name in archive.namelist()}
+            assert (builder.START_NAME in names) == (platform != 'linux-x86_64')
+            assert ('python/python.exe' in names) == (platform != 'linux-x86_64')
+            assert ('linux/python/bin/python3' in names) == (platform != 'win64')
+            assert (builder.LINUX_START in names) == (platform != 'win64')
+            assert ('linux/python/lib/python3.13/idlelib/idle.bat' in names) == (platform == 'full')
+            assert archive.read(prefix + 'discprobe/data/troubleshoot.json') == b'{"shared": true}'
+            assert info['variant'] == platform
+            assert info['portable_packages'][platform]['size'] == artifact.stat().st_size
+            if platform == 'win64':
+                assert builder.START_NAME in note and builder.LINUX_START not in note and 'linux-x86_64' in note
+            if platform == 'linux-x86_64':
+                assert builder.LINUX_START in note and builder.START_NAME not in note and 'win64' in note
+                assert archive.getinfo(prefix + builder.LINUX_START).external_attr >> 16 & 0o777 == 0o755
+
+
 @pytest.fixture
 def rehearsal(tmp_path, monkeypatch):
     """Exercise orchestration with tiny local inputs and stub expensive gates."""
@@ -287,10 +342,10 @@ def rehearsal(tmp_path, monkeypatch):
     (checkout / 'discprobe').mkdir(parents=True)
     (checkout / 'discprobe/version.py').write_text('__version__ = "old"\n', encoding='utf-8')
     cache = tmp_path / 'cache'
-    (cache / 'site-packages').mkdir(parents=True)
-    (cache / 'python-3.13.14-embed-amd64.zip').write_bytes(b'fake offline cache')
+    cache.mkdir()
     out = tmp_path / 'out'
     state = dict(lab=False, failure=None, gates=[], commits=0)
+    inputs = dict(lock_sha256='a'*64, windows=[dict(verified=True)], linux=[dict(verified=True)])
     monkeypatch.setattr(release, 'ROOT', checkout)
     monkeypatch.setattr(release, 'os', SimpleNamespace(name='nt', environ=dict(os.environ), walk=os.walk))
     monkeypatch.setattr(release, 'sys', SimpleNamespace(version_info=(3, 13), executable=sys.executable, version=sys.version))
@@ -331,6 +386,8 @@ def rehearsal(tmp_path, monkeypatch):
         checks.append(dict(log=log.name, exit_code=code, sha256=release.sha256(log)))
         if code:
             raise RuntimeError(f'check failed: {log.name}')
+        if log.name == 'pack-inputs.log':
+            (out / 'pack-inputs.json').write_text(json.dumps(inputs), encoding='utf-8')
         if log.name == 'source-build.log':
             candidates = out / 'candidate-assets'
             candidates.mkdir()
@@ -339,8 +396,8 @@ def rehearsal(tmp_path, monkeypatch):
         if log.name == 'winpack-build.log':
             winpack = out / 'winpack'
             winpack.mkdir()
-            for kind in ('core', 'full-win64'):
-                (winpack / f'disc-probe-1.0.0.0-alpha-{kind}.zip').write_bytes(b'fake Windows package')
+            (winpack / 'disc-probe-1.0.0.0-alpha-core.zip').write_bytes(b'fake core package')
+            make_portable(tmp_path, winpack, inputs)
 
     monkeypatch.setattr(release, 'clean_commit', clean)
     monkeypatch.setattr(release, 'git', git)
@@ -359,7 +416,7 @@ def test_orchestration_packages_and_gates(rehearsal, tmp_path, with_packages):
         neo = make_neo(tmp_path / 'disc-neo', release)
         argv += ['--neo', str(neo)]
     release.main(argv)
-    expected = ['source-build.log', 'sdist-equivalence.log', 'wheel-venv.log', 'wheel-dependencies.log',
+    expected = ['pack-inputs.log', 'source-build.log', 'sdist-equivalence.log', 'wheel-venv.log', 'wheel-dependencies.log',
                 'wheel-install.log', 'wheel-pip-check.log', 'wheel-verify.log', 'pytest.log',
                 'test_smoke.mjs.log', 'selftest.log', 'winpack-build.log']
     if with_packages:
@@ -369,15 +426,26 @@ def test_orchestration_packages_and_gates(rehearsal, tmp_path, with_packages):
     manifest = json.loads((out / 'assets/manifest.json').read_text())
     assert manifest['public_version'] == '1.0.0.0-alpha'
     assert manifest['pep440_version'] == '1.0.0.0a0'
+    assert manifest['pack_inputs'] == json.loads((out / 'pack-inputs.json').read_text())
+    for platform in ('windows', 'linux'):
+        assert manifest[platform]['dependencies'] == {'opencv-python-headless': '5.0.0.93'}
+        assert f'# {platform}: Python 3.13.14 opencv-python-headless==5.0.0.93' in (
+            out / 'assets/SHA256SUMS.txt').read_text(encoding='ascii')
     assert {p['package'] for p in manifest['assets']} == (
         {'disc-probe', 'disc-lab', 'disc-neo'} if with_packages else {'disc-probe'})
     assert manifest['disc_lab']['status'] == ('PASS' if with_packages else 'skipped')
     assert manifest['disc_neo']['status'] == ('PASS' if with_packages else 'skipped')
-    assert len(manifest['assets']) == (7 if with_packages else 5)
+    assert len(manifest['assets']) == (9 if with_packages else 7)
+    assets = out / 'assets'
+    selected = manifest['portable_packages']
+    assert set(selected) == {'full', 'win64', 'linux-x86_64'}
+    assert all((assets / item['file']).stat().st_size == item['size'] for item in selected.values())
+    sums = (assets / 'SHA256SUMS.txt').read_text(encoding='ascii')
+    assert all(f"# {item['file']}: {item['size']} bytes" in sums for item in selected.values())
     assert (release.ROOT / 'discprobe/version.py').read_text() == '__version__ = "old"\n'
 
 
-@pytest.mark.parametrize('failure', ['source-build.log', 'sdist-equivalence.log', 'wheel-venv.log',
+@pytest.mark.parametrize('failure', ['pack-inputs.log', 'source-build.log', 'sdist-equivalence.log', 'wheel-venv.log',
     'wheel-dependencies.log', 'wheel-install.log', 'wheel-pip-check.log', 'wheel-verify.log',
     'pytest.log', 'test_smoke.mjs.log', 'selftest.log', 'winpack-build.log', 'disc-lab-pytest.log', 'final-clean'])
 def test_failed_gate_never_promotes_assets(rehearsal, failure):
@@ -386,9 +454,27 @@ def test_failed_gate_never_promotes_assets(rehearsal, failure):
     with pytest.raises(RuntimeError):
         release.main(argv)
     assert not (out / 'assets').exists()
+    if failure == 'pack-inputs.log':
+        assert not list(out.rglob('*.zip'))
     assert json.loads((out / 'status.json').read_text())['status'] == 'FAIL'
     if failure != 'final-clean':
         assert state['gates'][-1] == failure
+
+
+def test_missing_single_platform_prevents_release_promotion(rehearsal, monkeypatch):
+    release, out, argv, _ = rehearsal
+    run_check = release.run_check
+
+    def remove_single(command, cwd, log, env, checks, timeout=3600):
+        run_check(command, cwd, log, env, checks, timeout)
+        if log.name == 'winpack-build.log':
+            (out / 'winpack/disc-probe-1.0.0.0-alpha-win64.zip').unlink()
+
+    monkeypatch.setattr(release, 'run_check', remove_single)
+    with pytest.raises(FileNotFoundError, match='win64'):
+        release.main(argv)
+    assert not (out / 'assets').exists()
+    assert json.loads((out / 'status.json').read_text())['status'] == 'FAIL'
 
 
 def test_neo_output_overlap_refused(rehearsal, tmp_path, capsys):

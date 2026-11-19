@@ -154,10 +154,16 @@ try {
   await check('document.documentElement.dataset.mode==="" && document.documentElement.dataset.home==="library" && document.getElementById("name").textContent.includes("Verbatim")','batch link opens exact batch');
   await evaluate('document.getElementById("back").click()');
   await check('document.documentElement.dataset.mode==="newplan" && !document.querySelector(".np").hidden','library Back returns to form');
-  await evaluate(`document.querySelector('.np-library').click();
-    review.api.goTo('dvd',review.DATA.dvd.findIndex(row=>row.name==='TDK DVD-R 16x'));`);
-  await until('document.getElementById("name").textContent.includes("TDK")','TDK batch selected in library');
-  await evaluate('document.getElementById("next").click()');
+  await evaluate('document.querySelector(".np-library").click()');
+  await until('document.documentElement.dataset.mode==="" && document.documentElement.dataset.home==="library" && !document.getElementById("next").disabled',
+    'batch library is ready to choose');
+  // The rolling caption contains both names during a transition. Choose and
+  // confirm the actual library item in the same browser event turn.
+  await check(`(()=>{const index=review.DATA.dvd.findIndex(row=>row.name==='TDK DVD-R 16x');
+    if(index<0)return false;
+    review.api.goTo('dvd',index);
+    if(review.api.current().item!==review.DATA.dvd[index])return false;
+    document.getElementById('next').click();return true;})()`,'TDK batch selected in library');
   await until('document.documentElement.dataset.mode==="newplan" && document.querySelector(".np-batch").value.includes("TDK")','library can return another chosen batch');
   await evaluate('document.querySelector(".np-batch").value="TDK DVD-R 16x";document.querySelector(".np-batch").dispatchEvent(new Event("input"));document.getElementById("next").click()');
   await until('document.documentElement.dataset.mode==="design"','an uncalibrated batch still goes on to drawing (calibration is a link, not a gate)');

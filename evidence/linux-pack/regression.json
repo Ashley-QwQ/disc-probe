@@ -1,0 +1,467 @@
+{
+  "comparison": "Raw output bytes. No timestamp normalization needed on these paths.",
+  "gui": "opencv-python 5.0.0.93",
+  "headless": "opencv-python-headless 5.0.0.93",
+  "stats": {
+    "total": 25,
+    "identical": 23,
+    "different": 0,
+    "no_payload": 2
+  },
+  "cases": {
+    "photo-7910": {
+      "inputs": {
+        "D:/disc-probe/docs/goals/pcal-2026-11-12/photos/IMG_7910.jpeg": "edad13d108ec1023d79b5f0a179cb68b6dfed9bddcf39f80c35ecfe309fdac97"
+      },
+      "gui": "too_few_votes",
+      "headless": "too_few_votes",
+      "gui_outputs": {
+        "overlay.jpg": "9d5e4a8c7e2bd7bceea037adb5e04daba6aafb7bcd50896fa0f3e1c6b35fe5ce",
+        "photo.json": "f9815e93c8fe9e38808b3f226a3e7288ee4f19dc579b14088048d1f539db033e",
+        "rectified.npy": "6467e63ced6a1167d7fd6a3dd301134bb6371951dd5d79171b1666a9112b8b20"
+      },
+      "headless_outputs": {
+        "overlay.jpg": "9d5e4a8c7e2bd7bceea037adb5e04daba6aafb7bcd50896fa0f3e1c6b35fe5ce",
+        "photo.json": "f9815e93c8fe9e38808b3f226a3e7288ee4f19dc579b14088048d1f539db033e",
+        "rectified.npy": "6467e63ced6a1167d7fd6a3dd301134bb6371951dd5d79171b1666a9112b8b20"
+      },
+      "status": "identical"
+    },
+    "photo-7911": {
+      "inputs": {
+        "D:/disc-probe/docs/goals/pcal-2026-11-12/photos/IMG_7911.jpeg": "5748f8e2aa61c80f54c0e0a12bdb1954e2045159d9a10223bda433b995994990"
+      },
+      "gui": "ok",
+      "headless": "ok",
+      "gui_outputs": {
+        "overlay.jpg": "94bd4321f357c57e5dbd65b523fd689ae0c436d2e00827907564daf968a6ea13",
+        "photo.json": "344a0da3c3884b7de96eb2081ac25b888cd86399322b174eaec849032e79bcf1",
+        "rectified.npy": "e655542f810586a541ff2955810ce456d77f4bdea1ab2f3f78fcdb371ec584c0"
+      },
+      "headless_outputs": {
+        "overlay.jpg": "94bd4321f357c57e5dbd65b523fd689ae0c436d2e00827907564daf968a6ea13",
+        "photo.json": "344a0da3c3884b7de96eb2081ac25b888cd86399322b174eaec849032e79bcf1",
+        "rectified.npy": "e655542f810586a541ff2955810ce456d77f4bdea1ab2f3f78fcdb371ec584c0"
+      },
+      "status": "identical"
+    },
+    "photo-7912": {
+      "inputs": {
+        "D:/disc-probe/docs/goals/pcal-2026-11-12/photos/IMG_7912.jpeg": "3edd2bc3c033b5d3dee69ff419b3901fae85383906fd27e7ef46437d74d655eb"
+      },
+      "gui": "ok",
+      "headless": "ok",
+      "gui_outputs": {
+        "overlay.jpg": "8d0d5a734bb3025452101dd3c4b8a55194c877c3a0f397cde1f50d3d3103141c",
+        "photo.json": "f95669e008fa4e2ea4a11255af07dd1a38046880269fa822ff7638c18f345739",
+        "rectified.npy": "bc5ba92b75b32b20212a22db60af19108c8ab683e74cd6025bc81a2e714e65ee"
+      },
+      "headless_outputs": {
+        "overlay.jpg": "8d0d5a734bb3025452101dd3c4b8a55194c877c3a0f397cde1f50d3d3103141c",
+        "photo.json": "f95669e008fa4e2ea4a11255af07dd1a38046880269fa822ff7638c18f345739",
+        "rectified.npy": "bc5ba92b75b32b20212a22db60af19108c8ab683e74cd6025bc81a2e714e65ee"
+      },
+      "status": "identical"
+    },
+    "photo-7913": {
+      "inputs": {
+        "D:/disc-probe/docs/goals/pcal-2026-11-12/photos/IMG_7913.jpeg": "ad869d782e381713746037f34cc4f508098e41eeb795c32ad92d417b5acc674a"
+      },
+      "gui": "too_few_votes",
+      "headless": "too_few_votes",
+      "gui_outputs": {
+        "overlay.jpg": "1b74a6671a1e1cd4d714d0a392f68180c3f8ff488a09fa8dfdb98a85e1a5fb4b",
+        "photo.json": "d762c58ffc9122cf3c1e9b067aac054388845e517e1a3d7b15a7cdc88af0cfcc",
+        "rectified.npy": "a5f6c2cffaf45bfee658f8fb7fa052d14e51c19d08d120166e53fd1e1da55a1d"
+      },
+      "headless_outputs": {
+        "overlay.jpg": "1b74a6671a1e1cd4d714d0a392f68180c3f8ff488a09fa8dfdb98a85e1a5fb4b",
+        "photo.json": "d762c58ffc9122cf3c1e9b067aac054388845e517e1a3d7b15a7cdc88af0cfcc",
+        "rectified.npy": "a5f6c2cffaf45bfee658f8fb7fa052d14e51c19d08d120166e53fd1e1da55a1d"
+      },
+      "status": "identical"
+    },
+    "photo-7914": {
+      "inputs": {
+        "D:/disc-probe/docs/goals/pcal-2026-11-12/photos/IMG_7914.jpeg": "0de591c3019ca81d6aec7ea767ee9d7be8337efb97158e12102a651b806b62a8"
+      },
+      "gui": "ok",
+      "headless": "ok",
+      "gui_outputs": {
+        "overlay.jpg": "3c525a5f77d2efc199ad60f7c126299b7dc5285e4f64878c92789f7a5d1de2a6",
+        "photo.json": "b8554429b062828c463d52c2d6ea7aa673479dcc7b5d1cf91e6337ec2ad8255a",
+        "rectified.npy": "e221ff662284199c042391dfe96af7573cb6b06b2e8673af6cf4c2cd0cc17a2e"
+      },
+      "headless_outputs": {
+        "overlay.jpg": "3c525a5f77d2efc199ad60f7c126299b7dc5285e4f64878c92789f7a5d1de2a6",
+        "photo.json": "b8554429b062828c463d52c2d6ea7aa673479dcc7b5d1cf91e6337ec2ad8255a",
+        "rectified.npy": "e221ff662284199c042391dfe96af7573cb6b06b2e8673af6cf4c2cd0cc17a2e"
+      },
+      "status": "identical"
+    },
+    "photo-7915": {
+      "inputs": {
+        "D:/disc-probe/docs/goals/pcal-2026-11-12/photos/IMG_7915.jpeg": "e5164b2c9cafaa7994221c30904e9aaacc1fac37ffe20144e1a1bc59ec1ee658"
+      },
+      "gui": "too_few_votes",
+      "headless": "too_few_votes",
+      "gui_outputs": {
+        "overlay.jpg": "564477dd13924659b8dba4869b51d1d03d8a092d4535dddb2e85b6479c523062",
+        "photo.json": "8daf2ea1e5be546eb53454cc0dc013be8c63d8fab49682dbd0259b378d6c4a0b",
+        "rectified.npy": "a4902a24a04afb80f4d9136442889d774d0a50baa142e381966d40a2ae7dc00d"
+      },
+      "headless_outputs": {
+        "overlay.jpg": "564477dd13924659b8dba4869b51d1d03d8a092d4535dddb2e85b6479c523062",
+        "photo.json": "8daf2ea1e5be546eb53454cc0dc013be8c63d8fab49682dbd0259b378d6c4a0b",
+        "rectified.npy": "a4902a24a04afb80f4d9136442889d774d0a50baa142e381966d40a2ae7dc00d"
+      },
+      "status": "identical"
+    },
+    "photo-7916": {
+      "inputs": {
+        "D:/disc-probe/docs/goals/pcal-2026-11-12/photos/IMG_7916.jpeg": "8d5655c0d8470d2c1e36317006b46431706e75564819ebb882ea7d5d9fe5f5e3"
+      },
+      "gui": "too_few_votes",
+      "headless": "too_few_votes",
+      "gui_outputs": {
+        "overlay.jpg": "68e00926574fc036ec0db68e32d095646bf3f702fba294faf5e3ded140b66455",
+        "photo.json": "9690e0c685bb6bd1253fe06fb3355bb83eb1ce19d26d1816a0edb1f5c5d23b64",
+        "rectified.npy": "05a15481f3e599c3acab46342e631f8c8d94c1d537fdd0919eb269be2c3999de"
+      },
+      "headless_outputs": {
+        "overlay.jpg": "68e00926574fc036ec0db68e32d095646bf3f702fba294faf5e3ded140b66455",
+        "photo.json": "9690e0c685bb6bd1253fe06fb3355bb83eb1ce19d26d1816a0edb1f5c5d23b64",
+        "rectified.npy": "05a15481f3e599c3acab46342e631f8c8d94c1d537fdd0919eb269be2c3999de"
+      },
+      "status": "identical"
+    },
+    "photo-7917": {
+      "inputs": {
+        "D:/disc-probe/docs/goals/pcal-2026-11-12/photos/IMG_7917.jpeg": "f030150e0396a3aae550492c2cde4a8f6c1dab9219f94afee5a49206357c8fa6"
+      },
+      "gui": "ok",
+      "headless": "ok",
+      "gui_outputs": {
+        "overlay.jpg": "d9f7fbb0105e63a42fc29ebb379a28ff637da4ab61424ccc9bb5ebedc924f138",
+        "photo.json": "ccfa77388e50f744deb7efbb60b95a240ec5db2ab6a9824d39e9fcdc0fbab9f8",
+        "rectified.npy": "e3b541b60d3f85c9b515e48d245c1e084b757df17f442c564f6ca50e1ce6e794"
+      },
+      "headless_outputs": {
+        "overlay.jpg": "d9f7fbb0105e63a42fc29ebb379a28ff637da4ab61424ccc9bb5ebedc924f138",
+        "photo.json": "ccfa77388e50f744deb7efbb60b95a240ec5db2ab6a9824d39e9fcdc0fbab9f8",
+        "rectified.npy": "e3b541b60d3f85c9b515e48d245c1e084b757df17f442c564f6ca50e1ce6e794"
+      },
+      "status": "identical"
+    },
+    "photo-7918": {
+      "inputs": {
+        "D:/disc-probe/docs/goals/pcal-2026-11-12/photos/IMG_7918.jpeg": "56a0882f48bca1712e268a4c4367889bcf2c38e1b098ede456a2d379b06f1349"
+      },
+      "gui": "poor_angle_coverage",
+      "headless": "poor_angle_coverage",
+      "gui_outputs": {
+        "overlay.jpg": "dd275ca0d06794ec27e8b2569a0cc3ff16729aa9099c720d5c7af72451347079",
+        "photo.json": "9ee5a2539604d81a2b16cb1d734f907c582e2866bbe1b108198fb39d132f8843",
+        "rectified.npy": "2830d6fdc342c0509ff755aa4d7b6a86a0d08147dd100a9c4dd84170e6764e65"
+      },
+      "headless_outputs": {
+        "overlay.jpg": "dd275ca0d06794ec27e8b2569a0cc3ff16729aa9099c720d5c7af72451347079",
+        "photo.json": "9ee5a2539604d81a2b16cb1d734f907c582e2866bbe1b108198fb39d132f8843",
+        "rectified.npy": "2830d6fdc342c0509ff755aa4d7b6a86a0d08147dd100a9c4dd84170e6764e65"
+      },
+      "status": "identical"
+    },
+    "photo-7919": {
+      "inputs": {
+        "D:/disc-probe/docs/goals/pcal-2026-11-12/photos/IMG_7919.jpeg": "defdf26200e99032a5c1197c7c88e8de727a863e017ad528c2b117b776f1c77d"
+      },
+      "gui": "ok",
+      "headless": "ok",
+      "gui_outputs": {
+        "overlay.jpg": "6134875063b9b9dd4c18b2c471af2ad82ce587a43bc31fca8d58d5c7cae8f529",
+        "photo.json": "dca26f91e12a5de5b7800d2538193f8283004f5d7ac679d2e742f2993c53400f",
+        "rectified.npy": "522d8a18825e3835947a366d0f89d347f6bc23b00ac5f47a28431ec171ad4a49"
+      },
+      "headless_outputs": {
+        "overlay.jpg": "6134875063b9b9dd4c18b2c471af2ad82ce587a43bc31fca8d58d5c7cae8f529",
+        "photo.json": "dca26f91e12a5de5b7800d2538193f8283004f5d7ac679d2e742f2993c53400f",
+        "rectified.npy": "522d8a18825e3835947a366d0f89d347f6bc23b00ac5f47a28431ec171ad4a49"
+      },
+      "status": "identical"
+    },
+    "gridscan-grid3_p3": {
+      "inputs": {
+        "D:/disc-probe/scans/grid3_p3.png": "6dba37fd599d586e58e09ce4c2039a427a2d157e69e7c2a1990f43c6a8932613"
+      },
+      "gui": 108,
+      "headless": 108,
+      "gui_outputs": {
+        "phi.csv": "0997cdf9f3c6c855f978c54d28cad0d122796e63fec30699e60637ad8f3c478c",
+        "summary.json": "e5a73850f389aebe37f75eca6738a5b97b0fe7f010af5aafecf7832cd1edc326"
+      },
+      "headless_outputs": {
+        "phi.csv": "0997cdf9f3c6c855f978c54d28cad0d122796e63fec30699e60637ad8f3c478c",
+        "summary.json": "e5a73850f389aebe37f75eca6738a5b97b0fe7f010af5aafecf7832cd1edc326"
+      },
+      "status": "identical"
+    },
+    "gridscan-grid_p4": {
+      "inputs": {
+        "D:/disc-probe/scans/grid_p4.png": "47e1a19458c2fe74142ec5612b76cd298916d82dc6f8d5a15cf47379a0e28acb"
+      },
+      "gui": 60,
+      "headless": 60,
+      "gui_outputs": {
+        "phi.csv": "c24db1033ebc0c2280f111dd492ae45127337cea680b0455222aac74b9c4ad93",
+        "summary.json": "88db8a085eb64d7be2ca729f9a367a7e3830f09e1db659a18b2ccf65b79c0079"
+      },
+      "headless_outputs": {
+        "phi.csv": "c24db1033ebc0c2280f111dd492ae45127337cea680b0455222aac74b9c4ad93",
+        "summary.json": "88db8a085eb64d7be2ca729f9a367a7e3830f09e1db659a18b2ccf65b79c0079"
+      },
+      "status": "identical"
+    },
+    "gridscan-grid2_p2": {
+      "inputs": {
+        "D:/disc-probe/scans/grid2_p2.png": "7bdde8a49067bdf063ab4138420ccd2161a4029d3b76fd50cd65bb9a70a795ce"
+      },
+      "gui": 51,
+      "headless": 51,
+      "gui_outputs": {
+        "phi.csv": "14eb40f7dc325cb82a5c05f97f46d10b52be2557f88ecf67f9d856bbd76bb57b",
+        "summary.json": "d515c5f1695a0cf810de067d2800351db5dfdcffba37e6de49c8d0b310a1075a"
+      },
+      "headless_outputs": {
+        "phi.csv": "14eb40f7dc325cb82a5c05f97f46d10b52be2557f88ecf67f9d856bbd76bb57b",
+        "summary.json": "d515c5f1695a0cf810de067d2800351db5dfdcffba37e6de49c8d0b310a1075a"
+      },
+      "status": "identical"
+    },
+    "ringscan-greyscale": {
+      "inputs": {
+        "D:/disc-probe/scans/greyscale_rings_1.png": "5d7c8f4632b6ebf41f29362204e38a371f688028675c8ead69ba98d6d695b177",
+        "D:/disc-probe/iso/rings.rings.json": "e93c0af9e5026da99d8417e50bf245bf99a9fb4bc9b33baf09589a829f68dcce"
+      },
+      "gui": {
+        "scans": 1
+      },
+      "headless": {
+        "scans": 1
+      },
+      "gui_outputs": {
+        "rings.csv": "05d108d8e161fbb31a6b58eac5f390c3e10bab6f1cbd8d69e73b4ea9dfad1633",
+        "summary.json": "9aabd40a84f9feb6a16c87cce8798690cd00914b9d90723fd18982208a3bc8e1",
+        "textures.csv": "685c768e76e45f900e31c5d85e5645fcb2a2edf7623023f73c067fd2bccaf032",
+        "unrolled_greyscale_rings_1.png": "8703eab3f48cec19a082a7b5b5f4ef08caf2cde258d47f787b896f9435abe311"
+      },
+      "headless_outputs": {
+        "rings.csv": "05d108d8e161fbb31a6b58eac5f390c3e10bab6f1cbd8d69e73b4ea9dfad1633",
+        "summary.json": "9aabd40a84f9feb6a16c87cce8798690cd00914b9d90723fd18982208a3bc8e1",
+        "textures.csv": "685c768e76e45f900e31c5d85e5645fcb2a2edf7623023f73c067fd2bccaf032",
+        "unrolled_greyscale_rings_1.png": "8703eab3f48cec19a082a7b5b5f4ef08caf2cde258d47f787b896f9435abe311"
+      },
+      "status": "identical"
+    },
+    "scan-grid3-smoke": {
+      "inputs": {
+        "D:/disc-probe/scans/grid3_p3.png": "6dba37fd599d586e58e09ce4c2039a427a2d157e69e7c2a1990f43c6a8932613"
+      },
+      "gui": null,
+      "headless": null,
+      "status": "no_payload",
+      "gui_error": "RuntimeError('fewer than 20 rings show the spoke pattern; check the scan and the spec file')",
+      "headless_error": "RuntimeError('fewer than 20 rings show the spoke pattern; check the scan and the spec file')"
+    },
+    "calscan-greyscale-smoke": {
+      "inputs": {
+        "D:/disc-probe/scans/greyscale_rings_1.png": "5d7c8f4632b6ebf41f29362204e38a371f688028675c8ead69ba98d6d695b177",
+        "D:/disc-probe/iso/cal1.cal.json": "5b7cc598b19f4d01c41537030ae6fd742c6fe5e7ac772a1ea53982847299e6ef"
+      },
+      "gui": null,
+      "headless": null,
+      "status": "no_payload",
+      "gui_error": "RuntimeError('no band shows the pattern clearly; the geometry may be outside the hypothesis range, or the burn is not visible in the scan')",
+      "headless_error": "RuntimeError('no band shows the pattern clearly; the geometry may be outside the hypothesis range, or the burn is not visible in the scan')"
+    },
+    "tilescan-greyscale-smoke": {
+      "inputs": {
+        "D:/disc-probe/scans/greyscale_rings_1.png": "5d7c8f4632b6ebf41f29362204e38a371f688028675c8ead69ba98d6d695b177",
+        "D:/disc-probe/evidence/tilescan/tiles_layout.json": "07afc726e340b9b4b291acac13aefb2edbae3db20099a19f0432e9aac0f75251"
+      },
+      "gui": {
+        "ids_ok": 0
+      },
+      "headless": {
+        "ids_ok": 0
+      },
+      "gui_outputs": {
+        "summary.json": "a29116f07c37c631a92dc05dfd53731574b79d455a7c9d58363798397b3e9487",
+        "tiles.csv": "d19024c53aacd2a1ee0689a4382b2eda00d05d9ba9100f8127a074882149da11"
+      },
+      "headless_outputs": {
+        "summary.json": "a29116f07c37c631a92dc05dfd53731574b79d455a7c9d58363798397b3e9487",
+        "tiles.csv": "d19024c53aacd2a1ee0689a4382b2eda00d05d9ba9100f8127a074882149da11"
+      },
+      "status": "identical"
+    },
+    "beacon-overlay-7099": {
+      "inputs": {
+        "D:/disc-probe/docs/goals/colour-sim/photos/IMG_7099.jpeg": "7c89593e642eb1e17aec6970790b98448cbfec97f999497e290286ad6485380a",
+        "D:/disc-probe/evidence/colour4/IMG_7099_read.json": "34be19c246b4efcfe9e4003c5957ace791d647521e1f877a181e401faee2a6a0"
+      },
+      "gui": 4,
+      "headless": 4,
+      "gui_outputs": {
+        "overlay.jpg": "a45906cf4c1d9b428e6fc02496ea53f51afa6136cee8170ad33ba86515855c31",
+        "read.json": "34be19c246b4efcfe9e4003c5957ace791d647521e1f877a181e401faee2a6a0"
+      },
+      "headless_outputs": {
+        "overlay.jpg": "a45906cf4c1d9b428e6fc02496ea53f51afa6136cee8170ad33ba86515855c31",
+        "read.json": "34be19c246b4efcfe9e4003c5957ace791d647521e1f877a181e401faee2a6a0"
+      },
+      "status": "identical"
+    },
+    "disc-lab-pose-fixture": {
+      "inputs": {
+        "D:/dp-dev/linuxpack/disclab/tests/test_render.py": "b8d88c7176693f504d6bee8ffad5a45cf01e4600a2516584eb12f59002754911"
+      },
+      "gui": "too_few_votes",
+      "headless": "too_few_votes",
+      "gui_outputs": {
+        "pixels.npy": "a9bff04a2056180da5e28cd08fcd27781a08c91dd15a7cce7a6602c3b399001c",
+        "pose.json": "324aedfd6d2d569e47ea5e2ca63d4ead2e9cd15701f6efaa171c5beb50b147b1"
+      },
+      "headless_outputs": {
+        "pixels.npy": "a9bff04a2056180da5e28cd08fcd27781a08c91dd15a7cce7a6602c3b399001c",
+        "pose.json": "324aedfd6d2d569e47ea5e2ca63d4ead2e9cd15701f6efaa171c5beb50b147b1"
+      },
+      "status": "identical"
+    },
+    "scan-repository-fixture": {
+      "inputs": {
+        "D:\\dp-dev\\linuxpack\\discprobe\\scan_selftest.py": "6ae070d736af68b8be402eaa26926633ca9eef27ec1ad36b59204890917ce8dd"
+      },
+      "gui": 638,
+      "headless": 638,
+      "gui_outputs": {
+        "detect.png": "4b77e763132289896762e81b59f9ab4e395aa492e63c08903f7895ca4e8eba14",
+        "phase.csv": "65a479d2a377291312b5472023f04b36d24a96163357f352d8e3949d033b953d",
+        "summary.json": "cea4c44b040502bb6f080ad631032cecfc8b179ab2ae13e5638079c92305b624",
+        "unrolled.png": "cacb18dbde3434422a8e0e3755b7e4089f0adcd405adc92a7ff4cfcdb1a7a11b",
+        "unrolled_corrected.png": "190f893efa656eac15c55373fa7a04c507611fdff2233b4ecce9d647090855c7"
+      },
+      "headless_outputs": {
+        "detect.png": "4b77e763132289896762e81b59f9ab4e395aa492e63c08903f7895ca4e8eba14",
+        "phase.csv": "65a479d2a377291312b5472023f04b36d24a96163357f352d8e3949d033b953d",
+        "summary.json": "cea4c44b040502bb6f080ad631032cecfc8b179ab2ae13e5638079c92305b624",
+        "unrolled.png": "cacb18dbde3434422a8e0e3755b7e4089f0adcd405adc92a7ff4cfcdb1a7a11b",
+        "unrolled_corrected.png": "190f893efa656eac15c55373fa7a04c507611fdff2233b4ecce9d647090855c7"
+      },
+      "status": "identical"
+    },
+    "calscan-repository-fixture": {
+      "inputs": {
+        "D:\\dp-dev\\linuxpack\\discprobe\\cal_selftest.py": "815fed5a7517324e9cbcf366eb44e048c6912d1248eeb77b80e2c7d045ccb708"
+      },
+      "gui": [
+        7,
+        8,
+        9,
+        16,
+        17,
+        18,
+        33,
+        34,
+        35
+      ],
+      "headless": [
+        7,
+        8,
+        9,
+        16,
+        17,
+        18,
+        33,
+        34,
+        35
+      ],
+      "gui_outputs": {
+        "bands.csv": "7587ca1e1cdd4fd24cb64c93cd6b4cf153fa78ca348063e628d75fe5b1b6f4bd",
+        "phase.csv": "91bb344f2cdd795e6306524a0c1eae29f175f87608a1f43326536310ac3578bd",
+        "summary.json": "445c5002bc8d68876cc9bc1e3801a300771978bee7ed3738ecabd687ee8abb26",
+        "unrolled.png": "321b66803f4a5ef6480986c0dd89cea1d0534ea7b7079efba0590e931280d135"
+      },
+      "headless_outputs": {
+        "bands.csv": "7587ca1e1cdd4fd24cb64c93cd6b4cf153fa78ca348063e628d75fe5b1b6f4bd",
+        "phase.csv": "91bb344f2cdd795e6306524a0c1eae29f175f87608a1f43326536310ac3578bd",
+        "summary.json": "445c5002bc8d68876cc9bc1e3801a300771978bee7ed3738ecabd687ee8abb26",
+        "unrolled.png": "321b66803f4a5ef6480986c0dd89cea1d0534ea7b7079efba0590e931280d135"
+      },
+      "status": "identical"
+    },
+    "tile-observations-6964": {
+      "inputs": {
+        "D:\\disc-probe\\docs\\goals\\colour-sim\\photos\\IMG_6964.jpeg": "94256cb6e8bbd63d701eb99a5cf1fb9d6dead11acdb272161e3b59871e76f371",
+        "D:\\disc-probe\\results\\tilephoto\\IMG_6964\\summary.json": "fa2f7d16ba677c5676699e8d580ab4fa4b8243bdc24a39492999303b934e54d4",
+        "D:\\disc-probe\\evidence\\tilescan\\tiles_layout.json": "07afc726e340b9b4b291acac13aefb2edbae3db20099a19f0432e9aac0f75251"
+      },
+      "gui": 17,
+      "headless": 17,
+      "gui_outputs": {
+        "read.json": "75aa49662b307d8347b86f4db13648ae470bcb5a438be7d42c87b569b1aca1ae",
+        "tiles.csv": "6a068c972cbb9be26bc56b96b565dc0a192f7ca697f061fa38817d5aecd5e15d"
+      },
+      "headless_outputs": {
+        "read.json": "75aa49662b307d8347b86f4db13648ae470bcb5a438be7d42c87b569b1aca1ae",
+        "tiles.csv": "6a068c972cbb9be26bc56b96b565dc0a192f7ca697f061fa38817d5aecd5e15d"
+      },
+      "status": "identical"
+    },
+    "tile-observations-7028": {
+      "inputs": {
+        "D:\\disc-probe\\docs\\goals\\colour-sim\\photos\\IMG_7028.jpeg": "568062c20b426eff4187ef9de4652b6030d0d12d3a8f1fbec4cf494fe9e829f9",
+        "D:\\disc-probe\\results\\flash_lut_tiles\\IMG_7028\\summary.json": "e34d2c79a24a9c04ea863e53fa5cc2f4db6937554fe71a7c475bc04ded6a24f4",
+        "D:\\disc-probe\\evidence\\tilescan\\tiles_layout.json": "07afc726e340b9b4b291acac13aefb2edbae3db20099a19f0432e9aac0f75251"
+      },
+      "gui": 0,
+      "headless": 0,
+      "gui_outputs": {
+        "read.json": "1fbae09dddde69ed5342a3da848f27e3dbbbf02464d92f6b3d981f4170c516d5",
+        "tiles.csv": "548978bd90b0caf7b665da5a323e27b17783899218c4457bf077f51413706eb1"
+      },
+      "headless_outputs": {
+        "read.json": "1fbae09dddde69ed5342a3da848f27e3dbbbf02464d92f6b3d981f4170c516d5",
+        "tiles.csv": "548978bd90b0caf7b665da5a323e27b17783899218c4457bf077f51413706eb1"
+      },
+      "status": "identical"
+    },
+    "caltop-logo": {
+      "inputs": {
+        "D:\\dp-dev\\linuxpack\\discprobe\\web\\home\\caltop\\props\\penrose_logo.png": "be8af35fdc8bb5df664110c8b1a4a63bb3950d84baf75eac0be39b84012653bd"
+      },
+      "gui": 3,
+      "headless": 3,
+      "gui_outputs": {
+        "shape.json": "0f29e624a3cfdc6db2c9c481b2af9c134b14a19294700e193a175ae2181c8001"
+      },
+      "headless_outputs": {
+        "shape.json": "0f29e624a3cfdc6db2c9c481b2af9c134b14a19294700e193a175ae2181c8001"
+      },
+      "status": "identical"
+    },
+    "focal-recorded": {
+      "inputs": {
+        "D:\\dp-dev\\linuxpack\\tools\\focal_data\\show_e_samples.json.gz": "1cfefa20e3b4bde06085b1437dd4b62027bb307acb5e6ac2403668cf0c3e2bca"
+      },
+      "gui": 18,
+      "headless": 18,
+      "gui_outputs": {
+        "focal.json": "a1dd88285feb24b869173ab89586cb5a71d2ade862dadef5113b71bd4c36c925"
+      },
+      "headless_outputs": {
+        "focal.json": "a1dd88285feb24b869173ab89586cb5a71d2ade862dadef5113b71bd4c36c925"
+      },
+      "status": "identical"
+    }
+  }
+}

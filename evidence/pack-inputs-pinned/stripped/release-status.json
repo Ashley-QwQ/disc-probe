@@ -1,0 +1,779 @@
+{
+  "status": "PASS",
+  "commit": "efb011a94f4118a36be25ab04c0e886a452a5393",
+  "checks": [
+    {
+      "log": "pack-inputs.log",
+      "command": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "-X",
+        "utf8",
+        "-B",
+        "-c",
+        "import importlib.util; s=importlib.util.spec_from_file_location('winpack_deps','F:\\\\dp-dev-tmp\\\\linuxpack\\\\rehearsal-stripped-final\\\\build-copy\\\\tools\\\\build_winpack.py'); b=importlib.util.module_from_spec(s); s.loader.exec_module(b); b.prepare_release_inputs('F:\\\\dp-dev-tmp\\\\linuxpack\\\\pinned-cache','F:\\\\dp-dev-tmp\\\\linuxpack\\\\pinned-cache','F:\\\\dp-dev-tmp\\\\linuxpack\\\\rehearsal-stripped-final\\\\wheel-stage-52lvfplw\\\\wheel-dependencies','F:\\\\dp-dev-tmp\\\\linuxpack\\\\rehearsal-stripped-final\\\\pack-inputs.json')"
+      ],
+      "exit_code": 0,
+      "seconds": 7.817,
+      "sha256": "72cb45d4f29da24667baa0c8cf677e5e04bfd4448e423500acfb56b83bcd0694"
+    },
+    {
+      "log": "source-build.log",
+      "command": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "-X",
+        "utf8",
+        "-B",
+        "-c",
+        "import _build_backend as b; print(b.build_wheel(\"../candidate-assets\")); print(b.build_sdist(\"../candidate-assets\"))"
+      ],
+      "exit_code": 0,
+      "seconds": 3.338,
+      "sha256": "75bbe861037e7b2e4486eec492e03bea74715ed502815012887dcadfa8ad3a5c"
+    },
+    {
+      "log": "sdist-equivalence.log",
+      "command": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "-X",
+        "utf8",
+        "-B",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tools\\verify_source.py",
+        "--assets",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\candidate-assets",
+        "--out",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\from-sdist"
+      ],
+      "exit_code": 0,
+      "seconds": 4.866,
+      "sha256": "acb25e000de45bc984962177378c82dae9ce8bd67ec279ad602c9610aca00078"
+    },
+    {
+      "log": "wheel-venv.log",
+      "command": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "-X",
+        "utf8",
+        "-B",
+        "-m",
+        "venv",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\wheel-stage-52lvfplw\\wheel-venv"
+      ],
+      "exit_code": 0,
+      "seconds": 5.029,
+      "sha256": "968b08ae866d53efa01d33943c1d0688bff432871ba9c22ce64173b3c789dd5a"
+    },
+    {
+      "log": "wheel-dependencies.log",
+      "command": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "-X",
+        "utf8",
+        "-B",
+        "-c",
+        "import shutil; shutil.copytree('F:\\\\dp-dev-tmp\\\\linuxpack\\\\rehearsal-stripped-final\\\\wheel-stage-52lvfplw\\\\wheel-dependencies','F:\\\\dp-dev-tmp\\\\linuxpack\\\\rehearsal-stripped-final\\\\wheel-stage-52lvfplw\\\\wheel-venv\\\\Lib\\\\site-packages',dirs_exist_ok=True)"
+      ],
+      "exit_code": 0,
+      "seconds": 4.319,
+      "sha256": "f45007468c6ef08e33f6517155c5ea753cf4c8f2f35102c45e060afcc4595dfa"
+    },
+    {
+      "log": "wheel-install.log",
+      "command": [
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\wheel-stage-52lvfplw\\wheel-venv\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "pip",
+        "install",
+        "--no-index",
+        "--no-deps",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\candidate-assets\\disc_probe-1.0.0.0a0-py3-none-any.whl"
+      ],
+      "exit_code": 0,
+      "seconds": 3.854,
+      "sha256": "39b61bdfcbbe863d25b6dd21691745251bb351576ac22421051d312cb11fd4f9"
+    },
+    {
+      "log": "wheel-pip-check.log",
+      "command": [
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\wheel-stage-52lvfplw\\wheel-venv\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "exit_code": 0,
+      "seconds": 0.635,
+      "sha256": "7c0906629384ba1e80612f867d8d157b1c9aaa48c5ae1f67d35929f2b3fab035"
+    },
+    {
+      "log": "wheel-verify.log",
+      "command": [
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\wheel-stage-52lvfplw\\wheel-venv\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-B",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tools\\verify_package.py",
+        "--artifact",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\candidate-assets\\disc_probe-1.0.0.0a0-py3-none-any.whl",
+        "--expected-root",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\wheel-stage-52lvfplw\\wheel-venv",
+        "--version",
+        "1.0.0.0-alpha",
+        "--out",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\wheel-proof"
+      ],
+      "exit_code": 0,
+      "seconds": 158.157,
+      "sha256": "6cc94f79da8c54eb6d46210dc2d519b9f31fa4a6a25200ee3f7cad28ed1deb7e"
+    },
+    {
+      "log": "pytest.log",
+      "command": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "-X",
+        "utf8",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "xdist",
+        "-n",
+        "2",
+        "tests",
+        "tests/scipy_oracle_checks.py",
+        "-p",
+        "no:cacheprovider",
+        "--ignore-glob=*b[l]ind*"
+      ],
+      "exit_code": 0,
+      "seconds": 534.52,
+      "sha256": "27684e9c00ffcaef4f44b2291d44b12aafaf53070eadcaf7420473dd5f34db6a"
+    },
+    {
+      "log": "test_afterburn_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_afterburn_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 16.092,
+      "sha256": "c8abcb468d0c9d626afca06ef681826058998270aa462892cef9ae2dec880a8e"
+    },
+    {
+      "log": "test_along_track_stamp.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_along_track_stamp.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.118,
+      "sha256": "22a62d3b5f54a7ed626ca5dd6a6508efe78abe95ebc3c6386ba43c747f16adf1"
+    },
+    {
+      "log": "test_brand_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_brand_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 4.4,
+      "sha256": "e3f9e5ebf1e25ed122f07c9bc92640851565ae95ebf339ec0aaa96edee01656c"
+    },
+    {
+      "log": "test_burn_cancel.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_burn_cancel.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.128,
+      "sha256": "d4cbf630fd60e603c022dec1abc3d4dc7398db8545da068fd9bfb9d58e199cfb"
+    },
+    {
+      "log": "test_burn_cancel_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_burn_cancel_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 29.137,
+      "sha256": "e0224a1d3cac313237b0f1fcbb267bee66b8039a176cb4a7f1759cbbadf66709"
+    },
+    {
+      "log": "test_burn_page.cjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_burn_page.cjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.124,
+      "sha256": "56ad4ef3c3c22a98e66c7349aada2dd5207ad69788ab58329ad4fe054d68ee3b"
+    },
+    {
+      "log": "test_calchart.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_calchart.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.149,
+      "sha256": "570f75d37e1bd9c73237b670269f45d7d9aeeed4ceaf356e267225b0e9f98bdd"
+    },
+    {
+      "log": "test_community.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_community.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.184,
+      "sha256": "5f89036e364095d3532a39c85038531b057cec2f2dbe4b15eb643dfe4449af93"
+    },
+    {
+      "log": "test_csp_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_csp_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 10.747,
+      "sha256": "e332e84a62693b105463fc1b7eea414e2258f1c8698b012e68366b409f8591f9"
+    },
+    {
+      "log": "test_curve_edit_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_curve_edit_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 18.987,
+      "sha256": "072d5c5c2ade8d87c60c5a85d72557f3e75a8e851f840f9a9f471da455c62db7"
+    },
+    {
+      "log": "test_design_export.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_design_export.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.131,
+      "sha256": "ccb621dd6e628111fd59fac15d51a17ae27a0ea83ccb72ac6b1d667ea5acfc34"
+    },
+    {
+      "log": "test_disc_files.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_disc_files.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.1,
+      "sha256": "63534c987b893a548433f8c099ca60b65316512ec76efb14c3094275ba7e6aac"
+    },
+    {
+      "log": "test_disc_files_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_disc_files_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 41.311,
+      "sha256": "dc11cb19fbb0a1165c292c353decb5ed568883866a1676ec6c0d3991e455344b"
+    },
+    {
+      "log": "test_disclab_errors.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_disclab_errors.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.109,
+      "sha256": "11087074ce1ca8741d368291ca22f625c6fb3a8bca4b355d12b15d1df562da81"
+    },
+    {
+      "log": "test_editor.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_editor.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.139,
+      "sha256": "fda7fb6a8d02a95df7e0c3b145bf5a4f6e85fe4b021409f5291bcd9b9bc4fe0d"
+    },
+    {
+      "log": "test_editor_desk_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_editor_desk_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 6.359,
+      "sha256": "02c7de01f6a1d71b4deec21f1700f86f77c36e511f8802486027d681718c1e8e"
+    },
+    {
+      "log": "test_editor_lamp.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_editor_lamp.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.223,
+      "sha256": "16545f562f0b8c1a2b61ab775e6bc92266cac1a9778f6282b49ab996ed2931bb"
+    },
+    {
+      "log": "test_editor_materials.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_editor_materials.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.125,
+      "sha256": "43f55876e26a5534b47b79c5500828f96bec2e3fbabf7e71af672672887636e7"
+    },
+    {
+      "log": "test_editor_rig.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_editor_rig.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.2,
+      "sha256": "c8990d7f55e0918503391cb1d35f5055b62a546a67e414ddb8535dc10449b393"
+    },
+    {
+      "log": "test_editor_texlib.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_editor_texlib.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.114,
+      "sha256": "1ca2ac12911aff19c2b22d41c7ae5f5459a973af3ee361f7374a50f9f893f473"
+    },
+    {
+      "log": "test_editor_texlib_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_editor_texlib_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 20.2,
+      "sha256": "ab91e1eb31bef659032d7493503a7dc2524f9595d71617ad70c4d8f0f3effa51"
+    },
+    {
+      "log": "test_editor_w245_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_editor_w245_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 17.818,
+      "sha256": "69caced97c28a58a4a3d67acb2ca911f17debcbc23256cf85991767aa53958a1"
+    },
+    {
+      "log": "test_faxnews_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_faxnews_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 5.648,
+      "sha256": "d5c45eefcc13617548b748c7a45102ed2c6da7e2d6f18d72ae39cacfe218b8ad"
+    },
+    {
+      "log": "test_faxnews_data.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_faxnews_data.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.147,
+      "sha256": "a7ac552853560574b653a32f28f2b3d82f738ededd999eb3469e48624303153a"
+    },
+    {
+      "log": "test_flight.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_flight.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.125,
+      "sha256": "b5d8d24e977c86890bfd9f2c587f172d1c55c80a3eee956f9fea3c8ed1ba295f"
+    },
+    {
+      "log": "test_flow_navigation_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_flow_navigation_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 45.998,
+      "sha256": "541ffff624b8c9297a4de3981707eed33a84544849ce41fac15ab11cf1f60306"
+    },
+    {
+      "log": "test_geo_progress.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_geo_progress.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.117,
+      "sha256": "f2a5796534a8fb55851e56b8beee5872b580df8f7796fd11f73316288e3902e3"
+    },
+    {
+      "log": "test_geo_unsteady.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_geo_unsteady.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.109,
+      "sha256": "c13ed1c6645fb0740978c4d325307b57d8432a427c625773e8e4ee906c4bbe04"
+    },
+    {
+      "log": "test_gui_handshake.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_gui_handshake.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.137,
+      "sha256": "adff6ded9ee8f7f4f0684d95bd64a807c14016a4912fc56dae946a92a8e009eb"
+    },
+    {
+      "log": "test_gui_handshake_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_gui_handshake_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 1.694,
+      "sha256": "5175d774da57b88eaacb2a911645f62479fb092a716816ff3637c0aa78de8173"
+    },
+    {
+      "log": "test_ime_activity.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_ime_activity.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 1.41,
+      "sha256": "19403b7be44d48b6cd1f961e0c11c656216b55c20360ee1c1539df8e697c3347"
+    },
+    {
+      "log": "test_kit_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_kit_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 17.619,
+      "sha256": "971044465fc2554762f3c18108e0e845663972be44672eb2fd6a1559960cbb83"
+    },
+    {
+      "log": "test_kit_pure.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_kit_pure.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.155,
+      "sha256": "6e347e7f4d28998f9cca620c07bed2bc7ce4d87eba97bb39eac9f2dc4338ab12"
+    },
+    {
+      "log": "test_lobby_state.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_lobby_state.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.116,
+      "sha256": "79b97c58adac61eea9a876e0e652865d07a88a3dcb51405c1cd7f5420ccaabb5"
+    },
+    {
+      "log": "test_lobby_weekday.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_lobby_weekday.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.124,
+      "sha256": "70cb93d66fc740f47b2c223bb7de8cffad4a6ad84ae7bc7a4cf7b38e79bafc0a"
+    },
+    {
+      "log": "test_measured_ring.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_measured_ring.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.119,
+      "sha256": "c4245ab75e327e22a0bfa1880d45b3f6155e954477c8e8b34cf2d41b1f861d91"
+    },
+    {
+      "log": "test_motion_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_motion_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 25.969,
+      "sha256": "09020de17e16c3db04e93f706722b59aff995ec39193777fbd0915fa6aee5c8f"
+    },
+    {
+      "log": "test_pastworks.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_pastworks.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.121,
+      "sha256": "4aebeaca2185451d8367944f6c7f2140f02d087ae00fca45de703396f868ec60"
+    },
+    {
+      "log": "test_pastworks_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_pastworks_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 10.329,
+      "sha256": "0810cfef050a9eb6ec237a7852f2eca49230c3d44fd03aec3309a1388ac913f8"
+    },
+    {
+      "log": "test_pastworks_works.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_pastworks_works.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.17,
+      "sha256": "270ec99f5217f1288bd6303c158261d9a07f4538334b5f51ce1907d8e67a65dd"
+    },
+    {
+      "log": "test_perf2_processing.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_perf2_processing.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.226,
+      "sha256": "bf77e8467b80259adf10be0be65f0c0ce33d83b11662b4e0142579e68597e8cb"
+    },
+    {
+      "log": "test_phone_page.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_phone_page.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.112,
+      "sha256": "8126d954ae9ba76e5869d6a48b9df7ea2ec4c8d2e47c79cd4c835202504c19c9"
+    },
+    {
+      "log": "test_photo_wire.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_photo_wire.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.178,
+      "sha256": "81eb25b89d5ba0c62dcfd47c8a44105d756e810dad670531d6be16969d78bc10"
+    },
+    {
+      "log": "test_photo_wire_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_photo_wire_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 10.189,
+      "sha256": "7bf9adea3eb4225eb8d8f819ce03f96aef2e2ba6cc12bf3057fe2ac2840ede04"
+    },
+    {
+      "log": "test_photocal.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_photocal.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.109,
+      "sha256": "14fcfa3ed590b02881f33cda38bb3ade9beeaacda672838d0c11d92289006db5"
+    },
+    {
+      "log": "test_preset_geometry.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_preset_geometry.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.104,
+      "sha256": "5203452624808e12e07857cfc887b054881ee64921121f794394134a036d5aa9"
+    },
+    {
+      "log": "test_presetio.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_presetio.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.104,
+      "sha256": "ea66e4b6e52b3d358bb57b9c46b2e76d45b957110d1e29418d28067b305ace94"
+    },
+    {
+      "log": "test_presetio_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_presetio_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 17.866,
+      "sha256": "05f207017c4d617100baafd1e20870110247275365345bd679b65aefb7fbac32"
+    },
+    {
+      "log": "test_review_library_newwork.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_review_library_newwork.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 12.617,
+      "sha256": "2b08c12e69b8f876c8f7559b55d9555a660d3bf92437ba996caa75180557a504"
+    },
+    {
+      "log": "test_rw_discs.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_rw_discs.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.108,
+      "sha256": "93bcfc0183a81339fc2d3718879ce7b400f9f1836719e665f149c3e46213804a"
+    },
+    {
+      "log": "test_rw_discs_browser.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_rw_discs_browser.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 108.842,
+      "sha256": "114593de44bbcd06fb1aae3c1d4f24e092c39c2212cba12e1da751f4db837ec2"
+    },
+    {
+      "log": "test_selection_edit.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_selection_edit.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.139,
+      "sha256": "4bdfb3b7e855dbdfa3fac0ab93ce6bc768f9f13f52840be62963b36388ac6c2e"
+    },
+    {
+      "log": "test_start_guide.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_start_guide.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.153,
+      "sha256": "e021eb6a564cec021799b0d2da9975823a4e74f670c6fc5d33066a7eaeeebc08"
+    },
+    {
+      "log": "test_template_download.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_template_download.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.125,
+      "sha256": "f1b11c55afb7a62b710f6f77f31c0bcfe55721fa39d0c3931dc3387d8dfd1fff"
+    },
+    {
+      "log": "test_title_font_alignment.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_title_font_alignment.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 3.581,
+      "sha256": "b58ec5dee2c55e652a944a60729b4c92bea0045d5e3836d47e5d6a5777d3661a"
+    },
+    {
+      "log": "test_web_guidance.mjs.log",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tests\\test_web_guidance.mjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.131,
+      "sha256": "d8cbda936a9c32f81ce59627681d6e068042849aa3bfd706dc12373f5b5c4012"
+    },
+    {
+      "log": "selftest.log",
+      "command": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "-X",
+        "utf8",
+        "-B",
+        "-m",
+        "discprobe",
+        "selftest"
+      ],
+      "exit_code": 0,
+      "seconds": 380.958,
+      "sha256": "330e8cf5a8c873e78cf2f8e5101c018cd8e5065a5ede96688e02f04a29eafa14"
+    },
+    {
+      "log": "winpack-build.log",
+      "command": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "-X",
+        "utf8",
+        "-B",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy\\tools\\build_winpack.py",
+        "--source-root",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\build-copy",
+        "--commit",
+        "efb011a94f4118a36be25ab04c0e886a452a5393",
+        "--ref",
+        "efb011a94f4118a36be25ab04c0e886a452a5393",
+        "--label",
+        "1.0.0.0-alpha",
+        "--cache",
+        "F:\\dp-dev-tmp\\linuxpack\\pinned-cache",
+        "--windows-cache",
+        "F:\\dp-dev-tmp\\linuxpack\\pinned-cache",
+        "--out",
+        "F:\\dp-dev-tmp\\linuxpack\\rehearsal-stripped-final\\winpack"
+      ],
+      "exit_code": 0,
+      "seconds": 411.423,
+      "sha256": "fd07bbc3bd08e7a9535d0f415c4f5e42259bf27f94c3b8ef709a7c0f9f16badb"
+    },
+    {
+      "log": "disc-lab-pytest.log",
+      "command": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "-X",
+        "utf8",
+        "-B",
+        "-m",
+        "pytest",
+        "disclab/tests",
+        "-q",
+        "-p",
+        "xdist",
+        "-n",
+        "2",
+        "-p",
+        "no:cacheprovider",
+        "--ignore=disclab/tests/test_package.py"
+      ],
+      "exit_code": 0,
+      "seconds": 82.172,
+      "sha256": "4698db09278f37d50065b754c7dde3d21325157b14fce8e7ef0b6300c9df8b93"
+    }
+  ]
+}

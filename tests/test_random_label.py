@@ -72,13 +72,15 @@ class TestRandomLabel:
             L.read_marker(raw, L.END - 1)
 
     @pytest.mark.parametrize("sidecar", ["incomplete JSON", "[]", '{"kind":"other"}'])
-    def test_plain_writer_ignores_unrelated_sidecars(self, tmp_path, sidecar):
+    def test_plain_writer_removes_stale_sidecars(self, tmp_path, sidecar):
         path = tmp_path / "plain.iso"
         spec = path.with_suffix(".image.json")
         spec.write_text(sidecar)
         randomdisc.write_iso(str(path), 64, log=lambda *_: None)
         assert path.stat().st_size == 64 * 2048
-        assert spec.read_text() == sidecar
+        assert not spec.exists()
+        checked = path.with_suffix('.iso.verification.json')
+        assert json.loads(checked.read_text(encoding='utf-8'))['status'] == 'passed'
 
 
     @pytest.mark.parametrize("text,media,sectors", [("", "dvd", 2295104), ("中文", "dvd", 2295104),

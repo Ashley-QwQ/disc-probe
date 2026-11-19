@@ -164,9 +164,9 @@ def test_release_inventory_and_real_package_bytes(tmp_path, monkeypatch):
     with tarfile.open(sdist) as archive:
         for name in core_paths + extras:
             assert archive.extractfile(f'{backend.identity()}/{name}').read() == (ROOT / name).read_bytes()
-    # Windows uses SOURCE and this same copy/archive machinery for full-win64.
+    # The full bundle uses SOURCE and this same copy/archive machinery.
     assert {'discprobe', 'tools', 'STYLE.md', 'DESIGN.md'} <= set(winpack.SOURCE)
-    archive_path = tmp_path / 'full-win64-brand-payload.zip'
+    archive_path = tmp_path / 'full-brand-payload.zip'
     inventory = release.zip_package(ROOT, [ROOT / name for name in core_paths + extras], archive_path, 'disc-probe')
     with zipfile.ZipFile(archive_path) as archive:
         for item in inventory:
