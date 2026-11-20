@@ -2058,7 +2058,7 @@ def cmd_template(args):
 
 COMMAND_GROUPS = (
     ("Start here", ("menu", "guide", "troubleshoot", "webui", "version", "tutorial", "selftest", "list")),
-    ("Measure a disc", ("info", "whois", "timing", "geo", "results", "diagnose")),
+    ("Measure a disc", ("info", "checkburn", "whois", "timing", "geo", "results", "diagnose")),
     ("Make a disc image", ("random", "label", "compose", "colour-design", "textures", "files-layout", "edit", "image", "simulate", "tiles", "beacons", "rings", "calib", "spokes",
                            "calibdisc", "checkdisc")),
     ("Read scans of burned discs", ("photo", "gridscan", "correction", "tilescan", "ringscan", "calscan", "scan")),
@@ -2288,6 +2288,9 @@ def _build_parser():
 
     from . import troubleshoot
     troubleshoot.arguments(sub.add_parser("troubleshoot", help=troubleshoot.HELP))
+
+    from . import checkburn
+    checkburn.add_parser(sub)
 
     sp = sub.add_parser("whois", help="read and check a public disc identity record")
     common(sp)
