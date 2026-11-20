@@ -72,7 +72,10 @@ const sub = () => SUBS[state.kind].find((s) => s.key === state.sub) ?? SUBS[stat
 const subOf = (kind, it) => SUBS[kind].find((s) => s.re.test(it?.name ?? ""))?.key ?? (kind === "dvd" && /\//.test(it?.mid ?? "") ? "+R" : "-R");
 // "DVD-R Sequential" -> "DVD-R": the profile's first word is the type people know
 const shortKind = (k) => String(k ?? "").split(" ")[0];
-const driveSub = (disc) => SUBS[disc?.media]?.find((s) => s.re.test(disc.kind ?? ""));
+function driveSub(disc) {
+  const profile = shortKind(disc?.kind);
+  return SUBS[disc?.media]?.find((s) => s.re.exec(profile)?.[0] === profile);
+}
 function driveStatus(disc) {
   if (disc?.tray === "open") return "trayOpen";
   if (!disc?.present) return disc?.tray === "empty" ? "noDisc" : "readingStateUnknown";

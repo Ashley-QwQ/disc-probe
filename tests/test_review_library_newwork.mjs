@@ -154,6 +154,8 @@ try {
   await check('document.documentElement.dataset.mode==="" && document.documentElement.dataset.home==="library" && document.getElementById("name").textContent.includes("Verbatim")','batch link opens exact batch');
   await evaluate('document.getElementById("back").click()');
   await check('document.documentElement.dataset.mode==="newplan" && !document.querySelector(".np").hidden','library Back returns to form');
+  await until('location.hash==="#/newplan" && document.documentElement.dataset.navigation==="ready"',
+    'history has returned to the form');
   await evaluate('document.querySelector(".np-library").click()');
   await until('document.documentElement.dataset.mode==="" && document.documentElement.dataset.home==="library" && document.documentElement.dataset.navigation==="ready" && !document.getElementById("next").disabled',
     'batch library is ready to choose');
@@ -254,6 +256,10 @@ try {
   await until('document.querySelector(".np-disc-help").textContent.includes("没读出光驱里这张盘是不是空白的")','unknown blank status explained');
   await check('document.querySelector(".np-face-text").textContent==="DVD+R" && !document.querySelector(".np-batch").placeholder.includes("UNKNOWN")',
     'unknown blank status does not change the dial or recommend the loaded disc');
+  await evaluate('review.api.readDisc=async()=>({present:true,media:"dvd",kind:"DVD-RAM",mid:"UNKNOWN",blank:true});await review.newplan.start(review.api)');
+  await until('document.querySelector(".np-disc-help").textContent.includes("DVD-RAM")','blank unsupported profile displayed');
+  await check('document.querySelector(".np-face-text").textContent==="DVD+R" && !document.querySelector(".np-batch").placeholder.includes("UNKNOWN")',
+    'DVD-RAM does not match the DVD-R dial option');
   await evaluate('review.api.readDisc=async()=>({present:false,tray:"empty"});await review.newplan.start(review.api)');
   await until('!document.querySelector(".np-disc-help").textContent.includes("正在读")','read finished');
   await check('document.querySelector(".np-own").hidden && getComputedStyle(document.querySelector(".np-dial")).visibility==="visible"','missing capability hides parameter links; dial stays visible');
