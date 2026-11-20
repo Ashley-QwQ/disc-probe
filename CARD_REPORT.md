@@ -1,95 +1,53 @@
-# 社区提示卡交付报告
+# MS · 拍照沿轨常数手动对齐
 
-工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
+分支 `dev/photo-manual-slider`，基点 `a7b5fbf`。2026-11-20（多伦多）完成最小版本，早于周六 18:00 交付时限。
 
-## 按提交交付
+## 提交
 
-- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
-- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
-- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
-- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
-- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
-- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
+- `8f67069` 在拍照页加入手动对齐，按冻结读取器留下的单应矩阵投影标靶圆环和 PN 条纹边界。拖动 L 或整体转角时实时重画，原有缩放、平移和专注视图可用于检查。保存由 core 换算并应用到 ISO 和预设。预设和 ISO 记录区分 `manual-slider`、`manual-cli` 和已有自动来源。
+- `6b4f500` 补充人工值超出几何可用范围时的双语提示，更新旧 core 和拍照流程测试。
+- `dadd0c6` 盘库回归测试等浏览器的异步返回完成后再点下一步，避免两次导航交叠。
 
-## 数据及出处
+## 使用和范围
 
-本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
+- 选照片，点「手动对齐」。DVD 范围为 ±10 mm，方向键每次 0.025 mm，约为 1/200 个 DVD 扇区。CD 范围为 ±300 帧，方向键每次 ¼ 帧（约 0.041 mm）。转角范围为 0–360°，方向键每次 0.05°。按住 Shift 时步长乘 10。
+- 停下后显示「边界吻合区块」。这项读数用冻结投票函数在当前 `c + L/r` 处评估信号。吻合区块少于 4 个、达不到两个角区和两个半径带，或圆环配准未锁定时，提示「可能没对准」。仍可保存。
+- 保存写入该几何测量目录内的 `photo-manual.json`。同一测量的自动读数仍留在 `photo.json`。新的出图和预设优先采用已保存的有效人工值。已出图的 ISO 重开时核对它自己带的来源记录。
+- 最小版覆盖拍照页现有的 PN 标靶。没有可用盘缘单应时，页面请用户等待读取或换一张拍全盘的照片。已有单应、圆环未锁定时，可以叠图并看到警告。
 
-原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
+CLI 用法如下。最后一行的容量换成这张空白盘的实际容量。
 
-相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
-
-新增 id：
-
-```text
-D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
-I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
-DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
-DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
-DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
-DISmain-verbatim-dvd-plus-rw-94520-95043
+```powershell
+python -m discprobe photo --run results/<测量目录> --media dvd --manual-l -2.291
+python -m discprobe calibrate --geo results/<测量目录> --media dvd --sectors 2295104 --preset presets/manual.json
 ```
 
-修改 id（含仅补充来源/复用报告的记录）：
+## 密封标靶实拍
 
-```text
-D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
-I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
-I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
-```
+用 2026-11-10 密封标靶两张原图重新跑冻结读取器，两张都因角度覆盖不足拒答，但保有已锁定的圆环单应。已知答案为 −2.291 mm。验收脚本从读取器的起始位置调节滑块，并在同一转角将 L 增加 2 mm 测偏离分数。
 
-新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
+| 原图 | 滑块 L（mm） | 转角 | 与已知值之差（mm） | 对齐 | L 偏离 +2 mm |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| IMG_7500 | −2.200 | 268.10° | +0.091 | 6 / 66 | 0 / 66，提示可能没对准 |
+| IMG_7508 | −2.150 | 203.40° | +0.141 | 6 / 54 | 0 / 54，提示可能没对准 |
 
-内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
+这两张有足够条纹的 DVD 照片上，脚本调节误差约 0.09–0.14 mm。起点来自冻结读取器，分数在邻近位置有平台。人工目测重复性、CD 实拍精度及换盘后的精度未测。需要比这两张实测误差更小的偏差，或者照片只有单一半径带、反光严重、圆环未锁定、多张照片调出的值明显不一致时，建议用 DIS 精校准。
 
-同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
+PCAL-C 5-02 已有刻录登记。检查了登记关联的对照目录和本地校准照片目录，未找到可核实归属 5-02 的原片，实拍未测。
 
-## 下发与程序行为
+## 验收和证据
 
-`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
+- `node --test tests/test_photo_wire_browser.mjs`，设置 `PHOTO_ALIGN_FIXTURE` 和 `PHOTO_ALIGN_SHOTS` 后，无头 Edge 通过 CDP 实测两条滑块、鼠标拖动、方向键与 Shift、低分仍可保存、预设显示人工来源。读照片、打分、保存及预设导出使用独立回环 core。另发 `POST /api/catalogue` 核对实际目录保存，返回 `manual-slider` 和 −2.200 mm。日志见 `D:/dp-dev/tmp/manualslider/alignment-browser-final-proof.log` 和 `catalogue-proof.log`。
+- 截图共 8 张，位于 `D:/dp-dev/tmp/manualslider/shots`，文件名为 `manual-{1440|390}-{light|dark}-{zh|en}.png`。1440×900 与 390×844 均检查两条滑块和读数可同时看到、没有横向溢出。8 张尺寸和哈希均已核对。
+- `python -X utf8 D:/dp-dev/tmp/manualslider/compat.py`。与 `a7b5fbf` 比较，CD/DVD × 自动采用/无照片共 4 组的 ISO、预设、`photo_l` 和 ISO 旁记录合计 16 项 SHA-256 全部逐位相同。每种盘的自动采用与无照片 ISO 彼此不同，测试确实覆盖了写入变化。详见 `compat-final.log`。
+- `python -X utf8 D:/dp-dev/tmp/manualslider/cli_check.py`。走真实 DVD CLI 保存 −2.291 mm，随后独立导出预设和 4096 扇区的 ISO 追加段，抽样扇区验证通过。两处记录均为 `manual-cli`。ISO 为 8,388,608 字节，验收后仅留 SHA-256 和日志，见 `cli-check-final.log`。Python 测试也覆盖 CD 帧换算、预设和旧 ISO 重开。
+- `python -m pytest -n 2 --basetemp D:/dp-dev/tmp/manualslider/pytest-final -p no:cacheprovider tests/test_photo.py tests/test_photo_l_image.py tests/test_along_track_preset.py tests/test_gui_handshake.py tests/test_webui.py tests/test_web_security.py tests/test_webui_catalog.py tests/test_web_guidance.py tests/test_read_completion.py tests/test_presets.py tests/test_dis_pitch.py -k "not photos_through_command"`，301 项通过。旧的全原图测试会建立一个命名触及路径限制的 pytest 目录，已排除。真实冻结读取另用本卡的两张密封原图跑过，保留全组存档复算测试。新 API 在空白图片上的测试触发冻结读取器已有的空切片警告。
+- `node --import file:///D:/dp-dev/tmp/manualslider/edge-adapter.mjs --test --test-concurrency=1 <tests/ 下全部 test_*.mjs>` 跑 56 个文件，收集到 69 项。首轮 65 项通过，4 项失败。修复后单独重跑失败所在的四个文件，10/10 通过。见 `node-suite.log` 和 `node-followup-final.log`。适配脚本把原用 Edge 命令行导出 DOM 的四个测试改用 CDP 取 DOM 和截图，无需改其断言。
+- `git diff a7b5fbf --quiet -- discprobe/pcal.py` 通过。冻结读取器 Git blob 为 `92641a3de641449f51192249264d087f4e282e61`，与基点一致。实拍和浏览器验收均使用独立回环服务或脚本夹具。未对 8765 服务执行请求、停止或重启。
 
-```text
-f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
-```
+## 由 Claude 转达
 
-生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
+- 与 RWA/RWB/RWC 汇合时，优先核对 `calibrate.js` 的 `paintPhoto`、`photoNavigation`、`realSave` 插接点。API 1.2 加了可选能力 `photo-manual-alignment`，旧 core 仍能打开原来的拍照流程。
+- 由审查者决定是否补 5-02 原片，以及是否在更多光照、盘种和拍摄角度上标定提示阈值。这轮阈值只作辅助，观感打磨留到后续。
 
-`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
-
-CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
-
-仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
-
-## 网页位置和需要人工审查的选择
-
-传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
-
-新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
-
-请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
-
-## 验收
-
-所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
-
-| 命令/检查 | 结果 |
-| --- | --- |
-| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
-| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
-| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
-| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
-| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
-| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
-| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
-| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
-| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
-
-初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
-
-截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
-
-## 未测及边界
-
-没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
-
-附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
+STATUS: DONE
