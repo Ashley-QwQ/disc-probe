@@ -24,6 +24,7 @@ window.wire=wire; window.ready=true;
 </script></body></html>`;
 const moduleSource=`import {nextConfirm} from '/kit/nextconfirm.js';
 import {expandBurnStop,closeBurnStop,paintStopButton,shortDiscWords,interruptedBurn} from '/burn-stop.js';
+import {checkBurn,confirmBurn,checkingText,discText,failureText,keepDiscForReview,measurementGateText,recheckText} from '/burn-preflight.js';
 import {ringButton} from '/kit/ringbutton.js';
 import {flipValue} from '/kit/flipnum.js';
 import {photoPage} from '/photocal.js';
@@ -42,7 +43,7 @@ request:async(path,payload)=>{window.requests.push({path,payload}); if(window.mi
 job:async(payload)=>{window.jobs.push(payload);return payload.action==='disexport'?{path:'presets/photo.json',photo_shift:{written:true,frames:2.5}}:window.photoResult;},state:async()=>({catalogue:{[flow.detected.media]:[{id:'saved',geo:flow.geo.path,name:'MID'}]}})}};
 export const wire={
 init({media='dvd',verdict='narrow_span',missing='',lang='zh',phone=null}={}){closePhoto();window.requests=[];window.jobs=[];window.photos=[];window.devices=[];window.photoResult={verdict:'unsure',per_photo:[]};window.missing=missing;window.lang=lang;window.phone=phone;api=fakeApi;$=id=>document.getElementById(id);flow={realPhase:'review',geo:{path:'results/run-one',verdict,measurement:{span_mm:[28,48]}},timing:{verdict:'good'},detected:{media,kind:media,mid:'MID',capacity_sectors:300000},item:{row:media},preset:'presets/existing.json',warnEl:document.createElement('div')};discWentIn=true;st={show(on){document.body.dataset.stage=on;},set(){}};document.getElementById('back').onclick=back;document.getElementById('next').onclick=()=>realNext();paint();},
-phase(name,fraction=null){closePhoto();flow.realPhase=name;flow.iso='iso/test.iso';flow.job=name==='random'?{kind:'random',fraction}:null;paint();},enter:enterPhoto,next:realNext,back,state:()=>flow,page:()=>photoUI?.page,ui:()=>photoUI,
+phase(name,fraction=null){closePhoto();flow.realPhase=name;flow.iso='iso/test.iso';flow.burnInspection={disc:{present:true,blank:true,kind:'DVD-R'}};flow.job=name==='random'?{kind:'random',fraction}:null;paint();},enter:enterPhoto,next:realNext,back,state:()=>flow,page:()=>photoUI?.page,ui:()=>photoUI,
 photo:(id='p1')=>({id,name:id+'.svg',url:'/disc.svg'}),
 helpAfter(ms){clockNow=window.helpBorn+ms;window.helpTimer();},
 };`;

@@ -21,6 +21,14 @@ types, units, meaning, event order guarantees or authentication is breaking.
 An added optional field or route is additive. Fixing behavior to its documented
 contract is normally a patch; change the major if a GUI must change to work.
 
+API 1.2 adds `burn-preflight`. `POST /api/burn-check` accepts a burn or
+calibrate-with-ISO request and reports the current disc, available speeds and a
+bilingual `gate` when something needs attention. It performs read-only checks.
+To accept an `other_batch` warning, echo the actual MID as `args.confirmed_mid`
+in both `/api/burn-token` and `/api/run`. The token binds the resulting request
+to the checked disc and ISO. Refusals can carry the same object as `burn_gate`
+in error responses and job events.
+
 Proposed policy: retain working adapters for the previous MAJOR for at least
 six months after the new major's first stable release. Publish its retirement
 date with that release. List only majors with actual working adapters in

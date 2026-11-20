@@ -15,7 +15,7 @@ def check_work(args):
     ident = getattr(args, "work", None)
     if ident:
         try:
-            works.Store().show(ident)
+            return works.Store().show(ident)
         except (works.WorkError, OSError) as exc:
             raise SystemExit(i18n.tr(str(exc))) from None
 

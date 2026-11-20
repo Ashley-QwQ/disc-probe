@@ -191,13 +191,18 @@ def _run(args) -> None:
     try:
         if capacity is not None and not positive_sectors(capacity):
             raise Stopped('--sectors must be a positive sector count below 4294967295')
+        expected_mid = args.mid
         if args.iso:
             step("burn")
             if not args.yes_write:
                 raise Stopped("burning needs --yes-write")
             erase = getattr(args, "erase", False)
             expected = disc_identity.expected_for_write(args.drive, erasing=erase)
+            allow_other_batch = getattr(args, 'allow_other_batch', False)
             burn_env = {disc_identity.EXPECTED_ENV: disc_identity.encode_expected(args.drive, expected)}
+            if args.mid:
+                from .burn_gate import EXPECTED_MID_ENV
+                burn_env[EXPECTED_MID_ENV] = args.mid
             blank = read_disc()
             ui.event('disc', **blank)
             if capacity is None:
@@ -205,12 +210,15 @@ def _run(args) -> None:
                 capacity_source = 'blank disc before burning' if capacity else None
             code = child("burn", "--drive", args.drive, "--iso", args.iso, "--media", args.media, "--yes-write",
                          *(['--erase'] if erase else []),
+                         *(["--allow-other-batch"] if allow_other_batch else []),
                          *(["--speed", args.burn_speed] if args.burn_speed else []),
                          *(["--work", args.work] if getattr(args, "work", None) else []),
                          *(["--disc-code", args.disc_id_code] if getattr(args, "disc_id_code", None) else []),
                          env=burn_env)
             if code:
                 raise Stopped(child_reason or "the burn did not finish")
+            if allow_other_batch:
+                expected_mid = expected.get('mid')
 
         step("check")
         disc = read_disc()
@@ -221,8 +229,8 @@ def _run(args) -> None:
             raise Stopped("the disc in the drive is blank, not a measurement disc")
         if disc.get("media") != args.media:
             raise Stopped(f"the disc is a {disc.get('media')} disc, not {args.media}")
-        if args.mid and disc.get("mid") != args.mid:
-            raise Stopped(f"the disc's maker code is {disc.get('mid')}, not {args.mid}")
+        if expected_mid and (disc.get("mid") or "").casefold() != expected_mid.casefold():
+            raise Stopped(f"the disc's maker code is {disc.get('mid')}, not {expected_mid}")
         found["disc"] = disc
         from .measurement_disc import short_recording
         issue = short_recording(disc, capacity)
@@ -286,9 +294,15 @@ def _run(args) -> None:
         ui.event("calibrated", ok=True, **found)
         ui.say("\nCalibrated.", "green")
     except (Stopped, disc_identity.DiscChanged) as why:
-        ui.event("calibrated", ok=False, reason=str(why), **found)
-        ui.event("error", message=str(why))
-        raise SystemExit(str(why)) from None
+        gate = None
+        message = str(why)
+        if getattr(why, 'not_ready', None):
+            from .burn_gate import medium_problem
+            gate = medium_problem({'not_ready': why.not_ready}, args.media)
+            message = f"{gate['zh']} / {gate['en']}"
+        ui.event("calibrated", ok=False, reason=message, **found)
+        ui.event("error", message=message, **({'burn_gate': gate} if gate else {}))
+        raise SystemExit(message) from None
     finally:
         stop_watch.set()
         signal.signal(signal.SIGINT, previous)
@@ -356,6 +370,8 @@ def add_parser(sub) -> None:
     sp.add_argument("--avoid-mm", action="append", type=_avoid_band, default=[], metavar="A-B",
                     help="exclude radius band A-B in mm from geo rungs (repeatable; uses geo's nominal radius/LBA model)")
     sp.add_argument("--mid", help="the maker code the disc must have (the batch's)")
+    sp.add_argument("--allow-other-batch", action="store_true",
+                    help="explicitly allow writing to a different disc batch")
     sp.add_argument("--preset", help="also write a DiscImageStudio preset here")
     sp.add_argument("--geo", help="export this existing geo run without accessing a drive; needs --preset and --sectors")
     sp.add_argument("--photo", help="photo.json to apply only for verdict ok, the same geo run and specific drive; "

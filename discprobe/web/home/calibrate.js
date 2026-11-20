@@ -1,5 +1,6 @@
 import { isActionEnter } from "./kit/shared.js";
 import { expandBurnStop, closeBurnStop, paintStopButton, shortDiscWords, interruptedBurn } from './burn-stop.js';
+import { checkBurn, confirmBurn, checkingText, discText, failureText, keepDiscForReview, measurementGateText, recheckText } from './burn-preflight.js';
 import { nextConfirm } from "./kit/nextconfirm.js";
 import { ringButton } from "./kit/ringbutton.js";
 import { flipValue } from "./kit/flipnum.js";
@@ -1043,9 +1044,15 @@ function manualCapacity(value) {
 function realError(error) {
   setTimeout(callBack, 0);
   if (error?.failure) sfx.failure(); else sfx.problem();      // a disc lost, or something to put right
-  flow.error = api.backend.errorText(error, api.lang());
+  const burnPhase = ['burn','burning','erasing','checking'].includes(flow.realPhase) && flow.iso;
+  if(burnPhase)flow.burnFailureGate=error.burnGate;
+  flow.error = burnPhase ? measurementGateText(error.burnGate,api.lang()) ||
+    failureText(error,api.lang(),{started:!!flow.burnStarted,readBack:!!flow.burnCheck?.verification})
+    : api.backend.errorText(error, api.lang());
   if(interruptedBurn(flow,api.lang()) || flow.burnStarted && flow.realPhase==='burning'){
     flow.burnInterrupted=true;flow.realPhase='burnStopped';
+  } else if(burnPhase && !flow.burnStarted && ['burn','burning'].includes(flow.realPhase)){
+    flow.realPhase='burn';flow.burnInspection=null;flow.batchConfirmed=false;
   }
   flow.ask = null;
   if (flow.job) endJob();
@@ -1059,6 +1066,7 @@ function realPaint() {
   closePhoto(); st?.show(true);
   let title = liveText('标定这批盘', 'Calibrate this batch'), text = "", button = T().next;
   let html = "", disabled = !!flow.job;
+  let hold = false;
   if (phase === "inspect") {
     text = liveText('放入这种盘，再点检测。检测只读，不会打开托盘。', 'Insert this disc, then check it. Checking is read-only and leaves the tray alone.');
     button = liveText('检测光盘', 'Check disc');
@@ -1111,6 +1119,21 @@ function realPaint() {
     html = `<p class="cal-aside">${liveText('也可以用别的刻录程序把', 'Or burn')} <code>${esc(flow.iso)}</code> ${flow.eraseRequested ? liveText('擦除后刻到这张盘上，放进光驱后', 'to this disc with another program after erasing it, put it in, and') : liveText('刻到同批次的空白盘上，放进光驱后', 'to a blank from this batch with another program, put it in, and')} <button id="real-have" type="button" class="btn">${liveText('检测刻好的盘', 'check the burned disc')}</button></p>`;
     button = flow.eraseRequested?liveText('滑动确认擦除后重刻','Slide to erase and burn again'):liveText('滑动确认刻测量盘', 'Slide to burn the measurement disc');
     if(flow.eraseRequested)text=liveText('盘上的内容会被清掉。滑动右下角确认擦除后重刻；擦除完成后才开始刻录。','The disc contents will be cleared. Slide to confirm erasing and burning again; burning starts only after erasing succeeds.');
+    const lang=api.lang(), report=flow.burnInspection, gate=report?.gate;
+    const mismatch=gate?.code==='other_batch', blocked=!report || !!(gate&&!mismatch) || !!report.error;
+    const status=discText(report?.disc,lang), message=measurementGateText(gate,lang)||(report?.error&&failureText(report.error,lang));
+    const discLine='<p role="status">'+esc(flow.burnInspecting?checkingText(lang):status)+'</p>';
+    if(blocked){
+      text=message || (flow.burnInspecting?checkingText(lang):liveText('先检查光驱里的盘。','Check the disc in the drive first.'));
+      html=discLine;
+      if(gate?.code==='recorded_rw')html+=`<button id="real-burn-erase" type="button" class="btn">${liveText('准备擦除后重刻','Prepare to erase and burn')}</button>`;
+      button=recheckText(lang);disabled=!!flow.burnInspecting;
+    } else {
+      html=discLine+(mismatch?`<label><input id="measurement-batch-confirm" type="checkbox" ${flow.batchConfirmed?'checked':''}>${liveText('我确认用这张盘刻测量盘，并标定这批盘。','I confirm that I want to burn this measurement disc and calibrate this batch.')}</label>`:'')+
+        `<button id="real-burn-recheck" type="button" class="btn">${recheckText(lang)}</button>`+html;
+      if(mismatch)text=message;
+      hold=true; disabled=mismatch&&!flow.batchConfirmed;
+    }
   } else if (["timing", "geo", "random", "saving", "burning", "erasing", "checking"].includes(phase)) {
     title = {erasing:liveText('正在擦除光盘','Erasing the disc'),timing:T().timing, geo:T().geo, random:T().generate, saving:liveText('正在保存预设', 'Saving preset'), burning:T().burning,
       checking:liveText('正在检查刻好的盘', 'Checking the burned disc')}[phase];
@@ -1177,7 +1200,8 @@ function realPaint() {
   }
   if (flow.error) {
     if (!flow.job && ["timing", "geo", "random", "saving", "burning", "erasing", "checking"].includes(phase)) { title = liveText('这一步没有完成', 'This step did not finish'); text = ""; }
-    html += `<div role="alert">${note("error", [esc(flow.error), ""])}</div><button id="real-retry">${liveText('重新检测', 'Check again')}</button>`; disabled = true;
+    const errorText=measurementGateText(flow.burnFailureGate,api.lang())||flow.error;
+    html += `<div role="alert">${note("error", [esc(errorText), ""])}</div><button id="real-retry">${liveText('重新检测', 'Check again')}</button>`; disabled = true;
   }
   const badBurn = burnCheckFailed(flow.burnCheck);
   if (badBurn && !flow.job && !['inspect', 'prepare', 'random', 'burn'].includes(phase)) {
@@ -1189,7 +1213,10 @@ function realPaint() {
   const burnStop=!flow.job && interruptedBurn(flow,api.lang());
   if(burnStop){
     title=liveText(flow.cancelledByUser?.phase==='burn'?'刻录已停止':'刻录没有完成',flow.cancelledByUser?.phase==='burn'?'Burn stopped':'Burn did not finish');
-    text=burnStop;html='';button=flow.detected?.rewritable?liveText('擦除后重新刻','Erase and burn again'):liveText('换一张空白盘重新刻','Replace with a blank and burn again');disabled=false;
+    text=measurementGateText(flow.burnFailureGate,api.lang())||burnStop;html='';
+    button=keepDiscForReview(flow.burnFailureGate)?recheckText(api.lang())
+      :flow.detected?.rewritable?liveText('擦除后重新刻','Erase and burn again'):liveText('换一张空白盘重新刻','Replace with a blank and burn again');
+    disabled=false;
   } else if(phase==='discRejected'){
     title=liveText('这张盘不能用来测','This disc cannot be measured');text=flow.discIssue;html='';
     button=flow.detected?.rewritable?liveText('擦除后重新刻','Erase and burn again'):liveText('换一张空白盘重新刻','Replace with a blank and burn again');disabled=false;
@@ -1198,7 +1225,8 @@ function realPaint() {
   sideButton(flow.job && ["burning", "checking", "timing", "geo"].includes(phase) ? liveText("先去放图，测好了叫我", "Place the picture; call me when done") : null);
   const previousAlert = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]')?.textContent;
   // what is not known yet and what to do next, for the phase on screen (an error panel has its own words)
-  const advice = flow.error || badBurn || (phase==='burn' && flow.eraseRequested) ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined, photoTaken: !!flow.photoOnly,
+  const burnNotice=phase==='burn'&&!cdHere()&&(!flow.burnInspection||flow.burnInspection.gate||flow.burnInspection.error||flow.eraseRequested);
+  const advice = flow.error || badBurn || burnNotice ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined, photoTaken: !!flow.photoOnly,
     external: phase === "burn" && cdHere() });
   $("cal").innerHTML = `<h2>${esc(title)}</h2><p class="lede">${esc(text)}</p>${advice}${html}`;
   acknowledgeVisibleResult();
@@ -1215,7 +1243,6 @@ function realPaint() {
   flog.title(flow.job ? title : "");
   $("cal").classList.toggle("floor-titled", !!flow.job && !st);     // with the stage, the title stays on the paper
   // The burn step requires the kit slider; all other steps use Next.
-  const hold = phase === "burn" && !cdHere();
   disabled ||= !!flow.curvePending;
   if(flow.job){
     paintStopButton($("job-cancel"),phase==='burning'&&!flow.job.verifying,api.lang(),phase==='erasing');
@@ -1231,6 +1258,11 @@ function realPaint() {
     : "");
 
   $("real-erase")?.addEventListener('click',()=>{flow.eraseRequested=true;flow.measureConfirmed=false;realNext();});
+  $("real-burn-erase")?.addEventListener('click',()=>{flow.eraseRequested=true;refreshBurnInspection();});
+  $("real-burn-recheck")?.addEventListener('click',()=>{flow.eraseRequested=false;refreshBurnInspection();});
+  $("measurement-batch-confirm")?.addEventListener('change',e=>{
+    flow.batchConfirmed=e.target.checked;paint();$("measurement-batch-confirm")?.focus();
+  });
   $("real-name")?.addEventListener("input", e => {flow.realName = e.target.value;});
   $("measurement-confirm")?.addEventListener("change", e => {
     flow.measureConfirmed = e.target.checked; paint(); $("measurement-confirm").focus();
@@ -1243,6 +1275,7 @@ function realPaint() {
   $("left-input")?.addEventListener("input", e => { flow.left = e.target.value === "" ? null : Number(e.target.value); });
   $("real-retry")?.addEventListener("click", () => {
     flow.error = null;
+    if(phase==='burn'&&!cdHere()){flow.eraseRequested=false;refreshBurnInspection();return;}
     if (!CAPACITY_PHASES.includes(phase)) flow.realPhase = "inspect";
     paint();
   });
@@ -1740,7 +1773,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
   $("job").hidden = false; $("job-name").textContent = stepWords(action); paint();
   const drive = ["info","timing","geo","burn","calibrate"].includes(action) ? api.selectedDrive() : undefined;
   placeLog(); flog.start(commandLine(action, drive));
-  let why = "", lastLine = "";            // what the core said last: a failed job is told by it, not by its exit code
+  let why = "", lastLine = "", burnGate;            // the core's own reason survives later summary events
   // checking the disc reports no progress of its own: the bar stays empty and the words say it is reading
   // (a guessed percentage or time left would only be wrong); it fills when the answer is in
   if (action === "info") {
@@ -1751,6 +1784,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
   const onEvent = event => {
       if (flow !== f) return;
       if (event.type === "error" && event.message) why = event.message;
+      if (event.type === "error" && event.burn_gate) burnGate = event.burn_gate;
       if (event.type === "log" && event.text?.trim()) lastLine = event.text.trim();
       // the measurement record: each geometry rung the core reports ("41.0 mm: moved +0.123 deg ...")
       if (event.type === "log" && /^\s*\d+(\.\d+)? mm: /.test(event.text || "")) {
@@ -1772,7 +1806,6 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       if (event.type === "started") {current.id = event.job;paint();}
       if (event.type === "step") {
         closeBurnStop();current.verifying=false;
-        if(event.name==='burn')f.burnStarted=true;
         f.realPhase = STEP_PHASE[event.name] ?? f.realPhase; f.stage = null; current.p = 0; f.head = null;
         if (event.name === "geo") { f.points = []; f.tape = []; }
         sfx.step(event.index ?? 0);
@@ -1816,6 +1849,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
     return result;
   } catch (error) {
     if (error.status === 422 && (why || lastLine)) error.message = why || lastLine;
+    if (burnGate) error.burnGate = burnGate;
     throw error;
   } finally { if (flow === f) {endJob(); f.ask = null; showInterior(false);} }
 }
@@ -1836,6 +1870,11 @@ async function realNext(forceMeasure = false) {
   flow.error = null;
   try {
     const phase = flow.realPhase;
+    if(phase==='burnStopped'&&keepDiscForReview(flow.burnFailureGate)){
+      flow.burnFailureGate=null;flow.burnCheck=null;flow.burnInterrupted=false;flow.burnStarted=false;
+      flow.burnInspection=null;flow.eraseRequested=false;flow.realPhase='inspect';
+      await realNext();return;
+    }
     if(phase==='burnStopped'||phase==='discRejected'||interruptedBurn(flow,api.lang())){
       if(flow.detected?.rewritable){
         flow.eraseRequested=true;flow.burnCheck=null;flow.cancelledByUser=null;flow.burnInterrupted=false;flow.burnStarted=false;
@@ -1847,7 +1886,11 @@ async function realNext(forceMeasure = false) {
       flow.realPhase='inspect';paint();return;
     }
     if (phase === "burn" && cdHere()) { flow.realPhase = "inspect"; return realNext(); }   // burned elsewhere: read it
-    if (phase === "burn") await realBurn();
+    if (phase === "burn") {
+      const report=flow.burnInspection, gate=report?.gate;
+      if(!report || report.error || gate && gate.code!=='other_batch')await refreshBurnInspection();
+      else if(!gate || flow.batchConfirmed)await realBurn();
+    }
     else if (phase === "capacityBlank") {
       const {disc} = await inspectDisc();
       if (disc.blank !== true) throw new Error(liveText('请放入一张同批次的空白盘，再检测。', 'Insert a blank from the same batch, then check again.'));
@@ -1931,6 +1974,7 @@ async function realNext(forceMeasure = false) {
       if (returnTo) { await api.syncState?.(); leave(); flow = null; return; }
       flow = null; release(); await api.reload(); return;
     }
+    if(flow.realPhase==='burn'&&!cdHere()&&!flow.burnInspection)await refreshBurnInspection();
     paint();
   } catch(error) { realError(error); }
 }
@@ -1952,8 +1996,9 @@ async function realCalibrate(args = {}, extra = {}) {
     else bands.push([a, b]);
   }
   flow.burnCheck = null;
-  try { result = await realJob("calibrate", { ...args, speed: "4x", avoid_mm: bands.map(([a, b]) => `${a}-${b}`), mid: flow.detected?.mid || undefined, preset, sectors: args.sectors ?? flow.blankSectors ?? undefined }, extra); }
+  try { result = await realJob("calibrate", { mid:flow.detected?.mid||undefined, ...args, speed: "4x", avoid_mm: bands.map(([a, b]) => `${a}-${b}`), preset, sectors: args.sectors ?? flow.blankSectors ?? undefined }, extra); }
   catch (error) {
+    if (error.burnGate) throw error;
     if (flow.burnCheck?.result === "failed" && flow.burnCheck.reason)
       throw Object.assign(new Error(flow.burnCheck.reason), {failure:true});
     if (!error.result?.timing && !error.result?.geo) {
@@ -2006,16 +2051,28 @@ function acknowledgeVisibleResult() {
 // The measurement disc, burned here: a fresh read-only look that the tray still holds a blank (which also
 // lets the server accept this one burn), a one-time token, the burn; then the disc is read again (written
 // now, same maker code) and measuring starts.
+function measurementBurnRequest(f) {
+  return {action:'calibrate',drive:api.selectedDrive(),media:f.detected?.media||f.item.row||'dvd',
+    args:{iso:f.iso,mid:f.detected?.mid||f.item.mid||undefined,...(f.eraseRequested?{erase:true}:{})}};
+}
+
+async function refreshBurnInspection() {
+  const f=flow;
+  if(f.burnInspecting)return;
+  f.burnInspecting=true;f.burnInspection=null;f.batchConfirmed=false;paint();
+  try {f.burnInspection=await checkBurn(api.backend,measurementBurnRequest(f));}
+  catch(error){f.burnInspection={error};}
+  finally{f.burnInspecting=false;if(flow===f)paint();}
+}
+
 async function realBurn() {
-  const media = flow.detected.media, drive = api.selectedDrive();
-  flow.burnCheck=null;flow.cancelledByUser=null;flow.burnInterrupted=false;flow.burnStarted=false;
-  flow.realPhase = "burning"; flow.burnP = 0; flow.stage = liveText('检查托盘里还是空白盘…', 'Checking the tray still holds the blank…'); paint();
-  const report = await api.backend.request(`/api/burn-speeds?drive=${encodeURIComponent(drive)}&media=${media}`);
-  if (report?.blank !== true && !(flow.eraseRequested && report?.rewritable)) { flow.realPhase = "burn"; throw new Error(liveText('光驱里不是空白盘。放回这批的空白盘再刻。', 'The drive does not hold a blank. Put a blank from this batch back and burn again.')); }
-  const args = { iso: flow.iso, ...(flow.eraseRequested ? {erase:true} : {}) };
-  const { token } = await api.backend.request("/api/burn-token", {action:"calibrate",drive,media,args});
+  const confirmed=flow.batchConfirmed?flow.burnInspection?.gate:null;
+  flow.burnCheck=null;flow.burnFailureGate=null;flow.cancelledByUser=null;flow.burnInterrupted=false;flow.burnStarted=false;
+  flow.realPhase = "burning"; flow.burnP = 0; flow.stage = checkingText(api.lang()); paint();
+  const {args,burn_token}=await confirmBurn(api.backend,measurementBurnRequest(flow),confirmed,api.lang());
   flow.stage = null;
-  await realCalibrate(args, { burn_token: token });
+  if(confirmed)flow.blankSectors=flow.burnInspection?.disc?.capacity_sectors || undefined;
+  await realCalibrate(args, {burn_token});
 }
 async function realSave() {
   flow.realPhase = "saving";

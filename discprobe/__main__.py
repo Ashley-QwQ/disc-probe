@@ -1173,7 +1173,7 @@ def cmd_image(args):
     # Resolve the library link before doing image work; completion is recorded only after verification.
     from .works_link import check_work, image_completed
     check_work(args)
-    from . import image_output, imagedisc
+    from . import burn_gate, image_output, imagedisc
     if getattr(args, 'files', None) and (args.media != 'dvd' or args.start_lba or args.random_below_mm):
         sys.exit('随盘文件只支持完整单层 DVD，不支持 CD、BD、追加或随机内圈')
     writer = imagedisc
@@ -1312,6 +1312,7 @@ def cmd_image(args):
     print(f"{kind}, {imagedisc.cell_mm(design) * 1000:g} um cells, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
           f"({total * 2048 / 1e9:.2f} GB), {tex}")
     corr = imagedisc.load_correction(args.correction) if args.correction else None
+    calibration_mid = burn_gate.measurement_mid(args.geo)
     try:
         with ui.writing(args.output, total - first) as log:
             spec = writer.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
@@ -1322,7 +1323,8 @@ def cmd_image(args):
                                                                  else args.along_track_frames),
                                           "photo_l": photo_decision,
                                           "correction": os.path.abspath(args.correction) if args.correction else None,
-                                          **identity_meta},
+                                          **identity_meta,
+                                          **({"calibration_mid": calibration_mid} if calibration_mid else {})},
                                     correction=corr, textures=args.textures, log=log, **extra, **discid.options(args))
             with ui.busy("Checking what was written..."):
                 problems = image_output.verify_generated(args.output, writer.verify_iso, design, u, v, bit, total,
@@ -2209,6 +2211,10 @@ def _build_parser():
                     "skip automatic sampled read-back after writing")
     sp.add_argument("--yes-write", action="store_true", help="确认不可逆的刻录操作" if burn_zh else
                     "confirm irreversible writing")
+    sp.add_argument("--expected-mid", help="作品批次的 MID（旧镜像可手动指定）" if burn_zh else
+                    "calibrated batch MID (can be supplied for an older ISO)")
+    sp.add_argument("--allow-other-batch", action="store_true", help="明确允许在不同批次的盘上刻录" if burn_zh else
+                    "explicitly allow writing to a different disc batch")
     sp.add_argument('--keep-open', action='store_true', help='DVD：本次刻录后保持光盘开放' if burn_zh else 'DVD: leave disc open after this session')
     sp.add_argument('--erase', action='store_true', help='erase recorded rewritable media before burning')
     sp.add_argument('--append', action='store_true', help='DVD：追加会话并封盘，需要 --expect-start' if burn_zh else 'DVD: append and close; requires --expect-start')

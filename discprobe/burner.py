@@ -20,11 +20,23 @@ import tempfile
 import threading
 import time
 
-from . import disc_identity, discid, image_output, mmc, ui
+from . import burn_gate, disc_identity, discid, image_output, mmc, ui
 
 
 class BurnError(ValueError):
-    pass
+    def __init__(self, message, *, gate=None):
+        super().__init__(message)
+        self.gate = gate
+
+
+def reject(gate, *, cli_hint=False):
+    if gate:
+        message = f"{gate['zh']} / {gate['en']}"
+        if cli_hint:
+            message += " 确认仍要刻录请加 --allow-other-batch。 / Use --allow-other-batch to confirm and proceed."
+        if gate['code'] == 'recorded_rw':
+            message += " 用 --erase 确认擦除。 / Use --erase to confirm erasing."
+        raise BurnError(message, gate=gate)
 
 
 def choose_speed(requested, supported, media="dvd"):
@@ -67,12 +79,11 @@ def validate_media(info, media, sectors, *, append=False, expect_start=None):
             raise BurnError('Append requires a recorded open DVD, not a blank or closed disc.')
         if expect_start is None or info.get('next_writable') != expect_start:
             raise BurnError(f"NWA mismatch: drive {info.get('next_writable')}, expected {expect_start}.")
-    elif info.get("blank") is not True:
-        raise BurnError("A freshly verified blank disc is required.")
+    else:
+        reject(burn_gate.medium_problem(info, media))
     if info.get("media") != media:
         raise BurnError(f"Wrong disc kind: expected {media}.")
-    if info.get("free_sectors", 0) < sectors:
-        raise BurnError("The image does not fit the free sectors on this disc.")
+    reject(burn_gate.capacity_problem(sectors, info.get('free_sectors', 0)))
 
 
 def parse_progress(line):
@@ -401,7 +412,8 @@ def verify_image(drive, image, media, cancel, *, device_factory=None, start_lba=
 
 
 def _write_preflight(drive, image, *, media, speed, recorder, cancel, keep_open,
-                     append, expect_start, disc_id, disc_id_code, erase, expected_identity):
+                     append, expect_start, disc_id, disc_id_code, erase, expected_identity,
+                     expected_mid, allow_other_batch):
     """Plan the write and any erase using read-only evidence."""
     if media not in ("dvd", "cd"):
         raise BurnError("Only DVD and CD burning are supported.")
@@ -451,6 +463,7 @@ def _write_preflight(drive, image, *, media, speed, recorder, cancel, keep_open,
         expected_identity = disc_identity.expected_for_write(drive, erasing=erase)
     if expected_identity is not None:
         disc_identity.require_identity(expected_identity, erasing=erase)
+        reject(burn_gate.medium_problem(expected_identity, media, erase=erase, append=append))
     recorder = recorder or adapter(drive, media)
     if (keep_open or append) and isinstance(recorder, LinuxBurner):
         raise BurnError('Session options currently require the Windows DVD IMAPI path.')
@@ -461,18 +474,19 @@ def _write_preflight(drive, image, *, media, speed, recorder, cancel, keep_open,
         erase_recorder = recorder if hasattr(recorder, 'erase') else eraser.adapter(drive)
         target = erase_recorder.inspect()
         if target.get('media') != media or info.get('media') != media:
+            reject(burn_gate.medium_problem(target, media, erase=True) or burn_gate.medium_problem(info, media, erase=True))
             raise BurnError(f'Wrong disc kind: expected {media}.')
         if not target.get('rewritable'):
             raise BurnError('This disc is not rewritable; erasing is refused.')
         capacity = target.get('capacity_sectors') or info.get('capacity_sectors')
         if isinstance(recorder, LinuxBurner) and media == 'cd' and capacity:
             capacity -= 300  # same closing reserve as LinuxBurner.inspect
-        if not capacity or size // 2048 > capacity:
-            raise BurnError('The image does not fit, or rewritable capacity is unknown; erasing was refused.')
+        reject(burn_gate.capacity_problem(size // 2048, capacity))
     else:
-        if info.get('blank') is not True and not append and info.get('rewritable'):
-            raise BurnError('Recorded rewritable disc: add --erase to erase its contents before burning.')
         validate_media(info, media, size // 2048, append=append, expect_start=expect_start)
+    if not allow_other_batch:
+        actual_mid = (expected_identity or {}).get('mid') or info.get('mid')
+        reject(burn_gate.batch_problem(actual_mid, expected_mid or burn_gate.expected_batch(image)), cli_hint=True)
     selected = choose_speed(speed, info["speeds_x"], media)
     if isinstance(recorder, LinuxBurner) and media == 'cd':
         if any(char in str(image) for char in '"\n\r'):
@@ -516,7 +530,8 @@ def _write_preflight(drive, image, *, media, speed, recorder, cancel, keep_open,
 @locked_drive("burn")
 def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None, cancel=None,
          no_verify=False, verifier=None, keep_open=False, append=False, expect_start=None,
-         disc_id=False, disc_id_code=None, state_checker=None, erase=False, expected_identity=None):
+         disc_id=False, disc_id_code=None, state_checker=None, erase=False, expected_identity=None,
+         expected_mid=None, allow_other_batch=False):
     if yes_write is not True:
         raise BurnError("Writing requires explicit --yes-write confirmation.")
     try:
@@ -524,7 +539,8 @@ def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None,
             return _burn_locked(drive, image, media=media, speed=speed, recorder=recorder,
                 cancel=cancel or threading.Event(), no_verify=no_verify, verifier=verifier, keep_open=keep_open,
                 append=append, expect_start=expect_start, disc_id=disc_id, disc_id_code=disc_id_code,
-                state_checker=state_checker, erase=erase, expected_identity=expected_identity)
+                state_checker=state_checker, erase=erase, expected_identity=expected_identity,
+                expected_mid=expected_mid, allow_other_batch=allow_other_batch)
     except ValueError as exc:
         if isinstance(exc, (BurnError, disc_identity.DiscChanged)):
             raise
@@ -556,11 +572,13 @@ def _burn_log(drive, image, media):
 
 
 def _burn_locked(drive, image, *, media, speed, recorder, cancel, no_verify, verifier, keep_open,
-                 append, expect_start, disc_id, disc_id_code, state_checker, erase, expected_identity):
+                 append, expect_start, disc_id, disc_id_code, state_checker, erase, expected_identity,
+                 expected_mid, allow_other_batch):
     size, recorder, erase_recorder, info, selected, source, identity, log_path, record, expected_identity = _write_preflight(
         drive, image, media=media, speed=speed, recorder=recorder, cancel=cancel,
         keep_open=keep_open, append=append, expect_start=expect_start, disc_id=disc_id,
-        disc_id_code=disc_id_code, erase=erase, expected_identity=expected_identity)
+        disc_id_code=disc_id_code, erase=erase, expected_identity=expected_identity,
+        expected_mid=expected_mid, allow_other_batch=allow_other_batch)
     if erase_recorder is not None:
         from . import eraser
         erased = eraser.erase(drive, cancel=cancel, recorder=erase_recorder, expected_identity=expected_identity)
@@ -611,7 +629,7 @@ def _burn_locked(drive, image, *, media, speed, recorder, cancel, no_verify, ver
         record("burn_result", result="cancelled" if cancel.is_set() else "failed", reason=message,
                requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=reported,
                elapsed_s=elapsed, verified=False)
-        raise BurnError(f"{message}\nElapsed: {elapsed:.1f}s.") from exc
+        raise BurnError(f"{message}\nElapsed: {elapsed:.1f}s.", gate=burn_gate.write_problem(message)) from exc
     elapsed = time.monotonic() - started
     record("burn_speed", requested_speed_x=speed, selected_speed_x=selected, actual_speed_x=actual)
     print(f"Write completed in {elapsed:.1f}s; drive/utility reports: "
@@ -681,13 +699,14 @@ def _burn_locked(drive, image, *, media, speed, recorder, cancel, no_verify, ver
               flush=True)
     record("burn_result", **result)
     if reasons:
-        raise BurnError(result['reason'])
+        raise BurnError(result['reason'], gate=burn_gate.write_problem(result['reason'], read_back=state['status'] != 'failed'))
     return result
 
 
 def run(args):
     from .works_link import check_work, burn_completed
-    check_work(args)
+    from .works import Store
+    work = check_work(args)
     if args.media == "cd":
         from . import cd
         cd.set_sector_layout(args.cd_sector)
@@ -706,12 +725,22 @@ def run(args):
     try:
         erase = getattr(args, 'erase', False)
         expected = disc_identity.expected_for_write(args.drive, erasing=erase) if args.yes_write else None
+        work_root = Store().root.parent if work else None
+        expected_mid = burn_gate.expected_batch(Path(args.iso).resolve(), work=work, work_root=work_root,
+                                                explicit=os.environ.get(burn_gate.EXPECTED_MID_ENV),
+                                                fallback=getattr(args, 'expected_mid', None)) if args.yes_write else None
         result = burn(args.drive, args.iso, media=args.media, speed=args.speed, yes_write=args.yes_write,
              cancel=cancel, no_verify=args.no_verify, keep_open=args.keep_open,
              append=args.append, expect_start=args.expect_start, erase=erase,
-             expected_identity=expected, **discid.options(args))
+             expected_identity=expected, expected_mid=expected_mid,
+             allow_other_batch=getattr(args, 'allow_other_batch', False), **discid.options(args))
         burn_completed(args, result)
     except (BurnError, disc_identity.DiscChanged) as exc:
+        gate = getattr(exc, 'gate', None)
+        message = str(exc)
+        if getattr(exc, 'not_ready', None):
+            gate = burn_gate.medium_problem({'not_ready': exc.not_ready}, args.media)
+            message = f"{gate['zh']} / {gate['en']}"
         # A failed attempt may still have written data. File that attempt's report too, without
         # borrowing a previous burn from this image's append-only log.
         # Without a burn log the attempt was refused before anything was written or recorded.
@@ -732,11 +761,11 @@ def run(args):
             source = Path(str(args.iso) + '.burn.jsonl')
             if source.is_file() and not source.is_symlink() and source.stat().st_size <= 8 * 1024 * 1024:
                 (folder / 'burn.log').write_text(source.read_text(encoding='utf-8'), encoding='utf-8')
-            save_failure(folder, str(exc), args)
+            save_failure(folder, message, args)
         except OSError as error:
             print(f'Could not save burn diagnostics: {error}', file=sys.stderr)
-        ui.event("error", message=str(exc))
-        raise SystemExit(str(exc)) from None
+        ui.event("error", message=message, **({'burn_gate': gate} if gate else {}))
+        raise SystemExit(message) from None
     finally:
         stop.set()
         watcher.join()

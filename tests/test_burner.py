@@ -53,6 +53,20 @@ class BurnerTests(unittest.TestCase):
         with self.assertRaisesRegex(burner.BurnError, "2048"):
             self.burn(yes_write=True)
 
+    def test_burn_uses_measurement_mid_for_old_image(self):
+        summary = self.root / 'summary.json'
+        summary.write_text(json.dumps({'identity': {'disc': 'RITEKF1'}}), encoding='utf-8')
+        self.iso.with_suffix('.image.json').write_text(
+            json.dumps({'geometry_from': str(summary)}), encoding='utf-8')
+        self.recorder.inspect.return_value['mid'] = 'TYG02'
+        with self.assertRaisesRegex(burner.BurnError, r'TYG02.*RITEKF1.*--allow-other-batch') as error:
+            self.burn(yes_write=True)
+        self.assertEqual(error.exception.gate['code'], 'other_batch')
+        self.recorder.write.assert_not_called()
+        result = self.burn(yes_write=True, allow_other_batch=True)
+        self.assertEqual(result['result'], 'completed')
+        self.recorder.write.assert_called_once()
+
     def test_speed_selection(self):
         self.assertEqual(burner.choose_speed(None, [8, 4, 4]), 8)
         self.assertEqual(burner.choose_speed(None, [4, 16], "cd"), 4)

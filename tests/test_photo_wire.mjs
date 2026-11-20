@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import * as guidance from '../discprobe/web/home/guidance.mjs';
 import * as photowords from '../discprobe/web/home/photowords.mjs';
 import * as burnStop from '../discprobe/web/home/burn-stop.js';
+import * as burnPreflight from '../discprobe/web/home/burn-preflight.js';
 
 // Execute the actual flow with a small host and a photo-page adapter. No drive, server or timers run.
 const source = readFileSync(new URL('../discprobe/web/home/calibrate.js',import.meta.url),'utf8');
@@ -49,7 +50,7 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
       state:async()=>({catalogue:{[media]:[{id:'saved',geo:geo.path,name:'MID'}]}}),
     }};
   let opts;
-  const context = vm.createContext({...guidance,...photowords,...burnStop,photoSeconds:photowords.seconds,document,location:{search:''},URLSearchParams,console,
+  const context = vm.createContext({...guidance,...photowords,...burnStop,...burnPreflight,photoSeconds:photowords.seconds,document,location:{search:''},URLSearchParams,console,
     flipValue:el=>el.textContent,nextConfirm:(btn,options={})=>{btn.hidden=!!options.active;btn.confirmOptions=options;},ringButton:()=>({progress(){},done(){},destroy(){}}),
     setTimeout:(fn,ms)=>{const id=timers.size+1;timers.set(id,{fn,ms});return id;},clearTimeout:id=>timers.delete(id),clearInterval(){},performance,
     loadDisc:{desk(){}},calchart:{resultChart:()=>''},sfx:{done(){},problem(){},failure(){}},

@@ -520,6 +520,14 @@ python -m discprobe geo --drive H:
 
 ## Burning pictures, textures and colour
 
+Before writing, `burn` checks for a writable disc with enough space. It compares
+the inserted disc's maker code (MID) to the saved work batch or, if that MID is
+unavailable, to the measurement used to make the image. If the codes differ,
+insert a blank from the calibrated batch or calibrate the new batch first.
+`--allow-other-batch` confirms you want to continue anyway, with a risk that the
+picture will be misaligned. For an older ISO without its calibration record,
+you can supply `--expected-mid` explicitly.
+
 Once the geometry has been measured from timing, it can be used directly to generate a burnable ISO (Windows Disc Image Burner can burn it), without taking photos or tracing points. Photos of the finished discs are in [`showcase/`](showcase/README.md).
 
 **Burning pictures (`image`):**
