@@ -166,7 +166,7 @@ class Result:
     def reliable(self, radius_range=None) -> bool:
         """Complete, not judged too noisy, and the drive did not change state during the run."""
         from .coverage import range_warning
-        local_use = radius_range is not None and self.fit.get('completion_status') in ('candidates_exhausted', 'partial_readable')
+        local_use = radius_range is not None and self.fit.get('completion_status') in ('candidates_exhausted', 'partial_readable', 'coverage_incomplete')
         complete = self.geo_complete() or (local_use and 'u' in self.fit and not self.stopped and self.rungs() >= MIN_RUNGS)
         validation = self.fit.get('correction_validation')
         sigma = validation.get('repeat_cv_rms_deg') if validation else self.sigma
@@ -366,7 +366,7 @@ def install_blocker(geo_summary: str, allow_simulated: bool = False, radius_rang
     if "u" not in fit:
         return "this run has no geometry fit in its summary.json, so there is nothing to install."
     status = fit.get('completion_status', 'target_reached')
-    if status != 'target_reached' and not (radius_range is not None and status in ('candidates_exhausted', 'partial_readable')):
+    if status != 'target_reached' and not (radius_range is not None and status in ('candidates_exhausted', 'partial_readable', 'coverage_incomplete')):
         return "this run exhausted its candidates before reaching the target; measure again before installing a preset."
     rungs = None
     try:
@@ -450,7 +450,7 @@ def resolve_geo(value: str, media: str | None = None, out: str = "results", radi
         if r is None:
             have = any(x.kind == "geo" for x in scan(out))
             partial = [x for x in scan(out) if x.kind == 'geo' and not x.simulated and
-                       x.fit.get('completion_status') in ('candidates_exhausted', 'partial_readable')]
+                       x.fit.get('completion_status') in ('candidates_exhausted', 'partial_readable', 'coverage_incomplete')]
             if partial:
                 spans = [(x.fit.get('coverage') or {}).get('measured_intervals_mm', x.fit.get('measured_span_mm')) for x in partial]
                 raise ValueError(f'--geo latest: only partial measurements cover radii {spans} mm. '

@@ -41,8 +41,9 @@ import time
 
 import numpy as np
 
-from . import analysis, geo_speed
+from . import analysis, geo_speed, ui
 from .calib import SECTOR_BITS, CalLayout, theta
+from .coverage import RADIUS_TOL_MM, assess_range, default_range
 
 BD_SECTOR_PER_UNIT = 32           # a Blu-ray recording unit is 32 sectors, the way a DVD block is 16
 BD_SECTOR_BITS = 962136 / 32.0    # channel bits per Blu-ray sector
@@ -76,6 +77,8 @@ CD_AUDIO_RANGE = (0.0125, 0.99)
 ROTATION_READS = 24
 ROTATION_COHERENCE = 0.8    # one outlier takes a clear period to about 0.93 in 24 reads
 MIN_ROTATION_RATIO = 1.1    # a span narrower than this can't tell CLV from constant rotation
+MAX_COVERAGE_READS = 12     # rung attempts, including unsuccessful reads and retries at a different LBA
+MAX_COVERAGE_SECONDS = 120
 CLV_RATIO_SLACK = 0.03      # one report's CLV was 0.3 % off the nominal radii, and a period read as twice the turn must not pass
 CAV_RATIO_SLACK = 0.05      # outer/inner periods must agree within 5 % for constant rotation
 
@@ -91,7 +94,7 @@ class Ladder:
                  max_targets=None, sigma_u=None, sigma_v=None, speed_kbs="default", ref_lba=None,
                  host_delay_ms=25.0, log=print, seed=1, media="dvd", chi2_abort=CHI2_ABORT, sectors=1,
                  read_offset_bytes: float = 0.0, state_check: bool = True, completion_sectors: int = 0,
-                 auto_correct: bool = True):
+                 auto_correct: bool = True, resume=None):
         self.media = media
         from .read_completion import sectors as check_completion
         self.completion_sectors = check_completion(completion_sectors)
@@ -100,6 +103,8 @@ class Ladder:
         self.state_check = state_check
         self.state = None
         self.auto_correct = auto_correct
+        self.resume = resume
+        self.pending_identity_lbas = set()
         self.bend = None
         self.correction = None
         self.probes = []
@@ -398,6 +403,181 @@ class Ladder:
         m["predicted_deg"] = predicted_deg
         self.targets.append(m)
 
+    def _emit_point(self, target):
+        ui.event('geo_point', rung=len(self.targets), lba=target['lba'],
+                 radius_mm=float(self._fit_radius(target['n'])),
+                 residual_deg=target.get('residual_deg', target['unwrapped_deg'] - target['predicted_deg']),
+                 sigma_deg=target['sigma_deg'])
+
+    def _coverage_assessment(self):
+        coverage = self.coverage()
+        intervals = coverage['measured_intervals_mm']
+        span = (intervals[0][0], intervals[-1][1]) if intervals else None
+        return assess_range({'coverage': coverage}, default_range(self.media, span))
+
+    def _repair_ranges(self, gaps):
+        """Extend the default random-data search only as far as the picture needs."""
+        if self.ranges_arg or self.auto_ranges is not None:
+            return
+        from .content import is_random
+        tp = self.tp
+        radius = lambda lba: float(self._fit_radius(self._n_end(lba)))
+        empty = {c['lba'] // self.block * self.block for c in
+                 (tp.summary.get('disc_identity') or {}).get('copies', [])
+                 if self.media == 'dvd' and c['status'] == 'missing'}
+        for a, z in tp.reserved_lba[:]:
+            if a not in empty or not any(lo <= radius(a) <= hi for lo, hi in gaps):
+                continue
+            # A successful identity read without a header is only a candidate.
+            # Check the whole block is random before removing its metadata guard.
+            data = tp._read(a, z-a, label='disc-identity')
+            if data.ok and all(is_random(lba, data.data[(lba-a)*2048:(lba-a+1)*2048]) for lba in range(a, z)):
+                tp.reserved_lba.remove((a, z))
+                self.pending_identity_lbas.add(a)
+        if 'reserved_lba' in tp.summary:
+            tp.summary['reserved_lba'] = list(tp.reserved_lba)
+        lo, hi = self.base_range
+        for a, z in gaps:
+            # Limit any expansion to the edge of the requested annulus, with a
+            # small buffer for changes in the fit. Every new rung is content-checked.
+            if a < radius(lo):
+                lo = max(0, min(lo, self._lba_at_radius(a - .03)))
+            if z > radius(hi - self.block):
+                hi = min(tp.last_lba + 1, max(hi, self._lba_at_radius(z + .03) + self.block))
+        self.ranges = [(a, z) for a, z in tp.safe_ranges([(lo, hi)], self.completion_sectors) if z - a > 64]
+
+    def _lba_at_radius(self, radius):
+        bit = self.prior.bit_nm * 1e-6
+        n = math.pi * ((radius / bit)**2 - self.u**2) / self.v
+        step = self._n_end(self.ref + self.block) - self.n_ref
+        return self.ref + round((n - self.n_ref) / step) * self.block
+
+    def _coverage_candidate(self, assessment, tried):
+        inner, outer = assessment['requested_mm']
+        for lo, hi in sorted(assessment['extrapolated_mm'], key=lambda band: band[1] - band[0], reverse=True):
+            # Sample either side of genuine unreadable areas as closely as the
+            # reader allows. Retry a failed rung first if it lies in the hole.
+            left, right = self._lba_at_radius(lo), self._lba_at_radius(hi)
+            middle = self._lba_at_radius((lo + hi) / 2)
+            preferred = left if lo == inner else right if hi == outer else middle
+            choices = [*self.pending_identity_lbas, *self.failed_candidates]
+            for a, z in self.ranges:
+                if left < z and a <= right:
+                    choices.extend(min(z - self.block, max(a, lba)) for lba in
+                                   np.linspace(left, right, 5, dtype=int) // self.block * self.block)
+            for lba in sorted(set(choices), key=lambda x: (x not in self.pending_identity_lbas,
+                                                          x not in self.failed_candidates, abs(x-preferred), x)):
+                lba = int(lba)
+                n = self._n_end(lba)
+                if (lba not in tried and self._allowed(lba) == lba
+                        and lo - RADIUS_TOL_MM <= self._fit_radius(n) <= hi + RADIUS_TOL_MM
+                        and self._sigma_pred_deg(n) < SAFE_DEG):
+                    return lba
+        return None
+
+    def _fill_coverage(self):
+        """Repair only missing intervals. Keep an honest partial result at either limit."""
+        missing = self._coverage_assessment()['extrapolated_mm']
+        if not missing:
+            return
+        self.progress_stage = 'reading missing radii'
+        self.tp.coverage_deadline = time.monotonic() + MAX_COVERAGE_SECONDS
+        try:
+            self._repair_ranges(missing)
+            self._repair_rungs()
+        except TimeoutError:
+            pass
+        finally:
+            self.tp.coverage_deadline = None
+        missing = self._coverage_assessment()['extrapolated_mm']
+        if missing:
+            self.completion_status = 'coverage_incomplete'
+            self.log('Missing radii (mm): ' + ', '.join(f'{a:.3f}-{z:.3f}' for a, z in missing))
+
+    def _repair_rungs(self):
+        from .content import is_random
+        tried = {self.ref, *(t['lba'] for t in self.targets), *(p['lba'] for p in self.probes)}
+        for _ in range(MAX_COVERAGE_READS):
+            assessment = self._coverage_assessment()
+            if assessment['covered'] or time.monotonic() >= self.tp.coverage_deadline:
+                break
+            lba = self._coverage_candidate(assessment, tried)
+            if lba is None:
+                break
+            tried.add(lba)
+            if self.media == 'dvd' and not self.ranges_arg and self.auto_ranges is None:
+                data = self.tp._read(lba, 1, label='content')
+                if not data.ok or not is_random(lba, data.data):
+                    self.failed_candidates = sorted(set(self.failed_candidates) | {lba})
+                    continue
+            self.progress_total += self.reps
+            m = self._measure_retry(lba)
+            pred = math.degrees(self._predict(self._n_end(lba)))
+            sigma = self._sigma_pred_deg(self._n_end(lba))
+            if m is None or abs((m['phase_deg'] - pred + 180) % 360 - 180) > min(
+                    TURN_ABORT_DEG, max(SAFE_DEG, 3 * math.hypot(sigma, m['sigma_deg']))):
+                self.failed_candidates = sorted(set(self.failed_candidates) | {lba})
+                self.progress_probe_done += self.reps
+                continue
+            original = self.u, self.v, self.c, self.bend
+            self._add(m, pred)
+            self.fit()
+            if original[3] is None and (self.bend is not None or self.chi2_dof > self.chi2_abort
+                                       or max(abs(t['residual_deg']) for t in self.targets) > TURN_ABORT_DEG):
+                self.targets.pop()
+                self.u, self.v, self.c, self.bend = original
+                self.fit()
+                self.failed_candidates = sorted(set(self.failed_candidates) | {lba})
+                self.progress_probe_done += self.reps
+                continue
+            self._emit_point(m)
+            self.log(f"  rung {len(self.targets):2d}: LBA {lba:>8} predicted +/- {sigma:6.2f} deg, "
+                     f"whole turns {round(m['unwrapped_deg'] / 360):>7}, residual {m['residual_deg']:+7.3f} deg, "
+                     f"chi2/dof {self.chi2_dof:.2f}")
+            self.pending_identity_lbas.discard(lba)
+            if lba in self.failed_candidates:
+                self.failed_candidates.remove(lba)
+
+    def _resume_ladder(self):
+        source, targets = self.resume
+        old = source['fit']
+        tp = self.tp
+        observed = tp.summary.get('identity') or {}
+        expected = source.get('identity') or {}
+        saved_record = (source.get('disc_identity') or {}).get('record')
+        record = (tp.summary.get('disc_identity') or {}).get('record')
+        if (tp.last_lba != (source.get('setup') or {}).get('last_lba') or
+                any(expected.get(k) and expected[k] != observed.get(k) for k in ('drive', 'firmware', 'disc')) or
+                (saved_record and (record or {}).get('sha256') != saved_record.get('sha256')) or
+                abs(self.T * 1000 / old['period_ms'] - 1) > PERIOD_TOL):
+            raise RuntimeError('put the same measurement disc back in the original drive at the original speed')
+        self.u, self.v, self.c = old['u'], old['v'], math.radians(old['c_deg'])
+        restore = [float(self._fit_radius(self._n_end(t['lba']))) for t in targets if self._allowed(t['lba']) != t['lba']]
+        if restore:
+            self._repair_ranges([(r - .001, r + .001) for r in restore])
+        if self.ref != old['reference_lba'] or any(self._allowed(t['lba']) != t['lba'] for t in targets):
+            raise RuntimeError('the readable area changed; recheck this disc before measuring')
+        # For older discs with no identity record, compare several measured
+        # phases across the disc in addition to capacity, MID and reader.
+        targets = [{**t, 'n': self._n_end(t['lba'])} for t in targets]
+        indexed = sorted(targets, key=lambda t: t['lba'])
+        anchors = [indexed[i] for i in (0, len(indexed) // 2, len(indexed) - 1)]
+        self.progress_stage = 'checking the previous measurement'
+        self.progress_total = (len(targets) + 2 * len(anchors)) * self.reps
+        self.sentinels = anchors
+        self.check_state(reps=self.reps)
+        if self.state['verdict'] == 'changed' or any(p['phase_again_deg'] is None for p in self.state['points']):
+            raise RuntimeError('the saved check points did not match; put the same measurement disc back in the original drive')
+        self.pending_identity_lbas.difference_update(t['lba'] for t in targets)
+        self.targets = targets
+        self.fit()
+        self.completion_status = 'target_reached'
+        self.failed_candidates = list(old.get('failed_candidates') or [])
+        self._fill_coverage()
+        self.check_state(reps=self.reps)
+        self.progress_finished = True
+        return self.result()
+
     def _random_parts(self, ranges):
         """Leave out what isn't random data (see content.py); a disc of random data keeps the default range."""
         from . import content
@@ -450,6 +630,7 @@ class Ladder:
             self.ranges = [(int(last * 0.01), int(last * 0.98))]
         else:
             self.ranges = [(int(last * 0.03), int(last * 0.85))]
+        self.base_range = self.ranges[0]
         if getattr(tp, 'reserved_lba', []) or tp.summary.get('random_label'):
             self.ranges = tp.safe_ranges(self.ranges, self.completion_sectors)
         if not self.ranges_arg and not self.audio and self.media == "dvd":
@@ -471,6 +652,8 @@ class Ladder:
         self.log(f"Reference LBA {self.ref}; readable ranges {self.ranges}")
         self.check_rotation()
         self.settle()
+        if self.resume:
+            return self._resume_ladder()
         self.sentinels = []
         self.progress_total = self.max_targets * self.reps
         if self.state_check:
@@ -497,6 +680,7 @@ class Ladder:
                 self.c = math.radians(((m["phase_deg"] - pred + 180) % 360) - 180)
                 pred = math.degrees(self._predict(m["n"]))
             self._add(m, pred)
+            self._emit_point(m)
             self.log(f"  rung {len(self.targets):2d}: LBA {lba:>8} ({turns:+.1f} turns) phase {m['phase_deg']:8.3f} "
                      f"+/- {m['sigma_deg']:.3f} deg")
         self.fit()
@@ -612,8 +796,14 @@ class Ladder:
                 self.completion_status = "unwrap_ambiguous"
                 raise RuntimeError(f"after the rung at LBA {lba}: chi2/dof {self.chi2_dof:.1f}, worst residual "
                                    f"{worst:.1f} deg; a whole-turn count is probably wrong, so the fit was stopped")
+            self._emit_point(m)
+        check_coverage = self.media in ('dvd', 'cd') and not self.ranges_arg and self.completion_status == 'target_reached'
+        if check_coverage:
+            self._fill_coverage()
         if self.bend is not None and self.auto_correct:
             self.dense_correction()
+            if check_coverage and self.completion_status == 'coverage_incomplete' and self._coverage_assessment()['covered']:
+                self.completion_status = 'target_reached'
         if (self.failed_candidates or self.probe_failures) and self.completion_status == 'target_reached':
             self.completion_status = 'partial_readable'
         if self.sentinels:
@@ -760,7 +950,7 @@ class Ladder:
             self.log("Check points read: " + ", ".join(f"{self._radius(s['lba']):.1f} mm" for s in self.sentinels)
                      + " (read again at the end)")
 
-    def check_state(self) -> None:
+    def check_state(self, reps=None) -> None:
         b = self.prior.bit_nm * 1e-6
         sem = lambda x: x.get("sem_deg") if x.get("sem_deg") is not None else x["sigma_deg"]
         self.log("Reading the check points again, to see that the drive stayed in one state...")
@@ -769,8 +959,9 @@ class Ladder:
         for s in self.sentinels:
             e = {"lba": s["lba"], "radius_mm": round(b * math.sqrt(self.u ** 2 + self.v * s["n"] / math.pi), 2),
                  "phase_first_deg": s["phase_deg"], "phase_again_deg": None, "period_first_ms": s["period_ms"]}
-            m = self._measure_retry(s["lba"], SENTINEL_REPS * self.reps)
-            self.progress_checks_done += SENTINEL_REPS * self.reps
+            count = reps or SENTINEL_REPS * self.reps
+            m = self._measure_retry(s["lba"], count)
+            self.progress_checks_done += count
             if m is not None:
                 e.update(phase_again_deg=m["phase_deg"],
                          change_deg=round((m["phase_deg"] - s["phase_deg"] + 180.0) % 360.0 - 180.0, 3),
@@ -904,7 +1095,8 @@ class Ladder:
     def coverage(self):
         """Measured islands and holes, not a claim that all intervening radii were checked."""
         good = sorted({self.ref} | {t['lba'] for t in self.targets} | {p['lba'] for p in self.probes})
-        failed = sorted(set(getattr(self, 'failed_candidates', [])) | {p['lba'] for p in self.probe_failures})
+        failed = sorted(set(getattr(self, 'failed_candidates', [])) |
+                        {p['lba'] for p in self.probe_failures} | self.pending_identity_lbas)
         # Failed candidates partition readable islands, even when both outer edges succeeded.
         islands = []
         for a, z in self.ranges:
@@ -930,6 +1122,41 @@ class Ladder:
                     covariance='conditional on constant pitch; excludes model bias',
                     prediction_checks=self.prediction_checks,
                     independent_check_lbas=[p['lba'] for p in self.correction_checks])
+
+
+def resume_supported(summary, media):
+    fit = summary.get('fit') or {}
+    return (not summary.get('stopped') and media in ('dvd', 'cd') and fit.get('media', 'dvd') == media
+            and not (fit.get('varying_pitch') or fit.get('correction_file'))
+            and fit.get('completion_status', 'target_reached') in ('target_reached', 'coverage_incomplete', 'partial_readable')
+            and (fit.get('state_check') or {}).get('verdict') != 'changed'
+            and all(isinstance(fit.get(k), (int, float)) and math.isfinite(fit[k])
+                    for k in ('u', 'v', 'c_deg', 'period_ms', 'reference_lba'))
+            and fit['period_ms'] > 0)
+
+
+def resume_source(path, media):
+    """Read an existing angle ladder without modifying any of its artifacts."""
+    from pathlib import Path
+    source = Path(path)
+    source = source / 'summary.json' if source.is_dir() else source
+    summary = json.loads(source.read_text(encoding='utf-8'))
+    if not resume_supported(summary, media):
+        raise ValueError('this geometry cannot be continued; check rotation and measure the disc again')
+    targets = []
+    with (source.parent / 'targets.csv').open(encoding='utf-8') as stream:
+        for row in csv.DictReader(stream):
+            keys = ('phase_deg', 'sigma_deg', 'std_deg', 'predicted_deg', 'unwrapped_deg', 'period_ms')
+            target = {k: float(row[k]) for k in keys}
+            if not all(map(math.isfinite, target.values())) or target['sigma_deg'] <= 0:
+                raise ValueError('invalid saved geometry target')
+            phase = target['phase_deg']
+            target.update(lba=int(row['lba']), used=int(row['used']),
+                          unwrapped_deg=phase + 360 * round((target['unwrapped_deg'] - phase) / 360))
+            targets.append(target)
+    if len(targets) < 6:
+        raise ValueError('too few saved targets to continue geometry')
+    return summary, targets
 
 
 def write_outputs(ladder: Ladder, out_dir: str, stopped: str | None = None) -> None:

@@ -193,15 +193,38 @@ def say(text: str = "", style: str | None = None) -> None:
 
 
 _event_lock = threading.Lock()
+_event_stream = None
+
+
+def events_enabled():
+    return _event_stream is not None or bool(os.environ.get("DISCPROBE_EVENTS"))
+
+
+@contextlib.contextmanager
+def json_events():
+    """Write the same records to stdout and keep the command's human log on stderr."""
+    global _event_stream, _term
+    old_stream, old_term = _event_stream, _term
+    _event_stream = sys.stdout
+    _term = Term(sys.stderr, env={**os.environ, 'DISCPROBE_PLAIN': '1'})
+    try:
+        with contextlib.redirect_stdout(sys.stderr):
+            yield
+    finally:
+        _event_stream, _term = old_stream, old_term
 
 
 def event(event_type: str, **fields) -> None:
     """Optional JSONL outlet. The terminal path does no I/O when it is disabled."""
     path = os.environ.get("DISCPROBE_EVENTS")
-    if path:
+    if path or _event_stream is not None:
         record = dict(type=event_type, job=os.environ.get("DISCPROBE_JOB"), **fields)
-        with _event_lock, open(path, "a", encoding="utf-8") as stream:
-            stream.write(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n")
+        with _event_lock:
+            if _event_stream is not None:
+                print(json.dumps(record, allow_nan=False), file=_event_stream, flush=True)
+            if path:
+                with open(path, "a", encoding="utf-8") as stream:
+                    stream.write(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n")
 
 
 def result_event(step: str, path: str, stopped=None) -> None:
@@ -563,7 +586,7 @@ class Progress:
         if self.closed:
             return
         now = time.monotonic()
-        if os.environ.get("DISCPROBE_EVENTS"):
+        if events_enabled():
             if self.event_at is None or now - self.event_at >= 0.25:
                 fraction, stage, eta = self.status()
                 fraction = None if fraction is None else max(0.0, min(1.0, fraction))
@@ -628,7 +651,7 @@ class Progress:
     def close(self) -> None:
         if self.closed:
             return
-        if os.environ.get("DISCPROBE_EVENTS"):
+        if events_enabled():
             self.event_at = None
             self.tick(force=True)
         self.closed = True
@@ -783,7 +806,7 @@ class ProgressDevice:
 
     def execute(self, *args, **kwargs):
         cdb = args[0] if args else kwargs.get("cdb", b"")
-        if os.environ.get("DISCPROBE_EVENTS") and cdb and cdb[0] in (0x28, 0xA8, 0xBE):
+        if events_enabled() and cdb and cdb[0] in (0x28, 0xA8, 0xBE):
             self.event_lba = int.from_bytes(cdb[2:6], "big")
         res = self.last = self._dev.execute(*args, **kwargs)
         if self.progress:

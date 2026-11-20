@@ -256,7 +256,7 @@ def _measurement_setup(dev, args, kind):
 
 def _measuring(dev, args):
     """What the probe reads through: at a terminal, a wrapper that also draws the progress line."""
-    if not ui.term().interactive and not os.environ.get("DISCPROBE_EVENTS"):
+    if not ui.term().interactive and not ui.events_enabled():
         return dev
     limit = f" It gives up after {args.max_minutes:g} minutes." if getattr(args, "max_minutes", 0) else ""
     ui.say(f"Measuring on {getattr(dev, 'name', 'the drive')}. Ctrl+C stops and keeps what was measured.{limit}", "dim")
@@ -863,8 +863,30 @@ def cmd_calscan(args):
 
 @_locked_read("geo", offline="refit")
 def cmd_geo(args, *, speed_check=None):
+    if vars(args).pop('json_events', False):
+        with ui.json_events():
+            return cmd_geo(args, speed_check=speed_check)
     media = getattr(args, "media", "dvd")
     from . import geo_speed, read_completion
+    resume = None
+    if getattr(args, 'resume', None):
+        from .geo import resume_source
+        if getattr(args, 'refit', None) or getattr(args, 'cd_clv', False):
+            sys.exit('--resume continues an angular measurement on the disc')
+        try:
+            resume = resume_source(args.resume, media)
+        except (OSError, ValueError, KeyError) as e:
+            sys.exit(str(e))
+        source = resume[0]
+        saved_args = source.get('args') or {}
+        for key in ('speed', 'reps', 'sectors', 'host_delay_ms', 'r0_mm', 'pitch_um', 'bit_nm',
+                    'read_offset_bytes', 'ranges', 'rings_layout', 'texture', 'margin_sectors',
+                    'no_auto_correction', 'chi2_abort'):
+            if key in saved_args:
+                setattr(args, key, saved_args[key])
+        args.ref_lba = int(source['fit']['reference_lba'])
+        if media == 'dvd':
+            args.completion_sectors = source['fit'].get('completion_sectors', 0)
     if getattr(args, 'refit', None):
         try:
             source = read_completion.summary_path(args.refit)
@@ -921,7 +943,8 @@ def cmd_geo(args, *, speed_check=None):
                     reps=args.reps, max_targets=args.max_targets, ref_lba=args.ref_lba,
                     speed_kbs=None if args.sim else args.speed, host_delay_ms=args.host_delay_ms, media=args.media,
                     chi2_abort=args.chi2_abort, sectors=args.sectors,
-                    read_offset_bytes=args.read_offset_bytes, auto_correct=not getattr(args, 'no_auto_correction', False))
+                    read_offset_bytes=args.read_offset_bytes, auto_correct=not getattr(args, 'no_auto_correction', False),
+                    resume=resume)
     ladder.tp.summary["identity"] = _identity(args, dev)
     try:
         value, origin = read_completion.resolve(ladder.tp.summary['identity'],
@@ -932,7 +955,7 @@ def cmd_geo(args, *, speed_check=None):
     ladder.completion_sectors, ladder.completion_source = value, origin
     if media == 'dvd':
         print(read_completion.notice(value, origin))
-    ladder.tp.summary["args"] = {k: v for k, v in vars(args).items() if k != "func"}
+    ladder.tp.summary["args"] = {k: v for k, v in vars(args).items() if k != "func" and (k != 'resume' or v)}
     if args.sim:
         ladder.tp.summary["simulated"] = True
     if speed_check is None:
@@ -1218,7 +1241,7 @@ def cmd_image(args):
             design = kept
         kind = f"design {os.path.basename(args.design)}" if args.design else f"picture {os.path.basename(args.picture)}"
     else:
-        design = imagedisc.grid_design(r_min=26.0 if args.media == "cd" else 24.5,
+        design = imagedisc.grid_design(r_min=imagecheck._inner_mm(args),
                                       r_max=args.r_max, line=args.line_mm, size=imagedisc.CELL_SIDES[args.cell_um or 20])
         kind = f"grid, {args.line_mm} mm lines"
     args._radius_range = imagedisc.drawing_span(design)
@@ -1551,6 +1574,7 @@ def _export_gate(args) -> None:
 
 def cmd_disexport(args):
     from . import disinstall
+    from .coverage import DVD_PRESET_MM
     from .disexport import export
     if (args.dis_presets or args.replace) and not args.install:
         sys.exit("--dis-presets and --replace only work together with --install")
@@ -1565,7 +1589,7 @@ def cmd_disexport(args):
         if not (fit.get("model") == "clv" or fit.get("media") == "bd"):
             sys.exit("--twist-deg is for Blu-ray: a DVD or CD preset carries a pitch profile that is "
                      "fitted, so its twist is corrected by the angle map rather than by one number")
-    args._radius_range = ((args.r_min or 25.8, args.r_max or 54.4) if args.media != 'cd' else
+    args._radius_range = ((args.r_min or DVD_PRESET_MM[0], args.r_max or DVD_PRESET_MM[1]) if args.media != 'cd' else
                           ((args.r_min, args.r_max) if args.r_min and args.r_max else None))
     fit = _geo_fit(args, args.media)
     is_cd = fit.get("media") == "cd"
@@ -1587,7 +1611,7 @@ def cmd_disexport(args):
         _export_gate(args)
         _disexport_bd(args)
         return
-    span = fit['measured_span_mm'] if is_cd else (25.8, 54.4)
+    span = fit['measured_span_mm'] if is_cd else DVD_PRESET_MM
     args._radius_range = (args.r_min or span[0], args.r_max or span[1])
     _export_gate(args)
     # --install writes the preset file only after the export has written --output. When both name
@@ -1610,7 +1634,6 @@ def cmd_disexport(args):
         if warning:
             print(f"Note: {warning}")
     _warn_other_run(args, fit)
-    span = fit["measured_span_mm"] if is_cd else (25.8, 54.4)
     try:
         # --install on its own leaves no second file behind, and can't overwrite one in the current folder.
         output = args.output or (None if args.install else "dis_preset.json")
@@ -2402,6 +2425,9 @@ def _build_parser():
     from .read_completion import HELP as completion_help, REFIT_HELP, argument as completion_argument
     sp.add_argument('--completion-sectors', type=completion_argument, help=completion_help)
     sp.add_argument('--reapply', dest='refit', metavar='GEO', help=REFIT_HELP)
+    sp.add_argument('--resume', metavar='GEO', help='read missing radii on the same disc using a saved geometry run')
+    sp.add_argument('--json', dest='json_events', action='store_true',
+                    help='write live geometry and progress events as JSON lines to stdout')
     sp.add_argument("--speed", type=_speed, default=5540,
                     help="read speed to fix, in kB/s or as a multiple like 4x (default 4x = 5540; CD 8x = 1411), "
                          "or keep to send no speed command and leave the drive as it is")
@@ -2519,7 +2545,8 @@ def _build_parser():
                     "Coloured textures need broad areas: a single 5 um cell cannot show colour. "
                     "With --design-npy it must match the array, which sets it anyway")
     sp.add_argument("--diameter-mm", type=float, default=116.0, help="the picture's longer side on the disc, in mm; it keeps its shape")
-    sp.add_argument("--r-max", type=float, default=56.0, help="outer radius of the drawing")
+    from .coverage import IMAGE_OUTER_MM
+    sp.add_argument("--r-max", type=float, default=IMAGE_OUTER_MM, help="outer radius of the drawing")
     sp.add_argument("--start-lba", type=int, default=0,
                     help="DVD: write only from this sector on, to append to a disc already written up to it "
                          "(`info` shows the next writable address)")
