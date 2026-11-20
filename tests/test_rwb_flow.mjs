@@ -5,7 +5,7 @@ import { geoChoice } from "../discprobe/web/home/design/export-rules.mjs";
 import { lastDiscCheck, lobbyStatus } from "../discprobe/web/home/lobby-state.js";
 import { paintStopButton } from "../discprobe/web/home/burn-stop.js";
 import { photoSaveWords } from "../discprobe/web/home/guidance.mjs";
-import { dateText, filterWorks, isMeasurementWork } from "../discprobe/web/home/pastworks/works.mjs";
+import { burnedDiscs, dateText, filterWorks, isMeasurementWork, timeline } from "../discprobe/web/home/pastworks/works.mjs";
 
 test("a measured maker code wins over a stale or draft batch on the same media", () => {
   const bad = { id: "old", mid: "RITEKF1", s: "stopped_early" };
@@ -18,6 +18,7 @@ test("a measured maker code wins over a stale or draft batch on the same media",
   assert.equal(calibratedBatch(entries, { id: "saved" }), measured);
   assert.equal(calibratedBatch(entries, { mid: "different" }, { mid: "RITEKF1" }), undefined);
   assert.equal(geoChoice({ item: draft }, entries).path, measured.geo);
+  assert.equal(geoChoice({ item: { ...draft, manualBatch: true } }, entries).source, "none");
 });
 
 test("the lobby attributes observations to a check and still reports a busy drive", () => {
@@ -53,6 +54,10 @@ test("old generated measurement records are hidden, CLI burn reports and designe
   const cli = { ...old, name: "Archive CLI work" };
   assert.equal(isMeasurementWork(old), true);
   assert.deepEqual(filterWorks([old, designed, cli]), [designed, cli]);
+  const measurement = { ...record, measurement: true };
+  const linked = { ...designed, discs: [measurement], history: [{ type: "burn", record: measurement }] };
+  assert.deepEqual(burnedDiscs(linked), []);
+  assert.deepEqual(timeline(linked), []);
 });
 
 test("names and rendered dates agree near midnight local time", () => {

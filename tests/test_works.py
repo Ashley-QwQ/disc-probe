@@ -476,7 +476,10 @@ def test_measurement_write_does_not_create_a_work(store, tmp_path, monkeypatch):
 
     args.work = store.new("Linked explicitly")["id"]
     works_link.burn_completed(args, report)
-    assert store.show(args.work)["discs"][-1]["measurement"] is True
+    linked = store.show(args.work)
+    assert linked["status"] == "draft"
+    assert linked["discs"][-1]["measurement"] is True
+    assert linked["discs"][-1]["preview_available"] is False
     monkeypatch.delenv(works_link.MEASUREMENT_ENV)
     args.work = None
     args.iso = str(tmp_path / "ordinary.iso")

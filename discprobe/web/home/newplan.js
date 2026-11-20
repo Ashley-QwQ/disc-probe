@@ -372,11 +372,12 @@ function remember(item) {
 }
 const isLibrary = (it) => !!it && state.list.includes(it);
 const driveOfKind = () => state.detected?.present && state.detected.media === state.kind ? state.detected : null;
-function newBatch(name) {
+function newBatch(name, manual = false) {
   const d = driveOfKind();
-  const key = JSON.stringify([state.kind, name, d?.mid, d?.kind, d?.sectors]);
+  const key = JSON.stringify([state.kind, name, manual, d?.mid, d?.kind, d?.sectors]);
   if (state.newItems.has(key)) return state.newItems.get(key);
   const item = { id: "new:" + crypto.randomUUID(), kind: "new", row: state.kind, name, s: "none",
+    ...(manual ? { manualBatch: true } : {}),
     ...(d ? { readMid: d.mid, readKind: d.kind, readSectors: d.sectors } : {}) };
   state.newItems.set(key, item);
   return item;
@@ -405,13 +406,13 @@ function fillBatches() {
 function chosen() {
   const name = W.batch.value.trim();
   const item = !name ? (state.edited ? null : state.suggested)
-    : state.picked?.name === name && isLibrary(state.picked) ? state.picked
-    : state.list.find((it) => it.name.toLowerCase() === name.toLowerCase()) ?? newBatch(name);
+    : state.picked?.name === name && (isLibrary(state.picked) || state.picked.kind === "new") ? state.picked
+    : state.list.find((it) => it.name.toLowerCase() === name.toLowerCase()) ?? newBatch(name, true);
   if (!item || hasGeometry(item)) return item;
   return calibratedBatch(api.catalogue(state.kind), item, item.kind === "new" ? driveOfKind() : null) ?? item;
 }
 function pickBatch(it) {
-  state.edited = true; state.touched = true; state.picked = isLibrary(it) ? it : null;
+  state.edited = true; state.touched = true; state.picked = it;
   W.batch.value = it.name; W.batch.placeholder = "";
   hideMatches(); paintLeft();
 }

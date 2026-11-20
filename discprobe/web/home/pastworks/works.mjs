@@ -31,7 +31,7 @@ export function mediaLabel(work) {
   return t ? m + (/^[-+]/.test(t) ? t : "-" + t) : m;
 }
 // discs[] holds ISOs written ({type: "iso"}) and discs burned ({type: "burn"}); only burns are discs
-export const burnedDiscs = (work) => (Array.isArray(work?.discs) ? work.discs : []).filter((d) => (d?.type ?? "burn") === "burn");
+export const burnedDiscs = (work) => (Array.isArray(work?.discs) ? work.discs : []).filter((d) => (d?.type ?? "burn") === "burn" && !d?.measurement);
 export const isMeasurementWork = (work) => work.source_design_missing === true &&
   /^(cd|dvd|bd)-measurement-\d{13}$/i.test(work.name) &&
   burnedDiscs(work).some(d => String(d.iso_path ?? "").split(/[\\/]/).pop() === `${work.name}.iso`);
@@ -91,6 +91,7 @@ export function timeline(work, lang = "zh") {
   };
   for (const e of history) {
     const kind = String(e.type ?? e.event ?? e.kind ?? ""), c = e.changes ?? {}, r = e.record ?? e;
+    if (r.measurement) continue;
     const at = stamp(e.time ?? e.at ?? e.ts);
     let text = kind, detail = "";
     switch (kind) {
@@ -118,6 +119,7 @@ export function timeline(work, lang = "zh") {
     out.push({ at, kind, text, detail });
   }
   for (const d of Array.isArray(work?.discs) ? work.discs : []) {
+    if (d.measurement) continue;
     if (seen.has(discTime(d) ?? "") && discTime(d)) continue;
     const kind = d.type === "iso" ? "iso" : "burned";
     out.push({ at: stamp(discTime(d)), kind, ...linked(d, kind === "iso" ? "iso" : "burn") });

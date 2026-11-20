@@ -7,6 +7,7 @@ export function sameMaker(a, b) {
 export function calibratedBatch(entries, item, disc) {
   const exact = entries.find(x => calibrated(x) && item?.id && x.id === item.id);
   if (exact) return exact;
+  if (item?.manualBatch) return undefined;
   const mid = item?.mid || item?.readMid || disc?.mid;
   return entries.find(x => calibrated(x) && sameMaker(x.mid, mid));
 }
