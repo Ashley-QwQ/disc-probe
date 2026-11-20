@@ -266,7 +266,7 @@ def _run(args) -> None:
                 ranges += ['--completion-sectors', str(completion)]
             if resume:
                 ranges += ['--resume', resume]
-            before = {r.path for r in guide.scan(args.out) if r.kind == kind}
+            before = {r.path for r in guide.scan(args.out) if r.kind == kind} if resume else set()
             code = child(kind, *common(), "--media", args.media, "--out", args.out,
                          "--speed", speed, *ranges)
             result = measured(kind, since, before)
@@ -276,7 +276,7 @@ def _run(args) -> None:
             if code or verdict not in GOOD:
                 reason = getattr(result, "stopped", None) if result else None
                 raise Stopped(reason or child_reason or f"the {kind} measurement was not usable ({verdict or 'no result'})")
-            if kind == 'geo':
+            if kind == 'geo' and (args.preset or resume):
                 from .coverage import assess_range, default_range
                 fit = result.fit
                 required = default_range(args.media, fit.get('measured_span_mm'))

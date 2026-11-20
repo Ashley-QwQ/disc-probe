@@ -1196,7 +1196,7 @@ def cmd_image(args):
     # Resolve the library link before doing image work; completion is recorded only after verification.
     from .works_link import check_work, image_completed
     check_work(args)
-    from . import image_output, imagedisc
+    from . import image_output, imagecheck, imagedisc
     if getattr(args, 'files', None) and (args.media != 'dvd' or args.start_lba or args.random_below_mm):
         sys.exit('随盘文件只支持完整单层 DVD，不支持 CD、BD、追加或随机内圈')
     writer = imagedisc

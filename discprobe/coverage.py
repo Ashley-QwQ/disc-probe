@@ -1,10 +1,6 @@
 """Shared, device-free assessment of geometry at the radii actually used."""
 import math
 
-import numpy as np
-
-from .calscan import _dtheta
-
 RADIUS_TOL_MM = .002
 DVD_PRESET_MM = (25.8, 54.4)
 IMAGE_OUTER_MM = 56.0
@@ -57,6 +53,9 @@ def assess_range(fit, radius_range):
     sigma = None
     cov = fit.get('covariance_uv')
     if cov is not None and 'u' in fit:
+        import numpy as np
+        from .calscan import _dtheta
+
         u, v = fit['u'], fit['v']
         bit = fit['bit_nm_assumed'] * 1e-6
         ns = [max(0., math.pi * ((r / bit)**2 - u*u) / v) for r in (lo, hi)]
