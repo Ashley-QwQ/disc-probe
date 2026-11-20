@@ -55,6 +55,14 @@ async function until(expression, name) {
   }
 }
 const viewport = (width, height) => cdp('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: false});
+async function click(selector) {
+  const point = await evaluate(`(() => {
+    const rect = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
+    return {x: rect.left + rect.width / 2, y: rect.top + rect.height / 2};
+  })()`);
+  await cdp('Input.dispatchMouseEvent', {...point, type: 'mousePressed', button: 'left', clickCount: 1});
+  await cdp('Input.dispatchMouseEvent', {...point, type: 'mouseReleased', button: 'left', clickCount: 1});
+}
 async function capture(name) {
   if (!shots) return;
   await evaluate('document.fonts.ready');
@@ -135,6 +143,19 @@ async function runScene(scenario, verify) {
       next: true, theme, lang,
     });
     await capture(`${key}-${theme}-${lang}-1440`);
+    await click('.np-batch');
+    const choices = await evaluate(`[...document.querySelector('.np-matches').children].map(row => ({
+      name: row.firstElementChild.textContent, info: row.querySelector('small')?.textContent ?? ''
+    }))`);
+    const later = lang === 'en' ? 'Choose later' : '稍后再定';
+    const calibrated = lang === 'en' ? 'Calibrated' : '已标定';
+    assert.deepEqual(choices.map(row => row.name), ['History DVD+R', 'RITEKF1 DVD-R', later]);
+    assert.ok(choices[0].info.includes(`${calibrated} · 2026-11-08`) &&
+              choices[1].info.includes(`${calibrated} · 2026-11-07`));
+    assert.equal(await evaluate('document.querySelector(".np-batch").getAttribute("aria-expanded")'), 'true');
+    if (['blank', 'rom'].includes(key)) await capture(`batch-menu-${theme}-${lang}-1440`);
+    await click('.np-batch-toggle');
+    assert.equal(await evaluate('document.querySelector(".np-matches").hidden'), true);
     if (verify) await verify(url);
     assert.deepEqual(await evaluate('ndErrors'), []);
     console.log(`PASS ${key}: ${form.dial}, ${form.batch}, ${theme}/${lang}`);
@@ -155,8 +176,17 @@ async function verifyDeferred(url) {
     return note.left >= 0 && note.right <= innerWidth && note.bottom <= next.top;
   })()`), 'drive notice fits above Next on a 390 px viewport');
   await capture('rom-dark-en-390');
+  await click('.np-batch-toggle');
+  assert.ok(await evaluate(`(() => {
+    const popup = document.querySelector('.np-matches');
+    const box = popup.getBoundingClientRect();
+    const next = document.getElementById('next').getBoundingClientRect();
+    return !popup.hidden && box.left >= 0 && box.right <= innerWidth &&
+      box.bottom <= next.top && popup.lastElementChild.textContent === 'Choose later';
+  })()`), 'batch menu fits and the deferred option is present on a 390 px viewport');
+  await capture('batch-menu-dark-en-390');
+  await click('.np-matches [role="option"]:last-child');
   await viewport(1440, 900);
-  await evaluate('document.querySelector(".np-later").click()');
   assert.deepEqual(await evaluate(`[
     document.querySelector('.np-batch').value, document.querySelector('.np-batch').placeholder,
     document.getElementById('next').disabled

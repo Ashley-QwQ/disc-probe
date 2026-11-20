@@ -85,6 +85,7 @@ try {
   await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject;});
   socket.onmessage=({data})=>{const msg=JSON.parse(data),cb=pending.get(msg.id);if(cb){pending.delete(msg.id);msg.error?cb.reject(Error(JSON.stringify(msg.error))):cb.resolve(msg.result);}};
   await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+  await cdp('Emulation.setFocusEmulationEnabled',{enabled:true});
   // Force the system preference off: explicit page motion-on must still animate.
   await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
   await open();
@@ -126,6 +127,17 @@ try {
     await check('document.querySelector(".np-cal-text").textContent==="已标定 · 2026-11-07" && document.querySelector(".np-left").textContent==="还剩 37 / 50 张"','measured sentence and counts');
     await check('document.querySelector(".np-community").hidden','a batch DP has measured gets no community hint');
     await shot('recognised-library-'+theme,'disc');
+    await evaluate('document.querySelector(".np-name").focus();document.querySelector(".np-batch").focus()');
+    const popup = await evaluate(`(() => {
+      const input = document.querySelector('.np-batch'), box = document.querySelector('.np-matches');
+      const rows = [...box.children], batches = review.DATA.dvd.filter(it => it.kind !== 'new');
+      return {value: input.value, open: input.getAttribute('aria-expanded'), count: batches.length,
+        rows: rows.map(row => row.textContent), active: document.activeElement?.className, errors: reviewErrors};
+    })()`);
+    assert.ok(popup.value === '' && popup.open === 'true' && popup.rows.length === popup.count + 1 &&
+      popup.rows[0].includes('已标定 · 2026-11-07') && popup.rows[1].includes('已标定 · 2026-11-02') &&
+      popup.rows[2].includes('TDK') && popup.rows.at(-1) === '稍后再定',
+      'focusing an empty combobox lists the whole DVD family, calibrated first with dates: '+JSON.stringify(popup));
     await batchKey('Tab');
     await check('document.querySelector(".np-batch").value==="Verbatim DVD-R 16x"','Tab accepts');
     await typeBatch('我的新批次');await batchKey('Escape');
@@ -141,10 +153,18 @@ try {
     await check('document.querySelector(".np-cal-text").textContent==="没选盘：画好后要刻时再选" && document.querySelector(".np-cal-go").hidden && document.querySelector(".np-library").hidden && document.querySelector(".np-batch").placeholder===""','empty field sentence and no batch');
     await shot('empty-field-'+theme,'disc');
     await typeBatch('rItEk');
-    await check('document.querySelectorAll(".np-matches [role=option]").length===2 && document.querySelector(".np-matches").textContent.includes("Maxell") && !document.querySelector(".np-matches").textContent.includes("DVD+R")','case-insensitive name and MID filtering');
+    await check(`Array.from(document.querySelectorAll('.np-matches [role=option] > span'), row => row.textContent).join('|')
+      === 'Ritek DVD+RW 4x|Maxell DVD-R 16x|Ritek DVD-R 8x|稍后再定'`,'case-insensitive name and MID filtering within the DVD family');
     await shot('suggestion-list-'+theme,'disc');
-    await batchKey('ArrowDown');await batchKey('Enter');
+    await batchKey('ArrowDown');await batchKey('ArrowDown');await batchKey('Enter');
     await check('document.querySelector(".np-batch").value==="Maxell DVD-R 16x" && document.querySelector(".np-matches").hidden','arrows and Enter pick');
+    await evaluate('document.querySelector(".np-batch-toggle").click()');
+    await check('document.querySelector(".np-matches").textContent.includes("Verbatim DVD+R 16x")','arrow reopens the full list with a filled input');
+    await batchKey('ArrowUp');await batchKey('Enter');
+    await check('review.newplan.currentItem()===null && document.querySelector(".np-matches").hidden','keyboard can choose later and clear the selection');
+    await evaluate(`document.querySelector('.np-batch').click();
+      [...document.querySelector('.np-matches').children].find(row => row.firstChild.textContent === 'Verbatim DVD+R 16x').click();`);
+    await check('document.querySelector(".np-face-text").textContent==="DVD+R" && document.querySelector(".np-batch").value==="Verbatim DVD+R 16x"','pick another DVD subtype through the list');
     await typeBatch('vErBaTiM');await evaluate('document.querySelector(".np-matches [role=option]").click()');
     await check('document.querySelector(".np-batch").value==="Verbatim DVD-R 16x"','click picks');
     await check('getComputedStyle(document.querySelector(".np-dial-clip")).position==="absolute" && document.querySelector(".np-dial").getBoundingClientRect().top>=document.querySelector(".np-sheet").getBoundingClientRect().top-2','dial hangs from sheet edge');
@@ -209,7 +229,9 @@ try {
   await evaluate('document.getElementById("back").click()');
   await check('document.documentElement.dataset.mode==="newplan"&&document.querySelector(".np-batch").value==="DIS DVD 1"&&document.querySelector(".np-name").value==="我的作品"','first imported preset of current kind selected, name kept');
   await check('/^参数来自 DIS 预设“.+”：不是 DP 测的，没有实测范围（DIS 只给标称半径），这批盘还没确认$/.test(document.querySelector(".np-cal-text").textContent)&&document.querySelector(".np-cal-go").hidden','import has its own unmeasured status without calibration nag');
-  await check('!document.querySelector(".np-matches").textContent.includes("DIS DVD 3")','archive-only batch not offered as geometry');
+  await evaluate('document.querySelector(".np-batch").focus()');
+  await check('!document.querySelector(".np-matches").hidden && document.querySelector(".np-matches").textContent.includes("DIS DVD 1") && !document.querySelector(".np-matches").textContent.includes("DIS DVD 3")','archive-only batch not offered as geometry');
+  await batchKey('Escape');
   await shot('imported-selected',true);
   await evaluate('document.querySelector(".np-library").click();document.getElementById("back").click()');
   await check('document.querySelector(".np-batch").value==="DIS DVD 1"','imported selection survives library detour');
