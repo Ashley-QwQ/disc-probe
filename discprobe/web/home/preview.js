@@ -50,6 +50,7 @@ let twist = 1;                       // degrees at the outer edge in the "off by
 
 const STR = {
   zh: {
+    nextBatch: "下一步：选批次", needBatch: "请先在盘库选好批次，再生成刻录文件。",
     title: "预览", next: "下一步：刻录", views: "预览方式",
     v: { design: "设计稿", off: "几何偏一点会怎样", look: "灯下的样子" },
     say: { design: "设计稿：刻进盘的黑白图。压暗的内圈和外圈不刻图。", off: "几何偏一点会怎样：标定差一点时，图会一圈一圈拧开，离中间越远拧得越多。",
@@ -91,6 +92,7 @@ const STR = {
     dim: "压暗的内圈和外圈不刻图。", fit: "适应", noProject: "这件作品还没有图。回去放一张图再来。",
   },
   en: {
+    nextBatch: "Next: choose a batch", needBatch: "Choose a batch from the disc library before making a burn file.",
     title: "Preview", next: "Next: burn", views: "Preview mode",
     v: { design: "Design", off: "If the geometry is a little off", look: "Under a lamp" },
     say: { design: "Design: the black and white picture that is burned. The dimmed inner and outer rings are not drawn.",
@@ -175,7 +177,8 @@ function buildRight() {
   const minutes = ready ? Math.max(1, Math.round((s.iso.bytes / ((ctx.media === "cd" ? 176400 : 1385000) * 8) + 90) / 60)) : null;
   const rows = !c ? [] : [c.geo === "batch", c.inRange, c.levels === 2, c.disc === "blank"];
   const checkSec = !c ? "" : `<section class="pv-list"><details class="pv-fold"${busy ? "" : " open"}><summary><h3>${busy ? t.checkSummary(rows.length, rows.filter((x) => !x).length) : t.checkH}</h3></summary><ul>` +
-    row(c.geo === "batch" ? true : c.geo === "none" ? false : null, t.ck[c.importProblem || c.geo] + (c.geoName && c.geo !== "batch" && c.geo !== "none" ? t.ck.of(c.geoName, c.geoWhen) : "")) +
+    (ctx.batchDeferred ? row(false, t.needBatch)
+      : row(c.geo === "batch" ? true : c.geo === "none" ? false : null, t.ck[c.importProblem || c.geo] + (c.geoName && c.geo !== "batch" && c.geo !== "none" ? t.ck.of(c.geoName, c.geoWhen) : ""))) +
     (c.geo === "none" ? "" : c.nominal ? row(c.inRange ? null : false, c.inRange ? t.ck.nominalRange : t.ck.nominalCut)
       : row(c.inRange, (c.inRange ? t.ck.inRange : t.ck.outRange) + (c.ring ? t.ck.measured(c.ring) : ""))) +
     row(c.levels === 2, c.levels === 2 ? t.ck.lv2 : t.ck.lv4) +
@@ -184,7 +187,7 @@ function buildRight() {
     `</ul>` + (c.effects && c.effects !== "none" && c.canExperiment ? `<label class="chk pv-exp"><input type="checkbox" data-a="experimental" ${c.effects === "experimental" ? "checked" : ""} ${busy ? "disabled" : ""}>${t.ck.fxTry}</label>` +
       `<details class="pv-more"><summary>${t.details}</summary><p class="note">${t.ck.fxMore}</p></details>` : "") +
     `<p class="note mono">${[ready ? `${t.ck.time(minutes)} · ${t.ck.size(fmtBytes(s.iso.bytes))}` : t.ck.timeLater, c.cellUm ? t.ck.cell(c.cellUm) : ""].filter(Boolean).join(" · ")}</p></details></section>`;
-  const checkDiscSec = ctx.exportCheck && c && c.geo !== "none" && !c.nominal && !busy && s.phase !== "restoring"
+  const checkDiscSec = !ctx.batchDeferred && ctx.exportCheck && c && c.geo !== "none" && !c.nominal && !busy && s.phase !== "restoring"
     ? `<section class="pv-checkdisc"><h3>${t.checkDiscH}</h3><p class="note">${t.checkDiscNote}</p>` +
       `<button class="sbtn wide" type="button" data-a="checkdisc">${t.checkDiscGo}</button></section>` : "";
   const pct = s.fraction ? Math.floor(s.fraction * 100) : null;
@@ -233,6 +236,7 @@ function buildRight() {
 function nextStep() {
   if (ctx.calibrating) return null;
   if(ctx.reviewSaved)return 'review';
+  if (ctx.batchDeferred) return ctx.chooseBatch ? "batch" : null;
   const c = ctx.checks?.();
   if (state.phase === "ready") return "burn";
   if (!src || ["making", "restoring"].includes(state.phase) || c?.levels === 4) return null;
@@ -242,7 +246,7 @@ function nextStep() {
 function paintNext() {                                // only from buildRight, which returns first when the page is not on
   const t = T(), step = nextStep(), s = state;
   $("next-text").textContent = ctx.calibrating ? (api.lang() === "en" ? "Preparing calibration…" : "正在准备标定…")
-    : step === "burn" ? t.next : step === "calibrate" ? t.nextCal
+    : ctx.batchDeferred ? t.nextBatch : step === "burn" ? t.next : step === "calibrate" ? t.nextCal
     : s.phase === "making" ? t.making2(s.fraction == null ? null : Math.floor(s.fraction * 100)) : t.nextMake;
   if(ctx.reviewSaved)$("next-text").textContent=api.lang()==='en'?'Back to the burn report':'返回刻录报告';
   $("next").disabled = !step;
@@ -250,7 +254,7 @@ function paintNext() {                                // only from buildRight, w
   if (s.phase === 'making') makeRing.progress(s.fraction ?? null);
   else if (s.phase === 'ready') makeRing.done();
   else makeRing.reset();
-  api.nextWhy?.(!src ? t.whyEmpty : s.phase === "making" ? t.whyMaking : ctx.checks?.()?.levels === 4 ? t.whyLevels : "");
+  api.nextWhy?.(ctx.batchDeferred ? t.needBatch : !src ? t.whyEmpty : s.phase === "making" ? t.whyMaking : ctx.checks?.()?.levels === 4 ? t.whyLevels : "");
 }
 // While the burn file is made: the disc thumbnail fills cell by cell, counterclockwise from twelve
 // o'clock, like the random-data disc on the calibration page, but each cell shows the design.
@@ -287,7 +291,7 @@ const lookValue = (key, v) => key === "wear" ? `${v}%` : key === "exposure" ? `$
 const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 async function make() {
-  if (!src || ["making", "restoring"].includes(state.phase)) return;
+  if (ctx.batchDeferred || !src || ["making", "restoring"].includes(state.phase)) return;
   const thumb = document.createElement("canvas");
   thumb.width = thumb.height = Math.round(240 * Math.min(2, devicePixelRatio || 1));
   thumb.setAttribute("aria-hidden", "true");
@@ -375,7 +379,7 @@ async function followImage(id, job, signal) {
 // The check disc: made like the burn file (same progress and cancel), then straight to the burn page; after the
 // burn, the burn page offers the photos (design.js photograph), and they come back here.
 async function makeCheck() {
-  if (state.phase === "making" || !ctx.exportCheck) return;
+  if (ctx.batchDeferred || state.phase === "making" || !ctx.exportCheck) return;
   const job = state = { phase: "making", fraction: null, stage: T().checkDiscMaking, ctl: new AbortController(), check: true, t0: Date.now() };
   const jobCtx = ctx; remember(jobCtx, job);
   buildRight();
@@ -528,7 +532,7 @@ function bind(signal) {
     if (a === "checkdisc") makeCheck();
     if (a === "calibrate") void detour();
     if (a === "cancel") cancel();
-    if (a === "checkburn") { const iso = state.checkIso; finish(ctx, state, { phase: "idle" }); leave(false); ctx.next?.(iso); }
+    if (a === "checkburn" && !ctx.batchDeferred) { const iso = state.checkIso; finish(ctx, state, { phase: "idle" }); leave(false); ctx.next?.(iso); }
   });
   on(W.right, "change", (e) => {
     if (e.target.dataset.a === "experimental") {
@@ -597,6 +601,7 @@ function bind(signal) {
     e.stopImmediatePropagation();
     const step = nextStep();
     if(step === 'review'){leave(false);ctx.next?.();return;}
+    if (step === "batch") { const choose = ctx.chooseBatch; leave(false); choose(); return; }
     if (step === "calibrate") { void detour(); return; }
     if (step === "make" || step === "burn") void advanceToBurn(step);
   }, { capture: true });

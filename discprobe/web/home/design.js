@@ -42,7 +42,10 @@ const STR = {
     burnNotStarted: "刻录没有开始，盘没有被写过，还能用。",
     open: "打开作品", save: "保存作品", saveAs: "另存为", saved: (n) => `已保存：${n}`, opened: (n) => `已打开：${n}`,
     notProject: (n) => `${n} 不是 disc-probe 的作品文件。`, newer: (n) => `${n} 是新版本存的，这一版读不了。`,
-    changeDiscs: "换一批盘（打开盘库）", noDiscYet: "还没选盘", otherMedia: (a, b) => `这件作品是给 ${a} 做的，现在打开在 ${b} 上；可刻范围按 ${b} 算。`,
+    changeDiscs: "换一批盘（打开盘库）", noDiscYet: "还没选盘",
+    nominalBatch: "还没选盘的批次，先按标称范围画，刻之前要选好批次。",
+    needBatch: "请先在盘库选好批次，再生成刻录文件。",
+    otherMedia: (a, b) => `这件作品是给 ${a} 做的，现在打开在 ${b} 上；可刻范围按 ${b} 算。`,
     unsaved: "作品还没保存，关掉页面会丢失。",
     exp: {
       drawing: "正在画整张盘的设计图…", sending: "正在交给后端…", making: "正在生成刻录文件…",
@@ -127,7 +130,10 @@ const STR = {
     burnNotStarted: "The burn did not start: nothing was written, and the disc can still be used.",
     open: "Open work", save: "Save work", saveAs: "Save as", saved: (n) => `Saved: ${n}`, opened: (n) => `Opened: ${n}`,
     notProject: (n) => `${n} isn't a disc-probe work file.`, newer: (n) => `${n} was saved by a newer version; this one can't read it.`,
-    changeDiscs: "Use other discs (opens the disc library)", noDiscYet: "No discs chosen yet", otherMedia: (a, b) => `This work was made for ${a} and is now open on ${b}; the burnable range is ${b}'s.`,
+    changeDiscs: "Use other discs (opens the disc library)", noDiscYet: "No discs chosen yet",
+    nominalBatch: "No disc batch chosen. Design within the nominal range and choose a batch before burning.",
+    needBatch: "Choose a batch from the disc library before making a burn file.",
+    otherMedia: (a, b) => `This work was made for ${a} and is now open on ${b}; the burnable range is ${b}'s.`,
     unsaved: "The work isn't saved; closing the page loses it.",
     exp: {
       drawing: "Drawing the whole disc…", sending: "Handing it to the back end…", making: "Making the burn file…",
@@ -254,6 +260,7 @@ function newProject(item, media) {
     past: [], future: [],
   };
 }
+const unsetBatch = () => ({ kind: "unset", name: T().noDiscYet, mid: "", s: "none" });
 const imageLayers = () => S.layers.filter((L) => L.kind === "image");
 const sel = () => S.layers.find((L) => L.id === S.selected) ?? null;
 const layerRow = (row) => S.layers.find((L) => String(L.id) === row.dataset.id);
@@ -1504,8 +1511,10 @@ async function projectText() {
   const plan = S, portable = editor?.document();
   const meta = {
     ...portable,
-    format: FILE_KIND, version: FILE_VERSION, media: plan.media, disc: plan.item?.name ?? null, geo: plan.geo ?? null,
+    format: FILE_KIND, version: FILE_VERSION, media: plan.media,
+    disc: plan.batchDeferred ? null : plan.item?.name ?? null, geo: plan.batchDeferred ? null : plan.geo ?? null,
     batch: plan.item?.kind !== "new" ? plan.item?.id ?? null : null,
+    ...(plan.batchDeferred ? { batch_deferred: true } : {}),
     tone: plan.tone, files: fileDisplay(plan.files), pro: plan.pro, cell: plan.cell,
     scene: plan.scene, lookColour: plan.lookColour, lookY: plan.lookY,
   };
@@ -1632,6 +1641,19 @@ async function openProject(file, handle = null, work = null, dirty = false) {
   }
   if (data.layers.length && lost.length === data.layers.length) { toast(t.notProject(file.name)); return; }
   checkpoint();
+  if (data.batch_deferred === true) {
+    if (Object.hasOwn(RANGE, data.media)) S.media = data.media;
+    S.item = unsetBatch();
+    S.batchDeferred = true;
+    S.geo = S.ring = null;
+    S.rings = [];
+  } else if (S.batchDeferred) {
+    // Opening an older file in an unassigned work restores the normal batch context.
+    const shelf = api.catalogue?.(S.media) ?? [];
+    const [lastMedia, last] = api.lastBatch?.() ?? [];
+    S.item = shelf.find(it => it.id === data.batch) ?? (lastMedia === S.media ? last : null) ?? unsetBatch();
+    S.batchDeferred = false;
+  }
   S.layers = layers.slice(0, 16);
   S.selections=structuredClone(data.selections??[]);S.activeMask=data.activeMask??null;
   // fills of a layer that is gone would make the export refuse the whole work
@@ -1646,9 +1668,9 @@ async function openProject(file, handle = null, work = null, dirty = false) {
   for (const k of ["pro", "lookColour"]) if (k in data) S[k] = !!data[k];
   if (data.tone) S.tone = { ...DEFAULT_TONE, ...data.tone };
   if (data.scene) S.scene = { ...S.scene, ...data.scene };
-  if (data.media === S.media && Array.isArray(data.annulus_mm) && editor?.hasColour()) S.ring = data.annulus_mm;
+  if (!S.batchDeferred && data.media === S.media && Array.isArray(data.annulus_mm) && editor?.hasColour()) S.ring = data.annulus_mm;
   S.cell = [0.02, 0.01, 0.005].includes(data.cell) ? data.cell : 0.02;      // the work's grid, else the default
-  if (typeof data.geo === "string" && data.media === S.media) S.geo = data.geo;      // checked against the catalogue at export
+  if (!S.batchDeferred && typeof data.geo === "string" && data.media === S.media) S.geo = data.geo;      // checked against the catalogue at export
   if (Number.isFinite(data.lookY)) S.lookY = data.lookY;
   else if (editor?.hasColour() && editor.rigSet()) S.lookY = editor.rigSet().camera[1];
   if (editor?.hasColour()) editor.rigSync();
@@ -1656,8 +1678,8 @@ async function openProject(file, handle = null, work = null, dirty = false) {
   changed();
   S.dirty = dirty; W.dirty.classList.toggle("on", dirty);
   W.ws.classList.toggle("pro-on", S.pro);
-  W.pname.textContent = S.name;
-  buildLeft(); buildRight(); updateTilt();
+  words();
+  updateTilt();
   fit();
   if (lost.length) { S.dirty = true; W.dirty.classList.add("on"); }
   toast([data.media && data.media !== S.media ? t.otherMedia(data.media.toUpperCase(), S.media.toUpperCase()) : t.opened(work ? S.name : file.name),
@@ -1738,6 +1760,7 @@ export function isoStem(name) {
 export async function makeBurnFile(onProgress = () => {}, { signal, effects } = {}) {
   const t = T().exp, t2 = T();
   const plan = S;
+  if (plan.batchDeferred) throw new Error(t2.needBatch);
   const stop = () => { if (signal?.aborted) throw new DOMException("cancelled", "AbortError"); };
   let files = plan.files;
   if (files?.folder && !files.token) throw Error(api.lang() === "en" ? "Check and confirm the files list before exporting." : "请先检查并确认随盘文件清单。");
@@ -1840,6 +1863,7 @@ function localImageError(message) {
 // made again and the core applies the along-track correction from those photos.
 async function makeCheckFile(onProgress, { signal } = {}) {
   const t = T();
+  if (S.batchDeferred) throw new Error(t.needBatch);
   const state = await api.backend.state().catch(() => null);
   const geo = planGeo(state), geoPath = geo.path;
   if (!geoPath) throw Object.assign(new Error(t.noGeo), { code: "nogeo" });
@@ -1880,7 +1904,7 @@ export const projectGeo = (state, plan = S) => planGeo(state, plan).path;
 // ---------------------------------------------------------------- building the page
 function viewNote(){
   const lamp=S.view==='lamp',zh=api.lang()==='zh';
-  const phase=editor?.lamp?.phase,note=W.cv.querySelector('.ed-view-note');
+  const phase=editor?.lamp?.phase,note=W.cv.querySelector('.ed-view-status');
   const colour=editor?.hasColour(),compare=W.view.querySelector('[data-colour-compare]');
   compare.hidden=!(lamp&&colour);
   compare.textContent=zh?'对照':'Compare';
@@ -1921,7 +1945,7 @@ function build() {
     `<aside class="col col-l" id="ed-left"></aside><aside class="col col-r" id="ed-right"></aside>` +
     `<div class="cv"><div class="ed-desk" aria-hidden="true"></div><div class="ed-surface"><div class="ed-disc-shadow" aria-hidden="true"></div><canvas class="main"></canvas></div>` +
     `<div class="tools-v" role="toolbar"></div>` +
-    `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="burn"></button><button type="button" data-v="lamp"></button><button type="button" data-colour-compare hidden></button></div><p class="ed-view-note" aria-live="polite"></p>` +
+    `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="burn"></button><button type="button" data-v="lamp"></button><button type="button" data-colour-compare hidden></button></div><p class="ed-view-note"><span class="ed-batch-note" hidden></span><span class="ed-view-status" aria-live="polite"></span></p>` +
     `<p class="cv-note warn" hidden></p>` +
     `<div class="empty-c"><p></p><div class="row"><button class="sbtn" type="button" data-a="sample"></button><button class="sbtn" type="button" data-a="import"></button></div></div>` +
     `<div class="fbar" hidden></div>` +
@@ -2088,9 +2112,12 @@ function words() {
   const [bo, bs] = W.filebtns.children;
   bo.innerHTML = `${I.open}<span>${t.open}</span>`; bo.title = `${t.open} (Ctrl+O)`;
   bs.innerHTML = `${I.save}<span>${t.save}</span>`; bs.title = `${t.save} (Ctrl+S) · ${t.saveAs} (Ctrl+Shift+S)`;
-  W.sub.textContent = api.T().brand?.(S.item.name) ?? S.item.name;
+  W.sub.textContent = S.batchDeferred ? t.noDiscYet : api.T().brand?.(S.item.name) ?? S.item.name;
   W.sub.title = t.changeDiscs;
   W.sub.onclick = chooseBatch;
+  const batchNote = W.cv.querySelector(".ed-batch-note");
+  batchNote.hidden = !S.batchDeferred;
+  batchNote.textContent = S.batchDeferred ? t.nominalBatch : "";
   editor?.toolbar();editor?.optionsBar();
   const [p, b, o] = W.view.children;
   if(!['proj','burn','lamp'].includes(S.view))S.view='proj';
@@ -2181,15 +2208,15 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
     else {
       const media = work.media in RANGE ? work.media : col, [c, last] = api.lastBatch?.() ?? [];
       const savedBatch = work.batch && api.catalogue?.(media)?.find(x => x.id === work.batch);
-      S = newProject(savedBatch || (c === media ? last : col === media ? item : { kind: "unset", name: T().noDiscYet, mid: "", s: "none" }), media);
+      S = newProject(savedBatch || (c === media ? last : col === media ? item : unsetBatch()), media);
       S.name = work.name; S.work = { id: work.id, updated_at: work.updated_at };
       if (work.text != null) fromWork = new File([work.text], `${work.name}.discdesign`, { type: "application/json" });
     }
   }
   else if (newPlan) {
     // "decide later" in the form: a plan with no disc batch yet (the kind still sets the drawable range)
-    const it = noDisc ? { kind: "unset", name: T().noDiscYet, mid: "", s: "none" } : item;
-    S = newProject(it, col); S.selTol = 18; S.selFeather = 1;
+    S = newProject(noDisc ? unsetBatch() : item, col); S.selTol = 18; S.selFeather = 1;
+    if (noDisc) S.batchDeferred = true;
     if (name) S.name = name;
   }
   else {
@@ -2197,7 +2224,7 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
     if (!S) { S = newProject(item, col); projects.set(item, S); }
   }
   plans.splice(0, plans.length, S, ...plans.filter((P) => P !== S));
-  api.rememberBatch?.(S.item);
+  if (!fromWork) api.rememberBatch?.(S.item);
   useMeasured(geoChoice(S, api.catalogue?.(S.media) ?? [], null));
   if (!W) build();
   const from = api.focusDisc()?.getBoundingClientRect();
@@ -2224,6 +2251,8 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
 // The library handed back a batch for this plan: switch its discs (the disc kind too, if it changed).
 export function useBatch(homeApi, plan, item, col) {
   const before = plan.media;
+  if (plan.batchDeferred) plan.dirty = true;
+  plan.batchDeferred = false;
   plan.item = item; plan.media = col;
   plan.geo = null;                       // a geometry is for one batch: the new one's own measurement decides
   start(homeApi, { plan, fly: false });
@@ -2286,9 +2315,10 @@ async function openPreview() {
   }
   const ctx = {
     media: P.media, item: P.item, alongTrackMeasured: false,
+    batchDeferred: P.batchDeferred,
     // what a file being made belongs to (preview.js jobs): this plan while open, and its saved work once it has one
-    keys: () => P.work?.id ? (P.dirty ? [] : [P, `work:${P.work.id}`]) : [P],
-    imageWork: () => !P.dirty && hasCapability("image-job-recovery") ? P.work?.id : null,
+    keys: () => P.batchDeferred ? [] : P.work?.id ? (P.dirty ? [] : [P, `work:${P.work.id}`]) : [P],
+    imageWork: () => !P.batchDeferred && !P.dirty && hasCapability("image-job-recovery") ? P.work?.id : null,
     project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection, lamp: editor?.lampProject() ?? null,
       fileRegions:()=>occupiedRings(P.files) },
     // colours and effects burn in black and white unless the person asks for the experiment (DVD only)
@@ -2320,6 +2350,7 @@ async function openPreview() {
     },
     back: () => start(api, { plan: P, fly: false }),           // the same work, not the shelf disc's own plan
     next: (iso) => toBurn(iso, () => preview.start(api, ctx)),   // the same context keeps the file it made
+    chooseBatch: P.batchDeferred && api.chooseBatch ? () => chooseBatch() : null,
     calibrate: async (stillHere) => {
       await api.syncState?.();
       if (!stillHere()) return;
@@ -2378,6 +2409,7 @@ function mockBurn(onProgress) {
 // ?mockburn: the burn page can be opened straight from the console, to look at its animations
 if (new URLSearchParams(location.search).has("mockburn")) globalThis.dpToBurn = (iso, back = () => {}) => toBurn(iso, back);
 async function toBurn(iso, back) {
+  if (S?.batchDeferred) { toast(T().needBatch); return; }
   const t = T();
   // the drive is looked at first (a few seconds on a real one): meanwhile this is the burn page, not the
   // lobby, so Next must not read "new work"
@@ -2584,7 +2616,8 @@ function chooseBatch() {
   W.ws.classList.remove("on");
   W.loupe.classList.remove("on");
   $("next").disabled = false;               // the library's own button now (an empty plan had it off)
-  api.goTo(...api.locate(S.item));
+  if (S.batchDeferred) api.goTo(S.media, 0);
+  else api.goTo(...api.locate(S.item));
   api.chooseBatch(S);
 }
 
