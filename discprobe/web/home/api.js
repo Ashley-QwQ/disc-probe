@@ -12,10 +12,10 @@ export function errorText(error, lang = 'en') {
   if (!error.status) return lang === 'zh' ? '连接不到后端。启动本机 webui 服务，再点重试。' : 'Cannot reach the backend. Start the local webui service, then retry.';
   return (lang === 'zh' ? '任务没有完成。检查光盘后重试：' : 'The task did not finish. Check the disc and retry: ') + error.message;
 }
-export async function request(path, payload) {
+export async function request(path, payload, {keepalive = false} = {}) {
   const response = await fetch(path, {method: payload === undefined ? 'GET' : 'POST',
     headers: {...(token ? {'X-Discprobe-Token': token} : {}), ...(payload === undefined ? {} : {'Content-Type':'application/json'})},
-    body: payload === undefined ? undefined : JSON.stringify(payload)});
+    body: payload === undefined ? undefined : JSON.stringify(payload), keepalive});
   const data = await response.json();
   if (!response.ok) throw Object.assign(new Error(data.error || response.statusText), {status: response.status, code: data.code});
   return data;

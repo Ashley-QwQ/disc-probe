@@ -204,8 +204,7 @@ export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck
   return open();
 }
 
-// A calibration the core is already running (the page was reloaded or closed meanwhile): show it and follow
-// it to its end, as if it had been started here.
+// Follow the job's record after reloading, including a result that arrived while the page was closed.
 export function attach(homeApi, job) {
   api = homeApi; $ = api.$;
   returnTo = null;
@@ -214,6 +213,7 @@ export function attach(homeApi, job) {
     if (!ui) build();
     flow.realPhase = "checking"; flow.detected = { ...job.disc, media: job.media || "dvd" };
     flow.iso=job.args?.iso;flow.eraseRequested=!!job.args?.erase;
+    flow.blankSectors = job.args?.sectors;
   }
   open();
   if (flow.job) return;
@@ -329,6 +329,7 @@ function build() {
   $("back").addEventListener("click", back);
   $("job-cancel").addEventListener("click", cancelJob);
   addEventListener("dp-lang", () => { if (isCal()) paint(); });
+  document.addEventListener("visibilitychange", acknowledgeVisibleResult);
   // Esc is keys.js's (the Back button); in the mock, Shift+S steps through the states
   addEventListener("keydown", (e) => {
     if (isCal() && api.backend.mock && e.key === "S" && e.shiftKey) cycleState();
@@ -418,7 +419,15 @@ function leave() {
 }
 
 function back() {
-  if (!api.backend.mock) { if (flow.realPhase === "photo") { if (photoUI?.page) photoUI.page.back(); else photoReview(); return; } leave(); return; }
+  if (!api.backend.mock) {
+    if (flow.realPhase === "photo") { if (photoUI?.page) photoUI.page.back(); else photoReview(); return; }
+    if (!flow.job && CAPACITY_PHASES.includes(flow.realPhase)) {
+      flow.realPhase = flow.realPhase === "capacityWritten" ? "capacityBlank" : "prepare";
+      flow.blankSectors = null;
+      flow.error = null; paint(); return;
+    }
+    leave(); return;
+  }
   if (!isCal()) return;
   if (flow.job) { leave(); return; }               // the job keeps running in the bar
   if (flow.state) { flow.state = null; paint(); return; }
@@ -1022,6 +1031,15 @@ function burnCheckFailed(burn) {
   return !!burn && ((burn.result && burn.result !== "completed") || burn.disc_state?.status === "failed" ||
     (v && v.status !== "skipped" && (v.status !== "completed" || v.differing || v.unreadable || v.untested)));
 }
+const needsBlankCapacity = () => !(
+  flow.blankSectors || flow.detected.capacity_sectors || flow.catalogueSectors
+);
+const CAPACITY_PHASES = ["capacityBlank", "capacityWritten"];
+const MAX_SECTORS = 25_000_000;   // webui.py's sectors argument limit
+function manualCapacity(value) {
+  const sectors = Number(value);
+  return Number.isInteger(sectors) && sectors > 0 && sectors <= MAX_SECTORS ? sectors : undefined;
+}
 function realError(error) {
   setTimeout(callBack, 0);
   if (error?.failure) sfx.failure(); else sfx.problem();      // a disc lost, or something to put right
@@ -1044,6 +1062,15 @@ function realPaint() {
   if (phase === "inspect") {
     text = liveText('放入这种盘，再点检测。检测只读，不会打开托盘。', 'Insert this disc, then check it. Checking is read-only and leaves the tray alone.');
     button = liveText('检测光盘', 'Check disc');
+  } else if (phase === "capacityBlank") {
+    title = liveText('读取空白盘容量', 'Read blank disc capacity');
+    text = liveText('放入一张同批次的空白盘，再点检测。检测只读，不会打开托盘。', 'Insert a blank from the same batch, then check it. Checking is read-only and leaves the tray alone.');
+    button = liveText('检测光盘', 'Check disc');
+  } else if (phase === "capacityWritten") {
+    title = liveText('放回测量盘', 'Put the measurement disc back');
+    text = liveText(`已读到空白盘容量：${flow.blankSectors.toLocaleString()} 扇区。换回刚才的测量盘，再点检测。`,
+      `Blank capacity read: ${flow.blankSectors.toLocaleString()} sectors. Put the measurement disc back, then check it.`);
+    button = liveText('检测刻好的盘', 'Check the burned disc');
   } else if (phase === "prepare") {
     title = flow.detected.kind;
     text = `${flow.detected.mid || liveText('厂商编号未知', 'Unknown maker code')} · ${flow.detected.sectors ?? "—"} sectors`;
@@ -1056,6 +1083,16 @@ function realPaint() {
     else if (flow.detected.blank === false) {
       html += `<label><input id="measurement-confirm" type="checkbox" ${flow.measureConfirmed ? "checked" : ""}>${liveText('这是同批次、刻满随机数据的测量盘', 'This is a full random-data measurement disc from this batch')}</label>`;
       button = liveText('测转速', 'Measure rotation'); disabled = !flow.measureConfirmed;
+      if (flow.measureConfirmed && needsBlankCapacity()) {
+        html += `<p>${liveText('这批盘的空白容量未知。推荐放一张同批空白盘读容量，再换回这张测量盘。', 'The blank capacity for this batch is unknown. We recommend reading a blank from the same batch, then putting this measurement disc back.')}</p>
+          <button id="real-capacity-check" type="button" class="btn">${liveText('放一张同批空白盘读容量', 'Read a blank from the same batch')}</button>
+          <label class="name-field">${liveText('或手动输入空白盘扇区数', 'Or enter the blank disc sector count')}
+            <input id="real-capacity" type="number" inputmode="numeric" min="1" max="${MAX_SECTORS}" step="1"
+              aria-describedby="real-capacity-help" value="${esc(flow.manualSectors ?? '')}">
+          </label>
+          <p id="real-capacity-help">${liveText('用同批空白盘的 info 读数。常见值仅供参考：DVD-R 2,297,888，DVD+R 2,295,104。', 'Use the info reading from a blank of the same batch. Common values for reference: DVD-R 2,297,888 and DVD+R 2,295,104.')}</p>`;
+        disabled = !manualCapacity(flow.manualSectors);
+      }
     } else { text += liveText('。空白状态未知，请重新检测。', '. Blank status is unknown; check again.'); button = liveText('重新检测', 'Check again'); }
   } else if (phase === "burn" && cdHere()) {
     // the core cannot write CDs on Windows yet (burner.WindowsDVD): Windows' own image burner, as guide.py says
@@ -1164,6 +1201,7 @@ function realPaint() {
   const advice = flow.error || badBurn || (phase==='burn' && flow.eraseRequested) ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined, photoTaken: !!flow.photoOnly,
     external: phase === "burn" && cdHere() });
   $("cal").innerHTML = `<h2>${esc(title)}</h2><p class="lede">${esc(text)}</p>${advice}${html}`;
+  acknowledgeVisibleResult();
   if (phase === 'review' && flow.geo?.path && !badBurn) {
     const f = flow;
     curveEditor($("cal"), {run:f.geo.path, lang:api.lang(), state:f.curveState ||= {},
@@ -1194,9 +1232,20 @@ function realPaint() {
 
   $("real-erase")?.addEventListener('click',()=>{flow.eraseRequested=true;flow.measureConfirmed=false;realNext();});
   $("real-name")?.addEventListener("input", e => {flow.realName = e.target.value;});
-  $("measurement-confirm")?.addEventListener("change", e => {flow.measureConfirmed = e.target.checked; paint();});
+  $("measurement-confirm")?.addEventListener("change", e => {
+    flow.measureConfirmed = e.target.checked; paint(); $("measurement-confirm").focus();
+  });
+  $("real-capacity-check")?.addEventListener("click", () => { flow.error = null; flow.realPhase = "capacityBlank"; paint(); });
+  $("real-capacity")?.addEventListener("input", e => {
+    flow.manualSectors = e.target.value;
+    $("next").disabled = !!flow.error || !manualCapacity(flow.manualSectors);
+  });
   $("left-input")?.addEventListener("input", e => { flow.left = e.target.value === "" ? null : Number(e.target.value); });
-  $("real-retry")?.addEventListener("click", () => {flow.error = null; flow.realPhase = "inspect"; paint();});
+  $("real-retry")?.addEventListener("click", () => {
+    flow.error = null;
+    if (!CAPACITY_PHASES.includes(phase)) flow.realPhase = "inspect";
+    paint();
+  });
   for (const [id, yes] of [["real-yes",true],["real-no",false]]) $(id)?.addEventListener("click", async () => {
     try { const ask = flow.ask; await api.backend.answer(ask.job, ask.id, yes); flow.ask = null; paint(); } catch(e) {realError(e);}
   });
@@ -1603,7 +1652,7 @@ function soFar(points) {
 function paintStage() {
   if (!st || !flow || api.backend.mock || leaving) return;
   const phase = flow.realPhase, d = flow.detected, job = flow.job, p = Math.max(0, Math.min(1, job?.p ?? 0));
-  const disc = (phase === "inspect" && !d) || d?.present === false ? "none" : d?.blank === true ? "blank" : "in";
+  const disc = (phase === "inspect" && !d) || d?.present === false ? "none" : d?.blank === true || phase === "capacityWritten" ? "blank" : "in";
   let read = null, head = null, band = null;
   if (phase === "burning") read = [R0, radiusAt(p)];                       // the measurement image going on
   // a burn that stopped part way: what was written, and a copper band where it stopped (that disc is spent)
@@ -1648,7 +1697,7 @@ const RULER = [
   { key: "geo", min: 5, zh: ["测几何", "约 5 分"], en: ["Geometry", "~5 min"] },
   { key: "photo", min: 3.5, dashed: true, zh: ["拍照", "需要时"], en: ["Photo", "if needed"] },
 ];
-const RULER_AT = { inspect: 0, prepare: 0, random: 0, burn: 0, burning: 0, checking: 1, timing: 1, geo: 2, saving: 2, review: 2, photo: 3, saved: 4 };
+const RULER_AT = { inspect: 0, prepare: 0, capacityBlank: 0, capacityWritten: 0, random: 0, burn: 0, burning: 0, checking: 1, timing: 1, geo: 2, saving: 2, review: 2, photo: 3, saved: 4 };
 function paintRuler() {
   let nav = document.getElementById("cal-ruler");
   if (!nav) {
@@ -1732,7 +1781,11 @@ async function realJob(action, args = {}, extra = {}, following = null) {
         if (event.name !== "geo") showInterior(false);
         paint();
       }
-      if (event.type === "disc" && event.present) {f.detected = { ...f.detected, ...event };f.blankSectors=event.capacity_sectors||f.blankSectors;paint();}
+      if (event.type === "disc" && event.present) {
+        f.detected = { ...f.detected, ...event };
+        f.blankSectors ??= event.capacity_sectors;
+        paint();
+      }
       if (event.type === "log") flog.log(event.text, event.level, event.ansi);
       if (event.type === "progress") flog.progress(event.fraction, event.stage, event.eta_s);
       if (event.type === "ask") { f.ask = event; paint(); }
@@ -1759,11 +1812,24 @@ async function realJob(action, args = {}, extra = {}, following = null) {
     const burn = f.burnCheck;
     if (["burn", "calibrate"].includes(action) && burnCheckFailed(burn))
       throw Object.assign(new Error(burn.reason || liveText('刻录没有通过检查。请重新读取这张盘，查看保存的日志，再决定是否重刻。', 'The burn did not check out. Re-read this disc and inspect the saved logs before another burn.')), {failure:true});
+    if (action === "calibrate" && result?.ok) f.resultJob = { id:current.id };
     return result;
   } catch (error) {
     if (error.status === 422 && (why || lastLine)) error.message = why || lastLine;
     throw error;
   } finally { if (flow === f) {endJob(); f.ask = null; showInterior(false);} }
+}
+async function inspectDisc() {
+  if (!api.selectedDrive()) await api.syncState?.();          // plugged in since the page opened?
+  if (!api.selectedDrive()) throw new Error(liveText('没找到光驱。接好光驱，等电脑认出它，再点“重新检测”。', 'No drive found. Connect the drive, wait for the computer to see it, then press Check again.'));
+  const want = flow.item.row || flow.detected?.media || "dvd";
+  const expectedMid = flow.detected?.mid || flow.item.mid;
+  const result = await realJob("info");
+  if (!result?.disc?.present) throw new Error(liveText('没有读到盘。放入光盘再检测。', 'No disc detected. Insert a disc and check again.'));
+  const got = String(result.disc.media || "?").toUpperCase();
+  if (result.disc.media !== want) throw new Error(liveText(`光驱里是 ${got} 盘，这里标定的是 ${want.toUpperCase()}。换一张 ${want.toUpperCase()} 再检测。`, `The drive holds a ${got} disc; this calibrates ${want.toUpperCase()}. Put in a ${want.toUpperCase()} and check again.`));
+  if (expectedMid && result.disc.mid !== expectedMid) throw new Error(liveText('厂商编号已改变，请放回同批次光盘。', 'The maker code changed. Insert a disc from the same batch.'));
+  return result;
 }
 async function realNext(forceMeasure = false) {
   if (flow.job || flow.curvePending) return;
@@ -1782,15 +1848,23 @@ async function realNext(forceMeasure = false) {
     }
     if (phase === "burn" && cdHere()) { flow.realPhase = "inspect"; return realNext(); }   // burned elsewhere: read it
     if (phase === "burn") await realBurn();
-    else if (phase === "inspect" || (phase === "prepare" && flow.detected.blank == null)) {
-      if (!api.selectedDrive()) await api.syncState?.();          // plugged in since the page opened?
-      if (!api.selectedDrive()) throw new Error(liveText('没找到光驱。接好光驱，等电脑认出它，再点“重新检测”。', 'No drive found. Connect the drive, wait for the computer to see it, then press Check again.'));
-      const result = await realJob("info");
-      if (!result?.disc?.present) throw new Error(liveText('没有读到盘。放入光盘再检测。', 'No disc detected. Insert a disc and check again.'));
-      const want = flow.item.row || flow.detected?.media || "dvd", got = String(result.disc.media || "?").toUpperCase();
-      if (result.disc.media !== want) throw new Error(liveText(`光驱里是 ${got} 盘，这里标定的是 ${want.toUpperCase()}。换一张 ${want.toUpperCase()} 再检测。`, `The drive holds a ${got} disc; this calibrates ${want.toUpperCase()}. Put in a ${want.toUpperCase()} and check again.`));
-      const expectedMid = flow.detected?.mid || flow.item.mid;
-      if (expectedMid && result.disc.mid !== expectedMid) throw new Error(liveText('厂商编号已改变，请放回同批次光盘。', 'The maker code changed. Insert a disc from the same batch.'));
+    else if (phase === "capacityBlank") {
+      const {disc} = await inspectDisc();
+      if (disc.blank !== true) throw new Error(liveText('请放入一张同批次的空白盘，再检测。', 'Insert a blank from the same batch, then check again.'));
+      const sectors = disc.capacity_sectors ?? disc.sectors;
+      if (!manualCapacity(sectors)) throw new Error(liveText('没读到空白盘容量。请重新检测，或返回手动输入。', 'Could not read the blank disc capacity. Check again, or go back to enter it by hand.'));
+      flow.blankSectors = sectors;
+      flow.realPhase = "capacityWritten";
+    } else if (phase === "capacityWritten") {
+      const {disc} = await inspectDisc();
+      if (disc.blank !== false) throw new Error(liveText('请放回刚才刻满随机数据的测量盘，再检测。', 'Put the full random-data measurement disc back, then check again.'));
+      const issue = shortDiscWords(disc, api.lang());
+      if (issue) throw new Error(issue);
+      flow.detected = disc;
+      flow.realPhase = "prepare";
+    } else if (phase === "inspect" || (phase === "prepare" && flow.detected.blank == null)) {
+      const result = await inspectDisc();
+      flow.catalogueSectors = result.catalogue_capacity_sectors;
       flow.detected = result.disc; flow.realPhase = "prepare"; flow.measureConfirmed = false;
       const issue=shortDiscWords(result.disc,api.lang());
       if(issue || flow.requireBlank && result.disc.blank!==true && !result.disc.rewritable){
@@ -1811,7 +1885,11 @@ async function realNext(forceMeasure = false) {
         const result = await realJob("random", {sectors, output:flow.iso});
         if (!result?.path) throw new Error("No measurement image was saved.");
         flow.realPhase = "burn";
-      } else if (flow.measureConfirmed) await realCalibrate();
+      } else if (flow.measureConfirmed) {
+        const needsCapacity = needsBlankCapacity();
+        const sectors = needsCapacity ? manualCapacity(flow.manualSectors) : undefined;
+        if (!needsCapacity || sectors) await realCalibrate({sectors});
+      }
     } else if (phase === "review") {
       const recovery = forceMeasure === true ? {id:'measure'} : recoveryAction(flow);
       if (recovery.id === 'drive') {
@@ -1874,7 +1952,7 @@ async function realCalibrate(args = {}, extra = {}) {
     else bands.push([a, b]);
   }
   flow.burnCheck = null;
-  try { result = await realJob("calibrate", { ...args, speed: "4x", avoid_mm: bands.map(([a, b]) => `${a}-${b}`), mid: flow.detected?.mid || undefined, preset, sectors: flow.blankSectors || undefined }, extra); }
+  try { result = await realJob("calibrate", { ...args, speed: "4x", avoid_mm: bands.map(([a, b]) => `${a}-${b}`), mid: flow.detected?.mid || undefined, preset, sectors: args.sectors ?? flow.blankSectors ?? undefined }, extra); }
   catch (error) {
     if (flow.burnCheck?.result === "failed" && flow.burnCheck.reason)
       throw Object.assign(new Error(flow.burnCheck.reason), {failure:true});
@@ -1912,8 +1990,18 @@ function finishCalibrate(result) {
   flow.photoResult = null; flow.photoReadKey = null; flow.photoSnapshot = null; flow.photoUploads = null; flow.photoNotice = null;
   if (result.ok) sfx.done(); else sfx.problem();          // measured and usable / measured, but not usable yet
   if (result.disc) flow.detected = { ...flow.detected, ...result.disc };
+  flow.blankSectors = result.sectors ?? flow.blankSectors;
   flow.realPhase = "review";
   setTimeout(callBack, 0);
+}
+function acknowledgeResult() {
+  const job = flow?.resultJob;
+  if (!job?.id || job.acknowledged) return;
+  job.acknowledged = true;
+  api.backend.request(`/api/jobs/${job.id}/result-seen`, {}, {keepalive:true}).catch(() => { job.acknowledged = false; });
+}
+function acknowledgeVisibleResult() {
+  if (isCal() && flow?.realPhase === "review" && document.visibilityState === "visible") acknowledgeResult();
 }
 // The measurement disc, burned here: a fresh read-only look that the tray still holds a blank (which also
 // lets the server accept this one burn), a one-time token, the burn; then the disc is read again (written
@@ -1951,5 +2039,6 @@ async function realSave() {
     ...(flow.left == null ? {} : {left:flow.left})});
   flow.savedPhotoShift = saved.photo_shift || result.photo_shift || {written:false, reason:'invalid_preset'};
   flow.savedPath = result.path; flow.savedId = entry.id; flow.realPhase = "saved";
+  acknowledgeResult();
 }
 

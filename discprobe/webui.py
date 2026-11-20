@@ -442,6 +442,7 @@ class Job:
         self.started_at = time.time()
         self.finished_at = None
         self.cancellation = None
+        self.result_seen = False
 
     def read(self):
         if self.cancellation is None:
@@ -687,7 +688,7 @@ class Backend:
             state["drives"] = [dict(d, disc=d.get("disc") or self.discs.get(d["id"])) for d in drives]
         with self.lock:
             state["jobs"] = [dict(id=j.id, drive=j.drive, action=j.action, media=j.media, args=j.args, disc=j.disc, exit=j.exit, result=j.result,
-                                  cancellation=j.cancellation) for j in self.jobs.values()]
+                                  cancellation=j.cancellation, result_seen=j.result_seen) for j in self.jobs.values()]
         state["catalogue"] = webui_catalog.catalogue(self.root, self.out)
         state["version"] = version()
         state["platform"] = sys.platform          # which shell the terminal page looks like (win32: PowerShell)
@@ -1133,6 +1134,12 @@ class Backend:
                     job.result["measurement"] = webui_catalog.measurement(run)
                 if job.action == "info":
                     job.result["disc"] = webui_catalog.disc_report(guide._load(str(Path(run.path) / "info.json")) or {})
+                    disc = job.result["disc"]
+                    if disc["blank"] is False and disc["capacity_sectors"] is None:
+                        from .capacity import catalogue_capacity
+                        known = catalogue_capacity(disc["mid"], disc["media"], self.root)
+                        if known:
+                            job.result["catalogue_capacity_sectors"] = known[0]
                     self.discs[job.drive] = dict(job.result["disc"], tray="ready", read_at=round(time.time()))
                 job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
             elif job.action == "curve-edit":
@@ -1161,7 +1168,7 @@ class Backend:
                     rel = lambda p: str(Path(p).resolve().relative_to(self.root)).replace("\\", "/") if p else None
                     # the preset as the catalogue names it (relative to the workspace), so the batch links to it
                     result = dict(ok=bool(done.get("ok")), reason=done.get("reason"), disc=done.get("disc"),
-                                  preset=rel(done.get("preset")))
+                                  preset=rel(done.get("preset")), sectors=done.get("sectors"))
                     for kind in ("timing", "geo"):
                         part = done.get(kind) or {}
                         if part.get("path"):
@@ -1203,6 +1210,16 @@ class Backend:
             return self.jobs[ident]
         except KeyError:
             raise APIError("unknown job", 404) from None
+
+    def acknowledge_calibration(self, ident):
+        with self.lock:
+            job = self.get_job(ident)
+            if job.action != "calibrate" or job.exit != 0 or not (job.result or {}).get("ok") or job.cancellation:
+                raise APIError("no successful calibration result to acknowledge", 409)
+            if not job.result_seen:
+                (job.folder / "result-seen").touch()
+                job.result_seen = True
+            return dict(result_seen=True)
 
     def cancel(self, ident):
         with self.lock:
@@ -2013,10 +2030,13 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/disc":
                 result = backend.read_disc(payload)
             else:
-                match = re.fullmatch(r"/api/jobs/(j-[0-9a-f]+)/(?P<action>cancel|answer)", path)
+                match = re.fullmatch(r"/api/jobs/(j-[0-9a-f]+)/(?P<action>cancel|answer|result-seen)", path)
                 if not match:
                     raise APIError("not found", 404)
-                result = backend.cancel(match[1]) if match["action"] == "cancel" else backend.answer(match[1], payload)
+                if match["action"] == "result-seen":
+                    result = backend.acknowledge_calibration(match[1])
+                else:
+                    result = backend.cancel(match[1]) if match["action"] == "cancel" else backend.answer(match[1], payload)
             self._json(200, result)
         except APIError as exc:
             route = urlsplit(self.path).path
