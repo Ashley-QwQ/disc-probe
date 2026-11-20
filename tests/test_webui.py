@@ -788,6 +788,10 @@ const assert = require('node:assert/strict');
   failRead = false;
   await refreshFinishedDisc({type: 'done', job: active.id});
   assert.equal(backendState.drives[1].disc.blank, false);
+  const before = reads;
+  const [fromFocus, fromButton] = await Promise.all([readDisc('I:'), readDisc('I:')]);
+  assert.equal(fromFocus, fromButton);
+  assert.equal(reads - before, 1);
 })().catch(error => { console.error(error); process.exitCode = 1; });
 '''
     result = subprocess.run([node], input=script, capture_output=True, text=True, encoding="utf-8", timeout=15)

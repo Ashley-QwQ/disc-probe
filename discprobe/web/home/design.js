@@ -1493,8 +1493,16 @@ const FILE_KIND = "disc-probe design", FILE_VERSION = 2, FILE_EXT = ".discdesign
 const blobURL = (blob) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(blob); });
 const canvasBlob = (c) => new Promise((ok) => c.toBlob(ok, "image/png"));
 async function projectText() {
+  const plan = S, portable = editor?.document();
+  const meta = {
+    ...portable,
+    format: FILE_KIND, version: FILE_VERSION, media: plan.media, disc: plan.item?.name ?? null, geo: plan.geo ?? null,
+    batch: plan.item?.kind !== "new" ? plan.item?.id ?? null : null,
+    tone: plan.tone, files: fileDisplay(plan.files), pro: plan.pro, cell: plan.cell,
+    scene: plan.scene, lookColour: plan.lookColour, lookY: plan.lookY,
+  };
   const layers = [];
-  for (const L of S.layers) {
+  for (const L of plan.layers) {
     const e = { kind: L.kind, name: L.name, x: L.x, y: L.y, width: L.width, rot: L.rot, opacity: L.opacity, visible: L.visible, locked: L.locked };
     if (L.kind === "image") {
       Object.assign(e, { colour: L.colour, w: L.w, h: L.h, alphaEdited: !!L.alphaEdited, picture: await blobURL(await canvasBlob(L.src)) });
@@ -1502,22 +1510,17 @@ async function projectText() {
     } else Object.assign(e, { fxKind: L.fxKind, height: L.height, y1: L.y1, y2: L.y2 });
     layers.push(e);
   }
-  const portable = editor?.document();
-  return JSON.stringify({
-    ...portable,
-    format: FILE_KIND, version: FILE_VERSION, media: S.media, disc: S.item?.name ?? null, geo: S.geo ?? null,
-    batch: S.item?.kind !== "new" ? S.item?.id ?? null : null,
-    tone: S.tone, files: fileDisplay(S.files), pro: S.pro, cell: S.cell, scene: S.scene, lookColour: S.lookColour, lookY: S.lookY, layers: layers.map((l,i)=>({...l,...portable?.layers[i]})),
-  });
+  return JSON.stringify({ ...meta, layers: layers.map((l,i)=>({...l,...portable?.layers[i]})) });
 }
 const baseName = (n) => n.replace(/\.discdesign$/i, "").replace(/\.json$/i, "");
 // Ctrl+S files the design in the core's works library (pastworks/save.mjs: made on the first save, a 409
 // asks overwrite or keep both). Undefined when this core keeps no works: the file picker below saves it.
-async function saveToWorks() {
+async function saveToWorks(plan = S) {
   const client = await (await import("./pastworks/works.mjs")).worksFor(api, { capable: hasCapability("works") });
   if (!client) return undefined;
   const { saveToLibrary, sayings } = await import("./pastworks/save.mjs");
-  const plan = S, name = S.name ?? T().untitled;
+  if (plan !== S) return false;
+  const name = plan.name ?? T().untitled;
   try {
     const r = await saveToLibrary({ client, plan, name, lang: api.lang(), text: await projectText(),
       thumb: async () => dataURLBlob(planThumbnail(plan, 512)) });
@@ -2315,7 +2318,7 @@ async function openPreview() {
         await preview.continueToBurn(api, ctx);
         return;
       }
-      if ((!P.work?.id || P.dirty) && !await saveToWorks()) return;
+      if ((!P.work?.id || P.dirty) && !await saveToWorks(P)) return;
       if (!stillHere()) return;
       document.dispatchEvent(new Event("dp-image-work-saved"));
       const cal = await import("./calibrate.js");
@@ -2330,7 +2333,7 @@ async function openPreview() {
           const item = saved || calibratedBatch(catalogue(), batch, disc);
           if (item) {
             connectBatch(item);
-            if (await saveToWorks()) {
+            if (await saveToWorks(P)) {
               hideDesign();
               await preview.continueToBurn(api, ctx);
               return;

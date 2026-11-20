@@ -440,7 +440,7 @@ function paintMatches() {
   } else W.batch.removeAttribute("aria-activedescendant");
 }
 function paintLeft() {
-  const it = chosen(), t = T(), d = state.detected;
+  const it = chosen(), t = T(), d = state.detected, zh = api.lang() !== "en";
   if (!nextPending && root.dataset.mode === "newplan") $("next-text").textContent = t.next;
   W.q(".np-library").hidden = !isLibrary(it) || !api.inspectBatch;
   W.q(".np-left").textContent = it && Number.isFinite(it.left) && Number.isFinite(it.of) ? t.left(it.left, it.of) : "";
@@ -449,8 +449,11 @@ function paintLeft() {
   W.q(".np-cal-go").hidden = !it || hasGeometry(it);
   W.q(".np-own").hidden = !!it && hasGeometry(it) || !presets.ready();
   const mid = it?.readMid;
+  const recognised = d?.blank === false && /^DVD-ROM\b/i.test(d.kind) ? discDisplayKind(d, api.lang())
+    : zh ? `光驱里认出的是 ${shortKind(d?.kind) || KIND_KEY[d?.media]}`
+      : `The drive recognised ${shortKind(d?.kind) || KIND_KEY[d?.media]}`;
   W.q(".np-disc-help").textContent = state.reading ? t.reading : state.readFailed ? t.readFail
-    : state.recognised ? discDisplayKind(d, api.lang()) + (mid ? ` · ${mid}` : "")
+    : state.recognised ? recognised + (mid ? ` · ${mid}` : "")
     : !it ? t.discHelp : d?.tray === "open" ? t.trayOpen : d && !d.present ? t.noDisc : t.discHelp;
   paintCommunity();
 }

@@ -614,7 +614,7 @@ function paintJob() {
     paintStopButton($("job-cancel"), isWriting(job), api.lang(), flow.realPhase === "erasing");
     $("job-cancel").disabled = !!job.stopping || (!api.backend.mock && !job.id);
   }
-  dispatchEvent(new Event("dp-cal-job"));
+  globalThis.dispatchEvent?.(new Event("dp-cal-job"));
 }
 
 function cancelJob(confirmed = false) {
@@ -1272,7 +1272,7 @@ function realPaint() {
   $("left-input")?.addEventListener("input", e => { flow.left = e.target.value === "" ? null : Number(e.target.value); });
   $("real-retry")?.addEventListener("click", () => {
     flow.error = null;
-    if (!CAPACITY_PHASES.includes(phase)) flow.realPhase = "inspect";
+    if (phase !== "review" && !CAPACITY_PHASES.includes(phase)) flow.realPhase = "inspect";
     paint();
   });
   for (const [id, yes] of [["real-yes",true],["real-no",false]]) $(id)?.addEventListener("click", async () => {
@@ -1932,7 +1932,7 @@ async function realNext(forceMeasure = false) {
         if (!needsCapacity || sectors) await realCalibrate({sectors});
       }
     } else if (phase === "review") {
-      if ($("left-input") && !$("left-input").reportValidity()) return;
+      if ($("left-input")?.reportValidity?.() === false) return;
       const recovery = forceMeasure === true ? {id:'measure'} : recoveryAction(flow);
       if (recovery.id === 'drive') {
         flow.geo = null; flow.timing = null; flow.preset = null;
