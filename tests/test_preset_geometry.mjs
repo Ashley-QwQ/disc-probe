@@ -17,5 +17,6 @@ assert.match(source, /const geo = planGeo\(state\), geoPath = geo\.path;/);
 assert.match(source, /args: \{ geo: geoPath, design_npy:/);
 assert.match(source, /const planGeo = \(state, plan = S\) => geoChoice\(/);
 const preview = readFileSync(new URL('../discprobe/web/home/preview.js', import.meta.url), 'utf8');
-assert.match(preview, /imported: "From a DIS preset, converted to DP geometry: not measured by DP, no measured range, this batch not confirmed yet"/);
+assert.match(preview, /imported: "Geometry from DIS\. It is unmeasured\. Check the placement on the first disc\."/);
+assert.match(preview, /imported: "几何来自 DIS，未经实测。位置准不准，要看第一张盘。"/);
 console.log('Imported preset page geometry selection passed');
