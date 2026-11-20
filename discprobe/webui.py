@@ -62,7 +62,8 @@ OPTIONS = {
     "burn": {"iso": "path", "speed": "burn_speed", "cd_sector": "cd_layout", "no_verify": "flag", "erase": "flag"},
     # the whole calibration in one job (calibrate.py); with `iso` it burns first, under the burn's rules
     "calibrate": {"iso": "path", "burn_speed": "burn_speed", "speed": "speed", "mid": "mid", "preset": "path",
-                  "sectors": "sectors", "avoid_mm": "radius_bands", "completion_sectors": "completion_sectors", "erase": "flag"},
+                  "sectors": "sectors", "avoid_mm": "radius_bands", "completion_sectors": "completion_sectors",
+                  "erase": "flag", "resume": "path"},
     "photo": {"run": "photo", "media": "photo", "photos": "photo", "rings_mm": "photo",
               "burner": "photo", "burn_path": "photo", "burn_mode": "photo", "disc_id": "photo"},
 }

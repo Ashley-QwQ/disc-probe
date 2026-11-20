@@ -745,6 +745,7 @@ const assert = require('node:assert/strict');
   const T = () => ({inserted: name => name, blankTag: ' blank', noDiscShort: 'empty'});
   const api = {selectedDrive: () => 'H:'};
   const root = {dataset: {mode: 'calibrate'}};
+  const pendingReads = new Map(), failedReads = new Set();
   // the slices also set up page listeners; outside a browser they are inert
   const addEventListener = () => {}, MutationObserver = class { observe() {} disconnect() {} };
   let backendState, active, reads = 0, failRead = false, onEvent;
@@ -787,6 +788,10 @@ const assert = require('node:assert/strict');
   failRead = false;
   await refreshFinishedDisc({type: 'done', job: active.id});
   assert.equal(backendState.drives[1].disc.blank, false);
+  const before = reads;
+  const [fromFocus, fromButton] = await Promise.all([readDisc('I:'), readDisc('I:')]);
+  assert.equal(fromFocus, fromButton);
+  assert.equal(reads - before, 1);
 })().catch(error => { console.error(error); process.exitCode = 1; });
 '''
     result = subprocess.run([node], input=script, capture_output=True, text=True, encoding="utf-8", timeout=15)

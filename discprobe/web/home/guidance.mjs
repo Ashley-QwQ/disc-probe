@@ -44,6 +44,9 @@ export function photoSaveWords(decision = {}) {
   if (decision.written === true && Number.isFinite(decision.frames)) return pair(
     `沿轨常数已写入：L = ${decision.frames} frames。来自照片，盘批次无关，换光驱要重拍；只适用于这次几何测量和刻录路径。`,
     `Along-track constant written: L = ${decision.frames} frames. From photos, independent of disc batch; rephotograph after changing drives. Only for this geometry run and burn path.`);
+  if (decision.reason === 'invalid_preset') return pair(
+    '预设文件读不出来。请重新保存预设。',
+    'The preset file could not be read. Save the preset again.');
   const reasons = {
     different_run: pair('照片对应的是另一次测量。', 'The photos belong to a different geometry run.'),
     different_drive: pair('照片对应的是另一台光驱或另一台电脑。', 'The photos belong to a different drive or computer.'),
@@ -53,7 +56,6 @@ export function photoSaveWords(decision = {}) {
     no_photo: pair('没有照片结果，数值未知。', 'No photo result; its value is unknown.'),
     not_cd: null,
     invalid_photo: pair('照片记录无法读取或不完整。', 'The photo record is unreadable or incomplete.'),
-    invalid_preset: pair('无法核对已保存的预设。', 'The saved preset could not be verified.'),
   };
   // A DVD photo result: DIS presets carry the along-track constant only as CD frames, so the exported preset
   // has none; disc-probe's own burn files read it from the photos directly. Not a failure.
@@ -67,6 +69,8 @@ export function photoSaveWords(decision = {}) {
 export function recoveryKind(result = {}) {
   const part = result.geo || result.timing || result;
   const m = part.measurement || {}, reason = m.stopped || '';
+  if (result.geo && m.missing_mm?.length) return 'coverage';
+  if (result.calibratedOk === false && ['good', 'usable'].includes(part.verdict)) return 'calibration_failed';
   if (/medium|recorded area|fails on|cannot read/.test(reason)) return 'media';
   if (/not turning at a constant speed/.test(reason)) return 'rotation';
   if (!result.geo && m.rotation && !['unknown','CAV'].includes(m.rotation)) return 'rotation';
@@ -74,6 +78,14 @@ export function recoveryKind(result = {}) {
 }
 export function measurementRecovery(result = {}) {
   const part = result.geo || result.timing || result, m = part.measurement || {}, a = m.speed_advice;
+  const kind = recoveryKind(result);
+  if (kind === 'coverage') {
+    const bands = m.missing_mm.map(([lo, hi]) => `${lo.toFixed(2)}–${hi.toFixed(2)} mm`).join(' · ');
+    return pair(`还缺这些半径的读数：${bands}。保留这张测量盘，可用同一台光驱继续测。`,
+      `These radii still need readings: ${bands}. Keep this measurement disc in the same drive to continue.`);
+  }
+  if (kind === 'calibration_failed') return pair('标定没有完成。请查看详情，保留测量盘再试一次。',
+    'Calibration did not finish. See Details and keep this measurement disc to try again.');
   if (!result.geo && m.rotation === 'CLV' && a) {
     const route = a.media === 'bd'
       ? pair(' 可在终端使用 BD 的 CLV 分区拟合。', ' The BD CLV zone fit is available in Terminal.')
@@ -103,11 +115,13 @@ export function measurementRecovery(result = {}) {
     unknown: pair('还不知道结果是否可用。先保留数据，重新检查转速；若仍无法确定，请查看详情中的分析方法，不必急着重刻。', 'It is not known whether this result is usable. Keep the data and check rotation again. If it remains uncertain, see Details for analysis before burning another disc.'),
     rotation: pair('光驱没有保持稳定转速。先手动弹出并放回这张测量盘，再检查转速。仍不稳定时，请试试其他读取速度或光驱。', 'The drive did not hold a steady rotation. Manually eject and reload this measurement disc, then check rotation again. If it stays unstable, try another reading speed or drive.'),
     media: pair('这张盘有一部分读不出来。如果盘上还有图案或其他内容，请只测其中的测量区域，方法见详情。如果整张都是测量数据，盘可能已损坏，请换一张同批空白盘。', 'Part of this disc could not be read. If it also contains a picture or other content, measure only its measurement area; see Details. If the whole disc contains measurement data, it may be damaged. Use a fresh blank from the same batch.'),
-  })[recoveryKind(result)];
+  })[kind];
 }
 export function recoveryAction(result = {}) {
   const kind = recoveryKind(result);
   const m = (result.timing || result).measurement || {};
+  if (kind === 'coverage' && result.geo?.path && result.geo.measurement.can_resume)
+    return {id:'coverage', label:pair('补测空档', 'Measure missing radii')};
   if (!result.geo && m.rotation === 'CLV' && m.speed_advice?.exhausted)
     return {id:'drive', label:pair('选择其他光驱', 'Choose another drive')};
   if (['good','usable'].includes(kind) && result.geo) return {id:'save', label:pair('保存测量', 'Save measurement')};

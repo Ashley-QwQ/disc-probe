@@ -62,8 +62,9 @@ class HandshakeTests(unittest.TestCase):
     def test_payload_http_and_cli_are_identical(self):
         payload = api.version_payload()
         self.assertEqual(payload['core_version'], __version__)
-        self.assertEqual(payload['api_version'], '1.1')
+        self.assertEqual(payload['api_version'], '1.2')
         self.assertIn('image-job-recovery', payload['capabilities'])
+        self.assertIn('geo-coverage', payload['capabilities'])
         self.assertEqual(payload['supported_older_api_majors'], [])
         self.assertEqual(len(payload['capabilities']), len(set(payload['capabilities'])))
         self.assertTrue(set(self.manifest['required_capabilities']) <= set(payload['capabilities']))

@@ -1,6 +1,7 @@
 // What the design page burns, decided in one place: which measured geometry, which textures, which grid.
 // The page, the preview's checklist and the tests all ask here, so what the checklist says is what is made.
 // Pure functions: no DOM, no fetch.
+import { calibratedBatch } from "../batches.mjs";
 
 // The two textures of a black-and-white burn, per disc kind (the core's own defaults: `image --dark/--light`,
 // cdimage 0D/AA). Background (slot 0) is light; every other material is dark.
@@ -42,8 +43,17 @@ export function measuredRing(measured, ring) {
   const lo = Math.max(ring[0], measured[0] + 0.05), hi = Math.min(ring[1], measured[1] - 0.05);
   return hi > lo ? [lo, hi] : null;
 }
+export function measuredRings(intervals, legacy, ring) {
+  const source = intervals?.length ? intervals : legacy ? [legacy] : [];
+  if (source.length <= 1) return source.map(span => measuredRing(span, ring)).filter(Boolean);
+  return source.map(([a, b], i) => [Math.max(ring[0], a + (i === 0 ? 0.05 : 0)),
+    Math.min(ring[1], b - (i === source.length - 1 ? 0.05 : 0))]).filter(([a, b]) => a < b);
+}
 // only when known: a geometry choice without it keeps its old shape
-const measuredOf = (x) => Array.isArray(x?.measured_mm) ? { measured: x.measured_mm } : {};
+const measuredOf = (x) => ({
+  ...(Array.isArray(x?.measured_mm) ? { measured: x.measured_mm } : {}),
+  ...(x?.measured_intervals_mm?.length ? { intervals: x.measured_intervals_mm } : {}),
+});
 const importedChoice = (item, entry, media) => {
   const nominal = entry?.nominal_mm;
   const ring = media === "cd" ? [26, 58] : [24, 58];
@@ -64,10 +74,13 @@ export function geoChoice(plan, catalogue = [], latest = null) {
   if (hasBatch(item)) {
     // the batch's own measurement, and nothing else: a geometry kept in the plan from before counts only if it is
     // this batch's
-    if (good(item) && item.geo) return { path: item.geo, source: "batch", name: item.name ?? item.mid ?? "", ...measuredOf(item.measured_mm ? item : known.find((x) => x.geo === item.geo)) };
-    const entry = known.find((x) => (item.id && x.id === item.id) || (item.mid && x.mid === item.mid));
+    const matches = (x) => (item.id && x.id === item.id) || (item.mid && x.mid === item.mid);
+    if (good(item) && item.geo) return { path: item.geo, source: "batch", name: item.name ?? item.mid ?? "",
+      ...measuredOf(item), ...measuredOf(catalogue.find(x => x.geo === item.geo)) };
+    const entry = calibratedBatch(known, item);
     if (entry?.geo) return { path: entry.geo, source: "batch", name: entry.name ?? entry.mid ?? "", ...measuredOf(entry) };
-    return { path: null, source: "none", name: item.name ?? item.mid ?? "" };
+    return { path: null, source: "none", name: item.name ?? item.mid ?? "",
+      ...measuredOf(item), ...measuredOf(catalogue.find(matches)) };
   }
   // no batch: the plan's own earlier geometry, else the newest finished one, said by name
   const saved = plan?.geo && known.find((x) => x.geo === plan.geo);

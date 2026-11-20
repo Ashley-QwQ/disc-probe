@@ -34,7 +34,7 @@ try {
   check([...page.querySelectorAll('[data-tumble]')].every(img => img.complete && img.naturalWidth === 640), 'all real tumble assets load');
   await Promise.all([...page.querySelectorAll('[data-envelope]')].map(img => img.decode()));
   check([...page.querySelectorAll('[data-envelope]')].every(img => img.naturalWidth === 1600 && img.getBoundingClientRect().width > 0 && w.getComputedStyle(img).visibility === 'visible'), 'cell envelope pictures load and occupy the cells');
-  for (let i = 0; i < 80 && page.querySelectorAll('.pw-cell:not(.pw-new) .pw-disc[data-blank]').length; i++) await wait(25);
+  for (let i = 0; i < 80 && page.querySelectorAll('.pw-cell:not(.pw-new) .pw-disc[hidden]').length; i++) await wait(25);
   check([...page.querySelectorAll('.pw-cell:not(.pw-new) .pw-disc')].every(img => img.src.startsWith('blob:')), 'library thumbnails come from the works routes');   // the new work's blank disc is a picture
   const thumbPlan = demo.fakePlans[1], cached = demo.thumbnail(thumbPlan, 128);
   check(demo.thumbnail(thumbPlan, 128) === cached, 'thumbnail cache reuses image');

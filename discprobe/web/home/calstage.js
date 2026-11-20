@@ -1,12 +1,13 @@
 import { flipNumber } from "./kit/flipnum.js";
 // The calibration page's stage: the burner seen straight down with its top shell see-through (caltop/,
 // rendered by caltop/render_caltop.py), the disc as the main character. The page draws on the disc what is
-// happening: the rainbow growing out from the inner edge as the head reads (hue by radius, as everywhere a
-// disc is read or written), a thin pointer from the centre to the head with its radius, a copper band where
+// happening: a band for writing progress and one coloured ring per measured radius, a thin pointer from
+// the centre to the head with its radius, a copper band where
 // reading stopped, a dashed place when there is no disc. A big percent and the time left sit lower left.
 //
-//   const st = await stage(api); st.show(true); st.set({ disc, read, head, headKnown, band, percent, left, busy });
-//     disc: "in" | "none" | "blank"     read: [r0, r1] mm already covered (rainbow), or null
+//   const st = await stage(api); st.show(true); st.set({ disc, read, readRadii, head, headKnown, band, percent, left, busy });
+//     disc: "in" | "none" | "blank"     read: [r0, r1] mm written (rainbow), or null
+//     readRadii: measured radii in mm from the geometry events
 //     head: mm of the head (pointer), or null; headKnown false: the pointer without a number
 //     band: [r0, r1] mm where it stopped (copper), or null        busy: the drive is working (shell a touch darker)
 //     percent: 0..100 or null; left: words for the time left
@@ -16,7 +17,9 @@ const ORDER = ["shadow", "bg", "sled", "mid", "disc", "glow", "over", "occluders
 const BASE = new URL("./caltop/", import.meta.url);
 let meta = null, el = null, state = {}, api = null;
 let art, g, sled, glow, label, big, percent, time, percentFlip, timeFlip, rainbow;
-let frame = 0, shownHead = null, artScale = 1, ink, paper, copper;
+let frame = 0, shownHead = null, headMove = null, artScale = 1, ink, paper, copper;
+let rings = new Map();
+const motionMs = 400;
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
 // the colour of the radius the head is at: the same OKLCH rainbow as the rest of the page (calibrate.js, ui.py)
@@ -55,7 +58,7 @@ function build() {
   timeFlip = flipNumber(time, {lang:api.lang(), live:false});
   addEventListener("dp-theme", paintArt);
   new MutationObserver(paintArt).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-  const motionChanged = () => { if (motionOff() && frame) settleHead(); };
+  const motionChanged = () => { if (motionOff() && frame) settleMotion(); };
   new MutationObserver(motionChanged).observe(document.documentElement, { attributes: true, attributeFilter: ["data-motion"] });
   reducedMotion.addEventListener("change", motionChanged);
   paintArt();
@@ -77,7 +80,7 @@ function paintArt() {
   draw();
 }
 
-function draw() {
+function draw(now = performance.now()) {
   if (!el || el.hidden) return;
   const s = state, [W, H] = meta.image_size;
   const [cx, cy] = meta.disc.centre_px, pxmm = meta.scale.px_per_mm, R = (mm) => mm * pxmm;
@@ -96,14 +99,21 @@ function draw() {
     g.save(); g.setLineDash([R(2.4), R(1.8)]); g.strokeStyle = copper; g.lineWidth = R(0.5);
     g.beginPath(); g.arc(cx, cy, R(60), 0, Math.PI * 2); g.stroke(); g.restore();
   }
-  if (s.disc !== "none" && s.read) {       // what has been read or written: rings coloured by radius (a blank being burned too)
-    const [a, end] = s.read;
-    const b = Number.isFinite(s.head) ? shownHead : end;
+  if (s.disc !== "none" && s.read) {       // the continuous band belongs to sequential writing
+    const [a, b] = s.read;
     if (b > a) {
       g.save(); g.globalAlpha = 0.85; g.fillStyle = rainbow;
       g.beginPath(); g.arc(cx, cy, R(b), 0, Math.PI * 2); g.arc(cx, cy, R(a), 0, Math.PI * 2, true); g.fill();
       g.restore();
     }
+  }
+  if (s.disc === "in" && rings.size) {
+    g.save(); g.lineWidth = R(0.5); g.strokeStyle = rainbow;
+    for (const [radius, start] of rings) {
+      g.globalAlpha = 0.85 * (1 - (1 - motionFraction(now, start)) ** 3);
+      g.beginPath(); g.arc(cx, cy, R(radius), 0, Math.PI * 2); g.stroke();
+    }
+    g.restore();
   }
   if (s.band) {                            // where reading stopped: a copper band, the one thing to look at
     g.save(); g.fillStyle = copper; g.globalAlpha = 0.55;
@@ -135,30 +145,46 @@ function drawTime(text) {
   if (time.dataset.flipValue !== text) timeFlip.set(text);
 }
 const motionOff = () => api.reduce || reducedMotion.matches || document.documentElement.dataset.motion === "off";
-function settleHead() {
+const motionFraction = (now, start) => Math.max(0, Math.min(1, (now - start) / motionMs));
+function settleMotion() {
   cancelAnimationFrame(frame);
   frame = 0;
+  headMove = null;
   shownHead = state.head;
+  for (const radius of rings.keys()) rings.set(radius, -Infinity);
   draw();
 }
+function animate(now) {
+  frame = 0;
+  if (headMove) {
+    const {from, to, start} = headMove, t = motionFraction(now, start);
+    shownHead = from + (to - from) * (1 - (1 - t) ** 3);
+    if (t === 1) headMove = null;
+  }
+  draw(now);
+  if (headMove || [...rings.values()].some(start => now - start < motionMs)) frame = requestAnimationFrame(animate);
+}
 function set(next) {
-  const changed = next.head !== state.head;
+  const now = performance.now();
+  let added = false;
+  const latest = new Map();
+  for (const radius of next.readRadii ?? []) {
+    if (!Number.isFinite(radius) || radius <= 0 || radius > meta.disc.radius_mm) continue;
+    if (!rings.has(radius)) added = true;
+    latest.set(radius, rings.get(radius) ?? now);
+  }
+  rings = latest;
+  if (next.head !== state.head) {
+    headMove = Number.isFinite(shownHead) && Number.isFinite(next.head) ? {from:shownHead, to:next.head, start:now} : null;
+    if (!headMove) shownHead = next.head;
+  }
   state = next;
-  if (!changed) { draw(); return; }
-  if (el.hidden || motionOff() || !Number.isFinite(shownHead) || !Number.isFinite(next.head)) {
-    settleHead();
+  if (el.hidden || motionOff()) {
+    settleMotion();
     return;
   }
-  cancelAnimationFrame(frame);
-  const from = shownHead, to = next.head, start = performance.now();
-  function step(now) {
-    const t = Math.max(0, Math.min(1, (now - start) / 400));
-    shownHead = from + (to - from) * (1 - (1 - t) ** 3);
-    draw();
-    frame = t < 1 ? requestAnimationFrame(step) : 0;
-  }
-  frame = requestAnimationFrame(step);
-  draw();
+  if (!frame && (headMove || added)) frame = requestAnimationFrame(animate);
+  draw(now);
 }
 // the scene's scale for the glass shadows (index.html --mm): the stage picture's px per mm on screen
 function scale() {
@@ -177,7 +203,12 @@ export async function stage(homeApi) {
   if (!meta) meta = await fetch(new URL("caltop.json", BASE)).then((r) => r.json());
   if (!el) build();
   return {
-    show(on) { el.hidden = !on; if (on) scale(); settleHead(); },
+    show(on) {
+      if (el.hidden === !on) return;
+      el.hidden = !on;
+      if (on) scale();
+      settleMotion();
+    },
     art: () => el.querySelector(".cs-art"),          // the picture's box: the grid loaddisc.js lines up with
     hold(on) { el.style.visibility = on ? "hidden" : ""; },   // laid out but unseen while the disc goes in
     set,

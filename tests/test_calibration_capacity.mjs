@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
+import {sameMaker} from '../discprobe/web/home/batches.mjs';
 
 const source = readFileSync(new URL('../discprobe/web/home/calibrate.js', import.meta.url), 'utf8');
 const section = (start, end) => {
@@ -21,7 +22,7 @@ function calibration(phase, reports = []) {
     '\nrealNext;',
     {
       flow, api: {selectedDrive: () => 'X:', lang: () => 'en'}, paint() {}, interruptedBurn() {}, shortDiscWords() {},
-      liveText: (_, en) => en,
+      liveText: (_, en) => en, sameMaker,
       realError: error => { flow.error = error.message; },
       realJob: async action => {
         assert.equal(action, 'info');
@@ -65,4 +66,10 @@ const catalogue = calibration('prepare');
 catalogue.flow.catalogueSectors = 2297888;
 await catalogue.check();
 assert.deepEqual(catalogue.measured, [undefined], 'the core still chooses its catalogue fallback');
+
+const finalized = calibration('capacityWritten', [{...written, kind: 'DVD-ROM', mid: null}]);
+finalized.flow.blankSectors = 2297888;
+await finalized.check();
+assert.equal(finalized.flow.realPhase, 'prepare', 'a finalized disc can hide its maker code');
+assert.equal(finalized.flow.detected.kind, 'DVD-ROM');
 console.log('calibration capacity paths passed');

@@ -16,6 +16,7 @@ import { isActionEnter } from "./kit/shared.js";
 import * as presets from "./presetio.js";
 import { driveTarget, pushLobby } from "./lobby.js";
 import { receive as receiveCommunity, hint as communityHint, safeGithub } from "./community.mjs";
+import { calibrated, calibratedBatch, discDisplayKind, localDay, sameMaker } from "./batches.mjs";
 
 const STR = {
   zh: {
@@ -61,7 +62,6 @@ const T = () => STR[api.lang() === "en" ? "en" : "zh"];
 const root = document.documentElement;
 addEventListener("dp-presets-ready", () => { if (W && state) words_(); });
 const motionOff = () => root.dataset.motion === "off" || (root.dataset.motion !== "on" && api.reduce);
-const calibrated = (it) => !!it && ["good", "usable"].includes(it.s);
 const imported = (it) => it?.imported && it.image_compatible === true;
 const hasGeometry = (it) => calibrated(it) || imported(it);
 function calibrationNotice() {
@@ -81,9 +81,9 @@ async function loadWords() {
   return words;
 }
 function suggestion() {
-  const t = T(), now = new Date(), list = words?.[api.lang() === "en" ? "en" : "zh"] ?? [];
+  const t = T(), [, month, day] = localDay(), list = words?.[api.lang() === "en" ? "en" : "zh"] ?? [];
   const word = list.length ? list[(state?.seed ?? 0) % list.length] : (api.lang() === "en" ? "haiku" : "奇思妙想");
-  return t.suggest(t.months[now.getMonth()], now.getDate(), word);
+  return t.suggest(t.months[month - 1], day, word);
 }
 
 // ---------------------------------------------------------------- the disc dial
@@ -372,12 +372,12 @@ function remember(item) {
 }
 const isLibrary = (it) => !!it && state.list.includes(it);
 const driveOfKind = () => state.detected?.present && state.detected.media === state.kind ? state.detected : null;
-function newBatch(name) {
+function newBatch(name, manual = false) {
   const d = driveOfKind();
-  const key = JSON.stringify([state.kind, name, d?.mid, d?.kind, d?.sectors]);
+  const key = JSON.stringify([state.kind, name, manual, d?.mid, d?.kind, d?.sectors]);
   if (state.newItems.has(key)) return state.newItems.get(key);
-  // Deliberately no `mid`: export-rules uses that key to look up measured geometry by maker code.
   const item = { id: "new:" + crypto.randomUUID(), kind: "new", row: state.kind, name, s: "none",
+    ...(manual ? { manualBatch: true } : {}),
     ...(d ? { readMid: d.mid, readKind: d.kind, readSectors: d.sectors } : {}) };
   state.newItems.set(key, item);
   return item;
@@ -393,7 +393,7 @@ function fillBatches() {
     return rank(a) - rank(b);
   });
   const d = driveOfKind();
-  state.suggested = d ? ordered.find((it) => d.mid && it.mid?.toLowerCase() === d.mid.toLowerCase())
+  state.suggested = d ? calibratedBatch(ordered, null, d) ?? ordered.find((it) => sameMaker(it.mid, d.mid))
     ?? newBatch([d.maker || d.manufacturer, shortKind(d.kind) || KIND_KEY[d.media]].filter(Boolean).join(" ") + (d.mid ? `（${d.mid}）` : ""))
     : !state.detected?.present ? ordered.find((it) => wasLast(it) || recent.includes(it.id)) ?? null : null;
   // A detour can return a newly calibrated/imported library entry. Otherwise preserve even an empty edit.
@@ -405,12 +405,14 @@ function fillBatches() {
 }
 function chosen() {
   const name = W.batch.value.trim();
-  if (!name) return state.edited ? null : state.suggested;
-  if (state.picked?.name === name && isLibrary(state.picked)) return state.picked;
-  return state.list.find((it) => it.name.toLowerCase() === name.toLowerCase()) ?? newBatch(name);
+  const item = !name ? (state.edited ? null : state.suggested)
+    : state.picked?.name === name && (isLibrary(state.picked) || state.picked.kind === "new") ? state.picked
+    : state.list.find((it) => it.name.toLowerCase() === name.toLowerCase()) ?? newBatch(name, true);
+  if (!item || hasGeometry(item)) return item;
+  return calibratedBatch(api.catalogue(state.kind), item, item.kind === "new" ? driveOfKind() : null) ?? item;
 }
 function pickBatch(it) {
-  state.edited = true; state.touched = true; state.picked = isLibrary(it) ? it : null;
+  state.edited = true; state.touched = true; state.picked = it;
   W.batch.value = it.name; W.batch.placeholder = "";
   hideMatches(); paintLeft();
 }
@@ -448,8 +450,11 @@ function paintLeft() {
   W.q(".np-cal-go").hidden = !it || hasGeometry(it);
   W.q(".np-own").hidden = !!it && hasGeometry(it) || !presets.ready();
   const mid = it?.readMid;
+  const recognised = d?.blank === false && /^DVD-ROM\b/i.test(d.kind) ? discDisplayKind(d, api.lang())
+    : zh ? `光驱里认出的是 ${shortKind(d?.kind) || KIND_KEY[d?.media]}`
+      : `The drive recognised ${shortKind(d?.kind) || KIND_KEY[d?.media]}`;
   W.q(".np-disc-help").textContent = state.reading ? t.reading : state.readFailed ? t.readFail
-    : state.recognised ? (zh ? `光驱里认出的是 ${shortKind(d.kind) || KIND_KEY[d.media]}` : `The drive recognised ${shortKind(d.kind) || KIND_KEY[d.media]}`) + (mid ? ` · ${mid}` : "")
+    : state.recognised ? recognised + (mid ? ` · ${mid}` : "")
     : !it ? t.discHelp : d?.tray === "open" ? t.trayOpen : d && !d.present ? t.noDisc : t.discHelp;
   paintCommunity();
 }
@@ -477,22 +482,31 @@ const PAN_IN = ".cal-stage, .ld";                // the calibration page's scene
 const LAID = "#cal-ruler";                       // on the glass: does not travel with the scene; laid down after
 let panFlight = null, cardFlight = null;
 async function calibrateFirst() {
-  const item = chosen();          // none: the batch to calibrate is the one in the drive (the new-disc place)
   if (going) return;
   going = true;
-  state.picked = item;
+  const form = state, refreshed = api.syncState?.();
   const pan = !motionOff();
   const calibrating = import("./calibrate.js");
   if (pan && !await bagging(false)) { going = false; return; }
+  await refreshed;
+  if (state !== form || !isOn()) { going = false; return; }
+  const item = chosen();
+  if (hasGeometry(item)) {
+    W.classList.remove("filing", "leaving");
+    going = false;
+    fillBatches();
+    return;
+  }
+  state.picked = item;
   const cal = await calibrating;
   api.useForPlan(state.kind, isLibrary(item) ? item : null);
   if (pan) root.classList.add("pan-in");                      // its layers wait off to the right
   const flight = pan ? (panFlight = { anims: [], reversing: false }) : null;
   const stillCal = () => root.dataset.mode === "cal" && !flight?.reversing;
   let panned = false;
-  const shown = cal.start(withInitialItem(item ? { ...item } : api.current().item), { returnTo: ({ id } = {}) => {
+  const shown = cal.start(withInitialItem(item ? { ...item } : api.current().item), { returnTo: ({ id, batch } = {}) => {
     // the batch just calibrated, by its library entry (its name may not match the disc in the drive)
-    const saved = id && api.catalogue(state.kind).find((x) => x.id === id);
+    const saved = batch || (id && api.catalogue(state.kind).find((x) => x.id === id));
     if (saved) { state.picked = saved; state.sub = subOf(state.kind, saved); }
     reopen({ unfile: panned });
   }, returnAnim: pan ? (finish, reverseDisc) => { panned = true; return panBack(finish, reverseDisc); } : null });
@@ -702,6 +716,10 @@ async function readDrive() {
 // The actual profile wins over the last batch's type. ROM profiles have no recordable subtype.
 function firstSub(kind, item) {
   const d = state?.detected ?? api.driveDisc?.();
+  if (d?.present && d.media === kind && /ROM\b/i.test(d.kind)) {
+    const saved = calibratedBatch(api.catalogue(kind), null, d);
+    if (saved) return subOf(kind, saved);
+  }
   const name = d?.present && d.media === kind ? d.kind : item?.name;
   return (SUBS[kind].find((s) => s.re.test(name ?? "")) ?? SUBS[kind].find((s) => s.key === "-R") ?? SUBS[kind][0]).key;
 }

@@ -248,7 +248,7 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
       const img = document.createElement("img"); img.alt = ""; img.draggable = false; img.decoding = "async";
       img.dataset.envelope = side; img.src = asset(`./pastworks/envelope_${side}_${theme}.webp`); art.append(img);
     }
-    const blankDisc = () => {   // a blank disc (the calibration stage's own disc): the new work, or a work with no picture yet
+    const blankDisc = () => {   // the blank disc is the shortcut for starting a new work
       const blank = document.createElement("img"); blank.className = "pw-disc pw-blank"; blank.alt = ""; blank.draggable = false;
       blank.dataset.blank = "1"; blank.src = asset(`./caltop/anim/disc_${theme}.webp`); return blank;
     };
@@ -258,23 +258,30 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
       // One small cached image per plan; no canvas or projection work in the scroll loop.
       disc.dataset.thumb = String(thumbSerial++);
       thumbPlans.set(disc.dataset.thumb, e.plan); fillThumbnail(e.plan, disc.dataset.thumb);
-    } else if (e?.work && works) {
-      const disc = blankDisc(); art.append(disc);
-      // the core's picture (uploaded at save, else drawn by the core); a blank disc until it comes, or if it never does
-      works.thumbURL(e.work).then((src) => { disc.src = src; disc.classList.remove("pw-blank"); delete disc.dataset.blank; }, () => {});
-    } else art.append(blankDisc());
+    } else if (e?.work && works && !e.work.source_design_missing) {
+      const disc = document.createElement("img"); disc.className = "pw-disc"; disc.alt = ""; disc.draggable = false;
+      disc.hidden = true; art.append(disc);
+      const missing = () => { disc.replaceWith(noPreview()); };
+      disc.addEventListener("error", missing, { once: true });
+      disc.addEventListener("load", () => { disc.hidden = false; }, { once: true });
+      works.thumbURL(e.work).then((src) => { disc.src = src; }, missing);
+    } else if (e) art.append(noPreview());
+    else art.append(blankDisc());
     if (e?.work?.status === "done" || e?.work?.status === "failed") {
       const mark = document.createElement("span"); mark.className = `pw-stamp pw-stamp-${e.work.status}`;
       mark.textContent = statusWord(e.work.status, lang()); mark.setAttribute("aria-hidden", "true"); art.append(mark);
     }
     return art;
   }
+  function noPreview() {
+    return el("span", "pw-thumbnail-missing", lang() === "en" ? "No preview" : "没有预览");
+  }
   function fillThumbnail(plan, id) {
     Promise.resolve().then(() => thumbnail(plan, 256)).then((src) => {
       for (const image of page.querySelectorAll(".pw-disc")) if (image.dataset.thumb === id) image.src = src;
     }).catch(() => {
       for (const image of page.querySelectorAll(".pw-disc")) if (image.dataset.thumb === id) {
-        image.parentElement.classList.add("pw-thumbnail-missing"); image.remove();
+        image.replaceWith(noPreview());
       }
     });
   }
