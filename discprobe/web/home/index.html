@@ -25,6 +25,9 @@
     l = l || ((navigator.language || "").toLowerCase().indexOf("zh") === 0 ? "zh" : "en");
     document.documentElement.lang = l === "zh" ? "zh-CN" : "en";
     document.documentElement.dataset.lang = l;
+    if (new URLSearchParams(location.search).get("corner-weight")?.toLowerCase() === "b") {
+      document.documentElement.dataset.cornerWeight = "b";
+    }
   })();
 </script>
 <link rel="stylesheet" href="./kit/kit.css">
@@ -380,13 +383,7 @@
      header is from the top ones. No band or rule: the page fades to paper under it, so whatever runs on
      below (the new-work sheet, a scrolled column) stays legible behind the row ---- */
   .bar { position: fixed; z-index: 2; left: var(--edge); right: var(--edge); bottom: var(--edge); height: var(--row); display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 16px; }
-  /* why Next is grey, in words, on its left; empty (and gone) whenever Next can be pressed */
-  .next-why { grid-column: 2; max-width: min(30em, 40vw); color: var(--ink-2); font-size: 16px; line-height: 1.3; text-align: right; }
-  .next-why:empty { display: none; }
-  .bar > .next { grid-column: 3; }
   .next[hidden], .next-confirm[hidden] { display: none; }
-  .bar > .next-confirm { grid-column: 3; grid-row: 1; position: relative; width: clamp(240px, 28vw, 380px); max-width: calc(100vw - 2 * var(--edge)); }
-  .next-confirm .kit-slide-track { height: var(--row); box-shadow: var(--glass-edge), var(--glass-desk); }
   .next-confirm .kit-slide-help { position: absolute; bottom: calc(100% + 8px); right: 0; margin: 0; max-width: 100%; text-align: right; }
   #batch-history { margin: 20px 0; }
   .next.kit-ring-button .kit-ring-label { display: inline-flex; align-items: center; gap: 10px; }
@@ -398,10 +395,6 @@
   :root[data-mode]:not([data-mode=""]) .bar::before { display: none; }
   .bar::before { content: ""; position: absolute; z-index: -1; pointer-events: none; left: calc(-1 * var(--edge)); right: calc(-1 * var(--edge)); bottom: calc(-1 * var(--edge));
     height: calc(var(--foot) + 32px); background: linear-gradient(to top, color-mix(in srgb, var(--paper) 88%, transparent) 55%, transparent); }
-  .drive { color: var(--ink-2); font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .drive b { color: var(--ink); font-weight: 600; }
-  .next { min-height: var(--row); padding: 0 28px; font-size: 19px; border: 0; border-radius: 4px; background: var(--ink); color: var(--paper); font-weight: 600; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; white-space: nowrap; transition: transform 150ms var(--ease); }
-  .next:active { transform: translateY(1px); }
   .next .icon { transition: transform var(--t) var(--ease); }
   .next:hover .i-chev { transform: translateX(3px); }
   /* The keys (keys.js), hidden until they help: a button's own cap fades in while the pointer is on it, and
@@ -499,8 +492,7 @@
   :root:is([data-mode="newplan"], [data-mode="presets"], [data-mode="faxnews"]) .top > * { filter: var(--glass-desk-drop); }
   :root[data-mode="newplan"] .top > :is(.back, .wordmark) { filter: var(--glass-drive-drop); }      /* over the drive */
   :root[data-mode="presets"] .top > :is(.back, .wordmark) { filter: var(--glass-drive-drop); }      /* over the letter tray */
-  :root:is([data-mode="newplan"], [data-mode="cal"]) :is(.next, .next-side) { box-shadow: var(--glass-edge), var(--glass-desk); }
-  :root:is([data-mode="newplan"], [data-mode="cal"], [data-mode="presets"], [data-mode="faxnews"]) .bar > :is(.job, .drive, .next-why) { filter: var(--glass-desk-drop); }   /* the bottom bar's words are on the glass too */
+  :root:is([data-mode="newplan"], [data-mode="cal"], [data-mode="presets"], [data-mode="faxnews"]) .bar > .job { filter: var(--glass-desk-drop); }
   :root[data-mode="cal"] .cs-big { filter: var(--glass-desk-drop); }                                    /* so are the big percent and its time */
   /* The paper and drive share a vertical centre. Its heading stays outside the scroll area. */
   :root.cal-staged .cal { position: fixed; top: var(--cal-top); bottom: var(--cal-bottom); height: fit-content; margin-block: auto;
@@ -558,7 +550,6 @@
   @media (max-width: 820px) {
     :root[data-mode="cal"].cal-staged :is(body, .stage) { overflow: clip; }
   }
-  @media (max-width: 760px) { .bar > .next-side { display: none; } }
   /* the verdict: a stamp of equal weight whatever it says, then what it means, for the picture, and now */
   .cal .cal-stamp { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 18px; align-items: start; padding: 14px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
   .cal .cal-stamp b { grid-row: span 3; padding: 4px 12px; border: 2px solid var(--ink); border-radius: 4px; font-weight: 800; font-stretch: 112%; white-space: nowrap; }
@@ -569,10 +560,7 @@
   @media (max-width: 560px) {
     .cal .cal-stamp:not([data-adoption]) { grid-template-columns: minmax(0, 1fr); }
     .cal .cal-stamp:not([data-adoption]) b { grid-row: auto; justify-self: start; }
-    :root[data-mode="cal"] .next { padding-inline: 12px; font-size: 16px; }
   }
-  .bar > .next-side { grid-column: 2; min-height: var(--row); padding: 0 20px; border: 1px solid var(--ink); border-radius: 4px; background: none; color: var(--ink); font: inherit; font-size: 17px; cursor: pointer; }
-  .bar > .next-side[hidden] { display: none; }
   .cal-callback { position: fixed; z-index: 5; left: 50%; bottom: calc(var(--foot) + 16px); translate: -50% 0; display: flex; gap: 14px; align-items: center;
     padding: 10px 12px 10px 16px; border: 1px solid var(--copper); border-radius: 8px; background: var(--paper); color: var(--ink); font-size: 17px; }
   .cal-callback[hidden] { display: none; }
@@ -793,7 +781,6 @@
   .next.hold { position: relative; overflow: hidden; }
   .next.hold::before { content: ""; position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--hold, 0)); background: var(--arc-flat, #8a6a3c); opacity: .55; }
   .next.hold > * { position: relative; }
-  .next[disabled] { opacity: .4; cursor: not-allowed; }
   :root.cal-staged:has(.next-confirm) { --cal-bottom: calc(var(--foot) + 80px); }
   :root:has(.next-confirm) .burn-page { bottom: calc(var(--foot) + 80px); }
   :root[data-motion="off"] .cal-plate.breathe .floor, :root[data-motion="off"] .cal .chart .pt.new, :root[data-motion="off"] .flyer.hover .floor, :root[data-motion="off"] .flyer .arrow, :root[data-motion="off"] .warn-sign .flat, :root[data-motion="off"] .cal .note.flash { animation: none !important; } :root[data-motion="off"] .flyer, :root[data-motion="off"] .flyer.drop { transition: opacity 0s; } :root[data-motion="off"] .drive-led.on { animation: none; opacity: 1; }
@@ -801,6 +788,7 @@
 </style>
   <link rel="stylesheet" href="photocal.css">
 <link rel="stylesheet" href="../fonts/titles.css">
+<link rel="stylesheet" href="footer.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -887,7 +875,14 @@
 <section class="cal" id="cal" hidden aria-live="polite"></section>
 
 <footer class="bar">
-  <div class="drive" id="drivebar"></div>
+  <div class="drive" id="drivebar" role="group">
+    <svg class="icon" aria-hidden="true"><use href="#i-drive"/></svg>
+    <span class="drive-dot" aria-hidden="true"></span>
+    <span class="drive-reading">
+      <span id="drivebar-state"></span>
+      <span id="drivebar-disc"></span>
+    </span>
+  </div>
   <div class="job" id="job" hidden>
     <button class="job-name" id="job-name" type="button" disabled></button>
     <span class="job-bar"><span class="job-fill" id="job-fill"></span></span>
@@ -980,7 +975,8 @@
       lobbyOpen: "打开作品", lobbyOpenSub: "打开以前存的 .discdesign", nextNewPlan: "下一步：新作品", nextUseBatch: "下一步：用这批盘",
       langButton: "EN", langAria: "Switch to English", kinds: "盘的种类", driveTab: "光驱", inDrive: "就是光驱里这张",
       sectors: "扇区数", left: "这一桶还剩", last: "上次标定", usedDrive: "标定用的光驱",
-      leftVal: (l, o) => `${l} / ${o} 张`, inserted: (d) => `已插入 ${d}`, trayOpenShort: "托盘开着", noDiscShort: "没有盘", blankTag: "（空白）", rw: "可擦写", sep: "、",
+      leftVal: (l, o) => `${l} / ${o} 张`, rw: "可擦写", sep: "、",
+      driveStates: { blank: "空白可刻", recorded: "已刻录", inserted: "已插入", open: "托盘开着", empty: "没有盘", unknown: "盘状态未知", missing: "未发现光驱" },
       nextOpen: "下一步：打开作品", nextCal: "下一步：开始标定", nextMeasureImported: "下一步：用 DP 实测这批", nextDrive: "下一步：认一下光驱里的盘", nextNew: "下一步：标定新盘",
       newName: "标定新盘", newState: ["没列出来的盘", "把它放进光驱，先读出盘的类型和厂商编号，再刻一张测量盘。"],
       reading: "正在读光驱里的盘……", foundKnown: (d) => `光驱里是 ${d}，已经在架子上。`, foundNew: (k) => `光驱里是一种没列出来的 ${k}，可以标定它。`, driveNone: "光驱里没有盘。",
@@ -1003,7 +999,8 @@
       lobbyOpen: "Open a work", lobbyOpenSub: "Open a saved .discdesign", nextNewPlan: "Next: new work", nextUseBatch: "Next: use these discs",
       langButton: "中文", langAria: "切换到中文", kinds: "Disc kinds", driveTab: "Drive", inDrive: "This is the disc in the drive",
       sectors: "Sectors", left: "Left in this spindle", last: "Last calibrated", usedDrive: "Calibrated on",
-      leftVal: (l, o) => `${l} / ${o}`, inserted: (d) => `${d} inserted`, trayOpenShort: "tray open", noDiscShort: "no disc", blankTag: " (blank)", rw: "rewritable", sep: ", ",
+      leftVal: (l, o) => `${l} / ${o}`, rw: "rewritable", sep: ", ",
+      driveStates: { blank: "Blank", recorded: "Recorded", inserted: "Disc inserted", open: "Tray open", empty: "No disc", unknown: "Disc status unknown", missing: "No drives found" },
       nextOpen: "Next: open a work", nextCal: "Next: calibrate", nextMeasureImported: "Next: measure this batch with DP", nextDrive: "Next: identify the disc in the drive", nextNew: "Next: calibrate a new disc",
       newName: "Calibrate a new disc", newState: ["A disc that isn't listed", "Put it in the drive: its type and maker code are read first, then one measurement disc is burned."],
       reading: "Reading the disc in the drive…", foundKnown: (d) => `The drive holds ${d}; it's already on the shelf.`, foundNew: (k) => `The drive holds a ${k} that isn't listed; you can calibrate it.`, driveNone: "The drive is empty.",
@@ -1616,14 +1613,26 @@
   function paintDriveLine() {
     globalThis.dispatchEvent?.(new Event("dp-drive-state"));
     const t = T();
-    if (backend.mock) { $("drivebar").textContent = `H: HL-DT-ST GH70N · ${t.inserted("Verbatim DVD-R")}`; return; }
-    $("drivebar").textContent = (backendState?.drives || []).map((d) => {
-      const head = d.name && d.name !== d.id ? `${d.id} ${d.name}` : d.id, disc = d.disc;
-      if (!disc || root.dataset.home === "lobby" && !root.dataset.mode) return head;
-      const tail = disc.present ? t.inserted(T().brand?.(discName(disc)) ?? discName(disc)) + (disc.blank ? t.blankTag : "")
-        : disc.tray === "open" ? t.trayOpenShort : t.noDiscShort;
-      return `${head} · ${tail}`;
-    }).join(" · ") || (lang === "zh" ? "未发现光驱" : "No drives found");
+    const demo = backend.mock ? DATA.drive[0] : null;
+    const readings = (demo ? [{
+      id: "H:", name: demo.name, disc: { present: trayDisc, blank: true, tray: trayOpen ? "open" : "empty" },
+    }] : backendState?.drives ?? []).map(({ id, name, disc }) => {
+      let state = "unknown";
+      if (disc?.tray === "open") state = "open";
+      else if (disc?.present) state = disc.blank === true ? "blank" : disc.blank === false ? "recorded" : "inserted";
+      else if (disc?.tray === "empty") state = "empty";
+      const media = disc?.present ? (demo ? demo.trayDisc : t.brand(discName(disc))) : "";
+      const model = name !== id ? name : "";
+      return { id, state, detail: [id, media || model].filter(Boolean).join(" · "),
+        summary: [id, model, t.driveStates[state], media].filter(Boolean).join(" · ") };
+    });
+    const active = readings.find(({ id }) => id === api.selectedDrive()) ?? readings[0];
+    const bar = $("drivebar");
+    bar.dataset.state = active?.state ?? "missing";
+    $("drivebar-state").textContent = t.driveStates[bar.dataset.state];
+    $("drivebar-disc").textContent = active?.detail ?? "";
+    bar.title = readings.map(({ summary }) => summary).join("\n") || t.driveStates.missing;
+    bar.setAttribute("aria-label", bar.title);
   }
   async function readDisc(drive = api.selectedDrive()) {
     if (backend.mock) {
@@ -1977,7 +1986,7 @@
   addEventListener("dp-lang", paintSound);
   addEventListener("dp-sound", paintSound);
   paintSound();
-  // Why Next is grey: a page says it with api.nextWhy(words) right after disabling Next; the words go when
+  // Why Next is disabled: a page says it with api.nextWhy(words) right after disabling Next; the words go when
   // Next can be pressed again, or when the page changes.
   api.nextWhy = (words) => { $("next-why").textContent = $("next").disabled ? (words || "") : ""; $("next-why").dataset.mode = root.dataset.mode ?? ""; };
   new MutationObserver(() => { if (!$("next").disabled) $("next-why").textContent = ""; }).observe($("next"), { attributes: true, attributeFilter: ["disabled"] });

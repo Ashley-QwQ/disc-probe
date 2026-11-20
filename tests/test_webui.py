@@ -740,9 +740,11 @@ def test_home_refreshes_completed_writes_including_replayed_jobs():
     script = r'''
 const assert = require('node:assert/strict');
 (async () => {
-  const line = {textContent: ''}, $ = () => line;
-  const lang = 'en', discName = () => 'DVD-R';
-  const T = () => ({inserted: name => name, blankTag: ' blank', noDiscShort: 'empty'});
+  const bar = {dataset: {}, setAttribute() {}}, state = {}, detail = {};
+  const elements = {'drivebar': bar, 'drivebar-state': state, 'drivebar-disc': detail};
+  const $ = id => elements[id] ?? {};
+  const discName = () => 'DVD-R';
+  const T = () => ({brand: name => name, driveStates: {blank:'Blank', recorded:'Recorded', unknown:'Disc status unknown'}});
   const api = {selectedDrive: () => 'H:'};
   const root = {dataset: {mode: 'calibrate'}};
   const pendingReads = new Map(), failedReads = new Set();
@@ -775,7 +777,9 @@ const assert = require('node:assert/strict');
       assert.equal(reads - before, action === 'info' ? 0 : 1);
       assert.equal(backendState.drives[0].disc.blank, true); // selected drive is unrelated
       assert.equal(backendState.drives[1].disc.blank, action === 'info');
-      if (action !== 'info') assert.equal(line.textContent, 'H: · DVD-R blank · I: · DVD-R');
+      assert.equal(state.textContent, 'Blank');
+      assert.equal(detail.textContent, 'H: · DVD-R');
+      if (action !== 'info') assert.equal(bar.title, 'H: · Blank · DVD-R\nI: · Recorded · DVD-R');
     }
   }
   active = {id: 'read-failed', action: 'burn', exit: 1, drive: 'I:'};
