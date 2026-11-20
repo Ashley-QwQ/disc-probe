@@ -298,6 +298,7 @@ async function make() {
       const f = typeof p === "number" ? p : p?.fraction;
       job.fraction = Number.isFinite(f) ? Math.max(job.fraction ?? 0, Math.min(1, f)) : job.fraction;
       if (p?.stage) job.stage = p.stage;
+      if (p?.jobId) job.jobId = p.jobId;
       remember(jobCtx, job);                           // the work is saved while its file is made: its id now finds it too
       if (state === job) buildRight();
     }, { signal: job.ctl.signal });
@@ -618,7 +619,7 @@ export function start(homeApi, context = {}) {
   if (!W) build();
   const cached = (same && ctx.state) || carried(ctx);
   const work = ctx.imageWork?.();
-  const lookup = work && cached?.phase !== "making" && !cached?.checkIso;
+  const lookup = work && (cached?.phase !== "making" || cached.jobId) && !cached?.checkIso;
   state = ctx.state = lookup ? { phase: "restoring" } : cached ?? { phase: "idle" };
   if (!same) {
     view = ctx.media === "dvd" && !ctx.reviewSaved ? "look" : "design"; src = null; try { src = ctx.project?.render(12) ?? null; } catch { src = null; }

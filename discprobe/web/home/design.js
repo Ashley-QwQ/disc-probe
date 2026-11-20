@@ -1783,6 +1783,7 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects } = 
   });
   const job = await run.json().catch(() => ({}));
   if (!run.ok) throw new Error(localImageError(job.error) || t.failed);
+  onProgress({ stage: t.making, fraction: 0, jobId: job.job });
   let why = "", lastLine = "";
   const exit = await new Promise((resolve, reject) => {
     const es = new EventSource("/api/events");
@@ -2270,7 +2271,7 @@ async function openPreview() {
     setEffects(mode) { ctx.effects = mode === "experimental" && P.media === "dvd" ? "experimental" : "bw"; },
     // the check disc for the phone photos: DVD only for now (checkdisc.py)
     exportCheck: P.media === "dvd" ? (onProgress, opts) => makeCheckFile(onProgress, opts) : null,
-    exportIso: (onProgress, opts) => makeBurnFile((p) => onProgress({ fraction: p.fraction, stage: p.stage }),
+    exportIso: (onProgress, opts) => makeBurnFile(onProgress,
       { ...opts, effects: experimentalNow(P).any ? ctx.effects : "bw" }),
     // what the preview's checklist reads before burning; each answer is what is known now, never a guess
     checks: () => {
