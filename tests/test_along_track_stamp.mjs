@@ -15,7 +15,7 @@ const dvd = photoSaveWords({written:false,reason:'not_cd',frames:0});
 assert.match(dvd.zh, /DIS 的预设只记 CD 的帧数/);
 assert.match(dvd.en, /DIS presets only record CD frames/);
 for (const lang of ['zh','en']) assert.doesNotMatch(dvd[lang], /没写进去|not written|L = 0|0 frames/);
-for (const reason of ['different_run','different_drive','unknown_drive','verdict_not_ok','missing_L','no_photo','invalid_photo','invalid_preset',undefined]) {
+for (const reason of ['different_run','different_drive','unknown_drive','verdict_not_ok','missing_L','no_photo','invalid_photo',undefined]) {
   const words = photoSaveWords({written:false,reason,frames:0});
   assert.match(words.zh, /沿轨常数没写进去：/);
   assert.match(words.en, /Along-track constant not written:/);

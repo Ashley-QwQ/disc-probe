@@ -745,6 +745,7 @@ const assert = require('node:assert/strict');
   const T = () => ({inserted: name => name, blankTag: ' blank', noDiscShort: 'empty'});
   const api = {selectedDrive: () => 'H:'};
   const root = {dataset: {mode: 'calibrate'}};
+  const pendingReads = new Map(), failedReads = new Set();
   // the slices also set up page listeners; outside a browser they are inert
   const addEventListener = () => {}, MutationObserver = class { observe() {} disconnect() {} };
   let backendState, active, reads = 0, failRead = false, onEvent;

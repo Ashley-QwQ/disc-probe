@@ -1,5 +1,5 @@
 import { observeActivity } from "./kit/shared.js";
-import { lobbyStatus } from "./lobby-state.js";
+import { lastDiscCheck, lobbyDrive, lobbyStatus } from "./lobby-state.js";
 import { rugGreeting, nextLocalDayDelay } from "./lobby-weekday.js";
 
 // The lobby: a corner desk with four things on it (docs/goals/gui-outline.md 3.0, art/desk NOTES "Lobby v3").
@@ -290,7 +290,16 @@ function lampWords() {
 }
 // The home page owns updates; the lobby only reads its cached state.
 function paintHello() {
-  if (L) L.hello.textContent = lobbyStatus(api.lobbyState?.(), api.lang());
+  if (!L) return;
+  const state = api.lobbyState?.(), lang = api.lang();
+  const label = lobbyStatus(state, lang);
+  if (L.hello.textContent !== label) L.hello.textContent = label;
+  const drive = lobbyDrive(state);
+  $("lobby-disc-actions").hidden = api.backend.mock || !drive;
+  $("lobby-disc-time").textContent = lastDiscCheck(state, lang);
+  const button = $("lobby-disc-check");
+  button.textContent = lang === "en" ? "Check again" : "重新检测";
+  button.disabled = !!state?.checking || state?.jobs?.some(j => j.drive === drive?.id && j.exit === null);
 }
 // the second line: the last plan, to pick up where it was left
 export function paintRecent(plans, open) {
@@ -357,6 +366,8 @@ export async function init(homeApi) {
   }, { capture: true });
   paintHello();
   addEventListener("dp-drive-state", paintHello);
+  $("lobby-disc-check").addEventListener("click", () => api.refreshLobbyDisc?.());
+  setInterval(() => { if (!document.hidden && !root.dataset.mode && root.dataset.home === "lobby") paintHello(); }, 15000);
   const url = new URL(ART, import.meta.url);
   build(await fetch(url).then((r) => r.json()), new URL(".", url).href);
   addEventListener("resize", fit);

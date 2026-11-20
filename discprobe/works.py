@@ -394,6 +394,11 @@ class Store:
                 raise WorkError("another window changed this work", 409)
             work.update(media=doc.get("media", work["media"]), geo_run=self._geo_ref(doc),
                         cell_um=round(doc.get("cell", .02) * 1000), source_design_missing=False)
+            if "batch" in doc:
+                batch = doc["batch"]
+                if batch is not None and (not isinstance(batch, str) or not 1 <= len(batch) <= 256):
+                    raise WorkError("invalid work batch")
+                work["batch"] = batch
             self._validate_meta(work)
             return self._update(folder, work, "saved", files)
 

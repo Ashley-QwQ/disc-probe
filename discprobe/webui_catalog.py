@@ -240,11 +240,12 @@ def save_entry(root, out, payload):
         # stored relative to the workspace, as catalogue() compares it: an absolute path would leave the
         # preset listed again as a batch of its own
         payload = {**payload, 'preset': path.relative_to(Path(root).resolve()).as_posix()}
-        document = guide._load(str(path)) or {}
+        document = guide._load(str(path))
         source = document.get('source') if isinstance(document, dict) else None
-        photo_shift = dict(written=False, reason='invalid_preset')
-        if isinstance(source, dict):
-            photo_shift = source.get('photo_shift', photo_shift)
+        if not isinstance(document, dict) or not document:
+            photo_shift = dict(written=False, reason='invalid_preset')
+        elif isinstance(source, dict):
+            photo_shift = source.get('photo_shift')
     path = Path(root) / 'catalogue.json'
     if not path.resolve().is_relative_to(Path(root).resolve()):
         raise ValueError('catalogue must stay inside the workspace')

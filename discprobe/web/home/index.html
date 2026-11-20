@@ -549,7 +549,7 @@
     .cs-big { left: auto; right: 0; text-align: right; }
     .cs-big b { font-size: 44px; }
     :root.cal-staged .cal { position: fixed; top: calc(var(--edge) + var(--row) + 24px + 40vh); left: var(--edge); right: var(--edge);
-      bottom: calc(var(--foot) + 16px); width: auto; transform: none; padding: 22px 24px; overflow-y: auto; }   /* the card keeps its margins */
+      bottom: calc(var(--foot) + 16px); width: auto; transform: none; padding: 22px 24px; max-height: none; overflow-y: auto; }   /* the card keeps its margins */
   }
   @media (max-width: 760px) { .bar > .next-side { display: none; } }
   /* the verdict: a stamp of equal weight whatever it says, then what it means, for the picture, and now */
@@ -614,7 +614,7 @@
       repeating-linear-gradient(0deg, transparent 0 11px, var(--rule) 11px 12px), repeating-linear-gradient(90deg, transparent 0 11px, var(--rule) 11px 12px); }
   .cal .row { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
   .cal .name-field { display: grid; gap: 8px; margin-top: 18px; font-size: 17px; color: var(--ink-2); }
-  .cal .name-field input { font: inherit; font-size: 20px; color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--rule-strong); padding: 6px 0; caret-color: var(--copper); }
+  .cal .name-field input { min-width: 0; min-height: 44px; font: inherit; font-size: 20px; color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--rule-strong); padding: 6px 0; caret-color: var(--copper); }
   .cal .name-field input:focus-visible { outline: none; border-bottom-color: var(--ink); }
   .cal .count-input { display: flex; align-items: center; gap: 12px; font-size: 18px; }
   .cal .count-input input { width: 92px; min-height: 52px; padding: 0 12px; border: 1px solid var(--rule-strong); border-radius: 4px; background: transparent; color: var(--ink); font: 600 22px var(--font); font-variant-numeric: tabular-nums; }
@@ -622,7 +622,9 @@
   /* the job in the bar: what runs, how far (rainbow by radius for disc jobs), time left, cancel */
   .job { display: grid; grid-template-columns: auto minmax(120px, 1fr) auto auto; align-items: center; gap: 16px; min-width: 0; }
   .job[hidden] { display: none; }
-  .job-name { font-weight: 600; white-space: nowrap; }
+  .job-name { min-width: 0; text-align: left; background: none; color: inherit; border: 0; padding: 0; font: inherit;
+    font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .job-name:enabled { min-height: 44px; text-decoration: underline; text-underline-offset: .18em; cursor: pointer; }
   /* The bar is the core's progress bar (ui.Progress) in the page: the media's colours laid along the whole
      track, so a colour stays where it is as the fill grows over it; a glint running down the done part every
      few seconds; a bright tip, and a short flash when the percentage goes up (api.jobProgress sets --p and
@@ -646,6 +648,11 @@
   :root[data-motion="off"] .job-bar::after { box-shadow: none; }
   .job-time { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .bar:has(.job:not([hidden])) .drive { display: none; }
+  @media (max-width: 900px) {
+    :root[data-home="lobby"]:is(:not([data-mode]), [data-mode=""]) .bar:has(> .job:not([hidden])) { height: auto; gap: 4px 16px; }
+    :root[data-home="lobby"]:is(:not([data-mode]), [data-mode=""]) .bar > .job { grid-column: 1 / -1; grid-row: 2; }
+    .job { grid-template-columns: minmax(0, auto) minmax(20px, 1fr) auto auto; gap: 8px; }
+  }
   @media (max-width: 760px) {
     /* The burn job already shows its status. Give its stop control the whole footer row. */
     :root[data-mode="cal"] .bar:has(.job:not([hidden]) .job-cancel:not(.btn-icon)) > .job {
@@ -816,7 +823,9 @@
   <!-- the hit areas of "new work" (the drive) and "past works" (the file box); lobby.js puts them on the objects -->
   <button class="lb-hit" id="lobby-new" type="button"></button>
   <button class="lb-hit" id="lobby-open" type="button"></button>
-  <div class="lobby-greet"><p id="lobby-hello" role="status" aria-live="polite" aria-atomic="true"></p><p id="lobby-recent" hidden></p><p id="lobby-guide"></p></div>
+  <div class="lobby-greet"><p id="lobby-hello" role="status" aria-live="polite" aria-atomic="true"></p>
+    <div class="lobby-disc-actions" id="lobby-disc-actions" hidden><span id="lobby-disc-time"></span><button id="lobby-disc-check" type="button"></button></div>
+    <p id="lobby-recent" hidden></p><p id="lobby-guide"></p></div>
 </section>
 
 <header class="top">
@@ -865,7 +874,7 @@
 <footer class="bar">
   <div class="drive" id="drivebar"></div>
   <div class="job" id="job" hidden>
-    <span class="job-name" id="job-name"></span>
+    <button class="job-name" id="job-name" type="button" disabled></button>
     <span class="job-bar"><span class="job-fill" id="job-fill"></span></span>
     <span class="job-time" id="job-time"></span>
     <button class="btn btn-icon job-cancel" id="job-cancel" type="button"><svg class="icon"><use href="#i-x"/></svg></button>
@@ -880,6 +889,7 @@
   import * as backend from "./api.js";
   import { flipWatch } from "./kit/flipnum.js";
   import { statusBars } from "./kit/statusbars.js";
+  import { discDisplayKind, sameMaker } from "./batches.mjs";
   const esc = backend.escapeHTML;
   let backendState = null, backendError = null;
   const overflow = {};
@@ -1421,7 +1431,7 @@
         $(k).innerHTML = (Array.isArray(v) ? v : [v]).map((x) => `<span class="nb">${esc(x)}</span>`).join(`${t.sep}<wbr>`);
       });
       if (!root.dataset.mode)       // inside the flow the button belongs to the flow
-        $("next-text").textContent = root.dataset.home === "lobby" ? t.nextNewPlan
+        $("next-text").textContent = root.dataset.home === "lobby" ? lobbyNextWords()
           : (choosingFor || inspectingBatch) && item.kind !== "drive" && item.kind !== "new" ? t.nextUseBatch
           // the label says what Next does below: a measured batch opens its work; anything else (an imported DIS
           // preset too) goes to calibration
@@ -1583,16 +1593,18 @@
   // ---- what the calibration flow (calibrate.js) may use ----
   // ---- the disc in the drive: read on request (POST /api/disc, read-only `discprobe disc`), kept by the server
   const driveDisc = () => (backendState?.drives || []).find((d) => d.id === api.selectedDrive())?.disc ?? null;
+  const pendingReads = new Map(), failedReads = new Set();
   // a disc as the shelf names it: its batch when one with its manufacturer code is listed, else its kind and code
-  const batchOf = (disc) => { for (const c of ["dvd", "cd", "bd"]) { const it = DATA[c].find((x) => x.kind !== "new" && disc?.mid && x.mid === disc.mid); if (it) return it; } return null; };
-  const discName = (disc) => batchOf(disc)?.name ?? [String(disc.kind ?? "").split(" ")[0], disc.mid].filter(Boolean).join(" ");
+  const batchOf = (disc) => api.catalogue(disc?.media).find(x => sameMaker(x.mid, disc.mid));
+  const discName = (disc) => disc.blank === false && /^DVD-ROM\b/i.test(disc.kind)
+    ? discDisplayKind(disc, lang) : batchOf(disc)?.name ?? [String(disc.kind ?? "").split(" ")[0], disc.mid].filter(Boolean).join(" ");
   function paintDriveLine() {
     globalThis.dispatchEvent?.(new Event("dp-drive-state"));
     const t = T();
     if (backend.mock) { $("drivebar").textContent = `H: HL-DT-ST GH70N · ${t.inserted("Verbatim DVD-R")}`; return; }
     $("drivebar").textContent = (backendState?.drives || []).map((d) => {
       const head = d.name && d.name !== d.id ? `${d.id} ${d.name}` : d.id, disc = d.disc;
-      if (!disc) return head;
+      if (!disc || root.dataset.home === "lobby" && !root.dataset.mode) return head;
       const tail = disc.present ? t.inserted(T().brand?.(discName(disc)) ?? discName(disc)) + (disc.blank ? t.blankTag : "")
         : disc.tray === "open" ? t.trayOpenShort : t.noDiscShort;
       return `${head} · ${tail}`;
@@ -1604,11 +1616,44 @@
       return trayDisc ? { present: true, media: "dvd", kind: "DVD-R", mid: "MCC 004", blank: true, tray: "ready" } : { present: false, tray: "empty" };
     }
     if (!drive) return null;
-    const { disc } = await backend.request("/api/disc", { drive });
-    const d = backendState?.drives?.find((x) => x.id === drive);
-    if (d) d.disc = disc;
-    paintDriveLine();
-    return disc;
+    if (!pendingReads.has(drive)) {
+      const reading = backend.request("/api/disc", { drive }).then(({ disc }) => {
+        const d = backendState?.drives?.find((x) => x.id === drive);
+        if (d) d.disc = disc;
+        failedReads.delete(drive);
+        return disc;
+      }).catch(error => {
+        failedReads.add(drive);
+        throw error;
+      }).finally(() => { pendingReads.delete(drive); paintDriveLine(); });
+      pendingReads.set(drive, reading);
+      paintDriveLine();
+    }
+    return pendingReads.get(drive);
+  }
+  const inLobby = () => !root.dataset.mode && root.dataset.home === "lobby";
+  function refreshLobbyDisc() {
+    if (backend.mock || !inLobby() || document.hidden) return;
+    const drive = api.selectedDrive();
+    if (!drive || backendState?.jobs?.some(j => j.drive === drive && j.exit === null)) return;
+    return readDisc(drive).catch(() => {});
+  }
+  const activeCalibration = () => backendState?.jobs?.find(j => j.action === "calibrate" && j.exit === null);
+  const hasCalibration = () => !$("job").hidden || !!activeCalibration();
+  const lobbyNextWords = () => hasCalibration() ? (lang === "zh" ? "回到校准" : "Return to calibration") : T().nextNewPlan;
+  function paintLobbyNext() {
+    if (inLobby()) $("next-text").textContent = lobbyNextWords();
+  }
+  async function openCalibration() {
+    const cal = await import("./calibrate.js");
+    if (root.dataset.mode === "cal") return;
+    if (cal.hasJob()) cal.start(api, { keep: true });
+    else {
+      const job = activeCalibration();
+      if (!job) return;
+      chosenDrive = job.drive ?? chosenDrive;
+      cal.attach(api, job);
+    }
   }
 
   const api = {
@@ -1624,7 +1669,8 @@
       for (const c of ["dvd", "cd", "bd"]) { const i = DATA[c].indexOf(item); if (i >= 0) return [c, i]; }
       return ["dvd", 0];
     },
-    readDisc, driveDisc, discName,
+    readDisc, driveDisc, discName, refreshLobbyDisc,
+    waitForDiscCheck: (drive) => pendingReads.get(drive)?.catch(() => {}),
     // the footer bar for the running job: how far (0..1) and on what kind of disc (its colours)
     jobProgress(p, media = "dvd") {
       const bar = document.querySelector(".job-bar");
@@ -1653,7 +1699,7 @@
         idx = found >= 0 ? found : DATA[col].length - 1;
         Object.assign(DATA[col][idx], {detected:disc});
         if (found < 0) Object.assign(DATA[col][idx], {mid:disc.mid, sectors:disc.sectors});
-        pendingWhy = found >= 0 ? t.foundKnown(DATA[col][idx].name) : t.foundNew(disc.kind);
+        pendingWhy = found >= 0 ? t.foundKnown(DATA[col][idx].name) : t.foundNew(discDisplayKind(disc, lang));
         await loadSolid(col); render(1,true);
       } catch (error) { pendingWhy = backend.errorText(error,lang); render(1,true); }
       finally { nb.disabled = false; }
@@ -1673,7 +1719,7 @@
   }
   $("next").addEventListener("click", async () => {
     if (root.dataset.mode) return;
-    if (root.dataset.home === "lobby") { newPlan(); return; }
+    if (inLobby()) { if (hasCalibration()) await openCalibration(); else newPlan(); return; }
     const item = DATA[col][idx];
     if (inspectingBatch && item.kind !== "drive" && item.kind !== "new") {
       const resume = inspectingBatch; inspectingBatch = null;
@@ -1689,6 +1735,9 @@
     const flow = await import("./calibrate.js");
     flow.start(api);
   });
+  $("job-name").addEventListener("click", openCalibration);
+  addEventListener("dp-cal-job", paintLobbyNext);
+  addEventListener("dp-drive-state", paintLobbyNext);
   // SSE replays completed jobs on reconnect too, including a job attached after reload.
   // Refresh its drive even while a workflow owns the screen, and only once per job.
   const refreshedDiscs = new Set();
@@ -1797,10 +1846,10 @@
   function lastBatch() {
     let id = null;
     try { id = localStorage.getItem("dp-batch"); } catch {}
-    for (const c of ["dvd", "cd", "bd"]) { const it = DATA[c].find((x) => id && x.id === id); if (it) return [c, it]; }
+    for (const c of ["dvd", "cd", "bd"]) { const it = api.catalogue(c).find((x) => id && x.id === id); if (it) return [c, it]; }
     const held = backend.mock ? DATA.drive[0]?.trayDisc ?? "" : driveDisc()?.present ? driveDisc().kind ?? "" : "";
     const kind = /^CD|[^V]CD/.test(held) ? "cd" : /BD/.test(held) ? "bd" : "dvd";
-    const measured = (c) => DATA[c].find((x) => ["good", "usable"].includes(x.s));
+    const measured = (c) => api.catalogue(c).find((x) => ["good", "usable"].includes(x.s));
     for (const c of [kind, "dvd", "cd", "bd"]) { const it = measured(c); if (it) return [c, it]; }
     return ["dvd", DATA.dvd[0]];
   }
@@ -1808,7 +1857,7 @@
     if (where === "library") wakeScene();
     root.dataset.home = where;
     $("back").hidden = where !== "library";
-    if (where === "lobby") paintRecent();
+    if (where === "lobby") { paintRecent(); refreshLobbyDisc(); }
     render(1, true);
     if (libraryDirty) { libraryDirty = false; api.syncState(); }
   }
@@ -1829,8 +1878,11 @@
       const lib = await import('./pastworks/works.mjs'), client = await lib.worksFor(api);
       const latest = (await import('./afterburn.js')).latestBurn(await client.list());
       if (latest) {
-        lobby.paintRecent([{name:(lang === 'en' ? 'Burn report and preview: ' : '刻录报告和预览：') + latest.name}],
-          () => import('./afterburn.js').then(m => m.open(api, latest.id)));
+        const record = latest.discs.findLast(r => r.type === "burn" && !r.measurement);
+        const prefix = record.preview_available === false || latest.source_design_missing
+          ? (lang === "en" ? "Burn report: " : "刻录报告：")
+          : (lang === "en" ? "Burn report and preview: " : "刻录报告和预览：");
+        lobby.paintRecent([{name: prefix + latest.name}], () => import("./afterburn.js").then(m => m.open(api, latest.id, record.burn_id)));
         return;
       }
     } catch (e) { console.warn('recent burn', e); }
@@ -1869,27 +1921,30 @@
     },
     rememberBatch(item) { try { if (item?.id) localStorage.setItem("dp-batch", item.id); } catch {} },
     lastBatch,
-    // Read cached state for the lobby; no device command belongs to its status line.
     lobbyState: () => backend.mock ? {
       drives: [{ id: "demo", disc: { present: trayDisc, blank: trayDisc ? true : null, kind: "DVD-R" } }],
       selectedDrive: "demo", jobs: [],
-    } : backendError ? { error: true } : backendState ? { ...backendState, selectedDrive: api.selectedDrive() } : null,
+    } : backendError ? { error: true } : backendState ? { ...backendState, selectedDrive: api.selectedDrive(),
+      checking: pendingReads.has(api.selectedDrive()), checkFailed: failedReads.has(api.selectedDrive()) } : null,
     // the machine the core runs on ("win32", "linux", ...): the server's; in the mock, this browser's
     platform: () => backend.mock ? (/win/i.test(navigator.platform) ? "win32" : "linux") : backendState?.platform ?? "",
     // the disc batches of one kind (the library's entries, no empty place, no drive stop)
-    catalogue: (kind) => (DATA[kind] ?? []).filter((x) => x.kind !== "new" && x.kind !== "drive"),
+    catalogue(kind) {
+      const shelf = (DATA[kind] ?? []).filter((x) => x.kind !== "new" && x.kind !== "drive");
+      return [...shelf, ...(backendState?.catalogue?.[kind] ?? []).slice(shelf.length)];
+    },
     // what the drive holds, as the shelf names it ("Verbatim DVD-R"), else its kind ("DVD-R Sequential");
     // empty if no disc or not read yet
     heldDisc: () => {
       if (backend.mock) return trayDisc ? DATA.drive[0]?.trayDisc ?? "" : "";
       const d = driveDisc();
-      return d?.present ? batchOf(d)?.name ?? d.kind ?? "" : "";
+      return d?.present ? discName(d) : "";
     },
     // the form chose this kind and batch (or none): point the home page at it before design starts
     useForPlan(kind, item) {
       col = kind;
-      const i = item ? DATA[kind].indexOf(item) : DATA[kind].findIndex((x) => x.kind === "new");
-      idx = Math.max(0, i);
+      const i = item ? DATA[kind].findIndex(x => x === item || item.id && x.id === item.id) : -1;
+      idx = i >= 0 ? i : DATA[kind].length - 1;
     },
   });
 
@@ -1929,7 +1984,10 @@
     (await import("./calibrate.js")).attach(api, resume);
   }
   // what the drive holds, read once in the background (read-only, a second or two) so the footer can say it
-  else if (!backend.mock && !driveDisc()) readDisc().catch(() => {});
+  else refreshLobbyDisc();
+  addEventListener("focus", refreshLobbyDisc);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshLobbyDisc(); });
+  if (!backend.mock) setInterval(() => { if (document.hasFocus()) refreshLobbyDisc(); }, 30000);
   paintRecent();
   render(1, true);
   await (await import('./flow-navigation.js')).install(api, {setHome});

@@ -231,6 +231,7 @@ function buildRight() {
 // The one Next: with no file yet it makes it and goes on to burn; without a calibrated disc kind it goes to
 // calibrate; it says why when it cannot go on (making, 4 grey levels, no picture).
 function nextStep() {
+  if (ctx.calibrating) return null;
   if(ctx.reviewSaved)return 'review';
   const c = ctx.checks?.();
   if (state.phase === "ready") return "burn";
@@ -240,7 +241,8 @@ function nextStep() {
 }
 function paintNext() {                                // only from buildRight, which returns first when the page is not on
   const t = T(), step = nextStep(), s = state;
-  $("next-text").textContent = step === "burn" ? t.next : step === "calibrate" ? t.nextCal
+  $("next-text").textContent = ctx.calibrating ? (api.lang() === "en" ? "Preparing calibration…" : "正在准备标定…")
+    : step === "burn" ? t.next : step === "calibrate" ? t.nextCal
     : s.phase === "making" ? t.making2(s.fraction == null ? null : Math.floor(s.fraction * 100)) : t.nextMake;
   if(ctx.reviewSaved)$("next-text").textContent=api.lang()==='en'?'Back to the burn report':'返回刻录报告';
   $("next").disabled = !step;
@@ -524,7 +526,7 @@ function bind(signal) {
     if (a === "reset-look") { Object.assign(look, lookFromDesign(), PHOTO_DEFAULTS); buildRight(); draw(); }
     if (a === "make") make();
     if (a === "checkdisc") makeCheck();
-    if (a === "calibrate") { state = ctx.state = { phase: "idle" }; leave(false); ctx.calibrate(); }
+    if (a === "calibrate") void detour();
     if (a === "cancel") cancel();
     if (a === "checkburn") { const iso = state.checkIso; finish(ctx, state, { phase: "idle" }); leave(false); ctx.next?.(iso); }
   });
@@ -595,11 +597,8 @@ function bind(signal) {
     e.stopImmediatePropagation();
     const step = nextStep();
     if(step === 'review'){leave(false);ctx.next?.();return;}
-    if (step === "calibrate") { state = ctx.state = { phase: "idle" }; leave(false); ctx.calibrate(); return; }
-    if (step === "make") { const c = ctx; make().then(() => { if (isOn() && ctx === c && state.phase === "ready") { const iso = state.iso; leave(false); ctx.next?.(iso); } }); return; }
-    if (step !== "burn") return;
-    const iso = state.iso;
-    leave(false); ctx.next?.(iso);
+    if (step === "calibrate") { void detour(); return; }
+    if (step === "make" || step === "burn") void advanceToBurn(step);
   }, { capture: true });
   const ro = new ResizeObserver(resize); ro.observe(W.cv); signal.addEventListener("abort", () => ro.disconnect());
   const mo = new MutationObserver(draw); mo.observe(root, { attributes: true, attributeFilter: ["data-theme"] }); signal.addEventListener("abort", () => mo.disconnect());
@@ -609,6 +608,37 @@ function toast(text) {
   if (!toastEl) { toastEl = document.createElement("div"); toastEl.className = "toast"; toastEl.setAttribute("role", "status"); document.body.append(toastEl); }
   toastEl.textContent = text; toastEl.classList.add("on");
   clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove("on"), 2600);
+}
+
+async function detour() {
+  const active = ctx, signal = life.signal;
+  if (active.calibrating) return;
+  active.calibrating = true;
+  paintNext();
+  try { await active.calibrate(() => !signal.aborted); }
+  catch (error) { toast(error.message); }
+  finally {
+    active.calibrating = false;
+    if (ctx === active && isOn()) paintNext();
+  }
+}
+
+async function advanceToBurn(step) {
+  const active = ctx, signal = life.signal;
+  if (step === "make") await make();
+  if (signal.aborted || state.phase !== "ready") return;
+  const iso = state.iso;
+  leave(false); active.next?.(iso);
+}
+
+export async function continueToBurn(homeApi, context) {
+  context.calibrating = false;
+  context.state = { phase: "idle" };
+  start(homeApi, context);
+  await restoration;
+  if (!isOn() || ctx !== context) return;
+  const step = nextStep();
+  if (step === "make" || step === "burn") return advanceToBurn(step);
 }
 
 export function start(homeApi, context = {}) {

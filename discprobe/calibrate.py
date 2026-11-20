@@ -197,7 +197,9 @@ def _run(args) -> None:
                 raise Stopped("burning needs --yes-write")
             erase = getattr(args, "erase", False)
             expected = disc_identity.expected_for_write(args.drive, erasing=erase)
-            burn_env = {disc_identity.EXPECTED_ENV: disc_identity.encode_expected(args.drive, expected)}
+            from .works_link import MEASUREMENT_ENV
+            burn_env = {disc_identity.EXPECTED_ENV: disc_identity.encode_expected(args.drive, expected),
+                        MEASUREMENT_ENV: "1"}
             blank = read_disc()
             ui.event('disc', **blank)
             if capacity is None:

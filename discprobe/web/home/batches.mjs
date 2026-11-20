@@ -1,0 +1,24 @@
+export const calibrated = (item) => ["good", "usable"].includes(item?.s);
+
+export function sameMaker(a, b) {
+  return !!a && !!b && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+}
+
+export function calibratedBatch(entries, item, disc) {
+  const exact = entries.find(x => calibrated(x) && item?.id && x.id === item.id);
+  if (exact) return exact;
+  const mid = item?.mid || item?.readMid || disc?.mid;
+  return entries.find(x => calibrated(x) && sameMaker(x.mid, mid));
+}
+
+export function discDisplayKind(disc, lang) {
+  const kind = disc?.kind || (lang === "en" ? "disc" : "光盘");
+  if (disc?.blank === false && /^DVD-ROM\b/i.test(kind)) {
+    return lang === "en" ? "Recorded disc (drive reports DVD-ROM)" : "已刻好的光盘（光驱报告为 DVD-ROM）";
+  }
+  return kind;
+}
+
+export function localDay(date = new Date()) {
+  return [date.getFullYear(), date.getMonth() + 1, date.getDate()];
+}

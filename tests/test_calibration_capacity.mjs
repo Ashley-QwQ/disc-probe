@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
+import {sameMaker} from '../discprobe/web/home/batches.mjs';
 
 const source = readFileSync(new URL('../discprobe/web/home/calibrate.js', import.meta.url), 'utf8');
 const section = (start, end) => {
@@ -21,7 +22,7 @@ function calibration(phase, reports = []) {
     '\nrealNext;',
     {
       flow, api: {selectedDrive: () => 'X:', lang: () => 'en'}, paint() {}, interruptedBurn() {}, shortDiscWords() {},
-      liveText: (_, en) => en,
+      liveText: (_, en) => en, sameMaker,
       realError: error => { flow.error = error.message; },
       realJob: async action => {
         assert.equal(action, 'info');

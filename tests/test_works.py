@@ -461,6 +461,44 @@ def test_burn_work_success_failure_and_web_argv(store, tmp_path, monkeypatch):
     assert "works" in api.version_payload()["capabilities"]
 
 
+def test_measurement_write_does_not_create_a_work(store, tmp_path, monkeypatch):
+    from argparse import Namespace
+
+    from discprobe import works_link
+
+    iso = tmp_path / "measurement.iso"
+    iso.write_bytes(bytes(2048))
+    args = Namespace(iso=str(iso), media="dvd", drive="TEST:", speed=4)
+    report = {"result": "completed"}
+    monkeypatch.setenv(works_link.MEASUREMENT_ENV, "1")
+    works_link.burn_completed(args, report)
+    assert store.list() == []
+
+    args.work = store.new("Linked explicitly")["id"]
+    works_link.burn_completed(args, report)
+    assert store.show(args.work)["discs"][-1]["measurement"] is True
+    monkeypatch.delenv(works_link.MEASUREMENT_ENV)
+    args.work = None
+    args.iso = str(tmp_path / "ordinary.iso")
+    iso.rename(args.iso)
+    works_link.burn_completed(args, report)
+    assert store.show(args.work)["source_design_missing"] is True
+    assert store.show(args.work)["discs"][-1]["preview_available"] is False
+
+
+def test_save_design_persists_batch_and_preserves_it_for_old_documents(store):
+    work = store.new("My design before calibration")
+    assert work["batch"] is None
+    design = json.loads(raw_design())
+    batch = "a-calibrated-batch"
+    saved = store.save(work["id"], json.dumps({**design, "batch": batch}).encode("utf-8"))
+    assert saved["batch"] == batch
+    assert store.save(work["id"], raw_design())["batch"] == batch
+    with pytest.raises(works.WorkError, match="invalid work batch"):
+        store.save(work["id"], json.dumps({**design, "batch": 42}).encode("utf-8"))
+    assert store.show(work["id"])["batch"] == batch
+
+
 def test_http_workspace_source_and_stable_id(http_server):
     source = http_server.backend.root / "本地 文件.discdesign"
     source.write_bytes(raw_design())
