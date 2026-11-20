@@ -218,6 +218,7 @@ export const applicationReasons = {
   missing_L: pair('结果里没有 L。', 'The result has no L.'),
   inconsistent_L: pair('记录里的 L 前后不一致，不采用。', 'The recorded L is inconsistent, so it is not used.'),
   invalid_photo: pair('照片记录读不出或不完整。', 'The photo record is unreadable or incomplete.'),
+  invalid_manual_L: pair('人工沿轨常数超出了这次测量可以用的范围。', 'The manual along-track constant is outside the range this measurement can use.'),
   opted_out: pair('这次出图选择了不用照片修正。', 'This picture opted out of the photo correction.'),
   invalid_saved_photo_L: pair('ISO 旁保存的 L 记录校验不通过，没有沿用。', 'The L saved beside the ISO failed its check and was not reused.'),
   missing_image_record: pair('没有找到这张 ISO 的出图记录。', 'This ISO’s image record was not found.'),
