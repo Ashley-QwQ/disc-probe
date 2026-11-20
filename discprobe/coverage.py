@@ -46,11 +46,15 @@ def assess_range(fit, radius_range):
                 model_bias='unknown between samples; not included in covariance')
 
 
-def range_warning(fit, radius_range):
+def range_warning(fit, radius_range, *, allow_dis_nominal=False):
     if fit.get('model') == 'clv':
         return None
     assessment = assess_range(fit, radius_range)
     if not assessment['measured_intervals_mm']:
+        # image has already clipped its request to the writable geometry. A
+        # compatible DIS conversion supplies that geometry, but no measurements.
+        if allow_dis_nominal and fit.get('model') == 'dis_import' and fit.get('image_compatible') is True:
+            return None
         return 'Measured radius coverage is unknown; extrapolation cannot be checked.'
     if assessment['extrapolated_mm']:
         return (f"EXTRAPOLATION: requested radii {assessment['requested_mm']} mm extend outside measured "

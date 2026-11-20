@@ -25,6 +25,13 @@ assert.equal(R.geoChoice({item: later}, cat, null).source, 'none');
 const dis = {imported: true, image_compatible: true, correction_required: true, geo: 'presets/x.json', name: 'DIS'};
 assert.equal(R.geoChoice({item: dis}, [...cat, dis], newest).source, 'imported_corrected');
 assert.equal(R.geoChoice({item: {...dis, image_compatible: false}}, [...cat, dis], newest).path, null);
+const nominal = {...dis, id: 'preset:d', nominal_mm: [24.2, 56.5]};
+assert.deepEqual(R.geoChoice({item: nominal, media: 'dvd'}, [nominal]), {
+  path: dis.geo, source: 'imported_corrected', name: 'DIS', nominal: [24.2, 56.5],
+});
+assert.equal(R.geoChoice({item: later, media: 'dvd', geo: nominal.geo}, [nominal]).source, 'imported_corrected');
+assert.equal(R.geoChoice({item: nominal, media: 'dvd'}, [{...nominal, nominal_mm: [16, 22]}]).importProblem, 'range');
+assert.equal(R.geoChoice({item: nominal, media: 'dvd'}, [{...nominal, image_compatible: false}]).importProblem, 'incompatible');
 
 // --- textures: black and white by default; the labels stay, only the texture list changes
 const doc = O.migrate({version: 2, media: 'dvd', layers: [{id: 1, kind: 'image', shape: {type: 'rectangle'}, width: 20, height: 20, x: 40, y: 0}],

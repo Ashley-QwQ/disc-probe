@@ -59,12 +59,15 @@
 .pv-phone:hover { background: #3b4e4b; }
 .pv-sun:focus-visible, .pv-phone:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 
-@media (max-width: 700px) {
-  .ws.pv.pv-looking .cv { top: 156px; left: 16px; right: 16px; bottom: auto; height: 38vh; min-height: 220px; }
-  .ws.pv.pv-looking .col-r { top: max(calc(156px + 38vh + 12px), 388px); left: 20px; right: 20px; width: auto; bottom: calc(var(--foot) + 16px); }
-  .pv-looking .viewsw { max-width: 100%; flex-wrap: wrap; }
-  .pv-looking .viewsw button { padding-inline: 8px; font-size: 13px; }
-  .pv-looking .cv-note { margin-bottom: 0; padding: 4px 8px; font-size: 13px; }
+@media (max-width: 760px) {
+  .ws.pv { --preview-top: calc(var(--top) + 42px); --preview-height: clamp(160px, 38dvh, 320px); }
+  .ws.pv .cv { top: var(--preview-top); left: var(--edge); right: var(--edge); bottom: auto; height: var(--preview-height); }
+  .ws.pv .col-r { top: calc(var(--preview-top) + var(--preview-height) + 12px); left: var(--edge); right: var(--edge); width: auto; }
+  .ws.pv .viewsw { max-width: 100%; flex-wrap: wrap; }
+  .ws.pv .viewsw button { padding-inline: 8px; font-size: 13px; }
+  .ws.pv .cv-note { margin-bottom: 0; padding: 4px 8px; font-size: 13px; }
+  :root[data-mode="preview"] .next { padding-inline: 12px; font-size: 16px; white-space: normal; text-align: left; }
+  :root[data-mode="preview"] .next-why { position: absolute; bottom: 100%; right: 0; max-width: 100%; padding: 2px 8px; background: var(--paper); }
 }
 
 :root[data-motion="off"] .pv-bar i.indet { animation: none; width: 100%; opacity: .4; }

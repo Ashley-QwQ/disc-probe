@@ -20,6 +20,7 @@ import { ColourPreview } from "./design/colour-preview.mjs";
 import * as sfx from "./sfx.js";
 
 let simulation = null, makeRing = null, canvasActive = true;
+let restoration = null;
 // The lamp view of a work from the design page: the design page's own renderer (design/lamp-*.mjs, the A3 v3 model of
 // simulate_a3) on the work's document, so both pages show the same disc. sim/ (the older A5/B9 model with a photo
 // stage) stays only for a project without a document (dev-preview.html).
@@ -55,11 +56,16 @@ const STR = {
       look: "灯下的样子：模拟一盏灯照在盘上，颜色随角度变。这是模型，不是照片。" },
     checkH: "刻之前", checkDiscH: "先刻一张检查盘", checkDiscNote: "第一次用这台光驱配这批盘时：先刻一张检查盘，用手机拍 3 张以上，程序读出沿轨方向的偏差。之后再生成的刻录文件会自动修正它。已经拍过这批盘的检查盘，可以跳过。检查盘的纹理是按 RITEKF1 DVD-R 挑的，别的盘还没试过。", checkDiscGo: "生成检查盘并去刻录", checkDiscMaking: "正在生成检查盘…", nextMake: "下一步：生成并去刻录", nextCal: "下一步：先标定这批盘", making2: (p) => `正在生成${p == null ? "…" : ` ${p}%`}`,
     whyMaking: "生成中：可以先回大厅，不会中断",
-    carryOn: "生成在后台继续：可以先回大厅做别的，回到这件作品的预览就能看到进度。别关掉这个网页：这一版关掉以后接不回进度。",
+    carryOn: "生成在后台继续。重新打开这件作品的预览，可以查看进度或继续去刻录。",
+    checkingFile: "正在查找这件作品的刻录文件…",
+    unverified: "刻录文件找不到，或缺少当前文件的自检通过记录。请重新生成。",
     eta: (s) => s >= 90 ? `约还要 ${Math.round(s / 60)} 分钟` : `约还要 ${Math.max(5, Math.round(s / 5) * 5)} 秒`,
     checkSummary: (n, warn) => warn ? `刻之前：${n} 项里 ${warn} 项要看` : `刻之前：${n} 项都好`,
     doneAway: "刻录文件生成好了：回到这件作品的预览就能去刻。", checkReady: "检查盘的刻录文件已生成。", checkBurn: "去刻检查盘", whyLevels: "灰阶要选 2 级才能刻", whyEmpty: "先放一张图",
-    ck: { imported_corrected: "来自 DIS 预设，换算成 DP 修正：不是 DP 测的，没有实测范围，这批盘还没确认", imported: "来自 DIS 预设，换算成 DP 几何：不是 DP 测的，没有实测范围，这批盘还没确认", batch: "这批盘标定过了", latest: "没选批次：用这种盘最近一次的测量", saved: "没选批次：用这件作品上次用的测量", none: "还没有可用的测量：先标定这批盘",
+    ck: { imported_corrected: "几何来自 DIS，含转换后的修正，未经实测。位置准不准，要看第一张盘。", imported: "几何来自 DIS，未经实测。位置准不准，要看第一张盘。", batch: "这批盘标定过了", latest: "没选批次：用这种盘最近一次的测量", saved: "没选批次：用这件作品上次用的测量", none: "还没有可用的测量：先标定这批盘",
+      incompatible: "这个 DIS 预设无法在本工具生成镜像。请先标定这批盘，或返回设计页另选一批盘。",
+      range: "这个 DIS 预设的半径与可刻区没有足够的重叠。请先标定这批盘，或返回设计页另选一批盘。",
+      nominalRange: "图在 DIS 预设的名义范围内", nominalCut: "图超出 DIS 预设的名义范围，超出部分会被裁掉",
       of: (n, w) => `（${[n, w].filter(Boolean).join("，")}）`,
       fxBw: "颜色、彩色图案和特效只是预览实验：这次按黑白刻，这些地方刻成深色。",
       fxExp: "按实验纹理刻：颜色是模型预测，网页这条路还没有实刻验证。",
@@ -92,11 +98,16 @@ const STR = {
       look: "Under a lamp: one light on the disc; the colours change with the angle. A model, not a photo." },
     checkH: "Before burning", checkDiscH: "Burn a check disc first", checkDiscNote: "The first time with this drive and this batch: burn a check disc and take 3 or more phone photos of it; the program reads the offset along the track from them, and every burn file made afterwards corrects it. Skip this if this batch's check disc was photographed already. Its textures were chosen for RITEKF1 DVD-R; other discs are untried.", checkDiscGo: "Make the check disc and burn it", checkDiscMaking: "Making the check disc…", nextMake: "Next: make the file and burn", nextCal: "Next: calibrate this batch first", making2: (p) => `Making the file${p == null ? "…" : ` ${p}%`}`,
     whyMaking: "Making it: you can go back to the lobby, it carries on",
-    carryOn: "It carries on in the background: go back to the lobby if you like; open this work's preview again to see the progress. Keep this page open: this version cannot pick the progress up again after the page is closed.",
+    carryOn: "Making the file continues in the background. Reopen this work's preview to check progress or continue to burning.",
+    checkingFile: "Looking for this work's burn file…",
+    unverified: "The burn file is missing or has no passing self-check for the current file. Make it again.",
     eta: (s) => s >= 90 ? `about ${Math.round(s / 60)} min left` : `about ${Math.max(5, Math.round(s / 5) * 5)} s left`,
     checkSummary: (n, warn) => warn ? `Before burning: ${warn} of ${n} need a look` : `Before burning: all ${n} fine`,
     doneAway: "The burn file is ready: open this work's preview to burn it.", checkReady: "The check disc's burn file is ready.", checkBurn: "Burn the check disc", whyLevels: "Choose 2 grey levels to burn", whyEmpty: "Add a picture first",
-    ck: { imported_corrected: "From a DIS preset, converted to a DP correction: not measured by DP, no measured range, this batch not confirmed yet", imported: "From a DIS preset, converted to DP geometry: not measured by DP, no measured range, this batch not confirmed yet", batch: "This batch is calibrated", latest: "No batch chosen: uses the latest measurement of this kind", saved: "No batch chosen: uses the measurement this work used before", none: "No usable measurement yet: calibrate this batch first",
+    ck: { imported_corrected: "Geometry from DIS, with a converted correction. It is unmeasured. Check the placement on the first disc.", imported: "Geometry from DIS. It is unmeasured. Check the placement on the first disc.", batch: "This batch is calibrated", latest: "No batch chosen: uses the latest measurement of this kind", saved: "No batch chosen: uses the measurement this work used before", none: "No usable measurement yet: calibrate this batch first",
+      incompatible: "This DIS preset cannot make an image here. Calibrate this batch or choose another batch in Design.",
+      range: "The DIS preset's radii overlap too little with the burnable area. Calibrate this batch or choose another batch in Design.",
+      nominalRange: "The picture fits within the DIS preset's nominal range", nominalCut: "The picture extends beyond the DIS preset's nominal range and will be clipped",
       of: (n, w) => ` (${[n, w].filter(Boolean).join(", ")})`,
       fxBw: "Colours, coloured patterns and effects are a preview experiment: this burn is black and white, and those areas burn dark.",
       fxExp: "Burning the experimental textures: the colours are a model prediction; this web route hasn't been checked on a burned disc.",
@@ -164,15 +175,16 @@ function buildRight() {
   const minutes = ready ? Math.max(1, Math.round((s.iso.bytes / ((ctx.media === "cd" ? 176400 : 1385000) * 8) + 90) / 60)) : null;
   const rows = !c ? [] : [c.geo === "batch", c.inRange, c.levels === 2, c.disc === "blank"];
   const checkSec = !c ? "" : `<section class="pv-list"><details class="pv-fold"${busy ? "" : " open"}><summary><h3>${busy ? t.checkSummary(rows.length, rows.filter((x) => !x).length) : t.checkH}</h3></summary><ul>` +
-    row(c.geo === "batch" ? true : c.geo === "none" ? false : null, t.ck[c.geo] + (c.geoName && c.geo !== "batch" && c.geo !== "none" ? t.ck.of(c.geoName, c.geoWhen) : "")) +
-    row(c.inRange, (c.inRange ? t.ck.inRange : t.ck.outRange) + (c.ring ? t.ck.measured(c.ring) : "")) +
+    row(c.geo === "batch" ? true : c.geo === "none" ? false : null, t.ck[c.importProblem || c.geo] + (c.geoName && c.geo !== "batch" && c.geo !== "none" ? t.ck.of(c.geoName, c.geoWhen) : "")) +
+    (c.geo === "none" ? "" : c.nominal ? row(c.inRange ? null : false, c.inRange ? t.ck.nominalRange : t.ck.nominalCut)
+      : row(c.inRange, (c.inRange ? t.ck.inRange : t.ck.outRange) + (c.ring ? t.ck.measured(c.ring) : ""))) +
     row(c.levels === 2, c.levels === 2 ? t.ck.lv2 : t.ck.lv4) +
     (c.effects && c.effects !== "none" ? row(false, !c.canExperiment ? t.ck.fxCd : c.effects === "experimental" ? t.ck.fxExp : t.ck.fxBw) : "") +
     row(c.disc === "blank" ? true : c.disc === "none" ? null : false, c.disc === "blank" ? t.ck.blank(c.discName) : c.disc === "other" ? t.ck.other(c.discName) : c.disc === "none" ? t.ck.nodisc : t.ck[c.disc]) +
     `</ul>` + (c.effects && c.effects !== "none" && c.canExperiment ? `<label class="chk pv-exp"><input type="checkbox" data-a="experimental" ${c.effects === "experimental" ? "checked" : ""} ${busy ? "disabled" : ""}>${t.ck.fxTry}</label>` +
       `<details class="pv-more"><summary>${t.details}</summary><p class="note">${t.ck.fxMore}</p></details>` : "") +
     `<p class="note mono">${[ready ? `${t.ck.time(minutes)} · ${t.ck.size(fmtBytes(s.iso.bytes))}` : t.ck.timeLater, c.cellUm ? t.ck.cell(c.cellUm) : ""].filter(Boolean).join(" · ")}</p></details></section>`;
-  const checkDiscSec = ctx.exportCheck && c && c.geo !== "none" && !busy
+  const checkDiscSec = ctx.exportCheck && c && c.geo !== "none" && !c.nominal && !busy && s.phase !== "restoring"
     ? `<section class="pv-checkdisc"><h3>${t.checkDiscH}</h3><p class="note">${t.checkDiscNote}</p>` +
       `<button class="sbtn wide" type="button" data-a="checkdisc">${t.checkDiscGo}</button></section>` : "";
   const pct = s.fraction ? Math.floor(s.fraction * 100) : null;
@@ -189,7 +201,7 @@ function buildRight() {
       `<p class="note">${t.carryOn}</p>` +
       `<button class="sbtn wide" type="button" data-a="cancel">${t.cancel}</button>`
     : s.checkIso ? `<p class="note">${t.checkReady}</p><button class="sbtn wide" type="button" data-a="checkburn">${t.checkBurn}</button>`
-    : `<p class="note">${s.phase === "failed" ? `<span class="pv-err">${esc(s.error || t.failed)}</span>` : s.phase === "cancelled" ? t.cancelled : t.fileNote}</p>` +
+    : `<p class="note">${s.phase === "failed" ? `<span class="pv-err">${esc(s.error || t.failed)}</span>` : s.phase === "unverified" ? t.unverified : s.phase === "restoring" ? t.checkingFile : s.phase === "cancelled" ? t.cancelled : t.fileNote}</p>` +
       // no geometry yet: the way on is calibrating, not making the file again
       (s.code === "nogeo" && ctx.calibrate ? `<button class="sbtn wide pv-make" type="button" data-a="calibrate">${t.calibrate}</button>`
         : "")) + "</section>");
@@ -222,7 +234,7 @@ function nextStep() {
   if(ctx.reviewSaved)return 'review';
   const c = ctx.checks?.();
   if (state.phase === "ready") return "burn";
-  if (!src || state.phase === "making" || c?.levels === 4) return null;
+  if (!src || ["making", "restoring"].includes(state.phase) || c?.levels === 4) return null;
   if ((c?.geo === "none" || state.code === "nogeo") && ctx.calibrate) return "calibrate";
   return "make";
 }
@@ -273,11 +285,11 @@ const lookValue = (key, v) => key === "wear" ? `${v}%` : key === "exposure" ? `$
 const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 async function make() {
-  if (!src || state.phase === "making") return;
+  if (!src || ["making", "restoring"].includes(state.phase)) return;
   const thumb = document.createElement("canvas");
   thumb.width = thumb.height = Math.round(240 * Math.min(2, devicePixelRatio || 1));
   thumb.setAttribute("aria-hidden", "true");
-  const job = state = { phase: "making", fraction: null, stage: "", ctl: new AbortController(), thumb, t0: Date.now() };
+  const job = state = ctx.state = { phase: "making", fraction: null, stage: "", ctl: new AbortController(), thumb, t0: Date.now() };
   const jobCtx = ctx; remember(jobCtx, job);
   buildRight();
   try {
@@ -312,6 +324,50 @@ function finish(c, job, end) {
 function carried(c) {
   for (const k of c.keys?.() ?? []) { const v = jobs.get(k); if (v) return v.job; }
   return null;
+}
+async function imageStatus(query, signal) {
+  const response = await fetch(`/api/image-job?${new URLSearchParams(query)}`, { signal });
+  if (!response.ok) throw Error(T().checkingFile);
+  return response.json();
+}
+async function restoreImage(work, signal) {
+  let status;
+  try { status = await imageStatus({ work }, signal); }
+  catch { status = { phase: "failed" }; }
+  if (signal.aborted) return;
+  if (status.phase !== "making") {
+    state = ctx.state = status;
+    if (status.iso) ctx.setEffects?.(status.iso.experimental ? "experimental" : "bw");
+    buildRight();
+    return;
+  }
+  const job = state = ctx.state = {
+    phase: "making", stage: T().making, fraction: status.fraction,
+    t0: status.started_at * 1000, ctl: new AbortController(),
+  };
+  job.ctl.signal.addEventListener("abort", () => {
+    fetch(`/api/jobs/${status.job}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+  }, { once: true });
+  buildRight();
+  void followImage(status.job, job, signal);
+}
+async function followImage(id, job, signal) {
+  while (!signal.aborted && state === job) {
+    await new Promise(resolve => setTimeout(resolve, 750));
+    if (signal.aborted || state !== job) return;
+    let status;
+    try { status = await imageStatus({ job: id }, signal); }
+    catch { continue; }
+    if (signal.aborted || state !== job) return;
+    if (status.phase !== "making") {
+      state = ctx.state = status;
+      if (status.iso) ctx.setEffects?.(status.iso.experimental ? "experimental" : "bw");
+      buildRight();
+      return;
+    }
+    job.fraction = status.fraction;
+    buildRight();
+  }
 }
 // The check disc: made like the burn file (same progress and cancel), then straight to the burn page; after the
 // burn, the burn page offers the photos (design.js photograph), and they come back here.
@@ -560,7 +616,10 @@ export function start(homeApi, context = {}) {
   const same = context === ctx;
   ctx = context;
   if (!W) build();
-  state = same && ctx.state ? ctx.state : (ctx.state = carried(ctx) ?? { phase: "idle" });
+  const cached = (same && ctx.state) || carried(ctx);
+  const work = ctx.imageWork?.();
+  const lookup = work && cached?.phase !== "making" && !cached?.checkIso;
+  state = ctx.state = lookup ? { phase: "restoring" } : cached ?? { phase: "idle" };
   if (!same) {
     view = ctx.media === "dvd" && !ctx.reviewSaved ? "look" : "design"; src = null; try { src = ctx.project?.render(12) ?? null; } catch { src = null; }
     lampView?.dispose(); lampView = null; Object.assign(look, lookFromDesign());
@@ -572,6 +631,7 @@ export function start(homeApi, context = {}) {
   W.ws.classList.add("on");
   bind(life.signal);
   words();
+  restoration = lookup ? restoreImage(work, life.signal) : null;
   requestAnimationFrame(resize);
   return { leave };
 }
@@ -588,7 +648,11 @@ export function leave(goBack = true) {
   if (goBack) ctx?.back?.();
 }
 export function navigationState() { return {context: ctx, state: ctx?.state}; }
-export function resumeNavigation(homeApi, saved) {
-  if (saved?.context) return start(homeApi, saved.context);
-  if (ctx && saved?.state) { state = ctx.state = saved.state; words(); }
+export async function resumeNavigation(homeApi, saved) {
+  if (saved?.context) start(homeApi, saved.context);
+  if (ctx && saved?.state && (!ctx.imageWork?.() || saved.state.checkIso)) {
+    state = ctx.state = saved.state;
+    words();
+  }
+  await restoration;
 }

@@ -44,13 +44,22 @@ export function measuredRing(measured, ring) {
 }
 // only when known: a geometry choice without it keeps its old shape
 const measuredOf = (x) => Array.isArray(x?.measured_mm) ? { measured: x.measured_mm } : {};
+const importedChoice = (item, entry, media) => {
+  const nominal = entry?.nominal_mm;
+  const ring = media === "cd" ? [26, 58] : [24, 58];
+  const usable = !nominal || measuredRing(nominal, ring);
+  return entry && usable
+    ? { path: entry.geo, source: entry.correction_required ? "imported_corrected" : "imported",
+        name: item.name ?? "", ...(nominal ? { nominal } : {}) }
+    : { path: null, source: "none", name: item.name ?? "", importProblem: entry ? "range" : "incompatible" };
+};
 export function geoChoice(plan, catalogue = [], latest = null) {
   const item = plan?.item;
   const known = catalogue.filter(good);
   if (item?.imported) {
-    const ok = item.image_compatible === true && known.some((x) => x.geo === item.geo);
-    return ok ? { path: item.geo, source: item.correction_required ? "imported_corrected" : "imported", name: item.name ?? "" }
-      : { path: null, source: "none", name: item.name ?? "" };
+    const entry = item.image_compatible === true && known.find((x) => x.geo &&
+      ((item.id && x.id === item.id) || x.geo === item.geo) && x.image_compatible === true);
+    return importedChoice(item, entry, plan.media);
   }
   if (hasBatch(item)) {
     // the batch's own measurement, and nothing else: a geometry kept in the plan from before counts only if it is
@@ -62,6 +71,7 @@ export function geoChoice(plan, catalogue = [], latest = null) {
   }
   // no batch: the plan's own earlier geometry, else the newest finished one, said by name
   const saved = plan?.geo && known.find((x) => x.geo === plan.geo);
+  if (saved?.imported) return importedChoice(saved, saved, plan.media);
   if (saved) return { path: saved.geo, source: "saved", name: saved.name ?? saved.mid ?? "", when: saved.last ?? "", ...measuredOf(saved) };
   if (latest) {
     const entry = catalogue.find((x) => same(latest, x.geo));

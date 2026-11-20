@@ -34,6 +34,7 @@ export async function install(api, {setHome}) {
         // The serializer reads the active plan. Finish before any restore changes it.
         snap.name = snap.plan.name;
         snap.work = snap.plan.work;
+        snap.dirty = snap.plan.dirty;
         snap.text = await actions.projectText();
       } catch {}
       if (view !== 'design') snap.preview = (await import('./preview.js')).navigationState();
@@ -42,8 +43,8 @@ export async function install(api, {setHome}) {
     if (portable.preview) {
       const state = snap.preview.state;
       // A running task owns DOM/AbortController objects; keep it live in memory, never clone/replay it.
-      portable.preview = {state: state?.phase === 'making'
-        ? {phase: 'idle'} : state};
+      portable.preview = snap.preview.context?.imageWork?.() && !state?.checkIso ? undefined
+        : {state: state?.phase === 'making' ? {phase: 'idle'} : state};
     }
     if (portable.form) portable.form = {...portable.form, file: portable.form.file};
     persist = persist.catch(() => {}).then(() => stored(entry.id, portable));
@@ -86,13 +87,13 @@ export async function install(api, {setHome}) {
       if (saved.plan) design.start(api, {plan: saved.plan, fly: false});
       else {
         design.start(api, {newPlan: true, fly: false, name: saved.name, noDisc: !saved.batch});
-        if (saved.text) await design.editorActions().openProject(new File([saved.text], `${saved.name || 'recovered'}.discdesign`), null, saved.work);
+        if (saved.text) await design.editorActions().openProject(new File([saved.text], `${saved.name || 'recovered'}.discdesign`), null, saved.work, saved.dirty);
       }
       if (view !== 'design' && !$('next').disabled) {
         internalAction = true;
         try { $('next').click(); } finally { internalAction = false; }
         for (let n = 0; root.dataset.mode !== 'preview' && n < 120; n++) await new Promise(r => setTimeout(r, 25));
-        (await import('./preview.js')).resumeNavigation(api, saved.preview);
+        await (await import('./preview.js')).resumeNavigation(api, saved.preview);
         // Only opens the confirmation page. No press-and-hold or job is replayed.
         if (view === 'burn' && !$('next').disabled) {
           internalAction = true;
@@ -109,6 +110,7 @@ export async function install(api, {setHome}) {
   let timer;
   const saveSoon = () => { clearTimeout(timer); timer = setTimeout(() => controller.save(), 120); };
   for (const type of ['input', 'change', 'pointerup', 'keyup']) document.addEventListener(type, saveSoon, true);
+  document.addEventListener('dp-image-work-saved', () => controller.save());
   document.addEventListener('click', event => {
     if (internalAction) return;
     if (controller.busy() && event.target.closest?.('#back, #next')) { event.preventDefault(); event.stopImmediatePropagation(); return; }

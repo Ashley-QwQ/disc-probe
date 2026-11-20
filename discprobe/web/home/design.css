@@ -364,6 +364,33 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 /* Short windows keep the last tools reachable at their full hit size. */
 @media (max-height:850px) { .ws .tools-v { max-height:calc(100% - 64px);overflow-y:auto;overflow-x:hidden;padding-right:8px;scrollbar-width:thin; } }
 
+.ed-panel-picker { display: none; }
+@media (max-width: 760px) {
+  .ws { --panel-top: calc(var(--top) + 98px); }
+  .ws .ws-title {
+    top: var(--top); left: var(--edge); right: var(--edge); height: 38px; min-width: 0;
+  }
+  .ws .ws-title .pname, .ws .ws-title .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ws .ws-title .sub { min-width: 0; }
+  .ws .ws-title .dirty { flex: none; }
+  .ws:not(.pv) > .cv { top: var(--panel-top); left: var(--edge); right: var(--edge); }
+  .ws:not(.pv) .ed-surface { mask-image: none; }
+  .ws:not(.pv) .ed-panel-shadow { display: none; }
+  .ws.on .ed-panel-picker {
+    position: fixed; z-index: 2; top: calc(var(--top) + 42px); left: var(--edge); right: var(--edge);
+    display: flex; gap: 8px;
+  }
+  .ed-panel-picker .sbtn[aria-expanded="true"] { background: var(--paper-2); }
+  .ws:not(.pv) > :is(.filebtns, .col) { display: none; left: var(--edge); right: var(--edge); width: auto; }
+  .ws.on[data-panel="layers"] > .filebtns { display: flex; top: var(--panel-top); }
+  .ws.on[data-panel="layers"] > .col-l { display: grid; top: calc(var(--panel-top) + 48px); }
+  .ws.on[data-panel="tone"] > .col-r { display: flex; top: var(--panel-top); }
+  .ws:not(.pv)[data-panel]:not([data-panel=""]) .cv { visibility: hidden; }
+  .ws:not(.pv) .empty-c { width: calc(100% - 56px); margin-left: 22px; }
+  .ws:not(.pv) .empty-c .row { flex-wrap: wrap; justify-content: center; }
+  .ws:not(.pv) .ed-options { overflow-x: auto; }
+}
+
 
 /* W245: global history first; selection actions occupy the first row of the existing dock. */
 .ws .ed-tool-separator { height:1px; background:var(--rule); margin:4px 0; }

@@ -1303,7 +1303,7 @@ def cmd_image(args):
         span = [max(args._radius_range[0], radius_at(max(first, lead))),
                 min(args._radius_range[1], radius_at(total))]
         if span[1] > span[0]:
-            warning = range_warning(fit, span)
+            warning = range_warning(fit, span, allow_dis_nominal=True)
             if warning:
                 from .diagnostics import save_failure
                 save_failure(os.path.dirname(os.path.abspath(args.geo)), warning, args)
