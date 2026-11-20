@@ -41,4 +41,13 @@
 - 请 Claude 转达给 burn-gates 会话。合入时保留 `preview.js` 的选批次入口，以及 `design.js` 的 `toBurn()` 入口检查。涉及同一文件的其他检查可以各自继续负责光驱和盘况，`burn.js` 此卡无改动。
 - 无待决的实现问题。
 
+## 补充第 5 项 · 批次下拉
+
+- `c7d6c96` 批次框一获得焦点就展开列表，框尾箭头也能开合。列表列出当前介质（DVD、CD 或 BD）的全部可用批次，已标定的在前并显示日期，同组沿用盘库顺序。输入仍可按名称和 MID 筛选。选择同介质的另一子类型时转盘会同步。「稍后再定」位于列表末尾，可以点击，也可以用方向键和回车选中。
+- `bac1f84` 更新 IME 回归夹具，让它继续验证组合输入时按回车不会误选批次。
+- `node tests/test_newplan_disc_browser.mjs` 通过六种 Disc Lab 盘况和留空流程，每种都检查点进空框后列出的批次和日期。390 像素时从列表选「稍后再定」，仍可保存并重开设计，生成刻录文件前被拦，服务器任务数为 0。`node tests/test_review_library_newwork.mjs` 通过，覆盖已标定批次排序、名称和 MID 筛选、键盘选项和转盘同步。 [Disc Lab 日志](D:/dp-dev/tmp/newplandisc/regressions-supplement/test_newplan_disc_browser/node.log)
+- 按原验收跑了全部 58 个 JavaScript 脚本，首轮通过 56 个。`node tests/test_ime_activity.mjs` 更新夹具后复跑通过 14 个回车处理器，每个检查 3 种键盘事件。`node tests/test_pastworks_browser.mjs` 首轮所有界面断言通过，Edge 关闭未返回回执，原命令复跑退出码为 0。58 个脚本各有通过记录。 [全量日志](D:/dp-dev/tmp/newplandisc/node-supplement.log) · [IME 复跑](D:/dp-dev/tmp/newplandisc/ime-supplement.log) · [往期作品复跑](D:/dp-dev/tmp/newplandisc/regressions-supplement/test_pastworks_browser/retry.log)
+- 原验收命令中的 5 个 Python 测试文件用 `pytest -n 2` 重跑，117 项通过，耗时 28.92 秒。 [pytest 日志](D:/dp-dev/tmp/newplandisc/pytest-supplement.log)
+- 更新原 9 张截图并补拍 3 张展开列表的截图，覆盖纸色中文 1440、夜色英文 1440 和夜色英文 390。已核对 12 张 PNG 的尺寸。8765 端口验收前后均由 PID `31360` 监听。 [截图目录](D:/dp-dev/tmp/newplandisc/shots/)
+
 STATUS: DONE
