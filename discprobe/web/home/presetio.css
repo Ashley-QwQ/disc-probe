@@ -21,7 +21,7 @@
 /* Night B: the sheet (and the compact page's paper) lies under the lamp and is light, so its words are ink; the
    kraft envelope stays dark with light words. */
 :root[data-theme="dark"] .presetio [data-layer="doc_paper"],
-:root[data-theme="dark"] .presetio[data-compact="true"] .presetio-document { --ink: var(--lit-ink); --ink-2: var(--lit-ink-2); --ink-3: var(--lit-ink-3); --rule: rgb(34 35 31 / .22); --copper: var(--lit-copper); --rule-strong: rgb(34 35 31 / .45); }
+:root[data-theme="dark"] .presetio[data-compact="true"] .presetio-document { --paper: var(--lit-paper); --ink: var(--lit-ink); --ink-2: var(--lit-ink-2); --ink-3: var(--lit-ink-3); --rule: rgb(34 35 31 / .22); --copper: var(--lit-copper); --rule-strong: rgb(34 35 31 / .45); }
 .presetio button { font: 600 30px / 1.35 var(--font); color: var(--ink); min-height: 76px; padding: 14px 24px; max-width: 100%;
   border: 1.5px solid var(--rule-strong); border-radius: 4px; background: transparent; cursor: pointer; }
 .presetio button:hover { border-color: var(--copper); color: var(--copper); }
@@ -35,15 +35,13 @@
   font: 600 15px / 1.6 var(--font); box-shadow: var(--glass-edge), var(--glass-desk); }
 .presetio .presetio-close { right: var(--edge); }
 .presetio-title { left: var(--edge); display: flex; align-items: center; gap: .4em; }
-.presetio-title small { font-size: inherit; color: var(--ink-2); }
 .presetio-title:focus { outline: none; }
-/* Desk ink ends 70 scene px before the plate; its leader runs from 12 px after the words to 18 px short of the plate. */
-.presetio-writing button { position: absolute; transform: translateY(-50%); min-height: 88px; padding: 0;
-  text-align: right; color: var(--ink-2); border: 0; background: none; box-shadow: none; font-size: 34px; font-weight: 600;
+/* Keep the LED labels on the clear side of the lever plate (right edge 2152.9 scene px). */
+.presetio-writing button { position: absolute; left: 2180px; transform: translateY(-50%); min-height: 64px; padding: 0;
+  color: var(--ink-2); border: 0; background: none; box-shadow: none; font-size: 34px; font-weight: 600; white-space: nowrap;
   pointer-events: auto; }
 .presetio-writing button:hover { color: var(--ink); }
-.presetio-writing small { display: block; font-size: 24px; font-weight: 500; }
-.presetio-writing button::after { content: ""; position: absolute; left: calc(100% + 12px); top: 50%; width: var(--leader);
+.presetio-writing button::after { content: ""; position: absolute; right: calc(100% + 8px); top: 50%; width: 13px;
   border-top: 1.5px solid var(--ink-2); }
 .presetio-tick { position: absolute; width: 24px; border-top: 1.5px solid var(--ink-2); }
 .presetio-knob { position: absolute; border-radius: 50%; pointer-events: auto; cursor: ns-resize; touch-action: none; user-select: none; }
@@ -52,7 +50,6 @@
   box-shadow: 0 0 10px 4px rgb(125 255 106 / .65), 0 0 24px 10px rgb(125 255 106 / .25); }
 .presetio-content header { padding-bottom: 24px; margin-bottom: 28px; border-bottom: 1.5px solid var(--ink); }
 .presetio h3 { margin: 0; font-size: 46px; line-height: 1.2; font-weight: 800; font-stretch: 112%; overflow-wrap: anywhere; }
-.presetio h3 small { display: block; margin-top: 10px; font-size: 28px; font-weight: 600; color: var(--ink-2); }
 .presetio p { margin: 24px 0; color: var(--ink-2); }
 .presetio label { color: var(--ink-2); font-size: 30px; }
 .presetio-drop { border: 1.5px dashed var(--rule-strong); border-radius: 4px; padding: 24px; margin: 20px 0 28px; }
@@ -102,7 +99,8 @@
 .presetio[data-compact="true"] .presetio-scene { position: relative; inset: auto; overflow: visible; margin: calc(var(--edge) + var(--row) + 24px) 20px 32px;
   padding: 24px; border: 0 solid transparent; border-image: url(newplan/paper_paper.webp) 120 fill / 46px / 12px stretch;
   box-shadow: var(--paper-desk); }
-:root[data-theme="dark"] .presetio[data-compact="true"] .presetio-paper { border-image-source: url(newplan/paper_dark.webp); }
+:root[data-theme="dark"] .presetio[data-compact="true"] .presetio-paper { border-image-source: url(newplan/paper_dark.webp);
+  --ink: var(--lit-ink); --rule-strong: rgb(34 35 31 / .45); --copper: var(--lit-copper); }
 .presetio[data-compact="true"] .presetio-stage { position: static; width: auto; height: auto; transform: none !important; }
 .presetio[data-compact="true"] :is([data-art], .presetio-writing, [data-layer="bag"], [data-layer="sheets"], [data-layer="knob"], .presetio-led) { display: none; }
 .presetio[data-compact="true"] .presetio-document { position: static; width: auto; height: auto; transform: none !important; }
@@ -112,10 +110,9 @@
 .presetio[data-compact="true"] .presetio-tabs button { flex: 1; padding: 8px 4px; border: 0; border-radius: 0; }
 .presetio[data-compact="true"] .presetio-tabs [aria-selected="true"] { box-shadow: inset 0 -2px var(--ink); }
 .presetio[data-compact="true"] :is(button, select, .presetio-pick) { font-size: 16px; min-height: 44px; padding: 8px 12px; }
-.presetio[data-compact="true"] .presetio-title { display: block; max-width: calc(100% - var(--edge) * 2 - 136px); font-size: 13px; padding: 6px 10px; }
-.presetio[data-compact="true"] .presetio-title small { display: block; }
+.presetio[data-compact="true"] .presetio-title { position: static; display: block; min-height: 0; padding: 0; margin-bottom: 12px;
+  font-size: 13px; overflow-wrap: anywhere; background: none; box-shadow: none; }
 .presetio[data-compact="true"] h3 { font-size: 26px; }
-.presetio[data-compact="true"] h3 small { font-size: 16px; }
 .presetio[data-compact="true"] :is(label, .presetio-row label) { font-size: 16px; }
 .presetio[data-compact="true"] .presetio-content header { padding-bottom: 14px; margin-bottom: 18px; }
 .presetio[data-compact="true"] .presetio-drop { padding: 16px; margin: 16px 0 20px; }
@@ -145,4 +142,5 @@
 /* the way out is the site's own "上一步" at the top left (index.html .top #back), lifted over the sheet; the rest of
    the header stays under it, and the sheet's own close button goes */
 :root[data-presetio="open"] .top { z-index: 95; }
+:root[data-presetio="open"] body { overflow: hidden; }
 .presetio .presetio-close { display: none; }

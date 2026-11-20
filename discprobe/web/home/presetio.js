@@ -1,4 +1,106 @@
 // The sheet delegates all parsing, geometry and filesystem work to the shared core.
+const STR = {
+  zh: {
+    close: '关闭', title: '预设 · DiscImageStudio', tabs: '预设', import: '导入', export: '导出',
+    importData: '导入数据', exportData: '导出数据', slider: '导入或导出', idle: '空',
+    importTitle: '导入 DIS 预设', exportTitle: '导出到 DIS', chooseFile: '选择文件',
+    drop: '或把 DIS 的 JSON 拖到这里', standalone: '单个预设的盘种', automatic: '自动识别（CD、DVD）',
+    bluRay: '蓝光', manual: '手动填写参数', displayName: '名称', media: '盘种',
+    innerRadiusMm: '内半径（mm）', outerRadiusMm: '外半径（mm）', sectors: '扇区数',
+    pitchLinear: '轨距线性项', pitchQuadratic: '轨距二次项', pitchCubic: '轨距三次项',
+    pitchHint: '轨距三项可不填，默认为 0。', preview: '核对参数', choosePreset: '选择 DP 预设',
+    install: '写进 DiscImageStudio', save: '存成文件', noneSaved: '还没有预设', working: '处理中…',
+    failure: reason => `${chineseDetail(reason) ?? '预设操作失败。'}\n请检查文件或选择后重试。`,
+    tooLarge: '文件超过 2 MiB',
+    invalid: '无效预设', archive: '仅存档，DP 不能用来做图',
+    summary: count => `${count} 个扇区`, pitch: '轨距',
+    approximation: (angle, radius) => `近似：角度 ≤ ${angle}°，半径 ≤ ${radius} mm`,
+    review: '核对参数并勾选要导入的预设。', emptyFile: '文件中没有预设',
+    edited: '参数已修改，请重新核对。', choose: '选择文件或预设。', saved: '已保存 DIS 预设',
+    imported: (written, duplicates) => `已导入：${written}；重复项保留：${duplicates}`,
+    installed: ({path, backup}) => `已写入，请重启 DIS。\n${path}\n备份：${backup || '—'}`,
+    invalidIssue: '预设参数无效。', warning: '请核对该预设的参数。',
+  },
+  en: {
+    close: 'Close', title: 'Presets · DiscImageStudio', tabs: 'Presets', import: 'Import', export: 'Export',
+    importData: 'Import', exportData: 'Export', slider: 'Import or export', idle: 'Idle',
+    importTitle: 'Import DIS presets', exportTitle: 'Export to DIS', chooseFile: 'Choose file',
+    drop: 'or drop a DIS JSON here', standalone: 'Standalone media', automatic: 'Automatic (CD, DVD)',
+    bluRay: 'Blu-ray', manual: 'Type the parameters', displayName: 'Name', media: 'Media',
+    innerRadiusMm: 'Inner radius (mm)', outerRadiusMm: 'Outer radius (mm)', sectors: 'Sector count',
+    pitchLinear: 'Pitch linear', pitchQuadratic: 'Pitch quadratic', pitchCubic: 'Pitch cubic',
+    pitchHint: 'Pitch terms are optional and default to 0.', preview: 'Preview parameters', choosePreset: 'Choose a DP preset',
+    install: 'Write to DiscImageStudio', save: 'Save as file', noneSaved: 'No saved presets', working: 'Working…',
+    failure: reason => `${reason || 'Preset operation failed.'}\nCheck the file or selection and retry.`,
+    tooLarge: 'File exceeds 2 MiB',
+    invalid: 'Invalid preset', archive: 'Archive only. Unavailable for DP drawing',
+    summary: count => `${count} sectors`, pitch: 'pitch',
+    approximation: (angle, radius) => `Approximation: angle ≤ ${angle}°, radius ≤ ${radius} mm`,
+    review: 'Review the values and select presets to import.', emptyFile: 'No presets in this file',
+    edited: 'Values changed. Preview again.', choose: 'Choose a file or preset.', saved: 'Saved DIS preset',
+    imported: (written, duplicates) => `Imported: ${written}. Duplicates kept: ${duplicates}`,
+    installed: ({path, backup}) => `Written. Restart DIS.\n${path}\nBackup: ${backup || '—'}`,
+  },
+};
+// v1 supplies Chinese for exact dictionary hits; interpolated validation messages can be returned in English.
+const ZH_DETAIL = new Map([
+  ['preset must be an object', '预设必须是对象。'],
+  ['id __manual__ is reserved by DIS', 'DIS 保留了预设 ID __manual__。'],
+  ['conflicting sector fields', '扇区数字段相互冲突。'],
+  ['BD needs outer <= 60 mm and totalSectors a multiple of 32 <= 12219392', 'BD 的外半径须不超过 60 mm，总扇区数须为 32 的倍数且不超过 12219392。'],
+  ['invertMapping must be a boolean', '反转映射选项必须为布尔值。'],
+  ['geometry exceeds DP numerical range', '几何参数超出 DP 的数值范围。'],
+  ['ambiguous standalone DVD/BD preset; pass --media dvd or --media bd', '无法区分单个 DVD/BD 预设，请选择盘种。'],
+  ['cannot identify media; use a catalog or --media', '无法识别盘种，请选择盘种或使用预设库文件。'],
+  ['media must be cd, dvd or bd', '盘种必须是 CD、DVD 或 BD。'],
+  ['preset file must be UTF-8 text <= 2 MiB', '预设文件须为不超过 2 MiB 的 UTF-8 文本。'],
+  ['nonfinite JSON number', 'JSON 数值必须是有限数。'],
+  ['file must hold a preset object or a DIS catalog', '文件须包含一个预设对象或一个 DIS 预设库。'],
+  ['unsupported schemaVersion; expected 2, 3 or 4', '预设文件格式版本须为 2、3 或 4。'],
+  ['legacy BD parameters document is not a catalog preset; export its catalog entry', '旧版 BD 参数文件无法作为预设导入，请导出预设库中的对应项目。'],
+  ['invalid filename', '文件名无效。'],
+  ['choose a DP preset', '请选择一个 DP 预设。'],
+  ['DP preset must be an object', 'DP 预设须为对象。'],
+  ['preset must be a JSON file inside the workspace', '预设须为工作目录中的 JSON 文件。'],
+  ['presets folder must stay inside workspace', '预设目录须位于工作目录内。'],
+  ['selection must contain preset indexes', '请选择要导入的预设。'],
+  ['selection contains repeated indexes', '所选预设有重复项。'],
+  ['selection contains a refused preset', '所选预设中有无效项。'],
+]);
+const ZH_FIELDS = {
+  id: 'ID', displayName: '名称', description: '说明', sectors: '扇区数', totalSectors: '总扇区数',
+  displayNameResourceKey: '名称资源键', descriptionResourceKey: '说明资源键', contributor: '贡献者',
+  channelBitLengthNm: '通道位长', linearVelocityMmPerSecond: '线速度',
+  cdPresets: 'CD 预设', dvdPresets: 'DVD 预设', bluRayPresets: '蓝光预设', source: '来源', fit: '拟合参数',
+};
+const ZH_PATTERNS = [
+  [/^(\w+) must be a positive integer <= (\d+)$/, (field, limit) => `${ZH_FIELDS[field]}须为不超过 ${limit} 的正整数。`],
+  [/^(\w+) must be (null or )?nonblank text$/, (field, optional) => `${ZH_FIELDS[field]}须为${optional ? '空值或' : ''}非空文本。`],
+  [/^usableSectors must be positive, <= total, and a multiple of (\d+)$/, n => `可用扇区数须为正数、不超过总扇区数，且为 ${n} 的倍数。`],
+  [/^(channelBitLengthNm|linearVelocityMmPerSecond) must be finite and positive$/, field => `${ZH_FIELDS[field]}须为有限正数。`],
+  [/^Unknown fields retained; geometry use and DIS installation refused: (.+)$/, fields => `未知字段已保留，不能用于几何或安装到 DIS：${fields}`],
+  [/^DIS rejects unknown fields; save as file instead: (.+)$/, fields => `DIS 不接受这些未知字段，请存成文件：${fields}`],
+  [/^invalid JSON: .*?line (\d+) column (\d+)/s, (line, column) => `JSON 无效（第 ${line} 行，第 ${column} 列）。`],
+  [/^invalid JSON:/, () => 'JSON 无效。'],
+  [/^(cdPresets|dvdPresets|bluRayPresets) must be a list$/, field => `${ZH_FIELDS[field]}须为列表。`],
+  [/^disabled (cd|dvd|bd) ids must be a text list$/, media => `停用的 ${media.toUpperCase()} 预设 ID 须为文本列表。`],
+  [/^DP (source|fit) must be an object$/, field => `DP 的${ZH_FIELDS[field]}须为对象。`],
+  [/^preset '(.+)' is already in .+ with different values;/s, id => `DIS 中已有参数不同的同名 ID：${id}。`],
+  [/^(.+) has no DiscImageStudio schemaVersion \(2, 3 or 4\)$/s, path => `${path} 的 DiscImageStudio 预设格式版本须为 2、3 或 4。`],
+  [/^(.+) is not valid JSON:/s, path => `${path} 不是有效的 JSON。`],
+  [/^(.+) does not hold a DiscImageStudio preset object$/s, path => `${path} 未包含 DiscImageStudio 预设对象。`],
+  [/^cannot (read|write|back up) (.+?): /s, (action, path) => `无法${{read: '读取', write: '写入', 'back up': '备份'}[action]} ${path}。`],
+  [/^HTTP (\d+)$/, status => `请求失败（HTTP ${status}）。`],
+];
+function chineseDetail(issue) {
+  if (ZH_DETAIL.has(issue)) return ZH_DETAIL.get(issue);
+  for (const [pattern, format] of ZH_PATTERNS) {
+    const match = pattern.exec(issue);
+    if (match) return format(...match.slice(1));
+  }
+  return null;
+}
+
 export async function request(fetcher, payload) {
   const response = await fetcher('/api/presets', payload ? {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
@@ -12,11 +114,11 @@ export function selectedIndexes(rows, checked) {
   return rows.filter(row => row.valid && checked.has(row.index)).map(row => row.index);
 }
 
-export function rowSummary(row) {
+export function rowSummary(row, strings = STR.en) {
   const p = row.preset || {};
-  return `${row.media.toUpperCase()} · ${p.id ?? '?'} · ${p.sectors ?? p.totalSectors ?? '?'} sectors · ` +
+  return `${row.media.toUpperCase()} · ${p.id ?? '?'} · ${strings.summary(p.sectors ?? p.totalSectors ?? '?')} · ` +
     `${p.innerRadiusMm ?? '?'}–${p.outerRadiusMm ?? '?'} mm · ` +
-    `pitch ${p.pitchLinear ?? 0}, ${p.pitchQuadratic ?? 0}, ${p.pitchCubic ?? 0} · MID ${row.mid ?? '?'}`;
+    `${strings.pitch} ${p.pitchLinear ?? 0}, ${p.pitchQuadratic ?? 0}, ${p.pitchCubic ?? 0} · MID ${row.mid ?? '?'}`;
 }
 
 // the lobby's letter tray (target "fax") opens the same sheet; null when the server has no preset routes
@@ -50,53 +152,51 @@ export async function init(entry, fetcher = fetch) {
   const artUrl = name => new URL(`./presetio/desk/desk_${name}_${document.documentElement.dataset.theme === 'dark' ? 'dark' : 'paper'}.webp`, import.meta.url).href;
   const art = name => `<img data-art="${name}" src="${artUrl(name)}" alt="" draggable="false" aria-hidden="true">`;
   const layer = name => `<div class="presetio-layer" data-layer="${name}">${art(`${name}_shadow`)}${art(name)}</div>`;
-  sheet.innerHTML = `<button type="button" class="presetio-close" data-close>关闭 / Close</button>
-    <h2 class="presetio-title" id="presetio-title" tabindex="-1">预设 · DiscImageStudio <small lang="en">/ Presets</small></h2>
+  sheet.innerHTML = `<button type="button" class="presetio-close" data-close data-text="close"></button>
     <div class="presetio-scene presetio-paper">
-    <div class="presetio-tabs" role="tablist" aria-label="预设 / Presets">
-      <button type="button" role="tab" id="presetio-tab-import" aria-controls="presetio-import" data-tab="1">导入 / Import</button>
-      <button type="button" role="tab" id="presetio-tab-export" aria-controls="presetio-export" data-tab="-1">导出 / Export</button>
+    <h2 class="presetio-title" id="presetio-title" tabindex="-1" data-text="title"></h2>
+    <div class="presetio-tabs" role="tablist" data-label="tabs">
+      <button type="button" role="tab" id="presetio-tab-import" aria-controls="presetio-import" data-tab="1" data-text="import"></button>
+      <button type="button" role="tab" id="presetio-tab-export" aria-controls="presetio-export" data-tab="-1" data-text="export"></button>
     </div>
     <div class="presetio-stage">
     ${art('base')}${layer('bag')}${art('upper')}${layer('sheets')}
     <div class="presetio-writing">
-      <button type="button" data-move="-1">导出数据 <small lang="en">Export</small></button>
+      <button type="button" data-move="-1" data-text="exportData"></button>
       <span class="presetio-tick" aria-hidden="true"></span>
-      <button type="button" data-move="1">导入数据 <small lang="en">Import</small></button>
+      <button type="button" data-move="1" data-text="importData"></button>
     </div>
     <div class="presetio-layer" data-layer="knob">${art('knob_shadow')}${art('knob')}
-      <div class="presetio-knob" role="slider" tabindex="0" aria-label="导入或导出 / Import or export"
-        aria-orientation="vertical" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0" aria-valuetext="空 / Idle"></div>
+      <div class="presetio-knob" role="slider" tabindex="0" data-label="slider"
+        aria-orientation="vertical" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0"></div>
     </div>
     <span class="presetio-led" data-led="export" aria-hidden="true"></span><span class="presetio-led" data-led="import" aria-hidden="true"></span>
     <div class="presetio-layer presetio-document" data-layer="doc_paper">${art('doc_paper_shadow')}${art('doc_paper')}
     <article class="presetio-content" id="presetio-import" aria-labelledby="presetio-import-title" inert>
-    <header><h3 id="presetio-import-title">导入 DIS 预设 <small lang="en">Import DIS presets</small></h3></header>
-    <div class="presetio-drop"><label class="presetio-file"><input type="file" accept=".json,application/json"><span class="presetio-pick">选择文件 / Choose file</span><span class="presetio-hint" data-filename>或把 DIS 的 JSON 拖到这里 / or drop a DIS JSON here</span></label></div>
-    <label>单个预设的盘种 / Standalone media <select data-media><option value="">自动识别 / Automatic (CD, DVD)</option><option value="cd">CD</option><option value="dvd">DVD</option><option value="bd">Blu-ray</option></select></label>
-    <details class="presetio-manual"><summary>手动填写参数 / Type the parameters</summary>
+    <header><h3 id="presetio-import-title" data-text="importTitle"></h3></header>
+    <div class="presetio-drop"><label class="presetio-file"><input type="file" accept=".json,application/json"><span class="presetio-pick" data-text="chooseFile"></span><span class="presetio-hint" data-filename></span></label></div>
+    <label><span data-text="standalone"></span><select data-media><option value="" data-text="automatic"></option><option value="cd">CD</option><option value="dvd">DVD</option><option value="bd" data-text="bluRay"></option></select></label>
+    <details class="presetio-manual"><summary data-text="manual"></summary>
       <form data-manual novalidate>
         <div class="presetio-fields">
-        ${[['displayName', '名称 / Name', 'text'], ['media', '盘种 / Media', 'select'],
-          ['innerRadiusMm', '内半径 / Inner radius (mm)', 'number'], ['outerRadiusMm', '外半径 / Outer radius (mm)', 'number'],
-          ['sectors', '扇区数 / Sector count', 'number'], ['pitchLinear', '轨距线性项 / Pitch linear', 'number'],
-          ['pitchQuadratic', '轨距二次项 / Pitch quadratic', 'number'], ['pitchCubic', '轨距三次项 / Pitch cubic', 'number']]
-          .map(([name, label, type]) => `<label>${label}${type === 'select'
+        ${[['displayName', 'text'], ['media', 'select'], ['innerRadiusMm', 'number'], ['outerRadiusMm', 'number'],
+          ['sectors', 'number'], ['pitchLinear', 'number'], ['pitchQuadratic', 'number'], ['pitchCubic', 'number']]
+          .map(([name, type]) => `<label><span data-text="${name}"></span>${type === 'select'
             ? `<select name="media"><option value="cd">CD</option><option value="dvd">DVD</option></select>`
             : `<input name="${name}" type="${type}" ${type === 'number' ? `step="${name === 'sectors' ? '1' : 'any'}"` : ''} ${name.startsWith('pitch') ? 'value="0"' : 'required'} aria-describedby="presetio-error-${name}">`}
             <small class="presetio-field-error" id="presetio-error-${name}" data-error="${name}"></small></label>`).join('')}
         </div>
-        <p class="presetio-hint">轨距三项可不填，默认为 0。/ Pitch terms are optional; default 0.</p>
-        <button type="submit" data-preview>核对参数 / Preview parameters</button>
+        <p class="presetio-hint" data-text="pitchHint"></p>
+        <button type="submit" data-preview data-text="preview"></button>
       </form>
     </details>
-    <div data-rows></div><div class="presetio-actions"><button type="button" data-import class="presetio-primary" disabled>导入 / Import</button></div>
+    <div data-rows></div><div class="presetio-actions"><button type="button" data-import class="presetio-primary" data-text="import" disabled></button></div>
     <p role="status" aria-live="polite" class="presetio-status"></p></article></div>
     <div class="presetio-layer presetio-document" data-layer="doc_envelope">${art('doc_envelope_shadow')}${art('doc_envelope')}
     <article class="presetio-content" id="presetio-export" aria-labelledby="presetio-export-title" inert>
-    <header><h3 id="presetio-export-title">导出到 DIS <small lang="en">Export to DIS</small></h3></header>
-    <label>选择 DP 预设 / Choose a DP preset<select data-presets></select></label>
-    <div class="presetio-actions"><button type="button" data-install class="presetio-primary">写进 DiscImageStudio / Write to DiscImageStudio</button><button type="button" data-save>存成文件 / Save as file</button></div>
+    <header><h3 id="presetio-export-title" data-text="exportTitle"></h3></header>
+    <label><span data-text="choosePreset"></span><select data-presets></select></label>
+    <div class="presetio-actions"><button type="button" data-install class="presetio-primary" data-text="install"></button><button type="button" data-save data-text="save"></button></div>
     </article></div></div></div>`;
   document.body.append(sheet);
   const $ = selector => sheet.querySelector(selector);
@@ -105,16 +205,15 @@ export async function init(entry, fetcher = fetch) {
   const contents = {import: $('#presetio-import'), export: $('#presetio-export')};
   const leds = {import: $('[data-led="import"]'), export: $('[data-led="export"]')};
   const status = $('.presetio-status');
+  const language = () => document.documentElement.dataset.lang === 'zh' ? 'zh' : 'en';
+  const T = () => STR[language()];
   const rect = (el, [left, top, right, bottom]) => Object.assign(el.style,
     {left: `${left}px`, top: `${top}px`, width: `${right - left}px`, height: `${bottom - top}px`});
   rect(contents.import, desk.paper); rect(contents.export, desk.envelope);
   rect(knob, [desk.knob[0] - 48, desk.knob[1] - 48, desk.knob[0] + 48, desk.knob[1] + 48]);
   for (const [name, [x, y, radius]] of Object.entries(desk.leds)) {
     rect(leds[name], [x - radius * .65, y - radius * .65, x + radius * .65, y + radius * .65]);
-    const label = $(`[data-move="${name === 'export' ? -1 : 1}"]`);
-    label.style.top = `${y}px`; label.style.right = `${desk.width - desk.plateLeft + 70}px`;
-    // the leader stops short of the plate (to the LED it read as reaching into the plate's depth)
-    label.style.setProperty('--leader', `${70 - 12 - 18}px`);
+    $(`[data-move="${name === 'export' ? -1 : 1}"]`).style.top = `${y}px`;
   }
   Object.assign($('.presetio-tick').style, {left: `${desk.plateLeft - 30}px`, top: `${desk.knob[1]}px`});
   const paintDesk = () => {
@@ -131,7 +230,7 @@ export async function init(entry, fetcher = fetch) {
   function announce() {
     sheet.dataset.state = stateName(value);
     knob.setAttribute('aria-valuenow', value);
-    knob.setAttribute('aria-valuetext', value < 0 ? '导出 / Export' : value > 0 ? '导入 / Import' : '空 / Idle');
+    knob.setAttribute('aria-valuetext', T()[stateName(value)]);
     for (const [name, led] of Object.entries(leds)) led.dataset.active = String(name === stateName(value));
     for (const tab of sheet.querySelectorAll('[data-tab]')) {
       const selected = Number(tab.dataset.tab) === value;
@@ -256,9 +355,13 @@ export async function init(entry, fetcher = fetch) {
   }
   function layout() {
     finish();
-    compact = innerWidth < 820 || innerWidth / innerHeight < 1.2;
-    sheet.dataset.compact = String(compact);
+    const aspect = innerWidth / innerHeight;
     scale = Math.max(innerWidth / desk.width, innerHeight / desk.height);
+    // Reserve the right gutter and keep the upper label below the shared toolbar after cropping.
+    const labelTop = (innerHeight - desk.height * scale) / 2 + (desk.leds.export[1] - 32) * scale;
+    const toolbarBottom = document.querySelector('.top')?.getBoundingClientRect().bottom ?? 0;
+    compact = innerWidth < 820 || aspect < 1.5 || aspect > 2.4 || labelTop < toolbarBottom + 8;
+    sheet.dataset.compact = String(compact);
     stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
     if (compact && !value) value = 1; // The compact card always opens on a usable tab.
     settle();
@@ -305,8 +408,31 @@ export async function init(entry, fetcher = fetch) {
   knob.addEventListener('lostpointercapture', event => release(event, true));
   layout();
   const checkboxes = new Map();
+  const previewText = new Map();
   let preview = null, upload = null, busy = false, revision = 0, lastFile = null, callbacks = {};
-  function message(text, error = false) { status.textContent = text; status.dataset.error = String(error); }
+  let notice = null;
+  function paintMessage() {
+    const text = notice && T()[notice.key];
+    status.textContent = typeof text === 'function' ? text(...notice.args) : text ?? '';
+  }
+  function message(key, ...args) {
+    notice = {key, args};
+    status.dataset.error = String(key === 'failure' || key === 'tooLarge');
+    paintMessage();
+  }
+  function paintLanguage() {
+    const t = T();
+    for (const el of sheet.querySelectorAll('[data-text]')) el.textContent = t[el.dataset.text];
+    for (const el of sheet.querySelectorAll('[data-label]')) el.setAttribute('aria-label', t[el.dataset.label]);
+    knob.setAttribute('aria-valuetext', t[stateName(value)]);
+    if (!lastFile) $('[data-filename]').textContent = t.drop;
+    for (const [el, format] of previewText) el.textContent = format(t);
+    paintMessage();
+  }
+  function textFor(el, format) {
+    previewText.set(el, format);
+    el.textContent = format(T());
+  }
   function buttons() {
     $('[data-import]').disabled = busy || !preview || !selectedIndexes(preview.entries,
       new Set([...checkboxes].filter(([, box]) => box.checked).map(([i]) => i))).length;
@@ -318,7 +444,7 @@ export async function init(entry, fetcher = fetch) {
     catalogue = data;
     $('[data-presets]').replaceChildren();
     if (!data.presets.length) {
-      const option = document.createElement('option'); option.value = ''; option.textContent = '还没有预设 / No saved presets';
+      const option = document.createElement('option'); option.value = ''; option.dataset.text = 'noneSaved'; option.textContent = T().noneSaved;
       $('[data-presets]').append(option);
     }
     for (const item of data.presets) {
@@ -329,8 +455,8 @@ export async function init(entry, fetcher = fetch) {
   }
   async function run(action) {
     if (busy) return;
-    busy = true; buttons(); message('处理中… / Working…');
-    try { await action(); } catch (error) { message(`${error.message}\n请检查文件或选择后重试。/ Check the file or selection and retry.`, true); }
+    busy = true; buttons(); message('working');
+    try { await action(); } catch (error) { message('failure', error.message); }
     finally { busy = false; buttons(); }
   }
   async function load(file) {
@@ -338,7 +464,7 @@ export async function init(entry, fetcher = fetch) {
     lastFile = file; $('[data-filename]').textContent = file.name;
     const current = ++revision;
     clearPreview(); clearFieldErrors();
-    if (file.size > 2 * 1024 * 1024) { message('文件超过 2 MiB / File exceeds 2 MiB', true); return; }
+    if (file.size > 2 * 1024 * 1024) { message('tooLarge'); return; }
     await run(async () => {
       const text = await file.text();
       const payload = {operation: 'preview', text, filename: file.name, media: $('[data-media]').value || null};
@@ -349,49 +475,57 @@ export async function init(entry, fetcher = fetch) {
     });
   }
   function clearPreview() {
-    preview = upload = null; checkboxes.clear(); $('[data-rows]').replaceChildren(); buttons();
+    preview = upload = null; checkboxes.clear(); previewText.clear(); $('[data-rows]').replaceChildren(); buttons();
   }
   function clearFieldErrors() {
-    for (const el of sheet.querySelectorAll('[data-error]')) el.textContent = '';
+    for (const el of sheet.querySelectorAll('.presetio-field-error')) el.textContent = '';
     for (const el of $('[data-manual]').elements) el.removeAttribute('aria-invalid');
   }
-  function fieldErrors(issues) {
-    for (const issue of issues) {
-      const keys = /radii|RadiusMm/.test(issue) ? ['innerRadiusMm', 'outerRadiusMm']
-        : /pitch/.test(issue) ? ['pitchLinear', 'pitchQuadratic', 'pitchCubic']
-        : /sectors|totalSectors/.test(issue) ? ['sectors'] : /displayName|description/.test(issue) ? ['displayName'] : [];
-      for (const key of keys) {
-        $(`[data-error="${key}"]`).textContent = issue;
-        $('[data-manual]').elements.namedItem(key).setAttribute('aria-invalid', 'true');
-      }
+  function localizedIssue(row, index) {
+    const issue = row.issues[index];
+    if (language() === 'en') return issue;
+    const translated = row.issues_zh?.[index];
+    if (translated && translated !== issue) return translated;
+    return chineseDetail(issue) ?? (row.valid ? STR.zh.warning : STR.zh.invalidIssue);
+  }
+  function fieldError(row, index) {
+    const issue = row.issues[index];
+    const keys = /radii|RadiusMm/.test(issue) ? ['innerRadiusMm', 'outerRadiusMm']
+      : /pitch/.test(issue) ? ['pitchLinear', 'pitchQuadratic', 'pitchCubic']
+      : /sectors|totalSectors/.test(issue) ? ['sectors'] : /displayName|description/.test(issue) ? ['displayName'] : [];
+    for (const key of keys) {
+      textFor($(`[data-error="${key}"]`), () => localizedIssue(row, index));
+      $('[data-manual]').elements.namedItem(key).setAttribute('aria-invalid', 'true');
     }
   }
   function showPreview(result, manual = false) {
-      for (const row of result.entries) {
-        const block = document.createElement('div'); block.className = 'presetio-row';
-        const label = document.createElement('label'), box = document.createElement('input');
-        box.type = 'checkbox'; box.disabled = !row.valid; box.checked = row.valid && !row.disabled;
-        box.addEventListener('change', buttons); checkboxes.set(row.index, box);
-        const name = document.createElement('strong'); name.textContent = row.preset?.displayName || '无效预设 / Invalid preset';
-        label.append(box, name);
-        const summary = document.createElement('p'); summary.className = 'presetio-data'; summary.textContent = rowSummary(row);
-        if (row.valid && row.image_compatible === false) summary.textContent += ' · 仅存档，DP 不能用来做图 / Archive only; unavailable for DP drawing';
-        const issues = document.createElement('ul');
-        row.issues.forEach((issue, i) => { const li = document.createElement('li');
-          const zh = row.issues_zh?.[i]; li.textContent = zh && zh !== issue ? `${zh} / ${issue}` : issue; issues.append(li); });
-        if (row.comparison) {
-          const li = document.createElement('li');
-          li.textContent = `近似：角度 ≤ ${row.comparison.max_angle_error_deg.toPrecision(6)}°，半径 ≤ ${row.comparison.max_radius_error_mm.toPrecision(6)} mm / DP approximation`;
-          issues.append(li);
-        }
-        block.append(label, summary, issues); $('[data-rows]').append(block);
-        if (manual && !row.valid) fieldErrors(row.issues.map((issue, i) => {
-          const zh = row.issues_zh?.[i]; return zh && zh !== issue ? `${zh} / ${issue}` : issue;
-        }));
+    for (const row of result.entries) {
+      const block = document.createElement('div'); block.className = 'presetio-row';
+      const label = document.createElement('label'), box = document.createElement('input');
+      box.type = 'checkbox'; box.disabled = !row.valid; box.checked = row.valid && !row.disabled;
+      box.addEventListener('change', buttons); checkboxes.set(row.index, box);
+      const name = document.createElement('strong');
+      textFor(name, t => row.preset?.displayName || t.invalid);
+      label.append(box, name);
+      const summary = document.createElement('p'); summary.className = 'presetio-data';
+      textFor(summary, t => rowSummary(row, t) + (row.valid && row.image_compatible === false ? ` · ${t.archive}` : ''));
+      const issues = document.createElement('ul');
+      row.issues.forEach((_, i) => {
+        const li = document.createElement('li');
+        textFor(li, () => localizedIssue(row, i)); issues.append(li);
+        if (manual && !row.valid) fieldError(row, i);
+      });
+      if (row.comparison) {
+        const li = document.createElement('li');
+        const angle = row.comparison.max_angle_error_deg.toPrecision(6);
+        const radius = row.comparison.max_radius_error_mm.toPrecision(6);
+        textFor(li, t => t.approximation(angle, radius)); issues.append(li);
       }
-      message(result.entries.length ? '核对参数并勾选要导入的预设。/ Review the values and select presets to import.' : '文件中没有预设 / No presets in this file');
+      block.append(label, summary, issues); $('[data-rows]').append(block);
+    }
+    message(result.entries.length ? 'review' : 'emptyFile');
   }
-  $('[data-manual]').addEventListener('input', () => { ++revision; clearPreview(); clearFieldErrors(); message('参数已修改，请重新核对。/ Values changed; preview again.'); });
+  $('[data-manual]').addEventListener('input', () => { ++revision; clearPreview(); clearFieldErrors(); message('edited'); });
   $('[data-manual]').addEventListener('submit', event => {
     event.preventDefault();
     if (busy) return;
@@ -433,16 +567,16 @@ export async function init(entry, fetcher = fetch) {
     globalThis.dispatchEvent(new Event('dp-catalogue-changed'));
     await onImported?.(result);
     renderCatalogue(await request(fetcher));
-    message(`已导入 / Imported: ${result.written.length}；重复项保留 / Duplicates kept: ${result.duplicates.length}`);
+    message('imported', result.written.length, result.duplicates.length);
   }));
   for (const install of [true, false]) $(`[data-${install ? 'install' : 'save'}]`).addEventListener('click', () => run(async () => {
     const result = await request(fetcher, {operation: 'export', path: $('[data-presets]').value, install});
-    if (install) message(`已写入，请重启 DIS。/ Written; restart DIS.\n${result.installation.path}\n备份 / Backup: ${result.installation.backup || '—'}`);
+    if (install) message('installed', result.installation);
     else {
       const blob = new Blob([JSON.stringify(result.preset, null, 2) + '\n'], {type: 'application/json'});
       const url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url;
       link.download = 'dis-preset.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-      message('已保存 DIS 预设 / Saved DIS preset');
+      message('saved');
     }
   }));
   // The site's own "上一步" (index.html #back, top left) is this page's way out, as on every other page; it is lifted
@@ -523,10 +657,12 @@ export async function init(entry, fetcher = fetch) {
       watchPageFlight(pageFlight, () => { if (!closing) endPageFlight(); });
     }
     if (options.manual) $('.presetio-manual').scrollIntoView({block: 'start'});
-    run(async () => { renderCatalogue(await request(fetcher)); message('选择文件或预设。/ Choose a file or preset.'); });
+    run(async () => { renderCatalogue(await request(fetcher)); message('choose'); });
   }
   entry.addEventListener('click', () => open(entry));
   renderCatalogue(catalogue);
+  paintLanguage();
+  addEventListener('dp-lang', paintLanguage);
   current = {sheet, load, close, open};
   dispatchEvent(new Event('dp-presets-ready'));
   return current;
