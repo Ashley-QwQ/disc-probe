@@ -265,7 +265,8 @@ function newLayerId() {
 const range = () => S?.ring ?? RANGE[S.media] ?? RANGE.dvd;
 function useMeasured(geo) {
   if (!S) return;
-  const ring = measuredRing(geo?.measured, RANGE[S.media] ?? RANGE.dvd);
+  const limit = geo?.nominal && S.media === "cd" ? [26, 58] : RANGE[S.media] ?? RANGE.dvd;
+  const ring = measuredRing(geo?.measured ?? geo?.nominal, limit);
   if (String(ring) === String(S.ring ?? null)) return;
   S.ring = ring; comp = null; editor?.invalidate(); draw();
 }
@@ -1532,7 +1533,10 @@ async function workForISO() {
   const client = await (await import("./pastworks/works.mjs")).worksFor(api, { capable: hasCapability("works") });
   if (!client || client.mock) return null;                  // the demo's library cannot hear the core's job
   const plan = S;
-  if (!plan.work?.id || plan.dirty) await saveToWorks();
+  if (!plan.work?.id || plan.dirty) {
+    if (!await saveToWorks()) throw new Error(T().failed);
+    document.dispatchEvent(new Event("dp-image-work-saved"));
+  }
   return plan.work?.id ? { id: plan.work.id, before: plan.work.updated_at, plan } : null;
 }
 // after a successful ISO: the geometry it was made with, and the stamps the core moved (pastworks/save.mjs)
@@ -1565,7 +1569,7 @@ async function saveProject(as = false) {
   return true;
 }
 // work: { id, updated_at } when the text came from the works library; a file opened from disk is no library work
-async function openProject(file, handle = null, work = null) {
+async function openProject(file, handle = null, work = null, dirty = false) {
   const t = T();
   let data;
   // a work with a few photos is tens of MB (each layer keeps its pixels, its PNG and the original file)
@@ -1637,7 +1641,7 @@ async function openProject(file, handle = null, work = null) {
   if (editor?.hasColour()) editor.rigSync();
   S.name = baseName(file.name); S.handle = handle; S.work = work;
   changed();
-  S.dirty = false; W.dirty.classList.remove("on");
+  S.dirty = dirty; W.dirty.classList.toggle("on", dirty);
   W.ws.classList.toggle("pro-on", S.pro);
   W.pname.textContent = S.name;
   buildLeft(); buildRight(); updateTilt();
@@ -1720,13 +1724,14 @@ export function isoStem(name) {
 // only) burns the textures the model chose. Either way the result says which, and which geometry it used.
 export async function makeBurnFile(onProgress = () => {}, { signal, effects } = {}) {
   const t = T().exp, t2 = T();
-  const stop = () => { if (signal?.aborted) throw new DOMException("cancelled", "AbortError"); };
   const plan = S;
+  const stop = () => { if (signal?.aborted) throw new DOMException("cancelled", "AbortError"); };
   let files = plan.files;
   if (files?.folder && !files.token) throw Error(api.lang() === "en" ? "Check and confirm the files list before exporting." : "请先检查并确认随盘文件清单。");
   let state;
   try { const r = await fetch(`/api/state?media=${S.media}`, { signal }); if (!r.ok) throw 0; state = await r.json(); }
   catch (e) { if (e?.name === "AbortError") throw e; throw new Error(t.noBackend); }
+  if (S !== plan) throw new DOMException("cancelled", "AbortError");
   const geo = planGeo(state), geoPath = geo.path;
   if (!geoPath) throw Object.assign(new Error(t.noGeo), { code: "nogeo" });
   useMeasured(geo);                                    // the burn file keeps the picture inside the measured ring
@@ -1745,7 +1750,7 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects } = 
     const body = JSON.stringify(burn.doc);
     if (body.length > COMPOSE_LIMIT) throw new Error(t2.bigWork(Math.round(body.length / 2 ** 20)));
     const response=await fetch("/api/compose",{method:"POST",headers:{"Content-Type":"application/json"},body,signal});
-    saved=await response.json().catch(()=>({}));if(!response.ok)throw Error(saved.error??t.failed);rMax=pictureRange()[1];
+    saved=await response.json().catch(()=>({}));if(!response.ok)throw Error(localImageError(saved.error)||t.failed);rMax=pictureRange()[1];
     // what the composed array really holds: in black and white, nothing but the two textures
     const extra = checkTextures(saved.textures_used ?? saved.textures, S.media, burn.mode);
     if (extra.length) throw new Error(t2.exp2.bwOnly(extra.join(" ")));
@@ -1758,8 +1763,9 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects } = 
   if (!up.ok) throw new Error(saved.error ?? t.failed);
   }
   stop();
+  if (S !== plan) throw new DOMException("cancelled", "AbortError");
   const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
-  const output = `iso/${isoStem(S.name)}-${um}um-${stamp}${burn?.mode === "experimental" ? "-exp" : ""}.iso`;
+  const output = `iso/${isoStem(plan.name)}-${um}um-${stamp}-${crypto.randomUUID().slice(0, 8)}${burn?.mode === "experimental" ? "-exp" : ""}.iso`;
   const link = await workForISO();
   stop();
   if (files?.token && (S !== plan || plan.files !== files))
@@ -1773,10 +1779,11 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects } = 
   }
   const run = await fetch("/api/run", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "image", media: S.media, ...(link ? { work: link.id } : {}), ...(filesToken ? {files_token:filesToken} : {}), args: { geo: geoPath, design_npy: saved.design_npy, ...(saved.textures?{textures:saved.textures}:{}), ...fileArguments(files), output, r_max: rMax } }),
+    body: JSON.stringify({ action: "image", media: plan.media, ...(link ? { work: link.id } : {}), ...(filesToken ? {files_token:filesToken} : {}), args: { geo: geoPath, design_npy: saved.design_npy, ...(saved.textures?{textures:saved.textures}:{}), ...fileArguments(files), output, r_max: rMax } }),
   });
   const job = await run.json().catch(() => ({}));
-  if (!run.ok) throw new Error(job.error ?? t.failed);
+  if (!run.ok) throw new Error(localImageError(job.error) || t.failed);
+  onProgress({ stage: t.making, fraction: 0, jobId: job.job });
   let why = "", lastLine = "";
   const exit = await new Promise((resolve, reject) => {
     const es = new EventSource("/api/events");
@@ -1798,16 +1805,22 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects } = 
     if (/EXTRAPOLATION|outside measured intervals|外推/.test(said ?? "")) throw new Error(api.lang() === "zh"
       ? "图有一部分超出这批盘实测到的范围，那里的位置不可信。把图缩进圈内，或者重测这张盘、把范围测宽；不用重刻。"
       : "Part of the picture is outside the range this batch was measured over, where positions are a guess. Shrink it inside the ring, or measure this disc again over a wider range; no new burn is needed.");
-    throw new Error([t.failed, said].filter(Boolean).join(" "));
+    throw new Error([t.failed, localImageError(said)].filter(Boolean).join(" "));
   }
   stop();
   const info = await (await fetch(`/api/iso?path=${encodeURIComponent(output)}`)).json().catch(() => ({}));
   if (!(info.bytes > 0) || !(info.sectors > 0)) throw new Error(t.failed);
-  S.geo = geoPath;                                     // the project keeps the geometry it was made with
+  plan.geo = geoPath;                                  // the project keeps the geometry it was made with
   if (link) await afterWorkISO(link, geoPath);
   return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job, geo: geoPath,
     geoSource: geo.source, geoName: geo.name, cellUm: um, effects: burn?.mode ?? "bw", experimental: burn?.mode === "experimental",
     textures: saved.textures_used ?? null };
+}
+function localImageError(message) {
+  if (!message) return "";
+  const bilingual = String(message).split(" / ");
+  if (bilingual.length === 2 && /[\u3400-\u9fff]/.test(bilingual[0])) return bilingual[api.lang() === "en" ? 1 : 0];
+  return api.lang() === "en" || /^\s*[\u3400-\u9fff]/.test(message) ? message : "";
 }
 // The check disc (checkdisc.py): the photo target, laid out with this plan's measured geometry and without any
 // photo correction, since its photos are what measure it. Burned, photographed, then the picture's own file is
@@ -1887,7 +1900,8 @@ function build() {
   ws.className = "ws";
   ws.innerHTML = `<div class="ws-title"><svg class="work-bag" viewBox="0 0 20 24" width="16" height="20" style="flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.3" role="img" aria-label="作品存在往期作品里 / Saved in past works"><title>作品存在往期作品里 / Saved in past works</title><path d="M3 5h14v17H3zM3 5l3-3h8l3 3M7 9h6M7 12h6"/></svg><b class="pname"></b><button class="sub" type="button"></button><span class="dirty" aria-hidden="true"></span>` +
     `<span class="filebtns"><button class="sbtn" type="button" data-a="open"></button><button class="sbtn" type="button" data-a="save"></button></span></div>` +
-    `<aside class="col col-l"></aside><aside class="col col-r"></aside>` +
+    `<div class="ed-panel-picker"><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-left ed-files" data-panel="layers"></button><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-right" data-panel="tone"></button></div>` +
+    `<aside class="col col-l" id="ed-left"></aside><aside class="col col-r" id="ed-right"></aside>` +
     `<div class="cv"><div class="ed-desk" aria-hidden="true"></div><div class="ed-surface"><div class="ed-disc-shadow" aria-hidden="true"></div><canvas class="main"></canvas></div>` +
     `<div class="tools-v" role="toolbar"></div>` +
     `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="burn"></button><button type="button" data-v="lamp"></button><button type="button" data-colour-compare hidden></button></div><p class="ed-view-note" aria-live="polite"></p>` +
@@ -1910,6 +1924,14 @@ function build() {
   // open and save belong to the work's tools, above the layers, not to its title (the header keeps only the
   // work's name and its discs)
   ws.append(W.filebtns);
+  W.filebtns.id = "ed-files";
+  W.panelPicker = q(".ed-panel-picker");
+  W.panelPicker.addEventListener("click", e => {
+    const button = e.target.closest("[data-panel]");
+    if (!button) return;
+    ws.dataset.panel = ws.dataset.panel === button.dataset.panel ? "" : button.dataset.panel;
+    for (const b of W.panelPicker.children) b.setAttribute("aria-expanded", String(b.dataset.panel === ws.dataset.panel));
+  });
   // Keep the existing glass panel's shadow beneath the picture, as it was before the canvas
   // extended behind the panels. Its opaque face alone belongs above the picture.
   ws.prepend(W.desk);
@@ -2041,6 +2063,8 @@ function resize() {
 // all the words, in the current language
 function words() {
   const t = T();
+  W.panelPicker.children[0].textContent = t.layers;
+  W.panelPicker.children[1].textContent = t.tone;
   W.pname.textContent = S.name ?? t.untitled;
   W.dirty.classList.toggle("on", S.dirty);
   W.dirty.title = S.dirty ? t.unsaved : "";
@@ -2238,7 +2262,8 @@ async function openPreview() {
   const ctx = {
     media: P.media, item: P.item, alongTrackMeasured: false,
     // what a file being made belongs to (preview.js jobs): this plan while open, and its saved work once it has one
-    keys: () => [P, P.work?.id ? `work:${P.work.id}` : null].filter(Boolean),
+    keys: () => P.work?.id ? (P.dirty ? [] : [P, `work:${P.work.id}`]) : [P],
+    imageWork: () => !P.dirty && hasCapability("image-job-recovery") ? P.work?.id : null,
     project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection, lamp: editor?.lampProject() ?? null,
       fileRegions:()=>occupiedRings(P.files) },
     // colours and effects burn in black and white unless the person asks for the experiment (DVD only)
@@ -2246,18 +2271,20 @@ async function openPreview() {
     setEffects(mode) { ctx.effects = mode === "experimental" && P.media === "dvd" ? "experimental" : "bw"; },
     // the check disc for the phone photos: DVD only for now (checkdisc.py)
     exportCheck: P.media === "dvd" ? (onProgress, opts) => makeCheckFile(onProgress, opts) : null,
-    exportIso: (onProgress, opts) => makeBurnFile((p) => onProgress({ fraction: p.fraction, stage: p.stage }),
+    exportIso: (onProgress, opts) => makeBurnFile(onProgress,
       { ...opts, effects: experimentalNow(P).any ? ctx.effects : "bw" }),
     // what the preview's checklist reads before burning; each answer is what is known now, never a guess
     checks: () => {
-      const [p0, p1] = pictureRange(), d = api.driveDisc?.();
+      const d = api.driveDisc?.();
       const geo = geoChoice(P, api.catalogue?.(P.media) ?? served?.catalogue?.[P.media] ?? [], latestGeo(served));
       if (S === P) useMeasured(geo);
       const exp = experimentalNow(P);
       return {
         geo: geo.source, geoName: geo.name, geoWhen: geo.when ?? "",
         inRange: !imageLayers().some((L) => L.visible && cornersOutside(L, ...pictureRange())),
-        ring: P.files?.layout ? pictureRange() : P.ring ?? null,
+        ring: geo.nominal ? null : P.files?.layout ? pictureRange() : P.ring ?? null,
+        nominal: !!geo.nominal || geo.source.startsWith("imported"),
+        importProblem: geo.importProblem,
         levels: 2,                                    // the editor burns two textures; tone levels no longer apply
         disc: !d?.present ? "none" : d.media !== P.media ? "kind" : P.item?.mid && d.mid && d.mid !== P.item.mid ? "other" : d.blank === true ? "blank" : "written",
         discName: d?.mid || d?.kind || "",

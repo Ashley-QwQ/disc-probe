@@ -142,6 +142,28 @@ try{
       await run(`A.state().layers=[];A.state().selected=null;A.editor.h.changed();A.editor.h.rebuild()`);
     }
   }
+  await load(390,844);
+  const clickAt = async selector => {
+    const point = await run(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect();
+      const x=r.left+r.width/2,y=r.top+r.height/2;return {x,y,hit:e.contains(document.elementFromPoint(x,y))};})()`);
+    assert.equal(point.hit,true,selector);
+    await pointer('mousePressed',point.x,point.y);
+    await pointer('mouseReleased',point.x,point.y);
+  };
+  await check('phone width leaves the canvas open', `A.editor.h.dom().cv.getBoundingClientRect().width > 300
+    && getComputedStyle(A.editor.h.dom().left).display === 'none'
+    && getComputedStyle(A.editor.h.dom().right).display === 'none'`);
+  await send('Page.setInterceptFileChooserDialog',{enabled:true});
+  await run(`document.querySelector('.ws .f-img').addEventListener('click',()=>window.openedImagePicker=true)`);
+  await clickAt('.empty-c [data-a=import]');
+  await check('phone import opens the image picker','window.openedImagePicker === true');
+  await clickAt('.empty-c [data-a=sample]');
+  await check('phone sample click adds a layer','A.state().layers.length === 1');
+  await clickAt('button[data-panel=layers]');
+  await check('phone layers can open', `document.querySelector('button[data-panel=layers]').getAttribute('aria-expanded') === 'true'
+    && getComputedStyle(A.editor.h.dom().left).display !== 'none'`);
+  await clickAt('button[data-panel=layers]');
+  await check('closing the layers returns to the canvas',`getComputedStyle(A.editor.h.dom().cv).visibility === 'visible'`);
   assert.equal(errors.length,0,JSON.stringify(errors));
   await writeFile(join(out,'desk-check.json'),JSON.stringify({checks,opacity,measurements,errors},null,2),'utf8');
   console.log(JSON.stringify({checks:checks.length,screenshots:8,errors:errors.length,out,shots}));

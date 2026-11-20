@@ -29,7 +29,8 @@ def _completed(args, iso, **fields):
 
 
 def image_completed(args):
-    _completed(args, args.output, kind="iso")
+    design = os.environ.get("DISCPROBE_IMAGE_WORK_DESIGN")
+    _completed(args, args.output, kind="iso", **({"source_design_asset": design} if design else {}))
 
 
 def burn_completed(args, result):

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
+import hashlib
 import hmac
 import ipaddress
 import json
@@ -253,10 +254,13 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
                 argv += ["--avoid-mm", band]
             continue
         if rule == "texture_list":
-            if not isinstance(value, list) or not 1 <= len(value) <= 256 or any(
-                not isinstance(v, str) or not re.fullmatch(r"(?:[0-9A-Fa-f]{2}){1,128}", v) for v in value
-            ):
-                raise APIError("invalid texture list")
+            if not isinstance(value, list) or not 1 <= len(value) <= 256:
+                raise APIError("纹理列表必须有 1–256 项。 / The texture list must have 1–256 entries.")
+            for slot, spec in enumerate(value, 1):
+                if not isinstance(spec, str) or (spec != "RND" and not re.fullmatch(r"(?:[0-9A-Fa-f]{2}){1,128}", spec)):
+                    raise APIError(f"第 {slot} 项纹理无效：请用 RND 或 1–128 个十六进制字节。 / "
+                                   f"Invalid texture at entry {slot}: use RND or 1–128 hexadecimal bytes.",
+                                   code="invalid_texture")
             argv += ["--textures", *value]
             continue
         if rule == "flag":
@@ -752,6 +756,59 @@ class Backend:
             return dict(job=ident, action=job.action, media=job.media, args=job.args, exit=job.exit,
                         events=list(job.history), result=job.result, cancellation=job.cancellation)
 
+    def image_job(self, *, work=None, ident=None):
+        """Resume an image job by work, or read the current progress of that job."""
+        if ident is not None:
+            with self.lock:
+                job = self.get_job(ident)
+                if job.action != "image":
+                    raise APIError("not an image job", 404)
+                return self._image_job_state(job)
+        try:
+            saved = self.works.show(work)
+            design = self._work_design(work)
+        except ValueError as exc:
+            raise APIError(str(exc), getattr(exc, "status", 400)) from exc
+        with self.lock:
+            for job in reversed(self.jobs.values()):
+                if job.action == "image" and (job.work, job.work_design) == (work, design):
+                    return self._image_job_state(job)
+        for record in reversed(saved["discs"]):
+            if record.get("type") == "iso" and record.get("source_design_asset", record.get("design_asset")) == design:
+                return self._image_job_state(None, record.get("iso_path"))
+        return dict(phase="idle")
+
+    def _work_design(self, ident):
+        return "assets/" + hashlib.sha256(self.works.content(ident, "design.discdesign")).hexdigest()
+
+    def _image_job_state(self, job, output=None):
+        if job is not None:
+            job.read()
+            if job.exit is None:
+                return dict(phase="making", job=job.id, fraction=(job.progress or {}).get("fraction"),
+                            started_at=job.started_at)
+            if job.exit != 0 or job.cancellation:
+                return dict(phase="cancelled" if job.cancellation else "failed")
+            output = (job.result or {}).get("path")
+        try:
+            iso = self.iso_file(output)
+        except APIError:
+            return dict(phase="unverified")
+        if job is not None:
+            iso.update(job=job.id, geo=job.args.get("geo"))
+        spec = (self.root / iso["path"]).with_suffix(".image.json")
+        info = guide._load(str(spec)) or {}
+        textures = info.get("textures") or []
+        defaults = {"0D", "AA"} if info.get("media") == "cd" else {"A5", "B9"}
+        if not iso.get("geo") and info.get("geometry_from"):
+            source = Path(info["geometry_from"]).resolve()
+            if source.is_relative_to(self.root):
+                iso["geo"] = source.relative_to(self.root).as_posix()
+        iso["experimental"] = any(tex.upper() not in defaults for tex in textures)
+        if info.get("cell_mm"):
+            iso["cellUm"] = round(info["cell_mm"] * 1000)
+        return dict(phase="ready", iso=iso)
+
     def _burn_target(self, payload):
         action = burn_action(payload)
         drive, media = payload.get("drive"), payload.get("media", "dvd")
@@ -838,9 +895,12 @@ class Backend:
         drives = [] if is_photo or isinstance(payload, dict) and payload.get("action") == "curve-edit" else self.drive_provider()
         argv, drive = command(payload, self.root, drives)
         work_id = payload.get("work") or payload.get("args", {}).get("work")
+        work_design = None
         if work_id:
             try:
                 self.works.show(work_id)
+                if payload["action"] == "image":
+                    work_design = self._work_design(work_id)
             except ValueError as exc:
                 raise APIError(str(exc), getattr(exc, "status", 400)) from exc
         if is_photo:
@@ -902,6 +962,7 @@ class Backend:
             folder = Path(tempfile.mkdtemp(prefix=ident + "-", dir=self.folder))
             job = Job(ident, drive, folder)
             job.action, job.media, job.args = payload["action"], payload.get("media", "dvd"), payload.get("args", {})
+            job.work, job.work_design = work_id, work_design
             job.writes_drive = writes
             known_disc = self.discs.get(drive) or next((d.get('disc') for d in drives if d['id'] == drive), None) or {}
             job.disc = dict(known_disc)
@@ -917,6 +978,8 @@ class Backend:
             else:
                 env.pop(disc_identity.EXPECTED_ENV, None)
             env.update(DISCPROBE_EVENTS=str(job.events), DISCPROBE_ANSWERS=str(job.answers), DISCPROBE_JOB=ident)
+            if work_design:
+                env["DISCPROBE_IMAGE_WORK_DESIGN"] = work_design
             # Force plain child output; events have their own progress outlet.
             env["DISCPROBE_PLAIN"] = "1"
             env["DISCPROBE_HOME"] = str(self.works.root.parent)
@@ -1801,6 +1864,9 @@ class Handler(BaseHTTPRequestHandler):
                                      first_day="Monday"))
             elif path == "/api/catalogue":
                 self._json(200, webui_catalog.catalogue(backend.root, backend.out))
+            elif path == "/api/image-job":
+                query = parse_qs(url.query)
+                self._json(200, backend.image_job(work=query.get("work", [None])[0], ident=query.get("job", [None])[0]))
             elif re.fullmatch(r"/api/jobs/j-[0-9a-f]+", path):
                 self._json(200, backend.job_state(path.rsplit("/", 1)[1]))
             elif path == "/api/burn-token":

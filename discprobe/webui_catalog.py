@@ -214,6 +214,7 @@ def catalogue(root, out):
                     name=preset['displayName'], mid=None, sectors=preset.get('totalSectors', preset.get('sectors')),
                     s='imported' if compatible else 'unknown', last=None, drive=None, left=None, of=None, preset=str(path.relative_to(root)), history=[],
                     image_compatible=bool(compatible), imported=imported,
+                    **({'nominal_mm': [preset['innerRadiusMm'], preset['outerRadiusMm']]} if compatible else {}),
                     correction_required=bool(fit.get('correction_required')) if imported else False,
                     import_status=source.get('status') if isinstance(source, dict) else None,
                     geo=str(path.relative_to(root)) if compatible else None))
