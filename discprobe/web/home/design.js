@@ -19,6 +19,7 @@ import { mountFilesStep, occupiedRings, filePictureRange, fileArguments, refresh
 import { hasCapability } from "./handshake.mjs";
 import { CELLS, COST, geoChoice, measuredRings, burnDocument, checkTextures, experimentalContent, hasColourPicture, pictureSampling } from "./design/export-rules.mjs";
 import directionArrow from "./design/direction-arrow.json" with {type: "json"};
+import { calibratedBatch, discDisplayKind } from "./batches.mjs";
 
 let api, $;
 const root = document.documentElement;
@@ -1500,8 +1501,16 @@ const FILE_KIND = "disc-probe design", FILE_VERSION = 2, FILE_EXT = ".discdesign
 const blobURL = (blob) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(blob); });
 const canvasBlob = (c) => new Promise((ok) => c.toBlob(ok, "image/png"));
 async function projectText() {
+  const plan = S, portable = editor?.document();
+  const meta = {
+    ...portable,
+    format: FILE_KIND, version: FILE_VERSION, media: plan.media, disc: plan.item?.name ?? null, geo: plan.geo ?? null,
+    batch: plan.item?.kind !== "new" ? plan.item?.id ?? null : null,
+    tone: plan.tone, files: fileDisplay(plan.files), pro: plan.pro, cell: plan.cell,
+    scene: plan.scene, lookColour: plan.lookColour, lookY: plan.lookY,
+  };
   const layers = [];
-  for (const L of S.layers) {
+  for (const L of plan.layers) {
     const e = { kind: L.kind, name: L.name, x: L.x, y: L.y, width: L.width, rot: L.rot, opacity: L.opacity, visible: L.visible, locked: L.locked };
     if (L.kind === "image") {
       Object.assign(e, { colour: L.colour, w: L.w, h: L.h, alphaEdited: !!L.alphaEdited, picture: await blobURL(await canvasBlob(L.src)) });
@@ -1509,21 +1518,17 @@ async function projectText() {
     } else Object.assign(e, { fxKind: L.fxKind, height: L.height, y1: L.y1, y2: L.y2 });
     layers.push(e);
   }
-  const portable = editor?.document();
-  return JSON.stringify({
-    ...portable,
-    format: FILE_KIND, version: FILE_VERSION, media: S.media, disc: S.item?.name ?? null, geo: S.geo ?? null,
-    tone: S.tone, files: fileDisplay(S.files), pro: S.pro, cell: S.cell, scene: S.scene, lookColour: S.lookColour, lookY: S.lookY, layers: layers.map((l,i)=>({...l,...portable?.layers[i]})),
-  });
+  return JSON.stringify({ ...meta, layers: layers.map((l,i)=>({...l,...portable?.layers[i]})) });
 }
 const baseName = (n) => n.replace(/\.discdesign$/i, "").replace(/\.json$/i, "");
 // Ctrl+S files the design in the core's works library (pastworks/save.mjs: made on the first save, a 409
 // asks overwrite or keep both). Undefined when this core keeps no works: the file picker below saves it.
-async function saveToWorks() {
+async function saveToWorks(plan = S) {
   const client = await (await import("./pastworks/works.mjs")).worksFor(api, { capable: hasCapability("works") });
   if (!client) return undefined;
   const { saveToLibrary, sayings } = await import("./pastworks/save.mjs");
-  const plan = S, name = S.name ?? T().untitled;
+  if (plan !== S) return false;
+  const name = plan.name ?? T().untitled;
   try {
     const r = await saveToLibrary({ client, plan, name, lang: api.lang(), text: await projectText(),
       thumb: async () => dataURLBlob(planThumbnail(plan, 512)) });
@@ -2171,7 +2176,8 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
     if (open && (open.dirty || open.work.updated_at === work.updated_at)) { S = open; S.name = work.name; }
     else {
       const media = work.media in RANGE ? work.media : col, [c, last] = api.lastBatch?.() ?? [];
-      S = newProject(c === media ? last : col === media ? item : { kind: "unset", name: T().noDiscYet, mid: "", s: "none" }, media);
+      const savedBatch = work.batch && api.catalogue?.(media)?.find(x => x.id === work.batch);
+      S = newProject(savedBatch || (c === media ? last : col === media ? item : { kind: "unset", name: T().noDiscYet, mid: "", s: "none" }), media);
       S.name = work.name; S.work = { id: work.id, updated_at: work.updated_at };
       if (work.text != null) fromWork = new File([work.text], `${work.name}.discdesign`, { type: "application/json" });
     }
@@ -2267,6 +2273,13 @@ async function openPreview() {
   // the newest finished geo run, for a plan with no batch (named in the checklist, never used silently)
   const served = await fetch(`/api/state?media=${P.media}`).then((r) => r.ok ? r.json() : null).catch(() => null);
   if (!isOn() || S !== P) return;
+  const catalogue = () => api.catalogue?.(P.media) ?? served?.catalogue?.[P.media] ?? [];
+  function connectBatch(item) {
+    if (P.item?.id !== item.id || P.geo !== item.geo) P.dirty = true;
+    P.item = ctx.item = item;
+    api.rememberBatch?.(item);
+    useMeasured(geoChoice(P, catalogue()));
+  }
   const ctx = {
     media: P.media, item: P.item, alongTrackMeasured: false,
     // what a file being made belongs to (preview.js jobs): this plan while open, and its saved work once it has one
@@ -2284,7 +2297,7 @@ async function openPreview() {
     // what the preview's checklist reads before burning; each answer is what is known now, never a guess
     checks: () => {
       const d = api.driveDisc?.();
-      const geo = geoChoice(P, api.catalogue?.(P.media) ?? served?.catalogue?.[P.media] ?? [], latestGeo(served));
+      const geo = geoChoice(P, catalogue(), latestGeo(served));
       if (S === P) useMeasured(geo);
       const exp = experimentalNow(P);
       return {
@@ -2295,7 +2308,7 @@ async function openPreview() {
         importProblem: geo.importProblem,
         levels: 2,                                    // the editor burns two textures; tone levels no longer apply
         disc: !d?.present ? "none" : d.media !== P.media ? "kind" : P.item?.mid && d.mid && d.mid !== P.item.mid ? "other" : d.blank === true ? "blank" : "written",
-        discName: d?.mid || d?.kind || "",
+        discName: d?.mid || (d?.present ? discDisplayKind(d, api.lang()) : ""),
         cellUm: Math.round(P.cell * 1000),
         effects: !exp.any ? "none" : ctx.effects,
         canExperiment: P.media === "dvd",
@@ -2303,18 +2316,39 @@ async function openPreview() {
     },
     back: () => start(api, { plan: P, fly: false }),           // the same work, not the shelf disc's own plan
     next: (iso) => toBurn(iso, () => preview.start(api, ctx)),   // the same context keeps the file it made
-    // no measured geometry for these discs: calibrate the batch (the one picked, else the disc in the drive),
-    // then come back here; a batch measured meanwhile becomes this plan's
-    calibrate: async () => {
+    calibrate: async (stillHere) => {
+      await api.syncState?.();
+      if (!stillHere()) return;
+      const disc = api.driveDisc?.();
+      const known = calibratedBatch(catalogue(), P.item, disc?.media === P.media ? disc : null);
+      if (known) {
+        connectBatch(known);
+        await preview.continueToBurn(api, ctx);
+        return;
+      }
+      if ((!P.work?.id || P.dirty) && !await saveToWorks(P)) return;
+      if (!stillHere()) return;
+      document.dispatchEvent(new Event("dp-image-work-saved"));
       const cal = await import("./calibrate.js");
+      if (!stillHere()) return;
       api.useForPlan?.(P.media, P.item?.kind === "new" ? null : P.item ?? null);
-      cal.start(api, { returnTo: async ({ done, id }) => {
+      const batch = P.item && P.item.kind !== "unset" ? P.item : api.current().item;
+      preview.leave(false);
+      cal.start(api, { item: batch, returnLabel: () => api.lang() === "en" ? "Return to this work" : "回到这件作品",
+        returnTo: async ({ done, batch: saved }) => {
+        if (S !== P) start(api, { plan: P, fly: false });
         if (done) {
-          await api.syncState?.();
-          const d = api.driveDisc?.(), mine = (x) => ["good", "usable"].includes(x.s) && (id ? x.id === id : P.item?.id ? x.id === P.item.id : d?.mid && x.mid === d.mid);
-          const it = (api.catalogue?.(P.media) ?? []).find(mine);
-          if (it) { P.item = it; api.rememberBatch?.(it); }
+          const item = saved || calibratedBatch(catalogue(), batch, disc);
+          if (item) {
+            connectBatch(item);
+            if (await saveToWorks(P)) {
+              hideDesign();
+              await preview.continueToBurn(api, ctx);
+              return;
+            }
+          }
         }
+        hideDesign();
         preview.start(api, ctx);
       } });
     },
@@ -2421,7 +2455,7 @@ async function inspectDisc(drive, iso) {
   catch (e) { return { problem: t.burnNoDisc(e?.message ?? ""), swap: true }; }
   if (!disc?.present) return { problem: t.burnPutBlank(S.item?.mid || S.item?.name || ""), swap: true };
   drive.rewritable=!!disc.rewritable;drive.eraseRequired=disc.rewritable && disc.blank===false;
-  if (disc.blank !== true && !drive.eraseRequired) return { problem: t.burnNotBlankSwap(disc.mid || disc.kind || ""), swap: true };
+  if (disc.blank !== true && !drive.eraseRequired) return { problem: t.burnNotBlankSwap(disc.mid || discDisplayKind(disc, api.lang())), swap: true };
   const want = S.item?.mid;
   if (want && disc.mid && disc.mid !== want) return { problem: t.burnOtherBatch(disc.mid, want), swap: true };
   const r = await fetch(`/api/burn-speeds?drive=${encodeURIComponent(drive.id)}&media=${S.media}`);

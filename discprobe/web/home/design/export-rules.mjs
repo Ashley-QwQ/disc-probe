@@ -1,6 +1,7 @@
 // What the design page burns, decided in one place: which measured geometry, which textures, which grid.
 // The page, the preview's checklist and the tests all ask here, so what the checklist says is what is made.
 // Pure functions: no DOM, no fetch.
+import { calibratedBatch } from "../batches.mjs";
 
 // The two textures of a black-and-white burn, per disc kind (the core's own defaults: `image --dark/--light`,
 // cdimage 0D/AA). Background (slot 0) is light; every other material is dark.
@@ -76,7 +77,7 @@ export function geoChoice(plan, catalogue = [], latest = null) {
     const matches = (x) => (item.id && x.id === item.id) || (item.mid && x.mid === item.mid);
     if (good(item) && item.geo) return { path: item.geo, source: "batch", name: item.name ?? item.mid ?? "",
       ...measuredOf(item), ...measuredOf(catalogue.find(x => x.geo === item.geo)) };
-    const entry = known.find(matches);
+    const entry = calibratedBatch(known, item);
     if (entry?.geo) return { path: entry.geo, source: "batch", name: entry.name ?? entry.mid ?? "", ...measuredOf(entry) };
     return { path: null, source: "none", name: item.name ?? item.mid ?? "",
       ...measuredOf(item), ...measuredOf(catalogue.find(matches)) };

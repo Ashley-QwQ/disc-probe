@@ -1,10 +1,10 @@
 // Operate: inspect a saved burn. Opening this page never sends a drive command.
-import { worksFor } from './pastworks/works.mjs';
+import { isMeasurementWork, worksFor } from './pastworks/works.mjs';
 import { afterChecks, leave as leaveBurn, start as startBurn } from './burn.js';
 import { afterBurn, troubleChecks, cdPhoto } from './guidance.mjs';
 
 export function latestBurn(works) {
-  return works.map(work => ({work, record:[...(work.discs ?? [])].reverse().find(r => r.type === 'burn')}))
+  return works.filter(work => !isMeasurementWork(work)).map(work => ({work, record:[...(work.discs ?? [])].reverse().find(r => r.type === 'burn' && !r.measurement)}))
     .filter(x => x.record).sort((a,b) => Date.parse(b.record.time) - Date.parse(a.record.time))[0]?.work ?? null;
 }
 export function closedFromReport(report) {

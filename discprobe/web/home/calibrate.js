@@ -1,5 +1,6 @@
 import { isActionEnter } from "./kit/shared.js";
 import { expandBurnStop, closeBurnStop, paintStopButton, shortDiscWords, interruptedBurn } from './burn-stop.js';
+import { calibratedBatch, discDisplayKind, localDay, sameMaker } from "./batches.mjs";
 import { nextConfirm } from "./kit/nextconfirm.js";
 import { ringButton } from "./kit/ringbutton.js";
 import { flipValue } from "./kit/flipnum.js";
@@ -166,18 +167,17 @@ function newFlow(item) {
 
 // returnTo: who opened this page and gets it back when it closes (the new-plan form's "calibrate
 // first"), called with { done } instead of going back to the disc's place on the shelf
-let returnTo = null, returnAnim = null;     // returnAnim(finish): the opener's way back (newplan.js panBack)
-function giveBack(done) {
+let returnTo = null, returnAnim = null, returnLabel = null;
+function giveBack(result) {
   const r = returnTo;
-  returnTo = null;
+  returnTo = returnAnim = returnLabel = null;
   if (!r) return false;
-  r({ done, id: done ? flow?.savedId : undefined });     // the library entry just saved, for the opener to pick
+  void r(result);
   return true;
 }
-export function start(homeApi, { returnTo: back = null, returnAnim: anim = null, keep = false } = {}) {
+export function start(homeApi, { returnTo: back = null, returnAnim: anim = null, returnLabel: label = null, keep = false, item = homeApi.current().item } = {}) {
   api = homeApi; $ = api.$;
-  returnTo = back; returnAnim = back ? anim : null;
-  const item = api.current().item;
+  if (!keep && !flow?.job) { returnTo = back; returnAnim = back ? anim : null; returnLabel = label; }
   // a job still running belongs to its disc: come back to it; otherwise start over for this disc
   // keep: the note "see the result" brings the person back to a run that ended while another page was open
   if (!flow || (!keep && flow.item !== item && !flow.job)) {
@@ -193,8 +193,8 @@ export function start(homeApi, { returnTo: back = null, returnAnim: anim = null,
 // and the next burn file made from that geometry applies the along-track correction. Back or done: returnTo.
 export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck = null, returnTo: back = null } = {}) {
   api = homeApi; $ = api.$;
-  returnTo = back; returnAnim = null;
   if (flow?.job) return open();                // a measurement still running comes first
+  returnTo = back; returnAnim = returnLabel = null;
   flow = newFlow(item ?? { kind: "new", row: media, name: "", mid: "", s: "new" });
   if (!ui) build();
   flow.detected = { media, mid: item?.mid ?? null, capacity_sectors: item?.sectors ?? null };
@@ -207,8 +207,8 @@ export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck
 // Follow the job's record after reloading, including a result that arrived while the page was closed.
 export function attach(homeApi, job) {
   api = homeApi; $ = api.$;
-  returnTo = null;
   if (!flow?.job) {
+    returnTo = returnAnim = returnLabel = null;
     flow = newFlow({ kind: "new", row: job.media || "dvd", name: "", mid: "", s: "new" });
     if (!ui) build();
     flow.realPhase = "checking"; flow.detected = { ...job.disc, media: job.media || "dvd" };
@@ -329,7 +329,7 @@ function build() {
 
   $("back").addEventListener("click", back);
   $("job-cancel").addEventListener("click", cancelJob);
-  addEventListener("dp-lang", () => { if (isCal()) paint(); });
+  addEventListener("dp-lang", () => { if (isCal()) paint(); if (flow?.job) paintJob(); });
   document.addEventListener("visibilitychange", acknowledgeVisibleResult);
   // Esc is keys.js's (the Back button); in the mock, Shift+S steps through the states
   addEventListener("keydown", (e) => {
@@ -350,6 +350,7 @@ export function arrived() {
 }
 function open() {
   document.documentElement.dataset.mode = "cal";
+  paintJob();
   // the disc goes in once on a visit, when the drive is seen to hold it; a job running or a result on the
   // paper: it is in already
   discWentIn = !!flow.job || ["review", "saving", "saved"].includes(flow.realPhase);
@@ -375,6 +376,7 @@ function open() {
 }
 
 function release() {
+  closeBurnStop();
   globalThis.dispatchEvent(new Event('dp-catalogue-changed'));
   closePhoto();
   nextKit(false, false);
@@ -389,23 +391,33 @@ function release() {
   for (const el of [ui.flyerEl, ui.plateEl, ui.warnEl, ui.ledEl, ui.parcelEl]) el.classList.remove("on", "hover", "drop", "breathe", "up", "ship");
   showInterior(false);
   flog.hide();
+  paintJob();
 }
 
 let leaving = false;
-export function suspendNavigation() { if (flow) release(); }
+export function suspendNavigation() {
+  if (!flow) return;
+  if (flow.job) flow.callMe = true;
+  release();
+}
 function leave() {
   if (leaving) return;                         // the opener already owns the return pan/card hand-off
   closeBurnStop();
   // a disc that was in the air goes back to waiting; detection starts over next time
   if (!flow.job && ["detecting", "identify", "flying", "hover", "falling", "checking"].includes(flow.disc)) flow.disc = "detect";
   if (!flow.job && flow.disc === "remove") flow.disc = "detect";
-  // read now: the "saved" step clears flow right after calling leave(), before the pan below finishes (that
-  // finish() then threw, the opener never removed the card's envelope and the page stayed in mode "cal")
-  const done = flow?.realPhase === "saved";
+  const closed = flow;
+  const done = closed?.realPhase === "saved";
+  const result = { done, id: done ? closed.savedId : undefined, batch: done ? closed.savedBatch : undefined };
+  const finish = () => {
+    release();
+    if (done) flow = null;
+    if (!giveBack(result)) api.goTo(...api.locate(closed.item));
+  };
   if (returnTo && returnAnim && !api.reduce) {          // the opener takes the camera back first, then the page closes
     leaving = true;
     const anim = returnAnim; returnAnim = null;
-    anim(() => { release(); giveBack(done); }, async (signal) => {
+    anim(finish, async (signal) => {
       if (!st || !discWentIn) return;
       st.hold(true);
       try { await loadDisc.play(st.art(), { reverse: true, signal }); }
@@ -414,12 +426,17 @@ function leave() {
     }).finally(() => { leaving = false; });
     return;
   }
-  release();
-  if (giveBack(done)) return;
-  api.goTo(...api.locate(flow.item));     // back to where the disc stands on the shelf
+  finish();
 }
 
 function back() {
+  if (!isCal()) return;
+  if (flow.job) {
+    flow.callMe = true;
+    release();
+    api.toLobby?.();
+    return;
+  }
   if (!api.backend.mock) {
     if (flow.realPhase === "photo") { if (photoUI?.page) photoUI.page.back(); else photoReview(); return; }
     if (!flow.job && CAPACITY_PHASES.includes(flow.realPhase)) {
@@ -429,8 +446,6 @@ function back() {
     }
     leave(); return;
   }
-  if (!isCal()) return;
-  if (flow.job) { leave(); return; }               // the job keeps running in the bar
   if (flow.state) { flow.state = null; paint(); return; }
   if (flow.step === 0) { leave(); return; }
   flow.step = Math.max(0, Math.ceil(flow.step) - 1);
@@ -547,11 +562,8 @@ function runJob(kind, seconds, onTick, onDone) {
   const t = T();
   const job = { kind, seconds, started: performance.now(), p: 0 };
   flow.job = job;
-  $("job").hidden = false;
   $("job-name").textContent = { gen: t.genJob, burn: t.burnJob, timing: t.timingJob, geo: t.geoJob }[kind];
-  $("job-cancel").setAttribute("aria-label", `${t.cancel} ${$("job-name").textContent}`);
-  paintStopButton($("job-cancel"),kind==='burn',api.lang());
-  $("job-cancel").disabled=false;
+  paintJob();
   const disc = kind === "burn" || kind === "geo";
   const demo = DEMO_LOG[kind] ?? [];
   let printed = 0;
@@ -585,14 +597,31 @@ function endJob() {
   closeBurnStop();
   clearInterval(flow.job.timer);
   flow.job = null;
-  $("job").hidden = true;
+  paintJob();
   flog.end();
+}
+
+export const hasJob = () => !!flow?.job;
+function isWriting(job) {
+  return api.backend.mock ? job.kind === "burn" : flow.realPhase === "burning" && !job.verifying;
+}
+function paintJob() {
+  const job = flow?.job, active = !!job;
+  $("job").hidden = !active;
+  const name = $("job-name");
+  name.disabled = !active || isCal();
+  if (active) {
+    name.setAttribute("aria-label", liveText("回到校准", "Return to calibration"));
+    paintStopButton($("job-cancel"), isWriting(job), api.lang(), flow.realPhase === "erasing");
+    $("job-cancel").disabled = !!job.stopping || (!api.backend.mock && !job.id);
+  }
+  globalThis.dispatchEvent?.(new Event("dp-cal-job"));
 }
 
 function cancelJob(confirmed = false) {
   if (!flow?.job) return;
   const current=flow.job;
-  const burning=api.backend.mock ? current.kind==='burn' : flow.realPhase==='burning' && !current.verifying;
+  const burning=isWriting(current);
   // click listeners pass an Event, so only the slider's literal true can authorize a write stop.
   if(burning && confirmed!==true){
     expandBurnStop($("job-cancel"),{lang:api.lang(),rewritable:!!flow.detected?.rewritable,valid:()=>flow?.job===current && (api.backend.mock||flow.realPhase==='burning') && !current.verifying,
@@ -822,14 +851,12 @@ function startGeo() {
 function save() {
   const it = flow.item;
   it.s = "good";
-  it.last = new Date().toISOString().slice(0, 10);
+  it.last = localDay().map((n) => String(n).padStart(2, "0")).join("-");
   it.drive = "GH70N";
   const v = Number($("left-input")?.value);
   if (Number.isFinite(v) && v >= 0) it.left = Math.min(it.of, Math.round(v));
-  flow = null;
-  release();
-  if (giveBack(true)) return;
-  api.goTo(...api.locate(it));
+  flow.savedId = it.id; flow.savedBatch = it; flow.realPhase = "saved";
+  leave();
 }
 
 // review helper: walk through every state the page must draw
@@ -1051,6 +1078,7 @@ function realError(error) {
   setTimeout(callBack, 0);
   if (error?.failure) sfx.failure(); else sfx.problem();      // a disc lost, or something to put right
   flow.error = api.backend.errorText(error, api.lang());
+  if (flow.realPhase === "saving") flow.realPhase = "review";
   if(interruptedBurn(flow,api.lang()) || flow.burnStarted && flow.realPhase==='burning'){
     flow.burnInterrupted=true;flow.realPhase='burnStopped';
   }
@@ -1079,10 +1107,10 @@ function realPaint() {
       `Blank capacity read: ${flow.blankSectors.toLocaleString()} sectors. Put the measurement disc back, then check it.`);
     button = liveText('检测刻好的盘', 'Check the burned disc');
   } else if (phase === "prepare") {
-    title = flow.detected.kind;
+    title = discDisplayKind(flow.detected, api.lang());
     text = `${flow.detected.mid || liveText('厂商编号未知', 'Unknown maker code')} · ${flow.detected.sectors ?? "—"} sectors`;
     html = `<label class="name-field">${liveText('盘的名称', 'Disc name')}<input id="real-name" maxlength="120" value="${esc(flow.realName || flow.detected.mid || flow.detected.kind)}"></label>`;
-    html += `<p>${esc(T().identified(flow.detected.kind, flow.detected.mid || '—')[1])}</p>`;
+    html += `<p>${esc(T().identified(title, flow.detected.mid || '—')[1])}</p>`;
     if (flow.detected.rewritable && flow.detected.blank === false) {
       html += `<p>${liveText('这张可擦写盘已有内容。擦除后重刻会清掉盘上的内容。','This rewritable disc has data. Erasing before burning clears its contents.')}</p><button id="real-erase" type="button" class="btn">${liveText('擦除后重刻','Erase and burn again')}</button>`;
     }
@@ -1169,13 +1197,16 @@ function realPaint() {
     if (kind === 'usable' || recovery.id === 'coverage') html += `<button id="real-remeasure" class="placed" type="button">${liveText('检查转速并重测', 'Check rotation and remeasure')}</button>`;
     if (kind === 'narrow_span') html += `<button id="real-photo" class="placed" type="button">${liveText('拍一张照，补上外圈', 'Take a photo to fill in the outer rings')}</button>`;
     if (flow.photoResult) html += photoStamp(flow.photoResult);
-    if (ok) html += `<label class="count-input">${T().leftQ}<input id="left-input" type="number" min="0" max="100000" value="${flow.left ?? ""}"></label>`;
+    if (ok) html += `<label class="count-input">${liveText("这桶还剩几张空白盘（选填）", "Blank discs left in this spindle (optional)")}
+      <input id="left-input" type="number" min="0" max="100000" step="1" aria-describedby="left-help" value="${flow.left ?? ""}"></label>
+      <p id="left-help">${liveText("只在盘库记个数。留空也能保存和刻录。", "This count is shown in the disc library. Leave it empty to save and burn as usual.")}</p>`;
   } else if (phase === "saved") {
     title = liveText('预设已保存', 'Preset saved'); text = flow.savedPath;
-    html = `<p role="status">${esc(photoSaveWords(flow.savedPhotoShift)[api.lang()])}</p>`;
+    if (flow.detected.media === "cd" || flow.savedPhotoShift?.reason === "invalid_preset")
+      html = `<p role="status">${esc(photoSaveWords(flow.savedPhotoShift)[api.lang()])}</p>`;
     if (flow.detected.media === "cd" && !flow.savedPhotoShift?.written) html += `<p>${esc(cdPhoto[api.lang()])}</p>`;
     if (flow.photoResult) html += photoStamp(flow.photoResult, flow.savedPhotoShift || {});
-    button = returnTo ? liveText('回到刚才那一步', 'Back to where you were') : liveText('回到首页', 'Return home');
+    button = returnLabel?.() ?? (returnTo ? liveText('回到刚才那一步', 'Back to where you were') : liveText('回到大厅', 'Return to lobby'));
   }
   if (["prepare", "burn"].includes(phase)) html = (flow.detected.rewritable
     ? `<p class="cal-aside">${liveText('可擦写盘可以重复使用。快速擦除约 1 分钟；完全擦除约为 1× 刻满一张盘的时间。擦除完成后才会开始重刻。','Rewritable discs can be reused. Quick erase takes about a minute; full erase takes about as long as filling a disc at 1x. Burning starts after erasing completes.')}</p>`
@@ -1204,7 +1235,9 @@ function realPaint() {
     button=flow.detected?.rewritable?liveText('擦除后重新刻','Erase and burn again'):liveText('换一张空白盘重新刻','Replace with a blank and burn again');disabled=false;
   }
   paintRuler(); paintStage();
-  sideButton(flow.job && ["burning", "checking", "timing", "geo"].includes(phase) ? liveText("先去放图，测好了叫我", "Place the picture; call me when done") : null);
+  sideButton(flow.job && ["burning", "checking", "timing", "geo"].includes(phase)
+    ? returnTo ? liveText("先回大厅，测好了叫我", "Go to the lobby; call me when done")
+      : liveText("先去放图，测好了叫我", "Place the picture; call me when done") : null);
   const previousAlert = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]')?.textContent;
   // what is not known yet and what to do next, for the phase on screen (an error panel has its own words)
   const advice = flow.error || badBurn || (phase==='burn' && flow.eraseRequested) ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined, photoTaken: !!flow.photoOnly,
@@ -1226,10 +1259,6 @@ function realPaint() {
   // The burn step requires the kit slider; all other steps use Next.
   const hold = phase === "burn" && !cdHere();
   disabled ||= !!flow.curvePending;
-  if(flow.job){
-    paintStopButton($("job-cancel"),phase==='burning'&&!flow.job.verifying,api.lang(),phase==='erasing');
-    $("job-cancel").disabled=!!flow.job.stopping||!flow.job.id;
-  }
   nextWords(button); $("next").disabled = disabled; nextKit(hold, disabled, phase === "random" && !!flow.job);
   if(phase==='erasing')$("next-text").textContent=liveText('擦除中','Erasing');
   // why it is grey, beside it: running, waiting for an answer, a problem to put right, a box to tick
@@ -1252,7 +1281,7 @@ function realPaint() {
   $("left-input")?.addEventListener("input", e => { flow.left = e.target.value === "" ? null : Number(e.target.value); });
   $("real-retry")?.addEventListener("click", () => {
     flow.error = null;
-    if (!CAPACITY_PHASES.includes(phase)) flow.realPhase = "inspect";
+    if (phase !== "review" && !CAPACITY_PHASES.includes(phase)) flow.realPhase = "inspect";
     paint();
   });
   for (const [id, yes] of [["real-yes",true],["real-no",false]]) $(id)?.addEventListener("click", async () => {
@@ -1691,7 +1720,10 @@ function sideButton(words) {
   if (!b) {
     b = document.createElement("button"); b.id = "cal-side"; b.type = "button"; b.className = "next-side";
     $("next").before(b);
-    b.addEventListener("click", () => { flow.callMe = true; const opener = returnTo; leave(); if (!opener) api.newWork?.(); });
+    b.addEventListener("click", () => {
+      back();
+      if (!returnTo) api.newWork?.();
+    });
   }
   b.hidden = !words; if (words) b.textContent = words;
 }
@@ -1748,7 +1780,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
   f.etaS = action === "geo" ? 300 : action === "timing" ? 90 : null;
   if (action === "geo") { f.points = []; f.tape = []; }
   $("job-time").textContent = f.etaS ? T().left(f.etaS) : "?";
-  $("job").hidden = false; $("job-name").textContent = stepWords(action); paint();
+  $("job-name").textContent = stepWords(action); paint(); paintJob();
   const drive = ["info","timing","geo","burn","calibrate"].includes(action) ? api.selectedDrive() : undefined;
   placeLog(); flog.start(commandLine(action, drive));
   let why = "", lastLine = "";            // what the core said last: a failed job is told by it, not by its exit code
@@ -1778,14 +1810,14 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       }
       // where the head is: only a radius the core worked out from its own fit, never a guess
       if (event.type === "progress" && Number.isFinite(event.radius_mm)) f.head = event.radius_mm;
-      if (event.type === 'erase_started') {f.realPhase='erasing';$("job-name").textContent=liveText('擦除光盘','Erasing');f.stage=liveText('正在擦除光盘，盘上的内容会被清掉。','Erasing the disc; its contents will be cleared.');closeBurnStop();paint();}
+      if (event.type === 'erase_started') {f.realPhase='erasing';$("job-name").textContent=liveText('擦除光盘','Erasing');f.stage=liveText('正在擦除光盘，盘上的内容会被清掉。','Erasing the disc; its contents will be cleared.');closeBurnStop();paint();paintJob();}
       if (event.type === 'erase_progress') {current.p=event.fraction;api.jobProgress(current.p,f.detected?.media||'dvd');f.etaS=event.eta_s;$("job-time").textContent=Number.isFinite(event.eta_s)?T().leftSec(Math.max(0,event.eta_s)):'?';f.stage=liveText('盘上的内容正在清掉。','The disc contents are being cleared.');paint();}
       if (event.type === 'erase_result') {f.eraseResult=event;if(event.result!=='completed'){f.burnStarted=false;f.realPhase='burn';}}
-      if (event.type === 'burn_speed') {f.realPhase='burning';$("job-name").textContent=stepWords('burn');f.burnStarted=true;f.stage=null;paint();}
+      if (event.type === 'burn_speed') {f.realPhase='burning';$("job-name").textContent=stepWords('burn');f.burnStarted=true;f.stage=null;paint();paintJob();}
       if (event.type === "burn_result") { f.burnCheck = event; if(event.result==='completed')f.burnStarted=false; }
       if (event.type === "cancelled" && event.by==='user') f.cancelledByUser=event;
-      if (event.type === "verify_progress") {current.verifying=true;closeBurnStop();paint();}
-      if (event.type === "started") {current.id = event.job;paint();}
+      if (event.type === "verify_progress" && !current.verifying) {current.verifying=true;closeBurnStop();paint();paintJob();}
+      if (event.type === "started") {current.id = event.job;paint();paintJob();}
       if (event.type === "step") {
         closeBurnStop();current.verifying=false;
         if(event.name==='burn')f.burnStarted=true;
@@ -1797,10 +1829,10 @@ async function realJob(action, args = {}, extra = {}, following = null) {
         $("job-name").textContent = stepWords(event.name);
         flog.log(`$ python -m discprobe ${event.name}`, "command");
         if (event.name !== "geo") showInterior(false);
-        paint();
+        paint(); paintJob();
       }
       if (event.type === "disc" && event.present) {
-        f.detected = { ...f.detected, ...event };
+        f.detected = { ...f.detected, ...event, mid: event.mid || f.detected?.mid };
         f.blankSectors ??= event.capacity_sectors;
         paint();
       }
@@ -1826,6 +1858,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       }
   };
   try {
+    if (drive && !following) await api.waitForDiscCheck?.(drive);
     const result = following ? await api.backend.follow(following, onEvent)
       : await api.backend.job({action, media:f.detected?.media || f.item.row || "dvd", drive, args, ...extra}, onEvent);
     if (action === "info") { current.p = 1; api.jobProgress(1, f.detected?.media || f.item?.row || "dvd"); }      // the answer is in: the bar ends full
@@ -1844,12 +1877,12 @@ async function inspectDisc() {
   if (!api.selectedDrive()) await api.syncState?.();          // plugged in since the page opened?
   if (!api.selectedDrive()) throw new Error(liveText('没找到光驱。接好光驱，等电脑认出它，再点“重新检测”。', 'No drive found. Connect the drive, wait for the computer to see it, then press Check again.'));
   const want = flow.item.row || flow.detected?.media || "dvd";
-  const expectedMid = flow.detected?.mid || flow.item.mid;
+  const expectedMid = flow.detected?.mid || flow.item.mid || flow.item.readMid;
   const result = await realJob("info");
   if (!result?.disc?.present) throw new Error(liveText('没有读到盘。放入光盘再检测。', 'No disc detected. Insert a disc and check again.'));
   const got = String(result.disc.media || "?").toUpperCase();
   if (result.disc.media !== want) throw new Error(liveText(`光驱里是 ${got} 盘，这里标定的是 ${want.toUpperCase()}。换一张 ${want.toUpperCase()} 再检测。`, `The drive holds a ${got} disc; this calibrates ${want.toUpperCase()}. Put in a ${want.toUpperCase()} and check again.`));
-  if (expectedMid && result.disc.mid !== expectedMid) throw new Error(liveText('厂商编号已改变，请放回同批次光盘。', 'The maker code changed. Insert a disc from the same batch.'));
+  if (expectedMid && result.disc.mid && !sameMaker(result.disc.mid, expectedMid)) throw new Error(liveText('厂商编号已改变，请放回同批次光盘。', 'The maker code changed. Insert a disc from the same batch.'));
   return result;
 }
 async function realNext(forceMeasure = false) {
@@ -1885,6 +1918,14 @@ async function realNext(forceMeasure = false) {
       flow.realPhase = "prepare";
     } else if (phase === "inspect" || (phase === "prepare" && flow.detected.blank == null)) {
       const result = await inspectDisc();
+      if (returnTo) {
+        await api.syncState?.();
+        const batch = calibratedBatch(api.catalogue?.(result.disc.media) ?? [], flow.item, result.disc);
+        if (batch) {
+          flow.savedId = batch.id; flow.savedBatch = batch; flow.realPhase = "saved";
+          leave(); return;
+        }
+      }
       flow.catalogueSectors = result.catalogue_capacity_sectors;
       flow.detected = result.disc; flow.realPhase = "prepare"; flow.measureConfirmed = false;
       const issue=shortDiscWords(result.disc,api.lang());
@@ -1912,6 +1953,7 @@ async function realNext(forceMeasure = false) {
         if (!needsCapacity || sectors) await realCalibrate({sectors});
       }
     } else if (phase === "review") {
+      if ($("left-input")?.reportValidity?.() === false) return;
       const recovery = forceMeasure === true ? {id:'measure'} : recoveryAction(flow);
       if (recovery.id === 'coverage') {
         flow.coverageNotice = null;
@@ -1958,8 +2000,8 @@ async function realNext(forceMeasure = false) {
     }
     else if (phase === "saved") {
       // opened from the new-plan form: back to it with the library read again, the new batch in it
-      if (returnTo) { await api.syncState?.(); leave(); flow = null; return; }
-      flow = null; release(); await api.reload(); return;
+      if (returnTo) { leave(); return; }
+      flow = null; release(); api.toLobby?.(); return;
     }
     paint();
   } catch(error) { realError(error); }
@@ -2023,7 +2065,7 @@ function finishCalibrate(result) {
   flow.curveState = null; flow.curvePending = false;
   flow.photoResult = null; flow.photoReadKey = null; flow.photoSnapshot = null; flow.photoUploads = null; flow.photoNotice = null;
   if (result.ok) sfx.done(); else sfx.problem();          // measured and usable / measured, but not usable yet
-  if (result.disc) flow.detected = { ...flow.detected, ...result.disc };
+  if (result.disc) flow.detected = { ...flow.detected, ...result.disc, mid: result.disc.mid || flow.detected?.mid };
   flow.blankSectors = result.sectors ?? flow.blankSectors;
   flow.realPhase = "review";
   setTimeout(callBack, 0);
@@ -2069,9 +2111,11 @@ async function realSave() {
   const entry = state.catalogue[flow.detected.media].find(x => x.geo === flow.geo.path);
   if (!entry) throw new Error("The calibration is not in the saved catalogue.");
   // the name the form showed (the maker code, else the disc kind) unless one was typed; never the folder name
-  const saved = await api.backend.request("/api/catalogue", {id:entry.id, name:flow.realName || flow.detected?.mid || flow.detected?.kind || entry.name, preset:result.path,
+  const saved = await api.backend.request("/api/catalogue", {id:entry.id, name:flow.realName?.trim() || flow.detected?.mid || entry.name, preset:result.path,
     ...(flow.left == null ? {} : {left:flow.left})});
-  flow.savedPhotoShift = saved.photo_shift || result.photo_shift || {written:false, reason:'invalid_preset'};
+  flow.savedPhotoShift = saved.photo_shift || result.photo_shift || {written:false, reason:'no_photo'};
+  await api.syncState?.();
+  flow.savedBatch = api.catalogue?.(flow.detected.media)?.find(x => x.id === entry.id) ?? entry;
   flow.savedPath = result.path; flow.savedId = entry.id; flow.realPhase = "saved";
   acknowledgeResult();
 }

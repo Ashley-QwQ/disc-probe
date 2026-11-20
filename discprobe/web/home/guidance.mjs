@@ -44,6 +44,9 @@ export function photoSaveWords(decision = {}) {
   if (decision.written === true && Number.isFinite(decision.frames)) return pair(
     `沿轨常数已写入：L = ${decision.frames} frames。来自照片，盘批次无关，换光驱要重拍；只适用于这次几何测量和刻录路径。`,
     `Along-track constant written: L = ${decision.frames} frames. From photos, independent of disc batch; rephotograph after changing drives. Only for this geometry run and burn path.`);
+  if (decision.reason === 'invalid_preset') return pair(
+    '预设文件读不出来。请重新保存预设。',
+    'The preset file could not be read. Save the preset again.');
   const reasons = {
     different_run: pair('照片对应的是另一次测量。', 'The photos belong to a different geometry run.'),
     different_drive: pair('照片对应的是另一台光驱或另一台电脑。', 'The photos belong to a different drive or computer.'),
@@ -53,7 +56,6 @@ export function photoSaveWords(decision = {}) {
     no_photo: pair('没有照片结果，数值未知。', 'No photo result; its value is unknown.'),
     not_cd: null,
     invalid_photo: pair('照片记录无法读取或不完整。', 'The photo record is unreadable or incomplete.'),
-    invalid_preset: pair('无法核对已保存的预设。', 'The saved preset could not be verified.'),
   };
   // A DVD photo result: DIS presets carry the along-track constant only as CD frames, so the exported preset
   // has none; disc-probe's own burn files read it from the photos directly. Not a failure.
