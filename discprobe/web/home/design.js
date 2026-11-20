@@ -1648,10 +1648,9 @@ async function openProject(file, handle = null, work = null, dirty = false) {
     S.geo = S.ring = null;
     S.rings = [];
   } else if (S.batchDeferred) {
-    // Opening an older file in an unassigned work restores the normal batch context.
+    // An older file has no deferred marker. Keep its saved batch when the library still has it.
     const shelf = api.catalogue?.(S.media) ?? [];
-    const [lastMedia, last] = api.lastBatch?.() ?? [];
-    S.item = shelf.find(it => it.id === data.batch) ?? (lastMedia === S.media ? last : null) ?? unsetBatch();
+    S.item = shelf.find(it => it.id === data.batch) ?? unsetBatch();
     S.batchDeferred = false;
   }
   S.layers = layers.slice(0, 16);
@@ -2195,7 +2194,7 @@ function flight(fromRect, toCircle, back, done) {
 //   file: a picture to put in it, projectFile: a .discdesign to load into it, pick: ask for a .discdesign.
 //   work: a work from the library ({ id, name, media, updated_at, text }: its .discdesign, null if never saved).
 export function start(homeApi, { fly = true, plan = null, newPlan = false, file = null, projectFile = null, pick = false,
-                                  name = null, noDisc = false, dropIn = false, work = null } = {}) {
+                                  name = null, noDisc = false, batchDeferred = false, dropIn = false, work = null } = {}) {
   composeRevision++;
   api = homeApi; $ = api.$;
   const { col, item } = api.current();
@@ -2215,8 +2214,8 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
   }
   else if (newPlan) {
     // "decide later" in the form: a plan with no disc batch yet (the kind still sets the drawable range)
-    S = newProject(noDisc ? unsetBatch() : item, col); S.selTol = 18; S.selFeather = 1;
-    if (noDisc) S.batchDeferred = true;
+    S = newProject(noDisc || batchDeferred ? unsetBatch() : item, col); S.selTol = 18; S.selFeather = 1;
+    if (batchDeferred) S.batchDeferred = true;
     if (name) S.name = name;
   }
   else {

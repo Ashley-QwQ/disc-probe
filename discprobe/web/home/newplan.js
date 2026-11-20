@@ -1022,7 +1022,7 @@ async function next() {
   // useForPlan locates only library objects. Supply the form's exact item for the editor's first read,
   // then delegate subsequent reads (e.g. calibration) to the home API as usual.
   // The desk remains under the arriving design sheet; the envelope stays dropped out of frame.
-  await design.start(withInitialItem(item), { newPlan: true, fly: false, file: state.file, name, dropIn: true, noDisc: !item });
+  await design.start(withInitialItem(item), { newPlan: true, fly: false, file: state.file, name, dropIn: true, batchDeferred: !item });
   W.hidden = true;
   W.classList.remove("filing", "leaving");
   going = false;

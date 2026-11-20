@@ -14,6 +14,14 @@ const edge=process.env.KIT_TEST_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/
 test('findings 1 and 6: portable work import, confirmed ISO contents and inert DOM',{skip:!existsSync(edge),timeout:170000},async(testCase)=>{
   const dir=await mkdtemp(join(tmpdir(),'dp-disc-files-'));let server,browser,ws;
   try{
+    const geo=join(dir,'results','geo-H-20261107-101500');
+    await mkdir(geo,{recursive:true});
+    await writeFile(join(geo,'summary.json'),JSON.stringify({
+      fit:{media:'dvd',u:180000,v:1000,bit_nm_assumed:133.3,capacity_sectors:4096,
+        measured_span_mm:[23,45],angle_sigma_measured_span_deg:.1,chi2_per_dof:1},
+      identity:{disc:'TEST-DVD',drive:'Fake drive'},setup:{last_lba:4095},
+    }));
+    await writeFile(join(geo,'targets.csv'),'header\n'+'point\n'.repeat(10));
     server=spawn(process.env.PYTHON||'python',['-B','-m','tests.disc_files_server',dir],{stdio:['ignore','ignore','pipe'],windowsHide:true});
     let stderr='';server.stderr.on('data',d=>{stderr+=d;});
     const until=Date.now()+25000;let info;
@@ -39,7 +47,8 @@ test('findings 1 and 6: portable work import, confirmed ISO contents and inert D
     await pause(1000);
     await run('document.querySelector("#lobby-new").click()');
     await wait('document.documentElement.dataset.mode==="newplan"');
-    await run('document.querySelector("#next").click()');
+    await run(`const batch = document.querySelector('.np-batch'); batch.value = 'TEST-DVD';
+      batch.dispatchEvent(new Event('input')); document.querySelector('#next').click();`);
     await wait('document.documentElement.dataset.mode==="design" && document.querySelector("[data-files=folder]")');
     await pause(800);
     await run('document.querySelector("[data-a=sample]").click()');
@@ -73,14 +82,6 @@ test('findings 1 and 6: portable work import, confirmed ISO contents and inert D
     const source=join(dir,'export source'), marker='finding-1-local-fixture-228de4a23';
     await mkdir(source);
     await writeFile(join(source,'fixture-local.txt'),marker);
-    const geo=join(dir,'results','geo-H-20261107-101500');
-    await mkdir(geo,{recursive:true});
-    await writeFile(join(geo,'summary.json'),JSON.stringify({
-      fit:{media:'dvd',u:180000,v:1000,bit_nm_assumed:133.3,capacity_sectors:4096,
-        measured_span_mm:[23,25.6],angle_sigma_measured_span_deg:.1,chi2_per_dof:1},
-      identity:{disc:'TEST-DVD',drive:'Fake drive'},setup:{last_lba:4095},
-    }));
-    await writeFile(join(geo,'targets.csv'),'header\n'+'point\n'.repeat(10));
     const markup='id"><span data-finding-marker>';
     await testCase.test('finding_6_layer_id_and_text',async()=>{
       const checked=await run(`(async()=>{
