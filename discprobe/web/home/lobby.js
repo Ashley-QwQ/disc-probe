@@ -294,8 +294,10 @@ function paintHello() {
   const state = api.lobbyState?.(), lang = api.lang();
   const label = lobbyStatus(state, lang);
   if (L.hello.textContent !== label) L.hello.textContent = label;
+  const actions = $("lobby-disc-actions");
+  if (!actions) return;
   const drive = lobbyDrive(state);
-  $("lobby-disc-actions").hidden = api.backend.mock || !drive;
+  actions.hidden = api.backend?.mock || !drive;
   $("lobby-disc-time").textContent = lastDiscCheck(state, lang);
   const button = $("lobby-disc-check");
   button.textContent = lang === "en" ? "Check again" : "重新检测";
@@ -366,7 +368,7 @@ export async function init(homeApi) {
   }, { capture: true });
   paintHello();
   addEventListener("dp-drive-state", paintHello);
-  $("lobby-disc-check").addEventListener("click", () => api.refreshLobbyDisc?.());
+  $("lobby-disc-check")?.addEventListener("click", () => api.refreshLobbyDisc?.());
   setInterval(() => { if (!document.hidden && !root.dataset.mode && root.dataset.home === "lobby") paintHello(); }, 15000);
   const url = new URL(ART, import.meta.url);
   build(await fetch(url).then((r) => r.json()), new URL(".", url).href);

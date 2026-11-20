@@ -484,13 +484,20 @@ let panFlight = null, cardFlight = null;
 async function calibrateFirst() {
   if (going) return;
   going = true;
-  await api.syncState?.();
-  const item = chosen();
-  if (hasGeometry(item)) { going = false; fillBatches(); return; }
-  state.picked = item;
+  const form = state, refreshed = api.syncState?.();
   const pan = !motionOff();
   const calibrating = import("./calibrate.js");
   if (pan && !await bagging(false)) { going = false; return; }
+  await refreshed;
+  if (state !== form || !isOn()) { going = false; return; }
+  const item = chosen();
+  if (hasGeometry(item)) {
+    W.classList.remove("filing", "leaving");
+    going = false;
+    fillBatches();
+    return;
+  }
+  state.picked = item;
   const cal = await calibrating;
   api.useForPlan(state.kind, isLibrary(item) ? item : null);
   if (pan) root.classList.add("pan-in");                      // its layers wait off to the right

@@ -66,4 +66,10 @@ const catalogue = calibration('prepare');
 catalogue.flow.catalogueSectors = 2297888;
 await catalogue.check();
 assert.deepEqual(catalogue.measured, [undefined], 'the core still chooses its catalogue fallback');
+
+const finalized = calibration('capacityWritten', [{...written, kind: 'DVD-ROM', mid: null}]);
+finalized.flow.blankSectors = 2297888;
+await finalized.check();
+assert.equal(finalized.flow.realPhase, 'prepare', 'a finalized disc can hide its maker code');
+assert.equal(finalized.flow.detected.kind, 'DVD-ROM');
 console.log('calibration capacity paths passed');

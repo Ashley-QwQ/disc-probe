@@ -1861,7 +1861,7 @@ async function inspectDisc() {
   if (!result?.disc?.present) throw new Error(liveText('没有读到盘。放入光盘再检测。', 'No disc detected. Insert a disc and check again.'));
   const got = String(result.disc.media || "?").toUpperCase();
   if (result.disc.media !== want) throw new Error(liveText(`光驱里是 ${got} 盘，这里标定的是 ${want.toUpperCase()}。换一张 ${want.toUpperCase()} 再检测。`, `The drive holds a ${got} disc; this calibrates ${want.toUpperCase()}. Put in a ${want.toUpperCase()} and check again.`));
-  if (expectedMid && !sameMaker(result.disc.mid, expectedMid)) throw new Error(liveText('厂商编号已改变，请放回同批次光盘。', 'The maker code changed. Insert a disc from the same batch.'));
+  if (expectedMid && result.disc.mid && !sameMaker(result.disc.mid, expectedMid)) throw new Error(liveText('厂商编号已改变，请放回同批次光盘。', 'The maker code changed. Insert a disc from the same batch.'));
   return result;
 }
 async function realNext(forceMeasure = false) {
