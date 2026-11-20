@@ -28,6 +28,8 @@ class PhaseOracle(Ladder):
         self.truth_u, self.truth_v = 23.93 / .0001336, .000735 / .0001336
 
     def _random_parts(self, ranges):
+        if self.readable:
+            self.auto_ranges = [*self.readable]
         return ranges
 
     def check_rotation(self):
@@ -192,9 +194,9 @@ def test_image_reports_actual_drawing_extrapolation():
         args = cli._build_parser()[0].parse_args(['image', '--geo', str(geo), '--output', str(root/'out.iso')])
         spans = []
         from discprobe.coverage import range_warning as real_warning
-        def warning(fit, span):
+        def warning(fit, span, **kwargs):
             spans.append(span)
-            return real_warning(fit, span)
+            return real_warning(fit, span, **kwargs)
         def write_iso(path, *_args, **_kwargs):
             Path(path).write_bytes(bytes(2048))
             return str(root / 'out.json')

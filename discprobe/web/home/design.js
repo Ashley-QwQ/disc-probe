@@ -17,7 +17,7 @@ import { processingWorker } from "./design/worker-client.mjs";
 import { downloadTemplate } from "./design/template-download.mjs";
 import { mountFilesStep, occupiedRings, filePictureRange, fileArguments, refreshFiles, drawFileGuides, fileDisplay } from "./design/disc-files.mjs";
 import { hasCapability } from "./handshake.mjs";
-import { CELLS, COST, geoChoice, measuredRing, burnDocument, checkTextures, experimentalContent, hasColourPicture, pictureSampling } from "./design/export-rules.mjs";
+import { CELLS, COST, geoChoice, measuredRings, burnDocument, checkTextures, experimentalContent, hasColourPicture, pictureSampling } from "./design/export-rules.mjs";
 import directionArrow from "./design/direction-arrow.json" with {type: "json"};
 
 let api, $;
@@ -266,10 +266,12 @@ const range = () => S?.ring ?? RANGE[S.media] ?? RANGE.dvd;
 function useMeasured(geo) {
   if (!S) return;
   const limit = geo?.nominal && S.media === "cd" ? [26, 58] : RANGE[S.media] ?? RANGE.dvd;
-  const ring = measuredRing(geo?.measured ?? geo?.nominal, limit);
-  if (String(ring) === String(S.ring ?? null)) return;
-  S.ring = ring; comp = null; editor?.invalidate(); draw();
+  const rings = measuredRings(geo?.intervals, geo?.measured ?? geo?.nominal, limit);
+  const ring = rings.length ? [rings[0][0], rings.at(-1)[1]] : null;
+  if (String(ring) === String(S.ring ?? null) && String(rings) === String(S.rings ?? [])) return;
+  S.ring = ring; S.rings = rings; comp = null; editor?.invalidate(); draw();
 }
+const ringGaps = () => (S?.rings ?? []).slice(1).map(([a], i) => [S.rings[i][1], a]);
 const flashOff = (scene) => scene.flashOffset ?? FLASH;   // the chosen phone (editor-rig.mjs), else iPhone 17 Pro turned as before
 const lampPos = () => S.scene.follows ? [S.scene.cam[0] + flashOff(S.scene)[0], S.scene.cam[1] - flashOff(S.scene)[1], S.scene.cam[2]] : S.scene.lamp;
 const heightOf = (L) => L.kind === "image" ? L.width * L.h / L.w : L.height;
@@ -762,6 +764,7 @@ function paintCanvas() {
   g.clearRect(0, 0, V.w, V.h);
   const face = cssVar("--face"), face2 = cssVar("--face-2"), dim = cssVar("--dim"), paper = cssVar("--paper");
   const [r0, r1] = range(), [p0, p1] = pictureRange(), fr = filesRing();
+  const gaps = ringGaps();
   // the disc, data side up
   g.fillStyle = face; g.beginPath(); g.arc(V.cx, V.cy, 60 * V.s, 0, Math.PI * 2); g.fill();
   g.fillStyle = face2; annulus(g, 7.5, 17); g.fill("evenodd");
@@ -806,15 +809,17 @@ function paintCanvas() {
   g.fillStyle = cssVar("--face-dim");                       // the disc where nothing is burned
   annulus(g, r1, 60); g.fill("evenodd");
   g.beginPath(); g.arc(V.cx, V.cy, r0 * V.s, 0, Math.PI * 2); g.fill();
+  for (const [a, b] of gaps) { annulus(g, a, b); g.fill("evenodd"); }
   const ink = cssVar("--face-ink");
   g.save(); g.strokeStyle = cssVar("--ink-3"); g.globalAlpha = 0.8; g.lineWidth = 0.75;
   for (const P of imageLayers()) {
-    if (S.tool !== "move" || !P.visible || !cornersOutside(P, p0, p1)) continue;
+    if (S.tool !== "move" || !P.visible || !cornersOutside(P, p0, p1, gaps)) continue;
     const cs = corners(P); g.beginPath(); cs.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.stroke();
   }
   g.restore();
   // what is not yours to draw on, as on a drawing: fine 45° hatching on the clamp ring and the rim
   hatch(g, 7.5, r0, ink); hatch(g, r1, 60, ink);
+  for (const [a, b] of gaps) hatch(g, a, b, ink);
   // the hole shows the page through it
   // the ring that holds files: light diagonal lines
   if (fr) {
@@ -832,9 +837,9 @@ function paintCanvas() {
   g.save(); g.strokeStyle = ink;
   g.lineWidth = 1; g.beginPath(); g.arc(V.cx, V.cy, 60 * V.s, 0, Math.PI * 2); g.stroke();
   g.lineWidth = 1; g.globalAlpha = 0.7;
-  for (const r of [7.5, r0, r1]) { g.beginPath(); g.arc(V.cx, V.cy, r * V.s, 0, Math.PI * 2); g.stroke(); }
+  for (const r of [7.5, r0, r1, ...gaps.flat()]) { g.beginPath(); g.arc(V.cx, V.cy, r * V.s, 0, Math.PI * 2); g.stroke(); }
   g.restore();
-  ruler(g, r0, r1, ink);
+  for (const [a, b] of gaps.length ? S.rings : [[r0, r1]]) ruler(g, a, b, ink);
   // effect areas: their outline and name
   for (const F of S.layers) {
     if (F.kind !== "fx" || !F.visible) continue;
@@ -860,19 +865,22 @@ function paintCanvas() {
   }
   // words over the canvas
   W.zoom.textContent = `${zoomPct()}%`;
-  const out = imageLayers().some((L) => L.visible && cornersOutside(L, p0, p1));
-  W.note.hidden = !out;
-  W.note.textContent = T().outside;
+  const out = imageLayers().some((L) => L.visible && cornersOutside(L, p0, p1, gaps));
+  W.note.hidden = !out && !gaps.length;
+  const missing = gaps.map(([a, b]) => `${a.toFixed(2)}–${b.toFixed(2)} mm`).join(" · ");
+  W.note.textContent = gaps.length ? (api.lang() === "zh"
+    ? `斜线区域尚未测量（${missing}）。把图放进一段可刻区域，或先补测空档。`
+    : `Hatched bands are unmeasured (${missing}). Place the picture within one measured band or measure the gaps.`) : T().outside;
   W.empty.hidden = S.layers.length > 0 || !!S.assignments?.length;
   placeBar();
 }
-function cornersOutside(L, p0, p1) {
+function cornersOutside(L, p0, p1, gaps = ringGaps()) {
   const hw = L.width / 2, hh = heightOf(L) / 2, a = L.rot * Math.PI / 180;
-  for (const [u, v] of [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]]) {
-    const x = L.x + u * Math.cos(a) - v * Math.sin(a), y = L.y + u * Math.sin(a) + v * Math.cos(a);
-    if (Math.hypot(x, y) > p1) return true;
-  }
-  return false;                              // the centre hole is cut from every picture; not worth a warning
+  const x = Math.abs(L.x * Math.cos(a) + L.y * Math.sin(a));
+  const y = Math.abs(-L.x * Math.sin(a) + L.y * Math.cos(a));
+  const outer = Math.hypot(x + hw, y + hh);
+  const inner = Math.hypot(Math.max(0, x - hw), Math.max(0, y - hh));
+  return outer > p1 || gaps.some(([lo, hi]) => Math.max(lo, p0, inner) < Math.min(hi, outer));
 }
 
 // ---------------------------------------------------------------- the floating bar under the selected layer

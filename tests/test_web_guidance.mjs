@@ -25,6 +25,12 @@ assert.equal(recoveryAction({geo:{verdict:'narrow_span',path:'x',measurement:{sp
 assert.equal(recoveryAction({geo:{measurement:{stopped:'medium error'}}}).id,'blank');
 assert.equal(recoveryAction({timing:{verdict:'good',measurement:{rotation:'CLV'}}}).id,'measure');
 assert.equal(recoveryAction({geo:{verdict:'future_verdict'}}).id,'measure');
+const refused = {calibratedOk:false, geo:{verdict:'good', path:'results/test', measurement:{}}};
+assert.equal(recoveryAction(refused).id,'measure');
+assert.doesNotMatch(measurementRecovery(refused).en, /usable|ready to save/i);
+refused.geo.measurement = {can_resume:true, missing_mm:[[36.883,40.429],[47.131,49.566]]};
+assert.equal(recoveryAction(refused).id,'coverage');
+assert.match(measurementRecovery(refused).en, /36\.88–40\.43 mm.*47\.13–49\.57 mm/);
 for (const rotation of ['CAV','CLV','unknown']) {
   const calls=[];
   await remeasure(async (action,args)=>{calls.push({action,args});return {verdict:'good',measurement:{rotation}};});

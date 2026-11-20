@@ -31,7 +31,8 @@ def _radius_mm(pixels: int) -> np.ndarray:
 
 
 def _inner_mm(args) -> float:
-    return 26.0 if getattr(args, "media", "dvd") == "cd" else 24.5
+    from .coverage import IMAGE_INNER_MM
+    return IMAGE_INNER_MM.get(getattr(args, "media", "dvd"), IMAGE_INNER_MM["dvd"])
 
 
 def thumbnail(design: np.ndarray, r_min: float, r_max: float, t: ui.Term, pixels: int = THUMB_PIXELS) -> list[str]:

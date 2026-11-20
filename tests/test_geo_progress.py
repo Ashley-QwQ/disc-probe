@@ -96,6 +96,9 @@ def test_calibrate_simulator_events(tmp_path):
     assert [e['name'] for e in rows if e['type'] == 'step'] == ['check', 'timing', 'geo']
     geo_start = next(i for i, e in enumerate(rows) if e['type'] == 'step' and e['name'] == 'geo')
     progress = [e for e in rows[geo_start:] if e['type'] == 'progress']
+    points = [e for e in rows[geo_start:] if e['type'] == 'geo_point']
+    assert [e['rung'] for e in points] == list(range(1, 23))
+    assert all(24 <= e['radius_mm'] <= 58 and e['sigma_deg'] > 0 for e in points)
     assert progress
     assert all(e['fraction'] is None or 0 <= e['fraction'] <= 1 for e in progress)
     assert all(e['eta_s'] is None or e['eta_s'] >= 0 for e in progress)

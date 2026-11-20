@@ -30,7 +30,8 @@ assert.equal(bar.dataset.pct, '0');
 const calibrate = readFileSync(new URL('../discprobe/web/home/calibrate.js', import.meta.url), 'utf8');
 const eventBody = calibrate.replace(/\r\n/g, '\n').match(/const onEvent = event => \{([\s\S]*?)\n  \};\n  try \{/)[1];
 const handler = new Function('event', 'flow', 'f', 'current', 'flog', 'api', '$', 'T', 'action',
-                            'imageRing', 'setPlate', 'showInterior', 'updateInterior', 'paintStage', 'paintRuler', 'isCal', 'paint', eventBody);
+                            'imageRing', 'setPlate', 'showInterior', 'updateInterior', 'paintStage', 'paintRuler', 'isCal', 'paint',
+                            'closeBurnStop', 'STEP_PHASE', 'sfx', 'stepWords', eventBody);
 const flow = { realPhase: 'geo' }, current = {}, jobTime = {};
 let fraction, interiorEta;
 handler({ type: 'progress', fraction: 1.05, eta_s: -12, stage: 'geo' },
@@ -41,6 +42,24 @@ assert.equal(current.p, 1);
 assert.equal(fraction, 1);
 assert.equal(jobTime.textContent, '0');
 assert.equal(interiorEta, 0);
+
+// The last estimate from rotation is replaced as soon as the geometry step starts.
+flow.realPhase = 'timing';
+flow.etaS = 1;
+jobTime.textContent = 'about 1 s';
+const noop = () => {};
+const jobName = {};
+const reply = event => handler(event, flow, flow, current, {log:noop}, {}, id => id === 'job-time' ? jobTime : jobName,
+  () => ({left:s=>s+' s'}), 'calibrate', null, noop, noop, noop, noop, noop, () => false, noop,
+  noop, {geo:'geo'}, {step:noop}, () => 'Geometry');
+reply({type:'step', name:'geo'});
+assert.equal(flow.realPhase, 'geo');
+assert.equal(flow.etaS, 300);
+assert.equal(jobTime.textContent, '300 s');
+assert.equal(jobName.textContent, 'Geometry');
+reply({type:'geo_point', rung:1, radius_mm:41.1, residual_deg:0.1, sigma_deg:0.2});
+reply({type:'geo_point', rung:1, radius_mm:41.1, residual_deg:0.1, sigma_deg:0.2});
+assert.deepEqual(flow.points,[{rung:1,r:41.1,d:0.1,s:0.2}]);
 
 // Unknown generation progress remains indeterminate; finite fractions reach the kit ring.
 let ringValue;

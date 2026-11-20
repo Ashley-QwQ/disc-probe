@@ -11,6 +11,12 @@ e.g. `1.0.0.0-alpha`; pip normalizes that to `1.0.0.0a0`. API_VERSION below is a
 `GET /api/version` and `disc-probe version --json` return the same payload.
 No git checkout is needed.
 
+API 1.2 adds the optional `geo-coverage` capability. The `geo_point` job event carries
+`rung` (one-based), `lba`, `radius_mm`, `residual_deg`, and `sigma_deg`. A calibration
+job accepts `args.resume` with a local geometry result path to read missing radii.
+Geometry job measurements can include `missing_mm` and `can_resume`. Catalogue
+rows can include `measured_intervals_mm`. Older readers can still use `measured_mm`.
+
 An additive change raises MINOR. Give new feature groups a capability name.
 Old GUIs ignore unknown capabilities. GUIs hide entry points whose optional
 capabilities are absent. A missing required capability stops GUI startup.

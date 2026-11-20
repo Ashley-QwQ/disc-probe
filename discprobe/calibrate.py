@@ -109,6 +109,9 @@ def _run(args) -> None:
         return save_preset(args)
     if not args.drive:
         raise SystemExit("--drive is required unless exporting an existing --geo run")
+    resume = getattr(args, 'resume', None)
+    if resume and (args.iso or args.avoid_mm):
+        raise SystemExit('--resume is a read-only continuation; use the same disc and its saved read settings')
     cancel = threading.Event()
     previous = signal.signal(signal.SIGINT, lambda *_: cancel.set())
     marker = os.environ.get("DISCPROBE_BURN_CANCEL")          # the page's cancel, as for a burn job
@@ -119,7 +122,8 @@ def _run(args) -> None:
             if marker and Path(marker).exists():
                 cancel.set()
     threading.Thread(target=watch, daemon=True).start()
-    steps = (["burn"] if args.iso else []) + ["check", "timing", "geo"] + (["preset"] if args.preset else [])
+    measure = ('geo',) if resume else ('timing', 'geo')
+    steps = (["burn"] if args.iso else []) + ["check", *measure] + (["preset"] if args.preset else [])
     found: dict = {}
     child_reason = None
 
@@ -167,8 +171,9 @@ def _run(args) -> None:
             raise Stopped("cancelled during " + a[0])
         return proc.returncode
 
-    def measured(kind, since) -> guide.Result | None:
-        runs = [r for r in guide.scan(args.out) if r.kind == kind and r.when >= since and (args.sim or not r.simulated)]
+    def measured(kind, since, before) -> guide.Result | None:
+        runs = [r for r in guide.scan(args.out) if r.kind == kind and r.when >= since
+                and r.path not in before and (args.sim or not r.simulated)]
         return runs[0] if runs else None
 
     def common():
@@ -238,9 +243,12 @@ def _run(args) -> None:
         if args.preset and not positive_sectors(capacity):
             raise Stopped("recordable capacity is unknown; give --sectors with the blank disc's whole capacity "
                           "(not the burned length), or record it by MID in presets/catalogue.json")
+        if capacity:
+            found["sectors"] = capacity
+            found["capacity_source"] = capacity_source
         ui.say(f"{disc.get('kind')} · {disc.get('mid') or 'unknown maker code'} · {disc.get('sectors')} sectors")
 
-        for kind in ("timing", "geo"):
+        for kind in measure:
             step(kind)
             # a multiple stays a multiple ("4x": its kB/s follow the disc's kind in timing/geo)
             speed = "keep" if args.speed is None else f"{args.speed:g}x" if type(args.speed).__name__ == "_SpeedX" else str(args.speed)
@@ -256,15 +264,24 @@ def _run(args) -> None:
             completion = getattr(args, 'completion_sectors', None)
             if kind == 'geo' and completion is not None:
                 ranges += ['--completion-sectors', str(completion)]
+            if resume:
+                ranges += ['--resume', resume]
+            before = {r.path for r in guide.scan(args.out) if r.kind == kind} if resume else set()
             code = child(kind, *common(), "--media", args.media, "--out", args.out,
                          "--speed", speed, *ranges)
-            result = measured(kind, since)
+            result = measured(kind, since, before)
             verdict = guide.result_verdict(result, args.media) if result else None
             found[kind] = dict(path=result.path if result else None, verdict=verdict or "unknown", exit=code)
             ui.event("step_result", name=kind, path=found[kind]["path"], verdict=found[kind]["verdict"])
             if code or verdict not in GOOD:
                 reason = getattr(result, "stopped", None) if result else None
                 raise Stopped(reason or child_reason or f"the {kind} measurement was not usable ({verdict or 'no result'})")
+            if kind == 'geo' and (args.preset or resume):
+                from .coverage import assess_range, default_range
+                fit = result.fit
+                required = default_range(args.media, fit.get('measured_span_mm'))
+                if required and not assess_range(fit, required)['covered']:
+                    raise Stopped('the geometry does not cover the default picture and preset radii')
 
         if args.preset:
             step("preset")
@@ -281,8 +298,6 @@ def _run(args) -> None:
             if code or not Path(args.preset).is_file():
                 raise Stopped("the preset was not written")
             found["preset"] = args.preset
-            found["sectors"] = sectors
-            found["capacity_source"] = capacity_source
         ui.event("calibrated", ok=True, **found)
         ui.say("\nCalibrated.", "green")
     except (Stopped, disc_identity.DiscChanged) as why:
@@ -303,24 +318,26 @@ def save_preset(args):
     """
     from . import disexport
     from .__main__ import _export_gate
+    from .coverage import DVD_PRESET_MM
     if not args.preset or not positive_sectors(args.sectors):
         raise SystemExit("saving --geo needs --preset and --sectors (whole blank capacity)")
     if getattr(args, "iso", None):
         raise SystemExit("--geo exports an existing run; it cannot be combined with --iso")
     args.geo = guide.resolve_geo(args.geo, getattr(args, "media", None))
     args.install = False
-    _export_gate(args)
     with open(args.geo, encoding="utf-8") as stream:
         fit = json.load(stream)["fit"]
     media = fit.get("media", "dvd")
     if getattr(args, "media", None) and args.media != media:
         raise SystemExit("--media does not match the geo run")
-    span = fit.get("measured_span_mm", (25.8, 54.4)) if media == "cd" else (25.8, 54.4)
+    span = (fit.get("measured_span_mm") or DVD_PRESET_MM) if media == "cd" else DVD_PRESET_MM
     lo = getattr(args, "r_min", None)
     hi = getattr(args, "r_max", None)
     lo, hi = span[0] if lo is None else lo, span[1] if hi is None else hi
     if not (math.isfinite(lo) and math.isfinite(hi) and 0 < lo < hi):
         raise SystemExit("fit radii must be finite, positive and --r-min less than --r-max")
+    args._radius_range = (lo, hi)
+    _export_gate(args)
     Path(args.preset).parent.mkdir(parents=True, exist_ok=True)
     out = disexport.export(args.geo, args.sectors, None, args.preset,
                            lo, hi,
@@ -358,6 +375,7 @@ def add_parser(sub) -> None:
     sp.add_argument("--mid", help="the maker code the disc must have (the batch's)")
     sp.add_argument("--preset", help="also write a DiscImageStudio preset here")
     sp.add_argument("--geo", help="export this existing geo run without accessing a drive; needs --preset and --sectors")
+    sp.add_argument("--resume", metavar="GEO", help="read only missing radii on the same measurement disc")
     sp.add_argument("--photo", help="photo.json to apply only for verdict ok, the same geo run and specific drive; "
                     "refusals save without L. With --geo this is drive-free. Without --photo, calibrate/disexport "
                     "discover photo.json beside the geo summary; unknown L is never assumed zero")
