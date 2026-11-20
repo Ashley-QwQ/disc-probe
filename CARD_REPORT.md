@@ -1,95 +1,68 @@
-# 社区提示卡交付报告
+# RWB 真盘走查修复
 
-工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
+`dev/rw-b-flow` 基于 `73f7073`。在本分支提交，未推送或合并。测试服务均用 `--new-instance` 和独立端口。8765 和用户真实数据未改动，未接真光驱，作品走查停在刻录确认页。
 
-## 按提交交付
+## 提交
 
-- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
-- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
-- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
-- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
-- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
-- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
+- `bedf116` 实现先存作品再绕路标定。回程按保存的批次 ID 关联原作品，生成该作品的 ISO 后进入刻录确认页。大厅加入焦点刷新、30 秒前台轮询、重新检测和检测时间。校准任务可从大厅主按钮和任务条返回，读盘步骤可单击停止。调整已刻光盘标签、盘名输入、剩余空白盘登记、DVD 预设提示、档案日期和无预览样式。新增 mjs 和 pytest 回归。
+- `0b222fd` 固定异步保存使用的作品对象，补并发检测回归，并让档案测试等待实际缩略图加载。
+- `6b6af6d` 保留用户主动新建同 MID 批次的选择。显式 CLI 关联的测量盘继续留在后台诊断记录中，作品状态、刻盘数量、时间线和预览保持按作品刻录记录计算。
 
-## 数据及出处
+- `1ee1a07` 增加校准停留后台和动画回程传递批次的状态测试。
+- `d70a58d` 在校准表单归档动效起始时保留返回取消，兼容不报 MID 的已封盘以及独立大厅挂载。
 
-本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
+## 行为与数据
 
-原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
-
-相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
-
-新增 id：
-
-```text
-D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
-I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
-DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
-DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
-DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
-DISmain-verbatim-dvd-plus-rw-94520-95043
-```
-
-修改 id（含仅补充来源/复用报告的记录）：
-
-```text
-D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
-I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
-I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
-```
-
-新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
-
-内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
-
-同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
-
-## 下发与程序行为
-
-`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
-
-```text
-f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
-```
-
-生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
-
-`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
-
-CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
-
-仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
-
-## 网页位置和需要人工审查的选择
-
-传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
-
-新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
-
-请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
+- 检测日期和作品显示日期以浏览器本地时区为准。作品 ID、ISO 文件名和后端时间仍用 UTC，旧文件可读。验收记录包括多伦多 11 月 19 日 23 点多对应 UTC 11 月 20 日的日期边界。基线在同一受控时区也使用了本地日期，因此用户当时的 UTC 显示只由原始走查截图记录。
+- 作品的批次继续写到现有 `work.json` 的 `batch` 字段。设计稿增加可选批次 ID，旧稿略去该字段时保留已有批次。按检测到的 MID 匹配已经标定的批次，优先使用已知批次 ID。手工明确命名一个新批次时，MID 相同仍保留用户的新批次选择。
+- 测量盘默认留在校准任务的日志和结果。历史上自动生成的测量盘作品记录从界面隐藏，原文件保留。普通 CLI 刻录仍可查报告。直接 `burn` 一个 ISO 时没有源设计稿，后台原来生成的是空稿缩略图。曾用 `image --work` 保存相关设计快照的作品仍可显示预览。
+- 用户这次保存的 DVD 预设有合法 JSON 和正常的 `source`，省略了 CD 用的 `photo_shift`。之前把省略的照片字段当成预设读不到。DVD 保存成功页只显示相关状态，确实读不到文件时使用“预设文件读不出来，请重新保存预设”。
 
 ## 验收
 
-所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
+- `python -m pytest -n 2 --basetemp D:/dp-dev/tmp/rwb/pytest-final tests/test_works.py tests/test_webui_catalog.py tests/test_webui.py tests/test_webui_recovery.py` 通过 78 项。见 [Python 日志](../tmp/rwb/logs/pytest-final.txt)。
+- 对 `tests/` 下全部 57 个 `test_*.mjs` 执行 `node --test --test-concurrency=1`。全量这轮为 77 项中 73 通过、4 失败。CSP 和 W245 浏览器用例单独重跑通过，分别是页面切换超时和 Edge 调试端口尚未就绪。往期作品和动效用例暴露了独立大厅、无 MID 封盘和在归档动效中按返回的兼容问题，修复后单独重跑通过。最终代码集中复跑这四个文件，4 项全部通过，见 [集中复跑日志](../tmp/rwb/logs/mjs-four-final.txt)。相关纯逻辑回归 13 项通过，容量用例也随最终修补复验通过。见 [全量日志](../tmp/rwb/logs/mjs-final.txt)、[CSP](../tmp/rwb/logs/mjs-csp-retry.txt)、[W245](../tmp/rwb/logs/mjs-editor-w245-retry.txt)、[动效](../tmp/rwb/logs/mjs-motion-retry.txt)、[往期作品](../tmp/rwb/logs/mjs-pastworks-retry.txt)。
+- `python -X utf8 D:/dp-dev/tmp/rwb/walk.py after dark zh 390` 从空白虚拟盘实际生成并写入测量镜像，测量、保存并回到原作品。其余七组用同种子的预先写入虚拟随机盘，仍走真实 WebUI 标定、保存和生成作品 ISO。所有组都核对了标定前后的同一个作品 ID、标定批次 ID、`iso_ready` 和 ISO SHA-256。作品没有写入任何虚拟成品盘。测试脚本以 Edge CDP 驱动，并跳过了 Disc Lab 只供照片渲染用的纹理图生成。矩阵使用关闭动效的设置，动效另由仓库浏览器用例覆盖。
+- 复现大厅停在校准后台的路径时，基线英文标题是 `Next: new work`，`Rotation` 旁仍是 `Stop burn`。修复后是 `Return to calibration` 和 `Stop`。两处返回入口都操作过，另有一次只读任务的单击停止试验。封盘报告为 DVD-ROM 的画面由 Disc Lab 改写驱动报告后复现，容量用例覆盖 MID 读不到的情况。
+- 开跑及全量前 D 盘高于 5 GB。所有走查 Lab 已清理，整盘 ISO 留 SHA-256。源码差异和中文 UTF-8 检查通过。
 
-| 命令/检查 | 结果 |
-| --- | --- |
-| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
-| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
-| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
-| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
-| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
-| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
-| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
-| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
-| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
+| 主题 | 语言 | 宽度 | 刻录页截图 | 原作品 ID |
+| --- | --- | ---: | --- | --- |
+| 纸色 | 中文 | 390 | [after-light-zh-390-21-return.png](../tmp/rwb/shots/after-light-zh-390-21-return.png) | `w-20261120-051710-7390` · [日志](../tmp/rwb/logs/after-light-zh-390.log) |
+| 纸色 | 中文 | 1440 | [after-light-zh-1440-21-return.png](../tmp/rwb/shots/after-light-zh-1440-21-return.png) | `w-20261120-050635-bfa5` · [日志](../tmp/rwb/logs/after-light-zh-1440.log) |
+| 纸色 | 英文 | 390 | [after-light-en-390-21-return.png](../tmp/rwb/shots/after-light-en-390-21-return.png) | `w-20261120-051447-3721` · [日志](../tmp/rwb/logs/after-light-en-390.log) |
+| 纸色 | 英文 | 1440 | [after-light-en-1440-21-return.png](../tmp/rwb/shots/after-light-en-1440-21-return.png) | `w-20261120-051448-6b36` · [日志](../tmp/rwb/logs/after-light-en-1440.log) |
+| 夜色 | 中文 | 390 | [after-dark-zh-390-21-return.png](../tmp/rwb/shots/after-dark-zh-390-21-return.png) | `w-20261120-050232-ef3b` · [日志](../tmp/rwb/logs/after-dark-zh-390.log) |
+| 夜色 | 中文 | 1440 | [after-dark-zh-1440-21-return.png](../tmp/rwb/shots/after-dark-zh-1440-21-return.png) | `w-20261120-051712-1901` · [日志](../tmp/rwb/logs/after-dark-zh-1440.log) |
+| 夜色 | 英文 | 390 | [after-dark-en-390-21-return.png](../tmp/rwb/shots/after-dark-en-390-21-return.png) | `w-20261120-051217-7549` · [日志](../tmp/rwb/logs/after-dark-en-390.log) |
+| 夜色 | 英文 | 1440 | [after-dark-en-1440-21-return.png](../tmp/rwb/shots/after-dark-en-1440-21-return.png) | `w-20261120-051930-1a63` · [日志](../tmp/rwb/logs/after-dark-en-1440.log) |
 
-初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
+纸色中文 1440 和夜色中文 390 的截图拍于刻录页正在只读检查光驱时。两组的 ISO 和原作品关联均已验证。
 
-截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
 
-## 未测及边界
+### 截图索引
 
-没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
+截图在 `D:/dp-dev/tmp/rwb/shots/`，日志在 `D:/dp-dev/tmp/rwb/logs/`。文件前缀中的 `light` 表示纸色。 `reported-before-` 是 11-19 真盘走查截图副本。其余由 Edge CDP 从基线或修复分支截图。
 
-附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
+| 条目 | 修复前 | 修复后 |
+| --- | --- | --- |
+| 21、21b 原作品先存后回 | [before-light-zh-1440-21-return.png](../tmp/rwb/shots/before-light-zh-1440-21-return.png) | [after-dark-zh-1440-21-return.png](../tmp/rwb/shots/after-dark-zh-1440-21-return.png) |
+| 1 大厅换盘再检测 | [before-light-zh-390-01-swap.png](../tmp/rwb/shots/before-light-zh-390-01-swap.png) | [after-dark-zh-390-01-swap.png](../tmp/rwb/shots/after-dark-zh-390-01-swap.png) |
+| 3 大厅任务回程 | [before-light-en-1440-park-03-lobby-rotation.png](../tmp/rwb/shots/before-light-en-1440-park-03-lobby-rotation.png) | [after-light-en-1440-03-lobby-rotation.png](../tmp/rwb/shots/after-light-en-1440-03-lobby-rotation.png) |
+| 4 读盘步骤停止 | [before-light-en-1440-park-03-lobby-rotation.png](../tmp/rwb/shots/before-light-en-1440-park-03-lobby-rotation.png) | [after-light-en-390-stop-04-rotation.png](../tmp/rwb/shots/after-light-en-390-stop-04-rotation.png) |
+| 5、5b 测量盘和上次记录 | [before-light-en-1440-01-swap.png](../tmp/rwb/shots/before-light-en-1440-01-swap.png) | [after-dark-zh-390-01-lobby.png](../tmp/rwb/shots/after-dark-zh-390-01-lobby.png) |
+| 20 DVD-ROM 标签和盘名输入 | [reported-before-item20-bounced-back-to-calibrate.webp](../tmp/rwb/shots/reported-before-item20-bounced-back-to-calibrate.webp) | [after-dark-zh-390-rom-20-name-scrolled.png](../tmp/rwb/shots/after-dark-zh-390-rom-20-name-scrolled.png) |
+| 22 默认名用本地日期 | [reported-before-item21b-22-new-work-lost-design-utc-name.png](../tmp/rwb/shots/reported-before-item21b-22-new-work-lost-design-utc-name.png) | [after-light-en-1440-22-default-name.png](../tmp/rwb/shots/after-light-en-1440-22-default-name.png) |
+| 23 档案日期和无预览 | [before-light-en-1440-23-archive.png](../tmp/rwb/shots/before-light-en-1440-23-archive.png) | [after-dark-zh-390-23-archive.png](../tmp/rwb/shots/after-dark-zh-390-23-archive.png) |
+| 16 剩余空白盘 | [reported-before-item14-15-16-result-page.webp](../tmp/rwb/shots/reported-before-item14-15-16-result-page.webp) | [after-dark-zh-390-16-result.png](../tmp/rwb/shots/after-dark-zh-390-16-result.png) |
+| 19 DVD 保存提示 | [reported-before-item19-preset-saved-dvd-alongtrack.png](../tmp/rwb/shots/reported-before-item19-preset-saved-dvd-alongtrack.png) | [after-dark-zh-390-19-preset.png](../tmp/rwb/shots/after-dark-zh-390-19-preset.png) |
+
+已标定批次识别的补充证据见 [after-dark-zh-390-21-known-batch.png](../tmp/rwb/shots/after-dark-zh-390-21-known-batch.png)。
+
+## 请 Claude 转达
+
+- 请 RWA 保留 `calibrate.js` 的 `giveBack` 回传 `savedBatch`，以及保存成功后的作品批次同步。覆盖判定、预设接受条件和实时测量图由 RWA 统筹。RWB 的测试使用了通过原有覆盖判定的 Disc Lab 样盘。
+- 请 RWC 合并 `calibrate.js` 和底栏样式时保留可点击任务名、写入与只读阶段的停止控制，以及窄屏盘名输入可滚到完整显示的行为。大范围版式和动效由 RWC 统筹。
+- 测量盘分类采用“保留校准日志，历史自动作品记录在界面隐藏”。请审查是否以后增加独立“测量盘”档案。文案请审查“已刻好的光盘（光驱报告为 DVD-ROM）”和“这桶还剩几张空白盘（选填）”。计数只显示在盘库，留空可照常保存和刻录。
+
+STATUS: DONE
