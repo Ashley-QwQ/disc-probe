@@ -1,4 +1,4 @@
-import { flipWatch } from "./kit/flipnum.js";
+import { flipNumber } from "./kit/flipnum.js";
 // The calibration page's stage: the burner seen straight down with its top shell see-through (caltop/,
 // rendered by caltop/render_caltop.py), the disc as the main character. The page draws on the disc what is
 // happening: the rainbow growing out from the inner edge as the head reads (hue by radius, as everywhere a
@@ -15,6 +15,9 @@ import { flipWatch } from "./kit/flipnum.js";
 const ORDER = ["shadow", "bg", "sled", "mid", "disc", "glow", "over", "occluders", "lid"];
 const BASE = new URL("./caltop/", import.meta.url);
 let meta = null, el = null, state = {}, api = null;
+let art, g, sled, glow, label, big, percent, time, percentFlip, timeFlip, rainbow;
+let frame = 0, shownHead = null, artScale = 1, ink, paper, copper;
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
 // the colour of the radius the head is at: the same OKLCH rainbow as the rest of the page (calibrate.js, ui.py)
 function oklch(l, c, hDeg) {
@@ -34,16 +37,27 @@ function build() {
   // the picture has room for the shadow on its left and below: centre the drive itself, the shadow spills over
   const [bx0, by0, bx1, by1] = meta.body_px || [0, 0, W, H];
   const shift = `translate:${((W / 2 - (bx0 + bx1) / 2) / W * 100).toFixed(2)}% ${((H / 2 - (by0 + by1) / 2) / H * 100).toFixed(2)}%`;
-  el.innerHTML = `<div class="cs-art" style="aspect-ratio:${W}/${H};${shift}">` +
+  el.innerHTML = `<div class="cs-art" style="--cs-aspect:${W / H};aspect-ratio:${W}/${H};${shift}">` +
     ORDER.map((k) => k === "over" ? `<canvas class="cs-over" width="${W}" height="${H}"></canvas>` : `<img class="cs-${k}" alt="" draggable="false">`).join("") +
     // the disc turning while the drive works: one grey arc near the rim going round (designer: "光驱正忙")
     `<svg class="cs-spin" viewBox="0 0 ${W} ${H}" aria-hidden="true" style="--spin-o:${(meta.disc.centre_px[0] / W * 100).toFixed(2)}% ${(meta.disc.centre_px[1] / H * 100).toFixed(2)}%"><path d="${spinArc()}"/></svg>` +
     `<span class="cs-label" hidden></span></div>` +
     `<p class="cs-big" hidden><b></b><span></span></p>`;
   document.body.append(el);
-  for (const n of el.querySelectorAll(".cs-big b, .cs-big span")) flipWatch(n, {lang:api.lang()});
+  [art, sled, glow, label, big] = ["art", "sled", "glow", "label", "big"].map(name => el.querySelector(`.cs-${name}`));
+  g = el.querySelector(".cs-over").getContext("2d");
+  const [cx, cy] = meta.disc.centre_px, outer = 60;
+  rainbow = g.createRadialGradient(cx, cy, 0, cx, cy, outer * meta.scale.px_per_mm);
+  for (let mm = 0; mm <= outer; mm += 0.5) rainbow.addColorStop(mm / outer, rainbowAt(mm));
+  percent = big.querySelector("b");
+  time = big.querySelector("span");
+  percentFlip = flipNumber(percent, {lang:api.lang()});
+  timeFlip = flipNumber(time, {lang:api.lang(), live:false});
   addEventListener("dp-theme", paintArt);
   new MutationObserver(paintArt).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  const motionChanged = () => { if (motionOff() && frame) settleHead(); };
+  new MutationObserver(motionChanged).observe(document.documentElement, { attributes: true, attributeFilter: ["data-motion"] });
+  reducedMotion.addEventListener("change", motionChanged);
   paintArt();
 }
 function spinArc() {
@@ -53,6 +67,7 @@ function spinArc() {
 }
 function paintArt() {
   if (!el) return;
+  [ink, paper, copper] = ["--ink", "--paper", "--copper"].map(cssVar);
   const v = theme();
   for (const k of ORDER) {
     if (k === "over") continue;
@@ -63,65 +78,97 @@ function paintArt() {
 }
 
 function draw() {
-  if (!el || !meta) return;
-  const s = state, [W, H] = meta.image_size, g = el.querySelector(".cs-over").getContext("2d");
+  if (!el || el.hidden) return;
+  const s = state, [W, H] = meta.image_size;
   const [cx, cy] = meta.disc.centre_px, pxmm = meta.scale.px_per_mm, R = (mm) => mm * pxmm;
-  const art = el.querySelector(".cs-art");
   art.dataset.disc = s.disc || "in";
   art.classList.toggle("busy", !!s.busy);
   art.classList.toggle("spinning", !!s.busy && s.disc !== "none");
   g.clearRect(0, 0, W, H);
   // the head: the sled slides along its travel; the laser spot with it while it reads
   const [rIn, rOut] = meta.sled.radius_mm, travel = rOut - rIn;
-  const head = Number.isFinite(s.head) ? Math.max(rIn, Math.min(rOut, s.head)) : rIn;
+  const head = Number.isFinite(shownHead) ? Math.max(rIn, Math.min(rOut, shownHead)) : rIn;
   const t = (head - rIn) / travel, [ox, oy] = meta.sled.offset_px;
   const move = `translate(${(ox * t / W * 100).toFixed(3)}%, ${(oy * t / H * 100).toFixed(3)}%)`;
-  el.querySelector(".cs-sled").style.transform = move;
-  const glow = el.querySelector(".cs-glow");
+  sled.style.transform = move;
   glow.style.transform = move; glow.hidden = !s.busy || s.disc !== "in";
   if (s.disc === "none") {                 // the empty place where the disc goes
-    g.save(); g.setLineDash([R(2.4), R(1.8)]); g.strokeStyle = cssVar("--copper"); g.lineWidth = R(0.5);
+    g.save(); g.setLineDash([R(2.4), R(1.8)]); g.strokeStyle = copper; g.lineWidth = R(0.5);
     g.beginPath(); g.arc(cx, cy, R(60), 0, Math.PI * 2); g.stroke(); g.restore();
   }
   if (s.disc !== "none" && s.read) {       // what has been read or written: rings coloured by radius (a blank being burned too)
-    const [a, b] = s.read, step = 0.5;
-    g.save(); g.globalAlpha = 0.85;
-    for (let mm = a; mm < b; mm += step) {
-      g.fillStyle = rainbowAt(mm + step / 2);
-      g.beginPath(); g.arc(cx, cy, R(Math.min(b, mm + step)), 0, Math.PI * 2); g.arc(cx, cy, R(mm), 0, Math.PI * 2, true); g.fill();
+    const [a, end] = s.read;
+    const b = Number.isFinite(s.head) ? shownHead : end;
+    if (b > a) {
+      g.save(); g.globalAlpha = 0.85; g.fillStyle = rainbow;
+      g.beginPath(); g.arc(cx, cy, R(b), 0, Math.PI * 2); g.arc(cx, cy, R(a), 0, Math.PI * 2, true); g.fill();
+      g.restore();
     }
-    g.restore();
   }
   if (s.band) {                            // where reading stopped: a copper band, the one thing to look at
-    g.save(); g.fillStyle = cssVar("--copper"); g.globalAlpha = 0.55;
+    g.save(); g.fillStyle = copper; g.globalAlpha = 0.55;
     g.beginPath(); g.arc(cx, cy, R(s.band[1]), 0, Math.PI * 2); g.arc(cx, cy, R(s.band[0]), 0, Math.PI * 2, true); g.fill();
     g.restore();
   }
   // the pointer: from the centre along the head's travel to the head, a small ring at the head
-  const label = el.querySelector(".cs-label");
   if (s.disc === "in" && Number.isFinite(s.head)) {
     const [ux, uy] = unit(meta.sled.px_per_mm), hx = cx + ux * R(head), hy = cy + uy * R(head);
-    g.save(); g.strokeStyle = cssVar("--ink"); g.lineWidth = Math.max(1.5, R(0.25));
+    g.save(); g.strokeStyle = ink; g.lineWidth = Math.max(1.5, R(0.25));
     g.beginPath(); g.moveTo(cx, cy); g.lineTo(hx, hy); g.stroke();
-    g.fillStyle = cssVar("--paper"); g.beginPath(); g.arc(hx, hy, R(1.4), 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = paper; g.beginPath(); g.arc(hx, hy, R(1.4), 0, Math.PI * 2); g.fill(); g.stroke();
     g.restore();
     const zh = api?.lang() === "zh";
-    label.textContent = s.headKnown === false ? (zh ? "光头在读" : "Head reading") : (zh ? `光头在 ${head.toFixed(1)} mm` : `Head at ${head.toFixed(1)} mm`);
-    label.style.left = `${(hx / W * 100).toFixed(2)}%`; label.style.top = `${(hy / H * 100).toFixed(2)}%`;
+    const words = s.headKnown === false ? (zh ? "光头在读" : "Head reading") : (zh ? `光头在 ${head.toFixed(1)} mm` : `Head at ${head.toFixed(1)} mm`);
+    if (label.textContent !== words) label.textContent = words;
+    label.style.transform = `translate(${(hx * artScale).toFixed(2)}px, ${(hy * artScale).toFixed(2)}px)`;
     label.hidden = false;
   } else label.hidden = true;
-  const big = el.querySelector(".cs-big");
   big.hidden = !Number.isFinite(s.percent);
-  if (!big.hidden) { big.querySelector("b").textContent = `${Math.round(s.percent)}%`; big.querySelector("span").textContent = s.left || ""; }
+  if (!big.hidden) {
+    const value = `${Math.round(s.percent)}%`;
+    if (percent.dataset.flipValue !== value) percentFlip.set(value);
+    drawTime(s.left || "");
+  }
+}
+
+function drawTime(text) {
+  if (time.dataset.flipValue !== text) timeFlip.set(text);
+}
+const motionOff = () => api.reduce || reducedMotion.matches || document.documentElement.dataset.motion === "off";
+function settleHead() {
+  cancelAnimationFrame(frame);
+  frame = 0;
+  shownHead = state.head;
+  draw();
+}
+function set(next) {
+  const changed = next.head !== state.head;
+  state = next;
+  if (!changed) { draw(); return; }
+  if (el.hidden || motionOff() || !Number.isFinite(shownHead) || !Number.isFinite(next.head)) {
+    settleHead();
+    return;
+  }
+  cancelAnimationFrame(frame);
+  const from = shownHead, to = next.head, start = performance.now();
+  function step(now) {
+    const t = Math.max(0, Math.min(1, (now - start) / 400));
+    shownHead = from + (to - from) * (1 - (1 - t) ** 3);
+    draw();
+    frame = t < 1 ? requestAnimationFrame(step) : 0;
+  }
+  frame = requestAnimationFrame(step);
+  draw();
 }
 // the scene's scale for the glass shadows (index.html --mm): the stage picture's px per mm on screen
 function scale() {
-  const art = el?.querySelector(".cs-art");
   if (!art || el.hidden) return;
   const w = art.getBoundingClientRect().width;
-  if (w) document.documentElement.style.setProperty("--mm", `${(w / meta.image_size[0] * meta.scale.px_per_mm).toFixed(3)}px`);
+  if (!w) return;
+  artScale = w / meta.image_size[0];
+  document.documentElement.style.setProperty("--mm", `${(artScale * meta.scale.px_per_mm).toFixed(3)}px`);
 }
-addEventListener("resize", () => scale());
+addEventListener("resize", () => { scale(); draw(); });
 const unit = ([x, y]) => { const n = Math.hypot(x, y) || 1; return [x / n, y / n]; };
 const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
@@ -130,9 +177,10 @@ export async function stage(homeApi) {
   if (!meta) meta = await fetch(new URL("caltop.json", BASE)).then((r) => r.json());
   if (!el) build();
   return {
-    show(on) { el.hidden = !on; if (on) { draw(); scale(); } },
+    show(on) { el.hidden = !on; if (on) scale(); settleHead(); },
     art: () => el.querySelector(".cs-art"),          // the picture's box: the grid loaddisc.js lines up with
     hold(on) { el.style.visibility = on ? "hidden" : ""; },   // laid out but unseen while the disc goes in
-    set(next) { state = { ...next }; draw(); },
+    set,
+    time(text) { state.left = text; if (!el.hidden) drawTime(text); },
   };
 }

@@ -467,6 +467,7 @@
     grid-auto-rows: max-content; align-content: safe center; gap: 18px; overflow-y: auto; scrollbar-gutter: stable;
     padding: 2px; overflow-wrap: anywhere; }
   .cal > * { min-width: 0; }
+  .cal-body { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 18px; }
   .cal[hidden] { display: none; }
   /* the step ruler in the header's middle (calibrate.js paintRuler): segment length = how long the step takes */
   .cal-ruler { position: fixed; z-index: 3; top: var(--edge); left: 50%; translate: -50% 0; width: min(620px, 44vw); height: var(--row);
@@ -486,31 +487,32 @@
   .cal-ruler .step[data-s="now"] .len { color: var(--copper); }
   @media (max-width: 900px) { .cal-ruler { display: none; } }
   /* the calibration stage (calstage.js): the burner from straight above, its shell see-through, the disc in front */
-  .cal-stage { position: fixed; z-index: 1; left: var(--edge); top: calc(var(--edge) + var(--row) + 16px); bottom: calc(var(--foot) + 16px);
-    right: calc(var(--edge) + min(600px, 40vw) + 40px); display: grid; place-items: center; pointer-events: none; }
+  :root.cal-staged { --cal-top: calc(var(--edge) + 2 * var(--row)); --cal-bottom: calc(var(--foot) + 16px); }
+  .cal-stage { position: fixed; z-index: 1; left: var(--edge); top: var(--cal-top); bottom: var(--cal-bottom);
+    right: calc(var(--edge) + min(600px, 40vw) + 40px); display: grid; place-items: center; pointer-events: none; container-type: size; }
   .cal-stage[hidden] { display: none; }
   /* newplan.js: the camera pans to the scene; what lies on the glass (paper, ruler) waits, then is laid down */
   :root.pan-in :is(.cal-stage, .ld) { translate: 100vw 0; }
   :root.pan-in :is(#cal, #cal-ruler) { opacity: 0; }
   /* the glass (see --glass-*): new-work and calibration pages first */
-  :root:is([data-mode="newplan"], [data-mode="cal"], [data-mode="presets"], [data-mode="faxnews"]) .top > * { filter: var(--glass-desk-drop); }
+  :root:is([data-mode="newplan"], [data-mode="presets"], [data-mode="faxnews"]) .top > * { filter: var(--glass-desk-drop); }
   :root[data-mode="newplan"] .top > :is(.back, .wordmark) { filter: var(--glass-drive-drop); }      /* over the drive */
   :root[data-mode="presets"] .top > :is(.back, .wordmark) { filter: var(--glass-drive-drop); }      /* over the letter tray */
   :root:is([data-mode="newplan"], [data-mode="cal"]) :is(.next, .next-side) { box-shadow: var(--glass-edge), var(--glass-desk); }
-  :root[data-mode="cal"] .cal-ruler { filter: var(--glass-desk-drop); }
   :root:is([data-mode="newplan"], [data-mode="cal"], [data-mode="presets"], [data-mode="faxnews"]) .bar > :is(.job, .drive, .next-why) { filter: var(--glass-desk-drop); }   /* the bottom bar's words are on the glass too */
   :root[data-mode="cal"] .cs-big { filter: var(--glass-desk-drop); }                                    /* so are the big percent and its time */
-  /* the calibration card: the new-work page's paper (newplan/paper_*), lying on the desk, as long as what is on it;
-     it comes out of the archive envelope (newplan.js cardOut) */
-  :root.cal-staged .cal { padding: 30px 32px; box-shadow: var(--paper-desk); background: none;
-    /* 120 px of the picture at each edge (its 60 px clear margin + 60 px of sheet) drawn 46 px wide, the clear half
-       pushed outside: the sheet's edge is the box's edge */
-    border-image: url(newplan/paper_paper.webp) 120 fill / 46px / 23px stretch;
-    bottom: auto; max-height: calc(100vh - var(--edge) - var(--row) - var(--foot) - 32px); box-sizing: border-box; }
-  :root[data-theme="dark"].cal-staged .cal { border-image-source: url(newplan/paper_dark.webp);
-    --ink: var(--lit-ink); --ink-2: var(--lit-ink-2); --ink-3: var(--lit-ink-3); --rule: rgb(34 35 31 / .22); --copper: var(--lit-copper);
+  /* The paper and drive share a vertical centre. Its heading stays outside the scroll area. */
+  :root.cal-staged .cal { position: fixed; top: var(--cal-top); bottom: var(--cal-bottom); height: fit-content; margin-block: auto;
+    max-height: calc(100dvh - var(--cal-top) - var(--cal-bottom)); align-content: start; padding: 30px 32px;
+    border-radius: 2px; box-shadow: var(--paper-desk); background: var(--cal-paper, var(--paper)); }
+  :root.cal-staged .cal:has(> .cal-body) { grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
+  :root.cal-staged .cal-body { overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+    scrollbar-width: thin; scrollbar-color: var(--ink-3) transparent; padding: 4px; margin: -4px; scroll-padding-block: 4px; }
+  :root[data-theme="dark"].cal-staged .cal { --cal-paper: var(--lit-paper);
+    --ink: var(--lit-ink); --ink-2: var(--lit-ink-2); --ink-3: var(--lit-ink-3);
+    --rule: color-mix(in srgb, var(--lit-ink) 22%, transparent); --copper: var(--lit-copper);
     color: var(--ink); }   /* lit paper: ink words (night B; newplan.css .np-sheet) */
-  .cs-art { position: relative; height: 100%; max-width: 100%; }
+  .cs-art { position: relative; width: min(100cqw, calc(100cqh * var(--cs-aspect))); }
   .cs-art > img, .cs-art > canvas { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; }
   .cs-art .cs-disc { opacity: .62; }                         /* the pickup shows through the disc */
   .cs-art .cs-occluders { opacity: .45; }                    /* the clamp bridge: structure, not a wall over the disc */
@@ -522,15 +524,15 @@
   :root[data-motion="on"] .cs-art.spinning > .cs-spin { animation: cs-spin 1.6s linear infinite; transform-origin: var(--spin-o, 50% 50%); }
   @keyframes cs-spin { to { rotate: 360deg; } }
   .cs-art[data-disc="none"] .cs-disc { opacity: 0; }
-  .cs-art .cs-sled, .cs-art .cs-glow { transition: transform 300ms linear; }
   :root[data-theme="dark"] .cs-art .cs-glow { mix-blend-mode: plus-lighter; }
-  .cs-label { position: absolute; translate: 14px -50%; padding: 3px 8px; border: 1px solid var(--rule-strong); border-radius: 4px;
+  .cs-label { position: absolute; left: 0; top: 0; translate: 14px -50%; padding: 3px 8px; border: 1px solid var(--rule-strong); border-radius: 4px;
     background: var(--paper); color: var(--ink); font: 14px var(--mono); white-space: nowrap; }
   .cs-label[hidden] { display: none; }
   .cs-big { position: absolute; left: 0; bottom: 0; margin: 0; display: grid; gap: 2px; }
   .cs-big[hidden] { display: none; }
   .cs-big b { font-size: clamp(48px, 5vw, 84px); font-weight: 800; font-stretch: 120%; line-height: 1; font-variant-numeric: tabular-nums; }
   .cs-big > span { color: var(--ink-2); font-size: 18px; }
+  .cs-big > span, .cal-next-time { font-variant-numeric: tabular-nums; }
   /* with the stage up, the library scene behind calibration steps back entirely */
   :root[data-mode="cal"].cal-staged .stage, :root[data-mode="cal"].cal-staged .stage * { visibility: hidden !important; }
   :root.cal-staged .floor-log, :root.cal-staged .cal-plate, :root.cal-staged .flyer, :root.cal-staged .warn-sign, :root.cal-staged .drive-led, :root.cal-staged .parcel { display: none !important; }
@@ -541,15 +543,19 @@
   .cal svg.chart .axis { stroke: var(--ink-3); stroke-width: 1; }
   .cal svg.chart .still { fill: var(--ink-3); font-size: 15px; }
   .cal svg.chart text { fill: var(--ink-3); font: 13px var(--mono); }
-  /* with the stage, the paper reads from the top, as a sheet does */
-  :root.cal-staged .cal { align-content: start; }
   /* narrow windows: the stage on top, the paper under it scrolling on its own; the side button gives way */
   @media (max-width: 900px) {
-    .cal-stage { right: var(--edge); bottom: auto; height: 40vh; }
+    :root.cal-staged { --cal-top: calc(var(--edge) + var(--row) + 16px); --cal-drive-height: min(30dvh, 260px); }
+    .cal-stage { right: var(--edge); bottom: auto; height: var(--cal-drive-height); }
     .cs-big { left: auto; right: 0; text-align: right; }
     .cs-big b { font-size: 44px; }
-    :root.cal-staged .cal { position: fixed; top: calc(var(--edge) + var(--row) + 24px + 40vh); left: var(--edge); right: var(--edge);
-      bottom: calc(var(--foot) + 16px); width: auto; transform: none; padding: 22px 24px; overflow-y: auto; }   /* the card keeps its margins */
+    :root.cal-staged .cal { --cal-sheet-top: calc(var(--cal-top) + var(--cal-drive-height) + 12px);
+      top: var(--cal-sheet-top); left: var(--edge); width: auto; margin-block: 0;
+      max-height: calc(100dvh - var(--cal-sheet-top) - var(--cal-bottom)); padding: 18px 20px; }
+    :root.cal-staged.cal-photo .cal { --cal-sheet-top: calc(var(--cal-top) + 40vh + 8px); }
+  }
+  @media (max-width: 820px) {
+    :root[data-mode="cal"].cal-staged :is(body, .stage) { overflow: clip; }
   }
   @media (max-width: 760px) { .bar > .next-side { display: none; } }
   /* the verdict: a stamp of equal weight whatever it says, then what it means, for the picture, and now */
@@ -559,6 +565,11 @@
   .cal .cal-stamp div { display: grid; grid-template-columns: 6em minmax(0, 1fr); gap: 12px; font-size: 16px; }
   .cal .cal-stamp dt { color: var(--ink-3); } .cal .cal-stamp dd { margin: 0; }
   .cal .cal-stamp dd.act { color: var(--copper); font-weight: 600; }
+  @media (max-width: 560px) {
+    .cal .cal-stamp:not([data-adoption]) { grid-template-columns: minmax(0, 1fr); }
+    .cal .cal-stamp:not([data-adoption]) b { grid-row: auto; justify-self: start; }
+    :root[data-mode="cal"] .next { padding-inline: 12px; font-size: 16px; }
+  }
   .bar > .next-side { grid-column: 2; min-height: var(--row); padding: 0 20px; border: 1px solid var(--ink); border-radius: 4px; background: none; color: var(--ink); font: inherit; font-size: 17px; cursor: pointer; }
   .bar > .next-side[hidden] { display: none; }
   .cal-callback { position: fixed; z-index: 5; left: 50%; bottom: calc(var(--foot) + 16px); translate: -50% 0; display: flex; gap: 14px; align-items: center;
@@ -568,7 +579,7 @@
   .cal .steps { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0 0 6px; padding: 0; list-style: none; font-size: 17px; font-weight: 600; font-stretch: 110%; color: var(--ink-3); }
   .cal .steps li[aria-current="step"] { color: var(--ink); }
   .cal .steps li.done { color: var(--ink-2); }
-  .cal h2 { margin: 0; font-weight: 800; font-stretch: 118%; font-size: clamp(32px, 3vw, 52px); line-height: 1.08; }
+  .cal h2 { margin: 0; font-weight: 800; font-stretch: 118%; font-size: clamp(32px, 3vw, 52px); line-height: 1.08; text-wrap: balance; }
   .cal .lede { margin: 0; color: var(--ink-2); font-size: 19px; max-width: 34em; }
   /* the other way round a step (burn the measurement image with another program): one quiet line */
   .cal .cal-budget, .cal .cal-recovery, .cal .cal-details { font-size: 16px; line-height: 1.6; color: var(--ink); }
@@ -578,6 +589,7 @@
   .cal details summary { cursor: pointer; min-height: 44px; display: list-item; align-content: center; color: var(--ink); }
   .cal details pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 14px/1.6 var(--mono); }
   .cal .cal-details { border-top: 1px solid var(--rule); }
+  .cal .cal-advanced { padding-inline-start: 16px; }
   .cal .cal-aside { margin: 0; color: var(--ink-3); font-size: 15px; font-weight: 400; line-height: 1.6; max-width: 40em; }
   .cal .cal-aside code { font: 13px var(--mono); color: var(--ink-2); word-break: break-all; }
   .cal .cal-aside .btn { min-height: 0; padding: 2px 6px; margin-left: -6px; font-size: 15px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
@@ -647,6 +659,7 @@
   .job-time { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .bar:has(.job:not([hidden])) .drive { display: none; }
   @media (max-width: 760px) {
+    :root[data-mode="cal"] .job { grid-template-columns: auto minmax(16px, 1fr) auto auto; gap: 8px; }
     /* The burn job already shows its status. Give its stop control the whole footer row. */
     :root[data-mode="cal"] .bar:has(.job:not([hidden]) .job-cancel:not(.btn-icon)) > .job {
       grid-column: 1 / -1; grid-template-columns: auto minmax(16px, 1fr) minmax(0, max-content) auto; gap: 8px;
@@ -773,7 +786,8 @@
   .next.hold::before { content: ""; position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--hold, 0)); background: var(--arc-flat, #8a6a3c); opacity: .55; }
   .next.hold > * { position: relative; }
   .next[disabled] { opacity: .4; cursor: not-allowed; }
-  :root.cal-staged:has(.next-confirm) .cal, :root:has(.next-confirm) .burn-page { bottom: calc(var(--foot) + 80px); }
+  :root.cal-staged:has(.next-confirm) { --cal-bottom: calc(var(--foot) + 80px); }
+  :root:has(.next-confirm) .burn-page { bottom: calc(var(--foot) + 80px); }
   :root[data-motion="off"] .cal-plate.breathe .floor, :root[data-motion="off"] .cal .chart .pt.new, :root[data-motion="off"] .flyer.hover .floor, :root[data-motion="off"] .flyer .arrow, :root[data-motion="off"] .warn-sign .flat, :root[data-motion="off"] .cal .note.flash { animation: none !important; } :root[data-motion="off"] .flyer, :root[data-motion="off"] .flyer.drop { transition: opacity 0s; } :root[data-motion="off"] .drive-led.on { animation: none; opacity: 1; }
   @media (max-width: 820px) { .cal { position: static; transform: none; width: auto; padding: 8px var(--edge) 120px; } }
 </style>
@@ -1337,7 +1351,7 @@
   const fmt = (n) => n == null ? "?" : n.toLocaleString("en-US");
   const pad = (n) => String(n).padStart(2, "0");
 
-  for (const id of ['idx', 'total', 'job-time']) flipWatch($(id), {lang});
+  for (const id of ['idx', 'total', 'job-time']) flipWatch($(id), {lang, live: id !== 'job-time'});
 
   function render(dir = 1, initial = false) {
     const list = DATA[col];

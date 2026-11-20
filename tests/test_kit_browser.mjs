@@ -129,6 +129,16 @@ if (!existsSync(edge)) {
       check(watched.textContent==='4 s','a motion toggle cannot overwrite a pending assignment');
       document.documentElement.dataset.motion='on';await flush();
       watcher.destroy();watched.textContent='plain';await flush();check(!watched.children.length,'watch cleanup');
+      const sentence=document.createElement('p');
+      const plain=document.createElement('span');plain.textContent='about 1 s';
+      const rolled=plain.cloneNode(true);sentence.append(plain,' / ',rolled);document.body.append(sentence);
+      const phrase=flipNumber(rolled,{lang:'en',live:false});
+      const cells=rolled.querySelectorAll('.kit-flip-current');
+      const digit=document.createRange();digit.setStart(plain.firstChild,6);digit.setEnd(plain.firstChild,7);
+      const rolledDigit=document.createRange();rolledDigit.selectNodeContents(cells[6]);
+      check(Math.abs(rolledDigit.getBoundingClientRect().top-digit.getBoundingClientRect().top)<1,'rolled digit and surrounding text share a baseline');
+      check(cells[5].getBoundingClientRect().width>0&&cells[7].getBoundingClientRect().width>0,'English spaces survive the flip cells');
+      phrase.destroy();sentence.remove();
       const next=document.createElement('button');next.textContent='Next';document.body.append(next);let burns=0;
       nextConfirm(next,{active:true,disabled:true,done:()=>burns++});
       check(next.hidden&&next.nextElementSibling.querySelector('.kit-slide-knob').getAttribute('aria-disabled')==='true','Next replaced with disabled slider');

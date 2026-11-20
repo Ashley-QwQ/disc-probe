@@ -25,7 +25,8 @@ window.wire=wire; window.ready=true;
 const moduleSource=`import {nextConfirm} from '/kit/nextconfirm.js';
 import {expandBurnStop,closeBurnStop,paintStopButton,shortDiscWords,interruptedBurn} from '/burn-stop.js';
 import {ringButton} from '/kit/ringbutton.js';
-import {flipValue} from '/kit/flipnum.js';
+import {flipNumber,flipValue} from '/kit/flipnum.js';
+import {countdown,countdownText} from '/kit/countdown.mjs';
 import {photoPage} from '/photocal.js';
 import {curveEditor} from '/curve-edit.js';
 import {adviceHTML,budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason,photoSaveWords} from '/guidance.mjs';
@@ -41,7 +42,7 @@ const fakeApi={lang:()=>window.lang||'zh',selectedDrive:()=>null,burnerLayer:doc
 request:async(path,payload)=>{window.requests.push({path,payload}); if(window.missing&&path.includes(window.missing))throw Object.assign(new Error('Not found'),{status:404}); if(path.startsWith('/api/phone-link')){const address=new URL(path,location.href).searchParams.get('address')||'10.0.0.2';return {url:window.phone||null,qr_svg:'<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"/>',addresses:['10.0.0.2','192.168.1.2'],address};}if(path.startsWith('/api/photos'))return {photos:window.photos};if(path.endsWith('/disconnect')){window.devices=[];window.phone='http://lan/phone/new-token';return {disconnected:true};}if(path.startsWith('/api/phone-devices'))return {devices:window.devices||[]};return {};},
 job:async(payload)=>{window.jobs.push(payload);return payload.action==='disexport'?{path:'presets/photo.json',photo_shift:{written:true,frames:2.5}}:window.photoResult;},state:async()=>({catalogue:{[flow.detected.media]:[{id:'saved',geo:flow.geo.path,name:'MID'}]}})}};
 export const wire={
-init({media='dvd',verdict='narrow_span',missing='',lang='zh',phone=null}={}){closePhoto();window.requests=[];window.jobs=[];window.photos=[];window.devices=[];window.photoResult={verdict:'unsure',per_photo:[]};window.missing=missing;window.lang=lang;window.phone=phone;api=fakeApi;$=id=>document.getElementById(id);flow={realPhase:'review',geo:{path:'results/run-one',verdict,measurement:{span_mm:[28,48]}},timing:{verdict:'good'},detected:{media,kind:media,mid:'MID',capacity_sectors:300000},item:{row:media},preset:'presets/existing.json',warnEl:document.createElement('div')};discWentIn=true;st={show(on){document.body.dataset.stage=on;},set(){}};document.getElementById('back').onclick=back;document.getElementById('next').onclick=()=>realNext();paint();},
+init({media='dvd',verdict='narrow_span',missing='',lang='zh',phone=null}={}){closePhoto();window.requests=[];window.jobs=[];window.photos=[];window.devices=[];window.photoResult={verdict:'unsure',per_photo:[]};window.missing=missing;window.lang=lang;window.phone=phone;api=fakeApi;$=id=>document.getElementById(id);flow={realPhase:'review',geo:{path:'results/run-one',verdict,measurement:{span_mm:[28,48]}},timing:{verdict:'good'},detected:{media,kind:media,mid:'MID',capacity_sectors:300000},item:{row:media},preset:'presets/existing.json',warnEl:document.createElement('div')};discWentIn=true;st={show(on){document.body.dataset.stage=on;},set(){},time(){}};document.getElementById('back').onclick=back;document.getElementById('next').onclick=()=>realNext();paint();},
 phase(name,fraction=null){closePhoto();flow.realPhase=name;flow.iso='iso/test.iso';flow.job=name==='random'?{kind:'random',fraction}:null;paint();},enter:enterPhoto,next:realNext,back,state:()=>flow,page:()=>photoUI?.page,ui:()=>photoUI,
 photo:(id='p1')=>({id,name:id+'.svg',url:'/disc.svg'}),
 helpAfter(ms){clockNow=window.helpBorn+ms;window.helpTimer();},

@@ -49,7 +49,7 @@ export function flipWatch(el, options = {}) {
 export function flipValue(el) {
   return el.querySelector('.kit-sr')?.textContent ?? el.textContent;
 }
-export function flipNumber(el, { lang = 'zh' } = {}) {
+export function flipNumber(el, { lang = 'zh', live = true } = {}) {
   if (mounted.has(el)) return mounted.get(el);
   const doc = el.ownerDocument;
   let value = el.textContent || '';
@@ -59,8 +59,10 @@ export function flipNumber(el, { lang = 'zh' } = {}) {
   const readable = node(doc, 'span', 'kit-sr');
   el.classList.add('kit-flip');
   el.lang = lang === 'en' ? 'en' : 'zh-CN';
-  el.setAttribute('aria-live', 'polite');
-  el.setAttribute('aria-atomic', 'true');
+  if (live) {
+    el.setAttribute('aria-live', 'polite');
+    el.setAttribute('aria-atomic', 'true');
+  }
 
   let textObserver = null;
   const observeText = () => textObserver?.observe(el, { childList: true, characterData: true, subtree: true });

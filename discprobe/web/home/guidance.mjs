@@ -337,7 +337,7 @@ export function stepAdvice(phase, ctx = {}) {
     burning: [pair('盘有没有刻完整，要等刻完后的抽样回读；抽样不是整盘校验。', 'Whether the disc was burned completely is only known from the read-back after it ends; a sample is not a whole-disc check.'), pair('等它刻完，不要动光驱。', 'Wait for it to finish and leave the drive alone.')],
     checking: [pair('这是不是这批的盘、刻满了没有，读完才知道。', 'Whether this is the right batch and fully burned is known once the read finishes.'), pair('等几秒。', 'Wait a few seconds.')],
     timing: [pair('光驱转得稳不稳，测完才知道。', 'Whether the drive spins steadily is known once this ends.'), pair('稳了才会接着测几何。不稳就换读取速度或光驱，不用急着再刻盘。', 'Geometry follows only if it is steady. If not, try another reading speed or drive; no need to burn another disc.')],
-    geo: [pair('测到的半径范围和误差，测完才知道。进度条是实际读到的位置，不是预估。', 'The radii covered and the error are known once this ends. The bar is where the head has actually read, not an estimate.'), pair('等它测完，约 5 分钟。', 'Wait for it to end; about 5 minutes.')],
+    geo: [pair('测完后会显示测到的范围和误差。', 'The measured range and error appear in the result.'), pair('等光驱读完。底部任务条显示剩余时间。', 'Leave the drive to finish reading. The task bar shows the time left.')],
     saving: [pair('预设写好了没有，写完才知道。', 'Whether the preset was written is known once it is.'), pair('等一下。', 'Wait a moment.')],
     review: ctx.good === false
       ? [pair('这次结果不能依赖。', 'This result cannot be relied on.'), pair('按下面的提示重测。这不需要再刻一张盘。', 'Measure again as the notes below say. This does not need another disc.')]
