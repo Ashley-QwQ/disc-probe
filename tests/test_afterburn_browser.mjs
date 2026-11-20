@@ -1,12 +1,13 @@
 // Real Disc Lab burn and HTTP persistence; a small ISO keeps the run bounded. No physical devices.
 import assert from 'node:assert/strict';
 import {tmpdir} from 'node:os';
-import {existsSync,readFileSync,writeFileSync,mkdirSync,mkdtempSync} from 'node:fs';
-import {join,resolve} from 'node:path';
+import {existsSync,readFileSync,writeFileSync,mkdirSync,mkdtempSync,realpathSync,rmSync} from 'node:fs';
+import {dirname,join,resolve} from 'node:path';
 import {spawn,spawnSync} from 'node:child_process';
 
 const base=process.env.AFTERBURN_TEST_ROOT ?? join(tmpdir(),'discprobe-afterburn');mkdirSync(base,{recursive:true});
 const dir=mkdtempSync(join(base,'browser-')), shots=join(base,'shots');mkdirSync(shots,{recursive:true});
+const checkShots=process.env.CHECKBURN_SHOTS ?? shots;mkdirSync(checkShots,{recursive:true});
 const edge=process.env.PASTWORKS_TEST_BROWSER ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 assert.ok(existsSync(edge));
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
@@ -15,7 +16,7 @@ function cdp(method,params={}){const id=++seq;const p=new Promise((resolve,rejec
 async function evaluate(expression){const r=await cdp('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});assert.ok(!r.exceptionDetails,JSON.stringify(r.exceptionDetails));return r.result.value;}
 async function until(expression,message){const deadline=Date.now()+Number(process.env.BROWSER_WAIT_MS||60000);while(Date.now()<deadline){let ok=false;try{ok=await evaluate(expression);}catch{}if(ok)return;await delay(50);}throw Error(message+': '+JSON.stringify(await evaluate('({mode:document.documentElement.dataset.mode,errors:window.abErrors,text:document.body.innerText.slice(-3000)})')));}
 async function check(expression,message){assert.ok(await evaluate(expression),message);results.push(message);}
-async function shot(name){await evaluate('document.fonts.ready');await delay(150);const r=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});writeFileSync(join(shots,name+'.png'),Buffer.from(r.data,'base64'));}
+async function shot(name, folder=shots){await evaluate('document.fonts.ready');await delay(150);const r=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});writeFileSync(join(folder,name+'.png'),Buffer.from(r.data,'base64'));}
 try{
   const fixture=resolve('tests/afterburn_lab_fixture.py');
   server=spawn(process.env.PYTHON ?? 'python',['-X','utf8','-B',fixture,join(dir,'lab')],{windowsHide:true,stdio:['ignore','pipe','pipe']});
@@ -69,6 +70,37 @@ try{
   await evaluate(`document.getElementById('next').click()`);
   await until(`document.documentElement.dataset.mode==='afterburn' && document.querySelector('.ab-disc').complete`,'review opened');
   await check(`document.querySelectorAll('[data-choice]').length===4`,'four result choices');
+  const panel = `document.querySelector('.after-burn details[data-capability="checkburn"]')`;
+  await check(`!!${panel} && !${panel}.open`, 'checklist starts closed');
+  for (const lang of ['zh', 'en']) {
+    if (lang === 'en') await evaluate(`document.getElementById('lang').click()`);
+    for (const theme of ['paper', 'dark']) {
+      await evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)}`);
+      await shot(`checkburn-entry-${theme}-${lang}`,checkShots);
+      await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:1240,deviceScaleFactor:1,mobile:false});
+      await evaluate(`${panel}.querySelector('summary').click()`);
+      await until(`${panel}.querySelectorAll('dt').length===6`,'core returns all six checks');
+      const status = lang === 'zh' ? '已排除' : 'Ruled out';
+      await check(`${panel}.querySelector('dd strong').textContent===${JSON.stringify(status)}`,'saved read-back is marked matched');
+      await evaluate(`${panel}.querySelector('h2').scrollIntoView({block:'start',behavior:'instant'})`);
+      const bounds = await evaluate(`(() => {
+        const sheet = document.querySelector('.ab-sheet').getBoundingClientRect();
+        return {top:sheet.top,bottom:sheet.bottom,first:${panel}.querySelector('h2').getBoundingClientRect().top,
+          last:${panel}.querySelector('dd:last-child').getBoundingClientRect().bottom};
+      })()`);
+      assert.ok(bounds.first >= bounds.top - 1 && bounds.last <= bounds.bottom + 1, JSON.stringify(bounds));
+      results.push('all six checks fit screenshot');
+      await shot(`checkburn-list-${theme}-${lang}`,checkShots);
+      await evaluate(`${panel}.querySelector('summary').click();document.querySelector('.ab-sheet').scrollTop=0`);
+      await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+    }
+  }
+  await evaluate(`document.getElementById('lang').click();${panel}.querySelector('summary').click()`);
+  await evaluate(`${panel}.querySelector('.burn-actions button').click()`);
+  await until(`${panel}.textContent.includes('随机数据')`,'optional live check reads the current random ISO in the virtual drive');
+  await evaluate(`${panel}.querySelector('dd button').click()`);
+  await until(`document.querySelector('.startguide:not([hidden]) .sg-anim svg')`,'checklist opens the light diagram');
+  await evaluate(`(async()=>{(await import('./guide.js')).close();${panel}.querySelector('summary').click();})()`);
   for(const choice of ['correct','invisible','distorted','gaps']){
     for(const theme of ['paper','dark']){
       await evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)};document.querySelector('[data-choice="${choice}"]').click()`);
@@ -124,4 +156,7 @@ try{
   if(socket?.readyState===WebSocket.OPEN){await cdp('Browser.close').catch(()=>{});socket.close();}
   if(browser?.exitCode===null)browser.kill();
   if(server?.exitCode===null)spawnSync('taskkill',['/PID',String(server.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});
+  if (dirname(realpathSync(dir)) === realpathSync(base)) {
+    rmSync(dir,{recursive:true,force:true,maxRetries:5,retryDelay:200});
+  }
 }

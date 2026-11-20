@@ -62,7 +62,8 @@ class HandshakeTests(unittest.TestCase):
     def test_payload_http_and_cli_are_identical(self):
         payload = api.version_payload()
         self.assertEqual(payload['core_version'], __version__)
-        self.assertEqual(payload['api_version'], '1.1')
+        self.assertEqual(payload['api_version'], '1.2')
+        self.assertIn('checkburn', payload['capabilities'])
         self.assertIn('image-job-recovery', payload['capabilities'])
         self.assertEqual(payload['supported_older_api_majors'], [])
         self.assertEqual(len(payload['capabilities']), len(set(payload['capabilities'])))
@@ -134,6 +135,7 @@ class HandshakeTests(unittest.TestCase):
             names = set(wheel.namelist())
             for name in ('discprobe/web/gui.json', 'discprobe/web/home/index.html',
                          'discprobe/web/home/handshake.mjs', 'discprobe/web/fonts/MonaSans-VF.ttf',
+                         'discprobe/checkburn.py', 'discprobe/web/home/checkburn.js', 'discprobe/web/home/checkburn.css',
                          'discprobe/web/home/sim/textures.bin', 'discprobe/_presets/catalogue.json',
                          'discprobe/_data/community-calibrations/dis-github.json',
                          'discprobe/web/home/faxnews/community.json', 'discprobe/community.py',
