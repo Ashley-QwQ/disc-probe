@@ -153,7 +153,8 @@ try {
   await evaluate('document.querySelector(".np-library").click()');
   await check('document.documentElement.dataset.mode==="" && document.documentElement.dataset.home==="library" && document.getElementById("name").textContent.includes("Verbatim")','batch link opens exact batch');
   await evaluate('document.getElementById("back").click()');
-  await check('document.documentElement.dataset.mode==="newplan" && !document.querySelector(".np").hidden','library Back returns to form');
+  // The form can be visible before the asynchronous browser Back has finished.
+  await until('document.documentElement.dataset.mode==="newplan" && !document.querySelector(".np").hidden && location.hash==="#/newplan" && document.documentElement.dataset.navigation==="ready"','library Back returns to form');
   await evaluate('document.querySelector(".np-library").click()');
   await until('document.documentElement.dataset.mode==="" && document.documentElement.dataset.home==="library" && !document.getElementById("next").disabled',
     'batch library is ready to choose');
