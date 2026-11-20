@@ -26,7 +26,7 @@ export const answer = (job, id, yes) => request(`/api/jobs/${job}/answer`, {id, 
 export const cancel = (job) => request(`/api/jobs/${job}/cancel`, {});
 export function events(onEvent, onError) {
   const source = new EventSource('/api/events' + (token ? '?token=' + encodeURIComponent(token) : ''));
-  for (const type of ['activity','progress','ask','answer','result','stopped','done','state','log','tray','cancelled','step','burn_result','verify_progress','burn_speed','erase_started','erase_progress','erase_result']) source.addEventListener(type, event => onEvent(JSON.parse(event.data)));
+  for (const type of ['activity','progress','geo_point','ask','answer','result','stopped','done','state','log','tray','cancelled','step','burn_result','verify_progress','burn_speed','erase_started','erase_progress','erase_result']) source.addEventListener(type, event => onEvent(JSON.parse(event.data)));
   source.onerror = () => onError?.();
   return () => source.close();
 }
