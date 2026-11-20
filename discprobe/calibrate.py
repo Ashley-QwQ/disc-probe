@@ -333,9 +333,12 @@ def save_preset(args):
     decision = out["source"].get("photo_shift", dict(written=False, reason="not_cd"))
     ui.event("result", step="preset", path=args.preset, verdict="unknown", photo_shift=decision)
     print(f"Preset saved: {args.preset}", flush=True)
-    print(f"Along-track constant written: {decision['frames']:g} frames (from photo; independent of disc batch; "
-           "rephotograph after changing drives)" if decision["written"] else
-           f"Along-track constant not written: {decision['reason']}", flush=True)
+    if decision.get("origin") in ("manual-slider", "manual-cli"):
+        print(f"Along-track constant written: {decision['L_mm']:g} mm ({decision['origin']})", flush=True)
+    else:
+        print(f"Along-track constant written: {decision['frames']:g} frames (from photo; independent of disc batch; "
+              "rephotograph after changing drives)" if decision["written"] else
+              f"Along-track constant not written: {decision['reason']}", flush=True)
     return out
 
 

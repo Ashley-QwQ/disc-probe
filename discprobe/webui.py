@@ -629,14 +629,14 @@ def photo_application(run_dir):
     """
     from . import photo
     folder = Path(run_dir)
-    if not (folder / "photo.json").is_file() or not (folder / "summary.json").is_file():
+    if not (folder / "summary.json").is_file() or not any((folder / name).is_file() for name in ("photo.json", photo.MANUAL_L_FILE)):
         return dict(written=False, reason="no_photo")
     try:
         decision = photo.photo_l(folder / "summary.json")
     except Exception:          # the gate is advisory here; the picture job runs it again
         return dict(written=False, reason="invalid_photo")
     out = dict(written=bool(decision.get("written")), reason=str(decision.get("reason") or "").split(":", 1)[0] or None)
-    for key in ("L_mm", "frames", "sectors", "channel_bits", "reader_version"):
+    for key in ("L_mm", "frames", "sectors", "channel_bits", "reader_version", "origin"):
         if key in decision:
             out[key] = decision[key]
     provenance = decision.get("provenance") or {}
@@ -2062,6 +2062,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, result)
                 return
             backend = self.server.backend
+            if path == "/api/photo-alignment":
+                try:
+                    self._json(200, backend.photos.manual_alignment(payload))
+                except (OSError, ValueError, KeyError, TypeError) as exc:
+                    raise APIError(str(exc)) from exc
+                return
             if path == '/api/files-layout':
                 self._local_files_only()
                 try:

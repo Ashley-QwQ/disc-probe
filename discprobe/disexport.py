@@ -121,9 +121,9 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
            r_lo: float, r_hi: float, preset_id: str, name: str, along_track_frames: float | None = None,
            *, photo_path: str | None = None, device_id: str | None = None,
            completion_sectors: int | None = None) -> dict:
-    from .photo import photo_shift
+    from .photo import photo_shift, shifted_u
     geo_summary = str(geo_summary)
-    decision = photo_shift(geo_summary, photo_path, device_id=device_id)
+    decision = photo_shift(geo_summary, photo_path, device_id=device_id, dvd_manual=True)
     # The older disexport parser passes 0 even when no flag was supplied. It is
     # not a measured zero. An accepted photo may, of course, measure exactly 0.
     if photo_path is not None or along_track_frames in (None, 0):
@@ -162,6 +162,8 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
             u = math.sqrt(u * u - v * along_track_frames * cd.FRAME_BITS / math.pi)
     elif along_track_frames:
         raise ValueError("--along-track-frames is for CD")
+    elif decision.get("written") and decision.get("origin") in ("manual-slider", "manual-cli"):
+        u = shifted_u(geo, decision)
     corr = None
     if correction_path:
         from .imagedisc import correction_from_timing, load_correction
@@ -194,6 +196,8 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
         desc += f"; along-track constant {along_track_frames:g} frames"
     elif media == "cd":
         desc += "; along-track constant unknown"
+    elif decision.get("written"):
+        desc += f"; along-track constant {decision['L_mm']:g} mm"
     out = {"preset": preset_json(fit, total_sectors, bit, preset_id, name, desc, media), "fit": fit,
            "source": {"geo": geo_summary.replace("\\", "/").split("/")[-1],
                       "correction": correction_path.replace("\\", "/").split("/")[-1] if correction_path else None}}
@@ -209,7 +213,7 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
             out['source']['completion_source'] = geo['completion_source']
     if media == "cd" and along_track_frames is not None:
         out["source"]["along_track_frames"] = along_track_frames
-    if media == "cd" or photo_path is not None:
+    if media == "cd" or photo_path is not None or decision.get("written"):
         out["source"]["photo_shift"] = decision
         if decision.get("provenance"):
             out["source"]["photo_provenance"] = decision["provenance"]

@@ -7,12 +7,13 @@ import re
 
 from .version import __version__
 
-API_VERSION = "1.1"
+API_VERSION = "1.2"
 SUPPORTED_OLDER_API_MAJORS = ()  # No earlier public API major exists yet.
 CAPABILITIES = (
     "state", "drives-info", "jobs-events", "timing", "geo", "image-design",
     "editor", "burn", "photo-calibration", "phone-link", "presets",
     "catalogue", "results-history", "greetings", "templates", "presets-io", "works", "disc-files", "image-job-recovery",
+    "photo-manual-alignment",
 )
 BUNDLED_GUI = Path(__file__).with_name("web")
 _VERSION = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)", re.ASCII)

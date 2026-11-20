@@ -18,6 +18,8 @@ from . import guide, ui
 
 READER_SHA256 = "d6375faed8fe489e01854dc09afcbaf057d7042968c5157f5ae56dc8ed4a9f6f"
 PHOTO_L_POLICY = "majority-poses-v1"
+MANUAL_L_FILE = "photo-manual.json"
+MANUAL_L_POLICY = "manual-photo-l-v1"
 PHOTO_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/heic": "heic", "image/webp": "webp"}
 REASONS = {
     "ok": "The photo passed the reader's checks.",
@@ -51,7 +53,9 @@ def add_parser(sub):
     sp = sub.add_parser("photo", help="read the along-track residual from target photos (no drive access)")
     sp.add_argument("--run", required=True, help="calibration result directory")
     sp.add_argument("--media", required=True, choices=("cd", "dvd"))
-    sp.add_argument("--photos", required=True, nargs="+", help="image files")
+    mode = sp.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--photos", nargs="+", help="image files")
+    mode.add_argument("--manual-l", type=float, metavar="MM", help="save a manual along-track residual in mm")
     sp.add_argument("--rings-mm", type=float, nargs="+", help="target ring radii; default: the burned PN target")
     sp.add_argument("--burner", help="specific burner identity used for this target (unknown if omitted)")
     sp.add_argument("--burn-path", help="target burn program/path, e.g. DIS or IMAPI (never inferred)")
@@ -98,6 +102,18 @@ def photo_l(geo_summary, photo_path=None, *, device_id=None, media=None, frozen=
             return refused("unsupported_media: photo L supports CD and DVD only")
         if fit.get("model") == "clv":
             return refused("unsupported_model: CLV has no calibrated angle map")
+        manual_path = summary.parent / MANUAL_L_FILE
+        if frozen is not None and isinstance(frozen, dict) and frozen.get("origin") in ("manual-slider", "manual-cli"):
+            provenance = frozen["provenance"]
+            if _provenance_hash(provenance) != frozen.get("provenance_sha256"):
+                return refused("invalid_saved_photo_L")
+            manual = _manual_decision(summary, raw, fit, wanted, device_id, frozen["provenance"])
+            return manual if not manual["written"] or manual == frozen else refused("invalid_saved_photo_L")
+        if frozen is None and (photo_path is None or path == summary.parent / "photo.json" or path == manual_path):
+            if manual_path.is_file():
+                manual = _manual_decision(summary, raw, fit, wanted, device_id, json.loads(manual_path.read_bytes()))
+                if manual["written"] or path == manual_path:
+                    return manual
         if frozen is None and not path.is_file():
             return refused("no_photo")
         if frozen is not None:
@@ -221,6 +237,79 @@ def _finite(value):
     return type(value) in (int, float) and math.isfinite(value)
 
 
+def _provenance_hash(provenance):
+    return hashlib.sha256(json.dumps(provenance, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _manual_decision(summary, raw, fit, media, device_id, provenance):
+    def refused(reason):
+        return dict(written=False, reason=reason)
+
+    if not isinstance(provenance, dict) or provenance.get("policy") != MANUAL_L_POLICY:
+        return refused("invalid_photo")
+    origin, offset = provenance.get("origin"), provenance.get("L_mm")
+    if origin not in ("manual-slider", "manual-cli") or not _finite(offset):
+        return refused("invalid_photo")
+    if provenance.get("media") != media or media != fit.get("media", "dvd"):
+        return refused("different_media")
+    if provenance.get("geo_sha256") != hashlib.sha256(raw).hexdigest() or provenance.get("geo_summary") != str(summary):
+        return refused("different_run")
+    current_drive = drive_identity(json.loads(raw), summary.parent)
+    if current_drive != provenance.get("drive_identity") or (device_id is not None and device_id != current_drive["device_id"]):
+        return refused("different_drive")
+    from .calib import SECTOR_BITS
+    result = dict(written=True, L_mm=offset, origin=origin, provenance=provenance,
+                  provenance_sha256=_provenance_hash(provenance))
+    if media == "cd":
+        from .pcal import CD_FRAME_MM
+        from .cd import FRAME_BITS, SECTOR_BITS
+        result["frames"] = offset / CD_FRAME_MM
+        result["channel_bits"] = result["frames"] * FRAME_BITS
+    else:
+        bit = fit.get("bit_nm_assumed")
+        if not _finite(bit) or bit <= 0:
+            return refused("unknown_channel_bit_length")
+        result["channel_bits"] = offset / (bit * 1e-6)
+    result["sectors"] = result["channel_bits"] / SECTOR_BITS
+    try:
+        shifted_u(fit, result)
+    except (ValueError, TypeError, KeyError, OverflowError):
+        return refused("invalid_manual_L")
+    return result
+
+
+def save_manual_l(folder, media, offset, *, evidence=None, expected_geo=None):
+    """Record an explicit override for one geometry run; leave automatic evidence intact."""
+    folder = Path(folder).resolve(strict=True)
+    summary = folder / "summary.json"
+    raw = summary.read_bytes()
+    digest = hashlib.sha256(raw).hexdigest()
+    geo = json.loads(raw)
+    fit = geo.get("fit") or {}
+    if expected_geo is not None and expected_geo != digest:
+        raise ValueError("the measurement changed; read the photo again")
+    if media not in ("cd", "dvd") or fit.get("model") == "clv":
+        raise ValueError("manual L requires a CD or DVD angle map")
+    if not _finite(offset):
+        raise ValueError("manual L must be finite")
+    provenance = dict(policy=MANUAL_L_POLICY, origin="manual-slider" if evidence else "manual-cli",
+                      geo_run_id=folder.name, geo_summary=str(summary), geo_sha256=digest, drive_identity=drive_identity(geo, folder),
+                      media=media, L_mm=offset)
+    if evidence:
+        provenance["alignment"] = evidence
+    decision = _manual_decision(summary, raw, fit, media, None, provenance)
+    if not decision["written"]:
+        raise ValueError(decision["reason"])
+    target = folder / MANUAL_L_FILE
+    temporary = folder / (".photo-manual-" + secrets.token_hex(8) + ".json")
+    try:
+        temporary.write_text(json.dumps(provenance, ensure_ascii=False, allow_nan=False, indent=2), encoding="utf-8")
+        temporary.replace(target)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return decision
+
+
 def _all_photo_agreement(photos):
     """Validate evidence saved under the original all-photo policy only.
 
@@ -315,10 +404,10 @@ def photo_agreement(photos):
                 ok_count=len(use), required_count=required)
 
 
-def photo_shift(geo_summary, photo_path=None, *, device_id=None):
+def photo_shift(geo_summary, photo_path=None, *, device_id=None, dvd_manual=False):
     """CD frame adapter for DIS; eligibility is decided only by photo_l."""
     decision = photo_l(geo_summary, photo_path, device_id=device_id)
-    if decision["written"] and "frames" not in decision:
+    if decision["written"] and "frames" not in decision and not (dvd_manual and decision.get("origin") in ("manual-slider", "manual-cli")):
         return dict(written=False, reason="not_cd")
     return decision
 
@@ -465,6 +554,11 @@ def log(message):
 
 def run(args):
     try:
+        if getattr(args, "manual_l", None) is not None:
+            decision = save_manual_l(args.run, args.media, args.manual_l)
+            log(f"Manual along-track L: {args.manual_l:+.6f} mm ({decision['origin']})")
+            ui.event("result", step="photo", path=str(Path(args.run).resolve()), photo_l=decision)
+            return
         analyze(args.run, args.media, [(Path(p).stem, p) for p in args.photos], args.rings_mm,
                 burner=args.burner, burn_path=args.burn_path, burn_mode=args.burn_mode,
                 disc_id=getattr(args, "disc_id", None))
@@ -515,6 +609,39 @@ class PhotoStore:
         self.tokens = {}
         self.devices = {}
         self.lock = threading.RLock()
+        self._alignment_cache = None
+
+    def manual_alignment(self, args):
+        if not isinstance(args, dict):
+            raise ValueError("invalid manual alignment arguments")
+        action = args.get("action")
+        base = {"action", "run", "photo"}
+        adjust = {"token", "L_mm", "c_deg"}
+        if action not in ("prepare", "score", "save") or set(args) != (base if action == "prepare" else base | adjust):
+            raise ValueError("invalid manual alignment arguments")
+        folder = self.run_dir(args["run"])
+        path, _, _ = self.get(args["run"], args["photo"])
+        with self.lock:
+            if self._alignment_cache is None:
+                from .pcal_manual import AlignmentCache
+                self._alignment_cache = AlignmentCache()
+        alignment = self._alignment_cache.get(folder, path, args["photo"])
+        if action == "prepare":
+            return alignment.overlay()
+        offset, angle = args["L_mm"], args["c_deg"]
+        if args["token"] != alignment.token:
+            raise ValueError("the registration changed; reopen manual alignment")
+        if not _finite(offset) or not _finite(angle) or not 0 <= angle <= 360 or abs(offset) > alignment.limit_mm + 1e-9:
+            raise ValueError("manual sliders outside the permitted range")
+        score = alignment.score(offset, angle)
+        if action == "score":
+            return score
+        shot, record = alignment.shot, alignment.record
+        evidence = dict(photo_id=shot["id"], input_sha256=shot["input_sha256"], c_deg=angle % 360,
+                        reader_sha256=record.get("reader_sha256"), ring_locked=bool(shot.get("ring_locked")),
+                        score=score)
+        return save_manual_l(folder, record["media"], offset, evidence=evidence,
+                             expected_geo=record["source_geo"]["sha256"])
 
     def run_dir(self, run_id):
         if not isinstance(run_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,199}", run_id):

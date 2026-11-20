@@ -1,5 +1,6 @@
 """Drive-free photo contract tests. Test HTTP servers live only inside these fixtures."""
 import contextlib
+import hashlib
 import http.client
 import io
 import json
@@ -561,3 +562,41 @@ def test_photo_adoption_majority_outliers_and_the_two_camp_tie():
     short = dict(tie, application_agreement=dict(written=False, reason="photos_disagree", outliers=[outlier], agreeing_count=3, ok_count=6, required_count=4))
     result = webui.photo_adoption(short)
     assert result["state"] == "disagree" and result["required_count"] == 4 and [o["id"] for o in result["outliers"]] == ["7912"]
+
+
+def test_manual_alignment_prepares_scores_and_saves_on_main_session(tmp_path):
+    run = "geo-test"
+    summary = tmp_path / "results" / run / "summary.json"
+    with serving(tmp_path, lan=True) as server:
+        fit = dict(media="dvd", u=184000, v=5.5, bit_nm_assumed=133.3)
+        summary.write_text(json.dumps({"fit": fit}), encoding="utf-8")
+        store = server.backend.photos
+        row = store.upload(run, png(110), "image/png", "target.png")
+        ident = row["id"]
+        target = summary.with_name("photo.json")
+        target.write_text(json.dumps(dict(media="dvd", verdict="unsure",
+            source_geo=dict(sha256=hashlib.sha256(summary.read_bytes()).hexdigest()),
+            photos=[dict(id=ident, H=[[1, 0, 60], [0, 1, 60], [0, 0, 1]],
+                         input_sha256=hashlib.sha256(png(110)).hexdigest(), ring_locked=False)])), encoding="utf-8")
+        saved_reader = target.read_bytes()
+        route = "/api/photo-alignment"
+        headers = {"Content-Type": "application/json", "X-Discprobe-Token": server.token}
+        def post(action, **values):
+            return json_request(server, "POST", route, json.dumps(dict(action=action, run=run, photo=ident, **values)), headers)
+        phone_headers = {**headers, "X-Discprobe-Token": store.token(run)}
+        assert json_request(server, "POST", route, "{}", phone_headers)[0] == 403
+        status, prepared = post("prepare")
+        assert status == 200
+        assert len(prepared["bands"]) == 6
+        assert prepared["range_mm"]["step"] == .025
+        args = dict(token=prepared["token"], L_mm=-2.3, c_deg=35)
+        status, score = post("score", **args)
+        assert status == 200 and score["weak"]
+        assert post("save", **{**args, "token": "stale"})[0] == 400
+        assert post("save", **{**args, "L_mm": 100})[0] == 400
+        assert not summary.with_name(photo.MANUAL_L_FILE).exists()
+        status, decision = post("save", **args)
+        assert status == 200 and decision["origin"] == "manual-slider"
+        assert decision["provenance"]["alignment"]["score"] == score
+        assert photo.photo_l(summary) == decision
+        assert target.read_bytes() == saved_reader
