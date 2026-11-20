@@ -1,11 +1,49 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { runInNewContext } from "node:vm";
 import { calibratedBatch, discDisplayKind, localDay } from "../discprobe/web/home/batches.mjs";
 import { geoChoice } from "../discprobe/web/home/design/export-rules.mjs";
 import { lastDiscCheck, lobbyStatus } from "../discprobe/web/home/lobby-state.js";
 import { paintStopButton } from "../discprobe/web/home/burn-stop.js";
 import { photoSaveWords } from "../discprobe/web/home/guidance.mjs";
 import { burnedDiscs, dateText, filterWorks, isMeasurementWork, timeline } from "../discprobe/web/home/pastworks/works.mjs";
+
+const calibration = readFileSync(new URL("../discprobe/web/home/calibrate.js", import.meta.url), "utf8");
+const calSection = (start, end) => calibration.slice(calibration.indexOf(start), calibration.indexOf(end));
+
+test("parking a live calibration keeps the same job and its return path", () => {
+  const job = { id: "virtual-calibration" }, flow = { job };
+  let destination = "calibration";
+  const back = runInNewContext(calSection("function back()", "// ---------------------------------------------------------------- what is in the drive") + "\nback;",
+    { isCal: () => true, flow, release() { assert.equal(flow.job, job); }, api: { toLobby() { destination = "lobby"; } } });
+  back();
+  assert.equal(destination, "lobby");
+  assert.equal(flow.job, job);
+  assert.equal(flow.callMe, true);
+});
+
+test("the animated return hands back the saved batch once after releasing calibration", () => {
+  const batch = { id: "saved-batch", s: "usable" }, trace = [];
+  let finish;
+  const context = {
+    flow: { item: {}, savedBatch: batch, savedId: batch.id, realPhase: "saved" },
+    returnTo: result => trace.push(result),
+    returnAnim: complete => { finish = complete; return Promise.resolve(); },
+    returnLabel: null, closeBurnStop() {}, release() { trace.push("released"); }, api: {},
+  };
+  const source = calSection("function giveBack(", "export function start(")
+    + "\nlet leaving = false;\n" + calSection("function leave()", "function back()") + "\nleave;";
+  runInNewContext(source, context)();
+  assert.deepEqual(trace, []);
+  context.flow = null;
+  finish();
+  assert.equal(trace[0], "released");
+  assert.equal(trace[1].done, true);
+  assert.equal(trace[1].id, batch.id);
+  assert.equal(trace[1].batch, batch);
+  assert.equal(context.returnTo, null);
+});
 
 test("a measured maker code wins over a stale or draft batch on the same media", () => {
   const bad = { id: "old", mid: "RITEKF1", s: "stopped_early" };
