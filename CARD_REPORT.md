@@ -1,95 +1,47 @@
-# 社区提示卡交付报告
+# BG 刻录前检查与报错直显
 
-工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
+交付于 2026-11-20（多伦多时间），早于 11-21 18:00。分支 `dev/burn-gates`，基线 `a7b5fbf`。验证使用 Disc Lab 的虚拟光驱 `X:` 和临时回环端口，刻录、擦除和换盘操作均在虚拟盘上完成。网页取证用脚本和 CDP 驱动无头 Edge。
 
-## 按提交交付
+## 提交
 
-- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
-- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
-- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
-- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
-- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
-- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
+- `6686f2e` 在作品刻录和测量盘刻录入口检查当前盘、介质、容量和 MID，并在确认时复查。作品优先用所选批次的 MID，缺失时读镜像关联的测量 MID。新作品镜像的 JSON 附档保存可用的测量 MID，ISO 数据和写入算法沿用原路径。CLI 默认拦住异批盘，`--allow-other-batch` 是显式放行。网页需要单独确认当前异批盘；令牌绑定镜像、盘身份和确认。错误原因和出路显示在主区域。提交也增加了相关回归测试，并让作品库浏览器用例等导航就绪再点击。
+- 报告提交保存以下验收结果。
 
-## 数据及出处
+## Disc Lab 前后对照
 
-本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
+每个单元格按「修复前 → 修复后」记录。网页右两列为进入各自刻录步骤的显示。基线标定页仍显示确认条时，测试滑动该确认条并记录实际结果。
 
-原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
+| 场景 | CLI `burn` | 网页作品刻录 | 网页刻测量盘 |
+|---|---|---|---|
+| 托盘开着 | 已说托盘开着，退出 1 → 明确放入空白盘、关托盘再查，退出 1 | 提示放入同批空白盘并推回托盘 → 主区写「托盘开着」，撤下刻录确认条 | 先称同批空白，滑动后说不是空白盘 → 进页即说托盘开着，右下可重新检查 |
+| 光驱空、托盘关着 | 将空盘和开托盘并列，退出 1 → 区分出光驱里没有盘，退出 1 | 同样提示放入同批空白盘并推回托盘 → 主区说光驱里没有盘，撤下刻录确认条 | 滑动后说不是空白盘 → 进页即说光驱里没有盘，提示放入空白盘 |
+| DVD-R 已写、尚未封盘 | 泛报需要经验证的空白盘，退出 1 → 说盘已有内容且未封盘，退出 1 | 报 RITEKF1 已经刻过 → 显示盘种、MID 和未封盘，要求换空白盘 | 滑动后说不是空白盘 → 进页即显示已有内容、尚未封盘，要求换盘 |
+| DVD-ROM 已封盘 | 泛报需要经验证的空白盘，退出 1 → 点明 DVD-ROM 已封盘，退出 1 | 说 DVD-ROM 已经刻过 → 显示 DVD-ROM 已封盘，要求换空白盘 | 滑动后说不是空白盘 → 进页即显示 DVD-ROM 已封盘，要求换盘 |
+| DVD-RW 有数据 | 已拒绝并提到 `--erase`，退出 1 → 说可擦写盘有内容，可换盘或明确擦除，退出 1 | 显示异批提示，底部仍出现禁用的擦除刻录确认条 → 优先显示 RW 已有内容，提供准备擦除按钮，后续仍需确认 | 滑动后说不是空白盘 → 进页即显示 RW 已有内容，可换盘或准备擦除后再确认 |
+| 空白 TYG02，标定用 RITEKF1 | 直接写入，退出 0 → 默认报两种 MID 和错位风险，退出 1；加 `--allow-other-batch` 虚拟写入完成，退出 0 | 识别异批，要求换回 RITEKF1 → 主区列出两种 MID、错位风险和换盘或重新标定的出路；勾选异批确认后才可滑动 | 先虚拟写入，后报厂商编号不同 → 写入前报两种 MID；明确确认以这张盘标定新批次后，才虚拟写入并进入盘检查 |
+| DVD 作品放入空白 CD-R | 只说期望 DVD，退出 1 → 说光驱里是 CD-R、镜像需要空白 DVD，退出 1 | 把 CD 的 ATIP 当成异批提醒 → 主区直接说 CD-R 与 DVD 介质不符，撤下刻录确认条 | 滑动后显示光驱忙或状态已改变 → 进页即说介质不符，提示换空白 DVD |
+| 盘只有 4,096 扇区，镜像需 8,192 扇区 | 说镜像放不下，退出 1 → 给出两项容量和换盘或重做较小镜像的出路，退出 1 | 说文件比盘大 → 显示盘状态、所需和可用扇区及出路，撤下刻录确认条 | 滑动后只说测量盘未开始刻 → 进页即显示两项容量及出路 |
 
-相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
+另做了三种场景。模拟封盘失败时，基线作品页把通用日志提示与英文原因放在一起，标定页把英文原因放在停止说明中。修复后两页都用当前语言直接说光驱未能封盘，并提供重新检查当前盘的入口。另在确认前打开托盘，以及确认 TYG02 后把盘换成 MCC03RG20，两条路径均显示新原因，均未创建写入任务。
 
-新增 id：
+## 与 DIS 的四条问题对照
 
-```text
-D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
-I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
-DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
-DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
-DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
-DISmain-verbatim-dvd-plus-rw-94520-95043
-```
+1. **托盘开着**。DP 的 CLI 原本就给原因。现在两个网页入口也在写入前直接提示放盘、关托盘，并能区分托盘已关但没盘。
+2. **盘里已有数据**。DP 会在主区域说明已写、是否封盘和是否可擦写，并给换空白盘的出路。RW 的擦除重刻要单独进入确认。
+3. **换了厂商编号不同的盘**。作品页原来会要求换盘，CLI 和测量盘链路原来会写入。现在三条路径默认都拦，网页额外确认后才可滑动，CLI 要显式加开关。已测过确认后再换批次会使原确认失效。
+4. **已经读到 DVD-ROM、已封盘**。DP 两个网页入口进刻录步骤就显示该状态，并用换空白盘和重新检查取代开刻入口。
 
-修改 id（含仅补充来源/复用报告的记录）：
+## 验收记录
 
-```text
-D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
-I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
-I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
-```
+- `node D:/dp-dev/tmp/burngates/lab_matrix.mjs before` 和 `node D:/dp-dev/tmp/burngates/lab_matrix.mjs after`。基线 9 个场景，修复后 11 个场景。每个场景记录 CLI 退出值和两条网页路径的主区域文本。测试在独立 GUI 副本中用脚本直接进入各自的刻录步骤，查询、令牌、写入和事件均走实际应用。基线和修复后合计 224 张 1440×1000 截图，覆盖纸色、夜色、中文和英文。截图位于 [shots](D:/dp-dev/tmp/burngates/shots/)，逐场景原始文本位于 [logs](D:/dp-dev/tmp/burngates/logs/)。各场景结束就清理 Lab 目录。测试镜像是 8,192 扇区的合成夹具，SHA-256 为 `080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e`。
+- `python -X utf8 -m pytest -n 2 --basetemp D:/dp-dev/tmp/burngates/python-final` 加 `tests/` 下的 `test_burner.py test_burn_preflight.py test_burn_progress.py test_burn_cancel.py test_afterburn.py test_webui.py test_r1_disc_identity.py test_rw_discs.py test_recordable_capacity.py test_fail_exits.py test_gui_handshake.py test_webui_catalog.py test_webui_recovery.py test_works.py`。292 项通过。见 [python-final.log](D:/dp-dev/tmp/burngates/python-final.log)。
+- 对全部 56 个 `tests/test_*.mjs` 分文件运行 `node --test`，56 个文件均有通过记录。首轮后修正了镜像附档读取和两个摄影测试夹具，再单独复跑了导航相关浏览器用例。见 [批量记录](D:/dp-dev/tmp/burngates/js-suite.log)、[定向复跑](D:/dp-dev/tmp/burngates/js-rerun.log)、[作品库串行记录](D:/dp-dev/tmp/burngates/js-current-serial.log) 和 [新作品导航复跑](D:/dp-dev/tmp/burngates/js-review-final.log)。`node tests/test_burn_page.cjs` 通过，覆盖直显和独立的异批确认。
 
-新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
+## 未测和转达
 
-内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
+- 真光驱、Windows IMAPI 真机报错和实体图案偏移未测。封盘失败来自 Disc Lab 注入。Windows CD 手动调用外部刻录命令的路径未测。本卡实测的是 DVD 作品和 DVD 测量镜像，包含光驱插入空白 CD-R 的拦截。
+- 异批放行的测量盘测试到虚拟写入完成并进入读盘检查，夹具容量用于测刻录门槛，完整几何测量未测。某些既无批次 MID、又缺测量记录的旧镜像没有比对依据；CLI 可用 `--expected-mid` 补给旧镜像。
+- 场景 Lab 目录已清理。命令工具的自动审查拦截了补充清理用的删除命令，D 盘测试临时目录还留有约 37 MiB 的合成 ISO 夹具。
+- 请 Claude 转达合并审查人。API 小版本在本分支升为 1.2，能力名为 `burn-preflight`。合并同期分支时检查版本号以及 `design.js`、`calibrate.js` 中的确认和恢复逻辑，保留写入前复查与异批确认的绑定。
 
-同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
-
-## 下发与程序行为
-
-`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
-
-```text
-f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
-```
-
-生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
-
-`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
-
-CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
-
-仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
-
-## 网页位置和需要人工审查的选择
-
-传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
-
-新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
-
-请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
-
-## 验收
-
-所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
-
-| 命令/检查 | 结果 |
-| --- | --- |
-| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
-| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
-| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
-| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
-| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
-| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
-| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
-| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
-| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
-
-初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
-
-截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
-
-## 未测及边界
-
-没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
-
-附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
+STATUS: DONE
