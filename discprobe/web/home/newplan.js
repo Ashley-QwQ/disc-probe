@@ -16,7 +16,7 @@ import { isActionEnter } from "./kit/shared.js";
 import * as presets from "./presetio.js";
 import { driveTarget, pushLobby } from "./lobby.js";
 import { receive as receiveCommunity, hint as communityHint, safeGithub } from "./community.mjs";
-import { calibrated, calibratedBatch, discDisplayKind, localDay, sameMaker } from "./batches.mjs";
+import { calibrated, calibratedBatch, localDay, sameMaker } from "./batches.mjs";
 
 const STR = {
   zh: {
@@ -28,7 +28,15 @@ const STR = {
     months: ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"],
     suggest: (m, d, w) => `${m}${d} 的 ${w}`, soon: "这一项以后接上",
     reading: "正在读光驱里的盘…", readFail: "没读到光驱里的盘，可以手动选。", trayOpen: "光驱托盘开着。",
-    noDisc: "光驱里没有盘。",
+    noDisc: "光驱里没有盘。", later: "稍后再定",
+    readingStateUnknown: "没读出光驱托盘或盘的状态，可以手动选。",
+    unknownBlank: (disc) => `没读出光驱里这张盘是不是空白的${disc ? `（${disc}）` : ""}。`,
+    blank: (disc) => `光驱里认出的是空白盘 · ${disc}`,
+    closed: (disc) => `光驱里这张盘已封盘（${disc}），不能再刻图案。可以先设计，刻之前换一张空白盘。`,
+    written: (disc) => `光驱里这张盘已经刻过（${disc}），不能再刻图案。可以先设计，刻之前换一张空白盘。`,
+    openSession: (disc) => `光驱里这张盘已经刻过，尚未封盘（${disc}）。可以先设计，刻之前换一张空白盘。`,
+    rom: (disc) => `光驱认出的是只读盘（${disc}），不能刻图案。可以先设计，刻之前换一张空白盘。`,
+    rwWritten: (disc) => `这张可擦写盘上有数据（${disc}），刻之前要先擦除。`,
   },
   en: {
     title: "New work", name: "Name", nameHelp: "What is this work called?", tab: "Tab to use",
@@ -36,7 +44,15 @@ const STR = {
     left: (l, o) => `${l} / ${o} left`, newPack: "Opened a new pack? Register it", kinds: "Disc kind", subs: "Disc type",
     next: "Next: add a picture", library: "View this batch in the library",
     reading: "Reading the disc in the drive…", readFail: "Couldn't read the drive; choose by hand.", trayOpen: "The drive's tray is open.",
-    noDisc: "No disc in the drive.",
+    noDisc: "No disc in the drive.", later: "Choose later",
+    readingStateUnknown: "Couldn't tell whether the tray holds a disc. You can choose by hand.",
+    unknownBlank: (disc) => `Couldn't tell whether the disc in the drive is blank${disc ? ` (${disc})` : ""}.`,
+    blank: (disc) => `The drive recognised a blank disc · ${disc}`,
+    closed: (disc) => `The disc in the drive is finalized (${disc}) and can't take a picture. You can design now. Swap in a blank disc before burning.`,
+    written: (disc) => `The disc in the drive already has data (${disc}) and can't take a picture. You can design now. Swap in a blank disc before burning.`,
+    openSession: (disc) => `The disc in the drive already has data and is still open (${disc}). You can design now. Swap in a blank disc before burning.`,
+    rom: (disc) => `The drive recognised a read-only disc (${disc}). You can design now. Swap in a blank disc before burning.`,
+    rwWritten: (disc) => `This rewritable disc has data (${disc}). Erase it before burning.`,
     calOk: (d) => `Calibrated · ${d}`, calNone: "This batch has no parameters yet: draw first; calibrate before burning, or bring your existing parameters", calGo: "Calibrate this batch",
     months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     suggest: (m, d, w) => `${m}${d}'s ${w}`, soon: "Not connected yet",
@@ -53,9 +69,22 @@ const SUBS = {
 const sub = () => SUBS[state.kind].find((s) => s.key === state.sub) ?? SUBS[state.kind][0];
 // a batch's type: from its name ("Verbatim DVD-R 16x"); a batch named by its manufacturer code alone goes by
 // the code's form: a DVD+R's ADIP code has slashes (MKM/001/00), a DVD-R's pre-recorded one does not
-const subOf = (kind, it) => SUBS[kind].find((s) => s.re.test(it.name ?? ""))?.key ?? (kind === "dvd" && /\//.test(it.mid ?? "") ? "+R" : "-R");
+const subOf = (kind, it) => SUBS[kind].find((s) => s.re.test(it?.name ?? ""))?.key ?? (kind === "dvd" && /\//.test(it?.mid ?? "") ? "+R" : "-R");
 // "DVD-R Sequential" -> "DVD-R": the profile's first word is the type people know
 const shortKind = (k) => String(k ?? "").split(" ")[0];
+const driveSub = (disc) => SUBS[disc?.media]?.find((s) => s.re.test(disc.kind ?? ""));
+function driveStatus(disc) {
+  if (disc?.tray === "open") return "trayOpen";
+  if (!disc?.present) return disc?.tray === "empty" ? "noDisc" : "readingStateUnknown";
+  if (/ROM\b/i.test(disc.kind)) return disc.closed === true ? "closed" : "rom";
+  if (disc.blank === false || disc.closed === true || disc.closed === false) {
+    if (disc.rewritable) return "rwWritten";
+    if (disc.closed === true) return "closed";
+    return disc.closed === false ? "openSession" : "written";
+  }
+  return disc.blank === true ? "blank" : "unknownBlank";
+}
+const usableDrive = (disc) => driveStatus(disc) === "blank" && !!driveSub(disc);
 
 let api, $, W = null, state = null, words = null, cssReady = Promise.resolve();
 const T = () => STR[api.lang() === "en" ? "en" : "zh"];
@@ -168,7 +197,7 @@ function paintDial(turn = 0) {
 function setKind(kind, turn = 0) {
   if (kind === state.kind) return;
   turn ||= KINDS.indexOf(kind) > KINDS.indexOf(state.kind) ? 1 : -1;
-  state.kind = kind; state.edited = false; state.picked = null; state.newItem = null;
+  state.kind = kind; resetBatchForDial();
   state.sub = SUBS[kind].find((s) => s.key === "-R")?.key ?? SUBS[kind][0].key;
   paintDial(turn); fillBatches(); words_();
 }
@@ -176,9 +205,13 @@ function setSub(key, turn = 0) {
   if (key === state.sub) return;
   const list = SUBS[state.kind], at = (k) => list.findIndex((s) => s.key === k);
   turn ||= at(key) > at(sub().key) ? 1 : -1;
-  state.sub = key; state.edited = false; state.picked = null; state.newItem = null;
+  state.sub = key; resetBatchForDial();
   paintDial(turn);
   fillBatches();
+}
+function resetBatchForDial() {
+  state.edited = state.edited && !W.batch.value.trim();
+  state.picked = null;
 }
 function stepDial(group, dir) {
   if (group === "kind") setKind(KINDS[(KINDS.indexOf(state.kind) + dir + KINDS.length) % KINDS.length], dir);
@@ -223,9 +256,9 @@ function build() {
           <div id="np-matches" class="np-matches" role="listbox" hidden></div>
         </div>
         <div class="np-cal"><span class="np-cal-text" id="np-cal-text"></span>
-          <button type="button" class="np-cal-go"></button>
+          <button type="button" class="np-cal-go"></button><button type="button" class="np-cal-go np-later"></button>
           <span class="np-own"><button type="button" class="np-import"></button><span aria-hidden="true"> · </span><button type="button" class="np-type"></button></span></div>
-        <small class="np-help"><span class="np-disc-help" id="np-disc-help"></span><span class="np-left"></span></small>
+        <small class="np-help"><span class="np-disc-help" id="np-disc-help" role="status"></span><span class="np-left"></span></small>
         <small class="np-help np-community" role="status" hidden></small>
         <button type="button" class="np-library"></button></div>
     </form>
@@ -299,7 +332,7 @@ function build() {
     if (dir) { e.preventDefault(); state.touched = true; stepDial(k.dataset.kind ? "kind" : "sub", dir); }
   });
   W.batch.addEventListener("input", () => {
-    state.touched = true; state.edited = true; state.picked = null; state.newItem = null;
+    state.touched = true; state.edited = true; state.picked = null;
     W.batch.placeholder = ""; paintLeft();
     if (W.batch.value.trim()) showMatches(); else hideMatches();
   });
@@ -335,6 +368,11 @@ function build() {
   q(".np-matches").addEventListener("wheel", (e) => e.stopPropagation());
   pullable();
   q(".np-cal-go").addEventListener("click", calibrateFirst);
+  q(".np-later").addEventListener("click", () => {
+    W.batch.value = "";
+    W.batch.dispatchEvent(new Event("input"));
+    W.batch.focus();
+  });
   W.sheet.addEventListener("submit", (e) => { e.preventDefault(); next(); });
 }
 function toast(text) {
@@ -349,6 +387,7 @@ function words_() {
   q(".np-name-label").textContent = t.name; q(".np-name-help").textContent = t.nameHelp;
   q(".np-disc-label").textContent = t.disc;
   q(".np-cal-go").textContent = t.calGo;
+  q(".np-later").textContent = t.later;
   for (const cap of W.querySelectorAll(".np-tab")) cap.title = t.tab;
   q(".np-library").textContent = t.library;
   q(".np-import").textContent = api.lang() === "en" ? "Import from DIS" : "从 DIS 导入";
@@ -371,7 +410,8 @@ function remember(item) {
   } catch {}
 }
 const isLibrary = (it) => !!it && state.list.includes(it);
-const driveOfKind = () => state.detected?.present && state.detected.media === state.kind ? state.detected : null;
+const driveOfKind = () => usableDrive(state.detected) && state.detected.media === state.kind &&
+  driveSub(state.detected).key === state.sub ? state.detected : null;
 function newBatch(name, manual = false) {
   const d = driveOfKind();
   const key = JSON.stringify([state.kind, name, manual, d?.mid, d?.kind, d?.sectors]);
@@ -384,7 +424,7 @@ function newBatch(name, manual = false) {
 }
 function fillBatches() {
   state.list = api.catalogue(state.kind).filter((it) => (!it.imported || imported(it)) && subOf(state.kind, it) === sub().key);
-  const [lastKind, last] = api.lastBatch(), recent = usage();
+  const [lastKind, last] = api.lastBatch({ preferDrive: false }), recent = usage();
   let lastId;
   try { lastId = localStorage.getItem("dp-batch"); } catch {}
   const wasLast = (it) => !!lastId && it.id === lastId && lastKind === state.kind && it === last;
@@ -395,7 +435,7 @@ function fillBatches() {
   const d = driveOfKind();
   state.suggested = d ? calibratedBatch(ordered, null, d) ?? ordered.find((it) => sameMaker(it.mid, d.mid))
     ?? newBatch([d.maker || d.manufacturer, shortKind(d.kind) || KIND_KEY[d.media]].filter(Boolean).join(" ") + (d.mid ? `（${d.mid}）` : ""))
-    : !state.detected?.present ? ordered.find((it) => wasLast(it) || recent.includes(it.id)) ?? null : null;
+    : ordered.find((it) => wasLast(it) || recent.includes(it.id)) ?? null;
   // A detour can return a newly calibrated/imported library entry. Otherwise preserve even an empty edit.
   if (state.picked && state.list.includes(state.picked)) {
     W.batch.value = state.picked.name; state.edited = true;
@@ -441,22 +481,27 @@ function paintMatches() {
   } else W.batch.removeAttribute("aria-activedescendant");
 }
 function paintLeft() {
-  const it = chosen(), t = T(), d = state.detected, zh = api.lang() !== "en";
+  const it = chosen(), t = T();
   if (!nextPending && root.dataset.mode === "newplan") $("next-text").textContent = t.next;
   W.q(".np-library").hidden = !isLibrary(it) || !api.inspectBatch;
   W.q(".np-left").textContent = it && Number.isFinite(it.left) && Number.isFinite(it.of) ? t.left(it.left, it.of) : "";
   W.q(".np-cal").classList.toggle("ok", hasGeometry(it));
   W.q(".np-cal-text").textContent = calibrationNotice();
   W.q(".np-cal-go").hidden = !it || hasGeometry(it);
+  W.q(".np-later").hidden = !it;
   W.q(".np-own").hidden = !!it && hasGeometry(it) || !presets.ready();
-  const mid = it?.readMid;
-  const recognised = d?.blank === false && /^DVD-ROM\b/i.test(d.kind) ? discDisplayKind(d, api.lang())
-    : zh ? `光驱里认出的是 ${shortKind(d?.kind) || KIND_KEY[d?.media]}`
-      : `The drive recognised ${shortKind(d?.kind) || KIND_KEY[d?.media]}`;
-  W.q(".np-disc-help").textContent = state.reading ? t.reading : state.readFailed ? t.readFail
-    : state.recognised ? recognised + (mid ? ` · ${mid}` : "")
-    : !it ? t.discHelp : d?.tray === "open" ? t.trayOpen : d && !d.present ? t.noDisc : t.discHelp;
+  W.q(".np-disc-help").textContent = driveNotice(t);
   paintCommunity();
+}
+function driveNotice(t) {
+  if (state.reading) return t.reading;
+  if (state.readFailed) return t.readFail;
+  const d = state.detected;
+  if (!d) return t.discHelp;
+  const status = driveStatus(d);
+  const profile = shortKind(d.kind) || KIND_KEY[d.media];
+  const label = [profile, d.mid].filter(Boolean).join(" · ");
+  return typeof t[status] === "function" ? t[status](label) : t[status];
 }
 
 function paintCommunity() {
@@ -702,26 +747,13 @@ async function readDrive() {
   try { disc = await api.readDisc(); } catch { disc = undefined; }
   if (state !== readingState || !isOn()) return;
   state.reading = false; state.readFailed = disc === undefined;
-  state.recognised = !!disc?.present && KINDS.includes(disc.media);
   state.detected = disc;
-  if (!state.touched) {
-    if (state.recognised) {
-      const turn = KINDS.indexOf(disc.media) - KINDS.indexOf(state.kind);
-      state.kind = disc.media; state.sub = firstSub(disc.media, state.item); state.newItem = null;
-      paintDial(Math.sign(turn));
-    }
-    fillBatches();
-  } else { state.newItem = null; paintLeft(); }
-}
-// The actual profile wins over the last batch's type. ROM profiles have no recordable subtype.
-function firstSub(kind, item) {
-  const d = state?.detected ?? api.driveDisc?.();
-  if (d?.present && d.media === kind && /ROM\b/i.test(d.kind)) {
-    const saved = calibratedBatch(api.catalogue(kind), null, d);
-    if (saved) return subOf(kind, saved);
+  if (!state.touched && usableDrive(disc)) {
+    const turn = KINDS.indexOf(disc.media) - KINDS.indexOf(state.kind);
+    state.kind = disc.media; state.sub = driveSub(disc).key;
+    paintDial(Math.sign(turn));
   }
-  const name = d?.present && d.media === kind ? d.kind : item?.name;
-  return (SUBS[kind].find((s) => s.re.test(name ?? "")) ?? SUBS[kind].find((s) => s.key === "-R") ?? SUBS[kind][0]).key;
+  fillBatches();
 }
 
 // ---------------------------------------------------------------- the pull
@@ -812,16 +844,14 @@ export async function start(homeApi, { from = null, file = null, resume = null }
   if (!W) build();
   await cssReady;
   nextPending = !!from && !motionOff();
-  const [col, item] = api.lastBatch();
-  const inDrive = api.driveDisc?.();
+  const [col, item] = api.lastBatch({ preferDrive: false });
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem("dp-disc-kind") || "[]"); } catch {}
-  const kind = inDrive?.present && KINDS.includes(inDrive.media) ? inDrive.media : KINDS.includes(saved[0]) ? saved[0] : KINDS.includes(col) ? col : "dvd";
-  state = { kind, item, picked: null, file, list: [], newItems: new Map(), edited: false, recognised: !!inDrive?.present && KINDS.includes(inDrive.media),
-            detected: inDrive, seed: Math.floor(Math.random() * 1e6) };
+  const kind = KINDS.includes(saved[0]) ? saved[0] : KINDS.includes(col) ? col : "dvd";
+  state = { kind, picked: null, file, list: [], newItems: new Map(), edited: false, seed: Math.floor(Math.random() * 1e6) };
   const communityState = state;
   receiveCommunity().then(got => { if (state === communityState) { state.community = got; paintCommunity(); } }).catch(() => {});
-  state.sub = !inDrive?.present && saved[0] === kind && SUBS[kind].some((s) => s.key === saved[1]) ? saved[1] : firstSub(kind, item);
+  state.sub = saved[0] === kind && SUBS[kind].some((s) => s.key === saved[1]) ? saved[1] : subOf(kind, col === kind ? item : {});
   W.name.value = "";
   if (resume) {
     Object.assign(state, resume.state, {newItems: new Map(resume.newItems || []), file: resume.file || null});
@@ -843,7 +873,7 @@ export async function start(homeApi, { from = null, file = null, resume = null }
   $("back").hidden = false; $("next").disabled = false;
   W.hidden = false;
   if (!push) { nextPending = false; $("next-text").textContent = T().next; }
-  if (!resume) readDrive();
+  if (!resume || state.reading) readDrive();
   W.classList.remove("leaving", "filing");
   if (push) {
     const [tx, ty] = discPoint();

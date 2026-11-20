@@ -611,7 +611,8 @@ def cmd_disc(args):
     tur = report.get("test_unit_ready", {})
     inq = (report.get("inquiry") or {}).get("parsed") or {}
     ready = "sense" not in tur and "error" not in tur
-    out = dict(tray=tray_state(tur.get("sense"), ready) if "error" not in tur else "unknown",
+    # A nonzero TUR response carries both an error description and the tray's sense code.
+    out = dict(tray=tray_state(tur.get("sense"), ready),
                drive=f"{inq.get('vendor', '')} {inq.get('product', '')}".strip() or None,
                disc=webui_catalog.disc_report(report) if ready else None)
     print(json.dumps(out, ensure_ascii=False))

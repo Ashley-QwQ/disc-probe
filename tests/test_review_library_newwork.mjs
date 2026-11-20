@@ -113,7 +113,7 @@ try {
     await shot('library-'+theme);
   }
   await evaluate(`for(const kind of ['dvd','cd','bd'])review.DATA[kind].forEach((it,i)=>{if(!it.kind)it.id=kind+'-'+i});
-    window.disc={present:true,media:'dvd',kind:'DVD-R Sequential',mid:'MCC 004 · AZO',sectors:2297888};
+    window.disc={present:true,media:'dvd',kind:'DVD-R Sequential',mid:'MCC 004 · AZO',sectors:2297888,blank:true};
     review.api.driveDisc=()=>disc;review.api.readDisc=async()=>({...disc});
     document.documentElement.dataset.motion='off';await review.newplan.start(review.api);`);
   await until('document.querySelector(".np-disc-help").textContent.includes("光驱里认出")','recognised drive');
@@ -155,7 +155,7 @@ try {
   await evaluate('document.getElementById("back").click()');
   await check('document.documentElement.dataset.mode==="newplan" && !document.querySelector(".np").hidden','library Back returns to form');
   await evaluate('document.querySelector(".np-library").click()');
-  await until('document.documentElement.dataset.mode==="" && document.documentElement.dataset.home==="library" && !document.getElementById("next").disabled',
+  await until('document.documentElement.dataset.mode==="" && document.documentElement.dataset.home==="library" && document.documentElement.dataset.navigation==="ready" && !document.getElementById("next").disabled',
     'batch library is ready to choose');
   // The rolling caption contains both names during a transition. Choose and
   // confirm the actual library item in the same browser event turn.
@@ -246,9 +246,15 @@ try {
   await open('no-presets');
   await check('document.getElementById("presetio-entry").hidden && !reviewCalls.some(c=>c.path==="/api/presets")','missing presets capability hides entry without request');
   await evaluate('review.api.heldDisc=()=>"";review.api.readDisc=async()=>({present:true,media:"dvd",kind:"DVD-ROM",mid:"UNKNOWN"});await review.newplan.start(review.api)');
-  await until('document.querySelector(".np-batch").placeholder.includes("UNKNOWN")','unlisted drive suggested');
-  await check('getComputedStyle(document.querySelector(".np-dial")).visibility==="visible"','new disc keeps dial available');
-  await evaluate('review.api.readDisc=async()=>({present:false});await review.newplan.start(review.api)');
+  await until('document.querySelector(".np-disc-help").textContent.includes("只读盘")','ROM disc explained');
+  await check('!document.querySelector(".np-batch").placeholder.includes("UNKNOWN") && getComputedStyle(document.querySelector(".np-dial")).visibility==="visible"','ROM cannot suggest a batch; dial stays available');
+  await evaluate(`localStorage.setItem('dp-disc-kind', '["dvd","+R"]');
+    review.api.readDisc=async()=>({present:true,media:"dvd",kind:"DVD-R",mid:"UNKNOWN",blank:null,closed:null});
+    await review.newplan.start(review.api);`);
+  await until('document.querySelector(".np-disc-help").textContent.includes("没读出光驱里这张盘是不是空白的")','unknown blank status explained');
+  await check('document.querySelector(".np-face-text").textContent==="DVD+R" && !document.querySelector(".np-batch").placeholder.includes("UNKNOWN")',
+    'unknown blank status does not change the dial or recommend the loaded disc');
+  await evaluate('review.api.readDisc=async()=>({present:false,tray:"empty"});await review.newplan.start(review.api)');
   await until('!document.querySelector(".np-disc-help").textContent.includes("正在读")','read finished');
   await check('document.querySelector(".np-own").hidden && getComputedStyle(document.querySelector(".np-dial")).visibility==="visible"','missing capability hides parameter links; dial stays visible');
   // Narrow layout and English remain usable without changing the artwork.
