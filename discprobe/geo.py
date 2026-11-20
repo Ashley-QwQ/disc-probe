@@ -680,10 +680,12 @@ class Ladder:
                 self.c = math.radians(((m["phase_deg"] - pred + 180) % 360) - 180)
                 pred = math.degrees(self._predict(m["n"]))
             self._add(m, pred)
-            self._emit_point(m)
+            if i == 0:
+                self._emit_point(m)
             self.log(f"  rung {len(self.targets):2d}: LBA {lba:>8} ({turns:+.1f} turns) phase {m['phase_deg']:8.3f} "
                      f"+/- {m['sigma_deg']:.3f} deg")
         self.fit()
+        self._emit_point(self.targets[-1])
 
         tried = {t["lba"] for t in self.targets}
         self.completion_status = "target_reached"

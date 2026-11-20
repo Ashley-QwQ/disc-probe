@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 
 import numpy as np
+import pytest
 
 from disclab.box import make_box
 from disclab.drive import LabDrive
@@ -96,10 +97,11 @@ def test_lab_disc_with_coverage_does_not_add_rungs(tmp_path):
         assert len(ladder.targets) == 22
 
 
-def test_lab_disc_at_coverage_budget_keeps_unmeasured_bands(tmp_path, monkeypatch):
-    monkeypatch.setattr(geo, 'MAX_COVERAGE_READS', 1)
+@pytest.mark.parametrize(('limit', 'value', 'rungs'), [('MAX_COVERAGE_READS', 1, 23), ('MAX_COVERAGE_SECONDS', 0, 22)])
+def test_lab_disc_at_coverage_budget_keeps_unmeasured_bands(tmp_path, monkeypatch, limit, value, rungs):
+    monkeypatch.setattr(geo, limit, value)
     with lab_disc(tmp_path, with_gaps=True) as (_, reader):
         ladder, fit = read_ladder(reader)
-        assert len(ladder.targets) == 23
+        assert len(ladder.targets) == rungs
         assert fit['completion_status'] == 'coverage_incomplete'
         assert assess_range(fit, default_range('dvd'))['extrapolated_mm']
