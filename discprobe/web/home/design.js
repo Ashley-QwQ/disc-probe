@@ -1165,7 +1165,7 @@ function buildLeft() {
   const rows = [...S.layers].reverse(), panel = editor?.panelState();
   if(panel?.layerActions!=null&&!S.layers.some(L=>L.id===panel.layerActions))panel.layerActions=null;
   const layerActions = panel?.layerActions;
-  W.left.innerHTML = `<section><h3><span class="grow">${t.layers}</span>` +
+  W.leftContent.innerHTML = `<section><h3><span class="grow">${t.layers}</span>` +
     `</h3>` +
     (rows.length ? `<ul class="lays" role="listbox" aria-label="${t.layers}">${rows.map((L) => {
       const id = esc(L.id);
@@ -1196,7 +1196,7 @@ function buildLeft() {
     if (L.kind === "image") li.querySelector(".th").replaceWith(thumb(L));
   }
   editor?.left();
-  mountFilesStep(W.left, {getFiles:()=>S.files, setFiles:value=>{S.files=value;queueMicrotask(refreshFilesHelp);},
+  mountFilesStep(W.leftContent, {getFiles:()=>S.files, setFiles:value=>{S.files=value;queueMicrotask(refreshFilesHelp);},
     context:async()=>{const state=await api.backend.state();return {media:S.media,geo:planGeo(state).path,r_max:range()[1]};},
     onChange:changed, lang:api.lang(), media:S.media});
   refreshFilesHelp();
@@ -1928,7 +1928,8 @@ function build() {
   ws.innerHTML = `<div class="ws-title"><svg class="work-bag" viewBox="0 0 20 24" width="16" height="20" style="flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.3" role="img" aria-label="作品存在往期作品里 / Saved in past works"><title>作品存在往期作品里 / Saved in past works</title><path d="M3 5h14v17H3zM3 5l3-3h8l3 3M7 9h6M7 12h6"/></svg><b class="pname"></b><button class="sub" type="button"></button><span class="dirty" aria-hidden="true"></span>` +
     `<span class="filebtns"><button class="sbtn" type="button" data-a="open"></button><button class="sbtn" type="button" data-a="save"></button></span></div>` +
     `<div class="ed-panel-picker"><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-left ed-files" data-panel="layers"></button><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-right" data-panel="tone"></button></div>` +
-    `<aside class="col col-l" id="ed-left"></aside><aside class="col col-r" id="ed-right"></aside>` +
+    `<aside class="col col-l" id="ed-left"><div class="ed-layer-content"></div></aside>` +
+    `<div class="ed-layer-fade" aria-hidden="true" hidden></div><aside class="col col-r" id="ed-right"></aside>` +
     `<div class="cv"><div class="ed-desk" aria-hidden="true"></div><div class="ed-surface"><div class="ed-disc-shadow" aria-hidden="true"></div><canvas class="main"></canvas></div>` +
     `<div class="tools-v" role="toolbar"></div>` +
     `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="burn"></button><button type="button" data-v="lamp"></button><button type="button" data-colour-compare hidden></button></div><p class="ed-view-note" aria-live="polite"></p>` +
@@ -1944,6 +1945,7 @@ function build() {
   const q = (s) => ws.querySelector(s);
   W = {
     ws, left: q(".col-l"), right: q(".col-r"), cv: q(".cv"), canvas: q("canvas.main"), tools: q(".tools-v"), view: q(".viewsw"),
+    leftContent: q(".ed-layer-content"), leftFade: q(".ed-layer-fade"),
     desk: q(".ed-desk"), surface: q(".ed-surface"), shadow: q(".ed-disc-shadow"),
     note: q(".cv-note"), empty: q(".empty-c"), bar: q(".fbar"), tilt: q(".tilt"), loupe: q(".loupe"), zoom: q(".zoomr"),
     drop: q(".dropzone"), file: q(".f-img"), folder: q(".f-dir"), dirty: q(".dirty"), pname: q(".pname"), sub: q(".ws-title .sub"), proj: q(".f-proj"), filebtns: q(".filebtns"),
@@ -1962,9 +1964,25 @@ function build() {
   // Keep the existing glass panel's shadow beneath the picture, as it was before the canvas
   // extended behind the panels. Its opaque face alone belongs above the picture.
   ws.prepend(W.desk);
-  const panelShadow = document.createElement("div");
-  panelShadow.className = "ed-panel-shadow"; panelShadow.setAttribute("aria-hidden", "true");
-  ws.prepend(panelShadow);
+  for (const side of ["l", "r"]) {
+    const shadow = document.createElement("div");
+    shadow.className = `ed-panel-shadow ed-panel-shadow-${side}`;
+    shadow.setAttribute("aria-hidden", "true");
+    ws.prepend(shadow);
+  }
+  const updateLayerFade = () => {
+    const { clientHeight, scrollHeight, scrollTop } = W.left;
+    W.leftFade.hidden = !clientHeight || scrollHeight - clientHeight - scrollTop <= 1;
+  };
+  const layerObserver = new ResizeObserver(updateLayerFade);
+  layerObserver.observe(W.left);
+  layerObserver.observe(W.leftContent);
+  W.left.addEventListener("scroll", updateLayerFade, { passive: true });
+  const header = document.querySelector("header.top");
+  const headerObserver = new ResizeObserver(placeTitle);
+  for (const element of [header, $("back"), $("wordmark"), $("wm-ver"), header?.querySelector(".tools")]) {
+    if (element) headerObserver.observe(element);
+  }
   // canvas input
   const cvs = W.canvas;
   observeActivity(cvs, active => {
@@ -2098,6 +2116,18 @@ function resize(force = false) {
   // frame as the opening, including when the backing store was just cleared.
   paintNow();
 }
+function placeTitle() {
+  if (!isOn()) return;
+  const tools = document.querySelector("header.top .tools");
+  if (!tools) return;
+  // The version sits outside the wordmark's box. Reserve both actual edges,
+  // including changes from the fold animation, language and release text.
+  const end = Math.max(...[$("back"), $("wordmark"), $("wm-ver")].map(el => el?.getBoundingClientRect().right ?? 0));
+  const width = document.documentElement.clientWidth;
+  const availableEnd = Math.min(width, tools.getBoundingClientRect().left);
+  W.ws.style.setProperty("--ed-title-left", `${Math.ceil(end) + 12}px`);
+  W.ws.style.setProperty("--ed-title-right", `${width - Math.floor(availableEnd) + 12}px`);
+}
 // all the words, in the current language
 function words() {
   const t = T();
@@ -2112,6 +2142,7 @@ function words() {
   W.sub.textContent = api.T().brand?.(S.item.name) ?? S.item.name;
   W.sub.title = t.changeDiscs;
   W.sub.onclick = chooseBatch;
+  placeTitle();
   editor?.toolbar();editor?.optionsBar();
   const [p, b, o] = W.view.children;
   if(!['proj','burn','lamp'].includes(S.view))S.view='proj';

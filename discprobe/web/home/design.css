@@ -13,7 +13,7 @@
 :root[data-mode="design"] .wordmark, :root[data-mode="design"] .detail, :root[data-mode="design"] .counter,
 :root[data-mode="design"] .gallery { display: none; }
 
-.ws { --colL: 272px; --colR: 316px; --top: calc(var(--edge) + var(--row) + 16px); position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 360ms var(--ease); }
+.ws { --colL: 272px; --colR: 316px; --top: calc(var(--edge) + var(--row) + 16px); --panel-top: var(--top); --panel-radius: 8px; position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 360ms var(--ease); }
 .ws.on { opacity: 1; }
 .ws.on > * { pointer-events: auto; }
 /* a page's workspace shows only while that page is the mode: a way out that forgot to switch it off (seen coming
@@ -24,25 +24,26 @@
 
 /* left of the title: the back button, then the collapsed "DP" mark (index.html) */
 .ws-title { position: fixed; top: var(--edge); left: calc(var(--edge) + 197px + var(--ver-w, 0px));   /* past the mark and its version */ height: 52px; display: flex; align-items: center; gap: 12px; font-size: 18px; white-space: nowrap; }
+.ws:not(.pv) > .ws-title { left: var(--ed-title-left, var(--edge)); right: var(--ed-title-right, var(--edge)); overflow: clip; }
+.ws:not(.pv) > .ws-title :is(.pname, .sub) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws:not(.pv) > .ws-title .sub { max-width: 50%; }
 .ws-title b { font-weight: 700; font-stretch: 112%; }
 .ws-title .sub { color: var(--ink-3); background: none; border: 0; padding: 4px 6px; margin: 0 -6px; font: inherit; cursor: pointer; border-radius: 4px; }
 .ws-title .sub:hover, .ws-title .sub:focus-visible { color: var(--ink); text-decoration: underline dotted; text-underline-offset: 4px; }
-.ws-title .dirty { width: 8px; height: 8px; border-radius: 50%; background: var(--copper); opacity: 0; transition: opacity 200ms; }
+.ws-title .dirty { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--copper); opacity: 0; transition: opacity 200ms; }
 .ws-title .dirty.on { opacity: 1; }
 .ws > .filebtns { position: fixed; z-index: 2; left: var(--edge); top: var(--top); width: var(--colL); display: flex; gap: 6px; }
 .ws > .filebtns .sbtn { flex: 1; min-height: 36px; padding: 0 10px; font-size: 14px; }
 .ws > .filebtns .sbtn:active:not(:disabled) { transform: translateY(1px); }
 .ws:not(.on) > .filebtns { display: none; }
-.ws > .col-l { top: calc(var(--top) + 48px); }          /* under open / save */
 @media (max-width: 480px) { .ws-title { left: calc(var(--edge) + 128px); } }       /* no "DP" mark this narrow */
 
 /* ---- columns ---- */
 .col { position: fixed; top: var(--top); bottom: calc(var(--foot) + 16px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; display: grid; align-content: start; gap: 0; }
-.col-l { left: var(--edge); width: var(--colL); }
-.ws:not(.pv) > .col-l { grid-template-columns: minmax(0, 1fr); scrollbar-gutter: stable;
-  padding: 6px; scroll-padding-block: 6px; mask-image: linear-gradient(transparent, var(--ink) 6px); }
-.ws:not(.pv) > .col-l > section { min-width: 0; }
-.col-r { right: var(--edge); width: var(--colR); }
+.col-l, .ed-panel-shadow-l, .ed-layer-fade { left: var(--edge); width: var(--colL); }
+.col-r, .ed-panel-shadow-r { right: var(--edge); width: var(--colR); }
+.ws:not(.pv) > .col-l { grid-template-columns: minmax(0, 1fr); scrollbar-gutter: stable; scroll-padding-block: 16px; }
+.ed-layer-content { display: grid; grid-template-columns: minmax(0, 1fr); }
 .col section { padding: 14px 0 18px; border-top: 1px solid var(--rule); display: grid; gap: 12px; }
 .col section:first-child { border-top: 0; padding-top: 0; }
 .col h3 { margin: 0; font-size: 17px; font-weight: 650; display: flex; align-items: center; gap: 8px; min-height: 32px; }
@@ -154,7 +155,9 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws:not(.pv) .cv > * { pointer-events:auto; }
 .ws .ed-desk,.cv .ed-surface { position:fixed;inset:0;pointer-events:none; }
 .ws .ed-desk { z-index:-2;background-color:var(--paper-2);background-repeat:repeat; }
-.ws .ed-panel-shadow { position:fixed;top:var(--top);bottom:calc(var(--foot) + 16px);right:var(--edge);width:var(--colR);border-radius:8px;box-shadow:var(--glass-far,var(--glass-desk));z-index:-1;pointer-events:none; }
+.ws .ed-panel-shadow { position:fixed;top:var(--panel-top);bottom:calc(var(--foot) + 16px);border-radius:var(--panel-radius);box-shadow:var(--glass-far,var(--glass-desk));z-index:-1;pointer-events:none; }
+.ws > :is(.col-l, .ed-panel-shadow-l) { top: calc(var(--panel-top) + 48px); } /* under open / save */
+.ws > .ed-layer-fade { position:fixed;bottom:calc(var(--foot) + 16px);height:24px;border-radius:0 0 var(--panel-radius) var(--panel-radius);background:linear-gradient(transparent,var(--paper));z-index:2;pointer-events:none; }
 .cv .ed-surface {
   z-index:-1;
   /* The central opening stays opaque. Outside it, fade 35% to zero over 48 px
@@ -225,9 +228,10 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 
 /* Editor round 2: compact lists and canvas-owned tools; existing glass plane. */
 .ws .col { background:var(--sheet,var(--paper)); }
-.ws .col-r { display:flex; padding:16px 12px; border-radius:8px; overflow:hidden; box-shadow:var(--glass-far,var(--glass-desk)); }
+.ws .col-r { display:flex; overflow:hidden; }
+.ws :is(.col-r, .col-l) { padding:16px 12px; border-radius:var(--panel-radius); }
+.ws.pv .col-r { box-shadow:var(--glass-far,var(--glass-desk)); }
 .ws:not(.pv) .col { background:var(--paper); }
-.ws:not(.pv) .col-r { box-shadow:none; }
 .ws .tools-v,.ws .filebtns { filter:var(--glass-drive-drop); }
 .ws .tools-v { top:64px; gap:3px; overflow:visible; }
 .ws .tb { position:relative; width:44px; height:44px; }
@@ -371,25 +375,26 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 @media (max-width: 760px) {
   :root[data-mode="design"] :is(body, .stage) { overflow: clip; }
   .ws { --panel-top: calc(var(--top) + 98px); }
-  .ws .ws-title {
-    top: var(--top); left: var(--edge); right: var(--edge); height: 38px; min-width: 0;
+  .ws .ws-title, .ws:not(.pv) > .ws-title {
+    top: var(--top); left: var(--edge); right: var(--edge); height: 38px;
   }
   .ws .ws-title .pname, .ws .ws-title .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ws .ws-title .sub { min-width: 0; }
-  .ws .ws-title .dirty { flex: none; }
   .ws:not(.pv) > .cv { top: var(--panel-top); left: var(--edge); right: var(--edge); }
   .ws:not(.pv) .ed-surface { mask-image: none; }
-  .ws:not(.pv) .ed-panel-shadow { display: none; }
   .ws.on .ed-panel-picker {
     position: fixed; z-index: 2; top: calc(var(--top) + 42px); left: var(--edge); right: var(--edge);
     display: flex; gap: 8px;
   }
   .ed-panel-picker .sbtn[aria-expanded="true"] { background: var(--paper-2); }
-  .ws:not(.pv) > :is(.filebtns, .col) { display: none; left: var(--edge); right: var(--edge); width: auto; }
+  .ws:not(.pv) > :is(.filebtns, .col, .ed-panel-shadow) { display: none; }
+  .ws:not(.pv) > :is(.filebtns, .col, .ed-panel-shadow, .ed-layer-fade) { left: var(--edge); right: var(--edge); width: auto; }
+  .ws:not([data-panel="layers"]) > .ed-layer-fade { display: none; }
   .ws.on[data-panel="layers"] > .filebtns { display: flex; top: var(--panel-top); }
-  .ws.on[data-panel="layers"] > .col-l { display: grid; top: calc(var(--panel-top) + 48px); scroll-snap-type: y proximity; }
+  .ws.on[data-panel="layers"] > :is(.col-l, .ed-panel-shadow-l) { display: grid; }
+  .ws.on[data-panel="layers"] > .col-l { scroll-snap-type: y proximity; }
   .ws:not(.pv) > .col-l :is(h3, .note, details) { scroll-snap-align: start; }
-  .ws.on[data-panel="tone"] > .col-r { display: flex; top: var(--panel-top); }
+  .ws.on[data-panel="tone"] > :is(.col-r, .ed-panel-shadow-r) { display: flex; top: var(--panel-top); }
   .ws:not(.pv)[data-panel]:not([data-panel=""]) .cv { visibility: hidden; }
   .ws:not(.pv) .empty-c { width: calc(100% - 56px); margin-left: 22px; }
   .ws:not(.pv) .empty-c .row { flex-wrap: wrap; justify-content: center; }
