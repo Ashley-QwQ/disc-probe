@@ -136,8 +136,8 @@ try {
     assert.ok(!result.exceptionDetails, JSON.stringify(result.exceptionDetails));
     return result.result?.value;
   };
-  const until = async expression => {
-    for (let i = 0; i < 240; i++) {
+  const until = async (expression, attempts = 240) => {
+    for (let i = 0; i < attempts; i++) {
       if (await run(expression)) return;
       await pause(25);
     }
@@ -157,6 +157,10 @@ try {
   };
   const select = view => run(`document.querySelector('[data-v="${view}"]').click()`);
   const shot = async name => {
+    if (name.endsWith('-lamp')) {
+      await until('actions.editor.lamp?.phase === "ready"', 1200);
+      await frame();
+    }
     const { data } = await send('Page.captureScreenshot', { format: 'png' });
     await writeFile(join(shots, name + '.png'), Buffer.from(data, 'base64'));
   };
