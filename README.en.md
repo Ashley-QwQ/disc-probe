@@ -328,6 +328,7 @@ Most of these are user reports judged from the finished disc, usually with no me
 |---|---|---|---|
 | HL-DT-ST GH70N (NYA2) | Ritek F1 DVD-R | Measuring and burning both verified, about 0.1° on the first burn | this repo |
 | HL-DT-ST GH70N (NYA2) | CMC CD-R | Use `--speed 1411`. Along-track constant checked on two grid discs | this repo |
+| HL-DT-ST DVDRAM GH24NSD1 | Verbatim DVD+R AZO | The measurement disc hung at the default write speed and burned fine at 4x. Calibrated with disc-probe, and the picture came out almost perfectly aligned (user report, no measured image error) | SLJ, DIS Discord |
 | HL-DT-ST GU70N (LS20) | Relabelled Ritek DVD+R (`RITEK/F16/1`, inner code `VR5F16-01294`) | Calibrated on one disc, entered the numbers in DIS, and the second disc came out with its picture (reported by the user, 4x, no measured image error) | LTVA1, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19461627) |
 | MATSHITA BD-MLT UJ260AF (macOS) | RITEKF1 DVD-R | `geo` and `disexport` work, and someone has burned a picture with them | NaiveTomcat, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | MATSHITA BD-MLT UJ272 | RITEKF1 DVD-R | Preset went straight into DIS. Cross lines straight and perpendicular by eye, and a finished picture burned | domerawind, [#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19421274) |

@@ -324,6 +324,7 @@ python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --te
 |---|---|---|---|
 | HL-DT-ST GH70N（NYA2） | Ritek F1 DVD-R | 测量和刻图都已验证，首刻约 0.1° | 本仓库 |
 | HL-DT-ST GH70N（NYA2） | CMC CD-R | 用 `--speed 1411`；沿轨道常数已用两张网格盘验证 | 本仓库 |
+| HL-DT-ST DVDRAM GH24NSD1 | Verbatim DVD+R AZO | 默认写入速度刻测量盘时光驱卡住，改成 4x 就刻完了；用 disc-probe 标定后，图几乎完全对齐（用户反馈，无量化图像误差） | SLJ，DIS Discord |
 | HL-DT-ST GU70N（LS20） | 换过标签的 Ritek DVD+R（`RITEK/F16/1`，内圈 `VR5F16-01294`） | 标定一张，把系数填进 DIS，第二张就刻出了图（用户反馈，4x，无量化图像误差） | LTVA1，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19461627) |
 | MATSHITA BD-MLT UJ260AF（macOS） | RITEKF1 DVD-R | `geo` 和 `disexport` 跑通，已有人用它刻图成功 | NaiveTomcat，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107) |
 | MATSHITA BD-MLT UJ272 | RITEKF1 DVD-R | 预设直接填进 DIS，十字线又直又垂直（目测），也刻出了成品图 | domerawind，[#107](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/107#discussioncomment-19421274) |
