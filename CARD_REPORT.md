@@ -39,4 +39,30 @@
 - 宽屏选了垂直居中。短步骤的纸与光驱重心对齐，长结果页保留顶部空隙并独立滚动。请审定是否接受垂直居中及夜色下沿用灯照纸色。
 - 倒数选了 `4:52` 这种裸分秒，沿用原有文字层级。步骤条下的小字仍表示各步骤的计划时长。大幅修正估值时也只走单秒，若估值用完但后台仍在运行，显示 `0:00` 直到步骤状态变化。请审定这个取舍。
 
+## RWA、RWB 合并验收（2026-11-20）
+
+合并提交 `b6bc979` 把 `dev/rw-merge-test` 的 `7c4341f` 合入 `dev/rw-c-polish`，另一父提交是 `45e2f86`。相对于 `7c4341f`，本次合并处理仅涉及网页和测试，内核计算沿用 RWA 的实现。
+
+- 校准实时图和测量记录沿用 `flow.points`、`flow.tape`。`geo_point` 同时更新实测圆环和光头位置，光头与标签一起缓动，新圆环在实测半径处淡入。刻录进度仍用连续色带。历史结果如果没有逐级半径事件，盘面不补画圆环，结果图仍可查看。第 12 条此前待接入的圆环现已完成。
+- `measuringButton()` 提供阶段文字，`current.clock` 和 `jobTime()` 统一显示时间。几何从 300 秒开始，续测从 120 秒开始，`eta_s` 只调整倒数速度。阶段切换清掉上一阶段的读数。
+- `paintJob()` 继续管理任务名和停止按钮。刻录速度事件也会刷新任务条。大厅右下角按钮和任务名均可接回原任务，已保存的 `savedBatch` 会回传。390 px 下盘名输入框能完整滚进纸卡正文，标题保留在正文上方。
+- 有空档时，主按钮仍为「补测空档」。详情列出缺失半径，并在可续测时提供「检查转速并重测」。`calibrationReason` 在中文空档详情里显示为「补齐空档后才能保存预设。」终端命令仍折叠在「进阶」。
+
+### 编辑器样式诊断
+
+在真实 HTTP 页面上用 CDP 暂停旧的动态 `design.css` 请求，`.ws` 已经挂载，计算样式仍为 `position: static`，复现了 RWA 原图的失样画面。放行后返回 `200 text/css`，`.ws` 变为 `position: fixed`，三段实测环和斜线空档正常显示。编辑器在样式抵达前有一个可见窗口。合并版把同一张样式表放到主页面页头，编辑器挂载时复用它。两种 Disc Lab 场景均在真实 HTTP 页面上确认 CSS 返回 200 并生效。[延迟请求时](D:/dp-dev/tmp/rwc/shots-merged/editor-css-request-pending.png) · [放行后](D:/dp-dev/tmp/rwc/shots-merged/editor-css-request-complete.png) · [合并版三段实测环](D:/dp-dev/tmp/rwc/shots-merged/gaps-editor.png)
+
+### Disc Lab 和回归测试
+
+脚本 `node D:/dp-dev/tmp/rwc/merged_shots.mjs gaps` 与 `covered` 使用种子 178 和 GH70N 读取模型，每次通过 `webui --new-instance --local-only --port 0` 启动独立服务。回放旧版 22 级空档结果后，从真实页面启动续测，后台执行 `check → geo → preset`，发出第 23–25 级，保存后缺测列表为空。覆盖完整的场景从检测测量盘开始，实际测出 22 级，缺测列表为空，保存后回调收到与盘库一致的批次 ID。
+
+- 三处时间同步读到 `2:00` / `5:00`。只读阶段显示「停止」。两个场景均验证经任务名和大厅按钮回到同一作业。实时图第一次收到测点时只显示 1 个点，盘面的实测环像素 alpha 为 217，中间未读半径为 0。动效开启时，CDP 分别记录到 14 个和 10 个不同的光头标签位置。[空档事件与检查](D:/dp-dev/tmp/rwc/shots-merged/gaps-evidence.json) · [覆盖完整事件与检查](D:/dp-dev/tmp/rwc/shots-merged/covered-evidence.json)
+- 截图覆盖结果页和详情、实时图、倒数、光头缓动、编辑器、大厅接回校准及 390 px 盘名输入框。两个场景记录的网页异常和 CSP 违规均为 0。空档场景切换页面时，独立服务记录了一次客户端断开，续测和保存断言仍通过。[合并验收截图](D:/dp-dev/tmp/rwc/shots-merged)
+- 相关 pytest 以 `python -B -X utf8 D:/dp-dev/tmp/rwc/merged_pytest.py` 运行 15 个文件，`-n 2`，**251 项及 50 个子测试通过**。初次发现 Python 握手测试仍固定期待 `1.1`，更新为本分支已有的 `1.2` 并核对 `geo-coverage` 后完整复验。[pytest 日志](D:/dp-dev/tmp/rwc/tests-merged/pytest-final.log)
+- `python -X utf8 D:/dp-dev/tmp/rwc/merged_tests.py` 覆盖全部 57 个不同的 `tests/test_*.mjs` 文件。首轮 56 个通过，`test_pastworks_browser.mjs` 等待作品纸卡超时，按原脚本单独复跑通过。首轮的 Git 索引同时列出了同一个已解冲突测试文件的三个阶段，所以运行器打印了 59 次执行，结果按文件计。[复跑日志](D:/dp-dev/tmp/rwc/tests-merged/test_pastworks_browser-retry.log)
+
+独立 Lab 的目录在各次场景结束后清理。Windows 偶发占用工作目录时等待或重试删除，清理后检查目录已消失。相关 pytest 在本工作树生成的 4 份名为 `small` 的测试作品已移入测试临时目录。验收没有向 8765 发请求，也没有启动、停止或重启 8765 上的服务。实物光驱验收未做。
+
+请 Claude 转达，编辑器截图需要等计算样式和画布就绪。此次合并可用 [三环编辑器图](D:/dp-dev/tmp/rwc/shots-merged/gaps-editor.png) 和 [中文空档详情图](D:/dp-dev/tmp/rwc/shots-merged/gaps-result-details.png) 复核。
+
 STATUS: DONE
