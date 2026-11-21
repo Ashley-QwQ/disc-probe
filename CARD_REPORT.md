@@ -1,3 +1,36 @@
+# LG 卡交付报告
+
+分支 `dev/learn-grating`，基点 `39a1dac`。三段各自提交。验收只使用离线软件和虚拟设备。
+
+## 段 1 · 网页彩色求解器
+
+提交 `Audit the web colour solver from pixels to disc image`。详见[核查报告](docs/goals/colour-solver-audit.md)和其中的复现命令。只修正一处重复且过时的导出说明，网页和 CLI 的默认标签、刻图算法及材质配方均沿用现有实现。
+
+- 无头 Edge/CDP 从同一 PNG 走实际图片导入、彩色填充、合成与镜像生成。使用隔离回环端口和模拟几何，无任何刻录或设备打开。首轮 HTTP 夹具合成挂住，改由主线程预加载 SciPy 后通过。旧夹具的 `image` 结束提示读取了 Windows 的逻辑驱动器类型以输出驱动器盘符，复现脚本使用模拟几何命名来跳过这条提示。
+- 同一份作品的标签完全一致。独立导入对齐摆放后，3,600 万格的实写纹理一致。4,700,372,992 字节的两个 ISO 归零日期字段后 SHA-256 一致。ISO 已清理，`run3/parity.json` 保留原始及归一化哈希。
+- `python -B -X utf8 -m pytest -n 2 -p no:cacheprovider --basetemp D:/dp-dev/tmp/learngrating/pytest-colour -q tests/test_editor_colour.py tests/test_editor_preview.py tests/test_editor_pose_swatches.py tests/test_design_compose_route.py tests/test_gui_handshake.py`，42 项和 12 个子测试通过。
+- `node --test --test-concurrency=1 tests/test_design_export.mjs tests/test_editor_rig.mjs`，2 项通过。
+- 模型数据、旧实拍的对应色片、角色表数值对照和测试日志保存在 `D:/dp-dev/tmp/learngrating/`。物理板位误差、新刻盘的颜色与抖动外观未测。
+
+## 段 2 · 光栅角色卡
+
+待完成。按补充中的 4-20 和 FLIP-A 方案追溯。
+
+## 段 3 · 光盘怎么变成图
+
+待完成。
+
+## 需要用户决定
+
+- 彩色网页暂沿用随包 58 种材质。若考虑替换，先单独比较新候选的色域、运行耗时、读回和实拍。角色卡使用数及查表行数的含义见段 1。
+
+## 给 Claude 转达
+
+- 段 1 没有编辑 README 彩色章节或编辑器工具栏。触及的颜色说明在 `editor-rig.mjs` 和 `editor-controls.mjs`，并行编辑器卡若改了后者的布局，请同时保留这里的一段默认导出说明。
+
+<details>
+<summary>Earlier report already present at the branch point</summary>
+
 # 社区提示卡交付报告
 
 工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
@@ -93,3 +126,5 @@ CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 
 没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
 
 附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
+
+</details>
