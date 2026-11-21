@@ -1,43 +1,95 @@
-# WR 网页标定重试交付
+# 社区提示卡交付报告
 
-工作树 `D:/dp-dev/webretry`，分支 `dev/web-retry`，基点 `fa26d74`。
+工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
 
-## 提交
+## 按提交交付
 
-- `88bcd63` 提供核心重试分类、速度档位与任务诊断信息。几何续测会复核原来的测点，再优先读失败的测点。网页 API 增加可选的 `measurement-retry` 能力，版本为 1.3。
-- `47348e0` 在标定页提供中英双语的建议速度、低速选择、补测与续测。随失败类型显示换 USB 口、供电、保持桌面稳定、检查测量盘和低速重刻的方法。诊断可以复制，也可以下载文本。新增无头 Edge/CDP 命令断言。
-- `fb15d27` 修正 CSP 走查的启动竞态。等待大厅完成导航初始化，再从大厅的可见入口进入新作品。原有策略和设计页断言均通过。
-- 本报告提交记录验收结果和交接事项。
+- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
+- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
+- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
+- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
+- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
+- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
 
-## 修改前后
+## 数据及出处
 
-在 Disc Lab 虚拟 X: 上取得 8 种核心结果。测量结果回放到真网页，前版固定使用 `fa26d74` 的页面模块。刻录长时间无进度用浏览器夹具保留正在写入的任务。
+本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
 
-| 场景 | 前版的出路 | 修改后 |
-|---|---|---|
-| CAV 有噪声 | 通用重测。Lab 的 DVD 8× 测到 2.554–3.123°，核心建议 3324 kB/s。 | 一键用 3324 kB/s 重测，也可选核心提供的 3324 或 5540 kB/s。 |
-| CLV | 显示建议，旧按钮把 kB/s 字符串交给只接受数值的任务接口。 | 用数值提交建议速度；核心判定转速可用后才进入几何。 |
-| 转速无法判断 | 通用重测。 | 显示核心给出的建议和排查办法。缺少建议时可按原设定重测。 |
-| 介质错误 | 提示换盘，原始信息偏向图案盘。Lab 返回 3/11/00。 | 说明随机测量盘和图案盘分别怎么办，给出 `checkburn` 命令、同盘重试和换盘低速重刻的入口。 |
-| 读得慢 | 通用中止说明。Lab 在读到一个区后的限时路径退出。 | 说明读盘超时，保留测量盘、检查连接后重试，可导出诊断。 |
-| 几何测点读不稳 | 通用重测，或按已有的空档流程补测。Lab 在 LBA 165152 出错后保留 21 个测点。 | 用原盘、原光驱、原读速继续，优先读失败点；换读速时另测一轮。 |
-| 几何覆盖有空档 | RWA 已能补测。Lab 给出 28.63–56.01 mm 的待补范围。 | 保留补测以及范围说明，并提供失败时的诊断信息。 |
-| 写入失败 | 换空白盘或擦除后重刻。Lab 在写入约 40% 时注入中断。 | 从替换盘检查回报的档位里选较低写速，然后按原流程确认写入。 |
-| 写入长时间无进度 | 有停止刻录控件。 | 明确可以手动停止，待任务结束后换盘选择较低速度。 |
+原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
+
+相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
+
+新增 id：
+
+```text
+D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
+I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
+DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
+DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
+DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
+DISmain-verbatim-dvd-plus-rw-94520-95043
+```
+
+修改 id（含仅补充来源/复用报告的记录）：
+
+```text
+D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
+I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
+I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
+```
+
+新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
+
+内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
+
+同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
+
+## 下发与程序行为
+
+`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
+
+```text
+f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
+```
+
+生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
+
+`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
+
+CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
+
+仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
+
+## 网页位置和需要人工审查的选择
+
+传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
+
+新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
+
+请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
 
 ## 验收
 
-- `python -X utf8 -B D:/dp-dev/tmp/webretry/lab_cases.py` 取得 8 组虚拟光驱结果；各场景结束后清理 Lab 目录。慢读用已有的 `timing --max-minutes .001` 触发。基线与修改版用同一套故障输入。
-- `node tests/test_web_retry_browser.mjs` 通过。断言 12 条读速重试路径、CD 的数值型 `2822`、2 条 `calibrate --resume` 路径、换盘检查和镜像生成、4× 写速在预检、令牌和任务请求中的一致性，以及复制文本和实际下载的诊断文件逐字一致。
-- 无头 Edge/CDP 保存 **72 张截图**，共 36 组前后对照。覆盖纸色和夜色、中文和英文、1440×1000 和 390×844。 [截图目录](<D:/dp-dev/tmp/webretry/shots>)
-- `python -X utf8 -B D:/dp-dev/tmp/webretry/run_mjs.py` 运行 `tests/test_*.mjs` 共 60 个脚本。首轮 55 个通过，随后逐项复跑，最终 60 个均通过。照片夹具的模块变量冲突在本分支修复，CSP 夹具见独立提交。文件刻录、往期作品和预设导入的首轮失败在单项复跑通过。 [首轮记录](<D:/dp-dev/tmp/webretry/mjs-suite/summary.json>) · [复跑记录](<D:/dp-dev/tmp/webretry/mjs-suite/rechecks.json>)
-- 相关 Python 回归使用 `python -X utf8 -B -m pytest -n 2 -q -p no:cacheprovider --basetemp D:/dp-dev/tmp/webretry/pytest-final tests/test_webui.py tests/test_webui_recovery.py tests/test_webui_catalog.py tests/test_web_security.py tests/test_web_guidance.py tests/test_geo_coverage.py tests/test_geo_integration.py tests/test_geo_unsteady.py tests/test_geo_progress.py tests/test_geo_speed.py tests/test_burn_preflight.py tests/test_burn_cancel.py tests/test_checkburn.py`，161 项及 42 个子测试通过。核心字段调整后，`test_geo_coverage.py`、`test_webui_recovery.py`、`test_webui_catalog.py` 和 `test_web_guidance.py` 的 23 项复验通过。
-- 续测回归注入第 7 级的转速异常，确认重开后保留前 6 级并补读第 7 级，源 `summary.json`、`targets.csv`、`events.csv` 字节不变。用同一模拟读盘输入和固定时钟对照 `fa26d74`，默认几何路径的三个输出文件和阶梯日志逐字节一致。 [字节对照](<D:/dp-dev/tmp/webretry/default-bytes.log>)
+所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
 
-## 边界与交接
+| 命令/检查 | 结果 |
+| --- | --- |
+| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
+| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
+| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
+| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
+| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
+| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
+| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
+| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
+| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
 
-- 真光驱、真实 USB 供电、实体盘的 4× 写入和 Windows CD 外部刻录未测。虚拟短盘的物理外圈仍然缺数据，因此空档截图用于验收续测入口，补测完成由独立虚拟盘用例验证。
-- 续测遵守已有的同盘、同光驱、原读速及相位复核。续测条件不足或核心拒绝续测时，可另外检查转速并重新测量。检查测量盘使用核心已有的只读 `checkburn` 终端命令。
-- 供 Claude 转达：合入时保留 WR 报告的验收和截图路径。根目录同名报告原先记录社区卡，原内容保存在基点 `fa26d74`。
+初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
 
-STATUS: DONE
+截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
+
+## 未测及边界
+
+没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
+
+附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
