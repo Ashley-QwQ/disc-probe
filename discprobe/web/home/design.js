@@ -473,7 +473,7 @@ function fit() {
   followFit = true;
   // Keep the usual tool space, but let the docks shrink with a very small opening.
   const side = Math.min(1, focus.w / 80);
-  const dock = Math.max(DOCK, focus.dock + 12);
+  const dock = Math.max(DOCK, focus.dock);
   const vertical = Math.min(1, focus.h / (TOP_DOCK + dock + 40));
   const top = TOP_DOCK * vertical, bottom = dock * vertical;
   V.s = Math.min(focus.w - 64 * side, focus.h - top - bottom) * 0.92 / 120;
@@ -2132,12 +2132,15 @@ function resize(force = false) {
   if (!(stage.width > 0 && stage.height > 0 && r.width > 0 && r.height > 0)) return;
   // Both rectangles move together during the editor's entrance.
   const x = r.left - stage.left, y = r.top - stage.top, dpr = devicePixelRatio || 1;
-  const dock = W.viewDock.offsetHeight;
+  const dockHeight = W.viewDock.offsetHeight, dock = Math.max(DOCK, dockHeight + 12);
+  W.cv.style.setProperty("--ed-view-dock-height", `${dockHeight}px`);
   if (!force && x === focus.x && y === focus.y && r.width === focus.w && r.height === focus.h &&
-      dock === focus.dock && stage.width === V.w && stage.height === V.h && dpr === V.dpr) return;
+      (!followFit || dock === focus.dock) && stage.width === V.w && stage.height === V.h && dpr === V.dpr) {
+    focus.dock = dock;
+    return;
+  }
   const ox = V.cx - focus.x - focus.w / 2, oy = V.cy - focus.y - focus.h / 2;
   focus = { x, y, w: r.width, h: r.height, dock };
-  W.cv.style.setProperty("--ed-view-dock-height", `${dock}px`);
   V.w = stage.width; V.h = stage.height; V.dpr = dpr;
   const width = Math.round(V.w * dpr), height = Math.round(V.h * dpr);
   if (W.canvas.width !== width) W.canvas.width = width;
