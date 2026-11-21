@@ -7,7 +7,7 @@ import {existsSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync} from 'n
 import {rm} from 'node:fs/promises';
 import {resolve, join, extname, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {stopEdge} from './edge_cleanup.mjs';
+import {stopEdge, endProfileProcesses, PROFILE_RM} from './edge_cleanup.mjs';
 
 const root = fileURLToPath(new URL('../discprobe/web/', import.meta.url));
 const edge = process.env.BRAND_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
@@ -122,5 +122,5 @@ try {
   await stopEdge(child, ws);
   server.closeAllConnections(); await new Promise(r=>server.close(r));
   assert.ok(resolve(profile).startsWith(resolve(tempRoot)+sep));
-  await rm(profile,{recursive:true,force:true,maxRetries:10,retryDelay:200});
+  endProfileProcesses(profile); await rm(profile,PROFILE_RM);
 }

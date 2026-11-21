@@ -6,7 +6,7 @@ import {mkdtempSync,readFileSync,readdirSync} from 'node:fs';
 import {rm} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
-import {stopEdge} from './edge_cleanup.mjs';
+import {stopEdge, endProfileProcesses, PROFILE_RM} from './edge_cleanup.mjs';
 
 const dir=mkdtempSync(join(tmpdir(),'discprobe-csp-'));
 const server=spawn(process.env.PYTHON||'python',['-B','-X','utf8','tests/webguide_http_fixture.py',join(dir,'data')],{stdio:['pipe','pipe','pipe'],windowsHide:true});
@@ -140,5 +140,5 @@ addEventListener('error',e=>runtimeErrors.push(e.message));addEventListener('unh
     await exited;
   }
   assert.equal(resolve(dir,'..'),resolve(tmpdir()));
-  await rm(dir,{recursive:true,force:true,maxRetries:10,retryDelay:200});
+  endProfileProcesses(dir); await rm(dir,PROFILE_RM);
 }
