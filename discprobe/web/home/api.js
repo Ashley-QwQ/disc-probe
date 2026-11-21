@@ -17,7 +17,8 @@ export async function request(path, payload, {keepalive = false} = {}) {
     headers: {...(token ? {'X-Discprobe-Token': token} : {}), ...(payload === undefined ? {} : {'Content-Type':'application/json'})},
     body: payload === undefined ? undefined : JSON.stringify(payload), keepalive});
   const data = await response.json();
-  if (!response.ok) throw Object.assign(new Error(data.error || response.statusText), {status: response.status, code: data.code});
+  if (!response.ok) throw Object.assign(new Error(data.error || response.statusText),
+    {status: response.status, code: data.code, burnGate:data.burn_gate});
   return data;
 }
 export const state = () => request('/api/state');

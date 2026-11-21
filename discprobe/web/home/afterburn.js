@@ -1,6 +1,7 @@
 // Operate: inspect a saved burn. Opening this page never sends a drive command.
 import { isMeasurementWork, worksFor } from './pastworks/works.mjs';
 import { afterChecks, leave as leaveBurn, start as startBurn } from './burn.js';
+import { checkBurn, confirmBurn } from './burn-preflight.js';
 import { afterBurn, troubleChecks, cdPhoto } from './guidance.mjs';
 import { burnChecklist } from './checkburn.js';
 
@@ -165,22 +166,27 @@ async function checkDisc() {
   await api.backend.job({action:'checkdisc',media:'dvd',args:{geo,output}});
   const iso=await api.backend.request(`/api/iso?path=${encodeURIComponent(output)}`);iso.target=true;iso.geo=geo;
   const drive={id:r.drive,name:r.drive,speeds:[]};
-  const ctx={media:'dvd',item:{name:current.name},iso,drive,needSwap:true,
+  const request=(speed,erase)=>({action:'burn',drive:drive.id,media:'dvd',
+    args:{iso:iso.path,...(speed?{speed}:{}),...(erase?{erase:true}:{})}});
+  const ctx={media:'dvd',item:{name:current.name},iso,drive,preflight:true,
     back:()=>open(api,current.work_id,r.burn_id),done:()=>ctx.photograph(),
-    async recheck(){const look=await api.backend.request(`/api/burn-speeds?drive=${encodeURIComponent(drive.id)}&media=dvd`);
-      drive.speeds=look.speeds_x??[];ctx.needSwap=look.blank!==true;ctx.driveProblem=ctx.needSwap?L('先换同批空白盘。','Insert a blank from the same batch first.'):'';},
-    burn(onProgress,{speed}) {
-      let jobId;
+    async recheck(){
+      const seen=await checkBurn(api.backend,request(null,drive.eraseRequired));
+      ctx.burnDisc=seen.disc;ctx.burnGate=seen.gate;ctx.discIn=!!seen.disc?.present;
+      drive.speeds=seen.speeds_x??[];drive.rewritable=!!seen.disc?.rewritable;
+    },
+    burn(onProgress,{speed,erase,confirmed}) {
+      let jobId, reason, gate;
       (async()=>{try {
-        await ctx.recheck();if(ctx.needSwap)throw Error(ctx.driveProblem);
-        const request={action:'burn',drive:drive.id,media:'dvd',args:{iso:iso.path,speed}};
-        const token=await api.backend.request('/api/burn-token',request);
-        await api.backend.job({...request,burn_token:token.token},e=>{
+        const approved=await confirmBurn(api.backend,request(speed,erase),confirmed,api.lang());
+        await api.backend.job(approved,e=>{
           if(e.type==='started')jobId=e.job;
+          if(e.type==='error'){reason=e.message;gate=e.burn_gate||gate;}
           if(e.type==='progress')onProgress({progress:e.fraction,elapsed:e.elapsed_s,remaining:e.eta_s});
           if(e.type==='burn_result')onProgress({burnResult:e});
         });onProgress({status:'success',progress:1});
-      }catch(e){onProgress({status:'failed',error:e.message,started:!!jobId});}})();
+      }catch(error){if(reason)error.message=reason;if(gate)error.burnGate=gate;
+        onProgress({status:'failed',errorInfo:error,started:!!jobId});}})();
       return {cancel(){if(jobId)api.backend.cancel(jobId);}};
     },
     async photograph(){leaveBurn();(await import('./calibrate.js')).photograph(api,{media:'dvd',geo,returnTo:()=>open(api,current.work_id,r.burn_id)});},

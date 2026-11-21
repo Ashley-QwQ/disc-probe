@@ -217,6 +217,7 @@ TEXT = {
     "CLV fit: how many zones to time, spread evenly from 5%% to 95%% of the disc (default 9). Two numbers come out of the line, so nine zones already pin them; more zones buy a better check that the line is straight, which is what tells a clean CLV disc from one that changes speed part way": "CLV 拟合：在盘面 5%% 到 95%% 之间均匀测多少个分区（默认 9）。直线只有两个参数；更多分区主要用于检查读速是否中途发生变化",
     "CLV fit: fit a constant offset in the period as well, which is the only way to separate 'this disc really starts further out than 24.0 mm' from 'every period carries a fixed few hundred microseconds'. Needs five zones or more": "CLV 拟合：同时拟合周期的固定偏移，用于区分起始半径偏大与每个周期都有固定延时；至少需要五个分区",
     "burn this measurement image first (needs --yes-write and a blank in the drive)": "先刻录这个测量镜像（需要 --yes-write 和空白盘）",
+    "explicitly allow writing to a different disc batch": "明确允许在不同批次的盘上刻录",
     "confirm the irreversible burn of --iso": "确认将 --iso 刻录到盘上，此操作不可撤销",
     "write multiple for the burn (default: the lowest)": "刻录倍速（默认最低倍速）",
     "write multiple for the burn (default: DVD nearest supported to 8x, CD lowest)": "刻录倍速（DVD 默认选最接近 8x 的支持速度，CD 默认最低倍速）",

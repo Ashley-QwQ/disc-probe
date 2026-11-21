@@ -18,13 +18,16 @@ test('missing required capability stops startup; optional capability does not', 
   assert.equal(result.update,'core'); assert.deepEqual(result.missing,['geo']);
   const optional = compatibility(manifest,{...core,capabilities:manifest.required_capabilities});
   assert.equal(optional.update,null); assert.deepEqual(optional.optional,manifest.optional_capabilities);
-  const previous = compatibility(manifest,{api_version:'1.1',capabilities:core.capabilities.filter(c => c !== 'checkburn')});
-  assert.equal(previous.update,null); assert.deepEqual(previous.optional,['checkburn']);
   const withoutWorks = compatibility(manifest,{...core,capabilities:core.capabilities.filter(c => c !== 'works')});
   assert.equal(withoutWorks.update,null); assert.deepEqual(withoutWorks.optional,['works']);
-  const oldCore = compatibility(manifest,{api_version:'1.1',capabilities:core.capabilities.filter(c => c !== 'photo-manual-alignment')});
-  assert.equal(oldCore.update,null); assert.deepEqual(oldCore.optional,['photo-manual-alignment']);
 });
+for (const capability of ['geo-coverage','photo-manual-alignment','checkburn','burn-preflight']) {
+  test(`an older core can lack ${capability}`, () => {
+    assert.ok(manifest.optional_capabilities.includes(capability));
+    const oldCore = compatibility(manifest,{api_version:'1.1',capabilities:core.capabilities.filter(c => c !== capability)});
+    assert.equal(oldCore.update,null); assert.deepEqual(oldCore.optional,[capability]);
+  });
+}
 function documentStub(lang='en') {
   const entries = [{dataset:{capability:'templates'}},{dataset:{capability:'geo'}}];
   return {documentElement:{dataset:{lang}}, entries,

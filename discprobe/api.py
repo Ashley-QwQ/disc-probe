@@ -16,6 +16,7 @@ CAPABILITIES = (
     "geo-coverage",
     "photo-manual-alignment",
     "checkburn",
+    "burn-preflight",
 )
 BUNDLED_GUI = Path(__file__).with_name("web")
 _VERSION = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)", re.ASCII)

@@ -20,6 +20,7 @@ import { hasCapability } from "./handshake.mjs";
 import { CELLS, COST, geoChoice, measuredRings, burnDocument, checkTextures, experimentalContent, hasColourPicture, pictureSampling } from "./design/export-rules.mjs";
 import directionArrow from "./design/direction-arrow.json" with {type: "json"};
 import { calibratedBatch, discDisplayKind } from "./batches.mjs";
+import { checkBurn, confirmBurn } from "./burn-preflight.js";
 
 let api, $;
 const root = document.documentElement;
@@ -2468,6 +2469,7 @@ async function toBurn(iso, back) {
   const burn = await import("./burn.js");
   const mock = new URLSearchParams(location.search).has("mockburn");
   // Which drive: the one this project's geometry was measured on (geo-H-…), else the first one listed.
+  const plan = S;
   let drive = { id: "", name: "", speeds: mock ? (S.media === "cd" ? [4, 8, 16] : [4, 8]) : [] }, problem = "", needSwap = false;
   // a CD on Windows: the core has no CD writer there yet (burner.WindowsDVD); the page says how, and does not try
   const otherOnly = !mock && S.media === "cd" && api.platform?.() === "win32";
@@ -2486,7 +2488,7 @@ async function toBurn(iso, back) {
       const letter = /geo-([A-Z])-/i.exec(S.geo ?? projectGeo(s) ?? "")?.[1];
       const d = s.drives?.find((x) => letter && x.id.toUpperCase() === `${letter.toUpperCase()}:`) ?? s.drives?.[0];
       if (d) drive = { id: d.id, name: d.name && d.name !== d.id ? d.name : d.id, speeds: [] };
-      if (d) ({ problem, swap: needSwap } = await inspectDisc(drive, iso)); else problem = t.burnNoDrive;
+      if (!d) problem = t.burnNoDrive;
     } catch { problem = t.exp.noBackend; }
   }
   // ?mockburn&mockswap: the drive holds a written disc; a pretend person changes it (open, empty, closed)
@@ -2494,6 +2496,8 @@ async function toBurn(iso, back) {
   if (mockSwap) { problem = t.burnNotBlankSwap(S.item?.mid || "RITEKF1"); needSwap = true; drive = { id: "H:", name: "H:", speeds: [] }; }
   const ctx = {
     media: S.media, item: S.item, iso, drive, back, driveProblem: problem, needSwap, otherOnly, otherCommand,
+    preflight: !mock && !otherOnly && !!drive.id,
+    discIn: !mock && !otherOnly && !!drive.id,
     swapWords: { open: t.burnTrayOpen, checking: t.burnChecking, put: t.burnPutBlank(S.item?.mid || S.item?.name || "") },
     // the disc in the drive is the wrong one: wait (read-only) while it is changed, then look again
     swap: mockSwap ? async (onTray) => {
@@ -2504,9 +2508,14 @@ async function toBurn(iso, back) {
       (e) => { if (e.type === "tray") onTray(e.state); if (e.type === "started") ctx.swapJob = e.job; }),
     stopSwap: () => { if (ctx.swapJob) api.backend.cancel(ctx.swapJob).catch(() => {}); },
     recheck: mockSwap ? async () => { await new Promise((r) => setTimeout(r, 1200)); Object.assign(ctx, { driveProblem: "", needSwap: false }); drive.speeds = [4, 8]; return ctx; }
-      : async () => { ({ problem: ctx.driveProblem, swap: ctx.needSwap } = await inspectDisc(drive, iso)); return ctx; },
+      : async () => {
+        const seen = await checkBurn(api.backend, burnRequest(plan, iso, drive, {erase:drive.eraseRequired}));
+        ctx.burnDisc = seen.disc; ctx.burnGate = seen.gate;
+        drive.rewritable = !!seen.disc?.rewritable; drive.speeds = seen.speeds_x ?? [];
+        ctx.discIn = !!seen.disc?.present;
+      },
     // ?mockburn plays a pretend burn (a timer, no drive) so the page's animation can be looked at.
-    burn: mock ? mockBurn : (onProgress, opts) => realBurn(iso, drive, onProgress, opts),
+    burn: mock ? mockBurn : (onProgress, opts) => realBurn(plan, iso, drive, onProgress, opts),
     // after a write: read the disc again (read-only) to see whether it was closed. The home page reads the
     // drive at the same moment (refreshFinishedDisc), so a busy answer waits and asks again.
     checkDisc: mock ? null : async () => {
@@ -2532,26 +2541,11 @@ async function toBurn(iso, back) {
   };
   burn.start(api, ctx);
 }
-// A read-only look at the disc in the drive, asked for by coming to the burn page: `info` for what it is
-// (blank? which maker code?), then the burner's own inspection for room and speeds. A blank disc found
-// here opens the burn for two minutes. swap: the disc has to come out for a blank one of this batch.
-async function inspectDisc(drive, iso) {
-  const t = T();
-  let disc;
-  try { disc = (await api.backend.job({ action: "info", drive: drive.id, media: S.media }))?.disc; }
-  catch (e) { return { problem: t.burnNoDisc(e?.message ?? ""), swap: true }; }
-  if (!disc?.present) return { problem: t.burnPutBlank(S.item?.mid || S.item?.name || ""), swap: true };
-  drive.rewritable=!!disc.rewritable;drive.eraseRequired=disc.rewritable && disc.blank===false;
-  if (disc.blank !== true && !drive.eraseRequired) return { problem: t.burnNotBlankSwap(disc.mid || discDisplayKind(disc, api.lang())), swap: true };
-  const want = S.item?.mid;
-  if (want && disc.mid && disc.mid !== want) return { problem: t.burnOtherBatch(disc.mid, want), swap: true };
-  const r = await fetch(`/api/burn-speeds?drive=${encodeURIComponent(drive.id)}&media=${S.media}`);
-  const m = await r.json().catch(() => ({}));
-  if (!r.ok) return { problem: t.burnNoDisc(m.error ?? ""), swap: true };
-  if (m.blank !== true && !(drive.eraseRequired && m.rewritable)) return { problem: t.burnNotBlankSwap(disc.mid || ""), swap: true };
-  if (iso.sectors && m.free_sectors && iso.sectors > m.free_sectors) return { problem: t.burnTooBig, swap: false };
-  drive.speeds = m.speeds_x ?? [];
-  return { problem: "", swap: false };
+function burnRequest(plan, iso, drive, {speed, erase} = {}) {
+  const expected = plan.item?.mid;
+  return {action:'burn', drive:drive.id, media:plan.media, ...(plan.work?.id ? {work:plan.work.id} : {}),
+    args:{iso:iso.path, ...(speed ? {speed} : {}), ...(erase ? {erase:true} : {}),
+      ...(expected ? {expected_mid:expected} : {})}};
 }
 // What a finished job said last, from its saved events (the event stream replays only "done" to a page that
 // connected after the job ended): its error, else its last line; and whether it reached the disc.
@@ -2559,17 +2553,17 @@ async function jobWords(id) {
   try {
     const events = (await (await fetch(`/api/jobs/${id}`)).json()).events ?? [];
     const last = (type, key) => [...events].reverse().find((e) => e.type === type && String(e[key] ?? "").trim())?.[key] ?? "";
-    return { why: last("error", "message") || last("log", "text"),
+    return { why: last("error", "message") || last("log", "text"), gate:last("error","burn_gate"),
       cancelled:events.some(e=>e.type==='cancelled'&&e.by==='user'),
       wrote: events.some((e) => e.type === "burn_result" || (e.type === "progress" && e.fraction > 0)) };
   } catch { return { why: "", wrote: false }; }
 }
 // Burn through the back end: a one-time token, the `burn` job, its progress over the event stream.
 // Returns a handle at once; failures arrive as a "failed" status with the reason.
-function realBurn(iso, drive, onProgress, { speed, erase=false } = {}) {
+function realBurn(plan, iso, drive, onProgress, { speed, erase=false, confirmed } = {}) {
   // wrote: the drive reported progress, or the core logged a burn result (it does once writing began); without
   // either, a failed job never wrote, and the disc is still good
-  let job = null, es = null, closed = false, cancelled = false, burnResult = null, wrote = false, why = "";
+  let job = null, es = null, closed = false, cancelled = false, burnResult = null, wrote = false, why = "", gate;
   let stopRequested=false;
   const sendStop=async()=>{
     if(!job||closed)return;
@@ -2578,24 +2572,14 @@ function realBurn(iso, drive, onProgress, { speed, erase=false } = {}) {
     cancelled=true;
   };
   // started: whether the drive may have begun writing (after the job was accepted)
-  const fail = (error, started = !!job) => { if (closed) return; closed = true; es?.close(); onProgress({ status: "failed", error, started }); };
+  const fail = (errorInfo, started = !!job) => { if (closed) return; closed = true; es?.close(); onProgress({ status: "failed", errorInfo, started }); };
   (async () => {
     try {
-      // look at the disc again right before writing (read-only): it may have been changed, and the server only
-      // accepts a burn within two minutes of such a look, however long the person stayed on this page
-      const look = await fetch(`/api/burn-speeds?drive=${encodeURIComponent(drive.id)}&media=${S.media}`);
-      const seen = await look.json().catch(() => ({}));
-      if (!look.ok || (seen.blank !== true && !(erase && seen.rewritable))) { fail(look.ok ? T().burnNotBlank : T().burnNoDisc(seen.error ?? ""), false); return; }
-      const request = {action:"burn", drive:drive.id, media:S.media, args:{iso:iso.path, ...(speed ? {speed} : {}), ...(erase ? {erase:true} : {})}};
-      const tok = await api.backend.request("/api/burn-token", request);
+      const request = burnRequest(plan, iso, drive, {speed, erase});
+      const approved = await confirmBurn(api.backend, request, confirmed, api.lang());
       // the plan's library work: the core records the burn in it (status burned) when the burn succeeds
-      const link = S.work?.id ? { id: S.work.id, before: S.work.updated_at, plan: S } : null;
-      const r = await fetch("/api/run", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...request, ...(link ? { work: link.id } : {}), burn_token: tok.token }),
-      });
-      const out = await r.json().catch(() => ({}));
-      if (!r.ok) { fail(out.error ?? T().exp.failed); return; }
+      const link = plan.work?.id ? { id: plan.work.id, before: plan.work.updated_at, plan } : null;
+      const out = await api.backend.request("/api/run", approved);
       job = out.job;
       if(stopRequested)await sendStop();
       es = new EventSource("/api/events");
@@ -2609,7 +2593,7 @@ function realBurn(iso, drive, onProgress, { speed, erase=false } = {}) {
         onProgress({ progress: d.fraction, elapsed: d.elapsed_s, remaining: d.eta_s });
       });
       // the core's own reason; the job's end (done) decides what it means for the disc
-      es.addEventListener("error", (e) => { if (e.data) { const d = mine(e); if (d?.message) why = d.message; } });
+      es.addEventListener("error", (e) => { if (e.data) { const d = mine(e); if (d?.message) why = d.message; gate ||= d?.burn_gate; } });
       es.addEventListener("burn_speed", (e) => {
         const d = mine(e); if (d) onProgress({ speedReport: d });
       });
@@ -2622,16 +2606,16 @@ function realBurn(iso, drive, onProgress, { speed, erase=false } = {}) {
       es.addEventListener("done", async (e) => {
         const d = mine(e); if (!d || closed) return;
         closed = true; es.close();
-        if (d.exit !== 0) { const said = await jobWords(job); why ||= said.why; wrote ||= said.wrote; cancelled ||= said.cancelled; }
+        if (d.exit !== 0) { const said = await jobWords(job); why ||= said.why; gate ||= said.gate; wrote ||= said.wrote; cancelled ||= said.cancelled; }
         const started = wrote || !!burnResult;
         const v = burnResult?.verification;
         const checked = (!burnResult?.result || burnResult.result === "completed") && burnResult?.disc_state?.status !== "failed" &&
           (!v || v.status === "skipped" || (v.status === "completed" && !v.differing && !v.unreadable && !v.untested));
         if (d.exit === 0 && checked && link) await afterWorkISO(link, null);     // follow the stamp the core's burn record moved
         onProgress(d.exit === 0 && checked ? { status: "success", progress: 1, burnResult } : cancelled ? { status: "cancelled" }
-          : { status: "failed", burnResult, error: [started ? T().burnFailed : T().burnNotStarted, burnResult?.reason || why].filter(Boolean).join(" "), started });
+          : { status: "failed", burnResult, errorInfo:{message:burnResult?.reason || why, burnGate:gate}, started });
       });
-    } catch { fail(T().exp.noBackend); }
+    } catch (error) { fail(error); }
   })();
   return {
     async cancel() {

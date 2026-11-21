@@ -14,12 +14,15 @@ const sfx = {step:i=>heard.push('step'+i), done:()=>heard.push('done'), problem:
 let confirmOptions;
 const sandbox = vm.createContext({document:{documentElement:node(),createElement:node}, console, q, node, assert, afterBurn:[], sfx, heard,
   nextConfirm:(button,options)=>{confirmOptions=options;},getConfirmation:()=>confirmOptions});
+const preflight=fs.readFileSync(path.join(home,'burn-preflight.js'),'utf8').replace(/export /g,'');
+vm.runInContext(preflight,sandbox);
 vm.runInContext(fs.readFileSync(path.join(home,'burn-stop.js'),'utf8').replace(/^import .*;$/mg,'').replace(/export /g,''),sandbox);
 vm.runInContext(source, sandbox);
 vm.runInContext(String.raw`
   api={lang:()=> 'en'};
   ctx={media:'dvd', iso:{path:'p.iso',bytes:32768,sectors:16},drive:{id:'fake',speeds:[4,8,16]}};
-  W={q, page:node(), select:node(),progress:node(),miniRing:node(),mini:node()};
+  W={q, page:node(), select:node(),progress:node(),miniRing:node(),mini:node(), medium:{querySelector:q},
+    consent:{closest:q}, batchConsent:{closest:q,nextElementSibling:node()}};
   fillSpeeds(); assert.equal(speed,8);
   speed=4; fillSpeeds(); assert.equal(speed,4); // explicit choice survives repaint
   speed=undefined;ctx.media='cd';fillSpeeds();assert.equal(speed,4);
@@ -58,11 +61,20 @@ vm.runInContext(String.raw`
   chime({status:'success',burnResult:{verification:{status:'skipped'}}}); chime({status:'failed',started:false}); chime({status:'failed',started:true}); chime({status:'cancelled'});
   assert.deepEqual([...heard],['done','problem','done','problem','failure']);
   // The ready step replaces Next with a slider, retaining the checkbox gate.
-  api.$=id=>q(id);api.nextWhy=()=>{};visible=true;W.next=node();W.consent={checked:false};
+  api.$=id=>q(id);api.nextWhy=()=>{};visible=true;W.next=node();W.consent.checked=false;
   ctx.discIn=true;ctx.media='dvd';speed=8;task=null;
   paint();assert.equal(getConfirmation().active,true);assert.equal(getConfirmation().disabled,true);
   getConfirmation().done();assert.equal(task,null,'unchecked consent cannot start a write');
   W.consent.checked=true;paint();assert.equal(getConfirmation().disabled,false);
+  ctx.preflight=true;ctx.burnDisc={present:true,kind:'DVD-ROM',closed:true};
+  ctx.burnGate={code:'finalized',zh:'DVD-ROM 已封盘。请换一张空白盘。'};
+  paint();assert.equal(W.next.hidden,true);assert.equal(getConfirmation().active,false);
+  assert.match(q('p').textContent,/DVD-ROM 已封盘。请换一张空白盘/);
+  ctx.burnDisc={present:true,blank:true,kind:'DVD-R',mid:'NEW'};
+  ctx.burnGate={code:'other_batch',zh:'这张盘是 NEW，作品按 OLD 标定。',actual_mid:'NEW',expected_mid:'OLD'};
+  paint();assert.match(q('p').textContent,/NEW.*OLD/);
+  assert.equal(getConfirmation().disabled,true,'normal burn consent cannot approve a mismatch');
+  W.batchConsent.checked=true;paint();assert.equal(getConfirmation().disabled,false);
   task={status:'burning',progress:.25};paint();assert.equal(getConfirmation().active,false);
   task={status:'success',progress:1};paint();assert.equal(getConfirmation().active,false);
   assert.equal(W.next.disabled,false,'normal Next remains available after success');
@@ -70,14 +82,13 @@ vm.runInContext(String.raw`
 
 // Exercise realBurn's event forwarding using an in-memory EventSource; no HTTP or server.
 const design = fs.readFileSync(path.join(home, 'design.js'), 'utf8');
-const realBurn = design.slice(design.indexOf('function realBurn('), design.indexOf('\nfunction leave()', design.indexOf('function realBurn(')));
+const realBurn = design.slice(design.indexOf('function burnRequest('), design.indexOf('\nfunction leave()', design.indexOf('function realBurn(')));
 const listeners = {};
 const updates = [];
-const context = vm.createContext({S:{media:'dvd'},T:()=>({exp:{},burnFailed:'failed'}),
-  api:{backend:{request:async(url)=>url.includes('burn-token')?{token:'fake'}:{}}},
+const context = vm.createContext({api:{lang:()=>'en',backend:{request:async url=>url.includes('burn-token')?{token:'fake'}:url.includes('burn-check')?{}:{job:'job1'}}},
   fetch:async url=>({ok:true,json:async()=>url.includes('token')?{token:'fake'}:url.includes('burn-speeds')?{blank:true,speeds_x:[8]}:{job:'job1'}}),
   EventSource:class {addEventListener(name,callback){listeners[name]=callback;}close(){}}, updates});
-vm.runInContext(realBurn + '\nrealBurn({path:"p.iso"},{id:"fake"},p=>updates.push(p),{speed:8});',context);
+vm.runInContext(preflight + realBurn + '\nrealBurn({media:"dvd"},{path:"p.iso"},{id:"fake"},p=>updates.push(p),{speed:8});',context);
 setImmediate(()=>{
   const send=(name,data)=>listeners[name]({data:JSON.stringify({job:'job1',...data})});
   send('burn_speed',{selected_speed_x:8,actual_speed_x:8.01});

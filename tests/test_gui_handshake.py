@@ -63,9 +63,14 @@ class HandshakeTests(unittest.TestCase):
         payload = api.version_payload()
         self.assertEqual(payload['core_version'], __version__)
         self.assertEqual(payload['api_version'], '1.2')
-        self.assertIn('checkburn', payload['capabilities'])
         self.assertIn('image-job-recovery', payload['capabilities'])
-        self.assertIn('geo-coverage', payload['capabilities'])
+        for capability in ('geo-coverage', 'photo-manual-alignment', 'checkburn', 'burn-preflight'):
+            with self.subTest(capability=capability):
+                self.assertIn(capability, payload['capabilities'])
+                self.assertIn(capability, self.manifest['optional_capabilities'])
+                old = dict(payload, api_version='1.1',
+                           capabilities=[c for c in payload['capabilities'] if c != capability])
+                self.assertEqual(api.check_manifest(self.manifest, old), {capability})
         self.assertEqual(payload['supported_older_api_majors'], [])
         self.assertEqual(len(payload['capabilities']), len(set(payload['capabilities'])))
         self.assertTrue(set(self.manifest['required_capabilities']) <= set(payload['capabilities']))

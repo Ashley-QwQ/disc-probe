@@ -6,7 +6,7 @@ infers that a saved info report proves the disc currently in a drive is blank.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import hmac
 import ipaddress
@@ -28,7 +28,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import CookieError, SimpleCookie
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import api, disc_identity, guide, i18n, image_output, webui_catalog
+from . import api, burn_gate, disc_identity, guide, i18n, image_output, mmc, webui_catalog
 from .drive_lock import DriveBusy, drive_locks, require_available
 from .web_instance import DEFAULT_PORT, _task_text
 
@@ -71,6 +71,8 @@ DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell 
 # Works completion links for the existing image and burn-file jobs.
 for _work_action in ("image", "burn", "calibrate", "checkdisc"):
     OPTIONS[_work_action].update(work="work", disc_code="disc_code")
+OPTIONS["burn"].update(expected_mid="burn_mid", confirmed_mid="burn_mid")
+OPTIONS["calibrate"].update(confirmed_mid="burn_mid")
 # a design upload by its length: one bit per cell, at 20, 10 or 5 um (imagedisc.CELL_SIDES)
 DESIGN_SIDES = {side * side // 8: side for side in (6000, 12000, 24000)}
 # An editor work as the design page sends it to /api/compose: up to 16 layers of RGBA (2048 px a side at most)
@@ -94,10 +96,15 @@ NOT_SGR = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?]*[A-Za-ln-
 
 
 class APIError(ValueError):
-    def __init__(self, message, status=400, *, code=None):
+    def __init__(self, message, status=400, *, code=None, gate=None):
         super().__init__(message)
         self.status = status
         self.code = code
+        self.gate = gate
+
+
+def burn_refusal(gate):
+    return APIError(gate['en'], 409, code=gate['code'], gate=gate)
 
 
 @dataclass(frozen=True)
@@ -113,6 +120,9 @@ class BurnTarget:
     media: str
     image: tuple[Path, int, int] | None = None
     full_erase: bool = False
+    work: str | None = None
+    expected_mid: str | None = None
+    confirmed_mid: str | None = None
 
     @property
     def erasing(self):
@@ -304,9 +314,11 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
                 pass
             else:
                 raise APIError("invalid speed")
-        elif rule == "mid":
+        elif rule in ("mid", "burn_mid"):
             if not isinstance(value, str) or not re.fullmatch(r"[\x20-\x7e]{1,64}", value):
                 raise APIError("invalid " + name)
+            if rule == "burn_mid":
+                continue  # The server binds these to the checked medium before starting the CLI.
         elif rule == "device_id":
             if not isinstance(value, str) or not 1 <= len(value) <= 200 or any(ord(c) < 32 for c in value):
                 raise APIError("invalid " + name)
@@ -708,7 +720,7 @@ class Backend:
                 raise APIError("service is closing", 503)
             drive_available(drive)
             if drive in self.reading or any(j.drive == drive and j.exit is None for j in self.jobs.values()):
-                raise APIError("drive busy", 409)
+                raise APIError("drive busy", 409, code=DriveBusy.code)
             self.reading[drive] = action
         try:
             yield
@@ -740,15 +752,65 @@ class Backend:
                 raise APIError(str(exc), 409, code=exc.code) from exc
             except burner.BurnError as exc:
                 raise APIError(str(exc), 409) from exc
-            with self.lock:
-                if isinstance(report, dict):
-                    self.discs[drive] = dict(self.discs.get(drive) or {}, **report)
-                # A blank found here authorizes a burn for two minutes. The burner checks it again.
-                if isinstance(report, dict) and report.get("blank") is True:
-                    self.verified_blank[drive] = (time.monotonic() + 120, media)
-                else:
-                    self.verified_blank.pop(drive, None)
+            self._remember_burn_inspection(drive, media, report)
             return report
+
+    def _remember_burn_inspection(self, drive, media, report):
+        with self.lock:
+            self.verified_blank.pop(drive, None)
+            if isinstance(report, dict):
+                self.discs[drive] = dict(self.discs.get(drive) or {}, **report)
+                if report.get("blank") is True and report.get("media") == media:
+                    self.verified_blank[drive] = (time.monotonic() + 120, media)
+
+    def burn_check(self, payload):
+        """Read the tray and writable capacity for a particular image, without authorizing a write."""
+        from . import burner
+
+        drives = self.drive_provider()
+        _, drive = command(payload, self.root, drives)
+        target = self._burn_target(payload)
+        if not target.action or target.image is None:
+            raise APIError("burn check requires a burn image")
+        with self._reading_drive(drive, "disc"):
+            self._remember_burn_inspection(drive, target.media, None)
+            try:
+                identity = self._read_burn_identity(drive, drives)
+            except DriveBusy as exc:
+                raise APIError(str(exc), 409, code=exc.code) from exc
+            except (disc_identity.DiscChanged, OSError) as exc:
+                return dict(disc=None, gate=burn_gate.tray_problem(None), detail=str(exc))
+            if identity.get('not_ready'):
+                gate = burn_gate.medium_problem(identity, target.media)
+                disc = dict(present=False, tray={'tray_open': 'open', 'no_disc': 'empty',
+                                                'disc_loading': 'loading'}.get(gate['code'], 'unknown'))
+            else:
+                disc = dict(identity, present=identity['blank'] is not None,
+                            kind=mmc.PROFILES.get(identity['profile']),
+                            tray='ready' if identity['blank'] is not None else 'unknown')
+                gate = burn_gate.medium_problem(disc, target.media, erase=target.erasing)
+            with self.lock:
+                self.discs[drive] = disc
+            if gate:
+                return dict(disc=disc, gate=gate)
+            try:
+                disc_identity.require_identity(identity, erasing=target.erasing)
+                report = burner.inspect_drive(drive, target.media)
+            except (burner.BurnError, disc_identity.DiscChanged, OSError) as exc:
+                return dict(disc=disc, gate=burn_gate.tray_problem(None), detail=str(exc))
+            gate = burn_gate.medium_problem(report, target.media, erase=target.erasing)
+            if not gate:
+                room = report.get('capacity_sectors') if target.erasing and report.get('blank') is False else report.get('free_sectors')
+                if target.erasing and isinstance(room, int) and target.media == 'cd' and sys.platform != 'win32' and report.get('blank') is False:
+                    room -= 300
+                gate = burn_gate.capacity_problem(target.image[1] // 2048, room)
+            if not gate and not report.get('speeds_x'):
+                gate = burn_gate.problem('no_speeds', '光驱没有报出可用的刻录速度。重新检查，或换一张空白盘。',
+                                         'The drive did not report a write speed. Check again or insert another blank disc.')
+            if not gate:
+                self._remember_burn_inspection(drive, target.media, report)
+                gate = burn_gate.batch_problem(disc.get('mid'), target.expected_mid)
+            return dict(disc=disc, gate=gate, speeds_x=report.get('speeds_x') or [])
 
     def job_state(self, ident):
         with self.lock:
@@ -817,36 +879,58 @@ class Backend:
             return BurnTarget(action, drive, media, full_erase=payload.get("args", {}).get("full") is True)
         if media not in ("dvd", "cd"):
             raise APIError("burn requires dvd or cd media")
-        image = payload.get("args", {}).get("iso")
+        args = payload.get("args", {})
+        image = args.get("iso")
         if not image:
             raise APIError("burn is not implemented without an ISO; iso is required")
         path, info = self._iso_stat(image)
-        return BurnTarget(action, drive, media, (path, info.st_size, info.st_mtime_ns))
+        work_id = payload.get('work') or args.get('work')
+        try:
+            work = self.works.show(work_id) if work_id else None
+        except ValueError as exc:
+            raise APIError(str(exc), getattr(exc, 'status', 400)) from exc
+        expected = burn_gate.expected_batch(path, work=work, work_root=self.works.root.parent,
+                                            explicit=args.get('mid') if payload['action'] == 'calibrate' else args.get('expected_mid'),
+                                            root=self.root)
+        return BurnTarget(action, drive, media, (path, info.st_size, info.st_mtime_ns),
+                          work=work_id, expected_mid=expected, confirmed_mid=burn_gate.mid_code(args.get('confirmed_mid')))
+
+    def _read_burn_identity(self, drive, drives):
+        supplied = next(d.get("disc") for d in drives if d["id"] == drive)
+        if supplied is not None:
+            return disc_identity.from_disc_report(supplied)
+        if self._injected_disc_reader is not None:
+            found = self._injected_disc_reader(drive)
+            return disc_identity.from_disc_report(found.get("disc") if found.get("tray") == "ready" else None)
+        return disc_identity.read_identity(drive)
+
+    def _confirm_batch(self, target, identity):
+        gate = burn_gate.batch_problem(identity.get('mid'), target.expected_mid)
+        if gate and target.confirmed_mid != gate['actual_mid']:
+            raise burn_refusal(gate)
+        if target.confirmed_mid and not gate:
+            raise APIError("the disc or its calibration batch changed; check and confirm again", 409,
+                           code="disc_changed")
 
     def _burn_medium(self, drive, media, drives):
         with self._reading_drive(drive, "disc"):
             try:
-                supplied = next(d.get("disc") for d in drives if d["id"] == drive)
-                if supplied is not None:
-                    identity = disc_identity.from_disc_report(supplied)
-                elif self._injected_disc_reader is not None:
-                    found = self._injected_disc_reader(drive)
-                    identity = disc_identity.from_disc_report(found.get("disc") if found.get("tray") == "ready" else None)
-                else:
-                    identity = disc_identity.read_identity(drive)
+                identity = self._read_burn_identity(drive, drives)
                 disc_identity.require_identity(identity)
             except DriveBusy as exc:
                 raise APIError(str(exc), 409, code=exc.code) from exc
             except disc_identity.DiscChanged as exc:
+                if exc.not_ready:
+                    raise burn_refusal(burn_gate.medium_problem({'not_ready': exc.not_ready}, media)) from exc
                 raise APIError("the selected medium is not ready", 409) from exc
             with self.lock:
                 generation = self.drive_changes.get(drive, 0)
         if identity["media"] != media:
-            raise APIError("the selected medium is not ready", 409)
+            raise burn_refusal(burn_gate.medium_problem(identity, media))
         return identity, generation
 
     def burn_token(self, payload):
-        if not isinstance(payload, dict) or set(payload) - {"action", "drive", "media", "args"}:
+        if not isinstance(payload, dict) or set(payload) - {"action", "drive", "media", "args", "work"}:
             raise APIError("invalid burn token request")
         drives = self.drive_provider()
         _, drive = command(payload, self.root, drives)
@@ -854,6 +938,7 @@ class Backend:
             raise APIError("action does not require a burn token")
         target = self._burn_target(payload)
         medium = self._burn_medium(drive, target.media, drives)
+        self._confirm_batch(target, medium[0])
         if target.erasing:
             try:
                 disc_identity.require_identity(medium[0], erasing=True)
@@ -923,16 +1008,24 @@ class Backend:
                 actual = self._burn_target(payload)
             except APIError as exc:
                 raise APIError("burn token does not match the action, drive, media or ISO", 403) from exc
-            if target != actual:
+            # Older clients supplied the work and calibration MID only at /api/run.
+            # They still get the new batch check, and cannot introduce an override.
+            compared = actual
+            if not target.confirmed_mid and not actual.confirmed_mid:
+                compared = replace(actual, work=actual.work if target.work else None,
+                                   expected_mid=actual.expected_mid if target.expected_mid else None)
+            if target != compared:
                 raise APIError("burn token does not match the action, drive, media or ISO", 403)
             try:
                 inspected, generation = self._burn_medium(drive, target.media, drives)
             except APIError as exc:
-                if exc.status == 409 and str(exc) == "the selected medium is not ready":
-                    raise APIError("burn token does not match the current medium", 403) from exc
+                if exc.status == 409 and (exc.gate or str(exc) == "the selected medium is not ready"):
+                    raise APIError("burn token does not match the current medium", 403, gate=exc.gate) from exc
                 raise
             if expected_generation != generation or not disc_identity.matches(expected_identity, inspected):
-                raise APIError("burn token does not match the current medium", 403)
+                raise APIError("burn token does not match the current medium", 403, code="disc_changed")
+            target = actual
+            self._confirm_batch(target, inspected)
         with self.lock:
             if self.closed:
                 raise APIError("service is closing", 503)
@@ -947,11 +1040,21 @@ class Backend:
                 fresh = self.verified_blank.get(drive)
                 fresh_ok = fresh is not None and fresh[0] > time.monotonic() and fresh[1] == payload.get("media", "dvd")
                 if not target.erasing and (inspected["blank"] is not True or not (fresh_ok or disc and disc.get("blank") is True)):
+                    if gate := burn_gate.medium_problem(inspected, target.media):
+                        raise APIError("a verified blank disc is required", 409, code=gate['code'], gate=gate)
                     raise APIError("a verified blank disc is required", 409)
                 from . import burner
                 if target.image is not None:
                     argv[argv.index("--iso") + 1] = str(target.image[0])
                     argv += (["--media", payload.get("media", "dvd")] if payload["action"] == "burn" else []) + ["--yes-write"]
+                    if target.expected_mid and payload["action"] == "calibrate":
+                        mid_flag = "--mid"
+                        if mid_flag in argv:
+                            argv[argv.index(mid_flag) + 1] = target.expected_mid
+                        else:
+                            argv += [mid_flag, target.expected_mid]
+                    if target.confirmed_mid:
+                        argv += ["--allow-other-batch"]
             if writes or payload["action"] == "swap":
                 self.drive_changes[drive] = self.drive_changes.get(drive, 0) + 1
                 for token in [token for token, permit in self.tokens.items() if permit.binding[0].drive == drive]:
@@ -974,8 +1077,11 @@ class Backend:
             if payload["action"] == "disexport" and job.args.get("output"):
                 Path(local_path(self.root, job.args["output"])).parent.mkdir(parents=True, exist_ok=True)
             env = os.environ.copy()
+            env.pop(burn_gate.EXPECTED_MID_ENV, None)
             if writes:
                 env[disc_identity.EXPECTED_ENV] = disc_identity.encode_expected(drive, expected_identity)
+                if target.expected_mid:
+                    env[burn_gate.EXPECTED_MID_ENV] = target.expected_mid
             else:
                 env.pop(disc_identity.EXPECTED_ENV, None)
             env.update(DISCPROBE_EVENTS=str(job.events), DISCPROBE_ANSWERS=str(job.answers), DISCPROBE_JOB=ident)
@@ -1585,6 +1691,8 @@ class Handler(BaseHTTPRequestHandler):
         data = dict(error=i18n.tr(str(exc)))
         if exc.code:
             data["code"] = exc.code
+        if exc.gate:
+            data["burn_gate"] = exc.gate
         self._json(exc.status, data)
 
     def _allowed(self):
@@ -2079,6 +2187,9 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/files-authorize':
                 self._local_files_only()
                 self._json(200, backend.files_authorize(payload))
+                return
+            if path == '/api/burn-check':
+                self._json(200, backend.burn_check(payload))
                 return
             if path == '/api/burn-token':
                 if not self._on_desktop():

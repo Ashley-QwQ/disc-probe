@@ -1,5 +1,6 @@
 import { nextConfirm } from "./kit/nextconfirm.js";
 import { expandBurnStop, closeBurnStop, stopWords, interruptedBurn } from './burn-stop.js';
+import { checkingText, discText, failureText, gateText, keepDiscForReview, otherBatchConsent } from './burn-preflight.js';
 /**
  * BURN · Operate. Arrive with a finished ISO; review, consent, slide, then read back.
  * States: missing input, ready, writing, success, cancelled, failure. Long names wrap;
@@ -9,7 +10,7 @@ import { expandBurnStop, closeBurnStop, stopWords, interruptedBurn } from './bur
  * @property {{name?:string, title?:string}} item
  * @property {{path:string,sectors:number,bytes:number}} iso
  * @property {{id:string,name:string,speeds:number[]}} drive
- * @property {(onProgress:(p:{progress:number,elapsed?:number,remaining?:number,status?:'burning'|'success'|'failed'|'cancelled'})=>void, options:{speed:number})=>{cancel:()=>void}} burn
+ * @property {(onProgress:(p:{progress:number,elapsed?:number,remaining?:number,status?:'burning'|'success'|'failed'|'cancelled'})=>void, options:{speed:number,erase:boolean,confirmed?:object})=>{cancel:()=>void}} burn
  * @property {()=>void} back
  * @property {()=>void} [readBack]
  * @property {()=>void} [photograph]
@@ -63,8 +64,14 @@ function build() {
   const q=s=>page.querySelector(s), mini=el('button','burn-mini live'); mini.type='button'; mini.hidden=true; const miniRing=ring(); mini.append(miniRing,el('span'));
   const progress=ring(); q('.burn-disc').append(progress);
   const toast=el('div','burn-toast'); toast.setAttribute('role','status'); document.body.append(mini,toast);
-  W={page,q,mini,miniRing,progress,toast,consent:q('input'),select:q('select'),art:q('.burn-art'),next:null};
+  const medium=el('div','burn-medium');
+  medium.innerHTML='<p role="status"></p><label class="burn-batch-consent"><input type="checkbox"><span></span></label><button type="button" class="sbtn"></button>';
+  q('.burn-facts').after(medium);
+  W={page,q,mini,miniRing,progress,toast,consent:q('.burn-panel > .burn-consent input'),
+    batchConsent:medium.querySelector('input'),medium,select:q('select'),art:q('.burn-art'),next:null};
   W.select.onchange=()=>{speed=Number(W.select.value);words();}; W.consent.onchange=()=>{paint();};
+  W.batchConsent.onchange=()=>paint();
+  medium.querySelector('button').onclick=()=>{ctx.drive.eraseRequired=true;recheckBurn();};
   page.addEventListener('click',e=>{const a=e.target.closest('[data-a]')?.dataset.a;if(a)action(a);});
   mini.onclick=()=>start(api,ctx);
   addEventListener('dp-lang',words);
@@ -117,15 +124,34 @@ function paint() {
     task.status='failed';
     task.error=task.burnResult.reason || (api.lang()==='en'?'This burn did not check out. Re-read this disc and inspect the saved logs before another burn.':'这次刻录没有通过检查。请重新读取这张盘，查看保存的日志，再决定是否重刻。');
   }
-  if(!W)return;const t=T(),q=W.q, status=task?.status||'ready', active=status==='burning', hasInput=valid();
-  W.page.dataset.state=status;W.page.classList.toggle('burn-reduce',!!api.reduce);q('.burn-speed').hidden=status!=='ready'||!!ctx.otherOnly;q('.burn-consent').hidden=status!=='ready'||!hasInput;q('.burn-warning').hidden=status!=='ready'||!hasInput;
+  if(!W)return;const t=T(),q=W.q, status=task?.status||'ready', active=status==='burning';
+  const lang=api.lang(), gate=ctx.burnGate, mismatch=gate?.code==='other_batch';
+  const reviewDisc=status==='failed'&&keepDiscForReview(task?.errorInfo?.burnGate);
+  const errorWords=task?.errorInfo ? failureText(task.errorInfo,lang,{started:!task.notStarted,readBack:!!task.burnResult?.verification}) : task?.error;
+  const blocked=ctx.preflight && (ctx.checking || ctx.checkError || !ctx.burnDisc || gate && !mismatch);
+  const hasInput=valid()&&!blocked, ready=status==='ready';
+  W.medium.hidden=!ctx.preflight||!ready;
+  const trayMessage=['tray_open','no_disc'].includes(gate?.code);
+  W.medium.querySelector('p').textContent=[ctx.checking ? checkingText(lang) : trayMessage ? '' : discText(ctx.burnDisc,lang),
+    ctx.checkError ? failureText(ctx.checkError,lang) : gateText(gate,lang)].filter(Boolean).join('\n');
+  W.batchConsent.closest('label').hidden=!mismatch||!!blocked;
+  W.batchConsent.nextElementSibling.textContent=otherBatchConsent(lang);
+  const erase=W.medium.querySelector('button');
+  erase.hidden=gate?.code!=='recorded_rw'||ctx.checking;
+  erase.textContent=lang==='en'?'Prepare to erase and burn':'准备擦除后重刻';
+  W.page.dataset.state=status;W.page.classList.toggle('burn-reduce',!!api.reduce);q('.burn-speed').hidden=!ready||!!ctx.otherOnly||!!blocked;
+  W.consent.closest('label').hidden=!ready||!hasInput;q('.burn-warning').hidden=!ready||!hasInput;
   q('.warn-sign').classList.toggle('on', ['failed','cancelled'].includes(status));
   W.select.disabled=active; q('[data-a="cancel"]').hidden=!active||q('[data-a="cancel"]').getAttribute('aria-expanded')==='true';q('[data-a="cancel"]').disabled=!!task?.stopping;q('[data-a="retry"]').hidden=!['failed','cancelled'].includes(status)||!!task?.notStarted;q('[data-a="recheck"]').hidden=!((status==='failed'&&task?.notStarted)||(!hasInput&&!task&&!swapping&&ctx.recheck&&ctx.drive?.id));q('[data-a="photo"]').hidden=status!=='success'||!ctx.photograph;
   q('[data-a="cancel"]').textContent=task?.erasing?(api.lang()==='en'?'Stop erasing':'停止擦除'):stopWords(api.lang()).stop;
+  if(ctx.preflight&&ready)q('[data-a="recheck"]').hidden=!!ctx.checking;
+  if(reviewDisc&&ctx.recheck){q('[data-a="retry"]').hidden=true;q('[data-a="recheck"]').hidden=false;}
   q('.burn-timing').hidden=!active;const times=q('.burn-timing').children;times[0].textContent=`${t.elapsed} ${time(task?.elapsed)}`;times[1].textContent=`${t.remaining} ${time(task?.remaining)}`;
   const key=ctx.otherOnly?'otherOnly':!hasInput?((swapping||ctx.needSwap)?'swapping':'missing'):status==='success'?'done':status==='ready'?'ready':status==='burning'?'writing':status;
   if(ctx.otherOnly)q('.burn-other').open=true;
-  q('.burn-result h2').textContent=key==='failed'&&task?.notStarted?t.notStarted:t[key];q('.burn-result p').textContent=!hasInput?(ctx.driveProblem||t.missingNote):active?(task.stopping?t.stopping:t.running):(key==='failed'&&task?.error)||t[`${key}Note`]||'';
+  q('.burn-result').hidden=ready&&!!ctx.preflight;
+  q('.burn-result h2').textContent=status==='failed'?(task?.notStarted?t.notStarted:t.failed):t[key];
+  q('.burn-result p').textContent=status==='failed'?(errorWords||t.failedNote):!hasInput?(ctx.driveProblem||t.missingNote):active?(task.stopping?t.stopping:t.running):t[`${key}Note`]||'';
   if(active&&task?.erasing){q('.burn-result h2').textContent=api.lang()==='en'?'Erasing the disc':'正在擦除光盘';q('.burn-result p').textContent=api.lang()==='en'?'The disc contents are being cleared. Keep the drive connected. Stopping waits for the drive to finish; inspect and erase again before burning.':'正在清掉盘上的内容，请保持光驱连接。停止后需等待光驱收尾，重新检测并擦除后才能刻录。';}
   if(active&&task?.verifying)q('.burn-result p').textContent=api.lang()==='en'?'Write complete. Reading back a sample; drive retries may take time…':'写入完成，正在抽样回读；光驱重试可能需要一些时间…';
   if(active&&task?.verifying){
@@ -140,7 +166,7 @@ function paint() {
     let note=en?`Requested: ${X(report.selected_speed_x)}; drive/utility reports: ${actual==null?'not reported':X(actual)}. `:`请求速度：${X(report.selected_speed_x)}；光驱/工具报告：${actual==null?'未报告':X(actual)}。`;
     const v=report.verification;
     if((status==='success'||status==='failed')&&v){
-      if(status==='failed')note=(task.error||report.reason||'')+' '+note;
+      if(status==='failed')note=(errorWords||report.reason||'')+' '+note;
       if(v.status==='skipped')note+=en?'Read-back skipped.':'已跳过回读验证。';
       else {
         note+=en?`Sample: ${v.ok} blocks ok / ${v.differing} differing / ${v.unreadable} unreadable; ${v.untested} untested. `:`抽样：${v.ok} 块一致 / ${v.differing} 块不同 / ${v.unreadable} 块无法读取；${v.untested} 块未检查。`;
@@ -172,22 +198,23 @@ function paint() {
   let advice=q('.burn-advice');if(!advice){advice=el('div','burn-advice');checks.after(advice);}
   // how to look and what each symptom means after a write; what to do next after a failed one
   const failedAfterStart=['failed','cancelled'].includes(status)&&!task?.notStarted;
-  advice.hidden=status!=='success'&&!failedAfterStart;
+  advice.hidden=reviewDisc||status!=='success'&&!failedAfterStart;
   advice.replaceChildren(...(status==='success'?afterBurn.slice(0,2):afterBurn.slice(2)).map(words=>el('p','',words[api.lang()==='en'?'en':'zh'])));
-  q('.burn-intro').hidden=status==='success'||!!ctx.otherOnly;
+  q('.burn-intro').hidden=status==='success'||!!ctx.otherOnly||!!blocked;
   // burned with a command: what to do and the command come first, under the title; nothing to hold here
   if(ctx.otherOnly)q('h1').after(q('.burn-result'),q('.burn-other'),checks,advice);
   else if(status==='success')q('h1').after(q('.burn-result'),checks,advice);
-  else q('.burn-consent').after(q('.burn-result'),checks,advice);
+  else W.consent.closest('label').after(q('.burn-result'),checks,advice);
   const p=Math.round((task?.progress||0)*100);W.progress.style.setProperty('--progress',`${p}%`);W.miniRing.style.setProperty('--progress',`${p}%`);
   const caption=active?`${p}% · ${t.percent}`:status==='success'?t.done:t[key];q('.burn-scene-caption').textContent=caption;W.mini.lastChild.textContent=active?`${p}%`:t[key];
   q('.burn-disc').setAttribute('role','progressbar');q('.burn-disc').setAttribute('aria-label',t.writing);q('.burn-disc').setAttribute('aria-valuemin','0');q('.burn-disc').setAttribute('aria-valuemax','100');q('.burn-disc').setAttribute('aria-valuenow',String(p));
   W.mini.hidden=visible||!task; if(!visible||!W.next)return;
-  W.next.disabled=!ctx.otherOnly && status!=='success' && (status!=='ready'||!hasInput||!W.consent.checked);
+  W.next.disabled=!ctx.otherOnly && status!=='success' && (status!=='ready'||!hasInput||!W.consent.checked||mismatch&&!W.batchConsent.checked);
   api.nextWhy?.(status==='burning'?t.whyBurning:status==='failed'||status==='cancelled'?t.whyAgain:!hasInput?(swapping||ctx.needSwap?t.whySwap:t.whyMissing):t.whyConsent);
   const text=api.$('next-text');if(text)text.textContent=ctx.otherOnly?(ctx.done?t.finish:t.back):status==='success'&&!ctx.iso?.target?(api.lang()==='en'?'Next: how did it look?':'下一步：结果怎么样？'):status==='success'?(ctx.readBack?t.read:ctx.done?t.finish:t.back):status==='burning'?t.writing:t.hold;
-  nextConfirm(W.next, {active:status==='ready' && !ctx.otherOnly, disabled:W.next.disabled,
+  nextConfirm(W.next, {active:status==='ready' && !ctx.otherOnly && !blocked, disabled:W.next.disabled,
     lang:api.lang(), label:t.hold, done:beginBurn});
+  if(ready&&blocked)W.next.hidden=true;
 }
 // the drive scene: the home page's drive flipped, a disc that drops in, the cutaway while it burns
 function sceneOf(){return scene??={cut:cutaway(api,{mirrored:false,textLeft:()=>W.q('.burn-panel').getBoundingClientRect().left}),fly:flyer(api,{mirrored:false})};}
@@ -246,17 +273,51 @@ function chime(p){
   else if(p.status==='failed')(p.started===false?sfx.problem:sfx.failure)();
 }
 async function beginBurn() {
-  if(!visible||!valid()||!W.consent.checked||task?.status==='burning')return;
+  if(!visible||W.next.disabled||!valid()||!W.consent.checked||task?.status==='burning')return;
+  const confirmed=ctx.burnGate?.code==='other_batch'&&W.batchConsent.checked?ctx.burnGate:null;
   task={status:'burning',progress:0,elapsed:0,remaining:undefined,handle:null,stopping:false}; const current=task;
   sfx.step(0);
   closeBurnStop();paint();
   const sc=sceneOf(); if(!ctx.discIn)await sc.fly.drop(); if(task!==current)return;
   api.placeDisc(true);api.setTray(false,true);
-  try { const handle=ctx.burn(p=>{if(task!==current||current.status!=='burning')return;if(p.erasing!==undefined){if(current.erasing&&!p.erasing)current.progress=0;current.erasing=p.erasing;} if(p.burnResult)current.burnResult=p.burnResult;if(p.speedReport)current.speedReport=p.speedReport;if(p.verifying&&!current.verifying){current.verifying=true;closeBurnStop();sfx.step(1);} current.progress=Number.isFinite(p.progress)?Math.max(current.progress,Math.min(1,p.progress)):current.progress;current.elapsed=p.elapsed;current.remaining=p.remaining;sc.cut.update(current.progress,current.remaining);if(['success','failed','cancelled'].includes(p.status)){current.status=p.status;chime(p);if(p.error)current.error=p.error;if(p.started===false)current.notStarted=true;if(p.status==='success')current.progress=1;closeBurnStop();setTimeout(()=>sc.cut.show(false),1200);}paint();},{speed,erase:!!ctx.drive.eraseRequired});current.handle=handle;
-    setTimeout(()=>{if(task===current&&current.status==='burning'&&visible){sc.cut.update(current.progress,current.remaining);sc.cut.show(true);}},900); }
-  catch (e) {current.status='failed';current.error=e?.message||'';current.notStarted=true;paint();}
+  try {
+    current.handle=ctx.burn(p=>{
+      if(task!==current||current.status!=='burning')return;
+      if(p.erasing!==undefined){
+        if(current.erasing&&!p.erasing)current.progress=0;
+        current.erasing=p.erasing;
+      }
+      if(p.burnResult)current.burnResult=p.burnResult;
+      if(p.speedReport)current.speedReport=p.speedReport;
+      if(p.verifying&&!current.verifying){current.verifying=true;closeBurnStop();sfx.step(1);}
+      if(Number.isFinite(p.progress))current.progress=Math.max(current.progress,Math.min(1,p.progress));
+      current.elapsed=p.elapsed;current.remaining=p.remaining;
+      sc.cut.update(current.progress,current.remaining);
+      if(['success','failed','cancelled'].includes(p.status)){
+        current.status=p.status;chime(p);
+        current.error=p.error;current.errorInfo=p.errorInfo;current.notStarted=p.started===false;
+        if(p.status==='success')current.progress=1;
+        closeBurnStop();setTimeout(()=>sc.cut.show(false),1200);
+      }
+      paint();
+    },{speed,erase:!!ctx.drive.eraseRequired,confirmed});
+    setTimeout(()=>{if(task===current&&current.status==='burning'&&visible){sc.cut.update(current.progress,current.remaining);sc.cut.show(true);}},900);
+  } catch (error) {current.status='failed';current.errorInfo=error;current.notStarted=true;paint();}
 }
 function toast(message){W.toast.textContent=message;W.toast.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>W.toast.classList.remove('on'),2600);}
+async function recheckBurn() {
+  const current=ctx;
+  if(current.checking)return;
+  current.checking=true;current.checkError='';current.burnGate=null;
+  W.consent.checked=false;W.batchConsent.checked=false;paint();
+  try { await current.recheck(); }
+  catch(error) { current.checkError=error; }
+  finally { current.checking=false; }
+  if(!visible||ctx!==current)return;
+  api.placeDisc(!!current.discIn);
+  api.setTray(current.burnDisc?.tray==='open',!!current.discIn,undefined,true);
+  fillSpeeds();words();
+}
 async function action(a) {
   if(a==='recheckClosed'&&task){task.closed=undefined;paint();return;}
   if(a==='cancel'&&task?.status==='burning'&&!task.stopping){
@@ -269,6 +330,9 @@ async function action(a) {
     };
     if(current.verifying||current.erasing)await stop();
     else expandBurnStop(W.q('[data-a="cancel"]'),{lang:api.lang(),rewritable:!!ctx.drive?.rewritable,valid:()=>task===current&&current.status==='burning'&&!current.verifying&&!current.stopping,done:stop});
+  }
+  if(ctx.preflight&&(a==='recheck'||a==='retry')){
+    task=null;ctx.drive.eraseRequired=false;closeBurnStop();await recheckBurn();return;
   }
   if(a==='retry'&&ctx.drive?.rewritable){task=null;ctx.drive.eraseRequired=true;ctx.driveProblem='';ctx.needSwap=false;W.consent.checked=false;closeBurnStop();words();return;}
   if(a==='retry'){task=null;W.consent.checked=false;closeBurnStop();words();if(ctx.swap){ctx.discIn=false;ctx.needSwap=true;ctx.drive.speeds=[];fillSpeeds();swapFlow();}else waitForDisc();}
@@ -285,9 +349,10 @@ export function start(homeApi,context) {
   const changed=ctx!==context;
   if(changed){ctx=context;task=null;speed=undefined;} if(!W)build();
   if(changed)W.consent.checked=false;
+  if(changed)W.batchConsent.checked=false;
   fillSpeeds();
   visible=true;root.dataset.mode='burn';W.page.hidden=false;if(changed)W.page.scrollTop=0;W.page.dataset.theme=root.dataset.theme;api.focusDrive?.();
-  W.next=api.$('next');W.nextLabel=api.$('next-text')?.textContent;
+  W.next=api.$('next');W.nextLabel=api.$('next-text')?.textContent;W.nextHidden=W.next.hidden;
   W.back=api.$('back');W.backHidden=W.back.hidden;W.back.hidden=false;W.backLabel=W.back.innerHTML;W.back.replaceChildren(T().back,...W.back.querySelectorAll('.key-cap'));
   W.events=new AbortController();const signal=W.events.signal, on=(node,event,fn)=>node.addEventListener(event,fn,{signal,capture:true});
   on(W.next,'click',async e=>{e.preventDefault();e.stopImmediatePropagation();if(task?.status==='success'&&!ctx.iso?.target){
@@ -299,12 +364,12 @@ export function start(homeApi,context) {
   on(W.back,'click',e=>{e.preventDefault();e.stopImmediatePropagation();leave();ctx.back?.();});
   words();
   // Arrival is visual only: the tray in the picture opens, the real drive is not touched before confirmation.
-  if(!task){if(ctx.needSwap)swapFlow();else if(ctx.swap){ctx.discIn=true;api.placeDisc(true);api.setTray(false,true,undefined,true);}else waitForDisc();} else if(task.status==='burning')setTimeout(()=>{if(visible)sceneOf().cut.show(true);},750);
+  if(!task){if(ctx.preflight)recheckBurn();else if(ctx.needSwap)swapFlow();else if(ctx.swap){ctx.discIn=true;api.placeDisc(true);api.setTray(false,true,undefined,true);}else waitForDisc();} else if(task.status==='burning')setTimeout(()=>{if(visible)sceneOf().cut.show(true);},750);
 }
 export function leave() {
   if(!W||!visible)return;
   closeBurnStop();
   const from=W.q('.burn-disc').getBoundingClientRect();
-  nextConfirm(W.next);visible=false;W.events.abort();if(swapping){swapping=null;ctx.stopSwap?.();}scene?.fly.hide();scene?.cut.show(false);W.page.hidden=true;W.next.disabled=false;W.back.innerHTML=W.backLabel;W.back.hidden=W.backHidden;if(api.$('next-text'))api.$('next-text').textContent=W.nextLabel;root.dataset.mode='';paint();
+  nextConfirm(W.next);visible=false;W.events.abort();if(swapping){swapping=null;ctx.stopSwap?.();}scene?.fly.hide();scene?.cut.show(false);W.page.hidden=true;W.next.disabled=false;W.next.hidden=W.nextHidden;W.back.innerHTML=W.backLabel;W.back.hidden=W.backHidden;if(api.$('next-text'))api.$('next-text').textContent=W.nextLabel;root.dataset.mode='';paint();
   if(task&&!api.reduce){const to=W.miniRing.getBoundingClientRect();W.mini.animate([{transform:`translate(${from.left-to.left}px,${from.top-to.top}px) scale(${from.width/to.width})`,opacity:.5},{transform:'none',opacity:1}],{duration:420,easing:'cubic-bezier(.2,.8,.2,1)'});}
 }

@@ -20,8 +20,9 @@ _NOT_REWRITABLE = ("这张盘不能擦除：只有 DVD±RW、CD-RW 这类可擦�
 
 
 class DiscChanged(ValueError):
-    def __init__(self, message="光驱里的盘和确认时的不是同一张 / The disc in the drive is not the one that was confirmed."):
+    def __init__(self, message="光驱里的盘和确认时的不是同一张 / The disc in the drive is not the one that was confirmed.", *, not_ready=None):
         super().__init__(message)
+        self.not_ready = not_ready
 
 
 def from_disc_report(report):
@@ -31,6 +32,8 @@ def from_disc_report(report):
     identity = {key: report.get(key) for key in _FIELDS}
     if identity["profile"] is None:
         identity["profile"] = (report.get("rewritable_sources") or {}).get("current_profile")
+    if identity["profile"] in (0x08, 0x10, 0x40) and identity["blank"] is None:
+        identity.update(blank=False, closed=True)
     identity["read_at_ns"] = time.time_ns()
     return identity
 
@@ -83,7 +86,7 @@ def require_identity(identity, *, erasing=False):
     if identity.get("not_ready"):
         from .zh import TEXT
         reason = identity["not_ready"]
-        raise DiscChanged(f"{TEXT.get(reason, reason)} / {reason}.")
+        raise DiscChanged(f"{TEXT.get(reason, reason)} / {reason}.", not_ready=reason)
     profile = identity.get("profile")
     if (type(profile) is not int or media_family(profile) not in ("cd", "dvd", "bd")
             or media_family(profile) != identity.get("media")
