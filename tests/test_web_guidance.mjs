@@ -49,7 +49,7 @@ for (const media of ['cd','dvd','bd']) {
   assert.match(measurementRecovery(previous).en, /untried 7056/);
   const calls=[];
   await remeasure(async (action,args)=>{calls.push({action,args});return {verdict:'too_noisy',measurement:{rotation:'CLV'}};},previous);
-  assert.deepEqual(calls,[{action:'timing',args:{speed:'7056'}}]);
+  assert.deepEqual(calls,[{action:'timing',args:{speed:7056}}]);
   assert.match(recoveryCommands(previous,{drive:'E:',media,sectors:359849}),/timing.*--speed 7056/);
   Object.assign(previous.timing.measurement.speed_advice,{next_speed:null,exhausted:true,all_clv:true});
   assert.equal(recoveryAction(previous).id,'drive');

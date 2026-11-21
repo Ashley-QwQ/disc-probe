@@ -54,6 +54,7 @@ export async function follow(id, onEvent = () => {}) {
       if (snapshot.exit !== null) {
         const busy = snapshot.events.find(event => event.type === 'error' && event.code === 'drive_busy');
         if (busy) throw Object.assign(new Error(busy.message), {status:409, code:busy.code});
+        if (snapshot.diagnostics) onEvent({type:'diagnostics', job:id, ...snapshot.diagnostics});
         if (snapshot.exit !== 0) throw Object.assign(new Error('Job failed (' + snapshot.exit + ').'), {status:422, result:snapshot.result});
         return snapshot.result;
       }
