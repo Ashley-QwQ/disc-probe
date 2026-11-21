@@ -1,43 +1,95 @@
-# 卡 CD · 彩色 DVD 使用说明
+# 社区提示卡交付报告
 
-工作树 `D:/dp-dev/colourdocs`，分支 `dev/colour-docs`，基点 `2e6939c`。仅提交本分支。改动限于 README 的彩图部分、两个指南、配图与本报告。
+工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
 
 ## 按提交交付
 
-- `db228f6` 更新中英文 README，新增 [中文版](docs/colour.zh.md) 和 [英文版](docs/colour.md)，附同一张 640 × 640 示例图和中英文各 7 张纸色截图。两版命令与参数一一对应。
-- 本报告提交记录本地验收与待转达事项。
+- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
+- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
+- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
+- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
+- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
+- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
+
+## 数据及出处
+
+本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
+
+原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
+
+相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
+
+新增 id：
+
+```text
+D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
+I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
+DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
+DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
+DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
+DISmain-verbatim-dvd-plus-rw-94520-95043
+```
+
+修改 id（含仅补充来源/复用报告的记录）：
+
+```text
+D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
+I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
+I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
+```
+
+新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
+
+内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
+
+同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
+
+## 下发与程序行为
+
+`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
+
+```text
+f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
+```
+
+生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
+
+`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
+
+CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
+
+仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
+
+## 网页位置和需要人工审查的选择
+
+传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
+
+新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
+
+请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
 
 ## 验收
 
-- 以当前工作树的 CLI `--help` 和实现核对 `info`、`random`、`timing`、`geo`、`colour-design`、`compose`、`image`、`textures` 和 `burn`。手机距离依苹果尺寸图详图 D 计算。17 Pro 是 47.9 mm，17 Pro Max 是 53.6 mm，17 是 19.0 mm。后两项只用作自定义机位尺寸。
-- Disc Lab 用 `python -m disclab box --lab <临时目录> --media dvd-r --count 2 --seed 17` 建箱。两次 `swap --drive X:` 分别放入测量盘、成品盘。用 `python -m disclab dp --lab <临时目录> -- <盘命令>` 包住指南中的 `info`、`burn`、`timing` 和 `geo`。出图命令在同一个临时目录直接运行。日志含完整实参。
-- `info` 检出空盘，下一可写地址为 0，可写 2,298,496 扇区。测量镜像为 2,295,104 扇区，默认 8× 写入，96 块一致。`timing` 得出 CAV，`geo --ranges 0-2295088` 得到约 24.064–58.198 mm 覆盖，残差 RMS 0.069°。Lab 没有这个虚拟设备的真盘网格验证记录，所以仍提示核对读速。该提示只在虚拟链路里略过。第一次提前删除了虚拟测量盘引用的 ISO，`timing` 因此停止。复跑时保留测量 ISO 到 `geo` 完成。
-- `colour-design` 生成 600 × 600 预测图，选用默认的 58 项候选并加入 12 点箭头。`compose` 输出 61 项材质索引，最后一项为 `RND`。20 µm 正常出图，`colour.iso.verification.json` 为 `passed`，ISO 长 2,295,104 扇区（4,700,372,992 字节）。成品盘以默认 8× 写入，96 块一致、0 块不同、0 块不可读、0 块未检查。此处是抽样回读。
-- CLI 步骤耗时依次为 `random` 10.53 秒、测量盘 `burn` 29.66 秒、`timing` 2.19 秒、`geo` 4.06 秒、`colour-design --preview` 20.39 秒、成品盘 `burn` 57.13 秒。生成整盘镜像用两个 worker，抽样峰值为进程树 RSS，包含子进程，不能直接和设计页的旧基准对比。
+所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
 
-| 网格 | 合成（秒） | 出 ISO（秒） | 峰值 RSS（GB） | ISO SHA-256 |
-| --- | ---: | ---: | ---: | --- |
-| 20 µm | 6.42 | 351.90 | 1.29 | `1a2254007e6c8902d70b33ceacfaacdd2c1f09468830c2eea5a923f74492b792` |
-| 10 µm | 50.90 | 1012.43 | 1.21 | `22afac184eea4cf2a5b502f5c728c3be7e5e8a005d9b9877ed3406b3c28898c8` |
-| 5 µm | 86.18 | 478.84 | 4.67 | `137843c2881b4cc1afcc9d077b583bbf61bfe6baf30dfd165101ec84ad547d9f` |
+| 命令/检查 | 结果 |
+| --- | --- |
+| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
+| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
+| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
+| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
+| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
+| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
+| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
+| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
+| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
 
-10 和 5 µm 用同一个作品改顶层 `cell` 后重新生成，镜像均为 4,700,372,992 字节，ISO 抽样核对均通过。虚拟刻录使用 20 µm。上述时间受本机同时运行的任务影响。
+初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
 
-- 用 `node capture.mjs` 启动无头 Edge，经 CDP 驱动自开的 `webui --new-instance --local-only --port 0`。用同批虚拟测量记录验证大厅、批次、导图、58 项彩色填充、方向箭头、模型对照和实验纹理默认勾选。网页生成并以 8× 刻入虚拟光驱 X:，回读 96 块一致，结果页可查看。网页 ISO SHA-256 为 `e860ab7e72f8ff953171c58b5ff4a32457499d1ff8e0b306ef982c0f971e2679`。控制台异常 0。第一轮取图脚本因 270 秒等待上限退出，第二轮完成。首五步另在批次已选、预览已加载后取图。
-- `python -m pytest -n 2 -p no:cacheprovider --basetemp <D盘临时目录>` 加 10 个相关测试文件，涵盖彩图、编辑器、纹理库、灯下预览、合成和刻录。193 项通过，689.71 秒。见 `python-regression.log`。
-- `node --test --test-concurrency=1` 跑 59 个 `tests/test_*.mjs`，79 项中 75 通过、4 失败。只复跑失败文件，刻后流程（首次为 Windows 清理 EPERM）、中止刻录和曲线编辑通过。往期作品浏览器测试仍在等待 16 个作品格时超时（`test_pastworks_browser.mjs:209`），其代码和测试与基点一致。见 `node-regression.log`、`node-retry-regression.log`。
-- `python -X utf8 check_docs.py` 检查指南与 README 更改中的 48 个链接引用，包括 3 个返回 200 的苹果 PDF。中英文 10 条命令逐字相同，14 张截图和示例 PNG 均可解码。中文文件非 ASCII 字符数大于零，无连续问号。`git diff --check` 通过。
-- 开始时 D 盘剩约 152.5 GB，全量 Node 回归前约 141 GB。临时文件放在 `D:/dp-dev/tmp/colour-docs/`。完整镜像只保留 SHA-256；清理了本卡的 Lab 目录。8765 的监听 PID 核对为 31360。
+截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
 
-## 请 Claude 转达
+## 未测及边界
 
-- **CLI 帮助**：`image --help` 列出 `--writable-sectors`，但 `cmd_image` 只在带 `--files` 时读取它。纯彩图指南改用 `--r-max` 和扇区数核对容量。
-- **预览文案与显示**：实验纹理已经选中时，“刻之前”仍列出“刻成深浅两种纹理”。英文设计页在 1440 px 下截断 `Colour picture` 按钮文字，预览里的色彩图注与底部视图切换控件也有重叠。网页的相机和灯高度还显示长小数。请决定是否在发布前另开修复。
-- **拍摄纸**：`tools/make_rulers.py --out rulers` 已运行，生成的 PDF 照片放盘页仍印旧的约 21 cm，高度尺为 22.3 cm。指南指出应按高度尺。请决定新版放盘页何时更新。
-- **README 的历史分辨率说明**：5 µm 显微照片下面仍写着正式版没有这么细的选项。当前 CLI 和设计页支持 5 µm。该段在本卡的彩色章节之外，请发布审查时一并核对。
+没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
 
-## 未测
-
-未接触真光驱。当前网页导出路径、`vivid`、新手机与其他盘种（含 RW）的实刻显色未测。示例的实拍对照沿用库内早期试验盘照片。放盘尺已生成，未打印或实拍核对。
-
-STATUS: DONE
+附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
