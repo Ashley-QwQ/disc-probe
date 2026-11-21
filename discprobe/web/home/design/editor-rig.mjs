@@ -16,7 +16,7 @@ export const RIG_WORDS={
     heightNote:'1× 镜头离桌面的高度。'+DESIGN_RULER_CM+' cm 是摆放纸的新设计高度，焦距待两高度复测，用新版高度尺；30–70 cm 也拍过，但色板是模型预测，还没逐块对照。',
     heightNoteCustom:'1× 镜头离桌面的高度。你的手机没验证过，每一档的颜色都只是模型预测。',
     pose:label=>`下面是用 ${label} 拍时，盘面右侧（3 点钟方向、离圆心 4 cm）的颜色。盘上别处颜色不同，点画布下面的“灯下”看整张盘。`,
-    model:'颜色是模型预测，机位已按实测焦距更新，待复拍对照。刻录默认仍按黑白刻，上了颜色、彩色图案和特效的地方刻成深色。',
+    model:'颜色是模型预测，机位已按实测焦距更新，待复拍对照。如果用了彩色图片填充，默认输出彩色纹理。只用材质、图案或特效时，默认按黑白输出，也可以在预览选择实验效果。',
     hidden:n=>`另有 ${n} 种在这个机位下看不出颜色，收在“全部材质”里。`,none:'这个机位下预测哪种材质都看不出颜色。换低一点的高度试试。',all:'全部材质',
     locked:'先选手机和拍摄高度',loading:'正在载入色板…',failed:'色板没载入：',
     lampNote:label=>`${label} · 模型预测`,lampNone:'还没选手机和高度 · 按旧的默认机位（33 cm）'},
@@ -30,7 +30,7 @@ export const RIG_WORDS={
     heightNote:'Height of the 1× lens above the table. '+DESIGN_RULER_CM+' cm is the updated placement height; focal length awaits two-height measurement; use the new ruler. 30–70 cm were photographed too, but their palettes are the model\'s prediction, not yet compared swatch by swatch.',
     heightNoteCustom:'Height of the 1× lens above the table. Your phone is not verified; every height is the model\'s prediction only.',
     pose:label=>`Below: the colours at the disc's right side (3 o'clock, 4 cm from the centre) shot with ${label}. Elsewhere on the disc they differ; use Under the lamp under the canvas to see the whole disc.`,
-    model:'The colours are a model prediction with updated focal geometry, awaiting new photo comparison. The burn is still black and white by default; coloured, colour-patterned and effect areas burn dark.',
+    model:'These colours are model predictions using updated camera geometry, with a new photo comparison pending. A colour picture fill exports colour textures by default. Material, pattern and effect fills alone export in black and white by default. Preview also offers an experimental export mode.',
     hidden:n=>`${n} more show no colour at this position; they are under All materials.`,none:'At this position no material is predicted to show colour. Try a lower height.',all:'All materials',
     locked:'Choose the phone and the shooting height first',loading:'Loading the palette…',failed:'The palette did not load: ',
     lampNote:label=>`${label} · model prediction`,lampNone:'No phone and height chosen · old default position (33 cm)'}

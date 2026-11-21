@@ -1,4 +1,5 @@
 import { hasCapability } from './handshake.mjs';
+import { learnLabel, learnURL } from './learn-link.mjs';
 
 const el = (tag, text) => {
   const node = document.createElement(tag);
@@ -55,7 +56,14 @@ export function burnChecklist(api, workId, burnId, signal) {
     const status = el('p');
     status.setAttribute('role', 'status');
     const rows = el('div');
-    section.append(status, rows, controls);
+    const article = el('a', learnLabel(english));
+    article.className = 'ab-learn';
+    article.href = learnURL(english);
+    article.target = '_blank';
+    article.rel = 'noopener';
+    const articleRow = el('p');
+    articleRow.append(article);
+    section.append(articleRow, status, rows, controls);
 
     repaint = () => {
       read.disabled = busy;

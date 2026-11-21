@@ -80,6 +80,24 @@ try {
   assert.deepEqual(await evaluate('navErrors'), []);
   await until('!!document.querySelector("#lobby-guide button")');
   await evaluate('document.querySelector("#lobby-guide button").click()');
+  for (const lang of ['zh','en']) {
+    await evaluate(`if (document.documentElement.dataset.lang !== '${lang}') document.getElementById('lang').click()`);
+    await until(`document.querySelector('.sg-learn')?.textContent === '${lang === 'zh' ? '光盘怎么变成图' : 'How a disc becomes a picture'}'`);
+    for (const theme of ['light','dark']) {
+      await evaluate(`document.documentElement.dataset.theme = '${theme}';
+        document.querySelector('.sg-learn').scrollIntoView({block:'center',behavior:'instant'})`);
+      const link = await evaluate(`(async () => {
+        const node = document.querySelector('.sg-learn');
+        const page = await fetch(node.href);
+        return { path: new URL(node.href).pathname, status: page.status, text: await page.text() };
+      })()`);
+      assert.equal(link.path, '/home/learn/how-disc-images-work' + (lang === 'zh' ? '.zh' : '') + '.html');
+      assert.equal(link.status,200);
+      assert.match(link.text, /gratingcard sun\.png moon\.png/);
+      await shot(`learn-start-${theme}-${lang}`);
+    }
+  }
+  await evaluate(`document.getElementById('lang').click();document.documentElement.dataset.theme='light'`);
   await evaluate(`(() => {
     const form = document.querySelector('#sg-search');
     form.elements.query.value = 'Zone 0.91 (LBA 2011055): no period found';
@@ -183,6 +201,25 @@ try {
     await evaluate('document.getElementById("back").click()');await until('!document.documentElement.dataset.mode');
   }
   assert.deepEqual(await evaluate('navErrors'), []); assert.deepEqual(await evaluate('navCsp'), []);
+  for (const lang of ['zh','en']) {
+    const name = 'how-disc-images-work' + (lang === 'zh' ? '.zh' : '') + '.html';
+    for (const theme of ['light','dark']) {
+      const doc = 'http://127.0.0.1:'+ports.dp+'/home/learn/'+name+'?theme='+theme;
+      await open(doc, `document.documentElement.dataset.theme === '${theme}' && !!document.querySelector('.learn-diagram svg')`);
+      const links = await evaluate(`(async () => {
+        const refs = [...document.querySelectorAll('a[data-doc], img[src]')];
+        return Promise.all(refs.map(async node => {
+          const url = node.href || node.src;
+          return [new URL(url).pathname, (await fetch(url)).status];
+        }));
+      })()`);
+      assert.ok(links.length >= 5 && links.every(([,status]) => status === 200), JSON.stringify(links));
+      assert.equal(await evaluate("document.querySelectorAll('main > h2').length"), 6);
+      assert.equal(await evaluate("document.querySelectorAll('main > details').length"), 4);
+      assert.deepEqual(await evaluate('navErrors'), []); assert.deepEqual(await evaluate('navCsp'), []);
+      await shot(`learn-document-${theme}-${lang}`);
+    }
+  }
   console.log('Flow navigation: retry recovery, CSP, back/forward with form and image state, refresh, deep library link, two themes; screenshots saved.');
 } catch (error) {
   console.error('Fixture stderr:', err.slice(-6000));

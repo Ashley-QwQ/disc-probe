@@ -5,6 +5,8 @@
 // motion off, the page in the background, or Skip, the last scene stands with all four captions in a list.
 
 import { introCards, disShortcut, lightScenes, journey, statusWords, troubleChecks, troubleNote } from "./guidance.mjs";
+import { lightingDiagram } from "./lighting-diagram.mjs";
+import { learnLabel, learnURL } from "./learn-link.mjs";
 
 const SEEN = "dp-guide-seen", MEDIA = "dp-guide-media", SCENE_MS = 3200;
 const STR = {
@@ -42,20 +44,6 @@ export const seen = () => store.get(SEEN) === "1";
 const motionOn = () => root.dataset.motion === "on";
 
 // ---------------------------------------------------------------- the teaching animation
-const TRACKS = Array.from({ length: 49 }, (_, i) => `M${120 + i * 8} 168v12`).join("");
-const RAY_COLOURS = ["#c04a6a", "#d08a3e", "#b9a52f", "#4fa174", "#4a7fd0"];
-function animation() {
-  // the beam meets the surface at x 378; the rays leave it at 52, 42, 32, 22 and 12 degrees, red the steepest;
-  // the fourth reaches the eye
-  const rays = RAY_COLOURS.map((c, i) => { const a = [52, 42, 32, 22, 12][i] * Math.PI / 180; return `<line class="sg-ray" data-i="${i}" x1="378" y1="168" x2="${(378 + 200 * Math.cos(a)).toFixed(1)}" y2="${(168 - 200 * Math.sin(a)).toFixed(1)}" stroke="${c}"/>`; }).join("");
-  return `<svg class="sg-fig" viewBox="0 0 640 224" role="img" aria-label="${esc(T().animLabel)}">
-    <path class="sg-tracks" d="${TRACKS}"/><path class="sg-surface" d="M112 168H512"/>
-    <g class="sg-beamg"><circle class="sg-lamp" cx="64" cy="28" r="9"/><line class="sg-beam" x1="72" y1="34" x2="378" y2="166"/></g>
-    <g class="sg-raysg">${rays}</g>
-    <g class="sg-eyeg"><path class="sg-eye" d="M572 93q30-26 60 0q-30 26-60 0z"/><circle class="sg-pupil" cx="602" cy="93" r="6"/></g>
-    <g class="sg-pic"><rect x="344" y="160" width="68" height="28" rx="2"/><text x="378" y="214" text-anchor="middle">${esc(L({ zh: "图案", en: "picture" }))}</text></g>
-  </svg>`;
-}
 function paintScene() {
   const t = T();
   sheet.dataset.scene = String(scene + 1);
@@ -147,15 +135,17 @@ function build() {
 }
 function render() {
   const t = T();
+  const english = api.lang() === "en";
   sheet.innerHTML = `<header class="sg-bar"><h2 id="sg-title" tabindex="-1">${esc(t.title)}</h2><button type="button" class="sg-btn" data-act="close">${esc(t.close)}</button></header>
   <div class="sg-scroll"><div class="sg-col">
     <section aria-labelledby="sg-before"><h3 id="sg-before">${esc(t.beforeH)}</h3>
-      <div class="sg-anim">${animation()}
+      <div class="sg-anim">${lightingDiagram(t.animLabel, L({ zh: "图案", en: "picture" }))}
         <p class="sg-caption" role="status" aria-live="polite"></p>
         <div class="sg-controls" role="group" aria-label="${esc(t.animLabel)}">
           <button type="button" class="sg-btn" data-act="prev">${esc(t.prev)}</button><button type="button" class="sg-btn" data-act="next">${esc(t.next)}</button>
           <button type="button" class="sg-btn" data-act="replay">${esc(t.replay)}</button><button type="button" class="sg-btn" data-act="skip">${esc(t.skip)}</button></div>
-        <ol class="sg-scenes">${lightScenes.map((s) => `<li>${esc(L(s))}</li>`).join("")}</ol></div>
+        <ol class="sg-scenes">${lightScenes.map((s) => `<li>${esc(L(s))}</li>`).join("")}</ol>
+        <p><a class="sg-learn" href="${esc(learnURL(english))}" target="_blank" rel="noopener">${esc(learnLabel(english))}</a></p></div>
       ${introCards.map((c) => `<article class="sg-card" id="sg-${c.id}"><h4>${esc(L(c.title))}</h4><p>${esc(L(c.body))}</p>${c.list ? `<ul>${c.list.map((x) => `<li>${esc(L(x))}</li>`).join("")}</ul>` : ""}</article>`).join("")}
       <article class="sg-dis"><h4>${esc(L(disShortcut.title))}</h4><p>${esc(L(disShortcut.body))}</p>
         <p><button type="button" class="sg-btn" data-act="dis">${esc(L(disShortcut.button))}</button> <span class="sg-miss" role="status" aria-live="polite"></span></p></article>

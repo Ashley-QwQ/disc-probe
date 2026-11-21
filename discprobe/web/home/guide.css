@@ -25,6 +25,8 @@
 
 /* the animation: scenes appear in order; without motion every change is immediate */
 .sg-anim { margin: 8px 0 20px; }
+.startguide .sg-learn { display: inline-block; color: var(--ink); margin-top: 8px; text-underline-offset: .2em; }
+.startguide .sg-learn:hover { color: var(--copper); }
 .sg-fig { display: block; width: 100%; height: auto; max-height: 300px; }
 .sg-tracks { stroke: var(--ink-2); stroke-width: 2; fill: none; }
 .sg-surface { stroke: var(--ink); stroke-width: 3; fill: none; }

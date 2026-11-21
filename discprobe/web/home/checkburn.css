@@ -12,3 +12,5 @@
 .ab-report[data-capability="checkburn"] dd button {
   margin-top: 8px;
 }
+.ab-report .ab-learn { color: inherit; text-underline-offset: .2em; }
+.ab-report .ab-learn:hover { color: var(--copper); }
