@@ -1371,6 +1371,10 @@ def cmd_image(args):
 def _say_photo_l(decision):
     if decision.get("written"):
         source = decision["provenance"]
+        if decision.get("origin") in ("manual-slider", "manual-cli"):
+            print(f"Photo L used: {decision['L_mm']:+.6f} mm ({decision['origin']}; "
+                  f"provenance {decision['provenance_sha256']})")
+            return
         print(f"Photo L used: {decision['L_mm']:+.6f} mm from {source['photo_json']} "
               f"(reader {decision['reader_version']}, provenance {decision['provenance_sha256']})")
     else:

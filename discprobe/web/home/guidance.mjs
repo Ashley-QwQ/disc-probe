@@ -1,5 +1,7 @@
 // Display advice follows guide.py after_timing, after_geo, after_geo_stop and AFTER_BURN.
 // These are instructions, never a substitute for a core verdict or a measurement.
+import { manualSavedWords } from './photowords.mjs';
+
 const pair = (zh, en) => ({zh, en});
 // Shared by the computer strip and the token-scoped phone page. New reader
 // codes need only one entry here; unknown codes retain the server's explanation.
@@ -41,6 +43,8 @@ export function photoOverallWords(photos = [], verdict) {
 }
 // These words describe the saved file's decision, never the provisional photo read.
 export function photoSaveWords(decision = {}) {
+  const manual = manualSavedWords(decision);
+  if (manual) return manual;
   if (decision.written === true && Number.isFinite(decision.frames)) return pair(
     `沿轨常数已写入：L = ${decision.frames} frames。来自照片，盘批次无关，换光驱要重拍；只适用于这次几何测量和刻录路径。`,
     `Along-track constant written: L = ${decision.frames} frames. From photos, independent of disc batch; rephotograph after changing drives. Only for this geometry run and burn path.`);

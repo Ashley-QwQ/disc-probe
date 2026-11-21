@@ -50,7 +50,7 @@ function fixture({media='dvd', verdict='narrow_span', missing, failJob, photoVer
       state:async()=>({catalogue:{[media]:[{id:'saved',geo:geo.path,name:'MID'}]}}),
     }};
   let opts;
-  const context = vm.createContext({...guidance,...photowords,...burnStop,...jobClock,photoSeconds:photowords.seconds,document,location:{search:''},URLSearchParams,console,
+  const context = vm.createContext({...guidance,...photowords,...burnStop,...jobClock,photoSeconds:photowords.seconds,hasCapability:()=>false,document,location:{search:''},URLSearchParams,console,
     flipValue:el=>el.textContent,nextConfirm:(btn,options={})=>{btn.hidden=!!options.active;btn.confirmOptions=options;},ringButton:()=>({progress(){},done(){},destroy(){}}),
     setTimeout:(fn,ms)=>{const id=timers.size+1;timers.set(id,{fn,ms});return id;},clearTimeout:id=>timers.delete(id),clearInterval(){},performance,
     loadDisc:{desk(){}},calchart:{resultChart:()=>''},sfx:{done(){},problem(){},failure(){}},

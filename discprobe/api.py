@@ -14,6 +14,7 @@ CAPABILITIES = (
     "editor", "burn", "photo-calibration", "phone-link", "presets",
     "catalogue", "results-history", "greetings", "templates", "presets-io", "works", "disc-files", "image-job-recovery",
     "geo-coverage",
+    "photo-manual-alignment",
 )
 BUNDLED_GUI = Path(__file__).with_name("web")
 _VERSION = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)", re.ASCII)

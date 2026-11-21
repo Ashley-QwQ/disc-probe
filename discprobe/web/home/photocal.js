@@ -7,7 +7,7 @@
  * image, never inserted as markup. All callbacks receive independent arrays.
  */
 import { deviceList } from './kit/devices.js';
-import { photoReasonWords, photoStage, shootingTips } from './photowords.mjs';
+import { photoReasonWords, photoStage, shootingTips, sliderWords } from './photowords.mjs';
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 export const DEFAULT_RINGS = Object.freeze([30, 38, 47, 55]);
 export function ringHandles(radius) {
@@ -136,6 +136,8 @@ export function photoPage(host, opts = {}) {
   if (!host || typeof host.append !== 'function') throw new TypeError('photoPage requires a host element');
   const doc = host.ownerDocument, win = doc.defaultView, en = opts.lang === 'en';
   const t = {...words[en ? 'en' : 'zh']};
+  const slider = key => sliderWords[key][en ? 'en' : 'zh'];
+  const sliderEnabled = typeof opts.manualAlignment === 'function' && typeof opts.onManualSaved === 'function';
   if (opts.paperHost) {
     t.phoneOffline = en ? 'This computer is not reachable from your phone. Add a photo from this computer.' : '手机暂时连不到这台电脑，请从电脑添加照片。';
     t.local = en ? 'Photos are sent to this computer on your local network.' : '照片通过局域网发到这台电脑。';
@@ -156,6 +158,7 @@ export function photoPage(host, opts = {}) {
   let destroyed = false, active = -1, photos = [], dragging = null, space = false, task = 0;
   let view = {cx: 0, cy: 0, pxPerMm: 1, zoom: 1, panX: 0, panY: 0};
   let focus = false, curves = true, enhance = false, tool = 'select', busy = false;
+  let manual = null, scoreTimer;
   const root = doc.createElement('section');
   root.className = 'pc-page'; root.lang = opts.lang === 'en' ? 'en' : 'zh-CN';
   root.setAttribute('aria-label', t.title);
@@ -193,7 +196,17 @@ export function photoPage(host, opts = {}) {
         <h1>${t.title}</h1><p class="pc-why"></p><svg class="pc-range" viewBox="0 0 344 54" role="img" aria-label="${t.measured}; ${t.narrow}"></svg>
         <p class="pc-range-key">${t.measured}　 ${t.narrow}</p>
         <div class="pc-before"><section><h2>${t.after}</h2><p>${t.afterBody}</p><p>${t.reader}</p></section><section><h2>${t.skipTitle}</h2><p>${t.skipBody}</p></section></div>
-        <div class="pc-after"><section><div class="pc-section-title"><h2>${t.photos}</h2><span class="pc-photo-count"></span></div><div class="pc-strip"></div></section>
+        <div class="pc-after">${sliderEnabled ? `<section class="pc-slider-panel" data-capability="photo-manual-alignment">
+          ${button('align', slider('open'), null, 'pc-wide')}
+          <div class="pc-slider-controls" hidden>
+            <p>${slider('hint')}</p>
+            <label><span>${slider('offset')} <output></output></span><input type="range" data-align-value="L_mm"></label>
+            <label><span>${slider('angle')} <output></output></span><input type="range" data-align-value="c_deg" min="0" max="360" step="0.05"></label>
+            <p class="pc-slider-score" role="status"></p>
+          </div>
+          <p class="pc-slider-message" role="status"></p>
+        </section>` : ''}
+        <section><div class="pc-section-title"><h2>${t.photos}</h2><span class="pc-photo-count"></span></div><div class="pc-strip"></div></section>
           <section class="pc-add-section"><div class="pc-phone-small"></div>${button('add', t.add, 'upload', 'pc-wide')}</section>
           <section>${opts.automaticRead ? '<details class="pc-manual"><summary>手动调整 / Adjust by hand</summary>' : ''}<div class="pc-section-title"><h2>${t.alignment}</h2><span class="pc-stamp">${t.manual}</span></div>
             <dl class="pc-summary"><div><dt>${t.rings}</dt><dd class="pc-ring-count"></dd></div><div><dt>${t.offset}</dt><dd class="pc-offset"></dd></div></dl>
@@ -355,7 +368,8 @@ export function photoPage(host, opts = {}) {
     $('.pc-ring-count').textContent = t.ringCount(p.rings.length);
     $('.pc-offset').textContent = p.offsetMm === null ? t.unknown : `${p.offsetMm.toFixed(2)} mm`;
     $('.pc-registration').textContent = p.rim ? t.registered : t.unregistered;
-    $('.pc-focus-readout').textContent = `${t.ringCount(p.rings.length)} · ${t.offset}: ${p.offsetMm === null ? t.unknown : p.offsetMm.toFixed(2) + ' mm'}`;
+    $('.pc-focus-readout').textContent = manual?.data ? `L ${manual.L_mm.toFixed(3)} mm · ${manual.c_deg.toFixed(2)}°`
+      : `${t.ringCount(p.rings.length)} · ${t.offset}: ${p.offsetMm === null ? t.unknown : p.offsetMm.toFixed(2) + ' mm'}`;
     paper.querySelectorAll('.pc-radius-editor input').forEach((input, i) => { if (doc.activeElement !== input) input.value = p.rings[i].toFixed(1); });
   }
   function paint() {
@@ -387,7 +401,13 @@ export function photoPage(host, opts = {}) {
         guides.append(group);
       });
     });
-    overlay.append(guides);
+    if (manual?.data) {
+      if (curves) {
+        const path = prediction(p, imageScale, center.x-rim.cx*imageScale, center.y-rim.cy*imageScale);
+        overlay.append(svgNode('path', {d:path, class:'pc-prediction-outline', 'aria-hidden':'true'}),
+          svgNode('path', {d:path, class:'pc-prediction', 'aria-hidden':'true'}));
+      }
+    } else overlay.append(guides);
     if (dragging?.kind === 'ring') {
       const point = dragging.point, radius = p.rings[dragging.index];
       const text = `r ${radius.toFixed(1)} mm · ${t.offsetShort} ${p.offsetMm === null ? '—' : p.offsetMm.toFixed(1)} mm`;
@@ -408,6 +428,123 @@ export function photoPage(host, opts = {}) {
     const rect = miniSvg.querySelector('rect');
     for (const [key,val] of Object.entries({x:rim.cx-center.x/imageScale,y:rim.cy-center.y/imageScale,width:stage.clientWidth/imageScale,height:stage.clientHeight/imageScale})) rect.setAttribute(key,val);
     summary();
+  }
+  function prediction(p, scale, left, top) {
+    const {H, width, height, bands, rings} = manual.data;
+    const sx = p.width / width * scale, sy = p.height / height * scale;
+    const c = manual.c_deg * Math.PI / 180;
+    const xy = (r, angle) => {
+      const x = r * Math.cos(angle), y = r * Math.sin(angle);
+      const z = H[2][0]*x + H[2][1]*y + H[2][2];
+      const px = left + sx*(H[0][0]*x + H[0][1]*y + H[0][2])/z;
+      const py = top + sy*(H[1][0]*x + H[1][1]*y + H[1][2])/z;
+      return `${px.toFixed(2)},${py.toFixed(2)}`;
+    };
+    const parts = [];
+    const trace = (steps, point) => {
+      for (let i = 0; i <= steps; i++) parts.push((i ? 'L' : 'M') + point(i/steps));
+    };
+    for (const r of rings) trace(100, f => xy(r, f*2*Math.PI));
+    for (const [lo,hi,angles] of bands) for (const angle of angles) {
+      trace(Math.ceil(hi-lo), f => {
+        const r = lo + f*(hi-lo);
+        return xy(r, angle + c + manual.L_mm/r);
+      });
+    }
+    return parts.join('');
+  }
+  function alignmentMessage(key) {
+    $('.pc-slider-message').textContent = key ? slider(key) : '';
+  }
+  function closeAlignment() {
+    if (!sliderEnabled) return;
+    const scrollTop = manual?.scrollTop;
+    manual = null; win.clearTimeout(scoreTimer);
+    root.classList.remove('pc-aligning');
+    $('.pc-slider-controls').hidden = true;
+    const toggle = $('[data-pc="align"]');
+    toggle.querySelector('span').textContent = toggle.title = slider('open');
+    toggle.setAttribute('aria-expanded', 'false');
+    alignmentMessage(null);
+    const scrollBox = opts.paperHost || paper;
+    scrollBox.classList.remove('pc-slider-open');
+    if (scrollTop !== undefined) scrollBox.scrollTop = scrollTop;
+  }
+  function sliderValue(input) {
+    input.previousElementSibling.querySelector('output').textContent = input.dataset.alignValue === 'L_mm'
+      ? `${input.valueAsNumber.toFixed(3)} mm` : `${input.valueAsNumber.toFixed(2)}°`;
+    input.setAttribute('aria-valuetext', input.previousElementSibling.querySelector('output').textContent);
+  }
+  function queueScore() {
+    const state = manual, key = ++state.scoreKey, label = $('.pc-slider-score');
+    label.textContent = slider('checking');
+    label.classList.remove('pc-slider-weak');
+    win.clearTimeout(scoreTimer);
+    scoreTimer = win.setTimeout(async () => {
+      try {
+        const result = await opts.manualAlignment('score', state.photo, {
+          token:state.data.token, L_mm:state.L_mm, c_deg:state.c_deg,
+        });
+        if (destroyed || manual !== state || key !== state.scoreKey) return;
+        label.textContent = sliderWords.score(result.agreeing, result.cells)[en ? 'en' : 'zh']
+          + (result.weak ? ' · ' + slider('weak') : '');
+        label.classList.toggle('pc-slider-weak', result.weak);
+      } catch {
+        if (!destroyed && manual === state && key === state.scoreKey) label.textContent = slider('scoreError');
+      }
+    }, 160);
+  }
+  async function toggleAlignment() {
+    if (manual) { closeAlignment(); syncButtons(); paint(); return; }
+    if (!selected()?.id) { alignmentMessage('unavailable'); return; }
+    cancelDrag();
+    const state = manual = {photo:descriptor(selected()), scoreKey:0};
+    const toggle = $('[data-pc="align"]');
+    toggle.querySelector('span').textContent = toggle.title = slider('close');
+    toggle.setAttribute('aria-expanded', 'true');
+    alignmentMessage('loading'); syncButtons();
+    try {
+      const data = await opts.manualAlignment('prepare', state.photo);
+      if (destroyed || manual !== state) return;
+      state.data = data;
+      const offset = $('[data-align-value="L_mm"]'), angle = $('[data-align-value="c_deg"]');
+      for (const [key,value] of Object.entries(data.range_mm)) offset[key] = value;
+      offset.value = data.L_mm; angle.value = data.c_deg;
+      for (const input of [offset,angle]) { state[input.dataset.alignValue] = input.valueAsNumber; sliderValue(input); }
+      curves = true;
+      root.classList.add('pc-aligning');
+      const controls = $('.pc-slider-controls');
+      controls.hidden = false;
+      const scrollBox = opts.paperHost || paper;
+      state.scrollTop = scrollBox.scrollTop;
+      scrollBox.classList.add('pc-slider-open');
+      win.requestAnimationFrame(() => {
+        if (destroyed || manual !== state) return;
+        const bounds = scrollBox.getBoundingClientRect();
+        const top = toggle.getBoundingClientRect().top;
+        if (win.innerWidth <= 900 || top < bounds.top || controls.getBoundingClientRect().bottom > bounds.bottom) {
+          scrollBox.scrollTop += top - bounds.top - 8;
+        }
+      });
+      alignmentMessage(null); syncButtons(); paint(); queueScore();
+    } catch {
+      if (!destroyed && manual === state) { closeAlignment(); alignmentMessage('unavailable'); syncButtons(); }
+    }
+  }
+  async function saveAlignment() {
+    const state = manual;
+    if (!state?.data || state.saving) return;
+    state.saving = true; alignmentMessage('saving'); syncButtons();
+    try {
+      const result = await opts.manualAlignment('save', state.photo, {
+        token:state.data.token, L_mm:state.L_mm, c_deg:state.c_deg,
+      });
+      if (!destroyed && manual === state) await opts.onManualSaved(result);
+    } catch {
+      if (!destroyed && manual === state) alignmentMessage('saveError');
+    } finally {
+      if (!destroyed && manual === state) { state.saving = false; syncButtons(); }
+    }
   }
   function drawLoupe(point, rim, imageScale) {
     const place = magnifierPlacement(point,{width:stage.clientWidth,height:stage.clientHeight});
@@ -451,7 +588,9 @@ export function photoPage(host, opts = {}) {
     $('.pc-photo-count').textContent = t.count(photos.length);
   }
   function choose(index) {
-    if (!photos[index]) return;
+    if (!photos[index] || manual?.saving) return;
+    if (index === active && manual) return;
+    closeAlignment();
     cancelDrag(); task++; busy = false; active = index; root.classList.add('pc-has-photo');
     opts.paperHost?.classList.add('pc-has-photo');
     image.src = selected().src; image.hidden = false; $('.pc-photo-name').hidden = false;
@@ -460,15 +599,22 @@ export function photoPage(host, opts = {}) {
     paintStrip(); radiusEditor(); syncButtons(); layout(true);
   }
   function syncButtons() {
-    const use = $('[data-pc="use"]'); use.disabled = active < 0 || busy || typeof opts.onUse !== 'function';
-    use.querySelector('span').textContent = active < 0 ? t.next : t.use;
+    const use = $('[data-pc="use"]');
+    use.disabled = manual ? !manual.data || !!manual.saving : active < 0 || busy || typeof opts.onUse !== 'function';
+    use.querySelector('span').textContent = manual ? slider('save') : active < 0 ? t.next : t.use;
     $('.pc-next-why').textContent = active < 0 ? t.first : typeof opts.onUse !== 'function' ? t.noUse : '';
     $('[data-pc="back"]').hidden = typeof opts.onBack !== 'function';
     for (const action of ['select','pan','curves','enhance']) $('[data-pc="'+action+'"]').setAttribute('aria-pressed',String(action === 'select' || action === 'pan' ? action === tool : action === 'curves' ? curves : enhance));
     const auto = $('[data-pc="auto"]'); if (auto) { auto.disabled = busy; auto.querySelector('span').textContent = busy ? t.busy : t.auto; }
     root.classList.toggle('pc-pan',tool === 'pan' || space);
     stage.setAttribute('aria-busy',String(busy));
-    opts.onStateChange?.({canUse:!use.disabled, busy, focus});
+    if (sliderEnabled) {
+      const toggle = $('[data-pc="align"]');
+      toggle.disabled = !!manual?.saving;
+      if (!manual) toggle.setAttribute('aria-expanded', 'false');
+      for (const input of paper.querySelectorAll('[data-align-value]')) input.disabled = !!manual?.saving;
+    }
+    opts.onStateChange?.({canUse:!use.disabled, busy, focus, manual:!!manual, manualSaving:!!manual?.saving});
   }
   function descriptor(p) { return {id:p.id,src:p.src,name:p.name,label:p.label,reason:p.reason,file:p.file,rim:p.rim ? {...p.rim} : null,ringsMm:[...p.rings]}; }
   async function addPhotos(values, {preserveSelection = false} = {}) {
@@ -526,7 +672,8 @@ export function photoPage(host, opts = {}) {
       case 'add': $('.pc-file').click(); break;
       case 'back': callHost(opts.onBack); break;
       case 'skip': callHost(opts.onSkip); break;
-      case 'use': if (selected()) callHost(opts.onUse,descriptor(selected()),[...selected().rings]); break;
+      case 'use': if (manual) saveAlignment(); else if (selected()) callHost(opts.onUse,descriptor(selected()),[...selected().rings]); break;
+      case 'align': toggleAlignment(); break;
       case 'focus': setFocus(true); break;
       case 'exit': setFocus(false); break;
       case 'select': case 'pan': tool = b.dataset.pc; syncButtons(); break;
@@ -538,6 +685,20 @@ export function photoPage(host, opts = {}) {
       case 'reset': if (selected()) { cancelDrag(); task++; busy = false; selected().rings = [...selected().baseline]; selected().offsetMm = null; radiusEditor(); syncButtons(); layout(true); } break;
     }
   });
+  if (sliderEnabled) {
+    for (const input of paper.querySelectorAll('[data-align-value]')) {
+      on(input, 'input', () => {
+        manual[input.dataset.alignValue] = input.valueAsNumber;
+        sliderValue(input); paint(); queueScore();
+      });
+      on(input, 'keydown', event => {
+        const direction = {ArrowRight:1, ArrowUp:1, ArrowLeft:-1, ArrowDown:-1}[event.key];
+        if (!direction || !event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+        event.preventDefault(); input.stepUp(direction * 10);
+        input.dispatchEvent(new win.Event('input'));
+      });
+    }
+  }
   on(root,'change',event => {
     if (event.target.matches('.pc-file')) { addPhotos([...event.target.files]); event.target.value = ''; }
     if (event.target.matches('[data-radius]')) { changeRing(+event.target.dataset.radius,event.target.value === '' ? NaN : +event.target.value); event.target.value = selected().rings[+event.target.dataset.radius].toFixed(1); }
@@ -550,7 +711,7 @@ export function photoPage(host, opts = {}) {
   on(stage,'pointerdown',event => {
     if (event.button !== 0 || !selected() || event.target.closest('button,.pc-toolbar,.pc-loupe')) return;
     const handle = event.target.closest('[data-ring]'), at = point(event);
-    if ((space || tool === 'pan')) dragging = {kind:'pan',id:event.pointerId,point:at,start:at,panX:view.panX,panY:view.panY};
+    if ((manual?.data || space || tool === 'pan')) dragging = {kind:'pan',id:event.pointerId,point:at,start:at,panX:view.panX,panY:view.panY};
     else if (handle) dragging = {kind:'ring',id:event.pointerId,index:+handle.dataset.ring,handle:+handle.dataset.handle,point:at,before:[...selected().rings]};
     else return;
     event.preventDefault(); stage.focus({preventScroll:true}); stage.setPointerCapture(event.pointerId); root.classList.add('pc-dragging'); paint();
@@ -587,7 +748,7 @@ export function photoPage(host, opts = {}) {
       changeRing(index,selected().rings[index]+(event.key === 'ArrowUp' || event.key === 'ArrowRight' ? 1 : -1)*(event.shiftKey ? 1 : 0.1));
       overlay.querySelector(`[data-ring="${index}"][data-handle="${h}"]`)?.focus();
     }
-    if ((space || tool === 'pan') && !handle && ['ArrowUp','ArrowRight','ArrowDown','ArrowLeft'].includes(event.key)) {
+    if ((manual?.data || space || tool === 'pan') && !handle && ['ArrowUp','ArrowRight','ArrowDown','ArrowLeft'].includes(event.key)) {
       event.preventDefault(); view.panX += event.key === 'ArrowRight' ? 24 : event.key === 'ArrowLeft' ? -24 : 0;
       view.panY += event.key === 'ArrowDown' ? 24 : event.key === 'ArrowUp' ? -24 : 0; paint();
     }
@@ -618,8 +779,8 @@ export function photoPage(host, opts = {}) {
     },
     setReadResult(result) { if (result.verdict !== 'ok') return; for (const p of photos) { p.offsetMm = result.offset_mm; if (result.rings_mm) p.rings = [...result.rings_mm]; } if (selected()) { radiusEditor(); paint(); } },
     back() { if (focus) setFocus(false); else callHost(opts.onBack); },
-    use() { if (selected() && !busy) return callHost(opts.onUse,descriptor(selected()),[...selected().rings]); },
-    destroy() { if (destroyed) return; destroyed = true; win.clearTimeout(helpTimer); if (opts.paperHost) doc.documentElement.classList.remove('pc-photo-focus'); task++; abort.abort(); resize.disconnect(); cancelDrag(); for (const url of ownedUrls) win.URL.revokeObjectURL(url); ownedUrls.clear(); paper.remove(); opts.paperHost?.classList.remove('pc-embedded-paper','pc-has-photo'); root.remove(); },
+    use() { if (manual) return saveAlignment(); if (selected() && !busy) return callHost(opts.onUse,descriptor(selected()),[...selected().rings]); },
+    destroy() { if (destroyed) return; destroyed = true; win.clearTimeout(helpTimer); win.clearTimeout(scoreTimer); if (opts.paperHost) doc.documentElement.classList.remove('pc-photo-focus'); task++; abort.abort(); resize.disconnect(); cancelDrag(); for (const url of ownedUrls) win.URL.revokeObjectURL(url); ownedUrls.clear(); paper.remove(); opts.paperHost?.classList.remove('pc-embedded-paper','pc-has-photo','pc-slider-open'); root.remove(); },
     state() { const p = selected(); return {mode:p ? 'aligning' : 'no-photo',lang:opts.lang === 'en' ? 'en' : 'zh',photos:photos.map(descriptor),activePhoto:active,ringsMm:p ? [...p.rings] : [...initialRings],measuredMm:[...measured],offsetMm:p?.offsetMm ?? null,rimRegistered:!!p?.rim,focus,zoom:view.zoom,pan:{x:view.panX,y:view.panY},curves,enhance,busy}; },
   };
 }

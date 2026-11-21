@@ -10,7 +10,8 @@ import { countdown, countdownText } from "./kit/countdown.mjs";
 // Live jobs use the local API. Simulated readings and timers are limited to ?mock / ?demo=N.
 
 import { adviceHTML, budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason, photoSaveWords } from "./guidance.mjs";
-import { photoReasonWords, adoptionWords, applicationWords, seconds as photoSeconds } from "./photowords.mjs";
+import { photoReasonWords, adoptionWords, applicationWords, sliderWords, seconds as photoSeconds } from "./photowords.mjs";
+import { hasCapability } from "./handshake.mjs";
 import { cutaway } from "./drive-scene.js";
 import { floorLog } from "./floor-log.js";
 import * as sfx from "./sfx.js";
@@ -1245,7 +1246,7 @@ function realPaint() {
     if (flow.detected.media === "cd" || flow.savedPhotoShift?.reason === "invalid_preset")
       html = `<p role="status">${esc(photoSaveWords(flow.savedPhotoShift)[api.lang()])}</p>`;
     if (flow.detected.media === "cd" && !flow.savedPhotoShift?.written) html += `<p>${esc(cdPhoto[api.lang()])}</p>`;
-    if (flow.photoResult) html += photoStamp(flow.photoResult, flow.savedPhotoShift || {});
+    if (flow.photoResult && !flow.savedPhotoShift?.origin?.startsWith('manual-')) html += photoStamp(flow.photoResult, flow.savedPhotoShift || {});
     button = returnLabel?.() ?? (returnTo ? liveText('回到刚才那一步', 'Back to where you were') : liveText('回到大厅', 'Return to lobby'));
   }
   if (["prepare", "burn"].includes(phase)) html = (flow.detected.rewritable
@@ -1399,6 +1400,12 @@ function photoNavigation(u) {
   if (!photoLive(u)) return;
   const unavailable = u.status === 'unavailable', cd = flow.detected.media === 'cd';
   nextKit(false, false);
+  if (u.manual) {
+    $('next-text').textContent = sliderWords.save[api.lang()];
+    $('next').disabled = !u.canUse || !!flow.job || !!u.reading;
+    api.nextWhy?.(u.reading ? liveText('正在读取照片…','Reading photos…') : '');
+    return;
+  }
   $('next-text').textContent = unavailable ? (cd ? liveText('导出 DIS 预设','Export DIS preset') : liveText('返回测量结果','Back to measurement result')) : liveText('下一步：保存照片结果','Next: save photo result');
   const usable = u.flow.photoResult?.verdict === 'ok' && !PHOTO_HELD.includes(photoAdoption(u.flow.photoResult).state);
   $('next').disabled = !!flow.job || !!u.reading || !!u.readTimer || (!unavailable && (u.status !== 'ready' || !usable));
@@ -1532,12 +1539,16 @@ function photoBurnArgs(f) {
 async function usePhotoResult(u, photo = null) {
   const result = await readPhoto(u,photo);
   if (result?.verdict !== 'ok' || !photoLive(u)) return;
+  await savePhotoPreset(u);
+}
+async function savePhotoPreset(u) {
   try { await realSave(); if (isCal()) paint(); }
   catch (error) { if (isCal() && flow === u.flow) { u.flow.photoNotice = api.backend.errorText(error,api.lang()); u.flow.realPhase = 'photo'; paint(); if (photoUI?.notice) photoUI.notice.textContent = u.flow.photoNotice; } }
 }
 async function readPhoto(u, photo = null, rings = null) {
   const f = u.flow;
   if (!photoLive(u) || u.status !== 'ready' || !u.page) return null;
+  if (u.manualSaving) return null;
   if (u.reading || f.job) { u.readAgain = true; return null; }
   clearTimeout(u.readTimer); u.readTimer = null; u.reading = true;
   f.photoNotice = null; u.notice.textContent = '';
@@ -1661,7 +1672,7 @@ function paintPhoto() {
         phoneUrl:phone.url, phoneQrSvg:phone.qr_svg, addresses:phone.addresses, address:phone.address,
         onAddress:address => choosePhoneAddress(u,address), automaticRead:true, onPhotos:() => queuePhotoRead(u),
         onDisconnect:id => disconnectPhone(u, id),
-        onStateChange:state => { u.canUse = state.canUse; photoNavigation(u); },
+        onStateChange:state => { u.canUse = state.canUse; u.manual = state.manual; u.manualSaving = state.manualSaving; photoNavigation(u); },
         onBack:photoReview, onSkip:photoSkip,
         autoAlign:async (photo,rings) => {
           const result = await readPhoto(u,photo,rings);
@@ -1671,6 +1682,15 @@ function paintPhoto() {
           return null;
         },
         onUse:photo => usePhotoResult(u,photo),
+        ...(hasCapability('photo-manual-alignment') ? {
+          manualAlignment:(action, photo, values) => api.backend.request('/api/photo-alignment',
+            {action, run:u.run, photo:photo.id, ...values}),
+          onManualSaved:async result => {
+            clearTimeout(u.readTimer); u.readTimer = null;
+            u.flow.photoManual = result;
+            await savePhotoPreset(u);
+          },
+        } : {}),
       });
       const paper = $('cal').querySelector('.pc-paper');
       u.notice = document.createElement('p'); u.notice.setAttribute('role','status');
@@ -2140,14 +2160,20 @@ async function realSave() {
   const sectors = flow.blankSectors ?? flow.detected.capacity_sectors;
   // Recheck a CD even when a preset already exists: its registered drive may
   // differ from the one now selected, including when the photo step was skipped.
-  const needsExport = !flow.preset || !!flow.photoResult || flow.detected.media === 'cd';
+  const needsExport = !flow.preset || !!flow.photoResult || !!flow.photoManual || flow.detected.media === 'cd';
   if (needsExport && (!Number.isInteger(sectors) || sectors <= 0)) throw new Error(liveText('空白盘容量未知。请用 calibrate --sectors 指定容量。', 'Blank capacity is unknown. Run calibrate with --sectors.'));
   // Only send a path to the stored reader record. Browser-supplied L/verdicts
   // cannot bypass the exporter's provenance gate, including a stale photo run.
-  const photoPath = flow.photoResult?.path || (flow.photoResult ? flow.geo.path : null);
+  const manual = flow.photoManual;
+  const photoPath = manual ? flow.geo.path : flow.photoResult?.path || (flow.photoResult ? flow.geo.path : null);
+  const photoFile = manual ? 'photo-manual.json' : 'photo.json';
   const result = needsExport ? await realJob("disexport", {geo:flow.geo.path, sectors, output,
-    reading_drive:api.selectedDrive(), ...(photoPath ? {photo:`${photoPath.replace(/[\\/]+$/, '')}/photo.json`} : {})}) : { path: flow.preset };
+    reading_drive:api.selectedDrive(), ...(photoPath ? {photo:`${photoPath.replace(/[\\/]+$/, '')}/${photoFile}`} : {})}) : { path: flow.preset };
   if (!result?.path) throw new Error("No preset was saved.");
+  if (manual && (!result.photo_shift?.written || result.photo_shift.provenance_sha256 !== manual.provenance_sha256)) {
+    throw new Error(liveText('预设没能采用刚保存的人工值。请检查光驱与测量是否对应，再保存一次。',
+      'The preset could not use the manual value just saved. Check the drive and measurement, then save again.'));
+  }
   const state = await api.backend.state();
   const entry = state.catalogue[flow.detected.media].find(x => x.geo === flow.geo.path);
   if (!entry) throw new Error("The calibration is not in the saved catalogue.");

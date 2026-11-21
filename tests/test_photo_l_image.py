@@ -5,6 +5,8 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import subprocess
+import sys
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -36,6 +38,37 @@ def run_files(root, media="dvd"):
     target = folder / "photo.json"
     target.write_text(json.dumps(record), encoding="utf-8")
     return summary, target, record, fit
+
+
+@pytest.mark.parametrize("media", ["cd", "dvd"])
+def test_photo_manual_cli_overrides_then_freezes_for_image_and_preset(tmp_path, media):
+    from discprobe import disexport
+
+    summary, reader, _, fit = run_files(tmp_path, media)
+    reader_bytes = reader.read_bytes()
+    result = subprocess.run([sys.executable, "-m", "discprobe", "photo", "--run", str(summary.parent),
+                             "--media", media, "--manual-l", "-2.291"], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert reader.read_bytes() == reader_bytes
+    decision = photo.photo_l(summary)
+    assert decision["written"] and decision["origin"] == "manual-cli" and decision["L_mm"] == -2.291
+    with patch.object(disexport, "fit_preset", wraps=disexport.fit_preset) as fitter:
+        # Use an exact fit output here; preset fitting itself is covered by the disexport tests.
+        fitter.return_value = dict(innerRadiusMm=25, outerRadiusMm=55, pitchLinear=0,
+                                  pitchQuadratic=0, pitchCubic=0, max_angle_diff_deg=0, full_angle_diff_deg=0)
+        preset = disexport.export(str(summary), 300000, None, None, 26, 55, "manual", "Manual")
+    assert fitter.call_args.args[0] == photo.shifted_u(fit, decision)
+    assert preset["source"]["photo_shift"] == decision
+    assert "manual-cli" in preset["preset"]["description"]
+
+    iso = tmp_path / "picture.iso"
+    iso.with_suffix(".image.json").write_text(json.dumps(dict(photo_l=decision)), encoding="utf-8")
+    photo.save_manual_l(summary.parent, media, 0)
+    assert photo.photo_l(summary)["L_mm"] == 0
+    assert photo.image_photo_l(summary, iso, media=media) == decision
+    assert photo.image_photo_l(summary, iso, media=media, device_id="I:")["reason"] == "different_drive"
+    summary.write_bytes(summary.read_bytes() + b"\n")
+    assert photo.image_photo_l(summary, iso, media=media)["reason"] == "different_run"
 
 
 @pytest.mark.parametrize("media", ["cd", "dvd"])

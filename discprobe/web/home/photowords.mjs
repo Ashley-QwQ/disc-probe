@@ -110,6 +110,36 @@ export function outlierWords(outliers = []) {
 // L in plain numbers: always signed, never "0" for a value that does not exist.
 const mm = v => Number.isFinite(v) ? `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(3)} mm` : '';
 
+export const sliderWords = {
+  open: pair('手动对齐', 'Align manually'),
+  close: pair('关闭手动对齐', 'Close manual alignment'),
+  save: pair('保存人工沿轨常数', 'Save manual L'),
+  loading: pair('正在取这张照片的盘缘和圆环位置…', 'Getting the disc edge and ring positions…'),
+  unavailable: pair('这张照片还不能叠图。等读取完成，或换一张拍全盘的照片再试。', 'The overlay is unavailable for this photo. Wait for the read, or try another photo that shows the whole disc.'),
+  scoreError: pair('暂时读不到对齐分数。', 'Alignment score is temporarily unavailable.'),
+  saving: pair('正在保存人工沿轨常数…', 'Saving manual L…'),
+  saveError: pair('人工值没能保存。请再试一次。', 'Could not save the manual value. Try again.'),
+  hint: pair('先转叠图，再调 L，让内外圈条纹贴合。方向键微调，按住 Shift 粗调。', 'Rotate the overlay, then adjust L to match the inner and outer bands. Arrows fine-tune. Hold Shift for larger steps.'),
+  offset: pair('沿轨常数 L', 'Along-track constant L'),
+  angle: pair('整体转角', 'Rotation'),
+  checking: pair('正在检查对齐…', 'Checking alignment…'),
+  weak: pair('可能没对准。可以再调，也可以保存。', 'The overlay may be misaligned. You can adjust it again or save it.'),
+  score: (agreeing, cells) => pair(`边界吻合区块 ${agreeing} / ${cells}`, `Matching blocks ${agreeing} / ${cells}`),
+};
+
+export function manualSourceWords(origin) {
+  if (origin === 'manual-slider') return pair('人工滑块', 'Manual sliders');
+  if (origin === 'manual-cli') return pair('命令行填入', 'Entered on the command line');
+  return null;
+}
+
+export function manualSavedWords(decision) {
+  const source = manualSourceWords(decision.origin);
+  const value = mm(decision.L_mm);
+  return source && decision.written ? pair(`已将 ${value} 写入预设（${source.zh}）。`,
+    `Saved ${value} to the preset (${source.en}).`) : null;
+}
+
 // Why the core did not accept a group of photos (photo.photo_agreement), as what to do next.
 export const agreementReasons = {
   same_pose: pair('几张照片的角度太接近（盘面转角相差不到 10°），不能互相印证。把盘转大一点角度再拍一张。',
@@ -188,6 +218,7 @@ export const applicationReasons = {
   missing_L: pair('结果里没有 L。', 'The result has no L.'),
   inconsistent_L: pair('记录里的 L 前后不一致，不采用。', 'The recorded L is inconsistent, so it is not used.'),
   invalid_photo: pair('照片记录读不出或不完整。', 'The photo record is unreadable or incomplete.'),
+  invalid_manual_L: pair('人工沿轨常数超出了这次测量可以用的范围。', 'The manual along-track constant is outside the range this measurement can use.'),
   opted_out: pair('这次出图选择了不用照片修正。', 'This picture opted out of the photo correction.'),
   invalid_saved_photo_L: pair('ISO 旁保存的 L 记录校验不通过，没有沿用。', 'The L saved beside the ISO failed its check and was not reused.'),
   missing_image_record: pair('没有找到这张 ISO 的出图记录。', 'This ISO’s image record was not found.'),
@@ -206,6 +237,8 @@ function lUnits(app, media) {
 export function applicationWords(app = {}, media = 'cd') {
   if (app.written) {
     const v = lUnits(app, media), disc = app.disc_id ? `（标靶盘 ${app.disc_id}）` : '', discEn = app.disc_id ? ` (target disc ${app.disc_id})` : '';
+    const source = manualSourceWords(app.origin);
+    if (source) return {applied: true, words: pair(`出图会用 L ${v}（${source.zh}）。`, `Pictures will use L ${v} (${source.en}).`)};
     return {applied: true, words: pair(`出图会用 L ${v}${disc}。`, `Pictures will use L ${v}${discEn}.`)};
   }
   const why = applicationReasons[app.reason] || pair('出图不会用这次的照片 L。', 'Pictures will not use this photo L.');
@@ -215,6 +248,8 @@ export function applicationWords(app = {}, media = 'cd') {
 export function photoLWords(photoL = {}, media = 'cd', {reopened = false} = {}) {
   if (photoL?.written) {
     const v = lUnits(photoL, media), version = photoL.reader_version ? ` · reader ${photoL.reader_version}` : '';
+    const source = manualSourceWords(photoL.origin);
+    if (source) return pair(`这张 ISO 使用 L ${v}（${source.zh}）。`, `This ISO uses L ${v} (${source.en}).`);
     return reopened ? pair(`沿用此 ISO 已保存的 L ${v}${version}。`, `Reusing the L saved with this ISO: ${v}${version}.`)
       : pair(`这张 ISO 用了照片 L ${v}${version}。`, `This ISO uses photo L ${v}${version}.`);
   }
