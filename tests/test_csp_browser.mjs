@@ -1,9 +1,12 @@
 // Actual HTTP response policies in Edge, including phone + Lab. Loopback only.
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
-import {mkdtempSync,readFileSync,rmSync,readdirSync} from 'node:fs';
+import {once} from 'node:events';
+import {mkdtempSync,readFileSync,readdirSync} from 'node:fs';
+import {rm} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
+import {stopEdge} from './edge_cleanup.mjs';
 
 const dir=mkdtempSync(join(tmpdir(),'discprobe-csp-'));
 const server=spawn(process.env.PYTHON||'python',['-B','-X','utf8','tests/webguide_http_fixture.py',join(dir,'data')],{stdio:['pipe','pipe','pipe'],windowsHide:true});
@@ -130,9 +133,12 @@ addEventListener('error',e=>runtimeErrors.push(e.message));addEventListener('unh
   if(process.env.CSP_HEADERS_OUT)writeFileSync(process.env.CSP_HEADERS_OUT,JSON.stringify(policies,null,2));
   console.log(`CSP HTTP: ${all.length-1} static HTML routes + token phone + Lab, zero policy violations; desktop theme/design/lamp, dialog native/fallback, mobile viewport, off-screen worker stop/resume passed`);
 } finally {
-  socket?.close();browser?.kill();
-  if(browser&&browser.exitCode===null)await new Promise(r=>browser.once('exit',r));
-  server.stdin.end();if(server.exitCode===null)await new Promise(r=>server.once('exit',r));
+  await stopEdge(browser, socket);
+  if(server.exitCode===null && server.signalCode===null) {
+    const exited=once(server,'exit');
+    server.stdin.end();
+    await exited;
+  }
   assert.equal(resolve(dir,'..'),resolve(tmpdir()));
-  rmSync(dir,{recursive:true,force:true,maxRetries:5,retryDelay:200});
+  await rm(dir,{recursive:true,force:true,maxRetries:10,retryDelay:200});
 }
