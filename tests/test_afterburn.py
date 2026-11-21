@@ -91,6 +91,26 @@ def test_http_review_snapshot_auth_and_stale_burn(http_server, tmp_path):
     assert request(server, "GET", route + "/measurement")[0] == 404
 
 
+def test_checkburn_reuses_saved_report_without_opening_a_drive(http_server, tmp_path, monkeypatch):
+    from discprobe import checkburn
+
+    def fail(*args, **kwargs):
+        pytest.fail('reading a saved checklist accessed the drive')
+
+    monkeypatch.setattr(checkburn, 'check', fail)
+    ident, _ = burned(http_server.backend.works, tmp_path)
+    before = http_server.backend.works.after_burn(ident)
+    route = f"/api/works/{ident}/after-burn/checkburn?burn={before['record']['burn_id']}"
+    status, found = request(http_server, 'GET', route)
+    assert status == 200 and found['source'] == 'saved_burn'
+    assert found['verification'] == report()['verification']
+    assert {item['id']: item['status'] for item in found['checklist']}['write'] == 'excluded'
+    assert request(http_server, 'GET', route, auth=False)[0] == 403
+    assert request(http_server, 'POST', route, {}, auth=False)[0] == 403
+    assert request(http_server, 'POST', route, {'drive': 'Y:'})[0] == 400
+    assert http_server.backend.works.after_burn(ident) == before
+
+
 def test_auto_file_unsaved_burn_and_failure_reports(store, tmp_path):
     from types import SimpleNamespace
     from discprobe.works_link import burn_completed

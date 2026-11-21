@@ -1,5 +1,15 @@
 [
   {
+    "id": "burn-no-picture",
+    "symptoms": {"zh": ["刻完啥也没有", "刻完只有一圈圈的环", "刻完看不到图", "看起来像普通数据盘", "把镜像当文件烧了"], "en": ["nothing shows", "just circles", "only rings", "looks like normal data", "comes back looking like a cd with information on it, no distorted design", "Circles it is", "no picture after burning"]},
+    "error_patterns": [],
+    "cause": {"zh": "看不到图或只看到环时，先查盘上写进了什么，再核对光照、盘种和标定。", "en": "If you see rings or no picture, check what was written first, then check the lighting, disc type and calibration."},
+    "steps": {"zh": ["打开刻完页的「看不到图？」或把盘放进光驱运行 checkburn。有原 ISO 就用 --iso 核对。", "关灯，把手电放在眼睛旁边，倾斜盘并慢慢转动。只有环时，核对是不是用了同批盘的标定。"], "en": ["Open “Can’t see the picture?” on the post-burn page, or insert the disc and run checkburn. Use --iso if you have the original image.", "Turn off the room lights, hold a torch beside your eyes and slowly tilt and turn the disc. If you only see rings, check whether the calibration used the same batch."]},
+    "commands": ["python -m discprobe checkburn --drive <drive>", "python -m discprobe checkburn --drive <drive> --iso <image.iso>"],
+    "manual": {"zh": "docs/CHECKBURN.md#刻完看不到图", "en": "docs/CHECKBURN.md#no-picture-after-burning"},
+    "sources": [{"path": "discprobe/burner.py", "line": 644, "keyword": "Read-back sample:"}, {"path": "README.md", "line": 223, "keyword": "手机手电"}, {"path": "discprobe/web/home/guidance.mjs", "line": 319, "keyword": "核对是不是同一批盘"}, {"path": "docs/CHECKBURN.md", "line": 12, "keyword": "ISO 9660"}]
+  },
+  {
     "id": "bd-picture-calibrate",
     "symptoms": {"zh": ["刻蓝光之前还要校准吗", "蓝光预设有几何就能画吗", "蓝光盘上直线绕了好多圈", "蓝光光盘可以刻图吗", "想用蓝光盘出图", "BD 能不能用"], "en": ["bd preset shape but scale unknown", "blu ray picture twists many turns", "calibrate blu ray before picture", "can i burn a picture to blu ray"]},
     "error_patterns": [{"text": "This preset gives the shape of the spiral, not its scale"}, {"text": "Do not burn a picture with it: on one real BD"}],
@@ -127,7 +137,7 @@
     "steps": {"zh": ["换用尚未测过的 CD 读速。24x 在手册的 CD 速率表中，用 timing 查看实际模式。"], "en": ["Try an untested CD speed. 24x is listed in the manual’s CD speed table. Check the actual mode with timing."]},
     "commands": ["python -m discprobe timing --media cd --drive <drive> --speed 24x"],
     "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
-    "sources": [{"path": "discprobe/guide.py", "line": 583, "keyword": "A higher CD speed may allow CAV"}, {"path": "docs/MANUAL.en.md", "line": 131, "keyword": "24x"}, {"path": "README.en.md", "line": 397, "keyword": "CAV, 2090 rpm"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 583, "keyword": "A higher CD speed may allow CAV"}, {"path": "docs/MANUAL.en.md", "line": 131, "keyword": "24x"}, {"path": "README.en.md", "line": 398, "keyword": "CAV, 2090 rpm"}]
   },
   {
     "id": "cd-twisted-lines",
@@ -357,7 +367,7 @@
     "steps": {"zh": ["用 results 检查结果，选择含几何拟合的运行，或重新测量。"], "en": ["Check runs with results and select one with a geometry fit, or measure again."]},
     "commands": ["python -m discprobe results", "python -m discprobe geo --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/guide.py", "line": 332, "keyword": "no geometry fit"}, {"path": "discprobe/guide.py", "line": 356, "keyword": "neither an inner radius nor a pitch"}, {"path": "README.en.md", "line": 422, "keyword": "which steps are done"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 332, "keyword": "no geometry fit"}, {"path": "discprobe/guide.py", "line": 356, "keyword": "neither an inner radius nor a pitch"}, {"path": "README.en.md", "line": 423, "keyword": "which steps are done"}]
   },
   {
     "id": "dis-old-quality",
@@ -977,7 +987,7 @@
     "steps": {"zh": ["确认同批盘和同一台刻录机。光照和刻录报告无异常后，仍扭曲时可用网格测试盘检查几何。", "如果图案沿半径扭成螺旋，先核对预设是否来自相近的实测盘。蓝光仅凭计时的预设还需要实盘校准。"], "en": ["Check that the disc is from the same batch and was burned on the same burner. If lighting and the burn report are fine and lines are still twisted, use a grid test to check geometry.", "If the pattern twists into a spiral across the radius, check that the preset came from a closely matching measured disc. A timing-only Blu-ray preset still needs disc calibration."]},
     "commands": ["python -m discprobe image --geo latest --output iso/grid.iso"],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "discprobe/guide.py", "line": 1035, "keyword": "check it was the same batch"}, {"path": "discprobe/guide.py", "line": 1036, "keyword": "only if the light and the burn report are fine"}, {"path": "discprobe/guide.py", "line": 1037, "keyword": "--output iso/grid.iso"}, {"path": "docs/MANUAL.en.md", "line": 329, "keyword": "will show dense spirals"}, {"path": "README.en.md", "line": 467, "keyword": "a spiral of a dozen arms"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 1035, "keyword": "check it was the same batch"}, {"path": "discprobe/guide.py", "line": 1036, "keyword": "only if the light and the burn report are fine"}, {"path": "discprobe/guide.py", "line": 1037, "keyword": "--output iso/grid.iso"}, {"path": "docs/MANUAL.en.md", "line": 329, "keyword": "will show dense spirals"}, {"path": "README.en.md", "line": 468, "keyword": "a spiral of a dozen arms"}]
   },
   {
     "id": "random-too-large",
@@ -1097,7 +1107,7 @@
     "steps": {"zh": ["使用受支持系统；README 也列出了独立的 macOS 移植。按 guide 里的模拟命令可体验计时流程。"], "en": ["Use a supported system. The README also lists a separate macOS port. The simulated timing command can demonstrate the workflow."]},
     "commands": ["python -m discprobe timing --sim cav"],
     "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
-    "sources": [{"path": "discprobe/guide.py", "line": 55, "keyword": "real hardware on Windows and Linux"}, {"path": "discprobe/guide.py", "line": 1316, "keyword": "real drives need Windows or Linux"}, {"path": "discprobe/guide.py", "line": 659, "keyword": "timing --sim cav"}, {"path": "README.en.md", "line": 409, "keyword": "NaiveTomcat ported it to macOS"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 55, "keyword": "real hardware on Windows and Linux"}, {"path": "discprobe/guide.py", "line": 1316, "keyword": "real drives need Windows or Linux"}, {"path": "discprobe/guide.py", "line": 659, "keyword": "timing --sim cav"}, {"path": "README.en.md", "line": 410, "keyword": "NaiveTomcat ported it to macOS"}]
   },
   {
     "id": "web-disc-type",
@@ -1107,7 +1117,7 @@
     "steps": {"zh": ["用 info 确认盘种，网页引导选择相同类型，命令行对 CD 指定 --media cd，对 BD 指定 --media bd。当前网页检查盘图案只支持 DVD。"], "en": ["Use info to identify the disc and select the same family in the guide. Use --media cd or --media bd as appropriate in the CLI. The web check-disc target supports DVD."]},
     "commands": ["python -m discprobe info --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
-    "sources": [{"path": "README.en.md", "line": 159, "keyword": "disc type (CD/DVD/BD)"}, {"path": "README.en.md", "line": 428, "keyword": "CD and DVD"}, {"path": "README.en.md", "line": 465, "keyword": "--media bd"}, {"path": "discprobe/webui.py", "line": 179, "keyword": "The check disc is for DVD only"}, {"path": "discprobe/__main__.py", "line": 219, "keyword": "but the command has DVD settings"}]
+    "sources": [{"path": "README.en.md", "line": 159, "keyword": "disc type (CD/DVD/BD)"}, {"path": "README.en.md", "line": 429, "keyword": "CD and DVD"}, {"path": "README.en.md", "line": 466, "keyword": "--media bd"}, {"path": "discprobe/webui.py", "line": 180, "keyword": "The check disc is for DVD only"}, {"path": "discprobe/__main__.py", "line": 219, "keyword": "but the command has DVD settings"}]
   },
   {
     "id": "web-double-click",
@@ -1137,7 +1147,7 @@
     "steps": {"zh": ["在运行服务的电脑上打开它打印的本机地址。"], "en": ["Open the printed loopback address on the computer running the server."]},
     "commands": ["python -m discprobe webui --local-only"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1399, "keyword": "localhost:"}, {"path": "discprobe/webui.py", "line": 1520, "keyword": "invalid Host"}, {"path": "README.en.md", "line": 84, "keyword": "keep the service on this computer"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1479, "keyword": "localhost:"}, {"path": "discprobe/webui.py", "line": 1600, "keyword": "invalid Host"}, {"path": "README.en.md", "line": 84, "keyword": "keep the service on this computer"}]
   },
   {
     "id": "web-multiple-windows",
@@ -1147,7 +1157,7 @@
     "steps": {"zh": ["用 webui status 查看当前地址、运行模式和任务。要换设置，等任务结束后运行 webui stop，再用新参数启动。", "只有明确指定 --new-instance 才会绕过默认实例复用。"], "en": ["Use webui status to see the current address, mode and tasks. To change the settings, wait for the tasks to finish, run webui stop, then start with the new options.", "An explicit --new-instance bypasses the normal instance reuse."]},
     "commands": ["python -m discprobe webui status", "python -m discprobe webui stop"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web_instance.py", "line": 159, "keyword": "previous = None if new_instance else _existing(path)"}, {"path": "discprobe/web_instance.py", "line": 189, "keyword": "Run discprobe webui stop before changing them"}, {"path": "discprobe/web_instance.py", "line": 259, "keyword": "if result[\"tasks\"]:"}, {"path": "discprobe/__main__.py", "line": 2703, "keyword": "without replacing the existing instance"}]
+    "sources": [{"path": "discprobe/web_instance.py", "line": 159, "keyword": "previous = None if new_instance else _existing(path)"}, {"path": "discprobe/web_instance.py", "line": 189, "keyword": "Run discprobe webui stop before changing them"}, {"path": "discprobe/web_instance.py", "line": 259, "keyword": "if result[\"tasks\"]:"}, {"path": "discprobe/__main__.py", "line": 2706, "keyword": "without replacing the existing instance"}]
   },
   {
     "id": "web-offline",
@@ -1177,7 +1187,7 @@
     "steps": {"zh": ["打开当前启动输出里的完整地址，或运行 webui status 查看已登记的 URL。需要更换首选端口时，先等任务结束并停止服务，再用 --port 启动。"], "en": ["Open the full address from the launch output, or use webui status to see the registered URL. To change the preferred port, wait for active tasks and stop the service, then relaunch with --port."]},
     "commands": ["python -m discprobe webui status"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web_instance.py", "line": 166, "keyword": "exc.errno != errno.EADDRINUSE"}, {"path": "discprobe/web_instance.py", "line": 169, "keyword": "server = factory(0)"}, {"path": "discprobe/web_instance.py", "line": 191, "keyword": "previous[\"port\"]"}, {"path": "discprobe/__main__.py", "line": 2699, "keyword": "uses a free port if occupied"}]
+    "sources": [{"path": "discprobe/web_instance.py", "line": 166, "keyword": "exc.errno != errno.EADDRINUSE"}, {"path": "discprobe/web_instance.py", "line": 169, "keyword": "server = factory(0)"}, {"path": "discprobe/web_instance.py", "line": 191, "keyword": "previous[\"port\"]"}, {"path": "discprobe/__main__.py", "line": 2702, "keyword": "uses a free port if occupied"}]
   },
   {
     "id": "web-port-invalid",
@@ -1187,7 +1197,7 @@
     "steps": {"zh": ["使用一个可用的端口，例如手册示例的 8765，打开服务打印的地址。"], "en": ["Use an available port, such as 8765 from the installation guide, and open the address printed by the server."]},
     "commands": ["python -m discprobe webui --port 8765"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1348, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1349, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2699, "keyword": "preferred HTTP port"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1428, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1429, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2702, "keyword": "preferred HTTP port"}]
   },
   {
     "id": "web-startup-error",
@@ -1207,7 +1217,7 @@
     "steps": {"zh": ["用 webui status 查看正在进行的任务和光驱锁。等任务结束后，再点退出或运行 webui stop。"], "en": ["Use webui status to see active tasks and drive locks, wait for the tasks to finish, then use Quit or run webui stop."]},
     "commands": ["python -m discprobe webui status", "python -m discprobe webui stop"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1318, "keyword": "Cannot force stop while disc writes are active or possible"}, {"path": "discprobe/webui.py", "line": 1322, "keyword": "Wait for the current tasks to finish"}, {"path": "discprobe/web_instance.py", "line": 275, "keyword": "\"/api/quit\""}, {"path": "README.en.md", "line": 83, "keyword": "use Quit in the lobby"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1398, "keyword": "Cannot force stop while disc writes are active or possible"}, {"path": "discprobe/webui.py", "line": 1402, "keyword": "Wait for the current tasks to finish"}, {"path": "discprobe/web_instance.py", "line": 275, "keyword": "\"/api/quit\""}, {"path": "README.en.md", "line": 83, "keyword": "use Quit in the lobby"}]
   },
   {
     "id": "windows-spti",

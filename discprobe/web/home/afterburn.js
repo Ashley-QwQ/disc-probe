@@ -2,6 +2,7 @@
 import { isMeasurementWork, worksFor } from './pastworks/works.mjs';
 import { afterChecks, leave as leaveBurn, start as startBurn } from './burn.js';
 import { afterBurn, troubleChecks, cdPhoto } from './guidance.mjs';
+import { burnChecklist } from './checkburn.js';
 
 export function latestBurn(works) {
   return works.filter(work => !isMeasurementWork(work)).map(work => ({work, record:[...(work.discs ?? [])].reverse().find(r => r.type === 'burn' && !r.measurement)}))
@@ -21,7 +22,7 @@ const choices = {
   correct:['看到了，位置对','Visible and aligned'], invisible:['看不见','No picture'],
   distorted:['歪了或扭了','Skewed or twisted'], gaps:['断开或缺块','Gaps or missing pieces'],
 };
-let api, client, data, page, life, thumbURL, saving=false;
+let api, client, data, page, life, thumbURL, checkPanel, saving=false;
 const root = document.documentElement;
 const L = (zh,en) => api.lang() === 'en' ? en : zh;
 const words = pair => pair[api.lang() === 'en' ? 'en' : 'zh'];
@@ -52,11 +53,12 @@ export async function open(homeApi,id,burnId=null) {
   const nextData=await client.afterBurn(id,burnId);
   leave();data=nextData;
   if(!page){
-    for(const file of ['burn.css','afterburn.css']) {const link=el('link');link.rel='stylesheet';link.href=new URL(file,import.meta.url);document.head.append(link);}
+    for(const file of ['burn.css','afterburn.css','checkburn.css']) {const link=el('link');link.rel='stylesheet';link.href=new URL(file,import.meta.url);document.head.append(link);}
     page=el('main','burn-page after-burn');page.hidden=true;document.body.append(page);
   }
   root.dataset.mode='afterburn';page.hidden=false;life=new AbortController();
   const signal=life.signal;
+  checkPanel=burnChecklist(api,id,data.record.burn_id,signal);
   api.$('back').hidden=false;
   api.$('back').addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();leave();api.toLobby?.();},{capture:true,signal});
   api.$('next').addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();if(!saving){leave();api.toLobby?.();}},{capture:true,signal});
@@ -88,6 +90,7 @@ function render() {
     const b=button(...pair,()=>observe(key));b.dataset.choice=key;b.setAttribute('aria-pressed',String(choice===key));b.disabled=saving;group.append(b);
   }
   sheet.append(group,el('p','ab-message',''));
+  const troubleshooter=checkPanel();if(troubleshooter)sheet.append(troubleshooter);
   const branch=el('section','ab-branch');branch.setAttribute('aria-live','polite');
   if(choice==='correct')branch.append(el('h2','',L('已存进作品库','Saved in the library')),el('p','',L('已记录你看到了图，位置正确。以后同批盘可以复用这次测量。','Your observation is saved. Reuse this measurement for later discs from the same batch.')));
   if(choice==='invisible'){

@@ -44,7 +44,7 @@ def test_citations_and_bilingual_data():
 
 def test_query_scores():
     result = score(load_queries(), troubleshoot.search)
-    assert result["total"] == result["hits"] == {"error": 45, "symptom": 38}, result
+    assert result["total"] == result["hits"] == {"error": 45, "symptom": 46}, result
 
 
 def test_unknown_and_error_priority():

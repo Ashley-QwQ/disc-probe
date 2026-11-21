@@ -63,6 +63,7 @@ class HandshakeTests(unittest.TestCase):
         payload = api.version_payload()
         self.assertEqual(payload['core_version'], __version__)
         self.assertEqual(payload['api_version'], '1.2')
+        self.assertIn('checkburn', payload['capabilities'])
         self.assertIn('image-job-recovery', payload['capabilities'])
         self.assertIn('geo-coverage', payload['capabilities'])
         self.assertEqual(payload['supported_older_api_majors'], [])
@@ -135,6 +136,7 @@ class HandshakeTests(unittest.TestCase):
             names = set(wheel.namelist())
             for name in ('discprobe/web/gui.json', 'discprobe/web/home/index.html',
                          'discprobe/web/home/handshake.mjs', 'discprobe/web/fonts/MonaSans-VF.ttf',
+                         'discprobe/checkburn.py', 'discprobe/web/home/checkburn.js', 'discprobe/web/home/checkburn.css',
                          'discprobe/web/home/sim/textures.bin', 'discprobe/_presets/catalogue.json',
                          'discprobe/_data/community-calibrations/dis-github.json',
                          'discprobe/web/home/faxnews/community.json', 'discprobe/community.py',

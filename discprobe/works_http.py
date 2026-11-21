@@ -89,6 +89,11 @@ def handle(handler, method):
                 handler._send(200, store.content(ident, "design.discdesign"), "application/json; charset=utf-8")
             elif suffix == "after-burn" and method == "GET":
                 answer(store.after_burn(ident, burn_id=burn_id))
+            elif suffix == "after-burn/checkburn" and method in ("GET", "POST"):
+                from . import checkburn_http
+                if method == "POST" and optional_obj():
+                    raise works.WorkError("invalid checkburn request")
+                answer(checkburn_http.check(handler.server.backend, ident, burn_id, live=method == "POST"))
             elif suffix == "after-burn" and method == "PUT":
                 data = obj()
                 if (set(data) != {"choice", "burn_id"} or not isinstance(data["burn_id"], str)

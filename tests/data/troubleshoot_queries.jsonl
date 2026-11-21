@@ -81,3 +81,11 @@
 {"case":81,"kind":"symptom","expected":"photo-pending","query":"The computer hasn't read any of the photos I uploaded"}
 {"case":82,"kind":"symptom","expected":"photo-one-pass","query":"Only one usable photo so far, should I retake it?"}
 {"case":83,"kind":"symptom","expected":"editor-colour-fill","query":"Why does colour fill need a DVD layer?"}
+{"case":84,"kind":"symptom","expected":"burn-no-picture","query":"刻完啥也没有"}
+{"case":85,"kind":"symptom","expected":"burn-no-picture","query":"nothing shows"}
+{"case":86,"kind":"symptom","expected":"burn-no-picture","query":"just circles"}
+{"case":87,"kind":"symptom","expected":"burn-no-picture","query":"only rings"}
+{"case":88,"kind":"symptom","expected":"burn-no-picture","query":"looks like normal data"}
+{"case":89,"kind":"symptom","expected":"burn-no-picture","query":"comes back looking like a cd with information on it, no distorted design"}
+{"case":90,"kind":"symptom","expected":"burn-no-picture","query":"Circles it is"}
+{"case":91,"kind":"symptom","expected":"burn-no-picture","query":"刻完只有一圈圈的环"}
