@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import shutil
 from unittest.mock import patch
 
 from . import cd, filldisc, gameart, guide, i18n, sectors, snake, sudoku, timing, ui
@@ -1553,8 +1554,10 @@ def _advice(c) -> None:
     stop = "\n".join(guide.after_geo_stop(args, "the spindle speed never settled; is the read speed fixed (--speed)?"))
     c.check("timing" in stop and "--speed" in stop, "a geo that never settled gets a next step")
 
+    empty_results = tempfile.mkdtemp(prefix="selftest-results-")  # the speed advice reads tried speeds from --out
+
     def retry_at(speed, media="dvd"):
-        at = Namespace(**{**vars(args), "speed": speed, "media": media})
+        at = Namespace(**{**vars(args), "speed": speed, "media": media, "out": empty_results})
         lines = guide.after_geo_stop(at, "a whole-turn count went wrong") + guide.after_geo_stop(at, "the spindle speed never settled")
         return lines + guide.after_geo(at, {**fit, "chi2_per_dof": 1.0}, os.path.join("results", "geo-H-20260101-100000"))
     lowest, usual, cd = (retry_at(3324), retry_at(5540), retry_at(1411, "cd"))
@@ -1563,6 +1566,7 @@ def _advice(c) -> None:
     c.check(any("--ranges" in x for x in lowest), "already at the lowest speed: geo still offers --ranges")
     c.check(sum("a lower speed" in x for x in usual) == 3 and any("--speed 3324" in x for x in usual), "with a lower speed to try, geo says lower")
     c.check(not any("lower speed" in x for x in cd) and any("--speed 2822" in x for x in cd), "CD at its default speed: the next one is not called lower")
+    shutil.rmtree(empty_results, ignore_errors=True)
     i18n.use("zh")
     try:
         said = [i18n.tr(x) for x in lowest + usual]
