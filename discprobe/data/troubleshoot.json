@@ -7,7 +7,7 @@
     "steps": {"zh": ["打开刻完页的「看不到图？」或把盘放进光驱运行 checkburn。有原 ISO 就用 --iso 核对。", "关灯，把手电放在眼睛旁边，倾斜盘并慢慢转动。只有环时，核对是不是用了同批盘的标定。"], "en": ["Open “Can’t see the picture?” on the post-burn page, or insert the disc and run checkburn. Use --iso if you have the original image.", "Turn off the room lights, hold a torch beside your eyes and slowly tilt and turn the disc. If you only see rings, check whether the calibration used the same batch."]},
     "commands": ["python -m discprobe checkburn --drive <drive>", "python -m discprobe checkburn --drive <drive> --iso <image.iso>"],
     "manual": {"zh": "docs/CHECKBURN.md#刻完看不到图", "en": "docs/CHECKBURN.md#no-picture-after-burning"},
-    "sources": [{"path": "discprobe/burner.py", "line": 662, "keyword": "Read-back sample:"}, {"path": "README.md", "line": 223, "keyword": "手机手电"}, {"path": "discprobe/web/home/guidance.mjs", "line": 337, "keyword": "核对是不是同一批盘"}, {"path": "docs/CHECKBURN.md", "line": 12, "keyword": "ISO 9660"}]
+    "sources": [{"path": "discprobe/burner.py", "line": 662, "keyword": "Read-back sample:"}, {"path": "README.md", "line": 223, "keyword": "手机手电"}, {"path": "discprobe/web/home/guidance.mjs", "line": 357, "keyword": "核对是不是同一批盘"}, {"path": "docs/CHECKBURN.md", "line": 12, "keyword": "ISO 9660"}]
   },
   {
     "id": "bd-picture-calibrate",
@@ -1147,7 +1147,7 @@
     "steps": {"zh": ["在运行服务的电脑上打开它打印的本机地址。"], "en": ["Open the printed loopback address on the computer running the server."]},
     "commands": ["python -m discprobe webui --local-only"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1586, "keyword": "localhost:"}, {"path": "discprobe/webui.py", "line": 1709, "keyword": "invalid Host"}, {"path": "README.en.md", "line": 84, "keyword": "keep the service on this computer"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1596, "keyword": "localhost:"}, {"path": "discprobe/webui.py", "line": 1719, "keyword": "invalid Host"}, {"path": "README.en.md", "line": 84, "keyword": "keep the service on this computer"}]
   },
   {
     "id": "web-multiple-windows",
@@ -1197,7 +1197,7 @@
     "steps": {"zh": ["使用一个可用的端口，例如手册示例的 8765，打开服务打印的地址。"], "en": ["Use an available port, such as 8765 from the installation guide, and open the address printed by the server."]},
     "commands": ["python -m discprobe webui --port 8765"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1535, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1536, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2746, "keyword": "preferred HTTP port"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1545, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1546, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2746, "keyword": "preferred HTTP port"}]
   },
   {
     "id": "web-startup-error",
@@ -1217,7 +1217,7 @@
     "steps": {"zh": ["用 webui status 查看正在进行的任务和光驱锁。等任务结束后，再点退出或运行 webui stop。"], "en": ["Use webui status to see active tasks and drive locks, wait for the tasks to finish, then use Quit or run webui stop."]},
     "commands": ["python -m discprobe webui status", "python -m discprobe webui stop"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1505, "keyword": "Cannot force stop while disc writes are active or possible"}, {"path": "discprobe/webui.py", "line": 1509, "keyword": "Wait for the current tasks to finish"}, {"path": "discprobe/web_instance.py", "line": 275, "keyword": "\"/api/quit\""}, {"path": "README.en.md", "line": 83, "keyword": "use Quit in the lobby"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1515, "keyword": "Cannot force stop while disc writes are active or possible"}, {"path": "discprobe/webui.py", "line": 1519, "keyword": "Wait for the current tasks to finish"}, {"path": "discprobe/web_instance.py", "line": 275, "keyword": "\"/api/quit\""}, {"path": "README.en.md", "line": 83, "keyword": "use Quit in the lobby"}]
   },
   {
     "id": "windows-spti",
