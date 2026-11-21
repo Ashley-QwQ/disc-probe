@@ -309,7 +309,7 @@ def test_virtual_burn_blocks_other_instance_and_quit_until_finished(lab):
             assert status == 200 and disc["disc"]["blank"] is False, disc
             shutdown(second, b)
             assert record(state) == primary
-        assert control(lab, "stop")[0] == 0
+        stopped = control(lab, "stop"); assert stopped[0] == 0, stopped
         assert first.wait(timeout=10) == 0
     assert not state.exists()
 
@@ -328,7 +328,7 @@ def test_busy_port_falls_back_and_reuse_keeps_the_registered_port(lab):
             assert data["port"] != requested and data["config"]["port"] == requested
             code, out, err = control(lab, *options)
             assert code == 0 and not err and urlsplit(out.strip()).port == data["port"]
-            assert control(lab, "stop")[0] == 0
+            stopped = control(lab, "stop"); assert stopped[0] == 0, stopped
             assert child.wait(timeout=10) == 0
     assert not state.exists()
 
@@ -462,7 +462,7 @@ def test_actual_winpack_batch_and_cli_share_one_server(lab, batch_first):
                     assert (code, err) == (0, "")
                     assert record(state) == data
                     assert request(address(data), "/api/disc", {"drive": "X:"})[1]["disc"]["present"]
-                    assert control(lab, "stop")[0] == 0 and bat.wait(timeout=10) == 0
+                    stopped = control(lab, "stop"); assert stopped[0] == 0, stopped; assert bat.wait(timeout=10) == 0
                 finally:
                     if bat.poll() is None:
                         if record(state):
@@ -476,7 +476,7 @@ def test_actual_winpack_batch_and_cli_share_one_server(lab, batch_first):
                 out = bat.stdout
                 assert record(state) == data
                 assert request(address(data), "/api/disc", {"drive": "X:"})[1]["disc"]["present"]
-                assert control(lab, "stop")[0] == 0 and child.wait(timeout=10) == 0
+                stopped = control(lab, "stop"); assert stopped[0] == 0, stopped; assert child.wait(timeout=10) == 0
         assert calls.read_text(encoding="utf-8").splitlines() == [out.strip()]
     finally:
         python.rmdir()  # Remove the junction itself.
