@@ -145,7 +145,7 @@ async function until(check, label) {
     await delay(40);
   }
   throw Error(label + '\n' + JSON.stringify(await evaluate(`({
-    url:location.href, mode:document.documentElement.dataset.mode, errors:window.retryErrors,
+    url:location.href, mode:document.documentElement?.dataset.mode, errors:window.retryErrors,
     content:document.querySelector('#cal')?.innerText, next:document.querySelector('#next-text')?.textContent
   })`)));
 }
@@ -162,7 +162,8 @@ async function load(name, lang = 'en', theme = 'paper', width = 1440) {
   const screen = name === 'burn-stall' ? 'document.querySelector("#job-cancel")?.textContent.length > 0'
     : name === 'burn' ? '/finish|完成/.test(document.querySelector("#cal h2")?.textContent)'
     : '!!document.querySelector("#cal .cal-stamp")';
-  await until(() => evaluate(`document.documentElement.dataset.mode === 'cal' &&
+  await until(() => evaluate(`new URLSearchParams(location.search).get('fixture') === '${name}' &&
+    document.documentElement?.dataset.mode === 'cal' &&
     document.documentElement.dataset.theme === '${themeSetting}' &&
     document.documentElement.dataset.lang === '${lang}' && innerWidth === ${width} &&
     new URLSearchParams(location.search).get('width') === '${width}' &&
