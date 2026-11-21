@@ -470,8 +470,13 @@ const TOP_DOCK = 64;
 const DOCK = 96;                             // the canvas's bottom strip, where the number bar docks
 function fit() {
   followFit = true;
-  V.s = Math.max(1, Math.min(focus.w - 64, focus.h - TOP_DOCK - DOCK)) * 0.92 / 120;
-  V.cx = focus.x + focus.w / 2 + 20; V.cy = focus.y + TOP_DOCK + (focus.h - TOP_DOCK - DOCK) / 2;
+  // Keep the usual tool space, but let the docks shrink with a very small opening.
+  const side = Math.min(1, focus.w / 80);
+  const vertical = Math.min(1, focus.h / 200);
+  const top = TOP_DOCK * vertical, bottom = DOCK * vertical;
+  V.s = Math.min(focus.w - 64 * side, focus.h - top - bottom) * 0.92 / 120;
+  V.cx = focus.x + focus.w / 2 + 20 * side;
+  V.cy = focus.y + top + (focus.h - top - bottom) / 2;
   settleView();editor?.invalidate();
   draw(); queueCompose();
 }
@@ -721,10 +726,15 @@ function lookOverlay(plan = S) {
 
 // ---------------------------------------------------------------- drawing the canvas
 let drawQueued = false, canvasActive = true;
+const canPaint = () => canvasActive && !document.hidden && isOn() && V.w > 0 && V.h > 0 && V.s > 0;
+function paintNow() {
+  drawQueued = false;
+  if (canPaint()) paintCanvas();
+}
 function draw() {
-  if (drawQueued || !canvasActive || document.hidden || !isOn()) return;
+  if (drawQueued || !canPaint()) return;
   drawQueued = true;
-  const run = () => { if (!drawQueued) return; drawQueued = false; if (canvasActive && !document.hidden && isOn()) paintCanvas(); };
+  const run = () => { if (drawQueued) paintNow(); };
   requestAnimationFrame(run);
   setTimeout(run, 60);                      // a hidden page gets no animation frames
 }
@@ -760,6 +770,7 @@ function ruler(g, r0, r1, ink) {
 }
 function paintCanvas() {
   if (!W || !S) return;
+  W.zoom.textContent = followFit ? T().fit : `${zoomPct()}%`;
   updateDesk(W, V, focus);
   const cv = W.canvas, g = cv.getContext("2d");
   if(motion&&S.view==='burn'){
@@ -872,7 +883,6 @@ function paintCanvas() {
     }
   }
   // words over the canvas
-  W.zoom.textContent = `${zoomPct()}%`;
   const out = imageLayers().some((L) => L.visible && cornersOutside(L, p0, p1, gaps));
   W.note.hidden = !out && !gaps.length;
   const missing = gaps.map(([a, b]) => `${a.toFixed(2)}–${b.toFixed(2)} mm`).join(" · ");
@@ -1162,7 +1172,7 @@ function buildLeft() {
   const rows = [...S.layers].reverse(), panel = editor?.panelState();
   if(panel?.layerActions!=null&&!S.layers.some(L=>L.id===panel.layerActions))panel.layerActions=null;
   const layerActions = panel?.layerActions;
-  W.left.innerHTML = `<section><h3><span class="grow">${t.layers}</span>` +
+  W.leftContent.innerHTML = `<section><h3><span class="grow">${t.layers}</span>` +
     `</h3>` +
     (rows.length ? `<ul class="lays" role="listbox" aria-label="${t.layers}">${rows.map((L) => {
       const id = esc(L.id);
@@ -1193,7 +1203,7 @@ function buildLeft() {
     if (L.kind === "image") li.querySelector(".th").replaceWith(thumb(L));
   }
   editor?.left();
-  mountFilesStep(W.left, {getFiles:()=>S.files, setFiles:value=>{S.files=value;queueMicrotask(refreshFilesHelp);},
+  mountFilesStep(W.leftContent, {getFiles:()=>S.files, setFiles:value=>{S.files=value;queueMicrotask(refreshFilesHelp);},
     context:async()=>{const state=await api.backend.state();return {media:S.media,geo:planGeo(state).path,r_max:range()[1]};},
     onChange:changed, lang:api.lang(), media:S.media});
   refreshFilesHelp();
@@ -1941,7 +1951,8 @@ function build() {
   ws.innerHTML = `<div class="ws-title"><svg class="work-bag" viewBox="0 0 20 24" width="16" height="20" style="flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.3" role="img" aria-label="作品存在往期作品里 / Saved in past works"><title>作品存在往期作品里 / Saved in past works</title><path d="M3 5h14v17H3zM3 5l3-3h8l3 3M7 9h6M7 12h6"/></svg><b class="pname"></b><button class="sub" type="button"></button><span class="dirty" aria-hidden="true"></span>` +
     `<span class="filebtns"><button class="sbtn" type="button" data-a="open"></button><button class="sbtn" type="button" data-a="save"></button></span></div>` +
     `<div class="ed-panel-picker"><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-left ed-files" data-panel="layers"></button><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-right" data-panel="tone"></button></div>` +
-    `<aside class="col col-l" id="ed-left"></aside><aside class="col col-r" id="ed-right"></aside>` +
+    `<aside class="col col-l" id="ed-left"><div class="ed-layer-content"></div></aside>` +
+    `<div class="ed-layer-fade" aria-hidden="true" hidden></div><aside class="col col-r" id="ed-right"></aside>` +
     `<div class="cv"><div class="ed-desk" aria-hidden="true"></div><div class="ed-surface"><div class="ed-disc-shadow" aria-hidden="true"></div><canvas class="main"></canvas></div>` +
     `<div class="tools-v" role="toolbar"></div>` +
     `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="burn"></button><button type="button" data-v="lamp"></button><button type="button" data-colour-compare hidden></button></div><p class="ed-view-note"><span class="ed-batch-note" hidden></span><span class="ed-view-status" aria-live="polite"></span></p>` +
@@ -1957,6 +1968,7 @@ function build() {
   const q = (s) => ws.querySelector(s);
   W = {
     ws, left: q(".col-l"), right: q(".col-r"), cv: q(".cv"), canvas: q("canvas.main"), tools: q(".tools-v"), view: q(".viewsw"),
+    leftContent: q(".ed-layer-content"), leftFade: q(".ed-layer-fade"),
     desk: q(".ed-desk"), surface: q(".ed-surface"), shadow: q(".ed-disc-shadow"),
     note: q(".cv-note"), empty: q(".empty-c"), bar: q(".fbar"), tilt: q(".tilt"), loupe: q(".loupe"), zoom: q(".zoomr"),
     drop: q(".dropzone"), file: q(".f-img"), folder: q(".f-dir"), dirty: q(".dirty"), pname: q(".pname"), sub: q(".ws-title .sub"), proj: q(".f-proj"), filebtns: q(".filebtns"),
@@ -1975,9 +1987,25 @@ function build() {
   // Keep the existing glass panel's shadow beneath the picture, as it was before the canvas
   // extended behind the panels. Its opaque face alone belongs above the picture.
   ws.prepend(W.desk);
-  const panelShadow = document.createElement("div");
-  panelShadow.className = "ed-panel-shadow"; panelShadow.setAttribute("aria-hidden", "true");
-  ws.prepend(panelShadow);
+  for (const side of ["l", "r"]) {
+    const shadow = document.createElement("div");
+    shadow.className = `ed-panel-shadow ed-panel-shadow-${side}`;
+    shadow.setAttribute("aria-hidden", "true");
+    ws.prepend(shadow);
+  }
+  const updateLayerFade = () => {
+    const { clientHeight, scrollHeight, scrollTop } = W.left;
+    W.leftFade.hidden = !clientHeight || scrollHeight - clientHeight - scrollTop <= 1;
+  };
+  const layerObserver = new ResizeObserver(updateLayerFade);
+  layerObserver.observe(W.left);
+  layerObserver.observe(W.leftContent);
+  W.left.addEventListener("scroll", updateLayerFade, { passive: true });
+  const header = document.querySelector("header.top");
+  const headerObserver = new ResizeObserver(placeTitle);
+  for (const element of [header, $("back"), $("wordmark"), $("wm-ver"), header?.querySelector(".tools")]) {
+    if (element) headerObserver.observe(element);
+  }
   // canvas input
   const cvs = W.canvas;
   observeActivity(cvs, active => {
@@ -2084,21 +2112,44 @@ function build() {
     }});
   W.canvas.tabIndex=0;W.canvas.setAttribute("aria-label","Disc editor canvas");
   W.canvas.addEventListener("keydown",e=>{if(!spaceDown&&e.key!==" "&&editor.key(e)){e.preventDefault();e.stopPropagation();}});
-  const observer = new ResizeObserver(resize); observer.observe(W.cv); observer.observe(W.ws);
+  const observer = new ResizeObserver(() => resize()); observer.observe(W.cv); observer.observe(W.surface);
+  addEventListener("resize", () => resize());
   $("back").addEventListener("click", () => { if (isOn()) leave(); });
   $("next").addEventListener("click", () => { if (isOn() && (imageLayers().length || S.assignments?.length)) toPreview(); });
   addEventListener("dp-lang", () => { if (isOn()) words(); });
   new MutationObserver(() => { if (isOn()) { draw(); drawScene(); } }).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
 }
-function resize() {
+function resize(force = false) {
   const r = W.cv.getBoundingClientRect(), stage = W.surface.getBoundingClientRect();
+  if (!(stage.width > 0 && stage.height > 0 && r.width > 0 && r.height > 0)) return;
+  // Both rectangles move together during the editor's entrance.
+  const x = r.left - stage.left, y = r.top - stage.top, dpr = devicePixelRatio || 1;
+  if (!force && x === focus.x && y === focus.y && r.width === focus.w && r.height === focus.h &&
+      stage.width === V.w && stage.height === V.h && dpr === V.dpr) return;
   const ox = V.cx - focus.x - focus.w / 2, oy = V.cy - focus.y - focus.h / 2;
-  focus = {x: r.left - stage.left, y: r.top - stage.top, w: r.width, h: r.height};
-  V.w = stage.width; V.h = stage.height; V.dpr = devicePixelRatio || 1;
-  W.canvas.width = Math.round(V.w * V.dpr); W.canvas.height = Math.round(V.h * V.dpr);
+  focus = { x, y, w: r.width, h: r.height };
+  V.w = stage.width; V.h = stage.height; V.dpr = dpr;
+  const width = Math.round(V.w * dpr), height = Math.round(V.h * dpr);
+  if (W.canvas.width !== width) W.canvas.width = width;
+  if (W.canvas.height !== height) W.canvas.height = height;
   settleView();
   if (followFit) fit();
   else { V.cx = focus.x + focus.w / 2 + ox; V.cy = focus.y + focus.h / 2 + oy; draw(); queueCompose(); }
+  // ResizeObserver runs before paint. Keep the bitmap and mask in the same
+  // frame as the opening, including when the backing store was just cleared.
+  paintNow();
+}
+function placeTitle() {
+  if (!isOn()) return;
+  const tools = document.querySelector("header.top .tools");
+  if (!tools) return;
+  // The version sits outside the wordmark's box. Reserve both actual edges,
+  // including changes from the fold animation, language and release text.
+  const end = Math.max(...[$("back"), $("wordmark"), $("wm-ver")].map(el => el?.getBoundingClientRect().right ?? 0));
+  const width = document.documentElement.clientWidth;
+  const availableEnd = Math.min(width, tools.getBoundingClientRect().left);
+  W.ws.style.setProperty("--ed-title-left", `${Math.ceil(end) + 12}px`);
+  W.ws.style.setProperty("--ed-title-right", `${width - Math.floor(availableEnd) + 12}px`);
 }
 // all the words, in the current language
 function words() {
@@ -2117,6 +2168,7 @@ function words() {
   const batchNote = W.cv.querySelector(".ed-batch-note");
   batchNote.hidden = !S.batchDeferred;
   batchNote.textContent = S.batchDeferred ? t.nominalBatch : "";
+  placeTitle();
   editor?.toolbar();editor?.optionsBar();
   const [p, b, o] = W.view.children;
   if(!['proj','burn','lamp'].includes(S.view))S.view='proj';
@@ -2236,7 +2288,7 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
   words();
   setTool(S.tool);
   requestAnimationFrame(() => {
-    resize();
+    resize(true);
     if (fly) flight(from, { x: V.cx, y: V.cy, d: 120 * V.s }, false);
   });
   const entrance = dropIn && !api.reduce ? W.ws.animate([{ transform: "translateY(-40px)", opacity: 0 }, { transform: "none", opacity: 1 }],
