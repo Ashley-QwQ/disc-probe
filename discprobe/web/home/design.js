@@ -67,7 +67,7 @@ const STR = {
     modes: { "floyd-steinberg": "误差扩散", "blue-noise": "蓝噪声", ordered: "有序", clustered: "网点", threshold: "不抖动" },
     reset: "恢复默认",
     tools: { move: "选择（V）", wand: "选区（W）", pan: "平移（H，或按住空格）" },
-    proj: "设计", burnView: "刻出来", orig: "灯下", viewAria: "画布显示", zoomAria: "在适应盘面和 100% 之间切换",
+    proj: "设计", burnView: "刻出来", orig: "灯下", viewAria: "画布显示", zoomAria: "适应整盘",
     empty: "把图片拖到这里，或者按导入图片", sample: "用示例图试试", drop: "松手，放到盘上",
     outside: "有一部分在可刻范围外，压暗的地方会被裁掉。",
     tooBig: (n) => `${n} 太大了：单张最多 3600 万像素、24 MiB。先缩小再导入。`, badType: (n) => `${n} 不是能读的图片（PNG、JPEG、WebP、BMP）。`,
@@ -155,7 +155,7 @@ const STR = {
     modes: { "floyd-steinberg": "Error diffusion", "blue-noise": "Blue noise", ordered: "Ordered", clustered: "Halftone", threshold: "No dither" },
     reset: "Reset",
     tools: { move: "Select (V)", wand: "Selection (W)", pan: "Pan (H, or hold Space)" },
-    proj: "Design", burnView: "As burned", orig: "Under the lamp", viewAria: "Canvas shows", zoomAria: "Switch between fit and 100%",
+    proj: "Design", burnView: "As burned", orig: "Under the lamp", viewAria: "Canvas shows", zoomAria: "Fit the whole disc",
     empty: "Drop a picture here, or use Import picture", sample: "Try a sample picture", drop: "Let go to put it on the disc",
     outside: "Part of it is outside the burnable range; the dimmed part will be cut off.",
     tooBig: (n) => `${n} is too large: at most 36 megapixels and 24 MiB. Shrink it first.`, badType: (n) => `${n} isn't a picture this can read (PNG, JPEG, WebP, BMP).`,
@@ -249,7 +249,7 @@ export const recentPlans = () => plans.filter((P) => P.layers.length || P.name);
 let W = null;                                // the workspace's DOM
 const V = { s: 5, cx: 0, cy: 0, w: 0, h: 0, dpr: 1 };   // canvas view: px per mm and the disc centre
 let followFit = true;
-let focus = { x: 0, y: 0, w: 0, h: 0 };
+let focus = { x: 0, y: 0, w: 0, h: 0, dock: 0 };
 let nextId = 1;
 
 function newProject(item, media) {
@@ -468,13 +468,14 @@ function hitLayer(mm, kinds = ["image", "fx"]) {
   return null;
 }
 const TOP_DOCK = 64;
-const DOCK = 96;                             // the canvas's bottom strip, where the number bar docks
+const DOCK = 96;                             // the minimum space for view controls and status
 function fit() {
   followFit = true;
   // Keep the usual tool space, but let the docks shrink with a very small opening.
   const side = Math.min(1, focus.w / 80);
-  const vertical = Math.min(1, focus.h / 200);
-  const top = TOP_DOCK * vertical, bottom = DOCK * vertical;
+  const dock = Math.max(DOCK, focus.dock + 12);
+  const vertical = Math.min(1, focus.h / (TOP_DOCK + dock + 40));
+  const top = TOP_DOCK * vertical, bottom = dock * vertical;
   V.s = Math.min(focus.w - 64 * side, focus.h - top - bottom) * 0.92 / 120;
   V.cx = focus.x + focus.w / 2 + 20 * side;
   V.cy = focus.y + top + (focus.h - top - bottom) / 2;
@@ -1045,8 +1046,10 @@ function onMove(e) {
     V.s = s; V.cx = c[0] - (drag.c0[0] - drag.cx) * k; V.cy = c[1] - (drag.c0[1] - drag.cy) * k;
     viewChanged();
   } else if (drag.kind === "pan") {
+    const dx = p[0] - drag.p0[0], dy = p[1] - drag.p0[1];
+    if (followFit && !dx && !dy) return;
     followFit = false;
-    V.cx = drag.cx + p[0] - drag.p0[0]; V.cy = drag.cy + p[1] - drag.p0[1];
+    V.cx = drag.cx + dx; V.cy = drag.cy + dy;
     viewChanged();
   } else if (drag.kind === "move") {
     const mm = toMm(...p);
@@ -1075,14 +1078,16 @@ function onUp(e) {
   if (!pointers.size) drag = null;
 }
 function onWheel(e) {
-  e.preventDefault();
-  followFit = false;
   const p = canvasPoint(e);
+  // The painted desk extends under the header and footer. Its visible opening
+  // is where wheel and pinch gestures belong.
+  if (!insideFocus(p) || (!e.deltaY && (e.ctrlKey || !e.deltaX))) return;
+  e.preventDefault();
   // a pinch on a touchpad arrives as a wheel with Ctrl; a mouse wheel moves in whole notches
-  const mouse = e.deltaMode === 1 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
+  const mouse = e.deltaY && (e.deltaMode === 1 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY)));
   if (e.ctrlKey) zoomAt(Math.exp(-e.deltaY * 0.01), ...p);
   else if (mouse) zoomAt(e.deltaY < 0 ? 1.18 : 1 / 1.18, ...p);
-  else { V.cx -= e.deltaX; V.cy -= e.deltaY; viewChanged(); }
+  else { followFit = false; V.cx -= e.deltaX; V.cy -= e.deltaY; viewChanged(); }
 }
 function onKey(e) {
   if (!isOn() || !S) return;
@@ -1956,13 +1961,13 @@ function build() {
     `<div class="ed-layer-fade" aria-hidden="true" hidden></div><aside class="col col-r" id="ed-right"></aside>` +
     `<div class="cv"><div class="ed-desk" aria-hidden="true"></div><div class="ed-surface"><div class="ed-disc-shadow" aria-hidden="true"></div><canvas class="main"></canvas></div>` +
     `<div class="tools-v" role="toolbar"></div>` +
-    `<div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="burn"></button><button type="button" data-v="lamp"></button><button type="button" data-colour-compare hidden></button></div><p class="ed-view-note"><span class="ed-batch-note" hidden></span><span class="ed-view-status" aria-live="polite"></span></p>` +
-    `<p class="cv-note warn" hidden></p>` +
+    `<div class="ed-view-dock"><div class="ed-view-note"><p class="ed-batch-note" hidden></p><p class="ed-view-status" aria-live="polite"></p><p class="cv-note warn" hidden></p></div>` +
+    `<div class="ed-view-actions"><button class="zoomr" type="button"></button><div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="burn"></button><button type="button" data-v="lamp"></button><button type="button" data-colour-compare hidden></button></div></div></div>` +
     `<div class="empty-c"><p></p><div class="row"><button class="sbtn" type="button" data-a="sample"></button><button class="sbtn" type="button" data-a="import"></button></div></div>` +
     `<div class="fbar" hidden></div>` +
     `<div class="tilt"><span class="lbl"></span><input class="rng" type="range" min="40" max="120" step="1"><output></output><button class="sbtn" type="button"></button></div>` +
     `<div class="loupe"><canvas></canvas><small></small></div>` +
-    `<button class="zoomr" type="button"></button><div class="dropzone"></div></div>` +
+    `<div class="dropzone"></div></div>` +
     `<input type="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/svg+xml" multiple hidden class="f-img"><input type="file" webkitdirectory multiple hidden class="f-dir">` +
     `<input type="file" accept="${FILE_EXT},.json,application/json" hidden class="f-proj">`;
   document.body.append(ws);
@@ -1970,7 +1975,7 @@ function build() {
   W = {
     ws, left: q(".col-l"), right: q(".col-r"), cv: q(".cv"), canvas: q("canvas.main"), tools: q(".tools-v"), view: q(".viewsw"),
     leftContent: q(".ed-layer-content"), leftFade: q(".ed-layer-fade"),
-    desk: q(".ed-desk"), surface: q(".ed-surface"), shadow: q(".ed-disc-shadow"),
+    desk: q(".ed-desk"), surface: q(".ed-surface"), shadow: q(".ed-disc-shadow"), viewDock: q(".ed-view-dock"),
     note: q(".cv-note"), empty: q(".empty-c"), bar: q(".fbar"), tilt: q(".tilt"), loupe: q(".loupe"), zoom: q(".zoomr"),
     drop: q(".dropzone"), file: q(".f-img"), folder: q(".f-dir"), dirty: q(".dirty"), pname: q(".pname"), sub: q(".ws-title .sub"), proj: q(".f-proj"), filebtns: q(".filebtns"),
   };
@@ -2040,7 +2045,7 @@ function build() {
   addEventListener("blur",()=>{if(temporaryTool!==null){const t=temporaryTool;temporaryTool=null;spaceDown=false;setTool(t);}});
   addEventListener("keydown", onKey);
   addEventListener("keyup", onKeyUp);
-  W.zoom.addEventListener("click", () => { if (!followFit) fit(); else zoomAt(1 / S.cell / V.s, focus.x + focus.w / 2, focus.y + focus.h / 2); });
+  W.zoom.addEventListener("click", fit);
   W.view.addEventListener("click", (e) => {
     if(e.target.closest('[data-colour-compare]')){
       const state=editor.panelState();state.compare=!state.compare;viewNote();draw();return;
@@ -2115,7 +2120,7 @@ function build() {
     }});
   W.canvas.tabIndex=0;W.canvas.setAttribute("aria-label","Disc editor canvas");
   W.canvas.addEventListener("keydown",e=>{if(!spaceDown&&e.key!==" "&&editor.key(e)){e.preventDefault();e.stopPropagation();}});
-  const observer = new ResizeObserver(() => resize()); observer.observe(W.cv); observer.observe(W.surface);
+  const observer = new ResizeObserver(() => resize()); observer.observe(W.cv); observer.observe(W.surface); observer.observe(W.viewDock);
   addEventListener("resize", () => resize());
   $("back").addEventListener("click", () => { if (isOn()) leave(); });
   $("next").addEventListener("click", () => { if (isOn() && (imageLayers().length || S.assignments?.length)) toPreview(); });
@@ -2127,10 +2132,12 @@ function resize(force = false) {
   if (!(stage.width > 0 && stage.height > 0 && r.width > 0 && r.height > 0)) return;
   // Both rectangles move together during the editor's entrance.
   const x = r.left - stage.left, y = r.top - stage.top, dpr = devicePixelRatio || 1;
+  const dock = W.viewDock.offsetHeight;
   if (!force && x === focus.x && y === focus.y && r.width === focus.w && r.height === focus.h &&
-      stage.width === V.w && stage.height === V.h && dpr === V.dpr) return;
+      dock === focus.dock && stage.width === V.w && stage.height === V.h && dpr === V.dpr) return;
   const ox = V.cx - focus.x - focus.w / 2, oy = V.cy - focus.y - focus.h / 2;
-  focus = { x, y, w: r.width, h: r.height };
+  focus = { x, y, w: r.width, h: r.height, dock };
+  W.cv.style.setProperty("--ed-view-dock-height", `${dock}px`);
   V.w = stage.width; V.h = stage.height; V.dpr = dpr;
   const width = Math.round(V.w * dpr), height = Math.round(V.h * dpr);
   if (W.canvas.width !== width) W.canvas.width = width;
@@ -2185,7 +2192,7 @@ function words() {
   viewNote();
   W.view.setAttribute("aria-label", t.viewAria);
   for (const x of W.view.querySelectorAll('[data-v]')) x.setAttribute("aria-pressed", String(x.dataset.v === S.view));
-  W.zoom.setAttribute("aria-label", t.zoomAria); W.zoom.title = `${t.fit} / ${t.hundred} (0 / 1)`;
+  W.zoom.setAttribute("aria-label", t.zoomAria); W.zoom.title = `${t.zoomAria} (0) · ${t.hundred} (1)`;
   W.empty.querySelector("p").textContent = t.empty;
   W.empty.querySelector('[data-a="import"]').innerHTML = `${I.image}${t.import}`;
   W.empty.querySelector('[data-a="sample"]').textContent = t.sample;

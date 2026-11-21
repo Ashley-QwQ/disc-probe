@@ -178,6 +178,38 @@ try {
 
   await send('Page.enable');
   await send('Runtime.enable');
+  await viewport(1920, 850);
+  await send('Page.navigate', {url:`http://127.0.0.1:${server.address().port}/?size=short-guide`});
+  await until("location.search === '?size=short-guide' && typeof enter === 'function'");
+  await run('enter({batchDeferred:true})');
+  await until('!!actions.editor.palette && document.querySelector(".zoomr").textContent === "Fit"');
+  if (phase !== 'before') {
+    const before = await run('measure()');
+    assert.ok(before.disc.top >= before.frame.top && before.disc.bottom <= before.frame.bottom);
+    for (let i = 0; i < 3; i++) await send('Input.dispatchMouseEvent', {
+      type:'mouseWheel', x:960, y:842, deltaX:0, deltaY:-100,
+    });
+    await frame();
+    assert.equal((await run('measure()')).zoom,'Fit','wheel over the desk outside the opening');
+    await run('document.querySelector(".zoomr").click()');
+    await frame();
+    assert.equal((await run('measure()')).zoom,'Fit');
+    await run("dispatchEvent(new KeyboardEvent('keydown',{key:'+'}))");
+    await frame();
+    assert.notEqual((await run('measure()')).zoom,'Fit');
+    await run('document.querySelector(".zoomr").click()');
+    await frame();
+    assert.deepEqual((await run('measure()')).disc,before.disc);
+    await viewport(390,844);
+    await frame();
+    const rows = await run(`(() => {
+      const {cv} = actions.editor.h.dom();
+      const box = s => cv.querySelector(s).getBoundingClientRect().toJSON();
+      return ['.ed-batch-note','.ed-view-status','.ed-view-actions','.ed-view-dock'].map(box);
+    })()`);
+    assert.ok(rows[0].height>0 && rows[0].bottom+3<=rows[1].top && rows[1].bottom<rows[2].top);
+    assert.ok(rows[3].left>=0 && rows[3].right<=390);
+  }
   for (const [width, height] of dimensions) {
     const size = `${width}x${height}`;
     await viewport(width, height);
