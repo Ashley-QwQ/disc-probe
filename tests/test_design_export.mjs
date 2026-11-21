@@ -21,6 +21,8 @@ const later = {kind: 'unset', name: '还没选盘', mid: '', s: 'none'};
 assert.deepEqual(R.geoChoice({item: later}, cat, newest), {path: newest, source: 'latest', name: 'Verbatim', when: '2026-11-11'});
 assert.equal(R.geoChoice({item: later, geo: ritek.geo}, cat, newest).source, 'saved');
 assert.equal(R.geoChoice({item: later}, cat, null).source, 'none');
+assert.deepEqual(R.geoChoice({item: later, batchDeferred: true, geo: ritek.geo}, cat, newest),
+  {path: null, source: 'none', name: ''});
 // imported presets keep their own rule
 const dis = {imported: true, image_compatible: true, correction_required: true, geo: 'presets/x.json', name: 'DIS'};
 assert.equal(R.geoChoice({item: dis}, [...cat, dis], newest).source, 'imported_corrected');

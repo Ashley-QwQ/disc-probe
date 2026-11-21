@@ -1858,11 +1858,11 @@
   // plan later (its title), which opens the library with the plan waiting. The library is the old shelf.
   let choosingFor = null;                       // a plan waiting for a batch picked in the library
   let inspectingBatch = null;                   // the new-work form waiting for a library visit
-  function lastBatch() {
+  function lastBatch({ preferDrive = true } = {}) {
     let id = null;
     try { id = localStorage.getItem("dp-batch"); } catch {}
     for (const c of ["dvd", "cd", "bd"]) { const it = api.catalogue(c).find((x) => id && x.id === id); if (it) return [c, it]; }
-    const held = backend.mock ? DATA.drive[0]?.trayDisc ?? "" : driveDisc()?.present ? driveDisc().kind ?? "" : "";
+    const held = !preferDrive ? "" : backend.mock ? DATA.drive[0]?.trayDisc ?? "" : driveDisc()?.present ? driveDisc().kind ?? "" : "";
     const kind = /^CD|[^V]CD/.test(held) ? "cd" : /BD/.test(held) ? "bd" : "dvd";
     const measured = (c) => api.catalogue(c).find((x) => ["good", "usable"].includes(x.s));
     for (const c of [kind, "dvd", "cd", "bd"]) { const it = measured(c); if (it) return [c, it]; }

@@ -35,7 +35,8 @@ try{
     if(req.url.startsWith('/api/')){res.writeHead(404);res.end();return;}
     const relative=decodeURIComponent(req.url.split('?')[0].replace(/^\/home\//,''));
     const file=relative.startsWith('/fonts/')?resolve(home,'..',relative.slice(1)):resolve(home,relative);
-    if((!file.startsWith(home+sep)&&!file.startsWith(resolve(home,'../fonts')+sep))||/b[l]ind|faxnews|newplan|presetio|community|[\\/]news[\\/]/i.test(file))throw Error('excluded path');
+    if((!file.startsWith(home+sep)&&!file.startsWith(resolve(home,'../fonts')+sep))||
+      /b[l]ind/i.test(file)||/faxnews|newplan|presetio|community|(?:^|[\\/])news[\\/]/i.test(relative))throw Error('excluded path');
     res.setHeader('Content-Type',({'.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'})[extname(file)]??'application/octet-stream');res.end(await readFile(file));
   }catch{res.writeHead(404);res.end();}}).listen(0,'127.0.0.1');await once(server,'listening');
   const profile=join(out,'edge-profile');

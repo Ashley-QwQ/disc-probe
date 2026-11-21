@@ -64,6 +64,7 @@ const importedChoice = (item, entry, media) => {
     : { path: null, source: "none", name: item.name ?? "", importProblem: entry ? "range" : "incompatible" };
 };
 export function geoChoice(plan, catalogue = [], latest = null) {
+  if (plan?.batchDeferred) return { path: null, source: "none", name: "" };
   const item = plan?.item;
   const known = catalogue.filter(good);
   if (item?.imported) {

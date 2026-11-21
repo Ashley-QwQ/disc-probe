@@ -24,7 +24,7 @@ const entries = [
   ['mask rename', 'design/editor-controls.mjs', 'input.onkeydown=e=>', 'e', 'const finish=hit;'],
   ['fax source', 'faxnews.js', 'input.addEventListener("keydown", (e) =>', 'e', 'const go=hit;'],
   ['new work name', 'newplan.js', 'W.name.addEventListener("keydown", (e) =>', 'e', 'const next=hit;'],
-  ['batch suggestions', 'newplan.js', 'W.batch.addEventListener("keydown", (e) =>', 'e', 'const W={q:()=>({hidden:false})},state={active:0,matches:[{}]},pickBatch=hit,hideMatches=()=>{};'],
+  ['batch suggestions', 'newplan.js', 'W.batch.addEventListener("keydown", (e) =>', 'e', 'const W={batchMenu:{hidden:false}},state={active:0,matches:[{}]},pickBatch=hit,hideMatches=()=>{};'],
   ['terminal command', 'terminal.js', 'function key(e)', 'e', 'const W={input:{value:"test"}},enter=hit;'],
   ['library rename', 'pastworks.js', 'input.addEventListener("keydown", (k) =>', 'k', 'const finish=hit;'],
   ['mask list', 'design/editor-controls.mjs', '  listKey(e)', 'e', '', '{maskClick:hit}'],
