@@ -956,7 +956,7 @@
   // ?motion=1 plays the motion even when the system asks for less (for testing)
   let reduce = document.documentElement.dataset.motion !== "on";     // set in the head; changed in Settings
   const $ = (id) => document.getElementById(id);
-  $("wm-ver").textContent = backend.mock ? "v0.1.2.1" : backendState?.version ?? "";   // after the folded mark
+  $("wm-ver").textContent = backend.mock ? "v1.0.0.0-alpha" : backendState?.version ?? "";   // after the folded mark
   // what the version adds to the mark's width, for page titles that sit right of the mark (design.css)
   new ResizeObserver(([e]) => {
     const w = e.target.getBoundingClientRect().width;

@@ -1,6 +1,6 @@
 {
   "name": "disc-probe default",
-  "gui_version": "0.1.2.1",
+  "gui_version": "1.0.0.0-alpha",
   "required_api": ">=1.0 <2",
   "required_capabilities": [
     "state", "drives-info", "jobs-events", "timing", "geo", "image-design",

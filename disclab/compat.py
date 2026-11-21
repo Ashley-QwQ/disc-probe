@@ -1,7 +1,7 @@
 """The exact disc-probe release this Disc Lab snapshot was tested against."""
 from importlib import import_module
 
-REQUIRED_DISCPROBE_VERSION = "0.1.2.1"
+REQUIRED_DISCPROBE_VERSION = "1.0.0.0-alpha"
 
 
 def require_discprobe():
