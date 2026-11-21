@@ -40,7 +40,7 @@ const STR = {
     noticeWhatText: "一台只收不发的传真机。点一下，它去你设定的地址取今天的“报纸”：DP 的新版本和更新日志、盘面背景预设、盘面作品、笑话和以后要做的功能。",
     noticeDo: "它会做什么", noticeDoText: "由 disc-probe 程序下载报纸，每个地址只发一个普通请求。没接通就试下一个，最后看上次的报纸或自带样张。点“订购”时，再下载那件皮肤包裹。",
     noticeNever: "它永远不做什么", noticeNeverText: "不上传任何东西，不带你的任何信息，不计数，不追踪，不在后台自己拨号。",
-    source: "数据源地址", sourceHelp: "默认取 GitHub 仓库里的报纸，也可以填自己的 HTTPS 地址。由 disc-probe 程序下载，只发一个普通请求，不上传任何东西。",
+    source: "数据源地址", sourceDefault: "默认（GitHub 仓库）", sourceHelp: "默认取 GitHub 仓库里的报纸，也可以填自己的 HTTPS 地址。由 disc-probe 程序下载，只发一个普通请求，不上传任何东西。",
     reset: "用默认", dial: "拨号", sourceBad: "地址要是 HTTPS，不能带查询参数或片段",
     slipTitle: "传真回执", deadTitle: "没接通", deadText: "线路不通：可能没联网，或者对方没开机。", badTitle: "收到的不是报纸",
     badText: "对方有回应，但传来的内容看不懂：", missingTitle: "号码不存在", missingText: (s) => `对方说没有这份报纸（${s}）。`,
@@ -60,7 +60,7 @@ const STR = {
     noticeWhatText: "A fax that only receives. Press it and it fetches today's \"paper\" from the address you set: new DP versions and the changelog, disc background presets, disc artworks, jokes and what is planned.",
     noticeDo: "What it does", noticeDoText: "The disc-probe program downloads the paper, with one plain request per address. If the line is dead, it tries the next address, then the last paper or the bundled sample. Ordering a skin downloads its parcel too.",
     noticeNever: "What it never does", noticeNeverText: "It uploads nothing, sends nothing about you, counts nothing, tracks nothing, and never dials by itself.",
-    source: "Source address", sourceHelp: "The default paper lives in the GitHub repository. You can use your own HTTPS address. The disc-probe program downloads it with one plain request and uploads nothing.",
+    source: "Source address", sourceDefault: "Default (GitHub repository)", sourceHelp: "The default paper lives in the GitHub repository. You can use your own HTTPS address. The disc-probe program downloads it with one plain request and uploads nothing.",
     reset: "Default", dial: "Dial", sourceBad: "Use HTTPS without a query or fragment",
     slipTitle: "Fax receipt", deadTitle: "No line", deadText: "The line is dead: no network, or nobody answering.", badTitle: "That was not a paper",
     badText: "Somebody answered, but what came through cannot be read:", missingTitle: "No such number", missingText: (s) => `The other end has no such paper (${s}).`,
@@ -432,7 +432,7 @@ function showSlip(result, source) {
     : result.kind === "bad" ? [t.badTitle, t.badText] : [t.deadTitle, t.deadText];
   slip.append(el("h2", "", title), el("p", "", text));
   if (result.kind === "bad") slip.append(el("pre", "fx-slip-detail", result.detail));
-  slip.append(el("p", "fx-slip-src", source));
+  slip.append(el("p", "fx-slip-src", source === DEFAULT_SOURCE ? t.sourceDefault : source));
   const row = el("div", "fx-slip-row");
   const redial = el("button", "fx-btn primary", t.redial); redial.type = "button"; redial.addEventListener("click", () => call());
   row.append(redial);
@@ -602,15 +602,18 @@ function showNotice(then) {
   N.append(el("h2", "", t.noticeTitle));
   for (const [h, p] of [[t.noticeWhat, t.noticeWhatText], [t.noticeDo, t.noticeDoText], [t.noticeNever, t.noticeNeverText]]) N.append(el("h3", "", h), el("p", "", p));
   const lab = el("label", "fx-src");
-  const input = el("input"); input.type = "text"; input.spellcheck = false; input.autocomplete = "off"; input.value = sourceOf();
+  const input = el("input"); input.type = "text"; input.spellcheck = false; input.autocomplete = "off";
+  const source = sourceOf();
+  input.placeholder = t.sourceDefault;
+  input.value = source === DEFAULT_SOURCE ? "" : source;
   const help = el("small", "", t.sourceHelp), err = el("small", "fx-src-err"); err.hidden = true;
   lab.append(el("span", "", t.source), input, help, err);
   const row = el("div", "fx-slip-row");
   const dial = el("button", "fx-btn primary", t.dial); dial.type = "button";
   const reset = el("button", "fx-btn", t.reset); reset.type = "button";
-  reset.addEventListener("click", () => { input.value = DEFAULT_SOURCE; err.hidden = true; });
+  reset.addEventListener("click", () => { input.value = ""; err.hidden = true; });
   const go = () => {
-    const v = input.value.trim();
+    const v = input.value.trim() || DEFAULT_SOURCE;
     if (!validSource(v)) { err.textContent = t.sourceBad; err.hidden = false; input.focus(); return; }
     if (v === DEFAULT_SOURCE) store.del(KEY.source); else store.set(KEY.source, v);
     N.hidden = true; then?.();

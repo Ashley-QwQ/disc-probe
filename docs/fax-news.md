@@ -15,7 +15,7 @@
 
 `python -m discprobe news` 查看摘要，`python -m discprobe news --json` 输出一个对象：`paper`、`from`（`network` / `cache` / `bundled`）、`source`（重定向后的报纸地址；自带样张为 `bundled:faxnews/news.json`）、`fetched_at`（UTC 下载时间，样张为 null）、`errors`（按尝试顺序的地址和失败原因）。`--source URL` 可重复，优先于空格分隔的环境变量 `DISCPROBE_NEWS_SOURCES`，未设置时才用默认列表。
 
-说明卡保留“数据源地址”：填 HTTPS 地址后交给 `/api/news?source=...`，由核心照相同规则下载。留默认的 `/api/news` 则使用上述镜像列表。旧版存在浏览器里的相对地址需点“用默认”重置。
+说明卡的“数据源地址”留空时会显示“默认（GitHub 仓库）”，由核心依次尝试上述镜像。填入自己的 HTTPS 地址后，页面显示该地址，并通过 `/api/news?source=...` 交给核心下载。点“用默认”清空填写的地址。
 
 `python -m discprobe news --asset skins/kraft-office.json > skin.json` 把附件字节写到标准输出；也可配合 `--source`。附件相对本次报纸的最终地址解析，只允许同一目录前缀内的 JSON、WebP、PNG、JPEG（含 .jpg），最多 4 MiB。拒绝绝对地址、`..`、编码后的路径跳转和越界重定向。皮肤包和作品图片都通过核心下载；外部发布页链接仍由人点击打开。
 
