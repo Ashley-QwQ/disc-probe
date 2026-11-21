@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 from . import i18n, works
 
+MEASUREMENT_ENV = "DISCPROBE_MEASUREMENT_BURN"
+
 
 def add_options(sub):
     for name in ("image", "burn", "calibrate", "checkdisc"):
@@ -35,6 +37,9 @@ def image_completed(args):
 
 def burn_completed(args, result):
     if result:
+        measurement = os.environ.get(MEASUREMENT_ENV) == "1"
+        if measurement and not getattr(args, "work", None):
+            return
         if not getattr(args, "work", None):
             # CLI and unsaved web jobs must remain reviewable after their process exits too.
             store = works.Store()
@@ -50,6 +55,7 @@ def burn_completed(args, result):
         _completed(args, args.iso, kind="burn", drive=args.drive,
                    speed=result.get("selected_speed_x", args.speed),
                    result=result.get("result", "unknown"), report=result,
-                   preview_available=not result.get("source_design_missing", False),
+                   preview_available=not measurement and not result.get("source_design_missing", False),
                    job_id=os.environ.get("DISCPROBE_JOB"),
+                   **({"measurement": True} if measurement else {}),
                    actual_speed_x=result.get("actual_speed_x"), verification=result.get("verification"))

@@ -166,7 +166,7 @@ class Result:
     def reliable(self, radius_range=None) -> bool:
         """Complete, not judged too noisy, and the drive did not change state during the run."""
         from .coverage import range_warning
-        local_use = radius_range is not None and self.fit.get('completion_status') in ('candidates_exhausted', 'partial_readable')
+        local_use = radius_range is not None and self.fit.get('completion_status') in ('candidates_exhausted', 'partial_readable', 'coverage_incomplete')
         complete = self.geo_complete() or (local_use and 'u' in self.fit and not self.stopped and self.rungs() >= MIN_RUNGS)
         validation = self.fit.get('correction_validation')
         sigma = validation.get('repeat_cv_rms_deg') if validation else self.sigma
@@ -366,7 +366,7 @@ def install_blocker(geo_summary: str, allow_simulated: bool = False, radius_rang
     if "u" not in fit:
         return "this run has no geometry fit in its summary.json, so there is nothing to install."
     status = fit.get('completion_status', 'target_reached')
-    if status != 'target_reached' and not (radius_range is not None and status in ('candidates_exhausted', 'partial_readable')):
+    if status != 'target_reached' and not (radius_range is not None and status in ('candidates_exhausted', 'partial_readable', 'coverage_incomplete')):
         return "this run exhausted its candidates before reaching the target; measure again before installing a preset."
     rungs = None
     try:
@@ -450,7 +450,7 @@ def resolve_geo(value: str, media: str | None = None, out: str = "results", radi
         if r is None:
             have = any(x.kind == "geo" for x in scan(out))
             partial = [x for x in scan(out) if x.kind == 'geo' and not x.simulated and
-                       x.fit.get('completion_status') in ('candidates_exhausted', 'partial_readable')]
+                       x.fit.get('completion_status') in ('candidates_exhausted', 'partial_readable', 'coverage_incomplete')]
             if partial:
                 spans = [(x.fit.get('coverage') or {}).get('measured_intervals_mm', x.fit.get('measured_span_mm')) for x in partial]
                 raise ValueError(f'--geo latest: only partial measurements cover radii {spans} mm. '
@@ -749,6 +749,8 @@ def compare_pitch(out: str, with_sigma: bool = False) -> tuple | None:
 
 def geo_summary(res: dict, rungs: int) -> str:
     span = res["measured_span_mm"]
+    if res.get('completion_status') == 'coverage_incomplete':
+        return f"Measured {rungs} points; some requested radii still need readings."
     if res.get('correction_validation'):
         validation = res['correction_validation']
         value = validation.get('independent_rms_deg')
@@ -809,6 +811,18 @@ def after_geo(args, res: dict, out: str) -> list[str]:
     span = res.get("measured_span_mm") or [25.8, 54.4]
     correction = ""
     lines = []
+    if res.get('completion_status') == 'coverage_incomplete':
+        from .coverage import assess_range, default_range
+        required = default_range(args.media, span)
+        missing = assess_range(res, required)['extrapolated_mm']
+        bands = ', '.join(f'{a:.3f}-{b:.3f}' for a, b in missing)
+        lines = [f'Partial measurement: missing radii {bands} mm.']
+        if not res.get('varying_pitch'):
+            drive = f" --drive {args.drive}" if args.drive else ""
+            sim = f" --sim {args.sim}" if args.sim else ""
+            lines += ["Keep the same disc in the same drive to measure the missing radii:",
+                      f"  {PROG} geo{flag}{drive}{sim} --resume {short(out)}"]
+        return _state_lines(res, lines, [])
     if res.get('correction_file'):
         s = res['correction_validation']
         correction = ' --correction ' + short(os.path.join(out, res['correction_file']))

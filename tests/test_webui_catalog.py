@@ -74,7 +74,7 @@ def test_results_identity_verdict_and_counter():
         assert saved['left'] == 13 and saved['name'] == 'My batch'
         (root/'presets').mkdir()
         (root/'presets'/'export.json').write_text(json.dumps({'preset':{'id':'linked','displayName':'Linked', 'totalSectors':1000}}))
-        catalog.save_entry(root,root/'results',dict(id=entry['id'],preset='presets/export.json'))
+        assert catalog.save_entry(root,root/'results',dict(id=entry['id'],preset='presets/export.json')) == {'saved': True}
         linked=catalog.catalogue(root,root/'results')['dvd']
         assert len(linked)==1 and linked[0]['name']=='My batch' and linked[0]['left']==13
         # the core reports the preset by its absolute path: stored relative, still one batch
@@ -85,6 +85,9 @@ def test_results_identity_verdict_and_counter():
         (root/'catalogue.json').write_text(json.dumps({entry['id']: {'preset': str((root/'presets'/'export.json').resolve())}}))
         assert len(catalog.catalogue(root,root/'results')['dvd']) == 1
         assert (path/'summary.json').exists()
+        (root/'presets'/'export.json').write_text('{')
+        unreadable = catalog.save_entry(root,root/'results',dict(id=entry['id'],preset='presets/export.json'))
+        assert unreadable['photo_shift'] == {'written': False, 'reason': 'invalid_preset'}
         for bad in [dict(id=entry['id'],left=True),dict(id='missing',name='x'),dict(id=entry['id'],name='')]:
             try: catalog.save_entry(root,root/'results',bad)
             except ValueError: pass

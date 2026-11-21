@@ -77,7 +77,7 @@
 .pw-cell-name { display: flex; align-items: baseline; gap: 10px; margin-top: 12px; max-width: 100%; overflow-wrap: anywhere;
   font-weight: 700; font-stretch: 110%; border-top: .75px solid var(--rule); padding-top: 8px; }
 .pw-cell-name small { font-weight: 500; color: var(--ink-3); }
-.pw-no { font: 400 12px var(--mono); font-style: normal; color: var(--ink-3); }
+.pw-no { flex: none; white-space: nowrap; font: 400 12px var(--mono); font-style: normal; color: var(--ink-3); }
 .pw-cell:hover .pw-cell-name, .pw-cell:focus-visible .pw-cell-name { color: var(--copper); }
 .pw-cell time { display: block; margin: 1px 0 0 32px; font: 12px var(--mono); color: var(--ink-3); }
 .pw-label { font-weight: inherit; min-width: 0; }
@@ -183,7 +183,8 @@
 .pw-status { position: absolute; z-index: 4; bottom: calc(var(--foot) + 16px); left: var(--edge); max-width: min(640px, calc(100vw - 2 * var(--edge)));
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin: 0; padding: 10px 16px; border-radius: 8px;
   background: var(--paper); color: var(--ink); font: 600 16px / 1.5 var(--font); box-shadow: var(--paper-desk); }
-.pw-thumbnail-missing::after { content: "缩略图不可用 / Preview unavailable"; position: absolute; inset: 62% 8% auto 40%; font-size: 12px; text-align: center; color: var(--ink-3); }
+.pw-thumbnail-missing { position: absolute; inset: 54% 11% 17% 40%; display: grid; place-items: center; padding: 4px;
+  border: 1px dashed var(--rule-strong); color: var(--ink-2); background: var(--paper); font-size: 13px; text-align: center; }
 @media (max-width: 1000px) {
   .pw-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

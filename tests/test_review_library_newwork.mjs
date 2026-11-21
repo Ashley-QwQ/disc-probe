@@ -186,7 +186,8 @@ try {
     document.querySelector('.np-import').click();`);
   await until('!document.querySelector(".presetio input[type=file]").disabled','empty selection detour ready');
   await evaluate(`document.querySelector('.presetio').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));`);
-  await check('document.querySelector(".np-batch").value===""','Empty field survives closing without an import');
+  await until('document.documentElement.dataset.mode==="newplan" && document.querySelector(".np-batch").value===""',
+    'Empty field survives closing without an import');
   await evaluate('document.querySelector(".np-type").click()');
   await until('document.querySelector(".presetio-manual").open&&!document.querySelector("[data-preview]").disabled','manual entry opens import paper');
   await check('document.querySelector("[data-manual]").elements.media.value==="dvd"','manual entry defaults to current kind');

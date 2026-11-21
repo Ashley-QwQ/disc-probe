@@ -497,7 +497,17 @@ python -m discprobe geo --drive H:
 ```
 
 - Before measuring, it compares the rotation at the inner and outer parts of the disc. If the drive is in CLV, it stops within seconds and says why, instead of spending a long time on a few useless points. Setting a speed can take some drives out of constant rotation until the disc is reloaded. If that happens, reload the disc, check that `timing` says CAV, then use `--speed keep`, which sends no speed command and leaves the drive as it is.
-- By default it measures 3% to 85% of the burned area, with the read speed fixed at 4x (`--speed 5540`). This GH70N changes rotation speed beyond about 53 mm in the outer area, so the default avoids it.
+- By default the DVD and data-CD ladder starts in the 1% to 98% band of the
+  recorded area. On DVD it looks for random data. After the usual rungs, it
+  checks that the default picture and preset radii are covered. It can spend up
+  to 12 extra rung attempts or 120 seconds on missing radii. A partial result
+  lists the gaps in millimetres.
+- Keep the same measurement disc in the same drive to continue a constant-pitch
+  ladder. Use **Measure missing radii** in the calibration result, or run
+  `geo --drive H: --resume results/geo-H-...`. It checks saved points before
+  combining the old and new measurements and writes a new result folder.
+- `geo --json` streams progress and measured rungs as JSON lines on standard
+  output. The existing human-readable log goes to standard error in this mode.
 - To use only the random-data rings on a texture ring disc:
 
   ```bash

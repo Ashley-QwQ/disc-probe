@@ -133,16 +133,10 @@ def disc_report(report):
 
 
 def measured_ring(summary):
-    """The widest radius interval this geometry was actually measured over, mm; None if unknown.
-
-    The image command refuses to place a picture outside the measured intervals, so the page keeps
-    the picture inside this one (see coverage.range_warning)."""
+    """Every measured radius interval within the disc face, in millimetres."""
+    from .coverage import assess_range
     fit = (summary or {}).get('fit') or {}
-    intervals = (fit.get('coverage') or {}).get('measured_intervals_mm')
-    if not intervals and fit.get('measured_span_mm'):
-        intervals = [fit['measured_span_mm']]
-    good = [[float(a), float(z)] for a, z in intervals or [] if isinstance(a, (int, float)) and isinstance(z, (int, float)) and z > a]
-    return max(good, key=lambda iv: iv[1] - iv[0]) if good else None
+    return assess_range(fit, (0, 60))['covered_intervals_mm']
 
 
 def catalogue(root, out):
@@ -175,8 +169,10 @@ def catalogue(root, out):
         ident = hashlib.sha256(repr(key).encode()).hexdigest()[:20]
         saved = {**(run.summary.get('counter') or {}), **metadata.get(ident, {})}
         sectors = (run.summary.get('setup') or {}).get('last_lba')
+        rings = measured_ring(run.summary)
         groups[run.media].append(dict(id=ident, row=run.media, name=saved.get('name') or mid or Path(run.path).name,
-            mid=mid, sectors=sectors + 1 if isinstance(sectors, int) else None, measured_mm=measured_ring(run.summary),
+            mid=mid, sectors=sectors + 1 if isinstance(sectors, int) else None,
+            measured_intervals_mm=rings, measured_mm=max(rings, key=lambda iv: iv[1] - iv[0], default=None),
             s=guide.result_verdict(run, run.media), last=run.when.date().isoformat(),
             drive=who.get('drive'), left=saved.get('left'), of=saved.get('of'),
             geo=str(Path(run.path).relative_to(root)).replace('\\', '/'), inferred=who.get('inferred', False),
@@ -240,11 +236,12 @@ def save_entry(root, out, payload):
         # stored relative to the workspace, as catalogue() compares it: an absolute path would leave the
         # preset listed again as a batch of its own
         payload = {**payload, 'preset': path.relative_to(Path(root).resolve()).as_posix()}
-        document = guide._load(str(path)) or {}
+        document = guide._load(str(path))
         source = document.get('source') if isinstance(document, dict) else None
-        photo_shift = dict(written=False, reason='invalid_preset')
-        if isinstance(source, dict):
-            photo_shift = source.get('photo_shift', photo_shift)
+        if not isinstance(document, dict) or not document:
+            photo_shift = dict(written=False, reason='invalid_preset')
+        elif isinstance(source, dict):
+            photo_shift = source.get('photo_shift')
     path = Path(root) / 'catalogue.json'
     if not path.resolve().is_relative_to(Path(root).resolve()):
         raise ValueError('catalogue must stay inside the workspace')
@@ -274,8 +271,17 @@ def measurement(run):
     args = Namespace(**{**(run.summary.get('args') or {}), 'media': run.media,
                         'out': str(Path(run.path).parent)})
     advice = guide.speed_advice(args, run.media, run.summary) if run.kind == 'timing' else None
+    coverage_result = {}
+    if run.kind == 'geo' and 'u' in run.fit:
+        from .coverage import assess_range, default_range
+        from .geo import resume_supported
+        required = default_range(run.media, run.fit.get('measured_span_mm'))
+        if required:
+            coverage_result = dict(missing_mm=assess_range(run.fit, required)['extrapolated_mm'],
+                                   can_resume=len(points) >= 6 and resume_supported(run.summary, run.media))
     return dict(points=points, stopped=run.stopped, span_mm=run.fit.get('measured_span_mm'),
                 sigma_deg=run.fit.get('angle_sigma_measured_span_deg'),
                 completion_status=run.fit.get('completion_status'), coverage=run.fit.get('coverage'),
                 correction=run.fit.get('correction_file'), correction_validation=run.fit.get('correction_validation'),
-                rotation=run.rotation(), jitter_deg=guide._jitter(run.summary), speed_advice=advice)
+                rotation=run.rotation(), jitter_deg=guide._jitter(run.summary), speed_advice=advice,
+                **coverage_result)

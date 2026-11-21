@@ -93,6 +93,7 @@ class TimingProbe:
         self.audio = False
         self.stop_if_not_cav = stop_if_not_cav
         self._deadline = time.monotonic() + time_limit_s if time_limit_s else None
+        self.coverage_deadline = None
         self._time_limit_s = time_limit_s
         self._medium_errors = 0
         self._loading_reads = 0
@@ -122,6 +123,8 @@ class TimingProbe:
     # ------------------------------------------------------------ plumbing
 
     def _cmd(self, cdb: bytes, alloc: int):
+        if self.coverage_deadline is not None and time.monotonic() >= self.coverage_deadline:
+            raise TimeoutError('geometry coverage time limit')
         from .scsi import execute_probe
         try:
             return execute_probe(self.dev, cdb, alloc)

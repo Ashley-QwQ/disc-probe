@@ -394,6 +394,11 @@ class Store:
                 raise WorkError("another window changed this work", 409)
             work.update(media=doc.get("media", work["media"]), geo_run=self._geo_ref(doc),
                         cell_um=round(doc.get("cell", .02) * 1000), source_design_missing=False)
+            if "batch" in doc:
+                batch = doc["batch"]
+                if batch is not None and (not isinstance(batch, str) or not 1 <= len(batch) <= 256):
+                    raise WorkError("invalid work batch")
+                work["batch"] = batch
             self._validate_meta(work)
             return self._update(folder, work, "saved", files)
 
@@ -587,7 +592,7 @@ class Store:
                 folder = self._folder(ident, trash=True)
             work = self._read(folder)
             files = {}
-            if kind in ("iso", "burn"):
+            if kind in ("iso", "burn") and not record.get("measurement"):
                 # Keep the actual design and thumbnail from this write, even if the work is edited later.
                 source = next((r for r in reversed(work["discs"]) if r.get("type") == "iso"
                                and r.get("iso_sha256") == record["iso_sha256"]), {}) if kind == "burn" else {}
@@ -604,12 +609,13 @@ class Store:
                 if work.get("source_design_missing"):
                     record["preview_available"] = False
             work["discs"].append(record)
-            work["status"] = "burned" if kind == "burn" else "iso_ready"
+            if not record.get("measurement"):
+                work["status"] = "burned" if kind == "burn" else "iso_ready"
             return self._update(folder, work, kind, files, record=record)
 
     @staticmethod
     def _burn_record(work, burn_id=None):
-        records = [r for r in work["discs"] if r.get("type") == "burn"]
+        records = [r for r in work["discs"] if r.get("type") == "burn" and (burn_id or not r.get("measurement"))]
         for index, record in enumerate(records):
             # Older libraries lack ids and snapshots. Give their reports a stable review identity,
             # without claiming that a preview was saved or reconstructing missing drive evidence.

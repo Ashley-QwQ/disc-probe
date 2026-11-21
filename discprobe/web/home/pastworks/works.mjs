@@ -31,7 +31,10 @@ export function mediaLabel(work) {
   return t ? m + (/^[-+]/.test(t) ? t : "-" + t) : m;
 }
 // discs[] holds ISOs written ({type: "iso"}) and discs burned ({type: "burn"}); only burns are discs
-export const burnedDiscs = (work) => (Array.isArray(work?.discs) ? work.discs : []).filter((d) => (d?.type ?? "burn") === "burn");
+export const burnedDiscs = (work) => (Array.isArray(work?.discs) ? work.discs : []).filter((d) => (d?.type ?? "burn") === "burn" && !d?.measurement);
+export const isMeasurementWork = (work) => work.source_design_missing === true &&
+  /^(cd|dvd|bd)-measurement-\d{13}$/i.test(work.name) &&
+  burnedDiscs(work).some(d => String(d.iso_path ?? "").split(/[\\/]/).pop() === `${work.name}.iso`);
 export const discCount = (work) => Array.isArray(work?.discs) ? burnedDiscs(work).length : Number(work?.disc_count) || 0;
 export const discCode = (d) => d?.disc_code ?? d?.code ?? (typeof d?.disc === "string" ? d.disc : d?.disc?.code) ?? d?.label ?? null;
 export const discTime = (d) => d?.time ?? d?.burned_at ?? d?.at ?? null;
@@ -58,7 +61,7 @@ export function sortWorks(works, order = "time") {
 const fold = (s) => String(s ?? "").normalize("NFKC").toLocaleLowerCase();
 export function filterWorks(works, { status = "", media = "", q = "" } = {}) {
   const needle = fold(q).trim();
-  return works.filter((w) => (!status || w.status === status) && (!media || w.media === media)
+  return works.filter((w) => !isMeasurementWork(w) && (!status || w.status === status) && (!media || w.media === media)
     && (!needle || fold(w.name).includes(needle)));
 }
 export function countBy(works, key) {
@@ -69,7 +72,7 @@ export function countBy(works, key) {
 
 export function dateText(t, lang, { time = true } = {}) {
   if (t == null) return words(lang).unknownDate;
-  const opts = { year: "numeric", month: "short", day: "numeric", ...(time ? { hour: "2-digit", minute: "2-digit", hour12: false } : {}) };
+  const opts = { year: "numeric", month: "short", day: "numeric", ...(time ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : {}) };
   return new Intl.DateTimeFormat(lang === "en" ? "en-CA" : "zh-CN", opts).format(t);
 }
 
@@ -88,6 +91,7 @@ export function timeline(work, lang = "zh") {
   };
   for (const e of history) {
     const kind = String(e.type ?? e.event ?? e.kind ?? ""), c = e.changes ?? {}, r = e.record ?? e;
+    if (r.measurement) continue;
     const at = stamp(e.time ?? e.at ?? e.ts);
     let text = kind, detail = "";
     switch (kind) {
@@ -115,6 +119,7 @@ export function timeline(work, lang = "zh") {
     out.push({ at, kind, text, detail });
   }
   for (const d of Array.isArray(work?.discs) ? work.discs : []) {
+    if (d.measurement) continue;
     if (seen.has(discTime(d) ?? "") && discTime(d)) continue;
     const kind = d.type === "iso" ? "iso" : "burned";
     out.push({ at: stamp(discTime(d)), kind, ...linked(d, kind === "iso" ? "iso" : "burn") });

@@ -17,8 +17,9 @@ import { processingWorker } from "./design/worker-client.mjs";
 import { downloadTemplate } from "./design/template-download.mjs";
 import { mountFilesStep, occupiedRings, filePictureRange, fileArguments, refreshFiles, drawFileGuides, fileDisplay } from "./design/disc-files.mjs";
 import { hasCapability } from "./handshake.mjs";
-import { CELLS, COST, geoChoice, measuredRing, burnDocument, checkTextures, experimentalContent, hasColourPicture, pictureSampling } from "./design/export-rules.mjs";
+import { CELLS, COST, geoChoice, measuredRings, burnDocument, checkTextures, experimentalContent, hasColourPicture, pictureSampling } from "./design/export-rules.mjs";
 import directionArrow from "./design/direction-arrow.json" with {type: "json"};
+import { calibratedBatch, discDisplayKind } from "./batches.mjs";
 
 let api, $;
 const root = document.documentElement;
@@ -266,10 +267,12 @@ const range = () => S?.ring ?? RANGE[S.media] ?? RANGE.dvd;
 function useMeasured(geo) {
   if (!S) return;
   const limit = geo?.nominal && S.media === "cd" ? [26, 58] : RANGE[S.media] ?? RANGE.dvd;
-  const ring = measuredRing(geo?.measured ?? geo?.nominal, limit);
-  if (String(ring) === String(S.ring ?? null)) return;
-  S.ring = ring; comp = null; editor?.invalidate(); draw();
+  const rings = measuredRings(geo?.intervals, geo?.measured ?? geo?.nominal, limit);
+  const ring = rings.length ? [rings[0][0], rings.at(-1)[1]] : null;
+  if (String(ring) === String(S.ring ?? null) && String(rings) === String(S.rings ?? [])) return;
+  S.ring = ring; S.rings = rings; comp = null; editor?.invalidate(); draw();
 }
+const ringGaps = () => (S?.rings ?? []).slice(1).map(([a], i) => [S.rings[i][1], a]);
 const flashOff = (scene) => scene.flashOffset ?? FLASH;   // the chosen phone (editor-rig.mjs), else iPhone 17 Pro turned as before
 const lampPos = () => S.scene.follows ? [S.scene.cam[0] + flashOff(S.scene)[0], S.scene.cam[1] - flashOff(S.scene)[1], S.scene.cam[2]] : S.scene.lamp;
 const heightOf = (L) => L.kind === "image" ? L.width * L.h / L.w : L.height;
@@ -762,6 +765,7 @@ function paintCanvas() {
   g.clearRect(0, 0, V.w, V.h);
   const face = cssVar("--face"), face2 = cssVar("--face-2"), dim = cssVar("--dim"), paper = cssVar("--paper");
   const [r0, r1] = range(), [p0, p1] = pictureRange(), fr = filesRing();
+  const gaps = ringGaps();
   // the disc, data side up
   g.fillStyle = face; g.beginPath(); g.arc(V.cx, V.cy, 60 * V.s, 0, Math.PI * 2); g.fill();
   g.fillStyle = face2; annulus(g, 7.5, 17); g.fill("evenodd");
@@ -806,15 +810,17 @@ function paintCanvas() {
   g.fillStyle = cssVar("--face-dim");                       // the disc where nothing is burned
   annulus(g, r1, 60); g.fill("evenodd");
   g.beginPath(); g.arc(V.cx, V.cy, r0 * V.s, 0, Math.PI * 2); g.fill();
+  for (const [a, b] of gaps) { annulus(g, a, b); g.fill("evenodd"); }
   const ink = cssVar("--face-ink");
   g.save(); g.strokeStyle = cssVar("--ink-3"); g.globalAlpha = 0.8; g.lineWidth = 0.75;
   for (const P of imageLayers()) {
-    if (S.tool !== "move" || !P.visible || !cornersOutside(P, p0, p1)) continue;
+    if (S.tool !== "move" || !P.visible || !cornersOutside(P, p0, p1, gaps)) continue;
     const cs = corners(P); g.beginPath(); cs.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.stroke();
   }
   g.restore();
   // what is not yours to draw on, as on a drawing: fine 45° hatching on the clamp ring and the rim
   hatch(g, 7.5, r0, ink); hatch(g, r1, 60, ink);
+  for (const [a, b] of gaps) hatch(g, a, b, ink);
   // the hole shows the page through it
   // the ring that holds files: light diagonal lines
   if (fr) {
@@ -832,9 +838,9 @@ function paintCanvas() {
   g.save(); g.strokeStyle = ink;
   g.lineWidth = 1; g.beginPath(); g.arc(V.cx, V.cy, 60 * V.s, 0, Math.PI * 2); g.stroke();
   g.lineWidth = 1; g.globalAlpha = 0.7;
-  for (const r of [7.5, r0, r1]) { g.beginPath(); g.arc(V.cx, V.cy, r * V.s, 0, Math.PI * 2); g.stroke(); }
+  for (const r of [7.5, r0, r1, ...gaps.flat()]) { g.beginPath(); g.arc(V.cx, V.cy, r * V.s, 0, Math.PI * 2); g.stroke(); }
   g.restore();
-  ruler(g, r0, r1, ink);
+  for (const [a, b] of gaps.length ? S.rings : [[r0, r1]]) ruler(g, a, b, ink);
   // effect areas: their outline and name
   for (const F of S.layers) {
     if (F.kind !== "fx" || !F.visible) continue;
@@ -860,19 +866,22 @@ function paintCanvas() {
   }
   // words over the canvas
   W.zoom.textContent = `${zoomPct()}%`;
-  const out = imageLayers().some((L) => L.visible && cornersOutside(L, p0, p1));
-  W.note.hidden = !out;
-  W.note.textContent = T().outside;
+  const out = imageLayers().some((L) => L.visible && cornersOutside(L, p0, p1, gaps));
+  W.note.hidden = !out && !gaps.length;
+  const missing = gaps.map(([a, b]) => `${a.toFixed(2)}–${b.toFixed(2)} mm`).join(" · ");
+  W.note.textContent = gaps.length ? (api.lang() === "zh"
+    ? `斜线区域尚未测量（${missing}）。把图放进一段可刻区域，或先补测空档。`
+    : `Hatched bands are unmeasured (${missing}). Place the picture within one measured band or measure the gaps.`) : T().outside;
   W.empty.hidden = S.layers.length > 0 || !!S.assignments?.length;
   placeBar();
 }
-function cornersOutside(L, p0, p1) {
+function cornersOutside(L, p0, p1, gaps = ringGaps()) {
   const hw = L.width / 2, hh = heightOf(L) / 2, a = L.rot * Math.PI / 180;
-  for (const [u, v] of [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]]) {
-    const x = L.x + u * Math.cos(a) - v * Math.sin(a), y = L.y + u * Math.sin(a) + v * Math.cos(a);
-    if (Math.hypot(x, y) > p1) return true;
-  }
-  return false;                              // the centre hole is cut from every picture; not worth a warning
+  const x = Math.abs(L.x * Math.cos(a) + L.y * Math.sin(a));
+  const y = Math.abs(-L.x * Math.sin(a) + L.y * Math.cos(a));
+  const outer = Math.hypot(x + hw, y + hh);
+  const inner = Math.hypot(Math.max(0, x - hw), Math.max(0, y - hh));
+  return outer > p1 || gaps.some(([lo, hi]) => Math.max(lo, p0, inner) < Math.min(hi, outer));
 }
 
 // ---------------------------------------------------------------- the floating bar under the selected layer
@@ -1492,8 +1501,16 @@ const FILE_KIND = "disc-probe design", FILE_VERSION = 2, FILE_EXT = ".discdesign
 const blobURL = (blob) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(blob); });
 const canvasBlob = (c) => new Promise((ok) => c.toBlob(ok, "image/png"));
 async function projectText() {
+  const plan = S, portable = editor?.document();
+  const meta = {
+    ...portable,
+    format: FILE_KIND, version: FILE_VERSION, media: plan.media, disc: plan.item?.name ?? null, geo: plan.geo ?? null,
+    batch: plan.item?.kind !== "new" ? plan.item?.id ?? null : null,
+    tone: plan.tone, files: fileDisplay(plan.files), pro: plan.pro, cell: plan.cell,
+    scene: plan.scene, lookColour: plan.lookColour, lookY: plan.lookY,
+  };
   const layers = [];
-  for (const L of S.layers) {
+  for (const L of plan.layers) {
     const e = { kind: L.kind, name: L.name, x: L.x, y: L.y, width: L.width, rot: L.rot, opacity: L.opacity, visible: L.visible, locked: L.locked };
     if (L.kind === "image") {
       Object.assign(e, { colour: L.colour, w: L.w, h: L.h, alphaEdited: !!L.alphaEdited, picture: await blobURL(await canvasBlob(L.src)) });
@@ -1501,21 +1518,17 @@ async function projectText() {
     } else Object.assign(e, { fxKind: L.fxKind, height: L.height, y1: L.y1, y2: L.y2 });
     layers.push(e);
   }
-  const portable = editor?.document();
-  return JSON.stringify({
-    ...portable,
-    format: FILE_KIND, version: FILE_VERSION, media: S.media, disc: S.item?.name ?? null, geo: S.geo ?? null,
-    tone: S.tone, files: fileDisplay(S.files), pro: S.pro, cell: S.cell, scene: S.scene, lookColour: S.lookColour, lookY: S.lookY, layers: layers.map((l,i)=>({...l,...portable?.layers[i]})),
-  });
+  return JSON.stringify({ ...meta, layers: layers.map((l,i)=>({...l,...portable?.layers[i]})) });
 }
 const baseName = (n) => n.replace(/\.discdesign$/i, "").replace(/\.json$/i, "");
 // Ctrl+S files the design in the core's works library (pastworks/save.mjs: made on the first save, a 409
 // asks overwrite or keep both). Undefined when this core keeps no works: the file picker below saves it.
-async function saveToWorks() {
+async function saveToWorks(plan = S) {
   const client = await (await import("./pastworks/works.mjs")).worksFor(api, { capable: hasCapability("works") });
   if (!client) return undefined;
   const { saveToLibrary, sayings } = await import("./pastworks/save.mjs");
-  const plan = S, name = S.name ?? T().untitled;
+  if (plan !== S) return false;
+  const name = plan.name ?? T().untitled;
   try {
     const r = await saveToLibrary({ client, plan, name, lang: api.lang(), text: await projectText(),
       thumb: async () => dataURLBlob(planThumbnail(plan, 512)) });
@@ -1893,9 +1906,13 @@ function viewNote(){
 }
 function build() {
   const t = T();
-  const css = document.createElement("link");
-  css.rel = "stylesheet"; css.href = new URL("./design.css", import.meta.url).href;
-  document.head.append(css);
+  if (!document.getElementById("design-styles")) {
+    const css = document.createElement("link");
+    css.id = "design-styles";
+    css.rel = "stylesheet";
+    css.href = new URL("./design.css", import.meta.url).href;
+    document.head.append(css);
+  }
   const ws = document.createElement("div");
   ws.className = "ws";
   ws.innerHTML = `<div class="ws-title"><svg class="work-bag" viewBox="0 0 20 24" width="16" height="20" style="flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.3" role="img" aria-label="作品存在往期作品里 / Saved in past works"><title>作品存在往期作品里 / Saved in past works</title><path d="M3 5h14v17H3zM3 5l3-3h8l3 3M7 9h6M7 12h6"/></svg><b class="pname"></b><button class="sub" type="button"></button><span class="dirty" aria-hidden="true"></span>` +
@@ -2163,7 +2180,8 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
     if (open && (open.dirty || open.work.updated_at === work.updated_at)) { S = open; S.name = work.name; }
     else {
       const media = work.media in RANGE ? work.media : col, [c, last] = api.lastBatch?.() ?? [];
-      S = newProject(c === media ? last : col === media ? item : { kind: "unset", name: T().noDiscYet, mid: "", s: "none" }, media);
+      const savedBatch = work.batch && api.catalogue?.(media)?.find(x => x.id === work.batch);
+      S = newProject(savedBatch || (c === media ? last : col === media ? item : { kind: "unset", name: T().noDiscYet, mid: "", s: "none" }), media);
       S.name = work.name; S.work = { id: work.id, updated_at: work.updated_at };
       if (work.text != null) fromWork = new File([work.text], `${work.name}.discdesign`, { type: "application/json" });
     }
@@ -2259,6 +2277,13 @@ async function openPreview() {
   // the newest finished geo run, for a plan with no batch (named in the checklist, never used silently)
   const served = await fetch(`/api/state?media=${P.media}`).then((r) => r.ok ? r.json() : null).catch(() => null);
   if (!isOn() || S !== P) return;
+  const catalogue = () => api.catalogue?.(P.media) ?? served?.catalogue?.[P.media] ?? [];
+  function connectBatch(item) {
+    if (P.item?.id !== item.id || P.geo !== item.geo) P.dirty = true;
+    P.item = ctx.item = item;
+    api.rememberBatch?.(item);
+    useMeasured(geoChoice(P, catalogue()));
+  }
   const ctx = {
     media: P.media, item: P.item, alongTrackMeasured: false,
     // what a file being made belongs to (preview.js jobs): this plan while open, and its saved work once it has one
@@ -2276,7 +2301,7 @@ async function openPreview() {
     // what the preview's checklist reads before burning; each answer is what is known now, never a guess
     checks: () => {
       const d = api.driveDisc?.();
-      const geo = geoChoice(P, api.catalogue?.(P.media) ?? served?.catalogue?.[P.media] ?? [], latestGeo(served));
+      const geo = geoChoice(P, catalogue(), latestGeo(served));
       if (S === P) useMeasured(geo);
       const exp = experimentalNow(P);
       return {
@@ -2287,7 +2312,7 @@ async function openPreview() {
         importProblem: geo.importProblem,
         levels: 2,                                    // the editor burns two textures; tone levels no longer apply
         disc: !d?.present ? "none" : d.media !== P.media ? "kind" : P.item?.mid && d.mid && d.mid !== P.item.mid ? "other" : d.blank === true ? "blank" : "written",
-        discName: d?.mid || d?.kind || "",
+        discName: d?.mid || (d?.present ? discDisplayKind(d, api.lang()) : ""),
         cellUm: Math.round(P.cell * 1000),
         effects: !exp.any ? "none" : ctx.effects,
         canExperiment: P.media === "dvd",
@@ -2295,18 +2320,39 @@ async function openPreview() {
     },
     back: () => start(api, { plan: P, fly: false }),           // the same work, not the shelf disc's own plan
     next: (iso) => toBurn(iso, () => preview.start(api, ctx)),   // the same context keeps the file it made
-    // no measured geometry for these discs: calibrate the batch (the one picked, else the disc in the drive),
-    // then come back here; a batch measured meanwhile becomes this plan's
-    calibrate: async () => {
+    calibrate: async (stillHere) => {
+      await api.syncState?.();
+      if (!stillHere()) return;
+      const disc = api.driveDisc?.();
+      const known = calibratedBatch(catalogue(), P.item, disc?.media === P.media ? disc : null);
+      if (known) {
+        connectBatch(known);
+        await preview.continueToBurn(api, ctx);
+        return;
+      }
+      if ((!P.work?.id || P.dirty) && !await saveToWorks(P)) return;
+      if (!stillHere()) return;
+      document.dispatchEvent(new Event("dp-image-work-saved"));
       const cal = await import("./calibrate.js");
+      if (!stillHere()) return;
       api.useForPlan?.(P.media, P.item?.kind === "new" ? null : P.item ?? null);
-      cal.start(api, { returnTo: async ({ done, id }) => {
+      const batch = P.item && P.item.kind !== "unset" ? P.item : api.current().item;
+      preview.leave(false);
+      cal.start(api, { item: batch, returnLabel: () => api.lang() === "en" ? "Return to this work" : "回到这件作品",
+        returnTo: async ({ done, batch: saved }) => {
+        if (S !== P) start(api, { plan: P, fly: false });
         if (done) {
-          await api.syncState?.();
-          const d = api.driveDisc?.(), mine = (x) => ["good", "usable"].includes(x.s) && (id ? x.id === id : P.item?.id ? x.id === P.item.id : d?.mid && x.mid === d.mid);
-          const it = (api.catalogue?.(P.media) ?? []).find(mine);
-          if (it) { P.item = it; api.rememberBatch?.(it); }
+          const item = saved || calibratedBatch(catalogue(), batch, disc);
+          if (item) {
+            connectBatch(item);
+            if (await saveToWorks(P)) {
+              hideDesign();
+              await preview.continueToBurn(api, ctx);
+              return;
+            }
+          }
         }
+        hideDesign();
         preview.start(api, ctx);
       } });
     },
@@ -2413,7 +2459,7 @@ async function inspectDisc(drive, iso) {
   catch (e) { return { problem: t.burnNoDisc(e?.message ?? ""), swap: true }; }
   if (!disc?.present) return { problem: t.burnPutBlank(S.item?.mid || S.item?.name || ""), swap: true };
   drive.rewritable=!!disc.rewritable;drive.eraseRequired=disc.rewritable && disc.blank===false;
-  if (disc.blank !== true && !drive.eraseRequired) return { problem: t.burnNotBlankSwap(disc.mid || disc.kind || ""), swap: true };
+  if (disc.blank !== true && !drive.eraseRequired) return { problem: t.burnNotBlankSwap(disc.mid || discDisplayKind(disc, api.lang())), swap: true };
   const want = S.item?.mid;
   if (want && disc.mid && disc.mid !== want) return { problem: t.burnOtherBatch(disc.mid, want), swap: true };
   const r = await fetch(`/api/burn-speeds?drive=${encodeURIComponent(drive.id)}&media=${S.media}`);
