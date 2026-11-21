@@ -2540,8 +2540,8 @@ def _build_parser():
     sp.add_argument('--preview', help='write the model prediction as PNG')
     sp.set_defaults(func=cmd_colour_design)
 
-    from . import gratingcard
-    gratingcard.add_parser(sub)
+    from . import gratingcard_cli
+    gratingcard_cli.add_parser(sub)
 
     from . import discfiles
     sp = sub.add_parser('files-layout', help='plan DVD files and picture annuli as JSON (no drive access)')
