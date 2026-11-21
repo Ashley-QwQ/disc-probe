@@ -253,7 +253,6 @@ class Store:
                             if self._safe(folder / ".pending.json").is_file():
                                 self._recover(folder)
                     yield
-                    self._expire_trash()
                 finally:
                     if os.name == "nt":
                         lock.seek(0)
@@ -346,8 +345,11 @@ class Store:
         files.update({"design.discdesign": raw, "thumb.png": thumbnail(doc)})
         with self._locked():
             ident, now = self._new_id(), stamp()
+            batch = doc.get("batch")
+            if not isinstance(batch, str) or not 1 <= len(batch) <= 256:
+                batch = None
             work = dict(id=ident, name=name, created_at=now, updated_at=now, opened_at=now,
-                        media=doc.get("media", media), disc_type="-R", batch=None,
+                        media=doc.get("media", media), disc_type="-R", batch=batch,
                         geo_run=self._geo_ref(doc), photo_l=None, cell_um=round(doc.get("cell", .02) * 1000),
                         status="draft", discs=[], source_file=source_file, source_design_missing=source_design_missing)
             self._validate_meta(work)
@@ -376,6 +378,11 @@ class Store:
                 work["opened_at"] = stamp()
                 atomic(folder / "work.json", encoded(work))
             return dict(work, history=self._history(folder)[-50:])
+
+    def trashed(self):
+        with self._locked():
+            return [self._read(self._folder(folder.name, trash=True))
+                    for folder in sorted((self.root / ".trash").iterdir()) if ID.fullmatch(folder.name)]
 
     def content(self, ident, name):
         if name not in ("design.discdesign", "thumb.png"):
@@ -469,12 +476,19 @@ class Store:
             self._publish(work["id"], files)
             return work
 
-    def delete(self, ident):
+    def delete(self, ident, *, permanent=False):
         with self._locked():
             folder = self._folder(ident)
             work = self._read(folder)
+            if permanent:
+                from .library import _tree
+                _tree(folder)
             work["deleted_at"] = stamp()
-            return self._update(folder, work, "deleted", move=".trash/" + ident)
+            deleted = self._update(folder, work, "deleted", move=".trash/" + ident)
+            if permanent:
+                shutil.rmtree(self._folder(ident, trash=True))
+                deleted["permanent"] = True
+            return deleted
 
     def restore(self, ident):
         with self._locked():

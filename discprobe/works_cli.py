@@ -41,7 +41,9 @@ def add_parser(sub):
     for name in ("new", "rename"):
         children[name].add_argument("name", help="work name, including Chinese")
     children["duplicate"].add_argument("name", nargs="?", help="name of the copy")
+    children["delete"].add_argument("--permanent", action="store_true", help="remove these files permanently")
     children["list"].add_argument("--status", choices=works.STATUSES, help="filter by work status")
+    children["list"].add_argument("--trash", action="store_true", help="list works in the trash")
     children["list"].add_argument("--media", choices=("dvd", "cd", "bd"), help="filter by disc kind")
     children["list"].add_argument("--sort", choices=("time", "name"), default="time", help="sort works by time or name")
     children["new"].add_argument("--media", choices=("dvd", "cd", "bd"), default="dvd", help="disc kind for a new work")
@@ -64,7 +66,7 @@ def run(args):
     store, op = works.Store(), args.works_command
     try:
         if op == "list":
-            result = store.list(args.status, args.media, args.sort)
+            result = store.trashed() if args.trash else store.list(args.status, args.media, args.sort)
         elif op == "show":
             result = store.show(args.id, opened=True)
         elif op == "new":
@@ -78,7 +80,7 @@ def run(args):
         elif op == "duplicate":
             result = store.duplicate(args.id, args.name)
         elif op == "delete":
-            result = store.delete(args.id)
+            result = store.delete(args.id, permanent=args.permanent)
         elif op == "restore":
             result = store.restore(args.id)
         elif op == "export":

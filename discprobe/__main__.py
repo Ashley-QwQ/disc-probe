@@ -885,6 +885,12 @@ def cmd_geo(args, *, speed_check=None):
                     'no_auto_correction', 'chi2_abort'):
             if key in saved_args:
                 setattr(args, key, saved_args[key])
+        calibration = guide._load(str(read_completion.summary_path(args.resume).with_name('calibration.json')))
+        if isinstance(calibration, dict) and calibration.get('avoid_mm'):
+            # These ranges came from calibrate's temporary exclusions. A
+            # continuation rechecks random data before accepting new rungs.
+            args.ranges = None
+            source['refresh_excluded_ranges'] = True
         args.ref_lba = int(source['fit']['reference_lba'])
         if media == 'dvd':
             args.completion_sectors = source['fit'].get('completion_sectors', 0)
@@ -2263,6 +2269,8 @@ def _build_parser():
     # Works library adapters are separate to keep this shared parser easy to merge.
     from . import works_cli
     works_cli.add_parser(sub)
+    from . import library
+    library.add_parser(sub)
 
     from . import photo
     photo.add_parser(sub)

@@ -17,6 +17,11 @@ def default_range(media, measured_span=None):
     return (min(inner, preset[0]), max(outer, preset[1])) if preset else (inner, outer)
 
 
+def calibration_gaps(fit, media):
+    required = default_range(media, fit.get('measured_span_mm'))
+    return assess_range(fit, required)['extrapolated_mm'] if required else []
+
+
 def assess_range(fit, radius_range):
     lo, hi = map(float, radius_range)
     if not (math.isfinite(lo) and math.isfinite(hi) and 0 <= lo < hi):

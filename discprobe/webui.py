@@ -340,6 +340,16 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
     for name in {"image": ("geo",), "checkdisc": ("geo",), "disexport": ("geo", "sectors"), "cdprobe": ("sectors",)}.get(action, ()):
         if args.get(name) is None:
             raise APIError(name + " is required")
+    if action == "disexport" and re.fullmatch(r"calibration-\d+\.json", Path(args.get("output") or "").name):
+        folder = Path(local_path(root, args["geo"]))
+        if folder.name == "summary.json":
+            folder = folder.parent
+        match = guide.RESULT_DIR.fullmatch(folder.name)
+        if not match or match["kind"] != "geo":
+            raise APIError("a saved geometry run is required")
+        run = guide.Result(str(folder), "geo", match["tag"], match["stamp"])
+        if webui_catalog.calibration_issue(run, webui_catalog.calibration_record(run), full=True):
+            raise APIError("calibration did not pass; complete the measurement before saving a preset")
     if sum(bool(args.get(name)) for name in ("picture", "design", "design_npy")) > 1:
         raise APIError("choose picture or design")
     if action == "disexport" and (args.get("photo") is not None or args.get("reading_drive") is not None):
@@ -677,6 +687,8 @@ class Backend:
         self.photos = PhotoStore(self.out)
         from .works import Store
         self.works = Store(self.out)
+        from .library import Library
+        self.library = Library(self.root, self.out, self.works)
         self.photo_hashes = {}               # photo file -> (size, mtime_ns, sha256): duplicate uploads are refused
         self.desk_seen = {}                  # run -> when the computer's page last listed its photos
         self.desk_run = None                 # (run, when): the run the computer's page listed most recently
@@ -707,7 +719,7 @@ class Backend:
         with self.lock:
             state["jobs"] = [dict(id=j.id, drive=j.drive, action=j.action, media=j.media, args=j.args, disc=j.disc, exit=j.exit, result=j.result,
                                   cancellation=j.cancellation, result_seen=j.result_seen) for j in self.jobs.values()]
-        state["catalogue"] = webui_catalog.catalogue(self.root, self.out)
+        state["catalogue"] = self.library.rows()
         state["version"] = version()
         state["platform"] = sys.platform          # which shell the terminal page looks like (win32: PowerShell)
         return state
@@ -1982,7 +1994,7 @@ class Handler(BaseHTTPRequestHandler):
                                      slots="late night 22-05, early 05-09, morning 09-12, afternoon 12-18, evening 18-22",
                                      first_day="Monday"))
             elif path == "/api/catalogue":
-                self._json(200, webui_catalog.catalogue(backend.root, backend.out))
+                self._json(200, backend.library.rows())
             elif path == "/api/image-job":
                 query = parse_qs(url.query)
                 self._json(200, backend.image_job(work=query.get("work", [None])[0], ident=query.get("job", [None])[0]))
@@ -2217,8 +2229,34 @@ class Handler(BaseHTTPRequestHandler):
                 except ValueError as exc:
                     raise APIError(str(exc), 404) from exc
             elif path == "/api/catalogue":
-                with backend.lock:
-                    result = webui_catalog.save_entry(backend.root, backend.out, payload)
+                with backend.lock, backend.works._locked():
+                    try:
+                        backend.library._recover()
+                        result = webui_catalog.save_entry(backend.root, backend.out, payload)
+                    except ValueError as exc:
+                        raise APIError(str(exc)) from exc
+            elif path == "/api/library":
+                from .works import WorkError
+                op, ident = payload.get("operation"), payload.get("id")
+                if not isinstance(ident, str) or not 1 <= len(ident) <= 256:
+                    raise APIError("invalid library id")
+                library = backend.library
+                try:
+                    with backend.lock:
+                        if op != "preview" and backend._busy():
+                            raise APIError("wait for the running task before changing the disc library", 409)
+                        if op == "preview" and set(payload) == {"operation", "id"}:
+                            result = library.preview(ident)
+                        elif op == "delete" and set(payload) == {"operation", "id", "with_works", "revision"} and (
+                            type(payload["with_works"]) is bool and isinstance(payload["revision"], str)
+                        ):
+                            result = library.delete(ident, with_works=payload["with_works"], revision=payload["revision"])
+                        elif op == "restore" and set(payload) == {"operation", "id"}:
+                            result = library.restore(ident)
+                        else:
+                            raise APIError("invalid library operation")
+                except WorkError as exc:
+                    raise APIError(str(exc), exc.status) from exc
             elif path == "/api/run":
                 result = backend.start(payload)
             elif path == "/api/disc":

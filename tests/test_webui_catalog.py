@@ -14,7 +14,7 @@ def write_geo(root, stamp='20261107-101500', **overrides):
     path = Path(root) / 'results' / ('geo-H-' + stamp)
     path.mkdir(parents=True)
     data = dict(fit=dict(media='dvd', u=180000, v=5.5, chi2_per_dof=1,
-        measured_span_mm=[25,56], angle_sigma_measured_span_deg=.1),
+        measured_span_mm=[24.49,56.01], angle_sigma_measured_span_deg=.1),
         identity=dict(disc='TEST <MID>', drive='Fake drive'), setup=dict(last_lba=999))
     data.update(overrides)
     (path / 'summary.json').write_text(json.dumps(data), encoding='utf-8')

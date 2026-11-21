@@ -757,17 +757,30 @@ function hatch(g, a, b, ink) {
   g.stroke(); g.restore();
 }
 // a faint scale along one radius (to the right): ticks every 5 mm, the burnable range's ends numbered
-function ruler(g, r0, r1, ink) {
+function ruler(g, rings, ink) {
   const px = (mm) => V.cx + mm * V.s, y = V.cy;
   if (V.s * 5 < 6) return;                    // too small to read
   g.save(); g.strokeStyle = ink; g.fillStyle = ink; g.globalAlpha = 0.4; g.lineWidth = 0.75;
-  g.beginPath(); g.moveTo(px(r0), y); g.lineTo(px(r1), y);
-  for (let mm = Math.ceil(r0 / 5) * 5; mm <= r1; mm += 5) { const h = mm % 10 ? 3 : 5; g.moveTo(px(mm), y - h); g.lineTo(px(mm), y + h); }
-  for (const mm of [r0, r1]) { g.moveTo(px(mm), y - 7); g.lineTo(px(mm), y + 7); }
+  g.beginPath();
+  for (const [r0, r1] of rings) {
+    g.moveTo(px(r0), y); g.lineTo(px(r1), y);
+    for (let mm = Math.ceil(r0 / 5) * 5; mm <= r1; mm += 5) {
+      const h = mm % 10 ? 3 : 5;
+      g.moveTo(px(mm), y - h); g.lineTo(px(mm), y + h);
+    }
+    for (const mm of [r0, r1]) { g.moveTo(px(mm), y - 7); g.lineTo(px(mm), y + 7); }
+  }
   g.stroke();
   g.globalAlpha = 0.7; g.font = `11px ${cssVar("--mono")}`; g.textAlign = "center"; g.textBaseline = "top";
-  // the ring's ends may be measured radii (S.ring): one decimal, never the raw float
-  for (const mm of [r0, r1]) g.fillText(String(Math.round(mm * 10) / 10), px(mm), y + 9);
+  // Reserve space for the overall endpoints before labelling the gaps.
+  const ends = rings.flat(), labels = [];
+  for (const mm of [ends[0], ends.at(-1), ...ends.slice(1, -1)]) {
+    const text = String(Math.round(mm * 10) / 10), x = px(mm), half = g.measureText(text).width / 2 + 2;
+    const bounds = [x - half, x + half];
+    if (labels.some(([a, b]) => bounds[0] < b && bounds[1] > a)) continue;
+    labels.push(bounds);
+    g.fillText(text, x, y + 9);
+  }
   g.restore();
 }
 function paintCanvas() {
@@ -860,7 +873,7 @@ function paintCanvas() {
   g.lineWidth = 1; g.globalAlpha = 0.7;
   for (const r of [7.5, r0, r1, ...gaps.flat()]) { g.beginPath(); g.arc(V.cx, V.cy, r * V.s, 0, Math.PI * 2); g.stroke(); }
   g.restore();
-  for (const [a, b] of gaps.length ? S.rings : [[r0, r1]]) ruler(g, a, b, ink);
+  ruler(g, gaps.length ? S.rings : [[r0, r1]], ink);
   // effect areas: their outline and name
   for (const F of S.layers) {
     if (F.kind !== "fx" || !F.visible) continue;
@@ -1666,8 +1679,9 @@ async function openProject(file, handle = null, work = null, dirty = false) {
   } else if (S.batchDeferred) {
     // An older file has no deferred marker. Keep its saved batch when the library still has it.
     const shelf = api.catalogue?.(S.media) ?? [];
-    S.item = shelf.find(it => it.id === data.batch) ?? unsetBatch();
-    S.batchDeferred = false;
+    const saved = shelf.find(it => it.id === data.batch);
+    S.item = saved ?? unsetBatch();
+    S.batchDeferred = !!work && !saved;
   }
   S.layers = layers.slice(0, 16);
   S.selections=structuredClone(data.selections??[]);S.activeMask=data.activeMask??null;
@@ -2278,9 +2292,15 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
     else {
       const media = work.media in RANGE ? work.media : col, [c, last] = api.lastBatch?.() ?? [];
       const savedBatch = work.batch && api.catalogue?.(media)?.find(x => x.id === work.batch);
-      S = newProject(savedBatch || (c === media ? last : col === media ? item : unsetBatch()), media);
+      const missingBatch = typeof work.batch === "string" && !savedBatch;
+      S = newProject(savedBatch || (missingBatch ? unsetBatch() : c === media ? last : col === media ? item : unsetBatch()), media);
       S.name = work.name; S.work = { id: work.id, updated_at: work.updated_at };
       if (work.text != null) fromWork = new File([work.text], `${work.name}.discdesign`, { type: "application/json" });
+    }
+    if (typeof work.batch === "string" && !api.catalogue?.(S.media)?.some(x => x.id === work.batch)) {
+      S.item = unsetBatch();
+      S.batchDeferred = true;
+      S.geo = null;
     }
   }
   else if (newPlan) {

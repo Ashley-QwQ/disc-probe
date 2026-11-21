@@ -189,6 +189,23 @@ export function start(homeApi, { returnTo: back = null, returnAnim: anim = null,
   return open();
 }
 
+export function resumeSaved(homeApi, item) {
+  api = homeApi; $ = api.$;
+  if (flow?.job) return open();
+  const issue = item.calibration_issue;
+  returnTo = returnAnim = returnLabel = null;
+  flow = newFlow(item);
+  if (!ui) build();
+  flow.detected = {media:item.row, mid:item.mid, capacity_sectors:item.capacity_sectors};
+  flow.blankSectors = item.capacity_sectors;
+  flow.geo = {path:issue.geo, verdict:issue.verdict, measurement:{missing_mm:issue.missing_mm,
+    can_resume:issue.can_resume, ...(issue.stopped ? {retry_kind:"rung"} : {})}};
+  flow.calibratedOk = false;
+  flow.calibrationReason = issue.reason;
+  flow.realPhase = "review";
+  return open();
+}
+
 // Straight to the photos of a disc just burned with this geometry (the burn page's "Photograph the disc"):
 // the photo page reads them against that geometry's run, the core keeps the result next to it (photo.json),
 // and the next burn file made from that geometry applies the along-track correction. Back or done: returnTo.
@@ -2180,7 +2197,7 @@ async function realNext() {
         flow.realPhase='discRejected';paint();return;
       }
       if(result.disc.blank===true)flow.requireBlank=false;
-      if (result.disc.blank === true) flow.blankSectors = result.disc.sectors;     // the capacity a preset needs
+      if (result.disc.blank === true) flow.blankSectors = result.disc.capacity_sectors ?? result.disc.sectors;
     } else if (phase === "prepare") {
       if ((flow.detected.blank === true || flow.eraseRequested) && flow.iso) flow.realPhase = "burn";     // the image made before, kept for a retry
       else if (flow.detected.blank === true || flow.eraseRequested) {
@@ -2321,6 +2338,7 @@ async function refreshBurnInspection() {
   if(f.burnInspecting)return;
   f.burnInspecting=true;f.burnInspection=null;f.batchConfirmed=false;paint();
   try {
+    await api.waitForDiscCheck?.(api.selectedDrive());
     f.burnInspection=await checkBurn(api.backend,measurementBurnRequest(f));
     if (!f.burnInspection.speeds_x?.includes(f.burnSpeed)) f.burnSpeed = undefined;
   }
@@ -2338,6 +2356,8 @@ async function realBurn() {
   await realCalibrate(args, {burn_token});
 }
 async function realSave() {
+  if (flow.calibratedOk === false) throw new Error(liveText(
+    '标定未通过。请完成测量后再保存预设。', 'Calibration did not pass. Complete the measurement before saving a preset.'));
   flow.realPhase = "saving";
   const output = `presets/calibration-${Date.now()}.json`;
   const sectors = flow.blankSectors ?? flow.detected.capacity_sectors;

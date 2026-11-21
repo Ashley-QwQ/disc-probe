@@ -43,6 +43,15 @@ a continuation on the original disc, drive and read settings. A completed
 measurement job snapshot may include `diagnostics.argv` and a workspace-relative
 `diagnostics.log_path`. These describe the job that ran.
 
+API 1.4 adds optional `library-management`. `POST /api/library` takes
+`{operation:"preview", id}` to return the batch's files, shared files,
+dependent works and a revision. Delete uses `{operation:"delete", id, revision,
+with_works}` and returns a `trash_id`. Restore uses `{operation:"restore",
+id:trash_id}`. The web route uses the reversible operation. Measured catalogue
+rows can also include `drive_id`, `capacity_sectors`, `capacity_source` and
+`calibration_issue`. The old `sectors` field on measured rows still describes
+the recorded area. An incomplete result uses `s:"incomplete"`.
+
 Proposed policy: retain working adapters for the previous MAJOR for at least
 six months after the new major's first stable release. Publish its retirement
 date with that release. List only majors with actual working adapters in

@@ -4,8 +4,11 @@ import csv
 import math
 import hashlib
 import json
+import os
 from datetime import datetime, timezone
 from . import guide, mmc
+from .capacity import catalogue_capacity, positive_sectors
+from .coverage import assess_range, calibration_gaps
 
 
 def burn_state(result):
@@ -60,21 +63,14 @@ def saved_burns(root):
     return list(unique.values())
 
 
-def batch_history(root, runs, infos, chosen, burns):
-    who = guide.identity_of(chosen, infos)
-    def matches(run):
-        identity = guide.identity_of(run, infos)
-        return (run.path == chosen.path or (who['disc'] != 'unknown disc' and
-                run.media == chosen.media and identity['disc'] == who['disc'] and identity['drive'] == who['drive']))
-    related = [r for r in runs if r.kind == 'geo' and not r.simulated and matches(r)
-               and Path(r.path).resolve().is_relative_to(root)]
+def batch_history(root, related, chosen, who, burns, issues):
     history = []
     for run in related:
         verdict = guide.result_verdict(run, run.media)
-        state = 'ok' if verdict in ('good', 'usable') else 'needs' if (run.stopped or verdict in
+        state = 'needs' if issues[run.path] else 'ok' if verdict in ('good', 'usable') else 'needs' if (run.stopped or verdict in
             ('stopped_early', 'drive_changed', 'too_noisy', 'narrow_span')) else 'unknown'
         history.append(dict(kind='calibrate', state=state, when=run.when.isoformat(),
-                            label='标定 / Calibration · ' + str(verdict or 'unknown')))
+                            label='标定 / Calibration · ' + ('未通过 / Incomplete' if issues[run.path] else str(verdict or 'unknown'))))
     geo_paths = {Path(r.path).resolve() for r in related}
     for record in burns:
         geo = record.get('geo')
@@ -139,23 +135,92 @@ def measured_ring(summary):
     return assess_range(fit, (0, 60))['covered_intervals_mm']
 
 
-def catalogue(root, out):
+def calibration_record(run):
+    record = guide._load(str(Path(run.path) / 'calibration.json'))
+    return record if isinstance(record, dict) else {}
+
+
+def calibration_issue(run, record, *, full=False):
+    """Assess legacy runs as well as runs with a recorded calibration outcome."""
+    fit = run.fit
+    gaps = []
+    if run.kind == 'geo' and 'u' in fit:
+        if full or record:
+            gaps = calibration_gaps(fit, run.media)
+        else:
+            # Legacy standalone measurements may intentionally cover a local ring.
+            # Within that span a gap still needs to be visible in the catalogue.
+            span = fit.get('measured_span_mm')
+            if span and span[0] < span[1]:
+                gaps = assess_range(fit, span)['extrapolated_mm']
+    verdict = guide.result_verdict(run, run.media)
+    if not (gaps or record.get('ok') is False or verdict not in ('good', 'usable')):
+        return None
+    from .geo import resume_supported
+    return dict(missing_mm=gaps, reason=record.get('reason') or run.stopped, verdict=verdict,
+                stopped=bool(run.stopped or verdict == 'stopped_early'),
+                can_resume=run.kind == 'geo' and run.rungs() >= 6 and resume_supported(run.summary, run.media))
+
+
+def _relative(root, value):
+    if isinstance(value, str) and value and '\x00' not in value and 'blind' not in value.casefold():
+        try:
+            original = Path(os.path.abspath(root / value))
+            if original.is_relative_to(root) and original.resolve() == original:
+                return original.relative_to(root).as_posix()
+        except (OSError, RuntimeError, ValueError):
+            pass
+    return None
+
+
+def _preset_path(root, value):
+    relative = _relative(root, value)
+    if relative is None:
+        return None
+    path = Path(relative)
+    if path.suffix.lower() != '.json' or relative == 'presets/catalogue.json':
+        return None
+    if path.parent in (Path('presets'), Path('dis')) or path.parent == Path('.') and (
+        path.name.startswith('dis_preset') or path.name == 'disc-presets.json'
+    ):
+        return relative
+    return None
+
+
+def _capacity(root, mid, media, record, infos):
+    disc = record.get('disc') or {}
+    sectors, source = record.get('sectors'), record.get('capacity_source')
+    if positive_sectors(sectors) and source in ('--sectors', 'blank disc before burning', 'free space of this blank disc'):
+        return sectors, source
+    reference = catalogue_capacity(mid, media, root)
+    if reference:
+        return reference
+    if mid:
+        for info in infos:
+            report = guide._load(str(Path(info.path) / 'info.json')) or {}
+            measured = disc_report(report)
+            if measured['mid'] == mid and measured['media'] == media and measured['blank'] is True and measured['capacity_sectors']:
+                return measured['capacity_sectors'], measured['capacity_source']
+    if positive_sectors(sectors):
+        return sectors, source
+    return disc.get('capacity_sectors'), disc.get('capacity_source')
+
+
+def catalogue(root, out, *, inventory=None):
     root, out = Path(root).resolve(), Path(out).resolve()
     groups = {media: [] for media in ('dvd', 'cd', 'bd')}
     runs = guide.scan(str(out))
     infos = [r for r in runs if r.kind == 'info' and not r.simulated]
     burns = saved_burns(root)
     metadata = guide._load(str(root / 'catalogue.json')) or {}
-    def linked(value):
-        # older pages saved the preset's absolute path; both spellings name the same file
-        path = Path(value) if isinstance(value, str) else None
-        if path is not None and path.is_absolute() and path.resolve().is_relative_to(root):
-            return path.resolve().relative_to(root).as_posix()
-        return value
-    linked_presets = {linked(value.get('preset')) for value in metadata.values() if isinstance(value, dict)}
-    seen = set()
-    for run in sorted(runs, key=lambda r: (r.geo_complete() if r.kind == 'geo' else False, r.when), reverse=True):
-        if run.kind != 'geo' or run.simulated or not Path(run.path).resolve().is_relative_to(root):
+    metadata = {key: row for key, row in metadata.items() if isinstance(row, dict)} if isinstance(metadata, dict) else {}
+    linked_presets = {_preset_path(root, value.get('preset')) for value in metadata.values() if isinstance(value, dict)}
+    batches, records, issues, identities = {}, {}, {}, {}
+    for run in runs:
+        if run.kind not in ('geo', 'timing') or not Path(run.path).resolve().is_relative_to(root) or run.simulated:
+            continue
+        record = calibration_record(run)
+        if run.kind == 'timing' and record.get('ok') is not False:
             continue
         who = guide.identity_of(run, infos)
         mid = who.get('disc')
@@ -163,25 +228,53 @@ def catalogue(root, out):
             mid = None
         # An unidentified measurement is its own entry, never an invented manufacturer.
         key = (run.media, mid, who.get('drive')) if mid else (run.media, run.path)
-        if key in seen:
-            continue
-        seen.add(key)
+        batches.setdefault(key, []).append(run)
+        records[run.path], identities[run.path] = record, who
+        issues[run.path] = calibration_issue(run, record)
+    rows = []
+    for key, related in batches.items():
+        run = next((r for r in related if r.kind == 'geo' and not issues[r.path]), related[0])
+        who, record, issue = identities[run.path], records[run.path], issues[run.path]
+        mid = None if who['disc'] == 'unknown disc' else who['disc']
         ident = hashlib.sha256(repr(key).encode()).hexdigest()[:20]
         saved = {**(run.summary.get('counter') or {}), **metadata.get(ident, {})}
         sectors = (run.summary.get('setup') or {}).get('last_lba')
+        capacity, capacity_source = _capacity(root, mid, run.media, record, infos)
         rings = measured_ring(run.summary)
-        groups[run.media].append(dict(id=ident, row=run.media, name=saved.get('name') or mid or Path(run.path).name,
+        source = _relative(root, run.path)
+        recent = related[0] if not issue and issues[related[0].path] else None
+        entry = dict(id=ident, row=run.media, name=saved.get('name') or mid or Path(run.path).name,
             mid=mid, sectors=sectors + 1 if isinstance(sectors, int) else None,
+            capacity_sectors=capacity, capacity_source=capacity_source,
             measured_intervals_mm=rings, measured_mm=max(rings, key=lambda iv: iv[1] - iv[0], default=None),
-            s=guide.result_verdict(run, run.media), last=run.when.date().isoformat(),
+            s='incomplete' if issue else guide.result_verdict(run, run.media), last=run.when.date().isoformat(),
             drive=who.get('drive'), left=saved.get('left'), of=saved.get('of'),
-            geo=str(Path(run.path).relative_to(root)).replace('\\', '/'), inferred=who.get('inferred', False),
-            history=batch_history(root, runs, infos, run, burns)))
+            drive_id=record.get('drive_id') or (run.summary.get('args') or {}).get('drive') or
+                (run.tag + ':' if run.tag and len(run.tag) == 1 and run.tag.isalpha() else run.tag),
+            geo=source if run.kind == 'geo' else None, inferred=who.get('inferred', False),
+            history=batch_history(root, related, run, who, burns, issues),
+            calibration_issue=({**issue, 'geo': source if run.kind == 'geo' else None} if issue else
+                {**issues[recent.path], 'geo': _relative(root, recent.path), 'previous_usable': True} if recent else None))
+        presets = {_preset_path(root, saved.get('preset'))}
+        presets.update(_preset_path(root, records[r.path].get('preset')) for r in related)
+        presets.discard(None)
+        linked_presets.update(presets)
+        if inventory is not None:
+            paths = {_relative(root, r.path) for r in related}
+            for r in related:
+                timing = (records[r.path].get('timing') or {}).get('path')
+                path = _relative(root, timing)
+                if path and (root / path).parent == out and Path(path).name.startswith('timing-'):
+                    paths.add(path)
+            inventory.setdefault(ident, set()).update(paths | presets)
+        rows.append((not issue, run.when, entry))
+    for _, _, entry in sorted(rows, key=lambda row: row[:2], reverse=True):
+        groups[entry['row']].append(entry)
     # Only explicit preset locations; do not traverse evidence or read held-out folders.
     locations = [*sorted((root / 'presets').glob('*.json')), *sorted((root / 'dis').glob('*.json')),
                  *sorted(root.glob('dis_preset*.json')), *sorted(root.glob('disc-presets.json'))]
     for path in locations:
-        if path.resolve().is_relative_to(root):
+        if 'blind' not in path.as_posix().casefold() and path.resolve().is_relative_to(root):
             if path.relative_to(root).as_posix() in linked_presets:
                 continue
             data = guide._load(str(path)) or {}
@@ -193,6 +286,12 @@ def catalogue(root, out):
             for preset in presets:
                 if not isinstance(preset, dict) or not preset.get('displayName') or not preset.get('id'):
                     continue
+                ident = 'preset:' + str(preset['id'])
+                relative = path.relative_to(root).as_posix()
+                if inventory is not None:
+                    inventory.setdefault(ident, set()).add(relative)
+                if relative in metadata.get(ident, {}).get('hidden_presets', []):
+                    continue
                 source = data.get('source') if isinstance(data, dict) else None
                 media = source.get('media') if isinstance(source, dict) else None
                 if media not in groups:
@@ -200,13 +299,18 @@ def catalogue(root, out):
                 fit = data.get('fit') if isinstance(data, dict) else None
                 imported = isinstance(fit, dict) and fit.get('model') == 'dis_import'
                 compatible = imported and fit.get('image_compatible') is True
+                correction = None
                 if compatible:
                     from .presets import linked_correction
                     try:
-                        linked_correction(path, data)
+                        correction = linked_correction(path, data)
                     except (OSError, ValueError, KeyError, TypeError):
                         compatible = False
-                groups[media].append(dict(id='preset:' + str(preset['id']), row=media,
+                if inventory is not None and correction:
+                    linked = _relative(root, correction)
+                    if linked:
+                        inventory[ident].add(linked)
+                groups[media].append(dict(id=ident, row=media,
                     name=preset['displayName'], mid=None, sectors=preset.get('totalSectors', preset.get('sectors')),
                     s='imported' if compatible else 'unknown', last=None, drive=None, left=None, of=None, preset=str(path.relative_to(root)), history=[],
                     image_compatible=bool(compatible), imported=imported,
@@ -222,13 +326,16 @@ def save_entry(root, out, payload):
     if not isinstance(payload, dict) or set(payload) - {'id', 'name', 'left', 'preset'}:
         raise ValueError('invalid catalogue entry')
     entries = [item for row in catalogue(root, out).values() for item in row]
-    if not any(item['id'] == payload.get('id') for item in entries):
+    entry = next((item for item in entries if item['id'] == payload.get('id')), None)
+    if not entry:
         raise ValueError('unknown catalogue entry')
     if 'name' in payload and (not isinstance(payload['name'], str) or not 1 <= len(payload['name'].strip()) <= 120):
         raise ValueError('invalid name')
     if 'left' in payload and (type(payload['left']) is not int or not 0 <= payload['left'] <= 100000):
         raise ValueError('invalid count')
     if 'preset' in payload:
+        if entry['s'] == 'incomplete':
+            raise ValueError('calibration did not pass; complete the measurement before saving a preset')
         value = payload['preset']
         path = (Path(root) / value).resolve() if isinstance(value, str) else None
         if path is None or not path.is_relative_to((Path(root) / 'presets').resolve()) or path.suffix != '.json' or not path.is_file():
@@ -245,12 +352,23 @@ def save_entry(root, out, payload):
     path = Path(root) / 'catalogue.json'
     if not path.resolve().is_relative_to(Path(root).resolve()):
         raise ValueError('catalogue must stay inside the workspace')
-    data = guide._load(str(path)) or {}
-    data[payload['id']] = {**data.get(payload['id'], {}), **{k: v for k, v in payload.items() if k != 'id'}}
-    temp = path.with_suffix('.tmp')
-    temp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
-    temp.replace(path)
+    data = read_metadata(path)
+    previous = data.get(payload['id'])
+    data[payload['id']] = {**(previous if isinstance(previous, dict) else {}),
+                           **{k: v for k, v in payload.items() if k != 'id'}}
+    from .works import atomic, encoded
+    atomic(path, encoded(data))
     return dict(saved=True, **({'photo_shift': photo_shift} if photo_shift is not None else {}))
+
+
+def read_metadata(path):
+    try:
+        data = json.loads(path.read_bytes())
+    except FileNotFoundError:
+        return {}
+    if not isinstance(data, dict):
+        raise ValueError('invalid catalogue metadata')
+    return data
 
 
 def measurement_retry(run, args, points, coverage, timing_advice):

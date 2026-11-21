@@ -31,6 +31,7 @@
   })();
 </script>
 <link rel="stylesheet" href="./kit/kit.css">
+<link rel="stylesheet" href="./kit/removal.css">
 <link id="design-styles" rel="stylesheet" href="./design.css">
 <link rel="stylesheet" href="./burn-stop-tokens.css">
 <link rel="stylesheet" href="./burn-stop.css">
@@ -160,13 +161,19 @@
     background: radial-gradient(closest-side at 60% 46%, rgb(62 86 98 / .42), rgb(62 86 98 / .14) 45%, rgb(62 86 98 / 0) 100%); }
   :root[data-theme="dark"] .layer.burner .rig::after {
     background: radial-gradient(closest-side at 62% 34%, rgb(205 222 228 / .5), rgb(205 222 228 / .1) 60%, transparent 85%); }
-  .layer.burner .rig > img, .layer.burner .slot, .layer.burner .shadows { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .layer.burner .rig > img, .layer.burner .slot, .layer.burner .slot-shadow, .layer.burner .shadows { position: absolute; inset: 0; width: 100%; height: 100%; }
   .layer.burner .shadows { isolation: isolate; pointer-events: none; }
   .layer.burner .shadows img { position: absolute; }
   .layer.burner .shadows .tray { mix-blend-mode: darken; transform: translate(var(--slide)); transition: transform 900ms cubic-bezier(.45, 0, .2, 1); }
   .layer.burner.open .shadows .tray { transform: translate(var(--open, 0, 0)); }
   .layer.burner .slot img { position: absolute; inset: 0; width: 100%; height: 100%; transform: translate(var(--slide)); transition: transform 900ms cubic-bezier(.45, 0, .2, 1); }
   .layer.burner.open .slot img { transform: translate(var(--open, 0, 0)); }
+  :root[data-home="library"]:is(:not([data-mode]), [data-mode=""]) .layer.burner .rig { container-type: inline-size; }
+  :root[data-home="library"]:is(:not([data-mode]), [data-mode=""]) .layer.burner .shadows { display: none; }
+  /* The rig is mirrored, so positive local X casts toward screen left. */
+  :root[data-home="library"]:is(:not([data-mode]), [data-mode=""]) .layer.burner :is(.body, .slot-shadow) {
+    filter: drop-shadow(calc(40 * var(--drive-mm)) calc(22 * var(--drive-mm)) calc(3.5 * var(--drive-mm)) var(--glass-ink));
+  }
   .layer.burner .tray.full, .layer.burner.has-disc .tray.empty { visibility: hidden; }
   .layer.burner.has-disc .tray.full { visibility: visible; }
   .layer.burner .rig.dark, :root[data-theme="dark"] .layer.burner .rig.light { display: none; }
@@ -365,6 +372,7 @@
   .status .icon { width: 26px; height: 26px; }
   .status[data-s="good"] { color: var(--good); }
   .status[data-s="narrow"] { color: var(--warn); }
+  .status[data-s="incomplete"] { color: var(--copper); }
   .status[data-s="none"] { color: var(--unknown); }
   .why { margin: 8px 0 0 36px; color: var(--ink-2); font-size: 18px; min-height: 3.1em; }
   .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 28px; margin: 26px 0 0; }
@@ -386,6 +394,13 @@
   .next[hidden], .next-confirm[hidden] { display: none; }
   .next-confirm .kit-slide-help { position: absolute; bottom: calc(100% + 8px); right: 0; margin: 0; max-width: 100%; text-align: right; }
   #batch-history { margin: 20px 0; }
+  .library-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
+  .library-actions .btn { min-height: 44px; }
+  .library-actions .next { margin-inline-end: 4px; white-space: normal; }
+  .library-actions [hidden] { display: none; }
+  #library-feedback { margin: 0; color: var(--ink-2); }
+  :root:not([data-home="library"]) .library-actions, :root[data-mode]:not([data-mode=""]) .library-actions { display: none; }
+  .detail.is-drive .facts div[hidden] { display: none; }
   .next.kit-ring-button .kit-ring-label { display: inline-flex; align-items: center; gap: 10px; }
   .next.kit-ring-button:hover:enabled { background: var(--ink); }
   .next.kit-ring-button :is(.kit-ring-track, .kit-ring-fill, .kit-icon) { stroke: currentColor; }
@@ -869,6 +884,13 @@
       <div><dt id="k3"></dt><dd id="last"></dd></div>
       <div><dt id="k4"></dt><dd id="drive"></dd></div>
     </dl>
+    <div class="library-actions">
+      <button class="next" id="library-calibrate" type="button"></button>
+      <button class="btn" id="library-resume" type="button" hidden></button>
+      <button class="btn" id="library-delete" type="button" hidden></button>
+      <p id="library-feedback" role="status"></p>
+      <button class="btn" id="library-undo" type="button" hidden></button>
+    </div>
   </div>
 </section>
 
@@ -894,12 +916,13 @@
 </footer>
 
 <script type="module">
-  import { handshake } from "./handshake.mjs";
+  import { handshake, hasCapability } from "./handshake.mjs";
+  import { confirmRemoval } from "./kit/removal.mjs";
   await handshake();
   import * as backend from "./api.js";
   import { flipWatch } from "./kit/flipnum.js";
   import { statusBars } from "./kit/statusbars.js";
-  import { discDisplayKind, sameMaker } from "./batches.mjs";
+  import { discDisplayKind, driveCalibrationCounts, sameMaker } from "./batches.mjs";
   const esc = backend.escapeHTML;
   let backendState = null, backendError = null;
   const overflow = {};
@@ -974,7 +997,7 @@
       presets: "预设导入导出", library: "盘库", libraryTitle: "盘库：标定过的盘、每桶还剩几张", lobbyNew: "新作品", lobbyNewSub: "拖一张图进来，或点这里选",
       lobbyOpen: "打开作品", lobbyOpenSub: "打开以前存的 .discdesign", nextNewPlan: "下一步：新作品", nextUseBatch: "下一步：用这批盘",
       langButton: "EN", langAria: "Switch to English", kinds: "盘的种类", driveTab: "光驱", inDrive: "就是光驱里这张",
-      sectors: "扇区数", left: "这一桶还剩", last: "上次标定", usedDrive: "标定用的光驱",
+      sectors: "空白盘扇区数", left: "这一桶还剩", last: "上次标定", usedDrive: "标定用的光驱",
       leftVal: (l, o) => `${l} / ${o} 张`, rw: "可擦写", sep: "、",
       driveStates: { blank: "空白可刻", recorded: "已刻录", inserted: "已插入", open: "托盘开着", empty: "没有盘", unknown: "盘状态未知", missing: "未发现光驱" },
       nextOpen: "下一步：打开作品", nextCal: "下一步：开始标定", nextMeasureImported: "下一步：用 DP 实测这批", nextDrive: "下一步：认一下光驱里的盘", nextNew: "下一步：标定新盘",
@@ -998,7 +1021,7 @@
       presets: "Presets", library: "Discs", libraryTitle: "Disc library: calibrated discs and how many are left", lobbyNew: "New work", lobbyNewSub: "Drop a picture here, or click to choose",
       lobbyOpen: "Open a work", lobbyOpenSub: "Open a saved .discdesign", nextNewPlan: "Next: new work", nextUseBatch: "Next: use these discs",
       langButton: "中文", langAria: "切换到中文", kinds: "Disc kinds", driveTab: "Drive", inDrive: "This is the disc in the drive",
-      sectors: "Sectors", left: "Left in this spindle", last: "Last calibrated", usedDrive: "Calibrated on",
+      sectors: "Blank disc sectors", left: "Left in this spindle", last: "Last calibrated", usedDrive: "Calibrated on",
       leftVal: (l, o) => `${l} / ${o}`, rw: "rewritable", sep: ", ",
       driveStates: { blank: "Blank", recorded: "Recorded", inserted: "Disc inserted", open: "Tray open", empty: "No disc", unknown: "Disc status unknown", missing: "No drives found" },
       nextOpen: "Next: open a work", nextCal: "Next: calibrate", nextMeasureImported: "Next: measure this batch with DP", nextDrive: "Next: identify the disc in the drive", nextNew: "Next: calibrate a new disc",
@@ -1010,7 +1033,7 @@
       none: ["Not calibrated yet", "Burn one measurement disc; one run is enough."],
       noneRw: ["Not calibrated yet", "A rewritable disc can be reused for measuring; one is enough."],
       tray: (d) => `${d} is in the tray`, trayEmpty: "The tray is empty", inDriveNow: (d) => `${d} is in the drive`, driveEmpty: "The drive is empty", driveWhy: "Measures and burns DVD and CD.",
-      burns: "Burns", reads: "Reads", calibrated: "Calibrated discs", lastUsed: "Last used", kindsN: (n) => `${n} kinds`,
+      burns: "Burns", reads: "Reads", calibrated: "Calibrated discs", lastUsed: "Last used", kindsN: (n) => n === 1 ? "1 kind" : `${n} kinds`,
       gallery: "GALLERY", galleryAria: "Gallery: designs, simulated photos and your own shots",
       brand: (n) => n,
     },
@@ -1163,6 +1186,7 @@
       const rig = document.createElement("div");
       rig.className = `rig ${theme}`;
       box(rig);
+      rig.style.setProperty("--drive-mm", `${100 * burner.scale.px_per_mm_along_each_world_axis / bw}cqw`);
       // the other theme's pictures load on the first switch (the theme button sets their data-src)
       const src = (root.dataset.theme === "dark") === (theme === "dark") ? "src" : "data-src";
       // its shadows on the floor (lamp up right: they fall lower left), on a canvas grown by pad_px each side;
@@ -1174,9 +1198,9 @@
         `<img class="tray empty" alt="" decoding="async" ${shadowBox} ${src}="burner_trayshadow_${t}.webp">` +
         `<img class="tray full" alt="" decoding="async" ${shadowBox} ${src}="burner_traydiscshadow_${t}.webp"></div>` : "") +
         `<img class="body" alt="" decoding="async" ${src}="burner_body_${t}.webp">` +
-        `<div class="slot" style="clip-path: polygon(${poly})">` +
+        `<div class="slot-shadow"><div class="slot" style="clip-path: polygon(${poly})">` +
         `<img class="tray empty" alt="" decoding="async" ${src}="burner_tray_${t}.webp">` +
-        `<img class="tray full" alt="" decoding="async" ${src}="burner_traydisc_${t}.webp"></div>`;
+        `<img class="tray full" alt="" decoding="async" ${src}="burner_traydisc_${t}.webp"></div></div>`;
       rig.style.setProperty("--slide", slide);
       rig.style.setProperty("--open", openAt);
       burnerLayer.append(rig);
@@ -1358,6 +1382,33 @@
   let pendingWhy = null;                     // a one-off status line for the next render (what the drive held)
   const fmt = (n) => n == null ? "?" : n.toLocaleString("en-US");
   const pad = (n) => String(n).padStart(2, "0");
+  const libraryWords = () => lang === "zh" ? {
+    start:"标定新的一批盘", resume:"补测空档", continue:"从中断处续测", remove:"删除", cancel:"取消", undo:"撤销",
+    incomplete:"测量不完整", stopped:"测量中途停止。", rejected:"标定未通过。", recent:"最近一次标定未通过。",
+    gaps: ranges => `未测半径 ${ranges}。`, retry:"放回原测量盘，用同一台光驱继续测。", remeasure:"可以重测或删除这批盘。",
+    unknown:"未记录", unknownCapacity:"未知", presetSectors:"预设扇区数",
+    incompleteCount:n => `${n} 批待补测`,
+    title:n => `删除“${n}”？`, body:"此批次和下列文件将移到回收站，可以恢复。",
+    files:"将移走的文件和目录", shared:"其他批次共用，会保留", works:"使用此批次的作品", keep:"删除批次，保留作品", both:"同时删除批次和作品",
+    moved:"移到回收站", deleted:n => `已将“${n}”移到回收站。`, restored:"已恢复批次。"
+  } : {
+    start:"Calibrate a new batch", resume:"Measure missing radii", continue:"Resume measurement", remove:"Delete", cancel:"Cancel", undo:"Undo",
+    incomplete:"Incomplete measurement", stopped:"Measurement stopped early.", rejected:"Calibration did not pass.", recent:"The latest calibration did not pass.",
+    gaps:ranges => `Unmeasured radii: ${ranges}.`, retry:"Put the original measurement disc back in the same drive to continue.", remeasure:"Measure again or delete this batch.",
+    unknown:"Not recorded", unknownCapacity:"Unknown", presetSectors:"Preset sectors",
+    incompleteCount:n => `${n} incomplete`,
+    title:n => `Delete “${n}”?`, body:"This batch and the listed files will move to the bin and can be restored.",
+    files:"Files and folders to move", shared:"Shared with other batches and kept in place", works:"Works using this batch", keep:"Delete batch, keep works", both:"Delete batch and works",
+    moved:"Move to bin", deleted:n => `Moved “${n}” to the bin.`, restored:"Batch restored."
+  };
+
+  function calibrationIssueText(issue, w) {
+    const bands = issue.missing_mm?.map(band => band.map(n => n.toFixed(1)).join("–") + " mm").join(" · ");
+    const why = [issue.previous_usable && w.recent, bands && w.gaps(bands),
+      issue.stopped ? w.stopped : !bands && !issue.previous_usable && w.rejected,
+      issue.can_resume ? w.retry : w.remeasure];
+    return why.filter(Boolean).join(" ");
+  }
 
   for (const id of ['idx', 'total', 'job-time']) flipWatch($(id), {lang, live: id !== 'job-time'});
 
@@ -1410,6 +1461,7 @@
     $("detail").classList.toggle("is-drive", item.kind === "drive");
     const fill = () => {
       const t = T();
+      const w = libraryWords();
       const history = item.kind === 'drive' || item.kind === 'new' ? [] : item.history || [];
       $("batch-history").hidden = !history.length;
       statusBars($("batch-history"), history, {lang});
@@ -1423,11 +1475,19 @@
       } else if (item.kind === "drive") {
         label = !backend.mock ? (lang === "zh" ? "点按钮读取光驱里的盘" : "Press the button to identify the inserted disc") : trayOpen ? (trayDisc ? t.tray(item.trayDisc) : t.trayEmpty) : (trayDisc ? t.inDriveNow(item.trayDisc) : t.driveEmpty);
         [icon, why] = ["i-drive", backend.mock ? t.driveWhy : (lang === "zh" ? "打开页面不会读取光盘。" : "Opening this page does not read the disc.")];
-        facts = [[t.burns, item.burns], [t.reads, item.reads], [t.calibrated, t.kindsN(item.calibrated)], [t.lastUsed, day(item.lastUsed)]];
+        const drive = backendState?.drives?.find(d => d.id === item.id) ?? item;
+        const counts = driveCalibrationCounts(drive, backendState?.catalogue ?? {});
+        facts = backend.mock ? [[t.burns, item.burns], [t.reads, item.reads], [t.calibrated, t.kindsN(item.calibrated)], [t.lastUsed, day(item.lastUsed)]]
+          : [["", ""], ["", ""], [t.calibrated, [t.kindsN(counts.passed), ...(counts.incomplete ? [w.incompleteCount(counts.incomplete)] : [])]], ["", ""]];
       } else {
         const key = item.s === "none" && item.rw ? "noneRw" : item.s;
         icon = ICON[key] || "i-none"; [label, why] = t[key] || (lang === "zh" ? [{usable:"可以使用",too_noisy:"测量太吵",drive_changed:"光驱状态改变",stopped_early:"测量提前停止",unknown:"标定状态未知"}[item.s] || "标定状态未知", "查看标定结果，再决定是否重测。"] : [item.s.replaceAll("_", " "), "Review the calibration result before measuring again."]);
-        facts = [[t.sectors, fmt(item.sectors)], [t.left, item.left == null ? "?" : item.of == null ? fmt(item.left) : t.leftVal(item.left, item.of)], [t.last, day(item.last)], [t.usedDrive, item.drive ?? "—"]];
+        if (item.s === "incomplete") [icon, label] = ["i-none", w.incomplete];
+        if (item.calibration_issue) why = calibrationIssueText(item.calibration_issue, w);
+        const sectors = "capacity_sectors" in item ? item.capacity_sectors : item.sectors;
+        facts = [[item.preset ? w.presetSectors : t.sectors, sectors == null ? w.unknownCapacity : fmt(sectors)],
+          [t.left, item.left == null ? w.unknown : item.of == null ? fmt(item.left) : t.leftVal(item.left, item.of)],
+          [t.last, day(item.last)], [t.usedDrive, item.drive ?? "—"]];
       }
       $("status").dataset.s = item.kind === "drive" ? "drive" : item.s;
       $("status").innerHTML = `<svg class="icon"><use href="#${icon}"/></svg>${esc(label)}`;
@@ -1440,14 +1500,22 @@
       ["k1", "k2", "k3", "k4"].forEach((k, i) => { $(k).textContent = facts[i][0]; });
       ["sectors", "left", "last", "drive"].forEach((k, i) => {
         const v = facts[i][1];
+        $(k).parentElement.hidden = !facts[i][0];
         $(k).innerHTML = (Array.isArray(v) ? v : [v]).map((x) => `<span class="nb">${esc(x)}</span>`).join(`${t.sep}<wbr>`);
       });
+      $("library-calibrate").textContent = w.start;
+      $("library-calibrate").hidden = item.kind === "new";
+      $("library-resume").textContent = item.calibration_issue?.stopped ? w.continue : w.resume;
+      $("library-resume").hidden = !item.calibration_issue?.can_resume || !hasCapability("geo-coverage");
+      $("library-delete").textContent = w.remove;
+      $("library-delete").hidden = backend.mock || !hasCapability("library-management") || !item.id || ["drive", "new"].includes(item.kind);
+      $("library-undo").textContent = w.undo;
       if (!root.dataset.mode)       // inside the flow the button belongs to the flow
         $("next-text").textContent = root.dataset.home === "lobby" ? lobbyNextWords()
           : (choosingFor || inspectingBatch) && item.kind !== "drive" && item.kind !== "new" ? t.nextUseBatch
           // the label says what Next does below: a measured batch opens its work; anything else (an imported DIS
           // preset too) goes to calibration
-          : item.kind === "drive" ? t.nextDrive : item.kind === "new" ? t.nextNew : item.s === "imported" ? t.nextMeasureImported
+          : item.kind === "drive" ? t.nextDrive : item.kind === "new" ? w.start : item.s === "imported" ? t.nextMeasureImported
           : !["good", "usable"].includes(item.s) ? t.nextCal : t.nextOpen;
       paintDriveLine();
     };
@@ -1459,7 +1527,7 @@
 
   addEventListener("keydown", async (e) => {
     if (root.dataset.mode || root.dataset.home === "lobby") return;
-    if (e.target instanceof Element && e.target.closest("input, textarea")) return;
+    if (e.target instanceof Element && e.target.closest("input, textarea, dialog")) return;
     const c = COLS.indexOf(col);
     let dir = 1;
     if (e.key === "ArrowLeft") { col = COLS[(c + COLS.length - 1) % COLS.length]; idx = 0; dir = -1; }
@@ -1760,6 +1828,55 @@
     flow.start(api);
   });
   $("job-name").addEventListener("click", openCalibration);
+  $("library-calibrate").addEventListener("click", async () => {
+    const item = DATA[col][idx];
+    const row = item.kind === "drive" ? item.disc?.media : col;
+    const media = row === "cd" ? "cd" : "dvd";
+    const cal = await import("./calibrate.js");
+    cal.start(api, {item:{kind:"new", row:media, name:"", mid:"", s:"new"}});
+  });
+  $("library-resume").addEventListener("click", async () => {
+    const item = DATA[col][idx];
+    if (!item.calibration_issue?.can_resume) return;
+    if (DATA.drive.some(drive => drive.id === item.drive_id)) chosenDrive = item.drive_id;
+    (await import("./calibrate.js")).resumeSaved(api, item);
+  });
+  let trashId = null;
+  async function libraryAction(button, action) {
+    if (button.disabled) return;
+    button.disabled = true;
+    $("library-feedback").textContent = "";
+    try { await action(); }
+    catch (error) { $("library-feedback").textContent = backend.errorText(error, lang); }
+    finally { button.disabled = false; }
+  }
+  $("library-delete").addEventListener("click", () => libraryAction($("library-delete"), async () => {
+    const {id} = DATA[col][idx];
+    const preview = await backend.request("/api/library", {operation:"preview", id});
+    const w = libraryWords();
+    const choice = await confirmRemoval({
+      title:w.title(preview.name), body:w.body,
+      files:[w.files, preview.files], shared:[w.shared, preview.retained], works:[w.works, preview.works.map(work => work.name)],
+      actions:[[w.cancel, ""], ...(preview.works.length ? [[w.keep, "keep"], [w.both, "both"]] : [[w.moved, "keep"]])]
+    });
+    if (!choice) return;
+    const removed = await backend.request("/api/library", {operation:"delete", id, with_works:choice === "both", revision:preview.revision});
+    trashId = removed.trash_id;
+    $("library-undo").hidden = false;
+    $("library-feedback").textContent = w.deleted(preview.name);
+    await syncState();
+    $("library-undo").focus();
+  }));
+  $("library-undo").addEventListener("click", () => libraryAction($("library-undo"), async () => {
+    const restored = await backend.request("/api/library", {operation:"restore", id:trashId});
+    trashId = null;
+    $("library-undo").hidden = true;
+    $("library-feedback").textContent = libraryWords().restored;
+    await syncState();
+    const found = DATA[col].findIndex(item => item.id === restored.id);
+    if (found >= 0) { idx = found; render(1, true); }
+    $("library-calibrate").focus();
+  }));
   addEventListener("dp-cal-job", paintLobbyNext);
   addEventListener("dp-drive-state", paintLobbyNext);
   // SSE replays completed jobs on reconnect too, including a job attached after reload.
@@ -1774,6 +1891,9 @@
       globalThis.dispatchEvent?.(new Event("dp-drive-state"));
       const job = state.jobs.find(j => j.id === event.job);
       if (!job?.drive || !["burn", "calibrate"].includes(job.action)) return;
+      // Reconnecting replays old completions. Calibration owns its own disc
+      // checks, including the preflight when resuming a cancelled write.
+      if (root.dataset.mode === "cal") return;
       const drive = backendState?.drives?.find(d => d.id === job.drive);
       if (drive) drive.disc = null;
       paintDriveLine();
@@ -1797,8 +1917,7 @@
         delete loaded[row];
       }
       // a drive plugged in (or gone) since the page opened: the drive stop and the chosen drive follow
-      const drives = (backendState.drives || []).map(d => ({...d, kind:"drive", name:d.name || d.id,
-        mid:d.id, s:"unknown", burns:[], reads:[], calibrated:0, lastUsed:null}));
+      const drives = (backendState.drives || []).map(d => ({...d, kind:"drive", name:d.name || d.id, mid:d.id, s:"unknown"}));
       if (drives.length) { DATA.drive = drives; if (!drives.some(d => d.id === chosenDrive)) chosenDrive = drives[0].id; }
       if (col !== "drive") idx = Math.max(0, DATA[col].findIndex(x => x.id === selectedId));
       else idx = Math.min(idx, DATA.drive.length - 1);

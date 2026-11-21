@@ -12,6 +12,12 @@ export function calibratedBatch(entries, item, disc) {
   return entries.find(x => calibrated(x) && sameMaker(x.mid, mid));
 }
 
+export function driveCalibrationCounts(drive, catalogue) {
+  const batches = Object.values(catalogue).flat().filter(batch =>
+    sameMaker(batch.drive_id, drive.id) || [drive.name, drive.disc?.drive_name].some(model => sameMaker(batch.drive, model)));
+  return { passed: batches.filter(calibrated).length, incomplete: batches.filter(batch => batch.s === "incomplete").length };
+}
+
 export function discDisplayKind(disc, lang) {
   const kind = disc?.kind || (lang === "en" ? "disc" : "光盘");
   if (disc?.blank === false && /^DVD-ROM\b/i.test(kind)) {
