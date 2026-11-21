@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- Generated from docs/grating-card.zh.md by tools/render_learning_guide.py. -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>刻一张会换画面的光栅卡 · disc-probe</title>
+<link rel="stylesheet" href="../guide.css">
+<link rel="stylesheet" href="./page.css">
+<script type="module" src="./page.mjs"></script>
+</head>
+<body><main>
+<h1 id="刻一张会换画面的光栅卡">刻一张会换画面的光栅卡</h1>
+<p>光栅角色卡是一张随盘面倾斜切换画面的 DVD。同一小块里的刻录痕迹不断重复，形成衍射光栅。换个角度，纹理送进眼睛的光颜色就会变。把几种纹理分到小格里，可以让不同画面在各自的角度更容易看出来。</p>
+<p><a href="grating-card.html" data-doc>English</a></p>
+<h2 id="用自己的图做一张">用自己的图做一张</h2>
+<p>先准备同批 DVD 空盘的实测几何。命令随包带了两张实刻角色卡用过的 124 种合格纹理。纹理要同时在索引中合格并通过通道检查，并且不能包含字节 <code>92</code>。检查沿用原门槛：F512 低于 1.5%，最差八扇区平均帧偏不超过 0.15，帧末 DSV 绝对值不超过 100。这些检查量的是写入信号模型。</p>
+<pre><code>disc-probe gratingcard sun.png moon.png --angles -6.5 3 --axis y --geo results/geo-run/summary.json --output iso/my-card.iso</code></pre>
+<p>给两到三幅图，并按图的顺序给出同样数量的目标角度。角度在 −15° 至 +15° 内，彼此不同。用透明 PNG 可以留出共同背景。默认画框宽 24 mm，中心为 <code>(39, 0)</code> mm。从数据面看，x 朝 3 点，y 朝 12 点。可用 <code>--centre X Y</code> 及 <code>--width MM</code> 改摆放。命令输出 ISO、材质预览、20 µm 标签与材质序表，并写一份观看说明。加 <code>--json</code> 可读取输出路径和角度列表。</p>
+<p>看卡时固定镜头和灯的位置，先找新盘上的 12 点箭头。要用另一台手机的实测机位，可加 <code>--camera X Y Z --flash X Y Z</code>，其中 z 是离数据面的高度。绕 X 轴正向转，抬高 12 点，绕 Y 轴正向转，压低 3 点。关掉屋里的灯，只开手机闪光灯或一个小光源，先在每个设计角度附近慢慢找，再往另一个角度转。</p>
+<details><summary>求解和存档复刻分别做了什么</summary>
+<p>求解时将镜头和灯的位置变换到每个倾角的数据面坐标。用查表的 δ 倍数计算纹理响应，也考虑灯距改变时的亮度。程序同时拟合目标角和旁边几个角度的线性颜色，再在 20 µm 网格上用有序抖动分配纹理面积。两幅画在过渡时可能串影或变色。三幅画要分用同一片盘面的光。</p>
+<p>已有设计可用 <code>--replay</code> 重建。输入原先 0.06 mm 的面积权重，或使用 20 µm 网格的 DVD 编辑器作品。给出原角度，用 <code>--titles</code> 为每态命名。这个入口保留历史版式、标记和选材。从原始 PNG 重新求解会得到新的设计。</p>
+<p>用 <code>--lookup</code> 可以换成其他角色卡响应表，同时给出原 <code>--channel-checks</code>。索引默认取表旁边的 <code>angle-curves-index.csv</code>，可用 <code>--index</code> 覆盖。彩色图片的 58 种纹理表格式不同。重建存档也要指定其原通道报告。两张实刻卡合计用了 132 种纹理，包里收录其中满足快照索引条件的 124 种。其余 8 种是 FLIP-A 的对照项，可随原档案复刻。</p>
+</details>
+<h2 id="两张已有实刻盘">两张已有实刻盘</h2>
+<h3 id="showcase-blink-4-20">SHOWCASE-BLINK 4-20</h3>
+<p>角色在 3 点方向。使用摆放纸固定手机和灯。档案中的 1× 镜头在数据面上方约 222 mm，朝 12 点偏 28 mm。</p>
+<div class="learn-table"><table><thead><tr><th scope="col">绕 X 轴倾角</th><th scope="col">能看到什么</th></tr></thead><tbody><tr><td>0°</td><td>眼睛睁开。实拍中瞳孔偏紫，脸偏绿黄。</td></tr><tr><td>+6°</td><td>闭眼，能看到一条深色睫毛线。抬高盘的 12 点侧更易把角色保留在画面内。</td></tr><tr><td>−2.5°</td><td>身体暗成蓝紫色。实拍里眼睛和耳尖亮出橙红色。</td></tr><tr><td>两态之间</td><td>围巾和发绳上的色带会随着倾斜移动。</td></tr></tbody></table></div>
+<p><img src="media/grating-4-20-photo.png" alt="角色卡在三个机位的眼睛和周边颜色实拍" loading="lazy"></p>
+<p>图为 IMG_8338 的实拍帧，已拉正盘面。实刻盘使用 112 种纹理。眼部靠色相切换看出眨眼，实拍明暗差比模型预测小。参见<a href="colour-solver-audit.html#4-已有实拍逐区对照" data-doc>彩色求解器核查</a>。</p>
+<h3 id="flip-a-4-21">FLIP-A 4-21</h3>
+<p>内圈相对两侧各有一幅太阳和月亮的大图。模型预测绕 Y 轴到 <strong>−6.5°</strong> 附近两幅同显太阳，转到 <strong>+3°</strong> 附近同显月亮。一幅把两个周期写进交叠笔画，另一幅用棋盘小格交错两张图。外圈小块对照 5°、8°、12° 三档角差，也保留了旧 O/X 和低反差对照。</p>
+<p><img src="media/grating-4-21-model.png" alt="太阳月亮在几个设计倾角的模拟图" loading="lazy"></p>
+<p>图为模型预测。FLIP-A 已实刻，96 处抽样读回全相符。现有照片未核实表中的两个目标角。来源见 LG 交付报告。</p>
+</main></body>
+</html>

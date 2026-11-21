@@ -20,20 +20,45 @@
 - 新卡加 12 点随机纹理方向箭头，生成的图案数据域不含 `92`。箭头单独做原门槛的四地址、两种块布局、四初态共 32 组检查。F512%、八扇区最差平均帧偏、帧末最大 |DSV| 分别为 0.00777%、0.00389、20。实体通道效果未测。历史复刻保持原样，缺少箭头的存档 ISO 只用于软件核对。
 - `--replay` 让 4-20 从定稿 `design_accent.npz` 的 0.06 mm 面积权重重建，FLIP-A 从 `flip-a.work.json` 的已选材料图层重建。两张各 36,000,000 个标签逐字节相同，112 项、38 项材料顺序也分别相同。各 4,020,994,048 字节的 ISO 原哈希有异，仅归零 ISO 9660 时间字段后逐字节相同。4-20 归一化 SHA-256 为 `2254ab65c27a0d5b40305aaaf3f8478becbac2849f6be793e57cacb2be9f3ebb`，FLIP-A 为 `6d8ae35516817ce1089c781689ba66ac69f951422fc85f822ecea66d2dfcf1d4`。两个重建 ISO 已清理，只留校验结果。重建从原成像输入开始。新图片入口是通用联合求解，原专案的遮罩、色适应白点、局部红色点缀和围巾流光需要原设计权重才能重现。
 - 用 `tools/verify_grating_replays.py` 对照整盘和标签，结果在 `character-compare.log`、`flip-compare.log`。用 `python -B -X utf8 tools/check_grating_cli_defaults.py D:/dp-dev/tmp/learngrating/default-parity 68ea72d` 比较加命令前后。固定时钟并使用 Disc Lab，`burn`、`info`、`image` 的中英文执行与帮助共 12 组标准输出／标准错误逐字节相同，默认 `image` 整个测试镜像逐字节一致。
-- `pytest -n 2`，光栅、刻后检查、彩色合成与刻录相关共 62 项、4 个子测试通过。新增随包数据的三角度用例后，`tests/test_gratingcard.py` 8 项通过。新命令 16,777,216 字节样盘在 Disc Lab 抽样读回 96 处，全相符。去时间的默认样盘哈希为 `d708214a92b668fee4c88f60f163fdbfcca93304cadd953a3021f46a0456bdb6`。
+- `pytest -n 2`，光栅、刻后检查、彩色合成与刻录相关共 62 项、4 个子测试通过。新增随包数据的三角度用例后，`tests/test_gratingcard.py` 8 项通过。随包默认表的三角度用例标签 SHA-256 是 `51f3db960abde53a377176f856d82613ec010d234b28da012401b7a8309675ff`。新命令 16,777,216 字节样盘在 Disc Lab 抽样读回 96 处，全相符。使用可控制的响应表夹具，去时间的样盘哈希为 `d708214a92b668fee4c88f60f163fdbfcca93304cadd953a3021f46a0456bdb6`。
 - [中文说明](docs/grating-card.zh.md)和 [English guide](docs/grating-card.md)记录各区域、预期角度、4-20 实拍和 FLIP-A 的模型图。没有为本卡新增实体刻录。新通用入口的实拍换画保真度未测，FLIP-A 的两个目标角仍只有模型支持。
+
+<details>
+<summary>两张历史卡的复验命令</summary>
+
+```powershell
+$geo = 'D:/disc-probe/results/geo-H-20261112-002303/summary.json'
+$out = 'D:/dp-dev/tmp/learngrating/character-replay'
+$character = 'F:/dp-dev-tmp/showcase-blink'
+$flip = 'D:/disc-probe-scratch/flip-pairs'
+
+python -B -X utf8 -m discprobe --lang en gratingcard --geo $geo --channel-checks "$character/work/gate-cache.json" --replay "$character/work/g6/design_accent.npz" --angles 0 6 -2.5 --titles 'Eyes open' 'Eyes closed' 'Eyes and ear tips glow' --output "$out/character.iso" --json
+python -B -X utf8 -m discprobe --lang en gratingcard --geo $geo --channel-checks "$flip/pair-channel-check.json" --replay "$flip/flip-a.work.json" --axis y --angles -6.5 3 --titles Sun Moon --output "$out/flip-a.iso" --json
+
+python -B -X utf8 tools/verify_grating_replays.py "$character/iso/SHOWCASE-BLINK.iso" "$character/work/g6/labels.npy" "$character/work/g6/labels.textures.json" "$out/character.iso" --remove-rebuilt-iso
+python -B -X utf8 tools/verify_grating_replays.py 'F:/dp-dev-tmp/flip-a/FLIP-A.iso' "$flip/flip-a.labels.npy" "$flip/flip-a.labels.textures.json" "$out/flip-a.iso" --remove-rebuilt-iso
+```
+
+</details>
 
 ## 段 3 · 光盘怎么变成图
 
-待完成。
+提交 `Teach how disc images work in the guide and post-burn checklist`。[中文教程](docs/how-disc-images-work.zh.md)和 [English tutorial](docs/how-disc-images-work.md)讲了看盘灯位、明暗纹理、光栅变色、混合纹理的实拍、颜色求解与重测，以及自己做光栅卡。教程复用了新手引导的衍射图和 8369 同帧实拍。整盘倾角与局部 δ 的统计各自标明。
+
+- 新手引导和刻完页的「看不到图？」都链接到对应语言的随包教程，打开新标签页。入口使用现有纸色、夜色和链接样式。教程和命令参考能离线打开。
+- `python -B -X utf8 tools/render_learning_guide.py --check` 检查 5 页和 5 份配图的链接与生成结果。Wheel 中同样有 5 页和 5 份配图。无头 Edge/CDP 截图放在 `D:/dp-dev/tmp/learngrating/shots/`，`learn-start-`、`learn-checkburn-`、`learn-document-` 对应两个入口和教程正文，各有纸色、夜色、中英文四张，共 12 张。验收确认教程六个主节、四处折叠说明，以及直接引用的网页、配图均返回 200。
+- 最终相关 Python 回归使用 `python -B -X utf8 -m pytest -n 2 -p no:cacheprovider --basetemp D:/dp-dev/tmp/learngrating/pytest-final -q tests/test_gratingcard.py tests/test_editor_colour.py tests/test_editor_preview.py tests/test_editor_pose_swatches.py tests/test_design_compose_route.py tests/test_gui_handshake.py tests/test_checkburn.py tests/test_afterburn.py tests/test_burner.py tests/test_webui.py tests/test_web_security.py`，144 项和 58 个子测试通过。
+- 用 `python -B -X utf8 D:/dp-dev/tmp/learngrating/run_js.py` 串行执行全部允许路径的 `tests/test_*.mjs`，旧版导出 DOM 的浏览器夹具经 CDP 适配。首轮 58／59，新作品光盘浏览器用例在大厅初始化时超时。相同夹具单跑复验 1／1，通过后合计 59／59，未修改该测试。日志为 `js-full.log` 和 `js-retry.log`。
 
 ## 需要用户决定
 
 - 彩色网页暂沿用随包 58 种材质。若考虑替换，先单独比较新候选的色域、运行耗时、读回和实拍。角色卡使用数及查表行数的含义见段 1。
+- 4-20 的区域对照提示 0.93 的查表倍数可能需要重新校准。先在摆放纸机位补拍受控色片；当前只据一张角色盘的六帧得出约 1.04，软件默认值沿用原设定。
 
 ## 给 Claude 转达
 
 - 段 1 没有编辑 README 彩色章节或编辑器工具栏。触及的颜色说明在 `editor-rig.mjs` 和 `editor-controls.mjs`，并行编辑器卡若改了后者的布局，请同时保留这里的一段默认导出说明。
+- 段 3 的 Markdown 是教程原文。改文后执行 `tools/render_learning_guide.py` 同步离线页面。两网页入口只改新手引导和刻后检查单，README 无冲突。
 
 <details>
 <summary>Earlier report already present at the branch point</summary>
@@ -135,3 +160,5 @@ CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 
 附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
 
 </details>
+
+STATUS: DONE

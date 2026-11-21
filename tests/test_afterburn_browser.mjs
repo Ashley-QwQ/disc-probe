@@ -82,6 +82,15 @@ try{
       await until(`${panel}.querySelectorAll('dt').length===6`,'core returns all six checks');
       const status = lang === 'zh' ? '已排除' : 'Ruled out';
       await check(`${panel}.querySelector('dd strong').textContent===${JSON.stringify(status)}`,'saved read-back is marked matched');
+      const article = await evaluate(`(async () => {
+        const node = ${panel}.querySelector('.ab-learn');
+        node.scrollIntoView({block:'center',behavior:'instant'});
+        const page = await fetch(node.href);
+        return {path: new URL(node.href).pathname,status: page.status,label: node.textContent};
+      })()`);
+      assert.deepEqual(article, {path:'/home/learn/how-disc-images-work' + (lang==='zh'?'.zh':'') + '.html',
+        status:200,label:lang==='zh'?'光盘怎么变成图':'How a disc becomes a picture'});
+      await shot(`learn-checkburn-${theme}-${lang}`,checkShots);
       await evaluate(`${panel}.querySelector('h2').scrollIntoView({block:'start',behavior:'instant'})`);
       const bounds = await evaluate(`(() => {
         const sheet = document.querySelector('.ab-sheet').getBoundingClientRect();
