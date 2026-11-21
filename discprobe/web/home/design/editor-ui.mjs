@@ -65,6 +65,12 @@ export class Editor {
     if(!data||mm==null||!Number.isFinite(cm)||cm*10<=data.rig.disc_and_sheet_mm)return null;
     const y=data.rig.lens_offset_mm,z=cm*10-data.rig.disc_and_sheet_mm;return {camera:[0,y,z],flash:[0,y+mm,z]};}
   rigOpen(){return !!this.rigSet();}
+  shootingSetup(){
+    const set=this.rigSet();
+    if(!set||this.s.media!=='dvd')return null;
+    const rig=this.rig(), height=this.rigData.heights.find(h=>h.id===rig.height)?.ruler_cm??rig.height_cm;
+    return {height,lensOffset:set.camera[1],flashOffset:set.flash[1]};
+  }
   rigLights(){const k=setKey(this.rig(),this.rigData);if(!k||!this.rigSets[k])return null;if(this.rigDecoded?.key!==k)this.rigDecoded={key:k,lights:decodeSet(this.rigData.order,this.rigSets[k])};return this.rigDecoded.lights;}
   // the scene follows the rig: the lamp view and the swatches then speak of the same pose
   rigSync(){const s=this.s,rig=this.rig();if(!s?.scene||!this.rigData)return;if(needsCustom(rig)&&customMM(rig.flash_mm,this.rigData)!=null&&!this.rigSet())this.loadCustom();

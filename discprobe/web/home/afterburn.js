@@ -4,6 +4,7 @@ import { afterChecks, leave as leaveBurn, start as startBurn } from './burn.js';
 import { checkBurn, confirmBurn } from './burn-preflight.js';
 import { afterBurn, troubleChecks, cdPhoto } from './guidance.mjs';
 import { burnChecklist } from './checkburn.js';
+import { colourShootGuide, mountColourShootStyles } from './design/colour-shoot-guide.mjs';
 
 export function latestBurn(works) {
   return works.filter(work => !isMeasurementWork(work)).map(work => ({work, record:[...(work.discs ?? [])].reverse().find(r => r.type === 'burn' && !r.measurement)}))
@@ -23,7 +24,7 @@ const choices = {
   correct:['看到了，位置对','Visible and aligned'], invisible:['看不见','No picture'],
   distorted:['歪了或扭了','Skewed or twisted'], gaps:['断开或缺块','Gaps or missing pieces'],
 };
-let api, client, data, page, life, thumbURL, checkPanel, saving=false;
+let api, client, data, page, life, thumbURL, checkPanel, colourSetup, saving=false;
 const root = document.documentElement;
 const L = (zh,en) => api.lang() === 'en' ? en : zh;
 const words = pair => pair[api.lang() === 'en' ? 'en' : 'zh'];
@@ -47,12 +48,15 @@ export async function fromBurn(homeApi,context) {
   if (!found) throw Error(homeApi.lang()==='en'?'No saved burn record was found. Keep the burn log and save the work before leaving.':'没有找到已保存的刻录记录。请保留刻录日志，存好作品后再离开。');
   // Load before stepping aside so an I/O error leaves the existing result accessible.
   await c.afterBurn(found.work.id,found.record.burn_id);
-  leaveBurn();return open(homeApi,found.work.id,found.record.burn_id);
+  leaveBurn();return open(homeApi,found.work.id,found.record.burn_id,context.iso.colourGuide??null);
 }
-export async function open(homeApi,id,burnId=null) {
+export async function open(homeApi,id,burnId=null,setup=undefined) {
   api=homeApi;client=await worksFor(api);
   const nextData=await client.afterBurn(id,burnId);
   leave();data=nextData;
+  // Archived reports do not store the exact rig used for that ISO.
+  colourSetup=setup===undefined&&data.media==='dvd'?{}:setup;
+  if(colourSetup)mountColourShootStyles();
   if(!page){
     for(const file of ['burn.css','afterburn.css','checkburn.css']) {const link=el('link');link.rel='stylesheet';link.href=new URL(file,import.meta.url);document.head.append(link);}
     page=el('main','burn-page after-burn');page.hidden=true;document.body.append(page);
@@ -80,12 +84,14 @@ export function leave() {
 function render() {
   if(!life)return;
   const r=data.record, choice=r.observation?.choice;
+  const guideOpen=page.querySelector('.colour-shoot-guide')?.open;
   page.replaceChildren();
   const layout=el('div','burn-layout'), hero=el('section','ab-hero'), img=el('img','ab-disc');
   img.alt=L('本次刻录保存的设计预览','Design preview saved with this burn');img.hidden=!thumbURL;if(thumbURL)img.src=thumbURL;
   hero.append(img,el('p','ab-preview-note',L('本次刻录的设计缩略图 · 512 像素，不是实物照片','Saved design thumbnail · 512 pixels, not a physical photograph')));
   const sheet=el('section','burn-panel ab-sheet');
   sheet.append(el('h1','',L('结果怎么样？','How did it look?')),el('p','ab-name',data.name));
+  if(colourSetup)sheet.insertAdjacentHTML('beforeend',colourShootGuide(colourSetup,api.lang(),guideOpen));
   const group=el('div','ab-choices');group.setAttribute('role','group');group.setAttribute('aria-label',L('记录实物结果','Record what you saw'));
   for(const [key,pair] of Object.entries(choices)) {
     const b=button(...pair,()=>observe(key));b.dataset.choice=key;b.setAttribute('aria-pressed',String(choice===key));b.disabled=saving;group.append(b);

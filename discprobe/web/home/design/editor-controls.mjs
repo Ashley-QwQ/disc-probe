@@ -4,6 +4,7 @@ import {colourWord} from './editor-materials.mjs';
 import {curated,held,warning,visible} from './editor-texlib.mjs';
 import {tone as toneOf} from './tone.mjs';
 import {rigSteps,rigWords,rigLabel} from './editor-rig.mjs';
+import {colourShootGuide,mountColourShootStyles} from './colour-shoot-guide.mjs';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const paths={
   undo:'<path d="M9 5L4 10l5 5M4 10h10a5 5 0 0 1 0 10"/>',redo:'<path d="M15 5l5 5-5 5M20 10H10a5 5 0 0 0 0 10"/>',
@@ -106,9 +107,11 @@ export const controls={
   },
   listKey(e){if(e.target.closest('input'))return;const row=e.target.closest('[data-mask-id]');if(row){if(isActionEnter(e)){e.preventDefault();e.stopPropagation();this.maskClick(e);}if(e.key==='F2'){e.preventDefault();e.stopPropagation();this.maskRename(e);}if(e.key==='Delete'){e.preventDefault();e.stopPropagation();row.querySelector('button').click();}return;}this.layerKey(e);},
   right(){const w=this.h.dom();if(!w)return;this.init();this.rigSync?.();const scroll=w.right.querySelector('.ed-material-scroll')?.scrollTop??0;
+    mountColourShootStyles();
     w.right.innerHTML=this.materialsHTML();
     if(this.rigOpen?.())this.swatches();w.right.querySelector('.ed-material-scroll').scrollTop=scroll;
-    if(!w.right.dataset.edBound){w.right.dataset.edBound='yes';w.right.addEventListener('click',e=>this.click(e));w.right.addEventListener('input',e=>this.input(e));w.right.addEventListener('change',e=>{if(e.target.tagName==='SELECT'||e.target.matches('[data-ed-rig-mm]'))this.input(e);});}
+    if(!w.right.dataset.edBound){w.right.dataset.edBound='yes';w.right.addEventListener('click',e=>this.click(e));w.right.addEventListener('input',e=>this.input(e));w.right.addEventListener('change',e=>{if(e.target.tagName==='SELECT'||e.target.matches('[data-ed-rig-mm]'))this.input(e);});
+      w.right.addEventListener('toggle',e=>{if(e.target.matches('.colour-shoot-guide'))this.panelState().shootGuide=e.target.open;},true);}
   },
   // The right column: the picture's tone, then colour. Colour starts with the phone and the height (editor-rig.mjs);
   // until both are chosen there are no swatches and nothing to fill with (walk W3).
@@ -122,6 +125,7 @@ export const controls={
     const fill=`<button class="sbtn ed-apply" data-ed-action="fill" ${canFill?'':'disabled'} ${open?'':`title="${w.locked}"`}>${open?(zh?'填充':'Fill'):w.locked}</button>`;
     let colour=rigSteps(this.rig?.()??{},this.rigData,lang,{ex:this.rigExample?.(),state:this.rigState??'ready',error:this.rigError,expanded:this.panelState().rigExpanded});
     if(open)colour+=`<div class="ed-colour-sticky">${colourMode?'<span class="ed-current" aria-hidden="true"></span>':'<div class="ed-current"><span class="ed-current-chip" aria-hidden="true"></span><output class="ed-colour-name" aria-live="polite"></output></div>'}${fill}</div>`+
+      colourShootGuide(this.shootingSetup(),lang,this.panelState().shootGuide)+
       (colourMode?'':segments('target',zh?'填到':'Fill to',['layer','mask'],k=>k==='mask'&&!hasMask)+
       (hasMask?'':`<p id="ed-mask-why" class="note quiet">${zh?'还没有选区，先在画布上建立选区。':'No selection yet. Create one on the canvas first.'}</p>`))+
       modes+

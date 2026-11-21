@@ -17,6 +17,7 @@ import { DEFAULT_POSE } from "./sim/model.mjs";
 import { SimView } from "./sim/view.mjs";
 import { LampPreview } from "./design/editor-lamp.mjs";
 import { ColourPreview } from "./design/colour-preview.mjs";
+import { colourShootGuide, mountColourShootStyles } from "./design/colour-shoot-guide.mjs";
 import * as sfx from "./sfx.js";
 
 let simulation = null, makeRing = null, canvasActive = true;
@@ -226,7 +227,8 @@ function buildRight() {
         `<label class="pv-ctl"><span>${label}</span><input class="rng" type="range" min="${min}" max="${max}" step="${step}" value="${look[key]}" data-k="${key}"><output class="mono">${lookValue(key, look[key])}</output></label>`).join("") +
       `<button class="sbtn" type="button" data-a="reset-look">${t.resetLook}</button>`) + `</section>`;
   if (!W || !isOn() || state !== s) return;           // a job finishing in the background: shown when the page is back
-  W.right.innerHTML = fileSec + viewSec;
+  const guideOpen = W.right.querySelector('.colour-shoot-guide')?.open;
+  W.right.innerHTML = fileSec + (busy ? "" : colourShootGuide(ctx.colourGuide,api.lang(),guideOpen)) + viewSec;
   if (busy && s.thumb) { W.right.querySelector(".pv-gen").append(s.thumb); paintThumb(s); }
   paintNext();
 }
@@ -652,6 +654,7 @@ export function start(homeApi, context = {}) {
   const same = context === ctx;
   ctx = context;
   if (!W) build();
+  if (context.colourGuide) mountColourShootStyles();
   const cached = (same && ctx.state) || carried(ctx);
   const work = ctx.imageWork?.();
   const lookup = work && (cached?.phase !== "making" || cached.jobId) && !cached?.checkIso;

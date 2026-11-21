@@ -64,6 +64,17 @@ for(const rig of [null,{phone:'iphone17pro'},{phone:'custom',height:'21'},{phone
 {const ed=editor(null);const html=ed.materialsHTML();assert(html.includes('<svg class="ed-rig-figure"'),'the figure explains first');assert(!/δ|周期|纹理 ID/.test(html.split('ed-rig-step')[0]),'no inner words in the explanation');
   assert.match(html,/data-ed-rig="height"[^>]*disabled/,'height waits for the phone');}
 locked(editor({phone:'iphone17pro',height:'21'},{loaded:false}).materialsHTML());
+{
+  const ed=editor({phone:'iphone17pro'});
+  ed.s.media='dvd';
+  assert.doesNotMatch(ed.materialsHTML(),/class="colour-shoot-guide"/);
+  ed.s.scene.rig.height='21';
+  const html=ed.materialsHTML();
+  assert.match(html,/怎么看、怎么拍/);
+  assert.match(html,new RegExp(`镜头离桌面 ${DESIGN_RULER_CM} cm`));
+  assert.match(html,/对准纸俯视示意/);
+  assert.match(html,/docs\/colour\.zh\.md/);
+}
 {const ed=editor({phone:'custom',flash_mm:31.6,height:'30'});assert.equal(ed.rigOpen(),false,'custom grid not fetched yet');locked(ed.materialsHTML());
   ed.addSets(custom);assert.equal(ed.rigOpen(),true);assert.equal(ed.light({id:ids[0]}).rgb.join(),decodeSet(data.order,custom.sets['32@30'])[ids[0]].rgb.join());}
 {const ed=editor({phone:'iphone17pro',height:'21'});assert.equal(ed.rigOpen(),true);const html=ed.materialsHTML();
