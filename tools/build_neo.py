@@ -822,8 +822,8 @@ DP_DOC_BASE = f'https://github.com/Ashley-QwQ/disc-probe/blob/v{VERSION}/'
 DP_DOCS = {
     'COLOUR_EN': ('docs/colour.md', 'In the web app'),
     'COLOUR_ZH': ('docs/colour.zh.md', '在网页里做'),
-    'THEORY_EN': ('docs/how-discs-make-pictures.md', ''),
-    'THEORY_ZH': ('docs/how-discs-make-pictures.zh.md', ''),
+    'THEORY_EN': ('docs/how-disc-images-work.md', ''),
+    'THEORY_ZH': ('docs/how-disc-images-work.zh.md', ''),
     'SHOWCASE_PHOTO': ('docs/showcase/showd_8145_card.jpg', ''),
 }
 
@@ -860,7 +860,7 @@ def require_onboarding_docs():
         elif heading and f'## {heading}' not in source.read_text(encoding='utf-8-sig').splitlines():
             problems.append(f'missing section "{heading}" in {path}')
     if not all(key in available_docs() for key in OPTIONAL_DOCS):
-        log('NOTE: docs/how-discs-make-pictures(.zh).md are not both present; the "how it works" link is left out')
+        log('NOTE: docs/how-disc-images-work(.zh).md are not both present; the "how it works" link is left out')
     if problems:
         raise SystemExit('Disc Neo onboarding links require the Disc Probe documents:\n' + '\n'.join(problems))
 

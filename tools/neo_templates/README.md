@@ -7,7 +7,7 @@ Look up the colours that different data textures on a DVD show at different angl
 ## What would you like to do?
 
 - **I just want to burn a colour disc.** You can skip this atlas. In the Disc Probe web app, calibrate your batch, start a new work, import a picture, turn on colour, generate the image, burn and photograph the disc. [Follow the web walkthrough]({{COLOUR_EN}}).
-- **I want to understand how it works.** See how the tracks on a disc turn light into a picture. [Read How discs make pictures]({{THEORY_EN}}).
+- **I want to understand how it works.** See how the tracks on a disc turn light into a picture. [Read How a disc becomes a picture]({{THEORY_EN}}).
 - **I want to pick textures or experiment.** Choose a cell on the period map, or search by ID, spec or period. [Open the offline reader](index.html#atlas).
 - **I'm an agent or writing code.** Use the [field reference](SCHEMA.md) and [query examples](#query-examples) to read the CSV and JSON files.
 
