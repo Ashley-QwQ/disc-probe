@@ -31,8 +31,8 @@ const waitFor=async(p,m,n=600)=>{for(let i=0;i<n;i++){if(p())return;await pause(
 localStorage.clear();
 const params=new URL(location.href).searchParams;
 document.documentElement.dataset.theme=params.get('theme')||'paper';
-let reduce=true, lobbyVisits=0;
-const api={$,lang:()=>params.get('lang')||'zh',get reduce(){return reduce},toLobby(){lobbyVisits++}};
+let reduce=true, lobbyVisits=0, language='zh';
+const api={$,lang:()=>language,get reduce(){return reduce},toLobby(){lobbyVisits++}};
 // every request the page makes goes through here; the paper's answer is chosen per step
 const calls=[]; let answer='ok'; const SAMPLE=${JSON.stringify(sample)}, COMMUNITY=${communitySample};
 const nativeFetch=window.fetch.bind(window);
@@ -65,10 +65,14 @@ try{
   check(qa('.fx-notice h3').length===3,'three parts');
   check(/永远不做/.test(notice.textContent)&&/不上传/.test(notice.textContent),'says it never uploads');
   check(calls.length===0,'nothing fetched before the note is answered');
-  const input=q('.fx-src input'); check(input.value==='/api/news','default source');
+  check(q('.fx-src input').value===''&&q('.fx-src input').placeholder==='默认（GitHub 仓库）','Chinese default source');
+  language='en'; dispatchEvent(new Event('dp-lang'));
+  check(q('.fx-src input').value===''&&q('.fx-src input').placeholder==='Default (GitHub repository)','English default source');
+  language='zh'; dispatchEvent(new Event('dp-lang'));
+  const input=q('.fx-src input');
   input.value='javascript:alert(1)'; q('.fx-notice .fx-btn.primary').click();
   check(!q('.fx-src-err').hidden&&!notice.hidden,'a bad address is refused');
-  input.value='/api/news'; q('.fx-notice .fx-btn.primary').click();
+  input.value=''; q('.fx-notice .fx-btn.primary').click();
   check(notice.hidden,'note closes');
   await waitFor(()=>!q('.fx-paper').hidden&&q('.fx-mast'),'paper');
   check(localStorage.getItem('dp-fax-seen')==='1','seen remembered');
@@ -104,10 +108,19 @@ try{
   check(/只下载/.test(q('.fx-foot').textContent),'footer says download only');
   check(q('.fx-lcd').textContent.startsWith('已收到'),'display: received');
   const pr=P.getBoundingClientRect(); check(pr.right<=innerWidth&&pr.left>=0,'paper inside the window');
-  const customSource='https://news.example/custom/news.json';
-  await fax.download(customSource);
-  const forwarded=new URL(calls.at(-1).url);
-  check(forwarded.pathname.endsWith('/api/news')&&forwarded.searchParams.get('source')===customSource,'custom source goes to the core');
+  const customSource='https://NEWS.example/Custom/%6Eews.json';
+  q('.fx-foot .fx-btn:nth-child(2)').click();
+  q('.fx-src input').value=customSource; q('.fx-notice .fx-btn.primary').click();
+  await waitFor(()=>q('.fx-paper:not([hidden]) .fx-mast'),'custom paper');
+  const paperCalls=()=>calls.map(c=>new URL(c.url)).filter(u=>u.pathname.endsWith('/api/news'));
+  check(paperCalls().at(-1).searchParams.get('source')===customSource,'custom source goes to the core as entered');
+  q('.fx-foot .fx-btn:nth-child(2)').click();
+  check(q('.fx-src input').value===customSource,'custom source is shown as entered');
+  q('.fx-notice .fx-btn:nth-child(2)').click();
+  check(q('.fx-src input').value===''&&q('.fx-src input').placeholder==='默认（GitHub 仓库）','reset shows the default source');
+  q('.fx-notice .fx-btn.primary').click();
+  await waitFor(()=>q('.fx-paper:not([hidden]) .fx-mast'),'default paper after reset');
+  check(!paperCalls().at(-1).search&&localStorage.getItem('dp-fax-source')===null,'reset restores the default core request');
   check(!fax.validSource('http://127.0.0.1/news.json'),'browser cannot enable the test exception');
   // 3. order a skin: ordered at once, a parcel after the delivery, the lobby told
   let parcelEvents=0; addEventListener('dp-fax-parcel',()=>parcelEvents++);
@@ -121,6 +134,7 @@ try{
   answer='offline'; q('.fx-foot .fx-btn').click();
   await waitFor(()=>q('.fx-slip'),'offline receipt');
   check(/没接通/.test(q('.fx-slip').textContent),'no line said');
+  check(q('.fx-slip-src').textContent==='默认（GitHub 仓库）','receipt names the default source');
   check(q('.fx-lcd').textContent==='线路不通','display: no line');
   const lastBtn=qa('.fx-slip .fx-btn').find(b=>/上次的报纸/.test(b.textContent)); check(lastBtn,'last paper offered');
   lastBtn.click(); check(q('.fx-stamp')?.textContent==='旧报','old paper stamped');
