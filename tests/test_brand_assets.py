@@ -96,6 +96,7 @@ def test_every_page_has_product_icons_and_offline_title_styles():
         product = 'lab' if page.is_relative_to(ROOT / 'disclab') else 'probe'
         web = ROOT / ('disclab/web' if product == 'lab' else 'discprobe/web')
         for rel, name in [('icon', 'favicon.ico'), ('apple-touch-icon', 'apple-touch-icon.png')]:
+            assert rel in links, page
             href = links[rel]
             path = web / href.lstrip('/') if href.startswith('/') else page.parent / href
             assert path.resolve() == web / f'brand/{product}/{name}', page
