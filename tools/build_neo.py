@@ -808,7 +808,7 @@ def texture_cards(dest, ref):
 
 
 def render(template, values):
-    text = (TEMPLATES / template).read_text(encoding='utf-8')
+    text = drop_missing_doc_lines((TEMPLATES / template).read_text(encoding='utf-8'), '{{%s}}')
     for k, v in values.items():
         text = text.replace('{{' + k + '}}', str(v))
     if '{{' in text:
@@ -817,7 +817,8 @@ def render(template, values):
     return text
 
 
-DP_DOC_BASE = 'https://github.com/Ashley-QwQ/disc-probe/blob/main/'
+# Links follow the release, not main: the tag must be exactly the one published (release notes use v[VERSION]).
+DP_DOC_BASE = f'https://github.com/Ashley-QwQ/disc-probe/blob/v{VERSION}/'
 DP_DOCS = {
     'COLOUR_EN': ('docs/colour.md', 'In the web app'),
     'COLOUR_ZH': ('docs/colour.zh.md', '在网页里做'),
@@ -827,18 +828,39 @@ DP_DOCS = {
 }
 
 
+# Shown only when both files are in the source being released; otherwise the line is left out, never a dead link.
+OPTIONAL_DOCS = ('THEORY_EN', 'THEORY_ZH')
+
+
+def available_docs():
+    present = {key for key, (path, _) in DP_DOCS.items() if (REPO / path).is_file()}
+    if not all(key in present for key in OPTIONAL_DOCS):
+        present -= set(OPTIONAL_DOCS)
+    return {key: DP_DOCS[key] for key in DP_DOCS if key in present}
+
+
+def drop_missing_doc_lines(text, pattern):
+    missing = [key for key in OPTIONAL_DOCS if key not in available_docs()]
+    return ''.join(line for line in text.splitlines(keepends=True)
+                   if not any(pattern % key in line for key in missing))
+
+
 def doc_url(path, heading):
     return DP_DOC_BASE + path + ('#' + heading.lower().replace(' ', '-') if heading else '')
 
 
 def require_onboarding_docs():
     problems = []
-    for path, heading in DP_DOCS.values():
+    for key, (path, heading) in DP_DOCS.items():
+        if key in OPTIONAL_DOCS:
+            continue
         source = REPO / path
         if not source.is_file():
             problems.append(f'missing {path}')
         elif heading and f'## {heading}' not in source.read_text(encoding='utf-8-sig').splitlines():
             problems.append(f'missing section "{heading}" in {path}')
+    if not all(key in available_docs() for key in OPTIONAL_DOCS):
+        log('NOTE: docs/how-discs-make-pictures(.zh).md are not both present; the "how it works" link is left out')
     if problems:
         raise SystemExit('Disc Neo onboarding links require the Disc Probe documents:\n' + '\n'.join(problems))
 
@@ -1024,9 +1046,9 @@ def build_reader(coverage_csv, cand_path, values, dest, cards_ref):
     blob = json.dumps(dict(meta=meta, t=targets, c=cands), separators=(',', ':'), ensure_ascii=False, allow_nan=False)
     packed = base64.b64encode(gzip.compress(blob.encode('utf-8'), 9)).decode('ascii')
     font, ofl = find_font(cards_ref)
-    html = (TEMPLATES / 'reader.html').read_text(encoding='utf-8')
+    html = drop_missing_doc_lines((TEMPLATES / 'reader.html').read_text(encoding='utf-8'), '__NEO_%s__')
     evidence = {key: f'{count:,}' for key, count in write_colour_evidence(cands, dest.parent).items()}
-    links = {key: doc_url(*target) for key, target in DP_DOCS.items()}
+    links = {key: doc_url(*target) for key, target in available_docs().items()}
     values.update(links, **evidence)
     for key, val in {**find_art(cards_ref), **reader_brand_assets(), **links, **evidence}.items():
         assert html.count(f'__NEO_{key}__') >= 1, key
