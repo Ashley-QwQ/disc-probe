@@ -14,7 +14,14 @@
 
 ## 段 2 · 光栅角色卡
 
-待完成。按补充中的 4-20 和 FLIP-A 方案追溯。
+提交 `Add a core grating card command and reproduce the recorded cards`。角色卡按补充采用 SHOWCASE-BLINK 4-20 和 FLIP-A 4-21。旧效果盘的 O/X、两点成环和反向流光是此前的实体实验，FLIP-A 中的 O/X 是对照项。SHOW-D 是另一张角色展示盘。以盘登记 `D:/disc-probe/docs/goals/discs/register.md`、`F:/dp-dev-tmp/showcase-blink/DESIGN.md`、`D:/disc-probe-scratch/flip-pairs/REPORT.md` 和 `F:/dp-dev-tmp/video/IMG_8338/REPORT.md` 为源。
+
+- Core 的 `gratingcard` 从两至三张图及其角度算共同面积配方，生成 ISO、标签、材质顺序、数据面预览和双语可选的观看说明。沿用原始 δ 分阶表、倾转、Bayer 与通道门槛。默认包收录两盘 132 个已用纹理中同时满足索引和通道检查的 124 个，NPZ 约 1.16 MB。原表、索引、检查和清单的哈希记录在 `discprobe/grating_card/provenance.json`。其余 8 个是 FLIP-A 对照项，随原材料仍能复刻。Wheel 核对包含四个数据文件。网页彩色仍用原来的 58 个材质。
+- 新卡加 12 点随机纹理方向箭头，生成的图案数据域不含 `92`。箭头单独做原门槛的四地址、两种块布局、四初态共 32 组检查。F512%、八扇区最差平均帧偏、帧末最大 |DSV| 分别为 0.00777%、0.00389、20。实体通道效果未测。历史复刻保持原样，缺少箭头的存档 ISO 只用于软件核对。
+- `--replay` 让 4-20 从定稿 `design_accent.npz` 的 0.06 mm 面积权重重建，FLIP-A 从 `flip-a.work.json` 的已选材料图层重建。两张各 36,000,000 个标签逐字节相同，112 项、38 项材料顺序也分别相同。各 4,020,994,048 字节的 ISO 原哈希有异，仅归零 ISO 9660 时间字段后逐字节相同。4-20 归一化 SHA-256 为 `2254ab65c27a0d5b40305aaaf3f8478becbac2849f6be793e57cacb2be9f3ebb`，FLIP-A 为 `6d8ae35516817ce1089c781689ba66ac69f951422fc85f822ecea66d2dfcf1d4`。两个重建 ISO 已清理，只留校验结果。重建从原成像输入开始。新图片入口是通用联合求解，原专案的遮罩、色适应白点、局部红色点缀和围巾流光需要原设计权重才能重现。
+- 用 `tools/verify_grating_replays.py` 对照整盘和标签，结果在 `character-compare.log`、`flip-compare.log`。用 `python -B -X utf8 tools/check_grating_cli_defaults.py D:/dp-dev/tmp/learngrating/default-parity 68ea72d` 比较加命令前后。固定时钟并使用 Disc Lab，`burn`、`info`、`image` 的中英文执行与帮助共 12 组标准输出／标准错误逐字节相同，默认 `image` 整个测试镜像逐字节一致。
+- `pytest -n 2`，光栅、刻后检查、彩色合成与刻录相关共 62 项、4 个子测试通过。新增随包数据的三角度用例后，`tests/test_gratingcard.py` 8 项通过。新命令 16,777,216 字节样盘在 Disc Lab 抽样读回 96 处，全相符。去时间的默认样盘哈希为 `d708214a92b668fee4c88f60f163fdbfcca93304cadd953a3021f46a0456bdb6`。
+- [中文说明](docs/grating-card.zh.md)和 [English guide](docs/grating-card.md)记录各区域、预期角度、4-20 实拍和 FLIP-A 的模型图。没有为本卡新增实体刻录。新通用入口的实拍换画保真度未测，FLIP-A 的两个目标角仍只有模型支持。
 
 ## 段 3 · 光盘怎么变成图
 

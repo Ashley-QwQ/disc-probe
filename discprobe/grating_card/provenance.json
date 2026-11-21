@@ -1,0 +1,22 @@
+{
+  "used": 132,
+  "included": 124,
+  "omitted": [
+    "9B5C5CC76A988866FDB9B7B7718686",
+    "A36F66E411A16EE10C",
+    "B66EE4A1E1",
+    "B786869B5CC7988866FDB7",
+    "B786975C9A988866F9",
+    "E411E8E10CEE6E",
+    "EE6E9E40",
+    "FDB7B0975C9A9866"
+  ],
+  "inputs_sha256": {
+    "delta-lookup.npz": "88b077c370b9f53012b28c726763f69af1d76d2e1aa475eca3b96d62ae5a10ae",
+    "angle-curves-index.csv": "7f97c46fcca3a1a5b7fc3cc524c03b940936369a2a22e281ae6dc8fe7de02816",
+    "pair-channel-check.json": "27ecfd5a3b8c760b35c1fa90c0d238a948b61a3bbeda36e0efe3af05d6e0bfb7",
+    "gate-cache.json": "a97f4db3b7304e51dd4d7397c32fe972237a85a862d36dd09b6348568e35dd7e",
+    "flip-a.labels.textures.json": "4e2964f14570b9e63331e7b0c3652eaacabc22ced54a1eb43a7bd6bc68e7c0e8",
+    "labels.textures.json": "661db853a42220ad2a6055af9813b33115a011da56463be106eece29825d5669"
+  }
+}
