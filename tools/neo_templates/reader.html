@@ -4,38 +4,35 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Disc Neo 纹理图谱</title>
+<link rel="icon" href="__NEO_FAVICON__">
 <!--
 Disc Neo __NEO_VERSION__ offline reader. GPL-3.0-or-later (see LICENSE next to this file).
-Data snapshot: __NEO_SNAPSHOT__. Everything this page shows is inside this one file; it makes no network requests.
+Data snapshot: __NEO_SNAPSHOT__. The reader and its data run offline. The Disc Probe guides open on GitHub.
 
 Embedded font: Archivo, licensed under the SIL Open Font License 1.1:
 __NEO_FONT_LICENSE__
 -->
+<style>__NEO_TOKENS__</style>
 <style>
 @font-face { font-family: "Archivo"; src: url(data:font/woff2;base64,__NEO_FONT__) format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
 :root {
   --paper: #ebe7e0; --paper-2: #e4dfd7; --ink: #1d1b18; --ink-2: #5d5850; --ink-3: #8a847a;
   --rule: #cfc9bf; --rule-strong: #a9a297; --accent: #a8693c; --warn: #9a6a14; --good: #3f7d55;
-  --dvd: linear-gradient(90deg, #7262c6, #8d58b7, #a150a1, #b04985, #ba4765);
   --font: "Archivo", system-ui, "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", sans-serif;
-  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
   --edge: clamp(16px, 3.2vw, 56px); --row: 52px; --t: 200ms; --ease: cubic-bezier(.2, .8, .2, 1);
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --paper: #161d1c; --paper-2: #1f2827; --ink: #ecebe4; --ink-2: #aeb3ab; --ink-3: #7f8780;
-  --rule: #2c3634; --rule-strong: #46514e; --accent: #d9a75c; --warn: #e2b866; --good: #8fca9a;
-  --dvd: linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a); color-scheme: dark; } }
+/* Paper and night surfaces from the DP lobby. */
 :root[data-theme="dark"] {
-  --paper: #161d1c; --paper-2: #1f2827; --ink: #ecebe4; --ink-2: #aeb3ab; --ink-3: #7f8780;
-  --rule: #2c3634; --rule-strong: #46514e; --accent: #d9a75c; --warn: #e2b866; --good: #8fca9a;
-  --dvd: linear-gradient(90deg, #a79aff, #c58ff3, #dc86db, #ee81bc, #f87f9a); color-scheme: dark; }
+  --paper: #0a1114; --paper-2: #121a1e; --ink: #eef0ee; --ink-2: #a6b0b3; --ink-3: #7b868a;
+  --rule: #202d33; --rule-strong: #3a4a51; --accent: #e0ab5c; --warn: #e2b866; --good: #8fca9a;
+  color-scheme: dark;
+}
 * { box-sizing: border-box; }
 html { background: var(--paper); }
 body { margin: 0; color: var(--ink); font: 16px/1.5 var(--font); min-height: 100vh; isolation: isolate;   /* the sheet's shadow (z-index -1) sits between the desk and the sheet */
   background: url(__NEO_DESK_PAPER__) 0 0 / 384px repeat, var(--paper); }
 :root[data-theme="dark"] body { background-image: url(__NEO_DESK_DARK__); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body { background-image: url(__NEO_DESK_DARK__); } }
 
 /* the long sheet: the newplan paper, nine-sliced (corners and edges kept, middle stretched), lying on the desk */
 .paper { position: relative; margin: 16px var(--edge) calc(var(--edge) + 16px); max-width: 1560px;
@@ -44,12 +41,10 @@ body { margin: 0; color: var(--ink); font: 16px/1.5 var(--font); min-height: 100
   --ink: #24221e; --ink-2: #6b6558; --ink-3: #8b8576; --rule: rgba(36, 34, 30, .14); --rule-strong: rgba(36, 34, 30, .32);
   --paper-2: rgba(36, 34, 30, .05); --well: rgba(255, 255, 255, .35); --accent: #a8693c; --warn: #8a5a1c; --on-ink: #fbf8f1; color: var(--ink); }
 @media (min-width: 1640px) { .paper { margin-left: auto; margin-right: auto; } }
-/* the sheet itself, on its own layer: the ink theme darkens this picture only (the web UI's dark sheet is a mid
-   grey-green, about #6e6f64, where no text colour reaches 4.5:1; at brightness .58 it sits near #40403a) */
+/* Darken the sheet image in night mode to keep the atlas text legible. */
 .paper::after { content: ""; position: absolute; inset: -40px; z-index: -1; pointer-events: none;
   border: 40px solid transparent; border-image: url(__NEO_PAPER_PAPER__) 120 fill / 40px / 20px stretch; }
-:root[data-theme="dark"] .paper::after { border-image-source: url(__NEO_PAPER_DARK__); filter: brightness(.58); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .paper::after { border-image-source: url(__NEO_PAPER_DARK__); filter: brightness(.58); } }
+:root[data-theme="dark"] .paper::after { border-image-source: url(__NEO_PAPER_DARK__); filter: brightness(.40); }
 /* the baked drop shadow at full softness (its 60 px margin unscaled), moved lower left like newplan's paper (-.4 m, +.5 m) */
 .paper::before { content: ""; position: absolute; inset: -40px; z-index: -1; pointer-events: none; translate: -24px 30px;
   border: 40px solid transparent; border-image: url(__NEO_SHADOW_PAPER__) 120 fill / 120px / 60px stretch; }
@@ -57,14 +52,6 @@ body { margin: 0; color: var(--ink); font: 16px/1.5 var(--font); min-height: 100
   --ink: #ece6d6; --ink-2: #d6d0c1; --ink-3: #b9b3a3; --rule: rgba(236, 230, 214, .2); --rule-strong: rgba(236, 230, 214, .4);
   --paper-2: rgba(255, 255, 255, .05); --well: rgba(0, 0, 0, .16); --accent: #d9a75c; --warn: #e0b066; --on-ink: #23282a; }
 :root[data-theme="dark"] .paper::before { border-image-source: url(__NEO_SHADOW_DARK__); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .paper {
-    --ink: #ece6d6; --ink-2: #d6d0c1; --ink-3: #b9b3a3; --rule: rgba(236, 230, 214, .2); --rule-strong: rgba(236, 230, 214, .4);
-    --paper-2: rgba(255, 255, 255, .05); --well: rgba(0, 0, 0, .16); --accent: #d9a75c; --warn: #e0b066; --on-ink: #23282a; }
-  :root:not([data-theme="light"]) .paper::before { border-image-source: url(__NEO_SHADOW_DARK__); } }
-.letterhead { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
-.letterhead .mark { font-size: clamp(1.6rem, 3vw, 2.3rem); }
-.letterhead .sub { font-weight: 600; color: var(--ink-2); padding-bottom: .45em; }
 .paper .status { color: var(--ink-2); font-size: .9rem; margin: 20px 0 0; padding-top: 12px; border-top: 1px solid var(--rule); }
 ::selection { background: var(--accent); color: #fff; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -74,13 +61,32 @@ button, input { font: inherit; color: inherit; }
 .mono, code { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .num { font-variant-numeric: tabular-nums; }
 
-/* header row */
-header { display: flex; align-items: center; gap: 16px; height: var(--row); margin: var(--edge) var(--edge) 0; }
-.mark { font-weight: 800; font-stretch: 125%; font-size: 1.45rem; letter-spacing: .02em; white-space: nowrap; display: flex; align-items: center; }
-.mark .o { display: inline-block; width: .82em; height: .82em; border-radius: 50%; background: var(--dvd); margin: 0 .03em; position: relative; top: .02em;
-  -webkit-mask: radial-gradient(circle, transparent 0 15%, #000 16%); mask: radial-gradient(circle, transparent 0 15%, #000 16%); }
-header .mark { font-size: 1.15rem; }
+/* Guide and header */
+.front { background: var(--paper); padding: 0 var(--edge) var(--s-6); border-bottom: 1px solid var(--rule); }
+header, .guide { max-width: 960px; margin: auto; }
+header { display: flex; align-items: center; gap: var(--s-2); min-height: var(--row); padding-top: var(--s-2); }
+.brand img { display: block; width: clamp(136px, 23vw, 208px); height: auto; }
 .tools { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.tools .icon { min-height: var(--tap); min-width: var(--tap); }
+.guide { padding-top: clamp(16px, 4vw, 52px); }
+.guide h1 { font-size: clamp(1.55rem, 3vw, 2.75rem); }
+.guide h2 { margin-top: var(--s-6); font-size: 1.22rem; }
+.guide p { margin: var(--s-1) 0 0; color: var(--ink-2); }
+.guide .intro { margin-top: var(--s-2); }
+.routes { list-style: none; padding: 0; margin: var(--s-2) 0 0; }
+.routes li { display: grid; grid-template-columns: minmax(0, 19rem) minmax(0, 1fr); gap: var(--s-3);
+  align-items: baseline; border-top: 1px solid var(--rule); padding: var(--s-2) 0; }
+.routes li:last-child { border-bottom: 1px solid var(--rule); }
+.routes p { margin: 0; }
+a { color: var(--ink); text-underline-offset: .18em; }
+a:hover { text-decoration-color: var(--accent); }
+.route { width: fit-content; font-weight: 700; }
+.routes li:first-child .route { text-decoration-color: var(--accent); }
+.guide .evidence { margin-top: var(--s-4); }
+.guide .evidence-links { display: flex; column-gap: var(--s-4); flex-wrap: wrap; }
+.atlas-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.query-examples { margin-top: var(--s-6); padding-top: var(--s-4); border-top: 1px solid var(--rule); }
+.query-examples pre { overflow: auto; font-family: var(--mono); }
 .search { position: relative; }
 .search input { width: min(42vw, 340px); height: 36px; padding: 0 12px; border: 1px solid var(--rule-strong); border-radius: 4px; background: var(--paper-2); }
 .search input::placeholder { color: var(--ink-2); opacity: 1; }
@@ -94,16 +100,17 @@ header .mark { font-size: 1.15rem; }
 .icon:active { transform: translateY(1px); }
 .icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.6; }
 
-.notice { margin: 8px 0 0; color: var(--ink-2); font-size: 1rem; max-width: 92ch; }
-.notice strong { color: var(--ink); font-weight: 600; }
-
 /* body: map left, paper right */
-main { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(340px, 1fr); gap: clamp(16px, 2.4vw, 40px); margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--rule-strong); align-items: start; }
-@media (max-width: 1180px) { main { grid-template-columns: minmax(0, 1fr); } }
+.atlas-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(340px, 1fr); gap: clamp(16px, 2.4vw, 40px); margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--rule-strong); align-items: start; }
+@media (max-width: 1180px) { .atlas-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) { .paper { border-width: 24px; margin-left: 12px; margin-right: 12px; }
   .paper::after { inset: -24px; border-width: 24px; border-image-width: 24px; border-image-outset: 12px; }
   .paper::before { inset: -24px; border-width: 24px; border-image-width: 60px; border-image-outset: 30px; } }
-@media (max-width: 640px) { header { flex-wrap: wrap; height: auto; row-gap: 8px; } .tools { width: 100%; } .search { flex: 1; } .search input { width: 100%; } }
+@media (max-width: 640px) {
+  .guide h2 { margin-top: var(--s-4); }
+  .routes li { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .search { width: 100%; } .search input { width: 100%; }
+}
 h1, h2 { font-stretch: 115%; font-weight: 800; line-height: 1.2; margin: 0; }
 .sheet .t { font-size: clamp(1.35rem, 2.2vw, 1.8rem); font-stretch: 115%; font-weight: 800; }
 h1 { font-size: clamp(1.35rem, 2.2vw, 1.8rem); }
@@ -180,31 +187,53 @@ table.cands tr.win td { background: var(--paper-2); }
 .more { margin-top: 12px; border: 1px solid var(--rule-strong); background: none; border-radius: 4px; padding: 6px 14px; cursor: pointer; }
 .more:hover { border-color: var(--ink-3); background: var(--paper-2); }
 .tablewrap { overflow-x: auto; }
+.sheet { min-width: 0; }
+.cands code { overflow-wrap: anywhere; }
 
 a.icon { color: inherit; text-decoration: none; white-space: nowrap; }
-.icon.readme { font-weight: 600; border: 1px solid var(--rule-strong); }
 .loading { padding: 40px 0; color: var(--ink-2); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
+<div class="front" id="start">
 <header>
-  <div class="mark" aria-hidden="true">DISC&nbsp;NE<span class="o"></span></div>
+  <a class="brand" href="#start"><img id="wordmark" src="__NEO_WORDMARK_PAPER__" data-ink="__NEO_WORDMARK_INK__" alt="Disc Neo"></a>
   <div class="tools">
-    <div class="search">
-      <input id="q" type="search" autocomplete="off" spellcheck="false" data-i18n-ph="searchPh" data-i18n-aria="searchLabel">
-      <div class="hits" id="hits" hidden></div>
-    </div>
-    <a class="icon readme" id="readme" href="README.zh.md" data-i18n="readme"></a>
     <button class="icon" id="lang" type="button" data-i18n-aria="langLabel"><span id="langLabel">EN</span></button>
     <button class="icon" id="theme" type="button" data-i18n-title="theme"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14z" fill="currentColor"/></svg></button>
   </div>
 </header>
-<article class="paper" id="paper">
-<div class="letterhead"><h1 class="mark" aria-label="Disc Neo">DISC&nbsp;NE<span class="o" aria-hidden="true"></span></h1><span class="sub" data-i18n="subtitle"></span></div>
-<p class="notice" id="notice"></p>
+<section class="guide" aria-labelledby="guideTitle">
+  <h1 id="guideTitle" data-i18n="guideTitle">DVD 纹理图谱</h1>
+  <p class="intro" data-i18n="intro"></p>
+  <h2 data-i18n="routesTitle"></h2>
+  <ul class="routes">
+    <li><a class="route" href="__NEO_COLOUR_ZH__" data-en-href="__NEO_COLOUR_EN__" data-i18n="burnRoute"></a><p data-i18n="burnSteps"></p></li>
+    <li><a class="route" href="__NEO_THEORY_ZH__" data-en-href="__NEO_THEORY_EN__" data-i18n="theoryRoute"></a><p data-i18n="theoryStep"></p></li>
+    <li><a class="route" href="#atlas" data-i18n="atlasRoute"></a><p data-i18n="atlasStep"></p></li>
+    <li><a class="route" href="SCHEMA.md" data-i18n="codeRoute"></a><p><span data-i18n="codeStep"></span> <a href="#query-examples" data-i18n="examples"></a></p></li>
+  </ul>
+  <p class="evidence" data-i18n="evidence"></p>
+  <p class="evidence-links">
+    <a href="colour-card-photo.jpg" data-i18n="cardPhoto"></a>
+    <a href="__NEO_SHOWCASE_PHOTO__" data-i18n="showPhoto"></a>
+    <a href="character-disc-photo.png" data-i18n="characterPhoto"></a>
+    <a href="colour-evidence.csv" data-i18n="evidenceList"></a>
+  </p>
+</section>
+</div>
 
-<main>
+<main class="paper" id="paper">
+<div class="atlas-head">
+  <h2 id="atlas" class="atlas-title" tabindex="-1" data-i18n="atlasTitle"></h2>
+  <div class="search">
+    <input id="q" type="search" autocomplete="off" spellcheck="false" data-i18n-ph="searchPh" data-i18n-aria="searchLabel">
+    <div class="hits" id="hits" hidden></div>
+  </div>
+</div>
+<details class="help" open><summary data-i18n="tableHelp"></summary><p data-i18n="tableTerms"></p></details>
+<div class="atlas-grid">
   <section aria-labelledby="mapTitle">
     <div class="controls">
       <div class="seg" id="range" role="group"></div>
@@ -225,9 +254,20 @@ a.icon { color: inherit; text-decoration: none; white-space: nowrap; }
     </div>
   </section>
   <section class="sheet" id="sheet" aria-live="polite"><p class="loading" data-i18n="loading"></p></section>
-</main>
+</div>
+<section class="query-examples" id="query-examples" aria-labelledby="queryTitle">
+  <h2 id="queryTitle" data-i18n="queryTitle"></h2>
+  <p data-i18n="queryIntro"></p>
+  <pre><code>import csv
+
+with open('atlas/dvd/singles.csv', encoding='utf-8') as source:
+    rows = [r for r in csv.DictReader(source) if 0.95 &lt;= float(r['period_um']) &lt;= 1.05]
+for row in sorted(rows, key=lambda r: -float(r['purity']))[:5]:
+    print(row['id'], row['spec'], row['purity'])</code></pre>
+  <a href="README.zh.md" data-en-href="README.md" data-i18n="readme"></a>
+</section>
 <p class="status" id="status"></p>
-</article>
+</main>
 
 
 <script>
@@ -235,22 +275,35 @@ a.icon { color: inherit; text-decoration: none; white-space: nowrap; }
 const DATA_B64 = "__NEO_DATA__";
 const I18N = {
   zh: {
-    subtitle: "DVD 纹理图谱，预览版", searchLabel: "按编号或 spec 查找", langLabel: "Switch to English", searchPh: "编号、spec 或周期，如 A37062、1.2 µm", theme: "切换纸色 / 墨色",
-    notice: (m) => `<strong>预览版：</strong>所有颜色都是模型预测，没有拍照核对过。只有 DVD，CD 和蓝光还没开始搜。快照 ${m.snapshot}，这一轮计划 ${m.end} 跑完。`,
-    onlyMeasured: "只看有实测结果的", mapTitle: "周期覆盖图", mapAria: "周期覆盖图。每一行是一种纹理，横轴是周期（µm，对数刻度），颜色越深越纯。用左右方向键移动周期（按住 Shift 走得快），上下方向键换行，回车打开。",
+    guideTitle: "DVD 纹理图谱", intro: "这里可以查 DVD 上每种数据纹理在不同角度会显出什么颜色。",
+    routesTitle: "你想做什么？", burnRoute: "我只想刻一张彩色盘",
+    burnSteps: "可以跳过图谱。去 Disc Probe 网页标定这批盘，再新建作品、导入图片、打开彩色、生成、刻录、拍照。",
+    theoryRoute: "我想知道原理", theoryStep: "读《光盘怎么变成图》，看看盘面为什么会显色。",
+    atlasRoute: "我想自己挑纹理或做实验", atlasStep: "进图谱，先了解 δ、周期和纯度，再按机位找纹理。",
+    codeRoute: "我是 agent 或者写程序", codeStep: "读字段说明和", examples: "查询示例", queryTitle: "查询示例",
+    queryIntro: "在数据包目录运行这段 Python 代码，按纯度列出周期约 1 µm 的前五种单周期纹理。", readme: "看 README 中的其他查法",
+    evidence: "DVD 预览版。DP 色表用六张实拍色卡拟合。Neo 有 __NEO_CARD_SPECS__ 种候选有取色记录，__NEO_SHOW_SPECS__ 种用在实拍展示盘 SHOW-A 到 E 上（RITEKF1 DVD-R、GH70N，两组有重合）。另有 __NEO_MODEL_SPECS__ 种未匹配到这两组记录，显色用模型估计。CD 和蓝光暂无数据。",
+    cardPhoto: "色卡实拍", showPhoto: "SHOW-D 实拍", characterPhoto: "眨眼角色卡实拍", evidenceList: "纹理清单",
+    atlasTitle: "查纹理", tableHelp: "怎么读这张表",
+    tableTerms: "δ 表示光源和相机的相对角度。周期是纹理沿轨道重复的间距，在同一个 δ 下决定主色。纯度是集中到目标周期的信号能量占比，越高主色通常越干净。选一个周期格或搜索纹理，就能查看候选。",
+    searchLabel: "按编号、spec 或周期查找", langLabel: "Switch to English", searchPh: "编号、spec 或周期，如 A37062、1.2 µm", theme: "切换纸色 / 夜色",
+    onlyMeasured: "只看有整块编码结果的", mapTitle: "周期覆盖图", mapAria: "周期覆盖图。每一行是一种纹理，横轴是周期（µm，对数刻度），颜色越深越纯。用左右方向键移动周期（按住 Shift 走得快），上下方向键换行，回车打开。",
     ranges: [["当前 δ 看得见的", null, null], ["全部周期", 0.75, 210], ["0.7–3 µm", 0.7, 3], ["3–20 µm", 3, 20], ["20 µm 以上", 20, 210]],
-    legendMeasured: "有整块实测结果（越深越纯）", legendTodo: "还没有结果", legendVisible: "当前 δ 下一阶落在可见光的周期",
+    legendMeasured: "有整块编码结果（越深越纯）", legendTodo: "还没有结果", legendVisible: "当前 δ 下一阶落在可见光的周期",
     deltaTitle: "视角因子 δ", deltaHelp: "δ = sin θ入 + sin θ出（沿轨道），由光源和相机的位置决定。周期 P 的纹理把 λ = 1000·P·δ nm 的光送到你眼前。色条只是单波长的粗略示意；真实颜色取决于光源、手机和机位，要用 disc-probe 的颜色模型算。",
     loading: "正在解开数据……", noDecompress: "这个浏览器不支持解压（需要 Chrome 80+、Edge 80+、Firefox 113+ 或 Safari 16.4+）。数据也在 atlas/dvd/ 的 CSV 里。",
     kinds: ["单周期", "双线", "三线", "亮度阶梯", "暗色", "二阶", "三阶"],
     status: ["还没搜", "已搜", "已收敛", "已穷举"], risk: ["低", "低，帧偏", "中", "高", "未知"],
-    emptyTitle: "点周期图上任意一格，看那里的纹理", emptyText: "也可以在右上角输入编号或 spec。每一格列出搜索找到的所有字节段，按名次排：整块实测的在前，GPU 近似值在后。",
+    emptyTitle: "点周期图上任意一格，看那里的纹理", emptyText: "也可以搜索编号、spec 或周期。每格按名次列出候选，整块编码结果在前，GPU 近似值在后。",
     progHead: ["", "目标", "GPU 搜完", "整块精修完", "收敛"], progRows: ["粗网格", "加密", "合计"],
+    progTips: ["", "这轮安排搜索的目标数", "已完成 GPU 搜索的比例", "已在完整 ECC 块上精修的比例", "达到停止条件的目标数"],
     progNote: (m) => `已有整块实测结果的目标 ${m.whole_pct}%。粗网格跑完之后才轮到加密，这一轮计划 ${m.end} 结束。`,
     hereN: (n) => `这个位置有 ${n} 个目标`, pickHint: "按目前最好的纯度排序，选一个看它的全部候选。缩小周期范围可以点得更准。",
     status_: "状态", period: "周期区间", density: "搜索密度", dense: "加密", coarse: "粗网格", ring: "排队优先级（0 最先）", todoInherited: "还没单独搜（已继承实测结果）", linesAt: (d) => `δ ${d} 时一阶落在`,
     back: (n) => `返回这 ${n} 个目标`, pickHead: ["目标", "周期", "状态", "最好纯度"], periodHit: (p, n) => `周期 ${p} µm：${n} 个目标`,
-    thPurityTip: "每条线上的能量占比（0–1）；双线、三线按顺序列出每条线", thRiskTip: "读盘风险的模型分档，不是真机读盘测试", thF512Tip: "长段同极性数据的比例（%），越低越好读",
+    pickTips: ["要找的纹理种类与目标", "目标周期的范围（µm）", "目标目前的搜索状态", "候选的最佳整块纯度"],
+    thRankTip: "候选名次，以及整块编码结果或 GPU 近似", thSpecTip: "沿轨道重复写入的十六进制字节", thPeriodTip: "候选的主周期（µm）",
+    thPurityTip: "每条线上的能量占比（0–1）；双线、三线按顺序列出每条线", thRiskTip: "用编码信号估计的读盘风险", thF512Tip: "长段同极性数据的比例（%），越低越好读",
     colsTitle: "这些列是什么意思", colsBody: "<dt>整块 / 近似</dt><dd>整块：在完整的 DVD ECC 块上用 CPU 测过；近似：只有 GPU 在随机填充上的估计。</dd><dt>纯度</dt><dd>这段数据的能量有多少正好落在目标周期上，1 是完美的一条线。双线、三线每条线各一个数。条形按目标配比折算。</dd><dt>风险</dt><dd>按长段同极性（F512）和帧偏的模型阈值分档：低、低（帧偏）、中、高。不是真光驱上的读盘测试。</dd><dt>F512</dt><dd>512 位窗口里平均电平偏得太多的比例（%），越低越不容易读错。</dd>",
     mapHelpTitle: "这张图怎么看", mapHelpBody: "<p>每一行是一种纹理，横轴是周期（对数刻度）。深色表示已有整块实测结果，越深越纯；底部细线表示还没有结果。默认只显示在当前 δ 下一阶看得见的周期；拖动 δ，范围跟着变。</p><p>二阶、三阶：用更高级次的衍射出颜色，适合长周期。暗色：没有固定周期，用来把一片区域压暗。</p>", visible: "设计机位可见比例",
     candCount: "候选", candOf: (n, w) => `${n} 个（${w} 个整块实测）`, noPeriod: "无固定周期",
@@ -260,25 +313,38 @@ const I18N = {
     noCands: "这个目标还没有任何候选。", invisible: "不可见", nm: "nm",
     tipTargets: (n, p) => !n ? "这里没有目标" : `${n} 个目标` + (p == null ? "，还没有结果" : `，最好纯度 ${p.toFixed(2)}`), kindLabel: "种类",
     status2: (m) => `数据快照 ${m.snapshot}，搜索轮次 ${m.epoch}。这份数据按 GPL-3.0-or-later 授权，出处和每个文件的校验和见 PROVENANCE.json。`,
-    readme: "说明", label: labelZh, noHit: "没找到。试试编号的开头、spec 的开头，或一个周期（µm）。", specHit: "spec",
+    label: labelZh, noHit: "没找到。试试编号的开头、spec 的开头，或一个周期（µm）。", specHit: "spec",
   },
   en: {
-    subtitle: "DVD texture atlas, preview", searchLabel: "Find by ID or spec", langLabel: "切换到中文", searchPh: "ID, spec or period, e.g. A37062, 1.2 µm", theme: "Switch paper / ink theme",
-    notice: (m) => `<strong>Preview:</strong> every colour here is a model prediction; none has been checked against a photograph. DVD only; CD and Blu-ray have not started. Snapshot ${m.snapshot}; this run is planned to finish on ${m.end}.`,
-    onlyMeasured: "Measured only", mapTitle: "Period coverage map", mapAria: "Period coverage map. One row per texture kind, period in µm on a log scale, darker is purer. Left and right arrows move along the period (hold Shift for big steps), up and down change row, Enter opens.",
+    guideTitle: "DVD texture atlas", intro: "Look up the colours that different data textures on a DVD show at different angles.",
+    routesTitle: "What would you like to do?", burnRoute: "I just want to burn a colour disc",
+    burnSteps: "Skip the atlas. In the Disc Probe web app, calibrate your batch, start a new work, import a picture, enable colour, generate, burn and photograph the disc.",
+    theoryRoute: "I want to understand how it works", theoryStep: "Read How discs make pictures to see why they show colour.",
+    atlasRoute: "I want to pick textures or experiment", atlasStep: "Learn δ, period and purity, then look up textures for your setup.",
+    codeRoute: "I'm an agent or writing code", codeStep: "Read the schema and", examples: "query examples", queryTitle: "Query examples",
+    queryIntro: "Run this Python code from the data pack to list the five purest single-period textures near 1 µm.", readme: "Find more lookups in the README",
+    evidence: "DVD preview. DP fitted its colour table to six photographed test discs. Neo has __NEO_CARD_SPECS__ textures with colour samples and __NEO_SHOW_SPECS__ used on photographed SHOW-A–E discs (RITEKF1 DVD-R, GH70N, with overlap). For the __NEO_MODEL_SPECS__ unmatched textures, colour cues come from models. No CD or Blu-ray data yet.",
+    cardPhoto: "Test disc photo", showPhoto: "SHOW-D photo", characterPhoto: "Character disc photos", evidenceList: "Texture evidence list",
+    atlasTitle: "Look up textures", tableHelp: "How to read this table",
+    tableTerms: "δ describes the angles of the light and camera. Period is the repeat spacing along the track and sets the main colour at a given δ. Purity is the share of signal power at the target period, so higher values usually give a cleaner colour. Pick a cell or search to see the candidates.",
+    searchLabel: "Find by ID, spec or period", langLabel: "切换到中文", searchPh: "ID, spec or period, e.g. A37062, 1.2 µm", theme: "Switch paper / night theme",
+    onlyMeasured: "Whole-block results only", mapTitle: "Period coverage map", mapAria: "Period coverage map. One row per texture kind, period in µm on a log scale, darker is purer. Left and right arrows move along the period (hold Shift for big steps), up and down change row, Enter opens.",
     ranges: [["Visible at this δ", null, null], ["All periods", 0.75, 210], ["0.7–3 µm", 0.7, 3], ["3–20 µm", 3, 20], ["Above 20 µm", 20, 210]],
     legendMeasured: "Whole-block result (darker = purer)", legendTodo: "No result yet", legendVisible: "Periods whose first order is visible at this δ",
     deltaTitle: "Viewing factor δ", deltaHelp: "δ = sin θin + sin θout along the track, set by where the light and camera are. A texture of period P sends λ = 1000·P·δ nm toward you. The colour strip is a rough single-wavelength sketch; real colour depends on the lamp, the phone and the pose and needs disc-probe's colour model.",
     loading: "Unpacking data…", noDecompress: "This browser cannot decompress the data (needs Chrome 80+, Edge 80+, Firefox 113+ or Safari 16.4+). The same data is in the CSV files under atlas/dvd/.",
     kinds: ["Single", "Two-line", "Three-line", "Ladder", "Dark", "Order 2", "Order 3"],
     status: ["Not searched", "Searched", "Converged", "Exhausted"], risk: ["Low", "Low, lean", "Medium", "High", "Unknown"],
-    emptyTitle: "Click any cell on the period map to see its textures", emptyText: "Or type an ID or spec at the top right. Every cell lists all byte patterns the search found, in rank order: whole-block measurements first, GPU estimates after.",
+    emptyTitle: "Click any cell on the period map to see its textures", emptyText: "You can also search by ID, spec or period. Each cell ranks its candidates with whole-block encoding results first and GPU estimates after.",
     progHead: ["", "Targets", "GPU done", "Refined", "Converged"], progRows: ["Coarse grid", "Dense", "All"],
+    progTips: ["", "Number of scheduled search targets", "Share with a completed GPU search", "Share refined over full ECC blocks", "Targets that have met a stopping rule"],
     progNote: (m) => `${m.whole_pct}% of targets have a whole-block result. The dense pass starts once the coarse grid is done; this run is planned to end on ${m.end}.`,
     hereN: (n) => `${n} targets at this spot`, pickHint: "Sorted by best purity so far; pick one to see all its candidates. A narrower period range makes clicks more precise.",
     status_: "Status", period: "Period range", density: "Search density", dense: "Dense", coarse: "Coarse", ring: "Queue priority (0 first)", todoInherited: "Not searched on its own yet (inherited measurements)", linesAt: (d) => `At δ ${d} the first order lands at`,
     back: (n) => `Back to these ${n} targets`, pickHead: ["Target", "Period", "Status", "Best purity"], periodHit: (p, n) => `Period ${p} µm: ${n} targets`,
-    thPurityTip: "Share of the pattern's power on each line (0–1); mixes list each line in order", thRiskTip: "Model class for read risk, not a read test on a real drive", thF512Tip: "Share (%) of long same-polarity stretches; lower reads more reliably",
+    pickTips: ["Texture kind and search target", "Target period range (µm)", "Current search status for this target", "Best whole-block purity among candidates"],
+    thRankTip: "Candidate rank, with whole-block encoding or GPU estimate", thSpecTip: "The hexadecimal bytes written repeatedly along the track", thPeriodTip: "The candidate's main period (µm)",
+    thPurityTip: "Share of the pattern's power on each line (0–1); mixes list each line in order", thRiskTip: "Read risk estimated from the encoded signal", thF512Tip: "Share (%) of long same-polarity stretches; lower reads more reliably",
     colsTitle: "What these columns mean", colsBody: "<dt>whole / estimate</dt><dd>whole: measured by the CPU over complete DVD ECC blocks; estimate: a GPU approximation on random fill only.</dd><dt>Purity</dt><dd>How much of the pattern's power sits exactly on the target period; 1 would be a perfect single line. Mixes give one number per line. The bar is scaled by the target's shares.</dd><dt>Risk</dt><dd>Model classes from long same-polarity runs (F512) and frame lean: low, low with lean frames, medium, high. Not a read test on a real drive.</dd><dt>F512</dt><dd>Share (%) of 512-bit windows whose mean level drifts too far; lower is less likely to misread.</dd>",
     mapHelpTitle: "How to read this map", mapHelpBody: "<p>Each row is one texture kind; the x axis is period on a log scale. Dark marks have a whole-block result, darker is purer; a thin line at the bottom means no result yet. By default only periods whose first order is visible at the current δ are shown; move δ and the range follows.</p><p>Order 2 and order 3 make colour with higher diffraction orders, for long periods. Dark textures have no fixed period; they darken an area.</p>", visible: "Visible in design poses",
     candCount: "Candidates", candOf: (n, w) => `${n} (${w} whole-block)`, noPeriod: "No fixed period",
@@ -288,7 +354,7 @@ const I18N = {
     noCands: "No candidates for this target yet.", invisible: "invisible", nm: "nm",
     tipTargets: (n, p) => !n ? "No targets here" : `${n} target${n > 1 ? "s" : ""}` + (p == null ? ", no result yet" : `, best purity ${p.toFixed(2)}`), kindLabel: "Kind",
     status2: (m) => `Data snapshot ${m.snapshot}, search run ${m.epoch}. Licensed GPL-3.0-or-later; sources and file checksums are in PROVENANCE.json.`,
-    readme: "Read me", label: labelEn, noHit: "Nothing found. Try the start of an ID, the start of a spec, or a period in µm.", specHit: "spec",
+    label: labelEn, noHit: "Nothing found. Try the start of an ID, the start of a spec, or a period in µm.", specHit: "spec",
   },
 };
 function labelZh(id, k) {
@@ -326,9 +392,11 @@ async function load() {
   candsOf = T.map(() => []);
   for (const c of C) candsOf[c[0]].push(c);
   for (const list of candsOf) list.sort((a, b) => a[1] - b[1]);
-  T.forEach((t, i) => byId.set(t[0], i));
+  T.forEach((t, i) => byId.set(t[0].toUpperCase(), i));
   for (const c of C) { const s = c[3].toUpperCase(); if (!specIndex.has(s)) specIndex.set(s, []); specIndex.get(s).push(c[0]); }
-  applyLang(); fromHash();
+  applyLang();
+  fromHash();
+  if (selected >= 0) sheet().scrollIntoView();
 }
 
 /* ---------- colour of a single wavelength (rough sketch) ---------- */
@@ -518,15 +586,18 @@ function revealSheet() {
 }
 function openPick(list) {
   picked = list; selected = -1; showAllPick = false; backTo = null;
-  try { if (location.hash) history.pushState(null, "", location.pathname + location.search); } catch (e) {}
+  try { if (location.hash !== "#atlas") history.pushState(null, "", "#atlas"); } catch (e) {}
   renderPick(); draw(); revealSheet();
+}
+function tableHeader(labels, tips) {
+  return labels.map((label, i) => `<th scope="col">${tips[i] ? `<abbr title="${esc(tips[i])}">${esc(label)}</abbr>` : esc(label)}</th>`).join("");
 }
 function renderEmpty() {
   const m = D.meta, s = L(), p = m.progress || {};
   const row = (name, r) => r ? `<tr><th scope="row">${name}</th><td>${r.jobs}</td><td>${pc(r.gpu_restarts_complete, r.jobs)}</td><td>${pc(r.cpu_refined_round, r.jobs)}</td><td>${r.converged_or_exhausted}</td></tr>` : "";
   sheet().innerHTML = `<h2 class="t">${s.emptyTitle}</h2><p class="small">${s.emptyText}</p>
-    <table class="progress"><thead><tr>${s.progHead.map((x) => `<th scope="col">${x}</th>`).join("")}</tr></thead>
-    <tbody>${row(s.progRows[0], p.coarse_pass)}${row(s.progRows[1], p.dense_pass)}${row(s.progRows[2], p.all_jobs)}</tbody></table>
+    <div class="tablewrap"><table class="progress"><thead><tr>${tableHeader(s.progHead, s.progTips)}</tr></thead>
+    <tbody>${row(s.progRows[0], p.coarse_pass)}${row(s.progRows[1], p.dense_pass)}${row(s.progRows[2], p.all_jobs)}</tbody></table></div>
     <p class="small">${s.progNote(m)}</p>`;
 }
 const pc = (a, b) => (b ? (100 * a / b).toFixed(1) + "%" : "–");
@@ -534,7 +605,7 @@ let showAllPick = false;
 function renderPick() {
   const s = L(), all = picked.slice().sort((a, b) => (T[b][8] ?? -1) - (T[a][8] ?? -1)), list = showAllPick ? all : all.slice(0, 40);
   sheet().innerHTML = `<h2 class="t">${s.hereN(all.length)}</h2><p class="small">${s.pickHint}</p>
-    <table class="pick"><thead><tr>${s.pickHead.map((x) => `<th scope="col">${x}</th>`).join("")}</tr></thead><tbody>${list.map((i) => { const t = T[i]; return `<tr tabindex="0" data-i="${i}">
+    <table class="pick"><thead><tr>${tableHeader(s.pickHead, s.pickTips)}</tr></thead><tbody>${list.map((i) => { const t = T[i]; return `<tr tabindex="0" data-i="${i}">
       <td>${esc(t[1] === 0 ? s.kinds[0] : s.kinds[t[1]] + (lang === "zh" ? "，" : ", ") + s.label(t[0], t[1]))}</td><td class="num">${t[2] == null ? "" : f3(t[2]) + "–" + f3(t[3]) + " µm"}</td>
       <td>${s.status[t[4]]}</td><td class="num">${f2(t[8])}</td></tr>`; }).join("")}</tbody></table>
     ${all.length > list.length ? `<button class="more" id="morePick">${s.showAll(all.length)}</button>` : ""}`;
@@ -562,6 +633,8 @@ function renderTarget() {
   const lead = list.find((c) => c[2]) || list[0];
   const linePeriods = lead ? lead[5] : (t[2] != null ? [Math.sqrt(t[2] * t[3])] : []);
   const periodsVary = new Set(list.map((c) => (c[4] == null ? "" : c[4].toPrecision(3)))).size > 1;
+  const headers = [s.thRank, s.thSpec, ...(periodsVary ? [s.thPeriod] : []), s.thPurity, s.thRisk, s.thF512];
+  const headerTips = [s.thRankTip, s.thSpecTip, ...(periodsVary ? [s.thPeriodTip] : []), s.thPurityTip, s.thRiskTip, s.thF512Tip];
   const statusText = t[4] === 0 && t[9] > 0 ? s.todoInherited : s.status[t[4]];
   const what = t[1] === 0 ? (t[2] == null ? "" : `${s.kinds[0]} ${f3(t[2])} µm`) : s.kinds[t[1]] + (lang === "zh" ? "，" : ", ") + s.label(t[0], t[1]);
   sheet().innerHTML = `${backTo ? `<button class="back" type="button" id="back">← ${s.back(backTo.length)}</button>` : ""}<h2 class="t">${esc(what || s.kinds[t[1]])}</h2>
@@ -576,7 +649,7 @@ function renderTarget() {
       <dt>${s.candCount}</dt><dd>${s.candOf(t[10], t[9])}</dd>
     </dl>
     ${linePeriods.length ? `<div class="lines"><span class="lbl">${s.linesAt(delta.toFixed(2))}</span>${linePeriods.map(lambdaCell).join("")}</div>` : ""}
-    ${list.length ? `<div class="tablewrap"><table class="cands"><thead><tr><th scope="col">${s.thRank}</th><th scope="col">${s.thSpec}</th>${periodsVary ? `<th scope="col">${s.thPeriod}</th>` : ""}<th scope="col"><abbr title="${s.thPurityTip}">${s.thPurity}</abbr></th><th scope="col"><abbr title="${s.thRiskTip}">${s.thRisk}</abbr></th><th scope="col"><abbr title="${s.thF512Tip}">${s.thF512}</abbr></th></tr></thead><tbody>
+    ${list.length ? `<div class="tablewrap"><table class="cands"><thead><tr>${tableHeader(headers, headerTips)}</tr></thead><tbody>
       ${shown.map((c) => { const bar = barValue(t, c); return `<tr class="${c[1] === 1 && c[2] ? "win" : ""}">
         <td><span class="num">${c[1]}</span> <span class="basis ${c[2] ? "w" : ""}">${c[2] ? (c[1] === 1 ? s.winner : s.whole) : s.proxy}</span></td>
         <td><code>${esc(c[3])}</code><button class="copy" type="button" data-copy="${esc(c[3])}" aria-label="${s.copy} ${esc(c[3])}" title="${s.copy}">${COPY_ICON}</button></td>
@@ -588,7 +661,7 @@ function renderTarget() {
       ${list.length > shown.length ? `<button class="more" id="more">${s.showAll(list.length)}</button>` : ""}
       ${hasProxy ? `<p class="small">${s.proxyNote}</p>` : ""}
       <details class="help"><summary>${s.colsTitle}</summary><dl>${s.colsBody}</dl></details>` : `<p class="small">${s.noCands}</p>`}`;
-  const bk = document.getElementById("back"); if (bk) bk.addEventListener("click", () => { picked = backTo; backTo = null; selected = -1; try { history.pushState(null, "", location.pathname + location.search); } catch (e) {} renderPick(); draw(); });
+  const bk = document.getElementById("back"); if (bk) bk.addEventListener("click", () => { picked = backTo; backTo = null; selected = -1; try { history.pushState(null, "", "#atlas"); } catch (e) {} renderPick(); draw(); });
   const more = document.getElementById("more"); if (more) more.addEventListener("click", () => { showAllCands = true; renderTarget(); });
   sheet().querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(b.dataset.copy); b.classList.add("done"); b.title = s.copied; setTimeout(() => { b.classList.remove("done"); b.title = s.copy; }, 1200); } catch (e) {}
@@ -645,9 +718,10 @@ function applyLang() {
   document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = s[el.dataset.i18nTitle]; el.setAttribute("aria-label", el.title); });
   document.querySelectorAll("[data-i18n-aria]").forEach((el) => el.setAttribute("aria-label", s[el.dataset.i18nAria]));
   document.getElementById("langLabel").textContent = lang === "zh" ? "EN" : "中文";
-  document.getElementById("readme").href = lang === "zh" ? "README.zh.md" : "README.md";
+  for (const link of languageLinks) link.el.href = lang === "zh" ? link.zh : link.en;
+  document.title = `Disc Neo · ${s.guideTitle}`;
   deltaOut.textContent = delta.toFixed(2);
-  if (D) { document.getElementById("notice").innerHTML = s.notice(D.meta); document.getElementById("status").textContent = s.status2(D.meta); }
+  if (D) document.getElementById("status").textContent = s.status2(D.meta);
   document.getElementById("legend").innerHTML = `<span><i style="background:var(--ink)"></i>${s.legendMeasured}</span>
     <span><i style="background:linear-gradient(transparent 70%, var(--rule-strong) 70%)"></i>${s.legendTodo}</span>
     <span><i style="background:color-mix(in srgb, var(--ink) 8%, transparent);border:1px solid var(--rule)"></i>${s.legendVisible}</span>`;
@@ -655,24 +729,38 @@ function applyLang() {
   renderRange(); renderSheet(); draw();
   if (D && document.activeElement === map) showCursor(); else { tip.style.display = "none"; hoverLine.style.display = "none"; }
 }
+const languageLinks = Array.from(document.querySelectorAll("[data-en-href]"), el => ({
+  el, zh: el.getAttribute("href"), en: el.dataset.enHref,
+}));
 document.getElementById("lang").addEventListener("click", () => { lang = lang === "zh" ? "en" : "zh"; try { localStorage.setItem("neo-lang", lang); } catch (e) {} applyLang(); });
-document.getElementById("theme").addEventListener("click", () => {
-  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-  document.documentElement.dataset.theme = dark ? "light" : "dark";
-  try { localStorage.setItem("neo-theme", document.documentElement.dataset.theme); } catch (e) {}
+const colourScheme = matchMedia("(prefers-color-scheme: dark)");
+const wordmark = document.getElementById("wordmark"), paperMark = wordmark.getAttribute("src");
+let theme;
+try { theme = localStorage.getItem("neo-theme"); } catch (e) {}
+function applyTheme() {
+  const dark = theme === "dark" || (theme !== "light" && colourScheme.matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  wordmark.src = dark ? wordmark.dataset.ink : paperMark;
+  document.getElementById("theme").setAttribute("aria-pressed", String(dark));
   draw();
+}
+document.getElementById("theme").addEventListener("click", () => {
+  theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  try { localStorage.setItem("neo-theme", theme); } catch (e) {}
+  applyTheme();
 });
-try { const th = localStorage.getItem("neo-theme"); if (th) document.documentElement.dataset.theme = th; } catch (e) {}
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+colourScheme.addEventListener("change", applyTheme);
 function fromHash() {
-  const id = decodeURIComponent(location.hash.slice(1));
-  if (id && byId.has(id)) { if (T[selected]?.[0] !== id) select(byId.get(id), true); }
-  else if (backTo) { picked = backTo; backTo = null; selected = -1; renderPick(); draw(); }
-  else if (!id && selected >= 0) { selected = -1; picked = null; renderEmpty(); draw(); }   /* hashchange and popstate both fire: stay idempotent */
+  const id = location.hash.slice(1);
+  const index = byId.get(id.toUpperCase());
+  if (index != null) { if (selected !== index) select(index, true); }
+  else if (id === "atlas" && backTo) { picked = backTo; backTo = null; selected = -1; renderPick(); draw(); }
+  else if (selected >= 0) { selected = -1; backTo = null; picked = null; renderEmpty(); draw(); }
 }
 window.addEventListener("hashchange", fromHash);
 window.addEventListener("popstate", fromHash);
 let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(draw, 80); });
+applyTheme();
 applyLang();
 load().catch((e) => { sheet().innerHTML = `<p class="loading">${esc(e.message)}</p>`; });
 </script>

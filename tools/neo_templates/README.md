@@ -2,14 +2,23 @@
 
 [中文说明](README.zh.md) · [Field reference](SCHEMA.md) · [Provenance](PROVENANCE.json) · Licence: GPL-3.0-or-later
 
+Look up the colours that different data textures on a DVD show at different angles.
+
+## What would you like to do?
+
+- **I just want to burn a colour disc.** You can skip this atlas. In the Disc Probe web app, calibrate your batch, start a new work, import a picture, turn on colour, generate the image, burn and photograph the disc. [Follow the web walkthrough]({{COLOUR_EN}}).
+- **I want to understand how it works.** See how the tracks on a disc turn light into a picture. [Read How discs make pictures]({{THEORY_EN}}).
+- **I want to pick textures or experiment.** Choose a cell on the period map, or search by ID, spec or period. [Open the offline reader](index.html#atlas).
+- **I'm an agent or writing code.** Use the [field reference](SCHEMA.md) and [query examples](#query-examples) to read the CSV and JSON files.
+
 Burn a short byte pattern over and over as ordinary data on a DVD±R and the marks along the track form a grating. In
 the right light the data area then shows a colour that depends on the pattern's period. This pack is a lookup table
 of such patterns ("textures"). For each period range it gives the best pattern found so far, how cleanly that pattern
 concentrates at the wanted period, and how far the search there has got.
 
-**Start here:** open `index.html` in any modern browser. It works offline and shows every target on a period
-map; click a cell to see its winner and all its runner-ups, or search by ID or spec. The files below hold the same
-data for scripts and agents.
+In the reader, **δ** describes the angles of the light and camera. The **period** is the repeat spacing along a
+track and sets the main colour at a given δ. **Purity** measures how much signal power is at the target period.
+Higher purity usually gives a cleaner colour.
 
 What you get:
 
@@ -29,18 +38,27 @@ What you get:
 - **The A3 v3 texture colour cards** (`texture-cards/`): 637 textures drawn as predicted colour across the viewing
   range, under white LED and D65 light, with their data and generator scripts.
 
-## Status: preview, read this first
+## Preview status and physical evidence
+
+Disc Probe fitted its colour table to samples from six photographed test discs. That fitted table generates
+colour estimates for the web app. Neo's own wavelength strip and A3 cards use the atlas models.
+
+- **{{CARD_SPECS}} Neo candidate textures** match sampled colour records from the six test discs. [Photo of a test disc](colour-card-photo.jpg).
+- **{{SHOW_SPECS}} Neo candidate textures** match byte patterns used on photographed SHOW-A–E showcase discs. The fox character disc was also burned and photographed. [Photo of SHOW-D]({{SHOWCASE_PHOTO}}) · [Character disc photos](character-disc-photo.png).
+- **{{MODEL_SPECS}} other Neo candidate textures** have no match in these two sources. Their atlas colour indications come from models.
+
+These are distinct byte patterns within each group, including runner-ups. The two physical evidence groups can overlap.
+The disc and drive for this evidence are RITEKF1 DVD-R and GH70N. Photos are tied to the recorded setups.
+[Download the matching pattern list](colour-evidence.csv).
 
 | | |
 |---|---|
-| Media | **DVD only.** The CD and Blu-ray searches have not started. |
+| Media | **DVD only.** There is no CD or Blu-ray data yet. |
 | Snapshot | {{SNAPSHOT_HUMAN}}, from search run `{{EPOCH}}`. The run is planned to finish on {{END_DATE}} (hard stop {{HARD_DATE}}). |
 | Coarse pass | {{COARSE_GPU}} of {{COARSE_JOBS}} coarse targets ({{COARSE_GPU_PCT}} %) have finished all GPU restarts; {{COARSE_REF}} ({{COARSE_REF_PCT}} %) have also finished whole-block CPU refinement.{{HELPER_NOTE_EN}} |
 | Dense pass | {{DENSE_GPU}} of {{DENSE_JOBS}} finer targets ({{DENSE_GPU_PCT}} %) have finished GPU search; {{DENSE_REF}} ({{DENSE_REF_PCT}} %) are refined. |
 | Results | {{WHOLE_TARGETS}} of {{ALL_JOBS}} targets ({{WHOLE_PCT}} %) have at least one whole-block measured pattern. {{CONVERGED}} targets meet the stopping rule (converged). |
 
-- **Every colour here is a model prediction.** None has been checked against a photograph of a burned disc yet.
-  Photo checks of a colour-card disc are under way.
 - **Best found is not proven best.** The search is a randomised search with restarts plus a complete enumeration of
   patterns up to 2 bytes only. "Converged" means five independent restarts agreed within 0.005 purity. That is an
   empirical stopping rule, not a proof of optimality.
@@ -92,6 +110,8 @@ deliberately ships no "pick a colour" list for casual use. It ships the raw mate
 The intended workflow is to pair them with an AI coding agent: describe your phone, light and shooting position, and
 let the agent pick textures from this data and simulate them for that setup.
 
+<a id="query-examples"></a>
+
 ## How to look things up
 
 **By period.** A grating of period P (µm) sends wavelength λ = 1000 · P · δ nm toward you, where δ = sin θ_in +
@@ -120,7 +140,8 @@ tilting the disc.
 
 | Path | What it is |
 |---|---|
-| `index.html` | Offline reader: period map, every cell's ranked candidates, search, a δ slider; English and Chinese |
+| `index.html` | Bilingual guide and offline reader with a period map, ranked candidates, search and a δ slider |
+| `colour-evidence.csv` | Candidate byte patterns that match sampled card colours or were used on photographed SHOW-A–E discs |
 | `atlas/dvd/singles.csv` | One row per single-period target with a measured winner: id, rev, spec, period, purity, F512, risk, status, δ windows |
 | `atlas/dvd/multi_line.csv` | Two- and three-period targets: id, kind, spec, periods, shares, purity per line, status |
 | `atlas/dvd/candidates.csv` | Every ranked candidate of every target: rank, whole-block or GPU estimate, spec, main period, purity, risk |

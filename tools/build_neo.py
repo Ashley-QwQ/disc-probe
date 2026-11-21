@@ -817,6 +817,58 @@ def render(template, values):
     return text
 
 
+DP_DOC_BASE = 'https://github.com/Ashley-QwQ/disc-probe/blob/main/'
+DP_DOCS = {
+    'COLOUR_EN': ('docs/colour.md', 'In the web app'),
+    'COLOUR_ZH': ('docs/colour.zh.md', '在网页里做'),
+    'THEORY_EN': ('docs/how-discs-make-pictures.md', ''),
+    'THEORY_ZH': ('docs/how-discs-make-pictures.zh.md', ''),
+    'SHOWCASE_PHOTO': ('docs/showcase/showd_8145_card.jpg', ''),
+}
+
+
+def doc_url(path, heading):
+    return DP_DOC_BASE + path + ('#' + heading.lower().replace(' ', '-') if heading else '')
+
+
+def require_onboarding_docs():
+    problems = []
+    for path, heading in DP_DOCS.values():
+        source = REPO / path
+        if not source.is_file():
+            problems.append(f'missing {path}')
+        elif heading and f'## {heading}' not in source.read_text(encoding='utf-8-sig').splitlines():
+            problems.append(f'missing section "{heading}" in {path}')
+    if problems:
+        raise SystemExit('Disc Neo onboarding links require the Disc Probe documents:\n' + '\n'.join(problems))
+
+
+def canonical_spec(spec):
+    """The texlib byte-pattern identity, without rotation or reversal."""
+    spec = spec.upper()
+    for width in range(2, len(spec), 2):
+        if len(spec) % width == 0 and spec == spec[:width] * (len(spec) // width):
+            return spec[:width]
+    return spec
+
+
+def write_colour_evidence(cands, stage):
+    """Join the reader's candidates to exact byte specs found in physical records."""
+    specs = {canonical_spec(c[3]) for c in cands}
+    with (TEMPLATES / 'colour-evidence.csv').open(encoding='utf-8', newline='') as f:
+        reader = csv.DictReader(f)
+        matches = [row for row in reader if row['spec'] in specs]
+    with (stage / 'colour-evidence.csv').open('w', encoding='utf-8', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=reader.fieldnames, lineterminator='\n')
+        writer.writeheader()
+        writer.writerows(matches)
+    shutil.copyfile(TEMPLATES / 'colour-card-photo.jpg', stage / 'colour-card-photo.jpg')
+    shutil.copyfile(TEMPLATES / 'character-disc-photo.png', stage / 'character-disc-photo.png')
+    return dict(CARD_SPECS=sum(row['colour_card_sample'] == '1' for row in matches),
+                SHOW_SPECS=sum(row['showcase_a_to_e'] == '1' for row in matches),
+                MODEL_SPECS=len(specs) - len(matches))
+
+
 def pct(a, b):
     return f'{100 * a / b:.1f}' if b else '0'
 
@@ -914,6 +966,20 @@ def find_font(ref):
     return None, None
 
 
+def reader_brand_assets():
+    import base64
+    web = REPO / 'discprobe' / 'web'
+    assets = {'TOKENS': (web / 'tokens.css').read_text(encoding='utf-8')}
+    for key, name, mime in (
+        ('WORDMARK_PAPER', 'disc-neo-wordmark-paper.svg', 'image/svg+xml'),
+        ('WORDMARK_INK', 'disc-neo-wordmark-ink.svg', 'image/svg+xml'),
+        ('FAVICON', 'neo/favicon.ico', 'image/x-icon'),
+    ):
+        data = base64.b64encode((web / 'brand' / name).read_bytes()).decode('ascii')
+        assets[key] = f'data:{mime};base64,{data}'
+    return assets
+
+
 def build_reader(coverage_csv, cand_path, values, dest, cards_ref):
     """index.html: one offline page with the data gzip+base64 inside (file:// cannot fetch siblings).
 
@@ -959,7 +1025,10 @@ def build_reader(coverage_csv, cand_path, values, dest, cards_ref):
     packed = base64.b64encode(gzip.compress(blob.encode('utf-8'), 9)).decode('ascii')
     font, ofl = find_font(cards_ref)
     html = (TEMPLATES / 'reader.html').read_text(encoding='utf-8')
-    for key, val in find_art(cards_ref).items():
+    evidence = {key: f'{count:,}' for key, count in write_colour_evidence(cands, dest.parent).items()}
+    links = {key: doc_url(*target) for key, target in DP_DOCS.items()}
+    values.update(links, **evidence)
+    for key, val in {**find_art(cards_ref), **reader_brand_assets(), **links, **evidence}.items():
         assert html.count(f'__NEO_{key}__') >= 1, key
         html = html.replace(f'__NEO_{key}__', val)
     for key, val in (('__NEO_DATA__', packed), ('__NEO_FONT__', base64.b64encode(font).decode('ascii') if font else ''),
@@ -969,6 +1038,14 @@ def build_reader(coverage_csv, cand_path, values, dest, cards_ref):
         html = html.replace(key, val)
     dest.write_text(html, encoding='utf-8', newline=chr(10))
     return dict(targets=len(targets), candidates=len(cands), json_bytes=len(blob), html_bytes=dest.stat().st_size)
+
+
+def write_docs(folder, cand_path, values, stage, reader_ref):
+    values = dict(values)
+    reader = build_reader(folder / 'coverage.csv', cand_path, values, stage / 'index.html', reader_ref)
+    for name in ('README.md', 'README.zh.md', 'SCHEMA.md'):
+        (stage / name).write_text(render(name, values), encoding='utf-8', newline='\n')
+    return reader
 
 
 # --------------------------------------------------------------------------- checks
@@ -1006,8 +1083,10 @@ def check(root):
         try:
             import base64, gzip, re
             html = (root / 'index.html').read_text(encoding='utf-8')
-            if '__NEO_' in html or re.search(r'(?:src|href)\s*=\s*[\"\']https?://', html):
-                problems.append('reader has unresolved placeholders or external assets')
+            doc_urls = {doc_url(*target) for target in DP_DOCS.values()}
+            external = re.findall(r'\b(src|href)\s*=\s*[\"\'](https?://[^\"\']+)[\"\']', html)
+            if '__NEO_' in html or any(attr == 'src' or url not in doc_urls for attr, url in external):
+                problems.append('reader has unresolved placeholders or unexpected external URLs')
             packed = re.search(r'const DATA_B64 = "([A-Za-z0-9+/=]+)";', html)
             data = json.loads(gzip.decompress(base64.b64decode(packed.group(1), validate=True)))
             if len(data['t']) != data['meta']['targets'] or len({t[0] for t in data['t']}) != len(data['t']):
@@ -1045,10 +1124,7 @@ def docs_only(args):
     if stage.exists():
         shutil.rmtree(stage)
     shutil.copytree(args.out, stage)
-    for name in ('README.md', 'README.zh.md', 'SCHEMA.md'):
-        (stage / name).write_text(render(name, values), encoding='utf-8', newline='\n')
-    prov['reader'] = build_reader(stage / 'atlas' / 'dvd' / 'coverage.csv', args.work / 'candidates.jsonl', values,
-                                  stage / 'index.html', args.reader_ref)
+    prov['reader'] = write_docs(stage / 'atlas' / 'dvd', args.work / 'candidates.jsonl', values, stage, args.reader_ref)
     head = subprocess.check_output(['git', '-C', str(REPO), 'rev-parse', 'HEAD'], text=True).strip()
     dirty = bool(subprocess.check_output(['git', '-C', str(REPO), 'status', '--porcelain', '--', 'tools/build_neo.py',
                                           'tools/neo_templates'], text=True).strip())
@@ -1436,9 +1512,7 @@ def build_snapshot(args, guard):
             ['git', '-C', str(REPO), 'status', '--porcelain', '--', 'tools/build_neo.py', 'tools/neo_templates'], text=True).strip()),
             python=platform.python_version()))
     values = doc_values(meta, counts, prov); values['_progress'] = stats
-    for name in ('README.md', 'README.zh.md', 'SCHEMA.md'):
-        (stage / name).write_text(render(name, values), encoding='utf-8', newline='\n')
-    prov['reader'] = build_reader(folder / 'coverage.csv', args.work / 'candidates.jsonl', values, stage / 'index.html', args.reader_ref)
+    prov['reader'] = write_docs(folder, args.work / 'candidates.jsonl', values, stage, args.reader_ref)
     write_license(stage)
     prov['package_files'] = inventory(stage)
     (stage / 'PROVENANCE.json').write_text(json.dumps(prov, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
@@ -1504,6 +1578,7 @@ def main():
         problems = check(args.out)
         print('\n'.join(problems) if problems else 'PASS'); return 1 if problems else 0
 
+    require_onboarding_docs()
     if args.docs_only:
         return docs_only(args)
     low_priority()
@@ -1586,9 +1661,7 @@ def main():
         builder=dict(script='tools/build_neo.py', commit=head, uncommitted_changes=dirty, python=platform.python_version()))
     values = doc_values(meta, counts, prov)
     values['_progress'] = meta['progress']
-    for name in ('README.md', 'README.zh.md', 'SCHEMA.md'):
-        (stage / name).write_text(render(name, values), encoding='utf-8', newline='\n')
-    reader = build_reader(stage / 'atlas' / 'dvd' / 'coverage.csv', args.work / 'candidates.jsonl', values, stage / 'index.html', args.reader_ref)
+    reader = write_docs(stage / 'atlas' / 'dvd', args.work / 'candidates.jsonl', values, stage, args.reader_ref)
     log('reader', reader)
     prov['reader'] = reader
     write_license(stage)
