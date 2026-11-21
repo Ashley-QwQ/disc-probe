@@ -142,7 +142,8 @@ try {
   await evaluate('document.getElementById("back").click()'); await until('location.hash==="#/lobby"');
   await evaluate('document.getElementById("next").click()'); await until('document.documentElement.dataset.mode==="newplan"');
   await evaluate('navCatalogueName="最新盘状态";dispatchEvent(new Event("dp-catalogue-changed"))');
-  await evaluate('document.getElementById("back").click()');await until('!document.documentElement.dataset.mode');
+  await evaluate('document.getElementById("back").click()');
+  await until('location.hash==="#/lobby" && document.documentElement.dataset.navigation==="ready" && !document.documentElement.dataset.mode');
   await evaluate('document.getElementById("library").click()');
   await until('document.documentElement.dataset.home==="library" && document.getElementById("name").textContent.includes("最新盘状态")');
   assert(await evaluate('navStateReads>=2'));

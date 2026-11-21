@@ -119,7 +119,8 @@ def test_finding_2_burn_grant_matches_one_job(tmp_path):
         assert run(original, token) == (403, {"error": mismatch})
         token = permit()
         disc["medium_id"] = "sample-b"
-        assert run(original, token) == (403, {"error": "burn token does not match the current medium"})
+        assert run(original, token) == (403, {"error": "burn token does not match the current medium",
+                                             "code": "disc_changed"})
         runner.assert_not_called()
         token = permit()
         status, job = run(original, token)

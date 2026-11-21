@@ -210,7 +210,7 @@
 .pc-slider-message:empty { display: none; }
 @media (max-width: 900px) {
   :root.cal-staged:has(#cal.pc-slider-open) .cal-photo-host { height: 34vh; }
-  :root.cal-staged #cal.pc-slider-open { top: calc(var(--edge) + var(--row) + 24px + 34vh); padding-top: 8px; }
+  :root.cal-staged #cal.pc-slider-open { --cal-sheet-top: calc(var(--edge) + var(--row) + 24px + 34vh); padding-top: 8px; }
 }
 .pc-manual > summary, .pc-phone-help > summary { min-height: 44px; align-content: center; cursor: pointer; }
 .pc-phone-block > div { min-width: 0; flex: 1; }

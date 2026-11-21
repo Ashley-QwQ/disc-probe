@@ -78,6 +78,7 @@ def lab(tmp_path):
         "    return True\n", encoding="utf-8")
     env = lab_env(virtual, dict(os.environ, LOCALAPPDATA=str(private), DISCPROBE_HOME=str(virtual.root),
                                DP_TEST_BROWSER=str(browser_calls), PYTHONPATH=str(tmp_path)))
+    env.pop("DISC_PROBE_NO_DRIVES", None)  # The Lab boot hook exposes only virtual drives.
     env.setdefault("DISPLAY", ":0")  # Existing browser-open tests use a stub on headless Linux too.
     return virtual, env, state, browser_calls
 

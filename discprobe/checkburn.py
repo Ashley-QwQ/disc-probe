@@ -7,9 +7,9 @@ from threading import Event
 
 from . import burner, discid, guide, info, mmc, recorded
 from .capacity import catalogue_capacity, positive_sectors, recordable_capacity
-from .checkburn_content import SECTOR, probe
 from .drive_lock import locked_drive
 
+SECTOR = 2048
 CAPACITY_REFERENCE = {0x11: 2298496, 0x1B: 2295104}
 LIGHT_GUIDE = dict(id='start-guide-light',
                    label={'zh': '新手引导 · 光怎么变成图', 'en': 'Start guide · How light becomes a picture'},
@@ -333,6 +333,8 @@ def _open_device(drive):
 @locked_drive('verify')
 def check(drive, *, iso=None, burn_log=None, dis_nominal=False, out='results', start_lba=None, cancel=None,
           device_factory=None):
+    from .checkburn_content import probe
+
     device_factory = device_factory or _open_device
     image = Path(iso).resolve() if iso is not None else None
     image_stat = image.stat() if image else None
@@ -405,14 +407,14 @@ def check(drive, *, iso=None, burn_log=None, dis_nominal=False, out='results', s
 
 
 def add_parser(sub):
-    parser = sub.add_parser('checkburn', help='刻后只读排查 / check a recorded disc without writing')
-    parser.add_argument('--drive', required=True, help='光驱 / drive (E: or /dev/sr0)')
-    parser.add_argument('--iso', help='原 ISO，用来抽样比对 / original ISO for sampled comparison')
-    parser.add_argument('--burn-log', help='确认对应这张盘的日志 / .burn.jsonl you have matched to this disc')
-    parser.add_argument('--start-lba', type=int, help='追加镜像的起始扇区 / start sector of an appended image')
-    parser.add_argument('--dis-nominal', action='store_true', help='用了 DIS 名义预设 / a nominal DIS preset was used')
-    parser.add_argument('--out', default='results', help='测量记录目录 / measurement records directory')
-    parser.add_argument('--json', action='store_true', help='输出 JSON / emit JSON')
+    parser = sub.add_parser('checkburn', help='check a recorded disc without writing')
+    parser.add_argument('--drive', required=True, help='drive (E: or /dev/sr0)')
+    parser.add_argument('--iso', help='original ISO for sampled comparison')
+    parser.add_argument('--burn-log', help='.burn.jsonl you have matched to this disc')
+    parser.add_argument('--start-lba', type=int, help='start sector of an appended image')
+    parser.add_argument('--dis-nominal', action='store_true', help='a nominal DIS preset was used')
+    parser.add_argument('--out', default='results', help='measurement records directory')
+    parser.add_argument('--json', action='store_true', help='emit JSON')
     parser.set_defaults(func=run)
 
 

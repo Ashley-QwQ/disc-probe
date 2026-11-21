@@ -168,7 +168,8 @@ def run_calibration(monkeypatch, tmp_path, *, capacity=None, explicit=None, cata
     monkeypatch.setattr(calibrate.subprocess, 'run', read)
     monkeypatch.setattr(calibrate.subprocess, 'Popen', child)
     monkeypatch.setattr(calibrate.guide, 'scan', lambda _: [SimpleNamespace(
-        kind=k, when=datetime.datetime.now(), simulated=False, path=k + '-result') for k in ('timing', 'geo')])
+        kind=k, when=datetime.datetime.now(), simulated=False, path=k + '-result',
+        fit={'measured_span_mm': [24.4, 56.1]}) for k in ('timing', 'geo')])
     monkeypatch.setattr(calibrate.guide, 'result_verdict', lambda *a: 'good')
     monkeypatch.setattr(calibrate.ui, 'say', lambda *a, **kw: None)
     monkeypatch.setattr(calibrate.ui, 'event', lambda event_type, **kw: events.append(dict(type=event_type, **kw)))
