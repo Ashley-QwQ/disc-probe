@@ -17,7 +17,7 @@ const style = index.match(/<style>([\s\S]*?)<\/style>/)[1];
 const metadata = JSON.parse(readFileSync(new URL('presetio/desk/desk.json', home), 'utf8'));
 const screenshotDir = resolve(process.env.PRESETIO_SHOTS_DIR || '.impeccable/review'); mkdirSync(screenshotDir, {recursive: true});
 const fixture = join(dir, 'sheet.html');
-const html = `<!doctype html><html data-home="library" data-motion="off"><meta charset="utf-8"><base href="${home.href}">
+const html = `<!doctype html><html data-home="library" data-motion="off" data-lang="en"><meta charset="utf-8"><base href="${home.href}">
 <style>${style}</style><link rel="stylesheet" href="${new URL('presetio.css', home)}">
 <body><button id="entry">预设导入导出 / Presets</button><pre id="result" hidden>PENDING</pre>
 <script type="module">
@@ -46,8 +46,9 @@ const api=async(url,opts)=>{
   if(failExport&&p?.operation==='export')return{ok:false,status:400,json:async()=>({error:'Mock export failed'})};
   if(p?.filename==='manual-dis-preset.json'){
     const preset=JSON.parse(p.text), valid=(preset.sectors??preset.totalSectors)>0;
+    const issues=valid?[]:['sectors must be a positive integer <= 9223372036854775807'];
     const entry={...row,preset,media:p.media,valid,image_compatible:valid,comparison:null,
-      issues:valid?[]:['sectors must be a positive integer <= 9223372036854775807']};
+      issues,issues_zh:issues};
     return {ok:true,json:async()=>({entries:[entry],written:valid&&p.operation==='import'?[{index:0,path:'presets/manual.json'}]:[],duplicates:[]})};
   }
   const data=!p?{version:1,presets:[{path:'presets/cd.json',name:'CD · 保存的预设 / Saved preset'}]}:
@@ -60,7 +61,7 @@ try {
   const ui=await init(document.getElementById('entry'),api);check(ui,'mounted');
   const sheet=ui.sheet, $=s=>sheet.querySelector(s);
   const knob=$('[role=slider]'), stage=$('.presetio-stage');
-  const compact=innerWidth<820||innerWidth/innerHeight<1.2;
+  const compact=innerWidth<820||innerWidth/innerHeight<1.5||innerWidth/innerHeight>2.4;
   const k=Math.max(innerWidth/2560,innerHeight/1440);
   const y=el=>new DOMMatrix(getComputedStyle(el).transform).m42;
   const part=name=>$('[data-layer="'+name+'"]');
@@ -75,12 +76,19 @@ try {
       near(y(part('doc_paper')),name==='import'?0:-1440,'paper '+name);
       near(y(part('doc_envelope')),name==='export'?0:1440,'envelope '+name);
       near(y(part('knob')),name==='export'?-art.knob.travel_px:name==='import'?art.knob.travel_px:0,'knob '+name);
+      const stageBox=stage.getBoundingClientRect();
+      const right=stageBox.left+k*Math.max(art.doc_paper_rect_px[2],art.doc_envelope_rect_px[2]);
+      for(const label of sheet.querySelectorAll('[data-move]')){
+        const bounds=label.getBoundingClientRect();
+        check(bounds.left>right&&bounds.right<innerWidth&&bounds.top>=0&&bounds.bottom<=innerHeight,'desk label stays clear and in frame');
+        check(document.elementFromPoint(bounds.x+bounds.width/2,bounds.y+bounds.height/2)===label,'desk label clickable');
+      }
     }
     for(const mode of ['import','export']){
       near(Number(getComputedStyle($('[data-led="'+mode+'"]')).opacity),name===mode?1:0,'LED '+mode);
       check($('#presetio-'+mode).inert===(name!==mode),'inactive content inert '+mode);
     }
-    check(knob.getAttribute('aria-valuetext').includes(name==='idle'?'Idle':name==='import'?'Import':'Export'),'slider accessible text');
+    check(knob.getAttribute('aria-valuetext')==={idle:'Idle',import:'Import',export:'Export'}[name],'slider accessible text');
   };
   const checkGeometry=()=>{
     check(sheet.dataset.compact===String(compact),'layout breakpoint');
@@ -179,6 +187,38 @@ try {
     const boxes=sheet.querySelectorAll('input[type=checkbox]');
     check(boxes[0].checked&&boxes[1].disabled,'valid and refused selections');
     check($('strong').textContent.includes('<script>')&&!$('script'),'untrusted name remains literal text');
+    const changeLanguage=lang=>{root.dataset.lang=lang;dispatchEvent(new Event('dp-lang'))};
+    const languageOnly=lang=>{
+      const walker=document.createTreeWalker(sheet,NodeFilter.SHOW_TEXT);
+      const authored=[];
+      while(walker.nextNode()){
+        const node=walker.currentNode, parent=node.parentElement;
+        if(parent.closest('[inert], [data-filename], [data-rows] strong, [data-presets] option')||
+          !(parent.closest('select')||parent).getClientRects().length)continue;
+        authored.push(node.textContent);
+      }
+      for(const el of sheet.querySelectorAll('[aria-label], [aria-valuetext]')){
+        if(el.getClientRects().length||el===knob)authored.push(el.getAttribute('aria-label'),el.getAttribute('aria-valuetext'));
+      }
+      const text=authored.join(' ').replace(/\\b(?:DiscImageStudio|JSON|DIS|CD|DVD|DP|BD|MID|MiB|mm|L|cd-80)\\b/g,'')
+        .replace(/(\\d)e[+-]\\d+/g,'$1');
+      check(!(lang==='zh'?/[a-z]/i:/\\p{Script=Han}/u).test(text),'visible UI and accessible strings use '+lang+' only: '+text);
+    };
+    const manual=$('[data-manual]');
+    manual.elements.displayName.value='Keep this value';
+    $('.presetio-manual').open=true;
+    boxes[0].checked=false;boxes[0].dispatchEvent(new Event('change'));
+    const requestsBeforeLanguage=calls.length;
+    languageOnly('en');changeLanguage('zh');languageOnly('zh');
+    check($('[data-filename]').textContent==='中文 💿.json'&&$('[data-media]').value==='cd','file and media survive language changes');
+    check(manual.elements.displayName.value==='Keep this value'&&$('.presetio-manual').open,'manual input survives language changes');
+    check($('[data-rows] input')===boxes[0]&&!boxes[0].checked&&$('[data-import]').disabled,'unchecked preview row survives language changes');
+    check($('[data-rows]').textContent.includes('近似：角度')&&$('[data-rows]').textContent.includes('标称值，未经标定。'),'results translated');
+    choose('export');languageOnly('zh');changeLanguage('en');languageOnly('en');
+    choose('import');languageOnly('en');
+    check(calls.length===requestsBeforeLanguage,'language toggle uses existing preview');
+    boxes[0].checked=true;boxes[0].dispatchEvent(new Event('change'));
+    $('.presetio-manual').open=false;
     if(!compact)check($('#presetio-import').scrollHeight>$('#presetio-import').clientHeight,'long preview scrolls inside text rect');
     $('[data-import]').scrollIntoView({block:'nearest'});$('[data-import]').click();
     await waitFor(()=>$('.presetio-status').textContent.includes('Imported: 1')&&!media.disabled,'import finishes');
@@ -196,6 +236,9 @@ try {
     for(const [key,value] of Object.entries({displayName:'我的 CD',innerRadiusMm:'25',outerRadiusMm:'58',sectors:'-2',pitchLinear:'',pitchQuadratic:'',pitchCubic:''}))fill(key,value);
     form.requestSubmit();await waitFor(()=>!fields.displayName.disabled,'invalid preview returns');
     check($('[data-import]').disabled&&$('[data-error="sectors"]').textContent.includes('positive integer')&&fields.sectors.getAttribute('aria-invalid')==='true','core reason next to bad field');
+    changeLanguage('zh');
+    check($('[data-error="sectors"]').textContent.includes('扇区数须为不超过 9223372036854775807 的正整数')&&fields.sectors.value==='-2','parameterized field error translated in place');
+    changeLanguage('en');
     fill('sectors','359849');form.requestSubmit();await waitFor(()=>!fields.displayName.disabled,'manual preview returns');
     const payload=calls.filter(p=>p?.operation==='preview'&&p.filename==='manual-dis-preset.json').at(-1),p=JSON.parse(payload.text);
     check(p.displayName==='我的 CD'&&p.description==='我的 CD'&&p.id.startsWith('user-custom-')&&p.innerRadiusMm===25&&p.outerRadiusMm===58&&p.sectors===359849&&!('totalSectors'in p)&&p.pitchLinear===0&&p.pitchQuadratic===0&&p.pitchCubic===0,'DIS standalone JSON and optional zero terms');
@@ -216,6 +259,10 @@ try {
     $('[data-install]').click();await waitFor(()=>$('.presetio-status').textContent.includes('backup.bak')&&!$('[data-install]').disabled,'install backup feedback');
     check(calls.some(p=>p?.operation==='export'&&p.install===true),'install delegates to the API');
     failExport=true;$('[data-install]').click();await waitFor(()=>$('.presetio-status').dataset.error==='true'&&!$('[data-install]').disabled,'export failure recovers controls');
+    changeLanguage('zh');
+    check($('.presetio-status').textContent.includes('预设操作失败。')&&!$('.presetio-status').textContent.includes('Mock export failed'),'failure follows language');
+    changeLanguage('en');
+    check($('.presetio-status').textContent.includes('Mock export failed'),'English failure keeps the reason');
     failExport=false;
     const downloadedBlobs=new Map(),createURL=URL.createObjectURL.bind(URL);
     URL.createObjectURL=blob=>{const url=createURL(blob);downloadedBlobs.set(url,blob);return url;};
@@ -236,7 +283,7 @@ try {
     const frame=window.frameElement;
     const originalWidth=frame.style.width;
     // Flush layout and deliver resize explicitly: virtual time can defer native resize events.
-    frame.style.width=compact?'1440px':'390px';frame.getBoundingClientRect();window.dispatchEvent(new Event('resize'));
+    frame.style.width=compact?'1600px':'390px';frame.getBoundingClientRect();window.dispatchEvent(new Event('resize'));
     await waitFor(()=>sheet.dataset.compact===String(!compact),'resize changes layout');
     frame.style.width=originalWidth;frame.getBoundingClientRect();window.dispatchEvent(new Event('resize'));
     await waitFor(()=>sheet.dataset.compact===String(compact),'resize restores layout');checkGeometry();
@@ -274,12 +321,18 @@ try {
       let brightest=0,darkest=1;
       for(let i=0;i<pixels.length;i+=4){const l=luminance([pixels[i],pixels[i+1],pixels[i+2]]);brightest=Math.max(brightest,l);darkest=Math.min(darkest,l);}
       const content=$('#presetio-'+mode);
-      for(const text of [content,content.querySelector('label'),content.querySelector('h3 small')]){
+      for(const text of [content,content.querySelector('label'),content.querySelector('h3')]){
         const ink=getComputedStyle(text).color.match(/[\\d.]+/g).slice(0,3).map(Number);
         // light ink on dark paper: against the brightest paper; dark ink on lamp-lit paper: against the darkest
         const li=luminance(ink),ratio=li>=darkest?(li+.05)/(brightest+.05):(darkest+.05)/(li+.05);
         check(ratio>=4.5,'dark '+mode+' paper contrast '+ratio);
       }
+    }
+    for(const el of [$('.presetio-pick'),$('[data-install]')]){
+      const style=getComputedStyle(el);
+      const luma=property=>luminance(style[property].match(/[\\d.]+/g).slice(0,3).map(Number));
+      const a=luma('color'), b=luma('backgroundColor');
+      check((Math.max(a,b)+.05)/(Math.min(a,b)+.05)>=4.5,'night primary control contrast');
     }
   }
   check(sheet.scrollWidth<=sheet.clientWidth+1,'no horizontal overflow');

@@ -225,7 +225,7 @@ try {
   await until('!document.querySelector("[data-import]").disabled','DIS preview ready');
   await check('document.querySelector("[data-rows]").textContent.includes("仅存档")','archive-only preview says it cannot draw');
   await evaluate('document.querySelector("[data-import]").click()');
-  await until('document.querySelector(".presetio-status").textContent.includes("Imported: 4")','imports complete');
+  await until('document.querySelector(".presetio-status").textContent.includes("已导入：4")','imports complete');
   await evaluate('document.getElementById("back").click()');
   await check('document.documentElement.dataset.mode==="newplan"&&document.querySelector(".np-batch").value==="DIS DVD 1"&&document.querySelector(".np-name").value==="我的作品"','first imported preset of current kind selected, name kept');
   await check('/^参数来自 DIS 预设“.+”：不是 DP 测的，没有实测范围（DIS 只给标称半径），这批盘还没确认$/.test(document.querySelector(".np-cal-text").textContent)&&document.querySelector(".np-cal-go").hidden','import has its own unmeasured status without calibration nag');
