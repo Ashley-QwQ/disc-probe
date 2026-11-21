@@ -142,6 +142,8 @@ TEXT = {
     "work record could not be saved: {a}": "无法保存作品记录：{a}",
     # calibrate, photo and presets help
     "read only missing radii on the same measurement disc": "只补测同一张测量盘上缺失的半径",
+    "read missing radii on the same disc using a saved geometry run": "用已保存的几何测量，在同一张盘上补测缺失的半径",
+    "write live geometry and progress events as JSON lines to stdout": "把即时几何测量和进度事件以 JSON 行输出到标准输出",
     "save a manual along-track residual in mm": "保存手动对齐的沿轨残差（毫米）",
     "check a recorded disc without writing": "只读排查已刻录的盘",
     "drive (E: or /dev/sr0)": "光驱（E: 或 /dev/sr0）",

@@ -27,7 +27,7 @@
     "steps": {"zh": ["空盘用 info 查容量；计时用已有的可读数据盘。没有可用数据盘时才生成并刻一张随机数据盘。"], "en": ["Use info on the blank to get capacity. Use a readable data disc for timing. Make and burn a random-data disc if no usable one is available."]},
     "commands": ["python -m discprobe info --drive <drive>", "python -m discprobe random --output iso/random.iso"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/timing.py", "line": 360, "keyword": "blank media has nothing to read"}, {"path": "discprobe/guide.py", "line": 727, "keyword": "no existing data disc is available"}, {"path": "discprobe/guide.py", "line": 1338, "keyword": "available sector count"}, {"path": "discprobe/zh.py", "line": 543, "keyword": "这张盘上没有数据"}, {"path": "discprobe/guide.py", "line": 642, "keyword": "nothing is recorded on this blank"}]
+    "sources": [{"path": "discprobe/timing.py", "line": 360, "keyword": "blank media has nothing to read"}, {"path": "discprobe/guide.py", "line": 727, "keyword": "no existing data disc is available"}, {"path": "discprobe/guide.py", "line": 1338, "keyword": "available sector count"}, {"path": "discprobe/zh.py", "line": 545, "keyword": "这张盘上没有数据"}, {"path": "discprobe/guide.py", "line": 642, "keyword": "nothing is recorded on this blank"}]
   },
   {
     "id": "burn-browser-closed",
@@ -127,7 +127,7 @@
     "steps": {"zh": ["把设计移出内侧文件系统区域，半径 26 mm 以内留背景。"], "en": ["Move the design away from the file system area and leave the inner 26 mm radius as background."]},
     "commands": ["python -m discprobe edit my_picture.png"],
     "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
-    "sources": [{"path": "discprobe/zh.py", "line": 548, "keyword": "半径 26 mm 以内留空"}, {"path": "discprobe/guide.py", "line": 911, "keyword": "edit my_picture.png"}, {"path": "docs/MANUAL.en.md", "line": 693, "keyword": "inside a radius of 26 mm"}]
+    "sources": [{"path": "discprobe/zh.py", "line": 550, "keyword": "半径 26 mm 以内留空"}, {"path": "discprobe/guide.py", "line": 911, "keyword": "edit my_picture.png"}, {"path": "docs/MANUAL.en.md", "line": 693, "keyword": "inside a radius of 26 mm"}]
   },
   {
     "id": "cd-speed-after-clv",
@@ -1027,7 +1027,7 @@
     "steps": {"zh": ["先用同一张盘比较 FUA 或挤缓存，再试不同读速。区分真实旋转后再拟合几何。"], "en": ["Reuse the disc and compare FUA or cache eviction, or try another read speed. Wait until you can distinguish real rotation before fitting geometry."]},
     "commands": ["python -m discprobe timing --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/timing.py", "line": 646, "keyword": "cache/false period"}, {"path": "discprobe/timing.py", "line": 655, "keyword": "cache/host timer period"}, {"path": "discprobe/diagnostics.py", "line": 55, "keyword": "Do not fit geometry"}, {"path": "docs/MANUAL.en.md", "line": 221, "keyword": "This selects the strategy"}, {"path": "discprobe/zh.py", "line": 451, "keyword": "一次绕过缓存"}, {"path": "discprobe/zh.py", "line": 452, "keyword": "Windows timer tick"}]
+    "sources": [{"path": "discprobe/timing.py", "line": 646, "keyword": "cache/false period"}, {"path": "discprobe/timing.py", "line": 655, "keyword": "cache/host timer period"}, {"path": "discprobe/diagnostics.py", "line": 55, "keyword": "Do not fit geometry"}, {"path": "docs/MANUAL.en.md", "line": 221, "keyword": "This selects the strategy"}, {"path": "discprobe/zh.py", "line": 453, "keyword": "一次绕过缓存"}, {"path": "discprobe/zh.py", "line": 454, "keyword": "Windows timer tick"}]
   },
   {
     "id": "timing-clv",
@@ -1077,7 +1077,7 @@
     "steps": {"zh": ["查看 timing 的读速和周期，试固定的读速后重测。"], "en": ["Check the speed and periods reported by timing. Repeat with a fixed read speed."]},
     "commands": ["python -m discprobe timing --drive <drive> --speed 4x"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/zh.py", "line": 430, "keyword": "Spindle did not reach a steady speed"}, {"path": "discprobe/timing.py", "line": 675, "keyword": "the speed may be changing"}, {"path": "docs/MANUAL.en.md", "line": 126, "keyword": "check the rotation speed"}]
+    "sources": [{"path": "discprobe/zh.py", "line": 432, "keyword": "Spindle did not reach a steady speed"}, {"path": "discprobe/timing.py", "line": 675, "keyword": "the speed may be changing"}, {"path": "docs/MANUAL.en.md", "line": 126, "keyword": "check the rotation speed"}]
   },
   {
     "id": "timing-timeout",
