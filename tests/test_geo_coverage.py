@@ -89,6 +89,34 @@ def test_continues_saved_rungs_on_same_lab_disc(tmp_path, monkeypatch):
         assert lab.root.is_dir()
 
 
+def test_resumes_interrupted_target_on_same_lab_disc(tmp_path, monkeypatch):
+    measure = Ladder._measure_retry
+    failed = []
+
+    def stop_on_seventh(ladder, lba, reps=None):
+        if len(ladder.targets) == 6:
+            ladder.tp._measure(lba, 'target')
+            failed.append(lba)
+            raise RuntimeError('spindle speed never settled')
+        return measure(ladder, lba, reps)
+
+    with lab_disc(tmp_path, with_gaps=False) as (_, reader), reader() as drive:
+        ladder = Ladder(drive, speed_kbs=5540, log=lambda _: None)
+        with monkeypatch.context() as patch:
+            patch.setattr(Ladder, '_measure_retry', stop_on_seventh)
+            with pytest.raises(RuntimeError, match='spindle speed never settled'):
+                ladder.run()
+        run = tmp_path / 'geo-X-20261119-231213'
+        write_outputs(ladder, str(run), 'spindle speed never settled')
+        original = {name: (run / name).read_bytes() for name in ('summary.json', 'targets.csv', 'events.csv')}
+        resume = resume_source(run, 'dvd')
+        assert resume[0]['fit']['failed_candidates'] == failed
+        resumed, fit = read_ladder(reader, resume=resume, ref_lba=ladder.ref)
+        assert [t['lba'] for t in resumed.targets[:7]] == [t['lba'] for t in ladder.targets] + failed
+        assert fit['completion_status'] == 'target_reached'
+        assert all((run / name).read_bytes() == data for name, data in original.items())
+
+
 def test_lab_disc_with_coverage_does_not_add_rungs(tmp_path):
     with lab_disc(tmp_path, with_gaps=False) as (_, reader):
         ladder, fit = read_ladder(reader)

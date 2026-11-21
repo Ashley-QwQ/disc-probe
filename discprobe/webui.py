@@ -450,6 +450,7 @@ class Job:
         self.action = None
         self.writes_drive = False
         self.args = {}
+        self.argv = []
         self.disc = {}
         self.media = "dvd"
         self.result = None
@@ -816,8 +817,14 @@ class Backend:
         with self.lock:
             job = self.get_job(ident)
             job.read()
-            return dict(job=ident, action=job.action, media=job.media, args=job.args, exit=job.exit,
-                        events=list(job.history), result=job.result, cancellation=job.cancellation)
+            snapshot = dict(job=ident, action=job.action, media=job.media, args=job.args, exit=job.exit,
+                            events=list(job.history), result=job.result, cancellation=job.cancellation)
+            if job.action in {"calibrate", "timing", "geo"} and job.exit is not None:
+                result = job.result or {}
+                parts = (result, result.get("timing") or {}, result.get("geo") or {})
+                if job.exit or any((part.get("measurement") or {}).get("retry_kind") for part in parts):
+                    snapshot["diagnostics"] = dict(argv=job.argv, log_path=job.output.relative_to(self.root).as_posix())
+            return snapshot
 
     def image_job(self, *, work=None, ident=None):
         """Resume an image job by work, or read the current progress of that job."""
@@ -1066,6 +1073,7 @@ class Backend:
             folder = Path(tempfile.mkdtemp(prefix=ident + "-", dir=self.folder))
             job = Job(ident, drive, folder)
             job.action, job.media, job.args = payload["action"], payload.get("media", "dvd"), payload.get("args", {})
+            job.argv = argv
             job.work, job.work_design = work_id, work_design
             job.writes_drive = writes
             known_disc = self.discs.get(drive) or next((d.get('disc') for d in drives if d['id'] == drive), None) or {}
@@ -1345,6 +1353,8 @@ class Backend:
                             run = next((r for r in guide.scan(self.out) if Path(r.path).resolve() == Path(part["path"]).resolve()), None)
                             result[kind] = dict(path=rel(part["path"]), verdict=part.get("verdict"),
                                                 measurement=webui_catalog.measurement(run) if run else None)
+                        elif part and code:
+                            result[kind] = dict(path=None, verdict=part.get("verdict"))
                     result["verdict"] = (result.get("geo") or {}).get("verdict", "unknown")
                     result["path"] = (result.get("geo") or {}).get("path")
                     job.result = result
