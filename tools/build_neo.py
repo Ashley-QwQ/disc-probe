@@ -1364,6 +1364,53 @@ def compare_export(actual, official):
     return dict(status='PASS' if not differences else 'FAIL', compared_fields_and_items=count, differences=differences)
 
 
+SUPERSEDED_RULE = ('an extra target is handed to the daily journal only when the daily journal has the same target and, '
+                   'for every run in the extra copy, the same run_index, the same seed and at least as many iterations; '
+                   'any other restart identity collision stops the build')
+
+
+def superseded_by_daily(A, daily_journal, journal, role, name):
+    """Extra targets whose every run the daily journal continued (same seed, iteration not behind).
+
+    594c677 combine_pair merges refined_top, proofs and the chosen record per target, so a run
+    cannot be dropped on its own without leaving old-encoder results behind: the unit is the
+    target. Collisions that do not meet SUPERSEDED_RULE raise; nothing is dropped silently.
+    """
+    drop, rows = set(), []
+    for tid in journal.latest:
+        if tid not in daily_journal.latest:
+            continue
+        extra, current = journal.latest[tid], daily_journal.latest[tid]
+        runs = {r['run_index']: r for r in current.get('runs', [])}
+        clash = lambda r: r['run_index'] in runs and (runs[r['run_index']]['seed'] != r['seed']
+                                                      or runs[r['run_index']]['encoder_hash'] != r['encoder_hash'])
+        if not any(clash(r) for r in extra.get('runs', [])):
+            continue
+        bad = [r['run_index'] for r in extra.get('runs', []) if r['run_index'] not in runs
+               or runs[r['run_index']]['seed'] != r['seed']
+               or (runs[r['run_index']].get('iteration') or 0) < (r.get('iteration') or 0)]
+        if bad:
+            raise ValueError(f'restart identity collision not covered by the daily journal: {name} {tid} runs {bad}')
+        drop.add(tid)
+        for r in extra['runs']:
+            d = runs[r['run_index']]
+            rows.append(dict(source=role, file=name, target=tid, run_index=r['run_index'], seed=r['seed'],
+                             daily_iteration=d.get('iteration'), extra_iteration=r.get('iteration'),
+                             daily_encoder=d['encoder_hash'], extra_encoder=r['encoder_hash'], collision=clash(r)))
+    return drop, rows
+
+
+def without_targets(journal, drop):
+    """The same read-only journal index minus some target IDs (no file is rewritten)."""
+    if drop:
+        old = journal.latest
+        new = type(old)(old.path)
+        new.identity, new.end, new.generation = old.identity, old.end, old.generation
+        new.offsets = {tid: where for tid, where in old.offsets.items() if tid not in drop}
+        journal.latest = new
+    return journal
+
+
 def frozen_extra(args, A, daily, guard):
     """Replay baseline before trusting an extra-journal merge. No live queue rules."""
     copies, source_rows = [], []
@@ -1407,8 +1454,16 @@ def frozen_extra(args, A, daily, guard):
         raise ValueError('daily-only replay differs from official export; see daily-only-comparison.json; extra merge stopped')
     baseline.unlink()
     attribution, machines = {}, {}
+    daily_journal = A.journal.Journal(daily)
+    journals = [daily_journal]
     for row, path in zip(source_rows, copies):
         journal = A.journal.Journal(path)
+        drop, dropped = superseded_by_daily(A, daily_journal, journal, row['role'], path.name)
+        row['superseded_by_daily'] = dict(rule=SUPERSEDED_RULE, targets=sorted(drop), runs=dropped)
+        if drop:
+            log(f'{path.name}: {len(drop)} targets ({len(dropped)} runs) superseded by the daily journal')
+        journals.append(without_targets(journal, drop))
+    for row, journal in zip(source_rows, journals[1:]):
         candidate_count = 0
         for t in journal.targets():
             per_spec = attribution.setdefault(t['id'], {})
@@ -1417,10 +1472,15 @@ def frozen_extra(args, A, daily, guard):
         machines[row['role']] = dict(events=journal.sequence, targets=len(journal.latest), candidates=candidate_count,
                                      target_ids=list(journal.latest))
     log('merging frozen daily and extra copies')
-    result = A.merge.merge([daily, *copies], A.dvd, imports,
-                           args.work / 'atlas_dvd.json', spill_metrics=True, spill_directory=args.work)
+    combined = lambda manifests: A.merge.CombinedTargets.from_journals(journals)
+    original, A.merge.combined_targets = A.merge.combined_targets, combined
+    try:
+        result = A.merge.merge([daily, *copies], A.dvd, imports,
+                               args.work / 'atlas_dvd.json', spill_metrics=True, spill_directory=args.work)
+    finally:
+        A.merge.combined_targets = original
     del result; gc.collect()
-    return A.merge.combined_targets([daily, *copies]), attribution, source_rows, machines, comparison
+    return combined(None), attribution, source_rows, machines, comparison
 
 
 def build_snapshot(args, guard):
@@ -1519,8 +1579,8 @@ def build_snapshot(args, guard):
         snapshot_time_basis='frozen daily file modification time (completion); filename records compaction start',
         compaction_started_utc=utc(int(daily.stem.rsplit('-', 1)[1]) / 1e9),
         encoder_hash=plan['encoder_hash'], plan_hash=clock['plan_hash'],
-        control_source_note='control 取自 11-16 09:51',
-        ring_progress_source='daily-status.json' if not args.extra else 'daily + extra, with control from 11-16 09:51',
+        control_source_note='control from the frozen snapshot (see sources)',
+        ring_progress_source='daily-status.json' if not args.extra else 'daily + extra, with control from the frozen snapshot',
         campaign=dict(started_utc=utc(clock['started']), planned_end_utc=utc(clock['planned_end']),
                       deadline_utc=utc(clock['deadline']), restarts=plan['restarts']),
         export=dict(method='official frozen export, byte-for-byte copy' if not args.extra else '594c677 merge with frozen extra copies',
