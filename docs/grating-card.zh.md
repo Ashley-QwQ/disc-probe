@@ -50,4 +50,4 @@ disc-probe gratingcard sun.png moon.png --angles -6.5 3 --axis y --geo results/g
 
 ![太阳月亮在几个设计倾角的模拟图](showcase/grating-4-21-model.png)
 
-图为模型预测。FLIP-A 已实刻，96 处抽样读回全相符。现有照片未核实表中的两个目标角。来源见 [LG 交付报告](../CARD_REPORT.md#段-2--光栅角色卡)。
+图为模型预测。FLIP-A 已实刻，96 处抽样读回全相符。现有照片未核实表中的两个目标角。来源见 [LG 交付报告](cards/learn-grating-report.md#段-2--光栅角色卡)。

@@ -50,4 +50,4 @@ Two large sun-and-moon motifs sit on opposite sides of the inner ring. In the de
 
 ![Model of the two sun and moon panels across their designed tilts](showcase/grating-4-21-model.png)
 
-Model prediction. FLIP-A was recorded and passed 96 sampled readbacks. The photo evidence available for this card does not establish the two target angles. See the [LG delivery report](../CARD_REPORT.md#段-2--光栅角色卡).
+Model prediction. FLIP-A was recorded and passed 96 sampled readbacks. The photo evidence available for this card does not establish the two target angles. See the [LG delivery report](cards/learn-grating-report.md#段-2--光栅角色卡).

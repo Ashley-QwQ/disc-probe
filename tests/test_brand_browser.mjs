@@ -7,6 +7,7 @@ import {existsSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync} from 'n
 import {rm} from 'node:fs/promises';
 import {resolve, join, extname, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {stopEdge} from './edge_cleanup.mjs';
 
 const root = fileURLToPath(new URL('../discprobe/web/', import.meta.url));
 const edge = process.env.BRAND_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
@@ -118,8 +119,8 @@ try {
   if(shots)writeFileSync(join(shots,'font-evidence.json'),JSON.stringify(evidence,null,2));
   console.log('PASS: Edge Chinese title glyphs use Disc Title SC Heavy; Latin uses Archivo; body unchanged; 3 viewports/icons verified');
 } finally {
-  ws?.close(); child.kill(); server.closeAllConnections(); await new Promise(r=>server.close(r));
-  await sleep(800);
+  await stopEdge(child, ws);
+  server.closeAllConnections(); await new Promise(r=>server.close(r));
   assert.ok(resolve(profile).startsWith(resolve(tempRoot)+sep));
-  await rm(profile,{recursive:true,force:true,maxRetries:8,retryDelay:300});
+  await rm(profile,{recursive:true,force:true,maxRetries:10,retryDelay:200});
 }
