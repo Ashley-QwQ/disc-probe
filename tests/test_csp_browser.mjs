@@ -63,9 +63,9 @@ addEventListener('error',e=>runtimeErrors.push(e.message));addEventListener('unh
   async function open(url,ready='document.readyState==="complete"') {
     const response=await fetch(url);policies[new URL(url).pathname]=response.headers.get('content-security-policy');
     await response.arrayBuffer();
-    await cdp('Page.navigate',{url});await until('location.href==='+JSON.stringify(url)+' && '+ready);await pause(350);
+    await cdp('Page.navigate',{url});await until('location.href.split("#")[0]==='+JSON.stringify(url)+' && '+ready);await pause(350);
   }
-  await open(home+'/home/?mock','document.documentElement.dataset.handshake==="ready"');
+  await open(home+'/home/?mock','document.documentElement.dataset.navigation==="ready" && document.documentElement.dataset.home==="lobby"');
   assert.deepEqual(await evaluate('runtimeErrors'),[]);
   await evaluate('const script=document.createElement("script");script.textContent="window.unapprovedScriptRan=true";document.body.append(script)');
   await until('violations.length===1');
@@ -74,7 +74,7 @@ addEventListener('error',e=>runtimeErrors.push(e.message));addEventListener('unh
   const scheme=await evaluate('document.querySelector(\'meta[name="color-scheme"]\').content');assert.equal(scheme,'light dark');
   await evaluate('document.getElementById("theme").click()');
   await until('document.querySelector(\'meta[name="color-scheme"]\').content===document.documentElement.dataset.theme');
-  await evaluate('document.getElementById("next").click()');await until('document.documentElement.dataset.mode==="newplan"');
+  await evaluate('document.getElementById("lobby-new").click()');await until('document.documentElement.dataset.mode==="newplan"');
   await evaluate('document.querySelector(".np-name").value="CSP test";document.getElementById("next").click()');
   await until('document.documentElement.dataset.mode==="design"');
   await evaluate('document.querySelector(\'[data-a="sample"]\').click()');
