@@ -253,6 +253,39 @@ def save_entry(root, out, payload):
     return dict(saved=True, **({'photo_shift': photo_shift} if photo_shift is not None else {}))
 
 
+def measurement_retry(run, args, points, coverage, timing_advice):
+    """Advise from saved core observations and the CLI's existing speed list."""
+    from .geo import retryable_read_stop
+
+    reason = (run.stopped or '').lower()
+    rotation = run.rotation()
+    jitter = guide._jitter(run.summary)
+    fit = run.fit
+    if run.kind == 'geo' and (fit.get('failed_candidates') or points and retryable_read_stop(reason)):
+        kind = 'rung'
+    elif 'medium error' in reason:
+        kind = 'media'
+    elif 'reads are far slower than expected' in reason:
+        kind = 'slow'
+    elif run.kind == 'timing' and rotation != 'CAV':
+        kind = 'rotation' if rotation and rotation != 'unknown' else 'unknown'
+    elif run.kind == 'timing' and jitter and max(jitter) > guide.GOOD_JITTER_DEG:
+        kind = 'noisy'
+    elif run.kind == 'geo' and (run.stopped or guide.result_verdict(run, run.media) not in ('good', 'usable')):
+        kind = 'coverage' if coverage.get('missing_mm') else 'geo'
+    else:
+        return {}
+    if kind == 'coverage':
+        return dict(retry_kind=kind)
+    advice = dict(timing_advice or guide.speed_advice(args, run.media, run.summary))
+    current = getattr(args, 'speed', None)
+    advice['lower_speeds'] = [speed for speed in guide.ALTERNATIVE_SPEEDS[run.media]
+                              if isinstance(current, (int, float)) and int(speed) < current]
+    field = 'speed_advice' if run.kind == 'timing' else 'retry_speed_advice'
+    return {'retry_kind': kind, field: advice,
+            **({'failed_rung': len(points) + 1} if kind == 'rung' and reason and points else {})}
+
+
 def measurement(run):
     """Saved observations only: residual and its uncertainty against LBA, no invented curve."""
     points = []
@@ -279,9 +312,11 @@ def measurement(run):
         if required:
             coverage_result = dict(missing_mm=assess_range(run.fit, required)['extrapolated_mm'],
                                    can_resume=len(points) >= 6 and resume_supported(run.summary, run.media))
-    return dict(points=points, stopped=run.stopped, span_mm=run.fit.get('measured_span_mm'),
+    detail = dict(points=points, stopped=run.stopped, span_mm=run.fit.get('measured_span_mm'),
                 sigma_deg=run.fit.get('angle_sigma_measured_span_deg'),
                 completion_status=run.fit.get('completion_status'), coverage=run.fit.get('coverage'),
                 correction=run.fit.get('correction_file'), correction_validation=run.fit.get('correction_validation'),
                 rotation=run.rotation(), jitter_deg=guide._jitter(run.summary), speed_advice=advice,
                 **coverage_result)
+    detail.update(measurement_retry(run, args, points, coverage_result, advice))
+    return detail

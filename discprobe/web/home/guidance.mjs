@@ -73,6 +73,9 @@ export function photoSaveWords(decision = {}) {
 export function recoveryKind(result = {}) {
   const part = result.geo || result.timing || result;
   const m = part.measurement || {}, reason = m.stopped || '';
+  const retry = {media:'media', slow:'slow', rung:'stopped_early', rotation:'rotation', unknown:'unknown',
+    noisy:part.verdict === 'usable' ? 'usable' : 'too_noisy'}[m.retry_kind];
+  if (retry) return retry;
   if (result.geo && m.missing_mm?.length) return 'coverage';
   if (result.calibratedOk === false && ['good', 'usable'].includes(part.verdict)) return 'calibration_failed';
   if (/medium|recorded area|fails on|cannot read/.test(reason)) return 'media';
@@ -83,6 +86,19 @@ export function recoveryKind(result = {}) {
 export function measurementRecovery(result = {}) {
   const part = result.geo || result.timing || result, m = part.measurement || {}, a = m.speed_advice;
   const kind = recoveryKind(result);
+  if (m.retry_kind === 'rung') {
+    return m.failed_rung
+      ? pair(`第 ${m.failed_rung} 级读不稳。已测的点还在，先留着这张测量盘。`, `Reading became unstable at rung ${m.failed_rung}. The saved points are still there. Keep this measurement disc.`)
+      : pair('有些测点没能读稳。已测的点还在，先留着这张测量盘。', 'Some points could not be read steadily. The saved points are still there. Keep this measurement disc.');
+  }
+  if (kind === 'slow') return pair('光驱能读到这张盘，但在时限内没读完。保留这张测量盘，检查光驱连接后再试。',
+    'The drive could read the disc, but the run timed out. Keep this measurement disc, check the drive connection, and try again.');
+  if (m.retry_kind === 'noisy' && !result.geo) return pair(
+    '测转速时的读数有些乱。保留这张测量盘，试试其他读取速度或光驱。',
+    'The rotation readings were noisy. Keep this measurement disc and try a different read speed or drive.');
+  if (m.retry_kind === 'media') return pair(
+    '光驱反复读不到盘上的数据。如果这张就是随机数据测量盘，先检查刻录和光驱连接；如果用的是图案盘，换成随机数据测量盘。',
+    'The drive repeatedly failed to read the data. If this is the random-data measurement disc, check the burn and drive connection. If it is a picture disc, use a random-data measurement disc.');
   if (kind === 'coverage') {
     const bands = m.missing_mm.map(([lo, hi]) => `${lo.toFixed(2)}–${hi.toFixed(2)} mm`).join(' · ');
     return pair(`还缺这些半径的读数：${bands}。保留这张测量盘，可用同一台光驱继续测。`,
@@ -124,6 +140,8 @@ export function measurementRecovery(result = {}) {
 export function recoveryAction(result = {}) {
   const kind = recoveryKind(result);
   const m = (result.timing || result).measurement || {};
+  if (result.geo?.path && result.geo.measurement?.retry_kind === 'rung' && result.geo.measurement.can_resume)
+    return {id:'coverage', label:pair('从中断处继续测几何', 'Continue geometry from the interruption')};
   if (kind === 'coverage' && result.geo?.path && result.geo.measurement.can_resume)
     return {id:'coverage', label:pair('补测空档', 'Measure missing radii')};
   if (!result.geo && m.rotation === 'CLV' && m.speed_advice?.exhausted)
@@ -133,10 +151,11 @@ export function recoveryAction(result = {}) {
   return {id:'measure', label:pair('检查转速并重测', 'Check rotation and remeasure')};
 }
 // The executor is shared by the UI and drive-free tests. Geometry starts only after a usable CAV check.
-export async function remeasure(run, previous = {}) {
+export async function remeasure(run, previous = {}, speed = null) {
   const m = (previous.timing || previous).measurement || {}, a = m.speed_advice;
-  if (m.rotation === 'CLV' && a?.exhausted) return previous;
-  const timing = await run('timing', m.rotation === 'CLV' && a?.next_speed ? {speed:a.next_speed} : {});
+  if (speed == null && m.rotation === 'CLV' && a?.exhausted) return previous;
+  const chosen = speed ?? (m.rotation === 'CLV' ? a?.next_speed : null);
+  const timing = await run('timing', chosen ? {speed:Number(chosen)} : {});
   if (!['good','usable'].includes(timing?.verdict) || timing.measurement?.rotation !== 'CAV') return {timing};
   const geo = await run('geo', {speed:'keep'});
   return {timing, geo};
@@ -151,6 +170,7 @@ export function recoveryCommands(result, {drive, media, sectors}) {
     return commands.join('\n');
   }
   const commands = [`${base} timing ${flags}`, `${base} geo ${flags} --speed keep`, `${base} timing ${flags} --speed SPEED`, `${base} geo ${flags} --speed keep`];
+  if (result.geo?.path && m.can_resume) commands.unshift(`${base} geo ${flags} --resume ${JSON.stringify(part.path)}`);
   if (kind === 'media' || kind === 'stopped_early') commands.push(`${base} geo ${flags} --ranges START-END`);
   if (kind === 'narrow_span') {
     commands.push(`${base} disexport --media ${media} --geo ${JSON.stringify(part.path)} --sectors ${sectors} --r-min START --r-max END --output presets/fitted.json`);

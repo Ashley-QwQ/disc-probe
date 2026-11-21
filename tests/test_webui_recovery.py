@@ -9,9 +9,10 @@ from tests.iso_fixture import write_checked_iso
 def test_recovery_arguments(tmp_path):
     drives = [{"id": "TEST"}]
     prefix = [sys.executable, *(["-P"] if sys.version_info >= (3, 11) else []), "-m", "discprobe"]
-    for action, args in [("timing", {}), ("geo", {"speed": "keep"})]:
+    for action, args, flags in [("timing", {}, []), ("timing", {"speed": 2822}, ["--speed", "2822"]),
+                                ("geo", {"speed": "keep"}, ["--speed", "keep"])]:
         argv, drive = webui.command(dict(action=action, drive="TEST", media="cd", args=args), tmp_path, drives)
-        assert argv == prefix + [action, "--drive", "TEST", "--media", "cd"] + (["--speed", "keep"] if args else [])
+        assert argv == prefix + [action, "--drive", "TEST", "--media", "cd"] + flags
         assert drive == "TEST"
     args = dict(geo="results/test", sectors=300000, output="presets/usable.json", r_min=28, r_max=48)
     argv, _ = webui.command(dict(action="disexport", media="cd", args=args), tmp_path, [])

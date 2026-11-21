@@ -475,16 +475,20 @@ class Ladder:
                     return lba
         return None
 
-    def _fill_coverage(self):
+    def _fill_coverage(self, retry_lbas=()):
         """Repair only missing intervals. Keep an honest partial result at either limit."""
         missing = self._coverage_assessment()['extrapolated_mm']
-        if not missing:
+        if not missing and not retry_lbas:
             return
         self.progress_stage = 'reading missing radii'
         self.tp.coverage_deadline = time.monotonic() + MAX_COVERAGE_SECONDS
         try:
-            self._repair_ranges(missing)
-            self._repair_rungs()
+            if missing:
+                self._repair_ranges(missing)
+            if retry_lbas:
+                self._repair_rungs(retry_lbas)
+            else:
+                self._repair_rungs()
         except TimeoutError:
             pass
         finally:
@@ -494,14 +498,18 @@ class Ladder:
             self.completion_status = 'coverage_incomplete'
             self.log('Missing radii (mm): ' + ', '.join(f'{a:.3f}-{z:.3f}' for a, z in missing))
 
-    def _repair_rungs(self):
+    def _repair_rungs(self, retry_lbas=()):
         from .content import is_random
         tried = {self.ref, *(t['lba'] for t in self.targets), *(p['lba'] for p in self.probes)}
+        pending = iter(lba for lba in retry_lbas if lba not in tried and self._allowed(lba) == lba
+                       and self._sigma_pred_deg(self._n_end(lba)) < SAFE_DEG)
         for _ in range(MAX_COVERAGE_READS):
             assessment = self._coverage_assessment()
-            if assessment['covered'] or time.monotonic() >= self.tp.coverage_deadline:
+            lba = next(pending, None)
+            if (lba is None and assessment['covered']) or time.monotonic() >= self.tp.coverage_deadline:
                 break
-            lba = self._coverage_candidate(assessment, tried)
+            if lba is None:
+                lba = self._coverage_candidate(assessment, tried)
             if lba is None:
                 break
             tried.add(lba)
@@ -573,7 +581,12 @@ class Ladder:
         self.fit()
         self.completion_status = 'target_reached'
         self.failed_candidates = list(old.get('failed_candidates') or [])
-        self._fill_coverage()
+        if self.failed_candidates:
+            self._fill_coverage(self.failed_candidates)
+            if self.failed_candidates and self.completion_status == 'target_reached':
+                self.completion_status = 'partial_readable'
+        else:
+            self._fill_coverage()
         self.check_state(reps=self.reps)
         self.progress_finished = True
         return self.result()
@@ -1126,11 +1139,20 @@ class Ladder:
                     independent_check_lbas=[p['lba'] for p in self.correction_checks])
 
 
+def retryable_read_stop(reason):
+    text = reason.lower()
+    return any(cause in text for cause in ('medium error', 'spindle speed never settled',
+                                           'spindle unsteady or reads failing'))
+
+
 def resume_supported(summary, media):
     fit = summary.get('fit') or {}
-    return (not summary.get('stopped') and media in ('dvd', 'cd') and fit.get('media', 'dvd') == media
+    stopped = summary.get('stopped')
+    status = fit.get('completion_status', 'target_reached')
+    resumable = (status == 'interrupted' and retryable_read_stop(stopped)) if stopped else (
+        status in ('target_reached', 'coverage_incomplete', 'partial_readable'))
+    return (resumable and media in ('dvd', 'cd') and fit.get('media', 'dvd') == media
             and not (fit.get('varying_pitch') or fit.get('correction_file'))
-            and fit.get('completion_status', 'target_reached') in ('target_reached', 'coverage_incomplete', 'partial_readable')
             and (fit.get('state_check') or {}).get('verdict') != 'changed'
             and all(isinstance(fit.get(k), (int, float)) and math.isfinite(fit[k])
                     for k in ('u', 'v', 'c_deg', 'period_ms', 'reference_lba'))
@@ -1158,6 +1180,20 @@ def resume_source(path, media):
             targets.append(target)
     if len(targets) < 6:
         raise ValueError('too few saved targets to continue geometry')
+    if summary.get('stopped'):
+        # Recover the interrupted target from the existing trace without changing
+        # the original run's artifacts. The fit still rechecks its saved anchors.
+        last_target = None
+        try:
+            with (source.parent / 'events.csv').open(encoding='utf-8') as stream:
+                for row in csv.DictReader(stream):
+                    if row.get('label') == 'target':
+                        last_target = int(row['lba'])
+        except (OSError, ValueError, KeyError):
+            pass
+        fit = summary['fit']
+        if last_target is not None and last_target not in {t['lba'] for t in targets}:
+            fit['failed_candidates'] = list(dict.fromkeys([last_target, *(fit.get('failed_candidates') or [])]))
     return summary, targets
 
 

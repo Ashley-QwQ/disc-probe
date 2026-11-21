@@ -35,6 +35,14 @@ in both `/api/burn-token` and `/api/run`. The token binds the resulting request
 to the checked disc and ISO. Refusals can carry the same object as `burn_gate`
 in error responses and job events.
 
+API 1.3 adds optional `measurement-retry` metadata. Timing and geometry
+measurements can include `retry_kind` and `failed_rung` (one-based). Timing's
+`speed_advice` and geometry's optional `retry_speed_advice` can list
+`lower_speeds` in kB/s. `can_resume` still means the core can attempt
+a continuation on the original disc, drive and read settings. A completed
+measurement job snapshot may include `diagnostics.argv` and a workspace-relative
+`diagnostics.log_path`. These describe the job that ran.
+
 Proposed policy: retain working adapters for the previous MAJOR for at least
 six months after the new major's first stable release. Publish its retirement
 date with that release. List only majors with actual working adapters in

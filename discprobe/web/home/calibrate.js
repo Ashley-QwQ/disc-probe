@@ -1083,6 +1083,73 @@ function bindNext(btn) {
 
 // Live workflow: phases describe the visible panel; measurements and verdicts come from disk.
 const liveText = (zh, en) => api.lang() === "zh" ? zh : en;
+const escapeRetry = value => api.backend.escapeHTML(value);
+const usbRetryWords = () => liveText(
+  '如果用的是超薄 USB 光驱，试试主板后面的 USB 3.0 口，或用带电源的 USB 集线器。测量时别碰桌子。',
+  'For a slim USB drive, try a rear USB 3.0 port on the motherboard or a powered USB hub. Keep the table still while measuring.');
+
+function retryButton(id, words, speed = null) {
+  return `<button id="${id}" class="placed" type="button"${speed == null ? '' : ` data-speed="${escapeRetry(speed)}"`}>${escapeRetry(words)}</button>`;
+}
+
+function readRetryOptions(part) {
+  const measurement = part?.measurement;
+  const advice = measurement?.retry_speed_advice || measurement?.speed_advice;
+  const suggested = advice?.next_speed;
+  const lower = advice?.lower_speeds || [];
+  return (suggested ? retryButton('real-suggested-speed',
+    liveText(`用建议速度 ${suggested} kB/s 重测`, `Remeasure at ${suggested} kB/s (suggested)`), suggested) : '')
+    + (lower.length ? `<div class="row"><label>${liveText('更低的读取速度', 'Lower reading speed')}
+      <select id="real-lower-read-speed">${lower.map(speed => `<option value="${escapeRetry(speed)}">${escapeRetry(speed)} kB/s</option>`).join('')}</select></label>
+      ${retryButton('real-lower-read', liveText('用所选速度重测', 'Remeasure at selected speed'))}</div>` : '');
+}
+
+function diagnosticWords() {
+  const part = flow.geo || flow.timing;
+  const details = flow.retryDiagnostics;
+  const reason = part?.measurement?.stopped || flow.calibrationReason || flow.burnCheck?.reason
+    || flow.coverageNotice || flow.error || measurementRecovery(flow)[api.lang()];
+  const powershell = api.platform?.() === 'win32';
+  const argv = (details?.argv || []).map(word => /^[\w.:/\\-]+$/.test(word) ? word
+    : "'" + word.replaceAll("'", powershell ? "''" : "'\\''") + "'");
+  const command = (powershell && argv[0]?.startsWith("'") ? '& ' : '') + argv.join(' ');
+  return [
+    liveText('我在用 disc-probe 标定测量盘，想请帮忙排查。', 'I am calibrating a measurement disc with disc-probe and would like help.'),
+    reason,
+    command && liveText(`执行过的命令：${command}`, `Command run: ${command}`),
+    details?.log_path && liveText(`任务日志：${details.log_path}`, `Job log: ${details.log_path}`),
+    part?.path && liveText(`测量记录：${part.path}`, `Measurement record: ${part.path}`),
+    flow.burnCheck?.log_path && liveText(`刻录日志：${flow.burnCheck.log_path}`, `Burn log: ${flow.burnCheck.log_path}`),
+  ].filter(Boolean).join('\n');
+}
+
+function diagnosticOptions() {
+  if (!hasCapability('measurement-retry')) return '';
+  return `<details class="cal-advanced"><summary>${liveText('诊断信息', 'Diagnostics')}</summary>
+    <pre class="cal-cmd">${escapeRetry(diagnosticWords())}</pre>
+    ${retryButton('real-copy-diagnostics', liveText('复制求助信息', 'Copy help request'))}
+    ${retryButton('real-download-diagnostics', liveText('导出诊断信息', 'Export diagnostics'))}</details>`;
+}
+
+function checkMeasurementDisc() {
+  return `<details class="cal-advanced"><summary>${liveText('检查测量盘的刻录', 'Check the measurement burn')}</summary>
+    <p>${liveText('在终端运行这条命令检查测量盘。若仍读不出来，用同批空白盘，选较低速度重刻随机数据测量盘。',
+      'Run this command in Terminal to check the measurement disc. If it still cannot be read, burn a new random-data measurement disc from the same batch at a lower write speed.')}</p>
+    <pre class="cal-cmd">python -m discprobe checkburn --drive ${escapeRetry(JSON.stringify(api.selectedDrive()))}</pre></details>`;
+}
+
+function burnRetryOptions(report) {
+  if (!flow.burnRetry) return '';
+  const previous = flow.lastBurnSpeed;
+  const speeds = (report?.speeds_x || []).filter(speed => !previous || speed < previous);
+  if (!speeds.length) return `<p>${liveText('这张盘没有报出更低的刻录速度。', 'This disc reports no lower write speeds.')}</p>`;
+  const label = previous ? liveText('更低的刻录速度', 'Lower write speed') : liveText('刻录速度', 'Write speed');
+  return `<label>${label} <select id="real-burn-speed">
+    <option value="">${liveText('默认速度', 'Default speed')}</option>
+    ${speeds.map(speed => `<option value="${escapeRetry(speed)}"${flow.burnSpeed === speed ? ' selected' : ''}>${escapeRetry(speed)}×</option>`).join('')}
+    </select></label>`;
+}
+
 function measuringButton(phase) {
   return { burning: liveText("刻录中", "Burning"), random: liveText("生成中", "Making"),
     saving: liveText("保存中", "Saving"), erasing: liveText("擦除中", "Erasing") }[phase]
@@ -1192,7 +1259,7 @@ function realPaint() {
       button=recheckText(lang);disabled=!!flow.burnInspecting;
     } else {
       html=discLine+(mismatch?`<label><input id="measurement-batch-confirm" type="checkbox" ${flow.batchConfirmed?'checked':''}>${liveText('我确认用这张盘刻测量盘，并标定这批盘。','I confirm that I want to burn this measurement disc and calibrate this batch.')}</label>`:'')+
-        `<button id="real-burn-recheck" type="button" class="btn">${recheckText(lang)}</button>`+html;
+        `<button id="real-burn-recheck" type="button" class="btn">${recheckText(lang)}</button>`+burnRetryOptions(report)+html;
       if(mismatch)text=message;
       hold=true; disabled=mismatch&&!flow.batchConfirmed;
     }
@@ -1221,7 +1288,7 @@ function realPaint() {
     const zh = api.lang() === "zh" ? 0 : 1;
     const STAMP = { good: ["可用", "Usable"], usable: ["可用，有噪声", "Usable, noisy"], narrow_span: ["范围偏窄", "Narrow"], too_noisy: ["太吵", "Too noisy"],
       drive_changed: ["光驱变了", "Drive changed"], stopped_early: ["中途停了", "Stopped"], media: ["读不出", "Unreadable"], rotation: ["转速不稳", "Unsteady"],
-      coverage: ["范围待补测", "Gaps in coverage"], calibration_failed: ["未完成", "Incomplete"],
+      coverage: ["范围待补测", "Gaps in coverage"], calibration_failed: ["未完成", "Incomplete"], slow: ["读盘太慢", "Reading too slowly"],
       unknown: ["不知道", "Unknown"] }[kind] ?? ["不知道", "Unknown"];
     const FOR = { good: ["按这次的测量刻，位置可信。", "Burn with it; the positions can be trusted."], usable: ["大致可信，边缘可能有小偏差。", "Mostly right; the edges may be slightly off."],
       narrow_span: ["测到的范围以外可能偏。", "Outside the measured range it may be off."], stopped_early: ["只测到一部分，还不能用来刻图。", "Only part was measured; not for a picture yet."],
@@ -1236,6 +1303,17 @@ function realPaint() {
       html += note("warn", [liveText(`刻好的测量盘抽样回读：${v.unreadable} 块读不出、${v.differing} 块不对。测量结果照上面的判断用；若几何停在这些地方，换一张同批空白盘、换个速度再刻测量盘。`,
         `Read-back of the measurement disc burned here: ${v.unreadable} sampled blocks unreadable, ${v.differing} differing. Use the result as judged above; if measuring stops there, burn another measurement disc from this batch at another speed.`), ""]);
     const ok = recovery.id === 'save';
+    const retryPart = ok ? (flow.timing?.measurement?.retry_kind === 'noisy' ? flow.timing : null) : part;
+    if (retryPart) {
+      if (ok) html += `<p>${liveText('这次测转速时读数有些乱。也可以换个速度重测。', 'The rotation readings were noisy. You can also try measuring at a different speed.')}</p>`;
+      html += readRetryOptions(retryPart);
+      if (!ok && kind !== 'coverage') html += `<p>${usbRetryWords()}</p>`;
+      if (kind === 'media') html += checkMeasurementDisc();
+      if (recovery.id === 'coverage' && part?.measurement?.retry_kind === 'rung') html += `<p>${liveText(
+        '继续测时，请使用同一张盘、同一台光驱和原来的读取速度。换速度会重新检查转速并开始新一次测量。',
+        'To continue, use the same disc, drive and read speed. Picking a different speed checks rotation and starts a new measurement.')}</p>`;
+      html += diagnosticOptions();
+    }
     if (flow.coverageNotice) html += `<div role="alert">${note("warn", [esc(flow.coverageNotice), ""])}</div>`;
     const skipped = flow.detected.media === "cd" && flow.photoSkipped;
     button = ok ? (skipped ? liveText('保存测量（不含照片修正）', 'Save without the photo correction')
@@ -1245,7 +1323,7 @@ function realPaint() {
     const details = ok
       ? liveText('想把这次测量用于同批光盘，点右下角继续。', 'To use this measurement for discs from the same batch, continue with the button at the bottom right.')
       : liveText(`要继续，点右下角的“${button}”。如果需要重测，先留着这张测量盘。`, `To continue, choose “${button}” at the bottom right. If you need to measure again, keep this measurement disc.`);
-    const reason = kind === 'coverage' && flow.calibrationReason === 'the preset was not written'
+    const reason = ['media', 'slow'].includes(part?.measurement?.retry_kind) ? '' : kind === 'coverage' && flow.calibrationReason === 'the preset was not written'
       ? liveText('补齐空档后才能保存预设。', 'The preset can be saved once the gaps have been measured.')
       : flow.calibrationReason ? stopText(flow.calibrationReason) : '';
     const chart = calchart.resultChart(flow.geo?.measurement, { zh: api.lang() === "zh" });
@@ -1294,7 +1372,11 @@ function realPaint() {
   const burnStop=!flow.job && interruptedBurn(flow,api.lang());
   if(burnStop){
     title=liveText(flow.cancelledByUser?.phase==='burn'?'刻录已停止':'刻录没有完成',flow.cancelledByUser?.phase==='burn'?'Burn stopped':'Burn did not finish');
-    text=measurementGateText(flow.burnFailureGate,api.lang())||burnStop;html='';
+    text=measurementGateText(flow.burnFailureGate,api.lang())||burnStop;
+    html=keepDiscForReview(flow.burnFailureGate) ? checkMeasurementDisc() : `<p>${liveText(
+      '换盘或擦除后，可以从新盘支持的档位里选一个较低的刻录速度。测量盘可以用低速刻。',
+      'After replacing or erasing the disc, choose a lower write speed from the speeds the drive reports. A measurement disc can be burned at low speed.')}</p>`;
+    html += diagnosticOptions();
     button=keepDiscForReview(flow.burnFailureGate)?recheckText(api.lang())
       :flow.detected?.rewritable?liveText('擦除后重新刻','Erase and burn again'):liveText('换一张空白盘重新刻','Replace with a blank and burn again');
     disabled=false;
@@ -1302,6 +1384,13 @@ function realPaint() {
     title=liveText('这张盘不能用来测','This disc cannot be measured');text=flow.discIssue;html='';
     button=flow.detected?.rewritable?liveText('擦除后重新刻','Erase and burn again'):liveText('换一张空白盘重新刻','Replace with a blank and burn again');disabled=false;
   }
+  if (!burnStop && badBurn && flow.iso && !flow.job && !['inspect', 'prepare', 'random', 'burn'].includes(phase))
+    html += checkMeasurementDisc() + diagnosticOptions();
+  if (!burnStop && !badBurn && flow.error && !flow.job && ['timing', 'geo'].includes(phase))
+    html += retryButton('real-remeasure', liveText('检查转速并重测', 'Check rotation and remeasure')) + diagnosticOptions();
+  if (flow.job && phase === 'burning' && flow.burnStarted && !flow.job.verifying)
+    html += `<p>${liveText('进度若长时间停住，可以点“停止刻录”。停下后可换盘，选较低速度重刻测量盘。',
+      'If progress stays still for a long time, choose Stop burning. Once it stops, you can use a fresh disc and choose a lower write speed.')}</p>`;
   paintRuler(); paintStage();
   sideButton(flow.job && ["burning", "checking", "timing", "geo"].includes(phase)
     ? returnTo ? liveText("先回大厅，测好了叫我", "Go to the lobby; call me when done")
@@ -1342,6 +1431,7 @@ function realPaint() {
   $("real-erase")?.addEventListener('click',()=>{flow.eraseRequested=true;flow.measureConfirmed=false;realNext();});
   $("real-burn-erase")?.addEventListener('click',()=>{flow.eraseRequested=true;refreshBurnInspection();});
   $("real-burn-recheck")?.addEventListener('click',()=>{flow.eraseRequested=false;refreshBurnInspection();});
+  $("real-burn-speed")?.addEventListener('change', e => { flow.burnSpeed = Number(e.target.value) || undefined; });
   $("measurement-batch-confirm")?.addEventListener('change',e=>{
     flow.batchConfirmed=e.target.checked;paint();$("measurement-batch-confirm")?.focus();
   });
@@ -1357,6 +1447,11 @@ function realPaint() {
   $("left-input")?.addEventListener("input", e => { flow.left = e.target.value === "" ? null : Number(e.target.value); });
   $("real-retry")?.addEventListener("click", () => {
     flow.error = null;
+    if (badBurn && flow.iso) {
+      flow.burnRetry = true;
+      flow.burnSpeed = undefined;
+      flow.burnInspection = null;
+    }
     if(phase==='burn'&&!cdHere()){flow.eraseRequested=false;refreshBurnInspection();return;}
     if (phase !== "review" && !CAPACITY_PHASES.includes(phase)) flow.realPhase = "inspect";
     paint();
@@ -1364,7 +1459,19 @@ function realPaint() {
   for (const [id, yes] of [["real-yes",true],["real-no",false]]) $(id)?.addEventListener("click", async () => {
     try { const ask = flow.ask; await api.backend.answer(ask.job, ask.id, yes); flow.ask = null; paint(); } catch(e) {realError(e);}
   });
-  $("real-remeasure")?.addEventListener("click", () => realNext(true));
+  $("real-remeasure")?.addEventListener("click", () => retryMeasurement());
+  $("real-suggested-speed")?.addEventListener("click", e => retryMeasurement(e.target.dataset.speed));
+  $("real-lower-read")?.addEventListener("click", () => retryMeasurement($("real-lower-read-speed").value));
+  $("real-copy-diagnostics")?.addEventListener("click", async e => {
+    try { await navigator.clipboard.writeText(diagnosticWords()); e.target.textContent = liveText('已复制', 'Copied'); }
+    catch { e.target.textContent = liveText('请选择上面的文字复制', 'Select the text above to copy it'); }
+  });
+  $("real-download-diagnostics")?.addEventListener("click", () => {
+    const url = URL.createObjectURL(new Blob([diagnosticWords()], {type:'text/plain;charset=utf-8'}));
+    const link = document.createElement('a');
+    link.href = url; link.download = 'disc-probe-diagnostics.txt'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
   $("real-photo")?.addEventListener("click", enterPhoto);
   $("real-have")?.addEventListener("click", () => { flow.realPhase = "inspect"; realNext(); });
   $("real-copy")?.addEventListener("click", async (e) => {
@@ -1891,6 +1998,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
   }
   const onEvent = event => {
       if (flow !== f) return;
+      if (event.type === 'diagnostics') f.retryDiagnostics = event;
       if (event.type === "error" && event.message) why = event.message;
       if (event.type === "error" && event.burn_gate) burnGate = event.burn_gate;
       if (event.type === "log" && event.text?.trim()) lastLine = event.text.trim();
@@ -1913,7 +2021,11 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       if (event.type === 'erase_started') {current.clock.clear();f.realPhase='erasing';$("job-name").textContent=liveText('擦除光盘','Erasing');f.stage=liveText('正在擦除光盘，盘上的内容会被清掉。','Erasing the disc; its contents will be cleared.');closeBurnStop();paint();paintJob();}
       if (event.type === 'erase_progress') {current.p=event.fraction;api.jobProgress(current.p,f.detected?.media||'dvd');current.clock.estimate(event.eta_s);f.stage=liveText('盘上的内容正在清掉。','The disc contents are being cleared.');paint();}
       if (event.type === 'erase_result') {f.eraseResult=event;if(event.result!=='completed'){f.burnStarted=false;f.realPhase='burn';}}
-      if (event.type === 'burn_speed') {if(f.realPhase!=='burning')current.clock.clear();f.realPhase='burning';$("job-name").textContent=stepWords('burn');f.burnStarted=true;f.stage=null;paint();paintJob();}
+      if (event.type === 'burn_speed') {
+        if(f.realPhase!=='burning')current.clock.clear();
+        f.lastBurnSpeed = event.actual_speed_x ?? event.selected_speed_x ?? f.lastBurnSpeed;
+        f.realPhase='burning';$("job-name").textContent=stepWords('burn');f.burnStarted=true;f.stage=null;paint();paintJob();
+      }
       if (event.type === "burn_result") { f.burnCheck = event; if(event.result==='completed')f.burnStarted=false; }
       if (event.type === "cancelled" && event.by==='user') f.cancelledByUser=event;
       if (event.type === "verify_progress" && !current.verifying) {current.verifying=true;closeBurnStop();paint();paintJob();}
@@ -1980,17 +2092,47 @@ async function inspectDisc() {
   if (expectedMid && result.disc.mid && !sameMaker(result.disc.mid, expectedMid)) throw new Error(liveText('厂商编号已改变，请放回同批次光盘。', 'The maker code changed. Insert a disc from the same batch.'));
   return result;
 }
-async function realNext(forceMeasure = false) {
+async function retryMeasurement(speed = null) {
+  if (flow.job || flow.curvePending || $("left-input")?.reportValidity?.() === false) return;
+  const previous = {timing:flow.timing};
+  flow.error = null; flow.calibratedOk = null; flow.calibrationReason = null; flow.coverageNotice = null;
+  flow.retryDiagnostics = null;
+  flow.photoResult = null; flow.photoReadKey = null; flow.photoSnapshot = null; flow.photoUploads = null; flow.photoNotice = null;
+  flow.photoSkipped = false;
+  flow.preset = null; flow.geo = null; flow.timing = null;
+  try {
+    const result = await remeasure(async (action, args) => {
+      flow.realPhase = action;
+      const result = await realJob(action, args);
+      flow[action] = result;
+      return result;
+    }, previous, speed);
+    Object.assign(flow, result);
+  } catch (error) {
+    if (!error.result) { realError(error); return; }
+    flow[flow.realPhase] = error.result[flow.realPhase] || error.result;
+  }
+  flow.realPhase = 'review';
+  paint();
+}
+
+async function realNext() {
   if (flow.job || flow.curvePending) return;
   flow.error = null;
   try {
     const phase = flow.realPhase;
     if(phase==='burnStopped'&&keepDiscForReview(flow.burnFailureGate)){
       flow.burnFailureGate=null;flow.burnCheck=null;flow.burnInterrupted=false;flow.burnStarted=false;
-      flow.burnInspection=null;flow.eraseRequested=false;flow.realPhase='inspect';
+      flow.burnInspection=null;flow.burnRetry=true;flow.burnSpeed=undefined;
+      flow.eraseRequested=false;flow.realPhase='inspect';
       await realNext();return;
     }
     if(phase==='burnStopped'||phase==='discRejected'||interruptedBurn(flow,api.lang())){
+      if (phase !== 'discRejected') {
+        flow.burnRetry = true;
+        flow.burnSpeed = undefined;
+        flow.burnInspection = null;
+      }
       if(flow.detected?.rewritable){
         flow.eraseRequested=true;flow.burnCheck=null;flow.cancelledByUser=null;flow.burnInterrupted=false;flow.burnStarted=false;
         flow.requireBlank=false;flow.measureConfirmed=false;flow.realPhase='prepare';
@@ -2058,7 +2200,7 @@ async function realNext(forceMeasure = false) {
       }
     } else if (phase === "review") {
       if ($("left-input")?.reportValidity?.() === false) return;
-      const recovery = forceMeasure === true ? {id:'measure'} : recoveryAction(flow);
+      const recovery = recoveryAction(flow);
       if (recovery.id === 'coverage') {
         flow.coverageNotice = null;
         flow.repairingCoverage = true;
@@ -2072,29 +2214,11 @@ async function realNext(forceMeasure = false) {
         flow.realPhase = "inspect";
       } else if (recovery.id === 'blank') {
         flow.geo = null; flow.timing = null; flow.preset = null;
+        flow.burnRetry = true; flow.burnSpeed = undefined; flow.burnInspection = null;
         flow.realPhase = "inspect";
         await realNext();
-      } else if (recovery.id === 'measure') {
-        const previous = {timing:flow.timing};
-        flow.calibratedOk = null; flow.calibrationReason = null; flow.coverageNotice = null;
-        flow.photoResult = null; flow.photoReadKey = null; flow.photoSnapshot = null; flow.photoUploads = null; flow.photoNotice = null;
-        flow.photoSkipped = false;                // a new measurement asks for its own photo
-        flow.preset = null; flow.geo = null; flow.timing = null;
-        try {
-          const result = await remeasure(async (action, args) => {
-            flow.realPhase = action;
-            const result = await realJob(action, args);
-            flow[action] = result;
-            return result;
-          }, previous);
-          Object.assign(flow, result);
-        } catch (error) {
-          if (!error.result) throw error;
-          const part = error.result.geo || error.result.timing || error.result;
-          flow[flow.realPhase] = part;
-        }
-        flow.realPhase = 'review';
-      } else if (flow.detected.media === "cd" && !flow.photoSkipped) enterPhoto();
+      } else if (recovery.id === 'measure') await retryMeasurement();
+      else if (flow.detected.media === "cd" && !flow.photoSkipped) enterPhoto();
       else await realSave();
     } else if (phase === "photo") {
       if (photoUI?.status === 'unavailable') { if (flow.detected.media === 'cd') await realSave(); else photoReview(); }
@@ -2189,14 +2313,17 @@ function acknowledgeVisibleResult() {
 // now, same maker code) and measuring starts.
 function measurementBurnRequest(f) {
   return {action:'calibrate',drive:api.selectedDrive(),media:f.detected?.media||f.item.row||'dvd',
-    args:{iso:f.iso,mid:f.detected?.mid||f.item.mid||undefined,...(f.eraseRequested?{erase:true}:{})}};
+    args:{iso:f.iso,mid:f.detected?.mid||f.item.mid||undefined,burn_speed:f.burnSpeed,...(f.eraseRequested?{erase:true}:{})}};
 }
 
 async function refreshBurnInspection() {
   const f=flow;
   if(f.burnInspecting)return;
   f.burnInspecting=true;f.burnInspection=null;f.batchConfirmed=false;paint();
-  try {f.burnInspection=await checkBurn(api.backend,measurementBurnRequest(f));}
+  try {
+    f.burnInspection=await checkBurn(api.backend,measurementBurnRequest(f));
+    if (!f.burnInspection.speeds_x?.includes(f.burnSpeed)) f.burnSpeed = undefined;
+  }
   catch(error){f.burnInspection={error};}
   finally{f.burnInspecting=false;if(flow===f)paint();}
 }
