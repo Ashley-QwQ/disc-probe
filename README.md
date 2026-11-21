@@ -284,27 +284,11 @@ CD 还有一个计时测不到的常数，所以要多刻一张标定盘。下�
 
 ### 颜色（实验中）
 
-反复写同一段数据，这一小块盘面就像一块光栅，把白光分开。重复的间距不同，同一个方向上看到的颜色就不同，换个角度颜色也会变。这部分还在实验，进展在 [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)。
+可以把自己的照片或插画刻在 DVD 的数据面上。反复写入同一段数据会形成光栅。程序按设计机位逐格挑纹理，让闪光灯照出的颜色尽量接近原图。手机或盘一动，颜色就会变。实盘颜色目前只在 RITEKF1 DVD-R 搭配 GH70N 上验证过。
 
-<img src="docs/showcase/roses_source.jpg" width="42%" alt="GPT Image 生成的玫瑰原图"> <img src="docs/showcase/roses_7185.jpg" width="42%" alt="刻好的玫瑰 DVD-R 数据面的照片，部分花瓣显紫色">
+<img src="docs/showcase/colour4_photo_dark.jpg" width="62%" alt="彩色测试盘实拍，红绿色块和亮蓝光带同时可见">
 
-左边是 GPT Image 生成的原图，右边是刻好的 DVD-R 的照片，背景已遮掉。这张盘按紫色设计，找对角度时，部分花瓣接近原图的紫色，只是暗一些。它只在一个角度看起来对，手机一动花瓣就变色，也不能任意指定颜色，目前只做过紫色。详情见 [#168](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/168)。同一张盘还存了 1.38 GB 数据，整盘读回零错误，见 [#170](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/170)。这些都是一张盘的早期结果，玫瑰盘的工具还没公开。
-
-<img src="docs/showcase/rosettes_closeup.jpg" width="75%" alt="闪光灯下同一朵花上显出多种颜色的花瓣">
-
-能自己刻的是这张花盘，同一朵花上有 3 到 4 种颜色，我们只在 RITEKF1 DVD-R 上刻过。先按[快速开始](#快速开始)测盘，再生成图案。这一步不碰光驱：
-
-```bash
-python tools/compose_rosettes.py
-```
-
-它会打印下一条命令，填好就能生成镜像：
-
-```bash
-python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --textures "MIX:92,87,83,8D,60" A5 92 66 ED00 2AE304 --r-max 57.6 --output iso/rosettes.iso
-```
-
-预览图的颜色只用来区分纹理，和盘上的颜色对不上是正常的。拍的时候关灯，只开手机闪光灯，手机往旁边偏开一点，步骤见 [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108)。
+这是早期彩色测试盘的实拍。想用自己的图，见[彩色 DVD 刻图](docs/colour.zh.md)。指南包含网页截图、从图片到刻录的命令、手机机位和常见问题。
 
 ### 其他光驱和盘
 
@@ -479,7 +463,7 @@ CD 的沿轨道常数要靠网格盘来定，206 帧只对 GH70N 加 IMAPI 刻�
 | [`evidence/`](evidence/README.md) | 原始测量数据和图，可复现 |
 | [dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing) | WindowsNoEditor 的 C# 探测程序、拟合脚本和原始数据（在他们的 fork 里） |
 
-想把自己的照片或插画刻成彩色 DVD，可以请 Claude Code 或 Codex 照 [彩图技能](skills/disc-colour/SKILL.md) 帮你做。它会先给你看预测图，等你确认后再生成刻录镜像。
+想做彩色 DVD，见[彩色 DVD 刻图](docs/colour.zh.md)。指南末尾附有给 agent 的检查清单。
 
 ## 前人工作与致谢
 

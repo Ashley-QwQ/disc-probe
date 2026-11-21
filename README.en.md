@@ -288,27 +288,11 @@ How fine can it go? LTVA1 burned a test pattern at 23,200 × 23,200 px, 5 µm pe
 
 ### Colour (experimental)
 
-Write the same data over and over and that patch of disc acts as a grating, splitting white light. The repeat length decides which colour goes in a given direction, and the colour changes with the angle. This is still an experiment, followed in [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108).
+Put your own photograph or illustration on the data side of a DVD. Repeating the same data makes a diffraction grating. For each cell the software picks a texture for the chosen camera and flash position. Move the phone or disc and the colours change. Physical colour has only been verified on RITEKF1 DVD-R with a GH70N.
 
-<img src="docs/showcase/roses_source.jpg" width="42%" alt="The rose picture made with GPT Image"> <img src="docs/showcase/roses_7185.jpg" width="42%" alt="Photo of the burned rose DVD-R, with some petals showing purple">
+<img src="docs/showcase/colour4_photo_dark.jpg" width="62%" alt="Real colour test disc showing red and green patches and a bright blue streak">
 
-On the left is the original, made with GPT Image. On the right is a photo of the burned DVD-R, with the background masked. This disc was designed for purple, and from the right angle some petals come close to the original purple, only darker. It only looks right from one angle, the petals change colour when the phone moves, and you can't choose just any colour: purple is the only target so far. Details are in [#168](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/168). The same disc also holds 1.38 GB of data and read back with no errors, see [#170](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/170). These are early results from one disc, and the tool for the rose disc isn't published yet.
-
-<img src="docs/showcase/rosettes_closeup.jpg" width="75%" alt="Petals of one flower showing several colours under a flash">
-
-The one you can burn yourself is this flower disc, with 3 to 4 colours on one flower. We've only burned it on RITEKF1 DVD-R. Measure your disc as in [Quick start](#quick-start), then build the design. This step doesn't touch the drive:
-
-```bash
-python tools/compose_rosettes.py
-```
-
-It prints the next command, which builds the ISO:
-
-```bash
-python -m discprobe image --geo latest --design-npy iso/rosettes_design.npy --textures "MIX:92,87,83,8D,60" A5 92 66 ED00 2AE304 --r-max 57.6 --output iso/rosettes.iso
-```
-
-The preview's colours only tell the textures apart, so it won't match the disc. To photograph it, turn off the room lights, use only the phone flash and hold the phone a little to one side. [#108](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/discussions/108) has the steps.
+This is a photograph of an earlier colour test disc. To use your own picture, see [Make a colour DVD](docs/colour.md) for the web screenshots, the command-line workflow, phone setup and troubleshooting.
 
 ### Other drives and discs
 
@@ -484,7 +468,7 @@ The manual, notes and CD model are in Chinese for now.
 | [`evidence/`](evidence/README.md) | Raw measurements and figures, reproducible |
 | [dis-cd-timing](https://github.com/WindowsNoEditor/disc-probe/tree/dis-cd-timing/contrib/dis-cd-timing) | WindowsNoEditor's C# probe, fitting scripts and raw data (in their fork) |
 
-To put your own photo or illustration on a colour DVD, ask Claude Code or Codex to follow the [disc-colour skill](skills/disc-colour/SKILL.md). It will show you a predicted image and wait for your approval before making the ISO.
+See [Make a colour DVD](docs/colour.md) for the workflow. The guide ends with a short checklist for agents.
 
 ## Prior work and thanks
 
