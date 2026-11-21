@@ -137,7 +137,7 @@
     "steps": {"zh": ["换用尚未测过的 CD 读速。24x 在手册的 CD 速率表中，用 timing 查看实际模式。"], "en": ["Try an untested CD speed. 24x is listed in the manual’s CD speed table. Check the actual mode with timing."]},
     "commands": ["python -m discprobe timing --media cd --drive <drive> --speed 24x"],
     "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
-    "sources": [{"path": "discprobe/guide.py", "line": 583, "keyword": "A higher CD speed may allow CAV"}, {"path": "docs/MANUAL.en.md", "line": 131, "keyword": "24x"}, {"path": "README.en.md", "line": 398, "keyword": "CAV, 2090 rpm"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 583, "keyword": "A higher CD speed may allow CAV"}, {"path": "docs/MANUAL.en.md", "line": 131, "keyword": "24x"}, {"path": "README.en.md", "line": 382, "keyword": "CAV, 2090 rpm"}]
   },
   {
     "id": "cd-twisted-lines",
@@ -214,10 +214,10 @@
     "symptoms": {"zh": ["颜色不对", "预览和实物颜色不同", "手机转一下颜色就变了", "实物颜色和预览差得很远", "出盘之后颜色跟预测差别大"], "en": ["colours look wrong", "preview colors don't match disc", "color changes when i move my phone", "actual disc looks very different from the preview"]},
     "error_patterns": [{"text": "The preview's colours only tell the textures apart"}, {"text": "Prediction from a model, not a photo"}],
     "cause": {"zh": "结构色随灯光和观察角度变化。纹理预览的颜色用于区分材料，灯下效果是预测。", "en": "Structural colour changes with light and viewing angle. Texture preview colours identify materials, and the lamp view is a prediction."},
-    "steps": {"zh": ["按拍摄设置对准角度。拍实验花盘时关掉房间灯，只用手机闪光灯并稍稍侧持手机。"], "en": ["Match the intended viewing pose. For the experimental flower disc, turn off the room lights, use the phone flash and hold the phone a little to one side."]},
+    "steps": {"zh": ["回到设计机位：关掉房间灯，只开手机闪光灯，照对准纸摆盘，手机放在选定的高度，见 docs/colour.zh.md。"], "en": ["Go back to the design position: room lights off, phone flash on, disc aligned on the placement sheet, phone at the chosen height. See docs/colour.md."]},
     "commands": [],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "README.en.md", "line": 291, "keyword": "the colour changes with the angle"}, {"path": "README.en.md", "line": 311, "keyword": "use only the phone flash"}, {"path": "README.en.md", "line": 90, "keyword": "Colours and effects in the lamp view are a preview"}]
+    "sources": [{"path": "docs/colour.md", "line": 11, "keyword": "Move the phone a little or turn the disc"}, {"path": "docs/colour.md", "line": 51, "keyword": "Keep room lights and bright reflections out of the shot"}, {"path": "README.en.md", "line": 90, "keyword": "Colours and effects in the lamp view are a preview"}]
   },
   {
     "id": "curve-controls",
@@ -367,7 +367,7 @@
     "steps": {"zh": ["用 results 检查结果，选择含几何拟合的运行，或重新测量。"], "en": ["Check runs with results and select one with a geometry fit, or measure again."]},
     "commands": ["python -m discprobe results", "python -m discprobe geo --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/guide.py", "line": 332, "keyword": "no geometry fit"}, {"path": "discprobe/guide.py", "line": 356, "keyword": "neither an inner radius nor a pitch"}, {"path": "README.en.md", "line": 423, "keyword": "which steps are done"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 332, "keyword": "no geometry fit"}, {"path": "discprobe/guide.py", "line": 356, "keyword": "neither an inner radius nor a pitch"}, {"path": "README.en.md", "line": 407, "keyword": "which steps are done"}]
   },
   {
     "id": "dis-old-quality",
@@ -987,7 +987,7 @@
     "steps": {"zh": ["确认同批盘和同一台刻录机。光照和刻录报告无异常后，仍扭曲时可用网格测试盘检查几何。", "如果图案沿半径扭成螺旋，先核对预设是否来自相近的实测盘。蓝光仅凭计时的预设还需要实盘校准。"], "en": ["Check that the disc is from the same batch and was burned on the same burner. If lighting and the burn report are fine and lines are still twisted, use a grid test to check geometry.", "If the pattern twists into a spiral across the radius, check that the preset came from a closely matching measured disc. A timing-only Blu-ray preset still needs disc calibration."]},
     "commands": ["python -m discprobe image --geo latest --output iso/grid.iso"],
     "manual": {"zh": "docs/MANUAL.md#刻图纹理与颜色", "en": "docs/MANUAL.en.md#burning-pictures-textures-and-colour"},
-    "sources": [{"path": "discprobe/guide.py", "line": 1049, "keyword": "check it was the same batch"}, {"path": "discprobe/guide.py", "line": 1050, "keyword": "only if the light and the burn report are fine"}, {"path": "discprobe/guide.py", "line": 1051, "keyword": "--output iso/grid.iso"}, {"path": "docs/MANUAL.en.md", "line": 329, "keyword": "will show dense spirals"}, {"path": "README.en.md", "line": 468, "keyword": "a spiral of a dozen arms"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 1049, "keyword": "check it was the same batch"}, {"path": "discprobe/guide.py", "line": 1050, "keyword": "only if the light and the burn report are fine"}, {"path": "discprobe/guide.py", "line": 1051, "keyword": "--output iso/grid.iso"}, {"path": "docs/MANUAL.en.md", "line": 329, "keyword": "will show dense spirals"}, {"path": "README.en.md", "line": 452, "keyword": "a spiral of a dozen arms"}]
   },
   {
     "id": "random-too-large",
@@ -1107,7 +1107,7 @@
     "steps": {"zh": ["使用受支持系统；README 也列出了独立的 macOS 移植。按 guide 里的模拟命令可体验计时流程。"], "en": ["Use a supported system. The README also lists a separate macOS port. The simulated timing command can demonstrate the workflow."]},
     "commands": ["python -m discprobe timing --sim cav"],
     "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
-    "sources": [{"path": "discprobe/guide.py", "line": 55, "keyword": "real hardware on Windows and Linux"}, {"path": "discprobe/guide.py", "line": 1330, "keyword": "real drives need Windows or Linux"}, {"path": "discprobe/guide.py", "line": 659, "keyword": "timing --sim cav"}, {"path": "README.en.md", "line": 410, "keyword": "NaiveTomcat ported it to macOS"}]
+    "sources": [{"path": "discprobe/guide.py", "line": 55, "keyword": "real hardware on Windows and Linux"}, {"path": "discprobe/guide.py", "line": 1330, "keyword": "real drives need Windows or Linux"}, {"path": "discprobe/guide.py", "line": 659, "keyword": "timing --sim cav"}, {"path": "README.en.md", "line": 394, "keyword": "NaiveTomcat ported it to macOS"}]
   },
   {
     "id": "web-disc-type",
@@ -1117,7 +1117,7 @@
     "steps": {"zh": ["用 info 确认盘种，网页引导选择相同类型，命令行对 CD 指定 --media cd，对 BD 指定 --media bd。当前网页检查盘图案只支持 DVD。"], "en": ["Use info to identify the disc and select the same family in the guide. Use --media cd or --media bd as appropriate in the CLI. The web check-disc target supports DVD."]},
     "commands": ["python -m discprobe info --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
-    "sources": [{"path": "README.en.md", "line": 159, "keyword": "disc type (CD/DVD/BD)"}, {"path": "README.en.md", "line": 429, "keyword": "CD and DVD"}, {"path": "README.en.md", "line": 466, "keyword": "--media bd"}, {"path": "discprobe/webui.py", "line": 191, "keyword": "The check disc is for DVD only"}, {"path": "discprobe/__main__.py", "line": 219, "keyword": "but the command has DVD settings"}]
+    "sources": [{"path": "README.en.md", "line": 159, "keyword": "disc type (CD/DVD/BD)"}, {"path": "README.en.md", "line": 413, "keyword": "CD and DVD"}, {"path": "README.en.md", "line": 450, "keyword": "--media bd"}, {"path": "discprobe/webui.py", "line": 191, "keyword": "The check disc is for DVD only"}, {"path": "discprobe/__main__.py", "line": 219, "keyword": "but the command has DVD settings"}]
   },
   {
     "id": "web-double-click",
