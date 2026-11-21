@@ -7,7 +7,7 @@ const WORDS = {
     tilt:'拍照时保持手机和盘面平行。手持观察时，慢慢倾斜盘，避开倒影来找颜色。',
     pose:'颜色只在设计机位附近接近预览，挪动手机或转盘时颜色会变。',
     mono:'黑白图用暗处的小光源观察即可。',
-    colourDoc:'彩色刻图说明和对准纸', gratingDoc:'光栅卡和观察角度',
+    colourDoc:'彩色刻图说明和对准纸', learn:'光盘怎么变成图',
   },
   en: {
     title:'Viewing and photographing colour', figure:'Placement sheet viewed from above', twelve:'12 o’clock arrow', lens:'1× main lens', flash:'Flash',
@@ -16,7 +16,7 @@ const WORDS = {
     tilt:'Keep the phone parallel to the disc for the photo. To view it by hand, slowly tilt the disc away from reflections until the colours show.',
     pose:'Colours match the preview most closely near the design position. They shift if you move the phone or turn the disc.',
     mono:'For black-and-white pictures, a small light in a dark room is enough.',
-    colourDoc:'Colour guide and placement sheet', gratingDoc:'Grating card and viewing angles',
+    colourDoc:'Colour guide and placement sheet', learn:'How a disc becomes a picture',
   },
 };
 
@@ -47,12 +47,13 @@ export function colourShootGuide(setup, lang, open = false) {
   const w = WORDS[lang] ?? WORDS.zh;
   const height = Number.isFinite(setup.height) ? setup.height.toLocaleString(lang) : null;
   const suffix = lang === 'en' ? '.md' : '.zh.md';
+  const lesson = new URL(`../learn/how-disc-images-work${lang === 'en' ? '' : '.zh'}.html`,import.meta.url).href;
   return `<details class="colour-shoot-guide" ${open ? 'open' : ''}>
     <summary>${w.title}</summary>
     ${placementFigure(w, setup)}
     <ol>${[w.light,w.place(height),w.tilt,w.pose,w.mono].map(text=>`<li>${text}</li>`).join('')}</ol>
     <p><a href="${DOCS}colour${suffix}" target="_blank" rel="noopener">${w.colourDoc}</a>
-    <a href="${DOCS}grating-card${suffix}" target="_blank" rel="noopener">${w.gratingDoc}</a></p>
+    <a href="${lesson}" target="_blank" rel="noopener">${w.learn}</a></p>
   </details>`;
 }
 

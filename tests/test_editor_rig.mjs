@@ -74,6 +74,7 @@ locked(editor({phone:'iphone17pro',height:'21'},{loaded:false}).materialsHTML())
   assert.match(html,new RegExp(`镜头离桌面 ${DESIGN_RULER_CM} cm`));
   assert.match(html,/对准纸俯视示意/);
   assert.match(html,/docs\/colour\.zh\.md/);
+  assert.match(html,/learn\/how-disc-images-work\.zh\.html/);
 }
 {const ed=editor({phone:'custom',flash_mm:31.6,height:'30'});assert.equal(ed.rigOpen(),false,'custom grid not fetched yet');locked(ed.materialsHTML());
   ed.addSets(custom);assert.equal(ed.rigOpen(),true);assert.equal(ed.light({id:ids[0]}).rgb.join(),decodeSet(data.order,custom.sets['32@30'])[ids[0]].rgb.join());}

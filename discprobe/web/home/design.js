@@ -2388,7 +2388,7 @@ async function openPreview() {
     imageWork: () => !P.batchDeferred && !P.dirty && hasCapability("image-job-recovery") ? P.work?.id : null,
     project: { name: P.name ?? P.item?.name, cellMm: P.cell, render: projection, lamp: editor?.lampProject() ?? null,
       fileRegions:()=>occupiedRings(P.files) },
-    colourGuide: editor?.hasColour() ? editor.shootingSetup() : null,
+    colourGuide: editor?.shootingSetup() ?? null,
     // colours and effects burn in black and white unless the person asks for the experiment (DVD only)
     effects: hasColourPicture(P) && P.media === "dvd" ? "experimental" : "bw",
     setEffects(mode) { ctx.effects = mode === "experimental" && P.media === "dvd" ? "experimental" : "bw"; },
