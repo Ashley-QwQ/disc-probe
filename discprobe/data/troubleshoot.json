@@ -27,7 +27,7 @@
     "steps": {"zh": ["空盘用 info 查容量；计时用已有的可读数据盘。没有可用数据盘时才生成并刻一张随机数据盘。"], "en": ["Use info on the blank to get capacity. Use a readable data disc for timing. Make and burn a random-data disc if no usable one is available."]},
     "commands": ["python -m discprobe info --drive <drive>", "python -m discprobe random --output iso/random.iso"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/timing.py", "line": 360, "keyword": "blank media has nothing to read"}, {"path": "discprobe/guide.py", "line": 727, "keyword": "no existing data disc is available"}, {"path": "discprobe/guide.py", "line": 1338, "keyword": "available sector count"}, {"path": "discprobe/zh.py", "line": 545, "keyword": "这张盘上没有数据"}, {"path": "discprobe/guide.py", "line": 642, "keyword": "nothing is recorded on this blank"}]
+    "sources": [{"path": "discprobe/timing.py", "line": 360, "keyword": "blank media has nothing to read"}, {"path": "discprobe/guide.py", "line": 727, "keyword": "no existing data disc is available"}, {"path": "discprobe/guide.py", "line": 1338, "keyword": "available sector count"}, {"path": "discprobe/zh.py", "line": 595, "keyword": "这张盘上没有数据"}, {"path": "discprobe/guide.py", "line": 642, "keyword": "nothing is recorded on this blank"}]
   },
   {
     "id": "burn-browser-closed",
@@ -127,7 +127,7 @@
     "steps": {"zh": ["把设计移出内侧文件系统区域，半径 26 mm 以内留背景。"], "en": ["Move the design away from the file system area and leave the inner 26 mm radius as background."]},
     "commands": ["python -m discprobe edit my_picture.png"],
     "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
-    "sources": [{"path": "discprobe/zh.py", "line": 550, "keyword": "半径 26 mm 以内留空"}, {"path": "discprobe/guide.py", "line": 911, "keyword": "edit my_picture.png"}, {"path": "docs/MANUAL.en.md", "line": 693, "keyword": "inside a radius of 26 mm"}]
+    "sources": [{"path": "discprobe/zh.py", "line": 600, "keyword": "半径 26 mm 以内留空"}, {"path": "discprobe/guide.py", "line": 911, "keyword": "edit my_picture.png"}, {"path": "docs/MANUAL.en.md", "line": 693, "keyword": "inside a radius of 26 mm"}]
   },
   {
     "id": "cd-speed-after-clv",
@@ -1027,7 +1027,7 @@
     "steps": {"zh": ["先用同一张盘比较 FUA 或挤缓存，再试不同读速。区分真实旋转后再拟合几何。"], "en": ["Reuse the disc and compare FUA or cache eviction, or try another read speed. Wait until you can distinguish real rotation before fitting geometry."]},
     "commands": ["python -m discprobe timing --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/timing.py", "line": 646, "keyword": "cache/false period"}, {"path": "discprobe/timing.py", "line": 655, "keyword": "cache/host timer period"}, {"path": "discprobe/diagnostics.py", "line": 55, "keyword": "Do not fit geometry"}, {"path": "docs/MANUAL.en.md", "line": 221, "keyword": "This selects the strategy"}, {"path": "discprobe/zh.py", "line": 453, "keyword": "一次绕过缓存"}, {"path": "discprobe/zh.py", "line": 454, "keyword": "Windows timer tick"}]
+    "sources": [{"path": "discprobe/timing.py", "line": 646, "keyword": "cache/false period"}, {"path": "discprobe/timing.py", "line": 655, "keyword": "cache/host timer period"}, {"path": "discprobe/diagnostics.py", "line": 55, "keyword": "Do not fit geometry"}, {"path": "docs/MANUAL.en.md", "line": 221, "keyword": "This selects the strategy"}, {"path": "discprobe/zh.py", "line": 503, "keyword": "一次绕过缓存"}, {"path": "discprobe/zh.py", "line": 504, "keyword": "Windows timer tick"}]
   },
   {
     "id": "timing-clv",
@@ -1077,7 +1077,7 @@
     "steps": {"zh": ["查看 timing 的读速和周期，试固定的读速后重测。"], "en": ["Check the speed and periods reported by timing. Repeat with a fixed read speed."]},
     "commands": ["python -m discprobe timing --drive <drive> --speed 4x"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/zh.py", "line": 432, "keyword": "Spindle did not reach a steady speed"}, {"path": "discprobe/timing.py", "line": 675, "keyword": "the speed may be changing"}, {"path": "docs/MANUAL.en.md", "line": 126, "keyword": "check the rotation speed"}]
+    "sources": [{"path": "discprobe/zh.py", "line": 482, "keyword": "Spindle did not reach a steady speed"}, {"path": "discprobe/timing.py", "line": 675, "keyword": "the speed may be changing"}, {"path": "docs/MANUAL.en.md", "line": 126, "keyword": "check the rotation speed"}]
   },
   {
     "id": "timing-timeout",
@@ -1157,7 +1157,7 @@
     "steps": {"zh": ["用 webui status 查看当前地址、运行模式和任务。要换设置，等任务结束后运行 webui stop，再用新参数启动。", "只有明确指定 --new-instance 才会绕过默认实例复用。"], "en": ["Use webui status to see the current address, mode and tasks. To change the settings, wait for the tasks to finish, run webui stop, then start with the new options.", "An explicit --new-instance bypasses the normal instance reuse."]},
     "commands": ["python -m discprobe webui status", "python -m discprobe webui stop"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web_instance.py", "line": 159, "keyword": "previous = None if new_instance else _existing(path)"}, {"path": "discprobe/web_instance.py", "line": 189, "keyword": "Run discprobe webui stop before changing them"}, {"path": "discprobe/web_instance.py", "line": 259, "keyword": "if result[\"tasks\"]:"}, {"path": "discprobe/__main__.py", "line": 2744, "keyword": "without replacing the existing instance"}]
+    "sources": [{"path": "discprobe/web_instance.py", "line": 159, "keyword": "previous = None if new_instance else _existing(path)"}, {"path": "discprobe/web_instance.py", "line": 189, "keyword": "Run discprobe webui stop before changing them"}, {"path": "discprobe/web_instance.py", "line": 259, "keyword": "if result[\"tasks\"]:"}, {"path": "discprobe/__main__.py", "line": 2750, "keyword": "without replacing the existing instance"}]
   },
   {
     "id": "web-offline",
@@ -1187,7 +1187,7 @@
     "steps": {"zh": ["打开当前启动输出里的完整地址，或运行 webui status 查看已登记的 URL。需要更换首选端口时，先等任务结束并停止服务，再用 --port 启动。"], "en": ["Open the full address from the launch output, or use webui status to see the registered URL. To change the preferred port, wait for active tasks and stop the service, then relaunch with --port."]},
     "commands": ["python -m discprobe webui status"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web_instance.py", "line": 166, "keyword": "exc.errno != errno.EADDRINUSE"}, {"path": "discprobe/web_instance.py", "line": 169, "keyword": "server = factory(0)"}, {"path": "discprobe/web_instance.py", "line": 191, "keyword": "previous[\"port\"]"}, {"path": "discprobe/__main__.py", "line": 2740, "keyword": "uses a free port if occupied"}]
+    "sources": [{"path": "discprobe/web_instance.py", "line": 166, "keyword": "exc.errno != errno.EADDRINUSE"}, {"path": "discprobe/web_instance.py", "line": 169, "keyword": "server = factory(0)"}, {"path": "discprobe/web_instance.py", "line": 191, "keyword": "previous[\"port\"]"}, {"path": "discprobe/__main__.py", "line": 2746, "keyword": "uses a free port if occupied"}]
   },
   {
     "id": "web-port-invalid",
@@ -1197,7 +1197,7 @@
     "steps": {"zh": ["使用一个可用的端口，例如手册示例的 8765，打开服务打印的地址。"], "en": ["Use an available port, such as 8765 from the installation guide, and open the address printed by the server."]},
     "commands": ["python -m discprobe webui --port 8765"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1535, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1536, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2740, "keyword": "preferred HTTP port"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1535, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1536, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2746, "keyword": "preferred HTTP port"}]
   },
   {
     "id": "web-startup-error",
