@@ -1951,7 +1951,7 @@ function build() {
   ws.className = "ws";
   ws.innerHTML = `<div class="ws-title"><svg class="work-bag" viewBox="0 0 20 24" width="16" height="20" style="flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.3" role="img" aria-label="作品存在往期作品里 / Saved in past works"><title>作品存在往期作品里 / Saved in past works</title><path d="M3 5h14v17H3zM3 5l3-3h8l3 3M7 9h6M7 12h6"/></svg><b class="pname"></b><button class="sub" type="button"></button><span class="dirty" aria-hidden="true"></span>` +
     `<span class="filebtns"><button class="sbtn" type="button" data-a="open"></button><button class="sbtn" type="button" data-a="save"></button></span></div>` +
-    `<div class="ed-panel-picker"><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-left ed-files" data-panel="layers"></button><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-right" data-panel="tone"></button></div>` +
+    `<div class="ed-panel-picker"><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-left ed-files" data-panel="layers"></button><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-right" data-panel="tone"></button><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-right" data-panel="colour-picture"></button></div>` +
     `<aside class="col col-l" id="ed-left"><div class="ed-layer-content"></div></aside>` +
     `<div class="ed-layer-fade" aria-hidden="true" hidden></div><aside class="col col-r" id="ed-right"></aside>` +
     `<div class="cv"><div class="ed-desk" aria-hidden="true"></div><div class="ed-surface"><div class="ed-disc-shadow" aria-hidden="true"></div><canvas class="main"></canvas></div>` +
@@ -1983,6 +1983,8 @@ function build() {
     const button = e.target.closest("[data-panel]");
     if (!button) return;
     ws.dataset.panel = ws.dataset.panel === button.dataset.panel ? "" : button.dataset.panel;
+    if (ws.dataset.panel === "colour-picture") editor.showTab("colour-picture");
+    if (ws.dataset.panel === "tone" && editor.options.fillKind === "colour") editor.showTab("tone");
     for (const b of W.panelPicker.children) b.setAttribute("aria-expanded", String(b.dataset.panel === ws.dataset.panel));
   });
   // Keep the existing glass panel's shadow beneath the picture, as it was before the canvas
@@ -2157,6 +2159,12 @@ function words() {
   const t = T();
   W.panelPicker.children[0].textContent = t.layers;
   W.panelPicker.children[1].textContent = t.tone;
+  W.panelPicker.children[2].textContent = editor.colourWords.label;
+  W.panelPicker.children[2].hidden = S.media !== "dvd";
+  if (S.media !== "dvd" && W.ws.dataset.panel === "colour-picture") {
+    W.ws.dataset.panel = "";
+    W.panelPicker.children[2].setAttribute("aria-expanded", "false");
+  }
   W.pname.textContent = S.name ?? t.untitled;
   W.dirty.classList.toggle("on", S.dirty);
   W.dirty.title = S.dirty ? t.unsaved : "";

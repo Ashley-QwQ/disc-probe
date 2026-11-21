@@ -395,7 +395,7 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
   .ws.on[data-panel="layers"] > :is(.col-l, .ed-panel-shadow-l) { display: grid; }
   .ws.on[data-panel="layers"] > .col-l { scroll-snap-type: y proximity; }
   .ws:not(.pv) > .col-l :is(h3, .note, details) { scroll-snap-align: start; }
-  .ws.on[data-panel="tone"] > :is(.col-r, .ed-panel-shadow-r) { display: flex; top: var(--panel-top); }
+  .ws.on:is([data-panel="tone"], [data-panel="colour-picture"]) > :is(.col-r, .ed-panel-shadow-r) { display: flex; top: var(--panel-top); }
   .ws:not(.pv)[data-panel]:not([data-panel=""]) .cv { visibility: hidden; }
   .ws:not(.pv) .empty-c { width: calc(100% - 56px); margin-left: 22px; }
   .ws:not(.pv) .empty-c .row { flex-wrap: wrap; justify-content: center; }

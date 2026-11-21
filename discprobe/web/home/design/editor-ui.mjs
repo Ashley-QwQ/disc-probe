@@ -113,7 +113,7 @@ export class Editor {
   }
   click(e){const b=e.target.closest('[data-ed-tool],[data-ed-action],[data-ed-material],[data-ed-rig],[data-ed-tab],[data-ed-choice]');if(!b)return;e.preventDefault();e.stopPropagation();
     if(b.disabled)return;
-    if(b.dataset.edTab){this.panelState().tab=b.dataset.edTab;this.right();this.h.dom().right.querySelector(`[data-ed-tab="${b.dataset.edTab}"]`)?.focus();return;}
+    if(b.dataset.edTab){this.showTab(b.dataset.edTab);this.h.dom().right.querySelector(`[data-ed-tab="${b.dataset.edTab}"]`)?.focus();return;}
     if(b.dataset.edChoice){const key=b.dataset.edChoice;if(key==='target'&&b.dataset.value==='mask'&&!this.hasFillSelection())return;this.options[key]=b.dataset.value;if(key==='fillKind'&&b.dataset.value==='colour')this.loadColourPalette();this.right();this.h.dom().right.querySelector(`[data-ed-choice="${key}"][data-value="${b.dataset.value}"]`)?.focus();return;}
     if(b.dataset.edTool){this.h.tool(b.dataset.edTool);this.left();this.h.dom().canvas.focus();return;}
     if(b.dataset.edMaterial){const all=!!b.closest('.ed-all');this.material=b.dataset.edMaterial;this.swatches();this.h.dom().right.querySelector(`${all?'.ed-all ':'.ed-shown '}[data-ed-material="${this.material}"]`)?.focus({preventScroll:true});return;}

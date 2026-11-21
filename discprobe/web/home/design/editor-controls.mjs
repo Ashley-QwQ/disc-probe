@@ -10,7 +10,7 @@ const paths={
   move:'<path d="M5 3l13 8-6 1-3 6z"/>',rectangle:'<rect x="4" y="5" width="16" height="14" rx="1" stroke-dasharray="3 2"/>',
   lasso:'<path d="M8 18C-1 14 3 4 12 4c10 0 12 11 3 14-6 3-11-1-8-4 2-2 5 2 2 7"/>',
   ring:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/>',
-  sector:'<path d="M12 12l8-5A10 10 0 0 1 1 16z"/><path d="M12 12l-3 2a4 4 0 0 0 6 0z"/>',
+  sector:'<path d="M12 3a9 9 0 0 1 9 9h-4a5 5 0 0 0-5-5z"/>',
   colour:'<path d="M4 20L17 7M13 5v-3M18 12h3M17 3l2-2M20 7h3M8 9H5"/>',
   shape:'<rect x="3" y="3" width="12" height="12" rx="1"/><circle cx="15" cy="15" r="6"/>',
   pen:'<path d="M4 20l2-7L16 3l5 5-10 10zM6 13l5 5M14 5l5 5M3 21h7"/>',
@@ -28,10 +28,27 @@ export const TOOL_KEYS={v:'move',r:'rectangle',f:'lasso',c:'ring',g:'sector',w:'
 export const controls={
   selectionOptions(def){if(!def)return;for(const k of ['inner','outer','start','end','tolerance'])if(Number.isFinite(def[k]))this.options[k]=def[k];if(typeof def.contiguous==='boolean')this.options.contiguous=def.contiguous;},
   toolName(k){return ({move:this.h.lang()==='zh'?'选择':'Select',pan:this.h.lang()==='zh'?'手形':'Hand',shape:this.t.shape})[k]??this.t[k];},
-  toolHint(k){const zh=this.h.lang()==='zh',name=this.toolName(k);
-    if(k==='colour')return zh?'按颜色选区：点一下选中相近的颜色；按住左右拖调范围':'Select similar colours; hold and drag sideways to change tolerance';
-    if(['rectangle','lasso','ring','sector'].includes(k))return zh?`${name}：拖动建立选区；选完可拷贝、剪切或拖动里面的内容`:`${name}: drag to select, then copy, cut or drag the contents`;
-    return zh?({move:'选择：移动、缩放或旋转图层；在选区内拖动可移动内容',pan:'手形：拖动画面；用滚轮缩放',shape:'简单形状：拖动绘制；建立选区后可裁剪',pen:'手绘：拖动绘制；建立选区后可裁剪'})[k]:({move:'Select: move, scale or rotate layers; drag inside a selection to move its contents',pan:'Hand: drag the view; wheel to zoom',shape:'Shapes: drag to draw, then select to crop',pen:'Freehand: drag to draw, then select to crop'})[k];
+  toolHint(k){return (this.h.lang()==='zh'?{
+    move:'移动、缩放或旋转图层。在选区内拖动可移动内容。',
+    rectangle:'框选画布上的一块区域，可裁剪内容或填充材质。',
+    lasso:'沿不规则轮廓圈出选区，可裁剪内容或填充材质。',
+    ring:'围绕盘心选中整圈，用于给环带填充材质或纹理。',
+    sector:'只选环带的一段弧，可填写半径和起止角。',
+    colour:'点一下选中相近的颜色，左右拖动调整容差。',
+    shape:'拖出矩形、椭圆、多边形或线条，添加为可填充的图层。',
+    pen:'徒手画线，添加为可填充的图层。',
+    pan:'拖动画面，或滚动缩放。'
+  }:{
+    move:'Move, scale or rotate a layer. Drag inside a selection to move its contents.',
+    rectangle:'Drag a box to crop its contents or fill the area with a material.',
+    lasso:'Trace an irregular outline to crop its contents or fill it with a material.',
+    ring:'Select a whole track around the disc centre to fill it with a material or texture.',
+    sector:'Select part of a ring by setting its radii and start and end angles.',
+    colour:'Click to select similar colours. Drag sideways to change the tolerance.',
+    shape:'Drag out a rectangle, ellipse, polygon or line as a layer you can fill.',
+    pen:'Draw a freehand line as a layer you can fill.',
+    pan:'Drag the view or scroll to zoom.'
+  })[k];
   },
   toolbar(){const w=this.h.dom();if(!w)return;const mod=/Mac|iPhone|iPad/.test(navigator.platform)?'⌘':'Ctrl',zh=this.h.lang()==='zh';
     w.tools.innerHTML=['undo','redo'].map(a=>{const title=(a==='undo'?(zh?'撤销':'Undo')+` ${mod}+Z`:(zh?'重做':'Redo')+` ${mod}+Shift+Z / ${mod}+Y`);return `<button class="tb" type="button" data-history="${a}" title="${title}" aria-label="${title}" ${this.s[a==='undo'?'past':'future'].length?'':'disabled'}>${icon(a)}<span class="ed-tip">${title}</span></button>`;}).join('')+'<span class="ed-tool-separator" role="separator"></span>'+Object.entries(TOOL_KEYS).map(([key,k])=>{
@@ -129,7 +146,17 @@ export const controls={
       `<div class="ed-swatches ed-shown" role="group" aria-label="${w.title}"></div><p class="note quiet ed-hidden-note"></p>`+
       `<details class="ed-all"><summary>${w.all} <span></span></summary><div class="ed-all-swatches ed-swatches"></div></details>`+
       `<details class="ed-material-detail"><summary>${t.details}</summary><p class="note"></p></details></div>`;
-    return `<section class="ed-materials"><div class="seg ed-panel-tabs" role="group" aria-label="${zh?'编辑':'Edit'}"><button type="button" data-ed-tab="tone" aria-pressed="${tab==='tone'}" aria-controls="ed-tone-panel">${t.toneH}</button><button type="button" data-ed-tab="colour" aria-pressed="${tab==='colour'}" aria-controls="ed-colour-panel">${w.title}</button></div><div class="ed-material-scroll"><div id="ed-tone-panel" ${tab==='tone'?'':'hidden'}>${this.toneSection()||`<p class="note quiet">${zh?'先选一张图片，再调整影调。':'Select a picture to adjust its tone.'}</p>`}</div><section id="ed-colour-panel" class="ed-rig" aria-label="${w.title}" ${tab==='colour'?'':'hidden'}>${colour}</section></div></section>`;
+    const pictureTab=s.media==='dvd'?`<button type="button" data-ed-tab="colour-picture" aria-pressed="${tab==='colour'&&colourMode}" aria-controls="ed-colour-panel">${colourWords.label}</button>`:'';
+    return `<section class="ed-materials"><div class="seg ed-panel-tabs" role="group" aria-label="${zh?'编辑':'Edit'}"><button type="button" data-ed-tab="tone" aria-pressed="${tab==='tone'}" aria-controls="ed-tone-panel">${t.toneH}</button><button type="button" data-ed-tab="colour" aria-pressed="${tab==='colour'&&!colourMode}" aria-controls="ed-colour-panel">${w.title}</button>${pictureTab}</div><div class="ed-material-scroll"><div id="ed-tone-panel" ${tab==='tone'?'':'hidden'}>${this.toneSection()||`<p class="note quiet">${zh?'先选一张图片，再调整影调。':'Select a picture to adjust its tone.'}</p>`}</div><section id="ed-colour-panel" class="ed-rig" aria-label="${w.title}" ${tab==='colour'?'':'hidden'}>${colour}</section></div></section>`;
+  },
+  showTab(tab){
+    this.panelState().tab=tab==='colour-picture'?'colour':tab;
+    if(tab==='colour-picture'){
+      this.options.fillKind='colour';
+      this.loadColourPalette();
+    }else if(tab==='colour'&&this.options.fillKind==='colour')this.options.fillKind='material';
+    this.right();
+    this.h.dom().right.querySelector('.ed-material-scroll').scrollTop=0;
   },
   // UI preferences belong to a work without changing its saved document or undo history.
   panelState(){this.panelStates??=new WeakMap();let state=this.panelStates.get(this.s);if(!state){state={tab:'tone',rigExpanded:false,directionArrow:true};this.panelStates.set(this.s,state);}return state;},
