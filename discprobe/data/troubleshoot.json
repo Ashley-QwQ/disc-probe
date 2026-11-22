@@ -1177,7 +1177,7 @@
     "steps": {"zh": ["把手机和电脑接到同一 Wi-Fi，避开访客网络。用 webui status 确认服务在 LAN 模式，重新扫当前页面的码。", "如果页面提供另一个上传地址，可试那个地址。Windows 可在防火墙中检查 Python 是否允许使用专用网络。"], "en": ["Connect the phone and computer to the same Wi-Fi and avoid guest networks. Check for LAN mode with webui status, then scan the code on the current page.", "If another upload address is shown, try it. On Windows, check whether the firewall allows Python on private networks."]},
     "commands": ["python -m discprobe webui status"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web/home/photocal.js", "line": 291, "keyword": "Phone can't open the link?"}, {"path": "discprobe/web/home/photocal.js", "line": 293, "keyword": "not a guest network"}, {"path": "discprobe/web/home/photocal.js", "line": 294, "keyword": "allow Python on private networks"}, {"path": "discprobe/web/home/photocal.js", "line": 296, "keyword": "Try the other address above"}, {"path": "README.en.md", "line": 84, "keyword": "keep the service on this computer"}]
+    "sources": [{"path": "discprobe/web/home/photocal.js", "line": 111, "keyword": "Phone can't open the link?"}, {"path": "discprobe/web/home/photocal.js", "line": 112, "keyword": "not a guest network"}, {"path": "discprobe/web/home/photocal.js", "line": 113, "keyword": "allow Python on private networks"}, {"path": "discprobe/web/home/photocal.js", "line": 114, "keyword": "Try the other address above"}, {"path": "README.en.md", "line": 84, "keyword": "keep the service on this computer"}]
   },
   {
     "id": "web-port",
