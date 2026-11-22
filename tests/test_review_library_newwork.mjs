@@ -92,8 +92,8 @@ try {
   await evaluate('document.getElementById("library").click()');
   await until('document.querySelectorAll(".layer.solid .disc").length>=8','shelf loaded');
   await check('document.querySelectorAll(".kinds .kind").length===3 && !document.querySelector(".kinds [data-col=drive]") && document.querySelector(".tools [data-col=drive]")','kinds are separate from header drive entry');
-  await check('getComputedStyle(document.querySelector(".kinds")).transform==="none" && getComputedStyle(document.querySelector(".counter")).transform!=="none"','horizontal kinds and slanted count');
-  await check('document.querySelector(".facts dd").id==="left" && parseFloat(getComputedStyle(document.getElementById("left")).fontSize)>parseFloat(getComputedStyle(document.getElementById("sectors")).fontSize) && getComputedStyle(document.getElementById("sectors")).fontFamily.includes("mono")','remaining first/larger, sectors small mono');
+  await check('getComputedStyle(document.querySelector(".kinds")).transform==="none" && document.getElementById("batch-position").textContent==="第 1 批，共 7 批"','horizontal kinds and readable count');
+  await check('document.querySelector(".facts dd").id==="left" && getComputedStyle(document.getElementById("sectors")).fontFamily.includes("mono")','remaining first, sectors mono in details');
   await check('!document.querySelector("button.gallery") && document.querySelector(".disc.is-in-drive").style.transform.includes("-20px")','dead gallery removed; inserted disc pulls forward');
   await until('document.querySelector(".layer.ghost path")','background outlines loaded');
   await check('[...document.querySelectorAll(".layer.ghost path")].every(p=>p.classList.contains("iso-edge") && getComputedStyle(p).fill==="none") && [...document.querySelectorAll(".layer.ghost:not([data-depth=\\"0\\"])")].every(g=>+getComputedStyle(g).opacity<=.08)','background is outline-only at most eight percent');
@@ -106,11 +106,9 @@ try {
   await evaluate('document.getElementById("lang").click();review.api.goTo("dvd",6)');
   await check('document.getElementById("name").textContent.includes("DVD‑RW") && !document.getElementById("name").textContent.includes("DVD-RW")','hyphen cannot break after instant fill');
   await evaluate('document.documentElement.dataset.motion="on";document.querySelector("[data-motion=on]").click();review.api.goTo("dvd",0);review.api.goTo("dvd",6)');
-  await until('!document.getElementById("name").querySelector(".roll")','rolling name settled');
-  await check('document.getElementById("name").textContent.includes("DVD‑RW") && parseFloat(document.getElementById("name").style.fontStretch)===100','roll reset retains no-break and shrinks to normal width before wrap');
+  await check('document.getElementById("name").textContent.includes("DVD‑RW") && !document.querySelector(".batch-copy-leaving")','system reduced motion keeps the caption still');
   for(const theme of ['paper','dark']) {
     await evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)}`);
-    console.log(await evaluate('JSON.stringify({counter:document.querySelector(".counter").getBoundingClientRect().toJSON(),count:document.querySelector(".count").getBoundingClientRect().toJSON(),idx:document.getElementById("idx").getBoundingClientRect().toJSON(),style:getComputedStyle(document.querySelector(".counter")).cssText})'));
     await shot('library-'+theme);
   }
   await evaluate(`for(const kind of ['dvd','cd','bd'])review.DATA[kind].forEach((it,i)=>{if(!it.kind)it.id=kind+'-'+i});
@@ -178,8 +176,7 @@ try {
   await evaluate('document.querySelector(".np-library").click()');
   await until('location.hash==="#/library" && document.documentElement.dataset.navigation==="ready" && document.documentElement.dataset.mode==="" && document.documentElement.dataset.home==="library" && !document.getElementById("next").disabled',
     'batch library is ready to choose');
-  // The rolling caption contains both names during a transition. Choose and
-  // confirm the actual library item in the same browser event turn.
+  // Choose and confirm the actual library item in the same browser event turn.
   await check(`(()=>{const index=review.DATA.dvd.findIndex(row=>row.name==='TDK DVD-R 16x');
     if(index<0)return false;
     review.api.goTo('dvd',index);

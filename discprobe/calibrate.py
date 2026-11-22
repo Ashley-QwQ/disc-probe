@@ -176,6 +176,14 @@ def _run(args) -> None:
                 and r.path not in before and (args.sim or not r.simulated)]
         return runs[0] if runs else None
 
+    def record(ok, reason=None):
+        # Keep the outcome with the measured files, including a refusal after a fit.
+        from .works import atomic, encoded
+        part = (found.get('geo') or {}).get('path') or (found.get('timing') or {}).get('path')
+        if part:
+            atomic(Path(part) / 'calibration.json', encoded(dict(
+                ok=ok, reason=reason, drive_id=args.drive, avoid_mm=args.avoid_mm, **found)))
+
     def common():
         return ["--drive", args.drive, *(["--transport", args.transport] if args.transport != "auto" else []),
                 *(["--sim", args.sim] if args.sim else [])]
@@ -277,8 +285,14 @@ def _run(args) -> None:
             if resume:
                 ranges += ['--resume', resume]
             before = {r.path for r in guide.scan(args.out) if r.kind == kind} if resume else set()
-            code = child(kind, *common(), "--media", args.media, "--out", args.out,
-                         "--speed", speed, *ranges)
+            try:
+                code = child(kind, *common(), "--media", args.media, "--out", args.out,
+                             "--speed", speed, *ranges)
+            except Stopped:
+                result = measured(kind, since, before)
+                if result:
+                    found[kind] = dict(path=result.path, verdict='stopped_early')
+                raise
             result = measured(kind, since, before)
             verdict = guide.result_verdict(result, args.media) if result else None
             found[kind] = dict(path=result.path if result else None, verdict=verdict or "unknown", exit=code)
@@ -287,10 +301,8 @@ def _run(args) -> None:
                 reason = getattr(result, "stopped", None) if result else None
                 raise Stopped(reason or child_reason or f"the {kind} measurement was not usable ({verdict or 'no result'})")
             if kind == 'geo' and (args.preset or resume):
-                from .coverage import assess_range, default_range
-                fit = result.fit
-                required = default_range(args.media, fit.get('measured_span_mm'))
-                if required and not assess_range(fit, required)['covered']:
+                from .coverage import calibration_gaps
+                if calibration_gaps(result.fit, args.media):
                     raise Stopped('the geometry does not cover the default picture and preset radii')
 
         if args.preset:
@@ -308,6 +320,7 @@ def _run(args) -> None:
             if code or not Path(args.preset).is_file():
                 raise Stopped("the preset was not written")
             found["preset"] = args.preset
+        record(True)
         ui.event("calibrated", ok=True, **found)
         ui.say("\nCalibrated.", "green")
     except (Stopped, disc_identity.DiscChanged) as why:
@@ -317,6 +330,7 @@ def _run(args) -> None:
             from .burn_gate import medium_problem
             gate = medium_problem({'not_ready': why.not_ready}, args.media)
             message = f"{gate['zh']} / {gate['en']}"
+        record(False, message)
         ui.event("calibrated", ok=False, reason=message, **found)
         ui.event("error", message=message, **({'burn_gate': gate} if gate else {}))
         raise SystemExit(message) from None
@@ -341,6 +355,9 @@ def save_preset(args):
         raise SystemExit("--geo exports an existing run; it cannot be combined with --iso")
     args.geo = guide.resolve_geo(args.geo, getattr(args, "media", None))
     args.install = False
+    outcome = guide._load(str(Path(args.geo).with_name('calibration.json'))) or {}
+    if isinstance(outcome, dict) and outcome.get('ok') is False:
+        raise SystemExit("calibration did not pass; complete the measurement before saving a preset")
     with open(args.geo, encoding="utf-8") as stream:
         fit = json.load(stream)["fit"]
     media = fit.get("media", "dvd")

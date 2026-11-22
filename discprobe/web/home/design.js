@@ -757,17 +757,30 @@ function hatch(g, a, b, ink) {
   g.stroke(); g.restore();
 }
 // a faint scale along one radius (to the right): ticks every 5 mm, the burnable range's ends numbered
-function ruler(g, r0, r1, ink) {
+function ruler(g, rings, ink) {
   const px = (mm) => V.cx + mm * V.s, y = V.cy;
   if (V.s * 5 < 6) return;                    // too small to read
   g.save(); g.strokeStyle = ink; g.fillStyle = ink; g.globalAlpha = 0.4; g.lineWidth = 0.75;
-  g.beginPath(); g.moveTo(px(r0), y); g.lineTo(px(r1), y);
-  for (let mm = Math.ceil(r0 / 5) * 5; mm <= r1; mm += 5) { const h = mm % 10 ? 3 : 5; g.moveTo(px(mm), y - h); g.lineTo(px(mm), y + h); }
-  for (const mm of [r0, r1]) { g.moveTo(px(mm), y - 7); g.lineTo(px(mm), y + 7); }
+  g.beginPath();
+  for (const [r0, r1] of rings) {
+    g.moveTo(px(r0), y); g.lineTo(px(r1), y);
+    for (let mm = Math.ceil(r0 / 5) * 5; mm <= r1; mm += 5) {
+      const h = mm % 10 ? 3 : 5;
+      g.moveTo(px(mm), y - h); g.lineTo(px(mm), y + h);
+    }
+    for (const mm of [r0, r1]) { g.moveTo(px(mm), y - 7); g.lineTo(px(mm), y + 7); }
+  }
   g.stroke();
   g.globalAlpha = 0.7; g.font = `11px ${cssVar("--mono")}`; g.textAlign = "center"; g.textBaseline = "top";
-  // the ring's ends may be measured radii (S.ring): one decimal, never the raw float
-  for (const mm of [r0, r1]) g.fillText(String(Math.round(mm * 10) / 10), px(mm), y + 9);
+  // Reserve space for the overall endpoints before labelling the gaps.
+  const ends = rings.flat(), labels = [];
+  for (const mm of [ends[0], ends.at(-1), ...ends.slice(1, -1)]) {
+    const text = String(Math.round(mm * 10) / 10), x = px(mm), half = g.measureText(text).width / 2 + 2;
+    const bounds = [x - half, x + half];
+    if (labels.some(([a, b]) => bounds[0] < b && bounds[1] > a)) continue;
+    labels.push(bounds);
+    g.fillText(text, x, y + 9);
+  }
   g.restore();
 }
 function paintCanvas() {
@@ -860,7 +873,7 @@ function paintCanvas() {
   g.lineWidth = 1; g.globalAlpha = 0.7;
   for (const r of [7.5, r0, r1, ...gaps.flat()]) { g.beginPath(); g.arc(V.cx, V.cy, r * V.s, 0, Math.PI * 2); g.stroke(); }
   g.restore();
-  for (const [a, b] of gaps.length ? S.rings : [[r0, r1]]) ruler(g, a, b, ink);
+  ruler(g, gaps.length ? S.rings : [[r0, r1]], ink);
   // effect areas: their outline and name
   for (const F of S.layers) {
     if (F.kind !== "fx" || !F.visible) continue;
@@ -1666,8 +1679,9 @@ async function openProject(file, handle = null, work = null, dirty = false) {
   } else if (S.batchDeferred) {
     // An older file has no deferred marker. Keep its saved batch when the library still has it.
     const shelf = api.catalogue?.(S.media) ?? [];
-    S.item = shelf.find(it => it.id === data.batch) ?? unsetBatch();
-    S.batchDeferred = false;
+    const saved = shelf.find(it => it.id === data.batch);
+    S.item = saved ?? unsetBatch();
+    S.batchDeferred = !!work && !saved;
   }
   S.layers = layers.slice(0, 16);
   S.selections=structuredClone(data.selections??[]);S.activeMask=data.activeMask??null;
@@ -1876,17 +1890,17 @@ function localImageError(message) {
 // The check disc (checkdisc.py): the photo target, laid out with this plan's measured geometry and without any
 // photo correction, since its photos are what measure it. Burned, photographed, then the picture's own file is
 // made again and the core applies the along-track correction from those photos.
-async function makeCheckFile(onProgress, { signal } = {}) {
+async function makeCheckFile(onProgress, { signal, plan = S } = {}) {
   const t = T();
-  if (S.batchDeferred) throw new Error(t.needBatch);
+  if (plan.batchDeferred) throw new Error(t.needBatch);
   const state = await api.backend.state().catch(() => null);
-  const geo = planGeo(state), geoPath = geo.path;
+  const geo = planGeo(state, plan), geoPath = geo.path;
   if (!geoPath) throw Object.assign(new Error(t.noGeo), { code: "nogeo" });
   const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
   const output = `iso/check-${stamp}.iso`;
   onProgress({ stage: t.making, fraction: 0 });
   const run = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "checkdisc", media: S.media, args: { geo: geoPath, output } }) });
+    body: JSON.stringify({ action: "checkdisc", media: plan.media, args: { geo: geoPath, output } }) });
   const job = await run.json().catch(() => ({}));
   if (!run.ok) throw new Error(job.error ?? t.failed);
   let why = "", lastLine = "";
@@ -1908,6 +1922,14 @@ async function makeCheckFile(onProgress, { signal } = {}) {
   if (!(info.bytes > 0) || !(info.sectors > 0)) throw new Error(t.failed);
   return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job, geo: geoPath,
     geoSource: geo.source, geoName: geo.name, target: true, effects: "bw" };
+}
+export async function checkBatch(homeApi, item, back) {
+  api = homeApi; $ = api.$;
+  const plan = newProject(item, "dvd");
+  const iso = await makeCheckFile(() => {}, {plan});
+  if (root.dataset.home === "library" && !root.dataset.mode && api.current().item.id === item.id) {
+    await toBurn(iso, back, plan, back);
+  }
 }
 const COMPOSE_LIMIT = 384 * 2 ** 20;                   // webui.COMPOSE_BYTES
 // Which measured geometry this plan's burn file is made from (export-rules.geoChoice): its batch's own
@@ -2278,9 +2300,15 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
     else {
       const media = work.media in RANGE ? work.media : col, [c, last] = api.lastBatch?.() ?? [];
       const savedBatch = work.batch && api.catalogue?.(media)?.find(x => x.id === work.batch);
-      S = newProject(savedBatch || (c === media ? last : col === media ? item : unsetBatch()), media);
+      const missingBatch = typeof work.batch === "string" && !savedBatch;
+      S = newProject(savedBatch || (missingBatch ? unsetBatch() : c === media ? last : col === media ? item : unsetBatch()), media);
       S.name = work.name; S.work = { id: work.id, updated_at: work.updated_at };
       if (work.text != null) fromWork = new File([work.text], `${work.name}.discdesign`, { type: "application/json" });
+    }
+    if (typeof work.batch === "string" && !api.catalogue?.(S.media)?.some(x => x.id === work.batch)) {
+      S.item = unsetBatch();
+      S.batchDeferred = true;
+      S.geo = null;
     }
   }
   else if (newPlan) {
@@ -2384,7 +2412,11 @@ async function openPreview() {
     useMeasured(geoChoice(P, catalogue()));
   }
   const ctx = {
-    media: P.media, item: P.item, alongTrackMeasured: false,
+    media: P.media, item: P.item,
+    get alongTrackMeasured() {
+      const batch = catalogue().find(item => item.id && item.id === P.item?.id) ?? P.item;
+      return batch?.along_track?.known === true;
+    },
     batchDeferred: P.batchDeferred,
     // what a file being made belongs to (preview.js jobs): this plan while open, and its saved work once it has one
     keys: () => P.batchDeferred ? [] : P.work?.id ? (P.dirty ? [] : [P, `work:${P.work.id}`]) : [P],
@@ -2480,8 +2512,8 @@ function mockBurn(onProgress) {
 }
 // ?mockburn: the burn page can be opened straight from the console, to look at its animations
 if (new URLSearchParams(location.search).has("mockburn")) globalThis.dpToBurn = (iso, back = () => {}) => toBurn(iso, back);
-async function toBurn(iso, back) {
-  if (S?.batchDeferred) { toast(T().needBatch); return; }
+async function toBurn(iso, back, plan = S, done = null) {
+  if (plan?.batchDeferred) { toast(T().needBatch); return; }
   const t = T();
   // the drive is looked at first (a few seconds on a real one): meanwhile this is the burn page, not the
   // lobby, so Next must not read "new work"
@@ -2489,10 +2521,9 @@ async function toBurn(iso, back) {
   const burn = await import("./burn.js");
   const mock = new URLSearchParams(location.search).has("mockburn");
   // Which drive: the one this project's geometry was measured on (geo-H-…), else the first one listed.
-  const plan = S;
-  let drive = { id: "", name: "", speeds: mock ? (S.media === "cd" ? [4, 8, 16] : [4, 8]) : [] }, problem = "", needSwap = false;
+  let drive = { id: "", name: "", speeds: mock ? (plan.media === "cd" ? [4, 8, 16] : [4, 8]) : [] }, problem = "", needSwap = false;
   // a CD on Windows: the core has no CD writer there yet (burner.WindowsDVD); the page says how, and does not try
-  const otherOnly = !mock && S.media === "cd" && api.platform?.() === "win32";
+  const otherOnly = !mock && plan.media === "cd" && api.platform?.() === "win32";
   let otherCommand = "";
   if (otherOnly) {
     // the core's own command for this ISO and drive (burner.imapi_cd_command), shown to copy
@@ -2504,8 +2535,8 @@ async function toBurn(iso, back) {
   }
   else if (!mock) {
     try {
-      const s = await (await fetch(`/api/state?media=${S.media}`)).json();
-      const letter = /geo-([A-Z])-/i.exec(S.geo ?? projectGeo(s) ?? "")?.[1];
+      const s = await (await fetch(`/api/state?media=${plan.media}`)).json();
+      const letter = /geo-([A-Z])-/i.exec(iso.geo ?? plan.geo ?? projectGeo(s, plan) ?? "")?.[1];
       const d = s.drives?.find((x) => letter && x.id.toUpperCase() === `${letter.toUpperCase()}:`) ?? s.drives?.[0];
       if (d) drive = { id: d.id, name: d.name && d.name !== d.id ? d.name : d.id, speeds: [] };
       if (!d) problem = t.burnNoDrive;
@@ -2513,18 +2544,18 @@ async function toBurn(iso, back) {
   }
   // ?mockburn&mockswap: the drive holds a written disc; a pretend person changes it (open, empty, closed)
   const mockSwap = mock && new URLSearchParams(location.search).has("mockswap");
-  if (mockSwap) { problem = t.burnNotBlankSwap(S.item?.mid || "RITEKF1"); needSwap = true; drive = { id: "H:", name: "H:", speeds: [] }; }
+  if (mockSwap) { problem = t.burnNotBlankSwap(plan.item?.mid || "RITEKF1"); needSwap = true; drive = { id: "H:", name: "H:", speeds: [] }; }
   const ctx = {
-    media: S.media, item: S.item, iso, drive, back, driveProblem: problem, needSwap, otherOnly, otherCommand,
+    media: plan.media, item: plan.item, iso, drive, back, driveProblem: problem, needSwap, otherOnly, otherCommand,
     preflight: !mock && !otherOnly && !!drive.id,
     discIn: !mock && !otherOnly && !!drive.id,
-    swapWords: { open: t.burnTrayOpen, checking: t.burnChecking, put: t.burnPutBlank(S.item?.mid || S.item?.name || "") },
+    swapWords: { open: t.burnTrayOpen, checking: t.burnChecking, put: t.burnPutBlank(plan.item?.mid || plan.item?.name || "") },
     // the disc in the drive is the wrong one: wait (read-only) while it is changed, then look again
     swap: mockSwap ? async (onTray) => {
       for (const [ms, state] of [[2500, "open"], [3000, "empty"], [3000, "loading"], [1500, "ready"]]) {
         await new Promise((r) => setTimeout(r, ms)); onTray(state);
       }
-    } : mock ? null : (onTray) => api.backend.job({ action: "swap", drive: drive.id, media: S.media, args: { minutes: 15 } },
+    } : mock ? null : (onTray) => api.backend.job({ action: "swap", drive: drive.id, media: plan.media, args: { minutes: 15 } },
       (e) => { if (e.type === "tray") onTray(e.state); if (e.type === "started") ctx.swapJob = e.job; }),
     stopSwap: () => { if (ctx.swapJob) api.backend.cancel(ctx.swapJob).catch(() => {}); },
     recheck: mockSwap ? async () => { await new Promise((r) => setTimeout(r, 1200)); Object.assign(ctx, { driveProblem: "", needSwap: false }); drive.speeds = [4, 8]; return ctx; }
@@ -2553,11 +2584,11 @@ async function toBurn(iso, back) {
       // under the photo page
       burn.leave();
       const cal = await import("./calibrate.js");
-      cal.photograph(api, { item: S.item, media: S.media, geo: iso.geo ?? S.geo, burnCheck: iso.burnResult ?? null,
+      cal.photograph(api, { item: plan.item, media: plan.media, geo: iso.geo ?? plan.geo, burnCheck: iso.burnResult ?? null,
         returnTo: async () => { await api.syncState?.(); back?.(); } });
     },
     // the work is done: back to the desk (the plan stays in its recent list)
-    done: () => { root.dataset.mode = ""; $("back").hidden = true; $("next").disabled = false; api.toLobby ? api.toLobby() : api.goTo(...api.locate(S.item)); },
+    done: done ?? (() => { root.dataset.mode = ""; $("back").hidden = true; $("next").disabled = false; api.toLobby ? api.toLobby() : api.goTo(...api.locate(plan.item)); }),
   };
   burn.start(api, ctx);
 }

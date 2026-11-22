@@ -90,7 +90,9 @@ const SAY = {
     search: "搜名字", searchLabel: "按名字搜作品", all: "全部", status: "状态", media: "盘种", sortLabel: "排序", newest: "最近", byName: "名称",
     import: "导入作品", importHint: "导入 .zip 或 .discdesign", drop: "松手导入作品", count: (n, shown) => shown === n ? `共 ${n} 件` : `共 ${n} 件 · 显示 ${shown} 件`,
     loading: "正在读作品库…", newWork: "新作品", open: "打开作品", opening: "正在打开…",
-    rename: "改名", renameHint: "改名（F2）", copy: "复制", exportZip: "导出 zip", markDone: "标成成品", markFailed: "标成失败…", bin: "移到回收站",
+    rename: "改名", renameHint: "改名（F2）", copy: "复制", exportZip: "导出 zip", markDone: "标成成品", markFailed: "标成失败…", bin: "删除",
+    binTitle: n => `删除“${n}”？`, binBody: "设计文件、素材、缩略图和作品记录会移到回收站，可以恢复。外部源文件和刻录镜像会保留。",
+    binConfirm: "移到回收站",
     reasonLabel: "失败原因（会写进记录）", reasonHint: "例如：内圈有一圈没刻上", confirmFailed: "标成失败", cancel: "取消", reason: "失败原因",
     created: "创建", updated: "最后修改", opened: "上次打开", geo: "几何", batch: "盘批次", photoL: "照片 L", source: "导入自", cell: (u) => `${u} µm 格子`,
     discsTitle: (n) => `刻过的盘（${n}）`, noDiscs: "还没刻过盘。", log: "记录", noLog: "还没有记录。", logLoading: "正在读记录…",
@@ -110,7 +112,9 @@ const SAY = {
     search: "Search names", searchLabel: "Search works by name", all: "All", status: "Status", media: "Disc", sortLabel: "Sort", newest: "Newest", byName: "Name",
     import: "Import works", importHint: "Import a .zip or .discdesign", drop: "Drop to import", count: (n, shown) => shown === n ? `${n} works` : `${shown} of ${n} works`,
     loading: "Reading the library…", newWork: "New work", open: "Open work", opening: "Opening…",
-    rename: "Rename", renameHint: "Rename (F2)", copy: "Duplicate", exportZip: "Export zip", markDone: "Mark finished", markFailed: "Mark failed…", bin: "Move to bin",
+    rename: "Rename", renameHint: "Rename (F2)", copy: "Duplicate", exportZip: "Export zip", markDone: "Mark finished", markFailed: "Mark failed…", bin: "Delete",
+    binTitle: n => `Delete “${n}”?`, binBody: "The design, assets, thumbnail and work records move to the bin and can be restored. External source files and disc images stay in place.",
+    binConfirm: "Move to bin",
     reasonLabel: "Why it failed (goes into the record)", reasonHint: "e.g. the inner ring did not burn", confirmFailed: "Mark failed", cancel: "Cancel", reason: "Why it failed",
     created: "Created", updated: "Last changed", opened: "Last opened", geo: "Geometry", batch: "Disc batch", photoL: "Photo L", source: "Imported from", cell: (u) => `${u} µm cells`,
     discsTitle: (n) => `Discs burned (${n})`, noDiscs: "No discs burned yet.", log: "Record", noLog: "Nothing recorded yet.", logLoading: "Reading the record…",
@@ -647,6 +651,11 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     notice(say().marked(statusWord(to, lang())));
   }
   async function binWork(w) {
+    if (document.querySelector(".dp-removal[open]")) return;
+    const { confirmRemoval } = await import("./kit/removal.mjs");
+    const s = say();
+    if (!await confirmRemoval({title:s.binTitle(w.name), body:s.binBody,
+      actions:[[s.cancel, ""], [s.binConfirm, "delete"]]})) return;
     const ok = await act(async () => { await works.remove(w.id); return true; });
     if (!ok) return;
     if (selected?.work?.id === w.id) { selectedButton = null; unfocus(); }

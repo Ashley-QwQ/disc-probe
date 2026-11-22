@@ -14,7 +14,7 @@ def write_geo(root, stamp='20261107-101500', **overrides):
     path = Path(root) / 'results' / ('geo-H-' + stamp)
     path.mkdir(parents=True)
     data = dict(fit=dict(media='dvd', u=180000, v=5.5, chi2_per_dof=1,
-        measured_span_mm=[25,56], angle_sigma_measured_span_deg=.1),
+        measured_span_mm=[24.49,56.01], angle_sigma_measured_span_deg=.1),
         identity=dict(disc='TEST <MID>', drive='Fake drive'), setup=dict(last_lba=999))
     data.update(overrides)
     (path / 'summary.json').write_text(json.dumps(data), encoding='utf-8')
@@ -101,6 +101,48 @@ def test_unidentified_results_stay_separate():
         write_geo(root,'20261108-101500',identity={})
         rows=catalog.catalogue(root,root/'results')['dvd']
         assert len(rows)==2 and all(x['mid'] is None for x in rows)
+
+
+def test_cd_library_uses_only_accepted_along_track(tmp_path):
+    import hashlib
+    from discprobe import cd, pcal, photo, presetio_api
+
+    bit = cd.BIT_NM
+    path = write_geo(tmp_path, args={'drive':'H:'},
+        fit=dict(media='cd', u=25/(bit*1e-6), v=.016/(bit*1e-6), bit_nm_assumed=bit,
+                 chi2_per_dof=1, measured_span_mm=[25,56.01], angle_sigma_measured_span_deg=.1),
+        identity=dict(disc='CD TEST', drive='GH70N', device_id='H:'), setup=dict(last_lba=359846))
+    summary = path / 'summary.json'
+    def known():
+        row, = catalog.catalogue(tmp_path, tmp_path / 'results')['cd']
+        assert row['s'] == 'good'
+        return row['along_track']['known']
+
+    assert not known()
+    exported = presetio_api.handle(tmp_path, dict(operation='export',
+        path=summary.relative_to(tmp_path).as_posix(), name='Legacy CD', sectors=359849))
+    assert exported['preset']['displayName'] == 'Legacy CD'
+    assert exported['preset']['sectors'] == 359849
+
+    offset, ident = 2.0, 'target-1'
+    geo = json.loads(summary.read_bytes())
+    shots = [dict(id=str(i), disc_id=ident, status='ok', L_mm=offset, zone_spread_mm=.2,
+                  c_deg=30*i, input_sha256=str(i+1)*64) for i in range(2)]
+    record = dict(path=str(path), media='cd', verdict='ok', offset_mm=offset, L_frames=offset/pcal.CD_FRAME_MM,
+                  disc_id=ident, photos=shots, reader_sha256=photo.READER_SHA256,
+                  burn_path=dict(burner='H:', path='recorded writer', mode='recorded mode'),
+                  source_geo=dict(run_id=path.name, sha256=hashlib.sha256(summary.read_bytes()).hexdigest(),
+                                  drive_identity=photo.drive_identity(geo, path)))
+    reader = path / 'photo.json'
+    reader.write_text(json.dumps({**record, 'photos':shots[:1]}), encoding='utf-8')
+    assert not known()
+    reader.write_text(json.dumps(record), encoding='utf-8')
+    assert known()
+    reader.unlink()
+    photo.save_manual_l(path, 'cd', 0, evidence={'photo':'saved slider alignment'})
+    assert known()
+    summary.write_bytes(summary.read_bytes() + b'\n')
+    assert not known()
 
 
 def test_info_report_blank_capacity_and_family():

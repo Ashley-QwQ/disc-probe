@@ -581,6 +581,13 @@ class Ladder:
         self.fit()
         self.completion_status = 'target_reached'
         self.failed_candidates = list(old.get('failed_candidates') or [])
+        if source.get('refresh_excluded_ranges'):
+            # Letting two old islands share a readable range would silently
+            # bridge the hole. Sample inside each newly reopened gap first.
+            islands = (old.get('coverage') or {}).get('measured_intervals_mm') or []
+            reopened = [self._lba_at_radius((left[1] + right[0]) / 2)
+                        for left, right in zip(islands, islands[1:]) if left[1] < right[0]]
+            self.failed_candidates = sorted(set(self.failed_candidates + reopened))
         if self.failed_candidates:
             self._fill_coverage(self.failed_candidates)
             if self.failed_candidates and self.completion_status == 'target_reached':

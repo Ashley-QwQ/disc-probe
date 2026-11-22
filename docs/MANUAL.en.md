@@ -6,6 +6,29 @@ How each command works, its parameters, outputs and self-test results. For an in
 
 To open the web lobby, double-click `开始 Start (Windows).bat` in the Windows full package, or run `./start-linux.sh` or `bash start-linux.sh` in the Linux full package.
 
+## Disc library and past works
+
+Run these commands from the workspace that holds your `presets`, `results`
+and `works` folders. Add `--json` for machine-readable output.
+
+```text
+disc-probe library list
+disc-probe library show BATCH_ID
+disc-probe library delete BATCH_ID --keep-works
+disc-probe library trash
+disc-probe library restore TRASH_ID
+disc-probe works delete WORK_ID
+disc-probe works list --trash
+disc-probe works restore WORK_ID
+```
+
+Batch deletion moves its calibration records and owned presets into
+`results/.trash`. Use `--with-works` to move dependent works in the same
+operation. Restoring that batch also restores the works moved with it.
+`works delete` moves a single work into `works/.trash`. Add `--permanent` to
+either delete command for irreversible removal. From the web confirmation,
+items always go to the trash and can be restored with Undo.
+
 ## Safety
 
 - Only read commands are sent. A whitelist in `discprobe/scsi.py` rejects any other opcode before it reaches the device, so no write, close-disc or format command can be sent. The self-test checks that WRITE, CLOSE TRACK and FORMAT UNIT are refused.

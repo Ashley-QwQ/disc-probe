@@ -1,4 +1,9 @@
 {
+  "RITEKF1": {
+    "media": "dvd",
+    "capacity_sectors": 2295104,
+    "evidence": "Blank capacity reported for the RITEKF1 batch in the 2026-11-21 library walk-through"
+  },
   "MCC 02RG20": {
     "media": "dvd",
     "name": "Verbatim DVD-R",

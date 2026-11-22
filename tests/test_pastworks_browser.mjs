@@ -125,11 +125,16 @@ try {
   check(page.querySelector('.pw-focus-art .pw-stamp-failed'), 'the bag up close is re-stamped');
   check(page.querySelector('.pw-d-log').textContent.includes('标成失败') && page.querySelector('.pw-d-log').textContent.includes('改名为'), 'record shows rename and mark');
   page.querySelector('.pw-act-bin').click();
+  await until(() => d.querySelector('.dp-removal[open]'), 'delete opens a confirmation');
+  check(!mock.trash.has(id), 'the work stays put until confirmed');
+  d.querySelector('.dp-removal button[value="delete"]').click();
   await until(() => !demo.page.state.focused && cells().length === 12 && mock.trash.has(id), 'bin leaves the grid');
   check(d.activeElement?.classList.contains('pw-cell'), 'focus stays on the grid after the bin');
   key(w, 'z', { ctrlKey: true });
   await until(() => cells().length === 13 && !mock.trash.has(id), 'Ctrl+Z restores from the bin');
   const victim = cells()[2], victimId = victim.dataset.id; victim.focus(); key(victim, 'Delete');
+  await until(() => d.querySelector('.dp-removal[open]'), 'Delete key opens the same confirmation');
+  d.querySelector('.dp-removal button[value="delete"]').click();
   await until(() => mock.trash.has(victimId) && !page.querySelector('.pw-status .pw-link').hidden, 'Delete on a card bins it, with an undo');
   page.querySelector('.pw-status .pw-link').click();
   await until(() => !mock.trash.has(victimId), 'the undo button restores it');

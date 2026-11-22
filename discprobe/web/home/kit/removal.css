@@ -1,0 +1,31 @@
+.dp-removal {
+  box-sizing: border-box;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 22px 24px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--glass-desk);
+  font: 16px/1.55 var(--font);
+}
+.dp-removal::backdrop { background: rgb(0 0 0 / .32); }
+.dp-removal h2 { margin: 0; font-size: 20px; text-wrap: balance; }
+.dp-removal h3 { margin: 14px 0 2px; font-size: 15px; }
+.dp-removal p { margin: 8px 0; text-wrap: pretty; }
+.dp-removal ul { margin: 0; padding-inline-start: 24px; overflow-wrap: anywhere; }
+.dp-removal form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.dp-removal button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 600 15px var(--font);
+  cursor: pointer;
+}
+.dp-removal button:hover { border-color: var(--copper); color: var(--copper); }
+.dp-removal button:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }

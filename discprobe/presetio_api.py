@@ -51,6 +51,12 @@ def handle(root, payload):
         install = payload.get("install", False)
         if type(install) is not bool:
             raise ValueError("install must be a boolean")
+        sectors = payload.get("sectors")
+        if sectors is not None and (type(sectors) is not int or sectors <= 0):
+            raise ValueError("sectors must be a positive integer")
+        name = payload.get("name", "disc-probe")
+        if not isinstance(name, str) or not 1 <= len(name.strip()) <= 120:
+            raise ValueError("invalid preset name")
         # HTTP clients can select the workspace's temporary/custom DIS file, never arbitrary paths.
         target = payload.get("dis_presets")
         if target is not None:
@@ -59,5 +65,6 @@ def handle(root, payload):
             target = (Path(root) / target).resolve()
             if not target.is_relative_to(Path(root).resolve()) or target.suffix != ".json":
                 raise ValueError("custom DIS target must be inside the workspace")
-        return presets.export_file(path, install=install, dis_presets=str(target) if target else None)
+        return presets.export_file(path, install=install, dis_presets=str(target) if target else None,
+                                   sectors=sectors, name=name.strip())
     raise ValueError("unknown preset operation")
