@@ -43,6 +43,15 @@ a continuation on the original disc, drive and read settings. A completed
 measurement job snapshot may include `diagnostics.argv` and a workspace-relative
 `diagnostics.log_path`. These describe the job that ran.
 
+API 1.4 adds optional `grid-templates`. `POST /api/template` accepts a `grid`
+of 5, 10 or 20 µm for a disc-centred, 120 mm RGBA canvas and a separate guide
+PNG, returned in one ZIP. The legacy request still produces the original
+template bundle. `POST /api/template-preview` accepts a full-size PNG as
+`image/png` and returns a small preview plus its artwork bounds in millimetres
+in `X-Discprobe-Artwork-Bounds` (JSON array or null). This is a read-only
+operation. For native-pixel composition an image layer can include an optional
+`gridPng` PNG data URL alongside its existing preview raster.
+
 Proposed policy: retain working adapters for the previous MAJOR for at least
 six months after the new major's first stable release. Publish its retirement
 date with that release. List only majors with actual working adapters in

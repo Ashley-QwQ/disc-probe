@@ -26,7 +26,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import CookieError, SimpleCookie
-from urllib.parse import parse_qs, unquote, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 from . import api, burn_gate, disc_identity, guide, i18n, image_output, mmc, webui_catalog
 from .drive_lock import DriveBusy, drive_locks, require_available
@@ -669,6 +669,7 @@ class Backend:
         # Only enumerate device names here; the disc in a drive is read when the page asks (read_disc).
         self.drive_provider = drive_provider or (lambda: [dict(id=d, name=d, disc=None) for d in guide.optical_drives()])
         self.lock = threading.RLock()
+        self.template_lock = threading.Lock()
         self.jobs = {}
         self.tokens = {}
         self.files_reviews = {}
@@ -1202,9 +1203,8 @@ class Backend:
         size = info.st_size
         return dict(path=path.relative_to(self.root).as_posix(), bytes=size, sectors=size // 2048)
 
-    def template_zip(self, payload):
-        from . import template
-        if not isinstance(payload, dict) or set(payload) - {'geo', 'media', 'sectors', 'size', 'pose', 'preset_id'}:
+    def _template_source(self, payload, fields):
+        if not isinstance(payload, dict) or payload.keys() - fields:
             raise APIError('invalid template request')
         source = Path(local_path(self.root, payload.get('geo')))
         if source.is_dir():
@@ -1213,12 +1213,29 @@ class Backend:
             raise APIError('template geometry must be a file inside the workspace')
         if payload.get('preset_id') is not None and not isinstance(payload['preset_id'], str):
             raise APIError('invalid preset ID')
+        return source
+
+    def template_zip(self, payload):
+        from . import template
+        source = self._template_source(payload, {'geo', 'media', 'sectors', 'size', 'pose', 'preset_id'})
         try:
             # Serialize large raster exports; no background job, hardware access or workspace writes.
-            with self.lock:
+            with self.template_lock:
                 return template.zip_bytes(template.export_files(source, **{k:v for k,v in payload.items() if k != 'geo'}))
         except (OSError, ValueError, TypeError, KeyError) as exc:
             raise APIError(f'Template export: {exc}') from exc
+
+    def grid_template_zip(self, payload):
+        from . import template, template_grid
+        source = self._template_source(payload, {'geo', 'media', 'sectors', 'pose', 'preset_id',
+                                                 'grid', 'batch', 'rotate', 'delta_scale'})
+        try:
+            with self.template_lock:
+                stem, files = template_grid.export_files(source, **{k:v for k,v in payload.items() if k != 'geo'})
+                return stem + '.zip', template.zip_bytes(files)
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            raise APIError(f'Template export: {exc}') from exc
+
     def compose_document(self, document: dict) -> dict:
         """Save the portable work and compose with the same pure core as the CLI."""
         from .editor_ops import compose_file, validate, migrate
@@ -2151,6 +2168,18 @@ class Handler(BaseHTTPRequestHandler):
                     raise APIError("application/json required", 415)
                 self._json(200, self.server.backend.compose_document(json.loads(self._body(COMPOSE_BYTES))))
                 return
+            if urlsplit(self.path).path == "/api/template-preview":
+                from .template_grid import PNG_LIMIT, preview_png
+                if self.headers.get_content_type() != "image/png":
+                    raise APIError("image/png required", 415)
+                try:
+                    preview, bounds = preview_png(self._body(PNG_LIMIT))
+                except APIError:
+                    raise
+                except ValueError as exc:
+                    raise APIError(str(exc)) from exc
+                self._send(200, preview, "image/png", {"X-Discprobe-Artwork-Bounds": json.dumps(bounds)})
+                return
             if urlsplit(self.path).path == "/api/design":
                 if self.headers.get_content_type() != "application/octet-stream":
                     raise APIError("application/octet-stream required", 415)
@@ -2209,7 +2238,12 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/run' and isinstance(payload, dict) and isinstance(payload.get('args'), dict) and payload['args'].get('files'):
                 self._local_files_only()
             if path == "/api/template":
-                self._send(200, backend.template_zip(payload), "application/zip", filename="disc-template.zip")
+                if isinstance(payload, dict) and 'grid' in payload:
+                    name, archive = backend.grid_template_zip(payload)
+                    disposition = "attachment; filename*=UTF-8''" + quote(name, safe='')
+                    self._send(200, archive, "application/zip", {"Content-Disposition": disposition})
+                else:
+                    self._send(200, backend.template_zip(payload), "application/zip", filename="disc-template.zip")
                 return
             if re.fullmatch(r'/api/phone-devices/[0-9a-f]{32}/disconnect', path):
                 try:
