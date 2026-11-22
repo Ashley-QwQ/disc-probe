@@ -25,11 +25,18 @@ def _path():
 
 
 def _read(path):
-    try:
-        data = json.loads(path.read_bytes())
-        return data if isinstance(data, dict) else None
-    except (FileNotFoundError, ValueError):
-        return None
+    # The writer side retries in _update_file; a reader can likewise hit the record while
+    # Windows is replacing or deleting it (access denied / sharing violation). Look again.
+    for attempt in range(10):
+        try:
+            data = json.loads(path.read_bytes())
+            return data if isinstance(data, dict) else None
+        except (FileNotFoundError, ValueError):
+            return None
+        except PermissionError as exc:
+            if getattr(exc, "winerror", None) not in (5, 32) or attempt == 9:
+                raise
+            time.sleep(.02)
 
 
 def _console_title():
@@ -280,7 +287,13 @@ def stop(args):
         raise SystemExit(data.get("error") or f"Could not stop the service (HTTP {code}).")
     # The HTTP response acknowledges the request. Registry cleanup follows child shutdown.
     deadline = time.monotonic() + 20
-    while _read(path) == record:
+    while True:
+        try:
+            current = _read(path)
+        except PermissionError:
+            current = record  # Windows is still deleting or replacing it: keep waiting
+        if current != record:
+            break
         if time.monotonic() >= deadline:
             _prepare(sys.stderr)
             raise SystemExit("服务仍在退出。 / The service is still shutting down.")

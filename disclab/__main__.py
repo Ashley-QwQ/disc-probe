@@ -34,6 +34,9 @@ def lab_env(lab: Lab, base=None) -> dict:
     env["DISCLAB_ROOT"] = str(ROOT)
     env["PYTHONPATH"] = os.pathsep.join([str(BOOT), str(ROOT)] + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else []))
     env.setdefault("DISCPROBE_WORKERS", "3")
+    # Lab burns are virtual. disc-probe would otherwise file their work records under the
+    # working folder (the package root), i.e. in the person's real works library.
+    env.setdefault("DISCPROBE_HOME", str(lab.root))
     env["DISCPROBE_PLAIN"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
     return env
