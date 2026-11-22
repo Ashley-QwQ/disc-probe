@@ -98,8 +98,11 @@ try{
     dt.items.add(file);picker.files=dt.files;picker.dispatchEvent(new Event('change',{bubbles:true}));
   })()`);
   await until(()=>run('A.state().layers.some(l=>l.name==="Illustration.png"||l.name==="Illustration")'));
-  await run(`document.querySelector('[data-ed-tab=colour]').click();document.querySelector('[data-value=colour]').click();`);
-  assert(await run(`document.querySelector('[data-ed-action=fill]').disabled&&document.querySelector('[data-ed-action=fill]').textContent.includes('先选手机和拍摄高度')`));
+  await run(`document.querySelector('[data-ed-tab=colour-picture]').click();
+    document.querySelector('[data-ed-dismiss-colour-intro]').click();
+    document.querySelector('.ed-colour-picture .ed-rig-step details summary').click();`);
+  assert(await run(`document.querySelector('[data-ed-colour-preview]').disabled&&
+    document.querySelector('#ed-colour-action-help').textContent.includes('先确认手机距离，再选拍摄高度')`));
   const height=process.env.EDITOR_COLOUR_HEIGHT??'21';
   await run(`document.querySelector('[data-ed-rig=phone][data-value=iphone17pro]').click();document.querySelector('[data-ed-rig=height][data-value="'+${JSON.stringify(height)}+'"]').click();`);
   await until(()=>run('A.editor.colourPalette&&document.querySelector("[data-ed-action=fill]:not(:disabled)")'));
@@ -151,8 +154,8 @@ try{
   assert.deepEqual(await snapshot(),arrow);
   const candidates=await run(`(()=>{const d=A.editor.document(),c=d.assignments.find(a=>a.colour)?.colour;return c?.materials.every(id=>d.materials.some(m=>m.id===id))?c.materials.length:0;})()`);
   assert.equal(candidates,58);
-  assert(await run(`document.querySelector('.ed-colour-estimate + details').textContent.includes('用 6 张色卡盘实拍校准的模型')`));
-  assert(await run(`(()=>{const text=document.querySelector('.ed-colour-estimate + details').textContent;
+  assert(await run(`document.querySelector('.ed-colour-picture > .ed-help').textContent.includes('用 6 张色卡盘实拍校准的模型')`));
+  assert(await run(`(()=>{const text=document.querySelector('.ed-colour-picture > .ed-help').textContent;
     return text.includes('手机角度偏一两度')&&text.includes('正对闪光灯的那条带看不到图');})()`));
   const evidence=process.env.EDITOR_COLOUR_EVIDENCE;
   if(evidence)await mkdir(evidence,{recursive:true});
@@ -161,14 +164,14 @@ try{
     const r=await send('Page.captureScreenshot',{format:'png'});
     await writeFile(join(evidence,name+'.png'),Buffer.from(r.data,'base64'));
   };
-  await run(`document.documentElement.dataset.theme='light';document.querySelector('.ed-colour-estimate + details').open=true;`);
+  await run(`document.documentElement.dataset.theme='light';document.querySelector('.ed-colour-picture > .ed-help').open=true;`);
   await pause(200);
   await capture('paper-colour');
   await run(`document.documentElement.dataset.theme='dark';`);
   await capture('night-colour');
   const started=Date.now();
   const status=await run(`(()=>{document.querySelector('.ws .viewsw [data-v=lamp]').click();return {note:document.querySelector('.ws .ed-view-note').textContent,view:A.state().view};})()`);
-  assert.match(status.note,/正在按机位预测颜色/,JSON.stringify({status,errors}));
+  assert.match(status.note,/正在按机位预测颜色|实盘会更暗、颜色更淡/,JSON.stringify({status,errors}));
   await until(async()=>{
     const state=await run('({phase:A.editor.colourRenderer?.phase,error:A.editor.colourRenderer?.error})');
     assert.notEqual(state.phase,'error',state.error);
@@ -177,6 +180,7 @@ try{
   },180000);
   const predictSeconds=(Date.now()-started)/1000;
   assert(await run(`document.querySelector('.ws .ed-view-note').textContent.includes('预览用斜线标出')`));
+  assert(await run(`document.querySelector('.ws .ed-view-note').textContent.includes('实盘会更暗、颜色更淡')`));
   const frame=await run(`(()=>{const p=A.editor.colourRenderer.frame;return {w:p.image.width,h:p.image.height,view:p.view};})()`);
   assert.equal(frame.view,'lamp');assert(frame.w>=200&&frame.w===frame.h);
   for(const [theme,name] of [['light','paper'],['dark','night']]){

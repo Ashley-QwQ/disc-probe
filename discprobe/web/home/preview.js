@@ -17,6 +17,7 @@ import { DEFAULT_POSE } from "./sim/model.mjs";
 import { SimView } from "./sim/view.mjs";
 import { LampPreview } from "./design/editor-lamp.mjs";
 import { ColourPreview } from "./design/colour-preview.mjs";
+import { colourPictureWords } from "./design/editor-rig.mjs";
 import { colourShootGuide, mountColourShootStyles } from "./design/colour-shoot-guide.mjs";
 import * as sfx from "./sfx.js";
 
@@ -228,7 +229,9 @@ function buildRight() {
       `<button class="sbtn" type="button" data-a="reset-look">${t.resetLook}</button>`) + `</section>`;
   if (!W || !isOn() || state !== s) return;           // a job finishing in the background: shown when the page is back
   const guideOpen = W.right.querySelector('.colour-shoot-guide')?.open;
-  W.right.innerHTML = fileSec + (busy ? "" : colourShootGuide(ctx.colourGuide,api.lang(),guideOpen)) + viewSec;
+  const prediction = !busy && view === "look" && lampOf()?.colour
+    ? `<p class="note">${colourPictureWords(api.lang()).prediction}</p>` : "";
+  W.right.innerHTML = prediction + fileSec + (busy ? "" : colourShootGuide(ctx.colourGuide,api.lang(),guideOpen)) + viewSec;
   if (busy && s.thumb) { W.right.querySelector(".pv-gen").append(s.thumb); paintThumb(s); }
   paintNext();
 }

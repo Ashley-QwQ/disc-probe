@@ -280,6 +280,8 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws .ed-view-note { display:grid;gap:4px;text-align:center;font-size:12px;line-height:1.4;color:var(--ink-2); }
 .ws .ed-view-note > p { margin:0;overflow-wrap:anywhere; }
 .ws .ed-view-note > :empty { display:none; }
+/* Keep loading, ready, and comparison text in the same space so Fit does not restart a colour prediction. */
+.ws .ed-view-note:has(.ed-colour-prediction:not([hidden])) .ed-view-status { min-block-size:1lh; }
 .ws .ed-view-actions { display:flex;justify-content:space-between;align-items:end;gap:4px 8px;flex-wrap:wrap; }
 .ws .ed-view-actions > :is(.viewsw,.zoomr) { position:static;pointer-events:auto; }
 .ws .ed-view-actions .viewsw { margin-inline-start:auto;flex-wrap:wrap;justify-content:end; }
@@ -349,6 +351,18 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 .ws .ed-panel-tabs { flex:none;margin-bottom:12px; }
 .ws .ed-panel-tabs button,.ws .ed-fill-choice button { min-height:44px;padding:0 6px; }
 .ws .col .ed-rig { border:0;padding:0;gap:10px; }
+.ws .ed-material-advanced,.ws .ed-colour-intro { border-block:1px solid var(--rule);padding-block:8px; }
+.ws :is(.ed-material-advanced,.ed-colour-intro) summary { color:var(--ink);cursor:pointer;font-weight:600; }
+.ws .ed-material-advanced[open] > section { margin-top:8px; }
+.ws .ed-colour-intro > :not(summary) { margin-block:8px 0; }
+.ws .ed-colour-links { display:flex;flex-wrap:wrap;gap:4px 12px;font-size:14px; }
+.ws .ed-colour-links a { color:var(--ink);text-underline-offset:3px; }
+.ws .ed-rig-distance { display:grid;gap:6px; }
+.ws .ed-rig-distance > div { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px; }
+.ws .ed-colour-picture .ed-help > .sbtn { display:block;margin-top:6px; }
+.ws .ed-colour-picture .ed-rig-step h3 { min-height:0; }
+.ws .ed-colour-picture .ed-colour-estimate { color:var(--ink); }
+.ws .ed-materials summary:focus-visible,.ws .ed-colour-links a:focus-visible { outline:2px solid var(--copper);outline-offset:2px; }
 .ws .ed-rig-summary { display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px; }
 .ws .ed-rig-summary .sbtn { min-height:44px;padding:0 8px;flex:none; }
 .ws #ed-rig-choices { display:grid;gap:10px; }
@@ -380,6 +394,11 @@ select.sel { height: 34px; padding: 0 8px; border: 1px solid var(--rule-strong);
 
 .ed-panel-picker { display: none; }
 @media (max-width: 760px) {
+  .ws .ed-view-dock:has(.ed-colour-prediction:not([hidden])) { grid-template-columns:minmax(0,1fr); }
+  .ws .ed-view-note:has(.ed-colour-prediction:not([hidden])) { margin-inline-start:76px; }
+  .ws .ed-view-note:has(.ed-colour-prediction:not([hidden])) .ed-view-status { min-block-size:2lh; }
+  .ws .ed-view-dock:has(.ed-colour-prediction:not([hidden])) .viewsw { max-inline-size:100%;grid-auto-columns:minmax(0,auto); }
+  .ws .ed-view-dock:has(.ed-colour-prediction:not([hidden])) .viewsw button { padding-inline:6px;white-space:normal; }
   :root[data-mode="design"] :is(body, .stage) { overflow: clip; }
   .ws { --panel-top: calc(var(--top) + 98px); }
   .ws .ws-title, .ws:not(.pv) > .ws-title {
