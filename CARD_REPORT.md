@@ -1,35 +1,50 @@
-# LM · 盘库和往期作品
+# SN · 盘库选盘与批次下一步
 
-分支 `dev/library-manage`，基点 `738889d`。所有写入、恢复和光驱验收在 D 盘独立工作区和 Disc Lab 内完成。
+分支 `dev/shelf-nav`，基点 `ef5e658`（LM）。
 
 ## 提交
 
-- `e3f244d` 增加 `library list/show/delete/trash/restore` 和 API 1.4 的 `library-management` 能力。批次回收覆盖关联几何、可追溯的转速记录和专用预设。预览列出文件、共享预设及依赖作品，确认时可选择保留或一起移走作品。恢复检查路径冲突，可继续完成被打断的移动。
-- 同提交为往期作品的鼠标和 Delete 键入口加入文件说明和确认，沿用撤销。CLI 用 `works list --trash` 找回收编号。两个删除命令都支持 `--json` 和显式 `--permanent`。
-- 同提交保存标定验收记录。盘库用实测区间识别旧记录的空档，保留较早通过的结果并标出后一次拒绝。网页保存和 core 校准保存检查拒绝状态。续测会重新检查临时排除的区域，在每个重新开放的内部空档内补读，并沿用 RWA 的同盘、光驱和转速检查。
-- 同提交增加盘库和光驱页的主标定入口。光驱按型号或驱动器编号匹配，分别显示通过和未完成的批次，移除空白 Burns/Reads 栏。光驱影子朝左下。编辑器保留三段可测环和边界刻度，在空间允许时显示数字。回收批次后，保留的作品可在编辑器重新选批次。
-- `36c24ba` 让校准重试浏览器用例等待目标页面和 DOM 就绪，覆盖切页时短暂没有根元素的情况。
+- `49a2162` 让盘库读取 CD 几何对应的沿轨常数状态。沿用核心的 `photo_l` 判定自动照片和手动对齐记录。API 1.5 增加可选能力 `library-batch-details`，支持用批次名和已知容量直接把测量摘要导出为 DIS 预设。
+- `169cbbf` 盘库显示完整的批次列表。每行有名称、介质、状态、上次标定日期，选中行有描边并保持在可视范围内。上一批和下一批按钮、方向键、架子或箭头区的滚轮、架子上的触屏横滑使用同一份选中状态。新增批次走独立按钮。保留架子的抬盘与移镜，超出烤图槽位的批次共用最后一个可见槽位。移动端在固定页头和页脚之间滚动，左下光驱状态沿用配重 A。
+- `169cbbf` 为未确认 L 的 CD 显示「几何已测，还差一步：确认沿轨常数」。右下「拍照校准」直接打开该几何的照片页，返回时仍选中这批。次要操作提供「先去做图」「导出 DIS 预设」。确认 L 后显示可以设计和刻录。可用的 DVD 可以直接进设计，也可以生成检查盘并打开既有刻录确认页。
+- `169cbbf` 标题优先用批次名，再用 MID。旧记录没有这两项时用介质、光驱和日期，测量文件夹名放入详情。标题至多两行。改名、补测、重测和删除在更多操作中。空余量和无异常的单条历史不显示。列表仍给出缺失日期「未记录」。
+- `05a992a` 在 CDP 夹具里将下载限制在 D 盘的独立配置目录，并检查导出的 JSON 内容。
 
-## 2,251,920 扇区的来源
+- `20d41e5` 按盘片自己的索引显示槽位。SVG 的绘制顺序是从后到前，少批次时按 DOM 次序隐藏会把选中盘藏掉。浏览器覆盖单批 CD 的槽位和十批 DVD 的末尾槽位。
 
-旧盘库把测量摘要的 `setup.last_lba + 1` 当作容量。此次 Disc Lab 用 `last_lba = 2,251,919` 复现了显示值。网页的测量镜像策略是容量乘 0.98 后向下对齐到 16 扇区。以 2,297,888 为输入，恰好得到 2,251,920。这里只复算了代码路径，原 11-19 运行的输入未测。
+## 改前走查
 
-盘库现在把空白盘容量从已写区长度分开。旧 RITEKF1 行无明确容量时使用任务卡给出的 2,295,104。新记录保留读到的空白容量或者显式指定的容量及其来源。未填的同桶余量显示「未记录」。历史计数仍按同批次归集，覆盖或验收失败归入待处理。
+用临时夹具打开 `#/library`，先直接点击盘库可见控件，再试输入方式。DVD 夹具造 1、3、10 批，CD 夹具另有一份无名称和 MID 的旧几何。
+
+| 操作 | 原版行为和可发现性 |
+| --- | --- |
+| DVD / CD / BD 标签、页头「光驱」 | 可见标签切介质或光驱，介质下从第一项开始。标签只解释介质，没有列出各批次。 |
+| 左、右方向键 | 换介质列，经过光驱列。左、右键在页面上没有可见提示。 |
+| 上、下方向键 | 在同一介质内循环，包括末尾用来标定新盘的空槽。用户不能从计数看出其他批次的名字。 |
+| 点盘堆、点别的架子 | 源码把正面盘片的点击映射到批次，点其他架子轮廓会换介质，点光驱区域可去光驱列。夹具中第二批盘片没有可命中的边界，无法从画面点到。CDP 对其 DOM 发出点击后，状态从 DVD-1 切到 DVD-2。 |
+| 滚轮、鼠标拖动、触屏横滑 | CDP 输入后当前批次不变。 |
+
+脚本记录见 [原版交互记录](D:/dp-dev/tmp/shelfnav/shots/before-walk.json)。原版把新盘空槽算进计数，10 批夹具的 DVD 界面只放前 7 批和空槽。
+
+## 字号与录帧
+
+- 原版标题把旧字和新字放进同一列逐字上下滚动，字符带错峰。MID 和状态先独立淡出，在约 160 ms 后换成新内容。向前换批在约 262 ms 的采样已显示新 MID，标题的字符切换仍在进行。到约 976 ms 标题仍有滚动 DOM。切介质也有同样的上下方向和文字错拍。
+- 改后把标题、MID、状态和说明一起换。向前往右，向后往左，先退出再进入，各 130 ms。四段 CDP 分别采到 58、56、40、33 个 rAF 状态，出现新旧文字同时可见的帧数为 0。减弱动效时同步更新，浏览器测试验证了动画对象数为 0。
+- 1888 像素时英文新盘标题由 64 px、两行变为 32 px、一行，说明由 18 px 变为 16 px。旧 CD 夹具改后标题为 `CD-R · GH70N · 11-04`，主按钮为 `Calibrate with photos`。390 像素的文档宽度由 488 改为 390。矩阵中的详情区或移动端滚动区下边界均在右下按钮上沿以上。 [尺寸与录帧检查](D:/dp-dev/tmp/shelfnav/shots/verified.json)
+- 对照帧 [下一批](D:/dp-dev/tmp/shelfnav/shots/frames-batch-forward.png) · [上一批](D:/dp-dev/tmp/shelfnav/shots/frames-batch-back.png) · [向右换介质](D:/dp-dev/tmp/shelfnav/shots/frames-media-forward.png) · [向左换介质](D:/dp-dev/tmp/shelfnav/shots/frames-media-back.png)
+- 第 6 项对照 [旧 CD 改前](D:/dp-dev/tmp/shelfnav/shots/before-legacy-cd-1888.png) · [旧 CD 改后](D:/dp-dev/tmp/shelfnav/shots/after-legacy-cd-1888.png) · [390 宽夜色中文](D:/dp-dev/tmp/shelfnav/shots/after-legacy-cd-390-dark-zh.png)
 
 ## 验收
 
-- `python -m discprobe --lang zh library delete --help` 验证中文参数帮助。临时工作区通过 JSON CLI 测了回收、恢复、永久删除、共享预设、恢复冲突和中断恢复。测试也用走查中的 36.88–40.43、47.13–49.57 mm 验证旧数据。
-- Disc Lab 使用固定种子 178 和独立虚拟光驱 X:。正常标定导出通过，指定三段的 `geo --ranges` 保留两个空档，`calibrate --avoid-mm … --preset …` 拒绝并留下验收记录。对同一虚拟盘运行 `calibrate --resume … --preset …` 后，在两个旧空档内得到 38.78、49.01 mm 测点，覆盖 24.49–56.01 mm，预设写出。 [续测日志](D:/dp-dev/tmp/libmanage/logs/lab-resume.log)
-- 无头 Edge 加 CDP 对照 `738889d`。盘库、光驱、作品详情、编辑器各有 8 组前后图，另有 2 张删除确认，共 66 张。覆盖中英文、纸色和夜色、1440×900 和 390×844。验证删批次并保留作品、一起移走、取消、撤销，以及作品删除和恢复。网页版拒绝重新导出被拒记录。8 组改后标尺文字边界都无重叠。 [截图](D:/dp-dev/tmp/libmanage/shots/) · [截图记录](D:/dp-dev/tmp/libmanage/shots/capture.json)
-- 相关 Python 测试用 `python -B -X utf8 -m pytest -n 2`。主回归 345 项通过，后续分别复验盘库及作品 75 项、几何及容量 53 项、最终提交的盘库、RWA 和引用 20 项，均通过。 [主回归](D:/dp-dev/tmp/libmanage/logs/pytest-related.log) · [最终复验](D:/dp-dev/tmp/libmanage/logs/pytest-commit.log)
-- 全部 `tests/test_*.mjs` 用 `node --test --test-concurrency=1` 逐文件运行，60 个文件都通过。两项首轮失败均定向复验通过。随旧作品选批次时保留独立的局部几何。回连后，校准页负责自己的盘片检查，避免历史任务触发的后台读取抢占擦除预检。导航复验通过，重试页修复测试的切页等待后也通过。 [首轮](D:/dp-dev/tmp/libmanage/logs/js-browser-run.log) · [局部几何复验](D:/dp-dev/tmp/libmanage/logs/js-retest/test_disc_files_browser.log) · [可擦写盘复验](D:/dp-dev/tmp/libmanage/logs/js-final-target/test_rw_discs_browser.log) · [重试页复验](D:/dp-dev/tmp/libmanage/logs/js-retry-ready/test_web_retry_browser.log)
-- 用 MERGE_REPORT 方法对照 `a7b5fbf`，固定时间、输入路径和虚拟盘写入参数。23 组里 18 组逐字节一致，覆盖双语正常 `burn`、`info`、`photo` 及 CD/DVD 默认 `image`、`disexport`。5 组符合原报告的预期差异，包括双语 `burn --help`、`photo --help` 和已知 MID 的 `image` 附档新增 `calibration_mid`。该镜像本身、命令输出和退出码一致。 [哈希和逐项对照](D:/dp-dev/tmp/libmanage/logs/parity/comparisons.jsonl)
-- 开工与回归前 D 盘都超过 5 GiB。Python 用长 TEMP 路径。虚拟盘目录及整盘镜像按场景清理。
+- 无头 Edge 加 CDP。`node D:/dp-dev/tmp/shelfnav/capture.mjs before` 和 `after` 各产出 24 张矩阵图，覆盖纸色和夜色、中英文、1440×900 和 390×844，以及 1、3、10 批全部组合。另有 1888 宽标题、旧 CD 正常态和切换帧。一共 144 张 PNG（含 4 张帧对照）。`python -B -X utf8 D:/dp-dev/tmp/shelfnav/verify_captures.py` 校验尺寸、批次数、两行高度和新旧文案可见性。 [截图目录](D:/dp-dev/tmp/shelfnav/shots/)
+- `node --test --test-concurrency=1` 逐文件跑完 `tests/test_*.mjs`。首轮 60/61，往期作品在重开夹具列表时超时，单独复验通过。最终累积 61/61，修正槽位后又定向复验盘库、新作品、动效和导航 4 个文件，均通过。 新浏览器用例覆盖列表直选、第十批和长标题、左右按钮、键盘、滚轮、触摸横滑、焦点和高亮同步、正反方向、减弱动效、CD 拍照与返回、改名、导出以及 DVD 检查盘交接。 [逐文件结果](D:/dp-dev/tmp/shelfnav/logs/js-all/summary.json) · [往期作品复验](D:/dp-dev/tmp/shelfnav/logs/js-targets/test_pastworks_browser.log) · [槽位修正后复验](D:/dp-dev/tmp/shelfnav/logs/js-final.log)
+- `python -B -X utf8 -m pytest -n 2 -p no:cacheprovider --basetemp <D 盘长路径>` 运行盘库、网页 API、预设、照片与图像相关 7 个测试文件，255 项通过。手动对齐测试有一条既有的 `Mean of empty slice` 警告。补跑检查盘、刻录检查、沿轨常数预设和网页安全 4 个文件，59 项通过、1 项跳过。夹具验证了自动照片证据、手动对齐保存的零值、单张照片保留未确认、同一测量摘要变更后证据失效。 [主回归](D:/dp-dev/tmp/shelfnav/logs/pytest-related.log) · [补充回归](D:/dp-dev/tmp/shelfnav/logs/pytest-extra.log)
+- 开工和回归前 D 盘有约 122–124 GB 可用。测试用各自的 D 盘长 TEMP，模拟光驱用例留日志并清理测试目录。
 
-## 请 Claude 转达
+## 未测与请 Claude 转达
 
-- 请审查人确定 11-19 这批 RITEKF1 的容量口径。卡上给出 2,295,104，按镜像长度反推旧输入为 2,297,888，仓库另有基于预刻地址换算的 2,298,496 示例。本卡把卡上数值用于旧行的 MID 参考，保留明确容量记录优先的行为。实体盘、原始记录及正式数据迁移未测。
-- 390 像素对照里，盘库文档宽 488，光驱和作品页文档宽 437，前后相同。编辑器文档宽 390。视觉取舍留给审查。旧的无关联转速记录只在能追溯到批次时纳入回收，共用预设文件会留在原处。
-- 后续处理真实的 RITEKF1 记录由集成审查决定。当前提交只在本地工作分支。
+- 实体盘、真光驱、手机实拍到保存的全链路、正式工作区迁移未测。浏览器用例走到照片页及 DVD 刻录确认页。DIS 文件内容和核心的 L 判定用夹具验证。旧测量如果没有可追溯的刻录路径，自动照片结果还需核心校验，现有手动对齐入口可用于保存 L。
+- 路径排除范围内的密封照片命令用例未测。检查盘的独立研究标靶文件不在检出目录，该比对跳过，包内标靶哈希用例通过。
+- 请集成时将本分支叠在 LM 上一起审查。API 为 1.5，沿轨常数状态由本地证据生成。请审查实际旧 CD 回填资料的介质型号和刻录路径，因为缺少这些记录时界面只能展示已知字段。
 
 STATUS: DONE
