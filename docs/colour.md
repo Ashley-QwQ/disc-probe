@@ -1,6 +1,6 @@
 # Make a colour DVD
 
-[简体中文](colour.zh.md) · [README](../README.en.md)
+[简体中文](colour.zh.md) · [README](../README.en.md) · [Why calibrate before burning a picture?](why-calibrate.md)
 
 disc-probe can put a photograph or illustration on the data side of a DVD. Start with a picture that has distinct shapes and large areas of colour. [Download the example PNG](colour-guide/example.png) to follow either workflow below.
 

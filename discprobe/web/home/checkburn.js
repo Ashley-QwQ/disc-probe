@@ -1,5 +1,5 @@
 import { hasCapability } from './handshake.mjs';
-import { learnLabel, learnURL } from './learn-link.mjs';
+import { calibrationLabel, calibrationURL, learnLabel, learnURL } from './learn-link.mjs';
 
 const el = (tag, text) => {
   const node = document.createElement(tag);
@@ -61,8 +61,13 @@ export function burnChecklist(api, workId, burnId, signal) {
     article.href = learnURL(english);
     article.target = '_blank';
     article.rel = 'noopener';
+    const calibration = el('a', calibrationLabel(english));
+    calibration.className = 'ab-learn';
+    calibration.href = calibrationURL(english);
+    calibration.target = '_blank';
+    calibration.rel = 'noopener';
     const articleRow = el('p');
-    articleRow.append(article);
+    articleRow.append(article, ' · ', calibration);
     section.append(articleRow, status, rows, controls);
 
     repaint = () => {

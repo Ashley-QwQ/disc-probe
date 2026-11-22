@@ -1,6 +1,6 @@
 # 彩色 DVD 刻图
 
-[English](colour.md) · [README](../README.md)
+[English](colour.md) · [README](../README.md) · [刻图前为什么要标定？](why-calibrate.zh.md)
 
 disc-probe 可以把照片或插画刻在 DVD 的数据面上。第一次可以选轮廓清楚、色块比较大的图。[下载示例 PNG](colour-guide/example.png)，网页和命令行都能用。
 

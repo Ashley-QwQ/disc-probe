@@ -1,6 +1,6 @@
 # How a disc becomes a picture
 
-[中文](how-disc-images-work.zh.md)
+[中文](how-disc-images-work.zh.md) · [Why calibrate before burning a picture?](why-calibrate.md)
 
 ## Find the picture first
 
