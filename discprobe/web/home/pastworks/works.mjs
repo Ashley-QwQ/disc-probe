@@ -225,19 +225,22 @@ export function createWorksClient({ fetch: fetcher = globalThis.fetch?.bind(glob
 
 // The library for this page, or null when the core has none (then the page keeps its in-memory list).
 // Demo pages (?mock) and file previews get the in-browser mock; it says so on the page.
-let shared = null;
+let shared = null, pendingMock = null;
 export async function worksFor(api, { capable = true } = {}) {
   if (shared) return shared;
   const local = api?.backend?.mock || (typeof location !== "undefined" && location.protocol === "file:");
   if (local) {
-    const { createMockWorks } = await import("./mock-works.mjs");
-    const mock = createMockWorks();
-    shared = Object.assign(createWorksClient({ fetch: mock.fetch }), { mock });
-    return shared;
+    // Callers that arrive while the mock module loads must share one mock store, so the
+    // pending promise is cached, not only its result.
+    pendingMock ??= import("./mock-works.mjs").then(({ createMockWorks }) => {
+      const mock = createMockWorks();
+      return (shared ??= Object.assign(createWorksClient({ fetch: mock.fetch }), { mock }));
+    });
+    return pendingMock;
   }
   if (!capable) return null;
   const token = typeof location !== "undefined" ? new URLSearchParams(location.search).get("token") : null;
   shared = createWorksClient({ token });
   return shared;
 }
-export const setWorksForTest = (client) => { shared = client; };
+export const setWorksForTest = (client) => { shared = client; pendingMock = null; };
