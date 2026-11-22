@@ -1,5 +1,6 @@
-/* The news fax page (faxnews.js): the fax from above on the desk at the left, the paper on the right. */
+/* The news fax page (faxnews.js): the fax from above, with room on the desk for its paper. */
 .fx { position: fixed; inset: 0; z-index: 1; overflow: hidden; background: var(--paper);
+  --fx-content-top: calc(var(--edge) + var(--row) + 16px); --fx-content-bottom: calc(var(--foot) + 16px);
   --fx-sheet: #f6f4ee; --fx-ink: #24211c; --fx-ink-2: #5d5850; --fx-rule: #c9c2b6; --fx-lcd: #e9ece2; }
 /* night B: the printout lies under the lamp, so it is light paper with ink words, as on the paper theme */
 :root[data-theme="dark"] .fx { --fx-sheet: #ece6d8; --fx-ink: #22231f; --fx-ink-2: #55554c; --fx-rule: #c9c2b6; --fx-lcd: #e3e8dc; }
@@ -11,6 +12,9 @@
 
 .fx-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .fx-stage > img { position: absolute; user-select: none; pointer-events: none; }
+.fx-stacked .fx-stage { top: var(--fx-content-top); }
+/* Blend the exposed edges of the smaller desk picture into the page. */
+.fx-stacked .fx-top { mask-image: linear-gradient(transparent, black 12%, black 72%, transparent); }
 .fx-handset, .fx-hs-shadow { will-change: transform; }
 /* the display: page-drawn words on the baked screen face */
 .fx-lcd { position: absolute; display: flex; align-items: center; padding: 0 .7em; box-sizing: border-box; overflow: hidden;
@@ -25,25 +29,19 @@
 .fx-key.start.down { border-radius: 50%; }
 :root[data-theme="dark"] .fx-key { color: rgb(7 12 14 / .62); }
 :root[data-theme="dark"] .fx-key.down { background: rgb(0 0 0 / .4); color: rgb(7 12 14 / .8); }
-/* the printout: clipped at the slot's lip until it is pulled out */
-.fx-feed { position: absolute; overflow: hidden; pointer-events: none; }
-.fx-feed.free { overflow: visible; }
-.fx-feed.gone { visibility: hidden; }
-.fx-print { position: absolute; left: 0; top: 0; width: 100%; box-sizing: border-box; padding: 26px 28px; background: var(--fx-sheet);
-  box-shadow: 0 2px 0 rgb(0 0 0 / .08); display: flex; flex-direction: column; gap: 14px;
-  background-image: repeating-linear-gradient(0deg, transparent 0 5px, rgb(0 0 0 / .025) 5px 6px); }
-.fx-print > b { font: 800 46px/1 var(--font); font-stretch: 120%; color: var(--fx-ink); text-align: center; border-bottom: 4px double var(--fx-ink); padding-bottom: 12px; }
-.fx-print > i { display: block; height: 14px; background: var(--fx-ink); opacity: .18; }
-.fx-print > i:nth-child(2) { height: 30px; opacity: .45; width: 86%; }
-.fx-print > i:nth-child(4) { width: 70%; }
-.fx-print > i:nth-child(6) { height: 120px; opacity: .1; }
-
-/* ---- the paper: right half, from under the header to the bottom, scrolling inside */
-.fx-paper, .fx-notice { position: absolute; top: calc(var(--edge) + var(--row) + 16px); right: var(--edge); bottom: 0;
-  width: min(820px, 58vw); box-sizing: border-box; overflow: auto; overscroll-behavior: contain;
-  background: var(--fx-sheet); color: var(--fx-ink); padding: clamp(18px, 2.4vw, 36px) clamp(18px, 2.6vw, 40px) calc(var(--foot) + 24px);
+/* ---- the paper sits alongside the output slot, inside the two fixed rows */
+.fx-paper, .fx-notice {
+  --fx-sheet-left: calc(var(--fx-body-right) + clamp(20px, 2vw, 44px));
+  --fx-sheet-top: max(var(--fx-content-top), calc(var(--fx-slot-y) - min(35vh, 330px)));
+  --fx-sheet-height: max(0px, calc(100dvh - var(--fx-sheet-top) - var(--fx-content-bottom)));
+  --fx-sheet-width: min(820px, 58vw);
+  position: absolute; top: var(--fx-sheet-top); left: var(--fx-sheet-left); max-height: var(--fx-sheet-height);
+  width: min(var(--fx-sheet-width), calc(100% - var(--edge) - var(--fx-sheet-left)));
+  box-sizing: border-box; overflow: auto; overscroll-behavior: contain; transform-origin: top left;
+  background: var(--fx-sheet); color: var(--fx-ink); padding: clamp(18px, 2.4vw, 36px) clamp(18px, 2.6vw, 40px);
   box-shadow: -14px 18px 40px rgb(40 30 15 / .16); outline: none; scrollbar-width: thin; scrollbar-color: var(--fx-rule) transparent;
   background-image: repeating-linear-gradient(0deg, transparent 0 3px, rgb(0 0 0 / .018) 3px 4px); }
+.fx-paper { height: var(--fx-sheet-height); container-type: inline-size; }
 :root[data-theme="dark"] :is(.fx-paper, .fx-notice) { box-shadow: -14px 18px 40px rgb(0 0 0 / .4); }
 .fx-paper[hidden], .fx-notice[hidden] { display: none; }
 .fx-mast { position: relative; text-align: center; border-bottom: 5px double var(--fx-ink); padding-bottom: 8px; }
@@ -119,8 +117,10 @@
 .fx-btn:active { transform: translateY(1px); }
 .fx-slip-row { display: flex; flex-wrap: wrap; gap: 10px; }
 
-/* the receipt for a call without a paper: a narrow slip, same place */
-.fx-slip { width: min(460px, 58vw); bottom: auto; max-height: calc(100vh - var(--edge) - var(--row) - 16px - var(--foot) - 16px); padding-bottom: 24px; }
+/* the shorter receipt sits closer to the slot */
+.fx-slip { --fx-sheet-width: min(460px, 58vw);
+  --fx-sheet-top: max(var(--fx-content-top), calc(var(--fx-slot-y) - min(24vh, 220px)));
+  height: auto; padding-bottom: 24px; }
 .fx-slip-kicker { margin: 0; padding-bottom: 6px; border-bottom: 3px double var(--fx-ink); font: 800 14px/1.3 var(--font); font-stretch: 118%; letter-spacing: .08em; }
 .fx-slip h2 { margin: 14px 0 6px; font: 800 30px/1.15 var(--font); font-stretch: 112%; }
 .fx-slip p { margin: 0 0 10px; line-height: 1.55; }
@@ -128,7 +128,7 @@
 .fx-slip-src { font: 13px/1.4 var(--mono); color: var(--fx-ink-2); overflow-wrap: anywhere; }
 
 /* the first-visit note */
-.fx-notice { width: min(520px, 58vw); bottom: auto; max-height: calc(100vh - var(--edge) - var(--row) - 16px - 16px); padding-bottom: 26px; }
+.fx-notice { --fx-sheet-width: min(520px, 58vw); --fx-sheet-top: var(--fx-content-top); padding-bottom: 26px; }
 .fx-notice h2 { margin: 0 0 6px; padding-bottom: 6px; border-bottom: 3px double var(--fx-ink); font: 800 28px/1.15 var(--font); font-stretch: 115%; }
 .fx-notice h3 { margin: 14px 0 2px; font: 750 15px/1.3 var(--font); font-stretch: 110%; }
 .fx-notice p { margin: 0; line-height: 1.6; }
@@ -147,13 +147,19 @@
 .fx-parcel p { margin: 0 0 12px; line-height: 1.55; font-size: 15px; }
 .fx-parcel .fx-btn { --fx-ink: var(--ink); --fx-ink-2: var(--ink-2); }
 
-@media (max-width: 760px) {
-  .fx-paper, .fx-notice, .fx-slip { left: 12px; right: 12px; width: auto; }
+.fx-stacked :is(.fx-paper, .fx-notice) {
+  --fx-sheet-left: var(--edge); --fx-sheet-width: 100%;
+  --fx-sheet-top: calc(var(--fx-content-top) + var(--fx-slot-y) + 16px);
+}
+@container (max-width: 620px) {
+  .fx-cols { grid-template-columns: 1fr 1fr; }
+  .fx-col:last-child { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--fx-rule); padding-left: 0; }
+}
+@container (max-width: 420px) {
+  .fx-mast:has(.fx-stamp) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: center; }
+  .fx-mast h1 { grid-column: 1 / -1; }
+  .fx-stamp { position: static; margin: 10px 5px 0 0; }
   .fx-cols { grid-template-columns: 1fr; }
   .fx-col { padding: 12px 0; }
   .fx-col + .fx-col { border-left: 0; border-top: 1px solid var(--fx-rule); }
-}
-@media (max-width: 1180px) and (min-width: 761px) {
-  .fx-cols { grid-template-columns: 1fr 1fr; }
-  .fx-col:last-child { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--fx-rule); padding-left: 0; }
 }

@@ -1,7 +1,7 @@
 import { isActionEnter } from "./kit/shared.js";
 // The news fax (prototype): a fax on the lobby desk that, when clicked, phones the person's own news source,
 // downloads today's paper and prints it. The call hides the download: the handset lifts, the keys dial with
-// their tones, the line rings until the data is in, then the paper prints, is pulled out and drops into focus.
+// their tones, the line rings until the data is in, then the paper prints and is laid on the desk.
 //
 // Download only. The page asks the local news API; Python tries the repository mirrors and falls back to
 // its cache or sample. The core sends plain GETs, with no cookies, referrer or machine details. A skin
@@ -16,7 +16,7 @@ import { isActionEnter } from "./kit/shared.js";
 // the desk, its handset and the handset's shadow as separate pictures, and in canvas pixels the display, the
 // keys and the output slot. The page draws the display's words, the key presses, the printout and the paper.
 
-import { coverPoint, pageFlight, TOP_START } from "./flight.mjs";
+import { pageFlight, TOP_START } from "./flight.mjs";
 import { pushLobby } from "./lobby.js";
 import * as sfx from "./faxsfx.mjs";
 import { DEFAULT_SOURCE, withToken, PaperError, readPaper, readSkin, layOut, pick, resolveRef, compareVersions } from "./faxnews-data.mjs";
@@ -154,15 +154,13 @@ function build() {
   const top = el("img", "fx-top"), shadow = el("img", "fx-hs-shadow"), handset = el("img", "fx-handset");
   for (const i of [top, shadow, handset]) { i.alt = ""; i.decoding = "async"; i.draggable = false; }
   const lcd = el("div", "fx-lcd"); lcd.setAttribute("role", "status"); lcd.append(el("span"));
-  const keys = el("div", "fx-keys"), feed = el("div", "fx-feed"), print = el("div", "fx-print");
-  print.append(el("b", "", ""), el("i"), el("i"), el("i"), el("i"), el("i"));
-  feed.append(print);
-  stage.append(top, feed, shadow, handset, keys, lcd);
+  const keys = el("div", "fx-keys");
+  stage.append(top, shadow, handset, keys, lcd);
   const paper = el("article", "fx-paper"); paper.hidden = true; paper.tabIndex = -1;
   const notice = el("aside", "fx-notice"); notice.hidden = true;
   page.append(stage, paper, notice);
   document.body.append(page);
-  F = { page, stage, top, shadow, handset, lcd, keys, feed, print, paper, notice, keyEls: {} };
+  F = { page, stage, top, shadow, handset, lcd, keys, paper, notice, keyEls: {} };
   page.addEventListener("click", (e) => { if (A?.running && !e.target.closest("button, a, input, .fx-paper, .fx-notice")) skip(); });
   addEventListener("keydown", (e) => {
     if (root.dataset.mode !== "faxnews" || e.defaultPrevented || e.isComposing) return;
@@ -185,12 +183,25 @@ function paintTheme() {
   const t = theme(), base = new URL("./faxnews/", import.meta.url).href;
   F.top.src = `${base}top_${t}.webp`; F.shadow.src = `${base}handset_shadow_${t}.webp`; F.handset.src = `${base}handset_${t}.webp`;
 }
-// the stage is the 2560 x 1440 picture covering the window; children are placed in its pixels
+// Project the baked body and slot with the stage so the paper follows the fax at any size.
 function place() {
   if (!F || !art) return;
-  const [W, H] = art.canvas, vw = innerWidth, vh = innerHeight, sw = Math.max(vw, vh * W / H), k = sw / W;
-  F.stage.style.transform = `translate(${((vw - sw) / 2).toFixed(1)}px, ${((vh - sw * H / W) / 2).toFixed(1)}px) scale(${k.toFixed(5)})`;
-  F.k = k;
+  F.delivery?.cancel();
+  const [w, h] = art.canvas, vw = innerWidth, vh = innerHeight;
+  const [left, top, right, bottom] = art.body_rect;
+  const [sx0, , sx1, sy] = art.slot, slotX = (sx0 + sx1) / 2;
+  const stacked = vw <= 760;
+  const k = stacked ? Math.min(vw * .72 / (right - left), vh * .27 / (bottom - top))
+    : Math.max(vw / w, Math.min(vh / h, vw * .47 / (right - left)));
+  const x = stacked ? vw / 2 - slotX * k : Math.max((vw - w * k) / 2, 12 - left * k);
+  const y = stacked ? -top * k : (vh - h * k) / 2;
+  F.page.classList.toggle("fx-stacked", stacked);
+  F.stage.style.transform = `translate(${x}px, ${y}px) scale(${k})`;
+  F.page.style.setProperty("--fx-body-right", `${x + right * k}px`);
+  F.page.style.setProperty("--fx-slot-y", `${y + sy * k}px`);
+  F.slot = { x: x + slotX * k, y: y + sy * k, width: (sx1 - sx0) * k * .94 };
+  F.focus = [x + art.focus[0] * k, y + art.focus[1] * k];
+  F.bodyWidth = (right - left) * k;
 }
 function layoutArt() {
   const [W, H] = art.canvas;
@@ -212,11 +223,6 @@ function layoutArt() {
     Object.assign(n.style, { left: `${Math.min(...xs)}px`, top: `${Math.min(...ys)}px`, width: `${Math.max(...xs) - Math.min(...xs)}px`, height: `${Math.max(...ys) - Math.min(...ys)}px` });
     F.keys.append(n); F.keyEls[name] = n;
   }
-  // the printout comes out of the slot, downward; the feed clips it at the slot's lip
-  const [sx0, , sx1, sy1] = art.slot, pw = (sx1 - sx0) * .94;
-  Object.assign(F.feed.style, { left: `${(sx0 + sx1) / 2 - pw / 2}px`, top: `${sy1}px`, width: `${pw}px`, height: `${H - sy1}px` });
-  F.printH = Math.round(pw * 1.18);
-  Object.assign(F.print.style, { height: `${F.printH}px` });
 }
 export function prepare(homeApi) {
   api = homeApi; $ = api.$;
@@ -238,12 +244,10 @@ export function prepare(homeApi) {
 }
 
 // ---------------------------------------------------------------- the flight in and out (as the drive's)
-const focusPoint = () => coverPoint(art.focus, art.canvas);
+const focusPoint = () => [F.focus[0], F.stage.offsetTop + F.focus[1]];
 function pushFor(from) {
   const r = from.getBoundingClientRect(), [sx, sy] = [r.left + r.width / 2, r.top + r.height / 2];
-  const [W, H] = art.canvas, sw = Math.max(innerWidth, innerHeight * W / H);
-  const topW = (art.body_rect[2] - art.body_rect[0]) * sw / W;      // the fax as wide as the top view starts it
-  const push = Math.max(1.4, Math.min(4, topW / TOP_START / Math.max(40, r.width)));
+  const push = Math.max(1.4, Math.min(4, F.bodyWidth / TOP_START / Math.max(40, r.width)));
   return { origin: `${sx}px ${sy}px`, to: `translate(${innerWidth / 2 - sx}px, ${innerHeight / 2 - sy}px) scale(${push.toFixed(3)})` };
 }
 let flight = null, from = null;
@@ -301,10 +305,8 @@ export async function back() {
 
 // ---------------------------------------------------------------- the call
 function resetStage() {
-  for (const n of [F.handset, F.shadow, F.print, F.paper]) n.getAnimations().forEach((a) => a.cancel());
+  for (const n of [F.handset, F.shadow, F.paper]) n.getAnimations().forEach((a) => a.cancel());
   F.handset.style.transform = F.shadow.style.transform = F.shadow.style.opacity = F.shadow.style.filter = "";
-  F.print.style.transform = `translateY(-${F.printH}px)`;
-  F.feed.classList.remove("free", "gone");
   F.paper.hidden = true; F.notice.hidden = true;
   Object.values(F.keyEls).forEach((k) => k.classList.remove("down"));
   setLCD("idle");
@@ -384,25 +386,12 @@ async function call() {
   // 4. the paper prints out of the slot
   if (!alive()) return;
   const lay = layOut(result.paper, { local: localVersion(), day });
-  fillPrint(lay);
   setLCD("print");
   sound(() => sfx.print(1.6));
-  await anim(F.print, [{ transform: `translateY(-${F.printH}px)` }, { transform: `translateY(-${Math.round(F.printH * .18)}px)` }], { duration: 1700, easing: "steps(24, end)" });
-  // 5. pulled out: it flies off the top of the window; the paper then drops into focus
-  if (!alive()) return;
-  const r = F.print.getBoundingClientRect(), k = F.k || 1;       // the stage is scaled: window px / k = stage px
-  F.feed.classList.add("free");
-  await anim(F.print, [{ transform: `translateY(-${Math.round(F.printH * .18)}px)` }, { transform: `translate(${(r.width * .3 / k).toFixed(0)}px, -${((r.bottom + 80) / k).toFixed(0)}px) rotate(-7deg)` }], { duration: 420, easing: "cubic-bezier(.5, 0, .9, .4)" });
-  F.feed.classList.add("gone");
+  showPaper(lay, result.source, false, result.from);
+  if (!run.skipped) await deliverSheet(1700, 24);
   if (!alive()) return;
   setLCD("done", shortDate(result.paper.date));
-  showPaper(lay, result.source, false, result.from);
-  if (!run.skipped) {
-    const p = F.paper.getBoundingClientRect(), mid = () => [p.left + p.width / 2, p.top + Math.min(p.height, innerHeight) * .4];
-    F.paper.style.transformOrigin = `${mid()[0]}px ${mid()[1]}px`;
-    await pageFlight(F.paper, mid).finished.catch(() => {});
-    F.paper.style.transformOrigin = "";
-  }
   run.running = false;
 }
 // no paper: busy tone, the handset goes back, a receipt prints instead
@@ -412,16 +401,31 @@ async function hangUp(run, result, source) {
   const a = F.handset.animate([LIFT.handset, { transform: "none" }], { duration: run.skipped ? 0 : 420, fill: "forwards" });
   F.shadow.animate([LIFT.shadow, { transform: "none", opacity: 1, filter: "blur(0)" }], { duration: run.skipped ? 0 : 420, fill: "forwards" });
   await a.finished.catch(() => {});
-  if (A !== run) return;
+  if (A !== run || run.cancelled) return;
   showSlip(result, source);
+  if (!run.skipped) await deliverSheet(540, 10);
   run.running = false;
 }
 function localVersion() { return ($("wm-ver")?.textContent || "").trim(); }
 
 // ---------------------------------------------------------------- printing
-function fillPrint(lay) {
-  const [b] = F.print.children;
-  b.textContent = T().mast;
+async function deliverSheet(feedTime, steps) {
+  const paper = F.paper, { x, y, width } = F.slot;
+  const slotY = F.stage.offsetTop + y;
+  const top = paper.offsetTop, w = paper.offsetWidth, h = paper.offsetHeight;
+  const room = top + parseFloat(getComputedStyle(paper).maxHeight) - slotY;
+  if (!w || !h || room <= 0) return;
+  const scale = Math.min(1, width / w, room / h);
+  const dx = x - paper.offsetLeft - w * scale / 2, dy = slotY - top;
+  const duration = feedTime + 420;
+  // Advance the cut and the sheet together, keeping the visible edge fixed at the slot lip.
+  const animation = F.delivery = paper.animate([
+    { transform: `translate(${dx}px, ${dy - h * scale}px) scale(${scale})`, clipPath: "inset(100% 0 0)", easing: `steps(${steps}, end)` },
+    { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, clipPath: "inset(0% 0 0)", offset: feedTime / duration, easing: "cubic-bezier(.2, .8, .2, 1)" },
+    { transform: "none", clipPath: "inset(-64px -64px -64px)" },
+  ], { duration });
+  await animation.finished.catch(() => {});
+  if (F.delivery === animation) F.delivery = null;
 }
 // the receipt for a call that brought no paper: what happened, and every way on from here
 function showSlip(result, source) {
@@ -446,6 +450,7 @@ function showSlip(result, source) {
   row.append(ch);
   slip.append(row);
   slip.hidden = false;
+  slip.scrollTop = 0;
   A && (A.shown = () => showSlip(result, source));
   redial.focus({ preventScroll: true });
 }
