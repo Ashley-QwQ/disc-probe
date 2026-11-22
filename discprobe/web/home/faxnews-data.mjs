@@ -5,6 +5,11 @@
 
 export const FORMAT = "dp-fax-news", FORMAT_VERSION = 1, SKIN_FORMAT = "dp-skin";
 export const DEFAULT_SOURCE = "/api/news";
+// The local core refuses API calls without the session token, so news requests carry it like api.js does.
+export function withToken(url) {
+  const token = typeof location === "undefined" ? null : new URLSearchParams(location.search).get("token");
+  return token ? url + (url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(token) : url;
+}
 const MAX_ITEMS = 40, MAX_TEXT = 600;
 
 // A text is a plain string or {zh, en}; either language may be missing (the other stands in).
@@ -153,5 +158,5 @@ export function resolveRef(ref, source, base) {
   if (!safeRef(ref)) return "";
   const query = new URLSearchParams({ path: ref });
   if (source && source !== DEFAULT_SOURCE) query.set("source", source);
-  return "/api/news/asset?" + query;
+  return withToken("/api/news/asset?" + query);
 }

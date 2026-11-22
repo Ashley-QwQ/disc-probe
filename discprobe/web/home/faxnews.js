@@ -19,7 +19,7 @@ import { isActionEnter } from "./kit/shared.js";
 import { coverPoint, pageFlight, TOP_START } from "./flight.mjs";
 import { pushLobby } from "./lobby.js";
 import * as sfx from "./faxsfx.mjs";
-import { DEFAULT_SOURCE, PaperError, readPaper, readSkin, layOut, pick, resolveRef, compareVersions } from "./faxnews-data.mjs";
+import { DEFAULT_SOURCE, withToken, PaperError, readPaper, readSkin, layOut, pick, resolveRef, compareVersions } from "./faxnews-data.mjs";
 import { receive as receiveCommunity, mountList as mountCommunity } from "./community.mjs";
 
 let communityData = null, communityError = '';
@@ -91,7 +91,7 @@ export function validSource(s) {
   s = s.trim();
   return s === DEFAULT_SOURCE || /^https:\/\/[^\s?#]+$/i.test(s);
 }
-const sourceURL = (s) => s === DEFAULT_SOURCE ? DEFAULT_SOURCE : `${DEFAULT_SOURCE}?source=${encodeURIComponent(s)}`;
+const sourceURL = (s) => withToken(s === DEFAULT_SOURCE ? DEFAULT_SOURCE : `${DEFAULT_SOURCE}?source=${encodeURIComponent(s)}`);
 // One GET with nothing of ours in it. Resolves {paper} or rejects with {kind: "dead" | "missing" | "bad", detail}.
 export async function download(source, { signal, fetcher = fetch } = {}) {
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
