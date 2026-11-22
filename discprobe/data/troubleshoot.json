@@ -1127,7 +1127,7 @@
     "steps": {"zh": ["在运行服务的电脑上复制它打印的完整地址，包括令牌。Windows 完整包先解压，再运行“开始 Start (Windows).bat”；Linux 完整包运行 ./start-linux.sh 或 bash start-linux.sh。"], "en": ["On the computer running the service, open the full printed address including the token. Extract the Windows full package before running 开始 Start (Windows).bat. On Linux use ./start-linux.sh or bash start-linux.sh from the full package."]},
     "commands": ["python -m discprobe webui --open"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "README.en.md", "line": 82, "keyword": "Both platforms use the bundled Python and dependencies"}, {"path": "discprobe/web_instance.py", "line": 105, "keyword": "WAYLAND_DISPLAY"}, {"path": "discprobe/web_instance.py", "line": 112, "keyword": "Open this address in your browser"}]
+    "sources": [{"path": "README.en.md", "line": 82, "keyword": "Both platforms use the bundled Python and dependencies"}, {"path": "discprobe/web_instance.py", "line": 112, "keyword": "WAYLAND_DISPLAY"}, {"path": "discprobe/web_instance.py", "line": 119, "keyword": "Open this address in your browser"}]
   },
   {
     "id": "web-drive-busy",
@@ -1137,7 +1137,7 @@
     "steps": {"zh": ["用 webui status 查持锁者及任务。等该操作结束后再试。"], "en": ["Use webui status to check the lock holder and active tasks. Wait for that operation to finish, then retry."]},
     "commands": ["python -m discprobe webui status"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/drive_lock.py", "line": 65, "keyword": "code = \"drive_busy\""}, {"path": "discprobe/drive_lock.py", "line": 74, "keyword": "这台光驱正在被另一个窗口或命令使用"}, {"path": "discprobe/web_instance.py", "line": 261, "keyword": "result[\"drives\"]"}]
+    "sources": [{"path": "discprobe/drive_lock.py", "line": 65, "keyword": "code = \"drive_busy\""}, {"path": "discprobe/drive_lock.py", "line": 74, "keyword": "这台光驱正在被另一个窗口或命令使用"}, {"path": "discprobe/web_instance.py", "line": 257, "keyword": "result[\"drives\"]"}]
   },
   {
     "id": "web-host-invalid",
@@ -1157,7 +1157,7 @@
     "steps": {"zh": ["用 webui status 查看当前地址、运行模式和任务。要换设置，等任务结束后运行 webui stop，再用新参数启动。", "只有明确指定 --new-instance 才会绕过默认实例复用。"], "en": ["Use webui status to see the current address, mode and tasks. To change the settings, wait for the tasks to finish, run webui stop, then start with the new options.", "An explicit --new-instance bypasses the normal instance reuse."]},
     "commands": ["python -m discprobe webui status", "python -m discprobe webui stop"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web_instance.py", "line": 159, "keyword": "previous = None if new_instance else _existing(path)"}, {"path": "discprobe/web_instance.py", "line": 189, "keyword": "Run discprobe webui stop before changing them"}, {"path": "discprobe/web_instance.py", "line": 259, "keyword": "if result[\"tasks\"]:"}, {"path": "discprobe/__main__.py", "line": 2750, "keyword": "without replacing the existing instance"}]
+    "sources": [{"path": "discprobe/web_instance.py", "line": 166, "keyword": "previous = None if new_instance else _existing(path)"}, {"path": "discprobe/web_instance.py", "line": 196, "keyword": "Run discprobe webui stop before changing them"}, {"path": "discprobe/web_instance.py", "line": 266, "keyword": "if result[\"tasks\"]:"}, {"path": "discprobe/__main__.py", "line": 2750, "keyword": "without replacing the existing instance"}]
   },
   {
     "id": "web-offline",
@@ -1167,7 +1167,7 @@
     "steps": {"zh": ["先用 webui status 查看服务。若未运行，用完整包启动器，或在源码目录运行 webui --open。打开这次打印的地址，并保持服务的终端窗口打开。"], "en": ["Check webui status first. If the service is stopped, use the full-package launcher or run webui --open from the source checkout. Open the newly printed address and leave the service console open."]},
     "commands": ["python -m discprobe webui status", "python -m discprobe webui --open"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "README.en.md", "line": 83, "keyword": "Closing the console that started the service also stops it"}, {"path": "discprobe/web_instance.py", "line": 258, "keyword": "Service is not running"}, {"path": "discprobe/web/home/api.js", "line": 12, "keyword": "Start the local webui service"}]
+    "sources": [{"path": "README.en.md", "line": 83, "keyword": "Closing the console that started the service also stops it"}, {"path": "discprobe/web_instance.py", "line": 265, "keyword": "Service is not running"}, {"path": "discprobe/web/home/api.js", "line": 12, "keyword": "Start the local webui service"}]
   },
   {
     "id": "web-phone-lan",
@@ -1187,7 +1187,7 @@
     "steps": {"zh": ["打开当前启动输出里的完整地址，或运行 webui status 查看已登记的 URL。需要更换首选端口时，先等任务结束并停止服务，再用 --port 启动。"], "en": ["Open the full address from the launch output, or use webui status to see the registered URL. To change the preferred port, wait for active tasks and stop the service, then relaunch with --port."]},
     "commands": ["python -m discprobe webui status"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web_instance.py", "line": 166, "keyword": "exc.errno != errno.EADDRINUSE"}, {"path": "discprobe/web_instance.py", "line": 169, "keyword": "server = factory(0)"}, {"path": "discprobe/web_instance.py", "line": 191, "keyword": "previous[\"port\"]"}, {"path": "discprobe/__main__.py", "line": 2746, "keyword": "uses a free port if occupied"}]
+    "sources": [{"path": "discprobe/web_instance.py", "line": 173, "keyword": "exc.errno != errno.EADDRINUSE"}, {"path": "discprobe/web_instance.py", "line": 176, "keyword": "server = factory(0)"}, {"path": "discprobe/web_instance.py", "line": 198, "keyword": "previous[\"port\"]"}, {"path": "discprobe/__main__.py", "line": 2746, "keyword": "uses a free port if occupied"}]
   },
   {
     "id": "web-port-invalid",
@@ -1207,7 +1207,7 @@
     "steps": {"zh": ["确认已完整解压对应系统的完整包。在 Windows 打开命令提示符，进入解压目录，运行下面的批处理并保留完整报错。Linux 在解压目录运行 bash start-linux.sh。", "用 webui status 核对是否有服务在运行。如果显示正在运行，打开它列出的地址。", "如果系统没有单独安装 Python，在完整包目录用包内的 python\\python.exe（Windows）或 ./linux/python/bin/python3（Linux）运行 webui status。"], "en": ["Fully extract the full package for your OS. On Windows, open Command Prompt, change to the extracted directory, run the batch file below and keep the full error. On Linux, run bash start-linux.sh from the extracted directory.", "Use webui status to check for a running service. If one is running, open the address shown.", "If Python is not installed separately, run webui status from the full-package directory with its bundled python\\python.exe (Windows) or ./linux/python/bin/python3 (Linux)."]},
     "commands": ["\"开始 Start (Windows).bat\"", "bash start-linux.sh", "python -m discprobe webui status"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "tools/build_winpack.py", "line": 66, "keyword": "webui --open %*"}, {"path": "start-linux.sh", "line": 11, "keyword": "Bundled Python is missing or not executable"}, {"path": "discprobe/web_instance.py", "line": 205, "keyword": "if failures:"}, {"path": "discprobe/web_instance.py", "line": 255, "keyword": "正在运行 / Running"}, {"path": "start-linux.sh", "line": 14, "keyword": "./linux/python/bin/python3 -X utf8"}]
+    "sources": [{"path": "tools/build_winpack.py", "line": 66, "keyword": "webui --open %*"}, {"path": "start-linux.sh", "line": 11, "keyword": "Bundled Python is missing or not executable"}, {"path": "discprobe/web_instance.py", "line": 212, "keyword": "if failures:"}, {"path": "discprobe/web_instance.py", "line": 262, "keyword": "正在运行 / Running"}, {"path": "start-linux.sh", "line": 14, "keyword": "./linux/python/bin/python3 -X utf8"}]
   },
   {
     "id": "web-stop-busy",
@@ -1217,7 +1217,7 @@
     "steps": {"zh": ["用 webui status 查看正在进行的任务和光驱锁。等任务结束后，再点退出或运行 webui stop。"], "en": ["Use webui status to see active tasks and drive locks, wait for the tasks to finish, then use Quit or run webui stop."]},
     "commands": ["python -m discprobe webui status", "python -m discprobe webui stop"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1515, "keyword": "Cannot force stop while disc writes are active or possible"}, {"path": "discprobe/webui.py", "line": 1519, "keyword": "Wait for the current tasks to finish"}, {"path": "discprobe/web_instance.py", "line": 275, "keyword": "\"/api/quit\""}, {"path": "README.en.md", "line": 83, "keyword": "use Quit in the lobby"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1515, "keyword": "Cannot force stop while disc writes are active or possible"}, {"path": "discprobe/webui.py", "line": 1519, "keyword": "Wait for the current tasks to finish"}, {"path": "discprobe/web_instance.py", "line": 282, "keyword": "\"/api/quit\""}, {"path": "README.en.md", "line": 83, "keyword": "use Quit in the lobby"}]
   },
   {
     "id": "windows-spti",
