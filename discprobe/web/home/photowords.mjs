@@ -257,12 +257,22 @@ export function photoLWords(photoL = {}, media = 'cd', {reopened = false} = {}) 
   return pair(`这张 ISO 没有用照片 L：${why.zh}`, `This ISO has no photo L: ${why.en}`);
 }
 
+const wholeDisc = pair('整张盘都在画面里，四周留一点边。', 'Keep the whole disc in frame, with a little margin.');
+const sameDisc = pair('重拍用同一张标靶盘，不用重新刻。', 'Retakes use the same target disc; nothing is burned again.');
+
 // The shooting method that works in an ordinary room (from users' own shots).
 export const shootingTips = [
   pair('房间有吸顶灯：背对它站，让灯在你身后。', 'With a ceiling lamp: stand with your back to it, so it is behind you.'),
   pair('盘数据面朝上，朝自己转 20–30°，让彩色条纹出来。', 'Data side up, tilt the disc 20–30° towards you until the colour bands show.'),
   pair('盘上出现吸顶灯的白色圆形反光，就微调角度避开它。', 'If the lamp makes a round white glare on the disc, tilt a little to move it off.'),
-  pair('整张盘都在画面里，四周留一点边。', 'Keep the whole disc in frame, with a little margin.'),
+  wholeDisc,
   pair('每拍一张都转一下盘，换个角度；至少两张。', 'Turn the disc between shots; at least two photos.'),
-  pair('重拍用同一张标靶盘，不用重新刻。', 'Retakes use the same target disc; nothing is burned again.'),
+  sameDisc,
+];
+
+export const cdShootingTips = [
+  pair('关掉顶灯，标靶盘数据面朝上，从侧面打光，让彩色条纹显出来。', 'Turn off the overhead lights. Set the target disc data side up and light it from the side until the colour bands show.'),
+  wholeDisc,
+  pair('每张之间把盘转 60–120°，至少拍两张。', 'Rotate the disc 60–120° between shots and take at least two photos.'),
+  sameDisc,
 ];

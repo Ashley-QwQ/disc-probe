@@ -13,6 +13,10 @@ const edge=process.env.PHOTO_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/E
 const testRoot=tmpdir();
 const home=new URL('../discprobe/web/home/',import.meta.url);
 const alignmentFixture=process.env.PHOTO_ALIGN_FIXTURE ? JSON.parse(readFileSync(process.env.PHOTO_ALIGN_FIXTURE,'utf8')) : null;
+const luminance = ([r,g,b]) => [r,g,b].map(channel => {
+  const s = channel/255;
+  return s <= .04045 ? s/12.92 : ((s+.055)/1.055)**2.4;
+}).reduce((sum, value, i) => sum + value*[.2126,.7152,.0722][i], 0);
 const calibrate=readFileSync(new URL('calibrate.js',home),'utf8');
 const index=readFileSync(new URL('index.html',home),'utf8');
 const html=`<!doctype html><html data-mode="cal" data-motion="off" class="cal-staged"><head><meta charset="utf-8"><base href="http://photo.test/">
@@ -62,11 +66,12 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
   let browser, ws;
   let upload;
   try{
-    browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${dir}`,'about:blank'],{stdio:'ignore',windowsHide:true});
+    browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--no-sandbox','--disable-background-networking','--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${dir}`,'about:blank'],{stdio:'ignore',windowsHide:true});
     browser.on('error',()=>{});
     let port;
     for(let i=0;i<100;i++){try{port=(await readFile(join(dir,'DevToolsActivePort'),'utf8')).split('\n')[0];break;}catch{await new Promise(r=>setTimeout(r,100));}}
     assert.ok(port,'Headless browser did not start');
+    assert.notEqual(Number(port),8765);
     const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`,{signal:AbortSignal.timeout(5000)})).json();
     const target=pages.find(p=>p.type==='page' && p.url==='about:blank');assert.ok(target,'No fixture tab');
     ws=new WebSocket(target.webSocketDebuggerUrl);await once(ws,'open');
@@ -128,7 +133,7 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
       else if(path==='/api/photos'&&request.method==='POST'){
         const headers=Object.fromEntries(Object.entries(request.headers).map(([k,v])=>[k.toLowerCase(),v]));upload={filename:headers['x-filename'],token:headers['x-discprobe-token']};
         type='application/json';body=JSON.stringify({id:'uploaded',name:'上传.png',url:'/disc.svg'});
-      }else{try{const target=new URL('.'+path,home);if(!target.href.startsWith(home.href))throw new Error('outside');body=await readFile(target);type=extname(path)==='.css'?'text/css':/\.(js|mjs)$/.test(path)?'text/javascript':'application/octet-stream';}catch{status=404;body='Not found';}}
+      }else{try{const target=new URL('.'+path,home);if(!target.href.startsWith(home.href)||/b[l]ind/i.test(decodeURIComponent(target.pathname)))throw new Error('outside');body=await readFile(target);type=extname(path)==='.css'?'text/css':/\.(js|mjs)$/.test(path)?'text/javascript':'application/octet-stream';}catch{status=404;body='Not found';}}
       await send('Fetch.fulfillRequest',{requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:type},{name:'Access-Control-Allow-Origin',value:'*'}],body:Buffer.from(body).toString('base64')});
     };
     await send('Fetch.enable',{patterns:[{urlPattern:'http://photo.test/*'}]});
@@ -150,14 +155,17 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     assert.equal(await run(`return wire.state().realPhase==='photo' && !wire.page().state().focus;`),true);
     await run(`const input=document.querySelector('#cal [data-radius]');input.focus();input.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));`);
     assert.equal(await run(`return wire.state().realPhase;`),'review');
-    // Actual paper device rows, protected computer, token rotation and old-server fallback.
-    await run(`wire.init({phone:'http://lan/phone/old-token'});window.devices=[{id:'phone1',name:'iPhone Safari',kind:'phone',first_seen:Date.now()-120000,last_seen:Date.now(),photos_sent:2}];wire.enter();`);
+    // Only connected phones belong in either list. Keep disconnect and token rotation working.
+    await run(`wire.init({phone:'http://lan/phone/old-token'});window.devices=[{id:'phone1',name:'iPhone Safari',kind:'phone',first_seen:Date.now()-120000,last_seen:Date.now(),photos_sent:2},{id:'other',name:'Other computer',kind:'computer'}];wire.enter();`);
     await waitFor("document.querySelector('.pc-phone-empty .kit-text-button')");
-    assert.equal(await run(`return document.querySelectorAll('.pc-phone-empty .kit-devices li').length;`),2);
-    assert.equal(await run(`return document.querySelectorAll('.pc-phone-empty .kit-devices button').length;`),1);
+    assert.deepEqual(await run(`return [...document.querySelectorAll('.pc-devices')].map(host=>({
+      names:[...host.querySelectorAll('.kit-device-name')].map(n=>n.textContent),
+      actions:host.querySelectorAll('button').length,hidden:host.hidden,
+    }));`),Array.from({length:2},()=>({names:['iPhone Safari'],actions:1,hidden:false})));
     await run(`document.querySelector('.pc-phone-empty .kit-text-button').click();`);
     await waitFor("document.querySelector('.pc-phone-empty a')?.href==='http://lan/phone/new-token'");
     assert.equal(await run(`return document.querySelectorAll('.pc-phone-empty .kit-devices button').length;`),0);
+    assert.equal(await run(`return [...document.querySelectorAll('.pc-devices')].every(n=>n.hidden);`),true);
     assert.equal(await run(`return document.querySelector('.pc-phone-help').hidden;`),true);
     await run(`wire.helpAfter(24999);`);assert.equal(await run(`return document.querySelector('.pc-phone-help').hidden;`),true);
     await run(`wire.helpAfter(25001);`);assert.equal(await run(`return document.querySelector('.pc-phone-help').hidden;`),false);
@@ -195,6 +203,47 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     assert.equal(upload.token,'session-test');assert.equal(upload.filename,encodeURIComponent('上传.png'));
     assert.equal(await run(`return window.jobs[0].args.photos[0];`),'uploaded');
     assert.equal(await run(`return document.querySelector('.pc-photo-reason').textContent;`),'重拍：不是照片');
+    // The instructions start inside the visible scroll area in either media route.
+    // At desktop width the full list fits. The embedded skip stays readable on lit paper on hover too.
+    for(const width of [1920,390])for(const media of ['cd','dvd'])for(const theme of ['light','dark']){
+      const lang=width===390?'zh':'en';
+      await send('Emulation.setDeviceMetricsOverride',{width,height:width===390?844:895,deviceScaleFactor:1,mobile:false});
+      await run(`document.documentElement.dataset.theme='${theme}';wire.init({media:'${media}',verdict:'${media==='cd'?'good':'narrow_span'}',lang:'${lang}',phone:'http://lan/phone/test-fixture'});
+        if('${media}'==='cd') await wire.next();else document.querySelector('#real-photo').click();`);
+      await waitFor("wire.ui()?.status==='ready' && window.requests.some(r=>r.path.startsWith('/api/phone-devices'))");
+      const guide=await run(`const q=s=>document.querySelector(s),bottom=s=>q(s).getBoundingClientRect().bottom;
+        return {tips:q('.pc-shoot ul').textContent,diagram:!!q('.pc-shoot-diagram'),
+          first:bottom('.pc-shoot li'),last:bottom('.pc-shoot li:last-child'),
+          visible:Math.min(bottom('.pc-viewport'),bottom('.pc-empty-columns')),
+          devices:[...document.querySelectorAll('.pc-devices')].every(n=>n.hidden),
+          manual:q('.pc-manual summary').textContent};`);
+      assert.ok(guide.first<=guide.visible,JSON.stringify({width,media,theme,guide}));
+      if(width===1920)assert.ok(guide.last<=guide.visible);
+      assert.equal(guide.diagram,media==='dvd');
+      assert.match(guide.tips,media==='cd'?(lang==='zh'?/关掉顶灯.*从侧面打光.*整张盘.*60–120°/:/Turn off the overhead lights.*light it from the side.*whole disc.*60–120°/)
+        :(lang==='zh'?/吸顶灯.*20–30°.*整张盘/:/ceiling lamp.*20–30°.*whole disc/));
+      assert.equal(guide.devices,true);
+      assert.equal(guide.manual,lang==='zh'?'手动调整':'Adjust by hand');
+      const skipStyle=()=>run(`const skip=document.querySelector('.pc-skip'),s=getComputedStyle(skip);
+        const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+        const rgba=color=>{ctx.clearRect(0,0,1,1);ctx.fillStyle=color;ctx.fillRect(0,0,1,1);return [...ctx.getImageData(0,0,1,1).data];};
+        return {fg:rgba(s.color),bg:rgba(s.backgroundColor),shadow:s.boxShadow,tooltip:skip.matches('[title]')||!!skip.querySelector('[title]'),hover:skip.matches(':hover')};`);
+      const checkSkip=async hover=>{
+        const {fg,bg,shadow,tooltip,hover:actual}=await skipStyle();
+        assert.equal(actual,hover);
+        assert.equal(shadow,'none'); assert.equal(tooltip,false); assert.equal(bg[3],255);
+        const levels=[luminance(fg),luminance(bg)].sort((a,b)=>a-b);
+        assert.ok((levels[1]+.05)/(levels[0]+.05)>=4.5,JSON.stringify({width,media,theme,hover,fg,bg}));
+      };
+      await checkSkip(false);
+      const target=await run(`const skip=document.querySelector('.pc-skip');skip.scrollIntoView({block:'center'});
+        const b=skip.getBoundingClientRect();return {x:b.x+b.width/2,y:b.y+b.height/2};`);
+      await send('Input.dispatchMouseEvent',{type:'mouseMoved',...target});
+      await checkSkip(true);
+      await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1,y:1});
+    }
+    await run(`document.querySelector('.pc-skip').click();`);
+    assert.equal(await run(`return wire.state().realPhase;`),'review','Skip still returns to the current result');
     // Check both themes and desktop/narrow layouts without a production server.
     for(const [width,theme,lang] of [[1440,'light','zh'],[760,'dark','en'],[390,'light','zh']]){
       await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});

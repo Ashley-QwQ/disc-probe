@@ -72,16 +72,20 @@
 .pc-range-key { font-size: 12px; margin: 0 0 16px !important; }
 .pc-before section { margin-top: 4px; }
 .pc-skip { margin-top: 28px; font-size: 15px; }
+.pc-button.pc-skip { background: var(--cal-paper, var(--paper)); box-shadow: none; }
+.pc-button.pc-skip:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 8%, var(--cal-paper, var(--paper))); }
 .pc-wide { width: 100%; }
 .pc-empty { height: 100%; padding: 36px 40px 28px; display: flex; flex-direction: column; gap: 24px; }
-.pc-empty-columns { display: grid; grid-template-columns: minmax(180px, .9fr) minmax(240px, 1.2fr); gap: 36px; flex: 1; min-height: 0; overflow-y: auto; align-content: start; }
+.pc-empty-columns { display: grid; grid-template-columns: minmax(180px, .9fr) minmax(240px, 1.2fr); grid-template-areas: "phone shoot"; gap: 36px; flex: 1; min-height: 0; overflow-y: auto; align-content: start; }
+.pc-phone-empty { grid-area: phone; }
+.pc-shoot { grid-area: shoot; }
 .pc-phone-offline { margin: 0 0 12px !important; }
 .pc-text-button { background: transparent; border: 0; padding: 8px 0; min-height: 44px; text-align: left; text-decoration: underline; text-underline-offset: 4px; }
-.pc-shoot-diagram { width: 100%; height: auto; margin: 22px 0 12px; overflow: visible; }
+.pc-shoot-diagram { display: block; width: 100%; height: auto; margin: 12px 0; overflow: visible; }
 .pc-shoot-diagram text { fill: var(--ink-2); font: 12px var(--font); }
 .pc-structure { fill: none; stroke: var(--ink); stroke-opacity: .7; stroke-width: 1; }
 .pc-detail { fill: none; stroke: var(--ink); stroke-opacity: .4; stroke-width: .75; stroke-dasharray: 3 3; }
-.pc-shoot ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.65; }
+.pc-shoot ul { margin: 8px 0 0; padding-left: 18px; font-size: 14px; line-height: 1.65; }
 .pc-drop { display: flex; gap: 20px; align-items: center; justify-content: space-between; padding-top: 20px; border-top: 1px dashed var(--rule-strong); }
 .pc-drop p { font-size: 15px; color: var(--ink-2); }
 .pc-drop .pc-button { flex: none; }
@@ -151,7 +155,7 @@
   .pc-content { grid-template-columns: minmax(0,1fr) 340px; gap: 20px; }
   .pc-paper { padding: 24px; }
   .pc-empty { padding: 28px 24px; }
-  .pc-empty-columns { grid-template-columns: 1fr; gap: 24px; }
+  .pc-empty-columns { grid-template-columns: 1fr; grid-template-areas: "shoot" "phone"; gap: 24px; }
   .pc-phone-empty .pc-phone-block { flex-direction: row; }
   .pc-phone-empty .pc-qr { width: 140px; }
   .pc-shoot-diagram { max-height: 180px; }
@@ -174,7 +178,6 @@
 .pc-embedded .pc-viewport { height: 100%; }
 .pc-embedded .pc-message { left: 16px; bottom: 72px; max-width: calc(100% - 32px); }
 .pc-embedded .pc-empty { padding: 24px; }
-.pc-embedded .pc-empty-columns { grid-template-columns: 1fr; }
 .pc-embedded .pc-shoot-diagram { max-height: 220px; }
 .pc-embedded .pc-phone-empty .pc-phone-block { flex-direction: row; }
 .pc-embedded .pc-phone-empty .pc-qr { width: 128px; }

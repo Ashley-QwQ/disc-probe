@@ -7,7 +7,7 @@
  * image, never inserted as markup. All callbacks receive independent arrays.
  */
 import { deviceList } from './kit/devices.js';
-import { photoReasonWords, photoStage, shootingTips, sliderWords } from './photowords.mjs';
+import { cdShootingTips, photoReasonWords, photoStage, shootingTips, sliderWords } from './photowords.mjs';
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 export const DEFAULT_RINGS = Object.freeze([30, 38, 47, 55]);
 export function ringHandles(radius) {
@@ -79,11 +79,14 @@ const words = {
     skip: '跳过，就用现在的结果', phone: '用手机扫，直接拍', phoneSmall: '手机扫码，直接拍',
     phoneOffline: '手机上传尚未接入，请从这台电脑添加照片。', openPhone: '打开手机拍照链接',
     phoneSteps: ['手机和电脑连同一个 Wi-Fi', '扫码，在手机上按“拍照”', '拍好后回到这里继续'],
+    computerAddress: '电脑地址', phoneHelp: '手机打不开链接？',
+    sharedWifi: '手机和电脑连同一个 Wi-Fi，不要用访客网络。',
+    allowPrivateNetwork: 'Windows 可能拦住了连接：在 Windows 安全中心 → 防火墙 → 允许应用中，允许 Python 使用专用网络。',
+    otherAddress: '试试上面的另一个地址。',
     local: '照片只在这台电脑的浏览器里打开，不会上传。', shoot: '这样拍',
-    shootNotes: shootingTips.map(tip => tip.zh),
     phoneAbove: '手机拍整张盘', lamp: '吸顶灯在身后', avoidLight: '盘上别有灯的白斑', disc: '盘朝你转 20–30°',
     drop: '没有手机，或者照片已经在电脑里：把文件拖到这里。', add: '从电脑添加照片', addMore: '再加一张照片',
-    photos: '照片', count: n => `${n} 张`, current: '正在对', alignment: '对齐', manual: '手动调整',
+    photos: '照片', count: n => `${n} 张`, current: '正在对', alignment: '对齐', manual: '手动调整', manualSummary: '手动调整',
     rings: '圆环', ringCount: n => `${n} 条参考圆`, offset: '平均偏差', unknown: '尚未测量',
     unregistered: '参考圆预览 · 盘缘识别尚未接入', registered: '盘缘位置由程序提供',
     auto: '自动对齐', busy: '正在对齐…', reset: '重来', use: '下一步：用这张照片', first: '先加一张照片',
@@ -105,11 +108,14 @@ const words = {
     skip: 'Skip, use the current results', phone: 'Scan with your phone to take a photo', phoneSmall: 'Scan to take a photo',
     phoneOffline: 'Phone upload is not connected yet. Add a photo from this computer.', openPhone: 'Open the phone camera link',
     phoneSteps: ['Connect phone and computer to the same Wi-Fi', 'Scan, then tap “Take photo” on your phone', 'Return here after taking the photo'],
+    computerAddress: 'Computer address', phoneHelp: "Phone can't open the link?",
+    sharedWifi: 'Use the same Wi-Fi as this computer, not a guest network.',
+    allowPrivateNetwork: 'Windows may have blocked the connection: in Windows Security → Firewall → Allow an app, allow Python on private networks.',
+    otherAddress: 'Try the other address above.',
     local: 'Photos open only in this computer’s browser. Nothing is uploaded.', shoot: 'How to shoot',
-    shootNotes: shootingTips.map(tip => tip.en),
     phoneAbove: 'Phone on the whole disc', lamp: 'Ceiling lamp behind you', avoidLight: 'No white lamp glare on the disc', disc: 'Disc tilted 20–30° to you',
     drop: 'No phone, or the photo is already on your computer? Drop the file here.', add: 'Add a photo from this computer', addMore: 'Add another photo',
-    photos: 'Photos', count: n => `${n} photo${n === 1 ? '' : 's'}`, current: 'Aligning', alignment: 'Alignment', manual: 'Manual adjustment',
+    photos: 'Photos', count: n => `${n} photo${n === 1 ? '' : 's'}`, current: 'Aligning', alignment: 'Alignment', manual: 'Manual adjustment', manualSummary: 'Adjust by hand',
     rings: 'Rings', ringCount: n => `${n} reference rings`, offset: 'Mean offset', unknown: 'Not measured',
     unregistered: 'Guide preview · rim detection not connected', registered: 'Disc rim supplied by the program',
     auto: 'Auto-align', busy: 'Aligning…', reset: 'Start over', use: 'Next: use this photo', first: 'Add a photo first',
@@ -135,16 +141,16 @@ const icon = name => `<svg aria-hidden="true" viewBox="0 0 24 24" class="pc-icon
 export function photoPage(host, opts = {}) {
   if (!host || typeof host.append !== 'function') throw new TypeError('photoPage requires a host element');
   const doc = host.ownerDocument, win = doc.defaultView, en = opts.lang === 'en';
-  const t = {...words[en ? 'en' : 'zh']};
-  // A few strings are written "中文 / English" in one literal; show only the page's language.
-  const one = (s) => { const i = s.indexOf(' / '); return i < 0 ? s : en ? s.slice(i + 3) : s.slice(0, i); };
-  const slider = key => sliderWords[key][en ? 'en' : 'zh'];
+  const lang = en ? 'en' : 'zh', cd = opts.media === 'cd';
+  const t = {...words[lang]};
+  const tips = cd ? cdShootingTips : shootingTips;
+  const slider = key => sliderWords[key][lang];
   const sliderEnabled = typeof opts.manualAlignment === 'function' && typeof opts.onManualSaved === 'function';
   if (opts.paperHost) {
     t.phoneOffline = en ? 'This computer is not reachable from your phone. Add a photo from this computer.' : '手机暂时连不到这台电脑，请从电脑添加照片。';
     t.local = en ? 'Photos are sent to this computer on your local network.' : '照片通过局域网发到这台电脑。';
     if (typeof opts.autoAlign === 'function') t.reader = en ? 'Auto-align reads the photo. If it is unclear, the reason is shown below.' : '自动对齐会读取照片；读不准时，会在下面说明原因。';
-    if (opts.media === 'cd' || opts.purpose === 'check') {
+    if (cd || opts.purpose === 'check') {
       t.title = en ? 'Read the along-track constant from a photo' : '拍照，读出沿轨常数';
       t.why = () => en ? 'This drive and disc batch need a photo to read the along-track constant. Keep the whole target disc in frame.' : '这台光驱和这批盘还需要靠照片读出沿轨常数。把整张标靶盘拍进画面。';
     }
@@ -173,11 +179,12 @@ export function photoPage(host, opts = {}) {
       <div class="pc-viewport" tabindex="0" aria-label="${t.drop}">
         <div class="pc-empty">
           <div class="pc-empty-columns"><section class="pc-phone-empty"></section><section class="pc-shoot"><h2>${t.shoot}</h2>
-            <svg viewBox="0 0 380 235" class="pc-shoot-diagram" role="img" aria-label="${t.phoneAbove}; ${t.lamp}; ${t.disc}">
+            <ul>${tips.map(tip => `<li>${tip[lang]}</li>`).join('')}</ul>
+            ${cd ? '' : `<svg viewBox="0 0 380 235" class="pc-shoot-diagram" role="img" aria-label="${t.phoneAbove}; ${t.lamp}; ${t.disc}">
               <g class="pc-detail"><path d="M66 46l18 18M66 46v24M66 46 48 64" stroke-dasharray="3 4"/><path d="M174 100 300 150M174 108l122 66" stroke-dasharray="2 5"/><path d="M258 196h96M332 196a26 26 0 0 0-4-17"/></g>
               <g class="pc-structure"><path d="M20 26h345M20 214h345M66 26v12M52 38h28l-5 9H57z"/><rect x="156" y="84" width="16" height="32" rx="3"/><path d="M258 196 345 165" stroke-width="3"/></g>
               <text x="20" y="96">${t.lamp}</text><text x="128" y="138">${t.phoneAbove}</text><text x="196" y="60">${t.avoidLight}</text><text x="214" y="232">${t.disc}</text>
-            </svg><ul>${t.shootNotes.map(note => `<li>${note}</li>`).join('')}</ul></section></div>
+            </svg>`}</section></div>
           <div class="pc-drop"><p>${t.drop}</p>${button('add', t.add, 'upload')}</div>
         </div>
         <img class="pc-image" alt="${t.photo}" draggable="false" hidden>
@@ -210,7 +217,7 @@ export function photoPage(host, opts = {}) {
         </section>` : ''}
         <section><div class="pc-section-title"><h2>${t.photos}</h2><span class="pc-photo-count"></span></div><div class="pc-strip"></div></section>
           <section class="pc-add-section"><div class="pc-phone-small"></div>${button('add', t.add, 'upload', 'pc-wide')}</section>
-          <section>${opts.automaticRead ? '<details class="pc-manual"><summary>手动调整 / Adjust by hand</summary>' : ''}<div class="pc-section-title"><h2>${t.alignment}</h2><span class="pc-stamp">${t.manual}</span></div>
+          <section>${opts.automaticRead ? `<details class="pc-manual"><summary>${t.manualSummary}</summary>` : ''}<div class="pc-section-title"><h2>${t.alignment}</h2><span class="pc-stamp">${t.manual}</span></div>
             <dl class="pc-summary"><div><dt>${t.rings}</dt><dd class="pc-ring-count"></dd></div><div><dt>${t.offset}</dt><dd class="pc-offset"></dd></div></dl>
             <p class="pc-registration"></p><p>${t.reader}</p>
             <div class="pc-actions">${typeof opts.autoAlign === 'function' ? button('auto', t.auto, 'auto', 'pc-primary') : ''}${button('reset', t.reset, 'reset')}</div>
@@ -218,7 +225,7 @@ export function photoPage(host, opts = {}) {
             ${opts.automaticRead ? '</details>' : ''}
           </section>
         </div>
-        ${typeof opts.onSkip === 'function' ? button('skip', t.skip, null, 'pc-skip pc-wide') : ''}
+        ${typeof opts.onSkip === 'function' ? `<button type="button" data-pc="skip" class="pc-button pc-skip pc-wide">${t.skip}</button>` : ''}
       </aside>
     </div>
     <footer class="pc-footer"><p class="pc-local">${t.local}</p><span class="pc-next-why"></span>${button('use', t.next, 'next', 'pc-primary pc-next')}</footer>
@@ -278,7 +285,7 @@ export function photoPage(host, opts = {}) {
     text.append(heading, link);
     const addresses = opts.addresses || [];
     if (addresses.length > 1) {
-      const label = doc.createElement('label'); label.className = 'pc-address'; label.textContent = one('电脑地址 / Computer address');
+      const label = doc.createElement('label'); label.className = 'pc-address'; label.textContent = t.computerAddress;
       const select = doc.createElement('select'); select.setAttribute('aria-label', label.textContent);
       for (const address of addresses) { const option = doc.createElement('option'); option.value = option.textContent = address; select.append(option); }
       select.value = opts.address || new URL(phoneUrl).hostname;
@@ -290,13 +297,10 @@ export function photoPage(host, opts = {}) {
       label.append(select); text.append(label);
     }
     const help = doc.createElement('details'); help.className = 'pc-phone-help'; help.hidden = true;
-    const summary = doc.createElement('summary'); summary.textContent = one("手机打不开链接？ / Phone can't open the link?"); help.append(summary);
-    const advice = [
-      '手机和电脑连同一个 Wi-Fi，不要用访客网络。 / Use the same Wi-Fi as this computer, not a guest network.',
-      'Windows 可能拦住了连接：在 Windows 安全中心 → 防火墙 → 允许应用中，允许 Python 使用专用网络。 / Windows may have blocked the connection: in Windows Security → Firewall → Allow an app, allow Python on private networks.',
-    ];
-    if (addresses.length > 1) advice.push('试试上面的另一个地址。 / Try the other address above.');
-    for (const line of advice) { const p = doc.createElement('p'); p.textContent = one(line); help.append(p); }
+    const summary = doc.createElement('summary'); summary.textContent = t.phoneHelp; help.append(summary);
+    const advice = [t.sharedWifi, t.allowPrivateNetwork];
+    if (addresses.length > 1) advice.push(t.otherAddress);
+    for (const line of advice) { const p = doc.createElement('p'); p.textContent = line; help.append(p); }
     text.append(help);
     if (!small) { const steps = doc.createElement('ol'); for (const line of t.phoneSteps) { const li = doc.createElement('li'); li.textContent = line; steps.append(li); } text.append(steps); }
     block.append(text); node.append(block);
@@ -309,14 +313,12 @@ export function photoPage(host, opts = {}) {
   }
   function setDevices(devices) {
     if (destroyed) return;
-    if (Array.isArray(devices)) {
-      phoneOpened = devices.some(device => !device.thisDevice);
-      updatePhoneHelp();
-    } else { phoneOpened = true; updatePhoneHelp(); }
+    const phones = Array.isArray(devices) ? devices.filter(device => device.kind === 'phone' && !device.thisDevice) : null;
+    phoneOpened = phones === null || phones.length > 0;
+    updatePhoneHelp();
     for (const host of deviceHosts) {
-      host.hidden = !Array.isArray(devices);
-      if (host.hidden) continue;
-      deviceList(host, devices, {lang:opts.lang, onDisconnect:opts.onDisconnect});
+      deviceList(host, phones ?? [], {lang:opts.lang, onDisconnect:opts.onDisconnect});
+      host.hidden = !phones?.length;
     }
   }
   function setPhoneLink(link) {
