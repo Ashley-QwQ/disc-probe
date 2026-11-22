@@ -1343,6 +1343,10 @@ def _tests_folder(c: Checker):
     added = folder not in sys.path
     if added:
         sys.path.insert(0, folder)
+    import tempfile
+    # Test burns file work records under DISCPROBE_HOME or ./works: keep them out of the real library.
+    home, previous_home = tempfile.mkdtemp(prefix="selftest-home-"), os.environ.get("DISCPROBE_HOME")
+    os.environ["DISCPROBE_HOME"] = home
     try:
         for path in files:
             name = os.path.splitext(os.path.basename(path))[0]
@@ -1389,6 +1393,12 @@ def _tests_folder(c: Checker):
     finally:
         if added:
             sys.path.remove(folder)
+        if previous_home is None:
+            os.environ.pop("DISCPROBE_HOME", None)
+        else:
+            os.environ["DISCPROBE_HOME"] = previous_home
+        import shutil
+        shutil.rmtree(home, ignore_errors=True)
 
 
 def _bd_export(c: Checker):
