@@ -141,6 +141,7 @@ try {
   await once(socket,'open');
   socket.onmessage = ({data}) => { const reply=JSON.parse(data); requests.get(reply.id)?.(reply); requests.delete(reply.id); };
   await cdp('Page.enable');
+  await cdp('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:profile});
   await cdp('Emulation.setFocusEmulationEnabled',{enabled:true});
   await cdp('Page.addScriptToEvaluateOnNewDocument',{source:`
     localStorage.setItem('dp-theme','dark'); localStorage.setItem('dp-lang','en'); localStorage.setItem('dp-sound','off');
@@ -188,6 +189,8 @@ try {
   await selection(0,'Imported CD renamed');
   await click('#library-export');
   await until(`document.querySelector('#library-feedback').textContent==='DIS preset exported.'`);
+  const exported = await until(() => readFile(join(profile,'dis-preset.json'),'utf8').catch(() => null), 'DIS preset download');
+  assert.deepEqual(JSON.parse(exported),{id:'legacy-export', displayName:'Imported CD renamed'});
   assert.deepEqual(calls.find(r=>r.path==='/api/presets' && r.body)?.body,
     {operation:'export', path:`${cdPath}/summary.json`, name:'Imported CD renamed', sectors:359849});
   await click('#next');
