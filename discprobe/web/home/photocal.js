@@ -136,6 +136,8 @@ export function photoPage(host, opts = {}) {
   if (!host || typeof host.append !== 'function') throw new TypeError('photoPage requires a host element');
   const doc = host.ownerDocument, win = doc.defaultView, en = opts.lang === 'en';
   const t = {...words[en ? 'en' : 'zh']};
+  // A few strings are written "中文 / English" in one literal; show only the page's language.
+  const one = (s) => { const i = s.indexOf(' / '); return i < 0 ? s : en ? s.slice(i + 3) : s.slice(0, i); };
   const slider = key => sliderWords[key][en ? 'en' : 'zh'];
   const sliderEnabled = typeof opts.manualAlignment === 'function' && typeof opts.onManualSaved === 'function';
   if (opts.paperHost) {
@@ -276,7 +278,7 @@ export function photoPage(host, opts = {}) {
     text.append(heading, link);
     const addresses = opts.addresses || [];
     if (addresses.length > 1) {
-      const label = doc.createElement('label'); label.className = 'pc-address'; label.textContent = '电脑地址 / Computer address';
+      const label = doc.createElement('label'); label.className = 'pc-address'; label.textContent = one('电脑地址 / Computer address');
       const select = doc.createElement('select'); select.setAttribute('aria-label', label.textContent);
       for (const address of addresses) { const option = doc.createElement('option'); option.value = option.textContent = address; select.append(option); }
       select.value = opts.address || new URL(phoneUrl).hostname;
@@ -288,13 +290,13 @@ export function photoPage(host, opts = {}) {
       label.append(select); text.append(label);
     }
     const help = doc.createElement('details'); help.className = 'pc-phone-help'; help.hidden = true;
-    const summary = doc.createElement('summary'); summary.textContent = "手机打不开链接？ / Phone can't open the link?"; help.append(summary);
+    const summary = doc.createElement('summary'); summary.textContent = one("手机打不开链接？ / Phone can't open the link?"); help.append(summary);
     const advice = [
       '手机和电脑连同一个 Wi-Fi，不要用访客网络。 / Use the same Wi-Fi as this computer, not a guest network.',
       'Windows 可能拦住了连接：在 Windows 安全中心 → 防火墙 → 允许应用中，允许 Python 使用专用网络。 / Windows may have blocked the connection: in Windows Security → Firewall → Allow an app, allow Python on private networks.',
     ];
     if (addresses.length > 1) advice.push('试试上面的另一个地址。 / Try the other address above.');
-    for (const line of advice) { const p = doc.createElement('p'); p.textContent = line; help.append(p); }
+    for (const line of advice) { const p = doc.createElement('p'); p.textContent = one(line); help.append(p); }
     text.append(help);
     if (!small) { const steps = doc.createElement('ol'); for (const line of t.phoneSteps) { const li = doc.createElement('li'); li.textContent = line; steps.append(li); } text.append(steps); }
     block.append(text); node.append(block);

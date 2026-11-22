@@ -161,7 +161,7 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     assert.equal(await run(`return document.querySelector('.pc-phone-help').hidden;`),true);
     await run(`wire.helpAfter(24999);`);assert.equal(await run(`return document.querySelector('.pc-phone-help').hidden;`),true);
     await run(`wire.helpAfter(25001);`);assert.equal(await run(`return document.querySelector('.pc-phone-help').hidden;`),false);
-    assert.match(await run(`return document.querySelector('.pc-phone-help').textContent;`),/Windows may have blocked/);
+    const helpText=await run(`return document.querySelector('.pc-phone-help').textContent;`);assert.match(helpText,/Windows 可能拦住了连接/);assert.doesNotMatch(helpText,/Windows may have blocked/,'help shows only the page language');
     await run(`const select=document.querySelector('.pc-address select');select.value='192.168.1.2';select.dispatchEvent(new Event('change'));`);
     await waitFor("sessionStorage.getItem('discprobe-phone-address')==='192.168.1.2'");
     await run(`wire.back();wire.enter();`);await waitFor("wire.ui()?.status==='ready'");
