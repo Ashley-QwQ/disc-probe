@@ -23,7 +23,7 @@ export const RIG_WORDS={
   en:{title:'Colour',
     intro:['The colours on a disc are the flash light that the burned fine lines throw into the lens. Hold the phone a little higher or further over and the same spot shows another colour.',
       'So first say which phone you shoot with and from how high; the palette then shows the colours you will see shooting that way. The placement sheet fixes where the phone sits. Black-and-white pictures need none of this.'],
-    why:'Why the phone and height come first',figLow:'Shot like this',figHigh:'A little higher',figSame:'Same spot',
+    why:'Why the phone and height come first',figLow:'Lower',figHigh:'Higher',figSame:'Same spot',
     phone:'Your phone',iphoneSub:'Flash 47.9 mm from the 1× lens · measured',custom:'Another phone',customSub:'Measure the flash to the 1× lens yourself · unverified',
     distance:'Flash centre to 1× lens centre (mm)',distanceNote:d=>`Using ${d} mm. Not checked on this phone; the colours may be off.`,distanceBad:'Enter a whole number of mm from 10 to 60.',
     height:'Shooting height',heightPick:'Choose the phone first, then the height.',
@@ -36,6 +36,102 @@ export const RIG_WORDS={
     lampNote:label=>`${label} · model prediction`,lampNone:'No phone and height chosen · old default position (33 cm)'}
 };
 export const rigWords=lang=>RIG_WORDS[lang]??RIG_WORDS.zh;
+
+const DOCS = 'https://github.com/Ashley-QwQ/disc-probe/blob/main/docs/';
+const COLOUR_PICTURE_UI = {
+  zh: {
+    introTitle:'彩色刻图怎么拍', start:'开始设置',
+    intro:[
+      '盘上的细纹把闪光灯的光分成不同颜色。',
+      '挪动手机或转动盘就会变色，只有在选定的拍摄位置附近，颜色才接近预览。',
+      '拍摄时关掉室内灯，打开手机闪光灯。',
+      '把盘的数据面朝上，按对准纸摆放盘和手机，把箭头对到 12 点。',
+    ],
+    colourDoc:'彩色刻图与对准纸', tutorial:'光盘怎么变成图',
+    phone:'1. 你的手机', distance:'1× 镜头到闪光灯的距离（mm）', useDistance:'确认距离',
+    measure:'用尺量两个中心之间的直线距离，填 10–60 mm。', lookup:'按手机型号查距离',
+    used:mm=>`按 ${mm} mm 生成预览。`,
+    height:'2. 拍摄高度', heightNote:'从桌面量到 1× 镜头。用对准纸上的参考位置可先试 22.3 cm。',
+    heightPick:'先确认镜头到闪光灯的距离。',
+    chosenHeight:cm=>`当前高度为 ${cm} cm。`,
+    preview:'3. 生成预览', generate:'生成颜色预览',
+    needsPose:'先确认手机距离，再选拍摄高度。',
+    poseLoading:'正在载入拍摄位置…', poseFailed:'拍摄位置没载入。请再次确认距离。',
+    needsPicture:'导入一张图片，或用画布上的示例。', pickPicture:'在图层列表中选中要上色的图片。',
+    lockedPicture:'请先解锁选中的图片图层。',
+    validation:'目前只在 RITEKF1 DVD-R 和 GH70N 的组合上实拍验证过。换盘颜色可能偏。',
+    prediction:'这是在你选的机位下的模型预测。实盘会更暗、颜色更淡。',
+    advanced:'高级 · 手动配色',
+  },
+  en: {
+    introTitle:'How to photograph a colour disc', start:'Set up my phone',
+    intro:[
+      'Fine grooves on the disc split the flash light into different colours.',
+      'Colours shift when you move the phone or turn the disc, so stay near the shooting position you chose.',
+      'Turn off the room lights and turn on the phone flash.',
+      'Use the placement sheet to position the phone and the disc data-side up, with the arrow at 12 o’clock.',
+    ],
+    colourDoc:'Colour guide and placement sheet', tutorial:'How a disc becomes a picture',
+    phone:'1. Your phone', distance:'1× lens to flash distance (mm)', useDistance:'Confirm distance',
+    measure:'Use a ruler to measure straight from centre to centre. Enter 10–60 mm.', lookup:'Look up a phone model',
+    used:mm=>`The preview uses ${mm} mm.`,
+    height:'2. Shooting height', heightNote:'Measure from the table to the 1× lens. Start with 22.3 cm if using the reference on the placement sheet.',
+    heightPick:'First confirm the lens-to-flash distance.',
+    chosenHeight:cm=>`The current height is ${cm} cm.`,
+    preview:'3. Generate a preview', generate:'Generate colour preview',
+    needsPose:'Confirm the phone distance, then choose a shooting height.',
+    poseLoading:'Loading this shooting position…', poseFailed:'Could not load this shooting position. Confirm the distance again.',
+    needsPicture:'Import a picture or use the sample on the canvas.', pickPicture:'Select the picture to colour in the layer list.',
+    lockedPicture:'Unlock the selected picture layer first.',
+    validation:'Physical colour has been verified only on RITEKF1 DVD-R with a GH70N. Other discs may show different colours.',
+    prediction:'This is a model prediction at your chosen shooting position. The disc will look darker and less saturated.',
+    advanced:'Advanced · Manual colour',
+  },
+};
+export const colourPictureWords=lang=>COLOUR_PICTURE_UI[lang]??COLOUR_PICTURE_UI.zh;
+const modelDistance=mm=>Number.isFinite(mm)?Number(mm.toFixed(1)):null;
+export const shownDistance=(rig,data)=>rig?.phone==='custom'?rig.flash_mm??null:modelDistance(flashMM(rig,data));
+
+export function colourIntro(lang, ex, open) {
+  const w=colourPictureWords(lang), suffix=lang==='en'?'.md':'.zh.md';
+  return `<details class="ed-colour-intro" ${open?'open':''}>
+    <summary>${w.introTitle}</summary>
+    ${figure(lang,ex)}
+    ${w.intro.map(p=>`<p class="ed-model-note">${p}</p>`).join('')}
+    <p class="ed-colour-links"><a href="${DOCS}colour${suffix}" target="_blank" rel="noopener">${w.colourDoc}</a>
+      <a href="${DOCS}how-disc-images-work${suffix}" target="_blank" rel="noopener">${w.tutorial}</a></p>
+    <button class="sbtn" type="button" data-ed-dismiss-colour-intro>${w.start}</button>
+  </details>`;
+}
+
+export function colourRigSteps(rig,data,lang,{distanceDraft,state,error}){
+  const w=colourPictureWords(lang), status=rigWords(lang);
+  if(!data)return `<p class="note quiet" role="status">${esc(state==='error'?status.failed+error:status.loading)}</p>`;
+  const mm=flashMM(rig,data);
+  const distance=distanceDraft??shownDistance(rig,data)??'';
+  const savedHeight=mm!=null&&Number.isFinite(rig.height_cm)&&!data.heights.some(h=>h.id===rig.height);
+  return `<section class="ed-rig-step">
+    <h3>${w.phone}</h3>
+    <form class="ed-rig-distance">
+      <label for="ed-flash-distance">${w.distance}</label>
+      <p id="ed-distance-help" class="note quiet">${w.measure}</p>
+      <div><input id="ed-flash-distance" type="number" inputmode="decimal" min="10" max="60" step="any" required
+        data-ed-distance aria-describedby="ed-distance-help" value="${esc(distance)}">
+        <button class="sbtn" type="submit">${w.useDistance}</button></div>
+    </form>
+    <details class="ed-help">
+      <summary>${w.lookup}</summary>
+      ${data.phones.map(p=>`<button class="sbtn" type="button" data-ed-rig="phone" data-value="${esc(p.id)}">${esc(p.name)} · ${modelDistance(p.flash_mm)} mm</button>`).join('')}
+    </details>
+    ${mm==null?'':`<p class="note quiet" role="status">${w.used(modelDistance(mm))}</p>`}
+  </section>
+  <section class="ed-rig-step">
+    <h3>${w.height}</h3>
+    <p class="note quiet">${mm==null?w.heightPick:w.heightNote}</p>
+    ${savedHeight?`<p class="note quiet">${w.chosenHeight(rig.height_cm)}</p>`:''}
+    ${heightButtons(rig,data,status.height,mm!=null)}
+  </section>`;
+}
 
 // HSV hue in degrees, as colorsys.rgb_to_hsv (what simulate_a3.swatches reports)
 export function hueOf([r,g,b]){const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;if(!d)return 0;
@@ -59,6 +155,12 @@ export function setKey(rig,data){if(!data||!rig?.phone||!data.heights?.some(h=>h
 export const rigReady=(rig,data)=>setKey(rig,data)!=null || (flashMM(rig,data)!=null && Number.isFinite(rig?.height_cm) && rig.height_cm*10>data.rig.disc_and_sheet_mm);
 // which file holds the chosen set
 export const needsCustom=rig=>rig?.phone==='custom';
+
+function heightButtons(rig,data,label,enabled){
+  return `<div class="seg ed-rig-heights" role="radiogroup" aria-label="${esc(label)}">
+    ${data.heights.map(h=>`<button type="button" role="radio" data-ed-rig="height" data-value="${h.id}" aria-checked="${rig?.height===h.id}" aria-pressed="${rig?.height===h.id}" ${enabled?'':'disabled'}>${h.ruler_cm} cm</button>`).join('')}
+  </div>`;
+}
 
 export function rigLabel(rig,data,lang='zh'){const w=rigWords(lang),h=data?.heights?.find(h=>h.id===rig?.height);
   const phone=rig?.phone==='custom'?`${w.custom}（${flashMM(rig,data)??'?'} mm）`:data?.phones?.find(p=>p.id===rig?.phone)?.name??'';
@@ -103,7 +205,6 @@ export function rigSteps(rig,data,lang='zh',{ex=null,state='ready',error='',expa
       (typed?`<p class="note ${d==null?'ed-rig-bad':'quiet'}">${esc(d==null?w.distanceBad:w.distanceNote(d))}</p>`:'');}
   html+='</div>';
   const phoneOK=flashMM(rig,data)!=null;
-  html+=`<div class="ed-rig-step"><h4>${esc(w.height)}</h4><div class="seg ed-rig-heights" role="radiogroup" aria-label="${esc(w.height)}">`+
-    data.heights.map(h=>`<button type="button" role="radio" data-ed-rig="height" data-value="${h.id}" aria-checked="${rig?.height===h.id}" aria-pressed="${rig?.height===h.id}" ${phoneOK?'':'disabled'}>${h.ruler_cm} cm</button>`).join('')+
-    `</div><p class="note quiet">${esc(phoneOK?(custom?w.heightNoteCustom:w.heightNote):w.heightPick)}</p></div>`;
+  html+=`<div class="ed-rig-step"><h4>${esc(w.height)}</h4>${heightButtons(rig,data,w.height,phoneOK)}
+    <p class="note quiet">${esc(phoneOK?(custom?w.heightNoteCustom:w.heightNote):w.heightPick)}</p></div>`;
   return html+(ready?'</div>':'');}

@@ -3,9 +3,10 @@ import * as O from './editor-ops.mjs';
 import {colourWord} from './editor-materials.mjs';
 import {curated,held,warning,visible} from './editor-texlib.mjs';
 import {tone as toneOf} from './tone.mjs';
-import {rigSteps,rigWords,rigLabel} from './editor-rig.mjs';
+import {colourIntro,colourPictureWords,colourRigSteps,shownDistance,rigReady,rigSteps,rigWords,rigLabel} from './editor-rig.mjs';
 import {colourShootGuide,mountColourShootStyles} from './colour-shoot-guide.mjs';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COLOUR_INTRO_SEEN='dp-colour-intro-seen';
 const paths={
   undo:'<path d="M9 5L4 10l5 5M4 10h10a5 5 0 0 1 0 10"/>',redo:'<path d="M15 5l5 5-5 5M20 10H10a5 5 0 0 0 0 10"/>',
   move:'<path d="M5 3l13 8-6 1-3 6z"/>',rectangle:'<rect x="4" y="5" width="16" height="14" rx="1" stroke-dasharray="3 2"/>',
@@ -110,60 +111,155 @@ export const controls={
     mountColourShootStyles();
     w.right.innerHTML=this.materialsHTML();
     if(this.rigOpen?.())this.swatches();w.right.querySelector('.ed-material-scroll').scrollTop=scroll;
-    if(!w.right.dataset.edBound){w.right.dataset.edBound='yes';w.right.addEventListener('click',e=>this.click(e));w.right.addEventListener('input',e=>this.input(e));w.right.addEventListener('change',e=>{if(e.target.tagName==='SELECT'||e.target.matches('[data-ed-rig-mm]'))this.input(e);});
-      w.right.addEventListener('toggle',e=>{if(e.target.matches('.colour-shoot-guide'))this.panelState().shootGuide=e.target.open;},true);}
+    if(!w.right.dataset.edBound){
+      w.right.dataset.edBound='yes';
+      w.right.addEventListener('click',e=>this.materialClick(e));
+      w.right.addEventListener('input',e=>{
+        if(e.target.matches('[data-ed-distance]'))this.panelState().distanceDraft=e.target.value;
+        else this.input(e);
+      });
+      w.right.addEventListener('change',e=>{if(e.target.tagName==='SELECT'||e.target.matches('[data-ed-rig-mm]'))this.input(e);});
+      w.right.addEventListener('submit',e=>{
+        if(!e.target.matches('.ed-rig-distance'))return;
+        e.preventDefault();
+        const input=e.target.querySelector('[data-ed-distance]');
+        if(!input.reportValidity())return;
+        delete this.panelState().distanceDraft;
+        if(input.valueAsNumber!==shownDistance(this.rig(),this.rigData))
+          this.setRig({phone:'custom',flash_mm:input.valueAsNumber});
+        else this.rigSync();
+        w.right.querySelector('.ed-colour-picture [data-ed-rig="height"]:not(:disabled)')?.focus();
+      });
+      w.right.addEventListener('toggle',e=>{
+        if(!e.target.isConnected)return;
+        if(e.target.matches('.colour-shoot-guide'))this.panelState().shootGuide=e.target.open;
+        if(e.target.matches('.ed-colour-intro')){
+          this.panelState().colourIntroOpen=e.target.open;
+          if(!e.target.open)this.rememberColourIntro();
+        }
+      },true);
+    }
+    if(this.panelState().tab==='colour-picture'&&!this.colourPalette&&!this.colourPaletteLoading&&!this.colourPaletteError)
+      this.loadColourPalette();
   },
-  // The right column: the picture's tone, then colour. Colour starts with the phone and the height (editor-rig.mjs);
-  // until both are chosen there are no swatches and nothing to fill with (walk W3).
+  rememberColourIntro(){
+    this.colourIntroSeen=true;
+    try{globalThis.window?.localStorage.setItem(COLOUR_INTRO_SEEN,'1');}catch{}
+  },
+  materialClick(e){
+    const w=this.h.dom(),state=this.panelState();
+    if(e.target.closest('[data-ed-dismiss-colour-intro]')){
+      w.right.querySelector('.ed-colour-intro').open=false;
+      state.colourIntroOpen=false;
+      this.rememberColourIntro();
+      (w.right.querySelector('[data-ed-distance]')??w.right.querySelector('.ed-colour-intro summary'))?.focus();
+      return;
+    }
+    if(e.target.closest('.ed-material-advanced > summary')){
+      e.preventDefault();
+      this.showTab(state.tab==='colour'?'colour-picture':'colour');
+      w.right.querySelector('.ed-material-advanced > summary')?.focus({preventScroll:true});
+      return;
+    }
+    const rigButton=e.target.closest('.ed-colour-picture [data-ed-rig]');
+    if(rigButton&&!rigButton.disabled){
+      if(rigButton.dataset.edRig==='phone')delete state.distanceDraft;
+      this.click(e);
+      const follow=rigButton.dataset.edRig==='phone'?'[data-ed-rig="height"]:not(:disabled)':
+        '[data-ed-rig="height"][aria-checked="true"]';
+      w.right.querySelector('.ed-colour-picture '+follow)?.focus({preventScroll:true});
+      return;
+    }
+    if(e.target.closest('[data-ed-colour-preview]:not(:disabled)')){
+      const previous=this.s.assignments;
+      this.options.fillKind='colour';
+      this.click(e);
+      if(this.s.assignments!==previous){
+        const picker=w.panelPicker?.querySelector('[aria-expanded="true"]');
+        if(picker?.getClientRects().length)picker.click();
+        const lamp=w.view?.querySelector('[data-v="lamp"]');
+        lamp?.click();
+        if(picker?.getClientRects().length)lamp?.focus({preventScroll:true});
+        else w.right.querySelector('[data-ed-colour-preview]')?.focus({preventScroll:true});
+      }
+      return;
+    }
+    this.click(e);
+  },
+  colourPictureHTML(){
+    const s=this.s,lang=this.h.lang(),state=this.panelState(),w=colourPictureWords(lang);
+    const rig=this.rig(),open=this.rigOpen(),picture=this.pictureLayer(),words=this.colourWords;
+    const poseStatus=!rigReady(rig,this.rigData)?w.needsPose:this.rigState==='error'?w.poseFailed:w.poseLoading;
+    const available=s.layers.some(layer=>layer.kind==='image'&&layer.px&&!layer.shape);
+    const reason=!picture?(available?w.pickPicture:w.needsPicture):picture.locked?w.lockedPicture:!open?poseStatus:
+      this.colourPaletteError?words.unavailable:!this.colourPalette?words.loading:'';
+    const table=this.colourPalette?.table??s.assignments.find(a=>a.layer===s.selected&&a.colour)?.colour.table;
+    if(this.colourIntroSeen===undefined){
+      try{this.colourIntroSeen=globalThis.window?.localStorage.getItem(COLOUR_INTRO_SEEN)==='1';}
+      catch{this.colourIntroSeen=false;}
+    }
+    const intro=colourIntro(lang,this.rigExample?.(),state.colourIntroOpen??!this.colourIntroSeen);
+    const steps=colourRigSteps(rig,this.rigData,lang,{
+      distanceDraft:state.distanceDraft,state:this.rigState,error:this.rigError,
+    });
+    return intro+steps+`<section class="ed-rig-step">
+      <h3>${w.preview}</h3>
+      ${reason?`<p id="ed-colour-action-help" class="note" role="status">${reason}</p>`:''}
+      <button class="sbtn ed-apply" type="button" data-ed-action="fill" data-ed-colour-preview
+        ${reason?'disabled aria-describedby="ed-colour-action-help"':''}>${w.generate}</button>
+      <label class="ed-inline"><input data-ed="directionArrow" type="checkbox" ${state.directionArrow?'checked':''}>${this.arrowWords.label}</label>
+      <p class="note ed-colour-estimate">${w.validation}</p>
+    </section>`+
+    colourShootGuide(this.shootingSetup(),lang,state.shootGuide)+
+    `<details class="ed-help"><summary>${words.about}</summary>
+      <p class="note quiet">${words.advice}</p>
+      <p class="note quiet">${words.poseWarning}</p>
+      ${table?.fitted?`<p class="note quiet">${words.calibrated}</p><p class="note quiet">${words.unseen}</p>`:''}
+    </details>`;
+  },
+  // DVD opens the picture workflow; hand-picked materials share the existing rig.
   materialsHTML(){const s=this.s,t=this.t,lang=this.h.lang(),w=rigWords(lang),open=!!this.rigOpen?.(),zh=lang==='zh';
-    const tab=this.panelState().tab,info=zh?'说明':'About',hasMask=this.hasFillSelection();
-    const colourWords=this.colourWords,colourMode=s.media==='dvd'&&this.options.fillKind==='colour';
-    const segments=(key,label,keys,disabled=()=>false)=>`<div class="ed-fill-choice"><span>${label}</span><div class="seg" role="group" aria-label="${label}">${keys.map(k=>`<button type="button" data-ed-choice="${key}" data-value="${k}" aria-pressed="${this.options[key]===k}" ${disabled(k)?'disabled aria-describedby="ed-mask-why"':''}>${k==='colour'?colourWords.label:t[k]}</button>`).join('')}</div></div>`;
-    const colourButton=`<button type="button" data-ed-choice="fillKind" data-value="colour" aria-pressed="${colourMode}">${colourWords.label}</button>`;
-    const modes=segments('fillKind',t.pattern,s.media==='dvd'?['material','pattern','effect','colour']:['material','pattern','effect']);
-    const canFill=open&&(colourMode?(this.pictureLayer()&&!this.pictureLayer().locked&&this.colourPalette):(this.options.target==='mask'?hasMask:!!s.layers.find(l=>l.id===s.selected&&!l.locked)));
+    const tab=this.panelState().tab,info=zh?'说明':'About',hasMask=this.hasFillSelection(),dvd=s.media==='dvd';
+    const segments=(key,label,keys,disabled=()=>false)=>`<div class="ed-fill-choice"><span>${label}</span><div class="seg" role="group" aria-label="${label}">${keys.map(k=>`<button type="button" data-ed-choice="${key}" data-value="${k}" aria-pressed="${this.options[key]===k}" ${disabled(k)?'disabled aria-describedby="ed-mask-why"':''}>${t[k]}</button>`).join('')}</div></div>`;
+    const modes=segments('fillKind',t.pattern,['material','pattern','effect']);
+    const canFill=open&&(this.options.target==='mask'?hasMask:!!s.layers.find(l=>l.id===s.selected&&!l.locked));
     const fill=`<button class="sbtn ed-apply" data-ed-action="fill" ${canFill?'':'disabled'} ${open?'':`title="${w.locked}"`}>${open?(zh?'填充':'Fill'):w.locked}</button>`;
     let colour=rigSteps(this.rig?.()??{},this.rigData,lang,{ex:this.rigExample?.(),state:this.rigState??'ready',error:this.rigError,expanded:this.panelState().rigExpanded});
-    if(open)colour+=`<div class="ed-colour-sticky">${colourMode?'<span class="ed-current" aria-hidden="true"></span>':'<div class="ed-current"><span class="ed-current-chip" aria-hidden="true"></span><output class="ed-colour-name" aria-live="polite"></output></div>'}${fill}</div>`+
+    if(open)colour+=`<div class="ed-colour-sticky"><div class="ed-current"><span class="ed-current-chip" aria-hidden="true"></span><output class="ed-colour-name" aria-live="polite"></output></div>${fill}</div>`+
       colourShootGuide(this.shootingSetup(),lang,this.panelState().shootGuide)+
-      (colourMode?'':segments('target',zh?'填到':'Fill to',['layer','mask'],k=>k==='mask'&&!hasMask)+
-      (hasMask?'':`<p id="ed-mask-why" class="note quiet">${zh?'还没有选区，先在画布上建立选区。':'No selection yet. Create one on the canvas first.'}</p>`))+
+      segments('target',zh?'填到':'Fill to',['layer','mask'],k=>k==='mask'&&!hasMask)+
+      (hasMask?'':`<p id="ed-mask-why" class="note quiet">${zh?'还没有选区，先在画布上建立选区。':'No selection yet. Create one on the canvas first.'}</p>`)+
       modes+
       `<div class="ed-pattern-options" ${this.options.fillKind==='pattern'?'':'hidden'}><select data-ed="pattern" aria-label="${t.pattern}">${['diamond','dots','stripes'].map(k=>`<option value="${k}" ${this.options.pattern===k?'selected':''}>${t[k]}</option>`).join('')}</select><select data-ed="coordinates" aria-label="${t.pattern}">${['cartesian','polar'].map(k=>`<option value="${k}" ${this.options.coordinates===k?'selected':''}>${t[k]}</option>`).join('')}</select><div class="ed-values">${this.n('pitch_mm',t.pitch,.001,50,.1)}${this.n('size_mm',t.size,.001,25,.1)}${this.n('angle_deg',t.angle,-360,360)}</div></div>`+
       `<div class="ed-effect-options" ${this.options.fillKind==='effect'?'':'hidden'}><select data-ed="effect" aria-label="${t.effect}">${['flow','ox','merge','sync'].map(k=>`<option value="${k}" ${this.options.effect===k?'selected':''}>${t[k]}</option>`).join('')}</select><div class="ed-values">${this.n('y1',t.y1,0,150)}${this.n('y2',t.y2,0,150)}</div></div>`;
-    if(!open)colour+=(s.media==='dvd'?`<div class="seg ed-colour-locked">${colourButton}</div>`:'')+fill;
-    if(colourMode){
-      const assignment=s.assignments.find(a=>a.layer===s.selected&&a.colour);
-      const table=this.colourPalette?.table??assignment?.colour.table;
-      const reason=!open?'':!this.pictureLayer()||this.pictureLayer().locked?colourWords.picture:
-        this.colourPaletteLoading?colourWords.loading:this.colourPaletteError?colourWords.unavailable:'';
-      colour+=`<label class="ed-inline"><input data-ed="directionArrow" type="checkbox" ${this.panelState().directionArrow?'checked':''}>${this.arrowWords.label}</label>
-        <p class="note quiet ed-colour-estimate">${colourWords.note}</p>
-        <details class="ed-help"><summary>${info}</summary><p class="note quiet">${colourWords.advice}</p>
-        <p class="note quiet">${colourWords.poseWarning}</p>
-        ${table?.fitted?`<p class="note quiet">${colourWords.calibrated}</p><p class="note quiet">${colourWords.unseen}</p>`:''}</details>
-        ${reason?`<p class="note quiet" role="status" title="${esc(this.colourPaletteError??'')}">${reason}</p>`:''}`;
-    }
-    if(open&&!colourMode)colour+=`<div class="ed-rig-colours"><div class="ed-colour-explanation"><span>${zh?'颜色是模型预测，还没逐块对照':'Colours are model predictions, not yet checked swatch by swatch'}</span><details class="ed-help"><summary>${info}</summary><p class="ed-model-note">${esc(w.pose(rigLabel(this.rig(),this.rigData,lang)))}</p><p class="note quiet">${esc(w.model)}</p></details></div>`+
+    if(!open)colour+=fill;
+    if(open)colour+=`<div class="ed-rig-colours"><div class="ed-colour-explanation"><span>${zh?'颜色是模型预测，还没逐块对照':'Colours are model predictions, not yet checked swatch by swatch'}</span><details class="ed-help"><summary>${info}</summary><p class="ed-model-note">${esc(w.pose(rigLabel(this.rig(),this.rigData,lang)))}</p><p class="note quiet">${esc(w.model)}</p></details></div>`+
       (this.palette?.source==='texlib'?`<div class="seg" role="group" aria-label="${zh?'观看方式':'Viewing mode'}">${['camera','held'].map(k=>`<button type="button" data-ed-choice="viewMode" data-value="${k}" aria-pressed="${(this.options.viewMode??'camera')===k}">${k==='held'?(zh?'拿在手里看':'Held in hand'):(zh?'固定机位拍照':'Fixed camera')}</button>`).join('')}</div>`:'')+
       `<input data-ed-search type="search" aria-label="${zh?'查找颜色':'Find a colour'}" placeholder="${zh?'查找颜色，如“红”':'Find a colour, e.g. red'}" value="${esc(this.search??'')}">`+
       `<div class="ed-swatches ed-shown" role="group" aria-label="${w.title}"></div><p class="note quiet ed-hidden-note"></p>`+
       `<details class="ed-all"><summary>${w.all} <span></span></summary><div class="ed-all-swatches ed-swatches"></div></details>`+
       `<details class="ed-material-detail"><summary>${t.details}</summary><p class="note"></p></details></div>`;
-    const pictureTab=s.media==='dvd'?`<button type="button" data-ed-tab="colour-picture" aria-pressed="${tab==='colour'&&colourMode}" aria-controls="ed-colour-panel">${colourWords.label}</button>`:'';
-    return `<section class="ed-materials"><div class="seg ed-panel-tabs" role="group" aria-label="${zh?'编辑':'Edit'}"><button type="button" data-ed-tab="tone" aria-pressed="${tab==='tone'}" aria-controls="ed-tone-panel">${t.toneH}</button><button type="button" data-ed-tab="colour" aria-pressed="${tab==='colour'&&!colourMode}" aria-controls="ed-colour-panel">${w.title}</button>${pictureTab}</div><div class="ed-material-scroll"><div id="ed-tone-panel" ${tab==='tone'?'':'hidden'}>${this.toneSection()||`<p class="note quiet">${zh?'先选一张图片，再调整影调。':'Select a picture to adjust its tone.'}</p>`}</div><section id="ed-colour-panel" class="ed-rig" aria-label="${w.title}" ${tab==='colour'?'':'hidden'}>${colour}</section></div></section>`;
+    const button=(key,label)=>`<button type="button" data-ed-tab="${key}" aria-pressed="${tab===key}" aria-controls="ed-${key}-panel">${label}</button>`;
+    const picture=dvd?`<section id="ed-colour-picture-panel" class="ed-rig ed-colour-picture" aria-label="${this.colourWords.label}" ${tab==='colour-picture'?'':'hidden'}>
+      ${tab==='colour-picture'?this.colourPictureHTML():''}</section>`:'';
+    const manual=`<section id="ed-colour-panel" class="ed-rig" aria-label="${w.title}" ${tab==='colour'?'':'hidden'}>${!dvd||tab==='colour'?colour:''}</section>`;
+    const advanced=dvd?`<details class="ed-material-advanced" ${tab==='colour'?'open':''}>
+      <summary data-ed-tab="colour" aria-controls="ed-colour-panel">${colourPictureWords(lang).advanced}</summary>${manual}</details>`:manual;
+    return `<section class="ed-materials"><div class="seg ed-panel-tabs" role="group" aria-label="${zh?'编辑':'Edit'}">
+      ${dvd?button('colour-picture',this.colourWords.label):''}${button('tone',t.toneH)}${dvd?'':button('colour',w.title)}</div>
+      <div class="ed-material-scroll">${picture}<div id="ed-tone-panel" ${tab==='tone'?'':'hidden'}>
+      ${this.toneSection()||`<p class="note quiet">${zh?'先选一张图片，再调整影调。':'Select a picture to adjust its tone.'}</p>`}</div>
+      ${advanced}</div></section>`;
   },
   showTab(tab){
-    this.panelState().tab=tab==='colour-picture'?'colour':tab;
-    if(tab==='colour-picture'){
-      this.options.fillKind='colour';
-      this.loadColourPalette();
-    }else if(tab==='colour'&&this.options.fillKind==='colour')this.options.fillKind='material';
+    this.panelState().tab=tab;
+    if(tab==='colour-picture'&&this.colourPaletteError)this.loadColourPalette();
+    if(tab==='colour'&&this.options.fillKind==='colour')this.options.fillKind='material';
     this.right();
     this.h.dom().right.querySelector('.ed-material-scroll').scrollTop=0;
   },
   // UI preferences belong to a work without changing its saved document or undo history.
-  panelState(){this.panelStates??=new WeakMap();let state=this.panelStates.get(this.s);if(!state){state={tab:'tone',rigExpanded:false,directionArrow:true};this.panelStates.set(this.s,state);}return state;},
+  panelState(){this.panelStates??=new WeakMap();let state=this.panelStates.get(this.s);if(!state){state={tab:this.s.media==='dvd'?'colour-picture':'tone',rigExpanded:false,directionArrow:true};this.panelStates.set(this.s,state);}return state;},
   hasFillSelection(){const mask=this.s.selections.find(m=>m.id===this.s.activeMask);return !!mask&&O.bytes(mask.bits).some(v=>v!==0);},
   // The selected picture's tone and dither (tone.mjs): what its greys become on the burn grid.
   pictureLayer(){const l=this.s.layers.find(l=>l.id===this.s.selected);return l&&l.kind==='image'&&l.px&&!l.shape?l:null;},

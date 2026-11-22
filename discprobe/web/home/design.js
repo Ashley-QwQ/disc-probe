@@ -18,6 +18,7 @@ import { downloadTemplate } from "./design/template-download.mjs";
 import { mountFilesStep, occupiedRings, filePictureRange, fileArguments, refreshFiles, drawFileGuides, fileDisplay } from "./design/disc-files.mjs";
 import { hasCapability } from "./handshake.mjs";
 import { CELLS, COST, geoChoice, measuredRings, burnDocument, checkTextures, experimentalContent, hasColourPicture, pictureSampling } from "./design/export-rules.mjs";
+import { colourPictureWords } from "./design/editor-rig.mjs";
 import directionArrow from "./design/direction-arrow.json" with {type: "json"};
 import { calibratedBatch, discDisplayKind } from "./batches.mjs";
 import { checkBurn, confirmBurn } from "./burn-preflight.js";
@@ -1106,7 +1107,8 @@ function onKey(e) {
   if (!isOn() || !S) return;
   if (e.key === "Escape" && editor?.closeLayerActions()) { e.preventDefault(); e.stopPropagation(); return; }
   if (e.target.closest?.("input, select, textarea")) return;
-  if (e.target.closest?.(".lay button") && (e.key === " " || isActionEnter(e))) return;
+  if (e.target.closest?.(".lay button, .ed-colour-picture :is(button, summary), .ed-material-advanced > summary") &&
+      (e.key === " " || isActionEnter(e))) return;
   if(!spaceDown&&editor?.key(e)){e.preventDefault();return;}
   const L = sel(), k = e.key;
   if (k === "Escape" && editor?.drag) {editor.cancelGesture();return;}
@@ -1943,16 +1945,23 @@ function viewNote(){
   const lamp=S.view==='lamp',zh=api.lang()==='zh';
   const phase=editor?.lamp?.phase,note=W.cv.querySelector('.ed-view-status');
   const colour=editor?.hasColour(),compare=W.view.querySelector('[data-colour-compare]');
+  const prediction=W.cv.querySelector('.ed-colour-prediction');
+  prediction.hidden=!(lamp&&colour);
+  if(!prediction.hidden){
+    const warning=colourPictureWords(api.lang()).prediction;
+    const text=warning+(S.assignments.some(a=>a.colour?.table?.fitted)?' '+editor.colourWords.unseen:'');
+    if(prediction.textContent!==text)prediction.textContent=text;
+  }
   compare.hidden=!(lamp&&colour);
   compare.textContent=zh?'对照':'Compare';
   compare.title=zh?'左边原图，右边预测':'Original on the left, prediction on the right';
   compare.setAttribute('aria-pressed',String(!!(colour&&editor.panelState().compare)));
   if(colour&&(lamp||S.view==='burn')){
     const preview=editor.colourRenderer,ready=preview?.phase==='ready'&&preview.frame?.view===S.view&&preview.frame.rev===editor.revision;
-    note.textContent=preview?.phase==='error'?(zh?'预览未完成：':'Preview failed: ')+preview.error:
+    note.textContent=preview?.phase==='error'?(lamp?(zh?'预览未完成。再点“灯下”重试。':'Preview failed. Click Under the lamp to retry.'):
+      (zh?'预览未完成：':'Preview failed: ')+preview.error):
       ready?(lamp?(editor.panelState().compare?compare.title:editor.poseNote()):(zh?'刻出来 · 纹理分布':'As burned · texture placement')):
         lamp?(zh?'正在按机位预测颜色…':'Predicting colours for this shooting position…'):(zh?'正在合成刻录纹理…':'Composing burn textures…');
-    if(ready&&lamp&&S.assignments.some(a=>a.colour?.table?.fitted))note.textContent+=` · ${editor.colourWords.unseen}`;
     note.setAttribute('aria-busy',String(!ready&&preview?.phase!=='error'));
     return;
   }
@@ -1978,12 +1987,12 @@ function build() {
   ws.className = "ws";
   ws.innerHTML = `<div class="ws-title"><svg class="work-bag" viewBox="0 0 20 24" width="16" height="20" style="flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.3" role="img" aria-label="作品存在往期作品里 / Saved in past works"><title>作品存在往期作品里 / Saved in past works</title><path d="M3 5h14v17H3zM3 5l3-3h8l3 3M7 9h6M7 12h6"/></svg><b class="pname"></b><button class="sub" type="button"></button><span class="dirty" aria-hidden="true"></span>` +
     `<span class="filebtns"><button class="sbtn" type="button" data-a="open"></button><button class="sbtn" type="button" data-a="save"></button></span></div>` +
-    `<div class="ed-panel-picker"><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-left ed-files" data-panel="layers"></button><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-right" data-panel="tone"></button><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-right" data-panel="colour-picture"></button></div>` +
+    `<div class="ed-panel-picker"><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-left ed-files" data-panel="layers"></button><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-right" data-panel="colour-picture"></button><button class="sbtn" type="button" aria-expanded="false" aria-controls="ed-right" data-panel="tone"></button></div>` +
     `<aside class="col col-l" id="ed-left"><div class="ed-layer-content"></div></aside>` +
     `<div class="ed-layer-fade" aria-hidden="true" hidden></div><aside class="col col-r" id="ed-right"></aside>` +
     `<div class="cv"><div class="ed-desk" aria-hidden="true"></div><div class="ed-surface"><div class="ed-disc-shadow" aria-hidden="true"></div><canvas class="main"></canvas></div>` +
     `<div class="tools-v" role="toolbar"></div>` +
-    `<div class="ed-view-dock"><div class="ed-view-note"><p class="ed-batch-note" hidden></p><p class="ed-view-status" aria-live="polite"></p><p class="cv-note warn" hidden></p></div>` +
+    `<div class="ed-view-dock"><div class="ed-view-note"><p class="ed-batch-note" hidden></p><p class="ed-view-status" aria-live="polite"></p><p class="ed-colour-prediction" hidden></p><p class="cv-note warn" hidden></p></div>` +
     `<div class="ed-view-actions"><button class="zoomr" type="button"></button><div class="seg viewsw" role="group"><button type="button" data-v="proj"></button><button type="button" data-v="burn"></button><button type="button" data-v="lamp"></button><button type="button" data-colour-compare hidden></button></div></div></div>` +
     `<div class="empty-c"><p></p><div class="row"><button class="sbtn" type="button" data-a="sample"></button><button class="sbtn" type="button" data-a="import"></button></div></div>` +
     `<div class="fbar" hidden></div>` +
@@ -2011,7 +2020,7 @@ function build() {
     if (!button) return;
     ws.dataset.panel = ws.dataset.panel === button.dataset.panel ? "" : button.dataset.panel;
     if (ws.dataset.panel === "colour-picture") editor.showTab("colour-picture");
-    if (ws.dataset.panel === "tone" && editor.options.fillKind === "colour") editor.showTab("tone");
+    if (ws.dataset.panel === "tone" && S.media === "dvd") editor.showTab("tone");
     for (const b of W.panelPicker.children) b.setAttribute("aria-expanded", String(b.dataset.panel === ws.dataset.panel));
   });
   // Keep the existing glass panel's shadow beneath the picture, as it was before the canvas
@@ -2058,7 +2067,7 @@ function build() {
   let temporaryTool=null;
   addEventListener("keydown",e=>{
     if(!isOn()||!S||e.isComposing||e.ctrlKey||e.metaKey||e.altKey||e.target.closest?.("input,select,textarea,[contenteditable=true]"))return;
-    if(e.key===" "&&e.target.closest?.(".lay button"))return;
+    if(e.key===" "&&e.target.closest?.(".lay button, .ed-colour-picture :is(button, summary), .ed-material-advanced > summary"))return;
     if(e.key===" "){if(!e.repeat&&temporaryTool===null){temporaryTool=S.tool;editor.cancelGesture();spaceDown=true;setTool("pan");}e.preventDefault();e.stopPropagation();return;}
     const t=({v:"move",r:"rectangle",f:"lasso",c:"ring",g:"sector",w:"colour",y:"shape",n:"pen",h:"pan"})[e.key.toLowerCase()];
     if(t&&!e.shiftKey){if(!e.repeat){editor.cancelGesture();setTool(t);}e.preventDefault();e.stopPropagation();}
@@ -2189,13 +2198,14 @@ function placeTitle() {
 // all the words, in the current language
 function words() {
   const t = T();
-  W.panelPicker.children[0].textContent = t.layers;
-  W.panelPicker.children[1].textContent = t.tone;
-  W.panelPicker.children[2].textContent = editor.colourWords.label;
-  W.panelPicker.children[2].hidden = S.media !== "dvd";
+  const [layers, colourPicture, tone] = W.panelPicker.children;
+  layers.textContent = t.layers;
+  colourPicture.textContent = editor.colourWords.label;
+  colourPicture.hidden = S.media !== "dvd";
+  tone.textContent = t.tone;
   if (S.media !== "dvd" && W.ws.dataset.panel === "colour-picture") {
     W.ws.dataset.panel = "";
-    W.panelPicker.children[2].setAttribute("aria-expanded", "false");
+    colourPicture.setAttribute("aria-expanded", "false");
   }
   W.pname.textContent = S.name ?? t.untitled;
   W.dirty.classList.toggle("on", S.dirty);
