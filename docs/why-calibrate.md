@@ -17,7 +17,7 @@ The lines in this scan stayed straight on the DVD. The grid was made using the d
 - Make a measurement disc. Start with a blank from the batch you’ll use for the picture. Write the `random` command’s ISO, a file that holds the data to burn to the disc, as a disc image. This fills the spiral with ordinary readable data, so the software can time reads from the inner and outer parts. A blank has nothing to read, and the data patterns used to make light and dark areas in pictures often cause read errors. The random data has no design arranged across the disc, so it looks like an ordinary data disc. If you already have a disc from the same batch with readable random data over the area you need, you can use it. [Manual on preparation](MANUAL.en.md#preparation)
 - Check the rotation with `timing`. The drive rereads data to find how long the disc takes to turn and whether it spins steadily enough to measure.
 - Measure the layout with `geo`. With steady rotation, the gap between read times tells the software how far around the disc the data sits. It starts with nearby pieces of data and works outward, keeping count of whole turns. A good measurement is usually enough to make a DVD picture.
-- For a data CD, also measure the along-track constant. That’s the shift between the positions inferred from read times and where the written pattern sits along the spiral. Burn a target to photograph or use a grid disc and measure how much its straight lines twist. The measured shift belongs to that drive and way of writing the disc. [CD route](../README.en.md#cd-route) · [CD details in the manual](MANUAL.en.md#cd-r-textures-timing-and-burning-pictures)
+- For a data CD, also measure the along-track constant. That’s the shift between the positions inferred from read times and where the written pattern sits along the spiral. Burn a known pattern to photograph, or use a grid disc and measure how much its straight lines twist. The measured shift belongs to that drive and way of writing the disc. [CD route](../README.en.md#cd-route) · [CD details in the manual](MANUAL.en.md#cd-r-textures-timing-and-burning-pictures)
 
 For a first picture, the README gives a minimum of 2 discs for DVD (measurement and picture) or 3 for CD (measurement, calibration and picture). The web guide plans for 3, with a check disc before the finished picture. A large error can mean a second check and a 4th disc. A bad photo can be retaken on the same disc. [README disc budget](../README.en.md#quick-start)
 
@@ -58,7 +58,7 @@ For a data CD, add `--media cd` to `random`, `timing` and `geo`. Use `disexport`
 
 ### Can I use a nominal DiscImageStudio preset?
 
-A preset is a saved set of disc dimensions and other settings. A nominal preset uses standard values as a starting point. For a finished picture, use settings measured for your own batch and drive. If you already burned with a nominal preset and see rings, check lighting and read-back before spending another blank. [Post-burn checklist](CHECKBURN.md#no-picture-after-burning)
+A preset is a saved set of disc dimensions and other settings. A nominal preset uses standard values as a starting point. For a finished picture, use settings measured for your own batch and drive. If you already burned with a nominal preset and see rings, try another lighting angle and check the read-back report, which says whether samples of the disc matched the image file. [Post-burn checklist](CHECKBURN.md#no-picture-after-burning)
 
 ### Why does the measurement disc look ordinary?
 
