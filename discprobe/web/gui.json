@@ -7,5 +7,5 @@
     "editor", "burn", "photo-calibration", "phone-link", "presets",
     "catalogue", "results-history", "greetings"
   ],
-  "optional_capabilities": ["templates", "presets-io", "works", "image-job-recovery", "geo-coverage", "photo-manual-alignment", "checkburn", "burn-preflight", "measurement-retry", "library-management"]
+  "optional_capabilities": ["templates", "presets-io", "works", "image-job-recovery", "geo-coverage", "photo-manual-alignment", "checkburn", "burn-preflight", "measurement-retry", "library-management", "library-batch-details"]
 }

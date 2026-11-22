@@ -255,6 +255,15 @@ def catalogue(root, out, *, inventory=None):
             history=batch_history(root, related, run, who, burns, issues),
             calibration_issue=({**issue, 'geo': source if run.kind == 'geo' else None} if issue else
                 {**issues[recent.path], 'geo': _relative(root, recent.path), 'previous_usable': True} if recent else None))
+        disc = record.get('disc') or {}
+        if isinstance(disc, dict) and disc.get('kind'):
+            entry['media_kind'] = disc['kind']
+        if source and run.kind == 'geo' and run.media == 'cd' and entry['s'] in ('good', 'usable'):
+            from .photo import MANUAL_L_FILE, photo_l
+            folder = Path(run.path)
+            evidence = [folder / name for name in ('photo.json', MANUAL_L_FILE)]
+            known = all(path.resolve() == path for path in evidence) and any(path.is_file() for path in evidence)
+            entry['along_track'] = dict(known=known and photo_l(folder, media='cd')['written'])
         presets = {_preset_path(root, saved.get('preset'))}
         presets.update(_preset_path(root, records[r.path].get('preset')) for r in related)
         presets.discard(None)
@@ -311,7 +320,7 @@ def catalogue(root, out, *, inventory=None):
                     if linked:
                         inventory[ident].add(linked)
                 groups[media].append(dict(id=ident, row=media,
-                    name=preset['displayName'], mid=None, sectors=preset.get('totalSectors', preset.get('sectors')),
+                    name=metadata.get(ident, {}).get('name') or preset['displayName'], mid=None, sectors=preset.get('totalSectors', preset.get('sectors')),
                     s='imported' if compatible else 'unknown', last=None, drive=None, left=None, of=None, preset=str(path.relative_to(root)), history=[],
                     image_compatible=bool(compatible), imported=imported,
                     **({'nominal_mm': [preset['innerRadiusMm'], preset['outerRadiusMm']]} if compatible else {}),
