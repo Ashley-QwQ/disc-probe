@@ -115,7 +115,6 @@
   .art { position: absolute; left: 4vw; top: 41%; width: min(108vw, 2000px); aspect-ratio: 1600 / 1000; transform: translateY(-50%); }
   .cam { position: absolute; inset: 0; transition: transform 700ms var(--ease); will-change: transform; }
   .layer { position: absolute; inset: 0; pointer-events: none; transition: opacity 420ms var(--ease); will-change: opacity; }
-  .layer.solid[data-depth="0"] .disc { pointer-events: auto; }
   img.layer { width: 100%; height: 100%; display: block; }
   /* a solid row that is not in focus is fully transparent: take it out of painting once faded */
   .layer.solid { visibility: hidden; transition: opacity 420ms var(--ease), visibility 0s linear 420ms; }
@@ -224,13 +223,12 @@
   :root[data-theme="dark"] .paper .disc.is-on .iso-line[data-tone="lo"] { stroke: var(--ink); }
 
   /* ---- corners ---- */
-  .corner { position: fixed; z-index: 2; }
 
   /* ===== the lobby: a desk, "new plan" on the left, "open plan" on the right (docs/goals/gui-outline.md 3.0).
      The shelf behind it is the disc library, reached from the header. ===== */
   .lobby { position: fixed; inset: 0; z-index: 1; display: none; background: var(--paper); }
   :root[data-home="lobby"]:is(:not([data-mode]), [data-mode=""]) .lobby { display: block; }
-  :root[data-home="lobby"]:is(:not([data-mode]), [data-mode=""]) :is(.counter, .detail, .stage) { visibility: hidden; }
+  :root[data-home="lobby"]:is(:not([data-mode]), [data-mode=""]) .stage { visibility: hidden; }
   /* the scene, labels and greeting: lobby.css / lobby.js */
   /* Settings: a small panel under its button (for now only animation) */
   .set-menu { position: fixed; z-index: 4; top: calc(var(--edge) + 58px); right: var(--edge); width: min(360px, calc(100vw - 2 * var(--edge))); padding: 14px 16px;
@@ -272,8 +270,7 @@
      is not shown there. The batch name in a work's title still opens the library with a way back. */
   :root[data-mode]:not([data-mode=""]) #library { display: none; }
   :root[data-home="library"]:is(:not([data-mode]), [data-mode=""]) .drive-entry { display: inline-flex; }
-  :root[data-home="library"]:is(:not([data-mode]), [data-mode=""]) .top > .wordmark { font-size: 26px; left: 35%; }
-  .bl { top: calc(100vh - 80px - var(--edge) - 236px); left: calc(var(--edge) + 120px); transform-origin: 0 0; transform: matrix(0.866, 0.5, -0.866, 0.5, 0, 0); }
+  :root[data-home="library"]:is(:not([data-mode]), [data-mode=""]) .top > .wordmark { font-size: 26px; }
 
   .wordmark { margin: 0; font-weight: 800; font-stretch: 125%; font-size: 34px; letter-spacing: .01em; line-height: 1; display: flex; align-items: center; }
   /* The D is drawn, the same one as the app icon (art/brand/build_marks.py): an ink stem with a disc standing in
@@ -336,56 +333,10 @@
   .btn-lang { font-weight: 600; font-stretch: 110%; padding: 0 14px; }
   .btn .icon { width: 24px; height: 24px; }
 
-  /* ---- where you are ---- */
-  .counter { display: grid; gap: 14px; }
-  .count { font-weight: 300; font-size: 112px; line-height: .9; font-variant-numeric: tabular-nums; letter-spacing: -.02em; display: flex; align-items: baseline; }
-  .count small { font-size: 38px; color: var(--ink-3); font-weight: 300; margin-left: 8px; }
-  .kinds { position: fixed; z-index: 2; left: var(--edge); bottom: calc(var(--foot) + 16px); display: flex; gap: 2px; }
   .kind { min-height: 52px; padding: 0 18px; font-size: 19px; border: 1px solid transparent; background: none; cursor: pointer; color: var(--ink-3); font-weight: 600; font-stretch: 110%; border-radius: 4px; transition: color var(--t) var(--ease), border-color var(--t) var(--ease); }
   .kind:hover { color: var(--ink); }
-  .kind[aria-pressed="true"] { color: var(--paper); background: var(--dvd); }
-  .kind[data-col="cd"][aria-pressed="true"] { background: var(--cd); }
-  .kind[data-col="bd"][aria-pressed="true"] { background: var(--bd); }
-  .kind.drive-entry[aria-pressed="true"] { color: var(--ink); background: var(--paper-2); }
+  .kind[aria-pressed="true"] { color: var(--ink); background: var(--paper-2); }
   .tools .drive-entry { font: inherit; min-height: 0; height: var(--row); padding: 0 12px; color: var(--ink); align-items: center; align-self: center; }
-  .counter { width: max-content; }
-  .status[data-s="narrow"] { color: var(--ink); }
-  :root[data-home="lobby"] .kinds, :root[data-mode]:not([data-mode=""]) .kinds { visibility: hidden; }
-
-  /* text roll: each character leaves upward while its new one comes in from below (staggered) */
-  .roll { display: inline; }
-  .roll .w { white-space: nowrap; }
-  .roll .ch { display: inline-block; overflow: hidden; vertical-align: top; }
-  .roll .col { display: flex; flex-direction: column; transition: transform 360ms var(--io); }
-  .roll .col > span { display: block; white-space: pre; }
-  .roll.down .col { flex-direction: column-reverse; }
-
-  /* ---- the chosen disc ---- */
-  .detail { position: fixed; z-index: 2; right: var(--edge); top: 50%; transform: translateY(-50%); width: min(560px, 36vw); }
-  .name { margin: 0; font-weight: 800; font-stretch: 118%; font-size: clamp(34px, 3.6vw, 64px); line-height: 1.08; min-height: 2.16em; display: flex; align-items: flex-end; }
-  #name { display: block; align-content: end; overflow-wrap: normal; }
-  .mid { margin: 14px 0 0; font-family: var(--mono); font-size: 17px; color: var(--ink-2); }
-  .rule { height: 1px; background: var(--ink); margin: 22px 0 18px; transform-origin: left; }
-  .rule.draw { animation: draw 520ms var(--io) both; }
-  @keyframes draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-  .status { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 24px; }
-  .status .icon { width: 26px; height: 26px; }
-  .status[data-s="good"] { color: var(--good); }
-  .status[data-s="narrow"] { color: var(--warn); }
-  .status[data-s="incomplete"] { color: var(--copper); }
-  .status[data-s="none"] { color: var(--unknown); }
-  .why { margin: 8px 0 0 36px; color: var(--ink-2); font-size: 18px; min-height: 3.1em; }
-  .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 28px; margin: 26px 0 0; }
-  .facts dt { font-size: 15px; color: var(--ink-3); }
-  .facts dd .nb { white-space: nowrap; }
-  .facts dd { margin: 2px 0 0; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 24px; }
-  .detail:not(.is-drive) .facts .remaining { grid-column: 1 / -1; }
-  .detail:not(.is-drive) #left { font-size: 36px; }
-  .detail:not(.is-drive) #sectors { font: 16px var(--mono); }
-  .in-drive { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 17px; color: var(--copper); font-weight: 600; min-height: 22px; }
-  .in-drive.off { visibility: hidden; }
-  .fade { transition: opacity 200ms var(--ease); }
-  .fade.out { opacity: 0; }
 
   /* ---- the footer row: drive on the left, next on the right, --edge in from the bottom corners as the
      header is from the top ones. No band or rule: the page fades to paper under it, so whatever runs on
@@ -393,14 +344,6 @@
   .bar { position: fixed; z-index: 2; left: var(--edge); right: var(--edge); bottom: var(--edge); height: var(--row); display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 16px; }
   .next[hidden], .next-confirm[hidden] { display: none; }
   .next-confirm .kit-slide-help { position: absolute; bottom: calc(100% + 8px); right: 0; margin: 0; max-width: 100%; text-align: right; }
-  #batch-history { margin: 20px 0; }
-  .library-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
-  .library-actions .btn { min-height: 44px; }
-  .library-actions .next { margin-inline-end: 4px; white-space: normal; }
-  .library-actions [hidden] { display: none; }
-  #library-feedback { margin: 0; color: var(--ink-2); }
-  :root:not([data-home="library"]) .library-actions, :root[data-mode]:not([data-mode=""]) .library-actions { display: none; }
-  .detail.is-drive .facts div[hidden] { display: none; }
   .next.kit-ring-button .kit-ring-label { display: inline-flex; align-items: center; gap: 10px; }
   .next.kit-ring-button:hover:enabled { background: var(--ink); }
   .next.kit-ring-button :is(.kit-ring-track, .kit-ring-fill, .kit-icon) { stroke: currentColor; }
@@ -438,16 +381,11 @@
     body { overflow: auto; }
     .stage { position: relative; height: 44vh; }
     .art { left: -10vw; width: 122vw; top: 56%; }
-    .detail { position: static; transform: none; width: auto; padding: 8px var(--edge) 120px; }
-    .name { min-height: 0; }
-    .bl { position: static; padding: 0 var(--edge) 16px; transform: none; }
-    .count { font-size: 72px; }
-    .name { font-size: 34px; }
     .tools .btn .label { display: none; }
     .wordmark { font-size: 24px; }
   }
-  :root[data-motion="off"] .art.entering, :root[data-motion="off"] .rule.draw { animation: none; }
-  :root[data-motion="off"] .paper .disc, :root[data-motion="off"] .paper .disc.is-on, :root[data-motion="off"] .roll .col, :root[data-motion="off"] .o-disc, :root[data-motion="off"] .cam, :root[data-motion="off"] .layer, :root[data-motion="off"] .gallery { transition: none; }
+  :root[data-motion="off"] .art.entering { animation: none; }
+  :root[data-motion="off"] .paper .disc, :root[data-motion="off"] .paper .disc.is-on, :root[data-motion="off"] .o-disc, :root[data-motion="off"] .cam, :root[data-motion="off"] .layer, :root[data-motion="off"] .gallery { transition: none; }
   :root[data-motion="off"] .gallery .pin { animation: none; }
   :root[data-motion="off"] .layer.burner .slot img { transition: none; }
   /* the theme switch (index.html swapTheme): one crossfade of the whole page; nothing else eases meanwhile */
@@ -462,7 +400,7 @@
   /* the back button and the wordmark share the top-left corner: one shows at a time */
   .top > .back + .wordmark { margin-right: auto; }
   .top > .back:not([hidden]) { margin-right: auto; }
-  :root[data-mode="cal"] .detail, :root[data-mode="cal"] .counter, :root[data-mode="cal"] .gallery { display: none; }
+  :root[data-mode="cal"] .gallery { display: none; }
   #sound[aria-pressed="true"] .icon.off, #sound[aria-pressed="false"] .icon.on { display: none; }
   /* a command to copy (a CD burned outside the core): data, so mono; wraps instead of scrolling */
   .cal .cal-cmd { font: 13px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-2);
@@ -804,6 +742,7 @@
   <link rel="stylesheet" href="photocal.css">
 <link rel="stylesheet" href="../fonts/titles.css">
 <link rel="stylesheet" href="footer.css">
+<link rel="stylesheet" href="shelf.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -862,37 +801,65 @@
 </header>
 <p id="quit-status" role="status" hidden></p>
 
-<div class="corner bl counter">
-  <div class="count" aria-live="polite"><span id="idx">01</span><small>/ <span id="total">07</span></small></div>
-</div>
-<div class="kinds" role="group" data-i18n-aria="kinds">
-  <button class="kind" data-col="dvd">DVD</button><button class="kind" data-col="cd">CD</button><button class="kind" data-col="bd">BD</button>
-</div>
-
-<section class="detail" id="detail" aria-live="polite">
-  <h2 class="name" id="name"></h2>
-  <p class="mid fade" id="mid"></p>
-  <span class="in-drive" id="indrive"><svg class="icon"><use href="#i-drive"/></svg><span data-i18n="inDrive"></span></span>
-  <div class="rule" id="rule"></div>
-  <div class="fade" id="state">
-    <div class="status" id="status"></div>
-    <p class="why" id="why"></p>
-    <div id="batch-history" hidden></div>
-    <dl class="facts">
-      <div class="remaining"><dt id="k2"></dt><dd id="left"></dd></div>
-      <div><dt id="k1"></dt><dd id="sectors"></dd></div>
-      <div><dt id="k3"></dt><dd id="last"></dd></div>
-      <div><dt id="k4"></dt><dd id="drive"></dd></div>
-    </dl>
+<main class="shelf-main">
+  <section class="shelf-nav" id="shelf-nav" data-i18n-aria="batches">
+    <div class="kinds" role="group" data-i18n-aria="kinds">
+      <button class="kind" type="button" data-col="dvd">DVD</button><button class="kind" type="button" data-col="cd">CD</button><button class="kind" type="button" data-col="bd">BD</button>
+    </div>
+    <div class="shelf-controls" id="shelf-controls">
+      <button class="btn btn-icon" type="button" id="batch-prev" data-i18n-aria="prevBatch" data-i18n-title="prevBatch" aria-keyshortcuts="ArrowLeft"><svg class="icon" aria-hidden="true"><use href="#i-back"/></svg></button>
+      <span id="batch-position" role="status"></span>
+      <button class="btn btn-icon" type="button" id="batch-next" data-i18n-aria="nextBatch" data-i18n-title="nextBatch" aria-keyshortcuts="ArrowRight"><svg class="icon" aria-hidden="true"><use href="#i-next"/></svg></button>
+    </div>
+    <ul class="shelf-list" id="batch-list" data-i18n-aria="batches"></ul>
+    <div class="shelf-add"><button class="btn" id="library-calibrate" type="button"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span id="library-calibrate-text"></span></button></div>
+  </section>
+  <section class="detail" id="detail" aria-labelledby="name">
+    <div class="batch-copy-stage">
+      <div class="batch-copy" id="batch-copy" aria-live="polite" aria-atomic="true">
+        <h2 class="name" id="name"></h2>
+        <p class="mid" id="mid"></p>
+        <span class="in-drive" id="indrive" hidden><svg class="icon" aria-hidden="true"><use href="#i-drive"/></svg><span data-i18n="inDrive"></span></span>
+        <div class="rule"></div>
+        <div id="state">
+          <div class="status" id="status"></div>
+          <p class="why" id="why"></p>
+        </div>
+      </div>
+    </div>
     <div class="library-actions">
-      <button class="next" id="library-calibrate" type="button"></button>
-      <button class="btn" id="library-resume" type="button" hidden></button>
-      <button class="btn" id="library-delete" type="button" hidden></button>
+      <button class="btn" id="library-design" type="button" hidden></button>
+      <button class="btn" id="library-export" type="button" hidden></button>
+      <button class="btn" id="library-check" type="button" hidden></button>
+    </div>
+    <details class="library-more" id="library-more" hidden>
+      <summary data-i18n="batchMore"></summary>
+      <dl class="facts">
+        <div class="remaining"><dt id="k2"></dt><dd id="left"></dd></div>
+        <div><dt id="k1"></dt><dd class="batch-sectors" id="sectors"></dd></div>
+        <div><dt id="k3"></dt><dd id="last"></dd></div>
+        <div><dt id="k4"></dt><dd id="drive"></dd></div>
+      </dl>
+      <p class="batch-source" id="batch-source" hidden></p>
+      <div id="batch-history" hidden></div>
+      <div class="library-actions">
+        <button class="btn" id="library-resume" type="button" hidden></button>
+        <button class="btn" id="library-remeasure" type="button" hidden></button>
+        <button class="btn" id="library-rename" type="button" hidden></button>
+        <button class="btn" id="library-delete" type="button" hidden></button>
+      </div>
+      <form class="batch-rename" id="batch-rename" hidden>
+        <label for="batch-new-name" data-i18n="batchName"></label>
+        <input id="batch-new-name" required maxlength="120">
+        <div class="library-actions"><button class="btn" id="batch-name-save" type="submit" data-i18n="batchSave"></button><button class="btn" id="batch-name-cancel" type="button" data-i18n="batchCancel"></button></div>
+      </form>
+    </details>
+    <div class="library-actions">
       <p id="library-feedback" role="status"></p>
       <button class="btn" id="library-undo" type="button" hidden></button>
     </div>
-  </div>
-</section>
+  </section>
+</main>
 
 <section class="cal" id="cal" hidden aria-live="polite"></section>
 
@@ -922,10 +889,9 @@
   import * as backend from "./api.js";
   import { flipWatch } from "./kit/flipnum.js";
   import { statusBars } from "./kit/statusbars.js";
-  import { discDisplayKind, driveCalibrationCounts, sameMaker } from "./batches.mjs";
+  import { calibrated, discDisplayKind, driveCalibrationCounts, geometryId, libraryBatchName, needsCdPhoto, sameMaker } from "./batches.mjs";
   const esc = backend.escapeHTML;
   let backendState = null, backendError = null;
-  const overflow = {};
   // Sample data for the mock only. The real page reads /api/state (docs/goals/gui-flow.md).
   // Each list runs front (index 0) to back; write-once discs first, then the rewritables.
   const d = (name, mid, sectors, left, of, s = "none", extra = {}) => ({ name, mid, sectors, left, of, s, ...extra });
@@ -960,16 +926,14 @@
     burns: ["DVD±R/RW", "CD-R/RW"], reads: ["DVD", "CD"], calibrated: 3, lastUsed: "2026-11-07" }];
   if (!backend.mock) {
     try { backendState = await backend.state(); } catch (e) { backendError = e; }
-    for (const row of ["dvd", "cd", "bd"]) {
-      const limit = {dvd:7, cd:6, bd:4}[row];
-      const kinds = backendState?.catalogue?.[row] || [];
-      overflow[row] = Math.max(0, kinds.length - limit);
-      DATA[row] = kinds.slice(0, limit).map(x => ({...x, s: x.s === "narrow_span" ? "narrow" : x.s}));
-      DATA[row].push({kind:"new", row, name:"", mid:"", s:"new"});
-    }
+    for (const row of ["dvd", "cd", "bd"]) DATA[row] = catalogueRow(row, backendState);
     DATA.drive = (backendState?.drives || []).map(d => ({...d, kind:"drive", name:d.name || d.id,
       mid:d.id, s:"unknown", burns:[], reads:[], calibrated:0, lastUsed:null}));
     if (!DATA.drive.length) DATA.drive = [{kind:"drive", name:"?", mid:"", s:"unknown", burns:[], reads:[], calibrated:0}];
+  }
+  function catalogueRow(row, state) {
+    const batches = (state?.catalogue?.[row] || []).map(x => ({ ...x, s: x.s === "narrow_span" ? "narrow" : x.s }));
+    return [...batches, {kind:"new", row, name:"", mid:"", s:"new"}];
   }
   let chosenDrive = DATA.drive[0]?.id;
   if (!backend.mock) document.documentElement.dataset.live = "true";
@@ -997,6 +961,8 @@
       presets: "预设导入导出", library: "盘库", libraryTitle: "盘库：标定过的盘、每桶还剩几张", lobbyNew: "新作品", lobbyNewSub: "拖一张图进来，或点这里选",
       lobbyOpen: "打开作品", lobbyOpenSub: "打开以前存的 .discdesign", nextNewPlan: "下一步：新作品", nextUseBatch: "下一步：用这批盘",
       langButton: "EN", langAria: "Switch to English", kinds: "盘的种类", driveTab: "光驱", inDrive: "就是光驱里这张",
+      batches: "盘批次", prevBatch: "上一批盘", nextBatch: "下一批盘", batchPosition: (i, n) => i ? `第 ${i} 批，共 ${n} 批` : `共 ${n} 批`,
+      batchMore: "详情与更多操作", batchName: "批次名称", batchSave: "保存名称", batchCancel: "取消",
       sectors: "空白盘扇区数", left: "这一桶还剩", last: "上次标定", usedDrive: "标定用的光驱",
       leftVal: (l, o) => `${l} / ${o} 张`, rw: "可擦写", sep: "、",
       driveStates: { blank: "空白可刻", recorded: "已刻录", inserted: "已插入", open: "托盘开着", empty: "没有盘", unknown: "盘状态未知", missing: "未发现光驱" },
@@ -1021,6 +987,8 @@
       presets: "Presets", library: "Discs", libraryTitle: "Disc library: calibrated discs and how many are left", lobbyNew: "New work", lobbyNewSub: "Drop a picture here, or click to choose",
       lobbyOpen: "Open a work", lobbyOpenSub: "Open a saved .discdesign", nextNewPlan: "Next: new work", nextUseBatch: "Next: use these discs",
       langButton: "中文", langAria: "切换到中文", kinds: "Disc kinds", driveTab: "Drive", inDrive: "This is the disc in the drive",
+      batches: "Disc batches", prevBatch: "Previous batch", nextBatch: "Next batch", batchPosition: (i, n) => i ? `Batch ${i} of ${n}` : `${n} ${n === 1 ? 'batch' : 'batches'}`,
+      batchMore: "Details and more actions", batchName: "Batch name", batchSave: "Save name", batchCancel: "Cancel",
       sectors: "Blank disc sectors", left: "Left in this spindle", last: "Last calibrated", usedDrive: "Calibrated on",
       leftVal: (l, o) => `${l} / ${o}`, rw: "rewritable", sep: ", ",
       driveStates: { blank: "Blank", recorded: "Recorded", inserted: "Disc inserted", open: "Tray open", empty: "No disc", unknown: "Disc status unknown", missing: "No drives found" },
@@ -1088,34 +1056,17 @@
     if (!layers[id] || !awake) return Promise.resolve();
     loaded[id] ??= fetch(`row-${id}.svg`).then((r) => r.text()).then((t) => {
       layers[id].innerHTML = t;
-      addNewSlot(id);
+      sizeRack(id);
       outlineRack(layers[id].querySelector("svg"), ghosts[id]);
       discs = [...art.querySelectorAll(".layer.solid .disc")];
     });
     return loaded[id];
   }
-  // The empty place behind the last disc of a row: the last disc drawn again one step further back,
-  // as an outline only. Picking it calibrates a disc kind that isn't listed.
-  function addNewSlot(id) {
-    const svg = layers[id].querySelector("svg");
-    const originals = [...svg.querySelectorAll('.disc')];
-    const n = DATA[id].length - 1;
-    const template = originals[Math.min(n, originals.length - 1)];
-    if (!template) return;
-    if (n === originals.length) {
-      const slot = template.cloneNode(true);
-      const a = template.querySelector('.aura'), b = originals[n-2].querySelector('.aura');
-      const wrap = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      wrap.setAttribute('transform', `translate(${a.cx.baseVal.value-b.cx.baseVal.value} ${a.cy.baseVal.value-b.cy.baseVal.value})`);
-      // Cloned masks must have unique IDs.
-      for (const m of slot.querySelectorAll('mask[id]')) {
-        const old = m.id; m.id += '-new';
-        for (const u of slot.querySelectorAll(`[mask="url(#${old})"]`)) u.setAttribute('mask', `url(#${m.id})`);
-      }
-      slot.classList.add('new-slot'); slot.dataset.idx = n;
-      wrap.append(slot); template.before(wrap);
-    } else template.classList.add('new-slot');
-    originals.forEach((el, i) => { el.style.display = i > n ? 'none' : ''; });
+  function sizeRack(row) {
+    const slots = [...layers[row].querySelectorAll(".disc")];
+    const count = batchesFor(row).length;
+    slots[0]?.classList.toggle("new-slot", count === 0);
+    slots.forEach((slot, i) => { slot.style.display = i < Math.max(1, count) ? "" : "none"; });
   }
 
   // The shelf and the drive are pictures for the library, calibration and burning; the page opens on the
@@ -1126,7 +1077,7 @@
     if (awake) return;
     awake = true;
     placeBurner();
-    loadSolid(col === "drive" ? "dvd" : col).then(() => render(1, true));
+    loadSolid(col === "drive" ? "dvd" : col).then(() => paintRack(DATA[col][idx]));
     (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => { for (const id of ["dvd", "cd", "bd"]) loadSolid(id); });
   }
   let burner = null;
@@ -1266,6 +1217,7 @@
     const on = c === "on" || (c === "auto" && !sysReduce());
     root.dataset.motion = on ? "on" : "off";
     reduce = !on;
+    if (reduce) stopCopyMotion();
     paintSettings();
   }
   function showSettings(open) {
@@ -1325,77 +1277,107 @@
     sweepRaf = requestAnimationFrame(step);
   }
 
-  // Text roll: each character leaves one way while the new one arrives, staggered. Characters are
-  // grouped by word, so a long name still wraps at its spaces while it rolls.
-  // Try narrower Archivo widths before wrapping at spaces. The nonbreaking hyphen
-  // remains in the final plain text after the rolling letters have settled.
-  function fitName() {
-    const el = $("name"), probe = document.createElement("span");
-    probe.textContent = el.dataset.text || el.textContent;
-    Object.assign(probe.style, { position: "absolute", visibility: "hidden", whiteSpace: "nowrap" });
-    el.append(probe);
-    for (const width of [118, 112, 106, 100]) {
-      el.style.fontStretch = width + "%";
-      if (probe.getBoundingClientRect().width <= el.clientWidth) break;
+  const batchesFor = (row) => DATA[row].filter(item => item.kind !== "new");
+  const batchName = (item, media) => T().brand(libraryBatchName(item, media, lang));
+  let listed = null, listedLang = null;
+  function paintBatchList(item, w) {
+    const list = $("batch-list"), drive = col === "drive";
+    const batches = drive ? [] : batchesFor(col);
+    const current = batches.indexOf(item);
+    $("shelf-controls").hidden = drive;
+    list.hidden = !batches.length;
+    $("batch-position").textContent = T().batchPosition(current + 1, batches.length);
+    $("batch-prev").disabled = batches.length < 2 || current === 0;
+    $("batch-next").disabled = batches.length < 2 || current === batches.length - 1;
+    if (listed !== DATA[col] || listedLang !== lang) {
+      const rows = batches.map((batch, i) => {
+        const li = document.createElement("li"), button = document.createElement("button");
+        const title = document.createElement("strong"), meta = document.createElement("span");
+        button.type = "button"; button.className = "shelf-batch"; button.dataset.index = i;
+        button.title = title.textContent = batchName(batch, col);
+        const status = needsCdPhoto(batch, col) ? w.photoShort : calibrated(batch) ? w.usable
+          : batch.s === "imported" ? w.imported : ["none", "unknown"].includes(batch.s) ? w.unmeasured : w.incomplete;
+        const date = batch.last || w.unknown;
+        meta.className = "shelf-batch-meta";
+        meta.textContent = `${batch.media_kind || col.toUpperCase()} · ${status} · ${T().last}: ${date}`;
+        button.append(title, meta); li.append(button);
+        return li;
+      });
+      list.replaceChildren(...rows);
+      listed = DATA[col]; listedLang = lang;
     }
-    probe.remove();
+    for (const button of list.querySelectorAll(".shelf-batch")) {
+      if (Number(button.dataset.index) === current) button.setAttribute("aria-current", "true");
+      else button.removeAttribute("aria-current");
+    }
+    const selected = list.children[current];
+    if (selected) {
+      const top = selected.offsetTop, bottom = top + selected.offsetHeight;
+      if (top < list.scrollTop) list.scrollTop = top;
+      else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+    }
   }
-  addEventListener("resize", fitName);
-  document.fonts.ready.then(fitName);
-  function roll(el, text, dir = 1, stagger = 0.035) {
-    if (el.id === "name") text = text.replaceAll("-", "\u2011");
-    const old = el.dataset.text ?? "";
-    el.dataset.text = text;
-    clearTimeout(el._rollT);
-    if (reduce || !old || old === text) { el.textContent = text; if (el.id === "name") fitName(); return; }
-    const n = Math.max(old.length, text.length);
-    const box = document.createElement("span");
-    box.className = "roll" + (dir < 0 ? " down" : "");
-    const cols = [];
-    let word = null;
-    for (let i = 0; i < n; i++) {
-      const ch = text[i] ?? "";
-      if (ch === " " && (old[i] ?? " ") === " ") { box.append(" "); word = null; continue; }
-      if (!word) { word = document.createElement("span"); word.className = "w"; box.append(word); }
-      // a space in either name is a place the line may break
-      const breakAfter = ch === " ";
-      const clip = document.createElement("span"), c = document.createElement("span");
-      clip.className = "ch"; c.className = "col";
-      const a = document.createElement("span"), b = document.createElement("span");
-      a.textContent = old[i] ?? ""; b.textContent = ch;
-      c.append(a, b);
-      c.style.transitionDelay = `${(i * stagger).toFixed(3)}s`;
-      clip.append(c); word.append(clip); cols.push(c);
-      if (breakAfter) { box.append(document.createElement("wbr")); word = null; }
-    }
-    el.replaceChildren(box);
-    if (el.id === "name") fitName();
-    const h = cols[0]?.firstChild.getBoundingClientRect().height || el.getBoundingClientRect().height;
-    for (const c of cols) c.parentElement.style.height = `${h}px`;
-    if (dir < 0) for (const c of cols) c.style.transform = `translateY(${-h}px)`;
-    void box.offsetWidth;                      // start from here, then move (no animation frame needed)
-    for (const c of cols) c.style.transform = dir < 0 ? "translateY(0)" : `translateY(${-h}px)`;
-    el._rollT = setTimeout(() => { if (el.dataset.text === text) { el.textContent = text; if (el.id === "name") fitName(); } }, 420 + n * stagger * 1000);
+
+  // Keep one readable panel at every point in the hand-off. The clone is visual only;
+  // the current text and actions are committed together, including when a key repeats.
+  const batchCopy = $("batch-copy");
+  let leavingCopy = null, enteringCopy = null, paintedItem = null, paintedCol = null;
+  function stopCopyMotion() {
+    leavingCopy?.remove(); leavingCopy = null;
+    enteringCopy?.cancel(); enteringCopy = null;
+  }
+  function prepareCopyMotion(dir, initial, item) {
+    const switching = paintedItem && (paintedItem !== item || paintedCol !== col);
+    paintedItem = item; paintedCol = col;
+    if (!switching && !initial) return;
+    const previous = leavingCopy && +getComputedStyle(leavingCopy).opacity > 0 ? leavingCopy : batchCopy;
+    const animate = switching && !initial && !reduce && !sysReduce() && inLibrary();
+    const old = animate ? previous.cloneNode(true) : null;
+    const from = old ? {transform:getComputedStyle(previous).transform, opacity:getComputedStyle(previous).opacity} : null;
+    stopCopyMotion();
+    if (!old) return;
+    old.removeAttribute("id"); old.removeAttribute("aria-live");
+    old.setAttribute("aria-hidden", "true"); old.inert = true;
+    for (const node of old.querySelectorAll("[id]")) node.removeAttribute("id");
+    old.classList.add("batch-copy-leaving");
+    return () => {
+      batchCopy.before(old); leavingCopy = old;
+      const x = dir * 18;
+      const duration = 130, easing = "cubic-bezier(.2, .8, .2, 1)";
+      old.animate([from, {transform:`translateX(${x}px)`, opacity:0}],
+        {duration, easing, fill:"forwards"}).onfinish = () => { old.remove(); if (leavingCopy === old) leavingCopy = null; };
+      enteringCopy = batchCopy.animate([{transform:`translateX(${-x}px)`, opacity:0}, {transform:"translateX(0)", opacity:1}],
+        {duration, delay:duration, easing, fill:"backwards"});
+    };
   }
 
   let col = "dvd", idx = 0, lastFocus = "dvd";
   let pendingWhy = null;                     // a one-off status line for the next render (what the drive held)
   const fmt = (n) => n == null ? "?" : n.toLocaleString("en-US");
-  const pad = (n) => String(n).padStart(2, "0");
   const libraryWords = () => lang === "zh" ? {
     start:"标定新的一批盘", resume:"补测空档", continue:"从中断处续测", remove:"删除", cancel:"取消", undo:"撤销",
+    photo:"拍照校准", photoShort:"待确认沿轨常数", photoStatus:"几何已测，还差一步：确认沿轨常数",
+    photoWhy:"拍摄标靶盘来确认沿轨常数 L，否则径向线可能扭曲。", usable:"可用", unmeasured:"未标定", imported:"导入的预设",
+    design:"先去做图", export:"导出 DIS 预设", check:"刻检查盘 / 拍照校准", rename:"改名", remeasure:"重新标定",
+    dvdWhy:"可以设计和刻录。第一次用这台光驱和这批盘，建议先刻检查盘并拍照。",
+    readyWhy:"可以设计和刻录。", source:"测量记录", exported:"已导出 DIS 预设。", preparing:"正在生成检查盘……",
     incomplete:"测量不完整", stopped:"测量中途停止。", rejected:"标定未通过。", recent:"最近一次标定未通过。",
-    gaps: ranges => `未测半径 ${ranges}。`, retry:"放回原测量盘，用同一台光驱继续测。", remeasure:"可以重测或删除这批盘。",
-    unknown:"未记录", unknownCapacity:"未知", presetSectors:"预设扇区数",
+    gaps: ranges => `未测半径 ${ranges}。`, retry:"放回原测量盘，用同一台光驱继续测。", remeasureAdvice:"可以重测或删除这批盘。",
+    unknown:"未记录", presetSectors:"预设扇区数",
     incompleteCount:n => `${n} 批待补测`,
     title:n => `删除“${n}”？`, body:"此批次和下列文件将移到回收站，可以恢复。",
     files:"将移走的文件和目录", shared:"其他批次共用，会保留", works:"使用此批次的作品", keep:"删除批次，保留作品", both:"同时删除批次和作品",
     moved:"移到回收站", deleted:n => `已将“${n}”移到回收站。`, restored:"已恢复批次。"
   } : {
     start:"Calibrate a new batch", resume:"Measure missing radii", continue:"Resume measurement", remove:"Delete", cancel:"Cancel", undo:"Undo",
+    photo:"Calibrate with photos", photoShort:"Along-track constant unconfirmed", photoStatus:"Geometry measured: confirm the along-track constant",
+    photoWhy:"Photograph the target disc to confirm the along-track constant L. Radial lines may twist until it is confirmed.", usable:"Usable", unmeasured:"Not calibrated", imported:"Imported preset",
+    design:"Design first", export:"Export DIS preset", check:"Burn a check disc / calibrate with photos", rename:"Rename", remeasure:"Recalibrate",
+    dvdWhy:"Ready to design and burn. For your first use of this drive and batch, burn a check disc and photograph it.",
+    readyWhy:"Ready to design and burn.", source:"Measurement record", exported:"DIS preset exported.", preparing:"Making the check disc…",
     incomplete:"Incomplete measurement", stopped:"Measurement stopped early.", rejected:"Calibration did not pass.", recent:"The latest calibration did not pass.",
-    gaps:ranges => `Unmeasured radii: ${ranges}.`, retry:"Put the original measurement disc back in the same drive to continue.", remeasure:"Measure again or delete this batch.",
-    unknown:"Not recorded", unknownCapacity:"Unknown", presetSectors:"Preset sectors",
+    gaps:ranges => `Unmeasured radii: ${ranges}.`, retry:"Put the original measurement disc back in the same drive to continue.", remeasureAdvice:"Measure again or delete this batch.",
+    unknown:"Not recorded", presetSectors:"Preset sectors",
     incompleteCount:n => `${n} incomplete`,
     title:n => `Delete “${n}”?`, body:"This batch and the listed files will move to the bin and can be restored.",
     files:"Files and folders to move", shared:"Shared with other batches and kept in place", works:"Works using this batch", keep:"Delete batch, keep works", both:"Delete batch and works",
@@ -1406,17 +1388,15 @@
     const bands = issue.missing_mm?.map(band => band.map(n => n.toFixed(1)).join("–") + " mm").join(" · ");
     const why = [issue.previous_usable && w.recent, bands && w.gaps(bands),
       issue.stopped ? w.stopped : !bands && !issue.previous_usable && w.rejected,
-      issue.can_resume ? w.retry : w.remeasure];
+      issue.can_resume ? w.retry : w.remeasureAdvice];
     return why.filter(Boolean).join(" ");
   }
 
-  for (const id of ['idx', 'total', 'job-time']) flipWatch($(id), {lang, live: id !== 'job-time'});
+  flipWatch($("job-time"), {lang, live:false});
 
-  function render(dir = 1, initial = false) {
-    const list = DATA[col];
-    idx = (idx + list.length) % list.length;
-    const item = list[idx];
-    if (item.kind === "drive" && item.id) chosenDrive = item.id;
+  function paintRack(item) {
+    const slots = discs.filter(el => el.dataset.row === col && !el.style.display);
+    const rackIndex = item.kind === "new" && batchesFor(col).length ? -1 : Math.min(idx, slots.length - 1);
     // focus: the chosen row is solid; the others turn into line drawings that fade with distance
     const ci = COLS.indexOf(col);
     for (const id of ["dvd", "cd", "bd"]) {
@@ -1428,7 +1408,7 @@
     }
     burnerLayer.dataset.depth = String(Math.min(3, 3 - ci));
     // tracking shot: pan so the row in focus stands where the front row stood
-    const deep = item.kind === "drive" ? 0 : Math.max(0, idx - 2), r = ROWPOS[ci];
+    const deep = item.kind === "drive" ? 0 : Math.max(0, rackIndex - 2), r = ROWPOS[ci];
     let px = -r * meta.rowStep.x - deep * meta.stackStep.x, py = -r * meta.rowStep.y - deep * meta.stackStep.y;
     if (item.kind === "drive") {
       // put the drive's footprint centre at 38% / 56% of the window, left of the text column
@@ -1439,7 +1419,7 @@
     cam.style.transform = `translate(${(px / meta.width * 100).toFixed(2)}%, ${(py / meta.height * 100).toFixed(2)}%)`;
     for (const el of discs) {
       const i = Number(el.dataset.idx);
-      const dist = el.dataset.row === col ? Math.abs(i - idx) : 99;
+      const dist = el.dataset.row === col && rackIndex >= 0 ? Math.abs(i - rackIndex) : 99;
       const up = dist === 0 ? LIFT : WAVE[dist] ?? 0;
       el.style.transitionDelay = dist === 0 || dist > 3 ? "0ms" : `${dist * 45}ms`;
       const inserted = !!DATA[el.dataset.row]?.[i]?.inDrive;
@@ -1447,150 +1427,175 @@
       el.style.transform = `translate(${inserted ? -20 : 0}px, ${(-up + (inserted ? 12 : 0)).toFixed(1)}px)`;
       el.classList.toggle("is-on", dist === 0);
     }
-    for (const b of document.querySelectorAll(".kind")) b.setAttribute("aria-pressed", String(b.dataset.col === col));
-    $("idx").textContent = pad(idx + 1);
-    $("total").textContent = pad(list.length);
-    const shown = item.kind === "new" ? (item.name || T().newName) : T().brand(item.name);
-    roll($("name"), shown, dir, shown.length > 14 ? 0.014 : 0.024);
-    const rule = $("rule");
-    rule.classList.remove("draw"); void rule.offsetWidth; rule.classList.add("draw");
-    if (item.kind !== "drive") sweep(col);
-    if (item.kind !== "drive") setTray(false);
-    else if (backend.mock && lastFocus !== "drive") setTray(true, trayDisc, () => render(1, true));   // reword once it is open
-    lastFocus = item.kind === "drive" ? "drive" : col;
-    $("detail").classList.toggle("is-drive", item.kind === "drive");
-    const fill = () => {
-      const t = T();
-      const w = libraryWords();
-      const history = item.kind === 'drive' || item.kind === 'new' ? [] : item.history || [];
-      $("batch-history").hidden = !history.length;
-      statusBars($("batch-history"), history, {lang});
-      $("mid").textContent = [item.mid, item.rw ? t.rw : ""].filter(Boolean).join(" · ");
-      $("indrive").classList.toggle("off", !item.inDrive);
-      let icon, label, why, facts;
-      $("state").classList.toggle("is-new", item.kind === "new");
-      if (item.kind === "new") {
-        [icon, label, why] = ["i-plus", ...t.newState];
-        facts = [["", ""], ["", ""], ["", ""], ["", ""]];
-      } else if (item.kind === "drive") {
-        label = !backend.mock ? (lang === "zh" ? "点按钮读取光驱里的盘" : "Press the button to identify the inserted disc") : trayOpen ? (trayDisc ? t.tray(item.trayDisc) : t.trayEmpty) : (trayDisc ? t.inDriveNow(item.trayDisc) : t.driveEmpty);
-        [icon, why] = ["i-drive", backend.mock ? t.driveWhy : (lang === "zh" ? "打开页面不会读取光盘。" : "Opening this page does not read the disc.")];
-        const drive = backendState?.drives?.find(d => d.id === item.id) ?? item;
-        const counts = driveCalibrationCounts(drive, backendState?.catalogue ?? {});
-        facts = backend.mock ? [[t.burns, item.burns], [t.reads, item.reads], [t.calibrated, t.kindsN(item.calibrated)], [t.lastUsed, day(item.lastUsed)]]
-          : [["", ""], ["", ""], [t.calibrated, [t.kindsN(counts.passed), ...(counts.incomplete ? [w.incompleteCount(counts.incomplete)] : [])]], ["", ""]];
-      } else {
-        const key = item.s === "none" && item.rw ? "noneRw" : item.s;
-        icon = ICON[key] || "i-none"; [label, why] = t[key] || (lang === "zh" ? [{usable:"可以使用",too_noisy:"测量太吵",drive_changed:"光驱状态改变",stopped_early:"测量提前停止",unknown:"标定状态未知"}[item.s] || "标定状态未知", "查看标定结果，再决定是否重测。"] : [item.s.replaceAll("_", " "), "Review the calibration result before measuring again."]);
-        if (item.s === "incomplete") [icon, label] = ["i-none", w.incomplete];
-        if (item.calibration_issue) why = calibrationIssueText(item.calibration_issue, w);
-        const sectors = "capacity_sectors" in item ? item.capacity_sectors : item.sectors;
-        facts = [[item.preset ? w.presetSectors : t.sectors, sectors == null ? w.unknownCapacity : fmt(sectors)],
-          [t.left, item.left == null ? w.unknown : item.of == null ? fmt(item.left) : t.leftVal(item.left, item.of)],
-          [t.last, day(item.last)], [t.usedDrive, item.drive ?? "—"]];
-      }
-      $("status").dataset.s = item.kind === "drive" ? "drive" : item.s;
-      $("status").innerHTML = `<svg class="icon"><use href="#${icon}"/></svg>${esc(label)}`;
-      $("why").textContent = pendingWhy ?? (backendError ? backend.errorText(backendError, lang) : why);
-      if (!backend.mock && DATA[col].length === 1 && col !== "drive") $("why").textContent += lang === "zh" ? " 先标定一种新盘，结果会保存在这里。" : " Calibrate a new disc to keep its result here.";
-      if (overflow[col]) $("why").textContent += ` +${overflow[col]}`;
-      pendingWhy = null;
-      const factsEl = $("state").querySelector(".facts");
-      for (const id of item.kind === "drive" ? ["sectors", "left", "last", "drive"] : ["left", "sectors", "last", "drive"]) factsEl.append($(id).parentElement);
-      ["k1", "k2", "k3", "k4"].forEach((k, i) => { $(k).textContent = facts[i][0]; });
-      ["sectors", "left", "last", "drive"].forEach((k, i) => {
-        const v = facts[i][1];
-        $(k).parentElement.hidden = !facts[i][0];
-        $(k).innerHTML = (Array.isArray(v) ? v : [v]).map((x) => `<span class="nb">${esc(x)}</span>`).join(`${t.sep}<wbr>`);
-      });
-      $("library-calibrate").textContent = w.start;
-      $("library-calibrate").hidden = item.kind === "new";
-      $("library-resume").textContent = item.calibration_issue?.stopped ? w.continue : w.resume;
-      $("library-resume").hidden = !item.calibration_issue?.can_resume || !hasCapability("geo-coverage");
-      $("library-delete").textContent = w.remove;
-      $("library-delete").hidden = backend.mock || !hasCapability("library-management") || !item.id || ["drive", "new"].includes(item.kind);
-      $("library-undo").textContent = w.undo;
-      if (!root.dataset.mode)       // inside the flow the button belongs to the flow
-        $("next-text").textContent = root.dataset.home === "lobby" ? lobbyNextWords()
-          : (choosingFor || inspectingBatch) && item.kind !== "drive" && item.kind !== "new" ? t.nextUseBatch
-          // the label says what Next does below: a measured batch opens its work; anything else (an imported DIS
-          // preset too) goes to calibration
-          : item.kind === "drive" ? t.nextDrive : item.kind === "new" ? w.start : item.s === "imported" ? t.nextMeasureImported
-          : !["good", "usable"].includes(item.s) ? t.nextCal : t.nextOpen;
-      paintDriveLine();
-    };
-    if (initial || reduce) { fill(); return; }
-    const parts = [$("mid"), $("state")];
-    parts.forEach((p) => p.classList.add("out"));
-    setTimeout(() => { fill(); parts.forEach((p) => p.classList.remove("out")); }, 160);
   }
 
-  addEventListener("keydown", async (e) => {
-    if (root.dataset.mode || root.dataset.home === "lobby") return;
-    if (e.target instanceof Element && e.target.closest("input, textarea, dialog")) return;
-    const c = COLS.indexOf(col);
-    let dir = 1;
-    if (e.key === "ArrowLeft") { col = COLS[(c + COLS.length - 1) % COLS.length]; idx = 0; dir = -1; }
-    else if (e.key === "ArrowRight") { col = COLS[(c + 1) % COLS.length]; idx = 0; }
-    else if (e.key === "ArrowUp") { idx -= 1; dir = -1; }
-    else if (e.key === "ArrowDown") idx += 1;
-    else if ((e.key === "e" || e.key === "E") && col === "drive" && backend.mock) { setTray(true, !trayDisc, () => render(1)); return; }
-    else return;
+  function render(dir = 1, initial = false) {
+    const list = DATA[col];
+    idx = ((idx % list.length) + list.length) % list.length;
+    const item = list[idx];
+    if (item.kind === "drive" && item.id) chosenDrive = item.id;
+    const switched = paintedCol !== col || (paintedItem?.id || paintedItem) !== (item.id || item);
+    const animate = prepareCopyMotion(dir, initial, item);
+    paintRack(item);
+    for (const button of document.querySelectorAll(".kind")) button.setAttribute("aria-pressed", String(button.dataset.col === col));
+    if (!initial && item.kind !== "drive") sweep(col);
+    if (item.kind !== "drive") setTray(false);
+    else if (backend.mock && lastFocus !== "drive") setTray(true, trayDisc, () => render(1, true));
+    lastFocus = item.kind === "drive" ? "drive" : col;
+
+    const t = T(), w = libraryWords(), drive = item.kind === "drive", fresh = item.kind === "new";
+    const photo = needsCdPhoto(item, col), usable = calibrated(item);
+    const check = !backend.mock && col === "dvd" && usable && !!item.geo && hasCapability("checkburn");
+    const name = fresh ? (item.name || t.newName) : drive ? item.name : batchName(item, col);
+    $("name").textContent = name.replaceAll("-", "\u2011");
+    $("name").title = name;
+    $("mid").textContent = [item.mid && item.mid !== name ? item.mid : null, item.rw ? t.rw : null].filter(Boolean).join(" · ");
+    $("mid").hidden = !$("mid").textContent;
+    $("indrive").hidden = !item.inDrive;
+    let icon, label, why, facts;
+    if (fresh) {
+      [icon, label, why] = ["i-plus", ...t.newState];
+      facts = [];
+      if (!batchesFor(col).length) why = lang === "zh" ? "标定新的一批盘，测量结果会保存在这里。" : "Calibrate a new batch to keep its measurements here.";
+    } else if (drive) {
+      label = !backend.mock ? (lang === "zh" ? "点按钮读取光驱里的盘" : "Press the button to identify the inserted disc") : trayOpen ? (trayDisc ? t.tray(item.trayDisc) : t.trayEmpty) : (trayDisc ? t.inDriveNow(item.trayDisc) : t.driveEmpty);
+      [icon, why] = ["i-drive", backend.mock ? t.driveWhy : (lang === "zh" ? "打开页面不会读取光盘。" : "Opening this page does not read the disc.")];
+      const reading = backendState?.drives?.find(d => d.id === item.id) ?? item;
+      const counts = driveCalibrationCounts(reading, backendState?.catalogue ?? {});
+      facts = backend.mock ? [[t.burns, item.burns], [t.reads, item.reads], [t.calibrated, t.kindsN(item.calibrated)], [t.lastUsed, day(item.lastUsed)]]
+        : [[t.calibrated, [t.kindsN(counts.passed), ...(counts.incomplete ? [w.incompleteCount(counts.incomplete)] : [])]]];
+    } else {
+      const key = item.s === "unknown" ? "none" : item.s === "none" && item.rw ? "noneRw" : item.s;
+      icon = ICON[key] || "i-none";
+      [label, why] = t[key] || [w.incomplete, w.remeasureAdvice];
+      if (item.s === "incomplete") [icon, label] = ["i-warn", w.incomplete];
+      if (usable) [icon, label, why] = ["i-good", t.good[0], check ? w.dvdWhy : w.readyWhy];
+      if (photo) [icon, label, why] = ["i-warn", w.photoStatus, w.photoWhy];
+      if (item.calibration_issue) why += ` ${calibrationIssueText(item.calibration_issue, w)}`;
+      const sectors = "capacity_sectors" in item ? item.capacity_sectors : item.sectors;
+      facts = [[item.preset ? w.presetSectors : t.sectors, sectors == null ? null : fmt(sectors)],
+        [t.left, item.left == null ? null : item.of == null ? fmt(item.left) : t.leftVal(item.left, item.of)],
+        [t.last, item.last], [t.usedDrive, item.drive]];
+    }
+    $("status").dataset.s = drive ? "drive" : photo ? "photo" : item.s;
+    $("status").innerHTML = `<svg class="icon" aria-hidden="true"><use href="#${icon}"/></svg>${esc(label)}`;
+    $("why").textContent = pendingWhy ?? (backendError ? backend.errorText(backendError, lang) : why);
+    pendingWhy = null;
+    $("detail").classList.toggle("is-drive", drive);
+    const history = !drive && !fresh ? item.history || [] : [];
+    $("batch-history").hidden = !history.some(event => event.state === "needs") && history.length < 2;
+    if (!$("batch-history").hidden) statusBars($("batch-history"), history, {lang});
+    const raw = geometryId(item);
+    $("batch-source").hidden = !raw;
+    $("batch-source").textContent = raw ? `${w.source}: ${raw}` : "";
+    const [v1, v2, v3, v4] = ["sectors", "left", "last", "drive"].map($);
+    const factsEl = $("library-more").querySelector(".facts");
+    for (const value of drive ? [v1, v2, v3, v4] : [v2, v1, v3, v4]) factsEl.append(value.parentElement);
+    [v1, v2, v3, v4].forEach((value, i) => {
+      const [title, data] = facts[i] || [];
+      value.previousElementSibling.textContent = title ?? "";
+      value.textContent = Array.isArray(data) ? data.join(t.sep) : data ?? "";
+      value.parentElement.hidden = !value.textContent;
+    });
+    paintBatchList(item, w);
+    $("library-calibrate-text").textContent = w.start;
+    const button = (id, words, show) => { $(id).textContent = words; $(id).hidden = !show; };
+    const manageable = !backend.mock && !drive && !fresh && !!item.id && hasCapability("library-management");
+    button("library-design", w.design, photo);
+    button("library-export", w.export, photo && !backend.mock && hasCapability("presets-io"));
+    button("library-check", w.check, check);
+    button("library-resume", item.calibration_issue?.stopped ? w.continue : w.resume, item.calibration_issue?.can_resume && hasCapability("geo-coverage"));
+    button("library-remeasure", w.remeasure, usable && !backend.mock);
+    button("library-rename", w.rename, manageable);
+    button("library-delete", w.remove, manageable);
+    $("library-undo").textContent = w.undo;
+    $("library-more").hidden = !raw && !facts.some(([, data]) => data != null) && !manageable;
+    if (switched) {
+      $("library-more").open = drive;
+      $("batch-rename").hidden = true;
+    }
+    animate?.();
+    if (!root.dataset.mode)
+      $("next-text").textContent = root.dataset.home === "lobby" ? lobbyNextWords()
+        : (choosingFor || inspectingBatch) && !drive && !fresh ? t.nextUseBatch
+        : drive ? t.nextDrive : fresh ? w.start : photo ? w.photo : item.s === "imported" ? t.nextMeasureImported
+        : usable ? t.nextOpen : t.nextCal;
+    paintDriveLine();
+  }
+
+  const inLibrary = () => !root.dataset.mode && root.dataset.home === "library";
+  function selectBatch(to, index, dir) {
+    if (index < 0 || to === col && index === idx) return;
+    col = to; idx = index;
+    render(dir);
+    loadSolid(to).then(() => { if (col === to) paintRack(DATA[col][idx]); });
+  }
+  function stepBatch(dir) {
+    const batches = batchesFor(col);
+    const i = batches.indexOf(DATA[col][idx]);
+    const next = i < 0 ? (dir > 0 ? 0 : batches.length - 1) : i + dir;
+    if (!batches[next]) return false;
+    const list = $("batch-list"), focused = list.contains(document.activeElement);
+    selectBatch(col, DATA[col].indexOf(batches[next]), dir);
+    if (focused) list.querySelector('[aria-current="true"]')?.focus({preventScroll:true});
+    return true;
+  }
+  $("batch-list").addEventListener("click", (e) => {
+    const button = e.target.closest(".shelf-batch");
+    if (!button) return;
+    const index = DATA[col].indexOf(batchesFor(col)[Number(button.dataset.index)]);
+    selectBatch(col, index, index < idx ? -1 : 1);
+  });
+  $("batch-prev").addEventListener("click", () => stepBatch(-1));
+  $("batch-next").addEventListener("click", () => stepBatch(1));
+  addEventListener("keydown", (e) => {
+    if (!inLibrary() || e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    if (document.querySelector("dialog[open], .keys-help:not([hidden]), .term:not([hidden])") ||
+        e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable], #set-menu, #batch-history")) return;
+    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+      e.preventDefault(); stepBatch(["ArrowLeft", "ArrowUp"].includes(e.key) ? -1 : 1);
+    } else if ((e.key === "e" || e.key === "E") && col === "drive" && backend.mock) setTray(true, !trayDisc, () => render(1));
+  });
+  for (const button of document.querySelectorAll(".kind")) button.addEventListener("click", () => {
+    const to = button.dataset.col;
+    if (to !== col) selectBatch(to, 0, COLS.indexOf(to) < COLS.indexOf(col) ? -1 : 1);
+  });
+
+  // Keep normal vertical scrolling in the batch list and detail pane. A wheel
+  // gesture over the rack or the arrow controls takes one selection step.
+  const stage = art.closest(".stage");
+  let lastWheel = -Infinity, wheelDelta = 0, wheelTaken = false;
+  for (const surface of [stage, $("shelf-controls")]) surface.addEventListener("wheel", (e) => {
+    if (!inLibrary() || e.ctrlKey || e.metaKey || col === "drive" || batchesFor(col).length < 2) return;
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (!delta) return;
     e.preventDefault();
-    await loadSolid(col);
-    render(dir);
+    const now = performance.now();
+    if (now - lastWheel > 160 || Math.sign(delta) !== Math.sign(wheelDelta)) { wheelDelta = 0; wheelTaken = false; }
+    lastWheel = now;
+    wheelDelta += delta * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? surface.clientHeight : 1);
+    if (wheelTaken || Math.abs(wheelDelta) < 24) return;
+    wheelTaken = true;
+    stepBatch(Math.sign(wheelDelta));
+  }, {passive:false});
+
+  let touch = null;
+  stage.addEventListener("pointerdown", (e) => {
+    if (!inLibrary() || e.pointerType !== "touch") return;
+    touch = e.isPrimary ? {id:e.pointerId, x:e.clientX, y:e.clientY} : null;
   });
-  for (const b of document.querySelectorAll(".kind")) b.addEventListener("click", async () => {
-    const dir = COLS.indexOf(b.dataset.col) < COLS.indexOf(col) ? -1 : 1;
-    col = b.dataset.col; idx = 0; await loadSolid(col); render(dir);
-  });
-  // A disc of the row in focus picks that disc. Anywhere else, the click goes to whatever stands
-  // under the pointer: a row (front rows first, as they are drawn on top) or the drive.
-  const inside = (pt, poly) => {
-    let hit = false;
-    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-      const [xi, yi] = poly[i], [xj, yj] = poly[j];
-      if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < ((xj - xi) * (pt[1] - yi)) / (yj - yi) + xi) hit = !hit;
-    }
-    return hit;
-  };
-  art.addEventListener("click", async (e) => {
-    if (root.dataset.mode || root.dataset.home === "lobby") return;
-    const el = e.target instanceof Element ? e.target.closest(".disc") : null;
-    if (el && el.dataset.row === col) {
-      const dir = Number(el.dataset.idx) < idx ? -1 : 1;
-      idx = Number(el.dataset.idx); render(dir);
-      return;
-    }
-    // the point in scene units: undo the camera's pan
-    const box = cam.getBoundingClientRect(), k = box.width / meta.width;
-    const pt = [(e.clientX - box.left) / k, (e.clientY - box.top) / k];
-    // the drive: the picture of the current theme (the other one has no size)
-    const onDrive = (() => {
-      const n = [...burnerLayer.querySelectorAll(".rig, img")].find((x) => x.getBoundingClientRect().width > 0);
-      const r = n?.getBoundingClientRect();
-      return !!r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
-    })();
-    // in front first: the drive when it is in focus, else the rows from the front
-    let to = col === "drive" && onDrive ? "drive" : ["dvd", "cd", "bd"].find((id) => inside(pt, meta.hit[id]));
-    if (!to && onDrive) to = "drive";
-    if (to === "drive" && col === "drive") {
-      // In the real page this sends an eject or load, after the usual "the tray will move" check.
-      setTray(!trayOpen, trayDisc, () => render(1));
-      return;
-    }
-    if (!to || to === col) return;
-    const dir = COLS.indexOf(to) < COLS.indexOf(col) ? -1 : 1;
-    col = to; idx = 0;
-    await loadSolid(col);
-    render(dir);
+  stage.addEventListener("pointercancel", () => { touch = null; });
+  stage.addEventListener("pointerup", (e) => {
+    if (touch?.id !== e.pointerId) return;
+    const dx = e.clientX - touch.x, dy = e.clientY - touch.y;
+    touch = null;
+    if (inLibrary() && col !== "drive" && Math.abs(dx) >= 36 && Math.abs(dx) > 1.35 * Math.abs(dy)) stepBatch(-Math.sign(dx));
   });
   $("lang").addEventListener("click", () => {
     lang = lang === "zh" ? "en" : "zh";
     try { localStorage.setItem("dp-lang", lang); } catch {}
     applyStatic();
     dispatchEvent(new CustomEvent("dp-lang"));
-    $("name").dataset.text = ""; $("idx").dataset.text = "";     // a new language appears at once
     render(1, true);
   });
   // ---- idle: after 10 s without input, every looping animation slows to a stop; any input
@@ -1755,10 +1760,10 @@
     setTray(...a) { wakeScene(); return setTray(...a); }, tray: () => ({ open: trayOpen, disc: trayDisc }),
     current: () => ({ col, idx, item: DATA[col][idx] }),
     focusDrive() { wakeScene(); col = "drive"; idx = Math.max(0, DATA.drive.findIndex(d => d.id === chosenDrive)); render(1); },
-    goTo(c, i) { wakeScene(); col = c; idx = i; render(-1); },
+    goTo(c, i) { wakeScene(); col = c; idx = i; render(-1); loadSolid(c).then(() => { if (c === col) paintRack(DATA[col][idx]); }); },
     refresh() { render(1, true); },
     locate(item) {
-      for (const c of ["dvd", "cd", "bd"]) { const i = DATA[c].indexOf(item); if (i >= 0) return [c, i]; }
+      for (const c of ["dvd", "cd", "bd"]) { const i = DATA[c].findIndex(row => row === item || item?.id && row.id === item.id); if (i >= 0) return [c, i]; }
       return ["dvd", 0];
     },
     readDisc, driveDisc, discName, refreshLobbyDisc,
@@ -1823,7 +1828,17 @@
       return;
     }
     if (item.kind === "drive") { identifyDisc(); return; }
-    if (["good", "usable"].includes(item.s)) { (await import("./design.js")).start(api); return; }   // a measured disc: its project
+    if (needsCdPhoto(item, col)) {
+      const cal = await import("./calibrate.js");
+      if (!inLibrary() || DATA[col][idx] !== item) return;
+      if (DATA.drive.some(d => d.id === item.drive_id)) chosenDrive = item.drive_id;
+      cal.photograph(api, {item, media:"cd", geo:item.geo, returnTo: () => {
+        api.goTo(...api.locate(item));
+        setHome("library");
+      }});
+      return;
+    }
+    if (calibrated(item)) { (await import("./design.js")).start(api); return; }
     const flow = await import("./calibrate.js");
     flow.start(api);
   });
@@ -1831,9 +1846,48 @@
   $("library-calibrate").addEventListener("click", async () => {
     const item = DATA[col][idx];
     const row = item.kind === "drive" ? item.disc?.media : col;
-    const media = row === "cd" ? "cd" : "dvd";
+    const media = ["cd", "bd"].includes(row) ? row : "dvd";
     const cal = await import("./calibrate.js");
-    cal.start(api, {item:{kind:"new", row:media, name:"", mid:"", s:"new"}});
+    const newItem = item.kind === "new" ? item : {kind:"new", row:media, name:"", mid:"", s:"new"};
+    if (inLibrary() && DATA[col][idx] === item) {
+      const row = col, index = idx;
+      cal.start(api, {item:newItem, returnTo: result => {
+        const saved = result?.batch;
+        if (saved) api.goTo(...api.locate(saved));
+        else api.goTo(row, index);
+        setHome("library");
+      }});
+    }
+  });
+  $("library-design").addEventListener("click", async () => {
+    const item = DATA[col][idx], design = await import("./design.js");
+    if (inLibrary() && DATA[col][idx] === item) design.start(api);
+  });
+  $("library-export").addEventListener("click", () => libraryAction($("library-export"), async () => {
+    const item = DATA[col][idx], name = batchName(item, col);
+    const geo = item.geo.replace(/[\\/]+$/, "");
+    const path = item.preset || (/\.json$/i.test(geo) ? geo : `${geo}/summary.json`);
+    const sectors = item.capacity_sectors;
+    const result = await backend.request("/api/presets", {operation:"export", path,
+      ...(hasCapability("library-batch-details") ? {name:name.slice(0, 120), ...(sectors > 0 ? {sectors} : {})} : {})});
+    (await import("./presetio.js")).downloadPreset(result.preset);
+    $("library-feedback").textContent = libraryWords().exported;
+  }));
+  $("library-check").addEventListener("click", () => libraryAction($("library-check"), async () => {
+    const item = DATA[col][idx], preparing = libraryWords().preparing;
+    $("library-feedback").textContent = preparing;
+    try {
+      await (await import("./design.js")).checkBatch(api, item, () => {
+        root.dataset.mode = "";
+        $("next").disabled = false;
+        api.goTo(...api.locate(item));
+        setHome("library");
+      });
+    } finally { if ($("library-feedback").textContent === preparing) $("library-feedback").textContent = ""; }
+  }));
+  $("library-remeasure").addEventListener("click", async () => {
+    const item = DATA[col][idx], cal = await import("./calibrate.js");
+    if (inLibrary() && DATA[col][idx] === item) cal.start(api, {item});
   });
   $("library-resume").addEventListener("click", async () => {
     const item = DATA[col][idx];
@@ -1850,6 +1904,30 @@
     catch (error) { $("library-feedback").textContent = backend.errorText(error, lang); }
     finally { button.disabled = false; }
   }
+  $("library-rename").addEventListener("click", () => {
+    $("batch-rename").hidden = false;
+    const input = $("batch-new-name");
+    input.value = batchName(DATA[col][idx], col).slice(0, input.maxLength);
+    input.focus(); input.select();
+  });
+  function closeRename() {
+    $("batch-rename").hidden = true;
+    $("library-rename").focus();
+  }
+  $("batch-name-cancel").addEventListener("click", closeRename);
+  $("batch-rename").addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); closeRename(); }
+  });
+  $("batch-rename").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const {id} = DATA[col][idx], name = $("batch-new-name").value.trim();
+    if (!name) return;
+    libraryAction($("batch-name-save"), async () => {
+      await backend.request("/api/catalogue", {id, name});
+      await syncState();
+      if (inLibrary() && DATA[col][idx].id === id) closeRename();
+    });
+  });
   $("library-delete").addEventListener("click", () => libraryAction($("library-delete"), async () => {
     const {id} = DATA[col][idx];
     const preview = await backend.request("/api/library", {operation:"preview", id});
@@ -1910,18 +1988,15 @@
       backendState = await backend.state(); backendError = null;
       const selectedId = DATA[col][idx]?.id;
       for (const row of ["dvd","cd","bd"]) {
-        const limit = {dvd:7,cd:6,bd:4}[row], kinds = backendState.catalogue[row];
-        overflow[row] = Math.max(0, kinds.length-limit);
-        DATA[row] = kinds.slice(0,limit).map(x => ({...x,s:x.s === "narrow_span" ? "narrow" : x.s}));
-        DATA[row].push({kind:"new",row,name:"",mid:"",s:"new"});
-        delete loaded[row];
+        DATA[row] = catalogueRow(row, backendState);
+        sizeRack(row);
       }
       // a drive plugged in (or gone) since the page opened: the drive stop and the chosen drive follow
       const drives = (backendState.drives || []).map(d => ({...d, kind:"drive", name:d.name || d.id, mid:d.id, s:"unknown"}));
       if (drives.length) { DATA.drive = drives; if (!drives.some(d => d.id === chosenDrive)) chosenDrive = drives[0].id; }
-      if (col !== "drive") idx = Math.max(0, DATA[col].findIndex(x => x.id === selectedId));
+      if (col !== "drive") idx = selectedId ? Math.max(0, DATA[col].findIndex(x => x.id === selectedId)) : 0;
       else idx = Math.min(idx, DATA.drive.length - 1);
-      if (!root.dataset.mode) { await loadSolid(col); render(1,true); }
+      if (!root.dataset.mode) { render(1,true); await loadSolid(col); paintRack(DATA[col][idx]); }
     } catch(e) {backendError=e; if (!root.dataset.mode) render(1,true);}
     globalThis.dispatchEvent?.(new Event("dp-drive-state"));
   }
@@ -1997,7 +2072,11 @@
     return ["dvd", DATA.dvd[0]];
   }
   function setHome(where) {
-    if (where === "library") wakeScene();
+    if (where === "library") {
+      wakeScene();
+      const row = col;
+      loadSolid(row).then(() => { if (row === col) paintRack(DATA[col][idx]); });
+    }
     root.dataset.home = where;
     $("back").hidden = where !== "library";
     if (where === "lobby") { paintRecent(); refreshLobbyDisc(); }
@@ -2060,7 +2139,8 @@
     chooseBatch(plan) { choosingFor = plan; setHome("library"); },
     inspectBatch(kind, item, resume) {
       inspectingBatch = resume;
-      col = kind; idx = Math.max(0, DATA[kind].indexOf(item)); setHome("library");
+      const index = DATA[kind].findIndex(row => row === item || item?.id && row.id === item.id);
+      col = kind; idx = Math.max(0, index); setHome("library");
     },
     rememberBatch(item) { try { if (item?.id) localStorage.setItem("dp-batch", item.id); } catch {} },
     lastBatch,
@@ -2073,8 +2153,7 @@
     platform: () => backend.mock ? (/win/i.test(navigator.platform) ? "win32" : "linux") : backendState?.platform ?? "",
     // the disc batches of one kind (the library's entries, no empty place, no drive stop)
     catalogue(kind) {
-      const shelf = (DATA[kind] ?? []).filter((x) => x.kind !== "new" && x.kind !== "drive");
-      return [...shelf, ...(backendState?.catalogue?.[kind] ?? []).slice(shelf.length)];
+      return (DATA[kind] ?? []).filter(x => x.kind !== "new" && x.kind !== "drive");
     },
     // what the drive holds, as the shelf names it ("Verbatim DVD-R"), else its kind ("DVD-R Sequential");
     // empty if no disc or not read yet

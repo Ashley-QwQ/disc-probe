@@ -1,5 +1,20 @@
 export const calibrated = (item) => ["good", "usable"].includes(item?.s);
 
+export const geometryId = (item) => item?.geo?.replace(/\\/g, "/").replace(/\/(?:summary\.json)?$/, "").split("/").at(-1);
+
+export function libraryBatchName(item, media, lang) {
+  const name = item.name?.trim();
+  const raw = geometryId(item);
+  if (name && name !== raw) return name;
+  if (item.mid?.trim()) return item.mid.trim();
+  const medium = item.media_kind || media.toUpperCase();
+  const date = /^\d{4}-(\d{2}-\d{2})$/.exec(item.last)?.[1];
+  const drive = item.drive === "unknown drive" ? null : item.drive;
+  return [medium, drive, date || (lang === "zh" ? "日期未记录" : "Date not recorded")].filter(Boolean).join(" · ");
+}
+
+export const needsCdPhoto = (item, media) => media === "cd" && calibrated(item) && !!item.geo && item.along_track?.known !== true;
+
 export function sameMaker(a, b) {
   return !!a && !!b && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 }

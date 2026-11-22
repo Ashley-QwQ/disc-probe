@@ -215,9 +215,9 @@ export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck
   returnTo = back; returnAnim = returnLabel = null;
   flow = newFlow(item ?? { kind: "new", row: media, name: "", mid: "", s: "new" });
   if (!ui) build();
-  flow.detected = { media, mid: item?.mid ?? null, capacity_sectors: item?.sectors ?? null };
+  flow.detected = { media, mid: item?.mid ?? null, capacity_sectors: item?.capacity_sectors ?? item?.sectors ?? null };
   // the burn page's own record of this write: the photo result names how the disc was burned (photo.photo_l)
-  flow.geo = { path: geo }; flow.burnCheck = burnCheck; flow.photoOnly = true; flow.realPhase = "photo";
+  flow.geo = { path: geo?.replace(/[\\/]summary\.json$/i, "") }; flow.burnCheck = burnCheck; flow.photoOnly = true; flow.realPhase = "photo";
   if (burnCheckFailed(burnCheck)) { flow.photoOnly = false; flow.realPhase = "review"; }
   return open();
 }

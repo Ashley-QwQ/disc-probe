@@ -573,9 +573,7 @@ export async function init(entry, fetcher = fetch) {
     const result = await request(fetcher, {operation: 'export', path: $('[data-presets]').value, install});
     if (install) message('installed', result.installation);
     else {
-      const blob = new Blob([JSON.stringify(result.preset, null, 2) + '\n'], {type: 'application/json'});
-      const url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url;
-      link.download = 'dis-preset.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      downloadPreset(result.preset);
       message('saved');
     }
   }));
@@ -666,4 +664,13 @@ export async function init(entry, fetcher = fetch) {
   current = {sheet, load, close, open};
   dispatchEvent(new Event('dp-presets-ready'));
   return current;
+}
+export function downloadPreset(preset) {
+  const blob = new Blob([JSON.stringify(preset, null, 2) + '\n'], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'dis-preset.json';
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
