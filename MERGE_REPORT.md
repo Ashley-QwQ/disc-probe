@@ -1,64 +1,50 @@
-# AM · BG 合并与 alpha 验收
+# AM2 · alpha 集成与验收
 
-合并分支为 `dev/alpha-merge`。刻录、擦除和换盘验收使用 Disc Lab 虚拟光驱及独立回环端口。8765 验收前后的监听 PID 均为 31360。提交仅在本地合并分支，`dev/1.0.0` 仍指向 `a7b5fbf`。
+集成分支为 `dev/alpha-merge-2`，基点 `e752ef5`。SN 包含 LM，五次合并带入六张卡。`dev/1.0.0` 仍在 `e752ef5`。SR 未合入，所有提交留在本地集成分支。
 
 ## 提交
 
-- `4011a8c` 合并 BG。保留前七张卡的结果和 BG 两个原始提交。BG 验收报告归档到 [burn-gates-report.md](docs/cards/burn-gates-report.md)。
-- `4fcd888` 修复验收发现的整合问题。刻后检查延迟加载数值依赖，CLI 可在未安装 NumPy 时创建参数解析器。补齐命令帮助翻译和引用行号。390 像素的手动对齐页把顶部位置和高度计算改为共享同一个变量，英文评分恢复可见。测试夹具对齐几何覆盖、已写末端、异批令牌、异步返回和虚拟光驱的实际行为。
-- `1c2335d` 补齐 `geo --resume` 和实时 JSON 事件的中文帮助，并刷新受影响的帮助引用行号。
-
-## 冲突
-
-| 文件 | 处理 |
+| 提交 | 内容 |
 | --- | --- |
-| `discprobe/__main__.py` | `cmd_image` 同时导入 `imagecheck` 和 `burn_gate`，保留半径检查、镜像抽样验证和测量 MID 附档。 |
-| `discprobe/api.py`、`discprobe/web/gui.json` | API 保持 1.2。核心和 GUI 清单均有 `geo-coverage`、`photo-manual-alignment`、`checkburn`、`burn-preflight`。 |
-| `discprobe/calibrate.py` | 子进程传递盘身份环境、`MEASUREMENT_ENV` 和可用的 `EXPECTED_MID_ENV`，支持显式的 `allow_other_batch`。CLI 同时保留续测与放行参数。 |
-| `discprobe/web/home/calibrate.js` | 保留 BG 症状直显、重新检查、`burnGate` 和 `measurementGateText`。批次默认 MID 在 `...args` 前面，调用方可覆盖。续测继续传 `args.resume` 并清空 `avoid_mm`。保留工作返回文案 `returnLabel`、保存失败回到结果、任务时钟和测点事件。 |
-| `discprobe/web/home/design.js` | `toBurn()` 先拦截「稍后再定」，再走 BG 的 `checkBurn` 和 `confirmBurn`。移除旧的 `inspectDisc()` 检查链。确认继续绑定作品镜像、盘身份和所同意的 MID。 |
-| `tests/test_gui_handshake.mjs`、`tests/test_gui_handshake.py` | 两侧分别验证四项能力及老 core 单独缺每一项时的结果。同时保留原有必需能力、`works` 和版本测试。 |
-| `tests/test_photo_wire.mjs` | 同时提供 `jobClock`、`hasCapability` 和 `burnPreflight`。 |
-| `tests/test_photo_wire_browser.mjs` | 保留时钟、标定画面计时和手动对齐路由；给刻录步骤加上 BG 所需的 `burnInspection`。 |
-| `tests/test_review_library_newwork.mjs` | 等待目标盘库的路由、导航完成和精确批次，再点击返回。返回表单和再次进盘库时均等目标路由就绪。 |
+| `589e0a8` | 合入 SN 和其祖先 LM。归档[盘库导航](docs/cards/shelf-nav-report.md)和[盘库管理](docs/cards/library-manage-report.md)。 |
+| `6de68f4` | 合入 CN。归档[彩色刻图新手走查](docs/cards/colour-novice-report.md)。 |
+| `bae6441` | 合入 TE，统一 API 版本与能力。TE 的分支提交不含卡片报告，归档该卡工作目录交付的[模板导出报告](docs/cards/template-export-report.md)。 |
+| `e12cb7f` | 合入 WC。归档[为什么要标定](docs/cards/why-calibrate-report.md)。 |
+| `ab7f37a` | 合入 FS。归档[传真回执](docs/cards/fax-slip-report.md)。 |
+| `9740392` | 增加三项新能力各自缺席时的握手断言，刷新排错引用。 |
+| `a1fb7ec` | 重建 Probe 和 Lab 的标题字体子集及生成样式，补齐 WC 新增的「漩」字。两份子集相同，各 777,448 字节，覆盖 3,808 个码位。Adobe 官方发布包及提取的 Heavy OTF 均与品牌卡的 SHA-256 相符。 [生成记录](D:/dp-dev/tmp/alphamerge2/logs/title-font-subset.json) |
 
-`CARD_REPORT.md` 在合并时取 ours，Git blob 与 `a7b5fbf` 相同。复核了 MS 合并点 `a140709` 和 NS 合并点 `1dff34b`。标定保存后的自动 `photoStamp` 仅在非 `manual-*` 来源显示，下一步仍采用 RWB 的 `returnLabel`。拍照和盘库夹具的两边行为在合并后均有通过记录。
+## 冲突与重叠
+
+| 位置 | 处理 |
+| --- | --- |
+| `discprobe/data/troubleshoot.json` | SN 与基点在三个条目的 `sources` 行重叠，关键词相同，先保留基点行号，再合入 WC 的排错内容。最终用 `python tools/refresh_troubleshoot_citations.py` 更新 29 处，随后的 `--check` 退出码 0。 [刷新日志](D:/dp-dev/tmp/alphamerge2/logs/citations-refresh.log) |
+| `discprobe/api.py`、`discprobe/web/gui.json`、`docs/API_VERSIONING.md` | API 取 1.5。核心能力和 GUI 可选能力同时登记 `library-management`、`library-batch-details`、`grid-templates`。版本文档将 TE 的独立 1.4 条目标为随本分支 1.5 发布。 |
+| `design.js`、`design.css`、`design/editor-*.mjs` | 自动合并后检查入口与实际页面。CN 的 DVD 彩色图默认入口、首次说明和手动配色折叠仍在右侧；TE 的三档下载与返导在图层栏，老 core 可继续使用原模板入口；SN 的批次选择继续给编辑器传递所选批次。 |
+| 新手引导、刻完页 | WC 的中英文说明同时接入引导和刻后检查单。浏览器用例走过两处页面，刻完页截图另核对两条相应语言的说明链接均返回 HTTP 200。 |
+| 根目录 `CARD_REPORT.md` | 每个合并点使用 `e752ef5` 的 blob `aceed48298149378bf1960b7093057dfa6b4a947`，六份交付报告另归档。 |
 
 ## 测试
 
-- JavaScript 全部 59 个 `tests/test_*.mjs` 文件，按文件执行 `node --test --test-concurrency=1`。37 个非浏览器文件、22 个浏览器文件。首轮 56 通过、3 失败，定向复跑后 59 个文件、83 项均通过。另跑 `tests/test_burn_page.cjs`，通过。旧的 DOM 导出夹具由脚本改用 CDP。Disc Lab 浏览器用例只启用虚拟光驱。当前 worktree 名称未触发预设静态路径保护。 [首轮日志](D:/dp-dev/tmp/alphamerge/logs/js-browser/) · [复验日志](D:/dp-dev/tmp/alphamerge/logs/js-retry/) · [刻录页单测](D:/dp-dev/tmp/alphamerge/logs/js-cjs/test_burn_page.log)
-- `pytest -n 3` 覆盖 `tests/` 下的测试。首轮 1,326 通过、14 失败、1 跳过。14 个失败都在 `pytest -n 2` 的 99 项定向复验中通过，另做了 31 项核心复验。按用例合计，1,340 项有通过记录，1 项因缺少 `calib-simple` 研究夹具跳过。原图目录检索的一个用例因路径约束在收集时排除。冻结读取器的已存结果复算仍执行。 [全量日志](D:/dp-dev/tmp/alphamerge/logs/pytest.log) · [99 项复验](D:/dp-dev/tmp/alphamerge/logs/pytest-target.log) · [31 项核心复验](D:/dp-dev/tmp/alphamerge/logs/pytest-final-core.log)
-- 另以 `pytest -n 3` 跑根目录收集范围中的 `disclab/tests/` 和 `tools/synth_photo_test.py`，162 通过、0 失败、1 跳过。跳过项需要 `DISCLAB_A3_SOURCE`，工具脚本只通过收集。两批 Python 测试合计 1,502 项有通过记录，2 项跳过。 [Disc Lab 日志](D:/dp-dev/tmp/alphamerge/logs/pytest-disclab.log)
-- `python -B -X utf8 -m discprobe selftest` 最终从仓库根目录运行，退出码 0，日志记录 1,464 条通过、0 条失败。初跑的工作目录漏了相对路径夹具，后续检查找出了续测、实时事件、手动对齐和刻后只读检查的中文帮助缺口。修复后完整自检通过。 [自检日志](D:/dp-dev/tmp/alphamerge/logs/selftest-final.log)
+- `python -m pytest -n 3` 首轮收集 1,371 项，1,369 通过、1 失败、1 跳过，耗时 8 分 25 秒。唯一失败为 `test_title_font_covers_all_interface_chinese_and_level_one` 缺「漩」。重建后用 `pytest -n 2` 复验品牌、握手、排错引用、网页引导及 Disc Lab 打包，33 项通过。第一轮的失败项目已转为通过，主测试范围合计 1,370 项有通过记录。手动照片对齐有一条 NumPy 空切片警告，该用例通过。 [全量日志](D:/dp-dev/tmp/alphamerge2/logs/pytest.log) · [33 项复验](D:/dp-dev/tmp/alphamerge2/logs/pytest-target.log)
+- Disc Lab 的 `disclab/tests` 与 `tools/synth_photo_test.py` 使用 `pytest -n 3`，162 通过、1 跳过。直接模型校对用例需要 `DISCLAB_A3_SOURCE`。工具脚本参与收集。 [Disc Lab 日志](D:/dp-dev/tmp/alphamerge2/logs/pytest-disclab.log)
+- 全部 `tests/test_*.mjs` 用 `node --test --test-concurrency=1` 逐文件执行。首轮 60 通过、1 失败，往期作品用例等待 16 件夹具进入列表时超时。串行复验覆盖两套主题、四种宽度、滚动和焦点，原断言通过。字体重建后品牌浏览器和标题度量两项复验也通过。共 61 个文件、90 项通过。三种独立缺失能力场景通过 Python、JavaScript 和 Edge 的握手检查。 [首轮日志](D:/dp-dev/tmp/alphamerge2/logs/js-all/) · [复验日志](D:/dp-dev/tmp/alphamerge2/logs/js-retry/)
+- `python -B -X utf8 -m discprobe selftest` 首轮仅报标题子集缺字。重建后从仓库根目录完整复跑，1,474 条 `ok`、0 条失败，退出码 0。 [首轮](D:/dp-dev/tmp/alphamerge2/logs/selftest.log) · [终轮](D:/dp-dev/tmp/alphamerge2/logs/selftest-final.log)
+- 模板测试实际生成三种分辨率和 DPI，20 µm 档的标记返导位置误差 0 像素。W245 浏览器测试通过 18 条交互和合成检查，四组静止画布的哈希相同。 [模板用例](tests/test_template_grid.py) · [W245 日志](D:/dp-dev/tmp/alphamerge2/logs/js-all/test_editor_w245_browser.log)
+- 原图命令复算未测。两处默认候选目录内经排除项过滤后未找到允许读取的原图。补查跳过原因时，把输入指向隔离空目录，pytest 报 1 跳过。该次补查由 pytest 按测试名自动生成的空临时目录命中了禁入词，并随测试清理。这是执行偏差，已撤掉补跑路径。原图未读取，已存投票复算通过。主全量的另一个跳过项是 `calib-simple` 夹具。 [跳过记录](D:/dp-dev/tmp/alphamerge2/logs/pytest-source-photo.log)
 
-Python 首轮失败及处置如下。
+## 默认输出与作品库
 
-| 数量 | 失败项 | 原因和复验 |
-| ---: | --- | --- |
-| 1 | `test_pending_geo_uses_recorded_end_even_if_drive_reports_full_capacity` | RWA 可把初始 98% 的范围扩到已写末端。保留初始范围断言，并检查扩展范围和所有读取均在已写数据内。 |
-| 1 | `test_document_preview_http_cli` | 拒绝跨源请求的用例收到 WinError 10053。代码沿用原样，同一用例复验通过。 |
-| 1 | `test_pitch_refit_retains_completion_convention` | NS 的新命令在参数解析时提前导入 NumPy。数值探测移到执行刻后检查时才导入。 |
-| 5 | `test_calibrate_exports_whole_capacity` | 旧容量夹具没有 RWA 要核对的实测半径，在夹具补齐覆盖范围。 |
-| 1 | `test_finding_2_burn_grant_matches_one_job` | BG 拒绝换盘后的旧令牌时新增 `disc_changed`。断言仍要求 403 和原错误，并验证新增代码。 |
-| 4 | `test_single_instance.py` | 外层禁用光驱的环境变量把虚拟盘也屏蔽了。仅在虚拟盘夹具去掉该变量。 |
-| 1 | `test_citations_and_bilingual_data` | 各卡合入改变了引用行号。用仓库脚本按原关键词重新定位。 |
+`python -B -X utf8 D:/dp-dev/tmp/alphamerge2/compare_defaults.py all` 与 `core-artifacts` 以 `e752ef5` 为基线，使用同一输入、输出路径、固定时钟和虚拟盘种子。29 组对照退出码均为 0，标准输出和标准错误逐字节一致。10 组是五条命令的中英文帮助。成功场景同时比较了中英文刻录日志、读盘 JSON、合成照片 JSON、CD/DVD 的整盘 ISO 和附档、预设 JSON，以及含已知测量 MID 的短 DVD。两种照片修正设置各自与基线一致，同一盘种的自动修正和无照片 ISO 哈希不同。整盘 ISO 只保留哈希。 [回归脚本](D:/dp-dev/tmp/alphamerge2/compare_defaults.py) · [逐项哈希](D:/dp-dev/tmp/alphamerge2/logs/parity/comparisons.jsonl)
 
-JavaScript 首轮中，刻后检查遇到后台读盘占用，未改该路径，串行复跑通过 24 项。导航用例在返回完成前点击盘库，增加路由就绪等待后通过。往期作品用例等待 16 个样本进入列表时超时，未改该路径，串行复跑覆盖四种宽度和两种主题并通过。额外运行拍照浏览器用例的截图断言时，英文窄屏读数超出纸面，修复后八种截图组合和交互断言均通过。 [对齐复验](D:/dp-dev/tmp/alphamerge/logs/js-photo-verified/test_photo_wire_browser.log)
+作品库 `D:/dp-dev/integ/works` 验收前后均为 7 件作品、66 个条目，逐项核对文件时间、大小和 SHA-256 一致。测试和截图使用 D 盘上的独立状态目录，`TEMP` 和 `TMP` 指向长路径。开跑前和全量测试前的可用空间均高于 5 GiB。成功场景的临时镜像、浏览器配置、字体源包和基线副本已清理。 [验收前快照](D:/dp-dev/tmp/alphamerge2/logs/works-before.json) · [验收后快照](D:/dp-dev/tmp/alphamerge2/logs/works-after.json)
 
-## 逐字节对照
+## 截图与审查
 
-`compare_defaults.py` 从 `a7b5fbf` 提取基线，与合并版使用相同输入、路径和固定时钟运行。虚拟刻录还固定了 Disc Lab 的写入抖动种子。 `photo` 使用合成照片，已知的数值库运行时警告在两边均关闭。 [运行脚本](D:/dp-dev/tmp/alphamerge/compare_defaults.py) · [逐项哈希](D:/dp-dev/tmp/alphamerge/logs/parity/verified.json)
+64 张截图，每个界面 8 张。范围为大厅、盘库批次列表、盘库批次详情、新建页、编辑器彩色面板、模板导出、刻完页和传真回执。每页覆盖 1440 × 900、390 × 844、纸色与夜色、中文与英文。无头 Edge 通过 CDP 走实际页面，刻完页使用隔离工作区的保存记录，传真回执使用本地 404 夹具。模板截图打开 5 µm 档，显示 24,000 × 24,000 和单层 2.15 GiB 提示。64 张均核过尺寸、SHA-256 和画面内容对应的 DOM 状态。 [截图目录](D:/dp-dev/tmp/alphamerge2/shots/) · [逐张记录](D:/dp-dev/tmp/alphamerge2/shots/capture.json) · [截图核验](D:/dp-dev/tmp/alphamerge2/logs/capture-check.json)
 
-- 中英文 `burn`、`info`、`photo` 的正常运行各两组。退出值、标准输出、标准错误相同，`photo.json` 相同。
-- `image` 和 `disexport` 以 CD/DVD 分别运行自动照片修正和无照片，共四组。标准输出、标准错误、四个 ISO、四份 ISO 附档和四份预设的 SHA-256 相同。同一盘种的自动修正与无照片两份 ISO 的哈希不同。比较结束后删除生成的大 ISO。
-- 有测量 MID 的短 DVD 对照中，ISO 和命令输出相同，附档唯一新增字段为 `calibration_mid: "RITEKF1"`。双语 `burn --help` 和 `photo --help` 随新增参数变化。双语 `info --help` 和 `image --help` 相同。共 18 组完全相同、5 组有预期字段或帮助变化。
+请 Claude 转达审查人。390 像素的大厅、新建页和传真回执各四个组合，文档宽度为 437 像素。批次详情在窄屏展开后滚动到详情处取图。视觉取舍留给审查。实体光驱、实体写入、原照片复算及传真外网源未测。集成分支是否合入 `dev/1.0.0` 待用户决定。
 
-## 截图与转达
-
-`capture.mjs` 通过无头 Edge 和 CDP 生成 48 张主图。新建作品、编辑器、预览、刻录、标定和刻完页各 8 张，覆盖 1440×900、390×844、纸色、夜色、中文和英文。另有 4 张窄屏异批确认细节和 8 张手动对齐截图。新建从实际虚拟盘读取批次，在编辑和预览验证留空拦截。刻录和标定用小镜像进入实际页面和预检，作品异批确认后虚拟写入并进入刻完页，96 个抽样块全部匹配。逐张核过尺寸和页面状态，预览等待盘面绘制后取图。 [截图目录](D:/dp-dev/tmp/alphamerge/shots/) · [主图记录](D:/dp-dev/tmp/alphamerge/shots/capture.json) · [回读记录](D:/dp-dev/tmp/alphamerge/logs/capture-report.json)
-
-请 Claude 转达审查人。390 像素截图中，新建、预览和刻录入口出现横向滚动，文档宽度为 437 像素，主面板仍在视口横向范围内。窄屏的异批确认另外保存了滚动到提示处的细节。视觉取舍留给审查。老 core 缺各项能力的握手已测，缺 `burn-preflight` 的老 core 实际刻录未测。实体光驱、实体写入及原图目录检索未测。合入 `dev/1.0.0` 仍待用户点头。
-
-核对了 `CARD_REPORT.md`、`discprobe/pcal.py` 和 `evidence/atlas/*.py` 与基线一致。D 盘开跑及全量测试前均超过 5 GiB。已清理成功场景的 Lab、浏览器配置、ISO 和基线副本，保留日志、截图、哈希和失败现场。
+`git diff --check` 通过。核对 `discprobe/pcal.py`、`evidence/atlas/*.py` 和根目录 `CARD_REPORT.md` 的基点差异为空。本机服务使用独立回环端口。 [验收数字汇总](D:/dp-dev/tmp/alphamerge2/logs/verification-summary.json)
 
 STATUS: DONE
