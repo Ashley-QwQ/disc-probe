@@ -14,6 +14,8 @@ python -m discprobe checkburn --drive E: --json
 
 在网页的「新手引导」里看「光怎么变成图」的示意动画。也可以看[看盘和拍照](../README.md#第-6-步看盘和拍照)的示意图。
 
+[刻图前为什么要标定？](why-calibrate.zh.md)
+
 # No picture after burning
 
 Insert the recorded disc. On the post-burn page, open “Can’t see the picture?” to review the saved read-back sample. Choose “Check the disc in the drive” to check the state and content of the disc currently inserted. The command line also checks discs made with DIS or other software.
@@ -29,3 +31,5 @@ python -m discprobe checkburn --drive E: --json
 - A media code can be shared by different batches. If a matching calibration record exists, check the batch and the preset used to make the image. The tool recognizes nominal DIS presets named in a disc identity record. Pass `--dis-nominal` if you used one and the disc does not carry that information. If the read-back matches and pattern data is present, check the light and calibration.
 
 See “How light becomes a picture” in the web Start guide or the diagram in [Look at the disc and photograph it](../README.en.md#step-6-look-at-the-disc-and-photograph-it).
+
+[Why calibrate before burning a picture?](why-calibrate.md)

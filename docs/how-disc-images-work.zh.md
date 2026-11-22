@@ -1,6 +1,6 @@
 # 光盘怎么变成图
 
-[English](how-disc-images-work.md)
+[English](how-disc-images-work.md) · [刻图前为什么要标定？](why-calibrate.zh.md)
 
 ## 先把盘上的图找出来
 
