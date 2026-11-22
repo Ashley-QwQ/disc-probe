@@ -169,6 +169,7 @@ try {
   await selection(2,'DVD-MID-3');
   await click('.shelf-batch[data-index="9"]');
   await selection(9,dvd[9].name);
+  await until(`Array.from(document.querySelectorAll('.layer.solid[data-row="dvd"] .disc')).some(d=>d.classList.contains('is-on') && d.dataset.idx==='6' && d.getBoundingClientRect().width > 0)`);
   await key('ArrowRight',39);
   await selection(9,dvd[9].name);
   assert.equal(await evaluate(`document.querySelector('#batch-next').disabled && !document.querySelector('.batch-copy-leaving') && !document.querySelector('#batch-copy').getAnimations().length`),true);
@@ -177,6 +178,7 @@ try {
 
   await click('.kind[data-col="cd"]');
   await selection(0,'CD-R · GH70N · 11-04');
+  await until(`document.querySelector('.layer.solid[data-row="cd"] .disc.is-on[data-idx="0"]')?.getBoundingClientRect().width > 0`);
   assert.equal(await evaluate(`document.querySelector('#next-text').textContent`),'Calibrate with photos');
   assert.match(await evaluate(`document.querySelector('#why').textContent`), /Radial lines may twist/);
   assert.equal(await evaluate(`document.querySelector('#left').parentElement.hidden && document.querySelector('#batch-history').hidden`),true);
