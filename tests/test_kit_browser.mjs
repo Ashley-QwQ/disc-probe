@@ -233,8 +233,10 @@ if (!existsSync(edge)) {
       console.log(`UI kit browser integration passed (${size}; file URLs, synthetic events)`);
     }
     // Exact tokens are a requirement; the live index belongs to other concurrent jobs.
-    const index = readFileSync(new URL('../discprobe/web/home/index.html', import.meta.url), 'utf8');
-    const preview = readFileSync(new URL('kit-preview.html', kit), 'utf8');
+    // Compare text, not line endings: a checkout may hold either file with LF or CRLF.
+    const lines = (text) => text.replace(/\r\n/g, '\n');
+    const index = lines(readFileSync(new URL('../discprobe/web/home/index.html', import.meta.url), 'utf8'));
+    const preview = lines(readFileSync(new URL('kit-preview.html', kit), 'utf8'));
     for (const selector of [':root', ':root[data-theme="dark"]']) {
       const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const block = index.match(new RegExp(`^  ${escaped} \\{[\\s\\S]*?^  \\}`, 'm'))?.[0];
