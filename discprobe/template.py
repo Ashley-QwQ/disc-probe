@@ -61,7 +61,7 @@ def _preset(data, preset_id):
     return entries[0]
 
 
-def geometry(source, media=None, sectors=None, preset_id=None):
+def geometry(source, media=None, sectors=None, preset_id=None, *, include_batch=False):
     """Read a geo summary/folder or DIS preset; N is an exclusive sector boundary.
 
     Cubic preset pitch is integrated in radius, as disexport.dis_angle_map does,
@@ -82,6 +82,8 @@ def geometry(source, media=None, sectors=None, preset_id=None):
         f = data['fit']
         if not isinstance(f, dict) or not isinstance(data.get('setup', {}), dict):
             raise ValueError('geo fit and setup must be objects')
+        identity = data.get('identity')
+        batch = identity.get('disc') if isinstance(identity, dict) else None
         kind = f.get('media') or (data.get('setup') or {}).get('media') or ('bd' if f.get('model') == 'clv' else 'dvd')
         last = (data.get('setup') or {}).get('last_lba')
         capacity = _count(last + 1, 'batch capacity') if type(last) is int else None
@@ -107,6 +109,7 @@ def geometry(source, media=None, sectors=None, preset_id=None):
         notes.append('测量比例继承 geo 假定的沿轨长度 / Scale inherits the geo along-track assumption')
     else:
         f = _preset(data, preset_id)
+        batch = f.get('id') or f.get('displayName')
         kind = 'cd' if 'sectors' in f else 'bd' if 'layerCount' in f else 'dvd'
         if f.get('layerCount', 1) != 1:
             raise ValueError('multi-layer presets do not have a single monotonic radius map')
@@ -141,7 +144,8 @@ def geometry(source, media=None, sectors=None, preset_id=None):
     return dict(media=kind, sectors=n, capacity_sectors=capacity, outer_mm=60.0, hole_mm=7.5,
                 clamp_mm=17.0, start_mm=ri, end_mm=end, margin_mm=MARGIN_MM,
                 safe_start_mm=ri + MARGIN_MM, safe_end_mm=end - MARGIN_MM,
-                source_sha256=hashlib.sha256(raw).hexdigest(), notes=notes)
+                source_sha256=hashlib.sha256(raw).hexdigest(), notes=notes,
+                **({'batch': batch} if include_batch and isinstance(batch, str) and batch != 'unknown disc' else {}))
 
 
 def parse_pose(value):
@@ -472,9 +476,13 @@ def zip_bytes(files):
 
 
 def write(geo, out='disc-template', **options):
-    files = export_files(geo, **options)
+    return write_files(export_files(geo, **options), out)
+
+
+def write_files(files, out):
+    from .works import atomic
     target = Path(out)
     target.mkdir(parents=True, exist_ok=True)
     for name, raw in files.items():
-        (target / name).write_bytes(raw)
+        atomic(target / name, raw)
     return target

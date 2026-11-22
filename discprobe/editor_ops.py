@@ -10,6 +10,7 @@ import io
 import json
 import math
 from collections import deque
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 import numpy as np
 from . import editor_pattern
@@ -139,6 +140,13 @@ def validate(d):
             raise ValueError("SVG requires the page raster fallback beside the original")
         if not l.get("raster") and not l.get("shape"):
             raise ValueError("layer needs an RGBA raster or shape; use image --design for old path-based edit documents")
+        if "gridPng" in l:
+            from .template_grid import PNG_DATA_PREFIX, PNG_LIMIT
+            png = l["gridPng"]
+            if (l.get("kind") != "image" or not l.get("raster") or l.get("shape") or
+                    not isinstance(png, str) or not png.startswith(PNG_DATA_PREFIX) or
+                    len(png) > len(PNG_DATA_PREFIX) + 4 * ((PNG_LIMIT + 2) // 3)):
+                raise ValueError("invalid native template layer")
     g=d["maskGrid"]
     if not 1 <= g["width"] <= 2400 or not 1 <= g["height"] <= 2400 or g["cell_mm"] <= 0:
         raise ValueError("mask grid")
@@ -216,8 +224,37 @@ def delta(x,y,phone):
     return np.abs(v)
 
 
-def compose(data, g=None, out=None, *, colour_table=None):
-    d=validate(migrate(data));g=g or grid(round(120/d["cell"]))
+def _picture_values(px, materials, tone):
+    slots = np.full(px.shape[:-1], -1, np.int16)
+    # Only explicit template colours identify materials. The palette's swatches can share RGB.
+    for k, rgb in materials:
+        same = (slots < 0) & np.all(px[..., :3] == rgb, axis=-1)
+        slots[same] = k
+    lum = editor_tone.luminance(*(px[..., c].astype(np.int32) for c in range(3)))
+    return slots, tone[lum]
+
+
+@contextmanager
+def _native_layers(layers, scratch):
+    with ExitStack() as stack:
+        native = {}
+        for l in layers:
+            if l.get("gridPng") and l["visible"]:
+                from .template_grid import PNG_DATA_PREFIX, native_raster
+                raw = base64.b64decode(l["gridPng"][len(PNG_DATA_PREFIX):], validate=True)
+                native[l["id"]] = stack.enter_context(native_raster(raw, scratch))
+                del raw
+        yield native
+
+
+def compose(data, g=None, out=None, *, colour_table=None, scratch=None):
+    d = validate(migrate(data))
+    with _native_layers(d["layers"], scratch) as native:
+        return _compose(d, g, out, colour_table, native)
+
+
+def _compose(d, g, out, colour_table, native):
+    g=g or grid(round(120/d["cell"]))
     w,h=g["width"],g["height"]
     out=np.zeros((h,w),np.uint8) if out is None else out
     ids={m["id"]:i for i,m in enumerate(d["materials"])}
@@ -255,23 +292,18 @@ def compose(data, g=None, out=None, *, colour_table=None):
             colour[l['id']] = matcher, layer_table.get('delta_scale', 1.), codes
     dark=ids.get("dark",next((i for i,m in enumerate(d["materials"]) if m["spec"]=="A5"),1))
     # per picture: the template colour each pixel matches (-1: none) and its toned grey (editor_tone)
-    source_slots={};greys={};tones={};diffusion={}
+    source_slots={};greys={};tones={};diffusion={};tone_tables={}
+    material_colours = [(k, m["rgb"]) for k, m in enumerate(d["materials"])
+                        if "rgb" in m and m.get("template_name")]
     for l in d["layers"]:
         if l.get("raster") and l['id'] not in colour:
-            px=raster[l["id"]];tones[l["id"]]=editor_tone.tone(l.get("tone"))
-            slots=np.full(px.shape[:2],-1,np.int16)
-            matched=np.zeros(px.shape[:2],bool)
-            ordered=sorted(enumerate(d["materials"]),key=lambda item:not bool(item[1].get("template_name")))
-            for k,m in ordered:
-                # only a downloaded template's colours are a material's key: the palette's own import colours
-                # repeat (145 swatches share 50,50,50), and a photo's pixel must not pick one of them by accident
-                if "rgb" in m and m.get("template_name"):
-                    same=np.all(px[:,:,:3]==m["rgb"],axis=2)&~matched;slots[same]=k;matched|=same
-            source_slots[l["id"]]=slots
-            lum=editor_tone.luminance(*(px[:,:,c].astype(np.int32) for c in range(3)))
-            greys[l["id"]]=np.asarray(editor_tone.table(tones[l["id"]]),np.uint8)[lum]
-            if tones[l["id"]]["dither"]=="floyd-steinberg":
-                diffusion[l["id"]]=editor_tone.Diffusion(w,tones[l["id"]]["strength"])
+            ident = l["id"]
+            tones[ident] = editor_tone.tone(l.get("tone"))
+            tone_tables[ident] = np.asarray(editor_tone.table(tones[ident]), np.uint8)
+            if ident not in native:
+                source_slots[ident], greys[ident] = _picture_values(raster[ident], material_colours, tone_tables[ident])
+            if tones[ident]["dither"]=="floyd-steinberg":
+                diffusion[ident]=editor_tone.Diffusion(w,tones[ident]["strength"])
     columns=np.arange(w)
     def shade(a,x,y,u,v,j):
         if "pattern" in a:
@@ -302,8 +334,15 @@ def compose(data, g=None, out=None, *, colour_table=None):
             if r:
                 sx=np.floor((u+.5)*r["width"]).astype(int);sy=np.floor((v+.5)*r["height"]).astype(int)
                 cy,cx=np.clip(sy,0,r["height"]-1),np.clip(sx,0,r["width"]-1)
-                px=raster[l["id"]][cy,cx]
                 inside=(sx>=0)&(sy>=0)&(sx<r["width"])&(sy<r["height"])
+                exact = native.get(l["id"])
+                if exact is None:
+                    px=raster[l["id"]][cy,cx]
+                else:
+                    px = exact.row(np.floor((u + .5) * exact.side).astype(int),
+                                   np.floor((v + .5) * exact.side).astype(int))
+                    if l["id"] not in diffusion and not px[:, 3].any():
+                        continue
                 hit=inside&(px[:,3]*l["opacity"]>255*(COVERAGE[j%4,columns%4]+.5)/16)
                 if l['id'] in colour:
                     hit &= writable
@@ -317,10 +356,15 @@ def compose(data, g=None, out=None, *, colour_table=None):
                     target = codes[cy[hit],cx[hit]] if codes is not None else editor_colour.picture_lab(px[hit,:3])
                     slots[hit] = matcher.row(dt[hit] * scale, target, j, columns[hit])
                 else:
-                    slots=source_slots[l["id"]][cy,cx].astype(int)
+                    if exact is None:
+                        slots = source_slots[l["id"]][cy,cx]
+                        grey = greys[l["id"]][cy,cx]
+                    else:
+                        slots, grey = _picture_values(px, material_colours, tone_tables[l["id"]])
+                    slots = slots.astype(int)
                     # the rest of the picture: its toned grey, dithered on this grid
                     take=inside&(px[:,3]>0)&(slots<0)
-                    grey=greys[l["id"]][cy,cx].astype(np.int32);t=tones[l["id"]]
+                    grey=grey.astype(np.int32);t=tones[l["id"]]
                     if l["id"] in diffusion:
                         dark_cells=diffusion[l["id"]].row(j,grey,take)
                     else:
@@ -351,8 +395,10 @@ def compose_file(source, target, *, table_path=None):
         from .editor_colour import active_table
         table = active_table(d, table_path)
     n=round(120/d["cell"]);target=Path(target);target.parent.mkdir(parents=True,exist_ok=True)
-    out=np.lib.format.open_memmap(target,mode="w+",dtype=np.uint8,shape=(n,n))
-    compose(d,out=out,colour_table=table);out.flush()
+    with _native_layers(d["layers"], target.parent) as native:
+        out=np.lib.format.open_memmap(target,mode="w+",dtype=np.uint8,shape=(n,n))
+        _compose(d, None, out, table, native)
+        out.flush()
     manifest=target.with_suffix(".textures.json")
     manifest.write_text(json.dumps(dict(textures=[m["spec"] for m in d["materials"]],document_version=2),indent=2),encoding="utf8")
     return d

@@ -553,6 +553,26 @@ python -m discprobe geo --drive H:
 
 ## Burning pictures, textures and colour
 
+In the editor, open **Download template** and choose a grid pitch. The ZIP has
+a transparent drawing canvas and a separate guide PNG for the current batch
+and camera/light position. Open the canvas, add the guide above it at its
+original size and draw on a new layer. Hide the guide before exporting a
+transparent PNG. Keep the full square and its original resolution. Use
+**Import template artwork** if your drawing app drops the DPI metadata.
+
+| Grid pitch | Canvas | DPI |
+| --- | ---: | ---: |
+| 5 µm | 24,000 × 24,000 px | 5,080 |
+| 10 µm | 12,000 × 12,000 px | 2,540 |
+| 20 µm | 6,000 × 6,000 px | 1,270 |
+
+One open 5 µm RGBA layer uses about 2.15 GiB before drawing-app overhead.
+The same files are available offline with the batch's geometry or preset.
+
+```powershell
+python -m discprobe template --geo <summary.json> --grid 10 --batch <MID> --out disc-template
+```
+
 Before writing, `burn` checks for a writable disc with enough space. It compares
 the inserted disc's maker code (MID) to the saved work batch or, if that MID is
 unavailable, to the measurement used to make the image. If the codes differ,

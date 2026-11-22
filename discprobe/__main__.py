@@ -2088,8 +2088,17 @@ def _speed(text: str):
 def cmd_template(args):
     from . import template
     try:
-        target = template.write(args.geo, args.out, media=args.media, sectors=args.sectors,
-                                size=args.size, pose=args.pose, preset_id=args.preset_id)
+        options = dict(media=args.media, sectors=args.sectors, pose=args.pose, preset_id=args.preset_id)
+        if args.grid is not None:
+            from . import template_grid
+            _, files = template_grid.export_files(args.geo, grid=args.grid, batch=args.batch,
+                                                  rotate=args.rotate, delta_scale=args.delta_scale, **options)
+            target = template.write_files(files, args.out)
+            print(f'Template: {target.resolve()} (transparent canvas PNG, guide PNG, README)')
+            return
+        if args.batch is not None or args.rotate != 0 or args.delta_scale != 1:
+            raise ValueError('--batch, --rotate and --delta-scale require --grid')
+        target = template.write(args.geo, args.out, size=args.size, **options)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         sys.exit(f'Template export: {exc}')
     print(f'Template: {target.resolve()} (SVG, PNG, GPL, ASE, JSON, README; layered PSD skipped)')
@@ -2523,10 +2532,15 @@ def _build_parser():
     sp.add_argument("--geo", required=True, help="geo summary/folder, latest, or DiscImageStudio preset JSON")
     sp.add_argument("--media", choices=("dvd", "cd", "bd"), help="check geometry media (inferred by default)")
     sp.add_argument("--sectors", type=int, help="written sector count; default: capacity recorded in geometry")
-    sp.add_argument("--size", type=int, default=4096, help="PNG side in pixels (256..8192)")
+    sizes = sp.add_mutually_exclusive_group()
+    sizes.add_argument("--size", type=int, default=4096, help="legacy guide side in pixels (256..8192)")
+    sizes.add_argument("--grid", type=int, choices=(5, 10, 20), help="grid pitch in µm for 120 mm canvas and guide PNGs")
     sp.add_argument("--out", default="disc-template", help="output directory")
     sp.add_argument("--preset-id", help="select a preset ID when the JSON contains several")
     sp.add_argument("--pose", nargs="?", const="default", help="approximate DVD first-order layer: default or cx,cy,cz,lx,ly,lz in mm")
+    sp.add_argument("--batch", help="batch name or MID for grid template filenames")
+    sp.add_argument("--rotate", type=float, default=0, help="grid template disc rotation in degrees counterclockwise")
+    sp.add_argument("--delta-scale", type=float, default=1, help="scale DVD diffraction for grid template guides")
     sp.set_defaults(func=cmd_template)
     sp = sub.add_parser("compose", help="compose an editor work document into material labels (no drive access)")
     sp.add_argument("work", help="versioned work JSON saved by the page")

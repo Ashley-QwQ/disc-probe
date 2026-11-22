@@ -144,12 +144,13 @@ export function checkTextures(used, media, mode) {
 }
 
 // How finely the pictures themselves are sampled: µm of disc per source pixel, finest visible picture layer.
-// The export samples the working copy (≤ 4096 px a side, design.js MAX_SIDE), never the original file.
+// Template artwork keeps its original pixels; other pictures use the working copy.
 export function pictureSampling(layers = []) {
   let finest = Infinity;
   for (const l of layers) {
     if (l.kind !== "image" || l.visible === false || !l.w || l.shape) continue;
-    finest = Math.min(finest, (l.width * 1000) / l.w);
+    const width = l.gridSource && !l.alphaEdited ? CELLS[l.gridSource.pitch] : l.w;
+    finest = Math.min(finest, (l.width * 1000) / width);
   }
   return Number.isFinite(finest) ? finest : null;
 }

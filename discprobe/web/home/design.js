@@ -14,7 +14,7 @@ import * as EditorOps from "./design/editor-ops.mjs";
 import { updateDesk } from "./design/editor-desk.mjs";
 
 import { processingWorker } from "./design/worker-client.mjs";
-import { downloadTemplate } from "./design/template-download.mjs";
+import { downloadTemplate, gridArtworkPitch, GRID_PNG_LIMIT, templateDetails, templateWords } from "./design/template-download.mjs";
 import { mountFilesStep, occupiedRings, filePictureRange, fileArguments, refreshFiles, drawFileGuides, fileDisplay } from "./design/disc-files.mjs";
 import { hasCapability } from "./handshake.mjs";
 import { CELLS, COST, geoChoice, measuredRings, burnDocument, checkTextures, experimentalContent, hasColourPicture, pictureSampling } from "./design/export-rules.mjs";
@@ -348,7 +348,7 @@ function drawShape(g, shape, rgb = [30, 30, 30]) {
   g.putImageData(px, 0, 0);
   return px;
 }
-function addImageLayer(name, source, w, h) {
+function addImageLayer(name, source, w, h, gridSource) {
   if (S.layers.length >= 16) { toast(T().tooMany); return null; }
   const k = Math.min(1, MAX_SIDE / Math.max(w, h));
   const c = document.createElement("canvas");
@@ -357,13 +357,15 @@ function addImageLayer(name, source, w, h) {
   g.drawImage(source, 0, 0, c.width, c.height);
   const [, r1] = pictureRange();
   // the whole picture fits inside the burnable circle at first (its diagonal is the diameter)
-  const width = 2 * r1 * 0.98 / Math.sqrt(1 + (c.height / c.width) ** 2);
+  const width = gridSource ? GRID_MM : 2 * r1 * 0.98 / Math.sqrt(1 + (c.height / c.width) ** 2);
   checkpoint();
+  if (gridSource) S.cell = gridSource.pitch / 1000;
   const L = {
     id: newLayerId(), kind: "image", name: uniqueLayerName(S.layers, name, api.lang()==="zh"?"图片":"Image"), w: c.width, h: c.height,
     x: 0, y: 0, width, rot: 0, opacity: 1, visible: true, locked: false, colour: "none",
     px: g.getImageData(0, 0, c.width, c.height), src: c, version: 1,
   };
+  if (gridSource) L.gridSource = gridSource;
   S.layers.push(L);
   S.selected = L.id;
   changed(); buildLeft(); buildRight();
@@ -386,10 +388,37 @@ function addEffect(kind) {
   S.selected = L.id;
   changed(); buildLeft(); buildRight();
 }
-async function importFiles(files) {
-  const t = T();
+async function importFiles(files, explicitGrid = false) {
+  const t = T(), plan = S, words = templateWords(api.lang());
   for (const f of files) {
+    if (plan !== S) return;
     if (!/^image\/(png|jpeg|webp|bmp|svg\+xml)$/.test(f.type)) { toast(t.badType(f.name)); continue; }
+    if (f.type === 'image/png' && hasCapability('grid-templates')) {
+      let pitch;
+      try { pitch = await gridArtworkPitch(f, explicitGrid); }
+      catch { toast(t.badType(f.name)); continue; }
+      if (pitch) {
+        if (f.size > GRID_PNG_LIMIT) { toast(words.tooBig); continue; }
+        toast(words.importing, 15000);
+        let preview;
+        try {
+          const response = await fetch('/api/template-preview', {method:'POST', headers:{'Content-Type':'image/png'}, body:f});
+          if (!response.ok) throw Error((await response.json()).error || words.badArtwork);
+          const bounds = JSON.parse(response.headers.get('X-Discprobe-Artwork-Bounds'));
+          preview = await createImageBitmap(await response.blob());
+          if (S !== plan) return;
+          if (addImageLayer(f.name, preview, preview.width, preview.height, { pitch, blob: f, bounds })) {
+            toast(api.lang() === 'en' ? `Imported at ${pitch} µm · 120 mm` : `已按 ${pitch} µm 导入 · 120 mm`);
+          }
+        } catch (error) {
+          toast(error.message || words.badArtwork);
+        } finally {
+          preview?.close();
+        }
+        continue;
+      }
+    }
+    if (explicitGrid) { toast(words.badArtwork); continue; }
     if (f.size > 24 * 1024 * 1024) { toast(t.tooBig(f.name)); continue; }
     let bmp, svg;
     try {
@@ -401,7 +430,11 @@ async function importFiles(files) {
         try { bmp = await new Promise((ok,no)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=no;im.src=url;}); } finally { URL.revokeObjectURL(url); }
       } else bmp = await createImageBitmap(f);
     } catch { toast(t.badType(f.name)); continue; }
-    if (bmp.width * bmp.height > 36e6) { toast(t.tooBig(f.name)); continue; }
+    if (S !== plan || bmp.width * bmp.height > 36e6) {
+      bmp.close?.();
+      if (S !== plan) return;
+      toast(t.tooBig(f.name)); continue;
+    }
     const L = addImageLayer(f.name, bmp, bmp.width, bmp.height);
     if (L) { L.file = f; L.sourceKind = svg ? "svg" : "bitmap"; if(svg)L.svg=svg; }                       // the original, for export at full size and for saving
     bmp.close?.();
@@ -909,9 +942,16 @@ function paintCanvas() {
   placeBar();
 }
 function cornersOutside(L, p0, p1, gaps = ringGaps()) {
-  const hw = L.width / 2, hh = heightOf(L) / 2, a = L.rot * Math.PI / 180;
-  const x = Math.abs(L.x * Math.cos(a) + L.y * Math.sin(a));
-  const y = Math.abs(-L.x * Math.sin(a) + L.y * Math.cos(a));
+  const a = L.rot * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  let hw = L.width / 2, hh = heightOf(L) / 2;
+  let x = L.x * c + L.y * s, y = -L.x * s + L.y * c;
+  if (L.gridSource && !L.alphaEdited) {
+    if (!L.gridSource.bounds) return false;
+    const [left, top, right, bottom] = L.gridSource.bounds.map(v => v * L.width / GRID_MM);
+    x += (left + right) / 2; y += (top + bottom) / 2;
+    hw = (right - left) / 2; hh = (bottom - top) / 2;
+  }
+  x = Math.abs(x); y = Math.abs(y);
   const outer = Math.hypot(x + hw, y + hh);
   const inner = Math.hypot(Math.max(0, x - hw), Math.max(0, y - hh));
   return outer > p1 || gaps.some(([lo, hi]) => Math.max(lo, p0, inner) < Math.min(hi, outer));
@@ -1187,6 +1227,25 @@ function thumb(L) {
   L.thumb = c;
   return c;
 }
+function templateControls() {
+  const lang = api.lang(), t = templateWords(lang);
+  if (!hasCapability('grid-templates')) {
+    return `<button class="sbtn wide template-download" type="button" data-a="template" data-capability="templates" ${hasCapability('templates') ? '' : 'hidden'}>${t.download}</button>`;
+  }
+  const grid = S.templateGrid ?? Math.round(S.cell * 1000);
+  const open = W.leftContent.querySelector('.template-options')?.open && W.templatePlan === S;
+  W.templatePlan = S;
+  return `<details class="template-options" data-capability="grid-templates" ${open ? 'open' : ''}>
+    <summary class="sbtn wide template-download">${t.download}</summary>
+    <div class="template-picker">
+      <label>${t.pitch} <select class="sel" data-template-grid aria-describedby="template-size">${[5,10,20].map(pitch =>
+        `<option value="${pitch}" ${pitch === grid ? 'selected' : ''}>${pitch} µm</option>`).join('')}</select></label>
+      <p class="note" id="template-size" aria-live="polite">${templateDetails(grid, lang)}</p>
+      <button class="sbtn wide" type="button" data-a="template">${t.download}</button>
+      <button class="sbtn wide template-download" type="button" data-a="template-import">${t.import}</button>
+    </div></details>`;
+}
+
 function buildLeft() {
   if (!W) return;
   const t = T();
@@ -1207,7 +1266,7 @@ function buildLeft() {
     }).join("")}</ul>`
       : `<p class="empty-l">${t.noLayers}</p>`) +
     `<button class="sbtn wide" type="button" data-a="import">${I.image}${t.import}</button>` +
-    `<button class="sbtn wide template-download" type="button" data-a="template" data-capability="templates" ${hasCapability('templates') ? '' : 'hidden'}>${api.lang() === "en" ? "Download template" : "下载模板"}</button></section>` +
+    templateControls() + `</section>` +
     burnSection() +
     // files on the disc: the core cannot write them yet (`image` has no files, the ISO no entries), so the page
     // does not show them at all until it does (a column explaining a missing feature is noise)
@@ -1278,7 +1337,12 @@ function leftClick(e) {
   if (a === "undo") return undo();
   if (a === "redo") return redo();
   if (a === "import") return W.file.click();
-  if (a === "template" && hasCapability('templates')) return downloadTemplate(S, b, toast);
+  if (a === "template-import") return W.gridFile.click();
+  if (a === "template" && hasCapability('templates')) {
+    const grid = b.closest('.template-picker')?.querySelector('[data-template-grid]')?.value;
+    const work = grid ? { ...S, geo: geoChoice(S, api.catalogue?.(S.media) ?? []).path } : S;
+    return downloadTemplate(work, b, toast, grid ? Number(grid) : undefined, api.lang());
+  }
   const um = Number(e.target.closest("[data-um]")?.dataset.um);
   if (CELLS[um] && um !== Math.round(S.cell * 1000)) { checkpoint(); S.cell = um / 1000; changed(); buildLeft(); buildRight(); return; }
   if(L && a === "more") { editor.toggleLayerActions(L.id); return; }
@@ -1537,6 +1601,8 @@ function togglePlay() {
 // removed) and, when it came from a file, the original file too, so export can use full size.
 const FILE_KIND = "disc-probe design", FILE_VERSION = 2, FILE_EXT = ".discdesign";
 const blobURL = (blob) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(blob); });
+const gridPngURL = source => source.dataURL ?? blobURL(source.blob);
+const GRID_PNG_PREFIX = 'data:image/png;base64,';
 const canvasBlob = (c) => new Promise((ok) => c.toBlob(ok, "image/png"));
 async function projectText() {
   const plan = S, portable = editor?.document();
@@ -1555,6 +1621,10 @@ async function projectText() {
     if (L.kind === "image") {
       Object.assign(e, { colour: L.colour, w: L.w, h: L.h, alphaEdited: !!L.alphaEdited, picture: await blobURL(await canvasBlob(L.src)) });
       if (L.file) e.original = await blobURL(L.file);
+      if (L.gridSource && !L.alphaEdited) {
+        e.gridPng = await gridPngURL(L.gridSource);
+        e.gridBounds = L.gridSource.bounds;
+      }
     } else Object.assign(e, { fxKind: L.fxKind, height: L.height, y1: L.y1, y2: L.y2 });
     layers.push(e);
   }
@@ -1666,6 +1736,17 @@ async function openProject(file, handle = null, work = null, dirty = false) {
       const L = { ...base, w: c.width, h: c.height, colour: e.colour ?? "none", alphaEdited: !!e.alphaEdited, px: g.getImageData(0, 0, c.width, c.height), src: c, version: 1 };
       Object.assign(L,{sourceKind:e.sourceKind,shape:e.shape,svg:e.svg,tone:e.tone});
       if (typeof e.original === "string" && e.original.startsWith("data:image/")) L.file = dataURLBlob(e.original);
+      if (!L.alphaEdited && typeof e.gridPng === 'string' && e.gridPng.startsWith(GRID_PNG_PREFIX)) {
+        // Keep large saved originals encoded. Only the IHDR is needed here.
+        const header = dataURLBlob(e.gridPng.slice(0, GRID_PNG_PREFIX.length + 64));
+        const pitch = await gridArtworkPitch(header, true);
+        if (!pitch || e.gridPng.length > GRID_PNG_PREFIX.length + 4 * Math.ceil(GRID_PNG_LIMIT / 3)) {
+          throw Error("Invalid template artwork");
+        }
+        const bounds = Array.isArray(e.gridBounds) && e.gridBounds.length === 4 &&
+          e.gridBounds.every(v => Number.isFinite(v) && Math.abs(v) <= 60) ? e.gridBounds : null;
+        L.gridSource = { pitch, dataURL: e.gridPng, bounds };
+      }
       layers.push(L);
       if (e.id != null && !layerIds.has(e.id)) layerIds.set(e.id, id);
     } catch { lost.push(e); }               // one unreadable picture: open the rest and say which
@@ -1814,6 +1895,18 @@ export async function makeBurnFile(onProgress = () => {}, { signal, effects } = 
   if(editor){
     onProgress({stage:t.drawing,fraction:null});
     burn = burnDocument(editor.document(), S.media, effects);
+    const sources = new Map(plan.layers.filter(L => L.gridSource && !L.alphaEdited)
+      .map(L => [L.id, L.gridSource]));
+    for (const l of burn.doc.layers) {
+      const source = sources.get(l.id);
+      if (!source || !l.visible) continue;
+      if (!hasCapability('grid-templates')) {
+        throw Error(api.lang() === 'en' ? 'Update the core to compose template artwork.' : '请更新核心，再合成模板作品。');
+      }
+      l.gridPng = await gridPngURL(source);
+    }
+    stop();
+    if (S !== plan) throw new DOMException("cancelled", "AbortError");
     const body = JSON.stringify(burn.doc);
     if (body.length > COMPOSE_LIMIT) throw new Error(t2.bigWork(Math.round(body.length / 2 ** 20)));
     const response=await fetch("/api/compose",{method:"POST",headers:{"Content-Type":"application/json"},body,signal});
@@ -1999,7 +2092,7 @@ function build() {
     `<div class="tilt"><span class="lbl"></span><input class="rng" type="range" min="40" max="120" step="1"><output></output><button class="sbtn" type="button"></button></div>` +
     `<div class="loupe"><canvas></canvas><small></small></div>` +
     `<div class="dropzone"></div></div>` +
-    `<input type="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/svg+xml" multiple hidden class="f-img"><input type="file" webkitdirectory multiple hidden class="f-dir">` +
+    `<input type="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/svg+xml" multiple hidden class="f-img"><input type="file" accept="image/png,.png" multiple hidden class="f-template"><input type="file" webkitdirectory multiple hidden class="f-dir">` +
     `<input type="file" accept="${FILE_EXT},.json,application/json" hidden class="f-proj">`;
   document.body.append(ws);
   const q = (s) => ws.querySelector(s);
@@ -2008,7 +2101,7 @@ function build() {
     leftContent: q(".ed-layer-content"), leftFade: q(".ed-layer-fade"),
     desk: q(".ed-desk"), surface: q(".ed-surface"), shadow: q(".ed-disc-shadow"), viewDock: q(".ed-view-dock"),
     note: q(".cv-note"), empty: q(".empty-c"), bar: q(".fbar"), tilt: q(".tilt"), loupe: q(".loupe"), zoom: q(".zoomr"),
-    drop: q(".dropzone"), file: q(".f-img"), folder: q(".f-dir"), dirty: q(".dirty"), pname: q(".pname"), sub: q(".ws-title .sub"), proj: q(".f-proj"), filebtns: q(".filebtns"),
+    drop: q(".dropzone"), file: q(".f-img"), gridFile: q(".f-template"), folder: q(".f-dir"), dirty: q(".dirty"), pname: q(".pname"), sub: q(".ws-title .sub"), proj: q(".f-proj"), filebtns: q(".filebtns"),
   };
   // open and save belong to the work's tools, above the layers, not to its title (the header keeps only the
   // work's name and its discs)
@@ -2099,6 +2192,12 @@ function build() {
   W.bar.addEventListener("click", barClick);
   W.bar.addEventListener("keydown", (e) => e.stopPropagation());
   W.left.addEventListener("click", leftClick);
+  W.left.addEventListener("change", e => {
+    if (e.target.matches('[data-template-grid]')) {
+      S.templateGrid = Number(e.target.value);
+      W.left.querySelector('#template-size').textContent = templateDetails(S.templateGrid, api.lang());
+    }
+  });
   W.left.addEventListener("dblclick", leftDbl);
   for (const ev of ["dragstart", "dragover", "drop", "dragend"]) W.left.addEventListener(ev, leftDrag);
   W.right.addEventListener("input", rightInput);
@@ -2108,6 +2207,7 @@ function build() {
   W.tilt.querySelector("button").addEventListener("click", togglePlay);
   addEventListener("paste",e=>{if(!isOn()||e.target.closest?.('input,textarea,[contenteditable=true]'))return;const files=[...(e.clipboardData?.items??[])].filter(i=>i.kind==='file'&&i.type.startsWith('image/')).map(i=>i.getAsFile()).filter(Boolean);if(files.length){e.preventDefault();importFiles(files.map(f=>new File([f],'',{type:f.type})));}});
   W.file.addEventListener("change", () => { importFiles([...W.file.files]); W.file.value = ""; });
+  W.gridFile.addEventListener("change", () => { importFiles([...W.gridFile.files], true); W.gridFile.value = ""; });
   W.proj.addEventListener("change", () => { const f = W.proj.files[0]; if (f) openProject(f); W.proj.value = ""; });
   W.filebtns.addEventListener("click", (e) => {
     const a = e.target.closest("[data-a]")?.dataset.a;
