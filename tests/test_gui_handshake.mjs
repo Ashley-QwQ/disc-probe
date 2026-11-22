@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {compatibility, compareAPI, handshake, hideOptional, showSheet} from '../discprobe/web/home/handshake.mjs';
 const manifest = JSON.parse(readFileSync(new URL('../discprobe/web/gui.json', import.meta.url)));
-const core = {api_version:'1.2', capabilities:[...manifest.required_capabilities, ...manifest.optional_capabilities]};
+const core = {api_version:'1.5', capabilities:[...manifest.required_capabilities, ...manifest.optional_capabilities]};
 
 test('current socket matches; old and new majors name the side to update', () => {
   assert.equal(compatibility(manifest,core).update,null);
@@ -26,6 +26,25 @@ for (const capability of ['geo-coverage','photo-manual-alignment','checkburn','b
     assert.ok(manifest.optional_capabilities.includes(capability));
     const oldCore = compatibility(manifest,{api_version:'1.1',capabilities:core.capabilities.filter(c => c !== capability)});
     assert.equal(oldCore.update,null); assert.deepEqual(oldCore.optional,[capability]);
+  });
+}
+for (const [capability, oldVersion] of [
+  ['library-management', '1.3'], ['library-batch-details', '1.4'], ['grid-templates', '1.4'],
+]) {
+  test(`an older core can lack only ${capability}`, async () => {
+    assert.ok(manifest.optional_capabilities.includes(capability));
+    assert.deepEqual(compatibility(manifest, core).optional, []);
+    const oldCore = {api_version:oldVersion, capabilities:core.capabilities.filter(c => c !== capability)};
+    const result = compatibility(manifest, oldCore);
+    assert.equal(result.update, null);
+    assert.deepEqual(result.optional, [capability]);
+    const doc = documentStub();
+    doc.entries.push({dataset:{capability}});
+    await handshake(doc, async path => ({ok:true,json:async()=>path==='/gui.json'?manifest:oldCore}),
+      {protocol:'http:',search:''});
+    assert.equal(doc.documentElement.dataset.handshake, 'ready');
+    assert.equal(doc.entries.at(-1).hidden, true);
+    assert.equal(doc.entries[0].hidden, undefined);
   });
 }
 function documentStub(lang='en') {
