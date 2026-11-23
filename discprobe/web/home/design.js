@@ -72,6 +72,9 @@ const STR = {
     empty: "把图片拖到这里，或者按导入图片", sample: "用示例图试试", drop: "松手，放到盘上",
     outside: "有一部分在可刻范围外，压暗的地方会被裁掉。",
     tooBig: (n) => `${n} 太大了：单张最多 3600 万像素、24 MiB。先缩小再导入。`, badType: (n) => `${n} 不是能读的图片（PNG、JPEG、WebP、BMP）。`,
+    iccConverted: (profile) => `已按 ${profile} 转换为 sRGB。`,
+    iccFallback: "无法使用图片内嵌的 ICC 配置文件，已按 sRGB 读取。",
+    iccUnavailable: "无法检查图片的 ICC 配置文件，已用浏览器读取。",
     tooMany: "最多 16 个图层。",
     fb: { x: "X", y: "Y", w: "宽", h: "高", rot: "旋转", op: "不透明" },
     sel: { tol: "容差", feather: "柔化", cut: "删掉选区", keep: "只留选区", cancel: "取消", hint: "Shift 加选 · Alt 减选" },
@@ -160,6 +163,9 @@ const STR = {
     empty: "Drop a picture here, or use Import picture", sample: "Try a sample picture", drop: "Let go to put it on the disc",
     outside: "Part of it is outside the burnable range; the dimmed part will be cut off.",
     tooBig: (n) => `${n} is too large: at most 36 megapixels and 24 MiB. Shrink it first.`, badType: (n) => `${n} isn't a picture this can read (PNG, JPEG, WebP, BMP).`,
+    iccConverted: (profile) => `Converted from ${profile} to sRGB.`,
+    iccFallback: "Could not use the embedded ICC profile. The picture was read as sRGB.",
+    iccUnavailable: "Could not check the picture's ICC profile. The browser read the picture.",
     tooMany: "At most 16 layers.",
     fb: { x: "X", y: "Y", w: "W", h: "H", rot: "Rotate", op: "Opacity" },
     sel: { tol: "Tolerance", feather: "Feather", cut: "Delete selection", keep: "Keep selection", cancel: "Cancel", hint: "Shift adds · Alt removes" },
@@ -388,8 +394,25 @@ function addEffect(kind) {
   S.selected = L.id;
   changed(); buildLeft(); buildRight();
 }
+function iccMessage(notice, words) {
+  return notice?.profile ? words.iccConverted(notice.profile) : notice?.fallback ? words.iccFallback : "";
+}
+
+async function colourInput(file, words) {
+  try {
+    const response = await fetch('/api/colour-input', {method:'POST', headers:{'Content-Type':file.type}, body:file});
+    if (response.status === 204 || response.status === 404) return {source:file};
+    if (response.ok) {
+      const message = iccMessage(JSON.parse(response.headers.get('X-Discprobe-ICC')), words);
+      if (message) return {source:await response.blob(), message};
+    }
+  } catch { /* Browser decoding is still available. */ }
+  return {source:file, message:words.iccUnavailable};
+}
+
 async function importFiles(files, explicitGrid = false) {
   const t = T(), plan = S, words = templateWords(api.lang());
+  const manageIcc = location.protocol !== 'file:' && hasCapability('colour-input-icc');
   for (const f of files) {
     if (plan !== S) return;
     if (!/^image\/(png|jpeg|webp|bmp|svg\+xml)$/.test(f.type)) { toast(t.badType(f.name)); continue; }
@@ -402,13 +425,15 @@ async function importFiles(files, explicitGrid = false) {
         toast(words.importing, 15000);
         let preview;
         try {
-          const response = await fetch('/api/template-preview', {method:'POST', headers:{'Content-Type':'image/png'}, body:f});
+          const response = await fetch(`/api/template-preview${manageIcc ? '?icc=1' : ''}`, {method:'POST', headers:{'Content-Type':'image/png'}, body:f});
           if (!response.ok) throw Error((await response.json()).error || words.badArtwork);
           const bounds = JSON.parse(response.headers.get('X-Discprobe-Artwork-Bounds'));
+          const message = iccMessage(JSON.parse(response.headers.get('X-Discprobe-ICC')), t);
           preview = await createImageBitmap(await response.blob());
           if (S !== plan) return;
           if (addImageLayer(f.name, preview, preview.width, preview.height, { pitch, blob: f, bounds })) {
-            toast(api.lang() === 'en' ? `Imported at ${pitch} µm · 120 mm` : `已按 ${pitch} µm 导入 · 120 mm`);
+            const imported = api.lang() === 'en' ? `Imported at ${pitch} µm · 120 mm` : `已按 ${pitch} µm 导入 · 120 mm`;
+            toast(message ? `${imported} · ${message}` : imported, message ? 6500 : 2600);
           }
         } catch (error) {
           toast(error.message || words.badArtwork);
@@ -420,7 +445,7 @@ async function importFiles(files, explicitGrid = false) {
     }
     if (explicitGrid) { toast(words.badArtwork); continue; }
     if (f.size > 24 * 1024 * 1024) { toast(t.tooBig(f.name)); continue; }
-    let bmp, svg;
+    let bmp, svg, message;
     try {
       if (f.type === "image/svg+xml" || /\.svg$/i.test(f.name)) {
         svg = await f.text();
@@ -428,7 +453,12 @@ async function importFiles(files, explicitGrid = false) {
         if (parsed.querySelector("parsererror,script,foreignObject") || [...parsed.querySelectorAll("*")].some(n => [...n.attributes].some(a => /^on/i.test(a.name) || (!a.name.startsWith("xmlns") && /(?:https?:|file:|javascript:)/i.test(a.value))))) throw Error("SVG must be self-contained");
         const url = URL.createObjectURL(new Blob([svg], {type:"image/svg+xml"}));
         try { bmp = await new Promise((ok,no)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=no;im.src=url;}); } finally { URL.revokeObjectURL(url); }
-      } else bmp = await createImageBitmap(f);
+      } else {
+        const input = manageIcc ? await colourInput(f, t) : {source:f};
+        if (S !== plan) return;
+        bmp = await createImageBitmap(input.source);
+        message = input.message;
+      }
     } catch { toast(t.badType(f.name)); continue; }
     if (S !== plan || bmp.width * bmp.height > 36e6) {
       bmp.close?.();
@@ -436,7 +466,12 @@ async function importFiles(files, explicitGrid = false) {
       toast(t.tooBig(f.name)); continue;
     }
     const L = addImageLayer(f.name, bmp, bmp.width, bmp.height);
-    if (L) { L.file = f; L.sourceKind = svg ? "svg" : "bitmap"; if(svg)L.svg=svg; }                       // the original, for export at full size and for saving
+    if (L) {
+      L.file = f;  // The original, for export at full size and for saving.
+      L.sourceKind = svg ? "svg" : "bitmap";
+      if (svg) L.svg = svg;
+      if (message) toast(message, 6500);
+    }
     bmp.close?.();
   }
 }

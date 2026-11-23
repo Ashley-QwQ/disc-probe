@@ -18,6 +18,7 @@ import numpy as np
 from PIL import Image, ImageDraw, PngImagePlugin
 
 from . import simulate, template
+from .colour_input import EmbeddedICC
 from .imagedisc import CELL_SIDES as GRID_SIDES, HALF_MM
 
 DISC_MM = 2 * HALF_MM
@@ -158,42 +159,49 @@ One open RGBA layer uses {4 * side**2 / 2**30:.2f} GiB before app overhead.
 
 
 @contextmanager
-def _grid_png(raw):
+def _grid_png(raw, manage_icc):
     # The public Pillow pixel limit remains in place for other formats and imports.
     # This path only permits the three known full-disc sizes, one decode at a time.
     if not raw.startswith(_SIGNATURE) or len(raw) > PNG_LIMIT:
         raise ValueError('expected a full-disc PNG up to 256 MiB')
     with _DECODE_LOCK:
         try:
-            im = PngImagePlugin.PngImageFile(io.BytesIO(raw))
+            source = io.BytesIO(raw)
+            im = PngImagePlugin.PngImageFile(source)
         except (OSError, SyntaxError) as exc:
             raise ValueError(f'could not read template PNG: {exc}') from exc
         try:
             if im.width != im.height or im.width not in GRID_SIDES.values():
                 raise ValueError('expected a 6000, 12000 or 24000 px square PNG')
             try:
-                im.load()
-            except (OSError, SyntaxError) as exc:
+                conversion = EmbeddedICC(im, source, enabled=manage_icc)
+                if conversion.high_depth is None:
+                    im.load()
+            except (OSError, SyntaxError, ValueError) as exc:
                 raise ValueError(f'could not read template PNG: {exc}') from exc
-            yield im
+            yield im, conversion
         finally:
             im.close()
 
 
-def preview_png(raw):
-    with _grid_png(raw) as im, Image.new('RGBA', (PREVIEW_SIDE, PREVIEW_SIDE)) as preview:
+def preview_png(raw, *, report_icc=None):
+    with _grid_png(raw, report_icc is not None) as (im, conversion), Image.new('RGBA', (PREVIEW_SIDE, PREVIEW_SIDE)) as preview:
+        if report_icc is not None and (notice := conversion.notice()) is not None:
+            report_icc(notice)
         factor = im.width // PREVIEW_SIDE
         band = factor * 8
         for top in range(0, im.height, band):
-            block = im.crop((0, top, im.width, min(top + band, im.height))).convert('RGBA')
+            block = conversion.band((0, top, im.width, min(top + band, im.height)))
             preview.paste(block.reduce(factor), (0, top // factor))
         stream = io.BytesIO()
         preview.save(stream, 'PNG', compress_level=3)
-        bounds = _alpha_bounds(im)
+        bounds = _alpha_bounds(im, conversion)
         return stream.getvalue(), ([v * DISC_MM / im.width - DISC_MM / 2 for v in bounds] if bounds else None)
 
 
-def _alpha_bounds(im):
+def _alpha_bounds(im, conversion):
+    if conversion.high_depth is not None:
+        return conversion.high_depth.bounds()
     if im.mode in ('RGBA', 'LA', 'PA'):
         return im.getbbox()
     if 'transparency' not in im.info:
@@ -223,28 +231,29 @@ class NativeRaster:
         return rgba
 
 
-def _write_pixels(im, bounds, stream):
+def _write_pixels(conversion, bounds, stream):
     left, top, right, bottom = bounds
     for y in range(top, bottom, 128):
-        stream.write(im.crop((left, y, right, min(y + 128, bottom))).convert('RGBA').tobytes())
+        stream.write(conversion.band((left, y, right, min(y + 128, bottom))).tobytes())
 
 
 @contextmanager
-def native_raster(raw, scratch=None):
+def native_raster(raw, scratch=None, *, manage_icc=False):
     """Keep compact artwork in RAM and page dense native artwork through a scratch file."""
     with tempfile.TemporaryFile(dir=scratch) as stream:
-        with _grid_png(raw) as im:
+        with _grid_png(raw, manage_icc) as (im, conversion):
             side = im.width
-            bounds = _alpha_bounds(im) or (0, 0, 0, 0)
+            bounds = _alpha_bounds(im, conversion) or (0, 0, 0, 0)
             left, top, right, bottom = bounds
             shape = bottom - top, right - left, 4
             if not shape[0]:
                 pixels = np.zeros((1, 1, 4), np.uint8)
             elif math.prod(shape) <= 16 * 2**20:
-                pixels = np.asarray(im.crop(bounds).convert('RGBA'))
+                pixels = np.asarray(conversion.band(bounds))
             else:
                 pixels = None
-                _write_pixels(im, bounds, stream)
+                _write_pixels(conversion, bounds, stream)
+        del conversion
         del raw
         if pixels is not None:
             yield NativeRaster(side, bounds, pixels)

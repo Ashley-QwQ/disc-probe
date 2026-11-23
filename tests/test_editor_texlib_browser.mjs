@@ -16,10 +16,11 @@ const fixture=index.replace('data-handshake="pending"','data-handshake="fixture"
   .replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace('<head>','<head><base href="/home/">')
   .replace('</body>',`<script type="module">
 const d=await import('./design.js');const item={kind:'unset',name:'Texture library',mid:'',s:'none'};
-d.start({$:id=>document.getElementById(id),lang:()=> 'zh',T:()=>({}),current:()=>({col:'dvd',item}),focusDisc:()=>null,reduce:true,nextWhy(){},state:()=>({})},{fly:false,newPlan:true,noDisc:true});
+d.start({$:id=>document.getElementById(id),lang:()=>window.fixtureLanguage ?? 'zh',T:()=>({}),current:()=>({col:'dvd',item}),focusDisc:()=>null,reduce:true,nextWhy(){},state:()=>({})},{fly:false,newPlan:true,noDisc:true});
 window.A=d.editorActions();window.ready=true;
 </script></body>`);
-const backend=spawn(process.env.PYTHON??'python',['-B','-X','utf8','tests/editor_texlib_server.py',join(out,'api')],{stdio:['ignore','pipe','pipe'],windowsHide:true});
+const backend=spawn(process.env.PYTHON??'python',['-B','-X','utf8','tests/editor_texlib_server.py',join(out,'api')],
+  {env:{...process.env,EDITOR_TEST_ICC:'1'},stdio:['ignore','pipe','pipe'],windowsHide:true});
 let stdout='',stderr='';backend.stdout.on('data',b=>stdout+=b);backend.stderr.on('data',b=>stderr+=b);
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 const until=async(fn,ms=90000)=>{const start=Date.now();while(Date.now()-start<ms){if(await fn())return;await pause(100);}throw Error('condition timed out: '+stderr);};
@@ -29,9 +30,11 @@ try{
   server=createServer(async(req,res)=>{try{
     if(req.url==='/fixture'){res.setHeader('Content-Type','text/html;charset=utf-8');res.end(fixture);return;}
     if(req.url==='/fixture-work'&&colourWork){res.setHeader('Content-Type','application/json');res.end(await readFile(colourWork));return;}
-    if(req.url.startsWith('/api/editor-')){const chunks=[];for await(const c of req)chunks.push(c);
-      const r=await fetch(`http://127.0.0.1:${port}${req.url}`,{method:req.method,headers:{'Content-Type':'application/json'},body:req.method==='POST'?Buffer.concat(chunks):undefined});
-      res.writeHead(r.status,{'Content-Type':r.headers.get('content-type')});res.end(Buffer.from(await r.arrayBuffer()));return;}
+    if(req.url.startsWith('/api/editor-')||req.url==='/api/colour-input'){const chunks=[];for await(const c of req)chunks.push(c);
+      const r=await fetch(`http://127.0.0.1:${port}${req.url}`,{method:req.method,headers:{'Content-Type':req.headers['content-type'] ?? 'application/json'},body:req.method==='POST'?Buffer.concat(chunks):undefined});
+      const headers={'Content-Type':r.headers.get('content-type')};
+      if(r.headers.has('x-discprobe-icc'))headers['X-Discprobe-ICC']=r.headers.get('x-discprobe-icc');
+      res.writeHead(r.status,headers);res.end(Buffer.from(await r.arrayBuffer()));return;}
     if(req.url.startsWith('/api/')){res.writeHead(404);res.end();return;}
     const relative=decodeURIComponent(req.url.split('?')[0].replace(/^\/home\//,''));
     const file=relative.startsWith('/fonts/')?resolve(home,'..',relative.slice(1)):resolve(home,relative);
@@ -233,8 +236,23 @@ try{
     })()`);
     assert.deepEqual(edits,{moved:1.5,hidden:true,removed:true},'the arrow uses the ordinary layer controls');
   }
+  for(const [name,lang,message] of [
+    ['p3-16.png','zh','已按 Display P3 转换为 sRGB。'],
+    ['invalid-icc.png','en','Could not use the embedded ICC profile. The picture was read as sRGB.'],
+  ]) {
+    const data=(await readFile(join(out,'api',name))).toString('base64');
+    await run(`(async()=>{
+      window.fixtureLanguage=${JSON.stringify(lang)};
+      const blob=await(await fetch('data:image/png;base64,${data}')).blob();
+      const transfer=new DataTransfer(), picker=document.querySelector('.f-img');
+      transfer.items.add(new File([blob],${JSON.stringify(name)},{type:'image/png'}));
+      picker.files=transfer.files;picker.dispatchEvent(new Event('change',{bubbles:true}));
+    })()`);
+    await until(()=>run(`document.querySelector('.toast.on')?.textContent===${JSON.stringify(message)}`));
+    assert.deepEqual(await run('[...A.state().layers.find(l=>l.id===A.state().selected).px.data.slice(0,4)]'),[211,69,48,255]);
+  }
   assert.equal(errors.length,0,JSON.stringify(errors));
-  const result={candidates,frame,predictSeconds,asBurned:true,comparison:true,reopened,arrow,undo:true,duplicate:false,errors:errors.length};
+  const result={candidates,frame,predictSeconds,asBurned:true,comparison:true,reopened,arrow,undo:true,duplicate:false,icc:true,errors:errors.length};
   await writeFile(join(out,'colour-browser-results.json'),JSON.stringify(result,null,2),'utf8');console.log(JSON.stringify(result));
   await run('A.editor.colourRenderer?.dispose()');
 }finally{

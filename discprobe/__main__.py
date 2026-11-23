@@ -1174,9 +1174,16 @@ def cmd_compose(args):
 def cmd_colour_design(args):
     from pathlib import Path
     from . import editor_colour, editor_preview, texlib
+    from .colour_input import CONVERTED, FALLBACK
+    from .i18n import tr
+
+    def report_icc(notice):
+        message = FALLBACK if notice.get('fallback') else CONVERTED.format(**notice)
+        print(tr(message), file=sys.stderr)
+
     try:
         doc = editor_colour.design(args.image, args.phone, args.height, args.materials, args.dither, args.fit,
-                                   args.flash_mm, args.table, mapping=args.mapping)
+                                   args.flash_mm, args.table, mapping=args.mapping, report_icc=report_icc)
         if not args.no_arrow:
             skipped = editor_colour.add_direction_arrow(doc)
             if skipped:

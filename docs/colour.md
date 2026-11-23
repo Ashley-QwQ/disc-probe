@@ -4,6 +4,8 @@
 
 disc-probe can put a photograph or illustration on the data side of a DVD. Start with a picture that has distinct shapes and large areas of colour. [Download the example PNG](colour-guide/example.png) to follow either workflow below.
 
+Keep the embedded ICC profile when exporting Display P3, Adobe RGB or Rec.2020 artwork. The web editor and `colour-design` convert the image to sRGB and show which profile they used. RGB matrix and tone-curve profiles keep all 16 bits of tagged PNG samples through conversion. An unreadable or unsupported profile triggers a notice and sRGB fallback. Untagged pictures are read as sRGB.
+
 ## What the disc will look like
 
 Writing the same bit pattern repeatedly makes a patch of the track act as a **diffraction grating**. It sends different wavelengths of white light in different directions. The repeat length controls which colour reaches your eye or camera at a given angle. disc-probe uses a table fitted from photos of six test discs and chooses among 58 textures for each cell of the picture. Even two patches of the same colour may need different textures because they sit at different angles to the flash and camera.

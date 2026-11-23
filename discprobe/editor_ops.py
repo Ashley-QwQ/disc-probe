@@ -235,21 +235,22 @@ def _picture_values(px, materials, tone):
 
 
 @contextmanager
-def _native_layers(layers, scratch):
+def _native_layers(document, scratch):
+    colour_layers = {a['layer'] for a in document['assignments'] if 'colour' in a}
     with ExitStack() as stack:
         native = {}
-        for l in layers:
+        for l in document['layers']:
             if l.get("gridPng") and l["visible"]:
                 from .template_grid import PNG_DATA_PREFIX, native_raster
                 raw = base64.b64decode(l["gridPng"][len(PNG_DATA_PREFIX):], validate=True)
-                native[l["id"]] = stack.enter_context(native_raster(raw, scratch))
+                native[l["id"]] = stack.enter_context(native_raster(raw, scratch, manage_icc=l['id'] in colour_layers))
                 del raw
         yield native
 
 
 def compose(data, g=None, out=None, *, colour_table=None, scratch=None):
     d = validate(migrate(data))
-    with _native_layers(d["layers"], scratch) as native:
+    with _native_layers(d, scratch) as native:
         return _compose(d, g, out, colour_table, native)
 
 
@@ -395,7 +396,7 @@ def compose_file(source, target, *, table_path=None):
         from .editor_colour import active_table
         table = active_table(d, table_path)
     n=round(120/d["cell"]);target=Path(target);target.parent.mkdir(parents=True,exist_ok=True)
-    with _native_layers(d["layers"], target.parent) as native:
+    with _native_layers(d, target.parent) as native:
         out=np.lib.format.open_memmap(target,mode="w+",dtype=np.uint8,shape=(n,n))
         _compose(d, None, out, table, native)
         out.flush()

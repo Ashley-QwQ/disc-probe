@@ -553,6 +553,15 @@ python -m discprobe geo --drive H:
 
 ## Burning pictures, textures and colour
 
+For **Colour picture** in the web editor or `colour-design`, use a PNG or JPEG
+with clear shapes and large colour areas. Keep the embedded ICC profile when
+exporting from Display P3, Adobe RGB or Rec.2020. Import converts to sRGB
+and names the profile it used. Tagged 16-bit PNGs keep their source precision
+through conversion for RGB matrix and tone-curve profiles and for greyscale
+tone-curve profiles.
+An unreadable or unsupported profile triggers a notice and sRGB fallback.
+Untagged pictures are read as sRGB. See [Make a colour DVD](colour.md).
+
 In the editor, open **Download template** and choose a grid pitch. The ZIP has
 a transparent drawing canvas and a separate guide PNG for the current batch
 and camera/light position. Open the canvas, add the guide above it at its
