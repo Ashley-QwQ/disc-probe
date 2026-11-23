@@ -1,0 +1,2 @@
+COMMAND: node tests/test_phone_page.mjs
+Phone JPEG paths, reasons as actions, stages with times, adoption states, recovery exits and one language passed

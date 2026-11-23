@@ -1,0 +1,8 @@
+D:\disc-probe\results\geo-H-20261107-204800: 22 rungs, cache strategy fua, media dvd
+           rungs median sem chi2/dof  rms deg        r0 (mm)     pitch (um)
+recorded      22      0.200     1.57    0.401   24.063113176    0.745307834
+interp        22      0.200     1.57    0.401   24.063113176    0.745307834
+median        22      0.200     1.38    0.272   24.063113401    0.745307818
+line          22      0.278     0.99    0.327   24.063115131    0.745307750
+rebuild check: the interp phases differ from the recorded ones by at most 0.000 deg
+(sem is floored at 0.2 deg, as in geo)

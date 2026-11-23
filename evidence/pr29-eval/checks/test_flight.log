@@ -1,0 +1,2 @@
+COMMAND: node tests/test_flight.mjs
+shared flight timing, coordinates and cleanup passed

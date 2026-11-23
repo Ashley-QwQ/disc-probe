@@ -1,0 +1,6 @@
+COMMAND: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe -B -X utf8 -m pytest -n 2 --basetemp=F:\dp-dev-tmp\pr29eval\checks\pytest -q tests/test_geo_integration.py tests/test_geo_progress.py tests/test_geo_unsteady.py tests/test_geo_varpitch.py
+bringing up nodes...
+bringing up nodes...
+
+......................................                                   [100%]
+38 passed in 43.52s

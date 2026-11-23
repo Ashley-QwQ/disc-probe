@@ -1,0 +1,10 @@
+COMMAND: node tests/test_disc_files_browser.mjs
+✔ disc files: inner/outer, themes, invalid path, clearing, keyboard and LAN denial (5102.2664ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5107.3532

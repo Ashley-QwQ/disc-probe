@@ -1,0 +1,2 @@
+COMMAND: node tests/test_ime_activity.mjs
+IME: 14 real handlers x 3 KeyboardEvents; 15 raw Enter decisions audited; activity conjunction/fallback/disposal; worker pause/decode race; data URL decode passed

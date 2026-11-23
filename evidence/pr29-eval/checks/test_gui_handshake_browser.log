@@ -1,0 +1,2 @@
+COMMAND: node tests/test_gui_handshake_browser.mjs
+PASS: handshake DOM, themes, languages, widths and startup

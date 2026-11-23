@@ -1,0 +1,2 @@
+COMMAND: node tests/test_editor_rig.mjs
+editor rig: locked until phone and height; 5 + 255 palettes load; scene and lamp pose follow the rig

@@ -1,0 +1,2 @@
+COMMAND: node tests/test_photo_wire.mjs
+Photo routing, contract jobs, polling lifecycle, verdicts, saved L and 404 fallback passed

@@ -1,0 +1,2 @@
+COMMAND: node tests/test_afterburn_browser.mjs
+PASS: 15 Disc Lab/browser checks; F:\dp-dev-tmp\pr29eval\checks\afterburn_test_root\shots

@@ -1,0 +1,2 @@
+COMMAND: node tests/test_csp_browser.mjs
+CSP HTTP: 8 static HTML routes + token phone + Lab, zero policy violations; desktop theme/design/lamp, dialog native/fallback, mobile viewport, off-screen worker stop/resume passed

@@ -1,0 +1,6 @@
+COMMAND: node tests/test_burn_cancel_browser.mjs
+{
+  "passed": 30,
+  "dir": "F:\\dp-dev-tmp\\pr29eval\\checks\\burn_cancel_test_root\\browser-tKqrRy",
+  "shots": "F:\\dp-dev-tmp\\pr29eval\\checks\\burn_cancel_test_root\\shots"
+}

@@ -1,0 +1,17 @@
+COMMAND: node tests/test_calchart.mjs
+PASS empty input and accessible SVG shell
+PASS one point has an open circle and sigma bars but no fit
+PASS unordered points: exact linear fit ends at measured endpoints
+PASS weighted least squares and sigma floor affect the fitted values
+PASS hatched band uses median sigma and is clipped to the plot
+PASS head at 40: dashed boundary and centred unread label
+PASS endpoint markers have clip clearance beyond both radius endpoints
+PASS null head uses largest measured radius and respects 57 mm cutoff
+PASS result radii use squared-radius LBA mapping and exact span ends
+PASS result without span uses linear LBA mapping and sector labels
+PASS stopped results mark the remaining region, including near the edge
+PASS pattern and clip ids are unique across live and result charts
+PASS nonfinite and invalid points are skipped, including result LBAs
+PASS duplicate radii and single-LBA results have no singular fit
+PASS symmetric nicely rounded axes, themes and English labels
+Calibration chart tests passed (15 cases)
