@@ -280,9 +280,10 @@ async function measure(config, output, imageBody) {
           new Promise(resolve => setTimeout(resolve, 1000))]);
         document.activeElement?.blur?.();
       })()`);
-      await delay(650);
+      await delay(name === 'return' ? 1800 : 650);
       stills[name] = await evaluate(`({scrollWidth:document.documentElement.scrollWidth, scrollHeight:document.documentElement.scrollHeight,
-        width:innerWidth, height:innerHeight, active:document.activeElement?.id, title:document.title})`);
+        width:innerWidth, height:innerHeight, active:document.activeElement?.id, title:document.title,
+        animations:document.getAnimations().filter(animation => animation.playState === 'running').length})`);
       await shot(name);
     }
     async function frames(name, expression, count = 10) {
