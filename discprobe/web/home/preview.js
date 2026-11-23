@@ -146,9 +146,11 @@ function build() {
   if (!document.querySelector('link[href$="design.css"]')) {
     const d = document.createElement("link"); d.rel = "stylesheet"; d.href = new URL("./design.css", import.meta.url).href; document.head.append(d);
   }
-  const css = document.createElement("link");
-  css.rel = "stylesheet"; css.href = new URL("./preview.css", import.meta.url).href;
-  document.head.append(css);
+  if (!document.querySelector('link[href$="preview.css"]')) {
+    const css = document.createElement("link");
+    css.rel = "stylesheet"; css.href = new URL("./preview.css", import.meta.url).href;
+    document.head.append(css);
+  }
   const ws = document.createElement("div");
   ws.className = "ws pv";
   ws.innerHTML = `<div class="ws-title"><b class="pname"></b><span class="sub"></span></div>` +
@@ -423,6 +425,7 @@ function zoomAt(f, sx, sy) {
   V.cx = sx - (sx - V.cx) * k; V.cy = sy - (sy - V.cy) * k; V.s = s; settle(); draw();
 }
 function resize() {
+  if (!W || !isOn()) return;
   const r = W.cv.getBoundingClientRect();
   V.w = r.width; V.h = r.height; V.dpr = devicePixelRatio || 1;
   W.canvas.width = Math.round(V.w * V.dpr); W.canvas.height = Math.round(V.h * V.dpr);
@@ -651,9 +654,11 @@ export async function continueToBurn(homeApi, context) {
   if (step === "make" || step === "burn") return advanceToBurn(step);
 }
 
+let releaseTimer;
 export function start(homeApi, context = {}) {
   api = homeApi; $ = api.$;
   if (life) leave(false);
+  clearTimeout(releaseTimer);
   const same = context === ctx;
   ctx = context;
   if (!W) build();
@@ -663,9 +668,10 @@ export function start(homeApi, context = {}) {
   const lookup = work && (cached?.phase !== "making" || cached.jobId) && !cached?.checkIso;
   state = ctx.state = lookup ? { phase: "restoring" } : cached ?? { phase: "idle" };
   if (!same) {
-    view = ctx.media === "dvd" && !ctx.reviewSaved ? "look" : "design"; src = null; try { src = ctx.project?.render(12) ?? null; } catch { src = null; }
+    view = ctx.media === "dvd" && !ctx.reviewSaved ? "look" : "design"; src = null;
     lampView?.dispose(); lampView = null; Object.assign(look, lookFromDesign());
   }
+  if (!src) try { src = ctx.project?.render(12) ?? null; } catch { src = null; }
   life = new AbortController();
   root.dataset.mode = "preview";
   root.classList.toggle('saved-burn-preview',!!ctx.reviewSaved);
@@ -685,6 +691,14 @@ export function leave(goBack = true) {
   simulation?.stop(); simulation = null;
   lampView?.pause();
   W?.ws.classList.remove("on");
+  clearTimeout(releaseTimer);
+  releaseTimer = setTimeout(() => {
+    if (life || !W) return;
+    lampView?.dispose(); lampView = null; src = null;
+    W.canvas.width = W.canvas.height = 0;
+    W.ws.remove(); W = null;
+    clearTimeout(toastT); toastEl?.remove(); toastEl = null;
+  }, api?.reduce ? 0 : 360);
   if (isOn()) root.dataset.mode = "";
   if (api) { $("next").disabled = false; $("back").hidden = true; }
   if (goBack) ctx?.back?.();

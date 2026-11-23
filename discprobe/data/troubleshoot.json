@@ -477,7 +477,7 @@
     "steps": {"zh": ["点画面或按 Enter 可以跳过动画。等到回执后看失败详情，或使用回执上的“重拨”。"], "en": ["Click or press Enter to skip the animation. When the receipt arrives, read the failure details or use its Redial button."]},
     "commands": [],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web/home/faxnews.js", "line": 10, "keyword": "timed out"}, {"path": "discprobe/web/home/faxnews.js", "line": 12, "keyword": "a click or Enter skips it"}, {"path": "discprobe/web/home/faxnews.js", "line": 372, "keyword": "while (!result && alive())"}, {"path": "discprobe/web/home/faxnews.js", "line": 441, "keyword": "redial.addEventListener"}]
+    "sources": [{"path": "discprobe/web/home/faxnews.js", "line": 10, "keyword": "timed out"}, {"path": "discprobe/web/home/faxnews.js", "line": 12, "keyword": "a click or Enter skips it"}, {"path": "discprobe/web/home/faxnews.js", "line": 376, "keyword": "while (!result && alive())"}, {"path": "discprobe/web/home/faxnews.js", "line": 445, "keyword": "redial.addEventListener"}]
   },
   {
     "id": "geo-correction-saved",

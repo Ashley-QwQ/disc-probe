@@ -19,6 +19,7 @@ let meta = null, el = null, state = {}, api = null;
 let art, g, sled, glow, label, big, percent, time, percentFlip, timeFlip, rainbow;
 let frame = 0, shownHead = null, headMove = null, artScale = 1, ink, paper, copper;
 let rings = new Map();
+let listeners, observer;
 const motionMs = 400;
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -56,11 +57,15 @@ function build() {
   time = big.querySelector("span");
   percentFlip = flipNumber(percent, {lang:api.lang()});
   timeFlip = flipNumber(time, {lang:api.lang(), live:false});
-  addEventListener("dp-theme", paintArt);
-  new MutationObserver(paintArt).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  listeners = new AbortController();
+  addEventListener("dp-theme", paintArt, { signal: listeners.signal });
   const motionChanged = () => { if (motionOff() && frame) settleMotion(); };
-  new MutationObserver(motionChanged).observe(document.documentElement, { attributes: true, attributeFilter: ["data-motion"] });
-  reducedMotion.addEventListener("change", motionChanged);
+  observer = new MutationObserver(records => {
+    if (records.some(record => record.attributeName === "data-theme")) paintArt();
+    motionChanged();
+  });
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-motion"] });
+  reducedMotion.addEventListener("change", motionChanged, { signal: listeners.signal });
   paintArt();
 }
 function spinArc() {
@@ -213,5 +218,16 @@ export async function stage(homeApi) {
     hold(on) { el.style.visibility = on ? "hidden" : ""; },   // laid out but unseen while the disc goes in
     set,
     time(text) { state.left = text; if (!el.hidden) drawTime(text); },
+    destroy() {
+      if (!el) return;
+      listeners.abort(); observer.disconnect();
+      cancelAnimationFrame(frame); frame = 0;
+      percentFlip.destroy(); timeFlip.destroy();
+      g.canvas.width = g.canvas.height = 0;
+      el.remove();
+      el = art = g = sled = glow = label = big = percent = time = percentFlip = timeFlip = rainbow = null;
+      shownHead = headMove = null;
+      rings.clear(); state = {};
+    },
   };
 }

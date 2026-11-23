@@ -17,7 +17,7 @@ import { isActionEnter } from "./kit/shared.js";
 // keys and the output slot. The page draws the display's words, the key presses, the printout and the paper.
 
 import { pageFlight, TOP_START } from "./flight.mjs";
-import { pushLobby } from "./lobby.js";
+import { prepareLobby, pushLobby } from "./lobby.js";
 import * as sfx from "./faxsfx.mjs";
 import { DEFAULT_SOURCE, withToken, PaperError, readPaper, readSkin, layOut, pick, resolveRef, compareVersions } from "./faxnews-data.mjs";
 import { receive as receiveCommunity, mountList as mountCommunity } from "./community.mjs";
@@ -179,7 +179,7 @@ async function loadArt() {
   return art;
 }
 function paintTheme() {
-  if (!F || !art) return;
+  if (!F || !art || (!prepared && F.page.hidden)) return;
   const t = theme(), base = new URL("./faxnews/", import.meta.url).href;
   F.top.src = `${base}top_${t}.webp`; F.shadow.src = `${base}handset_shadow_${t}.webp`; F.handset.src = `${base}handset_${t}.webp`;
 }
@@ -278,6 +278,9 @@ function leave() {
   A?.abort?.abort(); A = null;
   F.page.hidden = true; F.paper.hidden = true; F.notice.hidden = true;
   F.page.getAnimations({ subtree: true }).forEach((a) => a.cancel());
+  F.paper.replaceChildren(); F.notice.replaceChildren();
+  for (const image of [F.top, F.shadow, F.handset]) image.removeAttribute("src");
+  prepared = null;
   root.dataset.mode = ""; $("back").hidden = true;
   api.toLobby();
   setTimeout(() => from?.focus?.({ preventScroll: true }), 0);
@@ -296,6 +299,7 @@ export async function back() {
       leave(); f.push.done(); F.page.style.transformOrigin = "";
       return;
     }
+    await Promise.race([prepareLobby(), new Promise(resolve => setTimeout(resolve, 600))]);
     const pull = pushLobby(pushFor(from), true);
     const a = pageFlight(F.page, focusPoint, true);
     await Promise.all([a.finished, pull.finished]).catch(() => {});

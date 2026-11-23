@@ -150,7 +150,7 @@ export async function init(entry, fetcher = fetch) {
   sheet.className = 'presetio'; sheet.hidden = true;
   sheet.setAttribute('aria-labelledby', 'presetio-title');
   const artUrl = name => new URL(`./presetio/desk/desk_${name}_${document.documentElement.dataset.theme === 'dark' ? 'dark' : 'paper'}.webp`, import.meta.url).href;
-  const art = name => `<img data-art="${name}" src="${artUrl(name)}" alt="" draggable="false" aria-hidden="true">`;
+  const art = name => `<img data-art="${name}" alt="" draggable="false" aria-hidden="true">`;
   const layer = name => `<div class="presetio-layer" data-layer="${name}">${art(`${name}_shadow`)}${art(name)}</div>`;
   sheet.innerHTML = `<button type="button" class="presetio-close" data-close data-text="close"></button>
     <div class="presetio-scene presetio-paper">
@@ -217,10 +217,14 @@ export async function init(entry, fetcher = fetch) {
   }
   Object.assign($('.presetio-tick').style, {left: `${desk.plateLeft - 30}px`, top: `${desk.knob[1]}px`});
   const paintDesk = () => {
-    for (const img of sheet.querySelectorAll('[data-art]'))
-      img.src = artUrl(img.dataset.art);
+    for (const img of sheet.querySelectorAll('[data-art]')) {
+      if (sheet.hidden) img.removeAttribute('src');
+      else {
+        const url = artUrl(img.dataset.art);
+        if (img.src !== url) img.src = url;
+      }
+    }
   };
-  paintDesk();
 
   let value = 0, scale = 1, compact = false, playing = [], generation = 0, drag = null, frozen = new Map();
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -589,6 +593,7 @@ export async function init(entry, fetcher = fetch) {
   function closed() {
     endPageFlight(); closing = false;
     finish(); drag = null; sheet.hidden = true;
+    paintDesk();
     delete document.documentElement.dataset.presetio;
     document.documentElement.dataset.mode = modeBefore;
     if (back) back.hidden = backWasHidden;
@@ -638,6 +643,7 @@ export async function init(entry, fetcher = fetch) {
         : [{opacity: 0}, {opacity: 1}]
     };
     finish(); value = [-1, 1].includes(options.state) ? options.state : 0; opener = from; sheet.hidden = false;
+    paintDesk();
     $('.presetio-manual').open = !!options.manual;
     if (options.state === 1 || options.manual) { clearPreview(); clearFieldErrors(); }
     $('[data-manual]').elements.namedItem('media').value = options.media === 'cd' ? 'cd' : 'dvd';

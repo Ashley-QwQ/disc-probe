@@ -28,6 +28,7 @@ export async function install(api, {setHome}) {
     const snap = {view, col: place.col, batch: place.item?.id};
     if (view === 'newplan') snap.form = (await import('./newplan.js')).navigationState();
     if (view === 'cal') snap.photo = (await import('./calibrate.js')).navigationState?.() || null;
+    let project;
     if (['design', 'preview', 'burn'].includes(view)) {
       try {
         const actions = (await import('./design.js')).editorActions();
@@ -36,11 +37,12 @@ export async function install(api, {setHome}) {
         snap.name = snap.plan.name;
         snap.work = snap.plan.work;
         snap.dirty = snap.plan.dirty;
-        snap.text = await actions.projectText();
+        project = new Blob([await actions.projectText()], { type: 'application/json' });
       } catch {}
       if (view !== 'design') snap.preview = (await import('./preview.js')).navigationState();
     }
     const portable = {...snap}; delete portable.plan;
+    if (project) portable.text = project;
     if (portable.preview) {
       const state = snap.preview.state;
       // A running task owns DOM/AbortController objects; keep it live in memory, never clone/replay it.

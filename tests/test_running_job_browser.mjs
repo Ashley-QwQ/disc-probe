@@ -243,6 +243,7 @@ try {
   server.stdout.on('data', bytes => output += bytes);
   server.stderr.on('data', bytes => output += bytes);
   const port = await until(() => output.match(/PORT (\d+)/)?.[1], 'Disc Lab reported its server port');
+  assert.notEqual(+port, 8765);
   origin = 'http://127.0.0.1:' + port;
   await until(() => fetch(origin + '/api/state').then(r => r.ok).catch(() => false), 'Disc Lab HTTP ready');
   browser = spawn(edge, ['--headless=new','--mute-audio','--disable-gpu','--disable-background-networking',
@@ -251,6 +252,7 @@ try {
   const debugPort = await until(() => {
     try { return readFileSync(join(profile,'DevToolsActivePort'),'utf8').split(/\r?\n/)[0]; } catch {}
   }, 'Edge debugging ready');
+  assert.notEqual(+debugPort, 8765);
   const debug = await fetch(`http://127.0.0.1:${debugPort}/json/version`).then(r => r.json());
   socket = new WebSocket(debug.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });

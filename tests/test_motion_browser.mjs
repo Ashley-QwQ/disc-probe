@@ -209,7 +209,7 @@ try {
     if (skip) {
       await evaluate('document.body.click();');
       await until('document.documentElement.dataset.mode==="newplan" && !document.querySelector(".np").classList.contains("unfiling")','22: skip cancels disc, card and pan');
-      await check('rafQueue.size===0 && document.querySelector(".ld").hidden && document.getElementById("cal").hidden','22: skip cleans reverse sprites and rAF');
+      await check('rafQueue.size===0 && !document.querySelector(".ld") && document.getElementById("cal").hidden','22: skip cleans reverse sprites and rAF');
     } else {
       await evaluate('tickRAF(1080);window.reverseStart=spriteState();');
       await evaluate('await load.pose(anchor,0);window.expectedStart=spriteState();');
@@ -257,7 +257,9 @@ try {
   await until('!document.documentElement.dataset.mode && document.querySelector(".np").hidden','reverse reaches lobby');
   await newWork(true);await evaluate('finishFlights();');
   await until('!document.getElementById("lobby").classList.contains("leaving")','push complete');
-  await evaluate('flights=[];esc();flights.filter(f=>f.el.classList.contains("np")).forEach(f=>{f.a.pause();f.a.currentTime=260;});');
+  await evaluate('flights=[];esc();');
+  await until('flights.some(f=>f.el.classList.contains("np"))', 'ordinary pull-back starts after the lobby art is ready');
+  await evaluate('flights.filter(f=>f.el.classList.contains("np")).forEach(f=>{f.a.pause();f.a.currentTime=260;});');
   await check('+getComputedStyle(document.querySelector(".np")).opacity>.3 && +getComputedStyle(document.querySelector(".np")).opacity<.9','7: ordinary pull-back fade spans more than the final frames');
   await evaluate('finishFlights();');await until('!document.documentElement.dataset.mode','ordinary pull-back complete');
 

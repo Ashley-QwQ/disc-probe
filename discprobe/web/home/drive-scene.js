@@ -18,6 +18,7 @@ const rigRect = (api) =>
 
 export function cutaway(api, { mirrored = true, textLeft = () => innerWidth * 0.56 } = {}) {
   let inside = null;
+  let building, visit = 0, releaseTimer, growTimer;
   const X = (x) => mirrored ? 1 - x / 1600 : x / 1600;     // canvas px across, as a share of the picture
   async function build() {
     if (inside) return inside;
@@ -45,8 +46,11 @@ export function cutaway(api, { mirrored = true, textLeft = () => innerWidth * 0.
     box.append(pct, clock);
     document.body.append(stage);
     inside = { info, stage, box, sets, pct, clock, on: false };
-    addEventListener("resize", () => { if (inside.on) place(); });
-    new MutationObserver(() => { if (inside.on) load(theme()); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    const life = new AbortController();
+    addEventListener("resize", () => { if (inside?.on) place(); }, { signal: life.signal });
+    const observer = new MutationObserver(() => { if (inside?.on) load(theme()); });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    inside.dispose = () => { life.abort(); observer.disconnect(); stage.remove(); };
     return inside;
   }
   const theme = () => document.documentElement.dataset.theme === "dark" ? "dark" : "paper";
@@ -67,8 +71,15 @@ export function cutaway(api, { mirrored = true, textLeft = () => innerWidth * 0.
     return r ? `translate(${r.left - to.L}px, ${r.top - to.T}px) scale(${r.width / to.w})` : "none";
   }
   async function show(on) {
+    const request = ++visit;
+    clearTimeout(releaseTimer); releaseTimer = 0;
     const root = document.documentElement;
     if (!on) {
+      clearTimeout(growTimer);
+      releaseTimer = setTimeout(() => {
+        releaseTimer = 0;
+        if (request === visit && inside && !inside.on) { inside.dispose(); inside = null; }
+      }, api.reduce ? 0 : 500);
       if (!inside?.on) return;
       inside.on = false;
       const to = { L: parseFloat(inside.box.style.left), T: parseFloat(inside.box.style.top), w: parseFloat(inside.box.style.width) };
@@ -78,7 +89,12 @@ export function cutaway(api, { mirrored = true, textLeft = () => innerWidth * 0.
       api.burnerLayer.classList.remove("inside-on");
       return;
     }
-    const s0 = await build();
+    building ??= build().finally(() => { building = null; });
+    const s0 = await building;
+    if (request !== visit) {
+      if (inside === s0 && !s0.on && !releaseTimer) { s0.dispose(); inside = null; }
+      return;
+    }
     if (s0.on) { place(); return; }
     s0.on = true;
     load(theme());
@@ -90,7 +106,7 @@ export function cutaway(api, { mirrored = true, textLeft = () => innerWidth * 0.
     s0.stage.classList.add("on");
     api.burnerLayer.classList.add("inside-on");
     root.classList.add("burning");
-    setTimeout(() => { if (s0.on) s0.box.style.transform = "none"; }, 30);   // then grow into place
+    growTimer = setTimeout(() => { if (s0.on) s0.box.style.transform = "none"; }, 30);   // then grow into place
   }
   function update(p, leftS) {
     if (!inside) return;

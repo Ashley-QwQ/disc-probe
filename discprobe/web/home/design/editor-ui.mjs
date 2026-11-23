@@ -16,7 +16,8 @@ const WORDS={
   en:{selection:'Selection',rectangle:'Rectangle selection',lasso:'Lasso',ring:'Ring',sector:'Sector',colour:'By colour',shape:'Basic shapes',rectangleShape:'Rectangle',ellipse:'Ellipse',polygon:'Polygon',line:'Line',pen:'Freehand',materials:'Materials',model:'Preview experiment only: the colours are a model prediction, not checked against photos. The burn is black and white by default; coloured, colour-patterned and effect areas burn dark.',target:'Fill target',layer:'Selected layer',mask:'Active selection',material:'Single material',pattern:'Pattern fill',effect:'Effect',diamond:'Diamond grid',dots:'Dot matrix',stripes:'Stripes',cartesian:'Cartesian',polar:'Around disc',inner:'Inner radius',outer:'Outer radius',start:'Start angle',end:'End angle',tolerance:'Colour tolerance',contiguous:'Contiguous only',apply:'Create selection',clear:'Clear selection',name:'Selection name',saveMask:'Save named selection',restore:'Restore selection',removeMask:'Delete selection',hint:'Shift adds · Alt subtracts · Shift+Alt intersects',snap:'Snap to centre and radius ruler',rename:'Rename layer',up:'Raise layer',down:'Lower layer',remove:'Delete layer',pitch:'Pitch mm',size:'Width / diameter mm',angle:'Rotation °',fill:'Apply fill',flow:'Flowing band',ox:'O/X switch',merge:'Two spots into ring',sync:'Whole area at once',y1:'Phone start mm',y2:'Phone end mm',history:'Selections and fills can be undone',none:'Select a layer or create a selection first',swatch:'Filter: period or texture',details:'Material details',empty:'No matching materials',draw:'Drag to draw; polygons close on release. On canvas: arrows move, Space starts, Enter finishes.',operation:'Mask operation',replace:'Replace',add:'Add',subtract:'Subtract',intersect:'Intersect',radiusNote:'Selection masks: 0.2 mm; burn cells: 20 / 10 / 5 µm.',gesture:'Drag to select, or enter values',choose:'Saved selections',layerName:'Layer name',opacity:'Opacity',busy:'Composing…',toneH:'Tone',dither:'Dither',modes:{'floyd-steinberg':'Error diffusion','blue-noise':'Blue noise',ordered:'Ordered',clustered:'Halftone',threshold:'No dither'},strength:'Dither strength',brightness:'Brightness',contrast:'Contrast',highlights:'Highlights',shadows:'Shadows',toneReset:'Reset',toneNote:um=>`Greys are dithered into the two textures on the ${um} µm burn grid. Zoomed to 100% or more, the canvas shows the cells that are burned.`}
 };
 // a picture's pixels as base64, once per ImageData (an edit makes a new one): document() runs once per revision
-const RASTER=new WeakMap(),raster64=px=>{let b=RASTER.get(px);if(b===undefined){b=O.base64(px.data);RASTER.set(px,b);}return b;};
+let RASTER=new WeakMap();
+const raster64=px=>{let b=RASTER.get(px);if(b===undefined){b=O.base64(px.data);RASTER.set(px,b);}return b;};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const COLOUR_WORDS={
   zh:{label:'彩色图',note:'预览是模型估计，混色还没实刻验证。',about:'说明',
@@ -98,6 +99,18 @@ export class Editor {
   // the ring a picture may use: the burnable ring, or the measured part of it once a geometry is known (design.js)
   ring(){const s=this.s;return s?.ring??(s?.media==='cd'?[26,58]:[24,58]);}
   invalidate(){this.revision++;this.previewCache=null;this.overlayCache=null;}
+  releaseView(){
+    clearTimeout(this.motionTimer);clearTimeout(this.lightTimer);
+    this.lamp?.dispose();this.lamp=null;
+    this.colourRenderer?.dispose();this.colourRenderer=null;
+    this.exact?.off();this.exact=null;
+    // The preview page can still own the cached projection returned by preview().
+    for(const canvas of [this.overlayCache?.canvas,this.fillsCache?.canvas])
+      if(canvas)canvas.width=canvas.height=0;
+    this.previewCache=this.labelCache=this.overlayCache=this.fillsCache=this.motionPreview=null;
+    this.lightCache?.clear();this.lightPose=null;this.liveMask=null;this.drag=null;
+    RASTER=new WeakMap();
+  }
   // During layer manipulation, show the last burn bitmap and the moving source; compose after idle.
   deferPreview(){this.motionPreview??=this.previewCache?.canvas;clearTimeout(this.motionTimer);this.motionTimer=setTimeout(()=>{this.motionPreview=null;this.h.draw();},150);}
   mutate(fn){this.h.checkpoint();fn();this.invalidate();this.h.changed();this.panels();}
@@ -325,7 +338,7 @@ export class Editor {
     else if(s.layers.length||s.assignments.length||s.view==='lamp'){ctx.save();this.h.annulus(ctx,...this.ring());ctx.clip('evenodd');const shown=this.preview(screen);if(shown)ctx.drawImage(shown,v.cx-60*v.s,v.cy-60*v.s,120*v.s,120*v.s);
       if(shown&&s.view==='lamp'&&this.hasColour()&&this.panelState().compare)this.compareSource(ctx,v);
       const exact=s.view==='burn'&&!this.hasColour()&&s.layers.length&&!this.motionPreview?this.exactCells(v):null;if(exact){ctx.imageSmoothingEnabled=false;ctx.drawImage(exact.canvas,v.cx+(exact.cols[0]*s.cell-60)*v.s,v.cy+(exact.rows[0]*s.cell-60)*v.s,(exact.cols[1]-exact.cols[0])*s.cell*v.s,(exact.rows[1]-exact.rows[0])*s.cell*v.s);}
-      if(this.motionPreview){const l=s.layers.find(l=>l.id===s.selected);if(l?.src&&l.visible){ctx.save();ctx.globalAlpha=l.opacity;ctx.filter='grayscale(1)';ctx.translate(v.cx+l.x*v.s,v.cy+l.y*v.s);ctx.rotate(l.rot*Math.PI/180);ctx.drawImage(l.src,-l.width*v.s/2,-l.width*l.h/l.w*v.s/2,l.width*v.s,l.width*l.h/l.w*v.s);ctx.restore();}}
+      if(this.motionPreview){const l=s.layers.find(l=>l.id===s.selected),source=l?.visible&&this.h.source(l);if(source){ctx.save();ctx.globalAlpha=l.opacity;ctx.filter='grayscale(1)';ctx.translate(v.cx+l.x*v.s,v.cy+l.y*v.s);ctx.rotate(l.rot*Math.PI/180);ctx.drawImage(source,-l.width*v.s/2,-l.width*l.h/l.w*v.s/2,l.width*v.s,l.width*l.h/l.w*v.s);ctx.restore();}}
       ctx.restore();}else this.lamp?.pause();
     const m=this.liveMask??s.selections.find(mask=>mask.id===s.activeMask);if(m){if(this.overlayCache?.id!==m.id){const b=O.bytes(m.bits),canvas=document.createElement('canvas');canvas.width=g.width;canvas.height=g.height;const c=canvas.getContext('2d'),im=c.createImageData(g.width,g.height);
         for(let j=0;j<g.height;j++)for(let i=0;i<g.width;i++)if(b[j*g.width+i]){const edge=!b[j*g.width+i-1]||!b[j*g.width+i+1]||!b[(j-1)*g.width+i]||!b[(j+1)*g.width+i],stripe=(i+j)%20;if(edge||stripe<2)im.data.set(edge?(Math.floor((i+j)/7)%2?[255,255,255,255]:[18,18,18,255]):stripe===0?[255,255,255,36]:[18,18,18,36],4*(j*g.width+i));}c.putImageData(im,0,0);this.overlayCache={id:m.id,canvas};}
@@ -338,10 +351,11 @@ export class Editor {
     ctx.fillStyle=this.h.colour('--face');ctx.fillRect(v.cx-60*v.s,v.cy-60*v.s,60*v.s,120*v.s);
     ctx.translate(v.cx,v.cy);ctx.rotate(-lampPose(this.s).rotate*Math.PI/180);
     for(const l of this.s.layers){
-      if(l.kind!=='image'||!l.visible||!l.src)continue;
+      if(l.kind!=='image'||!l.visible)continue;
+      const source=this.h.source(l);if(!source)continue;
       const width=l.width*v.s,height=width*l.h/l.w;
       ctx.save();ctx.globalAlpha=l.opacity;ctx.translate(l.x*v.s,l.y*v.s);ctx.rotate(l.rot*Math.PI/180);
-      ctx.drawImage(l.src,-width/2,-height/2,width,height);ctx.restore();
+      ctx.drawImage(source,-width/2,-height/2,width,height);ctx.restore();
     }
     ctx.restore();
   }

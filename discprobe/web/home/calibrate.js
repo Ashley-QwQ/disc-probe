@@ -151,7 +151,7 @@ let api, $, flow;
 const isCal = () => document.documentElement.dataset.mode === "cal";
 const wait = (ms) => new Promise((r) => setTimeout(r, api.reduce ? 0 : ms));
 
-let ui = null;                              // the scene pieces, built once
+let ui = null, controlsBound = false, parcelTimer = 0;
 function newFlow(item) {
   return {
     item, step: 0, choice: "burn",
@@ -340,6 +340,7 @@ function ledPoint() {
   return [(r.left + (1 - 825.01 / 1600) * r.width - cam.left) / k, (r.top + (775.97 / 1062) * r.height - cam.top) / k];
 }
 function blink(on) {
+  if (!ui || !isCal()) return;
   const [x, y] = pct(...ledPoint());
   flow.ledEl.style.left = x; flow.ledEl.style.top = y;
   flow.ledEl.classList.toggle("on", on);
@@ -427,7 +428,9 @@ function build() {
   ui = { plateEl: plate, canvas: plate.querySelector("canvas"), flyerEl: flyer, warnEl: warn, ledEl: led,
     parcelEl: parcel, parcelCanvas: parcel.querySelector("canvas") };
   Object.assign(flow, ui);
-  addEventListener("resize", () => { if (flyer.dataset.x) placeFlyer(flyer); });
+  if (controlsBound) return;
+  controlsBound = true;
+  addEventListener("resize", () => { const flyer = ui?.flyerEl; if (flyer?.dataset.x) placeFlyer(flyer); });
   noise();
 
   $("back").addEventListener("click", back);
@@ -441,6 +444,7 @@ function build() {
 }
 
 let st = null;                             // the stage (calstage.js), live pages only
+let stageVisit = 0;
 let discWentIn = false;                    // the "disc goes into the drive" animation played on this visit
 let pendingNext = null;
 let nextTime = null;
@@ -478,6 +482,8 @@ function jobTime(job, seconds) {
   if (job.nextLabel) nextWords(job.nextLabel, text);
 }
 function open() {
+  const visit = ++stageVisit;
+  if (!ui) build();
   document.documentElement.dataset.mode = "cal";
   paintJob();
   // the disc goes in once on a visit, when the drive is seen to hold it; a job running or a result on the
@@ -488,6 +494,7 @@ function open() {
   api.focusDrive();
   // resolves when the stage and the desk under it are on screen (at once on the mock page)
   const shown = api.backend.mock ? Promise.resolve() : stage(api).then(async (s) => {
+    if (visit !== stageVisit) { if (!isCal()) s.destroy(); return; }
     st = s;
     if (!isCal()) return;
     document.documentElement.classList.add("cal-staged"); st.show(true);
@@ -499,7 +506,7 @@ function open() {
   }).catch((e) => { st?.hold(false); console.error("calibration stage", e); });
   paint();
   // coming back while it burns: the drive is open again, the plate as it was
-  if (flow.job?.kind === "burn") setTimeout(() => showInterior(true), 750);
+  if (flow.job?.kind === "burn") setTimeout(() => { if (visit === stageVisit && isCal()) showInterior(true); }, 750);
   else if (flow.plate !== "off") setPlate(flow.plate);
   return shown;
 }
@@ -514,13 +521,22 @@ function release() {
   nextKit(false, false);
   document.documentElement.dataset.mode = "";
   const ruler = document.getElementById("cal-ruler"); if (ruler) ruler.hidden = true;
-  st?.show(false); loadDisc.desk(false); document.documentElement.classList.remove("cal-staged"); sideButton(null);
+  ++stageVisit;
+  loadDisc.desk(false); st?.destroy(); st = null;
+  document.documentElement.classList.remove("cal-staged"); sideButton(null);
   document.title = "disc-probe";
   $("cal").hidden = true;
+  $("cal").replaceChildren();
   $("back").hidden = true;
   const nb = $("next");
   nb.disabled = false; nb.classList.remove("hold"); nb.dataset.hold = ""; nb.style.removeProperty("--hold");
-  for (const el of [ui.flyerEl, ui.plateEl, ui.warnEl, ui.ledEl, ui.parcelEl]) el.classList.remove("on", "hover", "drop", "breathe", "up", "ship");
+  clearTimeout(parcelTimer);
+  if (ui) {
+    for (const canvas of [ui.canvas, ui.parcelCanvas]) canvas.width = canvas.height = 0;
+    for (const el of [ui.flyerEl, ui.plateEl, ui.warnEl, ui.ledEl, ui.parcelEl]) el.remove();
+    if (flow) for (const key of Object.keys(ui)) delete flow[key];
+    ui = null;
+  }
   showInterior(false);
   flog.hide();
   paintJob();
@@ -559,10 +575,9 @@ function leave() {
     const anim = returnAnim; returnAnim = null;
     anim(finish, async (signal) => {
       if (!st || !discWentIn) return;
-      st.hold(true);
-      try { await loadDisc.play(st.art(), { reverse: true, signal }); }
+      try { await loadDisc.play(st.art(), { reverse: true, signal, onStart: () => st?.hold(true) }); }
       catch (e) { console.error("reverse disc animation", e); }
-      finally { if (!leaving) st.hold(false); }
+      finally { if (!leaving) st?.hold(false); }
     }).finally(() => { leaving = false; });
     return;
   }
@@ -864,17 +879,20 @@ function noise() {
 function setPlate(mode) {
   const was = flow.plate;
   flow.plate = mode;
+  if (!ui) return;
   flow.parcelEl.classList.toggle("on", mode === "gen");
   if (was === "gen" && mode === "burn") {
     // the parcel goes into the drive, then the disc over the drive takes over
     flow.parcelEl.classList.add("ship");
-    setTimeout(() => flow?.parcelEl.classList.remove("ship"), 900);
+    clearTimeout(parcelTimer);
+    parcelTimer = setTimeout(() => ui?.parcelEl.classList.remove("ship"), 900);
   }
   flow.plateEl.classList.toggle("on", mode !== "off" && mode !== "gen" && mode !== "burn");
   flow.plateEl.classList.toggle("breathe", mode === "burn");
   drawPlate();
 }
 function drawPlate() {
+  if (!ui) return;
   const c = flow.plate === "gen" ? flow.parcelCanvas : flow.canvas;
   const g = c.getContext("2d"), W = c.width, cx = W / 2, R = W / 2 - (flow.plate === "gen" ? 40 : 4);   // the lid leaves a margin
   const ri = R * (R0 / 60), rh = R * (7.5 / 60), dark = document.documentElement.dataset.theme === "dark";
@@ -2336,8 +2354,10 @@ function paintStage() {
   }
   // the moment the drive holds a disc on this visit: it goes in, seen from above (loaddisc.js); then the stage
   if (disc !== "none" && !discWentIn) {
-    discWentIn = true; st.hold(true);
-    loadDisc.play(st.art()).catch((e) => console.error("disc animation", e)).finally(() => { if (!leaving) st.hold(false); });
+    discWentIn = true;
+    const scene = st;
+    loadDisc.play(scene.art(), { onStart: () => scene.hold(true) }).catch((e) => console.error("disc animation", e))
+      .finally(() => { if (!leaving && st === scene) scene.hold(false); });
   }
   st.set({ disc, read, readRadii, head, band, busy: !!job,
     percent: job ? p * 100 : null, left: job ? job.left || job.status || "" : "" });
