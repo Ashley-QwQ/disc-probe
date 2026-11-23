@@ -254,6 +254,7 @@ const plans = [];
 const projects = new Map();                  // the shelf's old way in: one plan per shelf disc
 export const recentPlans = () => plans.filter((P) => P.layers.length || P.name);
 let W = null;                                // the workspace's DOM
+let parkedWorkspace = null;
 const V = { s: 5, cx: 0, cy: 0, w: 0, h: 0, dpr: 1 };   // canvas view: px per mm and the disc centre
 let followFit = true;
 let focus = { x: 0, y: 0, w: 0, h: 0, dock: 0 };
@@ -340,7 +341,7 @@ function redo() { if (!S.future.length) return; S.past.push(snapshot()); restore
 function pixelsChanged(L) {
   const c = L.src ?? document.createElement("canvas");
   c.width = L.px.width; c.height = L.px.height;
-  c.getContext("2d").putImageData(L.px, 0, 0);
+  c.getContext("2d", L.drawOptions).putImageData(L.px, 0, 0);
   L.src = c;
   L.version = (L.version ?? 0) + 1;
   L.thumb = null;
@@ -349,7 +350,7 @@ function rasterSource(L) {
   if (L.src || !L.px) return L.src;
   const canvas = document.createElement("canvas");
   canvas.width = L.w; canvas.height = L.h;
-  canvas.getContext("2d").putImageData(L.px, 0, 0);
+  canvas.getContext("2d", L.drawOptions).putImageData(L.px, 0, 0);
   return L.src = canvas;
 }
 function drawShape(g, shape, rgb = [30, 30, 30]) {
@@ -2490,7 +2491,9 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
   plans.splice(0, plans.length, S, ...plans.filter((P) => P !== S));
   if (!fromWork) api.rememberBatch?.(S.item);
   useMeasured(geoChoice(S, api.catalogue?.(S.media) ?? [], null));
+  const layout = !W ? parkedWorkspace : null;
   if (!W) build();
+  if (layout?.panel) W.ws.dataset.panel = layout.panel;
   const from = api.focusDisc()?.getBoundingClientRect();
   root.dataset.mode = "design";
   $("back").hidden = false;
@@ -2500,6 +2503,14 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
   followFit = true;
   words();
   setTool(S.tool);
+  if (layout) {
+    W.left.scrollTop = layout.leftScroll;
+    W.right.scrollTop = layout.rightScroll;
+    const materials = W.right.querySelector(".ed-material-scroll");
+    if (materials) materials.scrollTop = layout.materialScroll;
+    for (const button of W.panelPicker.children)
+      button.setAttribute("aria-expanded", String(button.dataset.panel === W.ws.dataset.panel));
+  }
   requestAnimationFrame(() => {
     if (!isOn()) return;
     resize(true);
@@ -2572,6 +2583,7 @@ function scheduleWorkspaceRelease() {
     for (const entry of [...(S.past ?? []), ...(S.future ?? [])]) for (const {obj} of entry.layers) layers.add(obj);
     for (const layer of layers) {
       if (layer.px && layer.src instanceof HTMLCanvasElement) {
+        layer.drawOptions = layer.src.getContext("2d").getContextAttributes?.();
         layer.src.width = layer.src.height = 0;
         layer.src = null;
       }
@@ -2580,6 +2592,8 @@ function scheduleWorkspaceRelease() {
       if (canvas) canvas.width = canvas.height = 0;
     comp = lookCanvas = motion = paintedView = drag = dragRow = null;
     composeKey = lookKey = ""; pointers.clear(); spaceDown = false;
+    parkedWorkspace = { panel: W.ws.dataset.panel, leftScroll: W.left.scrollTop,
+      rightScroll: W.right.scrollTop, materialScroll: W.right.querySelector(".ed-material-scroll")?.scrollTop ?? 0 };
     W.life.abort(); W.ws.remove(); W = null;
     toastEl?.remove(); toastEl = null;
   }, api.reduce ? 0 : 420);       // the workspace's existing fade has finished

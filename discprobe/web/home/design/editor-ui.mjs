@@ -104,6 +104,7 @@ export class Editor {
     this.lamp?.dispose();this.lamp=null;
     this.colourRenderer?.dispose();this.colourRenderer=null;
     this.exact?.off();this.exact=null;
+    this.lampControls=null;
     // The preview page can still own the cached projection returned by preview().
     for(const canvas of [this.overlayCache?.canvas,this.fillsCache?.canvas])
       if(canvas)canvas.width=canvas.height=0;

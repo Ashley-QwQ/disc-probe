@@ -80,10 +80,11 @@ async function until(expr,message) {
   for(let i=0;i<200;i++){if(await evaluate('return '+expr))return;await pause(25);}
   assert.fail(message+': '+await evaluate('return JSON.stringify({errors,mode:document.documentElement.dataset.mode,flights:flights.map(f=>[f.el.id||f.el.className,f.options.duration,f.a.playState])})'));
 }
-async function open() {
+async function open({warm = true} = {}) {
   await cdp('Page.navigate',{url:pathToFileURL(fixture).href+'?mock'});
   await until('!!window.motionTest','fixture ready');
-  await evaluate('await motionTest.newplan.prepare(motionTest.api);window.scrub=true;window.flights=[];');
+  if (warm) await evaluate('await motionTest.newplan.prepare(motionTest.api);');
+  await evaluate('window.scrub=true;window.flights=[];');
 }
 async function newWork(fly=false) {
   await evaluate(`setMotion('${fly?'on':'off'}');await motionTest.newplan.start(motionTest.api,${fly?'{from:document.getElementById("lobby-new")}':'{}'});`);
@@ -106,7 +107,7 @@ try {
     if(!port)await pause(100);
   }
   assert.ok(port,'CDP ready');
-  assert.ok(![8772,8795,8798,8812,8813,8841,8863].includes(+port));
+  assert.ok(![8765,8772,8795,8798,8812,8813,8841,8863].includes(+port));
   const targets=await fetch(`http://127.0.0.1:${port}/json/list`).then(r=>r.json());
   socket=new WebSocket(targets.find(t=>t.type==='page').webSocketDebuggerUrl);
   await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject;});
@@ -354,8 +355,8 @@ try {
   await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
 
   // 11: idle lobby leaves both scenes unmounted. Hover still warms the New Work entrance.
-  await open();
-  await delay(1300);
+  await open({warm:false});
+  await pause(1300);
   await check('!document.querySelector(".pw, .np")','11: idle lobby leaves past works and the form unmounted');
   await check(`!performance.getEntriesByType('resource').some(e=>e.name.endsWith('.webp') && ['/newplan/','/pastworks/'].some(part=>e.name.includes(part)))`,
     '11: idle lobby does not request either scene’s WebP art');
