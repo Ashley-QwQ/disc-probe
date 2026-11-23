@@ -1,0 +1,15 @@
+COMMAND: node tests/test_csp_browser.mjs
+node:fs:2914
+    return binding.writeFileUtf8(
+                   ^
+
+Error: ENOENT: no such file or directory, open 'D:\dp-dev\tmp\webguide\csp-headers.json'
+    at writeFileSync (node:fs:2914:20)
+    at file:///D:/dp-dev/pr29m/tests/test_csp_browser.mjs:130:3 {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\dp-dev\\tmp\\webguide\\csp-headers.json'
+}
+
+Node.js v26.7.0

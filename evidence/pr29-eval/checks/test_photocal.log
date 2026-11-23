@@ -1,0 +1,2 @@
+COMMAND: node tests/test_photocal.mjs
+Photo calibration geometry, transforms, magnifier and focus handling passed

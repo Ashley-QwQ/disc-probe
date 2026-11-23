@@ -1,0 +1,2 @@
+COMMAND: node tests/test_along_track_stamp.mjs
+Saved photo L and refusal stamps passed in zh and en

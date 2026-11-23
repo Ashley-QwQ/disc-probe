@@ -1,0 +1,2 @@
+COMMAND: node tests/test_title_font_alignment.mjs
+PASS: 4 roles x 4 states x 6 titles; blocked font requests, platform faces, metrics and 16 screenshots verified

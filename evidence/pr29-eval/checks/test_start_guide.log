@@ -1,0 +1,2 @@
+COMMAND: node tests/test_start_guide.mjs
+Start guide tests passed

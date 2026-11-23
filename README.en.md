@@ -482,6 +482,8 @@ This repository adds an open source implementation that can be reproduced on ord
 
 Parts of the experimental BD/CD geometry algorithms and implementation, and the `--install` setup, were made by domerawind and DeepSeek-v41F in the corresponding pull requests, so the code's origin stays traceable.
 
+Thanks to WindowsNoEditor for contributing median clipping and the offline replay tool for `geo` in PR #29.
+
 The data-side encoding follows [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio), and `discprobe/efmplus.py` is ported from it. Thanks to NaiveTomcat and bczhc for the ports, and to anyezhixie, bczhc, Disappear9, domerawind, FanJZSS, kasumikira, Lakida0, li-yifei, MasterMT9, moodyos, NaiveTomcat, NO-ob, pugod124, ShiroiTree, Sliicy, WindowsNoEditor and zhajial for their reports.
 
 ## License

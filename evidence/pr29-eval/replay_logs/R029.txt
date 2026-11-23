@@ -1,0 +1,8 @@
+D:\dp-dev\integ\evidence\cd-support\geo-SIM-cav-20261104-084528: 36 rungs, cache strategy fua, media cd
+           rungs median sem chi2/dof  rms deg        r0 (mm)     pitch (um)
+recorded      36      0.708     1.13    0.678   25.249985263    1.584000726
+interp        36      0.700     1.38    0.747   25.250003943    1.583999553
+median        36      0.700     1.38    0.747   25.250003943    1.583999553
+line          36      0.817     1.04    0.748   25.250002615    1.583999595
+rebuild check: the interp phases differ from the recorded ones by at most 1.735 deg
+(sem is floored at 0.2 deg, as in geo)

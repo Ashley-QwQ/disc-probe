@@ -477,6 +477,8 @@ CD 的沿轨道常数要靠网格盘来定，206 帧只对 GH70N 加 IMAPI 刻�
 
 其中实验性 BD/CD 几何计算的部分算法与实现，以及 `--install` 安装功能，由 domerawind 与 DeepSeek-v41F 共同完成；相关 PR 见仓库历史，便于追踪代码来源。
 
+感谢 WindowsNoEditor 在 PR #29 中为 `geo` 贡献中位数剪切和离线重放工具。
+
 数据面刻图的编码参考了 [DiscImageStudio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio)，`discprobe/efmplus.py` 移植自它。感谢 NaiveTomcat 和 bczhc 的移植，也感谢报告实测结果的 anyezhixie、bczhc、Disappear9、domerawind、FanJZSS、kasumikira、Lakida0、li-yifei、MasterMT9、moodyos、NaiveTomcat、NO-ob、pugod124、ShiroiTree、Sliicy、WindowsNoEditor 和 zhajial。
 
 ## 许可

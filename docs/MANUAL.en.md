@@ -496,7 +496,7 @@ The synthetic disc's true geometry: r0 23.95 mm, track pitch 0.7365 µm, bit len
 
 ## Measuring geometry from timing: the "ladder" (`geo`)
 
-Have the drive measure the spiral geometry of a burned disc directly, without a scan.
+Have the drive measure the spiral geometry of a burned disc directly, without a scan. At each rung, `geo` corrects target phases using the neighbouring reference reads, then clips about the median. The window extends four scaled median absolute deviations (scale 1.4826) on either side, with a minimum of 1.5°. This reduces the effect of occasional late reads. WindowsNoEditor contributed the clipping method and the offline replay tool in PR #29. Run `python tools/geo_reanalyse.py <result-folder>` to compare the two fits on a saved measurement.
 
 ### How it works
 
@@ -548,7 +548,7 @@ python -m discprobe geo --drive H:
 - **The whole-turn problem.** With FUA, each reread always takes a whole number of turns, so you must wait a random 0 to 25 ms (`--host-delay-ms`) before each read. Otherwise, only a total duration of "a few turns" can be measured. This behaviour has been added to the simulator (`reread_delay_ms`).
 - **Rotation speed.** With the read speed fixed at 4x, after about 30 s to stabilise, the rotation speed is 2831 rpm (21.195 ms per turn), unchanged over 26 to 47 mm.
 - **Precision.** In random-data areas, the phase standard deviation for one reading is 0.43 to 0.55°, or ±0.07 to 0.09° after averaging 40 readings.
-- **Self-test.** On the simulator, a 14-rung ladder gives about 1° of angle error over 0 to 85% of the disc, consistent with the reported 1σ.
+- **Self-test.** Low-noise simulations check the angle error on plain and texture-ring discs, agreement with whole-ECC-block reads, and bias in the measured rung phases. A separate check exercises clipping with synthetic late reads.
 - **Real disc.** A 21-rung run on the 3 random-data rings of a texture ring disc (33.6 to 45.8 mm) gave a residual rms of 0.096°, a constant c = −0.009° and 1σ of 0.13° within the measured range. See [KNOWLEDGE.md](KNOWLEDGE.md) (in Chinese).
 
 ## Burning pictures, textures and colour

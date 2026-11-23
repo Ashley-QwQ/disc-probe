@@ -1,0 +1,7 @@
+COMMAND: node tests/test_pastworks_works.mjs
+Works helpers: labels, sorting, filtering, search, record and grid keys passed
+Works client: create, save with If-Match, 409, thumbnail, rename, mark, duplicate, bin and restore, export and import passed
+Design page saving: first save, reuse, 409 cancel / overwrite / keep both, binned work, picture failure passed
+Overlapping saves: queued, one work, no false conflict passed
+After an ISO: geometry noted, stamps followed, another window still caught passed
+Library choice: none, mock, real passed

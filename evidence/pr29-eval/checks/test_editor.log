@@ -1,0 +1,2 @@
+COMMAND: node tests/test_editor.mjs
+editor JS: migration, known masks, shared selection vectors passed

@@ -1,0 +1,2 @@
+name,exit_code,seconds,command,log
+selftest,1,380.538,C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe -B -X utf8 -m discprobe selftest,evidence\pr29-eval\checks\selftest.log

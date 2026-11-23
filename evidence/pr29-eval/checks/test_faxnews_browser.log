@@ -1,0 +1,4 @@
+COMMAND: node tests/test_faxnews_browser.mjs
+PASS: faxnews browser 1440x900 paper (mocked paper, file URL)
+PASS: faxnews browser 1440x900 dark (mocked paper, file URL)
+PASS: faxnews browser 390x844 paper (mocked paper, file URL)

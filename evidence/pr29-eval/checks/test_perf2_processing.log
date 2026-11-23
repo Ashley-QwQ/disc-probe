@@ -1,0 +1,2 @@
+COMMAND: node tests/test_perf2_processing.mjs
+PASS: 36 frozen processing hashes, packed decisions, and diffusion carry

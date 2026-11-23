@@ -1,0 +1,3 @@
+COMMAND: node tests/test_flow_navigation_browser.mjs
+LAB scene state {"errors":[],"images":[{"src":"http://127.0.0.1:50486/lobby/base_dark.webp","w":2560},{"src":"http://127.0.0.1:50486/lobby/lamp_dark.webp","w":911},{"src":"http://127.0.0.1:50486/lobby/basket_dark.webp","w":348},{"src":"http://127.0.0.1:50486/lobby/burner_dark.webp","w":701},{"src":"http://127.0.0.1:50486/lobby/phone_dark.webp","w":234}],"size":{"x":5.300000190734863,"y":0,"width":1429.3760986328125,"height":1000.0048828125,"top":0,"right":1434.6760988235474,"bottom":1000.0048828125,"left":5.300000190734863}}
+Flow navigation: retry recovery, CSP, back/forward with form and image state, refresh, deep library link, two themes; screenshots saved.

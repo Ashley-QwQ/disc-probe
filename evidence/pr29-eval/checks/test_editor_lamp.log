@@ -1,0 +1,2 @@
+COMMAND: node tests/test_editor_lamp.mjs
+editor lamp: one render at a time, newest pose only, quick then still frames, cache, revisions, errors/retry; lamp pose and height scale

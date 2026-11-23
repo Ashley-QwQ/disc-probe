@@ -1,0 +1,6 @@
+COMMAND: node tests/test_rw_discs_browser.mjs
+{
+  "passed": 18,
+  "dir": "F:\\dp-dev-tmp\\pr29eval\\checks\\rw_discs_test_root\\browser-bNWU2D",
+  "shots": "F:\\dp-dev-tmp\\pr29eval\\checks\\rw_discs_test_root\\shots"
+}

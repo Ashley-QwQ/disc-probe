@@ -1,0 +1,11 @@
+COMMAND: node tests/test_presetio_browser.mjs
+PASS: presetio browser 1440x900 idle paper (mock API, file URL)
+PASS: presetio browser 1440x900 export paper (mock API, file URL)
+PASS: presetio browser 1440x900 import paper (mock API, file URL)
+PASS: presetio browser 1440x900 idle dark (mock API, file URL)
+PASS: presetio browser 1440x900 export dark (mock API, file URL)
+PASS: presetio browser 1440x900 import dark (mock API, file URL)
+PASS: presetio browser 1920x1080 idle paper (mock API, file URL)
+PASS: presetio browser 390x900 import paper (mock API, file URL)
+PASS: presetio browser 390x900 export dark (mock API, file URL)
+PASS: presetio browser 900x1000 import paper (mock API, file URL)

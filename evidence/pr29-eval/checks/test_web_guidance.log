@@ -1,0 +1,2 @@
+COMMAND: node tests/test_web_guidance.mjs
+Bilingual recovery, budget and failed-job tests passed
