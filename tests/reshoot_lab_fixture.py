@@ -104,26 +104,29 @@ def shoot(lab, index):
     from discprobe import photo
 
     disc = lab.box()["discs"][index]
-    paths = render(lab, disc, 6, lab.root / "camera", seed=index + 173, style="flash",
-                   fixed=lambda i, _: dict(width=1600, height=1200, dist_mm=215, tilt_deg=20,
-                       az_deg=i * 60 + index * 13, roll_deg=i * 27, f35_mm=26, blur_px=.5, motion_px=0,
-                       noise=.5, veil=.04, shift_frac=0, fingers=0, k1=0, refraction=False))
     # Select suitable simulated camera angles, leaving the actual read and
     # agreement decision to the normal web photo job after upload.
     trial = lab.root / "camera-probe"
     trial.mkdir()
     accepted = []
-    for path in paths:
-        photo.analyze(trial, "dvd", [(path.name, path)])
-        shot, = json.loads((trial / "photo.json").read_text(encoding="utf-8"))["photos"]
-        if shot["status"] != "ok":
-            continue
-        accepted.append((path, shot))
-        for pair in combinations(accepted, 2):
-            if photo.photo_agreement([row[1] for row in pair])["written"]:
-                chosen = [str(row[0]) for row in pair]
-                (lab.root / "camera.json").write_text(json.dumps(chosen), encoding="utf-8")
-                return
+    for batch, (distance, tilt) in enumerate(((215, 20), (185, 16), (205, 24), (230, 19))):
+        def pose(i, _):
+            return dict(width=1600, height=1200, dist_mm=distance, tilt_deg=tilt,
+                        az_deg=i * 60 + index * 13 + batch * 19, roll_deg=i * 27 + batch * 35,
+                        f35_mm=26, blur_px=.5, motion_px=0, noise=.5, veil=.04, shift_frac=0,
+                        fingers=0, k1=0, refraction=False)
+        paths = render(lab, disc, 6, lab.root / "camera", seed=index + 173 + batch * 2, style="flash", fixed=pose)
+        for path in paths:
+            photo.analyze(trial, "dvd", [(path.name, path)])
+            shot, = json.loads((trial / "photo.json").read_text(encoding="utf-8"))["photos"]
+            if shot["status"] != "ok":
+                continue
+            accepted.append((path, shot))
+            for pair in combinations(accepted, 2):
+                if photo.photo_agreement([row[1] for row in pair])["written"]:
+                    chosen = [str(row[0]) for row in pair]
+                    (lab.root / "camera.json").write_text(json.dumps(chosen), encoding="utf-8")
+                    return
     raise ValueError("The simulated camera angles did not yield two agreeing photos")
 
 
