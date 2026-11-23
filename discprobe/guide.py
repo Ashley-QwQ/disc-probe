@@ -1325,7 +1325,7 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, dr
     partial = next((r for r in results if r.kind == 'geo' and r.summary.get('checkpoint')), None)
     selected_drive = drives[0] if drives else None
     continuation = []
-    if geo is None and partial:
+    if geo is None and partial and not missing:
         from .geo import resume_supported
         if resume_supported(partial.summary, media):
             selected_drive = (partial.summary.get('args') or {}).get('drive') or selected_drive
