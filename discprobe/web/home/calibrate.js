@@ -1612,9 +1612,10 @@ function realPaint() {
     flow.batchConfirmed=e.target.checked;paint();$("measurement-batch-confirm")?.focus();
   });
   $("real-name")?.addEventListener("input", e => {flow.realName = e.target.value;});
-  for (const radio of document.querySelectorAll('#starter-choice input')) radio.addEventListener('change', () => {
-    flow.starterChoice = radio.value; paint();
-    document.querySelector(`#starter-choice input[value="${CSS.escape(radio.value)}"]`)?.focus(); });
+  // One listener on the group: a radio's change bubbles up to it.
+  $('starter-choice')?.addEventListener('change', e => {
+    flow.starterChoice = e.target.value; paint();
+    $('starter-choice')?.querySelector?.(`input[value="${CSS.escape(e.target.value)}"]`)?.focus(); });
   $("measurement-confirm")?.addEventListener("change", e => {
     flow.measureConfirmed = e.target.checked; paint(); $("measurement-confirm").focus();
   });
@@ -1742,11 +1743,11 @@ function paintSavedBurn() {
   paper.insertAdjacentHTML('beforeend', `<div class="choices" id="photo-burns" role="radiogroup" aria-label="${esc(burnWords('select'))}">${
     burns.map(row => `<label class="choice"><input type="radio" name="photo-burn" value="${esc(row.id)}"${saved.id === row.id ? ' checked' : ''}>
       <b>${esc(when(row))}</b><span>${esc(`${burnWords('number')} ${row.disc_id || burnWords('missing')}${row.burner ? ` · ${row.burner}` : ''}`)}</span></label>`).join('')}</div>`);
-  for (const radio of document.querySelectorAll('#photo-burns input')) radio.onchange = () => {
-    saved.record = burns.find(row => row.id === radio.value) || null;
+  $('photo-burns').onchange = (e) => {
+    saved.record = burns.find(row => row.id === e.target.value) || null;
     saved.id = saved.record?.id ?? null;
     f.photoDiscId = saved.record?.disc_id ?? '';
-    paint(); document.querySelector(`#photo-burns input[value="${CSS.escape(radio.value)}"]`)?.focus();
+    paint(); $('photo-burns')?.querySelector?.(`input[value="${CSS.escape(e.target.value)}"]`)?.focus();
   };
   if (!saved.record) return;
   paper.insertAdjacentHTML('beforeend', `<label class="pc-disc-id"><span>${burnWords('number')}</span>
