@@ -383,28 +383,69 @@ def _ladder_safe_unwrap(c: Checker):
             "exhausted candidates are recorded as partial")
 
 
-def _ladder(c: Checker):
-    print("ladder geometry measurement on the simulated drive (35 ms re-read overhead)")
+def _ladder_geometry(c: Checker, seed: int):
     import numpy as np
     from .calib import SECTOR_BITS, theta
-    from .geo import Ladder
-    # The ladder's own accuracy, with the reads of the end-of-run state check left out (they only change
-    # which random draws the rungs get; checked separately below).
-    sim = SimDrive(mode="cav", seed=7, reread_delay_ms=35.0)
-    lad = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None, state_check=False)
-    res = lad.run()
+    from .geo import Ladder, _dtheta
+    from .rings import RingLayout
+
+    def run(*, sectors=1, patterns=(), state_check=False):
+        # Use repeatable, low-noise reads to test the geometry. _phase_tail
+        # exercises late completions separately.
+        sim = SimDrive(mode="cav", seed=seed, reread_delay_ms=35.0, jitter_us=8.0,
+                       outlier_rate=0.0, patterns=patterns)
+        lad = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None,
+                     sectors=sectors, state_check=state_check)
+        return sim, lad, lad.run()
+
+    sim, lad, res = run()
     b = 133.6e-6  # the simulator's off-nominal geometry
     n = np.linspace(0, 0.98 * sim.capacity * SECTOR_BITS, 400)
     e = np.degrees(theta(n, lad.u, lad.v) - theta(n, 23.93 / b, 0.735e-3 / b))
     span = float(e.max() - e.min())
-    from .geo import _dtheta
     g_end = np.subtract(_dtheta((sim.capacity // 16) * 16 * SECTOR_BITS, lad.u, lad.v), _dtheta(0.0, lad.u, lad.v))
     full = float(np.degrees(np.sqrt(g_end @ lad.cov[:2, :2] @ g_end)))
     c.check(abs(res["angle_sigma_full_disc_deg"] - full) < 1e-9 * max(1.0, full),
             f"the full-disc sigma counts DVD sectors in DVD channel bits ({res['angle_sigma_full_disc_deg']:.4f} deg)")
-    c.check(span < 1.5, f"{len(lad.targets)} rungs, angle error over 0-98 % of the disc {span:.3f} deg "
+    c.check(span < 0.75, f"{len(lad.targets)} rungs, angle error over 0-98 % of the disc {span:.3f} deg "
                         f"(reported 1 sigma {res['angle_sigma_measured_span_deg']:.3f}, "
                         f"chi2/dof {res['chi2_per_dof']:.2f})")
+    whole_sim, whole, _ = run(sectors=16)
+    e = np.degrees(theta(n, whole.u, whole.v) - theta(n, lad.u, lad.v))
+    span = float(e.max() - e.min())
+    c.check(span < 0.1, f"reading whole ECC blocks gives the same geometry: {span:.3f} deg apart over 0-98 % of the disc")
+    # A one-disc trial disc: texture rings between random ones, then a picture appended outside them.
+    layout = RingLayout(textures=("A5", "RND", "B9", "RND", "66", "RND", "64", "RND", "E4", "RND", "92", "RND"),
+                        groups=2, ring_width_mm=1.04, start_mm=25.0, filler="RND").build()
+    patterns = [(r["lba_start"], r["lba_end"], int(r["texture"], 16)) for r in layout.rings if r["texture"] != "RND"]
+    patterns.append((layout.total_sectors, sim.capacity, 0xB9))
+    ring_sim, rings, _ = run(patterns=patterns, state_check=True)
+    on_pattern = [t["lba"] for t in rings.targets if any(a <= t["lba"] < b for a, b, _ in patterns)]
+    outside = [(a, b) for a, b in rings.auto_ranges or [] if any(a < e and s < b for s, e, _ in patterns)]
+    c.check(len(rings.auto_ranges or []) == 12 and not on_pattern and not outside,
+            f"texture-ring disc: {len(rings.auto_ranges or [])} random stretches found, "
+            f"{len(on_pattern)} rungs and {len(outside)} stretches on a pattern")
+    # Measured only out to 50 mm, so judge it there, as the plain run is judged over its range.
+    measured = np.linspace(min(t["n"] for t in rings.targets), max(t["n"] for t in rings.targets), 300)
+    e = np.degrees(theta(measured, rings.u, rings.v) - theta(measured, 23.93 / b, 0.735e-3 / b))
+    span = float(e.max() - e.min())
+    c.check(span < 0.75, f"angle error over the measured span {span:.3f} deg")
+
+    # The fitted constant absorbs a common phase shift, so check the signed
+    # bias of the raw rung estimates against the simulator's true phase.
+    for name, drive, ladder in (("plain", sim, lad), ("whole ECC", whole_sim, whole),
+                               ("texture rings", ring_sim, rings)):
+        errors = [math.degrees(analysis.wrap_pi(math.radians(
+            t["phase_deg"] - drive.true_phase_deg(ladder.ref, t["lba"])))) for t in ladder.targets]
+        bias = math.fsum(errors) / len(errors)
+        c.check(abs(bias) < 0.25, f"{name} rung phase bias {bias:+.3f} deg")
+
+
+def _ladder(c: Checker):
+    print("ladder geometry measurement on the simulated drive (35 ms re-read overhead)")
+    from .geo import Ladder
+
+    _ladder_geometry(c, seed=7)
     # Check points read at the start and again at the end: a drive that changes state partway through
     # (a latency that grows with radius) bends the geometry while chi2 stays where it was.
     verdicts = []
@@ -415,30 +456,6 @@ def _ladder(c: Checker):
     c.check([v for v, _ in verdicts] == ["steady", "changed"],
             f"check points: a steady drive reads as {verdicts[0][0]}, one that changes partway as {verdicts[1][0]} "
             f"(chi2/dof {verdicts[0][1]:.2f} and {verdicts[1][1]:.2f}, so the fit alone can't tell)")
-    sim = SimDrive(mode="cav", seed=7, reread_delay_ms=35.0)
-    whole = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None, sectors=16, state_check=False)
-    whole.run()
-    e = np.degrees(theta(n, whole.u, whole.v) - theta(n, lad.u, lad.v))
-    span = float(e.max() - e.min())
-    c.check(span < 1.5, f"reading whole ECC blocks gives the same geometry: {span:.3f} deg apart over 0-85 % of the disc")
-    # A one-disc trial disc: texture rings between random ones, then a picture appended outside them.
-    from .rings import RingLayout
-    layout = RingLayout(textures=("A5", "RND", "B9", "RND", "66", "RND", "64", "RND", "E4", "RND", "92", "RND"),
-                        groups=2, ring_width_mm=1.04, start_mm=25.0, filler="RND").build()
-    patterns = [(r["lba_start"], r["lba_end"], int(r["texture"], 16)) for r in layout.rings if r["texture"] != "RND"]
-    patterns.append((layout.total_sectors, sim.capacity, 0xB9))
-    sim = SimDrive(mode="cav", seed=7, reread_delay_ms=35.0, patterns=patterns)
-    rings = Ladder(sim, speed_kbs=None, reps=16, max_targets=14, log=lambda *_: None)
-    rings.run()
-    on_pattern = [t["lba"] for t in rings.targets if any(a <= t["lba"] < b for a, b, _ in patterns)]
-    outside = [(a, b) for a, b in rings.auto_ranges or [] if any(a < e and s < b for s, e, _ in patterns)]
-    c.check(len(rings.auto_ranges or []) == 12 and not on_pattern and not outside,
-            f"texture-ring disc: {len(rings.auto_ranges or [])} random stretches found, "
-            f"{len(on_pattern)} rungs and {len(outside)} stretches on a pattern")
-    # Measured only out to 50 mm, so judge it there, as the plain run is judged over its range.
-    measured = np.linspace(min(t["n"] for t in rings.targets), max(t["n"] for t in rings.targets), 300)
-    e = np.degrees(theta(measured, rings.u, rings.v) - theta(measured, 23.93 / b, 0.735e-3 / b))
-    c.check(float(e.max() - e.min()) < 1.5, f"angle error over the measured span {float(e.max() - e.min()):.3f} deg")
     plain = Ladder(SimDrive(mode="cav", seed=7, patterns=[(500000, 520000, 0xA5)]), speed_kbs=None, log=lambda *_: None)
     plain.tp.setup()
     found = plain._random_parts([(68000, 1950000)])
