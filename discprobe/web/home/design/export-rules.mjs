@@ -51,7 +51,8 @@ export function measuredRings(intervals, legacy, ring) {
 }
 // only when known: a geometry choice without it keeps its old shape
 const measuredOf = (x) => ({
-  ...(Array.isArray(x?.measured_mm) ? { measured: x.measured_mm } : {}),
+  ...(x?.starter && Array.isArray(x.checked_mm) ? { measured: x.checked_mm } :
+    Array.isArray(x?.measured_mm) ? { measured: x.measured_mm } : {}),
   ...(x?.measured_intervals_mm?.length ? { intervals: x.measured_intervals_mm } : {}),
 });
 const importedChoice = (item, entry, media) => {

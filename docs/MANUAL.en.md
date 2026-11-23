@@ -600,6 +600,24 @@ Once the geometry has been measured from timing, it can be used directly to gene
 
 **Viewing advice:** The rainbow "pizza slices" are diffraction from the factory groove. View near the specular direction of a small, bright light source (with the light right next to your eye or camera), and the picture is visible across the whole disc. See [`KNOWLEDGE.md`](KNOWLEDGE.md) (in Chinese) §10 to §10f.
 
+### DVD starter preset
+
+[中文步骤](starter-preset.zh.md)
+
+Insert a blank DVD from the new batch and run `python -m discprobe starter --drive H:`.
+Select a listed source explicitly with `--source ID`. The same local drive and MID
+are listed first. Other machines of the same model and community sources are
+marked unverified for cross-machine and cross-batch reuse. The web calibration
+page leaves the measurement-disc option selected by default.
+
+1. Use `checkdisc --geo <starter.json> --output iso/check.iso` to make the check disc.
+2. Burn it with `burn --drive H: --media dvd --iso iso/check.iso --yes-write`.
+   After verified read-back, write the printed check-disc number on the disc.
+3. Take photos from at least two distinct poses. Run `photo --media dvd --run <starter folder>
+   --disc-id <check-disc number> --photos one.jpg two.jpg three.jpg`.
+4. When the photos pass, use `image --geo <starter.json>` with artwork within
+   26.2–57.0 mm. If the photos fail, return to measuring a random-data disc from the batch.
+
 ## CD-R: textures, timing and burning pictures
 
 `rings`, `random`, `timing`, `geo`, `image`, `tiles` and `gridscan` support `--media cd`; DVD remains the default.

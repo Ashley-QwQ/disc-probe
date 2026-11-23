@@ -57,14 +57,17 @@ def build_design() -> np.ndarray:
 
 def run(args):
     """Build and verify a target using timing geometry only, before any photo L."""
-    from . import coverage, guide, image_output, imagedisc, ui
+    from . import coverage, guide, image_output, imagedisc, starter, ui
     from .works_link import check_work, image_completed
 
     path = Path(args.geo)
     if path.is_dir():
         path /= 'summary.json'
+    trial = starter.is_record(path)
     try:
-        document = json.loads(path.read_text(encoding='utf-8'))
+        document, trial_sha = starter.read(path) if trial else (json.loads(path.read_text(encoding='utf-8')), None)
+        if not trial and document.get('format') == starter.FORMAT:
+            raise ValueError('Use the original starter.json with its check-disc records.')
         fit = document['fit']
         if fit.get('media', 'dvd') != 'dvd':
             raise ValueError('The check disc is for DVD only; CD and Blu-ray are not supported yet.')
@@ -73,11 +76,15 @@ def run(args):
         raise ValueError('Use the geo run folder or its summary.json with a DVD geometry fit.') from None
     if not all(np.isfinite(x) and x > 0 for x in (u, v, bit)):
         raise ValueError('The DVD geometry fit must have positive finite u, v and bit length.')
-    warning = coverage.range_warning(fit, [26.2, 57.0])
+    warning = None if trial else coverage.range_warning(fit, [26.2, 57.0])
     if warning:
         raise ValueError('The measured geometry does not cover the photo target reliably from 26.2 to 57.0 mm; '
                          're-measure this batch with the new geo; no new burn is needed. ' + warning)
     total = args.sectors
+    if trial:
+        if total is not None and total != document['capacity_sectors']:
+            raise ValueError('A starter check disc uses the writable capacity of the identified blank DVD.')
+        total = document['capacity_sectors']
     if total is None:
         last = (document.get('setup') or {}).get('last_lba')
         if type(last) is not int or last < 0:
@@ -90,19 +97,34 @@ def run(args):
     check_work(args)
     design = build_design()
     meta = dict(check_disc=True, design='pcal round2', geometry_from=str(path.resolve()), experimental=True)
+    extras = {}
+    if trial:
+        from PIL import ImageDraw
+        from .pcal_assist import arrow_polygon
+        mask = Image.new('1', design.shape[::-1])
+        ImageDraw.Draw(mask).polygon([(x / .02 + 2999.5, 2999.5 - y / .02) for x, y in arrow_polygon()], fill=1)
+        design[np.asarray(mask)] = 9
+        extras['correction'] = starter.correction(document)
+        meta.update(starter_check=starter.target(path.resolve(), document, trial_sha), calibration_mid=document['mid'])
     print('Experimental photo check disc; textures chosen for RITEKF1 DVD-R, unverified on other batches.')
     with ui.writing(args.output, total) as log:
         spec = imagedisc.write_iso(args.output, design, u, v, bit, total,
-                                  textures=TEXTURES, lead_lba=0, meta=meta, log=log)
+                                  textures=TEXTURES, lead_lba=0, meta=meta, log=log, **extras)
         problems = image_output.verify_generated(args.output, imagedisc.verify_iso, design, u, v, bit, total,
-                                                  textures=TEXTURES, lead_lba=0, samples=300)
+                                                  textures=TEXTURES, lead_lba=0, samples=300, **extras)
     if problems:
         raise ValueError('Check-disc verification failed: ' + '; '.join(problems[:5]))
     print(f'Verified: 300 sampled sectors match the design. Spec: {spec}')
+    if trial:
+        preview = np.where(design == 9, 110, np.where(design == 0, 35, 226)).astype('uint8')
+        Image.fromarray(preview).resize((1200, 1200), Image.Resampling.BOX).save(Path(args.output).with_suffix('.preview.png'))
     image_completed(args)
     ui.iso_ready(args.output)
-    for line in guide.burn_steps(args.output):
-        print(line)
+    if trial:
+        print(f'用 discprobe burn 刻录并记录盘号 / Use discprobe burn to record a check-disc number: {args.output}')
+    else:
+        for line in guide.burn_steps(args.output):
+            print(line)
     print('After burning, photograph it from the page (or photo --run '
           f'{guide.quote(str(path.parent))} --disc-id <code>).')
 

@@ -37,12 +37,13 @@ def version():
     """The installed release identity, also available outside a checkout."""
     return "v" + api.version_payload()["core_version"]
 
-ACTIONS = {"info", "timing", "geo", "random", "image", "checkdisc", "disexport", "cdprobe", "burn", "erase", "swap", "calibrate", "photo", "curve-edit"}
-DRIVE_ACTIONS = {"info", "timing", "geo", "burn", "erase", "swap", "calibrate"}
+ACTIONS = {"info", "timing", "geo", "random", "image", "checkdisc", "disexport", "cdprobe", "burn", "erase", "swap", "calibrate", "photo", "curve-edit", "starter"}
+DRIVE_ACTIONS = {"info", "timing", "geo", "burn", "erase", "swap", "calibrate", "starter"}
 # Deliberately exclude force/install/replace, raw transport commands and arbitrary flags.
 OPTIONS = {
     "curve-edit": {"run": "path", "edit_json": "curve_document", "save": "flag"},
     "info": {},
+    "starter": {"source": "starter_source"},
     "swap": {"minutes": "minutes"},       # read-only: TEST UNIT READY while the disc is changed
     "timing": {"speed": "speed", "reps": "count", "period_reads": "count", "max_minutes": "minutes"},
     "geo": {"speed": "speed", "reps": "count", "max_targets": "count", "bd_zones": "count",
@@ -189,6 +190,8 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
         raise APIError("invalid media")
     if action == "checkdisc" and media != "dvd":
         raise APIError("The check disc is for DVD only; CD and Blu-ray are not supported yet.")
+    if action == "starter" and media != "dvd":
+        raise APIError("Starter presets are for DVD only.")
     if action in ("image", "cdprobe") and media == "bd":
         raise APIError("this action has no Blu-ray path")
     if action == "cdprobe" and media != "cd":
@@ -319,6 +322,9 @@ def command(payload, root: Path, drives) -> tuple[list[str], str | None]:
                 raise APIError("invalid " + name)
             if rule == "burn_mid":
                 continue  # The server binds these to the checked medium before starting the CLI.
+        elif rule == "starter_source":
+            if not isinstance(value, str) or not re.fullmatch(r"(?:geo|community):[A-Za-z0-9_-]{1,100}", value):
+                raise APIError("invalid starter source")
         elif rule == "device_id":
             if not isinstance(value, str) or not 1 <= len(value) <= 200 or any(ord(c) < 32 for c in value):
                 raise APIError("invalid " + name)
@@ -651,12 +657,13 @@ def photo_application(run_dir):
     Only what the pages show: applied or not, the reason code, and the value in the run's media units.
     It reads the run's files and changes nothing; the picture job decides again when it runs.
     """
-    from . import photo
+    from . import photo, starter
     folder = Path(run_dir)
-    if not (folder / "summary.json").is_file() or not any((folder / name).is_file() for name in ("photo.json", photo.MANUAL_L_FILE)):
+    source = starter.run_file(folder)
+    if not source.is_file() or not any((folder / name).is_file() for name in ("photo.json", photo.MANUAL_L_FILE)):
         return dict(written=False, reason="no_photo")
     try:
-        decision = photo.photo_l(folder / "summary.json")
+        decision = photo.photo_l(source)
     except Exception:          # the gate is advisory here; the picture job runs it again
         return dict(written=False, reason="invalid_photo")
     out = dict(written=bool(decision.get("written")), reason=str(decision.get("reason") or "").split(":", 1)[0] or None)
@@ -1014,7 +1021,7 @@ class Backend:
                 argv += self.photos.argv(payload.get("args", {}))
             except (ValueError, OSError) as exc:
                 raise APIError(str(exc)) from exc
-        if payload["action"] in {"info", "timing", "geo", "calibrate"}:
+        if payload["action"] in {"info", "timing", "geo", "calibrate", "starter"}:
             argv += ["--out", self.out]
         args = payload.get("args", {})
         if payload["action"] == "image" and args.get("files"):
@@ -1349,8 +1356,8 @@ class Backend:
                             job.result["catalogue_capacity_sectors"] = known[0]
                     self.discs[job.drive] = dict(job.result["disc"], tray="ready", read_at=round(time.time()))
                 job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
-            elif job.action == "curve-edit":
-                done = next((e for e in reversed(job.history) if e.get("type") == "result" and e.get("step") == "curve-edit"), None)
+            elif job.action in {"curve-edit", "starter"}:
+                done = next((e for e in reversed(job.history) if e.get("type") == "result" and e.get("step") == job.action), None)
                 if done:
                     job.result = {k: v for k, v in done.items() if k not in {"type", "job", "step", "time"}}
             elif job.action == "photo":
@@ -1367,6 +1374,8 @@ class Backend:
                     job.result["application"] = photo_application(done.get("path") or "")
                     job.result["seconds"] = round(job.finished_at - job.started_at, 1)
                     job.result["outliers"] = done.get("outliers", [])
+                    if 'starter' in done:
+                        job.result['starter'] = done['starter']
             elif job.action == "calibrate":
                 # what the core found, from its last `calibrated` event: the measured folders, their
                 # verdicts and the geometry's points for the page's chart

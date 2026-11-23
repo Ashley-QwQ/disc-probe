@@ -9,6 +9,7 @@ from functools import wraps
 import json
 import math
 import os
+from pathlib import Path
 import sys
 
 try:
@@ -464,6 +465,8 @@ def _geo_fit(args, media=None) -> dict:
         with open(path, encoding="utf-8") as f:
             document = json.load(f)
             fit = document["fit"]
+        if document.get('format') == 'dp-starter-preset-v1':
+            sys.exit('Use the original starter.json with checkdisc or image and its check-disc records.')
         if fit.get("model") == "clv" and fit.get("media") == "cd":
             sys.exit(i18n.tr(guide.CD_CLV_LIMIT))
         if fit.get("model") == "dis_import" and not fit.get("image_compatible"):
@@ -1030,6 +1033,9 @@ def cmd_geo(args, *, speed_check=None):
     if progress and res:
         ui.say(f"Finished in {ui.clock(ui.time.monotonic() - progress.started)}", "dim")
     if res:
+        if media == 'dvd' and not args.sim:
+            from .starter import record_drive_identity
+            record_drive_identity(out, ladder.tp.summary.get('identity'), args.drive)
         _next(guide.after_geo(args, res, out), args)
     else:
         unreadable = [] if ladder.auto_ranges else sorted({e.lba for e in ladder.tp.events if e.sense.startswith("3/")})
@@ -1204,6 +1210,17 @@ def cmd_image(args, *, show_next=True):
     from .works_link import check_work, image_completed
     check_work(args)
     from . import burn_gate, image_output, imagecheck, imagedisc
+    from . import starter
+    trial = starter.is_record(args.geo)
+    trial_document = None
+    if trial:
+        try:
+            trial_document, trial_sha = starter.read(args.geo)
+        except (ValueError, OSError, AttributeError) as error:
+            sys.exit(f'{starter.REFUSAL} ({error})')
+        if (args.media != 'dvd' or args.correction or args.start_lba or args.random_below_mm
+                or getattr(args, 'no_photo_l', False)):
+            sys.exit(starter.REFUSAL)
     if getattr(args, 'files', None) and (args.media != 'dvd' or args.start_lba or args.random_below_mm):
         sys.exit('随盘文件只支持完整单层 DVD，不支持 CD、BD、追加或随机内圈')
     writer = imagedisc
@@ -1214,7 +1231,7 @@ def cmd_image(args, *, show_next=True):
     # can still be selected for a small picture inside its measured interval.
     fit = None
     if args.geo.lower() != 'latest':
-        fit = _geo_fit(args, args.media)
+        fit = trial_document['fit'] if trial else _geo_fit(args, args.media)
         _require_fit_media(args, fit)
         _refuse_audio_fit(fit)
         _require_validated_correction(args, fit)
@@ -1248,8 +1265,13 @@ def cmd_image(args, *, show_next=True):
             design = kept
         kind = f"design {os.path.basename(args.design)}" if args.design else f"picture {os.path.basename(args.picture)}"
     else:
-        design = imagedisc.grid_design(r_min=imagecheck._inner_mm(args),
-                                      r_max=args.r_max, line=args.line_mm, size=imagedisc.CELL_SIDES[args.cell_um or 20])
+        inner, outer = imagecheck._inner_mm(args), args.r_max
+        if trial:
+            cell_mm = (args.cell_um or 20) / 1000
+            inner = starter.CHECK_RANGE[0] + cell_mm
+            outer = min(outer, starter.CHECK_RANGE[1] - cell_mm)
+        design = imagedisc.grid_design(r_min=inner, r_max=outer, line=args.line_mm,
+                                      size=imagedisc.CELL_SIDES[args.cell_um or 20])
         kind = f"grid, {args.line_mm} mm lines"
     args._radius_range = imagedisc.drawing_span(design)
     fit = fit or _geo_fit(args, args.media)
@@ -1261,6 +1283,8 @@ def cmd_image(args, *, show_next=True):
     photo_decision = image_photo_l(args.geo, args.output, media=args.media,
                                   disabled=getattr(args, "no_photo_l", False),
                                   device_id=getattr(args, "reading_drive", None))
+    if trial and (not photo_decision['written'] or photo_decision['provenance']['starter_sha256'] != trial_sha):
+        sys.exit(f"{starter.REFUSAL} ({photo_decision.get('reason', 'starter_changed')})")
     if args.along_track_frames:
         from .cd import FRAME_BITS
         if args.media != 'cd':
@@ -1275,6 +1299,8 @@ def cmd_image(args, *, show_next=True):
         total = min(total, fit['capacity_sectors'])
     if args.media == "dvd":
         total = min(total, 2295104)
+        if trial:
+            total = min(total, trial_document['capacity_sectors'])
     else:
         from .cd import check_capacity, CAPACITY
         # As on DVD, a drawing out to the rim stops where the disc does. IMAPI refused 359849 and 359800 sectors
@@ -1333,7 +1359,12 @@ def cmd_image(args, *, show_next=True):
         span = [max(args._radius_range[0], radius_at(max(first, lead))),
                 min(args._radius_range[1], radius_at(total))]
         if span[1] > span[0]:
-            warning = range_warning(fit, span, allow_dis_nominal=True)
+            if trial:
+                lo, hi = starter.CHECK_RANGE
+                warning = (f'作品须在检查盘覆盖的 {lo}–{hi} mm 内 / Keep the artwork inside {lo}–{hi} mm checked by the target.'
+                           if span[0] < lo or span[1] > hi else None)
+            else:
+                warning = range_warning(fit, span, allow_dis_nominal=True)
             if warning:
                 from .diagnostics import save_failure
                 save_failure(os.path.dirname(os.path.abspath(args.geo)), warning, args)
@@ -1341,8 +1372,8 @@ def cmd_image(args, *, show_next=True):
     tex = f"textures {' '.join(args.textures)}" if args.textures else f"dark {args.dark}, light {args.light}"
     print(f"{kind}, {imagedisc.cell_mm(design) * 1000:g} um cells, geometry u {u:.3f}, v {v:.7f} from {args.geo}; {total} sectors "
           f"({total * 2048 / 1e9:.2f} GB), {tex}")
-    corr = imagedisc.load_correction(args.correction) if args.correction else None
-    calibration_mid = burn_gate.measurement_mid(args.geo)
+    corr = starter.correction(trial_document) if trial else imagedisc.load_correction(args.correction) if args.correction else None
+    calibration_mid = trial_document['mid'] if trial else burn_gate.measurement_mid(args.geo)
     try:
         with ui.writing(args.output, total - first) as log:
             spec = writer.write_iso(args.output, design, u, v, bit, total, args.dark, args.light,
@@ -2283,6 +2314,8 @@ def _build_parser():
 
     from . import photo
     photo.add_parser(sub)
+    from . import starter
+    starter.add_parser(sub)
 
     sp = sub.add_parser("version", help="show core and GUI API versions and capabilities")
     sp.add_argument("--json", action="store_true", help="print version information as JSON")

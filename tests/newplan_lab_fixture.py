@@ -10,6 +10,7 @@ from disclab.__main__ import BOOT
 from disclab.lab import Lab
 from disclab.scenario import load_scenario, make_scenario_box
 from discprobe import webui_catalog
+from discprobe.starter import record_drive_identity
 from tests.test_webui_catalog import write_geo
 
 
@@ -31,7 +32,14 @@ with lab.locked_state() as state:
                  open=case == "tray-open")
 
 # Two saved batches, so automatic drive selection and the history fallback give different answers.
-write_geo(root, identity=dict(disc="RITEKF1", drive="Disc Lab"))
+if case == 'blank':
+    who = dict(disc='RITEKF1', drive='DISCLAB GH70N-LIKE', firmware='LAB1')
+    fit = dict(media='dvd', u=180518., v=5.591, bit_nm_assumed=133.3, chi2_per_dof=1,
+               measured_span_mm=[24.49,57.1], angle_sigma_measured_span_deg=.1)
+    geo = write_geo(root, fit=fit, identity=who)
+    record_drive_identity(geo, who, 'X:')
+else:
+    write_geo(root, identity=dict(disc="RITEKF1", drive="Disc Lab"))
 write_geo(root, "20261108-101500", identity=dict(disc="HIST/R02/01", drive="Disc Lab"))
 catalogue = webui_catalog.catalogue(root, root / "results")["dvd"]
 for row in catalogue:

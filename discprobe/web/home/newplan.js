@@ -17,6 +17,7 @@ import * as presets from "./presetio.js";
 import { driveTarget, pushLobby } from "./lobby.js";
 import { receive as receiveCommunity, hint as communityHint, safeGithub } from "./community.mjs";
 import { calibrated, calibratedBatch, localDay, sameMaker } from "./batches.mjs";
+import { hasCapability } from "./handshake.mjs";
 
 const STR = {
   zh: {
@@ -522,10 +523,17 @@ function paintLeft() {
   W.q(".np-left").textContent = it && Number.isFinite(it.left) && Number.isFinite(it.of) ? t.left(it.left, it.of) : "";
   W.q(".np-cal").classList.toggle("ok", hasGeometry(it));
   W.q(".np-cal-text").textContent = calibrationNotice();
-  W.q(".np-cal-go").hidden = !it || hasGeometry(it);
+  const newBatchCheck = canCheckNewBatch(it);
+  W.q(".np-cal-go").hidden = !it || (hasGeometry(it) && !newBatchCheck);
+  W.q(".np-cal-go").textContent = newBatchCheck ? (api.lang() === 'zh' ? '标定新批次' : 'Calibrate a new batch') : t.calGo;
   W.q(".np-own").hidden = !!it && hasGeometry(it) || !presets.ready();
   W.q(".np-disc-help").textContent = driveNotice(t);
   paintCommunity();
+}
+function canCheckNewBatch(item) {
+  const disc = driveOfKind();
+  return !api.backend.mock && hasCapability('starter-preset') && state.kind === 'dvd' && calibrated(item)
+    && disc?.blank === true && sameMaker(item.mid, disc.mid);
 }
 function driveNotice(t) {
   if (state.reading) return t.reading;
@@ -569,7 +577,8 @@ async function calibrateFirst() {
   if (pan && !await bagging(false)) { going = false; return; }
   await refreshed;
   if (state !== form || !isOn()) { going = false; return; }
-  const item = chosen();
+  let item = chosen();
+  if (canCheckNewBatch(item)) item = {...newBatch(item.mid, true), mid:item.mid, manualBatch:true};
   if (hasGeometry(item)) {
     W.classList.remove("filing", "leaving");
     going = false;

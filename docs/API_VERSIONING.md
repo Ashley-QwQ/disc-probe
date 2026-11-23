@@ -67,6 +67,14 @@ in `X-Discprobe-Artwork-Bounds` (JSON array or null). This is a read-only
 operation. For native-pixel composition an image layer can include an optional
 `gridPng` PNG data URL alongside its existing preview raster.
 
+API 1.6 adds optional `starter-preset`. The DVD-only `/api/run` action `starter`
+lists sources for the blank in the specified drive. Supply `args.source` to
+select one explicitly and receive the workspace-relative starter path. A
+starter check-disc burn emits `starter_burn` with its disc number. Analyzed
+starter photos return `starter.written` and `starter.reason`. A confirmed
+starter appears in the DVD catalogue with `starter`, `starter_source`, and
+`checked_mm`. The normal `geo` and `photo` job formats remain valid.
+
 Proposed policy: retain working adapters for the previous MAJOR for at least
 six months after the new major's first stable release. Publish its retirement
 date with that release. List only majors with actual working adapters in

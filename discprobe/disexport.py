@@ -122,7 +122,10 @@ def export(geo_summary: str, total_sectors: int, correction_path: str | None, ou
            *, photo_path: str | None = None, device_id: str | None = None,
            completion_sectors: int | None = None) -> dict:
     from .photo import photo_shift, shifted_u
+    from .starter import is_record
     geo_summary = str(geo_summary)
+    if is_record(geo_summary):
+        raise ValueError('Use image with the starter preset and its verified check-disc photos.')
     decision = photo_shift(geo_summary, photo_path, device_id=device_id, dvd_manual=True)
     # The older disexport parser passes 0 even when no flag was supplied. It is
     # not a measured zero. An accepted photo may, of course, measure exactly 0.

@@ -88,8 +88,11 @@ def photo_l(geo_summary, photo_path=None, *, device_id=None, media=None, frozen=
     unknown, scoped to this exact run; they are never guessed from its read method.
     """
     summary = Path(geo_summary).resolve()
+    from . import starter
     if summary.is_dir():
-        summary /= "summary.json"
+        summary = starter.run_file(summary)
+    if starter.is_record(summary):
+        return starter.photo_decision(summary, photo_path, device_id=device_id, media=media, frozen=frozen)
     path = Path(photo_path).resolve() if photo_path else summary.parent / "photo.json"
     def refused(reason):
         return dict(written=False, reason=reason)
@@ -452,16 +455,31 @@ def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=Non
     Its source summary/hash are retained because this residual belongs to this run and path.
     A provisional reader value never becomes an applicable offset.
     """
-    from . import pcal
+    from . import pcal, starter
     import numpy as np
     from PIL import Image, ImageOps, UnidentifiedImageError
 
     folder = Path(run_dir).resolve(strict=True)
     if not folder.is_dir() or media not in ("cd", "dvd"):
         raise ValueError("an existing run directory and cd or dvd media are required")
+    summary = starter.run_file(folder)
+    trial = summary.name == starter.FILE
+    starter_evidence = None
+    if trial:
+        if media != 'dvd' or rings_mm is not None:
+            raise ValueError(starter.REFUSAL)
+        try:
+            document, sha = starter.read(summary)
+            starter_evidence = starter.receipt(summary, document, sha, disc_id)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            raise ValueError(f'{starter.REFUSAL} ({error})') from None
+        expected = starter_evidence['burn_path']
+        if any(value is not None and value != expected[key]
+               for key, value in (('burner', burner), ('path', burn_path), ('mode', burn_mode))):
+            raise ValueError(starter.REFUSAL)
+        burner, burn_path, burn_mode = (expected[k] for k in ('burner', 'path', 'mode'))
     rings_mm = rings_arg(rings_mm)
     design = pcal.design_burn() if rings_mm is None else pcal.design_pn(rings=rings_mm)
-    summary = folder / "summary.json"
     source = summary.read_bytes() if summary.is_file() else None
     geo = json.loads(source) if source else {}
     inputs = list(photos)
@@ -529,6 +547,9 @@ def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=Non
                   source_geo=dict(sha256=hashlib.sha256(source).hexdigest() if source else None,
                                   run_id=folder.name, drive_identity=drive_identity(geo, folder),
                                   identity=geo.get("identity"), setup=geo.get("setup")))
+    if trial:
+        del record['source_geo']
+        record['source_starter'] = starter_evidence
     target = folder / "photo.json"
     temporary = folder / (".photo-" + secrets.token_hex(8) + ".json")
     try:
@@ -536,6 +557,12 @@ def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=Non
         temporary.replace(target)
     finally:
         temporary.unlink(missing_ok=True)
+    if trial:
+        application = starter.photo_decision(summary, target, media=media)
+        result['starter'] = dict(written=application['written'], reason=application.get('reason'))
+        if not application['written']:
+            reason = application['reason']
+            log(f'{starter.REFUSAL} ({REASONS.get(reason, reason)})')
     ui.event("progress", stage=f"reading photo {len(inputs)}/{len(inputs)}", fraction=1.0)
     ui.event("result", step="photo", **result)
     log(f"Photo verdict: {result['verdict']}" + (f", offset {offset:+.6f} mm" if offset is not None else
@@ -555,6 +582,9 @@ def log(message):
 def run(args):
     try:
         if getattr(args, "manual_l", None) is not None:
+            from .starter import FILE, REFUSAL, run_file
+            if run_file(args.run).name == FILE:
+                raise ValueError(REFUSAL)
             decision = save_manual_l(args.run, args.media, args.manual_l)
             log(f"Manual along-track L: {args.manual_l:+.6f} mm ({decision['origin']})")
             ui.event("result", step="photo", path=str(Path(args.run).resolve()), photo_l=decision)
@@ -701,7 +731,8 @@ class PhotoStore:
     def _stamp(self, run_id):
         folder = self.run_dir(run_id)
         stat = folder.stat()
-        summary = folder / "summary.json"
+        from .starter import run_file
+        summary = run_file(folder)
         # Hashing also invalidates links when a run is remeasured in place.
         digest = hashlib.sha256(summary.read_bytes()).hexdigest() if summary.is_file() else None
         return (stat.st_dev, stat.st_ino, getattr(stat, "st_birthtime", None), digest)

@@ -568,8 +568,8 @@
       repeating-linear-gradient(0deg, transparent 0 11px, var(--rule) 11px 12px), repeating-linear-gradient(90deg, transparent 0 11px, var(--rule) 11px 12px); }
   .cal .row { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
   .cal .name-field { display: grid; gap: 8px; margin-top: 18px; font-size: 17px; color: var(--ink-2); }
-  .cal .name-field input { min-width: 0; min-height: 44px; font: inherit; font-size: 20px; color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--rule-strong); padding: 6px 0; caret-color: var(--copper); }
-  .cal .name-field input:focus-visible { outline: none; border-bottom-color: var(--ink); }
+  .cal .name-field :is(input, select) { min-width: 0; min-height: 44px; font: inherit; font-size: 20px; color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--rule-strong); padding: 6px 0; caret-color: var(--copper); }
+  .cal .name-field :is(input, select):focus-visible { outline: none; border-bottom-color: var(--ink); }
   .cal .count-input { display: flex; align-items: center; gap: 12px; font-size: 18px; }
   .cal .count-input input { width: 92px; min-height: 52px; padding: 0 12px; border: 1px solid var(--rule-strong); border-radius: 4px; background: transparent; color: var(--ink); font: 600 22px var(--font); font-variant-numeric: tabular-nums; }
 

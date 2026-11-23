@@ -7,7 +7,7 @@ import re
 
 from .version import __version__
 
-API_VERSION = "1.5"
+API_VERSION = "1.6"
 SUPPORTED_OLDER_API_MAJORS = ()  # No earlier public API major exists yet.
 CAPABILITIES = (
     "state", "drives-info", "jobs-events", "timing", "geo", "image-design",
@@ -21,6 +21,7 @@ CAPABILITIES = (
     "library-management",
     "library-batch-details",
     "grid-templates",
+    "starter-preset",
 )
 BUNDLED_GUI = Path(__file__).with_name("web")
 _VERSION = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)", re.ASCII)
