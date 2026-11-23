@@ -2451,11 +2451,8 @@ async function realNext() {
     } else if (phase === "inspect" || (phase === "prepare" && flow.detected.blank == null)) {
       const result = await inspectDisc();
       const disc = result.disc;
-      flow.starterCandidates = [];
-      if (!flow.starterDeclined && disc.media === 'dvd' && disc.blank === true && hasCapability('starter-preset')) {
-        try { flow.starterCandidates = (await realJob('starter')).candidates ?? []; }
-        catch { /* A missing starter falls through to the measurement workflow. */ }
-      }
+      flow.starterCandidates = !flow.starterDeclined && disc.media === 'dvd' && disc.blank === true && hasCapability('starter-preset')
+        ? result.starter_candidates ?? [] : [];
       if (returnTo && !flow.starterDeclined && !flow.starterCandidates.length) {
         await api.syncState?.();
         const batch = calibratedBatch(api.catalogue?.(result.disc.media) ?? [], flow.item, result.disc);

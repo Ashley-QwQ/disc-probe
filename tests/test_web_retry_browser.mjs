@@ -213,7 +213,10 @@ try {
     await verifyActions();
   }
 } finally {
-  socket?.close();
+  if (socket?.readyState === WebSocket.OPEN) {
+    await Promise.race([cdp('Browser.close').catch(() => {}), delay(2000)]);
+    socket.close();
+  }
   server.closeAllConnections();
   server.close();
   if (browser && browser.exitCode === null) {

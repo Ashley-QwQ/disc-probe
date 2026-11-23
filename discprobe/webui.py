@@ -1347,13 +1347,22 @@ class Backend:
                 if job.action in {"geo", "timing"}:
                     job.result["measurement"] = webui_catalog.measurement(run)
                 if job.action == "info":
-                    job.result["disc"] = webui_catalog.disc_report(guide._load(str(Path(run.path) / "info.json")) or {})
+                    report = guide._load(str(Path(run.path) / "info.json")) or {}
+                    job.result["disc"] = webui_catalog.disc_report(report)
                     disc = job.result["disc"]
                     if disc["blank"] is False and disc["capacity_sectors"] is None:
                         from .capacity import catalogue_capacity
                         known = catalogue_capacity(disc["mid"], disc["media"], self.root)
                         if known:
                             job.result["catalogue_capacity_sectors"] = known[0]
+                    if disc['blank'] is True and disc['media'] == 'dvd':
+                        from .starter import for_blank
+                        try:
+                            _, starters = for_blank(self.root, Path(self.out), disc, report, job.drive)
+                        except (OSError, ValueError):
+                            starters = []
+                        if starters:
+                            job.result['starter_candidates'] = [row['source'] for row in starters]
                     self.discs[job.drive] = dict(job.result["disc"], tray="ready", read_at=round(time.time()))
                 job.history.append(dict(type="result", job=job.id, step=job.action, **job.result))
             elif job.action in {"curve-edit", "starter"}:

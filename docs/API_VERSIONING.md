@@ -69,8 +69,9 @@ operation. For native-pixel composition an image layer can include an optional
 
 API 1.6 adds optional `starter-preset`. The DVD-only `/api/run` action `starter`
 lists sources for the blank in the specified drive. Supply `args.source` to
-select one explicitly and receive the workspace-relative starter path. A
-starter check-disc burn emits `starter_burn` with its disc number. Analyzed
+select one explicitly and receive the workspace-relative starter path. A DVD
+`info` result can include `starter_candidates` for the blank it read. A starter
+check-disc burn emits `starter_burn` with its disc number. Analyzed
 starter photos return `starter.written` and `starter.reason`. A confirmed
 starter appears in the DVD catalogue with `starter`, `starter_source`, and
 `checked_mm`. The normal `geo` and `photo` job formats remain valid.

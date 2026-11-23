@@ -336,25 +336,35 @@ def add_parser(sub):
     parser.set_defaults(func=run)
 
 
+def for_blank(root, out, disc, report, drive):
+    from .imagedisc import sectors_to_radius
+    inq = (report.get('inquiry') or {}).get('parsed') or {}
+    who = identity({'drive': disc['drive_name'], 'firmware': inq.get('revision')}, drive)
+    mid, capacity = disc['mid'], disc['capacity_sectors']
+    rows = []
+    if disc['blank'] is True and disc['media'] == 'dvd' and mid and capacity and who['model']:
+        for row in candidates(root, out, who, mid):
+            fit = row['fit']
+            end = sectors_to_radius(fit['u'], fit['v'], fit['bit_nm_assumed'], CHECK_RANGE[1])
+            if end <= capacity:
+                rows.append(row)
+    return who, rows
+
+
 def run(args):
     from . import info, ui, webui_catalog
     from .device import Device
     from .drive_lock import drive_operation
-    from .imagedisc import sectors_to_radius
     with drive_operation(args.drive, 'disc'):
         with Device(args.drive) as device:
             report = info.quick(device)
     disc = webui_catalog.disc_report(report)
-    inq = (report['inquiry'].get('parsed') or {})
-    who = identity({'drive': disc['drive_name'], 'firmware': inq.get('revision')}, args.drive)
     root = Path.cwd().resolve()
     out = (root / args.out).resolve()
     if not out.is_relative_to(root):
         raise SystemExit('The starter results folder must stay inside the workspace.')
     mid, capacity = disc['mid'], disc['capacity_sectors']
-    rows = (candidates(root, out, who, mid) if disc['blank'] is True and disc['media'] == 'dvd'
-            and mid and capacity and who['model'] else [])
-    rows = [row for row in rows if _fits_blank(row['fit'], capacity, sectors_to_radius)]
+    who, rows = for_blank(root, out, disc, report, args.drive)
     result = dict(candidates=[row['source'] for row in rows], mid=mid)
     if args.source:
         row = next((row for row in rows if row['source']['id'] == args.source), None)
@@ -371,8 +381,3 @@ def run(args):
     if not rows:
         print('没有可用的起步预设，请用测量盘。 / No usable starter preset. Use a measurement disc.')
     ui.event('result', step='starter', **result)
-
-
-def _fits_blank(fit, capacity, sectors_to_radius):
-    target_end = sectors_to_radius(fit['u'], fit['v'], fit['bit_nm_assumed'], CHECK_RANGE[1])
-    return target_end <= capacity
