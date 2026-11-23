@@ -34,7 +34,7 @@ def measurement(root):
             path = root / run / 'samples' / f'{case}.json'
             if path.is_file():
                 data = json.loads(path.read_text(encoding='utf-8'))
-                if len(data['samples']) == 6 and all(row['idle_seconds'] >= 30 for row in data['samples']):
+                if data['done'] and len(data['samples']) == 6 and all(row['idle_seconds'] >= 30 for row in data['samples']):
                     pair[run] = {row['scene']: row for row in data['samples']}
         for scene in ('blank', 'lobby', 'library', 'geometry', 'editor', 'return'):
             for run, samples in pair.items():
@@ -45,20 +45,29 @@ def measurement(root):
             print(f"| {case.split('-')[1]} | return − lobby | {run} | {net[0]:+.1f} / {net[1]:+.1f} | | | | |")
 
 
-def changed_pixels(before, after):
+def changed_pixels(before, after, region=None):
     with Image.open(before) as source, Image.open(after) as candidate:
         if source.size != candidate.size:
             return None, (source.size, candidate.size)
-        delta = ImageChops.difference(source.convert('RGB'), candidate.convert('RGB'))
+        source, candidate = source.convert('RGB'), candidate.convert('RGB')
+        if region is not None:
+            source, candidate = source.crop(region), candidate.crop(region)
+        delta = ImageChops.difference(source, candidate)
         r, g, b = delta.split()
         maximum = ImageChops.lighter(ImageChops.lighter(r, g), b)
-        return source.width * source.height - maximum.histogram()[0], maximum.getbbox()
+        bounds = maximum.getbbox()
+        if region is not None and bounds is not None:
+            left, top, right, bottom = bounds
+            bounds = (left + region[0], top + region[1], right + region[0], bottom + region[1])
+        return source.width * source.height - maximum.histogram()[0], bounds
 
 
 def screenshots(root):
     print('| Case | Scene | Changed pixels | Bounds |')
     print('| --- | --- | ---: | --- |')
     for case in CASES:
+        metadata = [root / run / 'visual' / f'{case}.json' for run in ('before', 'after')]
+        stills = [json.loads(path.read_text(encoding='utf-8'))['stills'] if path.is_file() else {} for path in metadata]
         for scene in SCENES:
             before, after = (root / 'shots' / run / case / f'{scene}.png' for run in ('before', 'after'))
             if not before.is_file() or not after.is_file():
@@ -66,6 +75,13 @@ def screenshots(root):
                 continue
             count, bounds = changed_pixels(before, after)
             print(f'| {case} | {scene} | {count} | {bounds or ""} |')
+            if scene == 'geometry':
+                headers = [record.get('geometry', {}).get('header') for record in stills]
+                if headers[0] and headers[0] == headers[1]:
+                    count, bounds = changed_pixels(before, after, headers[0])
+                    print(f'| {case} | geometry header {tuple(headers[0])} | {count} | {bounds or ""} |')
+                else:
+                    print(f'| {case} | geometry header | unmatched | {headers} |')
 
 
 if __name__ == '__main__':

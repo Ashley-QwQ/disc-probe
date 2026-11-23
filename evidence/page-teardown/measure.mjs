@@ -268,12 +268,17 @@ async function measure(config, output, imageBody) {
       const {data} = await command('Page.captureScreenshot', {format:'png', captureBeyondViewport:false});
       writeFileSync(join(shotDir, `${name}.png`), Buffer.from(data, 'base64'));
     };
-    async function still(name) {
+    const recordedLobby = `(() => {
+      const hello = document.querySelector('#lobby-hello').textContent.trim();
+      const checked = document.querySelector('#lobby-disc-time').textContent.trim();
+      const recent = document.querySelector('#lobby-recent button')?.textContent.trim() ?? '';
+      if (document.querySelector('#drivebar').dataset.state !== 'recorded' ||
+          document.querySelector('#lobby-disc-actions').hidden || document.querySelector('#lobby-disc-check').disabled ||
+          !hello.endsWith('\u5df2\u5199\u8fc7') || !checked.endsWith('\u521a\u521a')) return null;
+      return {hello, checked, recent};
+    })()`;
+    async function still(name, progress = null) {
       if (!visual) return;
-      if (name === 'lobby' || name === 'return') {
-        await waitPage(`!document.querySelector('#lobby-disc-actions').hidden && !document.querySelector('#lobby-disc-check').disabled &&
-          !!document.querySelector('#lobby-disc-time').textContent.trim()`, `${name}: initial disc read settled`);
-      }
       await evaluate(`(async () => {
         await document.fonts.ready;
         await Promise.race([Promise.allSettled([...document.images].filter(i => i.src && i.getClientRects().length).map(i => i.decode())),
@@ -281,10 +286,32 @@ async function measure(config, output, imageBody) {
         document.activeElement?.blur?.();
       })()`);
       await delay(name === 'return' ? 1800 : 650);
+      const lobby = name === 'lobby' || name === 'return';
+      if (lobby) {
+        // A new drive check can start while the scene is settling. The heading,
+        // read time and draft must agree on both sides of the actual capture.
+        stills[`${name}Disc`] = await until(async () => {
+          const state = await evaluate(recordedLobby);
+          if (!state || (name === 'return' && state.recent !== 'PT sample')) return false;
+          await delay(250);
+          if (JSON.stringify(await evaluate(recordedLobby)) !== JSON.stringify(state)) return false;
+          await shot(name);
+          if (JSON.stringify(await evaluate(recordedLobby)) !== JSON.stringify(state)) return false;
+          return state;
+        }, `${name}: recorded disc and heading are stable during capture`);
+      }
       stills[name] = await evaluate(`({scrollWidth:document.documentElement.scrollWidth, scrollHeight:document.documentElement.scrollHeight,
         width:innerWidth, height:innerHeight, active:document.activeElement?.id, title:document.title,
         animations:document.getAnimations().filter(animation => animation.playState === 'running').length})`);
-      await shot(name);
+      if (name === 'geometry') {
+        stills.geometry.progress = progress;
+        // Only the page chrome is independent of the live optical progress.
+        stills.geometry.header = await evaluate(`(() => {
+          const r = document.querySelector('.top').getBoundingClientRect();
+          return [0, 0, innerWidth, Math.ceil(r.bottom)];
+        })()`);
+      }
+      if (!lobby) await shot(name);
     }
     async function frames(name, expression, count = 10) {
       await waitPage(expression, `${name} starts`);
@@ -297,8 +324,8 @@ async function measure(config, output, imageBody) {
 
     async function sample(scene, geometry = null) {
       if (visual) {
-        await geometry?.();
-        if (scene !== 'blank') await still(scene);
+        const progress = await geometry?.();
+        if (scene !== 'blank') await still(scene, progress);
         return;
       }
       let start;

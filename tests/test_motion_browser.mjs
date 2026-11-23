@@ -461,6 +461,21 @@ try {
     window.burn=await import('./burn.js');burn.start(api,{media:'dvd',item:{name:'Test'},iso:{path:'mock.iso',bytes:32768,sectors:16},drive:{id:'FAKE',speeds:[4,8]}});`);
   await until('visualTray.read() && motionTest.api.burnerLayer.classList.contains("open")','8: pictured tray opens for non-mock backend');
   await check('calls.every(c=>c.path==="/api/presets" && c.method==="GET") && errors.length===0','8: no drive calls or browser errors');
+
+  // A trip to the shelf must leave the current lobby bitmaps on the same nodes.
+  await open({warm:false});
+  await evaluate(`setMotion('off');
+    window.lobbyBitmaps=[...document.querySelectorAll('#lobby-art img[src]')].map(img=>({img,src:img.src}));
+    document.getElementById('library').click();`);
+  await until('document.documentElement.dataset.home==="library" && !document.getElementById("lobby").offsetWidth','shelf hides lobby');
+  await check('lobbyBitmaps.length>1 && lobbyBitmaps.every(({img,src})=>img.isConnected && img.src===src)','leaving the lobby retains its bitmap sources');
+  await evaluate(`window.lobbyTheme=document.documentElement.dataset.theme;
+    document.getElementById('theme').click();`);
+  await until(`document.documentElement.dataset.theme!==lobbyTheme && lobbyBitmaps.every(({img,src})=>{
+    const suffix=document.documentElement.dataset.theme==='dark' ? '_dark.webp' : '_paper.webp';
+    return img.src!==src && img.currentSrc===img.src && img.currentSrc.endsWith(suffix) && img.naturalWidth>0;
+  })`,'the hidden lobby exchanges every active bitmap for the new theme');
+  await check('document.querySelectorAll("#lobby-art img[src]").length===lobbyBitmaps.length','theme change keeps only active lobby sources');
   console.log('PASS: motion audit 1–24, paused/scrubbed WAAPI and rAF, labels, transform flights, dial, preview readiness, reverse load, resize, motion-off and prior interruption regressions');
 } finally {
   if(socket?.readyState===WebSocket.OPEN){await cdp('Browser.close').catch(()=>{});socket.close();}

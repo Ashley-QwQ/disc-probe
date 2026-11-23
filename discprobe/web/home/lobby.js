@@ -245,17 +245,18 @@ function toast(text) {
   L.toast.textContent = text; L.toast.classList.add("on");
   clearTimeout(L.toastT); L.toastT = setTimeout(() => L.toast.classList.remove("on"), 2200);
 }
-function paintTheme(force = false) {
+function paintTheme() {
   if (!M) return;
   const th = theme();
-  const shown = force === true || (!root.dataset.mode && root.dataset.home === "lobby") || L.root.classList.contains("leaving");
   const images = [];
   for (const {name} of M.layers) {
     const layer = L.layer[name];
     for (const img of layer.querySelectorAll("img")) {
-      if (!shown || (layer.classList.contains("off") && !layer.classList.contains("lit"))) {
+      if (layer.classList.contains("off") && !layer.classList.contains("lit")) {
         img.removeAttribute("src");
       } else {
+        // Keep the current artwork attached while away. Reattaching the same URL
+        // can change the way Edge resamples the lobby's artwork on return.
         const src = `${base}${name}_${th}.webp`;
         if (img.src !== src) img.src = src;
         images.push(img);
@@ -267,7 +268,7 @@ function paintTheme(force = false) {
   return images;
 }
 export async function prepareLobby() {
-  const images = paintTheme(true);
+  const images = paintTheme();
   if (images) await Promise.allSettled(images.map(image => image.decode()));
 }
 function words() {
@@ -407,11 +408,11 @@ export async function init(homeApi) {
   const url = new URL(ART, import.meta.url);
   build(await fetch(url).then((r) => r.json()), new URL(".", url).href);
   addEventListener("resize", fit);
+  new MutationObserver(paintTheme).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
   const watchScene = new MutationObserver(() => {
-    paintTheme();
     if (!sec.offsetWidth) { clearTimeout(L.rugTimer); clearTimeout(L.toastT); L.toast.classList.remove("on"); }
   });
-  watchScene.observe(root, { attributes: true, attributeFilter: ["data-theme", "data-home", "data-mode"] });
+  watchScene.observe(root, { attributes: true, attributeFilter: ["data-home", "data-mode"] });
   watchScene.observe(sec, { attributes: true, attributeFilter: ["class"] });
   addEventListener("dp-lang", words);
   addEventListener("dp-fax-parcel", () => paintParcel(true));
