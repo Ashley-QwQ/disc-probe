@@ -25,7 +25,7 @@ DRAWING = (25.0, 57.0)
 CHECK = (26.2, 57.0)  # checkdisc.run
 DRAWING_RADII = np.linspace(*DRAWING, 3201)
 EXCLUDE = '*[bB][lL][iI][nN][dD]*'
-EXCLUDED = re.compile(EXCLUDE[1:])
+EXCLUDED = re.compile(EXCLUDE[1:-1])
 MODEL = 'HL-DT-ST DVD-RAM GH70N'
 
 # Older summaries have no identity. These links are documented in KNOWLEDGE.md §6,
