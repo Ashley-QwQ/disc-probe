@@ -1147,7 +1147,7 @@
     "steps": {"zh": ["在运行服务的电脑上打开它打印的本机地址。"], "en": ["Open the printed loopback address on the computer running the server."]},
     "commands": ["python -m discprobe webui --local-only"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1687, "keyword": "localhost:"}, {"path": "discprobe/webui.py", "line": 1810, "keyword": "invalid Host"}, {"path": "README.en.md", "line": 84, "keyword": "keep the service on this computer"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1688, "keyword": "localhost:"}, {"path": "discprobe/webui.py", "line": 1811, "keyword": "invalid Host"}, {"path": "README.en.md", "line": 84, "keyword": "keep the service on this computer"}]
   },
   {
     "id": "web-multiple-windows",
@@ -1197,7 +1197,7 @@
     "steps": {"zh": ["使用一个可用的端口，例如手册示例的 8765，打开服务打印的地址。"], "en": ["Use an available port, such as 8765 from the installation guide, and open the address printed by the server."]},
     "commands": ["python -m discprobe webui --port 8765"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1636, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1637, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2819, "keyword": "preferred HTTP port"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1637, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1638, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2819, "keyword": "preferred HTTP port"}]
   },
   {
     "id": "web-startup-error",
@@ -1217,7 +1217,7 @@
     "steps": {"zh": ["用 webui status 查看正在进行的任务和光驱锁。等任务结束后，再点退出或运行 webui stop。"], "en": ["Use webui status to see active tasks and drive locks, wait for the tasks to finish, then use Quit or run webui stop."]},
     "commands": ["python -m discprobe webui status", "python -m discprobe webui stop"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1606, "keyword": "Cannot force stop while disc writes are active or possible"}, {"path": "discprobe/webui.py", "line": 1610, "keyword": "Wait for the current tasks to finish"}, {"path": "discprobe/web_instance.py", "line": 282, "keyword": "\"/api/quit\""}, {"path": "README.en.md", "line": 83, "keyword": "use Quit in the lobby"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1607, "keyword": "Cannot force stop while disc writes are active or possible"}, {"path": "discprobe/webui.py", "line": 1611, "keyword": "Wait for the current tasks to finish"}, {"path": "discprobe/web_instance.py", "line": 285, "keyword": "\"/api/quit\""}, {"path": "README.en.md", "line": 83, "keyword": "use Quit in the lobby"}]
   },
   {
     "id": "windows-spti",

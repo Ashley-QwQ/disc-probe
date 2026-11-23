@@ -265,6 +265,9 @@ def status(args):
         print("服务未运行。 / Service is not running.")
     if result["tasks"]:
         print("进行中的任务 / Active tasks: " + _task_text(result["tasks"]))
+        for task in result["tasks"]:
+            if task.get("output"):
+                print(f"  {task['job']} 输出 / output: {task['output']}")
     for drive in result["drives"]:
         owner = (f"pid {drive['pid']}, {drive['action']}" if drive["pid"] is not None
                  else "持有者未知 / holder unknown")

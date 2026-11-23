@@ -371,7 +371,11 @@ def test_status_json_and_force_stop_of_read_only_task(lab):
         rows = {r["drive"]: r for r in status["drives"]}
         assert rows["X:"]["locked"] and rows["X:"]["action"] == "swap" and rows["X:"]["pid"] != child.pid
         assert rows["Y:"] == dict(drive="Y:", locked=False, pid=None, action=None)
+        output = status["tasks"][0].pop("output")
         assert status["tasks"] == [dict(action="swap", drive="X:", job=job["job"], writes_drive=False)]
+        assert Path(output).name == "output.log" and Path(output).parent.name.startswith(job["job"] + "-")
+        code, text, err = control(lab, "status")
+        assert code == 0 and output in text
         code, _, err = control(lab, "stop")
         assert code == 1 and "swap X:" in err
         code, out, err = control(lab, "stop", "--force")

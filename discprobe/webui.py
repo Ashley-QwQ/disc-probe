@@ -1581,7 +1581,8 @@ class Backend:
                 job.read()
                 step = next((event.get("name") for event in reversed(job.history) if event["type"] == "step"), None)
                 writes = step not in ("check", "timing", "geo", "preset")
-            tasks.append(dict(action=job.action, drive=job.drive, job=job.id, writes_drive=writes))
+            # The job folder carries a random suffix after the id; give its path so its output.log can be found.
+            tasks.append(dict(action=job.action, drive=job.drive, job=job.id, writes_drive=writes, output=str(job.output)))
         tasks.extend(dict(action=action, drive=drive, job=None, writes_drive=False)
                      for drive, action in self.reading.items())
         return tasks
