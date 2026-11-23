@@ -189,13 +189,13 @@ async function checkDisc() {
           if(e.type==='started')jobId=e.job;
           if(e.type==='error'){reason=e.message;gate=e.burn_gate||gate;}
           if(e.type==='progress')onProgress({progress:e.fraction,elapsed:e.elapsed_s,remaining:e.eta_s});
-          if(e.type==='burn_result')onProgress({burnResult:e});
+          if(e.type==='burn_result'){iso.burnResult=e;onProgress({burnResult:e});}   // goes with the photos (burn path)
         });onProgress({status:'success',progress:1});
       }catch(error){if(reason)error.message=reason;if(gate)error.burnGate=gate;
         onProgress({status:'failed',errorInfo:error,started:!!jobId});}})();
       return {cancel(){if(jobId)api.backend.cancel(jobId);}};
     },
-    async photograph(){leaveBurn();(await import('./calibrate.js')).photograph(api,{media:'dvd',geo,returnTo:()=>open(api,current.work_id,r.burn_id)});},
+    async photograph(){leaveBurn();(await import('./calibrate.js')).photograph(api,{media:'dvd',geo,burnCheck:iso.burnResult??null,returnTo:()=>open(api,current.work_id,r.burn_id)});},
   };
   leave();startBurn(api,ctx);
 }

@@ -15,7 +15,7 @@ You have a picture of a character you love and want it on the data side of a DVD
 
 | Step | In the web app | About |
 |---|---|---|
-| 1. Calibrate the batch | **New work** in the lobby, choose the disc's batch, **Calibrate this batch**. Burn a measurement disc, then measure rotation and geometry; after saving, **Burn the check disc** and take 3 phone photos to correct the positions | 14 min to burn, 6–8 min to measure, about 7 min for the check disc plus photos |
+| 1. Calibrate the batch | **New work** in the lobby, choose the disc's batch, **Calibrate this batch**. Burn a measurement disc, then measure rotation and geometry; after saving, **Burn the check disc** and take 3 phone photos **straight after** to correct the positions (photos taken later are not used) | 14 min to burn, 6–8 min to measure, about 7 min for the check disc plus photos |
 | 2. Make the picture | **Import picture**, select its layer, **Colour → Colour picture**, pick your phone and shooting height, **Fill**. Keep **Add direction arrow (12 o'clock)** | as long as you like |
 | 3. Check the prediction | Open **Under the lamp**, then **Compare**: the original on the left, the model's prediction of the disc on the right | a few minutes |
 | 4. Burn | **Next: preview**, check the batch under **Before burning**, keep **Burn the experimental textures instead** selected, **Next: make the file and burn**, confirm the blank and 8×, slide to burn | about 7 min at 8× |

@@ -142,9 +142,7 @@ function paint() {
   W.page.dataset.state=status;W.page.classList.toggle('burn-reduce',!!api.reduce);q('.burn-speed').hidden=!ready||!!ctx.otherOnly||!!blocked;
   W.consent.closest('label').hidden=!ready||!hasInput;q('.burn-warning').hidden=!ready||!hasInput;
   q('.warn-sign').classList.toggle('on', ['failed','cancelled'].includes(status));
-  W.select.disabled=active; q('[data-a="cancel"]').hidden=!active||q('[data-a="cancel"]').getAttribute('aria-expanded')==='true';q('[data-a="cancel"]').disabled=!!task?.stopping;q('[data-a="retry"]').hidden=!['failed','cancelled'].includes(status)||!!task?.notStarted;q('[data-a="recheck"]').hidden=!((status==='failed'&&task?.notStarted)||(!hasInput&&!task&&!swapping&&ctx.recheck&&ctx.drive?.id));q('[data-a="photo"]').hidden=!ctx.photograph||!(status==='success'||ctx.iso?.target&&!task);
-  // a check disc burned earlier from this batch's geometry is the same disc: photograph it instead of burning another
-  if(ctx.iso?.target)q('[data-a="photo"]').textContent=task?T().photo:(api.lang()==='en'?'Check disc burned already? Photograph it':'检查盘已经刻好？直接拍照');
+  W.select.disabled=active; q('[data-a="cancel"]').hidden=!active||q('[data-a="cancel"]').getAttribute('aria-expanded')==='true';q('[data-a="cancel"]').disabled=!!task?.stopping;q('[data-a="retry"]').hidden=!['failed','cancelled'].includes(status)||!!task?.notStarted;q('[data-a="recheck"]').hidden=!((status==='failed'&&task?.notStarted)||(!hasInput&&!task&&!swapping&&ctx.recheck&&ctx.drive?.id));q('[data-a="photo"]').hidden=status!=='success'||!ctx.photograph;
   q('[data-a="cancel"]').textContent=task?.erasing?(api.lang()==='en'?'Stop erasing':'停止擦除'):stopWords(api.lang()).stop;
   if(ctx.preflight&&ready)q('[data-a="recheck"]').hidden=!!ctx.checking;
   if(reviewDisc&&ctx.recheck){q('[data-a="retry"]').hidden=true;q('[data-a="recheck"]').hidden=false;}

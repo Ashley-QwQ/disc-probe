@@ -250,13 +250,14 @@ async function burnCheckDisc() {
             if (e.type === "started") jobId = e.job;
             if (e.type === "error") { reason = e.message; gate = e.burn_gate || gate; }
             if (e.type === "progress") onProgress({ progress: e.fraction, elapsed: e.elapsed_s, remaining: e.eta_s });
-            if (e.type === "burn_result") onProgress({ burnResult: e });
+            // the burn's own record (burner, path, mode) goes with the photos: without it the core will not apply L
+            if (e.type === "burn_result") { iso.burnResult = e; onProgress({ burnResult: e }); }
           }); onProgress({ status: "success", progress: 1 });
         } catch (error) { if (reason) error.message = reason; if (gate) error.burnGate = gate;
           onProgress({ status: "failed", errorInfo: error, started: !!jobId }); } })();
         return { cancel() { if (jobId) api.backend.cancel(jobId); } };
       },
-      async photograph() { burnPage.leave(); photograph(api, { item, media: "dvd", geo, returnTo: opener ? () => opener(result) : null }); },
+      async photograph() { burnPage.leave(); photograph(api, { item, media: "dvd", geo, burnCheck: iso.burnResult ?? null, returnTo: opener ? () => opener(result) : null }); },
     };
     // close this page without handing it back yet: the opener gets it after the photos (or the burn page's back)
     returnTo = returnAnim = returnLabel = null; f.checkMaking = 0;
@@ -280,6 +281,12 @@ export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck
   flow.detected = { media, mid: item?.mid ?? null, capacity_sectors: item?.capacity_sectors ?? item?.sectors ?? null };
   // the burn page's own record of this write: the photo result names how the disc was burned (photo.photo_l)
   flow.geo = { path: geo?.replace(/[\\/]summary\.json$/i, "") }; flow.burnCheck = burnCheck; flow.photoOnly = true; flow.realPhase = "photo";
+  // Photographed straight after its burn here: the disc is known, so it gets a number at once (editable) rather
+  // than an empty field that, left empty, keeps the photos from ever reaching a picture.
+  if (burnCheck?.result === "completed") {
+    const d = new Date(), two = (n) => String(n).padStart(2, "0");
+    flow.photoDiscId = `C${two(d.getMonth() + 1)}${two(d.getDate())}-${two(d.getHours())}${two(d.getMinutes())}`;
+  }
   if (burnCheckFailed(burnCheck)) { flow.photoOnly = false; flow.realPhase = "review"; }
   return open();
 }
@@ -1935,7 +1942,10 @@ function discField(u) {
   const input = document.createElement('input'); input.type = 'text'; input.maxLength = 40; input.autocomplete = 'off'; input.spellcheck = false;
   input.placeholder = liveText('例如 T1','e.g. T1'); input.value = photoDiscId(u.flow, u.run);
   const hint = document.createElement('small');
-  hint.textContent = cd ? liveText('用记号笔在这张标靶盘的内圈写个编号，这里填同样的。照片只和这张盘一起采用；空着就不会用到出图上。',
+  hint.textContent = u.flow?.burnCheck?.result === 'completed' && input.value
+    ? liveText('刚刻好的这张盘已经自动编了号。想以后认得出它，就用记号笔把编号写在盘的内圈。',
+      'The disc just burned has been numbered for you. To know it again later, write the number on its inner ring with a marker.')
+    : cd ? liveText('用记号笔在这张标靶盘的内圈写个编号，这里填同样的。照片只和这张盘一起采用；空着就不会用到出图上。',
     'Write a number on this target disc\u2019s inner ring with a marker and type the same here. Photos are adopted only with this disc; left empty, they are not used for pictures.')
     : liveText('用记号笔在这张检查盘的内圈写个编号，这里填同样的。照片只和这张盘一起采用；空着就不会用到出图上。',
     'Write a number on this check disc\u2019s inner ring with a marker and type the same here. Photos are adopted only with this disc; left empty, they are not used for pictures.');
