@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import numpy as np
+import pytest
 
 from discprobe.calib import theta
 from discprobe.coverage import assess_range, range_warning
@@ -81,6 +82,62 @@ def test_variable_pitch_end_to_end():
             rung_err = [t['unwrapped_deg'] - math.degrees(dev.track_angle((t['lba']//16+1)*16)
                         - dev.track_angle((ladder.ref//16+1)*16)) for t in ladder.targets]
             assert max(abs(np.array(rung_err) - np.median(rung_err))) < 180
+
+
+def test_seed4_noise_does_not_start_correction():
+    messages = []
+    dev = SimDrive(seed=4, reread_delay_ms=35, jitter_us=60, outlier_rate=.01)
+    ladder = Ladder(dev, reps=16, max_targets=14, state_check=False, speed_kbs=None, log=messages.append)
+    assert ladder.run()['completion_status'] == 'target_reached'
+    assert len(ladder.targets) == 16
+    assert ladder.bend is None and not ladder.probes
+    assert any('Read noise is high (median scatter 3.29 deg' in line for line in messages)
+
+
+@pytest.mark.parametrize('limit', ['points', 'time'])
+def test_dense_limits_keep_existing_reads(monkeypatch, limit):
+    from discprobe import geo
+
+    elapsed = 0.
+    messages = []
+    dev = SimDrive(phi_profile='i218', rev_period_ms=26, jitter_us=20, outlier_rate=0, seed=7)
+    ladder = Ladder(dev, ranges=[(20000, 2294000)], speed_kbs=None, log=messages.append)
+    original = ladder.tp._measure
+
+    def count_read(lba, label):
+        nonlocal elapsed
+        m = original(lba, label)
+        if ladder.progress_stage == 'measuring angle correction':
+            elapsed += 1
+        return m
+
+    monkeypatch.setattr(ladder.tp, '_measure', count_read)
+    monkeypatch.setattr(geo, 'time', SimpleNamespace(monotonic=lambda: elapsed))
+    if limit == 'points':
+        monkeypatch.setattr(geo, 'MAX_DENSE_POINTS', 30)
+    else:
+        retry_after = 49 * 2 * ladder.reps
+        deadline = retry_after + 5
+        measure = ladder.measure
+
+        def retry_at_deadline(lba, reps=None):
+            result = measure(lba, reps)
+            return None if elapsed == retry_after else result
+
+        monkeypatch.setattr(ladder, 'measure', retry_at_deadline)
+        monkeypatch.setattr(geo, 'MAX_DENSE_SECONDS', deadline)
+    ladder.run()
+    assert len(ladder.targets) == 64
+    assert len(ladder.probes) >= 24
+    assert ladder.correction['validation']['probe_limit'] == limit
+    assert any(f'reached its {"point" if limit == "points" else "time"} limit' in m for m in messages)
+    if limit == 'points':
+        assert len(ladder.probes) + len(ladder.correction_checks) <= 30
+        assert ladder.correction_checks
+    else:
+        assert elapsed == deadline
+        assert ladder.T is not None and ladder._dense_deadline is None
+        assert not ladder.correction_checks
 
 
 def test_partial_run_has_task_scoped_trust():
@@ -211,7 +268,6 @@ def test_image_reports_actual_drawing_extrapolation():
                  patch('discprobe.coverage.range_warning', side_effect=warning), \
                  patch.object(cli, '_image_ready'), contextlib.redirect_stdout(output):
                 if expect_warning:
-                    import pytest
                     with pytest.raises(SystemExit, match='EXTRAPOLATION'):
                         cli.cmd_image(args)
                 else:

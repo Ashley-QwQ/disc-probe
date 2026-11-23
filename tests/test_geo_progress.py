@@ -53,6 +53,41 @@ def test_simulated_geo_progress(monkeypatch, state_check, max_targets, sectors):
         assert ladder.progress_checks_done == 2 * len(ladder.sentinels) * SENTINEL_REPS * ladder.reps
 
 
+def test_dense_geo_progress_is_monotonic_through_retry(monkeypatch):
+    dev = ui.ProgressDevice(SimDrive(phi_profile='i218', rev_period_ms=26, jitter_us=20,
+                                    outlier_rate=0, seed=7))
+    ladder = Ladder(dev, ranges=[(20000, 2294000)], speed_kbs=None, log=lambda *_: None)
+    status = ui.geo_status(ladder, dev)
+    fractions = []
+    retried = []
+
+    class Observer:
+        def tick(self, **kwargs):
+            fraction, stage, _ = status()
+            if stage == 'measuring angle correction':
+                fractions.append(fraction)
+
+        def play(self):
+            pass
+
+    dev.progress = Observer()
+    original = ladder.measure
+
+    def measure(lba, reps=None):
+        result = original(lba, reps)
+        if ladder.progress_stage == 'measuring angle correction' and not retried:
+            retried.append(lba)
+            return None
+        return result
+
+    monkeypatch.setattr(ladder, 'measure', measure)
+    assert ladder.run()['completion_status'] == 'target_reached'
+    assert retried and ladder.correction and len(ladder.probes) > 100
+    assert fractions[0] < fractions[-1] < 1
+    assert fractions == sorted(fractions)
+    assert status() == (1., 'geometry complete', 0.)
+
+
 def test_rate_and_emitted_progress_are_bounded(monkeypatch, tmp_path):
     rate = ui._Rate()
     monkeypatch.setattr(ui.time, 'monotonic', lambda: 10)
