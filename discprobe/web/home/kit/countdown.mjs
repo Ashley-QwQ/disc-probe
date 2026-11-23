@@ -20,6 +20,15 @@ export function countdown(show) {
     estimate(eta) {
       if (!Number.isFinite(eta)) return;
       deadline = performance.now() + Math.max(0, eta) * 1000;
+      // Ran out but the job goes on (e.g. geometry adds correction points): start again from the new estimate,
+      // or the clock sits at 0:00 for the rest of the job.
+      if (seconds !== null && seconds <= 0 && eta >= 1) {
+        clearTimeout(timer);
+        seconds = Math.ceil(eta);
+        show(seconds);
+        schedule();
+        return;
+      }
       if (seconds !== null || timer !== undefined) return;
       // The first job snapshot may replay several estimates at once. Start from the latest one.
       timer = setTimeout(() => {

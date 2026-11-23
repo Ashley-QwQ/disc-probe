@@ -120,6 +120,13 @@ try {
   advance();
   assert.deepEqual(values.slice(-2), ['0:01', '0:00']);
   assert.equal(scheduled, undefined);
+  // the job went on past its estimate and reports a new one: the clock counts again instead of sitting at 0:00
+  clock.estimate(370);
+  assert.equal(values.at(-1), '6:10');
+  advance();
+  assert.equal(values.at(-1), '6:09');
+  clock.estimate(0.4);
+  assert.ok(scheduled, 'an estimate under a second does not restart a running clock');
 } finally {
   globalThis.setTimeout = nativeSet;
   globalThis.clearTimeout = nativeClear;

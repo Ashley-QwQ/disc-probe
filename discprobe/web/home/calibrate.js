@@ -224,9 +224,7 @@ async function burnCheckDisc() {
   f.checkMaking = -1; f.checkError = null; paint();
   try {
     const output = `iso/check-${Date.now()}.iso`;
-    await api.backend.job({ action: "checkdisc", media: "dvd", args: { geo, output } }, e => {
-      if (e.type === "progress" && Number.isFinite(e.fraction) && flow === f) { f.checkMaking = Math.max(.001, e.fraction); paint(); }
-    });
+    await realJob("checkdisc", { geo, output });      // the task bar shows it, as the measurement image's making
     const iso = await api.backend.request(`/api/iso?path=${encodeURIComponent(output)}`);
     iso.target = true; iso.geo = geo;
     const burnPage = await import("./burn.js");
@@ -238,6 +236,7 @@ async function burnCheckDisc() {
     const item = f.item;
     const ctx = { media: "dvd", item: { name: f.savedBatch?.name ?? f.detected?.mid ?? "" }, iso, drive, preflight: true,
       back: finish, done: () => ctx.photograph(),
+      backText: () => opener ? liveText('回到刚才那一步', 'Back to where you were') : liveText('返回大厅', 'Back to the lobby'),
       async recheck() {
         const seen = await checkBurn(api.backend, request(null, drive.eraseRequired));
         ctx.burnDisc = seen.disc; ctx.burnGate = seen.gate; ctx.discIn = !!seen.disc?.present;
@@ -1394,7 +1393,7 @@ function realPaint() {
       drive_changed: ["光驱变了", "Drive changed"], stopped_early: ["中途停了", "Stopped"], media: ["读不出", "Unreadable"], rotation: ["转速不稳", "Unsteady"],
       coverage: ["范围待补测", "Gaps in coverage"], calibration_failed: ["未完成", "Incomplete"], slow: ["读盘太慢", "Reading too slowly"],
       unknown: ["不知道", "Unknown"] }[kind] ?? ["不知道", "Unknown"];
-    const FOR = { good: ["按这次的测量刻，位置可信。", "Burn with it; the positions can be trusted."], usable: ["大致可信，边缘可能有小偏差。", "Mostly right; the edges may be slightly off."],
+    const FOR = { good: ["可以用来刻图。", "Good for a picture."], usable: ["可以刻图，边缘可能有小偏差。", "Good for a picture; the edges may be slightly off."],
       narrow_span: ["测到的范围以外可能偏。", "Outside the measured range it may be off."], stopped_early: ["只测到一部分，还不能用来刻图。", "Only part was measured; not for a picture yet."],
       media: ["这张盘不能用来测。", "This disc cannot be measured."] }[kind] ?? ["还不能用来刻图。", "Not for a picture yet."];
     html = `<div class="cal-stamp"><b>${STAMP[zh]}</b><dl>` +
@@ -1436,6 +1435,8 @@ function realPaint() {
     html += `<details class="cal-details"><summary>${liveText('详情', 'Details')}</summary><p>${esc(details)}</p>` +
       (kind === 'coverage' ? `<p>${esc(measurementRecovery(flow)[api.lang()])}</p>` : "") +
       (reason ? `<p>${esc(reason)}</p>` : "") +
+      (part?.measurement?.correction ? `<p>${liveText('这次带轨距修正：导出给 DIS 的预设未必能完全复现这条曲线，导出前先看转换误差；测量范围以外仍是外推。',
+        'This measurement carries a pitch correction: a DIS preset may not reproduce the curve exactly, so check the conversion error before exporting. Outside the measured radii is extrapolation.')}</p>` : "") +
       (chart ? `<p>${liveText('下图显示光驱在盘面哪些位置检查过。', 'The chart shows where the drive checked the disc.')}</p>${chart}` : "") +
       (kind === 'usable' || recovery.id === 'coverage' ? `<button id="real-remeasure" class="placed" type="button">${liveText('检查转速并重测', 'Check rotation and remeasure')}</button>` : "") +
       (commands || part?.path ? `<details class="cal-advanced"><summary>${liveText('进阶', 'Advanced')}</summary>` +
@@ -1459,9 +1460,8 @@ function realPaint() {
       html += `<p>${liveText('下一步刻一张检查盘（8 倍速约 7 分钟），用手机拍 3 张。程序从照片读出位置偏差，之后刻的图都会自动修正。',
         'Next, burn a check disc (about 7 minutes at 8×) and take 3 photos of it with your phone. The photos show how far positions are off, and every picture burned afterwards is corrected.')}</p>` +
         (/RITEKF1/i.test(mid) ? "" : `<p class="cal-aside">${liveText('检查盘的纹理是按 RITEKF1 挑的，这批盘还没试过，照片可能读不出来。', 'The check disc’s textures were chosen for RITEKF1; this batch is untried and the photos may not read.')}</p>`) +
-        (flow.checkMaking ? `<p role="status">${liveText('正在生成检查盘', 'Making the check disc')}${flow.checkMaking > 0 ? ` ${Math.floor(flow.checkMaking * 100)}%` : '…'}</p>` : '') +
         (flow.checkError ? note("error", [esc(flow.checkError), ""]) : '') +
-        `<button type="button" class="pc-text-button" id="cal-check-later">${esc(liveText('先不刻，', 'Not now: ') + later)}</button>`;
+        (flow.checkMaking ? '' : `<button type="button" class="pc-text-button" id="cal-check-later">${esc(liveText('先不刻，', 'Not now: ') + later)}</button>`);
       button = liveText('刻检查盘', 'Burn the check disc');
       if (flow.checkMaking) disabled = true;
     }
@@ -2174,6 +2174,7 @@ const STEP_WORDS = {
   info: ["检测光盘", "Checking the disc"], random: ["生成测量图", "Making the image"], burn: ["刻测量盘", "Burning"],
   check: ["检查刻好的盘", "Checking the burn"], timing: ["测转速", "Rotation"], geo: ["测几何", "Geometry"],
   preset: ["保存预设", "Saving the preset"], calibrate: ["标定", "Calibrating"], photo: ["读照片", "Reading photo"],
+  checkdisc: ["生成检查盘", "Making the check disc"],
 };
 const stepWords = (name) => STEP_WORDS[name] ? liveText(...STEP_WORDS[name]) : name;
 const stepEta = (name, flow) => name === "geo" ? (flow.repairingCoverage ? 120 : 300) : name === "timing" ? 90 : null;

@@ -1881,8 +1881,11 @@
         $("next").disabled = false;
         api.goTo(...api.locate(item));
         setHome("library");
+      }, p => {   // a 4.6 GB file takes a minute or two: say how far it is, not just that it is busy
+        const f = p?.fraction;
+        if ($("library-feedback").textContent.startsWith(preparing)) $("library-feedback").textContent = Number.isFinite(f) && f > 0 ? `${preparing} ${Math.floor(f * 100)}%` : preparing;
       });
-    } finally { if ($("library-feedback").textContent === preparing) $("library-feedback").textContent = ""; }
+    } finally { if ($("library-feedback").textContent.startsWith(preparing)) $("library-feedback").textContent = ""; }
   }));
   $("library-remeasure").addEventListener("click", async () => {
     const item = DATA[col][idx], cal = await import("./calibrate.js");

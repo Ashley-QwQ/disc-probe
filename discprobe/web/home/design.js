@@ -2018,10 +2018,10 @@ async function makeCheckFile(onProgress, { signal, plan = S } = {}) {
   return { path: info.path ?? output, bytes: info.bytes, sectors: info.sectors, job: job.job, geo: geoPath,
     geoSource: geo.source, geoName: geo.name, target: true, effects: "bw" };
 }
-export async function checkBatch(homeApi, item, back) {
+export async function checkBatch(homeApi, item, back, onProgress = () => {}) {
   api = homeApi; $ = api.$;
   const plan = newProject(item, "dvd");
-  const iso = await makeCheckFile(() => {}, {plan});
+  const iso = await makeCheckFile(onProgress, {plan});
   if (root.dataset.home === "library" && !root.dataset.mode && api.current().item.id === item.id) {
     await toBurn(iso, back, plan, back);
   }

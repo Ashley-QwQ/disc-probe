@@ -2,7 +2,11 @@
 :root[data-mode="burn"] :is(.wordmark,.detail,.counter,.gallery){display:none}
 /* The scene is the home page's drive, flipped so its tray faces the other way, with the calibration
    flow's disc that drops into the tray and its cutaway while burning (drive-scene.js). */
-:root[data-mode="burn"] .layer.burner .rig{transform:none!important}
+:root[data-mode="burn"] .layer.burner .rig{transform:none!important;container-type:inline-size}
+/* The baked floor shadow belongs to the mirrored lobby drive; flipped here it fell to the lower right, off any
+   desk. As the library does: no baked shadow, a drop shadow cast lower left (the rig is not mirrored here). */
+:root[data-mode="burn"] .layer.burner .shadows{display:none}
+:root[data-mode="burn"] .layer.burner :is(.body,.slot-shadow){filter:drop-shadow(calc(-40 * var(--drive-mm)) calc(22 * var(--drive-mm)) calc(3.5 * var(--drive-mm)) var(--glass-ink))}
 :root[data-mode="burn"] .burn-page{pointer-events:none}
 :root[data-mode="burn"] .burn-panel,:root[data-mode="burn"] .burn-page h1{pointer-events:auto}
 .burn-art,.burn-scene-caption{display:none!important}

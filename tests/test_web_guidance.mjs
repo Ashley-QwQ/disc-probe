@@ -78,7 +78,7 @@ assert.match(stopReason('the timing measurement was not usable (too_noisy)').zh,
 assert.equal(stopReason('something new').en, 'something new');
 const variable = {geo:{path:'results/geo-test',verdict:'good',measurement:{
   completion_status:'target_reached',correction:'correction.json',span_mm:[24.5,57.9]}}};
-assert.match(measurementRecovery(variable).zh, /轨距.*自动.*修正/);
+assert.match(measurementRecovery(variable).zh, /轨距.*修正.*自动/);
 assert.match(measurementRecovery(variable).en, /automatically/);
 assert.match(recoveryCommands(variable,{drive:'SIM',media:'dvd',sectors:2295104}), /--correction.*correction.json/);
 const partial = {geo:{verdict:'stopped_early',measurement:{completion_status:'candidates_exhausted',

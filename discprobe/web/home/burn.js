@@ -94,7 +94,7 @@ function words() {
   for(const a of ['cancel','retry','recheck','photo','copy'])q(`[data-a="${a}"]`).textContent=t[a];
   W.mini.setAttribute('aria-label',t.mini);
   if(ctx.otherCommand){q('.burn-other summary').textContent=t.otherCommandTitle;q('[data-a="copy"]').textContent=t.copyCommand;}
-  if(visible&&W.back)W.back.replaceChildren(t.back,...W.back.querySelectorAll('.key-cap'));
+  if(visible&&W.back)W.back.replaceChildren(ctx?.backText?.()??t.back,...W.back.querySelectorAll('.key-cap'));
   if(W.help)W.help.textContent=api.lang()==='en'?'Hold Space or Enter for one second. Release to cancel.':'按住空格或回车一秒；松开即可取消。';
   facts();paint();
 }
@@ -142,7 +142,9 @@ function paint() {
   W.page.dataset.state=status;W.page.classList.toggle('burn-reduce',!!api.reduce);q('.burn-speed').hidden=!ready||!!ctx.otherOnly||!!blocked;
   W.consent.closest('label').hidden=!ready||!hasInput;q('.burn-warning').hidden=!ready||!hasInput;
   q('.warn-sign').classList.toggle('on', ['failed','cancelled'].includes(status));
-  W.select.disabled=active; q('[data-a="cancel"]').hidden=!active||q('[data-a="cancel"]').getAttribute('aria-expanded')==='true';q('[data-a="cancel"]').disabled=!!task?.stopping;q('[data-a="retry"]').hidden=!['failed','cancelled'].includes(status)||!!task?.notStarted;q('[data-a="recheck"]').hidden=!((status==='failed'&&task?.notStarted)||(!hasInput&&!task&&!swapping&&ctx.recheck&&ctx.drive?.id));q('[data-a="photo"]').hidden=status!=='success'||!ctx.photograph;
+  W.select.disabled=active; q('[data-a="cancel"]').hidden=!active||q('[data-a="cancel"]').getAttribute('aria-expanded')==='true';q('[data-a="cancel"]').disabled=!!task?.stopping;q('[data-a="retry"]').hidden=!['failed','cancelled'].includes(status)||!!task?.notStarted;q('[data-a="recheck"]').hidden=!((status==='failed'&&task?.notStarted)||(!hasInput&&!task&&!swapping&&ctx.recheck&&ctx.drive?.id));q('[data-a="photo"]').hidden=!ctx.photograph||!(status==='success'||ctx.iso?.target&&!task);
+  // a check disc burned earlier from this batch's geometry is the same disc: photograph it instead of burning another
+  if(ctx.iso?.target)q('[data-a="photo"]').textContent=task?T().photo:(api.lang()==='en'?'Check disc burned already? Photograph it':'检查盘已经刻好？直接拍照');
   q('[data-a="cancel"]').textContent=task?.erasing?(api.lang()==='en'?'Stop erasing':'停止擦除'):stopWords(api.lang()).stop;
   if(ctx.preflight&&ready)q('[data-a="recheck"]').hidden=!!ctx.checking;
   if(reviewDisc&&ctx.recheck){q('[data-a="retry"]').hidden=true;q('[data-a="recheck"]').hidden=false;}
@@ -192,14 +194,16 @@ function paint() {
       Promise.race([ctx.checkDisc(),new Promise(r=>setTimeout(()=>r('late'),20000))])
         .then(d=>{if(mine.closed==='checking')mine.closed=d==='late'?null:d?.present?d.closed??null:null;},()=>{if(mine.closed==='checking')mine.closed=null;})
         .finally(()=>{if(W)paint();});}
-    checks.replaceChildren(...afterChecks(task).flatMap(([label,s,text])=>{const dd=el('dd','',text);dd.dataset.s=s;return [el('dt','',label),dd];}));
+    const rows=afterChecks(task);if(ctx.iso?.target)rows.pop();   // a check disc carries no picture to confirm
+    checks.replaceChildren(...rows.flatMap(([label,s,text])=>{const dd=el('dd','',text);dd.dataset.s=s;return [el('dt','',label),dd];}));
     if(task.closed===null&&ctx.checkDisc){const b=el('button','sbtn',T().recheckClosed);b.type='button';b.dataset.a='recheckClosed';checks.append(el('dt','',''),b);}
   }
   let advice=q('.burn-advice');if(!advice){advice=el('div','burn-advice');checks.after(advice);}
   // how to look and what each symptom means after a write; what to do next after a failed one
   const failedAfterStart=['failed','cancelled'].includes(status)&&!task?.notStarted;
   advice.hidden=reviewDisc||status!=='success'&&!failedAfterStart;
-  advice.replaceChildren(...(status==='success'?afterBurn.slice(0,2):afterBurn.slice(2)).map(words=>el('p','',words[api.lang()==='en'?'en':'zh'])));
+  const checkNext={zh:'接下来给这张检查盘拍 3 张照片，下一页会说怎么拍。',en:'Next, take 3 photos of this check disc; the next page shows how.'};
+  advice.replaceChildren(...(status==='success'?(ctx.iso?.target&&ctx.done?[checkNext]:afterBurn.slice(0,2)):afterBurn.slice(2)).map(words=>el('p','',words[api.lang()==='en'?'en':'zh'])));
   q('.burn-intro').hidden=status==='success'||!!ctx.otherOnly||!!blocked;
   // burned with a command: what to do and the command come first, under the title; nothing to hold here
   if(ctx.otherOnly)q('h1').after(q('.burn-result'),q('.burn-other'),checks,advice);
@@ -208,10 +212,10 @@ function paint() {
   const p=Math.round((task?.progress||0)*100);W.progress.style.setProperty('--progress',`${p}%`);W.miniRing.style.setProperty('--progress',`${p}%`);
   const caption=active?`${p}% · ${t.percent}`:status==='success'?t.done:t[key];q('.burn-scene-caption').textContent=caption;W.mini.lastChild.textContent=active?`${p}%`:t[key];
   q('.burn-disc').setAttribute('role','progressbar');q('.burn-disc').setAttribute('aria-label',t.writing);q('.burn-disc').setAttribute('aria-valuemin','0');q('.burn-disc').setAttribute('aria-valuemax','100');q('.burn-disc').setAttribute('aria-valuenow',String(p));
-  W.mini.hidden=visible||!task; if(!visible||!W.next)return;
+  W.mini.hidden=visible||task?.status!=='burning'; if(!visible||!W.next)return;   // only a burn still running is worth a way back; a finished one sat over the next page's header
   W.next.disabled=!ctx.otherOnly && status!=='success' && (status!=='ready'||!hasInput||!W.consent.checked||mismatch&&!W.batchConsent.checked);
   api.nextWhy?.(status==='burning'?t.whyBurning:status==='failed'||status==='cancelled'?t.whyAgain:!hasInput?(swapping||ctx.needSwap?t.whySwap:t.whyMissing):t.whyConsent);
-  const text=api.$('next-text');if(text)text.textContent=ctx.otherOnly?(ctx.done?t.finish:t.back):status==='success'&&!ctx.iso?.target?(api.lang()==='en'?'Next: how did it look?':'下一步：结果怎么样？'):status==='success'?(ctx.readBack?t.read:ctx.done?t.finish:t.back):status==='burning'?t.writing:t.hold;
+  const text=api.$('next-text');if(text)text.textContent=ctx.otherOnly?(ctx.done?t.finish:t.back):status==='success'&&!ctx.iso?.target?(api.lang()==='en'?'Next: how did it look?':'下一步：结果怎么样？'):status==='success'?(ctx.readBack?t.read:ctx.iso?.target&&ctx.done?(api.lang()==='en'?'Next: take the photos':'下一步：拍照'):ctx.done?t.finish:t.back):status==='burning'?t.writing:t.hold;
   nextConfirm(W.next, {active:status==='ready' && !ctx.otherOnly && !blocked, disabled:W.next.disabled,
     lang:api.lang(), label:t.hold, done:beginBurn});
   if(ready&&blocked)W.next.hidden=true;
@@ -353,7 +357,7 @@ export function start(homeApi,context) {
   fillSpeeds();
   visible=true;root.dataset.mode='burn';W.page.hidden=false;if(changed)W.page.scrollTop=0;W.page.dataset.theme=root.dataset.theme;api.focusDrive?.();
   W.next=api.$('next');W.nextLabel=api.$('next-text')?.textContent;W.nextHidden=W.next.hidden;
-  W.back=api.$('back');W.backHidden=W.back.hidden;W.back.hidden=false;W.backLabel=W.back.innerHTML;W.back.replaceChildren(T().back,...W.back.querySelectorAll('.key-cap'));
+  W.back=api.$('back');W.backHidden=W.back.hidden;W.back.hidden=false;W.backLabel=W.back.innerHTML;W.back.replaceChildren(ctx.backText?.()??T().back,...W.back.querySelectorAll('.key-cap'));
   W.events=new AbortController();const signal=W.events.signal, on=(node,event,fn)=>node.addEventListener(event,fn,{signal,capture:true});
   on(W.next,'click',async e=>{e.preventDefault();e.stopImmediatePropagation();if(task?.status==='success'&&!ctx.iso?.target){
     W.next.disabled=true;

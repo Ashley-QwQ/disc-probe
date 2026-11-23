@@ -123,8 +123,8 @@ export function measurementRecovery(result = {}) {
     `测量只完成了一部分。实测范围为 ${JSON.stringify(m.coverage?.measured_intervals_mm || m.span_mm || [])} mm；范围外属于外推，局部误差小不能证明整盘可用。`,
     `Partial measurement. Measured radii: ${JSON.stringify(m.coverage?.measured_intervals_mm || m.span_mm || [])} mm. Outside is extrapolation; small local error does not validate the whole disc.`);
   if (m.correction && ['good','usable'].includes(part.verdict)) return pair(
-    '盘的轨距会变化，已自动加密测量并保存平滑角度修正，生成图片时会自动使用。详情有重复读数误差、独立检查、耗时及测点稀疏区；范围外仍是外推。DIS 预设可能无法复现这条曲线，导出前须检查转换误差。',
-    'Track pitch varies. Extra points were measured and a smooth angle correction was saved; images use it automatically. Details contain repeat errors, independent checks, time and thin areas. Outside measured radii is extrapolation. A DIS preset may not reproduce the curve: check conversion error.');
+    '这张盘的轨距不太均匀，所以多测了一些点，算出一条平滑修正，刻图时自动用上。',
+    'The track pitch on this disc is uneven, so more points were measured and a smooth correction was worked out; pictures use it automatically.');
   return ({
     good: pair('测量可用，可以保存。', 'The measurement is usable and ready to save.'),
     usable: pair('个别读数不太稳，整体可以用。', 'A few readings were unsteady; as a whole it is usable.'),
