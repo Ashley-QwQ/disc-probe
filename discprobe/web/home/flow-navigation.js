@@ -84,7 +84,8 @@ export async function install(api, {setHome}) {
       if (saved.photo?.geo) {
         // back to that batch's photo page, with Back leading to the batch in the library as before
         const list = saved.col ? api.catalogue(saved.col) : [], item = list.find(i => i.id === saved.photo.batch) || null;
-        calibrate.photograph(api, {item, media: saved.photo.media, geo: saved.photo.geo, returnTo: () => {
+        calibrate.photograph(api, {item, media: saved.photo.media, geo: saved.photo.geo,
+          saved:saved.photo.saved, returnTo: () => {
           if (item) api.goTo(...api.locate(item));
           setHome('library');
         }});

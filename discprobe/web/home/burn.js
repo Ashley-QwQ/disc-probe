@@ -1,6 +1,8 @@
 import { nextConfirm } from "./kit/nextconfirm.js";
 import { expandBurnStop, closeBurnStop, stopWords, interruptedBurn } from './burn-stop.js';
 import { checkingText, discText, failureText, gateText, keepDiscForReview, otherBatchConsent } from './burn-preflight.js';
+import { hasCapability } from './handshake.mjs';
+import { savedBurnWords } from './photowords.mjs';
 /**
  * BURN · Operate. Arrive with a finished ISO; review, consent, slide, then read back.
  * States: missing input, ready, writing, success, cancelled, failure. Long names wrap;
@@ -143,6 +145,10 @@ function paint() {
   W.consent.closest('label').hidden=!ready||!hasInput;q('.burn-warning').hidden=!ready||!hasInput;
   q('.warn-sign').classList.toggle('on', ['failed','cancelled'].includes(status));
   W.select.disabled=active; q('[data-a="cancel"]').hidden=!active||q('[data-a="cancel"]').getAttribute('aria-expanded')==='true';q('[data-a="cancel"]').disabled=!!task?.stopping;q('[data-a="retry"]').hidden=!['failed','cancelled'].includes(status)||!!task?.notStarted;q('[data-a="recheck"]').hidden=!((status==='failed'&&task?.notStarted)||(!hasInput&&!task&&!swapping&&ctx.recheck&&ctx.drive?.id));q('[data-a="photo"]').hidden=status!=='success'||!ctx.photograph;
+  if (ctx.photographSaved && hasCapability('photo-burn-recovery') && !task) {
+    q('[data-a="photo"]').hidden = false;
+    q('[data-a="photo"]').textContent = savedBurnWords.entry[lang];
+  } else q('[data-a="photo"]').textContent = t.photo;
   q('[data-a="cancel"]').textContent=task?.erasing?(api.lang()==='en'?'Stop erasing':'停止擦除'):stopWords(api.lang()).stop;
   if(ctx.preflight&&ready)q('[data-a="recheck"]').hidden=!!ctx.checking;
   if(reviewDisc&&ctx.recheck){q('[data-a="retry"]').hidden=true;q('[data-a="recheck"]').hidden=false;}
@@ -341,7 +347,10 @@ async function action(a) {
   if(a==='recheck'){task=null;W.consent.checked=false;ctx.driveProblem='';words();
     if(ctx.recheck){try{swapping={};ctx.driveProblem=ctx.swapWords?.checking||'';paint();await ctx.recheck();}catch(e){ctx.driveProblem=e?.message||'';}finally{swapping=null;}
       if(!visible)return;fillSpeeds();words();if(ctx.needSwap)swapFlow();}else waitForDisc();}
-  if(a==='photo')ctx.photograph?.();
+  if(a==='photo') {
+    if (!task && ctx.photographSaved && hasCapability('photo-burn-recovery')) ctx.photographSaved();
+    else ctx.photograph?.();
+  }
   if(a==='copy'){try{await navigator.clipboard.writeText(ctx.otherCommand||ctx.iso.path);toast(ctx.otherCommand?T().copiedCommand:T().copied);}catch{toast(T().copyFail);}}
 }
 /** @param {Object} homeApi @param {BurnContext} context */
