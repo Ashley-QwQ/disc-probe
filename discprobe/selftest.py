@@ -1344,9 +1344,13 @@ def _tests_folder(c: Checker):
     if added:
         sys.path.insert(0, folder)
     import tempfile
-    # Test burns file work records under DISCPROBE_HOME or ./works: keep them out of the real library.
-    home, previous_home = tempfile.mkdtemp(prefix="selftest-home-"), os.environ.get("DISCPROBE_HOME")
+    # Test burns file work records under DISCPROBE_HOME or ./works, and drive locks and the web
+    # instance record live under LOCALAPPDATA: keep both away from the person's real library and
+    # from a measurement running in their own window (it would make these tests see a busy drive).
+    home = tempfile.mkdtemp(prefix="selftest-home-")
+    previous = {name: os.environ.get(name) for name in ("DISCPROBE_HOME", "LOCALAPPDATA")}
     os.environ["DISCPROBE_HOME"] = home
+    os.environ["LOCALAPPDATA"] = os.path.join(home, "user-state")
     try:
         for path in files:
             name = os.path.splitext(os.path.basename(path))[0]
@@ -1393,10 +1397,11 @@ def _tests_folder(c: Checker):
     finally:
         if added:
             sys.path.remove(folder)
-        if previous_home is None:
-            os.environ.pop("DISCPROBE_HOME", None)
-        else:
-            os.environ["DISCPROBE_HOME"] = previous_home
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
         import shutil
         shutil.rmtree(home, ignore_errors=True)
 
