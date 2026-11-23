@@ -36,12 +36,12 @@ from __future__ import annotations
 import csv
 import json
 import math
-import os
+from pathlib import Path
 import time
 
 import numpy as np
 
-from . import analysis, geo_speed, ui
+from . import analysis, geo_checkpoint, geo_speed, ui
 from .calib import SECTOR_BITS, CalLayout, theta
 from .coverage import RADIUS_TOL_MM, assess_range, default_range
 
@@ -104,6 +104,7 @@ class Ladder:
         self.state = None
         self.auto_correct = auto_correct
         self.resume = resume
+        self.checkpoint = None
         self.pending_identity_lbas = set()
         self.bend = None
         self.correction = None
@@ -406,6 +407,8 @@ class Ladder:
         self.targets.append(m)
 
     def _emit_point(self, target):
+        if self.checkpoint:
+            self.checkpoint.save(self)
         ui.event('geo_point', rung=len(self.targets), lba=target['lba'],
                  radius_mm=float(self._fit_radius(target['n'])),
                  residual_deg=target.get('residual_deg', target['unwrapped_deg'] - target['predicted_deg']),
@@ -540,23 +543,26 @@ class Ladder:
                 self.failed_candidates = sorted(set(self.failed_candidates) | {lba})
                 self.progress_probe_done += self.reps
                 continue
+            self.pending_identity_lbas.discard(lba)
+            if lba in self.failed_candidates:
+                self.failed_candidates.remove(lba)
             self._emit_point(m)
             self.log(f"  rung {len(self.targets):2d}: LBA {lba:>8} predicted +/- {sigma:6.2f} deg, "
                      f"whole turns {round(m['unwrapped_deg'] / 360):>7}, residual {m['residual_deg']:+7.3f} deg, "
                      f"chi2/dof {self.chi2_dof:.2f}")
-            self.pending_identity_lbas.discard(lba)
-            if lba in self.failed_candidates:
-                self.failed_candidates.remove(lba)
 
     def _resume_ladder(self):
         source, targets = self.resume
         old = source['fit']
+        checkpoint = source.get('checkpoint')
         tp = self.tp
         observed = tp.summary.get('identity') or {}
         expected = source.get('identity') or {}
         saved_record = (source.get('disc_identity') or {}).get('record')
         record = (tp.summary.get('disc_identity') or {}).get('record')
         if (tp.last_lba != (source.get('setup') or {}).get('last_lba') or
+                bool(source.get('simulated')) != bool(tp.summary.get('simulated')) or
+                (old.get('track') == 'audio') != self.audio or
                 any(expected.get(k) and expected[k] != observed.get(k) for k in ('drive', 'firmware', 'disc')) or
                 (saved_record and (record or {}).get('sha256') != saved_record.get('sha256')) or
                 abs(self.T * 1000 / old['period_ms'] - 1) > PERIOD_TOL):
@@ -571,18 +577,34 @@ class Ladder:
         # phases across the disc in addition to capacity, MID and reader.
         targets = [{**t, 'n': self._n_end(t['lba'])} for t in targets]
         indexed = sorted(targets, key=lambda t: t['lba'])
-        anchors = [indexed[i] for i in (0, len(indexed) // 2, len(indexed) - 1)]
+        anchors = [indexed[i] for i in dict.fromkeys((0, len(indexed) // 2, len(indexed) - 1))]
+        if checkpoint and checkpoint.get('sentinels'):
+            anchors = checkpoint['sentinels']
         self.progress_stage = 'checking the previous measurement'
         self.progress_total = (len(targets) + 2 * len(anchors)) * self.reps
         self.sentinels = anchors
         self.check_state(reps=self.reps)
-        if self.state['verdict'] == 'changed' or any(p['phase_again_deg'] is None for p in self.state['points']):
+        if self.state['verdict'] == 'changed' or any(
+                p['phase_again_deg'] is None or abs(p['change_deg']) > max(STATE_TOL_DEG, STATE_SIGMAS * p['sigma_deg'])
+                for p in self.state['points']):
             raise RuntimeError('the saved check points did not match; put the same measurement disc back in the original drive')
         self.pending_identity_lbas.difference_update(t['lba'] for t in targets)
         self.targets = targets
-        self.fit()
+        if len(targets) >= len(self.first_turns):
+            self.fit()
         self.completion_status = 'target_reached'
         self.failed_candidates = list(old.get('failed_candidates') or [])
+        if checkpoint:
+            if old.get('varying_pitch') and self.bend is None:
+                from .varpitch import Bend
+                self.bend = Bend(self._fit_radius([t['n'] for t in targets]),
+                                 [t['residual_deg'] for t in targets], [t['sigma_deg'] for t in targets])
+            self.max_targets = checkpoint['max_targets']
+            self.prediction_checks = (old.get('coverage') or {}).get('prediction_checks', [])
+            self.progress_total = self.max_targets * self.reps + 2 * len(anchors) * self.reps
+            if self.checkpoint:
+                self.checkpoint.save(self)
+            return self._measure_ladder()
         if source.get('refresh_excluded_ranges'):
             # Letting two old islands share a readable range would silently
             # bridge the hole. Sample inside each newly reopened gap first.
@@ -680,12 +702,15 @@ class Ladder:
         self.progress_total = self.max_targets * self.reps
         if self.state_check:
             self.sentinels_first()
+        return self._measure_ladder()
 
+    def _measure_ladder(self):
         self.progress_stage = "ladder"
-
+        initial_count = len(self.targets)
         # First rungs: a turn or two away, where the nominal model is good to a few degrees.
-        used = {self.ref}
-        for i, turns in enumerate(self.first_turns):
+        used = {self.ref, *(t['lba'] for t in self.targets)}
+        for i in range(initial_count, len(self.first_turns)):
+            turns = self.first_turns[i]
             lba = self._allowed(self._lba_at_turns(turns))
             if min(abs(lba - t) for t in used) < self.block:
                 # Clamped onto the reference (or a rung) at a range edge: go the other way.
@@ -706,12 +731,13 @@ class Ladder:
                 self._emit_point(m)
             self.log(f"  rung {len(self.targets):2d}: LBA {lba:>8} ({turns:+.1f} turns) phase {m['phase_deg']:8.3f} "
                      f"+/- {m['sigma_deg']:.3f} deg")
-        self.fit()
-        self._emit_point(self.targets[-1])
+        if initial_count < len(self.first_turns):
+            self.fit()
+            self._emit_point(self.targets[-1])
 
-        tried = {t["lba"] for t in self.targets}
+        self.failed_candidates = getattr(self, 'failed_candidates', [])
+        tried = {t["lba"] for t in self.targets} | set(self.failed_candidates)
         self.completion_status = "target_reached"
-        self.failed_candidates = []
         bridge_to = None
         while len(self.targets) < self.max_targets:
             # Skip candidates next to one already measured: a second point there adds little.
@@ -1147,6 +1173,18 @@ class Ladder:
                     prediction_checks=self.prediction_checks,
                     independent_check_lbas=[p['lba'] for p in self.correction_checks])
 
+    def output_summary(self, fit, stopped):
+        source = self.tp.summary
+        return {"fit": fit, "cache": source.get("cache"),
+                "setup": source.get("setup"), "identity": source.get("identity"),
+                "set_cd_speed": source.get("set_cd_speed"),
+                **geo_speed.annotations(self.tp, self.media, period_ms=(fit or {}).get("period_ms")),
+                "rotation_check": source.get("rotation_check"),
+                "args": source.get("args"),
+                **{k: source[k] for k in ('random_label', 'disc_identity', 'reserved_lba') if k in source},
+                **({"simulated": True} if source.get("simulated") else {}),
+                **({"stopped": stopped} if stopped else {})}
+
 
 def retryable_read_stop(reason):
     text = reason.lower()
@@ -1156,12 +1194,17 @@ def retryable_read_stop(reason):
 
 def resume_supported(summary, media):
     fit = summary.get('fit') or {}
+    checkpoint = summary.get('checkpoint')
     stopped = summary.get('stopped')
     status = fit.get('completion_status', 'target_reached')
-    resumable = (status == 'interrupted' and retryable_read_stop(stopped)) if stopped else (
-        status in ('target_reached', 'coverage_incomplete', 'partial_readable'))
+    if checkpoint:
+        resumable = bool(checkpoint.get('targets'))
+    elif stopped:
+        resumable = status == 'interrupted' and retryable_read_stop(stopped)
+    else:
+        resumable = status in ('target_reached', 'coverage_incomplete', 'partial_readable')
     return (resumable and media in ('dvd', 'cd') and fit.get('media', 'dvd') == media
-            and not (fit.get('varying_pitch') or fit.get('correction_file'))
+            and (checkpoint or not (fit.get('varying_pitch') or fit.get('correction_file')))
             and (fit.get('state_check') or {}).get('verdict') != 'changed'
             and all(isinstance(fit.get(k), (int, float)) and math.isfinite(fit[k])
                     for k in ('u', 'v', 'c_deg', 'period_ms', 'reference_lba'))
@@ -1170,12 +1213,12 @@ def resume_supported(summary, media):
 
 def resume_source(path, media):
     """Read an existing angle ladder without modifying any of its artifacts."""
-    from pathlib import Path
-    source = Path(path)
-    source = source / 'summary.json' if source.is_dir() else source
+    source = geo_checkpoint.source_path(path)
     summary = json.loads(source.read_text(encoding='utf-8'))
     if not resume_supported(summary, media):
         raise ValueError('this geometry cannot be continued; check rotation and measure the disc again')
+    if summary.get('checkpoint'):
+        return summary, [{**t, 'lba': int(t['lba'])} for t in summary['checkpoint']['targets']]
     targets = []
     with (source.parent / 'targets.csv').open(encoding='utf-8') as stream:
         for row in csv.DictReader(stream):
@@ -1207,42 +1250,20 @@ def resume_source(path, media):
 
 
 def write_outputs(ladder: Ladder, out_dir: str, stopped: str | None = None) -> None:
-    """`stopped` says why the run ended early. Such a fit can look fine, but only covers what was reached."""
-    os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "targets.csv"), "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        w.writerow(["lba", "n_bits", "phase_deg", "sigma_deg", "std_deg", "used", "predicted_deg",
-                    "unwrapped_deg", "model_deg", "residual_deg", "period_ms"])
-        for t in ladder.targets:
-            w.writerow([t["lba"], f"{t['n']:.0f}", t["phase_deg"], f"{t['sigma_deg']:.3f}", t["std_deg"], t["used"],
-                        f"{t['predicted_deg']:.3f}", f"{t['unwrapped_deg']:.3f}", f"{t['model_deg']:.3f}",
-                        f"{t['residual_deg']:.3f}", t["period_ms"]])
+    """Publish the summary after the measurement files have been committed."""
+    folder = Path(out_dir)
+    folder.mkdir(parents=True, exist_ok=True)
+    writer = ladder.checkpoint or geo_checkpoint.Checkpoint(folder)
+    geo_checkpoint.write_targets(folder / 'targets.csv', ladder.targets)
     res = ladder.result()
     if ladder.correction is not None:
-        with open(os.path.join(out_dir, 'correction.json'), 'w', encoding='utf-8') as f:
-            json.dump(ladder.correction, f, indent=2)
-        with open(os.path.join(out_dir, 'probes.json'), 'w', encoding='utf-8') as f:
-            json.dump({'points': ladder.probes, 'failed': ladder.probe_failures,
-                       'independent_checks': ladder.correction_checks}, f, indent=2)
+        geo_checkpoint.write_json(folder / 'correction.json', ladder.correction)
+        geo_checkpoint.write_json(folder / 'probes.json', {
+            'points': ladder.probes, 'failed': ladder.probe_failures,
+            'independent_checks': ladder.correction_checks})
     if stopped:
         res['completion_status'] = ('unwrap_ambiguous' if 'whole-turn' in stopped else 'interrupted')
-    with open(os.path.join(out_dir, "summary.json"), "w", encoding="utf-8") as f:
-        json.dump({"fit": res, "cache": ladder.tp.summary.get("cache"),
-                   "setup": ladder.tp.summary.get("setup"), "identity": ladder.tp.summary.get("identity"),
-                   "set_cd_speed": ladder.tp.summary.get("set_cd_speed"),
-                   **geo_speed.annotations(ladder.tp, ladder.media, period_ms=res.get("period_ms")),
-                   "rotation_check": ladder.tp.summary.get("rotation_check"),
-                   "args": ladder.tp.summary.get("args"),
-                   **({"random_label": ladder.tp.summary["random_label"]} if "random_label" in ladder.tp.summary else {}),
-                   **{k: ladder.tp.summary[k] for k in ('disc_identity', 'reserved_lba') if k in ladder.tp.summary},
-                   **({"simulated": True} if ladder.tp.summary.get("simulated") else {}),
-                   **({"stopped": stopped} if stopped else {})}, f, indent=2, default=float)
-    events = ladder.tp.events_as_rows()
-    if events:
-        with open(os.path.join(out_dir, "events.csv"), "w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=list(events[0]))
-            w.writeheader()
-            w.writerows(events)
-
-    from . import ui
+    writer.write_events(ladder.tp)
+    geo_checkpoint.write_json(folder / 'summary.json', ladder.output_summary(res, stopped))
+    writer.finish()
     ui.result_event("geo", out_dir, stopped)

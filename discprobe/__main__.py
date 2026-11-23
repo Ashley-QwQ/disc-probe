@@ -880,25 +880,33 @@ def cmd_geo(args, *, speed_check=None):
         with ui.json_events():
             return cmd_geo(args, speed_check=speed_check)
     media = getattr(args, "media", "dvd")
-    from . import geo_speed, read_completion
+    from . import geo_checkpoint, geo_speed, read_completion
     resume = None
+    previous_events = b''
     if getattr(args, 'resume', None):
         from .geo import resume_source
         if getattr(args, 'refit', None) or getattr(args, 'cd_clv', False):
             sys.exit('--resume continues an angular measurement on the disc')
         try:
             resume = resume_source(args.resume, media)
+            source_path = geo_checkpoint.source_path(args.resume)
+            checkpoint = resume[0].get('checkpoint')
+            if checkpoint:
+                previous_events = geo_checkpoint.read_events(source_path.parent, checkpoint)
         except (OSError, ValueError, KeyError) as e:
             sys.exit(str(e))
         source = resume[0]
         saved_args = source.get('args') or {}
+        if source.get('simulated') and saved_args.get('sim'):
+            args.sim = args.sim or saved_args['sim']
+            args.seed = saved_args.get('seed', args.seed)
         for key in ('speed', 'reps', 'sectors', 'host_delay_ms', 'r0_mm', 'pitch_um', 'bit_nm',
                     'read_offset_bytes', 'ranges', 'rings_layout', 'texture', 'margin_sectors',
                     'no_auto_correction', 'chi2_abort'):
             if key in saved_args:
                 setattr(args, key, saved_args[key])
         calibration = guide._load(str(read_completion.summary_path(args.resume).with_name('calibration.json')))
-        if isinstance(calibration, dict) and calibration.get('avoid_mm'):
+        if not checkpoint and isinstance(calibration, dict) and calibration.get('avoid_mm'):
             # These ranges came from calibrate's temporary exclusions. A
             # continuation rechecks random data before accepting new rungs.
             args.ranges = None
@@ -908,11 +916,13 @@ def cmd_geo(args, *, speed_check=None):
             args.completion_sectors = source['fit'].get('completion_sectors', 0)
     if getattr(args, 'refit', None):
         try:
-            source = read_completion.summary_path(args.refit)
+            source = geo_checkpoint.source_path(args.refit)
             saved = json.loads(source.read_text(encoding='utf-8'))
-            value, origin = read_completion.resolve(saved.get('identity'), args.completion_sectors,
-                                                     saved['fit'].get('media', 'dvd'))
-            if args.completion_sectors is None and origin is None:
+            if not saved.get('fit'):
+                raise ValueError('the measurement stopped before a geometry fit was available')
+            saved_media = saved['fit'].get('media', 'dvd')
+            value, origin = read_completion.resolve(saved.get('identity'), args.completion_sectors, saved_media)
+            if saved_media == 'dvd' and args.completion_sectors is None and origin is None:
                 value = saved['fit'].get('completion_sectors', 0)
                 origin = dict(origin='stored')
             output = args.out if args.out != 'results' else os.path.join(
@@ -920,8 +930,10 @@ def cmd_geo(args, *, speed_check=None):
             fit, method = read_completion.save_reapplied(source, value, output, source=origin)
         except (OSError, ValueError) as e:
             sys.exit(str(e))
-        print(read_completion.notice(value, origin))
-        print(f"Completion offset applied: {method}; u={fit['u']:.8f}, v={fit['v']:.10f}; {output}")
+        if saved_media == 'dvd':
+            print(read_completion.notice(value, origin))
+        result = "Completion offset applied" if saved_media == 'dvd' else "Geometry refit"
+        print(f"{result}: {method}; u={fit['u']:.8f}, v={fit['v']:.10f}; {output}")
         return
     if media != 'dvd' and getattr(args, 'completion_sectors', None) is not None:
         sys.exit('--completion-sectors is for DVD')
@@ -987,7 +999,9 @@ def cmd_geo(args, *, speed_check=None):
         log = ladder.log = progress.log
     stopped = None
     res = None
+    ladder.checkpoint = geo_checkpoint.Checkpoint(out, previous_events)
     try:
+        ladder.checkpoint.save(ladder)
         res = ladder.run()
     except (RuntimeError, OSError) as e:
         log(f"stopped: {e}")
@@ -998,17 +1012,13 @@ def cmd_geo(args, *, speed_check=None):
         dev.close() if hasattr(dev, "close") else None
         if ladder.targets and ladder.cov is not None:
             write_outputs(ladder, out, None if res else stopped or "interrupted")   # also for Ctrl+C or a drive that vanished
-        else:
+        elif not ladder.targets:
             summary = dict(ladder.tp.summary, stopped=stopped or 'interrupted')
             period = getattr(ladder, 'T', None)
             summary.update(geo_speed.annotations(ladder.tp, media, period_ms=period * 1e3 if period else None))
-            _write_json(os.path.join(out, 'summary.json'), summary)
-            rows = ladder.tp.events_as_rows()
-            if rows:
-                with open(os.path.join(out, 'events.csv'), 'w', newline='', encoding='utf-8') as f:
-                    writer = csv.DictWriter(f, fieldnames=list(rows[0]))
-                    writer.writeheader()
-                    writer.writerows(rows)
+            ladder.checkpoint.write_events(ladder.tp)
+            geo_checkpoint.write_json(Path(out) / 'summary.json', summary)
+            ladder.checkpoint.finish()
         if not res or res.get('completion_status') != 'target_reached':
             from .diagnostics import save_failure
             save_failure(out, stopped or (res or {}).get('completion_status', 'interrupted'), args)
@@ -1037,6 +1047,8 @@ def cmd_geo(args, *, speed_check=None):
         print(f"targets.csv, summary.json, events.csv: {os.path.abspath(out)}")
         if not res:
             print("It stopped early, so `--geo latest` won't use these. Don't burn from them.")
+    elif ladder.targets:
+        print(f"targets.csv, partial.json, events.csv: {os.path.abspath(out)}")
     elif stopped not in mmc.NOT_READY:
         print("Stopped before the first fit; summary and command events were saved. Check timing on this same disc.")
     if progress and res:

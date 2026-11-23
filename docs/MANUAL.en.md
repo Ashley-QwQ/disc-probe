@@ -529,6 +529,13 @@ python -m discprobe geo --drive H:
   ladder. Use **Measure missing radii** in the calibration result, or run
   `geo --drive H: --resume results/geo-H-...`. It checks saved points before
   combining the old and new measurements and writes a new result folder.
+- The DVD and CD angle ladder saves `events.csv` and `targets.csv` after each
+  accepted rung, including during `calibrate`. If the process is killed, the
+  run folder keeps `partial.json` with the last saved rung and time. Pass that
+  folder to `geo --resume` to continue on the same disc and drive. For CD,
+  include `--media cd`. With at
+  least three saved rungs, `geo --reapply RUN --out NEW` can refit those rungs
+  offline. The refit retains its interrupted status.
 - `geo --json` streams progress and measured rungs as JSON lines on standard
   output. The existing human-readable log goes to standard error in this mode.
 - To use only the random-data rings on a texture ring disc:

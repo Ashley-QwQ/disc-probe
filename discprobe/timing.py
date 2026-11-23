@@ -761,5 +761,5 @@ class TimingProbe:
                 gc.enable()
         return self.summary
 
-    def events_as_rows(self):
-        return [asdict(e) for e in self.events]
+    def events_as_rows(self, start=0):
+        return [asdict(e) for e in self.events[start:]]
