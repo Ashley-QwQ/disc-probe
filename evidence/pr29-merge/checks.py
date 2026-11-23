@@ -55,9 +55,10 @@ def run(command, folder, name, mode):
         env["NODE_OPTIONS"] = "--require=" + str(EVALUATION / "offline-tests.cjs")
         for name_env in ("AFTERBURN_TEST_ROOT", "BURN_CANCEL_TEST_ROOT", "RW_DISCS_TEST_ROOT",
                          "W245_TEST_ROOT", "BRAND_TEST_TEMP", "BRAND_MIXED_OUTPUT",
-                         "WEB_RETRY_TEST_ROOT", "EDITOR_DESK_OUT", "EDITOR_FIT_OUT", "EDITOR_TEXLIB_OUT"):
+                         "EDITOR_DESK_OUT", "EDITOR_FIT_OUT", "EDITOR_TEXLIB_OUT"):
             env[name_env] = str(scratch / name_env.lower())
         env["CSP_HEADERS_OUT"] = str(scratch / "csp-headers.json")
+        env["WEB_RETRY_TEST_ROOT"] = str(scratch)
     start = time.monotonic()
     log = folder / f"{name}.log"
     with log.open("wb") as stream:
