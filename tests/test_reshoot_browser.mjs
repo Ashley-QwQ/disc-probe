@@ -80,7 +80,7 @@ async function js(expression) {
 async function pageHas(expression, message, timeout) {
   try { await waitFor(() => js(expression), message, timeout); }
   catch (error) {
-    throw Error(error.message + ': ' + JSON.stringify(await js('({mode:document.documentElement.dataset.mode,errors:window.reshootErrors,text:document.body.innerText.slice(-3000)})')));
+    throw Error(error.message + ': ' + JSON.stringify(await js('({mode:document.documentElement?.dataset.mode,errors:window.reshootErrors,text:document.body?.innerText.slice(-3000)})')));
   }
 }
 async function size(width) {
@@ -159,13 +159,13 @@ async function hash(path) {
 }
 async function library() {
   await cdp('Page.navigate', {url:origin + '/home/#/library'});
-  await pageHas('document.documentElement.dataset.navigation === "ready" && document.getElementById("library-check-photo")?.hidden === false', 'library entry visible');
+  await pageHas('document.documentElement?.dataset.navigation === "ready" && document.getElementById("library-check-photo")?.hidden === false', 'library entry visible');
 }
 async function enter() { await js('document.getElementById("library-check-photo").click()'); }
 async function reload() {
   await delay(300); // allow the existing navigation snapshot to commit to IndexedDB
   await cdp('Page.reload');
-  await pageHas('document.documentElement.dataset.navigation === "ready" && !!document.querySelector("#photo-burn-confirmed")', 'selected burn restored');
+  await pageHas('document.documentElement?.dataset.navigation === "ready" && !!document.querySelector("#photo-burn-confirmed")', 'selected burn restored');
 }
 
 async function scenario(burnCount) {
