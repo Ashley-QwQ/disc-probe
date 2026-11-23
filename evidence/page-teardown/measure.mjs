@@ -34,10 +34,12 @@ const headless = options.includes('--headless');
 const smoke = options.includes('--smoke');
 const visual = options.includes('--visual');
 const software = options.includes('--software');
+const control = options.includes('--control');
 const resume = options.includes('--resume');
 const settle = smoke || visual ? 0 : 30_000;
-assert.ok(options.every(arg => ['--headless', '--smoke', '--resume', '--visual', '--software'].includes(arg) || /^--(?:only|run|source)=/.test(arg)), 'Unknown option');
+assert.ok(options.every(arg => ['--headless', '--smoke', '--resume', '--visual', '--software', '--control'].includes(arg) || /^--(?:only|run|source)=/.test(arg)), 'Unknown option');
 assert.ok(!software || visual, '--software is for screenshots only');
+assert.ok(!control || (visual && !software), '--control is for hardware screenshots only');
 assert.ok(!smoke || selected, '--smoke requires --only');
 assert.ok(!selected || cfgs.some(cfg => keyFor(cfg) === selected), 'Unknown configuration');
 
@@ -262,7 +264,7 @@ async function measure(config, output, imageBody) {
     await command('Page.navigate', {url:'about:blank'});
     await waitPage(`location.href === 'about:blank'`, 'blank page loaded');
 
-    const shotDir = join(tmp, software ? 'shots-software' : 'shots', run, key);
+    const shotDir = join(tmp, control ? 'shots-control' : software ? 'shots-software' : 'shots', run, key);
     if (visual) mkdirSync(shotDir, {recursive:true});
     const shot = async name => {
       const {data} = await command('Page.captureScreenshot', {format:'png', captureBeyondViewport:false});
@@ -290,22 +292,31 @@ async function measure(config, output, imageBody) {
       if (lobby) {
         // A new drive check can start while the scene is settling. The heading,
         // read time and draft must agree on both sides of the actual capture.
-        stills[`${name}Disc`] = await until(async () => {
+        const checkedShot = capture => until(async () => {
           const state = await evaluate(recordedLobby);
           if (!state || (name === 'return' && state.recent !== 'PT sample')) return false;
           await delay(250);
           if (JSON.stringify(await evaluate(recordedLobby)) !== JSON.stringify(state)) return false;
-          await shot(name);
+          await shot(capture);
           if (JSON.stringify(await evaluate(recordedLobby)) !== JSON.stringify(state)) return false;
           return state;
         }, `${name}: recorded disc and heading are stable during capture`);
+        stills[`${name}Disc`] = await checkedShot(name);
+        if (control && name === 'return') {
+          stills.returnRepeats = {};
+          for (const [index, wait] of [600, 1800].entries()) {
+            await delay(wait);
+            const capture = `return-repeat-${index + 1}`;
+            stills.returnRepeats[capture] = await checkedShot(capture);
+          }
+        }
       }
       stills[name] = await evaluate(`({scrollWidth:document.documentElement.scrollWidth, scrollHeight:document.documentElement.scrollHeight,
         width:innerWidth, height:innerHeight, active:document.activeElement?.id, title:document.title,
         animations:document.getAnimations().filter(animation => animation.playState === 'running').length})`);
       if (name === 'geometry') {
         stills.geometry.progress = progress;
-        // Only the page chrome is independent of the live optical progress.
+        // Keep the header bounds. On desktop its center also contains the progress rail.
         stills.geometry.header = await evaluate(`(() => {
           const r = document.querySelector('.top').getBoundingClientRect();
           return [0, 0, innerWidth, Math.ceil(r.bottom)];
@@ -555,7 +566,7 @@ async function measure(config, output, imageBody) {
 assert.equal(process.platform, 'win32');
 mkdirSync(tmp, {recursive:true});
 process.env.TEMP = process.env.TMP = tmp;
-const output = join(tmp, run, software ? 'visual-software' : visual ? 'visual' : smoke ? 'smoke' : 'samples');
+const output = join(tmp, run, control ? 'visual-control' : software ? 'visual-software' : visual ? 'visual' : smoke ? 'smoke' : 'samples');
 mkdirSync(output, {recursive:true});
 const artwork = join(tmp, 'pagemem-work.png');
 execFileSync(python, ['-X','utf8','-B',join(here, 'artwork.py'),artwork], {windowsHide:true});
