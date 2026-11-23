@@ -1697,21 +1697,19 @@ function paintSavedBurn() {
     return;
   }
   status(burnWords('choose'));
-  if (burns.length > 1) {
-    paper.insertAdjacentHTML('beforeend', `<label class="pc-disc-id"><span>${burnWords('select')}</span>
-      <select id="photo-burn-select"><option value="">${burnWords('select')}</option>${burns.map(row =>
-        `<option value="${esc(row.id)}">${esc(burnLabel(row))}</option>`).join('')}</select></label>`);
-    const select = $('photo-burn-select');
-    select.value = saved.id || '';
-    select.onchange = () => {
-      saved.record = burns.find(row => row.id === select.value) || null;
-      saved.id = saved.record?.id ?? null;
-      f.photoDiscId = saved.record?.disc_id ?? '';
-      paint(); $('photo-burn-select')?.focus();
-    };
-  } else {
-    status(burnLabel(burns[0]));
-  }
+  // One card per burn, newest first, like the measuring-disc choice: the time is what people remember,
+  // the number is what is written on the disc. A single burn comes already chosen.
+  const when = (row) => new Date(row.time * 1000).toLocaleString(api.lang() === 'zh' ? 'zh-CN' : 'en', {
+    month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+  paper.insertAdjacentHTML('beforeend', `<div class="choices" id="photo-burns" role="radiogroup" aria-label="${esc(burnWords('select'))}">${
+    burns.map(row => `<label class="choice"><input type="radio" name="photo-burn" value="${esc(row.id)}"${saved.id === row.id ? ' checked' : ''}>
+      <b>${esc(when(row))}</b><span>${esc(`${burnWords('number')} ${row.disc_id || burnWords('missing')}${row.burner ? ` · ${row.burner}` : ''}`)}</span></label>`).join('')}</div>`);
+  for (const radio of document.querySelectorAll('#photo-burns input')) radio.onchange = () => {
+    saved.record = burns.find(row => row.id === radio.value) || null;
+    saved.id = saved.record?.id ?? null;
+    f.photoDiscId = saved.record?.disc_id ?? '';
+    paint(); document.querySelector(`#photo-burns input[value="${CSS.escape(radio.value)}"]`)?.focus();
+  };
   if (!saved.record) return;
   paper.insertAdjacentHTML('beforeend', `<label class="pc-disc-id"><span>${burnWords('number')}</span>
     <input id="photo-burn-number" maxlength="40" autocomplete="off" spellcheck="false">

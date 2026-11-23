@@ -94,7 +94,7 @@ async function capture() {
       for (const width of [1440,390]) {
         await size(width);
         await js('document.fonts.ready'); await delay(150);
-        assert.ok(await js('document.querySelector("#photo-burn-select").getBoundingClientRect().right <= innerWidth + 1'));
+        assert.ok(await js('document.querySelector("#photo-burns").getBoundingClientRect().right <= innerWidth + 1'));
         const result = await cdp('Page.captureScreenshot', {format:'png', captureBeyondViewport:false});
         writeFileSync(join(shots, `reshoot-${theme}-${lang}-${width}.png`), Buffer.from(result.data, 'base64'));
       }
@@ -208,11 +208,11 @@ async function scenario(burnCount) {
     if (burnCount === 1) {
       await pageHas(`document.querySelector("#photo-burn-number")?.value === ${JSON.stringify(rows[0].disc_id)}`, 'single burn and its number selected');
     } else {
-      await pageHas('document.querySelector("#photo-burn-select")?.options.length === 3', 'two completed burns listed');
+      await pageHas('document.querySelectorAll("#photo-burns input").length === 2', 'two completed burns listed');
       await capture();
-      const ids = await js('Array.from(document.querySelector("#photo-burn-select").options).map(o => o.value)');
-      assert.deepEqual(ids, ['', rows[0].id, rows[1].id]);
-      await js(`const s = document.querySelector("#photo-burn-select"); s.value=${JSON.stringify(rows[0].id)}; s.dispatchEvent(new Event("change",{bubbles:true}));`);
+      const ids = await js('Array.from(document.querySelectorAll("#photo-burns input")).map(o => o.value)');
+      assert.deepEqual(ids, [rows[0].id, rows[1].id]);
+      await js(`document.querySelector('#photo-burns input[value="' + CSS.escape(${JSON.stringify(rows[0].id)}) + '"]').click();`);
       await js(`const n = document.querySelector("#photo-burn-number"); n.value="marked-second"; n.dispatchEvent(new Event("input",{bubbles:true}));`);
     }
     const discId = burnCount === 1 ? rows[0].disc_id : 'marked-second';
