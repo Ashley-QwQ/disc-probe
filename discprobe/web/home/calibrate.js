@@ -11,7 +11,7 @@ import { countdown, countdownText } from "./kit/countdown.mjs";
 // Live jobs use the local API. Simulated readings and timers are limited to ?mock / ?demo=N.
 
 import { adviceHTML, budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason, photoSaveWords } from "./guidance.mjs";
-import { photoReasonWords, adoptionWords, applicationWords, sliderWords, seconds as photoSeconds } from "./photowords.mjs";
+import { photoReasonWords, adoptionWords, applicationWords, sliderWords, reasonOf, seconds as photoSeconds } from "./photowords.mjs";
 import { hasCapability } from "./handshake.mjs";
 import { cutaway } from "./drive-scene.js";
 import { floorLog } from "./floor-log.js";
@@ -440,6 +440,12 @@ function release() {
 }
 
 let leaving = false;
+// For navigation snapshots: a photo step opened straight on a batch (photograph()) is restored to that batch's
+// photo page after a reload, instead of starting a new calibration. Nothing about a running job is kept.
+export function navigationState() {
+  if (!flow?.photoOnly || flow.realPhase !== 'photo' || !flow.geo?.path) return null;
+  return {media: flow.detected?.media || 'dvd', geo: flow.geo.path, batch: flow.item?.id ?? null};
+}
 export function suspendNavigation() {
   if (!flow) return;
   if (flow.job) flow.callMe = true;
@@ -1563,10 +1569,10 @@ function photoNavigation(u) {
     api.nextWhy?.(u.reading ? liveText('正在读取照片…','Reading photos…') : '');
     return;
   }
-  $('next-text').textContent = unavailable ? (cd ? liveText('导出 DIS 预设','Export DIS preset') : liveText('返回测量结果','Back to measurement result')) : liveText('下一步：保存照片结果','Next: save photo result');
+  $('next-text').textContent = unavailable ? (cd ? liveText('导出 DIS 预设','Export DIS preset') : liveText('返回测量结果','Back to measurement result')) : liveText('采用结果','Use the result');
   const usable = u.flow.photoResult?.verdict === 'ok' && !PHOTO_HELD.includes(photoAdoption(u.flow.photoResult).state);
   $('next').disabled = !!flow.job || !!u.reading || !!u.readTimer || (!unavailable && (u.status !== 'ready' || !usable));
-  api.nextWhy?.(unavailable ? '' : flow.job || u.reading ? liveText('正在读取照片…','Reading photos…') : u.status === 'loading' ? liveText('正在连接照片服务…','Connecting to the photo service…') : !usable ? liveText('照片收到后自动读取；至少两张不同角度、读数一致才采用。','Photos are read after they arrive; two from different angles that agree are needed.') : '');
+  api.nextWhy?.(unavailable ? '' : flow.job || u.reading ? liveText('正在读取照片…','Reading photos…') : u.status === 'loading' ? liveText('正在连接照片服务…','Connecting to the photo service…') : !usable ? (g => liveText(`还差 ${g.left} 张`, `${g.left} more needed`))(photoProgress(u)) : '');
 }
 function photoFallback(u, error) {
   if (!photoLive(u)) return;
@@ -1618,6 +1624,58 @@ function paintReadState(u) {
     text = liveText(`收到 ${n} 张。上次读取 ${a.photos.length} 张用了 ${s.zh}。`, `${n} received. The last read of ${a.photos.length} took ${s.en}.`);
   } else if (n) text = liveText(`收到 ${n} 张。`, `${n} received.`);
   u.readState.textContent = text;
+  paintStatus(u);
+}
+// Where the photo step stands, as the page's one headline: how many usable photos of how many needed, and one
+// piece of advice from the latest photo that needs retaking. Everything else on the paper is secondary.
+function photoProgress(u) {
+  const l = u.listing || {}, photos = l.photos || [], result = u.flow.photoResult || u.shownResult;
+  const adoption = result ? photoAdoption(result) : {state:'none'};
+  const per = result?.per_photo?.length ? result.per_photo : photos.filter(p => p.verdict);
+  const usable = per.filter(p => p.verdict === 'ok').length;
+  const need = Number.isFinite(adoption.required_count) ? adoption.required_count : 2;
+  const adopted = result?.verdict === 'ok' && !PHOTO_HELD.includes(adoption.state);
+  const reading = !!u.reading || l.analysis?.state === 'reading' || photos.some(p => !p.verdict);
+  // photos the page holds, the listing knows or the last read covered: whichever saw most
+  const count = Math.max(photos.length, result?.per_photo?.length || 0, u.page?.state?.().photos?.length || 0);
+  return {photos, count, per, usable, need, adopted, reading, adoption, left: Math.max(1, need - usable)};
+}
+function paintReadProgress(u) {
+  const part = u.statusParts, a = u.listing?.analysis;
+  if (!part?.read) return;
+  if (a?.state === 'done' && a.photos?.length && Number.isFinite(a.seconds)) u.perPhotoSeconds = a.seconds / a.photos.length;
+  const reading = a?.state === 'reading' && a.photos?.length;
+  part.read.hidden = !reading;
+  if (!reading) { u.readBarKey = null; return; }
+  const n = a.photos.length, done = Math.min(n - 1, Math.max(0, Math.round((Number(a.fraction) || 0) * n)));
+  const elapsed = Number(a.seconds) || 0, est = done > 0 ? elapsed / done : (u.perPhotoSeconds || 30);
+  // aim at where the read should be at the next poll (2 s), so the 2 s transition keeps it moving
+  const within = Math.min(0.95, Math.max(0, (elapsed + 2 - done * est) / est));
+  const fraction = Math.min(1, (done + within) / n);
+  if (u.readBarKey !== a.job) { u.readBarKey = a.job; part.readBar.style.transition = 'none'; part.readBar.style.width = '0%'; void part.readBar.offsetWidth; }
+  part.readBar.style.transition = ''; part.readBar.style.width = `${(fraction * 100).toFixed(1)}%`;
+  part.readText.textContent = liveText(`正在读第 ${done + 1} / ${n} 张`, `Reading photo ${done + 1} of ${n}`);
+}
+function paintStatus(u) {
+  if (!photoLive(u) || !u.statusParts) return;
+  const g = photoProgress(u), lang = api.lang();
+  let head, tip = '';
+  if (!g.count) { head = liveText('等第一张照片', 'Waiting for the first photo'); tip = liveText('用手机扫下面的码拍，拍完会自动传到这里。', 'Scan the code below with your phone; photos arrive here by themselves.'); }
+  else if (g.adopted) { head = liveText('可以采用了', 'Ready to use'); tip = liveText(`${g.usable} 张照片读数一致。`, `${g.usable} photos agree.`); }
+  else if (['disagree', 'split'].includes(g.adoption.state)) { head = liveText('读数对不上', 'The readings disagree'); tip = liveText('再拍一张不同角度的，看它和哪张一致。', 'Take another from a different angle to see which one it agrees with.'); }
+  else if (g.reading && !g.usable) head = liveText('正在读照片…', 'Reading photos…');
+  else head = liveText(`还差 ${g.left} 张`, `${g.left} more photo${g.left > 1 ? 's' : ''} needed`);
+  if (!tip && g.count && !g.adopted) {
+    const last = [...g.per].reverse().find(p => p.verdict && p.verdict !== 'ok');
+    tip = last ? reasonOf(last).why[lang] : liveText('转一下盘，再拍一张不同角度的。', 'Turn the disc and take another from a different angle.');
+  }
+  const box = u.statusBox, part = u.statusParts; if (box.dataset) box.dataset.state = g.adopted ? 'ok' : g.count ? 'open' : 'empty';
+  part.head.textContent = head;
+  part.dots.replaceChildren?.();
+  for (let i = 0; i < g.need; i++) { const d = document.createElement('i'); if (d.dataset) d.dataset.on = String(i < g.usable); part.dots.append(d); }
+  part.label.textContent = g.count ? liveText(`可用 ${Math.min(g.usable, g.need)} / 需要 ${g.need}`, `${Math.min(g.usable, g.need)} of ${g.need} usable`) : '';
+  part.tip.textContent = tip;
+  paintReadProgress(u);
 }
 async function phoneLink(u, address) {
   if (address === undefined) { try { address = sessionStorage.getItem('discprobe-phone-address'); } catch { /* storage unavailable */ } }
@@ -1675,6 +1733,7 @@ function showPhotoResult(u, result) {
   u.page.setReadResult?.(result);
   u.result.innerHTML = photoStamp(result); u.result.hidden = false;
   u.retry.hidden = u.skip.hidden = result.verdict === 'ok';
+  u.shownResult = result; paintStatus(u);
 }
 function queuePhotoRead(u) {
   if (!photoLive(u) || u.status !== 'ready') return;
@@ -1778,12 +1837,15 @@ function photoDiscId(f, run) {
 }
 function discField(u) {
   const label = document.createElement('label'); label.className = 'pc-disc-id';
-  const title = document.createElement('span'); title.textContent = liveText('标靶盘号','Target disc number');
+  const cd = u.flow?.detected?.media === 'cd';
+  const title = document.createElement('span'); title.textContent = cd ? liveText('标靶盘号','Target disc number') : liveText('检查盘号','Check disc number');
   const input = document.createElement('input'); input.type = 'text'; input.maxLength = 40; input.autocomplete = 'off'; input.spellcheck = false;
   input.placeholder = liveText('例如 T1','e.g. T1'); input.value = photoDiscId(u.flow, u.run);
   const hint = document.createElement('small');
-  hint.textContent = liveText('用记号笔在这张标靶盘的内圈写个编号，这里填同样的。照片只和这张盘一起采用；空着就不会用到出图上。',
-    'Write a number on this target disc\u2019s inner ring with a marker and type the same here. Photos are adopted only with this disc; left empty, they are not used for pictures.');
+  hint.textContent = cd ? liveText('用记号笔在这张标靶盘的内圈写个编号，这里填同样的。照片只和这张盘一起采用；空着就不会用到出图上。',
+    'Write a number on this target disc\u2019s inner ring with a marker and type the same here. Photos are adopted only with this disc; left empty, they are not used for pictures.')
+    : liveText('用记号笔在这张检查盘的内圈写个编号，这里填同样的。照片只和这张盘一起采用；空着就不会用到出图上。',
+    'Write a number on this check disc\u2019s inner ring with a marker and type the same here. Photos are adopted only with this disc; left empty, they are not used for pictures.');
   input.addEventListener('change', () => {
     const value = input.value.trim().slice(0, 40); input.value = value;
     u.flow.photoDiscId = value;
@@ -1831,8 +1893,11 @@ function paintPhoto() {
         onDisconnect:id => disconnectPhone(u, id),
         onStateChange:state => { u.canUse = state.canUse; u.manual = state.manual; u.manualSaving = state.manualSaving; photoNavigation(u); },
         onBack:photoReview, onSkip:photoSkip,
-        autoAlign:async (photo,rings) => {
-          const result = await readPhoto(u,photo,rings);
+        // "Auto-align" re-reads with the target's own rings (the core's default for this run). The page's ring
+        // guides start from generic radii, not this target's; sending them once replaced a good read of every
+        // photo with a failed one (11-22), so they never go to the reader from here.
+        autoAlign:async (photo) => {
+          const result = await readPhoto(u,photo,null);
           if (result?.verdict === 'ok') {
             return {rings:result.rings_mm,offsetMm:result.offset_mm};
           }
@@ -1856,9 +1921,33 @@ function paintPhoto() {
       u.readState = document.createElement('p'); u.readState.className = 'pc-read-state'; u.readState.setAttribute('aria-live','polite');
       u.listing = list;
       const action = (text,fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'pc-button pc-wide'; b.textContent = text; b.hidden = true; b.onclick = fn; paper.append(b); return b; };
-      paper.append(discField(u),u.readState,u.notice,u.result);
-      u.retry = action(liveText('再拍一张','Take another photo'), () => { u.result.hidden = u.retry.hidden = u.skip.hidden = true; host.querySelector('[data-pc="add"]').click(); });
+      // One headline under the title; the phone, then the disc number; the read's details and timing under "More".
+      const el = (tag, cls) => { const n = document.createElement(tag); n.className = cls; return n; };
+      u.statusBox = el('div', 'pc-status'); u.statusBox.setAttribute('role', 'status');
+      u.statusParts = {head: el('h2', 'pc-status-head'), dots: el('span', 'pc-dots'), label: el('span', 'pc-dots-label'), tip: el('p', 'pc-status-tip')};
+      const progress = el('div', 'pc-progress'); progress.append(u.statusParts.dots, u.statusParts.label);
+      // the read's own progress: the core reports each photo as it starts; between reports the bar runs on the
+      // average time per photo, never past 95 % of the photo being read
+      u.statusParts.read = el('div', 'pc-read-progress'); u.statusParts.read.hidden = true;
+      u.statusParts.readBar = el('span', 'pc-read-bar'); u.statusParts.readText = el('span', 'pc-read-text');
+      const track = el('span', 'pc-read-track'); track.append(u.statusParts.readBar);
+      u.statusParts.read.append(track, u.statusParts.readText);
+      // Privacy for screenshots: blur what is around the disc on this page (the photo itself is not changed).
+      const privacy = el('label', 'pc-privacy-option'), box = document.createElement('input');
+      box.type = 'checkbox'; box.checked = !!u.page.privacy?.();
+      box.addEventListener?.('change', () => u.page.setPrivacy?.(box.checked));
+      privacy.append(box, liveText('截图时保护隐私：模糊盘面以外的画面', 'Privacy for screenshots: blur everything around the disc'));
+      u.statusBox.append(u.statusParts.head, progress, u.statusParts.read, u.statusParts.tip, privacy);
+      const anchor = paper.querySelector?.('.pc-why'), more = paper.querySelector?.('.pc-more'), phoneSection = paper.querySelector?.('.pc-add-section');
+      if (anchor?.after) anchor.after(u.statusBox); else paper.append(u.statusBox);
+      const field = discField(u);
+      if (phoneSection?.after) phoneSection.after(field); else paper.append(field);
+      if (more?.append) more.append(u.readState, u.result); else paper.append(u.readState, u.result);
+      paper.append(u.notice);
+      // No "take another" button: a connected phone's next photo arrives by itself. Kept detached for the old wiring.
+      u.retry = document.createElement('button'); u.retry.hidden = true;
       u.skip = action(liveText('跳过，就用现在的结果','Skip and keep the current result'),photoSkip);
+      u.skip.className = 'pc-text-button pc-skip-link';   // secondary: the one primary action is "Use the result", bottom right
       u.page.ready?.then(() => { if (!photoLive(u)) return; u.page.setListing?.(u.listing); paintReadState(u); if (u.flow.photoResult) showPhotoResult(u,u.flow.photoResult); });
       if (photos.length) queuePhotoRead(u);
       pollPhotos(u);

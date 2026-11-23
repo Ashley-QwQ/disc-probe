@@ -617,7 +617,13 @@ class PhotoStore:
         action = args.get("action")
         base = {"action", "run", "photo"}
         adjust = {"token", "L_mm", "c_deg"}
-        if action not in ("prepare", "score", "save") or set(args) != (base if action == "prepare" else base | adjust):
+        # the hand-guided reading (pcal_assist): registration from clicks, candidates, a seeded read, its save
+        guided = {"lines": {"token"}, "reset": {"token"}, "register": {"token", "clicks", "hub"},
+                  "candidates": {"token"}, "read": {"token", "index"}, "save_read": {"token"}}
+        if action in guided:
+            if set(args) != base | guided[action]:
+                raise ValueError("invalid manual alignment arguments")
+        elif action not in ("prepare", "score", "save") or set(args) != (base if action == "prepare" else base | adjust):
             raise ValueError("invalid manual alignment arguments")
         folder = self.run_dir(args["run"])
         path, _, _ = self.get(args["run"], args["photo"])
@@ -628,6 +634,10 @@ class PhotoStore:
         alignment = self._alignment_cache.get(folder, path, args["photo"])
         if action == "prepare":
             return alignment.overlay()
+        if action in guided:
+            if args["token"] != alignment.token:
+                raise ValueError("the registration changed; reopen manual alignment")
+            return self._guided(folder, alignment, action, args)
         offset, angle = args["L_mm"], args["c_deg"]
         if args["token"] != alignment.token:
             raise ValueError("the registration changed; reopen manual alignment")
@@ -641,6 +651,43 @@ class PhotoStore:
                         reader_sha256=record.get("reader_sha256"), ring_locked=bool(shot.get("ring_locked")),
                         score=score)
         return save_manual_l(folder, record["media"], offset, evidence=evidence,
+                             expected_geo=record["source_geo"]["sha256"])
+
+    def _guided(self, folder, alignment, action, args):
+        def point(value):
+            if not (isinstance(value, (list, tuple)) and len(value) == 2 and all(_finite(v) for v in value)):
+                raise ValueError("invalid click")
+            x, y = float(value[0]), float(value[1])
+            if not (0 <= x <= alignment.width and 0 <= y <= alignment.height):
+                raise ValueError("click outside the photo")
+            return x, y
+        if action == "lines":
+            return alignment.lines()
+        if action == "reset":
+            return alignment.reset()
+        if action == "register":
+            clicks = args["clicks"]
+            if not isinstance(clicks, list) or not 5 <= len(clicks) <= 64:
+                raise ValueError("click the outermost ring at least five times")
+            return alignment.register([point(c) for c in clicks], point(args["hub"]))
+        if action == "candidates":
+            return dict(candidates=alignment.candidates())
+        if action == "read":
+            index = args["index"]
+            if not isinstance(index, int) or isinstance(index, bool):
+                raise ValueError("invalid candidate")
+            return alignment.read(index)
+        # save_read: only a reading the reader itself would count (see pcal_manual.Alignment.read)
+        last = alignment.last
+        if not last or not last.get("trusted"):
+            raise ValueError("this reading cannot be used: read a candidate that comes out 'ok' with the rings locked")
+        shot, record = alignment.shot, alignment.record
+        evidence = dict(photo_id=shot["id"], input_sha256=shot["input_sha256"], method="guided",
+                        registration=alignment.source, ring_locked=bool(alignment.ring["ring_locked"]),
+                        ring_rms_mm=alignment.ring["ring_rms_mm"], c_deg=last.get("c_deg"), status=last["status"],
+                        n_votes=last.get("n_votes"), peak_z=last.get("peak_z"), candidate=last["index"],
+                        reader_sha256=record.get("reader_sha256"))
+        return save_manual_l(folder, record["media"], last["L_mm"], evidence=evidence,
                              expected_geo=record["source_geo"]["sha256"])
 
     def run_dir(self, run_id):

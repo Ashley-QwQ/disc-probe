@@ -46,7 +46,7 @@ for(const code of [...py.match(/REASONS = \{([\s\S]*?)\n\}/)[1].matchAll(/"([\w]
 }
 // The actions the task names map to the statuses that cause them.
 assert.equal(words.photoReasons.no_rim.act.zh,'拍全盘');
-assert.equal(words.photoReasons.too_few_votes.act.zh,'换光照');assert.match(words.photoReasons.too_few_votes.why.zh,/吸顶灯.*20–30°.*白色圆形反光/);
+assert.equal(words.photoReasons.too_few_votes.act.zh,'换个角度');assert.match(words.photoReasons.too_few_votes.why.zh,/倾斜角度.*闪光灯的白斑/);
 assert.equal(words.photoReasons.poor_angle_coverage.act.zh,'转一下盘');
 assert.equal(words.photoReasons.poor_radius_coverage.act.zh,'补内外圈');
 // A future status keeps the core's own reason, after a plain "retake".
@@ -172,7 +172,7 @@ const flush=async()=>{for(let i=0;i<20;i++)await Promise.resolve();};
   assert.equal(nodes.sent.children.length,2);
   const [newest,older]=nodes.sent.children;
   assert.equal(newest.dataset.stage,'reading');assert.equal(older.dataset.stage,'retake');
-  assert.match(older.innerText,/换光照/);assert.match(older.innerText,/重拍/);assert.doesNotMatch(older.innerText,/Retake/);
+  assert.match(older.innerText,/换个角度/);assert.match(older.innerText,/重拍/);assert.doesNotMatch(older.innerText,/Retake/);
   assert.equal(nodes.empty.hidden,true);
   // The computer's photo step is closed: say so instead of "reading".
   state.answer.body={...state.answer.body,analysis:null,desk_age:60};await context.poll();

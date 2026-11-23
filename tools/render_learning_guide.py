@@ -9,7 +9,7 @@ DOCS = ROOT/'docs'
 WEB = ROOT/'discprobe/web/home/learn'
 SOURCES = ('how-disc-images-work.md','how-disc-images-work.zh.md','grating-card.md',
            'grating-card.zh.md','goals/colour-solver-audit.md','why-calibrate.md',
-           'why-calibrate.zh.md')
+           'why-calibrate.zh.md','first-colour-disc.md','first-colour-disc.zh.md')
 PAGES = {DOCS/source:Path(source).with_suffix('.html').name for source in SOURCES}
 INLINE = re.compile(r'`([^`]+)`|\*\*([^*]+)\*\*|(!?)\[([^\]]+)\]\(([^)]+)\)')
 HEADING = re.compile(r'^(#{1,3}) (.+)$',re.M)

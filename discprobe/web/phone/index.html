@@ -187,14 +187,14 @@
   say('gallery-text', '相册', 'Photos');
   say('shutter-text', '拍照并发送', 'Take and send');
   say('tips-title', '这样拍', 'How to shoot');
-  say('d-lamp', '吸顶灯在身后', 'Lamp behind you'); say('d-phone', '手机', 'Phone'); say('d-disc', '盘朝你转 20–30°', 'Disc tilted 20–30°');
+  say('d-lamp', '吸顶灯在身后', 'Lamp behind you'); say('d-phone', '手机开闪光灯', 'Phone, flash on'); say('d-disc', '盘朝你转 20–30°', 'Disc tilted 20–30°');
   say('photos-title', '照片', 'Photos');
   say('empty', '还没有照片。拍第一张吧。', 'No photos yet. Take the first one.');
   say('foot', '照片只发到你的电脑，不经过互联网。能不能用，要等电脑收到后读完才知道，不是拍照时当场判断的。拍完可以直接关掉这一页。',
     'Photos go only to your computer, never over the Internet. Whether one is usable is known after the computer reads it, not while you shoot. You can close this page when you are done.');
   $('camera').setAttribute('aria-label', lang === 'zh' ? '拍照并发送' : 'Take and send a photo');
   $('gallery').setAttribute('aria-label', lang === 'zh' ? '从相册选' : 'Choose from photos');
-  $('diagram')?.setAttribute('aria-label', lang === 'zh' ? '吸顶灯在身后，手机拍整张盘，盘朝你倾斜 20 到 30 度' : 'Ceiling lamp behind you, phone on the whole disc, disc tilted 20–30° towards you');
+  $('diagram')?.setAttribute('aria-label', lang === 'zh' ? '吸顶灯在身后，手机开闪光灯拍整张盘，盘朝你倾斜 20 到 30 度' : 'Ceiling lamp behind you, phone with the flash on takes the whole disc, disc tilted 20–30° towards you');
   $('run').append(lang === 'zh' ? '这些照片只算到这次标定：' : 'These photos count only for this run: ', Object.assign(document.createElement('code'), {textContent: config.run}));
   for (const tip of shootingTips) $('tip-list').append(both(tip, 'li'));
   // This browser's sends, across reloads. The listing has every phone's photos; this page shows them all.

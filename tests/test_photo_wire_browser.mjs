@@ -178,11 +178,11 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     assert.equal(await run(`return wire.ui().status==='ready' && [...document.querySelectorAll('.pc-devices')].every(n=>n.hidden);`),true);
     await run(`wire.back();wire.init();wire.enter();`);await waitFor("wire.ui()?.status==='ready'");
     await run(`await wire.page().addPhotos([wire.photo()]);`);
-    // Geometry stays unchanged on an unsure result; reasons appear under thumbnails and stamp.
+    // Geometry stays unchanged on an unsure result; the reason appears as the headline's advice and in the stamp.
     await run(`wire.enter();`);await waitFor("wire.page()?.state().photos.length===1");
     await run(`window.photoResult={verdict:'unsure',per_photo:[{id:'p1',verdict:'unsure',reason:'反光强'}],rings_mm:null,offset_mm:null,L_frames:null};await wire.next();`);
-    assert.equal(await run(`return document.querySelector('.pc-photo-reason').textContent;`),'重拍：反光强');
-    assert.equal(await run(`return document.querySelector('#cal').textContent.includes('再拍一张') && document.querySelector('#cal').textContent.includes('跳过，就用现在的结果');`),true);
+    assert.match(await run(`return document.querySelector('#cal').textContent;`),/反光强/);
+    assert.equal(await run(`return document.querySelector('#cal').textContent.includes('跳过，就用现在的结果') && !!document.querySelector('.pc-skip-link');`),true);
     await run(`wire.back();wire.enter();`);await waitFor("wire.page()?.state().photos.length===1");
     await run(`await wire.next();`);
     assert.equal(await run(`return !wire.ui().skip.hidden && wire.ui().result.textContent.includes('反光强');`),true,'Cached unsure results keep their explanation and exits');
@@ -202,7 +202,7 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     await run(`const canvas=document.createElement('canvas');canvas.width=canvas.height=600;const img=await new Promise(r=>canvas.toBlob(r,'image/png'));await wire.page().addPhotos([new File([img],'上传.png',{type:'image/png'})]);window.photoResult={verdict:'rejected',per_photo:[{id:'uploaded',verdict:'rejected',reason:'不是照片'}]};await wire.next();`);
     assert.equal(upload.token,'session-test');assert.equal(upload.filename,encodeURIComponent('上传.png'));
     assert.equal(await run(`return window.jobs[0].args.photos[0];`),'uploaded');
-    assert.equal(await run(`return document.querySelector('.pc-photo-reason').textContent;`),'重拍：不是照片');
+    assert.match(await run(`return document.querySelector('#cal').textContent;`),/不是照片/);
     // The instructions start inside the visible scroll area in either media route.
     // At desktop width the full list fits. The embedded skip stays readable on lit paper on hover too.
     for(const width of [1920,390])for(const media of ['cd','dvd'])for(const theme of ['light','dark']){
@@ -220,8 +220,8 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
       assert.ok(guide.first<=guide.visible,JSON.stringify({width,media,theme,guide}));
       if(width===1920)assert.ok(guide.last<=guide.visible);
       assert.equal(guide.diagram,media==='dvd');
-      assert.match(guide.tips,media==='cd'?(lang==='zh'?/关掉顶灯.*从侧面打光.*整张盘.*60–120°/:/Turn off the overhead lights.*light it from the side.*whole disc.*60–120°/)
-        :(lang==='zh'?/吸顶灯.*20–30°.*整张盘/:/ceiling lamp.*20–30°.*whole disc/));
+      assert.match(guide.tips,media==='cd'?(lang==='zh'?/闪光灯.*吸顶灯.*20–30°.*整张盘.*60–120°/:/flash on.*ceiling lamp.*20–30°.*whole disc.*60–120°/)
+        :(lang==='zh'?/闪光灯.*吸顶灯.*20–30°.*整张盘/:/flash on.*ceiling lamp.*20–30°.*whole disc/));
       assert.equal(guide.devices,true);
       assert.equal(guide.manual,lang==='zh'?'手动调整':'Adjust by hand');
       const skipStyle=()=>run(`const skip=document.querySelector('.pc-skip'),s=getComputedStyle(skip);

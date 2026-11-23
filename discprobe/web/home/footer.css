@@ -120,6 +120,8 @@ footer.bar {
   box-shadow: var(--footer-lift);
 }
 #drivebar .icon { flex: none; }
+/* a running job takes this corner (index.html hides .drive then; the id rule above would otherwise win) */
+.bar:has(.job:not([hidden])) #drivebar { display: none; }
 .drive-dot {
   flex: none;
   width: 7px;

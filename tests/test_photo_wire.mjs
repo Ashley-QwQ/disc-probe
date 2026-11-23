@@ -163,7 +163,8 @@ for(const missing of ['/api/phone-link','/api/photos']) {
   assert.equal(x.opts().phoneUrl,'http://lan/phone/token');
   const mapped=await x.opts().autoAlign({id:'p1'},[30,38,47,55]);
   assert.equal(mapped.offsetMm,-0.12);
-  assert.deepEqual(JSON.parse(JSON.stringify(x.calls.find(c=>c.action==='photo').args)),{run:'run-one',media:'cd',photos:['p1'],rings_mm:[30,38,47,55],burner:null,burn_path:null,burn_mode:null});
+  // auto-align reads with the target's own rings; the page's generic guide radii never reach the reader (11-22)
+  assert.deepEqual(JSON.parse(JSON.stringify(x.calls.find(c=>c.action==='photo').args)),{run:'run-one',media:'cd',photos:['p1'],rings_mm:null,burner:null,burn_path:null,burn_mode:null});
   assert.equal(x.pages[0].reasons[0].reason,'反光强 <script>');
   assert.match(x.wire.getUI().result.innerHTML,/已采用/,'two agreeing photos: adopted');
   // Reasons are escaped; an unknown status keeps the core's own reason after a plain action.

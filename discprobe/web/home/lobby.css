@@ -55,10 +55,10 @@
   font: inherit; text-decoration: underline; text-underline-offset: .18em; padding: 4px 0; min-height: 44px; cursor: pointer; }
 .lobby-disc-actions button:disabled { color: var(--ink-3); cursor: default; }
 #lobby-hello { font-weight: 700; font-stretch: 108%; font-size: clamp(22px, 2.1vw, 30px); line-height: 1.35; color: var(--ink); }
-#lobby-recent { margin-top: .7em; font-size: clamp(14px, 1.15vw, 17px); color: var(--ink-2); pointer-events: auto; }
-#lobby-recent[hidden] { display: none; }
-#lobby-recent button { background: none; border: 0; padding: 0; font: 600 1em var(--font); color: var(--ink); cursor: pointer; text-decoration: underline; text-underline-offset: .25em; text-decoration-color: color-mix(in srgb, var(--ink) 35%, transparent); }
-#lobby-recent button:hover, #lobby-recent button:focus-visible { color: var(--copper); }
+#lobby-pending, #lobby-recent { margin-top: .7em; font-size: clamp(14px, 1.15vw, 17px); color: var(--ink-2); pointer-events: auto; }
+#lobby-pending[hidden], #lobby-recent[hidden] { display: none; }
+#lobby-pending button, #lobby-recent button { background: none; border: 0; padding: 0; font: 600 1em var(--font); color: var(--ink); cursor: pointer; text-decoration: underline; text-underline-offset: .25em; text-decoration-color: color-mix(in srgb, var(--ink) 35%, transparent); }
+#lobby-pending button:hover, #lobby-pending button:focus-visible, #lobby-recent button:hover, #lobby-recent button:focus-visible { color: var(--copper); }
 
 .lb-toast { position: absolute; left: 50%; bottom: calc(var(--foot) + 16px); transform: translate(-50%, 8px); padding: 10px 16px; border-radius: 8px; background: var(--ink); color: var(--paper); opacity: 0; transition: opacity 200ms, transform 200ms; pointer-events: none; }
 .lb-toast.on { opacity: 1; transform: translate(-50%, 0); }

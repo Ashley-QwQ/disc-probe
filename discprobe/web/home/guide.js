@@ -6,7 +6,7 @@
 
 import { introCards, disShortcut, lightScenes, journey, statusWords, troubleChecks, troubleNote } from "./guidance.mjs";
 import { lightingDiagram } from "./lighting-diagram.mjs";
-import { calibrationLabel, calibrationURL, learnLabel, learnURL } from "./learn-link.mjs";
+import { calibrationLabel, calibrationURL, firstDiscLabel, firstDiscURL, learnLabel, learnURL } from "./learn-link.mjs";
 
 const SEEN = "dp-guide-seen", MEDIA = "dp-guide-media", SCENE_MS = 3200;
 const STR = {
@@ -145,6 +145,7 @@ function render() {
           <button type="button" class="sg-btn" data-act="prev">${esc(t.prev)}</button><button type="button" class="sg-btn" data-act="next">${esc(t.next)}</button>
           <button type="button" class="sg-btn" data-act="replay">${esc(t.replay)}</button><button type="button" class="sg-btn" data-act="skip">${esc(t.skip)}</button></div>
         <ol class="sg-scenes">${lightScenes.map((s) => `<li>${esc(L(s))}</li>`).join("")}</ol>
+        <p><a class="sg-learn sg-first" href="${esc(firstDiscURL(english))}" target="_blank" rel="noopener">${esc(firstDiscLabel(english))}</a></p>
         <p><a class="sg-learn" href="${esc(learnURL(english))}" target="_blank" rel="noopener">${esc(learnLabel(english))}</a> · <a class="sg-learn" href="${esc(calibrationURL(english))}" target="_blank" rel="noopener">${esc(calibrationLabel(english))}</a></p></div>
       ${introCards.map((c) => `<article class="sg-card" id="sg-${c.id}"><h4>${esc(L(c.title))}</h4><p>${esc(L(c.body))}</p>${c.list ? `<ul>${c.list.map((x) => `<li>${esc(L(x))}</li>`).join("")}</ul>` : ""}</article>`).join("")}
       <article class="sg-dis"><h4>${esc(L(disShortcut.title))}</h4><p>${esc(L(disShortcut.body))}</p>

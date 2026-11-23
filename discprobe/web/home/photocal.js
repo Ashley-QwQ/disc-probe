@@ -145,14 +145,52 @@ export function photoPage(host, opts = {}) {
   const t = {...words[lang]};
   const tips = cd ? cdShootingTips : shootingTips;
   const slider = key => sliderWords[key][lang];
+  // the hand-guided reading (pcal_assist): the person checks or fixes the registration and picks the arrow;
+  // the program scans and reads. A person can never pass a photo, only steer the reading.
+  const G = en ? {
+    title: 'If the automatic read fails: calibrate by hand', why: 'Two checks only you can make; the program does the searching and the reading. A photo that cannot be read this way needs retaking.',
+    start: 'Start with the selected photo',
+    s1: '1 · Rings', s1how: 'Do the thin green circles lie on the fine rings burned on the disc, all the way round?',
+    ringsOk: 'They match', ringsClick: 'No, I will mark them', ringsNone: 'The program did not find the disc in this photo: mark it.',
+    clickHow: 'Zoom in and click the outermost burned ring about 8 times, spread all round; Shift-click the centre.',
+    register: 'Fit the rings', clear: 'Clear clicks', reset: 'Use the program\u2019s fit',
+    locked: '\u2713 The rings lock onto the disc.', notLocked: 'The rings do not lock: the scale may be off, and L with it. Click the outermost ring again, more carefully.',
+    s2: '2 · Where is the arrow', s2how: 'The program finds the likeliest positions and draws each as an arrow outline A\u2013D. Pick the one on the real 12 o\u2019clock arrow.',
+    find: 'Let the program look', onArrow: k => `${k} sits on the arrow`, noArrow: 'Cannot see the arrow: use the strongest',
+    s3: '3 · Reading', save: 'Use this reading',
+    ok: (L, f) => `Read: L = ${L} mm${f ? ` (${f} frames)` : ''}. Another photo from a different angle must agree before it counts.`,
+    okUnlocked: 'Read, but the rings did not lock, so it cannot be used. Fit the rings again.',
+    retake: s => ({too_few_votes: 'Too few places show the pattern. This photo does not have enough signal; retake it.', poor_angle_coverage: 'The pattern shows on one side only. Turn the disc and take another.'}[s] || 'The parts of the photo disagree. Retake it.'),
+    busy: 'Working\u2026', clicks: n => `${n} on the ring`, hubSet: ' · centre set', saved: 'Saved.', legacy: 'Sliders (for debugging)'
+  } : {
+    title: '自动读不出时：手动校准', why: '你只做两件人眼擅长的检查，搜索和读数都由程序做。这样也读不出的照片，就需要重拍。',
+    start: '用选中的这张开始',
+    s1: '1 · 套圈', s1how: '看照片上的绿色细圈，是不是整圈都压在盘上刻出来的细环上。',
+    ringsOk: '对上了', ringsClick: '没对上，我来点', ringsNone: '程序没在这张照片里找到盘，请你来标。',
+    clickHow: '放大照片，沿最外圈刻出来的细环点 8 下左右，绕一整圈分散开；按住 Shift 点一下盘心。',
+    register: '重新套圈', clear: '清空点', reset: '用程序的定位',
+    locked: '\u2713 细环锁住了。', notLocked: '细环没锁住：比例可能不准，读出的 L 也会跟着偏。再仔细点一遍最外圈细环。',
+    s2: '2 · 找箭头', s2how: '程序找出最可能的几个位置，各画成一个箭头轮廓 A\u2013D。选压在盘上真实 12 点箭头上的那个。',
+    find: '让程序找', onArrow: k => `${k} 压在箭头上`, noArrow: '看不到箭头，用最强的',
+    s3: '3 · 读取', save: '用这个结果',
+    ok: (L, f) => `读出来了：L = ${L} mm${f ? `（${f} 帧）` : ''}。还要另一张不同角度的照片读出一致的数，才算数。`,
+    okUnlocked: '读出来了，但细环没锁住，不能用。请重新套圈。',
+    retake: s => ({too_few_votes: '能读出条纹的地方太少。这张照片信号不够，人工也补不出来，请重拍。', poor_angle_coverage: '读出条纹的地方只在盘的一边。转一下盘，再拍一张。'}[s] || '照片各处读出的位置对不上，请重拍。'),
+    busy: '正在算\u2026', clicks: n => `已点 ${n} 下`, hubSet: ' · 已点盘心', saved: '已保存。', legacy: '滑块（调试用）'
+  };
   const sliderEnabled = typeof opts.manualAlignment === 'function' && typeof opts.onManualSaved === 'function';
   if (opts.paperHost) {
     t.phoneOffline = en ? 'This computer is not reachable from your phone. Add a photo from this computer.' : '手机暂时连不到这台电脑，请从电脑添加照片。';
     t.local = en ? 'Photos are sent to this computer on your local network.' : '照片通过局域网发到这台电脑。';
     if (typeof opts.autoAlign === 'function') t.reader = en ? 'Auto-align reads the photo. If it is unclear, the reason is shown below.' : '自动对齐会读取照片；读不准时，会在下面说明原因。';
-    if (cd || opts.purpose === 'check') {
+    if (cd) {
       t.title = en ? 'Read the along-track constant from a photo' : '拍照，读出沿轨常数';
       t.why = () => en ? 'This drive and disc batch need a photo to read the along-track constant. Keep the whole target disc in frame.' : '这台光驱和这批盘还需要靠照片读出沿轨常数。把整张标靶盘拍进画面。';
+    } else if (opts.purpose === 'check') {
+      // DVD: the drive's timing already gives a usable geometry; the photo checks it, and corrects it when it is off.
+      t.title = en ? 'Check the measurement with photos' : '拍照检查测量结果';
+      t.why = () => en ? 'The drive’s timing is not always exact. Photos of the check disc read the along-track constant; if it disagrees with the measurement, the photo’s value corrects it. Keep the whole check disc in frame.'
+        : '光驱计时测出的位置不一定完全准。给检查盘拍几张照，照片会读出沿轨常数；和测量对不上时，就用照片的值修正。把整张检查盘拍进画面。';
     }
   }
   if (opts.automaticRead) {
@@ -166,7 +204,12 @@ export function photoPage(host, opts = {}) {
   let destroyed = false, active = -1, photos = [], dragging = null, space = false, task = 0;
   let view = {cx: 0, cy: 0, pxPerMm: 1, zoom: 1, panX: 0, panY: 0};
   let focus = false, curves = true, enhance = false, tool = 'select', busy = false;
-  let manual = null, scoreTimer;
+  let manual = null, scoreTimer, recognized = null, recognizeKey = 0;
+  let guided = null;   // {photo, token, lines, clicking, clicks, hub, cands, chosen, result, xf}
+  // Privacy veil for screenshots: blurs everything on screen except the disc the reader registered. Display only;
+  // the photo itself is untouched. Remembered in this browser.
+  let privacy = false;
+  try { privacy = win.localStorage.getItem('discprobe-photo-privacy') === '1'; } catch { /* storage unavailable */ }
   const root = doc.createElement('section');
   root.className = 'pc-page'; root.lang = opts.lang === 'en' ? 'en' : 'zh-CN';
   root.setAttribute('aria-label', t.title);
@@ -188,6 +231,7 @@ export function photoPage(host, opts = {}) {
           <div class="pc-drop"><p>${t.drop}</p>${button('add', t.add, 'upload')}</div>
         </div>
         <img class="pc-image" alt="${t.photo}" draggable="false" hidden>
+        <img class="pc-image-sharp" alt="" aria-hidden="true" draggable="false" hidden>
         <svg class="pc-overlay" aria-label="${t.radiusTip}"></svg>
         <div class="pc-photo-name pc-float" hidden></div>
         ${button('focus', `${t.focus}  F`, 'focus', 'pc-focus-button pc-float')}
@@ -205,7 +249,27 @@ export function photoPage(host, opts = {}) {
         <h1>${t.title}</h1><p class="pc-why"></p><svg class="pc-range" viewBox="0 0 344 54" role="img" aria-label="${t.measured}; ${t.narrow}"></svg>
         <p class="pc-range-key">${t.measured}　 ${t.narrow}</p>
         <div class="pc-before"><section><h2>${t.after}</h2><p>${t.afterBody}</p><p>${t.reader}</p></section><section><h2>${t.skipTitle}</h2><p>${t.skipBody}</p></section></div>
-        <div class="pc-after">${sliderEnabled ? `<section class="pc-slider-panel" data-capability="photo-manual-alignment">
+        <div class="pc-after">
+        <section><div class="pc-section-title"><h2>${t.photos}</h2><span class="pc-photo-count"></span></div><div class="pc-strip"></div></section>
+          <section class="pc-add-section"><div class="pc-phone-small"></div></section>
+          <details class="pc-more"><summary>${en ? 'More' : '更多'}</summary>
+          ${button('add', t.add, 'upload', 'pc-wide')}
+${sliderEnabled ? `<details class="pc-advanced"><summary>${G.title}</summary><p class="pc-advanced-why">${G.why}</p>
+          <section class="pc-guided" aria-live="polite">
+            <div class="pc-guided-row">${button('g-open', G.start, null, 'pc-small')}</div>
+            <div class="pc-guided-step" data-step="1" hidden><h3>${G.s1}</h3><p>${G.s1how}</p>
+              <p class="pc-guided-ring"></p>
+              <div class="pc-guided-row">${button('g-ok', G.ringsOk, null, 'pc-small')}${button('g-click', G.ringsClick, null, 'pc-small')}</div>
+              <div class="pc-guided-clicking" hidden><p>${G.clickHow} <b class="pc-guided-count"></b></p>
+                <div class="pc-guided-row">${button('g-register', G.register, null, 'pc-small')}${button('g-clear', G.clear, null, 'pc-small')}${button('g-reset', G.reset, null, 'pc-small')}</div></div>
+            </div>
+            <div class="pc-guided-step" data-step="2" hidden><h3>${G.s2}</h3><p>${G.s2how}</p>
+              <div class="pc-guided-row">${button('g-find', G.find, null, 'pc-small')}</div><div class="pc-guided-cands"></div></div>
+            <div class="pc-guided-step" data-step="3" hidden><h3>${G.s3}</h3><p class="pc-guided-result"></p>
+              <div class="pc-guided-row">${button('g-save', G.save, null, 'pc-small')}</div></div>
+            <p class="pc-guided-msg" role="status"></p>
+          </section>
+          <details class="pc-slider-legacy"><summary>${G.legacy}</summary><section class="pc-slider-panel" data-capability="photo-manual-alignment">
           ${button('align', slider('open'), null, 'pc-wide')}
           <div class="pc-slider-controls" hidden>
             <p>${slider('hint')}</p>
@@ -214,9 +278,7 @@ export function photoPage(host, opts = {}) {
             <p class="pc-slider-score" role="status"></p>
           </div>
           <p class="pc-slider-message" role="status"></p>
-        </section>` : ''}
-        <section><div class="pc-section-title"><h2>${t.photos}</h2><span class="pc-photo-count"></span></div><div class="pc-strip"></div></section>
-          <section class="pc-add-section"><div class="pc-phone-small"></div>${button('add', t.add, 'upload', 'pc-wide')}</section>
+        </section></details></details>` : ''}
           <section>${opts.automaticRead ? `<details class="pc-manual"><summary>${t.manualSummary}</summary>` : ''}<div class="pc-section-title"><h2>${t.alignment}</h2><span class="pc-stamp">${t.manual}</span></div>
             <dl class="pc-summary"><div><dt>${t.rings}</dt><dd class="pc-ring-count"></dd></div><div><dt>${t.offset}</dt><dd class="pc-offset"></dd></div></dl>
             <p class="pc-registration"></p><p>${t.reader}</p>
@@ -224,6 +286,7 @@ export function photoPage(host, opts = {}) {
             <details class="pc-radius-editor"><summary>${t.adjust}</summary><p>${t.radiusTip}</p><div></div></details>
             ${opts.automaticRead ? '</details>' : ''}
           </section>
+          </details>
         </div>
         ${typeof opts.onSkip === 'function' ? `<button type="button" data-pc="skip" class="pc-button pc-skip pc-wide">${t.skip}</button>` : ''}
       </aside>
@@ -244,6 +307,16 @@ export function photoPage(host, opts = {}) {
   if (opts.automaticRead) {
     root.classList.add('pc-automatic');
     on($('.pc-manual'), 'toggle', event => root.classList.toggle('pc-manual-open', event.target.open));
+    // Folding "More" puts its tools away too: the ring guides and toolbar only show while "Adjust by hand" is open
+    // and in view, and an open manual alignment is closed.
+    if ($('.pc-advanced')) on($('.pc-advanced'), 'toggle', event => { if (!event.target.open) guidedClose(); });
+    on($('.pc-more'), 'toggle', event => {
+      if (event.target.open) return;
+      guidedClose();
+      const adjust = $('.pc-manual'); if (adjust?.open) adjust.open = false;
+      root.classList.remove('pc-manual-open');
+      if (manual) { closeAlignment(); syncButtons(); paint(); }
+    });
   }
   const message = text => { if (!destroyed) $('.pc-message').textContent = text; };
   const selected = () => photos[active];
@@ -320,6 +393,15 @@ export function photoPage(host, opts = {}) {
       deviceList(host, phones ?? [], {lang:opts.lang, onDisconnect:opts.onDisconnect});
       host.hidden = !phones?.length;
     }
+    const small = $('.pc-phone-small');
+    small.classList.toggle('pc-phone-connected', !!phones?.length);
+    let toggle = small.querySelector('.pc-phone-toggle');
+    if (phones?.length && !toggle) {
+      toggle = doc.createElement('button'); toggle.type = 'button'; toggle.className = 'pc-text-button pc-phone-toggle';
+      toggle.textContent = en ? 'Show the QR code' : '显示二维码';
+      on(toggle, 'click', () => { const open = small.classList.toggle('pc-phone-show'); toggle.textContent = open ? (en ? 'Hide the QR code' : '收起二维码') : (en ? 'Show the QR code' : '显示二维码'); });
+      small.append(toggle);
+    } else if (!phones?.length && toggle) { toggle.remove(); small.classList.remove('pc-phone-show'); }
   }
   function setPhoneLink(link) {
     if (destroyed) return;
@@ -411,7 +493,15 @@ export function photoPage(host, opts = {}) {
         overlay.append(svgNode('path', {d:path, class:'pc-prediction-outline', 'aria-hidden':'true'}),
           svgNode('path', {d:path, class:'pc-prediction', 'aria-hidden':'true'}));
       }
-    } else overlay.append(guides);
+    } else if (recognized) {
+      const left = center.x-rim.cx*imageScale, top = center.y-rim.cy*imageScale;
+      overlay.append(svgNode('path', {d:evidencePath(p, imageScale, left, top, recognized.data), class:'pc-evidence', 'aria-hidden':'true'}));
+      if (recognized.read) {
+        const path = prediction(p, imageScale, left, top, recognized);
+        overlay.append(svgNode('path', {d:path, class:'pc-recognized-outline', 'aria-hidden':'true'}),
+          svgNode('path', {d:path, class:'pc-recognized-line', 'aria-hidden':'true'}));
+      }
+    } else if (!guided) overlay.append(guides);
     if (dragging?.kind === 'ring') {
       const point = dragging.point, radius = p.rings[dragging.index];
       const text = `r ${radius.toFixed(1)} mm · ${t.offsetShort} ${p.offsetMm === null ? '—' : p.offsetMm.toFixed(1)} mm`;
@@ -424,6 +514,8 @@ export function photoPage(host, opts = {}) {
       label.textContent = text; chip.append(label); overlay.append(chip);
       drawLoupe(point, rim, imageScale);
     }
+    if (guided && guided.photo === p.id) paintGuided(p, imageScale, center.x-rim.cx*imageScale, center.y-rim.cy*imageScale);
+    paintVeil(p, imageScale);
     const zoom = `${Math.round(view.zoom * 100)}%`;
     $('.pc-zoom').textContent = zoom; $('.pc-minimap output').textContent = zoom;
     const mini = $('.pc-mini-image'), miniSvg = mini.querySelector('svg');
@@ -433,10 +525,173 @@ export function photoPage(host, opts = {}) {
     for (const [key,val] of Object.entries({x:rim.cx-center.x/imageScale,y:rim.cy-center.y/imageScale,width:stage.clientWidth/imageScale,height:stage.clientHeight/imageScale})) rect.setAttribute(key,val);
     summary();
   }
-  function prediction(p, scale, left, top) {
-    const {H, width, height, bands, rings} = manual.data;
+  // ---- hand-guided reading: drawing and steps
+  function paintGuided(p, scale, left, top) {
+    const L = guided.lines, w = L?.width || p.width, h = L?.height || p.height;
+    const sx = p.width / w * scale, sy = p.height / h * scale;
+    guided.xf = {left, top, sx, sy};
+    const pt = ([x, y]) => `${(left + x*sx).toFixed(1)},${(top + y*sy).toFixed(1)}`;
+    const line = (pts, close) => 'M' + pts.map(pt).join('L') + (close ? 'Z' : '');
+    const g = svgNode('g', {class:'pc-guided-layer', 'aria-hidden':'true'});
+    if (guided.result?.cells) for (const cell of guided.result.cells) g.append(svgNode('path', {d:line(cell.poly, true), class:'pc-evidence'}));
+    if (L?.registered) {
+      g.append(svgNode('path', {d:line(L.rim), class:'pc-guided-rim'}));
+      for (const ring of L.rings) g.append(svgNode('path', {d:line(ring), class:'pc-guided-ring-line'}));
+    }
+    (guided.cands || []).forEach((c, i) => {
+      if (guided.chosen !== undefined && guided.chosen !== i) return;
+      g.append(svgNode('path', {d:line(c.arrow, true), class:'pc-guided-arrow'}));
+      const cx = w / 2, cy = h / 2, far = c.arrow.reduce((a, b) => (Math.hypot(b[0]-cx, b[1]-cy) > Math.hypot(a[0]-cx, a[1]-cy) ? b : a));
+      const label = svgNode('text', {x:(left + far[0]*sx + 8).toFixed(1), y:(top + far[1]*sy - 8).toFixed(1), class:'pc-guided-arrow-label'});
+      label.textContent = 'ABCD'[i]; g.append(label);
+    });
+    for (const c of guided.clicks || []) g.append(svgNode('circle', {cx:(left + c[0]*sx).toFixed(1), cy:(top + c[1]*sy).toFixed(1), r:4, class:'pc-guided-click'}));
+    if (guided.hub) g.append(svgNode('path', {d:`M${left + guided.hub[0]*sx - 7} ${top + guided.hub[1]*sy}h14M${left + guided.hub[0]*sx} ${top + guided.hub[1]*sy - 7}v14`, class:'pc-guided-hub'}));
+    overlay.append(g);
+  }
+  function guidedStep(n) {
+    for (const el of root.querySelectorAll('.pc-guided-step')) el.hidden = +el.dataset.step > n;
+  }
+  function guidedMsg(text) { const m = $('.pc-guided-msg'); if (m) m.textContent = text || ''; }
+  function guidedRing() {
+    const L = guided?.lines, el = $('.pc-guided-ring');
+    if (!el) return;
+    el.textContent = !L ? '' : !L.registered ? G.ringsNone : L.ring_locked ? G.locked : G.notLocked;
+    el.dataset.locked = String(!!L?.ring_locked);
+  }
+  async function guidedCall(action, values = {}) {
+    return opts.manualAlignment(action, descriptor(selected()), {token: guided.token, ...values});
+  }
+  async function guidedOpen() {
+    const p = selected(); if (!p?.id || !sliderEnabled) return;
+    if (manual) closeAlignment();
+    recognized = null; root.classList.remove('pc-recognized');
+    guided = {photo: p.id, clicks: [], hub: null};
+    root.classList.add('pc-aligning'); guidedStep(1); guidedMsg(G.busy);
+    try {
+      const prep = await opts.manualAlignment('prepare', descriptor(p));
+      if (!guided || guided.photo !== p.id) return;
+      guided.token = prep.token;
+      guided.lines = await guidedCall('lines');
+      guidedMsg('');
+      if (!guided.lines.registered) guidedClicking(true);
+    } catch (error) { guidedMsg(error.message); }
+    guidedRing(); paint();
+  }
+  function guidedClose() {
+    if (!guided) return;
+    guided = null; root.classList.remove('pc-aligning', 'pc-guided-clicking');
+    guidedStep(0); guidedMsg('');
+    const box = $('.pc-guided-cands'); if (box) box.replaceChildren();
+    if (selected()) { recognize(); paint(); }
+  }
+  function guidedClicking(on) {
+    if (!guided) return;
+    guided.clicking = on; root.classList.toggle('pc-guided-clicking', on);
+    const box = $('.pc-guided-clicking'); if (box) box.hidden = !on;
+    guidedCount();
+  }
+  function guidedCount() {
+    const el = $('.pc-guided-count'); if (el && guided) el.textContent = G.clicks(guided.clicks.length) + (guided.hub ? G.hubSet : '');
+    const reg = $('[data-pc="g-register"]'); if (reg && guided) reg.disabled = guided.clicks.length < 5 || !guided.hub;
+  }
+  function guidedClick(event, at) {
+    const xf = guided?.xf; if (!xf) return false;
+    const x = (at.x - xf.left) / xf.sx, y = (at.y - xf.top) / xf.sy;
+    if (event.shiftKey) guided.hub = [x, y]; else guided.clicks.push([x, y]);
+    guidedCount(); paint(); return true;
+  }
+  async function guidedAction(name) {
+    if (name === 'g-open') return guidedOpen();
+    if (!guided) return;
+    try {
+      if (name === 'g-ok') { guidedClicking(false); guidedStep(2); }
+      else if (name === 'g-click') { guidedClicking(true); }
+      else if (name === 'g-clear') { guided.clicks = []; guided.hub = null; guidedCount(); paint(); }
+      else if (name === 'g-reset') { guidedMsg(G.busy); guided.lines = await guidedCall('reset'); guided.clicks = []; guided.hub = null; guided.cands = guided.result = null; delete guided.chosen; guidedMsg(''); guidedRing(); guidedCount(); guidedStep(1); paint(); }
+      else if (name === 'g-register') {
+        guidedMsg(G.busy);
+        guided.lines = await guidedCall('register', {clicks: guided.clicks, hub: guided.hub});
+        guided.cands = guided.result = null; delete guided.chosen;
+        guidedMsg(''); guidedRing(); paint();
+        if (guided.lines.ring_locked) { guidedClicking(false); guidedStep(2); }
+      } else if (name === 'g-find') {
+        guidedMsg(G.busy);
+        guided.cands = (await guidedCall('candidates')).candidates; guided.result = null; delete guided.chosen;
+        const box = $('.pc-guided-cands'); box.replaceChildren();
+        guided.cands.forEach((c, i) => {
+          const b = doc.createElement('button'); b.type = 'button'; b.className = 'pc-button pc-small'; b.dataset.pc = 'g-pick'; b.dataset.index = i;
+          b.textContent = G.onArrow('ABCD'[i]); box.append(b);
+        });
+        if (guided.cands.length) { const b = doc.createElement('button'); b.type = 'button'; b.className = 'pc-text-button'; b.dataset.pc = 'g-pick'; b.dataset.index = 0; b.textContent = G.noArrow; box.append(b); }
+        guidedMsg(''); paint();
+      } else if (name === 'g-save') {
+        guidedMsg(G.busy);
+        const result = await guidedCall('save_read');
+        guidedMsg(G.saved);
+        await opts.onManualSaved?.(result);
+      }
+    } catch (error) { guidedMsg(error.message); }
+  }
+  async function guidedPick(index) {
+    if (!guided?.cands) return;
+    guided.chosen = index; guidedMsg(G.busy); paint();
+    try {
+      const r = guided.result = await guidedCall('read', {index});
+      guidedStep(3);
+      const L = Number.isFinite(r.L_mm) ? r.L_mm.toFixed(3) : '\u2014', f = Number.isFinite(r.frames) ? r.frames.toFixed(1) : '';
+      const out = $('.pc-guided-result');
+      out.textContent = r.status === 'ok' ? (r.trusted ? G.ok(L, f) : G.okUnlocked) : G.retake(r.status);
+      out.dataset.status = r.trusted ? 'ok' : 'retake';
+      $('[data-pc="g-save"]').disabled = !r.trusted;
+      guidedMsg('');
+    } catch (error) { guidedMsg(error.message); }
+    paint();
+  }
+  // Privacy: the photo underneath is blurred (CSS); a second, sharp copy on top is clipped to the registered disc.
+  function paintVeil(p, scale) {
+    const sharp = $('.pc-image-sharp');
+    root.classList.toggle('pc-privacy', privacy);
+    const data = manual?.data || recognized?.data;
+    if (!privacy || !data?.H) { sharp.hidden = true; return; }       // no registration yet: the whole photo stays blurred
+    if (sharp.src !== image.src) sharp.src = image.src;
+    sharp.style.width = image.style.width; sharp.style.height = image.style.height; sharp.style.transform = image.style.transform;
+    sharp.classList.toggle('pc-enhanced', enhance);
+    const {H, width, height} = data, sx = p.width / width * scale, sy = p.height / height * scale;
+    // the disc from its edge (61 mm) in to its clear hub (17 mm): the hub is transparent, so it stays blurred too
+    const ring = r => {
+      const pts = [];
+      for (let i = 0; i < 96; i++) {
+        const a = i / 96 * 2 * Math.PI, x = r * Math.cos(a), y = r * Math.sin(a), z = H[2][0]*x + H[2][1]*y + H[2][2];
+        pts.push(`${(sx*(H[0][0]*x + H[0][1]*y + H[0][2])/z).toFixed(1)} ${(sy*(H[1][0]*x + H[1][1]*y + H[1][2])/z).toFixed(1)}`);
+      }
+      return `M${pts.join(' L')} Z`;
+    };
+    sharp.style.clipPath = `path(evenodd, "${ring(61)} ${ring(17)}")`;
+    sharp.hidden = false;
+  }
+  // The cells where the reader found the pattern: one filled wedge per vote, in the disc plane through H.
+  function evidencePath(p, scale, left, top, data) {
+    const {H, width, height, evidence = [], evidence_half_span: half = Math.PI / 12} = data;
     const sx = p.width / width * scale, sy = p.height / height * scale;
-    const c = manual.c_deg * Math.PI / 180;
+    const xy = (r, angle) => {
+      const x = r * Math.cos(angle), y = r * Math.sin(angle);
+      const z = H[2][0]*x + H[2][1]*y + H[2][2];
+      return `${(left + sx*(H[0][0]*x + H[0][1]*y + H[0][2])/z).toFixed(2)},${(top + sy*(H[1][0]*x + H[1][1]*y + H[1][2])/z).toFixed(2)}`;
+    };
+    const parts = [];
+    for (const [a0, lo, hi] of evidence) {
+      const steps = 16, pts = [];
+      for (let i = 0; i <= steps; i++) pts.push(xy(hi, a0 - half + 2*half*i/steps));
+      for (let i = steps; i >= 0; i--) pts.push(xy(lo, a0 - half + 2*half*i/steps));
+      parts.push('M' + pts.join('L') + 'Z');
+    }
+    return parts.join('');
+  }
+  function prediction(p, scale, left, top, src = manual) {
+    const {H, width, height, bands, rings} = src.data;
+    const sx = p.width / width * scale, sy = p.height / height * scale;
+    const c = src.c_deg * Math.PI / 180;
     const xy = (r, angle) => {
       const x = r * Math.cos(angle), y = r * Math.sin(angle);
       const z = H[2][0]*x + H[2][1]*y + H[2][2];
@@ -452,7 +707,7 @@ export function photoPage(host, opts = {}) {
     for (const [lo,hi,angles] of bands) for (const angle of angles) {
       trace(Math.ceil(hi-lo), f => {
         const r = lo + f*(hi-lo);
-        return xy(r, angle + c + manual.L_mm/r);
+        return xy(r, angle + c + src.L_mm/r);
       });
     }
     return parts.join('');
@@ -465,6 +720,7 @@ export function photoPage(host, opts = {}) {
     const scrollTop = manual?.scrollTop;
     manual = null; win.clearTimeout(scoreTimer);
     root.classList.remove('pc-aligning');
+    if (recognized) root.classList.add('pc-recognized');
     $('.pc-slider-controls').hidden = true;
     const toggle = $('[data-pc="align"]');
     toggle.querySelector('span').textContent = toggle.title = slider('open');
@@ -502,6 +758,9 @@ export function photoPage(host, opts = {}) {
     if (manual) { closeAlignment(); syncButtons(); paint(); return; }
     if (!selected()?.id) { alignmentMessage('unavailable'); return; }
     cancelDrag();
+    root.classList.remove('pc-recognized');
+    guidedClose();
+    for (const fold of [$('.pc-more'), $('.pc-advanced'), $('.pc-slider-legacy')]) if (fold) fold.open = true;
     const state = manual = {photo:descriptor(selected()), scoreKey:0};
     const toggle = $('[data-pc="align"]');
     toggle.querySelector('span').textContent = toggle.title = slider('close');
@@ -574,19 +833,22 @@ export function photoPage(host, opts = {}) {
   }
   function paintStrip() {
     const strip = $('.pc-strip'); strip.replaceChildren();
+    const mark = {ok: '✓', outlier: '≠', retake: '!', failed: '!', reading: '…', queued: '…', waiting: '…'};
     photos.forEach((p,index) => {
       const b = doc.createElement('button'); b.type = 'button'; b.className = 'pc-thumb'; b.dataset.photo = index;
-      b.setAttribute('aria-pressed',String(index === active)); b.title = p.name;
-      const img = doc.createElement('img'); img.src = p.src; img.alt = p.name;
-      const label = doc.createElement('span'); label.textContent = index === active ? t.current : p.label || p.name; b.append(img,label); strip.append(b);
+      b.setAttribute('aria-pressed',String(index === active));
+      const frame = doc.createElement('span'); frame.className = 'pc-thumb-frame';
+      const img = doc.createElement('img'); img.src = p.src; img.alt = p.name; frame.append(img);
       if (p.stage) {
-        const act = doc.createElement('small'); act.className = 'pc-photo-act'; act.dataset.stage = p.stage.stage; act.textContent = p.stage.act[en ? 'en' : 'zh'];
-        b.append(act); b.title = `${p.name}\n${p.stage.why[en ? 'en' : 'zh']}`;
+        const badge = doc.createElement('i'); badge.className = 'pc-thumb-badge'; badge.dataset.stage = p.stage.stage;
+        badge.textContent = mark[p.stage.stage] || '·'; badge.setAttribute('aria-hidden', 'true'); frame.append(badge);
       }
-      // The stage's own words (the core's status, in this page's language) win over the server's English reason.
-      // A fresh read's reason (setReasons) is newer than a listing that has not caught up with it yet.
-      const reasonText = p.stage?.stage === 'ok' ? '' : ['retake', 'outlier'].includes(p.stage?.stage) || !p.reason ? p.stage?.why[en ? 'en' : 'zh'] || '' : p.reason;
-      if (reasonText) { const reason = doc.createElement('small'); reason.className = 'pc-photo-reason'; reason.textContent = reasonText; b.append(reason); }
+      b.append(frame);
+      const number = en ? `Photo ${index+1}` : `第 ${index+1} 张`;
+      b.setAttribute('aria-label', p.stage ? `${number}: ${p.stage.act[lang]}` : number);
+      b.title = p.stage ? `${number} · ${p.stage.act[lang]}
+${p.stage.why[lang]}` : number;
+      strip.append(b);
     });
     strip.insertAdjacentHTML('beforeend',button('add',t.addMore,'plus','pc-thumb-add pc-icon-only'));
     $('.pc-photo-count').textContent = t.count(photos.length);
@@ -595,12 +857,41 @@ export function photoPage(host, opts = {}) {
     if (!photos[index] || manual?.saving) return;
     if (index === active && manual) return;
     closeAlignment();
+    guidedClose();
     cancelDrag(); task++; busy = false; active = index; root.classList.add('pc-has-photo');
     opts.paperHost?.classList.add('pc-has-photo');
     image.src = selected().src; image.hidden = false; $('.pc-photo-name').hidden = false;
-    $('.pc-photo-name').textContent = `${selected().name}  ${index+1} / ${photos.length}`;
+    nameChip();
     $('.pc-mini-image img').src = selected().src;
-    paintStrip(); radiusEditor(); syncButtons(); layout(true);
+    paintStrip(); radiusEditor(); syncButtons(); layout(true); recognize();
+  }
+  // What the reader found on the selected photo, drawn on it in green: the target's rings and pattern edges at the
+  // reader's own along-track constant and rotation. Only for photos it read; nothing to adjust here.
+  async function recognize() {
+    const p = selected(), want = active, key = ++recognizeKey;
+    recognized = null; root.classList.remove('pc-recognized'); nameChip();
+    if (!sliderEnabled || !p?.id || !['ok', 'outlier', 'retake'].includes(p.stage?.stage)) return;
+    try {
+      const data = await opts.manualAlignment('prepare', descriptor(p));
+      if (destroyed || want !== active || key !== recognizeKey || !data?.H) return;
+      recognized = {data, L_mm: data.L_mm, c_deg: data.c_deg, read: ['ok', 'outlier'].includes(p.stage?.stage)};
+      root.classList.add('pc-recognized'); nameChip(); paint();
+    } catch { /* no registration for this photo: it stays as it is; its status is on the chip */ }
+  }
+  function nameChip() {
+    const p = selected(), chip = $('.pc-photo-name');
+    if (!p) return;
+    const n = active + 1, head = en ? `Photo ${n} of ${photos.length}` : `第 ${n} 张，共 ${photos.length} 张`;
+    const stageName = p.stage?.stage;
+    let tail = '';
+    if (stageName === 'ok') tail = recognized ? (en ? `Read: L = ${recognized.L_mm.toFixed(3)} mm` : `读出来了：L = ${recognized.L_mm.toFixed(3)} mm`) : (en ? 'Read' : '读出来了');
+    else if (stageName === 'outlier') tail = en ? 'Read, but outside the majority' : '读出来了，但和多数不一致';
+    else if (p.stage) {
+      const found = recognized?.data?.evidence?.length;
+      tail = p.stage.act[lang] + (Number.isFinite(found) ? (en ? ` · pattern found in ${found} place${found === 1 ? '' : 's'}` : ` · 读到 ${found} 处条纹`) : '');
+    }
+    chip.textContent = tail ? `${head} · ${tail}` : head;
+    chip.dataset.state = stageName || '';
   }
   function syncButtons() {
     const use = $('[data-pc="use"]');
@@ -678,6 +969,8 @@ export function photoPage(host, opts = {}) {
       case 'skip': callHost(opts.onSkip); break;
       case 'use': if (manual) saveAlignment(); else if (selected()) callHost(opts.onUse,descriptor(selected()),[...selected().rings]); break;
       case 'align': toggleAlignment(); break;
+      case 'g-open': case 'g-ok': case 'g-click': case 'g-clear': case 'g-reset': case 'g-register': case 'g-find': case 'g-save': guidedAction(b.dataset.pc); break;
+      case 'g-pick': guidedPick(+b.dataset.index); break;
       case 'focus': setFocus(true); break;
       case 'exit': setFocus(false); break;
       case 'select': case 'pan': tool = b.dataset.pc; syncButtons(); break;
@@ -714,6 +1007,7 @@ export function photoPage(host, opts = {}) {
   on(stage,'wheel',event => { if (!selected() || event.target.closest('.pc-toolbar,.pc-shortcuts')) return; event.preventDefault(); cancelDrag(); view = zoomAt(view,point(event),Math.exp(-clamp(event.deltaY,-300,300)*0.002)); paint(); },{passive:false});
   on(stage,'pointerdown',event => {
     if (event.button !== 0 || !selected() || event.target.closest('button,.pc-toolbar,.pc-loupe')) return;
+    if (guided?.clicking && !space && tool !== 'pan') { event.preventDefault(); guidedClick(event, point(event)); return; }
     const handle = event.target.closest('[data-ring]'), at = point(event);
     if ((manual?.data || space || tool === 'pan')) dragging = {kind:'pan',id:event.pointerId,point:at,start:at,panX:view.panX,panY:view.panY};
     else if (handle) dragging = {kind:'ring',id:event.pointerId,index:+handle.dataset.ring,handle:+handle.dataset.handle,point:at,before:[...selected().rings]};
@@ -765,6 +1059,16 @@ export function photoPage(host, opts = {}) {
   return {
     ready,
     setDevices,
+    setPrivacy(on) {
+      privacy = !!on;
+      try { win.localStorage.setItem('discprobe-photo-privacy', privacy ? '1' : '0'); } catch { /* storage unavailable */ }
+      if (destroyed) return;
+      root.classList.toggle('pc-privacy', privacy);
+      // the veil needs the reader's registration of the selected photo; fetch it if this photo has none yet
+      if (privacy && selected() && !recognized && !manual) recognize();
+      if (selected()) paint();
+    },
+    privacy: () => privacy,
     setPhoneLink,
     addPhotos,
     setPhotoId(photo, id) { const p = photos.find(p => photo.file ? p.file === photo.file : p.src === photo.src); if (p) p.id = id; },
@@ -779,7 +1083,7 @@ export function photoPage(host, opts = {}) {
         if (key !== (p.stage ? p.stage.stage + p.stage.act.zh : '')) changed = true;
         p.stage = stage;
       }
-      if (changed && !destroyed) paintStrip();
+      if (changed && !destroyed) { paintStrip(); if (!manual && selected() && (selected().stage?.stage === 'ok' || selected().stage?.stage === 'outlier') !== !!recognized) recognize(); else nameChip(); }
     },
     setReadResult(result) { if (result.verdict !== 'ok') return; for (const p of photos) { p.offsetMm = result.offset_mm; if (result.rings_mm) p.rings = [...result.rings_mm]; } if (selected()) { radiusEditor(); paint(); } },
     back() { if (focus) setFocus(false); else callHost(opts.onBack); },

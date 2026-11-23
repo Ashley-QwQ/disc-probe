@@ -8,10 +8,10 @@ export const photoReasons = {
   ok: {act: pair('可以用', 'Usable'), why: pair('这张照片读出来了。', 'This photo was read.')},
   no_rim: {act: pair('拍全盘', 'Show the whole disc'),
     why: pair('没找到整张盘的边。把整张盘拍进画面，四周留一点边。', 'The disc edge was not found. Get the whole disc in frame, with a little margin.')},
-  too_few_votes: {act: pair('换光照', 'Change the light'),
-    why: pair('能读的彩色条纹太少。背对吸顶灯，盘朝自己转 20–30°；盘上有白色圆形反光就微调避开。', 'Too little readable colour pattern. Stand with the ceiling lamp behind you and tilt the disc 20–30° towards you; nudge it if a round white glare sits on the disc.')},
-  weak_peak: {act: pair('换光照', 'Change the light'),
-    why: pair('条纹太淡，读不准。背对吸顶灯，避开盘上的白色反光，让彩色条纹更亮。', 'The pattern is too faint to read. Put the ceiling lamp behind you and keep its white glare off the disc.')},
+  too_few_votes: {act: pair('换个角度', 'Change the angle'),
+    why: pair('能读的彩色条纹太少。换个倾斜角度再拍（盘朝自己多转或少转一点），别让闪光灯的白斑压在条纹上。', 'Too little readable colour pattern. Retake at another tilt (a little more or less towards you), with the flash’s white spot off the pattern.')},
+  weak_peak: {act: pair('换个角度', 'Change the angle'),
+    why: pair('条纹太淡，读不准。换个倾斜角度让彩色条纹更亮，别让闪光灯的白斑压在条纹上。', 'The pattern is too faint to read. Change the tilt until the colour bands are brighter, with the flash’s white spot off them.')},
   few_inliers: {act: pair('转一下盘', 'Turn the disc'),
     why: pair('条纹里对得上的部分太少。转一下盘，换个角度再拍。', 'Too few parts of the pattern agree. Turn the disc and shoot from another angle.')},
   rings_not_found: {act: pair('拍全盘', 'Show the whole disc'),
@@ -112,6 +112,8 @@ const mm = v => Number.isFinite(v) ? `${v >= 0 ? '+' : '−'}${Math.abs(v).toFix
 
 export const sliderWords = {
   open: pair('手动对齐', 'Align manually'),
+  advanced: pair('自动读不出时：手动对齐（进阶）', 'If the automatic read fails: align by hand (advanced)'),
+  why: pair('大多数时候用不到。只有照片都读不出来时才用：在选中的照片上叠一层圆环，拖下面两个滑块，让圆环和盘上的彩色条纹重合，就能手动得到沿轨常数。照片要先读完才能叠图。', 'Most people never need this. Use it only when no photo can be read: an overlay of rings is drawn on the selected photo, and you drag the two sliders until the rings sit on the disc’s colour bands. That gives the along-track constant by hand. The photo has to finish reading first.'),
   close: pair('关闭手动对齐', 'Close manual alignment'),
   save: pair('保存人工沿轨常数', 'Save manual L'),
   loading: pair('正在取这张照片的盘缘和圆环位置…', 'Getting the disc edge and ring positions…'),
@@ -128,7 +130,7 @@ export const sliderWords = {
 };
 
 export function manualSourceWords(origin) {
-  if (origin === 'manual-slider') return pair('人工滑块', 'Manual sliders');
+  if (origin === 'manual-slider') return pair('手动校准', 'Calibrated by hand');   // guided reading or the old sliders
   if (origin === 'manual-cli') return pair('命令行填入', 'Entered on the command line');
   return null;
 }
@@ -236,13 +238,16 @@ function lUnits(app, media) {
 }
 export function applicationWords(app = {}, media = 'cd') {
   if (app.written) {
-    const v = lUnits(app, media), disc = app.disc_id ? `（标靶盘 ${app.disc_id}）` : '', discEn = app.disc_id ? ` (target disc ${app.disc_id})` : '';
+    const dvd = media !== 'cd';
+    const v = lUnits(app, media), disc = app.disc_id ? `（${dvd ? '检查盘' : '标靶盘'} ${app.disc_id}）` : '', discEn = app.disc_id ? ` (${dvd ? 'check' : 'target'} disc ${app.disc_id})` : '';
     const source = manualSourceWords(app.origin);
     if (source) return {applied: true, words: pair(`出图会用 L ${v}（${source.zh}）。`, `Pictures will use L ${v} (${source.en}).`)};
     return {applied: true, words: pair(`出图会用 L ${v}${disc}。`, `Pictures will use L ${v}${discEn}.`)};
   }
   const why = applicationReasons[app.reason] || pair('出图不会用这次的照片 L。', 'Pictures will not use this photo L.');
-  return {applied: false, words: why};
+  // DVD calls its photographed disc the check disc
+  const named = media !== 'cd' ? pair(why.zh.replaceAll('标靶盘', '检查盘'), why.en.replaceAll('target disc', 'check disc')) : why;
+  return {applied: false, words: named};
 }
 // A picture ISO's own record (image job result.photo_l). `reopened`: the ISO was opened again, not just made.
 export function photoLWords(photoL = {}, media = 'cd', {reopened = false} = {}) {
@@ -262,6 +267,7 @@ const sameDisc = pair('重拍用同一张标靶盘，不用重新刻。', 'Retak
 
 // The shooting method that works in an ordinary room (from users' own shots).
 export const shootingTips = [
+  pair('打开闪光灯：在相机里把闪光灯设成“开”，不要用“自动”。房间的灯可以开着。', 'Turn the flash on: set it to On in the camera, not Auto. Room lights can stay on.'),
   pair('房间有吸顶灯：背对它站，让灯在你身后。', 'With a ceiling lamp: stand with your back to it, so it is behind you.'),
   pair('盘数据面朝上，朝自己转 20–30°，让彩色条纹出来。', 'Data side up, tilt the disc 20–30° towards you until the colour bands show.'),
   pair('盘上出现吸顶灯的白色圆形反光，就微调角度避开它。', 'If the lamp makes a round white glare on the disc, tilt a little to move it off.'),
@@ -271,7 +277,9 @@ export const shootingTips = [
 ];
 
 export const cdShootingTips = [
-  pair('关掉顶灯，标靶盘数据面朝上，从侧面打光，让彩色条纹显出来。', 'Turn off the overhead lights. Set the target disc data side up and light it from the side until the colour bands show.'),
+  pair('打开闪光灯：在相机里把闪光灯设成“开”，不要用“自动”。房间的灯可以开着。', 'Turn the flash on: set it to On in the camera, not Auto. Room lights can stay on.'),
+  pair('房间有吸顶灯：背对它站，让灯在你身后。', 'With a ceiling lamp: stand with your back to it, so it is behind you.'),
+  pair('标靶盘数据面朝上，朝自己转 20–30°，让彩色条纹出来；盘上有灯的白色圆形反光就微调避开。', 'Target disc data side up, tilted 20–30° towards you until the colour bands show; nudge it so no round white glare sits on the disc.'),
   wholeDisc,
   pair('每张之间把盘转 60–120°，至少拍两张。', 'Rotate the disc 60–120° between shots and take at least two photos.'),
   sameDisc,

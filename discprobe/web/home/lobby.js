@@ -303,6 +303,19 @@ function paintHello() {
   button.textContent = lang === "en" ? "Check again" : "重新检测";
   button.disabled = !!state?.checking || state?.jobs?.some(j => j.drive === drive?.id && j.exit === null);
 }
+// the line above it: a CD batch left one step short of usable (its photos), with a way straight back
+export function paintPending(name, open) {
+  const line = document.getElementById("lobby-pending");
+  if (!line) return;
+  line.replaceChildren();
+  line.hidden = !name;
+  if (!name) return;
+  const en = api?.lang() === "en";
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = en ? "Take the photos" : "去拍照";
+  b.addEventListener("click", open);
+  line.append(en ? `One step left: ${name} needs photos to set its along-track constant. ` : `还差一步：${name} 要拍照定沿轨常数。`, b);
+}
 // the second line: the last plan, to pick up where it was left
 export function paintRecent(plans, open) {
   if (!L) return;

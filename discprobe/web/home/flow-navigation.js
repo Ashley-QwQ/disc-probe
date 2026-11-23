@@ -27,6 +27,7 @@ export async function install(api, {setHome}) {
     const view = entry.view, place = api.current();
     const snap = {view, col: place.col, batch: place.item?.id};
     if (view === 'newplan') snap.form = (await import('./newplan.js')).navigationState();
+    if (view === 'cal') snap.photo = (await import('./calibrate.js')).navigationState?.() || null;
     if (['design', 'preview', 'burn'].includes(view)) {
       try {
         const actions = (await import('./design.js')).editorActions();
@@ -78,7 +79,19 @@ export async function install(api, {setHome}) {
     const view = entry.view;
     if (view === 'lobby' || view === 'library') { setHome(view); return; }
     if (view === 'newplan') { await (await import('./newplan.js')).start(api, {resume: saved.form}); return; }
-    if (view === 'cal') { (await import('./calibrate.js')).start(api, {keep: true}); return; }
+    if (view === 'cal') {
+      const calibrate = await import('./calibrate.js');
+      if (saved.photo?.geo) {
+        // back to that batch's photo page, with Back leading to the batch in the library as before
+        const list = saved.col ? api.catalogue(saved.col) : [], item = list.find(i => i.id === saved.photo.batch) || null;
+        calibrate.photograph(api, {item, media: saved.photo.media, geo: saved.photo.geo, returnTo: () => {
+          if (item) api.goTo(...api.locate(item));
+          setHome('library');
+        }});
+        return;
+      }
+      calibrate.start(api, {keep: true}); return;
+    }
     if (view === 'presets') { (await import('./presetio.js')).open(); return; }
     if (view === 'pastworks') { await (await import('./pastworks.js')).start(api); return; }
     if (view === 'faxnews') { await (await import('./faxnews.js')).start(api); return; }

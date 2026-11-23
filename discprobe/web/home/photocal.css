@@ -73,6 +73,13 @@
 .pc-before section { margin-top: 4px; }
 .pc-skip { margin-top: 28px; font-size: 15px; }
 .pc-button.pc-skip { background: var(--cal-paper, var(--paper)); box-shadow: none; }
+/* The glass-desk drop shadow is for things standing on the desk; buttons printed on the paper panel have none. */
+.pc-paper button { box-shadow: none; }
+/* pressed on the paper panel: ink fill with the panel's paper colour as text (the page's own --paper is dark at night) */
+.pc-paper .pc-button[aria-pressed="true"] { color: var(--cal-paper, var(--paper)); }
+.pc-advanced { margin-top: 8px; border-top: 1px dashed var(--rule-strong); padding-top: 4px; }
+.pc-advanced > summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--ink-2); }
+.pc-advanced-why { font-size: 13px; color: var(--ink-2); margin: 0 0 12px; }
 .pc-button.pc-skip:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 8%, var(--cal-paper, var(--paper))); }
 .pc-wide { width: 100%; }
 .pc-empty { height: 100%; padding: 36px 40px 28px; display: flex; flex-direction: column; gap: 24px; }
@@ -99,17 +106,23 @@
 .pc-section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .pc-photo-count { color: var(--ink-2); font: 13px var(--mono); }
 .pc-strip { display: flex; align-items: flex-start; gap: 14px; overflow-x: auto; padding: 4px; margin: -4px; scrollbar-width: thin; }
-.pc-thumb { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; background: none; border: 0; width: 76px; padding: 0; flex: none; text-align: left; font-size: 14px !important; }
-.pc-thumb img { width: 76px; height: 58px; object-fit: cover; border-radius: 4px; }
-.pc-thumb[aria-pressed="true"] img { outline: 1.5px solid var(--ink); outline-offset: 2px; }
-.pc-thumb span { max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pc-photo-reason { white-space: normal; overflow-wrap: anywhere; color: var(--ink-2); font-size: 13px; line-height: 1.4; }
-.pc-photo-act { font-size: 13px; font-weight: 600; line-height: 1.3; color: var(--ink-2); transition: color 200ms var(--ease, ease); }
-.pc-photo-act[data-stage="ok"] { color: var(--good, var(--ink)); }
-.pc-photo-act[data-stage="retake"], .pc-photo-act[data-stage="failed"], .pc-photo-act[data-stage="outlier"] { color: var(--warn, var(--ink)); }
-.pc-read-state { font-size: 14px; color: var(--ink-2); margin: 8px 0 0; }
-.cal-stamp[data-adoption="provisional"] b, .cal-stamp[data-adoption="disagree"] b { color: var(--warn, var(--ink)); }
-.cal-stamp[data-adoption="adopted"] b { color: var(--good, var(--ink)); }
+.pc-thumb { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; background: none; border: 0; width: 76px; padding: 0; flex: none; text-align: left; font-size: 13px !important; }
+.pc-thumb-frame { position: relative; display: block; }
+.pc-thumb img { display: block; width: 76px; height: 58px; object-fit: cover; border-radius: 4px; }
+.pc-thumb[aria-pressed="true"] img { outline: 2px solid var(--ink); outline-offset: 2px; }
+.pc-thumb-label { max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+.pc-thumb[aria-pressed="true"] .pc-thumb-label { color: var(--ink); font-weight: 600; }
+/* status on the picture itself: green tick read, amber mark retake, grey dots waiting */
+.pc-thumb-badge { position: absolute; right: -6px; top: -6px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  font: 700 13px/1 var(--font); font-style: normal; color: #fff; background: #8a847a; box-shadow: 0 0 0 2px var(--cal-paper, #ebe7e0); }
+.pc-thumb-badge[data-stage="ok"] { background: #2f9e5b; }
+.pc-thumb-badge[data-stage="outlier"], .pc-thumb-badge[data-stage="retake"], .pc-thumb-badge[data-stage="failed"] { background: #c07a1c; }
+.pc-photo-act { font-size: 12px; font-weight: 600; line-height: 1.3; color: var(--ink-2); }
+.pc-photo-act[data-stage="ok"] { color: #2f7d4b; }
+.pc-photo-act[data-stage="retake"], .pc-photo-act[data-stage="failed"], .pc-photo-act[data-stage="outlier"] { color: #9a5f12; }
+.pc-photo-note { margin: 12px 0 0 !important; font-size: 14px; line-height: 1.55; color: var(--ink); }
+.pc-photo-note:empty { display: none; }
+.pc-photo-note[data-stage="ok"] { color: #2f7d4b; }
 .pc-thumb-add { height: 58px; width: 76px; border: 1px dashed var(--ink-2); box-shadow: none; }
 .pc-add-section > .pc-button { margin-top: 12px; }
 .pc-add-section .pc-phone-offline { color: var(--ink-2); font-size: 14px; }
@@ -194,7 +207,8 @@
   .pc-embedded .pc-empty { overflow-y: auto; }
   .pc-embedded .pc-empty-columns { flex: none; overflow: visible; }
 }
-.pc-automatic:not(.pc-manual-open,.pc-aligning) :is(.pc-overlay,.pc-toolbar,.pc-focus-button) { display: none; }
+.pc-automatic:not(.pc-manual-open,.pc-aligning) :is(.pc-toolbar,.pc-focus-button) { display: none; }
+.pc-automatic:not(.pc-manual-open,.pc-aligning,.pc-recognized) .pc-overlay { display: none; }
 .pc-aligning:not(.pc-is-focus) :is([data-pc="select"],[data-pc="pan"]) { display: none; }
 .pc-aligning .pc-overlay { cursor: grab; }
 .pc-aligning.pc-dragging .pc-overlay { cursor: grabbing; }
@@ -235,3 +249,90 @@
 .cal-stamp[data-adoption="refused"] b, .cal-stamp[data-adoption="split"] b { color: var(--warn, var(--ink)); }
 /* The photo stamp can have more than three rows: keep every row beside the stamp, never under it. */
 .cal .cal-stamp[data-adoption] > dl > div { grid-column: 2; }
+
+/* what the reader recognised, on the photo: a bright green trace with a dark edge so it reads on any photo */
+.pc-recognized-outline { fill: none; stroke: rgba(0,0,0,.55); stroke-width: 3.4; stroke-linejoin: round; }
+.pc-recognized-line { fill: none; stroke: #4dff8f; stroke-width: 1.6; stroke-linejoin: round; }
+/* the photo's own label: shaped like the page's buttons (4px corners, a hairline edge), neutral ink on paper.
+   A read photo gets a green tick; one to retake gets an amber rule and mark, never a coloured fill. */
+.pc-photo-name { border-radius: 4px; border: 1px solid var(--rule-strong); box-shadow: none; }
+.pc-photo-name[data-state="ok"]::before { content: "✓"; display: inline-block; width: 1.2em; margin-right: 6px; text-align: center; font-weight: 700; color: var(--good, #2f9e5b); }
+.pc-photo-name:is([data-state="retake"],[data-state="failed"],[data-state="outlier"]) { border-left: 3px solid var(--warn, #c07a1c); padding-left: 10px; }
+.pc-photo-name:is([data-state="retake"],[data-state="failed"],[data-state="outlier"])::before { content: "!"; display: inline-block; width: 1.2em; margin-right: 6px; text-align: center; font-weight: 700; color: var(--warn, #c07a1c); }
+/* At night the photo page's paper panel is still lit paper. The .cal block already swaps the ink; the surfaces the
+   controls paint with (buttons, the address select, links) must swap too, or they come out night-dark on paper. */
+:root[data-theme="dark"] .pc-paper {
+  --paper: var(--lit-paper); --paper-2: color-mix(in srgb, var(--lit-ink) 7%, var(--lit-paper));
+  --rule-strong: color-mix(in srgb, var(--lit-ink) 45%, transparent);
+  --input: var(--lit-paper); --raised: var(--lit-paper); --panel: var(--lit-paper);
+  --text: var(--lit-ink); --text-secondary: var(--lit-ink-2); --text-faint: var(--lit-ink-3);
+  --line: color-mix(in srgb, var(--lit-ink) 22%, transparent); --line-control: color-mix(in srgb, var(--lit-ink) 55%, transparent);
+  --primary: var(--lit-copper); --focus: var(--lit-copper);
+  color-scheme: light;
+}
+.pc-paper :is(select, input:not([type="range"])) { background: var(--paper); color: var(--ink); border: 1px solid var(--rule-strong); border-radius: 4px; }
+.pc-paper a { color: var(--copper); }
+
+/* ---- the photo step, read at a glance: a headline, the strip, the phone, the disc number; the rest under "More" */
+.pc-has-photo .pc-why { display: none; }
+.pc-status { margin: 4px 0 18px; }
+.pc-status-head { font-size: 22px !important; line-height: 1.25; margin: 0 0 8px !important; color: var(--ink); }
+.pc-status[data-state="ok"] .pc-status-head { color: #2f7d4b; }
+.pc-progress { display: flex; align-items: center; gap: 10px; font: 13px var(--mono); color: var(--ink-2); }
+.pc-dots { display: inline-flex; gap: 6px; }
+.pc-dots i { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--ink-2); }
+.pc-dots i[data-on="true"] { background: #2f9e5b; border-color: #2f9e5b; }
+.pc-status-tip { margin: 10px 0 0 !important; font-size: 15px; line-height: 1.55; color: var(--ink); }
+.pc-status-tip:empty { display: none; }
+/* the strip: pictures and their marks only */
+.pc-thumb { width: auto; }
+/* a connected phone folds to its device row; the QR, link and address come back on request */
+.pc-phone-small.pc-phone-connected:not(.pc-phone-show) .pc-phone-block { display: none; }
+.pc-phone-toggle { font-size: 14px; }
+/* "More": add from this computer, manual tools, and the read's details for whoever wants them */
+.pc-more { margin-top: 14px; border-top: 1px dashed var(--rule-strong); padding-top: 4px; }
+.pc-more > summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--ink-2); }
+.pc-more .cal-stamp, .pc-more .pc-read-state { font-size: 13px; color: var(--ink-2); }
+.pc-skip-link { margin-top: 10px; font-size: 14px; color: var(--ink-2); }
+/* where the reader found the pattern on this photo */
+.pc-evidence { fill: rgba(77, 255, 143, .28); stroke: #4dff8f; stroke-width: 1.2; stroke-linejoin: round; }
+
+/* privacy: everything but the registered disc goes soft, for screenshots shared when asking for help */
+.pc-image-sharp { position: absolute; top: 0; left: 0; max-width: none; user-select: none; pointer-events: none; }
+.pc-privacy .pc-image { filter: blur(24px) saturate(.5) brightness(.8); }
+.pc-privacy .pc-image.pc-enhanced { filter: blur(24px) saturate(.5) brightness(.8) contrast(1.65); }
+.pc-privacy :is(.pc-thumb img, .pc-mini-image img, .pc-loupe canvas) { filter: blur(5px); }
+.pc-privacy-option { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 14px; color: var(--ink-2); cursor: pointer; }
+.pc-privacy-option input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
+
+/* reading progress, under the headline: a thin ink bar that keeps moving between the 2 s listings */
+.pc-read-progress { display: grid; gap: 6px; margin-top: 12px; }
+.pc-read-progress[hidden] { display: none; }
+.pc-read-track { position: relative; height: 4px; background: color-mix(in srgb, var(--ink) 14%, transparent); overflow: hidden; }
+.pc-read-bar { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ink); transition: width 2s linear; }
+.pc-read-text { font: 13px var(--mono); color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) { .pc-read-bar { transition: none; } }
+
+/* nothing on the photo casts the desk's glass shadow: over a photo it reads as a smudge */
+.pc-page .pc-float, .pc-page .pc-toolbar .pc-button { box-shadow: none; }
+
+/* ---- calibrate by hand: three steps on the paper, their drawing on the photo */
+.pc-guided { display: grid; gap: 14px; margin: 4px 0 8px; }
+.pc-guided-step h3 { margin: 0 0 4px; font-size: 15px; }
+.pc-guided-step p { margin: 0 0 8px; font-size: 14px; line-height: 1.55; color: var(--ink); }
+.pc-guided-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.pc-button.pc-small { min-height: 36px; padding: 0 12px; font-size: 14px; }
+.pc-guided-ring[data-locked="true"], .pc-guided-result[data-status="ok"] { color: #2f7d4b; }
+.pc-guided-ring[data-locked="false"]:not(:empty), .pc-guided-result[data-status="retake"] { color: #9a5f12; }
+.pc-guided-cands { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.pc-guided-msg { font-size: 13px; color: var(--ink-2); margin: 0 !important; }
+.pc-guided-msg:empty { display: none; }
+.pc-slider-legacy { margin-top: 10px; }
+.pc-slider-legacy > summary { font-size: 13px; color: var(--ink-3, var(--ink-2)); cursor: pointer; }
+.pc-guided-clicking .pc-viewport { cursor: crosshair; }
+.pc-guided-rim { fill: none; stroke: #e0a060; stroke-width: 1.4; stroke-dasharray: 6 5; }
+.pc-guided-ring-line { fill: none; stroke: #4dff8f; stroke-width: 1.2; }
+.pc-guided-arrow { fill: rgba(255, 255, 255, .12); stroke: #fff; stroke-width: 1.6; stroke-dasharray: 5 4; }
+.pc-guided-arrow-label { fill: #fff; font: 700 16px var(--font); paint-order: stroke; stroke: rgba(0,0,0,.7); stroke-width: 3px; }
+.pc-guided-click { fill: #4dff8f; stroke: #000; stroke-width: 1; }
+.pc-guided-hub { stroke: #4dff8f; stroke-width: 2; }
