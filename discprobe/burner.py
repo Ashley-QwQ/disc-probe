@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from .drive_lock import child_env, locked_drive
 
+from datetime import datetime
+import hashlib
 import json
 import math
 import os
@@ -126,6 +128,9 @@ class WindowsDVD:
                      str(Path(__file__).resolve().parent.parent / "tools" / "burn_imapi.ps1"),
                      "-Machine", "-Drive", drive]
 
+    def burn_provenance(self):
+        return dict(burner=self.drive, path="IMAPI", mode=DVD_BURN_MODE)
+
     def inspect(self):
         result = self.run(self.base, capture_output=True, text=True, check=False, env=child_env(self.drive))
         if result.returncode:
@@ -208,6 +213,11 @@ class LinuxBurner:
         self.drive, self.media, self.run, self.popen = drive, media, run, popen
         self.writer = tool("cdrdao" if media == "cd" else "growisofs")
         self.inspector = tool("wodim" if media == "cd" else "dvd+rw-mediainfo")
+
+    def burn_provenance(self):
+        from .cd import sector_layout
+        return dict(burner=self.drive, path="cdrdao" if self.media == "cd" else "growisofs",
+                    mode=sector_layout() + "; physical interleave unknown" if self.media == "cd" else DVD_BURN_MODE)
 
     def inspect(self):
         argv = ([self.inspector, "dev=" + self.drive, "-atip"] if self.media == "cd"
@@ -531,41 +541,65 @@ def _write_preflight(drive, image, *, media, speed, recorder, cancel, keep_open,
 def burn(drive, iso, *, media="dvd", speed=None, yes_write=False, recorder=None, cancel=None,
          no_verify=False, verifier=None, keep_open=False, append=False, expect_start=None,
          disc_id=False, disc_id_code=None, state_checker=None, erase=False, expected_identity=None,
-         expected_mid=None, allow_other_batch=False):
+         expected_mid=None, allow_other_batch=False, disc_number=None):
     if yes_write is not True:
         raise BurnError("Writing requires explicit --yes-write confirmation.")
+    from .photo_burns import disc_number_arg
     try:
+        disc_number = disc_number_arg(disc_number)
         with image_output.exclusive(iso) as image:
             return _burn_locked(drive, image, media=media, speed=speed, recorder=recorder,
                 cancel=cancel or threading.Event(), no_verify=no_verify, verifier=verifier, keep_open=keep_open,
                 append=append, expect_start=expect_start, disc_id=disc_id, disc_id_code=disc_id_code,
                 state_checker=state_checker, erase=erase, expected_identity=expected_identity,
-                expected_mid=expected_mid, allow_other_batch=allow_other_batch)
+                expected_mid=expected_mid, allow_other_batch=allow_other_batch, disc_number=disc_number)
     except ValueError as exc:
         if isinstance(exc, (BurnError, disc_identity.DiscChanged)):
             raise
         raise BurnError(str(exc)) from exc
 
 
+DVD_BURN_MODE = "2048-byte data sectors; physical interleave unknown"
+
+
+def _recorder_provenance(recorder):
+    from .photo_burns import BURN_FIELDS, known_field
+    try:
+        details = recorder.burn_provenance()
+    except Exception:
+        details = None  # An optional recorder report must not interrupt a write.
+    return {key: known_field(details.get(key) if isinstance(details, dict) else None) or "unknown"
+            for key in BURN_FIELDS}
+
+
 def _burn_log(drive, image, media):
     log_path = Path(str(image) + ".burn.jsonl")
     # Capture the generated geometry's evidence once. Re-burning this ISO never
     # consults a newer photo.json or changes its sector map.
-    photo_l = None
+    photo_l, check_spec = None, None
     for suffix in (".image.json", ".rings.json"):
         try:
-            photo_l = json.loads(image.with_suffix(suffix).read_text(encoding="utf-8")).get("photo_l")
+            raw = image.with_suffix(suffix).read_bytes()
+            spec = json.loads(raw)
+            photo_l = spec.get("photo_l")
+            if suffix == ".image.json" and spec.get("check_disc") is True:
+                check_spec = hashlib.sha256(raw).hexdigest()
         except (OSError, ValueError, AttributeError):
             continue
         if photo_l is not None:
             break
     # Open the durable log before any write. Append to preserve earlier burns of this image.
-    def record(kind, **fields):
+    def record(kind, *, provenance=None, **fields):
         stamp = time.time()
+        if check_spec is not None and provenance is not None:
+            provenance = dict(provenance, check_spec_sha256=check_spec)
         with log_path.open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(dict(type=kind, time=stamp, drive=drive, media=media,
                                          image=str(image), **({"photo_l": photo_l} if photo_l is not None else {}),
-                                         **fields), ensure_ascii=False, allow_nan=False) + "\n")
+                                         **fields, **(provenance or {})), ensure_ascii=False, allow_nan=False) + "\n")
+        if check_spec is not None and provenance is not None:
+            from .photo_burns import record_id
+            fields.update(disc_id=provenance["disc_id"], burn_record=record_id(log_path, stamp))
         ui.event(kind, time=stamp, **dict(fields, log_path=str(log_path),
                                        **({"photo_l": photo_l} if photo_l is not None else {})))
     return log_path, record
@@ -573,7 +607,7 @@ def _burn_log(drive, image, media):
 
 def _burn_locked(drive, image, *, media, speed, recorder, cancel, no_verify, verifier, keep_open,
                  append, expect_start, disc_id, disc_id_code, state_checker, erase, expected_identity,
-                 expected_mid, allow_other_batch):
+                 expected_mid, allow_other_batch, disc_number):
     size, recorder, erase_recorder, info, selected, source, identity, log_path, record, expected_identity = _write_preflight(
         drive, image, media=media, speed=speed, recorder=recorder, cancel=cancel,
         keep_open=keep_open, append=append, expect_start=expect_start, disc_id=disc_id,
@@ -594,6 +628,7 @@ def _burn_locked(drive, image, *, media, speed, recorder, cancel, no_verify, ver
     print(f"Requested write speed: {selected:g}x ({'default' if speed is None else f'--speed {speed:g}x'}). "
           f"Burn log: {log_path}", flush=True)
     print("The tray closes for writing. Burning cannot be undone.", flush=True)
+    provenance = dict(_recorder_provenance(recorder), disc_id=disc_number or datetime.now().strftime("C%m%d-%H%M"))
     started = time.monotonic()
     reported = None
     def progress(**fields):
@@ -697,7 +732,7 @@ def _burn_locked(drive, image, *, media, speed, recorder, cancel, no_verify, ver
     else:
         print("Burn finished: data written, read-back sample OK. This checks the data, not what the disc looks like.",
               flush=True)
-    record("burn_result", **result)
+    record("burn_result", provenance=provenance if not reasons else None, **result)
     if reasons:
         raise BurnError(result['reason'], gate=burn_gate.write_problem(result['reason'], read_back=state['status'] != 'failed'))
     return result
@@ -733,7 +768,8 @@ def run(args):
              cancel=cancel, no_verify=args.no_verify, keep_open=args.keep_open,
              append=args.append, expect_start=args.expect_start, erase=erase,
              expected_identity=expected, expected_mid=expected_mid,
-             allow_other_batch=getattr(args, 'allow_other_batch', False), **discid.options(args))
+             allow_other_batch=getattr(args, 'allow_other_batch', False),
+             disc_number=getattr(args, 'disc_number', None), **discid.options(args))
         burn_completed(args, result)
     except (BurnError, disc_identity.DiscChanged) as exc:
         gate = getattr(exc, 'gate', None)
