@@ -196,6 +196,8 @@ async function checkDisc() {
       return {cancel(){if(jobId)api.backend.cancel(jobId);}};
     },
     async photograph(){leaveBurn();(await import('./calibrate.js')).photograph(api,{media:'dvd',geo,burnCheck:iso.burnResult??null,returnTo:()=>open(api,current.work_id,r.burn_id)});},
+    async photographSaved(){leaveBurn();const resume=()=>startBurn(api,ctx);
+      (await import('./calibrate.js')).photographSaved(api,{geo,returnTo:resume,burnAgain:resume});},
   };
   leave();startBurn(api,ctx);
 }

@@ -831,6 +831,7 @@
       <button class="btn" id="library-design" type="button" hidden></button>
       <button class="btn" id="library-export" type="button" hidden></button>
       <button class="btn" id="library-check" type="button" hidden></button>
+      <button class="btn" id="library-check-photo" type="button" data-capability="photo-burn-recovery" hidden></button>
     </div>
     <details class="library-more" id="library-more" hidden>
       <summary data-i18n="batchMore"></summary>
@@ -884,6 +885,7 @@
 
 <script type="module">
   import { handshake, hasCapability } from "./handshake.mjs";
+  import { savedBurnWords } from "./photowords.mjs";
   import { confirmRemoval } from "./kit/removal.mjs";
   await handshake();
   import * as backend from "./api.js";
@@ -1507,6 +1509,7 @@
     button("library-design", w.design, photo);
     button("library-export", w.export, photo && !backend.mock && hasCapability("presets-io"));
     button("library-check", w.check, check);
+    button("library-check-photo", savedBurnWords.entry[lang], check && hasCapability("photo-burn-recovery"));
     button("library-resume", item.calibration_issue?.stopped ? w.continue : w.resume, item.calibration_issue?.can_resume && hasCapability("geo-coverage"));
     button("library-remeasure", w.remeasure, usable && !backend.mock);
     button("library-rename", w.rename, manageable);
@@ -1890,6 +1893,16 @@
   $("library-remeasure").addEventListener("click", async () => {
     const item = DATA[col][idx], cal = await import("./calibrate.js");
     if (inLibrary() && DATA[col][idx] === item) cal.start(api, {item});
+  });
+  $("library-check-photo").addEventListener("click", async () => {
+    const item = DATA[col][idx], cal = await import("./calibrate.js");
+    if (inLibrary() && DATA[col][idx] === item) {
+      if (DATA.drive.some(d => d.id === item.drive_id)) chosenDrive = item.drive_id;
+      cal.photographSaved(api, {item, geo:item.geo, returnTo:() => {
+        api.goTo(...api.locate(item));
+        setHome("library");
+      }});
+    }
   });
   $("library-resume").addEventListener("click", async () => {
     const item = DATA[col][idx];

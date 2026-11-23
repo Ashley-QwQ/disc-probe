@@ -11,7 +11,7 @@ import { countdown, countdownText } from "./kit/countdown.mjs";
 // Live jobs use the local API. Simulated readings and timers are limited to ?mock / ?demo=N.
 
 import { adviceHTML, budgetHTML, cdPhoto, measurementRecovery, recoveryKind, recoveryAction, recoveryCommands, remeasure, stopReason, photoSaveWords } from "./guidance.mjs";
-import { photoReasonWords, adoptionWords, applicationWords, sliderWords, reasonOf, seconds as photoSeconds } from "./photowords.mjs";
+import { photoReasonWords, adoptionWords, applicationWords, savedBurnWords, sliderWords, reasonOf, seconds as photoSeconds } from "./photowords.mjs";
 import { hasCapability } from "./handshake.mjs";
 import { cutaway } from "./drive-scene.js";
 import { floorLog } from "./floor-log.js";
@@ -258,6 +258,8 @@ async function burnCheckDisc() {
         return { cancel() { if (jobId) api.backend.cancel(jobId); } };
       },
       async photograph() { burnPage.leave(); photograph(api, { item, media: "dvd", geo, burnCheck: iso.burnResult ?? null, returnTo: opener ? () => opener(result) : null }); },
+      photographSaved() { burnPage.leave(); photographSaved(api, {item, geo, returnTo: () => burnPage.start(api, ctx),
+        burnAgain: () => burnPage.start(api, ctx)}); },
     };
     // close this page without handing it back yet: the opener gets it after the photos (or the burn page's back)
     returnTo = returnAnim = returnLabel = null; f.checkMaking = 0;
@@ -272,7 +274,7 @@ async function burnCheckDisc() {
 // Straight to the photos of a disc just burned with this geometry (the burn page's "Photograph the disc"):
 // the photo page reads them against that geometry's run, the core keeps the result next to it (photo.json),
 // and the next burn file made from that geometry applies the along-track correction. Back or done: returnTo.
-export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck = null, returnTo: back = null } = {}) {
+export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck = null, saved = null, burnAgain = null, returnTo: back = null } = {}) {
   api = homeApi; $ = api.$;
   if (flow?.job) return open();                // a measurement still running comes first
   returnTo = back; returnAnim = returnLabel = null;
@@ -281,14 +283,22 @@ export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck
   flow.detected = { media, mid: item?.mid ?? null, capacity_sectors: item?.capacity_sectors ?? item?.sectors ?? null };
   // the burn page's own record of this write: the photo result names how the disc was burned (photo.photo_l)
   flow.geo = { path: geo?.replace(/[\\/]summary\.json$/i, "") }; flow.burnCheck = burnCheck; flow.photoOnly = true; flow.realPhase = "photo";
+  if (saved) {
+    flow.savedBurn = {id:saved.id || null, confirmed:!!saved.confirmed, burnAgain};
+    if (typeof saved.discId === "string") flow.photoDiscId = saved.discId;
+  }
   // Photographed straight after its burn here: the disc is known, so it gets a number at once (editable) rather
   // than an empty field that, left empty, keeps the photos from ever reaching a picture.
   if (burnCheck?.result === "completed") {
     const d = new Date(), two = (n) => String(n).padStart(2, "0");
-    flow.photoDiscId = `C${two(d.getMonth() + 1)}${two(d.getDate())}-${two(d.getHours())}${two(d.getMinutes())}`;
+    flow.photoDiscId = burnCheck.disc_id || `C${two(d.getMonth() + 1)}${two(d.getDate())}-${two(d.getHours())}${two(d.getMinutes())}`;
   }
   if (burnCheckFailed(burnCheck)) { flow.photoOnly = false; flow.realPhase = "review"; }
   return open();
+}
+
+export function photographSaved(homeApi, options) {
+  return photograph(homeApi, {...options, saved:options.saved ?? {}});
 }
 
 // Follow the job's record after reloading, including a result that arrived while the page was closed.
@@ -515,7 +525,9 @@ let leaving = false;
 // photo page after a reload, instead of starting a new calibration. Nothing about a running job is kept.
 export function navigationState() {
   if (!flow?.photoOnly || flow.realPhase !== 'photo' || !flow.geo?.path) return null;
-  return {media: flow.detected?.media || 'dvd', geo: flow.geo.path, batch: flow.item?.id ?? null};
+  const saved = flow.savedBurn;
+  return {media: flow.detected?.media || 'dvd', geo: flow.geo.path, batch: flow.item?.id ?? null,
+    ...(saved ? {saved:{id:saved.id, confirmed:saved.confirmed, discId:flow.photoDiscId}} : {})};
 }
 export function suspendNavigation() {
   if (!flow) return;
@@ -1297,7 +1309,12 @@ function realError(error) {
 function realPaint() {
   if (!flow || !isCal()) return;
   const esc = api.backend.escapeHTML, phase = flow.realPhase;
-  if (phase === "photo") { paintRuler(); paintPhoto(); return; }
+  if (phase === "photo") {
+    paintRuler();
+    if (flow.savedBurn && (!flow.savedBurn.confirmed || !flow.savedBurn.record)) paintSavedBurn();
+    else paintPhoto();
+    return;
+  }
   closePhoto(); st?.show(true);
   let title = liveText('标定这批盘', 'Calibrate this batch'), text = "", button = T().next;
   let html = "", disabled = !!flow.job;
@@ -1468,7 +1485,9 @@ function realPaint() {
         'Next, burn a check disc (about 7 minutes at 8×) and take 3 photos of it with your phone. The photos show how far positions are off, and every picture burned afterwards is corrected.')}</p>` +
         (/RITEKF1/i.test(mid) ? "" : `<p class="cal-aside">${liveText('检查盘的纹理是按 RITEKF1 挑的，这批盘还没试过，照片可能读不出来。', 'The check disc’s textures were chosen for RITEKF1; this batch is untried and the photos may not read.')}</p>`) +
         (flow.checkError ? note("error", [esc(flow.checkError), ""]) : '') +
-        (flow.checkMaking ? '' : `<button type="button" class="pc-text-button" id="cal-check-later">${esc(liveText('先不刻，', 'Not now: ') + later)}</button>`);
+        (flow.checkMaking ? '' : (hasCapability("photo-burn-recovery")
+          ? `<button type="button" class="pc-text-button" id="cal-check-photo">${savedBurnWords.entry[api.lang()]}</button>` : '') +
+          `<button type="button" class="pc-text-button" id="cal-check-later">${esc(liveText('先不刻，', 'Not now: ') + later)}</button>`);
       button = liveText('刻检查盘', 'Burn the check disc');
       if (flow.checkMaking) disabled = true;
     }
@@ -1582,6 +1601,12 @@ function realPaint() {
     try { const ask = flow.ask; await api.backend.answer(ask.job, ask.id, yes); flow.ask = null; paint(); } catch(e) {realError(e);}
   });
   $("cal-check-later")?.addEventListener("click", () => savedDone());
+  $("cal-check-photo")?.addEventListener("click", () => {
+    const from = flow, opener = returnTo;
+    photographSaved(api, {item:from.item, geo:from.geo.path, returnTo:() => {
+      flow = from; returnTo = opener; open();
+    }});
+  });
   $("real-remeasure")?.addEventListener("click", () => retryMeasurement());
   $("real-suggested-speed")?.addEventListener("click", e => retryMeasurement(e.target.dataset.speed));
   $("real-lower-read")?.addEventListener("click", () => retryMeasurement($("real-lower-read-speed").value));
@@ -1606,7 +1631,95 @@ function realPaint() {
 // ---------------------------------------------------------------- photos, scoped to this geometry run
 let photoUI = null;
 const photoRun = f => String(f.geo?.path || '').replace(/\\/g, '/').replace(/\/$/, '').split('/').pop() || null;
+const burnWords = key => savedBurnWords[key][api.lang()];
+const photoQuery = u => 'run=' + encodeURIComponent(u.run) +
+  (u.flow.savedBurn?.record ? '&burn_record=' + encodeURIComponent(u.flow.savedBurn.record.id) : '');
 const photoUnavailable = error => error?.status === 404;
+
+function burnLabel(record, withPath = false) {
+  const time = new Date(record.time * 1000).toLocaleString(api.lang() === 'zh' ? 'zh-CN' : 'en', {
+    year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit',
+  });
+  const details = withPath ? [record.burner, record.path, record.mode] : [];
+  return [time, record.disc_id || burnWords('missing'), ...details].join(' · ');
+}
+
+function paintSavedBurn() {
+  closePhoto(); st?.show(false); loadDisc.desk(false); sideButton(null);
+  nextKit(false, false);
+  $('next').disabled = true;
+  $('next-text').textContent = burnWords('confirm');
+  api.nextWhy?.('');
+  const f = flow, saved = f.savedBurn, esc = api.backend.escapeHTML;
+  const paper = $('cal');
+  paper.innerHTML = `<h2>${burnWords('title')}</h2>`;
+  const status = text => { const node = document.createElement('p'); node.setAttribute('role','status'); node.textContent = text; paper.append(node); };
+  const action = (key, fn) => {
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'placed'; button.id = 'photo-burn-' + key;
+    button.textContent = burnWords(key); button.onclick = fn; paper.append(button); return button;
+  };
+  if (!saved.listing) {
+    if (saved.error) {
+      status(api.backend.errorText(saved.error,api.lang()));
+      action('retry', () => { saved.error = null; paint(); });
+      return;
+    }
+    status(burnWords('loading'));
+    if (!saved.loading) {
+      saved.loading = api.backend.request(`/api/photo-burns?run=${encodeURIComponent(photoRun(f))}`).then(listing => {
+        saved.listing = listing;
+        saved.record = listing.burns.find(row => row.id === saved.id) || null;
+        if (!saved.record) {
+          saved.confirmed = false;
+          saved.record = listing.burns.length === 1 ? listing.burns[0] : null;
+          f.photoDiscId = undefined;
+        }
+        saved.id = saved.record?.id ?? null;
+        f.photoDiscId ??= saved.record?.disc_id ?? '';
+      }).catch(error => { saved.error = error; }).finally(() => {
+        saved.loading = null;
+        if (flow === f && isCal()) paint();
+      });
+    }
+    return;
+  }
+  const burns = saved.listing.burns;
+  if (!burns.length) {
+    const unavailable = saved.listing.unavailable;
+    status(burnWords(unavailable.includes('legacy_burn') ? 'legacy' : unavailable.includes('unknown_burn') ? 'unknown' : 'empty'));
+    if (f.checkError) status(f.checkError);
+    action('again', () => {
+      if (!saved.burnAgain) { burnCheckDisc(); return; }
+      returnTo = returnAnim = returnLabel = null;
+      flow = null; release(); saved.burnAgain();
+    }).disabled = !!f.checkMaking;
+    return;
+  }
+  status(burnWords('choose'));
+  // One card per burn, newest first, like the measuring-disc choice: the time is what people remember,
+  // the number is what is written on the disc. A single burn comes already chosen.
+  const when = (row) => new Date(row.time * 1000).toLocaleString(api.lang() === 'zh' ? 'zh-CN' : 'en', {
+    month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+  paper.insertAdjacentHTML('beforeend', `<div class="choices" id="photo-burns" role="radiogroup" aria-label="${esc(burnWords('select'))}">${
+    burns.map(row => `<label class="choice"><input type="radio" name="photo-burn" value="${esc(row.id)}"${saved.id === row.id ? ' checked' : ''}>
+      <b>${esc(when(row))}</b><span>${esc(`${burnWords('number')} ${row.disc_id || burnWords('missing')}${row.burner ? ` · ${row.burner}` : ''}`)}</span></label>`).join('')}</div>`);
+  for (const radio of document.querySelectorAll('#photo-burns input')) radio.onchange = () => {
+    saved.record = burns.find(row => row.id === radio.value) || null;
+    saved.id = saved.record?.id ?? null;
+    f.photoDiscId = saved.record?.disc_id ?? '';
+    paint(); document.querySelector(`#photo-burns input[value="${CSS.escape(radio.value)}"]`)?.focus();
+  };
+  if (!saved.record) return;
+  paper.insertAdjacentHTML('beforeend', `<label class="pc-disc-id"><span>${burnWords('number')}</span>
+    <input id="photo-burn-number" maxlength="40" autocomplete="off" spellcheck="false">
+    <small>${burnWords('numberHint')}</small></label>`);
+  const input = $('photo-burn-number');
+  input.value = f.photoDiscId || '';
+  const numberInput = () => { f.photoDiscId = input.value; $('next').disabled = !input.value.trim(); };
+  input.oninput = numberInput;
+  numberInput();
+}
 function enterPhoto() {
   if (flow.job) return;
   flow.error = null; flow.realPhase = 'photo'; paint();
@@ -1689,7 +1802,7 @@ function photoFallback(u, error) {
 async function pollPhotos(u) {
   if (!photoLive(u) || u.status !== 'ready') return;
   try {
-    const result = await api.backend.request(`/api/photos?run=${encodeURIComponent(u.run)}`);
+    const result = await api.backend.request(`/api/photos?${photoQuery(u)}`);
     if (!photoLive(u)) return;
     const fresh = (result.photos || []).filter(p => !u.seen.has(p.id));
     for (const p of result.photos || []) u.rows.set(p.id,p);
@@ -1779,7 +1892,7 @@ function paintStatus(u) {
 }
 async function phoneLink(u, address) {
   if (address === undefined) { try { address = sessionStorage.getItem('discprobe-phone-address'); } catch { /* storage unavailable */ } }
-  const base = `/api/phone-link?run=${encodeURIComponent(u.run)}`;
+  const base = `/api/phone-link?${photoQuery(u)}`;
   try { return await api.backend.request(base + (address ? '&address=' + encodeURIComponent(address) : '')); }
   catch (error) { if (address && error.status === 400) return api.backend.request(base); throw error; }
 }
@@ -1792,7 +1905,7 @@ async function choosePhoneAddress(u, address) {
 async function pollDevices(u) {
   if (!photoLive(u) || u.devicesUnavailable) return;
   try {
-    const result = await api.backend.request(`/api/phone-devices?run=${encodeURIComponent(u.run)}`);
+    const result = await api.backend.request(`/api/phone-devices?${photoQuery(u)}`);
     if (!photoLive(u)) return;
     const rows = Array.isArray(result.devices) ? result.devices : [];
     u.page.setDevices?.([
@@ -1847,6 +1960,9 @@ function queuePhotoRead(u) {
 }
 function photoBurnArgs(f) {
   const burn = f.burnCheck;
+  const saved = f.savedBurn?.record?.id;
+  const edited = burn?.burn_record && f.photoDiscId && f.photoDiscId !== burn.disc_id;
+  if (saved || edited) return {burn_record:saved || burn.burn_record};
   // A displayed external command cannot prove how, or where, a disc was burned.
   return {burner:burn?.result === 'completed' ? burn.burner || null : null,
     burn_path:burn?.result === 'completed' ? burn.burn_path || null : null,
@@ -1865,6 +1981,7 @@ async function readPhoto(u, photo = null, rings = null) {
   const f = u.flow;
   if (!photoLive(u) || u.status !== 'ready' || !u.page) return null;
   if (u.manualSaving) return null;
+  if (f.savedBurn && !photoDiscId(f, u.run)) { u.notice.textContent = burnWords('numberHint'); return null; }
   if (u.reading || f.job) { u.readAgain = true; return null; }
   clearTimeout(u.readTimer); u.readTimer = null; u.reading = true;
   f.photoNotice = null; u.notice.textContent = '';
@@ -1877,7 +1994,7 @@ async function readPhoto(u, photo = null, rings = null) {
         f.photoUploads ??= new Map(); id = f.photoUploads.get(photo.file);
         if (!id) {
           const token = new URLSearchParams(location.search).get('token');
-          const response = await fetch(`/api/photos?run=${encodeURIComponent(u.run)}`, {method:'POST', headers:{'Content-Type':photo.file.type || 'image/jpeg', 'X-Filename':encodeURIComponent(photo.name), ...(token ? {'X-Discprobe-Token':token} : {})}, body:photo.file});
+          const response = await fetch(`/api/photos?${photoQuery(u)}`, {method:'POST', headers:{'Content-Type':photo.file.type || 'image/jpeg', 'X-Filename':encodeURIComponent(photo.name), ...(token ? {'X-Discprobe-Token':token} : {})}, body:photo.file});
           if (response.status === 409) throw new Error(liveText('这张照片已经加过了。转一下盘，拍一张新的。','This photo was already added. Turn the disc and take a new one.'));
           if (!response.ok) throw Object.assign(new Error(response.statusText),{status:response.status});
           const uploaded = await response.json(); id = uploaded.id;
@@ -1890,20 +2007,21 @@ async function readPhoto(u, photo = null, rings = null) {
     }
     const ids = [...u.rows.keys()].sort();
     if (!ids.length) return null;
-    const key = JSON.stringify([ids,rings,photoDiscId(f, u.run)]);
-    if ((f.photoReadKey === key || rings === null && f.photoReadIds === JSON.stringify([ids, photoDiscId(f, u.run)])) && f.photoResult) { showPhotoResult(u,f.photoResult); return f.photoResult; }
+    const disc = photoDiscId(f, u.run);
+    const key = JSON.stringify([ids,rings,disc]), readIds = JSON.stringify([ids,disc]);
+    if ((f.photoReadKey === key || rings === null && f.photoReadIds === readIds) && f.photoResult) { showPhotoResult(u,f.photoResult); return f.photoResult; }
     // Another page (or an earlier visit) is reading this run now: wait for it instead of a second read.
     if (u.listing?.analysis?.state === 'reading') { u.readAgain = true; await new Promise(r => setTimeout(r, 3000)); return null; }
     // ...and when that read covered exactly these photos, it is this read.
     const earlier = rings === null && readFromListing(u.listing, ids);
-    if (earlier) { f.photoResult = earlier; f.photoReadKey = key; f.photoReadIds = JSON.stringify([ids, photoDiscId(f, u.run)]); showPhotoResult(u,earlier); return earlier; }
+    if (earlier) { f.photoResult = earlier; f.photoReadKey = key; f.photoReadIds = readIds; showPhotoResult(u,earlier); return earlier; }
     let result;
-    const disc = photoDiscId(f, u.run);
     try { result = await realJob('photo', {run:u.run, media:f.detected.media, photos:ids, rings_mm:rings, ...photoBurnArgs(f), ...(disc ? {disc_id:disc} : {})}); }
     catch (error) { if (!error.result?.verdict) throw error; result = error.result; }
     if (!['ok','unsure','rejected'].includes(result?.verdict)) throw new Error(liveText('照片服务没有返回判断。','The photo service returned no verdict.'));
+    if (disc !== photoDiscId(f, u.run)) { u.readAgain = true; return null; }
     // A job may finish after Back. Keep its evidence with its own flow, but never navigate that page.
-    f.photoResult = result; f.photoReadKey = key; f.photoReadIds = JSON.stringify([ids, photoDiscId(f, u.run)]);
+    f.photoResult = result; f.photoReadKey = key; f.photoReadIds = readIds;
     showPhotoResult(u,result);
     return result;
   } catch (error) {
@@ -1941,8 +2059,9 @@ function discField(u) {
   const title = document.createElement('span'); title.textContent = cd ? liveText('标靶盘号','Target disc number') : liveText('检查盘号','Check disc number');
   const input = document.createElement('input'); input.type = 'text'; input.maxLength = 40; input.autocomplete = 'off'; input.spellcheck = false;
   input.placeholder = liveText('例如 T1','e.g. T1'); input.value = photoDiscId(u.flow, u.run);
+  if (u.flow.savedBurn) input.addEventListener('input', () => { u.flow.photoDiscId = input.value; });
   const hint = document.createElement('small');
-  hint.textContent = u.flow?.burnCheck?.result === 'completed' && input.value
+  hint.textContent = u.flow.savedBurn ? burnWords('numberHint') : u.flow?.burnCheck?.result === 'completed' && input.value
     ? liveText('刚刻好的这张盘已经自动编了号。想以后认得出它，就用记号笔把编号写在盘的内圈。',
       'The disc just burned has been numbered for you. To know it again later, write the number on its inner ring with a marker.')
     : cd ? liveText('用记号笔在这张标靶盘的内圈写个编号，这里填同样的。照片只和这张盘一起采用；空着就不会用到出图上。',
@@ -1952,7 +2071,9 @@ function discField(u) {
   input.addEventListener('change', () => {
     const value = input.value.trim().slice(0, 40); input.value = value;
     u.flow.photoDiscId = value;
-    try { sessionStorage.setItem('discprobe-disc-id-' + u.run, value); } catch { /* storage unavailable */ }
+    if (!u.flow.savedBurn) {
+      try { sessionStorage.setItem('discprobe-disc-id-' + u.run, value); } catch { /* storage unavailable */ }
+    }
     // The disc number is part of the read: read again under the new one.
     u.flow.photoResult = null; u.flow.photoReadKey = null; u.flow.photoReadIds = null;
     u.result.hidden = true; if (u.rows.size) queuePhotoRead(u); photoNavigation(u);
@@ -1974,7 +2095,7 @@ function paintPhoto() {
     try {
       const results = await Promise.allSettled([
         phoneLink(u),
-        api.backend.request(`/api/photos?run=${encodeURIComponent(u.run)}`),
+        api.backend.request(`/api/photos?${photoQuery(u)}`),
       ]);
       if (!photoLive(u)) return;
       const failed = results.find(r => r.status === 'rejected');
@@ -2043,6 +2164,22 @@ function paintPhoto() {
       u.statusBox.append(u.statusParts.head, progress, u.statusParts.read, u.statusParts.tip, privacy);
       const anchor = paper.querySelector?.('.pc-why'), more = paper.querySelector?.('.pc-more'), phoneSection = paper.querySelector?.('.pc-add-section');
       if (anchor?.after) anchor.after(u.statusBox); else paper.append(u.statusBox);
+      if (u.flow.savedBurn) {
+        const selected = el('section',''), details = el('p',''), change = el('button','pc-text-button');
+        details.id = 'photo-burn-confirmed';
+        details.textContent = burnLabel(u.flow.savedBurn.record, true);
+        change.type = 'button';
+        change.textContent = burnWords('change');
+        change.onclick = () => {
+          if (u.reading || u.flow.job) return;
+          closePhoto();
+          Object.assign(u.flow, {photoSnapshot:null, photoResult:null, photoReadKey:null, photoReadIds:null,
+            photoNotice:null, photoUploads:null});
+          u.flow.savedBurn.confirmed = false;
+          paint();
+        };
+        selected.append(details, change); u.statusBox.after(selected);
+      }
       const field = discField(u);
       if (phoneSection?.after) phoneSection.after(field); else paper.append(field);
       if (more?.append) more.append(u.readState, u.result); else paper.append(u.readState, u.result);
@@ -2437,6 +2574,14 @@ async function realNext() {
       else if (flow.detected.media === "cd" && !flow.photoSkipped) enterPhoto();
       else await realSave();
     } else if (phase === "photo") {
+      if (flow.savedBurn && !flow.savedBurn.confirmed) {
+        if (flow.savedBurn.record && flow.photoDiscId?.trim()) {
+          flow.photoDiscId = flow.photoDiscId.trim();
+          flow.savedBurn.confirmed = true;
+          paint();
+        }
+        return;
+      }
       if (photoUI?.status === 'unavailable') { if (flow.detected.media === 'cd') await realSave(); else photoReview(); }
       // A server-readable photo (e.g. HEIC) may have no preview in this browser.
       else if (photoUI?.page?.state().activePhoto < 0) await usePhotoResult(photoUI);

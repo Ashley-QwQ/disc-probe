@@ -3,6 +3,26 @@
 // Every state is something that already happened on the computer (received, queued, read), never a live camera check.
 const pair = (zh, en) => ({zh, en});
 
+export const savedBurnWords = {
+  entry: pair('检查盘已经刻好？去拍照', 'Check disc burned already? Photograph it'),
+  title: pair('选这张检查盘的刻录记录', 'Choose this check disc’s burn'),
+  loading: pair('正在查找刻录记录…', 'Looking for saved burns…'),
+  choose: pair('选你手上这张盘对应的那次刻录。盘号写在盘上。', 'Choose the burn that matches the disc in your hand. The number is written on the disc.'),
+  select: pair('选一次刻录', 'Select a burn'),
+  confirm: pair('确认这次刻录', 'Confirm this burn'),
+  number: pair('检查盘号', 'Check disc number'),
+  numberHint: pair('填写盘上写的号。', 'Enter the number written on the disc.'),
+  missing: pair('未记录盘号', 'Disc number not recorded'),
+  empty: pair('这次测量没有已完成的检查盘刻录。', 'No completed check-disc burn was found for this measurement.'),
+  legacy: pair('这张检查盘是 1.0.0 之前用命令行刻的，无法确认刻录方式。请重刻检查盘。',
+    'This check disc was burned by the command line before 1.0.0. Its recording method cannot be confirmed. Burn a new check disc.'),
+  unknown: pair('刻录器没有记录刻录方式。请用支持记录的刻录器重刻检查盘。',
+    'The recorder did not report its recording method. Burn a new check disc with a supported recorder.'),
+  again: pair('去刻检查盘', 'Burn the check disc'),
+  change: pair('换一条刻录记录', 'Choose another burn'),
+  retry: pair('重新查找', 'Look again'),
+};
+
 // What to do next, short, then why. Keys are the reader's statuses.
 export const photoReasons = {
   ok: {act: pair('可以用', 'Usable'), why: pair('这张照片读出来了。', 'This photo was read.')},

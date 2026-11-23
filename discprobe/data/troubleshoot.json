@@ -7,7 +7,7 @@
     "steps": {"zh": ["打开刻完页的「看不到图？」或把盘放进光驱运行 checkburn。有原 ISO 就用 --iso 核对。", "关灯，把手电放在眼睛旁边，倾斜盘并慢慢转动。只有环时，核对是不是用了同批盘的标定。"], "en": ["Open “Can’t see the picture?” on the post-burn page, or insert the disc and run checkburn. Use --iso if you have the original image.", "Turn off the room lights, hold a torch beside your eyes and slowly tilt and turn the disc. If you only see rings, check whether the calibration used the same batch."]},
     "commands": ["python -m discprobe checkburn --drive <drive>", "python -m discprobe checkburn --drive <drive> --iso <image.iso>"],
     "manual": {"zh": "docs/CHECKBURN.md#刻完看不到图", "en": "docs/CHECKBURN.md#no-picture-after-burning"},
-    "sources": [{"path": "discprobe/burner.py", "line": 662, "keyword": "Read-back sample:"}, {"path": "README.md", "line": 223, "keyword": "手机手电"}, {"path": "discprobe/web/home/guidance.mjs", "line": 357, "keyword": "核对是不是同一批盘"}, {"path": "docs/CHECKBURN.md", "line": 12, "keyword": "ISO 9660"}, {"path": "docs/why-calibrate.zh.md", "line": 9, "keyword": "整幅图也可能沿圆周抹成一圈圈的环"}]
+    "sources": [{"path": "discprobe/burner.py", "line": 697, "keyword": "Read-back sample:"}, {"path": "README.md", "line": 223, "keyword": "手机手电"}, {"path": "discprobe/web/home/guidance.mjs", "line": 357, "keyword": "核对是不是同一批盘"}, {"path": "docs/CHECKBURN.md", "line": 12, "keyword": "ISO 9660"}, {"path": "docs/why-calibrate.zh.md", "line": 9, "keyword": "整幅图也可能沿圆周抹成一圈圈的环"}]
   },
   {
     "id": "bd-picture-calibrate",
@@ -27,7 +27,7 @@
     "steps": {"zh": ["空盘用 info 查容量；计时用已有的可读数据盘。没有可用数据盘时才生成并刻一张随机数据盘。"], "en": ["Use info on the blank to get capacity. Use a readable data disc for timing. Make and burn a random-data disc if no usable one is available."]},
     "commands": ["python -m discprobe info --drive <drive>", "python -m discprobe random --output iso/random.iso"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/timing.py", "line": 360, "keyword": "blank media has nothing to read"}, {"path": "discprobe/guide.py", "line": 727, "keyword": "no existing data disc is available"}, {"path": "discprobe/guide.py", "line": 1338, "keyword": "available sector count"}, {"path": "discprobe/zh.py", "line": 621, "keyword": "这张盘上没有数据"}, {"path": "discprobe/guide.py", "line": 642, "keyword": "nothing is recorded on this blank"}]
+    "sources": [{"path": "discprobe/timing.py", "line": 360, "keyword": "blank media has nothing to read"}, {"path": "discprobe/guide.py", "line": 727, "keyword": "no existing data disc is available"}, {"path": "discprobe/guide.py", "line": 1338, "keyword": "available sector count"}, {"path": "discprobe/zh.py", "line": 637, "keyword": "这张盘上没有数据"}, {"path": "discprobe/guide.py", "line": 642, "keyword": "nothing is recorded on this blank"}]
   },
   {
     "id": "burn-browser-closed",
@@ -37,7 +37,7 @@
     "steps": {"zh": ["重新打开服务打印的地址，查看已有刻录任务和结果；也可用 webui status 确认服务和活动任务。让光驱保持连接，等写入结束。"], "en": ["Reopen the printed service address and check the existing burn task and result. You can also use webui status to check the service and active tasks. Keep the drive connected until the write finishes."]},
     "commands": ["python -m discprobe webui status"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web/home/burn.js", "line": 37, "keyword": "Burning; the page can be closed"}, {"path": "discprobe/web/home/burn.js", "line": 37, "keyword": "Keep the drive connected"}, {"path": "discprobe/web/home/api.js", "line": 39, "keyword": "A job already running"}, {"path": "README.en.md", "line": 83, "keyword": "Closing the console"}]
+    "sources": [{"path": "discprobe/web/home/burn.js", "line": 39, "keyword": "Burning; the page can be closed"}, {"path": "discprobe/web/home/burn.js", "line": 39, "keyword": "Keep the drive connected"}, {"path": "discprobe/web/home/api.js", "line": 39, "keyword": "A job already running"}, {"path": "README.en.md", "line": 83, "keyword": "Closing the console"}]
   },
   {
     "id": "burn-erase-media",
@@ -47,7 +47,7 @@
     "steps": {"zh": ["核对盘上的类型标记。如果是 RW 盘，把盘放好后重新检查光驱里的盘，确认它被识别成可擦写。"], "en": ["Check the media marking. For an RW disc, insert it and recheck the disc in the drive to confirm it is detected as rewritable."]},
     "commands": [],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/disc_identity.py", "line": 101, "keyword": "if erasing and identity[\"rewritable\"] is not True:"}, {"path": "README.en.md", "line": 169, "keyword": "only RW discs can"}, {"path": "discprobe/web/home/burn.js", "line": 37, "keyword": "Check the disc in the drive again"}]
+    "sources": [{"path": "discprobe/disc_identity.py", "line": 101, "keyword": "if erasing and identity[\"rewritable\"] is not True:"}, {"path": "README.en.md", "line": 169, "keyword": "only RW discs can"}, {"path": "discprobe/web/home/burn.js", "line": 39, "keyword": "Check the disc in the drive again"}]
   },
   {
     "id": "burn-interrupted",
@@ -57,7 +57,7 @@
     "steps": {"zh": ["先看刻录记录，区分“还没有开始刻”和已经写入后失败。若光驱掉线，检查连接。确认已部分写入时，按盘种换同批空白盘或擦除可擦写盘。"], "en": ["Check the burn result to tell whether writing never started or failed after it began. Check the connection if the drive disconnected. If it was partly written, use a blank from the same batch or erase the rewritable disc."]},
     "commands": [],
     "manual": {"zh": "docs/MANUAL.md#手动使用", "en": "docs/MANUAL.en.md#using-it-by-hand"},
-    "sources": [{"path": "discprobe/web/home/burn.js", "line": 33, "keyword": "还没有开始刻，盘没有动过"}, {"path": "discprobe/web/home/burn.js", "line": 33, "keyword": "请检查光驱连接"}, {"path": "discprobe/web/home/burn-stop.js", "line": 71, "keyword": "erase this rewritable disc before burning again"}, {"path": "discprobe/web/home/burn-stop.js", "line": 76, "keyword": "blank disc from the same batch"}]
+    "sources": [{"path": "discprobe/web/home/burn.js", "line": 35, "keyword": "还没有开始刻，盘没有动过"}, {"path": "discprobe/web/home/burn.js", "line": 35, "keyword": "请检查光驱连接"}, {"path": "discprobe/web/home/burn-stop.js", "line": 71, "keyword": "erase this rewritable disc before burning again"}, {"path": "discprobe/web/home/burn-stop.js", "line": 76, "keyword": "blank disc from the same batch"}]
   },
   {
     "id": "burn-iso-mount",
@@ -127,7 +127,7 @@
     "steps": {"zh": ["把设计移出内侧文件系统区域，半径 26 mm 以内留背景。"], "en": ["Move the design away from the file system area and leave the inner 26 mm radius as background."]},
     "commands": ["python -m discprobe edit my_picture.png"],
     "manual": {"zh": "docs/MANUAL.md#cd-r纹理计时与刻图", "en": "docs/MANUAL.en.md#cd-r-textures-timing-and-burning-pictures"},
-    "sources": [{"path": "discprobe/zh.py", "line": 626, "keyword": "半径 26 mm 以内留空"}, {"path": "discprobe/guide.py", "line": 911, "keyword": "edit my_picture.png"}, {"path": "docs/MANUAL.en.md", "line": 745, "keyword": "inside a radius of 26 mm"}]
+    "sources": [{"path": "discprobe/zh.py", "line": 642, "keyword": "半径 26 mm 以内留空"}, {"path": "discprobe/guide.py", "line": 911, "keyword": "edit my_picture.png"}, {"path": "docs/MANUAL.en.md", "line": 745, "keyword": "inside a radius of 26 mm"}]
   },
   {
     "id": "cd-speed-after-clv",
@@ -717,7 +717,7 @@
     "steps": {"zh": ["转盘或换拍摄角度，让条纹绕盘覆盖得更全。"], "en": ["Turn the disc or change the angle so the pattern reaches further around."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 21, "keyword": "poor_angle_coverage"}, {"path": "discprobe/web/home/photowords.mjs", "line": 22, "keyword": "The colour pattern covers only a small part of the disc"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 41, "keyword": "poor_angle_coverage"}, {"path": "discprobe/web/home/photowords.mjs", "line": 42, "keyword": "The colour pattern covers only a small part of the disc"}]
   },
   {
     "id": "photo-burn-path",
@@ -727,7 +727,7 @@
     "steps": {"zh": ["使用标定页的刻标靶步骤可记录这些信息。"], "en": ["Use the calibration page to burn a target with those details recorded."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 211, "keyword": "Burn the target from this page"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 231, "keyword": "Burn the target from this page"}]
   },
   {
     "id": "photo-disagree",
@@ -737,7 +737,7 @@
     "steps": {"zh": ["在同一张标靶盘上转不同角度再拍几张，等有一致的读数。"], "en": ["Take more photos of the same target from different angles and look for agreeing readings."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 152, "keyword": "no majority"}, {"path": "discprobe/web/home/photowords.mjs", "line": 176, "keyword": "Same disc, no new burn"}, {"path": "discprobe/pcal.py", "line": 871, "keyword": "L scans disagree"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 172, "keyword": "no majority"}, {"path": "discprobe/web/home/photowords.mjs", "line": 196, "keyword": "Same disc, no new burn"}, {"path": "discprobe/pcal.py", "line": 871, "keyword": "L scans disagree"}]
   },
   {
     "id": "photo-duplicate",
@@ -747,7 +747,7 @@
     "steps": {"zh": ["转动盘片，拍一张新的照片。"], "en": ["Turn the disc and take a new photo."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 33, "keyword": "duplicate_photo"}, {"path": "discprobe/web/home/photowords.mjs", "line": 34, "keyword": "This is the same picture as another one"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 53, "keyword": "duplicate_photo"}, {"path": "discprobe/web/home/photowords.mjs", "line": 54, "keyword": "This is the same picture as another one"}]
   },
   {
     "id": "photo-few-inliers",
@@ -757,7 +757,7 @@
     "steps": {"zh": ["把盘转一下，换个角度再拍。"], "en": ["Turn the disc and take another photo from a different angle."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 15, "keyword": "few_inliers"}, {"path": "discprobe/web/home/photowords.mjs", "line": 16, "keyword": "Too few parts of the pattern agree"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 35, "keyword": "few_inliers"}, {"path": "discprobe/web/home/photowords.mjs", "line": 36, "keyword": "Too few parts of the pattern agree"}]
   },
   {
     "id": "photo-group-check",
@@ -767,7 +767,7 @@
     "steps": {"zh": ["再拍一张不同角度的照片，让条纹覆盖更完整。"], "en": ["Take another photo from a different angle with fuller pattern coverage."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 153, "keyword": "reader’s group check"}, {"path": "discprobe/web/home/photowords.mjs", "line": 22, "keyword": "reaches further round"}, {"path": "discprobe/pcal.py", "line": 923, "keyword": "few consistent cells"}, {"path": "discprobe/pcal.py", "line": 929, "keyword": "cannot check by leaving one out"}, {"path": "discprobe/pcal.py", "line": 931, "keyword": "L moves when one photo is left out"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 173, "keyword": "reader’s group check"}, {"path": "discprobe/web/home/photowords.mjs", "line": 42, "keyword": "reaches further round"}, {"path": "discprobe/pcal.py", "line": 923, "keyword": "few consistent cells"}, {"path": "discprobe/pcal.py", "line": 929, "keyword": "cannot check by leaving one out"}, {"path": "discprobe/pcal.py", "line": 931, "keyword": "L moves when one photo is left out"}]
   },
   {
     "id": "photo-large-residual",
@@ -777,7 +777,7 @@
     "steps": {"zh": ["用本次标靶盘再拍全盘，别让手或物体遮挡。"], "en": ["Retake with the correct target, showing the whole disc without obstructions."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 25, "keyword": "large_residual"}, {"path": "discprobe/web/home/photowords.mjs", "line": 26, "keyword": "The pattern does not fit the expected positions"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 45, "keyword": "large_residual"}, {"path": "discprobe/web/home/photowords.mjs", "line": 46, "keyword": "The pattern does not fit the expected positions"}]
   },
   {
     "id": "photo-mismatched-target",
@@ -787,7 +787,7 @@
     "steps": {"zh": ["回到当前测量的拍照步骤，用对应标靶盘取照片。电脑已换到另一次标定时，重新扫当前的码。"], "en": ["Open the photo step for the intended measurement and use its target disc. If the computer moved to another run, scan the new code."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 87, "keyword": "Scan its new code"}, {"path": "discprobe/web/home/photowords.mjs", "line": 210, "keyword": "different target discs"}, {"path": "discprobe/web/home/photowords.mjs", "line": 213, "keyword": "another drive"}, {"path": "discprobe/web/home/photowords.mjs", "line": 214, "keyword": "another measurement"}, {"path": "discprobe/web/home/photowords.mjs", "line": 215, "keyword": "different disc kinds"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 107, "keyword": "Scan its new code"}, {"path": "discprobe/web/home/photowords.mjs", "line": 230, "keyword": "different target discs"}, {"path": "discprobe/web/home/photowords.mjs", "line": 233, "keyword": "another drive"}, {"path": "discprobe/web/home/photowords.mjs", "line": 234, "keyword": "another measurement"}, {"path": "discprobe/web/home/photowords.mjs", "line": 235, "keyword": "different disc kinds"}]
   },
   {
     "id": "photo-no-adoption",
@@ -797,7 +797,7 @@
     "steps": {"zh": ["查看每张照片下的重拍提示。用同一张盘拍不同角度，等至少两张读数一致。"], "en": ["Follow the retake advice under each photo. Take shots of the same disc from distinct angles until at least two readings agree."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 197, "keyword": "Follow the advice under each photo"}, {"path": "discprobe/web/home/photowords.mjs", "line": 208, "keyword": "The photos are not adopted yet"}, {"path": "discprobe/web/home/photowords.mjs", "line": 230, "keyword": "No usable photos yet"}, {"path": "README.en.md", "line": 87, "keyword": "Only when several photos agree"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 217, "keyword": "Follow the advice under each photo"}, {"path": "discprobe/web/home/photowords.mjs", "line": 228, "keyword": "The photos are not adopted yet"}, {"path": "discprobe/web/home/photowords.mjs", "line": 250, "keyword": "No usable photos yet"}, {"path": "README.en.md", "line": 87, "keyword": "Only when several photos agree"}]
   },
   {
     "id": "photo-no-rim",
@@ -807,7 +807,7 @@
     "steps": {"zh": ["把整张盘拍进画面，四周留一点边。"], "en": ["Get the whole disc in frame with a little margin."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 9, "keyword": "no_rim"}, {"path": "discprobe/web/home/photowords.mjs", "line": 10, "keyword": "The disc edge was not found"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 29, "keyword": "no_rim"}, {"path": "discprobe/web/home/photowords.mjs", "line": 30, "keyword": "The disc edge was not found"}]
   },
   {
     "id": "photo-one-pass",
@@ -817,7 +817,7 @@
     "steps": {"zh": ["用同一张盘，转一下再拍不同角度的照片。"], "en": ["Turn the same disc and take another photo from a different angle."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 176, "keyword": "Only one photo was read"}, {"path": "discprobe/web/home/photowords.mjs", "line": 197, "keyword": "At least two photos from different angles"}, {"path": "discprobe/pcal.py", "line": 945, "keyword": "only one photo passed"}, {"path": "discprobe/pcal.py", "line": 867, "keyword": "fewer than two photos"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 196, "keyword": "Only one photo was read"}, {"path": "discprobe/web/home/photowords.mjs", "line": 217, "keyword": "At least two photos from different angles"}, {"path": "discprobe/pcal.py", "line": 945, "keyword": "only one photo passed"}, {"path": "discprobe/pcal.py", "line": 867, "keyword": "fewer than two photos"}]
   },
   {
     "id": "photo-pending",
@@ -827,7 +827,7 @@
     "steps": {"zh": ["回到电脑上本次标定的拍照步骤，等自动开始读取。"], "en": ["Return to this calibration’s photo step on the computer and wait for it to read the photos."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 91, "keyword": "Open the calibration’s photo step"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 111, "keyword": "Open the calibration’s photo step"}]
   },
   {
     "id": "photo-radius-coverage",
@@ -837,7 +837,7 @@
     "steps": {"zh": ["改变盘片倾斜角度，让内圈和外圈都出现彩纹。"], "en": ["Change the tilt so both inner and outer rings show colour."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 23, "keyword": "poor_radius_coverage"}, {"path": "discprobe/web/home/photowords.mjs", "line": 24, "keyword": "The pattern does not reach from the inner to the outer rings"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 43, "keyword": "poor_radius_coverage"}, {"path": "discprobe/web/home/photowords.mjs", "line": 44, "keyword": "The pattern does not reach from the inner to the outer rings"}]
   },
   {
     "id": "photo-rings-not-found",
@@ -847,7 +847,7 @@
     "steps": {"zh": ["拍全盘并对好焦，确认是本次刻的标靶盘。"], "en": ["Show the whole disc in focus and check that it is this run’s target disc."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 17, "keyword": "rings_not_found"}, {"path": "discprobe/web/home/photowords.mjs", "line": 18, "keyword": "The target rings were not found"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 37, "keyword": "rings_not_found"}, {"path": "discprobe/web/home/photowords.mjs", "line": 38, "keyword": "The target rings were not found"}]
   },
   {
     "id": "photo-same-pose",
@@ -857,7 +857,7 @@
     "steps": {"zh": ["把同一张盘转大一点角度再拍一张。"], "en": ["Turn the same disc further and take another photo."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 147, "keyword": "盘面转角相差不到"}, {"path": "discprobe/web/home/photowords.mjs", "line": 148, "keyword": "Turn the disc further"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 167, "keyword": "盘面转角相差不到"}, {"path": "discprobe/web/home/photowords.mjs", "line": 168, "keyword": "Turn the disc further"}]
   },
   {
     "id": "photo-shape",
@@ -867,7 +867,7 @@
     "steps": {"zh": ["确认盘是这次的标靶，再转一下盘重拍。"], "en": ["Check that this is the target from this run, turn it and retake."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 29, "keyword": "shape_not_1_over_r"}, {"path": "discprobe/web/home/photowords.mjs", "line": 30, "keyword": "Inner and outer rings disagree"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 49, "keyword": "shape_not_1_over_r"}, {"path": "discprobe/web/home/photowords.mjs", "line": 50, "keyword": "Inner and outer rings disagree"}]
   },
   {
     "id": "photo-target-id",
@@ -877,7 +877,7 @@
     "steps": {"zh": ["在拍照步骤填写这张标靶盘的编号，再读一次。"], "en": ["Enter this target disc’s number in the photo step and read again."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 209, "keyword": "Enter this target disc’s number"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 229, "keyword": "Enter this target disc’s number"}]
   },
   {
     "id": "photo-too-few-votes",
@@ -887,7 +887,7 @@
     "steps": {"zh": ["背对吸顶灯，把盘朝自己倾斜。若出现白色圆反光，微调避开。"], "en": ["Stand with the ceiling lamp behind you and tilt the disc toward you. Adjust to move any round white glare off the disc."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 11, "keyword": "too_few_votes"}, {"path": "discprobe/web/home/photowords.mjs", "line": 12, "keyword": "Too little readable colour pattern"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 31, "keyword": "too_few_votes"}, {"path": "discprobe/web/home/photowords.mjs", "line": 32, "keyword": "Too little readable colour pattern"}]
   },
   {
     "id": "photo-two-peaks",
@@ -897,7 +897,7 @@
     "steps": {"zh": ["转一下盘，再拍一张不同角度的照片。"], "en": ["Turn the disc and take another photo from a different angle."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 19, "keyword": "two_peaks"}, {"path": "discprobe/web/home/photowords.mjs", "line": 20, "keyword": "Two alignments both look possible"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 39, "keyword": "two_peaks"}, {"path": "discprobe/web/home/photowords.mjs", "line": 40, "keyword": "Two alignments both look possible"}]
   },
   {
     "id": "photo-unknown-input",
@@ -907,7 +907,7 @@
     "steps": {"zh": ["原图记录缺失时重新发送原图再读；范围或角度缺失时拍另一角度。"], "en": ["Resend the original and reread if its record is missing. If spread or angle is missing, take a new photo from another angle."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 150, "keyword": "再拍一张不同角度的"}, {"path": "discprobe/web/home/photowords.mjs", "line": 151, "keyword": "Send the original again"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 170, "keyword": "再拍一张不同角度的"}, {"path": "discprobe/web/home/photowords.mjs", "line": 171, "keyword": "Send the original again"}]
   },
   {
     "id": "photo-unreadable",
@@ -917,7 +917,7 @@
     "steps": {"zh": ["重新拍，或在相册里导出 JPEG 再发。"], "en": ["Retake it or export a JPEG from your photos and send it."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 31, "keyword": "unreadable_image"}, {"path": "discprobe/web/home/photowords.mjs", "line": 32, "keyword": "The image could not be opened"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 51, "keyword": "unreadable_image"}, {"path": "discprobe/web/home/photowords.mjs", "line": 52, "keyword": "The image could not be opened"}]
   },
   {
     "id": "photo-unstable-l",
@@ -927,7 +927,7 @@
     "steps": {"zh": ["转动同一张盘后重拍。"], "en": ["Turn the same disc and retake the photo."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 27, "keyword": "unstable_L"}, {"path": "discprobe/web/home/photowords.mjs", "line": 28, "keyword": "Different parts of this photo disagree"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 47, "keyword": "unstable_L"}, {"path": "discprobe/web/home/photowords.mjs", "line": 48, "keyword": "Different parts of this photo disagree"}]
   },
   {
     "id": "photo-unsupported-map",
@@ -937,7 +937,7 @@
     "steps": {"zh": ["CD 实验 CLV 路径可换能得到 CAV 的光驱测几何，再精细标定。"], "en": ["For experimental CD CLV, try a drive that gives CAV and use fine calibration before burning a picture."]},
     "commands": ["python -m discprobe timing --media cd --drive <drive>"],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 216, "keyword": "CD and DVD only"}, {"path": "discprobe/web/home/photowords.mjs", "line": 217, "keyword": "no angle map to correct"}, {"path": "discprobe/guide.py", "line": 519, "keyword": "Use another drive for CAV"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 236, "keyword": "CD and DVD only"}, {"path": "discprobe/web/home/photowords.mjs", "line": 237, "keyword": "no angle map to correct"}, {"path": "discprobe/guide.py", "line": 519, "keyword": "Use another drive for CAV"}]
   },
   {
     "id": "photo-weak-peak",
@@ -947,7 +947,7 @@
     "steps": {"zh": ["背对吸顶灯，避开盘上的白色反光，让彩纹更亮再拍。"], "en": ["Put the ceiling lamp behind you and keep its white glare off the disc before retaking."]},
     "commands": [],
     "manual": {"zh": "README.md#第-6-步看盘和拍照", "en": "README.en.md#step-6-look-at-the-disc-and-photograph-it"},
-    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 13, "keyword": "weak_peak"}, {"path": "discprobe/web/home/photowords.mjs", "line": 14, "keyword": "The pattern is too faint to read"}]
+    "sources": [{"path": "discprobe/web/home/photowords.mjs", "line": 33, "keyword": "weak_peak"}, {"path": "discprobe/web/home/photowords.mjs", "line": 34, "keyword": "The pattern is too faint to read"}]
   },
   {
     "id": "picture-outer-cropped",
@@ -1027,7 +1027,7 @@
     "steps": {"zh": ["先用同一张盘比较 FUA 或挤缓存，再试不同读速。区分真实旋转后再拟合几何。"], "en": ["Reuse the disc and compare FUA or cache eviction, or try another read speed. Wait until you can distinguish real rotation before fitting geometry."]},
     "commands": ["python -m discprobe timing --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/timing.py", "line": 646, "keyword": "cache/false period"}, {"path": "discprobe/timing.py", "line": 655, "keyword": "cache/host timer period"}, {"path": "discprobe/diagnostics.py", "line": 55, "keyword": "Do not fit geometry"}, {"path": "docs/MANUAL.en.md", "line": 244, "keyword": "This selects the strategy"}, {"path": "discprobe/zh.py", "line": 529, "keyword": "一次绕过缓存"}, {"path": "discprobe/zh.py", "line": 530, "keyword": "Windows timer tick"}]
+    "sources": [{"path": "discprobe/timing.py", "line": 646, "keyword": "cache/false period"}, {"path": "discprobe/timing.py", "line": 655, "keyword": "cache/host timer period"}, {"path": "discprobe/diagnostics.py", "line": 55, "keyword": "Do not fit geometry"}, {"path": "docs/MANUAL.en.md", "line": 244, "keyword": "This selects the strategy"}, {"path": "discprobe/zh.py", "line": 545, "keyword": "一次绕过缓存"}, {"path": "discprobe/zh.py", "line": 546, "keyword": "Windows timer tick"}]
   },
   {
     "id": "timing-clv",
@@ -1077,7 +1077,7 @@
     "steps": {"zh": ["查看 timing 的读速和周期，试固定的读速后重测。"], "en": ["Check the speed and periods reported by timing. Repeat with a fixed read speed."]},
     "commands": ["python -m discprobe timing --drive <drive> --speed 4x"],
     "manual": {"zh": "docs/MANUAL.md#timing-做三个实验", "en": "docs/MANUAL.en.md#the-three-experiments-in-timing"},
-    "sources": [{"path": "discprobe/zh.py", "line": 508, "keyword": "Spindle did not reach a steady speed"}, {"path": "discprobe/timing.py", "line": 675, "keyword": "the speed may be changing"}, {"path": "docs/MANUAL.en.md", "line": 149, "keyword": "check the rotation speed"}]
+    "sources": [{"path": "discprobe/zh.py", "line": 524, "keyword": "Spindle did not reach a steady speed"}, {"path": "discprobe/timing.py", "line": 675, "keyword": "the speed may be changing"}, {"path": "docs/MANUAL.en.md", "line": 149, "keyword": "check the rotation speed"}]
   },
   {
     "id": "timing-timeout",
@@ -1117,7 +1117,7 @@
     "steps": {"zh": ["用 info 确认盘种，网页引导选择相同类型，命令行对 CD 指定 --media cd，对 BD 指定 --media bd。当前网页检查盘图案只支持 DVD。"], "en": ["Use info to identify the disc and select the same family in the guide. Use --media cd or --media bd as appropriate in the CLI. The web check-disc target supports DVD."]},
     "commands": ["python -m discprobe info --drive <drive>"],
     "manual": {"zh": "docs/MANUAL.md#准备", "en": "docs/MANUAL.en.md#preparation"},
-    "sources": [{"path": "README.en.md", "line": 159, "keyword": "disc type (CD/DVD/BD)"}, {"path": "README.en.md", "line": 415, "keyword": "CD and DVD"}, {"path": "README.en.md", "line": 452, "keyword": "--media bd"}, {"path": "discprobe/webui.py", "line": 191, "keyword": "The check disc is for DVD only"}, {"path": "discprobe/__main__.py", "line": 219, "keyword": "but the command has DVD settings"}]
+    "sources": [{"path": "README.en.md", "line": 159, "keyword": "disc type (CD/DVD/BD)"}, {"path": "README.en.md", "line": 415, "keyword": "CD and DVD"}, {"path": "README.en.md", "line": 452, "keyword": "--media bd"}, {"path": "discprobe/webui.py", "line": 192, "keyword": "The check disc is for DVD only"}, {"path": "discprobe/__main__.py", "line": 219, "keyword": "but the command has DVD settings"}]
   },
   {
     "id": "web-double-click",
@@ -1147,7 +1147,7 @@
     "steps": {"zh": ["在运行服务的电脑上打开它打印的本机地址。"], "en": ["Open the printed loopback address on the computer running the server."]},
     "commands": ["python -m discprobe webui --local-only"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1625, "keyword": "localhost:"}, {"path": "discprobe/webui.py", "line": 1748, "keyword": "invalid Host"}, {"path": "README.en.md", "line": 84, "keyword": "keep the service on this computer"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1635, "keyword": "localhost:"}, {"path": "discprobe/webui.py", "line": 1758, "keyword": "invalid Host"}, {"path": "README.en.md", "line": 84, "keyword": "keep the service on this computer"}]
   },
   {
     "id": "web-multiple-windows",
@@ -1157,7 +1157,7 @@
     "steps": {"zh": ["用 webui status 查看当前地址、运行模式和任务。要换设置，等任务结束后运行 webui stop，再用新参数启动。", "只有明确指定 --new-instance 才会绕过默认实例复用。"], "en": ["Use webui status to see the current address, mode and tasks. To change the settings, wait for the tasks to finish, run webui stop, then start with the new options.", "An explicit --new-instance bypasses the normal instance reuse."]},
     "commands": ["python -m discprobe webui status", "python -m discprobe webui stop"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web_instance.py", "line": 166, "keyword": "previous = None if new_instance else _existing(path)"}, {"path": "discprobe/web_instance.py", "line": 196, "keyword": "Run discprobe webui stop before changing them"}, {"path": "discprobe/web_instance.py", "line": 266, "keyword": "if result[\"tasks\"]:"}, {"path": "discprobe/__main__.py", "line": 2779, "keyword": "without replacing the existing instance"}]
+    "sources": [{"path": "discprobe/web_instance.py", "line": 166, "keyword": "previous = None if new_instance else _existing(path)"}, {"path": "discprobe/web_instance.py", "line": 196, "keyword": "Run discprobe webui stop before changing them"}, {"path": "discprobe/web_instance.py", "line": 266, "keyword": "if result[\"tasks\"]:"}, {"path": "discprobe/__main__.py", "line": 2781, "keyword": "without replacing the existing instance"}]
   },
   {
     "id": "web-offline",
@@ -1187,7 +1187,7 @@
     "steps": {"zh": ["打开当前启动输出里的完整地址，或运行 webui status 查看已登记的 URL。需要更换首选端口时，先等任务结束并停止服务，再用 --port 启动。"], "en": ["Open the full address from the launch output, or use webui status to see the registered URL. To change the preferred port, wait for active tasks and stop the service, then relaunch with --port."]},
     "commands": ["python -m discprobe webui status"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/web_instance.py", "line": 173, "keyword": "exc.errno != errno.EADDRINUSE"}, {"path": "discprobe/web_instance.py", "line": 176, "keyword": "server = factory(0)"}, {"path": "discprobe/web_instance.py", "line": 198, "keyword": "previous[\"port\"]"}, {"path": "discprobe/__main__.py", "line": 2775, "keyword": "uses a free port if occupied"}]
+    "sources": [{"path": "discprobe/web_instance.py", "line": 173, "keyword": "exc.errno != errno.EADDRINUSE"}, {"path": "discprobe/web_instance.py", "line": 176, "keyword": "server = factory(0)"}, {"path": "discprobe/web_instance.py", "line": 198, "keyword": "previous[\"port\"]"}, {"path": "discprobe/__main__.py", "line": 2777, "keyword": "uses a free port if occupied"}]
   },
   {
     "id": "web-port-invalid",
@@ -1197,7 +1197,7 @@
     "steps": {"zh": ["使用一个可用的端口，例如手册示例的 8765，打开服务打印的地址。"], "en": ["Use an available port, such as 8765 from the installation guide, and open the address printed by the server."]},
     "commands": ["python -m discprobe webui --port 8765"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1574, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1575, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2775, "keyword": "preferred HTTP port"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1584, "keyword": "0 <= port <= 65535"}, {"path": "discprobe/webui.py", "line": 1585, "keyword": "invalid port"}, {"path": "discprobe/__main__.py", "line": 2777, "keyword": "preferred HTTP port"}]
   },
   {
     "id": "web-startup-error",
@@ -1217,7 +1217,7 @@
     "steps": {"zh": ["用 webui status 查看正在进行的任务和光驱锁。等任务结束后，再点退出或运行 webui stop。"], "en": ["Use webui status to see active tasks and drive locks, wait for the tasks to finish, then use Quit or run webui stop."]},
     "commands": ["python -m discprobe webui status", "python -m discprobe webui stop"],
     "manual": {"zh": "README.md#网页", "en": "README.en.md#web-page"},
-    "sources": [{"path": "discprobe/webui.py", "line": 1544, "keyword": "Cannot force stop while disc writes are active or possible"}, {"path": "discprobe/webui.py", "line": 1548, "keyword": "Wait for the current tasks to finish"}, {"path": "discprobe/web_instance.py", "line": 282, "keyword": "\"/api/quit\""}, {"path": "README.en.md", "line": 83, "keyword": "use Quit in the lobby"}]
+    "sources": [{"path": "discprobe/webui.py", "line": 1554, "keyword": "Cannot force stop while disc writes are active or possible"}, {"path": "discprobe/webui.py", "line": 1558, "keyword": "Wait for the current tasks to finish"}, {"path": "discprobe/web_instance.py", "line": 282, "keyword": "\"/api/quit\""}, {"path": "README.en.md", "line": 83, "keyword": "use Quit in the lobby"}]
   },
   {
     "id": "windows-spti",

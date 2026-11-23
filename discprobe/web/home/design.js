@@ -2732,6 +2732,12 @@ async function toBurn(iso, back, plan = S, done = null) {
       cal.photograph(api, { item: plan.item, media: plan.media, geo: iso.geo ?? plan.geo, burnCheck: iso.burnResult ?? null,
         returnTo: async () => { await api.syncState?.(); back?.(); } });
     },
+    photographSaved: mock || !iso.target ? null : async () => {
+      burn.leave();
+      const cal = await import("./calibrate.js");
+      const resume = () => burn.start(api, ctx);
+      cal.photographSaved(api, {item:plan.item, geo:iso.geo ?? plan.geo, returnTo:resume, burnAgain:resume});
+    },
     // the work is done: back to the desk (the plan stays in its recent list)
     done: done ?? (() => { root.dataset.mode = ""; $("back").hidden = true; $("next").disabled = false; api.toLobby ? api.toLobby() : api.goTo(...api.locate(plan.item)); }),
   };

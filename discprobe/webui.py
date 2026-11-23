@@ -65,7 +65,8 @@ OPTIONS = {
                   "sectors": "sectors", "avoid_mm": "radius_bands", "completion_sectors": "completion_sectors",
                   "erase": "flag", "resume": "path"},
     "photo": {"run": "photo", "media": "photo", "photos": "photo", "rings_mm": "photo",
-              "burner": "photo", "burn_path": "photo", "burn_mode": "photo", "disc_id": "photo"},
+              "burner": "photo", "burn_path": "photo", "burn_mode": "photo", "disc_id": "photo",
+              "burn_record": "photo"},
 }
 DESIGN_BYTES = 6000 * 6000 // 8      # imagedisc.SIZE squared, one bit per cell (checked in the tests)
 # Works completion links for the existing image and burn-file jobs.
@@ -1128,13 +1129,17 @@ class Backend:
             threading.Thread(target=self._watch, args=(job,), daemon=True).start()
             return dict(job=ident)
 
-    def photo_listing(self, run, *, desk):
+    def photo_burn_listing(self, run):
+        from .photo_burns import listing
+        return listing(self.root, self.photos.run_dir(run))
+
+    def photo_listing(self, run, *, desk, burn_record=None):
         """The run's photos, plus what happened to them: the last read and the one running now, with times.
 
         ``desk`` is true when the computer's own page asks. The phone learns from it whether that page is
         open on this run, since only that page starts a read; it never learns anything about other runs.
         """
-        listing = self.photos.listing(run)
+        listing = self.photos.listing(run, burn_record)
         now = time.time()
         with self.lock:
             if desk:
@@ -1157,7 +1162,11 @@ class Backend:
         try:
             path = self.photos.run_dir(run) / "photo.json"
             record = json.loads(path.read_text(encoding="utf-8"))
-            listing["read_at"] = path.stat().st_mtime
+            if burn_record is not None and (not isinstance(record, dict)
+                    or (record.get("burn_record") or {}).get("id") != burn_record):
+                record = None
+            else:
+                listing["read_at"] = path.stat().st_mtime
         except (OSError, ValueError):
             pass
         if isinstance(record, dict):
@@ -1168,7 +1177,8 @@ class Backend:
             listing["disc_id"] = record.get("disc_id")
             listing["provisional_mm"] = record.get("provisional_mm")
         listing["adoption"] = photo_adoption(record)
-        listing["application"] = photo_application(self.photos.run_dir(run))
+        listing["application"] = (photo_application(self.photos.run_dir(run))
+                                  if record is not None or burn_record is None else dict(written=False, reason="no_photo"))
         listing.update(analysis=analysis, now=now, desk_elsewhere=elsewhere,
                        desk_age=None if seen is None else round(now - seen, 1))
         return listing
@@ -1825,6 +1835,18 @@ class Handler(BaseHTTPRequestHandler):
         self._photo_device = self.server.backend.photos.use(token, self.headers.get('User-Agent', ''),
                                                           device.value if device else None)
 
+    def _photo_burn(self, query, run, *, validate=False):
+        backend = self.server.backend
+        if self._photo_token is not None:
+            return backend.photos.token_burn(self._photo_token)
+        ident = query.get("burn_record", [None])[0]
+        if ident is not None:
+            from .photo_burns import valid_record_id
+            if not valid_record_id(ident) or (validate and
+                    not any(r["id"] == ident for r in backend.photo_burn_listing(run)["burns"])):
+                raise APIError("invalid saved burn selection")
+        return ident
+
     # Preset interchange routes stay together; no hardware work runs here.
     def _community(self, method):
         url = urlsplit(self.path)
@@ -1963,32 +1985,42 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, api.version_payload())
             elif path == "/gui.json":
                 self._json(200, self.server.gui_manifest)
+            elif path == "/api/photo-burns":
+                self._json(200, backend.photo_burn_listing(parse_qs(url.query).get("run", [""])[0]))
             elif path == "/api/phone-link":
                 from . import photo, qr
-                run = parse_qs(url.query).get("run", [""])[0]
+                query = parse_qs(url.query, keep_blank_values=True)
+                run = query.get("run", [""])[0]
                 backend.photos.run_dir(run)
+                selected = self._photo_burn(query, run, validate=True)
                 addresses = photo.lan_ips() if self.server.token else []
-                chosen = parse_qs(url.query, keep_blank_values=True).get("address")
+                chosen = query.get("address")
                 if chosen is not None and chosen[0] not in addresses:
                     raise APIError("address must be one of this computer's LAN addresses")
                 address = chosen[0] if chosen else next(iter(addresses), None)
-                link = f"http://{address}:{self.server.server_port}/phone/{backend.photos.token(run)}" if address else None
+                link = f"http://{address}:{self.server.server_port}/phone/{backend.photos.token(run, selected)}" if address else None
                 self._json(200, dict(url=link, qr_svg=qr.svg(link) if link else None,
                                      addresses=addresses, address=address))
             elif path == '/api/phone-devices':
                 try:
-                    self._json(200, backend.photos.connected(parse_qs(url.query).get('run', [''])[0]))
+                    query = parse_qs(url.query)
+                    run = query.get("run", [""])[0]
+                    self._json(200, backend.photos.connected(run, self._photo_burn(query, run)))
                 except ValueError as exc:
                     raise APIError(str(exc), 404) from exc
             elif path == "/api/photos":
                 # The phone's own polls carry its photo token; only the computer's page counts as "open".
-                self._json(200, backend.photo_listing(parse_qs(url.query).get("run", [""])[0],
-                                                      desk=self._photo_token is None))
+                query = parse_qs(url.query)
+                run = query.get("run", [""])[0]
+                self._json(200, backend.photo_listing(run, desk=self._photo_token is None,
+                                                      burn_record=self._photo_burn(query, run)))
             elif path.startswith("/api/photos/"):
                 parts = path.split("/")
                 if len(parts) != 5:
                     raise APIError("not found", 404)
-                image, kind, _ = backend.photos.get(parts[3], parts[4])
+                image, kind, row = backend.photos.get(parts[3], parts[4])
+                if self._photo_token and row.get("burn_record") != backend.photos.token_burn(self._photo_token):
+                    raise APIError("photo not found", 404)
                 self._send(200, image.read_bytes(), kind)
             elif path.startswith("/phone/"):
                 config = dict(run=self._phone_run, token=path.removeprefix("/phone/"))
@@ -2156,9 +2188,11 @@ class Handler(BaseHTTPRequestHandler):
                 kind = self.headers.get_content_type()
                 if kind not in PHOTO_TYPES:
                     raise APIError("JPEG, PNG, HEIC or WebP required", 415)
-                run = parse_qs(urlsplit(self.path).query).get("run", [""])[0]
+                query = parse_qs(urlsplit(self.path).query)
+                run = query.get("run", [""])[0]
                 try:
                     self.server.backend.photos.run_dir(run)
+                    selected = self._photo_burn(query, run, validate=True)
                     data = self._body(max(DESIGN_SIDES))
                     self._photo_body_read = True
                     same = self.server.backend.duplicate_photo(run, data)
@@ -2168,7 +2202,8 @@ class Handler(BaseHTTPRequestHandler):
                         return
                     result = self.server.backend.photos.upload(run, data, kind,
                                                               self.headers.get("X-Filename", "photo"),
-                                                              token=self._photo_token, device_id=self._photo_device)
+                                                              token=self._photo_token, device_id=self._photo_device,
+                                                              burn_record=selected)
                 except ValueError as exc:
                     if isinstance(exc, APIError):
                         raise

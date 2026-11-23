@@ -101,10 +101,21 @@ class BurnerTests(unittest.TestCase):
         self.assertEqual(records[1]["actual_speed_x"], 4.01)
         self.assertEqual(records[-1]["verification"]["status"], "skipped")
         self.assertEqual([x["type"] for x in records], ["burn_speed", "burn_speed", "burn_result"])
+        self.assertEqual([records[-1][k] for k in ("burner", "path", "mode")], ["unknown"] * 3)
+        self.assertRegex(records[-1]["disc_id"], r"^C\d{4}-\d{4}$")
         emitted = [json.loads(line) for line in events.read_text(encoding="utf-8").splitlines()]
         self.assertEqual(emitted[-1]["selected_speed_x"], 8)
         self.assertIn("Requested write speed: 8x", output.getvalue())
         self.assertIn("4.01x", output.getvalue())
+
+    def test_recorder_reports_its_own_provenance_and_disc_number(self):
+        self.recorder.burn_provenance.return_value = dict(burner="test writer", path="test adapter", mode="test mode")
+        previous = self.iso.read_bytes()
+        result = self.burn(yes_write=True, disc_number="marked-01")
+        saved = json.loads(Path(result["log_path"]).read_text(encoding="utf-8").splitlines()[-1])
+        self.assertEqual({key: saved[key] for key in ("burner", "path", "mode", "disc_id")},
+                         dict(burner="test writer", path="test adapter", mode="test mode", disc_id="marked-01"))
+        self.assertEqual(self.iso.read_bytes(), previous)
 
     def test_sample_verification_recorded_reads(self):
         write_checked_iso(self.iso, bytes(1600 * 2048))

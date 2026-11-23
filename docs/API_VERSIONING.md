@@ -75,6 +75,16 @@ PNG, JPEG, WebP or BMP body up to 24 MiB and 36 million pixels. It returns
 for a native-grid template preview. Requests without that option keep the
 previous response. These operations are read-only.
 
+API 1.6 also adds optional `photo-burn-recovery`. `GET /api/photo-burns?run=ID`
+lists eligible completed DVD check-disc burns for a geo run, newest first.
+Each row contains `id`, `time` (Unix seconds), `burner`, `path`, `mode`,
+`disc_id` (string or null), `log_path` and `source`. The reply also lists
+`unavailable` reason codes. A photo job can supply `args.burn_record` with
+the selected ID instead of the three explicit burn fields. If supplied,
+`args.disc_id` takes precedence over the saved number. Photo uploads,
+listings, phone links and device lists accept an optional `burn_record`
+query parameter for photos taken under the selected burn.
+
 Proposed policy: retain working adapters for the previous MAJOR for at least
 six months after the new major's first stable release. Publish its retirement
 date with that release. List only majors with actual working adapters in

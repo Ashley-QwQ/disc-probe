@@ -4,6 +4,7 @@ import {tmpdir} from 'node:os';
 import {existsSync,readFileSync,writeFileSync,mkdirSync,mkdtempSync,realpathSync,rmSync} from 'node:fs';
 import {dirname,join,resolve} from 'node:path';
 import {spawn,spawnSync} from 'node:child_process';
+import {stopEdge,endProfileProcesses,PROFILE_RM} from './edge_cleanup.mjs';
 
 const base=process.env.AFTERBURN_TEST_ROOT ?? join(tmpdir(),'discprobe-afterburn');mkdirSync(base,{recursive:true});
 const dir=mkdtempSync(join(base,'browser-')), shots=join(base,'shots');mkdirSync(shots,{recursive:true});
@@ -65,7 +66,7 @@ try{
   await evaluate(`document.querySelector('.kit-slide-knob').focus()`);
   await cdp('Input.dispatchKeyEvent',{type:'keyDown',key:'End',code:'End',windowsVirtualKeyCode:35});await delay(1200);
   await cdp('Input.dispatchKeyEvent',{type:'keyUp',key:'End',code:'End',windowsVirtualKeyCode:35});
-  await until(`document.querySelector('.burn-page[data-state="success"]')`,'virtual burn completed');
+  await until(`document.querySelector('.burn-page[data-state="success"]') && document.getElementById('next-text').textContent.includes('结果怎么样')`,'virtual burn completed');
   await check(`document.getElementById('next-text').textContent.includes('结果怎么样')`,'finished burn offers post-burn review');
   await evaluate(`document.getElementById('next').click()`);
   await until(`document.documentElement.dataset.mode==='afterburn' && document.querySelector('.ab-disc').complete`,'review opened');
@@ -162,10 +163,10 @@ try{
   writeFileSync(join(base,'browser-results.json'),JSON.stringify({checks:results.length,results,work:ready.work,dir,report:state.record.report},null,2));
   console.log(`PASS: ${results.length} Disc Lab/browser checks; ${shots}`);
 }finally{
-  if(socket?.readyState===WebSocket.OPEN){await cdp('Browser.close').catch(()=>{});socket.close();}
-  if(browser?.exitCode===null)browser.kill();
+  await stopEdge(browser,socket);
+  endProfileProcesses(join(dir,'profile'));
   if(server?.exitCode===null)spawnSync('taskkill',['/PID',String(server.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});
   if (dirname(realpathSync(dir)) === realpathSync(base)) {
-    rmSync(dir,{recursive:true,force:true,maxRetries:5,retryDelay:200});
+    rmSync(dir,PROFILE_RM);
   }
 }

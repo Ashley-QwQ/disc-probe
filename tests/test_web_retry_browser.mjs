@@ -1,10 +1,11 @@
 // Exercise calibration through the shipped page and its HTTP client, using headless Edge and CDP.
 import assert from 'node:assert/strict';
 import {spawn, execFileSync} from 'node:child_process';
-import {existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {createServer} from 'node:http';
 import {tmpdir} from 'node:os';
 import {join, resolve, sep, extname} from 'node:path';
+import {stopEdge,endProfileProcesses,removeProfile} from './edge_cleanup.mjs';
 
 const base = process.env.WEB_RETRY_TEST_ROOT ?? tmpdir();
 const profile = mkdtempSync(join(base, 'web-retry-edge-'));
@@ -186,8 +187,12 @@ try {
     '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', '--user-data-dir=' + profile,
     'about:blank'], {windowsHide:true, stdio:'ignore'});
   const activePort = join(profile, 'DevToolsActivePort');
-  for (let i = 0; i < 200 && !existsSync(activePort); i++) await delay(50);
-  const port = Number(readFileSync(activePort, 'utf8').split(/\r?\n/)[0]);
+  let port;
+  await until(() => {
+    try { port = Number(readFileSync(activePort, 'utf8').split(/\r?\n/)[0]); }
+    catch (error) { if (!['ENOENT','EBUSY','EPERM'].includes(error.code)) throw error; }
+    return port > 0;
+  }, 'Edge debugging port ready');
   assert.notEqual(port, 8765);
   const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then(response => response.json());
   socket = new WebSocket(targets.find(target => target.type === 'page').webSocketDebuggerUrl);
@@ -213,15 +218,11 @@ try {
     await verifyActions();
   }
 } finally {
-  socket?.close();
+  await stopEdge(browser,socket);
   server.closeAllConnections();
   server.close();
-  if (browser && browser.exitCode === null) {
-    const exit = new Promise(resolve => browser.once('exit', resolve));
-    browser.kill();
-    await Promise.race([exit, delay(1500)]);
-  }
-  rmSync(profile, {recursive:true, force:true, maxRetries:12, retryDelay:150});
+  endProfileProcesses(profile);
+  removeProfile(profile, base);
 }
 
 async function verifyActions() {

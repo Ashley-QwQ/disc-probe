@@ -436,6 +436,11 @@ class LabRecorder:
         self.lab, self.media = lab, media
         self.drive, _ = lab.drive_for(drive)
 
+    def burn_provenance(self):
+        from discprobe.burner import DVD_BURN_MODE
+        return dict(burner=self.drive, path="Disc Lab",
+                    mode="mode2form1; physical interleave unknown" if self.media == "cd" else DVD_BURN_MODE)
+
     def _tray(self):
         st = self.lab.state()
         d = st["drives"][self.drive]

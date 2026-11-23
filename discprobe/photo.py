@@ -14,7 +14,7 @@ import threading
 import time
 from urllib.parse import unquote
 
-from . import guide, ui
+from . import guide, i18n, photo_burns, ui
 
 READER_SHA256 = "d6375faed8fe489e01854dc09afcbaf057d7042968c5157f5ae56dc8ed4a9f6f"
 PHOTO_L_POLICY = "majority-poses-v1"
@@ -56,11 +56,18 @@ def add_parser(sub):
     mode = sp.add_mutually_exclusive_group(required=True)
     mode.add_argument("--photos", nargs="+", help="image files")
     mode.add_argument("--manual-l", type=float, metavar="MM", help="save a manual along-track residual in mm")
+    mode.add_argument("--list-burns", action="store_true",
+                      help="list completed DVD check-disc burns for this geo run, newest first")
+    sp.add_argument("--burn-record", metavar="ID",
+                    help="with --photos, select the --list-burns ID matching the disc in your hand")
+    sp.add_argument("--burn-log", metavar="PATH",
+                    help="check-disc .burn.jsonl when the ISO is outside the workspace's iso folder")
     sp.add_argument("--rings-mm", type=float, nargs="+", help="target ring radii; default: the burned PN target")
     sp.add_argument("--burner", help="specific burner identity used for this target (unknown if omitted)")
     sp.add_argument("--burn-path", help="target burn program/path, e.g. DIS or IMAPI (never inferred)")
     sp.add_argument("--burn-mode", help="target burn mode, including sector layout/interleave (never inferred)")
     sp.add_argument("--disc-id", help="physical target disc identifier shared by these photos")
+    sp.epilog = i18n.tr("For later photos, list burns first, then use --photos ... --burn-record ID. Supply --disc-id if the disc number is missing or differs from the number on the disc.")
     sp.set_defaults(func=run)
 
 
@@ -133,6 +140,8 @@ def photo_l(geo_summary, photo_path=None, *, device_id=None, media=None, frozen=
                           disc_id=provenance["disc_id"], burn_path=provenance["burn_path"],
                           source_geo=dict(run_id=provenance["geo_run_id"], sha256=provenance["geo_sha256"],
                                           drive_identity=provenance["drive_identity"]))
+            if "burn_record" in provenance:
+                record["burn_record"] = provenance["burn_record"]
             photo_hash = provenance["photo_sha256"]
         else:
             photo_raw = path.read_bytes()
@@ -209,6 +218,8 @@ def photo_l(geo_summary, photo_path=None, *, device_id=None, media=None, frozen=
                 saved["name"] = original.get("name")
             provenance["outliers"] = agreement["outliers"]
             provenance["common_interval_mm"] = agreement["common_interval_mm"]
+        if record.get("burn_record") is not None:
+            provenance["burn_record"] = record["burn_record"]
         if provenance["reader_version"] != "v1" or provenance["reader_sha256"] != READER_SHA256:
             return refused("unknown_reader")
         digest = hashlib.sha256(json.dumps(provenance, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -445,7 +456,8 @@ def image_photo_l(geo_summary, output, *, media, device_id=None, disabled=False,
     return photo_l(geo_summary, device_id=device_id, media=media)
 
 
-def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=None, burn_mode=None, disc_id=None):
+def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=None, burn_mode=None, disc_id=None,
+            burn_record=None):
     """Return and persist both the contract result and the original reader diagnostics.
 
     Geometry is inferred from rings by the frozen reader; geo's fit is not fed back into it.
@@ -529,6 +541,8 @@ def analyze(run_dir, media, photos, rings_mm=None, *, burner=None, burn_path=Non
                   source_geo=dict(sha256=hashlib.sha256(source).hexdigest() if source else None,
                                   run_id=folder.name, drive_identity=drive_identity(geo, folder),
                                   identity=geo.get("identity"), setup=geo.get("setup")))
+    if burn_record is not None:
+        record["burn_record"] = burn_record
     target = folder / "photo.json"
     temporary = folder / (".photo-" + secrets.token_hex(8) + ".json")
     try:
@@ -554,6 +568,23 @@ def log(message):
 
 def run(args):
     try:
+        list_burns = getattr(args, "list_burns", False)
+        selected = getattr(args, "burn_record", None)
+        burn_log = getattr(args, "burn_log", None)
+        if list_burns or selected is not None or burn_log is not None:
+            if (args.media != "dvd" or any(getattr(args, key, None) is not None
+                    for key in ("burner", "burn_path", "burn_mode", "manual_l"))
+                    or list_burns and (selected is not None or args.disc_id is not None)
+                    or not list_burns and not photo_burns.valid_record_id(selected)):
+                raise ValueError(i18n.tr("Use --media dvd with --list-burns or --photos and --burn-record ID."))
+            if list_burns:
+                _list_burns(args.run, burn_log)
+            else:
+                evidence = photo_burns.select(Path.cwd(), args.run, selected, disc_id=args.disc_id, burn_log=burn_log)
+                result = analyze(args.run, args.media, [(Path(p).stem, p) for p in args.photos], args.rings_mm, **evidence)
+                log(i18n.tr("Next: generate the picture with this geo run." if result["verdict"] == "ok"
+                            else "Next: take photos at different angles and read them again with this burn record."))
+            return
         if getattr(args, "manual_l", None) is not None:
             decision = save_manual_l(args.run, args.media, args.manual_l)
             log(f"Manual along-track L: {args.manual_l:+.6f} mm ({decision['origin']})")
@@ -565,6 +596,23 @@ def run(args):
     except Exception as exc:
         ui.event("error", message=str(exc))
         raise
+
+
+def _list_burns(run, burn_log):
+    from datetime import datetime, timezone
+    listing = photo_burns.listing(Path.cwd(), run, burn_log=burn_log)
+    for record in listing["burns"]:
+        stamp = datetime.fromtimestamp(record["time"], timezone.utc).isoformat(timespec="seconds")
+        number = record["disc_id"] or i18n.tr("disc number not recorded")
+        log(f"{record['id']}  {stamp}  {record['burner']}  {record['path']}  {record['mode']}  {number}")
+    if listing["burns"]:
+        log(i18n.tr("Next: match the disc in your hand, then run photo with --photos and --burn-record ID."))
+    if "legacy_burn" in listing["unavailable"]:
+        log(i18n.tr(photo_burns.LEGACY_BURN))
+    if "unknown_burn" in listing["unavailable"]:
+        log(i18n.tr(photo_burns.UNKNOWN_BURN))
+    if not listing["burns"] and not listing["unavailable"]:
+        log(i18n.tr(photo_burns.NO_BURNS))
 
 
 def lan_ips():
@@ -706,14 +754,15 @@ class PhotoStore:
         digest = hashlib.sha256(summary.read_bytes()).hexdigest() if summary.is_file() else None
         return (stat.st_dev, stat.st_ino, getattr(stat, "st_birthtime", None), digest)
 
-    def token(self, run_id):
+    def token(self, run_id, burn_record=None):
         with self.lock:
             stamp = self._stamp(run_id)
-            for token, (run, old) in self.tokens.items():
-                if run == run_id and old == stamp:
+            binding = (run_id, stamp, burn_record)
+            for token, stored in self.tokens.items():
+                if stored == binding:
                     return token
             token = secrets.token_urlsafe(32)
-            self.tokens[token] = (run_id, stamp)
+            self.tokens[token] = binding
             return token
 
     def token_run(self, token):
@@ -745,7 +794,12 @@ class PhotoStore:
             row['last_seen'] = time.time() * 1000
             return device_id
 
-    def connected(self, run_id):
+    def token_burn(self, token):
+        with self.lock:
+            self.token_run(token)
+            return self.tokens[token][2]
+
+    def connected(self, run_id, burn_record=None):
         with self.lock:
             self.run_dir(run_id)
             rows = []
@@ -753,7 +807,8 @@ class PhotoStore:
                 if row['run'] != run_id:
                     continue
                 try:
-                    self.token_run(row['token'])
+                    if self.token_burn(row['token']) != burn_record:
+                        continue
                 except ValueError:
                     continue
                 rows.append({k: row[k] for k in ('id', 'name', 'kind', 'first_seen', 'last_seen', 'photos_sent')})
@@ -792,14 +847,20 @@ class PhotoStore:
         path = folder / (ident + "." + PHOTO_TYPES[kind])
         if path.is_symlink() or not path.is_file():
             raise ValueError("photo not found")
-        return path, kind, {k: row[k] for k in ("id", "name", "url", "time")}
+        public = {k: row[k] for k in ("id", "name", "url", "time")}
+        if "burn_record" in row:
+            public["burn_record"] = row["burn_record"]
+        return path, kind, public
 
-    def listing(self, run_id):
+    def listing(self, run_id, burn_record=None):
         with self.lock:
             folder = self._folder(run_id)
             rows = [self.get(run_id, p.stem)[2] for p in folder.glob("*.json")]
+            rows = [row for row in rows if row.get("burn_record") == burn_record]
             try:
                 record = json.loads((folder.parent / "photo.json").read_text(encoding="utf-8"))
+                if burn_record is not None and (record.get("burn_record") or {}).get("id") != burn_record:
+                    record = {}
                 readings = {p["id"]: p for p in record.get("per_photo", [])}
             except (OSError, ValueError, TypeError, KeyError, AttributeError):
                 record, readings = {}, {}
@@ -812,18 +873,22 @@ class PhotoStore:
             result["outliers"] = record.get("outliers", [])
             return result
 
-    def upload(self, run_id, data, kind, name, *, token=None, device_id=None):
+    def upload(self, run_id, data, kind, name, *, token=None, device_id=None, burn_record=None):
         if kind not in PHOTO_TYPES:
             raise ValueError("JPEG, PNG, HEIC or WebP required")
         with self.lock:
             if token is not None and self.token_run(token) != run_id:
                 raise ValueError('photo token belongs to another run')
+            if token is not None:
+                burn_record = self.token_burn(token)
             folder = self._folder(run_id)
             folder.mkdir(exist_ok=True)
             ident = secrets.token_hex(16)
             name = unquote(name or "photo").replace("\\", "/").rsplit("/", 1)[-1]
             name = "".join(c for c in name if c.isprintable())[:200] or "photo"
             row = dict(id=ident, name=name, url=f"/api/photos/{run_id}/{ident}", time=time.time(), content_type=kind)
+            if burn_record is not None:
+                row["burn_record"] = burn_record
             image = folder / (ident + "." + PHOTO_TYPES[kind])
             image.write_bytes(data)
             try:
@@ -838,7 +903,7 @@ class PhotoStore:
             return {k: row[k] for k in ("id", "name", "url", "time")}
 
     def argv(self, args):
-        if not isinstance(args, dict) or set(args) - {"run", "media", "photos", "rings_mm", "burner", "burn_path", "burn_mode", "disc_id"}:
+        if not isinstance(args, dict) or set(args) - {"run", "media", "photos", "rings_mm", "burner", "burn_path", "burn_mode", "disc_id", "burn_record"}:
             raise ValueError("invalid photo arguments")
         folder = self.run_dir(args.get("run"))
         if args.get("media") not in ("cd", "dvd"):
@@ -848,11 +913,20 @@ class PhotoStore:
             raise ValueError("photos must be a nonempty list of photo ids")
         if len(set(ids)) != len(ids):
             raise ValueError("choose each photo only once")
-        paths = [str(self.get(args["run"], ident)[0]) for ident in ids]
+        photos = [self.get(args["run"], ident) for ident in ids]
+        selected = args.get("burn_record")
+        if selected is not None and (args["media"] != "dvd" or not photo_burns.valid_record_id(selected)
+                or any(args.get(key) is not None for key in ("burner", "burn_path", "burn_mode"))):
+            raise ValueError("invalid saved burn selection")
+        if any(p[2].get("burn_record") not in (None, selected) for p in photos):
+            raise ValueError("a photo belongs to another burn")
+        paths = [str(p[0]) for p in photos]
         rings = rings_arg(args.get("rings_mm"))
         argv = ["--run", str(folder), "--media", args["media"], "--photos", *paths]
         if rings is not None:
             argv += ["--rings-mm", *map(str, rings)]
+        if selected is not None:
+            argv += ["--burn-record", selected]
         for key in ("burner", "burn_path", "burn_mode", "disc_id"):
             value = args.get(key)
             if value is not None:

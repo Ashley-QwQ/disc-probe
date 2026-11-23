@@ -2258,6 +2258,8 @@ def _build_parser():
     sp.add_argument("--drive", required=True)
     sp.add_argument("--iso", required=True)
     sp.add_argument("--media", choices=("dvd", "cd"), default="dvd")
+    sp.add_argument("--disc-number", help="写在盘上的盘号（省略时自动编号）" if burn_zh else
+                    "number written on the disc (generated when omitted)")
     sp.add_argument("--speed", type=float, help="刻录倍速；DVD 默认选最接近 8x 的支持速度，CD 默认最低速度" if burn_zh else
                     "multiple of 1x; default: DVD nearest supported to 8x, CD lowest supported")
     sp.add_argument("--no-verify", action="store_true", help="跳过刻录后的抽样回读" if burn_zh else
@@ -2854,7 +2856,7 @@ def _build_parser():
     helps = {a.dest: tr(a.help) for a in sub._choices_actions}
     for name, parser in sub.choices.items():
         parser.description = helps[name]
-        parser.epilog = i18n.block(name, EXAMPLES.get(name))
+        parser.epilog = i18n.block(name, EXAMPLES.get(name, parser.epilog))
         if sys.platform == "linux" and parser.epilog:
             parser.epilog = parser.epilog.replace("--drive E:", "--drive /dev/sr0").replace("geo-E-", "geo-sr0-")
             if name == "random":

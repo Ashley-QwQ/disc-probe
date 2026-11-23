@@ -36,7 +36,7 @@ import {countdown,countdownText} from '/kit/countdown.mjs';
 import {photoPage} from '/photocal.js';
 import {curveEditor} from '/curve-edit.js';
 import {adviceHTML,budgetHTML,cdPhoto,measurementRecovery,recoveryKind,recoveryAction,recoveryCommands,remeasure,stopReason,photoSaveWords} from '/guidance.mjs';
-import {photoReasonWords,adoptionWords,applicationWords,sliderWords,seconds as photoSeconds} from '/photowords.mjs';
+import {photoReasonWords,adoptionWords,applicationWords,savedBurnWords,sliderWords,seconds as photoSeconds} from '/photowords.mjs';
 const hasCapability=()=>!!window.alignmentEnabled;
 let clockNow=Date.now(); Date.now=()=>clockNow;
 const realTimeout=window.setTimeout.bind(window);
