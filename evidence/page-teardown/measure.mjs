@@ -33,9 +33,11 @@ const selected = options.find(arg => arg.startsWith('--only='))?.slice(7);
 const headless = options.includes('--headless');
 const smoke = options.includes('--smoke');
 const visual = options.includes('--visual');
+const software = options.includes('--software');
 const resume = options.includes('--resume');
 const settle = smoke || visual ? 0 : 30_000;
-assert.ok(options.every(arg => ['--headless', '--smoke', '--resume', '--visual'].includes(arg) || /^--(?:only|run|source)=/.test(arg)), 'Unknown option');
+assert.ok(options.every(arg => ['--headless', '--smoke', '--resume', '--visual', '--software'].includes(arg) || /^--(?:only|run|source)=/.test(arg)), 'Unknown option');
+assert.ok(!software || visual, '--software is for screenshots only');
 assert.ok(!smoke || selected, '--smoke requires --only');
 assert.ok(!selected || cfgs.some(cfg => keyFor(cfg) === selected), 'Unknown configuration');
 
@@ -172,6 +174,7 @@ async function measure(config, output, imageBody) {
       '--mute-audio', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
       '--proxy-server=127.0.0.1:9', `--proxy-bypass-list=<-loopback>;127.0.0.1:${port}`,
       '--force-device-scale-factor=1', '--window-position=0,0', `--window-size=${width},${height}`,
+      ...(software ? ['--disable-gpu', '--disable-lcd-text'] : []),
       ...(headless ? ['--headless=new'] : []), 'about:blank',
     ], {env, windowsHide:headless, stdio:'ignore'});
     browser.on('error', error => { fault = error; });
@@ -259,7 +262,7 @@ async function measure(config, output, imageBody) {
     await command('Page.navigate', {url:'about:blank'});
     await waitPage(`location.href === 'about:blank'`, 'blank page loaded');
 
-    const shotDir = join(tmp, 'shots', run, key);
+    const shotDir = join(tmp, software ? 'shots-software' : 'shots', run, key);
     if (visual) mkdirSync(shotDir, {recursive:true});
     const shot = async name => {
       const {data} = await command('Page.captureScreenshot', {format:'png', captureBeyondViewport:false});
@@ -453,7 +456,7 @@ async function measure(config, output, imageBody) {
       await waitPage(`${inMode('preview')} && !!document.querySelector('.pv canvas')?.width`, 'preview opened');
       await still('preview');
       await click('#back');
-      await waitPage(inMode('design'), 'preview returns to editor');
+      await waitPage(`${at('design')} && ${inMode('design')}`, 'preview returns to editor');
       await click('[data-ed-tool="shape"]');
       const [x0, y0, x1, y1] = await evaluate(`(() => {
         const r = document.querySelector('.ed-disc-shadow').getBoundingClientRect();
@@ -470,6 +473,7 @@ async function measure(config, output, imageBody) {
       return {dirty:actions.state().dirty, text:await actions.projectText()};
     })()`;
     const draft = visual ? await evaluate(designState) : null;
+    await waitPage(ready, 'navigation ready before leaving the editor');
     await click('#back');
     await waitPage(`${at('lobby')} && ${inHome('lobby')}`, 'editor returned to lobby');
     await sample('return');
@@ -522,7 +526,7 @@ async function measure(config, output, imageBody) {
 assert.equal(process.platform, 'win32');
 mkdirSync(tmp, {recursive:true});
 process.env.TEMP = process.env.TMP = tmp;
-const output = join(tmp, run, visual ? 'visual' : smoke ? 'smoke' : 'samples');
+const output = join(tmp, run, software ? 'visual-software' : visual ? 'visual' : smoke ? 'smoke' : 'samples');
 mkdirSync(output, {recursive:true});
 const artwork = join(tmp, 'pagemem-work.png');
 execFileSync(python, ['-X','utf8','-B',join(here, 'artwork.py'),artwork], {windowsHide:true});

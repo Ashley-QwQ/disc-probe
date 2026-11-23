@@ -1083,6 +1083,7 @@
   function wakeScene() {
     if (awake) return;
     awake = true;
+    burnerLayer.replaceChildren();
     placeBurner();
     loadSolid(col === "drive" ? "dvd" : col).then(() => paintRack(DATA[col][idx]));
     rackIdle = (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => {
@@ -1101,7 +1102,13 @@
       delete loaded[id];
       layers[id].replaceChildren(); ghosts[id].replaceChildren();
     }
-    burnerLayer.replaceChildren();
+    // The hidden rig's transformed box still contributes to the layout on narrow windows.
+    // Keep that box and its CSS glow while dropping all the picture layers.
+    for (const part of [...burnerLayer.children]) {
+      if (part.classList.contains("rig")) part.replaceChildren();
+      else if (part instanceof HTMLImageElement) part.removeAttribute("src");
+      else part.remove();
+    }
   }
   let burner = null;
   try { burner = await fetch("burner.json").then((r) => (r.ok ? r.json() : null)); } catch {}
