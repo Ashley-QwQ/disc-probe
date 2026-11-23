@@ -46,7 +46,7 @@ def _timestamp(stamp):
 
 def _rows(log):
     try:
-        with log.open(encoding="utf-8") as stream:
+        with log.open("rb") as stream:
             for line in stream:
                 try:
                     row = json.loads(line)
@@ -54,7 +54,7 @@ def _rows(log):
                     continue
                 if isinstance(row, dict):
                     yield row
-    except (OSError, UnicodeError):
+    except OSError:
         return
 
 

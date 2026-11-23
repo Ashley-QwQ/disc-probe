@@ -53,6 +53,8 @@ def test_completed_burns_for_exact_check_and_run(check):
     spec = image.with_suffix(".image.json")
     write_burn(image, 107, check_spec_sha256="1" * 64)
     write_burn(image, 108, check_spec_sha256=hashlib.sha256(spec.read_bytes()).hexdigest())
+    with Path(str(image) + ".burn.jsonl").open("ab") as stream:
+        stream.write(b'{"truncated":"\xff')
     assert [r["disc_id"] for r in photo_burns.listing(root, run)["burns"]] == ["T108", "T105", "T104", "T103"]
 
 
