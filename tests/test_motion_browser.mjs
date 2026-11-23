@@ -353,9 +353,14 @@ try {
   }
   await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
 
-  // 11: idle preparation covers both pages, with no drive hover. A warm click starts in this turn.
+  // 11: idle lobby leaves both scenes unmounted. Hover still warms the New Work entrance.
   await open();
-  await until('!!document.querySelector(".pw")','11: lobby idle preloads past works');
+  await delay(1300);
+  await check('!document.querySelector(".pw, .np")','11: idle lobby leaves past works and the form unmounted');
+  await check(`!performance.getEntriesByType('resource').some(e=>e.name.endsWith('.webp') && ['/newplan/','/pastworks/'].some(part=>e.name.includes(part)))`,
+    '11: idle lobby does not request either scene’s WebP art');
+  await evaluate(`document.getElementById('lobby-new').dispatchEvent(new PointerEvent('pointerenter'));
+    await motionTest.newplan.prepare(motionTest.api);`);
   await evaluate(`setMotion('on');flights=[];window.warmStart=motionTest.newplan.start(motionTest.api,{from:document.getElementById('lobby-new')});
     for(let i=0;i<12;i++)await Promise.resolve();window.warmPush=flights.some(f=>f.el.id==='lobby-art');`);
   await check('warmPush','11: prepared push starts without waiting for the 600ms fallback');

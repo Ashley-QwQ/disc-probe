@@ -1092,7 +1092,11 @@ let bagFlight = null;
 let bagged = false;
 try { bagged = sessionStorage.getItem("dp-bagged") === "1"; } catch {}
 async function bagging(drop = true) {
-  let skipped = motionOff(), cancelled = false, timer, wake;
+  const total = motionOff() ? 0 : bagged ? 400 : 1000;
+  if (total) { bagged = true; try { sessionStorage.setItem("dp-bagged", "1"); } catch {} }
+  const filing = Math.round(total * .64), leaving = total - filing;
+  W.style.setProperty("--bag-file", `${filing}ms`); W.style.setProperty("--bag-drop", `${leaving}ms`);
+  let skipped = !total, cancelled = false, timer, wake;
   bagFlight = { cancel() {
     cancelled = true; clearTimeout(timer); wake?.();
     W.classList.remove("filing", "leaving");
@@ -1120,10 +1124,6 @@ async function bagging(drop = true) {
       }
     }
     W.resetPull?.(); fileInto();
-    const total = motionOff() ? 0 : bagged ? 400 : 1000;
-    if (total) { bagged = true; try { sessionStorage.setItem("dp-bagged", "1"); } catch {} }
-    const filing = Math.round(total * .64), leaving = total - filing;
-    W.style.setProperty("--bag-file", `${filing}ms`); W.style.setProperty("--bag-drop", `${leaving}ms`);
     W.classList.add("filing"); await pause(filing);
     if (drop && !cancelled) { W.classList.add("leaving"); await pause(leaving); }
   } finally {
