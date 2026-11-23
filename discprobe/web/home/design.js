@@ -2582,6 +2582,7 @@ function scheduleWorkspaceRelease() {
     const layers = new Set(S.layers);
     for (const entry of [...(S.past ?? []), ...(S.future ?? [])]) for (const {obj} of entry.layers) layers.add(obj);
     for (const layer of layers) {
+      layer.thumb = null;
       if (layer.px && layer.src instanceof HTMLCanvasElement) {
         layer.drawOptions = layer.src.getContext("2d").getContextAttributes?.();
         layer.src.width = layer.src.height = 0;

@@ -470,7 +470,8 @@ async function measure(config, output, imageBody) {
     }
     const designState = `(async () => {
       const actions = (await import('./design.js')).editorActions();
-      return {dirty:actions.state().dirty, text:await actions.projectText()};
+      return {dirty:actions.state().dirty, text:await actions.projectText(),
+        thumbnails:[...document.querySelectorAll('.lays canvas')].map(canvas => canvas.toDataURL())};
     })()`;
     const draft = visual ? await evaluate(designState) : null;
     await waitPage(ready, 'navigation ready before leaving the editor');

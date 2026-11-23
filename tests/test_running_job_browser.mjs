@@ -146,7 +146,7 @@ async function checks(id, page) {
     await reopened.click('#back');
     await reopened.wait(`${inLobby} && ${reopen}`, 'library back returns to lobby');
     await reopened.click('#next');
-    await reopened.wait(inGeometry, 'primary action returns to geometry progress');
+    await reopened.wait(`${navigationReady} && ${inGeometry}`, 'primary action returns to geometry progress');
     if (look !== looks.at(-1)) await reopened.close();
     else active = reopened;
   }
