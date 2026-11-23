@@ -89,7 +89,16 @@ export function progressLine(line, { reduce = () => false, alive = () => true, p
     const flash = !still && now - state.changed < FLASH_S, pct = state.pct ?? "";
     [...pct].forEach((ch, i) => put(ch, pct.trim() === "100%" ? pal()[10] : flash && state.lit.has(i) ? tone(.75) : null, { bold: flash && state.lit.has(i) }));
     if (Number.isFinite(e.eta_s) && e.eta_s > 0) put(`  ${Math.floor(e.eta_s / 60)}:${String(Math.round(e.eta_s % 60)).padStart(2, "0")}`, null, { dim: true });
-    line.replaceChildren(...parts.map((p) => { const s = document.createElement("span"); s.textContent = p.text; if (p.color) s.style.color = p.color; if (p.dim) s.style.opacity = ".55"; if (p.bold) s.style.fontWeight = "700"; return s; }));
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      let span = line.children[i];
+      if (!span) span = line.appendChild(document.createElement("span"));
+      if (span.textContent !== p.text) span.textContent = p.text;
+      span.style.color = p.color ?? "";
+      span.style.opacity = p.dim ? ".55" : "";
+      span.style.fontWeight = p.bold ? "700" : "";
+    }
+    while (line.children.length > parts.length) line.lastElementChild.remove();
   }
   function update(e) {
     e = { ...e, fraction: Math.max(0, Math.min(1, e.fraction || 0)), eta_s: Number.isFinite(e.eta_s) ? Math.max(0, e.eta_s) : null };

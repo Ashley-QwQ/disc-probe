@@ -2317,6 +2317,9 @@ function soFar(points) {
 function paintStage() {
   if (!st || !flow || api.backend.mock || leaving) return;
   const phase = flow.realPhase, d = flow.detected, job = flow.job, p = Math.max(0, Math.min(1, job?.p ?? 0));
+  const title = job ? `${Math.round(p * 100)}% · ${$("job-name").textContent}` : "disc-probe";
+  if (document.title !== title) document.title = title;
+  if (!isCal()) return;
   const disc = (phase === "inspect" && !d) || d?.present === false ? "none" : d?.blank === true || phase === "capacityWritten" ? "blank" : "in";
   let read = null, head = null, band = null;
   if (phase === "burning") read = [R0, radiusAt(p)];                       // the measurement image going on
@@ -2336,8 +2339,6 @@ function paintStage() {
     discWentIn = true; st.hold(true);
     loadDisc.play(st.art()).catch((e) => console.error("disc animation", e)).finally(() => { if (!leaving) st.hold(false); });
   }
-  // the browser tab says it too, so a person in another tab sees it going ("62% · 测几何")
-  document.title = job ? `${Math.round(p * 100)}% · ${$("job-name").textContent}` : "disc-probe";
   st.set({ disc, read, readRadii, head, band, busy: !!job,
     percent: job ? p * 100 : null, left: job ? job.left || job.status || "" : "" });
 }
@@ -2366,11 +2367,13 @@ const RULER = [
   { key: "photo", min: 3.5, dashed: true, zh: ["拍照", "需要时"], en: ["Photo", "if needed"] },
 ];
 const RULER_AT = { inspect: 0, prepare: 0, capacityBlank: 0, capacityWritten: 0, random: 0, burn: 0, burning: 0, checking: 1, timing: 1, geo: 2, saving: 2, review: 2, photo: 3, saved: 4 };
+let rulerState, rulerFill;
 function paintRuler() {
   let nav = document.getElementById("cal-ruler");
   if (!nav) {
     nav = document.createElement("nav"); nav.id = "cal-ruler"; nav.className = "cal-ruler";
     document.body.append(nav);
+    rulerState = null;
   }
   const live = isCal() && !api.backend.mock && flow;
   nav.hidden = !live;
@@ -2381,15 +2384,24 @@ function paintRuler() {
   const usable = flow.realPhase === "review" && ["good", "usable"].includes(recoveryKind(flow));
   if (usable) at = 3;
   if(interruptedBurn(flow,api.lang()) || flow.realPhase==='discRejected')at=0;
-  const total = RULER.reduce((a, r) => a + r.min, 0), lang = api.lang() === "zh" ? "zh" : "en";
-  nav.setAttribute("aria-label", liveText("标定的步骤和用时", "Calibration steps and their times"));
-  nav.innerHTML = RULER.map((r, i) => {
-    const state = i < at ? "done" : i === at && !(r.dashed && usable) ? "now" : "next";
-    const fill = state === "now" && flow.job ? Math.round(100 * Math.max(0, Math.min(1, flow.job.p || 0))) : 0;
-    return `<div class="step" data-s="${state}" ${r.dashed ? "data-dashed" : ""} style="flex:${r.min / total}" ${state === "now" ? 'aria-current="step"' : ""}>` +
-      `<span class="name">${state === "done" ? '<svg class="tick" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5l2.6 2.6L10 3.5"/></svg>' : ""}${r[lang][0]}</span>` +
-      `<span class="line"><i style="width:${fill}%"></i></span><span class="len">${r[lang][1]}</span></div>`;
-  }).join("");
+  const lang = api.lang() === "zh" ? "zh" : "en";
+  const key = `${lang}/${at}/${usable}`;
+  if (key !== rulerState) {
+    const total = RULER.reduce((a, r) => a + r.min, 0);
+    nav.setAttribute("aria-label", liveText("标定的步骤和用时", "Calibration steps and their times"));
+    nav.innerHTML = RULER.map((r, i) => {
+      const state = i < at ? "done" : i === at && !(r.dashed && usable) ? "now" : "next";
+      return `<div class="step" data-s="${state}" ${r.dashed ? "data-dashed" : ""} style="flex:${r.min / total}" ${state === "now" ? 'aria-current="step"' : ""}>` +
+        `<span class="name">${state === "done" ? '<svg class="tick" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5l2.6 2.6L10 3.5"/></svg>' : ""}${r[lang][0]}</span>` +
+        `<span class="line"><i style="width:0%"></i></span><span class="len">${r[lang][1]}</span></div>`;
+    }).join("");
+    rulerState = key;
+    rulerFill = nav.querySelector('[aria-current="step"] .line i');
+  }
+  if (rulerFill) {
+    const fill = `${Math.round(100 * Math.max(0, Math.min(1, flow.job?.p || 0)))}%`;
+    if (rulerFill.style.width !== fill) rulerFill.style.width = fill;
+  }
 }
 // the core's steps (calibrate.py) as this page's phases
 const STEP_PHASE = { burn: "burning", check: "checking", timing: "timing", geo: "geo", preset: "saving" };
@@ -2490,7 +2502,15 @@ async function realJob(action, args = {}, extra = {}, following = null) {
         }
         f.stage = event.stage; api.jobProgress(current.p, f.detected?.media || f.item?.row || "dvd");
         current.clock.estimate(event.eta_s);
-        if (action === "geo" || f.realPhase === "geo") { setPlate("geo"); showInterior(true); updateInterior(current.p, Math.max(0, event.eta_s || 0)); }
+        if (action === "geo" || f.realPhase === "geo") {
+          if (isCal() && !st) {
+            const ticks = Math.ceil(current.p * 120);
+            if (f.plate !== "geo" || current.plateTicks !== ticks) setPlate("geo");
+            current.plateTicks = ticks;
+            if (!cut?.on) showInterior(true);
+            updateInterior(current.p, Math.max(0, event.eta_s || 0));
+          } else f.plate = "geo";
+        }
         paintStage(); paintRuler();
       }
   };

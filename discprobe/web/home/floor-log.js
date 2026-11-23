@@ -39,7 +39,8 @@ export function floorLog() {
   el.setAttribute("aria-hidden", "true");          // the job bar and the panel carry the words for screen readers
   el.innerHTML = `<div class="fl-title"></div><div class="fl-lines"></div><div class="fl-meter"></div>`;
   const [titleEl, lines, bar] = el.children;
-  let host = null, meterLine = null, timer = 0;
+  let host = null, meterLine = null, meterProgress = null, timer = 0;
+  const visible = () => el.classList.contains("on") && !document.documentElement.classList.contains("cal-staged");
 
   // Where the block goes: on the floor beside the drive's left side (the floor the picture shows most of),
   // lines running along the side, and inside the free part of the window (its margins, above the footer
@@ -47,7 +48,7 @@ export function floorLog() {
   // more, the widest block. If none leaves even SHOW_MIN, the window is too small for it: the block isn't
   // shown (the panel on the right is what matters), and the panel shows the step's title itself (fl-off).
   function place() {
-    if (!host || !el.classList.contains("on")) return;
+    if (!host || !visible()) return;
     const box = host.getBoundingClientRect();
     if (!box.width) return;
     const css = getComputedStyle(document.documentElement);
@@ -93,7 +94,8 @@ export function floorLog() {
   // the cutaway grows and moves for most of a second: follow it while the block shows
   function follow() {
     clearInterval(timer);
-    timer = setInterval(() => (el.classList.contains("on") ? place() : clearInterval(timer)), 200);
+    if (!visible()) return;
+    timer = setInterval(() => (visible() ? place() : clearInterval(timer)), 200);
     place();
   }
   addEventListener("resize", place);
@@ -105,7 +107,12 @@ export function floorLog() {
     lines.append(row);
     while (lines.children.length > LINES) lines.firstChild.remove();
     [...lines.children].forEach((n, i, all) => n.style.setProperty("--age", String(all.length - 1 - i)));
-    if (!reduce()) row.animate([{ opacity: 0, translate: "0 6px" }, { opacity: 1, translate: "0 0" }], { duration: 260, easing: "ease-out" });
+    if (visible() && !reduce()) row.animate([{ opacity: 0, translate: "0 6px" }, { opacity: 1, translate: "0 0" }], { duration: 260, easing: "ease-out" });
+  }
+  function paintMeter() {
+    if (!visible() || !meterProgress) return;
+    meterLine ??= progressLine(bar, { reduce, alive: visible });
+    meterLine.update(meterProgress);
   }
   return {
     // the box that now shows the drive picture unmirrored: the block hangs in front of the drive in it
@@ -117,24 +124,28 @@ export function floorLog() {
     },
     start(command) {
       lines.replaceChildren();
-      meterLine?.stop(); meterLine = null; bar.replaceChildren();
+      meterLine?.stop(); meterLine = meterProgress = null; bar.replaceChildren();
       el.classList.add("on");
       push(command, "command");
       follow();
     },
     log(text, level, ansi) { if (text) push(text, level, ansi); },
     progress(fraction, stage, eta) {
-      meterLine ??= progressLine(bar, { reduce, alive: () => el.classList.contains("on") });
-      meterLine.update({ fraction, stage, eta_s: eta });
+      meterProgress = { fraction, stage, eta_s: eta };
+      paintMeter();
     },
-    end() { meterLine?.stop(); meterLine = null; bar.replaceChildren(); },
+    end() { meterLine?.stop(); meterLine = meterProgress = null; bar.replaceChildren(); },
     // the step's name, the block's first line, large; empty takes it away
     title(text) {
       titleEl.textContent = text || "";
       titleEl.hidden = !text;
-      if (text) { el.classList.add("on"); follow(); }
+      if (text) {
+        const wasVisible = visible();
+        el.classList.add("on"); follow();
+        if (!wasVisible) paintMeter();
+      }
       place();
     },
-    hide() { el.classList.remove("on"); document.documentElement.classList.remove("fl-off"); clearInterval(timer); },
+    hide() { el.classList.remove("on"); document.documentElement.classList.remove("fl-off"); clearInterval(timer); meterLine?.stop(); },
   };
 }

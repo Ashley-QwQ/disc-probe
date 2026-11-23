@@ -5,13 +5,24 @@ import { countdown, countdownText } from '../discprobe/web/home/kit/countdown.mj
 const source = readFileSync(new URL('../discprobe/web/home/core-render.js', import.meta.url), 'utf8');
 const { progressLine } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 globalThis.document = { createElement: () => ({ style: {}, textContent: '' }) };
-const line = { replaceChildren(...parts) { this.text = parts.map(p => p.textContent).join(''); } };
+const line = {
+  children: [],
+  appendChild(node) {
+    this.children.push(node);
+    node.remove = () => this.children.splice(this.children.indexOf(node), 1);
+    return node;
+  },
+  get lastElementChild() { return this.children.at(-1); },
+  get text() { return this.children.map(node => node.textContent).join(''); },
+};
 const progress = progressLine(line, { reduce: () => true });
 progress.update({ fraction: 1.05, stage: 'check points', eta_s: -12 });
 assert.match(line.text, /100%/);
 assert.doesNotMatch(line.text, /105%|-/);
+const firstSpan = line.children[0];
 progress.update({ fraction: -0.05, eta_s: -12 });
 assert.match(line.text, /  0%/);
+assert.equal(line.children[0], firstSpan);
 progress.stop();
 
 // Exercise the actual footer method without booting the scene.
@@ -34,7 +45,7 @@ const eventBody = normalized.match(/const onEvent = event => \{([\s\S]*?)\n  \};
 const stageSetup = normalized.match(/^const stepEta = .*;$/m)[0];
 const handler = new Function('event', 'flow', 'f', 'current', 'flog', 'api', '$', 'action',
   'imageRing', 'setPlate', 'showInterior', 'updateInterior', 'paintStage', 'paintRuler', 'isCal', 'paint',
-  'closeBurnStop', 'STEP_PHASE', 'sfx', 'stepWords', 'paintJob', stageSetup + eventBody);
+  'closeBurnStop', 'STEP_PHASE', 'sfx', 'stepWords', 'paintJob', 'st', 'cut', stageSetup + eventBody);
 const noop = () => {};
 const flow = { realPhase: 'geo' }, current = {clock: {estimate(s) { eta = s; }, clear() { eta = null; }}};
 let fraction, eta, interiorEta, ringValue, jobPaints = 0;

@@ -94,6 +94,18 @@ starter photos return `starter.written` and `starter.reason`. A confirmed
 starter appears in the DVD catalogue with `starter`, `starter_source`, and
 `checked_mm`. The normal `geo` and `photo` job formats remain valid.
 
+API 1.7 adds optional `running-measurement`. An occupied catalogue batch
+has `s:"measuring"` and `measurement_progress` with a `phase` (`timing` or
+`geo`) and optional `fraction` (0–1) and `rung` (one-based). Deleting or
+changing an occupied batch returns HTTP 409 with code `measurement_running`.
+
+API 1.7 also adds optional `job-event-cursor`. A job snapshot requested with
+`?after=0` or a previously returned `cursor` returns the next page of events,
+the next `cursor`, and `more` if events are already available past that cursor.
+The snapshot without a cursor still returns the full history. Request
+`/api/events?summary=1` for service activity, state changes and job completion
+without the individual job events.
+
 Proposed policy: retain working adapters for the previous MAJOR for at least
 six months after the new major's first stable release. Publish its retirement
 date with that release. List only majors with actual working adapters in

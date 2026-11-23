@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-from discprobe import __main__ as cli, geo as core_geo, library, webui, webui_catalog, works
+from discprobe import __main__ as cli, geo as core_geo, library, measurement_jobs, webui, webui_catalog, works
 from tests.test_webui_catalog import write_geo
 
 
@@ -172,3 +172,43 @@ def test_cli_json_batch_and_work_lifecycle(tmp_path):
     assert cli('works', 'restore', work)['id'] == work
     assert cli('works', 'delete', work, '--permanent')['permanent']
     assert cli('works', 'list', '--trash') == []
+
+
+def test_live_result_ownership_is_shared_with_the_library_cli(tmp_path, monkeypatch):
+    monkeypatch.setenv('DISCPROBE_HOME', str(tmp_path))
+    out = tmp_path / 'results'
+    active = write_geo(tmp_path, stopped='interrupted')
+    other = write_geo(tmp_path, stamp='20261108-101500', identity={'disc': 'OTHER', 'drive': 'GH70N'})
+    manager = library.Library(tmp_path, out)
+    idle = {row['geo']: row for row in manager.rows()['dvd']}
+    own = idle[active.relative_to(tmp_path).as_posix()]
+    untouched = idle[other.relative_to(tmp_path).as_posix()]
+    assert own['s'] == 'incomplete'
+    assert untouched['s'] == 'good'
+
+    def command(*args):
+        repo = Path(__file__).resolve().parents[1]
+        return subprocess.run([sys.executable, '-B', '-X', 'utf8', '-m', 'discprobe', '--lang', 'en',
+                               'library', *args, '--json'], cwd=tmp_path, capture_output=True,
+                              env=dict(os.environ, PYTHONPATH=str(repo)))
+
+    with measurement_jobs.track(out, 'dvd'):
+        with measurement_jobs.allocating() as register:
+            register(active)
+        running = next(row for row in manager.rows()['dvd'] if row['id'] == own['id'])
+        assert running['s'] == 'measuring' and running['calibration_issue'] is None
+        result = command('delete', own['id'])
+        assert result.returncode == 1
+        assert 'being measured' in json.loads(result.stderr)['error']
+        assert active.exists()
+        result = command('delete', untouched['id'])
+        assert result.returncode == 0, result.stderr
+        assert not other.exists()
+
+    # A partial run has exactly its previous catalogue representation once its
+    # writer is gone. A stale marker left after an abrupt exit behaves the same.
+    stale = measurement_jobs._registry(out) / ('0' * 32 + '.json')
+    stale.with_suffix('.lock').touch()
+    stale.write_bytes(works.encoded({str(active): {'media': 'dvd'}}))
+    assert manager.rows()['dvd'] == [own]
+    assert command('delete', own['id']).returncode == 0
