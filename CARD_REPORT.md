@@ -1,40 +1,95 @@
-# PT 卡交付报告
+# 社区提示卡交付报告
 
-工作树 `D:/dp-dev/pageteardown`，分支 `dev/page-teardown`，基点 `4f042ca`。
+工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
 
 ## 按提交交付
 
-- `eae7280` 释放不活动的页面场景、画布、worker 和图片引用，保留任务、草稿和表单数据。将信封、装盘合成帧、预设桌面和往期作品的图片移到使用时加载。复用 PM 测量脚本，并更新随页面生命周期改变的测试和引用行号。
-- `4220366` 把信封动效参数恢复到点击时同步设置，解码还没完成时保留静态表单，仍可用原操作跳过。
-- `3a34b04` 重建编辑器时沿用原画布上下文参数、面板和滚动位置，释放灯下控件对旧工作区的引用。动效测试验证未预热大厅与悬停后预热两种路径。
-- `6c8da38` 释放光驱图片和图层时保留窄屏布局使用的光驱外框。截图脚本在导航就绪后离开编辑器，并支持补充的软件栅格对照。
-- `378b58d` 重建图层缩略图，验证草稿和缩略图的一致性。RJ 测试在导航恢复就绪后再点返回。
-- `50fc203` 记录原方案的内存、截图和大厅画质阻塞。
-- `705dbc5` 保留当前主题的大厅底图及直接使用的位图。离开大厅时继续使用原图元素，切主题时更换图源。浏览器回归覆盖隐藏大厅及切主题。截图脚本等待虚拟盘检测稳定，并记录几何页的暂停进度。
-- `3a76146` 增加同一会话的稳定状态重复截图，用于核对截图时机。
-- `e464348` 把原阻塞移到 `BLOCKED-resolved.md`，供本轮记录处理决定。
+- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
+- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
+- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
+- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
+- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
+- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
 
-主会话确认重新解码会降低大厅画质，决定保留当前主题的位图并继续逐像素精确验收。[原阻塞与处理决定](BLOCKED-resolved.md)
+## 数据及出处
+
+本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
+
+原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
+
+相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
+
+新增 id：
+
+```text
+D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
+I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
+DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
+DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
+DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
+DISmain-verbatim-dvd-plus-rw-94520-95043
+```
+
+修改 id（含仅补充来源/复用报告的记录）：
+
+```text
+D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
+I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
+I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
+```
+
+新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
+
+内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
+
+同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
+
+## 下发与程序行为
+
+`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
+
+```text
+f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
+```
+
+生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
+
+`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
+
+CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
+
+仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
+
+## 网页位置和需要人工审查的选择
+
+传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
+
+新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
+
+请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
 
 ## 验收
 
-- 修前和修后使用独立的有界面 Edge、独立 Disc Lab 和用户目录。1366 × 768 两种主题，每组 6 个场景，空闲取样至少 30 秒。内存、图片请求以及逐像素表格见 [内存与截图报告](evidence/page-teardown/REPORT.md)。
-- `python -X utf8 -m discprobe selftest` 本轮报告 `all checks passed`。
-- `python -X utf8 -m pytest -n 2 -q` 对 `test_gui_handshake.py`、`test_web_security.py`、`test_web_instance_read.py`、`test_web_guidance.py`、`test_webui_recovery.py`、`test_webui_catalog.py`、`test_webui.py`、`test_troubleshoot.py` 验证，81 个测试和 58 个子测试通过。首次运行发现基点的握手断言仍写着 1.6，当前 API 已是 1.7。本卡更新测试期望，API 实现未变。
-- `python -X utf8 tools/refresh_troubleshoot_citations.py` 刷新传真连接的两处引用。本轮 `--check` 通过。
+所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
 
-- `node --test --test-concurrency=2` 本轮跑了全部 63 个 `tests/test_*.mjs` 文件，共 93 项。91 项通过，包含大厅位图和 RJ 回归。两个初次失败项随后单独用 `node --test` 复跑通过。`test_editor_w245_browser.mjs` 初次失败在缩放动画的定时断言。`test_title_font_alignment.mjs` 初次读取新 Edge 配置的 `DevToolsActivePort` 遇到 `EBUSY`。日志分别为 `resident-mjs.log`、`resident-w245.log` 和 `resident-title.log`。
-- 浏览器草稿验证在两种主题、两种宽度下都通过。导入测试图并画矩形，回大厅，再点最近作品。重开前后的项目内容、未保存标记和图层缩略图一致。RJ 测试覆盖刷新、新标签、切走再回标定、盘库活进度和任务完成。
-- 24 个内存样本。回大厅相对首次大厅的 Private Bytes 增量，纸色 +188.8 → +136.5 MiB，夜色 +269.8 → +62.4 MiB。回大厅的 JS 堆为纸色 17.67 → 3.64 MiB、夜色 17.72 → 3.65 MiB。首次大厅及标定总占用、Working Set 与 GPU 分项见内存报告。
-- 48 对场景截图和 160 张转场截图，存于 `D:/dp-dev/tmp/pageteardown/shots/`。装盘和信封序列未见空白帧。几何页两种主题的桌面右侧工具栏、两种主题的窄屏顶部栏逐像素一致。
-- 回大厅的新会话精确对照仍有 1、2、28、25 个静态差异像素。桌面纸色候选与上一轮基点图逐像素相同。稳定盘状态下的同版基点跨会话也出现大面积像素差异，见[新阻塞](BLOCKED.md)。
-- `windows.ps1 -Action service` 在测试前后均查到 8765 由 PID 12472 监听，启动时间均为 `2026-11-22T19:46:31.5149967-05:00`。检查只查询系统监听器和进程信息。结束时 D 盘 46.70 GiB 可用，F 盘 43.35 GiB 可用。
+| 命令/检查 | 结果 |
+| --- | --- |
+| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
+| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
+| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
+| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
+| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
+| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
+| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
+| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
+| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
 
-## 边界与未测
+初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
 
-- 物理光驱、真盘、刻录及 4 GB 核显设备未测。测量用 RTX 2060，GPU 栏为 Windows 进程的内存统计。
-- 编辑器保留草稿所需的原始像素、文件、撤销记录和选区。浏览器自行决定磁盘缓存、GPU 进程分配和垃圾回收时机。
-- 上轮试跑有一处 Edge 临时配置目录留作失败现场。上轮手工递归清理被自动审批以 `blocked by policy` 拒绝。
-- 刻录确认、刻录摘要和终端有各自的浏览器回归覆盖。其 1366 和 390 宽的修前修后逐像素对照未做。
+截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
 
-STATUS: BLOCKED
+## 未测及边界
+
+没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
+
+附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
