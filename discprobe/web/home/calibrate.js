@@ -1340,9 +1340,14 @@ function realPaint() {
           const warning = source.kind === 'same_drive' ? '' : liveText(' · 未验证：跨机器/跨批次没有实测数据', ' · Unverified: no measurements across machines or batches');
           return `${from} · ${source.name} · ${source.drive} · ${measured ? `${measured} mm` : liveText('测量范围未知', 'Measured range unknown')}${warning}`;
         };
-        html += `<label class="name-field">${liveText('用起步预设，跳过测量盘', 'Use a starter preset and skip the measurement disc')}
-          <select id="starter-choice"><option value="">${liveText('使用测量盘', 'Use a measurement disc')}</option>${flow.starterCandidates.map(s => `<option value="${esc(s.id)}"${flow.starterChoice === s.id ? ' selected' : ''}>${esc(sourceText(s))}</option>`).join('')}</select></label>
-          <p>${liveText('这批盘还没确认。选择起步预设后，仍要刻检查盘并拍照。', 'This batch is unconfirmed. A starter preset still needs a burned check disc and photos.')}</p>`;
+        // The route is the first decision on this page, so it sits above the name, as cards like the
+        // measuring-disc choice rather than a menu. The measuring disc stays first and chosen by default.
+        const card = (value, head, sub) => `<label class="choice"><input type="radio" name="starter-choice" value="${esc(value)}"${(flow.starterChoice || '') === value ? ' checked' : ''}><b>${head}</b><span>${sub}</span></label>`;
+        html = `<div class="choices" id="starter-choice" role="radiogroup" aria-label="${esc(liveText('用起步预设，跳过测量盘', 'Use a starter preset and skip the measurement disc'))}">${
+          card('', liveText('先刻测量盘', 'Burn a measurement disc first'), liveText('原来的路线：测量盘、检查盘、成品。', 'The usual route: measurement disc, check disc, picture.'))}${
+          flow.starterCandidates.map(s => card(s.id, s.kind === 'same_drive' ? liveText('跳过测量盘，用这台光驱的已有标定', 'Skip it: start from this drive’s calibration')
+            : liveText('跳过测量盘，用别处的标定（未验证）', 'Skip it: start from another calibration (unverified)'), esc(sourceText(s)))).join('')}</div>
+          <p>${liveText('这批盘还没确认。选择起步预设后，仍要刻检查盘并拍照。', 'This batch is unconfirmed. A starter preset still needs a burned check disc and photos.')}</p>` + html;
         if (flow.starterChoice) button = liveText('刻检查盘', 'Burn the check disc');
       }
     }
@@ -1588,7 +1593,9 @@ function realPaint() {
     flow.batchConfirmed=e.target.checked;paint();$("measurement-batch-confirm")?.focus();
   });
   $("real-name")?.addEventListener("input", e => {flow.realName = e.target.value;});
-  $('starter-choice')?.addEventListener('change', e => { flow.starterChoice = e.target.value; paint(); $('starter-choice')?.focus(); });
+  for (const radio of document.querySelectorAll('#starter-choice input')) radio.addEventListener('change', () => {
+    flow.starterChoice = radio.value; paint();
+    document.querySelector(`#starter-choice input[value="${CSS.escape(radio.value)}"]`)?.focus(); });
   $("measurement-confirm")?.addEventListener("change", e => {
     flow.measureConfirmed = e.target.checked; paint(); $("measurement-confirm").focus();
   });

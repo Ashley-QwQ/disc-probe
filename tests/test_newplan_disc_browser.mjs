@@ -249,9 +249,9 @@ async function verifyStarter({theme, lang}) {
   await evaluate('document.querySelector(".np-cal-go").click()');
   await until(`document.documentElement.dataset.mode === 'cal' && !document.getElementById('next').disabled`, 'starter calibration entry');
   await evaluate('document.getElementById("next").click()');
-  await until('document.getElementById("starter-choice")?.options.length === 2', 'starter source missing');
-  assert.equal(await evaluate('document.getElementById("starter-choice").value'), '', 'starter never selected by default');
-  assert.match(await evaluate('document.querySelector("#starter-choice option:last-child").textContent'), /DISCLAB GH70N-LIKE.*24.49–57.1/);
+  await until('document.querySelectorAll("#starter-choice input").length === 2', 'starter source missing');
+  assert.equal(await evaluate('document.querySelector("#starter-choice input:checked")?.value'), '', 'starter never selected by default');
+  assert.match(await evaluate('document.querySelector("#starter-choice label:last-child").textContent'), /DISCLAB GH70N-LIKE.*24.49–57.1/);
   assert.match(await evaluate('document.getElementById("next-text").textContent'), /生成测量镜像|Make measurement image/);
   await capture(`starter-${theme}-${lang}-1440`);
   await viewport(390, 844);
@@ -260,8 +260,7 @@ async function verifyStarter({theme, lang}) {
     return r.width > 100 && r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;})()`),
   'starter choice fits the mobile viewport');
   await capture(`starter-${theme}-${lang}-390`);
-  await evaluate(`(() => {const pick = document.getElementById('starter-choice'); pick.selectedIndex = 1;
-    pick.dispatchEvent(new Event('change', {bubbles:true}));})()`);
+  await evaluate(`(() => {document.querySelectorAll('#starter-choice input')[1].click();})()`);
   assert.match(await evaluate('document.getElementById("next-text").textContent'), /刻检查盘|Burn the check disc/);
   await viewport(1440, 900);
   console.log(`PASS starter ${theme}/${lang}: measurement default, explicit source, check-disc action`);
