@@ -27,6 +27,7 @@ const STR = {
         soon: "Not connected yet", last: "Last: " },
 };
 let api, $, M = null, base = "", L = null;
+let helloTimer = 0;
 const T = () => STR[api.lang() === "en" ? "en" : "zh"];
 const root = document.documentElement;
 const theme = () => (root.dataset.theme === "dark" ? "dark" : "paper");
@@ -189,6 +190,7 @@ export function driveTarget(from) {
 export function pushLobby(p, reverse = false) {
   const lobby = document.getElementById("lobby"), art = document.getElementById("lobby-art"), greet = lobby.querySelector(".lobby-greet");
   lobby.classList.add("leaving"); art.style.transformOrigin = p.origin;
+  paintTheme();
   const frames = [{ transform: "none" }, { transform: p.to }], fade = [{ opacity: 1 }, { opacity: 0 }];
   const a = art.animate(reverse ? frames.reverse() : frames, { duration: 560, easing: reverse ? "cubic-bezier(.2, .8, .2, 1)" : "cubic-bezier(.5, 0, .6, 1)", fill: "forwards" });
   const g = greet?.animate(reverse ? fade.reverse() : fade, { duration: reverse ? 400 : 200, fill: "forwards" });
@@ -220,6 +222,7 @@ function paintParcel(arrived = true) {
   const was = g.classList.contains("lit");
   g.classList.toggle("lit", n > 0);
   if (over) over.hidden = n === 0;
+  paintTheme();
   if (n > 0 && !was && arrived && !api.reduce && !document.hidden)
     g.querySelector("img")?.animate([{ transform: "translateY(-60px)", opacity: 0 }, { opacity: 1, offset: .4 }, { transform: "none", opacity: 1 }],
       { duration: 520, easing: "cubic-bezier(.3, 1.4, .5, 1)" });
@@ -236,6 +239,7 @@ async function openTerminal() {
 function lightScreen(on) {
   L.layer.screen_on?.classList.toggle("lit", on);
   L.root.classList.toggle("screen-lit", on);
+  paintTheme();
 }
 function toast(text) {
   L.toast.textContent = text; L.toast.classList.add("on");
@@ -244,9 +248,28 @@ function toast(text) {
 function paintTheme() {
   if (!M) return;
   const th = theme();
-  for (const l of M.layers) for (const img of L.layer[l.name].querySelectorAll("img")) img.src = `${base}${l.name}_${th}.webp`;
+  const images = [];
+  for (const {name} of M.layers) {
+    const layer = L.layer[name];
+    for (const img of layer.querySelectorAll("img")) {
+      if (layer.classList.contains("off") && !layer.classList.contains("lit")) {
+        img.removeAttribute("src");
+      } else {
+        // Keep the current artwork attached while away. Reattaching the same URL
+        // can change the way Edge resamples the lobby's artwork on return.
+        const src = `${base}${name}_${th}.webp`;
+        if (img.src !== src) img.src = src;
+        images.push(img);
+      }
+    }
+  }
   lampWords();
   if (M.bg?.[th]) L.root.style.setProperty("--lb-bg", M.bg[th]); else L.root.style.removeProperty("--lb-bg");
+  return images;
+}
+export async function prepareLobby() {
+  const images = paintTheme();
+  if (images) await Promise.allSettled(images.map(image => image.decode()));
 }
 function words() {
   if (!M) return;
@@ -263,7 +286,7 @@ function words() {
   paintRug();
 }
 function paintRug() {
-  if (!L?.rug) return;
+  if (!L?.rug || !L.root.offsetWidth) return;
   const text = rugGreeting(api.lang());
   L.rug.setAttribute("aria-label", text);
   L.rug.firstElementChild.textContent = api.lang() === "en" ? text.replace(" ", "\n") : text;
@@ -382,11 +405,15 @@ export async function init(homeApi) {
   paintHello();
   addEventListener("dp-drive-state", paintHello);
   $("lobby-disc-check")?.addEventListener("click", () => api.refreshLobbyDisc?.());
-  setInterval(() => { if (!document.hidden && !root.dataset.mode && root.dataset.home === "lobby") paintHello(); }, 15000);
   const url = new URL(ART, import.meta.url);
   build(await fetch(url).then((r) => r.json()), new URL(".", url).href);
   addEventListener("resize", fit);
   new MutationObserver(paintTheme).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+  const watchScene = new MutationObserver(() => {
+    if (!sec.offsetWidth) { clearTimeout(L.rugTimer); clearTimeout(L.toastT); L.toast.classList.remove("on"); }
+  });
+  watchScene.observe(root, { attributes: true, attributeFilter: ["data-home", "data-mode"] });
+  watchScene.observe(sec, { attributes: true, attributeFilter: ["class"] });
   addEventListener("dp-lang", words);
   addEventListener("dp-fax-parcel", () => paintParcel(true));
   addEventListener("storage", (e) => { if (e.key === "dp-fax-parcels") paintParcel(true); });
@@ -398,22 +425,21 @@ export async function init(homeApi) {
   drift();
   let paused = [];
   observeActivity(sec, active => {
+    clearInterval(helloTimer);
     if (!active) {
       paused = document.getAnimations().filter(a => sec.contains(a.effect?.target) && a.playState === 'running');
       paused.forEach(a => a.pause());
     } else {
+      paintHello(); paintRug();
+      helloTimer = setInterval(paintHello, 15000);
       if (!root.classList.contains('idle')) paused.forEach(a => a.play());
       paused = [];
     }
   });
-  const prepareNew = () => { if (!root.dataset.mode) import("./newplan.js").then(m => m.prepare(api)).catch(() => {}); };
+  const prepareNew = () => {
+    if (!root.dataset.mode && root.dataset.home === "lobby") import("./newplan.js").then(m => m.prepare(api)).catch(() => {});
+  };
   $("next")?.addEventListener("pointerenter", prepareNew);
   $("next")?.addEventListener("focus", prepareNew);
-  const preload = () => {
-    prepareNew();
-    import("./pastworks.js").then(m => m.prepare(api)).catch(() => {});
-  };
-  if (window.requestIdleCallback) requestIdleCallback(preload, { timeout: 1200 });
-  else setTimeout(preload, 200);
 }
 export const relabel = () => words();

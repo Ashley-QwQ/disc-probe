@@ -1056,7 +1056,9 @@
   }
   function loadSolid(id) {
     if (!layers[id] || !awake) return Promise.resolve();
+    const visit = sceneVisit;
     loaded[id] ??= fetch(`row-${id}.svg`).then((r) => r.text()).then((t) => {
+      if (visit !== sceneVisit) return;
       layers[id].innerHTML = t;
       sizeRack(id);
       outlineRack(layers[id].querySelector("svg"), ghosts[id]);
@@ -1077,13 +1079,36 @@
   // The shelf and the drive are pictures for the library, calibration and burning; the page opens on the
   // lobby, which shows neither. They are fetched and built the first time one of those is shown (or the
   // pointer reaches the library button), not on the way to the lobby: that was 1.1 MB of the lobby's 1.8.
-  let awake = false;
+  let awake = false, sceneVisit = 0, rackIdle = 0;
   function wakeScene() {
     if (awake) return;
     awake = true;
+    burnerLayer.replaceChildren();
     placeBurner();
     loadSolid(col === "drive" ? "dvd" : col).then(() => paintRack(DATA[col][idx]));
-    (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => { for (const id of ["dvd", "cd", "bd"]) loadSolid(id); });
+    rackIdle = (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => {
+      rackIdle = 0;
+      for (const id of ["dvd", "cd", "bd"]) loadSolid(id);
+    });
+  }
+  function sleepScene() {
+    if (!awake) return;
+    awake = false;
+    sceneVisit++;
+    if (rackIdle) (window.cancelIdleCallback || clearTimeout)(rackIdle);
+    rackIdle = 0;
+    discs = [];
+    for (const id of ["dvd", "cd", "bd"]) {
+      delete loaded[id];
+      layers[id].replaceChildren(); ghosts[id].replaceChildren();
+    }
+    // The hidden rig's transformed box still contributes to the layout on narrow windows.
+    // Keep that box and its CSS glow while dropping all the picture layers.
+    for (const part of [...burnerLayer.children]) {
+      if (part.classList.contains("rig")) part.replaceChildren();
+      else if (part instanceof HTMLImageElement) part.removeAttribute("src");
+      else part.remove();
+    }
   }
   let burner = null;
   try { burner = await fetch("burner.json").then((r) => (r.ok ? r.json() : null)); } catch {}
@@ -1169,8 +1194,12 @@
     frame.style.transform = "none";
     burnerLayer.append(frame);
   }
-  // calibration and burning stand in front of the drive
-  new MutationObserver(() => { if (["cal", "burn"].includes(root.dataset.mode)) wakeScene(); }).observe(root, { attributes: true, attributeFilter: ["data-mode"] });
+  // The top-down calibration stage replaces the shelf. The fallback and burn still use the drive.
+  new MutationObserver(() => {
+    const mode = root.dataset.mode;
+    if ((!mode && root.dataset.home === "lobby") || (mode === "cal" && root.classList.contains("cal-staged"))) sleepScene();
+    else if ((!mode && root.dataset.home === "library") || ["cal", "burn"].includes(mode)) wakeScene();
+  }).observe(root, { attributes: true, attributeFilter: ["data-mode", "data-home", "class"] });
 
   // The tray follows the drive: closed while you look elsewhere; when the drive comes into focus it
   // opens, showing the disc if there is one. When the drive reports a change it closes first, then
@@ -1246,7 +1275,12 @@
     root.dataset.theme = to;
     document.querySelector('meta[name="color-scheme"]').content = to;
     try { localStorage.setItem("dp-theme", to); } catch {}
-    for (const img of burnerLayer.querySelectorAll("img[data-src]")) { img.src = img.dataset.src; img.removeAttribute("data-src"); }
+    for (const img of burnerLayer.querySelectorAll("img")) {
+      img.dataset.src ??= img.getAttribute("src");
+      const dark = (img.closest(".rig") ?? img).classList.contains("dark");
+      if (dark === (to === "dark")) img.src = img.dataset.src;
+      else img.removeAttribute("src");
+    }
   }
   const settled = async () => {
     await new Promise((r) => setTimeout(r));                     // the pages' own theme observers set their pictures first
@@ -2209,7 +2243,6 @@
     else if (f.type.startsWith("image/")) newPlan(f);
   });
   $("library").addEventListener("click", () => { if (!root.dataset.mode) setHome("library"); });
-  $("library").addEventListener("pointerenter", wakeScene, { once: true });      // fetch while the pointer is on its way
   // back from the library: to the plan that was waiting for discs, else to the lobby (capture: the
   // calibration page also listens on this button)
   $("back").addEventListener("click", async (e) => {

@@ -17,6 +17,7 @@ const T = { lift: [0, 300], travel: [140, 650], settle: [520, 760], close: [760,
 const DRIVE = ["trayshadow", "shadowbody", "under", "tray", "dshadow", "disc", "overbody", "overclamp", "lid"];
 let meta = null, root = null, world = null, grain = null, els = {}, running = null, playing = false;
 let playId = 0, lastMs = T.end;
+let artMode = "desk", artObserver, slideAnimation;
 
 const ease = { out: (x) => 1 - (1 - x) ** 3, in: (x) => x * x, inOut: (x) => (x < 0.5 ? 4 * x ** 3 : 1 - (-2 * x + 2) ** 3 / 2) };
 const span = (ms, [a, b]) => Math.max(0, Math.min(1, (ms - a) / (b - a)));
@@ -27,8 +28,6 @@ const reduced = () => document.documentElement.dataset.motion === "off" ||
 
 async function ready() {
   if (!meta) meta = await fetch(new URL("anim.json", BASE)).then((r) => r.json());
-  if (!root) build();
-  paintTheme();
 }
 
 function sprite(name, cls = "", file = name, base = BASE) {
@@ -57,7 +56,8 @@ function build() {
   .ld-world img, .ld-g { position: absolute; user-select: none; }
   .ld-g { left: 0; top: 0; will-change: transform, opacity; }
   .ld-world [hidden] { display: none; }`;
-  document.head.append(st);
+  st.id = "loaddisc-style";
+  if (!document.getElementById(st.id)) document.head.append(st);
   root = document.createElement("div");
   root.className = "ld"; root.hidden = true; root.setAttribute("aria-hidden", "true");
   grain = document.createElement("div"); grain.className = "ld-grain";
@@ -81,17 +81,23 @@ function build() {
   world.append(els.pool, ...els.propShadows, ...els.props, els.final, ...DRIVE.map((k) => els[k]));
   root.append(grain, world);
   document.body.prepend(root);
-  addEventListener("resize", () => { if (!root.hidden) place(lastAnchor, lastCam); });
-  new MutationObserver(paintTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  artObserver = new MutationObserver(paintTheme);
+  artObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 }
+addEventListener("resize", () => { if (root && !root.hidden && lastAnchor) place(lastAnchor, lastCam); });
 function paintTheme() {
   if (!root) return;
   const v = theme();
-  for (const img of root.querySelectorAll("img")) {
+  const desk = [els.pool, ...els.propShadows, ...els.props];
+  const drive = DRIVE.flatMap(k => els[k] instanceof HTMLImageElement ? [els[k]] : [...els[k].querySelectorAll("img")]);
+  const active = artMode === "drive" ? [...desk, ...drive] : artMode === "slide" ? [els.pool, els.final] : desk;
+  for (const img of [...desk, ...drive, els.final]) {
+    if (!active.includes(img)) { img.removeAttribute("src"); continue; }
     const src = new URL(`${img.dataset.file}_${v}.webp`, img.dataset.base).href;
-    if (img.dataset.src !== src) { img.src = src; img.dataset.src = src; }
+    if (img.src !== src) img.src = src;
   }
   grain.style.backgroundImage = `url("${new URL(`desk_${v}.webp`, BASE).href}")`;
+  return active;
 }
 
 // the world on screen: the stage's grid onto the anchor's box, moved by cam (grid px) so the camera follows the disc
@@ -148,28 +154,46 @@ function frame(anchor, ms) {
 function showDrive(on) { for (const k of DRIVE) els[k].hidden = !on; }
 
 // play: resolves when the last frame is on screen (and the stage may take over)
-export async function play(anchor, { reverse = false, signal } = {}) {
+export async function play(anchor, { reverse = false, signal, onStart } = {}) {
   const start = reverse ? (playing && lastAnchor === anchor ? lastMs : T.end) : 0;
   const id = ++playId;
   if (running) running.stop();
   playing = true;
   try { await ready(); } catch (e) { playing = false; throw e; }
   if (id !== playId) return;
+  if (!root) build();
+  artMode = "drive";
+  const sprites = paintTheme();
+  // Keep the existing pose or stage visible until all sprites for the motion are ready.
+  if (!reduced() && !document.hidden && !signal?.aborted) {
+    let abort;
+    let timeout;
+    const stopWaiting = new Promise(resolve => {
+      abort = () => resolve(false);
+      signal?.addEventListener("abort", abort, { once: true });
+      timeout = setTimeout(abort, 1200);
+    });
+    const decoded = await Promise.race([Promise.all(sprites.map(img => img.decode())).then(() => true, () => false), stopWaiting]);
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
+    if (id !== playId || !root) return;
+    if (!decoded) {
+      playing = false;
+      showDrive(false); place(anchor); artMode = "desk"; paintTheme();
+      return;
+    }
+  }
+  onStart?.();
   root.hidden = false; els.final.hidden = true; root.style.transform = "";
   showDrive(true);
   frame(anchor, start);                        // reversing starts at the displayed forward frame
-  // the pictures ready before the first frame, but never wait long (a background tab may not decode at all)
-  const decoded = Promise.all([...root.querySelectorAll("img")].filter((i) => !i.hidden).map((i) => i.decode().catch(() => {})));
-  // Reverse uses the already shown sprites and must also be skippable during initial readiness.
-  if (!reverse) await Promise.race([decoded, new Promise((r) => setTimeout(r, 1200))]);
-  if (id !== playId) return;
   return new Promise((resolve) => {
     let t0 = null, raf = 0, timer = 0, done = false;
     const finish = () => {
       if (done) return; done = true; cancelAnimationFrame(raf); clearTimeout(timer); running = null;
       signal?.removeEventListener("abort", finish);
       frame(anchor, reverse ? 0 : T.end);
-      if (!reverse) { showDrive(false); place(anchor); }
+      if (!reverse) { showDrive(false); place(anchor); artMode = "desk"; paintTheme(); }
       playing = false; resolve();
     };
     running = { stop: finish };
@@ -191,34 +215,57 @@ export async function play(anchor, { reverse = false, signal } = {}) {
 
 // one still of the story at ms (0 .. about 1080), for checks and pictures
 export async function pose(anchor, ms) {
+  const id = playId;
   await ready();
-  if (playing) return;                         // the story is being told: leave it
+  if (id !== playId || playing) return;        // the story is being told: leave it
+  if (!root) build();
   if (running) running.stop();
+  artMode = "drive"; paintTheme();
   root.hidden = false; els.final.hidden = true; showDrive(true); frame(anchor, ms);
 }
 
 // the desk under the stage (grain, pool, objects) without the moving drive
 export async function desk(on, anchor) {
-  if (!on) { ++playId; running?.stop(); playing = false; if (root) root.hidden = true; return; }
+  if (!on) {
+    ++playId; running?.stop(); slideAnimation?.cancel(); playing = false;
+    artObserver?.disconnect(); artObserver = slideAnimation = null;
+    root?.remove(); root = world = grain = lastAnchor = null; els = {};
+    return;
+  }
+  const id = playId;
   await ready();
-  if (playing) return;
+  if (id !== playId || playing) return;
+  if (!root) build();
+  artMode = "desk"; paintTheme();
   root.hidden = false; root.style.transform = ""; els.final.hidden = true; showDrive(false); place(anchor);
 }
 
 // the last frame as one picture slides out to (or in from) a side
 export async function slide(dir, anchor, entering = false) {
+  const id = playId;
   await ready();
+  if (id !== playId) return;
+  if (!root) build();
   if (running) running.stop();
+  const final = els.final, v = theme();
+  final.src = new URL(`final_${v}.webp`, BASE).href;
+  const decoded = await final.decode().then(() => true, () => false);
+  if (id !== playId || !root) return;
+  if (!decoded || theme() !== v) { final.removeAttribute("src"); return; }
+  artMode = "slide"; paintTheme();
   root.hidden = false; showDrive(false); els.final.hidden = false;
   for (const e of [...els.props, ...els.propShadows]) e.hidden = true;
   place(anchor);
   const [dx, dy] = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[dir] || [-1, 0];
   const far = `translate(${dx * innerWidth}px, ${dy * innerHeight}px)`;
   const frames = entering ? [{ transform: far }, { transform: "none" }] : [{ transform: "none" }, { transform: far }];
-  const a = root.animate(frames, { duration: reduced() ? 1 : 420, easing: "cubic-bezier(.65,0,.35,1)", fill: "forwards" });
+  const a = slideAnimation = root.animate(frames, { duration: reduced() ? 1 : 420, easing: "cubic-bezier(.65,0,.35,1)", fill: "forwards" });
   await a.finished.catch(() => {});
   a.cancel();
+  if (id !== playId || a !== slideAnimation) return;
+  slideAnimation = null;
   els.final.hidden = true;
   for (const e of [...els.props, ...els.propShadows]) e.hidden = false;
   if (!entering) root.hidden = true;
+  artMode = "desk"; paintTheme();
 }

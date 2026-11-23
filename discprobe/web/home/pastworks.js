@@ -223,6 +223,7 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     if (flight) paintFlight(); else paintBackground();
   }
   function paintTheme() {
+    if (phase === "closed") return;
     const next = root.dataset.theme === "dark" ? "dark" : "paper";
     if (theme === next) return;
     theme = next;
@@ -314,6 +315,14 @@ export function createPastWorks(api, { host = document.body, thumbnail, openPlan
     page.hidden = true; page.inert = false; phase = "closed";
     cancelAnimationFrame(frameId); cancelAnimationFrame(flightId); frameId = flightId = 0; flight = null;
     restoreFlight();
+    clearTimeout(statusTimer); undoing = null;
+    for (const img of page.querySelectorAll("img")) {
+      img.onerror = null; img.removeAttribute("src");
+    }
+    theme = null;
+    grid.replaceChildren(); focusArt.replaceChildren(); details.replaceChildren();
+    thumbPlans.clear(); selected = selectedButton = null;
+    plans = []; library = null;
     if (root.dataset.mode === "pastworks") {
       root.dataset.mode = previous.mode;
       if ($("back")) $("back").hidden = previous.backHidden;

@@ -14,7 +14,7 @@ import { isActionEnter } from "./kit/shared.js";
 // All motion is transform / opacity only.
 
 import * as presets from "./presetio.js";
-import { driveTarget, pushLobby } from "./lobby.js";
+import { driveTarget, prepareLobby, pushLobby } from "./lobby.js";
 import { receive as receiveCommunity, hint as communityHint, safeGithub } from "./community.mjs";
 import { calibrated, calibratedBatch, localDay, sameMaker } from "./batches.mjs";
 import { hasCapability } from "./handshake.mjs";
@@ -228,19 +228,29 @@ function stepDial(group, dir) {
 
 // ---------------------------------------------------------------- the page
 function build() {
-  const css = document.createElement("link");
-  css.rel = "stylesheet"; css.href = new URL("./newplan.css", import.meta.url).href;
-  cssReady = new Promise((ok) => { css.onload = ok; css.onerror = ok; });    // shown only once styled
-  document.head.append(css);
-  // the page's own back and next buttons (top left, bottom right) belong to this page while it is up
-  $("back").addEventListener("click", (e) => {
-    if (!isOn()) return;
-    if (bagFlight) { e.stopImmediatePropagation(); bagFlight.cancel(); return; }
-    if (going) return;
-    e.stopImmediatePropagation(); back();
-  }, { capture: true });
-  $("next").addEventListener("click", (e) => { if (!isOn()) return; e.stopImmediatePropagation(); next(); }, { capture: true });
-  W = document.createElement("section");
+  if (!document.getElementById("newplan-styles")) {
+    const css = document.createElement("link");
+    css.id = "newplan-styles";
+    css.rel = "stylesheet"; css.href = new URL("./newplan.css", import.meta.url).href;
+    cssReady = new Promise((ok) => { css.onload = ok; css.onerror = ok; });    // shown only once styled
+    document.head.append(css);
+    // the page's own back and next buttons (top left, bottom right) belong to this page while it is up
+    $("back").addEventListener("click", (e) => {
+      if (!isOn()) return;
+      if (bagFlight) { e.stopImmediatePropagation(); bagFlight.cancel(); return; }
+      if (going) return;
+      e.stopImmediatePropagation(); back();
+    }, { capture: true });
+    $("next").addEventListener("click", (e) => { if (!isOn()) return; e.stopImmediatePropagation(); next(); }, { capture: true });
+    addEventListener("dp-lang", () => { if (isOn()) { paintDial(); fillBatches(); words_(); } });
+    addEventListener("dp-theme", () => {
+      if (isOn() && !motionOff()) {
+        if (W.classList.contains("filing")) void showEnvelopeArt();
+        else prepareEnvelope();
+      }
+    });
+  }
+  W = document.querySelector(".np") ?? document.createElement("section");
   W.className = "np"; W.hidden = true;
   W.innerHTML = `
     <div class="np-desk" aria-hidden="true"><div class="np-scene"></div></div>
@@ -286,7 +296,7 @@ function build() {
   q(".np-library").addEventListener("click", () => {
     const it = chosen();
     if (!isLibrary(it) || !api.inspectBatch) return;
-    W.hidden = true; root.dataset.mode = "";
+    parkForm(); root.dataset.mode = "";
     api.inspectBatch(state.kind, it, (kind, item) => {
       if (item) { state.kind = kind; state.sub = subOf(kind, item); state.picked = item; }
       reopen();
@@ -316,7 +326,6 @@ function build() {
       },
     })) W.hidden = true;
   });
-  addEventListener("dp-lang", () => { if (isOn()) { paintDial(); fillBatches(); words_(); } });
   W.name.addEventListener("keydown", (e) => {
     if (e.key === "Tab" && !e.shiftKey && !W.name.value) { e.preventDefault(); W.name.value = suggestion(); W.name.select(); }
     if (isActionEnter(e)) { e.preventDefault(); next(); }
@@ -620,6 +629,7 @@ async function calibrateFirst() {
     if (!stillCal() || cardFlight?.reversing) return;
   } else W.hidden = true;
   W.classList.remove("filing", "leaving");
+  parkForm();
   going = false;
 }
 // the scene's scale for the glass shadows (index.html --mm): the top view covers the window, 3.455 px/mm at 2560 wide
@@ -701,6 +711,7 @@ async function cardIn(card, track) {
 // hands back (reopen).
 let returnFlight = null;
 async function panBack(finish, reverseDisc) {
+  mountForm();
   going = true;
   const returning = returnFlight = { skipped: false, anims: new Set(), disc: new AbortController() };
   const track = anims => {
@@ -719,6 +730,9 @@ async function panBack(finish, reverseDisc) {
   addEventListener("click", skip, true); addEventListener("keydown", skip, true);
   changed.observe(root, { attributes: true, attributeFilter: ["data-motion"] });
   try {
+    if (!panFlight && !cardFlight) {
+      await Promise.race([showEnvelopeArt(), new Promise(resolve => returning.disc.signal.addEventListener("abort", resolve, { once: true }))]);
+    }
     const disc = reverseDisc?.(returning.disc.signal) ?? Promise.resolve();
     if (panFlight) {
       const flight = panFlight;
@@ -733,7 +747,7 @@ async function panBack(finish, reverseDisc) {
     } else {
       const card = $("cal"), ruler = document.getElementById("cal-ruler");
       if (ruler) track([ruler.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: "forwards" })]);
-      const [inEnv] = await Promise.all([card && !card.hidden ? cardIn(card, track) : { parts: [], anims: [] }, disc]);
+      const [inEnv] = await Promise.all([card && !card.hidden && !returning.skipped ? cardIn(card, track) : { parts: [], anims: [] }, disc]);
       // this page, filed, waiting off to the left (measured where it stands, then moved)
       W.hidden = false;
       W.classList.add("instant");
@@ -767,6 +781,7 @@ async function panBack(finish, reverseDisc) {
   }
 }
 function reopen({ unfile = false } = {}) {
+  mountForm();
   clearEnvelopes();
   root.dataset.mode = "newplan";
   sceneScale();
@@ -843,7 +858,7 @@ function pullable() {
     W.sheet.addEventListener("pointerup", up);
     W.sheet.addEventListener("pointercancel", up);
   });
-  W.resetPull = () => { offered = x = v = 0; held = false; paint(); };
+  W.resetPull = () => { cancelAnimationFrame(raf); clearTimeout(idle); raf = last = 0; offered = x = v = 0; held = false; paint(); };
 }
 
 // ---------------------------------------------------------------- in and out
@@ -852,30 +867,76 @@ const wait = (ms) => new Promise((r) => setTimeout(r, api.reduce ? 0 : ms));
 // current theme decoded. The lobby calls this when the pointer (or focus) reaches the drive, so the first
 // frame of the flight is not spent loading (it was one frame of about a quarter second).
 let ready = null, readyTheme = "";
-const ART = ["top", "paper", "paper_shadow", "envelope_back", "envelope_front"];
-const kept = [];          // the decoded pictures, held so they stay decoded
+let formInputs = null;
+function parkForm() {
+  if (!W) return;
+  formInputs = {name: W.name.value, batch: W.batch.value};
+  W.hidden = true;
+  W.resetPull?.(); clearTimeout(W.toastT); clearDialFlight();
+  clearEnvelopeArt(); kept = []; ready = null;
+  const shell = document.createElement("section");
+  shell.className = "np"; shell.hidden = true;
+  W.replaceWith(shell); W = null;
+}
+function mountForm() {
+  if (W) return;
+  build();
+  if (formInputs) { W.name.value = formInputs.name; W.batch.value = formInputs.batch; }
+}
+const ART = ["top", "paper", "paper_shadow"];
+const artTheme = () => root.dataset.theme === "dark" ? "dark" : "paper";
+const artURL = (name, theme) => new URL(`./newplan/${name}_${theme}.webp`, import.meta.url).href;
+let kept = [];
+let envelope = null;
+function clearEnvelopeArt() {
+  envelope = null;
+  W?.style.removeProperty("--env-back-image");
+  W?.style.removeProperty("--env-front-image");
+}
+function prepareEnvelope() {
+  const theme = artTheme();
+  if (envelope?.theme === theme) return envelope;
+  const images = ["back", "front"].map(part => {
+    const image = new Image();
+    image.src = artURL(`envelope_${part}`, theme);
+    return image;
+  });
+  return envelope = { theme, images, decoded: Promise.all(images.map(image => image.decode())).then(() => true, () => false) };
+}
+async function showEnvelopeArt() {
+  const art = prepareEnvelope();
+  const decoded = await art.decoded;
+  if (!W || envelope !== art || artTheme() !== art.theme || !decoded) return false;
+  for (const [index, part] of ["back", "front"].entries()) {
+    W.style.setProperty(`--env-${part}-image`, `url("${art.images[index].src}")`);
+  }
+  return true;
+}
 export function prepare(homeApi) {
   api = homeApi; $ = api.$;
-  const theme = root.dataset.theme === "dark" ? "dark" : "paper";
+  const theme = artTheme();
   if (ready && readyTheme === theme) return ready;
   readyTheme = theme;
+  const images = kept = [];
   ready = (async () => {
     await loadWords();
     if (!W) build();
+    const page = W;
     await cssReady;
     await Promise.all(ART.map((n) => {
       const img = new Image();
-      img.src = new URL(`./newplan/${n}_${theme}.webp`, import.meta.url).href;
-      kept.push(img);
+      img.src = artURL(n, theme);
+      images.push(img);
       return img.decode().catch(() => {});
     }));
     // Drawn once, invisibly, for a few frames: the graphics card rasterises the big pictures now rather
     // than in the first frame of the flight (where it stalled the flight for about a third of a second).
-    if (!W.hidden || api.reduce) return;
+    if (page !== W || !W.hidden || api.reduce) return;
     const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     Object.assign(W.style, { opacity: "0.002", pointerEvents: "none" });
     W.hidden = false;
     await frame(); await frame();
+    if (page !== W) return;
     if (root.dataset.mode !== "newplan" && !going) W.hidden = true;      // unless the page was opened (or is panning away) meanwhile
     Object.assign(W.style, { opacity: "", pointerEvents: "" });
   })();
@@ -892,6 +953,7 @@ export async function start(homeApi, { from = null, file = null, resume = null }
   try { saved = JSON.parse(localStorage.getItem("dp-disc-kind") || "[]"); } catch {}
   const kind = KINDS.includes(saved[0]) ? saved[0] : KINDS.includes(col) ? col : "dvd";
   state = { kind, picked: null, file, list: [], newItems: new Map(), edited: false, seed: Math.floor(Math.random() * 1e6) };
+  formInputs = null;
   const communityState = state;
   receiveCommunity().then(got => { if (state === communityState) { state.community = got; paintCommunity(); } }).catch(() => {});
   state.sub = saved[0] === kind && SUBS[kind].some((s) => s.key === saved[1]) ? saved[1] : subOf(kind, col === kind ? item : {});
@@ -915,6 +977,7 @@ export async function start(homeApi, { from = null, file = null, resume = null }
   sceneScale();
   $("back").hidden = false; $("next").disabled = false;
   W.hidden = false;
+  if (!motionOff()) prepareEnvelope();
   if (!push) { nextPending = false; $("next-text").textContent = T().next; }
   if (!resume || state.reading) readDrive();
   W.classList.remove("leaving", "filing");
@@ -940,11 +1003,11 @@ export async function start(homeApi, { from = null, file = null, resume = null }
   }, motionOff() ? 0 : 700);
 }
 export function navigationState() {
-  if (!state || !W) return null;
+  if (!state || (!W && !formInputs)) return null;
   const {newItems, file, ...fields} = state;
-  return {state: fields, newItems: [...newItems], name: W.name.value, batch: W.batch.value, file};
+  return {state: fields, newItems: [...newItems], ...(W ? {name: W.name.value, batch: W.batch.value} : formInputs), file};
 }
-export function suspendNavigation() { if (W) leave(); }
+export function suspendNavigation() { if (W) { leave(); parkForm(); } }
 // where the top view has the blank disc (newplan.json top.disc: centre 512, 720 of 2560 x 1440 since the drive was
 // turned round), the picture covering the window
 function discPoint() {
@@ -971,6 +1034,9 @@ addEventListener("resize", () => {
 });
 function leave() {
   W.hidden = true;
+  W.resetPull?.();
+  clearEnvelopeArt();
+  kept = []; ready = null;
   root.dataset.mode = "";
   $("back").hidden = true;
 }
@@ -978,15 +1044,17 @@ function leave() {
 export async function back() {
   if (!W || W.hidden || leavingBack) return;
   leavingBack = true;
-  if (api.reduce) { leave(); api.toLobby(); return; }
+  if (api.reduce) { leave(); parkForm(); api.toLobby(); return; }
   if (pushFlight) {
     const push = pushFlight;
     push.anims.forEach((a) => a.reverse());
     await Promise.all(push.anims.map((a) => a.finished)).catch(() => {});
     leave(); api.toLobby(); push.done(); pushFlight = null;
     W.style.transformOrigin = "";
+    parkForm();
     return;
   }
+  await Promise.race([prepareLobby(), wait(600)]);
   const pull = pushLobby(pushOrigin ?? pushTransform($("lobby-new")), true), [tx, ty] = discPoint();
   W.style.transformOrigin = `${tx}px ${ty}px`;
   const transform = W.animate([{ transform: "none" }, { transform: topStart() }],
@@ -997,6 +1065,7 @@ export async function back() {
   leave(); api.toLobby();
   transform.cancel(); opacity.cancel(); W.style.transformOrigin = "";
   pull.done();
+  parkForm();
 }
 // Where the envelope stops and how the sheet goes in, measured from the page as it is laid out.
 // Envelope picture (envelope.json): 1600 x 2494, pocket top 16.9 % down, its front ends 3.4 % above the
@@ -1023,7 +1092,6 @@ let bagFlight = null;
 let bagged = false;
 try { bagged = sessionStorage.getItem("dp-bagged") === "1"; } catch {}
 async function bagging(drop = true) {
-  W.resetPull?.(); fileInto();
   const total = motionOff() ? 0 : bagged ? 400 : 1000;
   if (total) { bagged = true; try { sessionStorage.setItem("dp-bagged", "1"); } catch {} }
   const filing = Math.round(total * .64), leaving = total - filing;
@@ -1044,11 +1112,24 @@ async function bagging(drop = true) {
   addEventListener("click", skip, true); addEventListener("keydown", skip, true);
   changed.observe(root, { attributes: true, attributeFilter: ["data-motion"] });
   try {
+    // Keep the form on screen while decoding. A click, motion change or Back can still skip the wait.
+    if (!skipped) {
+      const interrupt = new Promise(resolve => { wake = () => resolve(false); timer = setTimeout(wake, 1200); });
+      const decoded = await Promise.race([showEnvelopeArt(), interrupt]);
+      clearTimeout(timer);
+      if (!decoded) {
+        if (cancelled) return false;
+        skipped = true;
+        W.classList.add("instant");
+      }
+    }
+    W.resetPull?.(); fileInto();
     W.classList.add("filing"); await pause(filing);
     if (drop && !cancelled) { W.classList.add("leaving"); await pause(leaving); }
   } finally {
     clearTimeout(timer); changed.disconnect();
     removeEventListener("click", skip, true); removeEventListener("keydown", skip, true);
+    if (skipped && !cancelled) W.getBoundingClientRect(); // commit the instant pose before re-enabling transitions
     W.classList.remove("instant");
     bagFlight = null;
   }
@@ -1069,8 +1150,7 @@ async function next() {
   // then delegate subsequent reads (e.g. calibration) to the home API as usual.
   // The desk remains under the arriving design sheet; the envelope stays dropped out of frame.
   await design.start(withInitialItem(item), { newPlan: true, fly: false, file: state.file, name, dropIn: true, batchDeferred: !item });
-  W.hidden = true;
-  W.classList.remove("filing", "leaving");
+  parkForm();
   going = false;
 }
 function withInitialItem(item) {

@@ -77,7 +77,7 @@ export async function open(homeApi,id,burnId=null,setup=undefined) {
   } catch {if(!signal.aborted)page.querySelector('.ab-preview-note').textContent=L('这次刻录没有保存预览。当前设计仍可从作品库打开。','No preview was saved with this burn. The current design is still in the library.');}
 }
 export function leave() {
-  life?.abort();life=null;if(page)page.hidden=true;
+  life?.abort();life=null;if(page){page.hidden=true;page.replaceChildren();}
   if(thumbURL)URL.revokeObjectURL(thumbURL);thumbURL=null;
   if(root.dataset.mode==='afterburn')root.dataset.mode='';
 }

@@ -80,10 +80,11 @@ async function until(expr,message) {
   for(let i=0;i<200;i++){if(await evaluate('return '+expr))return;await pause(25);}
   assert.fail(message+': '+await evaluate('return JSON.stringify({errors,mode:document.documentElement.dataset.mode,flights:flights.map(f=>[f.el.id||f.el.className,f.options.duration,f.a.playState])})'));
 }
-async function open() {
+async function open({warm = true} = {}) {
   await cdp('Page.navigate',{url:pathToFileURL(fixture).href+'?mock'});
   await until('!!window.motionTest','fixture ready');
-  await evaluate('await motionTest.newplan.prepare(motionTest.api);window.scrub=true;window.flights=[];');
+  if (warm) await evaluate('await motionTest.newplan.prepare(motionTest.api);');
+  await evaluate('window.scrub=true;window.flights=[];');
 }
 async function newWork(fly=false) {
   await evaluate(`setMotion('${fly?'on':'off'}');await motionTest.newplan.start(motionTest.api,${fly?'{from:document.getElementById("lobby-new")}':'{}'});`);
@@ -106,7 +107,7 @@ try {
     if(!port)await pause(100);
   }
   assert.ok(port,'CDP ready');
-  assert.ok(![8772,8795,8798,8812,8813,8841,8863].includes(+port));
+  assert.ok(![8765,8772,8795,8798,8812,8813,8841,8863].includes(+port));
   const targets=await fetch(`http://127.0.0.1:${port}/json/list`).then(r=>r.json());
   socket=new WebSocket(targets.find(t=>t.type==='page').webSocketDebuggerUrl);
   await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject;});
@@ -209,7 +210,7 @@ try {
     if (skip) {
       await evaluate('document.body.click();');
       await until('document.documentElement.dataset.mode==="newplan" && !document.querySelector(".np").classList.contains("unfiling")','22: skip cancels disc, card and pan');
-      await check('rafQueue.size===0 && document.querySelector(".ld").hidden && document.getElementById("cal").hidden','22: skip cleans reverse sprites and rAF');
+      await check('rafQueue.size===0 && !document.querySelector(".ld") && document.getElementById("cal").hidden','22: skip cleans reverse sprites and rAF');
     } else {
       await evaluate('tickRAF(1080);window.reverseStart=spriteState();');
       await evaluate('await load.pose(anchor,0);window.expectedStart=spriteState();');
@@ -257,7 +258,9 @@ try {
   await until('!document.documentElement.dataset.mode && document.querySelector(".np").hidden','reverse reaches lobby');
   await newWork(true);await evaluate('finishFlights();');
   await until('!document.getElementById("lobby").classList.contains("leaving")','push complete');
-  await evaluate('flights=[];esc();flights.filter(f=>f.el.classList.contains("np")).forEach(f=>{f.a.pause();f.a.currentTime=260;});');
+  await evaluate('flights=[];esc();');
+  await until('flights.some(f=>f.el.classList.contains("np"))', 'ordinary pull-back starts after the lobby art is ready');
+  await evaluate('flights.filter(f=>f.el.classList.contains("np")).forEach(f=>{f.a.pause();f.a.currentTime=260;});');
   await check('+getComputedStyle(document.querySelector(".np")).opacity>.3 && +getComputedStyle(document.querySelector(".np")).opacity<.9','7: ordinary pull-back fade spans more than the final frames');
   await evaluate('finishFlights();');await until('!document.documentElement.dataset.mode','ordinary pull-back complete');
 
@@ -351,9 +354,14 @@ try {
   }
   await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
 
-  // 11: idle preparation covers both pages, with no drive hover. A warm click starts in this turn.
-  await open();
-  await until('!!document.querySelector(".pw")','11: lobby idle preloads past works');
+  // 11: idle lobby leaves both scenes unmounted. Hover still warms the New Work entrance.
+  await open({warm:false});
+  await pause(1300);
+  await check('!document.querySelector(".pw, .np")','11: idle lobby leaves past works and the form unmounted');
+  await check(`!performance.getEntriesByType('resource').some(e=>e.name.endsWith('.webp') && ['/newplan/','/pastworks/'].some(part=>e.name.includes(part)))`,
+    '11: idle lobby does not request either scene’s WebP art');
+  await evaluate(`document.getElementById('lobby-new').dispatchEvent(new PointerEvent('pointerenter'));
+    await motionTest.newplan.prepare(motionTest.api);`);
   await evaluate(`setMotion('on');flights=[];window.warmStart=motionTest.newplan.start(motionTest.api,{from:document.getElementById('lobby-new')});
     for(let i=0;i<12;i++)await Promise.resolve();window.warmPush=flights.some(f=>f.el.id==='lobby-art');`);
   await check('warmPush','11: prepared push starts without waiting for the 600ms fallback');
@@ -453,6 +461,21 @@ try {
     window.burn=await import('./burn.js');burn.start(api,{media:'dvd',item:{name:'Test'},iso:{path:'mock.iso',bytes:32768,sectors:16},drive:{id:'FAKE',speeds:[4,8]}});`);
   await until('visualTray.read() && motionTest.api.burnerLayer.classList.contains("open")','8: pictured tray opens for non-mock backend');
   await check('calls.every(c=>c.path==="/api/presets" && c.method==="GET") && errors.length===0','8: no drive calls or browser errors');
+
+  // A trip to the shelf must leave the current lobby bitmaps on the same nodes.
+  await open({warm:false});
+  await evaluate(`setMotion('off');
+    window.lobbyBitmaps=[...document.querySelectorAll('#lobby-art img[src]')].map(img=>({img,src:img.src}));
+    document.getElementById('library').click();`);
+  await until('document.documentElement.dataset.home==="library" && !document.getElementById("lobby").offsetWidth','shelf hides lobby');
+  await check('lobbyBitmaps.length>1 && lobbyBitmaps.every(({img,src})=>img.isConnected && img.src===src)','leaving the lobby retains its bitmap sources');
+  await evaluate(`window.lobbyTheme=document.documentElement.dataset.theme;
+    document.getElementById('theme').click();`);
+  await until(`document.documentElement.dataset.theme!==lobbyTheme && lobbyBitmaps.every(({img,src})=>{
+    const suffix=document.documentElement.dataset.theme==='dark' ? '_dark.webp' : '_paper.webp';
+    return img.src!==src && img.currentSrc===img.src && img.currentSrc.endsWith(suffix) && img.naturalWidth>0;
+  })`,'the hidden lobby exchanges every active bitmap for the new theme');
+  await check('document.querySelectorAll("#lobby-art img[src]").length===lobbyBitmaps.length','theme change keeps only active lobby sources');
   console.log('PASS: motion audit 1–24, paused/scrubbed WAAPI and rAF, labels, transform flights, dial, preview readiness, reverse load, resize, motion-off and prior interruption regressions');
 } finally {
   if(socket?.readyState===WebSocket.OPEN){await cdp('Browser.close').catch(()=>{});socket.close();}

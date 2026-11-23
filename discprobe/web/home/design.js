@@ -254,6 +254,7 @@ const plans = [];
 const projects = new Map();                  // the shelf's old way in: one plan per shelf disc
 export const recentPlans = () => plans.filter((P) => P.layers.length || P.name);
 let W = null;                                // the workspace's DOM
+let parkedWorkspace = null;
 const V = { s: 5, cx: 0, cy: 0, w: 0, h: 0, dpr: 1 };   // canvas view: px per mm and the disc centre
 let followFit = true;
 let focus = { x: 0, y: 0, w: 0, h: 0, dock: 0 };
@@ -340,10 +341,17 @@ function redo() { if (!S.future.length) return; S.past.push(snapshot()); restore
 function pixelsChanged(L) {
   const c = L.src ?? document.createElement("canvas");
   c.width = L.px.width; c.height = L.px.height;
-  c.getContext("2d").putImageData(L.px, 0, 0);
+  c.getContext("2d", L.drawOptions).putImageData(L.px, 0, 0);
   L.src = c;
   L.version = (L.version ?? 0) + 1;
   L.thumb = null;
+}
+function rasterSource(L) {
+  if (L.src || !L.px) return L.src;
+  const canvas = document.createElement("canvas");
+  canvas.width = L.w; canvas.height = L.h;
+  canvas.getContext("2d", L.drawOptions).putImageData(L.px, 0, 0);
+  return L.src = canvas;
 }
 function drawShape(g, shape, rgb = [30, 30, 30]) {
   const {width, height} = g.canvas;
@@ -603,9 +611,9 @@ function rasterise(x0, y0, x1, y1, ppm, white = true, originals = null, layers =
       const tg = t.getContext("2d");
       tg.drawImage(full, 0, 0, t.width, t.height);
       tg.globalCompositeOperation = "destination-in";
-      tg.drawImage(L.src, 0, 0, t.width, t.height);
+      tg.drawImage(rasterSource(L), 0, 0, t.width, t.height);
       g.drawImage(t, -L.width / 2, -hh / 2, L.width, hh);
-    } else g.drawImage(full ?? L.src, -L.width / 2, -hh / 2, L.width, hh);
+    } else g.drawImage(full ?? rasterSource(L), -L.width / 2, -hh / 2, L.width, hh);
     g.restore();
   }
   return { c, g, pw, ph };
@@ -619,7 +627,7 @@ export function planThumbnail(plan, px = 256) {
   const key = JSON.stringify([px, dark, plan.media, plan.view, plan.tone, plan.pro, plan.lookColour, plan.lookY, plan.scene,
     plan.past?.length, plan.future?.length,
     (plan.layers || []).map((L) => [L.kind, L.w, L.h, L.version, ...PROPS.filter((k) => k !== "px").map((k) => L[k])])]);
-  const sources = (plan.layers || []).flatMap((L) => [L.src, L.px]);
+  const sources = (plan.layers || []).map(L => L.px ?? L.src);
   const cached = planThumbs.get(plan);
   if (cached?.key === key && sources.every((src, i) => src === cached.sources[i])) return cached.url;
   const face = dark ? "#ebe7e0" : "#d6d1c8", hub = dark ? "#e4dfd7" : "#c9c3b9";
@@ -754,7 +762,7 @@ function lookOverlay(plan = S) {
     const { g } = rasterise(-60, -60, 60, 60, N / 120, false, null, []);
     g.clearRect(-60, -60, 120, 120);
     g.save(); g.translate(one.x, one.y); g.rotate(one.rot * Math.PI / 180);
-    const hh = heightOf(one); g.drawImage(one.src, -one.width / 2, -hh / 2, one.width, hh); g.restore();
+    const hh = heightOf(one); g.drawImage(rasterSource(one), -one.width / 2, -hh / 2, one.width, hh); g.restore();
     return { L, a: g.getImageData(0, 0, N, N).data };
   });
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
@@ -881,7 +889,7 @@ function paintCanvas() {
     if (grey && !(S.view === "proj" && S.assignments?.some(a => a.colour && a.layer === L.id))) g.filter = "grayscale(1)";
     g.translate(V.cx + L.x * V.s, V.cy + L.y * V.s); g.rotate(L.rot * Math.PI / 180);
     const hh = heightOf(L) * V.s;
-    g.drawImage(L.src, -L.width * V.s / 2, -hh / 2, L.width * V.s, hh);
+    g.drawImage(rasterSource(L), -L.width * V.s / 2, -hh / 2, L.width * V.s, hh);
     g.restore();
   }
   // the projection (after tone and dithering) inside the burnable ring
@@ -1056,12 +1064,13 @@ function removeLayer(L) {
 
 // a change to the project: redraw, recompute the projection, mark unsaved
 function changed() {
+  S.dirty = true;
+  editor?.invalidate();
+  if (!isOn() || !W) return;
   settleView();
   if(S.view==='burn'&&(drag&&['move','scale','rot'].includes(drag.kind)||editor?.drag?.kind==='pixels'))editor?.deferPreview();
-  S.dirty = true;
   W?.dirty.classList.toggle("on", S.dirty);
   if (W) W.dirty.title = T().unsaved;
-  editor?.invalidate();
   draw(); queueCompose();
   refreshLayerRows();
   $("next").disabled = !imageLayers().length && !S.assignments?.length; api.nextWhy?.(T().whyNoPicture);
@@ -1258,7 +1267,7 @@ function thumb(L) {
   const c = document.createElement("canvas");
   c.width = 88; c.height = 88;
   const g = c.getContext("2d"), k = Math.min(88 / L.w, 88 / L.h);
-  g.drawImage(L.src, (88 - L.w * k) / 2, (88 - L.h * k) / 2, L.w * k, L.h * k);
+  g.drawImage(rasterSource(L), (88 - L.w * k) / 2, (88 - L.h * k) / 2, L.w * k, L.h * k);
   L.thumb = c;
   return c;
 }
@@ -1654,7 +1663,7 @@ async function projectText() {
   for (const L of plan.layers) {
     const e = { kind: L.kind, name: L.name, x: L.x, y: L.y, width: L.width, rot: L.rot, opacity: L.opacity, visible: L.visible, locked: L.locked };
     if (L.kind === "image") {
-      Object.assign(e, { colour: L.colour, w: L.w, h: L.h, alphaEdited: !!L.alphaEdited, picture: await blobURL(await canvasBlob(L.src)) });
+      Object.assign(e, { colour: L.colour, w: L.w, h: L.h, alphaEdited: !!L.alphaEdited, picture: await blobURL(await canvasBlob(rasterSource(L))) });
       if (L.file) e.original = await blobURL(L.file);
       if (L.gridSource && !L.alphaEdited) {
         e.gridPng = await gridPngURL(L.gridSource);
@@ -1679,7 +1688,7 @@ async function saveToWorks(plan = S) {
       thumb: async () => dataURLBlob(planThumbnail(plan, 512)) });
     if (!r) return false;
     plan.name = r.work.name ?? name; plan.dirty = false;
-    if (plan === S) { W.dirty.classList.remove("on"); W.pname.textContent = S.name; }
+    if (plan === S && W) { W.dirty.classList.remove("on"); W.pname.textContent = S.name; }
     toast(r.note);
     return true;
   } catch (e) { toast(sayings(api.lang()).failed + (e?.message ?? e)); return false; }
@@ -1722,13 +1731,13 @@ async function saveProject(as = false) {
     a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
   S.name = baseName(name); S.dirty = false;
-  W.dirty.classList.remove("on"); W.pname.textContent = S.name;
+  if (W) { W.dirty.classList.remove("on"); W.pname.textContent = S.name; }
   toast(t.saved(name));
   return true;
 }
 // work: { id, updated_at } when the text came from the works library; a file opened from disk is no library work
 async function openProject(file, handle = null, work = null, dirty = false) {
-  const t = T();
+  const t = T(), plan = S;
   let data;
   // a work with a few photos is tens of MB (each layer keeps its pixels, its PNG and the original file)
   if (file.size > OPEN_LIMIT) { toast(t.tooLarge(file.name, Math.round(file.size / 2 ** 20)), 8000); return; }
@@ -1801,6 +1810,7 @@ async function openProject(file, handle = null, work = null, dirty = false) {
     S.item = saved ?? unsetBatch();
     S.batchDeferred = !!work && !saved;
   }
+  if (S !== plan) return;
   S.layers = layers.slice(0, 16);
   S.selections=structuredClone(data.selections??[]);S.activeMask=data.activeMask??null;
   // fills of a layer that is gone would make the export refuse the whole work
@@ -1823,12 +1833,13 @@ async function openProject(file, handle = null, work = null, dirty = false) {
   if (editor?.hasColour()) editor.rigSync();
   S.name = baseName(file.name); S.handle = handle; S.work = work;
   changed();
-  S.dirty = dirty; W.dirty.classList.toggle("on", dirty);
+  S.dirty = dirty || !!lost.length;
+  if (!W || !isOn()) return;
+  W.dirty.classList.toggle("on", S.dirty);
   W.ws.classList.toggle("pro-on", S.pro);
   words();
   updateTilt();
   fit();
-  if (lost.length) { S.dirty = true; W.dirty.classList.add("on"); }
   toast([data.media && data.media !== S.media ? t.otherMedia(data.media.toUpperCase(), S.media.toUpperCase()) : t.opened(work ? S.name : file.name),
     lost.length ? t.lost(lost.map((e) => `“${String(e.name ?? "?")}”`).join(api.lang() === "en" ? ", " : "、")) : ""].filter(Boolean).join(" "), lost.length ? 12000 : 2600);
 }
@@ -2103,6 +2114,8 @@ function viewNote(){
   note.setAttribute('aria-busy',String(lamp&&!['ready','error'].includes(phase)));
 }
 function build() {
+  const life = new AbortController(), {signal} = life;
+  const on = (type, handler, capture = false) => addEventListener(type, handler, {signal, capture});
   const t = T();
   if (!document.getElementById("design-styles")) {
     const css = document.createElement("link");
@@ -2132,6 +2145,7 @@ function build() {
   document.body.append(ws);
   const q = (s) => ws.querySelector(s);
   W = {
+    life,
     ws, left: q(".col-l"), right: q(".col-r"), cv: q(".cv"), canvas: q("canvas.main"), tools: q(".tools-v"), view: q(".viewsw"),
     leftContent: q(".ed-layer-content"), leftFade: q(".ed-layer-fade"),
     desk: q(".ed-desk"), surface: q(".ed-surface"), shadow: q(".ed-disc-shadow"), viewDock: q(".ed-view-dock"),
@@ -2175,7 +2189,7 @@ function build() {
   }
   // canvas input
   const cvs = W.canvas;
-  observeActivity(cvs, active => {
+  const stopActivity = observeActivity(cvs, active => {
     canvasActive = active;
     if (!active) {
       editor?.lamp?.pause();
@@ -2193,17 +2207,17 @@ function build() {
   cvs.addEventListener("pointerenter", () => W.loupe.classList.toggle("on", !!S?.loupe));
   cvs.addEventListener("wheel", onWheel, { passive: false });
   let temporaryTool=null;
-  addEventListener("keydown",e=>{
+  on("keydown",e=>{
     if(!isOn()||!S||e.isComposing||e.ctrlKey||e.metaKey||e.altKey||e.target.closest?.("input,select,textarea,[contenteditable=true]"))return;
     if(e.key===" "&&e.target.closest?.(".lay button, .ed-colour-picture :is(button, summary), .ed-material-advanced > summary"))return;
     if(e.key===" "){if(!e.repeat&&temporaryTool===null){temporaryTool=S.tool;editor.cancelGesture();spaceDown=true;setTool("pan");}e.preventDefault();e.stopPropagation();return;}
     const t=({v:"move",r:"rectangle",f:"lasso",c:"ring",g:"sector",w:"colour",y:"shape",n:"pen",h:"pan"})[e.key.toLowerCase()];
     if(t&&!e.shiftKey){if(!e.repeat){editor.cancelGesture();setTool(t);}e.preventDefault();e.stopPropagation();}
   },true);
-  addEventListener("keyup",e=>{if(e.key===" "&&temporaryTool!==null){const t=temporaryTool;temporaryTool=null;spaceDown=false;setTool(t);e.preventDefault();e.stopPropagation();}},true);
-  addEventListener("blur",()=>{if(temporaryTool!==null){const t=temporaryTool;temporaryTool=null;spaceDown=false;setTool(t);}});
-  addEventListener("keydown", onKey);
-  addEventListener("keyup", onKeyUp);
+  on("keyup",e=>{if(e.key===" "&&temporaryTool!==null){const t=temporaryTool;temporaryTool=null;spaceDown=false;setTool(t);e.preventDefault();e.stopPropagation();}},true);
+  on("blur",()=>{if(temporaryTool!==null){const t=temporaryTool;temporaryTool=null;spaceDown=false;setTool(t);}});
+  on("keydown", onKey);
+  on("keyup", onKeyUp);
   W.zoom.addEventListener("click", fit);
   W.view.addEventListener("click", (e) => {
     if(e.target.closest('[data-colour-compare]')){
@@ -2240,7 +2254,7 @@ function build() {
   W.right.addEventListener("click", rightClick);
   W.tilt.querySelector("input").addEventListener("input", (e) => { S.lookY = Number(e.target.value); updateTilt(); draw(); });
   W.tilt.querySelector("button").addEventListener("click", togglePlay);
-  addEventListener("paste",e=>{if(!isOn()||e.target.closest?.('input,textarea,[contenteditable=true]'))return;const files=[...(e.clipboardData?.items??[])].filter(i=>i.kind==='file'&&i.type.startsWith('image/')).map(i=>i.getAsFile()).filter(Boolean);if(files.length){e.preventDefault();importFiles(files.map(f=>new File([f],'',{type:f.type})));}});
+  on("paste",e=>{if(!isOn()||e.target.closest?.('input,textarea,[contenteditable=true]'))return;const files=[...(e.clipboardData?.items??[])].filter(i=>i.kind==='file'&&i.type.startsWith('image/')).map(i=>i.getAsFile()).filter(Boolean);if(files.length){e.preventDefault();importFiles(files.map(f=>new File([f],'',{type:f.type})));}});
   W.file.addEventListener("change", () => { importFiles([...W.file.files]); W.file.value = ""; });
   W.gridFile.addEventListener("change", () => { importFiles([...W.gridFile.files], true); W.gridFile.value = ""; });
   W.proj.addEventListener("change", () => { const f = W.proj.files[0]; if (f) openProject(f); W.proj.value = ""; });
@@ -2250,7 +2264,6 @@ function build() {
     if (a === "save") saveProject(e.shiftKey);
   });
   // closing or reloading the page loses what isn't saved
-  addEventListener("beforeunload", (e) => { if (plans.some((p) => p.dirty && (p.layers.length||p.assignments?.length))) { e.preventDefault(); e.returnValue = ""; } });
   W.folder.addEventListener("change", () => {
     const fs = [...W.folder.files];
     if (fs.length) { S.files = { count: fs.length, bytes: fs.reduce((a, f) => a + f.size, 0), where: S.files?.where ?? "inner" }; changed(); buildLeft(); }
@@ -2258,16 +2271,16 @@ function build() {
   });
   // drop pictures anywhere on the page
   let depth = 0;
-  addEventListener("dragenter", (e) => { if (!isOn() || !e.dataTransfer?.types.includes("Files")) return; depth++; W.drop.classList.add("on"); });
-  addEventListener("dragleave", () => { if (!isOn()) return; depth = Math.max(0, depth - 1); if (!depth) W.drop.classList.remove("on"); });
-  addEventListener("dragover", (e) => { if (isOn() && e.dataTransfer?.types.includes("Files")) e.preventDefault(); });
-  addEventListener("drop", (e) => {
+  on("dragenter", (e) => { if (!isOn() || !e.dataTransfer?.types.includes("Files")) return; depth++; W.drop.classList.add("on"); });
+  on("dragleave", () => { if (!isOn()) return; depth = Math.max(0, depth - 1); if (!depth) W.drop.classList.remove("on"); });
+  on("dragover", (e) => { if (isOn() && e.dataTransfer?.types.includes("Files")) e.preventDefault(); });
+  on("drop", (e) => {
     if (!isOn() || !e.dataTransfer?.files.length) return;
     e.preventDefault(); depth = 0; W.drop.classList.remove("on");
     const files = [...e.dataTransfer.files], proj = files.find((f) => /\.(discdesign|json)$/i.test(f.name));
     if (proj) openProject(proj); else importFiles(files);
   });
-  editor = new Editor({state:()=>S,dom:()=>W,lang:()=>api.lang(),view:()=>V,colour:cssVar,active:isOn,
+  editor ??= new Editor({state:()=>S,dom:()=>W,lang:()=>api.lang(),view:()=>V,colour:cssVar,active:isOn,source:rasterSource,
     checkpoint, changed, draw, status:viewNote, annulus, fit, undo, redo, selectionEdit, rollback:history=>{const snap=S.past.pop();if(snap)restore(snap);Object.assign(S,history);W.dirty.classList.toggle('on',S.dirty);refreshLayerRows();}, rename:id=>{const row=W.left.querySelector(`[data-id="${id}"]`);if(row)leftDbl({target:row.querySelector(".nm")});}, error:toast,tool:setTool,rebuild:()=>{buildLeft();buildRight();},
     raster:g=>rasterise(-60,-60,60,60,g.width/120,false),
     shapeLayer:(name, geometry, rgb)=>{
@@ -2287,12 +2300,20 @@ function build() {
   W.canvas.tabIndex=0;W.canvas.setAttribute("aria-label","Disc editor canvas");
   W.canvas.addEventListener("keydown",e=>{if(!spaceDown&&e.key!==" "&&editor.key(e)){e.preventDefault();e.stopPropagation();}});
   const observer = new ResizeObserver(() => resize()); observer.observe(W.cv); observer.observe(W.surface); observer.observe(W.viewDock);
-  addEventListener("resize", () => resize());
-  $("back").addEventListener("click", () => { if (isOn()) leave(); });
-  $("next").addEventListener("click", () => { if (isOn() && (imageLayers().length || S.assignments?.length)) toPreview(); });
-  addEventListener("dp-lang", () => { if (isOn()) words(); });
-  new MutationObserver(() => { if (isOn()) { draw(); drawScene(); } }).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+  on("resize", () => resize());
+  $("back").addEventListener("click", () => { if (isOn()) leave(); }, {signal});
+  $("next").addEventListener("click", () => { if (isOn() && (imageLayers().length || S.assignments?.length)) toPreview(); }, {signal});
+  on("dp-lang", () => { if (isOn()) words(); });
+  const themeObserver = new MutationObserver(() => { if (isOn()) { draw(); drawScene(); } });
+  themeObserver.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+  signal.addEventListener("abort", () => {
+    stopActivity(); observer.disconnect(); layerObserver.disconnect(); headerObserver.disconnect(); themeObserver.disconnect();
+  }, {once: true});
 }
+// Dirty designs also need the close guard while the editor is unmounted.
+addEventListener("beforeunload", e => {
+  if (plans.some(p => p.dirty && (p.layers.length || p.assignments?.length))) { e.preventDefault(); e.returnValue = ""; }
+});
 function resize(force = false) {
   const r = W.cv.getBoundingClientRect(), stage = W.surface.getBoundingClientRect();
   if (!(stage.width > 0 && stage.height > 0 && r.width > 0 && r.height > 0)) return;
@@ -2433,6 +2454,7 @@ function flight(fromRect, toCircle, back, done) {
 //   work: a work from the library ({ id, name, media, updated_at, text }: its .discdesign, null if never saved).
 export function start(homeApi, { fly = true, plan = null, newPlan = false, file = null, projectFile = null, pick = false,
                                   name = null, noDisc = false, batchDeferred = false, dropIn = false, work = null } = {}) {
+  clearTimeout(workspaceTimer);
   composeRevision++;
   api = homeApi; $ = api.$;
   const { col, item } = api.current();
@@ -2469,7 +2491,9 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
   plans.splice(0, plans.length, S, ...plans.filter((P) => P !== S));
   if (!fromWork) api.rememberBatch?.(S.item);
   useMeasured(geoChoice(S, api.catalogue?.(S.media) ?? [], null));
+  const layout = !W ? parkedWorkspace : null;
   if (!W) build();
+  if (layout?.panel) W.ws.dataset.panel = layout.panel;
   const from = api.focusDisc()?.getBoundingClientRect();
   root.dataset.mode = "design";
   $("back").hidden = false;
@@ -2479,7 +2503,16 @@ export function start(homeApi, { fly = true, plan = null, newPlan = false, file 
   followFit = true;
   words();
   setTool(S.tool);
+  if (layout) {
+    W.left.scrollTop = layout.leftScroll;
+    W.right.scrollTop = layout.rightScroll;
+    const materials = W.right.querySelector(".ed-material-scroll");
+    if (materials) materials.scrollTop = layout.materialScroll;
+    for (const button of W.panelPicker.children)
+      button.setAttribute("aria-expanded", String(button.dataset.panel === W.ws.dataset.panel));
+  }
   requestAnimationFrame(() => {
+    if (!isOn()) return;
     resize(true);
     if (fly) flight(from, { x: V.cx, y: V.cy, d: 120 * V.s }, false);
   });
@@ -2534,8 +2567,37 @@ function hideDesign() {
   editor?.colourRenderer?.pause();
   composeRevision++;
   stopPlay();
-  W.ws.classList.remove("on");
-  W.loupe.classList.remove("on");
+  W?.ws.classList.remove("on");
+  W?.loupe.classList.remove("on");
+  scheduleWorkspaceRelease();
+}
+let workspaceTimer;
+function scheduleWorkspaceRelease() {
+  clearTimeout(workspaceTimer);
+  workspaceTimer = setTimeout(() => {
+    if (isOn() || !W) return;
+    clearTimeout(composeT); clearTimeout(motionTimer); clearTimeout(loupeT); clearTimeout(toastT);
+    previewWorker?.close(); previewWorker = null;
+    editor?.releaseView();
+    const layers = new Set(S.layers);
+    for (const entry of [...(S.past ?? []), ...(S.future ?? [])]) for (const {obj} of entry.layers) layers.add(obj);
+    for (const layer of layers) {
+      layer.thumb = null;
+      if (layer.px && layer.src instanceof HTMLCanvasElement) {
+        layer.drawOptions = layer.src.getContext("2d").getContextAttributes?.();
+        layer.src.width = layer.src.height = 0;
+        layer.src = null;
+      }
+    }
+    for (const canvas of [comp?.c, lookCanvas?.colour, lookCanvas?.fx, ...W.ws.querySelectorAll('canvas')])
+      if (canvas) canvas.width = canvas.height = 0;
+    comp = lookCanvas = motion = paintedView = drag = dragRow = null;
+    composeKey = lookKey = ""; pointers.clear(); spaceDown = false;
+    parkedWorkspace = { panel: W.ws.dataset.panel, leftScroll: W.left.scrollTop,
+      rightScroll: W.right.scrollTop, materialScroll: W.right.querySelector(".ed-material-scroll")?.scrollTop ?? 0 };
+    W.life.abort(); W.ws.remove(); W = null;
+    toastEl?.remove(); toastEl = null;
+  }, api.reduce ? 0 : 420);       // the workspace's existing fade has finished
 }
 let previewOpening = false;
 async function toPreview() {
@@ -2839,6 +2901,7 @@ function leave() {
   root.dataset.mode = "";
   W.ws.classList.remove("on");
   W.loupe.classList.remove("on");
+  scheduleWorkspaceRelease();
   $("back").hidden = true;
   $("next").disabled = false;
   void to;
@@ -2850,8 +2913,9 @@ function chooseBatch() {
   composeRevision++;
   stopPlay();
   root.dataset.mode = "";
-  W.ws.classList.remove("on");
-  W.loupe.classList.remove("on");
+  W?.ws.classList.remove("on");
+  W?.loupe.classList.remove("on");
+  scheduleWorkspaceRelease();
   $("next").disabled = false;               // the library's own button now (an empty plan had it off)
   if (S.batchDeferred) api.goTo(S.media, 0);
   else api.goTo(...api.locate(S.item));
