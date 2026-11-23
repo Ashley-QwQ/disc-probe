@@ -1,95 +1,54 @@
-# 社区提示卡交付报告
+# RJ · 网页识别正在测量的批次
 
-工作树：`D:/dp-dev/community`，分支：`dev/community-presets`。仅在本分支提交，没有推送、合并或切换分支。
+基点 `24fc50e`，分支 `dev/running-job`。
 
-## 按提交交付
+## 提交
 
-- `39c41a0`：更新 DIS 研究数据，收录社区文字参数与内置预设，归并复用报告，保留不完整证据。
-- `138b32d`：定义 `dp-community` v1，增加严格校验器、可重复生成工具、线上及包内数据，补充 `news/README.md` 维护步骤。
-- `93fb5ef`：核心下载/缓存/回退、CLI 筛选和主动导入，补齐中文帮助与 guide 提示。
-- `e65a1b5`：保留重复出处的原始数值字典，核对同日帖子时间，修正最早出处，追加 I171 的新复用报告。
-- `a211d86`：CLI JSON 只输出筛选结果，导入被拒时明确报错，增加 Windows 源码打包阶段和 wheel 回退文件校验。
-- 本网页提交：本地社区 API、传真机浏览和次要导入按钮、新作品提示、相关浏览器测试，以及本报告。
+- `a4705e2` 登记 timing 和 geo 实际分配的目录。占用记录放在工作区的内部目录里，和测量文件分开。文件锁跟随进程寿命，标定的父进程持有子步骤的目录直到写完最终标定记录。盘库扫描和删除共用工作区锁。网页和 CLI 会拒绝删除被占用的批次，网页也会拒绝改名。任务退出后，盘库重新按写盘结果判定状态。
+- 同一提交增加 API 1.7 的可选能力。盘库显示「测量中」以及可得到的阶段、测点和百分比。标定页按游标分批接收事件，大厅订阅状态和结束通知。进度条复用节点，离开标定视图后停止绘制该场景，地面日志隐藏时停表。补上回归测试和双语文案，刷新排错引用行号。
+- 本报告单独提交。
 
-## 数据及出处
+## 重开和回程
 
-本轮主刷新窗口为 `2026-11-13T00:46:21Z` 到 `2026-11-17T01:38:57Z`（多伦多仍是 11 月 16 日）。只通过 `gh` 只读访问 DIS GitHub：62 个更新过的 issue/PR、35 个 discussion、14 个 release、26 个 commit；另检查 PR review/comment，得到 2 条 review 文字。discussion 的 comments/replies 做了分页，包括超过 100 条评论的帖子。最后对同日重复帖补查创建时间，未将补查误记为整库重新刷新。
+| 走法 | `24fc50e` | 本分支 |
+| --- | --- | --- |
+| 刷新标定页 | 从 `/api/state` 找到服务仍在跑的标定，接回进度 | 接回同一任务，分批重放进度 |
+| 关标签，再打开启动器使用的服务地址 | 当前代码会自动接回。基点实测能回到几何页，但盘库把同一批次列成 `incomplete` | 自动接回，盘库显示测量中 |
+| 主动回大厅，再进标定 | 当前基点的主按钮和底部任务名都能回去，11-19 走查单第 3 条在本基点未复现 | 保留这两个入口，随服务状态更新 |
 
-原始抓取与检查脚本在 `F:/dp-dev-tmp/community/`：`issues.json`、`discussions.json`、`releases.json`、`commits.json`、`pr-reviews.json`、`fetch.json`、`earliest-audit.json`。没有下载附件图片、ZIP 或外部购买链接内容。图片中的数值未猜测。
-
-相对卡开始时的文件，新增 **27 个 canonical id**（社区 17、内置独立数值组 10），修改 **30 个既有 entry**。原有 24 条空参数复用报告归到原数值记录，12 条不完整/指代不清记录移入 `skipped`，另有 6 个既有重复数值 id 归并。原始报告及重复来源的数值字典均保留。因此 `entries` 从 178 变为 **163**，不是简单追加后的条数；`skipped` 从 17 变为 **34**。具体对应关系在最后一条 `updates` 的 `merged`、`consolidated_reuse`、`moved_to_skipped`。
-
-新增 id：
-
-```text
-D328-1 D337-1 D340-1 D344-1 D352-1 D360-1 D362-1 D363-1 D365-1
-I308-1 I329-1 I332-1 I335-1 I339-1 I341-1 PR298-3 PR368-1
-DIS160-bd-r-ritek-10x DIS160-bd-r-sl-25gb DIS160-bd-r-verbatim-64099
-DIS160-cd-74 DIS160-cd-80 DIS160-dvd-5-120mm DIS160-dvd-5-80mm
-DIS160-ritek-medical-aqua DIS160-verbatim-dvd-plus-r-azo-43498
-DISmain-verbatim-dvd-plus-rw-94520-95043
-```
-
-修改 id（含仅补充来源/复用报告的记录）：
-
-```text
-D107-22 D109-1 D127-1 D169-1 D191-1 D208-1 D210-1 D214-1 D216-1 D275-1
-I119-1 I132-1 I144-1 I171-1 I228-1 I248-1 I25-1 I311-1 I327-1 I35-1
-I36-1 I41-1 I50-1 I53-1 I58-1 I60-1 I65-1 I74-1 I79-1 I87-1
-```
-
-新的结果说明包括：I327 在另一台光驱上“almost worked”，标为 `partly`，不把评论者的 MID 当作原作者确认的 MID；D275 商务版复用报告仍保留原来的部分有效结论；I171 增加另一位用户的首次尝试报告。D352 同组数值在新批次有效、旧批次失败，两个结果都写明。I329/D349 保留圈码和多批次不可通用的提醒。
-
-内置来源完整记录 **v1.6.0 的 17 条**和 **main 的 6 处变更**，后者为 1 条新预设、5 条 MID/圈码描述更新。使用只读本地克隆；`gh` 核实远端 main 同为 `28310c8700646808bffa434feb2db68ab2c26a50`，v1.6.0 为卡指定的 `4915b7d`。同值预设不另造独立数值组，但在 `source` / `additional_sources` 中保留标签/提交、内置 id、描述、贡献者用户名及 GPL-3.0-or-later。标准预设、DIS 声称实测/验证、社区实际结果分开陈述，未标成 DP 实测。
-
-同日重复帖额外核对：I132 早于 I94、D133；I311 早于 D313；I335 早于 D336。保留最早出处，时间证据写入 `updates.earliest_source_timestamps`。
-
-## 下发与程序行为
-
-`news/community.json` 与 `discprobe/web/home/faxnews/community.json` 一致，**169,234 字节**，163 条，数据日期 `2026-11-17`。SHA-256：
-
-```text
-f89392ba00699001e983bc9d4c5dcb7dddc14026b6f8f81b1ff341b6b6c291ff
-```
-
-生成：`python -X utf8 tools/build_community_feed.py`；检查：同命令加 `--check`。维护顺序已写入 `news/README.md`：改研究数据 → 生成两份 → 提交 → 用户决定进 main → 用户下次取传真时更新。`.gitattributes` 保持两份生成文件的字节，避免 Windows 换行转换破坏重复生成检查。
-
-`community.get_community()` 复用传真机的 DNS 检查、固定解析地址、HTTPS/重定向检查、公网限制、超时和 1 MiB 上限。顺序为 GitHub Raw → jsDelivr → 独立社区缓存 → 包内。坏 JSON、坏字段、长度、重复 id、日期、链接、非有限数等都当作来源失败。返回 `from`、数据日期、总条数、实际来源和错误记录。网页选盘时只读缓存/包内；传真机取报纸时才刷新社区数据。
-
-CLI：`python -m discprobe community`，支持卡要求的全部筛选参数和 JSON。类型是硬筛选；MID、扇区数、品牌/型号文字作为候选匹配，按 MID 完全一致、扇区数一致、文字匹配排序，也考虑同值记录的其他盘片出处。失败 entry 默认不列，显式 `--include-failed` 才列。
-
-仅 `--import ID` 或网页明确点击导入才写预设库。继续走 `presets.import_file` 的校验及换算，保留 id、原帖、作者、日期、结果、可信度、来源版本和“不是 DP 测的，这批盘还没确认，只当起点”。导入后的 `fit.calibrated` 仍为 false，外来实测范围只记在来源中，未冒充本机测量。既有几何兼容门槛继续生效。
-
-## 网页位置和需要人工审查的选择
-
-传真机第一栏顶部增加“社区提示”，沿用现有报纸文字、分隔线、按钮和主题；显示日期/总数/联网、上次的或程序自带，按 CD/DVD/BD 浏览。记录折叠展开后可看数值、结果及各原帖，导入是次要按钮。失败复用报告可能属于一个非失败的主记录，展开后仍按原出处写清，不掩盖失败。
-
-新作品页只在原来的光盘帮助文字下面添加一段提示。识别盘与记录同 MID 或同扇区数才显示；默认排除失败 entry，最多列三条原帖链接，其余提示去传真机。没有改变已有选择、光盘识别、标定文案和进入设计页的流程，也没有自动导入。
-
-请审查者决定是否保留目前的**传真机第一栏顶部、折叠记录、选盘帮助行及三条链接上限**。目前是依现有样式实现的可审查位置，没有替用户作新的视觉方向决定。1440px 两种主题和 390px 传真布局已做浏览器检查；新作品页的实际截图位于下述目录。未做人工外观批准。
+选择沿用自动接回的启动行为。主动回大厅时沿用既有主按钮「回到校准」和底部任务名。启动器复用服务的路径按源码及实例测试核对。浏览器复现使用同一地址新建标签，未双击 BAT。
 
 ## 验收
 
-所有测试均在本地/模拟环境进行，没有连接真实光驱或刻盘。运行前设置 `TEMP`、`TMP=F:/dp-dev-tmp/community`，pytest 使用 `-n 2`。开跑和全量 Node 前 D 盘约 40.7 GB、F 盘约 20–22 GB，均高于 5 GB。
+- `node tests/test_running_job_browser.mjs` 用 Disc Lab 录完的全容量虚拟 DVD。在几何约 48% 时暂停虚拟读取，先刷新，再关闭标签并新建标签。验证两个大厅入口、盘库状态、改名及删除禁用、HTTP 409 的 `measurement_running`，恢复读取后验证实际可用结果和按钮重新启用。在基点的隔离源码上，同一测试在盘库状态处失败，实际 `incomplete`，预期 `measuring`。见 [基点日志](D:/dp-dev/tmp/runjob/baseline-reopen.log)。
+- `python -X utf8 -m pytest -n 2 -q --basetemp D:/dp-dev/tmp/runjob/pytest-verify tests/test_library_manage.py tests/test_webui_catalog.py tests/test_webui.py tests/test_webui_recovery.py tests/test_web_security.py tests/test_web_instance_read.py tests/test_web_guidance.py tests/test_geo_progress.py tests/test_geo_coverage.py tests/test_geo_integration.py tests/test_troubleshoot.py` 通过 94 项及 42 项子测试。占用期间从另一个进程执行 `library delete` 返回退出码 1，无占用批次照常移入回收站，遗留进度恢复为原来的 `incomplete`。后续相关两文件复验通过 13 项。见 [pytest 日志](D:/dp-dev/tmp/runjob/pytest-verify.log)。
+- `python -X utf8 -m discprobe selftest` 退出码 0，日志 1,488 行 `ok`，0 行 `FAIL`。见 [自检日志](D:/dp-dev/tmp/runjob/selftest-final.log)。
+- 逐个执行 `node tests/test_*.mjs`，63 个文件通过。补拍测试首次触及运行器的 300 秒超时。用原夹具的镜像和相同 SHA-256，按该测试支持的 `RESHOOT_PREPARED_LAB` 路径建新 Lab 重跑，两个场景均通过。见 [JavaScript 结果](D:/dp-dev/tmp/runjob/mjs-logs/verified-results.json) 和 [补拍重跑日志](D:/dp-dev/tmp/runjob/mjs-logs/test_reshoot_browser-retry.log)。
+- `python -X utf8 tools/refresh_troubleshoot_citations.py --check` 和 `git diff --check` 均通过。
+- 无任务对照。两个版本浏览器的初始任务和盘库 JSON、大厅「下一步」、空盘库条目及标定「检测光盘」一致。相同已测加中断夹具的 `library list`、`show`、`delete --keep-works` 和删除后 `list` 逐字段一致，删除比较排除随机回收站 ID。见 [网页状态](D:/dp-dev/tmp/runjob/idle-after.json) 和 [CLI 对照](D:/dp-dev/tmp/runjob/idle-library-comparison.json)。
+- 截图覆盖纸色和夜色、中英文、1440 和 390 宽的盘库状态和大厅入口，共 16 张。另有 4 张窄屏滚到禁用按钮的截图。20 张均已核对尺寸和主题语言。见 [截图目录](D:/dp-dev/tmp/runjob/shots)。
 
-| 命令/检查 | 结果 |
-| --- | --- |
-| `python -X utf8 -m pytest -n 2 tests/test_community.py tests/test_community_feed.py tests/test_community_http.py tests/test_news.py tests/test_presets.py tests/test_dis_pitch.py tests/test_gui_handshake.py -q --basetemp=F:/dp-dev-tmp/community/pytest-acceptance` | 159 passed，8 subtests passed |
-| 最后修订出处后，重新跑 community、feed、HTTP 三个模块 | 29 passed |
-| 增加 Windows 打包阶段测试后，跑 feed 与 gui_handshake | 27 passed，8 subtests passed；包含新增 Windows 源码复制校验、wheel 内文件字节一致检查 |
-| `tests/` 下全部 `test_*.mjs`，逐个 `node` 执行 | 52 个文件全部通过，详见 `F:/dp-dev-tmp/community/node-results.json` 和 `node-*.log` |
-| 最后增加展开数值不溢出检查后，重跑 `node tests/test_faxnews_browser.mjs` | 3 个视口/主题场景全部通过 |
-| `python -X utf8 -m discprobe selftest` | exit 0，`all checks passed`；日志 `F:/dp-dev-tmp/community/selftest.log` |
-| `python -X utf8 tools/build_community_feed.py --check` | 163 entries，两份文件一致，可重复生成 |
-| 数据 id、数值、GitHub HTTPS 链接及字段检查 | 通过；不完整记录留在 skipped |
-| `git diff --check`、中文 UTF-8 检查 | 通过；应含中文的改动文件均有非 ASCII 字符，无连续三个问号的损坏迹象 |
+## 内存
 
-初次测试暴露的测试问题已修正：超大字节串不再用作 pytest 用例名称（会超过 Windows 环境变量长度）；新作品页异步返回使用等待条件；浏览器 mock 明确允许新增的只读社区请求；失败记录断言只检查主记录结果，避免误把保留的失败复用证据当作筛选失效。没有放松生产数据校验。
+基点和修复版各跑两次完整 DVD 标定，分别将取样标签停在标定页和大厅。录制会话使用 Disc Lab 的全容量 DVD，扇区数据在虚拟读盘时按扇区生成。测试给几何读加 9 ms 的间隔，再用本次几何实际发出的进度记录扩增 4,800 条更新，保留真实测点和结果。进度每累计 240 条暂停取样，每组取等效 0–20 分钟和结束时共 22 点。四场的几何取样分别约 36–39 秒，发出 4,920–4,926 条进度。指标用 CDP `Runtime.getHeapUsage`、`HeapProfiler.collectGarbage`、`Memory.getDOMCounters` 和页面元素统计。
 
-截图：`F:/dp-dev-tmp/community/fax-shots/`、`disc-shots/`、`review-shots/`、`own-shots/`。测试产生的工作树外观证据、作品夹和 editor 证据已可逆地移到 F 盘的 `generated-*` 目录，工作树没有留下这些测试产物。自动审核拒绝了合并执行的递归清理命令，未返回更具体原因；因此未删除成功测试的临时目录，仍保留在 F 盘，日志、截图和失败现场也全部保留。
+| 页面 | 版本 | GC 后 JS 堆 MiB，0 / 10 / 20 分 | 前半 / 后半增量 MiB | 原始 JS 堆峰值 MiB | CDP 节点峰值 |
+| --- | --- | --- | --- | --- | --- |
+| 标定 | 基点 | 2.30 / 3.45 / 4.70 | 1.15 / 1.26 | 9.10 | 5,698 |
+| 标定 | 修复 | 2.26 / 2.39 / 2.57 | 0.13 / 0.18 | 3.37 | 2,752 |
+| 大厅 | 基点 | 2.25 / 3.06 / 3.85 | 0.81 / 0.79 | 11.58 | 5,808 |
+| 大厅 | 修复 | 2.26 / 2.33 / 2.35 | 0.073 / 0.014 | 3.02 | 2,603 |
 
-## 未测及边界
+基点每 250 ms 拉取完整历史，把新的序列化事件长期存在去重集合里。两个页面共用这条路径。进度重画也会反复替换节点，标定场景退出后仍在做部分绘制。游标每批最多返回 256 条，页面只记当前位置。地面日志原有七行上限继续生效，步骤尺保留已有节点，隐藏时停止不必要的绘制。
 
-没有重新构建完整 Windows 内置 Python 发布 ZIP；测试实际执行了 `build_winpack.copy_source(worktree=True)` 并核实社区模块、网页模块和回退数据会进入 Windows 源码打包阶段，wheel 则实际构建并检查内容。没有发布线上数据、推送或合并，远端 main 目前不会因本分支发生变化。
+大厅后半段增量是前半段的 18.6%。标定页是 140.1%，未过相对 20% 的门槛，后半段绝对增量比基点少约 85%。大部分余量出现在等效第 10–12 分钟。补采时这段图上由 2 个点增加到 6 个，实时图和读数判定仍需要增加元素。第 12–20 分钟由 6 个点增加到 21 个，堆只多约 0.021 MiB。保留正常测点和判定显示，未为相对比例压掉真实数据。补采支持增长集中于图表展开这段，未对余量逐对象归因。
 
-附件图片/视频/ZIP 没有读取，图中才有的完整值、仅称成功而未贴最终数值的报告没有补成预设。相同 MID、容量或型号只表示可以参考，不构成这批盘几何匹配或 DP 实测。界面位置/外观请人工复核，其余没有需要用户先回答才能运行的事项。
+两页取样均为 3 个 canvas 和 98 个图片元素。第 2 分钟加载尺寸非零的图片去重后是 64 张，按宽 × 高 × 4 估算全部解码需要约 385 MiB，最大单图 `caltop/anim/final_paper.webp` 约 18.4 MiB。这个估算是像素尺寸的和，Edge 实际解码缓存、GPU 内存和系统占用未测。可由审查者决定是否另测 4 GB 设备上的场景素材常驻成本。
+
+[基点 CSV](D:/dp-dev/tmp/runjob/memory/before.csv) · [修复 CSV](D:/dp-dev/tmp/runjob/memory/after.csv) · [折线图](D:/dp-dev/tmp/runjob/memory/heap.png) · [标定图表补采](D:/dp-dev/tmp/runjob/memory/after-calibration-chart.csv)
+
+## 范围
+
+未测社区用户的 4 GB 笔记本、真实标签崩溃、物理光驱和实际刻录。重开验证覆盖服务仍在运行的场景。服务外启动的 CLI 测量也能阻止删除在写的批次，其进度仍在运行命令的终端显示。
+
+STATUS: DONE
