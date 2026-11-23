@@ -82,18 +82,23 @@ try {
   await evaluate('document.querySelector("#lobby-guide button").click()');
   for (const lang of ['zh','en']) {
     await evaluate(`if (document.documentElement.dataset.lang !== '${lang}') document.getElementById('lang').click()`);
-    await until(`document.querySelector('.sg-learn')?.textContent === '${lang === 'zh' ? '光盘怎么变成图' : 'How a disc becomes a picture'}'`);
+    // The newcomer guide (.sg-first) now comes first; the theory page is the next learn link.
+    const theory = `document.querySelector('.sg-learn:not(.sg-first)')`, first = `document.querySelector('.sg-learn.sg-first')`;
+    await until(`${theory}?.textContent === '${lang === 'zh' ? '光盘怎么变成图' : 'How a disc becomes a picture'}' && ${first}?.textContent === '${lang === 'zh' ? '刻一张你喜欢的角色盘' : 'Burn a disc of a character you love'}'`);
     for (const theme of ['light','dark']) {
       await evaluate(`document.documentElement.dataset.theme = '${theme}';
-        document.querySelector('.sg-learn').scrollIntoView({block:'center',behavior:'instant'})`);
-      const link = await evaluate(`(async () => {
-        const node = document.querySelector('.sg-learn');
+        ${theory}.scrollIntoView({block:'center',behavior:'instant'})`);
+      const fetchLink = (node) => evaluate(`(async () => {
+        const node = ${node};
         const page = await fetch(node.href);
         return { path: new URL(node.href).pathname, status: page.status, text: await page.text() };
       })()`);
+      const link = await fetchLink(theory), guide = await fetchLink(first);
       assert.equal(link.path, '/home/learn/how-disc-images-work' + (lang === 'zh' ? '.zh' : '') + '.html');
       assert.equal(link.status,200);
       assert.match(link.text, /gratingcard sun\.png moon\.png/);
+      assert.equal(guide.path, '/home/learn/first-colour-disc' + (lang === 'zh' ? '.zh' : '') + '.html');
+      assert.equal(guide.status,200);
       await shot(`learn-start-${theme}-${lang}`);
     }
   }
