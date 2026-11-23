@@ -17,7 +17,7 @@ export const photoReasons = {
   poor_radius_coverage: pair('把整张盘拍进画面，让内圈和外圈都清楚。', 'Keep the whole disc in frame so both inner and outer rings are clear.'),
   large_residual: pair('条纹位置对不上。把盘放平，拍全盘。', 'The pattern does not fit. Lay the disc flat and photograph the whole disc.'),
   unstable_L: pair('这张照片的位置读数不稳定。转动盘重拍。', 'The position reading varies within this photo. Turn the disc and retake.'),
-  shape_not_1_over_r: pair('内外圈的读数对不上。拍全盘，移动灯光后重拍。', 'Inner and outer readings disagree. Keep the whole disc in frame and move the light.'),
+  shape_not_1_over_r: pair('内外圈的读数对不上。拍全盘，移动灯光后重拍。换了几个角度都这样，可能是盘上的图本身 S 形弯了，照片修不了，按手册的网格盘方法标定。', 'Inner and outer readings disagree. Keep the whole disc in frame and move the light. If several angles all say this, the picture on the disc may itself bend in an S shape, which photos cannot correct; use the grid disc method in the manual.'),
   unreadable_image: pair('照片打不开。重新拍照，或从相册导出 JPEG 后再发。', 'The image could not be opened. Retake or export a JPEG from Photos and send it.'),
   duplicate_photo: pair('这张照片重复了。转动盘，拍一张不同角度的。', 'This photo is a duplicate. Turn the disc and take a different view.'),
 };
@@ -127,7 +127,7 @@ export function measurementRecovery(result = {}) {
     'Track pitch varies. Extra points were measured and a smooth angle correction was saved; images use it automatically. Details contain repeat errors, independent checks, time and thin areas. Outside measured radii is extrapolation. A DIS preset may not reproduce the curve: check conversion error.');
   return ({
     good: pair('测量可用，可以保存。', 'The measurement is usable and ready to save.'),
-    usable: pair('测量有些噪声，但仍可使用。可以保存，也可以保留这张盘再测一次。', 'There is some noise, but the measurement is usable. Save it, or keep this disc and measure again.'),
+    usable: pair('个别读数不太稳，整体可以用。', 'A few readings were unsteady; as a whole it is usable.'),
     too_noisy: pair('这次读数太乱，不能依赖。保留这张测量盘，重新检查转速再测；仍然如此时，试试其他读取速度或光驱。', 'The readings are too noisy to rely on. Keep this measurement disc, check rotation and measure again. If this persists, try another reading speed or drive.'),
     drive_changed: pair('光驱在测量前后的状态不一致，不能依赖这次结果。保留这张盘，重新检查转速并测量。', 'The drive behaved differently before and after measuring. Do not rely on this result. Keep the disc, check rotation and measure again.'),
     narrow_span: pair('只测准了盘面的一部分，范围以外还需要补测。保留这张盘，检查转速后重新测量。', 'Only part of the disc was measured. The rest still needs measuring. Keep this disc, check rotation and measure again.'),
@@ -372,18 +372,23 @@ export function stepAdvice(phase, ctx = {}) {
     burn: ctx.external
       ? [pair('刻得成不成功，刻完并回读后才知道。', 'Whether the burn succeeds is only known after it has finished and been read back.'), pair('在 PowerShell 里运行上面的命令刻这张盘；刻完托盘弹出又收回后，点“检测刻好的盘”。刻的时候不要动光驱。', 'Run the command above in PowerShell to burn this disc; when the tray has opened and closed again, press Check the burned disc. Leave the drive alone while it burns.')]
       : [pair('刻得成不成功，刻完并回读后才知道。', 'Whether the burn succeeds is only known after it has finished and been read back.'), pair('确认盘是这批的空白盘，再按住确认条。刻的时候不要动光驱。', 'Check it is a blank from this batch, then hold the confirmation. Leave the drive alone while it burns.')],
-    burning: [pair('盘有没有刻完整，要等刻完后的抽样回读；抽样不是整盘校验。', 'Whether the disc was burned completely is only known from the read-back after it ends; a sample is not a whole-disc check.'), pair('等它刻完，不要动光驱。', 'Wait for it to finish and leave the drive alone.')],
+    burning: [pair('刻完整没有，刻完回读才知道。', 'Whether it burned completely shows in the read-back afterwards.'), pair('等它刻完，别动光驱。', 'Wait, and leave the drive alone.')],
     checking: [pair('这是不是这批的盘、刻满了没有，读完才知道。', 'Whether this is the right batch and fully burned is known once the read finishes.'), pair('等几秒。', 'Wait a few seconds.')],
     timing: [pair('光驱转得稳不稳，测完才知道。', 'Whether the drive spins steadily is known once this ends.'), pair('稳了才会接着测几何。不稳就换读取速度或光驱，不用急着再刻盘。', 'Geometry follows only if it is steady. If not, try another reading speed or drive; no need to burn another disc.')],
     geo: [pair('测完后会显示测到的范围和误差。', 'The measured range and error appear in the result.'), pair('等光驱读完。底部任务条显示剩余时间。', 'Leave the drive to finish reading. The task bar shows the time left.')],
     saving: [pair('预设写好了没有，写完才知道。', 'Whether the preset was written is known once it is.'), pair('等一下。', 'Wait a moment.')],
     review: ctx.good === false
       ? [pair('这次结果不能依赖。', 'This result cannot be relied on.'), pair('按下面的提示重测。这不需要再刻一张盘。', 'Measure again as the notes below say. This does not need another disc.')]
-      : [pair('预设里的位置准不准，刻出图、拍照检查之后才知道；CD 的沿轨常数还要靠照片。', 'How accurate the preset is is known only after a disc is burned and photographed; a CD also needs photos for its along-track constant.'), pair('保存测量。', 'Save the measurement.')],
+      : ctx.cd
+        ? [pair('CD 光靠读盘定不准位置，还要拍照。', 'Reading alone cannot place a CD picture exactly; it needs photos too.'), pair('刻一张标靶盘，用手机拍 3 张。', 'Burn a target disc and take 3 photos with your phone.')]
+        // a DVD: the PCAL-C check disc (checkdisc.py) is the default step after saving (calibrate.js burnCheckDisc)
+        : [pair('位置准不准，要刻检查盘拍照才知道。', 'How accurate the positions are, the check disc and its photos will show.'), pair('保存，再刻一张检查盘，用手机拍 3 张修正偏差。', 'Save, then burn a check disc and take 3 phone photos of it to correct the offset.')],
     saved: ctx.photoTaken
       // the check disc was just burned and photographed: what is left is the finished picture
       ? [pair('成品位置准不准，刻出来才知道。', 'How accurate the finished picture is, the burned disc will show.'), pair('回到上一步，生成成品的刻录文件，再刻第 3 张盘。生成时会自动用上照片读出的沿轨偏差。', 'Go back a step, make the burn file for the finished picture and burn disc 3. The along-track offset read from the photos is applied when the file is made.')]
-      : [pair('保存的是测量，不是成品：位置准不准，要刻出来才知道。', 'What is saved is a measurement, not a picture: how accurate it is, a burned disc will show.'), pair('做图并刻第 2 张检查盘，拍照看偏差，再刻成品。', 'Make the picture, burn disc 2 as the check disc, photograph it to see the error, then burn the finished picture.')],
+      : ctx.cd
+        ? [pair('保存的是测量，不是成品：位置准不准，要刻出来才知道。', 'What is saved is a measurement, not a picture: how accurate it is, a burned disc will show.'), pair('去做图，刻成品。', 'Make the picture and burn it.')]
+        : [pair('位置偏多少，要检查盘的照片才知道。', 'How far positions are off, the check disc photos will show.'), pair('刻检查盘，拍 3 张；之后去做图，刻成品。', 'Burn the check disc and take 3 photos; then make the picture and burn it.')],
   }[phase];
   return t ? {unknown: t[0], next: t[1]} : null;
 }

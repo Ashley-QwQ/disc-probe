@@ -308,7 +308,7 @@ async function verifyActions() {
   assert.ok(preflight.slice(-2).every(p => p.args.burn_speed === 4));
   assert.deepEqual(await evaluate('window.retryErrors'), []);
   await load('burn-stall');
-  await until(() => evaluate(`document.querySelector('#cal').textContent.includes('If progress stays still')`), 'stalled burn guidance');
+  await until(() => evaluate(`document.querySelector('#cal').textContent.includes('If progress stops moving')`), 'stalled burn guidance');
   assert.equal(await evaluate('document.querySelector("#job-cancel").disabled'), false);
   console.log('Web retry passed: 12 read retries, 2 continuations, copy and export, and guarded write-speed retry.');
 }

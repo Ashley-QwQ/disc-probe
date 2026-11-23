@@ -344,7 +344,24 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
         await writeFile(join(resolve(process.env.PHOTO_ALIGN_SHOTS),`manual-${width}-${theme}-${lang}.png`),Buffer.from(shot.data,'base64'));
       }
     }
-    await run(`wire.init();window.alignmentEnabled=false;`);
+    // A DVD measurement saved without photos: the check disc is the default next step; "not now" still leaves.
+    const reopen=`document.documentElement.dataset.mode='cal';document.querySelector('#cal').hidden=false;`;
+    const savedDvd=reopen+`wire.init({verdict:'good'});Object.assign(wire.state(),{savedPhotoShift:{written:false,reason:'no_photo'},savedPath:'presets/x.json'});wire.phase('saved');`;
+    await run(savedDvd);
+    assert.equal(await run(`return document.querySelector('#next-text').textContent;`),'刻检查盘');
+    assert.ok((await run(`return document.querySelector('#cal-check-later').textContent;`)).startsWith('先不刻'));
+    assert.ok(await run(`return document.querySelector('#cal').textContent.includes('RITEKF1');`),'an untried batch is told the textures were chosen for RITEKF1');
+    await run(`document.querySelector('#cal-check-later').click();`);
+    assert.equal(await run(`return document.querySelector('#cal').hidden;`),true);
+    await run(savedDvd+`document.querySelector('#next').click();`);
+    await waitFor("window.jobs.some(j=>j.action==='checkdisc')");
+    assert.deepEqual(await run(`const j=window.jobs.find(j=>j.action==='checkdisc');return [j.media,j.args.geo];`),['dvd','results/run-one']);
+    // a CD has its own target photos before saving; a DVD that already has a photo correction is not asked again
+    await run(reopen+`wire.init({media:'cd',verdict:'good'});Object.assign(wire.state(),{savedPhotoShift:{written:false}});wire.phase('saved');`);
+    assert.equal(await run(`return !!document.querySelector('#cal-check-later');`),false);
+    await run(reopen+`wire.init({verdict:'good'});Object.assign(wire.state(),{savedPhotoShift:{written:true,frames:2}});wire.phase('saved');`);
+    assert.equal(await run(`return !!document.querySelector('#cal-check-later');`),false);
+    await run(reopen+`wire.init();window.alignmentEnabled=false;`);
     for(const missing of ['/api/phone-link','/api/photos']){
       await run(`wire.init({media:'cd',verdict:'good',missing:${JSON.stringify(missing)}});await wire.next();`);await waitFor("wire.ui()?.status==='unavailable'");
       assert.equal(await run(`return document.querySelector('.pc-phone-block')===null && document.querySelector('[data-pc="auto"]')===null && !document.querySelector('#next').disabled && document.querySelector('#cal').textContent.includes('DIS');`),true);

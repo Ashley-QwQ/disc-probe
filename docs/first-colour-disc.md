@@ -7,7 +7,7 @@ You have a picture of a character you love and want it on the data side of a DVD
 ## Get ready
 
 - **A writer.** Our tested drive is the LG GH70N. Other drives may work; measure one first as the web app guides you. [Drives with hands-on reports](../README.en.md#drives-with-hands-on-reports)
-- **At least 2 blank DVD-Rs from the same batch.** One becomes the measurement disc, one the picture. Colour has been burned and checked only on RITEK F1 discs (media code RITEKF1). Measure different batches separately, even when the media code matches. [Why calibrate](why-calibrate.md)
+- **At least 3 blank DVD-Rs from the same batch.** One becomes the measurement disc, one the check disc, one the picture. Colour has been burned and checked only on RITEK F1 discs (media code RITEKF1). Measure different batches separately, even when the media code matches. [Why calibrate](why-calibrate.md)
 - **A phone.** Shoot with the 1× main camera and the flash on. The software needs the distance from that lens to the flash: the iPhone 17 Pro has a preset; for other phones, measure it and enter it as **Custom**. [Phone and flash](colour.md#set-up-the-phone-and-flash)
 - **A printed placement sheet.** Print it at actual size (100%) to line up the disc and the phone.
 
@@ -15,7 +15,7 @@ You have a picture of a character you love and want it on the data side of a DVD
 
 | Step | In the web app | About |
 |---|---|---|
-| 1. Calibrate the batch | **New work** in the lobby, choose the disc's batch, **Calibrate this batch**. Burn a measurement disc, then measure rotation and geometry | 14 min to burn, 6–8 min to measure |
+| 1. Calibrate the batch | **New work** in the lobby, choose the disc's batch, **Calibrate this batch**. Burn a measurement disc, then measure rotation and geometry; after saving, **Burn the check disc** and take 3 phone photos to correct the positions | 14 min to burn, 6–8 min to measure, about 7 min for the check disc plus photos |
 | 2. Make the picture | **Import picture**, select its layer, **Colour → Colour picture**, pick your phone and shooting height, **Fill**. Keep **Add direction arrow (12 o'clock)** | as long as you like |
 | 3. Check the prediction | Open **Under the lamp**, then **Compare**: the original on the left, the model's prediction of the disc on the right | a few minutes |
 | 4. Burn | **Next: preview**, check the batch under **Before burning**, keep **Burn the experimental textures instead** selected, **Next: make the file and burn**, confirm the blank and 8×, slide to burn | about 7 min at 8× |

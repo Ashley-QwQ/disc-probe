@@ -206,6 +206,69 @@ export function resumeSaved(homeApi, item) {
   return open();
 }
 
+// After a DVD measurement is saved: the PCAL-C check disc (checkdisc.py) is the default next step, as the CD's
+// target photos are. Not when this page is itself the photo step of a check disc burned elsewhere.
+function checkDiscOffered() {
+  return flow?.realPhase === "saved" && flow.detected?.media === "dvd" && !flow.photoOnly && !!flow.geo?.path && !flow.savedPhotoShift?.written;
+}
+// leave the saved page: back to the new-plan form with the new batch in it, else the lobby
+function savedDone() {
+  if (returnTo) { leave(); return; }
+  flow = null; release(); api.toLobby?.();
+}
+// Make the check disc from this measurement, burn it on the burn page, then photograph it here (as the
+// burn review's "check disc" does, afterburn.js). Whoever opened the calibration gets it back at the end.
+async function burnCheckDisc() {
+  const f = flow, geo = f.geo.path;
+  if (f.checkMaking) return;
+  f.checkMaking = -1; f.checkError = null; paint();
+  try {
+    const output = `iso/check-${Date.now()}.iso`;
+    await api.backend.job({ action: "checkdisc", media: "dvd", args: { geo, output } }, e => {
+      if (e.type === "progress" && Number.isFinite(e.fraction) && flow === f) { f.checkMaking = Math.max(.001, e.fraction); paint(); }
+    });
+    const iso = await api.backend.request(`/api/iso?path=${encodeURIComponent(output)}`);
+    iso.target = true; iso.geo = geo;
+    const burnPage = await import("./burn.js");
+    if (flow !== f) return;                      // the page was left meanwhile: the file is made, nothing is burned
+    const id = api.selectedDrive(), drive = { id, name: id, speeds: [] };
+    const request = (speed, erase) => ({ action: "burn", drive: id, media: "dvd", args: { iso: iso.path, ...(speed ? { speed } : {}), ...(erase ? { erase: true } : {}) } });
+    const opener = returnTo, result = { done: true, id: f.savedId, batch: f.savedBatch };
+    const finish = () => opener ? void opener(result) : api.toLobby?.();
+    const item = f.item;
+    const ctx = { media: "dvd", item: { name: f.savedBatch?.name ?? f.detected?.mid ?? "" }, iso, drive, preflight: true,
+      back: finish, done: () => ctx.photograph(),
+      async recheck() {
+        const seen = await checkBurn(api.backend, request(null, drive.eraseRequired));
+        ctx.burnDisc = seen.disc; ctx.burnGate = seen.gate; ctx.discIn = !!seen.disc?.present;
+        drive.speeds = seen.speeds_x ?? []; drive.rewritable = !!seen.disc?.rewritable;
+      },
+      burn(onProgress, { speed, erase, confirmed }) {
+        let jobId, reason, gate;
+        (async () => { try {
+          const approved = await confirmBurn(api.backend, request(speed, erase), confirmed, api.lang());
+          await api.backend.job(approved, e => {
+            if (e.type === "started") jobId = e.job;
+            if (e.type === "error") { reason = e.message; gate = e.burn_gate || gate; }
+            if (e.type === "progress") onProgress({ progress: e.fraction, elapsed: e.elapsed_s, remaining: e.eta_s });
+            if (e.type === "burn_result") onProgress({ burnResult: e });
+          }); onProgress({ status: "success", progress: 1 });
+        } catch (error) { if (reason) error.message = reason; if (gate) error.burnGate = gate;
+          onProgress({ status: "failed", errorInfo: error, started: !!jobId }); } })();
+        return { cancel() { if (jobId) api.backend.cancel(jobId); } };
+      },
+      async photograph() { burnPage.leave(); photograph(api, { item, media: "dvd", geo, returnTo: opener ? () => opener(result) : null }); },
+    };
+    // close this page without handing it back yet: the opener gets it after the photos (or the burn page's back)
+    returnTo = returnAnim = returnLabel = null; f.checkMaking = 0;
+    flow = null; release();
+    burnPage.start(api, ctx);
+  } catch (error) {
+    f.checkMaking = 0; f.checkError = error?.message || String(error);
+    if (flow === f) paint();
+  }
+}
+
 // Straight to the photos of a disc just burned with this geometry (the burn page's "Photograph the disc"):
 // the photo page reads them against that geometry's run, the core keeps the result next to it (photo.json),
 // and the next burn file made from that geometry applies the along-track correction. Back or done: returnTo.
@@ -348,7 +411,6 @@ function build() {
   $("back").addEventListener("click", back);
   $("job-cancel").addEventListener("click", cancelJob);
   addEventListener("dp-lang", () => { if (isCal()) paint(); if (flow?.job) paintJob(); });
-  document.addEventListener("visibilitychange", acknowledgeVisibleResult);
   // Esc is keys.js's (the Back button); in the mock, Shift+S steps through the states
   addEventListener("keydown", (e) => {
     if (isCal() && api.backend.mock && e.key === "S" && e.shiftKey) cycleState();
@@ -421,6 +483,9 @@ function open() {
 }
 
 function release() {
+  // A result is "seen" once its page is left, not when it is drawn: a reload on the result (or the CD's
+  // photos after it) reopens it, since home reattaches a calibration whose result was not seen.
+  if (flow && !flow.photoOnly && ["review", "photo"].includes(flow.realPhase)) acknowledgeResult();
   closeBurnStop();
   globalThis.dispatchEvent(new Event('dp-catalogue-changed'));
   closePhoto();
@@ -654,10 +719,22 @@ function endJob() {
 }
 
 export const hasJob = () => !!flow?.job;
+// The burn step has three parts a person can tell apart: writing; the drive finishing the disc after 100 %
+// (no events from it); and the sampled read-back (verify_progress). Each says what it is.
+function burnPart() {
+  const job = flow?.job;
+  if (!job || flow.realPhase !== 'burning') return null;
+  return job.verifying ? 'verify' : (job.p ?? 0) >= 0.999 ? 'finish' : 'write';
+}
+const burnPartWords = part => part === 'verify' ? liveText('抽查回读', 'Checking the burn')
+  : part === 'finish' ? liveText('封盘', 'Finishing the disc') : null;
 function isWriting(job) {
   return api.backend.mock ? job.kind === "burn" : flow.realPhase === "burning" && !job.verifying;
 }
+// the task bar's label is kept as a key (flow.jobWord) so a language switch rewrites it here
 function paintJob() {
+  if (flow?.job && flow.jobWord) $("job-name").textContent = flow.jobWord === 'erase' ? liveText('擦除光盘','Erasing')
+    : (flow.jobWord === 'burn' && burnPartWords(burnPart())) || stepWords(flow.jobWord);
   const job = flow?.job, active = !!job;
   $("job").hidden = !active;
   const name = $("job-name");
@@ -1174,7 +1251,7 @@ function burnRetryOptions(report) {
 }
 
 function measuringButton(phase) {
-  return { burning: liveText("刻录中", "Burning"), random: liveText("生成中", "Making"),
+  return { burning: {verify: liveText("核对中", "Checking"), finish: liveText("封盘中", "Finishing")}[burnPart()] ?? liveText("刻录中", "Burning"), random: liveText("生成中", "Making"),
     saving: liveText("保存中", "Saving"), erasing: liveText("擦除中", "Erasing") }[phase]
     ?? liveText("测量中", "Measuring");
 }
@@ -1287,12 +1364,16 @@ function realPaint() {
       hold=true; disabled=mismatch&&!flow.batchConfirmed;
     }
   } else if (["timing", "geo", "random", "saving", "burning", "erasing", "checking"].includes(phase)) {
-    title = {erasing:liveText('正在擦除光盘','Erasing the disc'),timing:T().timing, geo:T().geo, random:T().generate, saving:liveText('正在保存预设', 'Saving preset'), burning:T().burning,
+    title = {erasing:liveText('正在擦除光盘','Erasing the disc'),timing:T().timing, geo:T().geo, random:T().generate, saving:liveText('正在保存预设', 'Saving preset'), burning:{verify:liveText('正在抽查回读','Checking the burn'), finish:liveText('正在封盘','Finishing the disc')}[burnPart()] ?? T().burning,
       checking:liveText('正在检查刻好的盘', 'Checking the burned disc')}[phase];
     // the core's stage words, in the page's language where they are known ("rung 4/22")
     const rung = /^rung (\d+)\/(\d+)$/.exec(flow.stage || "");
-    const stage = rung ? liveText(`第 ${rung[1]} 处，共 ${rung[2]} 处。`, `Place ${rung[1]} of ${rung[2]}.`) : flow.stage ? flow.stage + (api.lang() === "en" ? " " : "") : "";
-    text = stage + (phase === 'erasing' ? liveText('可以关掉这个网页，擦除和之后的刻录在后台继续。', 'You can close this page; erasing and the burn after it go on.') : liveText('可以关掉这个网页，测量在后台继续。', 'You can close this page; the work goes on.'));
+    // Only stages the page can say in its own language. The core's stage names ("imapi-4", "reading check points")
+    // are for logs: untranslated, and meaningless to a person.
+    const stage = rung ? liveText(`第 ${rung[1]} 处，共 ${rung[2]} 处。`, `Place ${rung[1]} of ${rung[2]}. `) : "";
+    text = stage + (phase === 'erasing' ? liveText('可以关掉这个网页，擦除和之后的刻录在后台继续。', 'You can close this page; erasing and the burn after it go on.') : phase === 'burning' ? ({verify: liveText('从盘上抽样读回来，和镜像核对，大约一分钟。可以关掉这个网页。', 'Reading samples back from the disc to compare with the image; about a minute. You can close this page.'),
+        finish: liveText('写完了。光驱正在封盘，之后自动抽查回读。可以关掉这个网页。', 'Written. The drive is finishing the disc; the read-back check follows on its own. You can close this page.')}[burnPart()]
+        ?? liveText('大约 14 分钟。可以关掉这个网页，刻录在后台继续。', 'About 14 minutes. You can close this page; the burn keeps going.')) : liveText('可以关掉这个网页，测量在后台继续。', 'You can close this page; the work goes on.'));
     disabled = true;
     if (flow.job) {
       html += runningPaper(phase);                       // what is happening: only while it happens
@@ -1301,7 +1382,7 @@ function realPaint() {
   } else if (phase === "review") {
     title = liveText('测量结果', 'Measurement result');
     const part = flow.geo || flow.timing;
-    text = api.lang() === 'zh' ? ({good:'测量可用', usable:'测量可用但有噪声', narrow_span:'测量范围偏窄', too_noisy:'噪声太大', drive_changed:'光驱状态改变', stopped_early:'提前停止', unknown:'结果未知'}[part?.verdict] || '结果未知') : (part?.verdict || "unknown").replaceAll("_", " ");
+    text = api.lang() === 'zh' ? ({good:'测量可用', usable:'测量可用', narrow_span:'测量范围偏窄', too_noisy:'噪声太大', drive_changed:'光驱状态改变', stopped_early:'提前停止', unknown:'结果未知'}[part?.verdict] || '结果未知') : (part?.verdict || "unknown").replaceAll("_", " ");
     const recovery = recoveryAction(flow);
     const kind = recoveryKind(flow);
     if (kind === 'coverage') text = liveText('实测范围有空档', 'Measurement has gaps');
@@ -1309,7 +1390,7 @@ function realPaint() {
     const severity = kind === 'good' ? 'good' : ['too_noisy','drive_changed','media'].includes(kind) ? 'error' : 'warn';
     // a stamp of equal weight whatever it says, then three lines: what it means, for the picture, what now
     const zh = api.lang() === "zh" ? 0 : 1;
-    const STAMP = { good: ["可用", "Usable"], usable: ["可用，有噪声", "Usable, noisy"], narrow_span: ["范围偏窄", "Narrow"], too_noisy: ["太吵", "Too noisy"],
+    const STAMP = { good: ["可用", "Usable"], usable: ["可用", "Usable"], narrow_span: ["范围偏窄", "Narrow"], too_noisy: ["太吵", "Too noisy"],
       drive_changed: ["光驱变了", "Drive changed"], stopped_early: ["中途停了", "Stopped"], media: ["读不出", "Unreadable"], rotation: ["转速不稳", "Unsteady"],
       coverage: ["范围待补测", "Gaps in coverage"], calibration_failed: ["未完成", "Incomplete"], slow: ["读盘太慢", "Reading too slowly"],
       unknown: ["不知道", "Unknown"] }[kind] ?? ["不知道", "Unknown"];
@@ -1319,7 +1400,7 @@ function realPaint() {
     html = `<div class="cal-stamp"><b>${STAMP[zh]}</b><dl>` +
       `<div><dt>${liveText("意思", "Means")}</dt><dd>${esc(measurementRecovery(flow)[api.lang()])}</dd></div>` +
       `<div><dt>${liveText("对你的图", "For the picture")}</dt><dd>${FOR[zh]}</dd></div>` +
-      `<div><dt>${liveText("现在", "Now")}</dt><dd class="act">${esc(recovery.id === "save" ? T().save : recovery.label[api.lang()])}</dd></div></dl></div>`;
+      `<div><dt>${liveText("现在", "Now")}</dt><dd class="act">${esc(recovery.id === "save" ? (flow.detected.media === "dvd" ? liveText("保存测量，再刻检查盘", "Save, then burn the check disc") : T().save) : recovery.label[api.lang()])}</dd></div></dl></div>`;
     // the measurement disc's own read-back after it was burned here: a bad sample is said, never hidden
     const v = flow.burnCheck?.verification;
     if (v && v.status !== "skipped" && (v.status !== "completed" || v.differing || v.unreadable))
@@ -1340,7 +1421,7 @@ function realPaint() {
     if (flow.coverageNotice) html += `<div role="alert">${note("warn", [esc(flow.coverageNotice), ""])}</div>`;
     const skipped = flow.detected.media === "cd" && flow.photoSkipped;
     button = ok ? (skipped ? liveText('保存测量（不含照片修正）', 'Save without the photo correction')
-      : flow.detected.media === "cd" ? liveText('查看 CD 标定下一步', 'CD calibration: next step') : returnTo ? liveText('保存测量', 'Save the measurement') : T().save) : recovery.label[api.lang()];
+      : flow.detected.media === "cd" ? liveText('查看 CD 标定下一步', 'CD calibration: next step') : returnTo || flow.detected.media === "dvd" ? liveText('保存测量', 'Save the measurement') : T().save) : recovery.label[api.lang()];
     if (ok && skipped) html += note("info", [liveText('这一轮跳过了拍照：保存的预设只有计时测得的几何，沿轨常数 L 未知，外圈可能偏。保存后可以导出给 DIS，或之后再拍照补上。',
       'You skipped the photo for this measurement: the saved preset has the timing geometry only, the along-track constant L is unknown and the outer rings may be off. After saving you can export it to DIS, or take the photo later.'), ""]);
     const details = ok
@@ -1364,14 +1445,26 @@ function realPaint() {
     if (flow.photoResult) html += photoStamp(flow.photoResult);
     if (ok) html += `<label class="count-input">${liveText("这桶还剩几张空白盘（选填）", "Blank discs left in this spindle (optional)")}
       <input id="left-input" type="number" min="0" max="100000" step="1" aria-describedby="left-help" value="${flow.left ?? ""}"></label>
-      <p id="left-help">${liveText("只在盘库记个数。留空也能保存和刻录。", "This count is shown in the disc library. Leave it empty to save and burn as usual.")}</p>`;
+      <p id="left-help">${liveText("只用来在盘库里记个数。", "Only shown in the disc library.")}</p>`;
   } else if (phase === "saved") {
     title = liveText('预设已保存', 'Preset saved'); text = flow.savedPath;
     if (flow.detected.media === "cd" || flow.savedPhotoShift?.reason === "invalid_preset")
       html = `<p role="status">${esc(photoSaveWords(flow.savedPhotoShift)[api.lang()])}</p>`;
     if (flow.detected.media === "cd" && !flow.savedPhotoShift?.written) html += `<p>${esc(cdPhoto[api.lang()])}</p>`;
     if (flow.photoResult && !flow.savedPhotoShift?.origin?.startsWith('manual-')) html += photoStamp(flow.photoResult, flow.savedPhotoShift || {});
-    button = returnLabel?.() ?? (returnTo ? liveText('回到刚才那一步', 'Back to where you were') : liveText('回到大厅', 'Return to lobby'));
+    const later = returnLabel?.() ?? (returnTo ? liveText('回到刚才那一步', 'Back to where you were') : liveText('回到大厅', 'Return to lobby'));
+    button = later;
+    if (checkDiscOffered()) {
+      const mid = flow.detected?.mid || flow.savedBatch?.mid || "";
+      html += `<p>${liveText('下一步刻一张检查盘（8 倍速约 7 分钟），用手机拍 3 张。程序从照片读出位置偏差，之后刻的图都会自动修正。',
+        'Next, burn a check disc (about 7 minutes at 8×) and take 3 photos of it with your phone. The photos show how far positions are off, and every picture burned afterwards is corrected.')}</p>` +
+        (/RITEKF1/i.test(mid) ? "" : `<p class="cal-aside">${liveText('检查盘的纹理是按 RITEKF1 挑的，这批盘还没试过，照片可能读不出来。', 'The check disc’s textures were chosen for RITEKF1; this batch is untried and the photos may not read.')}</p>`) +
+        (flow.checkMaking ? `<p role="status">${liveText('正在生成检查盘', 'Making the check disc')}${flow.checkMaking > 0 ? ` ${Math.floor(flow.checkMaking * 100)}%` : '…'}</p>` : '') +
+        (flow.checkError ? note("error", [esc(flow.checkError), ""]) : '') +
+        `<button type="button" class="pc-text-button" id="cal-check-later">${esc(liveText('先不刻，', 'Not now: ') + later)}</button>`;
+      button = liveText('刻检查盘', 'Burn the check disc');
+      if (flow.checkMaking) disabled = true;
+    }
   }
   if (["prepare", "burn"].includes(phase)) html = (flow.detected.rewritable
     ? `<p class="cal-aside">${liveText('可擦写盘可以重复使用。快速擦除约 1 分钟；完全擦除约为 1× 刻满一张盘的时间。擦除完成后才会开始重刻。','Rewritable discs can be reused. Quick erase takes about a minute; full erase takes about as long as filling a disc at 1x. Burning starts after erasing completes.')}</p>`
@@ -1411,9 +1504,9 @@ function realPaint() {
     html += checkMeasurementDisc() + diagnosticOptions();
   if (!burnStop && !badBurn && flow.error && !flow.job && ['timing', 'geo'].includes(phase))
     html += retryButton('real-remeasure', liveText('检查转速并重测', 'Check rotation and remeasure')) + diagnosticOptions();
-  if (flow.job && phase === 'burning' && flow.burnStarted && !flow.job.verifying)
-    html += `<p>${liveText('进度若长时间停住，可以点“停止刻录”。停下后可换盘，选较低速度重刻测量盘。',
-      'If progress stays still for a long time, choose Stop burning. Once it stops, you can use a fresh disc and choose a lower write speed.')}</p>`;
+  if (flow.job && phase === 'burning' && flow.burnStarted && burnPart() === 'write')
+    html += `<p>${liveText('进度很久不动，就点“停止刻录”，换一张盘用低一点的速度重刻。',
+      'If progress stops moving for a long time, choose Stop burn and use a fresh disc at a lower speed.')}</p>`;
   paintRuler(); paintStage();
   sideButton(flow.job && ["burning", "checking", "timing", "geo"].includes(phase)
     ? returnTo ? liveText("先回大厅，测好了叫我", "Go to the lobby; call me when done")
@@ -1421,10 +1514,9 @@ function realPaint() {
   const previousAlert = $("cal").querySelector('.note[data-s="warn"], .note[data-s="error"]')?.textContent;
   // what is not known yet and what to do next, for the phase on screen (an error panel has its own words)
   const burnNotice=phase==='burn'&&!cdHere()&&(!flow.burnInspection||flow.burnInspection.gate||flow.burnInspection.error||flow.eraseRequested);
-  const advice = flow.error || badBurn || burnNotice ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined, photoTaken: !!flow.photoOnly,
+  const advice = flow.error || badBurn || burnNotice ? "" : adviceHTML(phase, api.lang(), { good: phase === "review" ? ["good", "usable"].includes(recoveryKind(flow)) : undefined, photoTaken: !!flow.photoOnly, cd: flow.detected?.media === "cd",
     external: phase === "burn" && cdHere() });
   $("cal").innerHTML = `<h2>${esc(title)}</h2><div class="cal-body"><p class="lede">${esc(text)}</p>${advice}${html}</div>`;
-  acknowledgeVisibleResult();
   if (phase === 'review' && flow.geo?.path && !badBurn) {
     const f = flow;
     curveEditor($("cal").querySelector(".cal-body"), {run:f.geo.path, lang:api.lang(), state:f.curveState ||= {},
@@ -1482,6 +1574,7 @@ function realPaint() {
   for (const [id, yes] of [["real-yes",true],["real-no",false]]) $(id)?.addEventListener("click", async () => {
     try { const ask = flow.ask; await api.backend.answer(ask.job, ask.id, yes); flow.ask = null; paint(); } catch(e) {realError(e);}
   });
+  $("cal-check-later")?.addEventListener("click", () => savedDone());
   $("real-remeasure")?.addEventListener("click", () => retryMeasurement());
   $("real-suggested-speed")?.addEventListener("click", e => retryMeasurement(e.target.dataset.speed));
   $("real-lower-read")?.addEventListener("click", () => retryMeasurement($("real-lower-read-speed").value));
@@ -1971,12 +2064,14 @@ function cdCommand() {
 function runningPaper(phase) {
   const tape = flow.tape?.length ? `<pre class="cal-tape">${api.backend.escapeHTML(flow.tape.join("\n"))}</pre>` : "";
   const say = (zh, en) => `<p class="cal-say">${liveText(zh, en)}</p>`;
-  if (phase === "burning") return say("光驱正把随机数据刻满这张盘，彩虹从内圈往外长。刻完它会自己抽样读一遍，再接着测转速和几何。",
-    "The drive is filling this disc with random data; the rainbow grows from the inside out. Then it reads a sample back and goes on to measure.");
+  if (phase === "burning" && burnPart() !== 'write' && burnPart() !== null) return "";
+  if (phase === "burning") return say("随机数据从内圈往外刻。刻完自动抽查回读，然后开始测量。",
+    "Random data goes on from the inside out. Then a sample is read back and measuring starts.");
   if (phase === "checking") return say("读一下刚刻好的盘：是不是这批、刻满了没有。几秒钟。", "Reading the disc just burned: the right batch, filled. A few seconds.");
   if (phase === "timing") return say("在盘的三个位置各读几十次，看光驱转得稳不稳。稳了才能测几何。", "Reading at three places on the disc, many times each, to see whether the drive turns steadily. Geometry needs that.") + tape;
-  if (phase === "geo") return say("光头从参考点向两边跳着读。每道彩虹圈标记一个已读位置。图上的点越贴近中线，读数越一致。", "The head reads on either side of a reference point. Each coloured ring marks a position it has read. Points nearer the middle line agree more closely.")
-    + calchart.liveChart(flow.points || [], { head: flow.head, zh: api.lang() === "zh" }) + soFar(flow.points || []) + tape;
+  if (phase === "geo") return say("图上的点越贴近中线，读数越一致。", "Points nearer the middle line agree more closely.")
+    // wrapped: as a bare grid item the SVG's row collapsed to 0 and the stamp below sat on the chart
+    + `<div class="cal-chart">${calchart.liveChart(flow.points || [], { head: flow.head, zh: api.lang() === "zh" })}</div>` + soFar(flow.points || []) + tape;
   if (phase === "saving") return say("把测量写成这批盘的预设。", "Writing the measurement as this batch's preset.");
   return "";
 }
@@ -2091,7 +2186,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
   jobTime(current, null);
   current.clock.estimate(stepEta(action, f));
   if (action === "geo") { f.points = []; f.tape = []; f.head = null; }
-  $("job-name").textContent = stepWords(action); paint(); paintJob();
+  flow.jobWord = action; $("job-name").textContent = stepWords(action); paint(); paintJob();
   const drive = ["info","timing","geo","burn","calibrate"].includes(action) ? api.selectedDrive() : undefined;
   placeLog(); flog.start(commandLine(action, drive));
   let why = "", lastLine = "", burnGate;            // the core's own reason survives later summary events
@@ -2124,13 +2219,13 @@ async function realJob(action, args = {}, extra = {}, following = null) {
       }
       // where the head is: only a radius the core worked out from its own fit, never a guess
       if (event.type === "progress" && Number.isFinite(event.radius_mm)) f.head = event.radius_mm;
-      if (event.type === 'erase_started') {current.clock.clear();f.realPhase='erasing';$("job-name").textContent=liveText('擦除光盘','Erasing');f.stage=liveText('正在擦除光盘，盘上的内容会被清掉。','Erasing the disc; its contents will be cleared.');closeBurnStop();paint();paintJob();}
+      if (event.type === 'erase_started') {current.clock.clear();f.realPhase='erasing';f.jobWord='erase';$("job-name").textContent=liveText('擦除光盘','Erasing');f.stage=liveText('正在擦除光盘，盘上的内容会被清掉。','Erasing the disc; its contents will be cleared.');closeBurnStop();paint();paintJob();}
       if (event.type === 'erase_progress') {current.p=event.fraction;api.jobProgress(current.p,f.detected?.media||'dvd');current.clock.estimate(event.eta_s);f.stage=liveText('盘上的内容正在清掉。','The disc contents are being cleared.');paint();}
       if (event.type === 'erase_result') {f.eraseResult=event;if(event.result!=='completed'){f.burnStarted=false;f.realPhase='burn';}}
       if (event.type === 'burn_speed') {
         if(f.realPhase!=='burning')current.clock.clear();
         f.lastBurnSpeed = event.actual_speed_x ?? event.selected_speed_x ?? f.lastBurnSpeed;
-        f.realPhase='burning';$("job-name").textContent=stepWords('burn');f.burnStarted=true;f.stage=null;paint();paintJob();
+        f.realPhase='burning';f.jobWord='burn';$("job-name").textContent=stepWords('burn');f.burnStarted=true;f.stage=null;paint();paintJob();
       }
       if (event.type === "burn_result") { f.burnCheck = event; if(event.result==='completed')f.burnStarted=false; }
       if (event.type === "cancelled" && event.by==='user') f.cancelledByUser=event;
@@ -2143,7 +2238,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
         current.clock.estimate(stepEta(event.name, f));
         if (event.name === "geo") { f.points = []; f.tape = []; }
         sfx.step(event.index ?? 0);
-        $("job-name").textContent = stepWords(event.name);
+        f.jobWord = event.name; $("job-name").textContent = stepWords(event.name);
         flog.log(`$ python -m discprobe ${event.name}`, "command");
         if (event.name !== "geo") showInterior(false);
         paint(); paintJob();
@@ -2162,7 +2257,11 @@ async function realJob(action, args = {}, extra = {}, following = null) {
         current.p = Math.max(0, Math.min(1, event.fraction || 0)); f.plateP = current.p;
         current.fraction = Number.isFinite(event.fraction) ? current.p : null;
         if (action === "random" && isCal()) imageRing?.progress(current.fraction);
-        if (f.realPhase === "burning") f.burnP = current.p;           // how far the burn got (a stop shows it)
+        if (f.realPhase === "burning") {
+          const done = current.p >= 0.999 && (f.burnP ?? 0) < 0.999;
+          f.burnP = current.p;                                          // how far the burn got (a stop shows it)
+          if (done) queueMicrotask(() => { paint(); paintJob(); });     // written: the page says the drive is finishing
+        }
         f.stage = event.stage; api.jobProgress(current.p, f.detected?.media || f.item?.row || "dvd");
         current.clock.estimate(event.eta_s);
         if (action === "geo" || f.realPhase === "geo") { setPlate("geo"); showInterior(true); updateInterior(current.p, Math.max(0, event.eta_s || 0)); }
@@ -2333,9 +2432,8 @@ async function realNext() {
       else await photoUI?.page?.use();
     }
     else if (phase === "saved") {
-      // opened from the new-plan form: back to it with the library read again, the new batch in it
-      if (returnTo) { leave(); return; }
-      flow = null; release(); api.toLobby?.(); return;
+      if (checkDiscOffered()) { await burnCheckDisc(); return; }
+      savedDone(); return;
     }
     if(flow.realPhase==='burn'&&!cdHere()&&!flow.burnInspection)await refreshBurnInspection();
     paint();
@@ -2410,9 +2508,6 @@ function acknowledgeResult() {
   if (!job?.id || job.acknowledged) return;
   job.acknowledged = true;
   api.backend.request(`/api/jobs/${job.id}/result-seen`, {}, {keepalive:true}).catch(() => { job.acknowledged = false; });
-}
-function acknowledgeVisibleResult() {
-  if (isCal() && flow?.realPhase === "review" && document.visibilityState === "visible") acknowledgeResult();
 }
 // The measurement disc, burned here: a fresh read-only look that the tray still holds a blank (which also
 // lets the server accept this one burn), a one-time token, the burn; then the disc is read again (written

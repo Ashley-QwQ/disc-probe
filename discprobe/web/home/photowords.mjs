@@ -27,7 +27,7 @@ export const photoReasons = {
   unstable_L: {act: pair('转一下盘', 'Turn the disc'),
     why: pair('同一张照片里不同部分读数不一致。转一下盘重拍。', 'Different parts of this photo disagree. Turn the disc and retake.')},
   shape_not_1_over_r: {act: pair('转一下盘', 'Turn the disc'),
-    why: pair('内外圈给出的结果对不上。确认是这次刻的标靶盘，转一下盘重拍。', 'Inner and outer rings disagree. Check it is this run’s target disc, turn it and retake.')},
+    why: pair('内外圈给出的结果对不上。确认是这次刻的标靶盘，转一下盘重拍。换了几个角度都这样，就不是拍的问题：这台光驱刻出的图可能本身是 S 形弯的，照片修不了，按手册的网格盘方法标定。', 'Inner and outer rings disagree. Check it is this run’s target disc, turn it and retake. If several angles all say this, the photos are not the problem: this drive may burn pictures with an S-shaped bend, which photos cannot correct. Calibrate with the grid disc method in the manual.')},
   unreadable_image: {act: pair('重新发送', 'Send again'),
     why: pair('这张图片打不开。重新拍，或在相册里导出 JPEG 再发。', 'The image could not be opened. Retake, or export a JPEG from your photos and send that.')},
   duplicate_photo: {act: pair('换个角度', 'Change the angle'),
