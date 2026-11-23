@@ -1,21 +1,57 @@
 {
  "format": "dp-fax-news",
  "version": 1,
- "date": "2026-11-17",
+ "date": "2026-11-22",
  "release": {
   "version": "1.0.0.0-alpha",
   "date": "2026-11-22",
   "headline": {
-   "zh": "首个公开测试版 11 月 22 日见报",
-   "en": "The first public test build goes to press on 22 November"
+   "zh": "首个公开测试版今天发布",
+   "en": "The first public test build is out today"
   },
   "summary": {
-   "zh": "第一个公开测试版：量盘、作画、刻录一条路走通，手机可以直接把照片传给电脑。",
-   "en": "The first public test build: measure, draw and burn in one path, and phones send their photos straight to the computer."
+   "zh": "量盘、作画、刻录一条路走通；彩色图可以直接刻，手机拍照校准已经用真手机测通。Windows 和 Linux 都有免安装包。",
+   "en": "Measure, draw and burn in one path; a colour picture can go straight onto a disc, and photo calibration with a phone has been tried on a real phone. Portable packages for Windows and Linux."
   },
-  "url": "https://github.com/Ashley-QwQ/disc-probe/releases"
+  "url": "https://github.com/Ashley-QwQ/disc-probe/releases/tag/v1.0.0.0-alpha"
  },
  "changelog": [
+  {
+   "version": "1.0.0.0-alpha",
+   "date": "2026-11-22",
+   "title": {
+    "zh": "彩色图直接刻",
+    "en": "A colour picture, straight onto a disc"
+   },
+   "story": {
+    "zh": "本报讯　导入一张彩色图，选好手机型号和拍摄高度，程序逐格挑纹理，先给预测图看，点头才出镜像。新作品默认在 12 点放一个方向箭头，拍照时对准纸上的箭头。实盘通常没有预测图鲜艳。",
+    "en": "Our correspondent reports: import a colour picture, choose your phone and shooting height, and the program picks a texture for each cell, shows a predicted image first, and makes the ISO only when you agree. New works get a direction arrow at 12 o'clock to line up with the sheet. Real discs usually look less vivid than the preview."
+   }
+  },
+  {
+   "version": "1.0.0.0-alpha",
+   "date": "2026-11-22",
+   "title": {
+    "zh": "手机拍照校准，真手机测通",
+    "en": "Photo calibration with a phone, tried on a real one"
+   },
+   "story": {
+    "zh": "本报讯　扫码就能用手机拍照直传电脑。打开闪光灯（设成“开”），背对吸顶灯，盘朝自己转 20–30°。读不出时可以手动套圈、认箭头。检查盘要刻完接着拍，隔开补拍的用不上。",
+    "en": "Scan the code and the phone sends its photos straight to the computer. Flash on (set to On), back to the ceiling light, disc turned 20–30° towards you. If reading fails, fit the circle and point out the arrow by hand. Photograph a check disc right after burning it; photos taken later are not used."
+   }
+  },
+  {
+   "version": "1.0.0.0-alpha",
+   "date": "2026-11-22",
+   "title": {
+    "zh": "盘库能删能找回，Linux 一键启动",
+    "en": "A library you can tidy, and one-click start on Linux"
+   },
+   "story": {
+    "zh": "本报讯　批次和作品可以删，先进回收站，还能找回来。Linux 也有了一键启动的免安装包，自带 Python；Linux 上读盘刻盘还没在真光驱上测过，欢迎来信。",
+    "en": "Batches and works can be deleted; they go to a recycle bin first and can be restored. Linux gets a portable package with its own Python and a one-click start; reading and burning on Linux are not yet tried on a real drive, and letters are welcome."
+   }
+  },
   {
    "version": "1.0.0.0-alpha",
    "date": "2026-11-17",
