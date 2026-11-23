@@ -7,6 +7,8 @@ Developer output (selftest) stays English on purpose.
 """
 
 TEXT = {
+    'This batch is being measured. Wait for the measurement to finish before renaming or deleting it.':
+        '这批盘正在测量。测量结束后才能改名或删除。',
     'browse community hints; import only when explicitly requested': '浏览社区提示；只有明确选择才导入',
     'filter community hints by disc type': '按盘类型筛选社区提示',
     'find community hints with this exact MID': '查找 MID 完全相同的社区提示（优先显示）',

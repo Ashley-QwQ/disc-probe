@@ -7,5 +7,5 @@
     "editor", "burn", "photo-calibration", "phone-link", "presets",
     "catalogue", "results-history", "greetings"
   ],
-  "optional_capabilities": ["templates", "presets-io", "works", "image-job-recovery", "geo-coverage", "photo-manual-alignment", "checkburn", "burn-preflight", "measurement-retry", "library-management", "library-batch-details", "grid-templates", "colour-input-icc", "photo-burn-recovery", "starter-preset"]
+  "optional_capabilities": ["templates", "presets-io", "works", "image-job-recovery", "geo-coverage", "photo-manual-alignment", "checkburn", "burn-preflight", "measurement-retry", "library-management", "library-batch-details", "grid-templates", "colour-input-icc", "photo-burn-recovery", "starter-preset", "running-measurement", "job-event-cursor"]
 }

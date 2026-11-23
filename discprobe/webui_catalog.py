@@ -206,8 +206,9 @@ def _capacity(root, mid, media, record, infos):
     return disc.get('capacity_sectors'), disc.get('capacity_source')
 
 
-def catalogue(root, out, *, inventory=None):
+def catalogue(root, out, *, inventory=None, occupied=None, progress=None):
     root, out = Path(root).resolve(), Path(out).resolve()
+    occupied = occupied or {}
     groups = {media: [] for media in ('dvd', 'cd', 'bd')}
     runs = guide.scan(str(out))
     infos = [r for r in runs if r.kind == 'info' and not r.simulated]
@@ -220,8 +221,13 @@ def catalogue(root, out, *, inventory=None):
         if run.kind not in ('geo', 'timing') or not Path(run.path).resolve().is_relative_to(root) or run.simulated:
             continue
         record = calibration_record(run)
-        if run.kind == 'timing' and record.get('ok') is not False:
+        active = occupied.get(run.path)
+        if run.kind == 'timing' and record.get('ok') is not False and not active:
             continue
+        if active:
+            run.summary = {**run.summary,
+                           'args': {'media': active['media'], **(run.summary.get('args') or {})},
+                           'identity': run.summary.get('identity') or active.get('identity')}
         who = guide.identity_of(run, infos)
         mid = who.get('disc')
         if mid == 'unknown disc':
@@ -230,10 +236,11 @@ def catalogue(root, out, *, inventory=None):
         key = (run.media, mid, who.get('drive')) if mid else (run.media, run.path)
         batches.setdefault(key, []).append(run)
         records[run.path], identities[run.path] = record, who
-        issues[run.path] = calibration_issue(run, record)
+        issues[run.path] = None if active else calibration_issue(run, record)
     rows = []
     for key, related in batches.items():
-        run = next((r for r in related if r.kind == 'geo' and not issues[r.path]), related[0])
+        active = next((r for r in related if r.path in occupied), None)
+        run = active or next((r for r in related if r.kind == 'geo' and not issues[r.path]), related[0])
         who, record, issue = identities[run.path], records[run.path], issues[run.path]
         mid = None if who['disc'] == 'unknown disc' else who['disc']
         ident = hashlib.sha256(repr(key).encode()).hexdigest()[:20]
@@ -252,12 +259,16 @@ def catalogue(root, out, *, inventory=None):
             drive_id=record.get('drive_id') or (run.summary.get('args') or {}).get('drive') or
                 (run.tag + ':' if run.tag and len(run.tag) == 1 and run.tag.isalpha() else run.tag),
             geo=source if run.kind == 'geo' else None, inferred=who.get('inferred', False),
-            history=batch_history(root, related, run, who, burns, issues),
+            history=batch_history(root, [r for r in related if r.path not in occupied], run, who, burns, issues),
             calibration_issue=({**issue, 'geo': source if run.kind == 'geo' else None} if issue else
                 {**issues[recent.path], 'geo': _relative(root, recent.path), 'previous_usable': True} if recent else None))
         disc = record.get('disc') or {}
         if isinstance(disc, dict) and disc.get('kind'):
             entry['media_kind'] = disc['kind']
+        if active:
+            entry.update(s='measuring', calibration_issue=None, measurement_progress={'phase': active.kind})
+            if progress:
+                entry['measurement_progress'].update(progress(occupied[active.path].get('job'), active.kind))
         if source and run.kind == 'geo' and run.media == 'cd' and entry['s'] in ('good', 'usable'):
             from .photo import MANUAL_L_FILE, photo_l
             folder = Path(run.path)
@@ -332,14 +343,17 @@ def catalogue(root, out, *, inventory=None):
     return groups
 
 
-def save_entry(root, out, payload):
+def save_entry(root, out, payload, *, occupied=None):
     photo_shift = None
     if not isinstance(payload, dict) or set(payload) - {'id', 'name', 'left', 'preset'}:
         raise ValueError('invalid catalogue entry')
-    entries = [item for row in catalogue(root, out).values() for item in row]
+    entries = [item for row in catalogue(root, out, occupied=occupied).values() for item in row]
     entry = next((item for item in entries if item['id'] == payload.get('id')), None)
     if not entry:
         raise ValueError('unknown catalogue entry')
+    if entry['s'] == 'measuring':
+        from .measurement_jobs import MeasurementRunning
+        raise MeasurementRunning()
     if 'name' in payload and (not isinstance(payload['name'], str) or not 1 <= len(payload['name'].strip()) <= 120):
         raise ValueError('invalid name')
     if 'left' in payload and (type(payload['left']) is not int or not 0 <= payload['left'] <= 100000):

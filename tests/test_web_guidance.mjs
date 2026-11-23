@@ -64,8 +64,7 @@ for (const media of ['cd','dvd','bd']) {
 globalThis.location = {search:''};
 globalThis.EventSource = class {addEventListener(){} close(){}};
 globalThis.fetch = async () => ({ok:true,json:async()=>({events:[],exit:1,result:{ok:false,timing:{verdict:'too_noisy'}}})});
-const source = await (await import('node:fs/promises')).readFile(new URL('../discprobe/web/home/api.js',import.meta.url),'utf8');
-const api = await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const api = await import('../discprobe/web/home/api.js');
 await assert.rejects(api.follow('test'), error => error.result?.timing.verdict === 'too_noisy');
 // calibrate's stop reasons in words: a burn that wrote is never offered as reusable, one that did not is
 assert.match(stopReason('the burn did not finish', {burnStarted:true}).zh, /不能再用/);

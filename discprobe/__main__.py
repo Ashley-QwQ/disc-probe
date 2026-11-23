@@ -272,9 +272,14 @@ def _identity(args, dev) -> dict | None:
         identity = info.identify(dev, getattr(args, "media", None))
         for error in identity.get('probe_errors', []):
             print(error, file=sys.stderr, flush=True)
-        return identity
     except Exception:       # a label, never worth stopping a measurement
         return None
+    from .measurement_jobs import identify
+    try:
+        identify(identity)
+    except OSError:
+        pass  # The path remains protected even if its display identity could not be saved.
+    return identity
 
 
 def _geo_clv(args):
@@ -496,18 +501,22 @@ def _refuse_audio_fit(fit: dict) -> None:
 
 
 def _outdir(args, kind: str, dev) -> str:
+    from .measurement_jobs import allocating
+
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tag = getattr(dev, "name", "drive").replace(":", "")
     base = os.path.join(args.out, f"{kind}-{tag}-{stamp}")
     path = base
     suffix = 0
-    while True:
-        try:
-            os.makedirs(path)
-            break
-        except FileExistsError:
-            suffix += 1
-            path = f"{base}_{suffix}"
+    with allocating() as register:
+        while True:
+            try:
+                os.makedirs(path)
+                break
+            except FileExistsError:
+                suffix += 1
+                path = f"{base}_{suffix}"
+        register(path)
     _Parser.last_out = path
     return path
 
@@ -2968,7 +2977,12 @@ def _main(argv=None):
                 value=getattr(args,key,None)
                 if value:
                     setattr(args,key,','.join(resolve(v) for v in value.split(',')) if isinstance(value,str) else [resolve(v) for v in value])
-        args.func(args)
+        if raw_args[0] in ('calibrate', 'timing', 'geo') and not args.sim and not getattr(args, 'geo', None):
+            from .measurement_jobs import track
+            with track(args.out, media):
+                args.func(args)
+        else:
+            args.func(args)
     except ValueError as exc:
         p.error(str(exc))
     except SystemExit as exc:

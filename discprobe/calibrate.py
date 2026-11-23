@@ -31,6 +31,7 @@ import threading
 import time
 
 from . import disc_identity, guide, ui
+from . import measurement_jobs
 from .capacity import catalogue_capacity, positive_sectors
 
 GOOD = ("good", "usable")
@@ -142,6 +143,8 @@ def _run(args) -> None:
         # A rotation stop precedes geo's first fit, so there may be no summary.json.
         # Relay stdout while retaining its plain stop sentence for the job event.
         lease_env = child_env(args.drive)
+        if a[0] in ("timing", "geo"):
+            lease_env.update(measurement_jobs.child_env())
         if env is not None:
             lease_env.update(env)
         proc = subprocess.Popen(_argv(*a), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,

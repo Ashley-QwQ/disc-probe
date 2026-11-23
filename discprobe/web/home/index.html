@@ -1300,7 +1300,7 @@
         const title = document.createElement("strong"), meta = document.createElement("span");
         button.type = "button"; button.className = "shelf-batch"; button.dataset.index = i;
         button.title = title.textContent = batchName(batch, col);
-        const status = needsCdPhoto(batch, col) ? w.photoShort : calibrated(batch) ? w.usable
+        const status = batch.s === "measuring" ? w.measuring : needsCdPhoto(batch, col) ? w.photoShort : calibrated(batch) ? w.usable
           : batch.s === "imported" ? w.imported : ["none", "unknown"].includes(batch.s) ? w.unmeasured : w.incomplete;
         const date = batch.last || w.unknown;
         meta.className = "shelf-batch-meta";
@@ -1359,6 +1359,13 @@
   let col = "dvd", idx = 0, lastFocus = "dvd";
   let pendingWhy = null;                     // a one-off status line for the next render (what the drive held)
   const fmt = (n) => n == null ? "?" : n.toLocaleString("en-US");
+  function measurementWords(item, w) {
+    const {phase, fraction, rung} = item.measurement_progress ?? {};
+    return [[phase === "geo" ? w.geometry : phase === "timing" ? w.rotation : null,
+      Number.isInteger(rung) ? w.rung(rung) : null,
+      Number.isFinite(fraction) ? `${Math.floor(fraction * 100)}%` : null].filter(Boolean).join(" · "),
+      w.measurementBusy].filter(Boolean).join("　");
+  }
   const libraryWords = () => lang === "zh" ? {
     start:"标定新的一批盘", resume:"补测空档", continue:"从中断处续测", remove:"删除", cancel:"取消", undo:"撤销",
     photo:"拍照校准", photoShort:"待确认沿轨常数", photoStatus:"几何已测，还差一步：确认沿轨常数",
@@ -1367,6 +1374,7 @@
     dvdWhy:"可以设计和刻录。第一次用这台光驱和这批盘，建议先刻检查盘并拍照。",
     readyWhy:"可以设计和刻录。", source:"测量记录", exported:"已导出 DIS 预设。", preparing:"正在生成检查盘……",
     incomplete:"测量不完整", stopped:"测量中途停止。", rejected:"标定未通过。", recent:"最近一次标定未通过。",
+    measuring:"测量中", measurementBusy:"测量结束后才能改名或删除。", rotation:"测转速", geometry:"测几何", rung:n => `第 ${n} 级`,
     gaps: ranges => `未测半径 ${ranges}。`, retry:"放回原测量盘，用同一台光驱继续测。", remeasureAdvice:"可以重测或删除这批盘。",
     unknown:"未记录", presetSectors:"预设扇区数",
     incompleteCount:n => `${n} 批待补测`,
@@ -1381,6 +1389,7 @@
     dvdWhy:"Ready to design and burn. For your first use of this drive and batch, burn a check disc and photograph it.",
     readyWhy:"Ready to design and burn.", source:"Measurement record", exported:"DIS preset exported.", preparing:"Making the check disc…",
     incomplete:"Incomplete measurement", stopped:"Measurement stopped early.", rejected:"Calibration did not pass.", recent:"The latest calibration did not pass.",
+    measuring:"Measuring", measurementBusy:"Wait for the measurement to finish before renaming or deleting this batch.", rotation:"Rotation", geometry:"Geometry", rung:n => `Rung ${n}`,
     gaps:ranges => `Unmeasured radii: ${ranges}.`, retry:"Put the original measurement disc back in the same drive to continue.", remeasureAdvice:"Measure again or delete this batch.",
     unknown:"Not recorded", presetSectors:"Preset sectors",
     incompleteCount:n => `${n} incomplete`,
@@ -1449,7 +1458,7 @@
     lastFocus = item.kind === "drive" ? "drive" : col;
 
     const t = T(), w = libraryWords(), drive = item.kind === "drive", fresh = item.kind === "new";
-    const photo = needsCdPhoto(item, col), usable = calibrated(item);
+    const photo = needsCdPhoto(item, col), usable = calibrated(item), measuring = item.s === "measuring";
     const check = !backend.mock && col === "dvd" && usable && !!item.geo && hasCapability("checkburn");
     const name = fresh ? (item.name || t.newName) : drive ? item.name : batchName(item, col);
     $("name").textContent = name.replaceAll("-", "\u2011");
@@ -1477,6 +1486,7 @@
       if (usable) [icon, label, why] = ["i-good", t.good[0], check ? w.dvdWhy : w.readyWhy];
       if (photo) [icon, label, why] = ["i-warn", w.photoStatus, w.photoWhy];
       if (item.calibration_issue) why += ` ${calibrationIssueText(item.calibration_issue, w)}`;
+      if (measuring) [icon, label, why] = ["i-drive", w.measuring, measurementWords(item, w)];
       const sectors = "capacity_sectors" in item ? item.capacity_sectors : item.sectors;
       facts = [[item.preset ? w.presetSectors : t.sectors, sectors == null ? null : fmt(sectors)],
         [t.left, item.left == null ? null : item.of == null ? fmt(item.left) : t.leftVal(item.left, item.of)],
@@ -1514,6 +1524,13 @@
     button("library-remeasure", w.remeasure, usable && !backend.mock);
     button("library-rename", w.rename, manageable);
     button("library-delete", w.remove, manageable);
+    for (const id of ["library-rename", "library-delete"]) {
+      const control = $(id);
+      control.disabled = measuring || control.getAttribute("aria-busy") === "true";
+      if (measuring) control.title = w.measurementBusy;
+      else control.removeAttribute("title");
+    }
+    if (measuring) $("batch-rename").hidden = true;
     $("library-undo").textContent = w.undo;
     $("library-more").hidden = !raw && !facts.some(([, data]) => data != null) && !manageable;
     if (switched) {
@@ -1521,11 +1538,21 @@
       $("batch-rename").hidden = true;
     }
     animate?.();
-    if (!root.dataset.mode)
+    if (!root.dataset.mode) {
+      const next = $("next");
+      if (inLibrary() && measuring && !choosingFor && !inspectingBatch) {
+        next.dataset.measurementBlocked = "";
+        next.disabled = true;
+      } else if ("measurementBlocked" in next.dataset) {
+        delete next.dataset.measurementBlocked;
+        next.disabled = false;
+      }
       $("next-text").textContent = root.dataset.home === "lobby" ? lobbyNextWords()
+        : measuring && !choosingFor && !inspectingBatch ? w.measuring
         : (choosingFor || inspectingBatch) && !drive && !fresh ? t.nextUseBatch
         : drive ? t.nextDrive : fresh ? w.start : photo ? w.photo : item.s === "imported" ? t.nextMeasureImported
         : usable ? t.nextOpen : t.nextCal;
+    }
     paintDriveLine();
   }
 
@@ -1914,10 +1941,14 @@
   async function libraryAction(button, action) {
     if (button.disabled) return;
     button.disabled = true;
+    button.setAttribute("aria-busy", "true");
     $("library-feedback").textContent = "";
     try { await action(); }
     catch (error) { $("library-feedback").textContent = backend.errorText(error, lang); }
-    finally { button.disabled = false; }
+    finally {
+      button.removeAttribute("aria-busy");
+      button.disabled = ["library-delete", "batch-name-save"].includes(button.id) && DATA[col][idx]?.s === "measuring";
+    }
   }
   $("library-rename").addEventListener("click", () => {
     $("batch-rename").hidden = false;
@@ -1935,6 +1966,7 @@
   });
   $("batch-rename").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (DATA[col][idx].s === "measuring") return;
     const {id} = DATA[col][idx], name = $("batch-new-name").value.trim();
     if (!name) return;
     libraryAction($("batch-name-save"), async () => {
@@ -2046,13 +2078,33 @@
         globalThis.dispatchEvent?.(new Event("dp-drive-state"));
       } catch {}
     }
-    if (event.type !== "state") return;
+    if (event.type !== "state" && event.type !== "done") return;
     if (root.dataset.mode) { libraryDirty = true; return; }
     await syncState();
   }, () => {
     serviceBusy = true;
     paintQuit();
-  });
+  }, {summary:true});
+
+  let progressPending = false;
+  const measuringBatches = catalogue => ["dvd", "cd", "bd"].flatMap(media =>
+    catalogue[media].filter(row => row.s === "measuring").map(row => row.id)).join(",");
+  async function refreshLibraryProgress() {
+    if (progressPending || !inLibrary() || document.hidden) return;
+    const item = DATA[col][idx];
+    const current = measuringBatches(DATA);
+    if (!current) return;
+    progressPending = true;
+    try {
+      const catalogue = await backend.request("/api/catalogue");
+      if (!inLibrary() || DATA[col][idx] !== item) return;
+      if (current !== measuringBatches(catalogue)) { await syncState(); return; }
+      if (item.s !== "measuring") return;
+      item.measurement_progress = catalogue[col].find(row => row.id === item.id).measurement_progress;
+      const words = measurementWords(item, libraryWords());
+      if ($("why").textContent !== words) $("why").textContent = words;
+    } catch {} finally { progressPending = false; }
+  }
   $("quit").addEventListener("click", async () => {
     if ($("quit").disabled || !window.confirm(T().quitConfirm)) return;
     quitting = true;
@@ -2245,6 +2297,7 @@
   addEventListener("focus", refreshLobbyDisc);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshLobbyDisc(); });
   if (!backend.mock) setInterval(() => { if (document.hasFocus()) refreshLobbyDisc(); }, 30000);
+  if (!backend.mock && hasCapability("running-measurement")) setInterval(refreshLibraryProgress, 1000);
   paintPending(); paintRecent();
   render(1, true);
   await (await import('./flow-navigation.js')).install(api, {setHome});

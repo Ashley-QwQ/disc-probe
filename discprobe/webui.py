@@ -473,6 +473,8 @@ class Job:
         self.result = None
         self.before = set()
         self.progress = None
+        self.measurement_phase = None
+        self.geo_rung = None
         self.asks = {}
         self.started_at = time.time()
         self.finished_at = None
@@ -520,6 +522,11 @@ class Job:
                     event["burn_mode"] += "; physical interleave unknown"
                 if event["type"] == "progress":
                     self.progress = event
+                elif event["type"] == "step":
+                    self.measurement_phase = event.get("name")
+                    self.progress = self.geo_rung = None
+                elif event["type"] == "geo_point":
+                    self.geo_rung = event.get("rung")
                 elif event["type"] == "ask" and isinstance(event.get("id"), str):
                     self.asks[event["id"]] = event
                 elif event["type"] == "answer":
@@ -728,10 +735,28 @@ class Backend:
         with self.lock:
             state["jobs"] = [dict(id=j.id, drive=j.drive, action=j.action, media=j.media, args=j.args, disc=j.disc, exit=j.exit, result=j.result,
                                   cancellation=j.cancellation, result_seen=j.result_seen) for j in self.jobs.values()]
-        state["catalogue"] = self.library.rows()
+        state["catalogue"] = self.catalogue()
         state["version"] = version()
         state["platform"] = sys.platform          # which shell the terminal page looks like (win32: PowerShell)
         return state
+
+    def catalogue(self):
+        def progress(ident, phase):
+            job = self.jobs.get(ident)
+            if not job:
+                return {}
+            job.read()
+            if (job.measurement_phase or job.action) != phase:
+                return {}
+            result = {}
+            if job.progress and job.progress.get('fraction') is not None:
+                result['fraction'] = job.progress['fraction']
+            if phase == 'geo' and job.geo_rung is not None:
+                result['rung'] = job.geo_rung
+            return result
+
+        with self.lock:
+            return self.library.rows(progress=progress)
 
     @contextmanager
     def _reading_drive(self, drive, action, *, unknown_status=400):
@@ -834,12 +859,16 @@ class Backend:
                 gate = burn_gate.batch_problem(disc.get('mid'), target.expected_mid)
             return dict(disc=disc, gate=gate, speeds_x=report.get('speeds_x') or [])
 
-    def job_state(self, ident):
+    def job_state(self, ident, after=None):
         with self.lock:
             job = self.get_job(ident)
             job.read()
+            events = list(job.history) if after is None else job.history[after:after + 256]
             snapshot = dict(job=ident, action=job.action, media=job.media, args=job.args, exit=job.exit,
-                            events=list(job.history), result=job.result, cancellation=job.cancellation)
+                            events=events, result=job.result, cancellation=job.cancellation)
+            if after is not None:
+                cursor = min(after + len(events), len(job.history))
+                snapshot.update(cursor=cursor, more=cursor < len(job.history))
             if job.action in {"calibrate", "timing", "geo"} and job.exit is not None:
                 result = job.result or {}
                 parts = (result, result.get("timing") or {}, result.get("geo") or {})
@@ -1493,7 +1522,9 @@ class Backend:
             job.asks.pop(payload["id"])
             return dict(answered=True)
 
-    def events(self, cursors, reconnect=False):
+    def events(self, cursors, reconnect=False, *, summary=False):
+        from .measurement_jobs import changes
+
         with self.lock:
             result = []
             # Poll saved results and the injected inventory only. No SCSI info command
@@ -1511,21 +1542,24 @@ class Backend:
                 if path.is_file():
                     stat = path.stat()
                     files.append((str(path), stat.st_mtime_ns, stat.st_size))
-            fingerprint = (json.dumps(self.drive_provider(), sort_keys=True), sorted(files))
+            active = tuple(job.id for job in self.jobs.values() if job.exit is None)
+            fingerprint = (json.dumps(self.drive_provider(), sort_keys=True), sorted(files), active, changes(self.out))
             previous = cursors.get("_state")
-            if previous is not None and fingerprint != previous:
+            if (previous is not None and fingerprint != previous) or (summary and reconnect and active):
                 result.append(dict(type="state"))
             cursors["_state"] = fingerprint
             for job in self.jobs.values():
                 job.read()
                 if reconnect:
-                    if job.cancellation:
+                    if not summary and job.cancellation:
                         result.append(job.cancellation)
-                    result += ([job.progress] if job.progress else []) + list(job.asks.values())
+                    if not summary:
+                        result += ([job.progress] if job.progress else []) + list(job.asks.values())
                     if job.exit is not None:
                         result.append(dict(type="done", job=job.id, exit=job.exit))
                 else:
-                    result += job.history[cursors.get(job.id, 0):]
+                    new = job.history[cursors.get(job.id, 0):]
+                    result += [event for event in new if event['type'] in ('state', 'done')] if summary else new
                 cursors[job.id] = len(job.history)
             return result
 
@@ -1547,7 +1581,8 @@ class Backend:
                 job.read()
                 step = next((event.get("name") for event in reversed(job.history) if event["type"] == "step"), None)
                 writes = step not in ("check", "timing", "geo", "preset")
-            tasks.append(dict(action=job.action, drive=job.drive, job=job.id, writes_drive=writes))
+            # The job folder carries a random suffix after the id; give its path so its output.log can be found.
+            tasks.append(dict(action=job.action, drive=job.drive, job=job.id, writes_drive=writes, output=str(job.output)))
         tasks.extend(dict(action=action, drive=drive, job=None, writes_drive=False)
                      for drive, action in self.reading.items())
         return tasks
@@ -2061,12 +2096,15 @@ class Handler(BaseHTTPRequestHandler):
                                      slots="late night 22-05, early 05-09, morning 09-12, afternoon 12-18, evening 18-22",
                                      first_day="Monday"))
             elif path == "/api/catalogue":
-                self._json(200, backend.library.rows())
+                self._json(200, backend.catalogue())
             elif path == "/api/image-job":
                 query = parse_qs(url.query)
                 self._json(200, backend.image_job(work=query.get("work", [None])[0], ident=query.get("job", [None])[0]))
             elif re.fullmatch(r"/api/jobs/j-[0-9a-f]+", path):
-                self._json(200, backend.job_state(path.rsplit("/", 1)[1]))
+                after = parse_qs(url.query, keep_blank_values=True).get('after')
+                if after is not None and (len(after) != 1 or not re.fullmatch(r'[0-9]{1,12}', after[0])):
+                    raise APIError("invalid job cursor")
+                self._json(200, backend.job_state(path.rsplit("/", 1)[1], int(after[0]) if after else None))
             elif path == "/api/burn-token":
                 raise APIError("burn token requires a POST request", 405)
             elif path == "/api/burn-speeds" or re.fullmatch(r"/api/drives/[^/]+/speeds", path):
@@ -2119,10 +2157,11 @@ class Handler(BaseHTTPRequestHandler):
         self.connection.settimeout(5)
         cursors = {}
         first = True
+        summary = parse_qs(urlsplit(self.path).query).get('summary') == ['1']
         may_quit = bool(self.server.token) or self._has_local_cookie()
         last_busy = None
         while not self.server.backend.closed:
-            events = self.server.backend.events(cursors, reconnect=first)
+            events = self.server.backend.events(cursors, reconnect=first, summary=summary)
             first = False
             for event in events:
                 self.wfile.write(("event: " + event["type"] + "\ndata: " + json.dumps(event, ensure_ascii=False) + "\n\n").encode("utf-8"))
@@ -2338,10 +2377,13 @@ class Handler(BaseHTTPRequestHandler):
                 except ValueError as exc:
                     raise APIError(str(exc), 404) from exc
             elif path == "/api/catalogue":
+                from .measurement_jobs import MeasurementRunning, occupied
                 with backend.lock, backend.works._locked():
                     try:
                         backend.library._recover()
-                        result = webui_catalog.save_entry(backend.root, backend.out, payload)
+                        result = webui_catalog.save_entry(backend.root, backend.out, payload, occupied=occupied(backend.out))
+                    except MeasurementRunning as exc:
+                        raise APIError(str(exc), exc.status, code=exc.code) from exc
                     except ValueError as exc:
                         raise APIError(str(exc)) from exc
             elif path == "/api/library":
@@ -2352,20 +2394,23 @@ class Handler(BaseHTTPRequestHandler):
                 library = backend.library
                 try:
                     with backend.lock:
-                        if op != "preview" and backend._busy():
+                        if op == "restore" and backend._busy():
                             raise APIError("wait for the running task before changing the disc library", 409)
                         if op == "preview" and set(payload) == {"operation", "id"}:
                             result = library.preview(ident)
                         elif op == "delete" and set(payload) == {"operation", "id", "with_works", "revision"} and (
                             type(payload["with_works"]) is bool and isinstance(payload["revision"], str)
                         ):
+                            if backend.reading or any(job.exit is None and job.action not in {"calibrate", "timing", "geo"}
+                                                      for job in backend.jobs.values()):
+                                raise APIError("wait for the running task before changing the disc library", 409)
                             result = library.delete(ident, with_works=payload["with_works"], revision=payload["revision"])
                         elif op == "restore" and set(payload) == {"operation", "id"}:
                             result = library.restore(ident)
                         else:
                             raise APIError("invalid library operation")
                 except WorkError as exc:
-                    raise APIError(str(exc), exc.status) from exc
+                    raise APIError(str(exc), exc.status, code=getattr(exc, 'code', None)) from exc
             elif path == "/api/run":
                 result = backend.start(payload)
             elif path == "/api/disc":

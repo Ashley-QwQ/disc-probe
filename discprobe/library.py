@@ -8,7 +8,7 @@ import re
 import secrets
 import shutil
 
-from . import guide, webui_catalog, works
+from . import guide, measurement_jobs, webui_catalog, works
 
 
 TRASH_ID = re.compile(r'\d{8}T\d{12}Z-[0-9a-f]{8}', re.ASCII)
@@ -63,10 +63,11 @@ class Library:
             restoring = marker.read_text(encoding='ascii') == 'restore'
             self._transition(folder, manifest, restoring=restoring, recovering=True)
 
-    def rows(self):
+    def rows(self, *, progress=None):
         with self.works._locked():
             self._recover()
-            return webui_catalog.catalogue(self.root, self.out)
+            return webui_catalog.catalogue(self.root, self.out, occupied=measurement_jobs.occupied(self.out),
+                                           progress=progress)
 
     def trashed(self):
         with self.works._locked():
@@ -78,13 +79,16 @@ class Library:
                     entries.append(dict(trash_id=folder.name, id=manifest['id'], name=manifest['name']))
             return entries
 
-    def _plan(self, ident):
+    def _plan(self, ident, *, deleting=False):
         inventory = {}
-        groups = webui_catalog.catalogue(self.root, self.out, inventory=inventory)
+        occupied = measurement_jobs.occupied(self.out)
+        groups = webui_catalog.catalogue(self.root, self.out, inventory=inventory, occupied=occupied)
         entry = next((row for rows in groups.values() for row in rows if row['id'] == ident), None)
         if not entry:
             raise works.WorkError('disc batch not found', 404)
         references = inventory[ident]
+        if deleting and (entry['s'] == 'measuring' or any(path and str(self.root / path) in occupied for path in references)):
+            raise measurement_jobs.MeasurementRunning()
         shared = set().union(*(paths for key, paths in inventory.items() if key != ident))
         retained = sorted(references & shared)
         files = sorted(name for name in references - shared if _safe(self.root, name).exists())
@@ -176,7 +180,7 @@ class Library:
     def delete(self, ident, *, with_works=None, permanent=False, revision=None):
         with self.works._locked():
             self._recover()
-            plan = self._plan(ident)
+            plan = self._plan(ident, deleting=True)
             if revision is not None and revision != plan['revision']:
                 raise works.WorkError('disc batch changed; review the files before deleting', 409)
             if plan['works'] and with_works is None:

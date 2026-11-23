@@ -91,6 +91,8 @@
 .library-more .batch-sectors { font-family: var(--mono); }
 #batch-history { margin-top: 12px; }
 .library-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* Rename and Delete wait while a measurement still writes this batch: show them as not available. */
+.library-actions .btn:disabled { opacity: .48; cursor: default; background: transparent; }
 .library-actions:has(> :not([hidden], :empty)), .library-actions:has(> button:not([hidden])) { margin-top: 12px; }
 .batch-rename { margin-top: 12px; }
 .batch-rename input { display: block; width: 100%; padding: 8px; font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 4px; }
