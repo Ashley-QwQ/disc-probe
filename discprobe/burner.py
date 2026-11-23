@@ -534,7 +534,11 @@ def _write_preflight(drive, image, *, media, speed, recorder, cancel, keep_open,
         disc_identity.check_identity(drive, expected_identity)
     if cancel.is_set():
         raise BurnError("Cancelled before writing; nothing was written.")
-    return size, recorder, erase_recorder, info, selected, source, identity, log_path, record, expected_identity
+    evidence = spec.get('photo_l')
+    if isinstance(evidence, dict) and evidence.get('origin') == 'starter-preset':
+        from .starter import check_picture_burn
+        check_picture_burn(evidence, drive, expected_identity, recorder, media=media, append=append, keep_open=keep_open)
+    return size, recorder, erase_recorder, info, selected, source, identity, log_path, record, expected_identity, spec.get('starter_check')
 
 
 @locked_drive("burn")
@@ -608,11 +612,16 @@ def _burn_log(drive, image, media):
 def _burn_locked(drive, image, *, media, speed, recorder, cancel, no_verify, verifier, keep_open,
                  append, expect_start, disc_id, disc_id_code, state_checker, erase, expected_identity,
                  expected_mid, allow_other_batch, disc_number):
-    size, recorder, erase_recorder, info, selected, source, identity, log_path, record, expected_identity = _write_preflight(
+    size, recorder, erase_recorder, info, selected, source, identity, log_path, record, expected_identity, starter_target = _write_preflight(
         drive, image, media=media, speed=speed, recorder=recorder, cancel=cancel,
         keep_open=keep_open, append=append, expect_start=expect_start, disc_id=disc_id,
         disc_id_code=disc_id_code, erase=erase, expected_identity=expected_identity,
         expected_mid=expected_mid, allow_other_batch=allow_other_batch)
+    starter_burn = None
+    if starter_target is not None:
+        from . import starter
+        starter_burn = starter.burn_binding(starter_target, drive, expected_identity, recorder, media=media,
+                                           append=append, keep_open=keep_open, no_verify=no_verify)
     if erase_recorder is not None:
         from . import eraser
         erased = eraser.erase(drive, cancel=cancel, recorder=erase_recorder, expected_identity=expected_identity)
@@ -628,7 +637,9 @@ def _burn_locked(drive, image, *, media, speed, recorder, cancel, no_verify, ver
     print(f"Requested write speed: {selected:g}x ({'default' if speed is None else f'--speed {speed:g}x'}). "
           f"Burn log: {log_path}", flush=True)
     print("The tray closes for writing. Burning cannot be undone.", flush=True)
-    provenance = dict(_recorder_provenance(recorder), disc_id=disc_number or datetime.now().strftime("C%m%d-%H%M"))
+    # A starter check disc already has its number: the saved burn record carries the same one.
+    provenance = dict(_recorder_provenance(recorder), disc_id=disc_number or (starter_burn or {}).get('disc_id')
+                      or datetime.now().strftime("C%m%d-%H%M"))
     started = time.monotonic()
     reported = None
     def progress(**fields):
@@ -732,6 +743,10 @@ def _burn_locked(drive, image, *, media, speed, recorder, cancel, no_verify, ver
     else:
         print("Burn finished: data written, read-back sample OK. This checks the data, not what the disc looks like.",
               flush=True)
+    if starter_burn is not None and not reasons:
+        starter.save_burn(starter_target['path'], starter_burn)
+        result['starter_burn'] = starter_burn
+        print(f"检查盘编号 / Check disc number: {starter_burn['disc_id']}", flush=True)
     record("burn_result", provenance=provenance if not reasons else None, **result)
     if reasons:
         raise BurnError(result['reason'], gate=burn_gate.write_problem(result['reason'], read_back=state['status'] != 'failed'))

@@ -327,6 +327,8 @@ def catalogue(root, out, *, inventory=None):
                     correction_required=bool(fit.get('correction_required')) if imported else False,
                     import_status=source.get('status') if isinstance(source, dict) else None,
                     geo=str(path.relative_to(root)) if compatible else None))
+    from .starter import catalogue as starter_batches
+    groups['dvd'].extend(starter_batches(root, out))
     return groups
 
 

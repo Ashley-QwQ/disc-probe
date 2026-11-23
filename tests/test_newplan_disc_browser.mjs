@@ -11,6 +11,7 @@ import {fileURLToPath} from 'node:url';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const temp = await mkdtemp(join(tmpdir(), 'newplan-disc-'));
 const shots = process.env.NEWPLAN_SHOTS;
+const onlyStarter = process.env.NEWPLAN_STARTER_ONLY === '1';
 if (shots) await mkdir(shots, {recursive: true});
 const python = process.env.PYTHON ?? 'python';
 const edge = process.env.KIT_TEST_BROWSER ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
@@ -64,7 +65,7 @@ async function click(selector) {
   await cdp('Input.dispatchMouseEvent', {...point, type: 'mouseReleased', button: 'left', clickCount: 1});
 }
 async function capture(name) {
-  if (!shots) return;
+  if (!shots || onlyStarter && !name.startsWith('starter-')) return;
   await evaluate('document.fonts.ready');
   const result = await cdp('Page.captureScreenshot', {format: 'png', captureBeyondViewport: false});
   await writeFile(join(shots, name + '.png'), Buffer.from(result.data, 'base64'));
@@ -244,6 +245,27 @@ async function verifyDeferred(url) {
   console.log('PASS deferred: save/reopen, nominal range, export rejected, preview selects a batch, no jobs');
 }
 
+async function verifyStarter({theme, lang}) {
+  await evaluate('document.querySelector(".np-cal-go").click()');
+  await until(`document.documentElement.dataset.mode === 'cal' && !document.getElementById('next').disabled`, 'starter calibration entry');
+  await evaluate('document.getElementById("next").click()');
+  await until('document.querySelectorAll("#starter-choice input").length === 2', 'starter source missing');
+  assert.equal(await evaluate('document.querySelector("#starter-choice input:checked")?.value'), '', 'starter never selected by default');
+  assert.match(await evaluate('document.querySelector("#starter-choice label:last-child").textContent'), /DISCLAB GH70N-LIKE.*24.49–57.1/);
+  assert.match(await evaluate('document.getElementById("next-text").textContent'), /生成测量镜像|Make measurement image/);
+  await capture(`starter-${theme}-${lang}-1440`);
+  await viewport(390, 844);
+  await evaluate(`document.getElementById('starter-choice').scrollIntoView({block:'center'})`);
+  assert.ok(await evaluate(`(() => {const r = document.getElementById('starter-choice').getBoundingClientRect();
+    return r.width > 100 && r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;})()`),
+  'starter choice fits the mobile viewport');
+  await capture(`starter-${theme}-${lang}-390`);
+  await evaluate(`(() => {document.querySelectorAll('#starter-choice input')[1].click();})()`);
+  assert.match(await evaluate('document.getElementById("next-text").textContent'), /刻检查盘|Burn the check disc/);
+  await viewport(1440, 900);
+  console.log(`PASS starter ${theme}/${lang}: measurement default, explicit source, check-disc action`);
+}
+
 try {
   browser = spawn(edge, ['--headless=new', '--mute-audio', '--disable-gpu', '--disable-background-networking',
     '--disable-component-update', '--no-first-run', '--no-default-browser-check', '--no-proxy-server',
@@ -265,7 +287,15 @@ try {
   await cdp('Page.enable');
   await viewport(1440, 900);
   await cdp('Emulation.setEmulatedMedia', {features: [{name: 'prefers-reduced-motion', value: 'reduce'}]});
-  for (const scenario of cases) await runScene(scenario, scenario.key === 'rom' ? verifyDeferred : null);
+  if (onlyStarter) {
+    for (const theme of ['light','dark']) for (const lang of ['zh','en']) {
+      const scenario = {...cases[0], theme, lang, words:lang === 'en' ? /blank disc.*RITEKF1/i : cases[0].words};
+      await runScene(scenario, () => verifyStarter(scenario));
+    }
+  } else {
+    for (const scenario of cases) await runScene(scenario, scenario.key === 'rom' ? verifyDeferred :
+      scenario.key === 'blank' ? () => verifyStarter(scenario) : null);
+  }
 } finally {
   if (socket?.readyState === WebSocket.OPEN) {
     await Promise.race([cdp('Browser.close').catch(() => {}), delay(2000)]);

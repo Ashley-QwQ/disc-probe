@@ -232,7 +232,7 @@ async function burnCheckDisc() {
     const id = api.selectedDrive(), drive = { id, name: id, speeds: [] };
     const request = (speed, erase) => ({ action: "burn", drive: id, media: "dvd", args: { iso: iso.path, ...(speed ? { speed } : {}), ...(erase ? { erase: true } : {}) } });
     const opener = returnTo, result = { done: true, id: f.savedId, batch: f.savedBatch };
-    const finish = () => opener ? void opener(result) : api.toLobby?.();
+    const finish = () => f.starterCheck ? backToMeasurement(f, 'check_not_completed', opener) : opener ? void opener(result) : api.toLobby?.();
     const item = f.item;
     const ctx = { media: "dvd", item: { name: f.savedBatch?.name ?? f.detected?.mid ?? "" }, iso, drive, preflight: true,
       back: finish, done: () => ctx.photograph(),
@@ -257,7 +257,8 @@ async function burnCheckDisc() {
           onProgress({ status: "failed", errorInfo: error, started: !!jobId }); } })();
         return { cancel() { if (jobId) api.backend.cancel(jobId); } };
       },
-      async photograph() { burnPage.leave(); photograph(api, { item, media: "dvd", geo, burnCheck: iso.burnResult ?? null, returnTo: opener ? () => opener(result) : null }); },
+      async photograph() { burnPage.leave(); photograph(api, { item, media: "dvd", geo, burnCheck: iso.burnResult ?? null,
+        starterCheck: f.starterCheck, returnTo: f.starterCheck ? opener : opener ? () => opener(result) : null }); },
       photographSaved() { burnPage.leave(); photographSaved(api, {item, geo, returnTo: () => burnPage.start(api, ctx),
         burnAgain: () => burnPage.start(api, ctx)}); },
     };
@@ -274,7 +275,7 @@ async function burnCheckDisc() {
 // Straight to the photos of a disc just burned with this geometry (the burn page's "Photograph the disc"):
 // the photo page reads them against that geometry's run, the core keeps the result next to it (photo.json),
 // and the next burn file made from that geometry applies the along-track correction. Back or done: returnTo.
-export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck = null, saved = null, burnAgain = null, returnTo: back = null } = {}) {
+export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck = null, saved = null, burnAgain = null, starterCheck = null, returnTo: back = null } = {}) {
   api = homeApi; $ = api.$;
   if (flow?.job) return open();                // a measurement still running comes first
   returnTo = back; returnAnim = returnLabel = null;
@@ -282,7 +283,8 @@ export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck
   if (!ui) build();
   flow.detected = { media, mid: item?.mid ?? null, capacity_sectors: item?.capacity_sectors ?? item?.sectors ?? null };
   // the burn page's own record of this write: the photo result names how the disc was burned (photo.photo_l)
-  flow.geo = { path: geo?.replace(/[\\/]summary\.json$/i, "") }; flow.burnCheck = burnCheck; flow.photoOnly = true; flow.realPhase = "photo";
+  flow.geo = { path: geo?.replace(/[\\/](?:summary|starter)\.json$/i, "") }; flow.burnCheck = burnCheck; flow.photoOnly = true; flow.realPhase = "photo";
+  flow.starterCheck = starterCheck;
   if (saved) {
     flow.savedBurn = {id:saved.id || null, confirmed:!!saved.confirmed, burnAgain};
     if (typeof saved.discId === "string") flow.photoDiscId = saved.discId;
@@ -292,6 +294,10 @@ export function photograph(homeApi, { item = null, media = "dvd", geo, burnCheck
   if (burnCheck?.result === "completed") {
     const d = new Date(), two = (n) => String(n).padStart(2, "0");
     flow.photoDiscId = burnCheck.disc_id || `C${two(d.getMonth() + 1)}${two(d.getDate())}-${two(d.getHours())}${two(d.getMinutes())}`;
+  }
+  if (starterCheck) {
+    flow.photoDiscId = burnCheck?.starter_burn?.disc_id;
+    if (!flow.photoDiscId) return backToMeasurement(flow, 'check_not_completed', back);
   }
   if (burnCheckFailed(burnCheck)) { flow.photoOnly = false; flow.realPhase = "review"; }
   return open();
@@ -1322,6 +1328,7 @@ function realPaint() {
   if (phase === "inspect") {
     text = liveText('放入这种盘，再点检测。检测只读，不会打开托盘。', 'Insert this disc, then check it. Checking is read-only and leaves the tray alone.');
     button = liveText('检测光盘', 'Check disc');
+    if (flow.starterFailure) html = note('warn', [esc(flow.starterFailure), '']);
   } else if (phase === "capacityBlank") {
     title = liveText('读取空白盘容量', 'Read blank disc capacity');
     text = liveText('放入一张同批次的空白盘，再点检测。检测只读，不会打开托盘。', 'Insert a blank from the same batch, then check it. Checking is read-only and leaves the tray alone.');
@@ -1339,7 +1346,28 @@ function realPaint() {
     if (flow.detected.rewritable && flow.detected.blank === false) {
       html += `<p>${liveText('这张可擦写盘已有内容。擦除后重刻会清掉盘上的内容。','This rewritable disc has data. Erasing before burning clears its contents.')}</p><button id="real-erase" type="button" class="btn">${liveText('擦除后重刻','Erase and burn again')}</button>`;
     }
-    if (flow.detected.blank === true) button = liveText('生成测量镜像', 'Make measurement image');
+    if (flow.detected.blank === true) {
+      button = liveText('生成测量镜像', 'Make measurement image');
+      if (flow.starterFailure) html += note('warn', [esc(flow.starterFailure), '']);
+      if (flow.starterCandidates?.length) {
+        const sourceText = source => {
+          const measured = source.measured_span_mm?.join('–');
+          const from = ({same_drive:liveText('同一台光驱', 'Same drive'), same_model:liveText('同型号光驱', 'Same drive model'),
+            community:liveText('社区', 'Community')})[source.kind];
+          const warning = source.kind === 'same_drive' ? '' : liveText(' · 未验证：跨机器/跨批次没有实测数据', ' · Unverified: no measurements across machines or batches');
+          return `${from} · ${source.name} · ${source.drive} · ${measured ? `${measured} mm` : liveText('测量范围未知', 'Measured range unknown')}${warning}`;
+        };
+        // The route is the first decision on this page, so it sits above the name, as cards like the
+        // measuring-disc choice rather than a menu. The measuring disc stays first and chosen by default.
+        const card = (value, head, sub) => `<label class="choice"><input type="radio" name="starter-choice" value="${esc(value)}"${(flow.starterChoice || '') === value ? ' checked' : ''}><b>${head}</b><span>${sub}</span></label>`;
+        html = `<div class="choices" id="starter-choice" role="radiogroup" aria-label="${esc(liveText('用起步预设，跳过测量盘', 'Use a starter preset and skip the measurement disc'))}">${
+          card('', liveText('先刻测量盘', 'Burn a measurement disc first'), liveText('原来的路线：测量盘、检查盘、成品。', 'The usual route: measurement disc, check disc, picture.'))}${
+          flow.starterCandidates.map(s => card(s.id, s.kind === 'same_drive' ? liveText('跳过测量盘，用这台光驱的已有标定', 'Skip it: start from this drive’s calibration')
+            : liveText('跳过测量盘，用别处的标定（未验证）', 'Skip it: start from another calibration (unverified)'), esc(sourceText(s)))).join('')}</div>
+          <p>${liveText('这批盘还没确认。选择起步预设后，仍要刻检查盘并拍照。', 'This batch is unconfirmed. A starter preset still needs a burned check disc and photos.')}</p>` + html;
+        if (flow.starterChoice) button = liveText('刻检查盘', 'Burn the check disc');
+      }
+    }
     else if (flow.detected.blank === false) {
       html += `<label><input id="measurement-confirm" type="checkbox" ${flow.measureConfirmed ? "checked" : ""}>${liveText('这是同批次、刻满随机数据的测量盘', 'This is a full random-data measurement disc from this batch')}</label>`;
       button = liveText('测转速', 'Measure rotation'); disabled = !flow.measureConfirmed;
@@ -1492,6 +1520,13 @@ function realPaint() {
       if (flow.checkMaking) disabled = true;
     }
   }
+  if (phase === 'starterCheck') {
+    title = liveText('刻检查盘', 'Burn the check disc');
+    text = liveText('这批盘还没确认。请刻一张检查盘，再用手机拍照。', 'This batch is unconfirmed. Burn a check disc and take photos with your phone.');
+    button = liveText('刻检查盘', 'Burn the check disc');
+    if (flow.checkError) html = note('error', [esc(flow.checkError), '']);
+    disabled ||= !!flow.checkMaking;
+  }
   if (["prepare", "burn"].includes(phase)) html = (flow.detected.rewritable
     ? `<p class="cal-aside">${liveText('可擦写盘可以重复使用。快速擦除约 1 分钟；完全擦除约为 1× 刻满一张盘的时间。擦除完成后才会开始重刻。','Rewritable discs can be reused. Quick erase takes about a minute; full erase takes about as long as filling a disc at 1x. Burning starts after erasing completes.')}</p>`
     : budgetHTML(flow.detected.media, api.lang())) + html;
@@ -1577,6 +1612,9 @@ function realPaint() {
     flow.batchConfirmed=e.target.checked;paint();$("measurement-batch-confirm")?.focus();
   });
   $("real-name")?.addEventListener("input", e => {flow.realName = e.target.value;});
+  for (const radio of document.querySelectorAll('#starter-choice input')) radio.addEventListener('change', () => {
+    flow.starterChoice = radio.value; paint();
+    document.querySelector(`#starter-choice input[value="${CSS.escape(radio.value)}"]`)?.focus(); });
   $("measurement-confirm")?.addEventListener("change", e => {
     flow.measureConfirmed = e.target.checked; paint(); $("measurement-confirm").focus();
   });
@@ -1734,8 +1772,28 @@ function closePhoto() {
   document.documentElement.classList.remove('cal-photo');
 }
 function photoReview() {
+  if (flow.starterCheck) { backToMeasurement(flow, 'photo_not_confirmed', returnTo); return; }
   if (flow.photoOnly) { closePhoto(); flow.error = null; leave(); return; }   // came from the burn page: back there
   closePhoto(); flow.realPhase = 'review'; flow.error = null; paint();
+}
+
+function backToMeasurement(previous, reason, opener) {
+  closePhoto();
+  returnTo = opener;
+  flow = newFlow(previous.item);
+  flow.realPhase = 'inspect';
+  flow.starterDeclined = true;
+  const detail = ({
+    shape_not_1_over_r: liveText('不同半径的偏差无法用一个沿轨常数校正。', 'The ring bands do not support a single along-track correction.'),
+    large_residual: liveText('检查盘图案偏差太大。', 'The check disc pattern is too far from the expected positions.'),
+    check_not_completed: liveText('检查盘未完成刻录和回读。', 'The check disc burn and read-back did not complete.'),
+    no_rim: liveText('照片里没找到盘边。', 'The disc edge was missing from the photos.'),
+    photos_disagree: liveText('照片读出的偏移互相对不上。', 'The photos gave conflicting offsets.'),
+    ambiguous_majority: liveText('照片分成两组互相冲突的读数。', 'The readings split into two conflicting groups.'),
+    invalid_starter_photo_evidence: liveText('照片来源与检查盘记录无法核对。', 'The photo evidence could not be matched to the check disc.'),
+  })[reason] || liveText('照片未通过检查。', 'The photos did not pass the check.');
+  flow.starterFailure = `${detail} ${liveText('请换一张同批空白盘，回到测量盘流程。', 'Insert a blank from this batch and return to the measurement-disc flow.')}`;
+  return open();
 }
 // "Skip, use the current results": remembered for this measurement, so the review's next step saves without the
 // photo's correction instead of sending the person back to the photo page (CD went round in that circle).
@@ -1959,6 +2017,7 @@ function queuePhotoRead(u) {
   photoNavigation(u);
 }
 function photoBurnArgs(f) {
+  if (f.starterCheck) return {};  // The core retrieves the path from the verified burn receipt.
   const burn = f.burnCheck;
   const saved = f.savedBurn?.record?.id;
   const edited = burn?.burn_record && f.photoDiscId && f.photoDiscId !== burn.disc_id;
@@ -1970,6 +2029,16 @@ function photoBurnArgs(f) {
 }
 async function usePhotoResult(u, photo = null) {
   const result = await readPhoto(u,photo);
+  if (u.flow.starterCheck && photoLive(u)) {
+    if (!result?.starter?.written) { backToMeasurement(u.flow, result?.starter?.reason, returnTo); return; }
+    const check = u.flow.starterCheck;
+    const batch = { id: `starter:${u.run}`, geo: check.path, starter: true, row: 'dvd', s: 'good', mid: check.mid,
+      name: check.name, checked_mm:check.checked_mm, capacity_sectors:check.capacity_sectors };
+    const opener = returnTo;
+    closePhoto(); returnTo = null; flow = null; release();
+    if (opener) await opener({done:true, id:batch.id, batch}); else api.toLobby?.();
+    return;
+  }
   if (result?.verdict !== 'ok' || !photoLive(u)) return;
   await savePhotoPreset(u);
 }
@@ -2022,6 +2091,11 @@ async function readPhoto(u, photo = null, rings = null) {
     if (disc !== photoDiscId(f, u.run)) { u.readAgain = true; return null; }
     // A job may finish after Back. Keep its evidence with its own flow, but never navigate that page.
     f.photoResult = result; f.photoReadKey = key; f.photoReadIds = readIds;
+    if (f.starterCheck && photoLive(u) && !result?.starter?.written &&
+        (ids.length >= 3 || ['large_residual', 'shape_not_1_over_r'].includes(result?.starter?.reason))) {
+      backToMeasurement(f, result?.starter?.reason, returnTo);
+      return result;
+    }
     showPhotoResult(u,result);
     return result;
   } catch (error) {
@@ -2046,6 +2120,7 @@ function readFromListing(list, ids) {
   if ((list.disc_id || '') !== (photoDiscId(flow, photoUI?.run) || '')) return null;
   return {verdict:list.verdict, per_photo:(list.photos || []).filter(p => ids.includes(p.id)).map(p => ({id:p.id, verdict:p.verdict, status:p.status, reason:p.reason})),
     adoption:list.adoption, application:list.application, group:list.group, provisional_mm:list.provisional_mm ?? null,
+    ...(flow?.starterCheck ? {starter:list.application} : {}),
     rings_mm:null, offset_mm:null, L_frames:null, confidence:null};
 }
 // The physical target disc these photos are of (photo --disc-id). Typed by the person, kept per run in this browser.
@@ -2060,6 +2135,7 @@ function discField(u) {
   const input = document.createElement('input'); input.type = 'text'; input.maxLength = 40; input.autocomplete = 'off'; input.spellcheck = false;
   input.placeholder = liveText('例如 T1','e.g. T1'); input.value = photoDiscId(u.flow, u.run);
   if (u.flow.savedBurn) input.addEventListener('input', () => { u.flow.photoDiscId = input.value; });
+  input.readOnly = !!u.flow.starterCheck;
   const hint = document.createElement('small');
   hint.textContent = u.flow.savedBurn ? burnWords('numberHint') : u.flow?.burnCheck?.result === 'completed' && input.value
     ? liveText('刚刻好的这张盘已经自动编了号。想以后认得出它，就用记号笔把编号写在盘的内圈。',
@@ -2128,7 +2204,7 @@ function paintPhoto() {
           return null;
         },
         onUse:photo => usePhotoResult(u,photo),
-        ...(hasCapability('photo-manual-alignment') ? {
+        ...(hasCapability('photo-manual-alignment') && !u.flow.starterCheck ? {
           manualAlignment:(action, photo, values) => api.backend.request('/api/photo-alignment',
             {action, run:u.run, photo:photo.id, ...values}),
           onManualSaved:async result => {
@@ -2186,7 +2262,7 @@ function paintPhoto() {
       paper.append(u.notice);
       // No "take another" button: a connected phone's next photo arrives by itself. Kept detached for the old wiring.
       u.retry = document.createElement('button'); u.retry.hidden = true;
-      u.skip = action(liveText('跳过，就用现在的结果','Skip and keep the current result'),photoSkip);
+      u.skip = action(u.flow.starterCheck ? liveText('改用测量盘', 'Use a measurement disc') : liveText('跳过，就用现在的结果','Skip and keep the current result'),photoSkip);
       u.skip.className = 'pc-text-button pc-skip-link';   // secondary: the one primary action is "Use the result", bottom right
       u.page.ready?.then(() => { if (!photoLive(u)) return; u.page.setListing?.(u.listing); paintReadState(u); if (u.flow.photoResult) showPhotoResult(u,u.flow.photoResult); });
       if (photos.length) queuePhotoRead(u);
@@ -2322,6 +2398,7 @@ const STEP_WORDS = {
   check: ["检查刻好的盘", "Checking the burn"], timing: ["测转速", "Rotation"], geo: ["测几何", "Geometry"],
   preset: ["保存预设", "Saving the preset"], calibrate: ["标定", "Calibrating"], photo: ["读照片", "Reading photo"],
   checkdisc: ["生成检查盘", "Making the check disc"],
+  starter: ["检查起步预设", "Checking starter presets"],
 };
 const stepWords = (name) => STEP_WORDS[name] ? liveText(...STEP_WORDS[name]) : name;
 const stepEta = (name, flow) => name === "geo" ? (flow.repairingCoverage ? 120 : 300) : name === "timing" ? 90 : null;
@@ -2335,7 +2412,7 @@ async function realJob(action, args = {}, extra = {}, following = null) {
   current.clock.estimate(stepEta(action, f));
   if (action === "geo") { f.points = []; f.tape = []; f.head = null; }
   flow.jobWord = action; $("job-name").textContent = stepWords(action); paint(); paintJob();
-  const drive = ["info","timing","geo","burn","calibrate"].includes(action) ? api.selectedDrive() : undefined;
+  const drive = ["info","timing","geo","burn","calibrate","starter"].includes(action) ? api.selectedDrive() : undefined;
   placeLog(); flog.start(commandLine(action, drive));
   let why = "", lastLine = "", burnGate;            // the core's own reason survives later summary events
   // checking the disc reports no progress of its own: the bar stays empty and the words say it is reading
@@ -2517,7 +2594,10 @@ async function realNext() {
       flow.realPhase = "prepare";
     } else if (phase === "inspect" || (phase === "prepare" && flow.detected.blank == null)) {
       const result = await inspectDisc();
-      if (returnTo) {
+      const disc = result.disc;
+      flow.starterCandidates = !flow.starterDeclined && disc.media === 'dvd' && disc.blank === true && hasCapability('starter-preset')
+        ? result.starter_candidates ?? [] : [];
+      if (returnTo && !flow.starterDeclined && !flow.starterCandidates.length) {
         await api.syncState?.();
         const batch = calibratedBatch(api.catalogue?.(result.disc.media) ?? [], flow.item, result.disc);
         if (batch) {
@@ -2535,6 +2615,14 @@ async function realNext() {
       if(result.disc.blank===true)flow.requireBlank=false;
       if (result.disc.blank === true) flow.blankSectors = result.disc.capacity_sectors ?? result.disc.sectors;
     } else if (phase === "prepare") {
+      if (flow.starterChoice && flow.detected.blank === true) {
+        const selected = await realJob('starter', {source:flow.starterChoice});
+        if (!selected?.path || selected.mid !== flow.detected.mid) throw new Error(liveText('起步预设与当前空白盘不匹配。', 'The starter preset does not match this blank disc.'));
+        flow.starterCheck = {...selected, name:flow.realName || selected.mid};
+        flow.geo = {path:selected.path}; flow.realPhase = 'starterCheck';
+        await burnCheckDisc();
+        return;
+      }
       if ((flow.detected.blank === true || flow.eraseRequested) && flow.iso) flow.realPhase = "burn";     // the image made before, kept for a retry
       else if (flow.detected.blank === true || flow.eraseRequested) {
         const media = flow.detected.media;
@@ -2551,6 +2639,8 @@ async function realNext() {
         const sectors = needsCapacity ? manualCapacity(flow.manualSectors) : undefined;
         if (!needsCapacity || sectors) await realCalibrate({sectors});
       }
+    } else if (phase === 'starterCheck') {
+      await burnCheckDisc(); return;
     } else if (phase === "review") {
       if ($("left-input")?.reportValidity?.() === false) return;
       const recovery = recoveryAction(flow);

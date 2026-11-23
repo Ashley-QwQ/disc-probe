@@ -24,7 +24,7 @@ export function calibratedBatch(entries, item, disc) {
   if (exact) return exact;
   if (item?.manualBatch) return undefined;
   const mid = item?.mid || item?.readMid || disc?.mid;
-  return entries.find(x => calibrated(x) && sameMaker(x.mid, mid));
+  return entries.find(x => calibrated(x) && !x.starter && sameMaker(x.mid, mid));
 }
 
 export function driveCalibrationCounts(drive, catalogue) {
