@@ -159,7 +159,8 @@ def calibration_issue(run, record, *, full=False):
     from .geo import resume_supported
     return dict(missing_mm=gaps, reason=record.get('reason') or run.stopped, verdict=verdict,
                 stopped=bool(run.stopped or verdict == 'stopped_early'),
-                can_resume=run.kind == 'geo' and run.rungs() >= 6 and resume_supported(run.summary, run.media))
+                can_resume=run.kind == 'geo' and (run.summary.get('checkpoint') or run.rungs() >= 6)
+                and resume_supported(run.summary, run.media))
 
 
 def _relative(root, value):
@@ -404,7 +405,8 @@ def measurement_retry(run, args, points, coverage, timing_advice):
     rotation = run.rotation()
     jitter = guide._jitter(run.summary)
     fit = run.fit
-    if run.kind == 'geo' and (fit.get('failed_candidates') or points and retryable_read_stop(reason)):
+    if run.kind == 'geo' and (fit.get('failed_candidates') or points and
+                             (run.summary.get('checkpoint') or retryable_read_stop(reason))):
         kind = 'rung'
     elif 'medium error' in reason:
         kind = 'media'
@@ -432,17 +434,24 @@ def measurement_retry(run, args, points, coverage, timing_advice):
 def measurement(run):
     """Saved observations only: residual and its uncertainty against LBA, no invented curve."""
     points = []
-    try:
-        with (Path(run.path) / 'targets.csv').open(encoding='utf-8') as stream:
-            for row in csv.DictReader(stream):
-                try:
-                    point = {key: float(row[key]) for key in ('lba', 'residual_deg', 'sigma_deg')}
-                    if all(math.isfinite(v) for v in point.values()) and point['sigma_deg'] >= 0:
-                        points.append(point)
-                except (KeyError, ValueError, TypeError):
-                    continue
-    except OSError:
-        pass
+    checkpoint = run.summary.get('checkpoint')
+    keys = ('lba', 'residual_deg', 'sigma_deg')
+    if checkpoint:
+        for target in checkpoint['targets']:
+            row = {'residual_deg': target['unwrapped_deg'] - target['predicted_deg'], **target}
+            points.append({key: float(row[key]) for key in keys})
+    else:
+        try:
+            with (Path(run.path) / 'targets.csv').open(encoding='utf-8') as stream:
+                for row in csv.DictReader(stream):
+                    try:
+                        point = {key: float(row[key]) for key in keys}
+                        if all(math.isfinite(v) for v in point.values()) and point['sigma_deg'] >= 0:
+                            points.append(point)
+                    except (KeyError, ValueError, TypeError):
+                        continue
+        except OSError:
+            pass
     from argparse import Namespace
     args = Namespace(**{**(run.summary.get('args') or {}), 'media': run.media,
                         'out': str(Path(run.path).parent)})
@@ -454,7 +463,8 @@ def measurement(run):
         required = default_range(run.media, run.fit.get('measured_span_mm'))
         if required:
             coverage_result = dict(missing_mm=assess_range(run.fit, required)['extrapolated_mm'],
-                                   can_resume=len(points) >= 6 and resume_supported(run.summary, run.media))
+                                   can_resume=(checkpoint is not None or len(points) >= 6)
+                                   and resume_supported(run.summary, run.media))
     detail = dict(points=points, stopped=run.stopped, span_mm=run.fit.get('measured_span_mm'),
                 sigma_deg=run.fit.get('angle_sigma_measured_span_deg'),
                 completion_status=run.fit.get('completion_status'), coverage=run.fit.get('coverage'),

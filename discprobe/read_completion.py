@@ -9,10 +9,13 @@ from __future__ import annotations
 import copy
 import csv
 import hashlib
+import io
 import json
 import math
 from pathlib import Path
 import shutil
+
+from . import geo_checkpoint
 
 HELP = "DVD: read completion offset in sectors after the ECC block end (geo default: drive registry or 0; export default: stored value)"
 REFIT_HELP = "reapply the completion offset to an existing geo folder or summary without drive access; --out is a new folder"
@@ -93,7 +96,7 @@ def summary_path(path):
     return path / 'summary.json' if path.is_dir() else path
 
 
-def _event_phases(path, rows, summary):
+def _event_phases(stream, rows, summary):
     """Replay accepted rung blocks; retries/check points are matched to saved phases.
 
     targets.csv keeps the accepted rung and its turn count. events.csv also has
@@ -113,7 +116,7 @@ def _event_phases(path, rows, summary):
         if targets:
             groups.append((lba, refs[:], targets[:]))
     pending = None
-    for row in csv.DictReader(path.open(encoding='utf-8', newline='')):
+    for row in csv.DictReader(stream):
         if row['label'] not in ('ref', 'target'):
             if row['label'] in ('settle', 'rotation'):
                 finish()
@@ -161,17 +164,26 @@ def _event_phases(path, rows, summary):
 
 def reapply(path, value):
     """Return a new summary and optional rungs, without changing the source files."""
+    path = geo_checkpoint.source_path(path)
+    raw = path.read_bytes()
+    return _reapply(path, raw, json.loads(raw), value)
+
+
+def _reapply(path, raw, document, value):
     from .geo import Ladder
     from .calscan import _report
     from .calib import SECTOR_BITS
-    path = summary_path(path)
-    document = json.loads(path.read_text(encoding='utf-8'))
-    fit = document['fit']
-    if fit.get('media', 'dvd') != 'dvd' or fit.get('model') == 'clv':
+    fit = document.get('fit')
+    if not fit:
+        raise ValueError('the measurement stopped before a geometry fit was available')
+    checkpoint = document.get('checkpoint')
+    media = fit.get('media', 'dvd')
+    if (media != 'dvd' and not (checkpoint and media == 'cd' and value == 0)
+            or fit.get('model') == 'clv'):
         raise ValueError("--completion-sectors is for DVD")
     value = sectors(value)
     old = sectors(fit.get('completion_sectors', 0))
-    if value == old:
+    if value == old and not checkpoint:
         return document, None, 'unchanged'
     # Validate the requested absolute value before calculating its difference.
     delta = value - old
@@ -184,25 +196,37 @@ def reapply(path, value):
     rows = None
     saved_prior = bool(fit.get('fit_prior'))
     # Merged fits have independent reference phases and no single rung table.
-    if target_file.exists() and fit.get('reference_lba') is not None:
-        rows = []
-        for row in csv.DictReader(target_file.open(encoding='utf-8', newline='')):
-            t = {k: float(v) for k, v in row.items() if v}
-            t['lba'] = int(t['lba'])
-            t['n'] = float(((t['lba'] // 16 + 1) * 16 + value) * SECTOR_BITS)
-            rows.append(t)
+    if checkpoint or (target_file.exists() and fit.get('reference_lba') is not None):
+        if checkpoint:
+            rows = [{**t, 'lba': int(t['lba'])} for t in checkpoint['targets']]
+        else:
+            with target_file.open(encoding='utf-8', newline='') as stream:
+                rows = [{**{k: float(v) for k, v in row.items() if v}, 'lba': int(row['lba'])}
+                        for row in csv.DictReader(stream)]
         if len(rows) < 3:
             raise ValueError("targets.csv needs at least three accepted rungs")
-        method = 'events_refit' if event_file.exists() else 'targets_refit'
-        if event_file.exists():
-            rows = _event_phases(event_file, rows, document)
-        prior = fit.get('fit_prior') or {}
-        ladder = Ladder(None, completion_sectors=value,
+        event_data = geo_checkpoint.read_events(path.parent, checkpoint) if checkpoint else None
+        method = 'targets_refit'
+        if event_data or (checkpoint is None and event_file.exists()):
+            with (io.StringIO(event_data.decode('utf-8'), newline='') if checkpoint else
+                  event_file.open(encoding='utf-8', newline='')) as stream:
+                try:
+                    rows = _event_phases(stream, rows, document)
+                    method = 'events_refit'
+                except ValueError:
+                    if not checkpoint:
+                        raise
+        prior = fit.get('fit_prior') or (document.get('args') or {} if checkpoint else {})
+        ladder = Ladder(None, media=media, completion_sectors=value,
                         r0_mm=prior.get('r0_mm'), pitch_um=prior.get('pitch_um'), bit_nm=fit['bit_nm_assumed'],
-                        sigma_u=prior.get('sigma_u'), sigma_v=prior.get('sigma_v'))
+                        sigma_u=prior.get('sigma_u'), sigma_v=prior.get('sigma_v'),
+                        read_offset_bytes=fit.get('read_offset_bytes', 0))
+        ladder.audio = fit.get('track') == 'audio'
         ladder.ref = fit['reference_lba']
         ladder.n_ref = ladder._n_end(ladder.ref)
         ladder.targets = rows
+        for row in rows:
+            row['n'] = ladder._n_end(row['lba'])
         ladder.u, ladder.v, ladder.c = u, fit['v'], math.radians(fit.get('c_deg', 0))
         ladder.T = fit.get('period_ms', 0) / 1000 if fit.get('period_ms') else None
         ladder.tp.last_lba = (document.get('setup') or {}).get('last_lba', 2295103)
@@ -216,12 +240,17 @@ def reapply(path, value):
         physical = _report(u, fit['v'], None, (u, fit['v']), layout, None)
         for key in ('u', 'coarse_u', 'r0_mm_at_bit', 'dis_equivalent', 'nominal_error_deg'):
             fit[key] = physical[key]
-    fit['completion_sectors'] = value
-    fit['completion_source'] = dict(origin='manual')
-    inputs = {'summary.json': hashlib.sha256(path.read_bytes()).hexdigest()}
-    for raw in (target_file, event_file):
-        if raw.exists():
-            inputs[raw.name] = hashlib.sha256(raw.read_bytes()).hexdigest()
+    if media == 'dvd':
+        fit['completion_sectors'] = value
+        fit['completion_source'] = dict(origin='manual')
+    inputs = {path.name if checkpoint else 'summary.json': hashlib.sha256(raw).hexdigest()}
+    if checkpoint:
+        if event_data:
+            inputs[event_file.name] = hashlib.sha256(event_data).hexdigest()
+    else:
+        for file in (target_file, event_file):
+            if file.exists():
+                inputs[file.name] = hashlib.sha256(file.read_bytes()).hexdigest()
     fit['completion_adjustment'] = dict(method=method, from_sectors=old, to_sectors=value,
                                         input_sha256=inputs,
                                         prior='saved' if saved_prior else 'legacy DVD defaults',
@@ -239,11 +268,14 @@ def load_fit(path, completion_sectors=None):
 
 def save_reapplied(path, value, output, source=None):
     """Write a separate result; copying events preserves original timestamps exactly."""
-    path = summary_path(path).resolve()
+    path = geo_checkpoint.source_path(path).resolve()
     output = Path(output).resolve()
     if output.is_relative_to(path.parent) or output.exists():
         raise ValueError("--out must be a new folder; source results are read-only")
-    document, rows, method = reapply(path, value)
+    raw = path.read_bytes()
+    saved = json.loads(raw)
+    document, rows, method = _reapply(path, raw, saved, value)
+    checkpoint = document.pop('checkpoint', None)
     if source and method != 'unchanged':
         document['fit']['completion_source'] = source
     output.mkdir(parents=True)
@@ -257,7 +289,11 @@ def save_reapplied(path, value, output, source=None):
                 writer.writerow({'n_bits' if k == 'n' else k: row[k] for k in keys})
     elif path.with_name('targets.csv').exists():
         shutil.copyfile(path.with_name('targets.csv'), output / 'targets.csv')
-    if path.with_name('events.csv').exists():
+    if checkpoint:
+        event_data = geo_checkpoint.read_events(path.parent, checkpoint)
+        if event_data:
+            (output / 'events.csv').write_bytes(event_data)
+    elif path.with_name('events.csv').exists():
         shutil.copyfile(path.with_name('events.csv'), output / 'events.csv')
     if method == 'unchanged':
         shutil.copyfile(path, output / 'summary.json')

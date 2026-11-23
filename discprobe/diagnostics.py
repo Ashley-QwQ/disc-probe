@@ -10,7 +10,7 @@ import platform
 import re
 import zipfile
 
-FILES = ('summary.json', 'info.json', 'failure.json', 'events.csv', 'targets.csv', 'zones.csv',
+FILES = ('summary.json', 'partial.json', 'info.json', 'failure.json', 'events.csv', 'targets.csv', 'zones.csv',
          'probes.json', 'correction.json', 'run.log', 'timing.log', 'geo.log', 'burn.log')
 MAX_FILE_BYTES = 8 * 1024 * 1024
 PATH_FIELDS = {'out', 'output', 'image', 'images', 'inputs', 'iso', 'geo', 'picture', 'design', 'design_npy',
@@ -65,7 +65,7 @@ def advice(reason):
 
 def bundle(run):
     root = Path(run).resolve(strict=True)
-    if root.is_file() and root.name == 'summary.json':
+    if root.is_file() and root.name in ('summary.json', 'partial.json'):
         root = root.parent
     if not root.is_dir():
         raise ValueError('diagnose RUN needs a run folder or its summary.json')
@@ -94,12 +94,13 @@ def bundle(run):
         entries[name] = text
     if not entries:
         raise ValueError('No recognized run records found; choose the folder containing summary.json or info.json.')
+    summary_name = 'partial.json' if 'partial.json' in entries and 'summary.json' not in entries else 'summary.json'
     try:
-        summary = json.loads(entries.get('summary.json', '{}'))
+        summary = json.loads(entries.get(summary_name, '{}'))
         if not isinstance(summary, dict):
             raise ValueError('summary must be an object')
     except ValueError:
-        entries['unparsed-summary.txt'] = entries.pop('summary.json', '')
+        entries['unparsed-summary.txt'] = entries.pop(summary_name, '')
         summary = {}
     entries.setdefault('summary.json', json.dumps({'status': 'unknown', 'note': 'No parseable summary; see run records.'}))
     entries['settings.json'] = json.dumps(summary.get('args') or {}, ensure_ascii=False, indent=2)
@@ -131,7 +132,7 @@ def save_failure(run, reason, args=None):
     root.mkdir(parents=True, exist_ok=True)
     record = dict(reason=reason, next_step=advice(reason))
     (root / 'failure.json').write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding='utf-8')
-    if not (root / 'summary.json').exists():
+    if not any((root / name).exists() for name in ('summary.json', 'partial.json')):
         summary = dict(stopped=reason, args={k: v for k, v in vars(args).items() if k != 'func'} if args else {})
         (root / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
     target, names = bundle(root)

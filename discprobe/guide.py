@@ -95,6 +95,8 @@ class Result:
         self.path, self.kind, self.tag = path, kind, tag or ""
         self.when = datetime.datetime.strptime(stamp, "%Y%m%d-%H%M%S")
         self.summary = _load(os.path.join(path, "summary.json")) or {}
+        if kind == "geo" and not self.summary:
+            self.summary = _load(os.path.join(path, "partial.json")) or {}
         self.simulated = self.tag.startswith("SIM") or self.summary.get("simulated") is True
 
     @property
@@ -122,6 +124,8 @@ class Result:
         return media if media in ("cd", "dvd", "bd") else "dvd"
 
     def rungs(self) -> int:
+        if checkpoint := self.summary.get('checkpoint'):
+            return checkpoint['rungs']
         try:
             with open(os.path.join(self.path, "targets.csv"), encoding="utf-8") as f:
                 return max(0, sum(1 for _ in f) - 1)
@@ -198,6 +202,8 @@ class Result:
 
     def describe(self) -> str:
         if self.kind == "geo":
+            if self.summary.get('checkpoint'):
+                return f"measurement interrupted after {self.rungs()} rungs"
             f = self.fit
             if self.is_clv:
                 if "r0_mm" not in f:
@@ -1215,6 +1221,7 @@ def guide_state(media: str = "dvd", out: str = "results", *, drives=None) -> dic
     picture = picture_iso()
     latest_timing = timing or next((r for r in results if r.kind == "timing"), None)
     latest_geometry = geo or next((r for r in results if r.kind == "geo"), None)
+    shown_geometry = geo or (latest_geometry if latest_geometry and latest_geometry.summary.get('checkpoint') else None)
     verdict = lambda run: result_verdict(run, media)
 
     steps = [
@@ -1233,7 +1240,7 @@ def guide_state(media: str = "dvd", out: str = "results", *, drives=None) -> dic
              detail=timing.describe() if timing else "not run yet", verdict=verdict(latest_timing),
              result=latest_timing.path if latest_timing else None),
         dict(id="geo", done=geo is not None, label="Geometry (geo)",
-             detail=geo.describe() if geo else "not run yet", verdict=verdict(latest_geometry),
+             detail=shown_geometry.describe() if shown_geometry else "not run yet", verdict=verdict(latest_geometry),
              result=latest_geometry.path if latest_geometry else None),
         # Batch identity and photo import do not exist yet; CD always needs this constant.
         dict(id="photo_l", needed=media == "cd", done=False, label="Photograph L", detail="not measured yet"),
@@ -1315,6 +1322,16 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, dr
     # that counts is the one that finished, and its own verdict says whether the disc is usable.
     timing_good = timing is not None and (not timing.stopped if media == "bd" else timing.rotation() == "CAV")
     geo = next((r for r in results if r.geo_complete()), None)
+    partial = next((r for r in results if r.kind == 'geo' and r.summary.get('checkpoint')), None)
+    selected_drive = drives[0] if drives else None
+    continuation = []
+    if geo is None and partial and not missing:
+        from .geo import resume_supported
+        if resume_supported(partial.summary, media):
+            selected_drive = (partial.summary.get('args') or {}).get('drive') or selected_drive
+            continuation = ["--resume", partial.path, "--out", str(out)]
+    geo_argv = ["geo", *(["--drive", selected_drive] if selected_drive else []), *media_args,
+                *(["--bd-zones", "25"] if media == "bd" else []), *continuation]
     has_iso = os.path.exists(random_iso) and not os.path.exists(random_iso + iso9660.UNFINISHED)
 
     # A written file is not yet a disc. Scripts keep the tick they always saw.
@@ -1350,9 +1367,8 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, dr
              why="Reads the disc at several speeds and radii to see whether this drive reports clean times and keeps a steady speed.",
              takes="1 to 3 minutes"),
         Task("geo", "Geometry (geo)", geo is not None,
-             geo.describe() if geo else "not run yet",
-             argv=["geo", *(["--drive", drives[0]] if drives else []), *media_args,
-                   *(["--bd-zones", "25"] if media == "bd" else [])],
+             (geo or partial).describe() if geo or partial else "not run yet",
+             argv=geo_argv,
              why="Finds how the disc's spiral is laid out, so a picture can be put where it will actually appear.",
              takes="about 5 minutes"),
     ]
@@ -1383,6 +1399,9 @@ def workflow(media: str = "dvd", out: str = "results", notes: bool = True, *, dr
         commands = [("Install the Python packages disc-probe uses:", INSTALL)]
     elif sys.platform not in ("win32", "linux"):
         commands = [("Try the flow on the simulated drive:", f"{PROG} timing --sim cav{flag}"), (None, PORTS)]
+    elif continuation:
+        resume_command = next(t.command() for t in tasks if t.key == 'geo')
+        commands = [("Put the same disc in the original drive and continue the measurement:", resume_command)]
     elif info_sectors is None and not has_iso and timing is None:
         commands = [("Put a blank disc of the kind you plan to use in the drive, then read its available sectors (a few seconds):",
                      f"{PROG} info {drive}".rstrip())]
