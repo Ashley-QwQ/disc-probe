@@ -330,6 +330,8 @@ TEXT = {
     "vivid favours brighter textures with a fitted table (default: perceptual)": "鲜艳模式使用拟合色表并优先选择更亮的纹理（默认感知映射）",
     "omit the direction arrow at 12 o'clock (added by default)": "不加默认的 12 点方向箭头",
     "Direction arrow": "方向箭头",
+    "Converted from {profile} to sRGB.": "已按 {profile} 转换为 sRGB。",
+    "Could not use the embedded ICC profile. The picture was read as sRGB.": "无法使用图片内嵌的 ICC 配置文件，已按 sRGB 读取。",
     "The writable ring is too narrow for the direction arrow.": "可刻环带太窄，未加方向箭头。",
     "The direction arrow needs one more material slot.": "材质已达上限，未加方向箭头。",
     "query the optional texture library (no drive access)": "查询可选的纹理库（不操作光驱）",

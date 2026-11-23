@@ -294,6 +294,8 @@ Put your own photograph or illustration on the data side of a DVD. Repeating the
 
 This is a photograph of an earlier colour test disc. To use your own picture, see [Make a colour DVD](docs/colour.md) for the web screenshots, the command-line workflow, phone setup and troubleshooting.
 
+Start with a PNG or JPEG with clear shapes and large colour areas. Leave the ICC profile embedded when exporting Display P3, Adobe RGB or Rec.2020 artwork. The colour-picture import names the source profile it used to convert to sRGB and warns when it has to assume sRGB for an unreadable profile. Untagged images are treated as sRGB.
+
 ### Other drives and discs
 
 - On RITEKF1 discs, our timing result is within about ±0.05° of bczhc's independent photo calibration ([DiscImageStudio #53](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/53)).

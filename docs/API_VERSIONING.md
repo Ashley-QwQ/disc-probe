@@ -67,6 +67,14 @@ in `X-Discprobe-Artwork-Bounds` (JSON array or null). This is a read-only
 operation. For native-pixel composition an image layer can include an optional
 `gridPng` PNG data URL alongside its existing preview raster.
 
+API 1.6 adds optional `colour-input-icc`. `POST /api/colour-input` accepts a
+PNG, JPEG, WebP or BMP body up to 24 MiB and 36 million pixels. It returns
+204 for an untagged image, or 200 with an sRGB PNG and an ASCII JSON
+`X-Discprobe-ICC` header containing `{"profile":"…"}` or `{"fallback":true}`.
+`POST /api/template-preview?icc=1` opts into the same conversion and header
+for a native-grid template preview. Requests without that option keep the
+previous response. These operations are read-only.
+
 Proposed policy: retain working adapters for the previous MAJOR for at least
 six months after the new major's first stable release. Publish its retirement
 date with that release. List only majors with actual working adapters in

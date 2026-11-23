@@ -290,6 +290,8 @@ CD 还有一个计时测不到的常数，所以要多刻一张标定盘。下�
 
 这是早期彩色测试盘的实拍。想用自己的图，见[彩色 DVD 刻图](docs/colour.zh.md)。指南包含网页截图、从图片到刻录的命令、手机机位和常见问题。
 
+第一次可用轮廓清楚、色块较大的 PNG 或 JPEG。导出 Display P3、Adobe RGB 或 Rec.2020 图片时，保留内嵌的 ICC 配置文件。「彩色图」导入时会提示用哪个配置文件转换为 sRGB。配置文件读不了时，会提示并按 sRGB 读取。没有内嵌配置的图片也按 sRGB 读取。
+
 ### 其他光驱和盘
 
 - 同一种 RITEKF1 盘上，我们的计时结果和 bczhc 独立的拍照标定（[DiscImageStudio #53](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio/issues/53)）相差约 ±0.05°。

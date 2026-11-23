@@ -2180,17 +2180,39 @@ class Handler(BaseHTTPRequestHandler):
                     raise APIError("application/json required", 415)
                 self._json(200, self.server.backend.compose_document(json.loads(self._body(COMPOSE_BYTES))))
                 return
+            if urlsplit(self.path).path == "/api/colour-input":
+                from PIL import Image
+                from .colour_input import WEB_BYTES, WEB_TYPES, web_picture
+
+                if self.headers.get_content_type() not in WEB_TYPES:
+                    raise APIError("PNG, JPEG, WebP or BMP required", 415)
+                try:
+                    picture, notice = web_picture(self._body(WEB_BYTES))
+                except APIError:
+                    raise
+                except (OSError, SyntaxError, ValueError, Image.DecompressionBombError) as exc:
+                    raise APIError(str(exc)) from exc
+                if notice is None:
+                    self._send(204, b'')
+                else:
+                    self._send(200, picture, 'image/png', {'X-Discprobe-ICC': json.dumps(notice)})
+                return
             if urlsplit(self.path).path == "/api/template-preview":
                 from .template_grid import PNG_LIMIT, preview_png
                 if self.headers.get_content_type() != "image/png":
                     raise APIError("image/png required", 415)
+                notices = []
+                manage_icc = parse_qs(urlsplit(self.path).query).get('icc') == ['1']
                 try:
-                    preview, bounds = preview_png(self._body(PNG_LIMIT))
+                    preview, bounds = preview_png(self._body(PNG_LIMIT), report_icc=notices.append if manage_icc else None)
                 except APIError:
                     raise
                 except ValueError as exc:
                     raise APIError(str(exc)) from exc
-                self._send(200, preview, "image/png", {"X-Discprobe-Artwork-Bounds": json.dumps(bounds)})
+                headers = {"X-Discprobe-Artwork-Bounds": json.dumps(bounds)}
+                if notices:
+                    headers['X-Discprobe-ICC'] = json.dumps(notices[0])
+                self._send(200, preview, "image/png", headers)
                 return
             if urlsplit(self.path).path == "/api/design":
                 if self.headers.get_content_type() != "application/octet-stream":

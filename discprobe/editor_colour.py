@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image
 
 from . import simulate, simulate_a3, texlib
 
@@ -335,9 +335,10 @@ def palette(source=None, table_path=None):
 
 
 def design(image, phone, height, materials=None, dither='ordered', fit='disc', flash_mm=None, table_path=None,
-           *, mapping='perceptual'):
+           *, mapping='perceptual', report_icc=None):
     """Create a portable editor document. Its source texture specs are pinned by ID."""
     from . import editor_ops
+    from .colour_input import EmbeddedICC
 
     h = next((h for h in rig_data()['heights'] if math.isclose(h['ruler_cm'], height, abs_tol=.005)), None)
     rig = dict(phone=phone, **(dict(height=h['id']) if h else dict(height_cm=height)))
@@ -351,8 +352,11 @@ def design(image, phone, height, materials=None, dither='ordered', fit='disc', f
     if mapping == 'vivid' and not choices['table']['fitted']:
         raise ValueError('vivid colour mapping requires a fitted colour table')
     image = texlib.safe(image)
-    with Image.open(image) as original:
-        picture = ImageOps.exif_transpose(original).convert('RGBA')
+    with image.open('rb') as stream, Image.open(stream) as original:
+        conversion = EmbeddedICC(original, stream)
+        picture = conversion.picture()
+        if report_icc is not None and (notice := conversion.notice()) is not None:
+            report_icc(notice)
         picture.thumbnail((4096, 4096), Image.Resampling.LANCZOS)
     w, h = picture.size
     # Disc fills the outer diameter on both axes. Ring fits the complete picture between hub and rim.

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {compatibility, compareAPI, handshake, hideOptional, showSheet} from '../discprobe/web/home/handshake.mjs';
 const manifest = JSON.parse(readFileSync(new URL('../discprobe/web/gui.json', import.meta.url)));
-const core = {api_version:'1.5', capabilities:[...manifest.required_capabilities, ...manifest.optional_capabilities]};
+const core = {api_version:'1.6', capabilities:[...manifest.required_capabilities, ...manifest.optional_capabilities]};
 
 test('current socket matches; old and new majors name the side to update', () => {
   assert.equal(compatibility(manifest,core).update,null);
@@ -30,6 +30,7 @@ for (const capability of ['geo-coverage','photo-manual-alignment','checkburn','b
 }
 for (const [capability, oldVersion] of [
   ['library-management', '1.3'], ['library-batch-details', '1.4'], ['grid-templates', '1.4'],
+  ['colour-input-icc', '1.5'],
 ]) {
   test(`an older core can lack only ${capability}`, async () => {
     assert.ok(manifest.optional_capabilities.includes(capability));

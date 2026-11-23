@@ -9,6 +9,12 @@ from discprobe import webui
 
 folder=Path(sys.argv[1])
 folder.mkdir(parents=True,exist_ok=True)
+if os.environ.get('EDITOR_TEST_ICC') == '1':
+    from PIL import Image
+    from test_colour_input import PALETTE, png, sample_images
+
+    (folder/'p3-16.png').write_bytes(dict(sample_images())['Display P3 16-bit'])
+    (folder/'invalid-icc.png').write_bytes(png(Image.fromarray(PALETTE), b'invalid profile'))
 if os.environ.get('EDITOR_NO_TEXLIB') == '1':
     os.environ.pop('DISCPROBE_TEXLIB',None)
 elif not os.environ.get('EDITOR_TEXLIB_ROOT'):
