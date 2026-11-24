@@ -126,7 +126,7 @@ python -m discprobe menu
 
 ### 第 1 步：读空盘的可用扇区
 
-先放一张空盘（和后面要刻的盘同一批），读它的可用扇区数。`disexport --sectors`、DiscImageStudio 的预设和后面的 `image` 都要用这个数；从已经刻过的盘上读回来的数可能偏大。`list` 之后、刻随机盘之前，`guide` 和引导控制台都会先让你做这步。
+先放一张空盘（和后面要刻的盘同一批），读它的可用扇区数。`disexport --sectors` 和 DiscImageStudio 的预设要用这个数；`random --sectors` 控制的是随机镜像本身的长度，另算。从已经刻过的盘上读回来的数可能偏大。`list` 之后、刻随机盘之前，`guide` 和引导控制台都会先让你做这步。
 
 ```bash
 python -m discprobe info --drive H:      # Linux: --drive /dev/sr0
