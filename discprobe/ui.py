@@ -887,10 +887,13 @@ def geo_status(ladder, dev: ProgressDevice):
         if not total:
             stage = "cache test" if not hasattr(ladder, "ref") else "waiting for a steady spindle"
             return None, stage, None
-        done = (rungs * ladder.reps + ladder.progress_checks_done + ladder.progress_current
+        stage = ladder.progress_stage
+        # Extra probes reserve their budget up front. Count completed blocks so
+        # settling and restarting a read cannot rewind their progress.
+        current = 0 if stage == 'measuring angle correction' else ladder.progress_current
+        done = (rungs * ladder.reps + ladder.progress_checks_done + current
                 + getattr(ladder, 'progress_probe_done', 0))
         done = min(max(done, 0), total)
-        stage = ladder.progress_stage
         if stage == "ladder":
             stage = f"rung {min(rungs + 1, ladder.max_targets)}/{ladder.max_targets}"
         if ladder.progress_finished:

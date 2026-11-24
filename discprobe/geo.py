@@ -79,8 +79,15 @@ ROTATION_COHERENCE = 0.8    # one outlier takes a clear period to about 0.93 in 
 MIN_ROTATION_RATIO = 1.1    # a span narrower than this can't tell CLV from constant rotation
 MAX_COVERAGE_READS = 12     # rung attempts, including unsuccessful reads and retries at a different LBA
 MAX_COVERAGE_SECONDS = 120
+MAX_DENSE_POINTS = 384      # distinct attempted LBAs, including independent checks
+MAX_DENSE_SECONDS = 4500    # stop starting drive reads after 75 minutes
+READ_NOISE_WARN_DEG = 1.0
 CLV_RATIO_SLACK = 0.03      # one report's CLV was 0.3 % off the nominal radii, and a period read as twice the turn must not pass
 CAV_RATIO_SLACK = 0.05      # outer/inner periods must agree within 5 % for constant rotation
+
+
+class _DenseDeadlineReached(Exception):
+    pass
 
 
 def looks_clv(ratio: float, expected: float) -> bool:
@@ -113,6 +120,8 @@ class Ladder:
         self.correction_checks = []
         self.prediction_checks = []
         self.progress_probe_done = 0
+        self.progress_dense_budget = 0
+        self._dense_deadline = None
         self.chi2_abort = chi2_abort
         self.read_offset_bytes = float(read_offset_bytes)
         self.audio = False  # set by run() when the CD turns out to be a CD-DA track
@@ -283,9 +292,10 @@ class Ladder:
 
     def settle(self, max_rounds: int = 10) -> float:
         tp, prev = self.tp, None
+        read = tp._measure if self._dense_deadline is None else self._dense_read
         self.T = None
         for i in range(max_rounds):
-            times = [r.t_end_ns for r in (tp._measure(self.ref, "settle") for _ in range(SETTLE_READS))
+            times = [r.t_end_ns for r in (read(self.ref, "settle") for _ in range(SETTLE_READS))
                      if tp._usable(r)]
             fit = analysis.estimate_period(times) if len(times) >= 8 else None
             if fit and fit.coherence > SETTLE_COHERENCE and prev and abs(fit.period_s / prev - 1) < PERIOD_TOL:
@@ -300,12 +310,13 @@ class Ladder:
 
     def measure(self, lba: int, reps: int | None = None) -> dict | None:
         tp = self.tp
+        read = tp._measure if self._dense_deadline is None else self._dense_read
         ref_t, x_t = [], []
         for _ in range(reps or self.reps):
-            r = tp._measure(self.ref, "ref")
+            r = read(self.ref, "ref")
             if tp._usable(r):
                 ref_t.append(r.t_end_ns)
-            x = tp._measure(lba, "target")
+            x = read(lba, "target")
             if tp._usable(x):
                 x_t.append(x.t_end_ns)
             self.progress_current += 1
@@ -365,11 +376,12 @@ class Ladder:
         for t, m in zip(self.targets, model):
             t["model_deg"] = math.degrees(float(m))
             t["residual_deg"] = t["unwrapped_deg"] - t["model_deg"]
-        from .varpitch import Bend, exceeds_noise
+        from .varpitch import Bend, TRIGGER_CHI2, exceeds_noise
         # A turn-sized innovation is never explained away as a spline bend.
-        if self.auto_correct and (self.bend is not None or exceeds_noise(self.targets, self.chi2_dof)):
+        if self.auto_correct and (self.bend is not None or self.chi2_dof > TRIGGER_CHI2):
             radii = self._fit_radius(n)
-            if len(np.unique(np.round(radii, 1))) >= 4:
+            if ((self.bend is not None or exceeds_noise(self.targets, self.chi2_dof, radii))
+                    and len(np.unique(np.round(radii, 1))) >= 4):
                 self.bend = Bend(radii, [t['residual_deg'] for t in self.targets],
                                  [t['sigma_deg'] for t in self.targets])
 
@@ -828,6 +840,7 @@ class Ladder:
                 bridge_to = lba
                 self.progress_total += (64 - self.max_targets) * self.reps + self.reps if self.max_targets < 64 else self.reps
                 self.max_targets = max(self.max_targets, 64)
+                self._reserve_dense_progress()
                 self.log('The first bend needs closer check points before assigning its whole-turn count.')
                 continue
             if self.bend is not None and self.max_targets < 64:
@@ -854,6 +867,11 @@ class Ladder:
             self.dense_correction()
             if check_coverage and self.completion_status == 'coverage_incomplete' and self._coverage_assessment()['covered']:
                 self.completion_status = 'target_reached'
+        elif self.targets:
+            scatter = float(np.median([t['std_deg'] for t in self.targets]))
+            if scatter >= READ_NOISE_WARN_DEG or self.chi2_dof > 4:
+                self.log(f'Read noise is high (median scatter {scatter:.2f} deg per read). '
+                         'Use timing to check a lower read speed, or try another USB port or drive.')
         if (self.failed_candidates or self.probe_failures) and self.completion_status == 'target_reached':
             self.completion_status = 'partial_readable'
         if self.sentinels:
@@ -862,14 +880,49 @@ class Ladder:
         self.progress_finished = True
         return result
 
+    def _reserve_dense_progress(self):
+        if not self.progress_dense_budget:
+            self.progress_dense_budget = 2 * MAX_DENSE_POINTS * self.reps
+            self.progress_total += self.progress_dense_budget
+
+    def _dense_read(self, lba, label):
+        # A command already in flight still returns normally. Check before
+        # starting the next read, including when a block needs a settle retry.
+        if time.monotonic() >= self._dense_deadline:
+            raise _DenseDeadlineReached
+        return self.tp._measure(lba, label)
+
     def dense_correction(self):
         """Independent repeated, radius-spaced probes; refine steep residual intervals."""
-        from .varpitch import PROBE_GAP_MM, MIN_PROBE_GAP_MM, repeated_spline
+        from .varpitch import PROBE_GAP_MM, MIN_PROBE_GAP_MM, repeated_spline, refinement_mask
         from scipy.interpolate import BSpline
         start = time.monotonic()
+        deadline = start + MAX_DENSE_SECONDS
+        # Keep one sixth of the address budget for independent checks.
+        max_repeated = MAX_DENSE_POINTS - MAX_DENSE_POINTS // 6
+        limit = None
+        starting_work = self.progress_probe_done
+        self._reserve_dense_progress()
         self.log('Track pitch varies: measuring extra points and choosing a smooth correction from repeat reads.')
         self.progress_stage = 'measuring angle correction'
         b = self.prior.bit_nm * 1e-6
+
+        def measure(lba):
+            nonlocal limit
+            last_period = self.T
+            self._dense_deadline = deadline
+            try:
+                result = self._measure_retry(lba)
+            except _DenseDeadlineReached:
+                self.progress_current = 0
+                self.T = last_period  # a settle retry may have cleared it
+                limit = 'time'
+                return None
+            finally:
+                self._dense_deadline = None
+            self.progress_probe_done += self.reps
+            return result
+
         def at_radius(r):
             n = math.pi * ((r / b) ** 2 - self.u ** 2) / self.v
             step = self._n_end(self.ref + self.block) - self.n_ref
@@ -879,15 +932,25 @@ class Ladder:
             lo, hi = (float(self._fit_radius(self._n_end(l))) for l in (a, z - self.block))
             pending.update(at_radius(r) for r in np.linspace(lo, hi, max(2, math.ceil((hi - lo) / PROBE_GAP_MM) + 1)))
         done = set()
+        pts = []
         for _ in range(5):
             pending -= done
-            self.progress_total += len(pending) * 2 * self.reps
             for lba in sorted(pending):
+                if time.monotonic() >= deadline:
+                    limit = 'time'
+                    break
+                if len(done) >= max_repeated:
+                    limit = 'points'
+                    break
                 done.add(lba)
                 pair = []
                 for repeat in range(2):
-                    m = self._measure_retry(lba)
-                    self.progress_probe_done += self.reps
+                    if time.monotonic() >= deadline:
+                        limit = 'time'
+                        break
+                    m = measure(lba)
+                    if limit == 'time':
+                        break
                     if m is None:
                         self.probe_failures.append({'lba': lba, 'repeat': repeat, 'reason': 'no stable measurement'})
                         continue
@@ -903,24 +966,19 @@ class Ladder:
                                         'first': pair[0], 'again': pair[1]})
             pts = sorted(self.probes, key=lambda p: p['radius_mm'])
             pending = set()
-            values = np.array([(p['first']['phi_deg'] + p['again']['phi_deg']) / 2 for p in pts])
-            radii_now = np.array([p['radius_mm'] for p in pts])
-            slopes = np.diff(values) / np.diff(radii_now) if len(pts) > 1 else np.array([])
-            corners = set()
-            for i in np.flatnonzero(abs(np.diff(slopes)) > 8.):
-                corners.update((int(i) - 1, int(i), int(i) + 1, int(i) + 2))
-            # Resolve a change of more than 1 degree between neighbours, down to 25 um.
-            for i, (left, right) in enumerate(zip(pts, pts[1:])):
+            if limit or len(pts) < 2:
+                break
+            for i in np.flatnonzero(refinement_mask(pts)):
+                left, right = pts[i:i + 2]
                 gap = right['radius_mm'] - left['radius_mm']
-                change = abs(sum(right[k]['phi_deg'] - left[k]['phi_deg'] for k in ('first', 'again')) / 2)
-                noise = math.hypot(left['first']['sigma_deg'], right['first']['sigma_deg'])
                 same_range = any(a <= left['lba'] <= right['lba'] < z for a, z in self.ranges)
-                if same_range and gap > MIN_PROBE_GAP_MM * 2 and (change > max(1., 3 * noise) or i in corners):
+                if same_range and gap > MIN_PROBE_GAP_MM * 2:
                     pending.add(at_radius((left['radius_mm'] + right['radius_mm']) / 2))
             if not pending:
                 break
         if len(pts) < 8:
             self.completion_status = 'correction_incomplete'
+            self._finish_dense_progress(starting_work, limit, len(done), start)
             self.log('Too few repeated points for an angle correction; keep this as a partial measurement.')
             return
         spline, stats = repeated_spline([p['radius_mm'] for p in pts],
@@ -937,10 +995,17 @@ class Ladder:
         # interpolation, whereas a repeat at an existing radius only tests noise.
         check_lbas = {at_radius((a + z) / 2) for a, z in zip(radii[:-1:5], radii[1::5])}
         check_lbas -= done
-        self.progress_total += len(check_lbas) * self.reps
         for lba in sorted(check_lbas):
-            m = self._measure_retry(lba)
-            self.progress_probe_done += self.reps
+            if time.monotonic() >= deadline:
+                limit = 'time'
+                break
+            if len(done) >= MAX_DENSE_POINTS:
+                limit = 'points'
+                break
+            done.add(lba)
+            m = measure(lba)
+            if limit == 'time':
+                break
             if m is None:
                 self.probe_failures.append({'lba': lba, 'reason': 'independent check failed'})
                 continue
@@ -954,6 +1019,8 @@ class Ladder:
         stats['independent_rms_deg'] = float(np.sqrt(np.mean(np.square(errors)))) if errors else None
         stats['independent_max_deg'] = max(map(abs, errors), default=None)
         stats['elapsed_s'] = time.monotonic() - start
+        if limit:
+            stats['probe_limit'] = limit
         if not errors or stats['independent_rms_deg'] > max(.5, 2 * np.median([m['sigma_deg'] for m in self.correction_checks])):
             self.completion_status = 'correction_unvalidated'
         self.correction = {'kind': 'angle-correction', 'spline': spline,
@@ -961,9 +1028,22 @@ class Ladder:
                            'source': 'geo automatic repeated probes', 'geo_fit': {'u': self.u, 'v': self.v},
                            'meaning': 'picture phi(r), degrees counter-clockwise; track angle is base minus phi',
                            'validation': stats}
+        self._finish_dense_progress(starting_work, limit, len(done), start)
         self.log(f"Angle correction: {len(pts)} repeated points, rms {stats['residual_rms_deg']:.3f} deg, "
                  f"max {stats['residual_max_deg']:.3f} deg; repeat CV {stats['repeat_cv_rms_deg']:.3f} deg, "
                  f"{stats['elapsed_s']:.1f} s. Thin intervals: {gaps}")
+
+    def _finish_dense_progress(self, starting_work, limit, points, start):
+        self.progress_total -= self.progress_dense_budget - (self.progress_probe_done - starting_work)
+        self.progress_dense_budget = 0
+        if limit:
+            elapsed = time.monotonic() - start
+            if limit == 'time':
+                self.log(f'Angle correction reached its time limit after {points} points and {elapsed:.1f} s. '
+                         'Kept the available measurements.')
+            else:
+                self.log(f'Angle correction reached its point limit after {points} points and {elapsed:.1f} s. '
+                         'Kept the available measurements.')
 
     def sentinels_first(self) -> None:
         """Before the ladder: read the raw phase of three far-apart points (near the inner end, a quarter of
