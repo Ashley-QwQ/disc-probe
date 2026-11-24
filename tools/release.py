@@ -101,8 +101,18 @@ def run_check(command, cwd, log, env, checks, timeout=3600):
     started = time.monotonic()
     with log.open('w', encoding='utf-8') as stream:
         stream.write(json.dumps(command, ensure_ascii=False) + '\n'); stream.flush()
-        result = subprocess.run(command, cwd=cwd, env=env, stdout=stream,
-                                stderr=subprocess.STDOUT, timeout=timeout)
+        process = subprocess.Popen(command, cwd=cwd, env=env, stdout=stream, stderr=subprocess.STDOUT)
+        try:
+            process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            # A browser test's children (Disc Lab, the browser) would keep files open and block cleanup.
+            if sys.platform == 'win32':
+                subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'], capture_output=True)
+            else:
+                process.kill()
+            process.wait()
+            raise
+        result = process
     checks.append(dict(log=log.name, command=command, exit_code=result.returncode,
                        seconds=round(time.monotonic() - started, 3), sha256=sha256(log)))
     if result.returncode:
@@ -355,8 +365,11 @@ def main(argv=None):
                          and p.name.startswith('test_') and p.suffix in ('.js', '.mjs', '.cjs'))
         if not scripts:
             raise RuntimeError('no Node tests found')
+        # Two Disc Lab browser tests burn and read whole virtual discs: about 11 and 4 minutes on this machine.
+        slow = {'test_reshoot_browser.mjs': 1500, 'test_running_job_browser.mjs': 900}
         for script in scripts:
-            run_check([node, str(script)], snapshot, logs / (script.name + '.log'), test_env, checks, 180)
+            run_check([node, str(script)], snapshot, logs / (script.name + '.log'), test_env, checks,
+                      slow.get(script.name, 180))
         run_check([*python, '-m', 'discprobe', 'selftest'], snapshot, logs / 'selftest.log', test_env, checks)
         run_check([*python, str(snapshot / 'tools/build_winpack.py'), '--source-root', str(snapshot),
                    '--commit', commit, '--ref', commit, '--label', args.version, '--cache', str(cache),
