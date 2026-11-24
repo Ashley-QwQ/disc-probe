@@ -1906,13 +1906,19 @@
     flow.start(api);
   });
   $("job-name").addEventListener("click", openCalibration);
+  // A library action waits for its module, and the library refreshes from the server meanwhile, replacing the row
+  // objects: what matters is that the shelf still shows the same batch (same id, or the same "new batch" row).
+  const stillShowing = (item) => {
+    const now = DATA[col][idx];
+    return inLibrary() && (now === item || (item?.id && now?.id === item.id) || (item?.kind === "new" && now?.kind === "new"));
+  };
   $("library-calibrate").addEventListener("click", async () => {
     const item = DATA[col][idx];
     const row = item.kind === "drive" ? item.disc?.media : col;
     const media = ["cd", "bd"].includes(row) ? row : "dvd";
     const cal = await import("./calibrate.js");
     const newItem = item.kind === "new" ? item : {kind:"new", row:media, name:"", mid:"", s:"new"};
-    if (inLibrary() && DATA[col][idx] === item) {
+    if (stillShowing(item)) {
       const row = col, index = idx;
       cal.start(api, {item:newItem, returnTo: result => {
         const saved = result?.batch;
@@ -1924,7 +1930,7 @@
   });
   $("library-design").addEventListener("click", async () => {
     const item = DATA[col][idx], design = await import("./design.js");
-    if (inLibrary() && DATA[col][idx] === item) design.start(api);
+    if (stillShowing(item)) design.start(api);
   });
   $("library-export").addEventListener("click", () => libraryAction($("library-export"), async () => {
     const item = DATA[col][idx], name = batchName(item, col);
@@ -1953,11 +1959,11 @@
   }));
   $("library-remeasure").addEventListener("click", async () => {
     const item = DATA[col][idx], cal = await import("./calibrate.js");
-    if (inLibrary() && DATA[col][idx] === item) cal.start(api, {item});
+    if (stillShowing(item)) cal.start(api, {item});
   });
   $("library-check-photo").addEventListener("click", async () => {
     const item = DATA[col][idx], cal = await import("./calibrate.js");
-    if (inLibrary() && DATA[col][idx] === item) {
+    if (stillShowing(item)) {
       if (DATA.drive.some(d => d.id === item.drive_id)) chosenDrive = item.drive_id;
       cal.photographSaved(api, {item, geo:item.geo, returnTo:() => {
         api.goTo(...api.locate(item));

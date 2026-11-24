@@ -28,7 +28,8 @@ async function evaluate(expression) {
   assert(!result.exceptionDetails,JSON.stringify(result.exceptionDetails));return result.result.value;
 }
 async function until(expression) {
-  for(let i=0;i<400;i++){if(await evaluate(expression))return;await pause(25);}
+  // During a navigation the new URL can show before its document exists; a throw there means "not yet".
+  for(let i=0;i<400;i++){let ok=false;try{ok=await evaluate(expression);}catch{}if(ok)return;await pause(25);}
   throw Error('Timed out: '+expression+'; '+await evaluate('JSON.stringify(window.runtimeErrors)'));
 }
 function pages(dir) {
