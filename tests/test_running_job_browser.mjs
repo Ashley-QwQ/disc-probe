@@ -66,7 +66,7 @@ async function tab({lang = 'en', theme = 'paper', width = 1440, reduce = true} =
     `localStorage.setItem('dp-lang',${JSON.stringify(lang)}); localStorage.setItem('dp-theme',${JSON.stringify(themeSetting)}); localStorage.setItem('dp-motion',${JSON.stringify(reduce ? 'off' : 'on')});`});
   await command('Page.navigate', {url:origin + '/home/'});
   await until(() => evaluate(`document.documentElement?.dataset.lang === ${JSON.stringify(lang)} &&
-    document.documentElement.dataset.theme === ${JSON.stringify(themeSetting)} && innerWidth === ${width}`),
+    document.documentElement?.dataset.theme === ${JSON.stringify(themeSetting)} && innerWidth === ${width}`),
   'requested language, theme and viewport loaded');
   return {
     command, evaluate,
@@ -76,11 +76,11 @@ async function tab({lang = 'en', theme = 'paper', width = 1440, reduce = true} =
   };
 }
 
-const navigationReady = `document.documentElement.dataset.navigation === 'ready'`;
-const inCal = `document.documentElement.dataset.mode === 'cal'`;
-const inLobby = `!document.documentElement.dataset.mode && document.documentElement.dataset.home === 'lobby'`;
-const inLibrary = `!document.documentElement.dataset.mode && document.documentElement.dataset.home === 'library'`;
-const inGeometry = `${inCal} && ['Geometry', '测几何'].includes(document.querySelector('#job-name').textContent)`;
+const navigationReady = `document.documentElement?.dataset.navigation === 'ready'`;
+const inCal = `document.documentElement?.dataset.mode === 'cal'`;
+const inLobby = `!document.documentElement?.dataset.mode && document.documentElement?.dataset.home === 'lobby'`;
+const inLibrary = `!document.documentElement?.dataset.mode && document.documentElement?.dataset.home === 'library'`;
+const inGeometry = `${inCal} && ['Geometry', '测几何'].includes(document.querySelector('#job-name')?.textContent)`;
 const reopen = `!document.querySelector('#next').disabled && ['Return to calibration', '回到校准'].includes(document.querySelector('#next-text').textContent)`;
 
 async function screenshot(page, name) {

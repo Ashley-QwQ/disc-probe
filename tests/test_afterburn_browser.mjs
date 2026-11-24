@@ -2,7 +2,7 @@
 import {PROFILE_RM, devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {tmpdir} from 'node:os';
-import {existsSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync} from 'node:fs';
+import {readFileSync, writeFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync} from 'node:fs';
 import {dirname,join,resolve} from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 
