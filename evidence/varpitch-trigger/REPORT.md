@@ -1,6 +1,49 @@
 # VT 变轨距判定验收
 
-基点为 `4f042ca`。本轮判定保留为实验候选。主噪声组达到 2%，独立噪声组达到 6%，真变轨距完整修正也有回归。
+基点为 `4f042ca`。第二轮按主会话批准的退路保留首轮生产候选，保留补测限额和单调进度。
+
+## 第二轮决定与验收
+
+### 确认读数试验
+
+模拟器使用与首轮相同的噪声组和正例种子。对至少 7 级、跨 5 mm、读数离散度中位数 ≥0.55°、通过基点 χ² 与残差门槛的可疑拟合，优先取高标准化残差且径向相隔至少 0.02 mm 的至多 8 个已读地址。从中选信号最强的 5 个，权重消除常量、半径和半径倒数三个恒定轨距拟合方向，误差估计按平方和加入 0.30° 的块间项。在初次信号至少 2.5 个标准误时独立重读，比较同一方向的加权相位差。最多尝试两次，每次最多测 5 个地址，两次之间至少接纳 3 个新级。每个地址沿用已有的一次稳速重试。重读相位偏移超过 25° 时拒绝确认。较严格版本同时保留原候选已经判为真弯且恒定拟合将触发 χ² 停止保护的场景。
+
+| 版本 | 主组误触发 | 独立组误触发 | 真变轨距检出 | 7 个高噪声 I218 重点种子的完整修正 |
+| --- | ---: | ---: | ---: | ---: |
+| 确认门槛 2.8 个标准误 | 6/200 | 5/200 | 194/200 | 5/7 |
+| 确认门槛 3.2 个标准误，保留会触发 χ² 停止保护的原候选 | 3/200 | 0/200 | 198/200 | 4/7 |
+
+3.2 版本漏检 step 的 seed 77、119。高噪声 I218 seed 157、175、181 仍在密集探测触发整圈保护。记录中的三次完整修正失败已经超过主路线允许的一次。两套确认规则进入完整 200 个正例的修正统计前均未达到检出要求，因此该轮确认试验只对重点 7 个种子运行完整修正，共同样本全组 RMS 未测。
+
+```powershell
+$p = 'D:/dp-dev/tmp/varpitch'
+$env:TEMP = $env:TMP = $env:TMPDIR = $p
+$v = 'evidence/varpitch-trigger/confirm_trial.py'
+python -B -X utf8 $v negative --detect-only --end 400 > "$p/confirm-negative.jsonl"
+python -B -X utf8 $v positive --detect-only > "$p/confirm-positive.jsonl"
+python -B -X utf8 $v positive --seeds 7 121 157 175 181 193 199 > "$p/confirm-i218.jsonl"
+python -B -X utf8 $v negative --detect-only --end 400 --repeat-sigmas 3.2 --keep-strong > "$p/confirm-b-negative.jsonl"
+python -B -X utf8 $v positive --detect-only --repeat-sigmas 3.2 --keep-strong > "$p/confirm-b-positive.jsonl"
+python -B -X utf8 $v positive --seeds 7 121 157 175 181 193 199 --repeat-sigmas 3.2 --keep-strong > "$p/confirm-b-i218.jsonl"
+```
+
+### 退路验收
+
+生产代码沿用首轮候选。复用同一生产源码产生的 200 种子对照日志。主组 4/200（2%，门槛 3%），独立组 12/200（6%，门槛 6%），检出 200/200，完整修正 195/200。194 个共同成功样本的真值 RMS 从 0.1111° 升到 0.1145°，属于本轮退路接受的差异。
+
+`test_variable_pitch_end_to_end` 对每种盘面和抖动条件跑种子 0、7、19，以独立检查 RMS 的中位数对照原 0.5° 门槛。每个种子的完整修正、与模拟真值的误差、整圈计数、检查点数和修正文件装载仍须单独通过。原卡失败的 step、100 µs 三个样本分别为 0.26316°、0.50012°、0.43679°，中位数为 0.43679°。变异测试把重复样本生成的角度曲线压成常量，三次 RMS 为 1.10761°、1.18260°、1.05811°，同一中位数断言拒绝该估计器。相关测试入口是 `python -B -X utf8 evidence/varpitch-trigger/checks.py python`。
+
+SysWOW 第二次网页任务的原始读数无法取得。原触发级无法重放，按主会话决定从阻塞项移除。下文只记录日志能核对的已接纳级。CD CLV 临时目录断言为基点已知失败。
+
+### 浏览器验收安排
+
+本卡的 `tests/test_*.mjs` 与浏览器验收均未跑。Edge 每次以新配置目录启动时会尝试空密码登录，连续失败会锁定 Windows 账户。浏览器迁移合并后由主会话补跑。卡内运行器只保留 `selftest` 和 `python` 两个入口。它在执行标准自检命令时列出并跳过会启动 MJS 的内嵌检查，也在相关 pytest 中取消选择两个会启动 MJS 的测试。启动防护拦截浏览器、MJS 子进程和对 8765 的连接或绑定。防护用合成审计事件验证，通过该测试时未启动程序或打开套接字。
+
+最终 `selftest` 通过，耗时 283.12 秒。它明确跳过 8 个 MJS 依赖检查和 `test_frozen_photo_and_video_placement_geometry`，后者依赖排除路径。日志位于 `D:/dp-dev/tmp/varpitch/selftest-round2-no-browser.log`。第一次有防护的尝试拦下一个间接 MJS 调用和一次排除路径访问，这两项在最终运行前列入显式跳过列表。
+
+最终相关 `pytest -n 2` 196 通过、1 失败，耗时 69.94 秒，另取消选择 2 项 MJS 依赖检查。唯一失败为已在 `4f042ca` 复现的 `test_cd_clv_cli_validates_anchor_before_opening`。日志位于 `D:/dp-dev/tmp/varpitch/checks-python-361gvobn/pytest-geo.log`。重跑逐字节核对后，12 个模拟和 5 份 GH70N 重放的 51 个输出散列与基点一致。`python tools/refresh_troubleshoot_citations.py` 刷新后，`--check` 退出码 0。本轮续跑起点后 Windows Security 的新增 4625、4740 事件各为 0。
+
+## 首轮数据与复跑命令
 
 ## 读数与模拟对照
 
@@ -82,20 +125,8 @@ python -B -X utf8 $g sweep > "$p/thresholds.json"
 
 现有全流程测试中的 step、100 µs、seed 7，独立检查 RMS 从 0.44007° 增至 0.50012°。该测试要求小于 0.5°。单独复跑两版六种条件的命令为 `python -B -X utf8 $v positive --all-profiles --start 7 --end 8 --baseline` 和 `python -B -X utf8 $v positive --all-profiles --start 7 --end 8`。
 
-相关回归入口为 `python -B -X utf8 evidence/varpitch-trigger/checks.py selftest`、`python -B -X utf8 evidence/varpitch-trigger/checks.py python` 和 `python -B -X utf8 evidence/varpitch-trigger/checks.py js`。Python 测试入口以 `pytest -n 2` 运行。
+当前相关回归入口为 `python -B -X utf8 evidence/varpitch-trigger/checks.py selftest` 和 `python -B -X utf8 evidence/varpitch-trigger/checks.py python`。Python 测试入口以 `pytest -n 2` 运行。
 
 候选自检耗时 361.95 秒，step 测试的同一断言失败。基点自检通过，耗时 646.75 秒。相关 pytest 共 198 项，196 通过。另一个失败 `test_cd_clv_cli_validates_anchor_before_opening` 可在导出的基点源树用 `python -B -X utf8 -m pytest -n 2 -q tests/test_cd_clv.py::test_cd_clv_cli_validates_anchor_before_opening` 单独复现。CLI 在拒绝参数时创建了 fixture 指定的 `discprobe-home`，测试要求 `tmp_path` 为空。新增的单调进度、点数限额、重试中时间限额与 seed 4 测试全部通过。
 
-JavaScript 首轮 62/63 通过。`test_reshoot_browser.mjs` 在整盘夹具准备阶段触及外层 240 秒时限。单独运行原测试约 714 秒通过，完成 2 个 Disc Lab 场景、8 张截图和 1 张对准箭头预览，最终 63/63 通过。重跑的整盘文件已由夹具清理，哈希和日志留在 `D:/dp-dev/tmp/varpitch/reshoot-retry/` 及 `reshoot-retry.log`。
-
-```powershell
-$run = Join-Path $p 'reshoot-retry'
-New-Item -ItemType Directory -Path $run -Force | Out-Null
-$env:TEMP = $env:TMP = $env:TMPDIR = $run
-$env:RESHOOT_TEST_ROOT = Join-Path $run 'scene'
-$env:DISCPROBE_HOME = Join-Path $run 'home'
-$env:LOCALAPPDATA = Join-Path $run 'localappdata'
-$env:PYTHONDONTWRITEBYTECODE = '1'
-$env:NODE_OPTIONS = '--require=D:/dp-dev/varpitch/evidence/pr29-eval/offline-tests.cjs'
-node tests/test_reshoot_browser.mjs *> "$p/reshoot-retry.log"
-```
+首轮历史记录为 JavaScript 首跑 62/63，其中 `test_reshoot_browser.mjs` 在整盘夹具准备阶段触及外层 240 秒时限。首轮单项重跑约 714 秒通过。历史日志位于 `D:/dp-dev/tmp/varpitch/reshoot-retry.log`。第二轮浏览器验收按上述新规则延期。
