@@ -1,11 +1,11 @@
-// Exercise calibration through the shipped page and its HTTP client, using headless Edge and CDP.
+// Exercise calibration through the shipped page and its HTTP client, using headless Chromium and CDP.
+import {devToolsPortFile, launchBrowser, removeProfile, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
-import {spawn, execFileSync} from 'node:child_process';
+import {execFileSync} from 'node:child_process';
 import {existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {createServer} from 'node:http';
 import {tmpdir} from 'node:os';
 import {join, resolve, sep, extname} from 'node:path';
-import {stopEdge,endProfileProcesses,removeProfile} from './edge_cleanup.mjs';
 
 const base = process.env.WEB_RETRY_TEST_ROOT ?? tmpdir();
 const profile = mkdtempSync(join(base, 'web-retry-edge-'));
@@ -182,17 +182,15 @@ async function shot(name) {
 try {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   assert.notEqual(server.address().port, 8765);
-  const edge = process.env.WEB_RETRY_EDGE ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-  browser = spawn(edge, ['--headless=new', '--mute-audio', '--disable-gpu', '--disable-background-networking',
-    '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', '--user-data-dir=' + profile,
-    'about:blank'], {windowsHide:true, stdio:'ignore'});
-  const activePort = join(profile, 'DevToolsActivePort');
+  const edge = selectBrowser({legacy: ['WEB_RETRY_EDGE']});
+  browser = launchBrowser(edge, profile, ['--mute-audio', '--remote-debugging-port=0', 'about:blank'], {disableGpu: true, windowsHide:true, stdio:'ignore'});
+  const activePort = devToolsPortFile(browser);
   let port;
   await until(() => {
     try { port = Number(readFileSync(activePort, 'utf8').split(/\r?\n/)[0]); }
     catch (error) { if (!['ENOENT','EBUSY','EPERM'].includes(error.code)) throw error; }
     return port > 0;
-  }, 'Edge debugging port ready');
+  }, 'Browser debugging port ready');
   assert.notEqual(port, 8765);
   const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then(response => response.json());
   socket = new WebSocket(targets.find(target => target.type === 'page').webSocketDebuggerUrl);
@@ -218,10 +216,10 @@ try {
     await verifyActions();
   }
 } finally {
-  await stopEdge(browser,socket);
+  await stopBrowser(browser,socket);
   server.closeAllConnections();
   server.close();
-  endProfileProcesses(profile);
+
   removeProfile(profile, base);
 }
 

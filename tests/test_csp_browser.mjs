@@ -1,12 +1,12 @@
-// Actual HTTP response policies in Edge, including phone + Lab. Loopback only.
+// Actual HTTP response policies in Chromium, including phone + Lab. Loopback only.
+import {PROFILE_RM, devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {once} from 'node:events';
-import {mkdtempSync,readFileSync,readdirSync} from 'node:fs';
+import {mkdtempSync, readFileSync, readdirSync} from 'node:fs';
 import {rm} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
-import {stopEdge, endProfileProcesses, PROFILE_RM} from './edge_cleanup.mjs';
 
 const dir=mkdtempSync(join(tmpdir(),'discprobe-csp-'));
 const server=spawn(process.env.PYTHON||'python',['-B','-X','utf8','tests/webguide_http_fixture.py',join(dir,'data')],{stdio:['pipe','pipe','pipe'],windowsHide:true});
@@ -38,12 +38,11 @@ try {
   for(let i=0;i<400&&!serverOut.includes('\n')&&server.exitCode===null;i++)await pause(25);
   assert(serverOut.includes('\n'),serverError);const ports=JSON.parse(serverOut.split('\n')[0]);
   const profile=join(dir,'edge');
-  browser=spawn(process.env.KIT_TEST_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',[
-    '--headless=new','--mute-audio','--disable-gpu','--disable-background-networking','--no-sandbox','--no-first-run','--no-default-browser-check',
-    '--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{stdio:['ignore','ignore','pipe'],windowsHide:true});
+  browser=launchBrowser(selectBrowser({legacy: ['KIT_TEST_BROWSER']}), profile, [
+    '--mute-audio','--no-sandbox','--remote-debugging-port=0','about:blank'],{disableGpu: true, stdio:['ignore','ignore','pipe'],windowsHide:true});
   let port;
-  for(let i=0;i<300;i++){try{port=readFileSync(join(profile,'DevToolsActivePort'),'utf8').split('\n')[0];break;}catch{await pause(25);}}
-  assert(port,'Edge did not start');
+  for(let i=0;i<300;i++){try{port=readFileSync(devToolsPortFile(browser),'utf8').split('\n')[0];break;}catch{await pause(25);}}
+  assert(port,'Browser did not start');
   const tabs=await(await fetch('http://127.0.0.1:'+port+'/json/list')).json();
   socket=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);
   await new Promise((res,rej)=>{socket.onopen=res;socket.onerror=rej});
@@ -133,12 +132,12 @@ addEventListener('error',e=>runtimeErrors.push(e.message));addEventListener('unh
   if(process.env.CSP_HEADERS_OUT)writeFileSync(process.env.CSP_HEADERS_OUT,JSON.stringify(policies,null,2));
   console.log(`CSP HTTP: ${all.length-1} static HTML routes + token phone + Lab, zero policy violations; desktop theme/design/lamp, dialog native/fallback, mobile viewport, off-screen worker stop/resume passed`);
 } finally {
-  await stopEdge(browser, socket);
+  await stopBrowser(browser, socket);
   if(server.exitCode===null && server.signalCode===null) {
     const exited=once(server,'exit');
     server.stdin.end();
     await exited;
   }
   assert.equal(resolve(dir,'..'),resolve(tmpdir()));
-  endProfileProcesses(dir); await rm(dir,PROFILE_RM);
+  await rm(dir,PROFILE_RM);
 }

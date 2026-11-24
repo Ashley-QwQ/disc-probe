@@ -1,21 +1,19 @@
-// Real home DOM/assets with a mock backend; no server, hardware or burn confirmation.
+// Real home DOM/assets on loopback with a mock backend; no hardware or burn confirmation.
 // WAAPI timelines are paused and scrubbed. Polling below is only for module/asset readiness.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
+import {serveBrowserFixture} from './browser_fixtures.mjs';
 import assert from 'node:assert/strict';
-import {readFileSync, writeFileSync, mkdtempSync, mkdirSync, existsSync} from 'node:fs';
+import {readFileSync, writeFileSync, mkdtempSync, mkdirSync} from 'node:fs';
 import {rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {pathToFileURL} from 'node:url';
-import {spawn} from 'node:child_process';
 
 const home = new URL('../discprobe/web/home/', import.meta.url);
 const source = readFileSync(new URL('index.html', home), 'utf8');
 const manifest = JSON.parse(readFileSync(new URL('../gui.json', home), 'utf8'));
-const edge = process.env.KIT_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-assert.ok(existsSync(edge), 'Set KIT_TEST_BROWSER to Chromium');
+const edge = selectBrowser({legacy: ['KIT_TEST_BROWSER']});
 const dir = mkdtempSync(join(tmpdir(), 'discprobe-motion-'));
-const fixture = join(dir, 'motion.html');
-const bootstrap = `<base href="${home}"><script>
+const bootstrap = `<base href="/home/"><script>
 localStorage.setItem('dp-motion','off');localStorage.setItem('dp-sound','off');
 window.errors=[];window.calls=[];window.flights=[];
 addEventListener('error',e=>errors.push(e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));
@@ -27,8 +25,8 @@ window.fetch=async(path,opts)=>{
     if(String(path)==='/api/presets'&&!opts?.body)return {ok:true,json:async()=>({version:1,presets:[]})};
     throw Error('Unexpected backend call: '+path);
   }
-  if(url.protocol!=='file:')throw Error('Unexpected network: '+url);
-  return nativeFetch(path,opts);
+  if(url.origin!==location.origin)throw Error('Unexpected network: '+url);
+  return nativeFetch(url,opts);
 };
 window.EventSource=class {addEventListener(){} close(){}};
 window.testHandshake=async path=>({ok:true,json:async()=>path==='/gui.json'?${JSON.stringify(manifest)}:
@@ -52,7 +50,7 @@ let html = source.replace('<head>', '<head>'+bootstrap)
   .replace('await handshake();','await handshake(document,window.testHandshake,{protocol:"http:",search:""});');
 const tail = html.lastIndexOf('</script>');
 html = html.slice(0,tail)+'\nwindow.motionTest={api,newplan:await import("./newplan.js")};\n'+html.slice(tail);
-writeFileSync(fixture, html);
+const server = await serveBrowserFixture(new Map([['/fixture', ['text/html; charset=utf-8', html]]]));
 const pause = ms=>new Promise(r=>setTimeout(r,ms));
 let browser, socket, seq=0;
 const pending=new Map();
@@ -81,7 +79,7 @@ async function until(expr,message) {
   assert.fail(message+': '+await evaluate('return JSON.stringify({errors,mode:document.documentElement.dataset.mode,flights:flights.map(f=>[f.el.id||f.el.className,f.options.duration,f.a.playState])})'));
 }
 async function open({warm = true} = {}) {
-  await cdp('Page.navigate',{url:pathToFileURL(fixture).href+'?mock'});
+  await cdp('Page.navigate',{url:server.origin+'/fixture?mock'});
   await until('!!window.motionTest','fixture ready');
   if (warm) await evaluate('await motionTest.newplan.prepare(motionTest.api);');
   await evaluate('window.scrub=true;window.flights=[];');
@@ -98,11 +96,10 @@ async function calibrate() {
   await until('flights.some(f=>f.el.classList.contains("np")&&f.options.duration===760)','pan ready');
 }
 try {
-  browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--disable-background-networking','--no-sandbox','--no-first-run','--no-default-browser-check',
-    '--allow-file-access-from-files','--remote-debugging-port=0',`--user-data-dir=${join(dir,'profile')}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
+  browser=launchBrowser(edge, join(dir,'profile'), ['--mute-audio','--no-sandbox','--remote-debugging-port=0','about:blank'],{disableGpu: true, windowsHide:true,stdio:'ignore'});
   let port;
   for(let i=0;i<100&&!port;i++) {
-    try {port=readFileSync(join(dir,'profile','DevToolsActivePort'),'utf8').split(/\r?\n/)[0];}
+    try {port=readFileSync(devToolsPortFile(browser),'utf8').split(/\r?\n/)[0];}
     catch(e){if(!['ENOENT','EBUSY','EPERM','EACCES'].includes(e.code))throw e;}
     if(!port)await pause(100);
   }
@@ -478,7 +475,7 @@ try {
   await check('document.querySelectorAll("#lobby-art img[src]").length===lobbyBitmaps.length','theme change keeps only active lobby sources');
   console.log('PASS: motion audit 1–24, paused/scrubbed WAAPI and rAF, labels, transform flights, dial, preview readiness, reverse load, resize, motion-off and prior interruption regressions');
 } finally {
-  if(socket?.readyState===WebSocket.OPEN){await cdp('Browser.close').catch(()=>{});socket.close();}
-  if(browser?.exitCode===null){await Promise.race([new Promise(r=>browser.once('close',r)),pause(2000)]);if(browser.exitCode===null)browser.kill();}
+  await stopBrowser(browser,socket);
+  await server.close();
   await rm(dir,{recursive:true,force:true,maxRetries:8,retryDelay:250});
 }

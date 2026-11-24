@@ -1,4 +1,5 @@
-// Edge/CDP: the same backend and UI for the tiny fixture and opt-in real-library evidence.
+// CDP: the same backend and UI for the tiny fixture and opt-in real-library evidence.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {readFile,writeFile,mkdir,rm} from 'node:fs/promises';
 import {createServer} from 'node:http';
@@ -43,8 +44,8 @@ try{
     res.setHeader('Content-Type',({'.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'})[extname(file)]??'application/octet-stream');res.end(await readFile(file));
   }catch{res.writeHead(404);res.end();}}).listen(0,'127.0.0.1');await once(server,'listening');
   const profile=join(out,'edge-profile');
-  edge=spawn('C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',['--headless=new','--mute-audio','--disable-background-networking','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',windowsHide:true});
-  let debug;await until(async()=>{try{debug=(await readFile(join(profile,'DevToolsActivePort'),'utf8')).split(/\r?\n/)[0];return true;}catch{return false;}});
+  edge=launchBrowser(selectBrowser(), profile, ['--mute-audio','--remote-debugging-port=0','about:blank'],{stdio:'ignore',windowsHide:true});
+  let debug;await until(async()=>{try{debug=(await readFile(devToolsPortFile(edge),'utf8')).split(/\r?\n/)[0];return true;}catch{return false;}});
   const pages=await(await fetch(`http://127.0.0.1:${debug}/json/list`)).json();ws=new WebSocket(pages.find(p=>p.type==='page').webSocketDebuggerUrl);await once(ws,'open');
   let seq=0;const pending=new Map(),errors=[];
   ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.id){pending.get(m.id)?.(m);pending.delete(m.id);}if(m.method==='Runtime.exceptionThrown')errors.push(m.params);};
@@ -256,8 +257,13 @@ try{
   await writeFile(join(out,'colour-browser-results.json'),JSON.stringify(result,null,2),'utf8');console.log(JSON.stringify(result));
   await run('A.editor.colourRenderer?.dispose()');
 }finally{
-  ws?.close();edge?.kill();backend.kill();server?.close();
-  if(edge)await once(edge,'exit').catch(()=>{});
+  await stopBrowser(edge,ws);
+  if(backend.exitCode===null && backend.signalCode===null){
+    const exited=once(backend,'exit');
+    backend.kill();
+    await exited;
+  }
+  server?.close();
   // The browser profile is disposable; logs, results and screenshots are evidence.
   const profile=join(out,'edge-profile');if(profile.startsWith(out+sep))await rm(profile,{recursive:true,force:true,maxRetries:10,retryDelay:100});
 }

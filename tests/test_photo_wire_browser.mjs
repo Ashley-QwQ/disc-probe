@@ -1,15 +1,15 @@
 // Optional real-browser integration: intercepted fixtures, never the drive backend or a running server.
 // Uses Node's built-in WebSocket/CDP, so the site keeps its zero-npm-dependency setup.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {existsSync,readFileSync} from 'node:fs';
+import {readFileSync} from 'node:fs';
 import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises';
-import {spawn} from 'node:child_process';
 import {join,resolve,dirname,extname} from 'node:path';
 import {tmpdir} from 'node:os';
 import {once} from 'node:events';
 
-const edge=process.env.PHOTO_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+const edge=selectBrowser({legacy: ['PHOTO_TEST_BROWSER'], optional: true});
 const testRoot=tmpdir();
 const home=new URL('../discprobe/web/home/',import.meta.url);
 const alignmentFixture=process.env.PHOTO_ALIGN_FIXTURE ? JSON.parse(readFileSync(process.env.PHOTO_ALIGN_FIXTURE,'utf8')) : null;
@@ -61,15 +61,15 @@ photo:(id='p1')=>({id,name:id+'.svg',url:'/disc.svg'}),
 helpAfter(ms){clockNow=window.helpBorn+ms;window.helpTimer();},
 };`;
 
-test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallback', {skip:!existsSync(edge),timeout:60000}, async()=>{
+test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallback', {skip:!edge,timeout:60000}, async()=>{
   const dir=await mkdtemp(join(testRoot,'.photo-wire-browser-'));
   let browser, ws;
   let upload;
   try{
-    browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--no-sandbox','--disable-background-networking','--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${dir}`,'about:blank'],{stdio:'ignore',windowsHide:true});
+    browser=launchBrowser(edge, dir, ['--mute-audio','--no-sandbox','--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1','--remote-debugging-port=0','about:blank'],{disableGpu: true, stdio:'ignore',windowsHide:true});
     browser.on('error',()=>{});
     let port;
-    for(let i=0;i<100;i++){try{port=(await readFile(join(dir,'DevToolsActivePort'),'utf8')).split('\n')[0];break;}catch{await new Promise(r=>setTimeout(r,100));}}
+    for(let i=0;i<100;i++){try{port=(await readFile(devToolsPortFile(browser),'utf8')).split('\n')[0];break;}catch{await new Promise(r=>setTimeout(r,100));}}
     assert.ok(port,'Headless browser did not start');
     assert.notEqual(Number(port),8765);
     const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`,{signal:AbortSignal.timeout(5000)})).json();
@@ -385,8 +385,7 @@ test('photo flow in Chromium: paper, keys, polling, verdicts, upload and fallbac
     await Promise.all([...intercepts]);
     assert.deepEqual(interceptErrors,[],'fixture requests must complete before teardown');
   }finally{
-    ws?.close();
-    if(browser && browser.exitCode===null){browser.kill();await Promise.race([once(browser,'exit'),new Promise(r=>setTimeout(r,3000))]);}
+    await stopBrowser(browser,ws);
     // Only remove the freshly created browser profile, after checking its absolute parent.
     assert.equal(dirname(resolve(dir)),resolve(testRoot));
     assert.ok(resolve(dir).startsWith(join(resolve(testRoot),'.photo-wire-browser-')));

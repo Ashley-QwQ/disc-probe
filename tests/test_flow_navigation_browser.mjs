@@ -1,4 +1,5 @@
 // Real HTTP/CSP and browser history, virtual core only. Screenshots go to FLOWNAV_SHOTS or the system temp folder.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync} from 'node:fs';
@@ -40,12 +41,11 @@ try {
   for(let i=0;i<400&&!out.includes('\n')&&server.exitCode===null;i++)await pause(25);
   assert(out.includes('\n'), err); const ports=JSON.parse(out.split('\n')[0]);
   const profile=join(dir,'edge');
-  browser=spawn(process.env.KIT_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',[
-    '--headless=new','--mute-audio','--disable-gpu','--disable-background-networking','--no-first-run','--no-default-browser-check',
-    '--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'], {stdio:'ignore',windowsHide:true});
+  browser=launchBrowser(selectBrowser({legacy: ['KIT_TEST_BROWSER']}), profile, [
+    '--mute-audio','--remote-debugging-port=0','about:blank'], {disableGpu: true, stdio:'ignore',windowsHide:true});
   let port;
-  for(let i=0;i<300;i++){try{port=readFileSync(join(profile,'DevToolsActivePort'),'utf8').split('\n')[0];break;}catch{await pause(25);}}
-  assert(port,'Edge did not start');
+  for(let i=0;i<300;i++){try{port=readFileSync(devToolsPortFile(browser),'utf8').split('\n')[0];break;}catch{await pause(25);}}
+  assert(port,'Browser did not start');
   const tabs=await(await fetch('http://127.0.0.1:'+port+'/json/list')).json();
   socket=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);
   await new Promise((r,j)=>{socket.onopen=r;socket.onerror=j;});
@@ -231,16 +231,7 @@ try {
   console.error('Network errors:',JSON.stringify(networkErrors));
   throw error;
 } finally {
-  if (browser && browser.exitCode === null) {
-    const exited = new Promise(resolve => browser.once('exit', resolve));
-    if (socket?.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({id: ++seq, method: 'Browser.close'}));
-      await Promise.race([exited, pause(3000)]);
-    }
-    if (browser.exitCode === null) browser.kill();
-    await exited;
-  }
-  socket?.close();
+  await stopBrowser(browser, socket);
   server.stdin.end();if(server.exitCode===null)await new Promise(r=>server.once('exit',r));
   assert.equal(resolve(dir,'..'),resolve(tmpdir()));rmSync(dir,{recursive:true,force:true,maxRetries:5,retryDelay:200});
 }

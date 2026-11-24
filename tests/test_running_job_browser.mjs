@@ -1,17 +1,17 @@
-// Headless Edge against the shipped HTTP service and a recorded Disc Lab DVD.
+// Headless Chromium against the shipped HTTP service and a recorded Disc Lab DVD.
+import {devToolsPortFile, launchBrowser, removeProfile, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {spawn, spawnSync} from 'node:child_process';
 import {existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
-import {endProfileProcesses, removeProfile, stopEdge} from './edge_cleanup.mjs';
 
 const root = process.env.RUNJOB_TEST_ROOT ?? join(tmpdir(), 'discprobe-running-job');
 const memory = process.env.RUNJOB_MEMORY;
 const idle = process.env.RUNJOB_IDLE;
 const shots = process.env.RUNJOB_SHOTS;
-const edge = process.env.PASTWORKS_TEST_BROWSER ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+const edge = selectBrowser({legacy: ['PASTWORKS_TEST_BROWSER']});
 mkdirSync(root, {recursive:true});
 const dir = mkdtempSync(join(root, 'scenario-'));
 const lab = join(dir, 'lab');
@@ -66,7 +66,7 @@ async function tab({lang = 'en', theme = 'paper', width = 1440, reduce = true} =
     `localStorage.setItem('dp-lang',${JSON.stringify(lang)}); localStorage.setItem('dp-theme',${JSON.stringify(themeSetting)}); localStorage.setItem('dp-motion',${JSON.stringify(reduce ? 'off' : 'on')});`});
   await command('Page.navigate', {url:origin + '/home/'});
   await until(() => evaluate(`document.documentElement?.dataset.lang === ${JSON.stringify(lang)} &&
-    document.documentElement.dataset.theme === ${JSON.stringify(themeSetting)} && innerWidth === ${width}`),
+    document.documentElement?.dataset.theme === ${JSON.stringify(themeSetting)} && innerWidth === ${width}`),
   'requested language, theme and viewport loaded');
   return {
     command, evaluate,
@@ -76,11 +76,11 @@ async function tab({lang = 'en', theme = 'paper', width = 1440, reduce = true} =
   };
 }
 
-const navigationReady = `document.documentElement.dataset.navigation === 'ready'`;
-const inCal = `document.documentElement.dataset.mode === 'cal'`;
-const inLobby = `!document.documentElement.dataset.mode && document.documentElement.dataset.home === 'lobby'`;
-const inLibrary = `!document.documentElement.dataset.mode && document.documentElement.dataset.home === 'library'`;
-const inGeometry = `${inCal} && ['Geometry', '测几何'].includes(document.querySelector('#job-name').textContent)`;
+const navigationReady = `document.documentElement?.dataset.navigation === 'ready'`;
+const inCal = `document.documentElement?.dataset.mode === 'cal'`;
+const inLobby = `!document.documentElement?.dataset.mode && document.documentElement?.dataset.home === 'lobby'`;
+const inLibrary = `!document.documentElement?.dataset.mode && document.documentElement?.dataset.home === 'library'`;
+const inGeometry = `${inCal} && ['Geometry', '测几何'].includes(document.querySelector('#job-name')?.textContent)`;
 const reopen = `!document.querySelector('#next').disabled && ['Return to calibration', '回到校准'].includes(document.querySelector('#next-text').textContent)`;
 
 async function screenshot(page, name) {
@@ -246,12 +246,11 @@ try {
   assert.notEqual(+port, 8765);
   origin = 'http://127.0.0.1:' + port;
   await until(() => fetch(origin + '/api/state').then(r => r.ok).catch(() => false), 'Disc Lab HTTP ready');
-  browser = spawn(edge, ['--headless=new','--mute-audio','--disable-gpu','--disable-background-networking',
-    '--no-first-run','--no-default-browser-check','--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'],
-  {windowsHide:true, stdio:'ignore'});
+  browser = launchBrowser(edge, profile, ['--mute-audio','--remote-debugging-port=0', 'about:blank'],
+  {disableGpu: true, windowsHide:true, stdio:'ignore'});
   const debugPort = await until(() => {
-    try { return readFileSync(join(profile,'DevToolsActivePort'),'utf8').split(/\r?\n/)[0]; } catch {}
-  }, 'Edge debugging ready');
+    try { return readFileSync(devToolsPortFile(browser),'utf8').split(/\r?\n/)[0]; } catch {}
+  }, 'Browser debugging ready');
   assert.notEqual(+debugPort, 8765);
   const debug = await fetch(`http://127.0.0.1:${debugPort}/json/version`).then(r => r.json());
   socket = new WebSocket(debug.webSocketDebuggerUrl);
@@ -279,8 +278,8 @@ try {
   }
 } finally {
   writeFileSync(join(dir, 'server.log'), output);
-  await stopEdge(browser, socket);
-  if (existsSync(profile)) { endProfileProcesses(profile); removeProfile(profile, dir); }
+  await stopBrowser(browser, socket);
+  if (existsSync(profile)) { removeProfile(profile, dir); }
   if (server?.pid && server.exitCode === null) {
     if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(server.pid), '/T', '/F'], {windowsHide:true, stdio:'ignore'});
     else server.kill();

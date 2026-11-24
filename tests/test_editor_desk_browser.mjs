@@ -1,8 +1,8 @@
-// Card X: local-only Edge fixture, fit-follow and edge-fade regression for the selected wood desk.
+// Card X: local-only browser fixture, fit-follow and edge-fade regression for the selected wood desk.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {readFile, writeFile, mkdir, rm} from 'node:fs/promises';
 import {createServer} from 'node:http';
-import {spawn} from 'node:child_process';
 import {once} from 'node:events';
 import {resolve, extname, join, sep} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -33,15 +33,14 @@ const server=createServer(async(req,res)=>{try{
 }catch{res.writeHead(404);res.end();}}).listen(0,'127.0.0.1');
 await once(server,'listening');
 const profile=join(out,'edge-desk-'+Date.now());
-const edge=spawn(process.env.KIT_TEST_BROWSER??'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',[
-  '--headless=new','--mute-audio','--disable-background-networking','--no-first-run','--no-default-browser-check',
-  '--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',windowsHide:true});
+const edge=launchBrowser(selectBrowser({legacy: ['KIT_TEST_BROWSER']}), profile, [
+  '--mute-audio','--remote-debugging-port=0','about:blank'],{stdio:'ignore',windowsHide:true});
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 let ws,seq=0;const pending=new Map(),errors=[],checks=[],measurements=[];
 try{
   let port;
-  for(let i=0;i<200;i++){try{port=(await readFile(join(profile,'DevToolsActivePort'),'utf8')).split(/\r?\n/)[0];break;}catch{await pause(50);}}
-  assert.ok(port,'Edge starts');
+  for(let i=0;i<200;i++){try{port=(await readFile(devToolsPortFile(edge),'utf8')).split(/\r?\n/)[0];break;}catch{await pause(50);}}
+  assert.ok(port,'Browser starts');
   const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();
   ws=new WebSocket(pages.find(p=>p.type==='page').webSocketDebuggerUrl);await once(ws,'open');
   ws.onmessage=({data})=>{const m=JSON.parse(data);if(m.id){pending.get(m.id)?.(m);pending.delete(m.id);}if(m.method==='Runtime.exceptionThrown')errors.push(m.params);};
@@ -168,7 +167,7 @@ try{
   await writeFile(join(out,'desk-check.json'),JSON.stringify({checks,opacity,measurements,errors},null,2),'utf8');
   console.log(JSON.stringify({checks:checks.length,screenshots:8,errors:errors.length,out,shots}));
 }finally{
-  ws?.close();edge.kill();server.close();
+  await stopBrowser(edge,ws);server.close();
   await pause(750);
   assert.ok(profile.startsWith(out+sep));
   await rm(profile,{recursive:true,force:true,maxRetries:5,retryDelay:200});

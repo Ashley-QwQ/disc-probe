@@ -1,9 +1,9 @@
-// Offline Edge evidence for A2. All artifacts/profiles stay outside the checkout.
+// Offline browser evidence for A2. All artifacts/profiles stay outside the checkout.
 // No application backend or optical device is used by this fixture.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {tmpdir} from 'node:os';
 import {createServer} from 'node:http';
-import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {existsSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync} from 'node:fs';
 import {rm} from 'node:fs/promises';
@@ -13,7 +13,7 @@ const root = resolve(import.meta.dirname, '..');
 const out = process.env.BRAND_MIXED_OUTPUT || join(tmpdir(), 'discprobe-brand-mixed');
 mkdirSync(out, {recursive:true});
 const profile = mkdtempSync(join(out, 'edge-'));
-const edge = process.env.EDGE || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+const edge = selectBrowser({legacy: ['EDGE']});
 const before = readFileSync(join(root, 'tests/fixtures/title-fonts-before.css'), 'utf8');
 const titles = ['新作品', '光盘刻录', '刻录 DVD-R 16x', 'Disc Probe 盘库', 'BD 校准 2026', 'DISC-PROBE 1201'];
 // Use actual title sizes/widths plus normal and fixed line heights. Main report
@@ -52,9 +52,8 @@ const server = createServer((req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const origin=`http://127.0.0.1:${server.address().port}`;
-const child=spawn(edge,['--headless=new','--mute-audio','--remote-debugging-port=0',`--user-data-dir=${profile}`,
-  '--disable-gpu','--disable-background-networking','--no-first-run','--hide-scrollbars','about:blank'],
-  {stdio:'ignore',windowsHide:true});
+const child=launchBrowser(edge, profile, ['--mute-audio','--remote-debugging-port=0','--hide-scrollbars','about:blank'],
+  {disableGpu: true, stdio:'ignore',windowsHide:true});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let ws,seq=0;
 const pending=new Map(),evidence=[],failures=[];
@@ -73,8 +72,8 @@ async function fontsFor(selector) {
   return (await send('CSS.getPlatformFontsForNode',{nodeId})).fonts;
 }
 try {
-  for(let i=0;i<100&&!existsSync(join(profile,'DevToolsActivePort'));i++)await sleep(100);
-  const port=readFileSync(join(profile,'DevToolsActivePort'),'utf8').split('\n')[0];
+  for(let i=0;i<100&&!existsSync(devToolsPortFile(child));i++)await sleep(100);
+  const port=readFileSync(devToolsPortFile(child),'utf8').split('\n')[0];
   const tabs=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();
   ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);
   await new Promise((r,j)=>{ws.addEventListener('open',r,{once:true});ws.addEventListener('error',j,{once:true});});
@@ -161,7 +160,7 @@ try {
     failures,evidence},null,2));
   console.log(`PASS: ${roles.length} roles x 4 states x ${titles.length} titles; blocked font requests, platform faces, metrics and ${evidence.length} screenshots verified`);
 } finally {
-  ws?.close();child.kill();server.closeAllConnections();await new Promise(r=>server.close(r));
+  await stopBrowser(child,ws);server.closeAllConnections();await new Promise(r=>server.close(r));
   for(const p of pending.values())clearTimeout(p.timer);
   await sleep(800);
   assert.ok(resolve(profile).startsWith(resolve(out)+sep));

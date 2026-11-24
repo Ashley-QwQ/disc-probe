@@ -1,6 +1,6 @@
-"""Deterministic icon export using local Edge SVG/canvas and Pillow PNG encoding.
+"""Deterministic icon export using local Chromium SVG/canvas and Pillow PNG encoding.
 
-No downloads. Repeated runs with the same SVGs, Edge and Pillow yield identical
+No downloads. Repeated runs with the same SVGs, browser and Pillow yield identical
 bytes. 16/24 px use icon-small; 32 px and above use icon. Night/ink is default.
 Temporary browser files stay on D: unless --temp-dir explicitly overrides it.
 """
@@ -14,16 +14,19 @@ import json
 from pathlib import Path
 import re
 import struct
-import subprocess
 import tempfile
 
 from PIL import Image
+
+if __package__:
+    from .browser import run_browser
+else:
+    from browser import run_browser
 
 ROOT = Path(__file__).resolve().parents[1]
 BRAND = ROOT / "discprobe/web/brand"
 PRODUCTS = ("probe", "lab", "neo")
 SIZES = (16, 24, 32, 48, 64, 128, 180, 256, 512)
-EDGE = Path("C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe")
 
 
 def png(data):
@@ -45,7 +48,7 @@ def ico(frames):
     return header + b"".join(entries + payload)
 
 
-def export(edge=EDGE, temp_dir=Path("D:/dp-dev/tmp/brand/export")):
+def export(edge=None, temp_dir=Path("D:/dp-dev/tmp/brand/export")):
     temp_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=temp_dir) as tmp:
         tmp = Path(tmp)
@@ -70,13 +73,12 @@ for (const [product, icons] of Object.entries(sources)) {
 document.getElementById('out').textContent = JSON.stringify(result);
 } catch(e) { document.getElementById('out').textContent = 'ERROR: ' + e.stack; } })();
 </script>'''.replace("SOURCES", json.dumps(sources)).replace("SIZES", json.dumps(SIZES)), encoding="utf-8")
-        result = subprocess.run([str(edge), "--headless=new","--mute-audio", "--disable-gpu", "--no-first-run",
-                                 "--disable-background-networking", f"--user-data-dir={tmp / 'profile'}",
-                                 "--virtual-time-budget=10000", "--dump-dom", page.as_uri()],
-                                capture_output=True, check=True, timeout=90)
+        result = run_browser(tmp / "profile", ["--mute-audio",
+                             "--virtual-time-budget=10000", "--dump-dom", page.as_uri()],
+                             executable=edge, disable_gpu=True, check=True, timeout=90)
         match = re.search(r'<pre id="out">(.*?)</pre>', result.stdout.decode("utf-8"), re.S)
         if not match or not unescape(match[1]).startswith("{"):
-            raise RuntimeError("Edge canvas export did not complete")
+            raise RuntimeError("Browser canvas export did not complete")
         rendered = json.loads(unescape(match[1]))
         for product in PRODUCTS:
             folder = BRAND / product
@@ -97,7 +99,7 @@ document.getElementById('out').textContent = JSON.stringify(result);
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--edge", type=Path, default=EDGE)
+    parser.add_argument("--browser", "--edge", type=Path)
     parser.add_argument("--temp-dir", type=Path, default=Path("D:/dp-dev/tmp/brand/export"))
     args = parser.parse_args()
-    export(args.edge, args.temp_dir)
+    export(args.browser, args.temp_dir)

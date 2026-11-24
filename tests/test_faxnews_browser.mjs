@@ -1,21 +1,22 @@
 // The news fax page in a real browser (file URL, mocked fetch for the paper; no server, no drive).
 // First visit note -> dial -> paper; order a skin -> parcel; no line, bad paper and a missing paper end in
 // receipts with ways on; reduced motion skips the call; with motion, Enter skips it; back returns to the lobby.
+import {runBrowser, selectBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
-import {existsSync, readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync} from 'node:fs';
+import {readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {spawnSync} from 'node:child_process';
 
-const browser = process.env.KIT_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-if (!existsSync(browser)) throw Error('faxnews browser test requires Chromium; set KIT_TEST_BROWSER');
+const browser = selectBrowser({legacy: ['KIT_TEST_BROWSER']});
 const dir = mkdtempSync(join(tmpdir(), 'discprobe-faxnews-'));
 const home = new URL('../discprobe/web/home/', import.meta.url);
 const index = readFileSync(new URL('index.html', home), 'utf8');
 const style = index.match(/<style>([\s\S]*?)<\/style>/)[1];
 const sample = readFileSync(new URL('faxnews/news.json', home), 'utf8');
 const communitySample = readFileSync(new URL('faxnews/community.json', home), 'utf8');
+const faxAssets = Object.fromEntries(['fax.json', 'skins/kraft-office.json', 'skins/night-blueprint.json']
+  .map(path => [path, JSON.parse(readFileSync(new URL('faxnews/' + path, home), 'utf8'))]));
 const screenshotDir = resolve(process.env.FAX_SHOTS_DIR || join(tmpdir(), 'faxnews-shots')); mkdirSync(screenshotDir, {recursive: true});
 const fixture = join(dir, 'fax.html');
 const html = `<!doctype html><html data-theme="paper"><meta charset="utf-8"><base href="${home.href}">
@@ -35,12 +36,15 @@ let reduce=true, lobbyVisits=0, language='zh';
 const api={$,lang:()=>language,get reduce(){return reduce},toLobby(){lobbyVisits++}};
 // every request the page makes goes through here; the paper's answer is chosen per step
 const calls=[]; let answer='ok'; const SAMPLE=${JSON.stringify(sample)}, COMMUNITY=${communitySample};
-const nativeFetch=window.fetch.bind(window);
+const assets=${JSON.stringify(faxAssets)};
 window.fetch=async(url,opts={})=>{
   const u=new URL(String(url),document.baseURI);
-  if(u.pathname.endsWith('/api/news/asset')) { calls.push({url:u.href,opts}); return nativeFetch(new URL('faxnews/'+u.searchParams.get('path'),document.baseURI),opts); }
-  if(u.pathname.endsWith('/faxnews/fax.json'))
-    {if(u.pathname.includes('/skins/'))calls.push({url:u.href,opts});return nativeFetch(url,opts);}
+  if(u.pathname.endsWith('/api/news/asset')) {
+    calls.push({url:u.href,opts});
+    const asset=assets[u.searchParams.get('path')];
+    return asset ? new Response(JSON.stringify(asset)) : new Response('missing fixture asset',{status:404});
+  }
+  if(u.pathname.endsWith('/faxnews/fax.json'))return new Response(JSON.stringify(assets['fax.json']));
   calls.push({url:u.href,opts});
   if(u.pathname.endsWith('/api/community')) {
     if(opts.method==='POST')return new Response(JSON.stringify({written:[{index:0}],duplicates:[]}));
@@ -193,10 +197,9 @@ try {
     const wrapper = join(dir, 'view-' + i + '.html');
     writeFileSync(wrapper, '<!doctype html><html><meta charset="utf-8"><style>html,body{margin:0;overflow:hidden}iframe{display:block;border:0}</style><body><iframe style="width:' + c.width + 'px;height:' + c.height + 'px" src="' + url.href + '"></iframe><pre id="result" hidden>PENDING</pre><script>setInterval(()=>{const r=document.querySelector("iframe").contentDocument?.getElementById("result");if(r)document.getElementById("result").textContent=r.textContent},20)<\/script></body></html>');
     const screenshot = join(screenshotDir, `faxnews-${c.theme}-${c.width}${c.slip ? '-slip' : ''}.png`);
-    const result = spawnSync(browser, ['--headless=new','--mute-audio', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
-      '--allow-file-access-from-files', '--user-data-dir=' + join(dir, 'profile-' + i), '--window-size=' + Math.max(500, c.width) + ',' + c.height,
+    const result = runBrowser(browser, join(dir, 'profile-' + i), ['--mute-audio', '--no-sandbox', '--allow-file-access-from-files', '--window-size=' + Math.max(500, c.width) + ',' + c.height,
       '--force-device-scale-factor=1', '--hide-scrollbars', '--virtual-time-budget=60000', '--dump-dom', '--screenshot=' + screenshot, pathToFileURL(wrapper).href],
-    {encoding: 'utf8', timeout: 90000, maxBuffer: 8 * 1024 * 1024, windowsHide: true});
+    {disableGpu: true, encoding: 'utf8', timeout: 90000, maxBuffer: 8 * 1024 * 1024, windowsHide: true});
     assert.ifError(result.error);
     const report = result.stdout.match(/<pre id="result"[^>]*>([\s\S]*?)<\/pre>/)?.[1];
     if (!/^PASS/.test(report || '')) console.error(report || result.stderr.slice(-2000));

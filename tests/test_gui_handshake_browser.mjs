@@ -1,14 +1,13 @@
 // Real DOM startup checks using synthetic local responses; no device or network requests.
+import {runBrowser, selectBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
-import {readFileSync, writeFileSync, mkdtempSync, existsSync} from 'node:fs';
+import {readFileSync, writeFileSync, mkdtempSync} from 'node:fs';
 import {rm} from 'node:fs/promises';
-import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 
-const edge = process.env.HANDSHAKE_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-assert.ok(existsSync(edge), 'Set HANDSHAKE_TEST_BROWSER to Chromium');
+const edge = selectBrowser({legacy: ['HANDSHAKE_TEST_BROWSER']});
 const dir = mkdtempSync(join(tmpdir(), 'discprobe-handshake-'));
 const home = new URL('../discprobe/web/home/', import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL('../gui.json', home), 'utf8'));
@@ -61,9 +60,8 @@ try {
 } catch(e) {document.getElementById('result').textContent='FAIL: '+e.message;}
 </script>`);
 try {
-  const run = spawnSync(edge, ['--headless=new','--mute-audio','--no-sandbox','--disable-gpu','--disable-background-networking','--no-first-run','--no-default-browser-check',
-    '--allow-file-access-from-files',`--user-data-dir=${join(dir,'profile')}`,'--virtual-time-budget=5000','--dump-dom',pathToFileURL(fixture).href],
-    {encoding:'utf8',timeout:45000,windowsHide:true,maxBuffer:4*1024*1024});
+  const run = runBrowser(edge, join(dir,'profile'), ['--mute-audio','--no-sandbox','--allow-file-access-from-files','--virtual-time-budget=5000','--dump-dom',pathToFileURL(fixture).href],
+    {disableGpu: true, encoding:'utf8',timeout:45000,windowsHide:true,maxBuffer:4*1024*1024});
   assert.ifError(run.error);
   const result=run.stdout.match(/<pre id="result">([\s\S]*?)<\/pre>/)?.[1];
   assert.match(result || run.stderr,/^PASS:/); console.log(result);

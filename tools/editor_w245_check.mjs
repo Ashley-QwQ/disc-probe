@@ -1,11 +1,13 @@
-// Local-only Edge/CDP acceptance and before/after performance capture. No backend or devices.
+// Local-only browser acceptance and before/after performance capture. No backend or devices.
+import {devToolsPortFile, launchBrowser, removeProfile, selectBrowser, stopBrowser} from '../tests/browser.mjs';
 import assert from 'node:assert/strict';
-import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {readFile,writeFile,mkdir,mkdtemp} from 'node:fs/promises';
 import {createServer} from 'node:http';
-import {spawn,execFileSync} from 'node:child_process';
+import {execFileSync} from 'node:child_process';
 import {once} from 'node:events';
-import {resolve,extname,join} from 'node:path';
+import {resolve,extname,join,sep} from 'node:path';
 const phase=process.argv[2]??'after',out=resolve(process.env.W245_OUT??'D:/dp-dev/tmp/editor');
+const browser=selectBrowser();
 await mkdir(join(out,'shots'),{recursive:true});
 const home=resolve('discprobe/web/home'),index=await readFile(join(home,'index.html'),'utf8');
 const fixture=index.replace('data-handshake="pending"','data-handshake="fixture" data-motion="off" data-theme="light"').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace('<head>','<head><base href="/home/">').replace('</body>',`<script type="module">
@@ -18,16 +20,16 @@ const server=createServer(async(req,res)=>{try{
   if(req.url==='/fixture'){res.setHeader('Content-Type','text/html;charset=utf-8');res.end(fixture);return;}
   if(req.url.startsWith('/api/')){res.writeHead(404);res.end();return;}
   const relative=decodeURIComponent(req.url.split('?')[0].replace(/^\/home\//,'')),file=relative.startsWith('/fonts/')?resolve(home,'..',relative.slice(1)):resolve(home,relative);
-  if((!file.startsWith(home+'\\')&&!file.startsWith(resolve(home,'../fonts')+'\\'))||/b[l]ind/i.test(file))throw Error('outside fixture');
+  if((!file.startsWith(home+sep)&&!file.startsWith(resolve(home,'../fonts')+sep))||/b[l]ind/i.test(file))throw Error('outside fixture');
   res.setHeader('Content-Type',({'.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'})[extname(file)]??'application/octet-stream');
   const original=['design.js','design.css','design/editor-ui.mjs','design/editor-controls.mjs'].includes(relative)&&phase==='before';
   res.end(original?execFileSync('git',['show',`${process.env.W245_BASE??'731b199'}:discprobe/web/home/${relative}`],{maxBuffer:4e6}):await readFile(file));
 }catch{res.writeHead(404);res.end();}}).listen(0,'127.0.0.1');await once(server,'listening');
-const profile=join(out,'profile-'+phase+'-'+Date.now());
-const edge=spawn('C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',['--headless=new','--mute-audio','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',windowsHide:true});
+const profile=await mkdtemp(join(out,'profile-'));
+const edge=launchBrowser(browser, profile, ['--mute-audio','--remote-debugging-port=0','about:blank'],{stdio:'ignore',windowsHide:true});
 const pause=ms=>new Promise(r=>setTimeout(r,ms));let ws;
 try{
- let port;for(let i=0;i<100;i++){try{port=(await readFile(join(profile,'DevToolsActivePort'),'utf8')).split(/\r?\n/)[0];break;}catch{await pause(100);}}
+ let port;for(let i=0;i<100;i++){try{port=(await readFile(devToolsPortFile(edge),'utf8')).split(/\r?\n/)[0];break;}catch{await pause(100);}}
  const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();ws=new WebSocket(pages.find(p=>p.type==='page').webSocketDebuggerUrl);await once(ws,'open');
  let seq=0;const pending=new Map(),errors=[];
  ws.onmessage=event=>{const m=JSON.parse(event.data);if(m.id){pending.get(m.id)?.(m);pending.delete(m.id);}if(m.method==='Runtime.exceptionThrown')errors.push(m.params);};
@@ -58,8 +60,11 @@ try{
  if(phase==='after'){
   // Frozen from 731b199's light-theme preview() on this fixture and burn grids. Since 2026-11-16 the disc is drawn
   // the same in both themes (the dark theme used to swap light and dark, which read as an inverted picture).
-  for(const [key,hash] of Object.entries(results.restingHashes))assert.equal(hash,'f0fe1afe07f50976046a0ef3ef00cf517abdcfcc9cd741b21e899cdaf5e0cc36','resting RGBA equals 731b199 light: '+key);
+  const expected=browser.shell
+    ? '315994a3c1e780f54c7769adb3e6c3d924db55aff226c0f32c6978a67087a186'
+    : 'f0fe1afe07f50976046a0ef3ef00cf517abdcfcc9cd741b21e899cdaf5e0cc36';
+  for(const [key,hash] of Object.entries(results.restingHashes))assert.equal(hash,expected,'resting RGBA equals 731b199 light: '+key);
   const {verify}=await import('./editor_w245_verify.mjs');results.acceptance=await verify({run,shot,pause,send});
  }
  await writeFile(join(out,phase+'.json'),JSON.stringify(results,null,2),'utf8');console.log(JSON.stringify({...results,frames:results.frames.map(({frames,...r})=>r)}));assert.equal(errors.length,0,JSON.stringify(errors));
-}finally{ws?.close();edge.kill();server.close();}
+}finally{await stopBrowser(edge,ws);server.close();removeProfile(profile,out);}

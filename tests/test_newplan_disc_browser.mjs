@@ -1,4 +1,5 @@
 // Real /api/disc reads through Disc Lab. No physical drive or burn job is used.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {execFileSync, spawn} from 'node:child_process';
 import {once} from 'node:events';
@@ -14,7 +15,7 @@ const shots = process.env.NEWPLAN_SHOTS;
 const onlyStarter = process.env.NEWPLAN_STARTER_ONLY === '1';
 if (shots) await mkdir(shots, {recursive: true});
 const python = process.env.PYTHON ?? 'python';
-const edge = process.env.KIT_TEST_BROWSER ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+const edge = selectBrowser({legacy: ['KIT_TEST_BROWSER']});
 const profile = join(temp, 'edge');
 const cases = [
   {key: 'blank', lang: 'zh', theme: 'light', words: /空白盘.*RITEKF1/, disc: {kind: 'DVD-R Sequential', blank: true, mid: 'RITEKF1'}},
@@ -120,8 +121,8 @@ async function runScene(scenario, verify) {
       const nav = await cdp('Page.navigate', {url});
       assert.equal(nav.errorText, undefined, key + ': navigating to Lab WebUI');
       const startup = await until(`location.origin === ${JSON.stringify(new URL(url).origin)} &&
-        (document.documentElement.dataset.navigation === "ready" &&
-        !document.getElementById("next").disabled ? "ready" : window.ndErrors?.[0])`, key + ': lobby missing');
+        (document.documentElement?.dataset.navigation === "ready" &&
+        document.getElementById("next")?.disabled === false ? "ready" : window.ndErrors?.[0])`, key + ': lobby missing');
       if (startup === 'ready') break;
       if (attempt || !startup.includes('Failed to fetch dynamically imported module')) throw Error(startup);
       console.warn(key + ': retrying lobby startup after a module load error');
@@ -267,13 +268,12 @@ async function verifyStarter({theme, lang}) {
 }
 
 try {
-  browser = spawn(edge, ['--headless=new', '--mute-audio', '--disable-gpu', '--disable-background-networking',
-    '--disable-component-update', '--no-first-run', '--no-default-browser-check', '--no-proxy-server',
+  browser = launchBrowser(edge, profile, ['--mute-audio', '--disable-component-update', '--no-proxy-server',
     '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1', '--remote-debugging-port=0',
-    `--user-data-dir=${profile}`, 'about:blank'],
-  {windowsHide: true, stdio: 'ignore', env: {...process.env, TEMP: temp, TMP: temp}});
-  const port = await waitFor(async () => (await readFile(join(profile, 'DevToolsActivePort'), 'utf8')
-    .catch(() => '')).split(/\r?\n/)[0], 'Edge did not start');
+    'about:blank'],
+  {disableGpu: true, windowsHide: true, stdio: 'ignore', env: {...process.env, TEMP: temp, TMP: temp}});
+  const port = await waitFor(async () => (await readFile(devToolsPortFile(browser), 'utf8')
+    .catch(() => '')).split(/\r?\n/)[0], 'Browser did not start');
   const pages = await fetch(`http://127.0.0.1:${port}/json/list`).then(r => r.json());
   socket = new WebSocket(pages.find(page => page.type === 'page').webSocketDebuggerUrl);
   await once(socket, 'open');
@@ -297,11 +297,7 @@ try {
       scenario.key === 'blank' ? () => verifyStarter(scenario) : null);
   }
 } finally {
-  if (socket?.readyState === WebSocket.OPEN) {
-    await Promise.race([cdp('Browser.close').catch(() => {}), delay(2000)]);
-    socket.close();
-  }
-  if (browser) await stop(browser);
+  await stopBrowser(browser, socket);
   assert.equal(dirname(resolve(profile)), temp);
   await rm(profile, {recursive: true, force: true, maxRetries: 8, retryDelay: 200});
   await rmdir(temp).catch(() => {}); // Keep failure fixtures only.

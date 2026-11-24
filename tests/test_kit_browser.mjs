@@ -1,18 +1,17 @@
-// DOM/event integration in headless Edge. File URLs only: no server, backend or drives.
+// DOM/event integration in headless Chromium. File URLs only: no server, backend or drives.
 // Synthetic pointer capture and a deterministic animation clock exercise the actual handlers.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, mkdtempSync, writeFileSync } from 'node:fs';
+import {readFileSync, mkdtempSync, writeFileSync} from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { spawn } from 'node:child_process';
 
 async function browserReport(edge, fixture, profile, size) {
   const deadline=Date.now()+30000;
-  const browser=spawn(edge,['--headless=new','--mute-audio','--disable-gpu','--no-sandbox','--no-first-run','--no-default-browser-check',
-    '--allow-file-access-from-files','--remote-debugging-port=0',`--user-data-dir=${profile}`,`--window-size=${size}`,'about:blank'],
-    {stdio:['ignore','ignore','pipe'],windowsHide:true});
+  const browser=launchBrowser(edge, profile, ['--mute-audio','--no-sandbox','--allow-file-access-from-files','--remote-debugging-port=0',`--window-size=${size}`,'about:blank'],
+    {disableGpu: true, stdio:['ignore','ignore','pipe'],windowsHide:true});
   let stderr='',spawnError,ws,seq=0;
   const pending=new Map();
   browser.stderr.on('data',chunk=>{stderr=(stderr+chunk).slice(-8192);});
@@ -36,7 +35,7 @@ async function browserReport(edge, fixture, profile, size) {
     while(Date.now()<deadline) {
       if(spawnError)throw spawnError;
       try {
-        const [value,endpoint]=(await readFile(join(profile,'DevToolsActivePort'),'utf8')).trim().split(/\r?\n/);
+        const [value,endpoint]=(await readFile(devToolsPortFile(browser),'utf8')).trim().split(/\r?\n/);
         if(/^\d+$/.test(value)&&endpoint?.startsWith('/devtools/browser/')){port=value;break;}
       }catch(error){if(!['ENOENT','EBUSY','EACCES','EPERM'].includes(error.code))throw error;}
       await pause(100);
@@ -66,7 +65,7 @@ async function browserReport(edge, fixture, profile, size) {
     throw new Error('UI kit did not finish within 30000 ms: '+stderr);
   }finally{
     // Close this profile through CDP: dump-dom can finish all assertions yet
-    // leave Edge waiting during its own shutdown, causing spawnSync ETIMEDOUT.
+    // leave the browser waiting during its own shutdown, causing spawnSync ETIMEDOUT.
     let closeError;
     if(ws?.readyState===WebSocket.OPEN&&browser.exitCode===null)try{
       await send('Emulation.setVirtualTimePolicy',{policy:'advance'},3000);
@@ -75,16 +74,17 @@ async function browserReport(edge, fixture, profile, size) {
     }catch(error){closeError=error;}
     ws?.close();
     const closed=await waitExit(Math.max(3000,deadline-Date.now()));
-    if(!closed){browser.kill();await waitExit(3000);throw new Error('The UI kit browser did not close');}
+    await stopBrowser(browser);
+    if(!closed)throw new Error('The UI kit browser did not close');
     if(closed.error)throw closed.error;
     if(closeError&&closed.code!==0)throw closeError;
     assert.equal(closed.code,0,'UI kit browser exit: '+JSON.stringify(closed)+' '+stderr);
   }
 }
 
-const edge = process.env.KIT_TEST_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-if (!existsSync(edge)) {
-  console.log('UI kit browser integration SKIPPED: set KIT_TEST_BROWSER to a Chromium executable');
+const edge = selectBrowser({legacy: ['KIT_TEST_BROWSER'], optional: true});
+if (!edge) {
+  console.log('UI kit browser integration SKIPPED: set DP_TEST_BROWSER to a Chromium executable');
 } else {
   const dir = mkdtempSync(join(tmpdir(), 'discprobe-kit-'));
   const kit = new URL('../discprobe/web/home/kit/', import.meta.url);
@@ -226,7 +226,7 @@ if (!existsSync(edge)) {
   const fixture = join(dir, 'fixture.html');
   try {
     for (const size of ['1360,1000', '390,844']) {
-      // Edge's outer headless window has a minimum width; the iframe sets the actual test viewport.
+      // A headless browser can impose a minimum outer window width; the iframe sets the actual test viewport.
       writeFileSync(fixture, html.replace('__PREVIEW_WIDTH__', size.startsWith('390') ? '390' : '1280'));
       const report=await browserReport(edge,fixture,join(dir,`profile-${size}`),size);
       assert.match(report, /^PASS: UI kit/, `${size}: ${report}`);

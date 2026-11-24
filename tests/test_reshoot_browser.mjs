@@ -1,18 +1,17 @@
 // The shipped desktop workflow against Disc Lab, with the real reader and sampler.
+import {devToolsPortFile, launchBrowser, selectBrowser, stopBrowser} from './browser.mjs';
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {copyFileSync, createReadStream, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {delimiter, isAbsolute, join, relative, resolve} from 'node:path';
-import {stopEdge, endProfileProcesses} from './edge_cleanup.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const base = resolve(process.env.RESHOOT_TEST_ROOT ?? join(tmpdir(), 'discprobe-reshoot'));
 const shots = resolve(process.env.RESHOOT_SHOTS ?? join(base, 'shots'));
 mkdirSync(base, {recursive:true}); mkdirSync(shots, {recursive:true});
-const browserBin = process.env.PASTWORKS_TEST_BROWSER ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-assert.ok(existsSync(browserBin), browserBin);
+const browserBin = selectBrowser({legacy: ['PASTWORKS_TEST_BROWSER']});
 const python = process.env.PYTHON ?? 'python';
 const fixture = join(root, 'tests/reshoot_lab_fixture.py');
 const profile = mkdtempSync(join(base, 'profile-'));
@@ -36,7 +35,7 @@ async function removeTemp(path) {
 }
 function processFor(lab, task, ...args) {
   const params = [fixture, task, lab, ...args.map(String)];
-  const activeEnv = task === 'serve' ? {...env, DISCPROBE_DISCLAB:lab, DISCLAB_ROOT:root,
+  const activeEnv = task === 'serve' ? {...env, DISCPROBE_DISCLAB:lab, DISCLAB_ROOT:root, DISC_PROBE_NO_DRIVES:'0',
     PYTHONPATH:[join(root, 'disclab/boot'), root, env.PYTHONPATH].filter(Boolean).join(delimiter),
     DISCPROBE_HOME:lab, DISCPROBE_PLAIN:'1', PYTHONIOENCODING:'utf-8'} : env;
   const child = spawn(python, ['-X', 'utf8', '-B', ...params], {cwd:root, env:activeEnv, windowsHide:true, stdio:['ignore','pipe','pipe']});
@@ -267,11 +266,10 @@ async function scenario(burnCount) {
 }
 
 try {
-  browser = spawn(browserBin, ['--headless=new', '--disable-gpu', '--mute-audio', '--disable-background-networking',
-    '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'],
-  {windowsHide:true, stdio:'ignore'});
+  browser = launchBrowser(browserBin, profile, ['--mute-audio', '--remote-debugging-port=0', 'about:blank'],
+  {disableGpu: true, windowsHide:true, stdio:'ignore'});
   const debugPort = await waitFor(() => {
-    try { return readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split(/\r?\n/)[0]; } catch { return null; }
+    try { return readFileSync(devToolsPortFile(browser), 'utf8').split(/\r?\n/)[0]; } catch { return null; }
   }, 'headless test browser did not start');
   const targets = await fetch(`http://127.0.0.1:${debugPort}/json/list`).then(r => r.json());
   socket = new WebSocket(targets.find(t => t.type === 'page').webSocketDebuggerUrl);
@@ -294,8 +292,8 @@ try {
   console.log('reshoot: 2 Disc Lab scenarios, 8 UI screenshots, 1 alignment-arrow preview');
 } finally {
   await stop();
-  await stopEdge(browser, socket);
-  endProfileProcesses(profile);
+  await stopBrowser(browser, socket);
+
   await removeTemp(profile);
   await removeTemp(cache);
   if (proof.length) writeFileSync(join(base, 'reshoot-evidence.json'), JSON.stringify(proof, null, 2));
